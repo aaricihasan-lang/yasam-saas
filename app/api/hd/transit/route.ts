@@ -1,11 +1,13 @@
+import { withTrialRoxyMeter } from "@/lib/trial/roxyMeter";
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { hitDbRateLimit, rateLimitBucket } from "@/lib/security/dbRateLimit";
-import { readRoxyServerConfig } from "@/lib/human-design/providers/roxy/config";
+import { transitProviderConfigFor } from "@/lib/human-design/transit/demoProviderPolicy";
 import { TransitEngineError } from "@/lib/human-design/transit/generalTransit";
 import { resolveGeneralTransit, TransitVerificationError } from "@/lib/human-design/transit/resolveTransit";
 import { callRoxyPlanets } from "@/lib/human-design/transit/roxyPlanetsClient";
 import { transitDataCache } from "@/lib/human-design/transit/transitDataCache";
+import { createSupabasePlanetStore, hdTransitPlanetStoreEnabled } from "@/lib/human-design/transit/transitPlanetStore";
 import { nowTransitMoment, resolveTransitMoment, TRANSIT_TIME_ZONE } from "@/lib/human-design/transit/transitMoment";
 
 export const runtime = "nodejs";
@@ -26,9 +28,17 @@ export const runtime = "nodejs";
  */
 const NO_STORE = { "Cache-Control": "no-store" } as const;
 
-export async function GET(req: NextRequest): Promise<Response> {
+async function handleGet(req: NextRequest): Promise<Response> {
   const guard = await requireModuleAccess(req, "human_design");
   if (!guard.ok) return guard.response;
+  // D3 (owner kararı 2026-11-02): demo hesabında hiçbir modülde yeni hesaplama yapılmaz (önbellekten hesap dahil);
+  // yalnız hazır örnek analizler incelenir. Normal uzman akışı değişmez.
+  if (guard.is_demo_account) {
+    return NextResponse.json(
+      { ok: false, code: "DEMO_READONLY", error: "Demo hesabında transit hesaplaması yapılmaz. Hazır örnek analizleri inceleyebilirsiniz." },
+      { status: 403, headers: NO_STORE },
+    );
+  }
 
   const rl = await hitDbRateLimit(guard.db, rateLimitBucket("hd-transit-user", guard.userId), 600, 60 * 60);
   if (!rl.allowed) {
@@ -55,12 +65,15 @@ export async function GET(req: NextRequest): Promise<Response> {
 
   try {
     const r = await resolveGeneralTransit(new Date(m.moment.utcIso), {
-      config: readRoxyServerConfig(),
+      // D2: demo hesabında ücretli sağlayıcı yok — yalnız önbellekteki doğrulanmış konumlar (bkz. demoProviderPolicy).
+      config: transitProviderConfigFor(guard.is_demo_account),
       callPlanets: (config, body) => callRoxyPlanets(config, body),
       rateLimit: (scope, value, limit, windowSeconds) => hitDbRateLimit(guard.db, rateLimitBucket(scope, value), limit, windowSeconds),
       userId: guard.userId,
       tenantId: guard.tenantId,
       sharedCache: transitDataCache,
+      // Kalıcı L2 (Supabase); HD_TRANSIT_PLANET_STORE=off veya tablo yok → yalnız eski Next Data Cache yolu.
+      planetStore: hdTransitPlanetStoreEnabled() ? createSupabasePlanetStore(guard.db, { log: (msg, detail) => console.error(msg, detail ?? "") }) : undefined,
       log: (msg, detail) => console.error(msg, detail ?? ""),
     });
     return NextResponse.json(
@@ -82,3 +95,6 @@ export async function GET(req: NextRequest): Promise<Response> {
     );
   }
 }
+
+// TRIAL7: deneme uzmanının GERÇEK Roxy istekleri günlük ortak krediden düşer (önbellek isabeti düşmez).
+export const GET = withTrialRoxyMeter("human_design", "hd/transit", handleGet);

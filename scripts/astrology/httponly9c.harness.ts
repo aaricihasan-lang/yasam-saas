@@ -59,7 +59,7 @@ type Who = keyof typeof U;
 const tok = (w: Who) => `tok-h9c-${w}-xxxxxxxxxxxxxxxxxxxx`;
 const expert = (id: string, tenant: string, perms: Record<string, unknown>, extra: Record<string, unknown> = {}) => ({
   id, role: "expert", active: true, approval_status: "approved", package_type: "premium", is_super_admin: false, is_demo_account: false,
-  tenant_id: tenant, email: `${id.slice(-2)}@sentetik.test`, module_permissions: perms, ...extra,
+  tenant_id: tenant, email: `${id.slice(-2)}@sentetik.test`, module_permissions: perms, astrology_technique_grants: { mode: "all" }, ...extra,
 });
 const store: FakeStore = createStore({
   users: [

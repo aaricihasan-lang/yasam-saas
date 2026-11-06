@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { ASTRO_NO_STORE, requireAstrologyAccess } from "@/lib/astrology/access/ownerGate";
+import { ASTRO_NO_STORE, requireAstrologyAccess, astrologyTechniqueDenied } from "@/lib/astrology/access/ownerGate";
+import { ASTRO_GRANT_HORARY_LILLY } from "@/lib/astrology/access/techniqueGrants";
 import { loadHoraryForReport } from "@/lib/astrology/horary/westernRecords";
 import { renderHoraryReport } from "@/lib/astrology/horary/westernReportService";
 import { checkRateLimit } from "@/lib/rateLimit";
@@ -15,6 +16,9 @@ type RouteContext = { params: Promise<{ id: string }> };
 export async function GET(req: NextRequest, ctx: RouteContext): Promise<Response> {
   const gate = await requireAstrologyAccess(req);
   if (!gate.ok) return gate.response;
+  // 2026-11-03 teknik izni (kapalıysa 403; hesap / kayıt / rapor yapılmaz).
+  const denied = astrologyTechniqueDenied(gate.ctx, ASTRO_GRANT_HORARY_LILLY);
+  if (denied) return denied;
   const fmt = req.nextUrl.searchParams.get("format");
   if (fmt !== "docx" && fmt !== "pdf") return NextResponse.json({ ok: false, code: "INVALID_FORMAT", error: "Rapor biçimi docx veya pdf olmalı." }, { status: 400, headers: ASTRO_NO_STORE });
   const rl = checkRateLimit(`astro-horary-report:${gate.ctx.tenantId}:${gate.ctx.userId}`, 20, 60_000);

@@ -349,7 +349,7 @@ export function PersonForm() {
         }
       }
     } else if (b && isoBeforeBirth(istanbulToday(), b)) {
-      er["input.birth"] = "Doğum tarihi bugünden sonra olamaz (hedef tarih girin).";
+      er["input.birth"] = "Doğum tarihi bugünden sonra (doğum öncesi analiz). Tarihe bağlı değerler doğumdan önceki bir gün için hesaplanamaz: hedef tarih olarak doğum tarihini ya da sonrasını girin. Yalnız isim değerlendirmesi için İsim Seçenekleri analizini kullanabilirsiniz.";
     }
     if (!techs.length) {
       er.techniques = "En az bir teknik seçin.";
@@ -416,7 +416,7 @@ export function PersonForm() {
             <span className="nk-tech-chev" aria-hidden="true">▾</span>
           </button>
           <div id={`${uid}-tech-list`} hidden={!techOpen} data-testid="tech-list">
-          <fieldset className="nk-toggles" style={{ border: 0, padding: 0, margin: "12px 0 0" }} aria-describedby={errors.techniques ? `${uid}-tech-err` : undefined}>
+          <fieldset className="nk-toggles" style={{ border: 0, padding: 0, margin: "12px 0 0" }} aria-describedby={errors.techniques && !techs.length ? `${uid}-tech-err` : undefined}>
             <legend className="nk-sr-only">Hesaplanacak teknik grupları</legend>
             <label className="nk-toggle nk-all">
               <input type="checkbox" checked={all} onChange={(e) => setTechs(e.target.checked ? PERSON_TECHS.map((t) => t.key) : [])} data-testid="tech-all" />
@@ -434,7 +434,8 @@ export function PersonForm() {
             ))}
           </fieldset>
           </div>
-          <FieldError id={`${uid}-tech-err`} msg={errors.techniques} />
+          {/* D6-1: "En az bir teknik seçin" yalnız gerçekten hiç teknik seçili değilken görünür (seçim yapılınca kalkar). */}
+          <FieldError id={`${uid}-tech-err`} msg={techs.length ? undefined : errors.techniques} />
           {techs.includes("dual") && (!techs.includes("core") || !techs.includes("chaldean")) ? (
             <p className="nk-hint" style={{ marginTop: 8 }}>İki Sistem karşılaştırması için Pisagor çekirdek ve Kalde sonuçları da hesaplanır.</p>
           ) : null}
@@ -497,7 +498,8 @@ export function RelationshipForm() {
   }
 
   // 30.10.2026: iki kişi masaüstünde YAN YANA (her kişinin adı + doğum tarihi kendi grubunda), mobilde alt alta;
-  // isteğe bağlı danışan seçimi 1. kişinin Ad Soyad alanının altında (Yeni Analiz ile aynı düzen).
+  // isteğe bağlı danışan seçimi 1. kişinin Doğum tarihi alanının ALTINDA: iki kişinin Ad soyad ve Doğum tarihi
+  // alanları aynı yatay hizada kalır, 2. kişiye boşluk / sahte öğe eklenmez (30.10.2026 v2 owner kararı).
   const person = (i: 1 | 2) => (
     <fieldset className="nk-person-block nk-rel-person" data-testid={`rel-person-${i}`}>
       <legend className="nk-h3">{i}. kişi</legend>
@@ -506,15 +508,15 @@ export function RelationshipForm() {
           <LatinPreview name={i === 1 ? p.n1 : p.n2} />
         </TextField>
       </div>
+      <div style={{ marginTop: 12 }}>
+        <TextField id={fid(uid, `input.person${i}.birth`)} label="Doğum tarihi" value={i === 1 ? p.b1 : p.b2} onChange={(v) => setP((c) => ({ ...c, [i === 1 ? "b1" : "b2"]: v }))} error={errors[`input.person${i}.birth`] ?? errors[`input.person${i}.birth.day`]} date />
+      </div>
       {i === 1 ? (
-        <div style={{ marginTop: 10 }}>
+        <div style={{ marginTop: 12 }}>
           <ClientPickerCompact enabled={!!ent?.canLinkClients} value={cl.client} onChange={cl.setClient} error={cl.error}
             onPrefill={(c, auto) => setP((x) => (auto && x.n1.trim() ? x : { ...x, n1: clientDisplayName(c), b1: clientBirthTr(c.dogum) || x.b1 }))} />
         </div>
       ) : null}
-      <div style={{ marginTop: 12 }}>
-        <TextField id={fid(uid, `input.person${i}.birth`)} label="Doğum tarihi" value={i === 1 ? p.b1 : p.b2} onChange={(v) => setP((c) => ({ ...c, [i === 1 ? "b1" : "b2"]: v }))} error={errors[`input.person${i}.birth`] ?? errors[`input.person${i}.birth.day`]} date />
-      </div>
     </fieldset>
   );
 

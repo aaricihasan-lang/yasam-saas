@@ -16,9 +16,15 @@ export async function POST(req: NextRequest): Promise<Response> {
   return withOwner(req, async ({ db, ownerId }) => {
     const body = await readOwnerBody(req);
     const data = pickObject(body, "data");
-    const result = await ownerRpc(db, "stone_library_owner_stone_create", {
-      p_actor: ownerId, p_data: data, p_health_fields: ownerHealthFields(data), p_publish: body.publish === true, p_note: pickString(body, "note", 1000),
+    const note = pickString(body, "note", 1000);
+    const result = await ownerRpc<{ id?: string } | null>(db, "stone_library_owner_stone_create", {
+      p_actor: ownerId, p_data: data, p_health_fields: ownerHealthFields(data), p_publish: body.publish === true, p_note: note,
     });
+    // B1: taslakta sürüm 1 yazılır ama etkin yapılmaz; düzenleme ekranı yalnız etkin sürümü okuduğundan alanlar boş görünürdü.
+    // Düzenlemedeki tek "Kaydet" ile aynı: sürüm 1 etkin olur, taşın yayın durumu (taslak) değişmez.
+    if (body.publish !== true && typeof result?.id === "string") {
+      await ownerRpc(db, "stone_library_owner_version_set_current", { p_actor: ownerId, p_stone_id: result.id, p_version: 1, p_note: note });
+    }
     return ownerJson({ ok: true, result });
   });
 }

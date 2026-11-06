@@ -52,6 +52,8 @@ export const SUB_RECORD_MESSAGES = {
   textInvalid: "Geçersiz metin alanı.",
   textTooLong: "Metin alanı çok uzun.",
   noFields: "Güncellenecek alan yok.",
+  sessionEmpty: "Seans tarihi dışında en az bir alan doldurun.",
+  stoneNameRequired: "Taş adı zorunludur.",
 } as const;
 
 export type SubRecordValidationResult =
@@ -109,12 +111,22 @@ function validate(
   return { ok: true, fields };
 }
 
+function filled(v: string | number | null | undefined): boolean {
+  if (v === null || v === undefined) return false;
+  return typeof v === "number" || v.trim().length > 0;
+}
+
 /** client_sessions POST/PATCH gövdesi. */
 export function validateSessionWrite(
   body: Record<string, unknown> | null | undefined,
   mode: "create" | "patch",
 ): SubRecordValidationResult {
-  return validate(SESSION_FIELDS, body, mode);
+  const r = validate(SESSION_FIELDS, body, mode);
+  // M3-A (2026-11-04): tamamen boş seans (yalnız tarih) oluşturulamaz.
+  if (r.ok && mode === "create" && !Object.entries(r.fields).some(([k, v]) => k !== "session_date" && filled(v))) {
+    return { ok: false, code: "SESSION_EMPTY", field: "", error: SUB_RECORD_MESSAGES.sessionEmpty };
+  }
+  return r;
 }
 
 /** client_stones POST/PATCH gövdesi. */
@@ -122,5 +134,11 @@ export function validateStoneWrite(
   body: Record<string, unknown> | null | undefined,
   mode: "create" | "patch",
 ): SubRecordValidationResult {
-  return validate(STONE_FIELDS, body, mode);
+  const r = validate(STONE_FIELDS, body, mode);
+  // M3-C (2026-11-04): isimsiz taş kaydı engellenir — oluşturmada ad zorunlu; düzenlemede
+  // ad gönderiliyorsa boş olamaz.
+  if (r.ok && (mode === "create" || "stone_name" in r.fields) && !filled(r.fields.stone_name)) {
+    return { ok: false, code: "STONE_NAME_REQUIRED", field: "stone_name", error: SUB_RECORD_MESSAGES.stoneNameRequired };
+  }
+  return r;
 }

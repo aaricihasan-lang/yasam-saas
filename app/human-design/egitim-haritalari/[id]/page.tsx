@@ -14,7 +14,8 @@ import { useLocale } from "next-intl";
 import base from "@/app/_premium/hd-education/egitimYonetim.module.css";
 import css from "@/app/_premium/hd-education/egitimKatalog.module.css";
 import hh from "@/app/_premium/hd-education/hayatHikayesi.module.css";
-import { HdComputedChartView } from "@/app/human-design/kayitli-haritalar/components/HdComputedChartView";
+// Owner kararı 30.10.2026: owner ekranındaki büyük BodyGraph görüntüleyicisi (aynı çizici bileşenler; hesap / snapshot DEĞİŞMEZ).
+import { EduBodygraphViewer, EduChartFacts } from "@/app/admin/hd-egitim-haritalari/EduBodygraphViewer";
 import type { HdComputedChart } from "@/lib/human-design/chart/computedChart";
 import { EDU_CATEGORY_LABEL, type EduCatalogDetail } from "@/lib/human-design/education/educationContract";
 import { parseBioLang, type BioLang, type BioTrainerResponse } from "@/lib/human-design/education/biography/biographyContract";
@@ -136,7 +137,8 @@ export default function EducationChartDetailPage() {
 
       <div id="edu-panel-harita" role="tabpanel" aria-labelledby="edu-tab-harita" hidden={tab !== "harita"}>
       <section className={`${base.panel} ${css.chartPanel}`} aria-label="BodyGraph ve harita bilgileri">
-        <HdComputedChartView result={d.chart.result as unknown as HdComputedChart} roxyRender={d.chart.render} showProviderNote={false} />
+        <EduBodygraphViewer result={d.chart.result as unknown as HdComputedChart} roxyRender={d.chart.render} title={d.displayName} />
+        <EduChartFacts result={d.chart.result as unknown as HdComputedChart} />
       </section>
 
       <div className={css.below}>

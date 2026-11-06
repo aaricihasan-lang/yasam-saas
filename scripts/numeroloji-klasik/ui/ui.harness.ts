@@ -63,6 +63,8 @@ type State = {
   noFuture?: boolean;
   /** 30.10.2026: Taşlar sekmesi büyük grup senaryosu (0 / 1 / 5 / 14 gizli taş). */
   bigStones?: boolean;
+  /** Mükerrer kişi analizi kontrolü yanıtı (varsayılan: eşleşme yok). */
+  dup?: "none" | "one" | "many" | "fail";
 };
 
 /** Sunucunun `full` (kesilmemiş) yanıtını taklit eder: grup başına N gerçek öğe, total = N. */
@@ -140,6 +142,12 @@ async function handleApi(route: Route, f: Fixtures, s: State) {
     return json(route, { ok: true, draft: { view: { ...a, id: null, title: String(b.title ?? a.title), input: b.input ?? a.input, clientId: request.clientId }, request, referenceDate: "2026-10-29", resultHash: "a".repeat(64) } });
   }
   if (p === `${K}/taslak/taslar` && m === "POST") return json(route, { ok: true, ...f.stonesView });
+  if (p === `${K}/analyses/mukerrer` && m === "POST") {
+    if (s.dup === "fail") return json(route, { ok: false, code: "DB_ERROR", error: "Geçici hata." }, 500);
+    const mk = (i: number) => ({ id: `7777777${i}-7777-4777-8777-777777777777`, title: `Eski kayıt ${i}`, fullName: String(b.fullName ?? ""), birthDate: "29.02.1988", createdAt: `2026-11-0${i}T10:00:00Z` });
+    const matches = s.dup === "one" ? [mk(1)] : s.dup === "many" ? [mk(3), mk(2), mk(1)] : [];
+    return json(route, { ok: true, total: matches.length, matches });
+  }
   if (p === `${K}/analyses` && m === "POST") {
     const rq = (b.request ?? null) as Record<string, unknown> | null;
     if (!rq || typeof b.resultHash !== "string") return json(route, { ok: false, code: "UNKNOWN_FIELD", error: "Beklenmeyen alan." }, 400);
@@ -522,6 +530,22 @@ async function main() {
       ok("teknik: klavye (Enter) ile açılır", (await page.locator("[data-testid=tech-toggle]").getAttribute("aria-expanded")) === "true");
       await page.locator("[data-testid=tech-all]").check({ force: true });
       ok("teknik: Tümü → 6 / 6", (await page.locator("[data-testid=tech-count]").innerText()).trim() === "6 / 6 grup seçili");
+      // D6-1 (06.11.2026): "En az bir teknik seçin" yalnız hiç teknik seçili değilken; seçim yapılınca kalkar.
+      {
+        const techErr = async () => (await page.locator(".nk-field-error").allInnerTexts()).some((t) => /En az bir teknik seçin/.test(t));
+        const nPost = count(s, "POST", /\/(analyses|hesapla)$/);
+        await page.locator("[data-testid=tech-all]").uncheck({ force: true });
+        ok("D6-1: Tümü kapatılınca 0 / 6", (await page.locator("[data-testid=tech-count]").innerText()).trim() === "0 / 6 grup seçili");
+        await page.getByRole("button", { name: "Hesapla" }).click();
+        await sleep(200);
+        ok("D6-1: hiç teknik yokken Hesapla → uyarı görünür, istek YOK", (await techErr()) && count(s, "POST", /\/(analyses|hesapla)$/) === nPost);
+        await page.locator("[data-tech=core]").check({ force: true });
+        ok("D6-1: bir teknik seçilince uyarı kalkar", !(await techErr()));
+        await page.locator("[data-tech=core]").uncheck({ force: true });
+        ok("D6-1: yeniden hiç teknik kalmayınca doğru uyarı geri gelir", await techErr());
+        await page.locator("[data-testid=tech-all]").check({ force: true });
+        ok("D6-1: Tümü seçilince uyarı kalkar, 6 / 6", !(await techErr()) && (await page.locator("[data-testid=tech-count]").innerText()).trim() === "6 / 6 grup seçili");
+      }
       ok("teknik: aç/kapat hiçbir istek göndermedi (sağlayıcı / kayıt yok)", s.log.slice(nToggle).filter((x) => x.path.startsWith("/api/numeroloji-klasik/")).length === 0, s.log.slice(nToggle).map((x) => x.path));
       await page.getByRole("button", { name: "Hesapla" }).click();
       // 30.10.2026: Hesapla KAYIT OLUŞTURMAZ → sonuç kaydedilmemiş taslak olarak açılır (URL'de kişisel bilgi YOK).
@@ -594,6 +618,79 @@ async function main() {
       const reb = (s.log.filter((x) => x.method === "POST" && /\/hesapla$/.test(x.path)).pop()?.body ?? {}) as { input?: { fullName?: string } };
       ok("yeniden hesap: düzeltilmiş ad gönderildi, kayıt YOK", count(s, "POST", /\/hesapla$/) === nHes + 1 && reb.input?.fullName === "Ayşe Can Öztürkoğlu" && count(s, "POST", /\/analyses$/) === 0, reb);
 
+      // Paket 2 (06.11.2026): Klasik mükerrer kişi analizi uyarısı — kontrol Kaydet'ten ÖNCE; seçenekler
+      // Mevcut Kaydı Aç (yeni sekme) / Yine de Yeni Kaydet / Vazgeç; liste okunamazsa Tekrar Dene / Yine de Kaydet / Vazgeç.
+      {
+        const dupReq = () => count(s, "POST", /\/analyses\/mukerrer$/);
+        const saves0 = count(s, "POST", /\/analyses$/);
+        const dlg = page.locator("[data-testid=dup-dialog]");
+        // Tek eşleşme + çift tık
+        s.dup = "one";
+        const d0 = dupReq();
+        await page.locator("[data-testid=draft-save]").dblclick();
+        await dlg.waitFor({ timeout: 10_000 });
+        ok("mükerrer: çift tık → TEK kontrol isteği", dupReq() === d0 + 1, dupReq() - d0);
+        const ck = (s.log.filter((x) => /\/analyses\/mukerrer$/.test(x.path)).pop()?.body ?? {}) as Record<string, unknown>;
+        ok("mükerrer: kontrol gövdesi { fullName, birth } (başka alan yok)", Object.keys(ck).sort().join(",") === "birth,fullName" && ck.fullName === "Ayşe Can Öztürkoğlu" && JSON.stringify(ck.birth) === JSON.stringify({ year: 1988, month: 2, day: 29 }), ck);
+        ok("mükerrer (1): başlık + Mevcut Kaydı Aç yeni sekmede", (await dlg.getAttribute("data-mode")) === "duplicate" && /kayıtlı analiz var/.test(await dlg.innerText()) && (await page.locator("[data-testid=dup-open]").getAttribute("href")) === "/numeroloji-klasik/analiz/77777771-7777-4777-8777-777777777777" && (await page.locator("[data-testid=dup-open]").getAttribute("target")) === "_blank");
+        ok("mükerrer (1): Yine de Yeni Kaydet + Vazgeç görünür", (await page.locator("[data-testid=dup-save]").innerText()).trim() === "Yine de Yeni Kaydet" && (await page.locator("[data-testid=dup-cancel]").isVisible()));
+        await page.locator("[data-testid=dup-cancel]").click();
+        ok("mükerrer: Vazgeç → diyalog kapanır, kayıt YOK, taslak korunur", (await dlg.count()) === 0 && count(s, "POST", /\/analyses$/) === saves0 && (await page.locator("[data-testid=draft-bar]").isVisible()));
+        await page.locator("[data-testid=draft-save]").click();
+        await dlg.waitFor({ timeout: 10_000 });
+        await page.keyboard.press("Escape");
+        ok("mükerrer: Escape → Vazgeç (kayıt YOK)", (await dlg.count()) === 0 && count(s, "POST", /\/analyses$/) === saves0);
+        // Çoklu eşleşme: hepsi listelenir; 320 / 390 / 768 / 1280 px taşma yok, düğmeler erişilebilir
+        s.dup = "many";
+        for (const w of [320, 390, 768, 1280]) {
+          await page.setViewportSize({ width: w, height: w <= 390 ? 700 : 900 });
+          await page.locator("[data-testid=draft-save]").click();
+          await dlg.waitFor({ timeout: 10_000 });
+          ok(`mükerrer (3) ${w}px: 3 kayıt listelenir, her biri 'Bu Kaydı Aç'`, (await page.locator("[data-testid=dup-list] li").count()) === 3 && (await page.locator("[data-testid=dup-open]").count()) === 3);
+          ok(`mükerrer ${w}px: yatay taşma yok`, (await page.evaluate(() => document.documentElement.scrollWidth)) <= w + 1);
+          const mb = await page.locator(".nk-modal").boundingBox();
+          ok(`mükerrer ${w}px: diyalog görüş alanında`, !!mb && mb.x >= 0 && mb.x + mb.width <= w + 1, mb);
+          await page.locator("[data-testid=dup-cancel]").scrollIntoViewIfNeeded();
+          ok(`mükerrer ${w}px: Vazgeç erişilebilir`, await page.locator("[data-testid=dup-cancel]").isVisible());
+          if (w === 390) await page.screenshot({ path: path.join(OUT, "20-mukerrer-390.png") });
+          await page.locator("[data-testid=dup-cancel]").click();
+        }
+        await page.setViewportSize({ width: 1280, height: 900 });
+        // Kontrol başarısız: Tekrar Dene (yine başarısız) → kayıt yok; sonra eşleşme yoksa başlık adımı açılır
+        s.dup = "fail";
+        await page.locator("[data-testid=draft-save]").click();
+        await dlg.waitFor({ timeout: 10_000 });
+        ok("kontrol edilemedi: başlık + Tekrar Dene / Yine de Kaydet / Vazgeç", (await dlg.getAttribute("data-mode")) === "checkFailed" && /kontrol edilemedi/.test(await dlg.innerText()) && (await page.locator("[data-testid=dup-retry]").isVisible()) && (await page.locator("[data-testid=dup-save]").innerText()).trim() === "Yine de Kaydet");
+        const d1 = dupReq();
+        await page.locator("[data-testid=dup-retry]").click();
+        await page.waitForFunction(() => (document.querySelector("[data-testid=dup-retry]") as HTMLButtonElement | null)?.disabled === false, undefined, { timeout: 10_000 });
+        ok("kontrol edilemedi: Tekrar Dene yeni kontrol ister, otomatik kayıt YOK", dupReq() === d1 + 1 && count(s, "POST", /\/analyses$/) === saves0 && (await dlg.getAttribute("data-mode")) === "checkFailed");
+        s.dup = "none";
+        await page.locator("[data-testid=dup-retry]").click();
+        await page.locator("[data-testid=draft-title]").waitFor({ timeout: 10_000 });
+        ok("Tekrar Dene başarılı + eşleşme yok → doğrudan başlık adımı (kayıt henüz YOK)", (await dlg.count()) === 0 && count(s, "POST", /\/analyses$/) === saves0);
+        await page.getByRole("alertdialog").getByRole("button", { name: "Vazgeç" }).click();
+        // Yine de Kaydet (kontrol edilemedi) → başlık adımı
+        s.dup = "fail";
+        await page.locator("[data-testid=draft-save]").click();
+        await dlg.waitFor({ timeout: 10_000 });
+        await page.locator("[data-testid=dup-save]").click();
+        await page.locator("[data-testid=draft-title]").waitFor({ timeout: 10_000 });
+        ok("Yine de Kaydet → başlık adımı (onaylanmadan kayıt YOK)", (await dlg.count()) === 0 && count(s, "POST", /\/analyses$/) === saves0);
+        await page.getByRole("alertdialog").getByRole("button", { name: "Vazgeç" }).click();
+        // Yine de Yeni Kaydet (eşleşme var) → başlık adımı
+        s.dup = "one";
+        await page.locator("[data-testid=draft-save]").click();
+        await dlg.waitFor({ timeout: 10_000 });
+        await page.locator("[data-testid=dup-save]").click();
+        ok("Yine de Yeni Kaydet → başlık adımı", (await dlg.count()) === 0 && (await page.locator("[data-testid=draft-title]").isVisible()));
+        await page.getByRole("alertdialog").getByRole("button", { name: "Vazgeç" }).click();
+        ok("kontrol edilemedi: konsolda yalnız beklenen 500 kaynak kaydı (başka hata yok)", errors.length > 0 && errors.every((e) => /status of 500/.test(e)), errors);
+        errors.length = 0; // beklenen 500 ("kontrol edilemedi" senaryosu) konsol kaydı sonraki denetime taşınmaz
+        await common(page, "akış mükerrer", errors);
+        s.dup = "none";
+      }
+
       // Açık Kaydet → başlık sor → POST /analyses { request, referenceDate, resultHash } → kayıtlı analiz
       await page.locator("[data-testid=draft-save]").click();
       await page.locator("[data-testid=draft-title]").waitFor({ timeout: 10_000 });
@@ -605,6 +702,38 @@ async function main() {
       await page.locator("[data-testid=tab-ozet]").waitFor({ timeout: 30_000 });
       ok("kaydet: kayıtlı analiz açıldı ('Kaydedilmedi' yok)", (await page.locator("[data-testid=draft-badge]").count()) === 0 && (await page.locator("[data-testid=draft-bar]").count()) === 0);
       ok("kayıtlı: 'Kayıtlar' düğmesi YOK, 'Bilgileri Düzenle' ?kayit= bağlantısı", (await page.getByRole("link", { name: "Kayıtlar", exact: true }).count()) === 0 && ((await page.locator("[data-testid=edit-inputs]").getAttribute("href")) ?? "").endsWith(`/numeroloji-klasik/yeni?kayit=${IDS.person}`));
+
+      // D6 (05.11.2026): bağlama paneli başlık kartında kompakt akar (kart içinde kart / çakışma yok);
+      // Vazgeç her iki durumda paneli tamamen kapatır; hiçbir PATCH gitmez; 1280 / 390 / 320 px.
+      {
+        const patchesBefore = count(s, "PATCH", /\/analyses\//);
+        for (const w of [1280, 390, 320]) {
+          await page.setViewportSize({ width: w, height: w === 1280 ? 900 : 780 });
+          await page.locator("[data-testid=result-client-link]").scrollIntoViewIfNeeded();
+          await page.locator("[data-testid=result-client-link]").click();
+          const panel = page.locator("[data-testid=client-link]");
+          await panel.waitFor({ timeout: 10_000 });
+          const nb = await page.locator("[data-testid=result-title]").boundingBox();
+          const pb = await panel.boundingBox();
+          const hb = await page.locator("header.nk-result-head").boundingBox();
+          const cls = (await panel.getAttribute("class")) ?? "";
+          ok(`D6 ${w}px: panel kompakt (kart içinde kart yok)`, !/\bnk-card\b/.test(cls), cls);
+          ok(`D6 ${w}px: panel başlık adının ALTINDA (çakışma yok)`, !!nb && !!pb && pb.y >= nb.y + nb.height - 1, { nb, pb });
+          ok(`D6 ${w}px: panel başlık kartının içinde`, !!hb && !!pb && pb.x >= hb.x - 1 && pb.x + pb.width <= hb.x + hb.width + 1, { hb, pb });
+          ok(`D6 ${w}px: yatay taşma yok`, (await page.evaluate(() => document.documentElement.scrollWidth)) <= w + 1);
+          // Kapalı durumda Vazgeç
+          await page.locator("[data-testid=client-cancel]").click();
+          ok(`D6 ${w}px: Vazgeç (kapalı) → panel kapanır, 'Danışana bağla' geri gelir`, (await panel.count()) === 0 && (await page.locator("[data-testid=result-client-link]").isVisible()));
+          // Arama açıkken Vazgeç
+          await page.locator("[data-testid=result-client-link]").click();
+          await page.locator("[data-testid=client-open]").click();
+          await page.locator("[data-testid=client-search]").waitFor({ timeout: 10_000 });
+          await page.locator("[data-testid=client-cancel]").click();
+          ok(`D6 ${w}px: Vazgeç (arama açık) → panel tamamen kapanır`, (await panel.count()) === 0 && (await page.locator("[data-testid=result-client-link]").isVisible()));
+        }
+        await page.setViewportSize({ width: 1280, height: 900 });
+        ok("D6: Vazgeç akışları hiçbir PATCH göndermez; analiz sekmeleri korunur", count(s, "PATCH", /\/analyses\//) === patchesBefore && (await page.locator("[data-testid=tab-ozet]").isVisible()));
+      }
 
       // Sonuç ekranından danışana bağlama (PATCH { clientId, rowVersion })
       await page.locator("[data-testid=result-client-link]").click();
@@ -667,6 +796,7 @@ async function main() {
       ok("taşlar: 'liste kısaltıldı' çıkışsız mesajı YOK", !stonesTxt.includes("liste kısaltıldı"));
       // 30.10.2026: 0 / 1 / 5 / 14 gizli taş — ilk 6 gösterilir, "Tüm taşları göster (+N)" bütün gerçek taşları açar, "Listeyi daralt" kapatır.
       s.bigStones = true;
+      await page.goto("about:blank"); // aynı yol + yalnız #hash → tam yeniden yükleme yok; büyük fikstür yeniden çekilmeli
       await goto(page, `/numeroloji-klasik/analiz/${IDS.person}#taslar`, "[data-testid=stone-src-1]");
       await page.locator("[data-testid=stone-group-pairs_with]").waitFor({ timeout: 20_000 });
       for (const [m, n] of [["vibration_exact", 6], ["vibration_root", 7], ["planet", 11], ["pairs_with", 20]] as const) {
@@ -784,7 +914,7 @@ async function main() {
       ok("kayıtlar: tarayıcı confirm/alert YOK", !nativeDialog);
       s.patchConflict = true;
       await page.locator("[data-testid=record]").first().getByRole("button", { name: /yeniden adlandır/ }).click();
-      await page.getByLabel("Yeni başlık").fill("Çakışma");
+      await page.getByLabel("Yeni başlık", { exact: true }).fill("Çakışma");
       await page.getByRole("button", { name: "Kaydet" }).click();
       await page.getByText(/başka bir oturumda değişti/).waitFor({ timeout: 10_000 });
       ok("kayıtlar: 409 → yeniden yükle mesajı", true);

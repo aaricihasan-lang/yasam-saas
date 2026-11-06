@@ -19,6 +19,9 @@ export async function GET(req: NextRequest): Promise<Response> {
   if (!gate.ok) return gate.response;
   try {
     const sp = new URL(req.url).searchParams;
+    // `?yoklama=1`: yalnız erişim yoklaması (Doğaltaş ana ekranındaki kütüphane kartı) — kapı yukarıda aynen uygulandı;
+    // içerik hesaplanmaz / gönderilmez. Yetkisiz herkes yine tek tip 404 alır.
+    if (sp.get("yoklama") === "1") return NextResponse.json({ ok: true }, { headers: STONE_LIBRARY_NO_STORE });
     if (sp.get("filtreler") === "1") {
       const { data, error } = await gate.ctx.db.rpc(STONE_LIBRARY_RPC.expertFacets, { p_viewer: gate.ctx.viewerId });
       if (error) return stoneLibraryNotFound();

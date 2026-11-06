@@ -115,11 +115,12 @@ export type Handler = (req: NextRequest, ctx: { params: Promise<Record<string, s
 
 
 /** Test ortamını başlatır; uygulama ortam değişkenlerini shim'e yönlendirir. */
-export async function startHdFlowEnv(opts: { port: number; dirName: string; httpPort?: number }): Promise<TestEnv> {
+export async function startHdFlowEnv(opts: { port: number; dirName: string; httpPort?: number; rpcAllow?: string[] }): Promise<TestEnv> {
   const env = await startAnamnezTestEnv({
     port: opts.port,
     dirName: opts.dirName,
     httpPort: opts.httpPort,
+    rpcAllow: opts.rpcAllow,
     extraSql: [src("supabase/migrations/20270129000300_clients_create_request_id.sql"), HD_DDL, JOURNEY_MIGRATION, GRANTS],
   });
   process.env.NEXT_PUBLIC_SUPABASE_URL = env.url;

@@ -16,6 +16,8 @@ import { parseBirthData, type ResolvedLocation } from "@/lib/astrology/birth/pro
 import { calcInputHash, resultIdFor } from "@/lib/astrology/engine/inputHash";
 import { buildNatalRequestBody, findUnmappedNatalFields, projectRoxyNatal } from "@/lib/astrology/providers/roxy/natal";
 import { NO_ASTROLOGY_ENTITLEMENTS, resolveAstrologyEntitlements, resolveInterpretationVisibility } from "@/lib/astrology/access/entitlements";
+// 2026-11-03: owner bağlamı = katalogdaki bütün teknikler (elle kurulan yetki nesnelerinde zorunlu alan).
+import { ASTRO_GRANT_KEYS } from "@/lib/astrology/access/techniqueGrants";
 import { buildPlan, parseSelections } from "@/lib/astrology/engine/planner";
 import type { TechniqueId } from "@/lib/astrology/engine/techniques";
 import { buildNatalView } from "@/lib/astrology/view/natalView";
@@ -283,7 +285,7 @@ async function main() {
 
   // ─── E) Yetki / görünürlük / görünüm ───────────────────────────────────────
   await t("yetki: owner → 4 yetki; owner değil → hiçbiri; bayraklar Aşama 1'de yok sayılır", () => {
-    assert.deepEqual(resolveAstrologyEntitlements({ isOwner: true }), { module: true, engine: true, knowledgeBank: true, providerInterpretations: true });
+    assert.deepEqual(resolveAstrologyEntitlements({ isOwner: true }), { module: true, engine: true, knowledgeBank: true, providerInterpretations: true, techniques: [...ASTRO_GRANT_KEYS] });
     assert.deepEqual(resolveAstrologyEntitlements({ isOwner: false, flags: { astrology: true, astrology_provider_interp: true } }), NO_ASTROLOGY_ENTITLEMENTS);
     assert.deepEqual(resolveInterpretationVisibility(NO_ASTROLOGY_ENTITLEMENTS, false), { visible: false, reason: "not_entitled" });
     assert.deepEqual(resolveInterpretationVisibility(resolveAstrologyEntitlements({ isOwner: true }), true), { visible: false, reason: "owner_preview_hidden" });
@@ -510,7 +512,7 @@ async function main() {
       assertNoNarrative(JSON.stringify(rp.body), "owner preview");
       assert.ok(JSON.stringify(rp.body).includes('"reason":"owner_preview_hidden"'));
       assert.ok(!store.log.slice(before).some((l) => l.table === "astro_provider_interpretations"), "önizlemede yorum tablosu okundu");
-      const noInterp = ownerCtx(store, TENANT_A, OWNER, { module: true, engine: true, knowledgeBank: true, providerInterpretations: false });
+      const noInterp = ownerCtx(store, TENANT_A, OWNER, { module: true, engine: true, knowledgeBank: true, providerInterpretations: false, techniques: ASTRO_GRANT_KEYS });
       const before2 = store.log.length;
       const rn = await runAstrology(noInterp, { profileId: pid, selections: NATAL_SEL }, rx.deps, { ownerPreviewHideInterp: false });
       assertNoNarrative(JSON.stringify(rn.body), "not entitled");
@@ -518,7 +520,7 @@ async function main() {
       assert.ok(!store.log.slice(before2).some((l) => l.table === "astro_provider_interpretations"));
       // Yetki kapansa da veri SİLİNMEZ.
       assert.equal(store.tables.astro_provider_interpretations.length, 1);
-      const noEngine = ownerCtx(store, TENANT_A, OWNER, { module: true, engine: false, knowledgeBank: true, providerInterpretations: true });
+      const noEngine = ownerCtx(store, TENANT_A, OWNER, { module: true, engine: false, knowledgeBank: true, providerInterpretations: true, techniques: ASTRO_GRANT_KEYS });
       assert.equal((await runAstrology(noEngine, { profileId: pid, selections: NATAL_SEL }, rx.deps, { ownerPreviewHideInterp: false })).status, 403);
     });
 
@@ -782,7 +784,7 @@ async function main() {
     assert.deepEqual(missing.map((s) => s.slice(0, 40)), [], "A: yorum katmanında kayıp");
 
     const b1 = await runAstrology(ctx, { profileId: pid, selections: NATAL_SEL }, g.deps, { ownerPreviewHideInterp: true });
-    const noInterp = ownerCtx(store, TENANT_A, OWNER, { module: true, engine: true, knowledgeBank: true, providerInterpretations: false });
+    const noInterp = ownerCtx(store, TENANT_A, OWNER, { module: true, engine: true, knowledgeBank: true, providerInterpretations: false, techniques: ASTRO_GRANT_KEYS });
     const b2 = await runAstrology(noInterp, { profileId: pid, selections: NATAL_SEL }, g.deps, { ownerPreviewHideInterp: false });
     for (const [label, r] of [["önizleme", b1], ["yetkisiz", b2]] as const) {
       const json = JSON.stringify(r.body);

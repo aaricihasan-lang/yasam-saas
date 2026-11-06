@@ -9,7 +9,7 @@
 //            e-posta fallback / admin_level / OWNER_TENANT_ID KULLANILMAZ. DB RPC'leri aynı kuralı tekrar uygular.
 //   EĞİTMEN: role=expert (admin/super-admin BYPASS YOK) + demo değil + premium üyelik + Human Design izni
 //            + owner'ın verdiği ETKİN yetki (granted_tenant_id = users.tenant_id) — her istekte DB'den, önbelleksiz.
-// Hazırlık kapısı KAPALIYSA (varsayılan) eğitmen/katalog uçları DB'ye gitmeden 404. Owner yönetim kapısı bu bayraktan
+// Katalog kapısı KAPALIYSA (varsayılan) eğitmen/katalog uçları 404 (owner anahtarı DB'de; bkz. isEducationCatalogOpen). Owner yönetim kapısı bu bayraktan
 // BAĞIMSIZDIR (owner kararı 29.10.2026): yalnız KATI owner (DB'den, her istekte) geçer; diğer herkes aynı 404.
 // Tüm red dalları AYNI 404 gövdesini döner (özelliğin varlığı sızdırılmaz) + Cache-Control: no-store.
 
@@ -34,6 +34,33 @@ export const EDU_NO_STORE = { "Cache-Control": "no-store" } as const;
  */
 export function isEducationCatalogEnabled(env: Record<string, string | undefined> = process.env): boolean {
   return env.HD_EDUCATION_CATALOG_ENABLED === "true";
+}
+
+/**
+ * Owner kararı 31.10.2026 — katalog kapısı Owner panelinden yönetilir (Vercel / yeniden deploy GEREKMEZ):
+ *   HD_EDUCATION_CATALOG_ENABLED === "true"  → açık (yerel test / acil açma)
+ *   HD_EDUCATION_CATALOG_ENABLED === "false" → KAPALI (acil kapatma; DB'ye bakılmaz)
+ *   tanımsız / başka değer                   → owner anahtarı: hd_education_catalog_control.catalog_open (varsayılan FALSE)
+ * Okuma hatası / tablo yok (migration uygulanmadı) → KAPALI (fail-closed).
+ */
+export function catalogEnvOverride(env: Record<string, string | undefined> = process.env): boolean | null {
+  const v = env.HD_EDUCATION_CATALOG_ENABLED;
+  return v === "true" ? true : v === "false" ? false : null;
+}
+export async function readCatalogControl(db: SupabaseClient): Promise<{ ready: boolean; open: boolean; changedAt: string | null; reason: string | null }> {
+  try {
+    const { data, error } = await db.from(EDU_TABLES.catalogControl).select("catalog_open, changed_at, reason").eq("id", 1).maybeSingle();
+    if (error || !data) return { ready: false, open: false, changedAt: null, reason: null };
+    const row = data as { catalog_open?: unknown; changed_at?: unknown; reason?: unknown };
+    return { ready: true, open: row.catalog_open === true, changedAt: typeof row.changed_at === "string" ? row.changed_at : null, reason: typeof row.reason === "string" ? row.reason : null };
+  } catch {
+    return { ready: false, open: false, changedAt: null, reason: null };
+  }
+}
+export async function isEducationCatalogOpen(db: SupabaseClient, env: Record<string, string | undefined> = process.env): Promise<boolean> {
+  const o = catalogEnvOverride(env);
+  if (o !== null) return o;
+  return (await readCatalogControl(db)).open;
 }
 
 /** Tek tip "yok" yanıtı — hiçbir red dalı farklı gövde/başlık üretmez. */
@@ -120,7 +147,7 @@ export async function hasActiveEducationGrant(db: SupabaseClient, userId: string
 
 /** Eğitmen katalog uçlarının İLK satırı. */
 export async function requireEducationViewer(req: NextRequest, deps: EduGateDeps = {}): Promise<EduGateResult<EduViewerContext>> {
-  if (!isEducationCatalogEnabled(deps.env)) return { ok: false, response: eduNotFound() };
+  if (catalogEnvOverride(deps.env) === false) return { ok: false, response: eduNotFound() };
   try {
     const guard = await (deps.verifyUser ?? verifyUserRequest)(req, { includeProfile: true });
     if (!guard.ok) return { ok: false, response: eduNotFound() };
@@ -138,6 +165,8 @@ export async function requireEducationViewer(req: NextRequest, deps: EduGateDeps
     if (!resolveModuleAccess(profile.role, profile.module_permissions, "human_design", { isDemo: false })) {
       return { ok: false, response: eduNotFound() };
     }
+    // Global katalog kapısı (owner anahtarı) — yetkili uzman bile katalog kapalıyken içerik göremez.
+    if (!(await isEducationCatalogOpen(guard.db, deps.env))) return { ok: false, response: eduNotFound() };
     if (!(await hasActiveEducationGrant(guard.db, guard.userId, guard.tenantId))) return { ok: false, response: eduNotFound() };
     return { ok: true, ctx: { db: guard.db, userId: guard.userId } };
   } catch {

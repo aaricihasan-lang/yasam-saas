@@ -4,8 +4,8 @@ import styles from "./_premium/hd.module.css";
 import { cookies } from "next/headers";
 import { getServerDb } from "@/lib/supabase-server";
 import { ADMIN_SESSION_COOKIE, resolveAdminShellUserId } from "@/lib/auth/adminShellSession";
-import { isEducationCatalogEnabled, isEducationOwner } from "@/lib/human-design/education/educationAccess";
-import { isPrivateEducationEnabled } from "@/lib/human-design/education/private/privateAccess";
+import { isEducationCatalogOpen, isEducationOwner } from "@/lib/human-design/education/educationAccess";
+import { privateEnvKillSwitch } from "@/lib/human-design/education/private/privateAccess";
 
 // 2026-10-18 premium görünüm (owner onaylı prototip, tasarım arşivi 1fed59a): başlık Fraunces, etiket Jost —
 // next/font ile kendi sunucumuzdan (dış istek yok); Türkçe için latin-ext.
@@ -72,8 +72,14 @@ async function resolveOwnerEducationCard(): Promise<boolean> {
   }
 }
 
+/** Owner kararı 31.10.2026: katalog kapısı owner panelindeki DB anahtarı; okuma hatası → kapalı (kart yoklaması yapılmaz). */
+async function resolveCatalogOpen(): Promise<boolean> {
+  try { return await isEducationCatalogOpen(getServerDb()); } catch { return false; }
+}
+
 export default async function HumanDesignHubPage() {
   const ownerEducationCard = await resolveOwnerEducationCard();
+  const catalogOpen = await resolveCatalogOpen();
   return (
     <div className={`${styles.root} ${hdDisplay.variable} ${hdLabel.variable}`}>
       <div className={styles.page}>
@@ -99,11 +105,12 @@ export default async function HumanDesignHubPage() {
         </section>
 
         {/* Ana çalışma alanları */}
-        {/* FAZ 2-B3: hazırlık kapısı KAPALIYKEN (varsayılan) eğitim kartı yoklaması hiç yapılmaz. */}
+        {/* Katalog kapısı KAPALIYKEN (varsayılan) merkezî kart yoklaması yapılmaz. Özel arşiv kartı: kapı owner'ın arşiv
+            anahtarıdır ve yalnız sunucu yoklamasıyla (yetkili eğitmene 200) görünür; acil kapatmada yoklama yok. */}
         <HdHubModules
           modules={HD_MODULES}
-          educationCard={isEducationCatalogEnabled()}
-          privateEducationCard={isPrivateEducationEnabled()}
+          educationCard={catalogOpen}
+          privateEducationCard={!privateEnvKillSwitch()}
           ownerEducationCard={ownerEducationCard}
         />
       </div>

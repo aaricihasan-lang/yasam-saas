@@ -16,6 +16,7 @@ import type {
   DailyResult,
 } from "@/lib/numeroloji-klasik/model";
 import { BRIDGE_LABELS, COMPOUND_NATURE_LABELS, CORE_NUMBER_LABELS } from "@/lib/numeroloji-klasik/labels";
+import { currentPeriodicChallenge, isMainChallenge, mainChallenge, periodicChallenges } from "@/lib/numeroloji-klasik/challenges";
 import { MONTHS_TR, fmtIsoDay } from "../../_lib/format";
 import { MismatchNote, NumberBadges, NumberCard, Trace, VerificationBadge, compoundDisplay } from "../kit";
 
@@ -268,7 +269,7 @@ function PeriodList({ periods, kind }: { periods: Period[]; kind: "p" | "c" }) {
         <li key={p.position}>
           <span className="nk-n">{p.number}</span>
           <div>
-            <b>{p.position}. {kind === "p" ? "zirve" : "zorluk"}{p.title ? ` · ${p.title}` : ""}</b>
+            <b>{p.position}. {kind === "p" ? "zirve" : "zorluk"}{kind === "c" && isMainChallenge(p) ? " · Ana zorluk (tüm yaşam)" : ""}{p.title ? ` · ${p.title}` : ""}</b>
             <span style={{ marginLeft: 8 }}><VerificationBadge v={p.verification} /></span>
             {p.description ? <p>{p.description}</p> : null}
             {p.lesson ? <p><b>Ders:</b> {p.lesson}</p> : null}
@@ -314,7 +315,10 @@ export function TimingPanel({ d }: { d: PersonData }) {
   const c = d.chart;
   const age = ageAt(d.birth, d.referenceDate);
   const nowP = c ? currentPeriod(c.pinnacles, age) : null;
-  const nowC = c ? currentPeriod(c.challenges, age) : null;
+  // D3: "şu an" yalnız yaş dönemine bağlı zorluklardan seçilir; 3. (ana) zorluk tüm yaşam için ayrı gösterilir.
+  const nowC = c ? currentPeriodicChallenge(c.challenges, age) : null;
+  const mainC = c ? mainChallenge(c.challenges) : null;
+  const perC = c ? periodicChallenges(c.challenges) : [];
   const py = c?.personalYear ?? null;
   const pm = py?.personalMonth ?? null;
   const pd = d.personalDay;
@@ -325,11 +329,20 @@ export function TimingPanel({ d }: { d: PersonData }) {
       {c && (c.pinnacles.length || c.challenges.length) ? (
         <div className="nk-card nk-panel">
           <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", gap: 10, alignItems: "flex-end" }}>
-            <div><h2 className="nk-h2">Zirveler ve zorluklar</h2><p className="nk-lead">Dört dönem; ilk dönem 36 − Yaşam Yolu yaşında biter, sonraki iki dönem 9’ar yıldır.</p></div>
+            <div><h2 className="nk-h2">Zirveler ve zorluklar</h2><p className="nk-lead">Dört zirve dönemi; ilk dönem 36 − Yaşam Yolu yaşında biter, sonraki iki dönem 9’ar yıldır. 1., 2. ve 4. zorluk bu dönemlere eşlik eder; 3. zorluk ana zorluktur ve tüm yaşam boyunca geçerlidir.</p></div>
             {age !== null ? <span className="nk-badge nk-ice nk-now-marker">Hedef tarihte {age} yaş{nowP ? ` · ${nowP.position}. dönem` : ""}</span> : null}
           </div>
           {c.pinnacles.length ? (<><p className="nk-label-cap nk-tl-row-label">Zirveler</p><Timeline periods={c.pinnacles} kind="p" now={nowP} label="Zirveler" /></>) : null}
-          {c.challenges.length ? (<><p className="nk-label-cap nk-tl-row-label">Zorluklar</p><Timeline periods={c.challenges} kind="c" now={nowC} label="Zorluklar" /></>) : null}
+          {perC.length ? (<><p className="nk-label-cap nk-tl-row-label">Zorluklar (yaş dönemleri)</p><Timeline periods={perC} kind="c" now={nowC} label="Zorluklar" /></>) : null}
+          {mainC ? (
+            <div className="nk-timeline" role="list" aria-label="Ana zorluk" style={{ ["--nk-tl" as string]: "1fr" }} data-testid="main-challenge">
+              <div className="nk-tl-seg nk-c" role="listitem">
+                <b>{mainC.number}</b>
+                <small>3. zorluk · Ana zorluk · tüm yaşam boyunca</small>
+              </div>
+            </div>
+          ) : null}
+          {mainC && age !== null && !nowC ? <p className="nk-lead" style={{ marginTop: 6 }} data-testid="no-periodic-challenge">Hedef yaşta dönemsel zorluk yok; ana zorluk geçerlidir.</p> : null}
           <details className="nk-trace" style={{ marginTop: 12 }}>
             <summary>Dönem ayrıntıları</summary>
             <div className="nk-section-grid" style={{ marginTop: 8 }}>

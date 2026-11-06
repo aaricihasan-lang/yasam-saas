@@ -20,10 +20,9 @@
  */
 import { useCallback, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { AlertTriangle, ArrowUpRight, Check, ChevronDown, ChevronRight, Info, Loader2, Pencil, Plus, Search, Settings2, Sparkles, Trash2, UserRound, X } from "lucide-react";
-import { HOUSE_SYSTEM_LABELS, NODE_TYPE_LABELS } from "@/lib/astrology/labels/tr";
-import type { HouseSystem, NodeType } from "@/lib/astrology/model/western";
-import { dateInputReason, describeOptions, missingReason, TECHNIQUE_META, UI_TECHNIQUES, techniqueLabel, type LunarReturnInfo, type PlanetaryReturnInfo, type PlanetaryReturnNeighbors, type TechniqueParams, type UiTechniqueId } from "../../_lib/techniques";
-import { MethodFields, PartnerField, TechniqueParamFields, USES_HOUSE_SYSTEM, USES_NODE_TYPE, type PartnerOption } from "../TechniqueSelector";
+import { NATAL_HOUSE_SYSTEM_LABELS, NODE_TYPE_LABELS } from "@/lib/astrology/labels/tr";
+import { dateInputReason, describeOptions, missingReason, NEW_TECHNIQUES, TECHNIQUE_META, UI_TECHNIQUES, techniqueLabel, type LunarReturnInfo, type PlanetaryReturnInfo, type PlanetaryReturnNeighbors, type TechniqueParams, type UiTechniqueId, type WesternMethod } from "../../_lib/techniques";
+import { MethodFields, PartnerField, TechniqueParamFields, USES_HOUSE_SYSTEM, USES_NODE_TYPE, type NatalMethodContext, type PartnerOption } from "../TechniqueSelector";
 import { deskPrimary } from "./ResultDesk";
 import { ap } from "./premium/AtlasPremium";
 import { atlasDisplay, atlasText } from "./fonts";
@@ -106,6 +105,8 @@ const ABOUT: Record<UiTechniqueId, string> = {
   "vedic.gun_milan": "Ashtakoot Gun Milan: iki kişinin Ay nakshatrası ve burcuna göre sekiz koota (Varna, Vashya, Tara, Yoni, Graha Maitri, Gana, Bhakoot, Nadi) puanı, 36 üzerinden toplam, Nadi / Bhakoot dosha ve klasik iptal kuralları; iki kişi için Manglik durumu. Teknik değerlendirmedir; ilişki hükmü vermez.",
   "vedic.monthly": "Seçilen ayın sidereal (Lahiri) gökyüzü takvimi: gezegenlerin burç girişleri (geçiş anındaki hareket yönüyle), gezegenler arası ve Ay ile 22 türde astronomik açı kesinleşmesi, deklinasyon paralel / kontraparalel olayları; isteğe bağlı doğum anı deklinasyonları. Kronolojik zaman çizelgesi, gezegen filtresi, UTC ve yerel saat, aylık özet. Astronomik açılar geleneksel graha drishti değildir.",
   "vedic.sade_sati": "Satürn'ün Janma Rashi'den (natal Ay burcu) 12., 1. ve 2. evlerden geçişi: değerlendirme günündeki Sade Sati durumu ve evresi (yükselen / doruk / batan).",
+  "western.transit_scan": "Transit taraması: seçilen tarih aralığında (en çok 1 yıl) transit gezegenlerin natal noktalara (yedi klasik gezegen, Yükselen, MC) açıları; her açı için orba giriş, tam an(lar) (retro döngüsünde 1/2, 2/2 …), orbdan çıkış ve tür; ayrıca istasyonlar ve burç girişleri. Tek orb tüm açılara uygulanır (varsayılan 1°). Natal noktalar natal sonucundan, tarama Yaşam Sistemi yerel motorunda.",
+  "western.classical_dignities": "Klasik asalet ve almuten: yedi klasik gezegenin esas (burç yöneticisi, yücelme, üçlü, terim, yüz) ve arızi asalet puanları, gezegen kabulleri, ev başı almutenleri, harita almuteni (Yunanlar CA s. 532 standart; diğer setler alternatif) ve Lord of the Geniture (yorum). Varsayılan ekol William Lilly (1647); Dorothean seçilebilir. Konumlar natal sonucundan, hesap Yaşam Sistemi yerel motorunda.",
   "western.declination_parallels": "Seçilen ayda iki gök cismi arasındaki deklinasyon temasları: paralel (aynı deklinasyon) ve kontraparalel (zıt deklinasyon), kesinleşme anı, iki deklinasyon ve orb; kronolojik çizelge. Ekliptik açılardan ayrı bir ölçüdür; gökyüzü takvimidir, doğum verisi kullanılmaz.",
   "vedic.dashakoot": "Güney Hint On Porutham (Dashakoot): Dina, Gana, Mahendra, Stree Deergha, Yoni, Rasi, Rasyadhipati, Vasya, Rajju ve Vedha kriterlerinin her biri karşılandı / karşılanmadı; 10 üzerinden toplam ve Rajju / Vedha kesin kısıtları. Gun Milan'dan ayrı sistemdir; teknik değerlendirmedir.",
   "vedic.papasamyam": "Papasamyam: iki haritada Mars, Satürn, Güneş ve Rahu'nun Lagna, Ay ve Venüs'ten sayılan 1., 2., 4., 7., 8., 12. evlerdeki malefik katkıları, ağırlıklı toplamlar ve iki toplamın karşılaştırması. Teknik değerlendirmedir.",
@@ -152,6 +153,8 @@ const PARAMS_NOTE: Record<UiTechniqueId, string> = {
   "vedic.gun_milan": "karşı taraf · ayanamsa",
   "vedic.sade_sati": "ayanamsa · değerlendirme günü: bugün",
   "western.declination_parallels": "ay · orb · düğüm türü · gösterim saat dilimi",
+  "western.classical_dignities": "ekol (Lilly 1647 / Dorothean) · ev sistemi · ay düğümü",
+  "western.transit_scan": "başlangıç · bitiş (en çok 1 yıl) · orb · gezegenler · natal noktalar · açılar · ek olaylar · saat dilimi",
   "vedic.dashakoot": "karşı taraf · rol sırası · ayanamsa",
   "vedic.papasamyam": "karşı taraf · rol sırası · ayanamsa",
   "vedic.upagraha": "ayanamsa",
@@ -419,6 +422,7 @@ export default function PrepCenter({
   onRun,
   labelOf,
   onOpenHorary,
+  allowedTechniques = null,
 }: {
   profile: { id: string; label: string; archivedAt?: string | null; clientName: string | null } | null;
   rev: PrepRevision | null;
@@ -433,8 +437,8 @@ export default function PrepCenter({
   onChecked: (next: Partial<Record<UiTechniqueId, boolean>> | ((prev: Partial<Record<UiTechniqueId, boolean>>) => Partial<Record<UiTechniqueId, boolean>>)) => void;
   params: TechniqueParams;
   onParams: (next: TechniqueParams) => void;
-  method: { houseSystem: HouseSystem; nodeType: NodeType };
-  onMethod: (next: { houseSystem: HouseSystem; nodeType: NodeType }) => void;
+  method: WesternMethod;
+  onMethod: (next: WesternMethod) => void;
   partners: PartnerOption[];
   partnerQuery: string;
   onPartnerQuery: (q: string) => void;
@@ -454,10 +458,20 @@ export default function PrepCenter({
   labelOf: (id: string) => string | null;
   /** Batı listesindeki William Lilly Horary girişi (yoksa giriş gösterilmez). */
   onOpenHorary?: () => void;
+  /** 2026-11-03 teknik izinleri: izinli teknikler (null → kısıt yok). Kapalı teknik listelenmez; yetki ayrıca sunucuda. */
+  allowedTechniques?: ReadonlySet<string> | null;
 }) {
   const mode = useMode();
-  const [system, setSystem] = useState<SystemId>("western");
-  const [focus, setFocus] = useState<UiTechniqueId>("western.natal");
+  const techBySystem = useMemo<Record<SystemId, UiTechniqueId[]>>(
+    () =>
+      allowedTechniques
+        ? { western: TECH_BY_SYSTEM.western.filter((t) => allowedTechniques.has(t)), vedic: TECH_BY_SYSTEM.vedic.filter((t) => allowedTechniques.has(t)), kp: TECH_BY_SYSTEM.kp.filter((t) => allowedTechniques.has(t)) }
+        : TECH_BY_SYSTEM,
+    [allowedTechniques],
+  );
+  const firstAllowed = UI_TECHNIQUES.find((t) => !allowedTechniques || allowedTechniques.has(t)) ?? "western.natal";
+  const [system, setSystem] = useState<SystemId>(() => systemOf(firstAllowed));
+  const [focus, setFocus] = useState<UiTechniqueId>(firstAllowed);
   const [birthDetailsOpen, setBirthDetailsOpen] = useState(false);
   const [techQuery, setTechQuery] = useState("");
   // Sürüklenebilir ayırıcı (yalnız geniş düzen): sol sütun genişliği tarayıcıda saklanır.
@@ -539,8 +553,25 @@ export default function PrepCenter({
   const dials = <SystemDials active={system} onChange={setSystem} counts={counts} />;
 
   const usesMethod = USES_HOUSE_SYSTEM.includes(focus) || USES_NODE_TYPE.includes(focus);
+  // Aşama 3 (#643): Natal 8'li ev sistemi AYRI; diğer Batı teknikleri 4'lü ortak seçim.
+  const houseSystemOf = (id: UiTechniqueId): string => (id === "western.natal" ? method.natalHouseSystem : method.houseSystem);
+  const houseLabelFor = (id: UiTechniqueId): string => NATAL_HOUSE_SYSTEM_LABELS[houseSystemOf(id)] ?? houseSystemOf(id);
+  const sharedChosen = UI_TECHNIQUES.filter((x) => checked[x] && x !== "western.natal" && USES_HOUSE_SYSTEM.includes(x));
+  const natalContext: NatalMethodContext = {
+    latitude: rev?.latitude ?? null,
+    timeKnown: rev ? rev.timeKnown : undefined,
+    sharedTechniques: sharedChosen.map((x) => ({ id: x, label: TECHNIQUE_META[x].label })),
+    onFocusTechnique: (x) => focusOn(x),
+  };
+  const houseSummary = [
+    checked["western.natal"] ? `Natal: ${houseLabelFor("western.natal")}` : null,
+    sharedChosen.length > 0 ? `${checked["western.natal"] ? "diğer Batı" : "Batı ortak"}: ${houseLabelFor(sharedChosen[0])}` : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+  const houseSummaryText = houseSummary ? `Ev sistemi — ${houseSummary}` : "";
   const methodSummary = [
-    USES_HOUSE_SYSTEM.includes(focus) ? `Ev sistemi: ${HOUSE_SYSTEM_LABELS[method.houseSystem]}${method.houseSystem === "placidus" ? " (varsayılan)" : ""}` : null,
+    USES_HOUSE_SYSTEM.includes(focus) ? `Ev sistemi: ${houseLabelFor(focus)}${houseSystemOf(focus) === "placidus" ? " (varsayılan)" : ""}` : null,
     USES_NODE_TYPE.includes(focus) ? `Ay düğümü: ${NODE_TYPE_LABELS[method.nodeType]}${method.nodeType === "true" ? " (varsayılan)" : ""}` : null,
   ]
     .filter(Boolean)
@@ -557,7 +588,7 @@ export default function PrepCenter({
     const primary = (
       <>
         {meta.needsPartner && <PartnerField params={params} onParams={onParams} partners={partners} partnerQuery={partnerQuery} onPartnerQuery={onPartnerQuery} />}
-        <TechniqueParamFields id={focus} params={params} onParams={onParams} lunarReturns={lunarReturns} birthPlaceLabel={rev?.locationLabel ?? null} birthDate={rev?.birthDate ?? null} planetaryReturns={planetaryReturns} planetaryReturnNeighbors={planetaryReturnNeighbors} />
+        <TechniqueParamFields id={focus} params={params} onParams={onParams} lunarReturns={lunarReturns} birthPlaceLabel={rev?.locationLabel ?? null} birthDate={rev?.birthDate ?? null} planetaryReturns={planetaryReturns} planetaryReturnNeighbors={planetaryReturnNeighbors} natalHouseSystem={method.natalHouseSystem} />
       </>
     );
     return (
@@ -633,8 +664,14 @@ export default function PrepCenter({
                 <span className="block text-[11px] text-slate-500">{methodSummary}</span>
               </summary>
               <div className="mt-2">
-                <MethodFields id={focus} method={method} onMethod={onMethod} />
-                <p className="mt-1.5 text-[11px] text-slate-500">Bu iki ayar tüm Batı tekniklerinde ortaktır ve sonucu değiştirir.</p>
+                <MethodFields id={focus} method={method} onMethod={onMethod} natalContext={natalContext} />
+                <p className="mt-1.5 text-[11px] text-slate-500" data-testid="atlas-method-note">
+                  {focus === "western.natal"
+                    ? "Ev sistemi yalnız Natal'a uygulanır; Ay düğümü tüm Batı tekniklerinde ortaktır."
+                    : USES_HOUSE_SYSTEM.includes(focus)
+                      ? `Bu iki ayar Natal dışındaki Batı tekniklerinde ortaktır ve sonucu değiştirir.${checked["western.natal"] ? ` Natal'ın ev sistemi ayrı seçilir (şu an ${houseLabelFor("western.natal")}).` : ""}`
+                      : "Ay düğümü tüm Batı tekniklerinde ortaktır ve sonucu değiştirir."}
+                </p>
               </div>
             </details>
           )}
@@ -660,7 +697,7 @@ export default function PrepCenter({
   };
 
   const q = techQuery.trim().toLocaleLowerCase("tr-TR");
-  const listed = TECH_BY_SYSTEM[system].filter((id) => !q || `${TECHNIQUE_META[id].label} ${TECHNIQUE_META[id].hint}`.toLocaleLowerCase("tr-TR").includes(q));
+  const listed = techBySystem[system].filter((id) => !q || `${TECHNIQUE_META[id].label} ${TECHNIQUE_META[id].hint}`.toLocaleLowerCase("tr-TR").includes(q));
   const showHorary = system === "western" && !!onOpenHorary && (!q || `${HORARY_ENTRY.label} ${HORARY_ENTRY.hint} ${HORARY_ENTRY.search}`.toLocaleLowerCase("tr-TR").includes(q));
   const techSearch = (
     <label className={ap.searchBox}>
@@ -698,11 +735,18 @@ export default function PrepCenter({
               <button type="button" onClick={() => focusOn(id)} aria-current={f ? "true" : undefined} className="min-w-0 flex-1 px-3 py-2.5 text-left max-sm:px-2 focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[#D9B56F]" data-technique-focus={id}>
                 <span className="flex min-w-0 items-center gap-2">
                   <span className={`min-w-0 break-words text-[14px] leading-snug ${on || f ? `${ap.ink} font-semibold` : `${ap.ink} font-medium`}`}>{m.label}</span>
+                  {NEW_TECHNIQUES.has(id) && <span className="shrink-0 rounded-full bg-[#f6ead0] px-[7px] py-[2px] text-[10px] font-bold tracking-[0.08em] text-[#8a6424]">YENİ</span>}
                   {st.kind !== "none" && <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${STATUS_DOT[st.kind]}`} title={st.text} aria-label={st.text} />}
                   {!inlineSettings && <ChevronRight className={`ml-auto h-4 w-4 shrink-0 ${f ? ap.lavInk : ap.faint}`} aria-hidden="true" />}
                 </span>
                 <span className={`${ap.muted} mt-0.5 block break-words text-[12px] leading-snug`}>{m.hint}</span>
                 {m.needsTime && timeUnknown && <span className={`${ap.warnInk} mt-0.5 block text-[11px] leading-snug`}>doğum saati gerekir</span>}
+                {on && USES_HOUSE_SYSTEM.includes(id) && (
+                  <span className={`${ap.lavInk} mt-0.5 block break-words text-[11px] leading-snug`} data-testid="atlas-tech-house" data-technique-house={id}>
+                    Ev sistemi: {houseLabelFor(id)}
+                    {id === "western.natal" ? "" : " · ortak"}
+                  </span>
+                )}
               </button>
               <button
                 type="button"
@@ -788,6 +832,11 @@ export default function PrepCenter({
           </>
         )}
       </p>
+      {houseSummaryText && (
+        <p className={`${ap.lavInk} truncate text-[11px]`} data-testid="atlas-console-houses" title={houseSummaryText}>
+          {houseSummaryText}
+        </p>
+      )}
       {plan && plan.newRequestCount > 0 && (
         <p className={`${ap.goldInk} truncate text-[11px]`} data-testid="atlas-console-requests">
           Başlatınca {plan.newRequestCount} yeni sağlayıcı isteği yapılır; hazır sonuçlar yeniden istenmez.
@@ -1112,7 +1161,7 @@ export default function PrepCenter({
       <div className="flex items-end justify-between gap-2 px-0.5 pt-1">
         <p className={`${ap.ink} ${ap.display} text-[1.15rem] leading-tight`}>Analiz Teknikleri</p>
         <span className={`${ap.muted} text-[11.5px] tabular-nums`}>
-          {counts[system]} / {TECH_BY_SYSTEM[system].length} seçili
+          {counts[system]} / {techBySystem[system].length} seçili
         </span>
       </div>
       {techSearch}
@@ -1148,7 +1197,7 @@ export default function PrepCenter({
           <div className={`${SURFACE} flex flex-col gap-2 p-1.5 sm:p-2`}>
             <div className="flex items-center justify-between gap-2 px-1">
               <p className={EYEBROW}>
-                {sysDef.short.toLocaleUpperCase("tr-TR")} TEKNİKLERİ · {counts[system]} / {TECH_BY_SYSTEM[system].length}
+                {sysDef.short.toLocaleUpperCase("tr-TR")} TEKNİKLERİ · {counts[system]} / {techBySystem[system].length}
               </p>
             </div>
             {techSearch}

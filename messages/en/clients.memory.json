@@ -1,9 +1,9 @@
 {
   "clients": {
     "memory": {
-      "intro": "Search this client's past records (combinations, stones, sessions, assignments, appointments, Human Design). The client's personal/health free-text notes are not searched here.",
+      "intro": "Search this client's past records: sessions, assignments, appointments, stones, combinations and notes (including health notes, recommendations and general notes). Identity/contact details such as name, phone and address are not searched.",
       "searchAria": "Client memory search",
-      "searchPlaceholder": "Search: stone, combination, session type, HD code…",
+      "searchPlaceholder": "Search: stone, session type, health note, recommendation…",
       "searchButton": "Search",
       "dateLabel": "Date:",
       "dateFromAria": "Start date",

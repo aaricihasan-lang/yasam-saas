@@ -141,6 +141,15 @@ export function isAdminOnlyRoutePath(pathname: string): boolean {
   );
 }
 
+/**
+ * D8 (owner 2026-11-01): demo hesabı (is_demo_account=true) Gökyüzü Atlası'nı SALT OKUNUR örnek görünümle açar. Astroloji
+ * modül anahtarı demo'da kapalı kalır (DEMO_DENIED; gerçek uçlar 404); sayfa yalnız sunucunun demo erişim yanıtıyla
+ * (/api/astroloji/demo/access) örnek uca bağlanır. Bu istemci kapısı yalnız sayfanın açılmasına izin verir.
+ */
+function isAstrologyDemoViewRoute(user: YasamUser, rule: RouteModuleRule): boolean {
+  return user.is_demo_account === true && rule.prefix === "/astroloji";
+}
+
 export function canExpertAccessRoutePath(
   user: YasamUser | null | undefined,
   pathname: string,
@@ -155,6 +164,8 @@ export function canExpertAccessRoutePath(
   if (!rule) return true;
 
   if (rule.keys.some((k) => COMING_SOON_MODULE_KEYS.has(k as ModulePermissionKey))) return false;
+
+  if (isAstrologyDemoViewRoute(user, rule)) return true;
 
   return hasAnyModulePermissionFlag(user, rule.keys);
 }
@@ -189,6 +200,8 @@ export function evaluateRouteModuleGuard(
   if (rule.keys.some((k) => COMING_SOON_MODULE_KEYS.has(k as ModulePermissionKey))) return "deny";
 
   if (!hasExpertMembershipAccess(user)) return "deny_membership";
+
+  if (isAstrologyDemoViewRoute(user, rule)) return "allow";
 
   return hasAnyModulePermissionFlag(user, rule.keys) ? "allow" : "deny";
 }

@@ -444,6 +444,19 @@ function MineralListesiPageContent() {
   const activeSearch = debouncedSearch;
   const filteredMinerals = minerals;
   const hasMore = minerals.length < totalCount;
+
+  // B9: "Toplam kayıt" kiracıdaki TÜM mineralleri gösterir; totalCount arama + kategori kapsamıdır
+  // (sayfalama / "Tümünü Seç" için aynen kalır). Filtre yokken ikisi aynıdır; filtre varken kapsam her
+  // yenilendiğinde kiracı toplamı tek sayım isteğiyle tazelenir.
+  const [tenantTotal, setTenantTotal] = useState<number | null>(null);
+  useEffect(() => {
+    if (!debouncedSearch.trim() && !categoryFilter.trim()) { setTenantTotal(totalCount); return; }
+    const tid = queryTenantId ?? getSessionTenantId();
+    if (!tid) return;
+    let alive = true;
+    void fetchMineralsListCount(tid).then((r) => { if (alive && !r.error) setTenantTotal(r.count); });
+    return () => { alive = false; };
+  }, [debouncedSearch, categoryFilter, totalCount, queryTenantId]);
   const listBusy =
     listLoading || (Boolean(searchTerm.trim()) && searchTerm.trim() !== debouncedSearch);
 
@@ -490,9 +503,14 @@ function MineralListesiPageContent() {
         body: JSON.stringify({ exportMode: wordExportMode, mineralIds }),
       });
       if (!res.ok) {
-        const data = await res.json().catch(() => ({})) as { error?: string };
+        const data = await res.json().catch(() => ({})) as { error?: string; code?: string };
         // FAZ-3B: ham backend hatası kullanıcıya gösterilmez; yalnız geliştirici logunda.
         console.error("[mineral-listesi] Word raporu hatası:", data.error ?? `HTTP ${res.status}`);
+        // B4: rapora girecek mineral yoksa (404, seçim-kayıp değil) gerçeği söyleyen mesaj.
+        if (res.status === 404 && data.code !== "selection_missing") {
+          setWordReportError(t("wordNoResults"));
+          return;
+        }
         throw new Error("report-failed");
       }
       await downloadFileResponse(res, `mineral-bankasi-raporu-${reportFileDate()}.docx`);
@@ -513,7 +531,7 @@ function MineralListesiPageContent() {
       subtitle={t("subtitle")}
       aside={
         <DogaltasStats columns={2}>
-          <DogaltasStat icon={<Database className="h-5 w-5" />} value={totalCount} label={t("totalLabel")} />
+          <DogaltasStat icon={<Database className="h-5 w-5" />} value={tenantTotal ?? totalCount} label={t("totalLabel")} />
           <DogaltasStat
             icon={<FileText className="h-5 w-5" />}
             value={filteredMinerals.length}

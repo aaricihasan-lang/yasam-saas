@@ -59,7 +59,19 @@ const nextConfig: NextConfig = {
 
   // Refleksoloji premium Word raporu klinik ayak PNG'lerini server-side (fs) okur;
   // Vercel output tracing bunları route bundle'ına dahil etsin (ağ fetch YOK).
+  // Include anahtarları rota adına "contains" ile eşleşir: "/api/admin/astroloji/efemeris" Ay evreleri rotasını (…/efemeris/ay) da
+  // kapsar. Ay evreleri DE440 kullanmaz → oradan dışlanır (dışlama eklemeden sonra uygulanır; yoksa ≈120 MB gereksiz yük).
+  outputFileTracingExcludes: {
+    "/api/admin/astroloji/efemeris/ay": ["./data/ephemeris/**"],
+    "/api/astroloji/efemeris/ay": ["./data/ephemeris/**"],
+  },
   outputFileTracingIncludes: {
+    // Gökyüzü Atlası profesyonel efemeris + derece geçişleri: JPL DE440 (değiştirilmemiş resmî kernel, ~114 MB) fs ile okunur.
+    // Depoda YOK; `npm run build` öncesi (prebuild) resmî kaynaktan indirilip SHA-256 ile doğrulanır (scripts/astrology/de440/).
+    "/api/admin/astroloji/efemeris": ["./data/ephemeris/de440.bsp"],
+    "/api/admin/astroloji/efemeris/derece": ["./data/ephemeris/de440.bsp"],
+    "/api/astroloji/efemeris": ["./data/ephemeris/de440.bsp"],
+    "/api/astroloji/efemeris/derece": ["./data/ephemeris/de440.bsp"],
     "/api/refleksoloji/protocol-report": [
       "./public/refleksoloji/klinik_*.png",
       "./public/refleksoloji/el_avuc_sag_sol.png",
@@ -85,6 +97,9 @@ const nextConfig: NextConfig = {
     "/api/astroloji/analyses/report": ["./public/fonts/Geist-Regular.ttf", "./public/fonts/YasamAstroSymbolsA.ttf", "./public/fonts/YasamAstroSymbolsB.ttf"],
     // Klasik Numeroloji görsel (PNG) raporu: resvg depo içi Geist TTF'yi fs ile okur (sistem fontu yok).
     "/api/numeroloji-klasik/rapor/gorsel": ["./public/fonts/Geist-Regular.ttf"],
+    // Kampanya Merkezi ziyaretçi analizi: aynı istekte üretilen raporlar — HD Word logosu, Klasik Numeroloji PNG + Atlas çark (Geist),
+    // Atlas Word'e gömülen sembol fontları. Liste yoksa Vercel'de dosyalar pakete girmez ve rapor sessizce üretilemez.
+    "/api/kampanya/analiz": ["./public/fonts/Geist-Regular.ttf", "./public/fonts/YasamAstroSymbolsA.ttf", "./public/fonts/YasamAstroSymbolsB.ttf", "./public/assets/yasam-sistemi-chart-logo.png"],
   },
 
   experimental: {

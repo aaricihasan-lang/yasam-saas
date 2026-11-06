@@ -7,6 +7,10 @@
   --foreground: #171717;
   /* Uygulamayı light-only olarak işaretle: dark mod sistem renkleri body'den butonlara sızmasın */
   color-scheme: light;
+  /* "only": tarayıcının zorla koyu modu (Edge/Chrome otomatik koyu web içeriği, Samsung Internet vb.)
+     sayfayı yeniden boyamasın. "only" bilinmeyen tarayıcı bu satırı atar, üstteki "light" geçerli kalır.
+     Kişisel Dijital Ofis Gece/Otomatik modu kendi kökünde çizilir; bundan etkilenmez. */
+  color-scheme: only light;
   /* Logo bar yüksekliği — AppLogoLink bunu 44px olarak override eder; / ve /register'da 0 kalır */
   --logo-h: 0px;
 }
@@ -35,13 +39,6 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
 }
 
 html {

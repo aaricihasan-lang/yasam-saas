@@ -129,7 +129,7 @@
         "imagesUploaded": "{count} resim yüklendi.",
         "photoRemoveFailed": "Fotoğraf kaldırılamadı. Lütfen tekrar deneyin.",
         "photoRemoved": "Fotoğraf kaldırıldı.",
-        "stoneNameRequired": "Taş adı zorunlu hocam.",
+        "stoneNameRequired": "Taş adı zorunludur.",
         "saveFailed": "Kayıt tamamlanamadı. Lütfen bilgileri kontrol edip tekrar deneyin.",
         "saveFailedTitle": "Kayıt başarısız",
         "savedTitle": "Kaydedildi",

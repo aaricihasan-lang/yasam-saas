@@ -159,7 +159,7 @@ async function main() {
   check("uzman iç notu varsayılan HARİÇ (tekliyle aynı)", !bulk.text.includes("GIZLI_UZMAN_NOTU_"));
   check("bilgilendirme notu + kapanış bir kez", bulk.text.split(note).length - 1 === 1);
   check("ödeme durumu Word'de: Ödendi/Ödenmedi/Belirtilmemiş", ["Ödendi", "Ödenmedi", "Belirtilmemiş"].every((x) => bulk.text.includes(x)));
-  check("ödenmemiş özeti satırı (1 kayıt · 350,5 ₺)", bulk.text.includes("Ödenmemiş") && /1 kayıt · 350,5 ₺/.test(bulk.text));
+  check("ödenmemiş özeti satırı (1 kayıt · 350,50 ₺ — C4 kuruş 2 hane)", bulk.text.includes("Ödenmemiş") && /1 kayıt · 350,50 ₺/.test(bulk.text));
   const pageBreaks = (bulk.raw.match(/<w:pageBreakBefore\/>/g) ?? []).length;
   const badgeBreaks = items.length;
   check(`her danışan yeni sayfada (pageBreakBefore ≥ ${badgeBreaks})`, pageBreaks >= badgeBreaks, pageBreaks);

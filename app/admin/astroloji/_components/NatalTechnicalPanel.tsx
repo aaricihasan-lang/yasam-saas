@@ -21,6 +21,7 @@ import {
   SIGN_LABELS,
   formatDegree,
 } from "@/lib/astrology/labels/tr";
+import { fitGridCell, fitGridStyle } from "./atlas/fitGrid";
 
 const th = "px-2 py-1.5 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500";
 const td = "px-2 py-1.5 text-sm text-slate-800";
@@ -41,6 +42,28 @@ function SignCell({ sign, degree }: { sign: keyof typeof SIGN_LABELS; degree: nu
       {SIGN_LABELS[sign]} {formatDegree(degree)}
     </span>
   );
+}
+
+/**
+ * Dağılımda en yüksek değer birden fazla grupta eşitse bunu AÇIKÇA söyler (2026-11-04 doğrulama B-1): kaynak eşitlikte
+ * sıralama kuralıyla tek "baskın" grup verir; sayılar ve baskın etiketi DEĞİŞMEZ, yalnız eşitlik bilgisi eklenir.
+ * Sayım: 10 gezegen, her biri 1 (ASC/MC, düğümler, Kiron, Lilith dahil değil — kaynak yanıtlarında doğrulandı).
+ */
+function TieNote<K extends string>({ dist, labels, testId }: { dist: Record<K, number>; labels: Record<K, string>; testId: string }) {
+  const top = topTie(dist);
+  if (top.keys.length < 2) return null;
+  return (
+    <p className="mb-1 rounded-md bg-amber-50 px-2 py-1 text-xs leading-5 text-amber-900" data-testid={testId}>
+      Eşitlik: {top.keys.map((k) => labels[k]).join(", ")} ({top.value}&apos;er gezegen). &ldquo;Baskın&rdquo; etiketi eşitlikte hesaplama
+      kaynağının sıralama kuralıyla seçilir.
+    </p>
+  );
+}
+
+function topTie<K extends string>(dist: Record<K, number>): { keys: K[]; value: number } {
+  const entries = Object.entries(dist) as [K, number][];
+  const value = Math.max(...entries.map(([, v]) => v));
+  return { keys: value > 0 ? entries.filter(([, v]) => v === value).map(([k]) => k) : [], value };
 }
 
 /** Açı niteliği → küçük renk etiketi (yalnız görsel ayrım; veri/etiket metni aynen). */
@@ -148,9 +171,9 @@ export default function NatalTechnicalPanel({ technical, timeUnknown, part = "al
 
       {show("houses") && !timeUnknown && t.houses.length > 0 && (
         <Section title="Ev başlangıçları (cusp)">
-          <div className="grid grid-cols-2 gap-x-4 gap-y-1 px-3 py-2 text-sm sm:grid-cols-3">
+          <div className="grid gap-y-1 px-3 py-2 text-sm" style={fitGridStyle()} data-fit-grid="cusps">
             {t.houses.map((h) => (
-              <div key={h.number} className="flex items-center justify-between gap-2 border-b border-slate-50 py-1">
+              <div key={h.number} className={fitGridCell}>
                 <span className="font-medium text-slate-600">{h.number}. ev</span>
                 <SignCell sign={h.sign} degree={h.degreeInSign} />
               </div>
@@ -163,8 +186,9 @@ export default function NatalTechnicalPanel({ technical, timeUnknown, part = "al
       <Section title={`Açılar (${t.aspects.length})`}>
         {/* 2026-10-12 (UAT 2. tur, madde I): uzun ad sütunu satıra geçer (tablo gereksiz genişlemez); kalan yatay
             kaydırma + dikey kaydırma AYNI kapta, başlık yapışkan → yatay kaydırma çubuğu 41 satırın sonunda kalmaz,
-            ekranda görünür kalır. */}
-        <div className="max-h-[min(70vh,640px)] overflow-auto overscroll-contain" data-testid="astro-aspects-scroll">
+            ekranda görünür kalır. 2026-11-06 (V4-002): kutu, bilgi panelinin üstündeki yatay kaydırma şeridi (~2rem) kadar
+            kısa → üst şerit ile kutunun kendi alt çubuğu AYNI ANDA ekranda. */}
+        <div className="max-h-[min(calc(70vh_-_2rem),640px)] overflow-auto overscroll-contain" data-testid="astro-aspects-scroll">
         <table className="min-w-full">
           <thead className="sticky top-0 z-[1] bg-white shadow-[0_1px_0_rgb(241,245,249)]">
             <tr>
@@ -231,6 +255,7 @@ export default function NatalTechnicalPanel({ technical, timeUnknown, part = "al
               <div className="mb-1 font-medium text-slate-600">
                 Element {t.summary.dominantElement ? `· baskın: ${ELEMENT_LABELS[t.summary.dominantElement]}` : ""}
               </div>
+              <TieNote dist={t.summary.elementDistribution} labels={ELEMENT_LABELS} testId="natal-element-tie" />
               {(Object.keys(t.summary.elementDistribution) as (keyof typeof ELEMENT_LABELS)[]).map((k) => (
                 <div key={k} className="flex justify-between">
                   <span>{ELEMENT_LABELS[k]}</span>
@@ -244,6 +269,7 @@ export default function NatalTechnicalPanel({ technical, timeUnknown, part = "al
               <div className="mb-1 font-medium text-slate-600">
                 Nitelik {t.summary.dominantModality ? `· baskın: ${MODALITY_LABELS[t.summary.dominantModality]}` : ""}
               </div>
+              <TieNote dist={t.summary.modalityDistribution} labels={MODALITY_LABELS} testId="natal-modality-tie" />
               {(Object.keys(t.summary.modalityDistribution) as (keyof typeof MODALITY_LABELS)[]).map((k) => (
                 <div key={k} className="flex justify-between">
                   <span>{MODALITY_LABELS[k]}</span>

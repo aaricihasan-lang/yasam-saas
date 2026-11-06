@@ -9,10 +9,13 @@
  */
 import { containsTr } from "@/lib/text/turkishSearch";
 
-/** Türkçe alfabe (29 harf) — İlk Harf seçeneklerinin sırası. */
+/**
+ * Türkçe alfabe (29 harf) + Q — İlk Harf seçeneklerinin sırası.
+ * C6 (2026-11-04): Q ile başlayan danışan adları filtrelenebilsin diye P ile R arasına Q eklendi.
+ */
 export const TR_ALPHABET = [
   "A", "B", "C", "Ç", "D", "E", "F", "G", "Ğ", "H", "I", "İ", "J", "K", "L",
-  "M", "N", "O", "Ö", "P", "R", "S", "Ş", "T", "U", "Ü", "V", "Y", "Z",
+  "M", "N", "O", "Ö", "P", "Q", "R", "S", "Ş", "T", "U", "Ü", "V", "Y", "Z",
 ] as const;
 
 export type ClientListFilterable = {

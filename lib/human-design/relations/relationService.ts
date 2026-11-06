@@ -232,7 +232,7 @@ export async function createRelationAnalysis(ctx: RelationCtx, rawBody: unknown,
       return fail(404, "CHART_NOT_FOUND", `${c.name}: seçilen Human Design analizi bulunamadı veya bu danışana ait değil.`, { participant: c.name });
     }
     if (ch.source !== "computed" || ch.provider !== ROXY_PROVIDER_ID) {
-      return fail(422, "CHART_NOT_ELIGIBLE", `${c.name}: ilişki/grup analizi için otomatik (RoxyAPI) BodyGraph analizi gereklidir.`, { participant: c.name });
+      return fail(422, "CHART_NOT_ELIGIBLE", `${c.name}: ilişki/grup analizi için otomatik hesaplanmış BodyGraph analizi gereklidir.`, { participant: c.name });
     }
     const moment = chartBirthMoment(ch.input);
     const facts = participantChartFacts(ch.computed_result);

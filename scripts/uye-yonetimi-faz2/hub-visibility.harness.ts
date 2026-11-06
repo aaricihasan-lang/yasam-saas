@@ -98,9 +98,11 @@ ok(!validateApprovalModules(["personal_archive", "belge_ceviri"]).ok && !validat
   "dondurma: üyelik onayında arşiv seçilemez (400)");
 const demoArchive = expert({ personal_archive: true, kisisel_arsiv: true, belge_ceviri: true });
 (demoArchive as unknown as Record<string, unknown>).is_demo_account = true;
-ok(dcIds(demoArchive) === "personal_archive" && resolveModuleAccess("expert", demoArchive.module_permissions, "personal_archive", { isDemo: true }) === true
+// Owner kararı 2026-11-01 (D1): demo hesapta Dijital İçerik hub'ı ve Kişisel Arşiv dahil TÜM alt özellikleri bayraktan bağımsız KAPALI.
+ok(dcIds(demoArchive) === "" && resolveModuleAccess("expert", demoArchive.module_permissions, "personal_archive", { isDemo: true }) === false
+  && resolveModuleAccess("expert", demoArchive.module_permissions, "digital_content", { isDemo: true }) === false
   && resolveModuleAccess("expert", demoArchive.module_permissions, "belge_ceviri", { isDemo: true }) === false,
-  "demo vitrin: mevcut bayrakla yalnız Kişisel Arşiv (yazmalar sunucuda demo 403); Belge Çeviri kapalı");
+  "demo vitrin (D1): arşiv bayrağı olsa da DC hub + Kişisel Arşiv + Belge Çeviri KAPALI");
 
 // ─── 4. Hiç child yok ─────────────────────────────────────────────────────────
 console.log("\n[4] hiç erişilebilir alt modül yok");

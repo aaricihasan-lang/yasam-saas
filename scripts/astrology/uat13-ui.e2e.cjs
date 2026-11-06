@@ -2,7 +2,9 @@
 // Önkoşul: yerel `next dev` (3931) + dev-fake-backend (54329/54330, FAKE_ROXY_RELABEL=1 → sonuçlar gerçek DEĞİL).
 // Kullanım: node scripts/astrology/uat13-ui.e2e.cjs [genişlik=390] [yükseklik=844] [fake-backend.log]
 // NOT: Bu bir EMÜLASYONDUR (Chromium mobil görünüm alanı + dokunma); fiziksel Android cihaz testi DEĞİLDİR.
+/* eslint-disable @typescript-eslint/no-require-imports -- düz Node CommonJS test betiği */
 const { chromium } = require("playwright");
+const { openBenchAnalysis, revealHeaderActions, deskMenuItem, dismissAtlasDevNotice } = require("./atlas-e2e-open-analysis.cjs");
 const { readFileSync } = require("node:fs");
 
 const [W = "390", H = "844", LOG = ""] = process.argv.slice(2);
@@ -83,6 +85,7 @@ async function overflowOffenders(page, rootSel) {
     localStorage.setItem("yasam_session_token", "local-owner-token-aaaaaaaaaaaa");
   });
   const page = await ctx.newPage();
+  await dismissAtlasDevNotice(page); // main #710 bilgilendirme penceresi (uzman yüzeyi)
   const errors = [];
   page.on("pageerror", (e) => errors.push(String(e).slice(0, 200)));
   let dialogs = 0;
@@ -122,7 +125,18 @@ async function overflowOffenders(page, rootSel) {
   const sb = await saveBtn.boundingBox();
   ok("kayıt düğmesi ilk ekranda görünür (üstte)", !!sb && sb.y >= 0 && sb.y + sb.height <= height, JSON.stringify(sb));
   ok("ikinci kayıt formu / 'Kaydet' sekmesi yok", (await page.getByRole("tab", { name: /^Kaydet$/ }).count()) === 0 && (await page.locator("text=Sistem yorumunu analize ayrı katman olarak dahil et").count()) === 0);
-  if (mobile) {
+  // 2026-11-05: V3 seçici (varsayılan) — açık analizler başlıktaki seçicide; eski kutucuklar yalnız bayrak kapalıyken.
+  if (mobile && (await page.locator("[data-testid=atlas-picker-trigger]").count()) > 0) {
+    await page.locator("[data-testid=atlas-picker-trigger]:visible").first().click();
+    await page.waitForFunction(() => !document.querySelector("[data-testid=atlas-picker-panel][data-loading]"), null, { timeout: 30000 });
+    const benchRows = page.locator("[data-testid=atlas-picker-panel] [role=option][data-picker-kind=bench]");
+    ok("mobil (V3): 5 açık analiz seçicide (alt panel)", (await benchRows.count()) === 5 && (await page.locator("[data-testid=atlas-picker-panel][data-mode=sheet]").count()) === 1, `satır ${await benchRows.count()}`);
+    const cb = await page.locator("[data-testid=atlas-picker-panel] [data-picker-close]").first().boundingBox();
+    ok("mobil (V3): kapatma (×) ayrık ve ≥40 px dokunma alanı", !!cb && cb.width >= 38 && cb.height >= 40, JSON.stringify(cb));
+    await page.keyboard.press("Escape");
+    await page.locator("[data-testid=atlas-picker-scrim]").click({ position: { x: 5, y: 5 } }).catch(() => {});
+    await page.waitForTimeout(400);
+  } else if (mobile) {
     const tiles = page.locator("[data-testid=astro-result-tabs-mobile] [data-tab-key-m]");
     ok("mobil: 5 açık analiz kutucuğu görünür (4 + 'Tümünü göster')", (await tiles.count()) === 4 && (await page.locator("[data-testid=astro-result-tabs-more]").isVisible()), `kutucuk ${await tiles.count()}`);
     await page.locator("[data-testid=astro-result-tabs-more]").click();
@@ -134,9 +148,7 @@ async function overflowOffenders(page, rootSel) {
   ok("sonuç ekranında yatay taşma yok", (await overflowOffenders(page, "[data-testid=astro-result-view]")).length === 0, (await overflowOffenders(page, "[data-testid=astro-result-view]")).join(" | "));
 
   // ── 2) Transit sekmesi: tablo/kart taşmaz
-  const transitTab = mobile ? page.locator("[data-testid=astro-result-tabs-mobile] [data-tab-key-m^='western.transit']") : page.locator("[data-tab-key^='western.transit']");
-  await transitTab.first().click();
-  await page.waitForTimeout(800);
+  await openBenchAnalysis(page, "western.transit", mobile);
   if (mobile) ok("mobil transit açıları bilgi kartı olarak (sütun kesilmez)", (await page.locator("[data-testid=astro-transit-cards] li").count()) > 0);
   ok("transit ekranında sessiz kesilme yok", (await overflowOffenders(page, "[data-testid=astro-result-view]")).length === 0, (await overflowOffenders(page, "[data-testid=astro-result-view]")).join(" | "));
   // ── 3) Kendi Yorumum taslağı → geri tuşu uyarısı (görünüm kaybı)
@@ -196,9 +208,12 @@ async function overflowOffenders(page, rootSel) {
   await page.waitForTimeout(600);
   ok("yeşil bildirim görünür (sabit, ekranın üstünde)", /analiz başarıyla kaydedildi/.test(await page.locator("[data-testid=astro-saved-notice]").innerText()) && ((await page.locator("[data-testid=astro-saved-notice]").boundingBox())?.y ?? 999) < 160);
   ok("kalıcı 'kaydedildi' göstergesi", await page.locator("[data-testid=astro-all-saved]").first().isVisible());
-  ok("kayıttan sonra ikinci kayıt formu yok; 'Kayıtlı analizi aç' var", (await page.locator("[data-testid=astro-open-saved]").count()) > 0 && (await page.locator("[data-testid=astro-desk-save]").count()) === 0);
+  // V4: "Kayıtlı analizi aç" ikincil işlem → "⋯" menüsünde
+  ok("kayıttan sonra ikinci kayıt formu yok; 'Kayıtlı analizi aç' var", (await (await deskMenuItem(page, "[data-testid=astro-open-saved]")).count()) > 0 && (await page.locator("[data-testid=astro-desk-save]").count()) === 0);
+  await page.keyboard.press("Escape");
 
   // ── 5) Teknik Ekle: çoklu seçim + ayarları kapatıp listeye dönme
+  await revealHeaderActions(page); // V3: telefonda "+ Teknik Ekle" "⋯" menüsünde
   await page.locator("[data-testid=atlas-add-technique-btn]").first().click();
   await page.waitForSelector("[data-testid=atlas-add-technique]");
   await page.locator("[data-add-technique='western.synastry']").click();
@@ -226,10 +241,7 @@ async function overflowOffenders(page, rootSel) {
   const addSave = await page.locator("[data-testid=astro-desk-save]").first().innerText().catch(() => "");
   ok("Teknik Ekle sonrası 4 kaydedilmemiş analiz", /Tümünü Kaydet \(4\)/.test(addSave), addSave);
   // Transit takvimi kartları
-  const fcTab = mobile ? page.locator("[data-testid=astro-result-tabs-mobile] [data-tab-key-m^='western.forecast']") : page.locator("[data-tab-key^='western.forecast']");
-  if (mobile && !(await fcTab.first().isVisible())) await page.locator("[data-testid=astro-result-tabs-more]").click();
-  await fcTab.first().click();
-  await page.waitForTimeout(800);
+  await openBenchAnalysis(page, "western.forecast", mobile);
   if (mobile) ok("mobil Transit Takvimi olay kartları", (await page.locator("[data-testid=astro-forecast-cards] li").count()) > 0);
   ok("Transit Takvimi ekranında sessiz kesilme yok", (await overflowOffenders(page, "[data-testid=astro-result-view]")).length === 0, (await overflowOffenders(page, "[data-testid=astro-result-view]")).join(" | "));
 
@@ -289,21 +301,29 @@ async function overflowOffenders(page, rootSel) {
   await page.waitForSelector("[data-testid=astro-saved-analysis]", { timeout: 60000 });
   await page.waitForTimeout(1200);
   if (LOG) ok("kayıtlı analizi açmak 0 Roxy isteği", hits() === h4);
-  ok("kayıtlı analiz başlığı taşmaz", (await overflowOffenders(page, "[data-testid=astro-saved-analysis] header")).length === 0, (await overflowOffenders(page, "[data-testid=astro-saved-analysis] header")).join(" | "));
-  const tog = page.locator("[data-testid=astro-saved-interp-toggle]");
-  if (await tog.count()) {
-    const before3 = await page.getByRole("tab").allInnerTexts();
+  ok("kayıtlı analiz başlığı taşmaz", (await overflowOffenders(page, "[data-testid=atlas-desk-header]")).length === 0, (await overflowOffenders(page, "[data-testid=atlas-desk-header]")).join(" | "));
+  // V4 (owner): üstteki "Sistem yorumunu göster/gizle" düğmesi kaldırıldı; görünürlük anahtarı Yorum bölümünün İÇİNDE.
+  ok("üstte yorum göster/gizle düğmesi yok", (await page.locator("[data-testid=atlas-desk-header] [data-testid=astro-saved-interp-toggle]").count()) === 0);
+  // Yorum bölümü kimliğiyle seçilir (başlığı tekniğe göre değişir: "Otomatik Yorum", "Olay Açıklamaları"…; "Kendi Yorumum" ayrı bölüm).
+  const yorumTab = page.locator("[data-testid=atlas-result-sections] [role=tab][data-section=yorum]:visible").first();
+  if (await yorumTab.count()) {
+    await yorumTab.click();
+    await page.waitForTimeout(400);
+    const tog = page.locator("[data-testid=astro-saved-interp-toggle]");
+    const interpVisible = async () => (await page.locator("[data-testid=astro-saved-interp-bar] ~ *").count()) > 0;
+    const before3 = await interpVisible();
     await tog.click();
     await page.waitForTimeout(300);
-    const hidden = await page.getByRole("tab").allInnerTexts();
+    const hidden = await interpVisible();
+    const hiddenTxt = await page.locator("[data-testid=astro-saved-interp-bar]").innerText();
     await tog.click();
     await page.waitForTimeout(300);
-    const shown = await page.getByRole("tab").allInnerTexts();
-    ok("yorum gizle/göster: sekme kalkar ve geri gelir (veri silinmez)", hidden.length === before3.length - 1 && shown.length === before3.length, `${before3.length}/${hidden.length}/${shown.length}`);
-  } else ok("yorum göster/gizle düğmesi (yorumlu kayıt)", false, "düğme yok");
+    const shown = await interpVisible();
+    ok("yorum gizle/göster (Yorum bölümünde): içerik gizlenir ve geri gelir (veri silinmez)", before3 && !hidden && shown && /gizli/.test(hiddenTxt), `${before3}/${hidden}/${shown}`);
+  } else ok("Yorum bölümü (yorumlu kayıt)", false, "bölüm yok");
 
   // Secondary progression kaydı: harita çizilir (mevcut veriden; 0 Roxy)
-  await page.locator("[data-testid=astro-client-file-back], button[aria-label='Danışan Dosyası']").first().click().catch(() => undefined);
+  await (await deskMenuItem(page, "button[aria-label='Danışan Dosyası']")).click().catch(() => undefined);
   await page.goto(`${BASE}#danisan/${pid}`, { waitUntil: "load" });
   await page.waitForSelector("[data-testid=astro-client-file-analyses]", { timeout: 60000 });
   await page.waitForTimeout(1200);

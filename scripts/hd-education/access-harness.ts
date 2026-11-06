@@ -125,6 +125,11 @@ async function main() {
     // ── 0) Hazırlık kapısı KAPALI (varsayılan) → eğitmen uçları DB'ye gitmeden 404; owner yönetimi bayraktan BAĞIMSIZ ─
     section("0. Hazırlık kapısı (varsayılan KAPALI) — eğitmen kapalı, owner yönetimi açık");
     {
+      // Acil kapatma: "false" → eğitmen uçları veritabanına HİÇ gitmeden 404.
+      process.env.HD_EDUCATION_CATALOG_ENABLED = "false";
+      const ksBefore = env.stats.requests;
+      const ks = [await call(viewAccess, asUser(E[0])), await call(viewCharts, asUser(E[0]))];
+      ok(ks.every((r) => r.status === 404) && env.stats.requests === ksBefore, `acil kapatma "false" → eğitmen uçları 404 ve veritabanına HİÇ istek gitmedi`, env.stats.requests - ksBefore);
       for (const val of [undefined, "", "1", "TRUE", "yes", " true"]) {
         if (val === undefined) delete process.env.HD_EDUCATION_CATALOG_ENABLED;
         else process.env.HD_EDUCATION_CATALOG_ENABLED = val;
@@ -135,7 +140,9 @@ async function main() {
           track(`off-view-owner-as-user:${val}`, await call(viewAccess, asUser(OWNER))),
         ];
         ok(viewer.every((r) => r.status === 404), `kapı "${val ?? "(yok)"}" → eğitmen uçları 404`, viewer.map((r) => r.status));
-        ok(env.stats.requests === before, `kapı "${val ?? "(yok)"}" → eğitmen uçlarında veritabanına HİÇ istek gitmedi`, env.stats.requests - before);
+        // Owner kararı 31.10.2026: ortam değişkeni tanımsız / geçersizse kapı owner'ın DB anahtarıdır (bu ortamda tablo yok →
+        // fail-closed). "Veritabanına hiç gitmeden 404" garantisi yalnız acil kapatma ("false") için geçerlidir (aşağıda).
+        void before;
         const own = [
           track(`off-owner-subjects:${val}`, await call(adminSubjects, asAdmin(OWNER))),
           track(`off-owner-access:${val}`, await call(adminAccessGet, asAdmin(OWNER))),

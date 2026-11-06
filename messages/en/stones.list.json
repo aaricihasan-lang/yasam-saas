@@ -68,7 +68,7 @@
         "astroPlaceholder": "Type a zodiac sign, planet or astrological assignment…",
         "astroHint": "E.g. cancer, mercury, venus, moon, aries",
         "warningLabel": "⚠️ Only stones with alerts",
-        "warningHint": "Stones that have a warning_text or warning_tags value.",
+        "warningHint": "Stones that have a warning note or warning tags.",
         "chakraLabel": "🔵 Chakra",
         "chakraPlaceholder": "Type a chakra name or related term…",
         "chakraHint": "E.g. heart, throat, crown, 4th chakra",

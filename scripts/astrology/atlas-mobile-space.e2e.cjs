@@ -7,6 +7,7 @@
 //   • genişlik < 640: kabul ölçütleri — taşma yok, panel dış boşluğu ≤ 4 px, metin kenar boşluğu ≥ 8 px.
 /* eslint-disable @typescript-eslint/no-require-imports -- düz Node CommonJS test betiği */
 const { chromium } = require("playwright");
+const { openBenchAnalysis } = require("./atlas-e2e-open-analysis.cjs");
 const { mkdirSync, writeFileSync, readFileSync, existsSync } = require("node:fs");
 const { randomUUID } = require("node:crypto");
 
@@ -265,12 +266,8 @@ function geometryInPage() {
   await page.locator("[data-testid=astro-run]").click();
   await page.waitForSelector("[data-testid=astro-desk-save]", { timeout: 120000 });
   await page.waitForTimeout(1500);
-  const tabSel = (id) => (mobile ? `[data-testid=astro-result-tabs-mobile] [data-tab-key-m^='${id}']` : `[data-tab-key^='${id}']`);
-  const openTab = async (id) => {
-    if (mobile && !(await page.locator(tabSel(id)).first().isVisible()) && (await page.locator("[data-testid=astro-result-tabs-more]").isVisible())) await page.locator("[data-testid=astro-result-tabs-more]").click();
-    await page.locator(tabSel(id)).first().click();
-    await page.waitForTimeout(900);
-  };
+  // 2026-11-05: V3 seçici (varsayılan) ya da eski şerit (bayrak kapalı) — bkz. atlas-e2e-open-analysis.cjs
+  const openTab = (id) => openBenchAnalysis(page, id, mobile);
   await openTab("western.transit");
   await page.evaluate(() => window.scrollTo(0, 0));
   await screen("3-harita");

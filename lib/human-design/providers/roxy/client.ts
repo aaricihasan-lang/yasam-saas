@@ -8,6 +8,8 @@
 //   • `fetchImpl` enjekte edilebilir → testler gerçek (ücretli) Roxy'ye ÇAĞRI YAPMAZ.
 
 import { ROXY_BODYGRAPH_ENDPOINT, ROXY_POLICY, type RoxyServerConfig } from "./config";
+// TRIAL7: varsayılan fetch deneme kredi sayacından geçer (bağlam yoksa düz fetch — davranış aynı).
+import { trialMeteredFetch } from "@/lib/trial/roxyMeter";
 
 export type RoxyBodygraphRequest = {
   date: string; // YYYY-MM-DD
@@ -40,7 +42,7 @@ export async function callRoxyBodygraph(
 ): Promise<RoxyCallResult> {
   const lang = opts.lang ?? ROXY_POLICY.lang;
   const timeoutMs = opts.timeoutMs ?? ROXY_POLICY.timeoutMs;
-  const doFetch: FetchLike = opts.fetchImpl ?? ((u, i) => fetch(u, i));
+  const doFetch: FetchLike = opts.fetchImpl ?? trialMeteredFetch;
   const url = `${config.baseUrl}${ROXY_BODYGRAPH_ENDPOINT}?lang=${encodeURIComponent(lang)}`;
 
   const ac = new AbortController();

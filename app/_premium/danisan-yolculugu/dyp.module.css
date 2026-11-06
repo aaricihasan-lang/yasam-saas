@@ -30,6 +30,13 @@
   -webkit-font-smoothing: antialiased;
 }
 
+/* G2-04 (owner): .page `isolation` katmanı Analizler tam ekran penceresini (z-[10000]) sayfa içinde hapsediyordu → sol menü
+   (z 50) analiz başlık / sütunlarının üstüne biniyordu. YALNIZ analiz penceresi açıkken sayfa katmanı menünün hemen üstüne
+   alınır; 900px altı çekmece (70) / örtüler (55–60) ve kök pencereler (10000+) aynen üstte kalır. */
+.page:has([data-dy-analysis-modal]) {
+  z-index: 51;
+}
+
 /* ── Zemin: dalgalar + nokta dokusu (sabit, hareketsiz) ─────────────────── */
 .backdrop {
   position: absolute;
@@ -1124,6 +1131,23 @@ button.stat:hover {
   }
 }
 
+/* Masaüstü (2026-11-05): 1280–1600px civarında 6 sütun kartları ~140–180px'e sıkıştırıp telefon/tarih
+   değerlerini "0555…" diye kesiyordu (ölçüldü: 11 haneli telefon ~107–122px; kart iç alanı 62–102px).
+   6 sütun yalnız kart değeri kesmeden sığdığında (kimlik kartı içi ≥1300px ≈ kart ≥205px); daha darda
+   mevcut 3 sütun × 2 satır düzeni. Kimlik kartının GERÇEK genişliği ölçülür (sol menü açık/kapalı fark etmez).
+   Tablet/mobil kuralları ve renk/yüzey tasarımı aynı. */
+.idCard {
+  container-type: inline-size;
+}
+
+@media (min-width: 1280px) {
+  @container (max-width: 1299px) {
+    .infoGrid {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+  }
+}
+
 @media (max-width: 1023px) {
   .listTop {
     grid-template-columns: minmax(0, 1fr);
@@ -1225,6 +1249,10 @@ button.stat:hover {
 
   .infoValue {
     font-size: 14.5px;
+    /* C1 (2026-11-04): 320px'te telefon/doğum tarihi "05551…" diye kesiliyordu →
+       mobilde değer kesilmez, gerekirse alt satıra kayar. */
+    white-space: normal;
+    overflow-wrap: anywhere;
   }
 
   .tab {
@@ -1265,5 +1293,16 @@ button.stat:hover {
   .idAvatarMob {
     display: grid;
     margin-top: 6px;
+  }
+}
+
+/* C1 (2026-11-05): en dar telefonlarda (≤359px; ör. 320px) ikon + değer yan yana sığmıyor ve
+   sayılar ortadan bölünüyordu ("15.03.199 / 0"). Yalnız bu genişlikte ikon değerin üstüne
+   alınır; değer kartın tam genişliğini kullanır. 360px ve üstü düzen birebir aynı. */
+@media (max-width: 359px) {
+  .infoTile {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
   }
 }

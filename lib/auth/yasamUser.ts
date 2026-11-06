@@ -44,6 +44,10 @@ export type YasamUser = {
   module_permissions?: ModulePermissions;
   admin_level?: string;
   is_demo_account?: boolean;
+  /** TRIAL7: 7 günlük deneme rejimi ("self_7d"); mevcut hesaplarda yok. */
+  trial_kind?: string;
+  /** TRIAL7: not_started | active | review | suspended | converted. */
+  trial_status?: string;
 };
 
 const LOCKED_SUBSCRIPTION_TOAST =
@@ -137,6 +141,8 @@ export function parseLoginUserRecord(raw: unknown): YasamUser | null {
     admin_level:
       r.admin_level != null ? String(r.admin_level).trim() : undefined,
     is_demo_account: r.is_demo_account === true,
+    trial_kind: r.trial_kind != null ? String(r.trial_kind).trim().toLowerCase() : undefined,
+    trial_status: r.trial_status != null ? String(r.trial_status).trim().toLowerCase() : undefined,
     approval_status: resolveApprovalStatus(r),
     active:
       parseActiveFlag(r.active) ??

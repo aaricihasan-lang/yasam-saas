@@ -459,6 +459,13 @@ export default function KombinasyonOlusturPage() {
     });
     const metMinerals = conditionStatus.filter((c) => c.met);
     const missingMinerals = conditionStatus.filter((c) => !c.met);
+    // B6: koşul kuralı aynı (sepette en az bir taş karşılarsa koşul karşılanır); ancak koşulların
+    // hepsini tek başına karşılamayan sepet taşları ayrıca listelenir → "tümünü karşılıyor" yanıltmaz.
+    const nonMatchingStones = activeConditions.length
+      ? fullStones
+          .filter((s) => !activeConditions.every((cond) => evaluateOne(s, cond).satisfied))
+          .map((s) => s.stone_name || "İsimsiz taş")
+      : [];
 
     // Taş bazlı uyarılar (warning_text + warning_tags). TAS-03: sunucu ek kaynak / bilgi kaydı
     // uyarılarını da birleştirdiyse (search_warning_text) o metin kullanılır.
@@ -474,7 +481,7 @@ export default function KombinasyonOlusturPage() {
     });
     const hasAnyWarning = warnings.some((w) => w.has);
 
-    return { metMinerals, missingMinerals, warnings, hasAnyWarning };
+    return { metMinerals, missingMinerals, nonMatchingStones, warnings, hasAnyWarning };
   }, [cart, knownStones, activeConditions]);
 
   // ─── Kombinasyonu kaydet (güvenli API) ────────────────────────────────────
@@ -487,6 +494,9 @@ export default function KombinasyonOlusturPage() {
       "Karşılanan: " +
         (cartAnalysis.metMinerals.map((m) => m.label).join(", ") || "—"),
       "Eksik: " + (cartAnalysis.missingMinerals.map((m) => m.label).join(", ") || "—"),
+      ...(cartAnalysis.nonMatchingStones.length
+        ? ["Koşulları karşılamayan taşlar: " + cartAnalysis.nonMatchingStones.join(", ")]
+        : []),
     ];
     return lines.join("\n");
   }
@@ -732,6 +742,23 @@ export default function KombinasyonOlusturPage() {
         {isDemo && (
           <DemoModuleBanner message={t("demoBanner")} />
         )}
+
+        {/* M06 (owner 30.10) alan sırası: 1 Kombinasyon Adı · 2 Taş Seçimi / Arama · 3 Kombinasyon Sepeti ·
+            4 Açıklama / Amaç · 5 Serbest Not · 6 Kombinasyonu Kaydet. Yalnız yer değişti; aynı saveName
+            durumu ve kayıt mantığı (zorunlu ad, Kaydet kilidi) aynen. Kap <div>: sayfadaki ilk <section> yine
+            Arama Koşulları kalır (mevcut testler / yardımcı teknolojiler için yapı değişmez). */}
+        {!savedInfo ? (
+          <div className={uiFilterCard}>
+            <input
+              type="text"
+              value={saveName}
+              onChange={(e) => setSaveName(e.target.value)}
+              placeholder={t("namePlaceholder")}
+              maxLength={200}
+              className={DOGALTAS_INPUT_CLASS}
+            />
+          </div>
+        ) : null}
 
         {/* ── Koşul kurucu ───────────────────────────────────────────────── */}
         <section className={uiFilterCard}>
@@ -1181,9 +1208,13 @@ export default function KombinasyonOlusturPage() {
                       </p>
                     )}
                     {activeConditions.length > 0 &&
-                      (cartAnalysis.missingMinerals.length === 0 ? (
+                      (cartAnalysis.missingMinerals.length === 0 && cartAnalysis.nonMatchingStones.length === 0 ? (
                         <p className="rounded-lg bg-emerald-50 px-2 py-1.5 text-[11px] font-bold text-emerald-700 ring-1 ring-emerald-200">
                           {t("allConditionsMet")}
+                        </p>
+                      ) : cartAnalysis.missingMinerals.length === 0 ? (
+                        <p className="rounded-lg bg-amber-50 px-2 py-1.5 text-[11px] font-bold text-amber-700 ring-1 ring-amber-200">
+                          {t("stonesNotMatching", { names: cartAnalysis.nonMatchingStones.join(", ") })}
                         </p>
                       ) : (
                         <p className="rounded-lg bg-rose-50 px-2 py-1.5 text-[11px] font-bold text-rose-700 ring-1 ring-rose-200">
@@ -1243,14 +1274,6 @@ export default function KombinasyonOlusturPage() {
           ) : (
             <div className="space-y-2">
               <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                <input
-                  type="text"
-                  value={saveName}
-                  onChange={(e) => setSaveName(e.target.value)}
-                  placeholder={t("namePlaceholder")}
-                  maxLength={200}
-                  className={DOGALTAS_INPUT_CLASS}
-                />
                 <input
                   type="text"
                   value={saveDescription}

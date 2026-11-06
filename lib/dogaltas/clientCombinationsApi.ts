@@ -106,7 +106,7 @@ export async function saveClientCombination(
 export async function updateClientCombination(
   clientId: string,
   combinationId: string,
-  fields: { name?: string; description?: string | null; note?: string | null },
+  fields: { name?: string; description?: string | null; note?: string | null; stones?: string[] },
 ): Promise<ApiResult> {
   const headers = authHeaders();
   if (!headers) return { ok: false, error: "Oturum bulunamadı." };

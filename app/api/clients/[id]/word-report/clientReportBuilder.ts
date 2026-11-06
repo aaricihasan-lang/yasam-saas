@@ -36,6 +36,7 @@ import { wellnessNote } from "@/lib/docx/reportDisclaimer";
 import {
   formatDateLoose,
   formatDateOnly,
+  formatInstantDate,
   formatInstantDateTime,
   looseDayKey,
   reportFileDate,
@@ -141,6 +142,21 @@ export type ClientSessionRow = {
   created_at: string;
 };
 
+/** B5: danışana özel kayıtlı kombinasyon (client_combinations) — Taşlar Word'ü için. */
+export type ClientCombinationReportRow = {
+  id: string;
+  name?: string | null;
+  description?: string | null;
+  note?: string | null;
+  stones_text?: string | null;
+  notes_text?: string | null;
+  notes_text_2?: string | null;
+  created_at: string;
+};
+
+/** C11: Taşlar Word'ü için taş başına fotoğraf seti (route'ta yüklenir). */
+export type StoneReportPhotoSet = { images: Buffer[]; total: number; omitted: number; unreadable: number };
+
 export type ClientChargeRow = {
   id: string;
   charge_date?: string | null;
@@ -239,12 +255,16 @@ function chargeCatLabel(cat?: string | null): string {
   return CHARGE_CAT_LABEL[cat ?? ""] ?? "Diğer";
 }
 function formatTRY(amount: number): string {
-  return `${new Intl.NumberFormat("tr-TR").format(amount)} ₺`;
+  // C4 (2026-11-04): kuruş varsa daima 2 hane ("1.500,50 ₺"; eskiden "1.500,5 ₺");
+  // tam tutar mevcut biçimde kalır ("1.500 ₺").
+  const digits = Number.isInteger(amount) ? 0 : 2;
+  return `${new Intl.NumberFormat("tr-TR", { minimumFractionDigits: digits, maximumFractionDigits: digits }).format(amount)} ₺`;
 }
 
 function slugify(text: string): string {
+  // C3 (2026-11-04): yerel ayarsız toLowerCase "İ" → "i̇" üretip "bi-r" yapıyordu.
   return text
-    .toLowerCase()
+    .toLocaleLowerCase("tr-TR")
     .replace(/ı/g, "i").replace(/İ/g, "i")
     .replace(/ğ/g, "g").replace(/Ğ/g, "g")
     .replace(/ü/g, "u").replace(/Ü/g, "u")
@@ -589,7 +609,12 @@ function appointmentsBody(apts: AppointmentRow[], now: Date): ReportChild[] {
   ];
 }
 
-function stonesBody(stones: ClientStoneRow[]): ReportChild[] {
+/**
+ * C11 (2026-11-04): `photos` verilirse (yalnız Taşlar Word'ü) taşın fotoğrafları kaydın altına
+ * eklenir. Harita route'ta bu tenant + danışan + taş yoluna göre süzülüp küçültülmüş olarak gelir;
+ * verilmezse (tam/toplu rapor) çıktı AYNEN eskisi gibidir.
+ */
+function stonesBody(stones: ClientStoneRow[], photos?: ReadonlyMap<string, StoneReportPhotoSet>): ReportChild[] {
   const out: ReportChild[] = [];
   stones.forEach((st, i) => {
     out.push(dyItemTitle(`${i + 1}. ${tidy(st.stone_name) || "Taş"}`, C.taslar, dateTR(st.stone_date)));
@@ -602,9 +627,46 @@ function stonesBody(stones: ClientStoneRow[]): ReportChild[] {
       ...dyLabeledText("Genel Not", st.note),
       ...dyLabeledText("Diğer Notlar", st.other_notes),
     );
+    const ph = photos?.get(st.id);
+    if (ph && ph.total > 0) {
+      const added = ph.images.length;
+      out.push(...dyLabeledText("Fotoğraflar", added === ph.total ? `${added} fotoğraf` : `${ph.total} fotoğraftan ${added} tanesi eklendi`));
+      for (const img of ph.images) out.push(embedImageParagraph(img, 260, 260));
+      // Sessiz eksiltme YOK: eklenemeyen her fotoğraf nedeniyle yazılır.
+      const why: string[] = [];
+      if (ph.omitted > 0) why.push(`${ph.omitted} fotoğraf rapor boyutu sınırı nedeniyle`);
+      if (ph.unreadable > 0) why.push(`${ph.unreadable} fotoğraf okunamadığı için`);
+      if (why.length) out.push(dyNote(`${why.join(", ")} rapora eklenmedi. Tüm fotoğraflar uygulamadaki taş kaydında görüntülenebilir.`));
+    }
     if (i < stones.length - 1) out.push(dyDivider());
   });
   return out;
+}
+
+/**
+ * B5 (05.11): Taşlar Word'ü — danışana kaydedilmiş kombinasyonlar. Uygulamadaki "Kayıtlı
+ * Kombinasyonlar" kartıyla aynı alanlar ve etiketler (Taşlar, Amaç, Not, Mineral Özeti,
+ * Uyarı / Stok Özeti). Kombinasyon yoksa hiçbir şey eklenmez → rapor eskisiyle birebir aynı.
+ */
+function combinationsBody(combos: ClientCombinationReportRow[]): ReportChild[] {
+  const out: ReportChild[] = [dySubTitle("Kayıtlı Kombinasyonlar", C.taslar)];
+  combos.forEach((cb, i) => {
+    out.push(dyItemTitle(`${i + 1}. ${tidy(cb.name) || "Kombinasyon"}`, C.taslar, formatInstantDate(cb.created_at, { fallback: "" })));
+    const stones = String(cb.stones_text ?? "").split(",").map((s) => tidy(s)).filter(Boolean);
+    out.push(
+      ...dyLabeledText("Taşlar", stones.join(", ")),
+      ...dyLabeledText("Amaç", cb.description),
+      ...dyLabeledText("Not", cb.note),
+      ...dyLabeledText("Mineral Özeti", cb.notes_text),
+      ...dyLabeledText("Uyarı / Stok Özeti", cb.notes_text_2),
+    );
+    if (i < combos.length - 1) out.push(dyDivider());
+  });
+  return out;
+}
+
+function combinationHasContent(cb: ClientCombinationReportRow): boolean {
+  return has(cb.name) || has(cb.stones_text) || has(cb.description) || has(cb.note) || has(cb.notes_text) || has(cb.notes_text_2);
 }
 
 function homeworksBody(hws: ClientHomeworkRow[], includeExpertNotes: boolean): ReportChild[] {
@@ -719,6 +781,10 @@ export function buildClientTabReport(
     notes: ClientNoteRow | null;
     rows: Record<string, unknown>[];
     analysisImages?: (Buffer | null)[];
+    /** C11: yalnız "taslar" sekmesi — taş id → (küçültülmüş) fotoğraflar + sayım. */
+    stonePhotos?: ReadonlyMap<string, StoneReportPhotoSet>;
+    /** B5: yalnız "taslar" sekmesi — bu danışanın kayıtlı kombinasyonları. */
+    combinations?: ClientCombinationReportRow[];
   },
   ctx: ClientReportCtx = {},
 ): ClientReportResult & { empty: boolean } {
@@ -747,7 +813,13 @@ export function buildClientTabReport(
     section(apts.length ? appointmentsBody(apts, now) : []);
   } else if (tab === "taslar") {
     const stones = (input.rows as ClientStoneRow[]).filter(stoneHasContent);
-    section(stones.length ? stonesBody(stones) : []);
+    const combos = (input.combinations ?? []).filter(combinationHasContent);
+    const body = stones.length ? stonesBody(stones, input.stonePhotos) : [];
+    if (combos.length) {
+      if (body.length) body.push(dyDivider());
+      body.push(...combinationsBody(combos));
+    }
+    section(body);
   } else if (tab === "seanslar") {
     const sessions = reportableSessions(input.rows as ClientSessionRow[], now);
     section(sessions.length ? sessionsBody(sessions) : []);
@@ -855,6 +927,11 @@ export type ClientFullInput = {
   snapshotChildren?: ReportChild[];
   /** BF-14 teslim eki — doğru bölüm numarasıyla üretilir (tercih edilen). */
   snapshotSection?: (headingNumber: number) => ReportChild[];
+  /**
+   * B5 (06.11): Tam / Özel rapor — danışana kayıtlı kombinasyonlar (route yalnız bu iki modda okur).
+   * Verilmezse (tarih aralığı / toplu) Taş Önerileri bölümü AYNEN eskisi gibidir.
+   */
+  combinations?: ClientCombinationReportRow[];
   /** Kayıtlı HD analizinin DONMUŞ snapshot gövdesi (route okur; yoksa bölüm yok). */
   hd?: ClientHdSection | null;
   /**
@@ -896,6 +973,7 @@ function buildClientBody(
   const sessions = reportableSessions(input.data.sessions, now);
   const appointments = input.data.appointments;
   const stones = input.data.stones.filter(stoneHasContent);
+  const combos = (input.combinations ?? []).filter(combinationHasContent);
   const homeworks = input.data.homeworks.filter((h) => homeworkHasContent(h, includeExpertNotes));
   const analyses = input.data.analyses
     .map((an, i) => ({ an, img: imgs[i] ?? null }))
@@ -933,7 +1011,11 @@ function buildClientBody(
   }
   if (sel.has("seanslar") && sessions.length) { open("Seanslar", C.seanslar); all.push(...sessionsBody(sessions)); }
   if (sel.has("randevular") && appointments.length) { open("Randevular", C.randevular); all.push(...appointmentsBody(appointments, now)); }
-  if (sel.has("taslar") && stones.length) { open("Taş Önerileri", C.taslar); all.push(...stonesBody(stones)); }
+  if (sel.has("taslar") && (stones.length || combos.length)) {
+    open("Taş Önerileri", C.taslar);
+    if (stones.length) all.push(...stonesBody(stones));
+    if (combos.length) { if (stones.length) all.push(dyDivider()); all.push(...combinationsBody(combos)); }
+  }
   if (sel.has("odevler") && homeworks.length) { open("Ödevler", C.odevler); all.push(...homeworksBody(homeworks, includeExpertNotes)); }
   if (sel.has("analizler") && analyses.length) { open("Analizler", C.analizler); all.push(...analysesBody(analyses)); }
   if (input.beslenme) {

@@ -83,7 +83,9 @@ async function main() {
   });
 
   await t("7C: uzman yüzeyi app/api/astroloji/** admin route'larının BİREBİR aynası (yalnız re-export, kendi mantığı yok)", () => {
-    const expert = walk(join(ROOT, "app/api/astroloji")).filter((f) => f.endsWith("route.ts"));
+    // D8: demo örnek görünümü ucu (app/api/astroloji/demo/**) ayna DEĞİL; kendi kapısı + statik testi var
+    // (scripts/demo-vitrin/atlas-demo.harness.ts).
+    const expert = walk(join(ROOT, "app/api/astroloji")).filter((f) => f.endsWith("route.ts") && !/[\\/]astroloji[\\/]demo[\\/]/.test(f));
     const adminRel = routeFiles.map((f) => rel(f).replace(/^app\/api\/admin\/astroloji/, "")).sort();
     const expertRel = expert.map((f) => rel(f).replace(/^app\/api\/astroloji/, "")).sort();
     assert.deepEqual(expertRel, adminRel, "uzman / admin route kümeleri aynı olmalı");
@@ -187,7 +189,9 @@ async function main() {
     const la = read("app/life-analysis/page.tsx");
     assert.ok(la.includes("<AtlasCenterCard />"), "Analiz Merkezi Atlas kartını içerir");
     const card = read("app/life-analysis/AtlasCenterCard.tsx");
-    assert.ok(/astroFetch<[^>]*>\("\/api\/admin\/astroloji\/access"\)/.test(card) && /if \(!allowed\) return null;/.test(card) && /href="\/astroloji"/.test(card), "kart yalnız erişim yoklaması 200 iken, /astroloji adresine");
+    // D8: yoklama ortak probeAstroAccess (gerçek /access; yalnız uzman yüzeyinde ve 404 sonrası demo yoklaması) — fail-closed aynen.
+    assert.ok(/probeAstroAccess\(\)\.then/.test(card) && /if \(!allowed\) return null;/.test(card) && /href="\/astroloji"/.test(card), "kart yalnız erişim yoklaması 200 iken, /astroloji adresine");
+    assert.match(read("app/admin/astroloji/_lib/api.ts"), /const r = await astroFetch<AstroAccess>\(`\$\{ADMIN_API\}\/access`\);/);
     assert.ok(read("app/admin/astroloji/_components/atlas/AtlasHero.tsx").includes('href="/life-analysis"'), "Atlas ana ekranından Analiz Merkezi'ne dönüş");
   });
 
@@ -218,6 +222,29 @@ async function main() {
         assert.ok(ok, `${f}: Astroloji dışı eklenen satır: ${p}`);
       }
     }
+  });
+
+  await t("B4: proxy.ts farkı yalnız Efemeris kuralı (silinen satır 0; CSP, admin yönlendirmesi ve matcher aynen; kural admin korumasından SONRA)", () => {
+    let base = "";
+    try {
+      base = execSync("git merge-base HEAD origin/main", { cwd: ROOT, encoding: "utf8" }).trim();
+    } catch {
+      return;
+    }
+    const diff = execSync(`git diff -U0 ${base} -- proxy.ts`, { cwd: ROOT, encoding: "utf8" });
+    const minus = diff.split(/\r?\n/).filter((l) => l.startsWith("-") && !l.startsWith("---"));
+    const plus = diff.split(/\r?\n/).filter((l) => l.startsWith("+") && !l.startsWith("+++")).map((l) => l.slice(1).trim());
+    assert.deepEqual(minus, [], `proxy.ts'ten silinen/değişen satır: ${minus.join(" | ")}`);
+    const okLine = (p: string) =>
+      p === "" ||
+      /^(\/\*\*|\*|\*\/|\/\/)/.test(p) ||
+      /^\}$/.test(p) ||
+      /isProEphemerisEnabled|isProEphemerisPath|PRO_EPHEMERIS_PATHS|PRO_EPHEMERIS_OFF_TARGET|notFoundRewrite/.test(p);
+    for (const p of plus) assert.ok(okLine(p), `proxy.ts'e Efemeris dışı eklenen satır: ${p}`);
+    const src = read("proxy.ts");
+    assert.ok(src.indexOf("isAdminPath(request.nextUrl.pathname)") < src.indexOf("isProEphemerisPath(request.nextUrl.pathname)"), "Efemeris kuralı admin oturum yönlendirmesinden SONRA");
+    assert.match(src, /const PRO_EPHEMERIS_PATHS = \["\/astroloji\/efemeris", "\/admin\/astroloji\/efemeris"\] as const;/);
+    assert.match(src, /notFoundRewrite\.headers\.set\("Content-Security-Policy", policy\);/);
   });
 
   await t("env: NEXT_PUBLIC_ astroloji/roxy değişkeni yok; kill switch tam 'true' karşılaştırması", () => {
@@ -258,6 +285,18 @@ async function main() {
       // 2026-10-29 (Owner talimatı): CI'da bağımsız `horary-western` işi (#591). RKS-3 main'den kaldırıldı (#610) →
       // scripts/rks/** artık yok; yalnız bu CI dosyası.
       /^\.github\/workflows\/ci\.yml$/,
+      // 2026-11-03 (Owner onayı, AŞAMA 2): Gökyüzü Atlası teknik bazlı yetkilendirme — Admin > Üye Detayı > Modül İzinleri paneli,
+      // admin kayıt ucu, denetim zaman çizelgesi etiketi ve migration (yalnız bu tam yollar).
+      /^app\/admin\/users\/\[id\]\/page\.tsx$/,
+      /^app\/api\/admin\/users\/\[id\]\/astrology-techniques\/route\.ts$/,
+      // 2026-11-03 ikinci tur (Owner): onay / Yeni Uzman / modül anahtarı — Astroloji teknik seçimi olmadan açılamaz.
+      /^app\/admin\/users\/page\.tsx$/,
+      /^app\/api\/admin\/users\/route\.ts$/,
+      /^app\/api\/admin\/users\/\[id\]\/route\.ts$/,
+      /^app\/api\/admin\/users\/\[id\]\/status\/route\.ts$/,
+      /^components\/admin\/members\/AstrologyTechniqueAccess\.tsx$/,
+      /^lib\/admin\/member360\.ts$/,
+      /^supabase\/migrations\/20271230000000_astrology_technique_grants\.sql$/,
       /^app\/admin\/layout\.tsx$/,
       // 2026-10-21: Gökyüzü Atlası premium görselleri (yalnız bu modülün sayfa dekoru; #436'dan beri bu klasörde).
       /^public\/premium\/gokyuzu-atlasi\//,
@@ -292,6 +331,10 @@ async function main() {
       /^ASTROLOGY-FINAL-LOCAL-INTEGRATION\.md$/,
       // Aşama 8: rapor route'larının font dosyası izleme kaydı — fark ayrıca satır satır sınırlanır.
       /^next\.config\.ts$/,
+      // 2026-10-31 (Owner onayı, AŞAMA 4 / B4): proxy.ts — YALNIZ Profesyonel Efemeris'in iki rota yolu, bayrak kapalıyken gerçek 404
+      // (ModuleRouteGuard arkasında sayfa içi notFound() soft-404 veriyordu). Fark ayrıca "B4: proxy.ts farkı yalnız Efemeris" testiyle
+      // satır satır sınırlanır (CSP / admin koruması / matcher değişemez).
+      /^proxy\.ts$/,
       // Aşama 7C: uzman yüzeyi (sayfa + API aynası) ve mevcut yetki sistemine Astroloji kayıtları.
       // Paylaşılan dosyalar ayrıca "yalnız Astroloji satırları" testiyle satır satır sınırlanır.
       /^app\/astroloji\//,

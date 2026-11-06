@@ -48,6 +48,7 @@
         "title": "📋 Bulk Actions",
         "selectedCount": "✓ {count} selected",
         "noSelection": "No selection",
+        "selectFirst": "Select at least one article from the list first.",
         "selectAll": "Select All ({count})",
         "deselectAll": "Deselect All",
         "clearSelection": "Clear Selection",
@@ -96,7 +97,8 @@
           "noUser": "User ID not found. Please sign in again.",
           "noFiltered": "No filtered results found.",
           "noViewed": "No articles viewed in this search session yet.",
-          "reportFailed": "Unable to generate the Word report. Please try again."
+          "reportFailed": "Unable to generate the Word report. Please try again.",
+          "noResults": "No articles found for this selection."
         }
       },
       "detail": {

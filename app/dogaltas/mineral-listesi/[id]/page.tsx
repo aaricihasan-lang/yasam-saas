@@ -11,7 +11,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { useParams, useSearchParams } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
@@ -21,7 +21,8 @@ import type { MineralContentTypography } from "@/lib/dogaltas/mineralDetailFontS
 import { useMineralDetailFontSize } from "@/lib/dogaltas/useMineralDetailFontSize";
 import { useDemoGuard } from "@/hooks/useDemoGuard";
 import { DemoBlur } from "@/components/demo/DemoBlur";
-import { getMineral, updateMineral } from "@/lib/dogaltas/dogaltasApi";
+import { bulkDeleteMinerals, getMineral, updateMineral } from "@/lib/dogaltas/dogaltasApi";
+import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
 import {
   mergeMatchCardClass,
   renderHighlightedText,
@@ -410,6 +411,30 @@ function MineralDetailPageContent() {
   const [editForm, setEditForm] = useState<MineralEditForm | null>(null);
   const canEdit = !isDemo; // demo hesap yazamaz (Word butonu ile aynı kural)
 
+  // B8: detayda Sil — listedeki silmeyle aynı uç (bulk-delete, tenant kapsamlı); onay taş detayındaki kalıpla.
+  const router = useRouter();
+  const deleteConfirm = useDeleteConfirm();
+  const [deleteBusy, setDeleteBusy] = useState(false);
+  async function handleDelete() {
+    if (!mineral || deleteBusy) return;
+    const name = mineral.name || "-";
+    const confirmed = await deleteConfirm({
+      title: t("deleteTitle"),
+      message: t("deleteMessage", { name }),
+      secondMessage: t("deleteSecond", { name }),
+    });
+    if (!confirmed) return;
+    setDeleteBusy(true);
+    const r = await bulkDeleteMinerals([mineral.id]);
+    setDeleteBusy(false);
+    if (!r.ok || (r.deleted ?? 0) < 1) {
+      showToast({ type: "error", message: t("deleteFailed", { error: r.error ?? "" }) });
+      return;
+    }
+    showToast({ type: "success", message: t("deletedToast", { name }) });
+    router.push("/dogaltas/mineral-listesi");
+  }
+
   function startEdit() {
     if (!mineral) return;
     setEditForm(mineralToEditForm(mineral));
@@ -580,7 +605,8 @@ function MineralDetailPageContent() {
         showToast({ type: "error", message: tre(await reportErrorKind(res)) });
         return;
       }
-      const safeN = mineral.name.toLowerCase()
+      // B9: "İ" önce "i" (toLowerCase "İ" → "i" + birleşik nokta → "-" oluyordu).
+      const safeN = mineral.name.replace(/İ/g, "i").toLowerCase()
         .replace(/ı/g,"i").replace(/ğ/g,"g").replace(/ü/g,"u")
         .replace(/ş/g,"s").replace(/ö/g,"o").replace(/ç/g,"c")
         .replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"");
@@ -708,6 +734,10 @@ function MineralDetailPageContent() {
               </>
             ) : (
               <>
+                {/* B8: listeye / aramaya dönüş (taş detayındaki kalıp; arama varsa q korunur). */}
+                <Link href={listBackHref} className="btn-soft">
+                  {highlightQuery ? t("backToSearch") : t("backToList")}
+                </Link>
                 <DogaltasFontSizeControl
                   fontSizePx={fontSizePx}
                   onDecrease={decreaseFontSize}
@@ -741,6 +771,16 @@ function MineralDetailPageContent() {
                     className="btn-primary"
                   >
                     {t("editButton")}
+                  </button>
+                )}
+                {canEdit && (
+                  <button
+                    type="button"
+                    onClick={() => void handleDelete()}
+                    disabled={deleteBusy}
+                    className="btn-danger"
+                  >
+                    {t("deleteButton")}
                   </button>
                 )}
               </>

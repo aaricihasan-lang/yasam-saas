@@ -9,6 +9,8 @@
  * import yolları (`@/lib/auth/moduleAccess`) DEĞİŞMEDEN çalışır.
  */
 
+import { isTrialAllowedModuleKey } from "@/lib/trial/trialCore";
+
 /** Route gate anahtarları (kanonik). */
 export type ModuleGateKey =
   | "clients"
@@ -92,9 +94,10 @@ export function isAdminOnlyModuleKey(moduleKey: string): boolean {
 /**
  * DEMO VİTRİN — Dijital İçerik ürün kuralı (owner kararı 2026-10-03, KALICI).
  *
- * Demo/vitrin uzman hesabında (users.is_demo_account=true) Dijital İçerik Merkezi'nde YALNIZ
- * Kişisel Arşiv bulunurdu; AŞAMA 1 KİŞİSEL ARŞİV KİLİDİ (owner kararı 2026-10-22) ile Kişisel Arşiv de demo
- * dahil hiçbir uzmana açılmaz (ADMIN_ONLY_MODULE_KEYS) → demo hesapta Dijital İçerik hub'ı KAPALIDIR.
+ * Demo/vitrin uzman hesabında (users.is_demo_account=true) Dijital İçerik Merkezi'nde önceden YALNIZ
+ * Kişisel Arşiv bulunurdu. Owner kararı 2026-11-01: demo hesapta Dijital İçerik hub'ı ve Kişisel Arşiv dahil
+ * TÜM alt özellikleri KAPALIDIR (personal_archive / kisisel_arsiv / digital_content aşağıdaki sette; mevcut
+ * bayrak ve demo arşiv kayıtları veride AYNEN kalır, yalnız erişim kapanır).
  * Belge Çeviri (AI'sız pdf-to-word dahil), Video → Türkçe ve Ders Notu
  * `module_permissions` bayraklarından BAĞIMSIZ olarak demo hesaba KAPALIDIR. Kural veride değil
  * KODDA durur → hesap yeniden Premium'a alınsa / varsayılan paket yeniden uygulansa dahi
@@ -108,6 +111,12 @@ export const DEMO_DENIED_MODULE_KEYS: ReadonlySet<string> = new Set([
   "ders_notu",
   // Astroloji (owner kuralı 2026-10-07): demo/vitrin hesabı Astroloji'yi görmez — bayraktan bağımsız.
   "astrology",
+  // Dijital İçerik Merkezi (owner kararı 2026-11-01): demo hesabında hub ve TÜM alt özellikleri KAPALI —
+  // mevcut personal_archive bayrağından bağımsız (veri silinmez; yalnız erişim). Kanonik + TR alias birlikte
+  // (istemci hasAnyModulePermissionFlag her anahtarı ayrı denetler).
+  "personal_archive",
+  "kisisel_arsiv",
+  "digital_content",
 ]);
 
 export function isDemoDeniedModuleKey(moduleKey: string): boolean {
@@ -122,6 +131,12 @@ export function isDemoAccountFlag(value: unknown): boolean {
 export type ModuleAccessOptions = {
   /** users.is_demo_account — demo vitrin hesabında DEMO_DENIED_MODULE_KEYS kapalıdır. */
   isDemo?: boolean;
+  /**
+   * TRIAL7: 7 günlük deneme uzmanı (trial_kind=self_7d, Pro'ya geçmemiş). Yalnız
+   * lib/trial/trialCore TRIAL_ALLOWED_MODULE_KEYS'teki modüller açılabilir; Dijital İçerik ve
+   * tüm alt modülleri + ileride eklenecek her modül KAPALI (fail-closed, bayraktan bağımsız).
+   */
+  isTrial?: boolean;
 };
 
 function toFlags(raw: unknown): Record<string, boolean> {
@@ -160,8 +175,11 @@ export function resolveModuleAccess(
 ): boolean {
   if (String(role ?? "").trim().toLowerCase() === "admin") return true;
   const isDemo = options?.isDemo === true;
-  // Demo vitrin: Dijital İçerik'te yalnız Kişisel Arşiv (bayrakla; bkz. DEMO_DENIED_MODULE_KEYS). Yazmalar demo 403.
+  // Demo vitrin: Dijital İçerik hub'ı + Kişisel Arşiv + Belge/Video/Ders Notu + Astroloji bayraktan bağımsız KAPALI
+  // (bkz. DEMO_DENIED_MODULE_KEYS). Yazmalar demo 403.
   if (isDemo && isDemoDeniedModuleKey(moduleKey)) return false;
+  // TRIAL7: deneme paketi allowlist'i — module_permissions'ta açık olsa bile allowlist dışı KAPALI.
+  if (options?.isTrial === true && !isTrialAllowedModuleKey(moduleKey)) return false;
   // MERGE (KAJ-P1-04 × main): İki eski özel-durum KISAYOLU DA KALDIRILDI →
   //   • cosmic_calendar always-on YOK (owner "Gerçek kapı") → module_permissions.cosmic_calendar,
   //   • beslenme owner-only `return false` YOK (main: beslenme artık NORMAL modül) → module_permissions.beslenme.

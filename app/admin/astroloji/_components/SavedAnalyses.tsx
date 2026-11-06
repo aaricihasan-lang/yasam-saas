@@ -6,15 +6,19 @@
  * danışan yorumu (o anki) · Roxy yorumu (dahil edildiyse VE güncel yetki izin veriyorsa) · sürümler.
  */
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
+import { Lock } from "lucide-react";
 import { HOUSE_SYSTEM_LABELS, NODE_TYPE_LABELS } from "@/lib/astrology/labels/tr";
 import { astroDownload, astroFetch } from "../_lib/api";
 import { describeOptions, houseSystemLabel, techniqueLabel, zodiacLabel } from "../_lib/techniques";
+import { LOCAL_NATAL_HOUSE_CALC_TEXT, type NatalHouseSystemOption } from "@/lib/astrology/model/natalHouseSystems";
 import { DirectedWheelCaption, directedWheelGap, TechniqueTechnical, wheelForTechnique } from "./TimingPanels";
 import ProviderInterpretationPanel, { interpretationTitle, type InterpretationLayer } from "./ProviderInterpretationPanel";
 import { SynastryWheelCaption, TransitWheelCaption, roxyChartFor, transitWheelGap } from "./RoxyWheels";
 import type { TransitTechnical } from "@/lib/astrology/model/westernTiming";
 import ResultDesk, { DeskChip, deskGhostLight, type DeskTab } from "./atlas/ResultDesk";
+import NatalChartControls, { natalWheelDisplay, useNatalWheelPrefs } from "./NatalChartControls";
+import NatalSymbolGuide from "./NatalSymbolGuide";
 import NatalWheel from "./NatalWheel";
 import NatalTechnicalPanel from "./NatalTechnicalPanel";
 import { NO_PROVIDER_INTERPRETATION_NOTE, hasNoProviderInterpretation } from "@/lib/astrology/noProviderInterp";
@@ -32,6 +36,8 @@ type ListItem = {
   profileRevision: number;
   houseSystem: string | null;
   providerInterpIncluded: boolean;
+  /** 2026-11-03: tekniğin izni kapalı → listede kilitli görünür; açılamaz / rapora seçilemez (kayıt korunur). */
+  locked?: boolean;
 };
 
 type RevSnap = { revision: number; birthDate: string; birthTime: string | null; locationLabel: string; timezone: string; timeAccuracyLabel: string; latitude?: number; longitude?: number };
@@ -50,7 +56,8 @@ type Analysis = {
   technique: string;
   params: Record<string, unknown>;
   profile: PersonSnap & { partner?: PersonSnap | null };
-  method: { houseSystem: keyof typeof HOUSE_SYSTEM_LABELS | null; nodeType: "true" | "mean" | null; timeUnknownMasked: boolean; warnings?: string[] };
+  // Aşama 4: Natal 8 ev sistemi (klasik dördü dahil); houseCalculation yalnız klasik sistemli Natal kaydında (sunucu snapshot'tan türetir).
+  method: { houseSystem: NatalHouseSystemOption | null; nodeType: "true" | "mean" | null; timeUnknownMasked: boolean; warnings?: string[]; houseCalculation?: "local" };
   technical: unknown;
   knowledgeBank: KbSnap[];
   notes: { sectionKey: string; sectionLabel: string; body: string }[];
@@ -158,7 +165,9 @@ export function SavedAnalysesList({
 
   // Seçim listedeki sırayla gönderilir (rapordaki bölüm sırası = listedeki sıra).
   const pickedInOrder = cur.items.filter((a) => pickedIds.includes(a.id)).map((a) => a.id);
-  const allVisiblePicked = cur.items.length > 0 && cur.items.every((a) => pickedIds.includes(a.id));
+  // 2026-11-03: kilitli (teknik izni kapalı) kayıtlar toplu seçime girmez.
+  const pickable = cur.items.filter((a) => !a.locked);
+  const allVisiblePicked = pickable.length > 0 && pickable.every((a) => pickedIds.includes(a.id));
 
   return (
     <div className="flex flex-col gap-2" data-testid="astro-saved-analyses">
@@ -192,7 +201,7 @@ export function SavedAnalysesList({
           type="checkbox"
           className="h-4 w-4 accent-[#0B1430]"
           checked={allVisiblePicked}
-          onChange={(e) => setPicked({ pid: profileId, ids: e.target.checked ? [...new Set([...pickedIds, ...cur.items.map((a) => a.id)])] : pickedIds.filter((x) => !cur.items.some((a) => a.id === x)) })}
+          onChange={(e) => setPicked({ pid: profileId, ids: e.target.checked ? [...new Set([...pickedIds, ...pickable.map((a) => a.id)])] : pickedIds.filter((x) => !cur.items.some((a) => a.id === x)) })}
           aria-label="Görünen bütün analizleri seç"
           data-testid="astro-pick-all"
         />
@@ -213,6 +222,7 @@ export function SavedAnalysesList({
                 type="checkbox"
                 className="h-4 w-4 accent-[#0B1430]"
                 checked={pickedIds.includes(a.id)}
+                disabled={a.locked === true}
                 onChange={(e) => togglePick(a.id, e.target.checked)}
                 aria-label={`${techniqueLabel(a.technique)} analizini rapor için seç`}
                 data-testid="astro-pick"
@@ -221,7 +231,10 @@ export function SavedAnalysesList({
             </label>
             <button
               type="button"
-              onClick={() => onOpen(a.id)}
+              onClick={() => !a.locked && onOpen(a.id)}
+              aria-disabled={a.locked ? true : undefined}
+              title={a.locked ? "Bu analizin tekniği için izniniz kapalı. Kayıt korunuyor; izin yeniden verildiğinde açılabilir." : undefined}
+              data-locked={a.locked ? "1" : undefined}
               className={`min-w-0 flex-1 px-3 py-2 text-left text-sm transition focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[#c9a54e] ${openId === a.id ? "bg-[#f3e7c9]/70" : "hover:bg-[#fbf3e1]"}`}
             >
               {/* Ayrı alanlar: teknik · ayrıntı (hedef tarih / yıl / karşı taraf…) · kayıt tarihi · doğum revizyonu —
@@ -230,6 +243,11 @@ export function SavedAnalysesList({
                 <span className="flex w-full min-w-0 items-center gap-2 font-medium text-slate-800 sm:w-auto">
                   <span className={`h-2 w-2 shrink-0 rounded-full ${dot(a.technique)}`} aria-hidden="true" />
                   {techniqueLabel(a.technique)}
+                  {a.locked ? (
+                    <span className="ml-1 inline-flex items-center gap-1 rounded-full border border-slate-300 bg-slate-50 px-2 py-0.5 text-[10px] font-semibold text-slate-500" data-testid="astro-saved-locked">
+                      <Lock className="h-3 w-3" aria-hidden="true" /> Kilitli
+                    </span>
+                  ) : null}
                 </span>
                 <span className="min-w-0 max-w-full break-words pl-4 text-xs text-slate-600 [overflow-wrap:anywhere] sm:truncate sm:pl-0" title={a.title}>
                   {/* 2026-10-12: uzmanın kayıtta verdiği başlık listede görünür (otomatik başlık "… · Teknik · GG.AA.YYYY" gösterilmez). */}
@@ -268,6 +286,7 @@ export function SavedAnalysisView({
   onAddTechnique,
   onComputeNatal,
   currentRevision = null,
+  picker,
 }: {
   id: string;
   previewNoInterp: boolean;
@@ -278,9 +297,13 @@ export function SavedAnalysisView({
   onComputeNatal?: () => void;
   /** Profilin güncel doğum revizyonu — kayıt daha eski revizyonla yapıldıysa bu AÇIKÇA belirtilir (sonuç yeniden yorumlanmaz). */
   currentRevision?: number | null;
+  /** V3 analiz seçicisi (2026-11-05): verilirse masa başlığının yerine çizilir (aynı danışanın analizleri arasında geçiş). */
+  picker?: ReactNode;
 }) {
   const key = `${id}|${previewNoInterp}`;
   const [deskTab, setDeskTab] = useState("harita");
+  // Natal çark görünümü (yalnız çizim; kayıtlı analiz, Word/PDF ve sağlayıcı ile ilgisi yok).
+  const [natalPrefs, setNatalPrefs] = useNatalWheelPrefs();
   // 2026-10-12 (UAT madde 11): kayıtlı sistem yorumu yalnız GÖRÜNÜMDE gizlenir (veri silinmez, kayıt değişmez);
   // gizliyken Word/PDF de yorumsuz üretilir. Tercih bu tarayıcıda hatırlanır.
   const [interpHidden, setInterpHidden] = useState(() => {
@@ -310,8 +333,26 @@ export function SavedAnalysisView({
     };
   }, [key, id, previewNoInterp]);
   const cur = state && state.key === key ? state : null;
-  if (!cur) return <p className="text-sm text-slate-400">Analiz yükleniyor…</p>;
-  if (!cur.a) return <p className="text-sm text-rose-700">{cur.error}</p>;
+  // V3: kayıt yüklenirken / açılamazsa da seçici görünür kalır (aynı danışanın başka analizine geçilebilsin; eski şerit gibi).
+  const pickerBar = picker ? (
+    <div className="rounded-xl border border-slate-200 bg-white px-3 py-2 shadow-[0_1px_2px_rgba(15,23,42,0.05)]" data-testid="astro-saved-picker-bar">
+      {picker}
+    </div>
+  ) : null;
+  if (!cur)
+    return (
+      <div className="flex flex-col gap-2.5">
+        {pickerBar}
+        <p className="text-sm text-slate-400">Analiz yükleniyor…</p>
+      </div>
+    );
+  if (!cur.a)
+    return (
+      <div className="flex flex-col gap-2.5" data-testid="astro-saved-analysis-error">
+        {pickerBar}
+        <p className="text-sm text-rose-700">{cur.error}</p>
+      </div>
+    );
   const a = cur.a;
   const interp = a.interpretation;
   const partner = a.profile.partner ?? null;
@@ -356,15 +397,17 @@ export function SavedAnalysisView({
   const tabs: DeskTab[] = [
     ...(natal
       ? ([
-          { id: "harita", label: "Harita", tone: "lavender", hint: "Açısal noktalar ve dağılım" },
+          { id: "harita", label: "Özet", tone: "lavender", hint: "Açısal noktalar ve dağılım" },
           { id: "gezegenler", label: "Gezegenler", tone: "blue" },
           ...(housesAvailable ? [{ id: "evler", label: "Evler", tone: "sage" } as DeskTab] : []),
           { id: "acilar", label: "Açılar", tone: "peach", badge: natal.aspects.length },
+          { id: "semboller", label: "Semboller", tone: "sage", hint: "Çarktaki işaretlerin kısa açıklaması" },
         ] as DeskTab[])
       : []),
     ...(otherWheel || roxyChart ? ([{ id: "teknik", label: "Teknik ayrıntı", tone: "blue", hint: "Konumlar, açılar ve tablolar" }] as DeskTab[]) : []),
-    // Yorum sekmesi yalnız içerik gerçekten görünürken (yetki kapalı / dahil değil → sekme yok, içerik yanıtta da yok).
-    ...(interp.visible && !interpHidden ? ([{ id: "yorum", label: interpretationTitle(interp), tone: "gold", ownHeading: true }] as DeskTab[]) : []),
+    // Yorum bölümü yalnız içerik gerçekten görünürken (yetki kapalı / dahil değil → bölüm yok, içerik yanıtta da yok).
+    // V4: görünümden gizlenen kayıtlı yorum da bu bölümde kalır ("Yorumu göster"); üstteki ayrı düğme kaldırıldı.
+    ...(interp.visible ? ([{ id: "yorum", label: interpretationTitle(interp), tone: "gold", ownHeading: true }] as DeskTab[]) : []),
     { id: "bilgi", label: "Bilgi Bankam", tone: "gold", badge: a.knowledgeBank.length || null, ownHeading: true },
     { id: "not", label: "Kendi Yorumum", tone: "turquoise", badge: a.notes.length || null, ownHeading: true },
   ];
@@ -378,6 +421,7 @@ export function SavedAnalysisView({
         onBack={onClose}
         eyebrow="KAYITLI ANALİZ"
         title={a.title}
+        picker={picker}
         subtitle={
           <>
             <strong className="font-semibold text-[#F6F2EA]">{techniqueLabel(a.technique)}</strong>
@@ -389,10 +433,31 @@ export function SavedAnalysisView({
             {partner ? <>1. kişi: {person(a.profile)} · 2. kişi: {person(partner)}</> : person(a.profile)}
           </span>
         }
-        meta={[zodiacLabel(a.technique), a.method.houseSystem ? houseSystemLabel(a.method.houseSystem, HOUSE_SYSTEM_LABELS) : null, a.method.nodeType ? NODE_TYPE_LABELS[a.method.nodeType] : null, a.method.timeUnknownMasked ? "Saat bilinmiyor · evler gizli" : null]}
+        meta={[zodiacLabel(a.technique), a.method.houseSystem ? houseSystemLabel(a.method.houseSystem, HOUSE_SYSTEM_LABELS) : null, a.method.nodeType ? NODE_TYPE_LABELS[a.method.nodeType] : null, a.method.timeUnknownMasked ? "Saat bilinmiyor · evler gizli" : null, a.method.houseCalculation === "local" ? LOCAL_NATAL_HOUSE_CALC_TEXT : null]}
+        // V4-005: tekrarsız künye — danışan + doğum bilgisi seçicinin üstünde, teknik adı seçicide; "Künye ▾" yalnız ek ayrıntılar.
+        params={opts || null}
+        kunye={[
+          { label: "Kayıt zamanı", value: fmt(a.analysisAt) },
+          {
+            label: "Doğum profili",
+            value: `rev ${a.profile.revision.revision}${currentRevision !== null && a.profile.revision.revision !== currentRevision ? ` · güncel profil rev ${currentRevision}` : ""}`,
+          },
+          ...(currentRevision !== null && a.profile.revision.revision !== currentRevision
+            ? [
+                {
+                  label: "Bu kayıttaki doğum verisi",
+                  value: `${a.profile.revision.birthDate} ${a.profile.revision.birthTime ? a.profile.revision.birthTime.slice(0, 5) : "(saat bilinmiyor)"} · ${a.profile.revision.locationLabel}`,
+                },
+              ]
+            : []),
+          { label: "Saat dilimi", value: a.profile.revision.timezone },
+          { label: "Saat doğruluğu", value: a.profile.revision.birthTime ? a.profile.revision.timeAccuracyLabel : "saat bilinmiyor" },
+          ...(a.profile.client?.name ? [{ label: "Danışan Yolculuğu", value: `Danışan: ${a.profile.client.name}` }] : []),
+          ...(partner ? [{ label: "1. kişi", value: person(a.profile) }, { label: "2. kişi", value: person(partner) }] : []),
+        ]}
+        // V4 (2026-11-06, owner): sürekli görünen "Kaydedildi · değişmez kayıt" etiketi kaldırıldı (kayıt yine değişmez snapshot).
         chips={
           <>
-            <DeskChip tone="saved">✓ Kaydedildi · değişmez kayıt</DeskChip>
             {currentRevision !== null && a.profile.revision.revision !== currentRevision && (
               <DeskChip tone="warn">
                 Doğum bilgisi rev {a.profile.revision.revision} ile kaydedildi · güncel profil rev {currentRevision}
@@ -406,7 +471,7 @@ export function SavedAnalysisView({
             {/* 2026-10-15: Roxy'nin yorum üretmediği teknikte "dahil edilmedi" yanıltıcıdır → sağlayıcı kapsamı açıkça söylenir. */}
             {hasNoProviderInterpretation(a.technique) ? (
               <span title={NO_PROVIDER_INTERPRETATION_NOTE} data-testid="astro-no-provider-interp">
-                <DeskChip tone="muted">Otomatik yorum yok · yalnız teknik hesaplama sonuçları</DeskChip>
+                <DeskChip tone="muted">Otomatik yorum yok · yalnız teknik sonuçlar</DeskChip>
               </span>
             ) : (
               !interp.visible && interp.reason === "not_included" && <DeskChip tone="muted">Sistem yorumu dahil edilmedi</DeskChip>
@@ -415,11 +480,6 @@ export function SavedAnalysisView({
         }
         actions={
           <>
-            {interp.visible && (
-              <button type="button" onClick={toggleInterp} className={deskGhostLight} aria-pressed={!interpHidden} data-testid="astro-saved-interp-toggle" title="Yalnız görünümü değiştirir; kayıtlı yorum silinmez.">
-                {interpHidden ? "Sistem yorumunu göster" : "Sistem yorumunu gizle"}
-              </button>
-            )}
             <ReportButtons id={a.id} previewNoInterp={previewNoInterp || (interp.visible && interpHidden)} />
             {onAddTechnique && (
               <button type="button" onClick={onAddTechnique} className={deskGhostLight} title="Bu kayıt değişmez; yeni teknik aynı danışanın çalışma masasında ayrı sekmede açılır." data-testid="atlas-saved-add-technique">
@@ -434,15 +494,16 @@ export function SavedAnalysisView({
         chartKey={a.id}
         chart={
           natal
-            ? (cls: string) => <NatalWheel technical={natal} sizeClassName={cls} tinted />
+            ? (cls: string) => <NatalWheel technical={natal} sizeClassName={cls} tinted display={natalWheelDisplay(natal, natalPrefs)} />
             : otherWheel
               ? (cls: string) => <NatalWheel technical={otherWheel.wheel} label={otherWheel.label} sizeClassName={cls} tinted />
               : roxyChart
         }
         stage={natal ? null : technicalView(!!otherWheel || !!roxyChart)}
-        notices={
-          wheelGap ? (
-            <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-sky-200 bg-sky-50 px-4 py-2 text-sm text-sky-900" data-testid="astro-wheel-gap">
+        toolbar={natal ? <NatalChartControls technical={natal} prefs={natalPrefs} onChange={setNatalPrefs} /> : undefined}
+        chartNotes={
+          natal ? undefined : wheelGap ? (
+            <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-sky-200 bg-sky-50 px-3 py-1.5 text-[12.5px] text-sky-900" data-testid="astro-wheel-gap">
               <span className="min-w-0 flex-1">{wheelGap}</span>
               {onComputeNatal && !a.method.timeUnknownMasked && (
                 <button type="button" className={deskGhostLight} onClick={onComputeNatal} data-testid="astro-wheel-gap-natal">
@@ -475,8 +536,19 @@ export function SavedAnalysisView({
       >
         {tab === "teknik" && (otherWheel || roxyChart) && technicalView(true)}
         {tab === "harita" && natal && <NatalTechnicalPanel technical={natal} timeUnknown={a.method.timeUnknownMasked} part="overview" />}
+        {tab === "semboller" && natal && <NatalSymbolGuide technical={natal} />}
         {(tab === "gezegenler" || tab === "evler" || tab === "acilar") && natal && (
           <NatalTechnicalPanel technical={natal} timeUnknown={a.method.timeUnknownMasked} part={tab === "gezegenler" ? "planets" : tab === "evler" ? "houses" : "aspects"} />
+        )}
+        {tab === "yorum" && interp.visible && (
+          <div className="mb-2.5 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-[12.5px] text-slate-600" data-testid="astro-saved-interp-bar">
+            <span className="min-w-0 flex-1">
+              {interpHidden ? "Sistem yorumu bu görünümde gizli; Word / PDF yorumsuz üretilir. Kayıtlı yorum silinmedi." : "Kayıtlı sistem yorumu. Gizlerseniz Word / PDF yorumsuz üretilir; kayıt değişmez."}
+            </span>
+            <button type="button" onClick={toggleInterp} className={deskGhostLight} aria-pressed={!interpHidden} data-testid="astro-saved-interp-toggle" title="Yalnız görünümü değiştirir; kayıtlı yorum silinmez.">
+              {interpHidden ? "Yorumu göster" : "Yorumu gizle"}
+            </button>
+          </div>
         )}
         {tab === "yorum" && interp.visible && !interpHidden && (
           <ProviderInterpretationPanel

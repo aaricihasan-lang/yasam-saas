@@ -14,11 +14,10 @@
  */
 import { useEffect, useMemo, useState } from "react";
 import { ArrowLeft, Check, Loader2, Plus, Settings2, X } from "lucide-react";
-import type { HouseSystem, NodeType } from "@/lib/astrology/model/western";
 import { astroFetch } from "../../_lib/api";
-import { buildSelections, describeOptions, missingReason, profectionContextKey, profectionSelectionCurrent, runOptionsFor, TECHNIQUE_META, UI_TECHNIQUES, type LunarReturnInfo, type PlanetaryReturnInfo, type PlanetaryReturnNeighbors, type TechniqueParams, type UiTechniqueId } from "../../_lib/techniques";
+import { buildSelections, describeOptions, missingReason, profectionContextKey, profectionSelectionCurrent, runOptionsFor, TECHNIQUE_META, UI_TECHNIQUES, type LunarReturnInfo, type PlanetaryReturnInfo, type PlanetaryReturnNeighbors, type TechniqueParams, type UiTechniqueId, type WesternMethod } from "../../_lib/techniques";
 import { DialEmblem } from "./PrepCenter";
-import { MethodFields, PartnerField, TechniqueParamFields, type PartnerOption } from "../TechniqueSelector";
+import { MethodFields, PartnerField, TechniqueParamFields, USES_HOUSE_SYSTEM, type PartnerOption } from "../TechniqueSelector";
 import { deskPrimary } from "./ResultDesk";
 import { compactBlocked } from "./skippedSections";
 
@@ -55,6 +54,7 @@ export default function AddTechniqueDialog<T>({
   birthPlaceLabel = null,
   birthDate = null,
   timeKnown,
+  birthLatitude,
   params,
   onParams,
   method,
@@ -67,6 +67,7 @@ export default function AddTechniqueDialog<T>({
   previewNoInterp,
   onDone,
   onDirtyChange,
+  allowedTechniques = null,
 }: {
   open: boolean;
   /** Ön seçili teknik (ör. hata göstergesinden "Yeniden dene"). */
@@ -83,10 +84,12 @@ export default function AddTechniqueDialog<T>({
   /** Yıllık profeksiyonlar: yaş ↔ yıl aralığı gösterimi için doğum tarihi (YYYY-MM-DD). */
   birthDate?: string | null;
   timeKnown: boolean;
+  /** Aşama 3 (#643): Natal kutup/yüksek enlem bildirimi için doğum yeri enlemi. */
+  birthLatitude?: number | null;
   params: TechniqueParams;
   onParams: (next: TechniqueParams) => void;
-  method: { houseSystem: HouseSystem; nodeType: NodeType };
-  onMethod: (next: { houseSystem: HouseSystem; nodeType: NodeType }) => void;
+  method: WesternMethod;
+  onMethod: (next: WesternMethod) => void;
   partners: PartnerOption[];
   partnerQuery: string;
   onPartnerQuery: (q: string) => void;
@@ -97,6 +100,8 @@ export default function AddTechniqueDialog<T>({
   onDone: (r: AddRunResult<T>) => void;
   /** Seçilmiş ama hesaplanmamış teknik var mı (çıkış koruması). */
   onDirtyChange?: (dirty: boolean) => void;
+  /** 2026-11-03 teknik izinleri: izinli teknikler (null → kısıt yok). Kapalı teknik listelenmez; yetki ayrıca sunucuda. */
+  allowedTechniques?: ReadonlySet<string> | null;
 }) {
   const [system, setSystem] = useState<SystemId>(initial ? systemOf(initial) : "western");
   const [picked, setPicked] = useState<UiTechniqueId[]>(initial ? [initial] : []);
@@ -251,7 +256,7 @@ export default function AddTechniqueDialog<T>({
         })}
       </div>
       <ul className="flex min-h-0 flex-col gap-1 md:overflow-y-auto md:pr-1 [scrollbar-width:thin]" aria-label="Teknikler">
-        {UI_TECHNIQUES.filter((id) => id.startsWith(`${system}.`)).map((id) => {
+        {UI_TECHNIQUES.filter((id) => id.startsWith(`${system}.`) && (!allowedTechniques || allowedTechniques.has(id))).map((id) => {
           const on = isPicked(id);
           const isOpen = openTechniques.includes(id);
           const st = on ? statusOf(id) : null;
@@ -337,8 +342,18 @@ export default function AddTechniqueDialog<T>({
           <div className="flex flex-col gap-2.5 rounded-xl border border-[#D9B56F]/40 bg-[#FBF7EE] p-3 text-sm text-slate-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]" data-testid="atlas-add-params">
             <p className="text-[10.5px] font-semibold tracking-[0.16em] text-[#7a5a1c]">AYARLAR</p>
             {focusMeta.needsPartner && <PartnerField params={params} onParams={onParams} partners={partners} partnerQuery={partnerQuery} onPartnerQuery={onPartnerQuery} />}
-            <TechniqueParamFields id={focus} params={params} onParams={onParams} lunarReturns={focusPs?.info?.lunarReturns ?? null} birthPlaceLabel={birthPlaceLabel} birthDate={birthDate} planetaryReturns={focusPs?.info?.planetaryReturns ?? null} planetaryReturnNeighbors={focusPs?.info?.planetaryReturnNeighbors ?? null} />
-            <MethodFields id={focus} method={method} onMethod={onMethod} />
+            <TechniqueParamFields id={focus} params={params} onParams={onParams} lunarReturns={focusPs?.info?.lunarReturns ?? null} birthPlaceLabel={birthPlaceLabel} birthDate={birthDate} planetaryReturns={focusPs?.info?.planetaryReturns ?? null} planetaryReturnNeighbors={focusPs?.info?.planetaryReturnNeighbors ?? null} natalHouseSystem={method.natalHouseSystem} />
+            <MethodFields
+              id={focus}
+              method={method}
+              onMethod={onMethod}
+              natalContext={{
+                latitude: birthLatitude ?? null,
+                timeKnown,
+                sharedTechniques: UI_TECHNIQUES.filter((x) => picked.includes(x) && x !== "western.natal" && USES_HOUSE_SYSTEM.includes(x)).map((x) => ({ id: x, label: TECHNIQUE_META[x].label })),
+                onFocusTechnique: (x) => setFocus(x),
+              }}
+            />
           </div>
           {isPicked(focus) && (
             <p className="text-[12px] text-[#F6F2EA]/70" data-testid="atlas-add-focus-status">

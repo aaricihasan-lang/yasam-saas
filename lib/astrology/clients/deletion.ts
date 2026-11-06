@@ -23,6 +23,7 @@ import { isSchemaMissing, isUuid, logAstroDbError } from "../persistence/repo";
 import type { EngineCtx, ServiceResponse } from "../engine/service";
 import { ASTRO_NOT_READY } from "../engine/service";
 import { writeAdminAudit } from "@/lib/admin/adminAudit";
+import { hasTechniqueEntitlement } from "../access/entitlements";
 
 assertServerOnly("lib/astrology/clients/deletion");
 
@@ -106,9 +107,34 @@ async function loadPreview(ctx: EngineCtx, ids: string[]): Promise<{ ok: true; r
   return { ok: true, rows };
 }
 
+/**
+ * 2026-11-03 Gökyüzü Atlası teknik izinleri: seçili profillerde izni KAPALI tekniğe ait (kilitli) kendi analizi varsa uzman
+ * silme yapamaz (A — yalnız analizler ve B — profil + analizler; önizleme dahil). Kayıtlar korunur; izin geri verilince
+ * erişilir ve silinebilir. Owner (bütün teknikler) etkilenmez. Sayım mevcut astro_analysis_summary ile (satır sınırı yok).
+ */
+async function lockedAnalysesBlock(ctx: EngineCtx, ids: string[]): Promise<ServiceResponse | null> {
+  let locked = 0;
+  for (const id of ids) {
+    const { data, error } = await ctx.db.rpc("astro_analysis_summary", { p_tenant_id: ctx.tenantId, p_owner_user_id: ctx.userId, p_profile_id: id });
+    if (error) return dbFail("profiles.deleteLockCheck", error);
+    for (const r of (data as { technique: string; analysis_count: number | string }[] | null) ?? []) {
+      if (!hasTechniqueEntitlement(ctx.entitlements, r.technique)) locked += Number(r.analysis_count) || 0;
+    }
+  }
+  if (locked === 0) return null;
+  return fail(
+    403,
+    "ANALYSIS_TECHNIQUE_LOCKED",
+    `Seçili kayıtlarda izni kapalı tekniğe ait ${locked} kilitli analiz var. Kilitli analizler silinemez; hiçbir kayıt silinmedi. İzin yeniden verildiğinde bu kayıtlara erişebilir ve silebilirsiniz.`,
+    { lockedAnalyses: locked },
+  );
+}
+
 export async function previewProfileDeletion(ctx: EngineCtx, raw: unknown): Promise<ServiceResponse> {
   const s = parseSelection(raw);
   if (!s.ok) return s.r;
+  const lockedBlock = await lockedAnalysesBlock(ctx, s.ids);
+  if (lockedBlock) return lockedBlock;
   const p = await loadPreview(ctx, s.ids);
   if (!p.ok) return p.r;
   const expected: Expected[] = p.rows.map((r) => ({
@@ -174,6 +200,9 @@ export async function deleteProfiles(ctx: EngineCtx, raw: unknown): Promise<Serv
   if (tok.mode !== s.mode || tok.scope !== s.scope || tokIds.length !== tok.expected.length || tokIds.join(",") !== s.ids.join(",")) {
     return fail(409, "SELECTION_CHANGED", "Seçim onaydan sonra değişti. Silme işlemini baştan başlatın. Hiçbir kayıt silinmedi.");
   }
+  // Önizlemeden sonra izin kaldırılmış olabilir → silmeden hemen önce yeniden denetlenir.
+  const lockedBlock = await lockedAnalysesBlock(ctx, s.ids);
+  if (lockedBlock) return lockedBlock;
   const fn = s.scope === "analyses" ? "astro_profile_analyses_delete" : "astro_profile_delete";
   // KALICI DENETİM İZİ (admin_audit_log; append-only, UPDATE/DELETE tetikleyiciyle yasak). Silmeden ÖNCE "started"
   // satırı yazılır; yazılamazsa HİÇBİR ŞEY silinmez (fail-closed). Sonuç ayrı "succeeded"/"failed" satırıdır; silme

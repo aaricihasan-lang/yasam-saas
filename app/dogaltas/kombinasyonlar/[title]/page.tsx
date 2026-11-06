@@ -32,7 +32,10 @@ import {
 import { downloadFileResponse } from "@/lib/http/downloadResponse";
 import { reportFileDate } from "@/lib/time/reportTime";
 import { reportErrorKind } from "@/lib/dogaltas/reportErrorKind";
+import { isStaleMarkedSummary } from "@/lib/dogaltas/staleCombinationSummary";
 import { useToast } from "@/components/ui/ToastProvider";
+import { useConfirm } from "@/components/ui/ConfirmProvider";
+import { requiresBulkDeleteGuard, runBulkDeleteConfirm } from "@/lib/ui/bulkDeleteGuard";
 
 
 type CombinationRecord = {
@@ -339,7 +342,10 @@ function FieldBlock({
 }) {
   const showMatchBadge = Boolean(highlightQuery.trim() && hasSearchMatch);
   const cardClass = mergeMatchCardClass(uiInfoCard, showMatchBadge);
-  const displayText = text?.trim() || "";
+  const fullText = text?.trim() || "";
+  // B6.2: taşlar değişince otomatik özetin başına eklenen "güncel değil" satırı ayrı uyarı olarak gösterilir.
+  const staleLine = isStaleMarkedSummary(fullText) ? fullText.split("\n")[0] : "";
+  const displayText = staleLine ? fullText.slice(staleLine.length).trim() : fullText;
 
   return (
     <article className={cardClass}>
@@ -349,6 +355,11 @@ function FieldBlock({
         {showMatchBadge ? <SearchMatchBadge /> : null}
       </div>
       <div className="mt-1.5">
+        {staleLine ? (
+          <p role="note" data-testid="stale-summary-note" className="mb-1.5 rounded-lg border border-amber-300 bg-amber-50 px-2.5 py-1.5 text-xs font-bold leading-relaxed text-amber-800">
+            {staleLine}
+          </p>
+        ) : null}
         {displayText ? (
           <p className="whitespace-pre-wrap text-sm leading-relaxed text-slate-700">
             {highlightQuery.trim()
@@ -1248,6 +1259,8 @@ function KombinasyonDetayPageContent() {
   }, [encodedTitle]);
 
   const [rows, setRows] = useState<CombinationRecord[]>([]);
+  // B8: Sil, listedeki gibi başlıktaki TÜM kayıtları siler (ekranda tekilleştirilen kopyalar dahil).
+  const [allRowIds, setAllRowIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
   const [openCalcIds, setOpenCalcIds] = useState<Set<string>>(new Set());
@@ -1260,6 +1273,50 @@ function KombinasyonDetayPageContent() {
   const tc = useTranslations("stones.common");
   const tre = useTranslations("stones.reportErrors");
   const { showToast } = useToast();
+  const tl = useTranslations("stones.combinations.list");
+  const { confirm } = useConfirm();
+  const [deleteBusy, setDeleteBusy] = useState(false);
+
+  // B8: detayda Sil — listedeki "başlıktaki tüm kayıtları sil" ile aynı onay adımları ve aynı uç
+  // (/api/dogaltas/combinations/delete, satır kimlikleriyle, tenant kapsamlı).
+  const handleDeleteGroup = useCallback(async () => {
+    const ids = allRowIds.filter(Boolean);
+    if (!decodedIssue || ids.length === 0 || deleteBusy) return;
+    // Ekranda birebir aynı kopyalar tek kart gösterilir; silinecek GİZLİ kopyalar onayda açıkça yazılır.
+    const hidden = ids.length - rows.length;
+    const detail = tl("deleteGroupMessage", { issue: decodedIssue, n: ids.length })
+      + (hidden > 0 ? " " + t("deleteHiddenCopies", { v: rows.length, d: hidden }) : "");
+    if (requiresBulkDeleteGuard(ids.length)) {
+      if (!(await runBulkDeleteConfirm(confirm, { count: ids.length, detail }))) return;
+    } else {
+      const first = await confirm({ title: tl("deleteGroupTitle"), message: detail, tone: "danger", confirmText: tl("confirmYesMobile"), cancelText: tl("cancelNo") });
+      if (!first) return;
+      const second = await confirm({ title: tl("secondConfirmTitle"), message: tl("secondConfirmMessage"), tone: "danger", confirmText: tl("secondConfirmYes"), cancelText: tc("giveUp") });
+      if (!second) return;
+    }
+    setDeleteBusy(true);
+    setErrorMessage("");
+    try {
+      const userId = readYasamUser()?.id;
+      const sessionToken = readSessionToken();
+      const res = await fetch("/api/dogaltas/combinations/delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-user-id": userId ?? "", ...(sessionToken ? { "x-session-token": sessionToken } : {}) },
+        body: JSON.stringify({ ids }),
+      });
+      const json = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string };
+      if (!res.ok || !json.ok) {
+        setErrorMessage(tl("deleteGroupError", { error: json.error ?? `HTTP ${res.status}` }));
+        return;
+      }
+      showToast({ type: "success", message: tl("deletedGroupToast", { issue: decodedIssue }) });
+      router.push("/dogaltas/kombinasyonlar");
+    } catch (err) {
+      setErrorMessage(tl("deleteGroupError", { error: err instanceof Error ? err.message : "" }));
+    } finally {
+      setDeleteBusy(false);
+    }
+  }, [allRowIds, rows.length, decodedIssue, deleteBusy, t, tl, tc, confirm, showToast, router]);
 
   const downloadWord = useCallback(async () => {
     if (!decodedIssue) return;
@@ -1285,7 +1342,8 @@ function KombinasyonDetayPageContent() {
         showToast({ type: "error", message: tre(await reportErrorKind(res)) });
         return;
       }
-      const safe = decodedIssue.toLowerCase()
+      // B9: "İ" önce "i" (toLowerCase "İ" → "i" + birleşik nokta → "-" oluyordu).
+      const safe = decodedIssue.replace(/İ/g, "i").toLowerCase()
         .replace(/ı/g,"i").replace(/ğ/g,"g").replace(/ü/g,"u")
         .replace(/ş/g,"s").replace(/ö/g,"o").replace(/ç/g,"c")
         .replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"");
@@ -1310,6 +1368,7 @@ function KombinasyonDetayPageContent() {
   const loadRows = useCallback(async () => {
     if (!decodedIssue) {
       setRows([]);
+      setAllRowIds([]);
       setLoading(false);
       return;
     }
@@ -1328,6 +1387,7 @@ function KombinasyonDetayPageContent() {
           : t("loadError", { error: result.error ?? "" }),
       );
       setRows([]);
+      setAllRowIds([]);
       return;
     }
 
@@ -1353,6 +1413,7 @@ function KombinasyonDetayPageContent() {
       console.log(`[Kombinasyon] "${decodedIssue}" — ${raw.length} kayıt, duplicate yok.`);
     }
 
+    setAllRowIds(raw.map((r) => r.id));
     setRows(unique);
   }, [decodedIssue, t, tc]);
 
@@ -1515,6 +1576,16 @@ function KombinasyonDetayPageContent() {
             >
               {t("refresh")}
             </button>
+            {!isDemo && !loading && rows.length > 0 && (
+              <button
+                type="button"
+                onClick={() => void handleDeleteGroup()}
+                disabled={deleteBusy}
+                className="btn-danger"
+              >
+                {allRowIds.length > 1 ? t("deleteAllButton", { n: allRowIds.length }) : t("deleteButton")}
+              </button>
+            )}
           </div>
         </header>
 

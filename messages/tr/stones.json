@@ -60,6 +60,10 @@
       "tas-bilgi-kutuphanesi": {
         "title": "Taş Makaleleri",
         "subtitle": "Eğitim ve referans."
+      },
+      "kutuphane": {
+        "title": "Doğaltaş Kütüphanesi",
+        "subtitle": "Doğrulanmış taş bilgileri ve görseller."
       }
     },
     "photos": {

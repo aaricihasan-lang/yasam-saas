@@ -297,6 +297,11 @@ export default function TasBilgiKutuphanesiPage() {
   const [form, setForm] = useState<NewArticleForm>(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
+  // B9: doğrulama hatası formun üstünde; Kaydet en altta → hata çıkınca görünür alana kaydırılır.
+  const saveErrorRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (saveError) saveErrorRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [saveError]);
   // Modül-bazlı çift kayıt uyarısı (DT-P1-1)
   const [dupModal, setDupModal] = useState<{ label: string; id: string } | null>(null);
   const [dupChecking, setDupChecking] = useState(false);
@@ -536,6 +541,24 @@ export default function TasBilgiKutuphanesiPage() {
     }
   }, [filtered]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // G2-01 (owner): Doğaltaş ana aramasından derin bağlantı (?q=…&makale=<id>) — yalnız açılışta bir kez;
+  // makale tıklamasıyla aynı yol (selectArticle). Parametre yoksa hiçbir şey yapılmaz.
+  const deepLinkRef = useRef<{ q: string; id: string } | null>(null);
+  useEffect(() => {
+    const sp = new URLSearchParams(window.location.search);
+    const q = sp.get("q")?.trim() ?? "";
+    const id = sp.get("makale")?.trim() ?? "";
+    if (!q && !id) return;
+    deepLinkRef.current = { q, id };
+    if (q) runInEffect(() => setRawSearch(q));
+  }, []);
+  useEffect(() => {
+    const link = deepLinkRef.current;
+    if (!link?.id || !articles.some((a) => a.id === link.id)) return;
+    deepLinkRef.current = null;
+    runInEffect(() => selectArticle(link.id));
+  }, [articles]); // eslint-disable-line react-hooks/exhaustive-deps
+
   function selectArticle(id: string) {
     setSelectedId(id);
     setMobileView("detail");
@@ -592,10 +615,11 @@ export default function TasBilgiKutuphanesiPage() {
         }),
       });
       if (!res.ok) {
-        const data = await res.json().catch(() => ({})) as { error?: string };
+        const data = await res.json().catch(() => ({})) as { error?: string; code?: string };
         // FAZ-4C: ham backend hatası kullanıcıya gösterilmez; yalnız geliştirici logunda.
         console.error("[tas-bilgi-kutuphanesi] Word raporu hatası:", data.error ?? `HTTP ${res.status}`);
-        setWordReportError(t("word.errors.reportFailed"));
+        // B4: rapora girecek makale yoksa (404, seçim-kayıp değil) gerçeği söyleyen mesaj.
+        setWordReportError(res.status === 404 && data.code !== "selection_missing" ? t("word.errors.noResults") : t("word.errors.reportFailed"));
         return;
       }
       await downloadFileResponse(res, `tas-bilgi-kutuphanesi-raporu-${reportFileDate()}.docx`);
@@ -935,7 +959,7 @@ export default function TasBilgiKutuphanesiPage() {
               <div className={dp.formArea}>
                 <h3 className="mb-3 text-sm font-black text-slate-900">{t("form.title")}</h3>
                 {saveError && (
-                  <div className="mb-3 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-bold text-rose-700">
+                  <div ref={saveErrorRef} role="alert" className="mb-3 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-bold text-rose-700">
                     {saveError}
                   </div>
                 )}
@@ -1120,29 +1144,7 @@ export default function TasBilgiKutuphanesiPage() {
             </div>
           </div>
 
-          {/* Kategori filtreleri */}
-          <div className={dp.sideSection}>
-            <div className={dp.catChips}>
-              {categories.map((kat) => {
-                const isActive = activeKat === kat;
-                const cfg = kat === "Tümü" ? null : katConfig(kat);
-                return (
-                  <button key={kat} type="button" onClick={() => setActiveKat(kat)}
-                    aria-pressed={isActive}
-                    className={dp.catChip}
-                    style={isActive
-                      ? { background: cfg?.color ?? "#334155", borderColor: cfg?.color ?? "#334155", color: "white" }
-                      : { background: cfg?.bg ?? "white", borderColor: cfg?.border ?? "#e2e8f0", color: cfg?.color ?? "#475569" }}>
-                    {cfg?.icon} {kat === "Tümü" ? t("allCategory") : catLabel(kat)}
-                    {kat !== "Tümü" && (
-                      <span className="ml-1 opacity-60">({articles.filter((r) => r.category === kat).length})</span>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
+          {/* G1-03 (Owner): Toplu İşlemler filtrenin üstünde → filtre listenin doğrudan üstünde. İçerik aynen. */}
           {/* Toplu işlem çubuğu — Doğaltaş'a özel V3 mini toolbar ("Seçili Güncelle" korunur) */}
           {!isDemo && !loading && (
             <div className={dp.sideSection}>
@@ -1185,6 +1187,8 @@ export default function TasBilgiKutuphanesiPage() {
                 <button
                   type="button"
                   onClick={() => {
+                    // B4: seçim yokken sessiz kalmak yerine açıklayıcı uyarı.
+                    if (selectedIds.size === 0) { showToast({ type: "info", message: t("bulk.selectFirst") }); return; }
                     const singleId = selectedIds.size === 1 ? [...selectedIds][0] : undefined;
                     const singleArt = singleId ? articles.find((a) => a.id === singleId) : undefined;
                     setBulkUpdateOriginal({ title: singleArt?.title ?? "", content: singleArt?.content ?? "" });
@@ -1193,17 +1197,22 @@ export default function TasBilgiKutuphanesiPage() {
                     setBulkUpdateError("");
                     setShowBulkUpdateModal(true);
                   }}
-                  disabled={selectedIds.size === 0 || bulkDeleteBusy || bulkUpdateBusy}
-                  className="btn-primary !px-3 !py-1 !text-[11px] !rounded-lg"
+                  disabled={bulkDeleteBusy || bulkUpdateBusy}
+                  data-no-selection={selectedIds.size === 0 ? "true" : undefined}
+                  className="btn-primary !px-3 !py-1 !text-[11px] !rounded-lg data-[no-selection=true]:opacity-70"
                 >
                   {t("bulk.updateSelected")}
                 </button>
 
                 <button
                   type="button"
-                  onClick={() => void handleBulkDelete()}
-                  disabled={selectedIds.size === 0 || bulkDeleteBusy || bulkUpdateBusy}
-                  className="btn-danger !px-2 !py-1 !text-[11px] !rounded-lg"
+                  onClick={() => {
+                    if (selectedIds.size === 0) { showToast({ type: "info", message: t("bulk.selectFirst") }); return; }
+                    void handleBulkDelete();
+                  }}
+                  disabled={bulkDeleteBusy || bulkUpdateBusy}
+                  data-no-selection={selectedIds.size === 0 ? "true" : undefined}
+                  className="btn-danger !px-2 !py-1 !text-[11px] !rounded-lg data-[no-selection=true]:opacity-70"
                 >
                   {bulkDeleteBusy ? t("bulk.deleting") : t("bulk.deleteSelected")}
                 </button>
@@ -1213,6 +1222,29 @@ export default function TasBilgiKutuphanesiPage() {
               </p>
             </div>
           )}
+
+          {/* Kategori filtreleri */}
+          <div className={dp.sideSection}>
+            <div className={dp.catChips}>
+              {categories.map((kat) => {
+                const isActive = activeKat === kat;
+                const cfg = kat === "Tümü" ? null : katConfig(kat);
+                return (
+                  <button key={kat} type="button" onClick={() => setActiveKat(kat)}
+                    aria-pressed={isActive}
+                    className={dp.catChip}
+                    style={isActive
+                      ? { background: cfg?.color ?? "#334155", borderColor: cfg?.color ?? "#334155", color: "white" }
+                      : { background: cfg?.bg ?? "white", borderColor: cfg?.border ?? "#e2e8f0", color: cfg?.color ?? "#475569" }}>
+                    {cfg?.icon} {kat === "Tümü" ? t("allCategory") : catLabel(kat)}
+                    {kat !== "Tümü" && (
+                      <span className="ml-1 opacity-60">({articles.filter((r) => r.category === kat).length})</span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
 
           {/* Liste */}
           <div className={dp.sideList}>

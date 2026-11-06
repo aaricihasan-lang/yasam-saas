@@ -46,6 +46,21 @@ export const SUBPROCESSORS: ReadonlyArray<Subprocessor> = [
     scopeNote: "Uzman hesaplarında yapay zekâ özellikleri kapalıdır; uzmanların danışan verileri OpenAI'a gönderilmez.",
   },
   {
+    name: "Hesaplama hizmet sağlayıcısı (astroloji, Human Design, numeroloji)",
+    purpose: "Astrolojik, Human Design ve Klasik Numeroloji hesaplamaları",
+    dataScope:
+      "Yalnız ilgili hesaplama istendiğinde: Human Design ve astroloji hesaplarında doğum tarihi, saati, doğum yerinin koordinatları ve saat dilimi (ad gönderilmez); Klasik Numeroloji hesaplarında ad soyad ve doğum tarihi.",
+    scopeNote:
+      "Yurt dışında yerleşik sağlayıcı; sunucuları Almanya'dadır. Sağlayıcının belgelerine göre istek içeriği yalnız bellekte işlenir, veritabanına veya kayıtlara yazılmaz.",
+  },
+  {
+    name: "Cloudflare (Turnstile)",
+    purpose:
+      "Ücretsiz analizlerde ve uzman kayıt formunda (7 günlük deneme üyeliği) otomatik kötüye kullanıma karşı güvenlik doğrulaması",
+    dataScope:
+      "Doğrulama aracı ziyaretçinin tarayıcısından doğrudan Cloudflare'e bağlanır; Cloudflare bu sırada IP adresini ve tarayıcı sinyallerini işler. Sunucumuz Cloudflare'e yalnız tek kullanımlık doğrulama belirtecini gönderir, IP adresini göndermez.",
+  },
+  {
     name: "Google Analytics",
     purpose: "Herkese açık sayfaların ziyaret istatistikleri",
     dataScope:

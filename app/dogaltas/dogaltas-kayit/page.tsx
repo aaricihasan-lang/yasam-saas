@@ -256,10 +256,33 @@ export default function DogaltasKayitPage() {
     setAssignmentError("");
   }
 
+  // B2: panel açılırken mevcut satırların kimliği saklanır; İptal/× bu oturumda eklenen
+  // satırları ve bekleyen girişi geri alır. Önceden var olan satırlara dokunulmaz.
+  const assignmentSessionRef = useRef<Set<string[]> | null>(null);
+
+  function openAssignment(sectionTitle: string) {
+    assignmentSessionRef.current = new Set(assignmentRows[sectionTitle] || []);
+    setAssignmentTitle(sectionTitle);
+  }
+
+  function cancelAssignment() {
+    const kept = assignmentSessionRef.current;
+    const section = activeAssignment;
+    if (section && kept) {
+      setAssignmentRows((prev) => ({
+        ...prev,
+        [section.title]: (prev[section.title] || []).filter((row) => kept.has(row)),
+      }));
+      setAssignmentInputs((prev) => ({ ...prev, [section.title]: section.fields.map(() => "") }));
+    }
+    assignmentSessionRef.current = null;
+    closeAssignment();
+  }
+
   /**
    * "Kaydet": input'ta bekleyen değeri (varsa) gerçekten satır olarak ekler,
    * sonra modalı kapatır. addAssignmentRow boş input'ta no-op olduğu için
-   * bekleyen değer yoksa yalnızca kapatır. (İptal/× yalnızca kapatır.)
+   * bekleyen değer yoksa yalnızca kapatır. (İptal/× bu oturumdaki eklemeleri geri alır.)
    * Geçersiz oran halinde satır eklenmez ve modal AÇIK kalır → kullanıcı hatayı
    * görür ve düzeltir (2J).
    */
@@ -1000,7 +1023,7 @@ export default function DogaltasKayitPage() {
                   <button
                     key={item.title}
                     type="button"
-                    onClick={() => setAssignmentTitle(item.title)}
+                    onClick={() => openAssignment(item.title)}
                     className={`${uiPanel} flex w-full items-center justify-between px-4 py-3 text-left`}
                   >
                     <span className="flex items-center gap-3">
@@ -1104,7 +1127,7 @@ export default function DogaltasKayitPage() {
                 <p className="mt-1 text-[13px] text-slate-500">{asgDesc(activeAssignment.title)}</p>
               </div>
 
-              <button type="button" onClick={closeAssignment} className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-100 text-[20px] font-black text-slate-600 transition hover:bg-slate-200">
+              <button type="button" onClick={cancelAssignment} className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-100 text-[20px] font-black text-slate-600 transition hover:bg-slate-200">
                 ×
               </button>
             </div>
@@ -1180,7 +1203,7 @@ export default function DogaltasKayitPage() {
             </div>
 
             <div className="mt-5 flex justify-end gap-3">
-              <button type="button" onClick={closeAssignment} className="btn-soft">
+              <button type="button" onClick={cancelAssignment} className="btn-soft">
                 {t("common.cancel")}
               </button>
 

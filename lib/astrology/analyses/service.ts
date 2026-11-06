@@ -21,7 +21,7 @@ import "server-only";
 import { createHash, randomUUID } from "node:crypto";
 import { resolveAstroLocation } from "../birth/location";
 import { assertServerOnly } from "@/lib/server/serverOnlyGuard";
-import { resolveInterpretationVisibility } from "../access/entitlements";
+import { hasTechniqueEntitlement, resolveInterpretationVisibility } from "../access/entitlements";
 import { getTechnique, parseNoteContext, type TechniqueId } from "../engine/techniques";
 import { ASTRO_NOT_READY, buildSelectionView, loadProfileRevision, planSelections, revisionToBirth, type EngineCtx, type ServiceResponse } from "../engine/service";
 import { findResultsByHashes, findTenantClient, getProfile, getResultById, getRevision, isSchemaMissing, isUuid, logAstroDbError, recordCapOf, recordCapResponse, type ResultRow, type RevisionRow } from "../persistence/repo";
@@ -31,6 +31,7 @@ import { TRADITIONS, type Tradition } from "../topics/western";
 import { PROVIDER_INTERP_NOTICE, publicRevision } from "../view/natalView";
 import type { TechniqueView } from "../view/techniqueView";
 import { legacyMethodNotes } from "../legacyMethod";
+import { LOCAL_NATAL_INTERP_NOTE, localNatalMethodExtra, localNatalPrecheck, parseNatalSelectionOptions, providerHouseSystemFor } from "../engine/natalHouses";
 
 assertServerOnly("lib/astrology/analyses/service");
 
@@ -91,7 +92,19 @@ async function loadContext(ctx: EngineCtx, raw: Record<string, unknown>, ownerPr
     if (res.row.technique !== "western.natal") return { ok: false, r: fail(400, "SELECTION_REQUIRED", "Bu sonuç türü için teknik ve seçenekler gönderilmelidir.") };
     legacyRow = res.row;
     const t = res.row.technical as { houseSystem?: unknown; nodeType?: unknown };
-    selection = { technique: "western.natal", options: { houseSystem: t.houseSystem, nodeType: t.nodeType } };
+    // Aşama 2 (#643): satır her zaman sağlayıcının sistemiyle saklıdır (klasik sistemde Placidus). Klasik sistemle kaydetmek için
+    // istemci options.houseSystem gönderir; sağlayıcı tabanı satırla ve düğüm türü satırla uyuşmazsa KAYIT YAPILMAZ.
+    const req = raw.options && typeof raw.options === "object" ? (raw.options as Record<string, unknown>) : null;
+    if (req && req.houseSystem !== undefined) {
+      const o = parseNatalSelectionOptions({ houseSystem: req.houseSystem, nodeType: req.nodeType ?? t.nodeType });
+      if (!o) return { ok: false, r: fail(400, "INVALID_HOUSE_SYSTEM", "Geçersiz ev sistemi.") };
+      if (providerHouseSystemFor(o.houseSystem) !== t.houseSystem || o.nodeType !== t.nodeType) {
+        return { ok: false, r: fail(409, "HOUSE_SYSTEM_MISMATCH", "Hesap sonucu seçilen ev sistemi / düğüm türüyle uyuşmuyor; kayıt yapılmadı.") };
+      }
+      selection = { technique: "western.natal", options: { ...o } };
+    } else {
+      selection = { technique: "western.natal", options: { houseSystem: t.houseSystem, nodeType: t.nodeType } };
+    }
   } else {
     selection = { technique: raw.technique, options: raw.options };
   }
@@ -113,6 +126,8 @@ async function loadContext(ctx: EngineCtx, raw: Record<string, unknown>, ownerPr
     return { ok: false, r: fail(409, "RESULT_NOT_COMPUTED", "Bu seçimin hesabı (tüm parçalarıyla) henüz yapılmamış. Önce hesaplayın.") };
   }
   const rows = all.filter((r): r is ResultRow => !!r);
+  const localFail = localNatalPrecheck(s.technique, rows.map((r) => r.technical), s.options);
+  if (localFail) return { ok: false, r: fail(409, localFail.code, localFail.error) };
   const view = await buildSelectionView(
     ctx,
     s.technique,
@@ -123,6 +138,10 @@ async function loadContext(ctx: EngineCtx, raw: Record<string, unknown>, ownerPr
     all.length - rows.length,
     (p.v.contextHashes[0] ?? []).map((h) => p.v.cachedRows.get(h) ?? null),
   );
+  // Aşama 2 (#643): kaydedilen/önizlenen Natal görünümünün ev sistemi seçimle BİREBİR aynı olmalı (yanlış sistemle kayıt yok).
+  if (s.technique === "western.natal" && view.method.houseSystem !== (s.options as { houseSystem?: unknown }).houseSystem) {
+    return { ok: false, r: fail(409, "HOUSE_SYSTEM_MISMATCH", "Görünümün ev sistemi seçimle uyuşmuyor; kayıt yapılmadı.") };
+  }
   return {
     ok: true,
     v: { revision: pr.revision, partnerRevision: s.partnerRevision, technique: s.technique, options: s.options, view, rows: rows as ResultRow[], profileLabel: pr.label, clientId: pr.clientId },
@@ -221,6 +240,8 @@ export async function saveExpertNote(ctx: EngineCtx, raw: unknown): Promise<Serv
   if (!isUuid(o.profileId)) return fail(400, "INVALID_PROFILE", "Geçerli profil gerekli.");
   const def = getTechnique(o.technique ?? "western.natal");
   if (!def) return fail(400, "UNKNOWN_TECHNIQUE", "Bilinmeyen hesaplama türü.");
+  // 2026-11-03: kapalı tekniğe not yazılamaz (notlar silinmez; izin geri gelince aynen erişilir).
+  if (!hasTechniqueEntitlement(ctx.entitlements, def.id)) return fail(403, "TECHNIQUE_NOT_ENTITLED", "Bu teknik için izniniz yok.");
   let contextKey = o.contextKey === undefined || o.contextKey === null || o.contextKey === "" ? "" : o.contextKey;
   const isLocationCtx = ["western.relocation", "western.local_space", "western.solar_return", "western.lunar_return"].includes(def.id);
   if (def.noteContext) {
@@ -591,6 +612,8 @@ export async function listAnalyses(ctx: EngineCtx, profileId: unknown, sp: URLSe
     techniqueLabel: getTechnique(r.technique)?.label ?? r.technique,
     count: Number(r.analysis_count),
     lastAnalysisAt: r.last_analysis_at,
+    // 2026-11-03: izni kaldırılmış tekniğin kayıtları listede KİLİTLİ görünür (silinmez; içerik açılmaz).
+    locked: !hasTechniqueEntitlement(ctx.entitlements, r.technique),
   }));
   // Gelenek grupları: yalnız gerçekten kaydı olan gelenek + teknikler (sabit sıra: Batı → Vedik → KP).
   const groups = TRADITIONS.map((t) => {
@@ -627,6 +650,7 @@ export async function listAnalyses(ctx: EngineCtx, profileId: unknown, sp: URLSe
         houseSystem: r.house_system ?? null,
         // Aşama 7C: yorum yetkisi yoksa kayıtta yorum bulunduğu bilgisi de verilmez.
         providerInterpIncluded: ctx.entitlements.providerInterpretations ? r.provider_interp_included : false,
+        locked: !hasTechniqueEntitlement(ctx.entitlements, r.technique),
       })),
     },
   };
@@ -649,6 +673,10 @@ export async function getAnalysis(ctx: EngineCtx, id: string, ownerPreviewHideIn
   if (error) return dbFail("analysis.get", error);
   const a = data as AnalysisRow | null;
   if (!a) return fail(404, "ANALYSIS_NOT_FOUND", "Analiz bulunamadı.");
+  // 2026-11-03: izni kaldırılmış tekniğin analizi (ekran / rapor / Word — rapor servisi de buradan okur) açılamaz; kayıt korunur.
+  if (!hasTechniqueEntitlement(ctx.entitlements, a.technique)) {
+    return fail(403, "ANALYSIS_TECHNIQUE_LOCKED", "Bu analizin tekniği için izniniz kapalı. Kayıt korunuyor; izin yeniden verildiğinde açılabilir.");
+  }
   const notesRes = await ctx.db.from("astro_analysis_notes").select("section_key, body").eq("tenant_id", ctx.tenantId).eq("analysis_id", id).limit(500);
   if (notesRes.error) return dbFail("analysis.notes", notesRes.error);
   // 9B-P2-01: Bilgi Bankası = uzmanın GÜNCEL kayıtları (tenant + uzman kapsamlı; silinen kayıt gelmez). Eski analizlerdeki
@@ -674,6 +702,12 @@ export async function getAnalysis(ctx: EngineCtx, id: string, ownerPreviewHideIn
     }
   }
 
+  // NATAL AŞAMA 4 (2026-11-01): klasik ev sistemli Natal kaydı (kayıtlı technical_snapshot'ta houseSource.kind = "local") — okuma
+  // anında yalnız snapshot'tan türetilir (kayıt DEĞİŞMEZ, yeniden hesap yok): yöntemde ev hesabı kaynağı + yorum notu canlı görünümle
+  // aynı (techniqueView). Mevcut 4 sistemde hiçbir alan eklenmez / değişmez. Motor sürümü yanıta eklenmez.
+  const localNatalHouses = a.technique === "western.natal" && localNatalMethodExtra(a.technical_snapshot).houseCalculation === "local";
+  const interpNotice = localNatalHouses ? `${PROVIDER_INTERP_NOTICE} ${LOCAL_NATAL_INTERP_NOTE}` : PROVIDER_INTERP_NOTICE;
+
   let interpretation: Record<string, unknown>;
   // Aşama 7C: GÜNCEL yetki ÖNCE. Yetkisiz uzmana kayıtta yorum olup olmadığı bile söylenmez
   // ("not_included" / "not_entitled" ayrımı varlık sızdırırdı); snapshot kolonu zaten okunmadı.
@@ -686,7 +720,7 @@ export async function getAnalysis(ctx: EngineCtx, id: string, ownerPreviewHideIn
     // GÜNCEL yetki: kayıtta yorum olsa bile önizleme kapalıysa İÇERİK GÖNDERİLMEZ.
     // GA-P1-02 (2026-10-20): 07–15.10 kayıtlarındaki saklı sistem notu sağlayıcı adını içeriyordu → gösterimde GÜNCEL nötr not
     // kullanılır (DB snapshot DEĞİŞMEZ; yorum içeriği ve teknik veri aynen).
-    interpretation = vis.visible ? { visible: true, ...a.provider_interp_snapshot, notice: PROVIDER_INTERP_NOTICE } : { visible: false, reason: vis.reason };
+    interpretation = vis.visible ? { visible: true, ...a.provider_interp_snapshot, notice: interpNotice } : { visible: false, reason: vis.reason };
   }
   // Sürüm metadata'sındaki yorum şeması adı da yalnız yorum görünürken döner (DB'deki snapshot DEĞİŞMEZ).
   const versions =
@@ -709,7 +743,7 @@ export async function getAnalysis(ctx: EngineCtx, id: string, ownerPreviewHideIn
         eventKind: a.event_kind,
         clientId: a.client_id,
         profile: a.profile_snapshot,
-        method: a.method_snapshot,
+        method: localNatalHouses ? { ...a.method_snapshot, houseCalculation: "local" } : a.method_snapshot,
         technical,
         ...(natalFrameSource ? { natalFrameSource } : {}),
         topics,

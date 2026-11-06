@@ -311,14 +311,26 @@ function ReportDialog({ id, analysis: a, onClose, onCreated }: { id: string; ana
   const [comment, setComment] = useState(false);
   const [preparedBy, setPreparedBy] = useState("");
   const [busy, setBusy] = useState(false);
+  // Penta: rapor hatası pencerede KALIR (yalnız 4 sn'lik toast kaçırılabiliyordu). Connection akışı değişmez.
+  const [pentaError, setPentaError] = useState<string | null>(null);
   const submit = async () => {
     if (busy) return;
     setBusy(true);
+    setPentaError(null);
     // Birleşik BodyGraph / Penta görseli sunucuda kayıtlı veriden ekrandaki sahneyle çizilir (tarayıcı yakalaması yok).
     const r = await createRelationReport(id, { analysis, knowledge, expert_comment: comment }, preparedBy);
     setBusy(false);
     if (r.ok) await onCreated(r.id, r.image);
-    else showToast({ message: r.error, type: "error" });
+    else {
+      showToast({ message: r.error, type: "error" });
+      if (a?.kind === "penta") {
+        setPentaError(
+          r.code === "NO_EXPERT_COMMENT"
+            ? "Bu analiz için kaydedilmiş bir uzman yorumu yok. Raporu yorumsuz hazırlamak için “Uzman Yorumumu Ekle” seçeneğini kaldırın; yorum eklemek için önce sayfadaki Uzman Yorumu alanına yazıp Kaydet’e basın."
+            : r.error,
+        );
+      }
+    }
   };
   const box = (checked: boolean, set: (v: boolean) => void, label: string, attr: string) => (
     <label className="flex min-h-[40px] cursor-pointer items-center gap-2.5 rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-800">
@@ -334,8 +346,9 @@ function ReportDialog({ id, analysis: a, onClose, onCreated }: { id: string; ana
         <div className="mt-3 space-y-2">
           {box(analysis, setAnalysis, "Analiz Açıklamalarını Ekle", "analysis")}
           {box(knowledge, setKnowledge, "Bilgi Bankamdaki Açıklamaları Ekle", "knowledge")}
-          {box(comment, setComment, "Uzman Yorumumu Ekle", "expert_comment")}
+          {box(comment, (v) => { setComment(v); if (!v) setPentaError(null); }, "Uzman Yorumumu Ekle", "expert_comment")}
         </div>
+        {pentaError ? <p role="alert" className="mt-2 text-[11px] font-semibold text-rose-700" data-hd-rel-report-error>{pentaError}</p> : null}
         <p className="mt-2 text-[11px] text-slate-500">Sistem Yorumu: bu analiz türü için hesaplama servisi metin yorumu sağlamadığından eklenemez. Özel çalışma notları rapora hiçbir zaman eklenmez.</p>
         <label className="mt-3 block text-xs font-bold text-slate-700">
           Raporu Hazırlayan (isteğe bağlı)

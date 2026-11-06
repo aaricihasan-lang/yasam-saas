@@ -1,0 +1,433 @@
+{
+ "note": "astronomy-engine 2.1.19 ↔ JPL DE440 (aynı TT) hata kaydı, ″. Z12 tavanı = kayıt + marginArcsec. Referans değerler reference.json'dadır.",
+ "marginArcsec": 0.3,
+ "bodyCeilingArcsec": {
+  "source": "kanit/zaman/konum-hata-once-sonra.json (3.000 an, 1900–2100, DE440) en büyük × 1,5",
+  "sun": 3.2,
+  "moon": 8.6,
+  "mercury": 17.3,
+  "venus": 30.5,
+  "mars": 19.3,
+  "jupiter": 15.2,
+  "saturn": 19.3,
+  "neptune": 28.3
+ },
+ "rows": [
+  {
+   "utc": "1850-01-01T00:00:00Z",
+   "err": {
+    "sun": 0.475,
+    "moon": 6.741,
+    "mercury": 2.326,
+    "venus": 0.199,
+    "mars": 3.491,
+    "jupiter": 3.286,
+    "saturn": 6.312,
+    "neptune": 17.522
+   }
+  },
+  {
+   "utc": "1850-04-01T00:00:00Z",
+   "err": {
+    "sun": 0.863,
+    "moon": 5.111,
+    "mercury": 1.465,
+    "venus": 0.122,
+    "mars": 2.774,
+    "jupiter": 5.761,
+    "saturn": 4.513,
+    "neptune": 16.81
+   }
+  },
+  {
+   "utc": "1850-07-01T00:00:00Z",
+   "err": {
+    "sun": 0.004,
+    "moon": 4.973,
+    "mercury": 5.617,
+    "venus": 0.184,
+    "mars": 1.333,
+    "jupiter": 5.029,
+    "saturn": 3.309,
+    "neptune": 17.147
+   }
+  },
+  {
+   "utc": "1850-10-01T00:00:00Z",
+   "err": {
+    "sun": 0.546,
+    "moon": 5.812,
+    "mercury": 6.763,
+    "venus": 1.099,
+    "mars": 1.487,
+    "jupiter": 4.358,
+    "saturn": 3.94,
+    "neptune": 17.179
+   }
+  },
+  {
+   "utc": "1900-01-01T00:00:00Z",
+   "err": {
+    "sun": 0.385,
+    "moon": 2.918,
+    "mercury": 0.154,
+    "venus": 0.305,
+    "mars": 0.182,
+    "jupiter": 1.608,
+    "saturn": 6.495,
+    "neptune": 1.919
+   }
+  },
+  {
+   "utc": "1900-04-01T00:00:00Z",
+   "err": {
+    "sun": 0.581,
+    "moon": 2.055,
+    "mercury": 1.314,
+    "venus": 0.225,
+    "mars": 0.12,
+    "jupiter": 2.55,
+    "saturn": 8.174,
+    "neptune": 1.925
+   }
+  },
+  {
+   "utc": "1900-07-01T00:00:00Z",
+   "err": {
+    "sun": 0.775,
+    "moon": 3.459,
+    "mercury": 0.409,
+    "venus": 0.168,
+    "mars": 1.563,
+    "jupiter": 4.966,
+    "saturn": 9.524,
+    "neptune": 1.673
+   }
+  },
+  {
+   "utc": "1900-10-01T00:00:00Z",
+   "err": {
+    "sun": 0.791,
+    "moon": 2.755,
+    "mercury": 1.09,
+    "venus": 1.624,
+    "mars": 0.713,
+    "jupiter": 3.972,
+    "saturn": 8.844,
+    "neptune": 1.602
+   }
+  },
+  {
+   "utc": "1950-01-01T00:00:00Z",
+   "err": {
+    "sun": 0.611,
+    "moon": 0.224,
+    "mercury": 1.106,
+    "venus": 0.878,
+    "mars": 3.739,
+    "jupiter": 6.573,
+    "saturn": 1.759,
+    "neptune": 6.758
+   }
+  },
+  {
+   "utc": "1950-04-01T00:00:00Z",
+   "err": {
+    "sun": 0.404,
+    "moon": 0.867,
+    "mercury": 0.745,
+    "venus": 4.588,
+    "mars": 1.541,
+    "jupiter": 3.525,
+    "saturn": 2.444,
+    "neptune": 7.235
+   }
+  },
+  {
+   "utc": "1950-07-01T00:00:00Z",
+   "err": {
+    "sun": 0.097,
+    "moon": 0.105,
+    "mercury": 2.341,
+    "venus": 1.61,
+    "mars": 0.307,
+    "jupiter": 2.486,
+    "saturn": 2.115,
+    "neptune": 7.33
+   }
+  },
+  {
+   "utc": "1950-10-01T00:00:00Z",
+   "err": {
+    "sun": 0.848,
+    "moon": 0.995,
+    "mercury": 3.5,
+    "venus": 2.179,
+    "mars": 0.119,
+    "jupiter": 3.106,
+    "saturn": 1.377,
+    "neptune": 7.449
+   }
+  },
+  {
+   "utc": "1972-01-01T00:00:00Z",
+   "err": {
+    "sun": 0.951,
+    "moon": 0.733,
+    "mercury": 0.997,
+    "venus": 0.219,
+    "mars": 2.324,
+    "jupiter": 3.761,
+    "saturn": 3.088,
+    "neptune": 14.879
+   }
+  },
+  {
+   "utc": "1972-04-01T00:00:00Z",
+   "err": {
+    "sun": 0.901,
+    "moon": 0.836,
+    "mercury": 1.441,
+    "venus": 0.316,
+    "mars": 0.661,
+    "jupiter": 5.047,
+    "saturn": 2.36,
+    "neptune": 15.325
+   }
+  },
+  {
+   "utc": "1972-07-01T00:00:00Z",
+   "err": {
+    "sun": 0.05,
+    "moon": 0.818,
+    "mercury": 1.386,
+    "venus": 6.456,
+    "mars": 0.325,
+    "jupiter": 5.557,
+    "saturn": 1.611,
+    "neptune": 15.232
+   }
+  },
+  {
+   "utc": "1972-10-01T00:00:00Z",
+   "err": {
+    "sun": 0.114,
+    "moon": 0.548,
+    "mercury": 0.1,
+    "venus": 1.274,
+    "mars": 1.025,
+    "jupiter": 3.727,
+    "saturn": 0.319,
+    "neptune": 14.779
+   }
+  },
+  {
+   "utc": "2000-01-01T00:00:00Z",
+   "err": {
+    "sun": 0.639,
+    "moon": 0.354,
+    "mercury": 1.335,
+    "venus": 1.997,
+    "mars": 2.141,
+    "jupiter": 4.018,
+    "saturn": 1.65,
+    "neptune": 8.744
+   }
+  },
+  {
+   "utc": "2000-04-01T00:00:00Z",
+   "err": {
+    "sun": 0.39,
+    "moon": 0.082,
+    "mercury": 1.207,
+    "venus": 1.106,
+    "mars": 1.62,
+    "jupiter": 1.322,
+    "saturn": 3.477,
+    "neptune": 9.477
+   }
+  },
+  {
+   "utc": "2000-07-01T00:00:00Z",
+   "err": {
+    "sun": 0.064,
+    "moon": 0.68,
+    "mercury": 5.363,
+    "venus": 0.229,
+    "mars": 0.619,
+    "jupiter": 0.694,
+    "saturn": 6.092,
+    "neptune": 10.296
+   }
+  },
+  {
+   "utc": "2000-10-01T00:00:00Z",
+   "err": {
+    "sun": 1.309,
+    "moon": 0.069,
+    "mercury": 2.244,
+    "venus": 0.191,
+    "mars": 0.131,
+    "jupiter": 2.357,
+    "saturn": 9.097,
+    "neptune": 10.398
+   }
+  },
+  {
+   "utc": "2026-01-01T00:00:00Z",
+   "err": {
+    "sun": 0.075,
+    "moon": 0.106,
+    "mercury": 1.582,
+    "venus": 1.987,
+    "mars": 0.373,
+    "jupiter": 3.012,
+    "saturn": 7.764,
+    "neptune": 11.849
+   }
+  },
+  {
+   "utc": "2026-04-01T00:00:00Z",
+   "err": {
+    "sun": 0.007,
+    "moon": 1.115,
+    "mercury": 0.547,
+    "venus": 2.295,
+    "mars": 0.626,
+    "jupiter": 2.076,
+    "saturn": 7.85,
+    "neptune": 11.43
+   }
+  },
+  {
+   "utc": "2026-07-01T00:00:00Z",
+   "err": {
+    "sun": 1.769,
+    "moon": 1.415,
+    "mercury": 1.628,
+    "venus": 1.271,
+    "mars": 0.914,
+    "jupiter": 2.13,
+    "saturn": 9.01,
+    "neptune": 11.685
+   }
+  },
+  {
+   "utc": "2026-10-01T00:00:00Z",
+   "err": {
+    "sun": 1.35,
+    "moon": 0.7,
+    "mercury": 1.547,
+    "venus": 15.127,
+    "mars": 0.388,
+    "jupiter": 2.051,
+    "saturn": 10.309,
+    "neptune": 12.152
+   }
+  },
+  {
+   "utc": "2050-01-01T00:00:00Z",
+   "err": {
+    "sun": 0.53,
+    "moon": 0.577,
+    "mercury": 1.88,
+    "venus": 0.771,
+    "mars": 0.56,
+    "jupiter": 0.05,
+    "saturn": 3.775,
+    "neptune": 2.723
+   }
+  },
+  {
+   "utc": "2050-04-01T00:00:00Z",
+   "err": {
+    "sun": 0.582,
+    "moon": 0.046,
+    "mercury": 1.659,
+    "venus": 1.091,
+    "mars": 2.251,
+    "jupiter": 0.997,
+    "saturn": 3.912,
+    "neptune": 2.509
+   }
+  },
+  {
+   "utc": "2050-07-01T00:00:00Z",
+   "err": {
+    "sun": 0.591,
+    "moon": 0.054,
+    "mercury": 0.56,
+    "venus": 1.086,
+    "mars": 1.854,
+    "jupiter": 1.271,
+    "saturn": 3.895,
+    "neptune": 2.353
+   }
+  },
+  {
+   "utc": "2050-10-01T00:00:00Z",
+   "err": {
+    "sun": 0.281,
+    "moon": 0.426,
+    "mercury": 0.408,
+    "venus": 9.492,
+    "mars": 1.079,
+    "jupiter": 1.355,
+    "saturn": 2.949,
+    "neptune": 2.428
+   }
+  },
+  {
+   "utc": "2100-01-01T00:00:00Z",
+   "err": {
+    "sun": 0.12,
+    "moon": 0.863,
+    "mercury": 0.374,
+    "venus": 1.297,
+    "mars": 2.973,
+    "jupiter": 0.857,
+    "saturn": 4.502,
+    "neptune": 14.912
+   }
+  },
+  {
+   "utc": "2100-04-01T00:00:00Z",
+   "err": {
+    "sun": 0.48,
+    "moon": 0.35,
+    "mercury": 2.893,
+    "venus": 0.497,
+    "mars": 1.403,
+    "jupiter": 1.17,
+    "saturn": 4.51,
+    "neptune": 15.505
+   }
+  },
+  {
+   "utc": "2100-07-01T00:00:00Z",
+   "err": {
+    "sun": 0.253,
+    "moon": 0.747,
+    "mercury": 1.602,
+    "venus": 3.07,
+    "mars": 0.956,
+    "jupiter": 2.804,
+    "saturn": 3.365,
+    "neptune": 14.99
+   }
+  },
+  {
+   "utc": "2100-10-01T00:00:00Z",
+   "err": {
+    "sun": 0.189,
+    "moon": 1.356,
+    "mercury": 5.054,
+    "venus": 1.669,
+    "mars": 0.074,
+    "jupiter": 2.274,
+    "saturn": 2.186,
+    "neptune": 14.413
+   }
+  }
+ ]
+}

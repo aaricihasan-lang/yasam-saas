@@ -18,7 +18,7 @@ import { ROXY_POLICY, ROXY_PROVIDER_ID, ROXY_RATE_LIMITS, type RoxyPolicy, type 
 import type { RoxyCallResult } from "../providers/roxy/client";
 import { ROXY_TRANSIT_ADAPTER_VERSION, type RoxyTransitRequest } from "./roxyTransitClient";
 import { chartBirthMoment, chartMatchesClient, participantChartFacts } from "../relations/relationService";
-import { TransitVerificationError, type ResolvedTransit } from "./resolveTransit";
+import { TRANSIT_UNRESOLVED_IN_PROGRESS_REASON, TRANSIT_UNRESOLVED_QUOTA_REASONS, TransitVerificationError, type ResolvedTransit } from "./resolveTransit";
 import { buildPersonalTransitView, checkTransitConsistency, validateRoxyTransit, type PersonalTransitView } from "./personalTransit";
 import { resolveTransitMoment, TRANSIT_TIME_ZONE, type TransitMoment } from "./transitMoment";
 import { PLANET_LABEL_TR } from "../bodygraph/planetGlyphs";
@@ -169,7 +169,20 @@ export async function computePersonalTransit(ctx: PersonalTransitCtx, raw: unkno
         `Bu anda ${bodies.join(", ")} konumu çizgi sınırına hesaplama hassasiyetinden daha yakın; bu an için kesin kişisel transit üretilemez. Yeniden denemek sonucu değiştirmez — bir dakika önceki veya sonraki anı seçin.`,
       );
     }
-    // Geçici: hassas doğrulama kaynağına ulaşılamadı (yapılandırma / kota / ağ) — sonra yeniden denenebilir.
+    // Hassas konum kotası doldu (yalnız L2'de olmayan anlar etkilenir; daha önce sorgulanmış anlar önbellekten gelir).
+    if (reference.reason && TRANSIT_UNRESOLVED_QUOTA_REASONS.has(reference.reason)) {
+      return fail(
+        429,
+        "TRANSIT_REFERENCE_QUOTA",
+        "Bu an için hassas gezegen konumu gerekiyor, ancak hassas konum sorgulama sınırına ulaşıldı. Daha önce sorgulanmış anlar etkilenmez. Lütfen daha sonra tekrar deneyin veya bir dakika önceki ya da sonraki anı seçin.",
+        reference.retryAfterSec,
+      );
+    }
+    // Aynı an başka bir istekte hesaplanıyor ve sınırlı bekleme içinde sonuçlanmadı (ücretli çift çağrı yapılmaz).
+    if (reference.reason === TRANSIT_UNRESOLVED_IN_PROGRESS_REASON) {
+      return fail(503, "TRANSIT_REFERENCE_IN_PROGRESS", "Bu an için hassas gezegen konumu şu anda hesaplanıyor. Birkaç saniye sonra tekrar deneyin.", reference.retryAfterSec ?? 5);
+    }
+    // Geçici: hassas doğrulama kaynağına ulaşılamadı (yapılandırma / ağ / sağlayıcı hatası) — sonra yeniden denenebilir.
     return fail(503, "TRANSIT_REFERENCE_INCOMPLETE", "Bu an için doğrulama kaynağına şu anda ulaşılamadı; doğrulanamayan sonuç gösterilmez. Birkaç dakika sonra tekrar deneyin.");
   }
   const local = reference.transit;

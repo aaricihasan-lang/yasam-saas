@@ -12,11 +12,13 @@
  * • Liste sırası danışan dosyasındaki "Kayıtlı analizler" listesiyle aynıdır (sunucu sırası).
  */
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
+import { Lock } from "lucide-react";
 import { astroFetch } from "../../_lib/api";
 import { describeOptions, techniqueLabel } from "../../_lib/techniques";
 import ScrollStrip from "./ScrollStrip";
 
-type Item = { id: string; title: string; technique: string; params: Record<string, unknown>; partnerLabel: string | null; analysisAt: string };
+/** locked: 2026-11-03 — tekniğin izni kapalı; kayıt korunur, sekme açılmaz (sunucu da 403 döner). */
+type Item = { id: string; title: string; technique: string; params: Record<string, unknown>; partnerLabel: string | null; analysisAt: string; locked?: boolean };
 type Page = { analyses: Item[]; hasMore: boolean; total: number };
 
 /** Sunucu sayfa üst sınırı 100; çok kayıtlı danışanda güvenlik sınırı (sekme şeridi için yeterli). */
@@ -98,7 +100,7 @@ export default function SavedAnalysisTabs({
           {items.map((a, i) => {
             const on = a.id === activeId;
             const opts = describeOptions(a.technique, a.params, () => a.partnerLabel);
-            const full = `${techniqueLabel(a.technique)}${opts ? ` · ${opts}` : ""} · kayıt ${day(a.analysisAt)}`;
+            const full = `${techniqueLabel(a.technique)}${opts ? ` · ${opts}` : ""} · kayıt ${day(a.analysisAt)}${a.locked ? " · kilitli (teknik izni kapalı)" : ""}`;
             return (
               <button
                 key={a.id}
@@ -111,7 +113,9 @@ export default function SavedAnalysisTabs({
                 tabIndex={on ? 0 : -1}
                 title={full}
                 aria-label={full}
-                onClick={() => !on && onSelect(a.id)}
+                onClick={() => !on && !a.locked && onSelect(a.id)}
+                aria-disabled={a.locked ? true : undefined}
+                data-locked={a.locked ? "1" : undefined}
                 onKeyDown={(e) => onKey(e, i)}
                 data-strip-key={a.id}
                 data-saved-tab={a.id}
@@ -119,8 +123,8 @@ export default function SavedAnalysisTabs({
                   on ? "border-[#0B1430] bg-[#0B1430] text-white shadow-sm" : "border-slate-300 bg-white text-slate-700 hover:border-slate-500"
                 }`}
               >
-                <span className={`h-2 w-2 shrink-0 rounded-full ${dot(a.technique)}`} aria-hidden="true" />
-                <span className="max-w-[150px] truncate font-medium sm:max-w-[200px]">{techniqueLabel(a.technique)}</span>
+                {a.locked ? <Lock className="h-3 w-3 shrink-0 text-slate-400" aria-hidden="true" /> : <span className={`h-2 w-2 shrink-0 rounded-full ${dot(a.technique)}`} aria-hidden="true" />}
+                <span className={`max-w-[150px] truncate font-medium sm:max-w-[200px] ${a.locked ? "text-slate-400" : ""}`}>{techniqueLabel(a.technique)}</span>
                 <span className={`shrink-0 text-[11px] tabular-nums ${on ? "text-white/70" : "text-slate-400"}`}>{day(a.analysisAt)}</span>
               </button>
             );

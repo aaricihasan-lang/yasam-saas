@@ -28,7 +28,11 @@
         "descPlaceholder": "Amaç / açıklama (opsiyonel)",
         "notePlaceholder": "Not (opsiyonel)",
         "saving": "Güncelleniyor...",
-        "save": "Güncelle"
+        "save": "Güncelle",
+        "stonesLabel": "Taşlar",
+        "stonePlaceholder": "Taş adı ekle…",
+        "addStone": "+ Ekle",
+        "removeStone": "{name} taşını çıkar"
       },
       "detail": {
         "stones": "Taşlar",
@@ -49,7 +53,8 @@
         "updated": "Kombinasyon güncellendi.",
         "updateFailed": "Güncellenemedi.",
         "deleted": "Kombinasyon silindi.",
-        "deleteFailed": "Silinemedi."
+        "deleteFailed": "Silinemedi.",
+        "atLeastOneStone": "En az bir taş olmalı."
       },
       "error": {
         "loadFailed": "Kombinasyonlar yüklenemedi."

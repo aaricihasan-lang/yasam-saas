@@ -64,6 +64,7 @@ import type { SourceEntryRow } from "./sourceEntryUiLogic";
 import type { KnowledgeRecordRow } from "./bilgiBankaKayit";
 import { matchStock, stockLabel, STOCK_HINT_WORD, type StockIndex } from "./stoneStockLogic";
 import { LEGACY_METHOD_NOTE, extractMotorFromAnalysisJson, extractSummaryFromAnalysisData, resolveRecordMotor } from "../../utils/analysisJson";
+import { isPreBirth, preBirthActiveYearText, preBirthEvreText, preBirthNote } from "../../utils/preBirth";
 import { formatDateLoose, formatInstantDateTime, reportGeneratedLabel } from "@/lib/time/reportTime";
 import { wellnessNote } from "@/lib/docx/reportDisclaimer";
 import { buildWellnessNoteSection } from "@/lib/docx/reportHelpers";
@@ -399,10 +400,14 @@ function timingBlocks(firstName: string, lastName: string, birthDate: string, re
   const cyc = computeCycleTiming(bd, ref);
   const dev = computeDevelopment(firstName, lastName, bd, ref);
   const py = per.personalYear;
+  // Doğum öncesi (planlanan doğum referans tarihten sonra): yaş / aktif dönem / şu anki evre yazılmaz.
+  const bp = parseBirthDate(bd);
+  const preBirth = isPreBirth(cyc) && bp !== null;
 
   const out: Block[] = [];
   // Referans tarih — rapor yıllar sonra açıldığında bağlam netliği için AÇIKÇA yazılır.
   out.push(p(`Zamanlama Referans Tarihi: ${fmtCalendar(ref)}`, { bold: true, color: INDIGO, size: S_SMALL, after: 140 }));
+  if (preBirth && bp) out.push(p(preBirthNote(bp, ref), { color: SECONDARY, size: S_SMALL, after: 140 }));
 
   out.push(subHeading("Evrensel Zamanlama"));
   out.push(timingItemCard("Evrensel Yıl", u.universalYear.display, u.universalYear.interpretation));
@@ -414,18 +419,22 @@ function timingBlocks(firstName: string, lastName: string, birthDate: string, re
   out.push(timingItemCard(`Nominal Kişisel Yıl (${ref.year})`, py.nominal.display, py.nominal.interpretation));
   out.push(conceptDef("Aktif Kişisel Yıl: referans tarihte içinde bulunduğunuz, doğum gününüzde başlayıp bir sonraki doğum gününe kadar süren kişisel yıl dönemidir."));
   out.push(
-    timelineCard("Aktif Kişisel Yıl", [
-      `Değer: ${py.active.display}`,
-      `Aktif Dönem: ${fmtCalendar(py.active.periodStart)} – ${fmtCalendar(py.active.periodEnd)}`,
-      ...(py.active.interpretation ? [py.active.interpretation] : []),
-    ]),
+    preBirth && bp
+      ? timelineCard("Aktif Kişisel Yıl", [preBirthActiveYearText(bp)])
+      : timelineCard("Aktif Kişisel Yıl", [
+          `Değer: ${py.active.display}`,
+          `Aktif Dönem: ${fmtCalendar(py.active.periodStart)} – ${fmtCalendar(py.active.periodEnd)}`,
+          ...(py.active.interpretation ? [py.active.interpretation] : []),
+        ]),
   );
   out.push(timingItemCard("Kişisel Ay", per.personalMonth.display, per.personalMonth.interpretation));
   out.push(timingItemCard("Kişisel Gün", per.personalDay.display, per.personalDay.interpretation));
 
   out.push(subHeading("Yaşam Evresi"));
   out.push(conceptDef("Evre: yaşamın dokuz yıllık büyük gelişim dönemlerinden bulunduğunuz dönemi gösterir. Döngü: bu evrenin içinde kaçıncı yılda olduğunuzu gösterir (Evre ile aynı şey değildir)."));
-  if (cyc.evre) {
+  if (preBirth) {
+    out.push(p(preBirthEvreText(cyc.timeline[0]?.energy), { color: SECONDARY, size: S_SMALL }));
+  } else if (cyc.evre) {
     out.push(
       timelineCard(`Evre ${cyc.evre.index} · Yaş ${cyc.age}`, [
         `Evre Enerjisi: ${cyc.evre.energy}`,

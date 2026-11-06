@@ -1,12 +1,15 @@
+import { withTrialRoxyMeter } from "@/lib/trial/roxyMeter";
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { hitDbRateLimit, rateLimitBucket } from "@/lib/security/dbRateLimit";
-import { readRoxyServerConfig } from "@/lib/human-design/providers/roxy/config";
+import { withHdUnlimitedGrant } from "@/lib/human-design/quota/unlimitedGrant";
+import { transitProviderConfigFor } from "@/lib/human-design/transit/demoProviderPolicy";
 import { callRoxyTransit } from "@/lib/human-design/transit/roxyTransitClient";
 import { computePersonalTransit } from "@/lib/human-design/transit/personalTransitService";
 import { resolveGeneralTransit } from "@/lib/human-design/transit/resolveTransit";
 import { callRoxyPlanets } from "@/lib/human-design/transit/roxyPlanetsClient";
 import { transitDataCache } from "@/lib/human-design/transit/transitDataCache";
+import { createSupabasePlanetStore, hdTransitPlanetStoreEnabled } from "@/lib/human-design/transit/transitPlanetStore";
 
 export const runtime = "nodejs";
 
@@ -19,7 +22,7 @@ export const runtime = "nodejs";
  */
 const NO_STORE = { "Cache-Control": "no-store" } as const;
 
-export async function POST(req: NextRequest): Promise<Response> {
+async function handlePost(req: NextRequest): Promise<Response> {
   const guard = await requireModuleAccess(req, "human_design");
   if (!guard.ok) return guard.response;
   let raw: unknown;
@@ -28,8 +31,12 @@ export async function POST(req: NextRequest): Promise<Response> {
   } catch {
     return NextResponse.json({ ok: false, code: "MALFORMED_JSON", error: "Geçerli JSON gövdesi gerekli." }, { status: 400, headers: NO_STORE });
   }
-  const config = readRoxyServerConfig();
+  // D2 (ikinci savunma katmanı): demo zaten personalTransitService'te 403; yine de demo'ya sağlayıcı yapılandırması verilmez.
+  const config = transitProviderConfigFor(guard.is_demo_account);
   const rateLimit = (scope: string, value: string, limit: number, windowSeconds: number) => hitDbRateLimit(guard.db, rateLimitBucket(scope, value), limit, windowSeconds);
+  // Owner'ın 24 saatlik HD sınırsız izni (lib/human-design/quota/unlimitedGrant): yalnız kişisel transitin hd-roxy-user /
+  // hd-roxy-tenant kotası; genel transit gezegen kotaları (hd-transit-planets-*) ve kilitler sarılmadan kalır.
+  const personalRateLimit = withHdUnlimitedGrant({ db: guard.db, userId: guard.userId, tenantId: guard.tenantId, isDemo: guard.is_demo_account }, rateLimit);
   const log = (msg: string, detail?: unknown) => console.error(msg, detail ?? "");
   const r = await computePersonalTransit(
     { db: guard.db, tenantId: guard.tenantId, userId: guard.userId, isDemo: guard.is_demo_account },
@@ -37,11 +44,13 @@ export async function POST(req: NextRequest): Promise<Response> {
     {
       config,
       callTransit: (c, body, opts) => callRoxyTransit(c, body, opts),
-      rateLimit,
+      rateLimit: personalRateLimit,
       log,
       // Doğrulanmış referans: yerel motor + gerektiğinde bağımsız denetimli Roxy gezegen konumları (genel transitle AYNI çözücü)
       resolveTransit: (utc) =>
-        resolveGeneralTransit(utc, { config, callPlanets: (c, body) => callRoxyPlanets(c, body), rateLimit, userId: guard.userId, tenantId: guard.tenantId, sharedCache: transitDataCache, log }),
+        resolveGeneralTransit(utc, { config, callPlanets: (c, body) => callRoxyPlanets(c, body), rateLimit, userId: guard.userId, tenantId: guard.tenantId, sharedCache: transitDataCache, log,
+          // Kalıcı L2 (Supabase); HD_TRANSIT_PLANET_STORE=off veya tablo yok → yalnız eski Next Data Cache yolu.
+          planetStore: hdTransitPlanetStoreEnabled() ? createSupabasePlanetStore(guard.db, { log }) : undefined }),
     },
   );
   const headers: Record<string, string> = { ...NO_STORE };
@@ -52,3 +61,6 @@ export async function POST(req: NextRequest): Promise<Response> {
 export async function GET(): Promise<Response> {
   return NextResponse.json({ ok: false, code: "METHOD_NOT_ALLOWED", error: "Yalnız POST desteklenir." }, { status: 405, headers: { ...NO_STORE, Allow: "POST" } });
 }
+
+// TRIAL7: deneme uzmanının GERÇEK Roxy istekleri günlük ortak krediden düşer (önbellek isabeti düşmez).
+export const POST = withTrialRoxyMeter("human_design", "hd/transit/personal", handlePost);

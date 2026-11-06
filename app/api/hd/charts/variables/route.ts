@@ -1,8 +1,10 @@
+import { withTrialRoxyMeter } from "@/lib/trial/roxyMeter";
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { hasModulePermissionForProfile } from "@/lib/auth/modulePermissions";
 import { hitDbRateLimit, rateLimitBucket } from "@/lib/security/dbRateLimit";
 import { quotaCheck } from "@/lib/security/testQuotaExemption";
+import { withHdUnlimitedGrant } from "@/lib/human-design/quota/unlimitedGrant";
 import { readRoxyServerConfig } from "@/lib/human-design/providers/roxy/config";
 import { callRoxyVariables } from "@/lib/human-design/variables/roxyVariablesClient";
 import { computeChartVariables } from "@/lib/human-design/variables/variablesService";
@@ -21,7 +23,7 @@ export const runtime = "nodejs";
  */
 const NO_STORE = { "Cache-Control": "no-store" } as const;
 
-export async function POST(req: NextRequest): Promise<Response> {
+async function handlePost(req: NextRequest): Promise<Response> {
   const guard = await requireModuleAccess(req, "human_design");
   if (!guard.ok) return guard.response;
   if (!hasModulePermissionForProfile(guard.profile, "hd_system_reading")) {
@@ -40,8 +42,9 @@ export async function POST(req: NextRequest): Promise<Response> {
       config: readRoxyServerConfig(),
       callVariables: (c, body, opts) => callRoxyVariables(c, body, opts),
       // Hacim kotaları geçici test muafiyetine (lib/security/testQuotaExemption) tabidir; kilit kapsamı muafiyet listesinde yoktur.
-      rateLimit: (scope, value, limit, windowSeconds) =>
-        quotaCheck(scope, guard.userId, () => hitDbRateLimit(guard.db, rateLimitBucket(scope, value), limit, windowSeconds), { isDemo: guard.is_demo_account, tenantId: guard.tenantId }),
+      // + Owner'ın 24 saatlik HD sınırsız izni (lib/human-design/quota/unlimitedGrant): yalnız hd-roxy-user / hd-roxy-tenant.
+      rateLimit: withHdUnlimitedGrant({ db: guard.db, userId: guard.userId, tenantId: guard.tenantId, isDemo: guard.is_demo_account }, (scope, value, limit, windowSeconds) =>
+        quotaCheck(scope, guard.userId, () => hitDbRateLimit(guard.db, rateLimitBucket(scope, value), limit, windowSeconds), { isDemo: guard.is_demo_account, tenantId: guard.tenantId })),
       log: (msg, detail) => console.error(msg, detail ?? ""),
     },
   );
@@ -53,3 +56,6 @@ export async function POST(req: NextRequest): Promise<Response> {
 export async function GET(): Promise<Response> {
   return NextResponse.json({ ok: false, code: "METHOD_NOT_ALLOWED", error: "Yalnız POST desteklenir." }, { status: 405, headers: { ...NO_STORE, Allow: "POST" } });
 }
+
+// TRIAL7: deneme uzmanının GERÇEK Roxy istekleri günlük ortak krediden düşer (önbellek isabeti düşmez).
+export const POST = withTrialRoxyMeter("human_design", "hd/charts/variables", handlePost);

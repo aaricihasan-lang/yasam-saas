@@ -99,6 +99,7 @@
         "deleteSuccess": "{n, plural, one {# mineral} other {# minerals}} deleted successfully.",
         "wordDownloadStarted": "The Word report download has started. You can find the file in your browser's Downloads.",
         "wordFailed": "Unable to generate the Word report. Please try again.",
+        "wordNoResults": "No minerals found for this selection.",
         "selectAllLabel": "Select All",
         "exportSelectedLabel": "Export Selected to Word",
         "loadingList": "Loading minerals…",
@@ -150,6 +151,12 @@
         "wordBusy": "⏳…",
         "refresh": "Refresh",
         "editButton": "✏️ Edit",
+        "deleteButton": "Delete",
+        "deleteTitle": "Permanently Delete Mineral",
+        "deleteMessage": "\"{name}\" will be permanently deleted. This cannot be undone.",
+        "deleteSecond": "Final confirmation: permanently delete \"{name}\"?",
+        "deleteFailed": "Delete failed: {error}",
+        "deletedToast": "\"{name}\" deleted.",
         "matchLabel": "Match:",
         "loading": "Loading mineral…",
         "loadFailedTitle": "Unable to load the mineral",
@@ -199,7 +206,9 @@
         },
         "invalidId": "Invalid mineral ID.",
         "notFound": "Mineral record not found.",
-        "loadError": "Unable to load mineral records: {error}"
+        "loadError": "Unable to load mineral records: {error}",
+        "backToList": "← Mineral List",
+        "backToSearch": "← Back to Search"
       },
       "edit": {
         "lineHint": "one item per line",

@@ -11,6 +11,7 @@
 //   4 Roxy'nin yorum üretmediği teknikte (KP transit) açık not; sayfada yatay taşma yok.
 /* eslint-disable @typescript-eslint/no-require-imports -- düz Node CommonJS test betiği */
 const { chromium } = require("playwright");
+const { revealHeaderActions, deskMenuItem } = require("./atlas-e2e-open-analysis.cjs");
 const { readFileSync, writeFileSync } = require("node:fs");
 const { join } = require("node:path");
 const { randomUUID } = require("node:crypto");
@@ -107,87 +108,157 @@ async function overflow(page) {
   ok("danışan dosyasındaki liste korunur (14 satır)", (await page.locator("[data-saved-item]").count()) === 14);
   const h0 = hits();
   await page.locator(`[data-saved-item="${ids["kp.transit"]}"]`).click();
-  await page.waitForSelector("[data-testid=astro-saved-tabs]", { timeout: 60000 });
+  // 2026-11-05: V3 analiz seçicisi (varsayılan) başlıkta; eski şerit yalnız NEXT_PUBLIC_ATLAS_ANALYSIS_PICKER=off ile.
+  await page.waitForSelector("[data-testid=atlas-picker-trigger], [data-testid=astro-saved-tabs]", { timeout: 60000 });
   await page.waitForSelector("[data-testid=astro-saved-analysis]", { timeout: 60000 });
   await page.waitForTimeout(800);
-  const tabs = page.locator("[data-testid=astro-saved-tabs] [data-saved-tab]");
-  ok("sekme şeridi: aynı danışanın 14 kayıtlı analizi", (await tabs.count()) === 14, String(await tabs.count()));
-  ok("başka danışanın analizi şeritte YOK (izolasyon)", (await page.locator(`[data-saved-tab="${otherIds["western.natal"]}"]`).count()) === 0);
-  const act = page.locator("[data-testid=astro-saved-tabs] [data-saved-tab][aria-selected=true]");
-  ok("etkin sekme = açılan analiz (KP transit) ve belirgin", (await act.count()) === 1 && (await act.getAttribute("data-saved-tab")) === ids["kp.transit"] && /bg-\[#0B1430\]/.test((await act.getAttribute("class")) ?? ""));
-  ok("Roxy yorum üretmeyen teknikte açık not (KP transit)", await page.locator("[data-testid=astro-no-provider-interp]").first().isVisible());
-  // Görünür mü (kırpılmadan)? etkin sekme şerit içinde
-  const visibleActive = await page.evaluate(() => {
-    const s = document.querySelector("[data-testid=astro-saved-tabs] [data-strip-scroller]");
-    const a = document.querySelector("[data-testid=astro-saved-tabs] [aria-selected=true]");
-    if (!s || !a) return false;
-    const sr = s.getBoundingClientRect();
-    const ar = a.getBoundingClientRect();
-    return ar.left >= sr.left - 1 && ar.right <= sr.right + 1;
-  });
-  ok("etkin sekme görünür alanda (kırpılmamış)", visibleActive);
-  const scroller = page.locator("[data-testid=astro-saved-tabs] [data-strip-scroller]");
-  const overflowing = await scroller.evaluate((s) => s.scrollWidth > s.clientWidth + 1);
-  ok("14 sekmede şerit taşar → ‹ › ok düğmeleri görünür", !overflowing || ((await page.locator("[data-testid=astro-saved-tabs] [data-strip-next]").isVisible()) && (await page.locator("[data-testid=astro-saved-tabs] [data-strip-prev]").isVisible())), `taşma=${overflowing}`);
-  if (overflowing) {
-    await scroller.evaluate((s) => s.scrollTo({ left: 0, behavior: "instant" }));
-    await page.waitForTimeout(300);
-    const l0 = await scroller.evaluate((s) => s.scrollLeft);
-    await page.locator("[data-testid=astro-saved-tabs] [data-strip-next]").click();
-    await page.waitForTimeout(700);
-    const l1 = await scroller.evaluate((s) => s.scrollLeft);
-    ok("› ok düğmesi şeridi sağa kaydırır", l1 > l0, `${l0}→${l1}`);
-    await page.locator("[data-testid=astro-saved-tabs] [data-strip-prev]").click();
-    await page.waitForTimeout(700);
-    ok("‹ ok düğmesi sola geri kaydırır", (await scroller.evaluate((s) => s.scrollLeft)) < l1);
+  const pickerMode = (await page.locator("[data-testid=atlas-picker-trigger]").count()) > 0;
+  console.log(`  (kip: ${pickerMode ? "V3 seçici" : "eski şerit"})`);
+  if (pickerMode) {
+    const openP = async () => {
+      if ((await page.locator("[data-testid=atlas-picker-panel]").count()) === 0) await page.locator("[data-testid=atlas-picker-trigger]:visible").first().click();
+      await page.locator("[data-testid=atlas-picker-panel]").first().waitFor({ state: "visible", timeout: 15000 });
+      await page.waitForFunction(() => !document.querySelector("[data-testid=atlas-picker-panel][data-loading]"), null, { timeout: 30000 });
+    };
+    const opts = page.locator("[data-testid=atlas-picker-panel] [role=option]");
+    ok("V3: şerit ve ‹ › okları yok", (await page.locator("[data-testid=astro-saved-tabs]").count()) === 0 && (await page.locator("[data-strip-next], [data-strip-prev]").count()) === 0);
+    await openP();
+    ok("seçici: aynı danışanın 14 kayıtlı analizi", (await opts.count()) === 14, String(await opts.count()));
+    ok("başka danışanın analizi listede YOK (izolasyon)", (await page.locator(`[data-picker-ref="saved:${otherIds["western.natal"]}"]`).count()) === 0);
+    const actP = page.locator("[data-testid=atlas-picker-panel] [role=option][aria-selected=true]");
+    ok("etkin satır = açılan analiz (KP transit)", (await actP.count()) === 1 && (await actP.getAttribute("data-picker-ref")) === `saved:${ids["kp.transit"]}`);
+    await page.keyboard.press("Escape");
+    ok("Roxy yorum üretmeyen teknikte açık not (KP transit)", await page.locator("[data-testid=astro-no-provider-interp]").first().isVisible());
+    // Seçiciden başka analiz (Vedik D1); 0 sağlayıcı isteği
+    await openP();
+    await page.locator(`[data-picker-ref="saved:${ids["vedic.d1"]}"]`).scrollIntoViewIfNeeded();
+    await page.locator(`[data-picker-ref="saved:${ids["vedic.d1"]}"]`).click();
+    await page.waitForTimeout(1500);
+    const title1 = await page.locator("[data-testid=astro-saved-analysis]").innerText();
+    ok("seçiciden diğer kayıtlı analiz açılır (Vedik D1)", /Vedik D1|D1 \(Rashi\)|Rashi/.test(title1));
+    ok("geçişte arşive dönülmedi (seçici yerinde)", await page.locator("[data-testid=atlas-picker-trigger]:visible").first().isVisible());
+    // Klavye: listede End → son satır, Enter açar; Home + ↓ → ikinci satır
     if (!mobile) {
-      await scroller.evaluate((s) => s.scrollTo({ left: 0, behavior: "instant" }));
-      await scroller.hover();
-      await page.mouse.wheel(0, 400);
-      await page.waitForTimeout(500);
-      ok("fare tekerleği (dikey) şeridi yatay kaydırır", (await scroller.evaluate((s) => s.scrollLeft)) > 0);
-    } else {
-      await scroller.evaluate((s) => s.scrollTo({ left: 0, behavior: "instant" }));
-      const box = await scroller.boundingBox();
-      // Dokunmatik kaydırma: CSS overflow-x:auto (yerel); doğrudan kaydırma ile denetlenir.
-      await scroller.evaluate((s) => s.scrollBy({ left: 200, behavior: "instant" }));
-      ok("dokunmatik/yerel yatay kaydırma çalışır (overflow-x auto)", (await scroller.evaluate((s) => s.scrollLeft)) > 0, JSON.stringify(box));
+      await page.locator("[data-testid=atlas-picker-trigger]:visible").first().focus();
+      await page.keyboard.press("ArrowDown");
+      await page.waitForFunction(() => !document.querySelector("[data-testid=atlas-picker-panel][data-loading]"), null, { timeout: 30000 });
+      await page.locator("[data-testid=atlas-picker-panel] [role=option][aria-selected=true]").focus();
+      await page.keyboard.press("End");
+      const lastRef = await opts.last().getAttribute("data-picker-ref");
+      await page.keyboard.press("Enter");
+      await page.waitForTimeout(1500);
+      await openP();
+      ok("klavye End + Enter → son analiz", (await page.locator("[data-testid=atlas-picker-panel] [role=option][aria-selected=true]").getAttribute("data-picker-ref")) === lastRef);
+      await page.locator("[data-testid=atlas-picker-panel] [role=option][aria-selected=true]").focus();
+      await page.keyboard.press("Home");
+      await page.keyboard.press("ArrowDown");
+      const secondRef = await opts.nth(1).getAttribute("data-picker-ref");
+      await page.keyboard.press("Enter");
+      await page.waitForTimeout(1500);
+      await openP();
+      ok("klavye Home + ↓ + Enter → ikinci analiz", (await page.locator("[data-testid=atlas-picker-panel] [role=option][aria-selected=true]").getAttribute("data-picker-ref")) === secondRef);
+      await page.keyboard.press("Escape");
     }
+    // Bütün analizleri sırayla aç → her biri açılır; Roxy sayacı DEĞİŞMEZ
+    await openP();
+    const refs = await opts.evaluateAll((els) => els.map((e) => e.getAttribute("data-picker-ref")));
+    await page.keyboard.press("Escape").catch(() => {});
+    let opened = 0;
+    for (const ref of refs) {
+      await openP();
+      const o = page.locator(`[data-testid=atlas-picker-panel] [data-picker-ref=${JSON.stringify(ref)}]`);
+      await o.scrollIntoViewIfNeeded();
+      if ((await o.getAttribute("aria-selected")) === "true") await page.keyboard.press("Escape");
+      else await o.click();
+      await page.waitForSelector("[data-testid=astro-saved-analysis]", { timeout: 30000 });
+      await page.waitForTimeout(400);
+      await openP();
+      if ((await page.locator("[data-testid=atlas-picker-panel] [role=option][aria-selected=true]").getAttribute("data-picker-ref")) === ref) opened++;
+      await page.keyboard.press("Escape");
+      await page.waitForTimeout(200);
+    }
+    ok("14 analizin tamamı arşive dönmeden açıldı", opened === 14, String(opened));
+  } else {
+    const tabs = page.locator("[data-testid=astro-saved-tabs] [data-saved-tab]");
+    ok("sekme şeridi: aynı danışanın 14 kayıtlı analizi", (await tabs.count()) === 14, String(await tabs.count()));
+    ok("başka danışanın analizi şeritte YOK (izolasyon)", (await page.locator(`[data-saved-tab="${otherIds["western.natal"]}"]`).count()) === 0);
+    const act = page.locator("[data-testid=astro-saved-tabs] [data-saved-tab][aria-selected=true]");
+    ok("etkin sekme = açılan analiz (KP transit) ve belirgin", (await act.count()) === 1 && (await act.getAttribute("data-saved-tab")) === ids["kp.transit"] && /bg-\[#0B1430\]/.test((await act.getAttribute("class")) ?? ""));
+    ok("Roxy yorum üretmeyen teknikte açık not (KP transit)", await page.locator("[data-testid=astro-no-provider-interp]").first().isVisible());
+    // Görünür mü (kırpılmadan)? etkin sekme şerit içinde
+    const visibleActive = await page.evaluate(() => {
+      const s = document.querySelector("[data-testid=astro-saved-tabs] [data-strip-scroller]");
+      const a = document.querySelector("[data-testid=astro-saved-tabs] [aria-selected=true]");
+      if (!s || !a) return false;
+      const sr = s.getBoundingClientRect();
+      const ar = a.getBoundingClientRect();
+      return ar.left >= sr.left - 1 && ar.right <= sr.right + 1;
+    });
+    ok("etkin sekme görünür alanda (kırpılmamış)", visibleActive);
+    const scroller = page.locator("[data-testid=astro-saved-tabs] [data-strip-scroller]");
+    const overflowing = await scroller.evaluate((s) => s.scrollWidth > s.clientWidth + 1);
+    ok("14 sekmede şerit taşar → ‹ › ok düğmeleri görünür", !overflowing || ((await page.locator("[data-testid=astro-saved-tabs] [data-strip-next]").isVisible()) && (await page.locator("[data-testid=astro-saved-tabs] [data-strip-prev]").isVisible())), `taşma=${overflowing}`);
+    if (overflowing) {
+      await scroller.evaluate((s) => s.scrollTo({ left: 0, behavior: "instant" }));
+      await page.waitForTimeout(300);
+      const l0 = await scroller.evaluate((s) => s.scrollLeft);
+      await page.locator("[data-testid=astro-saved-tabs] [data-strip-next]").click();
+      await page.waitForTimeout(700);
+      const l1 = await scroller.evaluate((s) => s.scrollLeft);
+      ok("› ok düğmesi şeridi sağa kaydırır", l1 > l0, `${l0}→${l1}`);
+      await page.locator("[data-testid=astro-saved-tabs] [data-strip-prev]").click();
+      await page.waitForTimeout(700);
+      ok("‹ ok düğmesi sola geri kaydırır", (await scroller.evaluate((s) => s.scrollLeft)) < l1);
+      if (!mobile) {
+        await scroller.evaluate((s) => s.scrollTo({ left: 0, behavior: "instant" }));
+        await scroller.hover();
+        await page.mouse.wheel(0, 400);
+        await page.waitForTimeout(500);
+        ok("fare tekerleği (dikey) şeridi yatay kaydırır", (await scroller.evaluate((s) => s.scrollLeft)) > 0);
+      } else {
+        await scroller.evaluate((s) => s.scrollTo({ left: 0, behavior: "instant" }));
+        const box = await scroller.boundingBox();
+        // Dokunmatik kaydırma: CSS overflow-x:auto (yerel); doğrudan kaydırma ile denetlenir.
+        await scroller.evaluate((s) => s.scrollBy({ left: 200, behavior: "instant" }));
+        ok("dokunmatik/yerel yatay kaydırma çalışır (overflow-x auto)", (await scroller.evaluate((s) => s.scrollLeft)) > 0, JSON.stringify(box));
+      }
+    }
+    // Sekmeye bas → başka analiz (Vedik D1); 0 sağlayıcı isteği
+    await page.locator(`[data-testid=astro-saved-tabs] [data-saved-tab="${ids["vedic.d1"]}"]`).scrollIntoViewIfNeeded();
+    await page.locator(`[data-testid=astro-saved-tabs] [data-saved-tab="${ids["vedic.d1"]}"]`).click();
+    await page.waitForTimeout(1500);
+    const title1 = await page.locator("[data-testid=astro-saved-analysis]").innerText();
+    ok("sekmeye basınca diğer kayıtlı analiz açılır (Vedik D1)", /Vedik D1|D1 \(Rashi\)|Rashi/.test(title1));
+    ok("geçişte arşive dönülmedi (sekme şeridi yerinde)", await page.locator("[data-testid=astro-saved-tabs]").isVisible());
+    // Klavye: ← → Home End
+    await page.locator("[data-testid=astro-saved-tabs] [aria-selected=true]").focus();
+    await page.keyboard.press("End");
+    await page.waitForTimeout(1200);
+    const lastId = await page.locator("[data-testid=astro-saved-tabs] [data-saved-tab]").last().getAttribute("data-saved-tab");
+    ok("klavye End → son kayıtlı analiz", (await page.locator("[data-testid=astro-saved-tabs] [aria-selected=true]").getAttribute("data-saved-tab")) === lastId);
+    await page.keyboard.press("Home");
+    await page.waitForTimeout(1200);
+    await page.keyboard.press("ArrowRight");
+    await page.waitForTimeout(1200);
+    const second = await page.locator("[data-testid=astro-saved-tabs] [data-saved-tab]").nth(1).getAttribute("data-saved-tab");
+    ok("klavye Home + → ikinci kayıtlı analiz", (await page.locator("[data-testid=astro-saved-tabs] [aria-selected=true]").getAttribute("data-saved-tab")) === second);
+    // Bütün sekmeleri sırayla gez → her biri açılır; Roxy sayacı DEĞİŞMEZ
+    let opened = 0;
+    for (let i = 0; i < (await tabs.count()); i++) {
+      const tid = await tabs.nth(i).getAttribute("data-saved-tab");
+      await tabs.nth(i).scrollIntoViewIfNeeded();
+      await tabs.nth(i).click();
+      await page.waitForFunction((id) => document.querySelector("[data-testid=astro-saved-tabs] [aria-selected=true]")?.getAttribute("data-saved-tab") === id, tid, { timeout: 20000 });
+      await page.waitForSelector("[data-testid=astro-saved-analysis]", { timeout: 30000 });
+      opened++;
+    }
+    ok("14 sekmenin tamamı arşive dönmeden açıldı", opened === 14, String(opened));
   }
-  // Sekmeye bas → başka analiz (Vedik D1); 0 sağlayıcı isteği
-  await page.locator(`[data-testid=astro-saved-tabs] [data-saved-tab="${ids["vedic.d1"]}"]`).scrollIntoViewIfNeeded();
-  await page.locator(`[data-testid=astro-saved-tabs] [data-saved-tab="${ids["vedic.d1"]}"]`).click();
-  await page.waitForTimeout(1500);
-  const title1 = await page.locator("[data-testid=astro-saved-analysis]").innerText();
-  ok("sekmeye basınca diğer kayıtlı analiz açılır (Vedik D1)", /Vedik D1|D1 \(Rashi\)|Rashi/.test(title1));
-  ok("geçişte arşive dönülmedi (sekme şeridi yerinde)", await page.locator("[data-testid=astro-saved-tabs]").isVisible());
-  // Klavye: ← → Home End
-  await page.locator("[data-testid=astro-saved-tabs] [aria-selected=true]").focus();
-  await page.keyboard.press("End");
-  await page.waitForTimeout(1200);
-  const lastId = await page.locator("[data-testid=astro-saved-tabs] [data-saved-tab]").last().getAttribute("data-saved-tab");
-  ok("klavye End → son kayıtlı analiz", (await page.locator("[data-testid=astro-saved-tabs] [aria-selected=true]").getAttribute("data-saved-tab")) === lastId);
-  await page.keyboard.press("Home");
-  await page.waitForTimeout(1200);
-  await page.keyboard.press("ArrowRight");
-  await page.waitForTimeout(1200);
-  const second = await page.locator("[data-testid=astro-saved-tabs] [data-saved-tab]").nth(1).getAttribute("data-saved-tab");
-  ok("klavye Home + → ikinci kayıtlı analiz", (await page.locator("[data-testid=astro-saved-tabs] [aria-selected=true]").getAttribute("data-saved-tab")) === second);
-  // Bütün sekmeleri sırayla gez → her biri açılır; Roxy sayacı DEĞİŞMEZ
-  let opened = 0;
-  for (let i = 0; i < (await tabs.count()); i++) {
-    const tid = await tabs.nth(i).getAttribute("data-saved-tab");
-    await tabs.nth(i).scrollIntoViewIfNeeded();
-    await tabs.nth(i).click();
-    await page.waitForFunction((id) => document.querySelector("[data-testid=astro-saved-tabs] [aria-selected=true]")?.getAttribute("data-saved-tab") === id, tid, { timeout: 20000 });
-    await page.waitForSelector("[data-testid=astro-saved-analysis]", { timeout: 30000 });
-    opened++;
-  }
-  ok("14 sekmenin tamamı arşive dönmeden açıldı", opened === 14, String(opened));
   ok("kayıtlı analizler arasında gezinme 0 Roxy isteği", h0 === null || hits() === h0, `${h0}→${hits()}`);
   ok("sayfada yatay taşma yok (kayıtlı analiz)", !(await overflow(page)));
 
   // ── 3) Word / PDF — tekli (bu genişlikte görünür + gerçek dosya)
+  await revealHeaderActions(page); // V3: telefonda Word/PDF "⋯" menüsünde (masaüstünde etkisiz)
   const docxBtn = page.locator("[data-testid=astro-report-docx]").first();
   const pdfBtn = page.locator("[data-testid=astro-report-pdf]").first();
   ok("tekli Word + PDF düğmeleri bu ekranda görünür", (await docxBtn.isVisible()) && (await pdfBtn.isVisible()));
@@ -202,7 +273,7 @@ async function overflow(page) {
   ok("rapor indirme 0 Roxy isteği", h0 === null || hits() === h0);
 
   // ── 3b) Toplu: danışan dosyasına dön → toplu çubuk + seçim kutucukları görünür
-  await page.locator("[data-testid=astro-saved-analysis] button[aria-label='Danışan Dosyası']").first().click();
+  await (await deskMenuItem(page, "button[aria-label='Danışan Dosyası']")).click();
   await page.waitForSelector("[data-testid=astro-bulk-report]", { timeout: 30000 });
   ok("toplu Word/PDF çubuğu bu ekranda görünür", await page.locator("[data-testid=astro-bulk-report]").isVisible());
   const picks = page.locator("[data-testid=astro-pick]");
@@ -238,31 +309,49 @@ async function overflow(page) {
     }
     await page.waitForTimeout(1200);
     await page.locator("[data-testid=astro-run]").click();
-    await page.waitForSelector("[data-testid=astro-result-tabs-strip]", { timeout: 180000 });
+    await page.waitForSelector("[data-testid=atlas-picker-trigger], [data-testid=astro-result-tabs-strip]", { timeout: 180000 });
     await page.waitForTimeout(1500);
-    const sc = page.locator("[data-testid=astro-result-tabs-strip] [data-strip-scroller]");
-    const n = await page.locator("[data-testid=astro-result-tabs-strip] [data-tab-key]").count();
-    const over = await sc.evaluate((s) => s.scrollWidth > s.clientWidth + 1);
-    ok(`yeni çoklu analiz: ${n} açık sekme`, n >= 12, String(n));
-    ok("açık analizler taşıyor → › ok görünür", over && (await page.locator("[data-testid=astro-result-tabs-strip] [data-strip-next]").isVisible()), `taşma=${over}`);
-    await sc.evaluate((s) => s.scrollTo({ left: 0, behavior: "instant" }));
-    await page.waitForTimeout(300);
-    await page.locator("[data-testid=astro-result-tabs-strip] [data-strip-next]").click();
-    await page.waitForTimeout(700);
-    const a1 = await sc.evaluate((s) => s.scrollLeft);
-    ok("açık analizler: › ok ile sağa kaydırılır", a1 > 0, String(a1));
-    await sc.evaluate((s) => s.scrollTo({ left: 0, behavior: "instant" }));
-    await sc.hover();
-    await page.mouse.wheel(0, 600);
-    await page.waitForTimeout(500);
-    ok("açık analizler: fare tekerleği ile sağa kaydırılır", (await sc.evaluate((s) => s.scrollLeft)) > 0);
-    // Son sekmeye kadar: en sağa gidince son sekme tamamen görünür ve tıklanabilir
-    await sc.evaluate((s) => s.scrollTo({ left: s.scrollWidth, behavior: "instant" }));
-    await page.waitForTimeout(400);
-    const last = page.locator("[data-testid=astro-result-tabs-strip] [data-tab-key]").last();
-    await last.click();
-    await page.waitForTimeout(800);
-    ok("en sağdaki sekmeye erişilir ve açılır", (await last.getAttribute("aria-selected")) === "true");
+    if ((await page.locator("[data-testid=atlas-picker-trigger]").count()) > 0) {
+      await page.locator("[data-testid=atlas-picker-trigger]:visible").first().click();
+      await page.waitForFunction(() => !document.querySelector("[data-testid=atlas-picker-panel][data-loading]"), null, { timeout: 30000 });
+      const bench = page.locator("[data-testid=atlas-picker-panel] [role=option][data-picker-kind=bench]");
+      const n = await bench.count();
+      ok(`yeni çoklu analiz: ${n} açık (kaydedilmemiş) analiz seçicide`, n >= 12, String(n));
+      const lst = page.locator("[data-testid=atlas-picker-list]");
+      ok("uzun liste kendi içinde kayar", await lst.evaluate((l) => l.scrollHeight > l.clientHeight));
+      await lst.evaluate((l) => (l.scrollTop = l.scrollHeight));
+      const lastB = bench.last();
+      const lastRef = await lastB.getAttribute("data-picker-ref");
+      await lastB.click();
+      await page.waitForTimeout(800);
+      await page.locator("[data-testid=atlas-picker-trigger]:visible").first().click();
+      ok("listenin sonundaki açık analize erişilir ve açılır", (await page.locator(`[data-testid=atlas-picker-panel] [data-picker-ref=${JSON.stringify(lastRef)}]`).getAttribute("aria-selected")) === "true");
+      await page.keyboard.press("Escape");
+    } else {
+      const sc = page.locator("[data-testid=astro-result-tabs-strip] [data-strip-scroller]");
+      const n = await page.locator("[data-testid=astro-result-tabs-strip] [data-tab-key]").count();
+      const over = await sc.evaluate((s) => s.scrollWidth > s.clientWidth + 1);
+      ok(`yeni çoklu analiz: ${n} açık sekme`, n >= 12, String(n));
+      ok("açık analizler taşıyor → › ok görünür", over && (await page.locator("[data-testid=astro-result-tabs-strip] [data-strip-next]").isVisible()), `taşma=${over}`);
+      await sc.evaluate((s) => s.scrollTo({ left: 0, behavior: "instant" }));
+      await page.waitForTimeout(300);
+      await page.locator("[data-testid=astro-result-tabs-strip] [data-strip-next]").click();
+      await page.waitForTimeout(700);
+      const a1 = await sc.evaluate((s) => s.scrollLeft);
+      ok("açık analizler: › ok ile sağa kaydırılır", a1 > 0, String(a1));
+      await sc.evaluate((s) => s.scrollTo({ left: 0, behavior: "instant" }));
+      await sc.hover();
+      await page.mouse.wheel(0, 600);
+      await page.waitForTimeout(500);
+      ok("açık analizler: fare tekerleği ile sağa kaydırılır", (await sc.evaluate((s) => s.scrollLeft)) > 0);
+      // Son sekmeye kadar: en sağa gidince son sekme tamamen görünür ve tıklanabilir
+      await sc.evaluate((s) => s.scrollTo({ left: s.scrollWidth, behavior: "instant" }));
+      await page.waitForTimeout(400);
+      const last = page.locator("[data-testid=astro-result-tabs-strip] [data-tab-key]").last();
+      await last.click();
+      await page.waitForTimeout(800);
+      ok("en sağdaki sekmeye erişilir ve açılır", (await last.getAttribute("aria-selected")) === "true");
+    }
     ok("sayfada yatay taşma yok (yeni çoklu analiz)", !(await overflow(page)));
   }
   ok("sayfa hatası yok", errors.length === 0, errors.join(" | "));

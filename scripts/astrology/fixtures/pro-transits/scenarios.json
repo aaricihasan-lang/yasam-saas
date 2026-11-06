@@ -1,0 +1,401 @@
+[
+ {
+  "id": "S1-dis-coklu",
+  "startUtcMs": 1672531200000,
+  "endUtcMs": 1751328000000,
+  "bodies": [
+   "jupiter",
+   "saturn",
+   "uranus",
+   "neptune",
+   "pluto"
+  ],
+  "natalPoints": [
+   {
+    "id": "p300",
+    "lon": 300
+   },
+   {
+    "id": "a0",
+    "lon": 0.2
+   },
+   {
+    "id": "x3575",
+    "lon": 357.5
+   },
+   {
+    "id": "m573",
+    "lon": 57.3
+   }
+  ],
+  "aspects": [
+   "conjunction",
+   "sextile",
+   "square",
+   "trine",
+   "opposition"
+  ],
+  "defaultOrb": 1,
+  "include": {
+   "natal": true,
+   "mundane": true,
+   "stations": true,
+   "ingresses": true
+  }
+ },
+ {
+  "id": "S2-ay-yil",
+  "startUtcMs": 1767225600000,
+  "endUtcMs": 1798675200000,
+  "bodies": [
+   "moon",
+   "sun"
+  ],
+  "natalPoints": [
+   {
+    "id": "n10",
+    "lon": 10
+   },
+   {
+    "id": "n1234",
+    "lon": 123.4
+   },
+   {
+    "id": "n3599",
+    "lon": 359.9
+   }
+  ],
+  "aspects": [
+   "conjunction",
+   "sextile",
+   "square",
+   "trine",
+   "opposition"
+  ],
+  "defaultOrb": 1,
+  "include": {
+   "natal": true,
+   "mundane": true,
+   "stations": true,
+   "ingresses": true
+  }
+ },
+ {
+  "id": "S3-merkur-retro",
+  "startUtcMs": 1704067200000,
+  "endUtcMs": 1767139200000,
+  "bodies": [
+   "sun",
+   "mercury",
+   "venus",
+   "mars"
+  ],
+  "natalPoints": [
+   {
+    "id": "q150",
+    "lon": 150
+   },
+   {
+    "id": "q3",
+    "lon": 3
+   },
+   {
+    "id": "q0",
+    "lon": 0
+   }
+  ],
+  "aspects": [
+   "conjunction",
+   "sextile",
+   "square",
+   "trine",
+   "opposition"
+  ],
+  "orbs": {
+   "conjunction": 2
+  },
+  "defaultOrb": 1,
+  "include": {
+   "natal": true,
+   "mundane": true,
+   "stations": true,
+   "ingresses": true
+  }
+ },
+ {
+  "id": "S4-on-yil-dis",
+  "startUtcMs": 1577836800000,
+  "endUtcMs": 1893456000000,
+  "bodies": [
+   "saturn",
+   "uranus",
+   "neptune",
+   "pluto"
+  ],
+  "natalPoints": [
+   {
+    "id": "k15",
+    "lon": 15
+   },
+   {
+    "id": "k95",
+    "lon": 95.5
+   },
+   {
+    "id": "k200",
+    "lon": 200
+   },
+   {
+    "id": "k2985",
+    "lon": 298.5
+   },
+   {
+    "id": "k3405",
+    "lon": 340.5
+   }
+  ],
+  "aspects": [
+   "conjunction",
+   "sextile",
+   "square",
+   "trine",
+   "opposition"
+  ],
+  "defaultOrb": 1.5,
+  "include": {
+   "natal": true,
+   "mundane": true,
+   "stations": true,
+   "ingresses": true
+  }
+ },
+ {
+  "id": "S5-tarihsel-1900",
+  "startUtcMs": -2208988800000,
+  "endUtcMs": -2114467200000,
+  "bodies": [
+   "sun",
+   "mars",
+   "jupiter",
+   "saturn"
+  ],
+  "natalPoints": [
+   {
+    "id": "h45",
+    "lon": 45
+   },
+   {
+    "id": "h2701",
+    "lon": 270.1
+   }
+  ],
+  "aspects": [
+   "conjunction",
+   "sextile",
+   "square",
+   "trine",
+   "opposition"
+  ],
+  "defaultOrb": 1,
+  "include": {
+   "natal": true,
+   "mundane": true,
+   "stations": true,
+   "ingresses": true
+  }
+ },
+ {
+  "id": "S6-gelecek-2098",
+  "startUtcMs": 4039372800000,
+  "endUtcMs": 4117996800000,
+  "bodies": [
+   "sun",
+   "mars",
+   "jupiter",
+   "saturn"
+  ],
+  "natalPoints": [
+   {
+    "id": "g45",
+    "lon": 45
+   },
+   {
+    "id": "g2701",
+    "lon": 270.1
+   }
+  ],
+  "aspects": [
+   "conjunction",
+   "sextile",
+   "square",
+   "trine",
+   "opposition"
+  ],
+  "defaultOrb": 1,
+  "include": {
+   "natal": true,
+   "mundane": true,
+   "stations": true,
+   "ingresses": true
+  }
+ },
+ {
+  "id": "S7-istasyon-sinir",
+  "note": "Mars geri istasyonu 2024-12-06T23:34:09Z boylam 126.17054759382279",
+  "startUtcMs": 1727740800000,
+  "endUtcMs": 1746057600000,
+  "bodies": [
+   "mars"
+  ],
+  "natalPoints": [
+   {
+    "id": "st_ici",
+    "lon": 126.120548
+   },
+   {
+    "id": "st_hata",
+    "lon": 126.173548
+   },
+   {
+    "id": "st_disi",
+    "lon": 126.470548
+   },
+   {
+    "id": "orb_hata",
+    "lon": 127.173548
+   },
+   {
+    "id": "orb_ici",
+    "lon": 127.070548
+   }
+  ],
+  "aspects": [
+   "conjunction"
+  ],
+  "defaultOrb": 1,
+  "include": {
+   "natal": true,
+   "mundane": false,
+   "stations": true,
+   "ingresses": true
+  }
+ },
+ {
+  "id": "S8-ay-hizli-gun",
+  "startUtcMs": 1773964800000,
+  "endUtcMs": 1776643200000,
+  "bodies": [
+   "moon",
+   "sun",
+   "mercury",
+   "venus",
+   "mars"
+  ],
+  "natalPoints": [
+   {
+    "id": "d1",
+    "lon": 1
+   },
+   {
+    "id": "d2",
+    "lon": 2
+   },
+   {
+    "id": "d3",
+    "lon": 3
+   }
+  ],
+  "aspects": [
+   "conjunction",
+   "semi_sextile",
+   "semi_square",
+   "sextile",
+   "square",
+   "trine",
+   "sesquiquadrate",
+   "quincunx",
+   "opposition"
+  ],
+  "defaultOrb": 1,
+  "include": {
+   "natal": true,
+   "mundane": true,
+   "stations": true,
+   "ingresses": true
+  }
+ },
+ {
+  "id": "S9-ay-2050",
+  "startUtcMs": 2524608000000,
+  "endUtcMs": 2529705600000,
+  "bodies": [
+   "moon",
+   "sun"
+  ],
+  "natalPoints": [
+   {
+    "id": "n10",
+    "lon": 10
+   },
+   {
+    "id": "n1234",
+    "lon": 123.4
+   },
+   {
+    "id": "n3599",
+    "lon": 359.9
+   }
+  ],
+  "aspects": [
+   "conjunction",
+   "sextile",
+   "square",
+   "trine",
+   "opposition"
+  ],
+  "defaultOrb": 1,
+  "include": {
+   "natal": true,
+   "mundane": true,
+   "stations": true,
+   "ingresses": true
+  }
+ },
+ {
+  "id": "S10-ay-2100",
+  "startUtcMs": 4102444800000,
+  "endUtcMs": 4107542400000,
+  "bodies": [
+   "moon",
+   "sun"
+  ],
+  "natalPoints": [
+   {
+    "id": "n10",
+    "lon": 10
+   },
+   {
+    "id": "n1234",
+    "lon": 123.4
+   },
+   {
+    "id": "n3599",
+    "lon": 359.9
+   }
+  ],
+  "aspects": [
+   "conjunction",
+   "sextile",
+   "square",
+   "trine",
+   "opposition"
+  ],
+  "defaultOrb": 1,
+  "include": {
+   "natal": true,
+   "mundane": true,
+   "stations": true,
+   "ingresses": true
+  }
+ }
+]

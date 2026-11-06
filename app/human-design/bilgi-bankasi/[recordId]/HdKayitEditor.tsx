@@ -201,6 +201,27 @@ export function HdKayitEditor({ recordId }: { recordId: string }) {
     return () => ro.disconnect();
   }, [loading, notFound]);
 
+  // Fixed çubuk viewport'un sol kenarından başlarsa sabit sol menü (z-50) solunu örter ("Kaynaklar"
+  // tıklaması menü logosuna düşer). Çubuk, sayfa kabuğunun (içerik sütunu) ölçülen sol kenarı ve
+  // genişliğine hizalanır; ≤900px'te kabuk tam genişlik olduğundan konum değişmez.
+  const [toolbarBox, setToolbarBox] = useState<{ left: number; width: number } | null>(null);
+  useEffect(() => {
+    const host = toolbarRef.current?.parentElement?.parentElement;
+    if (!host) return;
+    const measure = () => {
+      const r = host.getBoundingClientRect();
+      setToolbarBox({ left: r.left, width: r.width });
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(host);
+    window.addEventListener("resize", measure);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", measure);
+    };
+  }, [loading, notFound]);
+
   // Kaydı ve kaynaklarını yükle
   useEffect(() => {
     let alive = true;
@@ -526,6 +547,7 @@ export function HdKayitEditor({ recordId }: { recordId: string }) {
       <div
         ref={toolbarRef}
         className="fixed inset-x-0 top-[var(--logo-h)] z-40 border-b border-indigo-200/70 bg-white/90 backdrop-blur-xl"
+        style={toolbarBox ? { left: toolbarBox.left, right: "auto", width: toolbarBox.width } : undefined}
       >
         {/* P2-5: mobilde tek satır + kısa geri butonu + açıklama gizli → çubuk ekranın ~%28'i
             yerine ~%14'ü kadar yer kaplar; tüm işlevler (geri/sil/kaydet/bölümler) korunur. */}

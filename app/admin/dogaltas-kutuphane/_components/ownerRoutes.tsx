@@ -3,7 +3,8 @@
 /**
  * Owner yönetim ekranlarının adres haritası. Aynı bileşenler iki yerde çalışır:
  *   • Yönetim Paneli: /admin/dogaltas-kutuphane/** (varsayılan, mevcut adresler korunur)
- *   • Doğaltaş modülü içi çalışma alanı: /dogaltas/kutuphane (+ /yonetim/**)
+ *   • Doğaltaş modülü içi çalışma alanı: /dogaltas/kutuphane/yonetim/** (owner kararı 30.10.2026: /dogaltas/kutuphane herkese,
+ *     owner dahil, uzman görünümünü açar; yönetim "Kütüphane Yönetimi" sekmesinden, dönüş "‹ Kütüphaneye Dön" ile)
  * Yetki adreslere bağlı DEĞİLDİR: tüm veri ve işlemler sunucuda owner kapısından geçer (owner olmayan herkese tek tip 404).
  */
 
@@ -16,11 +17,12 @@ export type OwnerRoutes = {
   translations: string;
   bulk: string;
   experts: string;
-  preview: string;
-  previewLabel: string;
+  /** Uzman görünümüne ayrı bağlantı (Yönetim Paneli'nde). Doğaltaş içinde dönüş moduleCrumb'dır. */
+  preview?: string;
+  previewLabel?: string;
   back: string;
   backLabel: string;
-  /** Doğaltaş modülü içinde: modüle dönüş bağlantısı (Yönetim Paneli'nde yok). */
+  /** Doğaltaş modülü içinde: kütüphaneye (uzman görünümü) dönüş bağlantısı (Yönetim Paneli'nde yok). */
   moduleCrumb?: { href: string; label: string };
 };
 
@@ -38,17 +40,15 @@ export const ADMIN_OWNER_ROUTES: OwnerRoutes = {
 };
 
 export const WORKSPACE_OWNER_ROUTES: OwnerRoutes = {
-  list: "/dogaltas/kutuphane",
+  list: "/dogaltas/kutuphane/yonetim",
   stone: (id) => `/dogaltas/kutuphane/yonetim/tas/${id}`,
   newStone: "/dogaltas/kutuphane/yonetim/yeni-tas",
   translations: "/dogaltas/kutuphane/yonetim/ceviri",
   bulk: "/dogaltas/kutuphane/yonetim/toplu",
   experts: "/dogaltas/kutuphane/yonetim/uzmanlar",
-  preview: "/dogaltas/kutuphane?gorunum=onizleme",
-  previewLabel: "Uzman görünümü (önizleme)",
   back: "/dogaltas",
   backLabel: "Doğaltaş modülüne dön",
-  moduleCrumb: { href: "/dogaltas", label: "‹ Doğaltaş" },
+  moduleCrumb: { href: "/dogaltas/kutuphane", label: "‹ Kütüphaneye Dön" },
 };
 
 const OwnerRoutesContext = createContext<OwnerRoutes>(ADMIN_OWNER_ROUTES);

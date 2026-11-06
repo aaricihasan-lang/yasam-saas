@@ -14,6 +14,7 @@ import {
 import { resolveEducationBirthUtc } from "./educationUtc";
 import { deriveBirthTimeEvidence, type EduBirthTimeSourceLite } from "./birthEvidence";
 import { buildRoxyRenderPayload } from "@/lib/human-design/providers/roxy/render";
+import { visibleFamilies, type EduVisibleFamily } from "./educationFamilies";
 
 assertServerOnly("lib/human-design/education/educationStore");
 
@@ -29,8 +30,26 @@ type SubjectRow = {
   utc_status: EduUtcStatus; legal_status: EduLegalStatus; legal_note: string | null; blockers: string[] | null; revision: number;
 };
 
-/** Owner: 43 kişilik envanter (salt-okunur) + özet. */
+/**
+ * Kapsam dışı (arşiv) kişi kimlikleri (owner kararı 31.10.2026). Tablo henüz yoksa (migration 20271220000000 uygulanmadı)
+ * boş küme döner — mevcut davranış aynen sürer; diğer hata → DB_ERROR (sessiz yanlış envanter yok).
+ */
+export async function readArchivedSubjectIds(db: SupabaseClient): Promise<Set<string>> {
+  const r = await db.from(EDU_TABLES.subjectScope).select("subject_id");
+  if (r.error) {
+    if (isMissingRelation(r.error)) return new Set();
+    throw new EduStoreError("DB_ERROR");
+  }
+  return new Set(((r.data ?? []) as Array<{ subject_id: string }>).map((x) => x.subject_id));
+}
+/** PostgREST / Postgres "tablo yok" hataları (migration henüz uygulanmamış). */
+export function isMissingRelation(e: { code?: string; message?: string }): boolean {
+  return e.code === "42P01" || e.code === "PGRST205" || /does not exist|could not find the table/i.test(String(e.message ?? ""));
+}
+
+/** Owner: eğitim envanteri (salt-okunur) + özet. Özet yalnız AKTİF (kapsam dışı olmayan) kişileri sayar. */
 export async function listInventory(db: SupabaseClient): Promise<{ rows: EduInventoryRow[]; summary: EduInventorySummary }> {
+  const archived = await readArchivedSubjectIds(db);
   const [subj, pubs, srcs, charts] = await Promise.all([
     db.from(EDU_TABLES.subjects).select(
       "id, natural_key, source_ref, display_name, category, is_living, birth_date, birth_place, documented_local_time, document_quote, birth_utc, utc_status, legal_status, legal_note, blockers, revision",
@@ -65,17 +84,21 @@ export async function listInventory(db: SupabaseClient): Promise<{ rows: EduInve
     publicationStatus: pubBy.get(s.id) ?? "draft",
     computed: chartRows.some((c) => c.subject_id === s.id && c.subject_revision === s.revision && c.calc_status === "OK"),
     stage: eduStage(pubBy.get(s.id) ?? "draft", inventoryChecklist(s, pubRowBy.get(s.id), chartRows, srcRows)),
+    archived: archived.has(s.id),
+    checklist: inventoryChecklist(s, pubRowBy.get(s.id), chartRows, srcRows),
     sources: srcRows
       .filter((r) => r.subject_id === s.id && r.subject_revision === s.revision)
       .map((r) => ({ role: r.role, url: r.url, institution: r.institution, archiveRef: r.archive_ref, timeExplicit: r.time_explicit })),
   }));
+  const active = rows.filter((r) => !r.archived);
   const summary: EduInventorySummary = {
-    total: rows.length,
-    utcVerified: rows.filter((r) => r.utcStatus === "VERIFIED").length,
-    utcPending: rows.filter((r) => r.utcStatus !== "VERIFIED").length,
-    legalE: rows.filter((r) => r.legalStatus === "E").length,
-    legalUnreviewed: rows.filter((r) => r.legalStatus === "LOW_UNREVIEWED").length,
-    published: rows.filter((r) => r.publicationStatus === "published").length,
+    total: active.length,
+    archived: rows.length - active.length,
+    utcVerified: active.filter((r) => r.utcStatus === "VERIFIED").length,
+    utcPending: active.filter((r) => r.utcStatus !== "VERIFIED").length,
+    legalE: active.filter((r) => r.legalStatus === "E").length,
+    legalUnreviewed: active.filter((r) => r.legalStatus === "LOW_UNREVIEWED").length,
+    published: active.filter((r) => r.publicationStatus === "published").length,
   };
   return { rows, summary };
 }
@@ -185,13 +208,13 @@ function rpcCode(e: { code?: string; message?: string }): string {
  */
 type PubLiteRow = { subject_id: string; chart_id: string | null; chart_verified_by: string | null; chart_verified_at: string | null; approved_at: string | null };
 type PubSubject = {
-  id: string; display_name: string; category: EduCategory; birth_date: string; documented_local_time: string; birth_place: string;
+  id: string; natural_key: string; display_name: string; category: EduCategory; birth_date: string; documented_local_time: string; birth_place: string;
   utc_status: string; legal_status: string; blockers: string[] | null; is_living: boolean; revision: number;
   time_standard: string | null; utc_offset_seconds: number | null; birth_utc: string | null; iana_zone: string | null; latitude: unknown; longitude: unknown;
 };
 type PubChartLite = { id: string; subject_id: string; subject_revision: number; calc_status: string };
 const PUB_SUBJECT_COLS =
-  "id, display_name, category, birth_date, documented_local_time, birth_place, utc_status, legal_status, blockers, is_living, revision, time_standard, utc_offset_seconds, birth_utc, iana_zone, latitude, longitude";
+  "id, natural_key, display_name, category, birth_date, documented_local_time, birth_place, utc_status, legal_status, blockers, is_living, revision, time_standard, utc_offset_seconds, birth_utc, iana_zone, latitude, longitude";
 const numv = (v: unknown) => (v === null || v === undefined || v === "" || !Number.isFinite(Number(v)) ? null : Number(v));
 /** Kanıt (UTC) okuma anında eğitim UTC katmanıyla yeniden denetlenir; tutarsız kayıt ne katalogda ne ayrıntıda görünür. */
 const subjectUtc = (s: PubSubject) => resolveEducationBirthUtc({
@@ -222,24 +245,38 @@ async function loadPublished(db: SupabaseClient, onlyId?: string) {
   const pubRows = (pubs.data ?? []) as PubLiteRow[];
   const chartIds = pubRows.map((p) => p.chart_id).filter((x): x is string => typeof x === "string");
   if (!pubRows.length || !chartIds.length) return { pubRows, subjects: [] as PubSubject[], chartById: new Map<string, PubChartLite>() };
+  const archived = await readArchivedSubjectIds(db);
   const [subj, charts] = await Promise.all([
     db.from(EDU_TABLES.subjects).select(PUB_SUBJECT_COLS).in("id", pubRows.map((p) => p.subject_id)),
     db.from(EDU_TABLES.charts).select("id, subject_id, subject_revision, calc_status").in("id", chartIds),
   ]);
   if (subj.error || charts.error) throw new EduStoreError("DB_ERROR");
   const chartById = new Map(((charts.data ?? []) as PubChartLite[]).map((c) => [c.id, c]));
-  return { pubRows, subjects: (subj.data ?? []) as PubSubject[], chartById };
+  return { pubRows, subjects: ((subj.data ?? []) as PubSubject[]).filter((x) => !archived.has(x.id)), chartById };
 }
 
-export async function listPublishedCards(db: SupabaseClient): Promise<EduCatalogListCard[]> {
+async function publishedSubjects(db: SupabaseClient): Promise<PubSubject[]> {
   const { pubRows, subjects, chartById } = await loadPublished(db);
   const pubBy = new Map(pubRows.map((p) => [p.subject_id, p]));
-  const shown = subjects.filter((s) => { const p = pubBy.get(s.id); return stillPublishable(s, p, p?.chart_id ? chartById.get(p.chart_id) : null); });
-  // Owner kararı 29.10.2026: liste kartı owner yönetim alanlarını (kanıt düzeyi / UTC durumu) taşımaz; doğum saati
-  // kaynak düzeyi yalnız kişi ayrıntısında (getPublishedDetail) döner.
-  return shown
-    .map((s) => { const { utcVerified: _u, birthTimeEvidence: _e, ...card } = toCard(s, []); void _u; void _e; return card; })
-    .sort((a, b) => a.displayName.localeCompare(b.displayName, "tr"));
+  return subjects.filter((s) => { const p = pubBy.get(s.id); return stillPublishable(s, p, p?.chart_id ? chartById.get(p.chart_id) : null); });
+}
+// Owner kararı 29.10.2026: liste kartı owner yönetim alanlarını (kanıt düzeyi / UTC durumu) taşımaz; doğum saati
+// kaynak düzeyi yalnız kişi ayrıntısında (getPublishedDetail) döner. natural_key de istemciye gitmez.
+const toListCards = (shown: PubSubject[]): EduCatalogListCard[] => shown
+  .map((s) => { const { utcVerified: _u, birthTimeEvidence: _e, ...card } = toCard(s, []); void _u; void _e; return card; })
+  .sort((a, b) => a.displayName.localeCompare(b.displayName, "tr"));
+
+export async function listPublishedCards(db: SupabaseClient): Promise<EduCatalogListCard[]> {
+  return toListCards(await publishedSubjects(db));
+}
+
+/**
+ * Eğitmen kataloğu + aile kartları (owner kararı 30.10.2026). Aile YALNIZ tüm üyeleri okuma anında yayımlı ve uygunsa döner
+ * (visibleFamilies) — yayımlanmamış üyenin kimliği / varlığı / aile mevcudu yanıtta yer almaz.
+ */
+export async function listPublishedCatalog(db: SupabaseClient): Promise<{ cards: EduCatalogListCard[]; families: EduVisibleFamily[] }> {
+  const shown = await publishedSubjects(db);
+  return { cards: toListCards(shown), families: visibleFamilies(shown.map((s) => ({ id: s.id, naturalKey: s.natural_key, displayName: s.display_name }))) };
 }
 
 /** FAZ 10: kişi OKUMA ANINDA hâlâ yayımlı ve yayına uygun mu (biyografi uçlarının ön koşulu; snapshot gövdesi okunmaz). */

@@ -1,6 +1,9 @@
-import { redirect } from "next/navigation";
+import CatalogClient from "@/app/admin/dogaltas-kutuphane/CatalogClient";
 
-/** Çalışma alanının ana ekranı Doğaltaş Kütüphanesi'nin kendisidir. */
+/**
+ * Kütüphane Yönetimi (owner): taş yönetimi kataloğu — Yönetim Paneli'ndeki aynı bileşen, Doğaltaş adresleriyle (layout).
+ * Owner kararı sunucudadır: katalog verisi owner ucundan gelir; owner olmayan herkes tek tip 404 → "bulunamadı" (veri yok).
+ */
 export default function StoneLibraryWorkspaceIndex() {
-  redirect("/dogaltas/kutuphane");
+  return <CatalogClient />;
 }

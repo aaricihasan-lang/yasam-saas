@@ -319,7 +319,7 @@ async function main() {
   store[storageKey] = JSON.stringify({ id: "a1", email: "a@x.test", role: "admin", name: "A", full_name: "A", tenant_id: T_ADMIN, active: true, approval_status: "approved" });
   const adminParsed = YU.isAdminUser(YU.readYasamUser());
   const adminOn = renderToStaticMarkup(React.createElement(HdChartKnowledgeTabs, { chartId: "c1", allowed: true, adminSources: sources }, expertEl));
-  ok("10c Admin: üç ayrı sekme — Uzman Bilgilerim / Merkezi Bilgi Bankası Yorumu / Roxy API Yorumu", adminParsed && adminOn.includes("Uzman Bilgilerim") && adminOn.includes("Merkezi Bilgi Bankası Yorumu") && adminOn.includes("Roxy API Yorumu") && !adminOn.includes(">Sistem Yorumu<"), adminParsed ? adminOn.slice(0, 400) : "admin oturumu taklit edilemedi");
+  ok("10c Admin: üç ayrı sekme — Uzman Bilgilerim / Merkezi Bilgi Bankası Yorumu / Sistem Yorumu; Roxy adı YOK (owner 04.11.2026)", adminParsed && adminOn.includes("Uzman Bilgilerim") && adminOn.includes("Merkezi Bilgi Bankası Yorumu") && adminOn.includes(">Sistem Yorumu<") && !/Roxy/i.test(adminOn.replace(/<[^>]+>/g, " ")), adminParsed ? adminOn.slice(0, 400) : "admin oturumu taklit edilemedi");
   ok("10d Admin: kişisel ve merkezî içerik AYRI panellerde (karışmaz)", /id="hd-know-panel-expert"[^>]*>[\s\S]*UZMAN-AYRI[\s\S]*id="hd-know-panel-central"[^>]*>[\s\S]*MERKEZI-ICERIK/.test(adminOn) && !/hd-know-panel-expert[^>]*>[^]*MERKEZI-ICERIK[^]*hd-know-panel-central/.test(adminOn));
   ok("10e Roxy paneli ilk tıklamaya kadar yüklenmez (yeni istek yok)", !adminOn.includes("data-hd-system-reading-panel"));
   delete store[storageKey];

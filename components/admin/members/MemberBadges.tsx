@@ -87,7 +87,7 @@ export function TrialReviewDueBadge({ endsAt }: { endsAt: string }) {
   return (
     <span
       className={`${pill} bg-amber-50 text-amber-900 ring-amber-200`}
-      title="Kayıtlı 3 günlük keşif süresi doldu. Erişim otomatik kesilmez; karar yöneticidedir."
+      title="Kayıtlı 7 günlük keşif süresi doldu. Erişim otomatik kesilmez; karar yöneticidedir."
     >
       Deneme süresi doldu{label ? ` (${label})` : ""}
     </span>

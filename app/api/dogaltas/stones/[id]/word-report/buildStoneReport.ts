@@ -58,8 +58,10 @@ export type StoneReportRow = {
   primary_source_name?: string | null;
 };
 
+// B9: "İ" önce "i" yapılır — toLowerCase("İ") = "i" + U+0307 olup "-"ye dönüşüyordu ("AKİK" → "aki-k").
 function slugify(text: string): string {
   return text
+    .replace(/İ/g, "i")
     .toLowerCase()
     .replace(/ı/g, "i").replace(/İ/g, "i")
     .replace(/ğ/g, "g").replace(/Ğ/g, "g")

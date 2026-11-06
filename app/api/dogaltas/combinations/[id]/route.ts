@@ -5,6 +5,8 @@ import { serverErrorResponse } from "@/lib/http/apiError";
 import { trackUsage } from "@/lib/usage/trackUsage";
 
 import { demoReadOnlyResponse } from "@/lib/auth/demoReadOnly";
+import { staleSummaryChanges } from "@/lib/dogaltas/staleCombinationSummary";
+import { formatInstantDate } from "@/lib/time/reportTime";
 export const runtime = "nodejs";
 
 /**
@@ -92,6 +94,36 @@ export async function PATCH(
       return NextResponse.json({ ok: false, error: "En az bir taş seçilmelidir." }, { status: 400 });
     }
     const p_stones = names.map((n) => ({ stone_id: null, snapshot_name: n.slice(0, MAX_NAME) }));
+    // B6.2 (owner kararı A, migration yok): taşlar GERÇEKTEN değişecekse kayıt anındaki otomatik
+    // koşul/stok özetleri yeniden hesaplanmaz; başına kalıcı "güncel değil" satırı eklenir (özgün metin
+    // altında aynen kalır; serbest metin ve notes_text_3 değişmez).
+    // SIRA GÜVENCESİ: işaret taşlardan ÖNCE yazılır → "taşlar değişti ama özet güncel görünüyor" durumu
+    // hiçbir hata anında oluşamaz. İşaret yazılamazsa taşlara dokunulmaz ve hata döner. Taş kaydı
+    // başarısız olursa işaret (yalnız kendi yazdığımız sürümse) geri alınır ve hata döner — kısmi
+    // başarı gizlenmez. Her yazım sürüm (updated_at) korumalıdır → araya giren başka yazım ezilmez.
+    const { data: prev, error: prevErr } = await db
+      .from("combinations").select("stones_text, notes_text, notes_text_2, updated_at")
+      .eq("id", id).eq("tenant_id", tenantId).maybeSingle();
+    if (prevErr) return serverErrorResponse({ route: "dogaltas/combinations/[id]", action: "PATCH:read", tenantId, cause: prevErr, usage: { guard, req, module: "stones", failedAction: "record_updated", subEntity: "combination" } });
+    if (!prev) return NextResponse.json({ ok: false, error: "Kombinasyon bulunamadı veya bu tenant'a ait değil." }, { status: 404 });
+    // Taşlar uyarıda kayıtlı özgün listeye BİREBİR dönerse uyarı kaldırılır (unmarks) — bu yalnız taş
+    // kaydı BAŞARILI olduktan sonra yapılır; kaldırılamazsa uyarı kalır (fazladan uyarı = güvenli yön).
+    const { mark: marks, unmark: unmarks } = staleSummaryChanges(prev as { stones_text: string | null; notes_text: string | null; notes_text_2: string | null }, names, formatInstantDate(new Date()));
+    let rpcExpected = expectedUpdatedAt;
+    let markedAt: string | null = null;
+    if (marks) {
+      const { data: marked, error: markErr } = await db
+        .from("combinations").update(marks)
+        .eq("id", id).eq("tenant_id", tenantId).eq("updated_at", expectedUpdatedAt ?? (prev.updated_at as string))
+        .select("updated_at");
+      if (markErr) return serverErrorResponse({ route: "dogaltas/combinations/[id]", action: "PATCH:stale-mark", tenantId, cause: markErr, usage: { guard, req, module: "stones", failedAction: "record_updated", subEntity: "combination" } });
+      if (!marked?.[0]?.updated_at) {
+        await trackUsage(guard, req, { module: "stones", action: "action_failed", failedAction: "record_updated", subEntity: "combination", errorClass: "conflict" });
+        return NextResponse.json({ ok: false, error: CONFLICT_MSG, code: "conflict" }, { status: 409 });
+      }
+      markedAt = String(marked[0].updated_at);
+      rpcExpected = markedAt; // taş kaydı yalnız işaretlediğimiz sürümün üstüne yazabilir
+    }
     const { data, error } = await db.rpc("update_combination_with_stones", {
       p_combination_id: id,
       p_tenant_id: tenantId,
@@ -99,9 +131,18 @@ export async function PATCH(
       p_description: "description" in body ? String(body.description ?? "").slice(0, MAX_TEXT) : null,
       p_notes_text_3: "notes_text_3" in body ? String(body.notes_text_3 ?? "").slice(0, MAX_TEXT) : null,
       p_stones,
-      p_expected_updated_at: expectedUpdatedAt,
+      p_expected_updated_at: rpcExpected,
     });
     if (error) {
+      if (markedAt) {
+        // Taşlar kaydedilmedi → işareti geri al (yalnız hâlâ bizim yazdığımız sürümse; değilse
+        // başkasının yazımını ezmemek için dokunulmaz ve işaret kalır: yanlış "güncel" değil,
+        // en kötü ihtimalle fazladan uyarı).
+        const { error: undoErr } = await db
+          .from("combinations").update({ notes_text: prev.notes_text, notes_text_2: prev.notes_text_2 })
+          .eq("id", id).eq("tenant_id", tenantId).eq("updated_at", markedAt);
+        if (undoErr) console.error("[dogaltas/combinations] B6.2 işaret geri alınamadı:", undoErr.message);
+      }
       const msg = String((error as { message?: unknown }).message ?? "");
       if (msg.includes("combination_conflict")) {
         await trackUsage(guard, req, { module: "stones", action: "action_failed", failedAction: "record_updated", subEntity: "combination", errorClass: "conflict" });
@@ -113,8 +154,17 @@ export async function PATCH(
       return serverErrorResponse({ route: "dogaltas/combinations/[id]", action: "PATCH:rpc", tenantId, cause: error, usage: { guard, req, module: "stones", failedAction: "record_updated", subEntity: "combination" } });
     }
     const r = (data ?? {}) as { updated_at?: string };
+    let finalUpdatedAt = r.updated_at;
+    if (unmarks && r.updated_at) {
+      const { data: un, error: unErr } = await db
+        .from("combinations").update(unmarks)
+        .eq("id", id).eq("tenant_id", tenantId).eq("updated_at", r.updated_at)
+        .select("updated_at");
+      if (unErr) console.error("[dogaltas/combinations] B6.2 uyarı kaldırılamadı (uyarı kalır):", unErr.message);
+      else if (un?.[0]?.updated_at) finalUpdatedAt = String(un[0].updated_at);
+    }
     await trackUsage(guard, req, { module: "stones", action: "record_updated", subEntity: "combination", resourceId: id });
-    return NextResponse.json({ ok: true, id, updated_at: r.updated_at });
+    return NextResponse.json({ ok: true, id, updated_at: finalUpdatedAt });
   }
 
   // ── Skaler alan(lar) + LEGACY stones_text: junction'a DOKUNMADAN concurrency-guarded
@@ -133,6 +183,24 @@ export async function PATCH(
     }
     fields.stones_text = names.join(", ").slice(0, MAX_TEXT);
   }
+  // B6.2: junction'sız kayıtta da otomatik özet varsa (eski kayıtlarda yok) işaret, taşlarla AYNI
+  // güncellemede yazılır (tek ifade → ya ikisi ya hiçbiri). Serbest metne dokunulmaz.
+  let markGuard: string | null = null;
+  if (typeof fields.stones_text === "string") {
+    const { data: prevL, error: prevLErr } = await db
+      .from("combinations").select("stones_text, notes_text, notes_text_2, updated_at")
+      .eq("id", id).eq("tenant_id", tenantId).maybeSingle();
+    if (prevLErr) return serverErrorResponse({ route: "dogaltas/combinations/[id]", action: "PATCH:read", tenantId, cause: prevLErr, usage: { guard, req, module: "stones", failedAction: "record_updated", subEntity: "combination" } });
+    const chL = prevL
+      ? staleSummaryChanges(prevL as { stones_text: string | null; notes_text: string | null; notes_text_2: string | null },
+          String(fields.stones_text).split(",").map((s) => s.trim()).filter(Boolean), formatInstantDate(new Date()))
+      : null;
+    if (chL && prevL && (chL.mark || chL.unmark)) {
+      Object.assign(fields, chL.mark ?? {}, chL.unmark ?? {});
+      // Okuduğumuz sürüme bağlı: araya yazım girdiyse 0 satır → 409 (işaret eski okumaya göre yazılmaz).
+      if (!expectedUpdatedAt) markGuard = String(prevL.updated_at);
+    }
+  }
 
   if (Object.keys(fields).length === 0) {
     return NextResponse.json({ ok: false, error: "Güncellenecek alan yok." }, { status: 400 });
@@ -144,12 +212,13 @@ export async function PATCH(
     .eq("id", id)
     .eq("tenant_id", tenantId); // tenant guard — çapraz-tenant güncelleme engellenir
   if (expectedUpdatedAt) query = query.eq("updated_at", expectedUpdatedAt);
+  else if (markGuard) query = query.eq("updated_at", markGuard);
   const { data, error } = await query.select("id,issue,updated_at");
 
   if (error) return serverErrorResponse({ route: "dogaltas/combinations/[id]", action: "PATCH", tenantId, cause: error, usage: { guard, req, module: "stones", failedAction: "record_updated", subEntity: "combination" } });
   if (!data || data.length === 0) {
     // 0 satır: concurrency guard verildiyse conflict mi yoksa yok mu ayır.
-    if (expectedUpdatedAt) {
+    if (expectedUpdatedAt || markGuard) {
       const { data: exists } = await db
         .from("combinations").select("id").eq("id", id).eq("tenant_id", tenantId).maybeSingle();
       if (exists) {

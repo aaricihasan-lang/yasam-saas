@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Search, X } from "lucide-react";
 import type { ClientSourceModule } from "@/lib/yasam-hafizasi/client/clientSources";
@@ -31,6 +31,16 @@ export default function ClientMemoryTab({ clientId }: { clientId: string; client
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [detail, setDetail] = useState<ClientSearchResult | null>(null);
+
+  // C8 (2026-11-04): kayıt detay çekmecesi Escape ile kapanır (üstte onay penceresi yoksa).
+  useEffect(() => {
+    if (!detail) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !document.querySelector('[role="alertdialog"]')) setDetail(null);
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [detail]);
   const abortRef = useRef<AbortController | null>(null);
 
   const runSearch = useCallback(

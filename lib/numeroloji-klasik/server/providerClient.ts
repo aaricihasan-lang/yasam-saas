@@ -15,6 +15,8 @@
 import "server-only";
 import { assertServerOnly } from "@/lib/server/serverOnlyGuard";
 import { CLASSIC_ENDPOINTS, NUMEROLOGY_BASE_PATH, type ClassicEndpointId } from "../endpoints";
+// TRIAL7: varsayılan fetch deneme kredi sayacından geçer (bağlam yoksa düz fetch — davranış aynı).
+import { trialMeteredFetch } from "@/lib/trial/roxyMeter";
 
 assertServerOnly("lib/numeroloji-klasik/server/providerClient");
 
@@ -185,7 +187,7 @@ export async function callClassicEndpoint(
   } else if (payload !== null) {
     return { ok: false, kind: "not_allowed", http: null, attempts: 0, rate: EMPTY_RATE };
   }
-  const doFetch: FetchLike = opts.fetchImpl ?? ((u, i) => fetch(u, i));
+  const doFetch: FetchLike = opts.fetchImpl ?? trialMeteredFetch;
   const sleep = opts.sleep ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
   const timeoutMs = opts.timeoutMs ?? CLASSIC_TIMEOUT_MS;
   const maxRetries = Math.max(0, Math.min(CLASSIC_MAX_RETRIES, opts.maxRetries ?? CLASSIC_MAX_RETRIES));

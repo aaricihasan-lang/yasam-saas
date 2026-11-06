@@ -153,6 +153,7 @@ export function SectionEditor({
   onUploadImage,
   onRemoveImage,
   imageUrls,
+  showSourceKind = true,
 }: {
   value: EditableSection[];
   onChange: (next: EditableSection[]) => void;
@@ -169,6 +170,8 @@ export function SectionEditor({
   onRemoveImage?: (image: NoteImage) => Promise<void> | void;
   /** imageId → görüntülenecek (signed/preview) URL. */
   imageUrls?: Record<string, string>;
+  /** W12 (owner 30.10): false → "Kaynak Türü" seçimi gösterilmez (Yeni Rahatsızlık). Varsayılan: gösterilir. */
+  showSourceKind?: boolean;
 }) {
   const [confirmKey, setConfirmKey] = useState<string | null>(null);
 
@@ -513,6 +516,7 @@ export function SectionEditor({
 
             {/* Kaynak / Kaynak Türü */}
             <div className="mt-3 grid gap-3 sm:grid-cols-2">
+              {showSourceKind ? (
               <div>
                 <label className={labelBase}>Kaynak Türü (opsiyonel)</label>
                 <select
@@ -529,6 +533,7 @@ export function SectionEditor({
                   ))}
                 </select>
               </div>
+              ) : null}
               <div>
                 <label className={labelBase}>Kaynak (opsiyonel)</label>
                 <input

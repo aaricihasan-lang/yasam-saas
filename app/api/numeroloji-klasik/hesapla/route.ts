@@ -1,3 +1,4 @@
+import { withTrialRoxyMeter } from "@/lib/trial/roxyMeter";
 import { NextRequest } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { resolveModuleAccess } from "@/lib/auth/moduleAccess";
@@ -23,7 +24,7 @@ export const maxDuration = 120;
  * Güvenlik: bayrak kapalı → 404 (guard'dan önce); requireModuleAccess("numerology"); tenant YALNIZ oturumdan;
  * demo → 403; gövde ≤ 16 KB + katı doğrulama; NK-R3 gelecek yıl hedefi sağlayıcıdan ÖNCE; yanıt no-store.
  */
-export async function POST(req: NextRequest): Promise<Response> {
+async function handlePost(req: NextRequest): Promise<Response> {
   if (!isClassicEnabled()) return classicNotFound();
   const guard = await requireModuleAccess(req, "numerology");
   if (!guard.ok) return guard.response;
@@ -64,3 +65,6 @@ export async function POST(req: NextRequest): Promise<Response> {
     draft: { view: viewForViewer(draftView(request, c), fy), request, referenceDate: c.referenceDate, resultHash: c.resultHash },
   });
 }
+
+// TRIAL7: deneme uzmanının GERÇEK Roxy istekleri günlük ortak krediden düşer (önbellek isabeti düşmez).
+export const POST = withTrialRoxyMeter("numerology", "numeroloji-klasik/hesapla", handlePost);

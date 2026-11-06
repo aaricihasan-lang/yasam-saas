@@ -12,6 +12,7 @@ import { computeFictionalChart } from "./fictionalCompute";
 import { readRoxyServerConfig } from "@/lib/human-design/providers/roxy/config";
 import { callRoxyBodygraph } from "@/lib/human-design/providers/roxy/client";
 import { quotaCheck } from "@/lib/security/testQuotaExemption";
+import { withHdUnlimitedGrant } from "@/lib/human-design/quota/unlimitedGrant";
 import * as store from "./privateStore";
 import { hitDbRateLimit, rateLimitBucket } from "@/lib/security/dbRateLimit";
 
@@ -210,8 +211,9 @@ export async function createFictional(req: NextRequest, ctx: PrivContext): Promi
       {
         config: readRoxyServerConfig(),
         callRoxy: (config, body, opts) => callRoxyBodygraph(config, body, opts),
-        rateLimit: (scope, value, limit, windowSeconds) =>
-          quotaCheck(scope, ctx.actorId, () => hitDbRateLimit(ctx.db, rateLimitBucket(scope, value), limit, windowSeconds), { isDemo, tenantId }),
+        // + Owner'ın 24 saatlik HD sınırsız izni (lib/human-design/quota/unlimitedGrant): yalnız hd-roxy-user / hd-roxy-tenant.
+        rateLimit: withHdUnlimitedGrant({ db: ctx.db, userId: ctx.actorId, tenantId, isDemo }, (scope, value, limit, windowSeconds) =>
+          quotaCheck(scope, ctx.actorId, () => hitDbRateLimit(ctx.db, rateLimitBucket(scope, value), limit, windowSeconds), { isDemo, tenantId })),
         findExisting: (hash) => store.findFictional(ctx.db, ctx.actorId, hash),
         log: (msg, detail) => console.error(msg, detail ?? ""),
       },

@@ -30,6 +30,8 @@ export const runtime = "nodejs";
 // istemci `base_version` gönderirse güncel satırın sürümüyle karşılaştırılır, uyuşmazlık → 409
 // CLIENT_CONFLICT (+ güncel kayıt). base_version göndermeyen eski istemci CAS'sız kabul edilir.
 
+const CLIENT_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 // ─── GET /api/clients/[id] ───────────────────────────────────────────────────────
 export async function GET(
   req: NextRequest,
@@ -41,6 +43,15 @@ export async function GET(
   const { id: clientId } = await params;
   if (!clientId) {
     return NextResponse.json({ ok: false, error: "client_id gerekli." }, { status: 400 });
+  }
+
+  // C7 (2026-11-04): biçimce geçersiz id (UUID değil) DB'de 22P02 → 500 "sunucu hatası"
+  // görünüyordu; böyle bir danışan olamayacağı için mevcut "bulunamadı" (404) yanıtı verilir.
+  if (!CLIENT_ID_RE.test(clientId)) {
+    return NextResponse.json(
+      { ok: false, error: "Danışan bu hesaba ait değil." },
+      { status: 404 },
+    );
   }
 
   const { db, tenantId } = guard;

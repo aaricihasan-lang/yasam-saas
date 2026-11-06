@@ -7,6 +7,17 @@ import { readLimitedJsonBody } from "@/lib/admin/accountSessionControls";
 import { validateRegisterBody } from "@/lib/auth/registerValidation";
 import { newPasswordPolicyMessage } from "@/lib/auth/passwordPolicy";
 import { clientIpFromHeaders, hitDbRateLimit, rateLimitBucket } from "@/lib/security/dbRateLimit";
+import { TRIAL_DEFAULT_MODULE_PERMISSIONS } from "@/lib/trial/trialCore";
+import {
+  assessTrialRisk,
+  isSelfTrialSignupEnabled,
+  recentTrialSignupsForIp,
+  registerTrialExpert,
+  trialClaimHash,
+  trialIpBucket,
+  turnstileSiteKey,
+  verifyTurnstileToken,
+} from "@/lib/trial/trialServer";
 
 export const runtime = "nodejs";
 
@@ -36,6 +47,18 @@ function err(error: string, code: string, status: number, headers?: Record<strin
  * görünür); IP + e-posta başına DB-temelli rate limit (HMAC'li kova, ham IP/e-posta saklanmaz);
  * hash'ten ÖNCE uygulanır (pahalı bcrypt DoS'u sınırlanır). Ham DB hatası dönmez.
  */
+/**
+ * GET /api/register — kayıt formu yapılandırması (gizli bilgi YOK): otomatik deneme açık mı + Turnstile
+ * site anahtarı (herkese açık anahtar). Form bu yanıta göre CAPTCHA'yı ve metinleri gösterir.
+ */
+export async function GET() {
+  const selfTrial = isSelfTrialSignupEnabled();
+  return NextResponse.json(
+    { selfTrial, turnstileSiteKey: selfTrial ? turnstileSiteKey() : null },
+    { headers: NO_STORE },
+  );
+}
+
 export async function POST(req: NextRequest) {
   let db: ReturnType<typeof getServerDb>;
   try {
@@ -88,6 +111,10 @@ export async function POST(req: NextRequest) {
 
   const { fullName, email, password } = v.value;
 
+  // TRIAL7 — yönetici onaysız 7 günlük deneme (bayrak + Turnstile anahtarları birlikte gerekir; aksi
+  // halde aşağıdaki mevcut yönetici onaylı akış BİREBİR çalışır).
+  if (isSelfTrialSignupEnabled()) return registerSelfTrial(req, db, { fullName, email, plainSecret: password }, parsed.value);
+
   // Şifreyi server-side bcrypt ile hashle (pgcrypto RPC; DB mutasyonu değil).
   const { data: hashResult, error: hashError } = await db.rpc("hash_password", { p_plain: password });
   if (hashError || !hashResult) return err("Parola işlenemedi.", "hash", 500);
@@ -109,5 +136,54 @@ export async function POST(req: NextRequest) {
   // Yeni hesap/tenant OLUŞTURULMAZ (provisionExpert already_exists); giriş ucu da tek mesaj kullanır.
   if (result.outcome === "already_exists") return NextResponse.json({ ok: true }, { headers: NO_STORE });
   if (result.outcome === "idempotency_key_conflict") return err("İşlem kimliği çakışması.", "idempotency", 409);
+  return err("Kayıt oluşturulamadı.", "failed", 500);
+}
+
+/**
+ * TRIAL7 — otomatik 7 günlük deneme kaydı. Mevcut korumalar (IP + e-posta hız sınırı, honeypot, gövde
+ * sınırı, parola politikası) yukarıda AYNEN uygulanmıştır. Ek olarak:
+ *   1) Cloudflare Turnstile — SUNUCU tarafı Siteverify ZORUNLU (bcrypt'ten ÖNCE; doğrulanamazsa kayıt yok).
+ *   2) Risk sinyalleri (aynı IP kovasından çoklu kayıt, tek kullanımlık e-posta, eksik tarayıcı bilgisi):
+ *      yüksek risk → hesap "inceleme" durumunda açılır (modüller + Roxy kapalı; admin karar verir).
+ *      Aynı IP'yi paylaşan masum kullanıcılar KALICI engellenmez.
+ *   3) Tek deneme hakkı: kanonik e-postanın HMAC'ı (gmail nokta/+etiket normalizasyonu) DB'de tekil.
+ * Hesap varlığı / hak durumu SIZDIRILMAZ (AUTH-03): mevcut hesap ve kullanılmış hak aynı başarılı yanıtı alır.
+ */
+async function registerSelfTrial(
+  req: NextRequest,
+  db: ReturnType<typeof getServerDb>,
+  value: { fullName: string; email: string; plainSecret: string },
+  rawBody: Record<string, unknown>,
+) {
+  const ip = clientIpFromHeaders(req.headers);
+  const captcha = await verifyTurnstileToken(rawBody.turnstileToken);
+  if (!captcha.ok) {
+    if (captcha.reason === "unavailable" || captcha.reason === "not_configured") {
+      return err("Güvenlik doğrulaması şu anda yapılamıyor. Lütfen biraz sonra tekrar deneyin.", "captcha_unavailable", 503);
+    }
+    return err("Güvenlik doğrulaması tamamlanamadı. Lütfen doğrulamayı yenileyip tekrar deneyin.", "captcha_failed", 400);
+  }
+
+  const { data: hashResult, error: hashError } = await db.rpc("hash_password", { p_plain: value.plainSecret });
+  if (hashError || !hashResult) return err("Parola işlenemedi.", "hash", 500);
+
+  const ipBucket = trialIpBucket(ip);
+  const recent = await recentTrialSignupsForIp(db, ipBucket);
+  const risk = assessTrialRisk({ email: value.email, recentSignupsFromIp: recent, userAgent: req.headers.get("user-agent") });
+
+  const result = await registerTrialExpert(db, {
+    email: value.email,
+    passwordHash: hashResult as string,
+    fullName: value.fullName,
+    tenantName: buildTenantDisplayName(value.fullName, value.email),
+    tenantSlugBase: buildTenantSlugBase(value.fullName, value.email),
+    modulePermissions: { ...TRIAL_DEFAULT_MODULE_PERMISSIONS },
+    claimHash: trialClaimHash(value.email),
+    ipBucket,
+    risk,
+  });
+  if (result.ok || result.outcome === "already_exists" || result.outcome === "trial_already_used") {
+    return NextResponse.json({ ok: true, mode: "trial" }, { headers: NO_STORE });
+  }
   return err("Kayıt oluşturulamadı.", "failed", 500);
 }

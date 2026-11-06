@@ -275,7 +275,7 @@ export function HdComputedChartView({
       {showProviderNote ? (
         <p className="text-[11px] text-slate-400">
           {isProvider
-            ? `Hesaplama kaynağı: RoxyAPI (nodeType: ${result.provider?.nodeType ?? "—"}). Kayıtlı sonuç gösterilmektedir; görüntülemede yeniden hesap yapılmaz.`
+            ? `Hesaplama bilgisi: Yaşam Sistemi hesaplama altyapısı (nodeType: ${result.provider?.nodeType ?? "—"}). Kayıtlı sonuç gösterilmektedir; görüntülemede yeniden hesap yapılmaz.`
             : "Hesaplama kaynağı: Yaşam Sistemi dahili motoru (eski kayıt)."}
         </p>
       ) : null}

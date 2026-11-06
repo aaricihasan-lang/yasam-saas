@@ -1,9 +1,9 @@
 {
   "clients": {
     "memory": {
-      "intro": "Bu danışanın geçmiş kayıtlarında (kombinasyon, taş, seans, ödev, randevu, Human Design) arayın. Danışanın kişisel/sağlık serbest metni burada aranmaz.",
+      "intro": "Bu danışanın geçmiş kayıtlarında arayın: seanslar, ödevler, randevular, taşlar, kombinasyonlar ve notlar (sağlık notu, öneriler ve genel notlar dahil). Ad, telefon ve adres gibi kimlik/iletişim bilgileri aranmaz.",
       "searchAria": "Danışan hafızası araması",
-      "searchPlaceholder": "Ara: taş, kombinasyon, seans türü, HD kodu…",
+      "searchPlaceholder": "Ara: taş, seans türü, sağlık notu, öneri…",
       "searchButton": "Ara",
       "dateLabel": "Tarih:",
       "dateFromAria": "Başlangıç tarihi",

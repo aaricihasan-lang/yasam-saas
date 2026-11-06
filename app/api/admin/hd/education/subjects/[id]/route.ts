@@ -25,7 +25,7 @@ export async function GET(req: NextRequest, context: RouteContext): Promise<Resp
 
 /**
  * POST /api/admin/hd/education/subjects/[id] — owner eylemi:
- * { action: "pilot" | "unpilot" | "verify_chart" | "legal_review" | "clear_blocker" | "approve" | "publish" | "withdraw", ... }
+ * { action: "pilot" | "unpilot" | "verify_chart" | "legal_review" | "clear_blocker" | "verify_blocker" | "approve" | "publish" | "withdraw", ... }
  * Aktör = oturum token'ıyla doğrulanmış owner (gövdeden aktör ALINMAZ). DB tetikleyicileri her şartı yeniden uygular.
  */
 export async function POST(req: NextRequest, context: RouteContext): Promise<Response> {

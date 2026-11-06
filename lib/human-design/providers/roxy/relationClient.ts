@@ -8,6 +8,8 @@
 
 import { ROXY_CONNECTION_ENDPOINT, ROXY_PENTA_ENDPOINT, ROXY_POLICY, type RoxyServerConfig } from "./config";
 import type { FetchLike, RoxyCallErrorKind, RoxyCallResult } from "./client";
+// TRIAL7: varsayılan fetch deneme kredi sayacından geçer (bağlam yoksa düz fetch — davranış aynı).
+import { trialMeteredFetch } from "@/lib/trial/roxyMeter";
 
 /** OpenAPI: date (YYYY-MM-DD), time (HH:MM:SS), timezone (IANA tercih), latitude/longitude, nodeType. */
 export type RoxyBirthMoment = {
@@ -30,7 +32,7 @@ async function callRoxyJson(
 ): Promise<RoxyCallResult> {
   const lang = opts.lang ?? ROXY_POLICY.lang;
   const timeoutMs = opts.timeoutMs ?? ROXY_POLICY.timeoutMs;
-  const doFetch: FetchLike = opts.fetchImpl ?? ((u, i) => fetch(u, i));
+  const doFetch: FetchLike = opts.fetchImpl ?? trialMeteredFetch;
   const url = `${config.baseUrl}${endpoint}?lang=${encodeURIComponent(lang)}`;
   const ac = new AbortController();
   const timer = setTimeout(() => ac.abort(), timeoutMs);

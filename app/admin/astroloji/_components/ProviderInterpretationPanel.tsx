@@ -7,6 +7,7 @@
  */
 
 import { interpretationKindOfSchema, type InterpretationKind } from "@/lib/astrology/interpretationKind";
+import { LOCAL_NATAL_INTERP_NOTE } from "@/lib/astrology/model/natalHouseSystems";
 import { localSpaceCenterNote, localSpaceText, type LocalSpaceCenter } from "@/lib/astrology/localSpaceCenter";
 import { dayKeyInZone, formatInZone, isIanaZone } from "@/lib/astrology/transitDetail";
 import type { ReactNode } from "react";
@@ -684,6 +685,12 @@ export default function ProviderInterpretationPanel({
         <p className="text-sm text-slate-600">{HIDDEN_TEXT[interpretation.reason] ?? HIDDEN_TEXT.unavailable}</p>
       ) : (
         <div className="flex flex-col gap-4 text-sm text-slate-800">
+          {/* Aşama 3 (#643): Natal klasik ev sisteminde gezegen yorumlarının neden gösterilmediği (sunucu notice'undan). */}
+          {interpretation.notice.includes(LOCAL_NATAL_INTERP_NOTE) && (
+            <p className="rounded-lg border border-[#6f55c9]/25 bg-[#f7f3ff] px-3 py-2 text-xs text-[#5a42b0]" data-testid="astro-local-houses-interp-note">
+              {LOCAL_NATAL_INTERP_NOTE}
+            </p>
+          )}
           {ls?.note && (
             <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900" data-testid="astro-ls-center-note">
               {ls.note}

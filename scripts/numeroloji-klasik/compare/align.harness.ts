@@ -144,6 +144,8 @@ section(`gerçekçi kayıtlar (${PEOPLE.length} kişi)`);
 const relCounts: Record<string, Record<string, number>> = {};
 let kulvarRootFromDisplayAgree = 0;
 let kulvarRootChecks = 0;
+let kulvarKeyChecks = 0;
+let kulvarKeyDiffersFromSumRoot = 0;
 for (const p of PEOPLE) {
   const snap = legacySnapshotFor(p, { tas: { bileklik: "Ametist, Kaplan Gözü", kolye: "Kuvars" } });
   const before = clone(snap);
@@ -171,15 +173,27 @@ for (const p of PEOPLE) {
     if (r.relation === "same_value") check(r.legacy!.value === r.classic!.value, `same_value yalnız birebir: ${tag} ${k}`);
   }
 
-  const m = (snap as { motor: Record<string, { display: string; componentValues?: number[] }> }).motor;
+  const m = (snap as { motor: Record<string, { display: string; key?: string; componentValues?: number[] }> }).motor;
   // Gösterim kaydedildiği gibi
   const hy = byKey(a, "hayat_yolu");
   check(hy.legacy?.display === m.hayatYolu.display, `HY display korunur: ${tag}`);
   check(byKey(a, "ana_kulvar").legacy?.display === m.anaKulvar.display, `Ana Kulvar display korunur: ${tag}`);
-  // mod 9 değişmezliği: kökler iki ekolde aynı → en az same_root
-  for (const k of ["hayat_yolu", "ifade", "ana_kulvar", "yan_kulvar"]) {
+  check(byKey(a, "yan_kulvar").legacy?.display === m.yanKulvar.display, `Yan Kulvar display korunur: ${tag}`);
+  // mod 9 değişmezliği (yalnız HY ve İfade): kökler iki ekolde aynı → en az same_root
+  for (const k of ["hayat_yolu", "ifade"]) {
     const r = byKey(a, k);
     check(r.relation === "same_value" || r.relation === "same_root", `${k} kökü aynı: ${tag}`, { legacy: r.legacy, classic: r.classic });
+  }
+  // H1: Kulvar karşılaştırması motorun kaydettiği anahtar (key) üzerinden; bileşen toplamı kökü KULLANILMAZ.
+  for (const [rk, mk] of [["ana_kulvar", "anaKulvar"], ["yan_kulvar", "yanKulvar"]] as const) {
+    const r = byKey(a, rk);
+    const keyNum = Number(m[mk].key);
+    kulvarKeyChecks++;
+    check(Number.isInteger(keyNum) && r.legacy?.extra?.compareBasis === "anahtar" && r.legacy?.extra?.key === keyNum && r.legacy?.root === digitRoot(keyNum), `${rk} kökü motor anahtarından: ${tag}`, { key: m[mk].key, legacy: r.legacy });
+    check(r.relation === computeRelation("root", r.legacy, r.classic), `${rk} ilişki anahtar kökünden: ${tag}`, { rel: r.relation });
+    if (r.relation === "same_value" || r.relation === "same_root") check(digitRoot(keyNum) === r.classic?.root, `${rk} 'aynı' yalnız anahtar kökü eşitse: ${tag}`);
+    const cv = m[mk].componentValues ?? [];
+    if (cv.length && digitRoot(cv.reduce((x, y) => x + y, 0)) !== digitRoot(keyNum)) kulvarKeyDiffersFromSumRoot++;
   }
   // Kulvar kökü: componentValues ile gösterim sayılarının kökü aynı mı (eski kayıt geri düşüşü doğrulaması)
   for (const k of ["anaKulvar", "yanKulvar"] as const) {
@@ -217,6 +231,7 @@ for (const p of PEOPLE) {
 }
 check(kulvarRootChecks > 0 && kulvarRootFromDisplayAgree === kulvarRootChecks, `kulvar kökü: gösterim = bileşenler (${kulvarRootFromDisplayAgree}/${kulvarRootChecks})`);
 console.log(`  kulvar kökü gösterim=bileşen: ${kulvarRootFromDisplayAgree}/${kulvarRootChecks}`);
+console.log(`  H1: kulvar anahtar denetimi ${kulvarKeyChecks}; anahtar kökü ≠ bileşen toplamı kökü (eski hatalı eşleşme riski): ${kulvarKeyDiffersFromSumRoot}`);
 console.log("  ilişki dağılımı:", JSON.stringify(relCounts));
 
 // ── 5) özel / usta / karmik durumlar ───────────────────────────────────────────────────────
@@ -262,19 +277,45 @@ const N = (value: number, type: "single" | "master" = value === 11 || value === 
   check(byKey(f, "hayat_yolu").relation === "different", "HY 32/5 ↔ 7 → different");
 }
 {
+  // H1 (04.11.2026): kök motor anahtarından (key); bileşen/gösterim toplamından DEĞİL.
   const a = alignRecords(withMotor({ anaKulvar: { display: "11/11 (22)", key: "11", steps: [], componentValues: [11, 11], combinedReading: "22" } }), withCore({ soulUrge: N(22) }));
   const r = byKey(a, "ana_kulvar");
-  check(r.relation === "same_root" && r.legacy?.value === null && r.legacy?.root === 4 && r.legacy.display === "11/11 (22)" && r.legacy.extra?.combinedReading === "22", "Ana Kulvar 11/11 (22) ↔ 22 → same_root, birleşik okuma yalnız ek bilgi", r.legacy);
+  check(r.relation === "different" && r.legacy?.value === null && r.legacy?.root === 2 && r.legacy.extra?.key === 11 && r.legacy.display === "11/11 (22)" && r.legacy.extra?.combinedReading === "22", "Ana Kulvar 11/11 (22) anahtar 11 ↔ 22 → different (birleşik okuma 22 kanonik değil, yalnız ek bilgi)", r.legacy);
   const b = alignRecords(withMotor({ anaKulvar: { display: "19/2", key: "2", steps: [], componentValues: [2, 19] } }), withCore({ soulUrge: N(3, "single", 19) }));
   const rb = byKey(b, "ana_kulvar");
-  check(rb.relation === "same_root" && rb.legacy?.root === 3, "Ana Kulvar 19/2 ↔ 3 → same_root", rb.legacy);
+  check(rb.relation === "different" && rb.legacy?.root === 2 && rb.legacy?.extra?.key === 2, "Ana Kulvar 19/2 anahtar 2 ↔ 3 → different (eski: 2+19=21→3 sahte same_root)", rb.legacy);
   const kb = byKey(b, "karmik");
   check(kb.relation === "not_comparable" && isDeepStrictEqual(kb.legacy?.extra?.markers, [{ field: "anaKulvar", number: 19 }]), "karmik: Mevcut 19 işareti, not_comparable", kb);
   const c = alignRecords(withMotor({ anaKulvar: { display: "19/2", key: "2", steps: [] } }), withCore({ soulUrge: N(2) }));
-  check(byKey(c, "ana_kulvar").legacy?.root === 3 && byKey(c, "ana_kulvar").legacy?.extra?.rootFrom === "display", "componentValues yoksa kök gösterimden");
-  check(byKey(c, "ana_kulvar").relation === "different", "19/2 ↔ 2 → different (kalan 2 tek sayı değildir)");
+  const rc = byKey(c, "ana_kulvar");
+  check(rc.legacy?.root === 2 && rc.legacy?.value === null && rc.legacy?.extra?.compareBasis === "anahtar", "componentValues olmasa da kök anahtardan; yol gösteriminde değer null");
+  check(rc.relation === "same_root", "19/2 anahtar 2 ↔ 2 → same_root (yol gösterimi tek sayıya eşlenmez → same_value değil)", rc);
   const d = alignRecords(withMotor({ yanKulvar: { display: "8", key: "8", steps: [], componentValues: [5, 3] } }), withCore({ personality: N(8) }));
-  check(byKey(d, "yan_kulvar").relation === "same_value", "Yan Kulvar 8 ↔ 8 → same_value");
+  check(byKey(d, "yan_kulvar").relation === "same_value" && byKey(d, "yan_kulvar").legacy?.value === 8, "Yan Kulvar 8 ↔ 8 → same_value");
+  // H1 asıl vaka: 22/19/7 (anahtar 7) ↔ Kişilik 3 → eski 'Aynı kök' (48→3) yerine different.
+  const e = alignRecords(withMotor({ yanKulvar: { display: "22/19/7", key: "7", steps: [], componentValues: [19, 7, 22] } }), withCore({ personality: N(3) }));
+  const re = byKey(e, "yan_kulvar");
+  check(re.relation === "different" && re.legacy?.root === 7 && re.legacy?.extra?.key === 7 && re.legacy?.value === null && re.legacy.display === "22/19/7", "Yan Kulvar 22/19/7 anahtar 7 ↔ 3 → different", re.legacy);
+  const e2 = alignRecords(withMotor({ yanKulvar: { display: "22/19/7", key: "7", steps: [], componentValues: [19, 7, 22] } }), withCore({ personality: N(7) }));
+  check(byKey(e2, "yan_kulvar").relation === "same_root", "Yan Kulvar 22/19/7 anahtar 7 ↔ 7 → same_root (yol ≠ tek sayı)");
+  // Eski kayıt: anahtar yok / geçersiz → kök üretilmez, karşılaştırılamaz (sahte eşleşme yok).
+  for (const [kv, label] of [[undefined, "yok"], ["", "boş"], ["abc", "metin"], ["19/2", "yol metni"], ["0", "0"], ["100", "100"]] as const) {
+    const f = alignRecords(withMotor({ anaKulvar: { display: "19/2", ...(kv === undefined ? {} : { key: kv }), steps: [], componentValues: [2, 19] } }), withCore({ soulUrge: N(3) }));
+    const rf = byKey(f, "ana_kulvar");
+    check(rf.relation === "not_comparable" && rf.legacy?.root === null && rf.legacy?.value === null && rf.legacy?.extra?.compareBasis === "anahtar_yok" && rf.legacy.display === "19/2", `anahtar ${label} → not_comparable, kök null`, rf);
+  }
+  const g = alignRecords(withMotor({ anaKulvar: { display: "19/2", steps: [], componentValues: [2, 19] } }), null);
+  check(byKey(g, "ana_kulvar").relation === "one_missing", "anahtar yok + Klasik yok → one_missing (öncelik korunur)");
+  // Özel sayı sınırları: 11 / 22 / 33 / 19 indirgenmeden anahtar olarak taşınır.
+  const S = (disp: string, key: string, classic: ReturnType<typeof N>) => byKey(alignRecords(withMotor({ anaKulvar: { display: disp, key, steps: [] } }), withCore({ soulUrge: classic })), "ana_kulvar");
+  const s11 = S("11", "11", N(11));
+  check(s11.relation === "same_value" && s11.legacy?.value === 11 && s11.legacy?.root === 2, "anahtar 11 ↔ 11 → same_value (11 korunur)", s11.legacy);
+  check(S("11", "11", N(2)).relation === "same_root", "anahtar 11 ↔ 2 → same_root (asla same_value)");
+  check(S("22", "22", N(22)).relation === "same_value" && S("22", "22", N(22)).legacy?.value === 22, "anahtar 22 ↔ 22 → same_value");
+  check(S("22", "22", N(4)).relation === "same_root", "anahtar 22 ↔ 4 → same_root");
+  check(S("33", "33", N(33)).relation === "same_value" && S("33", "33", N(6)).relation === "same_root", "anahtar 33 ↔ 33 / 6");
+  check(S("19", "19", N(1, "single", 19)).relation === "same_root" && S("19", "19", N(1, "single", 19)).legacy?.value === 19, "anahtar 19 ↔ 1 (karmik 19) → same_root, 19 korunur");
+  check(S("11/22 (33)", "11", N(33)).relation === "different", "11/22 (33) anahtar 11 ↔ 33 → different (birleşik okuma eşleşme üretmez)");
 }
 {
   const chart = withCore({}, { karmicDebt: { hasKarmicDebt: true, debtNumbers: [19, 13], meanings: [], message: null, verification: V } });
@@ -284,6 +325,40 @@ const N = (value: number, type: "single" | "master" = value === 11 || value === 
 }
 check(computeRelation("value", { display: "11", value: 11, root: 2, source: "" }, { value: 2, type: "single", karmicDebt: null, root: 2, source: "" }) === "same_root", "computeRelation 11↔2");
 check(computeRelation("not_comparable", { display: "19", value: 19, root: null, source: "" }, { value: 19, type: null, karmicDebt: null, root: 1, source: "" }) === "not_comparable", "not_comparable aynı sayıda bile");
+
+// ── 5b) H1 rapor örnekleri (gerçek Mevcut motor + Klasik oracle) — eski / yeni karşılaştırma ─────
+section("H1 rapor örnekleri (eski = bileşen toplamı kökü, yeni = motor anahtarı)");
+{
+  const REL_TR: Record<string, string> = { same_value: "Aynı değer", same_root: "Aynı kök", different: "Farklı", one_missing: "Bir tarafta yok", not_comparable: "Karşılaştırılamaz" };
+  const people: Array<Person & { want: Partial<Record<"anaKulvar" | "yanKulvar", { display: string; key: number }>> }> = [
+    { first: "Çağrı Gülşen", last: "Şükrüoğlu", date: "01.01.1950", want: { anaKulvar: { display: "6", key: 6 }, yanKulvar: { display: "22/19/7", key: 7 } } },
+    { first: "Ayşe Nur", last: "Işık Öztürk", date: "29.02.2000", want: { yanKulvar: { display: "11/8", key: 8 } } },
+    { first: "Mehmet Ali", last: "Yıldız", date: "11.11.1988", want: { anaKulvar: { display: "11", key: 11 }, yanKulvar: { display: "22/3", key: 3 } } },
+    { first: "Hasan Hüseyin", last: "Arıcı", date: "09.09.1965", want: { anaKulvar: { display: "19/1", key: 1 } } },
+    { first: "Gökçe", last: "Arıcı", date: "05.03.1984", want: { anaKulvar: { display: "11/19", key: 11 } } },
+  ];
+  for (const p of people) {
+    const snap = deepFreeze(legacySnapshotFor(p));
+    const chart = deepFreeze(classicChartFor(p));
+    const a = alignRecords(snap, chart);
+    const m = (snap as { motor: Record<string, { display: string; key: string; componentValues: number[] }> }).motor;
+    for (const [rk, mk] of [["ana_kulvar", "anaKulvar"], ["yan_kulvar", "yanKulvar"]] as const) {
+      const r = byKey(a, rk);
+      const mv = m[mk];
+      const pd = parseLegacyDisplay(mv.display)!;
+      const oldRoot = digitRoot(mv.componentValues.reduce((x, y) => x + y, 0));
+      const oldValue = pd.segments.length === 1 && !pd.parenthetical ? pd.segments[0] : null;
+      const oldRel = computeRelation("root", { display: mv.display, value: oldValue, root: oldRoot, source: "" }, r.classic);
+      const w = p.want[mk];
+      if (w) check(mv.display === w.display && Number(mv.key) === w.key, `rapor örneği motor çıktısı: ${p.first} ${p.last} ${mk}`, { display: mv.display, key: mv.key });
+      check(r.legacy?.extra?.key === Number(mv.key) && r.legacy?.root === digitRoot(Number(mv.key)), `rapor örneği yeni kök = anahtar kökü: ${p.first} ${mk}`);
+      console.log(`  ${p.first} ${p.last} · ${mk}: gösterim ${mv.display} · motor anahtarı ${mv.key} · bileşenler [${mv.componentValues}] · Klasik ${r.classic?.value} | ESKİ kök ${oldRoot} → ${REL_TR[oldRel]} | YENİ kök ${r.legacy?.root} → ${REL_TR[r.relation]}`);
+    }
+  }
+  // Rapordaki H1 vakası: Çağrı Yan Kulvar eski 'Aynı kök' → yeni 'Farklı'
+  const cagri = alignRecords(legacySnapshotFor(people[0]), classicChartFor(people[0]));
+  check(byKey(cagri, "yan_kulvar").relation === "different" && byKey(cagri, "yan_kulvar").classic?.value === 3, "Çağrı Yan Kulvar 22/19/7 (anahtar 7) ↔ Kişilik 3 → Farklı", byKey(cagri, "yan_kulvar"));
+}
 
 // ── 6) eksik taraflar ──────────────────────────────────────────────────────────────────────
 section("eksik taraflar");

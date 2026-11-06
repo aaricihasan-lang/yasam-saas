@@ -203,7 +203,9 @@ async function main() {
       section(`5. Aile kartları — ${vp.n}`);
       await openList(page);
       const fams = await page.locator("[data-edu-family]").evaluateAll((els) => els.map((e) => e.getAttribute("data-edu-family")));
-      ok(JSON.stringify(fams) === JSON.stringify(["curie", "frank"]), "yalnız kaynaklı aileler: Curie + Frank (kraliyet akrabalıkları eklenmedi)", fams);
+      // 30.10.2026: aynı ölçütle (iki kaynaklı biyografi) doğrulanan II. Elizabeth – Margaret kardeşliği eklendi; tek taraflı
+      // Victoria bağı EKLENMEDİ.
+      ok(JSON.stringify(fams) === JSON.stringify(["curie", "frank", "kraliyet-kardesler"]), "yalnız kaynaklı aileler: Curie + Frank + Kraliyet kız kardeşler (Victoria bağı eklenmedi)", fams);
       const curie = page.locator("[data-edu-family='curie']");
       const ct = await curie.innerText();
       ok(/Curie Ailesi/.test(ct) && /Marie Curie[\s\S]*Anne/.test(ct) && /Irène Joliot-Curie[\s\S]*Kız/.test(ct) && /anne – kız/.test(ct), "Curie: roller (Anne / Kız) + akrabalık bağlantısı");

@@ -127,7 +127,8 @@ type DeletePreviewResponse = DeletePreview & { ok?: boolean };
 
 /** İndirme yedek adı için danışan adı slug'ı (sunucu Content-Disposition öncelikli). */
 function nameSlugTR(rawName: string): string {
-  return rawName.toLowerCase()
+  // C3: tr-TR küçük harf ("İ" → "i"; yerel ayarsız "i̇" → "bi-r" oluyordu).
+  return rawName.toLocaleLowerCase("tr-TR")
     .replace(/ı/g, "i").replace(/İ/g, "i").replace(/ğ/g, "g").replace(/Ğ/g, "g")
     .replace(/ü/g, "u").replace(/Ü/g, "u").replace(/ş/g, "s").replace(/Ş/g, "s")
     .replace(/ö/g, "o").replace(/Ö/g, "o").replace(/ç/g, "c").replace(/Ç/g, "c")

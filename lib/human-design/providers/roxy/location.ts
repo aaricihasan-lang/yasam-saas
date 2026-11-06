@@ -8,6 +8,8 @@
 
 import { ROXY_POLICY, type RoxyServerConfig } from "./config";
 import type { FetchLike, RoxyCallErrorKind } from "./client";
+// TRIAL7: varsayılan fetch deneme kredi sayacından geçer (bağlam yoksa düz fetch — davranış aynı).
+import { trialMeteredFetch } from "@/lib/trial/roxyMeter";
 
 export type RoxyCity = {
   city: string;
@@ -53,7 +55,7 @@ export async function searchRoxyLocations(
   query: string,
   opts: { limit?: number; timeoutMs?: number; fetchImpl?: FetchLike } = {},
 ): Promise<RoxyLocationResult> {
-  const doFetch: FetchLike = opts.fetchImpl ?? ((u, i) => fetch(u, i));
+  const doFetch: FetchLike = opts.fetchImpl ?? trialMeteredFetch;
   const limit = Math.max(1, Math.min(opts.limit ?? 10, 20));
   const url = `${config.baseUrl}/location/search?q=${encodeURIComponent(query)}&limit=${limit}`;
   const ac = new AbortController();

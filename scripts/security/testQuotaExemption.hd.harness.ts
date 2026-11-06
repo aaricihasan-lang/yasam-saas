@@ -135,9 +135,11 @@ async function main() {
     let o429 = -1;
     for (let i = 0; i < 21; i++) { const id = await newPerson(U.OTHER, 20_000 + i); const r = await bodygraph(U.OTHER, id); if (r.status === 429 && o429 < 0) o429 = i + 1; }
     ok(o429 === 21, `5c başka tenant: 21. yeni BodyGraph'ta 429 — muafiyetten etkilenmez (${o429})`);
-    let d429 = -1;
-    for (let i = 0; i < 61; i++) { const r = await callRoute(routes.compute.POST, "POST", U.DEMO, "{bozuk"); if (r.status === 429 && d429 < 0) d429 = i + 1; }
-    ok(d429 === 61, `5d demo hesap env listesinde olsa bile muaf DEĞİL: 61. hesapta 429 (${d429})`);
+    // D3 (owner kararı 2026-11-02): demo hesabında yeni hesap HİÇ yapılmaz → her deneme kota öncesi 403 DEMO_READONLY
+    // (muafiyet listesinde olsa bile; eski "61. hesapta 429" beklentisinin daha sıkı hali).
+    const dCodes = new Set<string>();
+    for (let i = 0; i < 61; i++) { const r = await callRoute(routes.compute.POST, "POST", U.DEMO, "{bozuk"); dCodes.add(`${r.status}:${(r.json as Json | null)?.code ?? ""}`); }
+    ok(dCodes.size === 1 && dCodes.has("403:DEMO_READONLY"), `5d demo hesap env listesinde olsa bile hesap YOK: 61 denemenin hepsi 403 DEMO_READONLY (${[...dCodes].join(",")})`);
 
     section("6. Pencere bitince / env yokken eski davranış");
     __resetRateLimitForTest();

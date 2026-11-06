@@ -316,9 +316,103 @@
    "timeoutSec": 60
   },
   {
+   "file": "scripts/browser-theme/color-scheme.harness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
    "file": "scripts/bug016-bio-tr-search/routes.harness.ts",
    "tsx": true,
    "timeoutSec": 80
+  },
+  {
+   "file": "scripts/campaign/catalog-parity.test.ts",
+   "tsx": true,
+   "timeoutSec": 120
+  },
+  {
+   "file": "scripts/campaign/catalog-ui.test.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/campaign/owner-api.test.ts",
+   "tsx": true,
+   "tsconfig": "scripts/campaign/tsconfig.json",
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/campaign/pg/campaign-admin.mjs",
+   "timeoutSec": 360
+  },
+  {
+   "file": "scripts/campaign/pg/campaign-quota.mjs",
+   "timeoutSec": 420
+  },
+  {
+   "file": "scripts/campaign/pg/campaign-visitor.mjs",
+   "timeoutSec": 360
+  },
+  {
+   "file": "scripts/campaign/pg/campaign-night.mjs",
+   "timeoutSec": 480
+  },
+  {
+   "file": "scripts/campaign/pg/campaign-b4.mjs",
+   "timeoutSec": 420
+  },
+  {
+   "file": "scripts/campaign/pg/campaign-d4.mjs",
+   "timeoutSec": 360
+  },
+  {
+   "file": "scripts/campaign/pg/campaign-gece.mjs",
+   "timeoutSec": 420
+  },
+  {
+   "file": "scripts/campaign/pg/campaign-yayin.mjs",
+   "timeoutSec": 420
+  },
+  {
+   "file": "scripts/campaign/data-notice.test.ts",
+   "tsx": true,
+   "tsconfig": "scripts/campaign/tsconfig.json",
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/campaign/services.test.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/campaign/visitor-atlas.test.ts",
+   "tsx": true,
+   "tsconfig": "scripts/campaign/tsconfig.json",
+   "timeoutSec": 180
+  },
+  {
+   "file": "scripts/campaign/visitor-hd-relation.test.ts",
+   "tsx": true,
+   "tsconfig": "scripts/campaign/tsconfig.json",
+   "timeoutSec": 120
+  },
+  {
+   "file": "scripts/campaign/visitor-api.test.ts",
+   "tsx": true,
+   "tsconfig": "scripts/campaign/tsconfig.json",
+   "timeoutSec": 120
+  },
+  {
+   "file": "scripts/campaign/visitor-runners.test.ts",
+   "tsx": true,
+   "tsconfig": "scripts/campaign/tsconfig.json",
+   "timeoutSec": 180
+  },
+  {
+   "file": "scripts/campaign/visitor-reports.test.ts",
+   "tsx": true,
+   "tsconfig": "scripts/campaign/tsconfig.json",
+   "timeoutSec": 180
   },
   {
    "file": "scripts/clients-list-filter.harness.ts",
@@ -346,6 +440,18 @@
    "timeoutSec": 86
   },
   {
+   "file": "scripts/demo-vitrin/atlas-demo.harness.ts",
+   "tsx": true,
+   "tsconfig": "scripts/tsconfig.demo-vitrin-tests.json",
+   "timeoutSec": 90
+  },
+  {
+   "file": "scripts/demo-vitrin/insan-tasarimi-demo.harness.ts",
+   "tsx": true,
+   "tsconfig": "scripts/tsconfig.demo-vitrin-tests.json",
+   "timeoutSec": 90
+  },
+  {
    "file": "scripts/demo-vitrin/dogaltasHarness.ts",
    "tsx": true,
    "timeoutSec": 85
@@ -354,6 +460,11 @@
    "file": "scripts/demo-vitrin/harness.ts",
    "tsx": true,
    "timeoutSec": 108
+  },
+  {
+   "file": "scripts/demo-vitrin/provider-policy.harness.ts",
+   "tsx": true,
+   "timeoutSec": 60
   },
   {
    "file": "scripts/dogal-destek-p2/aroma/routes.harness.ts",
@@ -404,6 +515,26 @@
    "file": "scripts/dogaltas-word-premium-harness.ts",
    "tsx": true,
    "timeoutSec": 60
+  },
+  {
+   "file": "scripts/dy-canli-denetim/harness.ts",
+   "tsx": true,
+   "timeoutSec": 120
+  },
+  {
+   "file": "scripts/dy-canli-denetim/h1-search-pg.harness.ts",
+   "tsx": true,
+   "timeoutSec": 600
+  },
+  {
+   "file": "scripts/dy-canli-denetim/m6-trigger.harness.ts",
+   "tsx": true,
+   "timeoutSec": 180
+  },
+  {
+   "file": "scripts/yh-m6/client-outbox-e2e.pg.harness.ts",
+   "tsx": true,
+   "timeoutSec": 300
   },
   {
    "file": "scripts/dy-mobile-ux/unit.harness.ts",
@@ -935,6 +1066,64 @@
    "timeoutSec": 60
   },
   {
+   "file": "scripts/workspace/assets.harness.ts",
+   "tsx": true,
+   "timeoutSec": 240
+  },
+  {
+   "file": "scripts/workspace/homeView.test.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/workspace/image.test.ts",
+   "tsx": true,
+   "timeoutSec": 120
+  },
+  {
+   "file": "scripts/workspace/logoPlacement.test.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/workspace/mobileAdapt.test.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/workspace/palette.test.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/workspace/pg/workspace-assets.mjs",
+   "timeoutSec": 240
+  },
+  {
+   "file": "scripts/workspace/pg/workspace-tables.mjs",
+   "timeoutSec": 240
+  },
+  {
+   "file": "scripts/workspace/heroColors.test.ts",
+   "tsx": true,
+   "timeoutSec": 120
+  },
+  {
+   "file": "scripts/workspace/photoReadability.test.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/workspace/routes.harness.ts",
+   "tsx": true,
+   "timeoutSec": 180
+  },
+  {
+   "file": "scripts/workspace/schema.test.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
    "file": "scripts/wt4/session-sifa.harness.ts",
    "tsx": true,
    "timeoutSec": 60
@@ -1268,6 +1457,15 @@
    "file": "scripts/yh-worker-v2/workerV2ParityHarness.ts",
    "tsx": true,
    "timeoutSec": 60
+  },
+  {
+   "file": "scripts/trial7/trial7-db.harness.mjs",
+   "timeoutSec": 240
+  },
+  {
+   "file": "scripts/trial7/trial7-routes.harness.ts",
+   "tsx": true,
+   "timeoutSec": 180
   }
  ]
 }

@@ -11,12 +11,14 @@ import PrivacyAnalytics from "@/components/analytics/PrivacyAnalytics";
 import AnalyticsConsentBanner from "@/components/analytics/AnalyticsConsentBanner";
 import AppLogoLink from "@/components/layout/AppLogoLink";
 import QuickNavShell from "@/components/layout/quick-nav/QuickNavShell";
+import TrialNotice from "@/components/trial/TrialNotice";
 import UsageTracker from "@/components/usage/UsageTracker";
 import { isUsage360Enabled } from "@/lib/usage/usageFlag";
 import { platformFlags } from "@/lib/platform/outputSupport";
 import { isAndroidAppRequest, readWebSessionTransport } from "@/lib/auth/sessionCookie";
 import { SESSION_TRANSPORT_HTML_ATTR } from "@/lib/auth/sessionTransportFlag";
 import "./globals.css";
+import "./mobile-360.css";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -31,10 +33,18 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Yaşam Sistemi",
   description: "Yaşam Sistemi Yönetim Paneli",
+  // <meta name="darkreader-lock">: Dark Reader vb. koyu mod eklentileri `color-scheme` bildirimine uymaz; görsel/gradyan
+  // zeminli kartları açık bırakıp yazıyı açık renge çevirerek metni okunmaz yapıyordu. Eklenti bu etikette kendini kapatır.
+  // Koyu görünüm Kişisel Dijital Ofis Gece / Otomatik modu ile sağlanır.
+  // İçerik boş olursa Next.js etiketi basmaz; eklenti yalnız etiketin varlığına bakar.
+  other: { "darkreader-lock": "true" },
 };
 
 export const viewport: Viewport = {
   viewportFit: "cover",
+  // <meta name="color-scheme" content="only light">: CSS yüklenmeden ilk boyamada da tarayıcı zorla koyu modu kapalı
+  // (app/globals.css :root ile aynı bildirim).
+  colorScheme: "only light",
 };
 
 export default async function RootLayout({
@@ -83,6 +93,8 @@ export default async function RootLayout({
               <QuickNavShell>
                 <ModuleRouteGuard>{children}</ModuleRouteGuard>
               </QuickNavShell>
+              {/* TRIAL7: 7 günlük deneme geri sayımı / süre sonu Pro yönlendirmesi (yalnız deneme uzmanı). */}
+              <TrialNotice />
             </ConfirmProvider>
           </ToastProvider>
         </NextIntlClientProvider>

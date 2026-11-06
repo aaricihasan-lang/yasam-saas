@@ -1,0 +1,116 @@
+/*
+ * MOBİL-360 — merkezi mobil genişlik katmanı (app/layout.tsx içinde globals.css'ten sonra yüklenir).
+ *
+ * Sözleşme (bütün aşamalar için bağlayıcı):
+ * - Kapsam: QuickNavShell kökündeki [data-m360="<modül>"] kancası. Kanca yalnız listelenen modüllerin alt
+ *   sayfalarında yazılır (components/layout/quick-nav/QuickNavShell.tsx → MOBILE_360_SCOPES).
+ * - Kurallar yalnız "@media screen and (max-width: 639px)" içinde; tablet, masaüstü ve yazdırma etkilenmez.
+ * - Seçiciler "html [data-m360=…] main …" biçiminde ve bileşik Tailwind sınıf dizgileriyle yazılır; menü (main dışı)
+ *   ve çıplak yardımcı sınıflar (.p-6, section, div …) hedeflenmez. Sıraya değil özgüllüğe dayanır.
+ * - Yasak: CSS Module (hash'li) sınıf adları, kontrolsüz !important, taşmayı gizleyen overflow-x: hidden.
+ * - Tablo min-width değerleri, yazı boyutları ve dokunma hedefleri değiştirilmez.
+ *
+ * M0: altyapı (kanca + bu dosya). M1: Ürün & Stok pilotu (aşağıda).
+ */
+
+/*
+ * M1 — Ürün & Stok alt sayfaları (aksesuar, diger, sabun-krem, yag, dogaltas, canli-stok, satis-fiyatlandirma,
+ * satis-gecmisi). Hub (/urun-stok) kancayı almaz. Yalnız yatay dolgular küçülür; dikey dolgu, kenarlık, yazı,
+ * dokunma hedefleri ve tablo min-width değerleri aynen kalır. Hedef: içerik kenara ≈24 px (önce 34–42 px).
+ */
+@media screen and (max-width: 639px) {
+  /* Sayfa kabuğu (pageShell: px-4 / px-5) → 10 px */
+  html [data-m360="urun-stok"] main > div.relative.z-10.w-full {
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+
+  /* Panel (panelClass: border-2 + p-4 + backdrop-blur-xl) → yatay 12 px */
+  html [data-m360="urun-stok"] main .backdrop-blur-xl.border-2.p-4 {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+
+  /* Sayfa içi modal örtüsü (main'in doğrudan çocuğu; portal değil) → yatay 8 px */
+  html [data-m360="urun-stok"] main > div.fixed.inset-0.p-4 {
+    padding-left: 8px;
+    padding-right: 8px;
+  }
+
+  /* Fotoğraf modalı paneli (p-6) → yatay 14 px */
+  html [data-m360="urun-stok"] main > div.fixed.inset-0 > .max-w-3xl.border-2.p-6 {
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+
+  /* Satış detayı modalı: başlık / gövde / alt bölümler (p-4 ya da p-6) → yatay 14 px */
+  html [data-m360="urun-stok"] main > div.fixed.inset-0 > .max-w-3xl.flex-col.border-2 > div.p-4,
+  html [data-m360="urun-stok"] main > div.fixed.inset-0 > .max-w-3xl.flex-col.border-2 > div.p-6 {
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+}
+
+/*
+ * Danışan Yolculuğu (kanca: [data-m360="danisan-yolculugu"]; /danisan-yolculugu/* ve /dashboard/clients/* alt
+ * sayfaları — hub /danisan-yolculugu kapsam dışı). Yalnız yatay dolgu; dikey dolgu, kenarlık, yazı, dokunma
+ * hedefi ve tablo genişlikleri aynen. CSS Module sınıf adı yok: dış kabuk yapı + role/id ile seçilir.
+ * Çıktı kökleri (#analysis-print-area, .numeroloji-gorsel-root) hiçbir kurala girmez; Numeroloji sekmesinin
+ * genişliği birebir korunur (görsel rapor PNG'si kökün ekrandaki genişliğiyle üretilir).
+ * Body'ye portal edilen modallar (onay, Numeroloji tam ekran) bu kancanın dışında kalır.
+ */
+@media screen and (max-width: 639px) {
+  /* A) Dış kabuk — yalnız yapı + role ile (sınıf adı yok). Hepsi birlikte @supports içinde: :has() desteklemeyen
+   * eski WebView'de dış kabuk da Numeroloji telafisi de uygulanmaz (yarım uygulama → Numeroloji daralması olmaz). */
+  @supports selector(:has(*)) {
+    /* Detay: sarmalayıcı 10→8, sekme paneli 12→4, içerik kutusu 10→6  ⇒ sekme içeriği kenara 34→20 px */
+    html [data-m360="danisan-yolculugu"] main > div:has(> section > div > [role="tabpanel"]) {
+      padding-left: 8px;
+      padding-right: 8px;
+    }
+    html [data-m360="danisan-yolculugu"] main > div > section:has(> div > [role="tabpanel"]) {
+      padding-left: 4px;
+      padding-right: 4px;
+    }
+    html [data-m360="danisan-yolculugu"] main > div > section > div:has(> [role="tabpanel"]) {
+      padding-left: 6px;
+      padding-right: 6px;
+    }
+    /* Numeroloji sekmesi: dış kabuktan kazanılan 14 px geri verilir → sekme ve görsel rapor kökü genişliği AYNEN */
+    html [data-m360="danisan-yolculugu"] main > div > section > div > #tabpanel-numeroloji {
+      padding-left: 14px;
+      padding-right: 14px;
+    }
+    /* Kayıt: sarmalayıcı 10→8, panel 12→6, bölüm kartı 12→8  ⇒ 36→24 px */
+    html [data-m360="danisan-yolculugu"] main > div:has(> section > div > div > label) {
+      padding-left: 8px;
+      padding-right: 8px;
+    }
+    html [data-m360="danisan-yolculugu"] main > div > section:has(> div > div > label) {
+      padding-left: 6px;
+      padding-right: 6px;
+    }
+    html [data-m360="danisan-yolculugu"] main > div > section > div:has(> div > label) {
+      padding-left: 8px;
+      padding-right: 8px;
+    }
+  }
+
+  /* B) Sekme içi Tailwind kart katmanları → yatay 10 px (çıktı kökleri, Numeroloji sekmesi ve düğme/bağlantı/form öğeleri hariç) */
+  html [data-m360="danisan-yolculugu"] [role="tabpanel"]:not(#tabpanel-numeroloji) :is(.rounded-2xl, .rounded-xl).border:is(.p-3, .p-4, .p-5, .px-4):not(#analysis-print-area *, .numeroloji-gorsel-root *):not(button, a, input, select, textarea, label, [role="button"], [role="tab"]),
+  html [data-m360="danisan-yolculugu"] [role="tabpanel"]:not(#tabpanel-numeroloji) .overflow-hidden.rounded-2xl.border > :is(.p-4, .px-4):not(#analysis-print-area *, .numeroloji-gorsel-root *):not(button, a, input, select, textarea, label, [role="button"], [role="tab"]),
+  html [data-m360="danisan-yolculugu"] [role="tabpanel"]:not(#tabpanel-numeroloji) :is(.rounded-\[18px\].p-4, .rounded-\[18px\].p-3\.5):not(#analysis-print-area *, .numeroloji-gorsel-root *):not(button, a, input, select, textarea, label, [role="button"], [role="tab"]) {
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+
+  /* C) Sayfa içi modallar (main içinde, portal değil): örtü p-4 → 8 px; başlık/gövde px-5 → 12 px */
+  html [data-m360="danisan-yolculugu"] main .fixed.inset-0.p-4:not(#analysis-print-area *, .numeroloji-gorsel-root *) {
+    padding-left: 8px;
+    padding-right: 8px;
+  }
+  html [data-m360="danisan-yolculugu"] main .fixed.inset-0.p-4 > .flex.w-full > .px-5:not(#analysis-print-area *, .numeroloji-gorsel-root *) {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+}

@@ -11,6 +11,7 @@
  */
 import type { ChaldeanResult, ChartResult, ClassicNumber, DailyResult, DualResult, Period, PersonalDayResult, Verification } from "../model";
 import type { ClassicReportRecord } from "./types";
+import { currentPeriodicChallenge, mainChallenge } from "../challenges";
 
 export const PNG_REPORT_WIDTH = 1200;
 const W = PNG_REPORT_WIDTH;
@@ -284,13 +285,16 @@ export function buildClassicPngSvg(record: ClassicReportRecord, opts: PngReportO
     }
     const age = ageAt(record.input, ref);
     const pin = currentPeriod(chart?.pinnacles, age);
-    const chl = currentPeriod(chart?.challenges, age);
-    if (pin || chl) {
+    // D3: "şu an" yalnız yaş dönemine bağlı zorluklardan; 3. (ana) zorluk tüm yaşam için ayrıca yazılır.
+    const chl = currentPeriodicChallenge(chart?.challenges, age);
+    const mainChl = mainChallenge(chart?.challenges);
+    if (pin || chl || mainChl) {
       rect(body, PAD, y, INNER, 96, C.surface, 20, C.line);
       text(body, PAD + 24, y + 38, xmlText(`Hedef tarihte ${age} yaş`, 40), 18, C.inkSoft, { weight: 600 });
       const parts: string[] = [];
       if (pin) parts.push(`${pin.position}. zirve: ${pin.number} (${pin.startAge}–${pin.endAge ?? "…"} yaş)`);
       if (chl) parts.push(`${chl.position}. zorluk: ${chl.number}`);
+      if (mainChl) parts.push(`ana zorluk: ${mainChl.number}`);
       text(body, PAD + 24, y + 72, xmlText(parts.join("   ·   "), 120), 22, C.navy, { weight: 700 });
       y += 96 + 24;
     }

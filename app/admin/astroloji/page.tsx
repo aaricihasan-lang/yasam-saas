@@ -19,13 +19,14 @@
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
-import type { HouseSystem, NodeType } from "@/lib/astrology/model/western";
 import type { TechniqueView } from "@/lib/astrology/view/techniqueView";
+import { LOCAL_NATAL_SOURCE_TEXT } from "@/lib/astrology/model/natalHouseSystems";
 import { HOUSE_SYSTEM_LABELS, NODE_TYPE_LABELS } from "@/lib/astrology/labels/tr";
-import { astroFetch, isAdminSurface, readPreviewFlag, subscribePreviewFlag, writePreviewFlag } from "./_lib/api";
+import { astroFetch, isAdminSurface, probeAstroAccess, readPreviewFlag, subscribePreviewFlag, writePreviewFlag } from "./_lib/api";
+import { consumeAtlasNavTarget } from "./_lib/skyToolsNav";
 import type { DashaDrillResult, DashaPathSel } from "./_components/VedicPanels";
 import type { VedicDashaTechnical } from "@/lib/astrology/model/vedic";
-import { buildSelections, defaultParams, istanbulDateIso, profectionContextKey, profectionSelectionCurrent, runOptionsFor, describeOptions, houseSystemLabel, syncProfectionContext, techniqueLabel, zodiacLabel, TECHNIQUE_META, type LunarReturnInfo, type PlanetaryReturnInfo, type PlanetaryReturnNeighbors, type TechniqueParams, type UiTechniqueId } from "./_lib/techniques";
+import { buildSelections, DEFAULT_WESTERN_METHOD, type WesternMethod, defaultParams, istanbulDateIso, profectionContextKey, profectionSelectionCurrent, runOptionsFor, describeOptions, houseSystemLabel, syncProfectionContext, techniqueLabel, zodiacLabel, TECHNIQUE_META, type LunarReturnInfo, type PlanetaryReturnInfo, type PlanetaryReturnNeighbors, type TechniqueParams, type UiTechniqueId } from "./_lib/techniques";
 import ProviderInterpretationPanel, { interpretationTitle, type InterpretationLayer } from "./_components/ProviderInterpretationPanel";
 import ProfileForm, { type ProfileFormInitial } from "./_components/ProfileForm";
 import AnalysisWorkspace from "./_components/AnalysisWorkspace";
@@ -35,6 +36,8 @@ import PrepCenter from "./_components/atlas/PrepCenter";
 import ClientPicker from "./_components/atlas/ClientPicker";
 import OpenTabs from "./_components/atlas/OpenTabs";
 import SavedAnalysisTabs from "./_components/atlas/SavedAnalysisTabs";
+import AnalysisPicker, { useProfileAnalyses } from "./_components/atlas/AnalysisPicker";
+import { ANALYSIS_PICKER_ENABLED, benchRef, buildPickerEntries, savedRef, type PickerBenchRow, type PickerEntry } from "./_lib/analysisPicker";
 import { NO_PROVIDER_INTERPRETATION_NOTE, hasNoProviderInterpretation } from "@/lib/astrology/noProviderInterp";
 import AddTechniqueDialog, { type AddRunResult } from "./_components/atlas/AddTechniqueDialog";
 import SaveBatchDialog, { type SaveItemResult } from "./_components/atlas/SaveBatchDialog";
@@ -51,15 +54,17 @@ import WesternHoraryDesk, { ARCHIVE_MODE_EVENT } from "./_components/horary/West
 import HoraryArchive from "./_components/horary/HoraryArchive";
 import HoraryArchiveSwitch from "./_components/horary/HoraryArchiveSwitch";
 import { atlasDisplay, atlasText } from "./_components/atlas/fonts";
-import ResultDesk, { AtlasHomeContext, DeskChip, deskGhostLight, deskPrimary, type DeskTab } from "./_components/atlas/ResultDesk";
+import ResultDesk, { AtlasHomeContext, DeskChip, deskGhostLight, deskMenuItem, deskPrimary, type DeskTab } from "./_components/atlas/ResultDesk";
 import NatalWheel from "./_components/NatalWheel";
 import { SynastryWheelCaption, TransitWheelCaption, roxyChartFor, transitWheelGap } from "./_components/RoxyWheels";
 import type { TransitTechnical } from "@/lib/astrology/model/westernTiming";
 import NatalTechnicalPanel from "./_components/NatalTechnicalPanel";
+import NatalChartControls, { natalWheelDisplay, useNatalWheelPrefs } from "./_components/NatalChartControls";
+import NatalSymbolGuide from "./_components/NatalSymbolGuide";
 import type { NatalTechnical } from "@/lib/astrology/model/western";
 import { localSpaceCenter } from "@/lib/astrology/localSpaceCenter";
 import { AtlasHeader, atlasDangerBtn, atlasGhostBtn, atlasNightBg, atlasPanel, atlasSecondaryBtn, type AtlasView } from "./_components/AtlasShell";
-import { ArrowLeft, CalendarDays, CheckCircle2, Loader2, Save, ScrollText, Settings2, Users, X } from "lucide-react";
+import { ArrowLeft, CalendarDays, CheckCircle2, FileText, Loader2, Save, ScrollText, Settings2, Users, X } from "lucide-react";
 import { formatUtcOffset } from "./_lib/utcOffset";
 
 type PublicRevision = {
@@ -201,7 +206,8 @@ export default function AstrologyWorkspacePage() {
   const [revision, setRevision] = useState<number | null>(null);
   const [form, setForm] = useState<null | { mode: "create" } | { mode: "revise"; initial: ProfileFormInitial }>(null);
 
-  const [method, setMethod] = useState<{ houseSystem: HouseSystem; nodeType: NodeType }>({ houseSystem: "placidus", nodeType: "true" });
+  // Aşama 3 (#643): Natal'ın 8'li ev sistemi (natalHouseSystem) diğer Batı tekniklerinin 4'lü ortak seçiminden (houseSystem) AYRI.
+  const [method, setMethod] = useState<WesternMethod>({ ...DEFAULT_WESTERN_METHOD });
   // D4: Natal zorunlu/sabit değil — başlangıçta hiçbir teknik seçili değildir.
   const [checked, setChecked] = useState<Partial<Record<UiTechniqueId, boolean>>>({});
   const [params, setParams] = useState<TechniqueParams>(() => defaultParams(new Date()));
@@ -231,18 +237,26 @@ export default function AstrologyWorkspacePage() {
   const previewFlag = useSyncExternalStore(subscribePreviewFlag, readPreviewFlag, () => false);
   // Aşama 7C: erişim + yetkiler SUNUCUDAN (fail-closed). Owner-only öğeler (önizleme, alan denetimi,
   // pilot rozeti) yalnız isOwner'da; uzman yüzeyinde owner önizleme bayrağı yok sayılır.
-  const [access, setAccess] = useState<{ isOwner: boolean; providerInterp: boolean } | "denied" | null>(null);
+  // D8: demo hesabı → salt okunur örnek görünümü (sunucu `demo: true` döner; istekler demo ucuna yönelir).
+  // 2026-11-03: `techniques` = sunucuda çözülmüş izinli teknikler (null = alan yok, ör. demo → gizleme yapılmaz; sunucu yine engeller).
+  const [access, setAccess] = useState<{ isOwner: boolean; providerInterp: boolean; demo: boolean; skyTools: boolean; techniques: string[] | null } | "denied" | null>(null);
   useEffect(() => {
     let alive = true;
-    void astroFetch<{ isOwner?: boolean; entitlements: { providerInterpretations: boolean } }>("/api/admin/astroloji/access").then((r) => {
+    void probeAstroAccess().then((r) => {
       if (!alive) return;
-      setAccess(r.ok ? { isOwner: r.data.isOwner === true, providerInterp: r.data.entitlements.providerInterpretations === true } : "denied");
+      setAccess(r.ok ? { isOwner: r.data.isOwner === true, providerInterp: r.data.entitlements.providerInterpretations === true, demo: r.data.demo === true, skyTools: r.data.skyTools === true && r.data.demo !== true, techniques: Array.isArray(r.data.entitlements.techniques) ? r.data.entitlements.techniques : null } : "denied");
     });
     return () => {
       alive = false;
     };
   }, []);
   const isOwnerView = access !== null && access !== "denied" && access.isOwner;
+  // Gökyüzü Araçları (Efemeris · Ay Evreleri ve Tutulmalar · Derece Geçişleri): yalnız sunucu bayrağı açıksa; demo görünümünde yok.
+  // Teknik izinleri (2026-11-03): kapalı teknik listelerde / bağlantılarda gösterilmez (yetki ayrıca sunucuda zorlanır).
+  const allowedTechniques = useMemo(() => (access !== null && access !== "denied" && access.techniques ? new Set(access.techniques) : null), [access]);
+  const canUseTechnique = useCallback((key: string) => !allowedTechniques || allowedTechniques.has(key), [allowedTechniques]);
+  const anySkyTool = canUseTechnique("sky.ephemeris") || canUseTechnique("sky.lunations") || canUseTechnique("sky.degree_crossings");
+  const skyToolsHref = access !== null && access !== "denied" && access.skyTools && anySkyTool ? (isAdminSurface() ? "/admin/astroloji/efemeris" : "/astroloji/efemeris") : null;
   const previewNoInterp = isOwnerView && previewFlag;
   const [view, setView] = useState<AtlasView>("home");
   // Horary ekranındaki "Kayıtlı sorular" Arşivi Horary sekmesiyle açar (olay aboneliği).
@@ -310,6 +324,8 @@ export default function AstrologyWorkspacePage() {
   // FINAL: tüm seçili teknikler başarısız olduğunda sonuç ekranı AÇILMAZ; özet Yeni Analiz'de gösterilir.
   const [lastFailures, setLastFailures] = useState<{ key: string; at: number; items: { technique: string; code: string; error: string; retryAfterSec?: number }[] } | null>(null);
   const [deskTab, setDeskTab] = useState("harita");
+  // Natal çark görünümü (Temel / Profesyonel + noktalar): yalnız çizim; hesap / istek / kayıt değişmez.
+  const [natalPrefs, setNatalPrefs] = useNatalWheelPrefs();
   const [workRefresh, setWorkRefresh] = useState(0);
   /**
    * Görünüm ↔ adres çubuğu (#yeni-analiz vb.): tarayıcı geri/ileri ve sayfa yenileme aynı ekrana döner.
@@ -436,7 +452,7 @@ export default function AstrologyWorkspacePage() {
       w.__atlasDocMounted = true;
       const nav = (performance.getEntriesByType?.("navigation")?.[0] as PerformanceNavigationTiming | undefined)?.type;
       // 2026-10-19: #yakinda (statik bilgi görünümü) Danışan Dosyası gibi açık hedeftir → doğrudan bağlantıyla açılır.
-      const restoreHash = clientIdFromHash(window.location.hash) !== null || window.location.hash === "#yakinda" || window.location.hash.startsWith("#horary-lilly") || (firstInDoc && (nav === "reload" || nav === "back_forward"));
+      const restoreHash = clientIdFromHash(window.location.hash) !== null || window.location.hash === "#yakinda" || window.location.hash.startsWith("#horary-lilly") || consumeAtlasNavTarget(window.location.hash) || (firstInDoc && (nav === "reload" || nav === "back_forward"));
       initialEntryRef.current = restoreHash ? "hash" : "home";
       if (!restoreHash && window.location.hash) {
         window.history.replaceState(window.history.state, "", `${window.location.pathname}${window.location.search}`);
@@ -546,7 +562,7 @@ export default function AstrologyWorkspacePage() {
     if (id && detail && detail.id === id) setRevision(detail.currentRevision);
     setChecked({});
     setParams(defaultParams(new Date()));
-    setMethod({ houseSystem: "placidus", nodeType: "true" });
+    setMethod({ ...DEFAULT_WESTERN_METHOD });
     setPartnerQuery("");
     setLastFailures(null);
     setRunErrorState(null);
@@ -621,6 +637,42 @@ export default function AstrologyWorkspacePage() {
   const runs = ctxKey ? (benches[ctxKey] ?? null) : null;
   const runError = runErrorState && runErrorState.key === ctxKey ? runErrorState.message : null;
   const activeItem = runs && runs.active && runs.open.includes(runs.active) ? (runs.items.find((x) => x.key === runs.active) ?? null) : null;
+
+  // ── V3 analiz seçicisi (2026-11-05): YALNIZ etkin doğum profilinin (kimlik) kayıtlı + açık analizleri ──
+  // Kayıtlı liste mevcut salt-okunur liste ucundan (profil sahipliği sunucuda); açık sonuçlar bellekteki "profil|revizyon"
+  // masalarından (kapatılmış sekmeler gelmez). Seçim yeniden hesap / sağlayıcı isteği / otomatik kayıt üretmez.
+  // Danışan dosyası açıkken önceden yüklenir (sonuç ekranına geçince liste hazır; aynı salt-okunur uç).
+  const pickerOn = ANALYSIS_PICKER_ENABLED && !!shownDetail && (view === "result" || view === "client" || view === "new");
+  const pickerList = useProfileAnalyses(shownDetail?.id ?? null, analysesReload, pickerOn);
+  const pickerBench = useMemo<PickerBenchRow[]>(() => {
+    if (!shownDetail) return [];
+    const out: PickerBenchRow[] = [];
+    for (const b of Object.values(benches)) {
+      if (!b.key.startsWith(`${shownDetail.id}|`)) continue;
+      for (const k of b.open) {
+        const it = b.items.find((x) => x.key === k);
+        if (!it) continue;
+        out.push({
+          benchKey: b.key,
+          itemKey: it.key,
+          technique: it.technique,
+          options: it.view.options,
+          savedId: savedIds[`${b.key}|${it.key}`] ?? null,
+          partial: it.partial,
+          // Taslak durumu yalnız ekrandaki masa için tutulur (sekme anahtarı masa içinde tekildir).
+          dirty: b.key === ctxKey ? !!dirtyTabs[it.key] : false,
+        });
+      }
+    }
+    return out;
+  }, [benches, shownDetail, savedIds, dirtyTabs, ctxKey]);
+  const pickerEntries = useMemo(
+    () =>
+      shownDetail
+        ? buildPickerEntries({ profileId: shownDetail.id, profileLabel: shownDetail.label, currentRevision: shownDetail.currentRevision, savedFor: pickerList.savedFor, saved: pickerList.items, bench: pickerBench, labelOf })
+        : [],
+    [shownDetail, pickerList.savedFor, pickerList.items, pickerBench, labelOf],
+  );
   useEffect(() => {
     hasResultRef.current = !!(runs && (runs.items.length > 0 || runs.fails.length > 0)) || !!openAnalysis;
   }, [runs, openAnalysis]);
@@ -972,6 +1024,74 @@ export default function AstrologyWorkspacePage() {
   }
 
   /**
+   * V3 seçici: girdiyi açar. Davranış eski şeritlerle birebir:
+   *   • masa → masa (aynı revizyon): sekme değişimi gibi (taslaklar bellekte, uyarı yok);
+   *   • masa → kayıtlı: "Kayıtlı analizi aç" gibi guardLeave (kaydedilmemiş taslak varsa sorulur);
+   *   • kayıtlı → kayıtlı: kayıtlı sekme değişimi gibi; kayıtlı → masa: masa görünümüne dönüş;
+   *   • başka revizyonun masası: revizyon seçimi + guardLeave (ekrandaki masanın taslakları kaybolmasın).
+   * Hiçbiri hesap / sağlayıcı isteği / kayıt üretmez; profil HİÇ değişmez (girdiler yalnız bu profilden gelir).
+   */
+  function selectPickerEntry(e: PickerEntry) {
+    if (!shownDetail) return;
+    const pid = shownDetail.id;
+    if (e.kind === "saved") {
+      if (!e.savedId || e.state === "locked") return;
+      // Masa kipinde ve bu kayıt ekrandaki masada da açıksa: eski şeritteki gibi masa sekmesine geç (çalışma alanı / taslak korunur).
+      if (resultMode === "run" && e.benchKey && e.benchKey === ctxKey && e.itemKey) {
+        const ik = e.itemKey;
+        setBench(e.benchKey, (prev) => (prev && prev.open.includes(ik) ? { ...prev, active: ik } : prev));
+        return;
+      }
+      const id = e.savedId;
+      if (resultMode === "saved") setOpenAnalysis({ profileId: pid, id });
+      else
+        guardLeave(() => {
+          setOpenAnalysis({ profileId: pid, id });
+          setResultMode("saved");
+        });
+      return;
+    }
+    if (!e.benchKey || !e.itemKey || e.revision === null || !e.benchKey.startsWith(`${pid}|`)) return;
+    const bk = e.benchKey;
+    const ik = e.itemKey;
+    const rev = e.revision;
+    const act = () => {
+      if (rev !== revision) setRevision(rev);
+      setBench(bk, (prev) => (prev && prev.open.includes(ik) ? { ...prev, active: ik } : prev));
+      setResultMode("run");
+    };
+    if (resultMode === "run" && rev !== revision) guardLeave(act);
+    else act();
+  }
+  function closePickerBench(e: PickerEntry) {
+    if (e.benchKey === ctxKey && e.itemKey) requestCloseTab(e.itemKey);
+  }
+  /** Seçici (yalnız bayrak açık ve danışan dosyası yüklüyken). activeRef: etkin girdi; fallback: liste yüklenirken başlık. */
+  function renderPicker(activeRef: string | null, fallback: string) {
+    if (!ANALYSIS_PICKER_ENABLED || !shownDetail) return undefined;
+    const cur = shownDetail.revisions.find((r) => r.revision === shownDetail.currentRevision);
+    return (
+      <AnalysisPicker
+        clientLabel={shownDetail.label}
+        clientSub={cur?.birthDate ? [cur.birthDate.split("-").reverse().join("."), cur.timeKnown ? cur.birthTime?.slice(0, 5) : "saat bilinmiyor", cur.locationLabel].filter(Boolean).join(" · ") : null}
+        entries={pickerEntries}
+        activeRef={activeRef}
+        fallbackTitle={fallback}
+        onSelect={selectPickerEntry}
+        onCloseBench={resultMode === "run" ? closePickerBench : undefined}
+        closableBenchKey={resultMode === "run" ? ctxKey : null}
+        savedTotal={pickerList.total}
+        savedLoaded={pickerList.items.length}
+        hasMore={pickerList.hasMore}
+        onLoadMore={() => void pickerList.loadMore()}
+        loadingMore={pickerList.loadingMore}
+        loading={pickerList.loading}
+        error={pickerList.error}
+      />
+    );
+  }
+
+  /**
    * Aşama 5E: dasha alt düzeyini TEMBEL yükler — aynı çalıştırma ucu (planlayıcı + önbellek + yetki/yorum kapısı):
    * önbellekte varsa 0 sağlayıcı isteği. Tek seçim eşik altında → onay gerekmez. KB eşleşmeleri çalışma alanı
    * ucundan (sağlayıcı ÇAĞRILMAZ).
@@ -1111,6 +1231,12 @@ export default function AstrologyWorkspacePage() {
   return (
     <AtlasHomeContext.Provider value={() => guardGo("home")}>
     <main ref={mainRef} className={`${atlasDisplay.variable} ${atlasText.variable} min-h-screen w-full overflow-x-hidden data-[atlas-light=1]:bg-none data-[atlas-light=1]:bg-[#f2f1ed] ${view === "home" ? "bg-[#f7f4fb]" : isPremiumView(view) ? ap.page : atlasNightBg}`}>
+      {access.demo && (
+        <div role="note" data-testid="atlas-demo-banner" className="border-b border-[#e6d3a3] bg-[#fbf5e6] px-4 py-2 text-center text-[12.5px] leading-snug text-[#6b5320]">
+          <strong className="font-semibold">Demo görünümü</strong> · Örnek Harita A ve B sentetik kişilerdir; analizler sistemin kendi hesap motoruyla önceden
+          hesaplandı. Kayıt, değişiklik, rapor indirme ve yeni hesaplama yapılmaz.
+        </div>
+      )}
       {view === "result" ? null : view === "home" ? (
         <AtlasHero
           onNavigate={(v) => guardGo(v)}
@@ -1123,7 +1249,8 @@ export default function AstrologyWorkspacePage() {
             setForm({ mode: "create" });
           }}
           onSoon={() => guardGo("soon")}
-          onHorary={() => guardGo("horary")}
+          onHorary={canUseTechnique("western.horary_lilly") ? () => guardGo("horary") : undefined}
+          skyToolsHref={skyToolsHref}
         />
       ) : view === "new" ? (
         /* Yeni Analiz (owner 2026-10-23, Öneri 3): büyük başlık/sekme şeridi yerine ince çalışma çubuğu; gezinme aynı guardGo. */
@@ -1134,6 +1261,7 @@ export default function AstrologyWorkspacePage() {
           view={view}
           onNavigate={(v) => guardGo(v)}
           ownerTools={ownerTools}
+          skyToolsHref={skyToolsHref}
           scene={view === "kb" ? "bilgi" : "genel"}
           eyebrow={view === "archive" ? "Kayıtlar" : "Çalışma alanı"}
           title={view === "archive" ? "Analiz Arşivi" : "Bilgi Bankası"}
@@ -1161,6 +1289,7 @@ export default function AstrologyWorkspacePage() {
         resultFrom={resultMode === "saved" ? "archive" : "new"}
         onNavigate={(v) => guardGo(v)}
         ownerTools={ownerTools}
+        skyToolsHref={skyToolsHref}
       />
       )}
 
@@ -1168,7 +1297,7 @@ export default function AstrologyWorkspacePage() {
         {view === "kb" && <KnowledgeBankPanel onDirtyChange={setKbDirty} />}
         {view === "audit" && isOwnerView && <UnmappedAuditPanel />}
         {view === "soon" && <ComingSoonPanel onHome={() => guardGo("home")} />}
-        {view === "horary" && <WesternHoraryDesk onHome={() => guardGo("home")} />}
+        {view === "horary" && canUseTechnique("western.horary_lilly") && <WesternHoraryDesk onHome={() => guardGo("home")} />}
 
 
         {/* Kalıcı silme akışı (Arşiv, Danışan Dosyası ve Yeni Analiz'deki "Profili Sil" ortak; görünümden bağımsız katman). */}
@@ -1220,7 +1349,8 @@ export default function AstrologyWorkspacePage() {
         )}
         {view === "new" && (
           <PrepCenter
-            onOpenHorary={() => guardGo("horary")}
+            onOpenHorary={canUseTechnique("western.horary_lilly") ? () => guardGo("horary") : undefined}
+            allowedTechniques={allowedTechniques}
             profile={shownDetail}
             rev={currentRev}
             picker={
@@ -1556,12 +1686,14 @@ export default function AstrologyWorkspacePage() {
           (resultMode === "saved" && openAnalysis && shownDetail && openAnalysis.profileId === shownDetail.id ? (
             <div className="flex min-w-0 flex-col gap-3">
               {/* 2026-10-15: aynı danışanın diğer kayıtlı analizleri — arşive dönmeden geçiş (yalnız snapshot okunur, Roxy YOK). */}
-              <SavedAnalysisTabs
-                profileId={shownDetail.id}
-                activeId={openAnalysis.id}
-                reloadKey={analysesReload}
-                onSelect={(id) => setOpenAnalysis({ profileId: shownDetail.id, id })}
-              />
+              {!ANALYSIS_PICKER_ENABLED && (
+                <SavedAnalysisTabs
+                  profileId={shownDetail.id}
+                  activeId={openAnalysis.id}
+                  reloadKey={analysesReload}
+                  onSelect={(id) => setOpenAnalysis({ profileId: shownDetail.id, id })}
+                />
+              )}
               <SavedAnalysisView
                 key={openAnalysis.id}
                 id={openAnalysis.id}
@@ -1570,6 +1702,7 @@ export default function AstrologyWorkspacePage() {
                 onClose={() => go("client", { profileId: shownDetail.id })}
                 onAddTechnique={() => setAddOpen({ initial: null })}
                 onComputeNatal={() => setAddOpen({ initial: "western.natal" })}
+                picker={renderPicker(savedRef(openAnalysis.id), "Kayıtlı analiz")}
               />
             </div>
           ) : resultMode === "run" && runs && (runs.items.length > 0 || runs.fails.length > 0) && shownDetail && revision !== null ? (
@@ -1593,19 +1726,22 @@ export default function AstrologyWorkspacePage() {
                   const dup = runs.open.filter((k) => k.startsWith(`${x.technique}|`)).length > 1;
                   return { key: x.key, label: `${techniqueLabel(x.technique)}${dup && o ? ` · ${o}` : ""}`, title: `${techniqueLabel(x.technique)}${o ? ` · ${o}` : ""}`, partial: x.partial, dirty: !!dirtyTabs[x.key], saved: !!savedIds[`${runs.key}|${x.key}`] };
                 });
-              const switcher = (
-                <OpenTabs
-                  tone="light"
-                  tabs={openTabs}
-                  active={item?.key ?? null}
-                  onSelect={(k) => setBench(runs.key, (prev) => (prev ? { ...prev, active: k } : prev))}
-                  onClose={requestCloseTab}
-                  onAdd={() => setAddOpen({ initial: null })}
-                  fails={runs.fails.map((f) => ({ key: f.key, technique: f.technique, label: techniqueLabel(f.technique), error: f.error, code: f.code, attempts: f.attempts, lastAt: f.lastAt, note: f.note ?? null, options: f.options ? describeOptions(f.technique, f.options, labelOf) : "", retryAt: f.retryAfterSec ? f.lastAt + f.retryAfterSec * 1000 : null }))}
-                  onRetry={(t) => setAddOpen({ initial: t as UiTechniqueId })}
-                  onCheck={(k) => void checkFailStatus(k)}
-                />
-              );
+              const switcherProps = {
+                tabs: openTabs,
+                active: item?.key ?? null,
+                onSelect: (k: string) => setBench(runs.key, (prev) => (prev ? { ...prev, active: k } : prev)),
+                onClose: requestCloseTab,
+                onAdd: () => setAddOpen({ initial: null }),
+                fails: runs.fails.map((f) => ({ key: f.key, technique: f.technique, label: techniqueLabel(f.technique), error: f.error, code: f.code, attempts: f.attempts, lastAt: f.lastAt, note: f.note ?? null, options: f.options ? describeOptions(f.technique, f.options, labelOf) : "", retryAt: f.retryAfterSec ? f.lastAt + f.retryAfterSec * 1000 : null })),
+                onRetry: (t: string) => setAddOpen({ initial: t as UiTechniqueId }),
+                onCheck: (k: string) => void checkFailStatus(k),
+              };
+              const switcher = <OpenTabs tone="light" {...switcherProps} />;
+              // V3: şerit yerine başlıkta seçici; "+ Teknik Ekle" ve hata göstergesi başlık işlemlerinde kalır.
+              const runPickerSavedId = item ? (savedIds[`${runs.key}|${item.key}`] ?? null) : null;
+              const runPickerRef = item ? (runPickerSavedId && pickerEntries.some((e) => e.ref === savedRef(runPickerSavedId)) ? savedRef(runPickerSavedId) : benchRef(runs.key, item.key)) : null;
+              const runPicker = item ? renderPicker(runPickerRef, techniqueLabel(item.technique)) : undefined;
+              const runTools = runPicker ? <OpenTabs tone="light" toolsOnly {...switcherProps} /> : null;
               if (!item) {
                 return (
                   <section className="flex flex-col gap-3 rounded-2xl border border-white/[0.07] bg-[linear-gradient(180deg,rgba(255,255,255,0.055),rgba(255,255,255,0.012))] p-4 text-[#F6F2EA]" data-testid="astro-result-view" aria-label="Analiz sonucu">
@@ -1648,10 +1784,11 @@ export default function AstrologyWorkspacePage() {
                 : [
                       ...(isNatal
                         ? ([
-                            { id: "harita", label: "Harita", tone: "lavender", hint: "Açısal noktalar ve dağılım" },
+                            { id: "harita", label: "Özet", tone: "lavender", hint: "Açısal noktalar ve dağılım" },
                             { id: "gezegenler", label: "Gezegenler", tone: "blue" },
                             ...(housesAvailable ? [{ id: "evler", label: "Evler", tone: "sage" } as DeskTab] : []),
                             { id: "acilar", label: "Açılar", tone: "peach", badge: natalTech?.aspects.length ?? null },
+                            { id: "semboller", label: "Semboller", tone: "sage", hint: "Çarktaki işaretlerin kısa açıklaması" },
                           ] as DeskTab[])
                         : []),
                       ...(otherWheel || roxyChart ? ([{ id: "teknik", label: "Teknik ayrıntı", tone: "blue", hint: "Konumlar, açılar ve tablolar" }] as DeskTab[]) : []),
@@ -1679,45 +1816,84 @@ export default function AstrologyWorkspacePage() {
                     ) : null
                   }
                   details={currentRev ? <RevisionLine r={currentRev} /> : null}
+                  // V4-005: tekrarsız künye — danışan adı / doğum bilgisi seçicinin üstünde, teknik adı seçicide; burada yalnız
+                  // parametreler + ek ayrıntılar (saat dilimi, revizyon, saat doğruluğu). Veri ve hesap DEĞİŞMEZ.
+                  params={item ? [opts || null, item.ok && item.view.method.houseSystem ? houseSystemLabel(item.view.method.houseSystem, HOUSE_SYSTEM_LABELS) : null].filter(Boolean).join(" · ") || null : null}
+                  kunye={
+                    currentRev
+                      ? [
+                          { label: "Saat dilimi", value: `${currentRev.timezone} (${fmtOffset(currentRev.utcOffsetSeconds)})` },
+                          { label: "Doğum profili", value: `rev ${currentRev.revision} · güncel` },
+                          { label: "Saat doğruluğu", value: currentRev.timeKnown ? currentRev.timeAccuracyLabel : "saat bilinmiyor" },
+                        ]
+                      : []
+                  }
                   meta={
                     item && item.ok
                       ? [
                           zodiacLabel(item.technique),
                           item.view.method.nodeType ? (NODE_TYPE_LABELS[item.view.method.nodeType as keyof typeof NODE_TYPE_LABELS] ?? null) : null,
                           item.view.timeUnknownMasked ? "Saat bilinmiyor · evler gizli" : null,
+                          // Aşama 3 (#643): Natal klasik ev sistemi — kaynak satırı + yüksek enlem / ev sınırı işaretleri (sunucu uyarısından).
+                          item.view.method.houseCalculation === "local" ? LOCAL_NATAL_SOURCE_TEXT : null,
+                          item.view.method.houseCalculation === "local" && item.view.warnings.some((w) => w.startsWith("Yüksek enlem")) ? "Yüksek enlem · evler eşitsiz olabilir" : null,
+                          item.view.method.houseCalculation === "local" && item.view.warnings.some((w) => w.includes("ev sınırına")) ? "Ev sınırına yakın nokta var" : null,
                         ]
                       : undefined
                   }
+                  // V4 (2026-11-06, owner): sürekli görünen "kaydedildi / kaydedilmedi" durum çipi kaldırıldı — kayıt durumu seçicide
+                  // ("kaydedilmedi") ve Kaydet düğmesinde; kaydetme / taslak uyarıları aynen.
                   chips={
-                    <>
-                      <DeskChip tone={saved ? "saved" : "muted"}>{saved ? "✓ Bu analiz kaydedildi" : "Bu analiz kaydedilmedi"}</DeskChip>
-                      {item && hasNoProviderInterpretation(item.technique) && (
-                        <span title={NO_PROVIDER_INTERPRETATION_NOTE} data-testid="astro-no-provider-interp">
-                          <DeskChip tone="muted">Otomatik yorum yok · yalnız teknik hesaplama sonuçları</DeskChip>
-                        </span>
-                      )}
-                    </>
+                    item && hasNoProviderInterpretation(item.technique) ? (
+                      <span title={NO_PROVIDER_INTERPRETATION_NOTE} data-testid="astro-no-provider-interp">
+                        <DeskChip tone="muted">Otomatik yorum yok · yalnız teknik sonuçlar</DeskChip>
+                      </span>
+                    ) : undefined
                   }
                   actions={
                     <>
-                      {saveAllBtn}
-                      {saved && (
-                        <button
-                          type="button"
-                          className={deskGhostLight}
-                          onClick={() =>
-                            guardLeave(() => {
-                              setOpenAnalysis({ profileId: shownDetail.id, id: savedId! });
-                              setResultMode("saved");
-                            })
-                          }
-                          data-testid="astro-open-saved"
-                          title="Kayıtlı (değişmez) analizi açar; Word/PDF kayıtlı analizden üretilir."
-                        >
-                          Kayıtlı analizi aç
-                        </button>
-                      )}
+                      {runPicker ? null : saveAllBtn}
+                      {runTools}
                     </>
+                  }
+                  menu={
+                    saved ? (
+                      <button
+                        type="button"
+                        className={deskMenuItem}
+                        onClick={() =>
+                          guardLeave(() => {
+                            setOpenAnalysis({ profileId: shownDetail.id, id: savedId! });
+                            setResultMode("saved");
+                          })
+                        }
+                        data-testid="astro-open-saved"
+                        title="Kayıtlı (değişmez) analizi açar; Word/PDF kayıtlı analizden üretilir."
+                      >
+                        <FileText className="h-4 w-4 shrink-0 text-slate-500" aria-hidden="true" />
+                        Kayıtlı analizi aç (Word / PDF)
+                      </button>
+                    ) : undefined
+                  }
+                  toolbar={natalTech ? <NatalChartControls technical={natalTech} prefs={natalPrefs} onChange={setNatalPrefs} /> : undefined}
+                  chartNotes={
+                    roxyChart || otherWheel || wheelGap ? (
+                      <>
+                        {roxyChart && item.technique === "western.transit" && <TransitWheelCaption technical={item.view.technical as TransitTechnical} natalName={shownDetail.label} />}
+                        {roxyChart && item.technique === "western.synastry" && <SynastryWheelCaption names={[shownDetail.label, partnerLabelOf(item.view)]} />}
+                        {otherWheel && <DirectedWheelCaption technique={item.technique} technical={item.view.technical} natalName={shownDetail.label} />}
+                        {wheelGap && (
+                          <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-sky-200 bg-sky-50 px-3 py-1.5 text-[12.5px] text-sky-900" data-testid="astro-wheel-gap">
+                            <span className="min-w-0 flex-1">{wheelGap}</span>
+                            {!item.view.timeUnknownMasked && (
+                              <button type="button" className={deskGhostLight} onClick={() => setAddOpen({ initial: "western.natal" })} data-testid="astro-wheel-gap-natal" title="Teknik Ekle açılır; hazır sonuç varsa 0 istek, yoksa yeni istek sayısı onaydan önce gösterilir.">
+                                Natal&apos;ı hesapla (önce plan gösterilir)
+                              </button>
+                            )}
+                          </div>
+                        )}
+                      </>
+                    ) : undefined
                   }
                   notices={
                     <>
@@ -1725,35 +1901,25 @@ export default function AstrologyWorkspacePage() {
                         {runs.fails.length === 0 ? "Hesaplama tamamlandı" : "Bazı teknikler hesaplanamadı"} · {runs.executed.newResults} yeni sonuç · {runs.executed.cachedResults} önceden hesaplanmış ·{" "}
                         {runs.executed.providerAttempts} sağlayıcı isteği
                       </p>
-                      {runError && runs.fails.length === 0 && <p className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-2 text-sm text-rose-800">{runError}</p>}
-                      {roxyChart && item.technique === "western.transit" && <TransitWheelCaption technical={item.view.technical as TransitTechnical} natalName={shownDetail.label} />}
-                      {roxyChart && item.technique === "western.synastry" && <SynastryWheelCaption names={[shownDetail.label, partnerLabelOf(item.view)]} />}
-                      {otherWheel && <DirectedWheelCaption technique={item.technique} technical={item.view.technical} natalName={shownDetail.label} />}
-                      {wheelGap && (
-                        <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-sky-200 bg-sky-50 px-4 py-2 text-sm text-sky-900" data-testid="astro-wheel-gap">
-                          <span className="min-w-0 flex-1">{wheelGap}</span>
-                          {!item.view.timeUnknownMasked && (
-                            <button type="button" className={deskGhostLight} onClick={() => setAddOpen({ initial: "western.natal" })} data-testid="astro-wheel-gap-natal" title="Teknik Ekle açılır; hazır sonuç varsa 0 istek, yoksa yeni istek sayısı onaydan önce gösterilir.">
-                              Natal&apos;ı hesapla (önce plan gösterilir)
-                            </button>
-                          )}
-                        </div>
-                      )}
+                      {runError && runs.fails.length === 0 && <p className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-1.5 text-[12.5px] text-rose-800">{runError}</p>}
+                      {/* Kayıt işleminin olumlu geri bildirimi (sabit durum rozeti değil; yalnız masadaki her sonuç kaydedildiğinde). */}
                       {unsavedHere.length === 0 && runs.items.length > 0 && (
-                        <p className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50/70 px-4 py-2 text-sm text-emerald-900" data-testid="astro-all-saved">
-                          <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" /> Bu danışanın masadaki bütün analizleri kaydedildi.
+                        <p className="flex items-center gap-1.5 text-[12px] text-emerald-800" role="status" data-testid="astro-all-saved">
+                          <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-emerald-600" /> Masadaki bütün analizler kaydedildi.
                         </p>
                       )}
                     </>
                   }
-                  switcher={switcher}
+                  switcher={runPicker ? undefined : switcher}
+                  picker={runPicker}
+                  primary={runPicker ? saveAllBtn : undefined}
                   tabs={tabs}
                   active={tab}
                   onTab={setDeskTab}
                   chartKey={item.key}
                   chart={
                     natalTech
-                      ? (cls: string) => <NatalWheel technical={natalTech} sizeClassName={cls} tinted />
+                      ? (cls: string) => <NatalWheel technical={natalTech} sizeClassName={cls} tinted display={natalWheelDisplay(natalTech, natalPrefs)} />
                       : otherWheel
                         ? (cls: string) => <NatalWheel technical={otherWheel.wheel} label={otherWheel.label} sizeClassName={cls} tinted />
                         : roxyChart
@@ -1803,6 +1969,7 @@ export default function AstrologyWorkspacePage() {
                       {(tab === "gezegenler" || tab === "evler" || tab === "acilar") && natalTech && (
                         <NatalTechnicalPanel technical={natalTech} timeUnknown={item.view.timeUnknownMasked} part={tab === "gezegenler" ? "planets" : tab === "evler" ? "houses" : "aspects"} />
                       )}
+                      {tab === "semboller" && natalTech && <NatalSymbolGuide technical={natalTech} />}
                       {tab === "teknik" && (otherWheel || roxyChart) && (
                         <TechniqueTechnical
                           technique={item.technique}
@@ -1867,6 +2034,7 @@ export default function AstrologyWorkspacePage() {
         {addOpen && shownDetail && revision !== null && ctxKey && (
           <AddTechniqueDialog<ResultItem>
             open
+            allowedTechniques={allowedTechniques}
             initial={addOpen.initial}
             onClose={() => {
               if (addDirty) askLeave({ message: LEAVE_MESSAGE, details: ["Teknik Ekle'de seçilmiş ama hesaplanmamış teknikler"], action: () => setAddOpen(null) });
@@ -1880,6 +2048,7 @@ export default function AstrologyWorkspacePage() {
             birthPlaceLabel={currentRev?.locationLabel ?? null}
             birthDate={currentRev?.birthDate ?? null}
             timeKnown={currentRev?.timeKnown ?? true}
+            birthLatitude={currentRev?.latitude ?? null}
             params={paramsView}
             onParams={setParams}
             method={method}

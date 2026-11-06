@@ -295,9 +295,11 @@ async function main() {
     section("8 · Özellik bayrakları kapalıyken");
     delete process.env.HD_EDUCATION_CATALOG_ENABLED;
     ok((await cGet(A, S1.id)).status === 404, "katalog bayrağı kapalı → merkezî katman 404");
-    delete process.env.HD_PRIVATE_EDUCATION_ENABLED;
-    ok((await pGet(B, PB.item)).status === 404, "özel arşiv bayrağı kapalı → özel katman 404");
-    ok((await call(oList, "admin", OWNER)).status === 404, "iki bayrak kapalı → owner katman uçları 404");
+    // Owner kararı 31.10.2026: bayraklar yalnız ACİL KAPATMA ("false"); aksi hâlde kapılar owner'ın DB anahtarlarıdır.
+    process.env.HD_PRIVATE_EDUCATION_ENABLED = "false";
+    ok((await pGet(B, PB.item)).status === 404, "özel arşiv acil kapatma → özel katman 404");
+    process.env.HD_EDUCATION_CATALOG_ENABLED = "false";
+    ok((await call(oList, "admin", OWNER)).status === 404, "iki acil kapatma → owner katman uçları 404");
     process.env.HD_EDUCATION_CATALOG_ENABLED = "true";
     process.env.HD_PRIVATE_EDUCATION_ENABLED = "true";
 

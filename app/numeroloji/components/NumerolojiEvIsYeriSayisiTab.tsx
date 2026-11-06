@@ -5,6 +5,7 @@ import { calcPlaceNumber } from "@/lib/numeroloji/place";
 import { analyzeBusinessCompatibility } from "@/lib/numeroloji/business";
 import type { BusinessCompatibilityLayer, BusinessIdentityVariant } from "@/lib/numeroloji/business";
 import { NumerolojiTarihInput } from "@/components/numeroloji/NumerolojiTarihInput";
+import { businessNameDigitGroups, parsePlaceNumberInput, placeInputMessage } from "../utils/placeInput";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // EV / OFİS SAYISI (Motor A, kitap 1) + İŞYERİ UYUMU (Motor B, kitap 2)
@@ -107,12 +108,14 @@ export function NumerolojiEvIsYeriSayisiTab() {
   const [bBusiness, setBBusiness] = useState("");
   const [bOpening, setBOpening] = useState("");
 
-  const kapiNo = parseInt(kapiNoRaw, 10);
-  const daireNo = parseInt(daireNoRaw, 10);
-  const place =
-    kapiNoRaw.trim() && daireNoRaw.trim() && !isNaN(kapiNo) && !isNaN(daireNo)
-      ? calcPlaceNumber(kapiNo, daireNo)
-      : null;
+  // D4: giriş SESSİZCE temizlenmez; hesap yine yalnız rakamlarla (kaynak yöntem) yapılır, dönüşüm gösterilir.
+  const kapiIn = parsePlaceNumberInput(kapiNoRaw);
+  const daireIn = parsePlaceNumberInput(daireNoRaw);
+  const placeMsgs = [placeInputMessage("Kapı / Apartman No", kapiIn), placeInputMessage("Daire No", daireIn)].filter((m) => m !== null);
+  const place = kapiIn.status === "ok" && daireIn.status === "ok" ? calcPlaceNumber(kapiIn.value, daireIn.value) : null;
+  const kapiShown = kapiIn.status === "ok" && kapiIn.altered ? kapiIn.raw : null;
+  const daireShown = daireIn.status === "ok" && daireIn.altered ? daireIn.raw : null;
+  const businessDigits = businessNameDigitGroups(bBusiness);
   const renkSet = place ? (SAYI_RENK[place.reducedNumber] ?? SAYI_RENK[9]) : null;
 
   const business = analyzeBusinessCompatibility({
@@ -141,13 +144,23 @@ export function NumerolojiEvIsYeriSayisiTab() {
           <div className="grid grid-cols-2 gap-2">
             <div>
               <label className={labelClass}>Kapı / Apartman No</label>
-              <input type="text" inputMode="numeric" value={kapiNoRaw} onChange={(e) => setKapiNoRaw(e.target.value.replace(/\D/g, ""))} placeholder="4" className={inputClass} />
+              <input type="text" inputMode="numeric" maxLength={32} value={kapiNoRaw} onChange={(e) => setKapiNoRaw(e.target.value)} placeholder="4" className={inputClass} data-testid="noj-place-kapi" />
             </div>
             <div>
               <label className={labelClass}>Daire No</label>
-              <input type="text" inputMode="numeric" value={daireNoRaw} onChange={(e) => setDaireNoRaw(e.target.value.replace(/\D/g, ""))} placeholder="11" className={inputClass} />
+              <input type="text" inputMode="numeric" maxLength={32} value={daireNoRaw} onChange={(e) => setDaireNoRaw(e.target.value)} placeholder="11" className={inputClass} data-testid="noj-place-daire" />
             </div>
           </div>
+          {placeMsgs.length > 0 ? (
+            <div className="mt-2 space-y-1" data-testid="noj-place-msgs">
+              {placeMsgs.map((m) => (
+                <p key={m.text} className={`text-[11px] font-semibold ${m.tone === "error" ? "text-rose-600" : "text-amber-700"}`}>{m.text}</p>
+              ))}
+              {placeMsgs.some((m) => m.tone === "info") ? (
+                <p className="text-[10px] text-slate-500">Kaynak yöntemde harfli, bölü veya tireli numaralar için ayrı bir kural yoktur.</p>
+              ) : null}
+            </div>
+          ) : null}
           <div className="mt-2">
             <label className={labelClass}>Not / Açıklama (opsiyonel)</label>
             <input type="text" value={not} onChange={(e) => setNot(e.target.value)} placeholder="Örn. Ana ofis, kiralık daire…" className={inputClass} />
@@ -159,9 +172,9 @@ export function NumerolojiEvIsYeriSayisiTab() {
             <div className={cardClass}>
               <p className="mb-2 text-[10px] font-black uppercase tracking-wider text-violet-600">Hesap Adımları</p>
               <div className="flex min-w-0 flex-wrap items-center gap-1.5 text-sm font-black text-slate-700">
-                <span className="rounded-md bg-violet-100 px-2 py-0.5 text-violet-800">{place.buildingNumber}</span>
+                <span className="rounded-md bg-violet-100 px-2 py-0.5 text-violet-800">{kapiShown ? `${kapiShown} → ${place.buildingNumber}` : place.buildingNumber}</span>
                 <span className="text-slate-400">+</span>
-                <span className="rounded-md bg-fuchsia-100 px-2 py-0.5 text-fuchsia-800">{place.unitNumber}</span>
+                <span className="rounded-md bg-fuchsia-100 px-2 py-0.5 text-fuchsia-800">{daireShown ? `${daireShown} → ${place.unitNumber}` : place.unitNumber}</span>
                 <span className="text-slate-400">=</span>
                 <span className="rounded-md bg-slate-100 px-2 py-0.5 text-slate-700">{place.rawTotal}</span>
                 {place.steps.map((adim, i) => (
@@ -182,7 +195,7 @@ export function NumerolojiEvIsYeriSayisiTab() {
                 <div className="min-w-0">
                   {not.trim() && <p className="mb-0.5 text-[11px] font-semibold text-slate-400">{not.trim()}</p>}
                   <p className="text-xs text-slate-500 leading-snug">
-                    No:{place.buildingNumber} · D:{place.unitNumber}
+                    No:{kapiShown ?? place.buildingNumber} · D:{daireShown ?? place.unitNumber}
                     {place.rawTotal !== place.reducedNumber ? ` → ${place.rawTotal} → ${place.reducedNumber}` : ` → ${place.reducedNumber}`}
                   </p>
                 </div>
@@ -198,7 +211,9 @@ export function NumerolojiEvIsYeriSayisiTab() {
           </>
         ) : (
           <div className="min-w-0 px-[clamp(8px,2.5vw,14px)] py-6 text-center md:rounded-[12px] md:border-2 md:border-dashed md:border-violet-200/60 md:bg-white/60 md:px-4">
-            <p className="text-xs font-semibold text-slate-400">Kapı ve daire numarasını girerek hesaplamayı başlatın.</p>
+            <p className="text-xs font-semibold text-slate-400">
+              {kapiIn.status === "empty" || daireIn.status === "empty" ? "Kapı ve daire numarasını girerek hesaplamayı başlatın." : "Hesap için iki numarayı da geçerli girin."}
+            </p>
           </div>
         )}
       </div>
@@ -249,6 +264,11 @@ export function NumerolojiEvIsYeriSayisiTab() {
             ))}
             {business.unsupportedCharacters.length > 0 && (
               <p className="text-[10px] text-amber-600">Kaynak alfabede desteklenmeyen harf: {business.unsupportedCharacters.join(", ")}</p>
+            )}
+            {businessDigits.length > 0 && (
+              <p className="text-[10px] text-amber-600" data-testid="noj-business-digits">
+                İşyeri adındaki rakamlar ({businessDigits.join(", ")}) harf tablosunda yer almadığı için hesaba katılmaz.
+              </p>
             )}
             <div className="flex min-w-0 items-start gap-2 rounded-[10px] border border-slate-200/80 bg-slate-50/80 px-3 py-2">
               <span className="mt-px shrink-0 text-slate-400 text-sm">ℹ</span>

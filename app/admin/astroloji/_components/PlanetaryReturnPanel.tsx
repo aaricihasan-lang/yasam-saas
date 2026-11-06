@@ -12,6 +12,7 @@ import type { AspectType } from "@/lib/astrology/model/western";
 import { PLANETARY_RETURN_CYCLE_NOTE, PLANETARY_RETURN_LABELS, PLANETARY_RETURN_METHOD_TEXT, PLANETARY_RETURN_TYPICAL_INTERVAL, motionLabel, type PlanetaryReturnTechnical } from "@/lib/astrology/model/westernPlanetaryReturn";
 import { ASPECT_GLYPHS, ASPECT_LABELS, BODY_GLYPHS, BODY_LABELS, HOUSE_SYSTEM_LABELS, NATURE_LABELS, SIGN_GLYPHS, SIGN_LABELS, formatDegree } from "@/lib/astrology/labels/tr";
 import NatalWheel, { type WheelChart } from "./NatalWheel";
+import { fitGridCell, fitGridStyle } from "./atlas/fitGrid";
 
 export type PlanetaryReturnPlace = { locationId: string | null; label: string; latitude: number; longitude: number; timezone: string | null };
 
@@ -181,9 +182,9 @@ export function PlanetaryReturnPanel({ t, place = null, showWheel = true }: { t:
       </Section>
       {c.houses.length > 0 && (
         <Section title="Ev başlangıçları (cusp)" testId="astro-pr-cusps">
-          <div className="grid grid-cols-2 gap-x-4 gap-y-1 px-3 py-2 text-sm sm:grid-cols-3">
+          <div className="grid gap-y-1 px-3 py-2 text-sm" style={fitGridStyle()} data-fit-grid="cusps">
             {c.houses.map((h) => (
-              <div key={h.number} className="flex items-center justify-between gap-2 border-b border-slate-50 py-1">
+              <div key={h.number} className={fitGridCell}>
                 <span className="font-medium text-slate-600">{h.number}. ev</span>
                 <Sign sign={h.sign} degree={h.degreeInSign} />
               </div>

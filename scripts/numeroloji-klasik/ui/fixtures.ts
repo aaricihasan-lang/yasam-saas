@@ -105,8 +105,9 @@ export function buildFixtures() {
     motor: {
       hayatYolu: { display: "38/11", key: "38/11", steps: [] },
       ifadeSayisi: { display: "33/6" },
+      // H1: Ana Kulvar anahtarsız eski kayıt (karşılaştırma yapılmaz) · Yan Kulvar güncel kayıt (anahtar 8).
       anaKulvar: { display: "19/2", componentValues: [19] },
-      yanKulvar: { display: "8" },
+      yanKulvar: { display: "8", key: "8" },
       zirveYillari: { peaks: [{ value: 3, startAge: 0, endAge: 34 }, { value: 5 }, { value: 8 }, { value: 4 }] },
       pinKodu: { a: 1 },
       cakraOmurgasi: { b: 2 },

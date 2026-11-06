@@ -136,6 +136,18 @@ export const PATTERN_LABELS: Record<PatternKind, string> = {
 export const ELEMENT_LABELS: Record<Element, string> = { fire: "Ateş", earth: "Toprak", air: "Hava", water: "Su" };
 export const MODALITY_LABELS: Record<Modality, string> = { cardinal: "Öncü", fixed: "Sabit", mutable: "Değişken" };
 
+/** Natal'ın 8 ev sistemi (Aşama 2, #643): mevcut 4 + klasik 4 — yalnız etiket (rapor/arşiv yöntem satırı ham kimlik göstermesin). */
+export const NATAL_HOUSE_SYSTEM_LABELS: Record<string, string> = {
+  placidus: "Placidus",
+  "whole-sign": "Tam Burç (Whole Sign)",
+  equal: "Eşit Ev",
+  koch: "Koch",
+  regiomontanus: "Regiomontanus",
+  campanus: "Campanus",
+  porphyry: "Porphyry",
+  alcabitius: "Alcabitius",
+};
+
 export const HOUSE_SYSTEM_LABELS: Record<HouseSystem, string> = {
   placidus: "Placidus",
   "whole-sign": "Tam Burç (Whole Sign)",

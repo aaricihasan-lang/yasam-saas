@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyUserRequest } from "@/lib/auth/userGuard";
+import { trialWriteDenied, verifyUserRequest } from "@/lib/auth/userGuard";
 import { restoreContextFrom } from "@/lib/backup/guardContext";
 import { commitHdRestoreFile, planHdFileRestore, storeHdRestorePart } from "@/lib/backup/hdFiles";
 
@@ -21,6 +21,9 @@ const NO_STORE = { "Cache-Control": "no-store" } as const;
 export async function POST(req: NextRequest) {
   const guard = await verifyUserRequest(req, { includeProfile: true });
   if (!guard.ok) return guard.response;
+  // TRIAL7: süresi dolmuş / durdurulmuş / incelemedeki deneme uzmanı geri yükleme (yazma) yapamaz.
+  const trialDenied = trialWriteDenied(guard.profile);
+  if (trialDenied) return trialDenied;
   if (guard.is_demo_account) {
     return NextResponse.json({ ok: false, error: "Demo hesabında bu işlem kullanılamaz." }, { status: 403 });
   }

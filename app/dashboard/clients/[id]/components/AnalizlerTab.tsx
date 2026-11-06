@@ -117,10 +117,22 @@ function safeFileName(value: string) {
 
 // ─── valueClass — dynamic input highlight based on +/- prefix ────────────────
 // Stays as a function (not static Tailwind) because value is runtime state.
+// G2-03 (Owner): DY premium skin (dyp.module.css) input zeminini beyaza zorluyor → yalnız zemin `!` ile
+// hafif şeffaf. Eksi yalnız sayının işaretiyse: -, − (U+2212), – (U+2013) + isteğe bağlı boşluk/% + rakam.
+const NEGATIVE_NUMBER_RE = /^[-−–]\s*%?\s*\d/;
+// C5 (2026-11-04): "İşaret +/- Sayı %" ve Ç.Gezegen hücreleri yalnız işaretli sayı kabul eder
+// (örn. +10, -20, −5, %15, 12,5). Harf/metin yazılamaz; kayıtta biçim ayrıca doğrulanır.
+// Eril/Dişil alanları DEĞİŞMEDİ. Eski kayıtlar salt okunur açılır; yalnız yeni kayıt/düzenleme doğrulanır.
+const SIGNED_NUMBER_INPUT_STRIP_RE = /[^0-9+\-−–%.,\s]/g;
+const SIGNED_NUMBER_RE = /^[+\-−–]?\s*%?\s*\d+(?:[.,]\d+)?\s*%?$/;
+function isValidSignedNumber(value: string | undefined): boolean {
+  const v = (value ?? "").trim();
+  return v === "" || SIGNED_NUMBER_RE.test(v);
+}
 function valueClass(value: string): string {
   const trimmed = value.trim();
-  if (trimmed.startsWith("+")) return "border-green-400 bg-green-50 text-green-800 ring-2 ring-green-100";
-  if (trimmed.startsWith("-")) return "border-red-400 bg-red-50 text-red-800 ring-2 ring-red-100";
+  if (trimmed.startsWith("+")) return "border-green-400 !bg-green-500/15 text-green-800 ring-2 ring-green-100";
+  if (NEGATIVE_NUMBER_RE.test(trimmed)) return "border-red-400 !bg-red-500/15 text-red-800 ring-2 ring-red-100";
   return "";
 }
 
@@ -168,6 +180,20 @@ export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps
   // Kayıtlı analiz "Aç" ile SALT OKUNUR açılır; yalnız "Düzenle" sonrası değiştirilebilir
   // (eski analizin yanlışlıkla üzerine yazılmasını engeller). Yeni analizde false.
   const [readOnly, setReadOnly] = useState(false);
+
+  // C8 (2026-11-04): analiz penceresi YALNIZ salt-okunur modda Escape ile kapanır. Düzenleme
+  // modunda (kaydedilmemiş değerler olabilir) Escape BİLEREK kapatmaz; kapatma Kaydet/× ile.
+  useEffect(() => {
+    if (!activeAnalysis || !readOnly) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !document.querySelector('[role="alertdialog"]')) {
+        setActiveAnalysis(null);
+        setReadOnly(false);
+      }
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [activeAnalysis, readOnly]);
   const savingRef = useRef(false);
 
   // PERSIST için canonical TR etiket (analysis_data.title kararlı kalır — locale'e bağlı DEĞİL).
@@ -273,12 +299,13 @@ export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps
 
   function updateChakraValue(key: string, field: keyof ChakraRowValue, value: string) {
     if (readOnly) return; // savunma: salt okunurda değer değişmez
-    setChakraValues((old) => ({ ...old, [key]: { ...(old[key] || { mark: "", male: "", female: "" }), [field]: value } }));
+    const v = field === "mark" ? value.replace(SIGNED_NUMBER_INPUT_STRIP_RE, "") : value;
+    setChakraValues((old) => ({ ...old, [key]: { ...(old[key] || { mark: "", male: "", female: "" }), [field]: v } }));
   }
 
   function updatePlanetValue(key: string, value: string) {
     if (readOnly) return;
-    setPlanetValues((old) => ({ ...old, [key]: value }));
+    setPlanetValues((old) => ({ ...old, [key]: value.replace(SIGNED_NUMBER_INPUT_STRIP_RE, "") }));
   }
 
   async function clearAll() {
@@ -385,6 +412,10 @@ export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps
   async function saveAnalysis() {
     if (!activeAnalysis) { showToast({ title: t("toast.failTitle"), message: t("toast.selectFirst"), type: "error" }); return; }
     if (readOnly || savingRef.current) return; // salt okunurda kayıt yok · çift tıklama → tek istek
+    const numbersOk = activeAnalysis === "planet"
+      ? Object.values(planetValues).every((v) => isValidSignedNumber(v))
+      : Object.values(chakraValues).every((row) => isValidSignedNumber(row?.mark));
+    if (!numbersOk) { showToast({ title: t("toast.failTitle"), message: t("toast.invalidNumber"), type: "error" }); return; }
     savingRef.current = true;
     setSavingAnalysis(true);
     try {
@@ -637,7 +668,7 @@ export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps
 
       {/* Analysis modal */}
       {activeAnalysis && (
-        <div className="fixed inset-0 z-[10000] bg-slate-950/58 backdrop-blur-[7px] flex items-center justify-center p-2 sm:p-2.5">
+        <div data-dy-analysis-modal="" className="fixed inset-0 z-[10000] bg-slate-950/58 backdrop-blur-[7px] flex items-center justify-center p-2 sm:p-2.5">
           <div className="w-full max-w-[1780px] h-[94vh] overflow-y-auto overflow-x-hidden bg-gradient-to-br from-white to-slate-50 rounded-[20px] border border-white/85 shadow-[0_24px_70px_rgba(15,23,42,0.34)] relative">
 
             {/* PDF capture area — html2canvas reads computed CSS, Tailwind classes work identically to inline styles */}

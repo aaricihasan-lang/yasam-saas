@@ -99,6 +99,7 @@
         "deleteSuccess": "{n} mineral başarıyla silindi.",
         "wordDownloadStarted": "Word raporu için indirme başlatıldı. Dosyayı tarayıcınızın İndirilenler bölümünde bulabilirsiniz.",
         "wordFailed": "Word raporu oluşturulamadı. Lütfen tekrar deneyin.",
+        "wordNoResults": "Bu seçim için rapora eklenecek mineral bulunamadı.",
         "selectAllLabel": "Tümünü Seç",
         "exportSelectedLabel": "Seçilenleri Word'e Aktar",
         "loadingList": "Mineraller yükleniyor...",
@@ -150,6 +151,12 @@
         "wordBusy": "⏳...",
         "refresh": "Yenile",
         "editButton": "✏️ Düzenle",
+        "deleteButton": "Sil",
+        "deleteTitle": "Minerali Kalıcı Olarak Sil",
+        "deleteMessage": "\"{name}\" kalıcı olarak silinecek. Bu işlem geri alınamaz.",
+        "deleteSecond": "Son onay: \"{name}\" kalıcı olarak silinsin mi?",
+        "deleteFailed": "Silme başarısız: {error}",
+        "deletedToast": "\"{name}\" silindi.",
         "matchLabel": "Eşleşme:",
         "loading": "Mineral yükleniyor...",
         "loadFailedTitle": "Mineral yüklenemedi",
@@ -199,7 +206,9 @@
         },
         "invalidId": "Geçersiz mineral kimliği.",
         "notFound": "Mineral kaydı bulunamadı.",
-        "loadError": "Mineral kayıtları okunamadı: {error}"
+        "loadError": "Mineral kayıtları okunamadı: {error}",
+        "backToList": "← Mineral Listesi",
+        "backToSearch": "← Aramaya Dön"
       },
       "edit": {
         "lineHint": "her satır bir madde",

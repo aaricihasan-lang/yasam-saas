@@ -20,7 +20,7 @@ import { assertServerOnly } from "@/lib/server/serverOnlyGuard";
 import { verifyAdminRequest, type AdminGuardResult } from "@/lib/auth/adminGuard";
 import { requireModuleAccess, type UserGuardResult } from "@/lib/auth/userGuard";
 import { isAstrologyModuleEnabled } from "../config";
-import { resolveAstrologyEntitlements, type AstrologyEntitlements } from "./entitlements";
+import { hasTechniqueEntitlement, resolveAstrologyEntitlements, type AstrologyEntitlements } from "./entitlements";
 
 assertServerOnly("lib/astrology/access/ownerGate");
 
@@ -156,14 +156,39 @@ export async function requireAstrologyAccess(req: NextRequest, deps: AstrologyAc
   }
   if (!UUID_RE.test(String(tenantId ?? ""))) return { ok: false, response: astrologyNotFoundResponse() };
   const flags = guard.profile?.module_permissions;
+  // 2026-11-03 teknik izinleri: uzmanın kaydı her istekte DB'den (önbellek YOK → izin kaldırılınca bir sonraki istek reddedilir).
+  // Owner için okunmaz (owner → bütün katalog). Okunamazsa (kolon yok / DB hatası) → hiçbir teknik (fail-closed; modül açık kalır).
+  const techniqueGrants = isOwner ? null : await readAstrologyTechniqueGrants(guard.db, guard.userId);
   const entitlements = resolveAstrologyEntitlements({
     isOwner,
     role,
     flags: flags && typeof flags === "object" && !Array.isArray(flags) ? (flags as Record<string, unknown>) : null,
+    techniqueGrants,
   });
   if (!entitlements.module) return { ok: false, response: astrologyNotFoundResponse() };
   if (deps.ownerOnly && !isOwner) return { ok: false, response: astrologyNotFoundResponse() };
   return { ok: true, ctx: { db: guard.db, userId: guard.userId, tenantId, entitlements, isOwner } };
+}
+
+/** users.astrology_technique_grants (yalnız sunucu). Hata / satır yok → null (= hiçbir teknik). */
+export async function readAstrologyTechniqueGrants(db: SupabaseClient, userId: string): Promise<unknown> {
+  if (!UUID_RE.test(userId)) return null;
+  try {
+    const r = await db.from("users").select("astrology_technique_grants").eq("id", userId).maybeSingle();
+    if (r.error || !r.data) return null;
+    return (r.data as { astrology_technique_grants?: unknown }).astrology_technique_grants ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/** Kapalı teknik → 403 TECHNIQUE_NOT_ENTITLED (modül zaten açık; red nedeni açıkça söylenir). İzinliyse null. */
+export function astrologyTechniqueDenied(ctx: Pick<AstrologyOwnerContext, "entitlements">, technique: string): NextResponse | null {
+  if (hasTechniqueEntitlement(ctx.entitlements, technique)) return null;
+  return NextResponse.json(
+    { ok: false, code: "TECHNIQUE_NOT_ENTITLED", error: "Bu teknik için izniniz yok." },
+    { status: 403, headers: ASTRO_NO_STORE },
+  );
 }
 
 /**

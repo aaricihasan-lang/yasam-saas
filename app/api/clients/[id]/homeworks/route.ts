@@ -36,6 +36,8 @@ const ALLOWED_FIELDS = [
   "alert_dismissed_at",
 ] as const;
 
+const HOMEWORK_TITLE_REQUIRED = "Ödev başlığı zorunludur.";
+
 function pickAllowed(input: Record<string, unknown> | null | undefined): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   if (!input) return out;
@@ -122,6 +124,10 @@ export async function POST(
   }
 
   const insertFields = pickAllowed(body);
+  // M3-B (2026-11-04): başlıksız ödev kaydı engellenir — başlık zorunlu.
+  if (typeof insertFields.title !== "string" || insertFields.title.trim().length === 0) {
+    return NextResponse.json({ ok: false, error: HOMEWORK_TITLE_REQUIRED }, { status: 400 });
+  }
   // DY-A: bitiş < başlangıç (veya bozuk tarih) → 400.
   const dateErr = validateHomeworkDates(insertFields);
   if (dateErr) {
@@ -182,6 +188,10 @@ export async function PATCH(
   const patch = pickAllowed(body.patch);
   if (Object.keys(patch).length === 0) {
     return NextResponse.json({ ok: false, error: "Güncellenecek alan yok." }, { status: 400 });
+  }
+  // M3-B: başlık gönderiliyorsa boş olamaz (yalnız durum/tarih güncellemesi etkilenmez).
+  if ("title" in patch && (typeof patch.title !== "string" || patch.title.trim().length === 0)) {
+    return NextResponse.json({ ok: false, error: HOMEWORK_TITLE_REQUIRED }, { status: 400 });
   }
 
   if (!(await clientBelongsToTenant(db, clientId, tenantId))) {

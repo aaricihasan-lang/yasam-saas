@@ -87,9 +87,14 @@ import type { ProfectionsTechnical } from "@/lib/astrology/model/westernProfecti
 import { PlanetaryReturnPanel, planetaryReturnWheel, type PlanetaryReturnPlace } from "./PlanetaryReturnPanel";
 import { PLANETARY_RETURN_LABELS, type PlanetaryReturnTechnical } from "@/lib/astrology/model/westernPlanetaryReturn";
 // 2026-10-22 — Deklinasyon paralelleri (ayrı satırlar: paralel teknik eklemeleriyle birleştirme çakışması olmasın).
+import { ClassicalDignitiesPanel } from "./ClassicalDignitiesPanel";
+import { TransitScanPanel } from "./TransitScanPanel";
+import type { TransitScanTechnical } from "@/lib/astrology/model/westernTransitScan";
+import type { ClassicalDignitiesTechnical } from "@/lib/astrology/model/westernClassicalDignities";
 import { DeclinationParallelsPanel } from "./DeclinationParallelsPanel";
 import type { DeclinationParallelsTechnical } from "@/lib/astrology/model/westernDeclination";
 import { deltaTBirthNotes, deltaTTargetNotes } from "@/lib/astrology/deltaTNotice";
+import { fitGridCell, fitGridStyle } from "./atlas/fitGrid";
 
 const th = "px-2 py-1.5 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500";
 const td = "px-2 py-1.5 text-sm text-slate-800";
@@ -222,9 +227,9 @@ function Cusps({ houses }: { houses: NatalHouse[] }) {
   if (houses.length === 0) return null;
   return (
     <Section title="Ev başlangıçları (cusp)">
-      <div className="grid grid-cols-2 gap-x-4 gap-y-1 px-3 py-2 text-sm sm:grid-cols-3">
+      <div className="grid gap-y-1 px-3 py-2 text-sm" style={fitGridStyle()} data-fit-grid="cusps">
         {houses.map((h) => (
-          <div key={h.number} className="flex items-center justify-between gap-2 border-b border-slate-50 py-1">
+          <div key={h.number} className={fitGridCell}>
             <span className="font-medium text-slate-600">{h.number}. ev</span>
             <SignCell sign={h.sign} degree={h.degreeInSign} />
           </div>
@@ -909,6 +914,10 @@ export function TechniqueTechnical({
         return <PapasamyamPanel t={technical as VedicPapasamyamTechnical} names={names} />;
       case "vedic.sade_sati":
         return <SadeSatiPanel t={technical as VedicSadeSatiTechnical} kbLookup={kbLookup} />;
+      case "western.classical_dignities":
+        return <ClassicalDignitiesPanel t={technical as ClassicalDignitiesTechnical} />;
+      case "western.transit_scan":
+        return <TransitScanPanel t={technical as TransitScanTechnical} />;
       case "western.declination_parallels":
         return <DeclinationParallelsPanel t={technical as DeclinationParallelsTechnical} displayTz={typeof options.displayTz === "string" ? options.displayTz : null} kbLookup={kbLookup} />;
       case "vedic.upagraha":

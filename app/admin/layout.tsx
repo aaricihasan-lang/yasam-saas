@@ -10,8 +10,9 @@ import {
 } from "@/lib/auth/adminShellSession";
 import ModuleAccessPending from "@/components/auth/ModuleAccessPending";
 import { isAstrologyShellOwner } from "@/lib/astrology/access/ownerGate";
-import { isEducationCatalogEnabled, isEducationOwner } from "@/lib/human-design/education/educationAccess";
-import { isPrivateEducationEnabled, resolvePrivateActor } from "@/lib/human-design/education/private/privateAccess";
+import { isEducationOwner } from "@/lib/human-design/education/educationAccess";
+import { privateEnvKillSwitch, resolvePrivateActor } from "@/lib/human-design/education/private/privateAccess";
+import { isCampaignOwner } from "@/lib/campaign/adminService";
 
 /**
  * Admin route guard — Server Component.
@@ -44,21 +45,28 @@ export default async function AdminLayout({ children }: { children: ReactNode })
   } catch {
     showAstrology = false;
   }
-  // Hazır Eğitim Haritaları (FAZ 2-B1): bağlantı yalnız hazırlık kapısı AÇIK + KATI platform owner ise
-  // sunucuda render edilir. Kapı kapalıysa (varsayılan) DB'ye gidilmez.
+  // Hazır Eğitim Haritaları: bağlantı yalnız KATI platform owner'a sunucuda render edilir. Owner kararı 31.10.2026:
+  // owner yönetimi katalog kapısından bağımsız (kapı owner panelindeki anahtardır).
   let showEducation = false;
   try {
-    showEducation = isEducationCatalogEnabled() && (await isEducationOwner(getServerDb(), adminId));
+    showEducation = await isEducationOwner(getServerDb(), adminId);
   } catch {
     showEducation = false;
   }
-  // Eğitmene Özel Eğitim Haritaları (FAZ 7): bağlantı yalnız ayrı hazırlık kapısı AÇIK + DB'de gerçek owner ise.
-  // Kapı kapalıysa (varsayılan) DB'ye gidilmez; diğer adminlerin HTML'inde bağlantı hiç bulunmaz.
+  // Eğitmene Özel Eğitim Haritaları: bağlantı yalnız DB'de gerçek owner'a (acil kapatma hariç). Owner kararı 31.10.2026:
+  // arşiv anahtarı owner ekranında; diğer adminlerin HTML'inde bağlantı hiç bulunmaz.
   let showPrivateEducation = false;
   try {
-    showPrivateEducation = isPrivateEducationEnabled() && (await resolvePrivateActor(getServerDb(), adminId)) === "owner";
+    showPrivateEducation = !privateEnvKillSwitch() && (await resolvePrivateActor(getServerDb(), adminId)) === "owner";
   } catch {
     showPrivateEducation = false;
+  }
+  // Kampanya Merkezi: bağlantı yalnız KATI platform owner'a sunucuda render edilir (diğer adminlerin HTML'inde yok).
+  let showCampaign = false;
+  try {
+    showCampaign = await isCampaignOwner(getServerDb(), adminId);
+  } catch {
+    showCampaign = false;
   }
 
   return (
@@ -95,6 +103,11 @@ export default async function AdminLayout({ children }: { children: ReactNode })
         {(showEducation || showPrivateEducation) && (
           <Link href="/admin/hd-egitim-cizimleri" className="font-semibold text-violet-700 hover:underline">
             Eğitim Çizim Katmanları
+          </Link>
+        )}
+        {showCampaign && (
+          <Link href="/admin/kampanya-merkezi" className="font-semibold text-amber-700 hover:underline">
+            Kampanya Merkezi
           </Link>
         )}
       </nav>

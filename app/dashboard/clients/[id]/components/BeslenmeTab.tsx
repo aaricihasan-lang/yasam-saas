@@ -225,11 +225,15 @@ function ProfileSection({ t, clientId, profile, onSaved, onErr }: { t: Tf; clien
   // kayıtta hedef kilo SESSİZCE siliniyordu); kaydetmede açıkça doğrulanır.
   const [targetRaw, setTargetRaw] = useState("");
   const [mealRaw, setMealRaw] = useState("");
+  // M1 (2026-11-04): aralık dışı/geçersiz değer alanın ALTINDA gösterilir (önceki üst banner
+  // uzun formda görünmüyordu → "Kaydet sessiz" algısı).
+  const [fieldErr, setFieldErr] = useState<{ target?: string; meal?: string }>({});
   useEffect(() => {
     runInEffect(() => {
       setForm(profile ?? {});
       setTargetRaw(profile?.target_weight_kg != null ? String(profile.target_weight_kg).replace(".", ",") : "");
       setMealRaw(profile?.daily_meal_count != null ? String(profile.daily_meal_count) : "");
+      setFieldErr({});
     });
   }, [profile, editing]);
 
@@ -238,10 +242,15 @@ function ProfileSection({ t, clientId, profile, onSaved, onErr }: { t: Tf; clien
   const activityLabel = (a: string) => (t.has(`activity.${a}`) ? t(`activity.${a}`) : a);
   const save = async () => {
     const tw = parseDecimalInput(targetRaw, { min: 20, max: 500 });
-    if (tw.kind === "invalid" || tw.kind === "out_of_range") { onErr(t("errors.badTargetWeight")); return; }
     const mc = parseDecimalInput(mealRaw, { min: 1, max: 12 });
+    const errs: { target?: string; meal?: string } = {};
+    if (tw.kind === "invalid" || tw.kind === "out_of_range") errs.target = t("errors.badTargetWeight");
     if (mc.kind === "invalid" || mc.kind === "out_of_range" || (mc.kind === "ok" && !Number.isInteger(mc.value))) {
-      onErr(t("errors.badMealCount"));
+      errs.meal = t("errors.badMealCount");
+    }
+    setFieldErr(errs);
+    if (errs.meal || errs.target) {
+      onErr((errs.meal ?? errs.target) as string);
       return;
     }
     setSaving(true);
@@ -280,8 +289,8 @@ function ProfileSection({ t, clientId, profile, onSaved, onErr }: { t: Tf; clien
           <Select label={t("profile.goal")} value={form.goal_type ?? ""} onChange={(v) => setForm({ ...form, goal_type: v || null })} options={GOAL_TYPES.map((g) => [g, goalLabel(g)])} />
           <Select label={t("profile.activity")} value={form.activity_level ?? ""} onChange={(v) => setForm({ ...form, activity_level: v || null })} options={ACTIVITY_LEVELS.map((a) => [a, activityLabel(a)])} />
           <Text label={t("profile.dietaryPattern")} value={form.dietary_pattern ?? ""} onChange={(v) => setForm({ ...form, dietary_pattern: v || null })} />
-          <DecimalInput label={t("profile.mealCountEdit")} value={mealRaw} onChange={setMealRaw} inputMode="numeric" />
-          <DecimalInput label={t("profile.targetWeightEdit")} value={targetRaw} onChange={setTargetRaw} />
+          <DecimalInput label={t("profile.mealCountEdit")} value={mealRaw} onChange={(v) => { setMealRaw(v); setFieldErr((e) => ({ ...e, meal: undefined })); }} inputMode="numeric" error={fieldErr.meal} />
+          <DecimalInput label={t("profile.targetWeightEdit")} value={targetRaw} onChange={(v) => { setTargetRaw(v); setFieldErr((e) => ({ ...e, target: undefined })); }} error={fieldErr.target} />
           <Text label={t("profile.waterNote")} value={form.water_note ?? ""} onChange={(v) => setForm({ ...form, water_note: v || null })} />
           <Textarea label={t("profile.lifestyleEdit")} value={form.lifestyle_note ?? ""} onChange={(v) => setForm({ ...form, lifestyle_note: v || null })} />
           <Textarea label={t("profile.generalNote")} value={form.general_note ?? ""} onChange={(v) => setForm({ ...form, general_note: v || null })} />
@@ -529,7 +538,9 @@ function PreferencesSection({ t, clientId, rows, onChange, onMsg }: { t: Tf; cli
         <select value={stance} onChange={(e) => setStance(e.target.value as "preferred" | "avoided")} className="rounded border border-emerald-200 px-2 py-1 text-sm">
           <option value="preferred">{t("preferences.optPreferred")}</option><option value="avoided">{t("preferences.optAvoided")}</option>
         </select>
-        <input value={label} onChange={(e) => setLabel(e.target.value)} placeholder={t("preferences.phFood")} className="rounded border border-emerald-200 px-2 py-1 text-sm" />
+        {/* G2-02 (owner): Android uygulamasında şifre yöneticisi bu ipuçsuz alanı kullanıcı adı sanıyordu → kimlik bilgisi
+            çağrıştırmayan benzersiz ad + otomatik doldurma kapalı + parola yöneticisi yoksay ipuçları (Anamnez yöntemi). */}
+        <input name="beslenme_tercih_besin_adi" autoComplete="off" data-lpignore="true" data-1p-ignore="true" data-form-type="other" value={label} onChange={(e) => setLabel(e.target.value)} placeholder={t("preferences.phFood")} className="rounded border border-emerald-200 px-2 py-1 text-sm" />
         <input value={note} onChange={(e) => setNote(e.target.value)} placeholder={t("preferences.phNote")} className="rounded border border-emerald-200 px-2 py-1 text-sm" />
         <button onClick={add} className="rounded bg-emerald-600 px-3 py-1 text-sm font-semibold text-white">{t("preferences.add")}</button>
       </div> : null}
@@ -623,8 +634,8 @@ function Textarea({ label, value, onChange }: { label: string; value: string; on
   return <label className="flex flex-col gap-1 sm:col-span-2"><span className="text-xs text-slate-500">{label}</span><textarea value={value} onChange={(e) => onChange(e.target.value)} rows={2} className="rounded border border-emerald-200 px-2 py-1" /></label>;
 }
 /** BUG-002: metin + ondalık klavye (type=number "65,5"i sessizce boşaltır); doğrulama kaydetmede. */
-function DecimalInput({ label, value, onChange, inputMode = "decimal" }: { label: string; value: string; onChange: (v: string) => void; inputMode?: "decimal" | "numeric" }) {
-  return <label className="flex flex-col gap-1"><span className="text-xs text-slate-500">{label}</span><input type="text" inputMode={inputMode} value={value} onChange={(e) => onChange(e.target.value)} className="min-w-0 rounded border border-emerald-200 px-2 py-1" /></label>;
+function DecimalInput({ label, value, onChange, inputMode = "decimal", error }: { label: string; value: string; onChange: (v: string) => void; inputMode?: "decimal" | "numeric"; error?: string }) {
+  return <label className="flex flex-col gap-1"><span className="text-xs text-slate-500">{label}</span><input type="text" inputMode={inputMode} value={value} onChange={(e) => onChange(e.target.value)} aria-invalid={error ? true : undefined} className={`min-w-0 rounded border px-2 py-1 ${error ? "border-red-400" : "border-emerald-200"}`} />{error ? <span role="alert" className="text-xs text-red-600">{error}</span> : null}</label>;
 }
 function Select({ label, value, onChange, options }: { label: string; value: string; onChange: (v: string) => void; options: Array<readonly [string, string]> }) {
   return (
