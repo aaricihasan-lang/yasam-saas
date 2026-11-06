@@ -1,14 +1,16 @@
 /* eslint-disable @typescript-eslint/no-require-imports */
 // Gökyüzü Atlası V4 — owner canlı önizleme geri bildirimleri (2026-11-06) — UI e2e. Sentetik "Deniz Aksoy" (15.07.1990) dosyası:
 //   V4-001 analiz seçicisi açıkça "Analiz seç ▾" kutusu; kutunun tamamı tıklanır; Esc / klavye; seçimde hesaplama isteği yok.
-//   V4-002 yatay taşan tabloda ÜST kaydırma şeridi (alt çubukla eşli); uzun listenin ortasında erişilir; sığınca şerit yok.
+//   V4-002B yatay kaydırma şeridi sonuç alanının GÖRÜNEN ALT KENARINDA, yalnız taşan tablo ekrandayken (alt çubukla eşli);
+//     uzun listenin ortasında erişilir; sığınca kaybolur, daralınca geri gelir; bölüm geçişinde doğru tabloya bağlanır.
+//   V4-005 sağ üst alan tekrarsız: danışan adı / doğum bilgisi bir kez; künye satırı teknik özet; "Künye ▾" yalnız ek ayrıntı.
 //   V4-003 dar bilgi panelinde ev başlangıçları (cusp) üst üste binmez; sütun sayısı PANEL genişliğine göre (3 → 2 → 1).
 //   V4-004 harita alana sığar ve ayırıcıyla boyut değiştirir; çark etiketleri kesilmez.
 //   ZOOM (owner son yerleşim kararı, 06.11.2026): − + ⛶ araç satırında, sayaç ile "Odak modu" arasında; % yok; + / − / sığdır;
 //     harita ÜZERİNDE tekerlek yakınlaştırır, dışında normal kaydırma; Odak modu bağımsız; istek yok; telefonda iki parmak
 //     (PointerEvent benzetimi — fiziksel cihaz DEĞİL).
 //   + Atlas genel: Transit / Solar Return / Progresyon / Vedik D1 / KP / Sabit Yıldızlar — dar panelde her bölümde metin çakışması
-//     taraması, sayfa yatay taşması, taşan tablolarda üst şerit.
+//     taraması, sayfa yatay taşması, ekrandaki taşan tablolarda alt şerit.
 // Ön koşul: yerel sahte arka uç (dev-fake-backend.ts) + next start (NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:<sahte>) ve
 //   önizleme tohum verisi (ATLAS-V4-ETKILESIMLI-ONIZLEME\arac\ornek-veri-tohumu.mjs). Gerçek DB / sağlayıcı YOK.
 // Çalıştırma: node scripts/astrology/atlas-v4-owner-fixes.e2e.cjs http://localhost:4214 1536 864 [çıktı klasörü]
@@ -44,7 +46,7 @@ function overlapScan(rootSel) {
       acceptNode: (n) => {
         if (!n.textContent.trim()) return NodeFilter.FILTER_REJECT;
         const el = n.parentElement;
-        if (!el || el.closest("svg,.sr-only,[aria-hidden=true],[data-testid=atlas-hscroll-top],[data-testid=atlas-stage-hscroll]")) return NodeFilter.FILTER_REJECT;
+        if (!el || el.closest("svg,.sr-only,[aria-hidden=true],[data-testid=atlas-hscroll],[data-testid=atlas-stage-hscroll]")) return NodeFilter.FILTER_REJECT;
         // Kapalı <details> gövdesi çizilmez (kutusu ölçülse de görünmez) → yalnız <summary> sayılır.
         const det = el.closest("details");
         if (det && !det.open && !el.closest("summary")) return NodeFilter.FILTER_REJECT;
@@ -60,7 +62,7 @@ function overlapScan(rootSel) {
       rg.selectNodeContents(n);
       // Görünür kısım: kaydırma / kırpma yapan atalarının içinde kalan alan (kutunun dışına kaymış satırlar görünmez → sayılmaz).
       let clip = { l: -1e9, r: 1e9, t: -1e9, b: 1e9 };
-      for (let a = el.parentElement; a && a !== document.body; a = a.parentElement) {
+      for (let a = el; a && a !== document.body; a = a.parentElement) {
         const s = getComputedStyle(a);
         if (s.overflowX !== "visible" || s.overflowY !== "visible") {
           const ar = a.getBoundingClientRect();
@@ -193,6 +195,47 @@ function overlapScan(rootSel) {
   ok("V4-001 Transit → Natal dönüşü", callsN !== null && /^Natal/.test(await headline()), await headline());
   ok("V4-001 dönüşte de hesaplama isteği yok", (callsN ?? []).filter((c) => /^POST /.test(c) || /calculate|roxy/i.test(c)).length === 0, (callsN ?? []).join(", "));
   await page.waitForSelector("[data-testid=natal-wheel-controls]", { timeout: 30000 });
+
+  // ═════ V4-005 — sağ üst bilgi alanı TEKRARSIZ: danışan kimliği bir kez · analiz seçici · teknik künye (+ yalnız ek ayrıntılar)
+  const hdrInfo = () =>
+    page.evaluate(() => {
+      const h = Array.from(document.querySelectorAll("[data-testid=atlas-desk-header]")).find((e) => e.getClientRects().length > 0);
+      const txt = h.innerText.replace(/\s+/g, " ");
+      const count = (needle) => txt.split(needle).length - 1;
+      const meta = document.querySelector("#atlas-desk-header-details");
+      return {
+        h: Math.round(h.getBoundingClientRect().height),
+        name: count("Deniz Aksoy"),
+        birth: count("15.07.1990"),
+        place: count("İstanbul"),
+        metaTxt: (meta?.innerText ?? "").replace(/\s+/g, " ").trim(),
+        mode: meta?.dataset.meta,
+        overflowX: h.scrollWidth - h.clientWidth,
+        actions: ["Word", "PDF", "Teknik Ekle"].map((t) => Array.from(h.querySelectorAll("button, a")).some((b) => b.textContent.includes(t) && b.getClientRects().length > 0)),
+      };
+    });
+  const hc = await hdrInfo();
+  ok("V4-005 danışan adı başlıkta YALNIZ BİR KEZ", hc.name === 1, JSON.stringify(hc));
+  ok("V4-005 doğum tarihi ve yeri başlıkta yalnız bir kez", hc.birth === 1 && hc.place === 1, JSON.stringify(hc));
+  ok("V4-005 künye satırı yalnız teknik özet (teknik adı / kayıt zamanı tekrar edilmez)", /Tropikal/.test(hc.metaTxt) && /Placidus/.test(hc.metaTxt) && !/kayıt/i.test(hc.metaTxt) && !/^Natal\b/.test(hc.metaTxt), hc.metaTxt);
+  ok("V4-005 analiz seçici belirgin ('Analiz seç ▾') ve Natal başlığı seçicide", (await page.locator("[data-testid=atlas-picker-cue]:visible").count()) === 1 && /^Natal/.test((await page.locator("[data-testid=atlas-picker-headline]:visible").first().innerText()).trim()));
+  ok("V4-005 Word / PDF / Teknik Ekle erişilebilir", hc.actions.every(Boolean), JSON.stringify(hc.actions));
+  ok("V4-005 başlık yatay taşmıyor", hc.overflowX <= 1, String(hc.overflowX));
+  const hdrOverlap = await page.evaluate(overlapScan, "[data-testid=atlas-desk-header]");
+  ok("V4-005 başlıkta metin çakışması yok (uzun ad / dar panel)", hdrOverlap.count === 0, hdrOverlap.hits.join(" ; "));
+  await page.locator("[data-testid=atlas-desk-meta-toggle]:visible").first().click();
+  await page.waitForTimeout(300);
+  const ho = await hdrInfo();
+  const kunyeTxt = ((await page.locator("[data-testid=atlas-desk-kunye]:visible").first().innerText().catch(() => "")) || "").replace(/\s+/g, " ");
+  ok("V4-005 Künye ▾ açılınca ek teknik ayrıntılar (kayıt zamanı, doğum profili revizyonu, saat dilimi, saat doğruluğu)", /Kayıt zamanı/.test(kunyeTxt) && /rev \d/.test(kunyeTxt) && /Saat dilimi/.test(kunyeTxt) && /Europe\/Istanbul/.test(kunyeTxt) && /Saat doğruluğu/.test(kunyeTxt), kunyeTxt);
+  ok("V4-005 Künye açıkken de ad / doğum tarihi / yer TEKRAR EDİLMEZ", ho.name === 1 && ho.birth === 1 && ho.place === 1 && !/Deniz Aksoy/.test(kunyeTxt), JSON.stringify({ name: ho.name, birth: ho.birth, place: ho.place }));
+  ok("V4-005 Künye açıkken teknik özet tam (kısaltmasız) görünür", ho.mode === "full" && /Tropikal/.test(ho.metaTxt) && /düğüm/i.test(ho.metaTxt), ho.metaTxt.slice(0, 160));
+  await shot("v4-005-kunye-acik");
+  await page.locator("[data-testid=atlas-desk-meta-toggle]:visible").first().click();
+  await page.waitForTimeout(300);
+  const hcl = await hdrInfo();
+  ok("V4-005 Künye ▴ ile yeniden kompakt (aynı yükseklik)", hcl.h === hc.h && hcl.mode === "compact", `${hc.h} → ${ho.h} → ${hcl.h}`);
+  info("V4-005 başlık yüksekliği", `kapalı ${hc.h}px · açık ${ho.h}px`);
 
   // ═════ V4-004 — harita sığar ve ayırıcıyla boyut değiştirir (yakınlaştırma düğmeleri araç satırında; aşağıda ZOOM)
   ok("V4-004 haritanın üstünde ayrı yakınlaştırma kartı / % göstergesi yok", (await page.locator("[data-testid=astro-result-view] [data-testid=atlas-zoom-level], [data-testid=atlas-chart-frame] [role=toolbar], [data-testid=atlas-chart-frame] [data-testid=atlas-zoom-in]").count()) === 0);
@@ -416,36 +459,70 @@ function overlapScan(rootSel) {
   ok("ZOOM işlemleri hesaplama / kayıt / sağlayıcı isteği üretmez", zoomCalls.length === 0, zoomCalls.join(", ") || `GET: ${apiCalls.length}`);
   await shot("zoom-arac-satiri");
 
-  // ═════ V4-002 — üst yatay kaydırma (Natal → Gezegenler, panel EN DAR)
+  // ═════ V4-002B — yatay kaydırma: sonuç alanının GÖRÜNEN ALT KENARINDA, yalnız taşan tablo ekrandayken
+  /** Şerit ölçümü: konum (panel kaydırma kabının hemen altı / telefonda ekranın altı), bağlı tablo, veriyi örtme. */
+  const stripState = () =>
+    page.evaluate(() => {
+      const st = Array.from(document.querySelectorAll("[data-testid=atlas-hscroll]")).find((e) => e.getClientRects().length > 0);
+      const sc = document.querySelector("[data-testid=atlas-panel-scroll]");
+      const info = document.querySelector("[data-testid=atlas-info-panel]");
+      if (!st) return { shown: false };
+      const r = st.getBoundingClientRect();
+      const out = { shown: true, label: st.dataset.targetLabel, placement: st.dataset.placement, h: Math.round(r.height) };
+      if (sc) {
+        const s = sc.getBoundingClientRect();
+        const ir = info.getBoundingClientRect();
+        // Masaüstü: kaydırma kabının hemen ALTINDA (veriyi örtmez, dikey çubukla çakışmaz) ve bilgi kolonunun alt kenarında.
+        out.belowScroll = r.top >= s.bottom - 0.5;
+        out.atPanelBottom = Math.abs(r.bottom - (ir.bottom - 1)) <= 2.5;
+      } else {
+        out.atViewportBottom = Math.abs(r.bottom - window.innerHeight) <= 1.5 || r.bottom <= window.innerHeight;
+      }
+      return out;
+    });
+  /** Panelde ekranda en az 40 px görünen yatay taşan kap var mı (şeridin görünmesi gereken durum). */
+  const overflowOnScreen = (rootSel, scopeSel) =>
+    page.evaluate(
+      ([rootSel, scopeSel]) => {
+        const root = document.querySelector(rootSel);
+        if (!root) return 0;
+        const scope = scopeSel ? document.querySelector(scopeSel) : null;
+        const vp = scope ? scope.getBoundingClientRect() : { top: 0, bottom: window.innerHeight };
+        return Array.from(root.querySelectorAll("*")).filter((el) => {
+          const ox = getComputedStyle(el).overflowX;
+          if (!((ox === "auto" || ox === "scroll") && el.scrollWidth - el.clientWidth > 1 && el.getClientRects().length > 0)) return false;
+          if (scope && el === scope) return false;
+          const r = el.getBoundingClientRect();
+          return Math.min(r.bottom, vp.bottom) - Math.max(r.top, vp.top) >= 40;
+        }).length;
+      },
+      [rootSel, scopeSel],
+    );
+  const panelScope = isDesk ? "[data-testid=atlas-panel-scroll]" : null;
   if (isDesk) await setPanel("End");
   await section("gezegenler");
   if (!isDesk) {
-    // Telefon / tablet: sayfa kayar — kullanıcı gibi tabloya iner (yapışkan bölüm başlığı + şerit tablonun üstünde kalır).
+    // Telefon / tablet: sayfa kayar — kullanıcı gibi tabloya iner.
     await page.evaluate(() => document.querySelector("#atlas-result-panel table")?.scrollIntoView({ block: "center" }));
     await page.waitForTimeout(600);
   }
-  const top = page.locator("[data-testid=atlas-hscroll-top]:visible").first();
-  const hasTop = (await top.count()) > 0;
-  info("V4-002 bilgi içeriği genişliği (panel en dar)", isDesk ? `${await panelW()} px` : "telefon / tablet");
-  const planetsOverflow = await page.evaluate(() =>
-    Array.from(document.querySelectorAll("#atlas-result-panel *")).some((el) => {
-      const ox = getComputedStyle(el).overflowX;
-      return (ox === "auto" || ox === "scroll") && el.scrollWidth - el.clientWidth > 1 && el.getClientRects().length > 0;
-    }),
-  );
-  if (planetsOverflow) ok("V4-002 taşan Gezegenler tablosunda üst kaydırma şeridi var ve tabloya bağlı", hasTop && (await top.getAttribute("data-active")) === "1", hasTop ? `${await top.getAttribute("data-target-label")}` : "şerit yok");
-  else ok("V4-002 Gezegenler tablosu bu genişlikte sığıyor → gereksiz şerit yok", !hasTop);
-  if (hasTop) {
-    ok("V4-002 şerit Gezegenler tablosuna bağlı", /Gezegen/.test((await top.getAttribute("data-target-label")) ?? ""), await top.getAttribute("data-target-label"));
+  info("V4-002B bilgi içeriği genişliği (panel en dar)", isDesk ? `${await panelW()} px` : "telefon / tablet");
+  const planetsOverflow = (await overflowOnScreen("#atlas-result-panel", panelScope)) > 0;
+  const s0 = await stripState();
+  if (planetsOverflow) {
+    ok("V4-002B taşan Gezegenler tablosu ekrandayken şerit görünür ve tabloya bağlı", s0.shown && /Gezegen/.test(s0.label ?? ""), JSON.stringify(s0));
+    if (isDesk) ok("V4-002B şerit bilgi panelinin ALT kenarında, kaydırma kabının altında (veriyi örtmez)", s0.belowScroll === true && s0.atPanelBottom === true, JSON.stringify(s0));
+    else ok("V4-002B telefonda şerit ekranın alt kenarında", s0.atViewportBottom === true && s0.placement === "fixed-bottom", JSON.stringify(s0));
+  } else ok("V4-002B Gezegenler tablosu bu genişlikte sığıyor → şerit yok", !s0.shown, JSON.stringify(s0));
+  if (s0.shown) {
     const sync = await page.evaluate(async () => {
-      const bar = document.querySelector("[data-testid=atlas-hscroll-top-bar]");
-      const scope = document.querySelector("[data-testid=atlas-panel-scroll]") ?? bar.closest("[data-testid=atlas-info-panel]")?.parentElement ?? document.body;
-      const cands = Array.from(document.querySelectorAll('[data-testid=atlas-result-panel], #atlas-result-panel')).flatMap((r) => Array.from(r.querySelectorAll("*"))).filter((el) => {
+      const bar = document.querySelector("[data-testid=atlas-hscroll-bar]");
+      const cands = Array.from(document.querySelectorAll("#atlas-result-panel *")).filter((el) => {
         const ox = getComputedStyle(el).overflowX;
         return (ox === "auto" || ox === "scroll") && el.scrollWidth - el.clientWidth > 1;
       });
       const t = cands[0];
-      if (!t) return { err: "taşan tablo yok", scope: !!scope };
+      if (!t) return { err: "taşan tablo yok" };
       const wait = () => new Promise((r) => setTimeout(r, 250));
       bar.scrollLeft = 40;
       bar.dispatchEvent(new Event("scroll"));
@@ -459,28 +536,46 @@ function overlapScan(rootSel) {
       t.scrollLeft = range;
       await wait();
       const end = Math.round(bar.scrollLeft);
+      // Son sütun gerçekten görünür mü (tablonun sağ kenarı kabın sağ kenarına ulaştı)
+      const tbl = t.querySelector("table") ?? t.firstElementChild;
+      const lastVisible = tbl ? Math.abs(tbl.getBoundingClientRect().right - t.getBoundingClientRect().right) <= 2 : true;
       t.scrollLeft = 0;
       await wait();
-      return { a, b, range, end, endBar: Math.round(bar.scrollWidth - bar.clientWidth) };
+      const firstVisible = tbl ? Math.abs(tbl.getBoundingClientRect().left - t.getBoundingClientRect().left) <= 2 : true;
+      return { a, b, range, end, endBar: Math.round(bar.scrollWidth - bar.clientWidth), lastVisible, firstVisible };
     });
-    ok("V4-002 üst şerit → tablo (alt çubuk) eşlenir", sync.a === 40, JSON.stringify(sync));
-    ok("V4-002 tablo (alt çubuk) → üst şerit eşlenir", sync.b === 15, JSON.stringify(sync));
-    ok("V4-002 son sütuna kadar aynı aralık (piksel eşleşmesi)", sync.end === sync.range && sync.endBar === sync.range, JSON.stringify(sync));
-    await page.locator("[data-testid=atlas-hscroll-top-right]:visible").first().click();
+    ok("V4-002B şerit → tablo eşlenir", sync.a === 40, JSON.stringify(sync));
+    ok("V4-002B tablo → şerit eşlenir", sync.b === 15, JSON.stringify(sync));
+    ok("V4-002B ilk ve son sütuna ulaşılır (piksel eşleşmesi)", sync.end === sync.range && sync.endBar === sync.range && sync.lastVisible && sync.firstVisible, JSON.stringify(sync));
+    await page.locator("[data-testid=atlas-hscroll-right]:visible").first().click();
     await page.waitForTimeout(700);
-    const afterBtn = await page.evaluate(() => Math.round(document.querySelector("[data-testid=atlas-hscroll-top-bar]").scrollLeft));
-    ok("V4-002 '›' düğmesi sağa kaydırır", afterBtn > 0, String(afterBtn));
-    await page.locator("[data-testid=atlas-hscroll-top-bar]:visible").first().focus();
+    const afterBtn = await page.evaluate(() => Math.round(document.querySelector("[data-testid=atlas-hscroll-bar]").scrollLeft));
+    ok("V4-002B '›' düğmesi sağa kaydırır", afterBtn > 0, String(afterBtn));
+    await page.locator("[data-testid=atlas-hscroll-bar]:visible").first().focus();
     await page.keyboard.press("Home");
     await page.waitForTimeout(300);
     for (let i = 0; i < 3; i++) await page.keyboard.press("ArrowRight");
     await page.waitForTimeout(400);
-    const afterKey = await page.evaluate(() => Math.round(document.querySelector("[data-testid=atlas-hscroll-top-bar]").scrollLeft));
-    ok("V4-002 şerit klavyeyle (→) kaydırılır", afterKey > 0, String(afterKey));
-    await shot("v4-002-gezegenler-ust-kaydirma");
+    const afterKey = await page.evaluate(() => Math.round(document.querySelector("[data-testid=atlas-hscroll-bar]").scrollLeft));
+    ok("V4-002B şerit klavyeyle (Home, →) kaydırılır", afterKey > 0, String(afterKey));
+    await page.keyboard.press("Home");
+    await shot("v4-002b-gezegenler-alt-kaydirma");
   }
-  // Uzun liste: Açılar — listenin ORTASINDAYKEN üst şerit görünür alanda ve tabloya bağlı
+  // Bölüm geçişi: Evler → (taşan tablo yoksa şerit yok) → Açılar (Açılar tablosuna bağlanır, Gezegenler'e DEĞİL)
+  await section("evler");
+  const evOv = (await overflowOnScreen("#atlas-result-panel", panelScope)) > 0;
+  const sEv = await stripState();
+  ok("V4-002B Evler'e geçince şerit Gezegenler'de kalmaz (taşma yoksa yok)", evOv ? sEv.shown && !/Gezegen/.test(sEv.label ?? "") : !sEv.shown, JSON.stringify({ evOv, ...sEv }));
   await section("acilar");
+  if (!isDesk) {
+    await page.evaluate(() => document.querySelector("[data-testid=astro-aspects-scroll]")?.scrollIntoView({ block: "center" }));
+    await page.waitForTimeout(500);
+  }
+  const acOv = (await overflowOnScreen("#atlas-result-panel", panelScope)) > 0;
+  const sAc = await stripState();
+  if (acOv) ok("V4-002B Açılar'a geçince şerit Açılar tablosuna bağlanır", sAc.shown && /Açılar/.test(sAc.label ?? ""), JSON.stringify(sAc));
+  else ok("V4-002B Açılar tablosu sığıyor → şerit yok", !sAc.shown, JSON.stringify(sAc));
+  // Uzun liste: listenin ORTASINDAYKEN şerit görünen alt kenarda ve tabloya bağlı; alt satırlar şeridin altında kalmaz
   const mid = await page.evaluate(async () => {
     const box = document.querySelector("[data-testid=astro-aspects-scroll]");
     const scope = document.querySelector("[data-testid=atlas-panel-scroll]");
@@ -488,37 +583,56 @@ function overlapScan(rootSel) {
     box.scrollTop = Math.floor((box.scrollHeight - box.clientHeight) / 2);
     if (scope) scope.scrollTop = Math.floor((scope.scrollHeight - scope.clientHeight) / 2);
     else {
-      // Telefon / tablet: sayfa kayar — kullanıcı gibi önce listeye iner, sonra listenin ortasına.
       box.scrollIntoView({ block: "start" });
       await new Promise((r) => setTimeout(r, 300));
       window.scrollBy(0, Math.floor(box.getBoundingClientRect().height / 2));
     }
     await new Promise((r) => setTimeout(r, 400));
-    const top = Array.from(document.querySelectorAll("[data-testid=atlas-hscroll-top]")).find((e) => e.getClientRects().length > 0);
+    const st = Array.from(document.querySelectorAll("[data-testid=atlas-hscroll]")).find((e) => e.getClientRects().length > 0);
     const pinBar = document.querySelector("[data-testid=atlas-mobile-sections-bar]");
     const inner = pinBar?.firstElementChild?.getBoundingClientRect();
     const barOnScreen = inner ? inner.top >= -0.5 && inner.bottom <= window.innerHeight + 0.5 : null;
-    if (!top) return { overflow: box.scrollWidth - box.clientWidth, top: null, pinned: pinBar ? pinBar.dataset.pinned : "masa", barOnScreen };
-    const r = top.getBoundingClientRect();
-    return { overflow: box.scrollWidth - box.clientWidth, visible: r.top >= 0 && r.bottom <= window.innerHeight, active: top.dataset.active, label: top.dataset.targetLabel, boxScrollTop: box.scrollTop, pinned: pinBar ? pinBar.dataset.pinned : "masa", barOnScreen };
+    const ov = box.scrollWidth - box.clientWidth;
+    if (!st) return { overflow: ov, strip: null, barOnScreen };
+    const r = st.getBoundingClientRect();
+    return { overflow: ov, onScreen: r.top >= 0 && r.bottom <= window.innerHeight + 0.5, label: st.dataset.targetLabel, placement: st.dataset.placement, barOnScreen };
   });
-  if (mid.overflow > 1) ok("V4-002 uzun Açılar listesinin ortasında üst şerit ekranda ve tabloya bağlı", mid.visible && mid.active === "1", JSON.stringify(mid));
-  // Başlık doğal yerinden çıkmışsa sabitlenir; sayfa o kadar kaymıyorsa zaten yerinde görünür — her iki durumda EKRANDA.
-  if (!isDesk) ok("telefon/tablet: uzun listenin ortasında bölüm çipleri + şerit ekranda (gerekirse üstte sabit)", mid.barOnScreen === true, JSON.stringify(mid));
-  else info("V4-002 Açılar tablosu bu genişlikte yatay taşmıyor (şerit gerekmez)", JSON.stringify(mid));
-  ok("V4-002 sayfa yatay taşmıyor (panel en dar)", (await pageOverflowX()) <= 1, String(await pageOverflowX()));
-  if (isDesk) {
-    await setPanel("Home");
-    await section("gezegenler");
-    const wideTop = await page.locator("[data-testid=atlas-hscroll-top]:visible").count();
-    const fits = await page.evaluate(() => {
-      const p = document.querySelector("#atlas-result-panel");
-      return Array.from(p.querySelectorAll("*")).every((el) => {
-        const ox = getComputedStyle(el).overflowX;
-        return !(ox === "auto" || ox === "scroll") || el.scrollWidth - el.clientWidth <= 1;
-      });
+  if (mid.overflow > 1) ok("V4-002B uzun Açılar listesinin ortasında şerit ekranda (alt kenar) ve Açılar'a bağlı", mid.onScreen === true && /Açılar/.test(mid.label ?? ""), JSON.stringify(mid));
+  else info("V4-002B Açılar tablosu bu genişlikte yatay taşmıyor (şerit gerekmez)", JSON.stringify(mid));
+  if (!isDesk) ok("telefon/tablet: uzun listenin ortasında bölüm çipleri ekranda (gerekirse üstte sabit)", mid.barOnScreen === true, JSON.stringify(mid));
+  if (!isDesk && mid.overflow > 1) {
+    // Telefon: panelin SONUNA inince son satır şeridin altında kalmaz (kartın sonunda şerit kadar yer).
+    const endChk = await page.evaluate(async () => {
+      const card = document.querySelector("[data-testid=atlas-hscroll-spacer]")?.parentElement;
+      if (!card) return { err: "kart yok" };
+      const box = document.querySelector("[data-testid=astro-aspects-scroll]");
+      box.scrollTop = box.scrollHeight;
+      card.scrollIntoView({ block: "end" });
+      await new Promise((r) => setTimeout(r, 450));
+      const st = document.querySelector("[data-testid=atlas-hscroll]");
+      const rows = Array.from(document.querySelectorAll("#atlas-result-panel tr, #atlas-result-panel li")).filter((e) => e.getClientRects().length > 0);
+      const last = rows[rows.length - 1];
+      if (!st || !last) return { strip: !!st, last: !!last };
+      const sr = st.getBoundingClientRect();
+      const lr = last.getBoundingClientRect();
+      return { lastBottom: Math.round(lr.bottom), stripTop: Math.round(sr.top), placement: st.dataset.placement, clear: lr.bottom <= sr.top + 1 || lr.top >= sr.bottom - 1 };
     });
-    ok("V4-002 geniş panelde tablo sığınca gereksiz şerit yok", fits ? wideTop === 0 : wideTop === 1, `sığıyor=${fits} şerit=${wideTop} · içerik ${await panelW()} px`);
+    ok("V4-002B telefonda panelin sonunda son satır şeridin altında kalmaz", endChk.clear !== false, JSON.stringify(endChk));
+    await page.evaluate(() => window.scrollTo(0, 0));
+  }
+  ok("V4-002B sayfa yatay taşmıyor (panel en dar)", (await pageOverflowX()) <= 1, String(await pageOverflowX()));
+  if (isDesk) {
+    // Daralt / genişlet: sığınca şerit kendiliğinden kaybolur, yeniden daralınca geri gelir (sayfa yenilemeden)
+    await section("gezegenler");
+    await setPanel("Home");
+    await page.waitForTimeout(500);
+    const wideOv = (await overflowOnScreen("#atlas-result-panel", panelScope)) > 0;
+    const sWide = await stripState();
+    ok("V4-002B panel genişleyince tablo sığar → şerit kendiliğinden kaybolur", wideOv ? sWide.shown : !sWide.shown, `taşma=${wideOv} şerit=${sWide.shown} · içerik ${await panelW()} px`);
+    await setPanel("End");
+    await page.waitForTimeout(500);
+    const sNarrow = await stripState();
+    ok("V4-002B panel yeniden daralınca şerit kendiliğinden geri gelir", sNarrow.shown && /Gezegen/.test(sNarrow.label ?? ""), JSON.stringify(sNarrow));
   }
 
   // ═════ V4-003 — Evler: ev başlangıçları (cusp) dar / orta / geniş panelde ve uygulama menüsü açık / kapalı
@@ -616,7 +730,8 @@ function overlapScan(rootSel) {
       }).length;
     });
     if (stageO.texts > 0) ok(`${name} — sol teknik sonuç alanında metin çakışması yok`, stageO.count === 0, stageO.hits.join(" ; "));
-    if (stageOverflow > 0) ok(`${name} — sol alanda taşan ${stageOverflow} tablo için üst şerit var`, stageTop === 1);
+    const stageOnScreen = await overflowOnScreen("[data-testid=atlas-stage-scroll], [data-testid=atlas-mobile-stage]", isDesk ? "[data-testid=atlas-stage-scroll]" : null);
+    if (stageOverflow > 0) ok(`${name} — sol alan: taşan tablo ekrandaysa alt şerit var, değilse yok`, stageOnScreen > 0 ? stageTop === 1 : stageTop === 0, `ekranda ${stageOnScreen} · şerit ${stageTop}`);
     if (isDesk && layout === "table") {
       // Sol teknik sonuç alanı EN DAR (harita / sonuç payı en küçük): çakışma yok; taşan tablo varsa üst şerit var.
       await setPanel("Home");
@@ -627,7 +742,16 @@ function overlapScan(rootSel) {
       });
       const top2 = await page.locator("[data-testid=atlas-stage-hscroll]:visible").count();
       ok(`${name} — sol alan EN DAR: metin çakışması yok`, o2.count === 0, o2.hits.join(" ; "));
-      if (ov2 > 0) ok(`${name} — sol alan EN DAR: taşan ${ov2} kap → üst şerit var`, top2 === 1);
+      const on2 = await overflowOnScreen("[data-testid=atlas-stage-scroll]", "[data-testid=atlas-stage-scroll]");
+      if (ov2 > 0) ok(`${name} — sol alan EN DAR: taşan tablo ekrandaysa alt şerit var`, on2 > 0 ? top2 === 1 : top2 === 0, `taşan ${ov2} · ekranda ${on2} · şerit ${top2}`);
+      if (top2 === 1) {
+        const pos = await page.evaluate(() => {
+          const st = Array.from(document.querySelectorAll("[data-testid=atlas-stage-hscroll]")).find((e) => e.getClientRects().length > 0);
+          const sc = document.querySelector("[data-testid=atlas-stage-scroll]");
+          return st && sc ? st.getBoundingClientRect().top >= sc.getBoundingClientRect().bottom - 0.5 : null;
+        });
+        ok(`${name} — sol alan şeridi sonuç alanının alt kenarında (veriyi örtmez)`, pos === true, String(pos));
+      }
       info(`${name} sol alan en dar`, `${await page.locator("[data-testid=atlas-stage-scroll]").first().evaluate((el) => el.clientWidth)} px · taşan ${ov2}`);
       await shot(`teknik-${prefix.replace(/\W+/g, "-")}-sol-dar`);
       await setPanel("End");
@@ -646,9 +770,10 @@ function overlapScan(rootSel) {
           return (ox === "auto" || ox === "scroll") && el.scrollWidth - el.clientWidth > 1 && el.getClientRects().length > 0;
         }).length;
       });
-      const topN = await page.locator("[data-testid=atlas-hscroll-top]:visible").count();
+      const topN = await page.locator("[data-testid=atlas-hscroll]:visible").count();
+      const onScr = await overflowOnScreen("#atlas-result-panel", isDesk ? "[data-testid=atlas-panel-scroll]" : null);
       ok(`${name} · ${id} — metin çakışması yok`, o.count === 0, o.hits.join(" ; "));
-      if (ov > 0) ok(`${name} · ${id} — ${ov} taşan kap → üst şerit var`, topN === 1);
+      if (ov > 0) ok(`${name} · ${id} — taşan tablo ekrandaysa alt şerit var, değilse yok`, onScr > 0 ? topN === 1 : topN === 0, `taşan ${ov} · ekranda ${onScr} · şerit ${topN}`);
       perTab.push(`${id}${ov ? `(taşan ${ov})` : ""}`);
     }
     ok(`${name} — sayfa yatay taşmıyor`, (await pageOverflowX()) <= 1, String(await pageOverflowX()));

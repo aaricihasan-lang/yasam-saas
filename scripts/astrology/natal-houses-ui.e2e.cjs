@@ -213,10 +213,19 @@ function measureInPage(sels) {
   await page.waitForTimeout(1500);
   // 2026-11-05: V3 seçici (varsayılan) ya da eski şerit (bayrak kapalı) — bkz. atlas-e2e-open-analysis.cjs
   const openTab = (id) => openBenchAnalysis(page, id, mobile);
+  // V4-005 (2026-11-06 owner, tekrarsız künye): teknik adı seçici başlığında, ev sistemi hemen altındaki künye satırında.
+  // Seçici yoksa (eski şerit kipi) önceki tek satır ölçütü aynen.
+  const resultHas = async (tech, house) => {
+    const hl = page.locator("[data-testid=atlas-picker-headline]:visible").first();
+    if ((await hl.count()) === 0) return new RegExp(`${tech}[^\n]*${house}`).test(await page.locator("body").innerText());
+    const head = (await hl.innerText()).trim();
+    const meta = (await page.locator("#atlas-desk-header-details:visible").first().innerText()).replace(/\s+/g, " ");
+    return head.startsWith(tech) && new RegExp(`(^|· )${house}( ·|$)`).test(meta.trim());
+  };
   await openTab("western.natal");
   await revealHeaderActions(page); // V3 telefon: künye (ev sistemi) "⋯" altında
   const head = await page.locator("body").innerText();
-  ok("sonuç: Natal başlığında Campanus", /Natal[^\n]*Campanus/.test(head));
+  ok("sonuç: Natal başlığında Campanus", await resultHas("Natal", "Campanus"), head.split("\n").filter((l) => /Natal|Campanus/.test(l)).slice(0, 3).join(" | "));
   ok("sonuç: kaynak satırı (Yaşam Sistemi klasik ev hesabı)", head.includes("Evler: Yaşam Sistemi klasik ev hesabı"));
   ok("sonuç: sağlayıcı adı görünmez", !/Roxy/i.test(head));
   await shot("C-sonuc-natal-campanus");
@@ -230,11 +239,11 @@ function measureInPage(sels) {
     await shot("C2-sonuc-yorum");
   }
   await openTab("western.synastry");
-  ok("sonuç: Sinastri Placidus (ortak seçim)", /Sinastri[^\n]*Placidus/.test(await page.locator("body").innerText()));
+  ok("sonuç: Sinastri Placidus (ortak seçim)", await resultHas("Sinastri", "Placidus"));
   await openTab("western.solar_return");
-  ok("sonuç: Solar return Placidus (ortak seçim)", /Solar return[^\n]*Placidus/.test(await page.locator("body").innerText()));
+  ok("sonuç: Solar return Placidus (ortak seçim)", await resultHas("Solar return", "Placidus"));
   await openTab("western.natal");
-  ok("sonuç: Natal hâlâ Campanus", /Natal[^\n]*Campanus/.test(await page.locator("body").innerText()));
+  ok("sonuç: Natal hâlâ Campanus", await resultHas("Natal", "Campanus"));
   await shot("C3-sonuc-solar-return");
 
   // ── Aşama 4) Kaydet → kayıtlı (arşiv) analizi aç: ev hesabı satırı + canlı ile aynı klasik sistem notu; motor sürümü görünmez ──

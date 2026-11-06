@@ -166,12 +166,14 @@ const api = async (path) => {
   if (!phone) {
     const tg = page.locator("[data-testid=atlas-desk-meta-toggle]:visible").first();
     const metaTxt = await page.locator("#atlas-desk-header-details").first().innerText();
-    ok("künye tek satırda (Placidus, kayıt)", /Placidus/.test(metaTxt) && /kayıt/.test(metaTxt), metaTxt.replace(/\s+/g, " ").slice(0, 80));
+    // V4-005 (2026-11-06 owner): künye satırı yalnız teknik özet (teknik adı seçicide, kayıt zamanı "Künye ▾" içinde).
+    ok("künye tek satırda (Placidus) — teknik adı / kayıt zamanı tekrar edilmez", /Placidus/.test(metaTxt) && !/kayıt/.test(metaTxt) && !/^\s*Natal\b/.test(metaTxt), metaTxt.replace(/\s+/g, " ").slice(0, 80));
     await tg.click();
     await page.waitForTimeout(300);
     const hOpen = (await page.locator("[data-testid=atlas-desk-header]").first().boundingBox()).height;
     const fullTxt = await page.locator("#atlas-desk-header-details").first().innerText();
-    ok("Künye ▾ açılınca tam künye (danışan + çipler) görünür", (await page.locator("[data-testid=atlas-desk-meta-toggle]:visible").first().getAttribute("aria-expanded")) === "true" && (await page.locator("ul[data-testid=atlas-chart-meta]:visible").count()) === 1 && /Danışan/.test(fullTxt), `${Math.round(hOpen)}px`);
+    const clientName = (await page.locator("[data-testid=atlas-picker-client] b").first().innerText()).trim();
+    ok("Künye ▾ açılınca ek ayrıntılar (kayıt zamanı, revizyon, saat dilimi, Danışan Yolculuğu) — danışan adı tekrar edilmez", (await page.locator("[data-testid=atlas-desk-meta-toggle]:visible").first().getAttribute("aria-expanded")) === "true" && (await page.locator("[data-testid=atlas-desk-kunye]:visible").count()) === 1 && /Kayıt zamanı/.test(fullTxt) && /rev \d/.test(fullTxt) && /Saat dilimi/.test(fullTxt) && /Danışan/.test(fullTxt) && !fullTxt.includes(clientName), `${Math.round(hOpen)}px · ${fullTxt.replace(/\s+/g, " ").slice(0, 160)}`);
     await page.locator("[data-testid=atlas-desk-meta-toggle]:visible").first().click();
     await page.waitForTimeout(300);
     ok("Künye ▴ ile tekrar tek satır", Math.round((await page.locator("[data-testid=atlas-desk-header]").first().boundingBox()).height) === Math.round(hdr.height));
