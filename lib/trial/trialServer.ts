@@ -24,19 +24,23 @@ type Env = Record<string, string | undefined>;
 /**
  * Onaysız 7 günlük deneme kaydı AÇIK mı? Üç koşul BİRLİKTE gerekir (Owner: anahtarlar + güvenlik
  * testleri tamamlanmadan canlıda açılmaz):
- *   TRIAL_SELF_SIGNUP_ENABLED=1 · TURNSTILE_SECRET_KEY · NEXT_PUBLIC_TURNSTILE_SITE_KEY.
+ *   TRIAL_SELF_SIGNUP_ENABLED=1 · TRIAL_TURNSTILE_SECRET_KEY · TRIAL_TURNSTILE_SITE_KEY.
  * Kapalıyken /api/register bugünkü yönetici onaylı akışla BİREBİR çalışır.
+ *
+ * Kayıt sistemi Cloudflare'da AYRI bir Turnstile widget'ı kullanır (TRIAL_TURNSTILE_*). Kampanya Merkezi'nin
+ * TURNSTILE_SECRET_KEY / NEXT_PUBLIC_TURNSTILE_SITE_KEY anahtarları burada OKUNMAZ ve otomatik denemeyi AÇMAZ.
+ * Site anahtarı tarayıcıya GET /api/register ile sunucudan verilir (NEXT_PUBLIC_ gerekmez; gizli değildir).
  */
 export function isSelfTrialSignupEnabled(env: Env = process.env): boolean {
   return (
     env.TRIAL_SELF_SIGNUP_ENABLED === "1" &&
-    !!env.TURNSTILE_SECRET_KEY?.trim() &&
-    !!env.NEXT_PUBLIC_TURNSTILE_SITE_KEY?.trim()
+    !!env.TRIAL_TURNSTILE_SECRET_KEY?.trim() &&
+    !!env.TRIAL_TURNSTILE_SITE_KEY?.trim()
   );
 }
 
 export function turnstileSiteKey(env: Env = process.env): string | null {
-  return env.NEXT_PUBLIC_TURNSTILE_SITE_KEY?.trim() || null;
+  return env.TRIAL_TURNSTILE_SITE_KEY?.trim() || null;
 }
 
 // ─── Cloudflare Turnstile — sunucu tarafı Siteverify (ZORUNLU) ─────────────────
@@ -63,7 +67,7 @@ export async function verifyTurnstileToken(
   opts: { env?: Env; fetchImpl?: FetchLike; idempotencyKey?: string } = {},
 ): Promise<TurnstileResult> {
   const env = opts.env ?? process.env;
-  const secret = env.TURNSTILE_SECRET_KEY?.trim();
+  const secret = env.TRIAL_TURNSTILE_SECRET_KEY?.trim();
   if (!secret) return { ok: false, reason: "not_configured" };
   if (typeof token !== "string" || token.length < 10 || token.length > TURNSTILE_TOKEN_MAX) {
     return { ok: false, reason: "missing_token" };
@@ -99,7 +103,7 @@ export async function verifyTurnstileToken(
   if (typeof data.action === "string" && data.action !== TURNSTILE_ACTION) {
     return { ok: false, reason: "action_mismatch" };
   }
-  const allowedHosts = (env.TURNSTILE_ALLOWED_HOSTNAMES ?? "")
+  const allowedHosts = (env.TRIAL_TURNSTILE_ALLOWED_HOSTNAMES ?? "")
     .split(",")
     .map((h) => h.trim().toLowerCase())
     .filter(Boolean);
