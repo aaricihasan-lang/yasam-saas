@@ -30,8 +30,11 @@ process.env.NEXT_PUBLIC_SUPABASE_URL = "http://fake-supabase.local";
 process.env.SUPABASE_SERVICE_ROLE_KEY = "fake-service-role-key";
 process.env.RATE_LIMIT_SECRET = "harness-rate-limit-secret";
 delete process.env.TRIAL_SELF_SIGNUP_ENABLED;
-delete process.env.TURNSTILE_SECRET_KEY;
-delete process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
+delete process.env.TRIAL_TURNSTILE_SECRET_KEY;
+delete process.env.TRIAL_TURNSTILE_SITE_KEY;
+// Kampanya Merkezi'nin anahtarları (ayrı widget) — kayıt sistemi bunları KULLANMAMALI.
+process.env.TURNSTILE_SECRET_KEY = "kampanya-secret";
+process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY = "kampanya-site";
 delete process.env.SESSION_EXPIRY_ENFORCE;
 
 {
@@ -247,7 +250,7 @@ globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
   if (url.host === "challenges.cloudflare.com") {
     turnstile.calls++;
     const form = new URLSearchParams(String(init?.body ?? ""));
-    if (form.get("secret") !== "ts-secret") return jsonRes({ success: false }, 200);
+    if (form.get("secret") !== "trial-ts-secret") return jsonRes({ success: false }, 200);
     if (turnstile.mode === "down") throw new Error("ağ yok");
     if (turnstile.mode === "fail") return jsonRes({ success: false, "error-codes": ["invalid-input-response"] });
     return jsonRes({ success: true, action: turnstile.mode === "action" ? "login" : "register", hostname: "yasam.test" });
@@ -325,9 +328,9 @@ async function run() {
     "R1 bayrak kapalı → bugünkü yönetici onaylı akış (provision_expert), deneme kaydı YOK");
   ok(((await (await registerGET()).json()) as Row).selfTrial === false, "R2 yapılandırma: otomatik deneme kapalı");
   process.env.TRIAL_SELF_SIGNUP_ENABLED = "1";
-  ok(((await (await registerGET()).json()) as Row).selfTrial === false, "R3 bayrak açık ama Turnstile anahtarları yok → KAPALI (fail-closed)");
-  process.env.TURNSTILE_SECRET_KEY = "ts-secret";
-  process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY = "ts-site";
+  ok(((await (await registerGET()).json()) as Row).selfTrial === false, "R3 bayrak açık + yalnız Kampanya Turnstile anahtarları → KAPALI (kayıt kendi TRIAL_TURNSTILE_* anahtarını ister)");
+  process.env.TRIAL_TURNSTILE_SECRET_KEY = "trial-ts-secret";
+  process.env.TRIAL_TURNSTILE_SITE_KEY = "ts-site";
   const cfg = (await (await registerGET()).json()) as Row;
   ok(cfg.selfTrial === true && cfg.turnstileSiteKey === "ts-site", "R4 bayrak + anahtarlar → açık, yalnız herkese açık site anahtarı döner", cfg);
   const hashBefore = calledRpc("hash_password").length;
