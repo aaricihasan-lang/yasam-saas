@@ -33,7 +33,7 @@ export function VisitorHeader({ highlight, right }: { highlight: boolean; right?
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <span className="brandPlate"><img src="/premium/brand/yasam-sistemi-logo.webp" alt="Yaşam Sistemi" width={127} height={36} /></span>
       <nav className="vzNav" aria-label="Sayfa bölümleri">{highlight ? <span className="on">Ücretsiz Analiz</span> : null}<span>Modüller</span><span>Mobil Uygulama</span><span>Güvenlik</span></nav>
-      <div className="vzHActions">{right ?? <><span className="vzLogin">Giriş</span><span className="vzBtn sm vzGold">3 Gün Ücretsiz Deneyin</span></>}</div>
+      <div className="vzHActions">{right ?? <><span className="vzLogin">Giriş</span><span className="vzBtn sm vzGold">7 Gün Ücretsiz Deneyin</span></>}</div>
     </div>
   );
 }
@@ -45,7 +45,7 @@ export function VisitorHero({ compact }: { compact: boolean }) {
         <p className="vzEyebrow">Profesyoneller için tek merkez</p>
         <h1 className="vzH1">Danışan, analiz ve seans süreçlerinizi <em>tek merkezden yönetin</em></h1>
         {!compact && <p className="vzSub">Danışan kayıtlarından yaşam analizlerine, seans takibinden içerik ve raporlama araçlarına kadar tüm süreçlerinizi Yaşam Sistemi ile daha düzenli, daha verimli ve daha anlamlı bir şekilde yönetin.</p>}
-        <ul className="vzTrust"><li>Kredi kartı gerekmez</li><li>Yönetici onayıyla başlar</li><li>3 gün ücretsiz keşif</li></ul>
+        <ul className="vzTrust"><li>Kredi kartı gerekmez</li><li>Birkaç adımda başlar</li><li>7 gün ücretsiz keşif</li></ul>
       </div>
       <div className="vzScene" style={{ backgroundImage: "url('/premium/landing/hero-sahne.webp')" }} aria-hidden="true" />
     </section>

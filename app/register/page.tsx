@@ -2,12 +2,14 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { FormEvent, useState } from "react";
+import { FormEvent, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Loader2, Sparkles } from "lucide-react";
 import { useToast } from "@/components/ui/ToastProvider";
 import PasswordInput from "@/components/ui/PasswordInput";
-import { passwordPolicyError, REGISTER_HONEYPOT_FIELD } from "@/lib/auth/registerValidation";
+import { passwordPolicyError, REGISTER_HONEYPOT_FIELD, REGISTER_TURNSTILE_FIELD } from "@/lib/auth/registerValidation";
+import TurnstileWidget, { type TurnstileHandle } from "@/components/trial/TurnstileWidget";
+import { useSignupConfig } from "@/components/trial/useSignupConfig";
 
 const inputClass =
   "h-14 w-full rounded-2xl border border-slate-200 bg-white px-4 text-base font-semibold text-slate-700 outline-none transition focus:border-violet-300 focus:ring-4 focus:ring-violet-100";
@@ -25,6 +27,8 @@ const ERROR_CODE_KEY: Record<string, string> = {
   weak_password: "weakPassword",
   rate_limited: "rateLimited",
   invalid_request: "generic",
+  captcha_failed: "captchaFailed",
+  captcha_unavailable: "captchaFailed",
 };
 
 export default function RegisterPage() {
@@ -39,6 +43,11 @@ export default function RegisterPage() {
   // MEM-012 honeypot: insanlara görünmez; botlar doldurursa sunucu kayıt oluşturmaz.
   const [website, setWebsite] = useState("");
   const [saving, setSaving] = useState(false);
+  // TRIAL7: otomatik 7 günlük deneme açıkken Cloudflare Turnstile zorunlu (sunucu Siteverify doğrular).
+  const signup = useSignupConfig();
+  const selfTrial = signup?.selfTrial === true && !!signup.turnstileSiteKey;
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const captchaRef = useRef<TurnstileHandle | null>(null);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -75,12 +84,23 @@ export default function RegisterPage() {
       return;
     }
 
+    if (selfTrial && !captchaToken) {
+      showToast({ title: t("toast.errorTitle"), message: t("toast.captchaRequired"), type: "error" });
+      return;
+    }
+
     setSaving(true);
 
     const res = await fetch("/api/register", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ fullName: name, email: mail, password: pass, [REGISTER_HONEYPOT_FIELD]: website }),
+      body: JSON.stringify({
+        fullName: name,
+        email: mail,
+        password: pass,
+        [REGISTER_HONEYPOT_FIELD]: website,
+        ...(selfTrial && captchaToken ? { [REGISTER_TURNSTILE_FIELD]: captchaToken } : {}),
+      }),
     }).catch(() => null);
 
     if (!res) {
@@ -88,7 +108,9 @@ export default function RegisterPage() {
       setSaving(false);
       return;
     }
-    const json = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string; code?: string };
+    const json = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string; code?: string; mode?: string };
+    // Turnstile belirteci tek kullanımlıktır → her denemeden sonra yenilenir.
+    if (selfTrial) captchaRef.current?.reset();
 
     if (!res.ok || !json.ok) {
       // API artık kararlı bir `code` döndürür → locale'e göre i18n mesaj. Bilinmeyen
@@ -106,7 +128,7 @@ export default function RegisterPage() {
 
     showToast({
       title: t("toast.successTitle"),
-      message: t("toast.success"),
+      message: json.mode === "trial" ? t("toast.successInstant") : t("toast.success"),
       type: "success",
     });
 
@@ -135,7 +157,7 @@ export default function RegisterPage() {
             </p>
             <p className="mt-3 flex items-start gap-2 rounded-2xl border border-violet-200/70 bg-gradient-to-r from-violet-50 to-fuchsia-50/70 px-3.5 py-2.5 text-sm font-semibold leading-snug text-violet-800">
               <Sparkles className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
-              {t("trialNote")}
+              {selfTrial ? t("trialNoteInstant") : t("trialNote")}
             </p>
 
             <form onSubmit={handleSubmit} className="mt-6 space-y-4">
@@ -214,9 +236,13 @@ export default function RegisterPage() {
                 </label>
               </div>
 
+              {selfTrial && signup?.turnstileSiteKey ? (
+                <TurnstileWidget ref={captchaRef} siteKey={signup.turnstileSiteKey} onToken={setCaptchaToken} />
+              ) : null}
+
               <button
                 type="submit"
-                disabled={saving}
+                disabled={saving || (selfTrial && !captchaToken)}
                 className="flex h-14 w-full items-center justify-center rounded-2xl bg-gradient-to-r from-slate-950 via-violet-900 to-fuchsia-700 px-4 text-base font-bold text-white shadow-xl shadow-violet-200 transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-70"
               >
                 {saving ? (
