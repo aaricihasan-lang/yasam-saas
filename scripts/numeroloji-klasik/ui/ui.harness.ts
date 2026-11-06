@@ -530,6 +530,22 @@ async function main() {
       ok("teknik: klavye (Enter) ile açılır", (await page.locator("[data-testid=tech-toggle]").getAttribute("aria-expanded")) === "true");
       await page.locator("[data-testid=tech-all]").check({ force: true });
       ok("teknik: Tümü → 6 / 6", (await page.locator("[data-testid=tech-count]").innerText()).trim() === "6 / 6 grup seçili");
+      // D6-1 (06.11.2026): "En az bir teknik seçin" yalnız hiç teknik seçili değilken; seçim yapılınca kalkar.
+      {
+        const techErr = async () => (await page.locator(".nk-field-error").allInnerTexts()).some((t) => /En az bir teknik seçin/.test(t));
+        const nPost = count(s, "POST", /\/(analyses|hesapla)$/);
+        await page.locator("[data-testid=tech-all]").uncheck({ force: true });
+        ok("D6-1: Tümü kapatılınca 0 / 6", (await page.locator("[data-testid=tech-count]").innerText()).trim() === "0 / 6 grup seçili");
+        await page.getByRole("button", { name: "Hesapla" }).click();
+        await sleep(200);
+        ok("D6-1: hiç teknik yokken Hesapla → uyarı görünür, istek YOK", (await techErr()) && count(s, "POST", /\/(analyses|hesapla)$/) === nPost);
+        await page.locator("[data-tech=core]").check({ force: true });
+        ok("D6-1: bir teknik seçilince uyarı kalkar", !(await techErr()));
+        await page.locator("[data-tech=core]").uncheck({ force: true });
+        ok("D6-1: yeniden hiç teknik kalmayınca doğru uyarı geri gelir", await techErr());
+        await page.locator("[data-testid=tech-all]").check({ force: true });
+        ok("D6-1: Tümü seçilince uyarı kalkar, 6 / 6", !(await techErr()) && (await page.locator("[data-testid=tech-count]").innerText()).trim() === "6 / 6 grup seçili");
+      }
       ok("teknik: aç/kapat hiçbir istek göndermedi (sağlayıcı / kayıt yok)", s.log.slice(nToggle).filter((x) => x.path.startsWith("/api/numeroloji-klasik/")).length === 0, s.log.slice(nToggle).map((x) => x.path));
       await page.getByRole("button", { name: "Hesapla" }).click();
       // 30.10.2026: Hesapla KAYIT OLUŞTURMAZ → sonuç kaydedilmemiş taslak olarak açılır (URL'de kişisel bilgi YOK).
