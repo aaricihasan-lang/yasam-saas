@@ -34,8 +34,8 @@ Hesap silme: `admin_purge_archived_expert` → `DELETE FROM public.users` (FK ca
 
 ## 3. Tek deneme hakkı kaydı — saklama önerisi
 
-**Öneri: kayıt tarihinden itibaren 24 ay saklama, ardından imha (silme); hesap silinse de bu süre
-boyunca tutulur.** İmha, en geç 6 ayda bir (öneri: aylık) çalışan periyodik bir işle yapılır.
+**Kayıt tarihinden itibaren 24 ay saklama, ardından imha (silme); hesap silinse de bu süre boyunca
+tutulur.** İmha aylık çalışan periyodik bir işle yapılır.
 
 Gerekçe:
 - **Amaçla sınırlılık ve ölçülülük (KVKK m.4/2-ç, d):** Amaç, aynı kişinin yeniden ücretsiz deneme
@@ -49,16 +49,18 @@ Gerekçe:
 - **Periyodik imha:** Kişisel Verilerin Silinmesi, Yok Edilmesi veya Anonim Hale Getirilmesi Hakkında
   Yönetmelik — periyodik imha aralığı en fazla 6 ay.
 
-Uygulama (Owner onayından sonra, ayrı küçük PR): `trial_claims.claimed_at` 24 ayı aşan satırları
-silen zamanlanmış iş + Gizlilik Politikası'ndaki "bu amacın gerektirdiği süre" ifadesinin "24 ay"
-olarak güncellenmesi. İlk kayıt en erken Kasım 2028'de 24 ayı dolduracağından iş o tarihten önce
-devreye alınmalıdır. Hesap silindiğinde `first_user_id` alanının boşaltılması aynı PR'da
-değerlendirilebilir (ek veri en aza indirme).
+**Owner kararı (2026-11-07): 24 ay saklama + aylık otomatik imha ONAYLANDI ve uygulandı.**
+- Migration `20280101000100_trial7_claims_retention.sql`: `trial_claims_retention_purge(p_dry_run)`
+  (SECURITY DEFINER, süre sabit 24 ay, yalnız `trial_claims`, yalnız service_role) + `claimed_at` indeksi.
+- Inngest `trial-claims-retention-purge`: her ayın 1'i UTC 03:23; varsayılan açık; acil durdurma
+  `TRIAL_CLAIMS_RETENTION_DISABLED=true`.
+- Gizlilik Politikası → "Saklama ve Silme": 24 ay + aylık imha; süre sonunda (hesap silinmişse)
+  yeniden deneme mümkün. Yayımlanan metne hukuki dayanak yazılmadı.
 
 ## 4. Owner / hukuk kararı gereken noktalar
 
-1. **24 aylık süre ve meşru menfaat dayanağının onayı** (yukarıdaki öneri). Onaylanana kadar yayımlanan
-   metin kesin süre vermez ("amacın gerektirdiği süre").
+1. **Hukuki dayanak teyidi:** tek deneme hakkı kaydı için meşru menfaat (m.5/2-f) dayanağı ve dengeleme
+   değerlendirmesi hukukçu tarafından teyit edilmeli (süre Owner kararıyla 24 ay).
 2. **Cloudflare'e yurt dışı aktarım dayanağı (KVKK m.9):** Ücretsiz Analiz için belirlenen dayanağın
    uzman kayıt formunu da kapsadığının teyidi.
 3. Platform VERBİS kaydına tabiyse saklama-imha politikasına bu kaydın eklenmesi.

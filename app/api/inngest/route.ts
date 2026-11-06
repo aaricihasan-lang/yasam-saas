@@ -10,6 +10,7 @@ import { usage360RetentionFunction } from "@/lib/inngest/functions/usage360Reten
 import { securityIpRetentionFunction } from "@/lib/inngest/functions/securityIpRetention";
 import { workspaceStagingCleanupFunction } from "@/lib/inngest/functions/workspaceStagingCleanup";
 import { campaignMaintenanceFunction } from "@/lib/inngest/functions/campaignMaintenance";
+import { trialClaimsRetentionFunction } from "@/lib/inngest/functions/trialClaimsRetention";
 
 export const runtime = "nodejs";
 
@@ -32,5 +33,6 @@ export const { GET, POST, PUT } = serve({
     workspaceStagingCleanupFunction,
     // KAMPANYA MERKEZİ KM-3 — 10 dk kota bakımı + günlük kimlik sayacı temizliği (VARSAYILAN KAPALI, CAMPAIGN_MAINTENANCE_ENABLED).
     campaignMaintenanceFunction,
+    trialClaimsRetentionFunction,
   ],
 });
