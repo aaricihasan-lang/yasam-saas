@@ -1,15 +1,16 @@
 /**
- * TEK MİNERAL Word raporu (POST /api/dogaltas/minerals/[id]/word-report) — regresyon harness'ı (2026-10-14).
+ * TEK MİNERAL Word raporu (POST /api/dogaltas/minerals/[id]/word-report) — regresyon harness'ı
+ * (2026-10-14; 2026-11-06 premium düzen — owner kararı: kısa raporda kapak / İçindekiler / boş sayfa YOK).
  *
  * Sentetik veriyle (DB yok) gerçek saf oluşturucuyu (`buildMineralDetailDocument`) çalıştırır, DOCX'i
  * JSZip ile açar ve XML üzerinde SIKI doğrular:
- *   - İçindekiler DOLU: N>0 statik giriş, metinleri = bölüm başlıkları (sıra dahil),
- *   - her giriş w:hyperlink w:anchor → var olan yer imi; PAGEREF aynı sırada; yer imi id'leri benzersiz,
- *   - eski boş TOC alanı / SDT YOK, updateFields AÇIK,
- *   - sayfa sonu sayısı = 1 (yalnız kapak → özet); ayrı "RAPOR ÖZETİ" / boş İçindekiler sayfası YOK,
+ *   - kapak / İçindekiler / PAGEREF / sayfa sonu / updateFields YOK; kimlik bandı + "Rapor Özeti" gövdeden önce,
+ *   - her bölüm başlığı gerçek Heading + benzersiz yer imli (Gezinti Bölmesi); sıra = beklenen başlık sırası,
+ *   - eski boş TOC alanı / SDT YOK,
  *   - "İçeren Taşlar (N)" başlığı + w:tbl kompakt tablo (madde paragrafı DEĞİL), 0 ve 60 taş uç durumu,
- *   - veri kaybı yok: eski düzenin (dondurulmuş kopya) yazdığı HER metin yeni belgede de var,
- *   - kapak + alt bilgi XML'i eski düzenle BİREBİR aynı (premium tasarım korunur),
+ *   - veri kaybı yok: eski düzenin (dondurulmuş kopya) yazdığı HER etiket/değer metni yeni belgede de var
+ *     (yalnız kapak/İçindekiler sunum metinleri hariç); eski GÖVDEDEKİ hiçbir metnin tekrar sayısı azalmaz,
+ *   - alt bilgi XML'i eski düzenle BİREBİR aynı,
  *   - route kaynak kapıları (android/UUID/yetki/sanitize/Usage360) yerinde.
  * Opsiyonel: OUT_DIR verilirse DOCX'ler yazılır.
  *
@@ -112,11 +113,21 @@ const TOC_FIELD_RE = /<w:instrText[^>]*>\s*TOC\b/;
 const BREAK_RE = /<w:pageBreakBefore\/>|<w:pageBreakBefore w:val="(?:true|1)"\/>|<w:br w:type="page"\/>/g;
 /** Eski düzende değişen/kaldırılan YALNIZ sunum metinleri (alan etiketi/değeri DEĞİL). */
 const LEGACY_PRESENTATION_ONLY = new Set([
-  "RAPOR ÖZETİ",   // → "Rapor Özeti" (kompakt özet başlığı)
-  "İÇİNDEKİLER",   // → "İçindekiler" (statik TOC başlığı)
+  "RAPOR ÖZETİ",   // → "Rapor Özeti" (özet şeridi başlığı)
+  "İÇİNDEKİLER",   // İçindekiler kaldırıldı (2026-11-06 owner kararı: tek mineralde gereksiz)
   "Not: Belge düzenlenirse İçindekiler alanını Word üzerinden güncelleyebilirsiniz.",
-  "·",             // madde imi öneki (İçeren Taşlar artık tablo; diğer listelerde aynen duruyor)
+  "·",             // madde imi öneki (yeni düzende "•")
+  "BÖLÜM 1",       // "1. Genel Bilgiler" üstündeki süs etiketi (başlığın kendisi aynen)
 ]);
+/**
+ * Kapak sunum biçimleri (kapak kaldırıldı): büyük harfli kapak başlığı (adın kendisi belgede aranır)
+ * ve kapak istatistiğindeki "Etiket:" biçimi (etiketin kendisi belgede aranır).
+ */
+function presentationOnly(r: string, m: MineralRow): boolean {
+  if (LEGACY_PRESENTATION_ONLY.has(r)) return true;
+  return r === (m.name || "İsimsiz Mineral").toLocaleUpperCase("tr-TR");
+}
+const legacyLabel = (r: string) => (/^[^:]{2,30}:$/.test(r) ? r.slice(0, -1) : r);
 
 async function runCase(label: string, m: MineralRow) {
   const buf = await Packer.toBuffer(buildMineralDetailDocument(m, "ZZ_Uzman Ş"));
@@ -126,56 +137,51 @@ async function runCase(label: string, m: MineralRow) {
 
   // ── Geçerli DOCX + ayarlar
   check(`${label}: document.xml var`, p.files.includes("word/document.xml"));
-  check(`${label}: updateFields açık`, /<w:updateFields(?: w:val="(true|1)")?\/>/.test(p.settings));
+  check(`${label}: updateFields kapalı (PAGEREF yok → açılışta alan sorusu yok)`, !/<w:updateFields/.test(p.settings));
   check(`${label}: eski boş TOC alanı yok`, !TOC_FIELD_RE.test(p.doc));
   check(`${label}: TOC SDT yok`, !/<w:sdt>|<w:sdt /.test(p.doc));
   check(`${label}: (kontrol) eski düzende boş TOC alanı VARDI`, TOC_FIELD_RE.test(legacy.doc) && /<w:sdt>/.test(legacy.doc));
   check(`${label}: "RAPOR ÖZETİ" ayrı sayfası yok`, !p.text.includes("RAPOR ÖZETİ"));
-  check(`${label}: Rapor Özeti + İçindekiler başlıkları var`, p.text.includes("Rapor Özeti") && p.text.includes("İçindekiler"));
+  check(`${label}: Rapor Özeti var, İçindekiler yok`, p.text.includes("Rapor Özeti") && !p.text.includes("İçindekiler"));
 
-  // ── İçindekiler: girişler, bağlantılar, yer imleri
+  // ── İçindekiler yok; başlıklar yer imli (Gezinti Bölmesi)
   const anchors = [...p.doc.matchAll(/<w:hyperlink [^>]*w:anchor="([^"]+)"/g)].map((x) => x[1]!);
   const pagerefs = [...p.doc.matchAll(/PAGEREF ([A-Za-z0-9_]+) \\h/g)].map((x) => x[1]!);
   const bookmarks = [...p.doc.matchAll(/<w:bookmarkStart [^>]*w:name="([^"]+)"/g)].map((x) => x[1]!);
-  check(`${label}: TOC giriş sayısı N>0 ve = başlık sayısı (${titles.length})`, anchors.length > 0 && anchors.length === titles.length, `anchor=${anchors.length}`);
-  check(`${label}: PAGEREF sırası = anchor sırası`, pagerefs.length === anchors.length && JSON.stringify(pagerefs) === JSON.stringify(anchors));
-  check(`${label}: yer imi sayısı = TOC giriş sayısı`, bookmarks.length === anchors.length, `bm=${bookmarks.length}`);
+  check(`${label}: TOC bağlantısı / PAGEREF yok`, anchors.length === 0 && pagerefs.length === 0, `anchor=${anchors.length} pageref=${pagerefs.length}`);
+  check(`${label}: yer imi sayısı = başlık sayısı (${titles.length})`, bookmarks.length === titles.length, `bm=${bookmarks.length}`);
   check(`${label}: yer imleri benzersiz`, new Set(bookmarks).size === bookmarks.length);
   const bmIds = [...p.doc.matchAll(/<w:bookmarkStart [^>]*w:id="(\d+)"/g)].map((x) => x[1]!);
   const endIds = [...p.doc.matchAll(/<w:bookmarkEnd w:id="(\d+)"/g)].map((x) => x[1]!);
   check(`${label}: yer imi w:id benzersiz (OOXML)`, new Set(bmIds).size === bmIds.length && bmIds.length === bookmarks.length);
   check(`${label}: bookmarkStart/End eşleşir`, JSON.stringify(bmIds) === JSON.stringify(endIds));
-  const bmSet = new Set(bookmarks);
-  check(`${label}: her TOC hedefinin yer imi var`, anchors.every((a) => bmSet.has(a)), anchors.filter((a) => !bmSet.has(a)).join(","));
-  check(`${label}: yer imi sırası = TOC sırası`, JSON.stringify(bookmarks) === JSON.stringify(anchors));
   check(`${label}: yer imi adları Word kuralına uygun`, bookmarks.every((b) => b.length <= 40 && /^[A-Za-z][A-Za-z0-9_]*$/.test(b)));
-  const tocTitles = [...p.doc.matchAll(/<w:hyperlink [^>]*w:anchor="[^"]+"[^>]*>([\s\S]*?)<\/w:hyperlink>/g)].map((x) => xmlText(x[1]!));
-  check(`${label}: TOC metinleri = bölüm başlıkları (sıra dahil)`, JSON.stringify(tocTitles) === JSON.stringify(titles),
-    `toc=${JSON.stringify(tocTitles)} beklenen=${JSON.stringify(titles)}`);
-  // TOC gövdeden ÖNCE; her yer imi gerçek Heading paragrafında ve metni başlıkla aynı
-  const firstAnchorPos = p.doc.indexOf("<w:hyperlink ");
+  // Kimlik bandı + Rapor Özeti gövdeden ÖNCE; her yer imi gerçek Heading paragrafında, metni başlıkla aynı (sıra dahil)
   const firstBmPos = p.doc.indexOf("<w:bookmarkStart ");
-  check(`${label}: İçindekiler gövdeden önce`, firstAnchorPos > 0 && firstAnchorPos < firstBmPos);
+  const brandPos = p.doc.indexOf(">YAŞAM SİSTEMİ<");
+  const reportNamePos = p.doc.indexOf(">Mineral Detay Raporu<");
+  const summaryPos = p.doc.indexOf(">Rapor Özeti<");
+  check(`${label}: kimlik bandı + Rapor Özeti gövdeden önce`, brandPos > 0 && reportNamePos > brandPos && summaryPos > reportNamePos && summaryPos < firstBmPos);
   const paras = paragraphs(p.doc);
-  for (let i = 0; i < anchors.length; i++) {
-    const para = paras.find((x) => x.includes(`w:name="${anchors[i]}"`));
+  const headTexts: string[] = [];
+  for (let i = 0; i < bookmarks.length; i++) {
+    const para = paras.find((x) => x.includes(`w:name="${bookmarks[i]}"`));
     const isHeading = !!para && /<w:pStyle w:val="Heading[123]"\/>/.test(para);
+    headTexts.push(para ? xmlText(para).trim() : "");
     check(`${label}: "${titles[i]}" gerçek Heading + yer imli`, isHeading && xmlText(para!).trim() === titles[i], para ? xmlText(para).trim() : "paragraf yok");
   }
+  check(`${label}: başlık sırası = bölüm sırası`, JSON.stringify(headTexts) === JSON.stringify(titles),
+    `bulunan=${JSON.stringify(headTexts)} beklenen=${JSON.stringify(titles)}`);
   const h1Count = paras.filter((x) => /<w:pStyle w:val="Heading1"\/>/.test(x)).length;
   check(`${label}: H1 sayısı = 2 (Genel Bilgiler + Mineral Özellikleri)`, h1Count === 2, `h1=${h1Count}`);
   check(`${label}: H1 rengi korunur (064e3b)`, (p.doc.match(/<w:color w:val="064e3b"\/>/g) ?? []).length >= 3);
 
-  // ── Sayfa sonları: yalnız kapak → özet (1); eski düzen 3 idi
+  // ── Sayfa sonları: kapak yok → hiç zorunlu sayfa sonu yok (Word içeriğe göre sayfalar); eski düzen 3 idi
   const breaks = (p.doc.match(BREAK_RE) ?? []).length;
   const legacyBreaks = (legacy.doc.match(BREAK_RE) ?? []).length;
-  check(`${label}: sayfa sonu = 1 (kapak→özet+İçindekiler)`, breaks === 1, `breaks=${breaks}`);
+  check(`${label}: zorunlu sayfa sonu yok (kapak / özet sayfası yok)`, breaks === 0, `breaks=${breaks}`);
   check(`${label}: (kontrol) eski düzen 3 sayfa sonu`, legacyBreaks === 3, `legacy=${legacyBreaks}`);
-  // Özet ile İçindekiler arasında sayfa sonu yok
-  const sumPos = p.doc.indexOf(">Rapor Özeti<");
-  const tocPos = p.doc.indexOf(">İçindekiler<");
-  check(`${label}: özet ve İçindekiler aynı sayfa akışında`, sumPos > 0 && tocPos > sumPos && !BREAK_RE.test(p.doc.slice(sumPos, tocPos)));
-  BREAK_RE.lastIndex = 0;
+  const sumPos = summaryPos;
   // Boş paragraf yığını yok (gövdede art arda ≥3 boş paragraf → neredeyse boş sayfa riski)
   const bodyXml = p.doc.slice(sumPos);
   check(`${label}: gövdede art arda boş paragraf yığını yok`, !/(<w:p>(?:<w:pPr>(?:(?!<\/w:pPr>)[\s\S])*<\/w:pPr>)?<\/w:p>\s*){3,}/.test(bodyXml));
@@ -220,25 +226,23 @@ async function runCase(label: string, m: MineralRow) {
   const missingVals = vals.filter((v) => !p.text.includes(v.trim()));
   check(`${label}: tüm alan değerleri belgede (${vals.length})`, missingVals.length === 0, missingVals.slice(0, 3).join(" | "));
   const legacyRuns = [...new Set(runs(legacy.doc).map((r) => r.trim()).filter(Boolean))];
-  const lost = legacyRuns.filter((r) => !LEGACY_PRESENTATION_ONLY.has(r) && !p.text.includes(r));
+  const lost = legacyRuns.filter((r) => !presentationOnly(r, m) && !p.text.includes(legacyLabel(r)));
   check(`${label}: eski düzenin her etiket/değer metni korunur (${legacyRuns.length})`, lost.length === 0, lost.slice(0, 5).join(" | "));
-  // Etiket/değer çokluğu: eski belgede geçen her metin yeni belgede en az aynı sayıda (taş/önek hariç)
+  // Etiket/değer çokluğu: eski GÖVDEDE ("1. Genel Bilgiler"den itibaren; kapak/özet/İçindekiler sayfaları
+  // sonrası) geçen her metin yeni belgede en az aynı sayıda (taş/önek hariç). Kapaktaki tekrarlar kapak
+  // kaldırıldığı için sayılmaz.
   const count = (arr: string[], s: string) => arr.filter((x) => x === s).length;
   const newRunsT = runs(p.doc).map((r) => r.trim());
-  const oldRunsT = runs(legacy.doc).map((r) => r.trim());
-  const fewer = legacyRuns.filter((r) => !LEGACY_PRESENTATION_ONLY.has(r) && r !== "İçeren Taşlar" && count(newRunsT, r) < count(oldRunsT, r));
-  check(`${label}: hiçbir etiket/değer tekrar sayısı azalmaz`, fewer.length === 0, fewer.slice(0, 5).join(" | "));
+  const legacyBody = legacy.doc.slice(legacy.doc.lastIndexOf("<w:p>", legacy.doc.indexOf(">1. Genel Bilgiler<")));
+  const oldRunsT = runs(legacyBody).map((r) => r.trim());
+  const fewer = [...new Set(oldRunsT)].filter((r) => r && !presentationOnly(r, m) && r !== "İçeren Taşlar" && count(newRunsT, r) < count(oldRunsT, r));
+  check(`${label}: eski gövdedeki hiçbir etiket/değer tekrar sayısı azalmaz`, legacyBody.length > 500 && fewer.length === 0, fewer.slice(0, 5).join(" | "));
   check(`${label}: Bilgilendirme + Hazırlayan`, p.text.includes("Bilgilendirme") && p.text.includes("Hazırlayan: ZZ_Uzman Ş"));
   if (!vals.some((v) => v !== (m.name || "İsimsiz Mineral") && v !== m.kategori && v !== m.source_id)) {
     check(`${label}: boş içerik notu`, p.text.includes("Bu mineral kaydında henüz içerik girilmemiş."));
   }
 
-  // ── Premium tasarım korunur: kapak XML'i + alt bilgi eski düzenle birebir
-  const coverNew = p.doc.slice(p.doc.indexOf("<w:body>"), p.doc.search(BREAK_RE));
-  BREAK_RE.lastIndex = 0;
-  const coverOld = legacy.doc.slice(legacy.doc.indexOf("<w:body>"), legacy.doc.search(BREAK_RE));
-  BREAK_RE.lastIndex = 0;
-  check(`${label}: kapak XML'i eski düzenle birebir`, coverNew.length > 500 && coverNew.slice(0, coverNew.lastIndexOf("<w:p>")) === coverOld.slice(0, coverOld.lastIndexOf("<w:p>")));
+  // ── Alt bilgi eski düzenle birebir (sayfa no + bilgilendirme kısa notu)
   check(`${label}: alt bilgi XML'i eski düzenle birebir`, p.footers.length > 0 && JSON.stringify(p.footers) === JSON.stringify(legacy.footers));
   check(`${label}: üst bilgi eklenmedi (tasarım değişmedi)`, !p.files.some((f) => /^word\/header\d*\.xml$/.test(f)) || p.files.filter((f) => /header/.test(f)).length === legacy.files.filter((f) => /header/.test(f)).length);
 
