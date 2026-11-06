@@ -20,6 +20,7 @@ import { ArrowLeft, BookOpen, CircleDot, House, Maximize2, MoreHorizontal, Orbit
 import { atlasDisplay, atlasText } from "./fonts";
 import ChartViewport from "./ChartViewport";
 import DeskPopover from "./DeskPopover";
+import HScrollProxy from "./HScrollProxy";
 import { readYasamUser } from "@/lib/auth/yasamUser";
 
 export type DeskTone = "lavender" | "blue" | "sage" | "peach" | "gold" | "turquoise" | "slate";
@@ -939,6 +940,9 @@ function LightDesk({ backLabel, onBack, eyebrow, title, subtitle, details, meta,
   const [dragging, setDragging] = useState(false);
   const drag = useRef<{ x: number; colW: number } | null>(null);
   const panelRef = useRef<HTMLDivElement | null>(null);
+  // V4-002: üst yatay kaydırma şeridinin kapsamları (teknik sonuç alanı · telefonda bilgi içeriği).
+  const stageRef = useRef<HTMLDivElement | null>(null);
+  const mPanelRef = useRef<HTMLDivElement | null>(null);
   // İki kolon yalnız ≥1024 px ekranda VE masa için gerçekten yer varken (uygulama menüsü açıkken 1024 px'te masa ~700 px
   // kalır → harita ~350 px'e düşerdi). Dar alanda tablet düzeni: harita tam genişlikte, bilgi altında.
   const wideScreen = useDeskLayout();
@@ -1186,14 +1190,20 @@ function LightDesk({ backLabel, onBack, eyebrow, title, subtitle, details, meta,
       {chartNotes}
     </div>
   ) : null;
-  const chartNode = (compact: boolean) =>
+  // V4-004 (2026-11-06 owner): masada görünür yakınlaştırma grubu (+ / % / − / sığdır) YOK — harita bulunduğu alana
+  // oranını koruyarak sığar ve alan değişince (pencere, ayırıcı, menü) kendiliğinden yeniden boyutlanır (SVG viewBox).
+  // Yakınlaştırma / sürükleme yalnız Odak modunda (ChartViewport aynen) sürer.
+  const chartNode = () =>
     hasChart ? (
-      <ChartViewport key={chartKey} tone="light" compact={compact}>
+      <div className="absolute inset-0 flex items-center justify-center p-1" data-testid="atlas-chart-fit">
         {chart!("h-full w-full max-h-full")}
-      </ChartViewport>
+      </div>
     ) : (
-      <div className="h-full overflow-auto p-4 text-slate-800 [scrollbar-width:thin]" data-testid="atlas-stage-scroll">
-        {stage}
+      <div className="flex h-full min-h-0 flex-col">
+        <HScrollProxy rootRef={stageRef} viewportRef={stageRef} resetKey={chartKey} testId="atlas-stage-hscroll" />
+        <div ref={stageRef} className="min-h-0 flex-1 overflow-auto p-4 text-slate-800 [scrollbar-width:thin]" data-testid="atlas-stage-scroll">
+          {stage}
+        </div>
       </div>
     );
 
@@ -1227,7 +1237,7 @@ function LightDesk({ backLabel, onBack, eyebrow, title, subtitle, details, meta,
               {toolRow}
               {notesRow}
               <div className="relative min-h-0 flex-1" data-testid={hasChart ? "atlas-chart-frame" : undefined}>
-                {chartNode(false)}
+                {chartNode()}
               </div>
             </div>
           </div>
@@ -1281,8 +1291,11 @@ function LightDesk({ backLabel, onBack, eyebrow, title, subtitle, details, meta,
             {switcher && <div className="border-b border-slate-100 px-2 py-1">{switcher}</div>}
             <div className="flex min-h-0 flex-1">
               <SectionRail items={tabs} active={active} onPick={pick} narrow={infoColW < 460} />
-              <div ref={panelRef} className="min-h-0 min-w-0 flex-1 overflow-auto bg-[#fbfaf7] p-3.5 [scrollbar-width:thin]" data-testid="atlas-panel-scroll">
-                {panel}
+              <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+                <HScrollProxy rootRef={panelRef} viewportRef={panelRef} resetKey={`${chartKey ?? ""}|${active}`} />
+                <div ref={panelRef} className="min-h-0 min-w-0 flex-1 overflow-auto bg-[#fbfaf7] p-3.5 [scrollbar-width:thin]" data-testid="atlas-panel-scroll">
+                  {panel}
+                </div>
               </div>
             </div>
           </div>
@@ -1294,24 +1307,32 @@ function LightDesk({ backLabel, onBack, eyebrow, title, subtitle, details, meta,
             {header}
             {switcher && <div className="px-2 py-1">{switcher}</div>}
           </div>
-          <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm max-sm:rounded-none max-sm:border-x-0" data-testid="atlas-chart-card">
+          <div className="overflow-clip rounded-xl border border-slate-200 bg-white shadow-sm max-sm:rounded-none max-sm:border-x-0" data-testid="atlas-chart-card">
             {toolRow}
             {notesRow}
             {hasChart ? (
               <div className="relative mx-auto aspect-square w-full max-w-[min(100%,82svh)]" data-testid="atlas-mobile-chart">
-                {chartNode(true)}
+                {chartNode()}
               </div>
             ) : (
-              <div className="overflow-x-auto p-3 text-slate-800" data-testid="atlas-mobile-stage">
-                {stage}
-              </div>
+              <>
+                <div className="sticky top-0 z-10">
+                  <HScrollProxy rootRef={stageRef} resetKey={chartKey} testId="atlas-stage-hscroll" />
+                </div>
+                <div ref={stageRef} className="overflow-x-auto p-3 text-slate-800" data-testid="atlas-mobile-stage">
+                  {stage}
+                </div>
+              </>
             )}
           </div>
           <div className="rounded-xl border border-slate-200 bg-white shadow-sm max-sm:rounded-none max-sm:border-x-0">
             <div className="sticky top-0 z-20 border-b border-slate-100 bg-white/95 backdrop-blur">
               <SectionChips items={tabs} active={active} onPick={pick} />
+              <HScrollProxy rootRef={mPanelRef} resetKey={`${chartKey ?? ""}|${active}`} />
             </div>
-            <div className="overflow-x-auto bg-[#fbfaf7] p-3">{panel}</div>
+            <div ref={mPanelRef} className="overflow-x-auto bg-[#fbfaf7] p-3">
+              {panel}
+            </div>
           </div>
         </div>
       )}
