@@ -64,7 +64,12 @@ ok(parsePlaceNumberInput("").status === "empty" && parsePlaceNumberInput("   ").
 ok(parsePlaceNumberInput("B").status === "noDigits" && placeInputMessage("Daire No", parsePlaceNumberInput("B"))?.tone === "error", "rakamsız → hata mesajı");
 ok(parsePlaceNumberInput("0").status === "zero" && parsePlaceNumberInput("00").status === "zero", "0 → hata (önceden sessizce boş ekran)");
 ok(val("007") === 7, "baştaki sıfırlar: 007 → 7 (önceki parseInt davranışı)");
-ok(val("99999") === 99999 && parsePlaceNumberInput("100000").status === "tooLong", `en çok ${PLACE_NUMBER_MAX_DIGITS} hane (kampanya ucuyla aynı 1–99999)`);
+ok(PLACE_NUMBER_MAX_DIGITS === 15 && val("999999999999999") === 999999999999999 && parsePlaceNumberInput("1000000000000000").status === "tooLong", "en çok 15 hane (kitap sınırı değil; teknik tam sayı doğruluğu)");
+ok(val("123456") === 123456 && val("00000000000000000042") === 42, "kitapta sınır olmadığı için 6+ haneli numara kabul edilir; baştaki sıfırlar sayılmaz");
+{
+  const r = calcPlaceNumber(999999999999999, 999999999999999)!;
+  ok(r.rawTotal === 1999999999999998 && r.reducedNumber === root(1999999999999998 % 9 === 0 ? 9 : 1999999999999998 % 9) && Number.isSafeInteger(r.rawTotal), "15+15 hane: toplam tam sayı aralığında, kök doğru", r);
+}
 ok(parsePlaceNumberInput("1234567890123456789012").status === "tooLong", "22 hane → hata (önceden sonuç NaN gösteriliyordu)");
 {
   const old = calcPlaceNumber(parseInt("1234567890123456789012", 10), 5);

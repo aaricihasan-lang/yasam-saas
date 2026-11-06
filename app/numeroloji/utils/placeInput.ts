@@ -4,8 +4,12 @@
 // ve hesap adımları bu sayıyı kullanıcının girdisi gibi gösteriyordu. Kitapta harfli / bölü / tireli numara için
 // kural yoktur → yeni formül icat EDİLMEZ: hesap yine yalnız rakamlarla yapılır, ama dönüşüm açıkça gösterilir.
 
-/** Kampanya ücretsiz analiz ucuyla aynı üst sınır (1–99999). */
-export const PLACE_NUMBER_MAX_DIGITS = 5;
+/**
+ * Kitapta numara uzunluğu için sınır YOK; bu yalnız TEKNİK doğruluk sınırıdır: iki 15 haneli sayının toplamı
+ * JavaScript'in tam sayı aralığında (Number.MAX_SAFE_INTEGER ≈ 9×10^15) kalır. 16+ hanede toplam/sadeleştirme
+ * hassasiyet kaybıyla yanlış kök, 22+ hanede NaN üretirdi.
+ */
+export const PLACE_NUMBER_MAX_DIGITS = 15;
 
 export type PlaceNumberInput =
   | { status: "empty" }

@@ -144,11 +144,11 @@ export function NumerolojiEvIsYeriSayisiTab() {
           <div className="grid grid-cols-2 gap-2">
             <div>
               <label className={labelClass}>Kapı / Apartman No</label>
-              <input type="text" inputMode="numeric" maxLength={16} value={kapiNoRaw} onChange={(e) => setKapiNoRaw(e.target.value)} placeholder="4" className={inputClass} data-testid="noj-place-kapi" />
+              <input type="text" inputMode="numeric" maxLength={32} value={kapiNoRaw} onChange={(e) => setKapiNoRaw(e.target.value)} placeholder="4" className={inputClass} data-testid="noj-place-kapi" />
             </div>
             <div>
               <label className={labelClass}>Daire No</label>
-              <input type="text" inputMode="numeric" maxLength={16} value={daireNoRaw} onChange={(e) => setDaireNoRaw(e.target.value)} placeholder="11" className={inputClass} data-testid="noj-place-daire" />
+              <input type="text" inputMode="numeric" maxLength={32} value={daireNoRaw} onChange={(e) => setDaireNoRaw(e.target.value)} placeholder="11" className={inputClass} data-testid="noj-place-daire" />
             </div>
           </div>
           {placeMsgs.length > 0 ? (
