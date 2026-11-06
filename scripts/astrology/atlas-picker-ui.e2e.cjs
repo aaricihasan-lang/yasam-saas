@@ -154,18 +154,26 @@ const api = async (path) => {
   ok("danışan satırı profil adı", /ali örnek — natal/.test((await page.locator("[data-testid=atlas-picker-client]:visible").first().innerText()).toLocaleLowerCase("tr")));
   ok("kapalıyken liste yok", (await panel.count()) === 0);
   const hdr = await page.locator("[data-testid=atlas-desk-header]").first().boundingBox();
-  // Ölçüt: telefonda tek satır (≤ 64 px); masaüstünde eski başlık + "KAYITLI ANALİZLER" şeridi toplamından (≈ 110 + 55 px) kısa.
-  // 05.11 (owner: 768 / 1024 sadeleştirme): künye tek satır → telefon tek satır (≤ 64 px), tablet + masaüstü ≤ 140 px
-  // (önce 768 / 1024 187 px; eski başlık + şerit ≈ 165 px).
-  ok(`başlık kompakt (${phone ? "≤ 64" : "≤ 140"} px)`, hdr && hdr.height <= (phone ? 64 : 140), `${Math.round(hdr?.height ?? -1)}px`);
+  // V4 (2026-11-06, owner): haritanın üstünde başlık / künye / filtre şeridi YOK. Kimlik (seçici + danışan künyesi + kısa
+  // işlemler) sağ bilgi kolonunun EN ÜSTÜNDE; masaüstünde harita kartı ile bilgi kolonu aynı üst hizada başlar.
+  ok("kimlik başlığı kompakt (≤ 170 px; danışan + analiz + künye + işlemler)", hdr && hdr.height <= 170, `${Math.round(hdr?.height ?? -1)}px`);
+  const deskGrid = (await page.locator("[data-testid=atlas-desk-grid]").count()) > 0;
+  if (deskGrid) {
+    const card = await page.locator("[data-testid=atlas-chart-card]").first().boundingBox();
+    const info = await page.locator("[data-testid=atlas-info-panel]").first().boundingBox();
+    ok("iki kolon: harita kartı ile bilgi kolonu aynı üst hizada; üstte şerit yok", !!card && !!info && Math.abs(card.y - info.y) <= 2 && hdr.y >= info.y && hdr.y - info.y <= 2, `${Math.round(card?.y)} / ${Math.round(info?.y)}`);
+  }
   if (!phone) {
     const tg = page.locator("[data-testid=atlas-desk-meta-toggle]:visible").first();
     const metaTxt = await page.locator("#atlas-desk-header-details").first().innerText();
-    ok("künye tek satırda tam metin DOM'da (Placidus, danışan, kayıt)", /Placidus/.test(metaTxt) && /Danışan/.test(metaTxt) && /kayıt/.test(metaTxt), metaTxt.replace(/\s+/g, " ").slice(0, 80));
+    // V4-005 (2026-11-06 owner): künye satırı yalnız teknik özet (teknik adı seçicide, kayıt zamanı "Künye ▾" içinde).
+    ok("künye tek satırda (Placidus) — teknik adı / kayıt zamanı tekrar edilmez", /Placidus/.test(metaTxt) && !/kayıt/.test(metaTxt) && !/^\s*Natal\b/.test(metaTxt), metaTxt.replace(/\s+/g, " ").slice(0, 80));
     await tg.click();
     await page.waitForTimeout(300);
     const hOpen = (await page.locator("[data-testid=atlas-desk-header]").first().boundingBox()).height;
-    ok("Künye ▾ açılınca tam künye (çipler) görünür", (await page.locator("[data-testid=atlas-desk-meta-toggle]:visible").first().getAttribute("aria-expanded")) === "true" && (await page.locator("ul[data-testid=atlas-chart-meta]:visible").count()) === 1, `${Math.round(hOpen)}px`);
+    const fullTxt = await page.locator("#atlas-desk-header-details").first().innerText();
+    const clientName = (await page.locator("[data-testid=atlas-picker-client] b").first().innerText()).trim();
+    ok("Künye ▾ açılınca ek ayrıntılar (kayıt zamanı, revizyon, saat dilimi, Danışan Yolculuğu) — danışan adı tekrar edilmez", (await page.locator("[data-testid=atlas-desk-meta-toggle]:visible").first().getAttribute("aria-expanded")) === "true" && (await page.locator("[data-testid=atlas-desk-kunye]:visible").count()) === 1 && /Kayıt zamanı/.test(fullTxt) && /rev \d/.test(fullTxt) && /Saat dilimi/.test(fullTxt) && /Danışan/.test(fullTxt) && !fullTxt.includes(clientName), `${Math.round(hOpen)}px · ${fullTxt.replace(/\s+/g, " ").slice(0, 160)}`);
     await page.locator("[data-testid=atlas-desk-meta-toggle]:visible").first().click();
     await page.waitForTimeout(300);
     ok("Künye ▴ ile tekrar tek satır", Math.round((await page.locator("[data-testid=atlas-desk-header]").first().boundingBox()).height) === Math.round(hdr.height));
@@ -255,18 +263,26 @@ const api = async (path) => {
   await page.keyboard.press("Escape");
   await page.waitForTimeout(300);
 
-  // ── Telefon: ⋯ menüsü + geri tuşu ──
-  if (phone) {
+  // V4: kısa işlemler (Word / PDF / Teknik Ekle) HER genişlikte ilk ekranda; "⋯" yalnız ikincil işlemler (dosyaya dönüş,
+  // Atlas ana sayfası). Odak modu harita kartında; sistem yorumu görünürlüğü Yorum bölümünde.
+  const actTxt = await page.locator("[data-testid=atlas-desk-header-actions]").first().innerText();
+  ok("işlemler ilk ekranda: Word / PDF / Teknik Ekle", (await page.locator("[data-testid=atlas-desk-header-actions]").first().isVisible()) && /Word/.test(actTxt) && /PDF/.test(actTxt) && /Teknik Ekle/.test(actTxt), actTxt.replace(/\s+/g, " ").slice(0, 160));
+  ok("üstte 'Sistem yorumunu göster/gizle' düğmesi ve geri oku yok", (await page.locator("[data-testid=atlas-desk-header] [data-testid=astro-saved-interp-toggle]").count()) === 0 && (await page.locator("[data-testid=atlas-desk-header] button", { hasText: /^←$/ }).count()) === 0);
+  ok("'Kaydedildi · değişmez kayıt' etiketi yok", (await page.getByText("değişmez kayıt").count()) === 0);
+  {
     const menu = page.locator("[data-testid=atlas-desk-menu-toggle]:visible").first();
-    ok("telefon: işlemler kapalıyken gizli", !(await page.locator("[data-testid=atlas-desk-header-actions]").first().isVisible()));
     await menu.click();
     await page.waitForTimeout(250);
-    const actTxt = await page.locator("[data-testid=atlas-desk-header-actions]").first().innerText();
-    ok("telefon: ⋯ içinde Word / PDF / Teknik Ekle / Odak modu / Sistem yorumu", /Word/.test(actTxt) && /PDF/.test(actTxt) && /Teknik Ekle/.test(actTxt) && /Odak modu/.test(actTxt) && /yorum/i.test(actTxt), actTxt.replace(/\s+/g, " ").slice(0, 160));
-    ok("telefon: ⋯ açıkken künye görünür", await page.locator("#atlas-desk-header-details").first().isVisible());
-    ok("telefon: ⋯ açıkken yatay taşma yok", (await overflow()) <= 0);
+    const menuTxt = await page.locator("[data-testid=atlas-desk-menu]").first().innerText();
+    ok("⋯ içinde Danışan Dosyası + Gökyüzü Atlası ana sayfası", /Danışan Dosyası/.test(menuTxt) && /ana sayfa/.test(menuTxt), menuTxt.replace(/\s+/g, " ").slice(0, 160));
+    ok("⋯ açıkken yatay taşma yok", (await overflow()) <= 0);
     await shot("6-islem-menusu");
-    await menu.click();
+    await page.keyboard.press("Escape");
+    await page.waitForTimeout(200);
+    ok("⋯ Escape ile kapanır", (await page.locator("[data-testid=atlas-desk-menu]").count()) === 0);
+  }
+  // ── Telefon: geri tuşu ──
+  if (phone) {
     // geri tuşu: yalnız paneli kapatır, sayfa aynı kalır
     await openPicker();
     await page.goBack();
@@ -289,7 +305,6 @@ const api = async (path) => {
     await openClientFile(ali1.id);
     await openSavedFromFile(natalId);
   } else {
-    ok("masaüstü: ⋯ menüsü yok, işlemler görünür", !(await page.locator("[data-testid=atlas-desk-menu-toggle]").first().isVisible()) && (await page.locator("[data-testid=atlas-desk-header-actions]").first().isVisible()));
     // klavye
     await trigger.focus();
     await page.keyboard.press("ArrowDown");
@@ -370,16 +385,11 @@ const api = async (path) => {
   const savedRefsBefore = new Set(await page.locator("[data-testid=atlas-picker-panel] [data-picker-kind=saved]").evaluateAll((els) => els.map((e) => e.getAttribute("data-picker-ref"))));
   await page.keyboard.press("Escape").catch(() => {});
   await page.waitForTimeout(300);
-  if (phone) {
-    await page.locator("[data-testid=atlas-desk-menu-toggle]:visible").first().click();
-    await page.waitForTimeout(250);
-  }
   await page.locator("[data-testid=astro-desk-save]:visible").first().click();
   await page.waitForSelector("[data-testid=atlas-save-batch]", { timeout: 60000 });
   await page.locator("[data-testid=atlas-save-batch-confirm]").click();
   await page.waitForFunction(() => /başarıyla kaydedildi/.test(document.querySelector("[data-testid=astro-saved-notice]")?.textContent ?? ""), null, { timeout: 120000 });
   await page.waitForTimeout(2500);
-  if (phone && (await page.locator("[data-testid=atlas-desk-menu-toggle][aria-expanded=true]").count())) await page.locator("[data-testid=atlas-desk-menu-toggle]:visible").first().click();
   await openPicker();
   const newSaved = await page.locator("[data-testid=atlas-picker-panel] [data-picker-kind=saved]").evaluateAll((els) => els.map((e) => ({ ref: e.getAttribute("data-picker-ref"), t: e.getAttribute("data-picker-technique") })));
   const fresh = newSaved.filter((x) => !savedRefsBefore.has(x.ref));
@@ -392,7 +402,8 @@ const api = async (path) => {
   await pick(`[data-picker-ref="${fresh.find((x) => x.t === "western.transit").ref}"]`);
   ok("masa kipinde masada açık kayıtlı satır → masa sekmesi (istek yok)", (await page.locator("[data-testid=astro-saved-analysis]").count()) === 0 && /^Transit/.test(await headline()) && reqs.filter((r) => /GET \/api\/admin\/astroloji\/analyses\/[0-9a-f-]{36}/.test(r)).length === 0, await headline());
   // Kayıtlı kipe geç ("Kayıtlı analizi aç") → zincir değişmez kayıtlarla
-  if (phone && (await page.locator("[data-testid=atlas-desk-menu-toggle][aria-expanded=false]:visible").count())) await page.locator("[data-testid=atlas-desk-menu-toggle]:visible").first().click();
+  // V4: "Kayıtlı analizi aç" ikincil işlem → "⋯" menüsünde (her genişlikte)
+  if (await page.locator("[data-testid=atlas-desk-menu-toggle][aria-expanded=false]:visible").count()) await page.locator("[data-testid=atlas-desk-menu-toggle]:visible").first().click();
   await page.locator("[data-testid=astro-open-saved]:visible").first().click();
   await page.waitForSelector("[data-testid=astro-saved-analysis]", { timeout: 60000 });
   await page.waitForTimeout(800);
@@ -525,7 +536,7 @@ const api = async (path) => {
   await page.locator("[data-testid=astro-run]:visible").first().click();
   await page.waitForSelector("[data-testid=atlas-picker-trigger]", { timeout: 180000 });
   await page.waitForTimeout(1500);
-  const warnChip = page.locator("[data-testid=atlas-desk-header-primary]:visible", { hasText: "Saat bilinmiyor" });
+  const warnChip = page.locator("[data-testid=atlas-desk-header-chips]:visible", { hasText: "Saat bilinmiyor" });
   ok("künye uyarısı ('Saat bilinmiyor') menü açılmadan görünür", (await warnChip.count()) === 1, phone ? "telefon" : "masaüstü");
   await shot("10-saat-bilinmiyor-uyari");
   ok("sayfa hatası yok", errors.length === 0, errors.join(" | "));

@@ -4,7 +4,7 @@
 //   android = "android" → Android WebView kullanıcı ajanı (fiziksel cihaz testi DEĞİLDİR; yalnız UA öykünmesi).
 /* eslint-disable @typescript-eslint/no-require-imports -- düz Node CommonJS test betiği */
 const { chromium } = require("playwright");
-const { revealHeaderActions, dismissAtlasDevNotice } = require("./atlas-e2e-open-analysis.cjs");
+const { revealHeaderActions, deskMenuItem, dismissAtlasDevNotice } = require("./atlas-e2e-open-analysis.cjs");
 const { readFileSync } = require("node:fs");
 const [W = "1536", H = "844", LOG = "", UA = ""] = process.argv.slice(2);
 const width = Number(W);
@@ -114,29 +114,34 @@ const TRANSIT = { technique: "western.transit", options: { date: "2026-10-07", t
   ok("K genel user-select:none uygulanmadı", us !== "none", us);
 
   // ── G: iç ekranda "Gökyüzü Atlası Ana Sayfa" (ev) düğmesi + ← önceki ekran
-  ok("G5 iç ekranda ana sayfa (ev) düğmesi", await page.locator("[data-testid=atlas-home-btn]").first().isVisible());
+  // V4: Gökyüzü Atlası ana sayfası sağ bilgi kolonunun "⋯" menüsünde
+  ok("G5 iç ekranda ana sayfa (ev) düğmesi", await (await deskMenuItem(page, "[data-testid=atlas-home-btn]")).isVisible());
+  await page.keyboard.press("Escape");
 
-  // ── J: yakınlaştırma kartın TAMAMINI kullanır; kaydırma (pan) + %100 sıfırlama
-  const vp = page.locator("[data-testid=atlas-chart-viewport]").first();
+  // ── J: owner son yerleşim kararı (06.11.2026): yakınlaştırma düğmeleri (− + ⛶) haritanın ARAÇ SATIRINDA, sayaç ile
+  //    "Odak modu" arasında; haritanın üstünde ayrı kart ve "%" göstergesi yok. Harita kabına kare sığar; masada yakınlaştırma
+  //    kartın TAMAMINI kullanır, sürükleme + sığdır; Odak modu kendi bağımsız görüntüleyicisiyle çalışır.
+  const tools = page.locator("[data-testid=atlas-zoom-controls]:visible").first();
+  ok("J0 yakınlaştırma düğmeleri araç satırında; harita üstünde kart / % yok", (await tools.count()) > 0 && (await page.locator("[data-testid=atlas-chart-toolbar] [data-testid=atlas-zoom-controls]:visible").count()) === 1 && (await page.locator("[data-testid=astro-result-view] [data-testid=atlas-zoom-level], [data-testid=astro-result-view] [data-testid=atlas-chart-frame] [role=toolbar]").count()) === 0);
+  const fit = page.locator("[data-testid=atlas-chart-fit]").first();
+  if (await fit.isVisible().catch(() => false)) {
+    const m = await fit.evaluate((el) => {
+      const f = el.getBoundingClientRect();
+      const svg = el.querySelector("svg");
+      const s = svg.getBoundingClientRect();
+      // Çizilen çark = viewBox'ın kutuya oranı korunarak sığmış hâli (preserveAspectRatio varsayılanı: xMidYMid meet).
+      const vb = (svg.getAttribute("viewBox") || "0 0 1 1").split(/[ ,]+/).map(Number);
+      const k = Math.min(s.width / vb[2], s.height / vb[3]);
+      return { fw: f.width, fh: f.height, dw: vb[2] * k, dh: vb[3] * k, inside: s.left >= f.left - 1 && s.right <= f.right + 1 && s.top >= f.top - 1 && s.bottom <= f.bottom + 1 };
+    });
+    ok("J1 harita kabına sığar (kesilmez) ve kabın kısa kenarını doldurur", m.inside && Math.abs(Math.min(m.fw, m.fh) - Math.max(m.dw, m.dh)) <= 12, JSON.stringify(m));
+  } else ok("J harita sığdırma kabı görünür", false);
+  const vp = page.locator("[data-testid=atlas-chart-fit] [data-testid=atlas-chart-viewport]").first();
   if (await vp.isVisible().catch(() => false)) {
-    // Masaüstü masasında çerçeve atlas-chart-frame; mobil yerleşimde görüntüleyicinin doğrudan kabı.
-    const hasFrame = (await page.locator("[data-testid=atlas-chart-frame]").count()) > 0;
-    const fb = hasFrame ? await page.locator("[data-testid=atlas-chart-frame]").first().boundingBox() : await vp.evaluate((el) => el.parentElement.getBoundingClientRect().toJSON());
-    const side = hasFrame ? Number(await page.locator("[data-testid=atlas-chart-frame]").first().getAttribute("data-side")) : 0;
-    const vb = await vp.boundingBox();
-    ok("J1 görüntüleyici kart çerçevesinin tamamı (görünmez kare yok)", !!fb && !!vb && Math.abs(fb.width - vb.width) <= 3 && Math.abs(fb.height - vb.height) <= 3, `çerçeve ${fb?.width.toFixed(0)}×${fb?.height.toFixed(0)} · görüntüleyici ${vb?.width.toFixed(0)}×${vb?.height.toFixed(0)}${side ? ` · kare ${side}` : ""}`);
-    if (!mobile && hasFrame) ok("J2 masaüstünde çerçeve kareden geniş (eskiden kare kırpılıyordu)", !!fb && fb.width > side + 4, `${fb?.width.toFixed(0)} > ${side}`);
-    // Mobil yerleşimde düğme çubuğu gizli (iki parmak / klavye); yakınlaştırma klavye kısayoluyla (+) yapılır.
-    const zoomBtn = page.locator("[data-testid=atlas-zoom-in]").first();
-    const btnVisible = await zoomBtn.isVisible().catch(() => false);
-    if (btnVisible) for (let i = 0; i < 4; i++) await zoomBtn.click();
-    else {
-      await vp.locator("[role=group]").first().focus();
-      for (let i = 0; i < 4; i++) await page.keyboard.press("+");
-    }
+    for (let i = 0; i < 4; i++) await tools.locator("[data-testid=atlas-zoom-in]").click();
     await page.waitForTimeout(400);
     const lvl = await vp.getAttribute("data-scale");
-    ok("J3 yakınlaştırma ~%330", Number(lvl) > 3 && Number(lvl) < 3.5, lvl);
+    ok("J3 araç satırındaki + ile yakınlaştırma ~%330", Number(lvl) > 3 && Number(lvl) < 3.5, lvl);
     const box = await vp.boundingBox();
     const tr0 = await vp.locator("div[style*='translate']").first().getAttribute("style");
     await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
@@ -147,11 +152,30 @@ const TRANSIT = { technique: "western.transit", options: { date: "2026-10-07", t
     const tr1 = await vp.locator("div[style*='translate']").first().getAttribute("style");
     ok("J4 sürükleyerek kaydırma (pan) çalışır", tr0 !== tr1, `${tr0} → ${tr1}`);
     ok("J4b sürükleme metin seçmez", (await selLen()) === 0);
-    if (btnVisible) await page.locator("[data-testid=atlas-zoom-fit]").first().click();
-    else await page.locator("[data-testid=atlas-zoom-fit-compact]").first().click();
+    await tools.locator("[data-testid=atlas-zoom-fit]").click();
     await page.waitForTimeout(300);
     ok("J5 Sığdır → %100", (await vp.getAttribute("data-scale")) === "1.00");
-  } else ok("J görüntüleyici görünür", false);
+  } else ok("J masa görüntüleyicisi görünür", false);
+  // Odak modu: kendi görüntüleyicisi; masadaki yakınlaştırmayı bozmaz
+  await tools.locator("[data-testid=atlas-zoom-in]").click();
+  await page.waitForTimeout(300);
+  await page.locator("[data-testid=atlas-chart-expand]:visible").first().click();
+  await page.locator("[data-testid=atlas-chart-overlay]").first().waitFor({ state: "visible", timeout: 10000 });
+  const ovp = page.locator("[data-testid=atlas-chart-overlay] [data-testid=atlas-chart-viewport]").first();
+  const oStart = await ovp.getAttribute("data-scale");
+  const oBtn = ovp.locator("[data-testid=atlas-zoom-in]").first();
+  if (await oBtn.isVisible().catch(() => false)) await oBtn.click();
+  else {
+    await ovp.locator("[role=group]").first().focus();
+    await page.keyboard.press("+");
+  }
+  await page.waitForTimeout(300);
+  ok("J6 Odak modu sığdırılmış başlar ve kendi içinde yakınlaşır", oStart === "1.00" && Number(await ovp.getAttribute("data-scale")) > 1, `${oStart} → ${await ovp.getAttribute("data-scale")}`);
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(300);
+  ok("J7 Odak modundan dönünce masadaki yakınlaştırma korunur", Number(await vp.getAttribute("data-scale")) > 1, await vp.getAttribute("data-scale"));
+  await tools.locator("[data-testid=atlas-zoom-fit]").click();
+  await page.waitForTimeout(200);
 
   // ── I: natal açı tablosu: yatay kaydırma çubuğu 41 satırın altında kalmaz (sınırlı kutu + yapışkan başlık)
   await page.getByRole("tab", { name: /Açılar/ }).first().click().catch(() => undefined);
@@ -166,7 +190,7 @@ const TRANSIT = { technique: "western.transit", options: { date: "2026-10-07", t
   } else ok("I açı tablosu bulundu", false);
 
   // ── L arayüz: Danışan Dosyası'nda seçim kutuları + Seçilenleri / Tümünü Word-PDF
-  await page.locator("[data-testid=atlas-home-btn]").first().click();
+  await (await deskMenuItem(page, "[data-testid=atlas-home-btn]")).click();
   await page.waitForTimeout(1200);
   ok("G6 ev düğmesi → modül ana ekranı (Yaşam Sistemi dashboard'u değil)", (await hero.isVisible()) && page.url().startsWith(BASE));
   await page.evaluate((p) => {
@@ -194,7 +218,7 @@ const TRANSIT = { technique: "western.transit", options: { date: "2026-10-07", t
   }
 
   // ── B + D: 2 kaydedilmemiş analizle çıkış yolları; mobil sekme durumları
-  await page.locator("[data-testid=atlas-home-btn]").first().click().catch(() => undefined);
+  await (await deskMenuItem(page, "[data-testid=atlas-home-btn]")).click().catch(() => undefined);
   await page.evaluate(() => {
     window.location.hash = "yeni-analiz";
   });
@@ -247,7 +271,7 @@ const TRANSIT = { technique: "western.transit", options: { date: "2026-10-07", t
   await page.waitForTimeout(400);
   if (await page.locator("[data-testid=atlas-add-technique]").isVisible().catch(() => false)) await page.locator("[data-testid=atlas-add-technique] button[aria-label*='Kapat'], [data-testid=atlas-add-close]").first().click().catch(() => undefined);
   // B1 ev düğmesi (modül içi) uyarısız, sonuçlar kaybolmaz; Yeni Analiz'de "kaydedilmemiş" bandı
-  await page.locator("[data-testid=atlas-home-btn]").first().click();
+  await (await deskMenuItem(page, "[data-testid=atlas-home-btn]")).click();
   await page.waitForTimeout(800);
   ok("B1 ev düğmesi: modül içi, uyarı yok", !(await dlg.isVisible()) && (await hero.isVisible()));
   await page.locator("[data-portal=new]").first().click();
@@ -289,7 +313,7 @@ const TRANSIT = { technique: "western.transit", options: { date: "2026-10-07", t
     await page.waitForTimeout(500);
   }
   // Geri zinciri modül içindeki önceki görünümlerden geçer; devam sonrası sonuçların bellekte durduğu Yeni Analiz bandından doğrulanır.
-  await page.locator("[data-testid=atlas-home-btn]").first().click().catch(() => undefined);
+  await (await deskMenuItem(page, "[data-testid=atlas-home-btn]")).click().catch(() => undefined);
   if (!(await hero.isVisible().catch(() => false))) await page.evaluate(() => (window.location.hash = "yeni-analiz"));
   else await page.locator("[data-portal=new]").first().click();
   await page.waitForTimeout(900);

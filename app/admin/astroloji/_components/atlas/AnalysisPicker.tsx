@@ -320,18 +320,26 @@ export default function AnalysisPicker({
 
   return (
     <div ref={wrapRef} className="relative min-w-0" data-testid="atlas-analysis-picker" data-open={open ? "1" : "0"}>
-      {/* Tek metin (iç öğe yok): uzun ad "…" ile kısalır, ekrandan taşan alt öğe kalmaz; tamamı title'da. */}
-      <p className="truncate text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500" title={clientSub ? `${clientLabel} · ${clientSub}` : clientLabel} data-testid="atlas-picker-client">
-        {clientSub ? `${clientLabel} · ${clientSub}` : clientLabel}
+      {/* Danışan künyesi (V4: sağ bilgi kolonunun en üstü — ad + doğum tarihi · saati · yeri). Tek satır: uzun metin "…" ile
+          kısalır, ekrandan taşan alt öğe kalmaz; tamamı title'da. */}
+      <p className="truncate text-[12.5px] text-slate-600" title={clientSub ? `${clientLabel} · ${clientSub}` : clientLabel} data-testid="atlas-picker-client">
+        <b className="font-semibold text-slate-800">{clientLabel}</b>
+        {clientSub ? ` · ${clientSub}` : ""}
       </p>
-      <h2 className="m-0 min-w-0">
+      {/* V4-001 (2026-11-06 owner): seçici açıkça bir SEÇİM KUTUSU — kutunun üst kenarında kısa etiket (ek satır / yükseklik
+          yok), kutunun tamamı tıklanır, sağda her genişlikte görünen "Analiz seç ▾". Uzun analiz adı kutu içinde "…" ile
+          kısalır (tamamı title'da). */}
+      <h2 className="relative m-0 mt-2 min-w-0">
+        <span className="pointer-events-none absolute -top-[7px] left-2.5 z-[1] bg-white px-1 text-[9.5px] font-semibold uppercase leading-[14px] tracking-[0.12em] text-slate-500" aria-hidden="true">
+          Bu danışanın analizleri
+        </span>
         <button
           ref={triggerRef}
           type="button"
           aria-haspopup="listbox"
           aria-expanded={open}
           aria-controls={open ? listId : undefined}
-          aria-label={`Analiz değiştir — şu an: ${headline}${unsavedActive ? " (kaydedilmedi)" : ""}`}
+          aria-label={`Analiz seç — şu an: ${headline}${unsavedActive ? " (kaydedilmedi)" : ""}`}
           title={headline}
           onClick={() => (open ? close(false) : openList())}
           onKeyDown={(e) => {
@@ -340,14 +348,22 @@ export default function AnalysisPicker({
               openList();
             }
           }}
-          className={`-ml-1.5 inline-flex max-w-full items-center gap-1.5 rounded-lg px-1.5 py-0.5 text-left transition hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0f766e] ${open ? "bg-slate-100" : ""}`}
+          className={`group flex min-h-[40px] w-full min-w-0 items-center gap-2 rounded-lg border bg-white pb-1 pl-3 pr-1.5 pt-1.5 text-left shadow-sm transition hover:border-slate-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[#0f766e] ${open ? "border-slate-400 ring-2 ring-slate-200" : "border-slate-300"}`}
           data-testid="atlas-picker-trigger"
         >
-          <span className="min-w-0 truncate text-[17px] font-semibold tracking-[0.005em] text-slate-900 max-sm:text-[16px]" data-testid="atlas-picker-headline">
-            {headline}
+          <span className="flex min-w-0 flex-1 items-center gap-1.5">
+            <span className="min-w-0 truncate text-[15.5px] font-semibold tracking-[0.005em] text-slate-900" data-testid="atlas-picker-headline">
+              {headline}
+            </span>
+            {unsavedActive && <span className="shrink-0 text-[11px] font-semibold text-amber-700">kaydedilmedi</span>}
           </span>
-          {unsavedActive && <span className="shrink-0 text-[11px] font-semibold text-amber-700">kaydedilmedi</span>}
-          <ChevronDown className={`h-4 w-4 shrink-0 text-slate-500 transition-transform ${open ? "rotate-180" : ""}`} aria-hidden="true" />
+          <span
+            className={`inline-flex shrink-0 items-center gap-1 rounded-md px-2 py-1 text-[12.5px] font-semibold transition ${open ? "bg-[#0B1430] text-white" : "bg-slate-100 text-slate-700 group-hover:bg-slate-200 group-hover:text-slate-900"}`}
+            data-testid="atlas-picker-cue"
+          >
+            Analiz seç
+            <ChevronDown className={`h-4 w-4 shrink-0 transition-transform ${open ? "rotate-180" : ""}`} aria-hidden="true" />
+          </span>
         </button>
       </h2>
 
@@ -362,7 +378,7 @@ export default function AnalysisPicker({
             className={
               isMobile
                 ? "fixed inset-x-0 bottom-0 z-[61] flex max-h-[82dvh] flex-col overflow-hidden rounded-t-2xl border border-slate-200 bg-white shadow-[0_-10px_30px_rgba(15,23,42,0.18)]"
-                : "absolute left-0 top-[calc(100%+6px)] z-50 flex w-[440px] max-w-[calc(100vw-32px)] flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_20px_48px_-12px_rgba(15,23,42,0.22),0_2px_6px_rgba(15,23,42,0.05)]"
+                : "absolute left-0 top-[calc(100%+6px)] z-50 flex w-full min-w-[min(300px,calc(100vw-32px))] max-w-[min(440px,calc(100vw-32px))] flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_20px_48px_-12px_rgba(15,23,42,0.22),0_2px_6px_rgba(15,23,42,0.05)]"
             }
             style={!isMobile && maxH ? { maxHeight: maxH } : undefined}
             data-testid="atlas-picker-panel"

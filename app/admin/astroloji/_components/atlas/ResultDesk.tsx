@@ -16,9 +16,11 @@
  * değiştirmez; hangi bölümlerin var olduğuna çağıran karar verir. Panel/menü/odak durumu hiçbir kaydı etkilemez.
  */
 import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type ComponentType, type KeyboardEvent, type ReactNode } from "react";
-import { BookOpen, CircleDot, House, Maximize2, MoreHorizontal, Orbit, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, PenLine, Save, Sparkles, Sun, Table2, Triangle, X, Home } from "lucide-react";
+import { ArrowLeft, BookOpen, CircleDot, House, Maximize, Maximize2, Minus, MoreHorizontal, Plus, Orbit, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, PenLine, Save, Sparkles, Sun, Table2, Triangle, X, Home } from "lucide-react";
 import { atlasDisplay, atlasText } from "./fonts";
-import ChartViewport from "./ChartViewport";
+import ChartViewport, { CHART_VIEWPORT_MAX, type ChartViewportApi } from "./ChartViewport";
+import DeskPopover from "./DeskPopover";
+import HScrollProxy from "./HScrollProxy";
 import { readYasamUser } from "@/lib/auth/yasamUser";
 
 export type DeskTone = "lavender" | "blue" | "sage" | "peach" | "gold" | "turquoise" | "slate";
@@ -344,7 +346,7 @@ export function AtlasHomeButton({ tone = "light" }: { tone?: "light" | "dark" })
   );
 }
 
-export default function ResultDesk({ variant = "night", ...props }: DeskProps & { variant?: "night" | "light" }) {
+export default function ResultDesk({ variant = "night", ...props }: LightDeskProps & { variant?: "night" | "light" }) {
   return <DeskToneCtx.Provider value={variant}>{variant === "light" ? <LightDesk {...props} /> : <NightDesk {...props} />}</DeskToneCtx.Provider>;
 }
 
@@ -690,18 +692,27 @@ function NightDesk({
   );
 }
 
-/* ── AYDINLIK ASTROLOG MASASI (variant="light") ─────────────────────────────────────────────────────
- * Sade, açık zeminli profesyonel çalışma ekranı: büyük harita + yanında GENİŞ bilgi alanı (sekmeli).
- * • Harita yüksekliğe göre kare boyutlanır; bilgi alanı haritanın yanında KALAN genişliğin tamamını alır (en az 420px).
- *   Böylece tablolar bütün sütunlarıyla okunur ve bölüm değiştirmek haritayı küçültmez.
- * • Harita ile bilgi alanı arasındaki ayırıcı sürüklenebilir (varsayılan %65 / %35; kullanıcı başına hatırlanır).
- * • Yıldız, parlama, yörünge, 3D süs YOK. Gece kabuğu yalnız bu masa açıkken ana alanda açık zemine döner.
+/* ── AYDINLIK ASTROLOG MASASI (variant="light") — V4 PREMIUM ÇALIŞMA ALANI (2026-11-06, owner kararı) ──────────────────
+ * İki ana bölüm; üstte büyük başlık / künye / filtre şeridi YOK:
+ *   • SOL — HARİTA: masanın tüm yüksekliği. Kartın üstünde tek ince araç satırı (Natal: Temel/Profesyonel + "Ek noktalar" /
+ *     "Açı çizgileri" açılır çoklu seçim menüleri; diğer teknikler: kısa açıklama) + Odak modu. Menüler sayfa akışına
+ *     girmez (DeskPopover) → harita kaymaz / küçülmez. Harita kalan alana KARE olarak sığar (kesilmez, ovalleşmez).
+ *     Haritası tablo / metin olan tekniklerde (Vedik kundli, KP, Sabit Yıldızlar…) sol alan tekniğin kendi sonucudur.
+ *   • SAĞ — BİLGİ: masanın üstünden altına kadar. Üstte kompakt kimlik (analiz seçici + danışan künyesi, "Künye ▾" ile
+ *     ayrıntı), uyarılar, birincil işlem (Kaydet) ve kısa işlemler; "⋯" ikincil işlemler (kayıtlı analizi aç, dosyaya / teknik
+ *     seçimine dönüş, Atlas ana sayfası). Altında solda dikey BÖLÜM RAYI (her bölüm tek tıkla), sağda bölüm içeriği (kendi
+ *     içinde kayar). Sürekli görünen "Kaydedildi" etiketi, geri oku ve üst yorum düğmesi kaldırıldı (işlevler korunur).
+ *   • Harita | bilgi ayırıcısı sürüklenebilir (varsayılan %62 / %38; kullanıcı başına hatırlanır).
+ *   • Tablet / telefon (<1024 px): iki kolon zorlanmaz → kimlik + işlemler, harita (araç satırıyla), bölüm seçici + içerik.
+ * Yıldız, parlama, yörünge, 3D süs YOK. Gece kabuğu yalnız bu masa açıkken ana alanda açık zemine döner.
  */
 /* Harita | bilgi paneli bölmesi (Excel sütunu gibi sürüklenir). Oran = harita sütununun masa genişliğindeki payı. */
-const SPLIT_DEFAULT = 0.65;
+const SPLIT_DEFAULT = 0.62;
 const SPLIT_DIVIDER = 14; // görünür çizgi ince, yakalama alanı 14px
 const SPLIT_MIN_CHART = 320;
-const SPLIT_MIN_PANEL = 300; // daha darında tablolar panelin İÇİNDE kayar (sayfa kaymaz)
+const SPLIT_MIN_PANEL = 340; // sağ bilgi kolonu (kimlik + bölüm rayı + içerik) bundan daralmaz; tablolar panelin İÇİNDE kayar
+/** İki kolonlu masa için gereken en küçük masa genişliği (harita ≥ ~500 px + bilgi ≥ 340 px). */
+const DESK_MIN_W = 860;
 /** Tercih: yalnız bu tarayıcı + bu kullanıcı (başka uzmanın ayarını etkilemez). Okunamazsa varsayılan. */
 const splitKey = () => `atlas.natalDesk.split:${readYasamUser()?.id ?? "anon"}`;
 function readSplit(): number | null {
@@ -721,57 +732,163 @@ function writeSplit(v: number) {
 }
 const LTOOL =
   "inline-flex h-8 items-center gap-1.5 rounded-lg border border-slate-200 bg-white/95 px-2.5 text-xs font-medium text-slate-700 shadow-sm transition hover:border-slate-400 hover:text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0B1430]";
+/** "⋯" menüsündeki satır (çağıranların menü öğeleri de bunu kullanır). */
+export const deskMenuItem =
+  "flex min-h-[40px] w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[13.5px] text-slate-800 transition hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[#0B1430] disabled:opacity-50 max-sm:min-h-[46px]";
 
-function LightTabs({
-  items,
-  active,
-  onPick,
-  idBase,
-  trailing,
-  compact = false,
-}: {
-  items: DeskTab[];
-  active: string;
-  onPick: (id: string) => void;
-  idBase: string;
-  trailing?: ReactNode;
-  /** Dar panel: yalnız ikon (ad ipucunda ve ekran okuyucu etiketinde). */ compact?: boolean;
-}) {
+type LightDeskProps = DeskProps & {
+  /** Sol harita kartının araç satırı (Natal görünüm denetimi). Yoksa yalnız "HARİTA / TEKNİK SONUÇ" etiketi. */
+  toolbar?: ReactNode;
+  /** Haritaya ait kısa açıklamalar (transit / sinastri / yönlendirme çark açıklaması, eksik çerçeve uyarısı). */
+  chartNotes?: ReactNode;
+  /** "⋯" menüsüne giren ikincil işlemler (deskMenuItem biçimli düğmeler). */
+  menu?: ReactNode;
+  /**
+   * V4-005 (2026-11-06 owner): seçici kipinde TEKRARSIZ künye. `params`: tekniğin parametreleri (teknik adı OLMADAN — o seçicide);
+   * sıkışık satırda harita künyesiyle (zodyak · ev sistemi · düğüm) yan yana. `kunye`: "Künye ▾" açılınca görünen YALNIZ EK
+   * ayrıntılar (kayıt zamanı, saat dilimi, revizyon, ikinci kişi…) — danışan adı / doğum bilgisi / analiz başlığı tekrar edilmez.
+   * Verilmezse önceki künye davranışı aynen.
+   */
+  params?: string | null;
+  kunye?: { label: string; value: ReactNode; title?: string }[];
+};
+
+/** Sağ kolonun dikey bölüm rayı (masaüstü). Her bölüm tek tıkla (ikon + ad); ok tuşları / Home / End ile gezilir.
+ *  Dar bilgi kolonunda ray incelir (ad küçük yazıyla kalır — yalnız ikona düşülmez). */
+function SectionRail({ items, active, onPick, narrow }: { items: DeskTab[]; active: string; onPick: (id: string) => void; narrow: boolean }) {
+  const { refs, onKey } = useMenuKeys(items, onPick, "vertical");
+  return (
+    <div
+      role="tablist"
+      aria-orientation="vertical"
+      aria-label="Analiz bölümleri"
+      className={`flex shrink-0 flex-col gap-0.5 overflow-y-auto border-r border-slate-100 bg-[#f7f6f2] [scrollbar-width:none] ${narrow ? "w-[64px] p-1" : "w-[78px] p-1.5"}`}
+      data-testid="atlas-result-sections"
+      data-rail={narrow ? "narrow" : "wide"}
+    >
+      {items.map((t, i) => {
+        const on = t.id === active;
+        const Icon = iconOf(t.id);
+        const hasBadge = t.badge !== undefined && t.badge !== null;
+        return (
+          <button
+            key={t.id}
+            ref={(el) => {
+              refs.current[t.id] = el;
+            }}
+            id={`atlas-result-tab-${t.id}`}
+            type="button"
+            role="tab"
+            aria-selected={on}
+            aria-controls="atlas-result-panel"
+            tabIndex={on ? 0 : -1}
+            onClick={() => onPick(t.id)}
+            onKeyDown={(e) => onKey(e, i)}
+            title={t.hint ? `${t.label} — ${t.hint}` : t.label}
+            className={`relative flex min-h-[52px] w-full flex-col items-center justify-center gap-1 rounded-lg px-0.5 py-1.5 text-center transition focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[#0B1430] ${on ? "bg-white text-[#0B1430] shadow-[0_1px_3px_rgba(15,23,42,0.10)]" : "text-slate-500 hover:bg-white/70 hover:text-slate-800"}`}
+            data-section={t.id}
+          >
+            {on && <span className="absolute inset-y-2 left-0 w-[3px] rounded-r bg-[#c9a54e]" aria-hidden="true" />}
+            <Icon className="h-[17px] w-[17px] shrink-0" aria-hidden="true" />
+            <span className={`line-clamp-2 font-medium leading-[1.15] ${narrow ? "text-[9.5px]" : "text-[10.5px]"}`}>{t.label}</span>
+            {hasBadge && (
+              <span
+                className={`absolute right-1 top-1 min-w-[1.05rem] rounded-full px-1 text-center text-[9.5px] font-semibold leading-4 tabular-nums ${on ? "bg-[#0B1430] text-white" : "bg-slate-200 text-slate-600"}`}
+                aria-label={`(${t.badge})`}
+              >
+                {t.badge}
+              </span>
+            )}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+/** Tablet / telefon bölüm seçici: tek satır, yatay kayan çipler (sayfa yatay kaymaz). */
+function SectionChips({ items, active, onPick }: { items: DeskTab[]; active: string; onPick: (id: string) => void }) {
   const { refs, onKey } = useMenuKeys(items, onPick, "horizontal");
   return (
-    <div className="flex items-center gap-2 border-b border-slate-200 px-2">
-      <div role="tablist" aria-label="Analiz bölümleri" className="flex min-w-0 flex-1 flex-wrap items-center gap-x-0.5" data-testid="atlas-result-sections">
-        {items.map((t, i) => {
-          const on = t.id === active;
-          const Icon = iconOf(t.id);
-          return (
-            <button
-              key={t.id}
-              ref={(el) => {
-                refs.current[t.id] = el;
-              }}
-              id={`${idBase}-tab-${t.id}`}
-              type="button"
-              role="tab"
-              aria-selected={on}
-              aria-controls={`${idBase}-panel`}
-              tabIndex={on ? 0 : -1}
-              onClick={() => onPick(t.id)}
-              onKeyDown={(e) => onKey(e, i)}
-              title={compact ? t.label : undefined}
-              className={`relative inline-flex min-h-[38px] shrink-0 items-center gap-1.5 whitespace-nowrap px-2.5 text-[13px] font-medium transition focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[#0B1430] ${
-                on ? "text-[#0B1430]" : "text-slate-500 hover:text-slate-800"
-              }`}
-            >
-              <Icon className="h-4 w-4" aria-hidden="true" />
-              <span className={compact ? "sr-only" : undefined}>{t.label}</span>
-              {t.badge !== undefined && t.badge !== null && <span className={`rounded-full px-1.5 text-[11px] tabular-nums ${on ? "bg-[#0B1430] text-white" : "bg-slate-100 text-slate-600"}`}>{t.badge}</span>}
-              {on && <span className="absolute inset-x-2 bottom-0 h-[2px] rounded-full bg-[#c9a54e]" aria-hidden="true" />}
-            </button>
-          );
-        })}
+    <div role="tablist" aria-label="Analiz bölümleri" className="flex gap-1.5 overflow-x-auto px-2 py-2 [scrollbar-width:none]" data-testid="atlas-result-sections">
+      {items.map((t, i) => {
+        const on = t.id === active;
+        const Icon = iconOf(t.id);
+        return (
+          <button
+            key={t.id}
+            ref={(el) => {
+              refs.current[t.id] = el;
+            }}
+            id={`atlas-result-m-tab-${t.id}`}
+            type="button"
+            role="tab"
+            aria-selected={on}
+            aria-controls="atlas-result-panel"
+            tabIndex={on ? 0 : -1}
+            onClick={() => onPick(t.id)}
+            onKeyDown={(e) => onKey(e, i)}
+            className={`inline-flex min-h-[40px] shrink-0 items-center gap-1.5 rounded-full border px-3 text-[13px] font-medium transition ${
+              on ? "border-[#0B1430] bg-[#0B1430] text-white" : "border-slate-200 bg-white text-slate-600"
+            }`}
+            data-section={t.id}
+          >
+            <Icon className="h-4 w-4" aria-hidden="true" />
+            {t.label}
+            {t.badge !== undefined && t.badge !== null && <span className={`text-[11px] tabular-nums ${on ? "text-white/75" : "text-slate-400"}`}>{t.badge}</span>}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+/**
+ * Telefon / tablet: kayarken üstte KALAN bölüm çipleri. CSS `sticky` burada çalışmaz —
+ * uygulama kabuğundaki `<main>` `overflow-x: hidden` (→ kaydırmayan bir kaydırma kabı) olduğundan yapışkan öğe hiç yapışmaz
+ * (2026-11-06 ölçüldü). Kabuğa dokunmadan: şerit yerinden çıkınca sabitlenir (yer tutucu yüksekliği korur → içerik
+ * zıplamaz), kapsayan kartın sonunda kartla birlikte yukarı itilir. Yalnız görünüm.
+ */
+function PinTop({ boundaryRef, className, children, testId }: { boundaryRef: React.RefObject<HTMLElement | null>; className?: string; children: ReactNode; testId?: string }) {
+  const holderRef = useRef<HTMLDivElement | null>(null);
+  const barRef = useRef<HTMLDivElement | null>(null);
+  const [pin, setPin] = useState<{ top: number; left: number; width: number; h: number } | null>(null);
+  useEffect(() => {
+    let raf = 0;
+    const update = () => {
+      const holder = holderRef.current;
+      const bar = barRef.current;
+      const bound = boundaryRef.current;
+      if (!holder || !bar || !bound) return;
+      const hr = holder.getBoundingClientRect();
+      const br = bound.getBoundingClientRect();
+      const h = bar.offsetHeight;
+      if (hr.top < 0 && br.bottom > h) {
+        const next = { top: Math.min(0, Math.round(br.bottom - h)), left: Math.round(hr.left), width: Math.round(hr.width), h };
+        setPin((p) => (p && p.top === next.top && p.left === next.left && p.width === next.width && p.h === next.h ? p : next));
+      } else setPin(null);
+    };
+    const later = () => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(update);
+    };
+    update();
+    window.addEventListener("scroll", later, { capture: true, passive: true });
+    window.addEventListener("resize", later);
+    const ro = typeof ResizeObserver !== "undefined" ? new ResizeObserver(later) : null;
+    if (ro && barRef.current) ro.observe(barRef.current);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener("scroll", later, { capture: true });
+      window.removeEventListener("resize", later);
+      ro?.disconnect();
+    };
+  }, [boundaryRef]);
+  return (
+    <div ref={holderRef} style={pin ? { height: pin.h } : undefined} data-testid={testId} data-pinned={pin ? "1" : "0"}>
+      <div ref={barRef} className={className} style={pin ? { position: "fixed", top: pin.top, left: pin.left, width: pin.width, zIndex: 30 } : undefined}>
+        {children}
       </div>
-      {trailing}
     </div>
   );
 }
@@ -819,12 +936,60 @@ function LightOverlay({ open, onClose, title, meta, children }: { open: boolean;
   );
 }
 
-function LightDesk({ backLabel, onBack, eyebrow, title, subtitle, details, meta, chips, actions, switcher, picker, primary, notices, tabs, active, onTab, chart, stage, chartKey, children }: DeskProps) {
+/** "⋯" ikincil işlemler menüsü: çağıranın öğeleri + dönüş (eski geri okunun işlevi) + Gökyüzü Atlası ana sayfası. */
+function DeskMoreMenu({ menu, backLabel, onBack }: { menu?: ReactNode; backLabel: string; onBack: () => void }) {
+  const [open, setOpen] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
+  const close = useCallback(() => setOpen(false), []);
+  const onHome = useContext(AtlasHomeContext);
+  const run = (fn: () => void) => () => {
+    setOpen(false);
+    fn();
+  };
+  return (
+    <>
+      <button
+        ref={triggerRef}
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-haspopup="dialog"
+        aria-expanded={open}
+        aria-label="Diğer işlemler"
+        title="Diğer işlemler"
+        className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border transition ${open ? "border-slate-400 bg-slate-100 text-slate-900" : "border-slate-200 text-slate-600 hover:border-slate-400 hover:text-slate-900"}`}
+        data-testid="atlas-desk-menu-toggle"
+      >
+        <MoreHorizontal className="h-4 w-4" />
+      </button>
+      <DeskPopover open={open} onClose={close} triggerRef={triggerRef} width={272} align="end" label="Diğer işlemler" testId="atlas-desk-menu">
+        {/* Öğeye basınca menü kapanır (öğenin kendi işlevi aynen çalışır). */}
+        <div
+          className="flex flex-col p-1.5"
+          onClick={(e) => {
+            if ((e.target as HTMLElement).closest("button")) setOpen(false);
+          }}
+        >
+          {menu}
+          {menu && <span className="my-1 h-px bg-slate-100" aria-hidden="true" />}
+          <button type="button" className={deskMenuItem} onClick={run(onBack)} aria-label={backLabel} data-testid="atlas-desk-back">
+            <ArrowLeft className="h-4 w-4 shrink-0 text-slate-500" aria-hidden="true" />
+            {backLabel}
+          </button>
+          {onHome && (
+            <button type="button" className={deskMenuItem} onClick={run(onHome)} aria-label="Gökyüzü Atlası ana sayfası" data-testid="atlas-home-btn">
+              <Home className="h-4 w-4 shrink-0 text-slate-500" aria-hidden="true" />
+              Gökyüzü Atlası ana sayfası
+            </button>
+          )}
+        </div>
+      </DeskPopover>
+    </>
+  );
+}
+
+function LightDesk({ backLabel, onBack, eyebrow, title, subtitle, details, meta, chips, actions, switcher, picker, primary, notices, tabs, active, onTab, chart, stage, chartKey, children, toolbar, chartNotes, menu, params, kunye }: LightDeskProps) {
   const sectionRef = useRef<HTMLElement | null>(null);
-  // V3: telefonda künye + işlemler "⋯" altında (yalnız picker verildiğinde; masaüstünde her zaman görünür).
-  const [menuOpen, setMenuOpen] = useState(false);
-  const hideOnPhone = picker && !menuOpen ? "max-sm:hidden" : "";
-  // V3 künye (≥640 px): tek satır, sığmayan kısım "…"; "Künye ▾" tam metni açar (bilgi gizlenmez).
+  // Künye: kapalıyken tek satır (sığmayan kısım "…"); "Künye ▾" tam metni açar (bilgi gizlenmez).
   const [metaOpen, setMetaOpen] = useState(false);
   const deskRef = useRef<HTMLDivElement | null>(null);
   const [box, setBox] = useState<{ w: number; h: number } | null>(null);
@@ -833,12 +998,66 @@ function LightDesk({ backLabel, onBack, eyebrow, title, subtitle, details, meta,
   const [dragging, setDragging] = useState(false);
   const drag = useRef<{ x: number; colW: number } | null>(null);
   const panelRef = useRef<HTMLDivElement | null>(null);
-  const isDesk = useDeskLayout();
+  // V4-002: üst yatay kaydırma şeridinin kapsamları (teknik sonuç alanı · telefonda bilgi içeriği).
+  const stageRef = useRef<HTMLDivElement | null>(null);
+  const mPanelRef = useRef<HTMLDivElement | null>(null);
+  const mPanelCardRef = useRef<HTMLDivElement | null>(null);
+  const mStageCardRef = useRef<HTMLDivElement | null>(null);
+  // Masadaki harita görüntüleyicisi (araç satırındaki − / + / sığdır onu sürer). Odak modu kendi bağımsız görüntüleyicisini kullanır.
+  const vpApi = useRef<ChartViewportApi | null>(null);
+  const [zoomScale, setZoomScale] = useState(1);
+  // İki kolon yalnız ≥1024 px ekranda VE masa için gerçekten yer varken (uygulama menüsü açıkken 1024 px'te masa ~700 px
+  // kalır → harita ~350 px'e düşerdi). Dar alanda tablet düzeni: harita tam genişlikte, bilgi altında.
+  const wideScreen = useDeskLayout();
+  const [roomy, setRoomy] = useState(true);
+  useLayoutEffect(() => {
+    const el = sectionRef.current;
+    if (!el) return;
+    const check = () => setRoomy(el.getBoundingClientRect().width >= DESK_MIN_W);
+    check();
+    const ro = typeof ResizeObserver !== "undefined" ? new ResizeObserver(check) : null;
+    ro?.observe(el);
+    return () => ro?.disconnect();
+  }, []);
+  const isDesk = wideScreen && roomy;
   const metaList = (meta ?? []).filter((m): m is string => !!m);
-  // Künyedeki UYARI niteliğindeki öğeler (saat bilinmiyor, yüksek enlem, ev sınırı) seçici kipinde çip satırında HER genişlikte görünür.
-  const metaWarn = picker ? metaList.filter((m) => META_WARN_RE.test(m)) : [];
-  const metaPlain = picker ? metaList.filter((m) => !META_WARN_RE.test(m)) : metaList;
+  // Künyedeki UYARI niteliğindeki öğeler (saat bilinmiyor, yüksek enlem, ev sınırı) uyarı çipi olarak HER genişlikte görünür.
+  const metaWarn = metaList.filter((m) => META_WARN_RE.test(m));
+  const metaPlain = metaList.filter((m) => !META_WARN_RE.test(m));
   const hasChart = !!chart;
+  const current = tabs.find((t) => t.id === active);
+  // Araç satırı tek satırda kalsın: sığmazsa önce "Odak modu" yalnız simge (1280 px altındaki mevcut davranış), yine sığmazsa
+  // sayaç ekrandan kalkar (aynı bilgi "Açı çizgileri" menüsünde; <1536 px'teki mevcut davranış). Genişleyince yeniden denenir.
+  // Telefonda yine sığmazsa Natal denetimleri eski dizilimini korur (Temel/Profesyonel + Ek noktalar yan yana) ve − + ⛶ · Odak
+  // grubu kendi satırına, sağa iner — açık "Ek noktalar" menüsü "Açı çizgileri" düğmesinin üstünü kapatmaz.
+  const toolRef = useRef<HTMLDivElement | null>(null);
+  const [tight, setTight] = useState(0);
+  const [toolTick, setToolTick] = useState(0);
+  const toolKey = `${chartKey ?? ""}|${isDesk ? "masa" : "mobil"}`;
+  const [tightKey, setTightKey] = useState(toolKey);
+  if (tightKey !== toolKey) {
+    // Başka analiz / düzen: araç satırı içeriği değişti → sıkıştırma baştan denenir (render sırasında, koşullu sıfırlama).
+    setTightKey(toolKey);
+    setTight(0);
+  }
+  useEffect(() => {
+    const el = toolRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    let w = el.clientWidth;
+    const ro = new ResizeObserver(() => {
+      const nw = el.clientWidth;
+      if (Math.abs(nw - w) < 1) return;
+      w = nw;
+      setTight(0);
+      setToolTick((t) => t + 1);
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [isDesk, hasChart]);
+  useLayoutEffect(() => {
+    const el = toolRef.current;
+    if (el && tight < 2 && el.offsetHeight > 56) setTight(tight + 1);
+  }, [tight, toolTick, toolKey]);
 
   // Gece kabuğu yalnız bu masa açıkken aydınlık zemine döner (ana alan: data-atlas-light).
   useEffect(() => {
@@ -862,7 +1081,7 @@ function LightDesk({ backLabel, onBack, eyebrow, title, subtitle, details, meta,
     let outer: HTMLElement = el;
     while (outer.parentElement && outer.parentElement.tagName !== "MAIN" && outer.parentElement !== document.body) outer = outer.parentElement;
     const below = Math.max(0, outer.getBoundingClientRect().bottom - rect.bottom);
-    const h = Math.max(360, Math.floor(window.innerHeight - (rect.top + scrollTop) - below - 1));
+    const h = Math.max(480, Math.floor(window.innerHeight - (rect.top + scrollTop) - below - 1));
     setBox((b) => (b && b.w === Math.floor(rect.width) && b.h === h ? b : { w: Math.floor(rect.width), h }));
   }, []);
   useLayoutEffect(() => {
@@ -871,9 +1090,7 @@ function LightDesk({ backLabel, onBack, eyebrow, title, subtitle, details, meta,
     const sec = sectionRef.current;
     const ro = typeof ResizeObserver !== "undefined" ? new ResizeObserver(() => measure()) : null;
     if (ro && sec) for (const child of Array.from(sec.children)) ro.observe(child);
-    // 2026-10-18 (KP-UX son regresyon): masanın ÜSTÜNDEKİ öğeler (ör. "Kayıtlı analizler" şeridi) ölçümden sonra
-    // yerleşirse masa aşağı kayıyor ama yükseklik yeniden hesaplanmıyordu → masa ekranın altına taşıyordu (aralıklı).
-    // Üst kapsayıcı izlenir; web yazı tipleri ve geç yerleşim için kısa gecikmeli yeniden ölçüm.
+    // Masanın ÜSTÜNDEKİ öğeler ölçümden sonra yerleşirse (geç yüklenen şerit / yazı tipi) yükseklik yeniden hesaplanır.
     if (ro && sec?.parentElement) {
       ro.observe(sec.parentElement);
       let outer: HTMLElement = sec;
@@ -890,6 +1107,7 @@ function LightDesk({ backLabel, onBack, eyebrow, title, subtitle, details, meta,
       ro?.disconnect();
     };
   }, [measure, isDesk]);
+  // Bölüm değişince yalnız bilgi içeriği başa döner; sayfa ve harita yerinde kalır.
   useEffect(() => {
     panelRef.current?.scrollTo({ top: 0 });
   }, [active]);
@@ -897,7 +1115,6 @@ function LightDesk({ backLabel, onBack, eyebrow, title, subtitle, details, meta,
   const pick = (id: string) => {
     if (id !== active) onTab(id);
   };
-  const h = box?.h ?? 520;
   const w = box?.w ?? 1100;
 
   // ── Sürüklenebilir bölme (harita % / bilgi %). ──
@@ -907,8 +1124,7 @@ function LightDesk({ backLabel, onBack, eyebrow, title, subtitle, details, meta,
   const clampSplit = (r: number) => Math.min(maxR, Math.max(minR, r));
   const ratio = clampSplit(split);
   const chartColW = Math.floor(usable * ratio);
-  // Harita: sütun genişliği ve kullanılabilir yükseklikten küçüğü kadar KARE (kesilmez, ovalleşmez).
-  const side = Math.max(260, Math.floor(Math.min(h, chartColW) - 2)); // kartın 1px kenarlığı (iki yan) düşülür
+  const infoColW = usable - chartColW;
   const commitSplit = (r: number) => {
     const v = clampSplit(r);
     setSplit(v);
@@ -953,23 +1169,218 @@ function LightDesk({ backLabel, onBack, eyebrow, title, subtitle, details, meta,
   const pctChart = Math.round(ratio * 100);
 
   const panel = (
-    <div id="atlas-result-panel" role="tabpanel" aria-labelledby={`atlas-result-tab-${active}`} className="min-w-0">
+    <div id="atlas-result-panel" role="tabpanel" aria-labelledby={`atlas-result${isDesk ? "" : "-m"}-tab-${active}`} className="min-w-0">
+      {!current?.ownHeading && current && (
+        <div className="mb-2.5 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
+          <h3 className="text-[15px] font-semibold text-slate-900">{current.label}</h3>
+          {current.hint && <span className="text-[11.5px] text-slate-500">{current.hint}</span>}
+        </div>
+      )}
       {children}
     </div>
   );
   const focusBtn = hasChart ? (
-    <button type="button" onClick={() => setOverlay(true)} className={LTOOL} title="Haritayı tam ekranda büyük göster" data-testid="atlas-chart-expand">
-      <Maximize2 className="h-3.5 w-3.5" /> Odak modu
+    <button type="button" onClick={() => setOverlay(true)} className={`${LTOOL} shrink-0`} title="Haritayı tam ekranda büyük göster" aria-label="Odak modu — haritayı tam ekranda göster" data-testid="atlas-chart-expand">
+      <Maximize2 className="h-3.5 w-3.5" /> <span className="max-[1279px]:hidden" data-focus-label="">Odak modu</span>
     </button>
   ) : null;
-  const chartNode = (compact: boolean) =>
+
+  /* ── Sağ kolon başlığı: kimlik (seçici / ad) · künye · uyarılar · işlemler ── */
+  const hasMetaLine = !!(subtitle || details || metaPlain.length > 0);
+  // V4-005: seçici kipinde tekrarsız künye (danışan + analiz başlığı seçicide; burada yalnız teknik özet + ek ayrıntılar).
+  const lean = !!picker && !!kunye;
+  // Tek düz metin: kısaltma ("…") metnin KENDİ öğesinde → hiçbir parça kutusundan / ekrandan taşmaz.
+  const techText = [params || null, ...metaPlain].filter(Boolean).join(" · ");
+  const leanMeta = !metaOpen ? (
+    <div className="flex min-w-0 items-center gap-2 text-[12px] text-slate-600" id="atlas-desk-header-details" data-meta="compact" data-kunye="lean">
+      {/* Telefonda satıra sarılır (kesilmez); geniş ekranda tek satır "…" ve tam metin ipucunda. */}
+      <span className="min-w-0 flex-1 break-words sm:truncate" title={techText || undefined} aria-label={techText ? `Teknik künye: ${techText}` : undefined} data-testid="atlas-chart-meta">
+        {techText}
+      </span>
+      {kunye && kunye.length > 0 && (
+        <button
+          type="button"
+          onClick={() => setMetaOpen(true)}
+          aria-expanded={false}
+          aria-controls="atlas-desk-header-details"
+          className="shrink-0 rounded-md px-1.5 py-0.5 text-[11.5px] font-medium text-slate-500 hover:bg-slate-100 hover:text-slate-800"
+          title="Ek teknik ayrıntılar"
+          data-testid="atlas-desk-meta-toggle"
+        >
+          Künye ▾
+        </button>
+      )}
+    </div>
+  ) : (
+    <div className="flex min-w-0 flex-col gap-1.5 rounded-lg bg-slate-50 px-2.5 py-2 text-[12px] text-slate-600" id="atlas-desk-header-details" data-meta="full" data-kunye="lean">
+      <p className="m-0 min-w-0 break-words [overflow-wrap:anywhere]" data-testid="atlas-chart-meta">
+        {techText}
+      </p>
+      <dl className="m-0 grid min-w-0 grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-0.5" data-testid="atlas-desk-kunye">
+        {(kunye ?? []).map((k) => (
+          <div key={k.label} className="contents">
+            <dt className="text-slate-500">{k.label}</dt>
+            <dd className="m-0 min-w-0 break-words text-slate-700 [overflow-wrap:anywhere]" title={k.title}>
+              {k.value}
+            </dd>
+          </div>
+        ))}
+      </dl>
+      <button
+        type="button"
+        onClick={() => setMetaOpen(false)}
+        aria-expanded={true}
+        aria-controls="atlas-desk-header-details"
+        className="self-start rounded-md px-1.5 py-0.5 text-[11.5px] font-medium text-slate-500 hover:bg-slate-100 hover:text-slate-800"
+        data-testid="atlas-desk-meta-toggle"
+      >
+        Künye ▴
+      </button>
+    </div>
+  );
+  const actionRow = primary || actions;
+  const header = (
+    <div className="flex flex-col gap-2 border-b border-slate-100 px-3.5 pb-3 pt-3 max-sm:px-3 [&_strong]:!text-slate-800" data-testid="atlas-desk-header" data-picker={picker ? "1" : undefined}>
+      <div className="flex items-start gap-2">
+        <div className="min-w-0 flex-1">
+          {picker ?? (
+            <>
+              <p className="text-[10px] font-semibold tracking-[0.14em] text-slate-500">{eyebrow}</p>
+              <h2 className="min-w-0 break-words text-[17px] font-semibold tracking-[0.005em] text-slate-900 [overflow-wrap:anywhere]" title={title}>
+                {title}
+              </h2>
+            </>
+          )}
+        </div>
+        <DeskMoreMenu menu={menu} backLabel={backLabel} onBack={onBack} />
+      </div>
+      {lean && (params || metaPlain.length > 0 || (kunye && kunye.length > 0)) && leanMeta}
+      {!lean &&
+        hasMetaLine &&
+        (!metaOpen ? (
+          /* Tek satır: her parça KENDİ kutusunda "…" ile kısalır (kutudan taşan metin yok). Telefonda teknik özet satıra sarılır;
+             harita künyesi "Künye ▾" altında. */
+          <div className="flex min-w-0 items-center gap-2 text-[12px] text-slate-600" id="atlas-desk-header-details" data-meta="compact">
+            <span className="flex min-w-0 flex-1 items-center gap-1">
+              {subtitle && <span className="min-w-0 shrink sm:truncate">{subtitle}</span>}
+              {metaPlain.length > 0 && (
+                <span className="min-w-0 shrink-[2] truncate text-slate-500 max-sm:hidden" aria-label="Harita künyesi" data-testid="atlas-chart-meta">
+                  {subtitle ? "· " : ""}
+                  {metaPlain.join(" · ")}
+                </span>
+              )}
+            </span>
+            <button
+              type="button"
+              onClick={() => setMetaOpen(true)}
+              aria-expanded={false}
+              aria-controls="atlas-desk-header-details"
+              className="shrink-0 rounded-md px-1.5 py-0.5 text-[11.5px] font-medium text-slate-500 hover:bg-slate-100 hover:text-slate-800"
+              title="Künyenin tamamını göster"
+              data-testid="atlas-desk-meta-toggle"
+            >
+              Künye ▾
+            </button>
+          </div>
+        ) : (
+          <div className="flex min-w-0 flex-col gap-1.5 rounded-lg bg-slate-50 px-2.5 py-2 text-[12px] text-slate-600" id="atlas-desk-header-details" data-meta="full">
+            {subtitle && <p className="min-w-0 break-words [overflow-wrap:anywhere]">{subtitle}</p>}
+            {details && <p className="min-w-0 break-words text-slate-500 [overflow-wrap:anywhere]">{details}</p>}
+            {metaPlain.length > 0 && (
+              <ul className="flex min-w-0 flex-wrap gap-1" aria-label="Harita künyesi" data-testid="atlas-chart-meta">
+                {metaPlain.map((m) => (
+                  <li key={m} className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[10.5px] text-slate-600">
+                    {m}
+                  </li>
+                ))}
+              </ul>
+            )}
+            <button
+              type="button"
+              onClick={() => setMetaOpen(false)}
+              aria-expanded={true}
+              aria-controls="atlas-desk-header-details"
+              className="self-start rounded-md px-1.5 py-0.5 text-[11.5px] font-medium text-slate-500 hover:bg-slate-100 hover:text-slate-800"
+              data-testid="atlas-desk-meta-toggle"
+            >
+              Künye ▴
+            </button>
+          </div>
+        ))}
+      {(metaWarn.length > 0 || chips) && (
+        <div className="flex flex-wrap items-center gap-1.5 empty:hidden" data-testid="atlas-desk-header-chips">
+          {metaWarn.map((m) => (
+            <DeskChip key={m} tone="warn">
+              {m}
+            </DeskChip>
+          ))}
+          {chips}
+        </div>
+      )}
+      {actionRow && (
+        <div className="flex flex-wrap items-center gap-2" id="atlas-desk-header-actions" data-testid="atlas-desk-header-actions">
+          {primary && <span className="contents" data-testid="atlas-desk-header-primary">{primary}</span>}
+          {actions}
+        </div>
+      )}
+      {notices}
+    </div>
+  );
+
+  // Owner son yerleşim kararı (06.11.2026): yakınlaştırma düğmeleri araç satırında, sayaç ("Açı listesi … · çarkta çizili …")
+  // ile "Odak modu" ARASINDA: − · + · ⛶ (sığdır). Yüzde göstergesi yok. Düğmeler haritadaki ChartViewport'u sürer (tek motor).
+  const zoomBtn =
+    "flex h-8 w-8 items-center justify-center rounded-md text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 disabled:opacity-35 disabled:hover:bg-transparent focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0B1430] max-sm:h-9 max-sm:w-9";
+  const zoomCtl = hasChart ? (
+    <span role="group" aria-label="Harita yakınlaştırma" className="flex shrink-0 items-center rounded-lg border border-slate-200 bg-white/95 p-px shadow-sm" data-testid="atlas-zoom-controls">
+      <button type="button" className={zoomBtn} onClick={() => vpApi.current?.zoomOut()} disabled={zoomScale <= 1.001} aria-label="Küçült" title="Küçült (−) · tekerlek / iki parmak da çalışır" data-testid="atlas-zoom-out">
+        <Minus className="h-4 w-4" />
+      </button>
+      <button type="button" className={zoomBtn} onClick={() => vpApi.current?.zoomIn()} disabled={zoomScale >= CHART_VIEWPORT_MAX - 0.001} aria-label="Büyüt" title="Büyüt (+) · tekerlek / iki parmak da çalışır" data-testid="atlas-zoom-in">
+        <Plus className="h-4 w-4" />
+      </button>
+      <button type="button" className={zoomBtn} onClick={() => vpApi.current?.fit()} disabled={zoomScale <= 1.001} aria-label="Alana sığdır" title="Alana sığdır / başlangıç boyutu (0)" data-testid="atlas-zoom-fit">
+        <Maximize className="h-3.5 w-3.5" />
+      </button>
+    </span>
+  ) : null;
+  const toolRow = (
+    <div
+      ref={toolRef}
+      className="flex min-h-[44px] flex-wrap items-start gap-2 border-b border-slate-100 px-2.5 py-1.5 [&>[data-testid=natal-wheel-controls]]:min-w-[min(100%,18.5rem)] [&[data-tight]_[data-focus-label]]:hidden [&[data-tight=two]_[data-testid=natal-aspect-counts]]:sr-only"
+      data-testid="atlas-chart-toolbar"
+      data-tight={tight === 0 ? undefined : tight === 1 ? "one" : "two"}
+    >
+      {toolbar ?? <span className="self-center text-[10.5px] font-semibold tracking-[0.16em] text-slate-500">{hasChart ? "HARİTA" : "TEKNİK SONUÇ"}</span>}
+      {(zoomCtl || focusBtn) && (
+        <span className="ml-auto flex shrink-0 items-center gap-1.5">
+          {zoomCtl}
+          {focusBtn}
+        </span>
+      )}
+    </div>
+  );
+  const notesRow = chartNotes ? (
+    <div className="border-b border-slate-100 px-3 py-1.5 text-[12px] text-slate-600 [&_p]:m-0" data-testid="atlas-chart-notes">
+      {chartNotes}
+    </div>
+  ) : null;
+  // Harita ilk açılışta alana oranını koruyarak sığar; alan değişince (pencere, ayırıcı, menü) kendiliğinden boyutlanır.
+  // Yakınlaştırma: araç satırındaki − / + / sığdır, harita ÜZERİNDE fare tekerleği, iki parmak, klavye (+ / − / 0) — hepsi
+  // aynı ChartViewport (yalnız CSS dönüşümü; çizim / hesap değişmez). Haritanın üstünde ayrı düğme kartı yok.
+  const chartNode = () =>
     hasChart ? (
-      <ChartViewport key={chartKey} tone="light" compact={compact}>
-        {chart!("h-full w-full max-h-full")}
-      </ChartViewport>
+      <div className="absolute inset-0 p-1" data-testid="atlas-chart-fit">
+        <ChartViewport key={chartKey} tone="light" controls={false} apiRef={vpApi} onScaleChange={setZoomScale}>
+          {chart!("h-full w-full max-h-full")}
+        </ChartViewport>
+      </div>
     ) : (
-      <div className="h-full overflow-auto p-4 text-slate-800 [scrollbar-width:thin]" data-testid="atlas-stage-scroll">
-        {stage}
+      <div className="flex h-full min-h-0 flex-col">
+        <div ref={stageRef} className="min-h-0 flex-1 overflow-auto p-4 text-slate-800 [scrollbar-width:thin]" data-testid="atlas-stage-scroll">
+          {stage}
+        </div>
+        <HScrollProxy rootRef={stageRef} viewportRef={stageRef} resetKey={chartKey} testId="atlas-stage-hscroll" />
       </div>
     );
 
@@ -980,137 +1391,8 @@ function LightDesk({ backLabel, onBack, eyebrow, title, subtitle, details, meta,
       aria-label="Analiz sonucu"
       data-testid="astro-result-view"
       data-variant="light"
+      data-desk="v4"
     >
-      {/* ── Başlık: geri · ad + künye · durum + işlemler. KP-UX-04 (2026-10-18): yer yetmezse durum + işlemler ALT SATIRA
-           geçer (eskiden xl:flex-nowrap + shrink-0 künye çipleri "Kaydedildi" etiketinin altına biniyordu; 1024 px'te ise
-           ad sütunu ~80 px'e sıkışıyordu). Ad bloğunun taban genişliği 30rem; hiçbir öğe başka öğenin üzerine taşmaz. */}
-      <header
-        className={`flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border border-slate-200 bg-white px-3 py-2 shadow-[0_1px_2px_rgba(15,23,42,0.05)] [&_strong]:!text-slate-900 max-sm:rounded-none max-sm:border-x-0 ${picker ? "max-sm:items-start max-sm:gap-x-2" : ""}`}
-        data-testid="atlas-desk-header"
-        data-picker={picker ? "1" : undefined}
-      >
-        <button
-          type="button"
-          onClick={onBack}
-          aria-label={backLabel}
-          title={backLabel}
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-slate-200 text-slate-600 transition hover:border-slate-400 hover:text-slate-900"
-        >
-          ←
-        </button>
-        <AtlasHomeButton tone="light" />
-        {/* V3 (picker): başlık seçicisi uzun adı "…" ile kısaltır (tamamı listede / title'da) → taban 18rem; işlemler masaüstünde
-            aynı satıra sığar (onaylı V3 görünümü). Picker yokken KP-UX-04 tabanı (30rem) aynen. */}
-        <div className={`min-w-0 ${picker ? "flex-[1_1_18rem] max-sm:flex-1 max-sm:basis-0" : "flex-[1_1_30rem]"}`}>
-          {picker ? (
-            picker
-          ) : (
-            /* 2026-10-12 (Android UAT ek madde): telefonda uzun ad / teknik / tarih KESİLMEZ, satıra geçer.
-               2026-10-18 (KP-UX-04 son regresyon): geniş masaüstündeki tek satır kısaltma (xl:truncate) da kaldırıldı —
-               uzun analiz adı (ör. "… KP doğum haritası (Placidus + sub-lord) · 18.10.2026") üç noktayla kesilmez, sarar. */
-            <div className="flex min-w-0 flex-wrap items-baseline gap-x-2">
-              <p className="shrink-0 text-[10px] font-semibold tracking-[0.14em] text-slate-500">{eyebrow}</p>
-              <h2 className="min-w-0 break-words text-[17px] font-semibold tracking-[0.005em] text-slate-900 [overflow-wrap:anywhere]" title={title}>
-                {title}
-              </h2>
-            </div>
-          )}
-          {picker && !metaOpen ? (
-            /* V3 künye — kapalı: tek satır esnek kutu; her parça kendi içinde "…" ile kısalır (taşan öğe kutusu yok). Telefonda "⋯"
-               altında ve satıra geçerek tam görünür. */
-            <div className={`flex min-w-0 items-center gap-x-2 text-xs text-slate-600 max-sm:flex-wrap ${hideOnPhone}`} id="atlas-desk-header-details" data-meta="compact">
-              {subtitle && <span className="min-w-0 shrink sm:truncate">{subtitle}</span>}
-              {details && <span className="min-w-0 shrink-[2] text-slate-500 sm:truncate">{details}</span>}
-              {metaPlain.length > 0 && (
-                <span className="min-w-0 shrink-[2] text-[11px] text-slate-500 sm:truncate" aria-label="Harita künyesi" data-testid="atlas-chart-meta">
-                  {metaPlain.join(" · ")}
-                </span>
-              )}
-              {(subtitle || details || metaPlain.length > 0) && (
-                <button
-                  type="button"
-                  onClick={() => setMetaOpen(true)}
-                  aria-expanded={false}
-                  aria-controls="atlas-desk-header-details"
-                  className="ml-auto shrink-0 rounded-md px-1.5 py-0.5 text-[11px] font-medium text-slate-500 hover:bg-slate-100 hover:text-slate-800 max-sm:hidden"
-                  title="Künyenin tamamını göster"
-                  data-testid="atlas-desk-meta-toggle"
-                >
-                  Künye ▾
-                </button>
-              )}
-            </div>
-          ) : (
-          <div className={`flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-600 ${hideOnPhone}`} id={picker ? "atlas-desk-header-details" : undefined}>
-            {subtitle && <span className="min-w-0 break-words [overflow-wrap:anywhere]">{subtitle}</span>}
-            {details && <span className="min-w-0 break-words text-slate-500 [overflow-wrap:anywhere] xl:truncate">{details}</span>}
-            {metaPlain.length > 0 && (
-              <ul className="flex min-w-0 flex-wrap gap-1" aria-label="Harita künyesi" data-testid="atlas-chart-meta">
-                {metaPlain.map((m) => (
-                  <li key={m} className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10.5px] text-slate-600">
-                    {m}
-                  </li>
-                ))}
-              </ul>
-            )}
-            {picker && metaOpen && (
-              <button
-                type="button"
-                onClick={() => setMetaOpen(false)}
-                aria-expanded={true}
-                aria-controls="atlas-desk-header-details"
-                className="shrink-0 rounded-md px-1.5 py-0.5 text-[11px] font-medium text-slate-500 hover:bg-slate-100 hover:text-slate-800 max-sm:hidden"
-                data-testid="atlas-desk-meta-toggle"
-              >
-                Künye ▴
-              </button>
-            )}
-          </div>
-          )}
-        </div>
-        {picker && (
-          <button
-            type="button"
-            onClick={() => setMenuOpen((v) => !v)}
-            aria-expanded={menuOpen}
-            aria-controls="atlas-desk-header-actions atlas-desk-header-details"
-            aria-label={menuOpen ? "İşlemleri ve ayrıntıları gizle" : "İşlemler ve ayrıntılar"}
-            title={menuOpen ? "İşlemleri ve ayrıntıları gizle" : "İşlemler ve ayrıntılar"}
-            className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border text-slate-600 transition sm:hidden ${menuOpen ? "border-slate-400 bg-slate-100 text-slate-900" : "border-slate-200 hover:border-slate-400"}`}
-            data-testid="atlas-desk-menu-toggle"
-          >
-            <MoreHorizontal className="h-4 w-4" />
-          </button>
-        )}
-        {/* V3 (picker): durum / uyarı çipleri ve birincil işlem (Kaydet) telefonda "⋯" menüsüne GİRMEZ — uyarılar (eski doğum
-            revizyonu, eski hesap sürümü, otomatik yorum yok) ilk ekranda kalır; yalnız başlıkta zaten yazan kayıt durumu çipi
-            telefonda gizlenir. Masaüstünde diğer işlemlerin yanında. */}
-        {picker && (chips || primary || metaWarn.length > 0) && (
-          <div className="order-last flex w-full flex-wrap items-center gap-2 empty:hidden sm:order-none sm:ml-auto sm:w-auto max-sm:[&_[data-desk-status]]:hidden max-sm:[&:not(:has(>:not([data-desk-status])))]:hidden" data-testid="atlas-desk-header-primary">
-            {metaWarn.map((m) => (
-              <DeskChip key={m} tone="warn">
-                {m}
-              </DeskChip>
-            ))}
-            {chips}
-            {primary}
-          </div>
-        )}
-        <div className={`flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end ${picker && (chips || primary || metaWarn.length > 0) ? "" : "sm:ml-auto"} ${hideOnPhone}`} id="atlas-desk-header-actions" data-testid="atlas-desk-header-actions">
-          {/* Görünüm: haritanın üstüne binmesin diye başlıkta */}
-          {focusBtn && (
-            <span className="flex items-center gap-1.5 border-r border-slate-200 pr-2" role="group" aria-label="Görünüm">
-              {focusBtn}
-            </span>
-          )}
-          {!picker && chips}
-          {actions}
-        </div>
-      </header>
-
-      {notices}
-      {switcher && <div className="rounded-xl border border-slate-200 bg-white px-2 py-1 shadow-[0_1px_2px_rgba(15,23,42,0.04)] max-sm:rounded-none max-sm:border-x-0">{switcher}</div>}
-
       {isDesk ? (
         <div
           ref={deskRef}
@@ -1123,36 +1405,30 @@ function LightDesk({ backLabel, onBack, eyebrow, title, subtitle, details, meta,
           data-split={String(pctChart)}
           data-testid="atlas-desk-grid"
         >
-          {/* Harita sütunu: beyaz kart sütunu doldurur; harita içinde ortalanmış KARE (genişlik/yükseklikten küçüğü). */}
+          {/* SOL: harita kartı — araç satırı + (varsa) kısa açıklama + harita alanın TAMAMINDA (kare, ortalı). */}
           <div className="relative min-h-0 min-w-0" data-testid="atlas-stage">
             <div
-              className={`flex h-full w-full items-center justify-center overflow-hidden rounded-xl border bg-white shadow-[0_1px_3px_rgba(15,23,42,0.06)] ${dragging ? "border-[#c9a54e]/60" : "border-slate-200"}`}
+              className={`flex h-full w-full flex-col overflow-hidden rounded-xl border bg-white shadow-[0_1px_3px_rgba(15,23,42,0.06)] ${dragging ? "border-[#c9a54e]/60" : "border-slate-200"}`}
               data-testid="atlas-chart-card"
             >
-              {hasChart ? (
-                // 2026-10-12 (UAT 2. tur, madde J): yakınlaştırma kırpması eskiden haritanın KARE çerçevesinde
-                // (side × side) yapılıyordu → kart genişken büyütülen harita görünmez karede kesiliyordu. Görüntüleyici
-                // artık kartın TAMAMINI kullanır; harita SVG viewBox oranıyla (kare, ortalı) aynı boyutta başlar.
-                <div className="relative h-full w-full" data-testid="atlas-chart-frame" data-side={side}>
-                  {chartNode(false)}
-                </div>
-              ) : (
-                /* Haritası tablo/ızgara olan teknikler (Vedik kundli, KP, dasha…): kendi biçiminde, sütunun tamamında. */
-                <div className="h-full w-full min-w-0">{chartNode(false)}</div>
-              )}
+              {toolRow}
+              {notesRow}
+              <div className="relative min-h-0 flex-1" data-testid={hasChart ? "atlas-chart-frame" : undefined}>
+                {chartNode()}
+              </div>
             </div>
           </div>
           <div
             role="separator"
             aria-orientation="vertical"
             aria-controls="atlas-result-panel"
-            aria-label="Harita ile bilgi paneli arasındaki ayırıcı. Sağ ve sol ok tuşlarıyla genişliği ayarlayın (Shift ile hızlı), Enter ile yüzde 65 / 35 başlangıç düzenine dönün."
+            aria-label="Harita ile bilgi paneli arasındaki ayırıcı. Sağ ve sol ok tuşlarıyla genişliği ayarlayın (Shift ile hızlı), Enter ile yüzde 62 / 38 başlangıç düzenine dönün."
             aria-valuemin={Math.round(minR * 100)}
             aria-valuemax={Math.round(maxR * 100)}
             aria-valuenow={pctChart}
             aria-valuetext={`Harita yüzde ${pctChart}, bilgi paneli yüzde ${100 - pctChart}`}
             tabIndex={0}
-            title="Sürükleyerek genişliği ayarlayın · çift tık: %65 / %35"
+            title="Sürükleyerek genişliği ayarlayın · çift tık: %62 / %38"
             onPointerDown={onDividerDown}
             onPointerMove={onDividerMove}
             onPointerUp={endDrag}
@@ -1186,32 +1462,52 @@ function LightDesk({ backLabel, onBack, eyebrow, title, subtitle, details, meta,
               </span>
             )}
           </div>
-          <div
-            className={`min-h-0 min-w-0 flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_1px_3px_rgba(15,23,42,0.06)] flex`}
-            style={{ height: box ? box.h : undefined }}
-            data-testid="atlas-info-panel"
-          >
-            <LightTabs items={tabs} active={active} onPick={pick} idBase="atlas-result" compact={usable - chartColW < 400} />
-            <div ref={panelRef} className="min-h-0 flex-1 overflow-auto bg-[#fbfaf7] p-3 [scrollbar-width:thin]" data-testid="atlas-panel-scroll">
-              {panel}
+          {/* SAĞ: bilgi kolonu — masanın üstünden altına; kimlik + işlemler, altında bölüm rayı + içerik. */}
+          <div className="flex min-h-0 min-w-0 flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_1px_3px_rgba(15,23,42,0.06)]" data-testid="atlas-info-panel">
+            {header}
+            {switcher && <div className="border-b border-slate-100 px-2 py-1">{switcher}</div>}
+            <div className="flex min-h-0 flex-1">
+              <SectionRail items={tabs} active={active} onPick={pick} narrow={infoColW < 460} />
+              <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+                <div ref={panelRef} className="min-h-0 min-w-0 flex-1 overflow-auto bg-[#fbfaf7] p-3.5 [scrollbar-width:thin]" data-testid="atlas-panel-scroll">
+                  {panel}
+                </div>
+                <HScrollProxy rootRef={panelRef} viewportRef={panelRef} resetKey={`${chartKey ?? ""}|${active}`} />
+              </div>
             </div>
           </div>
         </div>
       ) : (
-        /* ── TABLET / MOBİL: harita üstte tam genişlik, altında sekmeler ve içerik (doğal kaydırma) ── */
+        /* ── TABLET / TELEFON: kimlik + işlemler · harita (araç satırıyla) · bölüm seçici + içerik (doğal kaydırma) ── */
         <div className="flex flex-col gap-2.5" data-testid="atlas-desk-mobile">
-          {hasChart ? (
-            <div className="relative mx-auto aspect-square w-full max-w-[min(100%,82svh)] overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm max-sm:rounded-none max-sm:border-x-0" data-testid="atlas-mobile-chart">
-              {chartNode(true)}
+          <div className="overflow-visible rounded-xl border border-slate-200 bg-white shadow-sm max-sm:rounded-none max-sm:border-x-0" data-testid="atlas-info-panel">
+            {header}
+            {switcher && <div className="px-2 py-1">{switcher}</div>}
+          </div>
+          <div ref={mStageCardRef} className="overflow-clip rounded-xl border border-slate-200 bg-white shadow-sm max-sm:rounded-none max-sm:border-x-0" data-testid="atlas-chart-card">
+            {toolRow}
+            {notesRow}
+            {hasChart ? (
+              <div className="relative mx-auto aspect-square w-full max-w-[min(100%,82svh)]" data-testid="atlas-mobile-chart">
+                {chartNode()}
+              </div>
+            ) : (
+              <>
+                <div ref={stageRef} className="overflow-x-auto p-3 text-slate-800" data-testid="atlas-mobile-stage">
+                  {stage}
+                </div>
+                <HScrollProxy rootRef={stageRef} resetKey={chartKey} testId="atlas-stage-hscroll" fixedBoundaryRef={mStageCardRef} />
+              </>
+            )}
+          </div>
+          <div ref={mPanelCardRef} className="rounded-xl border border-slate-200 bg-white shadow-sm max-sm:rounded-none max-sm:border-x-0">
+            <PinTop boundaryRef={mPanelCardRef} className="border-b border-slate-100 bg-white/95 backdrop-blur" testId="atlas-mobile-sections-bar">
+              <SectionChips items={tabs} active={active} onPick={pick} />
+            </PinTop>
+            <div ref={mPanelRef} className="overflow-x-auto bg-[#fbfaf7] p-3">
+              {panel}
             </div>
-          ) : (
-            <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white p-3 text-slate-800 shadow-sm max-sm:rounded-none max-sm:border-x-0" data-testid="atlas-mobile-stage">
-              {stage}
-            </div>
-          )}
-          <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm max-sm:rounded-none max-sm:border-x-0">
-            <LightTabs items={tabs} active={active} onPick={pick} idBase="atlas-result-m" />
-            <div className="overflow-x-auto bg-[#fbfaf7] p-3">{panel}</div>
+            <HScrollProxy rootRef={mPanelRef} resetKey={`${chartKey ?? ""}|${active}`} fixedBoundaryRef={mPanelCardRef} />
           </div>
         </div>
       )}

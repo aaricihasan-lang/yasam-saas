@@ -4,7 +4,7 @@
 // NOT: Bu bir EMÜLASYONDUR (Chromium mobil görünüm alanı + dokunma); fiziksel Android cihaz testi DEĞİLDİR.
 /* eslint-disable @typescript-eslint/no-require-imports -- düz Node CommonJS test betiği */
 const { chromium } = require("playwright");
-const { openBenchAnalysis, revealHeaderActions, dismissAtlasDevNotice } = require("./atlas-e2e-open-analysis.cjs");
+const { openBenchAnalysis, revealHeaderActions, deskMenuItem, dismissAtlasDevNotice } = require("./atlas-e2e-open-analysis.cjs");
 const { readFileSync } = require("node:fs");
 
 const [W = "390", H = "844", LOG = ""] = process.argv.slice(2);
@@ -208,7 +208,9 @@ async function overflowOffenders(page, rootSel) {
   await page.waitForTimeout(600);
   ok("yeşil bildirim görünür (sabit, ekranın üstünde)", /analiz başarıyla kaydedildi/.test(await page.locator("[data-testid=astro-saved-notice]").innerText()) && ((await page.locator("[data-testid=astro-saved-notice]").boundingBox())?.y ?? 999) < 160);
   ok("kalıcı 'kaydedildi' göstergesi", await page.locator("[data-testid=astro-all-saved]").first().isVisible());
-  ok("kayıttan sonra ikinci kayıt formu yok; 'Kayıtlı analizi aç' var", (await page.locator("[data-testid=astro-open-saved]").count()) > 0 && (await page.locator("[data-testid=astro-desk-save]").count()) === 0);
+  // V4: "Kayıtlı analizi aç" ikincil işlem → "⋯" menüsünde
+  ok("kayıttan sonra ikinci kayıt formu yok; 'Kayıtlı analizi aç' var", (await (await deskMenuItem(page, "[data-testid=astro-open-saved]")).count()) > 0 && (await page.locator("[data-testid=astro-desk-save]").count()) === 0);
+  await page.keyboard.press("Escape");
 
   // ── 5) Teknik Ekle: çoklu seçim + ayarları kapatıp listeye dönme
   await revealHeaderActions(page); // V3: telefonda "+ Teknik Ekle" "⋯" menüsünde
@@ -299,22 +301,29 @@ async function overflowOffenders(page, rootSel) {
   await page.waitForSelector("[data-testid=astro-saved-analysis]", { timeout: 60000 });
   await page.waitForTimeout(1200);
   if (LOG) ok("kayıtlı analizi açmak 0 Roxy isteği", hits() === h4);
-  ok("kayıtlı analiz başlığı taşmaz", (await overflowOffenders(page, "[data-testid=astro-saved-analysis] header")).length === 0, (await overflowOffenders(page, "[data-testid=astro-saved-analysis] header")).join(" | "));
-  await revealHeaderActions(page); // V3 telefon: "Sistem yorumunu gizle" "⋯" altında
-  const tog = page.locator("[data-testid=astro-saved-interp-toggle]");
-  if (await tog.count()) {
-    const before3 = await page.getByRole("tab").allInnerTexts();
+  ok("kayıtlı analiz başlığı taşmaz", (await overflowOffenders(page, "[data-testid=atlas-desk-header]")).length === 0, (await overflowOffenders(page, "[data-testid=atlas-desk-header]")).join(" | "));
+  // V4 (owner): üstteki "Sistem yorumunu göster/gizle" düğmesi kaldırıldı; görünürlük anahtarı Yorum bölümünün İÇİNDE.
+  ok("üstte yorum göster/gizle düğmesi yok", (await page.locator("[data-testid=atlas-desk-header] [data-testid=astro-saved-interp-toggle]").count()) === 0);
+  // Yorum bölümü kimliğiyle seçilir (başlığı tekniğe göre değişir: "Otomatik Yorum", "Olay Açıklamaları"…; "Kendi Yorumum" ayrı bölüm).
+  const yorumTab = page.locator("[data-testid=atlas-result-sections] [role=tab][data-section=yorum]:visible").first();
+  if (await yorumTab.count()) {
+    await yorumTab.click();
+    await page.waitForTimeout(400);
+    const tog = page.locator("[data-testid=astro-saved-interp-toggle]");
+    const interpVisible = async () => (await page.locator("[data-testid=astro-saved-interp-bar] ~ *").count()) > 0;
+    const before3 = await interpVisible();
     await tog.click();
     await page.waitForTimeout(300);
-    const hidden = await page.getByRole("tab").allInnerTexts();
+    const hidden = await interpVisible();
+    const hiddenTxt = await page.locator("[data-testid=astro-saved-interp-bar]").innerText();
     await tog.click();
     await page.waitForTimeout(300);
-    const shown = await page.getByRole("tab").allInnerTexts();
-    ok("yorum gizle/göster: sekme kalkar ve geri gelir (veri silinmez)", hidden.length === before3.length - 1 && shown.length === before3.length, `${before3.length}/${hidden.length}/${shown.length}`);
-  } else ok("yorum göster/gizle düğmesi (yorumlu kayıt)", false, "düğme yok");
+    const shown = await interpVisible();
+    ok("yorum gizle/göster (Yorum bölümünde): içerik gizlenir ve geri gelir (veri silinmez)", before3 && !hidden && shown && /gizli/.test(hiddenTxt), `${before3}/${hidden}/${shown}`);
+  } else ok("Yorum bölümü (yorumlu kayıt)", false, "bölüm yok");
 
   // Secondary progression kaydı: harita çizilir (mevcut veriden; 0 Roxy)
-  await page.locator("[data-testid=astro-client-file-back], button[aria-label='Danışan Dosyası']").first().click().catch(() => undefined);
+  await (await deskMenuItem(page, "button[aria-label='Danışan Dosyası']")).click().catch(() => undefined);
   await page.goto(`${BASE}#danisan/${pid}`, { waitUntil: "load" });
   await page.waitForSelector("[data-testid=astro-client-file-analyses]", { timeout: 60000 });
   await page.waitForTimeout(1200);

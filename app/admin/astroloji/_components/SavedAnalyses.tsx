@@ -397,7 +397,7 @@ export function SavedAnalysisView({
   const tabs: DeskTab[] = [
     ...(natal
       ? ([
-          { id: "harita", label: "Harita", tone: "lavender", hint: "Açısal noktalar ve dağılım" },
+          { id: "harita", label: "Özet", tone: "lavender", hint: "Açısal noktalar ve dağılım" },
           { id: "gezegenler", label: "Gezegenler", tone: "blue" },
           ...(housesAvailable ? [{ id: "evler", label: "Evler", tone: "sage" } as DeskTab] : []),
           { id: "acilar", label: "Açılar", tone: "peach", badge: natal.aspects.length },
@@ -405,8 +405,9 @@ export function SavedAnalysisView({
         ] as DeskTab[])
       : []),
     ...(otherWheel || roxyChart ? ([{ id: "teknik", label: "Teknik ayrıntı", tone: "blue", hint: "Konumlar, açılar ve tablolar" }] as DeskTab[]) : []),
-    // Yorum sekmesi yalnız içerik gerçekten görünürken (yetki kapalı / dahil değil → sekme yok, içerik yanıtta da yok).
-    ...(interp.visible && !interpHidden ? ([{ id: "yorum", label: interpretationTitle(interp), tone: "gold", ownHeading: true }] as DeskTab[]) : []),
+    // Yorum bölümü yalnız içerik gerçekten görünürken (yetki kapalı / dahil değil → bölüm yok, içerik yanıtta da yok).
+    // V4: görünümden gizlenen kayıtlı yorum da bu bölümde kalır ("Yorumu göster"); üstteki ayrı düğme kaldırıldı.
+    ...(interp.visible ? ([{ id: "yorum", label: interpretationTitle(interp), tone: "gold", ownHeading: true }] as DeskTab[]) : []),
     { id: "bilgi", label: "Bilgi Bankam", tone: "gold", badge: a.knowledgeBank.length || null, ownHeading: true },
     { id: "not", label: "Kendi Yorumum", tone: "turquoise", badge: a.notes.length || null, ownHeading: true },
   ];
@@ -433,9 +434,30 @@ export function SavedAnalysisView({
           </span>
         }
         meta={[zodiacLabel(a.technique), a.method.houseSystem ? houseSystemLabel(a.method.houseSystem, HOUSE_SYSTEM_LABELS) : null, a.method.nodeType ? NODE_TYPE_LABELS[a.method.nodeType] : null, a.method.timeUnknownMasked ? "Saat bilinmiyor · evler gizli" : null, a.method.houseCalculation === "local" ? LOCAL_NATAL_HOUSE_CALC_TEXT : null]}
+        // V4-005: tekrarsız künye — danışan + doğum bilgisi seçicinin üstünde, teknik adı seçicide; "Künye ▾" yalnız ek ayrıntılar.
+        params={opts || null}
+        kunye={[
+          { label: "Kayıt zamanı", value: fmt(a.analysisAt) },
+          {
+            label: "Doğum profili",
+            value: `rev ${a.profile.revision.revision}${currentRevision !== null && a.profile.revision.revision !== currentRevision ? ` · güncel profil rev ${currentRevision}` : ""}`,
+          },
+          ...(currentRevision !== null && a.profile.revision.revision !== currentRevision
+            ? [
+                {
+                  label: "Bu kayıttaki doğum verisi",
+                  value: `${a.profile.revision.birthDate} ${a.profile.revision.birthTime ? a.profile.revision.birthTime.slice(0, 5) : "(saat bilinmiyor)"} · ${a.profile.revision.locationLabel}`,
+                },
+              ]
+            : []),
+          { label: "Saat dilimi", value: a.profile.revision.timezone },
+          { label: "Saat doğruluğu", value: a.profile.revision.birthTime ? a.profile.revision.timeAccuracyLabel : "saat bilinmiyor" },
+          ...(a.profile.client?.name ? [{ label: "Danışan Yolculuğu", value: `Danışan: ${a.profile.client.name}` }] : []),
+          ...(partner ? [{ label: "1. kişi", value: person(a.profile) }, { label: "2. kişi", value: person(partner) }] : []),
+        ]}
+        // V4 (2026-11-06, owner): sürekli görünen "Kaydedildi · değişmez kayıt" etiketi kaldırıldı (kayıt yine değişmez snapshot).
         chips={
           <>
-            <DeskChip tone="saved" status>✓ Kaydedildi · değişmez kayıt</DeskChip>
             {currentRevision !== null && a.profile.revision.revision !== currentRevision && (
               <DeskChip tone="warn">
                 Doğum bilgisi rev {a.profile.revision.revision} ile kaydedildi · güncel profil rev {currentRevision}
@@ -449,7 +471,7 @@ export function SavedAnalysisView({
             {/* 2026-10-15: Roxy'nin yorum üretmediği teknikte "dahil edilmedi" yanıltıcıdır → sağlayıcı kapsamı açıkça söylenir. */}
             {hasNoProviderInterpretation(a.technique) ? (
               <span title={NO_PROVIDER_INTERPRETATION_NOTE} data-testid="astro-no-provider-interp">
-                <DeskChip tone="muted">Otomatik yorum yok · yalnız teknik hesaplama sonuçları</DeskChip>
+                <DeskChip tone="muted">Otomatik yorum yok · yalnız teknik sonuçlar</DeskChip>
               </span>
             ) : (
               !interp.visible && interp.reason === "not_included" && <DeskChip tone="muted">Sistem yorumu dahil edilmedi</DeskChip>
@@ -458,11 +480,6 @@ export function SavedAnalysisView({
         }
         actions={
           <>
-            {interp.visible && (
-              <button type="button" onClick={toggleInterp} className={deskGhostLight} aria-pressed={!interpHidden} data-testid="astro-saved-interp-toggle" title="Yalnız görünümü değiştirir; kayıtlı yorum silinmez.">
-                {interpHidden ? "Sistem yorumunu göster" : "Sistem yorumunu gizle"}
-              </button>
-            )}
             <ReportButtons id={a.id} previewNoInterp={previewNoInterp || (interp.visible && interpHidden)} />
             {onAddTechnique && (
               <button type="button" onClick={onAddTechnique} className={deskGhostLight} title="Bu kayıt değişmez; yeni teknik aynı danışanın çalışma masasında ayrı sekmede açılır." data-testid="atlas-saved-add-technique">
@@ -483,11 +500,10 @@ export function SavedAnalysisView({
               : roxyChart
         }
         stage={natal ? null : technicalView(!!otherWheel || !!roxyChart)}
-        notices={
-          natal ? (
-            <NatalChartControls technical={natal} prefs={natalPrefs} onChange={setNatalPrefs} />
-          ) : wheelGap ? (
-            <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-sky-200 bg-sky-50 px-4 py-2 text-sm text-sky-900" data-testid="astro-wheel-gap">
+        toolbar={natal ? <NatalChartControls technical={natal} prefs={natalPrefs} onChange={setNatalPrefs} /> : undefined}
+        chartNotes={
+          natal ? undefined : wheelGap ? (
+            <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-sky-200 bg-sky-50 px-3 py-1.5 text-[12.5px] text-sky-900" data-testid="astro-wheel-gap">
               <span className="min-w-0 flex-1">{wheelGap}</span>
               {onComputeNatal && !a.method.timeUnknownMasked && (
                 <button type="button" className={deskGhostLight} onClick={onComputeNatal} data-testid="astro-wheel-gap-natal">
@@ -523,6 +539,16 @@ export function SavedAnalysisView({
         {tab === "semboller" && natal && <NatalSymbolGuide technical={natal} />}
         {(tab === "gezegenler" || tab === "evler" || tab === "acilar") && natal && (
           <NatalTechnicalPanel technical={natal} timeUnknown={a.method.timeUnknownMasked} part={tab === "gezegenler" ? "planets" : tab === "evler" ? "houses" : "aspects"} />
+        )}
+        {tab === "yorum" && interp.visible && (
+          <div className="mb-2.5 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-[12.5px] text-slate-600" data-testid="astro-saved-interp-bar">
+            <span className="min-w-0 flex-1">
+              {interpHidden ? "Sistem yorumu bu görünümde gizli; Word / PDF yorumsuz üretilir. Kayıtlı yorum silinmedi." : "Kayıtlı sistem yorumu. Gizlerseniz Word / PDF yorumsuz üretilir; kayıt değişmez."}
+            </span>
+            <button type="button" onClick={toggleInterp} className={deskGhostLight} aria-pressed={!interpHidden} data-testid="astro-saved-interp-toggle" title="Yalnız görünümü değiştirir; kayıtlı yorum silinmez.">
+              {interpHidden ? "Yorumu göster" : "Yorumu gizle"}
+            </button>
+          </div>
         )}
         {tab === "yorum" && interp.visible && !interpHidden && (
           <ProviderInterpretationPanel

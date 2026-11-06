@@ -21,6 +21,7 @@ import {
   SIGN_LABELS,
   formatDegree,
 } from "@/lib/astrology/labels/tr";
+import { fitGridCell, fitGridStyle } from "./atlas/fitGrid";
 
 const th = "px-2 py-1.5 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500";
 const td = "px-2 py-1.5 text-sm text-slate-800";
@@ -170,9 +171,9 @@ export default function NatalTechnicalPanel({ technical, timeUnknown, part = "al
 
       {show("houses") && !timeUnknown && t.houses.length > 0 && (
         <Section title="Ev başlangıçları (cusp)">
-          <div className="grid grid-cols-2 gap-x-4 gap-y-1 px-3 py-2 text-sm sm:grid-cols-3">
+          <div className="grid gap-y-1 px-3 py-2 text-sm" style={fitGridStyle()} data-fit-grid="cusps">
             {t.houses.map((h) => (
-              <div key={h.number} className="flex items-center justify-between gap-2 border-b border-slate-50 py-1">
+              <div key={h.number} className={fitGridCell}>
                 <span className="font-medium text-slate-600">{h.number}. ev</span>
                 <SignCell sign={h.sign} degree={h.degreeInSign} />
               </div>
@@ -185,8 +186,9 @@ export default function NatalTechnicalPanel({ technical, timeUnknown, part = "al
       <Section title={`Açılar (${t.aspects.length})`}>
         {/* 2026-10-12 (UAT 2. tur, madde I): uzun ad sütunu satıra geçer (tablo gereksiz genişlemez); kalan yatay
             kaydırma + dikey kaydırma AYNI kapta, başlık yapışkan → yatay kaydırma çubuğu 41 satırın sonunda kalmaz,
-            ekranda görünür kalır. */}
-        <div className="max-h-[min(70vh,640px)] overflow-auto overscroll-contain" data-testid="astro-aspects-scroll">
+            ekranda görünür kalır. 2026-11-06 (V4-002): kutu, bilgi panelinin üstündeki yatay kaydırma şeridi (~2rem) kadar
+            kısa → üst şerit ile kutunun kendi alt çubuğu AYNI ANDA ekranda. */}
+        <div className="max-h-[min(calc(70vh_-_2rem),640px)] overflow-auto overscroll-contain" data-testid="astro-aspects-scroll">
         <table className="min-w-full">
           <thead className="sticky top-0 z-[1] bg-white shadow-[0_1px_0_rgb(241,245,249)]">
             <tr>
