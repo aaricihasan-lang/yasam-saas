@@ -12,6 +12,14 @@ export function isCampaignVisitorPath(pathname: string): boolean {
   return pathname === CAMPAIGN_VISITOR_PATH || pathname === `${CAMPAIGN_VISITOR_PATH}/`;
 }
 
+/** TRIAL7: 7 günlük deneme kayıt formu (Cloudflare Turnstile, Managed). Yalnız bu doküman yolu. */
+export const TRIAL_REGISTER_PATH = "/register";
+
+/** Turnstile betiği/iframe'i izinli doküman yolları: kampanya ziyaretçi sayfası + kayıt formu. Diğerleri byte-eşit. */
+export function isTurnstileDocumentPath(pathname: string): boolean {
+  return isCampaignVisitorPath(pathname) || pathname === TRIAL_REGISTER_PATH || pathname === `${TRIAL_REGISTER_PATH}/`;
+}
+
 /** Politikadaki script-src ve frame-src direktiflerine Turnstile kökenini ekler (yoksa direktifi oluşturmaz). */
 export function withTurnstileCsp(policy: string): string {
   return policy
