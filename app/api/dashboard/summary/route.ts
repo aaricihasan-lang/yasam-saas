@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyUserRequest, membershipInactiveResponse } from "@/lib/auth/userGuard";
-import { hasMembershipAccessForRow } from "@/lib/auth/membershipAccessCore";
+import { verifyUserRequest, membershipGateForRequest } from "@/lib/auth/userGuard";
+import { isTrialRestrictedRow } from "@/lib/trial/trialCore";
 import { resolveModuleAccess, type ModuleGateKey } from "@/lib/auth/moduleAccessCore";
 import { logServerError } from "@/lib/http/apiError";
 
@@ -42,11 +42,14 @@ export async function GET(req: NextRequest) {
   if (!guard.ok) return guard.response;
   const { db, tenantId } = guard;
   const profile = guard.profile ?? {};
-  if (!hasMembershipAccessForRow(profile)) return membershipInactiveResponse();
+  // TRIAL7: süresi dolmuş deneme panel özetini görebilir (GET; membershipGateForRequest tek kaynak).
+  const membershipDenied = membershipGateForRequest(req, profile);
+  if (membershipDenied) return membershipDenied;
 
   const allowed = (gate: ModuleGateKey) =>
     resolveModuleAccess(profile.role, profile.module_permissions, gate, {
       isDemo: guard.is_demo_account === true,
+      isTrial: isTrialRestrictedRow(profile),
     });
 
   const counts: Partial<Record<CountKey, number | null>> = {};

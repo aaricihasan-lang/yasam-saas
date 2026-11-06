@@ -2,10 +2,12 @@ import "server-only";
 import { NextRequest, NextResponse } from "next/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
+  membershipGateForRequest,
   membershipInactiveResponse,
   requireModuleAccess,
   verifyUserRequest,
 } from "@/lib/auth/userGuard";
+import { isTrialRestrictedRow } from "@/lib/trial/trialCore";
 import { hasMembershipAccessForRow } from "@/lib/auth/membershipAccessCore";
 import { resolveModuleAccess } from "@/lib/auth/moduleAccess";
 
@@ -83,8 +85,12 @@ export async function resolveBeslenmeCapabilities(
   const guard = await verifyUserRequest(req, { includeProfile: true });
   if (!guard.ok) return { ok: false, response: guard.response };
   // P1-4 ÜYELİK kapısı (requireModuleAccess ile AYNI kural; admin muaf).
+  // TRIAL7: süresi dolmuş deneme → yalnız okuma/dışa aktarma (membershipGateForRequest tek kaynak).
   if (!hasMembershipAccessForRow(guard.profile ?? {})) {
-    return { ok: false, response: membershipInactiveResponse() };
+    const membershipDenied = membershipGateForRequest(req, guard.profile ?? {});
+    if (membershipDenied) {
+      return { ok: false, response: isTrialRestrictedRow(guard.profile) ? membershipDenied : membershipInactiveResponse() };
+    }
   }
   const role = guard.profile?.role;
   const perms = guard.profile?.module_permissions;
@@ -154,8 +160,12 @@ export async function requireBeslenmeFoodRead(req: NextRequest): Promise<Beslenm
   const guard = await verifyUserRequest(req, { includeProfile: true });
   if (!guard.ok) return { ok: false, response: guard.response };
   // P1-4 ÜYELİK kapısı (requireModuleAccess ile AYNI kural; admin muaf).
+  // TRIAL7: süresi dolmuş deneme → yalnız okuma/dışa aktarma (membershipGateForRequest tek kaynak).
   if (!hasMembershipAccessForRow(guard.profile ?? {})) {
-    return { ok: false, response: membershipInactiveResponse() };
+    const membershipDenied = membershipGateForRequest(req, guard.profile ?? {});
+    if (membershipDenied) {
+      return { ok: false, response: isTrialRestrictedRow(guard.profile) ? membershipDenied : membershipInactiveResponse() };
+    }
   }
 
   const perms = guard.profile?.module_permissions;

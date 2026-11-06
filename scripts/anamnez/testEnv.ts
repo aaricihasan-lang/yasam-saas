@@ -40,7 +40,9 @@ create table public.users (
   package_type text, membership_status text, subscription_status text,
   trial_started_at timestamptz, trial_ends_at timestamptz, membership_started_at timestamptz, membership_ends_at timestamptz,
   plan text, admin_level text, tenant_id uuid, status text, created_at timestamptz default now(),
-  is_super_admin boolean not null default false, is_demo_account boolean not null default false
+  is_super_admin boolean not null default false, is_demo_account boolean not null default false,
+  -- TRIAL7 (20280101000000): 7 günlük deneme rejimi; mevcut hesaplarda NULL.
+  trial_kind text, trial_status text
 );
 create table public.user_sessions (
   id uuid primary key default gen_random_uuid(), user_id uuid not null references public.users(id),

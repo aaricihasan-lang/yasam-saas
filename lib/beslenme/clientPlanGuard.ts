@@ -1,8 +1,9 @@
 import "server-only";
 import { NextRequest, NextResponse } from "next/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { membershipInactiveResponse, verifyUserRequest } from "@/lib/auth/userGuard";
+import { membershipGateForRequest, membershipInactiveResponse, verifyUserRequest } from "@/lib/auth/userGuard";
 import { hasMembershipAccessForRow } from "@/lib/auth/membershipAccessCore";
+import { isTrialRestrictedRow } from "@/lib/trial/trialCore";
 import { resolveModuleAccess } from "@/lib/auth/moduleAccess";
 import { beslenmeJson } from "@/lib/beslenme/ownerGuard";
 import { requireClientInTenant } from "@/lib/danisan/clientGuard";
@@ -60,8 +61,12 @@ export async function requireBeslenmePlanAccess(
   // P1-4 ÜYELİK kapısı (requireModuleAccess ile AYNI kural; membershipAccessCore tek kaynak).
   // Plan lookup'tan ÖNCE → üyeliği aktif olmayan (trial/pro/pasif/onaysız) uzman plan
   // varlığı sinyali bile alamaz. admin muaf (hasMembershipAccessForRow role short-circuit).
+  // TRIAL7: süresi dolmuş deneme → yalnız okuma/dışa aktarma (membershipGateForRequest tek kaynak).
   if (!hasMembershipAccessForRow(guard.profile ?? {})) {
-    return { ok: false, response: membershipInactiveResponse() };
+    const membershipDenied = membershipGateForRequest(req, guard.profile ?? {});
+    if (membershipDenied) {
+      return { ok: false, response: isTrialRestrictedRow(guard.profile) ? membershipDenied : membershipInactiveResponse() };
+    }
   }
 
   // Yetenekler SAF resolveModuleAccess ile (admin role short-circuit → hasBeslenme=true).

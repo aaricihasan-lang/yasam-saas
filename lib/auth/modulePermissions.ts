@@ -1,5 +1,11 @@
 import type { YasamUser } from "@/lib/auth/yasamUser";
 import { isAdminOnlyModuleKey, isDemoDeniedModuleKey } from "@/lib/auth/moduleAccessCore";
+import { isTrialAllowedModuleKey, isTrialRestrictedRow } from "@/lib/trial/trialCore";
+
+/** TRIAL7: deneme uzmanı (Pro'ya geçmemiş) — allowlist dışı modül (Dijital İçerik ailesi dahil) KAPALI. */
+function isTrialUser(user: YasamUser | null | undefined): boolean {
+  return isTrialRestrictedRow(user as unknown as Record<string, unknown> | null | undefined);
+}
 
 /** Demo vitrin hesabı (users.is_demo_account=true) — bkz. moduleAccessCore.DEMO_DENIED_MODULE_KEYS. */
 function isDemoUser(user: YasamUser | null | undefined): boolean {
@@ -271,8 +277,13 @@ export function hasAnyModulePermissionFlag(
   // AI admin-only anahtarlar (video_ceviri/ders_notu/belge_ceviri_ai) bayraktan bağımsız KAPALI.
   // Demo vitrin: Dijital İçerik hub'ı ve tüm alt özellikleri (Kişisel Arşiv dahil) bayraktan bağımsız KAPALI.
   const demo = isDemoUser(user);
+  const trial = isTrialUser(user);
   return keys.some(
-    (key) => !isAdminOnlyModuleKey(key) && !(demo && isDemoDeniedModuleKey(key)) && flags[key] === true,
+    (key) =>
+      !isAdminOnlyModuleKey(key) &&
+      !(demo && isDemoDeniedModuleKey(key)) &&
+      !(trial && !isTrialAllowedModuleKey(key)) &&
+      flags[key] === true,
   );
 }
 
@@ -290,6 +301,8 @@ export function hasModulePermission(
   // Demo vitrin: DEMO_DENIED_MODULE_KEYS bayraktan bağımsız kapalı (sunucu resolveModuleAccess ile AYNI).
   const demo = isDemoUser(user);
   if (demo && isDemoDeniedModuleKey(key)) return false;
+  // TRIAL7: deneme paketi allowlist'i (sunucu resolveModuleAccess isTrial ile AYNI; fail-closed).
+  if (isTrialUser(user) && !isTrialAllowedModuleKey(key)) return false;
   const perms = user.module_permissions ?? DEFAULT_MODULE_PERMISSIONS;
   // Hub kartı: uzmana AÇIK alt modüllerden (kişisel arşiv — yalnız MEVCUT bayrak, AŞAMA 1 yetki dondurma —
   // / belge çeviri) biri varsa erişilebilir (sunucu resolveModuleAccess + lib/auth/hubVisibility ile aynı; TR alias dahil).
@@ -339,6 +352,8 @@ export function hasModulePermissionForProfile(
     membership_status:
       typeof profile.membership_status === "string" ? profile.membership_status : undefined,
     is_demo_account: profile.is_demo_account === true,
+    trial_kind: typeof profile.trial_kind === "string" ? profile.trial_kind : undefined,
+    trial_status: typeof profile.trial_status === "string" ? profile.trial_status : undefined,
     module_permissions: parseModulePermissions(profile.module_permissions),
   } as unknown as YasamUser;
   return hasModulePermission(user, key);

@@ -452,8 +452,8 @@ async function run() {
   const { hasMembershipAccessForRow } = await import("@/lib/auth/membershipAccessCore");
   const now = new Date("2026-10-20T09:00:00.000Z");
   const pl = mem.buildApprovalMembershipPayload(now);
-  ok(pl.trial_started_at === now.toISOString() && pl.trial_ends_at === "2026-10-23T09:00:00.000Z" && pl.package_type === "premium",
-    "onay payload'ı: trial_started_at=şimdi, trial_ends_at=+3 gün, paket premium", pl);
+  ok(pl.trial_started_at === now.toISOString() && pl.trial_ends_at === "2026-10-27T09:00:00.000Z" && pl.package_type === "premium",
+    "onay payload'ı: trial_started_at=şimdi, trial_ends_at=+7 gün (TRIAL7), paket premium", pl);
   ok(mem.buildPremiumMembershipPayload().trial_ends_at === null, "eski buildPremiumMembershipPayload değişmedi");
   const expiredRow = { role: "expert", active: true, approval_status: "approved", package_type: "premium", plan: "premium", trial_ends_at: "2020-01-01T00:00:00Z", membership_status: "active" };
   ok(hasMembershipAccessForRow(expiredRow) === true, "deneme tarihi geçmiş aktif uzmanın ERİŞİMİ KESİLMEZ (owner kararı)");
