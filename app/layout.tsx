@@ -36,6 +36,9 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   viewportFit: "cover",
+  // <meta name="color-scheme" content="only light">: CSS yüklenmeden ilk boyamada da tarayıcı zorla koyu modu kapalı
+  // (app/globals.css :root ile aynı bildirim).
+  colorScheme: "only light",
 };
 
 export default async function RootLayout({
