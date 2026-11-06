@@ -239,9 +239,19 @@ function assertAllNonced(html: string, headerNonce: string | null) {
     process.env.NEXT_PUBLIC_SUPABASE_URL = SB;
   };
   const { proxy, config } = await import(pathToFileURL(path.join(ROOT, "proxy.ts")).href).then((m) => m.default ?? m);
+  // TRIAL7: /register dokümanı Cloudflare Turnstile kökenini (script-src + frame-src) BİLİNÇLİ olarak taşır
+  // (kampanya sayfasıyla aynı yol kapsamlı ek). Karşılaştırmada yalnız bu ek çıkarılır; politikanın geri kalanı
+  // byte-eşit kalmalıdır. Ekin yalnız bu yolda olduğu ayrıca doğrulanır.
+  const stripTurnstile = (url: string, csp: string | null) =>
+    csp && new URL(url, "https://x").pathname === "/register" ? csp.split(" https://challenges.cloudflare.com").join("") : csp;
   const run = (url: string, cookie?: string) => {
     const res = proxy(new NextRequest(new URL(url, "https://www.yasamsistemi.com"), { headers: cookie ? { cookie } : {} }));
-    return { res, reqCsp: res.headers.get("x-middleware-request-content-security-policy"), resCsp: res.headers.get("content-security-policy") };
+    return {
+      res,
+      reqCsp: stripTurnstile(url, res.headers.get("x-middleware-request-content-security-policy")),
+      resCsp: stripTurnstile(url, res.headers.get("content-security-policy")),
+      rawCsp: res.headers.get("content-security-policy"),
+    };
   };
   const DOCS = ["/", "/numeroloji", "/?login=1", "/register", "/dashboard", "/danisan-yolculugu", "/human-design/kayitli-haritalar"];
   const CANARY = `${CSP_CANARY_COOKIE}=1`;
@@ -275,6 +285,14 @@ function assertAllNonced(html: string, headerNonce: string | null) {
       }
     });
   }
+  await t("TRIAL7: Turnstile CSP eki yalnız /register (+ kampanya) dokümanında", () => {
+    for (const mode of ["off", "all"] as const) {
+      setMode(mode);
+      const reg = run("/register").rawCsp ?? "";
+      assert.ok(/script-src[^;]*challenges\.cloudflare\.com/.test(reg) && /frame-src[^;]*challenges\.cloudflare\.com/.test(reg), `${mode}: /register Turnstile`);
+      for (const p of ["/", "/numeroloji", "/dashboard", "/registerx"]) assert.ok(!(run(p).rawCsp ?? "").includes("challenges.cloudflare.com"), `${mode}: ${p} Turnstile YOK`);
+    }
+  });
   await t("proxy ALL: istek başına farklı nonce; istek CSP nonce'u == yanıt nonce'u", () => {
     setMode("all");
     const seen = new Set<string>();
