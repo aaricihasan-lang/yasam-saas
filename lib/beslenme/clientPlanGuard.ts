@@ -1,7 +1,8 @@
 import "server-only";
 import { NextRequest, NextResponse } from "next/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { membershipGateForRequest, verifyUserRequest } from "@/lib/auth/userGuard";
+import { membershipGateForRequest, membershipInactiveResponse, verifyUserRequest } from "@/lib/auth/userGuard";
+import { hasMembershipAccessForRow } from "@/lib/auth/membershipAccessCore";
 import { isTrialRestrictedRow } from "@/lib/trial/trialCore";
 import { resolveModuleAccess } from "@/lib/auth/moduleAccess";
 import { beslenmeJson } from "@/lib/beslenme/ownerGuard";
@@ -61,15 +62,18 @@ export async function requireBeslenmePlanAccess(
   // Plan lookup'tan ÖNCE → üyeliği aktif olmayan (trial/pro/pasif/onaysız) uzman plan
   // varlığı sinyali bile alamaz. admin muaf (hasMembershipAccessForRow role short-circuit).
   // TRIAL7: süresi dolmuş deneme → yalnız okuma/dışa aktarma (membershipGateForRequest tek kaynak).
-  const membershipDenied = membershipGateForRequest(req, guard.profile ?? {});
-  if (membershipDenied) return { ok: false, response: membershipDenied };
+  if (!hasMembershipAccessForRow(guard.profile ?? {})) {
+    const membershipDenied = membershipGateForRequest(req, guard.profile ?? {});
+    if (membershipDenied) {
+      return { ok: false, response: isTrialRestrictedRow(guard.profile) ? membershipDenied : membershipInactiveResponse() };
+    }
+  }
 
   // Yetenekler SAF resolveModuleAccess ile (admin role short-circuit → hasBeslenme=true).
   const role = guard.profile?.role;
   const perms = guard.profile?.module_permissions;
-  const trialOpts = { isTrial: isTrialRestrictedRow(guard.profile) };
-  const hasBeslenme = resolveModuleAccess(role, perms, "beslenme", trialOpts);
-  const hasClients = resolveModuleAccess(role, perms, "clients", trialOpts);
+  const hasBeslenme = resolveModuleAccess(role, perms, "beslenme");
+  const hasClients = resolveModuleAccess(role, perms, "clients");
   if (!hasBeslenme && !hasClients) {
     return { ok: false, response: beslenmeJson({ ok: false, code: "FORBIDDEN" }, 403) };
   }
