@@ -141,9 +141,9 @@ export default function RegisterPage() {
       <div className="pointer-events-none absolute left-[-130px] top-[-150px] h-[330px] w-[330px] rounded-full bg-violet-200/38 blur-3xl" />
       <div className="pointer-events-none absolute right-[-110px] top-[70px] h-[360px] w-[360px] rounded-full bg-cyan-200/36 blur-3xl" />
 
-      <div className="relative z-10 flex min-h-screen w-full items-center justify-center px-5 py-8 md:px-8 md:py-6 [@media(min-width:768px)_and_(min-height:741px)_and_(max-height:820px)]:py-4 [@media(min-width:768px)_and_(max-height:740px)]:py-2">
+      <div className="relative z-10 flex min-h-screen w-full items-center justify-center px-5 py-8 md:px-8 md:py-6 [@media(min-width:768px)_and_(min-height:741px)_and_(max-height:820px)]:py-3 [@media(min-width:768px)_and_(max-height:740px)]:py-1.5">
         <div className="w-full max-w-[560px] md:max-w-[580px]">
-        <div className="relative overflow-hidden rounded-[28px] border border-white/80 bg-white/92 p-7 shadow-[0_30px_90px_rgba(15,23,42,0.28)] backdrop-blur-2xl md:px-9 md:py-7 [@media(min-width:768px)_and_(min-height:741px)_and_(max-height:820px)]:py-6 [@media(min-width:768px)_and_(max-height:740px)]:py-4">
+        <div className="relative overflow-hidden rounded-[28px] border border-white/80 bg-white/92 p-7 shadow-[0_30px_90px_rgba(15,23,42,0.28)] backdrop-blur-2xl md:px-9 md:py-7 [@media(min-width:768px)_and_(min-height:741px)_and_(max-height:820px)]:py-5 [@media(min-width:768px)_and_(max-height:740px)]:py-3">
           <div className="pointer-events-none absolute right-[-70px] top-[-80px] h-[180px] w-[180px] rounded-full bg-violet-200/70 blur-3xl" />
           <div className="pointer-events-none absolute bottom-[-80px] left-[-80px] h-[180px] w-[180px] rounded-full bg-cyan-200/50 blur-3xl" />
 
@@ -160,7 +160,7 @@ export default function RegisterPage() {
               {selfTrial ? t("trialNoteInstant") : t("trialNote")}
             </p>
 
-            <form onSubmit={handleSubmit} className="mt-5 space-y-3.5 md:space-y-3 [@media(min-width:768px)_and_(max-height:740px)]:mt-4 [@media(min-width:768px)_and_(max-height:740px)]:space-y-2.5">
+            <form onSubmit={handleSubmit} className="mt-5 space-y-3.5 md:space-y-3 [@media(min-width:768px)_and_(min-height:741px)_and_(max-height:820px)]:space-y-2.5 [@media(min-width:768px)_and_(max-height:740px)]:mt-4 [@media(min-width:768px)_and_(max-height:740px)]:space-y-2">
               <div>
                 <label className="mb-1.5 block text-[15px] font-semibold text-slate-700">
                   {t("fullNameLabel")}
@@ -243,7 +243,7 @@ export default function RegisterPage() {
               <button
                 type="submit"
                 disabled={saving || (selfTrial && !captchaToken)}
-                className="!mt-4 flex h-12 w-full [@media(min-width:768px)_and_(max-height:740px)]:h-11 items-center justify-center rounded-2xl bg-gradient-to-r from-slate-950 via-violet-900 to-fuchsia-700 px-4 text-base font-bold text-white shadow-xl shadow-violet-200 transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-70"
+                className="!mt-4 [@media(min-width:768px)_and_(min-height:741px)_and_(max-height:820px)]:!mt-3 [@media(min-width:768px)_and_(max-height:740px)]:!mt-3 flex h-12 w-full [@media(min-width:768px)_and_(max-height:740px)]:h-11 items-center justify-center rounded-2xl bg-gradient-to-r from-slate-950 via-violet-900 to-fuchsia-700 px-4 text-base font-bold text-white shadow-xl shadow-violet-200 transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-70"
               >
                 {saving ? (
                   <span className="inline-flex items-center gap-2">
@@ -256,7 +256,7 @@ export default function RegisterPage() {
               </button>
             </form>
 
-            <p className="relative z-10 mt-4 text-center text-sm font-semibold text-slate-600 [@media(min-width:768px)_and_(max-height:740px)]:mt-3">
+            <p className="relative z-10 mt-4 text-center text-sm font-semibold text-slate-600 [@media(min-width:768px)_and_(min-height:741px)_and_(max-height:820px)]:mt-3 [@media(min-width:768px)_and_(max-height:740px)]:mt-2">
               {t("haveAccount")}{" "}
               <Link
                 href="/?login=1"
@@ -264,6 +264,21 @@ export default function RegisterPage() {
               >
                 {t("signIn")}
               </Link>
+            </p>
+            {/* Kayıt sırasında aydınlatma: hukuki metinlere bağlantı (kabul iddiası değil, bilgilendirme). */}
+            <p className="relative z-10 mt-2 text-center text-xs leading-snug text-slate-500 md:text-[11px] [@media(min-width:768px)_and_(min-height:741px)_and_(max-height:820px)]:mt-1 [@media(min-width:768px)_and_(max-height:740px)]:mt-1">
+              {t.rich("legalNotice", {
+                privacy: (chunks) => (
+                  <Link href="/gizlilik-politikasi" className="font-semibold text-violet-700 underline">
+                    {chunks}
+                  </Link>
+                ),
+                terms: (chunks) => (
+                  <Link href="/kullanim-sartlari#ucretsiz-deneme" className="font-semibold text-violet-700 underline">
+                    {chunks}
+                  </Link>
+                ),
+              })}
             </p>
           </div>
         </div>

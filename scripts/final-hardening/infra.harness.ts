@@ -308,8 +308,8 @@ const isUseClient = (rel: string) => /^\s*(?:\/\/[^\n]*\n|\/\*[\s\S]*?\*\/\s*)*\
     for (const f of LEGAL_FILES) assert.ok(read(f).includes("<LegalPageShell"), f);
     const shell = read("components/kvkk/LegalPageShell.tsx");
     assert.ok(shell.includes("LEGAL_LAST_UPDATED_LABEL") && shell.includes("LEGAL_LAST_UPDATED_ISO"));
-    assert.equal(LEGAL_LAST_UPDATED_ISO, "2026-11-03");
-    assert.equal(LEGAL_LAST_UPDATED_LABEL, "Son güncelleme: 3 Kasım 2026");
+    assert.equal(LEGAL_LAST_UPDATED_ISO, "2026-11-07");
+    assert.equal(LEGAL_LAST_UPDATED_LABEL, "Son güncelleme: 7 Kasım 2026");
     assert.match(shell, /<main className="[^"]*\bw-full\b/, "main w-full (390px taşma)");
     assert.ok(!/amber-50|amber-300/.test(shell), "sarı taslak kutusu kalmamalı");
   });

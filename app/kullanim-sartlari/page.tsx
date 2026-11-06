@@ -122,6 +122,31 @@ export default function KullanimSartlariPage() {
         özellikler kapalıdır ve uzmanların danışan verilerine yapay zekâ uygulanmaz.
       </p>
 
+      <LegalH2 id="ucretsiz-deneme">Ücretsiz Deneme Üyeliği</LegalH2>
+      <ul>
+        <li>
+          Ücretsiz deneme süresi, kayıttan sonraki ilk başarılı girişinizde başlar ve 7 gün (168 saat)
+          sürer. Deneme süresi uzatılmaz.
+        </li>
+        <li>
+          Her e-posta adresiyle yalnızca bir kez ücretsiz deneme yapılabilir. Sahte, tekrarlı veya
+          otomatik yollarla oluşturulan kayıtlar incelemeye alınabilir; inceleme süresince deneme
+          modülleri kullanılamaz.
+        </li>
+        <li>
+          Deneme üyeliğinde açık olan modüller ve günlük hesaplama kredisi sınırları uygulama içinde
+          gösterilir. Dijital İçerik modülleri deneme üyeliğine dahil değildir.
+        </li>
+        <li>
+          Deneme süresi bittiğinde hesabınız silinmez: oluşturduğunuz kayıtları görüntüleyebilir ve
+          dışa aktarabilirsiniz; yeni kayıt, düzenleme ve hesaplama yapılamaz.
+        </li>
+        <li>
+          Pro üyeliğe geçiş talebinizi uygulama içinden iletebilirsiniz. Ödeme alındıktan sonra
+          üyeliğiniz yönetici tarafından açılır; hesabınız ve kayıtlarınız aynen korunur.
+        </li>
+      </ul>
+
       <LegalH2 id="uyelik-sonu">Üyelik, Arşiv ve Hesap Silme</LegalH2>
       <p>
         Hesap ve çalışma alanı verileri, siz ya da yönetici silene kadar saklanır. Arşivlenen bir

@@ -86,7 +86,29 @@ export default function GizlilikPolitikasiPage() {
           <strong>Destek yazışmaları:</strong> uygulama içi destek kanalı veya iletişim kanallarıyla
           gönderdiğiniz mesajlar. Amaç: talebinizi yanıtlamak.
         </li>
+        <li>
+          <strong>Ücretsiz deneme üyeliği kayıtları:</strong> 7 günlük deneme süresinin başlangıç ve
+          bitiş zamanı, deneme durumu, günlük hesaplama kredisi kullanım kayıtları (tarih, modül ve
+          işlem sonucu; hesaplamanın içeriği bu kayıtlarda tutulmaz) ve Pro üyelik talepleriniz.
+          Amaç: deneme üyeliğinin yürütülmesi, kullanım sınırlarının uygulanması ve Pro üyelik
+          talebinizin değerlendirilmesi.
+        </li>
+        <li>
+          <strong>Sahte ve tekrarlı kayıtları önleme kayıtları:</strong> her e-posta adresiyle yalnız
+          bir kez ücretsiz deneme yapılabilmesi için e-posta adresinizin standart biçiminden ve kayıt
+          sırasındaki IP adresinizden sunucumuzdaki gizli bir anahtarla üretilen, geri döndürülemeyen
+          özetler (HMAC) ile otomatik güvenlik sinyalleri (ör. geçici e-posta alan adı, aynı ağdan kısa
+          sürede çok sayıda kayıt, eksik tarayıcı bilgisi). Ham IP adresiniz bu amaçla saklanmaz.
+          Amaç: deneme üyeliğinin kötüye kullanılmasını ve sahte hesapları önlemek.
+        </li>
       </ul>
+      <p>
+        <strong>Otomatik güvenlik değerlendirmesi:</strong> Kayıt sırasındaki güvenlik sinyalleri
+        yüksek risk gösterirse hesabınız oluşturulur ancak inceleme durumunda açılır; inceleme
+        tamamlanana kadar deneme modülleri kullanılamaz. Bu kalıcı bir ret değildir; hesabın açılıp
+        açılmayacağına yönetici karar verir. Bu değerlendirmeye aşağıdaki &quot;Haklarınız&quot;
+        bölümündeki kanallardan itiraz edebilirsiniz.
+      </p>
 
       <LegalH2 id="erisim">Verilere Kim Erişebilir?</LegalH2>
       <p>
@@ -148,8 +170,12 @@ export default function GizlilikPolitikasiPage() {
       <LegalH2 id="hizmet-saglayicilar">Hizmet Sağlayıcılar (Alt İşleyiciler)</LegalH2>
       <p>
         Platformun çalışması için veritabanı/depolama, barındırma, arka plan işleri, yönetici
-        modüllerinde yapay zekâ ve onaya bağlı ziyaret istatistikleri için hizmet sağlayıcılar
-        kullanılır. Güncel liste ve her birinin kapsamı{" "}
+        modüllerinde yapay zekâ, onaya bağlı ziyaret istatistikleri ile kayıt ve ücretsiz analiz
+        formlarındaki güvenlik doğrulaması (Cloudflare Turnstile) için hizmet sağlayıcılar kullanılır.
+        Güvenlik doğrulamasında tarayıcınız doğrudan Cloudflare&apos;e bağlanır ve Cloudflare bu
+        sırada IP adresinizi ve tarayıcı sinyallerini işler; sunucumuz Cloudflare&apos;e IP
+        adresinizi göndermez, yalnızca tek kullanımlık doğrulama belirtecini iletir. Güncel liste ve
+        her birinin kapsamı{" "}
         <Link href="/alt-isleyiciler" className="text-violet-700 underline">
           Alt İşleyiciler
         </Link>{" "}
@@ -237,6 +263,17 @@ export default function GizlilikPolitikasiPage() {
         </li>
         <li>
           <strong>Günlük kullanım özetleri:</strong> 25 ay saklanır.
+        </li>
+        <li>
+          <strong>Ücretsiz deneme, kredi kullanımı ve Pro talebi kayıtları ile kayıt sırasındaki IP
+          özeti ve güvenlik sinyalleri:</strong> hesabınızla birlikte saklanır; hesabınız silindiğinde
+          silinir.
+        </li>
+        <li>
+          <strong>Tek deneme hakkı kaydı (e-posta özeti):</strong> aynı e-posta adresiyle yeniden
+          ücretsiz deneme başlatılmasını önlemek amacıyla hesabınız silindikten sonra da, bu amacın
+          gerektirdiği süre boyunca saklanır. Bu kayıt adınızı, e-posta adresinizi veya IP adresinizi
+          içermez; geri döndürülemeyen özet, oluşturulma tarihi ve sistem içi hesap numarası tutulur.
         </li>
       </ul>
       <p>
