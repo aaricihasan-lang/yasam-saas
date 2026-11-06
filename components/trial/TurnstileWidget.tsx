@@ -6,7 +6,7 @@ import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
  * TRIAL7 — Cloudflare Turnstile (Free). Mod (Managed) Cloudflare panelinde site anahtarına tanımlanır;
  * istemci yalnız widget'ı açık (explicit) render eder. Belirteç tek kullanımlıktır ve YALNIZ sunucuda
  * Siteverify ile doğrulanır (app/api/register) — istemci tarafı sonuç hiçbir zaman yeterli sayılmaz.
- * Betik challenges.cloudflare.com'dan yüklenir (CSP: lib/security/securityHeaders TURNSTILE_ORIGIN).
+ * Betik challenges.cloudflare.com'dan yüklenir (CSP: yalnız /register dokümanında — lib/security/campaignCsp isTurnstileDocumentPath, proxy.ts).
  */
 
 type TurnstileApi = {
