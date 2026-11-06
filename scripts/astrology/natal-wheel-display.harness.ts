@@ -266,10 +266,12 @@ function main() {
     assert.match(svg, /Plüton — Akrep 9°\d\d′ ℞ \(geri hareket\)/);
   });
 
-  test("dağılım eşitliği açıkça yazılır (Çumra: Ateş/Toprak/Su 3'er; baskın etiketi ve sayılar aynı); eşitlik yoksa not yok", () => {
+  // 2026-11-07 (owner): eşitlikte tek grup "baskın" ilan edilmez; sağlayıcının seçimi yalnız ikincil bilgi (natal-distribution harness).
+  test("dağılım eşitliği açıkça yazılır (Çumra: Ateş/Toprak/Su 3'er; sayılar aynı; kaynak seçimi ikincil); eşitlik yoksa not yok", () => {
     const html = renderToStaticMarkup(createElement(NatalTechnicalPanel, { technical: cumra, timeUnknown: false, part: "overview" }));
-    assert.match(html, /data-testid="natal-element-tie"[^>]*>Eşitlik: Ateş, Toprak, Su \(3/);
-    assert.match(html, /baskın: Toprak/);
+    assert.match(html, /data-testid="natal-element-tie"[^>]*>Ateş, Toprak ve Su eşit — 3&#x27;er gezegen\./);
+    assert.match(html, /eşitlik: Ateş · Toprak · Su/);
+    assert.match(html, /Bu haritada öne alınan: Toprak/);
     const g = renderToStaticMarkup(createElement(NatalTechnicalPanel, { technical: golden, timeUnknown: false, part: "overview" }));
     assert.ok(!g.includes("natal-element-tie"));
   });

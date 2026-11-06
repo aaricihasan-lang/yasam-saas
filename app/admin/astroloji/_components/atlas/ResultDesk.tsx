@@ -369,6 +369,7 @@ function NightDesk({
   stage,
   panelTitle,
   chartKey,
+  calmCursor = false,
   children,
 }: {
   backLabel: string;
@@ -403,6 +404,8 @@ function NightDesk({
   panelTitle?: string;
   /** D3.1: harita kimliği (teknik / sonuç) — değişince görüntüleyici başlangıç (sığdır) görünümüne döner. */
   chartKey?: string;
+  /** 2026-11-07: harita yüzeyinde sade ok imleci (büyüteç / el imleci yok) — yalnız Natal sonucu verir; diğer teknikler aynen. */
+  calmCursor?: boolean;
   children: ReactNode;
 }) {
   const deskRef = useRef<HTMLDivElement | null>(null);
@@ -584,7 +587,7 @@ function NightDesk({
           <div className="relative min-h-0 min-w-0" data-testid="atlas-stage">
             {hasChart ? (
               <ChartBezel className="h-full p-1">
-                <ChartViewport key={chartKey}>{chart!("h-full w-full max-h-full")}</ChartViewport>
+                <ChartViewport calmCursor={calmCursor} key={chartKey}>{chart!("h-full w-full max-h-full")}</ChartViewport>
               </ChartBezel>
             ) : (
               <div className={`${SURFACE} flex h-full min-h-0 flex-col p-2`}>
@@ -659,7 +662,7 @@ function NightDesk({
                 {mobileChart === "mini" ? (
                   chart!("h-full w-full max-h-full")
                 ) : (
-                  <ChartViewport key={chartKey} compact>
+                  <ChartViewport calmCursor={calmCursor} key={chartKey} compact>
                     {chart!("h-full w-full max-h-full")}
                   </ChartViewport>
                 )}
@@ -683,7 +686,7 @@ function NightDesk({
 
       {hasChart && (
         <ChartOverlay open={overlay} onClose={() => setOverlay(false)} title={title} meta={metaList}>
-          <ChartViewport key={`${chartKey ?? ""}|odak`} label="Harita — odak modu">
+          <ChartViewport calmCursor={calmCursor} key={`${chartKey ?? ""}|odak`} label="Harita — odak modu">
             {chart!("h-full w-full max-h-full")}
           </ChartViewport>
         </ChartOverlay>
@@ -987,7 +990,7 @@ function DeskMoreMenu({ menu, backLabel, onBack }: { menu?: ReactNode; backLabel
   );
 }
 
-function LightDesk({ backLabel, onBack, eyebrow, title, subtitle, details, meta, chips, actions, switcher, picker, primary, notices, tabs, active, onTab, chart, stage, chartKey, children, toolbar, chartNotes, menu, params, kunye }: LightDeskProps) {
+function LightDesk({ backLabel, onBack, eyebrow, title, subtitle, details, meta, chips, actions, switcher, picker, primary, notices, tabs, active, onTab, chart, stage, chartKey, calmCursor = false, children, toolbar, chartNotes, menu, params, kunye }: LightDeskProps) {
   const sectionRef = useRef<HTMLElement | null>(null);
   // Künye: kapalıyken tek satır (sığmayan kısım "…"); "Künye ▾" tam metni açar (bilgi gizlenmez).
   const [metaOpen, setMetaOpen] = useState(false);
@@ -1371,7 +1374,7 @@ function LightDesk({ backLabel, onBack, eyebrow, title, subtitle, details, meta,
   const chartNode = () =>
     hasChart ? (
       <div className="absolute inset-0 p-1" data-testid="atlas-chart-fit">
-        <ChartViewport key={chartKey} tone="light" controls={false} apiRef={vpApi} onScaleChange={setZoomScale}>
+        <ChartViewport calmCursor={calmCursor} key={chartKey} tone="light" controls={false} apiRef={vpApi} onScaleChange={setZoomScale}>
           {chart!("h-full w-full max-h-full")}
         </ChartViewport>
       </div>
@@ -1514,7 +1517,7 @@ function LightDesk({ backLabel, onBack, eyebrow, title, subtitle, details, meta,
 
       {hasChart && (
         <LightOverlay open={overlay} onClose={() => setOverlay(false)} title={title} meta={metaList}>
-          <ChartViewport key={`${chartKey ?? ""}|odak`} label="Harita — odak modu" tone="light">
+          <ChartViewport calmCursor={calmCursor} key={`${chartKey ?? ""}|odak`} label="Harita — odak modu" tone="light">
             {chart!("h-full w-full max-h-full")}
           </ChartViewport>
         </LightOverlay>

@@ -1917,6 +1917,7 @@ export default function AstrologyWorkspacePage() {
                   active={tab}
                   onTab={setDeskTab}
                   chartKey={item.key}
+                  calmCursor={item.technique === "western.natal"}
                   chart={
                     natalTech
                       ? (cls: string) => <NatalWheel technical={natalTech} sizeClassName={cls} tinted display={natalWheelDisplay(natalTech, natalPrefs)} />

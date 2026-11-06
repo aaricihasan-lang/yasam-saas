@@ -492,6 +492,7 @@ export function SavedAnalysisView({
         active={tab}
         onTab={setDeskTab}
         chartKey={a.id}
+        calmCursor={a.technique === "western.natal"}
         chart={
           natal
             ? (cls: string) => <NatalWheel technical={natal} sizeClassName={cls} tinted display={natalWheelDisplay(natal, natalPrefs)} />

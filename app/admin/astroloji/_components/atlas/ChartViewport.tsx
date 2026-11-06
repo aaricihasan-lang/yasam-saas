@@ -34,6 +34,7 @@ export default function ChartViewport({
   controls = true,
   apiRef,
   onScaleChange,
+  calmCursor = false,
 }: {
   children: ReactNode;
   className?: string;
@@ -49,6 +50,11 @@ export default function ChartViewport({
   apiRef?: Ref<ChartViewportApi>;
   /** Ölçek her değiştiğinde (ilk açılışta 1 dahil) — dış düğmelerin etkin / pasif durumu için. */
   onScaleChange?: (scale: number) => void;
+  /**
+   * 2026-11-07 (Natal, owner): harita yüzeyinde büyüteç / el (grab) imleci yerine her durumda sade ok (cursor-default).
+   * Yalnız imleç görünümü: tekerlek, sürükleme, iki parmak, klavye ve harita içi ipuçları (SVG title) AYNEN çalışır.
+   */
+  calmCursor?: boolean;
 }) {
   const L = tone === "light";
   const boxRef = useRef<HTMLDivElement | null>(null);
@@ -202,7 +208,7 @@ export default function ChartViewport({
           if (viewRef.current.s >= 3.5) apply(FIT);
           else zoomAt(p.x, p.y, viewRef.current.s * 1.8);
         }}
-        className={`relative h-full w-full select-none overflow-hidden rounded-[inherit] outline-none focus-visible:ring-2 ${L ? "focus-visible:ring-[#0B1430]/40" : "focus-visible:ring-[#D9B56F]/60"} ${zoomed ? (dragging ? "cursor-grabbing" : "cursor-grab") : "cursor-zoom-in"}`}
+        className={`relative h-full w-full select-none overflow-hidden rounded-[inherit] outline-none focus-visible:ring-2 ${L ? "focus-visible:ring-[#0B1430]/40" : "focus-visible:ring-[#D9B56F]/60"} ${calmCursor ? "cursor-default" : zoomed ? (dragging ? "cursor-grabbing" : "cursor-grab") : "cursor-zoom-in"}`}
         style={{ touchAction: zoomed ? "none" : "pan-y" }}
       >
         <div className="absolute inset-0 flex items-center justify-center" style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.s})`, transformOrigin: "0 0" }}>

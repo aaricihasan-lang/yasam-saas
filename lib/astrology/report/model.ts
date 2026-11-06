@@ -8,7 +8,8 @@
 //   • Roxy yorum bölümünü yalnız `interpretation.visible === true` ise kurar.
 
 import { ASPECT_GLYPHS, BODY_GLYPHS, SIGN_GLYPHS, BODY_LABELS, ASPECT_LABELS, DIGNITY_LABELS, ELEMENT_LABELS, HOUSE_SYSTEM_LABELS, MODALITY_LABELS, NATAL_HOUSE_SYSTEM_LABELS, NATURE_LABELS, NODE_TYPE_LABELS, PATTERN_LABELS, SIGN_LABELS, formatDegree } from "../labels/tr";
-import { SIGN_IDS, type SignId } from "../model/western";
+import { SIGN_IDS, type NatalTechnical, type SignId } from "../model/western";
+import { DIST_METHODS, DIST_METHOD_LABELS, DIST_METHOD_NOTES, ELEMENT_ORDER, MODALITY_ORDER, natalDistribution, tieSentence } from "../view/natalDistribution";
 import { LOCAL_NATAL_HOUSE_CALC_LABEL, LOCAL_NATAL_HOUSE_CALC_VALUE } from "../model/natalHouseSystems";
 import { GRAHA_LABELS, KARANA_LABELS, NAKSHATRA_LABELS, VEDIC_YOGA_NAMES } from "../topics/vedic";
 import { KP_NODE_SIG_METHODS, KP_NODE_SIG_SOURCE, KP_RULING_METHOD_NOTE, KP_RULING_SIG_NOTE, type KpNodeSigMethodId } from "../model/kp";
@@ -454,15 +455,48 @@ function westernNatal(b: B, t: O) {
     const md = isObj(sm.modalityDistribution) ? sm.modalityDistribution : null;
     const ab = isObj(sm.aspectBalance) ? sm.aspectBalance : null;
     b.h(3, "Özet");
+    // 2026-11-07: iki yöntem (10 gezegen = kayıtlı sağlayıcı sayımı aynen; 15 puan = kayıtlı teknik veriden yerel) ve eşitlik
+    // açıkça yazılır — eşitlikte tek grup "baskın" ilan edilmez (sağlayıcının eşitlik kuralı yalnız ikincil bilgi).
+    const dist = distributionRows(t, ed, md);
     b.kv([
-      ["Baskın element", typeof sm.dominantElement === "string" ? ((ELEMENT_LABELS as Record<string, string>)[sm.dominantElement] ?? sm.dominantElement) : DASH],
-      ["Baskın nitelik", typeof sm.dominantModality === "string" ? ((MODALITY_LABELS as Record<string, string>)[sm.dominantModality] ?? sm.dominantModality) : DASH],
-      ["Element dağılımı", ed ? Object.entries(ELEMENT_LABELS).map(([k, l]) => `${l} ${s(ed[k])}`).join(" · ") : DASH],
-      ["Nitelik dağılımı", md ? Object.entries(MODALITY_LABELS).map(([k, l]) => `${l} ${s(md[k])}`).join(" · ") : DASH],
+      ...dist,
       ["Retro gezegenler", arr(sm.retrograde).length ? list(sm.retrograde, bodyL) : DASH],
       ["Açı dengesi", ab ? `Uyumlu ${s(ab.harmonious)} · Zorlayıcı ${s(ab.challenging)} · Nötr ${s(ab.neutral)}` : DASH],
     ]);
   }
+}
+
+/** Natal dağılım satırları (Word/PDF): 10 Gezegen + 15 Puanlık Analiz; eşitlik metni ekranla aynı yardımcılardan. */
+function distributionRows(t: O, ed: O | null, md: O | null): [string, string][] {
+  const tech = {
+    bodies: Array.isArray(t.bodies) ? (t.bodies as NatalTechnical["bodies"]) : [],
+    angles: (isObj(t.angles) ? t.angles : null) as NatalTechnical["angles"],
+    summary: (isObj(t.summary) ? t.summary : null) as NatalTechnical["summary"],
+  };
+  const EL = ELEMENT_LABELS as Record<string, string>;
+  const MO = MODALITY_LABELS as Record<string, string>;
+  const rows: [string, string][] = [];
+  for (const m of DIST_METHODS) {
+    const tag = DIST_METHOD_LABELS[m];
+    const d = m === "planets10" && !ed && !md ? null : natalDistribution(tech, m);
+    if (!d || !d.available) {
+      rows.push([`Dağılım — ${tag}`, m === "weighted15" && d && d.reason === "no_angles" ? "Doğum saati bilinmediği için Yükselen ve MC yok; hesaplanamaz." : DASH]);
+      continue;
+    }
+    const verdict = (top: string[], values: Record<string, number>, labels: Record<string, string>, pick: string | null) => {
+      const names = top.map((k) => labels[k]);
+      if (names.length === 0) return DASH;
+      if (names.length === 1) return names[0];
+      const tie = tieSentence(names, values[top[0]], d.unit);
+      return pick && labels[pick] ? `${tie} Hesaplama kaynağının eşitlik kuralıyla öne alınan: ${labels[pick]}.` : tie;
+    };
+    rows.push([`Element — ${tag}`, ELEMENT_ORDER.map((k) => `${EL[k]} ${d.elements[k]}`).join(" · ")]);
+    rows.push([`Baskın element — ${tag}`, verdict(d.topElements, d.elements, EL, d.providerDominant?.element ?? null)]);
+    rows.push([`Nitelik — ${tag}`, MODALITY_ORDER.map((k) => `${MO[k]} ${d.modalities[k]}`).join(" · ")]);
+    rows.push([`Baskın nitelik — ${tag}`, verdict(d.topModalities, d.modalities, MO, d.providerDominant?.modality ?? null)]);
+    rows.push([`Yöntem — ${tag}`, DIST_METHOD_NOTES[m]]);
+  }
+  return rows;
 }
 
 const FORECAST_EVENT: Record<string, string> = { transit_aspect: "Transit açı", sign_ingress: "Burç girişi", retrograde_station: "Duraklama", eclipse: "Tutulma", lunar_phase: "Ay evresi" };
