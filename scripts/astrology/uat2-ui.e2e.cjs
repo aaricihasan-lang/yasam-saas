@@ -118,18 +118,29 @@ const TRANSIT = { technique: "western.transit", options: { date: "2026-10-07", t
   ok("G5 iç ekranda ana sayfa (ev) düğmesi", await (await deskMenuItem(page, "[data-testid=atlas-home-btn]")).isVisible());
   await page.keyboard.press("Escape");
 
-  // ── J: yakınlaştırma kartın TAMAMINI kullanır; kaydırma (pan) + %100 sıfırlama
-  const vp = page.locator("[data-testid=atlas-chart-viewport]").first();
+  // ── J: V4-004 (2026-11-06 owner kararı): masada görünür yakınlaştırma grubu (+ / % / − / sığdır) YOK; harita alana kare
+  //    olarak sığar. Yakınlaştırma / sürükleme / sığdır Odak modunda aynen sürer (J3–J5 orada sınanır).
+  ok("J0 masada yakınlaştırma grubu yok", (await page.locator("[data-testid=astro-result-view] [data-testid=atlas-zoom-in], [data-testid=astro-result-view] [data-testid=atlas-zoom-level], [data-testid=astro-result-view] [role=toolbar][aria-label='Harita yakınlaştırma']").count()) === 0);
+  const fit = page.locator("[data-testid=atlas-chart-fit]").first();
+  if (await fit.isVisible().catch(() => false)) {
+    const m = await fit.evaluate((el) => {
+      const f = el.getBoundingClientRect();
+      const svg = el.querySelector("svg");
+      const s = svg.getBoundingClientRect();
+      // Çizilen çark = viewBox'ın kutuya oranı korunarak sığmış hâli (preserveAspectRatio varsayılanı: xMidYMid meet).
+      const vb = (svg.getAttribute("viewBox") || "0 0 1 1").split(/[ ,]+/).map(Number);
+      const k = Math.min(s.width / vb[2], s.height / vb[3]);
+      return { fw: f.width, fh: f.height, dw: vb[2] * k, dh: vb[3] * k, inside: s.left >= f.left - 1 && s.right <= f.right + 1 && s.top >= f.top - 1 && s.bottom <= f.bottom + 1 };
+    });
+    ok("J1 harita kabına sığar (kesilmez) ve kabın kısa kenarını doldurur", m.inside && Math.abs(Math.min(m.fw, m.fh) - Math.max(m.dw, m.dh)) <= 12, JSON.stringify(m));
+  } else ok("J harita sığdırma kabı görünür", false);
+  // Odak modu: yakınlaştırma kartın TAMAMINI kullanır; kaydırma (pan) + %100 sıfırlama
+  await page.locator("[data-testid=atlas-chart-expand]:visible").first().click();
+  await page.locator("[data-testid=atlas-chart-overlay]").first().waitFor({ state: "visible", timeout: 10000 });
+  const vp = page.locator("[data-testid=atlas-chart-overlay] [data-testid=atlas-chart-viewport]").first();
   if (await vp.isVisible().catch(() => false)) {
-    // Masaüstü masasında çerçeve atlas-chart-frame; mobil yerleşimde görüntüleyicinin doğrudan kabı.
-    const hasFrame = (await page.locator("[data-testid=atlas-chart-frame]").count()) > 0;
-    const fb = hasFrame ? await page.locator("[data-testid=atlas-chart-frame]").first().boundingBox() : await vp.evaluate((el) => el.parentElement.getBoundingClientRect().toJSON());
-    const side = hasFrame ? Number(await page.locator("[data-testid=atlas-chart-frame]").first().getAttribute("data-side")) : 0;
-    const vb = await vp.boundingBox();
-    ok("J1 görüntüleyici kart çerçevesinin tamamı (görünmez kare yok)", !!fb && !!vb && Math.abs(fb.width - vb.width) <= 3 && Math.abs(fb.height - vb.height) <= 3, `çerçeve ${fb?.width.toFixed(0)}×${fb?.height.toFixed(0)} · görüntüleyici ${vb?.width.toFixed(0)}×${vb?.height.toFixed(0)}${side ? ` · kare ${side}` : ""}`);
-    if (!mobile && hasFrame) ok("J2 masaüstünde çerçeve kareden geniş (eskiden kare kırpılıyordu)", !!fb && fb.width > side + 4, `${fb?.width.toFixed(0)} > ${side}`);
-    // Mobil yerleşimde düğme çubuğu gizli (iki parmak / klavye); yakınlaştırma klavye kısayoluyla (+) yapılır.
-    const zoomBtn = page.locator("[data-testid=atlas-zoom-in]").first();
+    // Dar ekranda düğme çubuğu gizli (iki parmak / klavye); yakınlaştırma klavye kısayoluyla (+) yapılır.
+    const zoomBtn = vp.locator("[data-testid=atlas-zoom-in]").first();
     const btnVisible = await zoomBtn.isVisible().catch(() => false);
     if (btnVisible) for (let i = 0; i < 4; i++) await zoomBtn.click();
     else {
@@ -138,7 +149,7 @@ const TRANSIT = { technique: "western.transit", options: { date: "2026-10-07", t
     }
     await page.waitForTimeout(400);
     const lvl = await vp.getAttribute("data-scale");
-    ok("J3 yakınlaştırma ~%330", Number(lvl) > 3 && Number(lvl) < 3.5, lvl);
+    ok("J3 odak modunda yakınlaştırma ~%330", Number(lvl) > 3 && Number(lvl) < 3.5, lvl);
     const box = await vp.boundingBox();
     const tr0 = await vp.locator("div[style*='translate']").first().getAttribute("style");
     await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
@@ -149,11 +160,16 @@ const TRANSIT = { technique: "western.transit", options: { date: "2026-10-07", t
     const tr1 = await vp.locator("div[style*='translate']").first().getAttribute("style");
     ok("J4 sürükleyerek kaydırma (pan) çalışır", tr0 !== tr1, `${tr0} → ${tr1}`);
     ok("J4b sürükleme metin seçmez", (await selLen()) === 0);
-    if (btnVisible) await page.locator("[data-testid=atlas-zoom-fit]").first().click();
-    else await page.locator("[data-testid=atlas-zoom-fit-compact]").first().click();
+    if (btnVisible) await vp.locator("[data-testid=atlas-zoom-fit]").first().click();
+    else {
+      await vp.locator("[role=group]").first().focus();
+      await page.keyboard.press("0");
+    }
     await page.waitForTimeout(300);
     ok("J5 Sığdır → %100", (await vp.getAttribute("data-scale")) === "1.00");
-  } else ok("J görüntüleyici görünür", false);
+  } else ok("J odak modu görüntüleyicisi görünür", false);
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(300);
 
   // ── I: natal açı tablosu: yatay kaydırma çubuğu 41 satırın altında kalmaz (sınırlı kutu + yapışkan başlık)
   await page.getByRole("tab", { name: /Açılar/ }).first().click().catch(() => undefined);
