@@ -9,6 +9,9 @@
  *   - içerik kaybı yok: her alan değeri / her variant / kaynak / not belgede,
  *   - Türkçe karakterler korunur, updateFields açık, kapakta header/footer yok (titlePage),
  *   - eski boş TOC FIELD'ı ve "Genel Özet" bölücü sayfası YOK.
+ * Mineral raporu (2026-11-06 premium katalog, owner kararı): İçindekiler yalnız MINERAL_TOC_MIN (6) ve
+ * üzeri mineralde vardır. Daha az kayıtta TERSİ doğrulanır: İçindekiler / PAGEREF / alan güncelleme /
+ * sayfa sonu YOK (tek kısa mineral tek sayfada). Diğer tüm kontroller her iki düzende aynıdır.
  * Opsiyonel: OUT_DIR verilirse DOCX'ler yazılır (Word COM sayfa-no doğrulaması için).
  *
  * Çalıştır: npx tsx scripts/dogaltas-word-premium-harness.ts
@@ -17,7 +20,7 @@ import fs from "node:fs";
 import path from "node:path";
 import JSZip from "jszip";
 import { Packer } from "docx";
-import { buildMineralReportDocument, type MineralRow } from "../lib/dogaltas/mineralReportDoc";
+import { buildMineralReportDocument, MINERAL_TOC_MIN, mineralReportLayout, type MineralRow } from "../lib/dogaltas/mineralReportDoc";
 import { buildCombinationReportDocument, type CombinationRow } from "../lib/dogaltas/combinationReportDoc";
 
 let pass = 0;
@@ -47,21 +50,31 @@ async function parse(buf: Buffer): Promise<Parsed> {
 }
 
 /** Ortak premium düzen kontrolleri; TOC girişleri (anchor sırası) ile H2 yer imleri eşleşmeli. */
-function commonChecks(label: string, p: Parsed, titles: string[]) {
+function commonChecks(label: string, p: Parsed, titles: string[], opts: { toc?: boolean } = {}) {
+  const toc = opts.toc ?? true;
   check(`${label}: document.xml var`, p.files.includes("word/document.xml"));
-  check(`${label}: updateFields açık`, /<w:updateFields(?: w:val="(true|1)")?\/>/.test(p.settings));
+  if (!toc) {
+    // Kompakt düzen: İçindekiler yok → PAGEREF yok → açılışta alan güncelleme sorusu da yok.
+    check(`${label}: (kompakt) İçindekiler yok`, !p.text.includes("İçindekiler"));
+    check(`${label}: (kompakt) TOC bağlantısı / PAGEREF yok`, !/<w:hyperlink [^>]*w:anchor=/.test(p.doc) && !/PAGEREF /.test(p.doc));
+    check(`${label}: (kompakt) updateFields kapalı`, !/<w:updateFields/.test(p.settings));
+  } else {
+    check(`${label}: updateFields açık`, /<w:updateFields(?: w:val="(true|1)")?\/>/.test(p.settings));
+  }
   check(`${label}: titlePage (kapakta üst/alt bilgi yok)`, /<w:titlePg\/>|<w:titlePg w:val="(true|1)"\/>/.test(p.doc));
   check(`${label}: eski boş TOC alanı yok`, !/TOC \\o/.test(p.doc));
   check(`${label}: "Genel Özet" bölücü yok`, !p.text.includes("Genel Özet"));
-  check(`${label}: İçindekiler başlığı var`, p.text.includes("İçindekiler"));
+  if (toc) check(`${label}: İçindekiler başlığı var`, p.text.includes("İçindekiler"));
   check(`${label}: Rapor Özeti var`, p.text.includes("Rapor Özeti"));
 
   const anchors = [...p.doc.matchAll(/<w:hyperlink [^>]*w:anchor="([^"]+)"/g)].map((m) => m[1]!);
   const pagerefs = [...p.doc.matchAll(/PAGEREF ([A-Za-z0-9_]+) \\h/g)].map((m) => m[1]!);
   const bookmarks = [...p.doc.matchAll(/<w:bookmarkStart [^>]*w:name="([^"]+)"/g)].map((m) => m[1]!);
-  check(`${label}: TOC giriş sayısı = başlık sayısı (${titles.length})`, anchors.length === titles.length, `anchor=${anchors.length}`);
-  check(`${label}: PAGEREF sayısı = başlık sayısı`, pagerefs.length === titles.length, `pageref=${pagerefs.length}`);
-  check(`${label}: PAGEREF sırası = anchor sırası`, JSON.stringify(pagerefs) === JSON.stringify(anchors));
+  if (toc) {
+    check(`${label}: TOC giriş sayısı = başlık sayısı (${titles.length})`, anchors.length === titles.length, `anchor=${anchors.length}`);
+    check(`${label}: PAGEREF sayısı = başlık sayısı`, pagerefs.length === titles.length, `pageref=${pagerefs.length}`);
+    check(`${label}: PAGEREF sırası = anchor sırası`, JSON.stringify(pagerefs) === JSON.stringify(anchors));
+  }
   check(`${label}: yer imleri benzersiz`, new Set(bookmarks).size === bookmarks.length);
   const bmIds = [...p.doc.matchAll(/<w:bookmarkStart [^>]*w:id="(\d+)"/g)].map((m) => m[1]!);
   const endIds = [...p.doc.matchAll(/<w:bookmarkEnd w:id="(\d+)"/g)].map((m) => m[1]!);
@@ -74,7 +87,7 @@ function commonChecks(label: string, p: Parsed, titles: string[]) {
 
   // TOC giriş metinleri sırasıyla başlıklar
   const tocTitles = [...p.doc.matchAll(/<w:hyperlink [^>]*w:anchor="[^"]+"[^>]*>([\s\S]*?)<\/w:hyperlink>/g)].map((m) => xmlText(m[1]!));
-  check(`${label}: TOC metinleri = başlıklar (sıra dahil)`, JSON.stringify(tocTitles) === JSON.stringify(titles),
+  if (toc) check(`${label}: TOC metinleri = başlıklar (sıra dahil)`, JSON.stringify(tocTitles) === JSON.stringify(titles),
     tocTitles.find((t, i) => t !== titles[i]) ?? "");
 
   // Her yer imi bir Heading2 paragrafının içinde
@@ -113,7 +126,7 @@ async function mineralCase(label: string, minerals: MineralRow[]) {
   const buf = await Packer.toBuffer(doc);
   const p = await parse(buf);
   const titles = minerals.map((m) => m.name || "İsimsiz Mineral");
-  commonChecks(label, p, titles);
+  commonChecks(label, p, titles, { toc: minerals.length >= MINERAL_TOC_MIN });
   // İçerik bütünlüğü: tüm alan değerleri
   const missing: string[] = [];
   for (const m of minerals) {
@@ -129,9 +142,10 @@ async function mineralCase(label: string, minerals: MineralRow[]) {
   }
   check(`${label}: içerik kaybı yok`, missing.length === 0, missing.slice(0, 3).join(" | "));
   check(`${label}: Türkçe karakterler`, p.text.includes(TR));
-  // Sayfa sonları: kapak→özet (1) + Mineral Kayıtları (1) + (bilgilendirme notu bölümü olabilir). Mineral başına sayfa sonu YOK.
+  // Sayfa sonları: yalnız büyük katalogda kapaktan sonra 1 tane. Mineral başına sayfa sonu YOK.
   const breaks = (p.doc.match(/<w:pageBreakBefore\/>|<w:br w:type="page"\/>/g) ?? []).length;
-  check(`${label}: mineral başına sayfa sonu yok (breaks=${breaks})`, breaks <= 4);
+  const expectedBreaks = mineralReportLayout(minerals.length) === "large" ? 1 : 0;
+  check(`${label}: mineral başına sayfa sonu yok (breaks=${breaks})`, breaks === expectedBreaks);
   if (OUT_DIR) fs.writeFileSync(path.join(OUT_DIR, `mineral-${label}.docx`), buf);
   return p;
 }
@@ -192,6 +206,8 @@ async function main() {
   console.log("Mineral raporu…");
   await mineralCase("m1", [mineral(0)]);
   await mineralCase("m5", Array.from({ length: 5 }, (_, i) => mineral(i)));
+  await mineralCase("m6", Array.from({ length: 6 }, (_, i) => mineral(i)));
+  await mineralCase("m24", Array.from({ length: 24 }, (_, i) => mineral(i, { stones: i % 4 })));
   await mineralCase("m39", Array.from({ length: 39 }, (_, i) => mineral(i, { stones: i % 7 === 0 ? 0 : (i % 5) * 6 + 1 })));
   await mineralCase("many-stones", [mineral(0, { stones: 120 }), mineral(1, { stones: 45 })]);
   const zero = await mineralCase("zero-stones", [mineral(0, { stones: 0 }), mineral(1, { stones: 0 })]);
