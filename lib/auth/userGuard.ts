@@ -316,7 +316,10 @@ export async function requireModuleAccess(
   // TRIAL7: süresi dolmuş / durdurulmuş deneme → SALT-OKUNUR: GET/HEAD + kayıtlı veriden dışa
   // aktarma uçları (lib/trial/readOnlyRoutes) açık; diğer her yöntem 403 (yazma/hesaplama/yükleme yok).
   const membershipDenied = membershipGateForRequest(req, profile);
-  if (membershipDenied) return { ok: false, response: membershipDenied };
+  if (membershipDenied) {
+    if (isTrialRestrictedRow(profile)) return { ok: false, response: membershipDenied };
+    return { ok: false, response: membershipInactiveResponse() };
+  }
 
   const isTrial = isTrialRestrictedRow(profile);
   if (
