@@ -835,6 +835,56 @@ function SectionChips({ items, active, onPick }: { items: DeskTab[]; active: str
   );
 }
 
+/**
+ * Telefon / tablet: kayarken üstte KALAN şerit (bölüm çipleri + üst yatay kaydırma şeridi). CSS `sticky` burada çalışmaz —
+ * uygulama kabuğundaki `<main>` `overflow-x: hidden` (→ kaydırmayan bir kaydırma kabı) olduğundan yapışkan öğe hiç yapışmaz
+ * (2026-11-06 ölçüldü). Kabuğa dokunmadan: şerit yerinden çıkınca sabitlenir (yer tutucu yüksekliği korur → içerik
+ * zıplamaz), kapsayan kartın sonunda kartla birlikte yukarı itilir. Yalnız görünüm.
+ */
+function PinTop({ boundaryRef, className, children, testId }: { boundaryRef: React.RefObject<HTMLElement | null>; className?: string; children: ReactNode; testId?: string }) {
+  const holderRef = useRef<HTMLDivElement | null>(null);
+  const barRef = useRef<HTMLDivElement | null>(null);
+  const [pin, setPin] = useState<{ top: number; left: number; width: number; h: number } | null>(null);
+  useEffect(() => {
+    let raf = 0;
+    const update = () => {
+      const holder = holderRef.current;
+      const bar = barRef.current;
+      const bound = boundaryRef.current;
+      if (!holder || !bar || !bound) return;
+      const hr = holder.getBoundingClientRect();
+      const br = bound.getBoundingClientRect();
+      const h = bar.offsetHeight;
+      if (hr.top < 0 && br.bottom > h) {
+        const next = { top: Math.min(0, Math.round(br.bottom - h)), left: Math.round(hr.left), width: Math.round(hr.width), h };
+        setPin((p) => (p && p.top === next.top && p.left === next.left && p.width === next.width && p.h === next.h ? p : next));
+      } else setPin(null);
+    };
+    const later = () => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(update);
+    };
+    update();
+    window.addEventListener("scroll", later, { capture: true, passive: true });
+    window.addEventListener("resize", later);
+    const ro = typeof ResizeObserver !== "undefined" ? new ResizeObserver(later) : null;
+    if (ro && barRef.current) ro.observe(barRef.current);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener("scroll", later, { capture: true });
+      window.removeEventListener("resize", later);
+      ro?.disconnect();
+    };
+  }, [boundaryRef]);
+  return (
+    <div ref={holderRef} style={pin ? { height: pin.h } : undefined} data-testid={testId} data-pinned={pin ? "1" : "0"}>
+      <div ref={barRef} className={className} style={pin ? { position: "fixed", top: pin.top, left: pin.left, width: pin.width, zIndex: 30 } : undefined}>
+        {children}
+      </div>
+    </div>
+  );
+}
+
 function LightOverlay({ open, onClose, title, meta, children }: { open: boolean; onClose: () => void; title: string; meta?: string[]; children: ReactNode }) {
   const closeRef = useRef<HTMLButtonElement | null>(null);
   useEffect(() => {
@@ -943,6 +993,8 @@ function LightDesk({ backLabel, onBack, eyebrow, title, subtitle, details, meta,
   // V4-002: üst yatay kaydırma şeridinin kapsamları (teknik sonuç alanı · telefonda bilgi içeriği).
   const stageRef = useRef<HTMLDivElement | null>(null);
   const mPanelRef = useRef<HTMLDivElement | null>(null);
+  const mPanelCardRef = useRef<HTMLDivElement | null>(null);
+  const mStageCardRef = useRef<HTMLDivElement | null>(null);
   // İki kolon yalnız ≥1024 px ekranda VE masa için gerçekten yer varken (uygulama menüsü açıkken 1024 px'te masa ~700 px
   // kalır → harita ~350 px'e düşerdi). Dar alanda tablet düzeni: harita tam genişlikte, bilgi altında.
   const wideScreen = useDeskLayout();
@@ -1307,7 +1359,7 @@ function LightDesk({ backLabel, onBack, eyebrow, title, subtitle, details, meta,
             {header}
             {switcher && <div className="px-2 py-1">{switcher}</div>}
           </div>
-          <div className="overflow-clip rounded-xl border border-slate-200 bg-white shadow-sm max-sm:rounded-none max-sm:border-x-0" data-testid="atlas-chart-card">
+          <div ref={mStageCardRef} className="overflow-clip rounded-xl border border-slate-200 bg-white shadow-sm max-sm:rounded-none max-sm:border-x-0" data-testid="atlas-chart-card">
             {toolRow}
             {notesRow}
             {hasChart ? (
@@ -1316,20 +1368,20 @@ function LightDesk({ backLabel, onBack, eyebrow, title, subtitle, details, meta,
               </div>
             ) : (
               <>
-                <div className="sticky top-0 z-10">
+                <PinTop boundaryRef={mStageCardRef} className="bg-white">
                   <HScrollProxy rootRef={stageRef} resetKey={chartKey} testId="atlas-stage-hscroll" />
-                </div>
+                </PinTop>
                 <div ref={stageRef} className="overflow-x-auto p-3 text-slate-800" data-testid="atlas-mobile-stage">
                   {stage}
                 </div>
               </>
             )}
           </div>
-          <div className="rounded-xl border border-slate-200 bg-white shadow-sm max-sm:rounded-none max-sm:border-x-0">
-            <div className="sticky top-0 z-20 border-b border-slate-100 bg-white/95 backdrop-blur">
+          <div ref={mPanelCardRef} className="rounded-xl border border-slate-200 bg-white shadow-sm max-sm:rounded-none max-sm:border-x-0">
+            <PinTop boundaryRef={mPanelCardRef} className="border-b border-slate-100 bg-white/95 backdrop-blur" testId="atlas-mobile-sections-bar">
               <SectionChips items={tabs} active={active} onPick={pick} />
               <HScrollProxy rootRef={mPanelRef} resetKey={`${chartKey ?? ""}|${active}`} />
-            </div>
+            </PinTop>
             <div ref={mPanelRef} className="overflow-x-auto bg-[#fbfaf7] p-3">
               {panel}
             </div>
