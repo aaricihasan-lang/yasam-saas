@@ -43,6 +43,7 @@ const MIGRATIONS = [
   "supabase/migrations/20261221000000_yh_grade_expert_premium_rpc.sql",
 ];
 const TRIAL_MIGRATION = "supabase/migrations/20280101000000_trial7_self_trial.sql";
+const RETENTION_MIGRATION = "supabase/migrations/20280101000100_trial7_claims_retention.sql";
 
 const ADMIN = "00000000-0000-0000-0000-0000000000a1";
 const PREMIUM = "00000000-0000-0000-0000-0000000000b1";
@@ -122,6 +123,9 @@ try {
   };
   await applyTrial();
   await applyTrial();
+  const retentionSql = fs.readFileSync(path.join(root, RETENTION_MIGRATION), "utf8");
+  await c.query(retentionSql);
+  await c.query(retentionSql);
   ok(true, "TRIAL7 migration iki kez hatasız uygulandı");
   ok(JSON.stringify(await q(snapshotSql, [EXISTING])) === before, "E: migration mevcut hiçbir hesabı değiştirmedi (backfill YOK)");
   const kinds = await q("SELECT count(*)::int n FROM public.users WHERE trial_kind IS NOT NULL OR trial_status IS NOT NULL");
@@ -329,6 +333,31 @@ try {
   ok(!archive.some((r) => r.id === exp.user_id || r.id === T1), "E2 süresi dolan/durdurulan deneme arşive (kalıcı silme kapsamına) DÜŞMEDİ");
   await rpc("admin_trial_set_state", [ADMIN, T1, "suspend", null]);
   ok((await user(T1)).active === true, "E3 durdurulan deneme hesabı aktif kalır (giriş + görüntüleme)");
+
+  console.log("— D: tek deneme hakkı saklama (24 ay, aylık imha)");
+  {
+    const counts = async () => (await q("SELECT (SELECT count(*) FROM public.users)::int u, (SELECT count(*) FROM public.clients)::int c, (SELECT count(*) FROM public.tenants)::int t, (SELECT count(*) FROM public.trial_profiles)::int p"))[0];
+    const before = await counts();
+    const claimsBefore = (await q("SELECT count(*)::int n FROM public.trial_claims"))[0].n;
+    await q(`INSERT INTO public.trial_claims (claim_hash, first_user_id, claimed_at) VALUES
+      ('trial-claim:eskieskieski01', gen_random_uuid(), now() - interval '25 months'),
+      ('trial-claim:eskieskieski02', gen_random_uuid(), now() - interval '24 months' - interval '1 minute'),
+      ('trial-claim:sinirsinir0001', gen_random_uuid(), now() - interval '24 months' + interval '1 day')`);
+    const dry = await rpc("trial_claims_retention_purge", [true]);
+    ok(dry.dry_run === true && Number(dry.claims) === 2 && dry.retention_months === 24, "D1 kuru çalıştırma: 24 ayı geçen 2 kayıt sayıldı", dry);
+    ok((await q("SELECT count(*)::int n FROM public.trial_claims"))[0].n === claimsBefore + 3, "D2 kuru çalıştırma hiçbir şey silmedi");
+    const run = await rpc("trial_claims_retention_purge", [false]);
+    const left = (await q("SELECT claim_hash FROM public.trial_claims WHERE claim_hash LIKE 'trial-claim:eski%' OR claim_hash LIKE 'trial-claim:sinir%'")).map((r) => r.claim_hash);
+    ok(Number(run.claims) === 2 && left.length === 1 && left[0] === "trial-claim:sinirsinir0001", "D3 imha: yalnız 24 ayı geçenler silindi, sınırdaki kayıt kaldı", { run, left });
+    ok((await q("SELECT count(*)::int n FROM public.trial_claims"))[0].n === claimsBefore + 1, "D4 son 24 aydaki tüm tek hak kayıtları korundu");
+    ok(JSON.stringify(await counts()) === JSON.stringify(before), "D5 kullanıcı / danışan / tenant / deneme profili kayıtlarına DOKUNULMADI", { before, after: await counts() });
+    const again = await reg("yeniden@example.com", { claim: "eskieskieski01" });
+    ok(again.ok === true && again.outcome === "provisioned", "D7 süresi dolan hak silindikten sonra aynı kanonik e-postayla yeniden deneme alınabilir", again);
+    const still = await reg("tekrar@example.com", { claim: "sinirsinir0001" });
+    ok(still.ok === false && still.outcome === "trial_already_used", "D8 24 ay dolmadan ikinci deneme YOK", still);
+    const pr = (await q("SELECT has_function_privilege('anon','public.trial_claims_retention_purge(boolean)','EXECUTE') a, has_function_privilege('authenticated','public.trial_claims_retention_purge(boolean)','EXECUTE') u, has_function_privilege('service_role','public.trial_claims_retention_purge(boolean)','EXECUTE') s"))[0];
+    ok(!pr.a && !pr.u && pr.s, "D9 imha fonksiyonu yalnız service_role", pr);
+  }
 
   console.log("— Y: yetkiler");
   const fnsAll = ["trial_register_expert(jsonb)", "trial_activate_on_login(uuid)", "trial_credit_reserve(uuid,text,text)",

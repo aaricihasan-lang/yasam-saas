@@ -594,6 +594,18 @@ async function run() {
     "components/landing/FreeTrialInvite.tsx", "app/page.tsx", "components/admin/members/MemberBadges.tsx"]
     .map((f) => fs.readFileSync(path.join(process.cwd(), f), "utf8")).join("\n");
   ok(!/3 gün|3 günlük|3 Gün|3-day|3-Day|3 Days|3 days/.test(allTexts), "C14 ana sayfa / kampanya / kayıt metinlerinde '3 gün' kalmadı");
+  const ret = await import("@/lib/inngest/functions/trialClaimsRetention");
+  const inngestRoute = fs.readFileSync(path.join(process.cwd(), "app/api/inngest/route.ts"), "utf8");
+  ok(inngestRoute.includes("trialClaimsRetentionFunction,") && ret.TRIAL_CLAIMS_RETENTION_CRON === "23 3 1 * *",
+    "C15 tek hak imha işi Inngest'e kayıtlı, ayda bir (her ayın 1'i)");
+  ok(ret.isTrialClaimsRetentionEnabled({}) === true && ret.isTrialClaimsRetentionEnabled({ TRIAL_CLAIMS_RETENTION_DISABLED: "true" }) === false,
+    "C16 imha varsayılan AÇIK; yalnız acil durdurma anahtarıyla kapanır");
+  const jobSrc = fs.readFileSync(path.join(process.cwd(), "lib/inngest/functions/trialClaimsRetention.ts"), "utf8");
+  const retSql = fs.readFileSync(path.join(process.cwd(), "supabase/migrations/20280101000100_trial7_claims_retention.sql"), "utf8");
+  ok(jobSrc.includes('rpc("trial_claims_retention_purge"') && !jobSrc.includes(".from(") &&
+     retSql.includes("DELETE FROM public.trial_claims WHERE claimed_at < v_cut") &&
+     (retSql.match(/DELETE FROM/g) ?? []).length === 1 && /interval '24 months'/.test(retSql),
+    "C17 iş yalnız sabit 24 aylık RPC'yi çağırır; tek DELETE yalnız trial_claims");
 }
 
 run()

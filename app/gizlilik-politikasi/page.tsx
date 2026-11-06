@@ -271,9 +271,11 @@ export default function GizlilikPolitikasiPage() {
         </li>
         <li>
           <strong>Tek deneme hakkı kaydı (e-posta özeti):</strong> aynı e-posta adresiyle yeniden
-          ücretsiz deneme başlatılmasını önlemek amacıyla hesabınız silindikten sonra da, bu amacın
-          gerektirdiği süre boyunca saklanır. Bu kayıt adınızı, e-posta adresinizi veya IP adresinizi
-          içermez; geri döndürülemeyen özet, oluşturulma tarihi ve sistem içi hesap numarası tutulur.
+          ücretsiz deneme başlatılmasını önlemek amacıyla, hesabınız silinse de oluşturulma
+          tarihinden itibaren 24 ay saklanır; süresi dolan kayıtlar her ay yürütülen otomatik imha
+          işlemiyle silinir. Bu sürenin sonunda, hesabınız silinmişse aynı e-posta adresiyle
+          yeniden ücretsiz deneme başlatılabilir. Bu kayıt adınızı, e-posta adresinizi veya IP adresinizi içermez; geri
+          döndürülemeyen özet, oluşturulma tarihi ve sistem içi hesap numarası tutulur.
         </li>
       </ul>
       <p>
