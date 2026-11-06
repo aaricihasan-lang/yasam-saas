@@ -5,7 +5,7 @@
 import { resolveAstroBirthTime, type DstChoice } from "./birth/timeResolution";
 import { TZ_BACKZONE_OVERLAY } from "./birth/tzBackzoneOverlay.generated";
 
-export type LegacyMethodCode = "composite_angles" | "composite_whole_sign" | "whole_sign_sect" | "historical_timezone";
+export type LegacyMethodCode = "composite_angles" | "composite_whole_sign" | "whole_sign_sect" | "historical_timezone" | "upagraha_kala_vela";
 export type LegacyMethodNote = { code: LegacyMethodCode; text: string };
 
 type RevisionLike = { birthDate?: unknown; birthTime?: unknown; timeKnown?: unknown; timezone?: unknown; dstChoice?: unknown; utcOffsetSeconds?: unknown } | null | undefined;
@@ -52,6 +52,9 @@ export function legacyMethodNotes(input: { technique: string; adapterVersion: un
     out.push({ code: "composite_whole_sign", text: "Bütün-burç kompozit ev başlangıçları bu kayıttan sonra düzeltildi (evler burç ortasından başlayabiliyor, bazı gezegenler bir ev kayık görünebiliyordu)." });
   if (input.houseSystem === "whole-sign" && WHOLE_SIGN_SECT_LEGACY.has(av))
     out.push({ code: "whole_sign_sect", text: "Bütün-burç gündüz/gece (sect) ve Şans Noktası kuralı bu kayıttan sonra düzeltildi." });
+  // ATL-B01 (30.10.2026): -1 sürümlü upagraha kayıtlarında 4 zaman tabanlı nokta servisin sırasıyla (yöneticisiz parça Satürn'den hemen sonra).
+  if (input.technique === "vedic.upagraha" && av === "astro-roxy-vedic-upagraha-1")
+    out.push({ code: "upagraha_kala_vela", text: "Kala, Mrityu, Ardhaprahara ve Yamaghantaka bu kayıttan sonra BPHS sırasıyla (yöneticisiz parça sonda) yeniden tanımlandı; bu kayıtta haftanın gününe ve gündüz/gece doğumuna göre bu dört noktadan bazıları gün ya da gece süresinin 1/8'i kadar sonraki parçanın başlangıcını gösterebilir (boylamda çoğunlukla 20° civarı). Gulika, Mandi ve Güneş türevli beş nokta değişmedi." });
   for (const { who, revision } of input.revisions) {
     const tz = staleTimezoneOffset(revision);
     if (tz)

@@ -18,7 +18,8 @@ import { heliacalBody, projectRoxyVedicHeliacal, projectRoxyVedicUpagraha, ROXY_
 import type { AdapterResult } from "../providers/roxy/timing";
 import { isValidIsoDate } from "../birth/timeResolution";
 import { SIGN_IDS } from "../model/western";
-import { VEDIC_D1_TECHNICAL_SCHEMA, type VedicD1Technical } from "../model/vedic";
+import { NAKSHATRAS, VEDIC_D1_TECHNICAL_SCHEMA, type VedicD1Technical } from "../model/vedic";
+import { applyBphsKalaVela } from "./upagrahaKalaVela";
 import { UPAGRAHA_SUN_TOLERANCE, VEDIC_HELIACAL_TECHNICAL_SCHEMA, VEDIC_UPAGRAHA_TECHNICAL_SCHEMA, type VedicUpagrahaTechnical } from "../model/vedicNoktalar";
 
 const o = (raw: unknown) => (raw && typeof raw === "object" && !Array.isArray(raw) ? (raw as Record<string, unknown>) : {}) as Record<string, unknown>;
@@ -74,12 +75,18 @@ export const vedicUpagraha: TechniqueDefinition = {
   contextUnits: (ctx, opt) => [d1Unit(ctx.birth, opt.ayanamsa as VedicAyanamsa)],
   attachContext: (technical, context, opt) => attachUpagrahaD1(technical, context[0] ?? null, opt.ayanamsa),
   // 24.10.2026: gün bağlamı = istek gövdesinin yerel günü + ofseti + enlemi (kutup gününde kısmi sonuç kararı; bkz. projeksiyon).
-  project: (u, raw, opt) =>
-    fromAdapter(
-      projectRoxyVedicUpagraha(raw, { ayanamsa: opt.ayanamsa as VedicAyanamsa, day: { date: String(u.body.date), offsetHours: Number(u.body.timezone), latitude: Number(u.body.latitude) } }),
-      VEDIC_UPAGRAHA_TECHNICAL_SCHEMA,
-      ROXY_VEDIC_UPAGRAHA.projection,
-    ),
+  // ATL-B01 (30.10.2026): Kala, Mrityu, Ardhaprahara, Yamaghantaka BPHS sırasıyla YEREL (upagrahaKalaVela.ts); diğer noktalar servisin.
+  project: (u, raw, opt) => {
+    const r = projectRoxyVedicUpagraha(raw, { ayanamsa: opt.ayanamsa as VedicAyanamsa, day: { date: String(u.body.date), offsetHours: Number(u.body.timezone), latitude: Number(u.body.latitude) } });
+    if (!r.ok) return fromAdapter(r, VEDIC_UPAGRAHA_TECHNICAL_SCHEMA, ROXY_VEDIC_UPAGRAHA.projection);
+    const k = applyBphsKalaVela(
+      r.technical,
+      { date: String(u.body.date), time: String(u.body.time), offsetHours: Number(u.body.timezone), latitude: Number(u.body.latitude), longitude: Number(u.body.longitude) },
+      NAKSHATRAS,
+    );
+    if (!k.ok) return { ok: false, errors: k.errors };
+    return fromAdapter({ ...r, technical: k.technical }, VEDIC_UPAGRAHA_TECHNICAL_SCHEMA, ROXY_VEDIC_UPAGRAHA.projection);
+  },
 };
 
 // ─── Heliakal ────────────────────────────────────────────────────────────────
