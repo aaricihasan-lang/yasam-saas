@@ -1,7 +1,11 @@
 "use client";
 
 /**
- * Gökyüzü Atlası — ÜST YATAY KAYDIRMA ŞERİDİ (V4-002, 2026-11-06 owner kararı: "hem üstten hem alttan yatay kaydırma").
+ * Gökyüzü Atlası — YATAY KAYDIRMA ŞERİDİ (V4-002, 2026-11-06). V4-002B (owner son kararı): şerit sonuç alanının GÖRÜNEN ALT
+ * KENARINDA ve YALNIZ GEREKTİĞİNDE — taşan bir tablo o an ekrandaysa görünür; değilse hiç çizilmez (boş şerit / yer yok).
+ * Masaüstü: bilgi panelinin (ya da sol teknik sonuç alanının) kaydırma kabının hemen ALTINDA (veriyi örtmez, dikey çubukla
+ * çakışmaz). Telefon / tablet (sayfa kayar): ekranın altına sabitlenir; kapsayan kartın sonunda aynı yükseklikte yer bırakılır
+ * (son satırlar şeridin altında kalmaz). Kart ekranın içinde bitiyorsa şerit kartın sonunda, akışta durur.
  *
  * Sorun: dar bilgi panelinde yatay taşan tablonun kaydırma çubuğu tablonun EN ALTINDA kalıyordu; uzun listede son sütunlara
  * ulaşmak için önce listenin sonuna inmek gerekiyordu.
@@ -11,8 +15,10 @@
  * gösterir. Şerit ile tablonun kendi (alt) çubuğu AYNI kabı kaydırır ve karşılıklı eşlenir. Tablo değişince (kaydırma,
  * bölüm değişimi) şerit yeni tabloya geçer ve onun konumunu alır.
  *
- * • Kapsamda yatay taşan hiçbir kap yoksa şerit HİÇ çizilmez (gereksiz çubuk yok).
- * • Kapsamda taşan kap varsa şerit yerini korur (kaydırırken içerik zıplamaz); o an görünen taşan tablo yoksa pasif durur.
+ * • Taşan tablo ekranda değilse (ya da hiç yoksa) şerit HİÇ çizilmez; panel genişleyip tablo sığınca kendiliğinden kaybolur.
+ * • Bağlanma eşiği: tablonun en az 40 px'i görünmeli; bağlıyken 1 px'e kadar korunur (şerit görününce alan daralır → gidip
+ *   gelme yok).
+ * • Kaydırma kabının kendisi taşıyorsa (kendi alt çubuğu zaten görünen alt kenarda) ikinci bir şerit çizilmez.
  * • Yalnız görünüm: veri, hesaplama, kayıt etkilenmez; DOM'a düğüm EKLEMEZ (yalnız ölçer ve scrollLeft eşler).
  */
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type RefObject } from "react";
@@ -42,7 +48,8 @@ export default function HScrollProxy({
   viewportRef,
   resetKey,
   className = "",
-  testId = "atlas-hscroll-top",
+  testId = "atlas-hscroll",
+  fixedBoundaryRef,
 }: {
   /** Taranacak kapsam (bilgi paneli içeriği / teknik sonuç alanı). Kapsamın kendisi de taşıyorsa aday sayılır. */
   rootRef: RefObject<HTMLElement | null>;
@@ -52,6 +59,8 @@ export default function HScrollProxy({
   resetKey?: string;
   className?: string;
   testId?: string;
+  /** Telefon / tablet: şerit ekranın altına sabitlenir; konum / genişlik bu kartın görünen sınırlarından alınır. */
+  fixedBoundaryRef?: RefObject<HTMLElement | null>;
 }) {
   const barRef = useRef<HTMLDivElement | null>(null);
   const activeRef = useRef<HTMLElement | null>(null);
@@ -59,6 +68,9 @@ export default function HScrollProxy({
   const [present, setPresent] = useState(false);
   const [bound, setBound] = useState<Bound | null>(null);
   const [barW, setBarW] = useState(0);
+  const stripRef = useRef<HTMLDivElement | null>(null);
+  const [stripH, setStripH] = useState(30);
+  const [fixed, setFixed] = useState<{ left: number; width: number } | null>(null);
   const [edge, setEdge] = useState<{ start: boolean; end: boolean }>({ start: true, end: false });
 
   const syncEdges = useCallback(() => {
@@ -81,18 +93,24 @@ export default function HScrollProxy({
       return;
     }
     const vp = viewportRef?.current?.getBoundingClientRect() ?? { top: 0, bottom: window.innerHeight };
+    const visOf = (el: HTMLElement) => {
+      const r = el.getBoundingClientRect();
+      return Math.min(r.bottom, vp.bottom) - Math.max(r.top, vp.top);
+    };
     let best: HTMLElement | null = null;
     let bestVis = 0;
     for (const el of list) {
       if (el === root) continue;
-      const r = el.getBoundingClientRect();
-      const vis = Math.min(r.bottom, vp.bottom) - Math.max(r.top, vp.top);
-      if (vis > bestVis + 0.5) {
+      const vis = visOf(el);
+      // Yeni bağlanma için en az 40 px görünür olmalı; zaten bağlı tablo 1 px'e kadar korunur (gidip gelme yok).
+      const min = el === activeRef.current ? 1 : 40;
+      if (vis >= min && vis > bestVis + 0.5) {
         best = el;
         bestVis = vis;
       }
     }
-    if (!best && list.includes(root)) best = root;
+    // Kapsamın kendisi taşıyorsa: kapsam kendi kaydırma kabıysa (masaüstü) alt çubuğu zaten görünen alt kenarda → şerit yok.
+    if (!best && list.includes(root) && root !== viewportRef?.current && visOf(root) >= (root === activeRef.current ? 1 : 40)) best = root;
     activeRef.current = best;
     if (!best) {
       setBound(null);
@@ -176,17 +194,49 @@ export default function HScrollProxy({
     };
   }, [present, viewportRef, choose, syncEdges]);
 
-  // Şeridin kendi genişliği (iç ölçek = şerit genişliği + tablonun kaydırma aralığı → piksel piksel eşleşir).
+  const on = !!bound;
+  // Şeridin kendi genişliği (iç ölçek = şerit genişliği + tablonun kaydırma aralığı → piksel piksel eşleşir) ve yüksekliği.
   useLayoutEffect(() => {
     const bar = barRef.current;
-    if (!bar || typeof ResizeObserver === "undefined") return;
-    const ro = new ResizeObserver(() => setBarW(bar.clientWidth));
+    const strip = stripRef.current;
+    if (!bar || !strip || typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(() => {
+      setBarW(bar.clientWidth);
+      setStripH(strip.offsetHeight || 30);
+    });
     ro.observe(bar);
+    ro.observe(strip);
     setBarW(bar.clientWidth);
+    setStripH(strip.offsetHeight || 30);
     return () => ro.disconnect();
-  }, [present]);
+  }, [on]);
 
-  if (!present) return null;
+  // Telefon / tablet: kart ekranın altından devam ediyorsa şerit ekranın altına sabitlenir; kart ekranda bitiyorsa akışta kalır.
+  useEffect(() => {
+    if (!on || !fixedBoundaryRef) return;
+    let raf = 0;
+    const update = () => {
+      const b = fixedBoundaryRef.current;
+      if (!b) return;
+      const r = b.getBoundingClientRect();
+      const next = r.bottom > window.innerHeight + 0.5 && r.top < window.innerHeight ? { left: Math.round(r.left), width: Math.round(r.width) } : null;
+      setFixed((f) => (f === next || (f && next && f.left === next.left && f.width === next.width) ? f : next));
+    };
+    const later = () => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(update);
+    };
+    update();
+    window.addEventListener("scroll", later, { capture: true, passive: true });
+    window.addEventListener("resize", later);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener("scroll", later, { capture: true });
+      window.removeEventListener("resize", later);
+    };
+  }, [on, fixedBoundaryRef]);
+
+  if (!present || !on) return null;
 
   const onBarScroll = () => {
     const a = activeRef.current;
@@ -215,14 +265,16 @@ export default function HScrollProxy({
     e.preventDefault();
     a.scrollLeft = Math.max(0, Math.min(max, x));
   };
-  const on = !!bound;
   const btn =
     "flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-slate-600 transition hover:bg-slate-200 hover:text-slate-900 disabled:opacity-30 disabled:hover:bg-transparent focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0B1430]";
 
-  return (
+  const strip = (
     <div
-      className={`flex min-w-0 items-center gap-1 border-b border-slate-200 bg-[#f4f2ec] px-1.5 py-0.5 ${className}`}
+      ref={stripRef}
+      className={`flex min-w-0 items-center gap-1 border-t border-slate-200 bg-[#f4f2ec] px-1.5 py-0.5 ${fixed ? "shadow-[0_-4px_12px_-6px_rgba(15,23,42,0.25)]" : ""} ${className}`}
+      style={fixed ? { position: "fixed", bottom: 0, left: fixed.left, width: fixed.width, zIndex: 30 } : undefined}
       data-testid={testId}
+      data-placement={fixed ? "fixed-bottom" : "bottom"}
       data-active={on ? "1" : "0"}
       data-target-label={bound?.label ?? ""}
       role="group"
@@ -251,5 +303,13 @@ export default function HScrollProxy({
         <ChevronRight className="h-4 w-4" />
       </button>
     </div>
+  );
+  // Sabitlenince kartın sonunda aynı yükseklikte yer kalır (son satırlar şeridin altında kalmaz).
+  return fixedBoundaryRef ? (
+    <div style={fixed ? { height: stripH } : undefined} data-testid={`${testId}-spacer`}>
+      {strip}
+    </div>
+  ) : (
+    strip
   );
 }

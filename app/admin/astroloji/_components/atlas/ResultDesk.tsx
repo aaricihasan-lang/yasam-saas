@@ -743,6 +743,14 @@ type LightDeskProps = DeskProps & {
   chartNotes?: ReactNode;
   /** "⋯" menüsüne giren ikincil işlemler (deskMenuItem biçimli düğmeler). */
   menu?: ReactNode;
+  /**
+   * V4-005 (2026-11-06 owner): seçici kipinde TEKRARSIZ künye. `params`: tekniğin parametreleri (teknik adı OLMADAN — o seçicide);
+   * sıkışık satırda harita künyesiyle (zodyak · ev sistemi · düğüm) yan yana. `kunye`: "Künye ▾" açılınca görünen YALNIZ EK
+   * ayrıntılar (kayıt zamanı, saat dilimi, revizyon, ikinci kişi…) — danışan adı / doğum bilgisi / analiz başlığı tekrar edilmez.
+   * Verilmezse önceki künye davranışı aynen.
+   */
+  params?: string | null;
+  kunye?: { label: string; value: ReactNode; title?: string }[];
 };
 
 /** Sağ kolonun dikey bölüm rayı (masaüstü). Her bölüm tek tıkla (ikon + ad); ok tuşları / Home / End ile gezilir.
@@ -836,7 +844,7 @@ function SectionChips({ items, active, onPick }: { items: DeskTab[]; active: str
 }
 
 /**
- * Telefon / tablet: kayarken üstte KALAN şerit (bölüm çipleri + üst yatay kaydırma şeridi). CSS `sticky` burada çalışmaz —
+ * Telefon / tablet: kayarken üstte KALAN bölüm çipleri. CSS `sticky` burada çalışmaz —
  * uygulama kabuğundaki `<main>` `overflow-x: hidden` (→ kaydırmayan bir kaydırma kabı) olduğundan yapışkan öğe hiç yapışmaz
  * (2026-11-06 ölçüldü). Kabuğa dokunmadan: şerit yerinden çıkınca sabitlenir (yer tutucu yüksekliği korur → içerik
  * zıplamaz), kapsayan kartın sonunda kartla birlikte yukarı itilir. Yalnız görünüm.
@@ -979,7 +987,7 @@ function DeskMoreMenu({ menu, backLabel, onBack }: { menu?: ReactNode; backLabel
   );
 }
 
-function LightDesk({ backLabel, onBack, eyebrow, title, subtitle, details, meta, chips, actions, switcher, picker, primary, notices, tabs, active, onTab, chart, stage, chartKey, children, toolbar, chartNotes, menu }: LightDeskProps) {
+function LightDesk({ backLabel, onBack, eyebrow, title, subtitle, details, meta, chips, actions, switcher, picker, primary, notices, tabs, active, onTab, chart, stage, chartKey, children, toolbar, chartNotes, menu, params, kunye }: LightDeskProps) {
   const sectionRef = useRef<HTMLElement | null>(null);
   // Künye: kapalıyken tek satır (sığmayan kısım "…"); "Künye ▾" tam metni açar (bilgi gizlenmez).
   const [metaOpen, setMetaOpen] = useState(false);
@@ -1179,6 +1187,57 @@ function LightDesk({ backLabel, onBack, eyebrow, title, subtitle, details, meta,
 
   /* ── Sağ kolon başlığı: kimlik (seçici / ad) · künye · uyarılar · işlemler ── */
   const hasMetaLine = !!(subtitle || details || metaPlain.length > 0);
+  // V4-005: seçici kipinde tekrarsız künye (danışan + analiz başlığı seçicide; burada yalnız teknik özet + ek ayrıntılar).
+  const lean = !!picker && !!kunye;
+  // Tek düz metin: kısaltma ("…") metnin KENDİ öğesinde → hiçbir parça kutusundan / ekrandan taşmaz.
+  const techText = [params || null, ...metaPlain].filter(Boolean).join(" · ");
+  const leanMeta = !metaOpen ? (
+    <div className="flex min-w-0 items-center gap-2 text-[12px] text-slate-600" id="atlas-desk-header-details" data-meta="compact" data-kunye="lean">
+      {/* Telefonda satıra sarılır (kesilmez); geniş ekranda tek satır "…" ve tam metin ipucunda. */}
+      <span className="min-w-0 flex-1 break-words sm:truncate" title={techText || undefined} aria-label={techText ? `Teknik künye: ${techText}` : undefined} data-testid="atlas-chart-meta">
+        {techText}
+      </span>
+      {kunye && kunye.length > 0 && (
+        <button
+          type="button"
+          onClick={() => setMetaOpen(true)}
+          aria-expanded={false}
+          aria-controls="atlas-desk-header-details"
+          className="shrink-0 rounded-md px-1.5 py-0.5 text-[11.5px] font-medium text-slate-500 hover:bg-slate-100 hover:text-slate-800"
+          title="Ek teknik ayrıntılar"
+          data-testid="atlas-desk-meta-toggle"
+        >
+          Künye ▾
+        </button>
+      )}
+    </div>
+  ) : (
+    <div className="flex min-w-0 flex-col gap-1.5 rounded-lg bg-slate-50 px-2.5 py-2 text-[12px] text-slate-600" id="atlas-desk-header-details" data-meta="full" data-kunye="lean">
+      <p className="m-0 min-w-0 break-words [overflow-wrap:anywhere]" data-testid="atlas-chart-meta">
+        {techText}
+      </p>
+      <dl className="m-0 grid min-w-0 grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-0.5" data-testid="atlas-desk-kunye">
+        {(kunye ?? []).map((k) => (
+          <div key={k.label} className="contents">
+            <dt className="text-slate-500">{k.label}</dt>
+            <dd className="m-0 min-w-0 break-words text-slate-700 [overflow-wrap:anywhere]" title={k.title}>
+              {k.value}
+            </dd>
+          </div>
+        ))}
+      </dl>
+      <button
+        type="button"
+        onClick={() => setMetaOpen(false)}
+        aria-expanded={true}
+        aria-controls="atlas-desk-header-details"
+        className="self-start rounded-md px-1.5 py-0.5 text-[11.5px] font-medium text-slate-500 hover:bg-slate-100 hover:text-slate-800"
+        data-testid="atlas-desk-meta-toggle"
+      >
+        Künye ▴
+      </button>
+    </div>
+  );
   const actionRow = primary || actions;
   const header = (
     <div className="flex flex-col gap-2 border-b border-slate-100 px-3.5 pb-3 pt-3 max-sm:px-3 [&_strong]:!text-slate-800" data-testid="atlas-desk-header" data-picker={picker ? "1" : undefined}>
@@ -1195,7 +1254,9 @@ function LightDesk({ backLabel, onBack, eyebrow, title, subtitle, details, meta,
         </div>
         <DeskMoreMenu menu={menu} backLabel={backLabel} onBack={onBack} />
       </div>
-      {hasMetaLine &&
+      {lean && (params || metaPlain.length > 0 || (kunye && kunye.length > 0)) && leanMeta}
+      {!lean &&
+        hasMetaLine &&
         (!metaOpen ? (
           /* Tek satır: her parça KENDİ kutusunda "…" ile kısalır (kutudan taşan metin yok). Telefonda teknik özet satıra sarılır;
              harita künyesi "Künye ▾" altında. */
@@ -1316,10 +1377,10 @@ function LightDesk({ backLabel, onBack, eyebrow, title, subtitle, details, meta,
       </div>
     ) : (
       <div className="flex h-full min-h-0 flex-col">
-        <HScrollProxy rootRef={stageRef} viewportRef={stageRef} resetKey={chartKey} testId="atlas-stage-hscroll" />
         <div ref={stageRef} className="min-h-0 flex-1 overflow-auto p-4 text-slate-800 [scrollbar-width:thin]" data-testid="atlas-stage-scroll">
           {stage}
         </div>
+        <HScrollProxy rootRef={stageRef} viewportRef={stageRef} resetKey={chartKey} testId="atlas-stage-hscroll" />
       </div>
     );
 
@@ -1408,10 +1469,10 @@ function LightDesk({ backLabel, onBack, eyebrow, title, subtitle, details, meta,
             <div className="flex min-h-0 flex-1">
               <SectionRail items={tabs} active={active} onPick={pick} narrow={infoColW < 460} />
               <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-                <HScrollProxy rootRef={panelRef} viewportRef={panelRef} resetKey={`${chartKey ?? ""}|${active}`} />
                 <div ref={panelRef} className="min-h-0 min-w-0 flex-1 overflow-auto bg-[#fbfaf7] p-3.5 [scrollbar-width:thin]" data-testid="atlas-panel-scroll">
                   {panel}
                 </div>
+                <HScrollProxy rootRef={panelRef} viewportRef={panelRef} resetKey={`${chartKey ?? ""}|${active}`} />
               </div>
             </div>
           </div>
@@ -1432,23 +1493,21 @@ function LightDesk({ backLabel, onBack, eyebrow, title, subtitle, details, meta,
               </div>
             ) : (
               <>
-                <PinTop boundaryRef={mStageCardRef} className="bg-white">
-                  <HScrollProxy rootRef={stageRef} resetKey={chartKey} testId="atlas-stage-hscroll" />
-                </PinTop>
                 <div ref={stageRef} className="overflow-x-auto p-3 text-slate-800" data-testid="atlas-mobile-stage">
                   {stage}
                 </div>
+                <HScrollProxy rootRef={stageRef} resetKey={chartKey} testId="atlas-stage-hscroll" fixedBoundaryRef={mStageCardRef} />
               </>
             )}
           </div>
           <div ref={mPanelCardRef} className="rounded-xl border border-slate-200 bg-white shadow-sm max-sm:rounded-none max-sm:border-x-0">
             <PinTop boundaryRef={mPanelCardRef} className="border-b border-slate-100 bg-white/95 backdrop-blur" testId="atlas-mobile-sections-bar">
               <SectionChips items={tabs} active={active} onPick={pick} />
-              <HScrollProxy rootRef={mPanelRef} resetKey={`${chartKey ?? ""}|${active}`} />
             </PinTop>
             <div ref={mPanelRef} className="overflow-x-auto bg-[#fbfaf7] p-3">
               {panel}
             </div>
+            <HScrollProxy rootRef={mPanelRef} resetKey={`${chartKey ?? ""}|${active}`} fixedBoundaryRef={mPanelCardRef} />
           </div>
         </div>
       )}

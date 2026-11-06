@@ -1816,6 +1816,18 @@ export default function AstrologyWorkspacePage() {
                     ) : null
                   }
                   details={currentRev ? <RevisionLine r={currentRev} /> : null}
+                  // V4-005: tekrarsız künye — danışan adı / doğum bilgisi seçicinin üstünde, teknik adı seçicide; burada yalnız
+                  // parametreler + ek ayrıntılar (saat dilimi, revizyon, saat doğruluğu). Veri ve hesap DEĞİŞMEZ.
+                  params={item ? [opts || null, item.ok && item.view.method.houseSystem ? houseSystemLabel(item.view.method.houseSystem, HOUSE_SYSTEM_LABELS) : null].filter(Boolean).join(" · ") || null : null}
+                  kunye={
+                    currentRev
+                      ? [
+                          { label: "Saat dilimi", value: `${currentRev.timezone} (${fmtOffset(currentRev.utcOffsetSeconds)})` },
+                          { label: "Doğum profili", value: `rev ${currentRev.revision} · güncel` },
+                          { label: "Saat doğruluğu", value: currentRev.timeKnown ? currentRev.timeAccuracyLabel : "saat bilinmiyor" },
+                        ]
+                      : []
+                  }
                   meta={
                     item && item.ok
                       ? [

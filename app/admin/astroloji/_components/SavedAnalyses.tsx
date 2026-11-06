@@ -434,6 +434,27 @@ export function SavedAnalysisView({
           </span>
         }
         meta={[zodiacLabel(a.technique), a.method.houseSystem ? houseSystemLabel(a.method.houseSystem, HOUSE_SYSTEM_LABELS) : null, a.method.nodeType ? NODE_TYPE_LABELS[a.method.nodeType] : null, a.method.timeUnknownMasked ? "Saat bilinmiyor · evler gizli" : null, a.method.houseCalculation === "local" ? LOCAL_NATAL_HOUSE_CALC_TEXT : null]}
+        // V4-005: tekrarsız künye — danışan + doğum bilgisi seçicinin üstünde, teknik adı seçicide; "Künye ▾" yalnız ek ayrıntılar.
+        params={opts || null}
+        kunye={[
+          { label: "Kayıt zamanı", value: fmt(a.analysisAt) },
+          {
+            label: "Doğum profili",
+            value: `rev ${a.profile.revision.revision}${currentRevision !== null && a.profile.revision.revision !== currentRevision ? ` · güncel profil rev ${currentRevision}` : ""}`,
+          },
+          ...(currentRevision !== null && a.profile.revision.revision !== currentRevision
+            ? [
+                {
+                  label: "Bu kayıttaki doğum verisi",
+                  value: `${a.profile.revision.birthDate} ${a.profile.revision.birthTime ? a.profile.revision.birthTime.slice(0, 5) : "(saat bilinmiyor)"} · ${a.profile.revision.locationLabel}`,
+                },
+              ]
+            : []),
+          { label: "Saat dilimi", value: a.profile.revision.timezone },
+          { label: "Saat doğruluğu", value: a.profile.revision.birthTime ? a.profile.revision.timeAccuracyLabel : "saat bilinmiyor" },
+          ...(a.profile.client?.name ? [{ label: "Danışan Yolculuğu", value: `Danışan: ${a.profile.client.name}` }] : []),
+          ...(partner ? [{ label: "1. kişi", value: person(a.profile) }, { label: "2. kişi", value: person(partner) }] : []),
+        ]}
         // V4 (2026-11-06, owner): sürekli görünen "Kaydedildi · değişmez kayıt" etiketi kaldırıldı (kayıt yine değişmez snapshot).
         chips={
           <>
