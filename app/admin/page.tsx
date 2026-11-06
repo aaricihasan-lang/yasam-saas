@@ -21,6 +21,7 @@ import {
   RefreshCw,
   Sprout,
   Gem,
+  Hourglass,
 } from "lucide-react";
 import {
   isAdminUser,
@@ -96,6 +97,17 @@ const adminCards: AdminCard[] = [
       iconWrap: "from-blue-600 to-blue-700",
       cardBg: "from-blue-50/90 via-white to-slate-50/80",
       border: "border-blue-200/70",
+    },
+  },
+  {
+    title: "Deneme Üyeleri",
+    desc: "7 günlük ücretsiz deneme: kalan süre, Roxy kredisi, inceleme ve Pro geçişi.",
+    href: "/admin/deneme-uyeleri",
+    Icon: Hourglass,
+    theme: {
+      iconWrap: "from-amber-500 to-amber-600",
+      cardBg: "from-amber-50/90 via-white to-slate-50/80",
+      border: "border-amber-200/70",
     },
   },
   {

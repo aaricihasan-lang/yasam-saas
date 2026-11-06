@@ -27,6 +27,7 @@ import {
   validateLicensePayload,
 } from "@/lib/admin/licenseLimits";
 import { isUuid, rpcErrorStatus, validateProfileEdit } from "@/lib/admin/memberRequestValidation";
+import { isTrialAllowedModuleKey, isTrialRestrictedRow } from "@/lib/trial/trialCore";
 
 export const runtime = "nodejs";
 
@@ -305,6 +306,17 @@ async function patchModules(db: Db, adminId: string, id: string, body: Record<st
   }
   const v = validateModuleChanges(body.changes);
   if (!v.ok) return bad(v.error);
+  // TRIAL7: 7 günlük deneme üyesine paket dışı modül (Dijital İçerik + tüm alt modülleri, Yaşam Hafızası,
+  // alt yetkiler) AÇILAMAZ — kişiye özel izin bu yasağı aşamaz (DB tetikleyicisi de aynı kuralı zorlar).
+  {
+    const { data: target } = await db.from("users").select("trial_kind, trial_status, package_type").eq("id", id).maybeSingle();
+    if (isTrialRestrictedRow(target as Record<string, unknown> | null)) {
+      const blocked = Object.entries(v.changes).filter(([k, on]) => on === true && !isTrialAllowedModuleKey(k)).map(([k]) => k);
+      if (blocked.length > 0) {
+        return bad("Bu modül ücretsiz deneme paketine dahil değildir; deneme üyesine açılamaz. Pro üyeliğe geçişte seçilebilir.", 400, { code: "TRIAL_MODULE_FORBIDDEN" });
+      }
+    }
+  }
   // 2026-11-03 Gökyüzü Atlası: Astroloji teknik seçimi olmadan AÇILAMAZ → açma yalnız teknik izinleri ucu
   // (/api/admin/users/[id]/astrology-techniques, enableModule) ile. Kapatma bu uçtan aynen yapılır (seçim korunur).
   if (v.changes.astrology === true) {
