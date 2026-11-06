@@ -3,7 +3,7 @@ import type { NextRequest } from "next/server";
 import { buildEnforcedCsp } from "./lib/security/securityHeaders";
 import { cspOptionsFromEnv, documentRequestHeaders, resolveDocumentCsp } from "./lib/security/documentCsp";
 import { isProEphemerisEnabled } from "./lib/astrology/pro/ephemeris/flags";
-import { isCampaignVisitorPath, withTurnstileCsp } from "./lib/security/campaignCsp";
+import { isTurnstileDocumentPath, withTurnstileCsp } from "./lib/security/campaignCsp";
 
 /**
  * 1) /admin/* rotalarını korur (hızlı ret).
@@ -46,8 +46,8 @@ export function proxy(request: NextRequest) {
     policy = buildEnforcedCsp(cspOptionsFromEnv());
     requestHeaders = documentRequestHeaders(request.headers, policy);
   }
-  // Gece operasyonu (kampanya): Turnstile betiği/iframe'i YALNIZ ziyaretçi analiz sayfasında (diğer yollar byte-eşit).
-  if (isCampaignVisitorPath(request.nextUrl.pathname)) {
+  // Gece operasyonu (kampanya) + TRIAL7 kayıt formu: Turnstile betiği/iframe'i YALNIZ bu iki dokümanda (diğer yollar byte-eşit).
+  if (isTurnstileDocumentPath(request.nextUrl.pathname)) {
     policy = withTurnstileCsp(policy);
     requestHeaders = documentRequestHeaders(request.headers, policy);
   }
