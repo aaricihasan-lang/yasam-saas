@@ -349,7 +349,7 @@ export function PersonForm() {
         }
       }
     } else if (b && isoBeforeBirth(istanbulToday(), b)) {
-      er["input.birth"] = "Doğum tarihi bugünden sonra olamaz (hedef tarih girin).";
+      er["input.birth"] = "Doğum tarihi bugünden sonra (doğum öncesi analiz). Tarihe bağlı değerler doğumdan önceki bir gün için hesaplanamaz: hedef tarih olarak doğum tarihini ya da sonrasını girin. Yalnız isim değerlendirmesi için İsim Seçenekleri analizini kullanabilirsiniz.";
     }
     if (!techs.length) {
       er.techniques = "En az bir teknik seçin.";
