@@ -8,6 +8,8 @@
 
 import { ROXY_POLICY, type RoxyServerConfig } from "../providers/roxy/config";
 import type { FetchLike, RoxyCallErrorKind, RoxyCallResult } from "../providers/roxy/client";
+// TRIAL7: varsayılan fetch deneme kredi sayacından geçer (bağlam yoksa düz fetch — davranış aynı).
+import { trialMeteredFetch } from "@/lib/trial/roxyMeter";
 
 export const ROXY_VARIABLES_ENDPOINT = "/human-design/variables";
 /** Sözleşme sürümü (OpenAPI 2.0.0 calculateVariables) — değişirse önbellek anahtarı da değişir. */
@@ -29,7 +31,7 @@ export async function callRoxyVariables(
 ): Promise<RoxyCallResult> {
   const lang = opts.lang ?? ROXY_POLICY.lang;
   const timeoutMs = opts.timeoutMs ?? ROXY_POLICY.timeoutMs;
-  const doFetch: FetchLike = opts.fetchImpl ?? ((u, i) => fetch(u, i));
+  const doFetch: FetchLike = opts.fetchImpl ?? trialMeteredFetch;
   const url = `${config.baseUrl}${ROXY_VARIABLES_ENDPOINT}?lang=${encodeURIComponent(lang)}`;
   // Yalnız doğum anı alanları (fazladan alan sızmasın diye açıkça yeniden kurulur).
   const payload: RoxyVariablesRequest = {

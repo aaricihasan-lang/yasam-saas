@@ -12,6 +12,8 @@
 import "server-only";
 import { assertServerOnly } from "@/lib/server/serverOnlyGuard";
 import { ASTRO_PROVIDER_LANG, ASTRO_ROXY_MAX_RETRIES, ASTRO_ROXY_MAX_RETRY_AFTER_MS, ASTRO_ROXY_TIMEOUT_MS, type RoxyServerConfig } from "../../config";
+// TRIAL7: varsayılan fetch deneme kredi sayacından geçer (bağlam yoksa düz fetch — davranış aynı).
+import { trialMeteredFetch } from "@/lib/trial/roxyMeter";
 
 assertServerOnly("lib/astrology/providers/roxy/client");
 
@@ -133,7 +135,7 @@ export async function callRoxy(
   }
   const lang = opts.lang ?? ASTRO_PROVIDER_LANG;
   const timeoutMs = opts.timeoutMs ?? ASTRO_ROXY_TIMEOUT_MS;
-  const doFetch: FetchLike = opts.fetchImpl ?? ((u, i) => fetch(u, i));
+  const doFetch: FetchLike = opts.fetchImpl ?? trialMeteredFetch;
   const sleep = opts.sleep ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
   const maxRetries = Math.max(0, Math.min(ASTRO_ROXY_MAX_RETRIES, opts.maxRetries ?? ASTRO_ROXY_MAX_RETRIES));
 

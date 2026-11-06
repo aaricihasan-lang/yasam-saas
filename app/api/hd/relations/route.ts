@@ -1,3 +1,4 @@
+import { withTrialRoxyMeter } from "@/lib/trial/roxyMeter";
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { trackUsage } from "@/lib/usage/trackUsage";
@@ -33,7 +34,7 @@ export async function GET(req: NextRequest): Promise<Response> {
   return NextResponse.json({ ok: true, rows: r.rows }, { status: 200, headers: NO_STORE });
 }
 
-export async function POST(req: NextRequest): Promise<Response> {
+async function handlePost(req: NextRequest): Promise<Response> {
   const guard = await requireModuleAccess(req, "human_design");
   if (!guard.ok) return guard.response;
   let raw: unknown;
@@ -66,3 +67,6 @@ export async function POST(req: NextRequest): Promise<Response> {
   if (!result.body.ok && result.body.retryAfterSec) headers["Retry-After"] = String(result.body.retryAfterSec);
   return NextResponse.json(result.body, { status: result.status, headers });
 }
+
+// TRIAL7: deneme uzmanının GERÇEK Roxy istekleri günlük ortak krediden düşer (önbellek isabeti düşmez).
+export const POST = withTrialRoxyMeter("human_design", "hd/relations", handlePost);

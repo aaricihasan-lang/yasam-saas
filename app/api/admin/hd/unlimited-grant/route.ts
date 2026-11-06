@@ -1,3 +1,4 @@
+import { isTrialRestrictedRow } from "@/lib/trial/trialCore";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { grantHdUnlimited24h, readUnlimitedGrantStatus, requireHdUnlimitedOwner } from "@/lib/human-design/quota/unlimitedGrant";
@@ -37,6 +38,16 @@ export async function POST(req: NextRequest): Promise<Response> {
     return NextResponse.json({ ok: false, error: "Geçerli JSON gövdesi gerekli." }, { status: 400, headers: NO_STORE });
   }
   const userId = typeof body.userId === "string" ? body.userId : "";
+  // TRIAL7 (Owner): 7 günlük deneme uzmanına sınırsız Human Design hesaplama ayrıcalığı VERİLMEZ.
+  if (userId) {
+    const { data: target } = await gate.db.from("users").select("trial_kind, trial_status, package_type").eq("id", userId).maybeSingle();
+    if (isTrialRestrictedRow(target as Record<string, unknown> | null)) {
+      return NextResponse.json(
+        { ok: false, code: "TRIAL_INELIGIBLE", error: "Ücretsiz deneme üyelerine sınırsız Human Design izni verilemez." },
+        { status: 400, headers: NO_STORE },
+      );
+    }
+  }
   try {
     const r = await grantHdUnlimited24h(gate.db, gate.ownerId, userId);
     if (r.status === "forbidden") return notFound();

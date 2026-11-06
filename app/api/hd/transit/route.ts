@@ -1,3 +1,4 @@
+import { withTrialRoxyMeter } from "@/lib/trial/roxyMeter";
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { hitDbRateLimit, rateLimitBucket } from "@/lib/security/dbRateLimit";
@@ -27,7 +28,7 @@ export const runtime = "nodejs";
  */
 const NO_STORE = { "Cache-Control": "no-store" } as const;
 
-export async function GET(req: NextRequest): Promise<Response> {
+async function handleGet(req: NextRequest): Promise<Response> {
   const guard = await requireModuleAccess(req, "human_design");
   if (!guard.ok) return guard.response;
   // D3 (owner kararı 2026-11-02): demo hesabında hiçbir modülde yeni hesaplama yapılmaz (önbellekten hesap dahil);
@@ -94,3 +95,6 @@ export async function GET(req: NextRequest): Promise<Response> {
     );
   }
 }
+
+// TRIAL7: deneme uzmanının GERÇEK Roxy istekleri günlük ortak krediden düşer (önbellek isabeti düşmez).
+export const GET = withTrialRoxyMeter("human_design", "hd/transit", handleGet);
