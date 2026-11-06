@@ -1,4 +1,4 @@
-# Mineral Bankası Word örneklerini GERÇEK Microsoft Word düzeninde denetler (Word COM).
+﻿# Mineral Bankası Word örneklerini GERÇEK Microsoft Word düzeninde denetler (Word COM).
 #
 # Kullanım: powershell -File render-check.ps1 -Dir <örnek-klasörü> [-Pdf]
 #
