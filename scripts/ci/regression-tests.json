@@ -1457,6 +1457,15 @@
    "file": "scripts/yh-worker-v2/workerV2ParityHarness.ts",
    "tsx": true,
    "timeoutSec": 60
+  },
+  {
+   "file": "scripts/trial7/trial7-db.harness.mjs",
+   "timeoutSec": 240
+  },
+  {
+   "file": "scripts/trial7/trial7-routes.harness.ts",
+   "tsx": true,
+   "timeoutSec": 180
   }
  ]
 }

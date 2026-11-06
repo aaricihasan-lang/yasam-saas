@@ -51,6 +51,7 @@ import {
 import SupportRequestForm from "@/components/auth/SupportRequestForm";
 import DemoIntroModal from "@/components/demo/DemoIntroModal";
 import FreeTrialInvite from "@/components/landing/FreeTrialInvite";
+import { useSignupConfig } from "@/components/trial/useSignupConfig";
 import DemoAccessCard, {
   DEMO_ACCOUNT_EMAIL,
   DEMO_ACCOUNT_PASSWORD,
@@ -504,6 +505,8 @@ const DesignStudio = dynamic(() => import("@/app/_premium/home/personal/studio/D
 
 export default function Home() {
   const t = useTranslations("home");
+  // TRIAL7: kayıt modu (onaysız 7 günlük deneme açık mı) sunucudan; bilinmiyorken onaylı akış metni.
+  const signupConfig = useSignupConfig();
   const locale = useLocale() as ActiveLocale;
   const bcp47 = localeTag(locale);
   const router = useRouter();
@@ -1692,7 +1695,7 @@ export default function Home() {
 
       <div className={lp.wrap}>
         <div className={lp.heroBand}>
-        {/* — Üst çubuk: onaylı logo (ana sayfaya döner) · bölüm bağlantıları · Giriş Yap · 3 gün deneme — */}
+        {/* — Üst çubuk: onaylı logo (ana sayfaya döner) · bölüm bağlantıları · Giriş Yap · 7 gün deneme — */}
         <header className={lp.header}>
           <Link href="/" className={lp.brand}>
             {/* Owner onaylı logo olduğu gibi kullanılır (renk/şekil/kompozisyon değişmez); seramik plaka yalnız çerçevedir. */}
@@ -1767,7 +1770,7 @@ export default function Home() {
               </a>
             </div>
 
-            {/* Doğrulanmış koşullar: kayıtta ödeme adımı yok · hesap yönetici onayıyla açılır · 3 günlük keşif (yönetici yönetir). */}
+            {/* Doğrulanmış koşullar: kayıtta ödeme adımı yok · onay ifadesi sunucunun kayıt moduna göre · 7 günlük keşif. */}
             <ul className={lp.trustRow}>
               <li>
                 <span className={lp.trustIcon} aria-hidden><CreditCard /></span>
@@ -1775,7 +1778,7 @@ export default function Home() {
               </li>
               <li>
                 <span className={lp.trustIcon} aria-hidden><ShieldCheck /></span>
-                {t("landingPremium.trustApproval")}
+                {signupConfig?.selfTrial ? t("landingPremium.trustInstant") : t("landingPremium.trustApproval")}
               </li>
               <li>
                 <span className={lp.trustIcon} aria-hidden><Gift /></span>
@@ -1813,9 +1816,9 @@ export default function Home() {
           <DemoAccessCard onTryDemo={openDemoLogin} />
         </div>
 
-        {/* — 02 · 3 günlük ücretsiz keşif (hero çağrısıyla aynı teklif; mevcut /register akışı) — */}
+        {/* — 02 · 7 günlük ücretsiz keşif (hero çağrısıyla aynı teklif; /register akışı) — */}
         <section id="ucretsiz-deneme" className={lp.section}>
-          <FreeTrialInvite />
+          <FreeTrialInvite selfTrial={signupConfig?.selfTrial === true} />
         </section>
 
         {/* — 03 · Yaşam Sistemi İçinde Bir Danışan — owner onaylı Danışan Yolculuğu tanıtımı (temsili veri) — */}

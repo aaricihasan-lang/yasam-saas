@@ -6,24 +6,29 @@ import { ArrowRight, ChevronRight, Eye, Sparkles, ShieldCheck, Telescope, UserRo
 import lp from "@/app/_premium/landing/landing.module.css";
 
 /**
- * Landing — 3 günlük ücretsiz keşif daveti.
- * Yeni kayıt altyapısı YOK: CTA mevcut /register akışına gider; süre, yönetici
- * onayıyla başlar ve yönetici tarafından elle yönetilir (otomatik kapanma yok).
- * Hero'daki "3 Gün Ücretsiz Deneyin" çağrısı ile aynı teklifin ayrıntısıdır (ayrı kampanya değil).
- * "Nasıl başlarım?" adımları gerçek akışı anlatır: kayıt → yönetici onayı → açılan modüllerde keşif.
+ * Landing — 7 günlük ücretsiz keşif daveti (TRIAL7). CTA /register akışına gider.
+ * "Nasıl başlarım?" adımları GERÇEK akışı anlatır ve sunucunun kayıt moduna göre seçilir:
+ *   selfTrial (onaysız deneme açık) → kayıt → giriş (7 gün ilk girişle başlar) → keşif;
+ *   aksi halde → kayıt → yönetici onayı → keşif. Hero'daki çağrıyla aynı teklifin ayrıntısıdır.
+ * Görsel: eski "3 GÜN" görseli (deneme-3.webp) kaldırıldı; 7 günlük onaylı görsel gelene kadar bölüm
+ * görselsiz tek sütun (TRIAL_ART null). Görsel hazır olunca yalnız TRIAL_ART güncellenir.
  */
-export default function FreeTrialInvite() {
+const TRIAL_ART: { src: string; width: number; height: number } | null = null;
+
+export default function FreeTrialInvite({ selfTrial = false }: { selfTrial?: boolean }) {
   const t = useTranslations("home.freeTrial");
   const p = useTranslations("home.landingPremium");
   const steps = [
     { Icon: UserRound, title: p("step1Title"), desc: p("step1Desc") },
-    { Icon: ShieldCheck, title: p("step2Title"), desc: p("step2Desc") },
+    selfTrial
+      ? { Icon: ShieldCheck, title: p("step2TitleInstant"), desc: p("step2DescInstant") }
+      : { Icon: ShieldCheck, title: p("step2Title"), desc: p("step2Desc") },
     { Icon: Telescope, title: p("step3Title"), desc: p("step3Desc") },
   ];
 
   return (
     <div className={lp.trial}>
-      <div className={lp.trialGrid}>
+      <div className={lp.trialGrid} style={TRIAL_ART ? undefined : { gridTemplateColumns: "minmax(0, 1fr)" }}>
         <div className={lp.trialText}>
           <span className={lp.trialEyebrow}>
             <Sparkles className="h-3.5 w-3.5" aria-hidden />
@@ -52,13 +57,15 @@ export default function FreeTrialInvite() {
               {p("demoCta")}
             </a>
           </div>
-          <p className={lp.trialNote}>{t("note")}</p>
+          <p className={lp.trialNote}>{selfTrial ? t("noteInstant") : t("note")}</p>
         </div>
 
-        <div className={lp.trialArt} aria-hidden>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/premium/landing/deneme-3.webp" width={700} height={630} alt="" loading="lazy" decoding="async" />
-        </div>
+        {TRIAL_ART ? (
+          <div className={lp.trialArt} aria-hidden>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={TRIAL_ART.src} width={TRIAL_ART.width} height={TRIAL_ART.height} alt="" loading="lazy" decoding="async" />
+          </div>
+        ) : null}
       </div>
 
       <div className={lp.steps}>

@@ -86,8 +86,8 @@ export default function VisitorApp({ initial }: { initial: VisitorCampaignState 
   const closedNote = (
     <div className="vzClosed" role="status">
       <h2 className="vzCampTitle" style={{ fontSize: 24 }}>Şu anda açık ücretsiz analiz kampanyası yok</h2>
-      <p className="vzSub">Yeni kampanyalar duyurulduğunda bu sayfada yer alır. Yaşam Sistemi&apos;ni 3 gün ücretsiz deneyebilirsiniz.</p>
-      <div className="vzCtaRow"><a className="vzBtn" href="/register">3 Gün Ücretsiz Deneyin →</a><Link className="vzBtn glass" href="/">Ana sayfa</Link></div>
+      <p className="vzSub">Yeni kampanyalar duyurulduğunda bu sayfada yer alır. Yaşam Sistemi&apos;ni 7 gün ücretsiz deneyebilirsiniz.</p>
+      <div className="vzCtaRow"><a className="vzBtn" href="/register">7 Gün Ücretsiz Deneyin →</a><Link className="vzBtn glass" href="/">Ana sayfa</Link></div>
     </div>
   );
 
@@ -95,7 +95,7 @@ export default function VisitorApp({ initial }: { initial: VisitorCampaignState 
     <main className="vzPage" onClickCapture={onClickCapture}>
       <VisitorCampaignView
         v={view}
-        headerRight={<><Link className="vzLogin" href="/">Giriş</Link><a className="vzBtn sm vzGold" href="/register">3 Gün Ücretsiz Deneyin</a></>}
+        headerRight={<><Link className="vzLogin" href="/">Giriş</Link><a className="vzBtn sm vzGold" href="/register">7 Gün Ücretsiz Deneyin</a></>}
         section={
           state.state === "aktif" ? (
             <VisitorCampaignSection v={view} onPick={pick} selected={selected} onCta={cta}>

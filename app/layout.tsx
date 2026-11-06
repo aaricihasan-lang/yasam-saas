@@ -11,6 +11,7 @@ import PrivacyAnalytics from "@/components/analytics/PrivacyAnalytics";
 import AnalyticsConsentBanner from "@/components/analytics/AnalyticsConsentBanner";
 import AppLogoLink from "@/components/layout/AppLogoLink";
 import QuickNavShell from "@/components/layout/quick-nav/QuickNavShell";
+import TrialNotice from "@/components/trial/TrialNotice";
 import UsageTracker from "@/components/usage/UsageTracker";
 import { isUsage360Enabled } from "@/lib/usage/usageFlag";
 import { platformFlags } from "@/lib/platform/outputSupport";
@@ -92,6 +93,8 @@ export default async function RootLayout({
               <QuickNavShell>
                 <ModuleRouteGuard>{children}</ModuleRouteGuard>
               </QuickNavShell>
+              {/* TRIAL7: 7 günlük deneme geri sayımı / süre sonu Pro yönlendirmesi (yalnız deneme uzmanı). */}
+              <TrialNotice />
             </ConfirmProvider>
           </ToastProvider>
         </NextIntlClientProvider>
