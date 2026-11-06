@@ -3,10 +3,12 @@ import { NextRequest, NextResponse } from "next/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   membershipGateForRequest,
+  membershipInactiveResponse,
   requireModuleAccess,
   verifyUserRequest,
 } from "@/lib/auth/userGuard";
 import { isTrialRestrictedRow } from "@/lib/trial/trialCore";
+import { hasMembershipAccessForRow } from "@/lib/auth/membershipAccessCore";
 import { resolveModuleAccess } from "@/lib/auth/moduleAccess";
 
 /**
@@ -84,13 +86,16 @@ export async function resolveBeslenmeCapabilities(
   if (!guard.ok) return { ok: false, response: guard.response };
   // P1-4 ÜYELİK kapısı (requireModuleAccess ile AYNI kural; admin muaf).
   // TRIAL7: süresi dolmuş deneme → yalnız okuma/dışa aktarma (membershipGateForRequest tek kaynak).
-  const membershipDenied = membershipGateForRequest(req, guard.profile ?? {});
-  if (membershipDenied) return { ok: false, response: membershipDenied };
+  if (!hasMembershipAccessForRow(guard.profile ?? {})) {
+    const membershipDenied = membershipGateForRequest(req, guard.profile ?? {});
+    if (membershipDenied) {
+      return { ok: false, response: isTrialRestrictedRow(guard.profile) ? membershipDenied : membershipInactiveResponse() };
+    }
+  }
   const role = guard.profile?.role;
   const perms = guard.profile?.module_permissions;
-  const trialOpts = { isTrial: isTrialRestrictedRow(guard.profile) };
-  const hasBeslenme = resolveModuleAccess(role, perms, "beslenme", trialOpts);
-  const hasClients = resolveModuleAccess(role, perms, "clients", trialOpts);
+  const hasBeslenme = resolveModuleAccess(role, perms, "beslenme");
+  const hasClients = resolveModuleAccess(role, perms, "clients");
   if (!hasBeslenme && !hasClients) {
     return {
       ok: false,
@@ -156,13 +161,17 @@ export async function requireBeslenmeFoodRead(req: NextRequest): Promise<Beslenm
   if (!guard.ok) return { ok: false, response: guard.response };
   // P1-4 ÜYELİK kapısı (requireModuleAccess ile AYNI kural; admin muaf).
   // TRIAL7: süresi dolmuş deneme → yalnız okuma/dışa aktarma (membershipGateForRequest tek kaynak).
-  const membershipDenied = membershipGateForRequest(req, guard.profile ?? {});
-  if (membershipDenied) return { ok: false, response: membershipDenied };
+  if (!hasMembershipAccessForRow(guard.profile ?? {})) {
+    const membershipDenied = membershipGateForRequest(req, guard.profile ?? {});
+    if (membershipDenied) {
+      return { ok: false, response: isTrialRestrictedRow(guard.profile) ? membershipDenied : membershipInactiveResponse() };
+    }
+  }
 
   const perms = guard.profile?.module_permissions;
   const allowed =
-    resolveModuleAccess(guard.profile?.role, perms, "clients", { isTrial: isTrialRestrictedRow(guard.profile) }) ||
-    resolveModuleAccess(guard.profile?.role, perms, "beslenme", { isTrial: isTrialRestrictedRow(guard.profile) });
+    resolveModuleAccess(guard.profile?.role, perms, "clients") ||
+    resolveModuleAccess(guard.profile?.role, perms, "beslenme");
   if (!allowed) {
     return {
       ok: false,
