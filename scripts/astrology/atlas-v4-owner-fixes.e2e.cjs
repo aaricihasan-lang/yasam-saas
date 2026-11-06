@@ -305,14 +305,24 @@ function overlapScan(rootSel) {
     if (!box) return { err: "açı tablosu yok" };
     box.scrollTop = Math.floor((box.scrollHeight - box.clientHeight) / 2);
     if (scope) scope.scrollTop = Math.floor((scope.scrollHeight - scope.clientHeight) / 2);
-    else window.scrollBy(0, Math.floor(box.getBoundingClientRect().height / 2));
+    else {
+      // Telefon / tablet: sayfa kayar — kullanıcı gibi önce listeye iner, sonra listenin ortasına.
+      box.scrollIntoView({ block: "start" });
+      await new Promise((r) => setTimeout(r, 300));
+      window.scrollBy(0, Math.floor(box.getBoundingClientRect().height / 2));
+    }
     await new Promise((r) => setTimeout(r, 400));
     const top = Array.from(document.querySelectorAll("[data-testid=atlas-hscroll-top]")).find((e) => e.getClientRects().length > 0);
-    if (!top) return { overflow: box.scrollWidth - box.clientWidth, top: null };
+    const pinBar = document.querySelector("[data-testid=atlas-mobile-sections-bar]");
+    const inner = pinBar?.firstElementChild?.getBoundingClientRect();
+    const barOnScreen = inner ? inner.top >= -0.5 && inner.bottom <= window.innerHeight + 0.5 : null;
+    if (!top) return { overflow: box.scrollWidth - box.clientWidth, top: null, pinned: pinBar ? pinBar.dataset.pinned : "masa", barOnScreen };
     const r = top.getBoundingClientRect();
-    return { overflow: box.scrollWidth - box.clientWidth, visible: r.top >= 0 && r.bottom <= window.innerHeight, active: top.dataset.active, label: top.dataset.targetLabel, boxScrollTop: box.scrollTop };
+    return { overflow: box.scrollWidth - box.clientWidth, visible: r.top >= 0 && r.bottom <= window.innerHeight, active: top.dataset.active, label: top.dataset.targetLabel, boxScrollTop: box.scrollTop, pinned: pinBar ? pinBar.dataset.pinned : "masa", barOnScreen };
   });
   if (mid.overflow > 1) ok("V4-002 uzun Açılar listesinin ortasında üst şerit ekranda ve tabloya bağlı", mid.visible && mid.active === "1", JSON.stringify(mid));
+  // Başlık doğal yerinden çıkmışsa sabitlenir; sayfa o kadar kaymıyorsa zaten yerinde görünür — her iki durumda EKRANDA.
+  if (!isDesk) ok("telefon/tablet: uzun listenin ortasında bölüm çipleri + şerit ekranda (gerekirse üstte sabit)", mid.barOnScreen === true, JSON.stringify(mid));
   else info("V4-002 Açılar tablosu bu genişlikte yatay taşmıyor (şerit gerekmez)", JSON.stringify(mid));
   ok("V4-002 sayfa yatay taşmıyor (panel en dar)", (await pageOverflowX()) <= 1, String(await pageOverflowX()));
   if (isDesk) {
