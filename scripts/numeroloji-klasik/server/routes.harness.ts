@@ -910,6 +910,73 @@ async function main(): Promise<void> {
     const still = (await su.query(`select title, deleted_at from public.numerology_classic_analyses where id = $1`, [aid])).rows[0];
     ok(still.title === "Deneme" && still.deleted_at === null, "çapraz tenant denemeleri kaydı DEĞİŞTİRMEDİ");
 
+    section("route: mükerrer kişi analizi kontrolü (POST /analyses/mukerrer; salt okuma)");
+    {
+      const dupRoute = await import("../../../app/api/numeroloji-klasik/analyses/mukerrer/route");
+      const ins = async (tenant: string, kind: string, input: unknown, created: string, deleted = false) =>
+        (await su.query(
+          `insert into public.numerology_classic_analyses(tenant_id, created_by, kind, title, input, techniques, result, verification, provider_meta, methodology_version, api_schema_version, status, created_at, deleted_at)
+           values ($1,$2,$3,'ZZ Mükerrer',$4::jsonb,'{core}','{}'::jsonb,'{}'::jsonb,'{}'::jsonb,'m','s','complete',$5::timestamptz, case when $6 then now() else null end) returning id`,
+          [tenant, tenant === TA ? U.A.id : U.B.id, kind, JSON.stringify(input), created, deleted],
+        )).rows[0].id as string;
+      const P = (fullName: string, day = 1) => ({ fullName, birth: { year: 1950, month: 1, day } });
+      const d1 = await ins(TA, "person", P("ZZ Çağrı Gülşen ŞÜKRÜOĞLU"), "2026-11-01T10:00:00Z");
+      const d2 = await ins(TA, "person", P("zz çağrı  gülşen şükrüoğlu"), "2026-11-03T10:00:00Z");
+      const dDel = await ins(TA, "person", P("ZZ Çağrı Gülşen ŞÜKRÜOĞLU"), "2026-11-04T10:00:00Z", true);
+      const dDay = await ins(TA, "person", P("ZZ Çağrı Gülşen ŞÜKRÜOĞLU", 2), "2026-11-04T11:00:00Z");
+      const dAscii = await ins(TA, "person", P("ZZ Cagri Gulsen SUKRUOGLU"), "2026-11-04T12:00:00Z");
+      const dRel = await ins(TA, "relationship", { person1: P("ZZ Çağrı Gülşen ŞÜKRÜOĞLU"), person2: P("ZZ Bora DEMİR") }, "2026-11-04T13:00:00Z");
+      const dB = await ins(TB, "person", P("ZZ Çağrı Gülşen ŞÜKRÜOĞLU"), "2026-11-05T10:00:00Z");
+      const seeded = [d1, d2, dDel, dDay, dAscii, dRel, dB];
+      const countAll = async () => (await su.query(`select count(*)::int n, coalesce(max(updated_at)::text,'') u from public.numerology_classic_analyses`)).rows[0] as { n: number; u: string };
+      const before = await countAll();
+      provider.calls.length = 0;
+      const body = { fullName: "ZZ ÇAĞRI GÜLŞEN ŞÜKRÜOĞLU", birth: { year: 1950, month: 1, day: 1 } };
+      const r = await call(dupRoute.POST, "POST", asA, { body });
+      const got = ((r.json.matches ?? []) as Array<{ id: string; fullName: string; birthDate: string; title: string; createdAt: string }>);
+      ok(r.status === 200 && r.json.ok === true, "A → 200", r.status);
+      ok(got.map((x) => x.id).join(",") === [d2, d1].join(",") && r.json.total === 2, "yalnız aynı ad + tam doğum; en yeni önce (2 kayıt, hepsi)", got.map((x) => x.id));
+      ok(!got.some((x) => [dDel, dDay, dAscii, dRel, dB].includes(x.id)), "silinmiş / farklı gün / Türkçe harfsiz / ilişki analizi / başka tenant eşleşmez");
+      ok(got[0]?.birthDate === "01.01.1950" && got[0]?.fullName === "zz çağrı  gülşen şükrüoğlu" && got[0]?.title === "ZZ Mükerrer", "yanıt: başlık + kayıttaki ad + GG.AA.YYYY doğum", got[0]);
+      ok(Object.keys(got[0] ?? {}).sort().join(",") === "birthDate,createdAt,fullName,id,title", "yanıt yalnız uyarı alanlarını taşır (sonuç / sağlayıcı verisi yok)", Object.keys(got[0] ?? {}));
+      ok((r.res.headers.get("cache-control") ?? "").includes("no-store") && !/roxy/i.test(r.text), "no-store + sağlayıcı adı yok");
+      const rx = await call(dupRoute.POST, "POST", asA, { body: { ...body, excludeId: d2.toUpperCase() } });
+      ok(((rx.json.matches ?? []) as Array<{ id: string }>).map((x) => x.id).join(",") === d1, "excludeId (düzenlenen kaynak) sonuçtan çıkar", rx.json);
+      const rB = await call(dupRoute.POST, "POST", asB, { body });
+      ok(rB.status === 200 && ((rB.json.matches ?? []) as Array<{ id: string }>).map((x) => x.id).join(",") === dB, "B yalnız kendi tenant kaydını görür (tenant izolasyonu)", rB.json);
+      const rNone = await call(dupRoute.POST, "POST", asA, { body: { fullName: "ZZ Hiç Kayıtsız", birth: { year: 1950, month: 1, day: 1 } } });
+      ok(rNone.status === 200 && rNone.json.total === 0 && Array.isArray(rNone.json.matches) && (rNone.json.matches as unknown[]).length === 0, "eşleşme yok → boş liste");
+      ok((await call(dupRoute.POST, "POST", asA, { body: { ...body, title: "x" } })).status === 400, "bilinmeyen alan → 400");
+      ok((await call(dupRoute.POST, "POST", asA, { body: { fullName: "ZZ Ali", birth: { year: 1950, month: 2, day: 30 } } })).status === 400, "geçersiz doğum → 400");
+      ok((await call(dupRoute.POST, "POST", asA, { body: { ...body, excludeId: "1 or 1=1" } })).status === 400, "uuid olmayan excludeId → 400");
+      ok((await call(dupRoute.POST, "POST", asA, { raw: "x".repeat(17 * 1024) })).status >= 400, "16 KB üstü gövde → red");
+      const unauth = await call(dupRoute.POST, "POST", {}, { body });
+      ok(unauth.status === 401 || unauth.status === 403, "oturumsuz → 401/403", unauth.status);
+      ok((await call(dupRoute.POST, "POST", asNomod, { body })).status === 403, "numeroloji izni yok → 403");
+      process.env.NUMEROLOGY_CLASSIC_ENABLED = "false";
+      ok((await call(dupRoute.POST, "POST", asA, { body })).status === 404, "bayrak kapalı → 404");
+      process.env.NUMEROLOGY_CLASSIC_ENABLED = "true";
+      const after = await countAll();
+      ok(after.n === before.n && after.u === before.u, "kontrol hiçbir kaydı oluşturmadı / değiştirmedi", { before, after });
+      ok(provider.calls.length === 0, "0 sağlayıcı çağrısı", provider.calls.length);
+      // Büyük tenant: 1.001 / 5.001 kişi analizi; eşleşen kayıt EN ESKİ → tek istekli okuma onu kaçırırdı.
+      for (const n of [1001, 5001]) {
+        const dupOld = await ins(TA, "person", P("ZZ Büyük Tenant Kişi"), "2001-01-01T00:00:00Z");
+        const bulk = (await su.query(
+          `insert into public.numerology_classic_analyses(tenant_id, created_by, kind, title, input, techniques, result, verification, provider_meta, methodology_version, api_schema_version, status, created_at)
+           select $1, $2, 'person', 'ZZ Toplu', jsonb_build_object('fullName', 'ZZ Toplu ' || g, 'birth', jsonb_build_object('year', 1980, 'month', 1, 'day', 1)),
+                  '{core}', '{}'::jsonb, '{}'::jsonb, '{}'::jsonb, 'm', 's', 'complete', now() - (g || ' seconds')::interval
+           from generate_series(1, $3::int) g returning id`,
+          [TA, U.A.id, n - 1],
+        )).rows.map((x) => x.id as string);
+        const rb = await call(dupRoute.POST, "POST", asA, { body: { fullName: "ZZ Büyük Tenant Kişi", birth: { year: 1950, month: 1, day: 1 } } });
+        const ms = (rb.json.matches ?? []) as Array<{ id: string }>;
+        ok(rb.status === 200 && rb.json.total === 1 && ms[0]?.id === dupOld, `${n}+ kişi analizi: en eski eşleşme bulunur (sayfalı okuma)`, { status: rb.status, total: rb.json.total });
+        await su.query(`delete from public.numerology_classic_analyses where id = any($1::uuid[])`, [[dupOld, ...bulk]]);
+      }
+      await su.query(`delete from public.numerology_classic_analyses where id = any($1::uuid[])`, [seeded]);
+    }
+
     section("route: PATCH (CAS + danışan bağı)");
     const pc1 = await call(oneRoute.PATCH, "PATCH", asA, { params: { id: aid }, body: { title: "x", rowVersion: arv + 3 } });
     ok(pc1.status === 409 && pc1.json.code === "CONFLICT", "eski rowVersion → 409");
