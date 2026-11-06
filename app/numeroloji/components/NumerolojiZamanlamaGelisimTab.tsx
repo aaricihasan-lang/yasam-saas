@@ -14,6 +14,8 @@ import {
 } from "@/lib/numeroloji/timing";
 import { computeDevelopment } from "@/lib/numeroloji/development";
 import { isValidBirthDateDisplay } from "@/lib/numeroloji";
+import { birthParts } from "@/lib/numeroloji/timing/dateUtils";
+import { isPreBirth, preBirthActiveYearText, preBirthEvreText, preBirthNote } from "../utils/preBirth";
 import { NumerolojiCalculationInfo, type CalculationExplanation } from "./NumerolojiCalculationInfo";
 import { CONCEPT_HELP } from "../helpers/conceptHelp";
 import { useChronoView } from "../hooks/useChronoView";
@@ -166,6 +168,9 @@ export function NumerolojiZamanlamaGelisimTab({ firstName, lastName, birthDate }
 
   const { universal: u, personal: p, cycle: c, dev: d } = data;
   const py = p.personalYear;
+  // Doğum öncesi (planlanan doğum tarihi referans tarihten sonra): yaş / aktif dönem / şu anki evre gösterilmez.
+  const bp = birthParts(birthDate);
+  const preBirth = isPreBirth(c) && bp !== null;
   // Aktif Kişisel Yıl: aktif dönemin başladığı doğum gününün takvim yılı → öğretici hesap açıklaması.
   const activeCalendarYear = py.active.periodStart.year;
 
@@ -218,6 +223,12 @@ export function NumerolojiZamanlamaGelisimTab({ firstName, lastName, birthDate }
         />
       </div>
 
+      {preBirth && bp ? (
+        <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50/80 px-3 py-2 text-xs font-semibold leading-relaxed text-amber-900" data-testid="noj-prebirth-note">
+          {preBirthNote(bp, ref)}
+        </p>
+      ) : null}
+
       {/* B) EVRENSEL ZAMANLAMA */}
       <SectionTitle>Evrensel Zamanlama</SectionTitle>
       <div className="grid gap-3 sm:grid-cols-3">
@@ -242,22 +253,51 @@ export function NumerolojiZamanlamaGelisimTab({ firstName, lastName, birthDate }
           explanation={nominalPyExp}
           meaning={CONCEPT_HELP.nominalPersonalYear}
         />
-        <Card
-          label="Aktif Kişisel Yıl"
-          value={rr(py.active)}
-          interpretation={py.active.interpretation}
-          accent="violet"
-          hint={`Şu anda içinde bulunulan dönem: ${formatTR(py.active.periodStart)} – ${formatTR(py.active.periodEnd)}`}
-          meaning={CONCEPT_HELP.activePersonalYear}
-          explanation={activePyExp}
-        />
+        {preBirth && bp ? (
+          <Card
+            label="Aktif Kişisel Yıl"
+            value="—"
+            accent="violet"
+            hint={preBirthActiveYearText(bp)}
+            meaning={CONCEPT_HELP.activePersonalYear}
+          />
+        ) : (
+          <Card
+            label="Aktif Kişisel Yıl"
+            value={rr(py.active)}
+            interpretation={py.active.interpretation}
+            accent="violet"
+            hint={`Şu anda içinde bulunulan dönem: ${formatTR(py.active.periodStart)} – ${formatTR(py.active.periodEnd)}`}
+            meaning={CONCEPT_HELP.activePersonalYear}
+            explanation={activePyExp}
+          />
+        )}
         <Card label="Kişisel Ay" value={rr(p.personalMonth)} interpretation={p.personalMonth.interpretation} accent="violet" explanation={personalMonthExp} meaning={CONCEPT_HELP.personalMonth} />
         <Card label="Kişisel Gün" value={rr(p.personalDay)} interpretation={p.personalDay.interpretation} accent="violet" explanation={personalDayExp} meaning={CONCEPT_HELP.personalDay} />
       </div>
 
       {/* D) YAŞAM EVRESİ */}
       <SectionTitle>Yaşam Evresi</SectionTitle>
-      {c.evre ? (
+      {preBirth ? (
+        <>
+          <div className="rounded-2xl border border-slate-200 bg-white/70 p-4 text-sm font-medium text-slate-600" data-testid="noj-prebirth-evre">
+            {preBirthEvreText(c.timeline[0]?.energy)}
+          </div>
+          <div className="mt-3 overflow-x-auto">
+            <div className="flex min-w-max gap-1.5">
+              {c.timeline.map((t) => (
+                <div key={t.evreIndex} className="flex w-20 shrink-0 flex-col items-center rounded-xl border border-slate-200 bg-white/70 p-2 text-center">
+                  <span className="text-[10px] font-bold uppercase tracking-wide text-slate-500">Evre {t.evreIndex}</span>
+                  <span className="text-lg font-black text-emerald-700">{t.energy}</span>
+                  <span className="text-[10px] font-medium text-slate-500">
+                    {t.ageStart}–{t.ageEnd} yaş
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </>
+      ) : c.evre ? (
         <>
           <div className="grid gap-3 sm:grid-cols-2">
             <Card
