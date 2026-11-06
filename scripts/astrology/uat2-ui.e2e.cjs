@@ -118,9 +118,11 @@ const TRANSIT = { technique: "western.transit", options: { date: "2026-10-07", t
   ok("G5 iç ekranda ana sayfa (ev) düğmesi", await (await deskMenuItem(page, "[data-testid=atlas-home-btn]")).isVisible());
   await page.keyboard.press("Escape");
 
-  // ── J: V4-004 (2026-11-06 owner kararı): masada görünür yakınlaştırma grubu (+ / % / − / sığdır) YOK; harita alana kare
-  //    olarak sığar. Yakınlaştırma / sürükleme / sığdır Odak modunda aynen sürer (J3–J5 orada sınanır).
-  ok("J0 masada yakınlaştırma grubu yok", (await page.locator("[data-testid=astro-result-view] [data-testid=atlas-zoom-in], [data-testid=astro-result-view] [data-testid=atlas-zoom-level], [data-testid=astro-result-view] [role=toolbar][aria-label='Harita yakınlaştırma']").count()) === 0);
+  // ── J: owner son yerleşim kararı (06.11.2026): yakınlaştırma düğmeleri (− + ⛶) haritanın ARAÇ SATIRINDA, sayaç ile
+  //    "Odak modu" arasında; haritanın üstünde ayrı kart ve "%" göstergesi yok. Harita kabına kare sığar; masada yakınlaştırma
+  //    kartın TAMAMINI kullanır, sürükleme + sığdır; Odak modu kendi bağımsız görüntüleyicisiyle çalışır.
+  const tools = page.locator("[data-testid=atlas-zoom-controls]:visible").first();
+  ok("J0 yakınlaştırma düğmeleri araç satırında; harita üstünde kart / % yok", (await tools.count()) > 0 && (await page.locator("[data-testid=atlas-chart-toolbar] [data-testid=atlas-zoom-controls]:visible").count()) === 1 && (await page.locator("[data-testid=astro-result-view] [data-testid=atlas-zoom-level], [data-testid=astro-result-view] [data-testid=atlas-chart-frame] [role=toolbar]").count()) === 0);
   const fit = page.locator("[data-testid=atlas-chart-fit]").first();
   if (await fit.isVisible().catch(() => false)) {
     const m = await fit.evaluate((el) => {
@@ -134,22 +136,12 @@ const TRANSIT = { technique: "western.transit", options: { date: "2026-10-07", t
     });
     ok("J1 harita kabına sığar (kesilmez) ve kabın kısa kenarını doldurur", m.inside && Math.abs(Math.min(m.fw, m.fh) - Math.max(m.dw, m.dh)) <= 12, JSON.stringify(m));
   } else ok("J harita sığdırma kabı görünür", false);
-  // Odak modu: yakınlaştırma kartın TAMAMINI kullanır; kaydırma (pan) + %100 sıfırlama
-  await page.locator("[data-testid=atlas-chart-expand]:visible").first().click();
-  await page.locator("[data-testid=atlas-chart-overlay]").first().waitFor({ state: "visible", timeout: 10000 });
-  const vp = page.locator("[data-testid=atlas-chart-overlay] [data-testid=atlas-chart-viewport]").first();
+  const vp = page.locator("[data-testid=atlas-chart-fit] [data-testid=atlas-chart-viewport]").first();
   if (await vp.isVisible().catch(() => false)) {
-    // Dar ekranda düğme çubuğu gizli (iki parmak / klavye); yakınlaştırma klavye kısayoluyla (+) yapılır.
-    const zoomBtn = vp.locator("[data-testid=atlas-zoom-in]").first();
-    const btnVisible = await zoomBtn.isVisible().catch(() => false);
-    if (btnVisible) for (let i = 0; i < 4; i++) await zoomBtn.click();
-    else {
-      await vp.locator("[role=group]").first().focus();
-      for (let i = 0; i < 4; i++) await page.keyboard.press("+");
-    }
+    for (let i = 0; i < 4; i++) await tools.locator("[data-testid=atlas-zoom-in]").click();
     await page.waitForTimeout(400);
     const lvl = await vp.getAttribute("data-scale");
-    ok("J3 odak modunda yakınlaştırma ~%330", Number(lvl) > 3 && Number(lvl) < 3.5, lvl);
+    ok("J3 araç satırındaki + ile yakınlaştırma ~%330", Number(lvl) > 3 && Number(lvl) < 3.5, lvl);
     const box = await vp.boundingBox();
     const tr0 = await vp.locator("div[style*='translate']").first().getAttribute("style");
     await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
@@ -160,16 +152,30 @@ const TRANSIT = { technique: "western.transit", options: { date: "2026-10-07", t
     const tr1 = await vp.locator("div[style*='translate']").first().getAttribute("style");
     ok("J4 sürükleyerek kaydırma (pan) çalışır", tr0 !== tr1, `${tr0} → ${tr1}`);
     ok("J4b sürükleme metin seçmez", (await selLen()) === 0);
-    if (btnVisible) await vp.locator("[data-testid=atlas-zoom-fit]").first().click();
-    else {
-      await vp.locator("[role=group]").first().focus();
-      await page.keyboard.press("0");
-    }
+    await tools.locator("[data-testid=atlas-zoom-fit]").click();
     await page.waitForTimeout(300);
     ok("J5 Sığdır → %100", (await vp.getAttribute("data-scale")) === "1.00");
-  } else ok("J odak modu görüntüleyicisi görünür", false);
+  } else ok("J masa görüntüleyicisi görünür", false);
+  // Odak modu: kendi görüntüleyicisi; masadaki yakınlaştırmayı bozmaz
+  await tools.locator("[data-testid=atlas-zoom-in]").click();
+  await page.waitForTimeout(300);
+  await page.locator("[data-testid=atlas-chart-expand]:visible").first().click();
+  await page.locator("[data-testid=atlas-chart-overlay]").first().waitFor({ state: "visible", timeout: 10000 });
+  const ovp = page.locator("[data-testid=atlas-chart-overlay] [data-testid=atlas-chart-viewport]").first();
+  const oStart = await ovp.getAttribute("data-scale");
+  const oBtn = ovp.locator("[data-testid=atlas-zoom-in]").first();
+  if (await oBtn.isVisible().catch(() => false)) await oBtn.click();
+  else {
+    await ovp.locator("[role=group]").first().focus();
+    await page.keyboard.press("+");
+  }
+  await page.waitForTimeout(300);
+  ok("J6 Odak modu sığdırılmış başlar ve kendi içinde yakınlaşır", oStart === "1.00" && Number(await ovp.getAttribute("data-scale")) > 1, `${oStart} → ${await ovp.getAttribute("data-scale")}`);
   await page.keyboard.press("Escape");
   await page.waitForTimeout(300);
+  ok("J7 Odak modundan dönünce masadaki yakınlaştırma korunur", Number(await vp.getAttribute("data-scale")) > 1, await vp.getAttribute("data-scale"));
+  await tools.locator("[data-testid=atlas-zoom-fit]").click();
+  await page.waitForTimeout(200);
 
   // ── I: natal açı tablosu: yatay kaydırma çubuğu 41 satırın altında kalmaz (sınırlı kutu + yapışkan başlık)
   await page.getByRole("tab", { name: /Açılar/ }).first().click().catch(() => undefined);

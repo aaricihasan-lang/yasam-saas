@@ -3,7 +3,10 @@
 //   V4-001 analiz seçicisi açıkça "Analiz seç ▾" kutusu; kutunun tamamı tıklanır; Esc / klavye; seçimde hesaplama isteği yok.
 //   V4-002 yatay taşan tabloda ÜST kaydırma şeridi (alt çubukla eşli); uzun listenin ortasında erişilir; sığınca şerit yok.
 //   V4-003 dar bilgi panelinde ev başlangıçları (cusp) üst üste binmez; sütun sayısı PANEL genişliğine göre (3 → 2 → 1).
-//   V4-004 masada yakınlaştırma grubu yok; harita alana sığar ve ayırıcıyla boyut değiştirir; çark etiketleri kesilmez.
+//   V4-004 harita alana sığar ve ayırıcıyla boyut değiştirir; çark etiketleri kesilmez.
+//   ZOOM (owner son yerleşim kararı, 06.11.2026): − + ⛶ araç satırında, sayaç ile "Odak modu" arasında; % yok; + / − / sığdır;
+//     harita ÜZERİNDE tekerlek yakınlaştırır, dışında normal kaydırma; Odak modu bağımsız; istek yok; telefonda iki parmak
+//     (PointerEvent benzetimi — fiziksel cihaz DEĞİL).
 //   + Atlas genel: Transit / Solar Return / Progresyon / Vedik D1 / KP / Sabit Yıldızlar — dar panelde her bölümde metin çakışması
 //     taraması, sayfa yatay taşması, taşan tablolarda üst şerit.
 // Ön koşul: yerel sahte arka uç (dev-fake-backend.ts) + next start (NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:<sahte>) ve
@@ -191,8 +194,8 @@ function overlapScan(rootSel) {
   ok("V4-001 dönüşte de hesaplama isteği yok", (callsN ?? []).filter((c) => /^POST /.test(c) || /calculate|roxy/i.test(c)).length === 0, (callsN ?? []).join(", "));
   await page.waitForSelector("[data-testid=natal-wheel-controls]", { timeout: 30000 });
 
-  // ═════ V4-004 — yakınlaştırma grubu yok; harita sığar ve ayırıcıyla boyut değiştirir
-  ok("V4-004 masada yakınlaştırma grubu yok (+ / % / − / sığdır)", (await page.locator("[data-testid=astro-result-view] [data-testid=atlas-zoom-in], [data-testid=astro-result-view] [data-testid=atlas-zoom-out], [data-testid=astro-result-view] [data-testid=atlas-zoom-level], [data-testid=astro-result-view] [data-testid=atlas-zoom-fit]").count()) === 0);
+  // ═════ V4-004 — harita sığar ve ayırıcıyla boyut değiştirir (yakınlaştırma düğmeleri araç satırında; aşağıda ZOOM)
+  ok("V4-004 haritanın üstünde ayrı yakınlaştırma kartı / % göstergesi yok", (await page.locator("[data-testid=astro-result-view] [data-testid=atlas-zoom-level], [data-testid=atlas-chart-frame] [role=toolbar], [data-testid=atlas-chart-frame] [data-testid=atlas-zoom-in]").count()) === 0);
   ok("V4-004 Odak modu düğmesi korunur", await page.locator("[data-testid=atlas-chart-expand]:visible").first().isVisible());
   const chartGeom = () =>
     page.locator("[data-testid=atlas-chart-fit]").first().evaluate((el) => {
@@ -233,6 +236,185 @@ function overlapScan(rootSel) {
     const g = await chartGeom();
     ok("V4-004 (tablet/telefon) harita kare ve kabına sığar", g.square && g.outside === 0, JSON.stringify(g));
   }
+
+  // ═════ ZOOM — owner son yerleşim kararı
+  if (isDesk) await setPanel("Enter");
+  const zc = page.locator("[data-testid=atlas-chart-toolbar] [data-testid=atlas-zoom-controls]:visible").first();
+  const zvp = page.locator("[data-testid=atlas-chart-fit] [data-testid=atlas-chart-viewport]").first();
+  const zs = async () => Number(await zvp.getAttribute("data-scale"));
+  ok("ZOOM kontroller harita araç satırında (tek grup)", (await page.locator("[data-testid=atlas-chart-toolbar] [data-testid=atlas-zoom-controls]:visible").count()) === 1);
+  const place = await page.evaluate(() => {
+    const g = document.querySelector("[data-testid=atlas-chart-toolbar] [data-testid=atlas-zoom-controls]");
+    const f = document.querySelector("[data-testid=atlas-chart-toolbar] [data-testid=atlas-chart-expand]");
+    const c = document.querySelector("[data-testid=natal-aspect-counts]");
+    const tb = document.querySelector("[data-testid=atlas-chart-toolbar]");
+    const R = (e) => e.getBoundingClientRect();
+    const gr = R(g);
+    const fr = R(f);
+    const cr = c ? R(c) : null;
+    const counterShown = !!cr && cr.width > 2 && getComputedStyle(c).position !== "absolute";
+    const ids = Array.from(g.querySelectorAll("button")).map((b) => b.dataset.testid);
+    const sizes = Array.from(g.querySelectorAll("button")).map((b) => Math.round(Math.min(R(b).width, R(b).height)));
+    return {
+      ids,
+      sizes,
+      text: g.textContent.trim(),
+      beforeFocus: gr.right <= fr.left + 1 && fr.left - gr.right <= 12,
+      sameRow: Math.min(gr.bottom, fr.bottom) - Math.max(gr.top, fr.top) > 8,
+      afterCounter: counterShown ? cr.right <= gr.left + 1 && Math.min(gr.bottom, cr.bottom) - Math.max(gr.top, cr.top) > 4 : null,
+      inToolbar: gr.left >= R(tb).left - 0.5 && gr.right <= R(tb).right + 0.5,
+      onScreen: gr.right <= window.innerWidth && gr.left >= 0,
+      tbOverflow: tb.scrollWidth - tb.clientWidth,
+      tbH: tb.offsetHeight,
+      tight: tb.dataset.tight ?? "yok",
+      counterShown,
+      titles: Array.from(g.querySelectorAll("button")).map((b) => b.title),
+    };
+  });
+  ok("ZOOM sıra − · + · ⛶, yüzde yazısı yok", place.ids.join(",") === "atlas-zoom-out,atlas-zoom-in,atlas-zoom-fit" && !/%/.test(place.text), JSON.stringify(place.ids));
+  ok("ZOOM 'Odak modu'nun hemen solunda, aynı satırda", place.beforeFocus && place.sameRow, JSON.stringify(place));
+  if (place.afterCounter !== null) ok("ZOOM sayaç ('Açı listesi … · çarkta çizili …') ile Odak modu ARASINDA", place.afterCounter === true, JSON.stringify(place));
+  else info("ZOOM sayaç bu genişlikte ekranda gösterilmiyor (yalnız ekran okuyucu)", `${width}px — kontroller Odak modunun solunda`);
+  ok("ZOOM araç satırı taşmıyor, kontroller ekranda", place.inToolbar && place.onScreen && place.tbOverflow <= 1 && (await pageOverflowX()) <= 1, JSON.stringify(place));
+  if (isDesk) ok("ZOOM masada araç satırı TEK satır (sayaç alta itilmez, harita yüksekliği korunur)", place.tbH <= 56, JSON.stringify({ tbH: place.tbH, tight: place.tight, counterShown: place.counterShown }));
+  info("ZOOM araç satırı düzeni", `yükseklik ${place.tbH}px · sıkıştırma ${place.tight} · sayaç ${place.counterShown ? "görünür" : "Açı çizgileri menüsünde"}`);
+  ok("ZOOM dokunma hedefi yeterli (≥ 32 px; telefonda ≥ 36 px)", place.sizes.every((x) => x >= (width < 640 ? 36 : 32)), place.sizes.join(","));
+  ok("ZOOM ipuçları var", place.titles.every((t) => t && t.length > 3), place.titles.join(" | "));
+  if (isDesk) {
+    // Harita kolonu en geniş (ayırıcı sağda): yer varsa tam düzen — sayaç · − + ⛶ · Odak modu, tek satır.
+    await setPanel("End");
+    await page.waitForTimeout(400);
+    const wide = await page.evaluate(() => {
+      const R = (e) => e.getBoundingClientRect();
+      const g = R(document.querySelector("[data-testid=atlas-chart-toolbar] [data-testid=atlas-zoom-controls]"));
+      const f = R(document.querySelector("[data-testid=atlas-chart-toolbar] [data-testid=atlas-chart-expand]"));
+      const ce = document.querySelector("[data-testid=natal-aspect-counts]");
+      const c = R(ce);
+      const tb = document.querySelector("[data-testid=atlas-chart-toolbar]");
+      return { tbW: tb.clientWidth, tbH: tb.offsetHeight, tight: tb.dataset.tight ?? "yok", counterShown: c.width > 2 && getComputedStyle(ce).position !== "absolute", order: c.right <= g.left + 1 && g.right <= f.left + 1, row: Math.abs((c.top + c.bottom) / 2 - (g.top + g.bottom) / 2) < 14 };
+    });
+    if (wide.counterShown) ok("ZOOM geniş harita kolonunda tam düzen: sayaç · − + ⛶ · Odak modu (tek satır)", wide.order && wide.row && wide.tbH <= 56, JSON.stringify(wide));
+    else info("ZOOM geniş kolonda da sayaç menüde", JSON.stringify(wide));
+    await setPanel("Enter");
+    await page.waitForTimeout(300);
+  }
+  const gFit = await chartGeom();
+  ok("ZOOM ilk açılış: sığdırılmış (ölçek 1), − ve ⛶ pasif", (await zs()) === 1 && (await zc.locator("[data-testid=atlas-zoom-out]").isDisabled()) && (await zc.locator("[data-testid=atlas-zoom-fit]").isDisabled()));
+  apiCalls = [];
+  await zc.locator("[data-testid=atlas-zoom-in]").click();
+  await page.waitForTimeout(250);
+  const z1 = await zs();
+  await zc.locator("[data-testid=atlas-zoom-in]").click();
+  await page.waitForTimeout(250);
+  const z2 = await zs();
+  ok("ZOOM + gerçekten büyütür", z1 > 1 && z2 > z1, `${z1} → ${z2}`);
+  await zc.locator("[data-testid=atlas-zoom-out]").click();
+  await page.waitForTimeout(250);
+  const z3 = await zs();
+  ok("ZOOM − gerçekten küçültür", z3 < z2 && z3 >= 1, `${z2} → ${z3}`);
+  await zc.locator("[data-testid=atlas-zoom-fit]").click();
+  await page.waitForTimeout(300);
+  const gBack = await chartGeom();
+  ok("ZOOM ⛶ başlangıç görünümüne döner (ölçek 1, aynı boyut, etiketler içeride)", (await zs()) === 1 && gBack.sw === gFit.sw && gBack.outside === 0, `${gFit.sw} / ${gBack.sw}`);
+  for (let i = 0; i < 30; i++) {
+    if (await zc.locator("[data-testid=atlas-zoom-in]").isDisabled()) break;
+    // Sınıra ulaşan son tıklamada düğme pasifleşebilir → kısa zaman aşımı, ardından durum yeniden okunur.
+    await zc.locator("[data-testid=atlas-zoom-in]").click({ timeout: 1500 }).catch(() => undefined);
+    await page.waitForTimeout(120);
+  }
+  await page.waitForTimeout(250);
+  const zMax = await zs();
+  ok("ZOOM üst sınır (en çok 8×), + sınırda pasif", zMax <= 8 && (await zc.locator("[data-testid=atlas-zoom-in]").isDisabled()), String(zMax));
+  await zc.locator("[data-testid=atlas-zoom-fit]").click();
+  await page.waitForTimeout(250);
+  // Fare tekerleği: harita ÜZERİNDE yakınlaştırır / uzaklaştırır (en az 1 — harita kaybolmaz)
+  const vb = await zvp.boundingBox();
+  await page.mouse.move(vb.x + vb.width / 2, vb.y + vb.height / 2);
+  await page.mouse.wheel(0, -400);
+  await page.waitForTimeout(300);
+  const zw1 = await zs();
+  await page.mouse.wheel(0, 3000);
+  await page.waitForTimeout(300);
+  const zw2 = await zs();
+  ok("ZOOM fare tekerleği harita üzerinde yakınlaştırır", zw1 > 1, String(zw1));
+  ok("ZOOM tekerlekle uzaklaştırma alt sınırda durur (1 = sığdır; harita kaybolmaz)", zw2 === 1, String(zw2));
+  // Harita DIŞINDA tekerlek: normal panel / sayfa kaydırması, yakınlaştırma yok
+  let outsideWheel;
+  if (isDesk) {
+    await section("acilar");
+    const sc = page.locator("[data-testid=atlas-panel-scroll]").first();
+    const sb = await sc.boundingBox();
+    const before = await sc.evaluate((e) => e.scrollTop);
+    await page.mouse.move(sb.x + sb.width / 2, sb.y + 40);
+    await page.mouse.wheel(0, 300);
+    await page.waitForTimeout(400);
+    outsideWheel = { moved: (await sc.evaluate((e) => e.scrollTop)) - before };
+    await sc.evaluate((e) => (e.scrollTop = 0));
+  } else {
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await page.waitForTimeout(200);
+    const hb2 = await page.locator("[data-testid=atlas-desk-header]:visible").first().boundingBox();
+    await page.mouse.move(hb2.x + hb2.width / 2, hb2.y + 10);
+    await page.mouse.wheel(0, 300);
+    await page.waitForTimeout(400);
+    outsideWheel = { moved: await page.evaluate(() => window.scrollY) };
+    await page.evaluate(() => window.scrollTo(0, 0));
+  }
+  ok("ZOOM harita dışında tekerlek normal kaydırır, haritayı yakınlaştırmaz", outsideWheel.moved > 0 && (await zs()) === 1, JSON.stringify(outsideWheel));
+  // Odak modu bağımsız: masa yakınken odak sığdırılmış açılır; dönünce masa yakınlaştırması korunur
+  await zc.locator("[data-testid=atlas-zoom-in]").click();
+  await page.waitForTimeout(250);
+  const zBeforeFocus = await zs();
+  await page.locator("[data-testid=atlas-chart-expand]:visible").first().click();
+  const ovp = page.locator("[data-testid=atlas-chart-overlay] [data-testid=atlas-chart-viewport]").first();
+  await ovp.waitFor({ state: "visible", timeout: 10000 });
+  const oS0 = await ovp.getAttribute("data-scale");
+  const oBox = await ovp.boundingBox();
+  await page.mouse.move(oBox.x + oBox.width / 2, oBox.y + oBox.height / 2);
+  await page.mouse.wheel(0, -400);
+  await page.waitForTimeout(300);
+  const oS1 = Number(await ovp.getAttribute("data-scale"));
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(400);
+  ok("ZOOM Odak modu bozulmaz: sığdırılmış açılır, kendi içinde yakınlaşır", oS0 === "1.00" && oS1 > 1, `${oS0} → ${oS1}`);
+  ok("ZOOM Odak modundan dönünce masadaki yakınlaştırma aynen korunur", (await zs()) === zBeforeFocus, `${zBeforeFocus} / ${await zs()}`);
+  // Klavye: düğmeler odaklanabilir (Enter ile çalışır)
+  await zc.locator("[data-testid=atlas-zoom-fit]").focus();
+  await page.keyboard.press("Enter");
+  await page.waitForTimeout(250);
+  await zc.locator("[data-testid=atlas-zoom-in]").focus();
+  await page.keyboard.press("Enter");
+  await page.waitForTimeout(250);
+  ok("ZOOM klavye: düğmeler odaklanır, Enter ile çalışır", (await zs()) > 1);
+  await zc.locator("[data-testid=atlas-zoom-fit]").click();
+  await page.waitForTimeout(250);
+  // İki parmak (telefon / tablet): PointerEvent benzetimi — fiziksel dokunmatik cihaz DEĞİL
+  if (!isDesk) {
+    const pinched = await zvp.evaluate(async (vpEl) => {
+      const box = vpEl.querySelector("[role=group]");
+      const r = box.getBoundingClientRect();
+      const cx = r.left + r.width / 2;
+      const cy = r.top + r.height / 2;
+      const ev = (type, id, x) => box.dispatchEvent(new PointerEvent(type, { pointerId: id, pointerType: "touch", clientX: x, clientY: cy, bubbles: true, isPrimary: id === 1 }));
+      ev("pointerdown", 1, cx - 20);
+      ev("pointerdown", 2, cx + 20);
+      for (let k = 1; k <= 6; k++) {
+        ev("pointermove", 1, cx - 20 - k * 12);
+        ev("pointermove", 2, cx + 20 + k * 12);
+      }
+      ev("pointerup", 1, cx - 92);
+      ev("pointerup", 2, cx + 92);
+      await new Promise((res) => setTimeout(res, 300));
+      return Number(vpEl.getAttribute("data-scale"));
+    });
+    ok("ZOOM iki parmak (PointerEvent benzetimi) yakınlaştırır", pinched > 1, String(pinched));
+    await zc.locator("[data-testid=atlas-zoom-fit]").click();
+    await page.waitForTimeout(250);
+    ok("ZOOM sığdırılmışken tek parmak dikey sayfa kaydırmasına bırakılır (touch-action: pan-y)", (await zvp.locator("[role=group]").first().evaluate((e) => getComputedStyle(e).touchAction)) === "pan-y");
+  }
+  const zoomCalls = apiCalls.filter((c) => !/^GET /.test(c) || /calculate|roxy|interpret/i.test(c));
+  ok("ZOOM işlemleri hesaplama / kayıt / sağlayıcı isteği üretmez", zoomCalls.length === 0, zoomCalls.join(", ") || `GET: ${apiCalls.length}`);
+  await shot("zoom-arac-satiri");
 
   // ═════ V4-002 — üst yatay kaydırma (Natal → Gezegenler, panel EN DAR)
   if (isDesk) await setPanel("End");
