@@ -8,7 +8,7 @@
 .page {
   --ink: #1f1a3a;
   --ink-soft: #5d5875;
-  --eyebrow: #b0853a;
+  --eyebrow: #8a6420;
   --r-card: 28px;
   --r-pill: 999px;
   --gap: clamp(18px, 2vw, 30px);
@@ -194,7 +194,7 @@
   --c-surface: linear-gradient(180deg, #f6f8ef 0%, #ecf6ec 55%, #f2f9ef 100%);
   --c-title: #0d4a37;
   --c-desc: #4d6660;
-  --c-badge: #138055;
+  --c-badge: #0f6e48;
   --c-badge-bg: rgba(220, 245, 234, 0.95);
   --c-shadow: rgba(40, 160, 120, 0.24);
 }
@@ -203,7 +203,7 @@
   --c-surface: linear-gradient(180deg, #fff3ea 0%, #ffece2 55%, #fff2ea 100%);
   --c-title: #6e1420;
   --c-desc: #6a5452;
-  --c-badge: #c8424f;
+  --c-badge: #ad3240;
   --c-badge-bg: rgba(255, 232, 226, 0.95);
   --c-shadow: rgba(230, 130, 110, 0.28);
 }

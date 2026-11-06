@@ -130,7 +130,7 @@ export default function RegisterPage() {
               {t("badge")}
             </div>
             <h1 className="mt-4 text-3xl font-black text-slate-950 md:text-4xl">{t("title")}</h1>
-            <p className="mt-2 text-base leading-7 text-slate-500 md:text-lg">
+            <p className="mt-2 text-base leading-7 text-slate-600 md:text-lg">
               {t("subtitle")}
             </p>
             <p className="mt-3 flex items-start gap-2 rounded-2xl border border-violet-200/70 bg-gradient-to-r from-violet-50 to-fuchsia-50/70 px-3.5 py-2.5 text-sm font-semibold leading-snug text-violet-800">
@@ -180,7 +180,7 @@ export default function RegisterPage() {
                   autoComplete="new-password"
                   aria-describedby="register-password-hint"
                 />
-                <p id="register-password-hint" className="mt-1.5 text-xs font-medium text-slate-500">
+                <p id="register-password-hint" className="mt-1.5 text-xs font-medium text-slate-600">
                   {t("passwordHint")}
                 </p>
               </div>

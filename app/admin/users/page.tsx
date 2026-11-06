@@ -284,7 +284,7 @@ function CountCard({
         active ? "ring-2 ring-violet-400" : ""
       }`}
     >
-      <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500">{label}</p>
+      <p className="text-[11px] font-bold uppercase tracking-wide text-slate-600">{label}</p>
       <p className="mt-1 text-2xl font-black tabular-nums text-slate-950 sm:text-3xl">{value ?? "—"}</p>
       {hint ? <p className="mt-0.5 text-[10px] font-semibold text-slate-500">{hint}</p> : null}
     </button>
@@ -951,7 +951,7 @@ function AdminUsersContent() {
             active={!isArchive && query.role === "admin"}
             onClick={() => navigate({ view: "members", role: "admin", approval: "all", active: "all", payment: "all", due: "all", ...RESET_360, page: 1 })} />
         </section>
-        <p className="mb-5 text-[11px] font-semibold text-slate-500">
+        <p className="mb-5 text-[11px] font-semibold text-slate-600">
           Her uzman yalnızca bir gruptadır: Onay Bekleyen + Onaylı · Aktif + Arşiv + Reddedilen = Toplam Uzman.
           Yöneticiler ayrı sayılır.
         </p>

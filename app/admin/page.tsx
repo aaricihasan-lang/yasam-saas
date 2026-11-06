@@ -334,10 +334,10 @@ function RenewalStatLink({
 }
 
 const statTones = {
-  slate:   { card: "bg-white/70 border-slate-200/70",       num: "text-slate-900",   lbl: "text-slate-500"   },
-  emerald: { card: "bg-emerald-50/80 border-emerald-200/60", num: "text-emerald-800", lbl: "text-emerald-600" },
-  amber:   { card: "bg-amber-50/80 border-amber-200/60",     num: "text-amber-800",   lbl: "text-amber-600"   },
-  rose:    { card: "bg-rose-50/80 border-rose-200/60",       num: "text-rose-800",    lbl: "text-rose-600"    },
+  slate:   { card: "bg-white/70 border-slate-200/70",       num: "text-slate-900",   lbl: "text-slate-600"   },
+  emerald: { card: "bg-emerald-50/80 border-emerald-200/60", num: "text-emerald-800", lbl: "text-emerald-700" },
+  amber:   { card: "bg-amber-50/80 border-amber-200/60",     num: "text-amber-800",   lbl: "text-amber-700"   },
+  rose:    { card: "bg-rose-50/80 border-rose-200/60",       num: "text-rose-800",    lbl: "text-rose-700"    },
 } as const;
 
 function StatCell({
@@ -578,7 +578,7 @@ export default function AdminPage() {
 
         <section className="relative z-20">
           <h2 className="text-base font-bold text-slate-900 lg:text-lg">Yönetim araçları</h2>
-          <p className="mt-1 text-xs text-slate-500">
+          <p className="mt-1 text-xs text-slate-600">
             Bu alan yalnızca admin rolü ile görünür. Uzman panelinde listelenmez.
           </p>
 

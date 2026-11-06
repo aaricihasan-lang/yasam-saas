@@ -3,6 +3,8 @@ module.exports = {
   content: [
     "./app/**/*.{js,ts,jsx,tsx,mdx}",
     "./components/**/*.{js,ts,jsx,tsx,mdx}",
+    // Aromaterapi kart renkleri (gradyan/CTA sınıfları) yalnız bu dosyada tanımlı; taranmazsa sınıflar üretilmez.
+    "./lib/aromaterapi/aromaterapiAccent.ts",
   ],
   theme: {
     extend: {},

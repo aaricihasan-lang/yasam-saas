@@ -7,7 +7,7 @@
   --ink: #17142b;
   --ink2: #2a2640;
   --soft: #5c586f;
-  --muted: #8a8698;
+  --muted: #6c687e;
   --violet: #7c3aed;
   --gold: #c99a3a;
   --line: rgba(120, 110, 150, 0.12);
@@ -237,6 +237,11 @@
   font-weight: 600;
   letter-spacing: 0.2em;
   text-transform: uppercase;
+  color: #8a6420;
+}
+
+/* Gece: koyu zeminde özgün altın korunur (açık temadaki koyu altın yalnız açık zemin içindir). */
+[data-pw-mode="night"] .eyebrow {
   color: var(--gold);
 }
 

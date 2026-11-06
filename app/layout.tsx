@@ -32,6 +32,11 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Yaşam Sistemi",
   description: "Yaşam Sistemi Yönetim Paneli",
+  // <meta name="darkreader-lock">: Dark Reader vb. koyu mod eklentileri `color-scheme` bildirimine uymaz; görsel/gradyan
+  // zeminli kartları açık bırakıp yazıyı açık renge çevirerek metni okunmaz yapıyordu. Eklenti bu etikette kendini kapatır.
+  // Koyu görünüm Kişisel Dijital Ofis Gece / Otomatik modu ile sağlanır.
+  // İçerik boş olursa Next.js etiketi basmaz; eklenti yalnız etiketin varlığına bakar.
+  other: { "darkreader-lock": "true" },
 };
 
 export const viewport: Viewport = {

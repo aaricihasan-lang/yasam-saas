@@ -58,13 +58,13 @@
 .mCard:hover { transform: translateY(-2px); box-shadow: 0 1px 2px rgba(120, 72, 30, 0.06), 0 22px 40px -20px rgba(120, 72, 30, 0.45); }
 .mIcon { display: inline-flex; align-items: center; justify-content: center; width: 76px; height: 76px; border-radius: 20px; background: linear-gradient(160deg, #fff6e6, #fde7c4); color: #c2580c; box-shadow: inset 0 1px 0 #fff, 0 8px 18px -12px rgba(194, 88, 12, 0.6); }
 .mText { position: relative; z-index: 1; display: flex; flex-direction: column; min-width: 0; max-width: 560px; }
-.mEyebrow { font-size: 12px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; color: #c2580c; }
+.mEyebrow { font-size: 12px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; color: #a8480a; }
 .mTitle { margin-top: 4px; font-family: var(--eb-serif), Georgia, serif; font-variation-settings: "opsz" 72; font-weight: 600; font-size: clamp(1.5rem, 2.2vw, 1.95rem); line-height: 1.15; color: var(--brown); }
-.mDesc { margin-top: 6px; font-size: 15px; line-height: 1.55; color: var(--ink-soft); }
+.mDesc { margin-top: 6px; font-size: 15px; line-height: 1.55; color: #4e3f35; }
 .mArt { position: absolute; right: 230px; top: 50%; height: 100%; width: auto; max-width: 46%; transform: translateY(-50%); object-fit: cover; pointer-events: none; z-index: 0; }
 .mCta {
   position: relative; z-index: 1; display: inline-flex; align-items: center; gap: 10px; min-height: 50px; padding: 0 24px; border-radius: 14px;
-  background: linear-gradient(180deg, #f08a24 0%, #d9620c 100%); color: #fff; font-size: 17px; font-weight: 700; white-space: nowrap;
+  background: linear-gradient(180deg, #bf5610 0%, #a8480a 100%); color: #fff; font-size: 17px; font-weight: 700; white-space: nowrap;
   box-shadow: 0 12px 24px -12px rgba(201, 84, 8, 0.75), inset 0 1px 0 rgba(255, 255, 255, 0.3);
 }
 
@@ -88,7 +88,7 @@
 .sCta { display: inline-flex; align-items: center; gap: 6px; margin-top: 8px; font-size: 14.5px; font-weight: 700; color: #c2410c; }
 .sChev { position: absolute; top: 14px; right: 14px; display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; border-radius: 999px; border: 1px solid #ecd8bd; background: #fff; color: #9a5a2a; }
 
-.note { margin-top: 24px; font-size: 12.5px; line-height: 1.6; color: #8a7666; }
+.note { margin-top: 24px; font-size: 12.5px; line-height: 1.6; color: #6b5a4e; }
 
 /* ── Kısa masaüstü ─────────────────────────────────────────────────────── */
 @media (min-width: 1024px) and (max-height: 760px) {
