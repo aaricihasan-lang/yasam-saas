@@ -119,7 +119,7 @@ export default function SistemSagligiPage() {
               Hazırlanıyor
             </span>
           </div>
-          <p className="mt-1 text-sm text-slate-500">
+          <p className="mt-1 text-sm text-slate-600">
             Platform genelinde kullanım ve durum göstergeleri
           </p>
           <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
@@ -150,7 +150,7 @@ export default function SistemSagligiPage() {
         </section>
 
         <footer className="mt-8 border-t border-slate-200/60 pt-6">
-          <p className="text-xs font-medium text-slate-400">
+          <p className="text-xs font-medium text-slate-600">
             Sistem Sağlığı · admin modül önizlemesi
           </p>
         </footer>
