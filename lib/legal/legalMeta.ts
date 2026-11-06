@@ -6,10 +6,10 @@
  */
 
 /** Hukuki metinlerin son güncelleme tarihi (ISO, yalnız tarih). */
-export const LEGAL_LAST_UPDATED_ISO = "2026-11-03";
+export const LEGAL_LAST_UPDATED_ISO = "2026-11-07";
 
 /** Görünen etiket — LEGAL_LAST_UPDATED_ISO ile aynı gün. */
-export const LEGAL_LAST_UPDATED_LABEL = "Son güncelleme: 3 Kasım 2026";
+export const LEGAL_LAST_UPDATED_LABEL = "Son güncelleme: 7 Kasım 2026";
 
 export type LegalPageLink = { href: string; label: string };
 
