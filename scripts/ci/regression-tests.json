@@ -316,6 +316,11 @@
    "timeoutSec": 60
   },
   {
+   "file": "scripts/browser-theme/color-scheme.harness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
    "file": "scripts/bug016-bio-tr-search/routes.harness.ts",
    "tsx": true,
    "timeoutSec": 80
