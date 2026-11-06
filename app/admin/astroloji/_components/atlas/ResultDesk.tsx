@@ -16,9 +16,9 @@
  * değiştirmez; hangi bölümlerin var olduğuna çağıran karar verir. Panel/menü/odak durumu hiçbir kaydı etkilemez.
  */
 import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type ComponentType, type KeyboardEvent, type ReactNode } from "react";
-import { ArrowLeft, BookOpen, CircleDot, House, Maximize2, MoreHorizontal, Orbit, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, PenLine, Save, Sparkles, Sun, Table2, Triangle, X, Home } from "lucide-react";
+import { ArrowLeft, BookOpen, CircleDot, House, Maximize, Maximize2, Minus, MoreHorizontal, Plus, Orbit, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, PenLine, Save, Sparkles, Sun, Table2, Triangle, X, Home } from "lucide-react";
 import { atlasDisplay, atlasText } from "./fonts";
-import ChartViewport from "./ChartViewport";
+import ChartViewport, { CHART_VIEWPORT_MAX, type ChartViewportApi } from "./ChartViewport";
 import DeskPopover from "./DeskPopover";
 import HScrollProxy from "./HScrollProxy";
 import { readYasamUser } from "@/lib/auth/yasamUser";
@@ -995,6 +995,9 @@ function LightDesk({ backLabel, onBack, eyebrow, title, subtitle, details, meta,
   const mPanelRef = useRef<HTMLDivElement | null>(null);
   const mPanelCardRef = useRef<HTMLDivElement | null>(null);
   const mStageCardRef = useRef<HTMLDivElement | null>(null);
+  // Masadaki harita görüntüleyicisi (araç satırındaki − / + / sığdır onu sürer). Odak modu kendi bağımsız görüntüleyicisini kullanır.
+  const vpApi = useRef<ChartViewportApi | null>(null);
+  const [zoomScale, setZoomScale] = useState(1);
   // İki kolon yalnız ≥1024 px ekranda VE masa için gerçekten yer varken (uygulama menüsü açıkken 1024 px'te masa ~700 px
   // kalır → harita ~350 px'e düşerdi). Dar alanda tablet düzeni: harita tam genişlikte, bilgi altında.
   const wideScreen = useDeskLayout();
@@ -1015,6 +1018,38 @@ function LightDesk({ backLabel, onBack, eyebrow, title, subtitle, details, meta,
   const metaPlain = metaList.filter((m) => !META_WARN_RE.test(m));
   const hasChart = !!chart;
   const current = tabs.find((t) => t.id === active);
+  // Araç satırı tek satırda kalsın: sığmazsa önce "Odak modu" yalnız simge (1280 px altındaki mevcut davranış), yine sığmazsa
+  // sayaç ekrandan kalkar (aynı bilgi "Açı çizgileri" menüsünde; <1536 px'teki mevcut davranış). Genişleyince yeniden denenir.
+  // Telefonda yine sığmazsa Natal denetimleri eski dizilimini korur (Temel/Profesyonel + Ek noktalar yan yana) ve − + ⛶ · Odak
+  // grubu kendi satırına, sağa iner — açık "Ek noktalar" menüsü "Açı çizgileri" düğmesinin üstünü kapatmaz.
+  const toolRef = useRef<HTMLDivElement | null>(null);
+  const [tight, setTight] = useState(0);
+  const [toolTick, setToolTick] = useState(0);
+  const toolKey = `${chartKey ?? ""}|${isDesk ? "masa" : "mobil"}`;
+  const [tightKey, setTightKey] = useState(toolKey);
+  if (tightKey !== toolKey) {
+    // Başka analiz / düzen: araç satırı içeriği değişti → sıkıştırma baştan denenir (render sırasında, koşullu sıfırlama).
+    setTightKey(toolKey);
+    setTight(0);
+  }
+  useEffect(() => {
+    const el = toolRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    let w = el.clientWidth;
+    const ro = new ResizeObserver(() => {
+      const nw = el.clientWidth;
+      if (Math.abs(nw - w) < 1) return;
+      w = nw;
+      setTight(0);
+      setToolTick((t) => t + 1);
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [isDesk, hasChart]);
+  useLayoutEffect(() => {
+    const el = toolRef.current;
+    if (el && tight < 2 && el.offsetHeight > 56) setTight(tight + 1);
+  }, [tight, toolTick, toolKey]);
 
   // Gece kabuğu yalnız bu masa açıkken aydınlık zemine döner (ana alan: data-atlas-light).
   useEffect(() => {
@@ -1138,7 +1173,7 @@ function LightDesk({ backLabel, onBack, eyebrow, title, subtitle, details, meta,
   );
   const focusBtn = hasChart ? (
     <button type="button" onClick={() => setOverlay(true)} className={`${LTOOL} shrink-0`} title="Haritayı tam ekranda büyük göster" aria-label="Odak modu — haritayı tam ekranda göster" data-testid="atlas-chart-expand">
-      <Maximize2 className="h-3.5 w-3.5" /> <span className="max-[1279px]:hidden">Odak modu</span>
+      <Maximize2 className="h-3.5 w-3.5" /> <span className="max-[1279px]:hidden" data-focus-label="">Odak modu</span>
     </button>
   ) : null;
 
@@ -1231,10 +1266,37 @@ function LightDesk({ backLabel, onBack, eyebrow, title, subtitle, details, meta,
     </div>
   );
 
+  // Owner son yerleşim kararı (06.11.2026): yakınlaştırma düğmeleri araç satırında, sayaç ("Açı listesi … · çarkta çizili …")
+  // ile "Odak modu" ARASINDA: − · + · ⛶ (sığdır). Yüzde göstergesi yok. Düğmeler haritadaki ChartViewport'u sürer (tek motor).
+  const zoomBtn =
+    "flex h-8 w-8 items-center justify-center rounded-md text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 disabled:opacity-35 disabled:hover:bg-transparent focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0B1430] max-sm:h-9 max-sm:w-9";
+  const zoomCtl = hasChart ? (
+    <span role="group" aria-label="Harita yakınlaştırma" className="flex shrink-0 items-center rounded-lg border border-slate-200 bg-white/95 p-px shadow-sm" data-testid="atlas-zoom-controls">
+      <button type="button" className={zoomBtn} onClick={() => vpApi.current?.zoomOut()} disabled={zoomScale <= 1.001} aria-label="Küçült" title="Küçült (−) · tekerlek / iki parmak da çalışır" data-testid="atlas-zoom-out">
+        <Minus className="h-4 w-4" />
+      </button>
+      <button type="button" className={zoomBtn} onClick={() => vpApi.current?.zoomIn()} disabled={zoomScale >= CHART_VIEWPORT_MAX - 0.001} aria-label="Büyüt" title="Büyüt (+) · tekerlek / iki parmak da çalışır" data-testid="atlas-zoom-in">
+        <Plus className="h-4 w-4" />
+      </button>
+      <button type="button" className={zoomBtn} onClick={() => vpApi.current?.fit()} disabled={zoomScale <= 1.001} aria-label="Alana sığdır" title="Alana sığdır / başlangıç boyutu (0)" data-testid="atlas-zoom-fit">
+        <Maximize className="h-3.5 w-3.5" />
+      </button>
+    </span>
+  ) : null;
   const toolRow = (
-    <div className="flex min-h-[44px] items-start gap-2 border-b border-slate-100 px-2.5 py-1.5" data-testid="atlas-chart-toolbar">
+    <div
+      ref={toolRef}
+      className="flex min-h-[44px] flex-wrap items-start gap-2 border-b border-slate-100 px-2.5 py-1.5 [&>[data-testid=natal-wheel-controls]]:min-w-[min(100%,18.5rem)] [&[data-tight]_[data-focus-label]]:hidden [&[data-tight=two]_[data-testid=natal-aspect-counts]]:sr-only"
+      data-testid="atlas-chart-toolbar"
+      data-tight={tight === 0 ? undefined : tight === 1 ? "one" : "two"}
+    >
       {toolbar ?? <span className="self-center text-[10.5px] font-semibold tracking-[0.16em] text-slate-500">{hasChart ? "HARİTA" : "TEKNİK SONUÇ"}</span>}
-      {focusBtn && <span className="ml-auto flex shrink-0 items-center">{focusBtn}</span>}
+      {(zoomCtl || focusBtn) && (
+        <span className="ml-auto flex shrink-0 items-center gap-1.5">
+          {zoomCtl}
+          {focusBtn}
+        </span>
+      )}
     </div>
   );
   const notesRow = chartNotes ? (
@@ -1242,13 +1304,15 @@ function LightDesk({ backLabel, onBack, eyebrow, title, subtitle, details, meta,
       {chartNotes}
     </div>
   ) : null;
-  // V4-004 (2026-11-06 owner): masada görünür yakınlaştırma grubu (+ / % / − / sığdır) YOK — harita bulunduğu alana
-  // oranını koruyarak sığar ve alan değişince (pencere, ayırıcı, menü) kendiliğinden yeniden boyutlanır (SVG viewBox).
-  // Yakınlaştırma / sürükleme yalnız Odak modunda (ChartViewport aynen) sürer.
+  // Harita ilk açılışta alana oranını koruyarak sığar; alan değişince (pencere, ayırıcı, menü) kendiliğinden boyutlanır.
+  // Yakınlaştırma: araç satırındaki − / + / sığdır, harita ÜZERİNDE fare tekerleği, iki parmak, klavye (+ / − / 0) — hepsi
+  // aynı ChartViewport (yalnız CSS dönüşümü; çizim / hesap değişmez). Haritanın üstünde ayrı düğme kartı yok.
   const chartNode = () =>
     hasChart ? (
-      <div className="absolute inset-0 flex items-center justify-center p-1" data-testid="atlas-chart-fit">
-        {chart!("h-full w-full max-h-full")}
+      <div className="absolute inset-0 p-1" data-testid="atlas-chart-fit">
+        <ChartViewport key={chartKey} tone="light" controls={false} apiRef={vpApi} onScaleChange={setZoomScale}>
+          {chart!("h-full w-full max-h-full")}
+        </ChartViewport>
       </div>
     ) : (
       <div className="flex h-full min-h-0 flex-col">

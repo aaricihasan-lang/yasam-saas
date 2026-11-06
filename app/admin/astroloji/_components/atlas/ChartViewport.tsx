@@ -13,13 +13,17 @@
  * alanının dışına kaçamaz (sınırlı). Dokunmatik: iki parmak = yakınlaştır, tek parmak = (yakınken) sürükle; ölçek 1'de
  * tek parmak dikey sayfa kaydırmasına bırakılır (touch-action: pan-y). Klavye: + / − / 0 ve ok tuşları.
  */
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useImperativeHandle, useRef, useState, type ReactNode, type Ref } from "react";
 import { Maximize, Minus, Plus } from "lucide-react";
 
 const MIN = 1;
 const MAX = 8;
 type View = { s: number; x: number; y: number };
 const FIT: View = { s: 1, x: 0, y: 0 };
+/** Dışarıdaki düğmelerin (ör. V4 masasının araç satırı) aynı görüntüleyiciyi sürmesi için — ikinci bir zoom motoru yok. */
+export type ChartViewportApi = { zoomIn: () => void; zoomOut: () => void; fit: () => void };
+export const CHART_VIEWPORT_MIN = MIN;
+export const CHART_VIEWPORT_MAX = MAX;
 
 export default function ChartViewport({
   children,
@@ -27,6 +31,9 @@ export default function ChartViewport({
   label = "Harita görüntüleyici",
   compact = false,
   tone = "dark",
+  controls = true,
+  apiRef,
+  onScaleChange,
 }: {
   children: ReactNode;
   className?: string;
@@ -36,6 +43,12 @@ export default function ChartViewport({
   compact?: boolean;
   /** "light": aydınlık çalışma masasında açık renkli araçlar. */
   tone?: "dark" | "light";
+  /** false: haritanın üstündeki düğme grubu çizilmez (düğmeler çağıranın araç satırında; tekerlek / iki parmak / klavye aynen). */
+  controls?: boolean;
+  /** Dış düğmeler için yakınlaştır / uzaklaştır / sığdır. */
+  apiRef?: Ref<ChartViewportApi>;
+  /** Ölçek her değiştiğinde (ilk açılışta 1 dahil) — dış düğmelerin etkin / pasif durumu için. */
+  onScaleChange?: (scale: number) => void;
 }) {
   const L = tone === "light";
   const boxRef = useRef<HTMLDivElement | null>(null);
@@ -154,6 +167,11 @@ export default function ChartViewport({
     e.preventDefault();
   };
 
+  useImperativeHandle(apiRef, () => ({ zoomIn: () => zoomCenter(1.35), zoomOut: () => zoomCenter(1 / 1.35), fit: () => apply(FIT) }));
+  useEffect(() => {
+    onScaleChange?.(view.s);
+  }, [view.s, onScaleChange]);
+
   const zoomed = view.s > 1;
   const ctl = L
     ? "flex h-8 w-8 items-center justify-center rounded-lg text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 disabled:opacity-35 disabled:hover:bg-transparent focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0B1430]"
@@ -168,6 +186,13 @@ export default function ChartViewport({
         tabIndex={0}
         onKeyDown={onKeyDown}
         onPointerDown={onPointerDown}
+        onMouseDown={(e) => {
+          // Tıklama / dokunma odağı SAYFAYI KAYDIRMASIN (kısmen ekran dışındaki harita odaklanınca tarayıcı sayfayı zıplatıyordu);
+          // klavye kısayolları için odak yine verilir, Tab ile odaklanma aynen.
+          if (e.button !== 0) return;
+          e.preventDefault();
+          boxRef.current?.focus({ preventScroll: true });
+        }}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerEnd}
         onPointerCancel={onPointerEnd}
@@ -185,7 +210,7 @@ export default function ChartViewport({
         </div>
       </div>
       {/* Kontroller: sağ üst köşe (dairesel haritada boş alan); harita noktalarını örtmez. */}
-      {compact && zoomed && (
+      {controls && compact && zoomed && (
         <button
           type="button"
           onClick={() => apply(FIT)}
@@ -197,6 +222,7 @@ export default function ChartViewport({
           <Maximize className="h-4 w-4" />
         </button>
       )}
+      {controls && (
       <div
         className={`absolute right-2 top-2 z-10 items-center gap-0.5 rounded-xl border p-1 ${L ? "flex-row border-slate-200 bg-white/95 shadow-sm" : "flex-col border-white/12 bg-[#0b1234]/80 shadow-[0_10px_24px_-14px_rgba(0,0,0,0.9),inset_0_1px_0_rgba(255,255,255,0.08)] backdrop-blur"} ${compact ? "hidden sm:flex" : "flex"}`}
         data-viewport-control=""
@@ -216,6 +242,7 @@ export default function ChartViewport({
           <Maximize className="h-3.5 w-3.5" />
         </button>
       </div>
+      )}
     </div>
   );
 }
