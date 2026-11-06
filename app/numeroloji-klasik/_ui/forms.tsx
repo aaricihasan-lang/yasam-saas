@@ -416,7 +416,7 @@ export function PersonForm() {
             <span className="nk-tech-chev" aria-hidden="true">▾</span>
           </button>
           <div id={`${uid}-tech-list`} hidden={!techOpen} data-testid="tech-list">
-          <fieldset className="nk-toggles" style={{ border: 0, padding: 0, margin: "12px 0 0" }} aria-describedby={errors.techniques ? `${uid}-tech-err` : undefined}>
+          <fieldset className="nk-toggles" style={{ border: 0, padding: 0, margin: "12px 0 0" }} aria-describedby={errors.techniques && !techs.length ? `${uid}-tech-err` : undefined}>
             <legend className="nk-sr-only">Hesaplanacak teknik grupları</legend>
             <label className="nk-toggle nk-all">
               <input type="checkbox" checked={all} onChange={(e) => setTechs(e.target.checked ? PERSON_TECHS.map((t) => t.key) : [])} data-testid="tech-all" />
@@ -434,7 +434,8 @@ export function PersonForm() {
             ))}
           </fieldset>
           </div>
-          <FieldError id={`${uid}-tech-err`} msg={errors.techniques} />
+          {/* D6-1: "En az bir teknik seçin" yalnız gerçekten hiç teknik seçili değilken görünür (seçim yapılınca kalkar). */}
+          <FieldError id={`${uid}-tech-err`} msg={techs.length ? undefined : errors.techniques} />
           {techs.includes("dual") && (!techs.includes("core") || !techs.includes("chaldean")) ? (
             <p className="nk-hint" style={{ marginTop: 8 }}>İki Sistem karşılaştırması için Pisagor çekirdek ve Kalde sonuçları da hesaplanır.</p>
           ) : null}
