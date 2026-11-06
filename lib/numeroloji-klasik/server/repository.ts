@@ -133,6 +133,27 @@ export async function listAnalyses(
   return { ok: true, value: { rows: rows.slice(0, limit), hasMore: rows.length > limit } };
 }
 
+/**
+ * Mükerrer kişi analizi kontrolü (Kaydet öncesi uyarı): tenant'ın silinmemiş KİŞİ analizleri — yalnız kimlik,
+ * başlık, girdi (ad soyad + doğum) ve kayıt anı okunur; sonuç / sağlayıcı verisi okunmaz. Salt okuma.
+ */
+export async function listPersonAnalysesForDuplicateCheck(
+  db: SupabaseClient,
+  tenantId: string,
+): Promise<RepoOk<Array<Pick<ClassicAnalysisRow, "id" | "title" | "input" | "created_at">>> | RepoError> {
+  const { data, error } = await db
+    .from(ANALYSES)
+    .select("id, title, input, created_at")
+    .eq("tenant_id", tenantId)
+    .eq("kind", "person")
+    .is("deleted_at", null)
+    .order("created_at", { ascending: false })
+    .order("id", { ascending: true })
+    .limit(CLASSIC_ALPHA_SCAN);
+  if (error || !Array.isArray(data)) return { ok: false, reason: "db_error" };
+  return { ok: true, value: data as unknown as Array<Pick<ClassicAnalysisRow, "id" | "title" | "input" | "created_at">> };
+}
+
 export async function getAnalysis(db: SupabaseClient, tenantId: string, id: string): Promise<RepoOk<ClassicAnalysisRow> | RepoError> {
   const { data, error } = await db.from(ANALYSES).select(FULL_COLUMNS).eq("tenant_id", tenantId).eq("id", id).is("deleted_at", null).maybeSingle();
   if (error) return { ok: false, reason: "db_error" };
