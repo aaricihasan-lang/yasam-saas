@@ -9,6 +9,8 @@
  * import yolları (`@/lib/auth/moduleAccess`) DEĞİŞMEDEN çalışır.
  */
 
+import { isTrialAllowedModuleKey } from "@/lib/trial/trialCore";
+
 /** Route gate anahtarları (kanonik). */
 export type ModuleGateKey =
   | "clients"
@@ -129,6 +131,12 @@ export function isDemoAccountFlag(value: unknown): boolean {
 export type ModuleAccessOptions = {
   /** users.is_demo_account — demo vitrin hesabında DEMO_DENIED_MODULE_KEYS kapalıdır. */
   isDemo?: boolean;
+  /**
+   * TRIAL7: 7 günlük deneme uzmanı (trial_kind=self_7d, Pro'ya geçmemiş). Yalnız
+   * lib/trial/trialCore TRIAL_ALLOWED_MODULE_KEYS'teki modüller açılabilir; Dijital İçerik ve
+   * tüm alt modülleri + ileride eklenecek her modül KAPALI (fail-closed, bayraktan bağımsız).
+   */
+  isTrial?: boolean;
 };
 
 function toFlags(raw: unknown): Record<string, boolean> {
@@ -170,6 +178,8 @@ export function resolveModuleAccess(
   // Demo vitrin: Dijital İçerik hub'ı + Kişisel Arşiv + Belge/Video/Ders Notu + Astroloji bayraktan bağımsız KAPALI
   // (bkz. DEMO_DENIED_MODULE_KEYS). Yazmalar demo 403.
   if (isDemo && isDemoDeniedModuleKey(moduleKey)) return false;
+  // TRIAL7: deneme paketi allowlist'i — module_permissions'ta açık olsa bile allowlist dışı KAPALI.
+  if (options?.isTrial === true && !isTrialAllowedModuleKey(moduleKey)) return false;
   // MERGE (KAJ-P1-04 × main): İki eski özel-durum KISAYOLU DA KALDIRILDI →
   //   • cosmic_calendar always-on YOK (owner "Gerçek kapı") → module_permissions.cosmic_calendar,
   //   • beslenme owner-only `return false` YOK (main: beslenme artık NORMAL modül) → module_permissions.beslenme.

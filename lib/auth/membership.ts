@@ -1,8 +1,8 @@
 import type { YasamUser } from "@/lib/auth/yasamUser";
 import {
-  hasMembershipAccessForRow,
   normalizeMembershipToken,
   parseMembershipPackageType,
+  resolveMembershipAccessLevel,
 } from "@/lib/auth/membershipAccessCore";
 
 export type PackageType = "trial" | "pro" | "premium";
@@ -161,12 +161,12 @@ export function buildPremiumMembershipPayload(): Record<string, unknown> {
 }
 
 /**
- * AUTH-05 (AŞAMA 1): landing "3 gün ücretsiz keşif" penceresinin KAYDI. Onay anından itibaren
+ * AUTH-05 (AŞAMA 1): yönetici onaylı (eski) akışta "7 gün ücretsiz keşif" penceresinin KAYDI. Onay anından itibaren
  * deneme bitişi trial_ends_at'e yazılır; ERİŞİMİ ETKİLEMEZ (membershipAccessCore tarih okumaz,
  * isTrialExpired yalnız package_type='trial' için çalışır). Erişim kesimi owner kararı gereği
  * yöneticinin manuel kararıdır — admin listesi yalnız "Deneme süresi doldu" uyarısı gösterir.
  */
-export const TRIAL_REVIEW_DAYS = 3;
+export const TRIAL_REVIEW_DAYS = 7;
 export function buildApprovalMembershipPayload(now: Date = new Date()): Record<string, unknown> {
   const ends = new Date(now.getTime() + TRIAL_REVIEW_DAYS * 86_400_000);
   return {
@@ -219,5 +219,8 @@ export function hasExpertMembershipAccess(user: YasamUser | null | undefined): b
   if (!user) return false;
   // FAZ1 FINAL HARDENING: kural SAF çekirdekte (membershipAccessCore) — sunucu
   // requireModuleAccess aynı fonksiyonu kullanır (istemci/sunucu sapması yok).
-  return hasMembershipAccessForRow(user as unknown as Record<string, unknown>);
+  // TRIAL7: süresi dolmuş / durdurulmuş 7 günlük deneme uzmanı ARAYÜZDE modülleri GÖRÜNTÜLEYEBİLİR
+  // (salt-okunur: kayıtlar + dışa aktarma). Yazma/hesaplama/yükleme SUNUCUDA reddedilir
+  // (requireModuleAccess → membershipGateForRequest). Premium/admin için sonuç önceki kuralla AYNI.
+  return resolveMembershipAccessLevel(user as unknown as Record<string, unknown>) !== "none";
 }

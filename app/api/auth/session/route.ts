@@ -31,6 +31,7 @@ import { isExpertReady, normalizeRole, resolveApprovalStatus } from "@/lib/auth/
 import { hitDbRateLimit, rateLimitBucket } from "@/lib/security/dbRateLimit";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { writeAdminAudit } from "@/lib/admin/adminAudit";
+import { activateTrialOnLogin } from "@/lib/trial/trialServer";
 import { resolveActorIsMainAdmin } from "@/lib/admin/accountSessionControls";
 
 export const runtime = "nodejs";
@@ -252,10 +253,16 @@ export async function POST(req: NextRequest) {
     // `sessionCookie: true` ile HttpOnly cookie'ye güvenir. Android ve header taşıması (kill-switch /
     // primary dışı mod) → token gövdede aynen (bugünkü sözleşme).
     const webCookieOnly = webCookieSession && readWebSessionTransport() === "cookie";
+    // TRIAL7: 7 günlük deneme penceresi İLK başarılı girişte (oturum oluştuktan sonra) BİR KEZ başlar;
+    // eşzamanlı girişte de tek kez, tekrar giriş süreyi sıfırlamaz (DB koşullu UPDATE). Deneme rejimi
+    // dışı hesapta RPC hiçbir satırı değiştirmez. Hata girişi ENGELLEMEZ (durum ucu yeniden dener).
+    const trial = role === "expert" ? await activateTrialOnLogin(db, String(row.id)) : null;
+
     const response = json(
       {
         ...(webCookieOnly ? { sessionCookie: true } : { sessionToken }),
         user: row,
+        ...(trial && trial.phase !== "none" ? { trial: { phase: trial.phase, endsAt: trial.endsAt, serverNow: trial.serverNow } } : {}),
         suspiciousLogin: result.suspiciousLogin,
         highRisk: result.highRisk,
       },

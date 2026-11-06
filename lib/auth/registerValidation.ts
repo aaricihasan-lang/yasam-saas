@@ -16,6 +16,8 @@ export const REGISTER_EMAIL_MAX = 254;
 export const REGISTER_PASSWORD_MIN = PASSWORD_MIN_LENGTH;
 export const REGISTER_PASSWORD_MAX = PASSWORD_MAX_LENGTH;
 export const REGISTER_HONEYPOT_FIELD = "website";
+/** TRIAL7: Cloudflare Turnstile belirteci (yalnız otomatik deneme kaydı açıkken zorunlu; sunucu Siteverify). */
+export const REGISTER_TURNSTILE_FIELD = "turnstileToken";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 const CONTROL_RE = /[\u0000-\u001f\u007f]/;
@@ -41,7 +43,9 @@ export function passwordPolicyError(password: string, email = ""): RegisterError
 }
 
 export function validateRegisterBody(body: Record<string, unknown>): RegisterValidation {
-  const allowed = new Set(["fullName", "email", "password", REGISTER_HONEYPOT_FIELD]);
+  const allowed = new Set(["fullName", "email", "password", REGISTER_HONEYPOT_FIELD, REGISTER_TURNSTILE_FIELD]);
+  const ts = body[REGISTER_TURNSTILE_FIELD];
+  if (ts !== undefined && (typeof ts !== "string" || ts.length > 2048)) return { ok: false, code: "invalid_request" };
   for (const k of Object.keys(body)) if (!allowed.has(k)) return { ok: false, code: "invalid_request" };
 
   const hp = body[REGISTER_HONEYPOT_FIELD];

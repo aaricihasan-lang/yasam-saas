@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { verifyUserRequest } from "@/lib/auth/userGuard";
+import { trialModuleDenied, verifyUserRequest } from "@/lib/auth/userGuard";
 
 export const runtime = "nodejs";
 
@@ -18,8 +18,11 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const guard = await verifyUserRequest(request);
+  const guard = await verifyUserRequest(request, { includeProfile: true });
   if (!guard.ok) return guard.response;
+  // TRIAL7: Dijital İçerik ailesi (Belge Çeviri) deneme uzmanına KAPALI — doğrudan API dahil.
+  const trialDenied = trialModuleDenied(guard.profile);
+  if (trialDenied) return trialDenied;
 
   try {
     const { id } = await params;

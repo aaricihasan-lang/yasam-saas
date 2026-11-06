@@ -29,9 +29,26 @@ import {
   MODULE_DENIED_CODE,
   MODULE_DENIED_MESSAGE,
   MEMBERSHIP_USER_SELECT,
+  MEMBERSHIP_USER_SELECT_PRE_TRIAL,
 } from "./membershipAccessCore";
+import { isUndefinedColumnError } from "./undefinedColumn";
+import { isTrialRestrictedRow } from "@/lib/trial/trialCore";
 export { resolveModuleAccess };
 export type { ModuleGateKey };
+
+/**
+ * Üyelik satırı. TRIAL7 geçiş güvenliği: deneme kolonları henüz yoksa (42703) eski kolon listesiyle
+ * yeniden okunur → mevcut üyeler etkilenmez, satır deneme rejiminde sayılmaz.
+ */
+async function readMembershipRow(db: SupabaseClient, userId: string) {
+  const res = await db.from("users").select(MEMBERSHIP_USER_SELECT).eq("id", userId).maybeSingle();
+  if (!isUndefinedColumnError(res.error)) return res;
+  return (await db
+    .from("users")
+    .select(MEMBERSHIP_USER_SELECT_PRE_TRIAL)
+    .eq("id", userId)
+    .maybeSingle()) as unknown as typeof res;
+}
 
 export type ModuleGateResult = { ok: true } | { ok: false; response: NextResponse };
 
@@ -56,11 +73,7 @@ export async function assertUserMembershipAccess(
   db: SupabaseClient,
   userId: string,
 ): Promise<ModuleGateResult> {
-  const { data, error } = await db
-    .from("users")
-    .select(MEMBERSHIP_USER_SELECT)
-    .eq("id", userId)
-    .maybeSingle();
+  const { data, error } = await readMembershipRow(db, userId);
   if (error || !data) return { ok: false, response: MODULE_DENIED() };
   if (!hasMembershipAccessForRow(data as Record<string, unknown>)) {
     return { ok: false, response: MEMBERSHIP_INACTIVE() };
@@ -79,11 +92,7 @@ export async function assertUserModuleAccess(
   userId: string,
   moduleKey: ModuleGateKey,
 ): Promise<ModuleGateResult> {
-  const { data, error } = await db
-    .from("users")
-    .select(MEMBERSHIP_USER_SELECT)
-    .eq("id", userId)
-    .maybeSingle();
+  const { data, error } = await readMembershipRow(db, userId);
   if (error || !data) {
     return { ok: false, response: MODULE_DENIED() };
   }
@@ -94,6 +103,7 @@ export async function assertUserModuleAccess(
   if (
     !resolveModuleAccess(data.role, data.module_permissions, moduleKey, {
       isDemo: isDemoAccountFlag((data as Record<string, unknown>).is_demo_account),
+      isTrial: isTrialRestrictedRow(data as Record<string, unknown>),
     })
   ) {
     return { ok: false, response: MODULE_DENIED() };

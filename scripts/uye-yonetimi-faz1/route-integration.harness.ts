@@ -306,7 +306,7 @@ async function main(): Promise<void> {
       const te = Date.parse(String(p1.trial_ends_at));
       const ap = Date.parse(String(p1.approved_at));
       ok(Number.isFinite(ts) && Number.isFinite(te), "AUTH-05: trial_started_at + trial_ends_at onayda yazıldı");
-      ok(te - ts === 3 * 86_400_000, "AUTH-05: bitiş = başlangıç + tam 72 saat (saat dilimi/gün sınırından bağımsız UTC an)");
+      ok(te - ts === 7 * 86_400_000, "AUTH-05: bitiş = başlangıç + tam 168 saat (TRIAL7; saat dilimi/gün sınırından bağımsız UTC an)");
       ok(Math.abs(ts - ap) < 60_000, "AUTH-05: deneme başlangıcı onay anıdır (approved_at ile aynı dakika)");
     }
     const a1 = await audits(P1);

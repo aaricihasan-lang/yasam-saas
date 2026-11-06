@@ -10,9 +10,22 @@
  * package premium. Tarih alanları (trial_ends_at, membership_ends_at, expired/suspended
  * statüsü) erişim kararına GİRMEZ; erişimin kapatılması admin'in manuel active=false kararıdır.
  *
- * SAFLIK: yalnız `approvalGate` (zero-import saf çekirdek) import edilir; IO/env/DB YOK.
+ * TRIAL7 (Owner 2026-11-06): YALNIZ `trial_kind='self_7d'` satırları (7 günlük ücretsiz deneme)
+ * için pencere (trial_ends_at) okunur → aktif pencere = tam erişim; süresi dolmuş / durdurulmuş =
+ * salt-okunur; inceleme / başlamamış = erişim yok. Bu kolon mevcut hesapların hiçbirinde yoktur:
+ * Premium / admin / demo / eski deneme hesaplarında tarih alanları erişime GİRMEZ (davranış aynı).
+ *
+ * SAFLIK: yalnız `approvalGate` ve `lib/trial/trialCore` (saf çekirdekler) import edilir; IO/env/DB YOK.
  */
 import { normalizeRole, normalizeApprovalStatus, resolveApprovalStatus } from "./approvalGate";
+import {
+  isSelfTrialRow,
+  resolveTrialPhase,
+  trialPhaseAccessLevel,
+  type MembershipAccessLevel,
+} from "@/lib/trial/trialCore";
+
+export type { MembershipAccessLevel };
 
 export type MembershipPackageType = "trial" | "pro" | "premium";
 
@@ -61,15 +74,32 @@ function isActiveFlag(value: unknown): boolean {
 }
 
 /**
- * SAF karar: bu satır (DB profili veya istemci YasamUser kaydı) uzman üyelik erişimine sahip mi?
- * admin → true; aksi halde active + approved + premium.
+ * SAF karar: üyelik erişim SEVİYESİ.
+ *   admin → full · pasif / onaysız → none · premium → full (mevcut kural, sıra korunur) ·
+ *   deneme (trial_kind=self_7d): aktif pencere → full, süresi dolmuş/durdurulmuş → read_only,
+ *   inceleme/başlamamış → none · diğer her şey → none (fail-closed).
+ */
+export function resolveMembershipAccessLevel(
+  row: Record<string, unknown> | null | undefined,
+  nowMs: number = Date.now(),
+): MembershipAccessLevel {
+  if (!row) return "none";
+  if (normalizeRole(row.role) === "admin") return "full";
+  if (!isActiveFlag(row.active)) return "none";
+  if (normalizeApprovalStatus(resolveApprovalStatus(row)) !== "approved") return "none";
+  if (resolveMembershipPackageType(row) === "premium") return "full";
+  if (isSelfTrialRow(row)) return trialPhaseAccessLevel(resolveTrialPhase(row, nowMs));
+  return "none";
+}
+
+/**
+ * SAF karar: bu satır (DB profili veya istemci YasamUser kaydı) TAM uzman üyelik erişimine sahip mi?
+ * admin → true; aksi halde active + approved + premium, ya da aktif 7 günlük deneme penceresi.
+ * Salt-okunur (süresi dolmuş deneme) BURADA false'tur — yazma/geri yükleme yolları (ör. yedek geri
+ * yükleme membershipActive) bu katı kuralı kullanır; okuma izni resolveMembershipAccessLevel'dadır.
  */
 export function hasMembershipAccessForRow(row: Record<string, unknown> | null | undefined): boolean {
-  if (!row) return false;
-  if (normalizeRole(row.role) === "admin") return true;
-  if (!isActiveFlag(row.active)) return false;
-  if (normalizeApprovalStatus(resolveApprovalStatus(row)) !== "approved") return false;
-  return resolveMembershipPackageType(row) === "premium";
+  return resolveMembershipAccessLevel(row) === "full";
 }
 
 export const MEMBERSHIP_INACTIVE_CODE = "MEMBERSHIP_INACTIVE" as const;
@@ -86,4 +116,8 @@ export const MODULE_DENIED_MESSAGE =
  * PROFILE_USER_SELECT alt kümesi; hassas alan (password/password_hash) YOK.
  */
 export const MEMBERSHIP_USER_SELECT =
+  "role, module_permissions, active, approval_status, status, package_type, plan, is_demo_account, trial_kind, trial_status, trial_ends_at" as const;
+
+/** TRIAL7 geçiş güvenliği: deneme kolonları henüz yokken kullanılan eski liste (bkz. moduleAccess). */
+export const MEMBERSHIP_USER_SELECT_PRE_TRIAL =
   "role, module_permissions, active, approval_status, status, package_type, plan, is_demo_account" as const;

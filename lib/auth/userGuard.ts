@@ -3,12 +3,23 @@ import { getServerDb } from "@/lib/supabase-server";
 import { pickSessionCredential, resolveSessionUserId } from "@/lib/auth/sessionTransport";
 import { resolveModuleAccess, type ModuleGateKey } from "@/lib/auth/moduleAccess";
 import {
-  hasMembershipAccessForRow,
   MEMBERSHIP_INACTIVE_CODE,
   MEMBERSHIP_INACTIVE_MESSAGE,
   MODULE_DENIED_CODE,
   MODULE_DENIED_MESSAGE,
+  resolveMembershipAccessLevel,
 } from "@/lib/auth/membershipAccessCore";
+import {
+  isReadMethod,
+  isTrialRestrictedRow,
+  resolveTrialPhase,
+  trialDenial,
+  TRIAL_MESSAGES,
+  type TrialPhase,
+} from "@/lib/trial/trialCore";
+import { isTrialReadOnlyExportPath } from "@/lib/trial/readOnlyRoutes";
+import { bindTrialMeterIdentity } from "@/lib/trial/roxyMeter";
+import { isUndefinedColumnError } from "@/lib/auth/undefinedColumn";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 export type UserGuardOk = {
@@ -52,8 +63,12 @@ const DEFAULT_USER_SELECT = "id, tenant_id, email, active, approval_status, is_d
 // Profil route'u için genişletilmiş GÜVENLİ whitelist. password/password_hash YOK.
 // (app/api/auth/profile/route.ts eski PROFILE_SELECT sözleşmesiyle birebir aynı.)
 // Tek-satır literal — `as const` ile tip korunur (ternary'de GenericStringError'ı önler).
-const PROFILE_USER_SELECT =
+/** TRIAL7 öncesi profil kolonları (geçiş güvenliği; PROFILE_USER_SELECT'in deneme kolonsuz hali). */
+const PROFILE_USER_SELECT_PRE_TRIAL =
   "id, email, full_name, name, role, active, approval_status, module_permissions, package_type, membership_status, subscription_status, trial_started_at, trial_ends_at, membership_started_at, membership_ends_at, plan, admin_level, tenant_id, status, is_demo_account" as const;
+
+const PROFILE_USER_SELECT =
+  "id, email, full_name, name, role, active, approval_status, module_permissions, package_type, membership_status, subscription_status, trial_started_at, trial_ends_at, membership_started_at, membership_ends_at, plan, admin_level, tenant_id, status, is_demo_account, trial_kind, trial_status" as const;
 
 /**
  * Kullanıcı kimlik doğrulaması — settings API route'ları için.
@@ -163,7 +178,12 @@ export async function verifyUserRequest(
     };
   }
 
-  const { data, error } = userRes;
+  // TRIAL7 geçiş güvenliği: deneme kolonları (trial_kind/trial_status) henüz yoksa (kod migration'dan önce
+  // yayımlandıysa) profil eski kolon listesiyle yeniden okunur → mevcut üyeler HİÇ etkilenmez; satır deneme
+  // rejiminde sayılmaz (trial_kind yok). Yalnız "kolon yok" (42703) hatasında; diğer hatalar aynen 403.
+  const { data, error } = (includeProfile && isUndefinedColumnError(userRes.error)
+    ? await db.from("users").select(PROFILE_USER_SELECT_PRE_TRIAL).eq("id", userId).eq("active", true).maybeSingle()
+    : userRes) as typeof userRes;
 
   if (error || !data || !data.tenant_id) {
     return {
@@ -186,6 +206,10 @@ export async function verifyUserRequest(
     };
   }
 
+  // TRIAL7: Roxy çağırabilen uçlarda (withTrialRoxyMeter bağlamı) doğrulanan kimlik kredi sayacına
+  // bağlanır; yalnız deneme uzmanında ölçüm açılır. Bağlam yoksa etkisiz.
+  bindTrialMeterIdentity(db, userId, includeProfile ? (data as Record<string, unknown>) : undefined);
+
   return {
     ok: true,
     userId,
@@ -207,6 +231,59 @@ export async function verifyUserRequest(
 export function membershipInactiveResponse(): NextResponse {
   return NextResponse.json(
     { code: MEMBERSHIP_INACTIVE_CODE, error: MEMBERSHIP_INACTIVE_MESSAGE },
+    { status: 403, headers: { "Cache-Control": "no-store" } },
+  );
+}
+
+/**
+ * ÜYELİK kapısı (requireModuleAccess ve onunla aynı kuralı kendi içinde uygulayan kapılar —
+ * Beslenme, panel özeti — TEK kaynak). null → geçer; aksi halde 403 yanıtı.
+ *   full → geçer · read_only (süresi dolmuş / durdurulmuş deneme) → yalnız GET/HEAD/OPTIONS ve
+ *   lib/trial/readOnlyRoutes dışa aktarma uçları · none → 403 (deneme fazına özel kod/mesaj).
+ * Deneme rejimi dışı hesaplar için davranış önceki hasMembershipAccessForRow kuralıyla AYNIDIR.
+ */
+export function membershipGateForRequest(
+  req: NextRequest,
+  profile: Record<string, unknown>,
+): NextResponse | null {
+  const level = resolveMembershipAccessLevel(profile);
+  if (level === "full") return null;
+  if (
+    level === "read_only" &&
+    (isReadMethod(req.method) || isTrialReadOnlyExportPath(req.nextUrl?.pathname ?? ""))
+  ) {
+    return null;
+  }
+  const phase = resolveTrialPhase(profile);
+  return phase === "none" ? membershipInactiveResponse() : trialDeniedResponse(phase);
+}
+
+/** TRIAL7 — deneme fazına göre 403 (kod + anlaşılır Türkçe mesaj; istemci Pro yönlendirmesi gösterir). */
+export function trialDeniedResponse(phase: TrialPhase): NextResponse {
+  const d = trialDenial(phase);
+  return NextResponse.json(
+    { code: d.code, error: d.message },
+    { status: 403, headers: { "Cache-Control": "no-store" } },
+  );
+}
+
+/**
+ * TRIAL7 — yalnız oturum kapısı (verifyUserRequest) kullanan YAZMA uçları için deneme kısıtı:
+ * deneme uzmanı tam erişimde değilse (süresi dolmuş / durdurulmuş / inceleme / başlamamış) 403.
+ * Deneme rejimi dışı hesaplar (Premium, admin, demo, eski hesaplar) için HER ZAMAN null (değişiklik yok).
+ * `profile` verifyUserRequest(req, { includeProfile: true }) çıktısıdır.
+ */
+export function trialWriteDenied(profile: Record<string, unknown> | undefined): NextResponse | null {
+  if (!profile || !isTrialRestrictedRow(profile)) return null;
+  if (resolveMembershipAccessLevel(profile) === "full") return null;
+  return trialDeniedResponse(resolveTrialPhase(profile));
+}
+
+/** TRIAL7 — deneme uzmanına kapalı (Dijital İçerik ailesi) yalnız-oturum uçları için kesin ret. */
+export function trialModuleDenied(profile: Record<string, unknown> | undefined): NextResponse | null {
+  if (!profile || !isTrialRestrictedRow(profile)) return null;
+  return NextResponse.json(
+    { code: MODULE_DENIED_CODE, error: TRIAL_MESSAGES.moduleNotInTrial },
     { status: 403, headers: { "Cache-Control": "no-store" } },
   );
 }
@@ -236,15 +313,27 @@ export async function requireModuleAccess(
   // membershipAccessCore tek kaynak). admin muaf. verifyUserRequest'e EKLENMEZ →
   // profil/şifre/destek/ayarlar/yedek/export uçları paketi biten (hesabı AKTİF) uzmana açık kalır.
   // AUTH-07: hesabı PASİF (active=false) uzman verifyUserRequest'te zaten reddedilir.
-  if (!hasMembershipAccessForRow(profile)) {
-    return { ok: false, response: membershipInactiveResponse() };
-  }
+  // TRIAL7: süresi dolmuş / durdurulmuş deneme → SALT-OKUNUR: GET/HEAD + kayıtlı veriden dışa
+  // aktarma uçları (lib/trial/readOnlyRoutes) açık; diğer her yöntem 403 (yazma/hesaplama/yükleme yok).
+  const membershipDenied = membershipGateForRequest(req, profile);
+  if (membershipDenied) return { ok: false, response: membershipDenied };
 
+  const isTrial = isTrialRestrictedRow(profile);
   if (
     !resolveModuleAccess(profile.role, profile.module_permissions, moduleKey, {
       isDemo: guard.is_demo_account === true,
+      isTrial,
     })
   ) {
+    if (isTrial) {
+      return {
+        ok: false,
+        response: NextResponse.json(
+          { code: MODULE_DENIED_CODE, error: TRIAL_MESSAGES.moduleNotInTrial },
+          { status: 403, headers: { "Cache-Control": "no-store" } },
+        ),
+      };
+    }
     return {
       ok: false,
       response: NextResponse.json(

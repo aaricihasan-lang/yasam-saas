@@ -48,6 +48,8 @@ export const GA_IMG_HOSTS = [
 const VERCEL_SCRIPT_HOSTS = ["https://va.vercel-scripts.com"] as const;
 /** Vercel önizleme (preview) araç çubuğu — yalnız preview dağıtımlarında görünür. */
 const VERCEL_LIVE = "https://vercel.live";
+/** TRIAL7: Cloudflare Turnstile (kayıt CAPTCHA'sı) — betik + iframe + doğrulama çağrıları. */
+export const TURNSTILE_ORIGIN = "https://challenges.cloudflare.com";
 
 /**
  * Supabase origin'lerini çıkarır: REST/Storage (https), doğrudan storage hostu
@@ -105,10 +107,10 @@ function cspDirectives(
     ["font-src", [self, "data:"]],
     [
       "connect-src",
-      [self, ...sb.https, ...sb.wss, ...GA_CONNECT_HOSTS, ...VERCEL_SCRIPT_HOSTS, VERCEL_LIVE, "wss://ws-us3.pusher.com"],
+      [self, ...sb.https, ...sb.wss, ...GA_CONNECT_HOSTS, ...VERCEL_SCRIPT_HOSTS, VERCEL_LIVE, "wss://ws-us3.pusher.com", TURNSTILE_ORIGIN],
     ],
     // Kişisel arşiv imzalı Supabase URL iframe'i + refleks PDF data: iframe + blob önizleme.
-    ["frame-src", [self, "blob:", "data:", ...sb.https, VERCEL_LIVE]],
+    ["frame-src", [self, "blob:", "data:", ...sb.https, VERCEL_LIVE, TURNSTILE_ORIGIN]],
     // Kişisel arşiv <audio>/<video> imzalı URL + blob önizleme.
     ["media-src", [self, "blob:", "data:", ...sb.https]],
     ["worker-src", [self, "blob:"]],
@@ -132,6 +134,7 @@ export function buildEnforcedCsp(opts: SecurityHeaderOptions = {}): string {
       ...GA_SCRIPT_HOSTS,
       ...VERCEL_SCRIPT_HOSTS,
       VERCEL_LIVE,
+      TURNSTILE_ORIGIN,
     ]),
   );
 }
@@ -155,6 +158,7 @@ export function buildNonceCsp(nonce: string, opts: SecurityHeaderOptions = {}): 
         ...GA_SCRIPT_HOSTS,
         ...VERCEL_SCRIPT_HOSTS,
         VERCEL_LIVE,
+        TURNSTILE_ORIGIN,
       ],
       [["report-uri", [CSP_REPORT_PATH]]],
     ),

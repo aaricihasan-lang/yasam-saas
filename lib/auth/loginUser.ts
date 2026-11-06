@@ -1,3 +1,4 @@
+import { markTrialNoticePending } from "@/lib/trial/trialNoticeStore";
 import { clearYasamUser, readStoredSessionToken } from "@/lib/auth/yasamUser";
 import { ANDROID_APP_UA_SUFFIX, CLIENT_CHANNEL_HEADER } from "@/lib/auth/clientChannel";
 
@@ -237,6 +238,8 @@ export async function loginWithCredentials(
   // oturum kurduğunu bildiren `sessionCookie: true` (HTTPONLY H6b web). İkisi de yoksa fail-closed.
   const bodyToken = typeof json.sessionToken === "string" && json.sessionToken ? json.sessionToken : null;
   if (res.ok && row && (bodyToken || json.sessionCookie === true)) {
+    // TRIAL7: yeni oturum → deneme geri sayım kutusu bu oturumda bir kez gösterilir.
+    markTrialNoticePending();
     return {
       ok: true,
       row,

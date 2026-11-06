@@ -4,7 +4,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { assertServerOnly } from "@/lib/server/serverOnlyGuard";
-import { verifyUserRequest } from "@/lib/auth/userGuard";
+import { trialWriteDenied, verifyUserRequest } from "@/lib/auth/userGuard";
 import { demoReadOnlyResponse } from "@/lib/auth/demoReadOnly";
 import { isDemoTenantId } from "@/lib/auth/demoServerGuard";
 import { BODY_MAX_BYTES } from "./catalog";
@@ -36,8 +36,13 @@ export type WorkspaceGuard =
  */
 export async function guardWorkspace(req: NextRequest, mode: "read" | "write"): Promise<WorkspaceGuard> {
   if (!isWorkspaceDesignEnabled()) return { ok: false, response: disabledResponse() };
-  const guard = await verifyUserRequest(req);
+  const guard = await verifyUserRequest(req, { includeProfile: mode === "write" });
   if (!guard.ok) return { ok: false, response: guard.response };
+  // TRIAL7: tam erişimde olmayan deneme uzmanı (süresi dolmuş / durdurulmuş / inceleme) tasarım/yükleme yazamaz.
+  if (mode === "write") {
+    const trialDenied = trialWriteDenied(guard.profile);
+    if (trialDenied) return { ok: false, response: trialDenied };
+  }
   const { userId, tenantId, db, is_demo_account } = guard;
   if (!userId || !tenantId) return { ok: false, response: json({ ok: false, error: "Hesap bilgisi eksik." }, 403) };
   const access = await workspaceAccess(db, userId, tenantId);
