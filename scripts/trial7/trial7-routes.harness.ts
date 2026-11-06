@@ -133,6 +133,7 @@ const ledger: { id: number; user: string; module: string; state: string }[] = []
 const limits = new Map<string, { daily: number; mods: Row }>();
 let turnstile: { mode: "ok" | "fail" | "down" | "action"; calls: number } = { mode: "ok", calls: 0 };
 let roxy: { status: number; calls: number } = { status: 200, calls: 0 };
+let turnstileSentIp = false;
 
 const userById = (id: unknown) => tables.users.find((u) => u.id === id);
 function phaseOf(u: Row): string {
@@ -250,6 +251,7 @@ globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
   if (url.host === "challenges.cloudflare.com") {
     turnstile.calls++;
     const form = new URLSearchParams(String(init?.body ?? ""));
+    if (form.has("remoteip")) turnstileSentIp = true;
     if (form.get("secret") !== "trial-ts-secret") return jsonRes({ success: false }, 200);
     if (turnstile.mode === "down") throw new Error("ağ yok");
     if (turnstile.mode === "fail") return jsonRes({ success: false, "error-codes": ["invalid-input-response"] });
@@ -357,6 +359,7 @@ async function run() {
     "R10 kayıt modülleri: Premium seti + Atlas; Dijital İçerik ailesi + YH KAPALI", perms);
   ok(typeof tr?.claim_hash === "string" && !String(tr.claim_hash).includes("@") && typeof tr?.ip_bucket === "string" && !String(tr.ip_bucket).includes("203.0"),
     "R11 tek hak + IP yalnız HMAC kovası (ham e-posta/IP gönderilmez)");
+  ok(turnstile.calls > 0 && turnstileSentIp === false, "R11b KVKK: Siteverify isteğinde remoteip YOK (yalnız belirteç + gizli anahtar)");
   res = await registerPOST(regReq(regBody("kullan@mailinator.com", { turnstileToken: "x".repeat(40) })));
   ok((calledRpc("trial_register_expert").at(-1)?.body.p_payload as Row).review === true, "R12 tek kullanımlık e-posta → otomatik inceleme");
   let limited = 0;

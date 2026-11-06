@@ -156,7 +156,7 @@ async function registerSelfTrial(
   rawBody: Record<string, unknown>,
 ) {
   const ip = clientIpFromHeaders(req.headers);
-  const captcha = await verifyTurnstileToken(rawBody.turnstileToken, ip);
+  const captcha = await verifyTurnstileToken(rawBody.turnstileToken);
   if (!captcha.ok) {
     if (captcha.reason === "unavailable" || captcha.reason === "not_configured") {
       return err("Güvenlik doğrulaması şu anda yapılamıyor. Lütfen biraz sonra tekrar deneyin.", "captcha_unavailable", 503);

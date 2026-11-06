@@ -60,10 +60,13 @@ type FetchLike = (input: string, init?: RequestInit) => Promise<Response>;
  * Turnstile belirtecini Cloudflare Siteverify ile doğrular. Fail-closed: ağ hatası, zaman aşımı,
  * eksik yapılandırma veya beklenmeyen yanıt → ok:false (kayıt OLUŞTURULMAZ).
  * Belirteç tek kullanımlıktır (Cloudflare tarafında); idempotency_key ile yeniden deneme güvenlidir.
+ *
+ * KVKK veri en aza indirme (Kampanya Merkezi botCheck ile aynı ilke; /alt-isleyiciler metni): isteğe bağlı
+ * `remoteip` alanı GÖNDERİLMEZ — sunucu Cloudflare'e yalnız tek kullanımlık belirteci ve gizli anahtarı iletir.
+ * Doğrulama zorunluluğu değişmez (success + action + isteğe bağlı hostname kontrolü).
  */
 export async function verifyTurnstileToken(
   token: unknown,
-  remoteIp: string,
   opts: { env?: Env; fetchImpl?: FetchLike; idempotencyKey?: string } = {},
 ): Promise<TurnstileResult> {
   const env = opts.env ?? process.env;
@@ -75,7 +78,6 @@ export async function verifyTurnstileToken(
   const body = new URLSearchParams();
   body.set("secret", secret);
   body.set("response", token);
-  if (remoteIp && remoteIp !== "unknown") body.set("remoteip", remoteIp);
   if (opts.idempotencyKey) body.set("idempotency_key", opts.idempotencyKey);
 
   const doFetch = opts.fetchImpl ?? ((u: string, i?: RequestInit) => fetch(u, i));
