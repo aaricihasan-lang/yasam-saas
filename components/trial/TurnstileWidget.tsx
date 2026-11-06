@@ -79,6 +79,9 @@ const TurnstileWidget = forwardRef<TurnstileHandle, Props>(function TurnstileWid
           sitekey: siteKey,
           action,
           theme: "light",
+          // Managed mod: çoğu ziyaretçide doğrulama görünmeden tamamlanır; yalnız etkileşim gerekirse widget
+          // görünür (kayıt formu masaüstünde scrollsuz kalır). Belirteç her durumda sunucuda Siteverify ile doğrulanır.
+          appearance: "interaction-only",
           language: "tr",
           callback: (token: string) => onTokenRef.current(token),
           "expired-callback": () => onTokenRef.current(null),
@@ -93,7 +96,7 @@ const TurnstileWidget = forwardRef<TurnstileHandle, Props>(function TurnstileWid
     };
   }, [siteKey, action]);
 
-  return <div ref={boxRef} className="flex min-h-[65px] justify-center" />;
+  return <div ref={boxRef} className="flex justify-center empty:hidden" />;
 });
 
 export default TurnstileWidget;
