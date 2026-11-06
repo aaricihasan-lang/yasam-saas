@@ -486,6 +486,7 @@
       "badge": "Practitioner Registration",
       "title": "Create Your Account",
       "subtitle": "Create your practitioner account. You can sign in once your account has been approved.",
+      "subtitleInstant": "Create your practitioner account and sign in right away, no approval needed.",
       "fullNameLabel": "Full Name",
       "fullNamePlaceholder": "Your full name",
       "emailLabel": "Email",

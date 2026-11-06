@@ -486,6 +486,7 @@
       "badge": "Uzman Kaydı",
       "title": "Kayıt Ol",
       "subtitle": "Uzman hesabınızı oluşturun. Yönetici onayından sonra giriş yapabilirsiniz.",
+      "subtitleInstant": "Uzman hesabınızı oluşturun, onay beklemeden giriş yapın.",
       "fullNameLabel": "Ad Soyad",
       "fullNamePlaceholder": "Adınız Soyadınız",
       "emailLabel": "E-posta",
