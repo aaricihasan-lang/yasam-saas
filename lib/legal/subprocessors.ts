@@ -55,7 +55,8 @@ export const SUBPROCESSORS: ReadonlyArray<Subprocessor> = [
   },
   {
     name: "Cloudflare (Turnstile)",
-    purpose: "Ücretsiz analizlerde otomatik kötüye kullanıma karşı güvenlik doğrulaması",
+    purpose:
+      "Ücretsiz analizlerde ve uzman kayıt formunda (7 günlük deneme üyeliği) otomatik kötüye kullanıma karşı güvenlik doğrulaması",
     dataScope:
       "Doğrulama aracı ziyaretçinin tarayıcısından doğrudan Cloudflare'e bağlanır; Cloudflare bu sırada IP adresini ve tarayıcı sinyallerini işler. Sunucumuz Cloudflare'e yalnız tek kullanımlık doğrulama belirtecini gönderir, IP adresini göndermez.",
   },
