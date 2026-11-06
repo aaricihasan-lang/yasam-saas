@@ -12,6 +12,7 @@ import "server-only";
 import { assertServerOnly } from "@/lib/server/serverOnlyGuard";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { ClassicKind } from "../input";
+import { readAllPaged } from "@/lib/db/readAllPaged";
 
 assertServerOnly("lib/numeroloji-klasik/server/repository");
 
@@ -136,22 +137,26 @@ export async function listAnalyses(
 /**
  * Mükerrer kişi analizi kontrolü (Kaydet öncesi uyarı): tenant'ın silinmemiş KİŞİ analizleri — yalnız kimlik,
  * başlık, girdi (ad soyad + doğum) ve kayıt anı okunur; sonuç / sağlayıcı verisi okunmaz. Salt okuma.
+ * PostgREST max-rows (Supabase varsayılanı 1000) sessiz kesmesine karşı TÜM satırlar sayfalı okunur
+ * (readAllPaged: count=exact + deterministik sıra); eksik/hatalı okuma → db_error (çağıran "kontrol edilemedi" gösterir).
  */
 export async function listPersonAnalysesForDuplicateCheck(
   db: SupabaseClient,
   tenantId: string,
 ): Promise<RepoOk<Array<Pick<ClassicAnalysisRow, "id" | "title" | "input" | "created_at">>> | RepoError> {
-  const { data, error } = await db
-    .from(ANALYSES)
-    .select("id, title, input, created_at")
-    .eq("tenant_id", tenantId)
-    .eq("kind", "person")
-    .is("deleted_at", null)
-    .order("created_at", { ascending: false })
-    .order("id", { ascending: true })
-    .limit(CLASSIC_ALPHA_SCAN);
-  if (error || !Array.isArray(data)) return { ok: false, reason: "db_error" };
-  return { ok: true, value: data as unknown as Array<Pick<ClassicAnalysisRow, "id" | "title" | "input" | "created_at">> };
+  const r = await readAllPaged<Pick<ClassicAnalysisRow, "id" | "title" | "input" | "created_at">>((from, to) =>
+    db
+      .from(ANALYSES)
+      .select("id, title, input, created_at", { count: "exact" })
+      .eq("tenant_id", tenantId)
+      .eq("kind", "person")
+      .is("deleted_at", null)
+      .order("created_at", { ascending: false })
+      .order("id", { ascending: true })
+      .range(from, to),
+  );
+  if (r.error) return { ok: false, reason: "db_error" };
+  return { ok: true, value: r.rows };
 }
 
 export async function getAnalysis(db: SupabaseClient, tenantId: string, id: string): Promise<RepoOk<ClassicAnalysisRow> | RepoError> {

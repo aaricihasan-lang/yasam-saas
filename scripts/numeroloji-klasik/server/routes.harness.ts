@@ -959,6 +959,21 @@ async function main(): Promise<void> {
       const after = await countAll();
       ok(after.n === before.n && after.u === before.u, "kontrol hiçbir kaydı oluşturmadı / değiştirmedi", { before, after });
       ok(provider.calls.length === 0, "0 sağlayıcı çağrısı", provider.calls.length);
+      // Büyük tenant: 1.001 / 5.001 kişi analizi; eşleşen kayıt EN ESKİ → tek istekli okuma onu kaçırırdı.
+      for (const n of [1001, 5001]) {
+        const dupOld = await ins(TA, "person", P("ZZ Büyük Tenant Kişi"), "2001-01-01T00:00:00Z");
+        const bulk = (await su.query(
+          `insert into public.numerology_classic_analyses(tenant_id, created_by, kind, title, input, techniques, result, verification, provider_meta, methodology_version, api_schema_version, status, created_at)
+           select $1, $2, 'person', 'ZZ Toplu', jsonb_build_object('fullName', 'ZZ Toplu ' || g, 'birth', jsonb_build_object('year', 1980, 'month', 1, 'day', 1)),
+                  '{core}', '{}'::jsonb, '{}'::jsonb, '{}'::jsonb, 'm', 's', 'complete', now() - (g || ' seconds')::interval
+           from generate_series(1, $3::int) g returning id`,
+          [TA, U.A.id, n - 1],
+        )).rows.map((x) => x.id as string);
+        const rb = await call(dupRoute.POST, "POST", asA, { body: { fullName: "ZZ Büyük Tenant Kişi", birth: { year: 1950, month: 1, day: 1 } } });
+        const ms = (rb.json.matches ?? []) as Array<{ id: string }>;
+        ok(rb.status === 200 && rb.json.total === 1 && ms[0]?.id === dupOld, `${n}+ kişi analizi: en eski eşleşme bulunur (sayfalı okuma)`, { status: rb.status, total: rb.json.total });
+        await su.query(`delete from public.numerology_classic_analyses where id = any($1::uuid[])`, [[dupOld, ...bulk]]);
+      }
       await su.query(`delete from public.numerology_classic_analyses where id = any($1::uuid[])`, [seeded]);
     }
 
