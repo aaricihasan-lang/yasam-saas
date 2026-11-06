@@ -1,3 +1,4 @@
+import { withTrialRoxyMeter } from "@/lib/trial/roxyMeter";
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { hitDbRateLimit, rateLimitBucket } from "@/lib/security/dbRateLimit";
@@ -33,7 +34,7 @@ function norm(q: string): string {
   return q.normalize("NFC").trim().toLocaleLowerCase("tr-TR").replace(/\s+/g, " ");
 }
 
-export async function GET(req: NextRequest): Promise<Response> {
+async function handleGet(req: NextRequest): Promise<Response> {
   const guard = await requireModuleAccess(req, "human_design");
   if (!guard.ok) return guard.response;
   if (guard.is_demo_account) {
@@ -98,3 +99,6 @@ export async function GET(req: NextRequest): Promise<Response> {
   }
   return NextResponse.json({ ok: true, cached, results }, { status: 200, headers: NO_STORE });
 }
+
+// TRIAL7: deneme uzmanının GERÇEK Roxy istekleri günlük ortak krediden düşer (önbellek isabeti düşmez).
+export const GET = withTrialRoxyMeter("human_design", "hd/location/search", handleGet);

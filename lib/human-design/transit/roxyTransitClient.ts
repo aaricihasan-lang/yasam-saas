@@ -10,6 +10,8 @@
 import { ROXY_POLICY, type RoxyServerConfig } from "../providers/roxy/config";
 import type { FetchLike, RoxyCallErrorKind, RoxyCallResult } from "../providers/roxy/client";
 import type { RoxyBirthMoment } from "../providers/roxy/relationClient";
+// TRIAL7: varsayılan fetch deneme kredi sayacından geçer (bağlam yoksa düz fetch — davranış aynı).
+import { trialMeteredFetch } from "@/lib/trial/roxyMeter";
 
 export const ROXY_TRANSIT_ENDPOINT = "/human-design/transit";
 /** Transit adaptör sözleşme sürümü — değişirse önbellek anahtarı da değişir. */
@@ -24,7 +26,7 @@ export async function callRoxyTransit(
 ): Promise<RoxyCallResult> {
   const lang = opts.lang ?? ROXY_POLICY.lang;
   const timeoutMs = opts.timeoutMs ?? ROXY_POLICY.timeoutMs;
-  const doFetch: FetchLike = opts.fetchImpl ?? ((u, i) => fetch(u, i));
+  const doFetch: FetchLike = opts.fetchImpl ?? trialMeteredFetch;
   const url = `${config.baseUrl}${ROXY_TRANSIT_ENDPOINT}?lang=${encodeURIComponent(lang)}`;
   const ac = new AbortController();
   const timer = setTimeout(() => ac.abort(), timeoutMs);

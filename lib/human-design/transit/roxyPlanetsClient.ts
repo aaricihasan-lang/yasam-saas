@@ -8,6 +8,8 @@
 import { ROXY_POLICY, type RoxyServerConfig } from "../providers/roxy/config";
 import type { FetchLike, RoxyCallErrorKind, RoxyCallResult } from "../providers/roxy/client";
 import type { PlanetName } from "../engine/types";
+// TRIAL7: varsayılan fetch deneme kredi sayacından geçer (bağlam yoksa düz fetch — davranış aynı).
+import { trialMeteredFetch } from "@/lib/trial/roxyMeter";
 
 export const ROXY_PLANETS_ENDPOINT = "/astrology/planets";
 export const ROXY_PLANETS_ADAPTER_VERSION = "roxy-planets-1";
@@ -24,7 +26,7 @@ export async function callRoxyPlanets(
   opts: { timeoutMs?: number; fetchImpl?: FetchLike } = {},
 ): Promise<RoxyCallResult> {
   const timeoutMs = opts.timeoutMs ?? ROXY_POLICY.timeoutMs;
-  const doFetch: FetchLike = opts.fetchImpl ?? ((u, i) => fetch(u, i));
+  const doFetch: FetchLike = opts.fetchImpl ?? trialMeteredFetch;
   // lang=en: yalnız sayısal alanlar kullanılır; yorum metinleri okunmaz.
   const url = `${config.baseUrl}${ROXY_PLANETS_ENDPOINT}?lang=en`;
   const ac = new AbortController();
