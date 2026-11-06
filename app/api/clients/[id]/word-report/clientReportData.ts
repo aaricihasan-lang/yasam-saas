@@ -28,6 +28,7 @@ import type {
   AppointmentRow,
   ClientAnalysisRow,
   ClientChargeRow,
+  ClientCombinationReportRow,
   ClientDataset,
   ClientHomeworkRow,
   ClientNoteRow,
@@ -248,10 +249,24 @@ const CLIENT_TABLE_READS = {
     db.from("client_homeworks").select("*").eq("client_id", c).eq("tenant_id", t).order("created_at", { ascending: false }),
   client_analyses: (db: SupabaseClient, t: string, c: string) =>
     db.from("client_analyses").select(ANALYSIS_COLS).eq("client_id", c).eq("tenant_id", t).order("created_at", { ascending: false }),
+  // B5: Taşlar Word'ü — danışana kayıtlı kombinasyonlar (yalnız bu tenant + danışan).
+  client_combinations: (db: SupabaseClient, t: string, c: string) =>
+    db.from("client_combinations").select("id, name, description, note, stones_text, notes_text, notes_text_2, created_at").eq("client_id", c).eq("tenant_id", t).order("created_at", { ascending: false }),
   client_charges: (db: SupabaseClient, t: string, c: string) =>
     db.from("client_charges").select("*").eq("client_id", c).eq("tenant_id", t).order("charge_date", { ascending: false, nullsFirst: false }).order("created_at", { ascending: false }),
 } as const;
 export type ClientReportTable = keyof typeof CLIENT_TABLE_READS;
+
+/**
+ * B5: danışana kayıtlı kombinasyonlar (rapora EK içerik). Tablo bu ortamda yoksa (42P01 / PGRST205)
+ * rapor kombinasyonsuz — eskisi gibi — üretilir; diğer okuma hataları raporu durdurur (sessiz eksik yok).
+ */
+export async function loadClientCombinationsForReport(db: SupabaseClient, tenantId: string, clientId: string): Promise<ClientCombinationReportRow[]> {
+  const r = (await CLIENT_TABLE_READS.client_combinations(db, tenantId, clientId)) as Res<unknown[]>;
+  const code = (r.error as { code?: string } | null)?.code;
+  if (code === "42P01" || code === "PGRST205") return [];
+  return (must("client_combinations", r) ?? []) as ClientCombinationReportRow[];
+}
 
 export async function loadClientTable<T>(db: SupabaseClient, tenantId: string, clientId: string, table: ClientReportTable): Promise<T[]> {
   const r = (await CLIENT_TABLE_READS[table](db, tenantId, clientId)) as Res<unknown[]>;

@@ -26,6 +26,7 @@ import {
   summarizeClientDataset,
   type ClientAnalysisRow,
   type ClientStoneRow,
+  type ClientCombinationReportRow,
   type ClientReportCtx,
   type ClientReportSection,
   type ClientReportTab,
@@ -42,6 +43,7 @@ import {
   loadClientNotes,
   loadClientRow,
   loadClientTable,
+  loadClientCombinationsForReport,
   type ClientReportTable,
 } from "./clientReportData";
 import { SAVED_NUMEROLOGY_COLUMNS, type SavedNumerologyRow } from "./numerologySavedSection";
@@ -137,6 +139,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       besPermitted ? beslenmeHasData(db, tenantId, clientId) : Promise.resolve(false),
     ]);
     const counts = summarizeClientDataset(data, { analysisImageFlags: data.analyses.map((a) => !!a.image_url?.trim()) });
+    // B5: Taş Önerileri bölümü Tam/Özel raporda kayıtlı kombinasyonları da içerir → seçilebilirlik ve sayı.
+    const combos = await loadClientCombinationsForReport(db, tenantId, clientId);
+    counts.taslar += combos.filter((c) => [c.name, c.stones_text, c.description, c.note, c.notes_text, c.notes_text_2].some((v) => !!v?.trim())).length;
     // H-10 sonrası Numeroloji bölümü YALNIZ seçilen bağlı kayıtlı analizden gelir → seçilebilirlik = bağlı kayıt
     // sayısı (doğum tarihi değil). İzin yoksa 0.
     counts.numeroloji = numRecords?.ok ? numRecords.rows.length : 0;
@@ -222,7 +227,11 @@ export async function POST(
       const stonePhotos = tab === "taslar"
         ? await fetchClientStonePhotos(db, tenantId, clientId, rows as unknown as ClientStoneRow[])
         : undefined;
-      const { doc, filename, empty } = buildClientTabReport({ tab, client, notes, rows, analysisImages, stonePhotos }, ctx);
+      // B5: Taşlar Word'ü danışana kayıtlı kombinasyonları da içerir (yalnız bu danışanın).
+      const combinations = tab === "taslar"
+        ? await loadClientCombinationsForReport(db, tenantId, clientId)
+        : undefined;
+      const { doc, filename, empty } = buildClientTabReport({ tab, client, notes, rows, analysisImages, stonePhotos, combinations }, ctx);
       // DY-04: sekmede gerçek kayıt yoksa boş Word üretilmez; anlaşılır uyarı döner.
       if (empty)
         return Response.json({
@@ -381,8 +390,10 @@ export async function POST(
       }
     }
 
+    // B5: Tam / Özel rapor Taş Önerileri bölümüne danışana kayıtlı kombinasyonlar (yalnız bu danışan).
+    const combinations = await loadClientCombinationsForReport(db, tenantId, clientId);
     const fullInput = {
-      data, profileImg, analysisImages, hd, snapshotSection, numerologyRecord, anamnez, beslenme,
+      data, profileImg, analysisImages, hd, snapshotSection, numerologyRecord, anamnez, beslenme, combinations,
       numerologyFutureYears: numerologyRecord ? canSeeNumerologyFutureYears(guard.profile) : false,
     };
     // DY-04: seçilen bölümlerde gerçek kayıt yoksa boş Word (yalnız kapak + danışan bilgileri) ÜRETİLMEZ.

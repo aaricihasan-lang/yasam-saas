@@ -36,6 +36,7 @@ import { wellnessNote } from "@/lib/docx/reportDisclaimer";
 import {
   formatDateLoose,
   formatDateOnly,
+  formatInstantDate,
   formatInstantDateTime,
   looseDayKey,
   reportFileDate,
@@ -138,6 +139,18 @@ export type ClientSessionRow = {
   actions_done?: string | null;
   suggestions?: string | null;
   next_plan?: string | null;
+  created_at: string;
+};
+
+/** B5: danışana özel kayıtlı kombinasyon (client_combinations) — Taşlar Word'ü için. */
+export type ClientCombinationReportRow = {
+  id: string;
+  name?: string | null;
+  description?: string | null;
+  note?: string | null;
+  stones_text?: string | null;
+  notes_text?: string | null;
+  notes_text_2?: string | null;
   created_at: string;
 };
 
@@ -630,6 +643,32 @@ function stonesBody(stones: ClientStoneRow[], photos?: ReadonlyMap<string, Stone
   return out;
 }
 
+/**
+ * B5 (05.11): Taşlar Word'ü — danışana kaydedilmiş kombinasyonlar. Uygulamadaki "Kayıtlı
+ * Kombinasyonlar" kartıyla aynı alanlar ve etiketler (Taşlar, Amaç, Not, Mineral Özeti,
+ * Uyarı / Stok Özeti). Kombinasyon yoksa hiçbir şey eklenmez → rapor eskisiyle birebir aynı.
+ */
+function combinationsBody(combos: ClientCombinationReportRow[]): ReportChild[] {
+  const out: ReportChild[] = [dySubTitle("Kayıtlı Kombinasyonlar", C.taslar)];
+  combos.forEach((cb, i) => {
+    out.push(dyItemTitle(`${i + 1}. ${tidy(cb.name) || "Kombinasyon"}`, C.taslar, formatInstantDate(cb.created_at, { fallback: "" })));
+    const stones = String(cb.stones_text ?? "").split(",").map((s) => tidy(s)).filter(Boolean);
+    out.push(
+      ...dyLabeledText("Taşlar", stones.join(", ")),
+      ...dyLabeledText("Amaç", cb.description),
+      ...dyLabeledText("Not", cb.note),
+      ...dyLabeledText("Mineral Özeti", cb.notes_text),
+      ...dyLabeledText("Uyarı / Stok Özeti", cb.notes_text_2),
+    );
+    if (i < combos.length - 1) out.push(dyDivider());
+  });
+  return out;
+}
+
+function combinationHasContent(cb: ClientCombinationReportRow): boolean {
+  return has(cb.name) || has(cb.stones_text) || has(cb.description) || has(cb.note) || has(cb.notes_text) || has(cb.notes_text_2);
+}
+
 function homeworksBody(hws: ClientHomeworkRow[], includeExpertNotes: boolean): ReportChild[] {
   const out: ReportChild[] = [];
   hws.forEach((hw, i) => {
@@ -744,6 +783,8 @@ export function buildClientTabReport(
     analysisImages?: (Buffer | null)[];
     /** C11: yalnız "taslar" sekmesi — taş id → (küçültülmüş) fotoğraflar + sayım. */
     stonePhotos?: ReadonlyMap<string, StoneReportPhotoSet>;
+    /** B5: yalnız "taslar" sekmesi — bu danışanın kayıtlı kombinasyonları. */
+    combinations?: ClientCombinationReportRow[];
   },
   ctx: ClientReportCtx = {},
 ): ClientReportResult & { empty: boolean } {
@@ -772,7 +813,13 @@ export function buildClientTabReport(
     section(apts.length ? appointmentsBody(apts, now) : []);
   } else if (tab === "taslar") {
     const stones = (input.rows as ClientStoneRow[]).filter(stoneHasContent);
-    section(stones.length ? stonesBody(stones, input.stonePhotos) : []);
+    const combos = (input.combinations ?? []).filter(combinationHasContent);
+    const body = stones.length ? stonesBody(stones, input.stonePhotos) : [];
+    if (combos.length) {
+      if (body.length) body.push(dyDivider());
+      body.push(...combinationsBody(combos));
+    }
+    section(body);
   } else if (tab === "seanslar") {
     const sessions = reportableSessions(input.rows as ClientSessionRow[], now);
     section(sessions.length ? sessionsBody(sessions) : []);
@@ -880,6 +927,11 @@ export type ClientFullInput = {
   snapshotChildren?: ReportChild[];
   /** BF-14 teslim eki — doğru bölüm numarasıyla üretilir (tercih edilen). */
   snapshotSection?: (headingNumber: number) => ReportChild[];
+  /**
+   * B5 (06.11): Tam / Özel rapor — danışana kayıtlı kombinasyonlar (route yalnız bu iki modda okur).
+   * Verilmezse (tarih aralığı / toplu) Taş Önerileri bölümü AYNEN eskisi gibidir.
+   */
+  combinations?: ClientCombinationReportRow[];
   /** Kayıtlı HD analizinin DONMUŞ snapshot gövdesi (route okur; yoksa bölüm yok). */
   hd?: ClientHdSection | null;
   /**
@@ -921,6 +973,7 @@ function buildClientBody(
   const sessions = reportableSessions(input.data.sessions, now);
   const appointments = input.data.appointments;
   const stones = input.data.stones.filter(stoneHasContent);
+  const combos = (input.combinations ?? []).filter(combinationHasContent);
   const homeworks = input.data.homeworks.filter((h) => homeworkHasContent(h, includeExpertNotes));
   const analyses = input.data.analyses
     .map((an, i) => ({ an, img: imgs[i] ?? null }))
@@ -958,7 +1011,11 @@ function buildClientBody(
   }
   if (sel.has("seanslar") && sessions.length) { open("Seanslar", C.seanslar); all.push(...sessionsBody(sessions)); }
   if (sel.has("randevular") && appointments.length) { open("Randevular", C.randevular); all.push(...appointmentsBody(appointments, now)); }
-  if (sel.has("taslar") && stones.length) { open("Taş Önerileri", C.taslar); all.push(...stonesBody(stones)); }
+  if (sel.has("taslar") && (stones.length || combos.length)) {
+    open("Taş Önerileri", C.taslar);
+    if (stones.length) all.push(...stonesBody(stones));
+    if (combos.length) { if (stones.length) all.push(dyDivider()); all.push(...combinationsBody(combos)); }
+  }
   if (sel.has("odevler") && homeworks.length) { open("Ödevler", C.odevler); all.push(...homeworksBody(homeworks, includeExpertNotes)); }
   if (sel.has("analizler") && analyses.length) { open("Analizler", C.analizler); all.push(...analysesBody(analyses)); }
   if (input.beslenme) {
