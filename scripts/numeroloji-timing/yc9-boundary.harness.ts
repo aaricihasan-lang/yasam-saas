@@ -11,7 +11,7 @@
  * Çalıştır:  tsx scripts/numeroloji-timing/yc9-boundary.harness.ts
  */
 import { createHash } from "node:crypto";
-import { YEAR_CHAKRA_CATALOG, PERSONAL_YEAR_TODO_CATALOG } from "@/lib/numeroloji/development/catalogs";
+import { YEAR_CHAKRA_CATALOG, PERSONAL_YEAR_TODO_CATALOG, YEAR_CHAKRA_9_SEPARATED_SOURCE_TEXT } from "@/lib/numeroloji/development/catalogs";
 import { yearChakra } from "@/lib/numeroloji/development";
 import { PERSONAL_YEAR_CATALOG, UNIVERSAL_YEAR_CATALOG } from "@/lib/numeroloji/timing/catalogs";
 import { hesaplaNumeroloji } from "@/lib/numeroloji";
@@ -85,6 +85,13 @@ for (let i = 1; i <= 9; i++) {
   assert(!t.includes("҉") && !t.includes("KİŞİSEL YIL SAYISI " + (i + 1)), `TODO${i} sonraki bölüme taşmaz`);
 }
 assert(Object.keys(PERSONAL_YEAR_TODO_CATALOG).length === 9, "TODO katalog 9/9");
+// ── Ayrılan metnin TAMAMI korunur (kayıpsızlık kilidi) ───────────────────────
+{
+  const sep = YEAR_CHAKRA_9_SEPARATED_SOURCE_TEXT;
+  assert(h(yc9 + sep) === "ced1f3b7a2a88ca0", "YC9 + ayrılan metin = main'deki önceki YC9 metni (birebir)", h(yc9 + sep));
+  assert(sep.startsWith(" ҉ 2. EVRENSEL YIL, AY VE GÜN + KİŞİSEL YIL, AY VE GÜN ENERJİSİ"), "ayrılan metin bölüm başlığıyla başlar");
+  for (let i = 1; i <= 9; i++) assert(sep.includes(PERSONAL_YEAR_CATALOG[i]) && sep.includes(PERSONAL_YEAR_TODO_CATALOG[i]), `KY${i} yorumu + listesi ayrılan metinde de birebir`);
+}
 
 // ── Motor çıktısı (ekran + Word aynı yolu kullanır) ──────────────────────────
 let found9 = false;
