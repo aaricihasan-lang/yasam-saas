@@ -54,7 +54,9 @@ import { arr, findUnmapped, int, num, obj, paths, text } from "./shared";
 import { mapGraha, mapRashi } from "./vedic";
 import type { AdapterResult } from "./timing";
 
-export const ROXY_VEDIC_DASHAKOOT = { endpoint: "/vedic-astrology/compatibility/dashakoot", adapter: "astro-roxy-vedic-dashakoot-1", projection: "vedic-dashakoot-proj-1" } as const;
+// ATL-B02 (07.11.2026): -2 = Rasi satırı Kalaprakasika kuralıyla YEREL (engine/dashakootRasi.ts); bu adaptörün projeksiyonu değişmedi.
+// -1 kayıtları servisin Rasi kuralıyladır (legacyMethod "dashakoot_rasi"); ayrı önbellek anahtarı.
+export const ROXY_VEDIC_DASHAKOOT = { endpoint: "/vedic-astrology/compatibility/dashakoot", adapter: "astro-roxy-vedic-dashakoot-2", projection: "vedic-dashakoot-proj-2" } as const;
 export const ROXY_VEDIC_PAPASAMYAM = { endpoint: "/vedic-astrology/compatibility/papasamyam", adapter: "astro-roxy-vedic-papasamyam-1", projection: "vedic-papasamyam-proj-1" } as const;
 
 const done = <T, I>(errors: string[], dropped: string[], technical: () => T, interpretation: () => I | null, raw: unknown, known: Set<string>): AdapterResult<T, I> => {
@@ -178,7 +180,7 @@ export function projectRoxyVedicDashakoot(raw: unknown, opts: { ayanamsa: VedicA
   let vedhaT: VedicDashakootTechnical["vedha"] | null = null;
   if (rows.length === PORUTHAM_IDS.length) {
     const row = (k: PoruthamId) => rows.find((x) => x.id === k)!;
-    if (total !== null && rows.reduce((a, x) => a + x.points, 0) !== total) errors.push("total porutham toplamı değil");
+    if (total !== null && rows.reduce((a, x) => a + (x.points ?? 0), 0) !== total) errors.push("total porutham toplamı değil");
     // Aynı Ay nakshatrası / burcu tüm ilgili satırlarda.
     const same = (ids: PoruthamId[], what: string) => {
       const a = ids.map((k) => row(k));

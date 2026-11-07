@@ -13,8 +13,9 @@ import { GRAHA_LABELS, NAKSHATRA_LABELS } from "@/lib/astrology/topics/vedic";
 import { AYANAMSA_SHORT, type MatchMoon } from "@/lib/astrology/model/vedicMatch";
 import {
   DASHAKOOT_DIRECTION_TEXT,
-  DASHAKOOT_METHOD_TEXT,
   DASHAKOOT_VERDICT_LABELS,
+  DASHAKOOT_VERDICT_WITHHELD_TEXT,
+  dashakootMethodText,
   PAPA_REFERENCE_LABELS,
   PAPASAMYAM_METHOD_TEXT,
   PAPASAMYAM_VERDICT_LABELS,
@@ -23,7 +24,13 @@ import {
   PORUTHAM_DIRECTIONAL,
   PORUTHAM_LABELS,
   PORUTHAM_ROLE_LABELS,
+  poruthamResultLabel,
   poruthamRoleNames,
+  RASI_RULE_TEXT,
+  RASI_SOURCE,
+  RASI_TOTAL_UNCERTAIN_NOTE,
+  rasiPariharaText,
+  rasiProviderText,
   poruthamAyanamsaNote,
   rajjuReasonText,
   vedhaReasonText,
@@ -66,6 +73,11 @@ function Roles({ names, testid, order }: { names: [string, string]; testid: stri
 export function DashakootPanel({ t, names: who }: { t: VedicDashakootTechnical; names: [string, string] }) {
   const names = poruthamRoleNames(t, who);
   const anyConstraint = t.rajju.active || t.vedha.active;
+  // ATL-B02: Kalaprakasika Rasi'li kayıt (adaptör -2). Eski kayıtta alan yok → görünüm eskisiyle aynı.
+  const rc = t.rasiClassic;
+  const rasiRow = t.rows.find((r) => r.id === "rasi");
+  const lordRow = t.rows.find((r) => r.id === "rasyadhipati");
+  const parihara = rc && lordRow ? rasiPariharaText(rc, [lordRow.person1.label, lordRow.person2.label]) : null;
   return (
     <div className="flex min-w-0 flex-col gap-3" data-testid="astro-dashakoot-panel">
       <section className={`${card} p-3`}>
@@ -78,12 +90,17 @@ export function DashakootPanel({ t, names: who }: { t: VedicDashakootTechnical; 
         <p className="mt-1 text-[11px] leading-snug text-slate-500" data-testid="astro-dashakoot-ayanamsa-note">
           {poruthamAyanamsaNote("dashakoot", names[0])}
         </p>
-        <p className="mt-2 text-2xl font-semibold tabular-nums text-indigo-950" data-testid="astro-dashakoot-total">
-          {t.total} <span className="text-base font-normal text-slate-500">/ 10 kriter karşılandı</span>
+        <p className="mt-2 text-2xl font-semibold tabular-nums text-indigo-950" data-testid="astro-dashakoot-total" data-uncertain={t.total === null ? "true" : undefined}>
+          {t.total ?? (t.totalRange ? `${t.totalRange[0]}–${t.totalRange[1]}` : "—")} <span className="text-base font-normal text-slate-500">/ 10 kriter karşılandı{t.total === null ? " (Rasi belirsiz)" : ""}</span>
         </p>
+        {t.total === null && (
+          <p className="text-xs text-amber-800" data-testid="astro-dashakoot-total-note">
+            {RASI_TOTAL_UNCERTAIN_NOTE}
+          </p>
+        )}
         <div className="mt-1 grid grid-cols-10 gap-0.5" aria-hidden="true">
           {t.rows.map((r) => (
-            <span key={r.id} className={`h-2 rounded-sm ${r.matched ? "bg-indigo-500" : "bg-slate-200"}`} />
+            <span key={r.id} className={`h-2 rounded-sm ${r.matched === true ? "bg-indigo-500" : r.matched === null ? "bg-amber-300" : "bg-slate-200"}`} />
           ))}
         </div>
         <Roles names={names} testid="astro-dashakoot-roles" order={t.order ?? "client_first"} />
@@ -162,8 +179,8 @@ export function DashakootPanel({ t, names: who }: { t: VedicDashakootTechnical; 
                 <td className={td}>{r.person2.label}</td>
                 <td className={`${td} tabular-nums`}>{r.count ?? "—"}</td>
                 <td className={td}>
-                  <span className={`inline-block rounded-full px-2 py-0.5 text-xs ${r.matched ? "bg-indigo-50 text-indigo-800" : "bg-slate-100 text-slate-600"}`}>
-                    {r.matched ? "karşılandı · 1" : "karşılanmadı · 0"}
+                  <span className={`inline-block rounded-full px-2 py-0.5 text-xs ${r.matched === true ? "bg-indigo-50 text-indigo-800" : r.matched === null ? "bg-amber-50 text-amber-900" : "bg-slate-100 text-slate-600"}`}>
+                    {poruthamResultLabel(r.matched)}
                   </span>
                 </td>
               </tr>
@@ -172,8 +189,25 @@ export function DashakootPanel({ t, names: who }: { t: VedicDashakootTechnical; 
         </table>
         <p className="px-2 pb-2 text-xs text-slate-500">{PORUTHAM_COUNT_NOTE}</p>
       </section>
+      {rc && rasiRow && (
+        <section className={`${card} p-3`} data-testid="astro-dashakoot-rasi-classic" data-status={rc.status} data-rule={rc.rule} data-parihara={rc.parihara}>
+          <h4 className="text-sm font-semibold text-slate-700">Rasi — Kalaprakasika kuralı</h4>
+          <p className="mt-1 text-sm text-slate-800" data-testid="astro-dashakoot-rasi-rule">
+            {RASI_RULE_TEXT[rc.rule]}
+          </p>
+          <p className="mt-1 text-xs text-slate-600" data-testid="astro-dashakoot-rasi-provider" data-provider={String(rc.provider.matched)}>
+            {rasiProviderText(rc)}
+          </p>
+          {parihara && (
+            <p className="mt-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700" data-testid="astro-dashakoot-rasi-parihara">
+              {parihara}
+            </p>
+          )}
+          <p className="mt-1 text-[11px] text-slate-500">Kaynak: {RASI_SOURCE}.</p>
+        </section>
+      )}
       <p className="text-xs leading-relaxed text-slate-500" data-testid="astro-dashakoot-method">
-        {DASHAKOOT_METHOD_TEXT}
+        {dashakootMethodText(t)}
       </p>
     </div>
   );
@@ -273,6 +307,11 @@ export function DashakootInterpContent({ c }: { c: VedicDashakootInterpretation 
   return (
     <div className="flex flex-col gap-2" data-testid="astro-dashakoot-interp">
       <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">{WARN}</p>
+      {c.verdictWithheld === "rasi_local" && (
+        <p className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700" data-testid="astro-dashakoot-verdict-withheld">
+          {DASHAKOOT_VERDICT_WITHHELD_TEXT}
+        </p>
+      )}
       {c.verdict && (
         <div className="rounded-lg bg-white px-3 py-2 max-sm:px-0">
           <div className="font-medium">Servisin genel değerlendirmesi</div>

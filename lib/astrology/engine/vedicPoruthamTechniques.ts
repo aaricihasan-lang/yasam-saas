@@ -11,6 +11,7 @@ import type { TechniqueDefinition } from "./techniques";
 import type { BirthPoint, VedicAyanamsa } from "../providers/roxy/requests";
 import { vedicCompatibilityBody } from "../providers/roxy/vedicMatchRequests";
 import { projectRoxyVedicDashakoot, projectRoxyVedicPapasamyam, ROXY_VEDIC_DASHAKOOT, ROXY_VEDIC_PAPASAMYAM } from "../providers/roxy/vedicPorutham";
+import { applyClassicalRasi } from "./dashakootRasi";
 import { vedicGunMilan, vedicMatchFromAdapter, vedicMatchUnitOf } from "./vedicMatchTechniques";
 import { VEDIC_DASHAKOOT_INTERP_SCHEMA, VEDIC_DASHAKOOT_TECHNICAL_SCHEMA, VEDIC_PAPASAMYAM_INTERP_SCHEMA, VEDIC_PAPASAMYAM_TECHNICAL_SCHEMA } from "../model/vedicPorutham";
 
@@ -40,7 +41,8 @@ export const vedicDashakoot: TechniqueDefinition = {
   // Ay bağlamı (önbellekteki Vedik D1; rol sırasıyla) — Gun Milan ile aynı birimler ve ekleme kuralı.
   contextUnits: (ctx, opt) => vedicGunMilan.contextUnits!(ctx, opt),
   attachContext: (technical, context, opt) => vedicGunMilan.attachContext!(technical, context, opt),
-  project: (_u, raw, opt) => vedicMatchFromAdapter(projectRoxyVedicDashakoot(raw, { ayanamsa: opt.ayanamsa as VedicAyanamsa }), VEDIC_DASHAKOOT_TECHNICAL_SCHEMA, VEDIC_DASHAKOOT_INTERP_SCHEMA, ROXY_VEDIC_DASHAKOOT.projection),
+  // ATL-B02 (07.11.2026): Rasi satırı Kalaprakasika kuralıyla YEREL; diğer 9 kriter, kısıtlar ve Ay burçları servisin.
+  project: (_u, raw, opt) => vedicMatchFromAdapter(applyClassicalRasi(projectRoxyVedicDashakoot(raw, { ayanamsa: opt.ayanamsa as VedicAyanamsa })), VEDIC_DASHAKOOT_TECHNICAL_SCHEMA, VEDIC_DASHAKOOT_INTERP_SCHEMA, ROXY_VEDIC_DASHAKOOT.projection),
 };
 
 export const vedicPapasamyam: TechniqueDefinition = {
