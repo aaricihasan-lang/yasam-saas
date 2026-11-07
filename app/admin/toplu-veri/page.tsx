@@ -4928,16 +4928,7 @@ export default function TopluVeriPage() {
         headerLabelClass: "text-violet-200/90",
         iconWrap: "from-violet-500 to-purple-600",
       }}
-      preparingNote="Doğaltaş JSON sekmesinde alan eşleştirme, göç riski ve Supabase aktarımı kullanılabilir."
-      demoSectionTitle="Diğer aktarım kuyrukları"
-      demoSectionDesc="Aşağıdaki kartlar diğer toplu veri kanalları için demo önizlemedir."
-      demoCards={[
-        { title: "JSON içe aktarma kuyruğu" },
-        { title: "Son aktarım tarihi" },
-        { title: "Başarılı kayıt sayısı" },
-        { title: "Hatalı kayıt sayısı" },
-      ]}
-      footerNote="Toplu Veri Aktarımı · uyumluluk önizlemesi"
+      footerNote="Toplu Veri Aktarımı · yalnızca admin"
     >
       <AdminSourceTenantDebug className="mb-4" />
       <div className="mb-6 flex flex-wrap gap-2">

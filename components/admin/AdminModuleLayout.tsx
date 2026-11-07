@@ -6,54 +6,8 @@ import type { LucideIcon } from "lucide-react";
 import { Shield } from "lucide-react";
 import { isAdminUser, readYasamUser } from "@/lib/auth/yasamUser";
 
-export const ADMIN_DEMO_VALUE = "Veri bağlantısı hazırlanıyor";
-
 const navBtn =
   "inline-flex h-10 sm:h-11 w-full items-center justify-center gap-2 rounded-xl border-2 px-4 sm:px-5 text-sm font-bold shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md sm:flex-1";
-
-const demoCardThemes = [
-  {
-    iconWrap: "from-indigo-500 to-blue-600",
-    cardBg: "from-blue-50/95 via-white to-sky-50/90",
-    border: "border-blue-200/80",
-    valueText: "text-indigo-950",
-  },
-  {
-    iconWrap: "from-violet-500 to-purple-600",
-    cardBg: "from-violet-50/95 via-white to-fuchsia-50/90",
-    border: "border-violet-200/80",
-    valueText: "text-violet-950",
-  },
-  {
-    iconWrap: "from-emerald-500 to-teal-600",
-    cardBg: "from-emerald-50/95 via-white to-teal-50/90",
-    border: "border-emerald-200/80",
-    valueText: "text-emerald-950",
-  },
-  {
-    iconWrap: "from-amber-500 to-orange-500",
-    cardBg: "from-amber-50/95 via-white to-orange-50/90",
-    border: "border-amber-200/80",
-    valueText: "text-amber-950",
-  },
-  {
-    iconWrap: "from-rose-500 to-red-600",
-    cardBg: "from-rose-50/95 via-white to-red-50/90",
-    border: "border-rose-200/80",
-    valueText: "text-rose-950",
-  },
-  {
-    iconWrap: "from-cyan-500 to-teal-500",
-    cardBg: "from-cyan-50/95 via-white to-teal-50/90",
-    border: "border-cyan-200/80",
-    valueText: "text-cyan-950",
-  },
-] as const;
-
-export type AdminDemoCard = {
-  title: string;
-  value?: string;
-};
 
 export type AdminModuleTheme = {
   headerGradient: string;
@@ -67,51 +21,21 @@ export type AdminModuleLayoutProps = {
   headerLabel?: string;
   Icon: LucideIcon;
   theme: AdminModuleTheme;
-  demoSectionTitle?: string;
-  demoSectionDesc?: string;
-  demoCards: AdminDemoCard[];
   footerNote?: string;
-  preparingNote?: string;
   children?: ReactNode;
 };
 
-function DemoMetricCard({
-  title,
-  value,
-  index,
-}: {
-  title: string;
-  value: string;
-  index: number;
-}) {
-  const theme = demoCardThemes[index % demoCardThemes.length];
-
-  return (
-    <article
-      className={`flex min-h-[120px] flex-col rounded-2xl border bg-gradient-to-br p-5 shadow-md transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg ${theme.cardBg} ${theme.border}`}
-    >
-      <span className="w-fit rounded-full border border-white/90 bg-white/80 px-2.5 py-0.5 text-xs font-semibold text-slate-500 shadow-sm">
-        Demo
-      </span>
-      <h3 className="mt-3 text-base font-bold text-slate-900">{title}</h3>
-      <p className={`mt-2 flex-1 text-sm font-semibold leading-relaxed ${theme.valueText}`}>
-        {value}
-      </p>
-    </article>
-  );
-}
-
+/**
+ * Admin modül kabuğu (yetki kapısı + başlık + içerik + dipnot).
+ * Sahte/demo metrik kartı bölümü kaldırıldı: bu kabuk yalnız gerçek içerik (children) gösterir.
+ */
 export function AdminModuleLayout({
   title,
   description,
   headerLabel = "Admin · Modül",
   Icon,
   theme,
-  demoSectionTitle = "Önizleme metrikleri",
-  demoSectionDesc = "Yakında gerçek Supabase verileri bağlanacak.",
-  demoCards,
   footerNote,
-  preparingNote = "Yakında gerçek Supabase verileri bu modüle bağlanacak. Aşağıdaki kartlar şimdilik demo değer gösterir.",
   children,
 }: AdminModuleLayoutProps) {
   const [checked, setChecked] = useState(false);
@@ -168,31 +92,6 @@ export function AdminModuleLayout({
         </header>
 
         {children}
-
-        <section aria-label={demoSectionTitle} className="mt-6">
-          <div className="flex flex-wrap items-center gap-2">
-            <h2 className="text-lg font-bold text-slate-900">{demoSectionTitle}</h2>
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-violet-100 px-2.5 py-0.5 text-xs font-bold text-violet-700">
-              <span className="h-1.5 w-1.5 rounded-full bg-violet-400" aria-hidden />
-              Hazırlanıyor
-            </span>
-          </div>
-          <p className="mt-1 text-sm text-slate-500">{demoSectionDesc}</p>
-          <div
-            className={`mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 ${
-              demoCards.length > 8 ? "2xl:grid-cols-5" : ""
-            }`}
-          >
-            {demoCards.map((card, index) => (
-              <DemoMetricCard
-                key={card.title}
-                title={card.title}
-                value={card.value ?? ADMIN_DEMO_VALUE}
-                index={index}
-              />
-            ))}
-          </div>
-        </section>
 
         {footerNote ? (
           <footer className="mt-8 border-t border-slate-200/60 pt-6">
