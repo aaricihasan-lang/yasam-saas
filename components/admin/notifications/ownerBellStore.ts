@@ -3,8 +3,12 @@
 /**
  * Owner bildirim zili — istemci deposu (tek örnek; tüm zil kopyaları aynı veriyi paylaşır).
  *
- *   - Yalnız admin oturumunda istek atar; uzman / ziyaretçi için HİÇ istek yok.
- *   - 401/403 (normal admin, süresi dolmuş oturum) → "denied": zil kendini gizler, yoklama durur.
+ *   - Yalnız OWNER olduğu sunucuda doğrulanmış tarayıcı istek atar: admin kabuğu (app/admin/layout.tsx) owner'ı
+ *     sunucuda doğrular ve yalnız ona admin çubuğu zilini çizer; o zil bu tarayıcıya kullanıcıya bağlı bir
+ *     "owner zili açık" işareti yazar. Uzman ekranlarındaki zil bu işaret yoksa HİÇ istek atmaz → normal admin,
+ *     uzman ve ziyaretçi bu uca istek göndermez. İşaret yalnız istek atma izni değildir; yetki her istekte
+ *     sunucuda (route + DB) ayrıca doğrulanır.
+ *   - 401/403 (yetki kaldırılmış / süresi dolmuş oturum) → "denied": işaret silinir, zil gizlenir, yoklama durur.
  *   - 45 sn'de bir yoklama (sekme görünürken), sekmeye dönüş / pencere odağında anında yenileme.
  *   - Geçici hata (ağ / 5xx): SON BİLİNEN sayılar korunur, `stale` işaretlenir — sayaç 0'a DÜŞMEZ.
  */
@@ -20,6 +24,7 @@ export type OwnerBellSnapshot = {
 };
 
 const ENDPOINT = "/api/admin/notifications";
+const ELIGIBLE_KEY = "ys-owner-bell";
 const POLL_MS = 45_000;
 
 let snap: OwnerBellSnapshot = { phase: "idle", feed: null, stale: false, loading: false, fetchedAt: 0 };
@@ -45,6 +50,37 @@ export function ownerAdminHeaders(json = false): Record<string, string> | null {
   };
 }
 
+/** Yalnız sunucuda owner olarak doğrulanmış admin kabuğundaki zil çağırır (bu tarayıcı + bu kullanıcı). */
+export function markOwnerBellEligible(): void {
+  const u = readYasamUser();
+  if (!u?.id) return;
+  try {
+    window.localStorage.setItem(ELIGIBLE_KEY, u.id);
+  } catch {
+    /* depolama yok → uzman ekranlarında zil çizilmez (güvenli taraf) */
+  }
+  if (snap.phase === "denied") emit({ phase: "idle" });
+}
+
+/** Uzman ekranlarındaki zil yalnız bu true ise istek atar. */
+export function isOwnerBellEligible(): boolean {
+  const u = readYasamUser();
+  if (!u?.id || !isAdminUser(u)) return false;
+  try {
+    return window.localStorage.getItem(ELIGIBLE_KEY) === u.id;
+  } catch {
+    return false;
+  }
+}
+
+function clearOwnerBellEligible(): void {
+  try {
+    window.localStorage.removeItem(ELIGIBLE_KEY);
+  } catch {
+    /* yok */
+  }
+}
+
 export function refreshOwnerBell(): Promise<void> {
   if (snap.phase === "denied") return Promise.resolve();
   if (inflight) return inflight;
@@ -59,6 +95,7 @@ export function refreshOwnerBell(): Promise<void> {
       const res = await fetch(ENDPOINT, { headers, cache: "no-store" });
       if (res.status === 401 || res.status === 403) {
         stopPolling();
+        clearOwnerBellEligible();
         emit({ phase: "denied", loading: false });
         return;
       }

@@ -4,8 +4,9 @@
  * Owner bildirim zili (Admin Üye Yönetimi V2 · Aşama 1). Mevcut randevu zilinden (NotificationBell)
  * TAMAMEN ayrıdır; onun kodu ve davranışı değişmez.
  *
- *   - Yalnız platform owner'ı görür: sunucu 403 dönerse (normal admin) veya oturum admin değilse
- *     hiçbir şey çizilmez. Uzman tarayıcısı bu uca hiç istek atmaz.
+ *   - Yalnız platform owner'ı görür. placement="admin" yalnız sunucu owner'ı doğruladığında render edilir ve
+ *     tarayıcıya "owner zili açık" işaretini yazar; placement="side" bu işaret yoksa hiç çizilmez ve İSTEK ATMAZ
+ *     (normal admin / uzman / ziyaretçi). Yetki ayrıca her istekte sunucuda doğrulanır.
  *   - İki bölüm: "Karar bekleyen" (yalnız işlem sonuçlanınca düşer) ve "Bilgi" (okununca okunur).
  *   - "Tümünü okundu" yalnız bilgileri okur. "Tüm bildirimler" → /admin/bildirimler.
  *   - placement="side": uzman/ana sayfa sol menüsü (admin sayfalarında gizlenir; orada admin
@@ -24,6 +25,8 @@ import {
 import {
   acquireOwnerBell,
   getOwnerBellServerSnapshot,
+  isOwnerBellEligible,
+  markOwnerBellEligible,
   getOwnerBellSnapshot,
   markOwnerInfoRead,
   refreshOwnerBell,
@@ -54,7 +57,9 @@ function BellIcon({ className }: { className?: string }) {
 
 export default function OwnerBell({ placement, compact = false }: Props) {
   const pathname = usePathname() ?? "";
-  const hiddenHere = placement === "side" && pathname.startsWith("/admin");
+  // Sol menü zili: admin sayfalarında gizli; uzman ekranlarında yalnız owner işareti varsa (istemci, takıldıktan sonra).
+  const eligible = useSyncExternalStore(noopSubscribe, () => placement === "admin" || isOwnerBellEligible(), () => false);
+  const hiddenHere = placement === "side" && (pathname.startsWith("/admin") || !eligible);
   const snap = useSyncExternalStore(subscribeOwnerBell, getOwnerBellSnapshot, getOwnerBellServerSnapshot);
   // Panel, açıldığı adreste açık kalır; sayfa değişince kendiliğinden kapanır (randevu ziliyle aynı kalıp).
   const [openAt, setOpenAt] = useState<string | null>(null);
@@ -70,8 +75,9 @@ export default function OwnerBell({ placement, compact = false }: Props) {
 
   useEffect(() => {
     if (hiddenHere) return;
+    if (placement === "admin") markOwnerBellEligible();
     return acquireOwnerBell();
-  }, [hiddenHere]);
+  }, [hiddenHere, placement]);
 
   useLayoutEffect(() => {
     if (!open) return;

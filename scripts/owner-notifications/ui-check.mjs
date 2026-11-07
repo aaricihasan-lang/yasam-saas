@@ -74,6 +74,15 @@ try {
   // ── Owner: uzman ekranları ─────────────────────────────────────────────────
   console.log("[Owner · uzman ekranları]");
   const O = await ctxFor(cfg.owner);
+  // Owner işareti yokken (bu tarayıcıda henüz /admin açılmadı) uzman ekranı zil ucuna İSTEK ATMAZ.
+  await go(O.page, "/numeroloji");
+  await revealMenu(O.page);
+  ok(O.ownerApi.length === 0 && (await O.page.locator("#owner-bell").count()) === 0,
+    `Owner işareti yokken uzman ekranında istek yok (${O.ownerApi.length})`);
+  // Giriş sonrası /admin: sunucu owner'ı doğrular → admin çubuğu zili işareti yazar.
+  await go(O.page, "/admin/users");
+  await O.page.locator("#owner-bell").waitFor({ timeout: 60000 });
+  ok(await O.page.evaluate((id) => localStorage.getItem("ys-owner-bell") === id, cfg.owner.user.id), "Admin kabuğu (sunucu owner doğrulaması) owner işaretini yazdı");
   for (const [p, label] of EXPERT_PAGES) {
     await go(O.page, p);
     await revealMenu(O.page);
@@ -178,6 +187,7 @@ try {
   console.log("[Mobil]");
   for (const w of [320, 360, 390]) {
     const M = await ctxFor(cfg.owner, { width: w, height: 760 });
+    await go(M.page, "/admin/users");
     await go(M.page, "/danisan-yolculugu");
     await revealMenu(M.page);
     const vis = await M.page.locator("#owner-bell").isVisible().catch(() => false);
@@ -221,9 +231,16 @@ try {
       await go(X.page, "/admin/bildirimler");
       await X.page.waitForTimeout(1500);
       ok(/yalnız platform owner/i.test(await X.page.locator("body").innerText()), "Normal admin · /admin/bildirimler: erişim yok mesajı");
-      // Normal admin istemcide admin sayılır → sayfa başına en çok 1 deneme; sunucu 403 verir, yoklama durur, hiçbir şey çizilmez.
-      ok(X.ownerApiStatus.length > 0 && X.ownerApiStatus.every((st) => st === 401 || st === 403) && X.ownerApi.length <= 6,
-        `Normal admin: zil API'si her istekte reddedildi (${X.ownerApiStatus.join(",")}), yoklama durdu`);
+      ok(X.ownerApi.length === 0, `Normal admin: owner bildirim API'sine hiç istek yok (${X.ownerApi.length})`);
+      // Sahte işaret: istemci işareti elle yazılsa bile sunucu 403 verir, işaret silinir, zil çizilmez.
+      await X.page.evaluate((id) => localStorage.setItem("ys-owner-bell", id), who.user.id);
+      await go(X.page, "/numeroloji");
+      await revealMenu(X.page);
+      await X.page.waitForTimeout(2000);
+      ok(X.ownerApiStatus.length >= 1 && X.ownerApiStatus.every((st) => st === 401 || st === 403) &&
+         (await X.page.locator("#owner-bell").count()) === 0 &&
+         (await X.page.evaluate(() => localStorage.getItem("ys-owner-bell"))) === null,
+        `Normal admin sahte işaret: sunucu reddetti (${X.ownerApiStatus.join(",")}), işaret silindi, zil yok`);
     } else {
       ok(X.ownerApi.length === 0, `Uzman: owner bildirim API'sine hiç istek yok (${X.ownerApi.length})`);
       await X.page.screenshot({ path: path.join(SHOTS, "08-uzman-zil-yok.png") });

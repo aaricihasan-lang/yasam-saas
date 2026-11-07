@@ -265,15 +265,36 @@ async function main(): Promise<void> {
     console.log("\n[E] Deneme bitti bilgisi");
     const tEnd = pend[3].id;
     // Deneme migration'dan SONRA başlamış ve şimdi bitmiş (bitiş anı info_since sonrası).
-    await su.query(`update public.users set trial_ends_at = now() - interval '1 second', trial_started_at = now() - interval '7 days 1 second' where id=$1`, [tEnd]);
+    await su.query(`update public.users set trial_ends_at = now() - interval '1 millisecond', trial_started_at = now() - interval '7 days 1 millisecond' where id=$1`, [tEnd]);
     await su.query(`select public.admin_notifications_reconcile()`);
     await su.query(`select public.admin_notifications_reconcile()`);
     ok((await su.query(`select count(*)::int n from public.admin_notifications where type='deneme_bitti' and target_user_id=$1`, [tEnd])).rows[0].n === 1,
-      "E1 süresi dolan deneme → tek “deneme bitti” bilgisi (2× uzlaştırma)");
+      "E1 süresi dolan deneme → tek “deneme bitti” bilgisi (2× uzlaştırma)",
+      (await su.query(`select u.trial_kind, u.trial_status, u.package_type, u.trial_ends_at, s.info_since,
+         (select array_agg(event_key) from public.admin_notifications where target_user_id=u.id) keys
+         from public.users u, public.admin_notification_settings s where u.id=$1`, [tEnd])).rows[0]);
     await su.query(`update public.users set trial_started_at = now() - interval '30 days', trial_ends_at = now() - interval '23 days' where id=$1`, [PRE_TRIAL_OLD]);
     await su.query(`select public.admin_notifications_reconcile()`);
     ok((await su.query(`select count(*)::int n from public.admin_notifications where type='deneme_bitti' and target_user_id=$1`, [PRE_TRIAL_OLD])).rows[0].n === 0,
       "E2 migration ÖNCESİ bitmiş deneme için geriye dönük bilgi yok");
+    // Zamanlanmış görev YOK: yalnız zamanın geçmesiyle oluşan olay (hiçbir satır yazılmadan) owner'ın bir sonraki
+    // zil okumasında uzlaştırılır; uzlaştırma en fazla 20 sn'de bir çalışır (okuma başına değil).
+    const tTime = pend[5].id;
+    await su.query(`update public.users set trial_started_at = now() - interval '7 days', trial_ends_at = now() + interval '2 seconds' where id=$1`, [tTime]);
+    await su.query(`update public.admin_notification_settings set last_reconciled_at = now()`);
+    await new Promise((r) => setTimeout(r, 2500));
+    const bitti = async () => (await su.query(`select count(*)::int n from public.admin_notifications where type='deneme_bitti' and target_user_id=$1`, [tTime])).rows[0].n as number;
+    ok((await bitti()) === 0, "E3 süre doldu ama kimse yazmadı → henüz bildirim yok (tetikleyici yalnız yazmada çalışır)");
+    const lastBefore = (await su.query(`select last_reconciled_at from public.admin_notification_settings`)).rows[0].last_reconciled_at;
+    await su.query(`select public.admin_notification_feed($1, 30)`, [OWNER]);
+    const lastAfter = (await su.query(`select last_reconciled_at from public.admin_notification_settings`)).rows[0].last_reconciled_at;
+    ok((await bitti()) === 0 && +lastBefore === +lastAfter, "E4 son uzlaştırmadan <20 sn → okuma uzlaştırma ÇALIŞTIRMAZ (yük sınırı)");
+    await su.query(`update public.admin_notification_settings set last_reconciled_at = now() - interval '21 seconds'`);
+    await su.query(`select public.admin_notification_feed($1, 30)`, [OWNER]);
+    ok((await bitti()) === 1, "E5 >20 sn sonra owner zili okununca kaçan “deneme bitti” bilgisi oluştu (kayıp yok)");
+    await su.query(`update public.admin_notification_settings set last_reconciled_at = now() - interval '21 seconds'`);
+    await su.query(`select public.admin_notification_feed($1, 30)`, [OWNER]);
+    ok((await bitti()) === 1, "E6 tekrar uzlaştırma aynı olayı ikinci kez üretmez");
 
     console.log("\n[G] 5.000 bildirim");
     const someUser = pend[4].id;
