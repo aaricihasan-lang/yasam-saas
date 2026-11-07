@@ -191,6 +191,7 @@ async function main(): Promise<void> {
     ok(byId(LI.id) ? trialEndedNotice(byId(LI.id)!) === null : true, "H4 pasif eski kayıt: uyarı yok (pasif rozet yeterli)");
     ok(byId(PD.id) ? byId(PD.id)!.legacyPackage === false && trialEndedNotice(byId(PD.id)!) === null : false, "H4 onay bekleyen başvuru: eski kayıt sayılmaz, uyarı yok");
     ok(byId(DM.id) ? byId(DM.id)!.legacyPackage === false && trialEndedNotice(byId(DM.id)!) === null : false, "H2 demo hesap 'eski kayıt' sayılmaz (onarım butonu çıkmaz)");
+    ok((await detail(DM.id)).legacyPackage === false, "H2 demo hesap detay ekranında da 'eski kayıt' sayılmaz (detay API is_demo_account döner)");
     ok(resolveMembershipAccessLevel(await row(L1.id)) === "none", "H2 kök neden: eski kayıt aktif + onaylı olduğu halde erişim 'none'");
 
     // ── H2: kök neden — mevcut yollar eski kaydı düzeltemez ───────────────────────────
