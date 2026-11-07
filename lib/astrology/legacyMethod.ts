@@ -5,7 +5,7 @@
 import { resolveAstroBirthTime, type DstChoice } from "./birth/timeResolution";
 import { TZ_BACKZONE_OVERLAY } from "./birth/tzBackzoneOverlay.generated";
 
-export type LegacyMethodCode = "composite_angles" | "composite_whole_sign" | "whole_sign_sect" | "historical_timezone" | "upagraha_kala_vela" | "upagraha_mandi";
+export type LegacyMethodCode = "composite_angles" | "composite_whole_sign" | "whole_sign_sect" | "historical_timezone" | "upagraha_kala_vela" | "upagraha_mandi" | "dashakoot_rasi";
 export type LegacyMethodNote = { code: LegacyMethodCode; text: string };
 
 type RevisionLike = { birthDate?: unknown; birthTime?: unknown; timeKnown?: unknown; timezone?: unknown; dstChoice?: unknown; utcOffsetSeconds?: unknown } | null | undefined;
@@ -58,6 +58,9 @@ export function legacyMethodNotes(input: { technique: string; adapterVersion: un
   // ATL-B01 F1 (07.11.2026): -1 ve -2 sürümlü upagraha kayıtlarında Mandi eski hesap kuralıyla (klasik ghati tablosu anından 1/8 önce).
   if (input.technique === "vedic.upagraha" && (av === "astro-roxy-vedic-upagraha-1" || av === "astro-roxy-vedic-upagraha-2"))
     out.push({ code: "upagraha_mandi", text: "Mandi bu kayıttan sonra Uttara Kalamrita (şl. 7) ve Phaladeepika (25. bölüm) ghati tablosundaki anın kendisi olarak hesaplanıyor; bu kayıttaki Mandi, eski hesap kuralıyla o andan gün ya da gece süresinin 1/8'i önce yükselen derecedir. Değer kayıt anındaki gibidir, değiştirilmedi; klasik Mandi için yeniden hesaplayıp yeni kayıt oluşturun." });
+  // ATL-B02 (07.11.2026): -1 sürümlü On Porutham kayıtlarında Rasi servisin kuralıyla (6., 8., 12. sayım karşılanmaz).
+  if (input.technique === "vedic.dashakoot" && av === "astro-roxy-vedic-dashakoot-1")
+    out.push({ code: "dashakoot_rasi", text: "Rasi kriteri bu kayıttan sonra Kalaprakasika (Bölüm XIII, s. 73–74) kuralıyla hesaplanıyor: gelinden damada 2.–6. sayım karşılanmaz (2. sayımda damadın burcu çift burçsa ve 6. sayımda kaynağın listelediği altı burç çiftinde karşılanır), 7. ve 8.–12. sayım karşılanır, aynı burç belirsizdir. Bu kayıttaki Rasi sonucu, toplam ve servis değerlendirmesi hesap servisinin kuralıyladır (6., 8. ve 12. sayım karşılanmaz, diğerleri karşılanır). Değerler kayıt anındaki gibidir, değiştirilmedi; yeni yöntem için yeniden hesaplayıp yeni kayıt oluşturun." });
   for (const { who, revision } of input.revisions) {
     const tz = staleTimezoneOffset(revision);
     if (tz)

@@ -11,7 +11,8 @@ import { vedicCollect, type VedicTopic } from "./vedic";
 
 export function topicsFromVedicDashakoot(t: VedicDashakootTechnical): VedicTopic[] {
   const items: [string, string[]][] = [];
-  for (const r of t.rows ?? []) items.push(["porutham_result", [r.id, r.matched ? "matched" : "unmatched"]]);
+  // ATL-B02: belirsiz Rasi (aynı burç) için konu üretilmez (0 / 1 varsayılmaz).
+  for (const r of t.rows ?? []) if (typeof r.matched === "boolean") items.push(["porutham_result", [r.id, r.matched ? "matched" : "unmatched"]]);
   if (t.rajju?.active) items.push(["porutham_constraint", ["rajju"]]);
   if (t.vedha?.active) items.push(["porutham_constraint", ["vedha"]]);
   return vedicCollect(items);

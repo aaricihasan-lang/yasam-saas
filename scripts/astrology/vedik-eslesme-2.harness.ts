@@ -38,7 +38,7 @@ import { parseVedicTopicKey, VEDIC_CONTEXTS } from "@/lib/astrology/topics/vedic
 import { NAKSHATRAS } from "@/lib/astrology/model/vedic";
 import { SIGN_IDS, type SignId } from "@/lib/astrology/model/western";
 import { SIGN_LORDS } from "@/lib/astrology/model/kp";
-import { nakshatraIdOf, PORUTHAM_IDS } from "@/lib/astrology/model/vedicPorutham";
+import { DASHAKOOT_VERDICT_WITHHELD_TEXT, nakshatraIdOf, PORUTHAM_IDS } from "@/lib/astrology/model/vedicPorutham";
 import { buildSelections, defaultParams, describeOptions, missingReason, TECHNIQUE_META, UI_TECHNIQUES } from "@/app/admin/astroloji/_lib/techniques";
 import { AVAILABLE_TECHNIQUES, COMING_SOON_AVAILABLE_AS, visibleComingSoonSections } from "@/app/admin/astroloji/_lib/comingSoon";
 import { SYNTH_A, SYNTH_B } from "./golden/phase3-golden-calls";
@@ -602,7 +602,9 @@ async function main() {
     for (const c of rx.calls) assert.equal(canon(c.body), canon(DK.body));
     const [vd, vp] = r1.results.map((x: J) => x.view);
     assert.equal(vd.technical.schema, "astro.vedic.dashakoot.v1");
-    assert.equal(vd.technical.total, 7);
+    // ATL-B02 (07.11.2026): Rasi Kalaprakasika kuralıyla (12. sayım karşılanır; servis: karşılanmaz) → 8/10; servis toplamı 7/10 idi.
+    assert.equal(vd.technical.total, 8);
+    assert.equal(vd.technical.rasiClassic.rule, "converse");
     assert.equal(vd.technical.order, undefined, "varsayılanda rol alanı yazılmaz");
     assert.equal(vp.technical.schema, "astro.vedic.papasamyam.v1");
     assert.equal(vp.technical.comparison, "within");
@@ -618,7 +620,7 @@ async function main() {
     assert.equal(pg.plan.units.filter((u: J) => !u.cached && u.endpoint === ROXY_VEDIC_COMPATIBILITY.endpoint).length, 1);
   });
 
-  await t("E: rol takası (karşı taraf 1. rol) — plan 1 yeni istek, gövde takaslı (person1 = B); GERÇEK takaslı yanıt → 6/10 ve 'exceeds' gösterilir; ayrı anahtar + ayrı kayıt (varsayılan 7/10 kaydı ve önbelleği etkilenmez); kaydet → aç 0 istek", async () => {
+  await t("E: rol takası (karşı taraf 1. rol) — plan 1 yeni istek, gövde takaslı (person1 = B); GERÇEK takaslı yanıt → 5/10 (ATL-B02 Kalaprakasika Rasi; servis 6/10) ve 'exceeds' gösterilir; ayrı anahtar + ayrı kayıt (varsayılan 8/10 kaydı ve önbelleği etkilenmez); kaydet → aç 0 istek", async () => {
     const store = seed();
     const ctx = ctxOf(store);
     const pa = await profileA(ctx);
@@ -637,13 +639,15 @@ async function main() {
     assert.equal(r.results[0].ok, true, JSON.stringify(r.results[0]).slice(0, 300));
     assert.equal(r.results[1].ok, true, JSON.stringify(r.results[1]).slice(0, 300));
     const [vd, vp] = r.results.map((x: J) => x.view);
-    assert.equal(vd.technical.total, 6, "takaslı gerçek toplam 6/10");
+    // ATL-B02: 2. sayım, damat (B) Koç = tek burç → Kalaprakasika'da karşılanmaz (servis karşılanmış sayar: 6/10).
+    assert.equal(vd.technical.total, 5, "takaslı toplam 5/10 (Kalaprakasika Rasi)");
     assert.equal(vd.technical.order, "partner_first", "takaslı teknik veride rol işareti");
-    assert.equal(vd.technical.rows.find((k: J) => k.id === "rasi").points, 1);
+    assert.equal(vd.technical.rows.find((k: J) => k.id === "rasi").points, 0);
     assert.equal(vd.technical.rows.find((k: J) => k.id === "rasi").count, 2);
+    assert.deepEqual([vd.technical.rasiClassic.rule, vd.technical.rasiClassic.provider.matched], ["second_odd", true]);
     assert.deepEqual([vp.technical.person1.total, vp.technical.person2.total, vp.technical.comparison, vp.technical.order], [2.75, 3.75, "exceeds", "partner_first"]);
     assert.equal(vp.interpretation.content.verdict, "unbalanced");
-    // Ayrı kayıt: takaslı analiz ayrı kimlikle kaydedilir; açmak 0 istek; varsayılan kayıt 7/10 olarak kalır.
+    // Ayrı kayıt: takaslı analiz ayrı kimlikle kaydedilir; açmak 0 istek; varsayılan kayıt 8/10 olarak kalır.
     const sSw = await saveAnalysis(ctx, { profileId: pa, revision: 1, ...DSEL(pb, SW), saveRequestId: randomUUID() }, false);
     assert.equal(sSw.status, 201, JSON.stringify(sSw.body));
     assert.notEqual((sSw.body as J).analysisId, (sDef.body as J).analysisId);
@@ -651,9 +655,9 @@ async function main() {
     const aSw = ((await getAnalysis(ctx, (sSw.body as J).analysisId, false)).body as J).analysis;
     const aDef = ((await getAnalysis(ctx, (sDef.body as J).analysisId, false)).body as J).analysis;
     assert.equal(rx.calls.length, n, "kayıtlı analizleri açmak sağlayıcı çağırmaz");
-    assert.deepEqual([aSw.technical.total, aSw.technical.order, aDef.technical.total, aDef.technical.order], [6, "partner_first", 7, undefined]);
+    assert.deepEqual([aSw.technical.total, aSw.technical.order, aDef.technical.total, aDef.technical.order], [5, "partner_first", 8, undefined]);
     const rep = reportTexts(buildAstroReport(aSw)).join("\n");
-    for (const want of ["6 / 10", "1. rol (geleneksel: damat)", "Rasi"]) assert.ok(rep.includes(want), `takaslı rapor: "${want}" yok`);
+    for (const want of ["5 / 10", "1. rol (geleneksel: damat)", "Rasi"]) assert.ok(rep.includes(want), `takaslı rapor: "${want}" yok`);
     for (const bad of ["undefined", "NaN", "Roxy", "golden", "fixture"]) assert.ok(!rep.includes(bad), `takaslı rapor: "${bad}"`);
     // Önbellek: varsayılan ve takaslı ikinci çalıştırma 0 istek.
     await run(ctx, pa, [DSEL(pb), PSEL(pb), DSEL(pb, SW), PSEL(pb, SW)], rx.deps);
@@ -723,16 +727,17 @@ async function main() {
     const a1 = ((await getAnalysis(ctx, (s1.body as J).analysisId, false)).body as J).analysis;
     const a2 = ((await getAnalysis(ctx, (s2.body as J).analysisId, false)).body as J).analysis;
     assert.equal(rx.calls.length, n, "kayıtlı analizi açmak sağlayıcı çağırdı");
-    assert.equal(a1.technical.total, 7);
+    assert.equal(a1.technical.total, 8);
     assert.equal(a1.profile.partner.label, "Sentetik B");
-    assert.equal(a1.interpretation.content.verdict, "recommended");
+    // ATL-B02: yerel Rasi servisinkinden farklı → servis değerlendirmesi saklanmaz (verdictWithheld); yorum katmanı yetkiyle saklanır.
+    assert.deepEqual([a1.interpretation.visible, a1.interpretation.content.verdict, a1.interpretation.content.verdictWithheld], [true, null, "rasi_local"]);
     assert.equal(a2.technical.person2.total, 2.75);
     const unsaved = await saveAnalysis(ctx, { profileId: pb, revision: 1, ...DSEL(pa), saveRequestId: randomUUID() }, false);
     assert.equal(unsaved.status, 409);
   });
 
   // ═══ H) RAPOR ═══════════════════════════════════════════════════════════════════
-  await t("H: Word/PDF rapor modeli — Dashakoot: kriter tablosu, 7 / 10, roller, kısıtlar (nötr), sayım, yöntem; Papasamyam: toplamlar, referans tabloları, karşılaştırma; hüküm cümlesi yalnız yorum bölümünde", async () => {
+  await t("H: Word/PDF rapor modeli — Dashakoot: kriter tablosu, 8 / 10, roller, kısıtlar (nötr), sayım, yöntem; Papasamyam: toplamlar, referans tabloları, karşılaştırma; hüküm cümlesi yalnız yorum bölümünde", async () => {
     const store = seed();
     const ctx = ctxOf(store);
     const pa = await profileA(ctx);
@@ -745,12 +750,14 @@ async function main() {
     const a2 = ((await getAnalysis(ctx, (s2.body as J).analysisId, false)).body as J).analysis;
     const all1 = reportTexts(buildAstroReport(a1));
     const r1 = all1.join("\n");
-    for (const want of ["On Porutham (Dashakoot)", "On Porutham (Dashakoot) — teknik değerlendirme", "7 / 10", "1. rol (geleneksel: damat)", "2. rol (geleneksel: gelin)", "Sentetik A", "Sentetik B", "Dina (Dinam)", "Rasyadhipati (Rasi Athipathi)", "Stree Deergha", "karşılandı · 1", "karşılanmadı · 0", "Rajju kısıtı", "Paada (ayak)", "Kati (bel / kalça)", "Vedha kısıtı etkin değil", "26", "Sayım sütunu", "Yöntem: Güney Hint On Porutham", "Rasi kriterinde gelinden damada 6., 8. ve 12. sayımlar", "Gun Milan'dan (36 puan) ayrıdır", "Hesaplama rolleri: geleneksel porutham", "Uzman notu porutham", "Otomatik Yorum", DK.response.recommendation, "hüküm dili içerebilir"])
+    for (const want of ["On Porutham (Dashakoot)", "On Porutham (Dashakoot) — teknik değerlendirme", "8 / 10", "1. rol (geleneksel: damat)", "2. rol (geleneksel: gelin)", "Sentetik A", "Sentetik B", "Dina (Dinam)", "Rasyadhipati (Rasi Athipathi)", "Stree Deergha", "karşılandı · 1", "karşılanmadı · 0", "Rajju kısıtı", "Paada (ayak)", "Kati (bel / kalça)", "Vedha kısıtı etkin değil", "26", "Sayım sütunu", "Yöntem: Güney Hint On Porutham", "Rasi kriteri Kalaprakasika'ya", "8.–12. sayım: Kalaprakasika'da", "Gun Milan'dan (36 puan) ayrıdır", "Hesaplama rolleri: geleneksel porutham", "Uzman notu porutham", "Otomatik Yorum", DASHAKOOT_VERDICT_WITHHELD_TEXT, "hüküm dili içerebilir"])
       assert.ok(r1.includes(want), `rapor 1: "${want}" yok`);
     const iTech = all1.indexOf("Teknik hesaplama sonuçları");
     const iInterp = all1.indexOf("Otomatik Yorum");
-    const iRec = all1.indexOf(DK.response.recommendation);
+    // ATL-B02: servis öneri cümlesi bu sonuçta gizli (yerel Rasi ≠ servis); gizleme açıklaması yalnız yorum bölümünde.
+    const iRec = all1.indexOf(DASHAKOOT_VERDICT_WITHHELD_TEXT);
     assert.ok(iTech >= 0 && iInterp > iTech && iRec > iInterp, `sıra: ${iTech} ${iInterp} ${iRec}`);
+    assert.equal(r1.includes(DK.response.recommendation), false, "servis öneri cümlesi basılmaz");
     const r2 = reportTexts(buildAstroReport(a2)).join("\n");
     for (const want of ["Papasamyam — teknik değerlendirme", "3,75", "2,75", "Karşılaştırma kuralı (2. rol toplamı ≤ 1. rol toplamı)", "sağlanıyor", "Lagna'dan", "Ay'dan (Chandra Lagna)", "Venüs'ten", "Mars (Mangala) — 7. ev", "Rahu — 8. ev", "2 × 1 = 2", "3 × 0,25 = 0,75", "Yöntem: Papasamyam", PS.response.recommendation])
       assert.ok(r2.includes(want), `rapor 2: "${want}" yok`);

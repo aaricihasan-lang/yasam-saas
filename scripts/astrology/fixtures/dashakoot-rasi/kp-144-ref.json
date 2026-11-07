@@ -1,0 +1,1157 @@
+{
+"note": "ATL-B02: 144 rol sıralı (gelin → damat) Rasi referansı. kp_31_10 = 31.10.2026 bağımsız matris (Kalaprakasika s. 73–74, 2. ve 6. istisnalı; ÜRÜN KODU KULLANILMADAN). kp = aynı değer, yalnız 1. sayım (aynı burç) kaynakta hükümsüz olduğu için null (07.11 talimatı: belirsiz korunur). provider_rule = servisin belgelediği kural (6/8/12 karşılanmaz).",
+"cells": [
+{
+"bride": "aries",
+"groom": "aries",
+"count": 1,
+"kp": null,
+"kp_31_10": true,
+"provider_rule": true
+},
+{
+"bride": "aries",
+"groom": "taurus",
+"count": 2,
+"kp": true,
+"kp_31_10": true,
+"provider_rule": true
+},
+{
+"bride": "aries",
+"groom": "gemini",
+"count": 3,
+"kp": false,
+"kp_31_10": false,
+"provider_rule": true
+},
+{
+"bride": "aries",
+"groom": "cancer",
+"count": 4,
+"kp": false,
+"kp_31_10": false,
+"provider_rule": true
+},
+{
+"bride": "aries",
+"groom": "leo",
+"count": 5,
+"kp": false,
+"kp_31_10": false,
+"provider_rule": true
+},
+{
+"bride": "aries",
+"groom": "virgo",
+"count": 6,
+"kp": true,
+"kp_31_10": true,
+"provider_rule": false
+},
+{
+"bride": "aries",
+"groom": "libra",
+"count": 7,
+"kp": true,
+"kp_31_10": true,
+"provider_rule": true
+},
+{
+"bride": "aries",
+"groom": "scorpio",
+"count": 8,
+"kp": true,
+"kp_31_10": true,
+"provider_rule": false
+},
+{
+"bride": "aries",
+"groom": "sagittarius",
+"count": 9,
+"kp": true,
+"kp_31_10": true,
+"provider_rule": true
+},
+{
+"bride": "aries",
+"groom": "capricorn",
+"count": 10,
+"kp": true,
+"kp_31_10": true,
+"provider_rule": true
+},
+{
+"bride": "aries",
+"groom": "aquarius",
+"count": 11,
+"kp": true,
+"kp_31_10": true,
+"provider_rule": true
+},
+{
+"bride": "aries",
+"groom": "pisces",
+"count": 12,
+"kp": true,
+"kp_31_10": true,
+"provider_rule": false
+},
+{
+"bride": "taurus",
+"groom": "aries",
+"count": 12,
+"kp": true,
+"kp_31_10": true,
+"provider_rule": false
+},
+{
+"bride": "taurus",
+"groom": "taurus",
+"count": 1,
+"kp": null,
+"kp_31_10": true,
+"provider_rule": true
+},
+{
+"bride": "taurus",
+"groom": "gemini",
+"count": 2,
+"kp": false,
+"kp_31_10": false,
+"provider_rule": true
+},
+{
+"bride": "taurus",
+"groom": "cancer",
+"count": 3,
+"kp": false,
+"kp_31_10": false,
+"provider_rule": true
+},
+{
+"bride": "taurus",
+"groom": "leo",
+"count": 4,
+"kp": false,
+"kp_31_10": false,
+"provider_rule": true
+},
+{
+"bride": "taurus",
+"groom": "virgo",
+"count": 5,
+"kp": false,
+"kp_31_10": false,
+"provider_rule": true
+},
+{
+"bride": "taurus",
+"groom": "libra",
+"count": 6,
+"kp": false,
+"kp_31_10": false,
+"provider_rule": false
+},
+{
+"bride": "taurus",
+"groom": "scorpio",
+"count": 7,
+"kp": true,
+"kp_31_10": true,
+"provider_rule": true
+},
+{
+"bride": "taurus",
+"groom": "sagittarius",
+"count": 8,
+"kp": true,
+"kp_31_10": true,
+"provider_rule": false
+},
+{
+"bride": "taurus",
+"groom": "capricorn",
+"count": 9,
+"kp": true,
+"kp_31_10": true,
+"provider_rule": true
+},
+{
+"bride": "taurus",
+"groom": "aquarius",
+"count": 10,
+"kp": true,
+"kp_31_10": true,
+"provider_rule": true
+},
+{
+"bride": "taurus",
+"groom": "pisces",
+"count": 11,
+"kp": true,
+"kp_31_10": true,
+"provider_rule": true
+},
+{
+"bride": "gemini",
+"groom": "aries",
+"count": 11,
+"kp": true,
+"kp_31_10": true,
+"provider_rule": true
+},
+{
+"bride": "gemini",
+"groom": "taurus",
+"count": 12,
+"kp": true,
+"kp_31_10": true,
+"provider_rule": false
+},
+{
+"bride": "gemini",
+"groom": "gemini",
+"count": 1,
+"kp": null,
+"kp_31_10": true,
+"provider_rule": true
+},
+{
+"bride": "gemini",
+"groom": "cancer",
+"count": 2,
+"kp": true,
+"kp_31_10": true,
+"provider_rule": true
+},
+{
+"bride": "gemini",
+"groom": "leo",
+"count": 3,
+"kp": false,
+"kp_31_10": false,
+"provider_rule": true
+},
+{
+"bride": "gemini",
+"groom": "virgo",
+"count": 4,
+"kp": false,
+"kp_31_10": false,
+"provider_rule": true
+},
+{
+"bride": "gemini",
+"groom": "libra",
+"count": 5,
+"kp": false,
+"kp_31_10": false,
+"provider_rule": true
+},
+{
+"bride": "gemini",
+"groom": "scorpio",
+"count": 6,
+"kp": true,
+"kp_31_10": true,
+"provider_rule": false
+},
+{
+"bride": "gemini",
+"groom": "sagittarius",
+"count": 7,
+"kp": true,
+"kp_31_10": true,
+"provider_rule": true
+},
+{
+"bride": "gemini",
+"groom": "capricorn",
+"count": 8,
+"kp": true,
+"kp_31_10": true,
+"provider_rule": false
+},
+{
+"bride": "gemini",
+"groom": "aquarius",
+"count": 9,
+"kp": true,
+"kp_31_10": true,
+"provider_rule": true
+},
+{
+"bride": "gemini",
+"groom": "pisces",
+"count": 10,
+"kp": true,
+"kp_31_10": true,
+"provider_rule": true
+},
+{
+"bride": "cancer",
+"groom": "aries",
+"count": 10,
+"kp": true,
+"kp_31_10": true,
+"provider_rule": true
+},
+{
+"bride": "cancer",
+"groom": "taurus",
+"count": 11,
+"kp": true,
+"kp_31_10": true,
+"provider_rule": true
+},
+{
+"bride": "cancer",
+"groom": "gemini",
+"count": 12,
+"kp": true,
+"kp_31_10": true,
+"provider_rule": false
+},
+{
+"bride": "cancer",
+"groom": "cancer",
+"count": 1,
+"kp": null,
+"kp_31_10": true,
+"provider_rule": true
+},
+{
+"bride": "cancer",
+"groom": "leo",
+"count": 2,
+"kp": false,
+"kp_31_10": false,
+"provider_rule": true
+},
+{
+"bride": "cancer",
+"groom": "virgo",
+"count": 3,
+"kp": false,
+"kp_31_10": false,
+"provider_rule": true
+},
+{
+"bride": "cancer",
+"groom": "libra",
+"count": 4,
+"kp": false,
+"kp_31_10": false,
+"provider_rule": true
+},
+{
+"bride": "cancer",
+"groom": "scorpio",
+"count": 5,
+"kp": false,
+"kp_31_10": false,
+"provider_rule": true
+},
+{
+"bride": "cancer",
+"groom": "sagittarius",
+"count": 6,
+"kp": false,
+"kp_31_10": false,
+"provider_rule": false
+},
+{
+"bride": "cancer",
+"groom": "capricorn",
+"count": 7,
+"kp": true,
+"kp_31_10": true,
+"provider_rule": true
+},
+{
+"bride": "cancer",
+"groom": "aquarius",
+"count": 8,
+"kp": true,
+"kp_31_10": true,
+"provider_rule": false
+},
+{
+"bride": "cancer",
+"groom": "pisces",
+"count": 9,
+"kp": true,
+"kp_31_10": true,
+"provider_rule": true
+},
+{
+"bride": "leo",
+"groom": "aries",
+"count": 9,
+"kp": true,
+"kp_31_10": true,
+"provider_rule": true
+},
+{
+"bride": "leo",
+"groom": "taurus",
+"count": 10,
+"kp": true,
+"kp_31_10": true,
+"provider_rule": true
+},
+{
+"bride": "leo",
+"groom": "gemini",
+"count": 11,
+"kp": true,
+"kp_31_10": true,
+"provider_rule": true
+},
+{
+"bride": "leo",
+"groom": "cancer",
+"count": 12,
+"kp": true,
+"kp_31_10": true,
+"provider_rule": false
+},
+{
+"bride": "leo",
+"groom": "leo",
+"count": 1,
+"kp": null,
+"kp_31_10": true,
+"provider_rule": true
+},
+{
+"bride": "leo",
+"groom": "virgo",
+"count": 2,
+"kp": true,
+"kp_31_10": true,
+"provider_rule": true
+},
+{
+"bride": "leo",
+"groom": "libra",
+"count": 3,
+"kp": false,
+"kp_31_10": false,
+"provider_rule": true
+},
+{
+"bride": "leo",
+"groom": "scorpio",
+"count": 4,
+"kp": false,
+"kp_31_10": false,
+"provider_rule": true
+},
+{
+"bride": "leo",
+"groom": "sagittarius",
+"count": 5,
+"kp": false,
+"kp_31_10": false,
+"provider_rule": true
+},
+{
+"bride": "leo",
+"groom": "capricorn",
+"count": 6,
+"kp": true,
+"kp_31_10": true,
+"provider_rule": false
+},
+{
+"bride": "leo",
+"groom": "aquarius",
+"count": 7,
+"kp": true,
+"kp_31_10": true,
+"provider_rule": true
+},
+{
+"bride": "leo",
+"groom": "pisces",
+"count": 8,
+"kp": true,
+"kp_31_10": true,
+"provider_rule": false
+},
+{
+"bride": "virgo",
+"groom": "aries",
+"count": 8,
+"kp": true,
+"kp_31_10": true,
+"provider_rule": false
+},
+{
+"bride": "virgo",
+"groom": "taurus",
+"count": 9,
+"kp": true,
+"kp_31_10": true,
+"provider_rule": true
+},
+{
+"bride": "virgo",
+"groom": "gemini",
+"count": 10,
+"kp": true,
+"kp_31_10": true,
+"provider_rule": true
+},
+{
+"bride": "virgo",
+"groom": "cancer",
+"count": 11,
+"kp": true,
+"kp_31_10": true,
+"provider_rule": true
+},
+{
+"bride": "virgo",
+"groom": "leo",
+"count": 12,
+"kp": true,
+"kp_31_10": true,
+"provider_rule": false
+},
+{
+"bride": "virgo",
+"groom": "virgo",
+"count": 1,
+"kp": null,
+"kp_31_10": true,
+"provider_rule": true
+},
+{
+"bride": "virgo",
+"groom": "libra",
+"count": 2,
+"kp": false,
+"kp_31_10": false,
+"provider_rule": true
+},
+{
+"bride": "virgo",
+"groom": "scorpio",
+"count": 3,
+"kp": false,
+"kp_31_10": false,
+"provider_rule": true
+},
+{
+"bride": "virgo",
+"groom": "sagittarius",
+"count": 4,
+"kp": false,
+"kp_31_10": false,
+"provider_rule": true
+},
+{
+"bride": "virgo",
+"groom": "capricorn",
+"count": 5,
+"kp": false,
+"kp_31_10": false,
+"provider_rule": true
+},
+{
+"bride": "virgo",
+"groom": "aquarius",
+"count": 6,
+"kp": false,
+"kp_31_10": false,
+"provider_rule": false
+},
+{
+"bride": "virgo",
+"groom": "pisces",
+"count": 7,
+"kp": true,
+"kp_31_10": true,
+"provider_rule": true
+},
+{
+"bride": "libra",
+"groom": "aries",
+"count": 7,
+"kp": true,
+"kp_31_10": true,
+"provider_rule": true
+},
+{
+"bride": "libra",
+"groom": "taurus",
+"count": 8,
+"kp": true,
+"kp_31_10": true,
+"provider_rule": false
+},
+{
+"bride": "libra",
+"groom": "gemini",
+"count": 9,
+"kp": true,
+"kp_31_10": true,
+"provider_rule": true
+},
+{
+"bride": "libra",
+"groom": "cancer",
+"count": 10,
+"kp": true,
+"kp_31_10": true,
+"provider_rule": true
+},
+{
+"bride": "libra",
+"groom": "leo",
+"count": 11,
+"kp": true,
+"kp_31_10": true,
+"provider_rule": true
+},
+{
+"bride": "libra",
+"groom": "virgo",
+"count": 12,
+"kp": true,
+"kp_31_10": true,
+"provider_rule": false
+},
+{
+"bride": "libra",
+"groom": "libra",
+"count": 1,
+"kp": null,
+"kp_31_10": true,
+"provider_rule": true
+},
+{
+"bride": "libra",
+"groom": "scorpio",
+"count": 2,
+"kp": true,
+"kp_31_10": true,
+"provider_rule": true
+},
+{
+"bride": "libra",
+"groom": "sagittarius",
+"count": 3,
+"kp": false,
+"kp_31_10": false,
+"provider_rule": true
+},
+{
+"bride": "libra",
+"groom": "capricorn",
+"count": 4,
+"kp": false,
+"kp_31_10": false,
+"provider_rule": true
+},
+{
+"bride": "libra",
+"groom": "aquarius",
+"count": 5,
+"kp": false,
+"kp_31_10": false,
+"provider_rule": true
+},
+{
+"bride": "libra",
+"groom": "pisces",
+"count": 6,
+"kp": true,
+"kp_31_10": true,
+"provider_rule": false
+},
+{
+"bride": "scorpio",
+"groom": "aries",
+"count": 6,
+"kp": false,
+"kp_31_10": false,
+"provider_rule": false
+},
+{
+"bride": "scorpio",
+"groom": "taurus",
+"count": 7,
+"kp": true,
+"kp_31_10": true,
+"provider_rule": true
+},
+{
+"bride": "scorpio",
+"groom": "gemini",
+"count": 8,
+"kp": true,
+"kp_31_10": true,
+"provider_rule": false
+},
+{
+"bride": "scorpio",
+"groom": "cancer",
+"count": 9,
+"kp": true,
+"kp_31_10": true,
+"provider_rule": true
+},
+{
+"bride": "scorpio",
+"groom": "leo",
+"count": 10,
+"kp": true,
+"kp_31_10": true,
+"provider_rule": true
+},
+{
+"bride": "scorpio",
+"groom": "virgo",
+"count": 11,
+"kp": true,
+"kp_31_10": true,
+"provider_rule": true
+},
+{
+"bride": "scorpio",
+"groom": "libra",
+"count": 12,
+"kp": true,
+"kp_31_10": true,
+"provider_rule": false
+},
+{
+"bride": "scorpio",
+"groom": "scorpio",
+"count": 1,
+"kp": null,
+"kp_31_10": true,
+"provider_rule": true
+},
+{
+"bride": "scorpio",
+"groom": "sagittarius",
+"count": 2,
+"kp": false,
+"kp_31_10": false,
+"provider_rule": true
+},
+{
+"bride": "scorpio",
+"groom": "capricorn",
+"count": 3,
+"kp": false,
+"kp_31_10": false,
+"provider_rule": true
+},
+{
+"bride": "scorpio",
+"groom": "aquarius",
+"count": 4,
+"kp": false,
+"kp_31_10": false,
+"provider_rule": true
+},
+{
+"bride": "scorpio",
+"groom": "pisces",
+"count": 5,
+"kp": false,
+"kp_31_10": false,
+"provider_rule": true
+},
+{
+"bride": "sagittarius",
+"groom": "aries",
+"count": 5,
+"kp": false,
+"kp_31_10": false,
+"provider_rule": true
+},
+{
+"bride": "sagittarius",
+"groom": "taurus",
+"count": 6,
+"kp": true,
+"kp_31_10": true,
+"provider_rule": false
+},
+{
+"bride": "sagittarius",
+"groom": "gemini",
+"count": 7,
+"kp": true,
+"kp_31_10": true,
+"provider_rule": true
+},
+{
+"bride": "sagittarius",
+"groom": "cancer",
+"count": 8,
+"kp": true,
+"kp_31_10": true,
+"provider_rule": false
+},
+{
+"bride": "sagittarius",
+"groom": "leo",
+"count": 9,
+"kp": true,
+"kp_31_10": true,
+"provider_rule": true
+},
+{
+"bride": "sagittarius",
+"groom": "virgo",
+"count": 10,
+"kp": true,
+"kp_31_10": true,
+"provider_rule": true
+},
+{
+"bride": "sagittarius",
+"groom": "libra",
+"count": 11,
+"kp": true,
+"kp_31_10": true,
+"provider_rule": true
+},
+{
+"bride": "sagittarius",
+"groom": "scorpio",
+"count": 12,
+"kp": true,
+"kp_31_10": true,
+"provider_rule": false
+},
+{
+"bride": "sagittarius",
+"groom": "sagittarius",
+"count": 1,
+"kp": null,
+"kp_31_10": true,
+"provider_rule": true
+},
+{
+"bride": "sagittarius",
+"groom": "capricorn",
+"count": 2,
+"kp": true,
+"kp_31_10": true,
+"provider_rule": true
+},
+{
+"bride": "sagittarius",
+"groom": "aquarius",
+"count": 3,
+"kp": false,
+"kp_31_10": false,
+"provider_rule": true
+},
+{
+"bride": "sagittarius",
+"groom": "pisces",
+"count": 4,
+"kp": false,
+"kp_31_10": false,
+"provider_rule": true
+},
+{
+"bride": "capricorn",
+"groom": "aries",
+"count": 4,
+"kp": false,
+"kp_31_10": false,
+"provider_rule": true
+},
+{
+"bride": "capricorn",
+"groom": "taurus",
+"count": 5,
+"kp": false,
+"kp_31_10": false,
+"provider_rule": true
+},
+{
+"bride": "capricorn",
+"groom": "gemini",
+"count": 6,
+"kp": false,
+"kp_31_10": false,
+"provider_rule": false
+},
+{
+"bride": "capricorn",
+"groom": "cancer",
+"count": 7,
+"kp": true,
+"kp_31_10": true,
+"provider_rule": true
+},
+{
+"bride": "capricorn",
+"groom": "leo",
+"count": 8,
+"kp": true,
+"kp_31_10": true,
+"provider_rule": false
+},
+{
+"bride": "capricorn",
+"groom": "virgo",
+"count": 9,
+"kp": true,
+"kp_31_10": true,
+"provider_rule": true
+},
+{
+"bride": "capricorn",
+"groom": "libra",
+"count": 10,
+"kp": true,
+"kp_31_10": true,
+"provider_rule": true
+},
+{
+"bride": "capricorn",
+"groom": "scorpio",
+"count": 11,
+"kp": true,
+"kp_31_10": true,
+"provider_rule": true
+},
+{
+"bride": "capricorn",
+"groom": "sagittarius",
+"count": 12,
+"kp": true,
+"kp_31_10": true,
+"provider_rule": false
+},
+{
+"bride": "capricorn",
+"groom": "capricorn",
+"count": 1,
+"kp": null,
+"kp_31_10": true,
+"provider_rule": true
+},
+{
+"bride": "capricorn",
+"groom": "aquarius",
+"count": 2,
+"kp": false,
+"kp_31_10": false,
+"provider_rule": true
+},
+{
+"bride": "capricorn",
+"groom": "pisces",
+"count": 3,
+"kp": false,
+"kp_31_10": false,
+"provider_rule": true
+},
+{
+"bride": "aquarius",
+"groom": "aries",
+"count": 3,
+"kp": false,
+"kp_31_10": false,
+"provider_rule": true
+},
+{
+"bride": "aquarius",
+"groom": "taurus",
+"count": 4,
+"kp": false,
+"kp_31_10": false,
+"provider_rule": true
+},
+{
+"bride": "aquarius",
+"groom": "gemini",
+"count": 5,
+"kp": false,
+"kp_31_10": false,
+"provider_rule": true
+},
+{
+"bride": "aquarius",
+"groom": "cancer",
+"count": 6,
+"kp": true,
+"kp_31_10": true,
+"provider_rule": false
+},
+{
+"bride": "aquarius",
+"groom": "leo",
+"count": 7,
+"kp": true,
+"kp_31_10": true,
+"provider_rule": true
+},
+{
+"bride": "aquarius",
+"groom": "virgo",
+"count": 8,
+"kp": true,
+"kp_31_10": true,
+"provider_rule": false
+},
+{
+"bride": "aquarius",
+"groom": "libra",
+"count": 9,
+"kp": true,
+"kp_31_10": true,
+"provider_rule": true
+},
+{
+"bride": "aquarius",
+"groom": "scorpio",
+"count": 10,
+"kp": true,
+"kp_31_10": true,
+"provider_rule": true
+},
+{
+"bride": "aquarius",
+"groom": "sagittarius",
+"count": 11,
+"kp": true,
+"kp_31_10": true,
+"provider_rule": true
+},
+{
+"bride": "aquarius",
+"groom": "capricorn",
+"count": 12,
+"kp": true,
+"kp_31_10": true,
+"provider_rule": false
+},
+{
+"bride": "aquarius",
+"groom": "aquarius",
+"count": 1,
+"kp": null,
+"kp_31_10": true,
+"provider_rule": true
+},
+{
+"bride": "aquarius",
+"groom": "pisces",
+"count": 2,
+"kp": true,
+"kp_31_10": true,
+"provider_rule": true
+},
+{
+"bride": "pisces",
+"groom": "aries",
+"count": 2,
+"kp": false,
+"kp_31_10": false,
+"provider_rule": true
+},
+{
+"bride": "pisces",
+"groom": "taurus",
+"count": 3,
+"kp": false,
+"kp_31_10": false,
+"provider_rule": true
+},
+{
+"bride": "pisces",
+"groom": "gemini",
+"count": 4,
+"kp": false,
+"kp_31_10": false,
+"provider_rule": true
+},
+{
+"bride": "pisces",
+"groom": "cancer",
+"count": 5,
+"kp": false,
+"kp_31_10": false,
+"provider_rule": true
+},
+{
+"bride": "pisces",
+"groom": "leo",
+"count": 6,
+"kp": false,
+"kp_31_10": false,
+"provider_rule": false
+},
+{
+"bride": "pisces",
+"groom": "virgo",
+"count": 7,
+"kp": true,
+"kp_31_10": true,
+"provider_rule": true
+},
+{
+"bride": "pisces",
+"groom": "libra",
+"count": 8,
+"kp": true,
+"kp_31_10": true,
+"provider_rule": false
+},
+{
+"bride": "pisces",
+"groom": "scorpio",
+"count": 9,
+"kp": true,
+"kp_31_10": true,
+"provider_rule": true
+},
+{
+"bride": "pisces",
+"groom": "sagittarius",
+"count": 10,
+"kp": true,
+"kp_31_10": true,
+"provider_rule": true
+},
+{
+"bride": "pisces",
+"groom": "capricorn",
+"count": 11,
+"kp": true,
+"kp_31_10": true,
+"provider_rule": true
+},
+{
+"bride": "pisces",
+"groom": "aquarius",
+"count": 12,
+"kp": true,
+"kp_31_10": true,
+"provider_rule": false
+},
+{
+"bride": "pisces",
+"groom": "pisces",
+"count": 1,
+"kp": null,
+"kp_31_10": true,
+"provider_rule": true
+}
+]
+}
