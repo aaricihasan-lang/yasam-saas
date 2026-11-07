@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { useBfcacheRefresh } from "@/hooks/useBfcacheRefresh";
-import { useEffect, useState } from "react";
-import { Activity, Shield } from "lucide-react";
-import { ADMIN_DEMO_VALUE } from "@/components/admin/AdminModuleLayout";
+import { useCallback, useEffect, useState } from "react";
+import { Activity, RefreshCw, Shield } from "lucide-react";
 import { isAdminUser, readYasamUser } from "@/lib/auth/yasamUser";
+import { parseMemberCounts } from "@/lib/admin/memberListQuery";
+import { loadTenantMetricSummary, sistemSagligiAdminHeaders } from "./detail-shared";
 
 const demoCardThemes = [
   {
@@ -40,28 +41,198 @@ const demoCardThemes = [
   },
 ] as const;
 
-const demoCards = [
-  { title: "Toplam Kullanıcı", href: "/admin/sistem-sagligi/kullanicilar" },
-  { title: "Aktif Uzman", href: "/admin/sistem-sagligi/uzmanlar" },
-  { title: "Pasif / Bekleyen Kullanıcı", href: "/admin/sistem-sagligi/bekleyenler" },
-  { title: "Toplam Danışan", href: "/admin/sistem-sagligi/danisanlar" },
-  { title: "Toplam Numeroloji Analizi", href: "/admin/sistem-sagligi/numeroloji" },
-  { title: "Toplam Doğaltaş Kaydı", href: "/admin/sistem-sagligi/dogaltas" },
-  { title: "Kişisel Arşiv Kayıtları", href: "/admin/sistem-sagligi/arsiv" },
-  { title: "Son Hata Kaydı", href: "/admin/sistem-sagligi/hatalar" },
-  { title: "Son Yedek Tarihi", href: "/admin/sistem-sagligi/yedekler" },
-  { title: "Sistem Durumu", href: "/admin/sistem-sagligi/durum" },
-] as const;
+type MetricKey =
+  | "users"
+  | "activeExperts"
+  | "passivePending"
+  | "clients"
+  | "numerology"
+  | "stones"
+  | "archives"
+  | "errors"
+  | "backups"
+  | "status";
 
+/**
+ * Kart değeri — yalnız gerçek kaynaktan gelir. Kaynak yoksa "unlinked", istek başarısızsa
+ * "error" gösterilir; hiçbir durumda sahte sıfır veya tahmini sayı üretilmez.
+ */
+type MetricValue =
+  | { state: "loading" }
+  | { state: "ok"; value: string; detail?: string }
+  | { state: "error" }
+  | { state: "unlinked"; detail: string };
+
+type Metrics = Record<MetricKey, MetricValue>;
+
+const metricCards: { key: MetricKey; title: string; href: string }[] = [
+  { key: "users", title: "Toplam Kullanıcı", href: "/admin/sistem-sagligi/kullanicilar" },
+  { key: "activeExperts", title: "Aktif Uzman", href: "/admin/sistem-sagligi/uzmanlar" },
+  { key: "passivePending", title: "Pasif / Bekleyen Kullanıcı", href: "/admin/sistem-sagligi/bekleyenler" },
+  { key: "clients", title: "Toplam Danışan", href: "/admin/sistem-sagligi/danisanlar" },
+  { key: "numerology", title: "Toplam Numeroloji Analizi", href: "/admin/sistem-sagligi/numeroloji" },
+  { key: "stones", title: "Toplam Doğaltaş Kaydı", href: "/admin/sistem-sagligi/dogaltas" },
+  { key: "archives", title: "Kişisel Arşiv Kayıtları", href: "/admin/sistem-sagligi/arsiv" },
+  { key: "errors", title: "Son Hata Kaydı", href: "/admin/sistem-sagligi/hatalar" },
+  { key: "backups", title: "Son Yedek Tarihi", href: "/admin/sistem-sagligi/yedekler" },
+  { key: "status", title: "Sistem Durumu", href: "/admin/sistem-sagligi/durum" },
+];
+
+/** Uygulama içinde doğrulanabilir kaynağı olmayan kartlar (sabit bilgi; veri uydurulmaz). */
+const ERRORS_UNLINKED: MetricValue = { state: "unlinked", detail: "Uygulama içi hata günlüğü bağlı değil." };
+const BACKUPS_UNLINKED: MetricValue = {
+  state: "unlinked",
+  detail: "Uygulama içinde doğrulanabilir yedek kaydı yok.",
+};
+
+function initialMetrics(): Metrics {
+  return {
+    users: { state: "loading" },
+    activeExperts: { state: "loading" },
+    passivePending: { state: "loading" },
+    clients: { state: "loading" },
+    numerology: { state: "loading" },
+    stones: { state: "loading" },
+    archives: { state: "loading" },
+    errors: ERRORS_UNLINKED,
+    backups: BACKUPS_UNLINKED,
+    status: { state: "loading" },
+  };
+}
+
+const fmt = (n: number) => n.toLocaleString("tr-TR");
+
+async function fetchAdminJson(url: string): Promise<Record<string, unknown> | null> {
+  try {
+    const res = await fetch(url, { headers: sistemSagligiAdminHeaders(), cache: "no-store" });
+    if (!res.ok) return null;
+    const json = (await res.json().catch(() => null)) as unknown;
+    return json && typeof json === "object" ? (json as Record<string, unknown>) : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Üye sayaçları: /api/admin/users GLOBAL `counts` (admin_list_users) — sayfa boyutundan bağımsız. */
+async function loadMemberMetrics(): Promise<Pick<Metrics, "users" | "activeExperts" | "passivePending">> {
+  const json = await fetchAdminJson("/api/admin/users?pageSize=10");
+  if (!json || !json.counts || typeof json.counts !== "object") {
+    return { users: { state: "error" }, activeExperts: { state: "error" }, passivePending: { state: "error" } };
+  }
+  const c = parseMemberCounts(json.counts);
+  return {
+    users: {
+      state: "ok",
+      value: fmt(c.experts_total + c.admins),
+      detail: `${fmt(c.experts_total)} uzman · ${fmt(c.admins)} yönetici`,
+    },
+    activeExperts: { state: "ok", value: fmt(c.approved_active), detail: "Onaylı ve aktif uzman" },
+    passivePending: {
+      state: "ok",
+      value: fmt(c.pending + c.archived),
+      detail: `${fmt(c.pending)} onay bekleyen · ${fmt(c.archived)} pasif`,
+    },
+  };
+}
+
+async function loadTableMetric(metric: "clients" | "stones" | "personal_archives"): Promise<MetricValue> {
+  const result = await loadTenantMetricSummary(metric);
+  if (result.error) return { state: "error" };
+  return { state: "ok", value: fmt(result.total), detail: `${fmt(result.distinctTenants)} çalışma alanı` };
+}
+
+async function loadNumerologyMetric(): Promise<MetricValue> {
+  const json = await fetchAdminJson("/api/admin/numeroloji/tenant-metrics");
+  if (!json || json.ok !== true || typeof json.total !== "number") return { state: "error" };
+  return { state: "ok", value: fmt(json.total), detail: "Kayıtlı numeroloji analizi" };
+}
+
+async function loadStatusMetric(): Promise<MetricValue> {
+  try {
+    const res = await fetch("/api/admin/health/db-ping", {
+      headers: sistemSagligiAdminHeaders(),
+      cache: "no-store",
+    });
+    return res.ok
+      ? { state: "ok", value: "Sağlıklı", detail: "Veritabanı erişimi başarılı" }
+      : { state: "ok", value: "Kontrol gerekli", detail: "Veritabanı erişimi doğrulanamadı" };
+  } catch {
+    return { state: "error" };
+  }
+}
+
+async function loadAllMetrics(): Promise<Metrics> {
+  const [members, clients, numerology, stones, archives, status] = await Promise.all([
+    loadMemberMetrics(),
+    loadTableMetric("clients"),
+    loadNumerologyMetric(),
+    loadTableMetric("stones"),
+    loadTableMetric("personal_archives"),
+    loadStatusMetric(),
+  ]);
+  return {
+    ...members,
+    clients,
+    numerology,
+    stones,
+    archives,
+    errors: ERRORS_UNLINKED,
+    backups: BACKUPS_UNLINKED,
+    status,
+  };
+}
+
+const stateChip = {
+  ok: { label: "Canlı", cls: "border-emerald-200 bg-emerald-50 text-emerald-800" },
+  error: { label: "Alınamadı", cls: "border-rose-200 bg-rose-50 text-rose-800" },
+  unlinked: { label: "Bağlı değil", cls: "border-slate-200 bg-white/80 text-slate-600" },
+} as const;
+
+function metricText(metric: MetricValue): { value: string; detail: string | null } {
+  switch (metric.state) {
+    case "loading":
+      return { value: "Yükleniyor…", detail: null };
+    case "ok":
+      return { value: metric.value, detail: metric.detail ?? null };
+    case "error":
+      return { value: "—", detail: "Veri alınamadı. Yenilemeyi deneyin." };
+    case "unlinked":
+      return { value: "—", detail: metric.detail };
+  }
+}
 
 export default function SistemSagligiPage() {
   useBfcacheRefresh();
   const [checked, setChecked] = useState(false);
   const [allowed, setAllowed] = useState(false);
+  const [metrics, setMetrics] = useState<Metrics>(initialMetrics);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     setAllowed(isAdminUser(readYasamUser()));
     setChecked(true);
+  }, []);
+
+  const [reloadKey, setReloadKey] = useState(0);
+
+  // Durum yalnız istekler bittikten sonra yazılır; yükleniyor durumu başlangıç değeri / Yenile ile kurulur.
+  useEffect(() => {
+    if (!checked || !allowed) return;
+    let cancelled = false;
+    void loadAllMetrics().then((next) => {
+      if (cancelled) return;
+      setMetrics(next);
+      setLoading(false);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [checked, allowed, reloadKey]);
+
+  const reloadMetrics = useCallback(() => {
+    setLoading(true);
+    setMetrics(initialMetrics());
+    setReloadKey((k) => k + 1);
   }, []);
 
   if (!checked) {
@@ -114,33 +285,57 @@ export default function SistemSagligiPage() {
         <section aria-label="Sistem metrikleri">
           <div className="flex flex-wrap items-center gap-2">
             <h2 className="text-lg font-bold text-slate-900">Sistem metrikleri</h2>
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-violet-100 px-2.5 py-0.5 text-xs font-bold text-violet-700">
-              <span className="h-1.5 w-1.5 rounded-full bg-violet-400" aria-hidden />
-              Hazırlanıyor
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-bold text-emerald-800">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" aria-hidden />
+              Canlı veri
             </span>
+            <button
+              type="button"
+              onClick={reloadMetrics}
+              disabled={loading}
+              className="ml-auto inline-flex h-9 items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 text-xs font-bold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-wait disabled:opacity-60"
+            >
+              <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} aria-hidden />
+              Yenile
+            </button>
           </div>
           <p className="mt-1 text-sm text-slate-600">
             Platform genelinde kullanım ve durum göstergeleri
           </p>
           <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
-            {demoCards.map((card, index) => {
+            {metricCards.map((card, index) => {
               const theme = demoCardThemes[index % demoCardThemes.length];
+              const metric = metrics[card.key];
+              const text = metricText(metric);
+              const chip = metric.state === "loading" ? null : stateChip[metric.state];
               return (
                 <Link
-                  key={card.title}
+                  key={card.key}
                   href={card.href}
                   className="block h-full no-underline"
                 >
                   <article
+                    data-metric={card.key}
+                    data-state={metric.state}
+                    aria-busy={metric.state === "loading"}
                     className={`flex h-full min-h-[120px] cursor-pointer flex-col rounded-2xl border bg-gradient-to-br p-5 shadow-md transition-all duration-200 hover:scale-[1.02] hover:-translate-y-0.5 hover:shadow-lg ${theme.cardBg} ${theme.border}`}
                   >
-                    <span className="w-fit rounded-full border border-white/90 bg-white/80 px-2.5 py-0.5 text-xs font-semibold text-slate-500 shadow-sm">
-                      Demo
-                    </span>
-                    <h3 className="mt-3 text-base font-bold text-slate-900">{card.title}</h3>
-                    <p className={`mt-2 flex-1 text-sm font-semibold leading-relaxed ${theme.valueText}`}>
-                      {ADMIN_DEMO_VALUE}
+                    {chip ? (
+                      <span className={`w-fit rounded-full border px-2.5 py-0.5 text-xs font-semibold shadow-sm ${chip.cls}`}>
+                        {chip.label}
+                      </span>
+                    ) : null}
+                    <h3 className={`text-base font-bold text-slate-900 ${chip ? "mt-3" : ""}`}>{card.title}</h3>
+                    <p className={`mt-2 text-2xl font-black tabular-nums ${theme.valueText}`}>
+                      {text.value}
                     </p>
+                    {text.detail ? (
+                      <p className="mt-1 flex-1 text-xs font-semibold leading-relaxed text-slate-600">
+                        {text.detail}
+                      </p>
+                    ) : (
+                      <span className="flex-1" />
+                    )}
                     <p className="mt-3 text-xs font-semibold text-slate-500">Detayları gör →</p>
                   </article>
                 </Link>
@@ -151,7 +346,7 @@ export default function SistemSagligiPage() {
 
         <footer className="mt-8 border-t border-slate-200/60 pt-6">
           <p className="text-xs font-medium text-slate-600">
-            Sistem Sağlığı · admin modül önizlemesi
+            Sistem Sağlığı · sayılar yalnız yönetici API&apos;lerinden canlı okunur; kaynağı olmayan alan gösterilmez.
           </p>
         </footer>
       </div>
