@@ -98,6 +98,7 @@ import premium from "@/app/_premium/home/home.module.css";
 import lp from "@/app/_premium/landing/landing.module.css";
 import { LANDING_FEATURE_ART, LANDING_MODULE_THEME } from "@/app/_premium/landing/landingTheme";
 import { ClientJourneyScreen, HeroScene, MobilePhone, ScatterToHub } from "@/app/_premium/landing/LandingVisuals";
+import CampaignBand from "@/app/_premium/landing/CampaignBand";
 import { premiumFontVars } from "@/app/_premium/fonts";
 import HomeCampaignSection from "@/app/_campaign/HomeCampaignSection";
 import CookiePreferencesButton from "@/components/analytics/CookiePreferencesButton";
@@ -1743,6 +1744,9 @@ export default function Home() {
             </Link>
           </div>
         </header>
+
+        {/* — Yeni üyelere özel açılış kampanyası bandı (üst çubuğun altında, hero'nun üstünde) — */}
+        <CampaignBand />
 
         {/* — 01 · Giriş: satış mesajı + laptop/telefon (gerçek ana panel temsili) + test hesabı şeridi — */}
         <section className={lp.hero} aria-labelledby="landing-hero-title">

@@ -3173,3 +3173,144 @@
     transition: none !important;
   }
 }
+
+/* ── Kampanya duyurusu: yeni üyelere özel açılış fırsatı (owner revizyonu 2026-11-07, v7) ──
+ * Kompakt premium rozet: koyu lacivert zemin + sıcak altın/bronz çerçeve ve fiyat. Buton/bağlantı YOK. Hareket yok.
+ * Masaüstü (≥1260): nav ile laptop arasındaki boş alanda, laptopun sol kenarı hizasında MUTLAK konumlu →
+ * hero yüksekliği ve içerik konumu değişmez. Mobil/tablet: üst çubuğun altında kompakt satır. */
+.campaign {
+  position: relative;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  width: fit-content;
+  max-width: 100%;
+  gap: 8px;
+  margin: 8px 0 0;
+  padding: 6px 12px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  background:
+    linear-gradient(135deg, #16223f 0%, #101b35 55%, #1c2846 100%) padding-box,
+    linear-gradient(135deg, #f0d792 0%, #b8862b 40%, #f4e2b0 70%, #9a6a1b 100%) border-box;
+  box-shadow: inset 0 1px 0 rgba(255, 236, 190, 0.18), 0 8px 18px -10px rgba(16, 27, 53, 0.55);
+  color: #f6eedc;
+  white-space: nowrap;
+  forced-color-adjust: none;
+}
+
+.campaignIcon {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  color: #e6c06a;
+}
+
+.campaignTitle {
+  margin: 0;
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1.25;
+  letter-spacing: 0.01em;
+}
+
+/* Ayraç: küçük altın elmas (statik). */
+.campaignSep {
+  width: 5px;
+  height: 5px;
+  flex-shrink: 0;
+  background: #d4a24a;
+  transform: rotate(45deg);
+}
+
+.campaignPrice {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+  margin: 0;
+}
+
+.campaignAmount {
+  color: #f1c96b;
+  font-size: 15px;
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: 0.005em;
+}
+
+.campaignPer {
+  color: #dcb873;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+@media (max-width: 359px) {
+  .campaign { gap: 6px; padding: 6px 10px; }
+  .campaignIcon { display: none; }
+  .campaignTitle { font-size: 12px; }
+  .campaignAmount { font-size: 14px; }
+}
+
+/* Mobil/tablet: rozet akışta olduğu için hero üst boşluğu küçülür (net itme ≈ 14–18px). */
+@media (max-width: 1259px) {
+  .heroBand:has(> .campaign) .hero { padding-top: 16px; }
+}
+
+@media (min-width: 640px) {
+  .campaign { gap: 10px; margin-top: 10px; padding: 7px 16px; }
+  .campaignTitle { font-size: 14px; }
+  .campaignAmount { font-size: 17px; }
+  .campaignPer { font-size: 13px; }
+}
+
+@media (min-width: 1260px) {
+  .campaign {
+    position: absolute;
+    top: 96px;
+    /* laptop sol kenarı ≈ 44,7vw; heroBand'in sol kenarı = max(40px, 50vw − 620px) */
+    left: calc(44.7vw - max(40px, 50vw - 620px));
+    height: 40px;
+    min-width: 470px;
+    justify-content: center;
+    gap: 12px;
+    margin: 0;
+    padding: 0 22px;
+    border-radius: 14px;
+  }
+
+  .campaignIcon { width: 16px; height: 16px; }
+  .campaignTitle { font-size: 15.5px; }
+  .campaignAmount { font-size: 20px; }
+  .campaignPer { font-size: 14px; }
+}
+
+/* ≥1600: hero metni ortalanmış 1320px kapsayıcıya, sahne ise tam ekran genişliğine bağlı olduğundan geniş
+ * ekranda metin laptopun üstüne kayıyordu (1920'de ~76–125px). Metin genişliği laptopun sol kenarına göre
+ * sınırlanır (laptop ≈ 100vw − 0,553 × sahne genişliği; tam genişlikte 44,7vw; metnin sol kenarı = max(40px, 50vw − 620px); 40px nefes payı); başlık aynı
+ * ölçek formülünü korur, yalnız üst sınırı 4rem → 3.6rem (1600'de sıçrama yok). 1600 altı değişmez. */
+@media (min-width: 1600px) {
+  .heroText { max-width: calc(100vw - 0.553 * var(--sceneW, 100vw) - max(40px, 50vw - 620px) - 40px); }
+  .heroBand .h1 { font-size: clamp(2.6rem, 3.55vw, 3.6rem); }
+}
+
+/* ≥1260 yükseklik duyarlı hero sahnesi (owner 2026-11-07): sahne tek tuvaldir (laptop fotoğrafın içinde, telefon ve
+ * ekran içerikleri aynı tuvalde, scale(100cqw/1672)) → genişliği küçültmek her şeyi ORANTILI küçültür.
+ * Telefonun alt kenarı sahne yüksekliğinin ≈%88,9'unda; pencereye (innerHeight − 12px) sığması için gereken genişlik
+ * ≈ (100vh − 12px) × 2. Sahne yalnız pencere kısaysa küçülür (en az 80vw), sağa yaslanır; soldaki geçiş yumuşak
+ * maskeyle erir. Hero bandı sahne yüksekliğine göre dengelenir (alttaki bölüm gereksiz aşağı itilmez). */
+@media (min-width: 1260px) {
+  .heroBand { --sceneW: max(80vw, min(100vw, (100vh - 12px) * 2)); }
+
+  .heroBand { min-height: calc(var(--sceneW) * 941 / 1672 - 18px); }
+
+  .heroScene {
+    left: auto;
+    right: calc(50% - 50vw);
+    width: var(--sceneW);
+    -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 min(160px, (100vw - var(--sceneW)) * 1.5));
+    mask-image: linear-gradient(90deg, transparent 0, #000 min(160px, (100vw - var(--sceneW)) * 1.5));
+  }
+
+  /* Rozet laptopun sol kenarını izler (laptop ≈ sahnenin %44,7'sinde; sahne sağa yaslı). Rozet tasarımı aynen. */
+  .campaign { left: calc(100vw - 0.553 * var(--sceneW) - max(40px, 50vw - 620px)); }
+}

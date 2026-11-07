@@ -522,6 +522,12 @@
       }
     },
     "landingPremium": {
+      "campaign": {
+        "title": "Yeni Üyelere Özel Açılış Fırsatı",
+        "priceAmount": "250 TL",
+        "priceSuffix": "/ ay",
+        "aria": "Kampanya duyurusu: Yeni üyelere özel açılış fırsatı, ayda 250 TL"
+      },
       "heroEyebrow": "Profesyoneller için tek merkez",
       "eyebrow": "Bütüncül Yaşam Analizi Platformu",
       "logoAlt": "Yaşam Sistemi — Bütüncül Yaşam Analizi Platformu",
