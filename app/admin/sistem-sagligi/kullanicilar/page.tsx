@@ -5,11 +5,12 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Loader2, Shield } from "lucide-react";
 import {
   formatCreatedAt,
-  mapDbUser,
   type ManagedUser,
   type ManagedUserRole,
 } from "@/lib/admin/userManagement";
-import { isAdminUser, readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
+import type { MemberCounts } from "@/lib/admin/memberListQuery";
+import { isAdminUser, readYasamUser } from "@/lib/auth/yasamUser";
+import { listCoverageLabel, loadNewestMembers } from "../detail-shared";
 
 type StatTone = "indigo" | "violet" | "emerald" | "amber" | "slate" | "rose";
 
@@ -76,33 +77,20 @@ function roleBadgeClass(role: ManagedUserRole): string {
     : "bg-sky-100 text-sky-950 ring-sky-200";
 }
 
-function computeStats(users: ManagedUser[]) {
-  const total = users.length;
-  const adminCount = users.filter((u) => u.role === "admin").length;
-  const activeExpertCount = users.filter(
-    (u) => u.role === "expert" && u.active && u.approvalStatus === "approved",
-  ).length;
-  const pendingCount = users.filter((u) => u.approvalStatus === "pending").length;
-  const passiveCount = users.filter(
-    (u) => !u.active || u.approvalStatus === "rejected",
-  ).length;
-
-  return { total, adminCount, activeExpertCount, pendingCount, passiveCount };
-}
-
-function pickLastUsers(users: ManagedUser[], limit = 10): ManagedUser[] {
-  return [...users]
-    .sort((a, b) => (b.createdAt ?? "").localeCompare(a.createdAt ?? ""))
-    .slice(0, limit);
-}
-
-/** Admin API çağrıları için header — x-admin-id + (varsa) x-session-token (TB-2) */
-function adminHeaders(adminId: string | undefined, json = false): Record<string, string> {
-  const token = readSessionToken();
-  const h: Record<string, string> = { "x-admin-id": adminId ?? "" };
-  if (token) h["x-session-token"] = token;
-  if (json) h["Content-Type"] = "application/json";
-  return h;
+/**
+ * Sayaçlar GLOBAL `counts`'tan (admin_list_users) gelir — sayfalı listenin uzunluğundan HESAPLANMAZ.
+ * users.role CHECK ile yalnız 'admin' | 'expert' olabilir → toplam = uzman + yönetici. Uzman sınıfları
+ * ayrık ve tamdır: aktif (onaylı+aktif) · onay bekleyen · arşiv (onaylı+pasif) · reddedilen.
+ */
+function computeStats(c: MemberCounts) {
+  return {
+    total: c.experts_total + c.admins,
+    adminCount: c.admins,
+    activeExpertCount: c.approved_active,
+    pendingCount: c.pending,
+    archivedCount: c.archived,
+    rejectedCount: c.rejected,
+  };
 }
 
 export default function SistemSagligiKullanicilarPage() {
@@ -111,31 +99,26 @@ export default function SistemSagligiKullanicilarPage() {
   const [allowed, setAllowed] = useState(false);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [users, setUsers] = useState<ManagedUser[]>([]);
+  const [lastUsers, setLastUsers] = useState<ManagedUser[]>([]);
+  const [totalUsers, setTotalUsers] = useState(0);
+  const [counts, setCounts] = useState<MemberCounts | null>(null);
 
   const loadUsers = useCallback(async () => {
     setLoading(true);
     setLoadError(null);
 
-    const adminId = readYasamUser()?.id;
-    const res = await fetch("/api/admin/users", {
-      headers: adminHeaders(adminId),
-    });
-
-    if (!res.ok) {
-      const j = (await res.json().catch(() => ({}))) as { error?: string };
-      console.error("Sistem sağlığı kullanıcı listesi:", j.error);
-      setLoadError(j.error ?? `HTTP ${res.status}`);
-      setUsers([]);
+    // Üyeler + arşiv görünümleri birlikte → tüm kullanıcılar içinden en yeni 10 kayıt.
+    const result = await loadNewestMembers({}, ["members", "archive"], 10);
+    if (!result.ok) {
+      setLoadError(result.error);
+      setLastUsers([]);
+      setCounts(null);
       setLoading(false);
       return;
     }
-
-    const json = (await res.json().catch(() => ({}))) as { users?: Record<string, unknown>[] };
-    const mapped = (json.users ?? []).map((row) =>
-      mapDbUser(row as Record<string, unknown>),
-    );
-    setUsers(mapped);
+    setLastUsers(result.users);
+    setTotalUsers(result.total);
+    setCounts(result.counts);
     setLoading(false);
   }, []);
 
@@ -149,8 +132,7 @@ export default function SistemSagligiKullanicilarPage() {
     void loadUsers();
   }, [checked, allowed, loadUsers]);
 
-  const stats = useMemo(() => computeStats(users), [users]);
-  const lastUsers = useMemo(() => pickLastUsers(users, 10), [users]);
+  const stats = useMemo(() => (counts ? computeStats(counts) : null), [counts]);
 
   if (!checked) {
     return (
@@ -199,10 +181,12 @@ export default function SistemSagligiKullanicilarPage() {
             <Loader2 className="h-12 w-12 animate-spin text-emerald-600" aria-hidden />
             <p className="text-lg font-bold text-slate-600">Kullanıcı verileri yükleniyor…</p>
           </div>
-        ) : loadError ? (
+        ) : loadError || !stats ? (
           <section className="rounded-[28px] border-2 border-rose-200/90 bg-gradient-to-r from-rose-50/95 via-white to-orange-50/90 p-8 shadow-xl">
             <p className="text-xl font-black text-rose-950">Veri yüklenemedi</p>
-            <p className="mt-3 text-base font-medium text-rose-900/90">{loadError}</p>
+            <p className="mt-3 text-base font-medium text-rose-900/90">
+              {loadError ?? "Üye verileri alınamadı. Lütfen tekrar deneyin."}
+            </p>
             <button
               type="button"
               onClick={() => void loadUsers()}
@@ -215,7 +199,7 @@ export default function SistemSagligiKullanicilarPage() {
           <>
             <section
               aria-label="Kullanıcı özeti"
-              className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-5"
+              className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6"
             >
               <SummaryStatCard label="Toplam kullanıcı" value={stats.total} tone="indigo" />
               <SummaryStatCard label="Admin sayısı" value={stats.adminCount} tone="violet" />
@@ -225,11 +209,12 @@ export default function SistemSagligiKullanicilarPage() {
                 tone="emerald"
               />
               <SummaryStatCard
-                label="Bekleyen kullanıcı"
+                label="Onay bekleyen uzman"
                 value={stats.pendingCount}
                 tone="amber"
               />
-              <SummaryStatCard label="Pasif kullanıcı" value={stats.passiveCount} tone="slate" />
+              <SummaryStatCard label="Pasif (arşiv) uzman" value={stats.archivedCount} tone="slate" />
+              <SummaryStatCard label="Reddedilen uzman" value={stats.rejectedCount} tone="rose" />
             </section>
 
             <section className="mt-8 w-full" aria-label="Son 10 kullanıcı">
@@ -242,8 +227,11 @@ export default function SistemSagligiKullanicilarPage() {
                     En son oluşturulan hesaplar — yönetimsel alanlar
                   </p>
                 </div>
-                <p className="rounded-full border border-emerald-200 bg-emerald-50 px-4 py-1.5 text-sm font-bold text-emerald-900">
-                  {users.length} kayıt · users tablosu
+                <p
+                  data-list-coverage
+                  className="rounded-full border border-emerald-200 bg-emerald-50 px-4 py-1.5 text-sm font-bold text-emerald-900"
+                >
+                  {listCoverageLabel(lastUsers.length, totalUsers)}
                 </p>
               </div>
 

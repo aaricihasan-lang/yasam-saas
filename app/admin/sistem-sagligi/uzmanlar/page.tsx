@@ -6,36 +6,26 @@ import {
   AccessDeniedScreen,
   formatCreatedAt,
   formatUserStatus,
+  listCoverageLabel,
   LoadingScreen,
-  mapUsersFromRows,
-  pickRecentUsers,
+  loadNewestMembers,
   SistemSagligiDetailShell,
   statusBadgeClass,
   SummaryStatCard,
   useSistemSagligiAdminGate,
 } from "../detail-shared";
 import type { ManagedUser } from "@/lib/admin/userManagement";
-import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
+import type { MemberCounts } from "@/lib/admin/memberListQuery";
 
-function computeExpertStats(experts: ManagedUser[]) {
-  const total = experts.length;
-  const active = experts.filter(
-    (u) => u.active && u.approvalStatus === "approved",
-  ).length;
-  const pending = experts.filter((u) => u.approvalStatus === "pending").length;
-  const passive = experts.filter(
-    (u) => !u.active || u.approvalStatus === "rejected",
-  ).length;
-  return { total, active, pending, passive };
-}
-
-/** Admin API çağrıları için header — x-admin-id + (varsa) x-session-token (TB-2) */
-function adminHeaders(adminId: string | undefined, json = false): Record<string, string> {
-  const token = readSessionToken();
-  const h: Record<string, string> = { "x-admin-id": adminId ?? "" };
-  if (token) h["x-session-token"] = token;
-  if (json) h["Content-Type"] = "application/json";
-  return h;
+/** GLOBAL sayaçlardan (liste uzunluğundan DEĞİL) ayrık ve tam uzman sınıfları. */
+function computeExpertStats(c: MemberCounts) {
+  return {
+    total: c.experts_total,
+    active: c.approved_active,
+    pending: c.pending,
+    archived: c.archived,
+    rejected: c.rejected,
+  };
 }
 
 export default function SistemSagligiUzmanlarPage() {
@@ -43,31 +33,26 @@ export default function SistemSagligiUzmanlarPage() {
   const { checked, allowed } = useSistemSagligiAdminGate();
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [experts, setExperts] = useState<ManagedUser[]>([]);
+  const [recentExperts, setRecentExperts] = useState<ManagedUser[]>([]);
+  const [expertTotal, setExpertTotal] = useState(0);
+  const [counts, setCounts] = useState<MemberCounts | null>(null);
 
   const loadExperts = useCallback(async () => {
     setLoading(true);
     setLoadError(null);
 
-    const adminId = readYasamUser()?.id;
-    const res = await fetch("/api/admin/users", {
-      headers: adminHeaders(adminId),
-    });
-
-    if (!res.ok) {
-      const j = (await res.json().catch(() => ({}))) as { error?: string };
-      console.error("Sistem sağlığı uzman listesi:", j.error);
-      setLoadError(j.error ?? `HTTP ${res.status}`);
-      setExperts([]);
+    // Uzman rolü; üyeler + arşiv görünümleri birlikte → tüm uzmanlar içinden en yeni 10 kayıt.
+    const result = await loadNewestMembers({ role: "expert" }, ["members", "archive"], 10);
+    if (!result.ok) {
+      setLoadError(result.error);
+      setRecentExperts([]);
+      setCounts(null);
       setLoading(false);
       return;
     }
-
-    const json = (await res.json().catch(() => ({}))) as { users?: Record<string, unknown>[] };
-    const rows = (json.users ?? []).filter(
-      (u) => (u as { role?: string }).role === "expert",
-    );
-    setExperts(mapUsersFromRows(rows));
+    setRecentExperts(result.users);
+    setExpertTotal(result.total);
+    setCounts(result.counts);
     setLoading(false);
   }, []);
 
@@ -76,8 +61,7 @@ export default function SistemSagligiUzmanlarPage() {
     void loadExperts();
   }, [checked, allowed, loadExperts]);
 
-  const stats = useMemo(() => computeExpertStats(experts), [experts]);
-  const recentExperts = useMemo(() => pickRecentUsers(experts, 10), [experts]);
+  const stats = useMemo(() => (counts ? computeExpertStats(counts) : null), [counts]);
 
   if (!checked) return <LoadingScreen />;
   if (!allowed) return <AccessDeniedScreen />;
@@ -89,25 +73,36 @@ export default function SistemSagligiUzmanlarPage() {
       headerGradient="from-slate-900 via-sky-900 to-indigo-800"
       loading={loading}
       loadingLabel="Uzman verileri yükleniyor…"
-      error={loadError}
+      error={loadError ?? (stats ? null : "Üye verileri alınamadı. Lütfen tekrar deneyin.")}
       onRetry={() => void loadExperts()}
-      tableBadge={`${experts.length} uzman · users tablosu`}
+      tableBadge={stats ? `${stats.total} uzman · users tablosu` : undefined}
     >
-      <section
-        aria-label="Uzman özeti"
-        className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4"
-      >
-        <SummaryStatCard label="Toplam uzman" value={stats.total} tone="indigo" />
-        <SummaryStatCard label="Aktif uzman" value={stats.active} tone="emerald" />
-        <SummaryStatCard label="Bekleyen uzman" value={stats.pending} tone="amber" />
-        <SummaryStatCard label="Pasif uzman" value={stats.passive} tone="slate" />
-      </section>
+      {stats ? (
+        <section
+          aria-label="Uzman özeti"
+          className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5"
+        >
+          <SummaryStatCard label="Toplam uzman" value={stats.total} tone="indigo" />
+          <SummaryStatCard label="Aktif uzman" value={stats.active} tone="emerald" />
+          <SummaryStatCard label="Onay bekleyen uzman" value={stats.pending} tone="amber" />
+          <SummaryStatCard label="Pasif (arşiv) uzman" value={stats.archived} tone="slate" />
+          <SummaryStatCard label="Reddedilen uzman" value={stats.rejected} tone="rose" />
+        </section>
+      ) : null}
 
       <section className="mt-8 w-full" aria-label="Son uzman kayıtları">
-        <div className="mb-5">
-          <h2 className="text-2xl font-black text-slate-900 sm:text-3xl">Son 10 uzman</h2>
-          <p className="mt-1 text-base font-medium text-slate-600 sm:text-lg">
-            En son oluşturulan uzman hesapları
+        <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h2 className="text-2xl font-black text-slate-900 sm:text-3xl">Son 10 uzman</h2>
+            <p className="mt-1 text-base font-medium text-slate-600 sm:text-lg">
+              En son oluşturulan uzman hesapları
+            </p>
+          </div>
+          <p
+            data-list-coverage
+            className="rounded-full border border-sky-200 bg-sky-50 px-4 py-1.5 text-sm font-bold text-sky-900"
+          >
+            {listCoverageLabel(recentExperts.length, expertTotal)}
           </p>
         </div>
 

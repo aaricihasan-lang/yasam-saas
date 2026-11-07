@@ -8,6 +8,7 @@ import {
   type ManagedUser,
 } from "@/lib/admin/userManagement";
 import { isAdminUser, readSessionToken, readYasamUser } from "@/lib/auth/yasamUser";
+import { parseMemberCounts, type MemberCounts } from "@/lib/admin/memberListQuery";
 
 export { formatCreatedAt };
 
@@ -179,6 +180,87 @@ export async function probeSistemSagligiTables(group: "errors" | "backups"): Pro
   } catch {
     return false;
   }
+}
+
+const MEMBER_LOAD_ERROR = "Üye verileri alınamadı. Lütfen tekrar deneyin.";
+
+/** Üye listesi filtresi — /api/admin/users sorgusu (değerler sunucu allowlist'inde doğrulanır). */
+export type MemberListFilter = {
+  role?: "admin" | "expert";
+  approval?: "pending" | "approved" | "rejected";
+};
+
+export type NewestMembersResult =
+  | {
+      ok: true;
+      /** Seçilen görünümlerdeki en yeni kayıtlar (en fazla `limit`). */
+      users: ManagedUser[];
+      /** Filtreye uyan TOPLAM kayıt (sunucu sayımı; liste uzunluğu DEĞİL). */
+      total: number;
+      /** GLOBAL üye sayaçları (admin_list_users; filtre ve sayfadan bağımsız). */
+      counts: MemberCounts;
+    }
+  | { ok: false; error: string };
+
+type MemberPage = { users: Record<string, unknown>[]; total: number; counts: MemberCounts };
+
+async function fetchMemberPage(params: URLSearchParams): Promise<MemberPage | null> {
+  try {
+    const res = await fetch(`/api/admin/users?${params.toString()}`, {
+      headers: sistemSagligiAdminHeaders(),
+      cache: "no-store",
+    });
+    if (!res.ok) return null;
+    const json = (await res.json().catch(() => null)) as {
+      users?: unknown;
+      total?: unknown;
+      counts?: unknown;
+    } | null;
+    if (!json || !Array.isArray(json.users) || typeof json.total !== "number") return null;
+    if (!json.counts || typeof json.counts !== "object") return null;
+    return {
+      users: json.users as Record<string, unknown>[],
+      total: json.total,
+      counts: parseMemberCounts(json.counts),
+    };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Sunucu tarafında sıralı (created_desc) ve filtreli EN YENİ kayıtlar + filtre toplamı + global sayaçlar.
+ * /api/admin/users sayfalıdır ve varsayılan "members" görünümü arşivi (onaylı + pasif uzman) dışarıda
+ * bırakır; bu yüzden istenen görünümlerin her biri ayrı sorgulanıp birleştirilir. Herhangi bir istek
+ * başarısızsa sonuç hata döner (eksik veya sahte sıfır gösterilmez).
+ */
+export async function loadNewestMembers(
+  filter: MemberListFilter,
+  views: readonly ("members" | "archive")[],
+  limit: 10 | 20 | 50 = 10,
+): Promise<NewestMembersResult> {
+  const pages = await Promise.all(
+    views.map((view) => {
+      const p = new URLSearchParams({ view, sort: "created_desc", pageSize: String(limit) });
+      if (filter.role) p.set("role", filter.role);
+      if (filter.approval) p.set("approval", filter.approval);
+      return fetchMemberPage(p);
+    }),
+  );
+  if (pages.length === 0 || pages.some((p) => p === null)) return { ok: false, error: MEMBER_LOAD_ERROR };
+  const ok = pages as MemberPage[];
+  return {
+    ok: true,
+    users: pickRecentUsers(mapUsersFromRows(ok.flatMap((p) => p.users)), limit),
+    total: ok.reduce((sum, p) => sum + p.total, 0),
+    counts: ok[0].counts,
+  };
+}
+
+/** "N kayıttan en yeni M gösteriliyor" — liste sınırlıysa açıkça belirtir. */
+export function listCoverageLabel(shown: number, total: number): string {
+  if (total <= shown) return `${total} kaydın tamamı gösteriliyor`;
+  return `${total} kayıttan en yeni ${shown} tanesi gösteriliyor`;
 }
 
 export function useSistemSagligiAdminGate() {
