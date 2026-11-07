@@ -13,6 +13,8 @@ import { isAstrologyShellOwner } from "@/lib/astrology/access/ownerGate";
 import { isEducationOwner } from "@/lib/human-design/education/educationAccess";
 import { privateEnvKillSwitch, resolvePrivateActor } from "@/lib/human-design/education/private/privateAccess";
 import { isCampaignOwner } from "@/lib/campaign/adminService";
+import { resolveIsSuperAdmin } from "@/lib/admin/adminGuards";
+import OwnerBell from "@/components/admin/notifications/OwnerBell";
 
 /**
  * Admin route guard — Server Component.
@@ -68,6 +70,13 @@ export default async function AdminLayout({ children }: { children: ReactNode })
   } catch {
     showCampaign = false;
   }
+  // Owner bildirim zili: yalnız ana yönetici (is_super_admin) için sunucuda render edilir; API ve DB ayrıca doğrular.
+  let showOwnerBell = false;
+  try {
+    showOwnerBell = await resolveIsSuperAdmin(getServerDb(), adminId);
+  } catch {
+    showOwnerBell = false;
+  }
 
   return (
     <>
@@ -109,6 +118,11 @@ export default async function AdminLayout({ children }: { children: ReactNode })
           <Link href="/admin/kampanya-merkezi" className="font-semibold text-amber-700 hover:underline">
             Kampanya Merkezi
           </Link>
+        )}
+        {showOwnerBell && (
+          <span className="ml-auto">
+            <OwnerBell placement="admin" compact />
+          </span>
         )}
       </nav>
       {children}

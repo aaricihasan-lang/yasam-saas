@@ -463,6 +463,11 @@ export const BACKUP_REGISTRY: readonly RegistryEntry[] = [
   off("user_payment_history", "system", "Ödeme geçmişi (yönetici kaydı).", "none"),
   off("member_pricing_phases", "system", "Üye ticari fiyat dönemleri (yönetici kaydı; yalnız RPC).", "none"),
   off("admin_audit_log", "system", "Yönetici denetim günlüğü.", "none"),
+  // Owner bildirim zili (migration 20280101000400): mevcut kayıtlardan yeniden türetilen olay kaydı + okundu bilgisi;
+  // yalnız SECURITY DEFINER RPC'ler erişir. Kişisel veri içeriği yok (yalnız üye kimliği + olay zamanı).
+  off("admin_notifications", "system", "Owner bildirimleri (karar bekleyen / bilgi) — kaynak kayıtlardan yeniden türetilir.", "none"),
+  off("admin_notification_reads", "system", "Owner bildirim okundu bilgisi.", "none"),
+  off("admin_notification_settings", "system", "Owner bildirim ayarı (bilgi başlangıç anı, son uzlaştırma).", "none"),
   off("admin_library_transfer_batches", "system", "Yönetici kütüphane aktarım kayıtları.", "none"),
   off("provisioning_events", "system", "Hesap açma olayları.", "none"),
   off("expert_usage_events", "system", "Kullanım istatistiği olayları."),

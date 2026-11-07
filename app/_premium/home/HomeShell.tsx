@@ -20,6 +20,7 @@ import {
 import { useTranslations } from "next-intl";
 import { Menu } from "lucide-react";
 import NotificationBell from "@/components/notifications/NotificationBell";
+import OwnerBell from "@/components/admin/notifications/OwnerBell";
 import SideMenu, {
   readSideMenuCollapsed,
   subscribeSideMenuCollapsed,
@@ -139,6 +140,7 @@ export default function HomeShell({
         scrim={drawerOpen ? "home" : "none"}
         onScrimClick={() => setDrawerOpen(false)}
         bell={bell}
+        ownerBell={<OwnerBell placement="side" compact />}
         footSlot={sideSlot}
       />
 
