@@ -308,7 +308,7 @@ t("BPHS parça sırası: 7 gün × gündüz/gece yönetici tablosu (Panchanga Ya
 // ─── 4 · Ürün yolu: teknik projeksiyonu, kapı, sürüm, eski kayıt ──────────────────────────────────────────────────────
 const golden = JSON.parse(fs.readFileSync(path.join(__dirname, "fixtures", "golden", "vedic-upagraha.json"), "utf8"));
 const unit = vedicUpagraha.units({ birth: { birthDate: "1990-07-15", birthTime: "14:30:00", utcOffsetSeconds: 10800, latitude: 41.0082, longitude: 28.9784 } } as never, { ayanamsa: "lahiri" })[0];
-t("teknik projeksiyonu (gerçek servis yanıtı): 4 nokta BPHS, Gulika/Mandi/Güneş türevliler servisle aynı, kalaVela işareti var", () => {
+t("teknik projeksiyonu (gerçek servis yanıtı): 4 nokta BPHS, Gulika/Güneş türevliler servisle aynı, Mandi klasik yerel (F1), kalaVela işareti var", () => {
   assert.deepEqual(unit.body, golden.body);
   const p = vedicUpagraha.project(unit, golden.response, { ayanamsa: "lahiri" });
   assert.ok(p.ok, JSON.stringify(p));
@@ -318,12 +318,15 @@ t("teknik projeksiyonu (gerçek servis yanıtı): 4 nokta BPHS, Gulika/Mandi/Gü
   if (!base.ok) return;
   const tt = p.technical as VedicUpagrahaTechnical;
   assert.deepEqual(tt.sunBased, base.technical.sunBased);
-  for (const id of ["gulika", "mandi"]) assert.deepEqual(tt.timeBased.find((x) => x.id === id), base.technical.timeBased.find((x) => x.id === id));
+  assert.deepEqual(tt.timeBased.find((x) => x.id === "gulika"), base.technical.timeBased.find((x) => x.id === "gulika"));
   assert.equal(tt.kalaVela?.method, "bphs_part_start");
-  assert.equal(p.projectionVersion, "vedic-upagraha-proj-2");
+  // ATL-B01 F1 (07.11.2026): Mandi artık klasik ghati tablosuyla yerel (-3); servis Mandi'si KULLANILMAZ (ayrıntılı doğrulama: upagraha-mandi.harness.ts).
+  assert.equal(tt.kalaVela?.mandi, "ghati_table");
+  assert.equal(p.projectionVersion, "vedic-upagraha-proj-3");
   const k = computeKalaVela({ date: "1990-07-15", time: "14:30:00", offsetHours: 3, latitude: 41.0082, longitude: 28.9784, ayanamsaDegrees: base.technical.frame.ayanamsaDegrees });
   assert.ok(k.ok);
   if (k.ok) for (const id of FOUR) assert.ok(Math.abs(dang(tt.timeBased.find((x) => x.id === id)!.longitude, k.points[id].longitude)) < 0.006, id);
+  if (k.ok) assert.ok(Math.abs(dang(tt.timeBased.find((x) => x.id === "mandi")!.longitude, k.mandi.longitude)) < 0.006, "mandi = klasik yerel");
   console.log(`     1990-07-15 Pazar gündüz: ${FOUR.map((id) => `${id} ${base.technical.timeBased.find((x) => x.id === id)!.longitude}→${tt.timeBased.find((x) => x.id === id)!.longitude}`).join(", ")}`);
 });
 
@@ -344,21 +347,26 @@ t("kapı: yerel Gulika servisten sapıyorsa ya da gün doğumu yoksa değer ÜRE
   }
 });
 
-t("sürüm: adaptör -2 → önbellek anahtarı -1 kayıtlarından FARKLI (eski hesaplar yenileriyle karışmaz)", () => {
-  assert.equal(ROXY_VEDIC_UPAGRAHA.adapter, "astro-roxy-vedic-upagraha-2");
-  assert.equal(ROXY_VEDIC_UPAGRAHA.projection, "vedic-upagraha-proj-2");
-  assert.equal(unit.adapterVersion, "astro-roxy-vedic-upagraha-2");
-  const old = calcInputHash({ provider: unit.provider, providerApiVersion: unit.providerApiVersion, adapterVersion: "astro-roxy-vedic-upagraha-1", endpoint: unit.endpoint, lang: unit.lang, body: unit.body });
-  assert.notEqual(unit.inputHash, old);
+t("sürüm: adaptör -3 → önbellek anahtarı -1 ve -2 kayıtlarından FARKLI (eski hesaplar yenileriyle karışmaz)", () => {
+  assert.equal(ROXY_VEDIC_UPAGRAHA.adapter, "astro-roxy-vedic-upagraha-3");
+  assert.equal(ROXY_VEDIC_UPAGRAHA.projection, "vedic-upagraha-proj-3");
+  assert.equal(unit.adapterVersion, "astro-roxy-vedic-upagraha-3");
+  for (const v of ["astro-roxy-vedic-upagraha-1", "astro-roxy-vedic-upagraha-2"]) {
+    const old = calcInputHash({ provider: unit.provider, providerApiVersion: unit.providerApiVersion, adapterVersion: v, endpoint: unit.endpoint, lang: unit.lang, body: unit.body });
+    assert.notEqual(unit.inputHash, old, v);
+  }
   assert.equal(unit.inputHash, calcInputHash({ provider: unit.provider, providerApiVersion: unit.providerApiVersion, adapterVersion: unit.adapterVersion, endpoint: unit.endpoint, lang: unit.lang, body: unit.body }));
 });
 
-t("eski kayıt: -1 sürümlü upagraha analizinde 'eski hesap sürümü' notu; -2 ve başka tekniklerde yok", () => {
+t("eski kayıt: -1 upagraha'da 'eski hesap sürümü' + eski Mandi notu; -2'de yalnız eski Mandi notu (F1); -3 ve başka tekniklerde yok", () => {
   const n1 = legacyMethodNotes({ technique: "vedic.upagraha", adapterVersion: "astro-roxy-vedic-upagraha-1", houseSystem: null, revisions: [] });
-  assert.deepEqual(n1.map((n) => n.code), ["upagraha_kala_vela"]);
+  assert.deepEqual(n1.map((n) => n.code), ["upagraha_kala_vela", "upagraha_mandi"]);
   assert.ok(n1[0].text.includes("Gulika, Mandi ve Güneş türevli beş nokta değişmedi"));
-  assert.ok(!/roxy/i.test(n1[0].text));
-  assert.deepEqual(legacyMethodNotes({ technique: "vedic.upagraha", adapterVersion: "astro-roxy-vedic-upagraha-2", houseSystem: null, revisions: [] }), []);
+  for (const n of n1) assert.ok(!/roxy/i.test(n.text));
+  const n2 = legacyMethodNotes({ technique: "vedic.upagraha", adapterVersion: "astro-roxy-vedic-upagraha-2", houseSystem: null, revisions: [] });
+  assert.deepEqual(n2.map((n) => n.code), ["upagraha_mandi"]);
+  assert.ok(n2[0].text.includes("1/8'i önce") && n2[0].text.includes("değiştirilmedi"));
+  assert.deepEqual(legacyMethodNotes({ technique: "vedic.upagraha", adapterVersion: "astro-roxy-vedic-upagraha-3", houseSystem: null, revisions: [] }), []);
   assert.deepEqual(legacyMethodNotes({ technique: "vedic.d1", adapterVersion: "astro-roxy-vedic-upagraha-1", houseSystem: null, revisions: [] }), []);
 });
 

@@ -11,7 +11,7 @@ import {
   HELIACAL_METHOD_NOTE,
   HELIACAL_SCOPE_NOTE,
   HELIACAL_VS_COMBUSTION_NOTE,
-  UPAGRAHA_BASIS,
+  upagrahaBasis,
   UPAGRAHA_GROUP_LABELS,
   UPAGRAHA_HOUSE_NOTE,
   UPAGRAHA_IDS,
@@ -83,7 +83,7 @@ function upagrahaReport(b: ReportBuilderLike, t: O) {
       `${dec(p.longitude)}°`,
       `${nak} · ${String(p.pada ?? DASH)}. pada`,
       ...(d1 ? [typeof p.house === "number" ? `${p.house}. ev` : DASH] : []),
-      UPAGRAHA_BASIS[id] ?? DASH,
+      upagrahaBasis(t, id) ?? DASH,
     ];
   };
   const cols = ["Nokta", "Burç · derece", "Boylam", "Nakshatra · pada", ...(d1 ? ["Ev (Lagna'dan)"] : []), "Dayanak"];

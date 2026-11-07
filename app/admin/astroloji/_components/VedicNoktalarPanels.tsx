@@ -15,7 +15,7 @@ import {
   HELIACAL_METHOD_NOTE,
   HELIACAL_SCOPE_NOTE,
   HELIACAL_VS_COMBUSTION_NOTE,
-  UPAGRAHA_BASIS,
+  upagrahaBasis,
   UPAGRAHA_GROUP_LABELS,
   UPAGRAHA_HOUSE_NOTE,
   UPAGRAHA_NAMES,
@@ -66,7 +66,7 @@ function KbBox({ keys, kbLookup, empty }: { keys: string[]; kbLookup?: KbLookup 
   );
 }
 
-function UpagrahaTable({ title, rows, testId, showHouse }: { title: string; rows: VedicUpagrahaPoint[]; testId: string; showHouse: boolean }) {
+function UpagrahaTable({ title, rows, testId, showHouse, tech }: { title: string; rows: VedicUpagrahaPoint[]; testId: string; showHouse: boolean; tech: VedicUpagrahaTechnical }) {
   return (
     <section className={`${card} overflow-x-auto p-3`} data-testid={testId}>
       <h4 className="mb-2 text-sm font-semibold text-slate-700">{title}</h4>
@@ -94,7 +94,7 @@ function UpagrahaTable({ title, rows, testId, showHouse }: { title: string; rows
                 {NAKSHATRA_LABELS[p.nakshatra] ?? p.nakshatra} · {p.pada}. pada
               </td>
               {showHouse && <td className={td}>{typeof p.house === "number" ? `${p.house}. ev` : "—"}</td>}
-              <td className="px-2 py-1.5 text-xs text-slate-600">{UPAGRAHA_BASIS[p.id]}</td>
+              <td className="px-2 py-1.5 text-xs text-slate-600">{upagrahaBasis(tech, p.id)}</td>
             </tr>
           ))}
         </tbody>
@@ -148,10 +148,10 @@ export function VedicUpagrahaPanel({ t, kbLookup }: { t: VedicUpagrahaTechnical;
               {UPAGRAHA_LEGACY_ORDER_NOTE}
             </p>
           )}
-          <UpagrahaTable title={UPAGRAHA_GROUP_LABELS.time} rows={t.timeBased} testId="astro-upagraha-time" showHouse={showHouse} />
+          <UpagrahaTable title={UPAGRAHA_GROUP_LABELS.time} rows={t.timeBased} testId="astro-upagraha-time" showHouse={showHouse} tech={t} />
         </>
       )}
-      <UpagrahaTable title={UPAGRAHA_GROUP_LABELS.sun} rows={t.sunBased} testId="astro-upagraha-sun" showHouse={showHouse} />
+      <UpagrahaTable title={UPAGRAHA_GROUP_LABELS.sun} rows={t.sunBased} testId="astro-upagraha-sun" showHouse={showHouse} tech={t} />
       <KbBox keys={keys} kbLookup={kbLookup} empty="Bu upagraha yerleşimleri için Bilgi Bankası kaydınız yok." />
       <div className="flex flex-col gap-1 text-xs leading-relaxed text-slate-500" data-testid="astro-upagraha-method">
         <p>{upagrahaSystemsNote(t)}</p>

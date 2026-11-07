@@ -36,6 +36,15 @@ export type KalaVelaInput = {
   ayanamsaDegrees: number;
 };
 export type KalaVelaPoint = { id: KalaVelaId; longitude: number; part: number; startUtc: string };
+/**
+ * ATL-B01 F1 (07.11.2026): Mandi — klasik ghati tablosu. Uttara Kalamrita şl. 7 (gündüz) ve Phaladeepika 25. bölüm şl. 2 (gündüz + gece;
+ * Prasna Marga aynı gece tablosunu verir): gün 30 ghati sayılır, değerler gerçek gündüz (gün doğumu → batımı) ya da gece (batım → ertesi
+ * doğum) süresine ORANSAL uygulanır; Mandi = o anda yükselen burç derecesi. Sıra Pazar'dan Cumartesi'ye; gece, ait olduğu Vedik günün
+ * gecesidir (gün doğumundan önceki doğum önceki günün gecesine aittir). Bu an 7 gün × gündüz/gece için Satürn parçasının İÇİNDEDİR.
+ */
+export const MANDI_GHATI_DAY = [26, 22, 18, 14, 10, 6, 2] as const;
+export const MANDI_GHATI_NIGHT = [10, 6, 2, 26, 22, 18, 14] as const;
+export type KalaVelaMandi = { longitude: number; ghati: number; atUtc: string };
 export type KalaVelaResult =
   | {
       ok: true;
@@ -47,6 +56,8 @@ export type KalaVelaResult =
       /** 8 parçanın yöneticileri (null = yöneticisiz 8. parça). */
       lords: (KalaVelaLord | null)[];
       points: Record<KalaVelaId, KalaVelaPoint>;
+      /** Klasik Mandi (ghati tablosu; bkz. MANDI_GHATI_DAY / MANDI_GHATI_NIGHT). Parça başlangıcı DEĞİLDİR; `points` içinde yer almaz. */
+      mandi: KalaVelaMandi;
     }
   | { ok: false; reason: "invalid_input" | "sun_does_not_rise_or_set" };
 
@@ -117,7 +128,11 @@ export function computeKalaVela(input: KalaVelaInput): KalaVelaResult {
     const ay = ayanamsaDegrees + ((at - birth) / 86400_000) * PRECESSION_DEG_PER_DAY;
     points[id] = { id, longitude: n360(tropicalAscendant(at, latitude, longitude) - ay), part: k + 1, startUtc: new Date(Math.round(at)).toISOString() };
   }
-  return { ok: true, isDay, weekday, segmentStartUtc: new Date(start).toISOString(), segmentEndUtc: new Date(end).toISOString(), lords, points };
+  const ghati = (isDay ? MANDI_GHATI_DAY : MANDI_GHATI_NIGHT)[weekday];
+  const mAt = start + (ghati / 30) * (end - start);
+  const mAy = ayanamsaDegrees + ((mAt - birth) / 86400_000) * PRECESSION_DEG_PER_DAY;
+  const mandi = { longitude: n360(tropicalAscendant(mAt, latitude, longitude) - mAy), ghati, atUtc: new Date(Math.round(mAt)).toISOString() };
+  return { ok: true, isDay, weekday, segmentStartUtc: new Date(start).toISOString(), segmentEndUtc: new Date(end).toISOString(), lords, points, mandi };
 }
 
 // ─── Teknik veriye uygulama (projeksiyon) ──────────────────────────────────────
@@ -162,4 +177,41 @@ export function applyBphsKalaVela<T extends TechnicalLike>(
     };
   });
   return { ok: true, technical: { ...technical, timeBased, kalaVela: { method: "bphs_part_start" as const, isDay: k.isDay, weekday: k.weekday } } };
+}
+
+/**
+ * ATL-B01 F1 (07.11.2026): YALNIZ Mandi'yi klasik ghati tablosuyla (Uttara Kalamrita şl. 7 · Phaladeepika 25.2) yerel değerle değiştirir
+ * (2 ondalık; burç, derece, nakshatra ve pada boylamdan — dört noktayla aynı kural). `applyBphsKalaVela`'dan SONRA çağrılır (onun Gulika
+ * tutarlılık kapısı geçilmiş olmalıdır). Gulika, Kala, Mrityu, Ardhaprahara, Yamaghantaka, Güneş türevliler ve diğer alanlar AYNEN kalır.
+ * Kısmi sonuçta (kutup günü/gecesi) Mandi yoktur → yalnız yöntem işareti. Yerel hesap yapılamazsa değer ÜRETİLMEZ (hata).
+ */
+export function applyClassicalMandi<T extends TechnicalLike & { kalaVela?: { method: "bphs_part_start"; isDay?: boolean; weekday?: number } }>(
+  technical: T,
+  body: { date: string; time: string; offsetHours: number; latitude: number; longitude: number },
+  nakshatras: readonly string[],
+): { ok: true; technical: T & { kalaVela: { method: "bphs_part_start"; isDay?: boolean; weekday?: number; mandi: "ghati_table" } } } | { ok: false; errors: string[] } {
+  if (technical.kalaVela?.method !== "bphs_part_start") return { ok: false, errors: ["mandi: önce BPHS kala-velā adımı uygulanmalı"] };
+  const kalaVela = { ...technical.kalaVela, mandi: "ghati_table" as const };
+  if (technical.partial || technical.timeBased.length === 0) return { ok: true, technical: { ...technical, kalaVela } };
+  const k = computeKalaVela({ ...body, ayanamsaDegrees: technical.frame.ayanamsaDegrees });
+  if (!k.ok) return { ok: false, errors: [`mandi: klasik yerel hesap yapılamadı (${k.reason})`] };
+  if (!technical.timeBased.some((p) => p.id === "mandi")) return { ok: false, errors: ["mandi: teknik veride Mandi satırı yok"] };
+  const span = 360 / 27;
+  let L = Math.round(k.mandi.longitude * 100) / 100;
+  if (L >= 360) L -= 360;
+  const ni = Math.min(26, Math.floor(L / span));
+  const timeBased = technical.timeBased.map((p) =>
+    p.id !== "mandi"
+      ? p
+      : {
+          ...p,
+          longitude: L,
+          rashi: SIGNS[Math.floor(L / 30) % 12],
+          degreeInRashi: Math.round((L % 30) * 100) / 100,
+          nakshatra: nakshatras[ni],
+          nakshatraIndex: ni + 1,
+          pada: Math.min(4, Math.floor((L - ni * span) / (span / 4)) + 1),
+        },
+  );
+  return { ok: true, technical: { ...technical, timeBased, kalaVela } };
 }
