@@ -5,7 +5,7 @@
  * tüm etiketler Yaşam Sistemi sözlüğünden (lib/astrology/labels/tr).
  */
 
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import type { NatalTechnical } from "@/lib/astrology/model/western";
 import {
   ASPECT_GLYPHS,
@@ -21,6 +21,18 @@ import {
   SIGN_LABELS,
   formatDegree,
 } from "@/lib/astrology/labels/tr";
+import {
+  DIST_METHODS,
+  DIST_METHOD_LABELS,
+  DIST_METHOD_NOTES,
+  ELEMENT_ORDER,
+  MODALITY_ORDER,
+  PROVIDER_TIE_RULE_NOTE,
+  dominantHeadline,
+  natalDistribution,
+  tieSentence,
+  type DistMethod,
+} from "@/lib/astrology/view/natalDistribution";
 import { fitGridCell, fitGridStyle } from "./atlas/fitGrid";
 
 const th = "px-2 py-1.5 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500";
@@ -45,25 +57,108 @@ function SignCell({ sign, degree }: { sign: keyof typeof SIGN_LABELS; degree: nu
 }
 
 /**
- * Dağılımda en yüksek değer birden fazla grupta eşitse bunu AÇIKÇA söyler (2026-11-04 doğrulama B-1): kaynak eşitlikte
- * sıralama kuralıyla tek "baskın" grup verir; sayılar ve baskın etiketi DEĞİŞMEZ, yalnız eşitlik bilgisi eklenir.
- * Sayım: 10 gezegen, her biri 1 (ASC/MC, düğümler, Kiron, Lilith dahil değil — kaynak yanıtlarında doğrulandı).
+ * Dağılım özeti — iki yöntem (2026-11-07): "10 Gezegen" (varsayılan; sağlayıcının kayıtlı sayımı AYNEN) ve "15 Puanlık Analiz"
+ * (Güneş/Ay/Yükselen 3, MC + Merkür…Satürn 1; kayıtlı teknik veriden yerel). Eşitlikte tek grup "baskın" ilan edilmez; 10
+ * gezegende sağlayıcının eşitlik kuralı yalnız ikincil bilgi. Seçim yalnız bu görünümün yerel durumu (kayıt / sağlayıcı yok).
  */
-function TieNote<K extends string>({ dist, labels, testId }: { dist: Record<K, number>; labels: Record<K, string>; testId: string }) {
-  const top = topTie(dist);
-  if (top.keys.length < 2) return null;
+function DistributionSummary({ technical }: { technical: NatalTechnical }) {
+  const [method, setMethod] = useState<DistMethod>("planets10");
+  const d = natalDistribution(technical, method);
+  const seg = (m: DistMethod) =>
+    `min-h-[34px] flex-1 rounded-md px-3 py-1 text-[12.5px] font-medium transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0B1430] sm:flex-none ${
+      method === m ? "bg-white text-slate-900 shadow-sm ring-1 ring-slate-200" : "text-slate-600 hover:text-slate-900"
+    }`;
   return (
-    <p className="mb-1 rounded-md bg-amber-50 px-2 py-1 text-xs leading-5 text-amber-900" data-testid={testId}>
-      Eşitlik: {top.keys.map((k) => labels[k]).join(", ")} ({top.value}&apos;er gezegen). &ldquo;Baskın&rdquo; etiketi eşitlikte hesaplama
-      kaynağının sıralama kuralıyla seçilir.
-    </p>
+    <div className="px-3 py-2 text-sm" data-testid="natal-distribution" data-method={method}>
+      <div className="mb-1.5 flex w-full rounded-lg bg-slate-100 p-0.5 sm:inline-flex sm:w-auto" role="group" aria-label="Dağılım yöntemi">
+        {DIST_METHODS.map((m) => (
+          <button key={m} type="button" className={seg(m)} aria-pressed={method === m} onClick={() => setMethod(m)} data-testid={`natal-dist-method-${m}`}>
+            {DIST_METHOD_LABELS[m]}
+          </button>
+        ))}
+      </div>
+      <p className="mb-2 text-xs leading-5 text-slate-500" data-testid="natal-dist-note">
+        {DIST_METHOD_NOTES[method]}
+      </p>
+      {!d.available ? (
+        <p className="rounded-md bg-slate-50 px-2 py-1.5 text-xs leading-5 text-slate-600" data-testid="natal-dist-unavailable">
+          {d.reason === "no_angles"
+            ? "Doğum saati bilinmediği için Yükselen ve MC yok; 15 puanlık analiz hesaplanamaz."
+            : "Bu kayıtta dağılım için gerekli veri yok."}
+        </p>
+      ) : (
+        <div className="grid gap-3 sm:grid-cols-2">
+          <DistColumn
+            title="Element"
+            order={ELEMENT_ORDER}
+            labels={ELEMENT_LABELS}
+            values={d.elements}
+            topKeys={d.topElements}
+            unit={d.unit}
+            providerPick={d.providerDominant?.element ?? null}
+            testId="natal-element-tie"
+          />
+          <DistColumn
+            title="Nitelik"
+            order={MODALITY_ORDER}
+            labels={MODALITY_LABELS}
+            values={d.modalities}
+            topKeys={d.topModalities}
+            unit={d.unit}
+            providerPick={d.providerDominant?.modality ?? null}
+            testId="natal-modality-tie"
+          />
+        </div>
+      )}
+    </div>
   );
 }
 
-function topTie<K extends string>(dist: Record<K, number>): { keys: K[]; value: number } {
-  const entries = Object.entries(dist) as [K, number][];
-  const value = Math.max(...entries.map(([, v]) => v));
-  return { keys: value > 0 ? entries.filter(([, v]) => v === value).map(([k]) => k) : [], value };
+function DistColumn<K extends string>({
+  title,
+  order,
+  labels,
+  values,
+  topKeys,
+  unit,
+  providerPick,
+  testId,
+}: {
+  title: string;
+  order: readonly K[];
+  labels: Record<K, string>;
+  values: Record<K, number>;
+  topKeys: K[];
+  unit: "gezegen" | "puan";
+  providerPick: K | null;
+  testId: string;
+}) {
+  const names = topKeys.map((k) => labels[k]);
+  const tie = topKeys.length > 1;
+  return (
+    <div>
+      <div className="mb-1 font-medium text-slate-600">
+        {title}
+        {names.length > 0 ? ` · ${dominantHeadline(names)}` : ""}
+      </div>
+      {tie && (
+        <p className="mb-1 rounded-md bg-amber-50 px-2 py-1 text-xs leading-5 text-amber-900" data-testid={testId}>
+          {tieSentence(names, values[topKeys[0]], unit)}
+          {providerPick && (
+            <span className="block text-amber-800/80">
+              {PROVIDER_TIE_RULE_NOTE} Bu haritada öne alınan: {labels[providerPick]}.
+            </span>
+          )}
+        </p>
+      )}
+      {order.map((k) => (
+        <div key={k} className={`flex justify-between ${topKeys.includes(k) ? "font-semibold text-slate-900" : ""}`}>
+          <span>{labels[k]}</span>
+          <span className="tabular-nums">{values[k]}</span>
+        </div>
+      ))}
+    </div>
+  );
 }
 
 /** Açı niteliği → küçük renk etiketi (yalnız görsel ayrım; veri/etiket metni aynen). */
@@ -249,35 +344,8 @@ export default function NatalTechnicalPanel({ technical, timeUnknown, part = "al
 
       {(part === "all" || part === "overview") && (
       <Section title="Dağılım özeti">
-        <div className="grid gap-3 px-3 py-2 text-sm sm:grid-cols-2">
-          {t.summary.elementDistribution && (
-            <div>
-              <div className="mb-1 font-medium text-slate-600">
-                Element {t.summary.dominantElement ? `· baskın: ${ELEMENT_LABELS[t.summary.dominantElement]}` : ""}
-              </div>
-              <TieNote dist={t.summary.elementDistribution} labels={ELEMENT_LABELS} testId="natal-element-tie" />
-              {(Object.keys(t.summary.elementDistribution) as (keyof typeof ELEMENT_LABELS)[]).map((k) => (
-                <div key={k} className="flex justify-between">
-                  <span>{ELEMENT_LABELS[k]}</span>
-                  <span className="tabular-nums">{t.summary.elementDistribution![k]}</span>
-                </div>
-              ))}
-            </div>
-          )}
-          {t.summary.modalityDistribution && (
-            <div>
-              <div className="mb-1 font-medium text-slate-600">
-                Nitelik {t.summary.dominantModality ? `· baskın: ${MODALITY_LABELS[t.summary.dominantModality]}` : ""}
-              </div>
-              <TieNote dist={t.summary.modalityDistribution} labels={MODALITY_LABELS} testId="natal-modality-tie" />
-              {(Object.keys(t.summary.modalityDistribution) as (keyof typeof MODALITY_LABELS)[]).map((k) => (
-                <div key={k} className="flex justify-between">
-                  <span>{MODALITY_LABELS[k]}</span>
-                  <span className="tabular-nums">{t.summary.modalityDistribution![k]}</span>
-                </div>
-              ))}
-            </div>
-          )}
+        <DistributionSummary technical={t} />
+        <div className="grid gap-3 px-3 pb-2 text-sm">
           <div className="sm:col-span-2 text-slate-600">
             Açı dengesi: {t.summary.aspectBalance.harmonious ?? "—"} uyumlu · {t.summary.aspectBalance.challenging ?? "—"} zorlayıcı ·{" "}
             {t.summary.aspectBalance.neutral ?? "—"} nötr
