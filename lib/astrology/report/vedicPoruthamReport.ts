@@ -7,8 +7,10 @@ import { GRAHA_LABELS } from "../topics/vedic";
 import { AYANAMSA_SHORT } from "../model/vedicMatch";
 import {
   DASHAKOOT_DIRECTION_TEXT,
-  DASHAKOOT_METHOD_TEXT,
+  DASHAKOOT_TOTAL_MIXED_NOTE,
   DASHAKOOT_VERDICT_LABELS,
+  DASHAKOOT_VERDICT_WITHHELD_TEXT,
+  dashakootMethodText,
   PAPA_REFERENCE_LABELS,
   PAPA_REFERENCES,
   PAPASAMYAM_METHOD_TEXT,
@@ -18,7 +20,14 @@ import {
   PORUTHAM_IDS,
   PORUTHAM_LABELS,
   PORUTHAM_ROLE_LABELS,
+  poruthamResultLabel,
   poruthamRoleNames,
+  RASI_RULE_TEXT,
+  RASI_SOURCE,
+  RASI_TOTAL_UNCERTAIN_NOTE,
+  rasiPariharaText,
+  rasiProviderText,
+  type RasiClassic,
   poruthamAyanamsaNote,
   RAJJU_IDS,
   rajjuReasonText,
@@ -49,8 +58,11 @@ export function dashakootReport(b: ReportBuilderLike, t: O, who: { a: string; b:
   const rj = isObj(t.rajju) ? t.rajju : {};
   const vd = isObj(t.vedha) ? t.vedha : {};
   const rjOk = typeof rj.active === "boolean" && rajjuOf(rj.person1) && rajjuOf(rj.person2);
+  // ATL-B02: Kalaprakasika Rasi'li kayıt (adaptör -2); Rasi belirsizse toplam aralık olarak (ekranla aynı).
+  const range = Array.isArray(t.totalRange) && t.totalRange.length === 2 ? (t.totalRange as unknown[]) : null;
+  const totalText = t.total === null && range ? `${trNum(range[0])}–${trNum(range[1])} / 10 (Rasi belirsiz)` : `${trNum(t.total)} / 10`;
   b.kv([
-    ["Karşılanan kriter", `${trNum(t.total)} / 10`],
+    ["Karşılanan kriter", totalText],
     [PORUTHAM_ROLE_LABELS.person1, r1],
     [PORUTHAM_ROLE_LABELS.person2, r2],
     ["Rajju kısıtı", rj.active === true ? "etkin" : rj.active === false ? "etkin değil" : DASH],
@@ -58,6 +70,8 @@ export function dashakootReport(b: ReportBuilderLike, t: O, who: { a: string; b:
     ["Ayanamsa", `${ayL(t.frame)} — ${poruthamAyanamsaNote("dashakoot", r1)}`],
     ["Zodyak", "Sidereal (nirayana)"],
   ]);
+  // ATL-B02 owner kararı: -2 kayıtlarda toplam karma yöntem açıklaması (ekranla aynı metin; -1 kayıtlarda basılmaz).
+  if (isObj(t.rasiClassic)) b.p(DASHAKOOT_TOTAL_MIXED_NOTE, "muted");
   b.p(DASHAKOOT_DIRECTION_TEXT, "muted");
   if (rjOk) b.p(rajjuReasonText({ active: rj.active as boolean, person1: rj.person1 as RajjuId, person2: rj.person2 as RajjuId }));
   if (typeof vd.active === "boolean") b.p(vedhaReasonText({ active: vd.active }));
@@ -70,12 +84,23 @@ export function dashakootReport(b: ReportBuilderLike, t: O, who: { a: string; b:
       str(isObj(r.person1) ? r.person1.label : null),
       str(isObj(r.person2) ? r.person2.label : null),
       num(r.count) !== null ? String(r.count) : DASH,
-      r.matched === true ? "karşılandı · 1" : r.matched === false ? "karşılanmadı · 0" : DASH,
+      poruthamResultLabel(r.matched as boolean | null | undefined),
     ]),
     { widths: [2, 3, 1.8, 1.8, 0.8, 1.6], caption: "On porutham kriteri", empty: "Kriter tablosu bu kayıtta yok." },
   );
   b.p(PORUTHAM_COUNT_NOTE, "muted");
-  b.p(DASHAKOOT_METHOD_TEXT, "muted");
+  if (t.total === null && range) b.p(RASI_TOTAL_UNCERTAIN_NOTE, "warn");
+  const rc = isObj(t.rasiClassic) && typeof t.rasiClassic.rule === "string" && t.rasiClassic.rule in RASI_RULE_TEXT && isObj(t.rasiClassic.provider) ? (t.rasiClassic as unknown as RasiClassic) : null;
+  if (rc) {
+    b.h(3, "Rasi — Kalaprakasika kuralı");
+    b.p(RASI_RULE_TEXT[rc.rule]);
+    b.p(rasiProviderText(rc), "muted");
+    const lr = rows.find((r) => r.id === "rasyadhipati");
+    const par = lr ? rasiPariharaText(rc, [str(isObj(lr.person1) ? lr.person1.label : null), str(isObj(lr.person2) ? lr.person2.label : null)]) : null;
+    if (par) b.p(par);
+    b.p(`Kaynak: ${RASI_SOURCE}.`, "muted");
+  }
+  b.p(dashakootMethodText(t), "muted");
 }
 
 export function papasamyamReport(b: ReportBuilderLike, t: O, who: { a: string; b: string }) {
@@ -119,6 +144,7 @@ export function vedicPoruthamInterpBlocks(b: ReportBuilderLike, c: O): boolean {
     b.p("Bu bölüm hesaplama servisinin otomatik değerlendirme cümleleridir ve hüküm dili içerebilir; kriter sonuçları ve kısıtlar teknik bölümdedir. Uzman değerlendirmesi değildir; evlilik kararı için tek başına kullanılmamalıdır.", "warn");
   if (c.schema === "astro.vedic.dashakoot.interp.v1") {
     warn();
+    if (c.verdictWithheld === "rasi_local") b.p(DASHAKOOT_VERDICT_WITHHELD_TEXT, "muted");
     if (typeof c.verdict === "string" && c.verdict in DASHAKOOT_VERDICT_LABELS) {
       b.h(3, "Servisin genel değerlendirmesi");
       b.p(`${DASHAKOOT_VERDICT_LABELS[c.verdict as DashakootVerdict]} (eşik servis geleneğidir).`);

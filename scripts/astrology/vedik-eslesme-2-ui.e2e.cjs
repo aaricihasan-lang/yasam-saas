@@ -5,10 +5,12 @@
 // Önkoşul: yerel next sunucusu (ASTROLOGY_MODULE_ENABLED=true, NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:<fake>,
 //          ROXY_API_KEY=local-fake-roxy-key, ROXY_API_BASE_URL=https://127.0.0.1:<fake+1>/api/v2) + dev-fake-backend.
 // Çalıştırma: node scripts/astrology/vedik-eslesme-2-ui.e2e.cjs <origin> [ekran-görüntüsü-klasörü]
-//   1) API: Dashakoot 1 istek → 7 / 10, Rajju / Vedha etkin değil; Papasamyam 1 istek → 3,75 / 2,75, karşılaştırma sağlanıyor;
-//      aynı seçim 0 istek; rol takası (karşı taraf 1. rol; gerçek takaslı golden 23.10.2026): Dashakoot 1 yeni istek → 6 / 10
+//   ATL-B02 (07.11.2026): Rasi Kalaprakasika kuralıyla (adaptör -2) → varsayılan 12. sayım karşılanır (8 / 10), takasta 2. sayım tek burç
+//   karşılanmaz (5 / 10); önceki beklentiler (7 / 10 · 6 / 10) servisin Rasi kuralınındı.
+//   1) API: Dashakoot 1 istek → 8 / 10, Rajju / Vedha etkin değil; Papasamyam 1 istek → 3,75 / 2,75, karşılaştırma sağlanıyor;
+//      aynı seçim 0 istek; rol takası (karşı taraf 1. rol; gerçek takaslı golden 23.10.2026): Dashakoot 1 yeni istek → 5 / 10
 //      (Rasi sayım 2 karşılandı), Papasamyam → 2,75 / 3,75 karşılaştırma sağlanmıyor ('exceeds'); takaslı sonuç AYRI kayıt
-//      (varsayılan 7 / 10 kaydı değişmez), Word'de 6 / 10; karşı taraf saatsiz → TIME_REQUIRED (0 istek);
+//      (varsayılan 8 / 10 kaydı değişmez), Word'de 5 / 10; karşı taraf saatsiz → TIME_REQUIRED (0 istek);
 //      kaydet → aç (0 istek) → Word / PDF 200 + içerik (sağlayıcı adı yok, teknik bölümde hüküm yok)
 //   2) Seçici (1366×768): Vedik sekmesinde iki yeni teknik; rol seçimi "1. rol (geleneksel: damat) / 2. rol (geleneksel: gelin)"
 //   3) Kayıtlı analiz 1366×768 + 768×1024 + 390×844: kriter tablosu 10 satır, kısıt kartları, Papasamyam iki kişi kartı; yatay
@@ -76,7 +78,7 @@ async function docxText(buf) {
   const d = await runSel(pid, dSel);
   ok("API Dashakoot plan: 1 yeni istek", d.plan.j?.plan?.newRequestCount === 1, JSON.stringify(d.plan.j?.plan ?? d.plan.j).slice(0, 300));
   const dt = d.it?.view?.technical;
-  ok("API Dashakoot: 7 / 10, 10 kriter, Rajju Paada/Kati etkin değil, Vedha etkin değil", d.it?.ok === true && dt?.total === 7 && dt.rows.length === 10 && dt.rajju?.active === false && dt.rajju.person1 === "paada" && dt.vedha?.active === false, JSON.stringify(d.it ?? d.run.j).slice(0, 300));
+  ok("API Dashakoot: 8 / 10 (Rasi 12. sayım Kalaprakasika ile karşılandı), 10 kriter, Rajju Paada/Kati etkin değil, Vedha etkin değil", d.it?.ok === true && dt?.total === 8 && dt.rasiClassic?.rule === "converse" && dt.rasiClassic?.provider?.matched === false && dt.rows.length === 10 && dt.rajju?.active === false && dt.rajju.person1 === "paada" && dt.vedha?.active === false, JSON.stringify(d.it ?? d.run.j).slice(0, 300));
   ok("API Dashakoot teknik katmanında hüküm / açıklama metni yok", !VERDICT_TEXT.some((x) => JSON.stringify(dt ?? {}).includes(x)));
   const p = await runSel(pid, pSel);
   const pt = p.it?.view?.technical;
@@ -91,7 +93,7 @@ async function docxText(buf) {
   const ds = await runSel(pid, dSw);
   const dst = ds.it?.view?.technical;
   const rasiSw = (dst?.rows ?? []).find((k) => k.id === "rasi");
-  ok("rol takası Dashakoot: 6 / 10, rol işareti, Rasi sayım 2 karşılandı, Rajju Kati/Paada etkin değil", ds.it?.ok === true && dst?.total === 6 && dst.order === "partner_first" && rasiSw?.points === 1 && rasiSw?.count === 2 && dst.rajju?.active === false && dst.rajju.person1 === "kati", JSON.stringify(ds.it ?? ds.run.j).slice(0, 300));
+  ok("rol takası Dashakoot: 5 / 10, rol işareti, Rasi sayım 2 (damat Koç, tek burç) karşılanmadı, Rajju Kati/Paada etkin değil", ds.it?.ok === true && dst?.total === 5 && dst.order === "partner_first" && rasiSw?.points === 0 && rasiSw?.count === 2 && dst.rasiClassic?.rule === "second_odd" && dst.rajju?.active === false && dst.rajju.person1 === "kati", JSON.stringify(ds.it ?? ds.run.j).slice(0, 300));
   const ps = await runSel(pid, pSw);
   const pst = ps.it?.view?.technical;
   ok("rol takası Papasamyam: 1 istek; 2,75 / 3,75; karşılaştırma 'exceeds'", ps.plan.j?.plan?.newRequestCount === 1 && ps.it?.ok === true && pst?.person1?.total === 2.75 && pst.person2?.total === 3.75 && pst.comparison === "exceeds", JSON.stringify(ps.it ?? ps.run.j).slice(0, 300));
@@ -117,13 +119,13 @@ async function docxText(buf) {
     ok(`kayıt ${key}`, typeof ids[key] === "string", JSON.stringify(sv.j).slice(0, 200));
   }
   const an = await api(`/analyses/${ids.dk}`);
-  ok("kayıtlı Dashakoot: teknik + karşı taraf + yorum (yetkiyle)", an.j?.analysis?.technical?.total === 7 && an.j.analysis.profile?.partner?.label === "Sentetik B — Ankara" && an.j.analysis.interpretation?.visible === true);
+  ok("kayıtlı Dashakoot: teknik + karşı taraf + yorum (yetkiyle)", an.j?.analysis?.technical?.total === 8 && an.j.analysis.profile?.partner?.label === "Sentetik B — Ankara" && an.j.analysis.interpretation?.visible === true);
   const anSw = await api(`/analyses/${ids.dkSw}`);
-  ok("kayıtlı takaslı Dashakoot AYRI kayıt: 6 / 10, rol işareti; varsayılan kayıt 7 / 10 kalır", ids.dkSw !== ids.dk && anSw.j?.analysis?.technical?.total === 6 && anSw.j.analysis.technical.order === "partner_first" && an.j?.analysis?.technical?.order === undefined, JSON.stringify(anSw.j).slice(0, 200));
+  ok("kayıtlı takaslı Dashakoot AYRI kayıt: 5 / 10, rol işareti; varsayılan kayıt 8 / 10 kalır", ids.dkSw !== ids.dk && anSw.j?.analysis?.technical?.total === 5 && anSw.j.analysis.technical.order === "partner_first" && an.j?.analysis?.technical?.order === undefined, JSON.stringify(anSw.j).slice(0, 200));
   for (const [key, want] of [
-    ["dk", ["On Porutham (Dashakoot) — teknik değerlendirme", "7 / 10", "1. rol (geleneksel: damat)", "2. rol (geleneksel: gelin)", "Sentetik B — Ankara", "Rajju kısıtı", "Paada (ayak)", "Yöntem: Güney Hint On Porutham", "karşılandı · 1", "1. roldeki kişinin", "kendi doğum anının ayanamsa değeriyle"]],
+    ["dk", ["On Porutham (Dashakoot) — teknik değerlendirme", "8 / 10", "1. rol (geleneksel: damat)", "2. rol (geleneksel: gelin)", "Sentetik B — Ankara", "Rajju kısıtı", "Paada (ayak)", "Yöntem: Güney Hint On Porutham", "karşılandı · 1", "1. roldeki kişinin", "kendi doğum anının ayanamsa değeriyle"]],
     ["ps", ["Papasamyam — teknik değerlendirme", "3,75", "2,75", "Karşılaştırma kuralı", "Lagna'dan", "Venüs'ten", "Yöntem: Papasamyam", "1. roldeki kişinin", "kendi doğum anının ayanamsa değeriyle"]],
-    ["dkSw", ["On Porutham (Dashakoot) — teknik değerlendirme", "6 / 10", "1. rol (geleneksel: damat)", "Rasi kriterinde gelinden damada 6., 8. ve 12. sayımlar", "1. roldeki kişinin", "kendi doğum anının ayanamsa değeriyle"]],
+    ["dkSw", ["On Porutham (Dashakoot) — teknik değerlendirme", "5 / 10", "1. rol (geleneksel: damat)", "Rasi kriteri Kalaprakasika'ya", "2. sayım: damadın (1. rol) Ay burcu tek burç", "1. roldeki kişinin", "kendi doğum anının ayanamsa değeriyle"]],
   ]) {
     for (const fmt of ["docx", "pdf"]) {
       const r = await api(`/analyses/${ids[key]}/report?format=${fmt}`, null, true);
@@ -207,7 +209,7 @@ async function docxText(buf) {
         const rows = await page.locator("[data-testid=astro-dashakoot-table] tbody tr").count();
         ok(`${tag} dk: kriter tablosu 10 satır`, rows === 10, String(rows));
         const total = await page.locator("[data-testid=astro-dashakoot-total]").first().innerText().catch(() => "");
-        ok(`${tag} dk: toplam 7 / 10`, total.includes("7") && total.includes("10"), total);
+        ok(`${tag} dk: toplam 8 / 10`, total.includes("8") && total.includes("10"), total);
         ok(`${tag} dk: Rajju / Vedha kartları etkin değil`, (await page.locator("[data-testid=astro-dashakoot-rajju][data-active=false]").count()) === 1 && (await page.locator("[data-testid=astro-dashakoot-vedha][data-active=false]").count()) === 1);
       } else {
         ok(`${tag} ps: iki kişi kartı, 3'er referans satırı`, (await page.locator("[data-testid=astro-papa-1] tbody tr").count()) === 3 && (await page.locator("[data-testid=astro-papa-2] tbody tr").count()) === 3);

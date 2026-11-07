@@ -96,9 +96,12 @@ export const RAJJU_LABELS: Readonly<Record<RajjuId, string>> = {
 export type PoruthamClass = { raw: string; label: string };
 export type PoruthamRow = {
   id: PoruthamId;
-  /** Kriter karşılandı mı (sağlayıcı: matched / unmatched; puan 1 / 0). Hüküm değil, kural sonucu. */
-  matched: boolean;
-  points: 0 | 1;
+  /**
+   * Kriter karşılandı mı (sağlayıcı: matched / unmatched; puan 1 / 0). Hüküm değil, kural sonucu. ATL-B02: yalnız Rasi satırı,
+   * Kalaprakasika'nın hüküm vermediği aynı burçta (1. sayım) null'dır (belirsiz; 0 ya da 1 atanmaz).
+   */
+  matched: boolean | null;
+  points: 0 | 1 | null;
   person1: PoruthamClass;
   person2: PoruthamClass;
   /**
@@ -113,10 +116,14 @@ export type VedicDashakootTechnical = {
   schema: typeof VEDIC_DASHAKOOT_TECHNICAL_SCHEMA;
   zodiac: "sidereal";
   frame: VedicFrame;
-  /** Karşılanan porutham sayısı (0…10; ağırlıksız sayım — Ashtakoot puanı DEĞİLDİR). */
-  total: number;
+  /** Karşılanan porutham sayısı (0…10; ağırlıksız sayım — Ashtakoot puanı DEĞİLDİR). ATL-B02: Rasi belirsizse null (bkz. totalRange). */
+  total: number | null;
+  /** Yalnız Rasi belirsizken: [Rasi karşılanmasaydı, karşılansaydı] toplamı. */
+  totalRange?: [number, number];
   maxTotal: 10;
   rows: PoruthamRow[];
+  /** ATL-B02 (07.11.2026, adaptör -2): Rasi satırı Kalaprakasika kuralıyla yerel hesaplandı. Yoksa kayıt servisin Rasi kuralıyladır. */
+  rasiClassic?: RasiClassic;
   /** Kesin kısıtlar (geleneğin "veto"su): etkin mi + kişi başına sınıflama. Gerekçe metni nötr şablondur (yorum değil). */
   rajju: { active: boolean; person1: RajjuId; person2: RajjuId };
   vedha: { active: boolean; person1: string; person2: string };
@@ -140,12 +147,73 @@ export type VedicDashakootInterpretation = {
   rajjuReason: string | null;
   vedhaReason: string | null;
   notes: { id: PoruthamId; note: string }[];
+  /** ATL-B02: yerel Rasi servisinkinden farklı / belirsiz → servisin genel değerlendirmesi ve öneri cümlesi gösterilmez. */
+  verdictWithheld?: "rasi_local";
 };
 export const DASHAKOOT_VERDICT_LABELS: Readonly<Record<DashakootVerdict, string>> = {
   recommended: "servisin eşiğine göre önerilir",
   marginal: "servisin eşiğine göre sınırda",
   rejected: "kesin kısıt (Rajju / Vedha) nedeniyle servis tarafından reddedilir",
 };
+
+// ─── ATL-B02 (07.11.2026): Rasi kriteri — Kalaprakasika (yerel hesap: engine/dashakootRasi.ts) ─────────────
+export const RASI_METHOD = "kalaprakasika" as const;
+export type RasiRule = "same_sign" | "second_even" | "second_odd" | "third" | "fourth" | "fifth" | "sixth_listed" | "sixth" | "seventh" | "converse";
+/** Genel istisna (s. 76) durumu: puanı DEĞİŞTİRMEZ, yalnız yorum bilgisidir. */
+export type RasiParihara = "not_needed" | "applies_same_lord" | "applies_friends" | "uncertain_friendship" | "none";
+export type RasiClassic = {
+  method: typeof RASI_METHOD;
+  /** Gelinin (2. rol) Ay burcundan damadınkine (1. rol) dahil sayım. */
+  count: number;
+  rule: RasiRule;
+  status: "matched" | "unmatched" | "uncertain";
+  /** Hesap servisinin aynı satır için verdiği sonuç (yalnız şeffaflık; puanlamaya girmez). */
+  provider: { matched: boolean };
+  parihara: RasiParihara;
+};
+export const RASI_SOURCE = "Kalaprakasika (N. P. Subramania Iyer çevirisi), Bölüm XIII, s. 73–74";
+export const RASI_RULE_TEXT: Readonly<Record<RasiRule, string>> = {
+  same_sign: "Aynı Ay burcu (1. sayım): Kalaprakasika'nın Rasi kuralı bu konum için hüküm vermez; sonuç belirsiz bırakıldı (0 ya da 1 atanmadı).",
+  second_even: "2. sayım: Kalaprakasika istisnasıyla, damadın (1. rol) Ay burcu çift burç olduğundan karşılandı.",
+  second_odd: "2. sayım: damadın (1. rol) Ay burcu tek burç; Kalaprakasika istisnası uygulanmaz, karşılanmadı.",
+  third: "3. sayım: Kalaprakasika'da olumsuz konum; karşılanmadı.",
+  fourth: "4. sayım: Kalaprakasika'da olumsuz konum; karşılanmadı.",
+  fifth: "5. sayım: Kalaprakasika'da olumsuz konum; karşılanmadı.",
+  sixth_listed: "6. sayım: burç çifti Kalaprakasika'nın 6. konum istisna listesinde; karşılandı.",
+  sixth: "6. sayım: burç çifti Kalaprakasika'nın 6. konum istisna listesinde değil; karşılanmadı.",
+  seventh: "7. sayım (karşıt burçlar): Kalaprakasika'da olumlu konum; karşılandı.",
+  converse: "8.–12. sayım: Kalaprakasika'da 2.–6. konumların tersi olumlu sayılır; karşılandı.",
+};
+export const RASI_STATUS_LABELS: Readonly<Record<RasiClassic["status"], string>> = { matched: "karşılandı · 1", unmatched: "karşılanmadı · 0", uncertain: "belirsiz · —" };
+/** Satır sonucu etiketi: Rasi belirsizse (null) "belirsiz". */
+export const poruthamResultLabel = (m: boolean | null | undefined) => (m === true ? RASI_STATUS_LABELS.matched : m === false ? RASI_STATUS_LABELS.unmatched : m === null ? RASI_STATUS_LABELS.uncertain : "—");
+export function rasiProviderText(c: RasiClassic): string {
+  const local = c.status === "uncertain" ? null : c.status === "matched";
+  const p = c.provider.matched ? "karşılandı" : "karşılanmadı";
+  return local === c.provider.matched ? `Hesap servisinin sonucu da ${p}.` : `Hesap servisinin sonucu: ${p} (servisin kendi Rasi kuralı; puanlamaya girmez).`;
+}
+export function rasiPariharaText(c: RasiClassic, lords: [string, string]): string | null {
+  const l = lords[0] === lords[1] ? lords[0] : `${lords[0]} / ${lords[1]}`;
+  const tail = " Rasi sonucu ve toplam DEĞİŞTİRİLMEDİ; istisna yalnız yorumda dikkate alınacak bir bilgidir.";
+  switch (c.parihara) {
+    case "not_needed":
+      return null;
+    case "applies_same_lord":
+      return `Kalaprakasika genel istisnası (s. 76): iki Ay burcunun yöneticisi aynı (${l}); kaynak bu durumda Rasi'nin olumsuz etkisinin dikkate alınmayabileceğini söyler.${tail}`;
+    case "applies_friends":
+      return `Kalaprakasika genel istisnası (s. 76): Ay burcu yöneticileri (${l}) kaynağın dostluk listesinde (s. 74–75) karşılıklı dost; kaynak bu durumda Rasi'nin olumsuz etkisinin dikkate alınmayabileceğini söyler.${tail}`;
+    case "uncertain_friendship":
+      return `Kalaprakasika genel istisnası (s. 76): Ay burcu yöneticileri (${l}) arasındaki dostluk kaynağın listesinde (s. 74–75) iki yönde de belirtilmemiş; istisnanın uygulanıp uygulanmadığı belirsiz.${tail}`;
+    case "none":
+      return `Kalaprakasika genel istisnası (s. 76) uygulanmaz: Ay burcu yöneticileri (${l}) aynı değil ve kaynağın listesinde (s. 74–75) karşılıklı düşman.`;
+  }
+}
+/** ATL-B02 owner kararı (07.11.2026): -2 kayıtlarda toplam karma yöntemledir; Kalaprakasika'nın "en az 5" eşiği UYGULANMAZ. */
+export const DASHAKOOT_TOTAL_MIXED_NOTE =
+  "Bu toplamda Rasi kriteri Kalaprakasika yöntemine göre, diğer 9 kriter ise hesaplama servisinin kurallarına göre değerlendirilmiştir. Toplam, Kalaprakasika'nın tüm ölçütleriyle hesaplanmış bir uyum puanı değildir.";
+export const RASI_TOTAL_UNCERTAIN_NOTE = "Rasi belirsiz olduğundan toplam tek sayı olarak verilmez: Rasi karşılanmasaydı ve karşılansaydı oluşacak iki toplam gösterilir.";
+export const DASHAKOOT_VERDICT_WITHHELD_TEXT =
+  "Servisin genel değerlendirmesi ve öneri cümlesi bu sonuçta gösterilmiyor: Rasi kriteri Kalaprakasika kuralıyla yerel hesaplandı ve servisin Rasi sonucundan farklı (ya da belirsiz); servis değerlendirmesi kendi Rasi sonucuna dayandığı için bu sonuçla tutarlı değil. Yerine yeni bir genel karar üretilmez. Servisin Rasi açıklaması da çıkarıldı.";
 
 // ─── Papasamyam ──────────────────────────────────────────────────────────────
 export const PAPA_REFERENCES = ["lagna", "moon", "venus"] as const;
@@ -209,6 +277,10 @@ export const PORUTHAM_COUNT_NOTE ="Sayım sütunu, gelinin (2. rol) Ay nakshatra
 
 export const DASHAKOOT_METHOD_TEXT =
   "Yöntem: Güney Hint On Porutham (Dashakoot / Dasa Porutham). On kriterin (Dina, Gana, Mahendra, Stree Deergha, Yoni, Rasi, Rasyadhipati, Vasya, Rajju, Vedha) her biri ağırlıksız olarak karşılandı / karşılanmadı biçiminde değerlendirilir; toplam 10 üzerinden karşılanan kriter sayısıdır. Rajju ve Vedha gelenekte toplamdan bağımsız kesin kısıt sayılır. Bu sistem Ashtakoot Gun Milan'dan (36 puan) ayrıdır; iki sistemin puanları birbirine çevrilmez ve toplanmaz. Ekoller arasında Rasi sayım kuralı, Gana eşleşmeleri ve Mahendra yönü farklılık gösterebilir. Bu hesaplamada Rasi kriterinde gelinden damada 6., 8. ve 12. sayımlar karşılanmamış kabul edilir; 2. ve 4. sayımı da karşılanmamış sayan ekoller vardır. Bu bölüm teknik değerlendirmedir; evlilik ya da ilişki kararı değildir.";
+/** ATL-B02: Kalaprakasika Rasi'li (adaptör -2) kayıtların yöntem metni; eski kayıtlar DASHAKOOT_METHOD_TEXT ile kalır. */
+export const DASHAKOOT_METHOD_TEXT_KP =
+  "Yöntem: Güney Hint On Porutham (Dashakoot / Dasa Porutham). On kriterin (Dina, Gana, Mahendra, Stree Deergha, Yoni, Rasi, Rasyadhipati, Vasya, Rajju, Vedha) her biri ağırlıksız olarak karşılandı / karşılanmadı biçiminde değerlendirilir; toplam 10 üzerinden karşılanan kriter sayısıdır. Rajju ve Vedha gelenekte toplamdan bağımsız kesin kısıt sayılır. Bu sistem Ashtakoot Gun Milan'dan (36 puan) ayrıdır; iki sistemin puanları birbirine çevrilmez ve toplanmaz. Rasi kriteri Kalaprakasika'ya (N. P. Subramania Iyer çevirisi, Bölüm XIII, s. 73–74) göre yerel olarak hesaplanır: gelinin Ay burcundan damadınkine sayımda 2.–6. konumlar karşılanmaz; 7. ve 8.–12. konumlar karşılanır. 2. konum damadın burcu çift burçsa, 6. konum kaynağın listelediği altı burç çiftinden biriyse karşılanır. Aynı burç (1. sayım) için kaynak hüküm vermediğinden Rasi sonucu ve toplam belirsiz gösterilir. Kaynağın genel istisnası (s. 76) puana katılmaz, ayrıca belirtilir. Kaynak aynı istisnayı Rajju, Vedha ve Gana için de verir; bu kriterler hesap servisinin sonucuyla aynen gösterilir. Diğer dokuz kriter hesap servisinin sonucudur; ekoller arasında Gana eşleşmeleri ve Mahendra yönü farklılık gösterebilir. Bu bölüm teknik değerlendirmedir; evlilik ya da ilişki kararı değildir.";
+export const dashakootMethodText = (t: { rasiClassic?: unknown }) => (t.rasiClassic ? DASHAKOOT_METHOD_TEXT_KP : DASHAKOOT_METHOD_TEXT);
 export const DASHAKOOT_DIRECTION_TEXT =
   "Hesaplama rolleri: geleneksel porutham tablosunda 1. rol damat, 2. rol gelin olarak okunur; Dina, Mahendra, Stree Deergha, Rasi ve Vasya gelinden damada sayıldığından rol sırasına duyarlıdır. Rolleri uzman seçer; sistem cinsiyet tahmini yapmaz. Rol değişirse sonuç farklı olabilir.";
 export const PAPASAMYAM_METHOD_TEXT =
