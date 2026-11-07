@@ -1466,6 +1466,11 @@
    "file": "scripts/trial7/trial7-routes.harness.ts",
    "tsx": true,
    "timeoutSec": 180
+  },
+  {
+   "file": "scripts/uye-listesi-v2/uye-listesi-v2.harness.ts",
+   "tsx": true,
+   "timeoutSec": 240
   }
  ]
 }

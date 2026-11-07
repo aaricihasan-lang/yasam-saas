@@ -188,7 +188,7 @@ function run(): void {
   ok(/grant execute on function[\s\S]*to service_role/i.test(migCode), "migration: RPC yalnız service_role");
 
   // ── 7) FİLTRE SADELEŞTİRME (statik) ────────────────────────────────────────
-  const usersList = readFileSync("app/admin/users/page.tsx", "utf8");
+  const usersList = readFileSync("app/admin/users/klasik/page.tsx", "utf8");
   ok(!/Askıda/.test(usersList), "filtre: 'Askıda' kaldırıldı");
   // ÜYE YÖNETİMİ FAZ 2: filtreler sunucu tarafında (URL durumu → /api/admin/users); bağımsız boyutlar korunur.
   ok(/parseMemberListQuery/.test(usersList) && /DEFAULT_MEMBER_LIST_QUERY/.test(usersList), "filtre: gruplu bağımsız boyutlar (sunucu tarafı)");

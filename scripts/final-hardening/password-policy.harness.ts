@@ -108,7 +108,7 @@ const settings = read("app/settings/page.tsx");
 ok(/autoComplete="current-password"/.test(settings) && /autoComplete="new-password"/.test(settings) && /<PasswordInput/.test(settings), "parola değiştirme: current/new-password + ortak bileşen");
 const adminDetail = read("app/admin/users/[id]/page.tsx");
 ok((adminDetail.match(/<PasswordInput/g) ?? []).length === 3, "admin: sıfırlama (2) + arşiv onayı (1) ortak bileşen");
-ok(/<PasswordInput id="create-password"/.test(read("app/admin/users/page.tsx")), "admin uzman oluşturma: ortak bileşen");
+ok(/<PasswordInput id="create-password"/.test(read("app/admin/users/klasik/page.tsx")), "admin uzman oluşturma: ortak bileşen");
 
 console.log("\n── E) Terim: 'Parola' (PIN değil) ──");
 const trHome = JSON.parse(read("messages/tr/home.json"));
