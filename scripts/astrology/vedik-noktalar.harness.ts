@@ -472,9 +472,11 @@ async function main() {
     return reportTexts(buildAstroReport(a)).join("\n");
   }
   const BAD = ["undefined", "NaN", "[object Object]", "Roxy", "roxy", "golden", "fixture", "/vedic-astrology", "openapi"];
-  await t("G: Word/PDF rapor modeli — Upagraha (GERÇEK yanıt): iki ayrı sistem tablosu, Gulika 219,31° / Mandi 217,83°, gök cismi değil notu, ekol notu, Panchanga Gulika farkı, D1 evleri; 'Otomatik yorum yok'", async () => {
+  // ATL-B01 F1 (07.11.2026): ürün yolunda Mandi klasik ghati tablosuyla yereldir (Pazar gündüz 26 ghati) → 241,01°; BAĞIMSIZ klasik referans
+  // (DE440 + Swiss, ürün kodu yok) 240,9994°. Sağlayıcının kendi Mandi'si (217,83°) yanıt düzeyinde aynen doğrulanır (R2, R10).
+  await t("G: Word/PDF rapor modeli — Upagraha (GERÇEK yanıt): iki ayrı sistem tablosu, Gulika 219,31° / Mandi 241,01° (klasik), gök cismi değil notu, ekol notu, Panchanga Gulika farkı, D1 evleri; 'Otomatik yorum yok'", async () => {
     const s = await savedReport(UPA(), true);
-    for (const want of ["Upagrahalar — hesaplanan duyarlı noktalar", "219,31°", "217,83°", "222,33°", "59,00°", "Zaman tabanlı (Kala-velā / Gulika türü)", "Güneş türevli (Aprakasha / Dhuma grubu)", "Gulika", "Indra Chapa", "Güneş + 133°20′", "fiziksel gök cismi değildir", "Ekol farkı", "ZAMAN PENCERESİDİR", "Lagna (Vedik D1 kaydından)", "Terazi", "2. ev", "(tutarlı)", "Otomatik yorum yok", NO_PROVIDER_INTERPRETATION_NOTE.slice(0, 40)])
+    for (const want of ["Upagrahalar — hesaplanan duyarlı noktalar", "219,31°", "241,01°", "222,33°", "59,00°", "Zaman tabanlı (Kala-velā / Gulika türü)", "Güneş türevli (Aprakasha / Dhuma grubu)", "Gulika", "Indra Chapa", "Güneş + 133°20′", "fiziksel gök cismi değildir", "Ekol farkı", "ZAMAN PENCERESİDİR", "Lagna (Vedik D1 kaydından)", "Terazi", "2. ev", "(tutarlı)", "Otomatik yorum yok", NO_PROVIDER_INTERPRETATION_NOTE.slice(0, 40)])
       assert.ok(s.includes(want), `rapor: "${want}" yok`);
     for (const bad of BAD) assert.ok(!s.includes(bad), `rapor: "${bad}" olmamalı`);
   });
@@ -769,14 +771,16 @@ async function main() {
     console.log(`     ${out.join(" · ")}`);
   });
 
-  await t("R8: GERÇEK yanıtla motor → kaydet → aç (0 istek) → rapor: Mandi 217,83° ve Gulika 219,31° tabloda; Mars udaya '08.11.1989 05:36 (GMT+2)'", async () => {
+  await t("R8: GERÇEK yanıtla motor → kaydet → aç (0 istek) → rapor: Mandi 241,01° (klasik; bağımsız ref 240,9994°) ve Gulika 219,31° tabloda; Mars udaya '08.11.1989 05:36 (GMT+2)'", async () => {
     const store = seed();
     const ctx = ctxOf(store);
     const pa = await profileA(ctx);
     const rx = roxy();
     const r = (await run(ctx, pa, [UPA(), HEL()], rx.deps)).body as J;
     assert.deepEqual(r.results.map((x: J) => x.ok), [true, true], JSON.stringify(r).slice(0, 300));
-    assert.equal(r.results[0].view.technical.timeBased.find((p: J) => p.id === "mandi").longitude, 217.83);
+    const mandi = r.results[0].view.technical.timeBased.find((p: J) => p.id === "mandi").longitude;
+    assert.equal(mandi, 241.01);
+    assert.ok(Math.abs(mandi - 240.9994) <= 0.05, "bağımsız klasik referans (DE440/Swiss) ±0,05°");
     const n = rx.calls.length;
     const txt: string[] = [];
     for (const sel of [UPA(), HEL()]) {
@@ -785,7 +789,7 @@ async function main() {
       txt.push(reportTexts(buildAstroReport(a)).join("\n"));
     }
     assert.equal(rx.calls.length, n, "kayıt / açma sağlayıcı çağırmaz");
-    for (const w of ["217,83°", "219,31°", "Ekol farkı"]) assert.ok(txt[0].includes(w), w);
+    for (const w of ["241,01°", "219,31°", "Ekol farkı", "Phaladeepika"]) assert.ok(txt[0].includes(w), w);
     for (const w of ["08.11.1989 05:36 (GMT+2)", "08.11.1989 03:36 UTC"]) assert.ok(txt[1].includes(w), w);
     for (const bad of ["Roxy", "golden", "fixture", "gercek-saglayici"]) assert.ok(!txt.join("\n").includes(bad), bad);
   });

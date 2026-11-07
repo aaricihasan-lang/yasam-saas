@@ -2,11 +2,13 @@
 // sahte sağlayıcı (GERÇEK golden yanıtlar: vedic-upagraha-a-night.json, vedic-upagraha-b.json). GERÇEK sağlayıcı çağrılmaz.
 // Önkoşul: dev-fake-backend (FAKE_ROXY_CERT/KEY) ve yerel next sunucusu (ASTROLOGY_MODULE_ENABLED=true,
 //          NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:<fake>, ROXY_API_KEY=local-fake-roxy-key, ROXY_API_BASE_URL=https://127.0.0.1:<fake+1>/api/v2).
-// Çalıştırma: node scripts/astrology/upagraha-kalavela-ui.e2e.cjs <origin> <fake-port> <eski-teknik.json> [ekran-görüntüsü-klasörü]
+// Çalıştırma: node scripts/astrology/upagraha-kalavela-ui.e2e.cjs <origin> <fake-port> <eski-teknik.json> [ekran-görüntüsü-klasörü] [eski-teknik-v2.json]
+//   ATL-B01 F1 (07.11.2026): yeni kayıtlar -3 (Mandi klasik ghati tablosu); eski-teknik-v2.json = aynı yanıtın -2 projeksiyonu (BPHS dört nokta,
+//   servis Mandi'si) → '-2' eski kaydı; Mandi değeri ve eski Mandi açıklaması AYNEN korunmalı.
 //   eski-teknik.json = aynı gerçek yanıtın ESKİ (-1) projeksiyonu (origin/main kodu; adaptör projeksiyonu değişmedi).
 //   1) API: "A Pazar gecesi" (23:10 İstanbul) ve "Sentetik B" (Pazartesi gündüz) Upagraha → kaydet (yeni, -2). Eski kayıt: yeni kaydın
 //      satırı kopyalanır, teknik veri + sürüm -1 ile (sahte DB'ye; prod'a DEĞİL). Word/PDF metinleri ↔ beklenen değer ve notlar.
-//   2) Kayıtlı analizler 1366×768, 390×844, 320×568: değerler, yöntem notları, eski kayıt uyarısı; taşma / kırpılma / küçük yazı yok.
+//   2) Kayıtlı analizler 1920×1080, 1366×768, 1024×768, 390×844, 320×568: değerler, yöntem notları, eski kayıt uyarısı; taşma / kırpılma / küçük yazı yok.
 //   Tarayıcı öykünmesidir; fiziksel cihaz testi DEĞİLDİR.
 /* eslint-disable @typescript-eslint/no-require-imports -- düz Node CommonJS test betiği */
 const fs = require("node:fs");
@@ -15,7 +17,7 @@ const { execFileSync } = require("node:child_process");
 const { chromium } = require("playwright");
 const { randomUUID } = require("node:crypto");
 const JSZip = require("jszip");
-const [ORIGIN = "http://localhost:3971", FAKE = "54399", OLD_TECH = "", OUT = ""] = process.argv.slice(2);
+const [ORIGIN = "http://localhost:3971", FAKE = "54399", OLD_TECH = "", OUT = "", OLD_TECH2 = ""] = process.argv.slice(2);
 if (OUT) fs.mkdirSync(OUT, { recursive: true });
 let pass = 0;
 let fail = 0;
@@ -48,12 +50,20 @@ const N = {
   schoolNew: "Ekol farkı ve yöntem: Kala, Mrityu, Ardhaprahara ve Yamaghantaka, BPHS'e",
   schoolOld: "Ekol farkı (16 gerçek hesapla",
   legacy: "BPHS sırasıyla hesaplanmamıştır",
+  // ATL-B01 F1: Mandi açıklamaları (ekol notu + Dayanak sütunu) kayda göre.
+  mandiNew: "Phaladeepika (25. bölüm, şl. 2)",
+  mandiOld2: "klasik tablo anının kendisi değildir",
+  basisNew: "Ghati tablosu (Uttara Kalamrita 7",
+  basisOld: "Ghati tablosundan 1/8 gün ya da gece önce",
 };
 // Beklenen değerler (A Pazar gecesi: Kala/Mrityu/Ardhaprahara BPHS ile değişir, Yamaghantaka aynı; B Pazartesi gündüz: Kala değişir).
+// ATL-B01 F1: yeni (-3) Mandi = klasik ghati tablosu; beklenen değer BAĞIMSIZ referanstan (DE440/Swiss): A gece 10 ghati 339,8269° → 339,83°,
+// B gündüz 22 ghati 119,5780° → 119,58°. Eski (-1/-2) kayıtlarda servis Mandi'si (A 310,35°) AYNEN.
 const CASES = {
-  aNew: { label: "A Pazar gecesi", want: ["319,90°", "310,35°", "349,79°", "39,92°", "58,36°", "270,68°"], notes: ["sysNew", "schoolNew"], absent: ["sysOld", "schoolOld", "legacy"] },
-  aOld: { label: "A Pazar gecesi — ESKİ kayıt", want: ["319,90°", "310,35°", "17,34°", "58,36°", "74,19°", "270,68°"], notes: ["sysOld", "schoolOld", "legacy"], absent: ["sysNew", "schoolNew"] },
-  bNew: { label: "Sentetik B", want: ["103,95°", "101,53°", "121,99°", "12,60°", "42,45°", "65,74°"], notes: ["sysNew", "schoolNew"], absent: ["sysOld", "schoolOld", "legacy"] },
+  aNew: { label: "A Pazar gecesi", want: ["319,90°", "339,83°", "349,79°", "39,92°", "58,36°", "270,68°"], notes: ["sysNew", "schoolNew", "mandiNew", "basisNew"], absent: ["sysOld", "schoolOld", "legacy", "mandiOld2", "basisOld"] },
+  aOld: { label: "A Pazar gecesi — ESKİ kayıt", want: ["319,90°", "310,35°", "17,34°", "58,36°", "74,19°", "270,68°"], notes: ["sysOld", "schoolOld", "legacy", "basisOld"], absent: ["sysNew", "schoolNew", "mandiNew", "mandiOld2", "basisNew"] },
+  aOld2: { label: "A Pazar gecesi — ESKİ -2 kayıt", want: ["319,90°", "310,35°", "349,79°", "39,92°", "58,36°", "270,68°"], notes: ["sysNew", "schoolNew", "mandiOld2", "basisOld"], absent: ["sysOld", "schoolOld", "legacy", "mandiNew", "basisNew"] },
+  bNew: { label: "Sentetik B", want: ["103,95°", "119,58°", "121,99°", "12,60°", "42,45°", "65,74°"], notes: ["sysNew", "schoolNew", "mandiNew", "basisNew"], absent: ["sysOld", "schoolOld", "legacy", "mandiOld2", "basisOld"] },
 };
 async function newPage(browser, w, h) {
   const ctx = await browser.newContext({ viewport: { width: w, height: h }, isMobile: w < 640, hasTouch: w < 640, locale: "tr-TR", timezoneId: "Europe/Istanbul", acceptDownloads: true });
@@ -89,7 +99,7 @@ const noteHits = (text, keys) => keys.filter((k) => norm(text).includes(norm(N[k
     const run = await api("/engine/run", { profileId: pid, revision: 1, selections: [sel], confirmNewRequests: plan.j?.plan?.newRequestCount ?? 0 });
     const it = run.j?.results?.[0];
     const tb = it?.view?.technical?.timeBased ?? [];
-    ok(`API ${key}: hesap OK, kalaVela BPHS işareti, adaptör -2`, it?.ok === true && it?.view?.technical?.kalaVela?.method === "bphs_part_start" && it?.view?.adapterVersion === "astro-roxy-vedic-upagraha-2", JSON.stringify(it ?? run.j).slice(0, 300));
+    ok(`API ${key}: hesap OK, kalaVela BPHS + klasik Mandi işareti, adaptör -3`, it?.ok === true && it?.view?.technical?.kalaVela?.method === "bphs_part_start" && it?.view?.technical?.kalaVela?.mandi === "ghati_table" && it?.view?.adapterVersion === "astro-roxy-vedic-upagraha-3", JSON.stringify(it ?? run.j).slice(0, 300));
     ok(`API ${key}: değerler ${tb.map((p) => `${p.id} ${p.longitude}`).join(", ")}`, CASES[key].want.every((w) => tb.some((p) => p.longitude.toFixed(2).replace(".", ",") + "°" === w)));
     const sv = await api("/analyses", { profileId: pid, revision: 1, technique: sel.technique, options: it?.view?.options ?? sel.options, saveRequestId: randomUUID(), includeProviderInterp: true, title: `${CASES[key].label} — Upagraha (yeni)` });
     ids[key] = sv.j?.analysisId;
@@ -98,26 +108,37 @@ const noteHits = (text, keys) => keys.filter((k) => norm(text).includes(norm(N[k
   // Eski kayıt: yeni A kaydının satırı, teknik veri ESKİ projeksiyon + sürüm -1 (yalnız sahte DB).
   const row = (await (await fetch(`${REST}/astro_analyses?id=eq.${ids.aNew}&select=*`)).json())[0];
   const oldTech = JSON.parse(fs.readFileSync(OLD_TECH, "utf8"));
-  const rpc = await fetch(`${REST}/rpc/astro_analysis_save_v2`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({
-      p_tenant_id: TENANT, p_user_id: OWNER, p_profile_id: pidA, p_profile_revision: 1, p_partner_profile_id: null, p_partner_profile_revision: null, p_result_ids: [],
-      p_technique: "vedic.upagraha", p_title: "A Pazar gecesi — Upagraha (ESKİ kayıt)", p_save_request_id: randomUUID(), p_technique_params: row.technique_params,
-      p_profile_snapshot: row.profile_snapshot, p_method_snapshot: row.method_snapshot, p_technical_snapshot: oldTech, p_kb_snapshot: [], p_provider_interp_included: false,
-      p_provider_interp_snapshot: null, p_versions_snapshot: { ...row.versions_snapshot, adapterVersion: "astro-roxy-vedic-upagraha-1", projectionVersion: "vedic-upagraha-proj-1" }, p_notes: [],
-    }),
-  });
-  ids.aOld = (await rpc.json())?.analysis_id;
+  const oldTech2 = JSON.parse(fs.readFileSync(OLD_TECH2, "utf8"));
+  const saveOld = async (title, tech, v) => {
+    const rpc = await fetch(`${REST}/rpc/astro_analysis_save_v2`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        p_tenant_id: TENANT, p_user_id: OWNER, p_profile_id: pidA, p_profile_revision: 1, p_partner_profile_id: null, p_partner_profile_revision: null, p_result_ids: [],
+        p_technique: "vedic.upagraha", p_title: title, p_save_request_id: randomUUID(), p_technique_params: row.technique_params,
+        p_profile_snapshot: row.profile_snapshot, p_method_snapshot: row.method_snapshot, p_technical_snapshot: tech, p_kb_snapshot: [], p_provider_interp_included: false,
+        p_provider_interp_snapshot: null, p_versions_snapshot: { ...row.versions_snapshot, adapterVersion: `astro-roxy-vedic-upagraha-${v}`, projectionVersion: `vedic-upagraha-proj-${v}` }, p_notes: [],
+      }),
+    });
+    return (await rpc.json())?.analysis_id;
+  };
+  ids.aOld = await saveOld("A Pazar gecesi — Upagraha (ESKİ kayıt)", oldTech, 1);
   ok("eski (-1) kayıt sahte DB'ye yazıldı", typeof ids.aOld === "string");
-  const before = JSON.stringify((await (await fetch(`${REST}/astro_analyses?id=eq.${ids.aOld}&select=*`)).json())[0]);
+  ids.aOld2 = await saveOld("A Pazar gecesi — Upagraha (ESKİ -2 kayıt)", oldTech2, 2);
+  ok("eski (-2) kayıt sahte DB'ye yazıldı", typeof ids.aOld2 === "string");
+  const rowOf = async (id) => JSON.stringify((await (await fetch(`${REST}/astro_analyses?id=eq.${id}&select=*`)).json())[0]);
+  const before = await rowOf(ids.aOld);
+  const before2 = await rowOf(ids.aOld2);
+  const detail2 = await api(`/analyses/${ids.aOld2}`);
+  const codes2 = (detail2.j?.analysis?.legacyNotes ?? []).map((n) => n.code);
+  ok("eski -2 kayıt açılır: yalnız eski Mandi notu (upagraha_mandi) + değerler AYNEN (Mandi 310,35 · Kala 349,79)", codes2.includes("upagraha_mandi") && !codes2.includes("upagraha_kala_vela") && JSON.stringify(detail2.j?.analysis?.technical?.timeBased) === JSON.stringify(oldTech2.timeBased), JSON.stringify(detail2.j?.analysis?.legacyNotes ?? detail2.j).slice(0, 300));
   const detail = await api(`/analyses/${ids.aOld}`);
-  ok("eski kayıt açılır: legacy notu upagraha_kala_vela + değerler AYNEN (17,34 · 58,36 · 74,19)", (detail.j?.analysis?.legacyNotes ?? []).some((n) => n.code === "upagraha_kala_vela") && JSON.stringify(detail.j?.analysis?.technical?.timeBased) === JSON.stringify(oldTech.timeBased), JSON.stringify(detail.j?.analysis?.legacyNotes ?? detail.j).slice(0, 300));
-  const pids = { aNew: pidA, aOld: pidA, bNew: pidB };
+  ok("eski kayıt açılır: legacy notları upagraha_kala_vela + upagraha_mandi, değerler AYNEN (17,34 · 58,36 · 74,19 · Mandi 310,35)", ["upagraha_kala_vela", "upagraha_mandi"].every((c) => (detail.j?.analysis?.legacyNotes ?? []).some((n) => n.code === c)) && JSON.stringify(detail.j?.analysis?.technical?.timeBased) === JSON.stringify(oldTech.timeBased), JSON.stringify(detail.j?.analysis?.legacyNotes ?? detail.j).slice(0, 300));
+  const pids = { aNew: pidA, aOld: pidA, aOld2: pidA, bNew: pidB };
 
   // ── Word / PDF içerikleri
   const docs = {};
-  for (const key of ["aNew", "aOld", "bNew"]) {
+  for (const key of ["aNew", "aOld", "aOld2", "bNew"]) {
     for (const fmt of ["docx", "pdf"]) {
       const r = await api(`/analyses/${ids[key]}/report?format=${fmt}`, null, true);
       const buf = Buffer.from(await r.arrayBuffer());
@@ -132,21 +153,23 @@ const noteHits = (text, keys) => keys.filter((k) => norm(text).includes(norm(N[k
       const missN = c.notes.filter((k) => !noteHits(text, [k]).length);
       const extra = c.absent.filter((k) => noteHits(text, [k]).length);
       ok(`${fmt.toUpperCase()} ${key}: değerler + doğru yöntem notları; yanlış not yok; jargon yok`, !missV.length && !missN.length && !extra.length && !JARGON.test(text), `eksik değer ${missV} · eksik not ${missN} · fazla not ${extra}`);
-      if (key === "aOld") ok(`${fmt.toUpperCase()} aOld: genel 'Eski hesap sürümü' bölümü`, t.includes("Eski hesap sürümü"));
+      if (key === "aOld" || key === "aOld2") ok(`${fmt.toUpperCase()} ${key}: genel 'Eski hesap sürümü' bölümü + eski Mandi açıklaması`, t.includes("Eski hesap sürümü") && t.includes("eski hesap kuralıyla o andan"));
     }
   }
 
-  // ── 2) Ekran: 1366×768, 390×844, 320×568
+  // ── 2) Ekran: 1920×1080, 1366×768, 1024×768, 390×844, 320×568
   const browser = await chromium.launch({ args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"] });
   const screen = {};
   for (const [w, hh] of [
+    [1920, 1080],
     [1366, 768],
+    [1024, 768],
     [390, 844],
     [320, 568],
   ]) {
     const tag = `${w}x${hh}`;
     const { ctx, page } = await newPage(browser, w, hh);
-    for (const key of ["aNew", "aOld", "bNew"]) {
+    for (const key of ["aNew", "aOld", "aOld2", "bNew"]) {
       await page.goto("about:blank");
       await page.goto(`${ORIGIN}/admin/astroloji#danisan/${pids[key]}`, { waitUntil: "load", timeout: 240000 });
       const item = page.locator(`[data-saved-item="${ids[key]}"]`);
@@ -157,7 +180,8 @@ const noteHits = (text, keys) => keys.filter((k) => norm(text).includes(norm(N[k
       await sec.waitFor({ timeout: 60000 }).catch(() => {});
       ok(`${tag} ${key}: panel görünür`, await sec.isVisible().catch(() => false));
       // Açılan kaydın başlığındaki "Eski hesap sürümü" etiketi (SavedAnalysisView): yalnız eski kayıtta.
-      ok(`${tag} ${key}: başlıkta 'Eski hesap sürümü' etiketi ${key === "aOld" ? "VAR" : "YOK"}`, (await page.locator("[data-testid=astro-legacy-method]:visible").count()) === (key === "aOld" ? 1 : 0));
+      const legacyRec = key === "aOld" || key === "aOld2";
+      ok(`${tag} ${key}: başlıkta 'Eski hesap sürümü' etiketi ${legacyRec ? "VAR" : "YOK"}`, (await page.locator("[data-testid=astro-legacy-method]:visible").count()) === (legacyRec ? 1 : 0));
       const timeTxt = await page.locator("[data-testid=astro-upagraha-time]").first().innerText().catch(() => "");
       const c = CASES[key];
       ok(`${tag} ${key}: 6 + 5 satır; değerler ${c.want.join(" ")}`, (await page.locator("[data-testid=astro-upagraha-time] tbody tr").count()) === 6 && (await page.locator("[data-testid=astro-upagraha-sun] tbody tr").count()) === 5 && c.want.every((x) => timeTxt.includes(x)), c.want.filter((x) => !timeTxt.includes(x)).join(","));
@@ -229,9 +253,9 @@ const noteHits = (text, keys) => keys.filter((k) => norm(text).includes(norm(N[k
   }
   await browser.close();
   // ── Ekran ↔ Word/PDF aynı değer ve notlar
-  for (const key of ["aNew", "aOld", "bNew"]) {
+  for (const key of ["aNew", "aOld", "aOld2", "bNew"]) {
     const c = CASES[key];
-    for (const tag of ["1366x768", "390x844", "320x568"]) {
+    for (const tag of ["1920x1080", "1366x768", "1024x768", "390x844", "320x568"]) {
       const s = screen[`${key}.${tag}`] ?? "";
       for (const fmt of ["docx", "pdf"]) {
         const d = docs[`${key}.${fmt}`] ?? "";
@@ -240,8 +264,8 @@ const noteHits = (text, keys) => keys.filter((k) => norm(text).includes(norm(N[k
       }
     }
   }
-  const after = JSON.stringify((await (await fetch(`${REST}/astro_analyses?id=eq.${ids.aOld}&select=*`)).json())[0]);
-  ok("eski kayıt satırı açma/rapor sonrası DEĞİŞMEDİ", before === after);
+  ok("eski (-1) kayıt satırı açma/rapor sonrası DEĞİŞMEDİ", before === (await rowOf(ids.aOld)));
+  ok("eski (-2) kayıt satırı açma/rapor sonrası DEĞİŞMEDİ", before2 === (await rowOf(ids.aOld2)));
   console.log(`\nupagraha-kalavela-ui e2e: ${pass} PASS / ${fail} FAIL`);
   process.exit(fail ? 1 : 0);
 })().catch((e) => {

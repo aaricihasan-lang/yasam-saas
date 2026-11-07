@@ -1,7 +1,7 @@
 // VEDİK NOKTALAR (22.10.2026) — Upagrahalar + Graha Asta / Udaya: ekran + akış regresyonu (Playwright Chromium). YEREL; sahte DB + sahte
 // sağlayıcı. GERÇEK sağlayıcı çağrılmaz. 23.10.2026: iki ucun A için GERÇEK yanıtları golden klasöründe (vedic-upagraha.json,
 // vedic-heliacal.json) → dev-fake-backend bunları BİREBİR gövdeyle önce döndürür; FAKE_SCHEMA_FIXTURES=1 GEREKMEZ (şema-örneği devreye
-// girmez). Beklentiler GERÇEK değerlerdir: Gulika 219,31° · Mandi 217,83° · Dhuma 222,33°; Merkür + Jüpiter astada; Mars udaya
+// girmez). Beklentiler GERÇEK değerlerdir: Gulika 219,31° · Mandi 241,01° (ATL-B01 F1: klasik ghati tablosu, yerel; bağımsız ref 240,9994°) · Dhuma 222,33°; Merkür + Jüpiter astada; Mars udaya
 // 1989-11-08 06:36 (+3, sağlayıcının sabit ofseti) → 03:36 UTC → İstanbul 05:36 (GMT+2, o tarihteki resmî saat). Vedik D1 golden'ı gerçektir.
 // Tohum: "Ali Örnek — natal" (sentetik A, İstanbul) + "Saat bilinmeyen" profil.
 // Önkoşul: yerel next sunucusu (ASTROLOGY_MODULE_ENABLED=true, NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:<fake>, ROXY_API_KEY=local-fake-roxy-key,
@@ -74,7 +74,7 @@ async function docxText(buf) {
   const ut = u.it?.view?.technical;
   ok("API Upagraha: 1 istek; 6 + 5 nokta; D1'den ev (Gulika 2. ev), Güneş tutarlı", u.plan.j?.plan?.newRequestCount === 1 && u.it?.ok === true && ut?.timeBased?.length === 6 && ut?.sunBased?.length === 5 && ut?.d1?.sunConsistent === true && ut.timeBased.find((p) => p.id === "gulika")?.house === 2, JSON.stringify(u.it ?? u.run.j).slice(0, 300));
   const lonOf = (xs, id) => xs?.find((p) => p.id === id)?.longitude;
-  ok("API Upagraha GERÇEK değerler: Gulika 219,31 · Mandi 217,83 (ekol farkı; parça ortası değil) · Kala 87,63 · Dhuma 222,33 · Upaketu 59; kanonik sıra (Gulika ilk)", lonOf(ut?.timeBased, "gulika") === 219.31 && lonOf(ut?.timeBased, "mandi") === 217.83 && lonOf(ut?.timeBased, "kala") === 87.63 && lonOf(ut?.sunBased, "dhuma") === 222.33 && lonOf(ut?.sunBased, "upaketu") === 59 && ut?.timeBased?.[0]?.id === "gulika", JSON.stringify(ut?.timeBased ?? null).slice(0, 300));
+  ok("API Upagraha GERÇEK değerler: Gulika 219,31 · Mandi 241,01 (klasik ghati tablosu) · Kala 87,63 · Dhuma 222,33 · Upaketu 59; kanonik sıra (Gulika ilk)", lonOf(ut?.timeBased, "gulika") === 219.31 && lonOf(ut?.timeBased, "mandi") === 241.01 && lonOf(ut?.timeBased, "kala") === 87.63 && lonOf(ut?.sunBased, "dhuma") === 222.33 && lonOf(ut?.sunBased, "upaketu") === 59 && ut?.timeBased?.[0]?.id === "gulika", JSON.stringify(ut?.timeBased ?? null).slice(0, 300));
   const h = await runSel(pid, hSel);
   const ht = h.it?.view?.technical;
   ok("API Heliakal: 1 istek; 6 graha; Jüpiter astada; gün 1990-07-15; ofset +3", h.plan.j?.plan?.newRequestCount === 1 && h.it?.ok === true && ht?.grahas?.length === 6 && ht.grahas.find((g) => g.id === "jupiter")?.visible === false && ht.date === "1990-07-15" && ht.place?.utcOffsetHours === 3, JSON.stringify(h.it ?? h.run.j).slice(0, 300));
@@ -93,7 +93,7 @@ async function docxText(buf) {
     ok(`kayıt ${key}`, typeof ids[key] === "string", JSON.stringify(sv.j).slice(0, 200));
   }
   for (const [key, want] of [
-    ["upa", ["Upagrahalar — hesaplanan duyarlı noktalar", "Zaman tabanlı (Kala-velā / Gulika türü)", "Güneş türevli (Aprakasha / Dhuma grubu)", "219,31°", "217,83°", "222,33°", "Ekol farkı", "fiziksel gök cismi değildir", "Otomatik yorum yok"]],
+    ["upa", ["Upagrahalar — hesaplanan duyarlı noktalar", "Zaman tabanlı (Kala-velā / Gulika türü)", "Güneş türevli (Aprakasha / Dhuma grubu)", "219,31°", "241,01°", "222,33°", "Ekol farkı", "fiziksel gök cismi değildir", "Otomatik yorum yok"]],
     ["hel", ["Graha Asta / Udaya — 15.07.1990", "Udaya (heliakal doğuş)", "08.11.1989 05:36 (GMT+2)", "08.11.1989 03:36 UTC", "27.07.1990 05:12 (GMT+3)", "Surya Siddhanta", "yanık (asta)", "Otomatik yorum yok"]],
   ]) {
     for (const fmt of ["docx", "pdf"]) {
@@ -159,7 +159,7 @@ async function docxText(buf) {
         const txt = await sec.innerText().catch(() => "");
         ok(`${tag} upa: gök cismi değil notu + ev sütunu`, txt.includes("fiziksel gök cismi değildir") && txt.includes("2. ev"), txt.slice(0, 200));
         const timeTxt = await page.locator("[data-testid=astro-upagraha-time]").first().innerText().catch(() => "");
-        ok(`${tag} upa: GERÇEK değerler tabloda (Gulika 219,31° · Mandi 217,83°)`, timeTxt.includes("219,31°") && timeTxt.includes("217,83°"), timeTxt.slice(0, 200));
+        ok(`${tag} upa: GERÇEK değerler tabloda (Gulika 219,31° · Mandi 241,01°)`, timeTxt.includes("219,31°") && timeTxt.includes("241,01°"), timeTxt.slice(0, 200));
       } else {
         ok(`${tag} hel: 6 graha satırı; Jüpiter astada`, (await page.locator("[data-testid=astro-heliacal-table] tbody tr").count()) === 6 && (await page.locator("[data-heliacal=jupiter] [data-heliacal-state=asta]").count()) === 1);
         ok(`${tag} hel: astada yalnız Merkür + Jüpiter`, (await page.locator("[data-heliacal-state=asta]").count()) === 2 && (await page.locator("[data-heliacal=mercury] [data-heliacal-state=asta]").count()) === 1);

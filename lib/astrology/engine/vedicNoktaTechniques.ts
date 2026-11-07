@@ -19,7 +19,7 @@ import type { AdapterResult } from "../providers/roxy/timing";
 import { isValidIsoDate } from "../birth/timeResolution";
 import { SIGN_IDS } from "../model/western";
 import { NAKSHATRAS, VEDIC_D1_TECHNICAL_SCHEMA, type VedicD1Technical } from "../model/vedic";
-import { applyBphsKalaVela } from "./upagrahaKalaVela";
+import { applyBphsKalaVela, applyClassicalMandi } from "./upagrahaKalaVela";
 import { UPAGRAHA_SUN_TOLERANCE, VEDIC_HELIACAL_TECHNICAL_SCHEMA, VEDIC_UPAGRAHA_TECHNICAL_SCHEMA, type VedicUpagrahaTechnical } from "../model/vedicNoktalar";
 
 const o = (raw: unknown) => (raw && typeof raw === "object" && !Array.isArray(raw) ? (raw as Record<string, unknown>) : {}) as Record<string, unknown>;
@@ -79,13 +79,13 @@ export const vedicUpagraha: TechniqueDefinition = {
   project: (u, raw, opt) => {
     const r = projectRoxyVedicUpagraha(raw, { ayanamsa: opt.ayanamsa as VedicAyanamsa, day: { date: String(u.body.date), offsetHours: Number(u.body.timezone), latitude: Number(u.body.latitude) } });
     if (!r.ok) return fromAdapter(r, VEDIC_UPAGRAHA_TECHNICAL_SCHEMA, ROXY_VEDIC_UPAGRAHA.projection);
-    const k = applyBphsKalaVela(
-      r.technical,
-      { date: String(u.body.date), time: String(u.body.time), offsetHours: Number(u.body.timezone), latitude: Number(u.body.latitude), longitude: Number(u.body.longitude) },
-      NAKSHATRAS,
-    );
+    const body = { date: String(u.body.date), time: String(u.body.time), offsetHours: Number(u.body.timezone), latitude: Number(u.body.latitude), longitude: Number(u.body.longitude) };
+    const k = applyBphsKalaVela(r.technical, body, NAKSHATRAS);
     if (!k.ok) return { ok: false, errors: k.errors };
-    return fromAdapter({ ...r, technical: k.technical }, VEDIC_UPAGRAHA_TECHNICAL_SCHEMA, ROXY_VEDIC_UPAGRAHA.projection);
+    // ATL-B01 F1 (07.11.2026): Mandi klasik ghati tablosuyla (Uttara Kalamrita şl. 7 · Phaladeepika 25.2) YEREL; diğer noktalar değişmez.
+    const m = applyClassicalMandi(k.technical, body, NAKSHATRAS);
+    if (!m.ok) return { ok: false, errors: m.errors };
+    return fromAdapter({ ...r, technical: m.technical }, VEDIC_UPAGRAHA_TECHNICAL_SCHEMA, ROXY_VEDIC_UPAGRAHA.projection);
   },
 };
 

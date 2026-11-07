@@ -41,7 +41,7 @@ import { arr, findUnmapped, int, num, obj, paths } from "./shared";
 import type { AdapterResult } from "./timing";
 import { vedicPanchangDetailedBody, type GeoPoint } from "./requests";
 
-export const ROXY_VEDIC_UPAGRAHA = { endpoint: "/vedic-astrology/upagraha", adapter: "astro-roxy-vedic-upagraha-2", projection: "vedic-upagraha-proj-2" } as const; // -2: ATL-B01 BPHS Kala-velā (eski -1 kayıtlar karışmaz)
+export const ROXY_VEDIC_UPAGRAHA = { endpoint: "/vedic-astrology/upagraha", adapter: "astro-roxy-vedic-upagraha-3", projection: "vedic-upagraha-proj-3" } as const; // -2: ATL-B01 BPHS Kala-velā · -3: ATL-B01 F1 klasik Mandi (eski -1/-2 kayıtlar karışmaz)
 export const ROXY_VEDIC_HELIACAL = { endpoint: "/vedic-astrology/heliacal", adapter: "astro-roxy-vedic-heliacal-1", projection: "vedic-heliacal-proj-1" } as const;
 
 /**
