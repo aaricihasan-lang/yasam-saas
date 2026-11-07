@@ -92,7 +92,9 @@ jobs:
   # Gökyüzü Atlası — Batı Horary (William Lilly) hesaplama motoru. Bağımsız ve paralel; ağ/sır/PostgreSQL kullanmaz.
   # Herhangi bir FAIL komutu sıfırdan farklı çıkışla bitirir → bu iş ve CI başarısız olur.
   horary-western:
-    runs-on: ubuntu-latest
+    # Yedek/geri yükleme adımı runner'daki sistem PostgreSQL araçlarını (initdb/pg_ctl/postgres/pg_dump/pg_restore, 15–17) kullanır.
+    # ubuntu-latest → ubuntu-26.04 geçişinde bu araçlar imajda yok (2026-11-07, PR #758 koşusu); 24.04 imajı PostgreSQL 16 içerir.
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     env:
       NEXT_TELEMETRY_DISABLED: "1"
