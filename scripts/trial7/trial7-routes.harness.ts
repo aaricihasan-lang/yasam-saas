@@ -79,6 +79,7 @@ const U = {
   review: "00000000-0000-0000-0000-0000000000f3",
   suspended: "00000000-0000-0000-0000-0000000000f4",
   notStarted: "00000000-0000-0000-0000-0000000000f5",
+  applicant: "00000000-0000-0000-0000-0000000000f6",
 };
 const TRIAL_PERMS = {
   clients: true, appointments: true, numerology: true, stones: true, stok: true, sifa_rehberi: true, reflexology: true,
@@ -122,6 +123,8 @@ const tables: Record<string, Row[]> = {
     trialUser(U.review, "inceleme@test.com", "review", null),
     trialUser(U.suspended, "durdurulan@test.com", "suspended", now - 10 * HOUR),
     trialUser(U.notStarted, "yeni@test.com", "not_started", null),
+    // Yönetici onayı bekleyen başvuru (mevcut kayıt akışı: pasif + pending).
+    baseUser(U.applicant, "Basvuru.Sahibi+not@Gmail.com", { active: false, approval_status: "pending", package_type: null, plan: "trial", subscription_status: "trial", module_permissions: {} }),
   ],
   user_sessions: [],
   pro_upgrade_requests: [],
@@ -134,6 +137,7 @@ const limits = new Map<string, { daily: number; mods: Row }>();
 let turnstile: { mode: "ok" | "fail" | "down" | "action"; calls: number } = { mode: "ok", calls: 0 };
 let roxy: { status: number; calls: number } = { status: 200, calls: 0 };
 let turnstileSentIp = false;
+const usedClaims = new Set<string>();
 
 const userById = (id: unknown) => tables.users.find((u) => u.id === id);
 function phaseOf(u: Row): string {
@@ -217,6 +221,8 @@ function rpc(name: string, b: Row): unknown {
       tables.pro_upgrade_requests.push(row);
       return { ok: true, created: true, request_id: row.id, created_at: row.created_at };
     }
+    case "admin_approve_expert_trial":
+      return { ok: true, trial_status: "not_started", revoked_session_count: 0 };
     case "admin_trial_set_limits":
     case "admin_trial_list":
     case "admin_trial_convert_to_pro":
@@ -269,6 +275,10 @@ globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
   if (p.startsWith("rpc/")) {
     const name = p.slice(4);
     rpcCalls.push({ name, body: body ?? {} });
+    if (name === "admin_approve_expert_trial" && usedClaims.has(String((body ?? {}).p_claim_hash))) {
+      return jsonRes({ code: "TR410", message: "tek deneme hakki kullanilmis" }, 400);
+    }
+    if (name === "admin_approve_expert_trial") usedClaims.add(String((body ?? {}).p_claim_hash));
     const r = rpc(name, body ?? {});
     if (r && typeof r === "object" && (r as Row).__missing) return jsonRes({ code: "PGRST202", message: `missing ${name}` }, 404);
     return jsonRes(r);
@@ -533,6 +543,26 @@ async function run() {
   res = await adminUserPATCH(req(`${A}/admin/users/${U.active}`, U.admin, "PATCH", { action: "modules", changes: { belge_ceviri: true } }, true), ctx);
   const mj = (await res.json()) as Row;
   ok(res.status === 400 && mj.code === "TRIAL_MODULE_FORBIDDEN", "A7 deneme üyesine Dijital İçerik alt modülü açılamaz (kişiye özel izin aşamaz)", mj);
+  const { POST: statusPOST } = await import("@/app/api/admin/users/[id]/status/route");
+  const actx = { params: Promise.resolve({ id: U.applicant }) };
+  res = await statusPOST(req(`${A}/admin/users/${U.applicant}/status`, U.admin, "POST", { action: "approve_trial" }, true), actx);
+  ok(res.status === 400 && calledRpc("admin_approve_expert_trial").length === 0, "A8 deneme onayında beklenen durum zorunlu");
+  res = await statusPOST(req(`${A}/admin/users/${U.applicant}/status`, U.premium, "POST", { action: "approve_trial", expectedApproval: "pending" }, true), actx);
+  ok((res.status === 401 || res.status === 403) && calledRpc("admin_approve_expert_trial").length === 0, "A9 admin olmayan deneme onaylayamaz", res.status);
+  res = await statusPOST(req(`${A}/admin/users/${U.applicant}/status`, U.admin, "POST", { action: "approve_trial", expectedApproval: "pending" }, true), actx);
+  const ta = calledRpc("admin_approve_expert_trial").at(-1)?.body ?? {};
+  const tj = (await res.json()) as Row;
+  const mods = (ta.p_modules ?? {}) as Row;
+  ok(res.status === 200 && tj.package_type === "trial" && tj.trial_status === "not_started" && ta.p_actor === U.admin && ta.p_expected_approval === "pending",
+    "A10 7 günlük deneme onayı ayrı RPC ile (Premium onay RPC'si ÇAĞRILMADI)", tj);
+  ok(calledRpc("admin_approve_expert_with_modules").length === 0 && calledRpc("admin_approve_expert_with_astrology").length === 0, "A11 deneme onayı Premium/Pro onay yoluna girmedi");
+  ok(/^trial-claim:[0-9a-f]{40}$/.test(String(ta.p_claim_hash)) && !String(ta.p_claim_hash).toLowerCase().includes("gmail"), "A12 tek hak anahtarı sunucuda HMAC (ham e-posta gönderilmez)", ta.p_claim_hash);
+  const { trialClaimHash } = await import("@/lib/trial/trialServer");
+  ok(ta.p_claim_hash === trialClaimHash("basvurusahibi@gmail.com"), "A13 kanonik e-posta (gmail nokta / +etiket) ile aynı hak anahtarı");
+  ok(mods.digital_content === false && mods.belge_ceviri === false && mods.yasam_hafizasi === false && mods.human_design === true, "A14 deneme paketi modülleri: Dijital İçerik + YH kapalı");
+  res = await statusPOST(req(`${A}/admin/users/${U.applicant}/status`, U.admin, "POST", { action: "approve_trial", expectedApproval: "pending" }, true), actx);
+  const uj = (await res.json()) as Row;
+  ok(res.status === 409 && /24 ay/.test(String(uj.error)), "A15 kullanılmış hak → 409 + anlaşılır mesaj", uj);
   const { POST: grantPOST } = await import("@/app/api/admin/hd/unlimited-grant/route");
   void grantPOST;
 

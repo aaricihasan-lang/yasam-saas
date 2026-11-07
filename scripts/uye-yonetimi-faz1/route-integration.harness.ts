@@ -135,6 +135,10 @@ async function main(): Promise<void> {
     await su.query(readMig("20271001000300_admin_member_commercial.sql"));
     // ÜYE YÖNETİMİ 360° — liste route'u 15 argümanlı RPC'yi çağırır (migration FIRST); Usage360 önkoşulları ile.
     await applyMember360Chain(su);
+    // TRIAL7 (canlıda uygulanmış): deneme kolonları + yönetici onaylı deneme RPC'si (admin kolon seçimi trial_kind içerir).
+    await su.query(readMig("20280101000000_trial7_self_trial.sql"));
+    await su.query(readMig("20280101000100_trial7_claims_retention.sql"));
+    await su.query(readMig("20280101000200_trial7_admin_trial_approval.sql"));
     await su.query(`grant select, insert, update on public.users, public.user_sessions, public.user_payment_history, public.yasam_hafizasi_flags to service_role;
                     grant select on public.security_events to service_role;
                     grant execute on function public.verify_admin_login(text, text), public.hash_password(text) to service_role;`);

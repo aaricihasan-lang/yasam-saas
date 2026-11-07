@@ -197,7 +197,7 @@
       "daysLabel": "Gün",
       "daysSub": "Ücretsiz keşif",
       "cta": "Hemen Üyeliğinizi Oluşturun",
-      "note": "7 günlük ücretsiz kullanım, üyeliğiniz yönetici tarafından onaylandığında başlar.",
+      "note": "Başvurunuz yönetici tarafından incelenir. Ücretsiz denemeniz onaylandıktan sonraki ilk başarılı girişinizde 7 günlük kullanım süreniz başlar.",
       "noteInstant": "Kredi kartı gerekmez. 7 günlük ücretsiz kullanım ilk girişinizle başlar."
     },
     "hero": {
@@ -499,7 +499,7 @@
       "haveAccount": "Zaten hesabınız var mı?",
       "legalNotice": "Kişisel verilerinizin nasıl işlendiği <privacy>Gizlilik Politikası</privacy>’nda, üyelik koşulları <terms>Kullanım Şartları</terms>’nda açıklanmıştır.",
       "signIn": "Giriş yapın",
-      "trialNote": "7 günlük ücretsiz keşif, üyeliğiniz yönetici tarafından onaylandığında başlar.",
+      "trialNote": "Başvurunuz yönetici tarafından incelenir. Ücretsiz denemeniz onaylandıktan sonraki ilk başarılı girişinizde 7 günlük kullanım süreniz başlar.",
       "trialNoteInstant": "7 günlük ücretsiz keşif ilk girişinizle başlar ve 168 saat sürer. Kredi kartı gerekmez.",
       "toast": {
         "errorTitle": "İşlem başarısız",

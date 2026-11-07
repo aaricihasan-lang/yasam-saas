@@ -20,6 +20,7 @@ import {
   Smartphone,
   Tablet,
   Trash2,
+  Hourglass,
   UserCheck,
   Users,
   UserX,
@@ -572,6 +573,9 @@ export default function AdminUserDetailPage() {
   const [approveAstroGrants, setApproveAstroGrants] = useState<AstroTechniqueGrants | null>(null);
   const [approveAstroPicker, setApproveAstroPicker] = useState(false);
   const [rejectOpen, setRejectOpen] = useState(false);
+  // TRIAL7: "7 Günlük Denemeyi Onayla" (Pro onayından AYRI) + Pro onayında açık ücretli üyelik teyidi.
+  const [trialApproveOpen, setTrialApproveOpen] = useState(false);
+  const [proConfirmed, setProConfirmed] = useState(false);
   const [licenseLockoutAck, setLicenseLockoutAck] = useState(false);
 
   const [editOpen, setEditOpen] = useState(false);
@@ -1052,6 +1056,7 @@ export default function AdminUserDetailPage() {
     setApproveSelection(new Set(ADMIN_MODULE_UI_KEYS.filter((k) => user.modulePermissions[k] === true)));
     setApproveAstroGrants(null);
     setApproveAstroPicker(false);
+    setProConfirmed(false);
     setApproveOpen(true);
   }
 
@@ -1101,6 +1106,19 @@ export default function AdminUserDetailPage() {
       message: `Premium hesap etkinleştirildi. ${opened.length} modül erişime açıldı: ${opened
         .map((k) => ADMIN_MODULE_UI_LABELS[k])
         .join(", ")}.`,
+      type: "success",
+    });
+  }
+
+  /** TRIAL7: 7 günlük deneme onayı — Premium/Pro VERİLMEZ; süre ilk başarılı girişte başlar. */
+  async function confirmTrialApprove() {
+    if (!user) return;
+    const res = await postStatus("approve_trial", { expectedApproval: user.approvalStatus });
+    if (!res) return;
+    setTrialApproveOpen(false);
+    showToast({
+      title: "7 günlük deneme onaylandı",
+      message: "Deneme süresi uzmanın ilk başarılı girişinde başlar. Uzman Deneme Üyeleri ekranında izlenebilir.",
       type: "success",
     });
   }
@@ -1697,7 +1715,7 @@ export default function AdminUserDetailPage() {
                           <p className="mt-1 text-xs font-semibold text-slate-600">
                             {user.approvalStatus === "approved"
                               ? "Tek paket; süresiz — yönetici pasife alana kadar."
-                              : "Onaylanınca Premium olur (paket seçimi yoktur)."}
+                              : "7 günlük deneme veya ücretli Pro üyelik olarak onaylanır."}
                           </p>
                         </dd>
                       </div>
@@ -2145,18 +2163,27 @@ export default function AdminUserDetailPage() {
                   </p>
                   <p className="mt-1 text-xs font-medium text-slate-600">
                     {user.approvalStatus === "pending"
-                      ? "Onaylarken açılacak modüller seçilir; uzman onaylı, aktif ve Premium olur."
-                      : "Reddedilmiş başvuru, modül seçilerek kontrollü biçimde yeniden onaylanabilir."}
+                      ? "7 günlük deneme veya ödeme alınmışsa Pro üyelik onaylanır. Deneme, ilk başarılı girişte başlar; Pro, seçilen modüllerle ücretli üyeliktir."
+                      : "Reddedilmiş başvuru, 7 günlük deneme veya Pro üyelik olarak kontrollü biçimde yeniden onaylanabilir."}
                   </p>
                   <div className="mt-3 flex flex-wrap items-center gap-2">
                     <button
                       type="button"
                       disabled={actionUserId === user.id}
-                      onClick={openApproveModal}
+                      onClick={() => setTrialApproveOpen(true)}
                       className={`${actionBtn} border-emerald-600 bg-emerald-600 text-white hover:bg-emerald-700`}
                     >
+                      <Hourglass className="h-4 w-4" aria-hidden />
+                      7 Günlük Denemeyi Onayla
+                    </button>
+                    <button
+                      type="button"
+                      disabled={actionUserId === user.id}
+                      onClick={openApproveModal}
+                      className={`${actionBtn} border-violet-300 bg-white text-violet-900 hover:bg-violet-50`}
+                    >
                       <UserCheck className="h-4 w-4" aria-hidden />
-                      {user.approvalStatus === "rejected" ? "Yeniden Onayla" : "Onayla"}
+                      Pro Üyeliği Onayla
                     </button>
                     {user.approvalStatus === "pending" ? (
                       <>
@@ -3468,6 +3495,61 @@ export default function AdminUserDetailPage() {
         </div>
       ) : null}
 
+      {/* ── TRIAL7: 7 günlük deneme onayı (Premium/Pro VERİLMEZ) ─────────────── */}
+      {trialApproveOpen && user ? (
+        <div className={deleteModalOverlay} role="dialog" aria-modal="true" aria-labelledby="trial-approve-title">
+          <div className="relative w-full max-w-lg rounded-[28px] border-2 border-white/90 bg-gradient-to-br from-emerald-50/95 via-white to-amber-50/80 p-5 shadow-[0_24px_64px_rgba(15,23,42,0.22)] sm:p-8">
+            <button
+              type="button"
+              onClick={() => setTrialApproveOpen(false)}
+              disabled={actionUserId === user.id}
+              className="absolute right-4 top-4 rounded-lg p-1 text-slate-500 transition hover:bg-white/80 hover:text-slate-800 disabled:opacity-50"
+              aria-label="Kapat"
+            >
+              <X className="h-5 w-5" />
+            </button>
+            <h2 id="trial-approve-title" className="pr-8 text-xl font-black text-emerald-950 sm:text-2xl">
+              7 günlük denemeyi onayla
+            </h2>
+            <div className="mt-3 rounded-xl border border-emerald-200 bg-white/80 px-4 py-3">
+              <p className="break-words text-base font-black text-slate-900">{user.fullName}</p>
+              <p className="break-all text-sm font-medium text-slate-600">{user.email}</p>
+            </div>
+            <ul className="mt-3 list-disc space-y-1 pl-5 text-sm font-medium leading-relaxed text-slate-700">
+              <li>Hesap <span className="font-black">ücretsiz deneme</span> olarak etkinleşir; Pro/Premium yetkisi verilmez.</li>
+              <li>7 günlük (168 saat) süre, uzmanın <span className="font-black">ilk başarılı girişinde</span> başlar; uzatılamaz.</li>
+              <li>Deneme modülleri açılır; Dijital İçerik kapalıdır. Günlük 50 ortak Roxy kredisi uygulanır.</li>
+              <li>Aynı e-posta kimliğiyle son 24 ay içinde deneme kullanılmışsa onay reddedilir.</li>
+            </ul>
+            <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                onClick={() => setTrialApproveOpen(false)}
+                disabled={actionUserId === user.id}
+                className="inline-flex h-11 items-center justify-center rounded-xl border-2 border-slate-200 bg-white px-5 text-sm font-black text-slate-800 transition hover:bg-slate-50 disabled:opacity-50"
+              >
+                Vazgeç
+              </button>
+              <button
+                type="button"
+                onClick={() => void confirmTrialApprove()}
+                disabled={actionUserId === user.id}
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border-2 border-emerald-600 bg-emerald-600 px-5 text-sm font-black text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {actionUserId === user.id ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                    Onaylanıyor…
+                  </>
+                ) : (
+                  "7 Günlük Denemeyi Onayla"
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       {/* ── MEM-004: Onay + modül seçimi (tek atomik işlem) ─────────────────── */}
       {approveOpen && user ? (
         <div
@@ -3489,14 +3571,14 @@ export default function AdminUserDetailPage() {
               <X className="h-5 w-5" />
             </button>
             <h2 id="approve-title" className="pr-8 text-xl font-black text-emerald-950 sm:text-2xl">
-              {user.approvalStatus === "rejected" ? "Uzmanı yeniden onayla" : "Uzmanı onayla"}
+              {user.approvalStatus === "rejected" ? "Pro üyeliği yeniden onayla" : "Pro üyeliği onayla"}
             </h2>
             <div className="mt-3 rounded-xl border border-emerald-200 bg-white/80 px-4 py-3">
               <p className="break-words text-base font-black text-slate-900">{user.fullName}</p>
               <p className="break-all text-sm font-medium text-slate-600">{user.email}</p>
             </div>
             <p className="mt-3 text-sm font-medium leading-relaxed text-slate-700">
-              Onayla dendiğinde hesap <span className="font-black">onaylanır, aktif edilir ve Premium</span> olur;
+              Onayla dendiğinde hesap <span className="font-black">onaylanır, aktif edilir ve ücretli Pro (Premium) üyelik</span> olur;
               uzman <span className="font-black">yalnız seçtiğiniz modüllere</span> erişir. Modüller daha sonra tek
               tek açılıp kapatılabilir.
             </p>
@@ -3563,6 +3645,15 @@ export default function AdminUserDetailPage() {
                 Onay için en az bir modül seçmelisiniz.
               </p>
             ) : null}
+            <label className="mt-4 flex items-start gap-2 rounded-xl border border-violet-200 bg-white/80 px-3 py-2.5 text-sm font-semibold text-slate-800">
+              <input
+                type="checkbox"
+                className="mt-0.5 h-4 w-4"
+                checked={proConfirmed}
+                onChange={(e) => setProConfirmed(e.target.checked)}
+              />
+              Bu uzmana ücretli Pro üyelik açıyorum (ödeme alındı). Ücretsiz deneme için “7 Günlük Denemeyi Onayla”yı kullanın.
+            </label>
             <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
               <button
                 type="button"
@@ -3575,7 +3666,7 @@ export default function AdminUserDetailPage() {
               <button
                 type="button"
                 onClick={() => void confirmApprove()}
-                disabled={actionUserId === user.id || !approveHasModule}
+                disabled={actionUserId === user.id || !approveHasModule || !proConfirmed}
                 className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border-2 border-emerald-600 bg-emerald-600 px-5 text-sm font-black text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {actionUserId === user.id ? (
@@ -3584,7 +3675,7 @@ export default function AdminUserDetailPage() {
                     Onaylanıyor…
                   </>
                 ) : (
-                  "Uzmanı Onayla"
+                  "Pro Üyeliği Onayla"
                 )}
               </button>
             </div>
@@ -3595,7 +3686,7 @@ export default function AdminUserDetailPage() {
       <AstrologyTechniquePicker
         open={approveOpen && approveAstroPicker}
         initial={selectionOf(approveAstroGrants)}
-        subtitle="Seçim, “Uzmanı Onayla” ile onayla birlikte kaydedilir. İptal ederseniz Astroloji seçilmez."
+        subtitle="Seçim, “Pro Üyeliği Onayla” ile onayla birlikte kaydedilir. İptal ederseniz Astroloji seçilmez."
         submitLabel="Seçimi Uygula"
         onCancel={() => setApproveAstroPicker(false)}
         onSubmit={(g) => {

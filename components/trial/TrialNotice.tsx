@@ -112,7 +112,7 @@ export default function TrialNotice() {
     title = trialCountdownTitle(remainingMs);
     body = `Ücretsiz deneme süreniz ${formatEnd(status.endsAt)} tarihinde sona erer.`;
   } else if (status.phase === "expired") {
-    title = "Ücretsiz Denemeniz Sona Erdi";
+    title = "Ücretsiz Deneme Süreniz Sona Erdi — Pro'ya Geçin";
     body = TRIAL_MESSAGES.expired;
     Icon = Crown;
   } else if (status.phase === "suspended") {
