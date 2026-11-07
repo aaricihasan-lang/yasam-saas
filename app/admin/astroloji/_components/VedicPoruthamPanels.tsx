@@ -13,6 +13,7 @@ import { GRAHA_LABELS, NAKSHATRA_LABELS } from "@/lib/astrology/topics/vedic";
 import { AYANAMSA_SHORT, type MatchMoon } from "@/lib/astrology/model/vedicMatch";
 import {
   DASHAKOOT_DIRECTION_TEXT,
+  DASHAKOOT_TOTAL_MIXED_NOTE,
   DASHAKOOT_VERDICT_LABELS,
   DASHAKOOT_VERDICT_WITHHELD_TEXT,
   dashakootMethodText,
@@ -93,6 +94,11 @@ export function DashakootPanel({ t, names: who }: { t: VedicDashakootTechnical; 
         <p className="mt-2 text-2xl font-semibold tabular-nums text-indigo-950" data-testid="astro-dashakoot-total" data-uncertain={t.total === null ? "true" : undefined}>
           {t.total ?? (t.totalRange ? `${t.totalRange[0]}–${t.totalRange[1]}` : "—")} <span className="text-base font-normal text-slate-500">/ 10 kriter karşılandı{t.total === null ? " (Rasi belirsiz)" : ""}</span>
         </p>
+        {rc && (
+          <p className="mt-1 text-xs leading-snug text-slate-600" data-testid="astro-dashakoot-total-mixed">
+            {DASHAKOOT_TOTAL_MIXED_NOTE}
+          </p>
+        )}
         {t.total === null && (
           <p className="text-xs text-amber-800" data-testid="astro-dashakoot-total-note">
             {RASI_TOTAL_UNCERTAIN_NOTE}

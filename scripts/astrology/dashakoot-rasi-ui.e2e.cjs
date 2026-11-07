@@ -55,12 +55,14 @@ const N = {
   pariharaSame: "iki Ay burcunun yöneticisi aynı",
   legacy: "Rasi kriteri bu kayıttan sonra Kalaprakasika (Bölüm XIII, s. 73–74) kuralıyla hesaplanıyor",
   withheld: "Servisin genel değerlendirmesi ve öneri cümlesi bu sonuçta gösterilmiyor",
+  // Owner kararı (07.11): -2 kayıtlarda karma toplam açıklaması.
+  mixed: "Bu toplamda Rasi kriteri Kalaprakasika yöntemine göre, diğer 9 kriter ise hesaplama servisinin kurallarına göre değerlendirilmiştir. Toplam, Kalaprakasika'nın tüm ölçütleriyle hesaplanmış bir uyum puanı değildir.",
 };
 const CASES = {
-  dk: { label: "varsayılan (-2)", total: "8 / 10", rasi: "karşılandı · 1", notes: ["methodKp", "ruleConverse", "providerDiff"], absent: ["methodOld", "ruleSecondOdd", "ruleSame", "totalUnc", "legacy"], legacy: false },
-  dkSw: { label: "rol takaslı (-2)", total: "5 / 10", rasi: "karşılanmadı · 0", notes: ["methodKp", "ruleSecondOdd", "providerDiff"], absent: ["methodOld", "ruleConverse", "ruleSame", "totalUnc", "legacy"], legacy: false },
-  old: { label: "ESKİ (-1)", total: "7 / 10", rasi: "karşılanmadı · 0", notes: ["methodOld"], absent: ["methodKp", "ruleConverse", "ruleSecondOdd", "ruleSame", "providerDiff", "totalUnc", "withheld"], legacy: true },
-  unc: { label: "belirsiz Rasi (-2)", total: "5–6 / 10", rasi: "belirsiz · —", notes: ["methodKp", "ruleSame", "providerDiff", "totalUnc", "pariharaSame"], absent: ["methodOld", "ruleConverse", "ruleSecondOdd", "legacy"], legacy: false },
+  dk: { label: "varsayılan (-2)", total: "8 / 10", rasi: "karşılandı · 1", notes: ["methodKp", "ruleConverse", "providerDiff", "mixed"], absent: ["methodOld", "ruleSecondOdd", "ruleSame", "totalUnc", "legacy"], legacy: false },
+  dkSw: { label: "rol takaslı (-2)", total: "5 / 10", rasi: "karşılanmadı · 0", notes: ["methodKp", "ruleSecondOdd", "providerDiff", "mixed"], absent: ["methodOld", "ruleConverse", "ruleSame", "totalUnc", "legacy"], legacy: false },
+  old: { label: "ESKİ (-1)", total: "7 / 10", rasi: "karşılanmadı · 0", notes: ["methodOld"], absent: ["methodKp", "ruleConverse", "ruleSecondOdd", "ruleSame", "providerDiff", "totalUnc", "withheld", "mixed"], legacy: true },
+  unc: { label: "belirsiz Rasi (-2)", total: "5–6 / 10", rasi: "belirsiz · —", notes: ["methodKp", "ruleSame", "providerDiff", "totalUnc", "pariharaSame", "mixed"], absent: ["methodOld", "ruleConverse", "ruleSecondOdd", "legacy"], legacy: false },
 };
 async function newPage(browser, w, h) {
   const ctx = await browser.newContext({ viewport: { width: w, height: h }, isMobile: w < 640, hasTouch: w < 640, locale: "tr-TR", timezoneId: "Europe/Istanbul", acceptDownloads: true });
@@ -162,6 +164,7 @@ const hits = (text, keys) => keys.filter((k) => has(text, N[k]));
       const extra = c.absent.filter((k) => hits(text, [k]).length);
       ok(`${fmt.toUpperCase()} ${key}: toplam ${c.total}, Rasi '${c.rasi}', doğru metinler; yanlış metin yok; jargon yok`, has(text, c.total) && has(text, c.rasi) && !miss.length && !extra.length && !JARGON.test(text), `eksik ${miss} · fazla ${extra} · toplam ${has(text, c.total)} · rasi ${has(text, c.rasi)}`);
       if (c.legacy) ok(`${fmt.toUpperCase()} ${key}: 'Eski hesap sürümü' bölümü + Rasi eski kayıt notu`, has(text, "Eski hesap sürümü") && has(text, N.legacy));
+      ok(`${fmt.toUpperCase()} ${key}: "en az 5" eşiği uygulanmamış`, !/en az (5|beş)|at least five/i.test(text));
       if (key === "dk") ok(`${fmt.toUpperCase()} dk: yorum bölümünde değerlendirme gizli açıklaması; servis cümlesi yok`, has(text, N.withheld) && !/tavsiye edilir/.test(text));
     }
   }
@@ -195,6 +198,20 @@ const hits = (text, keys) => keys.filter((k) => has(text, N[k]));
       const rasiCell = await page.locator("[data-testid=astro-porutham-rasi]").first().innerText().catch(() => "");
       ok(`${tag} ${key}: toplam '${c.total}', Rasi '${c.rasi}', 10 satır`, has(total, c.total.replace(" / 10", "")) && has(total, "/ 10") && has(rasiCell, c.rasi) && (await page.locator("[data-testid=astro-dashakoot-table] tbody tr").count()) === 10, `${total} · ${rasiCell}`);
       ok(`${tag} ${key}: Kalaprakasika Rasi kartı ${key === "old" ? "YOK" : "VAR"}`, (await page.locator("[data-testid=astro-dashakoot-rasi-classic]").count()) === (key === "old" ? 0 : 1));
+      // Karma toplam açıklaması: yalnız -2; toplamın hemen altında, görünür, kendi kutusuna sığıyor; "en az 5" eşiği yok.
+      const mix = page.locator("[data-testid=astro-dashakoot-total-mixed]");
+      if (key === "old") ok(`${tag} old: karma toplam açıklaması YOK`, (await mix.count()) === 0);
+      else {
+        const mm = await page.evaluate(() => {
+          const t = document.querySelector("[data-testid=astro-dashakoot-total]");
+          const m = document.querySelector("[data-testid=astro-dashakoot-total-mixed]");
+          if (!t || !m) return null;
+          const a = t.getBoundingClientRect();
+          const b = m.getBoundingClientRect();
+          return { below: b.top >= a.bottom - 1 && b.top - a.bottom < 60, fits: m.scrollWidth <= m.clientWidth + 1, inView: b.left >= -1 && b.right <= document.documentElement.clientWidth + 1, font: parseFloat(getComputedStyle(m).fontSize) };
+        });
+        ok(`${tag} ${key}: karma toplam açıklaması toplamın hemen altında, taşmıyor, ekranda, yazı ≥ 11 px`, (await mix.isVisible().catch(() => false)) && !!mm && mm.below && mm.fits && mm.inView && mm.font >= 11, JSON.stringify(mm));
+      }
       const panelTxt = await sec.innerText().catch(() => "");
       const interpTxt = await page.locator("[data-testid=astro-dashakoot-interp]").first().innerText().catch(() => "");
       screen[`${key}.${tag}`] = panelTxt;
@@ -233,7 +250,7 @@ const hits = (text, keys) => keys.filter((k) => has(text, N[k]));
       const body = await page.locator("body").innerText();
       ok(`${tag} ${key}: sağlayıcı adı / iç jargon yok`, !JARGON.test(body));
       if (OUT) {
-        for (const [part, sel] of [["toplam", "[data-testid=astro-dashakoot-total]"], ["tablo", "[data-testid=astro-dashakoot-table]"], ["rasi", "[data-testid=astro-dashakoot-rasi-classic]"], ["yontem", "[data-testid=astro-dashakoot-method]"], ["eski", "[data-testid=astro-legacy-method]"]]) {
+        for (const [part, sel] of [["toplam", "[data-testid=astro-dashakoot-total]"], ["karma", "[data-testid=astro-dashakoot-total-mixed]"], ["tablo", "[data-testid=astro-dashakoot-table]"], ["rasi", "[data-testid=astro-dashakoot-rasi-classic]"], ["yontem", "[data-testid=astro-dashakoot-method]"], ["eski", "[data-testid=astro-legacy-method]"]]) {
           const loc = page.locator(sel).first();
           if (!(await loc.count()) || !(await loc.isVisible().catch(() => false))) continue;
           await loc.scrollIntoViewIfNeeded().catch(() => {});

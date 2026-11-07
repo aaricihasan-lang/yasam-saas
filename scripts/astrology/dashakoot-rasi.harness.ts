@@ -22,6 +22,7 @@ import { SIGN_IDS, type SignId } from "@/lib/astrology/model/western";
 import {
   DASHAKOOT_METHOD_TEXT,
   DASHAKOOT_METHOD_TEXT_KP,
+  DASHAKOOT_TOTAL_MIXED_NOTE,
   DASHAKOOT_VERDICT_WITHHELD_TEXT,
   PORUTHAM_IDS,
   RASI_RULE_TEXT,
@@ -298,8 +299,9 @@ t("Eski kayıt notu: yalnız vedic.dashakoot -1'de 'dashakoot_rasi'; -2'de ve di
   assert.ok(!/\broxy\b/i.test(txt));
 });
 
-t("Eski (-1) kayıtlar: 148 + 2 golden ekran HTML'i, Word/PDF yapısı ve KB konuları düzeltme ÖNCESİYLE BİREBİR", () => {
+t("Eski (-1) kayıtlar: 148 + 2 golden ekran HTML'i, Word/PDF yapısı ve KB konuları düzeltme ÖNCESİYLE BİREBİR (karma toplam açıklaması YOK)", () => {
   for (const c of CASES) {
+    assert.ok(!html(c.technical).includes(esc(DASHAKOOT_TOTAL_MIXED_NOTE)) && !JSON.stringify(report(c.technical)).includes(DASHAKOOT_TOTAL_MIXED_NOTE), `${c.id}: -1'de açıklama yok`);
     assert.equal(html(c.technical), BEFORE[c.id].html, `${c.id} ekran`);
     assert.deepEqual(report(c.technical), BEFORE[c.id].report, `${c.id} Word/PDF`);
     assert.deepEqual(JSON.parse(JSON.stringify(topicsFromVedicDashakoot(c.technical))), BEFORE[c.id].topics, `${c.id} KB`);
@@ -329,11 +331,17 @@ t("Yeni (-2) kayıtlar: ekran ve Word/PDF aynı Rasi sonucu, kural metni, servis
     assert.equal(rrow[5], label, `${c.id} Word/PDF Rasi`);
     assert.equal(rrow[4], String(rc.count));
     assert.ok(h.includes(`data-testid="astro-porutham-rasi" data-matched="${String(x.rows.find((r) => r.id === "rasi")!.matched)}"`) && h.includes(label), `${c.id} ekran Rasi`);
-    for (const s of [RASI_RULE_TEXT[rc.rule], rasiProviderText(rc), DASHAKOOT_METHOD_TEXT_KP]) {
+    for (const s of [RASI_RULE_TEXT[rc.rule], rasiProviderText(rc), DASHAKOOT_METHOD_TEXT_KP, DASHAKOOT_TOTAL_MIXED_NOTE]) {
       assert.ok(ps.includes(s), `${c.id} Word/PDF: ${s.slice(0, 40)}`);
       assert.ok(h.includes(esc(s)), `${c.id} ekran: ${s.slice(0, 40)}`);
     }
     assert.ok(!ps.includes(DASHAKOOT_METHOD_TEXT) && !h.includes(esc(DASHAKOOT_METHOD_TEXT)), `${c.id}: eski yöntem metni yok`);
+    // Owner kararı: karma toplam açıklaması toplamın hemen altında (ekran) / toplam bilgisinden hemen sonra (Word/PDF); "en az 5" eşiği uygulanmaz.
+    assert.ok(h.indexOf('data-testid="astro-dashakoot-total"') < h.indexOf(esc(DASHAKOOT_TOTAL_MIXED_NOTE)) && h.indexOf(esc(DASHAKOOT_TOTAL_MIXED_NOTE)) < h.indexOf('data-testid="astro-dashakoot-roles"'), `${c.id}: açıklama toplamın altında`);
+    const iKv = d.findIndex((e) => (e as unknown[])[0] === "kv");
+    const iMix = d.findIndex((e) => (e as unknown[])[0] === "p" && (e as unknown[])[1] === DASHAKOOT_TOTAL_MIXED_NOTE);
+    assert.equal(iMix, iKv + 1, `${c.id}: Word/PDF açıklama toplam tablosundan hemen sonra`);
+    for (const s of [...ps, h]) assert.ok(!/en az (5|beş)|at least five/i.test(s), `${c.id}: "en az 5" eşiği yok`);
     const lr = x.rows.find((r) => r.id === "rasyadhipati")!;
     const par = rasiPariharaText(rc, [lr.person1.label, lr.person2.label]);
     if (par) assert.ok(ps.includes(par) && h.includes(esc(par)), `${c.id} istisna`);

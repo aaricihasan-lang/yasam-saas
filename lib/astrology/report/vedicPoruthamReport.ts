@@ -7,6 +7,7 @@ import { GRAHA_LABELS } from "../topics/vedic";
 import { AYANAMSA_SHORT } from "../model/vedicMatch";
 import {
   DASHAKOOT_DIRECTION_TEXT,
+  DASHAKOOT_TOTAL_MIXED_NOTE,
   DASHAKOOT_VERDICT_LABELS,
   DASHAKOOT_VERDICT_WITHHELD_TEXT,
   dashakootMethodText,
@@ -69,6 +70,8 @@ export function dashakootReport(b: ReportBuilderLike, t: O, who: { a: string; b:
     ["Ayanamsa", `${ayL(t.frame)} — ${poruthamAyanamsaNote("dashakoot", r1)}`],
     ["Zodyak", "Sidereal (nirayana)"],
   ]);
+  // ATL-B02 owner kararı: -2 kayıtlarda toplam karma yöntem açıklaması (ekranla aynı metin; -1 kayıtlarda basılmaz).
+  if (isObj(t.rasiClassic)) b.p(DASHAKOOT_TOTAL_MIXED_NOTE, "muted");
   b.p(DASHAKOOT_DIRECTION_TEXT, "muted");
   if (rjOk) b.p(rajjuReasonText({ active: rj.active as boolean, person1: rj.person1 as RajjuId, person2: rj.person2 as RajjuId }));
   if (typeof vd.active === "boolean") b.p(vedhaReasonText({ active: vd.active }));

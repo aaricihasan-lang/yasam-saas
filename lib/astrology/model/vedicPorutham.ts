@@ -208,6 +208,9 @@ export function rasiPariharaText(c: RasiClassic, lords: [string, string]): strin
       return `Kalaprakasika genel istisnası (s. 76) uygulanmaz: Ay burcu yöneticileri (${l}) aynı değil ve kaynağın listesinde (s. 74–75) karşılıklı düşman.`;
   }
 }
+/** ATL-B02 owner kararı (07.11.2026): -2 kayıtlarda toplam karma yöntemledir; Kalaprakasika'nın "en az 5" eşiği UYGULANMAZ. */
+export const DASHAKOOT_TOTAL_MIXED_NOTE =
+  "Bu toplamda Rasi kriteri Kalaprakasika yöntemine göre, diğer 9 kriter ise hesaplama servisinin kurallarına göre değerlendirilmiştir. Toplam, Kalaprakasika'nın tüm ölçütleriyle hesaplanmış bir uyum puanı değildir.";
 export const RASI_TOTAL_UNCERTAIN_NOTE = "Rasi belirsiz olduğundan toplam tek sayı olarak verilmez: Rasi karşılanmasaydı ve karşılansaydı oluşacak iki toplam gösterilir.";
 export const DASHAKOOT_VERDICT_WITHHELD_TEXT =
   "Servisin genel değerlendirmesi ve öneri cümlesi bu sonuçta gösterilmiyor: Rasi kriteri Kalaprakasika kuralıyla yerel hesaplandı ve servisin Rasi sonucundan farklı (ya da belirsiz); servis değerlendirmesi kendi Rasi sonucuna dayandığı için bu sonuçla tutarlı değil. Yerine yeni bir genel karar üretilmez. Servisin Rasi açıklaması da çıkarıldı.";
