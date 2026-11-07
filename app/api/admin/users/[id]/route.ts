@@ -50,9 +50,10 @@ export async function GET(req: NextRequest, ctx: RouteContext) {
     return NextResponse.json({ error: "Geçersiz kullanıcı ID." }, { status: 400 });
   }
 
+  // H2: is_demo_account — demo hesap "eski kayıt" onarım adayı olarak gösterilmez (sunucu da reddeder).
   const { data, error } = await db
     .from("users")
-    .select(USERS_SAFE_SELECT)
+    .select(`${USERS_SAFE_SELECT}, is_demo_account`)
     .eq("id", id)
     .maybeSingle();
 

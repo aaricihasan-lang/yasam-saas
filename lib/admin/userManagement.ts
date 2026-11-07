@@ -1,4 +1,4 @@
-import { isTrialRestrictedRow } from "@/lib/trial/trialCore";
+import { isSelfTrialRow, isTrialRestrictedRow, resolveTrialPhase, type TrialPhase } from "@/lib/trial/trialCore";
 import {
   parseMembershipFromRow,
   type MembershipDisplay,
@@ -641,7 +641,31 @@ export type ManagedUser = {
   adminLevel?: string;
   createdAt?: string;
   approvedAt?: string;
+  /**
+   * H2: eski (3 günlük keşif dönemi) akıştan kalmış, ONAYLI ama paketi Premium OLMAYAN uzman
+   * (7 günlük deneme rejiminde değil). Sunucu üyelik kapısı bu hesaba modül erişimi VERMEZ.
+   */
+  legacyPackage?: boolean;
+  /** H3: 7 günlük deneme fazı (deneme rejiminde değilse "none"). DB trial_phase_of ile aynı kural. */
+  trialPhase?: TrialPhase;
 };
+
+/**
+ * H1/H4: üye listesindeki "deneme süresi doldu" uyarısının türü — GERÇEK üyelik durumundan türetilir.
+ *   "trial7" → 7 günlük deneme süresi dolmuş (hesap salt okunur)
+ *   "legacy" → eski kayıttaki deneme penceresi geçmiş ve paketi eksik (erişim yok)
+ *   null     → uyarı yok. Pro (Premium) üyede kayıtlı eski pencere tarihi uyarı ÜRETMEZ (tarih silinmez).
+ */
+export type TrialEndedNotice = "trial7" | "legacy" | null;
+export function trialEndedNotice(user: ManagedUser, nowMs: number = Date.now()): TrialEndedNotice {
+  if (user.role !== "expert" || !user.active) return null;
+  if (user.trialPhase === "expired") return "trial7";
+  if (user.legacyPackage === true) {
+    const t = user.membership.trialEndsAt ? Date.parse(user.membership.trialEndsAt) : NaN;
+    if (Number.isFinite(t) && t <= nowMs) return "legacy";
+  }
+  return null;
+}
 
 export function parseAdminModulePermissions(raw: unknown): AdminModulePermissions {
   const perms = { ...DEFAULT_ADMIN_MODULE_PERMISSIONS };
@@ -791,7 +815,7 @@ export function buildManagedMembershipDisplay(input: {
     durationNote: trial
       ? "İlk başarılı girişten itibaren 168 saat — ayrıntı: Deneme Üyeleri"
       : legacy
-      ? "Modül erişimi kapalı — yeniden onay gerekir"
+      ? "Paket tanımlı değil — modül erişimi kapalı. Düzeltme üye detayındaki eski kayıt onarımıyla yapılır."
       : input.role === "expert" && input.approvalStatus === "approved"
         ? "Süresiz / yönetici pasife alana kadar"
         : "—",
@@ -826,6 +850,13 @@ export function mapDbUser(row: Record<string, unknown>): ManagedUser {
     }),
     payment: parsePaymentFromRow(row),
     licenseSettings: parseLicenseSettings(row),
+    legacyPackage:
+      role === "expert" &&
+      approvalStatus === "approved" &&
+      row.is_demo_account !== true &&
+      !isSelfTrialRow(row) &&
+      resolveMembershipPackageType(row) !== "premium",
+    trialPhase: role === "expert" ? resolveTrialPhase(row) : "none",
     adminLevel:
       row.admin_level != null ? String(row.admin_level).trim() : undefined,
     createdAt: row.created_at != null ? String(row.created_at) : undefined,

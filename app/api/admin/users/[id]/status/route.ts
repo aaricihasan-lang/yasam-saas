@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyAdminRequest } from "@/lib/auth/adminGuard";
-import { guardAdminLockoutById, requireMainAdminForAdminTarget } from "@/lib/admin/adminGuards";
+import { guardAdminLockoutById, requireMainAdmin, requireMainAdminForAdminTarget } from "@/lib/admin/adminGuards";
 import { jsonNoStore, readLimitedJsonBody } from "@/lib/admin/accountSessionControls";
 import { USERS_SAFE_SELECT } from "@/lib/supabase-server";
 import {
@@ -34,6 +34,9 @@ function bad(error: string, status = 400) {
  *                                                        gördüğü durum ≠ gerçek → 409 (bayat ekran)
  *   { action: "approve_trial", expectedApproval }      — TRIAL7: 7 günlük deneme onayı (Premium DEĞİL;
  *                                                        tek deneme hakkı 24 ay; süre ilk girişte başlar)
+ *   { action: "repair_legacy_pro", modules, expectedPackage, astrologyGrants? }
+ *                                                      — H2: onaylı + aktif ama paketi Premium OLMAYAN eski
+ *                                                        kayıt → Pro (yalnız ana yönetici; bayat ekran 409)
  *   { action: "reject" }                               — MEM-003: yalnız PENDING hedef
  *   { action: "toggle_active", currentActive: boolean }
  *
@@ -101,7 +104,7 @@ export async function POST(req: NextRequest, ctx: RouteContext) {
     if (!currentRow) return bad("Kullanıcı bulunamadı.", 404);
     const row = currentRow as unknown as Record<string, unknown>;
     if (!rowHasMembershipColumns(row)) return bad("Veritabanında paket kolonları bulunamadı.", 422);
-    // AUTH-05: onayda deneme penceresi kaydı (erişimi etkilemez; admin listesi uyarısı için).
+    // H1: Pro onayı deneme/keşif penceresi YAZMAZ (trial_* anahtarı yok → mevcut tarihçe korunur).
     const membershipPayload = filterMembershipPayloadForRow(buildApprovalMembershipPayload(), row);
 
     const approveArgs = {
@@ -185,6 +188,60 @@ export async function POST(req: NextRequest, ctx: RouteContext) {
     });
   }
 
+  // ── H2: ESKİ KAYIT PAKET ONARIMI → PRO (yalnız ana yönetici; atomik + audit) ──────────
+  // Onaylı + aktif ama paketi Premium olmayan, 7 günlük deneme rejiminde OLMAYAN eski kayıt. Hiçbir hesaba
+  // kendiliğinden uygulanmaz; yalnız bu açık işlemle. Deneme tarihçesi ve ilk onay tarihi değişmez.
+  if (body.action === "repair_legacy_pro") {
+    const main = await requireMainAdmin(db, adminId);
+    if (!main.ok) return bad(main.error, main.status);
+    const mods = validateApprovalModules(body.modules);
+    if (!mods.ok) return bad(mods.error);
+    let astrologyGrants: unknown = null;
+    if (mods.fullMap.astrology === true) {
+      const g = validateTechniqueGrants(body.astrologyGrants);
+      if (!g.ok) return bad("Astroloji için en az bir Gökyüzü Atlası tekniği seçilmelidir.");
+      astrologyGrants = g.grants;
+    } else if (body.astrologyGrants !== undefined && body.astrologyGrants !== null) {
+      return bad("Astroloji seçilmeden teknik izni verilemez.");
+    }
+    const expectedPackage = body.expectedPackage;
+    if (typeof expectedPackage !== "string" || !["", "trial", "pro"].includes(expectedPackage)) {
+      return bad("Geçerli beklenen paket durumu (expectedPackage) gerekli.");
+    }
+    const { data, error } = await db.rpc("admin_repair_legacy_expert_to_pro", {
+      p_actor_admin_id: adminId,
+      p_user_id: id,
+      p_modules: mods.fullMap,
+      p_remove_keys: [...ADMIN_MODULE_ALIAS_KEYS],
+      p_expected_package: expectedPackage,
+      // Astroloji seçili değilse parametre HİÇ gönderilmez (DB varsayılanı NULL).
+      ...(astrologyGrants ? { p_astrology_grants: astrologyGrants } : {}),
+    });
+    if (error) {
+      const code = (error as { code?: string }).code;
+      if (code === "UY001") return bad("Uzmanın paket durumu bu sırada değişmiş; sayfayı yenileyip tekrar deneyin.", 409);
+      if (code === "UY002") {
+        return bad(
+          "Bu hesap eski kayıt onarımına uygun değil (zaten Pro, 7 günlük deneme üyesi, pasif, onaysız veya demo olabilir). Sayfayı yenileyin.",
+          409,
+        );
+      }
+      if (code === "UY003") return bad("Pro üyelik için geçerli modül seçimi gerekli.");
+      if (code === "42501") return bad("Bu işlem yalnızca ana yöneticiye açıktır.", 403);
+      return bad("Pro üyeliğe geçiş tamamlanamadı (tekrar deneyin).", 500);
+    }
+    const result = (data ?? {}) as { modules?: string[]; module_count?: number; revoked_session_count?: number };
+    return jsonNoStore({
+      ok: true,
+      approval_status: "approved",
+      active: true,
+      package_type: "premium",
+      modules: result.modules ?? mods.selected,
+      moduleCount: result.module_count ?? mods.selected.length,
+      revokedSessionCount: result.revoked_session_count ?? 0,
+    });
+  }
+
   // ── REDDET (yalnız pending; atomik + oturum iptali) ───────────────────────
   if (body.action === "reject") {
     const lock = await guardAdminLockoutById(db, id, { willBeActive: false });
@@ -215,7 +272,7 @@ export async function POST(req: NextRequest, ctx: RouteContext) {
 
   // ── PASİFE AL / AKTİFLEŞTİR (atomik + oturum iptali) ───────────────────────
   if (body.action !== "toggle_active") {
-    return bad("Geçersiz action. approve | approve_trial | reject | toggle_active bekleniyor.");
+    return bad("Geçersiz action. approve | approve_trial | repair_legacy_pro | reject | toggle_active bekleniyor.");
   }
 
   // İstemcinin gördüğü mevcut durum ZORUNLU (optimistic-concurrency).

@@ -161,19 +161,18 @@ export function buildPremiumMembershipPayload(): Record<string, unknown> {
 }
 
 /**
- * AUTH-05 (AŞAMA 1): yönetici onaylı (eski) akışta "7 gün ücretsiz keşif" penceresinin KAYDI. Onay anından itibaren
- * deneme bitişi trial_ends_at'e yazılır; ERİŞİMİ ETKİLEMEZ (membershipAccessCore tarih okumaz,
- * isTrialExpired yalnız package_type='trial' için çalışır). Erişim kesimi owner kararı gereği
- * yöneticinin manuel kararıdır — admin listesi yalnız "Deneme süresi doldu" uyarısı gösterir.
+ * "Pro Üyeliği Onayla" (ücretli Pro) üyelik payload'ı — H1 (2026-11-07): onay artık bir "keşif/deneme"
+ * penceresi YAZMAZ. Ücretsiz deneme ayrı akıştır ("7 Günlük Denemeyi Onayla", trial_kind='self_7d').
+ * trial_started_at / trial_ends_at anahtarları payload'a HİÇ konmaz → yh_grade_expert_premium mevcut
+ * değerleri AYNEN bırakır (kayıt anındaki / eski kayıttaki tarihçe silinmez, değişmez).
+ * Önceki AUTH-05 davranışı (onay + 3/7 gün yazımı) Pro üyede yanlış "Deneme süresi doldu" uyarısı üretiyordu;
+ * bu tarih hiçbir erişim kararına, sayaca veya rapora girmez (membershipAccessCore tarih okumaz).
  */
-export const TRIAL_REVIEW_DAYS = 7;
-export function buildApprovalMembershipPayload(now: Date = new Date()): Record<string, unknown> {
-  const ends = new Date(now.getTime() + TRIAL_REVIEW_DAYS * 86_400_000);
-  return {
-    ...buildPremiumMembershipPayload(),
-    trial_started_at: now.toISOString(),
-    trial_ends_at: ends.toISOString(),
-  };
+export function buildApprovalMembershipPayload(): Record<string, unknown> {
+  const { trial_started_at: _ts, trial_ends_at: _te, ...premium } = buildPremiumMembershipPayload();
+  void _ts;
+  void _te;
+  return premium;
 }
 
 /** AUTH-05: aktif uzmanın kayıtlı deneme penceresi geçmiş mi (yalnız gösterge). */
@@ -201,7 +200,8 @@ export function filterMembershipPayloadForRow(
   if (!sampleRow) return payload;
   const filtered: Record<string, unknown> = {};
   for (const key of MEMBERSHIP_PAYLOAD_KEYS) {
-    if (key in sampleRow) {
+    // Payload'da OLMAYAN anahtar eklenmez (ör. Pro onayı trial_* göndermez → DB değeri korunur).
+    if (key in sampleRow && key in payload) {
       filtered[key] = payload[key];
     }
   }

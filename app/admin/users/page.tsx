@@ -29,6 +29,7 @@ import {
   formatCreatedAt,
   formatDateTimeTr,
   mapDbUser,
+  trialEndedNotice,
   type AdminModuleUiKey,
   type ManagedUser,
   type ManagedUserRole,
@@ -66,7 +67,6 @@ import {
   SecurityExemptBadge,
   TrialReviewDueBadge,
 } from "@/components/admin/members/MemberBadges";
-import { isTrialReviewDue } from "@/lib/auth/membership";
 import { ModuleCheckboxGrid } from "@/components/admin/members/ModuleCheckboxGrid";
 import { ExpertPurgeDialog, type PurgeResult, type PurgeTarget } from "@/components/admin/members/ExpertPurgeDialog";
 import { AstrologyTechniquePicker, grantsSummary, selectionOf } from "@/components/admin/members/AstrologyTechniqueAccess";
@@ -448,9 +448,13 @@ function CompactUserRow({
           <AccountBadge active={user.active} />
           {user.role === "expert" ? <PackageBadge label={user.membershipDisplay.packageLabel} /> : null}
           {user.role === "expert" ? <PaymentBadge status={user.payment.status} /> : null}
-          {user.role === "expert" && user.active && user.membership.trialEndsAt && isTrialReviewDue(user.membership.trialEndsAt) ? (
-            <TrialReviewDueBadge endsAt={user.membership.trialEndsAt} />
-          ) : null}
+          {(() => {
+            // H1: uyarı GERÇEK üyelik durumundan türetilir — Pro (Premium) üyede kayıtlı eski pencere uyarı üretmez.
+            const notice = trialEndedNotice(user);
+            return notice && user.membership.trialEndsAt ? (
+              <TrialReviewDueBadge endsAt={user.membership.trialEndsAt} kind={notice} />
+            ) : null;
+          })()}
           {user.licenseSettings.securityExempt ? <SecurityExemptBadge /> : null}
         </div>
         <RenewalInfo user={user} todayIso={todayIso} />
