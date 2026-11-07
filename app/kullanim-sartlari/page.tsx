@@ -125,8 +125,9 @@ export default function KullanimSartlariPage() {
       <LegalH2 id="ucretsiz-deneme">Ücretsiz Deneme Üyeliği</LegalH2>
       <ul>
         <li>
-          Ücretsiz deneme süresi, kayıttan sonraki ilk başarılı girişinizde başlar ve 7 gün (168 saat)
-          sürer. Deneme süresi uzatılmaz.
+          Ücretsiz deneme başvuruları yönetici tarafından incelenir. Deneme süresi, denemeniz
+          onaylandıktan sonraki ilk başarılı girişinizde başlar ve 7 gün (168 saat) sürer. Deneme
+          süresi uzatılmaz.
         </li>
         <li>
           Her e-posta adresiyle yalnızca bir kez ücretsiz deneme yapılabilir. Sahte, tekrarlı veya

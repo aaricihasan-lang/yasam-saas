@@ -78,6 +78,20 @@ export async function GET(req: NextRequest) {
     for (const ev of (events ?? []) as { user_id: string }[]) {
       suspiciousCounts[ev.user_id] = (suspiciousCounts[ev.user_id] ?? 0) + 1;
     }
+    // TRIAL7: liste RPC'si deneme kolonlarını döndürmez → etiket için (Ücretsiz deneme) tek sorguyla eklenir.
+    // Hata (ör. kolon yok) → alanlar eklenmez; liste aynen döner.
+    const { data: trialRows, error: trialErr } = await db
+      .from("users")
+      .select("id, trial_kind, trial_status, trial_ends_at")
+      .in("id", ids)
+      .not("trial_kind", "is", null);
+    if (!trialErr) {
+      const byId = new Map(((trialRows ?? []) as Record<string, unknown>[]).map((r) => [String(r.id), r]));
+      for (const u of users) {
+        const t = byId.get(String(u.id ?? ""));
+        if (t) Object.assign(u, { trial_kind: t.trial_kind, trial_status: t.trial_status, trial_ends_at: t.trial_ends_at });
+      }
+    }
   }
 
   return NextResponse.json(

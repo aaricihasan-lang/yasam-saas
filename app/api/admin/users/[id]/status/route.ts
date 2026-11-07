@@ -14,6 +14,8 @@ import {
 } from "@/lib/admin/userManagement";
 import { isUuid, rpcErrorStatus } from "@/lib/admin/memberRequestValidation";
 import { validateTechniqueGrants } from "@/lib/astrology/access/techniqueGrants";
+import { TRIAL_DEFAULT_MODULE_PERMISSIONS } from "@/lib/trial/trialCore";
+import { trialClaimHash } from "@/lib/trial/trialServer";
 
 export const runtime = "nodejs";
 
@@ -30,6 +32,8 @@ function bad(error: string, status = 400) {
  *   { action: "approve", modules: string[], expectedApproval: "pending" | "rejected" }
  *                                                      — FAZ 1 / MEM-004: modül seçimi ZORUNLU;
  *                                                        gördüğü durum ≠ gerçek → 409 (bayat ekran)
+ *   { action: "approve_trial", expectedApproval }      — TRIAL7: 7 günlük deneme onayı (Premium DEĞİL;
+ *                                                        tek deneme hakkı 24 ay; süre ilk girişte başlar)
  *   { action: "reject" }                               — MEM-003: yalnız PENDING hedef
  *   { action: "toggle_active", currentActive: boolean }
  *
@@ -136,6 +140,51 @@ export async function POST(req: NextRequest, ctx: RouteContext) {
     });
   }
 
+  // ── 7 GÜNLÜK DENEMEYİ ONAYLA (TRIAL7; Premium/Pro onayından AYRI) ─────────────
+  // Hesap mevcut deneme rejimine geçer (self_7d, not_started); süre ilk başarılı girişte başlar.
+  // Tek deneme hakkı: kayıtlı e-postanın kanonik HMAC özeti (istemciden ALINMAZ); son 24 ayda
+  // kullanılmışsa 409 ve hesap değişmez. Modüller sabit deneme paketi (Dijital İçerik hariç).
+  if (body.action === "approve_trial") {
+    const expectedApproval = body.expectedApproval;
+    if (expectedApproval !== "pending" && expectedApproval !== "rejected") {
+      return bad("Geçerli beklenen onay durumu (expectedApproval: pending | rejected) gerekli.");
+    }
+    const { data: target, error: targetErr } = await db.from("users").select("email, role").eq("id", id).maybeSingle();
+    if (targetErr) return bad("Kullanıcı okunamadı.", 500);
+    const email = String((target as { email?: unknown } | null)?.email ?? "").trim();
+    if (!target || !email) return bad("Kullanıcı bulunamadı.", 404);
+    const { data, error } = await db.rpc("admin_approve_expert_trial", {
+      p_actor: adminId,
+      p_user_id: id,
+      p_expected_approval: expectedApproval,
+      p_claim_hash: trialClaimHash(email),
+      p_modules: { ...TRIAL_DEFAULT_MODULE_PERMISSIONS },
+    });
+    if (error) {
+      const code = (error as { code?: string }).code;
+      if (code === "TR410") {
+        return bad(
+          "Bu e-posta kimliğiyle son 24 ay içinde ücretsiz deneme kullanılmış. Başvuruyu reddedebilir veya ödeme alındıysa Pro üyelik onaylayabilirsiniz.",
+          409,
+        );
+      }
+      if (code === "UY001") return bad("Uzmanın onay durumu bu sırada değişmiş; sayfayı yenileyip tekrar deneyin.", 409);
+      if (code === "TR409") return bad("Bu hesap 7 günlük deneme için uygun değil (onaylı, Pro, deneme veya demo hesabı).", 409);
+      if (code === "TR404") return bad("Kullanıcı bulunamadı.", 404);
+      if (code === "TR401") return bad("Yetki yok.", 403);
+      return bad("Deneme onayı tamamlanamadı (tekrar deneyin).", 500);
+    }
+    const result = (data ?? {}) as { revoked_session_count?: number };
+    return jsonNoStore({
+      ok: true,
+      approval_status: "approved",
+      active: true,
+      package_type: "trial",
+      trial_status: "not_started",
+      revokedSessionCount: result.revoked_session_count ?? 0,
+    });
+  }
+
   // ── REDDET (yalnız pending; atomik + oturum iptali) ───────────────────────
   if (body.action === "reject") {
     const lock = await guardAdminLockoutById(db, id, { willBeActive: false });
@@ -166,7 +215,7 @@ export async function POST(req: NextRequest, ctx: RouteContext) {
 
   // ── PASİFE AL / AKTİFLEŞTİR (atomik + oturum iptali) ───────────────────────
   if (body.action !== "toggle_active") {
-    return bad("Geçersiz action. approve | reject | toggle_active bekleniyor.");
+    return bad("Geçersiz action. approve | approve_trial | reject | toggle_active bekleniyor.");
   }
 
   // İstemcinin gördüğü mevcut durum ZORUNLU (optimistic-concurrency).

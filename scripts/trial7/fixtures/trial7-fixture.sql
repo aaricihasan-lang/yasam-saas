@@ -101,3 +101,18 @@ INSERT INTO public.users (id, email, full_name, role, tenant_id, active, approva
    now() - interval '20 days', now() - interval '13 days', '{"clients":true}'::jsonb,false,false),
  ('00000000-0000-0000-0000-0000000000f1','pending@test.com','Bekleyen','expert','10000000-0000-0000-0000-000000000006',false,'pending',NULL,'trial','trial',NULL,
    now() - interval '2 days', now() + interval '5 days', '{}'::jsonb,false,false);
+
+-- 20270129235900 ile birebir (admin onay RPC'lerinin oturum iptali).
+CREATE OR REPLACE FUNCTION public.admin_revoke_user_sessions_tx(p_user_id uuid, p_reason text)
+RETURNS integer
+LANGUAGE plpgsql VOLATILE SECURITY DEFINER SET search_path = public, pg_catalog
+AS $$
+DECLARE v_n integer;
+BEGIN
+  UPDATE public.user_sessions
+     SET is_active = false, ended_at = now(), end_reason = p_reason
+   WHERE user_id = p_user_id AND is_active = true;
+  GET DIAGNOSTICS v_n = ROW_COUNT;
+  RETURN v_n;
+END;
+$$;

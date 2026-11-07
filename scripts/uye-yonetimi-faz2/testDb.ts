@@ -40,6 +40,8 @@ create table public.users (
   created_at timestamptz default now(),
   is_super_admin boolean not null default false,
   is_demo_account boolean not null default false,
+  -- TRIAL7 (20280101000000, canlıda): 7 günlük deneme rejimi; mevcut hesaplarda NULL.
+  trial_kind text, trial_status text,
   payment_status text, last_payment_date date, next_payment_date date, paid_amount numeric, payment_note text,
   license_type text default 'single', allowed_active_sessions int default -1, allowed_locations int default 1,
   security_mode text default 'normal', security_exempt boolean default false, license_note text,

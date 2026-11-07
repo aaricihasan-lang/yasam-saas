@@ -12,7 +12,7 @@ import TurnstileWidget, { type TurnstileHandle } from "@/components/trial/Turnst
 import { useSignupConfig } from "@/components/trial/useSignupConfig";
 
 const inputClass =
-  "h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-base font-semibold [@media(min-width:768px)_and_(max-height:740px)]:h-11 text-slate-700 outline-none transition focus:border-violet-300 focus:ring-4 focus:ring-violet-100";
+  "h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-base font-semibold [@media(min-width:768px)_and_(min-height:741px)_and_(max-height:820px)]:h-11 [@media(min-width:768px)_and_(max-height:740px)]:h-11 text-slate-700 outline-none transition focus:border-violet-300 focus:ring-4 focus:ring-violet-100";
 
 /** API error `code` → i18n toast alt-anahtarı (bkz. app/api/register/route.ts). */
 const ERROR_CODE_KEY: Record<string, string> = {
@@ -151,7 +151,7 @@ export default function RegisterPage() {
             <div className="inline-flex rounded-full bg-violet-100 px-3 py-1 text-xs font-black text-violet-700">
               {t("badge")}
             </div>
-            <h1 className="mt-3 text-3xl font-black leading-tight text-slate-950 md:text-[2rem]">{t("title")}</h1>
+            <h1 className="mt-3 text-3xl font-black leading-tight text-slate-950 md:text-[2rem] [@media(min-width:768px)_and_(max-height:740px)]:mt-2">{t("title")}</h1>
             <p className="mt-1.5 text-base leading-6 text-slate-600">
               {selfTrial ? t("subtitleInstant") : t("subtitle")}
             </p>
@@ -243,7 +243,7 @@ export default function RegisterPage() {
               <button
                 type="submit"
                 disabled={saving || (selfTrial && !captchaToken)}
-                className="!mt-4 [@media(min-width:768px)_and_(min-height:741px)_and_(max-height:820px)]:!mt-3 [@media(min-width:768px)_and_(max-height:740px)]:!mt-3 flex h-12 w-full [@media(min-width:768px)_and_(max-height:740px)]:h-11 items-center justify-center rounded-2xl bg-gradient-to-r from-slate-950 via-violet-900 to-fuchsia-700 px-4 text-base font-bold text-white shadow-xl shadow-violet-200 transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-70"
+                className="!mt-4 [@media(min-width:768px)_and_(min-height:741px)_and_(max-height:820px)]:!mt-3 [@media(min-width:768px)_and_(max-height:740px)]:!mt-3 flex h-12 w-full [@media(min-width:768px)_and_(min-height:741px)_and_(max-height:820px)]:h-11 [@media(min-width:768px)_and_(max-height:740px)]:h-11 items-center justify-center rounded-2xl bg-gradient-to-r from-slate-950 via-violet-900 to-fuchsia-700 px-4 text-base font-bold text-white shadow-xl shadow-violet-200 transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-70"
               >
                 {saving ? (
                   <span className="inline-flex items-center gap-2">

@@ -95,15 +95,16 @@ export default function GizlilikPolitikasiPage() {
         </li>
         <li>
           <strong>Sahte ve tekrarlı kayıtları önleme kayıtları:</strong> her e-posta adresiyle yalnız
-          bir kez ücretsiz deneme yapılabilmesi için e-posta adresinizin standart biçiminden ve kayıt
-          sırasındaki IP adresinizden sunucumuzdaki gizli bir anahtarla üretilen, geri döndürülemeyen
-          özetler (HMAC) ile otomatik güvenlik sinyalleri (ör. geçici e-posta alan adı, aynı ağdan kısa
-          sürede çok sayıda kayıt, eksik tarayıcı bilgisi). Ham IP adresiniz bu amaçla saklanmaz.
+          bir kez ücretsiz deneme yapılabilmesi için e-posta adresinizin standart biçiminden
+          sunucumuzdaki gizli bir anahtarla üretilen, geri döndürülemeyen özet (HMAC). Otomatik kayıt
+          kullanıldığında ayrıca kayıt sırasındaki IP adresinizden üretilen benzer bir özet ve otomatik
+          güvenlik sinyalleri (ör. geçici e-posta alan adı, aynı ağdan kısa sürede çok sayıda kayıt,
+          eksik tarayıcı bilgisi) işlenir. Ham IP adresiniz bu amaçla saklanmaz.
           Amaç: deneme üyeliğinin kötüye kullanılmasını ve sahte hesapları önlemek.
         </li>
       </ul>
       <p>
-        <strong>Otomatik güvenlik değerlendirmesi:</strong> Kayıt sırasındaki güvenlik sinyalleri
+        <strong>Otomatik güvenlik değerlendirmesi:</strong> Otomatik kayıt kullanıldığında, kayıt sırasındaki güvenlik sinyalleri
         yüksek risk gösterirse hesabınız oluşturulur ancak inceleme durumunda açılır; inceleme
         tamamlanana kadar deneme modülleri kullanılamaz. Bu kalıcı bir ret değildir; hesabın açılıp
         açılmayacağına yönetici karar verir. Bu değerlendirmeye aşağıdaki &quot;Haklarınız&quot;

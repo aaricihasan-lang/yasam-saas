@@ -1,3 +1,4 @@
+import { isTrialRestrictedRow } from "@/lib/trial/trialCore";
 import {
   parseMembershipFromRow,
   type MembershipDisplay,
@@ -765,11 +766,16 @@ export function buildManagedMembershipDisplay(input: {
   approvalStatus: ApprovalStatusUi;
   active: boolean;
   legacyPackage?: boolean;
+  /** TRIAL7: 7 günlük deneme rejimindeki (Pro'ya geçmemiş) uzman. */
+  trial?: boolean;
 }): MembershipDisplay {
-  const legacy = input.role === "expert" && input.approvalStatus === "approved" && input.legacyPackage === true;
+  const trial = input.role === "expert" && input.trial === true;
+  const legacy = !trial && input.role === "expert" && input.approvalStatus === "approved" && input.legacyPackage === true;
   const packageLabel =
     input.role === "admin"
       ? "Yönetici"
+      : trial
+        ? "Ücretsiz deneme (7 gün)"
       : legacy
         ? "Paket eksik (eski kayıt)"
         : input.approvalStatus === "approved"
@@ -782,7 +788,9 @@ export function buildManagedMembershipDisplay(input: {
     statusLabel: input.active ? "Aktif" : "Pasif",
     trialEndLabel: "—",
     remainingDaysLabel: "—",
-    durationNote: legacy
+    durationNote: trial
+      ? "İlk başarılı girişten itibaren 168 saat — ayrıntı: Deneme Üyeleri"
+      : legacy
       ? "Modül erişimi kapalı — yeniden onay gerekir"
       : input.role === "expert" && input.approvalStatus === "approved"
         ? "Süresiz / yönetici pasife alana kadar"
@@ -814,6 +822,7 @@ export function mapDbUser(row: Record<string, unknown>): ManagedUser {
       approvalStatus,
       active,
       legacyPackage: role === "expert" && resolveMembershipPackageType(row) !== "premium",
+      trial: isTrialRestrictedRow(row),
     }),
     payment: parsePaymentFromRow(row),
     licenseSettings: parseLicenseSettings(row),

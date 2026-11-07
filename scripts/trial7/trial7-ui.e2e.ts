@@ -240,7 +240,7 @@ async function run() {
           const dlg = page.getByRole("dialog");
           await dlg.waitFor({ timeout: 15_000 });
           const t = await dlg.innerText();
-          ok(/Ücretsiz Denemeniz Sona Erdi/.test(t) && /görüntüleyebilir ve dışa aktarabilirsiniz/.test(t), `U5 ${vp.name}: süre sonu bilgilendirmesi`);
+          ok(/Ücretsiz Deneme Süreniz Sona Erdi — Pro'ya Geçin/.test(t) && /görüntüleyebilir ve dışa aktarabilirsiniz/.test(t), `U5 ${vp.name}: süre sonu bilgilendirmesi`);
           ok((await dlg.getByRole("link", { name: /WhatsApp/ }).getAttribute("href"))?.startsWith("https://wa.me/905551112233") === true, `U5 ${vp.name}: WhatsApp bağlantısı`);
           await page.screenshot({ path: path.join(SHOTS, `U5-sure-sonu-${vp.name}.png`) });
           await dlg.getByRole("button", { name: /Pro Üyeliğe Geç/ }).click();

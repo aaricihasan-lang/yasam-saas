@@ -126,6 +126,9 @@ try {
   const retentionSql = fs.readFileSync(path.join(root, RETENTION_MIGRATION), "utf8");
   await c.query(retentionSql);
   await c.query(retentionSql);
+  const approvalSql = fs.readFileSync(path.join(root, "supabase/migrations/20280101000200_trial7_admin_trial_approval.sql"), "utf8");
+  await c.query(approvalSql);
+  await c.query(approvalSql);
   ok(true, "TRIAL7 migration iki kez hatasız uygulandı");
   ok(JSON.stringify(await q(snapshotSql, [EXISTING])) === before, "E: migration mevcut hiçbir hesabı değiştirmedi (backfill YOK)");
   const kinds = await q("SELECT count(*)::int n FROM public.users WHERE trial_kind IS NOT NULL OR trial_status IS NOT NULL");
@@ -323,6 +326,89 @@ try {
   ok(pc.ok === true && pc.metered === false, "P15 Pro üye artık kredi limitine tabi değil");
   await q(`UPDATE public.users SET module_permissions = module_permissions || '{"digital_content":true}'::jsonb WHERE id=$1`, [exp.user_id]);
   ok((await user(exp.user_id)).module_permissions.digital_content === true, "P16 Pro'da admin Dijital İçerik'i bilinçli açabilir (normal paket kuralı)");
+
+  console.log("— O: yönetici onaylı 7 günlük deneme");
+  {
+    const provisionPending = async (email) => (await rpc("provision_expert", [{
+      mode: "public", email, password_hash: "$2a$04$abcdefghijklmnopqrstuv", full_name: "Başvuru " + email,
+      tenant_name: "B", tenant_slug_base: "basvuru-" + email.replace(/[^a-z0-9]/g, "").slice(0, 20),
+      module_permissions: { clients: false, digital_content: false } }])).user_id;
+    const approveTrial = (actor, uid, expected, claim, mods = TRIAL_PERMS, cc = c) =>
+      cc.query("SELECT public.admin_approve_expert_trial($1,$2,$3,$4,$5) r", [actor, uid, expected, claim, mods]).then((x) => x.rows[0].r);
+    const counts = async () => (await q("SELECT (SELECT count(*) FROM public.clients)::int c, (SELECT count(*) FROM public.tenants)::int t"))[0];
+
+    const P1 = await provisionPending("basvuru1@example.com");
+    let p1 = await user(P1);
+    ok(p1.active === false && p1.approval_status === "pending" && p1.trial_kind === null, "O1 yeni başvuru pending + pasif (otomatik kabul YOK)");
+    await q("INSERT INTO public.user_sessions (user_id, session_token) VALUES ($1, 'eski-oturum-o1')", [P1]);
+    const before = await counts();
+    const r1 = await approveTrial(ADMIN, P1, "pending", "trial-claim:onayonayonay01");
+    p1 = await user(P1);
+    ok(r1.ok === true && p1.active === true && p1.approval_status === "approved", "O2 admin 7 günlük denemeyi onayladı → aktif + onaylı");
+    ok(p1.package_type === "trial" && p1.plan === "trial" && p1.trial_kind === "self_7d" && p1.trial_status === "not_started",
+      "O3 hesap deneme paketi (self_7d, not_started) — Premium DEĞİL", { pkg: p1.package_type, plan: p1.plan });
+    ok(p1.trial_started_at === null && p1.trial_ends_at === null, "O4 onay anında süre BAŞLAMADI (eski kayıt tarihleri temizlendi)");
+    ok(p1.module_permissions.digital_content === false && p1.module_permissions.belge_ceviri === false &&
+       p1.module_permissions.yasam_hafizasi === false && p1.module_permissions.astrology === true &&
+       JSON.stringify(p1.astrology_technique_grants) === JSON.stringify({ mode: "all" }), "O5 deneme modülleri açık, Dijital İçerik + YH kapalı");
+    ok((await q("SELECT count(*)::int n FROM public.trial_claims WHERE claim_hash='trial-claim:onayonayonay01'"))[0].n === 1, "O6 tek deneme hakkı onayla aynı işlemde kaydedildi");
+    ok((await q("SELECT is_active FROM public.user_sessions WHERE session_token='eski-oturum-o1'"))[0].is_active === false, "O7 onay öncesi oturum kapatıldı");
+    const aud = await q("SELECT action, context FROM public.admin_audit_log WHERE target_user_id=$1", [P1]);
+    ok(aud.some((a) => a.action === "user_approved" && a.context.source === "trial_approval"), "O8 yönetici denetim kaydı (source: trial_approval)");
+    ok((await q("SELECT count(*)::int n FROM public.trial_admin_events WHERE target_user_id=$1 AND action='trial_approved'", [P1]))[0].n === 1, "O9 deneme yönetim kaydı");
+    const act = await rpc("trial_activate_on_login", [P1]);
+    p1 = await user(P1);
+    ok(act.activated === true && (p1.trial_ends_at - p1.trial_started_at) === 168 * 3_600_000, "O10 ilk başarılı giriş tam 168 saati başlattı");
+    const act2 = await rpc("trial_activate_on_login", [P1]);
+    ok(act2.activated === false && (await user(P1)).trial_ends_at.getTime() === p1.trial_ends_at.getTime(), "O11 tekrar giriş süreyi sıfırlamadı");
+    const cr = await rpc("trial_credit_reserve", [P1, "human_design", "test/o"]);
+    ok(cr.ok === true && cr.metered === true && cr.remaining === 49, "O12 günlük 50 ortak Roxy kredisi uygulanıyor", cr);
+    const lst = await rpc("admin_trial_list", [ADMIN, "active", "basvuru1@", 50, 0]);
+    ok(lst.rows.length === 1 && lst.rows[0].id === P1, "O13 onaylanan uzman Deneme Üyeleri listesinde");
+    ok(JSON.stringify(await counts()) === JSON.stringify(before), "O14 danışan / tenant sayıları değişmedi");
+
+    const P2 = await provisionPending("b.a.s.v.u.r.u.1+ikinci@example.com");
+    let err = null;
+    try { await approveTrial(ADMIN, P2, "pending", "trial-claim:onayonayonay01"); } catch (e) { err = e; }
+    const p2 = await user(P2);
+    ok(err && err.code === "TR410" && p2.approval_status === "pending" && p2.active === false && p2.trial_kind === null,
+      "O15 aynı kanonik e-posta → ikinci deneme REDDEDİLDİ, başvuru pending kaldı", err?.message);
+
+    const P3 = await provisionPending("reddedilen@example.com");
+    await q("UPDATE public.users SET approval_status='rejected', active=false WHERE id=$1", [P3]);
+    ok((await q("SELECT count(*)::int n FROM public.trial_claims WHERE claim_hash='trial-claim:reddedilen0001'"))[0].n === 0, "O16 ret hakkı TÜKETMEDİ");
+    const r3 = await approveTrial(ADMIN, P3, "rejected", "trial-claim:reddedilen0001");
+    ok(r3.ok === true && (await user(P3)).trial_status === "not_started", "O17 reddedilmiş başvuru sonradan denemeye onaylanabilir");
+
+    const P4 = await provisionPending("bayat@example.com");
+    await rejects(() => approveTrial(ADMIN, P4, "rejected", "trial-claim:bayatbayat0001"), "O18 bayat ekran (beklenen durum farklı) → UY001", /UY001|degismis/);
+    ok((await q("SELECT count(*)::int n FROM public.trial_claims WHERE claim_hash='trial-claim:bayatbayat0001'"))[0].n === 0, "O19 başarısız onay hakkı tüketmedi");
+    await rejects(() => approveTrial(PREMIUM, P4, "pending", "trial-claim:bayatbayat0001"), "O20 admin olmayan deneme onaylayamaz", /TR401|yetkisiz/);
+    await rejects(() => approveTrial(ADMIN, P4, "pending", "trial-claim:bayatbayat0001", { ...TRIAL_PERMS, digital_content: true }),
+      "O21 Dijital İçerik açık deneme paketi REDDEDİLDİ", /TR400|gecersiz/);
+    await rejects(() => approveTrial(ADMIN, PREMIUM, "pending", "trial-claim:premiumpremium"), "O22 Premium hesap denemeye çevrilemez", /TR409/);
+    await rejects(() => approveTrial(ADMIN, DEMO, "pending", "trial-claim:demodemodemo1"), "O23 demo hesap denemeye çevrilemez", /TR409/);
+    await rejects(() => approveTrial(ADMIN, P1, "pending", "trial-claim:yeniyeniyeni01"), "O24 deneme hesabı ikinci kez onaylanamaz", /TR409/);
+    await rejects(() => approveTrial(ADMIN, PENDING, "pending", "gecersiz anahtar!"), "O25 geçersiz hak anahtarı reddedildi", /TR400|gecersiz/);
+    ok((await user(PENDING)).approval_status === "pending" && (await user(PENDING)).trial_kind === null, "O26 eski onay bekleyen hesap otomatik dönüştürülmedi");
+
+    await q("INSERT INTO public.trial_claims (claim_hash, first_user_id, claimed_at) VALUES ('trial-claim:suresidolmus01', gen_random_uuid(), now() - interval '25 months')");
+    const P5 = await provisionPending("yirmidortay@example.com");
+    const r5 = await approveTrial(ADMIN, P5, "pending", "trial-claim:suresidolmus01");
+    ok(r5.ok === true, "O27 24 ayı geçmiş hak (imha işi henüz silmemiş olsa da) yeni denemeyi engellemez");
+
+    const P6 = await provisionPending("eszamanli1@example.com");
+    const P7 = await provisionPending("eszamanli2@example.com");
+    const oc = await Promise.all([connect(), connect()]);
+    const race = await Promise.all([
+      approveTrial(ADMIN, P6, "pending", "trial-claim:yarisonay0001", TRIAL_PERMS, oc[0]).then(() => "ok").catch((e) => e.code),
+      approveTrial(ADMIN, P7, "pending", "trial-claim:yarisonay0001", TRIAL_PERMS, oc[1]).then(() => "ok").catch((e) => e.code),
+    ]);
+    ok(race.filter((x) => x === "ok").length === 1 && race.filter((x) => x === "TR410").length === 1, "O28 eşzamanlı iki onay aynı hak → tek deneme", race);
+
+    const fnPriv = (await q("SELECT has_function_privilege('anon','public.admin_approve_expert_trial(uuid,uuid,text,text,jsonb)','EXECUTE') a, has_function_privilege('authenticated','public.admin_approve_expert_trial(uuid,uuid,text,text,jsonb)','EXECUTE') u, has_function_privilege('service_role','public.admin_approve_expert_trial(uuid,uuid,text,text,jsonb)','EXECUTE') s"))[0];
+    ok(!fnPriv.a && !fnPriv.u && fnPriv.s, "O29 deneme onay RPC'si yalnız service_role", fnPriv);
+  }
 
   console.log("— E: mevcut hesaplar + arşiv");
   // M2'de geçici dokunulan Premium satırı geri alındı; diğer alanlar karşılaştırılır.

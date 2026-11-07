@@ -197,7 +197,7 @@
       "daysLabel": "Days",
       "daysSub": "Free discovery",
       "cta": "Create Your Membership Now",
-      "note": "The 7-day free period starts once your membership is approved by an administrator.",
+      "note": "Your application is reviewed by an administrator. Once your free trial is approved, your 7-day period starts with your first successful sign-in.",
       "noteInstant": "No credit card required. Your 7-day free period starts with your first sign-in."
     },
     "hero": {
@@ -499,7 +499,7 @@
       "haveAccount": "Already have an account?",
       "legalNotice": "How your personal data is processed is explained in the <privacy>Privacy Policy</privacy>, and membership conditions in the <terms>Terms of Use</terms>.",
       "signIn": "Sign In",
-      "trialNote": "Your 7-day free discovery starts once your membership is approved by an administrator.",
+      "trialNote": "Your application is reviewed by an administrator. Once your free trial is approved, your 7-day period starts with your first successful sign-in.",
       "trialNoteInstant": "Your 7-day free discovery starts with your first sign-in and lasts 168 hours. No credit card required.",
       "toast": {
         "errorTitle": "Something went wrong",
