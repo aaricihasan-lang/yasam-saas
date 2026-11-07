@@ -40,6 +40,7 @@ import { confirmSessionInvalid } from "@/lib/auth/sessionExpiry";
 import { leaveAfterSessionEnd } from "@/lib/auth/sessionExit";
 import { useToast } from "@/components/ui/ToastProvider";
 import NotificationBell from "@/components/notifications/NotificationBell";
+import OwnerBell from "@/components/admin/notifications/OwnerBell";
 import { buildCenterNavHubs, isExpertMembershipExpired } from "@/app/_premium/home/homeCenters";
 import { buildModuleNavGroups, useModuleNavProbes, type HomeNavGroup } from "@/app/_premium/home/homeModuleNav";
 import SideMenu, {
@@ -367,6 +368,7 @@ export default function QuickNavShell({ children }: { children: ReactNode }) {
         }}
         asideRef={asideRef}
         bell={<NotificationBell compact />}
+        ownerBell={<OwnerBell placement="side" compact />}
       />
       {/* Tablet / mobil çekmece açma düğmesi: sabit konumlu, sayfada yer kaplamaz (eski üst çubuğun yerine). */}
       <QuickNavMenuButton />
