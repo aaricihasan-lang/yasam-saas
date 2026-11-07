@@ -78,8 +78,13 @@ export function PaymentBadge({ status }: { status: PaymentStatusUi }) {
   return <span className={`${pill} ${PAYMENT_TONES[status]}`}>Ödeme: {PAYMENT_LABELS_UI[status]}</span>;
 }
 
-/** AUTH-05: kayıtlı deneme penceresi geçmiş aktif uzman — yalnız uyarı (erişimi kesmez). */
-export function TrialReviewDueBadge({ endsAt }: { endsAt: string }) {
+/**
+ * H1/H4: deneme süresi bitmiş uzman uyarısı — yalnız GERÇEKTEN Pro (Premium) olmayan hesapta gösterilir
+ * (bkz. trialEndedNotice). Süre sayısı yazılmaz: eski kayıtların penceresi farklı uzunluktaydı.
+ *   trial7 → 7 günlük deneme bitti; hesap aktif ama salt okunur.
+ *   legacy → eski kayıttaki deneme penceresi bitti; paket tanımlı olmadığı için modül erişimi yok.
+ */
+export function TrialReviewDueBadge({ endsAt, kind = "trial7" }: { endsAt: string; kind?: "trial7" | "legacy" }) {
   const d = new Date(endsAt);
   const label = Number.isFinite(d.getTime())
     ? d.toLocaleDateString("tr-TR", { day: "2-digit", month: "2-digit", year: "numeric", timeZone: "Europe/Istanbul" })
@@ -87,9 +92,14 @@ export function TrialReviewDueBadge({ endsAt }: { endsAt: string }) {
   return (
     <span
       className={`${pill} bg-amber-50 text-amber-900 ring-amber-200`}
-      title="Kayıtlı 7 günlük keşif süresi doldu. Erişim otomatik kesilmez; karar yöneticidedir."
+      title={
+        kind === "legacy"
+          ? "Eski kayıttaki deneme süresi bu tarihte sona erdi. Hesabın paketi tanımlı olmadığı için modüllere erişemez; düzeltme üye detayındaki “Eski Kaydı Pro Üyeliğe Geçir” ile yapılır."
+          : "7 günlük ücretsiz deneme bu tarihte sona erdi. Hesap aktif ama salt okunurdur; devam için üye detayından Pro üyeliğe geçirilir."
+      }
     >
-      Deneme süresi doldu{label ? ` (${label})` : ""}
+      {kind === "legacy" ? "Eski deneme sona erdi" : "Deneme süresi doldu"}
+      {label ? ` (${label})` : ""}
     </span>
   );
 }

@@ -342,6 +342,63 @@ type FirstApproval = {
  * FAZ 1 / MEM-013 — gerçek erişim durumu: onay durumu + hesap durumu + GERÇEKTEN açık
  * modül sayısı. Sabit "Erişim VAR" / "Premium · Aktif" ifadesi yok (0 modülde yanıltmaz).
  */
+/** H3: 7 günlük deneme fazının erişim etiketi (lib/trial/trialCore trialPhaseAccessLevel ile aynı sonuç). */
+const TRIAL_PHASE_ACCESS: Record<"not_started" | "active" | "expired" | "review" | "suspended", { label: string; cls: string }> = {
+  not_started: { label: "Deneme başlamadı · ilk girişte başlar", cls: "border-slate-300 bg-slate-50 text-slate-700" },
+  active: { label: "Deneme sürüyor · tam erişim", cls: "border-emerald-300 bg-emerald-50 text-emerald-800" },
+  expired: { label: "Deneme bitti · salt okunur", cls: "border-amber-300 bg-amber-50 text-amber-800" },
+  review: { label: "İncelemede · erişim yok", cls: "border-rose-300 bg-rose-50 text-rose-700" },
+  suspended: { label: "Deneme durduruldu · salt okunur", cls: "border-slate-300 bg-slate-100 text-slate-700" },
+};
+
+/**
+ * H2/H3: Aktiflik, deneme hakkı ve Pro üyelik AYRI kavramlardır — üye detayında üçü yan yana gösterilir.
+ * null → kutu gösterilmez (Premium / admin / onaysız başvuru: mevcut ekran aynen).
+ */
+function membershipStatusInfo(user: ManagedUser): {
+  kind: "legacy" | "trial";
+  account: string;
+  trial: string;
+  pro: string;
+  hint: string;
+} | null {
+  if (user.role !== "expert" || user.approvalStatus !== "approved") return null;
+  const account = user.active ? "Aktif — giriş yapabilir." : "Pasif — giriş yapamaz.";
+  const ends = user.membership.trialEndsAt ? formatDateTimeTr(user.membership.trialEndsAt) : null;
+  if (user.legacyPackage) {
+    return {
+      kind: "legacy",
+      account,
+      trial: ends
+        ? `Eski kayıt — kayıtlı deneme penceresi ${ends} tarihinde sona erdi. 7 günlük deneme rejiminde değil.`
+        : "Eski kayıt — 7 günlük deneme rejiminde değil.",
+      pro: "Yok — paket tanımlı değil; bu nedenle modüllere erişemez.",
+      hint: "“Aktif Yap” ve modül anahtarları bu hesabı açmaz. Ödeme alındıysa veya ücretsiz Pro vermeye karar verdiyseniz “Eski Kaydı Pro Üyeliğe Geçir” kullanılır (yalnız ana yönetici).",
+    };
+  }
+  const phase = user.trialPhase;
+  if (!phase || phase === "none" || phase === "converted") return null;
+  const starts = user.membership.trialStartedAt ? formatDateTimeTr(user.membership.trialStartedAt) : null;
+  const span = [starts ? `başlangıç ${starts}` : null, ends ? `bitiş ${ends}` : null].filter(Boolean).join(", ");
+  const trial =
+    phase === "not_started"
+      ? "7 günlük deneme onaylı; süre uzmanın ilk başarılı girişinde başlar."
+      : phase === "active"
+        ? `7 günlük deneme sürüyor${span ? ` (${span})` : ""}.`
+        : phase === "expired"
+          ? `7 günlük deneme sona erdi${ends ? ` (${ends})` : ""}. Hesap salt okunur: kayıtlar görüntülenir ve dışa aktarılır, yeni işlem yapılamaz.`
+          : phase === "review"
+            ? "Deneme incelemede: modüller kapalı. Karar Deneme Üyeleri ekranından verilir."
+            : "Deneme erişimi durduruldu (salt okunur). Deneme Üyeleri ekranından sürdürülebilir.";
+  return {
+    kind: "trial",
+    account,
+    trial,
+    pro: "Yok — ücretsiz deneme üyesi.",
+    hint: "Deneme süresi uzatılamaz ve yeniden başlatılamaz; “Aktif Yap” deneme kısıtını kaldırmaz. Devam için ödeme sonrası “Pro Üyeliğe Geçir” kullanılır — danışan ve analiz kayıtları korunur.",
+  };
+}
+
 function membershipAccessState(user: ManagedUser): { label: string; cls: string } {
   if (user.approvalStatus === "rejected") {
     return { label: "Reddedildi · erişim yok", cls: "border-rose-300 bg-rose-50 text-rose-700" };
@@ -351,6 +408,13 @@ function membershipAccessState(user: ManagedUser): { label: string; cls: string 
   }
   if (!user.active) {
     return { label: "Hesap pasif · erişim kapalı", cls: "border-slate-300 bg-slate-100 text-slate-700" };
+  }
+  // H2/H3: aktif ama paketi eksik (eski kayıt) / deneme fazı — sunucu üyelik kapısıyla aynı sonuç.
+  if (user.role === "expert" && user.legacyPackage) {
+    return { label: "Aktif · paket eksik · erişim yok", cls: "border-rose-300 bg-rose-50 text-rose-700" };
+  }
+  if (user.role === "expert" && user.trialPhase && user.trialPhase !== "none" && user.trialPhase !== "converted") {
+    return TRIAL_PHASE_ACCESS[user.trialPhase];
   }
   const n = enabledAccessModules(user.modulePermissions).length;
   if (n === 0) {
@@ -576,6 +640,9 @@ export default function AdminUserDetailPage() {
   // TRIAL7: "7 Günlük Denemeyi Onayla" (Pro onayından AYRI) + Pro onayında açık ücretli üyelik teyidi.
   const [trialApproveOpen, setTrialApproveOpen] = useState(false);
   const [proConfirmed, setProConfirmed] = useState(false);
+  // H2/H3: Pro modalının amacı — "approve" (onay bekleyen başvuru), "trial_convert" (7 günlük deneme → Pro),
+  // "legacy_repair" (paketi eksik eski kayıt → Pro; yalnız ana yönetici). Üçü farklı sunucu işlemidir.
+  const [proFlow, setProFlow] = useState<"approve" | "trial_convert" | "legacy_repair">("approve");
   const [licenseLockoutAck, setLicenseLockoutAck] = useState(false);
 
   const [editOpen, setEditOpen] = useState(false);
@@ -1053,6 +1120,20 @@ export default function AdminUserDetailPage() {
   /** MEM-004: onay modalı — mevcut (varsa) modüllerle ön-seçili; en az bir modül zorunlu. */
   function openApproveModal() {
     if (!user || user.role !== "expert" || user.approvalStatus === "approved") return;
+    setProFlow("approve");
+    setApproveSelection(new Set(ADMIN_MODULE_UI_KEYS.filter((k) => user.modulePermissions[k] === true)));
+    setApproveAstroGrants(null);
+    setApproveAstroPicker(false);
+    setProConfirmed(false);
+    setApproveOpen(true);
+  }
+
+  /** H2/H3: onaylı ama Pro olmayan uzman (deneme üyesi / paketi eksik eski kayıt) için Pro geçiş penceresi. */
+  function openProConversionModal(flow: "trial_convert" | "legacy_repair") {
+    if (!user || user.role !== "expert" || user.approvalStatus !== "approved") return;
+    if (flow === "legacy_repair" && !user.legacyPackage) return;
+    if (flow === "trial_convert" && (!user.trialPhase || user.trialPhase === "none" || user.trialPhase === "converted")) return;
+    setProFlow(flow);
     setApproveSelection(new Set(ADMIN_MODULE_UI_KEYS.filter((k) => user.modulePermissions[k] === true)));
     setApproveAstroGrants(null);
     setApproveAstroPicker(false);
@@ -1062,7 +1143,8 @@ export default function AdminUserDetailPage() {
 
   function toggleApproveSelection(key: AdminModuleUiKey) {
     // Astroloji: işaretlemek teknik panelini açar (seçim uygulanınca işaretlenir); kaldırmak teknik seçimini de temizler.
-    if (key === "astrology") {
+    // Deneme → Pro: deneme üyesinin Gökyüzü Atlası teknik izni zaten tanımlı (tümü) — Astroloji düz modül gibi seçilir.
+    if (key === "astrology" && proFlow !== "trial_convert") {
       if (approveSelection.has("astrology")) {
         setApproveAstroGrants(null);
         setApproveSelection((prev) => {
@@ -1084,12 +1166,16 @@ export default function AdminUserDetailPage() {
   }
 
   const approveAnyModule = [...approveSelection].some((k) => ADMIN_MODULE_KIND[k] === "module");
-  const approveAstroMissing = approveSelection.has("astrology") && !approveAstroGrants;
+  const approveAstroMissing = proFlow !== "trial_convert" && approveSelection.has("astrology") && !approveAstroGrants;
   // Onaylanabilir seçim: en az bir modül VE (Astroloji seçiliyse) teknik seçimi.
   const approveHasModule = approveAnyModule && !approveAstroMissing;
 
   async function confirmApprove() {
     if (!user || !approveHasModule) return;
+    if (proFlow !== "approve") {
+      await confirmProConversion();
+      return;
+    }
     const modules = ADMIN_MODULE_UI_KEYS.filter((k) => approveSelection.has(k));
     const res = await postStatus("approve", {
       modules,
@@ -1104,6 +1190,51 @@ export default function AdminUserDetailPage() {
     showToast({
       title: "Uzman onaylandı",
       message: `Premium hesap etkinleştirildi. ${opened.length} modül erişime açıldı: ${opened
+        .map((k) => ADMIN_MODULE_UI_LABELS[k])
+        .join(", ")}.`,
+      type: "success",
+    });
+  }
+
+  /**
+   * H2/H3: onaylı uzmanı Pro'ya geçir.
+   *   trial_convert → mevcut deneme dönüşümü (POST /api/admin/trials/[id]/convert; admin_trial_convert_to_pro)
+   *   legacy_repair → eski kayıt onarımı (status route action repair_legacy_pro; yalnız ana yönetici)
+   * Her ikisi de tek işlemde audit yazar; user_id + tenant aynı kalır (kayıtlar korunur).
+   */
+  async function confirmProConversion() {
+    if (!user || !approveHasModule) return;
+    const modules = ADMIN_MODULE_UI_KEYS.filter((k) => approveSelection.has(k));
+    let res: Record<string, unknown> | null = null;
+    if (proFlow === "legacy_repair") {
+      res = await postStatus("repair_legacy_pro", {
+        modules,
+        expectedPackage: user.membership.packageType ?? "",
+        ...(approveSelection.has("astrology") ? { astrologyGrants: approveAstroGrants } : {}),
+      });
+    } else {
+      setActionUserId(user.id);
+      const r = await fetch(`/api/admin/trials/${encodeURIComponent(user.id)}/convert`, {
+        method: "POST",
+        headers: adminHeaders(currentAdminId, true),
+        body: JSON.stringify({ modules }),
+      });
+      const json = (await r.json().catch(() => ({}))) as Record<string, unknown> & { ok?: boolean; error?: string };
+      setActionUserId(null);
+      if (!r.ok || !json.ok) {
+        showToast({ title: "İşlem başarısız", message: json.error ?? "İşlem başarısız.", type: "error" });
+        if (r.status === 409 || r.status === 404) await loadUser(currentAdminId);
+        return;
+      }
+      await loadUser(currentAdminId);
+      res = json;
+    }
+    if (!res) return;
+    setApproveOpen(false);
+    const opened = modules.filter((k) => ADMIN_MODULE_KIND[k] === "module");
+    showToast({
+      title: "Pro üyeliğe geçirildi",
+      message: `Hesap ücretli Pro (Premium) üyelik oldu; danışan ve analiz kayıtları korundu. ${opened.length} modül açık: ${opened
         .map((k) => ADMIN_MODULE_UI_LABELS[k])
         .join(", ")}.`,
       type: "success",
@@ -1713,9 +1844,13 @@ export default function AdminUserDetailPage() {
                         <dd className="mt-2 text-base font-black text-slate-900">
                           {user.membershipDisplay.packageLabel}
                           <p className="mt-1 text-xs font-semibold text-slate-600">
-                            {user.approvalStatus === "approved"
-                              ? "Tek paket; süresiz — yönetici pasife alana kadar."
-                              : "7 günlük deneme veya ücretli Pro üyelik olarak onaylanır."}
+                            {user.approvalStatus !== "approved"
+                              ? "7 günlük deneme veya ücretli Pro üyelik olarak onaylanır."
+                              : user.legacyPackage
+                                ? "Paket tanımlı değil (eski kayıt) — modül erişimi kapalı."
+                                : user.trialPhase && user.trialPhase !== "none" && user.trialPhase !== "converted"
+                                  ? "Ücretsiz deneme — Pro değildir. Ayrıntı: İşlemler › Paket ve Deneme."
+                                  : "Ücretli Pro üyelik; süresiz — yönetici pasife alana kadar."}
                           </p>
                         </dd>
                       </div>
@@ -2202,6 +2337,66 @@ export default function AdminUserDetailPage() {
                   </div>
                 </div>
               ) : null}
+
+              {(() => {
+                const info = membershipStatusInfo(user);
+                if (!info) return null;
+                const legacyBlocked = info.kind === "legacy" && !viewerIsMainAdmin;
+                return (
+                  <div
+                    className="mt-4 rounded-2xl border-2 border-amber-200 bg-amber-50/50 p-4"
+                    role="group"
+                    aria-labelledby="actions-membership"
+                    data-membership-status={info.kind}
+                  >
+                    <p id="actions-membership" className="text-xs font-black uppercase tracking-wide text-amber-900">
+                      Paket ve Deneme
+                    </p>
+                    <dl className="mt-2 grid gap-2 text-sm sm:grid-cols-3">
+                      <div className="min-w-0 rounded-xl border border-amber-100 bg-white/80 px-3 py-2">
+                        <dt className="text-[11px] font-black uppercase tracking-wide text-slate-500">Hesap</dt>
+                        <dd className="mt-0.5 break-words font-semibold text-slate-800">{info.account}</dd>
+                      </div>
+                      <div className="min-w-0 rounded-xl border border-amber-100 bg-white/80 px-3 py-2">
+                        <dt className="text-[11px] font-black uppercase tracking-wide text-slate-500">Deneme hakkı</dt>
+                        <dd className="mt-0.5 break-words font-semibold text-slate-800">{info.trial}</dd>
+                      </div>
+                      <div className="min-w-0 rounded-xl border border-amber-100 bg-white/80 px-3 py-2">
+                        <dt className="text-[11px] font-black uppercase tracking-wide text-slate-500">Pro üyelik</dt>
+                        <dd className="mt-0.5 break-words font-semibold text-slate-800">{info.pro}</dd>
+                      </div>
+                    </dl>
+                    <p className="mt-2 text-xs font-medium leading-relaxed text-slate-700">{info.hint}</p>
+                    <div className="mt-3 flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        disabled={actionUserId === user.id || legacyBlocked || !user.active}
+                        title={
+                          legacyBlocked
+                            ? "Eski kayıt onarımı yalnız ana yöneticiye açıktır."
+                            : !user.active
+                              ? "Önce hesabı aktif yapın."
+                              : undefined
+                        }
+                        onClick={() => openProConversionModal(info.kind === "legacy" ? "legacy_repair" : "trial_convert")}
+                        className={`${actionBtn} border-violet-600 bg-violet-600 text-white hover:bg-violet-700`}
+                        data-pro-conversion={info.kind}
+                      >
+                        <UserCheck className="h-4 w-4" aria-hidden />
+                        {info.kind === "legacy" ? "Eski Kaydı Pro Üyeliğe Geçir" : "Pro Üyeliğe Geçir"}
+                      </button>
+                      {info.kind === "trial" ? (
+                        <Link
+                          href="/admin/deneme-uyeleri"
+                          className="text-xs font-bold text-amber-900 underline underline-offset-2 hover:text-amber-950"
+                        >
+                          Deneme Üyeleri ekranı (kredi, inceleme, durdurma)
+                        </Link>
+                      ) : null}
+                    </div>
+                  </div>
+                );
+              })()}
 
               <div className="mt-4 rounded-2xl border-2 border-slate-100 bg-white/70 p-4" role="group" aria-labelledby="actions-account">
                 <p id="actions-account" className="text-xs font-black uppercase tracking-wide text-slate-700">
@@ -3571,17 +3766,35 @@ export default function AdminUserDetailPage() {
               <X className="h-5 w-5" />
             </button>
             <h2 id="approve-title" className="pr-8 text-xl font-black text-emerald-950 sm:text-2xl">
-              {user.approvalStatus === "rejected" ? "Pro üyeliği yeniden onayla" : "Pro üyeliği onayla"}
+              {proFlow === "legacy_repair"
+                ? "Eski kaydı Pro üyeliğe geçir"
+                : proFlow === "trial_convert"
+                  ? "Deneme üyesini Pro üyeliğe geçir"
+                  : user.approvalStatus === "rejected"
+                    ? "Pro üyeliği yeniden onayla"
+                    : "Pro üyeliği onayla"}
             </h2>
             <div className="mt-3 rounded-xl border border-emerald-200 bg-white/80 px-4 py-3">
               <p className="break-words text-base font-black text-slate-900">{user.fullName}</p>
               <p className="break-all text-sm font-medium text-slate-600">{user.email}</p>
             </div>
-            <p className="mt-3 text-sm font-medium leading-relaxed text-slate-700">
-              Onayla dendiğinde hesap <span className="font-black">onaylanır, aktif edilir ve ücretli Pro (Premium) üyelik</span> olur;
-              uzman <span className="font-black">yalnız seçtiğiniz modüllere</span> erişir. Modüller daha sonra tek
-              tek açılıp kapatılabilir.
-            </p>
+            {proFlow === "approve" ? (
+              <p className="mt-3 text-sm font-medium leading-relaxed text-slate-700">
+                Onayla dendiğinde hesap <span className="font-black">onaylanır, aktif edilir ve ücretli Pro (Premium) üyelik</span> olur;
+                uzman <span className="font-black">yalnız seçtiğiniz modüllere</span> erişir. Modüller daha sonra tek
+                tek açılıp kapatılabilir.
+              </p>
+            ) : (
+              <p className="mt-3 text-sm font-medium leading-relaxed text-slate-700" data-pro-flow={proFlow}>
+                {proFlow === "legacy_repair"
+                  ? "Bu hesap onaylı ve aktif, ancak paketi tanımlı olmadığı için modüllere erişemiyor. "
+                  : "Ücretsiz deneme üyeliği sona erer (süre uzatılmaz). "}
+                Hesap <span className="font-black">ücretli Pro (Premium) üyelik</span> olur; uzman{" "}
+                <span className="font-black">yalnız seçtiğiniz modüllere</span> erişir.{" "}
+                <span className="font-black">Hesap kimliği, danışan ve analiz kayıtları değişmez</span>; işlem yönetim geçmişine yazılır.
+                {proFlow === "trial_convert" ? " Gökyüzü Atlası teknik izinleri mevcut haliyle (tümü) kalır." : ""}
+              </p>
+            )}
             <p className="mt-4 text-sm font-black text-slate-900">
               Açılacak Modüller{" "}
               <span className="font-bold text-slate-500">
@@ -3652,7 +3865,9 @@ export default function AdminUserDetailPage() {
                 checked={proConfirmed}
                 onChange={(e) => setProConfirmed(e.target.checked)}
               />
-              Bu uzmana ücretli Pro üyelik açıyorum (ödeme alındı). Ücretsiz deneme için “7 Günlük Denemeyi Onayla”yı kullanın.
+              {proFlow === "approve"
+                ? "Bu uzmana ücretli Pro üyelik açıyorum (ödeme alındı). Ücretsiz deneme için “7 Günlük Denemeyi Onayla”yı kullanın."
+                : "Bu uzmana Pro üyelik açıyorum (ödeme alındı veya ücretsiz Pro vermeye karar verdim)."}
             </label>
             <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
               <button
@@ -3674,8 +3889,10 @@ export default function AdminUserDetailPage() {
                     <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
                     Onaylanıyor…
                   </>
-                ) : (
+                ) : proFlow === "approve" ? (
                   "Pro Üyeliği Onayla"
+                ) : (
+                  "Pro Üyeliğe Geçir"
                 )}
               </button>
             </div>

@@ -450,10 +450,13 @@ async function run() {
   console.log("\n── M) Deneme bitişi kaydı ──");
   const mem = await import("@/lib/auth/membership");
   const { hasMembershipAccessForRow } = await import("@/lib/auth/membershipAccessCore");
-  const now = new Date("2026-10-20T09:00:00.000Z");
-  const pl = mem.buildApprovalMembershipPayload(now);
-  ok(pl.trial_started_at === now.toISOString() && pl.trial_ends_at === "2026-10-27T09:00:00.000Z" && pl.package_type === "premium",
-    "onay payload'ı: trial_started_at=şimdi, trial_ends_at=+7 gün (TRIAL7), paket premium", pl);
+  // H1 (2026-11-07, owner): Pro onayı artık deneme/keşif penceresi YAZMAZ; mevcut tarihçe korunur.
+  const pl = mem.buildApprovalMembershipPayload();
+  ok(!("trial_started_at" in pl) && !("trial_ends_at" in pl) && pl.package_type === "premium" && pl.plan === "premium",
+    "Pro onay payload'ı: deneme tarihi YAZMAZ (H1; mevcut tarihçe korunur), paket premium", pl);
+  const plf = mem.filterMembershipPayloadForRow(pl, { package_type: "trial", plan: "trial", trial_started_at: "2026-11-01T10:00:00Z", trial_ends_at: "2026-11-08T10:00:00Z" });
+  ok(!("trial_started_at" in plf) && !("trial_ends_at" in plf) && plf.package_type === "premium",
+    "kolon filtresi payload'da olmayan deneme anahtarını EKLEMEZ (DB değeri dokunulmaz)", plf);
   ok(mem.buildPremiumMembershipPayload().trial_ends_at === null, "eski buildPremiumMembershipPayload değişmedi");
   const expiredRow = { role: "expert", active: true, approval_status: "approved", package_type: "premium", plan: "premium", trial_ends_at: "2020-01-01T00:00:00Z", membership_status: "active" };
   ok(hasMembershipAccessForRow(expiredRow) === true, "deneme tarihi geçmiş aktif uzmanın ERİŞİMİ KESİLMEZ (owner kararı)");
