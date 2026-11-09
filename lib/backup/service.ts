@@ -61,12 +61,14 @@ export async function handleBackupTableRequest(
   tenantId: string,
   name: string | null,
   cursor: string | null,
+  /** Oturumdaki kullanıcı — kullanıcı bazlı (ownerScope) tablolar yalnız onun satırlarını döndürür. */
+  userId: string | null = null,
 ): Promise<ServiceResult> {
   const e = name ? getRegistryEntry(name) : undefined;
   if (!e || !isExportable(e)) {
     return { status: 400, body: { ok: false, error: "Geçersiz tablo adı." } };
   }
-  const page = await fetchTablePage(db, e, tenantId, cursor);
+  const page = await fetchTablePage(db, e, tenantId, cursor, { ownerUserId: userId });
   if (!page.ok && page.error === "Geçersiz cursor.") return { status: 400, body: page };
   return { status: 200, body: page };
 }

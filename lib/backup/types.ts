@@ -28,6 +28,16 @@ export type BackupClass =
 
 export type TenantScope = "direct" | "none" | { parent: string; fk: string };
 
+/**
+ * Kullanıcı (uzman) bazlı sahiplik — tenant İÇİNDE ikinci izolasyon katmanı (ör. Gökyüzü Atlası: kayıtlar
+ * `owner_user_id` taşır; aynı tenant'taki başka uzmanın kaydı görünmez). Varsa dışa aktarım YALNIZ oturumdaki
+ * uzmanın satırlarını okur (kullanıcı kimliği verilmezse okuma reddedilir — fail-closed); geri yüklemede sahiplik
+ * kolonu oturumdaki uzmana zorlanır ve FK ebeveyni aynı uzmana ait olmalıdır.
+ *  - `{ column }`        : satırın kendi sahiplik kolonu.
+ *  - `{ parent, fk }`    : sahiplik ebeveyn üzerinden (ebeveynin kendi `{ column }` kapsamı olmalı).
+ */
+export type OwnerScope = { column: string } | { parent: string; fk: string };
+
 /** Restore'da aynı tenant'ta var olması gereken ebeveyn. */
 export type FkParent = {
   column: string;
@@ -42,6 +52,11 @@ export type FkParent = {
    * besini `food_id`). Verilmezse ebeveyn restore eden tenant'ta aranır (varsayılan).
    */
   parentTenantId?: string;
+  /**
+   * Ebeveyn kullanıcı bazlıysa (registry dışı tablo, ör. Atlas sağlayıcı önbelleği) sahiplik kolonu: ebeveyn
+   * oturumdaki uzmana ait değilse "yok" sayılır. Registry'deki ebeveynde `ownerScope` bunu kendiliğinden sağlar.
+   */
+  parentOwnerColumn?: string;
 };
 
 /** Storage yolu öneki şeması (tenant id ile somutlaşır). */
@@ -57,6 +72,8 @@ export type RegistryEntry = {
   /** Yedek dışı sınıflar için gerekçe (yedek dosyasındaki `excluded` listesinde görünür). */
   reason?: string;
   tenantScope: TenantScope;
+  /** Tenant içi kullanıcı sahipliği (yalnız gerektiren modüller; yoksa tenant kapsamı yeterlidir). */
+  ownerScope?: OwnerScope;
   pk: readonly string[];
   conflictTarget: readonly string[];
   orderBy: readonly string[];

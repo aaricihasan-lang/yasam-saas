@@ -23,7 +23,13 @@ export async function GET(req: NextRequest) {
   }
   const params = req.nextUrl.searchParams;
   try {
-    const result = await handleBackupTableRequest(guard.db, guard.tenantId, params.get("name"), params.get("cursor"));
+    const result = await handleBackupTableRequest(
+      guard.db,
+      guard.tenantId,
+      params.get("name"),
+      params.get("cursor"),
+      guard.userId,
+    );
     return NextResponse.json(result.body, { status: result.status, headers: { "Cache-Control": "no-store" } });
   } catch (err) {
     console.error("[settings/backup/table]", err);

@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
   if (guard.is_demo_account) {
     return NextResponse.json({ error: "Demo hesabında bu işlem kullanılamaz." }, { status: 403 });
   }
-  const { tenantId, db } = guard;
+  const { tenantId, db, userId } = guard;
 
   let body: { module?: unknown };
   try {
@@ -54,7 +54,7 @@ export async function POST(req: NextRequest) {
       // Modül içindeki tablolar paralel okunur (süre); bütçe modül sonunda toplamla denetlenir.
       const entries = tablesForModule(key);
       const results = await Promise.all(
-        entries.map((entry) => exportTableAll(db, entry, tenantId, { maxRows: WORD_RECORD_BUDGET })),
+        entries.map((entry) => exportTableAll(db, entry, tenantId, { maxRows: WORD_RECORD_BUDGET, ownerUserId: userId })),
       );
       entries.forEach((entry, i) => {
         const res = results[i];

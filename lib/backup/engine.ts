@@ -64,10 +64,95 @@ export function decodeCursor(raw: string | null | undefined): Cursor | null | "i
   }
 }
 
-function keyColumn(e: RegistryEntry): string {
+/** Keyset kolonları: tek kolon veya bileşik PK (en fazla 2 kolon, ör. (analysis_id, position)). */
+function keyColumns(e: RegistryEntry): readonly string[] {
   const cols = e.orderBy;
-  if (cols.length !== 1) throw new Error(`${e.table}: keyset tek kolon bekler (orderBy=${cols.join(",")})`);
-  return cols[0];
+  if (cols.length < 1 || cols.length > 2) throw new Error(`${e.table}: keyset 1–2 kolon bekler (orderBy=${cols.join(",")})`);
+  return cols;
+}
+
+function keyColumn(e: RegistryEntry): string {
+  return keyColumns(e)[0];
+}
+
+/** Satırın keyset konumu: tek kolon → değer; bileşik → JSON dizi metni (cursor içinde opak taşınır). */
+function rowKey(e: RegistryEntry, r: Row): string | number {
+  const cols = keyColumns(e);
+  if (cols.length === 1) return r[cols[0]] as string | number;
+  return JSON.stringify(cols.map((c) => r[c]));
+}
+
+/** Bileşik keyset değeri PostgREST `or` sözdizimine güvenle girer (virgül / parantez / boşluk yok). */
+const KEYSET_VALUE_RE = /^[A-Za-z0-9_.:-]{1,128}$/;
+
+/** Keyset + sıralama uygulanabilen sorgu (Supabase sorgu kurucusunun kullanılan alt kümesi). */
+type KeysetQuery = {
+  gt(column: string, value: unknown): KeysetQuery;
+  or(filters: string): KeysetQuery;
+  order(column: string, opts: { ascending: boolean }): KeysetQuery;
+  limit(n: number): PromiseLike<QueryResult>;
+};
+
+function applyKeyset(q: KeysetQuery, e: RegistryEntry, after: string | number | null): KeysetQuery | "invalid" {
+  const cols = keyColumns(e);
+  let out = q;
+  if (after !== null) {
+    if (cols.length === 1) {
+      out = out.gt(cols[0], after);
+    } else {
+      let parsed: unknown = null;
+      try {
+        parsed = typeof after === "string" ? JSON.parse(after) : null;
+      } catch {
+        return "invalid";
+      }
+      if (
+        !Array.isArray(parsed) ||
+        parsed.length !== cols.length ||
+        !parsed.every((v) => (typeof v === "string" || typeof v === "number") && KEYSET_VALUE_RE.test(String(v)))
+      ) {
+        return "invalid";
+      }
+      const [a, b] = parsed.map(String);
+      out = out.or(`${cols[0]}.gt.${a},and(${cols[0]}.eq.${a},${cols[1]}.gt.${b})`);
+    }
+  }
+  for (const c of cols) out = out.order(c, { ascending: true });
+  return out;
+}
+
+// ─── Kullanıcı (uzman) sahipliği ─────────────────────────────────────────────
+
+type OwnerColumnFilter = { column: string; value: string };
+/** Sahiplik süzgeci: null → kapsam yok; "missing" → kapsam var ama kullanıcı kimliği verilmedi (fail-closed). */
+type OwnerFilter = OwnerColumnFilter | { parent: string; fk: string; parentOwner: OwnerColumnFilter } | null | "missing";
+
+const OWNER_MISSING_ERROR = "Bu tablo kullanıcı bazlıdır; kullanıcı kimliği olmadan okunamaz.";
+
+function ownerFilterFor(e: RegistryEntry, ownerUserId: string | null | undefined): OwnerFilter {
+  const scope = e.ownerScope;
+  if (!scope) return null;
+  if (!ownerUserId) return "missing";
+  if ("column" in scope) return { column: scope.column, value: ownerUserId };
+  const parent = getRegistryEntry(scope.parent);
+  const parentScope = parent?.ownerScope;
+  if (!parentScope || !("column" in parentScope)) {
+    throw new Error(`${e.table}: sahiplik ebeveyni ${scope.parent} kendi sahiplik kolonunu taşımalı`);
+  }
+  return { parent: scope.parent, fk: scope.fk, parentOwner: { column: parentScope.column, value: ownerUserId } };
+}
+
+/** Ebeveyn üzerinden okunan tablolar: child_of (tenant_id'siz) VEYA sahipliği ebeveynden gelen tenant'lı tablo. */
+type ParentScope = { parent: string; fk: string; parentOwner: OwnerColumnFilter | null; childTenant: boolean };
+
+function parentScopeOf(e: RegistryEntry, owner: OwnerFilter): ParentScope | null {
+  if (owner && owner !== "missing" && "parent" in owner) {
+    return { parent: owner.parent, fk: owner.fk, parentOwner: owner.parentOwner, childTenant: e.tenantScope === "direct" };
+  }
+  if (typeof e.tenantScope === "object") {
+    return { parent: e.tenantScope.parent, fk: e.tenantScope.fk, parentOwner: null, childTenant: false };
+  }
+  return null;
 }
 
 function errText(err: DbError): string {
@@ -86,8 +171,10 @@ async function parentIdPage(
   parentTable: string,
   tenantId: string,
   after: string | null,
+  parentOwner: OwnerColumnFilter | null = null,
 ): Promise<{ ids: string[]; error: DbError }> {
   let q = db.from(parentTable).select("id").eq("tenant_id", tenantId);
+  if (parentOwner) q = q.eq(parentOwner.column, parentOwner.value);
   if (after !== null) q = q.gt("id", after);
   const res = (await q.order("id", { ascending: true }).limit(PARENT_CHUNK)) as QueryResult;
   if (res.error) return { ids: [], error: res.error };
@@ -99,28 +186,29 @@ export async function countTableRows(
   db: SupabaseClient,
   e: RegistryEntry,
   tenantId: string,
+  opts: { ownerUserId?: string | null } = {},
 ): Promise<{ count: number | null; error: string | null }> {
   if (nutritionBlocked(e, tenantId)) return { count: 0, error: null };
-  if (e.tenantScope === "direct") {
-    const res = (await db
-      .from(e.table)
-      .select(keyColumn(e), { count: "exact", head: true })
-      .eq("tenant_id", tenantId)) as QueryResult;
+  const owner = ownerFilterFor(e, opts.ownerUserId);
+  if (owner === "missing") return { count: null, error: OWNER_MISSING_ERROR };
+  const ps = parentScopeOf(e, owner);
+  if (e.tenantScope === "direct" && ps === null) {
+    let q = db.from(e.table).select(keyColumn(e), { count: "exact", head: true }).eq("tenant_id", tenantId);
+    if (owner && "column" in owner) q = q.eq(owner.column, owner.value);
+    const res = (await q) as QueryResult;
     if (res.error) return { count: null, error: errText(res.error) };
     return { count: typeof res.count === "number" ? res.count : null, error: null };
   }
-  if (typeof e.tenantScope === "object") {
-    const { parent, fk } = e.tenantScope;
+  if (ps) {
     let total = 0;
     let after: string | null = null;
     for (let guard = 0; guard < 100_000; guard++) {
-      const page = await parentIdPage(db, parent, tenantId, after);
+      const page = await parentIdPage(db, ps.parent, tenantId, after, ps.parentOwner);
       if (page.error) return { count: null, error: errText(page.error) };
       if (page.ids.length === 0) return { count: total, error: null };
-      const res = (await db
-        .from(e.table)
-        .select(keyColumn(e), { count: "exact", head: true })
-        .in(fk, page.ids)) as QueryResult;
+      let q = db.from(e.table).select(keyColumn(e), { count: "exact", head: true }).in(ps.fk, page.ids);
+      if (ps.childTenant) q = q.eq("tenant_id", tenantId);
+      const res = (await q) as QueryResult;
       if (res.error) return { count: null, error: errText(res.error) };
       total += typeof res.count === "number" ? res.count : 0;
       after = page.ids[page.ids.length - 1];
@@ -131,7 +219,6 @@ export async function countTableRows(
 }
 
 function trimToBudget(e: RegistryEntry, rows: Row[]): { rows: Row[]; skippedIds: string[]; lastKey: unknown } {
-  const key = keyColumn(e);
   const out: Row[] = [];
   const skippedIds: string[] = [];
   let bytes = 0;
@@ -140,14 +227,14 @@ function trimToBudget(e: RegistryEntry, rows: Row[]): { rows: Row[]; skippedIds:
     const size = JSON.stringify(r).length;
     if (size > ROW_MAX_BYTES) {
       // Tek satır yanıt sınırını aşıyor → atlanır ve AÇIKÇA raporlanır (sessiz kayıp yok).
-      skippedIds.push(String(r[key]));
-      lastKey = r[key];
+      skippedIds.push(String(rowKey(e, r)));
+      lastKey = rowKey(e, r);
       continue;
     }
     if (out.length > 0 && bytes + size > PAGE_MAX_BYTES) break;
     out.push(r);
     bytes += size;
-    lastKey = r[key];
+    lastKey = rowKey(e, r);
   }
   return { rows: out, skippedIds, lastKey };
 }
@@ -161,19 +248,21 @@ export async function fetchTablePage(
   e: RegistryEntry,
   tenantId: string,
   rawCursor: string | null,
-  opts: { pageSize?: number; includeCount?: boolean } = {},
+  opts: { pageSize?: number; includeCount?: boolean; ownerUserId?: string | null } = {},
 ): Promise<BackupPageResponse> {
   const base: BackupPageResponse = { ok: true, table: e.table, rows: [], next_cursor: null, done: true };
   if (!isExportable(e)) return { ...base, ok: false, error: "Bu tablo yedek kapsamında değil." };
   const cursor = decodeCursor(rawCursor);
   if (cursor === "invalid") return { ...base, ok: false, error: "Geçersiz cursor." };
+  const owner = ownerFilterFor(e, opts.ownerUserId);
+  if (owner === "missing") return { ...base, ok: false, error: OWNER_MISSING_ERROR };
+  const ps = parentScopeOf(e, owner);
   const pageSize = Math.max(1, Math.min(opts.pageSize ?? e.pageSize ?? BACKUP_PAGE_SIZE, BACKUP_PAGE_SIZE));
-  const key = keyColumn(e);
 
   let expected: number | null | undefined;
   let countError: string | null = null;
   if (cursor === null && opts.includeCount !== false) {
-    const c = await countTableRows(db, e, tenantId);
+    const c = await countTableRows(db, e, tenantId, { ownerUserId: opts.ownerUserId });
     expected = c.count;
     countError = c.error;
   }
@@ -191,11 +280,14 @@ export async function fetchTablePage(
     if (expected !== undefined) res.expected_count = expected;
     return res;
   };
+  const invalidCursor = (): BackupPageResponse => ({ ...base, ok: false, error: "Geçersiz cursor." });
 
-  if (e.tenantScope === "direct") {
-    let q = db.from(e.table).select("*").eq("tenant_id", tenantId);
-    if (cursor && cursor.k !== null) q = q.gt(key, cursor.k);
-    const res = (await q.order(key, { ascending: true }).limit(pageSize)) as QueryResult;
+  if (e.tenantScope === "direct" && ps === null) {
+    let sel = db.from(e.table).select("*").eq("tenant_id", tenantId);
+    if (owner && "column" in owner) sel = sel.eq(owner.column, owner.value);
+    const q = applyKeyset(sel as unknown as KeysetQuery, e, cursor ? cursor.k : null);
+    if (q === "invalid") return invalidCursor();
+    const res = await q.limit(pageSize);
     if (res.error) return finish([], null, errText(res.error));
     const rows = (res.data as Row[] | null) ?? [];
     if (rows.length === 0) return finish([], null, null);
@@ -204,17 +296,18 @@ export async function fetchTablePage(
     return finish(t.rows, { k: t.lastKey as string | number, p: null }, skippedNote);
   }
 
-  if (typeof e.tenantScope === "object") {
-    const { parent, fk } = e.tenantScope;
+  if (ps) {
     let parentAfter = cursor ? cursor.p : null;
     let childAfter = cursor ? cursor.k : null;
     for (let i = 0; i < MAX_PARENT_CHUNKS_PER_REQUEST; i++) {
-      const page = await parentIdPage(db, parent, tenantId, parentAfter);
+      const page = await parentIdPage(db, ps.parent, tenantId, parentAfter, ps.parentOwner);
       if (page.error) return finish([], null, errText(page.error));
       if (page.ids.length === 0) return finish([], null, null);
-      let q = db.from(e.table).select("*").in(fk, page.ids);
-      if (childAfter !== null) q = q.gt(key, childAfter);
-      const res = (await q.order(key, { ascending: true }).limit(pageSize)) as QueryResult;
+      let sel = db.from(e.table).select("*").in(ps.fk, page.ids);
+      if (ps.childTenant) sel = sel.eq("tenant_id", tenantId);
+      const q = applyKeyset(sel as unknown as KeysetQuery, e, childAfter);
+      if (q === "invalid") return invalidCursor();
+      const res = await q.limit(pageSize);
       if (res.error) return finish([], null, errText(res.error));
       const rows = (res.data as Row[] | null) ?? [];
       if (rows.length > 0) {
@@ -237,7 +330,7 @@ export async function exportTableAll(
   db: SupabaseClient,
   e: RegistryEntry,
   tenantId: string,
-  opts: { pageSize?: number; maxRows?: number } = {},
+  opts: { pageSize?: number; maxRows?: number; ownerUserId?: string | null } = {},
 ): Promise<{ rows: Row[]; expected_count: number | null; complete: boolean; error: string | null; truncated: boolean }> {
   const rows: Row[] = [];
   let cursor: string | null = null;
@@ -245,7 +338,10 @@ export async function exportTableAll(
   const errors: string[] = [];
   let truncated = false;
   for (let guard = 0; guard < 1_000_000; guard++) {
-    const page: BackupPageResponse = await fetchTablePage(db, e, tenantId, cursor, { pageSize: opts.pageSize });
+    const page: BackupPageResponse = await fetchTablePage(db, e, tenantId, cursor, {
+      pageSize: opts.pageSize,
+      ownerUserId: opts.ownerUserId,
+    });
     if (page.expected_count !== undefined) expected = page.expected_count ?? null;
     if (page.error) errors.push(page.error);
     rows.push(...page.rows);
@@ -365,12 +461,14 @@ async function existingKeys(
   values: string[],
   tenantFilter: string | null,
   extraSelect?: string,
+  ownerFilter?: OwnerColumnFilter | null,
 ): Promise<{ rows: Row[]; error: DbError }> {
   const out: Row[] = [];
   for (let i = 0; i < values.length; i += IN_FILTER_CHUNK) {
     const part = values.slice(i, i + IN_FILTER_CHUNK);
     let q = db.from(table).select(extraSelect ? `${col},${extraSelect}` : col);
     if (tenantFilter !== null) q = q.eq("tenant_id", tenantFilter);
+    if (ownerFilter) q = q.eq(ownerFilter.column, ownerFilter.value);
     const res = (await q.in(col, part)) as QueryResult;
     if (res.error) return { rows: out, error: res.error };
     out.push(...(((res.data as Row[] | null) ?? []) as Row[]));
@@ -418,6 +516,8 @@ export async function restoreChunk(
   const tenantCol = hasTenantColumn(entry);
   const pkCols = entry.pk.filter((c) => c !== "tenant_id");
   const pkCol = pkCols[0] ?? null;
+  // Sahiplik kolonu (ör. Atlas owner_user_id) satırda hangi değerle gelirse gelsin oturumdaki uzmana zorlanır.
+  const ownerCol = entry.ownerScope && "column" in entry.ownerScope ? entry.ownerScope.column : null;
 
   // 1) Satır şekli + kolon projeksiyonu
   const candidateKeys = new Set<string>();
@@ -454,19 +554,22 @@ export async function restoreChunk(
       if (!(c in out)) continue;
       if (c === "user_id" || out[c] !== null) out[c] = ctx.userId;
     }
+    if (ownerCol && allowed.has(ownerCol)) out[ownerCol] = ctx.userId;
     return out;
   });
+
+  // Kayıt kimliği: tek kolon → değer; bileşik PK (ör. (analysis_id, position)) → kolon değerleri birleşik.
+  const idOf = (r: Row) => (pkCol ? pkCols.map((c) => String(r[c])).join("\u0001") : ctx.tenantId);
 
   // 2) PK varlığı + parça içi tekrar
   const seen = new Set<string>();
   rows = rows.filter((r) => {
     if (pkCol === null) return true; // pk yalnız tenant_id (singleton)
-    const v = r[pkCol];
-    if (!PK_VALUE_OK(v)) {
+    if (!pkCols.every((c) => PK_VALUE_OK(r[c]))) {
       addFailure(report, "missing_pk", []);
       return false;
     }
-    const k = String(v);
+    const k = idOf(r);
     if (seen.has(k)) {
       addFailure(report, "duplicate_in_backup", [k]);
       return false;
@@ -478,8 +581,6 @@ export async function restoreChunk(
     addFailure(report, "duplicate_in_backup", [], rows.length - 1);
     rows = rows.slice(0, 1);
   }
-  const idOf = (r: Row) => (pkCol ? String(r[pkCol]) : ctx.tenantId);
-
   // 4) Var olanlar (PK / doğal anahtar) — zaten mevcut veya başka hesapta
   if (rows.length > 0) {
     if (pkCol === null) {
@@ -508,8 +609,12 @@ export async function restoreChunk(
       }
     } else {
       const scope = entry.tenantScope;
-      const extra = scope === "direct" && tenantCol ? "tenant_id" : typeof scope === "object" ? scope.fk : undefined;
-      const found = await existingKeys(db, entry.table, pkCol, rows.map(idOf), null, extra);
+      const extraCols = [
+        ...pkCols.slice(1),
+        ...(scope === "direct" && tenantCol ? ["tenant_id"] : typeof scope === "object" ? [scope.fk] : []),
+      ];
+      const firstKeys = [...new Set(rows.map((r) => String(r[pkCol])))];
+      const found = await existingKeys(db, entry.table, pkCol, firstKeys, null, extraCols.length ? extraCols.join(",") : undefined);
       if (found.error) {
         addFailure(report, "insert_error", rows.map(idOf));
         rows = [];
@@ -528,7 +633,7 @@ export async function restoreChunk(
               : typeof scope === "object"
                 ? ownParents.has(String(r[scope.fk]))
                 : false;
-          owner.set(String(r[pkCol]), own);
+          owner.set(idOf(r), own);
         }
         rows = rows.filter((r) => {
           const o = owner.get(idOf(r));
@@ -597,7 +702,19 @@ export async function restoreChunk(
     const parentTenantScoped = !parentEntry || parentEntry.tenantScope === "direct";
     // Sabit ebeveyn tenant'ı (ör. global SİSTEM katalog) — yoksa restore eden tenant.
     const parentTenant = parent.parentTenantId ?? (parentTenantScoped ? ctx.tenantId : null);
-    const found = await existingKeys(db, parent.table, parentCol, vals, parentTenant);
+    // Kullanıcı bazlı ebeveyn (registry ownerScope veya açık parentOwnerColumn): ebeveyn AYNI uzmana ait olmalı.
+    const parentOwnerCol =
+      parent.parentOwnerColumn ??
+      (parentEntry?.ownerScope && "column" in parentEntry.ownerScope ? parentEntry.ownerScope.column : null);
+    const found = await existingKeys(
+      db,
+      parent.table,
+      parentCol,
+      vals,
+      parentTenant,
+      undefined,
+      parentOwnerCol ? { column: parentOwnerCol, value: ctx.userId } : null,
+    );
     if (found.error) {
       for (const r of rows) addFailure(report, "fk_violation", [idOf(r)]);
       rows = [];
@@ -630,7 +747,7 @@ export async function restoreChunk(
   // 6) Toplu ekleme (yalnız eksikler) — hata → satır satır izolasyon
   if (rows.length > 0) {
     const onConflict = entry.conflictTarget.join(",");
-    const returning = pkCol ?? "tenant_id";
+    const returning = pkCols.length ? pkCols.join(",") : "tenant_id";
     const bulk = (await db
       .from(entry.table)
       .upsert(rows, { onConflict, ignoreDuplicates: true, defaultToNull: false })
