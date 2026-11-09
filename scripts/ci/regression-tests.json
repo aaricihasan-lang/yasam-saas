@@ -419,10 +419,6 @@
    "timeoutSec": 150
   },
   {
-   "file": "scripts/ci/onceki-kanit.harness.mjs",
-   "timeoutSec": 150
-  },
-  {
    "file": "scripts/clients-list-filter.harness.ts",
    "tsx": true,
    "timeoutSec": 60
