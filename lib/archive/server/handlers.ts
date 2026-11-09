@@ -173,7 +173,10 @@ export async function handleArchivePart(ctx: ArchiveCtx, body: unknown, now: Dat
             : job.kind === "hd_relation_report"
               ? await buildHdRelationReport(ctx, job.reportId)
               : await buildAstroReport(ctx, job.analysisId);
-    if (!out.ok) return json(out.skipped ? 200 : out.status, { ok: false, skipped: !!out.skipped, error: out.error });
+    if (!out.ok) {
+      if (out.empty) return json(200, { ok: false, empty: true, error: out.error });
+      return json(out.skipped ? 200 : out.status, { ok: false, skipped: !!out.skipped, error: out.error });
+    }
     return { kind: "file", bytes: out.bytes, fileName: out.fileName, headers: out.note ? { "X-Archive-Note": enc(out.note) } : {} };
   } catch (e) {
     if (e instanceof WordBudgetError) return json(413, { ok: false, error: "Bu parça tek Word belgesi için çok büyük (tek kayıt sınırı aşıldı); kayıt JSON yedeğinde eksiksizdir." });

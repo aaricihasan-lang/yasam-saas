@@ -61,7 +61,8 @@ import { relationReportFilename, renderRelationReportBuffer } from "@/lib/human-
 import { renderRelationImage } from "@/lib/human-design/relations/relationImages";
 import { buildAnalysisReport } from "@/lib/astrology/report/service";
 import { resolveAstrologyEntitlements } from "@/lib/astrology/access/entitlements";
-import { readAstrologyTechniqueGrants } from "@/lib/astrology/access/ownerGate";
+import { readAstrologyTechniqueGrants, resolveAstrologyOwner } from "@/lib/astrology/access/ownerGate";
+import type { AstrologyEntitlements } from "@/lib/astrology/access/entitlements";
 import { isAstrologyModuleEnabled } from "@/lib/astrology/config";
 import { reportFileDate, zonedDayKey } from "@/lib/time/reportTime";
 
@@ -78,7 +79,7 @@ export type ArchiveCtx = {
 
 export type ReportOutcome =
   | { ok: true; bytes: Uint8Array; fileName: string; note?: string }
-  | { ok: false; status: number; error: string; skipped?: boolean };
+  | { ok: false; status: number; error: string; skipped?: boolean; empty?: boolean };
 
 const HD_BUCKET = "hd-chart-images";
 /** Arşivdeki Numeroloji Word bölümleri: Zamanlama & Gelişim (bugüne göre hesap) HARİÇ. */
@@ -88,6 +89,8 @@ const ANDROID_HD = "Human Design Word raporları Android cihazda üretilmez (HD 
 
 const perm = (ctx: ArchiveCtx, key: ModulePermissionKey): boolean => hasModulePermissionForProfile(ctx.profile, key);
 const fail = (status: number, error: string, skipped = false): ReportOutcome => ({ ok: false, status, error, skipped });
+/** İçerik yok (ör. danışanın rapora girecek kaydı yok) — hata ya da eksiklik DEĞİL; ayrı "boş" kategorisi. */
+const empty = (error: string): ReportOutcome => ({ ok: false, status: 200, error, empty: true });
 
 function isUuid(v: unknown): v is string {
   return typeof v === "string" && UUID_RE.test(v);
@@ -116,7 +119,7 @@ export async function buildClientDossier(
       { data: ranged, drStart: range.start, drEnd: range.end, profileImg, analysisImages: images },
       { expertName: expertDisplayName(ctx.profile), includeExpertNotes: sensitive, logo: await loadHdReportLogo(), sections: sectionsBase, variant: "full" },
     );
-    if (r.empty) return fail(204, "Seçilen tarih aralığında danışan dosyasına girecek kayıt yok.", true);
+    if (r.empty) return empty("Seçilen tarih aralığında danışan dosyasına girecek kayıt yok.");
     return { ok: true, bytes: new Uint8Array(await Packer.toBuffer(r.doc)), fileName: r.filename };
   }
   const analysisImages = await fetchAnalysisImages(db, tenantId, clientId, data.analyses);
@@ -160,7 +163,7 @@ export async function buildClientDossier(
     combinations,
     numerologyFutureYears: numerologyRecord ? canSeeNumerologyFutureYears(ctx.profile) : false,
   };
-  if (countClientReportSections(input, rctx) === 0) return fail(204, "Danışan dosyasına girecek kayıt yok.", true);
+  if (countClientReportSections(input, rctx) === 0) return empty("Danışan dosyasına girecek kayıt yok.");
   const { doc, filename } = buildClientFullReport(input, rctx);
   return { ok: true, bytes: new Uint8Array(await Packer.toBuffer(doc)), fileName: filename, note };
 }
@@ -197,7 +200,7 @@ export async function buildNumerologyRecordReport(ctx: ArchiveCtx, recordId: str
   const stock: StockIndex = buildStockIndex((invRes.error ? [] : invRes.rows) as { name?: unknown; adet?: unknown }[]);
   const rec = row as unknown as WordRecordRow;
   const { children, anyContent } = buildNumerolojiWordChildren([rec], sections, shared, stock, null, new Date(), canSeeNumerologyFutureYears(ctx.profile));
-  if (!anyContent) return fail(204, "Numeroloji kaydında Word'e aktarılacak içerik yok.", true);
+  if (!anyContent) return empty("Numeroloji kaydında Word'e aktarılacak içerik yok.");
   const who = `${rec.name ?? ""} ${rec.surname ?? ""}`.trim();
   const buffer = await packNumerolojiDocx(children, who, { expertName: expertDisplayName(ctx.profile) });
   const day = zonedDayKey(rec.created_at ?? "") || reportFileDate();
@@ -252,20 +255,43 @@ export async function buildHdRelationReport(ctx: ArchiveCtx, reportId: string): 
   return { ok: true, bytes: new Uint8Array(buffer), fileName: relationReportFilename(s.analysis, s.generatedAt) };
 }
 
-/** Gökyüzü Atlası kayıtlı analiz raporu (snapshot; 0 sağlayıcı isteği) — uzman sahipliği getAnalysis içinde. */
-export async function buildAstroReport(ctx: ArchiveCtx, analysisId: string): Promise<ReportOutcome> {
-  if (!isUuid(analysisId)) return fail(400, "Geçersiz analiz.");
-  if (!isAstrologyModuleEnabled()) return fail(404, "Gökyüzü Atlası bu ortamda kapalı.", true);
+export type ArchiveAstroAccess = { ok: true; entitlements: AstrologyEntitlements } | { ok: false; reason: string };
+
+/**
+ * Arşivde Gökyüzü Atlası erişimi — Atlas'ın kendi kapısıyla (lib/astrology/access/ownerGate) AYNI kural:
+ *   - modül ortamda kapalı → yok;
+ *   - admin → YALNIZ resolveAstrologyOwner (is_super_admin + admin + aktif + demo değil) geçerse tam yetki; owner'ın
+ *     tenant'ı oturum tenant'ıyla aynı olmalı (başka tenant'ın Atlas verisine geçilmez). Owner olmayan admin → yok;
+ *   - expert → modül bayrağı + teknik izinleri (resolveAstrologyEntitlements, değişmedi);
+ *   - diğer roller → yok.
+ */
+export async function resolveArchiveAstroAccess(ctx: ArchiveCtx): Promise<ArchiveAstroAccess> {
+  if (!isAstrologyModuleEnabled()) return { ok: false, reason: "Gökyüzü Atlası bu ortamda kapalı." };
   const role = String(ctx.profile?.role ?? "").trim().toLowerCase();
+  if (role === "admin") {
+    const owner = await resolveAstrologyOwner(ctx.db, ctx.userId);
+    if (!owner.ok) return { ok: false, reason: "Gökyüzü Atlası modülü yetkisi yok." };
+    if (owner.tenantId !== ctx.tenantId) return { ok: false, reason: "Gökyüzü Atlası owner hesabı bu oturumun hesabına ait değil." };
+    return { ok: true, entitlements: resolveAstrologyEntitlements({ isOwner: true }) };
+  }
   const flags = ctx.profile?.module_permissions;
   const entitlements = resolveAstrologyEntitlements({
     isOwner: false,
     role,
     flags: flags && typeof flags === "object" && !Array.isArray(flags) ? (flags as Record<string, unknown>) : null,
-    techniqueGrants: await readAstrologyTechniqueGrants(ctx.db, ctx.userId),
+    techniqueGrants: role === "expert" ? await readAstrologyTechniqueGrants(ctx.db, ctx.userId) : null,
   });
-  if (!entitlements.module) return fail(403, "Gökyüzü Atlası modülü yetkisi yok.", true);
-  const r = await buildAnalysisReport({ db: ctx.db, tenantId: ctx.tenantId, userId: ctx.userId, entitlements }, analysisId, "docx", false);
+  if (!entitlements.module) return { ok: false, reason: "Gökyüzü Atlası modülü yetkisi yok." };
+  return { ok: true, entitlements };
+}
+
+/** Gökyüzü Atlası kayıtlı analiz raporu (snapshot; 0 sağlayıcı isteği) — uzman sahipliği getAnalysis içinde. */
+export async function buildAstroReport(ctx: ArchiveCtx, analysisId: string): Promise<ReportOutcome> {
+  if (!isUuid(analysisId)) return fail(400, "Geçersiz analiz.");
+  const access = await resolveArchiveAstroAccess(ctx);
+  if (!access.ok) return fail(403, access.reason, true);
+  // Sahiplik getAnalysis içinde: tenant + owner_user_id (owner dahil başka uzmanın analizi okunmaz).
+  const r = await buildAnalysisReport({ db: ctx.db, tenantId: ctx.tenantId, userId: ctx.userId, entitlements: access.entitlements }, analysisId, "docx", false);
   if (!r.ok) return fail(r.status, String((r.body as { error?: unknown }).error ?? "Analiz raporu üretilemedi."));
   return { ok: true, bytes: r.bytes, fileName: r.filename };
 }
