@@ -8,6 +8,9 @@
  *  - Okuma hataları / eksik tablolar belgede ve yanıtta görünür.
  *  - Açık boyut bütçesi: aşılırsa belge üretilmez, dürüst mesaj döner ("modül bazlı indirin").
  *  - Tarihler lib/time/reportTime (Europe/Istanbul): timestamptz → yerel saat, DATE → kaydırmasız.
+ *  - XML 1.0'da izinsiz karakterler (ör. Word'den yapıştırılan dikey sekme) temizlenir → belge her zaman açılır.
+ *  - Sağlayıcı / teknik alanlar (provider, provider_raw, ham yanıt, sürüm/hash, sahiplik kimlikleri) Word'e ÇIKMAZ;
+ *    JSON Sistem Yedeği geri yükleme uyumluluğu için bunları aynen taşır (bu dosya yalnız okunabilir arşivdir).
  */
 import { Document, HeadingLevel, Packer, PageBreak, Paragraph, TextRun } from "docx";
 import {
@@ -46,7 +49,30 @@ export class WordBudgetError extends Error {
   }
 }
 
-const HIDDEN = new Set(["tenant_id", "user_id", "search_tsv", "search_norm", "identity_norm"]);
+const HIDDEN = new Set([
+  "tenant_id", "user_id", "search_tsv", "search_norm", "identity_norm",
+  // Sağlayıcı / teknik alanlar (kullanıcıya sunulan belgeye çıkmaz; JSON yedekte korunur).
+  "provider", "provider_raw", "raw_response", "provider_api_version", "adapter_version", "endpoint",
+  "input_hash", "source_input_hash", "technical_schema", "projection_version", "engine_version", "contract_version",
+  "unmapped_fields", "versions_snapshot", "canonical_provenance", "roxy_render", "node_type", "provider_interp_included",
+  // İdempotency / sahiplik kimlikleri (iç teknik bağlar).
+  "save_request_id", "create_request_id", "owner_user_id", "created_by_user_id", "updated_by_user_id",
+  "completed_by_user_id", "recorded_by_user_id", "uploaded_by_user_id", "expert_comment_updated_by",
+  "created_by", "cancelled_by", "assigned_by", "deleted_by",
+]);
+/** İç içe (JSON) değerlerde de düşürülen anahtarlar: sağlayıcı adı / ham yanıt / iç sürüm izleri. */
+const NESTED_HIDDEN_RE = /^(provider(_.*)?|.*_provider|raw(_.*)?|.*_raw|roxy.*|.*roxy.*|endpoint|adapter_version|input_hash|engine_version|contract_version|projection_version|technical_schema)$/i;
+/** Sağlayıcı markası iç içe değerlerde görünmez (metin sağlayıcı adı içeriyorsa nötr ifade). */
+const BRAND_RE = /roxy\s*api(\.com)?|roxy/gi;
+
+/** XML 1.0'da izinsiz karakterler: C0 kontrol (TAB/LF/CR hariç), U+FFFE/U+FFFF, eşsiz vekil (surrogate). */
+const XML_INVALID_RE = /[\u0000-\u0008\u000E-\u001F\uFFFE\uFFFF]|[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/g;
+
+/** Word XML'ine güvenli metin: dikey sekme / sayfa sonu karakteri satır sonu olur, diğer izinsiz karakterler silinir. */
+export function xmlSafe(text: string): string {
+  return text.replace(/[\u000B\u000C]/g, "\n").replace(XML_INVALID_RE, "");
+}
+
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const COL_LABELS: Record<string, string> = {
@@ -106,10 +132,10 @@ export function formatValue(key: string, value: unknown): string {
     if (value.every((x) => typeof x === "string" || typeof x === "number")) {
       return value.map((x) => (typeof x === "string" && x.startsWith("data:") ? "[gömülü görsel]" : String(x))).join(", ");
     }
-    return JSON.stringify(value, dataUriReplacer, 2);
+    return JSON.stringify(value, nestedReplacer, 2);
   }
   if (typeof value === "object") {
-    const s = JSON.stringify(value, dataUriReplacer, 2);
+    const s = JSON.stringify(value, nestedReplacer, 2);
     return s === "{}" ? "" : s;
   }
   return String(value);
@@ -119,8 +145,18 @@ function dataUriReplacer(_k: string, v: unknown): unknown {
   return typeof v === "string" && v.startsWith("data:") ? "[gömülü görsel]" : v;
 }
 
+/** İç içe değerler: gömülü görsel → etiket; sağlayıcı / ham yanıt anahtarları düşer; marka adı nötrlenir. */
+function nestedReplacer(k: string, v: unknown): unknown {
+  if (k !== "" && (HIDDEN.has(k) || NESTED_HIDDEN_RE.test(k))) return undefined;
+  if (typeof v === "string") {
+    if (v.startsWith("data:")) return "[gömülü görsel]";
+    return v.replace(BRAND_RE, "sağlayıcı");
+  }
+  return v;
+}
+
 function textRuns(text: string, opts: { bold?: boolean; size?: number; color?: string; italics?: boolean } = {}): TextRun[] {
-  const lines = text.split(/\r?\n/);
+  const lines = xmlSafe(text).split(/\r?\n/);
   return lines.map(
     (line, i) =>
       new TextRun({
@@ -139,7 +175,7 @@ function heading(text: string, level: (typeof HeadingLevel)[keyof typeof Heading
   return new Paragraph({
     heading: level,
     spacing: { before: 240, after: 120 },
-    children: [new TextRun({ text, bold: true, size, font: "Calibri", color })],
+    children: [new TextRun({ text: xmlSafe(text), bold: true, size, font: "Calibri", color })],
   });
 }
 
@@ -151,7 +187,7 @@ function field(label: string, value: string): Paragraph {
   return new Paragraph({
     spacing: { after: 60 },
     children: [
-      new TextRun({ text: `${label}: `, bold: true, size: 20, font: "Calibri", color: "334155" }),
+      new TextRun({ text: `${xmlSafe(label)}: `, bold: true, size: 20, font: "Calibri", color: "334155" }),
       ...textRuns(value),
     ],
   });
@@ -206,7 +242,7 @@ export async function buildArchiveDocx(input: WordBuildInput): Promise<WordBuild
   }
 
   const children: Paragraph[] = [
-    new Paragraph({ children: [new TextRun({ text: input.title, bold: true, size: 40, font: "Calibri", color: "1E293B" })] }),
+    new Paragraph({ children: [new TextRun({ text: xmlSafe(input.title), bold: true, size: 40, font: "Calibri", color: "1E293B" })] }),
     note(`Oluşturma tarihi: ${reportGeneratedLabel(undefined, now)}`, "64748B", false),
     note(
       "Bu belge okunabilir bir arşivdir; geri yükleme için Ayarlar > Sistem Yedeği (JSON) dosyasını kullanın. " +

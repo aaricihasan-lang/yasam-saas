@@ -10,26 +10,16 @@
  * sayar ve (a) BACKUP_REGISTRY ile çakışmadığını, (b) hiçbir "use client" dosyasının bu modülü
  * import etmediğini doğrular.
  *
- * Yedek kapsamı kararı modül uzmanlara açılırken (Astroloji Aşama 5/7) verilir.
+ * Yedek kapsamı kararı modül uzmanlara açılırken verilir (Gökyüzü Atlası: 2026-11-09 → registry'ye taşındı).
  */
 import { assertServerOnly } from "@/lib/server/serverOnlyGuard";
 
 assertServerOnly("lib/backup/ownerPilotTables");
 
 export const OWNER_PILOT_EXCLUDED_TABLES: readonly { table: string; reason: string }[] = [
-  { table: "astro_birth_profiles", reason: "Astroloji owner-only pilot — yedek kapsamı Aşama 5 kararı." },
-  { table: "astro_birth_profile_revisions", reason: "Astroloji owner-only pilot — yedek kapsamı Aşama 5 kararı." },
-  { table: "astro_provider_results", reason: "Astroloji sağlayıcı sonucu/önbelleği (ham yanıt dahil) — owner-only pilot." },
-  { table: "astro_provider_interpretations", reason: "Astroloji sağlayıcı otomatik yorumu — owner-only pilot; ayrı yetki katmanı." },
-  // Aşama 2
-  { table: "astro_kb_entries", reason: "Astroloji Bilgi Bankası (uzmanın kendi notları) — owner-only pilot; yedek kapsamı Aşama 5 kararı." },
-  { table: "astro_expert_notes", reason: "Astroloji danışana özel uzman çalışma notları — owner-only pilot." },
-  { table: "astro_analyses", reason: "Astroloji kayıtlı analiz snapshot'ları (değişmez) — owner-only pilot." },
-  { table: "astro_analysis_notes", reason: "Astroloji kayıtlı analiz uzman yorumu kopyası (değişmez) — owner-only pilot." },
-  { table: "astro_unmapped_fields", reason: "Sağlayıcı eşlenmemiş alan YOLLARI (değer yok) — sistem denetim kaydı." },
-  // 2026-10-29: William Lilly Horary soru kayıtları — diğer astro_* tablolarıyla AYNI owner-only pilot kuralı (yedek kapsamı
-  // Aşama 5 kararı). Hesap/tenant kalıcı silmede tenant_id ile temizlenir (admin_purge_archived_expert keşfi).
-  { table: "astro_horary_questions", reason: "Astroloji Horary soru kayıtları (değişmez anlık görüntü) — owner-only pilot; yedek kapsamı Aşama 5 kararı." },
+  // Gökyüzü Atlası (astro_*) 2026-11-09 Owner kararıyla (Premium Word Arşivi / PR-1) BACKUP_REGISTRY'ye taşındı: uzman kayıtları
+  // (doğum profilleri, revizyonlar, Bilgi Bankası, çalışma notları, kayıtlı analizler + yorumları, Horary soruları) uzman bazlı
+  // izolasyonla (ownerScope) yedeğe / dışa aktarıma girer; sağlayıcı önbelleği ve eşlenmemiş alan kaydı registry'de yedek DIŞI.
   // Hazır Eğitim Haritaları (HD, FAZ 2-B1) — platforma ait, tenant'sız, owner-only katalog. Hiçbir kullanıcı/tenant
   // yedeğine girmez ve yedekten GERİ YÜKLENMEZ: iptal edilmiş eğitmen yetkisi eski yedekten diriltilemez.
   // Tablo adları istemci paketine girmesin diye registry.ts'te değil, burada (özelliğin varlığı sızdırılmaz).
@@ -65,6 +55,14 @@ export const OWNER_PILOT_EXCLUDED_TABLES: readonly { table: string; reason: stri
   { table: "stone_library_published", reason: "Kütüphane türetilmiş yayın yüzeyi (yeniden üretilebilir) — kullanıcı yedeğine girmez." },
   { table: "stone_library_license_grants", reason: "Kütüphane sağlayıcı yazılı izin kayıtları (owner-only; lisans kanıtı) — kullanıcı yedeğine girmez." },
   { table: "stone_library_images", reason: "Kütüphane lisanslı görsel kayıtları (owner-only; dosyalar private bucket'ta) — kullanıcı yedeğine girmez." },
+  // Doğaltaş Kütüphanesi F6 (migration 20271201000300 / 20271201000400): ham çağrı rezervasyonu, çeviri / owner katmanları ve
+  // toplu işlem belirteçleri — platforma ait, tenant'sız, owner-only. Kullanıcı yedeğine / dışa aktarımına girmez.
+  { table: "stone_library_call_reservations", reason: "Kütüphane sağlayıcı çağrı rezervasyonları (owner-only; ham veri koruması) — kullanıcı yedeğine girmez." },
+  { table: "stone_library_translations", reason: "Kütüphane çeviri katmanı (platform; owner-only) — kullanıcı yedeğine girmez." },
+  { table: "stone_library_owner_versions", reason: "Kütüphane owner sürüm katmanı (platform; owner-only) — kullanıcı yedeğine girmez." },
+  { table: "stone_library_owner_notes", reason: "Kütüphane owner notları (platform; owner-only) — kullanıcı yedeğine girmez." },
+  { table: "stone_library_owner_images", reason: "Kütüphane owner görsel kayıtları (platform; owner-only) — kullanıcı yedeğine girmez." },
+  { table: "stone_library_bulk_tokens", reason: "Kütüphane toplu işlem doğrulama belirteçleri (geçici; owner-only) — kullanıcı yedeğine girmez." },
   // Eğitmene Özel Eğitim Haritaları (HD, FAZ 6) — kapalı pilot. Yedekten GERİ YÜKLENMEZ: geri çekilmiş danışan izni, silinmiş
   // eğitim kaydı kullanıcı yedeğinden diriltilemez (TEK eğitim yetkisi merkezî hd_education_access_grants'tedir, FAZ 8).
   // Platform felaket yedeğinden (tam pg_dump) dönüşte diriltme riski owner kararıyla kabul edildi ve belgelendi. Yedek kapsamı canlıya açılış kararıdır.

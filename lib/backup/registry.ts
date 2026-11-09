@@ -12,7 +12,7 @@
  * canlı kolon doğrulaması yapılır. Generated / trigger-yönetimli kolonlar HER İKİ yolda da hariçtir.
  */
 import type { ModuleGateKey } from "@/lib/auth/moduleAccessCore";
-import type { BackupClass, FkParent, RegistryEntry, StorageRef, TenantScope } from "./types";
+import type { BackupClass, FkParent, OwnerScope, RegistryEntry, StorageRef, TenantScope } from "./types";
 import { SYSTEM_NUTRITION_TENANT_ID } from "@/lib/beslenme/systemTenant";
 
 type Opts = Partial<Omit<RegistryEntry, "table" | "module" | "class" | "label">> & { label?: string };
@@ -38,6 +38,7 @@ function entry(table: string, module: ModuleGateKey | null, cls: BackupClass, la
     userColumns: o.userColumns ?? ["user_id"],
     generatedColumns: o.generatedColumns ?? [],
     pageSize: o.pageSize,
+    ownerScope: o.ownerScope,
     label,
   };
 }
@@ -52,6 +53,8 @@ function off(table: string, cls: Exclude<BackupClass, "backup" | "child_of">, re
 }
 
 const SEARCH_NORM = ["search_norm"] as const;
+/** Gökyüzü Atlası: tenant içi uzman sahipliği (migration 20271101000300 — bileşik (tenant_id, owner_user_id, …) FK'leri). */
+const ASTRO_OWNER: OwnerScope = { column: "owner_user_id" };
 
 export const BACKUP_REGISTRY: readonly RegistryEntry[] = [
   // ── Danışan Yolculuğu (clients) ───────────────────────────────────────────
@@ -134,6 +137,73 @@ export const BACKUP_REGISTRY: readonly RegistryEntry[] = [
     fkParents: [fk("session_id", "hd_consultation_sessions", true)],
   }),
   entry("hd_consultation_expert_notes", "human_design", "backup", "Danışmanlık Uzman Notları"),
+  // HD İlişki Analizleri (Connection / Penta — migration 20271102000000 / 20271103000000). Tenant'a ait uzman
+  // çalışması; kaynak HD danışanı/haritası silinmişse bağ boş yazılır (ON DELETE SET NULL). provider / provider_raw
+  // geri yükleme uyumluluğu için JSON'da korunur, Word'e çıkmaz (lib/backup/wordExport.ts gizli alanlar).
+  entry("human_design_relation_analyses", "human_design", "backup", "İlişki Analizleri", {
+    userColumns: ["user_id", "expert_comment_updated_by"],
+  }),
+  entry("human_design_relation_participants", "human_design", "backup", "İlişki Analizi Katılımcıları", {
+    pk: ["analysis_id", "position"],
+    fkParents: [
+      fk("analysis_id", "human_design_relation_analyses"),
+      fk("client_id", "human_design_clients", true),
+      fk("source_chart_id", "human_design_charts", true),
+    ],
+    userColumns: [],
+  }),
+  entry("human_design_relation_reports", "human_design", "backup", "İlişki Analizi Raporları", {
+    fkParents: [fk("analysis_id", "human_design_relation_analyses")],
+    userColumns: ["created_by"],
+  }),
+
+  // ── Gökyüzü Atlası (astrology) ────────────────────────────────────────────
+  // Uzman bazlı izolasyon (ASTRO_OWNER): tenant içinde YALNIZ oturumdaki uzmanın kayıtları okunur/yazılır.
+  // Danışan bağı isteğe bağlı (danışan silinince SET NULL — Atlas kayıtları korunur). Kayıtlı analiz ve Horary
+  // soruları değişmez anlık görüntüdür; geri yükleme yalnız EKSİK satırı ekler (değişmezlik kuralı tetiklenmez).
+  // Sağlayıcı sonuç önbelleği (ham yanıt dahil) yedeğe girmez → aşağıda "derived".
+  entry("astro_birth_profiles", "astrology", "backup", "Doğum Profilleri", {
+    ownerScope: ASTRO_OWNER,
+    fkParents: [fk("client_id", "clients", true)],
+    userColumns: ["owner_user_id", "created_by_user_id"],
+  }),
+  entry("astro_birth_profile_revisions", "astrology", "backup", "Doğum Verisi Revizyonları", {
+    ownerScope: ASTRO_OWNER,
+    fkParents: [fk("profile_id", "astro_birth_profiles")],
+    userColumns: ["owner_user_id", "created_by_user_id"],
+  }),
+  entry("astro_kb_entries", "astrology", "backup", "Bilgi Bankası", {
+    ownerScope: ASTRO_OWNER,
+    userColumns: ["owner_user_id"],
+  }),
+  entry("astro_expert_notes", "astrology", "backup", "Çalışma Notları", {
+    ownerScope: ASTRO_OWNER,
+    fkParents: [fk("profile_id", "astro_birth_profiles")],
+    userColumns: ["owner_user_id"],
+  }),
+  entry("astro_analyses", "astrology", "backup", "Kayıtlı Analizler", {
+    ownerScope: ASTRO_OWNER,
+    // (profile_id, profile_revision) → revizyon bileşik FK'si DB'de zorlanır; revizyon bağı sırayı (revizyonlar önce) ve
+    // aynı uzmana ait revizyonun varlığını sağlar. Eş profil (sinastri) yoksa satır atlanır (bağ boşaltılmaz: çift kuralı).
+    fkParents: [
+      fk("profile_id", "astro_birth_profiles"),
+      { column: "profile_id", table: "astro_birth_profile_revisions", parentColumn: "profile_id" },
+      fk("partner_profile_id", "astro_birth_profiles"),
+      fk("client_id", "clients", true),
+      { column: "result_id", table: "astro_provider_results", optional: true, parentOwnerColumn: "owner_user_id" },
+    ],
+    userColumns: ["owner_user_id"],
+  }),
+  entry("astro_analysis_notes", "astrology", "backup", "Kayıtlı Analiz Yorumları", {
+    ownerScope: { parent: "astro_analyses", fk: "analysis_id" },
+    fkParents: [fk("analysis_id", "astro_analyses")],
+    userColumns: [],
+  }),
+  entry("astro_horary_questions", "astrology", "backup", "Horary Soruları", {
+    ownerScope: ASTRO_OWNER,
+    fkParents: [fk("client_id", "clients", true)],
+    userColumns: ["owner_user_id"],
+  }),
 
   // ── Doğaltaş (stones) ─────────────────────────────────────────────────────
   entry("stones", "stones", "backup", "Taşlar", { storageRefs: [st("images", "catalog_tenant")] }),
@@ -446,6 +516,13 @@ export const BACKUP_REGISTRY: readonly RegistryEntry[] = [
   // içeriği taşımaz, geri yüklenmez (tablo yoksa/boşsa servis eski davranışa döner — migration 20271105000000).
   off("human_design_chart_variables", "derived", "HD Dört Ok sağlayıcı sonucu önbelleği — haritadan yeniden hesaplanır."),
   off("numerology_classic_response_cache", "derived", "Klasik Numeroloji normalize yanıt önbelleği (TTL'li) — yeniden hesaplanır."),
+  // Gökyüzü Atlası sağlayıcı önbelleği: ham sağlayıcı yanıtı (yalnız sunucu) + teknik projeksiyon. Kayıtlı analizler kendi
+  // değişmez anlık görüntüsünü taşır (astro_analyses.technical_snapshot) → önbellek yedeğe/dışa aktarıma GİRMEZ (ham yanıt
+  // kullanıcı dosyasına çıkmaz); kayıtlı analizin result_id bağı geri yüklemede önbellek yoksa boş yazılır.
+  off("astro_provider_results", "derived", "Gökyüzü Atlası sağlayıcı sonuç önbelleği (ham yanıt dahil) — kayıtlı analizler kendi anlık görüntüsünü taşır."),
+  off("astro_provider_interpretations", "derived", "Gökyüzü Atlası sağlayıcı otomatik yorum önbelleği — kayıtlı analizde anlık görüntüsü vardır."),
+  // HD transit gezegen konumları (migration 20271226000000): tenant'sız, sağlayıcıdan yeniden üretilen gök konumu deposu.
+  off("hd_transit_planet_positions", "derived", "HD transit gezegen konumu deposu (tenant'sız; yeniden hesaplanır).", "none"),
 
   // ── Yedek DIŞI: sistem ────────────────────────────────────────────────────
   off("users", "system", "Kullanıcı hesabı / yetki (parola özeti dahil) — yedeğe girmez.", "none"),
@@ -483,6 +560,17 @@ export const BACKUP_REGISTRY: readonly RegistryEntry[] = [
   off("yh_document_passages", "system", "Yaşam Hafızası belge pasajları (aktivasyon kapalı)."),
   off("yh_topic_dictionary", "system", "Yaşam Hafızası konu sözlüğü (yönetici)."),
   off("hd_consultation_entitlements", "system", "Yönetici tarafından verilen HD danışmanlık yetkileri — yedekten geri yüklenemez."),
+  // HD 24 saat sınırsız izin (migration 20271231000200): Owner'ın verdiği süreli yetki + denetim izi — geri alınan izin dirilmez.
+  off("hd_unlimited_grants", "system", "Owner tarafından verilen HD 24 saat sınırsız kullanım izinleri — yedekten geri yüklenemez."),
+  off("hd_unlimited_grant_audit", "system", "HD 24 saat sınırsız izin denetim kaydı (append-only).", "none"),
+  // TRIAL7 deneme üyeliği (migration 20280101000000): yönetici onaylı deneme kayıtları, kredi defteri, yükseltme talepleri.
+  off("trial_profiles", "system", "Deneme üyeliği profili (yönetici kaydı).", "none"),
+  off("trial_claims", "system", "Deneme üyeliği başvuru/hak kaydı (kötüye kullanım koruması).", "none"),
+  off("trial_credit_ledger", "system", "Deneme üyeliği kredi defteri (ölçüm kaydı).", "none"),
+  off("trial_admin_events", "system", "Deneme üyeliği yönetici olay günlüğü.", "none"),
+  off("pro_upgrade_requests", "system", "Profesyonel üyeliğe yükseltme talepleri (yönetici iş akışı).", "none"),
+  // Astroloji sağlayıcı eşlenmemiş alan YOLLARI (değer yok; tenant'sız sistem denetim kaydı).
+  off("astro_unmapped_fields", "system", "Astroloji sağlayıcı eşlenmemiş alan yolları (değer yok) — sistem denetim kaydı.", "none"),
   off("hacamat_rules_init", "system", "Hacamat kuralı başlangıç işareti (sistem)."),
   off("aromatherapy_claim_audit_events", "system", "Aromaterapi iddia denetim günlüğü."),
   off("aromatherapy_content_audit_events", "system", "Aromaterapi içerik denetim günlüğü."),
@@ -644,6 +732,7 @@ export const MODULE_LABELS: Readonly<Record<string, string>> = {
   appointments: "Ajanda / Randevular",
   numerology: "Numeroloji",
   human_design: "Human Design",
+  astrology: "Gökyüzü Atlası",
   stones: "Doğaltaş",
   stok: "Ürün & Stok",
   personal_archive: "Kişisel Arşiv",
@@ -668,6 +757,7 @@ export const EXPORT_MODULE_ORDER: readonly string[] = [
   "appointments",
   "numerology",
   "human_design",
+  "astrology",
   "stones",
   "stok",
   "personal_archive",

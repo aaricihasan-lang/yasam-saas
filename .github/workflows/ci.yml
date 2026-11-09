@@ -62,6 +62,15 @@ jobs:
       - name: AŞAMA 1 migration doğrulaması (geçici embedded-postgres)
         run: npm run test:asama1:pg
 
+      # Ayarlar → Sistem Yedeği / Dışa Aktarım (Owner kararı 2026-11-09): registry kapsamı (migration + kod), şema senkronu,
+      # sahte DB roundtrip / saldırgan senaryoları, Word arşivi + PGlite üzerinde gerçek migration'larla Gökyüzü Atlası /
+      # HD İlişki yedek-geri yükleme. Ağ / sır yok. Prod tablo listesi CI'da olmadığından o 3 kontrol "ATLANDI" yazılır
+      # (PASS sayılmaz); liste dosyası verilen yerel / owner koşusunda zorunlu çalışır.
+      - name: Yedek / dışa aktarım harness'ları
+        run: npm run test:backup
+        env:
+          BACKUP_PROD_TABLES_OPTIONAL: "1"
+
       # Regresyon testleri için yerel PostgREST (yalnız 127.0.0.1; production'a / Supabase'e / ücretli
       # API'ye istek YOK). Sürüm ve SHA-256 sabit (upstream checksum yayınlamıyor; değer resmi v12.2.3
       # sürüm dosyasından).
