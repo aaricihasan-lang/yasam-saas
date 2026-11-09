@@ -328,6 +328,18 @@ async function main(): Promise<void> {
     ok(bandBad.status === 400, "serbest CSS genişliği (\"80%\") → 400");
     const bandRs = await dpost(asA2, { action: "reset", expectedVersion: bandRe.json.design.version });
     ok(bandRs.status === 200 && bandRs.json.design.applied === null && bandRs.json.design.history[0]?.design?.band?.visible === false, "Sıfırla: varsayılan görünüm; gizli tasarım geçmişte korunur", bandRs.json);
+    section("V3 karşılama alanı: yükseklik + üst boşluk; gizliyken kontrast kapısı");
+    const v3v0 = bandRs.json.design.version;
+    const v3h = await dpost(asA2, { action: "apply", expectedVersion: v3v0, draft: design("A2 ince", { band: { visible: true, width: 80, align: "left", height: 40, top: 0 } }) });
+    ok(v3h.status === 200 && JSON.stringify(v3h.json.design.applied.band) === JSON.stringify({ visible: true, width: 80, align: "left", height: 40, top: 0 }), "A2: 40 px ince şerit + üst boşluk 0 Uygula ile kalıcı", v3h.json);
+    const v3bad = await dpost(asA2, { action: "saveDraft", expectedVersion: v3h.json.design.version, draft: design("x", { band: { height: "1cm" } }) });
+    ok(v3bad.status === 400, "serbest CSS yüksekliği (\"1cm\") → 400");
+    const lowHidden = design("Beyaz yazı", { text: { useGreeting: false, lines: [{ id: "l1", role: "body", text: "Beyaz yazı", size: 16, color: "#ffffff" }] }, band: { visible: false } });
+    const v3hid = await dpost(asA2, { action: "apply", expectedVersion: v3h.json.design.version, draft: lowHidden });
+    ok(v3hid.status === 200 && v3hid.json.design.applied.band.visible === false && v3hid.json.design.applied.text.lines[0].color === "#ffffff", "düşük kontrastlı satır varken gizleme uygulanır (metin ve renk silinmez)", v3hid.json);
+    const v3show = await dpost(asA2, { action: "apply", expectedVersion: v3hid.json.design.version, draft: { ...lowHidden, band: { visible: true } } });
+    ok(v3show.status === 422 && v3show.json.code === "CONTRAST_INSUFFICIENT", "aynı satırla yeniden gösterme → 422 (kural görünür alanda aynen)", v3show.json);
+    ok(JSON.stringify(await dRow(U.A.id)) === aRowV2 && JSON.stringify(await dRow(U.B.id)) === bRowV2, "A ve B satırları V3 işlemlerinden etkilenmez");
 
     section("Demo hesap / demo tenant");
     const demo: Auth = { id: U.DEMO.id, token: U.DEMO.token };

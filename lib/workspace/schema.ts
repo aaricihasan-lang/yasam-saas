@@ -9,7 +9,7 @@
  *  - Çıktı normalize edilmiş YENİ nesnedir (girdi nesnesi saklanmaz).
  */
 import {
-  BAND_ALIGNS, BAND_WIDTH_MAX, BAND_WIDTH_MIN, BAND_WIDTH_STEP, BG_MODES, BG_THEMES, BG_TONES, CARD_LEVELS, FAVORITE_KEYS, FRAME_FITS, FRAME_ZOOM_MAX, FRAME_ZOOM_MIN, FAVORITES_MAX, FREE_Y_MAX, HIDEABLE_KEYS, LAYOUTS, LOGO_PLATES,
+  BAND_ALIGNS, BAND_HEIGHT_MAX, BAND_HEIGHT_MIN, BAND_HEIGHT_STEP, BAND_TOP_MAX, BAND_TOP_MIN, BAND_TOP_STEP, BAND_WIDTH_MAX, BAND_WIDTH_MIN, BAND_WIDTH_STEP, BG_MODES, BG_THEMES, BG_TONES, CARD_LEVELS, FAVORITE_KEYS, FRAME_FITS, FRAME_ZOOM_MAX, FRAME_ZOOM_MIN, FAVORITES_MAX, FREE_Y_MAX, HIDEABLE_KEYS, LAYOUTS, LOGO_PLATES,
   LOGO_ZONES, PAGE_ATTACH, isFreeZone, PAGE_CARDS, PHOTO_SCOPES, READING_WIDTHS, TEXT_ALIGNS, TEXT_LINE_MAX_CHARS, TEXT_LINES_MAX,
   TEXT_ROLES, TEXT_VALIGNS, VIEW_MODES,
   type CardLevel, type ViewMode, type WorkspaceLayout,
@@ -22,8 +22,11 @@ export type LogoPlacement = { zone: (typeof LOGO_ZONES)[number]; x: number; y: n
  */
 export type TextLine = { id: string; role: (typeof TEXT_ROLES)[number]; text: string; size: number; color: string; align?: (typeof TEXT_ALIGNS)[number] };
 export type BrandPalette = { accent: string; soft: string; ink: string; accent2: string; name: string };
-/** Karşılama alanı (V2): görünürlük, genişlik yüzdesi (BAND_WIDTH_MIN–MAX, adım BAND_WIDTH_STEP) ve hiza. */
-export type HeroBand = { visible: boolean; width: number; align: (typeof BAND_ALIGNS)[number] };
+/**
+ * Karşılama alanı (V2): görünürlük, genişlik yüzdesi (BAND_WIDTH_MIN–MAX, adım BAND_WIDTH_STEP) ve hiza.
+ * V3: `height` (px, yoksa Normal) ve `top` (araç çubuğu aralığı px, yoksa varsayılan). Yoksa çıktıya eklenmez.
+ */
+export type HeroBand = { visible: boolean; width: number; align: (typeof BAND_ALIGNS)[number]; height?: number; top?: number };
 export const DEFAULT_BAND: HeroBand = { visible: true, width: BAND_WIDTH_MAX, align: "left" };
 export type WorkspaceDesign = {
   layout: WorkspaceLayout;
@@ -228,7 +231,7 @@ function design(v: unknown, allowAssets: boolean): WorkspaceDesign {
   const out: WorkspaceDesign = { layout, logo, text: textOut, bg, brand };
   // Eski kayıtta alan yok → çıktıya da eklenmez. Genişlik yalnız adım katı tam sayı (serbest CSS değeri kabul edilmez).
   if (d.band !== undefined) {
-    const o = obj(d.band, "design.band", ["visible", "width", "align"]);
+    const o = obj(d.band, "design.band", ["visible", "width", "align", "height", "top"]);
     const width = num(o.width, "design.band.width", BAND_WIDTH_MIN, BAND_WIDTH_MAX, DEFAULT_BAND.width);
     if (!Number.isInteger(width) || width % BAND_WIDTH_STEP !== 0) fail("design.band.width", `${BAND_WIDTH_STEP}'in katı tam sayı bekleniyor.`);
     out.band = {
@@ -236,6 +239,14 @@ function design(v: unknown, allowAssets: boolean): WorkspaceDesign {
       width,
       align: oneOf(o.align, "design.band.align", BAND_ALIGNS, DEFAULT_BAND.align),
     };
+    // V3: yalnız adım katı tam sayı piksel; yoksa eklenmez (V2 kayıtları birebir aynı kalır).
+    const step = (v: unknown, path: string, min: number, max: number, by: number): number => {
+      const n = num(v, path, min, max);
+      if (!Number.isInteger(n) || n % by !== 0) fail(path, `${by} px adımlarla tam sayı bekleniyor.`);
+      return n;
+    };
+    if (o.height !== undefined) out.band.height = step(o.height, "design.band.height", BAND_HEIGHT_MIN, BAND_HEIGHT_MAX, BAND_HEIGHT_STEP);
+    if (o.top !== undefined) out.band.top = step(o.top, "design.band.top", BAND_TOP_MIN, BAND_TOP_MAX, BAND_TOP_STEP);
   }
   return out;
 }

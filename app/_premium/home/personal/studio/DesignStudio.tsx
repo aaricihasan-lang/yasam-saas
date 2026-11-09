@@ -13,6 +13,8 @@
  *   "Serbest Yerleştir" (05; hazır bölge seçimi YOK), Okuma modu ve ayarları kaldırıldı (06).
  * - V2 (Owner talebi 2026-11-09): "Karşılama alanı" — genişlik, hiza ve göster / gizle (design.band; taslak / Uygula /
  *   Geçmiş / Sıfırla mevcut tasarım akışıyla). Varsayılana eşit ayar tasarımdan kaldırılır (eski kayıtlarla birebir).
+ * - V3 (2026-11-09): yükseklik (Normal / Kompakt / İnce / Çok ince / Özel) ve üst boşluk. Seçilen piksel değeri sessizce
+ *   değiştirilmez: içerik sığmazsa sayfa bunu data-pw-fit ile bildirir, panel açıklar.
  * Görsel referans: C:/YasamSistemi-Gorsel-Tasarim/kisisel-calisma-alani-p0-son-kabul (editor.js, studio.css).
  */
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type DragEvent, type KeyboardEvent, type PointerEvent, type ReactNode, type SyntheticEvent } from "react";
@@ -24,7 +26,8 @@ import {
 } from "lucide-react";
 import { deleteAsset, listAssets, preflightFile, uploadAsset, type AssetView } from "@/lib/workspace/client";
 import {
-  BAND_ALIGNS, BAND_WIDTH_MAX, BAND_WIDTH_MIN, BAND_WIDTH_STEP, BG_THEMES, FAVORITES_MAX, FRAME_ZOOM_MAX, FRAME_ZOOM_MIN, SELECTABLE_VIEW_MODES, TEXT_LINE_MAX_CHARS, TEXT_LINES_MAX, TEXT_ROLES, WORKSPACE_CENTERS, isFreeZone,
+  BAND_ALIGNS, BAND_HEIGHT_MAX, BAND_HEIGHT_MIN, BAND_HEIGHT_PRESETS, BAND_HEIGHT_STEP, BAND_TOP_DEFAULT, BAND_TOP_MAX, BAND_TOP_MIN, BAND_TOP_STEP,
+  BAND_WIDTH_MAX, BAND_WIDTH_MIN, BAND_WIDTH_STEP, bandTier, BG_THEMES, FAVORITES_MAX, FRAME_ZOOM_MAX, FRAME_ZOOM_MIN, SELECTABLE_VIEW_MODES, TEXT_LINE_MAX_CHARS, TEXT_LINES_MAX, TEXT_ROLES, WORKSPACE_CENTERS, isFreeZone,
   type AssetKind,
 } from "@/lib/workspace/catalog";
 import { DEFAULT_BAND, DEFAULT_LOGO_DESKTOP, DEFAULT_LOGO_MOBILE, type BrandPalette, type HeroBand, type LogoPlacement, type TextLine, type UiPrefs, type WorkspaceDesign } from "@/lib/workspace/schema";
@@ -108,6 +111,36 @@ function freeLogoOverBand(): boolean {
   const logo = document.querySelector('[data-pw-free-logo="page"] > *')?.getBoundingClientRect();
   if (!hero || !logo || logo.width < 1 || logo.height < 1) return false;
   return logo.left < hero.right && logo.right > hero.left && logo.top < hero.bottom && logo.bottom > hero.top;
+}
+
+type HeightChoice = "normal" | keyof typeof BAND_HEIGHT_PRESETS | "ozel";
+const HEIGHT_CHOICES: readonly HeightChoice[] = ["normal", "kompakt", "ince", "cokInce", "ozel"];
+function heightChoice(h: number | undefined): HeightChoice {
+  if (h === undefined) return "normal";
+  const hit = (Object.keys(BAND_HEIGHT_PRESETS) as (keyof typeof BAND_HEIGHT_PRESETS)[]).find((k) => BAND_HEIGHT_PRESETS[k] === h);
+  return hit ?? "ozel";
+}
+
+/** Sayfadaki karşılama alanının sığma durumu (PersonalHero data-pw-fit) ve gerçek yüksekliği — panel açıklaması için. */
+function useHeroFit(): { fit: string | null; h: number } {
+  const [st, setSt] = useState<{ fit: string | null; h: number }>({ fit: null, h: 0 });
+  useEffect(() => {
+    let raf = 0;
+    const read = () => {
+      raf = 0;
+      const el = document.querySelector<HTMLElement>("section[data-pw-hero]");
+      const fit = el?.getAttribute("data-pw-fit") ?? null;
+      const h = el ? Math.round(el.getBoundingClientRect().height) : 0;
+      setSt((c) => (c.fit === fit && c.h === h ? c : { fit, h }));
+    };
+    const schedule = () => { if (!raf) raf = requestAnimationFrame(read); };
+    schedule();
+    const mo = new MutationObserver(schedule);
+    mo.observe(document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ["data-pw-fit", "data-pw-band-h", "data-pw-tier"] });
+    window.addEventListener("resize", schedule);
+    return () => { mo.disconnect(); window.removeEventListener("resize", schedule); if (raf) cancelAnimationFrame(raf); };
+  }, []);
+  return st;
 }
 
 const newLineId = () => `l${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`;
@@ -229,6 +262,7 @@ export default function DesignStudio({ pw, modules, moduleLabel, centerLabel, on
   const [msg, setMsg] = useState<Msg>(null);
   const [showIssues, setShowIssues] = useState(false);
   const [bandLogoOver, setBandLogoOver] = useState(false);
+  const heroFit = useHeroFit();
   const rootRef = useRef<HTMLElement>(null);
   const closedRef = useRef(false);
   const wasEditing = useRef(pw.editing);
@@ -541,7 +575,9 @@ export default function DesignStudio({ pw, modules, moduleLabel, centerLabel, on
     set((d) => {
       const b: HeroBand = { ...DEFAULT_BAND, ...d.band };
       fn(b);
-      if (b.visible === DEFAULT_BAND.visible && b.width === DEFAULT_BAND.width && b.align === DEFAULT_BAND.align) delete d.band;
+      if (b.height === undefined) delete b.height;
+      if (b.top === undefined) delete b.top;
+      if (b.visible === DEFAULT_BAND.visible && b.width === DEFAULT_BAND.width && b.align === DEFAULT_BAND.align && b.height === undefined && b.top === undefined) delete d.band;
       else d.band = b;
     });
   }
@@ -549,6 +585,8 @@ export default function DesignStudio({ pw, modules, moduleLabel, centerLabel, on
   function renderBand() {
     const b: HeroBand = { ...DEFAULT_BAND, ...w.band };
     const full = b.width >= BAND_WIDTH_MAX;
+    const hc = heightChoice(b.height);
+    const tier = bandTier(b.height);
     const inBand = (z: LogoPlacement["zone"]) => z === "hero" || (z === "cerceve" && w.layout === "C");
     const logoInside = !!w.logo.assetId && w.logo.visible && (inBand(w.logo.layout.desktop.zone) || inBand(w.logo.layout.mobile.zone));
     return (
@@ -572,6 +610,28 @@ export default function DesignStudio({ pw, modules, moduleLabel, centerLabel, on
             <Seg label={t.bandAlign} value={b.align} options={BAND_ALIGNS.map((v) => [v, t.bandAligns[v]] as const)}
               onPick={(v) => setBand((x) => { x.align = v; })} disabled={lock || full} />
             <p className={s.hint}>{full ? t.bandAlignFull : t.bandHint}</p>
+            <div className={s.gap8} />
+            <Seg label={t.bandHeight} value={hc} wide options={HEIGHT_CHOICES.map((k) => [k, t.bandHeights[k]] as const)} disabled={lock}
+              onPick={(k) => setBand((x) => {
+                if (k === "normal") delete x.height;
+                else if (k === "ozel") x.height = x.height ?? 160;
+                else x.height = BAND_HEIGHT_PRESETS[k];
+              })} />
+            {b.height !== undefined ? (
+              <>
+                <div className={s.gap8} />
+                <Range label={t.bandHeightPx} value={b.height} min={BAND_HEIGHT_MIN} max={BAND_HEIGHT_MAX} step={BAND_HEIGHT_STEP} out={`${b.height} px`}
+                  onChange={(v) => setBand((x) => { x.height = v; })} disabled={lock} />
+                <p className={s.hint} data-testid="studio-band-tier">{tier === "row" ? t.bandTierRow : tier === "stack" ? t.bandTierStack : t.bandTierFull}</p>
+                {heroFit.fit === "nodate" ? <p className={s.note} role="status" data-testid="studio-band-fit"><TriangleAlert size={16} aria-hidden /><span>{t.bandFitNoDate}</span></p> : null}
+                {heroFit.fit === "grow" ? <p className={s.note} role="status" data-testid="studio-band-fit"><TriangleAlert size={16} aria-hidden /><span>{t.bandFitGrow(b.height, heroFit.h)}</span></p> : null}
+                {logoInside && tier !== "full" ? <p className={s.note} data-testid="studio-band-logo-note"><EyeOff size={16} aria-hidden /><span>{t.bandCompactLogo}</span></p> : null}
+              </>
+            ) : null}
+            <div className={s.gap8} />
+            <Range label={t.bandTop} value={b.top ?? BAND_TOP_DEFAULT} min={BAND_TOP_MIN} max={BAND_TOP_MAX} step={BAND_TOP_STEP} out={`${b.top ?? BAND_TOP_DEFAULT} px`}
+              onChange={(v) => setBand((x) => { if (v === BAND_TOP_DEFAULT) delete x.top; else x.top = v; })} disabled={lock} />
+            <p className={s.hint}>{t.bandTopHint}</p>
           </>
         ) : (
           <>
