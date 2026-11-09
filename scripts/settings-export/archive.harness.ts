@@ -715,7 +715,7 @@ async function drain(db: FakeDb, module: string, o: ArchiveOptions, userId = UA)
     assert.equal(Number(shown), savedIfade, `İfade Sayısı kayıttaki değer (${savedIfade}) değil, gösterilen ${shown} — yeniden hesap?`);
     assert.ok(!/Zamanlama &amp; Gelişim|Zamanlama & Gelişim/.test(xml), "Zamanlama bölümü arşive girmemeli");
     const linked = await handleArchivePart(ctxOf(rep), { options: dOpts, job: { kind: "numerology_record", clientId: rc.id, recordId: nrec.id } });
-    assert.ok(linked.kind === "file" || (linked as unknown as { body: { skipped: boolean } }).body.skipped === true, JSON.stringify((linked as { body?: unknown }).body));
+    assert.ok(linked.kind === "file" || (linked as unknown as { body: { empty: boolean } }).body.empty === true, JSON.stringify((linked as { body?: unknown }).body));
     const wrongClient = await handleArchivePart(ctxOf(rep), { options: dOpts, job: { kind: "numerology_record", clientId: rc.id, recordId: loose.id } });
     assert.equal((wrongClient as { status: number }).status, 404, "kayıt başka danışana bağlıymış gibi istenemez");
     const filtered = await handleArchivePart(ctxOf(rep), { options: { ...dOpts, clientIds: [String(rc.id)] }, job: { kind: "numerology_record", clientId: null, recordId: loose.id } });
@@ -751,6 +751,110 @@ async function drain(db: FakeDb, module: string, o: ArchiveOptions, userId = UA)
     const a = await handleArchivePlan(ctxOf(rep, { isAndroid: true }), { options: dOpts });
     const ap = (a as unknown as { body: ArchivePlanResponse }).body;
     assert.ok(!ap.jobs.some((j) => j.kind === "hd_report") && (ap.restricted ?? []).some((e) => /Android/.test(e.reason)));
+  });
+
+  console.log("\nH. Gökyüzü Atlası erişimi (Atlas kapısıyla aynı kural) + arşiv durumu");
+  const { resolveArchiveAstroAccess } = await import("../../lib/archive/server/reports");
+  const astroDb = new FakeDb();
+  const OWNER = "0a0a0a0a-0000-4000-8000-0000000000aa";
+  const ADMIN2 = "0a0a0a0a-0000-4000-8000-0000000000ab";
+  const DEMO_OWNER = "0a0a0a0a-0000-4000-8000-0000000000ac";
+  astroDb.rows("users").push(
+    { id: OWNER, role: "admin", active: true, is_super_admin: true, is_demo_account: false, tenant_id: TA },
+    { id: ADMIN2, role: "admin", active: true, is_super_admin: false, is_demo_account: false, tenant_id: TA },
+    { id: DEMO_OWNER, role: "admin", active: true, is_super_admin: true, is_demo_account: true, tenant_id: TA },
+    { id: UA, role: "expert", active: true, astrology_technique_grants: { mode: "all" }, tenant_id: TA },
+  );
+  const accessOf = (userId: string, profile: Record<string, unknown>, tenantId = TA) =>
+    resolveArchiveAstroAccess({ db: asDb(astroDb), tenantId, userId, profile, isDemo: false, isAndroid: false });
+  await t("Atlas erişim matrisi: owner ✓ · owner olmayan admin ✗ · demo owner ✗ · yetkili uzman ✓ · yetkisiz uzman ✗ · diğer rol ✗ · çapraz tenant ✗ · modül kapalı ✗", async () => {
+    const prev = process.env.ASTROLOGY_MODULE_ENABLED;
+    process.env.ASTROLOGY_MODULE_ENABLED = "true";
+    try {
+      const owner = await accessOf(OWNER, { role: "admin" });
+      assert.ok(owner.ok && owner.entitlements.module && owner.entitlements.techniques.length > 0, JSON.stringify(owner));
+      assert.equal((await accessOf(ADMIN2, { role: "admin" })).ok, false, "owner olmayan admin Atlas'a erişmemeli");
+      assert.equal((await accessOf(DEMO_OWNER, { role: "admin" })).ok, false, "demo owner Atlas'a erişmemeli");
+      assert.equal((await accessOf(OWNER, { role: "admin" }, TB)).ok, false, "owner başka tenant oturumunda Atlas'a erişmemeli");
+      const expert = await accessOf(UA, { role: "expert", module_permissions: { astrology: true } });
+      assert.ok(expert.ok && expert.entitlements.module, JSON.stringify(expert));
+      assert.equal(expert.ok && expert.entitlements.providerInterpretations, false, "uzman yetkisi GENİŞLEMEDİ (yorum alt yetkisi yok)");
+      assert.equal((await accessOf(UA, { role: "expert", module_permissions: { astrology: false } })).ok, false);
+      assert.equal((await accessOf(UA, { role: "user", module_permissions: { astrology: true } })).ok, false, "diğer rol");
+      process.env.ASTROLOGY_MODULE_ENABLED = "false";
+      assert.equal((await accessOf(OWNER, { role: "admin" })).ok, false, "modül kapalı");
+    } finally {
+      process.env.ASTROLOGY_MODULE_ENABLED = prev;
+    }
+  });
+  await t("plan: owner'ın Atlas analizleri iş olur (kısıt yok); owner olmayan admin → iş yok, 'kısıtlı içerik' + sayı", async () => {
+    const prev = process.env.ASTROLOGY_MODULE_ENABLED;
+    process.env.ASTROLOGY_MODULE_ENABLED = "true";
+    try {
+      for (let i = 0; i < 3; i++) astroDb.rows("astro_analyses").push({ id: uid("aa"), tenant_id: TA, owner_user_id: OWNER, client_id: null, title: `A${i}`, created_at: "2026-05-01T00:00:00Z" });
+      astroDb.rows("astro_analyses").push({ id: uid("aa"), tenant_id: TA, owner_user_id: ADMIN2, client_id: null, title: "A2", created_at: "2026-05-01T00:00:00Z" });
+      const o = { modules: ["astrology"], include: { data: false, dossiers: false, reports: true, files: false } };
+      const ok = (await handleArchivePlan({ db: asDb(astroDb), tenantId: TA, userId: OWNER, profile: { role: "admin" }, isDemo: false, isAndroid: false }, { options: o })) as unknown as { body: ArchivePlanResponse };
+      assert.equal(ok.body.jobs.filter((j) => j.kind === "astro_report").length, 3, "owner'ın 3 analizi (başka kullanıcınınki hariç)");
+      assert.equal((ok.body.restricted ?? []).length, 0);
+      const no = (await handleArchivePlan({ db: asDb(astroDb), tenantId: TA, userId: ADMIN2, profile: { role: "admin" }, isDemo: false, isAndroid: false }, { options: o })) as unknown as { body: ArchivePlanResponse };
+      assert.equal(no.body.jobs.filter((j) => j.kind === "astro_report").length, 0);
+      assert.ok((no.body.restricted ?? []).some((r) => /1 kayıtlı analiz/.test(r.scope) && /yetkisi yok/.test(r.reason)), JSON.stringify(no.body.restricted));
+    } finally {
+      process.env.ASTROLOGY_MODULE_ENABLED = prev;
+    }
+  });
+  await t("boş danışan dosyası: 'boş' kategorisi (atlanan / başarısız DEĞİL); başka eksik yoksa arşiv TAMAMLANDI", async () => {
+    const db = new FakeDb();
+    const [c] = seedClients(db, 1);
+    const o = opt({ include: { data: false, dossiers: true, reports: false, files: false, sensitive: false } });
+    const r = (await handleArchivePart(ctxOf(db), { options: o, job: { kind: "client_dossier", clientId: c.id } })) as unknown as { status: number; body: { empty: boolean; skipped?: boolean } };
+    assert.equal(r.status, 200);
+    assert.equal(r.body.empty, true);
+    assert.notEqual(r.body.skipped, true);
+    const plan = { ...mkPlan([
+      { kind: "client_dossier", clientId: uid("c"), label: "Dolu", folder: "D" },
+      { kind: "client_dossier", clientId: uid("c"), label: "Boş", folder: "D" },
+    ]), preferences: [{ scope: "Fotoğraf ve ek dosyalar", reason: "seçilmedi" }] };
+    const res = await runArchive(plan, {
+      sleep: noSleep,
+      postPart: async (b) => ((b as { job: { label: string } }).job.label === "Boş" ? jsonResp(200, { ok: false, empty: true, error: "Danışan dosyasına girecek kayıt yok." }) : fileResp("d.docx", "d")),
+      getFile: async () => new Uint8Array(),
+    });
+    assert.equal(res.status, "complete", "boş kayıt ve kullanıcı tercihi arşivi EKSİK yapmamalı");
+    assert.deepEqual([res.counts.ok, res.counts.empty, res.counts.skipped, res.counts.failed], [1, 1, 0, 0]);
+    const zip = await JSZip.loadAsync(Buffer.concat(res.parts.map((x) => Buffer.from(x))));
+    const rep = await zip.file("Yaşam Arşivi 2026-11-09/ARŞİV-RAPORU.txt")!.async("string");
+    const readme = await zip.file("Yaşam Arşivi 2026-11-09/BENİOKU.txt")!.async("string");
+    assert.ok(rep.includes("BOŞ KAYITLAR") && rep.includes("boş (içerik yok): 1") && !rep.includes("ATLANAN PARÇALAR"), rep);
+    assert.ok(readme.includes("TERCİHİNİZE GÖRE KAPSAM DIŞI") && readme.includes("Fotoğraf ve ek dosyalar"), readme);
+  });
+  await t("EKSİK korunur: yetki atlaması, plan kısıtı veya başarısız iş varsa boş kayıtlar durumu TAMAMLANDI'ya çevirmez", async () => {
+    const jobs: ArchiveJob[] = [
+      { kind: "client_dossier", clientId: uid("c"), label: "Boş", folder: "D" },
+      { kind: "astro_report", analysisId: uid("a"), label: "Atlas", folder: "R" },
+    ];
+    const skippedRun = await runArchive(mkPlan(jobs), {
+      sleep: noSleep,
+      postPart: async (b) => ((b as { job: { kind: string } }).job.kind === "astro_report" ? jsonResp(200, { ok: false, skipped: true, error: "Gökyüzü Atlası modülü yetkisi yok." }) : jsonResp(200, { ok: false, empty: true, error: "boş" })),
+      getFile: async () => new Uint8Array(),
+    });
+    assert.equal(skippedRun.status, "partial");
+    const restricted = await runArchive({ ...mkPlan([jobs[0]]), restricted: [{ scope: "Gökyüzü Atlası hazır raporları (3 kayıtlı analiz)", reason: "yetki yok" }] }, {
+      sleep: noSleep, postPart: async () => jsonResp(200, { ok: false, empty: true, error: "boş" }), getFile: async () => new Uint8Array(),
+    });
+    assert.equal(restricted.status, "partial");
+    const failedRun = await runArchive(mkPlan(jobs), {
+      sleep: noSleep, postPart: async (b) => ((b as { job: { kind: string } }).job.kind === "astro_report" ? jsonResp(404, { ok: false, error: "yok" }) : jsonResp(200, { ok: false, empty: true, error: "boş" })), getFile: async () => new Uint8Array(),
+    });
+    assert.equal(failedRun.status, "failed", "hiç başarılı iş yok + başarısız var");
+  });
+  await t("denetim kaydı 'boş' sayısını taşır (yalnız sayı)", async () => {
+    const db = new FakeDb();
+    const r = await handleArchiveAudit(ctxOf(db), { archive_id: uid("ar"), result: { status: "complete", ok: 12, failed: 0, skipped: 0, empty: 40, records: 3887, bytes: 1, duration_ms: 1 } });
+    assert.equal((r as { status: number }).status, 200);
+    const ev = db.inserts.find((x) => x.table === "security_events")!.row as { metadata: { result: { empty: number } } };
+    assert.equal(ev.metadata.result.empty, 40);
   });
 
   console.log(`\narchive harness: ${pass} PASS / ${fail} FAIL`);

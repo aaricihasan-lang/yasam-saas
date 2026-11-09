@@ -45,6 +45,8 @@ async function t(name: string, fn: () => void | Promise<void>) {
 const TENANT = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 const EXPERT = "0b0b0b0b-0b0b-4b0b-8b0b-0b0b0b0b0b0b";
 const OTHER = "0c0c0c0c-0c0c-4c0c-8c0c-0c0c0c0c0c0c";
+const OWNER = "0d0d0d0d-0d0d-4d0d-8d0d-0d0d0d0d0d0d";
+const ADMIN2 = "0e0e0e0e-0e0e-4e0e-8e0e-0e0e0e0e0e0e";
 const CLIENT = "44444444-4444-4444-8444-444444444444";
 const IST: ResolvedLocation = { id: "tr-34-istanbul", label: "İstanbul, Türkiye", timezone: "Europe/Istanbul", latitude: 41.0082, longitude: 28.9784 };
 const GOLDEN = JSON.parse(readFileSync(path.join(process.cwd(), "scripts", "astrology", "fixtures", "roxy-natal-golden-2026-10-07.json"), "utf8"));
@@ -58,6 +60,9 @@ type J = Record<string, unknown>;
     users: [
       { id: EXPERT, astrology_technique_grants: { mode: "all" } },
       { id: OTHER, astrology_technique_grants: { mode: "all" } },
+      // Owner (Atlas kapısı: is_super_admin + admin + aktif + demo değil) ve owner OLMAYAN admin.
+      { id: OWNER, role: "admin", active: true, is_super_admin: true, is_demo_account: false, tenant_id: TENANT },
+      { id: ADMIN2, role: "admin", active: true, is_super_admin: false, is_demo_account: false, tenant_id: TENANT },
     ],
   });
   const db = createFakeClient(store);
@@ -77,6 +82,15 @@ type J = Record<string, unknown>;
   const sv = await saveAnalysis(ctx, { profileId: pid, revision: 1, ...sel, saveRequestId: randomUUID() }, false);
   assert.equal(sv.status, 201, JSON.stringify(sv.body));
   const analysisId = (sv.body as J).analysisId as string;
+  // Owner hesabının kendi analizi (Atlas owner bağlamı — /api/admin/astroloji ile aynı yetki).
+  const octx: EngineCtx = { db, tenantId: TENANT, userId: OWNER, entitlements: resolveAstrologyEntitlements({ isOwner: true }) };
+  const opr = await createAstroProfile(octx, { label: "Owner Profili", clientId: CLIENT, birthDate: "1985-03-20", birthTime: "09:15", timeKnown: true, timeAccuracy: "exact_record", locationId: IST.id }, (id) => (id === IST.id ? IST : null));
+  const opid = ((opr.body as J).profile as J).id as string;
+  const orun = (await runAstrology(octx, { profileId: opid, selections: [sel] }, deps, { ownerPreviewHideInterp: false })).body as J;
+  assert.equal(orun.ok, true, JSON.stringify(orun).slice(0, 300));
+  const osv = await saveAnalysis(octx, { profileId: opid, revision: 1, ...sel, saveRequestId: randomUUID() }, false);
+  assert.equal(osv.status, 201, JSON.stringify(osv.body));
+  const ownerAnalysisId = (osv.body as J).analysisId as string;
 
   const profile = { role: "expert", module_permissions: { astrology: true } };
   const archiveCtx = (userId: string, prof: Record<string, unknown> = profile) => ({ db, tenantId: TENANT, userId, profile: prof, isDemo: false, isAndroid: false });
@@ -108,6 +122,24 @@ type J = Record<string, unknown>;
     const off = await buildAstroReport(archiveCtx(EXPERT) as never, analysisId);
     assert.ok(!off.ok && off.skipped === true);
     process.env.ASTROLOGY_MODULE_ENABLED = "true";
+  });
+  await t("OWNER (admin + is_super_admin): kendi analizinin hazır Word raporu üretilir (önceki hatalı 'yetkisi yok' engeli yok)", async () => {
+    const r = await buildAstroReport(archiveCtx(OWNER, { role: "admin" }) as never, ownerAnalysisId);
+    assert.ok(r.ok, JSON.stringify(r));
+    if (!r.ok) return;
+    const xml = await (await JSZip.loadAsync(r.bytes)).file("word/document.xml")!.async("string");
+    assert.ok(xml.includes("Owner Profili") && !/roxy/i.test(xml));
+    assert.equal(netCalls, 0);
+  });
+  await t("owner olmayan admin → atlanır (yetki genişlemedi); owner başka uzmanın analizini alamaz (404); çapraz tenant → atlanır", async () => {
+    const a = await buildAstroReport(archiveCtx(ADMIN2, { role: "admin" }) as never, ownerAnalysisId);
+    assert.ok(!a.ok && a.skipped === true, JSON.stringify(a));
+    const b = await buildAstroReport(archiveCtx(OWNER, { role: "admin" }) as never, analysisId);
+    assert.ok(!b.ok && b.status === 404, JSON.stringify(b));
+    const c = await buildAstroReport({ ...archiveCtx(OWNER, { role: "admin" }), tenantId: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb" } as never, ownerAnalysisId);
+    assert.ok(!c.ok && c.skipped === true, JSON.stringify(c));
+    const d = await buildAstroReport(archiveCtx(EXPERT) as never, ownerAnalysisId);
+    assert.ok(!d.ok && d.status === 404, "uzman owner'ın analizini alamaz");
   });
   globalThis.fetch = realFetch;
   console.log(`\narchive-atlas harness: ${pass} PASS / ${fail} FAIL`);

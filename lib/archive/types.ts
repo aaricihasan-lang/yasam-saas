@@ -68,6 +68,8 @@ export type ArchivePlanResponse = {
    * Boş değilse arşiv "tamamlandı" gösterilmez (EKSİK + gerekçe).
    */
   restricted?: ArchiveScopeNote[];
+  /** Kullanıcının seçimleriyle kapsam dışı kalanlar (eksiklik DEĞİL; arşiv durumunu etkilemez, açıklamalı gösterilir). */
+  preferences?: ArchiveScopeNote[];
   warnings: string[];
 };
 

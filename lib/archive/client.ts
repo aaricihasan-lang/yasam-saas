@@ -47,13 +47,15 @@ export type ArchiveProgress = {
   ok: number;
   failed: number;
   skipped: number;
+  /** İçeriği olmayan işler (ör. rapora girecek kaydı olmayan danışan) — hata / eksiklik DEĞİL. */
+  empty: number;
   records: number;
   bytes: number;
 };
 
 export type JobOutcome = {
   job: ArchiveJob;
-  status: "ok" | "failed" | "skipped";
+  status: "ok" | "failed" | "skipped" | "empty";
   files: string[];
   rows: number;
   message: string | null;
@@ -67,7 +69,7 @@ export type ArchiveRunResult = {
   /** Toplam cilt sayısı (1 → bölünmemiş arşiv). */
   volumes: number;
   outcomes: JobOutcome[];
-  counts: { ok: number; failed: number; skipped: number; records: number; bytes: number; files: number };
+  counts: { ok: number; failed: number; skipped: number; empty: number; records: number; bytes: number; files: number };
   durationMs: number;
 };
 
@@ -120,7 +122,7 @@ export async function runArchive(plan: ArchivePlanResponse, deps: ArchiveDeps): 
     await rotating;
   };
   const outcomes: JobOutcome[] = [];
-  const progress: ArchiveProgress = { done: 0, total: plan.jobs.length, current: "", ok: 0, failed: 0, skipped: 0, records: 0, bytes: 0 };
+  const progress: ArchiveProgress = { done: 0, total: plan.jobs.length, current: "", ok: 0, failed: 0, skipped: 0, empty: 0, records: 0, bytes: 0 };
   const emit = () => deps.onProgress?.({ ...progress });
   let cancelled = false;
 
@@ -144,12 +146,12 @@ export async function runArchive(plan: ArchivePlanResponse, deps: ArchiveDeps): 
     }
   };
 
-  const errorOf = async (r: PartResponse): Promise<{ error: string; skipped: boolean }> => {
+  const errorOf = async (r: PartResponse): Promise<{ error: string; skipped: boolean; empty: boolean }> => {
     try {
-      const j = (await r.json()) as { error?: unknown; skipped?: unknown };
-      return { error: String(j?.error ?? `Hata (${r.status}).`), skipped: j?.skipped === true };
+      const j = (await r.json()) as { error?: unknown; skipped?: unknown; empty?: unknown };
+      return { error: String(j?.error ?? `Hata (${r.status}).`), skipped: j?.skipped === true, empty: r.status === 200 && j?.empty === true };
     } catch {
-      return { error: `Hata (${r.status}).`, skipped: false };
+      return { error: `Hata (${r.status}).`, skipped: false, empty: false };
     }
   };
 
@@ -271,7 +273,7 @@ export async function runArchive(plan: ArchivePlanResponse, deps: ArchiveDeps): 
     }
     if (!r.isFile) {
       const e = await errorOf(r);
-      out.status = e.skipped ? "skipped" : "failed";
+      out.status = e.empty ? "empty" : e.skipped ? "skipped" : "failed";
       out.message = e.error;
       return out;
     }
@@ -304,6 +306,7 @@ export async function runArchive(plan: ArchivePlanResponse, deps: ArchiveDeps): 
       progress.done++;
       if (o.status === "ok") progress.ok++;
       else if (o.status === "failed") progress.failed++;
+      else if (o.status === "empty") progress.empty++;
       else progress.skipped++;
       emit();
     }
@@ -314,6 +317,8 @@ export async function runArchive(plan: ArchivePlanResponse, deps: ArchiveDeps): 
   const failed = outcomes.filter((o) => o.status === "failed").length;
   const ok = outcomes.filter((o) => o.status === "ok").length;
   const skipped = outcomes.filter((o) => o.status === "skipped").length;
+  // Boş işler (içerik yok) durumu ETKİLEMEZ; yetki / cihaz atlaması (skipped), plan kısıtı ve başarısız iş EKSİK yapar.
+  const emptyJobs = outcomes.filter((o) => o.status === "empty").length;
   // Kullanıcıya ait içerik cihaz / yetki nedeniyle dışarıda kaldıysa (plan.restricted veya atlanan iş) arşiv TAMAMLANDI
   // gösterilmez → EKSİK (gerekçe BENİOKU / ARŞİV-RAPORU'nda).
   const restricted = (plan.restricted?.length ?? 0) > 0 || skipped > 0;
@@ -340,6 +345,7 @@ export async function runArchive(plan: ArchivePlanResponse, deps: ArchiveDeps): 
       ok,
       failed,
       skipped,
+      empty: emptyJobs,
       records: progress.records,
       bytes: totalBytes,
       files: outcomes.reduce((s, o) => s + o.files.length, 0),
@@ -385,9 +391,12 @@ function readme(plan: ArchivePlanResponse, status: ArchiveRunResult["status"], a
     "KAYIT SAYILARI (veri dökümü planı)",
     ...plan.summary.map((s) => `- ${s.label}: ${s.records} kayıt`),
     "",
-    "KAPSAM DIŞI KALANLAR",
+    "KAPSAM DIŞI KALANLAR (sistem / ortak katalog)",
     ...(plan.excluded.length ? plan.excluded.map((e) => `- ${e.scope}: ${e.reason}`) : ["- yok"]),
   ];
+  if (plan.preferences?.length) {
+    lines.push("", "TERCİHİNİZE GÖRE KAPSAM DIŞI (eksiklik değildir)", ...plan.preferences.map((e) => `- ${e.scope}: ${e.reason}`));
+  }
   if (plan.restricted?.length) {
     lines.push(
       "",
@@ -404,13 +413,15 @@ function runReport(plan: ArchivePlanResponse, outcomes: JobOutcome[], status: Ar
   const lines = [
     "ARŞİV RAPORU",
     `Durum: ${STATUS_TR[status]}`,
-    `Planlanan parça: ${plan.jobs.length} · başarılı: ${by("ok").length} · başarısız: ${by("failed").length} · atlanan: ${by("skipped").length}${notStarted ? ` · başlatılmayan: ${notStarted}` : ""}`,
+    `Planlanan parça: ${plan.jobs.length} · başarılı: ${by("ok").length} · başarısız: ${by("failed").length} · atlanan (yetki / cihaz): ${by("skipped").length} · boş (içerik yok): ${by("empty").length}${notStarted ? ` · başlatılmayan: ${notStarted}` : ""}`,
     "",
   ];
   const failed = by("failed");
   if (failed.length) lines.push("BAŞARISIZ PARÇALAR", ...failed.map((o) => `- ${o.job.label}: ${o.message ?? "hata"}`), "");
   const skipped = by("skipped");
-  if (skipped.length) lines.push("ATLANAN PARÇALAR", ...skipped.map((o) => `- ${o.job.label}: ${o.message ?? ""}`), "");
+  if (skipped.length) lines.push("ATLANAN PARÇALAR (yetki / cihaz — arşivi EKSİK yapar)", ...skipped.map((o) => `- ${o.job.label}: ${o.message ?? ""}`), "");
+  const emptied = by("empty");
+  if (emptied.length) lines.push("BOŞ KAYITLAR (içerik yok — hata veya eksiklik değildir)", ...emptied.map((o) => `- ${o.job.label}: ${o.message ?? ""}`), "");
   const notes = by("ok").filter((o) => o.message);
   if (notes.length) lines.push("NOTLAR", ...notes.map((o) => `- ${o.job.label}: ${o.message}`), "");
   lines.push("BAŞARILI PARÇALAR", ...by("ok").map((o) => `- ${o.job.label}${o.job.kind === "data" ? ` (${o.rows} kayıt, ${o.files.length} dosya)` : ""}`));

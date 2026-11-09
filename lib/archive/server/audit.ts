@@ -22,6 +22,8 @@ export type ArchiveAuditResult = {
   ok: number;
   failed: number;
   skipped: number;
+  /** İçeriği olmayan (boş) işler — hata / eksiklik değil. */
+  empty: number;
   records: number;
   bytes: number;
   duration_ms: number;
@@ -50,6 +52,7 @@ export function sanitizeAuditResult(raw: unknown): ArchiveAuditResult | null {
     ok: count(r.ok),
     failed: count(r.failed),
     skipped: count(r.skipped),
+    empty: count(r.empty),
     records: count(r.records),
     bytes: count(r.bytes),
     duration_ms: count(r.duration_ms),

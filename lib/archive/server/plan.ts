@@ -8,8 +8,7 @@ import { randomUUID } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { assertServerOnly } from "@/lib/server/serverOnlyGuard";
 import { hasModulePermissionForProfile } from "@/lib/auth/modulePermissions";
-import { getRegistryEntry, MODULE_LABELS } from "@/lib/backup/registry";
-import { isAstrologyModuleEnabled } from "@/lib/astrology/config";
+import { EXPORT_MODULE_ORDER, getRegistryEntry, MODULE_LABELS } from "@/lib/backup/registry";
 import { reportFileDate } from "@/lib/time/reportTime";
 import { safeFileName } from "../zip";
 import {
@@ -25,7 +24,7 @@ import { ARCHIVE_MAX_JOBS, ARCHIVE_PLAN_VERSION, type ArchiveFileSource, type Ar
 import { planModuleData, tableScope } from "./data";
 import { archiveFileName, FILE_SOURCES, listFileRows } from "./files";
 import { extractMedia, MEDIA_NOT_ARCHIVED, MEDIA_SOURCES, mediaFolderLabel, mediaModuleOf } from "./media";
-import type { ArchiveCtx } from "./reports";
+import { resolveArchiveAstroAccess, type ArchiveCtx } from "./reports";
 
 assertServerOnly("lib/archive/server/plan");
 
@@ -85,6 +84,18 @@ export async function buildArchivePlan(ctx: ArchiveCtx, opts: ArchiveOptions, no
   const excluded: ArchivePlanResponse["excluded"] = [];
   /** Kullanıcıya ait olup cihaz / yetki nedeniyle alınamayan içerik → arşiv EKSİK sayılır. */
   const restricted: ArchivePlanResponse["excluded"] = [];
+  /** Kullanıcının seçimleri nedeniyle arşive alınmayanlar (hata / eksiklik değildir; açıklamalı listelenir). */
+  const preferences: ArchivePlanResponse["excluded"] = [];
+  const unselected = EXPORT_MODULE_ORDER.filter((m) => !opts.modules.includes(m));
+  if (unselected.length) preferences.push({ scope: "Seçilmeyen modüller", reason: unselected.map((m) => MODULE_LABELS[m] ?? m).join(", ") });
+  if (!opts.include.data) preferences.push({ scope: "Kayıt dökümü (Word)", reason: "seçilmedi" });
+  if (!opts.include.dossiers) preferences.push({ scope: "Danışan dosyaları", reason: "seçilmedi" });
+  if (!opts.include.reports) preferences.push({ scope: "Hazır analiz raporları", reason: "seçilmedi" });
+  if (opts.include.dossiers && !opts.include.sensitive) {
+    preferences.push({ scope: "Danışan dosyalarında hassas bölümler (anamnez, beslenme özeti, iç notlar, ücretlendirme)", reason: "seçilmedi — bu kayıtlar Kayıt Dökümü'nde var" });
+  }
+  if (opts.clientIds) preferences.push({ scope: "Danışan seçimi", reason: `${opts.clientIds.length} danışan seçildi; danışana bağlı olmayan kayıtlar kapsam dışı` });
+  if (opts.dateFrom || opts.dateTo) preferences.push({ scope: "Kayıt tarihi aralığı", reason: `${opts.dateFrom ?? "başlangıç"} – ${opts.dateTo ?? "bugün"}; aralık dışındaki kayıtlar kapsam dışı` });
   const warnings: string[] = [];
   const summary: ArchivePlanResponse["summary"] = [];
   const perm = (k: Parameters<typeof hasModulePermissionForProfile>[1]) => hasModulePermissionForProfile(ctx.profile, k);
@@ -211,17 +222,20 @@ export async function buildArchivePlan(ctx: ArchiveCtx, opts: ArchiveOptions, no
         }
       }
     }
-    // Gökyüzü Atlası kayıtlı analizler (yalnız oturumdaki uzmanın)
+    // Gökyüzü Atlası kayıtlı analizler (yalnız oturumdaki uzmanın). Erişim Atlas kapısıyla AYNI kural
+    // (resolveArchiveAstroAccess: owner → resolveAstrologyOwner; expert → modül bayrağı). Yetki yoksa iş üretilmez;
+    // kullanıcıya ait analiz sayısı "kısıtlı içerik" olarak yazılır → arşiv EKSİK.
     if (has("astrology")) {
-      if (!isAstrologyModuleEnabled()) {
-        excluded.push({ scope: "Gökyüzü Atlası raporları", reason: "modül bu ortamda kapalı" });
+      const r = await listRows(db, "astro_analyses", "id, client_id, title, created_at", (q) => {
+        let x = dateScope(q.eq("tenant_id", tenantId).eq("owner_user_id", userId), opts);
+        if (opts.clientIds) x = x.in("client_id", opts.clientIds);
+        return x;
+      }, ARCHIVE_MAX_JOBS);
+      if (r.error) warnings.push(`Gökyüzü Atlası analizleri listelenemedi (${r.error}).`);
+      const access = r.rows.length > 0 ? await resolveArchiveAstroAccess(ctx) : null;
+      if (access && !access.ok) {
+        restricted.push({ scope: `Gökyüzü Atlası hazır raporları (${r.rows.length} kayıtlı analiz)`, reason: `${access.reason} Analiz kayıtları Kayıt Dökümü'nde var.` });
       } else {
-        const r = await listRows(db, "astro_analyses", "id, client_id, title, created_at", (q) => {
-          let x = dateScope(q.eq("tenant_id", tenantId).eq("owner_user_id", userId), opts);
-          if (opts.clientIds) x = x.in("client_id", opts.clientIds);
-          return x;
-        }, ARCHIVE_MAX_JOBS);
-        if (r.error) warnings.push(`Gökyüzü Atlası analizleri listelenemedi (${r.error}).`);
         for (const a of r.rows) {
           const sub = a.client_id ? clientFolder(a.client_id) : "Danışan bağı olmayan";
           push({ kind: "astro_report", analysisId: String(a.id), label: `Atlas — ${String(a.title ?? "analiz")}`, folder: `${REPORTS_FOLDER}/Gökyüzü Atlası/${sub}` });
@@ -303,7 +317,7 @@ export async function buildArchivePlan(ctx: ArchiveCtx, opts: ArchiveOptions, no
     }
     for (const n of MEDIA_NOT_ARCHIVED) excluded.push(n);
   } else {
-    excluded.push({ scope: "Fotoğraf ve ek dosyalar", reason: "seçilmedi" });
+    preferences.push({ scope: "Fotoğraf ve ek dosyalar", reason: "seçilmedi" });
   }
 
   return {
@@ -317,6 +331,7 @@ export async function buildArchivePlan(ctx: ArchiveCtx, opts: ArchiveOptions, no
     summary,
     excluded,
     restricted,
+    preferences,
     warnings,
   };
 }

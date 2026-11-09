@@ -149,7 +149,7 @@ export function ArchiveExportTab({ user }: { user: YasamUser }) {
     abortRef.current = ctrl;
     setRunning(true);
     setResult(null);
-    setProgress({ done: 0, total: jobs.length, current: "", ok: 0, failed: 0, skipped: 0, records: 0, bytes: 0 });
+    setProgress({ done: 0, total: jobs.length, current: "", ok: 0, failed: 0, skipped: 0, empty: 0, records: 0, bytes: 0 });
     const runPlan: ArchivePlanResponse = { ...source, jobs, file_name: suffix ? source.file_name.replace(/\.zip$/, `${suffix}.zip`) : source.file_name };
     try {
       const res = await runArchive(runPlan, {
@@ -183,6 +183,7 @@ export function ArchiveExportTab({ user }: { user: YasamUser }) {
           ok: res.counts.ok,
           failed: res.counts.failed,
           skipped: res.counts.skipped,
+          empty: res.counts.empty,
           records: res.counts.records,
           bytes: res.counts.bytes,
           duration_ms: res.durationMs,
@@ -389,6 +390,12 @@ export function ArchiveExportTab({ user }: { user: YasamUser }) {
               <ul className="space-y-0.5">{plan.excluded.map((e) => <li key={`${e.scope}-${e.reason}`}>• {e.scope}: {e.reason}</li>)}</ul>
             </details>
           )}
+          {(plan.preferences ?? []).length > 0 && (
+            <details className="mt-2 text-xs text-slate-600" data-testid="archive-preferences">
+              <summary className="min-h-11 cursor-pointer py-2 font-bold">Tercihinize göre kapsam dışı ({(plan.preferences ?? []).length})</summary>
+              <ul className="space-y-0.5">{(plan.preferences ?? []).map((e) => <li key={e.scope}>• {e.scope}: {e.reason}</li>)}</ul>
+            </details>
+          )}
           {(plan.restricted ?? []).length > 0 && (
             <div className="mt-2 rounded-lg border border-amber-300 bg-amber-50 p-2 text-xs text-amber-900" data-testid="archive-restricted">
               <p className="font-bold">Size ait ama bu arşive alınamayacak içerik var — arşiv &quot;EKSİK&quot; olarak işaretlenecek:</p>
@@ -411,7 +418,7 @@ export function ArchiveExportTab({ user }: { user: YasamUser }) {
             <div className="h-full rounded-full bg-gradient-to-r from-violet-500 to-fuchsia-500 transition-all" style={{ width: `${pct}%` }} />
           </div>
           <p className="mt-2 truncate text-[11px] text-slate-500">{progress.current}</p>
-          <p className="mt-1 text-[11px] text-slate-600">Başarılı {progress.ok} · Başarısız {progress.failed} · Atlanan {progress.skipped} · {progress.records} kayıt</p>
+          <p className="mt-1 text-[11px] text-slate-600">Başarılı {progress.ok} · Başarısız {progress.failed} · Atlanan {progress.skipped} · Boş {progress.empty} · {progress.records} kayıt</p>
           <button type="button" onClick={() => abortRef.current?.abort()} className="mt-3 min-h-11 w-full rounded-lg border border-rose-200 bg-rose-50 text-sm font-bold text-rose-700">
             İptal et
           </button>
@@ -425,16 +432,21 @@ export function ArchiveExportTab({ user }: { user: YasamUser }) {
             {STATUS_VIEW[result.status].title}
           </p>
           <p className="mt-1 text-xs">
-            Başarılı {result.counts.ok} · Başarısız {result.counts.failed} · Atlanan {result.counts.skipped} · {result.counts.records} kayıt · {result.counts.files} dosya · {MB(result.counts.bytes)}
+            Başarılı {result.counts.ok} · Başarısız {result.counts.failed} · Atlanan {result.counts.skipped} · Boş (içerik yok) {result.counts.empty} · {result.counts.records} kayıt · {result.counts.files} dosya · {MB(result.counts.bytes)}
           </p>
-          {result.outcomes.filter((o) => o.status !== "ok").length > 0 && (
+          {result.outcomes.filter((o) => o.status === "failed" || o.status === "skipped").length > 0 && (
             <ul className="mt-2 max-h-48 space-y-0.5 overflow-y-auto text-[11px]">
-              {result.outcomes.filter((o) => o.status !== "ok").map((o, i) => (
+              {result.outcomes.filter((o) => o.status === "failed" || o.status === "skipped").map((o, i) => (
                 <li key={`${o.job.kind}-${i}`}>
                   <strong>{o.status === "failed" ? "Başarısız" : "Atlandı"}:</strong> {o.job.label} — {o.message}
                 </li>
               ))}
             </ul>
+          )}
+          {result.counts.empty > 0 && (
+            <p className="mt-2 text-[11px] text-slate-600" data-testid="archive-empty-note">
+              {result.counts.empty} kayıtta rapora girecek içerik yoktu (ör. yalnız ad bilgisi olan danışan); bu bir hata değildir, kayıtlar Kayıt Dökümü&apos;nde yer alır.
+            </p>
           )}
           {failedJobs.length > 0 && plan && (
             <button type="button" onClick={() => void execute(plan, failedJobs, "-ek")} disabled={busy} className="mt-3 flex min-h-11 w-full items-center justify-center gap-2 rounded-lg bg-white/80 text-sm font-bold text-slate-800 shadow-sm disabled:opacity-50">
