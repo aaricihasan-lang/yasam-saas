@@ -191,6 +191,8 @@ function runTest(t) {
     child.on("exit", (code) => {
       exitCode = code;
       if (timedOut || finished) return;
+      // Test süreci kendi süresi içinde çıktı: zaman aşımı artık uygulanmaz (yalnız kanal beklemesi kalır).
+      clearTimeout(timer);
       clearTimeout(drainTimer);
       drainTimer = setTimeout(() => { leftovers = true; finish(exitCode); }, KANAL_BEKLEME_MS);
     });
