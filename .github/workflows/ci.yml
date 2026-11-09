@@ -40,8 +40,33 @@ jobs:
           node-version: "24"
           cache: npm
 
+      # ffmpeg-static postinstall'u her kurulumda GitHub release'ten indirir; geçici HTTP 504 kurulumu düşürüyordu.
+      # Resmî b6.1.1 linux-x64 dosyaları (ffmpeg + README + LICENSE) önbellekten; yoksa sınırlı tekrarla indirilir.
+      # Her durumda sabit SHA-256 doğrulanır; tüm denemeler başarısızsa iş kırmızı biter (scripts/ci/ffmpeg-static-cache.mjs).
+      - name: ffmpeg-static dosyaları (önbellek)
+        id: ffmpeg-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: ${{ runner.temp }}/ffmpeg-static
+          key: ffmpeg-static-b6.1.1-linux-x64-e7e7fb30477f717e
+
+      - name: ffmpeg-static dosyaları (sınırlı tekrar + SHA-256)
+        run: node scripts/ci/ffmpeg-static-cache.mjs prepare --dir "$RUNNER_TEMP/ffmpeg-static"
+
+      - name: ffmpeg-static dosyalarını önbelleğe kaydet
+        if: steps.ffmpeg-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ runner.temp }}/ffmpeg-static
+          key: ffmpeg-static-b6.1.1-linux-x64-e7e7fb30477f717e
+
       - name: Bağımlılıklar
         run: npm ci --no-audit --no-fund
+        env:
+          FFMPEG_BIN: ${{ runner.temp }}/ffmpeg-static/ffmpeg
+
+      - name: ffmpeg-static kurulum çıktıları (SHA-256 + sürüm denetimi)
+        run: node scripts/ci/ffmpeg-static-cache.mjs install --dir "$RUNNER_TEMP/ffmpeg-static"
 
       - name: TypeScript
         run: npx tsc --noEmit -p tsconfig.json
@@ -115,8 +140,33 @@ jobs:
           node-version: "24"
           cache: npm
 
+      # ffmpeg-static postinstall'u her kurulumda GitHub release'ten indirir; geçici HTTP 504 kurulumu düşürüyordu.
+      # Resmî b6.1.1 linux-x64 dosyaları (ffmpeg + README + LICENSE) önbellekten; yoksa sınırlı tekrarla indirilir.
+      # Her durumda sabit SHA-256 doğrulanır; tüm denemeler başarısızsa iş kırmızı biter (scripts/ci/ffmpeg-static-cache.mjs).
+      - name: ffmpeg-static dosyaları (önbellek)
+        id: ffmpeg-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: ${{ runner.temp }}/ffmpeg-static
+          key: ffmpeg-static-b6.1.1-linux-x64-e7e7fb30477f717e
+
+      - name: ffmpeg-static dosyaları (sınırlı tekrar + SHA-256)
+        run: node scripts/ci/ffmpeg-static-cache.mjs prepare --dir "$RUNNER_TEMP/ffmpeg-static"
+
+      - name: ffmpeg-static dosyalarını önbelleğe kaydet
+        if: steps.ffmpeg-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ runner.temp }}/ffmpeg-static
+          key: ffmpeg-static-b6.1.1-linux-x64-e7e7fb30477f717e
+
       - name: Bağımlılıklar
         run: npm ci --no-audit --no-fund
+        env:
+          FFMPEG_BIN: ${{ runner.temp }}/ffmpeg-static/ffmpeg
+
+      - name: ffmpeg-static kurulum çıktıları (SHA-256 + sürüm denetimi)
+        run: node scripts/ci/ffmpeg-static-cache.mjs install --dir "$RUNNER_TEMP/ffmpeg-static"
 
       - name: Horary (Batı / Lilly) harness'ları
         run: npm run test:astrology:horary-western
@@ -146,8 +196,33 @@ jobs:
           node-version: "24"
           cache: npm
 
+      # ffmpeg-static postinstall'u her kurulumda GitHub release'ten indirir; geçici HTTP 504 kurulumu düşürüyordu.
+      # Resmî b6.1.1 linux-x64 dosyaları (ffmpeg + README + LICENSE) önbellekten; yoksa sınırlı tekrarla indirilir.
+      # Her durumda sabit SHA-256 doğrulanır; tüm denemeler başarısızsa iş kırmızı biter (scripts/ci/ffmpeg-static-cache.mjs).
+      - name: ffmpeg-static dosyaları (önbellek)
+        id: ffmpeg-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: ${{ runner.temp }}/ffmpeg-static
+          key: ffmpeg-static-b6.1.1-linux-x64-e7e7fb30477f717e
+
+      - name: ffmpeg-static dosyaları (sınırlı tekrar + SHA-256)
+        run: node scripts/ci/ffmpeg-static-cache.mjs prepare --dir "$RUNNER_TEMP/ffmpeg-static"
+
+      - name: ffmpeg-static dosyalarını önbelleğe kaydet
+        if: steps.ffmpeg-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ runner.temp }}/ffmpeg-static
+          key: ffmpeg-static-b6.1.1-linux-x64-e7e7fb30477f717e
+
       - name: Bağımlılıklar
         run: npm ci --no-audit --no-fund
+        env:
+          FFMPEG_BIN: ${{ runner.temp }}/ffmpeg-static/ffmpeg
+
+      - name: ffmpeg-static kurulum çıktıları (SHA-256 + sürüm denetimi)
+        run: node scripts/ci/ffmpeg-static-cache.mjs install --dir "$RUNNER_TEMP/ffmpeg-static"
 
       # JPL DE440 (efemeris + derece geçişleri konum motoru): depoda yok; resmî NASA/JPL kaynağından indirilir, SHA-256 doğrulanır.
       - name: JPL DE440 verisi (önbellek)
