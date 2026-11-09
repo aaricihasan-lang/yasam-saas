@@ -1269,6 +1269,37 @@ function codeFromTables(): string[] {
     assert.ok(buildBackupPlan(TA).tables.some((x) => x.table === "astro_analyses" && x.module === "astrology"));
   });
 
+  // 10) Çok kullanıcılı tenant — uygulamanın KULLANICI bazında okuduğu kişisel kayıtlar
+  const USER_SCOPED = ["support_messages", "user_location_prefs", "expert_workspace_designs", "expert_ui_prefs", "expert_workspace_assets"];
+  await t("çok kullanıcılı tenant: kişisel kayıtlar (destek, konum, Kişisel Ofis) yalnız oturumdaki kullanıcıya dışa aktarılır", async () => {
+    const db = new FakeDb(1000);
+    for (const [u, tag] of [[UA, "BENİM"], [UA2, "BAŞKASININ"]] as const) {
+      db.seed("support_messages", [{ id: uid("sm"), tenant_id: TA, user_id: u, subject: `${tag} konu`, message: "m", priority: "normal", status: "open" }]);
+      db.seed("user_location_prefs", [{ id: uid("lp"), tenant_id: TA, user_id: u, location_id: `${tag}` }]);
+      db.seed("expert_workspace_designs", [{ id: uid("wd"), tenant_id: TA, user_id: u, design: { tag } }]);
+      db.seed("expert_ui_prefs", [{ id: uid("wp"), tenant_id: TA, user_id: u, prefs: { tag } }]);
+      db.seed("expert_workspace_assets", [{ id: uid("wa"), tenant_id: TA, user_id: u, desktop_path: `${TA}/a.webp` }]);
+    }
+    for (const table of USER_SCOPED) {
+      const e = getRegistryEntry(table)!;
+      assert.deepEqual(e.ownerScope, { column: "user_id" }, `${table} ownerScope`);
+      const mine = await exportTableAll(asDb(db), e, TA, { ownerUserId: UA });
+      assert.ok(mine.complete && mine.rows.length === 1 && mine.rows[0].user_id === UA, `${table}: ${JSON.stringify(mine.rows)}`);
+      const page = (await handleBackupTableRequest(asDb(db), TA, table, null, UA2)).body as { rows: Row[] };
+      assert.ok(page.rows.every((r) => r.user_id === UA2), `${table}: route sızıntısı`);
+      assert.equal((await fetchTablePage(asDb(db), e, TA, null)).ok, false, `${table}: kimliksiz okuma reddedilmeli`);
+    }
+  });
+  await t("çok kullanıcılı tenant: kişisel kayıt geri yüklemesi başka kullanıcının satırını yazamaz / sahipliği zorlar", async () => {
+    const db = new FakeDb(1000);
+    const ctx2 = ctxA({ userId: UA2 });
+    const row = { id: uid("lp"), tenant_id: TA, user_id: UA, location_id: "sahte" };
+    const rep = await restoreChunk(asDb(db), ctx2, "user_location_prefs", [row]);
+    assert.equal(rep.inserted, 1);
+    assert.equal(db.rows("user_location_prefs")[0].user_id, UA2, "sahiplik oturumdaki kullanıcıya zorlanmalı");
+    assert.equal(db.forbidden.length, 0);
+  });
+
   console.log(`backup.harness: ${pass} PASS / ${fail} FAIL${skipped ? ` (${skipped} ATLANDI — prod tablo listesi yok; PASS sayılmadı)` : ""}`);
   if (fail > 0) process.exit(1);
 })().catch((e) => {

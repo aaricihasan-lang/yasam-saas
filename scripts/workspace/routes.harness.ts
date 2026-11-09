@@ -343,11 +343,16 @@ async function main(): Promise<void> {
     const eD = getRegistryEntry("expert_workspace_designs")!;
     const eP = getRegistryEntry("expert_ui_prefs")!;
     ok(!!eD && !!eP && isRestorable(eD) && isRestorable(eP) && eD.naturalKey === "user_id" && eP.naturalKey === "user_id", "iki tablo yedek kapsamında, geri yüklenebilir, doğal anahtar user_id");
-    const expD = await exportTableAll(sdb, eD, seed.TA);
-    const expP = await exportTableAll(sdb, eP, seed.TA);
-    ok(expD.complete && expD.rows.length === 2 && expD.rows.every((r) => r.tenant_id === seed.TA), "A tenant'ı dışa aktarma: yalnız kendi 2 tasarım satırı (A, A2), tam", { n: expD.rows.length, e: expD.error });
-    ok(expP.complete && expP.rows.every((r) => r.tenant_id === seed.TA), "tercih dışa aktarma yalnız A tenant'ı");
-    const expB = await exportTableAll(sdb, eD, seed.TB);
+    // 2026-11-09 Owner kararı (çok kullanıcılı tenant): Kişisel Ofis kullanıcı bazlıdır → yedek yalnız oturumdaki
+    // kullanıcının satırını içerir (aynı tenant'taki A2'nin tasarımı A'nın yedeğine girmez); kimliksiz okuma reddedilir.
+    const expD = await exportTableAll(sdb, eD, seed.TA, { ownerUserId: U.A.id });
+    const expD2 = await exportTableAll(sdb, eD, seed.TA, { ownerUserId: U.A2.id });
+    const expP = await exportTableAll(sdb, eP, seed.TA, { ownerUserId: U.A.id });
+    ok(expD.complete && expD.rows.length === 1 && expD.rows[0].user_id === U.A.id && expD.rows[0].tenant_id === seed.TA, "A'nın dışa aktarması: yalnız A'nın tasarımı (aynı tenant'taki A2 hariç), tam", { n: expD.rows.length, e: expD.error });
+    ok(expD2.complete && expD2.rows.length === 1 && expD2.rows[0].user_id === U.A2.id, "A2'nin dışa aktarması: yalnız A2'nin tasarımı");
+    ok(expP.complete && expP.rows.every((r) => r.tenant_id === seed.TA && r.user_id === U.A.id), "tercih dışa aktarma yalnız A kullanıcısı");
+    ok((await exportTableAll(sdb, eD, seed.TA)).complete === false, "kullanıcı kimliği olmadan kişisel kayıt okunmaz");
+    const expB = await exportTableAll(sdb, eD, seed.TB, { ownerUserId: U.B.id });
     ok(expB.rows.length === 1 && expB.rows[0].user_id === U.B.id, "B tenant'ı dışa aktarma A satırlarını içermez");
     // Mevcut satır EZİLMEZ (A'nın tasarımı yedekten sonra değişmiş olabilir; geri yükleme yalnız eksik satırı ekler).
     const aNow = await dpost(asA, { action: "saveDraft", expectedVersion: (await dget(asA)).json.design.version, draft: design("Yedekten sonra") });
@@ -361,7 +366,7 @@ async function main(): Promise<void> {
     // Kayıp senaryosu (yalnız sentetik test verisi; süper kullanıcıyla silinir): A2'nin satırı yok → yedekten döner.
     const a2Before = await dRow(U.A2.id);
     await env.su.query(`delete from public.expert_workspace_designs where user_id=$1`, [U.A2.id]);
-    const r2 = await restoreChunk(sdb, ctxOf(U.A2.id, seed.TA), "expert_workspace_designs", expD.rows);
+    const r2 = await restoreChunk(sdb, ctxOf(U.A2.id, seed.TA), "expert_workspace_designs", expD2.rows);
     const a2After = await dRow(U.A2.id);
     ok(r2.inserted === 1 && a2After?.id === a2Before.id && a2After.tenant_id === seed.TA && a2After.user_id === U.A2.id, "kayıp satır yedekten geri gelir (aynı kimlik, aynı tenant/kullanıcı)", r2);
     ok(JSON.stringify(a2After.history) === JSON.stringify(a2Before.history) && JSON.stringify(a2After.draft) === JSON.stringify(a2Before.draft), "geri yüklenen satırda geçmiş ve taslak KAYBOLMAZ (okunamayan eski kayıt dahil)");
