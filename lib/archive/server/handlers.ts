@@ -12,6 +12,7 @@ import type { ArchiveFileSource, ArchiveJob, ArchiveOptions } from "../types";
 import { auditScope, sanitizeAuditResult, writeArchiveAudit } from "./audit";
 import { buildDataPart, decodeDataState, encodeDataState } from "./data";
 import { FILE_SOURCES, signArchiveFile } from "./files";
+import { extractMedia, MEDIA_SOURCES, mediaFileName, mediaModuleOf, readMediaRow, SIGNED_MEDIA_TTL } from "./media";
 import { ArchiveTooLargeError, buildArchivePlan } from "./plan";
 import {
   buildAstroReport,
@@ -26,7 +27,7 @@ assertServerOnly("lib/archive/server/handlers");
 
 export type HandlerResult =
   | { kind: "json"; status: number; body: Record<string, unknown> }
-  | { kind: "file"; bytes: Uint8Array; fileName: string; headers: Record<string, string> };
+  | { kind: "file"; bytes: Uint8Array; fileName: string; headers: Record<string, string>; contentType?: string };
 
 const json = (status: number, body: Record<string, unknown>): HandlerResult => ({ kind: "json", status, body });
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -54,7 +55,10 @@ function jobAllowed(job: ArchiveJob, o: ArchiveOptions): string | null {
     case "client_dossier":
       return o.include.dossiers && has("clients") && clientOk(job.clientId) ? null : "Danışan dosyası kapsam dışında.";
     case "numerology_record":
-      return o.include.reports && has("numerology") && clientOk(job.clientId) ? null : "Numeroloji raporu kapsam dışında.";
+      // Danışan seçiliyken yalnız seçili danışana BAĞLI kayıtlar; bağsız kayıt danışan seçiminde kapsam dışıdır.
+      return o.include.reports && has("numerology") && (o.clientIds ? job.clientId !== null && clientOk(job.clientId) : true)
+        ? null
+        : "Numeroloji raporu kapsam dışında.";
     case "hd_report":
     case "hd_relation_report":
       return o.include.reports && has("human_design") ? null : "Human Design raporu kapsam dışında.";
@@ -62,6 +66,12 @@ function jobAllowed(job: ArchiveJob, o: ArchiveOptions): string | null {
       return o.include.reports && has("astrology") ? null : "Gökyüzü Atlası raporu kapsam dışında.";
     case "file":
       return o.include.files && FILE_SOURCES[job.source] && has(FILE_SOURCES[job.source].module) ? null : "Dosya kapsam dışında.";
+    case "media": {
+      if (!o.include.files || !MEDIA_SOURCES[job.table] || !has(mediaModuleOf(job.table))) return "Görsel kapsam dışında.";
+      // Danışan seçiliyken yalnız seçili danışanların profil fotoğrafı; diğer görseller danışana bağlı değildir.
+      if (o.clientIds) return job.table === "clients" && clientOk(job.rowId) ? null : "Görsel kapsam dışında.";
+      return null;
+    }
     default:
       return "Bilinmeyen iş.";
   }
@@ -78,13 +88,16 @@ function parseJob(raw: unknown): ArchiveJob | null {
     case "client_dossier":
       return id("clientId") ? { kind: "client_dossier", clientId: id("clientId")!, ...base } : null;
     case "numerology_record":
-      return id("clientId") && id("recordId") ? { kind: "numerology_record", clientId: id("clientId")!, recordId: id("recordId")!, ...base } : null;
+      if (!id("recordId") || (j.clientId !== null && j.clientId !== undefined && !id("clientId"))) return null;
+      return { kind: "numerology_record", clientId: id("clientId"), recordId: id("recordId")!, ...base };
     case "hd_report":
       return id("reportId") ? { kind: "hd_report", reportId: id("reportId")!, ...base } : null;
     case "hd_relation_report":
       return id("reportId") ? { kind: "hd_relation_report", reportId: id("reportId")!, ...base } : null;
     case "astro_report":
       return id("analysisId") ? { kind: "astro_report", analysisId: id("analysisId")!, ...base } : null;
+    case "media":
+      return typeof j.table === "string" && j.table in MEDIA_SOURCES && id("rowId") ? { kind: "media", table: j.table, rowId: id("rowId")!, ...base } : null;
     case "file":
       return typeof j.source === "string" && j.source in FILE_SOURCES && id("rowId")
         ? { kind: "file", source: j.source as ArchiveFileSource, rowId: id("rowId")!, index: 0, ...base }
@@ -119,6 +132,30 @@ export async function handleArchivePart(ctx: ArchiveCtx, body: unknown, now: Dat
       if (!r.buffer) return json(200, { ok: true, empty: true, next: headers["X-Archive-Next"] || null, rows: 0, errors: r.errors });
       return { kind: "file", bytes: new Uint8Array(r.buffer), fileName: r.fileName, headers };
     }
+    if (job.kind === "media") {
+      const index = Number.isInteger(b.index) && (b.index as number) >= 0 ? (b.index as number) : 0;
+      const row = await readMediaRow(ctx.db, ctx.tenantId, ctx.userId, job.table, job.rowId);
+      if (row === "error") return json(500, { ok: false, error: "Kayıt okunamadı." });
+      if (!row) return json(404, { ok: false, error: "Kayıt bulunamadı." });
+      const def = MEDIA_SOURCES[job.table];
+      const { items, rejected } = extractMedia(def, row, ctx.tenantId);
+      const meta = { total: items.length, rejected };
+      if (index >= items.length) return json(200, { ok: true, empty: true, ...meta });
+      const item = items[index];
+      const name = mediaFileName(def, row, item, index);
+      if (item.kind === "data") {
+        return {
+          kind: "file",
+          bytes: new Uint8Array(Buffer.from(item.base64, "base64")),
+          fileName: name,
+          contentType: item.mime,
+          headers: { "X-Archive-Media-Total": String(items.length), "X-Archive-Media-Rejected": String(rejected) },
+        };
+      }
+      const signed = await ctx.db.storage.from(item.bucket).createSignedUrl(item.path, SIGNED_MEDIA_TTL);
+      if (signed.error || !signed.data?.signedUrl) return json(404, { ok: false, error: "Görsel depoda bulunamadı.", ...meta });
+      return json(200, { ok: true, url: signed.data.signedUrl, file_name: name, expires_in: SIGNED_MEDIA_TTL, ...meta });
+    }
     if (job.kind === "file") {
       const s = await signArchiveFile(ctx.db, ctx.tenantId, job.source, job.rowId, opts);
       if (!s.ok) return json(s.status, { ok: false, error: s.error });
@@ -130,7 +167,7 @@ export async function handleArchivePart(ctx: ArchiveCtx, body: unknown, now: Dat
       job.kind === "client_dossier"
         ? await buildClientDossier(ctx, job.clientId, opts.include.sensitive, range)
         : job.kind === "numerology_record"
-          ? await buildNumerologyRecordReport(ctx, job.clientId, job.recordId)
+          ? await buildNumerologyRecordReport(ctx, job.recordId, job.clientId)
           : job.kind === "hd_report"
             ? await buildHdReport(ctx, job.reportId)
             : job.kind === "hd_relation_report"

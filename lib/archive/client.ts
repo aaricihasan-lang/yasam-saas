@@ -30,7 +30,15 @@ export type ArchiveDeps = {
   now?(): Date;
   retries?: number;
   concurrency?: number;
+  /**
+   * Cilt sınırı (bayt). Arşiv bu boyuta ulaşınca cilt kapatılır ve `onVolume` ile hemen teslim edilir (tarayıcı belleği
+   * ve ZIP'in 4 GB sınırı aşılmaz). Varsayılan 1,5 GiB. Son cilt `parts` olarak döner.
+   */
+  maxVolumeBytes?: number;
+  onVolume?(volume: { index: number; fileName: string; parts: Uint8Array[]; bytes: number }): void | Promise<void>;
 };
+
+export const DEFAULT_VOLUME_BYTES = 1.5 * 1024 * 1024 * 1024;
 
 export type ArchiveProgress = {
   done: number;
@@ -54,7 +62,10 @@ export type JobOutcome = {
 export type ArchiveRunResult = {
   status: "complete" | "partial" | "failed" | "cancelled";
   fileName: string;
+  /** Son cildin parçaları (tek ciltli arşivde arşivin tamamı). */
   parts: Uint8Array[];
+  /** Toplam cilt sayısı (1 → bölünmemiş arşiv). */
+  volumes: number;
   outcomes: JobOutcome[];
   counts: { ok: number; failed: number; skipped: number; records: number; bytes: number; files: number };
   durationMs: number;
@@ -88,7 +99,26 @@ export async function runArchive(plan: ArchivePlanResponse, deps: ArchiveDeps): 
   const retries = deps.retries ?? 2;
   const concurrency = Math.max(1, Math.min(4, deps.concurrency ?? 2));
   const root = safeFileName(`Yaşam Arşivi ${plan.created_at.slice(0, 10)}`);
-  const zip = new ZipWriter(now());
+  const maxVolume = Math.max(1, deps.maxVolumeBytes ?? DEFAULT_VOLUME_BYTES);
+  let zip = new ZipWriter(now());
+  let volume = 1;
+  let totalBytes = 0;
+  const volumeName = (n: number) => plan.file_name.replace(/\.zip$/i, `-cilt-${n}.zip`);
+  // Cilt devri: mevcut cilt boş değilse kapatılır, teslim edilir; sonraki dosyalar yeni cilde yazılır.
+  let rotating: Promise<void> = Promise.resolve();
+  const rotateIfNeeded = async (incoming: number) => {
+    await rotating;
+    if (zip.entryCount === 0 || zip.bytesWritten + incoming + 1024 <= maxVolume) return;
+    const done = zip;
+    const idx = volume;
+    zip = new ZipWriter(now());
+    volume++;
+    done.addText(`${root}/CİLT-${idx}.txt`, `Bu dosya arşivin ${idx}. cildidir. Ciltlerin tamamı aynı klasöre açılabilir; BENİOKU.txt ve ARŞİV-RAPORU.txt son ciltte yer alır.\r\n`);
+    const parts = done.finish();
+    totalBytes += done.bytesWritten;
+    rotating = Promise.resolve(deps.onVolume?.({ index: idx, fileName: volumeName(idx), parts, bytes: done.bytesWritten })).then(() => undefined);
+    await rotating;
+  };
   const outcomes: JobOutcome[] = [];
   const progress: ArchiveProgress = { done: 0, total: plan.jobs.length, current: "", ok: 0, failed: 0, skipped: 0, records: 0, bytes: 0 };
   const emit = () => deps.onProgress?.({ ...progress });
@@ -123,7 +153,8 @@ export async function runArchive(plan: ArchivePlanResponse, deps: ArchiveDeps): 
     }
   };
 
-  const addFile = (folder: string, name: string, bytes: Uint8Array): string => {
+  const addFile = async (folder: string, name: string, bytes: Uint8Array): Promise<string> => {
+    await rotateIfNeeded(bytes.length);
     const path = zip.add(`${root}/${folder}/${name}`, bytes);
     progress.bytes += bytes.length;
     return path;
@@ -148,7 +179,7 @@ export async function runArchive(plan: ArchivePlanResponse, deps: ArchiveDeps): 
           state = j.next ?? null;
         } else {
           const name = decodeHeader(r.header("X-Archive-File-Name")) || `${job.label}.docx`;
-          out.files.push(addFile(job.folder, name, await r.bytes()));
+          out.files.push(await addFile(job.folder, name, await r.bytes()));
           out.rows += Number(r.header("X-Archive-Rows") ?? "0") || 0;
           const errs = decodeHeader(r.header("X-Archive-Errors"));
           if (errs) errors.push(errs);
@@ -160,6 +191,51 @@ export async function runArchive(plan: ArchivePlanResponse, deps: ArchiveDeps): 
       if (errors.length > 0 || out.rows !== job.expected) {
         out.status = "failed";
         out.message = [`${out.rows} / ${job.expected} kayıt arşivlendi`, ...errors].join(" · ");
+      }
+      return out;
+    }
+    if (job.kind === "media") {
+      let total = 1;
+      let rejected = 0;
+      for (let index = 0; index < total && index < 10_000; index++) {
+        const r = await request({ ...body, index });
+        if (r.isFile) {
+          total = Number(r.header("X-Archive-Media-Total") ?? "1") || 1;
+          rejected = Number(r.header("X-Archive-Media-Rejected") ?? "0") || 0;
+          const name = decodeHeader(r.header("X-Archive-File-Name")) || `${job.label} (${index + 1})`;
+          out.files.push(await addFile(job.folder, name, await r.bytes()));
+          continue;
+        }
+        const j = (await r.json()) as { ok?: boolean; empty?: boolean; url?: string; file_name?: string; total?: number; rejected?: number; error?: string };
+        if (typeof j?.total === "number") total = j.total;
+        if (typeof j?.rejected === "number") rejected = j.rejected;
+        if (!j?.ok) {
+          out.status = "failed";
+          out.message = String(j?.error ?? `Hata (${r.status}).`);
+          return out;
+        }
+        if (j.empty || !j.url) break;
+        let got = false;
+        let lastErr = "Görsel indirilemedi.";
+        for (let attempt = 0; attempt <= retries && !got; attempt++) {
+          try {
+            out.files.push(await addFile(job.folder, j.file_name || `${job.label} (${index + 1})`, await deps.getFile(j.url, deps.signal)));
+            got = true;
+          } catch (e) {
+            lastErr = (e as Error)?.message || lastErr;
+            if (deps.signal?.aborted) break;
+            await sleep(1000 * (attempt + 1));
+          }
+        }
+        if (!got) {
+          out.status = "failed";
+          out.message = lastErr;
+          return out;
+        }
+      }
+      if (rejected > 0) {
+        out.status = "failed";
+        out.message = `${rejected} görsel bağlantısı bu hesaba ait olarak doğrulanamadı ve arşive alınmadı (kayıt JSON yedekte).`;
       }
       return out;
     }
@@ -181,7 +257,7 @@ export async function runArchive(plan: ArchivePlanResponse, deps: ArchiveDeps): 
       for (let attempt = 0; attempt <= retries; attempt++) {
         try {
           const bytes = await deps.getFile(j.url, deps.signal);
-          out.files.push(addFile(job.folder, j.file_name || job.label, bytes));
+          out.files.push(await addFile(job.folder, j.file_name || job.label, bytes));
           return out;
         } catch (e) {
           lastErr = (e as Error)?.message || lastErr;
@@ -200,7 +276,7 @@ export async function runArchive(plan: ArchivePlanResponse, deps: ArchiveDeps): 
       return out;
     }
     const name = decodeHeader(r.header("X-Archive-File-Name")) || `${job.label}.docx`;
-    out.files.push(addFile(job.folder, name, await r.bytes()));
+    out.files.push(await addFile(job.folder, name, await r.bytes()));
     const note = decodeHeader(r.header("X-Archive-Note"));
     if (note) out.message = note;
     return out;
@@ -238,22 +314,34 @@ export async function runArchive(plan: ArchivePlanResponse, deps: ArchiveDeps): 
   const failed = outcomes.filter((o) => o.status === "failed").length;
   const ok = outcomes.filter((o) => o.status === "ok").length;
   const skipped = outcomes.filter((o) => o.status === "skipped").length;
-  const status: ArchiveRunResult["status"] = cancelled ? "cancelled" : failed === 0 ? "complete" : ok === 0 && plan.jobs.length > 0 ? "failed" : "partial";
+  // Kullanıcıya ait içerik cihaz / yetki nedeniyle dışarıda kaldıysa (plan.restricted veya atlanan iş) arşiv TAMAMLANDI
+  // gösterilmez → EKSİK (gerekçe BENİOKU / ARŞİV-RAPORU'nda).
+  const restricted = (plan.restricted?.length ?? 0) > 0 || skipped > 0;
+  const status: ArchiveRunResult["status"] = cancelled
+    ? "cancelled"
+    : failed === 0 && !restricted
+      ? "complete"
+      : ok === 0 && failed > 0
+        ? "failed"
+        : "partial";
   const endedAt = now();
   zip.addText(`${root}/BENİOKU.txt`, readme(plan, status, endedAt));
   zip.addText(`${root}/ARŞİV-RAPORU.txt`, runReport(plan, outcomes, status, queue.length));
+  await rotating;
   const parts = zip.finish();
+  totalBytes += zip.bytesWritten;
   return {
     status,
-    fileName: plan.file_name,
+    fileName: volume > 1 ? volumeName(volume) : plan.file_name,
     parts,
+    volumes: volume,
     outcomes,
     counts: {
       ok,
       failed,
       skipped,
       records: progress.records,
-      bytes: zip.bytesWritten,
+      bytes: totalBytes,
       files: outcomes.reduce((s, o) => s + o.files.length, 0),
     },
     durationMs: endedAt.getTime() - started,
@@ -262,7 +350,7 @@ export async function runArchive(plan: ArchivePlanResponse, deps: ArchiveDeps): 
 
 const STATUS_TR: Record<ArchiveRunResult["status"], string> = {
   complete: "TAMAMLANDI — planlanan her parça arşive yazıldı.",
-  partial: "EKSİK — bazı parçalar alınamadı; ayrıntı ARŞİV-RAPORU.txt dosyasında.",
+  partial: "EKSİK — bazı parçalar alınamadı veya cihaz / yetki nedeniyle dışarıda kaldı; ayrıntı ARŞİV-RAPORU.txt dosyasında.",
   failed: "BAŞARISIZ — hiçbir parça alınamadı.",
   cancelled: "İPTAL EDİLDİ — arşiv yarım kaldı; yalnız alınan parçalar içeridedir.",
 };
@@ -300,6 +388,13 @@ function readme(plan: ArchivePlanResponse, status: ArchiveRunResult["status"], a
     "KAPSAM DIŞI KALANLAR",
     ...(plan.excluded.length ? plan.excluded.map((e) => `- ${e.scope}: ${e.reason}`) : ["- yok"]),
   ];
+  if (plan.restricted?.length) {
+    lines.push(
+      "",
+      "SİZE AİT OLUP BU ARŞİVE ALINAMAYAN İÇERİK (arşiv bu nedenle EKSİK sayılır)",
+      ...plan.restricted.map((e) => `- ${e.scope}: ${e.reason}`),
+    );
+  }
   if (plan.warnings.length) lines.push("", "UYARILAR", ...plan.warnings.map((w) => `- ${w}`));
   return lines.join("\r\n") + "\r\n";
 }

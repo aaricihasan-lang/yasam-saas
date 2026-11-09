@@ -528,7 +528,7 @@ async function drain(db: FakeDb, module: string, o: ArchiveOptions, userId = UA)
     assert.equal(bad.status, "failed");
     assert.equal(bad.counts.ok, 0);
   });
-  await t("atlanan (yetki yok / Android HD) başarısız sayılmaz ama raporda görünür; iptal → İPTAL", async () => {
+  await t("atlanan (yetki yok / Android HD) başarısız sayılmaz ama arşiv EKSİK işaretlenir ve raporda görünür; iptal → İPTAL", async () => {
     const plan = mkPlan([
       { kind: "hd_report", reportId: uid("h"), label: "HD raporu", folder: "R" },
       { kind: "client_dossier", clientId: uid("c"), label: "Dosya", folder: "D" },
@@ -538,12 +538,123 @@ async function drain(db: FakeDb, module: string, o: ArchiveOptions, userId = UA)
       postPart: async (b) => ((b as { job: ArchiveJob }).job.kind === "hd_report" ? jsonResp(200, { ok: false, skipped: true, error: "Android" }) : fileResp("d.docx", "d")),
       getFile: async () => new Uint8Array(),
     });
-    assert.equal(res.status, "complete");
+    assert.equal(res.status, "partial", "kullanıcıya ait içerik atlandıysa arşiv TAMAMLANDI gösterilmez");
     assert.equal(res.counts.skipped, 1);
     const ctrl = new AbortController();
     ctrl.abort();
     const c = await runArchive(plan, { signal: ctrl.signal, sleep: noSleep, postPart: async () => fileResp("x", "x"), getFile: async () => new Uint8Array() });
     assert.equal(c.status, "cancelled");
+  });
+
+  await t("büyük arşiv: cilt sınırında otomatik bölünür; her cilt geçerli ZIP; dosyalar kayıpsız; BENİOKU son ciltte", async () => {
+    const jobs: ArchiveJob[] = Array.from({ length: 9 }, (_, i) => ({ kind: "client_dossier" as const, clientId: uid("cv"), label: `Dosya ${i}`, folder: "D" }));
+    const plan = mkPlan(jobs);
+    const vols: { index: number; fileName: string; parts: Uint8Array[] }[] = [];
+    const res = await runArchive(plan, {
+      sleep: noSleep,
+      concurrency: 1,
+      maxVolumeBytes: 250_000,
+      onVolume: (v) => void vols.push(v),
+      postPart: async (b) => fileResp(`${(b as { job: { label: string } }).job.label}.docx`, "x".repeat(100_000)),
+      getFile: async () => new Uint8Array(),
+    });
+    assert.equal(res.status, "complete");
+    assert.ok(res.volumes >= 3 && vols.length === res.volumes - 1, `cilt ${res.volumes}/${vols.length}`);
+    assert.ok(res.fileName.endsWith(`-cilt-${res.volumes}.zip`) && vols[0].fileName.endsWith("-cilt-1.zip"));
+    const names: string[] = [];
+    for (const v of [...vols.map((x) => x.parts), res.parts]) {
+      const z = await JSZip.loadAsync(Buffer.concat(v.map((p) => Buffer.from(p))), { checkCRC32: true });
+      const n = Object.keys(z.files);
+      assert.ok(Buffer.concat(v.map((p) => Buffer.from(p))).length <= 250_000 + 110_000, "cilt sınırı aşıldı");
+      names.push(...n);
+    }
+    for (let i = 0; i < 9; i++) assert.ok(names.some((n) => n.endsWith(`/Dosya ${i}.docx`)), `Dosya ${i} kayıp`);
+    assert.ok(names.filter((n) => n.endsWith("BENİOKU.txt")).length === 1);
+  });
+  await t("plan kısıtı (Android HD / yetki yok) → arşiv EKSİK; BENİOKU gerekçeyi yazar", async () => {
+    const plan = { ...mkPlan([{ kind: "client_dossier", clientId: uid("c"), label: "Dosya", folder: "D" }]), restricted: [{ scope: "Human Design Word raporları", reason: "Android cihazda HD Word üretilmez" }] };
+    const res = await runArchive(plan, { sleep: noSleep, postPart: async () => fileResp("d.docx", "d"), getFile: async () => new Uint8Array() });
+    assert.equal(res.status, "partial");
+    const zip = await JSZip.loadAsync(Buffer.concat(res.parts.map((p) => Buffer.from(p))));
+    const readme = await zip.file("Yaşam Arşivi 2026-11-09/BENİOKU.txt")!.async("string");
+    assert.ok(readme.includes("ALINAMAYAN") && readme.includes("Android"));
+  });
+  await t("görsel: doğrulanamayan yol varsa iş BAŞARISIZ (sessiz eksik yok)", async () => {
+    const plan = mkPlan([{ kind: "media", table: "stones", rowId: uid("st"), label: "Taş", folder: "F" }]);
+    const res = await runArchive(plan, {
+      sleep: noSleep,
+      postPart: async (b) => ((b as { index: number }).index === 0 ? jsonResp(200, { ok: true, url: "https://storage.test/x", file_name: "t (1).jpg", total: 1, rejected: 1 }) : jsonResp(200, { ok: true, empty: true, total: 1, rejected: 1 })),
+      getFile: async () => new Uint8Array([1]),
+    });
+    assert.equal(res.counts.failed, 1);
+    assert.ok(/doğrulanamadı/.test(res.outcomes[0].message ?? ""));
+  });
+
+  console.log("\nE2. Kayıt görselleri (kullanıcıya ait)");
+  const med = new FakeDb();
+  const [mc] = seedClients(med, 1);
+  const png = "data:image/png;base64," + Buffer.from([0x89, 0x50, 0x4e, 0x47, 9, 9]).toString("base64");
+  const stockRow = { id: uid("oi"), tenant_id: TA, photos: [png, png], created_at: "2026-01-01T00:00:00Z" };
+  const stoneRow = { id: uid("st"), tenant_id: TA, stone_name: "Ametist", images: [{ file_path: `catalog/${TA}/a.jpg` }, { file_path: `catalog/${TB}/yabanci.jpg` }], created_at: "2026-01-01T00:00:00Z" };
+  const otherStone = { id: uid("st"), tenant_id: TB, stone_name: "B taşı", images: [{ file_path: `catalog/${TB}/b.jpg` }] };
+  const guide = { id: uid("hg"), tenant_id: TA, title: "Rehber" };
+  const foreignGuide = { id: uid("hg"), tenant_id: TB, title: "B" };
+  const sect = { id: uid("hs"), guide_id: guide.id, title: "Bölüm", images: [{ file_path: `healing-guides/${TA}/s.jpg` }] };
+  const foreignSect = { id: uid("hs"), guide_id: foreignGuide.id, title: "B", images: [{ file_path: `healing-guides/${TB}/s.jpg` }] };
+  const wsMine = { id: uid("wa"), tenant_id: TA, user_id: UA, desktop_path: `${TA}/ofis.webp` };
+  const wsOther = { id: uid("wa"), tenant_id: TA, user_id: UA2, desktop_path: `${TA}/ofis2.webp` };
+  med.rows("oil_inventory").push(stockRow);
+  med.rows("stones").push(stoneRow, otherStone);
+  med.rows("healing_guides").push(guide, foreignGuide);
+  med.rows("healing_guide_sections").push(sect, foreignSect);
+  med.rows("expert_workspace_assets").push(wsMine, wsOther);
+  (mc as Row).profile_image_url = `https://x.supabase.co/storage/v1/object/public/client-profile/${TA}/p.jpg`;
+  const mOpt = opt({ modules: ["clients", "stones", "stok", "sifa_rehberi", "general"], include: { data: false, dossiers: false, reports: false, files: true, sensitive: false } });
+  const part = (job: Record<string, unknown>, index = 0, c: ArchiveCtx = ctxOf(med), o: ArchiveOptions = mOpt) => handleArchivePart(c, { options: o, job, index });
+  await t("gömülü stok fotoğrafı → dosya (gerçek bayt, görsel türü); sayısı doğru", async () => {
+    const r = await part({ kind: "media", table: "oil_inventory", rowId: stockRow.id }, 1);
+    assert.equal(r.kind, "file", JSON.stringify((r as { body?: unknown }).body));
+    const f = r as { bytes: Uint8Array; contentType?: string; headers: Record<string, string>; fileName: string };
+    assert.equal(f.contentType, "image/png");
+    assert.equal(f.headers["X-Archive-Media-Total"], "2");
+    assert.equal(Buffer.from(f.bytes).toString("hex"), "89504e470909");
+    assert.ok(f.fileName.endsWith("(2).png"));
+  });
+  await t("taş kataloğu: kendi yolu → 60 sn imzalı bağlantı; aynı satırdaki yabancı yol reddedilir ve sayılır", async () => {
+    const r = await part({ kind: "media", table: "stones", rowId: stoneRow.id });
+    const b = (r as { body: Record<string, unknown> }).body;
+    assert.equal(b.ok, true);
+    assert.equal(b.total, 1);
+    assert.equal(b.rejected, 1);
+    assert.ok(med.signed.at(-1) === `dogaltas-photos:catalog/${TA}/a.jpg:60`, med.signed.at(-1));
+  });
+  await t("başka tenant'ın taşı / Şifa Rehberi bölümü → 404; kendi bölümü → imzalı bağlantı", async () => {
+    assert.equal(((await part({ kind: "media", table: "stones", rowId: otherStone.id })) as { status: number }).status, 404);
+    assert.equal(((await part({ kind: "media", table: "healing_guide_sections", rowId: foreignSect.id })) as { status: number }).status, 404);
+    const ok = (await part({ kind: "media", table: "healing_guide_sections", rowId: sect.id })) as { body: Record<string, unknown> };
+    assert.equal(ok.body.ok, true);
+    assert.ok(med.signed.at(-1) === `stone-photos:healing-guides/${TA}/s.jpg:60`);
+  });
+  await t("Kişisel Ofis görseli kullanıcı bazlı: aynı tenant'taki başka kullanıcınınki → 404", async () => {
+    assert.equal(((await part({ kind: "media", table: "expert_workspace_assets", rowId: wsOther.id })) as { status: number }).status, 404);
+    const mine = (await part({ kind: "media", table: "expert_workspace_assets", rowId: wsMine.id })) as { body: Record<string, unknown> };
+    assert.equal(mine.body.ok, true);
+  });
+  await t("profil fotoğrafı (kendi tenant önekli depolama URL'si) → imzalı bağlantı; danışan seçiminde yalnız seçili danışan", async () => {
+    const r = (await part({ kind: "media", table: "clients", rowId: mc.id })) as { body: Record<string, unknown> };
+    assert.equal(r.body.ok, true);
+    assert.ok(med.signed.at(-1) === `client-profile:${TA}/p.jpg:60`, med.signed.at(-1));
+    const filtered = await part({ kind: "media", table: "stones", rowId: stoneRow.id }, 0, ctxOf(med), { ...mOpt, clientIds: [String(mc.id)] });
+    assert.equal((filtered as { status: number }).status, 403);
+  });
+  await t("plan: kullanıcı görselleri iş olarak listelenir; ortak kataloglar ayrı 'kapsam dışı' sınıflandırılır", async () => {
+    const r = await handleArchivePlan(ctxOf(med), { options: mOpt });
+    const plan = (r as unknown as { body: ArchivePlanResponse }).body;
+    const media = plan.jobs.filter((j) => j.kind === "media") as Extract<ArchiveJob, { kind: "media" }>[];
+    const tables = new Set(media.map((j) => j.table));
+    for (const tname of ["oil_inventory", "stones", "healing_guide_sections", "expert_workspace_assets", "clients"]) assert.ok(tables.has(tname), `${tname} planda yok: ${[...tables].join()}`);
+    assert.ok(!media.some((j) => j.rowId === otherStone.id || j.rowId === foreignSect.id || j.rowId === wsOther.id), "başka tenant / kullanıcı satırı planda");
+    for (const s2 of ["Doğaltaş Kütüphanesi görselleri", "Mağaza ürün görselleri", "HD Hazır Eğitim Haritaları"]) assert.ok(plan.excluded.some((e) => e.scope === s2), s2);
   });
 
   console.log("\nF. Denetim kaydı");
@@ -582,12 +693,37 @@ async function drain(db: FakeDb, module: string, o: ArchiveOptions, userId = UA)
     assert.ok(xml.includes("Ayşe0") && xml.includes("Genel not") && xml.includes("Numeroloji — Kayıtlı Analiz"), `içerik eksik: ${xml.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").slice(0, 1500)}`);
     assert.deepEqual(rep.writes, []);
   });
-  await t("Numeroloji kaydı: yalnız Numeroloji bölümü, kayıtlı snapshot (motor yok); yetki yoksa ATLANIR", async () => {
-    const r = await handleArchivePart(ctxOf(rep), { options: dOpts, job: { kind: "numerology_record", clientId: rc.id, recordId: nrec.id } });
+  await t("Numeroloji (bağlı + BAĞSIZ kayıt): modülün kendi Word üreticisi, kayıtlı snapshot; Zamanlama yok; hesap motoru çağrılmaz", async () => {
+    const { hesaplaNumeroloji } = await import("../../lib/numeroloji");
+    // Fikstür: kaydedilmiş analiz (test ortamında bir kez üretilir); rapor YALNIZ bu kayıtlı anlık görüntüden okunur.
+    const motor = hesaplaNumeroloji({ firstName: "Elif", lastName: "Kaya", birthDate: "14.02.1987" });
+    const loose = { id: uid("nl"), tenant_id: TA, client_id: null, name: "Elif", surname: "Kaya", birth_date: "1987-02-14", created_at: "2026-05-02T10:00:00Z", analysis_data: { version: 1, motor, summary: "KAYITLI-OZET-BAGSIZ" } };
+    rep.rows("numerology_records").push(loose);
+    // Yeniden hesap olmadığının kanıtı: kayıtlı anlık görüntüye motorun ASLA üretemeyeceği bir değer yazılır
+    // (İfade Sayısı 4444). Rapor bu değeri gösterirse kaynak kayıttır; motor yeniden çalışsaydı gerçek değer çıkardı.
+    // (geçerli aralıkta ama motorun bu isim/doğum için üretmediği İfade Sayısı → rapor kayıttaki değeri göstermeli).
+    const realIfade = (motor as unknown as { ifadeSayisi: { display: string; key: string } }).ifadeSayisi;
+    const savedIfade = realIfade.display === "5" ? 6 : 5;
+    (loose.analysis_data.motor as unknown as Record<string, unknown>).ifadeSayisi = { ...realIfade, display: String(savedIfade), key: String(savedIfade) };
+    const r = await handleArchivePart(ctxOf(rep), { options: dOpts, job: { kind: "numerology_record", clientId: null, recordId: loose.id } });
     assert.equal(r.kind, "file", JSON.stringify((r as { body?: unknown }).body));
-    assert.ok((r as { fileName: string }).fileName.startsWith("Numeroloji — Ayşe0 Öztürk"));
-    const noPerm = await handleArchivePart(ctxOf(rep, { profile: { role: "expert", module_permissions: { clients: true } } }), { options: dOpts, job: { kind: "numerology_record", clientId: rc.id, recordId: nrec.id } });
+    const xml = await docXml((r as { bytes: Uint8Array }).bytes);
+    assert.ok((r as { fileName: string }).fileName.startsWith("Numeroloji — Elif Kaya"));
+    const text = xml.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ");
+    const shown = /İFADE SAYISI (\d+)/.exec(text)?.[1];
+    assert.ok(text.includes("Elif Kaya") && text.includes("KAYITLI-OZET-BAGSIZ"), `kayıtlı içerik yok: ${text.slice(0, 600)}`);
+    assert.equal(Number(shown), savedIfade, `İfade Sayısı kayıttaki değer (${savedIfade}) değil, gösterilen ${shown} — yeniden hesap?`);
+    assert.ok(!/Zamanlama &amp; Gelişim|Zamanlama & Gelişim/.test(xml), "Zamanlama bölümü arşive girmemeli");
+    const linked = await handleArchivePart(ctxOf(rep), { options: dOpts, job: { kind: "numerology_record", clientId: rc.id, recordId: nrec.id } });
+    assert.ok(linked.kind === "file" || (linked as unknown as { body: { skipped: boolean } }).body.skipped === true, JSON.stringify((linked as { body?: unknown }).body));
+    const wrongClient = await handleArchivePart(ctxOf(rep), { options: dOpts, job: { kind: "numerology_record", clientId: rc.id, recordId: loose.id } });
+    assert.equal((wrongClient as { status: number }).status, 404, "kayıt başka danışana bağlıymış gibi istenemez");
+    const filtered = await handleArchivePart(ctxOf(rep), { options: { ...dOpts, clientIds: [String(rc.id)] }, job: { kind: "numerology_record", clientId: null, recordId: loose.id } });
+    assert.equal((filtered as { status: number }).status, 403, "danışan seçiminde bağsız kayıt kapsam dışı");
+    const noPerm = await handleArchivePart(ctxOf(rep, { profile: { role: "expert", module_permissions: { clients: true } } }), { options: dOpts, job: { kind: "numerology_record", clientId: null, recordId: loose.id } });
     assert.equal((noPerm as unknown as { body: { skipped: boolean } }).body.skipped, true);
+    const other = await handleArchivePart(ctxOf(rep, { tenantId: TB }), { options: dOpts, job: { kind: "numerology_record", clientId: null, recordId: loose.id } });
+    assert.equal((other as { status: number }).status, 404);
   });
   await t("HD profesyonel raporu (v1 snapshot): açılabilir Word; Android'de ATLANIR; başka tenant → 404", async () => {
     const { buildReportSnapshot } = await import("../../lib/human-design/reporting/reportSnapshot");
@@ -607,14 +743,14 @@ async function drain(db: FakeDb, module: string, o: ArchiveOptions, userId = UA)
     const other = await handleArchivePart(ctxOf(rep, { tenantId: TB }), { options: dOpts, job: { kind: "hd_report", reportId: rid } });
     assert.equal((other as { status: number }).status, 404);
   });
-  await t("plan: danışan dosyası / Numeroloji / HD işleri listelenir; Android'de HD kapsam dışı yazılır", async () => {
+  await t("plan: danışan dosyası / Numeroloji / HD işleri listelenir; Android'de HD kısıtlı içerik olarak (arşiv EKSİK) yazılır", async () => {
     const r = await handleArchivePlan(ctxOf(rep), { options: dOpts });
     const plan = (r as unknown as { body: ArchivePlanResponse }).body;
     const kinds = plan.jobs.map((j) => j.kind);
     assert.ok(kinds.includes("client_dossier") && kinds.includes("numerology_record") && kinds.includes("hd_report"), kinds.join());
     const a = await handleArchivePlan(ctxOf(rep, { isAndroid: true }), { options: dOpts });
     const ap = (a as unknown as { body: ArchivePlanResponse }).body;
-    assert.ok(!ap.jobs.some((j) => j.kind === "hd_report") && ap.excluded.some((e) => /Android/.test(e.reason)));
+    assert.ok(!ap.jobs.some((j) => j.kind === "hd_report") && (ap.restricted ?? []).some((e) => /Android/.test(e.reason)));
   });
 
   console.log(`\narchive harness: ${pass} PASS / ${fail} FAIL`);

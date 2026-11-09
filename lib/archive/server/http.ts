@@ -49,11 +49,11 @@ export async function runArchiveRoute(
       headers: {
         ...NO_STORE,
         ...r.headers,
-        "Content-Type": DOCX,
+        "Content-Type": r.contentType ?? DOCX,
         "Content-Length": String(r.bytes.byteLength),
         "Content-Disposition": `attachment; filename="${ascii}"; filename*=UTF-8''${encodeURIComponent(r.fileName)}`,
         "X-Archive-File-Name": encodeURIComponent(r.fileName),
-        "Access-Control-Expose-Headers": "X-Archive-Next, X-Archive-Rows, X-Archive-Errors, X-Archive-Note, X-Archive-File-Name",
+        "Access-Control-Expose-Headers": "X-Archive-Next, X-Archive-Rows, X-Archive-Errors, X-Archive-Note, X-Archive-File-Name, X-Archive-Media-Total, X-Archive-Media-Rejected",
       },
     });
   } catch (err) {

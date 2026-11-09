@@ -37,6 +37,17 @@ import {
   type ClientReportSection,
 } from "@/app/api/clients/[id]/word-report/clientReportBuilder";
 import { SAVED_NUMEROLOGY_COLUMNS, type SavedNumerologyRow } from "@/app/api/clients/[id]/word-report/numerologySavedSection";
+import { readAllPaged } from "@/lib/db/readAllPaged";
+import {
+  buildNumerolojiWordChildren,
+  packNumerolojiDocx,
+  type WordRecordRow,
+  type WordSharedData,
+  type WordStoneRow,
+} from "@/app/numeroloji/bilgi-bankasi/helpers/wordDocxBuild";
+import type { SourceEntryRow } from "@/app/numeroloji/bilgi-bankasi/helpers/sourceEntryUiLogic";
+import type { KnowledgeRecordRow } from "@/app/numeroloji/bilgi-bankasi/helpers/bilgiBankaKayit";
+import { buildStockIndex, type StockIndex } from "@/app/numeroloji/bilgi-bankasi/helpers/stoneStockLogic";
 import { loadAnamnezForReport, loadBeslenmeForReport } from "@/app/api/clients/[id]/word-report/sensitiveData";
 import { loadHdReportLogo } from "@/lib/human-design/reporting/reportBrandAssets";
 import { getCanonicalReportForDownload } from "@/lib/human-design/api/reportPersistence";
@@ -70,6 +81,8 @@ export type ReportOutcome =
   | { ok: false; status: number; error: string; skipped?: boolean };
 
 const HD_BUCKET = "hd-chart-images";
+/** Arşivdeki Numeroloji Word bölümleri: Zamanlama & Gelişim (bugüne göre hesap) HARİÇ. */
+export const NUMEROLOGY_ARCHIVE_SECTIONS = { summary: true, plain: true, detailed: true, zamanlama: false, tas: true } as const;
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const ANDROID_HD = "Human Design Word raporları Android cihazda üretilmez (HD kuralı); bilgisayardan arşiv alın.";
 
@@ -152,28 +165,43 @@ export async function buildClientDossier(
   return { ok: true, bytes: new Uint8Array(await Packer.toBuffer(doc)), fileName: filename, note };
 }
 
-/** Danışana bağlı tek bir kayıtlı Numeroloji analizi (yalnız Numeroloji bölümü; kayıtlı snapshot). */
-export async function buildNumerologyRecordReport(ctx: ArchiveCtx, clientId: string, recordId: string): Promise<ReportOutcome> {
-  if (!isUuid(clientId) || !isUuid(recordId)) return fail(400, "Geçersiz kayıt.");
+/**
+ * Kayıtlı Numeroloji analizi — Numeroloji modülünün KENDİ Word üreticisi (/api/numeroloji/word-report ile aynı
+ * buildNumerolojiWordChildren + packNumerolojiDocx). Danışana bağlı olsun olmasın her kayıt için.
+ * Bölümler: Sonuç Özeti, Analiz (Hesap Özetsiz / Özetli), Taş Açıklamaları — hepsi kaydın analysis_data anlık
+ * görüntüsünden (resolveRecordMotor) ve uzmanın bilgi bankası / taş atamalarından okunur. "Zamanlama & Gelişim"
+ * bugüne göre motorla HESAPLANDIĞI için arşive alınmaz (yeni hesap yok; Roxy yok).
+ */
+export async function buildNumerologyRecordReport(ctx: ArchiveCtx, recordId: string, clientId: string | null): Promise<ReportOutcome> {
+  if (!isUuid(recordId) || (clientId !== null && !isUuid(clientId))) return fail(400, "Geçersiz kayıt.");
   if (!perm(ctx, "numerology")) return fail(403, "Numeroloji modülü yetkisi yok.", true);
   const { db, tenantId } = ctx;
-  const { data: nr, error } = await db.from("numerology_records").select(SAVED_NUMEROLOGY_COLUMNS).eq("tenant_id", tenantId).eq("client_id", clientId).eq("id", recordId).maybeSingle();
+  const { data: row, error } = await db.from("numerology_records").select("*").eq("tenant_id", tenantId).eq("id", recordId).maybeSingle();
   if (error) return fail(500, "Numeroloji kaydı okunamadı.");
-  if (!nr) return fail(404, "Numeroloji kaydı bulunamadı.");
-  const data = await loadClientDataset(db, tenantId, clientId);
-  if (!data) return fail(404, "Danışan bulunamadı.");
-  const rctx: ClientReportCtx = { expertName: expertDisplayName(ctx.profile), logo: await loadHdReportLogo(), sections: ["numeroloji"], variant: "custom" };
-  const input = {
-    data,
-    profileImg: null,
-    numerologyRecord: nr as unknown as SavedNumerologyRow,
-    numerologyFutureYears: canSeeNumerologyFutureYears(ctx.profile),
-  };
-  const { doc } = buildClientFullReport(input, rctx);
-  const row = nr as unknown as SavedNumerologyRow;
-  const who = [row.name, row.surname].filter(Boolean).join(" ").trim() || "Numeroloji";
-  const day = zonedDayKey(row.created_at ?? "") || reportFileDate();
-  return { ok: true, bytes: new Uint8Array(await Packer.toBuffer(doc)), fileName: `Numeroloji — ${who} — ${day}.docx` };
+  if (!row) return fail(404, "Numeroloji kaydı bulunamadı.");
+  if (clientId !== null && String((row as Record<string, unknown>).client_id ?? "") !== clientId) return fail(404, "Numeroloji kaydı bulunamadı.");
+  const sections = { ...NUMEROLOGY_ARCHIVE_SECTIONS };
+  const shared: WordSharedData = { knowledgeRows: [], entries: [], sourceLabelById: new Map(), stoneRows: [] };
+  const [kRes, seRes, srcRes, stRes, invRes] = await Promise.all([
+    readAllPaged((f, t) => db.from("numerology_knowledge_records").select("*", { count: "exact" }).eq("tenant_id", tenantId).order("id").range(f, t)),
+    readAllPaged((f, t) => db.from("numerology_knowledge_source_entries").select("*", { count: "exact" }).eq("tenant_id", tenantId).eq("include_in_analysis", true).order("id").range(f, t)),
+    readAllPaged((f, t) => db.from("numerology_sources").select("id, display_label", { count: "exact" }).eq("tenant_id", tenantId).order("id").range(f, t)),
+    readAllPaged((f, t) => db.from("numerology_stone_assignments").select("id, analysis_type, value, reason, stones", { count: "exact" }).eq("tenant_id", tenantId).order("id").range(f, t)),
+    readAllPaged((f, t) => db.from("dogaltas_inventory").select("name, adet", { count: "exact" }).eq("tenant_id", tenantId).order("name").range(f, t)),
+  ]);
+  if (kRes.error || seRes.error || srcRes.error || stRes.error) return fail(500, "Numeroloji bilgi bankası okunamadı.");
+  shared.knowledgeRows = kRes.rows as KnowledgeRecordRow[];
+  shared.entries = seRes.rows as SourceEntryRow[];
+  for (const x of srcRes.rows as { id: string; display_label: string }[]) shared.sourceLabelById.set(x.id, x.display_label);
+  shared.stoneRows = stRes.rows as WordStoneRow[];
+  const stock: StockIndex = buildStockIndex((invRes.error ? [] : invRes.rows) as { name?: unknown; adet?: unknown }[]);
+  const rec = row as unknown as WordRecordRow;
+  const { children, anyContent } = buildNumerolojiWordChildren([rec], sections, shared, stock, null, new Date(), canSeeNumerologyFutureYears(ctx.profile));
+  if (!anyContent) return fail(204, "Numeroloji kaydında Word'e aktarılacak içerik yok.", true);
+  const who = `${rec.name ?? ""} ${rec.surname ?? ""}`.trim();
+  const buffer = await packNumerolojiDocx(children, who, { expertName: expertDisplayName(ctx.profile) });
+  const day = zonedDayKey(rec.created_at ?? "") || reportFileDate();
+  return { ok: true, bytes: new Uint8Array(buffer), fileName: `Numeroloji — ${who || "kayıt"} — ${day}.docx` };
 }
 
 /** HD profesyonel raporu (donmuş snapshot) — /api/hd/reports/professional/download ile aynı kurallar. */

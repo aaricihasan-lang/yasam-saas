@@ -41,11 +41,13 @@ export type ArchiveFileSource = "analysis_image" | "stone_photo" | "anamnez_pdf"
 export type ArchiveJob =
   | { kind: "data"; module: string; label: string; folder: string; expected: number }
   | { kind: "client_dossier"; clientId: string; label: string; folder: string }
-  | { kind: "numerology_record"; clientId: string; recordId: string; label: string; folder: string }
+  | { kind: "numerology_record"; clientId: string | null; recordId: string; label: string; folder: string }
   | { kind: "hd_report"; reportId: string; label: string; folder: string }
   | { kind: "hd_relation_report"; reportId: string; label: string; folder: string }
   | { kind: "astro_report"; analysisId: string; label: string; folder: string }
-  | { kind: "file"; source: ArchiveFileSource; rowId: string; index: number; label: string; folder: string };
+  | { kind: "file"; source: ArchiveFileSource; rowId: string; index: number; label: string; folder: string }
+  /** Kayda bağlı kullanıcı görselleri (depolama yolu veya gömülü data: URI) — satır başına, görsel görsel indirilir. */
+  | { kind: "media"; table: string; rowId: string; label: string; folder: string };
 
 export type ArchiveScopeNote = { scope: string; reason: string };
 
@@ -61,6 +63,11 @@ export type ArchivePlanResponse = {
   summary: { module: string; label: string; records: number; tables: { label: string; records: number }[] }[];
   /** Kapsam dışı kalanlar (gerekçeli; arayüz ve arşivdeki BENİOKU dosyası bunları açıkça yazar). */
   excluded: ArchiveScopeNote[];
+  /**
+   * Kullanıcıya AİT olup cihaz / yetki nedeniyle arşive alınamayan içerik (ör. Android'de HD Word, modül yetkisi yok).
+   * Boş değilse arşiv "tamamlandı" gösterilmez (EKSİK + gerekçe).
+   */
+  restricted?: ArchiveScopeNote[];
   warnings: string[];
 };
 

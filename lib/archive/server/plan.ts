@@ -8,7 +8,7 @@ import { randomUUID } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { assertServerOnly } from "@/lib/server/serverOnlyGuard";
 import { hasModulePermissionForProfile } from "@/lib/auth/modulePermissions";
-import { MODULE_LABELS } from "@/lib/backup/registry";
+import { getRegistryEntry, MODULE_LABELS } from "@/lib/backup/registry";
 import { isAstrologyModuleEnabled } from "@/lib/astrology/config";
 import { reportFileDate } from "@/lib/time/reportTime";
 import { safeFileName } from "../zip";
@@ -22,8 +22,9 @@ import {
   nextDay,
 } from "../scope";
 import { ARCHIVE_MAX_JOBS, ARCHIVE_PLAN_VERSION, type ArchiveFileSource, type ArchiveJob, type ArchiveOptions, type ArchivePlanResponse } from "../types";
-import { planModuleData } from "./data";
+import { planModuleData, tableScope } from "./data";
 import { archiveFileName, FILE_SOURCES, listFileRows } from "./files";
+import { extractMedia, MEDIA_NOT_ARCHIVED, MEDIA_SOURCES, mediaFolderLabel, mediaModuleOf } from "./media";
 import type { ArchiveCtx } from "./reports";
 
 assertServerOnly("lib/archive/server/plan");
@@ -82,6 +83,8 @@ export async function buildArchivePlan(ctx: ArchiveCtx, opts: ArchiveOptions, no
   const { db, tenantId, userId } = ctx;
   const jobs: ArchiveJob[] = [];
   const excluded: ArchivePlanResponse["excluded"] = [];
+  /** Kullanıcıya ait olup cihaz / yetki nedeniyle alınamayan içerik → arşiv EKSİK sayılır. */
+  const restricted: ArchivePlanResponse["excluded"] = [];
   const warnings: string[] = [];
   const summary: ArchivePlanResponse["summary"] = [];
   const perm = (k: Parameters<typeof hasModulePermissionForProfile>[1]) => hasModulePermissionForProfile(ctx.profile, k);
@@ -134,30 +137,38 @@ export async function buildArchivePlan(ctx: ArchiveCtx, opts: ArchiveOptions, no
 
   // 3) Hazır analiz raporları
   if (opts.include.reports) {
-    // Numeroloji: danışana BAĞLI kayıtlı analizler (bağsız kayıtlar veri dökümünde).
+    // Numeroloji: TÜM kayıtlı analizler (danışana bağlı → danışan klasörü; bağsız → "Danışan bağı olmayan").
+    // Numeroloji modülünün kendi Word üreticisi; danışan seçiliyken yalnız seçili danışanlara bağlı kayıtlar.
     if (has("numerology")) {
       if (!perm("numerology")) {
-        excluded.push({ scope: "Numeroloji raporları", reason: "Numeroloji modülü yetkisi yok" });
+        restricted.push({ scope: "Numeroloji hazır raporları", reason: "Numeroloji modülü yetkiniz kapalı (kayıtlar Kayıt Dökümü'nde var)" });
       } else {
         const r = await listRows(db, "numerology_records", "id, client_id, name, surname, created_at", (q) => {
-          let x = dateScope(q.eq("tenant_id", tenantId).not("client_id", "is", null), opts);
+          let x = dateScope(q.eq("tenant_id", tenantId), opts);
           if (opts.clientIds) x = x.in("client_id", opts.clientIds);
           return x;
         }, ARCHIVE_MAX_JOBS);
         if (r.error) warnings.push(`Numeroloji kayıtları listelenemedi (${r.error}).`);
         for (const n of r.rows) {
           const who = [n.name, n.surname].filter(Boolean).join(" ") || "kayıt";
-          push({ kind: "numerology_record", clientId: String(n.client_id), recordId: String(n.id), label: `Numeroloji — ${who}`, folder: `${REPORTS_FOLDER}/Numeroloji/${clientFolder(n.client_id)}` });
+          const linked = n.client_id ? String(n.client_id) : null;
+          push({
+            kind: "numerology_record",
+            clientId: linked,
+            recordId: String(n.id),
+            label: `Numeroloji — ${who}`,
+            folder: `${REPORTS_FOLDER}/Numeroloji/${linked ? clientFolder(linked) : "Danışan bağı olmayan"}`,
+          });
         }
-        excluded.push({ scope: "Numeroloji — danışana bağlı olmayan kayıtlar", reason: "hazır Word raporu tarayıcıda üretilir; kayıtları Kayıt Dökümü'ndedir" });
+        excluded.push({ scope: "Numeroloji — Zamanlama & Gelişim bölümü", reason: "bugüne göre yeniden hesaplanan bölüm; arşiv yalnız kayıtlı analizi içerir" });
       }
     }
     // Human Design profesyonel raporlar + İlişki raporları
     if (has("human_design")) {
       if (ctx.isAndroid) {
-        excluded.push({ scope: "Human Design Word raporları", reason: "Android cihazda HD Word üretilmez; bilgisayardan arşiv alın" });
+        restricted.push({ scope: "Human Design Word raporları", reason: "Android cihazda HD Word üretilmez (HD kuralı); tam arşiv için bilgisayardan alın" });
       } else if (!perm("human_design")) {
-        excluded.push({ scope: "Human Design raporları", reason: "Human Design modülü yetkisi yok" });
+        restricted.push({ scope: "Human Design hazır raporları", reason: "Human Design modülü yetkiniz kapalı (kayıtlar Kayıt Dökümü'nde var)" });
       } else {
         let hdClientIds: string[] | null = null;
         const hdClientJourney = new Map<string, string>();
@@ -236,10 +247,61 @@ export async function buildArchivePlan(ctx: ArchiveCtx, opts: ArchiveOptions, no
         push({ kind: "file", source, rowId: String(row.id), index, label: archiveFileName(source, row), folder });
       });
     }
-    excluded.push({
-      scope: "Diğer görseller",
-      reason: "taş kataloğu, ürün stoku, şifa rehberi ve Kişisel Ofis görselleri bu sürümde dosya olarak eklenmez (kayıtları Word dökümünde ve JSON yedekte)",
-    });
+    // Kayda bağlı kullanıcı görselleri (taş kataloğu, Şifa Rehberi, HD harita, Kişisel Ofis, profil, stok / aromaterapi).
+    for (const def of Object.values(MEDIA_SOURCES)) {
+      const e = getRegistryEntry(def.table);
+      if (!e || !has(mediaModuleOf(def.table))) continue;
+      if (opts.clientIds && def.table !== "clients") {
+        excluded.push({ scope: def.label, reason: "danışana bağlı olmayan görsel (danışan seçimi yapıldı)" });
+        continue;
+      }
+      const sc = await tableScope(db, e, opts, new Map());
+      if (sc.skip !== null) {
+        excluded.push({ scope: def.label, reason: sc.skip });
+        continue;
+      }
+      const cols = def.inlineOnly ? "id" : ["id", ...def.columns].join(", ");
+      const owner = e.ownerScope && "column" in e.ownerScope ? e.ownerScope.column : null;
+      const narrow = (q: LooseQuery): LooseQuery => {
+        let x = q;
+        if (owner) x = x.eq(owner, userId);
+        if (def.table === "clients" && opts.clientIds) x = x.in("id", opts.clientIds);
+        for (const f of sc.filters) x = f.op === "in" ? x.in(f.column, f.values) : f.op === "gte" ? x.gte(f.column, f.value) : x.lt(f.column, f.value);
+        if (def.columns.length === 1) x = x.not(def.columns[0], "is", null);
+        return x;
+      };
+      let rows: Row[] = [];
+      let listError: string | null = null;
+      if (typeof e.tenantScope === "object") {
+        // child_of (ör. Şifa Rehberi bölümleri): yalnız BU tenant'ın ebeveynlerine bağlı satırlar okunur.
+        const scope = e.tenantScope;
+        const parents = await listRows(db, scope.parent, "id", (q) => q.eq("tenant_id", tenantId), 200_000);
+        listError = parents.error;
+        const ids = parents.rows.map((x) => String(x.id));
+        for (let k = 0; k < ids.length && !listError; k += 100) {
+          const part = await listRows(db, def.table, cols, (q) => narrow(q.in(scope.fk, ids.slice(k, k + 100))), ARCHIVE_MAX_JOBS);
+          listError = part.error;
+          rows.push(...part.rows);
+        }
+      } else {
+        const r = await listRows(db, def.table, cols, (q) => narrow(q.eq("tenant_id", tenantId)), ARCHIVE_MAX_JOBS);
+        listError = r.error;
+        rows = r.rows;
+      }
+      if (listError) {
+        warnings.push(`${def.label} listelenemedi (${listError}) — bu görseller eksik olabilir.`);
+        continue;
+      }
+      for (const row of rows) {
+        if (!def.inlineOnly && extractMedia(def, row, tenantId).items.length === 0) continue;
+        const folder =
+          def.table === "clients"
+            ? `${FILES_FOLDER}/${clientFolder(row.id)}/Profil fotoğrafı`
+            : `${FILES_FOLDER}/${safeFileName(mediaFolderLabel(def.table))}`;
+        push({ kind: "media", table: def.table, rowId: String(row.id), label: `${def.label} — ${String(row.id).slice(0, 8)}`, folder });
+      }
+    }
+    for (const n of MEDIA_NOT_ARCHIVED) excluded.push(n);
   } else {
     excluded.push({ scope: "Fotoğraf ve ek dosyalar", reason: "seçilmedi" });
   }
@@ -254,6 +316,7 @@ export async function buildArchivePlan(ctx: ArchiveCtx, opts: ArchiveOptions, no
     jobs,
     summary,
     excluded,
+    restricted,
     warnings,
   };
 }

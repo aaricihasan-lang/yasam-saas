@@ -155,9 +155,11 @@ export function ArchiveExportTab({ user }: { user: YasamUser }) {
       const res = await runArchive(runPlan, {
         signal: ctrl.signal,
         onProgress: setProgress,
+        // Büyük arşiv: her cilt (≈1,5 GB) dolunca hemen indirilir → tarayıcı belleği ve 4 GB ZIP sınırı aşılmaz.
+        onVolume: (v) => triggerBlobDownload(new Blob(v.parts as BlobPart[], { type: "application/zip" }), v.fileName),
         postPart: async (body, signal): Promise<PartResponse> => {
           const r = await fetch("/api/settings/archive/part", { method: "POST", headers: authHeaders(user), body: JSON.stringify(body), signal });
-          const isFile = (r.headers.get("Content-Type") ?? "").includes("officedocument");
+          const isFile = r.ok && r.headers.has("X-Archive-File-Name");
           return {
             status: r.status,
             isFile,
@@ -190,7 +192,7 @@ export function ArchiveExportTab({ user }: { user: YasamUser }) {
         title: STATUS_VIEW[res.status].title,
         message:
           res.status === "complete"
-            ? `${res.counts.files} dosya · ${MB(res.counts.bytes)} indirildi.`
+            ? `${res.counts.files} dosya · ${MB(res.counts.bytes)} indirildi${res.volumes > 1 ? ` (${res.volumes} cilt)` : ""}.`
             : `${res.counts.failed} parça alınamadı. Arşiv indirildi; eksikler ARŞİV-RAPORU.txt dosyasında.`,
         type: res.status === "complete" ? "success" : res.status === "partial" ? "warning" : "error",
         duration: 10000,
@@ -349,7 +351,7 @@ export function ArchiveExportTab({ user }: { user: YasamUser }) {
           {inc("data", "Kayıt dökümü (Word)", "Seçili modüllerin tüm kayıtları; büyük modüller bölümlere ayrılır.")}
           {inc("dossiers", "Danışan dosyaları", "Her danışan için Danışan Yolculuğu tam raporu.")}
           {inc("reports", "Hazır analiz raporları", "Kayıtlı HD, HD İlişki, Gökyüzü Atlası ve Numeroloji raporları.")}
-          {inc("files", "Fotoğraf ve ekler", "Analiz görselleri, taş fotoğrafları, anamnez PDF'leri, Kişisel Arşiv dosyaları (ayrı dosya).")}
+          {inc("files", "Fotoğraf ve ekler", "Danışan görselleri ve fotoğrafları, anamnez PDF'leri, Kişisel Arşiv, taş kataloğu, Şifa Rehberi, HD harita, stok ve Kişisel Ofis görselleri (ayrı dosya).")}
           {inc("sensitive", "Hassas bölümler", "Danışan dosyasına anamnez, beslenme özeti, iç notlar ve ücretlendirme eklenir.")}
         </div>
       </section>
@@ -375,9 +377,9 @@ export function ArchiveExportTab({ user }: { user: YasamUser }) {
             {plan.summary.filter((s) => s.records > 0).map((s) => (
               <li key={s.module}>{s.label}: {s.records} kayıt</li>
             ))}
-            {(["client_dossier", "hd_report", "hd_relation_report", "astro_report", "numerology_record", "file"] as const).map((k) => {
+            {(["client_dossier", "hd_report", "hd_relation_report", "astro_report", "numerology_record", "file", "media"] as const).map((k) => {
               const n = plan.jobs.filter((j) => j.kind === k).length;
-              const label = { client_dossier: "Danışan dosyası", hd_report: "HD raporu", hd_relation_report: "HD İlişki raporu", astro_report: "Gökyüzü Atlası raporu", numerology_record: "Numeroloji raporu", file: "Fotoğraf / ek" }[k];
+              const label = { client_dossier: "Danışan dosyası", hd_report: "HD raporu", hd_relation_report: "HD İlişki raporu", astro_report: "Gökyüzü Atlası raporu", numerology_record: "Numeroloji raporu", file: "Fotoğraf / ek", media: "Görsel içeren kayıt" }[k];
               return n > 0 ? <li key={k}>{label}: {n}</li> : null;
             })}
           </ul>
@@ -386,6 +388,12 @@ export function ArchiveExportTab({ user }: { user: YasamUser }) {
               <summary className="min-h-11 cursor-pointer py-2 font-bold">Kapsam dışı kalanlar ({plan.excluded.length})</summary>
               <ul className="space-y-0.5">{plan.excluded.map((e) => <li key={`${e.scope}-${e.reason}`}>• {e.scope}: {e.reason}</li>)}</ul>
             </details>
+          )}
+          {(plan.restricted ?? []).length > 0 && (
+            <div className="mt-2 rounded-lg border border-amber-300 bg-amber-50 p-2 text-xs text-amber-900" data-testid="archive-restricted">
+              <p className="font-bold">Size ait ama bu arşive alınamayacak içerik var — arşiv &quot;EKSİK&quot; olarak işaretlenecek:</p>
+              <ul className="mt-1 space-y-0.5">{(plan.restricted ?? []).map((e) => <li key={e.scope}>• {e.scope}: {e.reason}</li>)}</ul>
+            </div>
           )}
           {plan.warnings.map((w) => (
             <p key={w} className="mt-1 text-xs font-semibold text-amber-800">{w}</p>
