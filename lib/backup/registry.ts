@@ -55,6 +55,11 @@ function off(table: string, cls: Exclude<BackupClass, "backup" | "child_of">, re
 const SEARCH_NORM = ["search_norm"] as const;
 /** Gökyüzü Atlası: tenant içi uzman sahipliği (migration 20271101000300 — bileşik (tenant_id, owner_user_id, …) FK'leri). */
 const ASTRO_OWNER: OwnerScope = { column: "owner_user_id" };
+/**
+ * Uygulamanın KULLANICI bazında okuduğu kişisel kayıtlar (destek yazışması, konum tercihi, Kişisel Ofis): tenant'ta birden
+ * çok kullanıcı varsa yalnız oturumdaki kullanıcının satırları dışa aktarılır / geri yüklenir (okuma yolu ile aynı kural).
+ */
+const USER_OWNER: OwnerScope = { column: "user_id" };
 
 export const BACKUP_REGISTRY: readonly RegistryEntry[] = [
   // ── Danışan Yolculuğu (clients) ───────────────────────────────────────────
@@ -489,20 +494,22 @@ export const BACKUP_REGISTRY: readonly RegistryEntry[] = [
 
   // ── Genel (modülden bağımsız) ─────────────────────────────────────────────
   entry("support_messages", null, "backup", "Destek Mesajları", {
+    ownerScope: USER_OWNER,
     exportOnly: true,
     reason: "Admin ile yazışma kaydı — yalnız dışa aktarılır, geri yüklenmez.",
   }),
-  entry("user_location_prefs", null, "backup", "Varsayılan Konum Tercihi", { naturalKey: "user_id" }),
+  entry("user_location_prefs", null, "backup", "Varsayılan Konum Tercihi", { naturalKey: "user_id", ownerScope: USER_OWNER }),
   // Kişisel Dijital Ofis (uzman başına tek satır). Geri yükleme yalnız EKSİK satırı ekler (naturalKey user_id):
   // mevcut tasarım/tercih EZİLMEZ; geçmiş satırın içinde (jsonb) aynen taşınır; tenant_id / user_id sunucuda zorlanır.
   // Okuma yolu her tasarımı sunucu şemasından geçirir (lib/workspace/schema.ts) → yedekten gelen geçersiz içerik gösterilmez.
-  entry("expert_workspace_designs", null, "backup", "Kişisel Ofis Tasarımı", { naturalKey: "user_id" }),
-  entry("expert_ui_prefs", null, "backup", "Kişisel Ofis Tercihleri", { naturalKey: "user_id" }),
+  entry("expert_workspace_designs", null, "backup", "Kişisel Ofis Tasarımı", { naturalKey: "user_id", ownerScope: USER_OWNER }),
+  entry("expert_ui_prefs", null, "backup", "Kişisel Ofis Tercihleri", { naturalKey: "user_id", ownerScope: USER_OWNER }),
   // Görsel kayıtları (assetId ↔ yol). Tenant yedeği DB satırıdır; dosyalar platform yedeğindedir (lib/backup kuralı). Yol tenant
   // önekli olmalı → başka tenant'ın yolu geri yüklenmez (storageRefs). Satır silinmez; deleted_at korunur.
   entry("expert_workspace_assets", null, "backup", "Kişisel Ofis Görselleri", {
     storageRefs: [st("desktop_path", "tenant"), st("mobile_path", "tenant")],
     userColumns: ["user_id", "deleted_by"],
+    ownerScope: USER_OWNER,
   }),
 
   // ── Yedek DIŞI: türetilmiş ────────────────────────────────────────────────
