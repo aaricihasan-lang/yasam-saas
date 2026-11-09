@@ -183,5 +183,57 @@ ok(!ld.ok, "okunamayan eski geçmiş taslağa yüklenemez (hata, veri silinmez)"
   rej("ölçek sayı olmalı", { layout: "C", bg: { frameZoom: "1" } }, /bg\.frameZoom/);
 }
 
+// ── V2 Karşılama alanı: genişlik / hiza / göster-gizle (Owner talebi 2026-11-09) ──
+{
+  const eski = parseDesign({ layout: "B", bg: { mode: "theme", theme: "lavanta" }, text: { useGreeting: false, lines: [{ id: "a", role: "title", text: "Ofis" }] } });
+  ok(eski.ok && !("band" in eski.value), "eski kayıt (alan yok) → çıktıda band YOK (eski tasarım birebir aynı)", eski);
+  const yeniden = eski.ok ? parseDesign(eski.value) : null;
+  ok(!!yeniden && yeniden.ok && eski.ok && JSON.stringify(yeniden.value) === JSON.stringify(eski.value), "eski kayıt yeniden doğrulamada değişmez (geri-ileri kararlı)");
+  const tam = parseDesign({ layout: "C", band: { visible: false, width: 70, align: "right" } });
+  ok(tam.ok && tam.value.band?.visible === false && tam.value.band.width === 70 && tam.value.band.align === "right", "gizli + %70 + sağ kabul edilir", tam);
+  const bos = parseDesign({ layout: "A", band: {} });
+  ok(bos.ok && JSON.stringify(bos.value.band) === JSON.stringify({ visible: true, width: 100, align: "left" }), "boş band → varsayılan (görünür, tam genişlik, sol)", bos);
+  for (const lay of ["A", "B", "C"] as const) for (const wv of [60, 100]) {
+    const r = parseDesign({ layout: lay, band: { visible: true, width: wv, align: "center" } });
+    ok(r.ok && r.value.band?.width === wv, `${lay} düzeni · en ${wv === 60 ? "dar (%60)" : "geniş (%100)"} ölçü kabul edilir`, r);
+  }
+  rej("genişlik alt sınırı (%60)", { layout: "A", band: { width: 55 } }, /band\.width/);
+  rej("genişlik üst sınırı (%100)", { layout: "A", band: { width: 105 } }, /band\.width/);
+  rej("genişlik 5'in katı olmalı", { layout: "A", band: { width: 72 } }, /band\.width/);
+  rej("genişlik tam sayı olmalı", { layout: "A", band: { width: 62.5 } }, /band\.width/);
+  rej("genişlik serbest CSS değeri olamaz (\"80%\")", { layout: "A", band: { width: "80%" } }, /band\.width/);
+  rej("genişlik serbest CSS değeri olamaz (\"calc(...)\")", { layout: "A", band: { width: "calc(100% - 1px)" } }, /band\.width/);
+  rej("genişlik NaN / Infinity olamaz", { layout: "A", band: { width: Number.POSITIVE_INFINITY } }, /band\.width/);
+  rej("bilinmeyen hiza", { layout: "A", band: { align: "justify" } }, /band\.align/);
+  rej("görünürlük true/false olmalı", { layout: "A", band: { visible: "no" } }, /band\.visible/);
+  rej("band içinde bilinmeyen alan (css) reddedilir", { layout: "A", band: { width: 80, css: "width:1px" } }, /band\.css/);
+  rej("band nesne olmalı", { layout: "A", band: 80 }, /design\.band/);
+  rej("band null olamaz", { layout: "A", band: null }, /design\.band/);
+  // Gizleme metin / fotoğraf / logo / tasarım ayarlarını silmez
+  const zengin = { layout: "A", logo: { assetId: randomUUID(), plate: "cam" }, text: { useGreeting: false, align: "center", lines: [{ id: "a", role: "title", text: "Merhaba" }] }, bg: { mode: "photo", photoAssetId: randomUUID(), overlay: 0.5 } };
+  const acik = parseDesign(zengin, { allowAssets: true });
+  const kapali = parseDesign({ ...zengin, band: { visible: false, width: 80, align: "center" } }, { allowAssets: true });
+  ok(acik.ok && kapali.ok && JSON.stringify({ ...kapali.value, band: undefined }) === JSON.stringify(acik.value), "gizli band: metin, fotoğraf, logo ve diğer ayarlar aynen korunur", { acik, kapali });
+  // Taslak → Uygula → Geçmiş → Geri yükle → Sıfırla (durum geçişi)
+  const B = (band: unknown) => { const r = parseDesign(band === undefined ? { layout: "A" } : { layout: "A", band }); if (!r.ok) throw new Error("band"); return r.value; };
+  const bandOf = (v: unknown) => (v as { band?: { visible: boolean } } | null)?.band;
+  let st: RawDesign = { applied: null, draft: null, history: [] };
+  const sd2 = nextDesignState(st, { action: "saveDraft", draft: B({ visible: false }) }, now);
+  ok(sd2.ok && bandOf(sd2.next.draft)?.visible === false && sd2.next.applied === null, "taslak: gizli band taslakta, uygulanan değişmez");
+  if (sd2.ok) st = sd2.next;
+  const ap = nextDesignState(st, { action: "apply" }, now);
+  ok(ap.ok && bandOf(ap.next.applied)?.visible === false, "Uygula: gizli band kalıcı (applied)");
+  if (ap.ok) st = ap.next;
+  const ap2 = nextDesignState(st, { action: "apply", draft: B({ width: 75, align: "center" }) }, now);
+  ok(ap2.ok && bandOf((ap2.next.history[0] as { design: unknown }).design)?.visible === false, "yeni Uygula: önceki (gizli) tasarım geçmişte");
+  if (ap2.ok) st = ap2.next;
+  const back = nextDesignState(st, { action: "restore", historyId: (st.history[0] as { id: string }).id }, now);
+  ok(back.ok && bandOf(back.next.applied)?.visible === false, "geçmişten geri yükle: gizli band geri gelir");
+  const rs0 = nextDesignState(st, { action: "reset" }, now);
+  ok(rs0.ok && rs0.next.applied === null, "Sıfırla: applied null → varsayılan görünüm (karşılama görünür, tam genişlik)");
+  // Sunucu kontrast kapısı band'dan etkilenmez
+  ok(checkDesignContrast(B({ visible: false })).length === checkDesignContrast(B(undefined)).length, "kontrast kapısı band ayarından bağımsız");
+}
+
 console.log(`\nworkspace schema test: ${pass} PASS / ${fail} FAIL`);
 if (fail) process.exit(1);

@@ -11,6 +11,8 @@
  * - Demo (readOnly): tüm yazma denetimleri kapalı.
  * - KDO (Owner canlı testi 2026-11-02): satır başına hizalama (03), karşılama yazı alanı zemini (04), logo için tek
  *   "Serbest Yerleştir" (05; hazır bölge seçimi YOK), Okuma modu ve ayarları kaldırıldı (06).
+ * - V2 (Owner talebi 2026-11-09): "Karşılama alanı" — genişlik, hiza ve göster / gizle (design.band; taslak / Uygula /
+ *   Geçmiş / Sıfırla mevcut tasarım akışıyla). Varsayılana eşit ayar tasarımdan kaldırılır (eski kayıtlarla birebir).
  * Görsel referans: C:/YasamSistemi-Gorsel-Tasarim/kisisel-calisma-alani-p0-son-kabul (editor.js, studio.css).
  */
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type DragEvent, type KeyboardEvent, type PointerEvent, type ReactNode, type SyntheticEvent } from "react";
@@ -22,10 +24,10 @@ import {
 } from "lucide-react";
 import { deleteAsset, listAssets, preflightFile, uploadAsset, type AssetView } from "@/lib/workspace/client";
 import {
-  BG_THEMES, FAVORITES_MAX, FRAME_ZOOM_MAX, FRAME_ZOOM_MIN, SELECTABLE_VIEW_MODES, TEXT_LINE_MAX_CHARS, TEXT_LINES_MAX, TEXT_ROLES, WORKSPACE_CENTERS, isFreeZone,
+  BAND_ALIGNS, BAND_WIDTH_MAX, BAND_WIDTH_MIN, BAND_WIDTH_STEP, BG_THEMES, FAVORITES_MAX, FRAME_ZOOM_MAX, FRAME_ZOOM_MIN, SELECTABLE_VIEW_MODES, TEXT_LINE_MAX_CHARS, TEXT_LINES_MAX, TEXT_ROLES, WORKSPACE_CENTERS, isFreeZone,
   type AssetKind,
 } from "@/lib/workspace/catalog";
-import { DEFAULT_LOGO_DESKTOP, DEFAULT_LOGO_MOBILE, type BrandPalette, type LogoPlacement, type TextLine, type UiPrefs, type WorkspaceDesign } from "@/lib/workspace/schema";
+import { DEFAULT_BAND, DEFAULT_LOGO_DESKTOP, DEFAULT_LOGO_MOBILE, type BrandPalette, type HeroBand, type LogoPlacement, type TextLine, type UiPrefs, type WorkspaceDesign } from "@/lib/workspace/schema";
 import { normalizeViewMode } from "@/lib/workspace/viewMode";
 import { AA, AA_LARGE, checkDesignContrast, heroBackground, isLargeLine, resolvedLineColor, type ContrastIssue } from "@/lib/workspace/contrast";
 import { contrast, ensureContrast, fixBrandContrast, grade, palettesFromPixels } from "@/lib/workspace/palette";
@@ -83,7 +85,7 @@ const THEME_SWATCH: Record<(typeof BG_THEMES)[number], string> = {
   marka: "linear-gradient(135deg, var(--b-soft, #f4effd), var(--b-accent, #7c3aed))",
 };
 
-const GROUP_KEYS = ["layout", "logo", "text", "bg", "brand"] as const;
+const GROUP_KEYS = ["layout", "logo", "text", "bg", "brand", "band"] as const;
 function changedGroups(a: WorkspaceDesign, b: WorkspaceDesign): (typeof GROUP_KEYS)[number][] {
   return GROUP_KEYS.filter((k) => JSON.stringify(a[k]) !== JSON.stringify(b[k]));
 }
@@ -95,6 +97,17 @@ function cleanText(v: string): string {
     if (c === 10) return true;
     return !(c < 32 || c === 127 || (c >= 0x202a && c <= 0x202e) || (c >= 0x2066 && c <= 0x2069));
   }).join("").slice(0, TEXT_LINE_MAX_CHARS);
+}
+
+/**
+ * Sayfadaki serbest logo (sayfa çerçevesi) karşılama alanıyla kesişiyor mu? Alan gizlenmeden HEMEN önce ölçülür:
+ * gizliyken logo çözücüsü onu en yakın boş yere taşır (kayıtlı konum değişmez) → uzmana açıklanır.
+ */
+function freeLogoOverBand(): boolean {
+  const hero = document.querySelector("section[data-pw-hero]")?.getBoundingClientRect();
+  const logo = document.querySelector('[data-pw-free-logo="page"] > *')?.getBoundingClientRect();
+  if (!hero || !logo || logo.width < 1 || logo.height < 1) return false;
+  return logo.left < hero.right && logo.right > hero.left && logo.top < hero.bottom && logo.bottom > hero.top;
 }
 
 const newLineId = () => `l${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`;
@@ -215,6 +228,7 @@ export default function DesignStudio({ pw, modules, moduleLabel, centerLabel, on
   const [collapsed, setCollapsed] = useState(false);
   const [msg, setMsg] = useState<Msg>(null);
   const [showIssues, setShowIssues] = useState(false);
+  const [bandLogoOver, setBandLogoOver] = useState(false);
   const rootRef = useRef<HTMLElement>(null);
   const closedRef = useRef(false);
   const wasEditing = useRef(pw.editing);
@@ -517,6 +531,61 @@ export default function DesignStudio({ pw, modules, moduleLabel, centerLabel, on
           ))}
         </div>
         <p className={s.hint}>{t.layoutHint}</p>
+      </section>
+    );
+  }
+
+  // ── Bölüm: Karşılama alanı (V2) ──
+  /** Taslağa karşılama alanı ayarı yazar; sonuç varsayılana eşitse alan tasarımdan kaldırılır (eski kayıtla birebir aynı). */
+  function setBand(fn: (b: HeroBand) => void) {
+    set((d) => {
+      const b: HeroBand = { ...DEFAULT_BAND, ...d.band };
+      fn(b);
+      if (b.visible === DEFAULT_BAND.visible && b.width === DEFAULT_BAND.width && b.align === DEFAULT_BAND.align) delete d.band;
+      else d.band = b;
+    });
+  }
+
+  function renderBand() {
+    const b: HeroBand = { ...DEFAULT_BAND, ...w.band };
+    const full = b.width >= BAND_WIDTH_MAX;
+    const inBand = (z: LogoPlacement["zone"]) => z === "hero" || (z === "cerceve" && w.layout === "C");
+    const logoInside = !!w.logo.assetId && w.logo.visible && (inBand(w.logo.layout.desktop.zone) || inBand(w.logo.layout.mobile.zone));
+    return (
+      <section className={s.edSec} data-testid="studio-band">
+        <h3>{t.bandTitle}</h3>
+        <label className={s.check}>
+          <input type="checkbox" checked={b.visible} disabled={lock} data-testid="studio-band-visible"
+            onChange={(e) => {
+              const v = e.currentTarget.checked;
+              setBandLogoOver(!v && freeLogoOverBand());
+              setBand((x) => { x.visible = v; });
+            }} />
+          {t.bandShow}
+        </label>
+        {b.visible ? (
+          <>
+            <div className={s.gap8} />
+            <Range label={t.bandWidth} value={b.width} min={BAND_WIDTH_MIN} max={BAND_WIDTH_MAX} step={BAND_WIDTH_STEP} out={`%${b.width}`}
+              onChange={(v) => setBand((x) => { x.width = v; })} disabled={lock} />
+            <div className={s.gap8} />
+            <Seg label={t.bandAlign} value={b.align} options={BAND_ALIGNS.map((v) => [v, t.bandAligns[v]] as const)}
+              onPick={(v) => setBand((x) => { x.align = v; })} disabled={lock || full} />
+            <p className={s.hint}>{full ? t.bandAlignFull : t.bandHint}</p>
+          </>
+        ) : (
+          <>
+            <p className={s.hint} data-testid="studio-band-hidden-hint">{t.bandHiddenHint}</p>
+            {logoInside ? <p className={s.note} data-testid="studio-band-logo-note"><EyeOff size={16} aria-hidden /><span>{t.bandLogoInside}</span></p> : null}
+            {!logoInside && bandLogoOver ? <p className={s.note} data-testid="studio-band-logo-note"><Move size={16} aria-hidden /><span>{t.bandLogoOver}</span></p> : null}
+          </>
+        )}
+        {w.band ? (
+          <button type="button" className={`${s.ghost} ${s.wide}`} disabled={lock} data-testid="studio-band-reset"
+            onClick={() => { setBandLogoOver(false); set((d) => { delete d.band; }); }}>
+            <RotateCcw size={15} aria-hidden />{t.bandReset}
+          </button>
+        ) : null}
       </section>
     );
   }
@@ -1143,7 +1212,7 @@ export default function DesignStudio({ pw, modules, moduleLabel, centerLabel, on
     );
   }
 
-  const body = tab === "marka" ? <>{renderLayout()}{renderBrand()}{renderText()}</>
+  const body = tab === "marka" ? <>{renderLayout()}{renderBand()}{renderBrand()}{renderText()}</>
     : tab === "logo" ? <>{renderLogo()}{renderBackground()}{renderPhoto()}</>
       : tab === "moduller" ? renderModules()
         : tab === "gorunum" ? renderView()

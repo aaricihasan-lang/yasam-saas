@@ -12,6 +12,9 @@
  * KDO-01: metin renkleri ETKİN görünüm moduna göre bilinen zeminde hesaplanır (lib/workspace/heroColors) ve satır içi
  *   yazılır; zemin bilinmiyorsa (fotoğraf) tarayıcı piksel kapısı çalışır. KDO-03: her satırın kendi hizası.
  * KDO-04: text.surface → yazı alanı zemini (C plaketi / A-B metin paneli), marka paletinden bağımsız.
+ * V2 (2026-11-09): design.band → karşılama alanının genişliği / hizası (yalnız geniş ekranda; piksel alt sınırı CSS'te) ve
+ *   gizleme. Gizliyken kutu ÇİZİLMEZ (Yaşam Modülleri yukarı gelir); sayfa başlığı ekran okuyucuya özel h1 olarak kalır.
+ *   Alan yoksa (eski kayıt) hiçbir öznitelik / stil eklenmez → bugünkü görünüm birebir.
  */
 import { useRef, type CSSProperties, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
@@ -171,6 +174,18 @@ function HeroText({ design, firstName, heroDate, pal }: { design: WorkspaceDesig
   );
 }
 
+/**
+ * Gizli karşılama alanı (V2): görünür kutu yok, yalnız ekran okuyucuya özel sayfa başlığı (h1 yapısı korunur).
+ * Başlık: kendi satırlarında başlık varsa o, yoksa karşılama cümlesi. data-pw-band-off → içerik ızgarası karşılama
+ * satırını kaldırır (boş satır / boşluk kalmaz).
+ */
+function HiddenHeroTitle({ design, firstName }: { design: WorkspaceDesign; firstName: string }) {
+  const t = useTranslations("home");
+  const greeting = firstName ? `${t("dashboard.welcomePrefix")} ${firstName}` : t("dashboard.welcomePlain");
+  const own = design.text.useGreeting ? null : design.text.lines.find((l) => l.role === "title" && l.text.trim() !== "");
+  return <h1 id="home-hero-title" className={styles.srOnly} data-pw-band-off="">{own ? own.text : greeting}</h1>;
+}
+
 export type PersonalHeroProps = {
   /** Ana sayfa görünüm nesnesi (resolveHomeView). Karşılama tasarımı `design`'dan çizilir (düzenlemede çalışma kopyası). */
   view: HomeView;
@@ -189,7 +204,11 @@ export type PersonalHeroProps = {
 
 export default function PersonalHero({ design, firstName, heroDate, assetSrc, logoSlot, frameLogoSlot, mode = "day" }: PersonalHeroProps) {
   const f = designFacts(design);
-  const vars = { ...photoVars(design.bg), ...brandVars(design.brand) } as CSSProperties;
+  const band = design.band;
+  const bandHidden = band?.visible === false;
+  // Genişlik yalnız tam genişlikten darsa yazılır (şema: BAND_WIDTH_STEP katı tam sayı → serbest CSS değeri yok).
+  const narrow = band && band.width < 100 ? band : null;
+  const vars = { ...photoVars(design.bg), ...brandVars(design.brand), ...(narrow ? { "--pw-band-w": `${narrow.width}%` } : {}) } as CSSProperties;
   const surface = design.text.surface;
   const bgModel = heroBackgroundFor(design, mode);
   const pal = bgModel ? heroPalette(design, bgModel) : null;
@@ -199,15 +218,18 @@ export default function PersonalHero({ design, firstName, heroDate, assetSrc, lo
   const textRef = useRef<HTMLDivElement>(null);
   const rs = usePhotoReadability({
     // Yazı zemini (opak) seçiliyse metin fotoğrafın üzerinde değil → piksel kapısı gerekmez (zemin biliniyor).
-    enabled: f.hasPhoto && f.layout !== "C" && !surface,
+    enabled: f.hasPhoto && f.layout !== "C" && !surface && !bandHidden,
     scope: f.photoScope ?? "hero",
     tone: f.tone,
     heroRef,
     textRef,
     signature: JSON.stringify([design.layout, design.bg, design.text, design.brand, mode]),
   });
+  if (bandHidden) return <HiddenHeroTitle design={design} firstName={firstName} />;
   const scrimRgb = f.tone === "dark" ? "18 13 36" : "251 250 247";
   const data = {
+    "data-pw-band-w": narrow ? String(narrow.width) : undefined,
+    "data-pw-band-align": narrow ? narrow.align : undefined,
     "data-pw-hero": f.layout,
     "data-tone": f.tone,
     "data-shade": f.shade,
