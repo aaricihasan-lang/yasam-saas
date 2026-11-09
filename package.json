@@ -129,7 +129,7 @@
     "test:output-visibility": "tsx scripts/final-hardening/output-visibility.harness.ts",
     "notifications:check": "tsx scripts/notifications/unit.harness.ts",
     "backup:schema:gen": "tsx scripts/final-hardening/backup-schema-gen.ts",
-    "test:backup": "tsx scripts/final-hardening/backup.harness.ts && tsx scripts/settings-export/atlas-hdrel-pg.harness.mjs",
+    "test:backup": "tsx scripts/final-hardening/backup.harness.ts && tsx scripts/settings-export/atlas-hdrel-pg.harness.mjs && tsx scripts/settings-export/archive.harness.ts && tsx --tsconfig scripts/astrology/tsconfig.json scripts/settings-export/archive-atlas.harness.ts",
     "yh:coverage-backfill": "tsx scripts/final-hardening/yh-coverage-backfill.ts",
     "drift:compare": "node scripts/final-hardening/drift/compare.mjs",
     "test:personal-archive:storage:p1": "tsx scripts/personal-archive-storage-p1-harness.ts",
