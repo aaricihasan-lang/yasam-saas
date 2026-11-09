@@ -254,18 +254,19 @@ export async function buildArchivePlan(ctx: ArchiveCtx, opts: ArchiveOptions, no
         continue;
       }
       const r = await listFileRows(db, tenantId, source, opts, ARCHIVE_MAX_JOBS);
-      if (r.error) warnings.push(`${src.label} listelenemedi (${r.error}).`);
+      // Var olan dosyalar listelenemiyorsa gizlenmez: kısıtlı içerik → arşiv EKSİK (uyarıyla yetinilmez).
+      if (r.error) restricted.push({ scope: src.label, reason: `listelenemedi (${r.error}); bu dosyalar arşive alınamadı` });
       if (r.truncated) throw new ArchiveTooLargeError("Dosya sayısı arşiv sınırını aşıyor; lütfen kapsamı daraltın.");
       r.rows.forEach((row, index) => {
         const folder = src.clientLinked ? `${FILES_FOLDER}/${clientFolder(row.client_id)}/${src.label}` : `${FILES_FOLDER}/${src.label}`;
         push({ kind: "file", source, rowId: String(row.id), index, label: archiveFileName(source, row), folder });
       });
     }
-    // Kayda bağlı kullanıcı görselleri (taş kataloğu, Şifa Rehberi, HD harita, Kişisel Ofis, profil, stok / aromaterapi).
+    // Kayda bağlı kullanıcı görselleri (taş kataloğu, Şifa Rehberi, HD harita, Kişisel Ofis, stok / aromaterapi).
     for (const def of Object.values(MEDIA_SOURCES)) {
       const e = getRegistryEntry(def.table);
       if (!e || !has(mediaModuleOf(def.table))) continue;
-      if (opts.clientIds && def.table !== "clients") {
+      if (opts.clientIds) {
         excluded.push({ scope: def.label, reason: "danışana bağlı olmayan görsel (danışan seçimi yapıldı)" });
         continue;
       }
@@ -279,7 +280,6 @@ export async function buildArchivePlan(ctx: ArchiveCtx, opts: ArchiveOptions, no
       const narrow = (q: LooseQuery): LooseQuery => {
         let x = q;
         if (owner) x = x.eq(owner, userId);
-        if (def.table === "clients" && opts.clientIds) x = x.in("id", opts.clientIds);
         for (const f of sc.filters) x = f.op === "in" ? x.in(f.column, f.values) : f.op === "gte" ? x.gte(f.column, f.value) : x.lt(f.column, f.value);
         if (def.columns.length === 1) x = x.not(def.columns[0], "is", null);
         return x;
@@ -303,15 +303,12 @@ export async function buildArchivePlan(ctx: ArchiveCtx, opts: ArchiveOptions, no
         rows = r.rows;
       }
       if (listError) {
-        warnings.push(`${def.label} listelenemedi (${listError}) — bu görseller eksik olabilir.`);
+        restricted.push({ scope: def.label, reason: `listelenemedi (${listError}); bu görseller arşive alınamadı` });
         continue;
       }
       for (const row of rows) {
         if (!def.inlineOnly && extractMedia(def, row, tenantId).items.length === 0) continue;
-        const folder =
-          def.table === "clients"
-            ? `${FILES_FOLDER}/${clientFolder(row.id)}/Profil fotoğrafı`
-            : `${FILES_FOLDER}/${safeFileName(mediaFolderLabel(def.table))}`;
+        const folder = `${FILES_FOLDER}/${safeFileName(mediaFolderLabel(def.table))}`;
         push({ kind: "media", table: def.table, rowId: String(row.id), label: `${def.label} — ${String(row.id).slice(0, 8)}`, folder });
       }
     }
