@@ -522,6 +522,12 @@
       }
     },
     "landingPremium": {
+      "campaign": {
+        "title": "Opening Offer for New Members",
+        "priceAmount": "250 TL",
+        "priceSuffix": "/ month",
+        "aria": "Campaign notice: opening offer for new members, 250 TL per month"
+      },
       "heroEyebrow": "One hub for professionals",
       "eyebrow": "Holistic Life Analysis Platform",
       "logoAlt": "Yaşam Sistemi — Holistic Life Analysis Platform",
