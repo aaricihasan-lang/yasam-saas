@@ -30,7 +30,14 @@ export type WordTableData = {
   expected_count: number | null;
   complete: boolean;
   error: string | null;
+  /** Bölüm başlığı eki (Premium Arşiv parçaları: " (önceki bölümden devam)"). */
+  titleSuffix?: string;
+  /** İlk kaydın sıra numarası (parçalı arşivde numaralandırma kesintisiz sürer). Varsayılan 1. */
+  firstIndex?: number;
 };
+
+/** Bağlı kayıt kimliği → okunabilir ad (ör. danışan "Ad Soyad"). Yoksa "bağlantılı kayıt (ref.)" yazılır. */
+export type RefLabels = ReadonlyMap<string, string>;
 
 export type WordModuleData = { key: string; label: string; tables: WordTableData[] };
 
@@ -94,8 +101,8 @@ function colLabel(key: string): string {
   return COL_LABELS[key] ?? key.replace(/_/g, " ").replace(/^\w/, (c) => c.toLocaleUpperCase("tr-TR"));
 }
 
-/** Kayıt başlığı için ilk anlamlı alan. */
-function recordTitle(row: Row, index: number): string {
+/** Kayıt başlığı için ilk anlamlı alan (danışana bağlı kayıtta danışan adı eklenir). */
+function recordTitle(row: Row, index: number, labels?: RefLabels): string {
   const pick = (k: string) => (typeof row[k] === "string" && (row[k] as string).trim() ? (row[k] as string).trim() : null);
   const person = [pick("ad"), pick("soyad")].filter(Boolean).join(" ");
   const t =
@@ -110,18 +117,23 @@ function recordTitle(row: Row, index: number): string {
     pick("subject") ??
     pick("label") ??
     pick("sheet_name");
-  return t ? `${index}. ${t}` : `Kayıt ${index}`;
+  const clientLabel = typeof row.client_id === "string" ? labels?.get(row.client_id) : undefined;
+  const base = t ? `${index}. ${t}` : `Kayıt ${index}`;
+  return clientLabel && clientLabel !== t ? `${base} — ${clientLabel}` : base;
 }
 
 /** Değeri okunabilir tam metne çevirir (kısaltma yok). null → boş (alan atlanır). */
-export function formatValue(key: string, value: unknown): string {
+export function formatValue(key: string, value: unknown, labels?: RefLabels): string {
   if (value === null || value === undefined) return "";
   if (typeof value === "boolean") return value ? "Evet" : "Hayır";
   if (typeof value === "number") return String(value);
   if (typeof value === "string") {
     const v = value.trim();
     if (!v) return "";
-    if (UUID_RE.test(v)) return key === "id" ? "" : `bağlantılı kayıt (ref. ${v.slice(0, 8)})`;
+    if (UUID_RE.test(v)) {
+      if (key === "id") return "";
+      return labels?.get(v.toLowerCase()) ?? labels?.get(v) ?? `bağlantılı kayıt (ref. ${v.slice(0, 8)})`;
+    }
     if (/_at$/.test(key) && /^\d{4}-\d{2}-\d{2}[T ]/.test(v)) return formatInstantDateTime(v) || v;
     if (isDateOnlyString(v)) return formatDateOnly(v) || v;
     if (/(^|_)(date|tarih)$/.test(key)) return formatDateLoose(v) || v;
@@ -132,13 +144,44 @@ export function formatValue(key: string, value: unknown): string {
     if (value.every((x) => typeof x === "string" || typeof x === "number")) {
       return value.map((x) => (typeof x === "string" && x.startsWith("data:") ? "[gömülü görsel]" : String(x))).join(", ");
     }
-    return JSON.stringify(value, nestedReplacer, 2);
+    return readableNested(value);
   }
-  if (typeof value === "object") {
-    const s = JSON.stringify(value, nestedReplacer, 2);
-    return s === "{}" ? "" : s;
-  }
+  if (typeof value === "object") return readableNested(value);
   return String(value);
+}
+
+/**
+ * İç içe değer → okunabilir girintili "alan: değer" satırları (JSON parantez/tırnak yok). Gizli / sağlayıcı
+ * anahtarları düşer, marka nötrlenir, gömülü görsel etiketlenir (nestedReplacer ile aynı kurallar).
+ */
+function readableNested(value: unknown): string {
+  const clean = JSON.parse(JSON.stringify(value, nestedReplacer) ?? "null") as unknown;
+  const lines: string[] = [];
+  const scalar = (v: unknown): string =>
+    v === null || v === undefined ? "—" : typeof v === "boolean" ? (v ? "Evet" : "Hayır") : String(v);
+  const walk = (v: unknown, depth: number, label: string | null): void => {
+    const pad = "  ".repeat(depth);
+    if (v === null || typeof v !== "object") {
+      lines.push(`${pad}${label !== null ? `${label}: ` : ""}${scalar(v)}`);
+      return;
+    }
+    if (Array.isArray(v)) {
+      if (v.length === 0) return;
+      if (v.every((x) => x === null || typeof x !== "object")) {
+        lines.push(`${pad}${label !== null ? `${label}: ` : ""}${v.map(scalar).join(", ")}`);
+        return;
+      }
+      if (label !== null) lines.push(`${pad}${label}:`);
+      v.forEach((x, i) => walk(x, depth + (label !== null ? 1 : 0), `${i + 1}.`));
+      return;
+    }
+    const entries = Object.entries(v as Record<string, unknown>);
+    if (entries.length === 0) return;
+    if (label !== null) lines.push(`${pad}${label}`);
+    for (const [k, x] of entries) walk(x, depth + (label !== null ? 1 : 0), colLabel(k));
+  };
+  walk(clean, 0, null);
+  return lines.join("\n");
 }
 
 function dataUriReplacer(_k: string, v: unknown): unknown {
@@ -219,6 +262,10 @@ export type WordBuildInput = {
   title: string;
   modules: WordModuleData[];
   now?: Date;
+  /** Bağlı kayıt adları (Premium Arşiv: danışan / HD danışanı / doğum profili / taş). */
+  refLabels?: RefLabels;
+  /** Kapak altı ek açıklamalar (ör. süzgeç özeti, parça numarası). */
+  notes?: string[];
 };
 
 export type WordBuildResult = { buffer: Buffer; incompleteTables: string[]; records: number };
@@ -249,6 +296,7 @@ export async function buildArchiveDocx(input: WordBuildInput): Promise<WordBuild
         "Fotoğraf ve dosyaların kendisi dahil değildir (yalnız kayıt bilgisi).",
     ),
   ];
+  for (const n of input.notes ?? []) children.push(note(n, "475569", false));
   if (incomplete.length > 0) {
     children.push(heading("Eksik veya okunamayan bölümler", HeadingLevel.HEADING_2, 24, "B91C1C"));
     children.push(note("Aşağıdaki bölümler tam okunamadı; bu belge bu bölümler için EKSİKTİR:", "B91C1C", false));
@@ -266,7 +314,8 @@ export async function buildArchiveDocx(input: WordBuildInput): Promise<WordBuild
     }
     for (const t of m.tables) {
       const countLabel =
-        t.rows.length === 0 ? "kayıt yok" : `${t.rows.length} kayıt${t.expected_count !== null && t.expected_count !== t.rows.length ? ` / beklenen ${t.expected_count}` : ""}`;
+        (t.rows.length === 0 ? "kayıt yok" : `${t.rows.length} kayıt${t.expected_count !== null && t.expected_count !== t.rows.length ? ` / beklenen ${t.expected_count}` : ""}`) +
+        (t.titleSuffix ?? "");
       children.push(heading(`${t.entry.label} — ${countLabel}`, HeadingLevel.HEADING_2, 24, "3730A3"));
       if (!t.complete) {
         children.push(note(`Bu bölüm eksik olabilir${t.error ? `: ${t.error}` : "."}`, "B91C1C", false));
@@ -277,10 +326,10 @@ export async function buildArchiveDocx(input: WordBuildInput): Promise<WordBuild
       }
       t.rows.forEach((raw, i) => {
         const row = t.entry.table === "aromatherapy_reference_rows" ? referenceCells(raw, headersBySheet) : raw;
-        children.push(heading(recordTitle(row, i + 1), HeadingLevel.HEADING_3, 20, "0F172A"));
+        children.push(heading(recordTitle(row, (t.firstIndex ?? 1) + i, input.refLabels), HeadingLevel.HEADING_3, 20, "0F172A"));
         for (const [k, v] of Object.entries(row)) {
           if (HIDDEN.has(k)) continue;
-          const text = formatValue(k, v);
+          const text = formatValue(k, v, input.refLabels);
           if (!text) continue;
           children.push(field(colLabel(k), text));
         }

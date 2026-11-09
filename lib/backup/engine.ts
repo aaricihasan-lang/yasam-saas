@@ -121,6 +121,35 @@ function applyKeyset(q: KeysetQuery, e: RegistryEntry, after: string | number | 
   return out;
 }
 
+// ─── Satır süzgeçleri (Premium Word Arşivi: danışan / tarih aralığı) ──────────
+
+/**
+ * Ek satır süzgeci — yalnız dışa aktarım okumasında (sayım + sayfa aynı süzgeçle → tamlık kontrolü geçerli kalır).
+ * Kolon adı güvenli ad deseninden geçmelidir; değerler PostgREST parametresi olarak gider (sorgu metnine girmez).
+ */
+export type RowFilter =
+  | { column: string; op: "in"; values: readonly string[] }
+  | { column: string; op: "gte" | "lt"; value: string };
+
+const FILTER_COLUMN_RE = /^[a-z_][a-z0-9_]{0,62}$/;
+
+type FilterableQuery<Q> = {
+  in(column: string, values: readonly string[]): Q;
+  gte(column: string, value: string): Q;
+  lt(column: string, value: string): Q;
+};
+
+function applyRowFilters<Q extends FilterableQuery<Q>>(q: Q, filters: readonly RowFilter[] | undefined): Q {
+  let out = q;
+  for (const f of filters ?? []) {
+    if (!FILTER_COLUMN_RE.test(f.column)) throw new Error(`geçersiz süzgeç kolonu: ${f.column}`);
+    if (f.op === "in") out = out.in(f.column, f.values);
+    else if (f.op === "gte") out = out.gte(f.column, f.value);
+    else out = out.lt(f.column, f.value);
+  }
+  return out;
+}
+
 // ─── Kullanıcı (uzman) sahipliği ─────────────────────────────────────────────
 
 type OwnerColumnFilter = { column: string; value: string };
@@ -186,7 +215,7 @@ export async function countTableRows(
   db: SupabaseClient,
   e: RegistryEntry,
   tenantId: string,
-  opts: { ownerUserId?: string | null } = {},
+  opts: { ownerUserId?: string | null; filters?: readonly RowFilter[] } = {},
 ): Promise<{ count: number | null; error: string | null }> {
   if (nutritionBlocked(e, tenantId)) return { count: 0, error: null };
   const owner = ownerFilterFor(e, opts.ownerUserId);
@@ -195,6 +224,7 @@ export async function countTableRows(
   if (e.tenantScope === "direct" && ps === null) {
     let q = db.from(e.table).select(keyColumn(e), { count: "exact", head: true }).eq("tenant_id", tenantId);
     if (owner && "column" in owner) q = q.eq(owner.column, owner.value);
+    q = applyRowFilters(q, opts.filters);
     const res = (await q) as QueryResult;
     if (res.error) return { count: null, error: errText(res.error) };
     return { count: typeof res.count === "number" ? res.count : null, error: null };
@@ -208,6 +238,7 @@ export async function countTableRows(
       if (page.ids.length === 0) return { count: total, error: null };
       let q = db.from(e.table).select(keyColumn(e), { count: "exact", head: true }).in(ps.fk, page.ids);
       if (ps.childTenant) q = q.eq("tenant_id", tenantId);
+      q = applyRowFilters(q, opts.filters);
       const res = (await q) as QueryResult;
       if (res.error) return { count: null, error: errText(res.error) };
       total += typeof res.count === "number" ? res.count : 0;
@@ -248,7 +279,7 @@ export async function fetchTablePage(
   e: RegistryEntry,
   tenantId: string,
   rawCursor: string | null,
-  opts: { pageSize?: number; includeCount?: boolean; ownerUserId?: string | null } = {},
+  opts: { pageSize?: number; includeCount?: boolean; ownerUserId?: string | null; filters?: readonly RowFilter[] } = {},
 ): Promise<BackupPageResponse> {
   const base: BackupPageResponse = { ok: true, table: e.table, rows: [], next_cursor: null, done: true };
   if (!isExportable(e)) return { ...base, ok: false, error: "Bu tablo yedek kapsamında değil." };
@@ -262,7 +293,7 @@ export async function fetchTablePage(
   let expected: number | null | undefined;
   let countError: string | null = null;
   if (cursor === null && opts.includeCount !== false) {
-    const c = await countTableRows(db, e, tenantId, { ownerUserId: opts.ownerUserId });
+    const c = await countTableRows(db, e, tenantId, { ownerUserId: opts.ownerUserId, filters: opts.filters });
     expected = c.count;
     countError = c.error;
   }
@@ -285,6 +316,7 @@ export async function fetchTablePage(
   if (e.tenantScope === "direct" && ps === null) {
     let sel = db.from(e.table).select("*").eq("tenant_id", tenantId);
     if (owner && "column" in owner) sel = sel.eq(owner.column, owner.value);
+    sel = applyRowFilters(sel, opts.filters);
     const q = applyKeyset(sel as unknown as KeysetQuery, e, cursor ? cursor.k : null);
     if (q === "invalid") return invalidCursor();
     const res = await q.limit(pageSize);
@@ -305,6 +337,7 @@ export async function fetchTablePage(
       if (page.ids.length === 0) return finish([], null, null);
       let sel = db.from(e.table).select("*").in(ps.fk, page.ids);
       if (ps.childTenant) sel = sel.eq("tenant_id", tenantId);
+      sel = applyRowFilters(sel, opts.filters);
       const q = applyKeyset(sel as unknown as KeysetQuery, e, childAfter);
       if (q === "invalid") return invalidCursor();
       const res = await q.limit(pageSize);
@@ -330,7 +363,7 @@ export async function exportTableAll(
   db: SupabaseClient,
   e: RegistryEntry,
   tenantId: string,
-  opts: { pageSize?: number; maxRows?: number; ownerUserId?: string | null } = {},
+  opts: { pageSize?: number; maxRows?: number; ownerUserId?: string | null; filters?: readonly RowFilter[] } = {},
 ): Promise<{ rows: Row[]; expected_count: number | null; complete: boolean; error: string | null; truncated: boolean }> {
   const rows: Row[] = [];
   let cursor: string | null = null;
@@ -341,6 +374,7 @@ export async function exportTableAll(
     const page: BackupPageResponse = await fetchTablePage(db, e, tenantId, cursor, {
       pageSize: opts.pageSize,
       ownerUserId: opts.ownerUserId,
+      filters: opts.filters,
     });
     if (page.expected_count !== undefined) expected = page.expected_count ?? null;
     if (page.error) errors.push(page.error);
