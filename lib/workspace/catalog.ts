@@ -73,6 +73,15 @@ export const PAGE_CARDS = ["auto", "glass", "opaque"] as const;
 export const FRAME_FITS = ["fill", "fit"] as const;
 export const FRAME_ZOOM_MIN = 0.5;
 export const FRAME_ZOOM_MAX = 2.5;
+/**
+ * Karşılama alanı (Kişisel Dijital Ofis V2, Owner talebi 2026-11-09): genişlik (karşılamanın kapladığı alanın yüzdesi,
+ * yalnız BAND_WIDTH_STEP katları), hiza ve göster / gizle. Alan yoksa (eski kayıt) bugünkü görünüm: tam genişlik, görünür.
+ * Dar ekranlarda içerik bozulmasın diye çizimde piksel alt sınırı uygulanır (personal.module.css); mobilde tam genişlik.
+ */
+export const BAND_WIDTH_MIN = 60;
+export const BAND_WIDTH_MAX = 100;
+export const BAND_WIDTH_STEP = 5;
+export const BAND_ALIGNS = ["left", "center", "right"] as const;
 
 export type WorkspaceLayout = (typeof LAYOUTS)[number];
 export type CardLevel = (typeof CARD_LEVELS)[number];

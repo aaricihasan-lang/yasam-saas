@@ -86,6 +86,23 @@
   }
 }
 
+/* V2 · Karşılama alanı gizli: ızgarada karşılama satırı hiç yoktur (boş satır / satır aralığı kalmaz, modüller yukarı gelir).
+   Sayfa başlığı ekran okuyucuya özel h1 olarak yerinde durur (konumlu; ızgaraya yer kaplamaz). */
+.pw [data-pw-part="content"]:has(> [data-pw-part="center"] > [data-pw-band-off]) {
+  grid-template-areas:
+    "mods right"
+    "foot foot";
+}
+
+@media (max-width: 1180px) {
+  .pw [data-pw-part="content"]:has(> [data-pw-part="center"] > [data-pw-band-off]) {
+    grid-template-areas:
+      "mods"
+      "right"
+      "foot";
+  }
+}
+
 /* ══ Karşılama (ortak) ═══════════════════════════════════════════════════ */
 .hero {
   grid-area: hero;
@@ -602,6 +619,19 @@
 @media (max-width: 640px) {
   .frameFitLayer .ph.phBackdrop { filter: blur(14px) saturate(1.08); }
 }
+
+/* ══ V2 · Karşılama alanı genişliği ve hizası ═════════════════════════════
+   --pw-band-w yalnız şemadan geçen yüzde (60–100, 5'in katı). Piksel alt sınırı içerik bozulmasın diye: A/B 560 px,
+   C (plaket + çerçeve) 680 px; alan daha darsa (tablet / mobil) tam genişlik. Yükseklik ve iç düzen değişmez. */
+.hero[data-pw-band-w] {
+  width: clamp(min(100%, 560px), var(--pw-band-w), 100%);
+  justify-self: start;
+}
+.heroC[data-pw-band-w] {
+  width: clamp(min(100%, 680px), var(--pw-band-w), 100%);
+}
+.hero[data-pw-band-w][data-pw-band-align="center"] { justify-self: center; }
+.hero[data-pw-band-w][data-pw-band-align="right"] { justify-self: end; }
 
 /* ══ Favorilerim ══════════════════════════════════════════════════════════ */
 .favs {

@@ -314,6 +314,20 @@ async function main(): Promise<void> {
     ok(a2w.status === 200 && (await dRow(U.A2.id)).user_id === U.A2.id, "aynı tenant'taki başka uzman (A2) ayrı satır");
     ok(JSON.stringify(await dRow(U.A.id)) === aBefore && JSON.stringify(await pRow(U.A.id)) === aPrefsBefore, "A'nın satırları B/A2 işlemlerinden sonra birebir aynı");
     ok((await dget(asA2)).json.design.draft.text.lines[0].text === "A2 kendi" && (await dget(asA)).json.design.applied === null, "A2 ve A birbirinin taslağını görmez");
+    section("V2 karşılama alanı (band) — uçtan uca + uzmanlar arası izolasyon");
+    const aRowV2 = JSON.stringify(await dRow(U.A.id));
+    const bRowV2 = JSON.stringify(await dRow(U.B.id));
+    const a2v = (await dget(asA2)).json.design.version;
+    const bandAp = await dpost(asA2, { action: "apply", expectedVersion: a2v, draft: design("A2 bant", { band: { visible: false, width: 70, align: "right" } }) });
+    ok(bandAp.status === 200 && bandAp.json.design.applied.band?.visible === false && bandAp.json.design.applied.band?.width === 70, "A2: gizli + %70 + sağ karşılama alanı Uygula ile kalıcı", bandAp.json);
+    const bandRe = await dget(asA2);
+    ok(JSON.stringify(bandRe.json.design.applied.band) === JSON.stringify({ visible: false, width: 70, align: "right" }) && bandRe.json.design.applied.text.lines[0].text === "A2 bant", "yeniden okuma (sayfa yenileme): ayar ve metin aynen");
+    ok(JSON.stringify(await dRow(U.A.id)) === aRowV2 && JSON.stringify(await dRow(U.B.id)) === bRowV2, "A (aynı tenant) ve B (başka tenant) satırları A2'nin karşılama ayarından etkilenmez");
+    ok((await dget(asB)).json.design.applied?.band === undefined && (await dget(asA)).json.design.applied?.band === undefined, "A ve B, A2'nin karşılama ayarını görmez");
+    const bandBad = await dpost(asA2, { action: "saveDraft", expectedVersion: bandRe.json.design.version, draft: design("x", { band: { width: "80%" } }) });
+    ok(bandBad.status === 400, "serbest CSS genişliği (\"80%\") → 400");
+    const bandRs = await dpost(asA2, { action: "reset", expectedVersion: bandRe.json.design.version });
+    ok(bandRs.status === 200 && bandRs.json.design.applied === null && bandRs.json.design.history[0]?.design?.band?.visible === false, "Sıfırla: varsayılan görünüm; gizli tasarım geçmişte korunur", bandRs.json);
 
     section("Demo hesap / demo tenant");
     const demo: Auth = { id: U.DEMO.id, token: U.DEMO.token };
