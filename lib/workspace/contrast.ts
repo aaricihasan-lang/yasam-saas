@@ -77,7 +77,9 @@ export type ContrastIssue = { path: string; area: string; ratio: number; need: n
 export function checkDesignContrast(d: WorkspaceDesign): ContrastIssue[] {
   const out: ContrastIssue[] = [];
   const bg = heroBackground(d);
-  if (!d.text.useGreeting && bg) {
+  // V3: karşılama alanı gizliyken satırlar ekranda yoktur → gizleme kontrast yüzünden kilitlenmez. Alan yeniden
+  // gösterilip uygulanırken aynı kural yeniden çalışır (metin ve renkler silinmeden saklanır).
+  if (!d.text.useGreeting && bg && d.band?.visible !== false) {
     d.text.lines.forEach((l, i) => {
       if (!l.text.trim()) return;
       const fg = resolvedLineColor(d, l, bg);

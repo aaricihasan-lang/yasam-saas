@@ -15,9 +15,14 @@
  * V2 (2026-11-09): design.band → karşılama alanının genişliği / hizası (yalnız geniş ekranda; piksel alt sınırı CSS'te) ve
  *   gizleme. Gizliyken kutu ÇİZİLMEZ (Yaşam Modülleri yukarı gelir); sayfa başlığı ekran okuyucuya özel h1 olarak kalır.
  *   Alan yoksa (eski kayıt) hiçbir öznitelik / stil eklenmez → bugünkü görünüm birebir.
+ * V3 (2026-11-09): band.height → yükseklik kademesi (lib/workspace/catalog.bandTier): tek satır / kompakt / tam içerik;
+ *   band.top → araç çubuğu aralığı. Kompakt kademede yalnız başlık + tarih gösterilir; diğer satırlar, alt metin, C fotoğraf
+ *   çerçevesi (tek satırda) ve alan içi eski bölge logoları ÇİZİLMEZ ama tasarımda aynen kalır (Normal'e dönünce geri gelir).
+ *   Metin sığmazsa kesilmez: useBandFit önce tarihi satırdan çıkarır, sonra alanı uzatır (data-pw-fit) — panel açıklar.
  */
-import { useRef, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode, type RefObject } from "react";
 import { useTranslations } from "next-intl";
+import { bandTier, type BandTier } from "@/lib/workspace/catalog";
 import { heroBackgroundFor, heroPalette, type HeroPalette } from "@/lib/workspace/heroColors";
 import { contrastRatio } from "@/lib/workspace/contrast";
 import type { EffectiveViewMode } from "@/lib/workspace/viewMode";
@@ -126,13 +131,36 @@ function BgLayer({ design, f, assetSrc, forFrame = false }: { design: WorkspaceD
   );
 }
 
-function HeroText({ design, firstName, heroDate, pal }: { design: WorkspaceDesign; firstName: string; heroDate: string; pal: HeroPalette | null }) {
+function HeroText({ design, firstName, heroDate, pal, compact, showDateFit = true }: {
+  design: WorkspaceDesign; firstName: string; heroDate: string; pal: HeroPalette | null;
+  /** V3 kompakt kademe: yalnız başlık (+ sığıyorsa tarih). */
+  compact?: boolean;
+  showDateFit?: boolean;
+}) {
   const t = useTranslations("home");
   const tx = design.text;
   const greeting = firstName ? `${t("dashboard.welcomePrefix")} ${firstName}` : t("dashboard.welcomePlain");
   // Zemin biliniyorsa (tema / varsayılan / gece katmanı / yazı zemini) renkler satır içi: CSS kuralları ezemez, mod değişince
   // yeniden hesaplanır. Fotoğrafta (pal=null) CSS + tarayıcı piksel kapısı.
   const c = (v: string | undefined) => (v ? ({ color: v } as CSSProperties) : undefined);
+  if (compact) {
+    // Kendi satırlarında ilk başlık (yoksa ilk dolu satır) başlık olur; hiç satır yoksa karşılama cümlesi.
+    const own = tx.useGreeting ? null : (tx.lines.find((l) => l.role === "title" && l.text.trim() !== "") ?? tx.lines.find((l) => l.text.trim() !== ""));
+    const nameStyle = pal ? ({ backgroundImage: `linear-gradient(95deg, ${pal.name[0]} 0%, ${pal.name[1]} 100%)` } as CSSProperties) : undefined;
+    return (
+      <>
+        <h1 id="home-hero-title" className={styles.cTitle} style={c(own ? pal?.line(own) : pal?.title)}>
+          {own ? own.text : firstName ? (
+            <>
+              <span>{t("dashboard.welcomePrefix")}</span>{" "}
+              <span className={styles.hName} style={nameStyle}>{firstName} ✨</span>
+            </>
+          ) : <span>{t("dashboard.welcomePlain")}</span>}
+        </h1>
+        {tx.showDate && showDateFit ? <p className={styles.cDate} style={c(pal?.date)}>{heroDate}</p> : null}
+      </>
+    );
+  }
   if (tx.useGreeting) {
     const nameStyle = pal ? ({ backgroundImage: `linear-gradient(95deg, ${pal.name[0]} 0%, ${pal.name[1]} 100%)` } as CSSProperties) : undefined;
     return (
@@ -186,6 +214,39 @@ function HiddenHeroTitle({ design, firstName }: { design: WorkspaceDesign; first
   return <h1 id="home-hero-title" className={styles.srOnly} data-pw-band-off="">{own ? own.text : greeting}</h1>;
 }
 
+type BandFit = "ok" | "nodate" | "grow";
+/**
+ * V3 · seçilen yükseklikte içerik sığıyor mu? Kesme / üst üste binme YOK: taşarsa önce tarih satırdan çıkar (tek satır ve
+ * kompakt), hâlâ taşarsa alan içeriğe göre uzar. Genişlik değişince yeniden ölçülür (yükseklik değişimi döngü yaratmaz).
+ */
+function useBandFit(heroRef: RefObject<HTMLElement | null>, boxRef: RefObject<HTMLElement | null>, tier: BandTier | null, signature: string): BandFit {
+  const [w, setW] = useState(0);
+  const key = `${tier}|${w}|${signature}`;
+  const [st, setSt] = useState<{ key: string; fit: BandFit }>({ key: "", fit: "ok" });
+  const fit: BandFit = st.key === key ? st.fit : "ok";
+  useEffect(() => {
+    const el = heroRef.current;
+    if (!el || !tier || typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(() => setW(Math.round(el.getBoundingClientRect().width)));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [heroRef, tier]);
+  // Ölçüm boyamadan ÖNCE yapılır (taşan metin bir kare bile görünmez); her adım bir kademe ilerler, "grow"da durur.
+  useLayoutEffect(() => {
+    const box = boxRef.current;
+    if (!tier || !box || fit === "grow") return;
+    // Yalnız metin öğelerinin kutuları ölçülür: okunabilirlik katmanı (scrim) bilerek metin kutusunun dışına taşar,
+    // kutunun scrollWidth/Height'ı bu yüzden yanıltıcıdır. Harf alt uzantıları öğe kutusuna dahil değildir (kesilme sayılmaz).
+    const r = box.getBoundingClientRect();
+    const over = Array.from(box.querySelectorAll("h1, p")).some((el) => {
+      const b = el.getBoundingClientRect();
+      return b.width > 0 && (b.left < r.left - 1 || b.right > r.right + 1 || b.top < r.top - 1 || b.bottom > r.bottom + 1);
+    });
+    if (over) setSt({ key, fit: fit === "ok" && tier !== "full" ? "nodate" : "grow" });
+  }, [boxRef, tier, fit, key]);
+  return tier ? fit : "ok";
+}
+
 export type PersonalHeroProps = {
   /** Ana sayfa görünüm nesnesi (resolveHomeView). Karşılama tasarımı `design`'dan çizilir (düzenlemede çalışma kopyası). */
   view: HomeView;
@@ -208,7 +269,15 @@ export default function PersonalHero({ design, firstName, heroDate, assetSrc, lo
   const bandHidden = band?.visible === false;
   // Genişlik yalnız tam genişlikten darsa yazılır (şema: BAND_WIDTH_STEP katı tam sayı → serbest CSS değeri yok).
   const narrow = band && band.width < 100 ? band : null;
-  const vars = { ...photoVars(design.bg), ...brandVars(design.brand), ...(narrow ? { "--pw-band-w": `${narrow.width}%` } : {}) } as CSSProperties;
+  // V3: yükseklik / üst aralık yalnız seçildiyse yazılır (şema: adım katı tam sayı piksel).
+  const tier = bandTier(band?.height);
+  const compact = tier === "row" || tier === "stack";
+  const vars = {
+    ...photoVars(design.bg), ...brandVars(design.brand),
+    ...(narrow ? { "--pw-band-w": `${narrow.width}%` } : {}),
+    ...(band?.height !== undefined ? { "--pw-band-h": `${band.height}px` } : {}),
+    ...(band?.top !== undefined ? { "--pw-band-top": `${band.top}px` } : {}),
+  } as CSSProperties;
   const surface = design.text.surface;
   const bgModel = heroBackgroundFor(design, mode);
   const pal = bgModel ? heroPalette(design, bgModel) : null;
@@ -216,6 +285,8 @@ export default function PersonalHero({ design, firstName, heroDate, assetSrc, lo
   // Fotoğraf üzerindeki metin: istemci piksel kapısı (C düzeninde metin plakette, fotoğrafın üzerinde değil)
   const heroRef = useRef<HTMLElement>(null);
   const textRef = useRef<HTMLDivElement>(null);
+  const innerRef = useRef<HTMLDivElement>(null);
+  const fit = useBandFit(heroRef, innerRef, bandHidden ? null : tier, JSON.stringify([design.layout, design.text, firstName, heroDate, band, mode]));
   const rs = usePhotoReadability({
     // Yazı zemini (opak) seçiliyse metin fotoğrafın üzerinde değil → piksel kapısı gerekmez (zemin biliniyor).
     enabled: f.hasPhoto && f.layout !== "C" && !surface && !bandHidden,
@@ -223,13 +294,17 @@ export default function PersonalHero({ design, firstName, heroDate, assetSrc, lo
     tone: f.tone,
     heroRef,
     textRef,
-    signature: JSON.stringify([design.layout, design.bg, design.text, design.brand, mode]),
+    signature: JSON.stringify([design.layout, design.bg, design.text, design.brand, mode, ...(band?.height !== undefined ? [band.height, fit] : [])]),
   });
   if (bandHidden) return <HiddenHeroTitle design={design} firstName={firstName} />;
   const scrimRgb = f.tone === "dark" ? "18 13 36" : "251 250 247";
   const data = {
     "data-pw-band-w": narrow ? String(narrow.width) : undefined,
     "data-pw-band-align": narrow ? narrow.align : undefined,
+    "data-pw-band-h": band?.height !== undefined ? String(band.height) : undefined,
+    "data-pw-tier": tier ?? undefined,
+    "data-pw-fit": tier ? fit : undefined,
+    "data-pw-band-top": band?.top !== undefined ? String(band.top) : undefined,
     "data-pw-hero": f.layout,
     "data-tone": f.tone,
     "data-shade": f.shade,
@@ -243,7 +318,7 @@ export default function PersonalHero({ design, firstName, heroDate, assetSrc, lo
   };
   const mixed = !design.text.useGreeting && design.text.lines.some((l) => l.align && l.align !== design.text.align);
   const inner = (
-    <div className={`${styles.hInner} ${ALIGN_CLS[design.text.align]} ${VALIGN_CLS[design.text.valign]}`}>
+    <div ref={innerRef} className={`${styles.hInner} ${ALIGN_CLS[design.text.align]} ${VALIGN_CLS[design.text.valign]}`}>
       <div
         ref={textRef}
         className={`${styles.hText} ${surface && f.layout !== "C" ? styles.hSurface : ""}`}
@@ -258,7 +333,7 @@ export default function PersonalHero({ design, firstName, heroDate, assetSrc, lo
         data-pw-readability-ratio={rs.applicable && rs.ratio !== null ? String(rs.ratio) : undefined}
         data-pw-readability-alpha={rs.applicable ? String(rs.alpha) : undefined}
       >
-        <HeroText design={design} firstName={firstName} heroDate={heroDate} pal={pal} />
+        <HeroText design={design} firstName={firstName} heroDate={heroDate} pal={pal} compact={compact} showDateFit={fit === "ok"} />
         {rs.applicable && rs.alpha > 0 ? (
           <span className={rd.scrim} aria-hidden style={{ "--pw-rd-a": String(rs.alpha), "--pw-rd-c": scrimRgb } as CSSProperties} />
         ) : null}
@@ -268,39 +343,41 @@ export default function PersonalHero({ design, firstName, heroDate, assetSrc, lo
 
   if (f.layout === "C") {
     return (
-      <section ref={heroRef} className={`${styles.hero} ${styles.heroC}`} aria-labelledby="home-hero-title" style={vars} {...data}>
+      <section ref={heroRef} className={`${styles.hero} ${styles.heroC}${compact ? ` ${styles.heroCompact}` : ""}`} aria-labelledby="home-hero-title" style={vars} {...data}>
         <div className={styles.plaque} style={surface ? ({ background: surface } as CSSProperties) : undefined} data-surface={surfaceTone}>
           {inner}
-          {logoSlot}
+          {compact ? null : logoSlot}
         </div>
-        <div className={styles.artFrame}>
-          <div className={styles.mat} data-pw-frame={f.hasPhoto ? design.bg.frameFit : undefined}>
-            <BgLayer design={design} f={f} assetSrc={assetSrc} forFrame />
-            {frameLogoSlot}
+        {tier === "row" ? null : (
+          <div className={styles.artFrame}>
+            <div className={styles.mat} data-pw-frame={f.hasPhoto ? design.bg.frameFit : undefined}>
+              <BgLayer design={design} f={f} assetSrc={assetSrc} forFrame />
+              {compact ? null : frameLogoSlot}
+            </div>
           </div>
-        </div>
+        )}
       </section>
     );
   }
   if (f.page) {
     return (
-      <section ref={heroRef} className={`${styles.hero} ${styles.heroB} ${f.office ? styles.isOffice : styles.isCustom}`} aria-labelledby="home-hero-title" style={vars} {...data}>
+      <section ref={heroRef} className={`${styles.hero} ${styles.heroB} ${f.office ? styles.isOffice : styles.isCustom}${compact ? ` ${styles.heroCompact}` : ""}`} aria-labelledby="home-hero-title" style={vars} {...data}>
         {inner}
-        {logoSlot}
+        {compact ? null : logoSlot}
       </section>
     );
   }
   return (
     <section
       ref={heroRef}
-      className={`${styles.hero} ${styles.heroA} ${f.custom ? styles.isCustom : styles.isDefault} ${f.hasPhoto ? styles.hasPhoto : ""}`}
+      className={`${styles.hero} ${styles.heroA} ${f.custom ? styles.isCustom : styles.isDefault} ${f.hasPhoto ? styles.hasPhoto : ""}${compact ? ` ${styles.heroCompact}` : ""}`}
       aria-labelledby="home-hero-title"
       style={vars}
       {...data}
     >
       <BgLayer design={design} f={f} assetSrc={assetSrc} />
       {inner}
-      {logoSlot}
+      {compact ? null : logoSlot}
     </section>
   );
 }
