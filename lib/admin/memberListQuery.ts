@@ -171,6 +171,17 @@ export const MEMBER_LIST_PATH = "/admin/users";
 export function memberListReturnHref(rawSearch: string | null | undefined): string {
   const raw = String(rawSearch ?? "").replace(/^\?/, "");
   if (!raw || raw.length > 1000) return MEMBER_LIST_PATH;
+  // Üye listesi V2 ("v2:" önekli): yalnız V2 anahtarları yeniden serileştirilir; değerleri V2 sayfası ayrıca doğrular.
+  if (raw.startsWith("v2:")) {
+    const src = new URLSearchParams(raw.slice(3));
+    const out = new URLSearchParams();
+    for (const k of ["f", "q", "sort", "mod", "pay", "rol", "page"]) {
+      const v = src.get(k);
+      if (v !== null && v.length <= MEMBER_QUERY_MAX) out.set(k, v);
+    }
+    const qs2 = out.toString();
+    return qs2 ? `${MEMBER_LIST_PATH}?${qs2}` : MEMBER_LIST_PATH;
+  }
   const parsed = parseMemberListQuery(new URLSearchParams(raw));
   if (!parsed.ok) return MEMBER_LIST_PATH;
   const qs = memberListQueryToSearch(parsed.value);

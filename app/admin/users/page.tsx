@@ -1,585 +1,72 @@
 "use client";
 
+/**
+ * Admin › Üye Yönetimi — V2 (Aşama 2; Owner PASS önizlemesi sürüm 3).
+ *
+ * Bugün dikkat · beş gösterge · sade liste (tek aşama etiketi) · 6 görünür + 9 “Diğer” filtre · arama ·
+ * öncelikli sıralama · gelişmiş filtre · mobil kart görünümü · mevcut üye detayına bağlantı.
+ * Veri: GET /api/admin/members (admin_list_members_v2 — satır + sayaç + filtre sayıları tek tanımdan).
+ * YALNIZ GÖRÜNTÜLEME: üyelik / ödeme / erişim davranışı değişmez. Önceki ekranın tüm işlemleri
+ * (yeni uzman, arşivden geri alma, kalıcı silme, 360° filtreleri, Yönetim Özeti) /admin/users/klasik'te aynen durur;
+ * eski parametreli bağlantılar oraya yönlendirilir.
+ */
 import Link from "next/link";
-import { useBfcacheRefresh } from "@/hooks/useBfcacheRefresh";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import styles from "@/components/admin/members/list/memberListV2.module.css";
+import { MemberOverviewPanel, OVERVIEW_TARGET_QUERY } from "@/components/admin/members/MemberOverviewPanel";
+import { useBfcacheRefresh } from "@/hooks/useBfcacheRefresh";
+import { useConfirmedLogout } from "@/hooks/useConfirmedLogout";
+import { isAdminUser, readSessionToken, readYasamUser } from "@/lib/auth/yasamUser";
 import {
-  AlertTriangle,
-  Archive,
-  ArrowRight,
-  ChevronDown,
-  ChevronLeft,
-  ChevronRight,
-  Loader2,
-  Plus,
-  RefreshCw,
-  RotateCcw,
-  Search,
-  Shield,
-  SlidersHorizontal,
-  Trash2,
-  Users,
-} from "lucide-react";
-import { useToast } from "@/components/ui/ToastProvider";
-import {
-  ADMIN_MODULE_KIND,
   ADMIN_MODULE_UI_LABELS,
   enabledAccessModules,
-  formatCreatedAt,
-  formatDateTimeTr,
-  mapDbUser,
-  trialEndedNotice,
-  type AdminModuleUiKey,
-  type ManagedUser,
-  type ManagedUserRole,
+  parseAdminModulePermissions,
 } from "@/lib/admin/userManagement";
 import {
   DEFAULT_MEMBER_LIST_QUERY,
   MEMBER_FILTER_MODULE_KEYS,
   MEMBER_LIST_RETURN_KEY,
-  MEMBER_PAGE_SIZES,
   memberListQueryToSearch,
-  parseMemberCounts,
-  parseMemberListQuery,
-  type MemberCounts,
-  type MemberListQuery,
+  type MemberModuleFilter,
 } from "@/lib/admin/memberListQuery";
-import { classifyFetchFailure, FETCH_FAILURE_COPY, type FetchFailureKind } from "@/lib/admin/fetchState";
-import { istanbulTodayIso, renewalBadgeLabel, renewalState } from "@/lib/admin/memberCommercial";
 import {
-  activitySummaryLabel,
-  attentionReasons,
-  parseMeasurement,
-  parseMemberActivity,
-  type MemberActivity,
-  type MemberMeasurement,
-} from "@/lib/admin/member360";
-import { MemberOverviewPanel, OVERVIEW_TARGET_QUERY } from "@/components/admin/members/MemberOverviewPanel";
-import { PASSWORD_HINT, newPasswordPolicyMessage } from "@/lib/auth/passwordPolicy";
-import PasswordInput from "@/components/ui/PasswordInput";
-import {
-  AccountBadge,
-  ApprovalBadge,
-  PackageBadge,
-  PaymentBadge,
-  RoleBadge,
-  SecurityExemptBadge,
-  TrialReviewDueBadge,
-} from "@/components/admin/members/MemberBadges";
-import { ModuleCheckboxGrid } from "@/components/admin/members/ModuleCheckboxGrid";
-import { ExpertPurgeDialog, type PurgeResult, type PurgeTarget } from "@/components/admin/members/ExpertPurgeDialog";
-import { AstrologyTechniquePicker, grantsSummary, selectionOf } from "@/components/admin/members/AstrologyTechniqueAccess";
-import type { AstroTechniqueGrants } from "@/lib/astrology/access/techniqueGrants";
-import { isAdminUser, readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
-import { useConfirmedLogout } from "@/hooks/useConfirmedLogout";
+  agoTr,
+  DEFAULT_MEMBER_V2_QUERY,
+  fmtDateTr,
+  legacyMemberListRedirect,
+  MEMBER_CLASSIC_PATH,
+  MEMBER_V2_MAIN_FILTERS,
+  MEMBER_V2_MORE_FILTERS,
+  MEMBER_V2_PAGE_SIZE,
+  MEMBER_V2_PAYMENT_LABELS,
+  MEMBER_V2_RETURN_PREFIX,
+  MEMBER_V2_SORT_LABELS,
+  memberPeriodText,
+  memberStageLabel,
+  memberV2QueryToSearch,
+  parseMemberV2Query,
+  type MemberV2Counts,
+  type MemberV2Decisions,
+  type MemberV2Filter,
+  type MemberV2Payment,
+  type MemberV2Presets,
+  type MemberV2Query,
+  type MemberV2Row,
+  type MemberV2Sort,
+} from "@/lib/admin/memberListV2";
 
-// ── Filtre seçenekleri (MEM-018: ham enum gösterilmez) ─────────────────────────
-const APPROVAL_OPTIONS: { key: MemberListQuery["approval"]; label: string }[] = [
-  { key: "all", label: "Tümü" },
-  { key: "pending", label: "Onay Bekliyor" },
-  { key: "approved", label: "Onaylandı" },
-  { key: "rejected", label: "Reddedildi" },
-];
-const ACTIVE_OPTIONS: { key: MemberListQuery["active"]; label: string }[] = [
-  { key: "all", label: "Tümü" },
-  { key: "active", label: "Aktif" },
-  { key: "passive", label: "Pasif" },
-];
-const ROLE_OPTIONS: { key: MemberListQuery["role"]; label: string }[] = [
-  { key: "all", label: "Tümü" },
-  { key: "expert", label: "Uzman" },
-  { key: "admin", label: "Yönetici" },
-];
-// Ödeme / yenileme zamanı: yalnız onaylı + aktif + ödemeden muaf olmayan uzmanlar (sunucu filtresi).
-const DUE_OPTIONS: { key: MemberListQuery["due"]; label: string }[] = [
-  { key: "all", label: "Tümü" },
-  { key: "overdue", label: "Gecikmiş" },
-  { key: "d0_7", label: "0–7 gün" },
-  { key: "d8_30", label: "8–30 gün" },
-  { key: "due30", label: "30 gün içinde" },
-  { key: "d31_60", label: "31–60 gün" },
-  { key: "d61_90", label: "61–90 gün" },
-  { key: "d90p", label: "90+ gün" },
-  { key: "no_date", label: "Tarih yok" },
-];
-// Aktivite: Usage360 gerçek etkileşim (teknik "son görülme" DEĞİL); yalnız demo olmayan uzmanlar.
-const ACTIVITY_OPTIONS: { key: MemberListQuery["activity"]; label: string }[] = [
-  { key: "all", label: "Tümü" },
-  { key: "today", label: "Bugün" },
-  { key: "d7", label: "Son 7 gün" },
-  { key: "d30", label: "Son 30 gün" },
-  { key: "idle30", label: "30+ gün yok" },
-  { key: "idle60", label: "60+ gün yok" },
-  { key: "idle90", label: "90+ gün yok" },
-  { key: "unmeasured", label: "Ölçülemiyor" },
-];
-const SECURITY_OPTIONS: { key: MemberListQuery["security"]; label: string }[] = [
-  { key: "all", label: "Tümü" },
-  { key: "alert", label: "Uyarısı olan" },
-];
-const SORT_OPTIONS: { key: MemberListQuery["sort"]; label: string }[] = [
-  { key: "default", label: "Varsayılan" },
-  { key: "activity_desc", label: "Son aktivite: en yeni" },
-  { key: "activity_asc", label: "Son aktivite: en eski" },
-  { key: "d7_desc", label: "7g aktif gün" },
-  { key: "d30_desc", label: "30g aktif gün" },
-  { key: "next_payment_asc", label: "Sonraki ödeme: en yakın" },
-  { key: "next_payment_desc", label: "Sonraki ödeme: en uzak" },
-  { key: "created_desc", label: "Kayıt tarihi" },
-  { key: "name_asc", label: "A–Z" },
-];
-/** Sayaç kartları bir grubu tam gösterir → 360° filtreleri de sıfırlanır. */
-const RESET_360 = { activity: "all", module: "all", security: "all" } as const;
-const PAYMENT_OPTIONS: { key: MemberListQuery["payment"]; label: string }[] = [
-  { key: "all", label: "Tümü" },
-  { key: "pending", label: "Ödeme Bekliyor" },
-  { key: "overdue", label: "Gecikti" },
-  { key: "paid", label: "Ödendi" },
-  { key: "exempt", label: "Ödemeden Muaf" },
-];
-
-function FilterPillRow<T extends string>({
-  label,
-  options,
-  value,
-  onSelect,
-}: {
-  label: string;
-  options: { key: T; label: string }[];
-  value: T;
-  onSelect: (v: T) => void;
-}) {
-  return (
-    <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:gap-2" role="group" aria-label={label}>
-      <span className="text-[11px] font-black uppercase tracking-wide text-slate-500 sm:w-28 sm:shrink-0">
-        {label}
-      </span>
-      <div className="flex flex-wrap gap-2">
-        {options.map((o) => (
-          <button
-            key={o.key}
-            type="button"
-            aria-pressed={value === o.key}
-            onClick={() => onSelect(o.key)}
-            className={`rounded-full border-2 px-3 py-1.5 text-xs font-black transition ${
-              value === o.key
-                ? "border-violet-400 bg-violet-100 text-violet-950"
-                : "border-slate-200 bg-white text-slate-700 hover:bg-violet-50/80"
-            }`}
-          >
-            {o.label}
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-const panelClass = "rounded-2xl border border-white/80 bg-white/90 p-4 shadow-md backdrop-blur-sm sm:p-6";
-const EMPTY_ACTIVITY: MemberActivity = {
-  state: null, isDemo: false, lastActivityAt: null, daysSince: null, idleLowerBound: null, d7ActiveDays: null, d30ActiveDays: null,
+type Loaded = {
+  rows: MemberV2Row[];
+  total: number;
+  presets: MemberV2Presets;
+  counts: MemberV2Counts;
+  decisions: MemberV2Decisions;
+  today: string;
+  nowMs: number;
 };
-const inputClass =
-  "mt-2 h-12 w-full rounded-2xl border-2 border-indigo-100 bg-white px-4 text-base font-semibold text-slate-900 outline-none transition focus:border-violet-400 focus:ring-4 focus:ring-violet-100";
-const labelClass = "block text-sm font-black text-slate-700";
-const navBtn =
-  "inline-flex h-10 sm:h-11 items-center justify-center gap-2 rounded-xl border-2 px-4 sm:px-5 text-sm font-bold shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md";
+type State = { kind: "loading" } | { kind: "error"; denied: boolean } | { kind: "ready"; data: Loaded };
 
-function PastelLoader({ label = "Yükleniyor…" }: { label?: string }) {
-  return (
-    <div className="flex flex-col items-center justify-center gap-4 py-16" role="status" aria-live="polite">
-      <Loader2 className="h-10 w-10 animate-spin text-violet-600" aria-hidden />
-      <p className="text-sm font-bold text-slate-600">{label}</p>
-    </div>
-  );
-}
-
-function ErrorPanel({ kind, onRetry }: { kind: FetchFailureKind; onRetry?: () => void }) {
-  const copy = FETCH_FAILURE_COPY[kind];
-  return (
-    <div className={`${panelClass} border-rose-200 text-center`} role="alert">
-      <AlertTriangle className="mx-auto h-8 w-8 text-rose-500" aria-hidden />
-      <p className="mt-2 text-base font-black text-rose-950">{copy.title}</p>
-      <p className="mt-1 text-sm font-medium text-slate-600">{copy.message}</p>
-      {copy.retry && onRetry ? (
-        <button
-          type="button"
-          onClick={onRetry}
-          className="mt-4 inline-flex h-10 items-center gap-2 rounded-xl border-2 border-rose-200 bg-white px-4 text-sm font-black text-rose-900 hover:bg-rose-50"
-        >
-          <RefreshCw className="h-4 w-4" aria-hidden />
-          Tekrar Dene
-        </button>
-      ) : null}
-    </div>
-  );
-}
-
-function UsersTopNav({ onLogout }: { onLogout: () => void }) {
-  return (
-    <nav
-      className="sticky top-0 z-50 mb-6 rounded-2xl border border-white/80 bg-gradient-to-r from-rose-100/90 via-violet-100/85 to-sky-100/90 p-2 shadow-md backdrop-blur-xl sm:p-3"
-      aria-label="Üst navigasyon"
-    >
-      <div className="flex flex-col gap-1.5 lg:grid lg:grid-cols-[1fr_auto_1fr] lg:items-center lg:gap-3">
-        <Link
-          href="/"
-          className={`${navBtn} border-emerald-300/80 bg-gradient-to-r from-emerald-50 to-teal-50 text-emerald-950 no-underline lg:justify-self-start`}
-        >
-          Ana Panele Dön
-        </Link>
-        <Link
-          href="/admin"
-          className={`${navBtn} border-violet-300/80 bg-gradient-to-r from-violet-50 to-indigo-50 text-violet-950 no-underline lg:justify-self-center`}
-        >
-          Yönetim Merkezi
-        </Link>
-        <button
-          type="button"
-          onClick={onLogout}
-          className={`${navBtn} border-rose-300/80 bg-gradient-to-r from-rose-50 to-orange-50 text-rose-950 lg:justify-self-end`}
-        >
-          Çıkış Yap
-        </button>
-      </div>
-    </nav>
-  );
-}
-
-/**
- * Sayaçlar: uzmanlar dört gruba BÖLÜMLENİR (kesişim yok):
- * Onay Bekleyen + Onaylı · Aktif + Arşiv (Onaylı · Pasif) + Reddedilen = Toplam Uzman.
- * Yöneticiler ayrı sayılır. Kartlar ilgili filtreyi uygular.
- */
-function CountCard({
-  label,
-  value,
-  hint,
-  tone,
-  active,
-  onClick,
-}: {
-  label: string;
-  value: number | null;
-  hint?: string;
-  tone: "violet" | "amber" | "emerald" | "slate" | "rose" | "sky";
-  active: boolean;
-  onClick: () => void;
-}) {
-  const tones = {
-    violet: "border-violet-200 from-violet-50/95 to-fuchsia-50/70",
-    amber: "border-amber-200 from-amber-50/95 to-orange-50/70",
-    emerald: "border-emerald-200 from-emerald-50/95 to-teal-50/70",
-    slate: "border-slate-200 from-slate-50/95 to-slate-100/80",
-    rose: "border-rose-200 from-rose-50/95 to-orange-50/60",
-    sky: "border-sky-200 from-sky-50/95 to-indigo-50/60",
-  };
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={active}
-      className={`rounded-2xl border bg-gradient-to-br via-white p-3 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md sm:p-4 ${tones[tone]} ${
-        active ? "ring-2 ring-violet-400" : ""
-      }`}
-    >
-      <p className="text-[11px] font-bold uppercase tracking-wide text-slate-600">{label}</p>
-      <p className="mt-1 text-2xl font-black tabular-nums text-slate-950 sm:text-3xl">{value ?? "—"}</p>
-      {hint ? <p className="mt-0.5 text-[10px] font-semibold text-slate-500">{hint}</p> : null}
-    </button>
-  );
-}
-
-/**
- * M4 — satırda yenileme tarihi + "Yenileme geçti" / "X gün kaldı" rozeti (yalnız bilgilendirme).
- * Yalnız onaylı + aktif + ödemeden muaf olmayan uzmanlarda gösterilir (liste filtresiyle aynı küme).
- */
-function RenewalInfo({ user, todayIso }: { user: ManagedUser; todayIso: string }) {
-  if (user.role !== "expert" || user.approvalStatus !== "approved" || !user.active) return null;
-  if (user.payment.status === "exempt") return null;
-  const st = renewalState(user.payment.nextPaymentAt, todayIso);
-  const label = renewalBadgeLabel(st);
-  return (
-    <p className="mt-1.5 flex min-w-0 flex-wrap items-center gap-1.5 text-xs font-semibold text-slate-600">
-      <span className="min-w-0">
-        Yenileme: <span className="font-black text-slate-800">{st.kind === "none" ? "Tarih yok" : user.payment.nextPaymentLabel}</span>
-      </span>
-      {label ? (
-        <span
-          className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-black ring-1 ${
-            st.kind === "overdue" ? "bg-rose-100 text-rose-900 ring-rose-300" : "bg-amber-100 text-amber-900 ring-amber-300"
-          }`}
-        >
-          {label}
-        </span>
-      ) : null}
-    </p>
-  );
-}
-
-/**
- * 360° satır metrikleri (yalnız uzman). Opak skor YOK: son gerçek aktivite, 7/30 gün aktif gün,
- * açık gerçek modül sayısı ve açık "Dikkat" nedenleri. Ölçüm yetersizse açıkça yazılır.
- */
-function MemberRowInsights({
-  user,
-  activity,
-  measurement,
-  suspiciousCount,
-  todayIso,
-}: {
-  user: ManagedUser;
-  activity: MemberActivity;
-  measurement: MemberMeasurement | null;
-  suspiciousCount: number;
-  todayIso: string;
-}) {
-  if (user.role !== "expert") return null;
-  const reasons = attentionReasons({
-    role: user.role,
-    approvalStatus: user.approvalStatus,
-    active: user.active,
-    paymentStatus: user.payment.status,
-    nextPaymentDate: user.payment.nextPaymentAt,
-    activity,
-    securityAlerts: suspiciousCount,
-    todayIso,
-  });
-  const moduleCount = enabledAccessModules(user.modulePermissions).length;
-  const measured = measurement?.measuredDays ?? null;
-  const tracked = activity.state !== null;
-  const partial30 = measured !== null && measured < 30;
-  const partial7 = measured !== null && measured < 7;
-  return (
-    <div className="mt-2 space-y-1.5">
-      <dl className="flex flex-wrap gap-x-3 gap-y-1 text-xs font-semibold text-slate-600">
-        {tracked ? (
-          <>
-            <div className="min-w-0">
-              <dt className="sr-only">Son gerçek aktivite</dt>
-              <dd className={activity.daysSince === null ? "text-slate-500" : "font-black text-slate-800"}>
-                {activitySummaryLabel(activity)}
-              </dd>
-            </div>
-            {measured !== null ? (
-              <>
-                <div>
-                  <dt className="inline">7g: </dt>
-                  <dd className="inline font-black tabular-nums text-slate-800">{activity.d7ActiveDays ?? 0} gün</dd>
-                  {partial7 ? <span className="text-slate-400"> (kısmi)</span> : null}
-                </div>
-                <div>
-                  <dt className="inline">30g: </dt>
-                  <dd className="inline font-black tabular-nums text-slate-800">{activity.d30ActiveDays ?? 0} gün</dd>
-                  {partial30 ? <span className="text-slate-400"> (kısmi)</span> : null}
-                </div>
-              </>
-            ) : null}
-          </>
-        ) : activity.isDemo ? (
-          <div><dd className="text-slate-500">Demo hesap · kullanım ölçülmez</dd></div>
-        ) : null}
-        <div>
-          <dt className="inline">Modül: </dt>
-          <dd className="inline font-black tabular-nums text-slate-800">{moduleCount}</dd>
-        </div>
-      </dl>
-      {reasons.length > 0 ? (
-        <p className="flex min-w-0 flex-wrap items-center gap-1.5">
-          <span className="text-[10px] font-black uppercase tracking-wide text-slate-500">Dikkat</span>
-          {reasons.map((r) => (
-            <span
-              key={r.kind}
-              className={`rounded-full px-2 py-0.5 text-[10.5px] font-black ring-1 ${
-                r.tone === "rose" ? "bg-rose-100 text-rose-900 ring-rose-300" : "bg-amber-100 text-amber-900 ring-amber-300"
-              }`}
-            >
-              {r.text}
-            </span>
-          ))}
-        </p>
-      ) : null}
-    </div>
-  );
-}
-
-function CompactUserRow({
-  user,
-  activity,
-  measurement,
-  suspiciousCount,
-  todayIso,
-}: {
-  user: ManagedUser;
-  activity: MemberActivity;
-  measurement: MemberMeasurement | null;
-  suspiciousCount: number;
-  todayIso: string;
-}) {
-  return (
-    <article
-      className={`flex min-w-0 flex-col gap-3 rounded-2xl border-2 border-slate-200/80 bg-white/95 px-4 py-4 shadow-sm transition hover:border-violet-200/80 hover:shadow-md sm:flex-row sm:items-center sm:justify-between sm:gap-6 sm:px-5 ${
-        !user.active ? "bg-slate-50/90" : ""
-      }`}
-    >
-      <div className="min-w-0 flex-1">
-        <div className="flex min-w-0 items-center gap-2">
-          <p className="min-w-0 truncate text-base font-black text-slate-900 sm:text-lg" title={user.fullName}>
-            {user.fullName}
-          </p>
-          {suspiciousCount > 0 ? (
-            <span
-              title={`${suspiciousCount} şüpheli güvenlik olayı`}
-              className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-black ring-1 ${
-                suspiciousCount >= 3 ? "bg-rose-100 text-rose-900 ring-rose-300" : "bg-amber-100 text-amber-900 ring-amber-300"
-              }`}
-            >
-              ⚠ {suspiciousCount}
-            </span>
-          ) : null}
-        </div>
-        <p className="truncate text-sm font-medium text-slate-600" title={user.email}>
-          {user.email}
-        </p>
-        <div className="mt-2 flex flex-wrap gap-1.5">
-          <RoleBadge role={user.role} />
-          {user.role === "expert" ? <ApprovalBadge status={user.approvalStatus} /> : null}
-          <AccountBadge active={user.active} />
-          {user.role === "expert" ? <PackageBadge label={user.membershipDisplay.packageLabel} /> : null}
-          {user.role === "expert" ? <PaymentBadge status={user.payment.status} /> : null}
-          {(() => {
-            // H1: uyarı GERÇEK üyelik durumundan türetilir — Pro (Premium) üyede kayıtlı eski pencere uyarı üretmez.
-            const notice = trialEndedNotice(user);
-            return notice && user.membership.trialEndsAt ? (
-              <TrialReviewDueBadge endsAt={user.membership.trialEndsAt} kind={notice} />
-            ) : null;
-          })()}
-          {user.licenseSettings.securityExempt ? <SecurityExemptBadge /> : null}
-        </div>
-        <RenewalInfo user={user} todayIso={todayIso} />
-        <MemberRowInsights user={user} activity={activity} measurement={measurement} suspiciousCount={suspiciousCount} todayIso={todayIso} />
-        <p className="mt-2 text-xs font-semibold text-slate-500">Kayıt: {formatCreatedAt(user.createdAt)}</p>
-      </div>
-      <Link
-        href={`/admin/users/${encodeURIComponent(user.id)}`}
-        className="inline-flex h-11 w-full shrink-0 items-center justify-center gap-2 rounded-xl border-2 border-violet-300/90 bg-gradient-to-r from-violet-50 to-indigo-50 px-5 text-sm font-black text-violet-950 no-underline transition hover:border-violet-400 hover:from-violet-100 sm:w-auto"
-        aria-label={`${user.fullName} detayı`}
-      >
-        Detay
-        <ArrowRight className="h-4 w-4" aria-hidden />
-      </Link>
-    </article>
-  );
-}
-
-type DeactivationInfo = { at: string | null; byId: string | null; byName: string | null; actorIsMainAdmin: boolean };
-
-function ArchiveUserRow({
-  user,
-  deactivation,
-  onReactivate,
-  reactivating,
-  onPurge,
-}: {
-  user: ManagedUser;
-  deactivation?: DeactivationInfo;
-  onReactivate: (user: ManagedUser) => void;
-  reactivating: boolean;
-  /** Yalnız sistem sahibine verilir (owner-only kalıcı silme); yoksa buton render edilmez. */
-  onPurge?: (user: ManagedUser) => void;
-}) {
-  return (
-    <article className="flex min-w-0 flex-col gap-3 rounded-2xl border-2 border-slate-200/80 bg-white/95 px-4 py-4 shadow-sm transition hover:border-amber-200/80 hover:shadow-md sm:flex-row sm:items-center sm:justify-between sm:gap-6 sm:px-5">
-      <div className="min-w-0 flex-1">
-        <div className="flex min-w-0 flex-wrap items-center gap-2">
-          <p className="min-w-0 truncate text-base font-black text-slate-900 sm:text-lg" title={user.fullName}>
-            {user.fullName}
-          </p>
-          <span className="shrink-0 rounded-full bg-amber-100 px-2.5 py-0.5 text-[11px] font-black text-amber-950 ring-1 ring-amber-200">
-            Arşivde · Onaylı · Pasif
-          </span>
-        </div>
-        <p className="truncate text-sm font-medium text-slate-600" title={user.email}>
-          {user.email}
-        </p>
-        <div className="mt-2 grid gap-0.5 text-xs font-semibold text-slate-500">
-          <span>
-            Pasife alınma: <span className="text-slate-700">{deactivation?.at ? formatDateTimeTr(deactivation.at) : "Kayıt bulunamadı"}</span>
-          </span>
-          <span>
-            İşlemi yapan: <span className="text-slate-700">{deactivation?.byName ?? "Kayıt bulunamadı"}</span>
-          </span>
-        </div>
-      </div>
-      <div className="flex w-full shrink-0 flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
-        <button
-          type="button"
-          onClick={() => onReactivate(user)}
-          disabled={reactivating}
-          className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border-2 border-emerald-300/90 bg-gradient-to-r from-emerald-50 to-teal-50 px-4 text-sm font-black text-emerald-950 transition hover:border-emerald-400 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          {reactivating ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <RotateCcw className="h-4 w-4" aria-hidden />}
-          Yeniden Aktifleştir
-        </button>
-        {onPurge ? (
-          <button
-            type="button"
-            onClick={() => onPurge(user)}
-            disabled={reactivating}
-            data-testid="archive-purge-button"
-            className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border-2 border-rose-300/90 bg-rose-50 px-4 text-sm font-black text-rose-800 transition hover:border-rose-400 hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            <Trash2 className="h-4 w-4" aria-hidden />
-            Kalıcı Sil
-          </button>
-        ) : null}
-        <Link
-          href={`/admin/users/${encodeURIComponent(user.id)}`}
-          className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border-2 border-violet-300/90 bg-gradient-to-r from-violet-50 to-indigo-50 px-4 text-sm font-black text-violet-950 no-underline transition hover:border-violet-400"
-          aria-label={`${user.fullName} detayı`}
-        >
-          Detay
-          <ArrowRight className="h-4 w-4" aria-hidden />
-        </Link>
-      </div>
-    </article>
-  );
-}
-
-type CreateForm = { fullName: string; email: string; password: string; role: ManagedUserRole };
-const emptyCreateForm: CreateForm = { fullName: "", email: "", password: "", role: "expert" };
-
-/** Admin API çağrıları için header — x-admin-id + (varsa) x-session-token (TB-1) */
-function adminHeaders(adminId: string, json = false): Record<string, string> {
-  const token = readSessionToken();
-  const h: Record<string, string> = { "x-admin-id": adminId };
-  if (token) h["x-session-token"] = token;
-  if (json) h["Content-Type"] = "application/json";
-  return h;
-}
-
-type ListState =
-  | { kind: "loading" }
-  | {
-      kind: "ready";
-      users: ManagedUser[];
-      activity: Record<string, MemberActivity>;
-      measurement: MemberMeasurement | null;
-      total: number;
-      suspicious: Record<string, number>;
-    }
-  | { kind: "error"; failure: FetchFailureKind };
-
-type ArchiveState =
-  | { kind: "loading" }
-  | { kind: "ready"; users: ManagedUser[]; deactivations: Record<string, DeactivationInfo>; canPermanentDelete: boolean }
-  | { kind: "error"; failure: FetchFailureKind };
-
-/** İstek anahtarına bağlı sonuç: anahtar değişince türetilmiş durum otomatik "loading" olur. */
-type Keyed<T> = { key: string; state: T };
-
-// localStorage oturumu — useSyncExternalStore (SSR'da null; hydration uyumsuzluğu yok).
 const noopSubscribe = () => () => {};
 const readStoredUserRaw = () => {
   try {
@@ -588,733 +75,497 @@ const readStoredUserRaw = () => {
     return null;
   }
 };
-const serverUserRaw = () => null;
 
-function AdminUsersContent() {
+function adminHeaders(adminId: string): Record<string, string> {
+  const h: Record<string, string> = { "x-admin-id": adminId };
+  const token = readSessionToken();
+  if (token) h["x-session-token"] = token;
+  return h;
+}
+
+function StagePill({ row, nowMs }: { row: MemberV2Row; nowMs: number }) {
+  const s = memberStageLabel(row.stage, {
+    exempt: (row.payment_status ?? "").toLowerCase() === "exempt",
+    trialEndsAt: row.trial_ends_at,
+    nowMs,
+  });
+  return (
+    <span className={`${styles.pill} ${styles[`t-${s.tone}`]}`} data-stage={row.stage}>
+      <span className={styles.pillDot} aria-hidden />
+      {s.label}
+    </span>
+  );
+}
+
+function Pills({ row, nowMs }: { row: MemberV2Row; nowMs: number }) {
+  return (
+    <span className={styles.pills}>
+      <StagePill row={row} nowMs={nowMs} />
+      {row.pro_request_at && row.stage !== "pro" ? (
+        <span className={`${styles.pill} ${styles["t-act"]}`} data-pro-request>Pro talebi</span>
+      ) : null}
+    </span>
+  );
+}
+
+function modSummary(row: MemberV2Row): { text: string; more: number } | null {
+  if (row.role !== "expert") return null;
+  const mods = enabledAccessModules(parseAdminModulePermissions(row.module_permissions)).filter(
+    (k) => k !== "digital_content" || row.stage === "pro",
+  );
+  if (!mods.length) return null;
+  return { text: mods.slice(0, 3).map((k) => ADMIN_MODULE_UI_LABELS[k]).join(" · "), more: Math.max(0, mods.length - 3) };
+}
+
+function Mods({ row }: { row: MemberV2Row }) {
+  const m = modSummary(row);
+  if (row.role !== "expert") return <span className={styles.muted}>—</span>;
+  if (!m) return <span className={styles.muted}>Açık modül yok</span>;
+  return (
+    <>
+      {m.text}
+      {m.more ? <span className={styles.muted}> +{m.more}</span> : null}
+    </>
+  );
+}
+
+function MembersV2Content() {
   useBfcacheRefresh();
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const { showToast } = useToast();
+  const handleLogout = useConfirmedLogout();
 
-  const parsedQuery = parseMemberListQuery(searchParams);
-  const query: MemberListQuery = parsedQuery.ok ? parsedQuery.value : DEFAULT_MEMBER_LIST_QUERY;
-  const queryKey = memberListQueryToSearch(query);
+  const legacyTarget = legacyMemberListRedirect(searchParams);
+  const parsed = parseMemberV2Query(searchParams);
+  const query: MemberV2Query = parsed.ok ? parsed.value : DEFAULT_MEMBER_V2_QUERY;
+  const queryKey = memberV2QueryToSearch(query);
 
-  // Oturum: localStorage (yalnız istemci) → useSyncExternalStore; ham değer stabil string.
-  const storedUserRaw = useSyncExternalStore(noopSubscribe, readStoredUserRaw, serverUserRaw);
+  const storedUserRaw = useSyncExternalStore(noopSubscribe, readStoredUserRaw, () => null);
   const hydrated = useSyncExternalStore(noopSubscribe, () => true, () => false);
   const sessionUser = useMemo(() => (storedUserRaw ? readYasamUser() : null), [storedUserRaw]);
-  const sessionChecked = hydrated;
   const allowed = isAdminUser(sessionUser);
-  const currentUserId = sessionUser?.id ?? "";
+  const adminId = sessionUser?.id ?? "";
 
   const [reloadTick, setReloadTick] = useState(0);
-  const requestKey = `${queryKey}|${query.view}|${reloadTick}`;
-  const [listResult, setListResult] = useState<Keyed<ListState> | null>(null);
-  const [archiveResult, setArchiveResult] = useState<Keyed<ArchiveState> | null>(null);
-  const list: ListState = listResult && listResult.key === requestKey ? listResult.state : { kind: "loading" };
-  const archive: ArchiveState =
-    archiveResult && archiveResult.key === requestKey ? archiveResult.state : { kind: "loading" };
-  const [counts, setCounts] = useState<MemberCounts | null>(null);
+  const requestKey = `${queryKey}|${reloadTick}`;
+  const [result, setResult] = useState<{ key: string; state: State } | null>(null);
+  const state: State = result && result.key === requestKey ? result.state : { kind: "loading" };
+  // Son başarılı veri: yeni sayfa yüklenirken göstergeler / sayılar boşa düşmez.
+  const [lastData, setLastData] = useState<Loaded | null>(null);
+  const data = state.kind === "ready" ? state.data : lastData;
 
-  // Arama kutusu ↔ URL: geri/ileri ile q değişince kutu, render sırasında senkronlanır
-  // (React "state'i render'da ayarla" deseni; effect içinde setState yok).
-  // Yarış koruması: kutunun KENDİ gönderdiği (debounce) q değerleri `ownQs`'te tutulur; bu
-  // gezinmeler geç tamamlansa bile kullanıcının o arada yazdığı metni EZMEZ. Yalnız dış
-  // değişiklik (Geri/İleri, Filtreleri Temizle) kutuyu günceller ve listeyi sıfırlar.
+  const [attnAll, setAttnAll] = useState(false);
+  const [adv, setAdv] = useState(query.module !== "all" || query.payment !== "all" || query.role !== "expert");
+  const [moreOpen, setMoreOpen] = useState(false);
   const [searchText, setSearchText] = useState(query.q);
   const [syncedQ, setSyncedQ] = useState(query.q);
-  const [ownQs, setOwnQs] = useState<string[]>([]);
   if (syncedQ !== query.q) {
     setSyncedQ(query.q);
-    if (!ownQs.includes(query.q)) {
-      setSearchText(query.q);
-      setOwnQs([]);
-    }
+    if (searchText.trim() !== query.q) setSearchText(query.q);
   }
-  const [creating, setCreating] = useState(false);
-  const [form, setForm] = useState<CreateForm>(emptyCreateForm);
-  const [formModules, setFormModules] = useState<Set<AdminModuleUiKey>>(() => new Set());
-  // Gökyüzü Atlası: Astroloji seçilirse teknik seçimi ZORUNLU (kayıtla aynı istekte / aynı işlemde yazılır).
-  const [formAstroGrants, setFormAstroGrants] = useState<AstroTechniqueGrants | null>(null);
-  const [formAstroPicker, setFormAstroPicker] = useState(false);
-  const [formOpen, setFormOpen] = useState(false);
-  const [reactivatingId, setReactivatingId] = useState<string>("");
-  const [purgeTarget, setPurgeTarget] = useState<PurgeTarget | null>(null);
 
-  // Geçmiş davranışı: filtre / sayfa / sayfa boyutu / sekme / temizle → router.push (tarayıcı
-  // Geri/İleri her adımı geri getirir). Arama yazımı: bir yazma oturumunun İLK değişikliği push,
-  // aynı oturumdaki sonraki tuşlar replace → tek arama = tek geçmiş adımı (tuş başına kayıt yok).
-  const searchHistoryMode = useRef<"push" | "replace">("push");
   const setQuery = useCallback(
-    (patch: Partial<MemberListQuery>, mode: "push" | "replace" = "push") => {
-      const next: MemberListQuery = { ...query, ...patch };
-      const qs = memberListQueryToSearch(next);
-      if (qs === memberListQueryToSearch(query)) return;
+    (patch: Partial<MemberV2Query>, mode: "push" | "replace" = "push") => {
+      const next: MemberV2Query = { ...query, ...patch };
+      const qs = memberV2QueryToSearch(next);
+      if (qs === queryKey) return;
       const href = qs ? `${pathname}?${qs}` : pathname;
       if (mode === "replace") router.replace(href, { scroll: false });
       else router.push(href, { scroll: false });
     },
-    [query, router, pathname],
-  );
-  const navigate = useCallback(
-    (patch: Partial<MemberListQuery>) => {
-      searchHistoryMode.current = "push";
-      setQuery(patch, "push");
-    },
-    [setQuery],
+    [query, queryKey, pathname, router],
   );
 
-  // Yazarken 350 ms debounce → URL (q) güncellenir; sayfa 1'e döner.
+  // Eski (klasik) parametrelerle gelen bağlantı → aynı sonucu gösteren klasik liste.
+  useEffect(() => {
+    if (legacyTarget) router.replace(legacyTarget);
+  }, [legacyTarget, router]);
+
+  // Arama: 350 ms bekleme → URL (sayfa 1).
   useEffect(() => {
     if (searchText.trim() === query.q) return;
-    const t = setTimeout(() => {
-      const mode = searchHistoryMode.current;
-      const nextQ = searchText.trim();
-      searchHistoryMode.current = "replace";
-      setOwnQs((prev) => [...prev.slice(-4), nextQ]);
-      setQuery({ q: nextQ, page: 1 }, mode);
-    }, 350);
+    const t = setTimeout(() => setQuery({ q: searchText.trim(), page: 1 }, "replace"), 350);
     return () => clearTimeout(t);
   }, [searchText, query.q, setQuery]);
 
-  // Detaydan "Üye Listesine Dön" aynı filtre/sayfaya döner (sekme-yerel; yalnız doğrulanmış sorgu).
+  // Detaydan "Üye listesine dön" aynı filtreye döner (sekme-yerel).
   useEffect(() => {
     try {
-      window.sessionStorage.setItem(MEMBER_LIST_RETURN_KEY, queryKey);
+      window.sessionStorage.setItem(MEMBER_LIST_RETURN_KEY, `${MEMBER_V2_RETURN_PREFIX}${queryKey}`);
     } catch {
       /* depolama kapalı → dönüş düz listeye */
     }
   }, [queryKey]);
 
-  // Liste (sunucu tarafı sayfalama) — URL durumu değişince; yarışlar AbortController ile iptal.
   useEffect(() => {
-    if (!sessionChecked || !allowed || !currentUserId) return;
+    if (!hydrated || !allowed || !adminId || legacyTarget) return;
     const ctrl = new AbortController();
-    const params = new URLSearchParams(queryKey);
-    params.set("pageSize", String(query.pageSize));
-    if (query.view === "archive") params.set("view", "archive");
     const key = requestKey;
-    const setList = (state: ListState) => setListResult({ key, state });
-    fetch(`/api/admin/users?${params.toString()}`, { headers: adminHeaders(currentUserId), signal: ctrl.signal })
+    fetch(`/api/admin/members${queryKey ? `?${queryKey}` : ""}`, { headers: adminHeaders(adminId), cache: "no-store", signal: ctrl.signal })
       .then(async (res) => {
         if (!res.ok) {
-          setList({ kind: "error", failure: classifyFetchFailure(res.status) });
+          setResult({ key, state: { kind: "error", denied: res.status === 401 || res.status === 403 } });
           return;
         }
-        const json = (await res.json()) as {
-          users?: Record<string, unknown>[];
-          total?: number;
-          counts?: unknown;
-          measurement?: unknown;
-          suspiciousCounts?: Record<string, number>;
+        const j = (await res.json()) as Record<string, unknown>;
+        const serverNow = typeof j.serverNow === "string" ? Date.parse(j.serverNow) : NaN;
+        const loaded: Loaded = {
+          rows: (Array.isArray(j.rows) ? j.rows : []) as MemberV2Row[],
+          total: Number(j.total) || 0,
+          presets: j.presets as MemberV2Presets,
+          counts: j.counts as MemberV2Counts,
+          decisions: j.decisions as MemberV2Decisions,
+          today: typeof j.today === "string" ? j.today : "",
+          nowMs: Number.isFinite(serverNow) ? serverNow : 0,
         };
-        setCounts(parseMemberCounts(json.counts));
-        const rows = json.users ?? [];
-        setList({
-          kind: "ready",
-          users: rows.map((row) => mapDbUser(row)),
-          activity: Object.fromEntries(rows.map((row) => [String(row.id ?? ""), parseMemberActivity(row)])),
-          measurement: json.measurement ? parseMeasurement(json.measurement) : null,
-          total: Math.max(0, Number(json.total) || 0),
-          suspicious: json.suspiciousCounts ?? {},
-        });
+        setResult({ key, state: { kind: "ready", data: loaded } });
+        setLastData(loaded);
       })
       .catch((e: unknown) => {
         if ((e as { name?: string })?.name === "AbortError") return;
-        setList({ kind: "error", failure: "network" });
+        setResult({ key, state: { kind: "error", denied: false } });
       });
     return () => ctrl.abort();
-  }, [sessionChecked, allowed, currentUserId, queryKey, query.pageSize, query.view, requestKey]);
+  }, [hydrated, allowed, adminId, legacyTarget, queryKey, requestKey]);
 
-  // Arşiv satırları (pasife alınma tarih + aktör) — yalnız arşiv görünümünde.
+  // Aralık dışı sayfa → son geçerli sayfa.
+  const total = state.kind === "ready" ? state.data.total : 0;
   useEffect(() => {
-    if (!sessionChecked || !allowed || !currentUserId || query.view !== "archive") return;
-    const ctrl = new AbortController();
-    const key = requestKey;
-    const setArchive = (state: ArchiveState) => setArchiveResult({ key, state });
-    fetch("/api/admin/users/archive", { headers: adminHeaders(currentUserId), signal: ctrl.signal })
-      .then(async (res) => {
-        if (!res.ok) {
-          setArchive({ kind: "error", failure: classifyFetchFailure(res.status) });
-          return;
-        }
-        const json = (await res.json()) as {
-          users?: Record<string, unknown>[];
-          deactivations?: Record<string, DeactivationInfo>;
-          viewer?: { canPermanentDelete?: boolean };
-        };
-        setArchive({
-          kind: "ready",
-          users: (json.users ?? []).map((r) => mapDbUser(r)),
-          deactivations: json.deactivations ?? {},
-          canPermanentDelete: json.viewer?.canPermanentDelete === true,
-        });
-      })
-      .catch((e: unknown) => {
-        if ((e as { name?: string })?.name === "AbortError") return;
-        setArchive({ kind: "error", failure: "network" });
-      });
-    return () => ctrl.abort();
-  }, [sessionChecked, allowed, currentUserId, query.view, requestKey]);
+    if (state.kind !== "ready" || total === 0) return;
+    const last = Math.max(1, Math.ceil(total / MEMBER_V2_PAGE_SIZE));
+    if (query.page > last) setQuery({ page: last }, "replace");
+  }, [state.kind, total, query.page, setQuery]);
 
-  const totalPages = list.kind === "ready" ? Math.max(1, Math.ceil(list.total / query.pageSize)) : 1;
-
-  // Aralık dışı sayfa (bayat URL / son sayfadaki son üye arşivlendi) → son geçerli sayfa (replace;
-  // geçmişe yeni kayıt eklenmez). Önceden "9 sonuçtan 61–9 · Henüz üye yok." gösterip pager'sız kalıyordu.
-  const listTotal = list.kind === "ready" ? list.total : 0;
-  useEffect(() => {
-    if (listTotal === 0) return;
-    const lastPage = Math.max(1, Math.ceil(listTotal / query.pageSize));
-    if (query.page > lastPage) setQuery({ page: lastPage }, "replace");
-  }, [listTotal, query.page, query.pageSize, setQuery]);
-
-  const activeFilterCount = [query.approval, query.active, query.role, query.payment, query.due, query.activity, query.module, query.security]
-    .filter((v) => v !== "all").length;
-  const [filtersOpen, setFiltersOpen] = useState(false);
-  const formHasModule = useMemo(() => [...formModules].some((k) => ADMIN_MODULE_KIND[k] === "module"), [formModules]);
-
-  async function reactivateUser(target: ManagedUser) {
-    setReactivatingId(target.id);
-    const res = await fetch(`/api/admin/users/${encodeURIComponent(target.id)}/status`, {
-      method: "POST",
-      headers: adminHeaders(currentUserId, true),
-      body: JSON.stringify({ action: "toggle_active", currentActive: false }),
-    }).catch(() => null);
-    const json = res ? ((await res.json().catch(() => ({}))) as { ok?: boolean; error?: string }) : {};
-    setReactivatingId("");
-    if (!res || !res.ok || !json.ok) {
-      showToast({ title: "İşlem başarısız", message: json.error ?? "Yeniden aktifleştirilemedi.", type: "error" });
-      return;
-    }
-    showToast({
-      title: "Yeniden aktifleştirildi",
-      message: `${target.fullName} aktif üyelere döndü. Eski oturumlar kapalıdır; yeniden giriş yapması gerekir.`,
-      type: "success",
-    });
-    setReloadTick((n) => n + 1);
+  if (!hydrated || legacyTarget) {
+    return <main className={styles.root}><div className={styles.page}><p className={styles.muted}>Yükleniyor…</p></div></main>;
   }
-
-  function handlePurged(target: PurgeTarget, result: PurgeResult) {
-    setPurgeTarget(null);
-    // Liste ANINDA güncellenir (hayalet satır yok), ardından sayaçlar sunucudan tazelenir.
-    setArchiveResult((prev) =>
-      prev && prev.state.kind === "ready"
-        ? { ...prev, state: { ...prev.state, users: prev.state.users.filter((u) => u.id !== target.id) } }
-        : prev,
-    );
-    showToast({
-      title: "Uzman kalıcı olarak silindi",
-      message:
-        `${target.fullName} hesabı ve ${result.deletedRows} ilişkili kayıt silindi` +
-        (result.storageFailures > 0
-          ? `. Uyarı: ${result.storageFailures} dosya grubu silinemedi; teknik destekle kontrol edin.`
-          : `; ${result.storageRemoved} dosya kaldırıldı.`),
-      type: result.storageFailures > 0 ? "warning" : "success",
-    });
-    setReloadTick((n) => n + 1);
-  }
-
-  // Final-A1: tek tıkla çıkış yok — ana paneldeki ortak onay penceresi.
-  const handleLogout = useConfirmedLogout();
-
-  async function handleCreate(e: React.FormEvent) {
-    e.preventDefault();
-    const fullName = form.fullName.trim();
-    const email = form.email.trim().toLowerCase();
-    const password = form.password.trim();
-    if (!fullName || !email || !password) {
-      showToast({ title: "Eksik bilgi", message: "Ad soyad, e-posta ve parola zorunludur.", type: "error" });
-      return;
-    }
-    const policyError = newPasswordPolicyMessage(password, email);
-    if (policyError) {
-      showToast({ title: "Parola uygun değil", message: policyError, type: "error" });
-      return;
-    }
-    if (form.role === "expert" && !formHasModule) {
-      showToast({ title: "Modül seçin", message: "Yeni uzman için en az bir modül seçmelisiniz.", type: "error" });
-      return;
-    }
-    if (form.role === "expert" && formModules.has("astrology") && !formAstroGrants) {
-      showToast({ title: "Teknik seçin", message: "Astroloji için en az bir Gökyüzü Atlası tekniği seçmelisiniz.", type: "error" });
-      return;
-    }
-    setCreating(true);
-    const modules = form.role === "expert" ? [...formModules] : [];
-    const res = await fetch("/api/admin/users", {
-      method: "POST",
-      headers: adminHeaders(currentUserId, true),
-      body: JSON.stringify({
-        fullName,
-        email,
-        password,
-        role: form.role,
-        modules,
-        ...(form.role === "expert" && formModules.has("astrology") ? { astrologyGrants: formAstroGrants } : {}),
-      }),
-    }).catch(() => null);
-    const json = res
-      ? ((await res.json().catch(() => ({}))) as { ok?: boolean; error?: string; moduleCount?: number })
-      : {};
-    setCreating(false);
-    if (!res || !res.ok || !json.ok) {
-      showToast({
-        title: "Kayıt oluşturulamadı",
-        message: json.error ?? (res ? "Kayıt tamamlanamadı." : "Sunucuya ulaşılamadı."),
-        type: "error",
-      });
-      return;
-    }
-    setForm(emptyCreateForm);
-    setFormModules(new Set());
-    setFormAstroGrants(null);
-    setFormOpen(false);
-    showToast({
-      title: form.role === "expert" ? "Uzman oluşturuldu" : "Yönetici oluşturuldu",
-      message:
-        form.role === "expert"
-          ? `Hesap onaylı, aktif ve Premium. ${json.moduleCount ?? modules.length} modül erişime açıldı: ${modules
-              .filter((k) => ADMIN_MODULE_KIND[k] === "module")
-              .map((k) => ADMIN_MODULE_UI_LABELS[k])
-              .join(", ")}.`
-          : "Yönetici hesabı oluşturuldu.",
-      type: "success",
-    });
-    setReloadTick((n) => n + 1);
-  }
-
-  if (!sessionChecked) {
-    return (
-      <main className="flex min-h-screen items-center justify-center bg-[linear-gradient(135deg,#fdf4ff_0%,#eef2ff_50%,#f0fdfa_100%)]">
-        <PastelLoader label="Oturum kontrol ediliyor…" />
-      </main>
-    );
-  }
-
   if (!allowed) {
     return (
-      <main className="relative min-h-screen bg-[linear-gradient(135deg,#fdf4ff_0%,#eef2ff_50%,#fff1f2_100%)] px-6 py-12">
-        <div className="mx-auto max-w-lg rounded-2xl border border-rose-200 bg-white/90 p-10 text-center shadow-xl">
-          <Shield className="mx-auto h-10 w-10 text-rose-600" />
-          <h1 className="mt-4 text-2xl font-black">Erişim reddedildi</h1>
-          <p className="mt-2 text-slate-600">Bu sayfaya erişim yetkiniz yok.</p>
-          <Link href="/" className="mt-6 inline-block font-black text-violet-700 no-underline">
-            Ana panele dön
-          </Link>
+      <main className={styles.root}>
+        <div className={styles.page}>
+          <div className={styles.card} style={{ padding: 18 }}>
+            <h1 style={{ margin: 0, fontSize: 18 }}>Erişim reddedildi</h1>
+            <p className={styles.muted}>Bu sayfa yalnız yöneticilere açıktır.</p>
+            <Link href="/" className={styles.linkbtn}>Ana panele dön</Link>
+          </div>
         </div>
       </main>
     );
   }
 
-  const isArchive = query.view === "archive";
-  const from = list.kind === "ready" && list.total > 0 ? (query.page - 1) * query.pageSize + 1 : 0;
-  const to = list.kind === "ready" ? Math.min(list.total, query.page * query.pageSize) : 0;
-  // M4 — yenileme rozetleri İstanbul gününe göre (sunucu filtresiyle aynı gün tanımı).
-  const todayIso = istanbulTodayIso();
+  const pick = (filter: MemberV2Filter) => {
+    if (!MEMBER_V2_MORE_FILTERS.some(([k]) => k === filter)) setMoreOpen(false);
+    setQuery({ filter, page: 1, role: "expert" });
+  };
+  const c = data?.counts;
+  const dec = data?.decisions;
+  const pc = data?.presets;
+  const nowMs = data?.nowMs ?? 0;
+  const todayIso = data?.today ?? "";
+
+  // Karar gerektirenler (zildeki açık kararlarla AYNI kaynak) — öncelik sırasıyla.
+  const decide: [MemberV2Filter, number, string, string][] = dec
+    ? ([
+        ["prores", dec.pro_talebi, "Pro üyelik talebi", "Ödemeyi doğrula, Pro'ya geçir veya kapat"],
+        ["basvuru", dec.basvuru, "Onay bekleyen başvuru", "Deneme veya Pro kararı"],
+        ["inceleme", dec.inceleme, "Şüpheli hesap incelemesi", "Risk işareti olan kayıt"],
+        ["pay", dec.odeme, "Ödemesi “Gecikti” işaretli Pro", "Ödemeyi doğrula ve kaydet"],
+        ["eski", dec.eski_kayit, "Eski kayıt · paket eksik", "Owner kararı gerekir"],
+      ] as [MemberV2Filter, number, string, string][]).filter((r) => r[1] > 0)
+    : [];
+  const LIMIT = 3;
+  const shownDecide = attnAll ? decide : decide.slice(0, LIMIT);
+  // Yalnız bilgi: ödeme tarihi geçmiş ama “Gecikti” işaretlenmemiş Pro'lar borç sayılmaz → “kontrol”.
+  const payDateOnly = c && dec ? Math.max(0, c.pay_check - dec.odeme) : 0;
+  const fyi: [MemberV2Filter, number, string][] = c
+    ? ([
+        ["soon", c.soon, "2 gün içinde bitecek deneme"],
+        ["bitti", c.ended, "denemesi biten"],
+        ["notstarted", c.not_started, "başlamamış deneme"],
+        ["paynext", c.pay_next, "7 gün içinde ödeme"],
+        ["pay", payDateOnly, "ödeme tarihi geçen (kontrol)"],
+      ] as [MemberV2Filter, number, string][]).filter((r) => r[1] > 0)
+    : [];
+
+  const kpis: [string, string, number | null, string, () => void][] = [
+    ["today", "Bugün yeni kayıt", c ? c.today : null, "Türkiye saatiyle bugün", () => pick("yeni")],
+    ["trial", "Denemede", c ? c.trial : null, c && c.not_started ? `Süresi başlamış · +${c.not_started} başlamamış` : "Süresi başlamış", () => pick("trial")],
+    ["pro", "Aktif Pro", c ? c.pro : null, c && c.pro_exempt ? `${c.pro_exempt} ödemeden muaf dahil` : "Ödemeden muaf dahil", () => pick("pro")],
+    ["ended", "Denemesi biten", c ? c.ended : null, "Pro'ya geçmemiş", () => pick("bitti")],
+    ["waiting", "Karar bekleyen", dec ? dec.total : null, "Yönetim zilindeki turuncu sayı", () => setAttnAll(true)],
+  ];
+
+  const activeMore = MEMBER_V2_MORE_FILTERS.find(([k]) => k === query.filter);
+  const rows = state.kind === "ready" ? state.data.rows : [];
+  const pages = Math.max(1, Math.ceil(total / MEMBER_V2_PAGE_SIZE));
+  const from = total ? (query.page - 1) * MEMBER_V2_PAGE_SIZE + 1 : 0;
+  const to = Math.min(total, query.page * MEMBER_V2_PAGE_SIZE);
+  const todayLabel = todayIso ? fmtDateTr(todayIso) : "";
 
   return (
-    <main className="relative min-h-screen overflow-x-hidden bg-[linear-gradient(135deg,#fdf4ff_0%,#eef2ff_42%,#f0fdfa_100%)] text-slate-900 antialiased">
-      <div className="relative z-10 mx-auto w-full max-w-[1400px] px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
-        <UsersTopNav onLogout={handleLogout} />
+    <main className={styles.root} data-members-v2>
+      <div className={styles.page}>
+        <nav className={styles.topnav} aria-label="Üst gezinme">
+          <Link href="/" className={styles.navlink}>Ana Panele Dön</Link>
+          <Link href="/admin" className={styles.navlink}>Yönetim Merkezi</Link>
+          <span className={styles.grow} />
+          <button type="button" className={styles.navlink} onClick={handleLogout}>Çıkış Yap</button>
+        </nav>
 
-        <header className="relative mb-6 overflow-hidden rounded-2xl border border-white/50 bg-gradient-to-r from-slate-900 via-violet-900 to-slate-800 px-5 py-5 text-white shadow-[0_16px_48px_rgba(88,28,135,0.18)] sm:px-8 sm:py-7">
-          <div className="flex flex-wrap items-center gap-4">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white/15 ring-1 ring-white/25 backdrop-blur-sm">
-              <Users className="h-6 w-6 text-white/90" aria-hidden />
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-xs font-bold uppercase tracking-widest text-white/60">Yönetim · Üye Yönetimi</p>
-              <h1 className="mt-1 text-2xl font-black tracking-tight sm:text-3xl">Üye Yönetimi</h1>
-              <p className="mt-1 text-sm font-medium text-white/70">
-                Uzman ve yönetici hesapları. Onay, modül erişimi ve güvenlik ayarları üye detayında yönetilir.
-              </p>
-            </div>
+        <div className={styles.ph}>
+          <div style={{ flex: "1 1 260px", minWidth: 0 }}>
+            <h1>Üye Yönetimi</h1>
+            <p>{todayLabel ? `${todayLabel} · ` : ""}demo ve test hesapları sayılara dahil değil</p>
           </div>
-        </header>
-
-        {/* Sayaçlar — uzmanlar için kesişimsiz bölümleme */}
-        <section aria-label="Üye sayıları" className="mb-2 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6 sm:gap-3">
-          <CountCard label="Toplam Uzman" value={counts?.experts_total ?? null} tone="violet"
-            active={!isArchive && query.role === "expert" && query.approval === "all" && query.active === "all"}
-            onClick={() => navigate({ view: "members", role: "expert", approval: "all", active: "all", payment: "all", due: "all", ...RESET_360, page: 1 })} />
-          <CountCard label="Onay Bekleyen" value={counts?.pending ?? null} tone="amber"
-            active={!isArchive && query.approval === "pending"}
-            onClick={() => navigate({ view: "members", role: "expert", approval: "pending", active: "all", payment: "all", due: "all", ...RESET_360, page: 1 })} />
-          <CountCard label="Onaylı · Aktif" value={counts?.approved_active ?? null} tone="emerald"
-            active={!isArchive && query.approval === "approved" && query.active === "active"}
-            onClick={() => navigate({ view: "members", role: "expert", approval: "approved", active: "active", payment: "all", due: "all", ...RESET_360, page: 1 })} />
-          <CountCard label="Arşiv" hint="Onaylı · Pasif" value={counts?.archived ?? null} tone="slate"
-            active={isArchive}
-            onClick={() => navigate({ ...DEFAULT_MEMBER_LIST_QUERY, view: "archive" })} />
-          <CountCard label="Reddedilen" value={counts?.rejected ?? null} tone="rose"
-            active={!isArchive && query.approval === "rejected"}
-            onClick={() => navigate({ view: "members", role: "expert", approval: "rejected", active: "all", payment: "all", due: "all", ...RESET_360, page: 1 })} />
-          <CountCard label="Yönetici" value={counts?.admins ?? null} tone="sky"
-            active={!isArchive && query.role === "admin"}
-            onClick={() => navigate({ view: "members", role: "admin", approval: "all", active: "all", payment: "all", due: "all", ...RESET_360, page: 1 })} />
-        </section>
-        <p className="mb-5 text-[11px] font-semibold text-slate-600">
-          Her uzman yalnızca bir gruptadır: Onay Bekleyen + Onaylı · Aktif + Arşiv + Reddedilen = Toplam Uzman.
-          Yöneticiler ayrı sayılır.
-        </p>
-
-        <MemberOverviewPanel
-          adminId={currentUserId}
-          reloadKey={reloadTick}
-          query={query}
-          onSelect={(target) => {
-            setSearchText("");
-            navigate({ ...DEFAULT_MEMBER_LIST_QUERY, pageSize: query.pageSize, ...OVERVIEW_TARGET_QUERY[target] });
-          }}
-        />
-
-        <div className="mb-5 flex flex-wrap gap-2" role="tablist" aria-label="Görünüm">
-          <button type="button" role="tab" aria-selected={!isArchive}
-            onClick={() => navigate({ ...DEFAULT_MEMBER_LIST_QUERY })}
-            className={`inline-flex h-11 items-center gap-2 rounded-xl border-2 px-4 text-sm font-black transition ${
-              !isArchive ? "border-violet-400 bg-violet-100 text-violet-950" : "border-slate-200 bg-white text-slate-700 hover:bg-violet-50/80"
-            }`}>
-            <Users className="h-4 w-4" aria-hidden />
-            Üyeler
-          </button>
-          <button type="button" role="tab" aria-selected={isArchive}
-            onClick={() => navigate({ ...DEFAULT_MEMBER_LIST_QUERY, view: "archive" })}
-            className={`inline-flex h-11 items-center gap-2 rounded-xl border-2 px-4 text-sm font-black transition ${
-              isArchive ? "border-amber-400 bg-amber-100 text-amber-950" : "border-slate-200 bg-white text-slate-700 hover:bg-amber-50/80"
-            }`}>
-            <Archive className="h-4 w-4" aria-hidden />
-            Arşiv{counts ? ` (${counts.archived})` : ""}
-          </button>
+          <Link href={`${MEMBER_CLASSIC_PATH}?yeni=1`} className={`${styles.btn} ${styles.btnPri}`} data-new-expert>+ Yeni uzman</Link>
         </div>
 
-        {!isArchive ? (
-          <>
-            <section className={`${panelClass} mb-6 border-indigo-200/80`}>
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div className="min-w-0">
-                  <h2 className="text-lg font-black text-indigo-950">Yeni Uzman Ekle</h2>
-                  <p className="text-sm font-medium text-slate-600">
-                    Yönetici tarafından eklenen uzman doğrudan onaylı, aktif ve Premium olur; yalnız seçilen modüllere erişir.
-                  </p>
-                </div>
-                <button type="button" onClick={() => setFormOpen((o) => !o)} aria-expanded={formOpen}
-                  className="inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-xl border-2 border-violet-300 bg-violet-50 px-4 text-sm font-black text-violet-950">
-                  {formOpen ? <ChevronDown className="h-4 w-4 rotate-180" aria-hidden /> : <Plus className="h-4 w-4" aria-hidden />}
-                  {formOpen ? "Formu Kapat" : "Yeni Uzman"}
-                </button>
-              </div>
-              {formOpen ? (
-                <form onSubmit={handleCreate} className="mt-4 grid gap-3 sm:grid-cols-2" noValidate>
-                  <label className="block sm:col-span-2" htmlFor="create-name">
-                    <span className={labelClass}>Ad Soyad</span>
-                    <input id="create-name" className={inputClass} autoComplete="off" value={form.fullName} maxLength={120}
-                      onChange={(e) => setForm((f) => ({ ...f, fullName: e.target.value }))} />
-                  </label>
-                  <label className="block" htmlFor="create-email">
-                    <span className={labelClass}>E-posta</span>
-                    <input id="create-email" type="email" className={inputClass} autoComplete="off" value={form.email} maxLength={254}
-                      onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} />
-                  </label>
-                  <label className="block" htmlFor="create-password">
-                    <span className={labelClass}>Geçici Parola</span>
-                    <PasswordInput id="create-password" className={inputClass} autoComplete="new-password" value={form.password}
-                      placeholder="En az 6 karakter" aria-describedby="create-password-hint"
-                      onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))} />
-                    <span id="create-password-hint" className="mt-1 block text-xs font-medium text-slate-500">
-                      {PASSWORD_HINT}
-                    </span>
-                  </label>
-                  <label className="block" htmlFor="create-role">
-                    <span className={labelClass}>Hesap Türü</span>
-                    <select id="create-role" className={inputClass} value={form.role}
-                      onChange={(e) => setForm((f) => ({ ...f, role: e.target.value as ManagedUserRole }))}>
-                      <option value="expert">Uzman</option>
-                      <option value="admin">Yönetici (yalnız ana yönetici)</option>
-                    </select>
-                  </label>
-                  {form.role === "expert" ? (
-                    <fieldset className="sm:col-span-2">
-                      <legend className={labelClass}>
-                        Açılacak Modüller{" "}
-                        <span className="font-bold text-slate-500">
-                          ({[...formModules].filter((k) => ADMIN_MODULE_KIND[k] === "module").length} seçili)
-                        </span>
-                      </legend>
-                      <div className="mt-2">
-                        <ModuleCheckboxGrid
-                          idPrefix="create-module"
-                          selected={formModules}
-                          disabled={creating}
-                          onToggle={(k) => {
-                            // Astroloji: işaretlemek teknik panelini açar; kaldırmak teknik seçimini de temizler.
-                            if (k === "astrology" && !formModules.has("astrology")) {
-                              setFormAstroPicker(true);
-                              return;
-                            }
-                            if (k === "astrology") setFormAstroGrants(null);
-                            setFormModules((prev) => {
-                              const n = new Set(prev);
-                              if (n.has(k)) n.delete(k);
-                              else n.add(k);
-                              return n;
-                            });
-                          }}
-                        />
-                      </div>
-                      {formModules.has("astrology") ? (
-                        <div className="mt-2 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-indigo-200 bg-indigo-50/70 px-3 py-2" data-create-astro>
-                          <span className="text-xs font-bold text-indigo-950">
-                            Gökyüzü Atlası teknikleri: {formAstroGrants ? grantsSummary(formAstroGrants) : "seçilmedi"}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => setFormAstroPicker(true)}
-                            disabled={creating}
-                            className="rounded-lg border border-indigo-300 bg-white px-2.5 py-1 text-xs font-black text-indigo-800 hover:bg-indigo-50 disabled:opacity-50"
-                          >
-                            {formAstroGrants ? "Teknikleri düzenle" : "Teknikleri seç"}
-                          </button>
-                        </div>
-                      ) : null}
-                      <AstrologyTechniquePicker
-                        open={formAstroPicker}
-                        initial={selectionOf(formAstroGrants)}
-                        subtitle="Seçim, “Uzmanı Oluştur ve Onayla” ile kayıtla birlikte kaydedilir. İptal ederseniz Astroloji seçilmez."
-                        submitLabel="Seçimi Uygula"
-                        onCancel={() => setFormAstroPicker(false)}
-                        onSubmit={(g) => {
-                          setFormAstroGrants(g);
-                          setFormModules((prev) => new Set(prev).add("astrology"));
-                          setFormAstroPicker(false);
-                        }}
-                      />
-                      {!formHasModule ? (
-                        <p className="mt-2 text-xs font-bold text-amber-800">En az bir modül seçmelisiniz.</p>
-                      ) : null}
-                    </fieldset>
-                  ) : null}
-                  <div className="sm:col-span-2">
-                    <button type="submit" disabled={creating || (form.role === "expert" && (!formHasModule || (formModules.has("astrology") && !formAstroGrants)))}
-                      className="inline-flex h-12 w-full items-center justify-center rounded-2xl border-2 border-emerald-600 bg-emerald-600 px-8 text-base font-black text-white shadow-md transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto">
-                      {creating ? (
-                        <span className="inline-flex items-center gap-2">
-                          <Loader2 className="h-5 w-5 animate-spin" aria-hidden />
-                          Oluşturuluyor…
-                        </span>
-                      ) : form.role === "expert" ? "Uzmanı Oluştur ve Onayla" : "Yöneticiyi Oluştur"}
-                    </button>
-                  </div>
-                </form>
-              ) : null}
-            </section>
-
-            <section className={`${panelClass} mb-4 border-slate-200/80`} aria-label="Arama ve filtreler">
-              <label className="relative block" htmlFor="member-search">
-                <span className="sr-only">Üye ara</span>
-                <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" aria-hidden />
-                <input id="member-search" type="search" value={searchText} maxLength={120}
-                  onChange={(e) => setSearchText(e.target.value)}
-                  onBlur={() => { searchHistoryMode.current = "push"; }}
-                  placeholder="Ad, e-posta veya rol (ör. uzman, yönetici) ara…"
-                  className="h-12 w-full rounded-2xl border-2 border-indigo-100 bg-white py-3 pl-12 pr-4 text-base font-semibold outline-none focus:border-violet-400 focus:ring-4 focus:ring-violet-100" />
-              </label>
-              <button
-                type="button"
-                onClick={() => setFiltersOpen((o) => !o)}
-                aria-expanded={filtersOpen}
-                aria-controls="member-filter-rows"
-                className="mt-3 inline-flex h-10 w-full items-center justify-between gap-2 rounded-xl border-2 border-slate-200 bg-white px-3 text-sm font-black text-slate-800 sm:hidden"
-              >
-                <span className="inline-flex items-center gap-2">
-                  <SlidersHorizontal className="h-4 w-4" aria-hidden />
-                  Filtreler{activeFilterCount > 0 ? ` · ${activeFilterCount} aktif` : ""}
-                </span>
-                <ChevronDown className={`h-4 w-4 transition-transform ${filtersOpen ? "rotate-180" : ""}`} aria-hidden />
+        <section className={`${styles.card} ${styles.attn}`} aria-labelledby="attn-t" data-attn>
+          <header className={styles.attnHead}>
+            <h2 id="attn-t">Bugün dikkat</h2>
+            <span className={styles.muted} style={{ fontSize: 12.5 }}>
+              Karar bekleyen <b className={styles.num} style={{ color: "var(--act)" }} data-attn-total>{dec ? dec.total : "—"}</b>
+            </span>
+          </header>
+          {!data ? (
+            <div className={styles.empty}>{state.kind === "error" ? "Veriler okunamadı." : "Yükleniyor…"}</div>
+          ) : shownDecide.length ? (
+            shownDecide.map(([f, n, t, s]) => (
+              <button type="button" key={f} className={styles.attnRow} onClick={() => pick(f)} data-attn-row={f}>
+                <span className={styles.big}>{n}</span>
+                <span><b>{t}</b><br /><span className={styles.muted} style={{ fontSize: 12.5 }}>{s}</span></span>
+                <span className={styles.go}>Gör →</span>
               </button>
-              <div id="member-filter-rows" className={`mt-3 space-y-2.5 ${filtersOpen ? "" : "hidden"} sm:block`}>
-                <FilterPillRow label="Onay Durumu" options={APPROVAL_OPTIONS} value={query.approval}
-                  onSelect={(approval) => navigate({ approval, page: 1 })} />
-                <FilterPillRow label="Hesap Durumu" options={ACTIVE_OPTIONS} value={query.active}
-                  onSelect={(active) => navigate({ active, page: 1 })} />
-                <FilterPillRow label="Rol" options={ROLE_OPTIONS} value={query.role}
-                  onSelect={(role) => navigate({ role, page: 1 })} />
-                <FilterPillRow label="Ödeme" options={PAYMENT_OPTIONS} value={query.payment}
-                  onSelect={(payment) => navigate({ payment, page: 1 })} />
-                <FilterPillRow label="Ödeme Zamanı"
-                  options={DUE_OPTIONS.map((o) =>
-                    o.key === "overdue" && counts
-                      ? { ...o, label: `${o.label} (${counts.renewal_overdue})` }
-                      : o.key === "due30" && counts
-                        ? { ...o, label: `${o.label} (${counts.renewal_due30})` }
-                        : o,
-                  )}
-                  value={query.due}
-                  onSelect={(due) => navigate({ due, page: 1 })} />
-                <FilterPillRow label="Aktivite" options={ACTIVITY_OPTIONS} value={query.activity}
-                  onSelect={(activity) => navigate({ activity, page: 1 })} />
-                <FilterPillRow label="Güvenlik" options={SECURITY_OPTIONS} value={query.security}
-                  onSelect={(security) => navigate({ security, page: 1 })} />
-                <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:gap-2">
-                  <label htmlFor="member-module" className="text-[11px] font-black uppercase tracking-wide text-slate-500 sm:w-28 sm:shrink-0">
-                    Modül
-                  </label>
-                  <select id="member-module" value={query.module}
-                    onChange={(e) => navigate({ module: e.target.value as MemberListQuery["module"], page: 1 })}
-                    className="h-10 w-full rounded-xl border-2 border-slate-200 bg-white px-2 text-sm font-bold sm:max-w-xs">
-                    <option value="all">Tüm modüller</option>
-                    {MEMBER_FILTER_MODULE_KEYS.map((k) => (
-                      <option key={k} value={k}>{ADMIN_MODULE_UI_LABELS[k]} erişimi olan</option>
-                    ))}
-                  </select>
-                </div>
-                <p className="text-[11px] font-semibold text-slate-500">
-                  Aktivite = gerçek kullanım etkileşimi (oturumun açık kalması sayılmaz). Ödeme zamanı ve aktivite
-                  filtreleri yalnız onaylı uzmanlara uygulanır; demo hesap ölçülmez.
-                </p>
-                <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
-                  <span className="text-xs font-bold text-slate-500">
-                    {activeFilterCount > 0 ? `${activeFilterCount} filtre aktif` : "Filtre yok"} · Arşivdeki uzmanlar “Arşiv” sekmesindedir.
-                  </span>
-                  <button type="button"
-                    onClick={() => { setSearchText(""); navigate({ ...DEFAULT_MEMBER_LIST_QUERY, pageSize: query.pageSize }); }}
-                    disabled={activeFilterCount === 0 && query.q === ""}
-                    className="rounded-full border-2 border-slate-200 bg-white px-3 py-1.5 text-xs font-black text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40">
-                    Filtreleri Temizle
-                  </button>
-                </div>
-              </div>
-            </section>
-
-            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-              <h2 className="flex items-center gap-2 text-base font-bold text-slate-900">
-                <Users className="h-4 w-4 text-violet-600" aria-hidden />
-                Üye Listesi
-                {list.kind === "ready" ? (
-                  <span className="text-sm font-bold text-slate-500" aria-live="polite">
-                    ({list.total === 0 ? "0 sonuç" : `${list.total} sonuçtan ${from}–${to}`})
-                  </span>
-                ) : null}
-              </h2>
-              <div className="flex flex-wrap items-center gap-2">
-              <label className="flex items-center gap-2 text-xs font-bold text-slate-600" htmlFor="member-sort">
-                Sıralama
-                <select id="member-sort" value={query.sort}
-                  onChange={(e) => navigate({ sort: e.target.value as MemberListQuery["sort"], page: 1 })}
-                  className="h-9 max-w-[13rem] rounded-xl border-2 border-slate-200 bg-white px-2 text-sm font-bold">
-                  {SORT_OPTIONS.map((o) => (
-                    <option key={o.key} value={o.key}>{o.label}</option>
-                  ))}
-                </select>
-              </label>
-              <label className="flex items-center gap-2 text-xs font-bold text-slate-600" htmlFor="page-size">
-                Sayfa başına
-                <select id="page-size" value={query.pageSize}
-                  onChange={(e) => navigate({ pageSize: Number(e.target.value) as MemberListQuery["pageSize"], page: 1 })}
-                  className="h-9 rounded-xl border-2 border-slate-200 bg-white px-2 text-sm font-bold">
-                  {MEMBER_PAGE_SIZES.map((n) => (
-                    <option key={n} value={n}>{n}</option>
-                  ))}
-                </select>
-              </label>
-              </div>
+            ))
+          ) : (
+            <div className={styles.okEmpty}>Karar bekleyen iş yok.</div>
+          )}
+          {decide.length > LIMIT ? (
+            <div className={styles.attnMore}>
+              <span className={styles.muted}>{attnAll ? "Tüm karar satırları gösteriliyor" : `+${decide.length - LIMIT} karar satırı daha`}</span>
+              <button type="button" className={styles.linkbtn} onClick={() => setAttnAll((v) => !v)} data-attn-all>
+                {attnAll ? "Daha az göster" : "Tümünü gör"}
+              </button>
             </div>
-
-            {list.kind === "loading" ? (
-              <PastelLoader label="Üyeler yükleniyor…" />
-            ) : list.kind === "error" ? (
-              <ErrorPanel kind={list.failure} onRetry={() => setReloadTick((n) => n + 1)} />
-            ) : list.users.length === 0 ? (
-              <div className={`${panelClass} border-dashed text-center text-slate-600`}>
-                <p className="font-black text-slate-800">
-                  {query.q || activeFilterCount > 0 ? "Bu arama/filtrelerle eşleşen üye yok." : "Henüz üye yok."}
-                </p>
-                {query.q || activeFilterCount > 0 ? (
-                  <p className="mt-1 text-sm">Arama metnini veya filtreleri değiştirmeyi deneyin.</p>
-                ) : null}
-              </div>
-            ) : (
-              <div className="grid gap-3">
-                {list.users.map((user) => (
-                  <CompactUserRow key={user.id} user={user} suspiciousCount={list.suspicious[user.id] ?? 0} todayIso={todayIso}
-                    activity={list.activity[user.id] ?? EMPTY_ACTIVITY} measurement={list.measurement} />
-                ))}
-              </div>
-            )}
-
-            {list.kind === "ready" && list.total > query.pageSize ? (
-              <nav className="mt-4 flex flex-wrap items-center justify-center gap-2" aria-label="Sayfalama">
-                <button type="button" disabled={query.page <= 1} onClick={() => navigate({ page: query.page - 1 })}
-                  className="inline-flex h-10 items-center gap-1 rounded-xl border-2 border-slate-200 bg-white px-3 text-sm font-black text-slate-800 disabled:cursor-not-allowed disabled:opacity-40">
-                  <ChevronLeft className="h-4 w-4" aria-hidden />
-                  Önceki
+          ) : null}
+          {fyi.length ? (
+            <div className={styles.fyi} data-fyi>
+              <span className={styles.fyiLbl}>Bilgi</span>
+              {fyi.map(([f, n, t]) => (
+                <button type="button" key={`${f}-${t}`} className={styles.fyiChip} onClick={() => pick(f)}>
+                  <b>{n}</b> {t}
                 </button>
-                <span className="text-sm font-bold text-slate-600" aria-current="page">
-                  Sayfa {query.page} / {totalPages}
-                </span>
-                <button type="button" disabled={query.page >= totalPages} onClick={() => navigate({ page: query.page + 1 })}
-                  className="inline-flex h-10 items-center gap-1 rounded-xl border-2 border-slate-200 bg-white px-3 text-sm font-black text-slate-800 disabled:cursor-not-allowed disabled:opacity-40">
-                  Sonraki
-                  <ChevronRight className="h-4 w-4" aria-hidden />
-                </button>
-              </nav>
+              ))}
+            </div>
+          ) : null}
+        </section>
+
+        <section className={styles.kpis} aria-label="Üyelik göstergeleri">
+          {kpis.map(([k, l, v, h, on]) => (
+            <button type="button" key={k} className={styles.kpi} onClick={on} data-kpi={k}>
+              <div className={styles.kpiL}>{l}</div>
+              <div className={styles.kpiV} data-kpi-value>{v ?? "—"}</div>
+              <div className={styles.kpiH}>{h}</div>
+            </button>
+          ))}
+        </section>
+
+        <section className={styles.card} aria-labelledby="list-t">
+          <div className={styles.ltHead}>
+            <h2 id="list-t">
+              Üyeler{" "}
+              <span className={`${styles.muted} ${styles.num}`} style={{ fontWeight: 600, fontSize: 13 }} data-list-total>
+                {state.kind === "ready" ? `${total} kişi` : ""}
+              </span>
+            </h2>
+            <label className={styles.search}>
+              <span className={styles.muted} aria-hidden>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" /></svg>
+              </span>
+              <span className={styles.sr}>Ad veya e-posta ara</span>
+              <input id="member-v2-q" type="search" placeholder="Ad veya e-posta ara" value={searchText} maxLength={120}
+                autoComplete="off" onChange={(e) => setSearchText(e.target.value)} />
+            </label>
+            <label className={styles.sr} htmlFor="member-v2-sort">Sıralama</label>
+            <select id="member-v2-sort" className={styles.select} value={query.sort}
+              onChange={(e) => setQuery({ sort: e.target.value as MemberV2Sort, page: 1 })}>
+              {(Object.keys(MEMBER_V2_SORT_LABELS) as MemberV2Sort[]).map((s) => (
+                <option key={s} value={s}>{MEMBER_V2_SORT_LABELS[s]}</option>
+              ))}
+            </select>
+            <button type="button" className={styles.chip} aria-expanded={adv} onClick={() => setAdv((v) => !v)} data-adv-toggle>
+              Gelişmiş filtre {adv ? "▴" : "▾"}
+            </button>
+          </div>
+
+          <div className={styles.presets} role="toolbar" aria-label="Hazır filtreler" data-presets>
+            {MEMBER_V2_MAIN_FILTERS.map(([k, l]) => (
+              <button type="button" key={k} className={styles.chip} aria-pressed={query.role === "expert" && query.filter === k}
+                onClick={() => pick(k)} data-preset={k}>
+                {l} <span className={styles.chipN}>{pc ? pc[k] : ""}</span>
+              </button>
+            ))}
+            {activeMore && !moreOpen ? (
+              <button type="button" className={styles.chip} aria-pressed="true" title="Filtreyi kaldır" onClick={() => pick("all")} data-active-more>
+                {activeMore[1]} <span className={styles.chipN}>{pc ? pc[activeMore[0]] : ""}</span> ✕
+              </button>
             ) : null}
-          </>
-        ) : (
-          <>
-            <div className="mb-4 rounded-2xl border border-amber-200/80 bg-amber-50/70 px-5 py-4">
-              <h2 className="flex items-center gap-2 text-base font-black text-amber-950">
-                <Archive className="h-4 w-4" aria-hidden />
-                Arşiv — Onaylı ancak pasife alınmış uzmanlar
-              </h2>
-              <p className="mt-1 text-sm font-medium text-amber-900/80">
-                Hesap, veriler ve modül izinleri korunur. Açık oturumları kapatılmıştır;
-                yeniden aktifleştirilen uzman tekrar giriş yapar. Onay bekleyen ve reddedilen başvurular arşivde gösterilmez.
-                {archive.kind === "ready" && archive.canPermanentDelete
-                  ? " Kalıcı silme yalnız sistem sahibine açıktır ve 3 aşamalı onay gerektirir."
-                  : ""}
-              </p>
-            </div>
-
-            {archive.kind === "loading" ? (
-              <PastelLoader label="Arşiv yükleniyor…" />
-            ) : archive.kind === "error" ? (
-              <ErrorPanel kind={archive.failure} onRetry={() => setReloadTick((n) => n + 1)} />
-            ) : archive.users.length === 0 ? (
-              <div className={`${panelClass} border-dashed text-center text-slate-600`}>Arşivde uzman bulunmuyor.</div>
-            ) : (
-              <div className="grid gap-3">
-                {archive.users.map((user) => (
-                  <ArchiveUserRow key={user.id} user={user} deactivation={archive.deactivations[user.id]}
-                    onReactivate={reactivateUser} reactivating={reactivatingId === user.id}
-                    onPurge={archive.canPermanentDelete ? (u) => setPurgeTarget({ id: u.id, fullName: u.fullName, email: u.email }) : undefined} />
+            <button type="button" className={styles.chip} aria-expanded={moreOpen} onClick={() => setMoreOpen((v) => !v)} data-more>
+              Diğer filtreler {moreOpen ? "▴" : "▾"}
+            </button>
+            {moreOpen ? (
+              <div className={styles.morePanel} data-more-panel>
+                {MEMBER_V2_MORE_FILTERS.map(([k, l]) => (
+                  <button type="button" key={k} className={styles.chip} aria-pressed={query.role === "expert" && query.filter === k}
+                    onClick={() => pick(k)} data-preset={k}>
+                    {l} <span className={styles.chipN}>{pc ? pc[k] : ""}</span>
+                  </button>
                 ))}
               </div>
-            )}
-          </>
-        )}
+            ) : null}
+          </div>
+
+          {adv ? (
+            <div className={styles.adv} data-adv>
+              <label>
+                Modül
+                <select value={query.module} onChange={(e) => setQuery({ module: e.target.value as MemberModuleFilter, page: 1 })} data-adv-mod>
+                  <option value="all">Tümü</option>
+                  {MEMBER_FILTER_MODULE_KEYS.map((k) => (
+                    <option key={k} value={k}>{ADMIN_MODULE_UI_LABELS[k]} açık olanlar</option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                Ödeme
+                <select value={query.payment} onChange={(e) => setQuery({ payment: e.target.value as MemberV2Payment, page: 1 })} data-adv-pay>
+                  {(Object.keys(MEMBER_V2_PAYMENT_LABELS) as MemberV2Payment[]).map((k) => (
+                    <option key={k} value={k}>{MEMBER_V2_PAYMENT_LABELS[k]}</option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                Hesap türü
+                <select value={query.role} onChange={(e) => setQuery({ role: e.target.value as MemberV2Query["role"], filter: "all", page: 1 })} data-adv-role>
+                  <option value="expert">Uzmanlar</option>
+                  <option value="admin">Yöneticiler{pc ? ` (${pc.admins})` : ""}</option>
+                </select>
+              </label>
+              <div className={styles.note} style={{ alignSelf: "end" }}>
+                Aktivite, güvenlik ve ödeme zamanı filtreleri ile arşiv işlemleri{" "}
+                <Link href={MEMBER_CLASSIC_PATH} className={styles.linkbtn} data-classic-link>Ayrıntılı liste</Link> ekranında.
+              </div>
+            </div>
+          ) : null}
+
+          {query.filter === "askida" ? (
+            <div className={styles.notice} data-notice="askida">
+              Burada yalnız denemesi durdurulmuş hesaplar görünür. Hesap askısı ile arşiv şu an ayrı tutulmuyor; pasife alınan
+              onaylı uzmanlar “Arşiv” filtresindedir.
+            </div>
+          ) : query.filter === "arsiv" ? (
+            <div className={styles.notice} data-notice="arsiv">
+              Arşiv = onaylı ancak pasife alınmış uzmanlar. Yeniden aktifleştirme ve kalıcı silme için{" "}
+              <Link href={`${MEMBER_CLASSIC_PATH}?view=archive`} className={styles.linkbtn}>arşiv işlemleri</Link>.
+            </div>
+          ) : query.filter === "pay" ? (
+            <div className={styles.notice} data-notice="pay">
+              Ödeme tarihinin geçmesi borç anlamına gelmez; liste kontrol içindir. Karar sayısına yalnız “Gecikti” işaretli ödemeler girer.
+            </div>
+          ) : null}
+
+          {state.kind === "error" ? (
+            <div className={styles.err} role="alert" data-list-error>
+              {state.denied ? "Bu listeyi görme yetkiniz yok." : "Üye listesi şu an okunamadı."}{" "}
+              {!state.denied ? <button type="button" className={styles.linkbtn} onClick={() => setReloadTick((n) => n + 1)}>Tekrar dene</button> : null}
+            </div>
+          ) : state.kind === "loading" && !rows.length ? (
+            <div className={styles.empty}>Üyeler yükleniyor…</div>
+          ) : rows.length === 0 ? (
+            <div className={styles.empty} data-list-empty>Bu filtrede üye yok.</div>
+          ) : (
+            <>
+              <div className={styles.tblWrap}>
+                <table className={styles.mem}>
+                  <thead>
+                    <tr><th>Üye</th><th>Aşama</th><th>Süre / tarih</th><th>Modüller</th><th>Son giriş</th><th><span className={styles.sr}>İşlem</span></th></tr>
+                  </thead>
+                  <tbody>
+                    {rows.map((r) => {
+                      const href = `/admin/users/${encodeURIComponent(r.id)}`;
+                      return (
+                        <tr key={r.id} className={styles.row} data-row={r.id} onClick={() => router.push(href)}>
+                          <td className={styles.who}>
+                            <b><Link href={href} onClick={(e) => e.stopPropagation()}>{r.full_name || r.email || "—"}</Link></b>
+                            <span>{r.email}</span>
+                          </td>
+                          <td><Pills row={r} nowMs={nowMs} /></td>
+                          <td className={styles.num}>{memberPeriodText(r, todayIso, nowMs)}</td>
+                          <td className={styles.mods}><Mods row={r} /></td>
+                          <td className={styles.num}>{agoTr(r.last_login_at, nowMs)}</td>
+                          <td>
+                            <Link href={href} className={`${styles.btn} ${styles.btnSm}`} onClick={(e) => e.stopPropagation()} data-detail-link>
+                              Detay
+                            </Link>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              <div className={styles.cards}>
+                {rows.map((r) => (
+                  <Link key={r.id} href={`/admin/users/${encodeURIComponent(r.id)}`} className={styles.mcard} data-card={r.id}>
+                    <span className={styles.r1}>
+                      <span><b>{r.full_name || r.email || "—"}</b><br /><span className={styles.email}>{r.email}</span></span>
+                      <Pills row={r} nowMs={nowMs} />
+                    </span>
+                    <span className={styles.meta}>
+                      <span>{memberPeriodText(r, todayIso, nowMs)}</span>
+                      <span>Son giriş: {agoTr(r.last_login_at, nowMs)}</span>
+                    </span>
+                    <span className={styles.mods}><Mods row={r} /></span>
+                  </Link>
+                ))}
+              </div>
+              <div className={styles.pager}>
+                <span className={styles.num} data-pager>{total ? `${from}–${to} / ${total}` : ""}</span>
+                <span style={{ display: "flex", gap: 6 }}>
+                  <button type="button" className={`${styles.btn} ${styles.btnSm}`} disabled={query.page <= 1} onClick={() => setQuery({ page: query.page - 1 })}>Önceki</button>
+                  <button type="button" className={`${styles.btn} ${styles.btnSm}`} disabled={query.page >= pages} onClick={() => setQuery({ page: query.page + 1 })} data-next>Sonraki</button>
+                </span>
+              </div>
+            </>
+          )}
+        </section>
+
+        <details className={`${styles.card} ${styles.reports}`}>
+          <summary>
+            Raporlar <span className={styles.muted} style={{ fontWeight: 500 }}>— kullanım, ödeme ve güvenlik istatistikleri (Yönetim Özeti)</span>
+          </summary>
+          <div className={styles.reportsBody}>
+            <MemberOverviewPanel
+              adminId={adminId}
+              reloadKey={reloadTick}
+              query={DEFAULT_MEMBER_LIST_QUERY}
+              onSelect={(target) => {
+                const qs = memberListQueryToSearch({ ...DEFAULT_MEMBER_LIST_QUERY, ...OVERVIEW_TARGET_QUERY[target] });
+                router.push(qs ? `${MEMBER_CLASSIC_PATH}?${qs}` : MEMBER_CLASSIC_PATH);
+              }}
+            />
+          </div>
+        </details>
       </div>
-      <ExpertPurgeDialog
-        target={purgeTarget}
-        headers={() => adminHeaders(currentUserId)}
-        onClose={() => setPurgeTarget(null)}
-        onPurged={handlePurged}
-      />
     </main>
   );
 }
 
 export default function AdminUsersPage() {
   return (
-    <Suspense
-      fallback={
-        <main className="flex min-h-screen items-center justify-center bg-[linear-gradient(135deg,#fdf4ff_0%,#eef2ff_50%,#f0fdfa_100%)]">
-          <PastelLoader label="Yükleniyor…" />
-        </main>
-      }
-    >
-      <AdminUsersContent />
+    <Suspense fallback={<main className={styles.root}><div className={styles.page}><p className={styles.muted}>Yükleniyor…</p></div></main>}>
+      <MembersV2Content />
     </Suspense>
   );
 }
