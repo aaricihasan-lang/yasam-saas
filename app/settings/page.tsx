@@ -29,15 +29,16 @@ import {
   buildWhatsAppUrl,
 } from "@/lib/contact/whatsapp";
 import { useToast } from "@/components/ui/ToastProvider";
+import { SettingsTabBar } from "./SettingsTabBar";
 import PasswordInput from "@/components/ui/PasswordInput";
 import { PASSWORD_HINT, newPasswordPolicyMessage } from "@/lib/auth/passwordPolicy";
 import { searchLocations, type Location } from "@/lib/location";
 import { TR_LOCATIONS } from "@/lib/location/tr";
 import { getUserLocationPref, saveUserLocationPref, type UserLocationPref } from "@/lib/location/userLocationPref";
 import { BackupTab, ExportTab, RestoreTab } from "./BackupSections";
+import { MembershipSettingsTab, MEMBERSHIP_TAB_ICON } from "./MembershipSettingsTab";
 import MySessionsPanel from "@/components/settings/MySessionsPanel";
 import { WorkspaceSettingsTab, useWorkspaceAccess } from "./WorkspaceSettingsTab";
-import { MembershipSettingsTab, MEMBERSHIP_TAB_ICON } from "./MembershipSettingsTab";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -692,35 +693,8 @@ export default function SettingsPage() {
           </div>
         </header>
 
-        {/* Mobil: 2 sütun · tablet (md): 3 sütun · lg+: tek satır eşit genişlikte sekmeler.
-            (md'de tek satır 768–1000px arasında son sekmeyi ekran dışına itiyordu.) */}
-        <div className="mb-5">
-          <div className="grid grid-cols-2 gap-1.5 rounded-2xl border border-white/80 bg-white/70 p-2 shadow-md backdrop-blur-xl md:grid-cols-3 lg:flex lg:flex-wrap lg:gap-1.5">
-            {tabs.map((t, idx) => {
-              const Icon = t.icon;
-              const isActive = tab === t.id;
-              return (
-                <button
-                  key={t.id}
-                  type="button"
-                  aria-pressed={isActive}
-                  onClick={() => setTab(t.id)}
-                  className={[
-                    "flex items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-xs font-bold transition-all duration-200",
-                    "md:text-sm lg:flex-1 lg:whitespace-nowrap",
-                    idx === tabs.length - 1 ? "col-span-2 mx-auto w-1/2 md:col-span-1 md:mx-0 md:w-auto" : "",
-                    isActive
-                      ? "bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white shadow-md"
-                      : "text-slate-500 hover:bg-violet-50 hover:text-violet-700",
-                  ].filter(Boolean).join(" ")}
-                >
-                  <Icon className="h-4 w-4 shrink-0" strokeWidth={2} />
-                  {t.label}
-                </button>
-              );
-            })}
-          </div>
-        </div>
+        {/* Sekme çubuğu: her genişlikte tek satır; sığmazsa çubuk içinde yatay kaydırma (bkz. SettingsTabBar). */}
+        <SettingsTabBar tabs={tabs} active={tab} onSelect={setTab} />
 
         {isDemo && (
           <div className="mb-4 flex items-start gap-3 rounded-[14px] border border-amber-300/80 bg-amber-50/90 px-4 py-3">

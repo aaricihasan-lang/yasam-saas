@@ -145,18 +145,65 @@ const INSPECT_JS = `(() => {
     labelled: sec ? sec.getAttribute('aria-labelledby') === 'membership-heading' : false,
     dlCount: dls.length, dlOk: dlOk, dtCount: sec ? sec.querySelectorAll('dt').length : 0,
     pressed: Array.prototype.map.call(document.querySelectorAll('button[aria-pressed="true"]'), function (b) { return (b.textContent || '').trim(); }),
-    over: over.slice(0, 5),
-    tabRow: (function () {
-      var h = Array.prototype.find.call(document.querySelectorAll('button[aria-pressed]'), function (b) { return (b.textContent || '').trim() === 'Hesap Güvenliği'; });
-      if (!h) return null;
-      var row = h.parentElement; var rr = row.getBoundingClientRect();
-      var out = Array.prototype.filter.call(row.children, function (c) { var b = c.getBoundingClientRect(); return b.right > rr.right + 1 || b.left < rr.left - 1; }).map(function (c) { return (c.textContent || '').trim(); });
-      return { n: row.children.length, out: out, sw: row.scrollWidth, cw: row.clientWidth };
-    })()
+    over: over.slice(0, 5)
   };
 })()`;
 
-type Inspect = { kind: string | null; text: string; hscroll: boolean; h1: number; h2: string[]; h3: string | null; labelled: boolean; dlCount: number; dlOk: boolean; dtCount: number; pressed: string[]; over: string[]; tabRow: { n: number; out: string[]; sw: number; cw: number } | null };
+type Inspect = { kind: string | null; text: string; hscroll: boolean; h1: number; h2: string[]; h3: string | null; labelled: boolean; dlCount: number; dlOk: boolean; dtCount: number; pressed: string[]; over: string[] };
+
+/**
+ * Sekme çubuğu denetimi (SettingsTabBar). Her sekme için: çubuk içinde görünür alana getirilebilir (çubuk kendi içinde
+ * kaydırılıyorsa yalnız overflow-x auto/scroll ile), getirildiğinde tamamen çubuğun ve ekranın içinde, merkezi tıklanabilir
+ * (elementFromPoint = sekme), metni kırpılmıyor. Açılır menüde (kapalı panel) duran sekme için menü düğmesi aynı ölçütlerle
+ * denetlenir. Çubuk ekran dışına taşmaz. Denetim sonunda çubuğun kaydırma konumu geri yüklenir.
+ */
+const TABBAR_JS = `(async () => {
+  var bar = document.querySelector('main [data-settings-tabbar]');
+  var tabs = Array.prototype.slice.call(document.querySelectorAll('main button[data-settings-tab]'));
+  if (!bar || !tabs.length) return null;
+  var vw = window.innerWidth;
+  var cs = getComputedStyle(bar);
+  var scrollable = bar.scrollWidth > bar.clientWidth + 1;
+  var controlled = cs.overflowX === 'auto' || cs.overflowX === 'scroll';
+  var save = bar.scrollLeft;
+  var frame = () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+  var check = async (el) => {
+    if (scrollable && controlled) { el.scrollIntoView({ block: 'nearest', inline: 'center' }); await frame(); }
+    var br = bar.getBoundingClientRect(); var r = el.getBoundingClientRect();
+    var inside = r.width > 0 && r.left >= br.left - 0.5 && r.right <= br.right + 0.5 && r.left >= -0.5 && r.right <= vw + 0.5;
+    var hitEl = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+    var hit = !!hitEl && (hitEl === el || el.contains(hitEl));
+    return { inside: inside, hit: hit, textClip: el.scrollWidth > el.clientWidth + 1 };
+  };
+  var items = [];
+  for (var i = 0; i < tabs.length; i++) {
+    var b = tabs[i];
+    var inPanel = !!b.closest('[hidden]');
+    var target = inPanel ? document.querySelector('main [data-settings-tab-group]') : b;
+    var c = target ? await check(target) : { inside: false, hit: false, textClip: true };
+    items.push({ id: b.getAttribute('data-settings-tab'), label: (b.textContent || '').trim(), viaMenu: inPanel, inside: c.inside, hit: c.hit, textClip: c.textClip, ok: c.inside && c.hit && !c.textClip });
+  }
+  bar.scrollLeft = save; await frame();
+  var br2 = bar.getBoundingClientRect();
+  return {
+    ids: items.map((x) => x.id), n: items.length, scrollable: scrollable, controlled: controlled,
+    barInViewport: br2.left >= -0.5 && br2.right <= vw + 0.5,
+    bad: items.filter((x) => !x.ok), hscroll: document.documentElement.scrollWidth > vw + 1
+  };
+})()`;
+type TabBar = { ids: string[]; n: number; scrollable: boolean; controlled: boolean; barInViewport: boolean; bad: unknown[]; hscroll: boolean } | null;
+/** Beklenen sekme kümesi ve SIRASI. "profile" (F1 Profilim) varsa Hesap Güvenliği'nden hemen sonra kabul edilir. */
+function expectedTabs(ids: string[], workspaceOn: boolean): string[] {
+  const e = ["security", "location", "contact", "export", "backup", "restore", "membership"];
+  if (ids.includes("profile")) e.splice(1, 0, "profile");
+  if (workspaceOn) e.push("workspace");
+  return e;
+}
+function tabBarOk(t: TabBar, workspaceOn: boolean): boolean {
+  if (!t) return false;
+  const exp = expectedTabs(t.ids, workspaceOn);
+  return t.ids.join(",") === exp.join(",") && t.bad.length === 0 && t.barInViewport && !t.hscroll && (!t.scrollable || t.controlled);
+}
 
 async function main() {
   mkdirSync(OUT, { recursive: true });
@@ -182,7 +229,6 @@ async function main() {
         const tag = `${s.key} @${w}`;
         ok("V", `${tag}: durum ${s.kind}`, r.kind === s.kind, r.kind);
         ok("V", `${tag}: yatay taşma yok`, !r.hscroll && r.over.length === 0, r.over);
-        ok("V", `${tag}: sekme satırında kırpılan sekme yok`, !!r.tabRow && r.tabRow.out.length === 0 && r.tabRow.sw <= r.tabRow.cw + 1, r.tabRow);
         ok("V", `${tag}: beklenen metinler`, s.expectText.every((t) => r.text.includes(t)), { miss: s.expectText.filter((t) => !r.text.includes(t)) });
         ok("V", `${tag}: başlıklar (tek h1, h2 'Üyeliğim', h3 paket, section aria-labelledby)`, r.h1 === 1 && r.h2.includes("Üyeliğim") && !!r.h3 && r.labelled, r);
         ok("V", `${tag}: dl/dt/dd yapısı`, r.dlOk, r);
@@ -190,6 +236,8 @@ async function main() {
         ok("V", `${tag}: istek yalnız oturum sahibinin id'siyle`, o.profileHeaders.length >= 1 && o.profileHeaders.every((h) => h === String(s.user.id)), o.profileHeaders);
         ok("V", `${tag}: sayfa hatası yok`, o.errors.length === 0, o.errors);
         await o.page.screenshot({ path: join(OUT, `${s.key}-${w}.png`), fullPage: true });
+        const tb = (await o.page.evaluate(TABBAR_JS)) as TabBar;
+        ok("V", `${tag}: sekme kümesi/sırası doğru; her sekme erişilebilir, tıklanabilir, kırpılmıyor; taşma yok`, tabBarOk(tb, false), tb);
         await o.close();
       }
     }
@@ -200,8 +248,9 @@ async function main() {
       await gotoMembership(o.page);
       await o.page.waitForSelector("button[aria-pressed]:text-is('Çalışma Alanım')", { timeout: 20000 });
       const r = (await o.page.evaluate(INSPECT_JS)) as Inspect;
-      ok("W", `8 sekme @${w}: kırpılan sekme yok, yatay taşma yok`, !!r.tabRow && r.tabRow.n === 8 && r.tabRow.out.length === 0 && !r.hscroll, r.tabRow);
       if (w === 320 || w === 1024 || w === 1280) await o.page.screenshot({ path: join(OUT, `sekmeler-calisma-alani-${w}.png`) });
+      const tb = (await o.page.evaluate(TABBAR_JS)) as TabBar;
+      ok("W", `Çalışma Alanım açık @${w}: sekme kümesi/sırası (${tb ? tb.n : 0} sekme; profile varsa F1) + her sekme erişilebilir/tıklanabilir, kırpılan yok, yatay taşma yok`, tabBarOk(tb, true) && !r.hscroll, tb);
       await o.close();
     }
 
