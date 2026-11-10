@@ -1,6 +1,8 @@
 import { NextRequest } from "next/server";
 import { Document, Packer } from "docx";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
+import { expertDisplayName } from "@/lib/docx/reportDisclaimer";
+import { resolveReportBranding } from "@/lib/profile/reportBranding";
 import { trackUsage } from "@/lib/usage/trackUsage";
 import { listAtlasOrganNames, resolveOrganInAtlas, resolveProtocolAtlas } from "@/lib/refleksoloji/atlasRegionsCore";
 import { normalizeAtlasDocument } from "@/lib/refleksoloji/atlasNormalize";
@@ -106,7 +108,9 @@ export async function POST(request: NextRequest): Promise<Response> {
     return Response.json({ ok: false, error: "Bu seçim için atlas kaydı bulunamadı." }, { status: 404 });
 
   const scopeLabel = exportMode === "selected" ? "Seçili Atlas Kayıtları" : "Tüm Atlas Kayıtları";
-  const children = await buildAtlasReport(resolved, reportDateTR(), scopeLabel);
+  // F3B: uzman markalaması (yalnız anahtar açıkken rapor sonunda "Hazırlayan" imza bloğu); sahip/ad yalnız guard'dan.
+  const branding = await resolveReportBranding(db, { tenantId, userId: guard.userId }, { fullName: expertDisplayName(guard.profile) }, { purpose: "signature" });
+  const children = await buildAtlasReport(resolved, reportDateTR(), scopeLabel, { branding });
 
   const doc = new Document({
     sections: [{

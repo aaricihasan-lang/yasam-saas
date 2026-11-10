@@ -49,6 +49,7 @@ import type {
   CuppingCalendarPlanDay,
   CuppingDayColorKey,
 } from "@/lib/cupping/calendarTypes";
+import { expertSignatureBlock, expertBrandingFields, type ExpertBranding, type ExpertBrandingVariant } from "@/lib/docx/expertBranding";
 
 export const WORD_CONTENT_TYPE =
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
@@ -794,7 +795,45 @@ export type BuildCalendarWordInput = {
    *   (A4 dikey tek-ay takvimi). Aralık dışı/geçersiz değer YILLIK gibi ele alınır (route KATI doğrular).
    */
   month?: number | null;
+  /**
+   * F3B: uzman rapor markalaması. Takvim belgesi bugün uzman adı GÖSTERMEZ; yalnız uzmanın rapor kimliği anahtarı AÇIKKEN
+   * (route `resolveReportBranding(..., { purpose: "signature" })`) belge sonuna "Hazırlayan" imza kartı (+ uzman dipnotu)
+   * eklenir; tek-A3 sayfa kararı bu bloğun tahmini yüksekliğini de hesaba katar. null / yok → belge bugünküyle birebir.
+   */
+  branding?: ExpertBranding | null;
+  /** Yalnız örnek/test üretimi için tasarım varyantı. */
+  brandingVariant?: ExpertBrandingVariant;
 };
+
+/** F3B: imza kartı genişliği (twip) — A3 yatayda da okunaklı A4 genişliğinde kart (sola yaslı). */
+const SIGNATURE_W = 11906 - 2 * 1000;
+
+/** F3B: "Hazırlayan" imza kartı (+ dipnot). Markalama yoksa []. */
+function buildSignatureSection(branding: ExpertBranding | null | undefined, variant: ExpertBrandingVariant | undefined): (Paragraph | Table)[] {
+  return expertSignatureBlock(branding, { variant, accent: C_BRAND, contentWidth: SIGNATURE_W, fill: "F3F1EA", font: FONT }) as (Paragraph | Table)[];
+}
+
+/**
+ * F3B: imza kartının KONSERVATİF tahmini yüksekliği (twips). Markalama yoksa 0 (sayfa kararı bugünküyle birebir).
+ * Kart: boşluk + etiket + ad + unvan + kurum + iletişim + imza çizgisi; logo kart yüksekliğini aşmaz (≤ 70 px).
+ * Dipnot: başlık + satırlar (estLines ile konservatif sarma).
+ */
+function estimateSignatureTwips(branding: ExpertBranding | null | undefined): number {
+  const f = expertBrandingFields(branding);
+  if (!f) return 0;
+  let h = 0;
+  if (f.name || f.title || f.organization || f.contactLine || f.logoPng) {
+    h += 240 + 320 + 280; // önceki boşluk + hücre kenarları + etiket
+    if (f.name) h += 330;
+    if (f.title) h += Math.max(1, Math.ceil(f.title.length / 60)) * 270;
+    if (f.organization) h += Math.max(1, Math.ceil(f.organization.length / 60)) * 270;
+    if (f.contactLine) h += Math.max(1, Math.ceil(f.contactLine.length / 70)) * 240;
+    h += 560; // imza çizgisi + "İmza"
+    if (f.logoPng) h = Math.max(h, 240 + 320 + 1100);
+  }
+  if (f.note) h += 160 + 260 + estLines(f.note) * EST.NOTE_LINE + 60;
+  return h;
+}
 
 /** Geçerli ay numarası mı? (1–12 tam sayı.) */
 function isValidMonth(m: unknown): m is number {
@@ -852,6 +891,8 @@ async function buildMonthlyBuffer(args: {
   sorted: CuppingCalendarPlanDay[];
   template: CuppingAdviceTemplate | null;
   month: number;
+  branding?: ExpertBranding | null;
+  brandingVariant?: ExpertBrandingVariant;
 }): Promise<Buffer> {
   const { plan, sorted, template, month } = args;
   const prefix = `${plan.year}-${String(month).padStart(2, "0")}-`;
@@ -868,6 +909,7 @@ async function buildMonthlyBuffer(args: {
     ...(monthDays.length ? [daySummaryTable(monthDays, 2)] : [monthEmptyPara()]),
     ...buildDetailNotesSection(monthDays),
     ...buildAdviceSection(template),
+    ...buildSignatureSection(args.branding, args.brandingVariant), // F3B (yalnız markalama açıkken)
     trailingPara(),
   ];
 
@@ -896,7 +938,7 @@ async function buildMonthlyBuffer(args: {
  *   bilgi TEKRAR EDİLMEZ; kronolojik sıra korunur.
  */
 export async function buildCalendarPlanWordBuffer(input: BuildCalendarWordInput): Promise<Buffer> {
-  const { plan, days, template = null, month = null } = input;
+  const { plan, days, template = null, month = null, branding = null, brandingVariant } = input;
 
   const selected = new Map<string, CuppingCalendarPlanDay>();
   for (const d of days) selected.set(d.gregorian_date, d);
@@ -906,12 +948,13 @@ export async function buildCalendarPlanWordBuffer(input: BuildCalendarWordInput)
 
   // ── AYLIK RAPOR (A4 dikey, tek ay) — month 1–12 verildiğinde ─────────────────
   if (isValidMonth(month)) {
-    return buildMonthlyBuffer({ plan, sorted, template, month });
+    return buildMonthlyBuffer({ plan, sorted, template, month, branding, brandingVariant });
   }
 
   const grid = buildAnnualGrid(plan.year, selected);
   const notesSection = buildDetailNotesSection(sorted);
   const adviceSection = buildAdviceSection(template);
+  const signatureSection = buildSignatureSection(branding, brandingVariant); // F3B: markalama yoksa []
 
   // Konservatif toplam yükseklik tahmini (twips).
   const gridTitle = EST.TITLE + EST.GRID;
@@ -919,6 +962,8 @@ export async function buildCalendarPlanWordBuffer(input: BuildCalendarWordInput)
   const notesH = estimateNotesTwips(sorted);
   const adviceH = estimateAdviceTwips(template);
   const totalH = gridTitle + summaryH + notesH + adviceH;
+  // F3B: imza kartının tahmini yüksekliği (markalama yoksa 0 → sayfa kararı bugünküyle birebir).
+  const signatureH = estimateSignatureTwips(branding);
 
   // A3 kenar boşlukları sıkılaştırıldı — ilk sayfada dikey alanı geri kazanır (owner: alt boşluk).
   const A3_MARGIN = { top: 400, bottom: 700, left: 480, right: 480, header: 200, footer: 260 };
@@ -928,6 +973,9 @@ export async function buildCalendarPlanWordBuffer(input: BuildCalendarWordInput)
 
   // ── SENARYO A/C — HER ŞEY TEK A3 SAYFADA (2. sayfa yok) ──────────────────────
   if (totalH <= A3_CONTENT_BUDGET) {
+    // F3B: imza kartı A3'e de sığıyorsa aynı sayfanın sonuna; sığmıyorsa A3 sayfası BİREBİR aynı kalır ve kart
+    // yalnız kendisi için açılan A4 dikey devam sayfasına yerleşir (mevcut içerik yer değiştirmez).
+    const signatureFits = totalH + signatureH <= A3_CONTENT_BUDGET;
     const children: (Paragraph | Table)[] = [
       ...titleBlock(plan),
       grid,
@@ -935,6 +983,7 @@ export async function buildCalendarPlanWordBuffer(input: BuildCalendarWordInput)
       ...(sorted.length ? [daySummaryTable(sorted)] : [noSelectedDaysPara()]),
       ...notesSection,
       ...adviceSection,
+      ...(signatureFits ? signatureSection : []),
       trailingPara(),
     ];
     const doc = new Document({
@@ -945,6 +994,9 @@ export async function buildCalendarPlanWordBuffer(input: BuildCalendarWordInput)
           footers: { default: buildFooter(planLabel) },
           children,
         },
+        ...(signatureFits || signatureSection.length === 0
+          ? []
+          : [{ properties: { page: { size: A4_PORTRAIT, margin: A4_MARGIN } }, footers: { default: buildFooter(planLabel) }, children: [...signatureSection, trailingPara()] }]),
       ],
     });
     return Buffer.from(await Packer.toBuffer(doc));
@@ -963,6 +1015,7 @@ export async function buildCalendarPlanWordBuffer(input: BuildCalendarWordInput)
   if (daysA4.length > 0) contParts.push(`${daysA4.length} gün daha`);
   if (notesSection.length > 0) contParts.push("detay notları");
   if (adviceSection.length > 0) contParts.push("bilgilendirme");
+  if (signatureSection.length > 0) contParts.push("hazırlayan bilgisi"); // F3B
   const contText =
     daysA4.length > 0
       ? `İlk sayfada ${daysA3.length} gün gösteriliyor · ${contParts.join(" + ")} sonraki sayfalardadır.`
@@ -983,7 +1036,7 @@ export async function buildCalendarPlanWordBuffer(input: BuildCalendarWordInput)
   if (daysA4.length > 0) {
     sec2Children.push(summaryHeading("SEÇİLİ GÜNLER VE AÇIKLAMALARI (devam)"), daySummaryTable(daysA4));
   }
-  sec2Children.push(...notesSection, ...adviceSection, trailingPara());
+  sec2Children.push(...notesSection, ...adviceSection, ...signatureSection, trailingPara());
 
   const doc = new Document({
     ...docMeta,

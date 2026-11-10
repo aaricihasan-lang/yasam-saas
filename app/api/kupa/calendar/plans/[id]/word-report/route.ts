@@ -1,5 +1,7 @@
 import { NextRequest } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
+import { expertDisplayName } from "@/lib/docx/reportDisclaimer";
+import { resolveReportBranding } from "@/lib/profile/reportBranding";
 import { trackUsage } from "@/lib/usage/trackUsage";
 import { CUPPING_TABLES } from "@/lib/cupping/fields";
 import {
@@ -105,7 +107,9 @@ export async function GET(
   // 4) DOCX üret (SAF builder; DB'ye YAZMAZ). month YOKSA yıllık, varsa yalnız o ay (builder plan.year+ay filtreler).
   let buffer: Buffer;
   try {
-    buffer = await buildCalendarPlanWordBuffer({ plan, days, template, month });
+    // F3B: uzman markalaması — sahip ve ad YALNIZ oturumdan (guard); anahtar kapalı / profil yok → null (birebir).
+    const branding = await resolveReportBranding(db, { tenantId, userId: guard.userId }, { fullName: expertDisplayName(guard.profile) }, { purpose: "signature" });
+    buffer = await buildCalendarPlanWordBuffer({ plan, days, template, month, branding });
   } catch {
     await trackUsage(guard, req, { module: "cupping", action: "action_failed", failedAction: "report_generated", subEntity: "calendar_plan", errorClass: "server" });
     return cuppingError(500, "Word raporu oluşturulamadı. Lütfen tekrar deneyin.");

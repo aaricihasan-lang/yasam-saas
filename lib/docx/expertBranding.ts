@@ -181,10 +181,13 @@ const SZ = { label: 16, name: 24, nameCover: 26, line: 20, small: 17, note: 17 }
 
 type Align = (typeof AlignmentType)[keyof typeof AlignmentType];
 
-function run(text: string, o: { size: number; color: string; bold?: boolean; italics?: boolean; allCaps?: boolean; spacing?: number; brk?: boolean }): TextRun {
+type RunOpts = { size: number; color: string; bold?: boolean; italics?: boolean; allCaps?: boolean; spacing?: number; brk?: boolean; font?: string };
+function run(text: string, o: RunOpts): TextRun {
   // Yazı tipi belirtilmez → belgenin varsayılan yazı tipini (modülün kendi tipografisi) devralır.
+  // F3B: varsayılan stil tanımlamayan belgeler (Refleksoloji / Kupa / Hacamat) modül yazı tipini `font` ile verir.
   return new TextRun({
     text,
+    ...(o.font ? { font: o.font } : {}),
     size: o.size,
     color: o.color,
     bold: o.bold,
@@ -195,7 +198,7 @@ function run(text: string, o: { size: number; color: string; bold?: boolean; ita
   });
 }
 
-function multilineRuns(text: string, o: { size: number; color: string; italics?: boolean }): TextRun[] {
+function multilineRuns(text: string, o: { size: number; color: string; italics?: boolean; font?: string }): TextRun[] {
   return text.split("\n").map((line, i) => run(line, { ...o, brk: i > 0 }));
 }
 
@@ -323,12 +326,17 @@ export type ExpertSignatureOptions = {
   fill?: string;
   /** Etiket metni (varsayılan "Hazırlayan"). */
   label?: string;
+  /**
+   * F3B: metin yazı tipi. Verilmezse belge varsayılanı devralınır (Kademe A — birebir aynı). Varsayılan stil tanımlamayan
+   * belgeler (Refleksoloji / Kupa / Hacamat) modülün kendi yazı tipini verir.
+   */
+  font?: string;
 };
 
-function noteParagraphs(note: string, o: { before: number }): Paragraph[] {
+function noteParagraphs(note: string, o: { before: number; font?: string }): Paragraph[] {
   return [
-    para([run("Uzman Notu", { size: SZ.label, color: C_MID, bold: true })], { before: o.before, after: 40, keepNext: true }),
-    para(multilineRuns(note, { size: SZ.note, color: C_MID, italics: true }), { after: 60 }),
+    para([run("Uzman Notu", { size: SZ.label, color: C_MID, bold: true, font: o.font })], { before: o.before, after: 40, keepNext: true }),
+    para(multilineRuns(note, { size: SZ.note, color: C_MID, italics: true, font: o.font }), { after: 60 }),
   ];
 }
 
@@ -345,6 +353,8 @@ export function expertSignatureBlock(b: ExpertBranding | null | undefined, o: Ex
   const label = o.label ?? "Hazırlayan";
   const name = o.omitName ? "" : r.name ?? brandingLine(o.fallbackName);
   const credential = [r.title, r.organization].filter(Boolean).join(" · ");
+  const font = o.font;
+  const frun = (text: string, ro: RunOpts): TextRun => run(text, { ...ro, font });
   const out: ReportChild[] = [];
 
   if (variant === "B" && (name || credential || r.contactLine || r.logoPng)) {
@@ -352,16 +362,16 @@ export function expertSignatureBlock(b: ExpertBranding | null | undefined, o: Ex
     const logoW = r.logoPng ? Math.round(W * 0.22) : 0;
     const textW = W - logoW;
     const text: Paragraph[] = [
-      para([run(label, { size: SZ.label, color: accent, bold: true, allCaps: true, spacing: 30 })], { after: 80 }),
+      para([frun(label, { size: SZ.label, color: accent, bold: true, allCaps: true, spacing: 30 })], { after: 80 }),
     ];
-    if (name) text.push(para([run(name, { size: SZ.name, color: C_DARK, bold: true })], { after: 30 }));
-    if (r.title) text.push(para([run(r.title, { size: SZ.line, color: C_MID })], { after: 20 }));
-    if (r.organization) text.push(para([run(r.organization, { size: SZ.line, color: C_MID, bold: true })], { after: 20 }));
-    if (r.contactLine) text.push(para([run(r.contactLine, { size: SZ.small, color: C_LIGHT })], { after: 0 }));
+    if (name) text.push(para([frun(name, { size: SZ.name, color: C_DARK, bold: true })], { after: 30 }));
+    if (r.title) text.push(para([frun(r.title, { size: SZ.line, color: C_MID })], { after: 20 }));
+    if (r.organization) text.push(para([frun(r.organization, { size: SZ.line, color: C_MID, bold: true })], { after: 20 }));
+    if (r.contactLine) text.push(para([frun(r.contactLine, { size: SZ.small, color: C_LIGHT })], { after: 0 }));
     // İmza alanı: ince çizgi + "İmza" etiketi.
     text.push(
-      new Paragraph({ spacing: { before: 300, after: 0 }, indent: { right: Math.round(textW * 0.45) }, border: { bottom: { style: BorderStyle.SINGLE, size: 4, color: "cbd5e1" } }, children: [run(" ", { size: 16, color: C_LIGHT })] }),
-      para([run("İmza", { size: 15, color: C_LIGHT })], { before: 30, after: 0 }),
+      new Paragraph({ spacing: { before: 300, after: 0 }, indent: { right: Math.round(textW * 0.45) }, border: { bottom: { style: BorderStyle.SINGLE, size: 4, color: "cbd5e1" } }, children: [frun(" ", { size: 16, color: C_LIGHT })] }),
+      para([frun("İmza", { size: 15, color: C_LIGHT })], { before: 30, after: 0 }),
     );
     const none = { style: BorderStyle.NONE, size: 0, color: "auto" } as const;
     const top = { style: BorderStyle.SINGLE, size: 18, color: accent } as const;
@@ -392,32 +402,32 @@ export function expertSignatureBlock(b: ExpertBranding | null | undefined, o: Ex
       borders: { top: none, bottom: none, left: none, right: none, insideHorizontal: none, insideVertical: none },
       rows: [new TableRow({ cantSplit: true, children: cells })],
     }));
-    if (r.note) out.push(...noteParagraphs(r.note, { before: 160 }));
+    if (r.note) out.push(...noteParagraphs(r.note, { before: 160, font }));
     return out;
   }
 
   if (variant === "A" && (name || credential || r.contactLine)) {
     const lines: LineSpec[] = [
       name
-        ? { runs: [run(`${label}: `, { size: SZ.small, color: C_MID }), run(name, { size: SZ.small + 1, color: C_DARK, bold: true })], before: 60, after: 20 }
-        : { runs: [run(label, { size: SZ.small, color: C_MID, bold: true })], before: 60, after: 20 },
+        ? { runs: [frun(`${label}: `, { size: SZ.small, color: C_MID }), frun(name, { size: SZ.small + 1, color: C_DARK, bold: true })], before: 60, after: 20 }
+        : { runs: [frun(label, { size: SZ.small, color: C_MID, bold: true })], before: 60, after: 20 },
     ];
-    if (credential) lines.push({ runs: [run(credential, { size: SZ.small, color: C_MID })], after: 20 });
-    if (r.contactLine) lines.push({ runs: [run(r.contactLine, { size: SZ.small - 1, color: C_LIGHT })], after: 40 });
+    if (credential) lines.push({ runs: [frun(credential, { size: SZ.small, color: C_MID })], after: 20 });
+    if (r.contactLine) lines.push({ runs: [frun(r.contactLine, { size: SZ.small - 1, color: C_LIGHT })], after: 40 });
     out.push(...chained(lines, !!r.note));
-    if (r.note) out.push(...noteParagraphs(r.note, { before: 120 }));
+    if (r.note) out.push(...noteParagraphs(r.note, { before: 120, font }));
     return out;
   }
 
   if (variant === "C" && (name || r.title)) {
     const t = [name, r.title].filter(Boolean).join(" — ");
-    out.push(para([run(`${label}: ${t}`, { size: 16, color: C_MID })], { before: 0, after: 60, keepNext: !!r.note }));
-    if (r.note) out.push(...noteParagraphs(r.note, { before: 80 }));
+    out.push(para([frun(`${label}: ${t}`, { size: 16, color: C_MID })], { before: 0, after: 60, keepNext: !!r.note }));
+    if (r.note) out.push(...noteParagraphs(r.note, { before: 80, font }));
     return out;
   }
 
   // Yalnız dipnot (ya da varyantın göstermediği alanlar) → yalnız dipnot.
-  if (r.note) out.push(...noteParagraphs(r.note, { before: 120 }));
+  if (r.note) out.push(...noteParagraphs(r.note, { before: 120, font }));
   return out;
 }
 

@@ -32,6 +32,7 @@ import {
   WidthType,
 } from "docx";
 import { REPORT_FONT, C_MID, C_LIGHT, embedImageParagraph, sanitizeXmlText, type ReportChild } from "@/lib/docx/reportHelpers";
+import { expertSignatureBlock, type ExpertBranding, type ExpertBrandingVariant } from "@/lib/docx/expertBranding";
 import {
   ALL_ATLAS_GROUPS,
   ATLAS_GROUP_LABEL,
@@ -432,12 +433,29 @@ function disclaimerSection(): ReportChild[] {
   ];
 }
 
+// ─── F3B: uzman "Hazırlayan" imza bloğu (isteğe bağlı) ─────────────────────────
+/**
+ * F3B: uzman rapor markalaması. Refleksoloji raporları bugün uzman adı GÖSTERMEZ; yalnız uzmanın "Raporlarımda kurumsal
+ * bilgilerimi göster" anahtarı AÇIKKEN (route `resolveReportBranding(..., { purpose: "signature" })`) bilgilendirme
+ * bölümünün ARDINDAN "Hazırlayan" imza kartı (+ uzman dipnotu) eklenir. Kapak, üst/alt bilgi ve bilgilendirme metni
+ * DEĞİŞMEZ. null / yok → rapor bugünküyle birebir.
+ */
+export type ReflexologyBrandingOptions = { branding?: ExpertBranding | null; brandingVariant?: ExpertBrandingVariant };
+
+/** A4 (11906) − 2 × 1134 kenar boşluğu = içerik genişliği (twip). */
+const REFLEX_CONTENT_W = 11906 - 2 * 1134;
+
+function signatureSection(o: ReflexologyBrandingOptions | undefined): ReportChild[] {
+  return expertSignatureBlock(o?.branding, { variant: o?.brandingVariant, accent: V_ACCENT, contentWidth: REFLEX_CONTENT_W, fill: V_CARD_FILL, font: REPORT_FONT });
+}
+
 export async function buildSingleReport(
   input: ReflexologyProtocolInput,
   /** Raporun ÜRETİM tarihi (export anı, Türkiye takvimi). "Oluşturulma Tarihi". */
   reportDateLabel: string,
   /** Protokolün kayıt tarihi — ayrı "Protokol Tarihi" metadata'sı (opsiyonel). */
   protocolDateLabel?: string,
+  brand?: ReflexologyBrandingOptions,
 ): Promise<ReportChild[]> {
   const totalRegions = input.resolved.organs.reduce((a, o) => a + o.totalRegions, 0);
   const meta: CoverMeta = [
@@ -451,6 +469,7 @@ export async function buildSingleReport(
     ...buildCover(input.title, "Refleksoloji Protokol Raporu", meta),
     ...(await protocolBody(input, { bulk: false, pageBreak: false })),
     ...disclaimerSection(), // REF-002
+    ...signatureSection(brand), // F3B (yalnız anahtar açıkken)
   ];
   return out;
 }
@@ -460,6 +479,7 @@ export async function buildBulkReport(
   inputs: ReflexologyProtocolInput[],
   createdLabel: string,
   scopeLabel: string,
+  brand?: ReflexologyBrandingOptions,
 ): Promise<ReportChild[]> {
   const totalOrgans = new Set(inputs.flatMap((i) => i.organs.map((o) => o.trim().toLocaleLowerCase("tr")))).size;
   const meta: CoverMeta = [
@@ -473,6 +493,7 @@ export async function buildBulkReport(
     out.push(...(await protocolBody(inputs[i], { bulk: true, pageBreak: true })));
   }
   out.push(...disclaimerSection()); // REF-002
+  out.push(...signatureSection(brand)); // F3B (yalnız anahtar açıkken)
   return out;
 }
 
@@ -486,6 +507,7 @@ export async function buildAtlasReport(
   resolved: ResolvedAtlas,
   reportDateLabel: string,
   scopeLabel: string,
+  brand?: ReflexologyBrandingOptions,
 ): Promise<ReportChild[]> {
   const totalRegions = resolved.organs.reduce((a, o) => a + o.totalRegions, 0);
   const meta: CoverMeta = [
@@ -501,6 +523,7 @@ export async function buildAtlasReport(
   }
   out.push(...organTable(resolved, [], "Organlar ve Atlas Bölgeleri"));
   out.push(...disclaimerSection()); // REF-002
+  out.push(...signatureSection(brand)); // F3B (yalnız anahtar açıkken)
   return out;
 }
 

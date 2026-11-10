@@ -13,6 +13,9 @@ import { validateHacamatReportPayload } from "@/lib/cosmic/hacamatReport";
 import { checkRateLimit } from "@/lib/security/rateLimit";
 import { todayInZone } from "@/lib/time/reportTime";
 import { wellnessNote } from "@/lib/docx/reportDisclaimer";
+import type { ExpertBranding } from "@/lib/docx/expertBranding";
+import { drawExpertSignaturePdf } from "@/lib/pdf/expertBrandingPdf";
+import { resolveReportBranding } from "@/lib/profile/reportBranding";
 
 /**
  * FA-02: yıl/ay verilmezse varsayılan Europe/Istanbul takvimindeki bugünün ayı
@@ -229,6 +232,8 @@ async function buildPdfBuffer(params: {
   title?:          string;
   expertName?:     string;
   includeSections?: Partial<IncludeSections>;
+  /** F3B: uzman markalaması (Word ile AYNI kural: yalnız form adı doluyken; null/yok → birebir). */
+  branding?:       ExpertBranding | null;
 }): Promise<Buffer> {
   const {
     year, month,
@@ -434,8 +439,31 @@ async function buildPdfBuffer(params: {
   pdf.gap(3);
   pdf.p(wellnessNote("hacamat").full, 0, 7.5, LIGHT);
 
+  // F3B: "Hazırlayan" kartı — Word ile aynı veri ve kural (ortak lib/pdf/expertBrandingPdf); ad formdaki serbest alandan.
+  if (expertName?.trim()) {
+    // Savunma: markalamada ad olsa bile YOK sayılır → kartta daima formdaki ad (Word ile aynı).
+    drawExpertSignaturePdf(doc, params.branding ? { ...params.branding, name: null } : null, {
+      get y() { return pdf.y; },
+      set y(v: number) { pdf.y = v; },
+      ensure: (h: number) => pdf.ensureSpace(h),
+    }, { font: "Geist", x: LM, width: CW, accent: TEAL, ink: DARK, mid: MID, light: LIGHT, fill: [240, 253, 250], fallbackName: expertName });
+  }
+
   pdf.stampFooters();
   return Buffer.from(doc.output("arraybuffer"));
+}
+
+/**
+ * F3B — Hacamat raporu (Word + PDF AYNI kural) uzman markalaması. OWNER KARARI:
+ *   - Formdaki serbest "Hazırlayan" (expertName) KORUNUR; profil adı ile EZİLMEZ (purpose "named-by-form" ad döndürmez).
+ *   - Yalnız form adı DOLUYSA ve uzmanın rapor kimliği anahtarı açıksa: unvan / kurum / logo (+ Profilim'de görünür
+ *     işaretliyse iletişim ve dipnot — NAMED_BY_FORM_INCLUDES_CONTACT_NOTE) rapor sonunda "Hazırlayan" kartında yer alır.
+ *   - Form adı boş / anahtar kapalı / profil yok / tablo yok → null → rapor bugünküyle birebir.
+ * Sahip (tenant / kullanıcı) YALNIZ oturumdan (guard).
+ */
+async function hacamatBranding(guard: { db: Parameters<typeof resolveReportBranding>[0]; tenantId: string; userId: string }, expertName: string): Promise<ExpertBranding | null> {
+  if (!expertName.trim()) return null;
+  return resolveReportBranding(guard.db, { tenantId: guard.tenantId, userId: guard.userId }, { fullName: null }, { purpose: "named-by-form" });
 }
 
 // ─── GET — mobil için doğrudan indirme ───────────────────────────────────────
@@ -500,7 +528,8 @@ export async function POST(request: Request): Promise<Response> {
 
   let buffer: Buffer;
   try {
-    buffer = await buildPdfBuffer({ year, month, rules, expertNotes, title, expertName, includeSections });
+    const branding = await hacamatBranding(guard, expertName);
+    buffer = await buildPdfBuffer({ year, month, rules, expertNotes, title, expertName, includeSections, branding });
   } catch {
     await trackUsage(guard, request, { module: "cosmic_calendar", action: "action_failed", failedAction: "report_generated", subEntity: "hacamat_calendar", errorClass: "server" });
     return Response.json({ ok: false, error: "Rapor oluşturulamadı." }, { status: 500 });

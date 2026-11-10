@@ -7,6 +7,8 @@
 // oranı korunur ve sayfaya sığdırılır. Boş sayfa açılmaz (yeni sayfa yalnız yazılacak içerik varken).
 
 import { jsPDF } from "jspdf";
+import type { ExpertBranding } from "@/lib/docx/expertBranding";
+import { drawExpertSignaturePdf } from "@/lib/pdf/expertBrandingPdf";
 import type { AstroReport, ReportBlock, ReportTable } from "./model";
 import { isWideFigure } from "./figures";
 import { fontRuns, hasSymbolChars, type FontKey } from "./symbolFonts";
@@ -264,7 +266,14 @@ type ChartImg = { png: Buffer; width: number; height: number };
  * `chartIn`: tekli raporda tek görsel; toplu raporda (UAT 2. tur, madde L) "chart" bloklarıyla AYNI sırada görsel dizisi.
  * Toplu raporda her analiz yeni sayfada başlar ve PDF yer imi (bookmark) olarak eklenir.
  */
-export function buildAstroReportPdf(r: AstroReport, chartIn: ChartImg | null | (ChartImg | null)[], fontBase64: string, symbolFonts: SymbolFontsB64 = null): Uint8Array {
+export function buildAstroReportPdf(
+  r: AstroReport,
+  chartIn: ChartImg | null | (ChartImg | null)[],
+  fontBase64: string,
+  symbolFonts: SymbolFontsB64 = null,
+  /** F3B: Word ile AYNI markalama verisi (yalnız anahtar açıkken; null / yok → PDF bugünküyle birebir). */
+  brand: { branding?: ExpertBranding | null } = {},
+): Uint8Array {
   const charts = Array.isArray(chartIn) ? chartIn : [chartIn];
   let chartIdx = 0;
   let sectionStart = false;
@@ -337,6 +346,12 @@ export function buildAstroReportPdf(r: AstroReport, chartIn: ChartImg | null | (
     }
   });
   w.para("Rapor Yaşam Sistemi Astroloji modülünde, kayıtlı analizden oluşturulmuştur.", 7.8, LIGHT);
+  // F3B: "Hazırlayan" imza kartı — ortak PDF yardımcısı; Word'deki kartla aynı alanlar.
+  drawExpertSignaturePdf(w.doc, brand.branding, {
+    get y() { return w.y; },
+    set y(v: number) { w.y = v; },
+    ensure: (h: number) => w.ensure(h),
+  }, { font: "Geist", x: MX, width: CW, accent: ACCENT, ink: INK, mid: MID, light: LIGHT, fill: [248, 250, 252] });
 
   const total = w.doc.getNumberOfPages();
   for (let p = 1; p <= total; p++) {

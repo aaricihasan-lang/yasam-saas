@@ -1,5 +1,7 @@
 import { NextRequest } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
+import { expertDisplayName } from "@/lib/docx/reportDisclaimer";
+import { resolveReportBranding } from "@/lib/profile/reportBranding";
 import { trackUsage } from "@/lib/usage/trackUsage";
 import { CUPPING_TABLES } from "@/lib/cupping/fields";
 import { cuppingError, getEntity, listEntity } from "@/lib/cupping/api";
@@ -185,7 +187,9 @@ export async function GET(
 
   let buffer: Buffer;
   try {
-    buffer = await buildProtocolWordBuffer({ protocol, points, techniques, steps, safety, entries, sources });
+    // F3B: uzman markalaması — sahip ve ad YALNIZ oturumdan (guard); anahtar kapalı / profil yok → null (birebir).
+    const branding = await resolveReportBranding(db, { tenantId, userId: guard.userId }, { fullName: expertDisplayName(guard.profile) }, { purpose: "signature" });
+    buffer = await buildProtocolWordBuffer({ protocol, points, techniques, steps, safety, entries, sources, branding });
   } catch {
     await trackUsage(guard, req, { module: "cupping", action: "action_failed", failedAction: "report_generated", subEntity: "protocol", errorClass: "server" });
     return cuppingError(500, "Word raporu oluşturulamadı. Lütfen tekrar deneyin.");
