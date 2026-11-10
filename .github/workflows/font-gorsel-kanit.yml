@@ -1,0 +1,100 @@
+# KANIT İŞ AKIŞI — #777 (Google Fonts → yerel) görsel kabulü. Yalnız bu kanıt dalına push'ta çalışır; PR / main / ci.yml ile ilgisi yok.
+# Sır / production / veritabanı yok; kanıt sayfaları sentetik metinlerle gerçek bileşenleri render eder.
+#   once  : main (bu dalın ürün kodu = main b25648c1) next/font/google, normal ağ → build + ekran görüntüsü
+#   sonra : main + #777'nin değiştirdiği dosyalar (fix/google-fonts-yerel @ 15bbb2a4), Google Fonts AĞI ENGELLİ → build + görüntü
+#   kiyas : piksel + yan yana görüntü + CDP öğe-başı font + ölçü karşılaştırması
+name: Font görsel kanıt (#777)
+
+on:
+  push:
+    branches: [kanit/font-777-gorsel]
+
+permissions:
+  contents: read
+
+env:
+  NEXT_TELEMETRY_DISABLED: "1"
+  PR_UCU: 15bbb2a420ac3bb6efabdb82c77fc88c25aaadff
+
+jobs:
+  once:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/kurulum
+      - name: Kanıt sayfaları
+        run: |
+          mkdir -p app/zz-ekran "$RUNNER_TEMP/kanit"
+          cp -r .github/font-gorsel/sayfalar/* app/zz-ekran/
+          echo "next/font/google (main, beklenen > 0): $(grep -rl 'from "next/font/google"' app | wc -l)"
+      - run: npx playwright install --with-deps chromium
+      - name: Build (main, normal ağ)
+        run: npx next build
+        env:
+          NODE_OPTIONS: --max-old-space-size=6144
+      - name: Ekran görüntüleri
+        run: |
+          (npx next start -p 3100 -H 127.0.0.1 > "$RUNNER_TEMP/start.log" 2>&1 &)
+          for i in $(seq 1 60); do curl -sf -o /dev/null http://127.0.0.1:3100/zz-ekran/analiz && break; sleep 2; done
+          node .github/font-gorsel/shots.mjs once 3100 "$RUNNER_TEMP/kanit/once"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: gorsel-once
+          path: ${{ runner.temp }}/kanit/once
+          retention-days: 30
+
+  sonra:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: ./.github/actions/kurulum
+      - name: "#777 değişikliklerini uygula (main + PR farkı) ve kanıt sayfaları"
+        run: |
+          git fetch -q origin "$PR_UCU"
+          git diff --name-only --diff-filter=AM "origin/main...$PR_UCU" > "$RUNNER_TEMP/pr-dosyalar.txt"
+          cat "$RUNNER_TEMP/pr-dosyalar.txt"
+          git checkout "$PR_UCU" -- $(cat "$RUNNER_TEMP/pr-dosyalar.txt")
+          echo "next/font/google kullanımı (beklenen 0):"; ! grep -rn 'from "next/font/google"' app components lib
+          mkdir -p app/zz-ekran "$RUNNER_TEMP/kanit"
+          cp -r .github/font-gorsel/sayfalar/* app/zz-ekran/
+      - run: npx playwright install --with-deps chromium
+      - name: Google Fonts ağını engelle ve doğrula
+        run: |
+          printf '0.0.0.0 fonts.googleapis.com\n0.0.0.0 fonts.gstatic.com\n:: fonts.googleapis.com\n:: fonts.gstatic.com\n' | sudo tee -a /etc/hosts
+          if curl -sS -m 10 -o /dev/null https://fonts.gstatic.com/; then echo "ENGEL ETKİSİZ"; exit 1; else echo "fonts.gstatic.com erişilemez ✓"; fi
+      - name: Build (#777, Google Fonts engelli)
+        run: npx next build
+        env:
+          NODE_OPTIONS: --max-old-space-size=6144
+      - name: Ekran görüntüleri
+        run: |
+          (npx next start -p 3100 -H 127.0.0.1 > "$RUNNER_TEMP/start.log" 2>&1 &)
+          for i in $(seq 1 60); do curl -sf -o /dev/null http://127.0.0.1:3100/zz-ekran/analiz && break; sleep 2; done
+          node .github/font-gorsel/shots.mjs sonra 3100 "$RUNNER_TEMP/kanit/sonra"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: gorsel-sonra
+          path: ${{ runner.temp }}/kanit/sonra
+          retention-days: 30
+
+  kiyas:
+    needs: [once, sonra]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/kurulum
+      - uses: actions/download-artifact@v4
+        with:
+          path: ${{ runner.temp }}/k
+      - name: Önce ↔ sonra
+        run: node .github/font-gorsel/kiyas.mjs "$RUNNER_TEMP/k/gorsel-once" "$RUNNER_TEMP/k/gorsel-sonra" "$RUNNER_TEMP/k/fark"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: gorsel-fark
+          path: ${{ runner.temp }}/k/fark
+          retention-days: 30
