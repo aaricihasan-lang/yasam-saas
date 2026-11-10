@@ -2,7 +2,8 @@
 /**
  * Bağımsız regresyon koşucusu — scripts/ci/regression-tests.json listesindeki testlerin TAMAMINI çalıştırır.
  *
- *   node scripts/ci/run-regression.mjs [--only <regex>]
+ *   node scripts/ci/run-regression.mjs [--only <regex>] [--list <json>]
+ *   (--list yalnız koşucunun kendi testleri içindir: scripts/ci/run-regression-timeout.harness.mjs; CI vermez.)
  *
  * Değişiklik analizi, test seçimi, PR kapsam bildirimi, etiket veya envanter kuralı YOKTUR.
  * Her test:
@@ -11,6 +12,9 @@
  *   - zaman aşımıyla
  * çalışır. Test, kendi sonucuna göre geçer: çıkış 0 + okunabilir özet satırı + FAIL=0 + PASS>0 +
  * atlanan bölüm yok + dış ağ denemesi yok. Zaman aşımı / sonuçsuz çökme bir kez yeniden denenir.
+ * Süreç ağacı: test kendi süreç grubunda başlar (Linux/macOS; Windows'ta taskkill /T). Zaman aşımında testin
+ * TÜM alt süreçleri (npx → tsx → node, esbuild, geçici postgres …) öldürülür; test çıktıktan sonra geride kalan
+ * alt süreçler de temizlenir. Çıktı kanalını tutan artık süreç koşucuyu bekletemez (sınırlı bekleme + kanal kapatma).
  * Korunan alan (HD/Atlas/Numeroloji/Kozmik) ve ertelenen grup (Backup/Usage360/HDAY) testleri
  * listeye girse bile süreç BAŞLATILMADAN reddedilir (Owner kararı).
  */
@@ -24,6 +28,10 @@ const CI_DIR = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(CI_DIR, "..", "..");
 const arg = (k) => { const i = process.argv.indexOf(k); return i > 0 ? process.argv[i + 1] : null; };
 const only = arg("--only") ? new RegExp(arg("--only")) : null;
+const LIST_FILE = arg("--list") ? path.resolve(arg("--list")) : path.join(CI_DIR, "regression-tests.json");
+const IS_WIN = process.platform === "win32";
+/** Süreç çıktıktan / öldürüldükten sonra stdout/stderr kapanması için beklenen en uzun süre (ms). */
+const KANAL_BEKLEME_MS = 5000;
 
 const SECRET_ENV = /(SUPABASE|ROXY|SERVICE_ROLE|DATABASE_URL|POSTGRES_URL|API_KEY|_TOKEN|TOKEN_|SECRET|PASSWORD|ANTHROPIC|OPENAI|GEMINI|DEEPL|GOOGLE_|VERCEL|INNGEST|RESEND|SMTP|AWS_|STRIPE|IYZICO|GH_|GITHUB_TOKEN|NPM_TOKEN)/i;
 const KORUNAN_YOL_RE = /scripts\/(hd\d*[a-z0-9]*[-_/]|human-design|astrology|astroloji|numeroloji|nkb|cosmic)|\/(hd|human-design|numeroloji)-|\/(astro|astroloji|hd|numeroloji)\//i;
@@ -76,6 +84,52 @@ export function skipMarkers(output) {
   return hits;
 }
 
+/** Linux: /proc üzerinden pid'in tüm torunları (kendi süreç grubunu kurmuş olanlar dahil). Başka sistemde boş. */
+function descendantsLinux(rootPid) {
+  if (process.platform !== "linux") return [];
+  const kids = new Map();
+  let entries = [];
+  try { entries = fs.readdirSync("/proc"); } catch { return []; }
+  for (const e of entries) {
+    if (!/^\d+$/.test(e)) continue;
+    try {
+      const stat = fs.readFileSync(`/proc/${e}/stat`, "utf8");
+      const ppid = Number(stat.slice(stat.lastIndexOf(")") + 2).split(" ")[1]);
+      if (!kids.has(ppid)) kids.set(ppid, []);
+      kids.get(ppid).push(Number(e));
+    } catch { /* süreç bu arada çıkmış */ }
+  }
+  const out = [];
+  const stack = [rootPid];
+  while (stack.length) for (const k of kids.get(stack.pop()) ?? []) { out.push(k); stack.push(k); }
+  return out;
+}
+
+/**
+ * Testin süreç ağacını öldürür. POSIX: süreç grubu (-pid) + Linux'ta /proc torunları; Windows: taskkill /T /F.
+ * Grup lideri çıkmış olsa da grupta kalan süreçler öldürülür (geride kalan postgres vb.).
+ */
+function killTree(child) {
+  if (!child.pid) return;
+  if (IS_WIN) {
+    try { spawn("taskkill", ["/pid", String(child.pid), "/T", "/F"], { windowsHide: true, stdio: "ignore" }); } catch { /* yok */ }
+    return;
+  }
+  const extra = descendantsLinux(child.pid);
+  try { process.kill(-child.pid, "SIGKILL"); } catch { /* grup boş */ }
+  for (const pid of extra) { try { process.kill(pid, "SIGKILL"); } catch { /* çıkmış */ } }
+  try { child.kill("SIGKILL"); } catch { /* çıkmış */ }
+}
+
+/** Çalışan testler: koşucu SIGINT/SIGTERM alırsa (ayrı süreç grubundaki) testler de öldürülür. */
+const ACTIVE = new Set();
+for (const sig of ["SIGINT", "SIGTERM"]) {
+  process.on(sig, () => {
+    for (const c of ACTIVE) killTree(c);
+    process.exit(sig === "SIGINT" ? 130 : 143);
+  });
+}
+
 function runTest(t) {
   if (KORUNAN_YOL_RE.test(t.file)) return Promise.resolve({ refused: "korunan alan (HD/Atlas/Numeroloji/Kozmik) — çalıştırma yasağı" });
   if (ERTELENEN_YOL_RE.test(t.file)) return Promise.resolve({ refused: "ertelenen grup (Backup/Usage360/HDAY) — çalıştırma yasağı" });
@@ -90,33 +144,60 @@ function runTest(t) {
     });
     const [cmd, ...args] = commandFor(t);
     const t0 = Date.now();
-    const child = spawn(cmd, args, { cwd: ROOT, env, shell: process.platform === "win32", windowsHide: true });
+    // POSIX: detached → test kendi süreç grubunun lideri olur; zaman aşımında grup bütün olarak öldürülür.
+    const child = spawn(cmd, args, { cwd: ROOT, env, shell: IS_WIN, windowsHide: true, detached: !IS_WIN });
+    ACTIVE.add(child);
     let out = "";
     const add = (b) => { out += b.toString(); if (out.length > 4_000_000) out = out.slice(-2_000_000); };
     child.stdout.on("data", add);
     child.stderr.on("data", add);
     let timedOut = false;
-    const timer = setTimeout(() => {
-      timedOut = true;
-      try {
-        if (process.platform === "win32") spawn("taskkill", ["/pid", String(child.pid), "/T", "/F"], { windowsHide: true });
-        else child.kill("SIGKILL");
-      } catch { /* yok */ }
-    }, (t.timeoutSec ?? 300) * 1000);
-    child.on("close", (code) => {
+    let exitCode;
+    let leftovers = false;
+    let finished = false;
+    let drainTimer = null;
+    const finish = (code) => {
+      if (finished) return;
+      finished = true;
       clearTimeout(timer);
+      clearTimeout(drainTimer);
+      ACTIVE.delete(child);
+      // Testten geriye kalan alt süreçler (ör. kapatılmamış geçici postgres) bir sonraki testi etkilemesin.
+      // Windows'ta yalnız zaman aşımı / kalan süreç durumunda (her testte boşuna taskkill çalıştırılmaz).
+      if (!IS_WIN || timedOut || leftovers) killTree(child);
+      child.stdout.destroy();
+      child.stderr.destroy();
       let net = [];
       try { net = fs.readFileSync(netLog, "utf8").split(/\r?\n/).filter(Boolean); fs.rmSync(netLog, { force: true }); } catch { /* yok */ }
       resolve({
         code: timedOut ? null : code,
         timedOut,
+        leftovers,
         secs: +((Date.now() - t0) / 1000).toFixed(1),
         summary: parseSummary(out),
         skips: skipMarkers(out),
         net,
         tail: out.split(/\r?\n/).filter((l) => l.trim()).slice(-12),
       });
+    };
+    const timer = setTimeout(() => {
+      timedOut = true;
+      killTree(child);
+      // Öldürmeye rağmen kanal kapanmazsa (kanalı tutan süreç ulaşılamaz) sınırlı bekleyip sonuçlandır.
+      drainTimer = setTimeout(() => finish(null), KANAL_BEKLEME_MS);
+    }, (t.timeoutSec ?? 300) * 1000);
+    // "exit" = test süreci bitti; "close" = ayrıca tüm çıktı kanalları kapandı. Kanalı açık tutan artık alt süreç
+    // varsa "close" gelmez → sınırlı bekleme sonrası ağaç temizlenir ve sonuç testin kendi çıkış koduyla verilir.
+    child.on("exit", (code) => {
+      exitCode = code;
+      if (timedOut || finished) return;
+      // Test süreci kendi süresi içinde çıktı: zaman aşımı artık uygulanmaz (yalnız kanal beklemesi kalır).
+      clearTimeout(timer);
+      clearTimeout(drainTimer);
+      drainTimer = setTimeout(() => { leftovers = true; finish(exitCode); }, KANAL_BEKLEME_MS);
     });
+    child.on("close", (code) => finish(exitCode !== undefined ? exitCode : code));
+    child.on("error", (e) => { add(`spawn hatası: ${e.message}\n`); finish(null); });
   });
 }
 
@@ -135,9 +216,9 @@ function judge(r) {
 }
 
 async function main() {
-  const list = JSON.parse(fs.readFileSync(path.join(CI_DIR, "regression-tests.json"), "utf8")).tests;
+  const list = JSON.parse(fs.readFileSync(LIST_FILE, "utf8")).tests;
   const tests = list.filter((t) => !only || only.test(t.file));
-  const missing = tests.filter((t) => !fs.existsSync(path.join(ROOT, t.file)));
+  const missing = tests.filter((t) => !fs.existsSync(path.resolve(ROOT, t.file)));
   const t0 = Date.now();
   const rows = [];
   for (const t of tests) {
@@ -147,7 +228,7 @@ async function main() {
     let retried = false;
     if (j.infra) { retried = true; r = await runTest(t); j = judge(r); }
     rows.push({ file: t.file, ok: j.ok, neden: j.neden, secs: r.secs ?? 0 });
-    console.log(`${j.ok ? "PASS" : "FAIL"} ${t.file} — ${j.neden} (${r.secs ?? 0}s${retried ? ", yeniden denendi" : ""})`);
+    console.log(`${j.ok ? "PASS" : "FAIL"} ${t.file} — ${j.neden} (${r.secs ?? 0}s${retried ? ", yeniden denendi" : ""}${r.leftovers ? ", çıkıştan sonra kalan alt süreçler temizlendi" : ""})`);
     if (!j.ok) for (const l of r.tail ?? []) console.log(`    │ ${l}`);
   }
   const secs = +((Date.now() - t0) / 1000).toFixed(1);
