@@ -3,18 +3,22 @@
  * next/font ile kendi sunucumuzdan (dış istek yok, CSP uyumlu); Türkçe için latin-ext alt kümesi.
  *   Başlıklar → Fraunces (opsz / SOFT ekseni) · Üst etiket → Jost · Gövde → uygulamanın Geist'i (layout'tan).
  */
-import { Fraunces, Jost } from "next/font/google";
+import localFont from "next/font/local";
 
-const energySerif = Fraunces({
-  subsets: ["latin", "latin-ext"],
-  axes: ["opsz", "SOFT"],
+// Yerel dosyalar (app/_fonts/FONTLAR.md): Google'ın sunduğu latin + latin-ext içeriğiyle aynı; build'de ağ isteği yok.
+const energySerif = localFont({
+  src: "../../_fonts/fraunces.woff2",
+  weight: "100 900",
   variable: "--eb-serif",
   display: "swap",
+  adjustFontFallback: "Times New Roman",
 });
 
-const energyLabel = Jost({
-  subsets: ["latin", "latin-ext"],
-  weight: ["400", "500"],
+const energyLabel = localFont({
+  src: [
+    { path: "../../_fonts/jost.woff2", weight: "400", style: "normal" },
+    { path: "../../_fonts/jost.woff2", weight: "500", style: "normal" },
+  ],
   variable: "--eb-label",
   display: "swap",
 });

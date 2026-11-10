@@ -8,21 +8,22 @@
  * açıklama (+ durum).
  */
 import Link from "next/link";
-import { Jost, Playfair_Display } from "next/font/google";
+import localFont from "next/font/local";
 import { ArrowRight, CalendarDays, ChartColumn } from "lucide-react";
 import type { ComponentType } from "react";
 import styles from "./premium/analizMerkezi.module.css";
 
-const serif = Playfair_Display({
-  subsets: ["latin", "latin-ext"],
-  weight: ["600"],
+// Yerel dosyalar (app/_fonts/FONTLAR.md). Playfair Display: OFL "Reserved Font Name" → özgün değişken dosya değiştirilmeden
+// kullanılır (Google'ın statik 600 örneğiyle aynı ilerleme genişlikleri). Jost: Google'ın sunduğu latin + latin-ext içeriği.
+const serif = localFont({
+  src: [{ path: "../../_fonts/playfair-display.ttf", weight: "600", style: "normal" }],
   variable: "--amc-serif",
   display: "swap",
+  adjustFontFallback: "Times New Roman",
 });
 
-const sans = Jost({
-  subsets: ["latin", "latin-ext"],
-  weight: ["500"],
+const sans = localFont({
+  src: [{ path: "../../_fonts/jost.woff2", weight: "500", style: "normal" }],
   variable: "--amc-sans",
   display: "swap",
 });

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
-import { Fraunces, Jost } from "next/font/google";
+import localFont from "next/font/local";
 import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
 import { DyIcon, type DyIconName } from "@/app/danisan-yolculugu/_premium/DyArt";
 import { DyFolderCard } from "@/app/danisan-yolculugu/_premium/DyFolderCard";
@@ -24,8 +24,9 @@ function fmtCount(n: number | null): string {
 
 // 2026-10-18 premium görünüm (owner onaylı v2 prototipi, tasarım arşivi 0f861c4): başlık Fraunces, etiket Jost —
 // next/font ile kendi sunucumuzdan (dış istek yok); Türkçe için latin-ext.
-const dyDisplay = Fraunces({ subsets: ["latin", "latin-ext"], axes: ["opsz", "SOFT"], variable: "--dy-display", display: "swap" });
-const dyLabel = Jost({ subsets: ["latin", "latin-ext"], weight: ["500"], variable: "--dy-label", display: "swap" });
+// Yerel dosyalar (app/_fonts/FONTLAR.md): Google'ın sunduğu latin + latin-ext içeriğiyle aynı; build'de ağ isteği yok.
+const dyDisplay = localFont({ src: "../_fonts/fraunces.woff2", weight: "100 900", variable: "--dy-display", display: "swap", adjustFontFallback: "Times New Roman" });
+const dyLabel = localFont({ src: [{ path: "../_fonts/jost.woff2", weight: "500", style: "normal" }], variable: "--dy-label", display: "swap" });
 
 // ─── Sabit kart tanımları (renk + ikon) ─────────────────────────────────────
 // `id` = stabil çeviri anahtarı (clients.landing.stats.<id>); görünen etiket

@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale } from "next-intl/server";
 import { headers } from "next/headers";
-import { Geist, Geist_Mono } from "next/font/google";
+import localFont from "next/font/local";
 import ModuleRouteGuard from "@/components/auth/ModuleRouteGuard";
 import { ConfirmProvider } from "@/components/ui/ConfirmProvider";
 import { ToastProvider } from "@/components/ui/ToastProvider";
@@ -20,14 +20,18 @@ import { SESSION_TRANSPORT_HTML_ATTR } from "@/lib/auth/sessionTransportFlag";
 import "./globals.css";
 import "./mobile-360.css";
 
-const geistSans = Geist({
+// Yerel dosyalar (app/_fonts/FONTLAR.md) — build'de Google Fonts'a ağ isteği yok. Önceki next/font/google çağrısıyla aynı
+// yalnız-latin kapsam (görünüm birebir korunur: İ Ğ ğ Ş ş eskisi gibi yedek yazı tipiyle çizilir).
+const geistSans = localFont({
+  src: "./_fonts/geist.woff2",
+  weight: "100 900",
   variable: "--font-geist-sans",
-  subsets: ["latin"],
 });
 
-const geistMono = Geist_Mono({
+const geistMono = localFont({
+  src: "./_fonts/geist-mono.woff2",
+  weight: "100 900",
   variable: "--font-geist-mono",
-  subsets: ["latin"],
 });
 
 export const metadata: Metadata = {

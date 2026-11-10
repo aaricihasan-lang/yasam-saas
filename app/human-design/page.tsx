@@ -1,4 +1,4 @@
-import { Fraunces, Jost } from "next/font/google";
+import localFont from "next/font/local";
 import { HdHubModules, type HdHubModule } from "./components/HdHubModules";
 import styles from "./_premium/hd.module.css";
 import { cookies } from "next/headers";
@@ -9,8 +9,9 @@ import { privateEnvKillSwitch } from "@/lib/human-design/education/private/priva
 
 // 2026-10-18 premium görünüm (owner onaylı prototip, tasarım arşivi 1fed59a): başlık Fraunces, etiket Jost —
 // next/font ile kendi sunucumuzdan (dış istek yok); Türkçe için latin-ext.
-const hdDisplay = Fraunces({ subsets: ["latin", "latin-ext"], axes: ["opsz", "SOFT"], variable: "--hd-display", display: "swap" });
-const hdLabel = Jost({ subsets: ["latin", "latin-ext"], weight: ["400"], variable: "--hd-label", display: "swap" });
+// Yerel dosyalar (app/_fonts/FONTLAR.md): Google'ın sunduğu latin + latin-ext içeriğiyle aynı; build'de ağ isteği yok.
+const hdDisplay = localFont({ src: "../_fonts/fraunces.woff2", weight: "100 900", variable: "--hd-display", display: "swap", adjustFontFallback: "Times New Roman" });
+const hdLabel = localFont({ src: [{ path: "../_fonts/jost.woff2", weight: "400", style: "normal" }], variable: "--hd-label", display: "swap" });
 
 // AŞAMA 3C — premium, görev odaklı iki çalışma alanı. Eski kartların işlevleri silinmedi:
 //   • Danışanlar / Human Design Haritası / Kayıtlı Haritalar / Kayıtlı Raporlar → Hesaplama çalışma
