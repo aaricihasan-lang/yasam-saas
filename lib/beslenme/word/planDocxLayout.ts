@@ -320,7 +320,8 @@ export function bWellness(note: string, expertName?: string | null, brand: { bra
         children: [new TextRun({ text: "Bilgilendirme", bold: true, size: 18, font: REPORT_FONT, color: C_MID })],
       }),
       new Paragraph({
-        keepNext: true,
+        // Sayfa düzeni (10.11): imza kartı bilgilendirmeyle ZORLA birlikte tutulmaz (kart kendi içinde bölünmez).
+        keepNext: false,
         keepLines: true,
         spacing: { after: 80 },
         children: [new TextRun({ text: note, italics: true, size: 16, font: REPORT_FONT, color: C_LIGHT })],
