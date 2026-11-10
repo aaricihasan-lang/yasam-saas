@@ -419,6 +419,10 @@
    "timeoutSec": 120
   },
   {
+   "file": "scripts/ci/golge.harness.mjs",
+   "timeoutSec": 240
+  },
+  {
    "file": "scripts/ci/run-regression-timeout.harness.mjs",
    "timeoutSec": 150
   },
