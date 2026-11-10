@@ -352,7 +352,7 @@ export function ArchiveExportTab({ user }: { user: YasamUser }) {
           {inc("data", "Kayıt dökümü (Word)", "Seçili modüllerin tüm kayıtları; büyük modüller bölümlere ayrılır.")}
           {inc("dossiers", "Danışan dosyaları", "Her danışan için Danışan Yolculuğu tam raporu.")}
           {inc("reports", "Hazır analiz raporları", "Kayıtlı HD, HD İlişki, Gökyüzü Atlası ve Numeroloji raporları.")}
-          {inc("files", "Fotoğraf ve ekler", "Danışan görselleri ve fotoğrafları, anamnez PDF'leri, Kişisel Arşiv, taş kataloğu, Şifa Rehberi, HD harita, stok ve Kişisel Ofis görselleri (ayrı dosya).")}
+          {inc("files", "Fotoğraf ve ekler", "Analiz görselleri ve danışan taş fotoğrafları, anamnez PDF'leri, Kişisel Arşiv, taş kataloğu, Şifa Rehberi, HD harita, stok ve Kişisel Ofis görselleri (ayrı dosya).")}
           {inc("sensitive", "Hassas bölümler", "Danışan dosyasına anamnez, beslenme özeti, iç notlar ve ücretlendirme eklenir.")}
         </div>
       </section>

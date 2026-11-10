@@ -2,7 +2,7 @@
  * lib/archive/server/media.ts — Premium Word Arşivi: kayıtlara bağlı KULLANICI görselleri (YALNIZ SUNUCU).
  *
  * İki saklama biçimi:
- *   - Depolama yolu (taş kataloğu, Şifa Rehberi, HD harita görseli, Kişisel Ofis, profil fotoğrafı) → yol, kaynağın tenant
+ *   - Depolama yolu (taş kataloğu, Şifa Rehberi, HD harita görseli, Kişisel Ofis) → yol, kaynağın tenant
  *     öneki + yol güvenliği ile doğrulanır; yalnız o nesne için 60 sn imzalı bağlantı döner.
  *   - Kayıt içine gömülü görsel (data: URI — Ürün & Stok fotoğrafları, aromaterapi yağ görselleri) → sunucu çözer, dosya döner.
  * Satır her istekte registry kapsamıyla (tenant + kullanıcı sahipliği; child_of → ebeveyn tenant'ı) YENİDEN okunur.
@@ -34,9 +34,11 @@ export type MediaSourceDef = {
 };
 
 export const MEDIA_SOURCES: Record<string, MediaSourceDef> = {
-  clients: { table: "clients", columns: ["profile_image_url"], label: "Danışan profil fotoğrafları", storage: { bucket: "from_url", prefix: "tenant" }, titleColumn: null, inlineOnly: false },
+  // Danışan profil fotoğrafı: uygulamada yükleme özelliği ve prod'da `clients.profile_image_url` sütunu YOK (09.11 şema
+  // denetimi) → kaynak değildir; olmayan sütun sorgulanmaz (plan uyarısı "column … does not exist" buradan geliyordu).
   stones: { table: "stones", columns: ["images"], label: "Doğaltaş taş fotoğrafları", storage: { bucket: "dogaltas-photos", prefix: "catalog_tenant" }, titleColumn: "stone_name", inlineOnly: false },
-  healing_guides: { table: "healing_guides", columns: ["images"], label: "Şifa Rehberi görselleri", storage: { bucket: "stone-photos", prefix: "healing_tenant" }, titleColumn: "title", inlineOnly: false },
+  // healing_guides başlığı `name` (prod şeması 09.11; `title` yalnız bölümlerde).
+  healing_guides: { table: "healing_guides", columns: ["images"], label: "Şifa Rehberi görselleri", storage: { bucket: "stone-photos", prefix: "healing_tenant" }, titleColumn: "name", inlineOnly: false },
   healing_guide_sections: { table: "healing_guide_sections", columns: ["images"], label: "Şifa Rehberi bölüm görselleri", storage: { bucket: "stone-photos", prefix: "healing_tenant" }, titleColumn: "title", inlineOnly: false },
   human_design_clients: { table: "human_design_clients", columns: ["chart_image_url"], label: "Human Design harita görselleri", storage: { bucket: "hd-chart-images", prefix: "tenant" }, titleColumn: "name", inlineOnly: false },
   human_design_charts: { table: "human_design_charts", columns: ["chart_image_url"], label: "Human Design harita görselleri", storage: { bucket: "hd-chart-images", prefix: "tenant" }, titleColumn: "client_name", inlineOnly: false },

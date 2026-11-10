@@ -68,8 +68,8 @@ function jobAllowed(job: ArchiveJob, o: ArchiveOptions): string | null {
       return o.include.files && FILE_SOURCES[job.source] && has(FILE_SOURCES[job.source].module) ? null : "Dosya kapsam dışında.";
     case "media": {
       if (!o.include.files || !MEDIA_SOURCES[job.table] || !has(mediaModuleOf(job.table))) return "Görsel kapsam dışında.";
-      // Danışan seçiliyken yalnız seçili danışanların profil fotoğrafı; diğer görseller danışana bağlı değildir.
-      if (o.clientIds) return job.table === "clients" && clientOk(job.rowId) ? null : "Görsel kapsam dışında.";
+      // Kayda bağlı görseller danışana bağlı değildir → danışan seçiliyken kapsam dışı.
+      if (o.clientIds) return "Görsel kapsam dışında.";
       return null;
     }
     default:

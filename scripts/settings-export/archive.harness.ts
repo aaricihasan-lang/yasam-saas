@@ -66,6 +66,10 @@ const cmp = (a: unknown, b: unknown) => (typeof a === "number" && typeof b === "
 
 class FakeDb {
   tables: Record<string, Row[]> = {};
+  /** Tablo → izinli sütunlar (verilirse olmayan sütun seçimi PostgREST gibi 42703 döner). */
+  strictColumns: Record<string, string[]> = {};
+  /** Okuması hata dönecek tablolar (listeleme hatası senaryosu). */
+  failSelect = new Set<string>();
   inserts: { table: string; row: Row }[] = [];
   writes: string[] = [];
   signed: string[] = [];
@@ -199,6 +203,13 @@ class Q implements PromiseLike<{ data: unknown; error: unknown; count?: number |
       this.db.inserts.push({ table: this.table, row: this.ins });
       this.db.rows(this.table).push(this.ins);
       return { data: null, error: null };
+    }
+    if (this.db.failSelect.has(this.table)) return { data: null, error: { code: "57014", message: "canceling statement due to statement timeout" } };
+    const strict = this.db.strictColumns[this.table];
+    if (strict && this.cols.trim() !== "*") {
+      for (const c of this.cols.split(",").map((x) => x.trim()).filter(Boolean)) {
+        if (!strict.includes(c)) return { data: null, error: { code: "42703", message: `column ${this.table}.${c} does not exist` } };
+      }
     }
     let rows = this.db.rows(this.table).filter((r) => this.match(r));
     if (this.head) return { data: null, error: null, count: rows.length };
@@ -608,7 +619,8 @@ async function drain(db: FakeDb, module: string, o: ArchiveOptions, userId = UA)
   med.rows("healing_guides").push(guide, foreignGuide);
   med.rows("healing_guide_sections").push(sect, foreignSect);
   med.rows("expert_workspace_assets").push(wsMine, wsOther);
-  (mc as Row).profile_image_url = `https://x.supabase.co/storage/v1/object/public/client-profile/${TA}/p.jpg`;
+  // Prod clients sütunları (09.11 information_schema): profile_image_url YOK → sorgulanırsa 42703.
+  med.strictColumns.clients = ["id", "tenant_id", "user_id", "name", "phone", "email", "notes", "created_at", "ad", "soyad", "telefon", "dogum", "gorusme", "burc", "kan", "mizac", "saglik", "adres", "oneriler", "create_request_id"];
   const mOpt = opt({ modules: ["clients", "stones", "stok", "sifa_rehberi", "general"], include: { data: false, dossiers: false, reports: false, files: true, sensitive: false } });
   const part = (job: Record<string, unknown>, index = 0, c: ArchiveCtx = ctxOf(med), o: ArchiveOptions = mOpt) => handleArchivePart(c, { options: o, job, index });
   await t("gömülü stok fotoğrafı → dosya (gerçek bayt, görsel türü); sayısı doğru", async () => {
@@ -640,10 +652,9 @@ async function drain(db: FakeDb, module: string, o: ArchiveOptions, userId = UA)
     const mine = (await part({ kind: "media", table: "expert_workspace_assets", rowId: wsMine.id })) as { body: Record<string, unknown> };
     assert.equal(mine.body.ok, true);
   });
-  await t("profil fotoğrafı (kendi tenant önekli depolama URL'si) → imzalı bağlantı; danışan seçiminde yalnız seçili danışan", async () => {
-    const r = (await part({ kind: "media", table: "clients", rowId: mc.id })) as { body: Record<string, unknown> };
-    assert.equal(r.body.ok, true);
-    assert.ok(med.signed.at(-1) === `client-profile:${TA}/p.jpg:60`, med.signed.at(-1));
+  await t("profil fotoğrafı kaynağı YOK (özellik yok, prod'da sütun yok): media işi reddedilir; danışan seçiminde görseller kapsam dışı", async () => {
+    const r = await part({ kind: "media", table: "clients", rowId: mc.id });
+    assert.equal((r as { status: number }).status, 400);
     const filtered = await part({ kind: "media", table: "stones", rowId: stoneRow.id }, 0, ctxOf(med), { ...mOpt, clientIds: [String(mc.id)] });
     assert.equal((filtered as { status: number }).status, 403);
   });
@@ -652,7 +663,10 @@ async function drain(db: FakeDb, module: string, o: ArchiveOptions, userId = UA)
     const plan = (r as unknown as { body: ArchivePlanResponse }).body;
     const media = plan.jobs.filter((j) => j.kind === "media") as Extract<ArchiveJob, { kind: "media" }>[];
     const tables = new Set(media.map((j) => j.table));
-    for (const tname of ["oil_inventory", "stones", "healing_guide_sections", "expert_workspace_assets", "clients"]) assert.ok(tables.has(tname), `${tname} planda yok: ${[...tables].join()}`);
+    for (const tname of ["oil_inventory", "stones", "healing_guide_sections", "expert_workspace_assets"]) assert.ok(tables.has(tname), `${tname} planda yok: ${[...tables].join()}`);
+    assert.ok(!tables.has("clients"), "profil fotoğrafı kaynağı planda olmamalı");
+    assert.ok(!plan.warnings.some((w) => /does not exist|listelenemedi/.test(w)), `uyarı: ${plan.warnings.join(" | ")}`);
+    assert.equal((plan.restricted ?? []).length, 0, JSON.stringify(plan.restricted));
     assert.ok(!media.some((j) => j.rowId === otherStone.id || j.rowId === foreignSect.id || j.rowId === wsOther.id), "başka tenant / kullanıcı satırı planda");
     for (const s2 of ["Doğaltaş Kütüphanesi görselleri", "Mağaza ürün görselleri", "HD Hazır Eğitim Haritaları"]) assert.ok(plan.excluded.some((e) => e.scope === s2), s2);
   });
@@ -751,6 +765,84 @@ async function drain(db: FakeDb, module: string, o: ArchiveOptions, userId = UA)
     const a = await handleArchivePlan(ctxOf(rep, { isAndroid: true }), { options: dOpts });
     const ap = (a as unknown as { body: ArchivePlanResponse }).body;
     assert.ok(!ap.jobs.some((j) => j.kind === "hd_report") && (ap.restricted ?? []).some((e) => /Android/.test(e.reason)));
+  });
+
+  console.log("\nE3. Fotoğraf / ek kapsamı (sütunlar prod şemasıyla uyumlu)");
+  await t("arşivin sorguladığı TÜM görsel / ek sütunları prod şemasında var (09.11 information_schema denetimi)", async () => {
+    const { MEDIA_SOURCES } = await import("../../lib/archive/server/media");
+    const { FILE_SOURCES } = await import("../../lib/archive/server/files");
+    // Prod'da doğrulanmış sütunlar (salt-okunur information_schema, 2026-11-09). Yeni kaynak eklenirse önce prod'da doğrulanmalı.
+    const PROD: Record<string, string[]> = {
+      stones: ["id", "images", "stone_name", "created_at"],
+      healing_guides: ["id", "images", "name", "created_at"],
+      healing_guide_sections: ["id", "images", "title", "guide_id"],
+      human_design_clients: ["id", "chart_image_url", "name"],
+      human_design_charts: ["id", "chart_image_url", "client_name"],
+      expert_workspace_assets: ["id", "desktop_path", "mobile_path", "user_id"],
+      oil_inventory: ["id", "photos"], soap_cream_inventory: ["id", "photos"], accessory_inventory: ["id", "photos"], other_inventory: ["id", "photos"],
+      aromatherapy_oils: ["id", "images"],
+      client_analyses: ["id", "client_id", "image_url", "created_at"],
+      client_stone_photos: ["id", "client_id", "stone_id", "file_path", "created_at"],
+      client_anamnesis_attachments: ["id", "client_id", "anamnesis_id", "storage_path", "original_name", "created_at"],
+      personal_archive_files: ["id", "archive_id", "file_path", "file_name", "created_at"],
+    };
+    for (const d of Object.values(MEDIA_SOURCES)) {
+      const known = PROD[d.table];
+      assert.ok(known, `${d.table}: prod'da doğrulanmamış görsel kaynağı`);
+      for (const c of [...d.columns, ...(d.titleColumn ? [d.titleColumn] : [])]) assert.ok(known.includes(c), `${d.table}.${c} prod'da yok`);
+    }
+    for (const f of Object.values(FILE_SOURCES)) {
+      const known = PROD[f.table];
+      assert.ok(known, `${f.table}: prod'da doğrulanmamış dosya kaynağı`);
+      for (const c of f.columns.split(",").map((x) => x.trim())) if (c !== "tenant_id") assert.ok(known.includes(c), `${f.table}.${c} prod'da yok`);
+    }
+  });
+  await t("fotoğraflı ve fotoğrafsız danışan: fotoğraflı danışanın görselleri iş olur; fotoğrafsız danışan boş sonuç (uyarı / EKSİK yok)", async () => {
+    const db = new FakeDb();
+    db.strictColumns.clients = ["id", "tenant_id", "ad", "soyad", "created_at"];
+    const [withPhoto, noPhoto] = seedClients(db, 2);
+    db.rows("client_analyses").push({ id: uid("an"), tenant_id: TA, client_id: withPhoto.id, image_url: "x", created_at: "2026-01-01T00:00:00Z" });
+    db.rows("client_analyses").push({ id: uid("an"), tenant_id: TA, client_id: noPhoto.id, image_url: null, created_at: "2026-01-01T00:00:00Z" });
+    db.rows("client_stone_photos").push({ id: uid("ph"), tenant_id: TA, client_id: withPhoto.id, stone_id: uid("st"), file_path: `${TA}/${withPhoto.id}/s.webp`, created_at: "2026-01-01T00:00:00Z" });
+    const o = { modules: ["clients"], include: { data: false, dossiers: false, reports: false, files: true } };
+    const r = (await handleArchivePlan(ctxOf(db), { options: o })) as unknown as { status: number; body: ArchivePlanResponse };
+    assert.equal(r.status, 200);
+    const files = r.body.jobs.filter((j) => j.kind === "file") as Extract<ArchiveJob, { kind: "file" }>[];
+    assert.equal(files.length, 2, JSON.stringify(files.map((f) => f.source)));
+    assert.ok(files.every((f) => f.folder.includes("Ayşe0")), "yalnız fotoğraflı danışanın klasörü");
+    assert.ok(!r.body.jobs.some((j) => j.kind === "media" && j.table === "clients"));
+    assert.deepEqual(r.body.warnings, []);
+    assert.equal((r.body.restricted ?? []).length, 0);
+    const none = new FakeDb();
+    none.strictColumns.clients = db.strictColumns.clients;
+    seedClients(none, 3);
+    const r2 = (await handleArchivePlan(ctxOf(none), { options: o })) as unknown as { body: ArchivePlanResponse };
+    assert.equal(r2.body.jobs.length, 0, "hiç fotoğraf yoksa iş yok");
+    assert.deepEqual(r2.body.warnings, []);
+    assert.equal((r2.body.restricted ?? []).length, 0, "fotoğraf yokluğu eksiklik sayılmaz");
+    const res = await runArchive(r2.body, { sleep: noSleep, postPart: async () => jsonResp(500, {}), getFile: async () => new Uint8Array() });
+    assert.equal(res.status, "complete");
+  });
+  await t("gerçekten var olan görseller listelenemezse gizlenmez: kısıtlı içerik → arşiv EKSİK", async () => {
+    const db = new FakeDb();
+    db.rows("stones").push({ id: uid("st"), tenant_id: TA, stone_name: "Kuvars", images: [{ file_path: `catalog/${TA}/k.jpg` }] });
+    db.failSelect.add("stones");
+    const o = { modules: ["stones"], include: { data: false, dossiers: false, reports: false, files: true } };
+    const r = (await handleArchivePlan(ctxOf(db), { options: o })) as unknown as { body: ArchivePlanResponse };
+    assert.ok((r.body.restricted ?? []).some((x) => x.scope === "Doğaltaş taş fotoğrafları" && /listelenemedi/.test(x.reason)), JSON.stringify(r.body.restricted));
+    const res = await runArchive(r.body, { sleep: noSleep, postPart: async () => fileResp("x", "x"), getFile: async () => new Uint8Array() });
+    assert.equal(res.status, "partial");
+  });
+  await t("Şifa Rehberi görseli: başlık `name` sütunundan; parça okuması 42703 vermez", async () => {
+    const db = new FakeDb();
+    db.strictColumns.healing_guides = ["id", "tenant_id", "name", "images", "created_at"];
+    const g = { id: uid("hg"), tenant_id: TA, name: "Baş Ağrısı Rehberi", images: [{ file_path: `healing-guides/${TA}/g.jpg` }], created_at: "2026-01-01T00:00:00Z" };
+    db.rows("healing_guides").push(g);
+    const o = opt({ modules: ["sifa_rehberi"], include: { data: false, dossiers: false, reports: false, files: true, sensitive: false } });
+    const r = (await handleArchivePart(ctxOf(db), { options: o, job: { kind: "media", table: "healing_guides", rowId: g.id }, index: 0 })) as unknown as { status: number; body: Record<string, unknown> };
+    assert.equal(r.status, 200, JSON.stringify(r.body));
+    assert.equal(r.body.ok, true);
+    assert.equal(r.body.file_name, "Baş Ağrısı Rehberi (1).jpg");
   });
 
   console.log("\nH. Gökyüzü Atlası erişimi (Atlas kapısıyla aynı kural) + arşiv durumu");
