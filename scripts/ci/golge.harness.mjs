@@ -36,7 +36,7 @@ const commit = (m) => { G(["add", "-A"]); G(["commit", "-q", "--allow-empty", "-
 const T = {
   tas: "scripts/stone-library/a.harness.ts", bes: "scripts/beslenme-x/b.test.ts", yh: "scripts/yh-x/c.harness.ts",
   genis: "scripts/anamnez/w.harness.ts", dyn: "scripts/demo-x/dyn.harness.mjs", lit: "scripts/campaign/lit.test.ts",
-  doc: "scripts/dy-doc/d.harness.ts", auth: "scripts/uye-x/u.harness.ts",
+  doc: "scripts/dy-doc/d.harness.ts", auth: "scripts/uye-x/u.harness.ts", rgx: "scripts/refleks-x/r.harness.ts", takma: "scripts/cupping-x/k.harness.ts",
 };
 const ortakTestleri = Array.from({ length: 21 }, (_, i) => `scripts/wt9/t${String(i).padStart(2, "0")}.harness.ts`);
 const liste = [...Object.values(T), ...ortakTestleri];
@@ -73,6 +73,11 @@ yaz(T.genis, 'import { readdirSync } from "node:fs";\nconsole.log(readdirSync(".
 yaz(T.dyn, "const ad = process.argv[2];\nawait import(ad);\n");
 yaz(T.lit, 'import fs from "node:fs";\nconsole.log(fs.readFileSync("app/_campaign/metin.json", "utf8"));\n');
 yaz(T.doc, 'import fs from "node:fs";\nconsole.log(fs.readFileSync("docs/okuma.md", "utf8"));\n');
+yaz(T.rgx, 'const kok = ["(", "lib/refleksoloji/)"].join("");\nconsole.log(kok);\n');
+yaz(T.takma, 'import { createRequire } from "node:module";\nconst req = createRequire(import.meta.url);\nconst k = req("../../lib/cupping/k.ts");\nconsole.log(k);\n');
+yaz("lib/cupping/k.ts", "export const k = 1;\n");
+yaz("scripts/_shims/serverOnly.ts", "export {};\n");
+yaz("lib/refleksoloji/r.ts", "export const r = 1;\n");
 yaz(T.auth, 'import { guard } from "@/lib/auth/guard";\nconsole.log(guard);\n');
 for (const t of ortakTestleri) yaz(t, 'import { ortak } from "@/lib/urun-stok/ortak";\nconsole.log(ortak);\n');
 yaz("scripts/astrology/pro-zaman.harness.ts", 'import { z } from "@/lib/astrology/pro/zaman";\nconsole.log(z);\n');
@@ -135,6 +140,9 @@ DAR("çoklu modül (taş + beslenme) → birleşik", pr("coklu", () => { yaz("li
 DAR("geçişli bağımlılık (modülsüz yardımcı → yh testi)", pr("gecisli", () => yaz("lib/ortak-yardim/u.ts", "export const u = 4;\n")), "B", [T.yh, ...GEN], [T.tas]);
 DAR("test dosyasının kendisi değişti", pr("testdeg", () => yaz(T.bes, 'import { calc } from "../../lib/beslenme/calc";\nconsole.log(calc, 2);\n')), "B", [T.bes]);
 DAR("literal yol bağımlılığı (app/_campaign/metin.json)", pr("literal", () => yaz("app/_campaign/metin.json", '{"a":2}\n')), "B", [T.lit]);
+DAR("parantezle biten yol metni (\"lib/refleksoloji/)\") → önek eşleşir", pr("parantez", () => yaz("lib/refleksoloji/r.ts", "export const r = 2;\n")), "B", [T.rgx]);
+DAR("takma adlı yükleyici (req(\"../../lib/cupping/k.ts\")) → bağımlılık", pr("takma", () => yaz("lib/cupping/k.ts", "export const k = 2;\n")), "B", [T.takma]);
+FULL("test stub / shim (tsconfig paths hedefi) değişti", pr("shim", () => yaz("scripts/_shims/serverOnly.ts", "export const x = 1;\n")), "A");
 DAR("modül varlığı (public/premium/dogaltas)", pr("varlik", () => yaz("public/premium/dogaltas/taş.webp", "webp2")), "B", [T.tas]);
 DAR("modül dosyası ekleme", pr("ekle", () => yaz("lib/stone-library/yeni.ts", "export const y = 1;\n")), "B", [T.tas]);
 DAR("modül dosyası silme (testin importu da kaldırıldı)", pr("silme", () => { sil("lib/stone-library/eski.ts"); yaz(T.tas, 'import { core } from "@/lib/stone-library/core";\nconsole.log(core);\n'); }), "B", [T.tas]);

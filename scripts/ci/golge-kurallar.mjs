@@ -6,7 +6,7 @@
  * Kural değişince KURAL_SURUMU değişir (çıktıdaki kuralOzeti dosya içeriğinin SHA-256'sıdır).
  */
 
-export const KURAL_SURUMU = "golge-kurallar-1";
+export const KURAL_SURUMU = "golge-kurallar-2";
 
 /** Ortak altyapı: herhangi biri değişirse gölge önerisi TAM KAPSAM (FULL). [desen, gerekçe] */
 export const ALTYAPI = [
@@ -21,6 +21,7 @@ export const ALTYAPI = [
   [/^lib\/(auth|security|http|server|api|db|tenancy|platform|usage|admin|i18n|docx|text|time|ui|inngest)\//, "ortak kütüphane (auth / güvenlik / API / tenant / DB / Word)"],
   [/^lib\/(supabase[^/]*|runInEffect|rateLimit|safeStorage)\.[a-z]+$/, "ortak kütüphane (Supabase / oturum / hız sınırı)"],
   [/^scripts\/final-hardening\//, "güvenlik çekirdeği harness'ları"],
+  [/^scripts\/(?:[^/]+\/)*(?:_shims|[^/]*stubs?)\/|^scripts\/(?:[^/]+\/)*[^/]*[-_.]stub\.[a-z]+$/i, "test altyapısı (tsconfig paths / server-only stub / shim)"],
   [/^i18n\//, "çeviri altyapısı"],
   [/^messages\//, "ortak çeviri metinleri"],
   [/^app\/(layout\.tsx|globals\.css|mobile-360\.css|favicon\.ico)$/, "kök yerleşim / genel stil"],

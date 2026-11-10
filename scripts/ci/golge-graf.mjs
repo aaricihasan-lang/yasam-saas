@@ -60,6 +60,19 @@ export function agacOku(cwd, sha) {
   return { sha, files, read: (p) => icerik.get(p) ?? null };
 }
 
+/** Yakalanan yol metninde eşleşmeyen kapanış parantezi / köşeli parantezden sonrasını atar ("components/)" → "components/"). */
+function dengele(y) {
+  let ac = 0;
+  let ack = 0;
+  for (let i = 0; i < y.length; i++) {
+    const c = y[i];
+    if (c === "(") ac++; else if (c === "[") ack++;
+    else if (c === ")") { if (ac === 0) return y.slice(0, i); ac--; }
+    else if (c === "]") { if (ack === 0) return y.slice(0, i); ack--; }
+  }
+  return y;
+}
+
 function coz(agac, from, spec) {
   let base;
   if (spec.startsWith("@/")) base = spec.slice(2);
@@ -83,8 +96,14 @@ function bagimliliklar(agac, f) {
     if (r == null) continue;
     if (r.startsWith("?")) cozulemeyen.add(r.slice(1)); else imports.add(r);
   }
+  // Takma adlı yükleyiciler (ör. const req = createRequire(…); req("../../app/x/route.ts")) ve yol listeleri: koddaki her
+  // "./", "../" veya "@/" ile başlayan metin olası modül yoludur; çözülebiliyorsa bağımlılık sayılır (ihtiyatlı fazlalık).
+  for (const m of src.matchAll(/(['"`])((?:\.\.?\/|@\/)[^'"`$\s]+)\1/g)) {
+    const r = coz(agac, f, m[2]);
+    if (r && !r.startsWith("?")) imports.add(r);
+  }
   const onekler = new Set();
-  for (const m of src.matchAll(YOL_METNI)) onekler.add(m[1].replace(/[./]+$/, ""));
+  for (const m of src.matchAll(YOL_METNI)) onekler.add(dengele(m[1]).replace(/[./]+$/, ""));
   for (const m of src.matchAll(/\b(?:join|resolve)\s*\(([^()]*)\)/g)) {
     const parcalar = [...m[1].matchAll(/(['"])([^'"\n]*)\1/g)].map((x) => x[2]).filter(Boolean);
     const y = path.posix.normalize(parcalar.join("/")).replace(/^\.\//, "").replace(/[./]+$/, "");

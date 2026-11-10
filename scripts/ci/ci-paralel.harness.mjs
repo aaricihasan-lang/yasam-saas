@@ -94,6 +94,12 @@ check(es(needsYml, ZORUNLU_ISLER), "kapı needs = zorunlu iş listesi", needsYml
 check(es(isler.filter((j) => j !== "ci-kapisi" && !GOZLEM_ISLERI.includes(j)), ZORUNLU_ISLER), "ci.yml'deki her (gözlem dışı) iş kapıya bağlı (unutulan iş yok)", isler.join(", "));
 // F3 gözlem işleri: yalnız bildirilenler; hiçbir zorunlu iş / kapı bunlara bağlı değil; zorunlu işlerde gölgeye bakan koşul yok.
 check(isler.filter((j) => /golge/.test(j)).every((j) => GOZLEM_ISLERI.includes(j)), "gölge işleri yalnız bildirilen gözlem işleri");
+{ // Gölge iz doğrulaması yalnız elle çalışır (PR / push'ta tetiklenmez); CI kapısıyla ilgisi yoktur.
+  const izYml = fs.readFileSync(path.join(ROOT, ".github", "workflows", "golge-iz.yml"), "utf8").replace(/\r\n/g, "\n");
+  const on = /\non:\n((?: {2}[^\n]*\n)+)/.exec(izYml)?.[1] ?? "";
+  check(on.trim() === "workflow_dispatch:", "golge-iz.yml yalnız elle tetiklenir (workflow_dispatch)", on.trim());
+  check(!/GOLGE_IZ_DIR/.test(yml), "ci.yml'de yükleme izi (GOLGE_IZ_DIR) açılmıyor");
+}
 for (const j of [...ZORUNLU_ISLER, "ci-kapisi"]) {
   const b = yml.slice(yml.indexOf(`\n  ${j}:`) + 1).split(/\n {2}[a-z0-9-]+:\n/)[0];
   check(!/golge/i.test(b), `${j}: gölge moduna bağımlılık / koşul yok`);

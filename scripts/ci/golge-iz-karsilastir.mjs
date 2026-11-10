@@ -2,7 +2,7 @@
 /**
  * Akıllı CI F3 — statik import grafiği ↔ çalışma zamanı yükleme izi karşılaştırması (YALNIZ doğrulama aracı).
  *
- *   node scripts/ci/golge-iz-karsilastir.mjs --iz-dir <dizin> [--cikti <json>]
+ *   node scripts/ci/golge-iz-karsilastir.mjs --iz-dir <dizin> [--kok <izdeki depo kökü>] [--cikti <json>]
  *
  * golge-iz.yml regresyon testlerini GOLGE_IZ_DIR ile koşar; her test için gerçekte yüklenen depo dosyaları kaydedilir.
  * Burada her test için: gerçekte yüklenen ama statik grafiğin (dosya / önek / çözülemeyen yol) kapsamadığı dosyalar
@@ -21,7 +21,8 @@ const izDir = arg("--iz-dir");
 const agac = agacOku(ROOT, "HEAD");
 const g = grafKur(agac);
 const liste = JSON.parse(agac.read("scripts/ci/regression-tests.json")).tests.map((t) => t.file);
-const rootNorm = ROOT.replace(/\\/g, "/").replace(/\/$/, "") + "/";
+// --kok: izin kaydedildiği makinedeki depo kökü (ör. CI izi yerelde karşılaştırılırken /home/runner/work/yasam-saas/yasam-saas)
+const rootNorm = (arg("--kok") ?? ROOT).replace(/\\/g, "/").replace(/\/$/, "") + "/";
 const sonuc = { izliTest: 0, izsizTest: [], toplamYuklenen: 0, kacak: [], zararliKacak: [] };
 for (const t of liste) {
   const f = path.join(izDir, `${t.replace(/[^A-Za-z0-9._-]+/g, "__")}.txt`);
