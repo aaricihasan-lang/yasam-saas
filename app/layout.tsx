@@ -20,8 +20,8 @@ import { SESSION_TRANSPORT_HTML_ATTR } from "@/lib/auth/sessionTransportFlag";
 import "./globals.css";
 import "./mobile-360.css";
 
-// Yerel dosyalar (app/_fonts/FONTLAR.md) — build'de Google Fonts'a ağ isteği yok. Önceki next/font/google çağrısıyla aynı
-// yalnız-latin kapsam (görünüm birebir korunur: İ Ğ ğ Ş ş eskisi gibi yedek yazı tipiyle çizilir).
+// Yerel dosyalar (app/_fonts/FONTLAR.md) — build'de Google Fonts'a ağ isteği yok. Kapsam, önceki next/font/google CSS'inin
+// etkin kapsamıyla birebir (subsets yalnız ön yüklemeyi seçiyordu; CSS latin-ext dahil tüm alt kümeleri içeriyordu).
 const geistSans = localFont({
   src: "./_fonts/geist.woff2",
   weight: "100 900",

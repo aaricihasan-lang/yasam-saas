@@ -16,36 +16,35 @@ glifleri, metrikleri, eksenleri ve OpenType özelliklerini taşır; karakter kap
 
 | Dosya | Aile (sürüm) | Kaynak dosya (SHA-256 başı) | Kapsam | Kullanım |
 |---|---|---|---|---|
-| `geist.woff2` | Geist 1.800 | `ofl/geist/Geist[wght].ttf` (`73894e04…`) | latin | `--font-geist-sans` (wght 100–900) |
-| `geist-mono.woff2` | Geist Mono 1.701 | `ofl/geistmono/GeistMono[wght].ttf` (`d00e590b…`) | latin | `--font-geist-mono` (wght 100–900) |
-| `fraunces.woff2` | Fraunces 1.000 | `ofl/fraunces/Fraunces[SOFT,WONK,opsz,wght].ttf` (`177ff6c0…`) | latin + latin-ext | opsz 9–144, wght 100–900, SOFT 0–100 (WONK = 0) |
-| `jost.woff2` | Jost 3.710 | `ofl/jost/Jost[wght].ttf` (`6343b709…`) | latin + latin-ext | 400, 500 |
-| `manrope.woff2` | Manrope 4.505 | `ofl/manrope/Manrope[wght].ttf` (`3ae11c49…`) | latin + latin-ext | 300–600 |
-| `unbounded.woff2` | Unbounded 1.701 | `ofl/unbounded/Unbounded[wght].ttf` (`323b511b…`) | latin + latin-ext | 300, 400 |
+| `geist.woff2` | Geist 1.800 | `ofl/geist/Geist[wght].ttf` (`73894e04…`) | latin, latin-ext, kiril, kiril-ext, Vietnamca | `--font-geist-sans` (wght 100–900) |
+| `geist-mono.woff2` | Geist Mono 1.701 | `ofl/geistmono/GeistMono[wght].ttf` (`d00e590b…`) | latin, latin-ext, kiril, kiril-ext, Vietnamca, symbols2 | `--font-geist-mono` (wght 100–900) |
+| `fraunces.woff2` | Fraunces 1.000 | `ofl/fraunces/Fraunces[SOFT,WONK,opsz,wght].ttf` (`177ff6c0…`) | latin, latin-ext, Vietnamca | opsz 9–144, wght 100–900, SOFT 0–100 (WONK = 0) |
+| `jost.woff2` | Jost 3.710 | `ofl/jost/Jost[wght].ttf` (`6343b709…`) | latin, latin-ext, kiril | 400, 500 |
+| `manrope.woff2` | Manrope 4.505 | `ofl/manrope/Manrope[wght].ttf` (`3ae11c49…`) | latin, latin-ext, kiril, kiril-ext, Yunanca, Vietnamca | 300–600 |
+| `unbounded.woff2` | Unbounded 1.701 | `ofl/unbounded/Unbounded[wght].ttf` (`323b511b…`) | latin, latin-ext, kiril, kiril-ext, Vietnamca | 300, 400 |
 | `playfair-display.ttf` | Playfair Display 1.203 | `ofl/playfairdisplay/PlayfairDisplay[wght].ttf` (`c40f2293…`) | **özgün dosya (değiştirilmedi)** | 600 |
 
 Tam kaynak SHA-256 değerleri `scripts/fonts/yerel-font-uret.py` içindedir; çıktıların SHA-256'ları betik çıktısında yazılır.
 
 ## Alt küme kuralları
 
-- Karakterler: önceki çağrıdaki alt kümelerin `unicode-range`'leri (Geist / Geist Mono: `latin`; diğerleri `latin` +
-  `latin-ext`), eksi Google'ın sunduğu dosyalarda bulunmayan aralık-içi karakterler (betikte `HARIC`). Google dosyalarındaki
-  aralık dışı ek karakterler (Ă, birleşik aksanlar) eski CSS'te de kullanılmıyordu → alınmadı.
-- OpenType özellikleri ve değişken eksenler Google'ın sunduğu dosyalarla aynıdır. Geist / Geist Mono'da Google dosyasındaki
-  `mkmk` kuralı yalnız eski kapsam dışındaki aksanlara (U+0309 / U+0323) uygulandığından alt kümede kalmaz → etkisi yoktur.
-- Doğrulama: her ailede eski etkin kapsamdaki her karakter, birden çok eksen konumunda glif çizimi + ilerleme genişliği
-  olarak Google'ın sunduğu dosyalarla karşılaştırıldı → 6 ailede **0 çizim farkı, 0 genişlik farkı, 0 eksik, 0 fazla**.
+- **`subsets` yalnız ön yüklemeyi seçer.** `next/font/google` tarafından üretilen CSS, Google'ın o istek için döndürdüğü **tüm**
+  alt kümeleri (`latin`, `latin-ext`, kiril, Vietnamca …) ayrı `unicode-range`'li `@font-face` kuralları olarak içerir. Bu
+  yüzden önceki uygulamanın etkin karakter kapsamı = her alt küme dosyasının karakterleri ∩ o alt kümenin `unicode-range`'i
+  (birleşim). Yerel dosyalar tam olarak bu kapsamı taşır (betikte `KAPSAM`; Google Fonts API 2026-11-10 yanıtlarından).
+- OpenType özellikleri ve değişken eksenler Google'ın sunduğu dosyaların birleşimiyle aynıdır.
+- Doğrulama: her ailede eski etkin kapsamdaki her karakter, birden çok eksen konumunda glif çizimi + ilerleme genişliği olarak
+  Google'ın sunduğu **tüm alt küme dosyalarıyla** karşılaştırıldı → 6 ailede **0 çizim farkı, 0 genişlik farkı, 0 eksik,
+  0 fazla karakter, özellik listesi birebir**.
 - **Playfair Display**: OFL "Reserved Font Name" içerdiğinden alt küme alınmadı (değiştirilmiş sürüm üretilmedi); özgün
-  değişken dosya bayt bayt kullanılır. Google'ın statik 600 örneğiyle çizim farkı ≤ 1/1000 em; varsayılan açık OpenType
-  özellikleri aynı; ek karakterler (Kiril / Vietnamca) uygulamada kullanılmıyor.
+  değişken dosya bayt bayt kullanılır. Eski kapsamın tamamını içerir (eksik 0); Google'ın statik 600 örneğiyle çizim farkı
+  ≤ 1/1000 em; ek OpenType özelliklerinin hiçbiri tarayıcıda varsayılan açık değildir.
 
 ## Türkçe karakterler
 
-- Fraunces, Jost, Manrope, Unbounded, Playfair Display: `ç Ç ğ Ğ ı İ ö Ö ş Ş ü Ü` yazı tipinin kendisiyle çizilir (önceki gibi).
-- **Geist / Geist Mono**: önceki uygulama yalnız `latin` alt kümesini yüklüyordu; `İ Ğ ğ Ş ş` bu kapsamda yok ve **yedek
-  yazı tipiyle** çiziliyordu. Görünümü korumak için yerel dosyalar da yalnız latin'dir — bu davranış DEĞİŞMEDİ.
-  Bu harflerin de Geist ile çizilmesi ayrı bir tasarım kararıdır (Owner onayı gerektirir; latin-ext eklemek yeterlidir).
-- `₺` (U+20BA) Geist, Geist Mono, Jost ve Playfair Display'in kendisinde yoktur → önceki gibi yedek yazı tipi.
+`ç Ç ğ Ğ ı İ ö Ö ş Ş ü Ü` yedi ailenin hepsinde yazı tipinin kendisiyle çizilir — **önceki uygulamayla aynı** (Geist dahil:
+önceki CSS latin-ext alt kümesini de içeriyordu). `₺` (U+20BA) Geist, Geist Mono, Jost ve Playfair Display'in kendisinde
+yoktur → önceki gibi yedek yazı tipine düşer.
 
 ## Lisans
 
