@@ -24,6 +24,7 @@ import {
   ExternalHyperlink,
   Footer,
   HeightRule,
+  LineRuleType,
   PageNumber,
   PageOrientation,
   Packer,
@@ -593,6 +594,16 @@ function trailingPara(): Paragraph {
   return new Paragraph({ spacing: { before: 0, after: 0 }, children: [new TextRun({ text: "", size: 2, font: FONT })] });
 }
 
+/**
+ * Sayfa düzeni (10.11): imza kartı / dipnot sayfayı doldurduğunda belge sonu paragrafı (paragraf işaretinin varsayılan satır
+ * yüksekliği) tek başına BOŞ bir sayfaya taşmasın diye tam 1 pt yükseklikli son paragraf. Yalnız imza bölümü varken
+ * kullanılır; markasız belgede `trailingPara()` AYNEN.
+ */
+function endParaAfter(signature: readonly unknown[]): Paragraph {
+  if (!signature.length) return trailingPara();
+  return new Paragraph({ spacing: { before: 0, after: 0, line: 20, lineRule: LineRuleType.EXACT }, children: [new TextRun({ text: "", size: 2, font: FONT })] });
+}
+
 // ═══════════════════════════════════════════════════════════════════════════
 // SAYFA 2+ — SEÇİLİ GÜNLER VE AÇIKLAMALAR (A4 dikey)
 // ═══════════════════════════════════════════════════════════════════════════
@@ -903,6 +914,7 @@ async function buildMonthlyBuffer(args: {
   for (const d of monthDays) selected.set(d.gregorian_date, d);
 
   const planLabel = `${plan.name} · ${GREGORIAN_MONTHS_TR[month - 1]} ${plan.year}`;
+  const monthSignature = buildSignatureSection(args.branding, args.brandingVariant);
   const children: (Paragraph | Table)[] = [
     ...monthTitleBlock(plan, month),
     monthCalendarTable(plan.year, month, selected),
@@ -910,8 +922,8 @@ async function buildMonthlyBuffer(args: {
     ...(monthDays.length ? [daySummaryTable(monthDays, 2)] : [monthEmptyPara()]),
     ...buildDetailNotesSection(monthDays),
     ...buildAdviceSection(template),
-    ...buildSignatureSection(args.branding, args.brandingVariant), // F3B (yalnız markalama açıkken)
-    trailingPara(),
+    ...monthSignature, // F3B (yalnız markalama açıkken)
+    endParaAfter(monthSignature),
   ];
 
   const doc = new Document({
@@ -985,7 +997,7 @@ export async function buildCalendarPlanWordBuffer(input: BuildCalendarWordInput)
       ...notesSection,
       ...adviceSection,
       ...(signatureFits ? signatureSection : []),
-      trailingPara(),
+      endParaAfter(signatureFits ? signatureSection : []),
     ];
     const doc = new Document({
       ...docMeta,
@@ -997,7 +1009,7 @@ export async function buildCalendarPlanWordBuffer(input: BuildCalendarWordInput)
         },
         ...(signatureFits || signatureSection.length === 0
           ? []
-          : [{ properties: { page: { size: A4_PORTRAIT, margin: A4_MARGIN } }, footers: { default: buildFooter(planLabel) }, children: [...signatureSection, trailingPara()] }]),
+          : [{ properties: { page: { size: A4_PORTRAIT, margin: A4_MARGIN } }, footers: { default: buildFooter(planLabel) }, children: [...signatureSection, endParaAfter(signatureSection)] }]),
       ],
     });
     return Buffer.from(await Packer.toBuffer(doc));
@@ -1037,7 +1049,7 @@ export async function buildCalendarPlanWordBuffer(input: BuildCalendarWordInput)
   if (daysA4.length > 0) {
     sec2Children.push(summaryHeading("SEÇİLİ GÜNLER VE AÇIKLAMALARI (devam)"), daySummaryTable(daysA4));
   }
-  sec2Children.push(...notesSection, ...adviceSection, ...signatureSection, trailingPara());
+  sec2Children.push(...notesSection, ...adviceSection, ...signatureSection, endParaAfter(signatureSection));
 
   const doc = new Document({
     ...docMeta,

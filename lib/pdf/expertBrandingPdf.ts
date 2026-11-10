@@ -49,6 +49,8 @@ const DEF_FILL: Rgb = [248, 250, 252];
 const SZ = { label: 7, name: 11.5, line: 9, small: 7.8, sig: 6.6, noteHead: 7.6, note: 8.2 } as const;
 /** İmza çizgisi üstü boşluk (mm). Kompakt düzen (10.11): punto aynı; önceki 6 mm + ayrı "İmza" satırı. */
 const SIGN_GAP = 3.5;
+/** Kart ile "Uzman Notu" arası boşluk (mm). */
+const NOTE_GAP = 4;
 
 /**
  * Gömülü yazı tipinde karşılığı olmayan karakterleri atar (emoji, değişken seçici, ZWJ…). Türkçe ve Latin-1/Latin Genişletilmiş
@@ -109,6 +111,11 @@ function cardLines(doc: jsPDF, f: Fields, o: ExpertSignaturePdfOptions, textW: n
   return out;
 }
 
+/** Dipnot satırları (sarılmış; boş satır korunur) — ölçüm ve çizim aynı listeyi kullanır. */
+function noteLinesOf(doc: jsPDF, note: string, width: number): string[] {
+  return note.split("\n").flatMap((p) => (p.trim() ? wrap(doc, p, SZ.note, width) : [" "]));
+}
+
 const linesHeight = (ls: Line[]) => ls.reduce((h, l) => h + l.size * LH + l.gapAfter, 0);
 
 /**
@@ -141,8 +148,11 @@ export function drawExpertSignaturePdf(doc: jsPDF, branding: ExpertBranding | nu
     const logoH = logo ? logo.height / 10 : 0;
     const cardH = Math.max(textH, logoH) + pad * 2;
 
+    // Dipnot varsa kart, dipnot başlığı + ilk satırlarıyla birlikte tutulur (Word kartıyla aynı kural): dipnot sonraki sayfaya
+    // TEK BAŞINA düşmez; sığmazsa kart da yeni sayfada başlar.
+    const noteLead = f.note ? NOTE_GAP + SZ.noteHead * LH + 1.5 + (SZ.note * LH + 0.6) * Math.min(2, noteLinesOf(doc, f.note, o.width).length) : 0;
     cursor.y += o.before ?? 6;
-    cursor.ensure(cardH + 1);
+    cursor.ensure(cardH + 1 + noteLead);
     const top = cursor.y;
     if (fill) {
       doc.setFillColor(...fill);
@@ -182,9 +192,9 @@ export function drawExpertSignaturePdf(doc: jsPDF, branding: ExpertBranding | nu
   }
 
   if (f.note) {
-    const noteLines = f.note.split("\n").flatMap((p) => (p.trim() ? wrap(doc, p, SZ.note, o.width) : [" "]));
+    const noteLines = noteLinesOf(doc, f.note, o.width);
     const lh = SZ.note * LH + 0.6;
-    cursor.y += hasCard ? 4 : (o.before ?? 6);
+    cursor.y += hasCard ? NOTE_GAP : (o.before ?? 6);
     cursor.ensure(SZ.noteHead * LH + 1.5 + lh * Math.min(2, noteLines.length));
     doc.setFontSize(SZ.noteHead);
     doc.setTextColor(...mid);
