@@ -581,6 +581,11 @@
    "timeoutSec": 120
   },
   {
+   "file": "scripts/expert-branding/routes.harness.ts",
+   "tsx": true,
+   "timeoutSec": 240
+  },
+  {
    "file": "scripts/expert-usage-stats/logic-harness.ts",
    "tsx": true,
    "timeoutSec": 60

@@ -31,6 +31,9 @@ COVER_MARK = {
 
 
 def mark_for(name):
+    for pre in ("rota-", "cozucu-"):
+        if name.startswith(pre):
+            name = name[len(pre):]
     for k, v in COVER_MARK.items():
         if name.startswith(k):
             return v

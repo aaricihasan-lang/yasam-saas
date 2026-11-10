@@ -298,9 +298,18 @@ export function ProfileSettingsTab({ readOnly: demoReadOnly, onDirtyChange }: { 
         <section aria-labelledby={`${idBase}-report`} className="space-y-4 rounded-2xl border border-slate-100 bg-white/70 p-4 sm:p-5">
           <div>
             <h3 id={`${idBase}-report`} className="text-base font-black text-slate-900">Rapor kimliği</h3>
-            <p className="mt-1 text-xs leading-relaxed text-slate-500" data-testid="profile-branding-status">
-              Raporlarınız şu anda değişmez. Bu tercihler, rapor markalaması kullanıma açıldığında raporlarınıza uygulanmak üzere saklanır.
-            </p>
+            <div className="mt-1 space-y-1 text-xs leading-relaxed text-slate-500" data-testid="profile-branding-status">
+              <p>
+                &quot;Raporlarımda kurumsal bilgilerimi göster&quot; açıkken seçtiğiniz bilgiler şu Word raporlarına eklenir: Danışan Yolculuğu, Numeroloji analiz,
+                Klasik Numeroloji ve Beslenme planı. Bilgiler kapakta, rapor sonundaki imza bölümünde ve sayfa altında yer alır;
+                yasal bilgilendirme metni aynen kalır.
+              </p>
+              <p>
+                Human Design raporlarında adınız otomatik yazılmaz; yalnız raporda &quot;Hazırlayan&quot; alanı doluysa unvan ve kurum
+                (profesyonel raporda ayrıca logo) eklenir, iletişim bilgisi ve dipnot eklenmez.
+              </p>
+              <p>Diğer raporlar (ör. Refleksoloji, Kupa/Hacamat, Atlas) henüz bu kapsamda değildir. Anahtar kapalıyken hiçbir rapor değişmez.</p>
+            </div>
           </div>
           <TextField
             def={{ key: "reportNote", label: "Rapor dipnotu", placeholder: "ör. Bu rapor bilgilendirme amaçlıdır; tıbbi tanı ve tedavinin yerini tutmaz.", rows: 3, wide: true, hint: "En fazla 4 satır." }}

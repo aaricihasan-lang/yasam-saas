@@ -51,6 +51,7 @@ import { isMissingClientIdColumn, listClientNumerologyRecords } from "@/lib/dani
 import { canSeeNumerologyFutureYears } from "@/app/numeroloji/utils/futureYearsAccess";
 import { beslenmeHasData, loadAnamnezForReport, loadAnamnezOptions, loadBeslenmeForReport } from "./sensitiveData";
 import type { AnamnezReportRow, BeslenmeReportInput } from "./sensitiveSections";
+import { resolveReportBranding } from "@/lib/profile/reportBranding";
 
 export const runtime = "nodejs";
 
@@ -198,9 +199,8 @@ export async function POST(
     expertName: expertDisplayName(guard.profile),
     includeExpertNotes: wantsExpertNotes(req, body.includeExpertNotes),
     logo: await loadHdReportLogo(),
-    // F3A: uzman markalaması — veri kaynağı (expert_profiles / logo) F1/F2 ile bağlanacak; şimdilik null
-    // (çıktı bugünküyle birebir). Sahte/sabit profil YOK.
-    branding: null,
+    // F3A: uzman markalaması (oturum sahibinin profili; anahtar kapalı / tablo yok / hata → null = markasız).
+    branding: await resolveReportBranding(db, { tenantId, userId: guard.userId }, { fullName: expertDisplayName(guard.profile) }),
   };
 
   const fail = (e: unknown, action: string) =>

@@ -150,7 +150,7 @@ async function main() {
       ok("V", `${width}px: yatay taşma yok`, o.sw <= o.iw && o.bw <= o.iw, o);
       ok("V", `${width}px: salt-okunur ad soyad + e-posta görünür`, (await c.page.getByTestId("profile-full-name").textContent()) === USER.full_name && (await c.page.getByTestId("profile-email").textContent()) === USER.email);
       ok("V", `${width}px: ad/e-posta düzenlenebilir alan DEĞİL`, (await c.page.locator('[data-testid="settings-profile"] input[name="fullName"], [data-testid="settings-profile"] input[name="email"]').count()) === 0);
-      ok("V", `${width}px: dürüst durum metni`, ((await c.page.getByTestId("profile-branding-status").textContent()) ?? "").includes("Raporlarınız şu anda değişmez"));
+      ok("V", `${width}px: dürüst durum metni`, ((await c.page.getByTestId("profile-branding-status").textContent()) ?? "").includes("Anahtar kapalıyken hiçbir rapor değişmez"));
       const tabsBox = await c.page.locator("main button[aria-pressed]").evaluateAll((els) => els.map((e) => { const r = e.getBoundingClientRect(); const p = e.parentElement!.getBoundingClientRect(); return { l: Math.round(r.left), r: Math.round(r.right), pl: Math.round(p.left), pr: Math.round(p.right), sw: e.scrollWidth, cw: e.clientWidth }; }));
       ok("V", `${width}px: sekme düğmeleri sekme çubuğunun içinde, metin taşmıyor`, tabsBox.every((b) => b.l >= b.pl && b.r <= b.pr && b.r <= width && b.sw <= b.cw + 1), tabsBox);
       await c.page.screenshot({ path: join(OUT, `profilim-${width}.png`), fullPage: true });
