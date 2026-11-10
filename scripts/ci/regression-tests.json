@@ -415,6 +415,10 @@
    "timeoutSec": 180
   },
   {
+   "file": "scripts/ci/ci-paralel.harness.mjs",
+   "timeoutSec": 120
+  },
+  {
    "file": "scripts/ci/run-regression-timeout.harness.mjs",
    "timeoutSec": 150
   },
