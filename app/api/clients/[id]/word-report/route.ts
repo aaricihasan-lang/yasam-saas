@@ -198,6 +198,9 @@ export async function POST(
     expertName: expertDisplayName(guard.profile),
     includeExpertNotes: wantsExpertNotes(req, body.includeExpertNotes),
     logo: await loadHdReportLogo(),
+    // F3A: uzman markalaması — veri kaynağı (expert_profiles / logo) F1/F2 ile bağlanacak; şimdilik null
+    // (çıktı bugünküyle birebir). Sahte/sabit profil YOK.
+    branding: null,
   };
 
   const fail = (e: unknown, action: string) =>

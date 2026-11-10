@@ -19,6 +19,7 @@
 import { Document, Packer } from "docx";
 import { buildFooter, type ReportChild } from "@/lib/docx/reportHelpers";
 import { wellnessNote } from "@/lib/docx/reportDisclaimer";
+import { expertFooterParagraph, type ExpertBranding, type ExpertBrandingVariant } from "@/lib/docx/expertBranding";
 import {
   BPAGE,
   bCover,
@@ -91,6 +92,13 @@ export type PlanDocxTree = {
   expertName?: string | null;
   /** Onaylı Yaşam Sistemi logosu (sunucu yerel asset'ten okur). Yoksa kapakta yazı ile marka. */
   logo?: Buffer | null;
+  /**
+   * F3A: uzman rapor markalaması (render-hazır). null/yok → çıktı bugünküyle birebir.
+   * Veri kaynağı (expert_profiles / logo) F1/F2 ile bağlanacak; route şimdilik null geçer.
+   */
+  branding?: ExpertBranding | null;
+  /** Yalnız örnek/test üretimi için tasarım varyantı. */
+  brandingVariant?: ExpertBrandingVariant;
 };
 
 export type PlanDocxError = { code: string; status: number };
@@ -251,6 +259,9 @@ export async function buildPlanDocxFromTree(tree: PlanDocxTree): Promise<PlanDoc
       ["Plan Süresi", `${days.length} gün kaydı`],
       ["Uzman", tree.expertName?.trim() ?? ""],
     ],
+    branding: tree.branding,
+    brandingVariant: tree.brandingVariant,
+    expertName: tree.expertName,
   });
 
   // Kısa amaç satırı (danışan verisi YOK; geleneksel/mizaç YOK). Sayfa sonu ZORLANMAZ.
@@ -357,7 +368,7 @@ export async function buildPlanDocxFromTree(tree: PlanDocxTree): Promise<PlanDoc
     bKvTable(summaryRows),
     bMuted("Ortalamalar yalnız en az bir besin içeren günler üzerinden hesaplanır."),
     // FA-16: rapor sonu sade "Bilgilendirme" (+ Hazırlayan) — bölünmeyen tek blok.
-    ...bWellness(wellnessNote("beslenme").full, tree.expertName),
+    ...bWellness(wellnessNote("beslenme").full, tree.expertName, { branding: tree.branding, brandingVariant: tree.brandingVariant }),
   );
 
   const page = { size: BPAGE.size, margin: BPAGE.margin };
@@ -371,7 +382,7 @@ export async function buildPlanDocxFromTree(tree: PlanDocxTree): Promise<PlanDoc
         properties: { page },
         headers: { default: bHeader(plan.title || "Beslenme Planı") },
         // FA-16: sayfa altı kısa not + sayfa numarası.
-        footers: { default: buildFooter("Beslenme Planı · Yaşam Sistemi", { note: "beslenme" }) },
+        footers: { default: buildFooter("Beslenme Planı · Yaşam Sistemi", { note: "beslenme", brandLine: expertFooterParagraph(tree.branding, { variant: tree.brandingVariant }) }) },
         children: body,
       },
     ],

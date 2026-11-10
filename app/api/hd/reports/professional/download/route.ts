@@ -106,6 +106,9 @@ export async function POST(req: NextRequest): Promise<Response> {
         // yalnız snapshot.preparedBy'dan gelir; kayıtlı snapshot DEĞİŞMEZ, yalnız çıktı davranışı.
         expertName: null,
         systemReadingRedacted: redacted,
+        // F3A: uzman markalaması — veri kaynağı F1/F2 ile bağlanacak; şimdilik null (çıktı birebir).
+        // Bağlandığında bile YALNIZ preparedBy doluysa imza kartına unvan/kurum/logo ekler (owner kararı).
+        branding: null,
       });
     } else {
       buffer = await renderHdReportBuffer(snapshot, { chartImage, expertName: null });

@@ -135,7 +135,10 @@ export async function POST(req: NextRequest): Promise<Response> {
   // yeniden çözülür; body'de gelen hiçbir alan yetki sayılmaz. Rapor saklanmaz/önbelleğe alınmaz →
   // yetki kapatıldıktan sonraki ilk indirme sınırı yeniden uygular.
   const futureYears = canSeeNumerologyFutureYears(guard.profile);
-  const { children, emptyTabs, anyContent } = buildNumerolojiWordChildren(rows, sections, shared, stockIndex, refCalendar, new Date(), futureYears);
+  // F3A: uzman markalaması — veri kaynağı (expert_profiles / logo) F1/F2 ile bağlanacak; şimdilik null
+  // (çıktı bugünküyle birebir). Sahte/sabit profil YOK.
+  const branding = null;
+  const { children, emptyTabs, anyContent } = buildNumerolojiWordChildren(rows, sections, shared, stockIndex, refCalendar, new Date(), futureYears, { branding });
 
   // Tüm seçilen sekmeler boşsa → dosya üretme, açık mesaj döndür.
   if (!anyContent) {
@@ -153,6 +156,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   // FA-16: belge sonunda sade bilgilendirme notu + Hazırlayan (packNumerolojiDocx ekler).
   const buffer = await packNumerolojiDocx(children, `${rows[0]!.name} ${rows[0]!.surname}`.trim(), {
     expertName: expertDisplayName(guard.profile),
+    branding,
   });
 
   const filename = isSingle

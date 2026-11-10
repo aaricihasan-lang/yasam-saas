@@ -24,6 +24,7 @@ import {
   WidthType,
 } from "docx";
 import { safeInline, safeText, TEXT_CAP } from "./sanitize";
+import { expertCoverBlock, type ExpertBranding, type ExpertBrandingVariant } from "@/lib/docx/expertBranding";
 
 export type Block = Paragraph | Table;
 
@@ -225,7 +226,7 @@ export function noteBox(title: string, lines: readonly string[], tone: "neutral"
 }
 
 /** Kapak sayfası. */
-export function coverPage(o: { heading: string; subtitle: string; bulletsList?: readonly string[]; info: readonly (readonly [string, string])[] }): Block[] {
+export function coverPage(o: { heading: string; subtitle: string; bulletsList?: readonly string[]; info: readonly (readonly [string, string])[]; branding?: ExpertBranding | null; brandingVariant?: ExpertBrandingVariant }): Block[] {
   const out: Block[] = [];
   out.push(new Paragraph({ spacing: { after: 0 }, shading: { type: ShadingType.CLEAR, fill: MOR, color: "auto" }, alignment: AlignmentType.CENTER, children: [run("YAŞAM SİSTEMİ", { bold: true, color: WHITE, size: S_H3 })] }));
   out.push(new Paragraph({ spacing: { before: 40, after: 500 }, alignment: AlignmentType.CENTER, children: [run("Bütüncül Yaşam Analizi Platformu", { color: SECONDARY, size: S_SMALL })] }));
@@ -248,7 +249,10 @@ export function coverPage(o: { heading: string; subtitle: string; bulletsList?: 
       ],
     })),
   }));
-  out.push(new Paragraph({ spacing: { before: 800, after: 20 }, alignment: AlignmentType.CENTER, children: [run("Yaşam Sistemi", { bold: true, color: MOR, size: S_SMALL })] }));
+  // F3A: uzman kimlik bloğu (markalama yoksa öğe YOK → kapak birebir); blok varsa alt boşluk daralır.
+  const expertBlock = expertCoverBlock(o.branding, { variant: o.brandingVariant, accent: MOR, ruleColor: "EDE9FE", before: 360 });
+  out.push(...expertBlock);
+  out.push(new Paragraph({ spacing: { before: expertBlock.length ? 480 : 800, after: 20 }, alignment: AlignmentType.CENTER, children: [run("Yaşam Sistemi", { bold: true, color: MOR, size: S_SMALL })] }));
   out.push(new Paragraph({ spacing: { after: 0 }, alignment: AlignmentType.CENTER, children: [run("Bütünsel farkındalık, kişisel dönüşüm", { color: SECONDARY, size: 16 })] }));
   return out;
 }
@@ -263,10 +267,12 @@ export function runningHeader(label: string): Header {
   });
 }
 
-export function runningFooter(disclaimerShort: string): Footer {
+export function runningFooter(disclaimerShort: string, brandLine?: Paragraph | null): Footer {
   return new Footer({
     children: [
       new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 20 }, children: [run(disclaimerShort, { italics: true, color: SECONDARY, size: 14 })] }),
+      // F3A: uzman markalaması açıksa küçük kurum satırı; yoksa öğe YOK.
+      ...(brandLine ? [brandLine] : []),
       new Paragraph({
         alignment: AlignmentType.CENTER,
         children: [

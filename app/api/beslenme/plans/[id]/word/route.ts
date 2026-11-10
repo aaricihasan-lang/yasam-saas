@@ -50,7 +50,9 @@ export async function POST(req: NextRequest, ctx: RouteCtx): Promise<Response> {
 
   let result;
   try {
-    result = await buildPlanDocxBuffer(db, tenantId, id, { expertName: expertDisplayName(guard.profile) });
+    // F3A: uzman markalaması — veri kaynağı (expert_profiles / logo) F1/F2 ile bağlanacak; şimdilik null
+    // (çıktı bugünküyle birebir). Sahte/sabit profil YOK.
+    result = await buildPlanDocxBuffer(db, tenantId, id, { expertName: expertDisplayName(guard.profile), branding: null });
   } catch (e) {
     // BES-02: eksik Word ÜRETİLMEZ; sunucu tarafı güvenli kayıt (tablo + hata kodu; içerik/PII yok).
     const table = e instanceof PlanDocxReadError ? e.table : "unknown";

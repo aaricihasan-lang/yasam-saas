@@ -47,7 +47,8 @@ export async function POST(req: NextRequest): Promise<Response> {
   let out: Awaited<ReturnType<typeof buildClassicReport>>;
   try {
     out = await buildClassicReport(
-      { db: guard.db, tenantId: guard.tenantId, viewerId: guard.userId, expertName: expertDisplayName(guard.profile), futureYears: canSeeNumerologyFutureYears(guard.profile), canSeeStock: resolveModuleAccess(guard.profile?.role, guard.profile?.module_permissions, "stones") },
+      // F3A: branding — veri kaynağı (expert_profiles / logo) F1/F2 ile bağlanacak; şimdilik null (çıktı birebir).
+      { db: guard.db, tenantId: guard.tenantId, viewerId: guard.userId, expertName: expertDisplayName(guard.profile), futureYears: canSeeNumerologyFutureYears(guard.profile), canSeeStock: resolveModuleAccess(guard.profile?.role, guard.profile?.module_permissions, "stones"), branding: null },
       v.value,
       undefined,
       draftRow,

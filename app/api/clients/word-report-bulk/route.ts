@@ -182,6 +182,8 @@ export async function POST(req: NextRequest): Promise<Response> {
   const { doc, filename } = buildClientsBulkFullReport(items, {
     expertName: expertDisplayName(guard.profile),
     logo: await loadHdReportLogo(),
+    // F3A: uzman markalaması — veri kaynağı F1/F2 ile bağlanacak; şimdilik null (çıktı birebir).
+    branding: null,
     sections: includeCharges === true ? [...DEFAULT_FULL_SECTIONS, "ucretlendirme"] : DEFAULT_FULL_SECTIONS,
   });
   const buffer = await Packer.toBuffer(doc);

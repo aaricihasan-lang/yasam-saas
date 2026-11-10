@@ -15,6 +15,7 @@
  */
 import { Document, Packer, Paragraph, type TextRun } from "docx";
 import { wellnessNote } from "@/lib/docx/reportDisclaimer";
+import { expertFooterParagraph, expertSignatureBlock } from "@/lib/docx/expertBranding";
 import {
   BRIDGE_LABELS,
   BUSINESS_RATING_LABELS,
@@ -64,6 +65,8 @@ import {
   subHeading,
   valueCards,
   INDIGO,
+  LILA,
+  MOR,
   type Block,
   type Cell,
 } from "./primitives";
@@ -304,7 +307,7 @@ function coreXml(title: string, at: Date): string {
   );
 }
 
-async function pack(children: Block[], o: { headerLabel: string; docTitle: string; at: Date }): Promise<Buffer> {
+async function pack(children: Block[], o: { headerLabel: string; docTitle: string; at: Date; brand?: CommonReportOptions }): Promise<Buffer> {
   const docTitle = safeText(o.docTitle, TEXT_CAP.short) || "Klasik Numeroloji Raporu";
   const doc = new Document({
     creator: "Yaşam Sistemi",
@@ -313,14 +316,15 @@ async function pack(children: Block[], o: { headerLabel: string; docTitle: strin
     sections: [{
       properties: { page: { margin: { top: 1080, bottom: 1080, left: 1080, right: 1080 }, size: { width: 11906, height: 16838 } } },
       headers: { default: runningHeader(safeText(o.headerLabel, TEXT_CAP.short)) },
-      footers: { default: runningFooter(CLASSIC_REPORT_FOOTER) },
+      // F3A: markalama açıksa alt bilgide küçük kurum satırı (yoksa birebir).
+      footers: { default: runningFooter(CLASSIC_REPORT_FOOTER, expertFooterParagraph(o.brand?.branding, { variant: o.brand?.brandingVariant, color: SECONDARY })) },
       children,
     }],
   });
   return Packer.toBuffer(doc, false, [{ path: "docProps/core.xml", data: coreXml(docTitle, o.at) }]);
 }
 
-function disclaimerSection(o: { stones?: boolean; expertName?: string | null }): Block[] {
+function disclaimerSection(o: { stones?: boolean; expertName?: string | null; brand?: CommonReportOptions }): Block[] {
   const out: Block[] = [sectionHeading("Bilgilendirme")];
   out.push(para(wellnessNote("numeroloji").full, { italics: true, size: S_SMALL, color: SECONDARY }));
   out.push(para(CLASSIC_REPORT_DISCLAIMER, { italics: true, size: S_SMALL, color: SECONDARY }));
@@ -329,7 +333,10 @@ function disclaimerSection(o: { stones?: boolean; expertName?: string | null }):
     out.push(para(wellnessNote("dogaltas").full, { italics: true, size: S_SMALL, color: SECONDARY }));
   }
   const name = safeText(o.expertName, TEXT_CAP.short);
-  if (name) out.push(para(`Hazırlayan: ${name}`, { size: S_SMALL, color: SECONDARY, before: 60 }));
+  // F3A: markalama açıksa "Hazırlayan" satırı genişletilmiş imza bloğuyla değişir (bilgilendirme metinleri AYNEN).
+  const signature = expertSignatureBlock(o.brand?.branding, { variant: o.brand?.brandingVariant, accent: MOR, fallbackName: name, contentWidth: 11906 - 2 * 1080, fill: LILA });
+  if (signature.length) out.push(...signature);
+  else if (name) out.push(para(`Hazırlayan: ${name}`, { size: S_SMALL, color: SECONDARY, before: 60 }));
   return out;
 }
 
@@ -832,8 +839,9 @@ function stonesSection(stones: StoneMatchResult): Block[] {
 
 // ── Genel kapak ────────────────────────────────────────────────────────────────────────────────
 
-function cover(o: { heading: string; subtitle: string; bulletsList?: string[]; info: [string, string][] }): Block[] {
-  return coverPage(o);
+function cover(o: { heading: string; subtitle: string; bulletsList?: string[]; info: [string, string][] }, brand: CommonReportOptions = {}): Block[] {
+  // F3A: markalama (null/yok → kapak birebir).
+  return coverPage({ ...o, branding: brand.branding, brandingVariant: brand.brandingVariant });
 }
 
 function summaryCards(chart: ChartResult): Block[] {
@@ -882,7 +890,7 @@ export async function buildPersonReport(record: ClassicReportRecord, opts: Perso
       ["Analiz tarihi", fmtInstantStr(record.createdAt) || "—"],
       ["Rapor tarihi", fmtInstant(at)],
     ],
-  }));
+  }, opts));
 
   // Özet
   children.push(sectionHeading("Özet", true));
@@ -915,8 +923,8 @@ export async function buildPersonReport(record: ClassicReportRecord, opts: Perso
     if (g === "stones" && stones) children.push(...stonesSection(stones));
   }
   children.push(...methodSection(record, at, methodsUsed(R), VARIANT_LABELS[opts.variant]));
-  children.push(...disclaimerSection({ stones: groups.includes("stones"), expertName: opts.expertName }));
-  return pack(children, { headerLabel: `Klasik Numeroloji Raporu  ·  ${title}`, docTitle: `Klasik Numeroloji — ${title}`, at });
+  children.push(...disclaimerSection({ stones: groups.includes("stones"), expertName: opts.expertName, brand: opts }));
+  return pack(children, { headerLabel: `Klasik Numeroloji Raporu  ·  ${title}`, docTitle: `Klasik Numeroloji — ${title}`, at, brand: opts });
 }
 
 /** Numeroloji – Doğaltaş raporu (kayıtlı harita + eşleştirme sonucu). */
@@ -931,15 +939,15 @@ export async function buildStonesReport(record: ClassicReportRecord, stones: Sto
     heading: "NUMEROLOJİ – DOĞALTAŞ RAPORU",
     subtitle: "Sembolik ve geleneksel taş eşleştirmesi",
     info: [["Başlık", title], ["Danışan", name || "—"], ["Doğum tarihi", personBirth(record, chart) || "—"], ["Rapor tarihi", fmtInstant(at)]],
-  }));
+  }, opts));
   children.push(sectionHeading("Eşleştirmede kullanılan sayılar", true));
   if (chart) children.push(...summaryCards(chart));
   else children.push(para("Kayıtta numeroloji haritası bulunmuyor.", { color: SECONDARY }));
   if (chart) children.push(...luckySection(chart));
   children.push(...stonesSection(stones));
   children.push(...methodSection(record, at, methodsUsed(R), "Doğaltaş Raporu"));
-  children.push(...disclaimerSection({ stones: true, expertName: opts.expertName }));
-  return pack(children, { headerLabel: `Numeroloji – Doğaltaş  ·  ${title}`, docTitle: `Numeroloji – Doğaltaş — ${title}`, at });
+  children.push(...disclaimerSection({ stones: true, expertName: opts.expertName, brand: opts }));
+  return pack(children, { headerLabel: `Numeroloji – Doğaltaş  ·  ${title}`, docTitle: `Numeroloji – Doğaltaş — ${title}`, at, brand: opts });
 }
 
 /** İlişki (numerolojik uyum) raporu. */
@@ -959,7 +967,7 @@ export async function buildRelationshipReport(record: ClassicReportRecord, opts:
     heading: "NUMEROLOJİK UYUM RAPORU",
     subtitle: METHOD_LABELS.pythagorean,
     info: [["Başlık", title], ["1. kişi", `${n1}${fmtBirth(p1.birth) ? ` · ${fmtBirth(p1.birth)}` : ""}`], ["2. kişi", `${n2}${fmtBirth(p2.birth) ? ` · ${fmtBirth(p2.birth)}` : ""}`], ["Rapor tarihi", fmtInstant(at)]],
-  }));
+  }, opts));
   children.push(sectionHeading("Uyum Özeti", true));
   if (c) {
     children.push(valueCards([{ label: "Genel uyum (klasik yöntem puanı)", value: `%${c.overallScore}` }, { label: "Değerlendirme", value: safeText(c.rating, 40) || "—" }]));
@@ -985,8 +993,8 @@ export async function buildRelationshipReport(record: ClassicReportRecord, opts:
     children.push(para("Bu kayıtta uyum sonucu bulunmuyor.", { color: SECONDARY }));
   }
   children.push(...methodSection(record, at, [METHOD_LABELS.pythagorean], "İlişki Raporu"));
-  children.push(...disclaimerSection({ expertName: opts.expertName }));
-  return pack(children, { headerLabel: `Numerolojik Uyum Raporu  ·  ${title}`, docTitle: `Numerolojik Uyum — ${title}`, at });
+  children.push(...disclaimerSection({ expertName: opts.expertName, brand: opts }));
+  return pack(children, { headerLabel: `Numerolojik Uyum Raporu  ·  ${title}`, docTitle: `Numerolojik Uyum — ${title}`, at, brand: opts });
 }
 
 /** İşletme adı raporu (Kalde). */
@@ -999,7 +1007,7 @@ export async function buildBusinessReport(record: ClassicReportRecord, opts: Com
   const bname = safeText(inp.name, TEXT_CAP.short) || safeText(b?.name, TEXT_CAP.short);
   const title = safeText(record.title, TEXT_CAP.short) || bname || "İşletme adı";
   const children: Block[] = [];
-  children.push(...cover({ heading: "İŞLETME ADI ANALİZİ", subtitle: METHOD_LABELS.chaldean, info: [["Başlık", title], ["İşletme adı", bname || "—"], ["Rapor tarihi", fmtInstant(at)]] }));
+  children.push(...cover({ heading: "İŞLETME ADI ANALİZİ", subtitle: METHOD_LABELS.chaldean, info: [["Başlık", title], ["İşletme adı", bname || "—"], ["Rapor tarihi", fmtInstant(at)]] }, opts));
   children.push(sectionHeading("Sonuç", true));
   if (b) {
     const tone = b.rating === "excellent" || b.rating === "good" ? "ok" : b.rating === "caution" ? "warn" : "bad";
@@ -1031,8 +1039,8 @@ export async function buildBusinessReport(record: ClassicReportRecord, opts: Com
     children.push(para("Bu kayıtta işletme adı sonucu bulunmuyor.", { color: SECONDARY }));
   }
   children.push(...methodSection(record, at, [METHOD_LABELS.chaldean], "İşletme Raporu"));
-  children.push(...disclaimerSection({ expertName: opts.expertName }));
-  return pack(children, { headerLabel: `İşletme Adı Analizi  ·  ${title}`, docTitle: `İşletme Adı Analizi — ${title}`, at });
+  children.push(...disclaimerSection({ expertName: opts.expertName, brand: opts }));
+  return pack(children, { headerLabel: `İşletme Adı Analizi  ·  ${title}`, docTitle: `İşletme Adı Analizi — ${title}`, at, brand: opts });
 }
 
 /** İsim adayları raporu (her aday için iki sistem yan yana; birleştirme yok). */
@@ -1050,7 +1058,7 @@ export async function buildNamesReport(record: ClassicReportRecord, opts: NamesR
   });
   const title = safeText(record.title, TEXT_CAP.short) || "İsim adayları";
   const children: Block[] = [];
-  children.push(...cover({ heading: "İSİM ADAYLARI ANALİZİ", subtitle: `${METHOD_LABELS.pythagorean} · ${METHOD_LABELS.chaldean}`, bulletsList: entries.map((e) => e.label), info: [["Başlık", title], ["Aday sayısı", String(entries.length)], ["Rapor tarihi", fmtInstant(at)]] }));
+  children.push(...cover({ heading: "İSİM ADAYLARI ANALİZİ", subtitle: `${METHOD_LABELS.pythagorean} · ${METHOD_LABELS.chaldean}`, bulletsList: entries.map((e) => e.label), info: [["Başlık", title], ["Aday sayısı", String(entries.length)], ["Rapor tarihi", fmtInstant(at)]] }, opts));
   children.push(sectionHeading("Adaylar", true));
   children.push(para("Her aday iki yöntemle ayrı ayrı hesaplanır; sonuçlar yan yana gösterilir, birleştirilmez ve sıralama/puan üretilmez.", { size: S_SMALL, color: SECONDARY }));
   children.push(dataTable([
@@ -1067,8 +1075,8 @@ export async function buildNamesReport(record: ClassicReportRecord, opts: NamesR
     children.push(...dualSection(d, lv, `Aday: ${label}`));
   }
   children.push(...methodSection(record, at, [METHOD_LABELS.pythagorean, METHOD_LABELS.chaldean], "İsim Adayları Raporu"));
-  children.push(...disclaimerSection({ expertName: opts.expertName }));
-  return pack(children, { headerLabel: `İsim Adayları Analizi  ·  ${title}`, docTitle: `İsim Adayları — ${title}`, at });
+  children.push(...disclaimerSection({ expertName: opts.expertName, brand: opts }));
+  return pack(children, { headerLabel: `İsim Adayları Analizi  ·  ${title}`, docTitle: `İsim Adayları — ${title}`, at, brand: opts });
 }
 
 // ── Karşılaştırma raporu ───────────────────────────────────────────────────────────────────────
@@ -1146,7 +1154,7 @@ export async function buildComparisonReport(input: ComparisonReportInput, opts: 
       [`${bLabel} kaydı`, fmtInstantStr(input.classicMeta?.createdAt) || "—"],
       ["Rapor tarihi", fmtInstant(at)],
     ],
-  }));
+  }, opts));
   children.push(sectionHeading("Okuma notu", true));
   children.push(noteBox("", [COMPARISON_NO_MERGE_NOTE, `“${SAME_NAME_DIFFERENT_FORMULA}” işareti, iki yöntemde aynı adla anılan ama farklı formülle hesaplanan kavramları gösterir.`]));
 
@@ -1219,8 +1227,8 @@ export async function buildComparisonReport(input: ComparisonReportInput, opts: 
     children.push(sectionHeading("Uzman Notu"));
     children.push(para(note, { justify: true }));
   }
-  children.push(...disclaimerSection({ stones: !!st, expertName: opts.expertName }));
-  return pack(children, { headerLabel: `Numeroloji Yöntem Karşılaştırması  ·  ${title}`, docTitle: `Yöntem Karşılaştırması — ${title}`, at });
+  children.push(...disclaimerSection({ stones: !!st, expertName: opts.expertName, brand: opts }));
+  return pack(children, { headerLabel: `Numeroloji Yöntem Karşılaştırması  ·  ${title}`, docTitle: `Yöntem Karşılaştırması — ${title}`, at, brand: opts });
 }
 
 /** Repository satırı (snake_case) ya da uzman görünümü (camelCase) → rapor kaydı. provider_meta'dan YALNIZ tarih/başarısız etiketleri alınır. */

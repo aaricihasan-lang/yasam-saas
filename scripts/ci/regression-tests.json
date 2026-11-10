@@ -576,6 +576,11 @@
    "timeoutSec": 60
   },
   {
+   "file": "scripts/expert-branding/expertBranding.harness.ts",
+   "tsx": true,
+   "timeoutSec": 120
+  },
+  {
    "file": "scripts/expert-usage-stats/logic-harness.ts",
    "tsx": true,
    "timeoutSec": 60

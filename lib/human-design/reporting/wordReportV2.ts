@@ -54,6 +54,7 @@ import {
   type ReportChild,
 } from "@/lib/docx/reportHelpers";
 import { formatDateOnly, formatDateLoose, formatInstantDate } from "@/lib/time/reportTime";
+import { expertCredentialLines, expertLogoParagraph, type ExpertBranding, type ExpertBrandingVariant } from "@/lib/docx/expertBranding";
 import {
   planetLabelTr,
   type FrozenActivation,
@@ -94,6 +95,15 @@ export type WordReportV2Options = {
   expertName?: string | null;
   /** İndirme anında Sistem Yorumu güncel yetki nedeniyle çıkarıldı mı? */
   systemReadingRedacted?: boolean;
+  /**
+   * F3A: uzman rapor markalaması. Owner kararı: "Hazırlayan" serbest metindir (snapshot.preparedBy);
+   * profil adı OTOMATİK yazılmaz. Markalama YALNIZ pro-1 imza kartına ve YALNIZ preparedBy doluysa
+   * unvan / kurum / küçük logo ekler; kapak, eski düzen ve alt bilgi değişmez. null/yok → birebir.
+   * Veri kaynağı F1/F2 ile bağlanacak; route şimdilik null geçer.
+   */
+  branding?: ExpertBranding | null;
+  /** Yalnız örnek/test üretimi için tasarım varyantı. */
+  brandingVariant?: ExpertBrandingVariant;
 };
 
 // ── HD-09: XML 1.0 güvenli başlık/metin yardımcıları ─────────────────────────────
@@ -1140,16 +1150,19 @@ function proClosing(s: HdReportSnapshotV2, genDate: string, opts: WordReportV2Op
     ...lines.map((l) => muted(l)),
     // Bilgilendirme notu (Hazırlayan satırı burada YOK — aşağıdaki uzman imza bölümü taşır).
     ...buildWellnessNoteSection("human_design", null),
-    ...proSignature(s.preparedBy ?? null, genDate),
+    ...proSignature(s.preparedBy ?? null, genDate, opts),
   ];
 }
 
 // ── Uzman imza bölümü (son sayfa) ──
 // "Raporu Hazırlayan" YALNIZ uzmanın bu rapora yazdığı ad/unvan; profil adı OTOMATİK yazılmaz.
 // 2026-10-10 owner: ad boşsa imza kartı TAMAMEN gizlenir (boş satırlı kart yok).
-function proSignature(preparedBy: string | null, genDate: string): ReportChild[] {
+function proSignature(preparedBy: string | null, genDate: string, opts: WordReportV2Options = {}): ReportChild[] {
   const name = preparedBy?.trim() || null;
   if (!name) return [];
+  // F3A: yalnız preparedBy doluysa (yukarıda) markalama unvan/kurum/logo ekler; ad DEĞİŞMEZ (preparedBy).
+  const credentials = expertCredentialLines(opts.branding, { titleSize: 20, orgSize: 20, color: PAL.mid, after: 80 });
+  const logo = opts.brandingVariant === "C" ? null : expertLogoParagraph(opts.branding, { maxWidth: 120, maxHeight: 48, align: AlignmentType.LEFT, after: 120, keepNext: false });
   const left = Math.floor(W * 0.62);
   const right = W - left;
   const blankLine = (label: string): Paragraph[] => [
@@ -1157,8 +1170,10 @@ function proSignature(preparedBy: string | null, genDate: string): ReportChild[]
     pp([{ text: label, size: 15, color: PAL.soft }], { before: 40, after: 0 }),
   ];
   const leftCell: Paragraph[] = [
+    ...(logo ? [logo] : []),
     pp([{ text: "RAPORU HAZIRLAYAN", size: 16, bold: true, color: PAL.accent }], { after: 160 }),
     pp([{ text: name, size: 34, bold: true, color: PAL.ink }], { after: 60 }),
+    ...credentials,
     pp([{ text: "Human Design Profesyonel Analiz Raporu", size: 17, color: PAL.soft }], { after: 0 }),
   ];
   const rightCell: Paragraph[] = [

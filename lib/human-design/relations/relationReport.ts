@@ -26,6 +26,7 @@ import {
   type ReportChild,
 } from "@/lib/docx/reportHelpers";
 import { hdXmlSafeLine, hdXmlSafeMultiline } from "../reporting/xmlSafeText";
+import { expertBrandingFields, type ExpertBranding, type ExpertBrandingVariant } from "@/lib/docx/expertBranding";
 import { hdCenterLabelFromCode } from "../codeHelpers";
 import { hdGateDefaultName } from "../knowledge/hdNames";
 import { channelCenterCodes, type HdConnectionResult } from "./connection";
@@ -225,7 +226,28 @@ function pentaBody(a: RelationAnalysisView, r: HdPentaResult): ReportChild[] {
   return out;
 }
 
-export type RelationReportOptions = { image: Buffer | null; logo?: Buffer | null };
+export type RelationReportOptions = {
+  image: Buffer | null;
+  logo?: Buffer | null;
+  /**
+   * F3A: uzman rapor markalaması. Owner kararı: "Raporu Hazırlayan" serbest metindir (preparedBy); profil
+   * adı OTOMATİK yazılmaz. Markalama YALNIZ preparedBy doluysa kapak künyesine Unvan / Kurum satırı ekler.
+   * null/yok → birebir. Veri kaynağı F1/F2 ile bağlanacak; route şimdilik null geçer.
+   */
+  branding?: ExpertBranding | null;
+  brandingVariant?: ExpertBrandingVariant;
+};
+
+/** preparedBy doluysa markalamadan Unvan/Kurum künye satırları (C: yalnız unvan). Aksi hâlde []. */
+function preparedByCredentialRows(preparedBy: string | null, opts: RelationReportOptions): [string, string][] {
+  if (!preparedBy?.trim()) return [];
+  const f = expertBrandingFields(opts.branding);
+  if (!f) return [];
+  const rows: [string, string][] = [];
+  if (f.title) rows.push(["Unvan", f.title]);
+  if (f.organization && opts.brandingVariant !== "C") rows.push(["Kurum", f.organization]);
+  return rows;
+}
 
 export function buildRelationReportDocument(s: RelationReportSnapshot, opts: RelationReportOptions): Document {
   const a = s.analysis;
@@ -242,6 +264,7 @@ export function buildRelationReportDocument(s: RelationReportSnapshot, opts: Rel
       ["Rapor tarihi", dmy(s.generatedAt)],
       ["Kişi sayısı", String(a.memberCount)],
       ...(s.preparedBy ? ([["Raporu Hazırlayan", safe(s.preparedBy)]] as [string, string][]) : []),
+      ...preparedByCredentialRows(s.preparedBy, opts),
     ]),
     muted(RELATION_DISCLAIMER),
   ];
