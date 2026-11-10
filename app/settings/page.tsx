@@ -37,10 +37,11 @@ import { getUserLocationPref, saveUserLocationPref, type UserLocationPref } from
 import { BackupTab, ExportTab, RestoreTab } from "./BackupSections";
 import MySessionsPanel from "@/components/settings/MySessionsPanel";
 import { WorkspaceSettingsTab, useWorkspaceAccess } from "./WorkspaceSettingsTab";
+import { MembershipSettingsTab, MEMBERSHIP_TAB_ICON } from "./MembershipSettingsTab";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type Tab = "security" | "location" | "contact" | "export" | "backup" | "restore" | "workspace";
+type Tab = "security" | "location" | "contact" | "export" | "backup" | "restore" | "workspace" | "membership";
 
 type SupportMessage = {
   id: string;
@@ -62,6 +63,7 @@ const TABS: { id: Tab; label: string; icon: React.ElementType }[] = [
   { id: "export",    label: "Dışa Aktarım",        icon: FileText      },
   { id: "backup",    label: "Sistem Yedeği",        icon: FileJson      },
   { id: "restore",   label: "Geri Yükleme",         icon: RotateCcw     },
+  { id: "membership", label: "Üyeliğim",           icon: MEMBERSHIP_TAB_ICON },
 ];
 // Kişisel Dijital Ofis: yalnız sunucu erişim verdiğinde (bayrak + Owner / izin listesi) eklenir.
 const WORKSPACE_TAB: { id: Tab; label: string; icon: React.ElementType } = { id: "workspace", label: "Çalışma Alanım", icon: Sparkles };
@@ -693,7 +695,7 @@ export default function SettingsPage() {
         {/* Mobil: 2 sütun · tablet (md): 3 sütun · lg+: tek satır eşit genişlikte sekmeler.
             (md'de tek satır 768–1000px arasında son sekmeyi ekran dışına itiyordu.) */}
         <div className="mb-5">
-          <div className="grid grid-cols-2 gap-1.5 rounded-2xl border border-white/80 bg-white/70 p-2 shadow-md backdrop-blur-xl md:grid-cols-3 lg:flex lg:gap-1.5">
+          <div className="grid grid-cols-2 gap-1.5 rounded-2xl border border-white/80 bg-white/70 p-2 shadow-md backdrop-blur-xl md:grid-cols-3 lg:flex lg:flex-wrap lg:gap-1.5">
             {tabs.map((t, idx) => {
               const Icon = t.icon;
               const isActive = tab === t.id;
@@ -758,6 +760,7 @@ export default function SettingsPage() {
               {tab === "export"    && <ExportTab   user={user} />}
               {tab === "backup"    && <BackupTab   user={user} />}
               {tab === "restore"   && <RestoreTab  user={user} />}
+              {tab === "membership" && <MembershipSettingsTab user={user} onOpenContact={() => setTab("contact")} />}
               {tab === "workspace" && workspaceAccess.status === "on" && <WorkspaceSettingsTab access={workspaceAccess} readOnly={isDemo} />}
             </>
           )}

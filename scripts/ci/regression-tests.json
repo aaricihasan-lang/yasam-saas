@@ -841,6 +841,16 @@
    "timeoutSec": 60
   },
   {
+   "file": "scripts/settings-membership/membershipView.test.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/settings-membership/profile-guard.harness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
    "file": "scripts/shared-library-removal/harness.mjs",
    "tsx": true,
    "timeoutSec": 60
