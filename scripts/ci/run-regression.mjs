@@ -142,11 +142,16 @@ function runTest(t) {
   return new Promise((resolve) => {
     const netLog = path.join(os.tmpdir(), `ci-net-${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.log`);
     const guard = pathToFileURL(path.join(CI_DIR, "net-guard.mjs")).href;
+    // Yalnız F3 doğrulama iş akışı (golge-iz.yml) GOLGE_IZ_DIR verir: test başına çalışma zamanı yükleme izi. CI işlerinde YOK.
+    const iz = process.env.GOLGE_IZ_DIR
+      ? { GOLGE_IZ_DOSYA: path.join(process.env.GOLGE_IZ_DIR, `${t.file.replace(/[^A-Za-z0-9._-]+/g, "__")}.txt`), kanca: ` --import=${pathToFileURL(path.join(CI_DIR, "golge-iz-kanca.mjs")).href}` }
+      : null;
     const env = cleanEnv({
       CI_NET_LOG: netLog,
-      NODE_OPTIONS: `${process.env.NODE_OPTIONS ? process.env.NODE_OPTIONS + " " : ""}--import=${guard}`,
+      NODE_OPTIONS: `${process.env.NODE_OPTIONS ? process.env.NODE_OPTIONS + " " : ""}--import=${guard}${iz ? iz.kanca : ""}`,
       NEXT_TELEMETRY_DISABLED: "1",
       ...(process.env.POSTGREST_BIN ? { POSTGREST_BIN: process.env.POSTGREST_BIN } : {}),
+      ...(iz ? { GOLGE_IZ_DOSYA: iz.GOLGE_IZ_DOSYA } : {}),
     });
     const [cmd, ...args] = commandFor(t);
     const t0 = Date.now();

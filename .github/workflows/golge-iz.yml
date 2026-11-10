@@ -1,0 +1,75 @@
+# Akıllı CI F3 — gölge mod DOĞRULAMASI (yalnız elle çalıştırılır; CI kapısına ve ci.yml işlerine bağlı DEĞİL).
+# Regresyon listesinin tamamını çalışma zamanı yükleme iziyle (scripts/ci/golge-iz-kanca.mjs) üç parçada koşar ve her test
+# için gerçekte yüklenen depo dosyalarını statik import grafiğiyle karşılaştırır (scripts/ci/golge-iz-karsilastir.mjs).
+# Amaç: F4'ten önce gölge önerisinin bir testi yanlışlıkla dışarıda bırakabileceği "zararlı kaçak" sayısını ölçmek.
+# Test sonuçları burada karar vermez (gerçek kapı ci.yml'dedir); sır / production / dış ağ yok (net-guard aynen yüklü).
+name: Gölge iz doğrulaması
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  iz:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        parca: [1, 2, 3]
+    env:
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: ./.github/actions/kurulum
+
+      - name: PostgREST 12.2.3 (sabit sürüm + SHA-256 doğrulaması)
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/postgrest"
+          curl -fsSL --retry 3 -o "$RUNNER_TEMP/postgrest.tar.xz" \
+            https://github.com/PostgREST/postgrest/releases/download/v12.2.3/postgrest-v12.2.3-linux-static-x64.tar.xz
+          echo "9f71269e61ac3a940281e93ff415760f5957e430e475ba4c3889f3ede7d5527c  $RUNNER_TEMP/postgrest.tar.xz" | sha256sum -c -
+          tar -xJf "$RUNNER_TEMP/postgrest.tar.xz" -C "$RUNNER_TEMP/postgrest"
+
+      - name: Regresyon (yükleme iziyle; sonuç burada karar vermez)
+        continue-on-error: true
+        env:
+          POSTGREST_BIN: ${{ runner.temp }}/postgrest/postgrest
+          GOLGE_IZ_DIR: ${{ runner.temp }}/golge-iz
+        run: mkdir -p "$GOLGE_IZ_DIR" && node scripts/ci/run-regression.mjs --parca "${{ matrix.parca }}/3"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: golge-iz-${{ matrix.parca }}
+          path: ${{ runner.temp }}/golge-iz
+          retention-days: 14
+
+  karsilastir:
+    needs: [iz]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: golge-iz-*
+          merge-multiple: true
+          path: ${{ runner.temp }}/golge-iz
+      - name: Statik grafik ↔ çalışma zamanı izi
+        run: node scripts/ci/golge-iz-karsilastir.mjs --iz-dir "$RUNNER_TEMP/golge-iz" --cikti "$RUNNER_TEMP/golge-iz-sonuc.json"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: golge-iz-sonuc
+          path: ${{ runner.temp }}/golge-iz-sonuc.json
+          retention-days: 30

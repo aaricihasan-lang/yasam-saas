@@ -223,3 +223,72 @@ jobs:
         env:
           CI_KAPISI_NEEDS: ${{ toJSON(needs) }}
         run: node scripts/ci/ci-gate.mjs --sonuc-dir "$RUNNER_TEMP/regresyon-sonuc" --parca-sayisi 3
+
+  # ── Akıllı CI F3 — GÖLGE MOD (yalnız gözlem). CI kapısına BAĞLI DEĞİL; hiçbir zorunlu iş bunlara bağlı değil ve bunların
+  # sonucu hiçbir işin çalışıp çalışmamasını etkilemez (F2'nin bütün işleri + regresyonun tamamı her koşulda çalışır).
+  # Değişiklik etki analizi + "F4 olsaydı ne önerilirdi" tahmini üretir; analiz hatası FULL FALLBACK olarak raporlanır.
+  golge-analiz:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - name: Gölge analiz (değişiklik etki analizi)
+        env:
+          GOLGE_OLAY: ${{ github.event_name }}
+          GOLGE_PR_BASE: ${{ github.event.pull_request.base.sha }}
+          GOLGE_PR_HEAD: ${{ github.event.pull_request.head.sha }}
+          GOLGE_PUSH_BEFORE: ${{ github.event.before }}
+          GOLGE_PUSH_AFTER: ${{ github.event.after }}
+        run: node scripts/ci/golge-analiz.mjs --cikti "$RUNNER_TEMP/golge/golge-analiz.json"
+
+      - name: Gölge analiz sonucu
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: golge-analiz
+          path: ${{ runner.temp }}/golge/golge-analiz.json
+          if-no-files-found: warn
+          retention-days: 30
+
+  golge-rapor:
+    if: always()
+    needs: [golge-analiz, typescript, build, guvenlik, regresyon, astro-pro, horary-western]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - name: Gölge analiz ve regresyon parça sonuçları
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          path: ${{ runner.temp }}/golge-girdi
+
+      - name: Gölge rapor (öneri ↔ gerçek)
+        env:
+          CI_KAPISI_NEEDS: ${{ toJSON(needs) }}
+        run: >-
+          mkdir -p "$RUNNER_TEMP/golge-sonuc" &&
+          (cp "$RUNNER_TEMP"/golge-girdi/regresyon-sonuc-*/*.json "$RUNNER_TEMP/golge-sonuc/" 2>/dev/null || true) &&
+          node scripts/ci/golge-rapor.mjs --golge "$RUNNER_TEMP/golge-girdi/golge-analiz/golge-analiz.json"
+          --sonuc-dir "$RUNNER_TEMP/golge-sonuc" --beklenen-sha "$GITHUB_SHA" --cikti "$RUNNER_TEMP/golge-rapor.json"
+
+      - name: Gölge rapor sonucu
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: golge-rapor
+          path: ${{ runner.temp }}/golge-rapor.json
+          if-no-files-found: warn
+          retention-days: 30

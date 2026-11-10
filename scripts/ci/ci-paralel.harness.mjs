@@ -18,7 +18,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { ZORUNLU_ISLER, kapiDegerlendir, parcaCoz, parcaPlani } from "./regression-shard.mjs";
+import { GOZLEM_ISLERI, ZORUNLU_ISLER, kapiDegerlendir, parcaCoz, parcaPlani } from "./regression-shard.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, "..", "..");
@@ -91,7 +91,13 @@ const needsYml = (/needs: \[([^\]]+)\]/.exec(kapiBlok)?.[1] ?? "").split(",").ma
 const es = (a, b) => JSON.stringify([...a].sort()) === JSON.stringify([...b].sort());
 check(isler.includes("ci-kapisi"), "ci.yml'de ci-kapisi işi var");
 check(es(needsYml, ZORUNLU_ISLER), "kapı needs = zorunlu iş listesi", needsYml.join(", "));
-check(es(isler.filter((j) => j !== "ci-kapisi"), ZORUNLU_ISLER), "ci.yml'deki her iş kapıya bağlı (unutulan iş yok)", isler.join(", "));
+check(es(isler.filter((j) => j !== "ci-kapisi" && !GOZLEM_ISLERI.includes(j)), ZORUNLU_ISLER), "ci.yml'deki her (gözlem dışı) iş kapıya bağlı (unutulan iş yok)", isler.join(", "));
+// F3 gözlem işleri: yalnız bildirilenler; hiçbir zorunlu iş / kapı bunlara bağlı değil; zorunlu işlerde gölgeye bakan koşul yok.
+check(isler.filter((j) => /golge/.test(j)).every((j) => GOZLEM_ISLERI.includes(j)), "gölge işleri yalnız bildirilen gözlem işleri");
+for (const j of [...ZORUNLU_ISLER, "ci-kapisi"]) {
+  const b = yml.slice(yml.indexOf(`\n  ${j}:`) + 1).split(/\n {2}[a-z0-9-]+:\n/)[0];
+  check(!/golge/i.test(b), `${j}: gölge moduna bağımlılık / koşul yok`);
+}
 check(/^ {4}if: always\(\)$/m.test(kapiBlok), "kapı her koşulda çalışır (if: always())");
 const regBlok = yml.slice(yml.indexOf("\n  regresyon:"), yml.indexOf("\n  ci-kapisi:"));
 const matris = (/parca: \[([^\]]+)\]/.exec(regBlok)?.[1] ?? "").split(",").map((s) => Number(s.trim()));
