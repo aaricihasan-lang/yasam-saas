@@ -93,6 +93,11 @@ async function open(browser: Browser, mock: Mock, vp: { width: number; height: n
       const r = mock.handle(req.method(), req.postData());
       return route.fulfill({ status: r.status, json: r.json });
     }
+    // F2: Profilim'deki "Rapor logosu" bölümü (bu harness'te Kişisel Dijital Ofis erişimi kapalı → logo seçenekleri gizli).
+    if (url.pathname === "/api/settings/profile/logo" && req.method() === "GET") {
+      const st = mock.state();
+      return route.fulfill({ status: 200, json: { ok: true, logo: { source: "none", assetId: null, status: "none" }, workspace: { access: false, logoAssetId: null }, checkFailed: false, brandingEnabled: st.profile.reportBrandingEnabled, version: st.version, updatedAt: null, readOnly: false } });
+    }
     if (url.pathname.startsWith("/api/settings/workspace")) return route.fulfill({ status: 404, json: { ok: false, error: "Bulunamadı." } });
     if (url.pathname === "/api/auth/session") return route.fulfill({ status: 200, json: { valid: true } });
     if (url.pathname === "/api/auth/profile") return route.fulfill({ status: 200, json: { profile: user } });

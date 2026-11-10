@@ -196,7 +196,7 @@ const tr = {
   deleteBody: "Görsel kalıcı olarak silinir. Uygulanan tasarımda, taslakta veya geçmişte kullanılıyorsa silinmez.",
   deleteYes: "Evet, sil",
   deleted: "Görsel silindi.",
-  inUse: (where: string) => `Bu görsel kullanılıyor: ${where}. Önce tasarımlardan kaldırın.`,
+  inUse: (where: string) => `Bu görsel kullanılıyor: ${where}. Önce kullanıldığı yerden kaldırın.`,
   inUseLocal: "Bu görsel düzenlediğiniz taslakta kullanılıyor; önce taslaktan kaldırın.",
   // Arka plan
   bgTitle: "Arka plan",
@@ -531,7 +531,7 @@ const en: StudioDict = {
   deleteBody: "The image is deleted permanently. It is not deleted if it is used in the applied design, the draft or history.",
   deleteYes: "Yes, delete",
   deleted: "Image deleted.",
-  inUse: (where) => `This image is in use: ${where}. Remove it from those designs first.`,
+  inUse: (where) => `This image is in use: ${where}. Remove it from there first.`,
   inUseLocal: "This image is used in the draft you are editing; remove it from the draft first.",
   bgTitle: "Background",
   bgModes: { default: "Default", theme: "Theme", photo: "My photo" },
