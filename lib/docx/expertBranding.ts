@@ -23,6 +23,7 @@ import {
   AlignmentType,
   BorderStyle,
   ImageRun,
+  LineRuleType,
   Paragraph,
   Table,
   TableCell,
@@ -325,6 +326,15 @@ export type ExpertSignatureOptions = {
   label?: string;
 };
 
+/**
+ * B imza kartı dikey ölçüleri (twip). Kompakt düzen (Owner sayfa düzeni bulgusu, 10.11): punto DEĞİŞMEZ; yalnız kart
+ * iç boşlukları, kart öncesi ayırıcı ve imza çizgisi üstü boşluk sıkılaştırıldı → kart son sayfaya tek başına taşmaz.
+ * Unvan + kurum tek satırda, "İmza" etiketi imza çizgisinin üzerinde (ayrı satır yok).
+ * Önceki değerler: padY 160, labelAfter 80, signBefore 300, gapBefore (boş paragraf, before 240 + satır), noteBefore 160.
+ */
+export const EXPERT_SIGNATURE_CARD_TWIPS = { padY: 100, labelAfter: 40, signBefore: 200, gapBefore: 160, noteBefore: 100 } as const;
+const CARD = EXPERT_SIGNATURE_CARD_TWIPS;
+
 function noteParagraphs(note: string, o: { before: number }): Paragraph[] {
   return [
     para([run("Uzman Notu", { size: SZ.label, color: C_MID, bold: true })], { before: o.before, after: 40, keepNext: true }),
@@ -352,16 +362,18 @@ export function expertSignatureBlock(b: ExpertBranding | null | undefined, o: Ex
     const logoW = r.logoPng ? Math.round(W * 0.22) : 0;
     const textW = W - logoW;
     const text: Paragraph[] = [
-      para([run(label, { size: SZ.label, color: accent, bold: true, allCaps: true, spacing: 30 })], { after: 80 }),
+      para([run(label, { size: SZ.label, color: accent, bold: true, allCaps: true, spacing: 30 })], { after: CARD.labelAfter }),
     ];
     if (name) text.push(para([run(name, { size: SZ.name, color: C_DARK, bold: true })], { after: 30 }));
-    if (r.title) text.push(para([run(r.title, { size: SZ.line, color: C_MID })], { after: 20 }));
-    if (r.organization) text.push(para([run(r.organization, { size: SZ.line, color: C_MID, bold: true })], { after: 20 }));
+    // Kompakt düzen: unvan ve kurum tek satırda ("unvan · kurum"; uzun değerler Word'de doğal olarak sarılır).
+    const cred: TextRun[] = [];
+    if (r.title) cred.push(run(r.title, { size: SZ.line, color: C_MID }));
+    if (r.organization) cred.push(run(r.title ? `  ·  ${r.organization}` : r.organization, { size: SZ.line, color: C_MID, bold: true }));
+    if (cred.length) text.push(para(cred, { after: 20 }));
     if (r.contactLine) text.push(para([run(r.contactLine, { size: SZ.small, color: C_LIGHT })], { after: 0 }));
-    // İmza alanı: ince çizgi + "İmza" etiketi.
+    // İmza alanı: ince çizgi; "İmza" etiketi çizginin üzerinde, solda (ayrı satır kullanılmaz).
     text.push(
-      new Paragraph({ spacing: { before: 300, after: 0 }, indent: { right: Math.round(textW * 0.45) }, border: { bottom: { style: BorderStyle.SINGLE, size: 4, color: "cbd5e1" } }, children: [run(" ", { size: 16, color: C_LIGHT })] }),
-      para([run("İmza", { size: 15, color: C_LIGHT })], { before: 30, after: 0 }),
+      new Paragraph({ spacing: { before: CARD.signBefore, after: 0 }, indent: { right: Math.round(textW * 0.45) }, border: { bottom: { style: BorderStyle.SINGLE, size: 4, color: "cbd5e1" } }, children: [run("İmza", { size: 15, color: C_LIGHT })] }),
     );
     const none = { style: BorderStyle.NONE, size: 0, color: "auto" } as const;
     const top = { style: BorderStyle.SINGLE, size: 18, color: accent } as const;
@@ -370,7 +382,7 @@ export function expertSignatureBlock(b: ExpertBranding | null | undefined, o: Ex
       cells.push(new TableCell({
         width: { size: logoW, type: WidthType.DXA },
         verticalAlign: VerticalAlign.CENTER,
-        margins: { top: 160, bottom: 160, left: 160, right: 80 },
+        margins: { top: CARD.padY, bottom: CARD.padY, left: 160, right: 80 },
         borders: { top, bottom: none, left: none, right: none },
         shading: o.fill ? { fill: o.fill, color: "auto" } : undefined,
         children: [para([logoRun(r.logoPng, 110, 70)], { align: AlignmentType.CENTER })],
@@ -379,12 +391,13 @@ export function expertSignatureBlock(b: ExpertBranding | null | undefined, o: Ex
     cells.push(new TableCell({
       width: { size: textW, type: WidthType.DXA },
       verticalAlign: VerticalAlign.CENTER,
-      margins: { top: 160, bottom: 160, left: 200, right: 200 },
+      margins: { top: CARD.padY, bottom: CARD.padY, left: 200, right: 200 },
       borders: { top, bottom: none, left: none, right: none },
       shading: o.fill ? { fill: o.fill, color: "auto" } : undefined,
       children: text,
     }));
-    out.push(new Paragraph({ spacing: { before: 240, after: 0 }, keepNext: true }));
+    // Kart öncesi boşluk: tam yükseklikli ince ayırıcı (boş paragrafın belge varsayılan satır yüksekliği eklenmez).
+    out.push(new Paragraph({ spacing: { before: 0, after: 0, line: CARD.gapBefore, lineRule: LineRuleType.EXACT }, keepNext: true }));
     out.push(new Table({
       width: { size: W, type: WidthType.DXA },
       columnWidths: r.logoPng ? [logoW, textW] : [textW],
@@ -392,7 +405,7 @@ export function expertSignatureBlock(b: ExpertBranding | null | undefined, o: Ex
       borders: { top: none, bottom: none, left: none, right: none, insideHorizontal: none, insideVertical: none },
       rows: [new TableRow({ cantSplit: true, children: cells })],
     }));
-    if (r.note) out.push(...noteParagraphs(r.note, { before: 160 }));
+    if (r.note) out.push(...noteParagraphs(r.note, { before: CARD.noteBefore }));
     return out;
   }
 

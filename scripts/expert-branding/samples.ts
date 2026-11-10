@@ -165,6 +165,13 @@ async function main() {
     for (const v of ["A", "B", "C"] as const) {
       const x = Object.values(await xmlParts(await c.render({ branding: normalizeExpertBranding({ ...BASE, name: "PROFIL_ADI_OTOMATIK_YAZILMAZ" }), brandingVariant: v }))).map((q) => JSON.stringify(q)).join("");
       ok(`${name} (${v}): profil adı otomatik yazılmaz; preparedBy aynen`, !x.includes("PROFIL_ADI_OTOMATIK_YAZILMAZ") && x.includes("Ayşe Yılmaz"));
+      // L (10.11): HD'de iletişim + dipnot YOK; HD ilişki/grup raporunda uzman logosu YOK (Owner güvenli varsayılanları).
+      ok(`${name} (${v}): iletişim satırı ve dipnot HD raporuna yazılmaz`, !x.includes("ayse.yilmaz@example.invalid") && !x.includes("seans sürecinizi desteklemek"));
+      if (name !== "hd-pro1-hazirlayan") {
+        const zip = await JSZip.loadAsync(await c.render({ branding: normalizeExpertBranding({ ...BASE, logoPng: logos.kare }), brandingVariant: v }));
+        const media = await Promise.all(Object.keys(zip.files).filter((f) => f.startsWith("word/media/") && !zip.files[f]!.dir).map((f) => zip.file(f)!.async("nodebuffer")));
+        ok(`${name} (${v}): HD ilişki/grup raporunda uzman logosu gömülmez`, !media.some((m) => m.equals(logos.kare)));
+      }
     }
   }
 

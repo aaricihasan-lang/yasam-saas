@@ -454,7 +454,8 @@ function wellnessBlock(expertName?: string | null, ctx: ClientReportCtx = {}): R
       children: [new TextRun({ text: "Bilgilendirme", bold: true, size: 18, font: REPORT_FONT, color: C_MID })],
     }),
     new Paragraph({
-      keepNext: !!name || signature.length > 0,
+      // Sayfa düzeni (10.11): imza kartı bilgilendirmeyle ZORLA birlikte tutulmaz (kart kendi içinde bölünmez).
+      keepNext: !!name && signature.length === 0,
       keepLines: true,
       spacing: { after: 80 },
       children: [new TextRun({ text: note.full, italics: true, size: 16, font: REPORT_FONT, color: C_LIGHT })],
