@@ -214,7 +214,12 @@ for (const [ad, yol, mod] of [["Human Design", "lib/human-design/x.ts", "human-d
   const a = golgeAnaliz({ cwd: repo, olay: "pull_request", prBase: MAIN0, prHead: ph, head: ph });
   const b = golgeAnaliz({ cwd: repo, olay: "pull_request", prBase: MAIN0, prHead: ph, head: ph });
   check(JSON.stringify(a) === JSON.stringify(b), "aynı git durumu → birebir aynı karar (belirlenimci)");
-  check(a.sha.analiz === ph && a.sha.head === ph && a.sha.mergeBase === MAIN0, "analiz SHA'ları commit'lerle tutarlı"); }
+  check(a.sha.analiz === ph && a.sha.head === ph && a.sha.mergeBase === MAIN0, "analiz SHA'ları commit'lerle tutarlı");
+  const { kuralOzeti } = await import("./golge-analiz.mjs");
+  const ham = fs.readFileSync(path.join(HERE, "golge-kurallar.mjs"), "utf8").replace(/\r\n/g, "\n");
+  const lf = (await import("node:crypto")).createHash("sha256").update(ham).digest("hex").slice(0, 16);
+  const crlf = (await import("node:crypto")).createHash("sha256").update(ham.replace(/\r\n/g, "\n")).digest("hex").slice(0, 16);
+  check(kuralOzeti() === lf && lf === crlf, "kural özeti satır sonundan bağımsız (Windows CRLF = Linux LF)", kuralOzeti()); }
 { const r = pr("bozuk-liste", () => yaz("scripts/ci/regression-tests.json", "{bozuk")); check(r.fullFallback && r.hata && r.oneri.tumIsler, "analiz hatası (okunamayan test listesi) → FULL + hata alanı", r.hata ?? ""); }
 { G(["checkout", "-q", "-B", "s-cli", "main"]); yaz("scripts/ci/regression-tests.json", "{bozuk"); const ph = commit("cli"); G(["checkout", "-q", "main"]);
   const out = path.join(repo, "..", `golge-cli-${process.pid}.json`);

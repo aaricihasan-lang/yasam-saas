@@ -26,7 +26,8 @@ const SIFIR = /^0+$/;
 const LISTE = "scripts/ci/regression-tests.json";
 const SURELER = "scripts/ci/regression-durations.json";
 
-export const kuralOzeti = () => crypto.createHash("sha256").update(fs.readFileSync(path.join(HERE, "golge-kurallar.mjs"))).digest("hex").slice(0, 16);
+// Satır sonları normalleştirilir: Windows (CRLF) ve Linux (LF) aynı kural dosyası için aynı özeti üretir.
+export const kuralOzeti = () => crypto.createHash("sha256").update(fs.readFileSync(path.join(HERE, "golge-kurallar.mjs"), "utf8").replace(/\r\n/g, "\n")).digest("hex").slice(0, 16);
 
 export function altyapiMi(p) { for (const [re, neden] of ALTYAPI) if (re.test(p)) return neden; return null; }
 export function belgeMi(p) { return BELGE.some((re) => re.test(p)); }
