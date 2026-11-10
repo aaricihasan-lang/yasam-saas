@@ -371,19 +371,22 @@ export function expertSignatureBlock(b: ExpertBranding | null | undefined, o: Ex
     const W = Math.max(3000, Math.round(o.contentWidth ?? 9638));
     const logoW = r.logoPng ? Math.round(W * 0.22) : 0;
     const textW = W - logoW;
+    // Dipnot varsa kart dipnotun başlığı + metniyle birlikte tutulur (kartın tüm paragrafları keepNext): dipnot son sayfaya
+    // TEK BAŞINA düşmez; sığmazsa kart + dipnot birlikte yeni sayfaya geçer (bilgilendirme metni zincire dahil DEĞİL).
+    const kn = !!r.note;
     const text: Paragraph[] = [
-      para([frun(label, { size: SZ.label, color: accent, bold: true, allCaps: true, spacing: 30 })], { after: CARD.labelAfter }),
+      para([frun(label, { size: SZ.label, color: accent, bold: true, allCaps: true, spacing: 30 })], { after: CARD.labelAfter, keepNext: kn }),
     ];
-    if (name) text.push(para([frun(name, { size: SZ.name, color: C_DARK, bold: true })], { after: 30 }));
+    if (name) text.push(para([frun(name, { size: SZ.name, color: C_DARK, bold: true })], { after: 30, keepNext: kn }));
     // Kompakt düzen: unvan ve kurum tek satırda ("unvan · kurum"; uzun değerler Word'de doğal olarak sarılır).
     const cred: TextRun[] = [];
     if (r.title) cred.push(frun(r.title, { size: SZ.line, color: C_MID }));
     if (r.organization) cred.push(frun(r.title ? `  ·  ${r.organization}` : r.organization, { size: SZ.line, color: C_MID, bold: true }));
-    if (cred.length) text.push(para(cred, { after: 20 }));
-    if (r.contactLine) text.push(para([frun(r.contactLine, { size: SZ.small, color: C_LIGHT })], { after: 0 }));
+    if (cred.length) text.push(para(cred, { after: 20, keepNext: kn }));
+    if (r.contactLine) text.push(para([frun(r.contactLine, { size: SZ.small, color: C_LIGHT })], { after: 0, keepNext: kn }));
     // İmza alanı: ince çizgi; "İmza" etiketi çizginin üzerinde, solda (ayrı satır kullanılmaz).
     text.push(
-      new Paragraph({ spacing: { before: CARD.signBefore, after: 0 }, indent: { right: Math.round(textW * 0.45) }, border: { bottom: { style: BorderStyle.SINGLE, size: 4, color: "cbd5e1" } }, children: [frun("İmza", { size: 15, color: C_LIGHT })] }),
+      new Paragraph({ spacing: { before: CARD.signBefore, after: 0 }, keepNext: kn, keepLines: true, indent: { right: Math.round(textW * 0.45) }, border: { bottom: { style: BorderStyle.SINGLE, size: 4, color: "cbd5e1" } }, children: [frun("İmza", { size: 15, color: C_LIGHT })] }),
     );
     const none = { style: BorderStyle.NONE, size: 0, color: "auto" } as const;
     const top = { style: BorderStyle.SINGLE, size: 18, color: accent } as const;
@@ -395,7 +398,7 @@ export function expertSignatureBlock(b: ExpertBranding | null | undefined, o: Ex
         margins: { top: CARD.padY, bottom: CARD.padY, left: 160, right: 80 },
         borders: { top, bottom: none, left: none, right: none },
         shading: o.fill ? { fill: o.fill, color: "auto" } : undefined,
-        children: [para([logoRun(r.logoPng, 110, 70)], { align: AlignmentType.CENTER })],
+        children: [para([logoRun(r.logoPng, 110, 70)], { align: AlignmentType.CENTER, keepNext: kn })],
       }));
     }
     cells.push(new TableCell({
@@ -416,6 +419,9 @@ export function expertSignatureBlock(b: ExpertBranding | null | undefined, o: Ex
       rows: [new TableRow({ cantSplit: true, children: cells })],
     }));
     if (r.note) out.push(...noteParagraphs(r.note, { before: CARD.noteBefore, font }));
+    // Kart belgenin son öğesiyse Word tablodan sonra varsayılan yükseklikte boş paragraf ekler; bu satır dolu bir sayfadan
+    // boş bir sayfaya taşmasın diye tam 1 pt yükseklikli kapanış paragrafı (yalnız dipnot yokken; görünmez).
+    else out.push(new Paragraph({ spacing: { before: 0, after: 0, line: 20, lineRule: LineRuleType.EXACT }, children: [] }));
     return out;
   }
 
