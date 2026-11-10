@@ -32,7 +32,7 @@ const readLg = () => window.matchMedia(LG_QUERY).matches;
 const readLgServer = () => false;
 
 const BASE =
-  "flex items-center gap-2 whitespace-nowrap rounded-xl px-3 py-2.5 text-xs font-bold transition-all duration-200 md:text-sm " +
+  "flex items-center gap-2 rounded-xl px-3 py-2.5 text-xs font-bold transition-all duration-200 md:text-sm lg:whitespace-nowrap " +
   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-1";
 const tone = (on: boolean) =>
   on ? "bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white shadow-md" : "text-slate-500 hover:bg-violet-50 hover:text-violet-700";
@@ -134,7 +134,7 @@ export function SettingsTabBar<T extends string>({ tabs, active, onSelect }: Pro
   };
 
   return (
-    <div className="mb-5">
+    <div className="relative z-20 mb-5">
       <div
         ref={rowRef}
         data-settings-tabbar="group"
@@ -175,22 +175,24 @@ export function SettingsTabBar<T extends string>({ tabs, active, onSelect }: Pro
 
         {/* Ölçüm satırı (görünmez): öğelerin doğal genişlikleri + "Diğer" düğmesi. */}
         {isLg && (
-          <div ref={measureRef} aria-hidden className="pointer-events-none invisible absolute left-0 top-0 flex w-max gap-1.5">
+          <div aria-hidden className="pointer-events-none invisible absolute left-0 top-0 h-0 w-0 overflow-hidden">
+          <div ref={measureRef} className="flex w-max gap-1.5">
             {items.map((it) => {
               const Icon = it.kind === "tab" ? it.tab.icon : Archive;
               return (
-                <span key={it.key} className={`${BASE} shrink-0`}>
+                <span key={it.key} className={`${BASE} shrink-0 whitespace-nowrap`}>
                   <Icon className="h-4 w-4 shrink-0" strokeWidth={2} />
                   {it.kind === "tab" ? it.tab.label : it.label}
                   {it.kind === "group" && <ChevronDown className="h-3.5 w-3.5 shrink-0" strokeWidth={2.5} />}
                 </span>
               );
             })}
-            <span className={`${BASE} shrink-0`}>
+            <span className={`${BASE} shrink-0 whitespace-nowrap`}>
               <MoreHorizontal className="h-4 w-4 shrink-0" strokeWidth={2} />
               {MORE_LABEL}
               <ChevronDown className="h-3.5 w-3.5 shrink-0" strokeWidth={2.5} />
             </span>
+          </div>
           </div>
         )}
       </div>
@@ -276,7 +278,8 @@ function Menu<T extends string>(props: {
         hidden={!open}
         onKeyDown={onPanelKey}
         className={[
-          "absolute top-full z-30 mt-2 flex w-60 max-w-[calc(100vw-2rem)] flex-col gap-1 rounded-2xl border border-white/80 bg-white/95 p-1.5",
+          "absolute top-full z-30 mt-2 w-60 max-w-[calc(100vw-2rem)] flex-col gap-1 rounded-2xl border border-white/80 bg-white/95 p-1.5",
+          open ? "flex" : "hidden",
           "shadow-[0_12px_40px_rgba(88,28,135,0.18)] backdrop-blur-xl",
           right ? "right-0" : "left-0",
         ].join(" ")}
