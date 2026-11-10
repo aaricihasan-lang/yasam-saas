@@ -318,7 +318,7 @@ export function ProfileSettingsTab({ readOnly: demoReadOnly, onDirtyChange }: { 
           <div className="space-y-4 border-t border-slate-100 pt-4">
             <Switch
               id={`${idBase}-brand`} label="Raporlarımda kurumsal bilgilerimi göster"
-              description="Kapalıyken raporlarınız bugünkü gibi üretilir. Açtığınızda, rapor markalaması kullanıma açıldığında aşağıda seçtiğiniz bilgiler raporlarınıza eklenir."
+              description="Kapalıyken raporlarınız bugünkü gibi üretilir. Açtığınızda aşağıda seçtiğiniz bilgiler yukarıda sayılan Word raporlarına eklenir."
               checked={brandingOn} disabled={disabled} onChange={(v) => set("reportBrandingEnabled", v)}
             />
             <fieldset className="space-y-3 rounded-xl bg-slate-50/80 p-3 sm:p-4" disabled={disabled || !brandingOn} aria-describedby={`${idBase}-subs-hint`}>
