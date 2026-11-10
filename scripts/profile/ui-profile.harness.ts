@@ -149,7 +149,7 @@ const TABBAR_JS = `(async () => {
   for (var i = 0; i < tabs.length; i++) {
     var b = tabs[i];
     var inPanel = !!b.closest('[hidden]');
-    var target = inPanel ? document.querySelector('main [data-settings-tab-group]') : b;
+    var target = inPanel ? document.querySelector('main [aria-controls="' + b.closest('[hidden]').id + '"]') : b;
     var c = target ? await check(target) : { inside: false, hit: false, textClip: true };
     items.push({ id: b.getAttribute('data-settings-tab'), label: (b.textContent || '').trim(), viaMenu: inPanel, inside: c.inside, hit: c.hit, textClip: c.textClip, ok: c.inside && c.hit && !c.textClip });
   }
