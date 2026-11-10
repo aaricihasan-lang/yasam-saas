@@ -221,6 +221,10 @@ function judge(r) {
   return { ok: true, infra: false, neden: `${pass} PASS` };
 }
 
+function bootId() {
+  try { return fs.readFileSync("/proc/sys/kernel/random/boot_id", "utf8").trim(); } catch { return ""; }
+}
+
 async function main() {
   const list = JSON.parse(fs.readFileSync(LIST_FILE, "utf8")).tests;
   let tests = list.filter((t) => !only || only.test(t.file));
@@ -267,7 +271,8 @@ async function main() {
       parca: PARCA ?? "1/1",
       listeUzunlugu: list.length,
       filtre: only ? String(only) : null,
-      makine: process.env.RUNNER_NAME ? `${process.env.RUNNER_NAME}@${os.hostname()}` : os.hostname(),
+      // Makine kimliği: runner adı + hostname + Linux boot_id (her VM açılışında benzersiz; hostname imajda aynı olabilir).
+      makine: [process.env.RUNNER_NAME, os.hostname(), bootId()].filter(Boolean).join(" @ "),
       sn: secs,
       tests: rows,
     }, null, 1));
