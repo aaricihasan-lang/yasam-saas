@@ -4,8 +4,9 @@
  */
 type G = { __F3B_BRANDING?: unknown; __F3B_CALLS?: { owner: unknown; account: unknown; opts: unknown }[] };
 
-export const SIGNATURE_INCLUDES_PROFILE_NAME = true;
-export const NAMED_BY_FORM_INCLUDES_CONTACT_NOTE = true;
+// Gerçek modüldeki değerlerle AYNI (routes.harness eşitliği doğrular).
+export const SIGNATURE_INCLUDES_PROFILE_NAME = false;
+export const NAMED_BY_FORM_INCLUDES_CONTACT_NOTE = false;
 
 export async function resolveReportBranding(_db: unknown, owner: unknown, account: unknown, opts: unknown = {}): Promise<unknown> {
   const g = globalThis as G;

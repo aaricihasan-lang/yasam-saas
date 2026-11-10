@@ -24,6 +24,7 @@ import { syntheticLogo, type SyntheticLogoKind } from "../syntheticLogos";
 import { normalizeKademeBDocx } from "./normalize";
 import { normalizeExpertBranding, type ExpertBranding, type ExpertBrandingInput } from "@/lib/docx/expertBranding";
 import { expertSignaturePdfTexts, pdfSafeText } from "@/lib/pdf/expertBrandingPdf";
+import { NAMED_BY_FORM_INCLUDES_CONTACT_NOTE, SIGNATURE_INCLUDES_PROFILE_NAME } from "@/lib/profile/reportBranding";
 
 type SaxParser = { write(x: string): SaxParser; close(): void };
 const sax = createRequire(__filename)("sax") as { parser(strict: boolean): SaxParser };
@@ -134,7 +135,12 @@ async function main() {
       ok(`${p.key}: profil normalize edilir`, !!b0);
       if (!b0) continue;
       // Hacamat: hatalı çözücü simülasyonu → markalamada profil adı OLSA bile formdaki ad korunmalı.
-      const b: ExpertBranding = c.rule === "named-by-form" || c.rule === "none" ? { ...b0, name: "ZZ Profil Adı Ezmemeli" } : b0;
+      // Üretim çözücüsünün alan süzmesi (OWNER KURALI; stub sabitlerinin gerçek modülle eşitliğini routes.harness doğrular):
+      // "signature" → profil adı YOK (SIGNATURE_INCLUDES_PROFILE_NAME); "named-by-form" → iletişim + dipnot YOK
+      // (NAMED_BY_FORM_INCLUDES_CONTACT_NOTE). Böylece örnekler üretimde çıkacak belgeyi gösterir.
+      const resolvedB0: ExpertBranding = c.rule === "signature" && !SIGNATURE_INCLUDES_PROFILE_NAME ? { ...b0, name: null }
+        : c.rule === "named-by-form" && !NAMED_BY_FORM_INCLUDES_CONTACT_NOTE ? { ...b0, contactLine: null, note: null } : b0;
+      const b: ExpertBranding = c.rule === "named-by-form" || c.rule === "none" ? { ...resolvedB0, name: "ZZ Profil Adı Ezmemeli" } : resolvedB0;
       const buf = await c.render(b as unknown as Record<string, unknown>);
       const file = `${c.kind}/${c.name}__${p.key}.${c.kind}`;
       writeFileSync(path.join(OUT!, file), buf);
@@ -154,6 +160,13 @@ async function main() {
         if (f.note) present.push(...f.note.split("\n").filter((l) => l.trim()));
         if (cardShown) present.push("İmza");
         if (f.note) present.push("Uzman Notu");
+        // Güvenli varsayılanlar (Owner, 10.11): profil adı ("signature") ve iletişim + dipnot ("named-by-form") belgeye GİRMEZ.
+        const shownTexts = [f.title, f.organization, f.contactLine, f.note, c.formName].filter(Boolean) as string[];
+        if (c.rule === "signature" && !SIGNATURE_INCLUDES_PROFILE_NAME && b0.name && !shownTexts.some((v) => v.includes(b0.name!))) absent.push(b0.name);
+        if (c.rule === "named-by-form" && !NAMED_BY_FORM_INCLUDES_CONTACT_NOTE) {
+          if (b0.contactLine) absent.push(b0.contactLine);
+          if (b0.note) absent.push(...b0.note.split("\n").filter((l) => l.trim()), "Uzman Notu");
+        }
       } else {
         for (const v of [f.name, f.title, f.organization, f.contactLine]) if (v) absent.push(v);
         absent.push("Uzman Notu", "İmza");

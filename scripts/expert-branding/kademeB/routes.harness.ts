@@ -168,7 +168,8 @@ async function main(): Promise<void> {
     const calendarRoute = await import("../../../app/api/kupa/calendar/plans/[id]/word-report/route");
     const hacWord = await import("../../../app/api/hacamat/word-report/route");
     const hacPdf = await import("../../../app/api/hacamat/pdf-report/route");
-    const { resolveReportBranding, readAccountFullName } = await import("../../../lib/profile/reportBranding");
+    const { resolveReportBranding, readAccountFullName, SIGNATURE_INCLUDES_PROFILE_NAME, NAMED_BY_FORM_INCLUDES_CONTACT_NOTE } = await import("../../../lib/profile/reportBranding");
+    const STUB_FLAGS = await import("./stubs/reportBranding");
     const { resolveReportLogo } = await import("../../../lib/profile/reportLogo");
     const { astroReportBrandingLoader } = await import("../../../lib/astrology/report/branding");
     const asA: Auth = { id: U.A.id, token: U.A.token };
@@ -245,9 +246,12 @@ async function main(): Promise<void> {
     let loads = 0;
     const loader = async () => { loads++; return "ZZ_ANAMNEZ_A"; };
     const sig = await resolveReportBranding(db, ownerA, { loadFullName: loader }, { purpose: "signature" });
-    ok(!!sig && sig.name === "ZZ_ANAMNEZ_A" && sig.title === PA.title && sig.organization === PA.organization && !!sig.contactLine && sig.note === PA.reportNote && !!sig.logoPng?.data.equals(logoA.data) && loads === 1, "signature: profil adı (oturum kaydından) + unvan + kurum + iletişim + dipnot + A logosu", sig && { ...sig, logoPng: !!sig.logoPng });
+    // OWNER KURALI (10.11 güvenli varsayılan): Kademe B imza kartına profil adı İSTEMSİZ eklenmez → ad YOK ve ad sorgusu YAPILMAZ.
+    ok(SIGNATURE_INCLUDES_PROFILE_NAME === false && NAMED_BY_FORM_INCLUDES_CONTACT_NOTE === false, "Owner kuralı sabitleri: SIGNATURE_INCLUDES_PROFILE_NAME = false, NAMED_BY_FORM_INCLUDES_CONTACT_NOTE = false");
+    ok(STUB_FLAGS.SIGNATURE_INCLUDES_PROFILE_NAME === SIGNATURE_INCLUDES_PROFILE_NAME && STUB_FLAGS.NAMED_BY_FORM_INCLUDES_CONTACT_NOTE === NAMED_BY_FORM_INCLUDES_CONTACT_NOTE, "örnek/regresyon stub sabitleri gerçek modülle aynı");
+    ok(!!sig && !sig.name && sig.title === PA.title && sig.organization === PA.organization && !!sig.contactLine && sig.note === PA.reportNote && !!sig.logoPng?.data.equals(logoA.data) && loads === 0, "signature: AD YOK (ad sorgusu da yok); unvan + kurum + iletişim + dipnot + A logosu", sig && { ...sig, logoPng: !!sig.logoPng, loads });
     const nbf = await resolveReportBranding(db, ownerA, { fullName: "ZZ_ANAMNEZ_A" }, { purpose: "named-by-form" });
-    ok(!!nbf && !nbf.name && nbf.title === PA.title && nbf.organization === PA.organization && !!nbf.contactLine && nbf.note === PA.reportNote && !!nbf.logoPng, "named-by-form: AD YOK; unvan + kurum + logo + iletişim + dipnot (Owner kararı)");
+    ok(!!nbf && !nbf.name && nbf.title === PA.title && nbf.organization === PA.organization && !nbf.contactLine && !nbf.note && !!nbf.logoPng, "named-by-form: AD YOK; yalnız unvan + kurum + logo; iletişim + dipnot YOK (Owner kuralı)");
     ok((await readAccountFullName(db, U.A.id)) === "ZZ_ANAMNEZ_A" && (await readAccountFullName(db, "00000000-0000-4000-8000-000000000000")) === null, "readAccountFullName: oturum sahibinin kendi kaydı; olmayan kullanıcı → null");
     await putProfile(asA, { reportBrandingEnabled: false });
     loads = 0;
@@ -262,13 +266,13 @@ async function main(): Promise<void> {
       if (!r.buf) continue;
       save(`rota-${label}-A-markali`, r.buf);
       const d = await openDocx(r.buf);
-      ok(d.text.includes("ZZ_ANAMNEZ_A") && d.text.includes(PA.title) && d.text.includes(PA.organization) && d.text.includes("a@example.invalid") && d.text.includes(PA.reportNote) && d.text.includes("Hazırlayan"), `${label}: "Hazırlayan" bloğunda A'nın adı + unvan + kurum + iletişim + dipnot`);
+      ok(!d.text.includes("ZZ_ANAMNEZ_A") && d.text.includes(PA.title) && d.text.includes(PA.organization) && d.text.includes("a@example.invalid") && d.text.includes(PA.reportNote) && d.text.includes("Hazırlayan"), `${label}: "Hazırlayan" bloğunda A'nın unvan + kurum + iletişim + dipnot; profil adı (ZZ_ANAMNEZ_A) YOK`);
       ok(d.media.some((m) => m.equals(logoA.data)), `${label}: A'nın logosu (bayt-bayt)`);
       ok(!B_SECRETS.some((s) => d.text.includes(s)) && !foreignLogo(d), `${label}: B / A2 bilgisi ve logosu YOK`);
     }
     const rA2 = await refTek(asA2);
     const dA2 = await openDocx(rA2.buf!);
-    ok(rA2.status === 200 && dA2.text.includes("ZZ_ANAMNEZ_A2") && dA2.text.includes(PA2.title) && !dA2.text.includes(PA.title) && dA2.media.some((m) => m.equals(logoA2.data)) && !dA2.media.some((m) => m.equals(logoA.data)), "A2 (aynı tenant, aynı protokol): A2'nin adı + profili + logosu; A'nınki yok");
+    ok(rA2.status === 200 && !dA2.text.includes("ZZ_ANAMNEZ_A2") && dA2.text.includes(PA2.title) && !dA2.text.includes(PA.title) && dA2.media.some((m) => m.equals(logoA2.data)) && !dA2.media.some((m) => m.equals(logoA.data)), "A2 (aynı tenant, aynı protokol): A2'nin profili + logosu (ad otomatik yok); A'nınki yok");
     const rB = await refTek(asB, protoB);
     const dB = await openDocx(rB.buf!);
     ok(rB.status === 200 && dB.text.includes("B UNVANI GİZLİ") && !dB.text.includes(PA.title) && !dB.media.some((m) => m.equals(logoA.data)), "B (başka tenant): kendi profili; A'nınki yok");
@@ -308,9 +312,10 @@ async function main(): Promise<void> {
     ok(hw.status === 200 && hp.status === 200, "Hacamat Word + PDF 200");
     ok(dW.text.includes(FORM_NAME) && !dW.text.includes("ZZ_ANAMNEZ_A"), "Word: formdaki ad var, profil adı (ZZ_ANAMNEZ_A) YOK");
     ok(pP.text.includes(sq(FORM_NAME)) && !pP.text.includes("ZZ_ANAMNEZ_A"), "PDF: formdaki ad var, profil adı YOK");
-    const fields = [PA.title, PA.organization, "a@example.invalid", PA.reportNote];
-    ok(fields.every((f) => dW.text.includes(f)) && dW.media.some((m) => m.equals(logoA.data)), "Word: unvan + kurum + iletişim + dipnot + A logosu");
-    ok(fields.every((f) => pP.text.includes(sq(f))) && pP.images >= 1, "PDF: AYNI alanlar + logo görseli (Word ↔ PDF tutarlı)");
+    const fields = [PA.title, PA.organization];
+    const hidden = ["a@example.invalid", "0532 000 00 01", PA.reportNote, "Uzman Notu"];
+    ok(fields.every((f) => dW.text.includes(f)) && !hidden.some((h) => dW.text.includes(h)) && dW.media.some((m) => m.equals(logoA.data)), "Word: unvan + kurum + A logosu; iletişim + dipnot YOK (Owner kuralı)");
+    ok(fields.every((f) => pP.text.includes(sq(f))) && !hidden.some((h) => pP.text.includes(sq(h))) && pP.images >= 1, "PDF: AYNI alanlar + logo görseli; iletişim + dipnot YOK (Word ↔ PDF tutarlı)");
     ok(!B_SECRETS.some((s) => dW.text.includes(s) || pP.text.includes(sq(s))) && !foreignLogo(dW), "Hacamat: B / A2 bilgisi YOK");
     const hwEmpty = await hacW(asA, "");
     const hpEmpty = await hacP(asA, "");
@@ -327,8 +332,8 @@ async function main(): Promise<void> {
     section("D — Gökyüzü Atlası yükleyicisi (astroReportBrandingLoader; oturum ctx)");
     const atA = await astroReportBrandingLoader({ db, tenantId: seed.TA, userId: U.A.id })();
     const atB = await astroReportBrandingLoader({ db, tenantId: seed.TB, userId: U.B.id })();
-    ok(!!atA && atA.name === "ZZ_ANAMNEZ_A" && atA.title === PA.title && !!atA.logoPng?.data.equals(logoA.data), "A: kendi kaydındaki ad + A profili + A logosu");
-    ok(!!atB && atB.name === "ZZ_ANAMNEZ_B" && atB.title === "B UNVANI GİZLİ" && !!atB.logoPng?.data.equals(logoB.data) && atB.title !== atA!.title, "B: yalnız B'nin profili ve adı");
+    ok(!!atA && !atA.name && atA.title === PA.title && !!atA.logoPng?.data.equals(logoA.data), "A: A profili + A logosu (profil adı otomatik YOK)");
+    ok(!!atB && !atB.name && atB.title === "B UNVANI GİZLİ" && !!atB.logoPng?.data.equals(logoB.data) && atB.title !== atA!.title, "B: yalnız B'nin profili (ad otomatik YOK)");
     ok((await astroReportBrandingLoader({ db, tenantId: seed.TB, userId: U.A.id })()) === null, "çapraz tenant ctx → null (profil sızmaz)");
     {
       const { renderAstroReportDocx } = await import("../../../lib/astrology/report/docx");
@@ -337,8 +342,8 @@ async function main(): Promise<void> {
       const font = readFileSync(path.join(process.cwd(), "public", "fonts", "Geist-Regular.ttf")).toString("base64");
       const dx = await openDocx(await renderAstroReportDocx(rep, null, null, { branding: atA }));
       const px = await pdfInfo(Buffer.from(buildAstroReportPdf(rep, null, font, null, { branding: atA })));
-      const want = ["ZZ_ANAMNEZ_A", PA.title, PA.organization, "a@example.invalid", PA.reportNote];
-      ok(want.every((w) => dx.text.includes(w)) && want.every((w) => px.text.includes(sq(w))) && dx.media.some((m) => m.equals(logoA.data)) && px.images >= 1, "Atlas Word ↔ PDF: aynı çözücü çıktısıyla aynı alanlar + logo", { w: want.filter((w) => !dx.text.includes(w)), p: want.filter((w) => !px.text.includes(sq(w))), img: px.images });
+      const want = [PA.title, PA.organization, "a@example.invalid", PA.reportNote];
+      ok(want.every((w) => dx.text.includes(w)) && want.every((w) => px.text.includes(sq(w))) && !dx.text.includes("ZZ_ANAMNEZ_A") && !px.text.includes("ZZ_ANAMNEZ_A") && dx.media.some((m) => m.equals(logoA.data)) && px.images >= 1, "Atlas Word ↔ PDF: aynı çözücü çıktısıyla aynı alanlar + logo; profil adı ikisinde de YOK", { w: want.filter((w) => !dx.text.includes(w)), p: want.filter((w) => !px.text.includes(sq(w))), img: px.images });
     }
 
     section("E — logo silinmiş / bozuk / başka uzmanın → logosuz, rapor 200");

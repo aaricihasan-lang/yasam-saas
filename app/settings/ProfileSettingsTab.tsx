@@ -310,11 +310,12 @@ export function ProfileSettingsTab({ readOnly: demoReadOnly, onDirtyChange }: { 
               </p>
               <p>
                 Refleksoloji, Kupa (protokol ve takvim) ve Gökyüzü Atlası (Word ve PDF) raporlarında, anahtar açıkken rapor sonuna
-                adınızın yer aldığı bir &quot;Hazırlayan&quot; imza bölümü eklenir (seçtiğiniz unvan, kurum, iletişim, logo ve dipnot ile).
+                bir &quot;Hazırlayan&quot; imza bölümü eklenir; adınız otomatik yazılmaz, yalnız seçtiğiniz unvan, kurum, iletişim, logo ve
+                dipnot yer alır.
               </p>
               <p>
                 Hacamat raporunda (Word ve PDF) formdaki &quot;Hazırlayan&quot; adı aynen kalır, profil adınızla değiştirilmez; bu alan
-                doluysa yalnız unvan, kurum, logo ve seçtiyseniz iletişim ile dipnot eklenir.
+                doluysa yalnız unvan, kurum ve logo eklenir, iletişim bilgisi ve dipnot eklenmez.
               </p>
               <p>Ansiklopediler, ders notları, stok ve arşiv dışa aktarımları bu kapsamda değildir. Anahtar kapalıyken hiçbir rapor değişmez.</p>
             </div>

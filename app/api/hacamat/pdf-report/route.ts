@@ -456,8 +456,8 @@ async function buildPdfBuffer(params: {
 /**
  * F3B — Hacamat raporu (Word + PDF AYNI kural) uzman markalaması. OWNER KARARI:
  *   - Formdaki serbest "Hazırlayan" (expertName) KORUNUR; profil adı ile EZİLMEZ (purpose "named-by-form" ad döndürmez).
- *   - Yalnız form adı DOLUYSA ve uzmanın rapor kimliği anahtarı açıksa: unvan / kurum / logo (+ Profilim'de görünür
- *     işaretliyse iletişim ve dipnot — NAMED_BY_FORM_INCLUDES_CONTACT_NOTE) rapor sonunda "Hazırlayan" kartında yer alır.
+ *   - Yalnız form adı DOLUYSA ve uzmanın rapor kimliği anahtarı açıksa: unvan / kurum / logo rapor sonunda "Hazırlayan"
+ *     kartında yer alır; iletişim ve dipnot otomatik EKLENMEZ (NAMED_BY_FORM_INCLUDES_CONTACT_NOTE = false).
  *   - Form adı boş / anahtar kapalı / profil yok / tablo yok → null → rapor bugünküyle birebir.
  * Sahip (tenant / kullanıcı) YALNIZ oturumdan (guard).
  */

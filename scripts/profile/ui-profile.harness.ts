@@ -155,7 +155,10 @@ async function main() {
         // F3B: Kademe B kapsamı ve kuralları metinde açıkça yazılı (Refleksoloji / Kupa / Atlas imza bölümü; Hacamat form adı korunur).
         const st = ((await c.page.getByTestId("profile-branding-status").textContent()) ?? "").replace(/\s+/g, " ");
         ok("V", `${width}px: Kademe B kapsamı (Refleksoloji, Kupa, Gökyüzü Atlası imza bölümü)`, st.includes("Refleksoloji, Kupa (protokol ve takvim) ve Gökyüzü Atlası (Word ve PDF) raporlarında") && st.includes("\"Hazırlayan\" imza bölümü eklenir"));
+        // Güvenli varsayılanlar (Owner, 10.11): Kademe B imza bölümünde ad otomatik yok; Hacamat'ta iletişim + dipnot yok.
+        ok("V", `${width}px: Kademe B imza bölümünde ad otomatik yazılmaz`, st.includes("adınız otomatik yazılmaz, yalnız seçtiğiniz unvan, kurum, iletişim, logo ve dipnot yer alır") && !st.includes("adınızın yer aldığı"));
         ok("V", `${width}px: Hacamat kuralı (form adı korunur, profil adıyla değiştirilmez)`, st.includes("Hacamat raporunda (Word ve PDF) formdaki \"Hazırlayan\" adı aynen kalır, profil adınızla değiştirilmez"));
+        ok("V", `${width}px: Hacamat'ta iletişim ve dipnot eklenmez`, st.includes("yalnız unvan, kurum ve logo eklenir, iletişim bilgisi ve dipnot eklenmez") && !st.includes("seçtiyseniz iletişim ile dipnot"));
         ok("V", `${width}px: eski "henüz bu kapsamda değildir" metni kalmadı`, !st.includes("henüz bu kapsamda değildir"));
       }
       const tabsBox = await c.page.locator("main button[aria-pressed]").evaluateAll((els) => els.map((e) => { const r = e.getBoundingClientRect(); const p = e.parentElement!.getBoundingClientRect(); return { l: Math.round(r.left), r: Math.round(r.right), pl: Math.round(p.left), pr: Math.round(p.right), sw: e.scrollWidth, cw: e.clientWidth }; }));

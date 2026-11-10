@@ -17,11 +17,11 @@
  *      "hd"          → unvan, kurum, logo (ad rapora yazılan preparedBy'dan gelir; iletişim/dipnot GÖSTERİLMEZ)
  *      "hd-relation" → unvan, kurum (logo / iletişim / dipnot yok)
  *      "signature"   → F3B Kademe B (Refleksoloji, Kupa, Gökyüzü Atlası Word/PDF): bu raporlar bugün uzman adı GÖSTERMEZ.
- *                      Anahtar açıkken rapor sonuna isteğe bağlı "Hazırlayan" imza bloğu: profil adı (OWNER KARARI —
- *                      `SIGNATURE_INCLUDES_PROFILE_NAME`), unvan, kurum, iletişim, dipnot, logo.
+ *                      Anahtar açıkken rapor sonuna isteğe bağlı "Hazırlayan" imza bloğu: unvan, kurum, iletişim, dipnot, logo;
+ *                      profil adı YOK (OWNER KURALI — `SIGNATURE_INCLUDES_PROFILE_NAME` = false).
  *      "named-by-form" → F3B Hacamat (Word + PDF): ad formdaki serbest "Hazırlayan" alanından gelir, profil adıyla EZİLMEZ
- *                      (ad hiç döndürülmez). Unvan, kurum, logo; iletişim + dipnot OWNER KARARI
- *                      (`NAMED_BY_FORM_INCLUDES_CONTACT_NOTE`). Çağıran yalnız form adı doluyken çağırır.
+ *                      (ad hiç döndürülmez). Unvan, kurum, logo; iletişim + dipnot YOK (OWNER KURALI —
+ *                      `NAMED_BY_FORM_INCLUDES_CONTACT_NOTE` = false). Çağıran yalnız form adı doluyken çağırır.
  *  - account: `{ fullName }` ya da `{ loadFullName }` (yalnız anahtar açıksa ve ad gerekiyorsa çağrılır → kapalıyken ek
  *    sorgu yok). Ad her zaman oturum sahibinin kendi kaydından okunur.
  */
@@ -37,18 +37,18 @@ assertServerOnly("lib/profile/reportBranding");
 export type ReportBrandingPurpose = "standard" | "hd" | "hd-relation" | "signature" | "named-by-form";
 
 /**
- * OWNER KARARI (F3B, 2026-11-10): Kademe B raporları (Refleksoloji / Kupa / Gökyüzü Atlası) bugün uzman adı göstermez; anahtar
- * açıkken eklenen "Hazırlayan" imza bloğu profil adını OTOMATİK yazar. `false` → imza bloğu adsız (yalnız unvan / kurum /
- * iletişim / dipnot / logo). Tek satırda kapatılabilir.
+ * OWNER KURALI (güvenli varsayılan, 2026-11-10 düzeltme turu): Kademe B raporları (Refleksoloji / Kupa / Gökyüzü Atlası) bugün
+ * uzman adı göstermez → markalama açıkken de profil adı İSTEMSİZ EKLENMEZ: `false` → "Hazırlayan" imza kartı adsızdır (yalnız
+ * uzmanın Profilim'de seçtiği unvan / kurum / iletişim / dipnot / logo). Ad yalnız Owner açıkça karar verirse `true` yapılır.
  */
-export const SIGNATURE_INCLUDES_PROFILE_NAME = true;
+export const SIGNATURE_INCLUDES_PROFILE_NAME = false;
 
 /**
- * OWNER KARARI (F3B, 2026-11-10): Hacamat raporunda (Word + PDF) form adı doluyken iletişim satırı ve uzman dipnotu da eklenir
- * (HD'den farklı: Hacamat takvimi danışana verilen seans belgesidir; iletişim / dipnot uzmanın Profilim'de AYRICA görünür
- * işaretlediği alanlardır). `false` → HD gibi yalnız unvan / kurum / logo. Tek satırda kapatılabilir.
+ * OWNER KURALI (güvenli varsayılan, 2026-11-10 düzeltme turu): Hacamat raporunda (Word + PDF) formdaki "Hazırlayan" adı korunur;
+ * iletişim satırı ve uzman dipnotu OTOMATİK EKLENMEZ: `false` → HD gibi yalnız unvan / kurum / logo. İletişim + dipnot yalnız
+ * Owner açıkça karar verirse `true` yapılır.
  */
-export const NAMED_BY_FORM_INCLUDES_CONTACT_NOTE = true;
+export const NAMED_BY_FORM_INCLUDES_CONTACT_NOTE = false;
 
 type Account = { fullName: string | null } | { loadFullName: () => Promise<string | null> };
 

@@ -47,6 +47,8 @@ const DEF_MID: Rgb = [71, 85, 105];
 const DEF_LIGHT: Rgb = [148, 163, 184];
 const DEF_FILL: Rgb = [248, 250, 252];
 const SZ = { label: 7, name: 11.5, line: 9, small: 7.8, sig: 6.6, noteHead: 7.6, note: 8.2 } as const;
+/** İmza çizgisi üstü boşluk (mm). Kompakt düzen (10.11): punto aynı; önceki 6 mm + ayrı "İmza" satırı. */
+const SIGN_GAP = 3.5;
 
 /**
  * Gömülü yazı tipinde karşılığı olmayan karakterleri atar (emoji, değişken seçici, ZWJ…). Türkçe ve Latin-1/Latin Genişletilmiş
@@ -101,8 +103,8 @@ function cardLines(doc: jsPDF, f: Fields, o: ExpertSignaturePdfOptions, textW: n
     ls.forEach((t, i) => out.push({ text: t, size, color, gapAfter: i === ls.length - 1 ? gapAfter : 0 }));
   };
   push(cardName(f, o) || null, SZ.name, ink, 0.8);
-  push(f.title, SZ.line, mid, 0.5);
-  push(f.organization, SZ.line, mid, 0.5);
+  // Kompakt düzen (Word kartıyla aynı): unvan ve kurum tek satırda ("unvan · kurum"; uzunsa sarılır).
+  push([f.title, f.organization].filter(Boolean).join("  ·  ") || null, SZ.line, mid, 0.5);
   push(f.contactLine, SZ.small, light, 0);
   return out;
 }
@@ -124,14 +126,15 @@ export function drawExpertSignaturePdf(doc: jsPDF, branding: ExpertBranding | nu
   const name = cardName(f, o);
   const hasCard = !!(name || f.title || f.organization || f.contactLine || f.logoPng);
   if (hasCard) {
-    const pad = 4;
+    const pad = 3; // kompakt düzen (10.11): önceki 4 mm
     const logoColW = f.logoPng ? 30 : 0;
     const textX = o.x + logoColW + pad;
     const textW = Math.max(30, o.width - logoColW - pad * 2);
     const label = pdfSafeText(o.label ?? "Hazırlayan").toLocaleUpperCase("tr-TR");
     const lines = cardLines(doc, f, o, textW);
     const labelH = SZ.label * LH + 1.6;
-    const sigH = 7 + SZ.sig * LH;
+    // İmza alanı: boşluk + "İmza" etiketi (çizginin üzerinde, solda) + çizgi — Word kartıyla aynı.
+    const sigH = SIGN_GAP + SZ.sig * LH + 0.8;
     const textH = labelH + linesHeight(lines) + sigH;
     const logo = f.logoPng ? fitLogo(f.logoPng, 24 * 10, 18 * 10) : null; // 0,1 mm birimiyle oran korunur
     const logoW = logo ? logo.width / 10 : 0;
@@ -166,14 +169,15 @@ export function drawExpertSignaturePdf(doc: jsPDF, branding: ExpertBranding | nu
       doc.text(l.text, textX, ty + l.size * LH * 0.8);
       ty += l.size * LH + l.gapAfter;
     }
-    // İmza alanı: ince çizgi + "İmza" etiketi (Word kartıyla aynı).
-    ty += 6;
+    // İmza alanı: "İmza" etiketi çizginin üzerinde, solda; altında ince çizgi (Word kartıyla aynı).
+    ty += SIGN_GAP;
+    doc.setFontSize(SZ.sig);
+    doc.setTextColor(...light);
+    doc.text("İmza", textX, ty + SZ.sig * LH * 0.8);
+    ty += SZ.sig * LH + 0.8;
     doc.setDrawColor(203, 213, 225);
     doc.setLineWidth(0.25);
     doc.line(textX, ty, textX + textW * 0.55, ty);
-    doc.setFontSize(SZ.sig);
-    doc.setTextColor(...light);
-    doc.text("İmza", textX, ty + 1 + SZ.sig * LH * 0.8);
     cursor.y = top + cardH;
   }
 

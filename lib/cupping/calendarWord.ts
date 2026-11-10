@@ -49,7 +49,7 @@ import type {
   CuppingCalendarPlanDay,
   CuppingDayColorKey,
 } from "@/lib/cupping/calendarTypes";
-import { expertSignatureBlock, expertBrandingFields, type ExpertBranding, type ExpertBrandingVariant } from "@/lib/docx/expertBranding";
+import { EXPERT_SIGNATURE_CARD_TWIPS as CARD, expertSignatureBlock, expertBrandingFields, type ExpertBranding, type ExpertBrandingVariant } from "@/lib/docx/expertBranding";
 
 export const WORD_CONTENT_TYPE =
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
@@ -815,7 +815,7 @@ function buildSignatureSection(branding: ExpertBranding | null | undefined, vari
 
 /**
  * F3B: imza kartının KONSERVATİF tahmini yüksekliği (twips). Markalama yoksa 0 (sayfa kararı bugünküyle birebir).
- * Kart: boşluk + etiket + ad + unvan + kurum + iletişim + imza çizgisi; logo kart yüksekliğini aşmaz (≤ 70 px).
+ * Kart: boşluk + etiket + ad + unvan · kurum + iletişim + imza çizgisi; logo kart yüksekliğini aşmaz (≤ 70 px).
  * Dipnot: başlık + satırlar (estLines ile konservatif sarma).
  */
 function estimateSignatureTwips(branding: ExpertBranding | null | undefined): number {
@@ -823,15 +823,16 @@ function estimateSignatureTwips(branding: ExpertBranding | null | undefined): nu
   if (!f) return 0;
   let h = 0;
   if (f.name || f.title || f.organization || f.contactLine || f.logoPng) {
-    h += 240 + 320 + 280; // önceki boşluk + hücre kenarları + etiket
+    // Kompakt kart (EXPERT_SIGNATURE_CARD_TWIPS): ayırıcı + hücre kenarları + etiket; unvan · kurum tek satır (sarılabilir).
+    h += CARD.gapBefore + 2 * CARD.padY + 240 + CARD.labelAfter;
     if (f.name) h += 330;
-    if (f.title) h += Math.max(1, Math.ceil(f.title.length / 60)) * 270;
-    if (f.organization) h += Math.max(1, Math.ceil(f.organization.length / 60)) * 270;
+    const cred = [f.title, f.organization].filter(Boolean).join("  ·  ");
+    if (cred) h += Math.max(1, Math.ceil(cred.length / 60)) * 270;
     if (f.contactLine) h += Math.max(1, Math.ceil(f.contactLine.length / 70)) * 240;
-    h += 560; // imza çizgisi + "İmza"
-    if (f.logoPng) h = Math.max(h, 240 + 320 + 1100);
+    h += CARD.signBefore + 240; // imza çizgisi üstü boşluk + "İmza" etiketli çizgi satırı
+    if (f.logoPng) h = Math.max(h, CARD.gapBefore + 2 * CARD.padY + 1100);
   }
-  if (f.note) h += 160 + 260 + estLines(f.note) * EST.NOTE_LINE + 60;
+  if (f.note) h += CARD.noteBefore + 260 + estLines(f.note) * EST.NOTE_LINE + 60;
   return h;
 }
 
