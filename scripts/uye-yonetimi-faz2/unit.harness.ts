@@ -155,9 +155,11 @@ console.log("\n[MEM-018] Terminoloji");
 ok(ROLE_LABELS.expert === "Uzman" && ROLE_LABELS.admin === "Yönetici", "rol etiketleri Türkçe");
 ok(APPROVAL_LABELS.pending === "Onay Bekliyor" && APPROVAL_LABELS.approved === "Onaylandı", "onay etiketleri");
 ok(PAYMENT_LABELS_UI.exempt === "Ödemeden Muaf" && PAYMENT_STATUS_LABELS.exempt === "Ödemeden Muaf", "ödeme muafiyeti ≠ güvenlik istisnası (ayrı kelime)");
-const listPage = read("app/admin/users/page.tsx");
+const listPage = read("app/admin/users/klasik/page.tsx");
+// Üye listesi V2 (app/admin/users/page.tsx) ham rol enum kontrolüne de dahildir.
+const listV2Page = read("app/admin/users/page.tsx");
 const detailPage = read("app/admin/users/[id]/page.tsx");
-const uiText = listPage + detailPage + read("components/admin/members/MemberBadges.tsx");
+const uiText = listPage + listV2Page + detailPage + read("components/admin/members/MemberBadges.tsx");
 ok(!/>\s*(expert|admin)\s*</.test(uiText) && !/"expert" : "admin"|isAdmin \? "admin" : "expert"/.test(uiText), "ham rol enum'u (expert/admin) UI metni olarak gösterilmez");
 ok(!/label: "Kayıt"|"Kayıt"\s*}/.test(listPage) && /label="Onay Durumu"/.test(listPage), "\"Kayıt\" filtresi → \"Onay Durumu\"");
 ok(!/Hazır Presetler/.test(detailPage) && /Hazır Ayarlar/.test(detailPage), "\"Hazır Presetler\" → \"Hazır Ayarlar\"");
