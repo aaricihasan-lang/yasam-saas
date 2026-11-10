@@ -109,7 +109,11 @@ jobs:
     env:
       NEXT_TELEMETRY_DISABLED: "1"
     steps:
+      # Tam geçmiş (önceki `checks` işi gibi): bazı regresyon testleri origin/main ile karşılaştırma yapar
+      # (ör. wt5/ux, manual-14-20/m14-routes, yebs-create-tradition-audit-rpc). Sığ checkout bu testleri düşürür.
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: ./.github/actions/kurulum
 
       # Regresyon testleri için yerel PostgREST (yalnız 127.0.0.1; production'a / Supabase'e / ücretli

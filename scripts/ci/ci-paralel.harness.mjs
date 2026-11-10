@@ -102,6 +102,11 @@ check(regBlok.includes(`--parca "\${{ matrix.parca }}/${N}"`) && regBlok.include
 check(kapiBlok.includes(`--parca-sayisi ${N}`), "kapı parça sayısı = matris", `N=${N}`);
 check(/upload-artifact@v4[\s\S]*name: regresyon-sonuc-\$\{\{ matrix\.parca \}\}/.test(regBlok) && /if: always\(\)\n\s+uses: actions\/upload-artifact/.test(regBlok), "parça sonucu her koşulda yüklenir");
 check(!/--only/.test(regBlok), "CI regresyonunda --only filtresi yok");
+// Önceki `checks` işi tam geçmişle (fetch-depth: 0) çalışıyordu; origin/main kullanan testler ve DB-02 buna dayanır.
+for (const j of ["regresyon", "guvenlik"]) {
+  const b = yml.slice(yml.indexOf(`\n  ${j}:`) + 1).split(/\n {2}[a-z0-9-]+:\n/)[0];
+  check(/uses: actions\/checkout@v4\n\s+with:\n\s+fetch-depth: 0/.test(b), `${j}: tam git geçmişi (fetch-depth: 0, önceki checks ile aynı)`);
+}
 for (const j of ["typescript", "build", "guvenlik", "regresyon", "astro-pro", "horary-western"]) {
   const b = yml.slice(yml.indexOf(`\n  ${j}:`) + 1).split(/\n {2}[a-z0-9-]+:\n/)[0];
   check(b.includes("uses: ./.github/actions/kurulum"), `${j}: ortak kurulum (ffmpeg önbellek + SHA-256 + npm ci)`);
