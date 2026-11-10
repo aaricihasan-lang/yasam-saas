@@ -37,10 +37,11 @@ import { getUserLocationPref, saveUserLocationPref, type UserLocationPref } from
 import { BackupTab, ExportTab, RestoreTab } from "./BackupSections";
 import MySessionsPanel from "@/components/settings/MySessionsPanel";
 import { WorkspaceSettingsTab, useWorkspaceAccess } from "./WorkspaceSettingsTab";
+import { PROFILE_LEAVE_MESSAGE, PROFILE_TAB_ICON, ProfileSettingsTab } from "./ProfileSettingsTab";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type Tab = "security" | "location" | "contact" | "export" | "backup" | "restore" | "workspace";
+type Tab = "security" | "profile" | "location" | "contact" | "export" | "backup" | "restore" | "workspace";
 
 type SupportMessage = {
   id: string;
@@ -57,6 +58,7 @@ type SupportMessage = {
 
 const TABS: { id: Tab; label: string; icon: React.ElementType }[] = [
   { id: "security",  label: "Hesap Güvenliği",    icon: KeyRound      },
+  { id: "profile",   label: "Profilim",           icon: PROFILE_TAB_ICON },
   { id: "location",  label: "Konum",               icon: MapPin        },
   { id: "contact",   label: "Admin ile İrtibat",   icon: MessageSquare },
   { id: "export",    label: "Dışa Aktarım",        icon: FileText      },
@@ -636,6 +638,8 @@ export default function SettingsPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const user = useMemo<YasamUser | null>(() => (checked ? readYasamUser() : null), [checked, storedUserRaw]);
   const [tab,     setTab]     = useState<Tab>("security");
+  // Profilim: kaydedilmemiş değişiklik varken sekme değişimi onay ister.
+  const [profileDirty, setProfileDirty] = useState(false);
   const workspaceAccess = useWorkspaceAccess(!!user);
   const tabs = workspaceAccess.status === "on" ? [...TABS, WORKSPACE_TAB] : TABS;
 
@@ -691,9 +695,10 @@ export default function SettingsPage() {
         </header>
 
         {/* Mobil: 2 sütun · tablet (md): 3 sütun · lg+: tek satır eşit genişlikte sekmeler.
-            (md'de tek satır 768–1000px arasında son sekmeyi ekran dışına itiyordu.) */}
+            (md'de tek satır 768–1000px arasında son sekmeyi ekran dışına itiyordu.)
+            lg: sığmayan sekme alt satıra iner (flex-wrap) — 1024–1279px arasında kapsayıcı dışına taşma olmaz. */}
         <div className="mb-5">
-          <div className="grid grid-cols-2 gap-1.5 rounded-2xl border border-white/80 bg-white/70 p-2 shadow-md backdrop-blur-xl md:grid-cols-3 lg:flex lg:gap-1.5">
+          <div className="grid grid-cols-2 gap-1.5 rounded-2xl border border-white/80 bg-white/70 p-2 shadow-md backdrop-blur-xl md:grid-cols-3 lg:flex lg:flex-wrap lg:gap-1.5">
             {tabs.map((t, idx) => {
               const Icon = t.icon;
               const isActive = tab === t.id;
@@ -702,7 +707,10 @@ export default function SettingsPage() {
                   key={t.id}
                   type="button"
                   aria-pressed={isActive}
-                  onClick={() => setTab(t.id)}
+                  onClick={() => {
+                    if (tab === "profile" && t.id !== "profile" && profileDirty && !window.confirm(PROFILE_LEAVE_MESSAGE)) return;
+                    setTab(t.id);
+                  }}
                   className={[
                     "flex items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-xs font-bold transition-all duration-200",
                     "md:text-sm lg:flex-1 lg:whitespace-nowrap",
@@ -753,6 +761,7 @@ export default function SettingsPage() {
           ) : (
             <>
               {tab === "security"  && <SecurityTabWithSessions user={user} />}
+              {tab === "profile"   && <ProfileSettingsTab readOnly={isDemo} onDirtyChange={setProfileDirty} />}
               {tab === "location"  && <LocationTab user={user} />}
               {tab === "contact"   && <ContactTab  user={user} />}
               {tab === "export"    && <ExportTab   user={user} />}
