@@ -3,7 +3,7 @@
  * Çalıştır: npx tsx scripts/workspace/schema.test.ts
  */
 import { randomUUID } from "node:crypto";
-import { FAVORITE_KEYS, FAVORITES_MAX, HIDEABLE_KEYS, HISTORY_MAX, WORKSPACE_CENTERS } from "../../lib/workspace/catalog";
+import { bandTier, FAVORITE_KEYS, FAVORITES_MAX, HIDEABLE_KEYS, HISTORY_MAX, WORKSPACE_CENTERS } from "../../lib/workspace/catalog";
 import { checkDesignContrast, contrastRatio, heroBackground } from "../../lib/workspace/contrast";
 import { isWorkspaceDesignEnabled } from "../../lib/workspace/flags";
 import { DEFAULT_UI_PREFS, parseDesign, parseExpectedVersion, parseUiPrefs } from "../../lib/workspace/schema";
@@ -181,6 +181,90 @@ ok(!ld.ok, "okunamayan eski geçmiş taslağa yüklenemez (hata, veri silinmez)"
   rej("ölçek alt sınırı (0,5)", { layout: "C", bg: { frameFit: "fit", frameZoom: 0.3 } }, /bg\.frameZoom/);
   rej("ölçek üst sınırı (2,5)", { layout: "C", bg: { frameFit: "fit", frameZoom: 3 } }, /bg\.frameZoom/);
   rej("ölçek sayı olmalı", { layout: "C", bg: { frameZoom: "1" } }, /bg\.frameZoom/);
+}
+
+// ── V2 Karşılama alanı: genişlik / hiza / göster-gizle (Owner talebi 2026-11-09) ──
+{
+  const eski = parseDesign({ layout: "B", bg: { mode: "theme", theme: "lavanta" }, text: { useGreeting: false, lines: [{ id: "a", role: "title", text: "Ofis" }] } });
+  ok(eski.ok && !("band" in eski.value), "eski kayıt (alan yok) → çıktıda band YOK (eski tasarım birebir aynı)", eski);
+  const yeniden = eski.ok ? parseDesign(eski.value) : null;
+  ok(!!yeniden && yeniden.ok && eski.ok && JSON.stringify(yeniden.value) === JSON.stringify(eski.value), "eski kayıt yeniden doğrulamada değişmez (geri-ileri kararlı)");
+  const tam = parseDesign({ layout: "C", band: { visible: false, width: 70, align: "right" } });
+  ok(tam.ok && tam.value.band?.visible === false && tam.value.band.width === 70 && tam.value.band.align === "right", "gizli + %70 + sağ kabul edilir", tam);
+  const bos = parseDesign({ layout: "A", band: {} });
+  ok(bos.ok && JSON.stringify(bos.value.band) === JSON.stringify({ visible: true, width: 100, align: "left" }), "boş band → varsayılan (görünür, tam genişlik, sol)", bos);
+  for (const lay of ["A", "B", "C"] as const) for (const wv of [60, 100]) {
+    const r = parseDesign({ layout: lay, band: { visible: true, width: wv, align: "center" } });
+    ok(r.ok && r.value.band?.width === wv, `${lay} düzeni · en ${wv === 60 ? "dar (%60)" : "geniş (%100)"} ölçü kabul edilir`, r);
+  }
+  rej("genişlik alt sınırı (%60)", { layout: "A", band: { width: 55 } }, /band\.width/);
+  rej("genişlik üst sınırı (%100)", { layout: "A", band: { width: 105 } }, /band\.width/);
+  rej("genişlik 5'in katı olmalı", { layout: "A", band: { width: 72 } }, /band\.width/);
+  rej("genişlik tam sayı olmalı", { layout: "A", band: { width: 62.5 } }, /band\.width/);
+  rej("genişlik serbest CSS değeri olamaz (\"80%\")", { layout: "A", band: { width: "80%" } }, /band\.width/);
+  rej("genişlik serbest CSS değeri olamaz (\"calc(...)\")", { layout: "A", band: { width: "calc(100% - 1px)" } }, /band\.width/);
+  rej("genişlik NaN / Infinity olamaz", { layout: "A", band: { width: Number.POSITIVE_INFINITY } }, /band\.width/);
+  rej("bilinmeyen hiza", { layout: "A", band: { align: "justify" } }, /band\.align/);
+  rej("görünürlük true/false olmalı", { layout: "A", band: { visible: "no" } }, /band\.visible/);
+  rej("band içinde bilinmeyen alan (css) reddedilir", { layout: "A", band: { width: 80, css: "width:1px" } }, /band\.css/);
+  rej("band nesne olmalı", { layout: "A", band: 80 }, /design\.band/);
+  rej("band null olamaz", { layout: "A", band: null }, /design\.band/);
+  // Gizleme metin / fotoğraf / logo / tasarım ayarlarını silmez
+  const zengin = { layout: "A", logo: { assetId: randomUUID(), plate: "cam" }, text: { useGreeting: false, align: "center", lines: [{ id: "a", role: "title", text: "Merhaba" }] }, bg: { mode: "photo", photoAssetId: randomUUID(), overlay: 0.5 } };
+  const acik = parseDesign(zengin, { allowAssets: true });
+  const kapali = parseDesign({ ...zengin, band: { visible: false, width: 80, align: "center" } }, { allowAssets: true });
+  ok(acik.ok && kapali.ok && JSON.stringify({ ...kapali.value, band: undefined }) === JSON.stringify(acik.value), "gizli band: metin, fotoğraf, logo ve diğer ayarlar aynen korunur", { acik, kapali });
+  // Taslak → Uygula → Geçmiş → Geri yükle → Sıfırla (durum geçişi)
+  const B = (band: unknown) => { const r = parseDesign(band === undefined ? { layout: "A" } : { layout: "A", band }); if (!r.ok) throw new Error("band"); return r.value; };
+  const bandOf = (v: unknown) => (v as { band?: { visible: boolean } } | null)?.band;
+  let st: RawDesign = { applied: null, draft: null, history: [] };
+  const sd2 = nextDesignState(st, { action: "saveDraft", draft: B({ visible: false }) }, now);
+  ok(sd2.ok && bandOf(sd2.next.draft)?.visible === false && sd2.next.applied === null, "taslak: gizli band taslakta, uygulanan değişmez");
+  if (sd2.ok) st = sd2.next;
+  const ap = nextDesignState(st, { action: "apply" }, now);
+  ok(ap.ok && bandOf(ap.next.applied)?.visible === false, "Uygula: gizli band kalıcı (applied)");
+  if (ap.ok) st = ap.next;
+  const ap2 = nextDesignState(st, { action: "apply", draft: B({ width: 75, align: "center" }) }, now);
+  ok(ap2.ok && bandOf((ap2.next.history[0] as { design: unknown }).design)?.visible === false, "yeni Uygula: önceki (gizli) tasarım geçmişte");
+  if (ap2.ok) st = ap2.next;
+  const back = nextDesignState(st, { action: "restore", historyId: (st.history[0] as { id: string }).id }, now);
+  ok(back.ok && bandOf(back.next.applied)?.visible === false, "geçmişten geri yükle: gizli band geri gelir");
+  const rs0 = nextDesignState(st, { action: "reset" }, now);
+  ok(rs0.ok && rs0.next.applied === null, "Sıfırla: applied null → varsayılan görünüm (karşılama görünür, tam genişlik)");
+  // Sunucu kontrast kapısı band'dan etkilenmez
+  ok(checkDesignContrast(B({ visible: false })).length === checkDesignContrast(B(undefined)).length, "kontrast kapısı band ayarından bağımsız");
+}
+
+// ── V3 Karşılama alanı: yükseklik + üst boşluk; gizliyken kontrast kapısı (Owner talebi 2026-11-09) ──
+{
+  const v2 = parseDesign({ layout: "A", band: { visible: true, width: 70, align: "center" } });
+  ok(v2.ok && JSON.stringify(v2.value.band) === JSON.stringify({ visible: true, width: 70, align: "center" }), "V2 kaydı (height/top yok) → çıktı birebir aynı", v2);
+  const h = parseDesign({ layout: "C", band: { height: 40, top: 0 } });
+  ok(h.ok && h.value.band?.height === 40 && h.value.band.top === 0, "en ince 40 px + üst boşluk 0 kabul edilir", h);
+  const h2 = parseDesign({ layout: "B", band: { visible: true, width: 100, align: "left", height: 320, top: 40 } });
+  ok(h2.ok && h2.value.band?.height === 320 && h2.value.band.top === 40, "en yüksek 320 px + üst boşluk 40 kabul edilir", h2);
+  rej("yükseklik alt sınırı (40)", { layout: "A", band: { height: 36 } }, /band\.height/);
+  rej("yükseklik üst sınırı (320)", { layout: "A", band: { height: 324 } }, /band\.height/);
+  rej("yükseklik 4 px adımlı", { layout: "A", band: { height: 42 } }, /band\.height/);
+  rej("yükseklik serbest CSS olamaz (\"1cm\")", { layout: "A", band: { height: "1cm" } }, /band\.height/);
+  rej("yükseklik null olamaz", { layout: "A", band: { height: null } }, /band\.height/);
+  rej("üst boşluk negatif olamaz (araç çubuğuna taşmaz)", { layout: "A", band: { top: -2 } }, /band\.top/);
+  rej("üst boşluk üst sınırı (40)", { layout: "A", band: { top: 42 } }, /band\.top/);
+  rej("üst boşluk 2 px adımlı", { layout: "A", band: { top: 3 } }, /band\.top/);
+  ok(bandTier(undefined) === null && bandTier(40) === "row" && bandTier(84) === "row" && bandTier(88) === "stack" && bandTier(196) === "stack" && bandTier(200) === "full" && bandTier(320) === "full", "yükseklik kademesi: <88 tek satır, <200 kompakt, ≥200 tam içerik");
+  // Normal'e dönünce eski metin / tarih / fotoğraf / logo ayarı eksiksiz: yükseklik yalnız band'da, başka alana dokunmaz
+  const zengin = { layout: "A", logo: { assetId: randomUUID(), plate: "cam" }, text: { useGreeting: false, showDate: true, lines: [{ id: "a", role: "title", text: "Merhaba" }, { id: "b", role: "body", text: "Alt metin" }] }, bg: { mode: "photo", photoAssetId: randomUUID() } };
+  const ince = parseDesign({ ...zengin, band: { visible: true, width: 100, align: "left", height: 40 } }, { allowAssets: true });
+  const normal = parseDesign(zengin, { allowAssets: true });
+  ok(ince.ok && normal.ok && JSON.stringify({ ...ince.value, band: undefined }) === JSON.stringify(normal.value), "ince şerit: metin, tarih, fotoğraf, logo ayarları aynen saklanır");
+  // Gizli alan: karşılama satırı kontrastı gizlemeyi kilitlemez; görünürken aynı kural çalışır
+  const zayif = { layout: "A", bg: { mode: "theme", theme: "lavanta" }, text: { useGreeting: false, lines: [{ id: "a", role: "body", text: "soluk", color: "#ffffff" }] } };
+  const gorunur = parseDesign(zayif);
+  const gizli = parseDesign({ ...zayif, band: { visible: false } });
+  ok(gorunur.ok && checkDesignContrast(gorunur.value).length === 1, "görünür alanda soluk satır yakalanır (kural aynen)");
+  ok(gizli.ok && checkDesignContrast(gizli.value).length === 0, "gizli alanda karşılama satırı kontrastı gizlemeyi kilitlemez");
+  const markaGizli = parseDesign({ layout: "A", brand: { accent: "#7c3aed", soft: "#f4effd", ink: "#f0f0f0" }, band: { visible: false } });
+  ok(markaGizli.ok && checkDesignContrast(markaGizli.value).length === 1, "gizli alanda marka paleti denetimi sürer (sayfanın diğer yerleri)");
 }
 
 console.log(`\nworkspace schema test: ${pass} PASS / ${fail} FAIL`);

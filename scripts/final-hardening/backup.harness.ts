@@ -11,7 +11,12 @@
  *  - tekrar restore → hepsi already_present; v2.1 + support_messages kabul (400 yok)
  *  - saldırgan: sahte tenant_id / bilinmeyen kolon / başka tenant FK / başka tenant storage yolu /
  *    lisanssız modül / üyelik pasif / başka tenant id çakışması; UPDATE/DELETE hiç çağrılmaz
- *  - Word arşivi: tam metin, UUID gizli, bütçe aşımı dürüst hata
+ *  - Word arşivi: tam metin, UUID gizli, bütçe aşımı dürüst hata; XML kontrol karakteri temizliği; sağlayıcı alanları gizli
+ *  - Kullanıcı bazlı (ownerScope) tablolar: aynı tenant'taki başka uzmanın Gökyüzü Atlası kaydı okunmaz/yazılmaz
+ *  - Bileşik PK keyset (human_design_relation_participants: (analysis_id, position)) sayfalama + geri yükleme
+ *
+ * CI: BACKUP_PROD_TABLES_OPTIONAL=1 → prod tablo listesine bağlı 3 kontrol "ATLANDI" sayılır (PASS DEĞİL; özet satırında
+ * ayrıca yazılır). Liste dosyası verilirse (yerel / owner) bu kontroller her zaman koşar ve FAIL edebilir.
  */
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
@@ -51,9 +56,16 @@ import { renderSchemaModule } from "./backup-schema-gen";
 const ROOT = process.cwd();
 let pass = 0;
 let fail = 0;
-async function t(name: string, fn: () => void | Promise<void>) {
+let skipped = 0;
+const SKIP = Symbol("skip");
+async function t(name: string, fn: () => void | Promise<void> | typeof SKIP | Promise<typeof SKIP>) {
   try {
-    await fn();
+    const r = await fn();
+    if (r === SKIP) {
+      skipped++;
+      console.log(`ATLANDI ${name}: prod tablo listesi yok (BACKUP_PROD_TABLES_OPTIONAL=1) — PASS sayılmaz`);
+      return;
+    }
     pass++;
   } catch (e) {
     fail++;
@@ -129,7 +141,9 @@ class FakeDb {
   }
 }
 
-type Filter = { kind: "eq" | "in" | "gt"; col: string; val: unknown };
+type Filter =
+  | { kind: "eq" | "in" | "gt"; col: string; val: unknown }
+  | { kind: "keyset2"; a: string; va: string; b: string; vb: string };
 
 function cmp(a: unknown, b: unknown): number {
   if (typeof a === "number" && typeof b === "number") return a - b;
@@ -140,7 +154,7 @@ function cmp(a: unknown, b: unknown): number {
 
 class FakeQuery implements PromiseLike<{ data: unknown; error: unknown; count?: number | null }> {
   private filters: Filter[] = [];
-  private orderCol: string | null = null;
+  private orderCols: string[] = [];
   private lim: number | null = null;
   private cols = "*";
   private head = false;
@@ -169,8 +183,15 @@ class FakeQuery implements PromiseLike<{ data: unknown; error: unknown; count?: 
     this.filters.push({ kind: "gt", col, val });
     return this;
   }
+  /** Yalnız motorun bileşik keyset biçimi: `a.gt.X,and(a.eq.X,b.gt.Y)` (başka biçim → hata). */
+  or(expr: string) {
+    const m = /^([a-z_]+)\.gt\.([^,()]+),and\(\1\.eq\.\2,([a-z_]+)\.gt\.([^,()]+)\)$/.exec(expr);
+    if (!m) throw new Error(`desteklenmeyen or(): ${expr}`);
+    this.filters.push({ kind: "keyset2", a: m[1], va: m[2], b: m[3], vb: m[4] });
+    return this;
+  }
   order(col: string) {
-    this.orderCol = col;
+    this.orderCols.push(col);
     return this;
   }
   limit(n: number) {
@@ -196,6 +217,11 @@ class FakeQuery implements PromiseLike<{ data: unknown; error: unknown; count?: 
   }
   private match(r: Row): boolean {
     return this.filters.every((f) => {
+      if (f.kind === "keyset2") {
+        const ca = cmp(r[f.a], typeof r[f.a] === "number" ? Number(f.va) : f.va);
+        const cb = cmp(r[f.b], typeof r[f.b] === "number" ? Number(f.vb) : f.vb);
+        return ca > 0 || (ca === 0 && cb > 0);
+      }
       if (f.kind === "eq") return r[f.col] === f.val;
       if (f.kind === "in") return (f.val as unknown[]).map(String).includes(String(r[f.col]));
       return r[f.col] !== null && r[f.col] !== undefined && cmp(r[f.col], f.val) > 0;
@@ -249,9 +275,15 @@ class FakeQuery implements PromiseLike<{ data: unknown; error: unknown; count?: 
     }
     let rows = this.db.rows(this.table).filter((r) => this.match(r));
     if (this.head) return { data: null, error: null, count: this.count ? rows.length : null };
-    if (this.orderCol) {
-      const oc = this.orderCol;
-      rows = rows.slice().sort((a, b) => cmp(a[oc], b[oc]));
+    if (this.orderCols.length) {
+      const ocs = this.orderCols;
+      rows = rows.slice().sort((a, b) => {
+        for (const oc of ocs) {
+          const c = cmp(a[oc], b[oc]);
+          if (c !== 0) return c;
+        }
+        return 0;
+      });
     }
     const lim = Math.min(this.lim ?? Number.MAX_SAFE_INTEGER, this.db.cap);
     rows = rows.slice(0, lim);
@@ -289,7 +321,7 @@ function uid(prefix: string): string {
 const ALL_MODULES = {
   clients: true, appointments: true, numerology: true, stones: true, stok: true, sifa_rehberi: true,
   energy_body: true, reflexology: true, aromatherapy: true, personal_archive: true, human_design: true,
-  cupping: true, beslenme: true, cosmic_calendar: true,
+  cupping: true, beslenme: true, cosmic_calendar: true, astrology: true,
 };
 const ctxA = (over: Partial<RestoreContext> = {}): RestoreContext => ({
   tenantId: TA,
@@ -363,7 +395,13 @@ function serviceFetcher(db: FakeDb, ctx: RestoreContext, log?: PageLog[]): JsonF
     let json: unknown;
     if (u.pathname === "/api/settings/backup") json = buildBackupPlan(ctx.tenantId, new Date("2026-09-26T22:30:00Z"));
     else if (u.pathname === "/api/settings/backup/table") {
-      const r = await handleBackupTableRequest(asDb(db), ctx.tenantId, u.searchParams.get("name"), u.searchParams.get("cursor"));
+      const r = await handleBackupTableRequest(
+        asDb(db),
+        ctx.tenantId,
+        u.searchParams.get("name"),
+        u.searchParams.get("cursor"),
+        ctx.userId,
+      );
       status = r.status;
       json = r.body;
       const b = r.body as { table: string; rows: Row[]; done: boolean };
@@ -394,6 +432,8 @@ function serviceFetcher(db: FakeDb, ctx: RestoreContext, log?: PageLog[]): JsonF
 // Dosya yoksa prod-bağımlı testler AÇIKÇA FAIL eder (PASS sayılmaz); diğer testler yine çalışır.
 const PROD_TABLES_FILE = process.env.BACKUP_PROD_TABLES_FILE ?? join(ROOT, ".hardening/prod-tables.md");
 const PROD_TABLES_MISSING = `prod tablo listesi yok (${PROD_TABLES_FILE}) — kontrol YAPILAMADI (PASS değil); scripts/final-hardening/prod-tables-query.sql çıktısıyla sağlayın`;
+/** CI'da prod erişimi yok: liste dosyası YOKSA prod-bağımlı kontroller ATLANIR (PASS sayılmaz, özet satırında görünür). */
+const PROD_TABLES_OPTIONAL = process.env.BACKUP_PROD_TABLES_OPTIONAL === "1";
 
 function prodTableNames(): { names: string[]; patterns: RegExp[]; tenantTables: Set<string> } | null {
   if (!existsSync(PROD_TABLES_FILE)) return null;
@@ -463,12 +503,14 @@ function codeFromTables(): string[] {
 
   const prod = prodTableNames();
   await t("registry: prod-tables.md'deki her tablo sınıflandırılmış", () => {
+    if (!prod && PROD_TABLES_OPTIONAL) return SKIP;
     assert.ok(prod, PROD_TABLES_MISSING);
     assert.ok(prod.names.length > 150, `prod listesi ayrıştırılamadı (${prod.names.length})`);
     const missing = prod.names.filter((n) => !isClassified(n));
     assert.deepEqual(missing, [], `sınıflandırılmamış: ${missing.join(", ")}`);
   });
   await t("registry: prod wildcard (hd_canonical_*, yebs_*) kapsanıyor", () => {
+    if (!prod && PROD_TABLES_OPTIONAL) return SKIP;
     const mig = parseMigrationsWithDynamic(join(ROOT, "supabase/migrations"));
     assert.ok(prod, PROD_TABLES_MISSING);
     for (const re of prod.patterns) {
@@ -498,7 +540,12 @@ function codeFromTables(): string[] {
       const src = readFileSync(f, "utf8");
       if (/^\s*["']use client["']/.test(src)) assert.ok(!/ownerPilotTables/.test(src), `istemci dosyası owner-pilot listesini import ediyor: ${f}`);
     }
-    assert.ok(!/astro_/.test(readFileSync(join(ROOT, "lib/backup/registry.ts"), "utf8")), "registry.ts (istemci paketi) astro_ tablo adı içeriyor");
+    // 2026-11-09 Owner kararı: Gökyüzü Atlası (astro_*) uzmanlara açık → registry'ye taşındı (artık pilot değil). Kural genelleşti:
+    // owner-pilot listesindeki HİÇBİR tablo adı istemci paketine giren registry.ts kaynağında geçmez.
+    const regSrc = readFileSync(join(ROOT, "lib/backup/registry.ts"), "utf8");
+    for (const e of OWNER_PILOT_EXCLUDED_TABLES) {
+      assert.ok(!regSrc.includes(`"${e.table}"`), `registry.ts (istemci paketi) owner-pilot tablo adı içeriyor: ${e.table}`);
+    }
   });
   await t("registry: _bak_* excluded ve asla dışa aktarılmaz", () => {
     const baks = BACKUP_REGISTRY.filter((e) => e.table.startsWith("_bak_"));
@@ -511,6 +558,7 @@ function codeFromTables(): string[] {
     assert.ok(!buildBackupPlan(TA).tables.some((x) => x.table.startsWith("_bak_")));
   });
   await t("registry: prod'da tenant_id olan dışa aktarılabilir tablolar direct, olmayanlar child_of", () => {
+    if (!prod && PROD_TABLES_OPTIONAL) return SKIP;
     assert.ok(prod, PROD_TABLES_MISSING);
     for (const e of BACKUP_REGISTRY.filter(isExportable)) {
       if (prod.tenantTables.has(e.table)) assert.equal(e.tenantScope, "direct", e.table);
@@ -533,12 +581,14 @@ function codeFromTables(): string[] {
     // prod-doğrulanmış generated kolonların tablosu registry'de olmalı
     for (const tbl of Object.keys(PROD_GENERATED_COLUMNS)) assert.ok(getRegistryEntry(tbl), tbl);
   });
-  await t("registry: keyset tek kolon + FK ebeveynleri bilinen tablolar + topolojik sıra", () => {
+  await t("registry: keyset (tek kolon veya PK sırasıyla 2 kolon) + FK ebeveynleri bilinen tablolar + topolojik sıra", () => {
     const order = topologicalOrder().map((e) => e.table);
     const pos = new Map(order.map((n, i) => [n, i]));
     for (const e of BACKUP_REGISTRY.filter(isExportable)) {
-      assert.equal(e.orderBy.length, 1, `${e.table} orderBy`);
-      assert.ok(e.pk.filter((c) => c !== "tenant_id").length <= 1, `${e.table} pk`);
+      const pkCols = e.pk.filter((c) => c !== "tenant_id");
+      assert.ok(pkCols.length <= 2, `${e.table} pk`);
+      if (pkCols.length === 2) assert.deepEqual([...e.orderBy], pkCols, `${e.table} orderBy bileşik PK sırası olmalı`);
+      else assert.equal(e.orderBy.length, 1, `${e.table} orderBy`);
       for (const p of e.fkParents) {
         const pe = getRegistryEntry(p.table);
         assert.ok(pe, `${e.table}.${p.column} → bilinmeyen ${p.table}`);
@@ -563,9 +613,13 @@ function codeFromTables(): string[] {
     const mig = parseMigrationsWithDynamic(join(ROOT, "supabase/migrations"));
     // Bilinçli istisnalar: composite (tenant, protocol, point) referansı non-id kolona (DB zorlar; satır
     // izolasyonunda fk_violation olarak raporlanır) ve aynı tabloya işaret eden selfRef'ler.
+    // Atlas: kayıtlı analiz → revizyon bileşik FK'si (tenant, profile_id, revision) non-id; sıra ve varlık
+    // `profile_id → astro_birth_profile_revisions(profile_id)` ebeveyniyle sağlanır, revizyon numarasını DB zorlar.
     const EXCEPT = new Set([
       "cupping_protocol_steps.ref_point_id",
       "cupping_protocol_steps.ref_technique_id",
+      "astro_analyses.profile_revision",
+      "astro_analyses.partner_profile_revision",
     ]);
     const missing: string[] = [];
     for (const [name, tbl] of mig) {
@@ -984,7 +1038,269 @@ function codeFromTables(): string[] {
     assert.ok(ui.includes("Human Design görselleri dosyadan geri yüklenir"));
   });
 
-  console.log(`backup.harness: ${pass} PASS / ${fail} FAIL`);
+  // 7) Gökyüzü Atlası — uzman bazlı izolasyon (aynı tenant'ta iki uzman + başka tenant)
+  const UA2 = "aaaaaaaa-2222-4000-8000-00000000000a";
+  const UB = "bbbbbbbb-1111-4000-8000-00000000000b";
+  const ASTRO_TABLES = [
+    "astro_birth_profiles",
+    "astro_birth_profile_revisions",
+    "astro_kb_entries",
+    "astro_expert_notes",
+    "astro_analyses",
+    "astro_analysis_notes",
+    "astro_horary_questions",
+  ];
+  function seedAstro(db: FakeDb, tenant: string, owner: string, n: number, tag: string): { analyses: string[] } {
+    const analyses: string[] = [];
+    for (let i = 0; i < n; i++) {
+      const p = uid("ap");
+      db.seed("astro_birth_profiles", [{ id: p, tenant_id: tenant, owner_user_id: owner, created_by_user_id: owner, client_id: null, label: `${tag} profil ${i}`, current_revision: 1 }]);
+      db.seed("astro_birth_profile_revisions", [{ id: uid("ar"), tenant_id: tenant, owner_user_id: owner, created_by_user_id: owner, profile_id: p, revision: 1, birth_date: "1990-01-01", time_known: false, time_accuracy: "unknown", location_label: "İstanbul", latitude: 41, longitude: 29, timezone: "Europe/Istanbul", utc_offset_seconds: 7200, birth_utc: "1989-12-31T22:00:00Z" }]);
+      db.seed("astro_kb_entries", [{ id: uid("ak"), tenant_id: tenant, owner_user_id: owner, tradition: "western", topic_key: "natal:gunes", title: `${tag} KB ${i}`, body: "Güneş notu", revision: 1 }]);
+      db.seed("astro_expert_notes", [{ id: uid("an"), tenant_id: tenant, owner_user_id: owner, profile_id: p, technique: "western.natal", section_key: "overall", body: `${tag} not ${i}`, revision: 1 }]);
+      const a = uid("aa");
+      analyses.push(a);
+      db.seed("astro_analyses", [{ id: a, tenant_id: tenant, owner_user_id: owner, profile_id: p, profile_revision: 1, partner_profile_id: null, partner_profile_revision: null, client_id: null, result_id: null, technique: "western.natal", title: `${tag} analiz ${i}`, save_request_id: uid("as"), profile_snapshot: {}, method_snapshot: {}, technical_snapshot: { gunes: "Koç" }, versions_snapshot: {} }]);
+      db.seed("astro_analysis_notes", [{ id: uid("ao"), tenant_id: tenant, analysis_id: a, section_key: "overall", body: `${tag} yorum ${i}` }]);
+      db.seed("astro_horary_questions", [{ id: uid("ah"), tenant_id: tenant, owner_user_id: owner, client_id: null, title: `${tag} soru ${i}`, save_request_id: uid("aq"), result_snapshot: {} }]);
+    }
+    return { analyses };
+  }
+  const ownerOf = async (db: FakeDb, table: string, row: Row): Promise<string> => {
+    if (table !== "astro_analysis_notes") return String(row.owner_user_id);
+    return String(db.rows("astro_analyses").find((a) => a.id === row.analysis_id)?.owner_user_id);
+  };
+
+  await t("Atlas: dışa aktarım yalnız oturumdaki uzmanın kayıtları (aynı tenant'ta 2. uzman + başka tenant görünmez)", async () => {
+    const db = new FakeDb(7);
+    seedAstro(db, TA, UA, 12, "A");
+    seedAstro(db, TA, UA2, 9, "A2");
+    seedAstro(db, TB, UB, 5, "B");
+    for (const table of ASTRO_TABLES) {
+      const e = getRegistryEntry(table)!;
+      assert.ok(e.ownerScope, `${table} ownerScope`);
+      const mine = await exportTableAll(asDb(db), e, TA, { ownerUserId: UA });
+      assert.equal(mine.rows.length, 12, `${table}: UA satır sayısı`);
+      assert.equal(mine.expected_count, 12, `${table}: UA sayım`);
+      assert.ok(mine.complete, `${table}: tam`);
+      for (const r of mine.rows) {
+        assert.equal(r.tenant_id, TA, `${table}: tenant`);
+        assert.equal(await ownerOf(db, table, r), UA, `${table}: başka uzmanın satırı sızdı`);
+      }
+      const other = await exportTableAll(asDb(db), e, TA, { ownerUserId: UA2 });
+      assert.equal(other.rows.length, 9, `${table}: UA2 satır sayısı`);
+      const page = (await handleBackupTableRequest(asDb(db), TA, table, null, UA2)).body as { rows: Row[]; expected_count: number };
+      assert.equal(page.expected_count, 9, `${table}: route sayımı`);
+      for (const r of page.rows) assert.equal(await ownerOf(db, table, r), UA2, `${table}: route sızıntısı`);
+    }
+  });
+  await t("Atlas: kullanıcı kimliği yoksa okuma reddedilir (fail-closed), başka tablolar etkilenmez", async () => {
+    const db = new FakeDb(1000);
+    seedAstro(db, TA, UA, 2, "A");
+    for (const table of ASTRO_TABLES) {
+      const page = await fetchTablePage(asDb(db), getRegistryEntry(table)!, TA, null);
+      assert.equal(page.ok, false, table);
+      assert.equal(page.rows.length, 0, table);
+      assert.match(String(page.error), /kullanıcı bazlıdır/, table);
+      const all = await exportTableAll(asDb(db), getRegistryEntry(table)!, TA);
+      assert.equal(all.complete, false, `${table}: kimliksiz okuma tam sayılmamalı`);
+    }
+    db.seed("clients", [{ id: uid("cz"), tenant_id: TA, ad: "Z" }]);
+    const c = await exportTableAll(asDb(db), getRegistryEntry("clients")!, TA);
+    assert.ok(c.complete && c.rows.length === 1, "tenant tabloları kimliksiz okunmaya devam eder");
+  });
+  await t("Atlas: geri yükleme sahipliği oturumdaki uzmana zorlar; başka uzmanın analizine yorum eklenemez", async () => {
+    const src = new FakeDb(1000);
+    seedAstro(src, TA, UA, 4, "A");
+    const dst = new FakeDb(1000);
+    const ctx2 = ctxA({ userId: UA2 });
+    for (const table of topologicalOrder().map((e) => e.table).filter((x) => ASTRO_TABLES.includes(x))) {
+      const exp = await exportTableAll(asDb(src), getRegistryEntry(table)!, TA, { ownerUserId: UA });
+      const rep = await restoreChunk(asDb(dst), ctx2, table, exp.rows);
+      assert.equal(rep.inserted, 4, `${table}: ${JSON.stringify(rep.failed)} parent_missing=${rep.parent_missing}`);
+      if (table !== "astro_analysis_notes") for (const r of dst.rows(table)) assert.equal(r.owner_user_id, UA2, `${table}: sahiplik zorlanmadı`);
+    }
+    // UA'nın (hedefte var olan) analizine UA2 adına yorum: ebeveyn başka uzmanda → parent_missing, yazım yok
+    const foreign = seedAstro(dst, TA, UA, 1, "yabancı").analyses[0];
+    const before = dst.rows("astro_analysis_notes").length;
+    const rep = await restoreChunk(asDb(dst), ctx2, "astro_analysis_notes", [{ id: uid("ox"), tenant_id: TA, analysis_id: foreign, section_key: "overall", body: "sızma" }]);
+    assert.equal(rep.inserted, 0);
+    assert.equal(rep.parent_missing, 1);
+    assert.equal(dst.rows("astro_analysis_notes").length, before);
+    // Lisanssız uzman (astrology kapalı) → atlanır
+    const unl = await restoreChunk(asDb(dst), ctxA({ modulePermissions: { ...ALL_MODULES, astrology: false } }), "astro_kb_entries", [{ id: uid("ky"), owner_user_id: UA, tradition: "western", topic_key: "natal:ay", title: "x", body: "y" }]);
+    assert.equal(unl.status, "SKIPPED");
+    assert.equal(dst.forbidden.length, 0, "UPDATE/DELETE çağrılmamalı");
+  });
+
+  // 8) Bileşik PK keyset — HD İlişki Analizi katılımcıları (analysis_id, position)
+  function seedRelations(db: FakeDb, tenant: string, n: number): { analyses: Row[]; participants: Row[] } {
+    const analyses: Row[] = [];
+    const participants: Row[] = [];
+    for (let i = 0; i < n; i++) {
+      const id = uid("ra");
+      analyses.push({ id, tenant_id: tenant, user_id: UA, kind: "penta", member_count: 5, provider: "roxyapi", endpoint: "/x", adapter_version: "1", node_type: "n", lang: "tr", input_hash: `h${i}`, result: { ok: true }, provider_raw: { raw: 1 } });
+      for (let pos = 0; pos < 5; pos++) {
+        participants.push({ analysis_id: id, tenant_id: tenant, position: pos, client_id: null, client_name: `Kişi ${i}-${pos}`, source_chart_id: null });
+      }
+    }
+    db.seed("human_design_relation_analyses", analyses);
+    db.seed("human_design_relation_participants", participants);
+    return { analyses, participants };
+  }
+  await t("bileşik PK keyset: 1200 katılımcı (cap=300, sayfa 500) eksiksiz ve tekrarsız okunur; başka tenant görünmez", async () => {
+    const db = new FakeDb(300);
+    seedRelations(db, TA, 240);
+    seedRelations(db, TB, 3);
+    const e = getRegistryEntry("human_design_relation_participants")!;
+    assert.deepEqual([...e.orderBy], ["analysis_id", "position"]);
+    const r = await exportTableAll(asDb(db), e, TA);
+    assert.equal(r.rows.length, 1200);
+    assert.equal(r.expected_count, 1200);
+    assert.ok(r.complete);
+    assert.equal(new Set(r.rows.map((x) => `${x.analysis_id}|${x.position}`)).size, 1200, "tekrar / atlama yok");
+    assert.ok(r.rows.every((x) => x.tenant_id === TA));
+    const small = await exportTableAll(asDb(db), e, TA, { pageSize: 7 });
+    assert.equal(small.rows.length, 1200, "küçük sayfa (grup ortasından bölünme) kayıpsız");
+  });
+  await t("bileşik PK keyset: bozuk / enjeksiyonlu cursor reddedilir", async () => {
+    const db = new FakeDb(1000);
+    seedRelations(db, TA, 2);
+    const e = getRegistryEntry("human_design_relation_participants")!;
+    const bad = (k: unknown) => Buffer.from(JSON.stringify({ k, p: null }), "utf8").toString("base64url");
+    for (const k of ['["a,b)",1]', '["x"]', "not-json", '[{"x":1},2]']) {
+      const page = await fetchTablePage(asDb(db), e, TA, bad(k));
+      assert.equal(page.ok, false, k);
+      assert.equal(page.error, "Geçersiz cursor.", k);
+    }
+  });
+  await t("bileşik PK geri yükleme: 1200 katılımcı eklenir, tekrar → hepsi already_present (sahte çift kayıt yok)", async () => {
+    const src = new FakeDb(1000);
+    const { analyses, participants } = seedRelations(src, TA, 240);
+    const dst = new FakeDb(1000);
+    const ra = await restoreChunk(asDb(dst), ctxA(), "human_design_relation_analyses", analyses);
+    assert.equal(ra.inserted, 240);
+    let inserted = 0;
+    for (let i = 0; i < participants.length; i += 200) {
+      const rep = await restoreChunk(asDb(dst), ctxA(), "human_design_relation_participants", participants.slice(i, i + 200));
+      assert.deepEqual(rep.failed, [], JSON.stringify(rep.failed));
+      inserted += rep.inserted;
+    }
+    assert.equal(inserted, 1200);
+    const again = await restoreChunk(asDb(dst), ctxA(), "human_design_relation_participants", participants.slice(0, 200));
+    assert.equal(again.inserted, 0);
+    assert.equal(again.already_present, 200);
+    assert.equal(dst.rows("human_design_relation_participants").length, 1200);
+    // Başka tenant'ın (katılımcısız) analizine katılımcı → ebeveyn bu tenant'ta yok
+    const foreign = uid("rf");
+    dst.seed("human_design_relation_analyses", [{ id: foreign, tenant_id: TB, kind: "connection", member_count: 2, provider: "x", endpoint: "/x", adapter_version: "1", node_type: "n", lang: "tr", input_hash: "hf", result: {} }]);
+    const x = await restoreChunk(asDb(dst), ctxA(), "human_design_relation_participants", [{ analysis_id: foreign, position: 0, client_name: "x" }]);
+    assert.equal(x.inserted, 0);
+    assert.equal(x.parent_missing, 1);
+    // Başka tenant'ta AYNI (analysis_id, position) kimliği → yazılmaz, başka hesapta mevcut olarak raporlanır
+    const tb = seedRelations(dst, TB, 1).participants[0];
+    const y = await restoreChunk(asDb(dst), ctxA(), "human_design_relation_participants", [{ ...tb, tenant_id: TA }]);
+    assert.equal(y.inserted, 0);
+    assert.deepEqual(y.failed.map((f) => f.code), ["id_conflict_other_tenant"]);
+  });
+
+  // 9) Word: XML güvenliği + sağlayıcı / teknik alan gizliliği
+  const XML10_INVALID = /[\u0000-\u0008\u000B\u000C\u000E-\u001F￾￿]/;
+  await t("Word: XML'de izinsiz kontrol karakterleri temizlenir (belge açılabilir kalır)", async () => {
+    const entry = getRegistryEntry("client_notes")!;
+    const built = await buildArchiveDocx({
+      title: "Kontrol\u0007 Başlık",
+      modules: [{ key: "clients", label: "Danışan\u0008 Yolculuğu", tables: [{ entry, rows: [{ id: "1", title: "Word'den\u000Byapıştırıldı\u0001", notlar: "a\u000Cb￾c\uD800d" }], expected_count: 1, complete: true, error: null }] }],
+    });
+    const xml = await (await JSZip.loadAsync(built.buffer)).file("word/document.xml")!.async("string");
+    assert.ok(!XML10_INVALID.test(xml), "document.xml XML 1.0 dışı karakter içeriyor");
+    assert.ok(!/[\uD800-\uDBFF](?![\uDC00-\uDFFF])/.test(xml), "eşsiz vekil karakter");
+    assert.ok(xml.includes("Word&apos;den") && xml.includes("yapıştırıldı"), "metin korunur");
+    assert.ok(xml.includes("Kontrol Başlık"));
+  });
+  await t("Word: sağlayıcı markası / ham yanıt / teknik kimlikler belgeye çıkmaz; uzman içeriği korunur", async () => {
+    const rel = getRegistryEntry("human_design_relation_analyses")!;
+    const chart = getRegistryEntry("human_design_charts")!;
+    const an = getRegistryEntry("astro_analyses")!;
+    const built = await buildArchiveDocx({
+      title: "Gizlilik",
+      modules: [
+        {
+          key: "human_design",
+          label: "Human Design",
+          tables: [
+            { entry: chart, rows: [{ id: "c1", client_name: "Sentetik Kişi", type_code: "generator", provider: "roxyapi", provider_raw: { source: "roxyapi.com", gates: [1, 2] }, computed_result: { centers: { sacral: "tanımlı" }, provider: "roxyapi" }, engine_version: "ENGINE_E1X", input_hash: "deadbeefhash" }], expected_count: 1, complete: true, error: null },
+            { entry: rel, rows: [{ id: "r1", kind: "connection", provider: "roxyapi", endpoint: "/v1/hd/connection", adapter_version: "ADAPTER_V9X", input_hash: "abc123hash", result: { summary: "Uyumlu kanal 34-20", meta: { provider: "roxyapi", via: "Roxy API" } }, provider_raw: { secret: "HAM_YANIT_X" }, expert_comment: "Uzman yorumu ğüş", user_id: UA, expert_comment_updated_by: UA }], expected_count: 1, complete: true, error: null },
+          ],
+        },
+        {
+          key: "astrology",
+          label: "Gökyüzü Atlası",
+          tables: [{ entry: an, rows: [{ id: "a1", title: "Natal analiz", technique: "western.natal", owner_user_id: UA, save_request_id: "11111111-2222-4333-8444-555555555555", technical_snapshot: { gunes: "Koç", raw_response: { x: 1 } }, versions_snapshot: { provider_api_version: "PAPI_V9X" }, provider_interp_included: true }], expected_count: 1, complete: true, error: null }],
+        },
+      ],
+    });
+    const xml = await (await JSZip.loadAsync(built.buffer)).file("word/document.xml")!.async("string");
+    assert.ok(!/roxy/i.test(xml), "sağlayıcı markası belgede");
+    for (const bad of ["provider_raw", "raw_response", "HAM_YANIT_X", "deadbeefhash", "abc123hash", "/v1/hd/connection", "ADAPTER_V9X", "PAPI_V9X", "ENGINE_E1X", UA]) {
+      assert.ok(!xml.includes(bad), `teknik alan belgede: ${bad}`);
+    }
+    for (const good of ["Uzman yorumu ğüş", "Uyumlu kanal 34-20", "tanımlı", "Koç", "Natal analiz", "generator", "Sentetik Kişi"]) {
+      assert.ok(xml.includes(good), `uzman içeriği eksik: ${good}`);
+    }
+  });
+  await t("JSON yedek: sağlayıcı alanları geri yükleme uyumluluğu için korunur (yalnız Word'den gizlenir)", async () => {
+    const db = new FakeDb(1000);
+    seedRelations(db, TA, 1);
+    const r = await exportTableAll(asDb(db), getRegistryEntry("human_design_relation_analyses")!, TA);
+    assert.equal(r.rows[0].provider, "roxyapi");
+    assert.deepEqual(r.rows[0].provider_raw, { raw: 1 });
+    assert.ok(restoreAllowlist(getRegistryEntry("human_design_relation_analyses")!)!.includes("provider_raw"));
+  });
+  await t("registry: Gökyüzü Atlası + HD İlişki kapsamda, sağlayıcı önbelleği yedek dışı", () => {
+    for (const tbl of [...ASTRO_TABLES, "human_design_relation_analyses", "human_design_relation_participants", "human_design_relation_reports"]) {
+      const e = getRegistryEntry(tbl);
+      assert.ok(e && isExportable(e), `${tbl} dışa aktarılabilir olmalı`);
+    }
+    for (const tbl of ["astro_provider_results", "astro_provider_interpretations", "astro_unmapped_fields"]) {
+      const e = getRegistryEntry(tbl);
+      assert.ok(e && !isExportable(e), `${tbl} yedek dışı olmalı`);
+    }
+    assert.ok(buildBackupPlan(TA).tables.some((x) => x.table === "astro_analyses" && x.module === "astrology"));
+  });
+
+  // 10) Çok kullanıcılı tenant — uygulamanın KULLANICI bazında okuduğu kişisel kayıtlar
+  const USER_SCOPED = ["support_messages", "user_location_prefs", "expert_workspace_designs", "expert_ui_prefs", "expert_workspace_assets"];
+  await t("çok kullanıcılı tenant: kişisel kayıtlar (destek, konum, Kişisel Ofis) yalnız oturumdaki kullanıcıya dışa aktarılır", async () => {
+    const db = new FakeDb(1000);
+    for (const [u, tag] of [[UA, "BENİM"], [UA2, "BAŞKASININ"]] as const) {
+      db.seed("support_messages", [{ id: uid("sm"), tenant_id: TA, user_id: u, subject: `${tag} konu`, message: "m", priority: "normal", status: "open" }]);
+      db.seed("user_location_prefs", [{ id: uid("lp"), tenant_id: TA, user_id: u, location_id: `${tag}` }]);
+      db.seed("expert_workspace_designs", [{ id: uid("wd"), tenant_id: TA, user_id: u, design: { tag } }]);
+      db.seed("expert_ui_prefs", [{ id: uid("wp"), tenant_id: TA, user_id: u, prefs: { tag } }]);
+      db.seed("expert_workspace_assets", [{ id: uid("wa"), tenant_id: TA, user_id: u, desktop_path: `${TA}/a.webp` }]);
+    }
+    for (const table of USER_SCOPED) {
+      const e = getRegistryEntry(table)!;
+      assert.deepEqual(e.ownerScope, { column: "user_id" }, `${table} ownerScope`);
+      const mine = await exportTableAll(asDb(db), e, TA, { ownerUserId: UA });
+      assert.ok(mine.complete && mine.rows.length === 1 && mine.rows[0].user_id === UA, `${table}: ${JSON.stringify(mine.rows)}`);
+      const page = (await handleBackupTableRequest(asDb(db), TA, table, null, UA2)).body as { rows: Row[] };
+      assert.ok(page.rows.every((r) => r.user_id === UA2), `${table}: route sızıntısı`);
+      assert.equal((await fetchTablePage(asDb(db), e, TA, null)).ok, false, `${table}: kimliksiz okuma reddedilmeli`);
+    }
+  });
+  await t("çok kullanıcılı tenant: kişisel kayıt geri yüklemesi başka kullanıcının satırını yazamaz / sahipliği zorlar", async () => {
+    const db = new FakeDb(1000);
+    const ctx2 = ctxA({ userId: UA2 });
+    const row = { id: uid("lp"), tenant_id: TA, user_id: UA, location_id: "sahte" };
+    const rep = await restoreChunk(asDb(db), ctx2, "user_location_prefs", [row]);
+    assert.equal(rep.inserted, 1);
+    assert.equal(db.rows("user_location_prefs")[0].user_id, UA2, "sahiplik oturumdaki kullanıcıya zorlanmalı");
+    assert.equal(db.forbidden.length, 0);
+  });
+
+  console.log(`backup.harness: ${pass} PASS / ${fail} FAIL${skipped ? ` (${skipped} ATLANDI — prod tablo listesi yok; PASS sayılmadı)` : ""}`);
   if (fail > 0) process.exit(1);
 })().catch((e) => {
   console.error("harness çöktü:", e);

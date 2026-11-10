@@ -314,6 +314,32 @@ async function main(): Promise<void> {
     ok(a2w.status === 200 && (await dRow(U.A2.id)).user_id === U.A2.id, "aynı tenant'taki başka uzman (A2) ayrı satır");
     ok(JSON.stringify(await dRow(U.A.id)) === aBefore && JSON.stringify(await pRow(U.A.id)) === aPrefsBefore, "A'nın satırları B/A2 işlemlerinden sonra birebir aynı");
     ok((await dget(asA2)).json.design.draft.text.lines[0].text === "A2 kendi" && (await dget(asA)).json.design.applied === null, "A2 ve A birbirinin taslağını görmez");
+    section("V2 karşılama alanı (band) — uçtan uca + uzmanlar arası izolasyon");
+    const aRowV2 = JSON.stringify(await dRow(U.A.id));
+    const bRowV2 = JSON.stringify(await dRow(U.B.id));
+    const a2v = (await dget(asA2)).json.design.version;
+    const bandAp = await dpost(asA2, { action: "apply", expectedVersion: a2v, draft: design("A2 bant", { band: { visible: false, width: 70, align: "right" } }) });
+    ok(bandAp.status === 200 && bandAp.json.design.applied.band?.visible === false && bandAp.json.design.applied.band?.width === 70, "A2: gizli + %70 + sağ karşılama alanı Uygula ile kalıcı", bandAp.json);
+    const bandRe = await dget(asA2);
+    ok(JSON.stringify(bandRe.json.design.applied.band) === JSON.stringify({ visible: false, width: 70, align: "right" }) && bandRe.json.design.applied.text.lines[0].text === "A2 bant", "yeniden okuma (sayfa yenileme): ayar ve metin aynen");
+    ok(JSON.stringify(await dRow(U.A.id)) === aRowV2 && JSON.stringify(await dRow(U.B.id)) === bRowV2, "A (aynı tenant) ve B (başka tenant) satırları A2'nin karşılama ayarından etkilenmez");
+    ok((await dget(asB)).json.design.applied?.band === undefined && (await dget(asA)).json.design.applied?.band === undefined, "A ve B, A2'nin karşılama ayarını görmez");
+    const bandBad = await dpost(asA2, { action: "saveDraft", expectedVersion: bandRe.json.design.version, draft: design("x", { band: { width: "80%" } }) });
+    ok(bandBad.status === 400, "serbest CSS genişliği (\"80%\") → 400");
+    const bandRs = await dpost(asA2, { action: "reset", expectedVersion: bandRe.json.design.version });
+    ok(bandRs.status === 200 && bandRs.json.design.applied === null && bandRs.json.design.history[0]?.design?.band?.visible === false, "Sıfırla: varsayılan görünüm; gizli tasarım geçmişte korunur", bandRs.json);
+    section("V3 karşılama alanı: yükseklik + üst boşluk; gizliyken kontrast kapısı");
+    const v3v0 = bandRs.json.design.version;
+    const v3h = await dpost(asA2, { action: "apply", expectedVersion: v3v0, draft: design("A2 ince", { band: { visible: true, width: 80, align: "left", height: 40, top: 0 } }) });
+    ok(v3h.status === 200 && JSON.stringify(v3h.json.design.applied.band) === JSON.stringify({ visible: true, width: 80, align: "left", height: 40, top: 0 }), "A2: 40 px ince şerit + üst boşluk 0 Uygula ile kalıcı", v3h.json);
+    const v3bad = await dpost(asA2, { action: "saveDraft", expectedVersion: v3h.json.design.version, draft: design("x", { band: { height: "1cm" } }) });
+    ok(v3bad.status === 400, "serbest CSS yüksekliği (\"1cm\") → 400");
+    const lowHidden = design("Beyaz yazı", { text: { useGreeting: false, lines: [{ id: "l1", role: "body", text: "Beyaz yazı", size: 16, color: "#ffffff" }] }, band: { visible: false } });
+    const v3hid = await dpost(asA2, { action: "apply", expectedVersion: v3h.json.design.version, draft: lowHidden });
+    ok(v3hid.status === 200 && v3hid.json.design.applied.band.visible === false && v3hid.json.design.applied.text.lines[0].color === "#ffffff", "düşük kontrastlı satır varken gizleme uygulanır (metin ve renk silinmez)", v3hid.json);
+    const v3show = await dpost(asA2, { action: "apply", expectedVersion: v3hid.json.design.version, draft: { ...lowHidden, band: { visible: true } } });
+    ok(v3show.status === 422 && v3show.json.code === "CONTRAST_INSUFFICIENT", "aynı satırla yeniden gösterme → 422 (kural görünür alanda aynen)", v3show.json);
+    ok(JSON.stringify(await dRow(U.A.id)) === aRowV2 && JSON.stringify(await dRow(U.B.id)) === bRowV2, "A ve B satırları V3 işlemlerinden etkilenmez");
 
     section("Demo hesap / demo tenant");
     const demo: Auth = { id: U.DEMO.id, token: U.DEMO.token };
@@ -343,11 +369,16 @@ async function main(): Promise<void> {
     const eD = getRegistryEntry("expert_workspace_designs")!;
     const eP = getRegistryEntry("expert_ui_prefs")!;
     ok(!!eD && !!eP && isRestorable(eD) && isRestorable(eP) && eD.naturalKey === "user_id" && eP.naturalKey === "user_id", "iki tablo yedek kapsamında, geri yüklenebilir, doğal anahtar user_id");
-    const expD = await exportTableAll(sdb, eD, seed.TA);
-    const expP = await exportTableAll(sdb, eP, seed.TA);
-    ok(expD.complete && expD.rows.length === 2 && expD.rows.every((r) => r.tenant_id === seed.TA), "A tenant'ı dışa aktarma: yalnız kendi 2 tasarım satırı (A, A2), tam", { n: expD.rows.length, e: expD.error });
-    ok(expP.complete && expP.rows.every((r) => r.tenant_id === seed.TA), "tercih dışa aktarma yalnız A tenant'ı");
-    const expB = await exportTableAll(sdb, eD, seed.TB);
+    // 2026-11-09 Owner kararı (çok kullanıcılı tenant): Kişisel Ofis kullanıcı bazlıdır → yedek yalnız oturumdaki
+    // kullanıcının satırını içerir (aynı tenant'taki A2'nin tasarımı A'nın yedeğine girmez); kimliksiz okuma reddedilir.
+    const expD = await exportTableAll(sdb, eD, seed.TA, { ownerUserId: U.A.id });
+    const expD2 = await exportTableAll(sdb, eD, seed.TA, { ownerUserId: U.A2.id });
+    const expP = await exportTableAll(sdb, eP, seed.TA, { ownerUserId: U.A.id });
+    ok(expD.complete && expD.rows.length === 1 && expD.rows[0].user_id === U.A.id && expD.rows[0].tenant_id === seed.TA, "A'nın dışa aktarması: yalnız A'nın tasarımı (aynı tenant'taki A2 hariç), tam", { n: expD.rows.length, e: expD.error });
+    ok(expD2.complete && expD2.rows.length === 1 && expD2.rows[0].user_id === U.A2.id, "A2'nin dışa aktarması: yalnız A2'nin tasarımı");
+    ok(expP.complete && expP.rows.every((r) => r.tenant_id === seed.TA && r.user_id === U.A.id), "tercih dışa aktarma yalnız A kullanıcısı");
+    ok((await exportTableAll(sdb, eD, seed.TA)).complete === false, "kullanıcı kimliği olmadan kişisel kayıt okunmaz");
+    const expB = await exportTableAll(sdb, eD, seed.TB, { ownerUserId: U.B.id });
     ok(expB.rows.length === 1 && expB.rows[0].user_id === U.B.id, "B tenant'ı dışa aktarma A satırlarını içermez");
     // Mevcut satır EZİLMEZ (A'nın tasarımı yedekten sonra değişmiş olabilir; geri yükleme yalnız eksik satırı ekler).
     const aNow = await dpost(asA, { action: "saveDraft", expectedVersion: (await dget(asA)).json.design.version, draft: design("Yedekten sonra") });
@@ -361,7 +392,7 @@ async function main(): Promise<void> {
     // Kayıp senaryosu (yalnız sentetik test verisi; süper kullanıcıyla silinir): A2'nin satırı yok → yedekten döner.
     const a2Before = await dRow(U.A2.id);
     await env.su.query(`delete from public.expert_workspace_designs where user_id=$1`, [U.A2.id]);
-    const r2 = await restoreChunk(sdb, ctxOf(U.A2.id, seed.TA), "expert_workspace_designs", expD.rows);
+    const r2 = await restoreChunk(sdb, ctxOf(U.A2.id, seed.TA), "expert_workspace_designs", expD2.rows);
     const a2After = await dRow(U.A2.id);
     ok(r2.inserted === 1 && a2After?.id === a2Before.id && a2After.tenant_id === seed.TA && a2After.user_id === U.A2.id, "kayıp satır yedekten geri gelir (aynı kimlik, aynı tenant/kullanıcı)", r2);
     ok(JSON.stringify(a2After.history) === JSON.stringify(a2Before.history) && JSON.stringify(a2After.draft) === JSON.stringify(a2Before.draft), "geri yüklenen satırda geçmiş ve taslak KAYBOLMAZ (okunamayan eski kayıt dahil)");

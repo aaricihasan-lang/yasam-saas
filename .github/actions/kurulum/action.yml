@@ -1,0 +1,45 @@
+# Akıllı CI F2 — her CI işinin ORTAK kurulumu (depo içi composite action; üçüncü taraf kod yok).
+# Önceki ci.yml'de her işte birebir tekrarlanan adımlar (PR #765 ffmpeg-static düzeltmesi dahil) tek yerde; içerik DEĞİŞMEDİ:
+#   Node 24 + npm önbelleği → ffmpeg-static resmî dosyaları (önbellek / sınırlı tekrar + sabit SHA-256) → npm ci → kurulum denetimi.
+# Çağıran iş önce actions/checkout yapmalıdır.
+name: Yaşam Sistemi CI kurulumu
+description: Node 24, ffmpeg-static (önbellek + SHA-256) ve npm ci
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-node@v4
+      with:
+        node-version: "24"
+        cache: npm
+
+    # ffmpeg-static postinstall'u her kurulumda GitHub release'ten indirir; geçici HTTP 504 kurulumu düşürüyordu.
+    # Resmî b6.1.1 linux-x64 dosyaları (ffmpeg + README + LICENSE) önbellekten; yoksa sınırlı tekrarla indirilir.
+    # Her durumda sabit SHA-256 doğrulanır; tüm denemeler başarısızsa iş kırmızı biter (scripts/ci/ffmpeg-static-cache.mjs).
+    - name: ffmpeg-static dosyaları (önbellek)
+      id: ffmpeg-cache
+      uses: actions/cache/restore@v4
+      with:
+        path: ${{ runner.temp }}/ffmpeg-static
+        key: ffmpeg-static-b6.1.1-linux-x64-e7e7fb30477f717e
+
+    - name: ffmpeg-static dosyaları (sınırlı tekrar + SHA-256)
+      shell: bash
+      run: node scripts/ci/ffmpeg-static-cache.mjs prepare --dir "$RUNNER_TEMP/ffmpeg-static"
+
+    - name: ffmpeg-static dosyalarını önbelleğe kaydet
+      if: steps.ffmpeg-cache.outputs.cache-hit != 'true'
+      uses: actions/cache/save@v4
+      with:
+        path: ${{ runner.temp }}/ffmpeg-static
+        key: ffmpeg-static-b6.1.1-linux-x64-e7e7fb30477f717e
+
+    - name: Bağımlılıklar
+      shell: bash
+      run: npm ci --no-audit --no-fund
+      env:
+        FFMPEG_BIN: ${{ runner.temp }}/ffmpeg-static/ffmpeg
+
+    - name: ffmpeg-static kurulum çıktıları (SHA-256 + sürüm denetimi)
+      shell: bash
+      run: node scripts/ci/ffmpeg-static-cache.mjs install --dir "$RUNNER_TEMP/ffmpeg-static"

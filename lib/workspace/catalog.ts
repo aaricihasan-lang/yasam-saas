@@ -73,6 +73,40 @@ export const PAGE_CARDS = ["auto", "glass", "opaque"] as const;
 export const FRAME_FITS = ["fill", "fit"] as const;
 export const FRAME_ZOOM_MIN = 0.5;
 export const FRAME_ZOOM_MAX = 2.5;
+/**
+ * Karşılama alanı (Kişisel Dijital Ofis V2, Owner talebi 2026-11-09): genişlik (karşılamanın kapladığı alanın yüzdesi,
+ * yalnız BAND_WIDTH_STEP katları), hiza ve göster / gizle. Alan yoksa (eski kayıt) bugünkü görünüm: tam genişlik, görünür.
+ * Dar ekranlarda içerik bozulmasın diye çizimde piksel alt sınırı uygulanır (personal.module.css); mobilde tam genişlik.
+ */
+export const BAND_WIDTH_MIN = 60;
+export const BAND_WIDTH_MAX = 100;
+export const BAND_WIDTH_STEP = 5;
+export const BAND_ALIGNS = ["left", "center", "right"] as const;
+/**
+ * Karşılama alanı yüksekliği (V3, Owner talebi 2026-11-09). Alan yoksa "Normal" (bugünkü otomatik yükseklik).
+ * Seçilen piksel değeri ASLA sessizce değiştirilmez; düzen yüksekliğe göre seçilir:
+ *  - BAND_HEIGHT_MIN … < BAND_STACK_MIN  → tek satır (başlık · tarih)
+ *  - BAND_STACK_MIN … < BAND_FULL_MIN    → kompakt (başlık + tarih alt alta)
+ *  - BAND_FULL_MIN … BAND_HEIGHT_MAX     → tam içerik, sabit yükseklik (geniş ekranda)
+ * İçerik sığmazsa (uzun metin / dar ekran) metin kesilmez: önce tarih satırdan çıkar, sonra alan uzar ve panel bunu açıklar.
+ */
+export const BAND_HEIGHT_MIN = 40;
+export const BAND_HEIGHT_MAX = 320;
+export const BAND_HEIGHT_STEP = 4;
+export const BAND_STACK_MIN = 88;
+export const BAND_FULL_MIN = 200;
+export const BAND_HEIGHT_PRESETS = { kompakt: 120, ince: 56, cokInce: 40 } as const;
+/** Araç çubuğu ile karşılama arası (px). Varsayılan = ana sayfa sütun aralığı (14); 0'da alan araç çubuğuna değer, üzerine taşmaz. */
+export const BAND_TOP_MIN = 0;
+export const BAND_TOP_MAX = 40;
+export const BAND_TOP_STEP = 2;
+export const BAND_TOP_DEFAULT = 14;
+export type BandTier = "row" | "stack" | "full";
+/** Yükseklik → düzen kademesi (null = Normal). */
+export function bandTier(height: number | undefined): BandTier | null {
+  if (height === undefined) return null;
+  return height < BAND_STACK_MIN ? "row" : height < BAND_FULL_MIN ? "stack" : "full";
+}
 
 export type WorkspaceLayout = (typeof LAYOUTS)[number];
 export type CardLevel = (typeof CARD_LEVELS)[number];

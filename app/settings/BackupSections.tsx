@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Ayarlar — Dışa Aktarım / Sistem Yedeği / Geri Yükleme bölümleri (PAKET BACKUP, FA-01/FA-32).
+ * Ayarlar — Dışa Aktarım (Premium Word Arşivi) / Sistem Yedeği / Geri Yükleme bölümleri (PAKET BACKUP, FA-01/FA-32).
  *
  * Dürüst metin kuralı: "eksiksiz" / "tüm kayıtlar" iddiası YALNIZ çalışma anı tamlık kontrolü
  * (her tablo boş sayfaya kadar okundu + okunan satır == sunucu sayımı) geçtiğinde gösterilir.
@@ -10,7 +10,7 @@ import { useMemo, useRef, useState } from "react";
 import { AlertTriangle, Check, Download, FileJson, Loader2, RotateCcw, Upload } from "lucide-react";
 import { readSessionToken, type YasamUser } from "@/lib/auth/yasamUser";
 import { useToast } from "@/components/ui/ToastProvider";
-import { downloadFileResponse, triggerBlobDownload } from "@/lib/http/downloadResponse";
+import { triggerBlobDownload } from "@/lib/http/downloadResponse";
 import {
   BACKUP_REGISTRY,
   EXPORT_MODULE_ORDER,
@@ -22,6 +22,7 @@ import {
 import { runBackup, runRestore, serializeBackupParts, type JsonFetcher, type RestoreRunResult } from "@/lib/backup/client";
 import { FAILURE_LABELS, normalizeBackupFile, type NormalizedBackup } from "@/lib/backup/format";
 import type { BackupFileV3, RestoreTableReport } from "@/lib/backup/types";
+import { ArchiveExportTab } from "./ArchiveExportTab";
 
 // ─── Ortak ────────────────────────────────────────────────────────────────────
 
@@ -68,132 +69,11 @@ function tableTitle(table: string): string {
   return `${MODULE_LABELS[moduleKeyOf(e)] ?? ""} › ${e.label}`;
 }
 
-// ─── Dışa Aktarım (Word) ─────────────────────────────────────────────────────
+// ─── Dışa Aktarım (Premium Word Arşivi) ──────────────────────────────────────
 
+/** Dışa Aktarım sekmesi: Premium Word Arşivi (ZIP) — ./ArchiveExportTab. */
 export function ExportTab({ user }: { user: YasamUser }) {
-  const { showToast } = useToast();
-  const [loadingModule, setLoadingModule] = useState<string | null>(null);
-  // Sekmeler yalnız istemcide (SettingsPage kullanıcıyı effect'te okuduktan sonra) render edilir.
-  const [mobile] = useState(() => typeof window !== "undefined" && window.innerWidth < 768);
-  const modules = useModuleSummaries("export");
-  const tableCount = modules.reduce((s, m) => s + m.tables.length, 0);
-
-  async function handleExport(moduleKey: string, label: string) {
-    if (loadingModule) return;
-    setLoadingModule(moduleKey);
-    const sessionToken = readSessionToken();
-    try {
-      const res = await fetch("/api/settings/export", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-user-id": user.id,
-          ...(sessionToken ? { "x-session-token": sessionToken } : {}),
-        },
-        body: JSON.stringify({ module: moduleKey }),
-      });
-      if (!res.ok) {
-        let msg = "Dışa aktarılamadı.";
-        try {
-          const json = (await res.json()) as { error?: string };
-          if (json.error) msg = json.error;
-        } catch {
-          /* gövde yok */
-        }
-        showToast({ message: msg, type: res.status === 413 ? "warning" : "error", duration: 8000 });
-        return;
-      }
-      const incomplete = res.headers.get("X-Export-Incomplete") === "1";
-      await downloadFileResponse(res, `${moduleKey.replace(/_/g, "-")}-arsiv.docx`);
-      if (incomplete) {
-        showToast({
-          title: "Eksik bölümler var",
-          message: `${label} belgesi indirildi ancak bazı bölümler okunamadı; belgenin başındaki kırmızı listeye bakın.`,
-          type: "warning",
-          duration: 9000,
-        });
-      } else {
-        showToast({ title: "İndirildi", message: `${label} arşivi hazır.`, type: "success" });
-      }
-    } catch {
-      showToast({ message: "Bağlantı hatası.", type: "error" });
-    } finally {
-      setLoadingModule(null);
-    }
-  }
-
-  const isLoading = loadingModule !== null;
-
-  return (
-    <div className="space-y-5">
-      <div className="rounded-xl border border-emerald-200 bg-emerald-50/80 px-4 py-3">
-        <p className="text-xs font-semibold text-emerald-800">
-          Word dışa aktarım, Yaşam Sistemi dışında da okunabilen bir <strong>arşiv</strong> belgesidir; geri yükleme için
-          <strong> Sistem Yedeği (JSON)</strong> sekmesini kullanın. Fotoğraf ve dosyaların kendisi dahil değildir.
-          Okunamayan bölüm olursa belgenin başında kırmızıyla listelenir. Çok büyük kapsamlar için modül bazlı indirmeniz istenebilir.
-        </p>
-      </div>
-
-      {mobile && (
-        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
-          <p className="text-xs font-semibold text-amber-700">Büyük raporları masaüstü tarayıcıdan indirmeniz önerilir.</p>
-        </div>
-      )}
-
-      <div className="rounded-2xl border border-violet-200 bg-gradient-to-r from-violet-50 to-fuchsia-50 p-4">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <p className="text-sm font-black text-violet-900">Tüm Modülleri Word Olarak İndir</p>
-            <p className="mt-0.5 text-xs text-violet-600">
-              {modules.length} modül · {tableCount} tablo · tek belgede (büyük hesaplarda modül bazlı indirme gerekir)
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={() => {
-              void handleExport("all", "Tüm modüller");
-            }}
-            disabled={isLoading}
-            className="flex shrink-0 items-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 to-fuchsia-600 px-4 py-2.5 text-sm font-bold text-white shadow-md transition hover:-translate-y-0.5 hover:shadow-lg disabled:opacity-60"
-          >
-            {loadingModule === "all" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-            {loadingModule === "all" ? "Hazırlanıyor…" : "Tümünü İndir"}
-          </button>
-        </div>
-      </div>
-
-      <div>
-        <p className="mb-3 text-xs font-bold uppercase tracking-widest text-slate-500">Modül Bazlı İndir</p>
-        <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
-          {modules.map((mod) => (
-            <div
-              key={mod.key}
-              className="flex items-center justify-between gap-3 rounded-xl border border-slate-100 bg-white/80 px-4 py-3 shadow-sm"
-            >
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-bold text-slate-800">{mod.label}</p>
-                <p className="mt-0.5 truncate text-[11px] text-slate-400" title={mod.tables.map((t) => t.label).join(", ")}>
-                  {mod.tables.length} tablo · {mod.tables.map((t) => t.label).join(", ")}
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => {
-                  void handleExport(mod.key, mod.label);
-                }}
-                disabled={isLoading}
-                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-violet-200 bg-violet-50 text-violet-700 transition hover:bg-violet-100 disabled:opacity-50"
-                title={`${mod.label} Word İndir`}
-                aria-label={`${mod.label} Word İndir`}
-              >
-                {loadingModule === mod.key ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
-              </button>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
+  return <ArchiveExportTab user={user} />;
 }
 
 // ─── Sistem Yedeği (JSON) ────────────────────────────────────────────────────

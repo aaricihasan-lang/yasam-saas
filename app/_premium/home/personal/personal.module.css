@@ -86,6 +86,23 @@
   }
 }
 
+/* V2 · Karşılama alanı gizli: ızgarada karşılama satırı hiç yoktur (boş satır / satır aralığı kalmaz, modüller yukarı gelir).
+   Sayfa başlığı ekran okuyucuya özel h1 olarak yerinde durur (konumlu; ızgaraya yer kaplamaz). */
+.pw [data-pw-part="content"]:has(> [data-pw-part="center"] > [data-pw-band-off]) {
+  grid-template-areas:
+    "mods right"
+    "foot foot";
+}
+
+@media (max-width: 1180px) {
+  .pw [data-pw-part="content"]:has(> [data-pw-part="center"] > [data-pw-band-off]) {
+    grid-template-areas:
+      "mods"
+      "right"
+      "foot";
+  }
+}
+
 /* ══ Karşılama (ortak) ═══════════════════════════════════════════════════ */
 .hero {
   grid-area: hero;
@@ -602,6 +619,19 @@
 @media (max-width: 640px) {
   .frameFitLayer .ph.phBackdrop { filter: blur(14px) saturate(1.08); }
 }
+
+/* ══ V2 · Karşılama alanı genişliği ve hizası ═════════════════════════════
+   --pw-band-w yalnız şemadan geçen yüzde (60–100, 5'in katı). Piksel alt sınırı içerik bozulmasın diye: A/B 560 px,
+   C (plaket + çerçeve) 680 px; alan daha darsa (tablet / mobil) tam genişlik. Yükseklik ve iç düzen değişmez. */
+.hero[data-pw-band-w] {
+  width: clamp(min(100%, 560px), var(--pw-band-w), 100%);
+  justify-self: start;
+}
+.heroC[data-pw-band-w] {
+  width: clamp(min(100%, 680px), var(--pw-band-w), 100%);
+}
+.hero[data-pw-band-w][data-pw-band-align="center"] { justify-self: center; }
+.hero[data-pw-band-w][data-pw-band-align="right"] { justify-self: end; }
 
 /* ══ Favorilerim ══════════════════════════════════════════════════════════ */
 .favs {
@@ -1576,3 +1606,156 @@
 }
 /* Odak modu: menü süsü gizlenir (alt alanda uzman logosu varsa logo görünür kalır) */
 .pw[data-pw-mode="focus"] [data-testid="side-menu"] :is(img[aria-hidden="true"]:not([data-pw-logo]), p[aria-hidden="true"]) { visibility: hidden; }
+
+/* ══ V3 · Karşılama alanı yüksekliği ve üst aralığı (Owner talebi 2026-11-09) ═════════════════════════════
+   Yalnız şemadan geçen değerler: --pw-band-h (40–320 px, adım 4) ve --pw-band-top (0–40 px, adım 2).
+   Üst aralık: .main sütun aralığı 14 px'tir; alan araç çubuğunun altında kalır (en az 0 px), üzerine taşmaz.
+   Kademe (catalog.bandTier): row < 88 ≤ stack < 200 ≤ full. Kompakt kademede (row / stack) yalnız başlık + tarih çizilir.
+   Metin kesilmez: useBandFit taşmayı ölçer → data-pw-fit="nodate" (tarih satırdan çıkar) / "grow" (alan içeriğe göre uzar).
+   Bu kurallar dosyanın sonundadır: Odak / Gece modu ve ≤640 kurallarını aynı özgüllükte sırayla geçersiz kılar. */
+.hero[data-pw-band-top] {
+  margin-top: calc(var(--pw-band-top) - 14px);
+}
+
+/* Tam içerik kademesi: geniş ekranda sabit yükseklik (mobilde içerik yüksekliği — dar ekranda metin / görsel bozulmasın) */
+@media (min-width: 641px) {
+  .hero[data-pw-tier="full"] {
+    --pw-heroH: var(--pw-band-h);
+    min-height: var(--pw-band-h);
+    height: var(--pw-band-h);
+  }
+  .heroC[data-pw-tier="full"] .mat {
+    min-height: 0;
+  }
+  .hero[data-pw-tier="full"][data-pw-fit="grow"] {
+    height: auto;
+  }
+}
+
+/* Kompakt kademeler (tek satır / kompakt): her ekranda seçilen yükseklik */
+.hero.heroCompact {
+  min-height: var(--pw-band-h);
+  height: var(--pw-band-h);
+}
+.hero.heroCompact[data-pw-fit="grow"] {
+  height: auto;
+}
+.hero.heroCompact .hInner {
+  flex-direction: row;
+  align-items: center;
+  gap: 0;
+  padding: 0 clamp(14px, 2vw, 28px);
+}
+.hero.heroCompact[data-pw-fit="grow"] .hInner {
+  padding-block: 8px;
+}
+.hero.heroCompact .hText {
+  max-width: 100%;
+}
+.hero.heroCompact .hText.hSurface {
+  padding: 4px 12px;
+  border-radius: 12px;
+}
+.heroCompact[data-pw-tier="row"] .hText {
+  display: flex;
+  align-items: baseline;
+  gap: 4px 14px;
+  white-space: nowrap;
+}
+.heroCompact[data-pw-tier="row"][data-pw-fit="grow"] .hText {
+  flex-wrap: wrap;
+  white-space: normal;
+}
+.heroCompact[data-pw-tier="stack"] .hText {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.heroCompact[data-pw-tier="stack"] .alCenter .hText { align-items: center; }
+.heroCompact[data-pw-tier="stack"] .alRight .hText { align-items: flex-end; }
+
+.cTitle {
+  margin: 0;
+  font-family: var(--font-display, Georgia, serif);
+  font-size: clamp(15px, calc(var(--pw-band-h, 56px) * 0.4), 24px);
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+  color: var(--ink, #17142b);
+  overflow-wrap: anywhere;
+}
+.heroCompact[data-pw-tier="stack"] .cTitle {
+  font-size: clamp(20px, calc(var(--pw-band-h, 120px) * 0.26), 40px);
+  line-height: 1.08;
+}
+.cDate {
+  margin: 0;
+  font-size: clamp(12.5px, calc(var(--pw-band-h, 56px) * 0.27), 15.5px);
+  font-weight: 650;
+  color: var(--ink, #17142b);
+}
+.hero:not(.heroC)[data-tone="dark"] :is(.cTitle, .cDate),
+.heroC[data-tone="dark"] .plaque :is(.cTitle, .cDate) { color: #fff; }
+
+/* A / B varsayılan manzara: tek satırda gösterilmez (şerit sade kalır); kompakt kademede sağda küçük kalır */
+.heroCompact[data-pw-tier="row"] .heroArt { display: none; }
+.heroA.isDefault.heroCompact .alLeft .hText,
+.heroB.isDefault.heroCompact .alLeft .hText { max-width: 60%; }
+.heroA.isDefault.heroCompact[data-pw-tier="row"] .alLeft .hText,
+.heroB.isDefault.heroCompact[data-pw-tier="row"] .alLeft .hText { max-width: 100%; }
+
+/* Tek satır şerit: köşeler şerit ölçüsünde */
+.hero.heroCompact[data-pw-tier="row"],
+.heroCompact[data-pw-tier="row"] .plaque { border-radius: 14px; }
+
+/* C: tek satırda yalnız plaket; kompakt kademede plaket + küçük çerçeve. Plaket iç çizgisi metne yaklaşmaz. */
+.heroC.heroCompact {
+  min-height: var(--pw-band-h);
+}
+.heroC.heroCompact[data-pw-tier="row"] {
+  grid-template-columns: minmax(0, 1fr);
+}
+.heroC.heroCompact .mat {
+  min-height: 0;
+}
+.heroC.heroCompact .artFrame {
+  padding: 8px;
+}
+.heroCompact .plaque::before {
+  inset: 4px;
+  border-radius: 10px;
+}
+
+@media (max-width: 640px) {
+  .heroA.heroCompact,
+  .heroB.heroCompact {
+    flex-direction: row;
+    min-height: var(--pw-band-h);
+  }
+  .hero.heroCompact .hInner {
+    flex-direction: row;
+    padding: 0 14px;
+  }
+  .hero.heroCompact .hInner:is(.alLeft, .alCenter, .alRight) { align-items: center; }
+  .hero.heroCompact[data-pw-fit="grow"] .hInner { padding-block: 8px; }
+  .heroA.isDefault.heroCompact .heroArt,
+  .heroB.isDefault.heroCompact .heroArt {
+    position: absolute;
+    width: auto;
+    height: 100%;
+    order: 0;
+  }
+  .heroA.isDefault.heroCompact .alLeft .hText,
+  .heroB.isDefault.heroCompact .alLeft .hText { max-width: 100%; }
+  .heroA.hasPhoto.heroCompact .phLayer {
+    position: absolute;
+    inset: 0;
+    aspect-ratio: auto;
+  }
+  .heroA.hasPhoto.heroCompact .shade { display: block; }
+  .heroB.isCustom.heroCompact { min-height: var(--pw-band-h); }
+  .heroB.isCustom.heroCompact .hInner { align-items: center; }
+  .heroC.heroCompact { grid-template-columns: minmax(0, 1fr); }
+  .heroC.heroCompact .artFrame { display: none; }
+  .heroCompact[data-pw-tier="stack"] .heroArt { display: none; }
+}
