@@ -125,8 +125,26 @@ if WORD_PDF:
             # Word, allCaps etiketleri büyük harfle gösterir ("İMZA" değil "İmza" yazılır; etiket dışı alanlar birebir).
             ok(squash(s) in text or squash(s).upper() in text.upper(), f"{label}: metin VAR: {s[:40]}")
         if m["caseName"] == "kupa-takvim-yillik" and os.path.exists(base):
-            # Tek A3 takvim: imza kartı sığmazsa A3 sayfası markasızla AYNI kalmalı, kart A4 devam sayfasına gitmeli.
-            ok(squash(doc[0].get_text()) == squash(pymupdf.open(base)[0].get_text()) or n == 1, f"{label}: A3 sayfası markasızla aynı (kart A4 devamda)")
+            # Tek A3 takvim (görsel kabul 11.11): kart A3'e sığmadığında uzman kimliği A3 alt bilgi çizgisinin üstündeki satırda;
+            # A3 sayfası = markasız A3 + (kimlik satırı) + (A3'e sığan dipnot). Izgara / özet / notlar / bilgilendirme BİREBİR:
+            # markasız A3'teki her metin bloğu ve her vektör çizimi (takvim ızgarası, hücre zeminleri, çizgiler) aynı konumda.
+            a3, b3 = doc[0], pymupdf.open(base)[0]
+            ok(a3.rect == b3.rect, f"{label}: A3 sayfa boyutu markasızla aynı")
+            ob = [(round(x[0], 1), round(x[1], 1), round(x[2], 1), round(x[3], 1), x[4]) for x in b3.get_text("blocks") if x[4].strip()]
+            oa = {(round(x[0], 1), round(x[1], 1), round(x[2], 1), round(x[3], 1), x[4]) for x in a3.get_text("blocks") if x[4].strip()}
+            miss = [x for x in ob if x not in oa]
+            ok(not miss, f"{label}: markasız A3 metin blokları aynı konumda {[x[4][:30] for x in miss[:3]]}")
+            # Gövde çizimleri (alt bilgi bloğunun üstü): takvim ızgarası, hücre zeminleri, bölüm çizgileri → BİREBİR.
+            ftop = min([x[1] for x in b3.get_text("blocks") if "Bu içerik, uzman" in x[4]] or [b3.rect.height])
+            gb = lambda p: sorted((round(r["rect"].x0, 1), round(r["rect"].y0, 1), round(r["rect"].x1, 1), round(r["rect"].y1, 1)) for r in p.get_drawings() if r["rect"].y1 < ftop - 6)
+            db, da = gb(b3), gb(a3)
+            ok(db == da, f"{label}: A3 ızgara / gövde çizim geometrisi markasızla birebir ({len(db)} çizim)")
+            # Alt bilgi çizgisi: Word metinli paragrafta alt kenarlığı ≤ 0,3 pt farklı çizebilir (gövde alanını etkilemez; raporda).
+            fb = [r["rect"].y0 for r in b3.get_drawings() if r["rect"].y1 >= ftop - 6]
+            fa = [r["rect"].y0 for r in a3.get_drawings() if r["rect"].y1 >= ftop - 6]
+            ok(len(fb) == len(fa) and all(abs(x - y) <= 0.5 for x, y in zip(sorted(fb), sorted(fa))), f"{label}: alt bilgi çizgisi aynı yerde (±0,5 pt) {fb} / {fa}")
+            extra = [x[4] for x in a3.get_text("blocks") if x[4].strip() and (round(x[0], 1), round(x[1], 1), round(x[2], 1), round(x[3], 1), x[4]) not in set(ob)]
+            ok(all("HAZIRLAYAN" in squash(t).upper() or "H A Z I R L A Y A N" in t or "Uzman Notu" in t for t in extra), f"{label}: A3'te yalnız kimlik satırı / dipnot eklendi {[t[:30] for t in extra[:3]]}")
         last = doc[n - 1]
         h = last.rect.height
         blocks = [b for b in last.get_text("blocks") if b[4].strip()]

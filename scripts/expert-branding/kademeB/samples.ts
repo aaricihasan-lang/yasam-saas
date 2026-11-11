@@ -171,6 +171,16 @@ async function main() {
         for (const v of [f.name, f.title, f.organization, f.contactLine]) if (v) absent.push(v);
         absent.push("Uzman Notu", "İmza");
       }
+      // Görsel kabul (11.11) — Kupa yıllık tek A3: bu kurguda kart A3'e SIĞMAZ → kart yerine uzman kimliği A3 alt bilgi
+      // çizgisinin üstündeki mevcut satıra yazılır ("HAZIRLAYAN  unvan · kurum · iletişim" + küçük logo); kart / "İmza" çizgisi
+      // YOK; kimlik gövdede TEKRAR EDİLMEZ; dipnot gövdede (A3'e sığarsa A3 sonunda, sığmazsa yalnız dipnot için A4 devam).
+      const a3Strip = c.name === "kupa-takvim-yillik" && cardShown;
+      const stripTexts = a3Strip ? [...([f.name, f.title, f.organization, f.contactLine].filter(Boolean) as string[]), "HAZIRLAYAN"] : [];
+      if (a3Strip) {
+        present.splice(present.indexOf("İmza"), 1);
+        present.push("HAZIRLAYAN");
+        absent.push("İmza");
+      }
       manifest.push({ file, caseName: c.name, module: c.module, kind: c.kind, profile: p.key, profileLabel: p.label, rule: c.rule, base: baseFile, expect: { present: c.kind === "pdf" ? present.map(pdfSafeText) : present, absent: c.kind === "pdf" ? absent.map(pdfSafeText) : absent, logo: applies && !!f.logoPng, card: cardShown } });
 
       if (c.kind !== "docx") continue;
@@ -178,7 +188,13 @@ async function main() {
       ok(`${label}: XML parçaları katı ayrıştırılır`, d.errors.length === 0, d.errors.join("; "));
       const body = docText(d.parts["word/document.xml"] ?? "");
       const allText = Object.entries(d.parts).filter(([k]) => /word\/(document|footer\d*|header\d*)\.xml$/.test(k)).map(([, v]) => docText(v)).join("\n");
-      for (const s of present) ok(`${label}: "${s.slice(0, 40)}" var`, body.includes(s));
+      const a3Footer = docText(d.parts["word/footer1.xml"] ?? "");
+      for (const s of present) {
+        if (stripTexts.includes(s)) {
+          ok(`${label}: "${s.slice(0, 40)}" A3 alt bilgi kimlik satırında var`, a3Footer.includes(s));
+          if (s !== "HAZIRLAYAN") ok(`${label}: "${s.slice(0, 40)}" gövdede tekrar YOK`, !body.includes(s));
+        } else ok(`${label}: "${s.slice(0, 40)}" var`, body.includes(s));
+      }
       for (const s of absent) ok(`${label}: "${s.slice(0, 40)}" YOK`, !allText.includes(s));
       ok(`${label}: <script> kaçışlı (ham etiket yok)`, !(d.parts["word/document.xml"] ?? "").includes("<script>"));
       for (const s of MUST_KEEP[modOf(c.name)] ?? []) ok(`${label}: zorunlu metin aynen: ${s.slice(0, 40)}`, allText.includes(s));
@@ -190,8 +206,17 @@ async function main() {
         continue;
       }
       const fixedParts = Object.keys(baseNorm!).filter((k) => /word\/(header\d*|footer\d*|styles|settings|numbering|fontTable)\.xml$/.test(k));
-      const changed = fixedParts.filter((k) => norm[k] !== baseNorm![k]);
+      const changed = fixedParts.filter((k) => norm[k] !== baseNorm![k] && !(a3Strip && k === "word/footer1.xml"));
       ok(`${label}: üst/alt bilgi + stil parçaları değişmedi (${fixedParts.length})`, changed.length === 0, changed.join(","));
+      if (a3Strip) {
+        // A3 alt bilgisi markasızla aynı; yalnız çizgi paragrafına kimlik satırı EKLENİR (tek noktada ekleme, başka değişiklik yok).
+        ok(`${label}: A3 alt bilgisi = markasız + tek noktada kimlik eklemesi`, norm["word/footer1.xml"] !== baseNorm!["word/footer1.xml"] && singleInsertion(baseNorm!["word/footer1.xml"]!, norm["word/footer1.xml"]!));
+        const others = Object.keys(norm).filter((k) => /word\/footer\d+\.xml$/.test(k) && k !== "word/footer1.xml");
+        // (köprü ilişki kimliği belge genelinde sıra numarasıyla normalize edildiğinden numara karşılaştırma dışı)
+        const rid = (x: string | undefined) => (x ?? "").replace(/rId#\d+/g, "rId#");
+        ok(`${label}: A4 devam alt bilgisi (varsa) markasızla birebir`, others.every((k) => rid(norm[k]) === rid(baseNorm!["word/footer1.xml"])), others.join(","));
+        ok(`${label}: gövdede imza kartı YOK (yalnız dipnot eklenebilir)`, !body.includes("HAZIRLAYAN") && !/Hazırlayan/i.test(body));
+      }
       if (!c.name.startsWith("kupa-takvim-yillik")) {
         ok(`${label}: gövde değişikliği tek noktada ekleme (kapak / içerik aynen)`, singleInsertion(baseNorm!["word/document.xml"]!, norm["word/document.xml"]!));
       }

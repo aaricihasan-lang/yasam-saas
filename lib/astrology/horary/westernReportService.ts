@@ -31,6 +31,6 @@ export async function renderHoraryReport(
     const buf = await renderAstroReportDocx(report, chart?.png ?? null, symbolFontBuffers(), { branding: opts.branding ?? null });
     return { bytes: new Uint8Array(buf), filename: `${report.fileBase}.docx`, contentType: DOCX_MIME, hasChart: !!chart };
   }
-  const bytes = buildAstroReportPdf(report, chart, anamnezPdfFontBase64(), symbolFontsBase64(), { branding: opts.branding ?? null });
+  const bytes = buildAstroReportPdf(report, chart, anamnezPdfFontBase64(), symbolFontsBase64(), { branding: opts.branding ?? null, balancedSignature: true });
   return { bytes, filename: `${report.fileBase}.pdf`, contentType: PDF_MIME, hasChart: !!chart };
 }

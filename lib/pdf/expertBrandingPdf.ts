@@ -12,7 +12,7 @@
  * olmayan karakterler (emoji vb.) PDF'te boş kutu yerine atlanır (`pdfSafeText`); Word metni değişmez.
  */
 import type { jsPDF } from "jspdf";
-import { fitLogo, hasExpertBranding, expertBrandingFields, type ExpertBranding } from "@/lib/docx/expertBranding";
+import { EXPERT_SIGNATURE_CARD_TWIPS, fitLogo, hasExpertBranding, expertBrandingFields, type ExpertBranding } from "@/lib/docx/expertBranding";
 
 export type Rgb = [number, number, number];
 
@@ -39,7 +39,22 @@ export type ExpertSignaturePdfOptions = {
   label?: string;
   /** Kart öncesi boşluk (mm). */
   before?: number;
+  /**
+   * Kart iç ölçüleri (mm). Verilmezse mevcut değerler (iç boşluk 3, etiket altı 1,6, kart–dipnot 4) → Hacamat / Atlas analiz
+   * PDF'leri DEĞİŞMEZ. Görsel kabul (11.11): Horary PDF Word kartının twip ölçülerini kullanır (`WORD_CARD_PDF_SPACING`).
+   */
+  spacing?: { pad?: number; labelGap?: number; noteGap?: number };
 };
+
+const TWIP_MM = 25.4 / 1440;
+/**
+ * Word B kartının (`EXPERT_SIGNATURE_CARD_TWIPS`) PDF karşılığı (mm): iç boşluk 100, etiket altı 40, kart öncesi 160,
+ * dipnot öncesi 100 twip. Punto ve imza çizgisi üstü (200 twip ≈ 3,5 mm) aynı. Yalnız çağıran isterse kullanılır.
+ */
+export const WORD_CARD_PDF_SPACING = {
+  before: EXPERT_SIGNATURE_CARD_TWIPS.gapBefore * TWIP_MM,
+  spacing: { pad: EXPERT_SIGNATURE_CARD_TWIPS.padY * TWIP_MM, labelGap: EXPERT_SIGNATURE_CARD_TWIPS.labelAfter * TWIP_MM, noteGap: EXPERT_SIGNATURE_CARD_TWIPS.noteBefore * TWIP_MM },
+} as const;
 
 const LH = 0.42; // punto × LH = satır yüksekliği (mm) — Atlas / Hacamat PDF'leriyle aynı
 const DEF_INK: Rgb = [30, 41, 59];
@@ -128,18 +143,19 @@ export function drawExpertSignaturePdf(doc: jsPDF, branding: ExpertBranding | nu
   const mid = o.mid ?? DEF_MID;
   const light = o.light ?? DEF_LIGHT;
   const fill = o.fill === undefined ? DEF_FILL : o.fill;
+  const noteGap = o.spacing?.noteGap ?? NOTE_GAP;
   doc.setFont(o.font, "normal");
 
   const name = cardName(f, o);
   const hasCard = !!(name || f.title || f.organization || f.contactLine || f.logoPng);
   if (hasCard) {
-    const pad = 3; // kompakt düzen (10.11): önceki 4 mm
+    const pad = o.spacing?.pad ?? 3; // kompakt düzen (10.11): önceki 4 mm
     const logoColW = f.logoPng ? 30 : 0;
     const textX = o.x + logoColW + pad;
     const textW = Math.max(30, o.width - logoColW - pad * 2);
     const label = pdfSafeText(o.label ?? "Hazırlayan").toLocaleUpperCase("tr-TR");
     const lines = cardLines(doc, f, o, textW);
-    const labelH = SZ.label * LH + 1.6;
+    const labelH = SZ.label * LH + (o.spacing?.labelGap ?? 1.6);
     // İmza alanı: boşluk + "İmza" etiketi (çizginin üzerinde, solda) + çizgi — Word kartıyla aynı.
     const sigH = SIGN_GAP + SZ.sig * LH + 0.8;
     const textH = labelH + linesHeight(lines) + sigH;
@@ -150,7 +166,7 @@ export function drawExpertSignaturePdf(doc: jsPDF, branding: ExpertBranding | nu
 
     // Dipnot varsa kart, dipnot başlığı + ilk satırlarıyla birlikte tutulur (Word kartıyla aynı kural): dipnot sonraki sayfaya
     // TEK BAŞINA düşmez; sığmazsa kart da yeni sayfada başlar.
-    const noteLead = f.note ? NOTE_GAP + SZ.noteHead * LH + 1.5 + (SZ.note * LH + 0.6) * Math.min(2, noteLinesOf(doc, f.note, o.width).length) : 0;
+    const noteLead = f.note ? noteGap + SZ.noteHead * LH + 1.5 + (SZ.note * LH + 0.6) * Math.min(2, noteLinesOf(doc, f.note, o.width).length) : 0;
     cursor.y += o.before ?? 6;
     cursor.ensure(cardH + 1 + noteLead);
     const top = cursor.y;
@@ -194,7 +210,7 @@ export function drawExpertSignaturePdf(doc: jsPDF, branding: ExpertBranding | nu
   if (f.note) {
     const noteLines = noteLinesOf(doc, f.note, o.width);
     const lh = SZ.note * LH + 0.6;
-    cursor.y += hasCard ? NOTE_GAP : (o.before ?? 6);
+    cursor.y += hasCard ? noteGap : (o.before ?? 6);
     cursor.ensure(SZ.noteHead * LH + 1.5 + lh * Math.min(2, noteLines.length));
     doc.setFontSize(SZ.noteHead);
     doc.setTextColor(...mid);
