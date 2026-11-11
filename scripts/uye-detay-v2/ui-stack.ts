@@ -82,6 +82,8 @@ async function main(): Promise<void> {
     pkg: "premium", plan: "premium", pay: "exempt", note: "Kurucu ekip · Owner kararı (sentetik)", login: NOW - D,
   });
   ids.trialAct = await mk("ZZ_UD2 Kaan Denemede", "zz.ud2.deneme@example.test", { ...trial("active", NOW - 2 * D, NOW + 5 * D), login: NOW - 3 * H });
+  ids.trialMgmt = await mk("ZZ_UD2 Deniz Deneme Yönetimi", "zz.ud2.denemeyonetim@example.test", { ...trial("active", NOW - D, NOW + 6 * D), login: NOW - 2 * H });
+  await su.query(`insert into public.pro_upgrade_requests(user_id, note) values ($1,'zz sentetik talep')`, [ids.trialMgmt]);
   ids.trialEnded = await mk("ZZ_UD2 Selin Deneme Bitti", "zz.ud2.bitti@example.test", { ...trial("active", NOW - 9 * D, NOW - 2 * D), login: NOW - 3 * D });
   ids.legacy = await mk("ZZ_UD2 Eski Kayıt", "zz.ud2.eski@example.test", { pkg: null, plan: "trial", mods: {} });
   ids.pending = await mk("ZZ_UD2 Başvuru Bekleyen", "zz.ud2.basvuru@example.test", { approval: "pending", active: false, created: NOW - 2 * H });

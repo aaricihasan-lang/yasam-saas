@@ -324,6 +324,7 @@ export function AstrologyTechniqueAccess({
   openForEnableSignal,
   disabled = false,
   onModuleEnabled,
+  compact = false,
 }: {
   userId: string;
   adminId: string;
@@ -334,6 +335,9 @@ export function AstrologyTechniqueAccess({
   disabled?: boolean;
   /** Sunucuda Astroloji modülünün açık olduğu doğrulandıysa (kayıt veya ağ hatası sonrası geri okuma) güncel izin haritası. */
   onModuleEnabled: (modulePermissions: unknown) => void;
+  /** Üye Detayı V2: Atlas kartı içinde iki satırlık özet ("Teknik izinleri · N/14" / "ayrı kaydedilir" + Düzenle).
+   *  Yalnız görünüm; veri, kayıt ve seçim penceresi aynen. Verilmezse eski görünüm. */
+  compact?: boolean;
 }) {
   const [loaded, setLoaded] = useState<Loaded | null>(null);
   const [loadError, setLoadError] = useState(false);
@@ -460,9 +464,39 @@ export function AstrologyTechniqueAccess({
       ? `Tüm teknikler açık (${TOTAL}/${TOTAL}) — ileride yayımlanan teknikler de otomatik açılır.`
       : `${savedCount}/${TOTAL} teknik açık.`;
 
+  const compactRow = compact ? (
+    <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 py-1" data-astro-tech-summary title={summary}>
+      <span className="col-span-2 flex flex-wrap items-baseline gap-x-1.5 text-[13px] font-medium text-slate-700" data-astro-tech-summary-text>
+        <span>Teknik izinleri ·</span>
+        {loadError && !loaded ? (
+          <span>okunamadı</span>
+        ) : saved?.mode === "all" ? (
+          <span>
+            Tüm teknikler açık <span className="whitespace-nowrap tabular-nums">({TOTAL}/{TOTAL})</span>
+          </span>
+        ) : (
+          <span className="whitespace-nowrap tabular-nums">{`${savedCount}/${TOTAL}`}</span>
+        )}
+        {!moduleEnabled && saved ? <span className="text-slate-500">(Astroloji kapalı — seçim korunuyor)</span> : null}
+      </span>
+      <span className="w-max rounded-md border border-sky-200 bg-sky-50 px-1.5 py-px text-[10.5px] font-semibold text-sky-900">
+        ayrı kaydedilir
+      </span>
+      <button
+        type="button"
+        disabled={disabled || saving || !moduleEnabled}
+        onClick={() => void openPanel("edit")}
+        className="inline-flex h-8 items-center rounded-lg border border-slate-300 bg-white px-3 text-xs font-bold text-slate-800 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+        data-astro-tech-edit
+      >
+        Düzenle
+      </button>
+    </div>
+  ) : null;
+
   return (
     <>
-      {moduleEnabled || saved ? (
+      {compact ? compactRow : moduleEnabled || saved ? (
         <div className="mt-4 rounded-2xl border-2 border-indigo-100 bg-indigo-50/50 p-4 md:p-5" data-astro-tech-summary>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="min-w-0 flex-1">

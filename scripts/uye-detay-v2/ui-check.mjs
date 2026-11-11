@@ -197,6 +197,66 @@ console.log("\n[3] Üyelik durumları");
   await ctx.close();
 }
 
+// ───────────── 3b) Deneme yönetimi (Deneme Üyeleri ile aynı uçlar) ─────────────
+console.log("\n[3b] Deneme yönetimi detayda: kredi limiti · inceleme · durdur/sürdür · Pro talebini kapat");
+{
+  const ctx = await ctxFor(O);
+  const page = await openDetail(ctx, I.trialMgmt, "#moduller");
+  const credit = page.locator("[data-trial-credit]");
+  await credit.waitFor({ timeout: 60_000 });
+  ok(await credit.getByText("Bugün kullanılan").isVisible() && (await credit.innerText()).includes("0 / 50"), "kredi paneli: bugün 0 / 50 (varsayılan ortak kredi)");
+  const inputs = credit.locator("input");
+  await inputs.nth(0).fill("40");
+  await inputs.nth(2).fill("60");
+  const patches = [];
+  page.on("request", (r) => { if (r.method() === "PATCH" && new URL(r.url()).pathname === `/api/admin/trials/${I.trialMgmt}`) patches.push(JSON.parse(r.postData() ?? "{}")); });
+  await credit.getByRole("button", { name: "Limitleri kaydet" }).click();
+  await page.waitForTimeout(1500);
+  ok(patches.length === 1 && patches[0].action === "limits" && patches[0].dailyLimit === 40 && patches[0].moduleLimits.human_design === 60, "aynı uç ve gövde: PATCH trials/[id] {action:limits}", patches[0]);
+  ok(await page.getByText("Modül limiti günlük ortak limiti aşamaz").first().isVisible(), "modül limiti > ortak limit → sunucu reddeder, hata gösterilir");
+  let tp = await q1(`select daily_credit_limit d, module_credit_limits m from public.trial_profiles where user_id=$1`, [I.trialMgmt]);
+  ok(!tp || tp.d === 50, "geçersiz limit kaydedilmedi", tp);
+  await inputs.nth(2).fill("20");
+  await credit.getByRole("button", { name: "Limitleri kaydet" }).click();
+  await page.waitForTimeout(1800);
+  tp = await q1(`select daily_credit_limit d, module_credit_limits m from public.trial_profiles where user_id=$1`, [I.trialMgmt]);
+  ok(tp && tp.d === 40 && Number(tp.m.human_design) === 20, "geçerli limit kaydedildi (40 ortak · HD 20)", tp);
+  ok((await credit.innerText()).includes("0 / 40"), "panel yeni limiti gösteriyor (0 / 40)");
+  await shot(page, "03b-deneme-kredi-limiti-moduller");
+  await selectTab(page, "gelismis", "Gelişmiş");
+  const st = page.locator("[data-trial-state]");
+  await st.waitFor();
+  const phase = async () => (await q1(`select trial_status s from public.users where id=$1`, [I.trialMgmt])).s;
+  await st.getByRole("button", { name: "İncelemeye al" }).click();
+  await page.waitForTimeout(1500);
+  ok((await phase()) === "review" && (await page.locator("[data-trial-state]").getAttribute("data-trial-state")) === "review", "İncelemeye al → review (DB + panel)");
+  await page.locator("[data-trial-state]").getByRole("button", { name: "İncelemeyi kaldır" }).click();
+  await page.waitForTimeout(1500);
+  ok((await phase()) === "active", "İncelemeyi kaldır → active");
+  await page.locator("[data-trial-state]").getByRole("button", { name: "Deneme erişimini durdur" }).click();
+  await page.waitForTimeout(1500);
+  ok((await phase()) === "suspended", "Deneme erişimini durdur → suspended");
+  await shot(page, "03b-deneme-erisimi-gelismis-durduruldu");
+  const endsBefore = (await q1(`select trial_ends_at e from public.users where id=$1`, [I.trialMgmt])).e?.toISOString();
+  await page.locator("[data-trial-state]").getByRole("button", { name: "Erişimi sürdür" }).click();
+  await page.waitForTimeout(1500);
+  const endsAfter = (await q1(`select trial_ends_at e from public.users where id=$1`, [I.trialMgmt])).e?.toISOString();
+  ok((await phase()) === "active" && endsBefore === endsAfter, "Erişimi sürdür → active; deneme bitişi DEĞİŞMEDİ (süre uzamaz)", { endsBefore, endsAfter });
+  await page.locator("[data-trial-state]").getByRole("button", { name: "Pro talebini kapat" }).click();
+  await page.waitForTimeout(1500);
+  const pr = await q1(`select status, close_reason from public.pro_upgrade_requests where user_id=$1 order by created_at desc limit 1`, [I.trialMgmt]);
+  ok(pr.status === "closed" && pr.close_reason === "dismissed", "Pro talebini kapat → talep kapandı (dismissed)", pr);
+  const ev = (await q1(`select string_agg(action, ',' order by id) a from public.trial_admin_events where target_user_id=$1`, [I.trialMgmt])).a;
+  ok(ev === "limits_changed,review_started,review_cleared,trial_suspended,trial_resumed,pro_request_dismissed", "her işlem deneme yönetim kaydına yazıldı", ev);
+  await ctx.close();
+  const ctxL = await ctxFor(O);
+  const p2 = await ctxL.newPage();
+  await p2.goto(`${BASE}/admin/deneme-uyeleri`, { waitUntil: "domcontentloaded" });
+  await p2.getByText("ZZ_UD2 Deniz Deneme Yönetimi").first().waitFor({ timeout: 120_000 });
+  ok(true, "Deneme Üyeleri ekranı açılıyor ve aynı üyeyi listeliyor (ekran korunur)");
+  await ctxL.close();
+}
+
 // ───────────── 4) Ödeme akışları ─────────────
 console.log("\n[4] Ödeme: formu doldur ≠ kaydet · muafiyet gerekçesi zorunlu");
 {
@@ -261,6 +321,10 @@ console.log("\n[6] Modüller: anında kayıt · yalnız değişen anahtar · alt
   const ctx = await ctxFor(O);
   const page = await openDetail(ctx, I.proPaid);
   await selectTab(page, "moduller", "Modüller ve Kredi");
+  const switchNames = await page.locator("#uye-panel-moduller #uye-erisim [role='switch']").evaluateAll((els) => els.map((e) => e.getAttribute("aria-label")));
+  const want19 = ["Danışan Yönetimi", "Ajanda", "Numeroloji", "Numeroloji — Gelecek Yılları Göster", "Doğaltaş", "Ürün & Stok Merkezi", "Şifa Rehberi", "Refleksoloji", "Biyoenerji", "Aromaterapi", "Belge Çeviri Merkezi", "Dijital İçerik Merkezi", "Human Design", "Human Design — Sistem Yorumu", "Kozmik Takvim / Yaşam Takvimi", "Kupa & Hacamat", "Beslenme", "Astroloji", "Astroloji — Otomatik Yorum"];
+  ok(switchNames.length === 19 && want19.every((n) => switchNames.includes(n)), "19 anahtarın hepsi ekranda (15 modül + Dijital İçerik Merkezi + 3 alt yetki)", switchNames);
+  ok(await page.getByText("Kaydet düğmesi yoktur").isVisible(), "modül kaydının anında ve ayrı ayrı olduğu açıkça yazıyor");
   const bodies = [];
   page.on("request", (r) => { if (r.method() === "PATCH" && new URL(r.url()).pathname === `/api/admin/users/${I.proPaid}`) bodies.push(r.postData()); });
   await page.getByRole("switch", { name: "Human Design", exact: true }).click();
@@ -326,6 +390,16 @@ console.log("\n[8] Yetki: sunucu kontrolleri (arayüzle aynı kimlik başlıklar
   const r5 = await fetch(`${BASE}/api/admin/users/${I.proPaid}/logout-all`, { method: "POST", headers: H(O, true), body: JSON.stringify({ confirm: "ÇIKIŞ YAP" }) });
   ok(r5.status >= 400 && r5.status < 500, "yanlış onay metniyle tüm cihazlardan çıkış sunucuda reddedilir", r5.status);
   ok((await q1(`select package_type from public.users where id=$1`, [I.legacy])).package_type === null, "eski kayıt değişmedi");
+  // BİLGİ (Owner kararı için ölçüm): gerekçe zorunluluğu yalnız ARAYÜZDE mi? Doğrudan API'ye boş notlu muaf kayıt.
+  {
+    const r6 = await fetch(`${BASE}/api/admin/users/${I.archived}/payment`, {
+      method: "POST", headers: H(O, true),
+      body: JSON.stringify({ draft: { status: "exempt", lastPaymentDate: "", nextPaymentDate: "", paidAmount: "", note: "", agreedFee: "", billingPeriod: "" } }),
+    });
+    const after = await q1(`select payment_status, payment_note from public.users where id=$1`, [I.archived]);
+    console.log(`  ℹ BİLGİ: doğrudan API, boş gerekçeli muaf kayıt → HTTP ${r6.status}; DB payment_status=${after.payment_status}, payment_note=${JSON.stringify(after.payment_note)}`);
+  }
+
 }
 
 // ───────────── 9) Genişlikler · uzun içerik · mobil sekme ─────────────

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useBfcacheRefresh } from "@/hooks/useBfcacheRefresh";
 import { useParams, useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import {
   Banknote,
   ChevronDown,
@@ -112,6 +112,7 @@ import { MemberDetailHeader } from "@/components/admin/members/detail/MemberDeta
 import { MemberDetailTabs } from "@/components/admin/members/detail/MemberDetailTabs";
 import { memberDetailTabFromHash, type MemberDetailTab } from "@/components/admin/members/detail/memberDetailTabModel";
 import detailCss from "@/components/admin/members/detail/MemberDetailV2.module.css";
+import { TrialCreditPanel, TrialStatePanel, useTrialManagement } from "@/components/admin/members/detail/TrialManagementPanel";
 
 const panelClass =
   "rounded-[28px] border-2 border-white/80 bg-white/90 p-6 shadow-[0_18px_50px_rgba(15,23,42,0.08)] backdrop-blur-xl sm:p-8";
@@ -426,65 +427,113 @@ function membershipAccessState(user: ManagedUser): { label: string; cls: string 
   return { label: `Aktif · ${n} modül açık`, cls: "border-emerald-300 bg-emerald-50 text-emerald-800" };
 }
 
+/** V2: alt yetki → ana modül (alt yetkiler ana modül kartının "Alt izinler" bloğunda gösterilir; değerleri bağımsızdır). */
+const MODULE_SUB_PERMISSIONS: Partial<Record<AdminModuleUiKey, AdminModuleUiKey[]>> = {
+  numerology: ["numerology_future_years"],
+  human_design: ["hd_system_reading"],
+  astrology: ["astrology_provider_interp"],
+};
+const MODULE_SUB_KEYS = new Set<AdminModuleUiKey>(Object.values(MODULE_SUB_PERMISSIONS).flat() as AdminModuleUiKey[]);
+
+/**
+ * Modül izin anahtarları (MEM-007: her anahtar ANINDA ve ayrı kaydedilir — onToggle değişmedi).
+ * V2 görünümü: alt yetkisi olan modüller (Numeroloji, Human Design, Astroloji) üstte, alt yetkileri kartın içinde;
+ * ana modül kapalıyken alt yetki etkisizdir ama değeri silinmez ve anahtarı bugünkü gibi kullanılabilir.
+ */
 function ModulePermissionSwitches({
   value,
   onToggle,
   pendingKeys,
   disabled = false,
+  renderExtra,
 }: {
   value: AdminModulePermissions;
   onToggle: (key: AdminModuleUiKey, next: boolean) => void;
   pendingKeys: ReadonlySet<AdminModuleUiKey>;
   disabled?: boolean;
+  /** Kartın alt izin bloğuna eklenecek içerik (ör. Atlas teknik izinleri satırı). */
+  renderExtra?: (key: AdminModuleUiKey) => ReactNode;
 }) {
+  const sw = (key: AdminModuleUiKey, small = false) => {
+    const busy = pendingKeys.has(key);
+    return (
+      <button
+        type="button"
+        role="switch"
+        aria-checked={value[key]}
+        aria-label={ADMIN_MODULE_UI_LABELS[key]}
+        aria-busy={busy || undefined}
+        disabled={disabled || busy}
+        onClick={() => onToggle(key, !value[key])}
+        className={`relative shrink-0 rounded-full transition disabled:cursor-not-allowed ${small ? "h-7 w-12" : "h-8 w-14"} ${
+          value[key] ? "bg-emerald-600" : "bg-slate-300"
+        } ${busy ? "opacity-60" : ""}`}
+      >
+        <span
+          className={`absolute top-1 rounded-full bg-white shadow transition ${small ? "h-5 w-5" : "h-6 w-6"} ${
+            value[key] ? (small ? "left-[calc(100%-1.5rem)]" : "left-[calc(100%-1.75rem)]") : "left-1"
+          }`}
+        />
+      </button>
+    );
+  };
+  const parents = ADMIN_MODULE_UI_KEYS.filter((k) => MODULE_SUB_PERMISSIONS[k]);
+  const rest = ADMIN_MODULE_UI_KEYS.filter((k) => !MODULE_SUB_PERMISSIONS[k] && !MODULE_SUB_KEYS.has(k));
+  const card = (key: AdminModuleUiKey) => {
+    const subs = MODULE_SUB_PERMISSIONS[key] ?? [];
+    const desc = ADMIN_MODULE_UI_DESCRIPTIONS[key];
+    const on = value[key] === true;
+    const extra = renderExtra?.(key) ?? null;
+    return (
+      <div
+        key={key}
+        className={`min-w-0 overflow-hidden rounded-xl border bg-white ${on ? "border-violet-200" : "border-slate-200"} ${disabled ? "opacity-70" : ""}`}
+        data-module-card={key}
+      >
+        <div className="flex min-h-[52px] items-center justify-between gap-3 px-3.5 py-2.5">
+          <div className="min-w-0">
+            <span className="block text-sm font-bold text-slate-800">{ADMIN_MODULE_UI_LABELS[key]}</span>
+            {desc ? (
+              <span className="mt-0.5 line-clamp-2 block text-[11px] font-medium leading-snug text-slate-500" title={desc}>
+                {desc}
+              </span>
+            ) : null}
+            {pendingKeys.has(key) ? <span className="block text-[11px] font-bold text-amber-700">Kaydediliyor…</span> : null}
+          </div>
+          {sw(key)}
+        </div>
+        {subs.length > 0 || extra ? (
+          <div className="border-t border-emerald-100 bg-emerald-50/50 px-3.5 py-2">
+            <span className="text-[10.5px] font-bold uppercase tracking-wider text-emerald-900/80">Alt izinler</span>
+            {subs.map((sk) => {
+              const label = ADMIN_MODULE_UI_LABELS[sk].replace(/^.+?—\s*/, "");
+              return (
+                <div key={sk} className="flex min-h-[38px] items-center justify-between gap-3">
+                  <span className={`min-w-0 text-[13px] ${on ? "text-slate-700" : "text-slate-400"}`}>
+                    {label}
+                    {on ? null : (
+                      <span className="block text-[11px] text-slate-400">Ana modül kapalıyken etkisiz; değeri korunur</span>
+                    )}
+                    {pendingKeys.has(sk) ? <span className="block text-[11px] font-bold text-amber-700">Kaydediliyor…</span> : null}
+                  </span>
+                  {sw(sk, true)}
+                </div>
+              );
+            })}
+            {extra}
+          </div>
+        ) : null}
+      </div>
+    );
+  };
   return (
-    <div className="rounded-2xl border-2 border-violet-100 bg-violet-50/50 p-4 md:p-5">
+    <div className="rounded-2xl border border-slate-200 bg-slate-50/60 p-3 md:p-4">
       <p className="text-xs font-medium text-slate-600">
         Her anahtar ayrı ayrı kaydedilir; yalnız değiştirdiğiniz modül güncellenir. Erişim server
         tarafında zorlanır.
       </p>
-      <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
-        {ADMIN_MODULE_UI_KEYS.map((key) => {
-          const desc = ADMIN_MODULE_UI_DESCRIPTIONS[key];
-          const busy = pendingKeys.has(key);
-          return (
-            <label
-              key={key}
-              className={`flex min-h-[64px] items-center justify-between gap-4 rounded-xl border border-white/80 bg-white/90 px-4 py-3 ${
-                disabled ? "opacity-70" : ""
-              }`}
-            >
-              <div className="min-w-0 flex-1">
-                <span className="block text-sm font-bold text-slate-800">
-                  {ADMIN_MODULE_UI_LABELS[key]}
-                </span>
-                {desc ? (
-                  <span className="mt-0.5 block text-[11px] font-medium leading-snug text-slate-500">
-                    {desc}
-                  </span>
-                ) : null}
-              </div>
-              <button
-                type="button"
-                role="switch"
-                aria-checked={value[key]}
-                aria-label={ADMIN_MODULE_UI_LABELS[key]}
-                disabled={disabled || busy}
-                onClick={() => onToggle(key, !value[key])}
-                className={`relative h-10 w-[4.5rem] shrink-0 rounded-full transition disabled:cursor-not-allowed ${
-                  value[key] ? "bg-emerald-500" : "bg-slate-300"
-                } ${busy ? "opacity-60" : ""}`}
-              >
-                <span
-                  className={`absolute top-1 h-8 w-8 rounded-full bg-white shadow-md transition ${
-                    value[key] ? "left-[calc(100%-2.25rem)]" : "left-1"
-                  }`}
-                />
-              </button>
-            </label>
-          );
-        })}
-      </div>
+      <div className="mt-3 grid grid-cols-1 items-start gap-3 md:grid-cols-2 xl:grid-cols-3">{parents.map(card)}</div>
+      <div className="mt-3 grid grid-cols-1 items-start gap-3 md:grid-cols-2 xl:grid-cols-4">{rest.map(card)}</div>
     </div>
   );
 }
@@ -723,6 +772,24 @@ export default function AdminUserDetailPage() {
       /* adres güncellenemezse sekme yine değişir */
     }
   }, []);
+  // Deneme yönetimi (kredi limiti / inceleme / durdur-sürdür / Pro talebini kapat): Deneme Üyeleri ekranıyla aynı uçlar.
+  const isTrialMember = Boolean(
+    user && user.role === "expert" && user.trialPhase && user.trialPhase !== "none" && user.trialPhase !== "converted",
+  );
+  const trialHeaders = useCallback((json: boolean) => adminHeaders(currentAdminId, json), [currentAdminId]);
+  const trialNotify = useCallback(
+    (type: "success" | "error", message: string) =>
+      showToast({ type, title: type === "success" ? "Başarılı" : "İşlem başarısız", message }),
+    [showToast],
+  );
+  const trialMgmt = useTrialManagement({
+    enabled: isTrialMember && Boolean(currentAdminId),
+    userId: user?.id ?? "",
+    email: user?.email ?? "",
+    headers: trialHeaders,
+    notify: trialNotify,
+    onChanged: () => void loadUser(currentAdminId),
+  });
   const [showPaymentHistory, setShowPaymentHistory] = useState(false);
   const [showSecurityPanel, setShowSecurityPanel] = useState(false);
   const [securityLoading, setSecurityLoading] = useState(false);
@@ -2591,8 +2658,9 @@ export default function AdminUserDetailPage() {
             <section id="uye-erisim" className={`${panelClass} scroll-mt-28 border-violet-200/80`}>
               <h2 className="text-xl font-black text-slate-950">Modül İzinleri</h2>
               <p className="mt-3 text-xs font-semibold leading-relaxed text-slate-600">
-                Her anahtar değiştirildiği anda kaydedilir (yalnız değişen izin gönderilir). Alt izinler ana
-                modülden ayrı saklanır; ana modül kapatılınca silinmez, yalnız etkisiz kalır.
+                <span className="font-black text-slate-800">Kaydet düğmesi yoktur:</span> her anahtar ayrı ayrı ve
+                değiştirildiği anda kaydedilir (yalnız değişen izin gönderilir); her kayıt bildirimle onaylanır ve yönetim
+                geçmişine yazılır. Alt izinler ana modülden ayrı saklanır; ana modül kapatılınca silinmez, yalnız etkisiz kalır.
               </p>
               {user.role === "expert" ? (
                 <div className="mt-4">
@@ -2611,19 +2679,24 @@ export default function AdminUserDetailPage() {
                     }
                     pendingKeys={modulePendingKeys}
                     disabled={!canPersistModulePermissions}
-                  />
-                  <AstrologyTechniqueAccess
-                    userId={user.id}
-                    adminId={currentAdminId}
-                    moduleEnabled={user.modulePermissions.astrology === true}
-                    openForEnableSignal={astroTechOpenSignal}
-                    disabled={!canPersistModulePermissions}
-                    onModuleEnabled={(perms) => {
-                      const serverPerms = parseAdminModulePermissions(perms);
-                      setUser((prev) =>
-                        prev ? { ...prev, modulePermissions: { ...prev.modulePermissions, astrology: serverPerms.astrology } } : prev,
-                      );
-                    }}
+                    renderExtra={(key) =>
+                      key === "astrology" ? (
+                        <AstrologyTechniqueAccess
+                          compact
+                          userId={user.id}
+                          adminId={currentAdminId}
+                          moduleEnabled={user.modulePermissions.astrology === true}
+                          openForEnableSignal={astroTechOpenSignal}
+                          disabled={!canPersistModulePermissions}
+                          onModuleEnabled={(perms) => {
+                            const serverPerms = parseAdminModulePermissions(perms);
+                            setUser((prev) =>
+                              prev ? { ...prev, modulePermissions: { ...prev.modulePermissions, astrology: serverPerms.astrology } } : prev,
+                            );
+                          }}
+                        />
+                      ) : null
+                    }
                   />
                   <HdEducationAccessSwitch
                     userId={user.id}
@@ -2647,10 +2720,10 @@ export default function AdminUserDetailPage() {
                       <b>Günlük ortak Roxy kredisi (7 günlük deneme)</b>
                       <span>
                         Gökyüzü Atlası, Human Design ve Numeroloji aynı günlük krediyi paylaşır (varsayılan 50). Sistem
-                        geneli bütçe yoktur; limit yalnız bu üyeye uygulanır ve üyeye özel değiştirilebilir.
+                        geneli bütçe yoktur; limit yalnız bu üyeye uygulanır ve aşağıdan üyeye özel değiştirilebilir.
                       </span>
                       <Link href="/admin/deneme-uyeleri" className="font-black text-violet-800 underline underline-offset-2">
-                        Kredi limitini Deneme Üyeleri ekranında düzenle
+                        Deneme Üyeleri ekranı
                       </Link>
                     </div>
                   ) : (
@@ -2670,7 +2743,14 @@ export default function AdminUserDetailPage() {
                     </span>
                   </div>
                 </div>
-              ) : (
+              ) : null}
+              {isTrialMember ? (
+                <div className="mt-4 rounded-2xl border border-violet-200 bg-violet-50/40 p-4" aria-labelledby="uye-deneme-kredi">
+                  <p id="uye-deneme-kredi" className="mb-3 text-sm font-black text-violet-950">Bu üyenin günlük Roxy kredisi</p>
+                  <TrialCreditPanel mgmt={trialMgmt} />
+                </div>
+              ) : null}
+              {user.role === "expert" ? null : (
                 <p className="mt-3 text-sm font-medium text-slate-600">Yönetici hesaplarında kredi sınırı uygulanmaz.</p>
               )}
             </section>
@@ -3535,6 +3615,14 @@ export default function AdminUserDetailPage() {
                 </div>
               ) : null}
             </section>
+            {isTrialMember ? (
+              <section className={`${panelClass} border-slate-200/80`} aria-labelledby="uye-deneme-erisimi">
+                <h2 id="uye-deneme-erisimi" className="text-xl font-black text-slate-950">Deneme erişimi</h2>
+                <div className="mt-4">
+                  <TrialStatePanel mgmt={trialMgmt} />
+                </div>
+              </section>
+            ) : null}
             <section className={`${panelClass} border-slate-200/80`} aria-labelledby="uye-hesap-islemleri">
               <h2 id="uye-hesap-islemleri" className="text-xl font-black text-slate-950">Hesap ve erişim işlemleri</h2>
               <div className="mt-4 rounded-2xl border-2 border-slate-100 bg-white/70 p-4" role="group" aria-labelledby="actions-account">
