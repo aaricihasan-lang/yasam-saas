@@ -10,7 +10,7 @@ const ekranlar = [
   "/zz-ekran/analiz", "/zz-ekran/atlas-giris", "/zz-ekran/atlas-arsiv", "/zz-ekran/atlas-bilgi", "/zz-ekran/atlas-calisma", "/zz-ekran/karakter",
   // 2. tur (11.11): Atlas iç ekranları + diğer modüllerin #777 yazı tipleri + gerçek herkese açık sayfalar
   "/zz-ekran/atlas-sonuc-gece", "/zz-ekran/atlas-sonuc-acik", "/zz-ekran/atlas-hazirlik", "/zz-ekran/gokyuzu-araclari",
-  "/zz-ekran/dy", "/zz-ekran/hd", "/zz-ekran/enerji-beden", "/zz-ekran/degiskenler",
+  "/zz-ekran/dy", "/zz-ekran/hd", "/zz-ekran/enerji-beden", "/zz-ekran/degiskenler", "/zz-ekran/kampanya",
   "/", "/register", "/gizlilik-politikasi", "/kullanim-sartlari",
 ];
 const adi = (s) => (s === "/" ? "ana-sayfa" : s.split("/").filter(Boolean).pop());

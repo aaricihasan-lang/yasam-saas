@@ -10,7 +10,7 @@ import fs from "node:fs";
 
 const [, , etiket, port, cikti] = process.argv;
 const TEKRAR = 5;
-const ROTALAR = ["/", "/register", "/zz-ekran/analiz", "/zz-ekran/atlas-giris", "/zz-ekran/atlas-sonuc-acik", "/zz-ekran/dy", "/zz-ekran/enerji-beden"];
+const ROTALAR = ["/", "/register", "/zz-ekran/analiz", "/zz-ekran/atlas-giris", "/zz-ekran/atlas-sonuc-acik", "/zz-ekran/dy", "/zz-ekran/enerji-beden", "/zz-ekran/kampanya"];
 const AG = { offline: false, latency: 150, downloadThroughput: (1.6 * 1024 * 1024 * 0.9) / 8, uploadThroughput: (750 * 1024 * 0.9) / 8 };
 
 const b = await chromium.launch();
