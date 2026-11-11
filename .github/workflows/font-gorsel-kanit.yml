@@ -44,7 +44,9 @@ jobs:
         env:
           NODE_OPTIONS: --max-old-space-size=6144
       - name: Build çıktısı yazı tipi denetimi
-        run: node .github/font-gorsel/build-denetim.mjs "$RUNNER_TEMP/kanit/once-build.json"
+        run: |
+          node .github/font-gorsel/build-denetim.mjs "$RUNNER_TEMP/kanit/once-build.json"
+          cp .next/server/next-font-manifest.json "$RUNNER_TEMP/kanit/once-next-font-manifest.json" || echo "manifest yok"
       - name: Ekran görüntüleri (iki kez → gürültü tabanı) + performans
         run: |
           (npx next start -p 3100 -H 127.0.0.1 > "$RUNNER_TEMP/start.log" 2>&1 &)
@@ -131,7 +133,9 @@ jobs:
         env:
           NODE_OPTIONS: --max-old-space-size=6144
       - name: Build çıktısı yazı tipi denetimi
-        run: node .github/font-gorsel/build-denetim.mjs "$RUNNER_TEMP/kanit/sonra-build.json"
+        run: |
+          node .github/font-gorsel/build-denetim.mjs "$RUNNER_TEMP/kanit/sonra-build.json"
+          cp .next/server/next-font-manifest.json "$RUNNER_TEMP/kanit/sonra-next-font-manifest.json" || echo "manifest yok"
       - name: Ekran görüntüleri + performans
         run: |
           (npx next start -p 3100 -H 127.0.0.1 > "$RUNNER_TEMP/start.log" 2>&1 &)
