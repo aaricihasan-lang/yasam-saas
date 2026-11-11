@@ -113,10 +113,21 @@ async function open(browser: Browser, s: Scenario, width: number, profileOverrid
   return { page, close: () => ctx.close(), profileHeaders, errors };
 }
 
+/** Sekmeyi gerçek tıklamayla açar; sekme açılır menüdeyse (dar ekranda "Diğer") önce menünün kendi düğmesine tıklar. */
+async function openTab(page: Page, label: string) {
+  const btn = page.locator(`main button[data-settings-tab]:text-is("${label}")`);
+  await btn.waitFor({ state: "attached", timeout: 180000 });
+  if (!(await btn.isVisible())) {
+    const panelId = await btn.evaluate((el) => el.closest("[hidden]")?.id ?? "");
+    await page.locator(`main [aria-controls="${panelId}"]`).click();
+  }
+  await btn.click();
+}
+
 async function gotoMembership(page: Page) {
   await page.goto(BASE + "/settings", { waitUntil: "load" });
   await page.waitForSelector("main h1", { timeout: 180000 });
-  await page.getByRole("button", { name: "Üyeliğim", exact: true }).click();
+  await openTab(page, "Üyeliğim");
   await page.waitForSelector("section[data-membership-kind]", { timeout: 60000 });
   await page.addStyleTag({ content: FREEZE_CSS });
   await page.evaluate(async () => { await document.fonts.ready; });
@@ -246,7 +257,7 @@ async function main() {
     for (const w of VIEWPORTS) {
       const o = await open(browser, SCENARIOS[2], w, undefined, true);
       await gotoMembership(o.page);
-      await o.page.waitForSelector("button[aria-pressed]:text-is('Çalışma Alanım')", { timeout: 20000 });
+      await o.page.waitForSelector("button[aria-pressed]:text-is('Çalışma Alanım')", { state: "attached", timeout: 20000 });
       const r = (await o.page.evaluate(INSPECT_JS)) as Inspect;
       if (w === 320 || w === 1024 || w === 1280) await o.page.screenshot({ path: join(OUT, `sekmeler-calisma-alani-${w}.png`) });
       const tb = (await o.page.evaluate(TABBAR_JS)) as TabBar;
