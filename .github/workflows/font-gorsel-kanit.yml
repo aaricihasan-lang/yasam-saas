@@ -43,7 +43,11 @@ jobs:
         run: |
           (sudo tcpdump -i any -n -l 'udp port 53 or (tcp[tcpflags] & (tcp-syn|tcp-ack) == tcp-syn)' > "$RUNNER_TEMP/kanit/once-build-ag.txt" 2>/dev/null &)
           sleep 2
-          npx next build
+          # Hata olursa ilk hata satırları check-run notu olarak da yazılır (log indirilemezse API'den okunur).
+          if ! npx next build > "$RUNNER_TEMP/build.log" 2>&1; then
+            cat "$RUNNER_TEMP/build.log"; grep -E "Can't resolve|Error|error|failed" "$RUNNER_TEMP/build.log" | head -8 | sed 's/^/::error title=build::/'; exit 1
+          fi
+          cat "$RUNNER_TEMP/build.log"
           sudo pkill tcpdump || true
           echo "Build sırasında sorgulanan alan adları:"; grep -oE '(A|AAAA)\? [^ ]+' "$RUNNER_TEMP/kanit/once-build-ag.txt" | awk '{print $2}' | sort | uniq -c
         env:
@@ -136,7 +140,11 @@ jobs:
         run: |
           (sudo tcpdump -i any -n -l 'udp port 53 or (tcp[tcpflags] & (tcp-syn|tcp-ack) == tcp-syn)' > "$RUNNER_TEMP/kanit/sonra-build-ag.txt" 2>/dev/null &)
           sleep 2
-          npx next build
+          # Hata olursa ilk hata satırları check-run notu olarak da yazılır (log indirilemezse API'den okunur).
+          if ! npx next build > "$RUNNER_TEMP/build.log" 2>&1; then
+            cat "$RUNNER_TEMP/build.log"; grep -E "Can't resolve|Error|error|failed" "$RUNNER_TEMP/build.log" | head -8 | sed 's/^/::error title=build::/'; exit 1
+          fi
+          cat "$RUNNER_TEMP/build.log"
           sudo pkill tcpdump || true
           echo "Build sırasında sorgulanan alan adları:"; grep -oE '(A|AAAA)\? [^ ]+' "$RUNNER_TEMP/kanit/sonra-build-ag.txt" | awk '{print $2}' | sort | uniq -c
           echo "0.0.0.0 / :: hedefli bağlantı denemesi (engellenen fonts.* için):"; grep -cE ' > (0\.0\.0\.0|::)\.443' "$RUNNER_TEMP/kanit/sonra-build-ag.txt" || true
@@ -181,6 +189,9 @@ jobs:
         run: node .github/font-gorsel/fontface-kiyas.mjs "$RUNNER_TEMP/k/gorsel-once/once-build.json" "$RUNNER_TEMP/k/gorsel-sonra/sonra-build.json" "$RUNNER_TEMP/k/fark/fontface.md"
       - name: Performans
         run: node .github/font-gorsel/perf-kiyas.mjs "$RUNNER_TEMP/k/gorsel-once/once-perf.json" "$RUNNER_TEMP/k/gorsel-sonra/sonra-perf.json" "$RUNNER_TEMP/k/fark/perf.md"
+      - name: Özet notları (check-run annotation — artefakt indirilemezse API'den okunur)
+        if: always()
+        run: node .github/font-gorsel/ozet-not.mjs "$RUNNER_TEMP/k"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
