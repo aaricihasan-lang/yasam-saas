@@ -1,8 +1,12 @@
-# KANIT İŞ AKIŞI — #777 (Google Fonts → yerel) görsel kabulü. Yalnız bu kanıt dalına push'ta çalışır; PR / main / ci.yml ile ilgisi yok.
-# Sır / production / veritabanı yok; kanıt sayfaları sentetik metinlerle gerçek bileşenleri render eder.
-#   once  : main (bu dalın ürün kodu = main b25648c1) next/font/google, normal ağ → build + ekran görüntüsü
-#   sonra : main + #777'nin değiştirdiği dosyalar (fix/google-fonts-yerel @ 15bbb2a4), Google Fonts AĞI ENGELLİ → build + görüntü
-#   kiyas : piksel + yan yana görüntü + CDP öğe-başı font + ölçü karşılaştırması
+# KANIT İŞ AKIŞI — #777 (Google Fonts → yerel) yayın öncesi kabul. Yalnız bu kanıt dalına push'ta çalışır; PR / main / ci.yml ile
+# ilgisi yok (zorunlu CI işlerine dokunmaz). Sır / production / veritabanı yok; kanıt sayfaları sentetik metinlerle gerçek
+# bileşenleri render eder.
+#   once         : main (bu dalın ürün kodu = main b25648c1) next/font/google, normal ağ → build + ağ kaydı + build denetimi +
+#                  ekran görüntüsü İKİ KEZ (gürültü tabanı) + performans
+#   once-engelli : main, Google Fonts AĞI ENGELLİ → build BAŞARISIZ olmalı (eski davranışın kanıtı)
+#   sonra        : main + #777 (GitHub birleşim commit'i c253119e ile ağaç eşitliği doğrulanır), Google Fonts AĞI ENGELLİ →
+#                  build + ağ kaydı + build denetimi + ekran görüntüsü + performans
+#   kiyas        : gürültü (önce↔önce2) ve fark (önce↔sonra) + @font-face/yedek metrik + performans karşılaştırması
 name: Font görsel kanıt (#777)
 
 on:
@@ -15,11 +19,12 @@ permissions:
 env:
   NEXT_TELEMETRY_DISABLED: "1"
   PR_UCU: 15bbb2a420ac3bb6efabdb82c77fc88c25aaadff
+  BIRLESIM: c253119e6475b4028407336fe97fec65f95fd6c2
 
 jobs:
   once:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/kurulum
@@ -29,71 +34,141 @@ jobs:
           cp -r .github/font-gorsel/sayfalar/* app/zz-ekran/
           echo "next/font/google (main, beklenen > 0): $(grep -rl 'from "next/font/google"' app | wc -l)"
       - run: npx playwright install --with-deps chromium
-      - name: Build (main, normal ağ)
-        run: npx next build
+      - name: Build (main, normal ağ) + build sırasındaki DNS / bağlantı kaydı
+        run: |
+          (sudo tcpdump -i any -n -l 'udp port 53 or (tcp[tcpflags] & (tcp-syn|tcp-ack) == tcp-syn)' > "$RUNNER_TEMP/kanit/once-build-ag.txt" 2>/dev/null &)
+          sleep 2
+          npx next build
+          sudo pkill tcpdump || true
+          echo "Build sırasında sorgulanan alan adları:"; grep -oE '(A|AAAA)\? [^ ]+' "$RUNNER_TEMP/kanit/once-build-ag.txt" | awk '{print $2}' | sort | uniq -c
         env:
           NODE_OPTIONS: --max-old-space-size=6144
-      - name: Ekran görüntüleri
+      - name: Build çıktısı yazı tipi denetimi
+        run: node .github/font-gorsel/build-denetim.mjs "$RUNNER_TEMP/kanit/once-build.json"
+      - name: Ekran görüntüleri (iki kez → gürültü tabanı) + performans
         run: |
           (npx next start -p 3100 -H 127.0.0.1 > "$RUNNER_TEMP/start.log" 2>&1 &)
           for i in $(seq 1 60); do curl -sf -o /dev/null http://127.0.0.1:3100/zz-ekran/analiz && break; sleep 2; done
           node .github/font-gorsel/shots.mjs once 3100 "$RUNNER_TEMP/kanit/once"
+          node .github/font-gorsel/shots.mjs once2 3100 "$RUNNER_TEMP/kanit/once2"
+          node .github/font-gorsel/perf.mjs once 3100 "$RUNNER_TEMP/kanit/once-perf.json"
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: gorsel-once
-          path: ${{ runner.temp }}/kanit/once
+          path: ${{ runner.temp }}/kanit
+          retention-days: 30
+
+  once-engelli:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/kurulum
+      - name: Google Fonts ağını engelle ve doğrula
+        run: |
+          printf '0.0.0.0 fonts.googleapis.com\n0.0.0.0 fonts.gstatic.com\n:: fonts.googleapis.com\n:: fonts.gstatic.com\n' | sudo tee -a /etc/hosts
+          if curl -sS -m 10 -o /dev/null https://fonts.gstatic.com/; then echo "ENGEL ETKİSİZ"; exit 1; else echo "fonts.gstatic.com erişilemez ✓"; fi
+      - name: "Build (main, Google Fonts engelli) — BAŞARISIZ olması beklenir"
+        run: |
+          mkdir -p "$RUNNER_TEMP/kanit"
+          if npx next build > "$RUNNER_TEMP/kanit/once-engelli-build.log" 2>&1; then
+            echo "BEKLENMEDİK: main Google Fonts engelliyken build BAŞARILI"; tail -40 "$RUNNER_TEMP/kanit/once-engelli-build.log"; exit 1
+          fi
+          echo "main engelli build BAŞARISIZ (beklenen) — ilgili satırlar:"
+          grep -nE "font|Font|googleapis|gstatic|Error|error" "$RUNNER_TEMP/kanit/once-engelli-build.log" | head -40
+        env:
+          NODE_OPTIONS: --max-old-space-size=6144
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: gorsel-once-engelli
+          path: ${{ runner.temp }}/kanit
           retention-days: 30
 
   sonra:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
       - uses: ./.github/actions/kurulum
-      - name: "#777 değişikliklerini uygula (main + PR farkı) ve kanıt sayfaları"
+      - name: "#777 değişikliklerini uygula + GitHub birleşim commit'iyle ağaç eşitliği + kanıt sayfaları"
         run: |
-          git fetch -q origin "$PR_UCU"
+          git fetch -q origin "$PR_UCU" "+refs/pull/777/merge:refs/remotes/origin/pr777-birlesim"
+          echo "refs/pull/777/merge = $(git rev-parse origin/pr777-birlesim) (beklenen $BIRLESIM)"
+          git cat-file -e "$BIRLESIM^{commit}"
           git diff --name-only --diff-filter=AM "origin/main...$PR_UCU" > "$RUNNER_TEMP/pr-dosyalar.txt"
           cat "$RUNNER_TEMP/pr-dosyalar.txt"
           git checkout "$PR_UCU" -- $(cat "$RUNNER_TEMP/pr-dosyalar.txt")
-          echo "next/font/google kullanımı (beklenen 0):"; ! grep -rn 'from "next/font/google"' app components lib
+          echo "Çalışma ağacı ↔ $BIRLESIM (kanıt dosyaları hariç) farkı (beklenen: boş):"
+          git diff --stat "$BIRLESIM" -- . ':(exclude).github'
+          if ! git diff --quiet "$BIRLESIM" -- . ':(exclude).github'; then echo "AĞAÇ FARKLI ✗"; exit 1; fi
+          echo "AĞAÇ EŞİT ✓ (test edilen kod = GitHub birleşim commit'i $BIRLESIM)"
+          if grep -rn 'from "next/font/google"' app components lib; then echo "next/font/google kaldı ✗"; exit 1; fi
+          echo "next/font/google kullanımı: 0 ✓"
           mkdir -p app/zz-ekran "$RUNNER_TEMP/kanit"
           cp -r .github/font-gorsel/sayfalar/* app/zz-ekran/
       - run: npx playwright install --with-deps chromium
-      - name: Google Fonts ağını engelle ve doğrula
+      - name: Google Fonts ağını engelle ve doğrula (diğer servisler erişilebilir kalmalı)
         run: |
           printf '0.0.0.0 fonts.googleapis.com\n0.0.0.0 fonts.gstatic.com\n:: fonts.googleapis.com\n:: fonts.gstatic.com\n' | sudo tee -a /etc/hosts
-          if curl -sS -m 10 -o /dev/null https://fonts.gstatic.com/; then echo "ENGEL ETKİSİZ"; exit 1; else echo "fonts.gstatic.com erişilemez ✓"; fi
-      - name: Build (#777, Google Fonts engelli)
-        run: npx next build
+          getent hosts fonts.googleapis.com fonts.gstatic.com || true
+          if curl -sS -m 10 -o /dev/null https://fonts.gstatic.com/; then echo "ENGEL ETKİSİZ (gstatic)"; exit 1; else echo "fonts.gstatic.com erişilemez ✓"; fi
+          if curl -sS -m 10 -o /dev/null https://fonts.googleapis.com/css2?family=Geist; then echo "ENGEL ETKİSİZ (googleapis)"; exit 1; else echo "fonts.googleapis.com erişilemez ✓"; fi
+          for u in https://api.github.com https://registry.npmjs.org/ https://www.google.com/ https://storage.googleapis.com/; do
+            c=$(curl -sS -m 15 -o /dev/null -w '%{http_code}' "$u" || echo HATA); echo "erişilebilir mi: $u → $c"
+          done
+      - name: Build (#777, Google Fonts engelli) + build sırasındaki DNS / bağlantı kaydı
+        run: |
+          (sudo tcpdump -i any -n -l 'udp port 53 or (tcp[tcpflags] & (tcp-syn|tcp-ack) == tcp-syn)' > "$RUNNER_TEMP/kanit/sonra-build-ag.txt" 2>/dev/null &)
+          sleep 2
+          npx next build
+          sudo pkill tcpdump || true
+          echo "Build sırasında sorgulanan alan adları:"; grep -oE '(A|AAAA)\? [^ ]+' "$RUNNER_TEMP/kanit/sonra-build-ag.txt" | awk '{print $2}' | sort | uniq -c
+          echo "0.0.0.0 / :: hedefli bağlantı denemesi (engellenen fonts.* için):"; grep -cE ' > (0\.0\.0\.0|::)\.443' "$RUNNER_TEMP/kanit/sonra-build-ag.txt" || true
         env:
           NODE_OPTIONS: --max-old-space-size=6144
-      - name: Ekran görüntüleri
+      - name: Build çıktısı yazı tipi denetimi
+        run: node .github/font-gorsel/build-denetim.mjs "$RUNNER_TEMP/kanit/sonra-build.json"
+      - name: Ekran görüntüleri + performans
         run: |
           (npx next start -p 3100 -H 127.0.0.1 > "$RUNNER_TEMP/start.log" 2>&1 &)
           for i in $(seq 1 60); do curl -sf -o /dev/null http://127.0.0.1:3100/zz-ekran/analiz && break; sleep 2; done
           node .github/font-gorsel/shots.mjs sonra 3100 "$RUNNER_TEMP/kanit/sonra"
+          node .github/font-gorsel/perf.mjs sonra 3100 "$RUNNER_TEMP/kanit/sonra-perf.json"
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: gorsel-sonra
-          path: ${{ runner.temp }}/kanit/sonra
+          path: ${{ runner.temp }}/kanit
           retention-days: 30
 
   kiyas:
     needs: [once, sonra]
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/kurulum
       - uses: actions/download-artifact@v4
         with:
           path: ${{ runner.temp }}/k
+      - name: Gürültü tabanı (önce ↔ önce, aynı build iki çekim)
+        run: node .github/font-gorsel/kiyas.mjs "$RUNNER_TEMP/k/gorsel-once/once" "$RUNNER_TEMP/k/gorsel-once/once2" "$RUNNER_TEMP/k/fark/gurultu"
+        env:
+          KIYAS_BASLIK: "GÜRÜLTÜ TABANI — aynı main build'inin iki ayrı çekimi (font farkı olamaz)"
       - name: Önce ↔ sonra
-        run: node .github/font-gorsel/kiyas.mjs "$RUNNER_TEMP/k/gorsel-once" "$RUNNER_TEMP/k/gorsel-sonra" "$RUNNER_TEMP/k/fark"
+        run: node .github/font-gorsel/kiyas.mjs "$RUNNER_TEMP/k/gorsel-once/once" "$RUNNER_TEMP/k/gorsel-sonra/sonra" "$RUNNER_TEMP/k/fark/fark"
+        env:
+          KIYAS_BASLIK: "ÖNCE (main, next/font/google) ↔ SONRA (#777 = birleşim c253119e, Google Fonts ağı engelli build)"
+      - name: "@font-face ve yedek font metrikleri"
+        run: node .github/font-gorsel/fontface-kiyas.mjs "$RUNNER_TEMP/k/gorsel-once/once-build.json" "$RUNNER_TEMP/k/gorsel-sonra/sonra-build.json" "$RUNNER_TEMP/k/fark/fontface.md"
+      - name: Performans
+        run: node .github/font-gorsel/perf-kiyas.mjs "$RUNNER_TEMP/k/gorsel-once/once-perf.json" "$RUNNER_TEMP/k/gorsel-sonra/sonra-perf.json" "$RUNNER_TEMP/k/fark/perf.md"
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: gorsel-fark
           path: ${{ runner.temp }}/k/fark

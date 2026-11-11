@@ -6,7 +6,14 @@ import fs from "node:fs";
 const [, , etiket, port, dir] = process.argv;
 if (fs.existsSync(dir)) throw new Error(`çıktı dizini zaten var: ${dir}`);
 fs.mkdirSync(dir, { recursive: true });
-const ekranlar = ["/zz-ekran/analiz", "/zz-ekran/atlas-giris", "/zz-ekran/atlas-arsiv", "/zz-ekran/atlas-bilgi", "/zz-ekran/atlas-calisma", "/zz-ekran/karakter"];
+const ekranlar = [
+  "/zz-ekran/analiz", "/zz-ekran/atlas-giris", "/zz-ekran/atlas-arsiv", "/zz-ekran/atlas-bilgi", "/zz-ekran/atlas-calisma", "/zz-ekran/karakter",
+  // 2. tur (11.11): Atlas iç ekranları + diğer modüllerin #777 yazı tipleri + gerçek herkese açık sayfalar
+  "/zz-ekran/atlas-sonuc-gece", "/zz-ekran/atlas-sonuc-acik", "/zz-ekran/atlas-hazirlik", "/zz-ekran/gokyuzu-araclari",
+  "/zz-ekran/dy", "/zz-ekran/hd", "/zz-ekran/enerji-beden", "/zz-ekran/degiskenler",
+  "/", "/register", "/gizlilik-politikasi", "/kullanim-sartlari",
+];
+const adi = (s) => (s === "/" ? "ana-sayfa" : s.split("/").filter(Boolean).pop());
 const b = await chromium.launch();
 const ozet = [];
 for (const w of [1440, 390, 320]) {
@@ -19,12 +26,12 @@ for (const w of [1440, 390, 320]) {
     await p.evaluate(async () => { await document.fonts.ready; });
     await p.addStyleTag({ content: "*,*::before,*::after{animation:none!important;transition:none!important;caret-color:transparent!important}" });
     await p.waitForTimeout(2500);
-    const ad = `${s.split("/").pop()}-${w}`;
+    const ad = `${adi(s)}-${w}`;
     await p.screenshot({ path: `${dir}/${ad}.png`, fullPage: true });
     const cdp = await ctx.newCDPSession(p);
     await cdp.send("DOM.enable"); await cdp.send("CSS.enable");
     const { root } = await cdp.send("DOM.getDocument", { depth: -1 });
-    const secici = s.endsWith("karakter") ? "[data-k] , [data-k] h2" : "h1, h2, h3, p, button, a, span, strong, small, label";
+    const secici = s.endsWith("karakter") || s.endsWith("degiskenler") ? "[data-k]" : "h1, h2, h3, p, button, a, span, strong, small, label";
     const { nodeIds } = await cdp.send("DOM.querySelectorAll", { nodeId: root.nodeId, selector: secici });
     const kullanilan = {};
     for (const id of nodeIds.slice(0, 220)) {
