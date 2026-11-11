@@ -12,6 +12,12 @@ import geistCyrillic from "./geist-cyrillic";
 import geistVietnamese from "./geist-vietnamese";
 import geistLatinExt from "./geist-latin-ext";
 import geistLatin from "./geist-latin";
+import frauncesVietnamese from "./fraunces-vietnamese";
+import frauncesLatinExt from "./fraunces-latin-ext";
+import frauncesLatin from "./fraunces-latin";
+import jostCyrillic from "./jost-cyrillic";
+import jostLatinExt from "./jost-latin-ext";
+import jostLatin from "./jost-latin";
 
 const FONTLAR = [
   geistCyrillicExt,
@@ -19,6 +25,12 @@ const FONTLAR = [
   geistVietnamese,
   geistLatinExt,
   geistLatin,
+  frauncesVietnamese,
+  frauncesLatinExt,
+  frauncesLatin,
+  jostCyrillic,
+  jostLatinExt,
+  jostLatin,
 ];
 
 /**
