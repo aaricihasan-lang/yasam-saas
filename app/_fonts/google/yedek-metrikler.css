@@ -13,6 +13,15 @@
 }
 
 @font-face {
+  font-family: "Geist Mono Fallback";
+  src: local("Arial");
+  ascent-override: 74.67%;
+  descent-override: 21.92%;
+  line-gap-override: 0%;
+  size-adjust: 134.59%;
+}
+
+@font-face {
   font-family: "Fraunces Fallback";
   src: local("Times New Roman");
   ascent-override: 84.71%;

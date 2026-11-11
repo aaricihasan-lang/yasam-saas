@@ -2,7 +2,6 @@ import type { Metadata, Viewport } from "next";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale } from "next-intl/server";
 import { headers } from "next/headers";
-import localFont from "next/font/local";
 import ModuleRouteGuard from "@/components/auth/ModuleRouteGuard";
 import { ConfirmProvider } from "@/components/ui/ConfirmProvider";
 import { ToastProvider } from "@/components/ui/ToastProvider";
@@ -23,13 +22,8 @@ import "./_fonts/google/degiskenler.css";
 import "./globals.css";
 import "./mobile-360.css";
 
-// Yerel dosyalar (app/_fonts/FONTLAR.md) — build'de Google Fonts'a ağ isteği yok. Geist (--font-geist-sans), Fraunces ve
-// Jost: önceki next/font/google global CSS'iyle aynı aileler, alt küme dosyaları ve yedek metrikler (app/_fonts/google).
-const geistMono = localFont({
-  src: "./_fonts/geist-mono.woff2",
-  weight: "100 900",
-  variable: "--font-geist-mono",
-});
+// Yerel dosyalar (app/_fonts/FONTLAR.md) — build'de Google Fonts'a ağ isteği yok. Geist, Geist Mono, Fraunces ve Jost:
+// önceki next/font/google global CSS'iyle aynı aileler, alt küme dosyaları ve yedek metrikler (app/_fonts/google).
 
 export const metadata: Metadata = {
   title: "Yaşam Sistemi",
@@ -69,7 +63,7 @@ export default async function RootLayout({
       {...{ [SESSION_TRANSPORT_HTML_ATTR]: sessionTransport }}
       data-android={platform.android ? "" : undefined}
       data-android-app={platform.androidApp ? "" : undefined}
-      className={`${globalFontVars} ${geistMono.variable} h-full overflow-x-hidden antialiased`}
+      className={`${globalFontVars} h-full overflow-x-hidden antialiased`}
     >
       <body className="min-h-full flex flex-col overflow-x-hidden">
         {/* NextIntlClientProvider, mesajları/locale'i istek yapılandırmasından
