@@ -214,7 +214,7 @@ async function main() {
     for (const width of [320, 375, 390, 768, 1024, 1280, 1440]) {
       const c = await open(browser, createMock(), { width, height: width < 768 ? 800 : 900 }, USER, true);
       await gotoProfile(c.page);
-      await c.page.waitForSelector("main button[aria-pressed]:text-is('Çalışma Alanım')", { timeout: 20000 });
+      await c.page.waitForSelector("main button[aria-pressed]:text-is('Çalışma Alanım')", { state: "attached", timeout: 20000 });
       await settle(c.page);
       await c.page.screenshot({ path: join(OUT, `profilim-calisma-alani-${width}.png`) });
       const tb = (await c.page.evaluate(TABBAR_JS)) as TabBar;
