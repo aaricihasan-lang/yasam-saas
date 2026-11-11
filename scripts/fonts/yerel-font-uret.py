@@ -10,11 +10,10 @@ Kaynak: resmî google/fonts deposu, SABİT commit (GF_COMMIT). Her kaynak dosyan
     CSS Google'ın döndürdüğü TÜM alt kümeleri (latin-ext, kiril, Vietnamca …) unicode-range'leriyle içerir. Bu yüzden Geist dahil
     Türkçe harfler (İ Ğ ğ Ş ş …) önceden de yazı tipinin kendisiyle çiziliyordu — yerel dosyalar aynı kapsamı taşır.
   * OpenType özellikleri: Google'ın sunduğu dosyadaki özellik listesi (aile başına).
-  * Değişken eksenler korunur. Fraunces: API'nin istemediği WONK ekseni Google varsayılanı 0'a sabitlenir
-    (WONK=0 ve WONK=1 sabitlemesi glif / GSUB / metrik olarak birebir aynı çıktı verir; yalnız ad meta verisi farklı).
+  * Değişken eksenler korunur.
   * Playfair Display: OFL "Reserved Font Name" içerdiğinden alt küme ALINMAZ — özgün dosya bayt bayt kopyalanır.
   * Ad tablosu (telif / lisans kayıtları) tamamen korunur.
-  * Global Geist / Fraunces / Jost (root layout) üretilmez: Google'ın sunduğu alt küme dosyaları indirilip doğrulanır
+  * Global Geist / Geist Mono / Fraunces / Jost (root layout) üretilmez: Google'ın sunduğu alt küme dosyaları indirilip doğrulanır
     (GOOGLE_ALT_KUME) — önceki build'le bayt bayt aynı.
 """
 import argparse
@@ -35,8 +34,6 @@ GF_COMMIT = "5bb28733cec313b63fbd415b574b5ae35c8aa8b8"  # google/fonts main, 202
 # (subsets yalnız ön yüklemeyi seçer; CSS bütün alt kümeleri içerir) her dosyanın karakterleri ∩ o alt kümenin unicode-range'i.
 # Google Fonts API, 2026-11-10 (Geist v5, Geist Mono v6, Fraunces v38, Jost v20, Manrope v23, Unbounded v12) yanıtlarından hesaplandı.
 KAPSAM = {
-    "fraunces.woff2": "U+0020-007E,U+00A0-0148,U+014A-017E,U+018F,U+0192,U+01A0-01A1,U+01AF-01B0,U+01C4-01CC,U+01D9-01DA,U+01E6-01E7,U+01EA-01EB,U+01FA-021B,U+022A-022D,U+0230-0233,U+0237,U+0259,U+02B9-02BA,U+02BC,U+02C6-02C7,U+02DA,U+02DC-02DD,U+0300-0301,U+0303-0304,U+0308,U+1E08-1E09,U+1E0C-1E0F,U+1E14-1E17,U+1E1C-1E1D,U+1E20-1E21,U+1E24-1E25,U+1E2A-1E2B,U+1E2E-1E2F,U+1E36-1E37,U+1E3A-1E3B,U+1E42-1E43,U+1E46-1E49,U+1E4C-1E53,U+1E5A-1E5B,U+1E5E-1E5F,U+1E62-1E65,U+1E6C-1E6F,U+1E78-1E7B,U+1E80-1E85,U+1E92-1E93,U+1E97,U+1E9E,U+1EA0-1EF9,U+2013-2014,U+2018-201A,U+201C-201E,U+2020,U+2022,U+2026,U+2032-2033,U+2039-203A,U+2044,U+20A1,U+20A3-20A4,U+20A6-20A7,U+20A9,U+20AB-20AD,U+20B1-20B2,U+20B5,U+20B9-20BA,U+20BC-20BD,U+2122,U+2212,U+2215",
-    "geist-mono.woff2": "U+0020-007E,U+00A0-00AC,U+00AE-0113,U+0116-012B,U+012E-0131,U+0134-0137,U+0139-013E,U+0141-0148,U+014A-014D,U+0150-017E,U+018F,U+0192,U+01A0-01A1,U+01AF-01B0,U+01CD-01CE,U+01E4-01E9,U+0218-021B,U+0237,U+0259,U+02B9,U+02BC,U+02C6-02C8,U+02DA,U+02DC-02DD,U+0300-0301,U+0303-0304,U+0308-0309,U+0323,U+0400-045F,U+0462-0463,U+046A-046B,U+0472-0475,U+0490-0493,U+0496-0497,U+049A-049B,U+04A2-04A3,U+04AE-04B3,U+04B6-04B7,U+04BA-04BB,U+04C0,U+04CF,U+04D8-04D9,U+04E2-04E3,U+04E8-04E9,U+04EE-04EF,U+1E20-1E21,U+1E80-1E85,U+1E9E,U+1EA0-1EF9,U+2013-2014,U+2018-201A,U+201C-201E,U+2020,U+2022,U+2026,U+2032-2033,U+2039-203A,U+2044,U+20AA,U+20AC,U+20B1,U+20B4,U+20B9,U+20BD,U+2116,U+2122,U+2191,U+2193,U+2212,U+2500-259F,U+A78B-A78C",
     "jost.woff2": "U+0000,U+000D,U+0020-007E,U+00A0-017E,U+0192,U+0212-0213,U+0218-021B,U+0237,U+02C6-02C7,U+02DA,U+02DC-02DD,U+0301,U+0304,U+0308,U+0400-0401,U+0403,U+040C-040E,U+0410-0451,U+0453,U+045C-045E,U+1E80-1E89,U+1E9E,U+1EF2-1EF3,U+2013-2014,U+2018-201A,U+201C-201E,U+2020,U+2022,U+2026,U+2039-203A,U+2044,U+20AC,U+20BD,U+2122,U+2212,U+2215",
     "manrope.woff2": "U+000D,U+0020-007E,U+00A0-0113,U+0116-012B,U+012E-0131,U+0134-0137,U+0139-013E,U+0141-0148,U+014A-014D,U+0150-017E,U+0192,U+01A0-01A1,U+01AF-01B0,U+0218-021B,U+0259,U+02C6-02C7,U+02DA,U+02DC-02DD,U+0374-0375,U+037E,U+0384-038A,U+038C,U+038E-03A1,U+03A3-03CE,U+0400-045F,U+0490-0491,U+04AE-04AF,U+04BA-04BB,U+04E8-04E9,U+1E80-1E85,U+1E9E,U+1EA0-1EF9,U+2013-2014,U+2018-201A,U+201C-201E,U+2020,U+2022,U+2026,U+2039-203A,U+2044,U+20A3,U+20A9-20AC,U+20AE,U+20B1,U+20B4,U+20B9-20BA,U+20BD,U+20BF,U+2116,U+2122,U+2191,U+2193,U+2212,U+2215",
     "unbounded.woff2": "U+0020-007E,U+00A0-00B4,U+00B6-0181,U+0186-018A,U+018E-0194,U+0196-01A1,U+01A4-01A5,U+01A9-01AA,U+01AC-01B9,U+01C0-01F5,U+01F8-0220,U+0226-0233,U+0237-023E,U+0241-0254,U+0256-0257,U+0259,U+025B,U+025F-0261,U+0263-026A,U+026C,U+026F,U+0271-0272,U+0275,U+0278,U+027D-027E,U+0283-0284,U+0288-028C,U+028E,U+0292,U+0294-0295,U+0298,U+029D,U+02A7,U+02B0-02B3,U+02B7-02B9,U+02BB-02BC,U+02BE-02C1,U+02C6-02C9,U+02DA,U+02DC-02DD,U+02E1-02E3,U+0300-0301,U+0303-0304,U+0308-0309,U+0323,U+0329,U+0400-045F,U+0490-0491,U+1D7D,U+1DBB,U+1DBF,U+1E00-1E9B,U+1E9E,U+1EA0-1EF9,U+2013-2014,U+2018-201A,U+201C-201E,U+2020,U+2022,U+2026,U+2039-203A,U+2044,U+20A1,U+20A3-20A4,U+20A6,U+20A9,U+20AB-20AD,U+20B1-20B2,U+20B4-20B5,U+20B8-20BA,U+20BC-20BD,U+2116,U+2122,U+2191,U+2193,U+2212,U+2215,U+2C63-2C66,U+2C6D-2C70,U+2C72-2C73,U+A726-A727,U+A78B-A78D,U+A798-A799,U+A7AA,U+A7AC-A7AE,U+A7B2-A7B7",
@@ -44,10 +41,6 @@ KAPSAM = {
 
 # (çıktı, google/fonts yolu, kaynak SHA-256, Google'ın sunduğu dosyadaki özellikler, ek işlem, karakter kapsamı)
 FONTLAR = [
-    ("geist-mono.woff2", "ofl/geistmono/GeistMono[wght].ttf", "d00e590b8eb3a59acc329b2d044fd143ae935090b7da33199ebee27cc7de8196",
-     ["ccmp", "dnom", "frac", "locl", "numr", "mark", "mkmk"], None, KAPSAM["geist-mono.woff2"]),
-    ("fraunces.woff2", "ofl/fraunces/Fraunces[SOFT,WONK,opsz,wght].ttf", "177ff6c0f14e5550a3c624247cd1189611d4eb65d000b14944c63d967958abbb",
-     ["liga", "rvrn", "kern"], {"WONK": 0}, KAPSAM["fraunces.woff2"]),
     ("jost.woff2", "ofl/jost/Jost[wght].ttf", "6343b70971000b04c5d401c96ae08ce371086135e999d5e1e1413039c0213076",
      ["tnum", "kern"], None, KAPSAM["jost.woff2"]),
     ("manrope.woff2", "ofl/manrope/Manrope[wght].ttf", "3ae11c49db0455a3cc33e37d380f20fdb8c7f8b41dc07625c177e3d87a9d6ae6",
@@ -57,7 +50,7 @@ FONTLAR = [
     ("playfair-display.ttf", "ofl/playfairdisplay/PlayfairDisplay[wght].ttf", "c40f2293766a503bc70cce9e512ef844a4ccb7cbcde792fe2ea31d191917d8d6",
      None, "KOPYA", None),
 ]
-# Google Fonts'un sunduğu ALT KÜME dosyaları (global Geist / Fraunces / Jost; app/_fonts/google). Önceki next/font/google
+# Google Fonts'un sunduğu ALT KÜME dosyaları (global Geist / Geist Mono / Fraunces / Jost; app/_fonts/google). Önceki next/font/google
 # build'inin indirdiği dosyalarla BAYT BAYT aynı (aynı istek + next/font'un User-Agent'ı); alt küme ayrımı korunduğu için Türkçe
 # harflerin harf aralığı ve satır kırılması önceki gibidir. Yeniden üretilmez — indirilir ve sabit SHA-256 ile doğrulanır.
 # Fraunces / Jost latin + latin-ext: depoda zaten bulunan public/premium/fonts dosyaları (Doğal Destek ile ortak; kopya yok).
@@ -96,6 +89,24 @@ GOOGLE_ALT_KUME = [
     ("public/premium/fonts/81cef6a21128489e-s.p.2csanl8cs02r-.woff2",
      "https://fonts.gstatic.com/s/jost/v20/92zatBhPNqw73oTd4jQmfxI.woff2",
      "235d8f8964bfdf105fc0c3e4c77b5e70f31bee1dad611d59318b5f2a5cb64d90"),
+    ("app/_fonts/google/geist-mono-cyrillic-ext.woff2",
+     "https://fonts.gstatic.com/s/geistmono/v6/or3nQ6H-1_WfwkMZI_qYFrodmhHkjkotbA.woff2",
+     "e27f657e38d52887baa3b6b2f812bef93dfdd356f0810e40edd4ee284cc7e9f6"),
+    ("app/_fonts/google/geist-mono-cyrillic.woff2",
+     "https://fonts.gstatic.com/s/geistmono/v6/or3nQ6H-1_WfwkMZI_qYFrMdmhHkjkotbA.woff2",
+     "75b3bedbebc35f347c0ae3b416aa871941555357e7b0f83767eb5987875589ed"),
+    ("app/_fonts/google/geist-mono-symbols2.woff2",
+     "https://fonts.gstatic.com/s/geistmono/v6/or3nQ6H-1_WfwkMZI_qYFg08vz7MhEIVVeA.woff2",
+     "d67e4a94ba498635f764ddca7d1ec4271f5642f032eb24b426764480f66f8497"),
+    ("app/_fonts/google/geist-mono-vietnamese.woff2",
+     "https://fonts.gstatic.com/s/geistmono/v6/or3nQ6H-1_WfwkMZI_qYFrgdmhHkjkotbA.woff2",
+     "16e1d48b6dd29eb240aec5db36184eb182933c082cd43de7f35af686d58087d2"),
+    ("app/_fonts/google/geist-mono-latin-ext.woff2",
+     "https://fonts.gstatic.com/s/geistmono/v6/or3nQ6H-1_WfwkMZI_qYFrkdmhHkjkotbA.woff2",
+     "745994b5cd950ec201b66526375f057d540847cccfc70f4f24f5f571d26d3923"),
+    ("app/_fonts/google/geist-mono-latin.woff2",
+     "https://fonts.gstatic.com/s/geistmono/v6/or3nQ6H-1_WfwkMZI_qYFrcdmhHkjko.woff2",
+     "5f3d6ad60f29d6cb708414ec6887163d63bf197377ef5417d2483ff31ace6c3b"),
 ]
 
 LISANSLAR = {
