@@ -1,6 +1,0 @@
-/* Premium başlık yazı tipi değişkeni. Önceki next/font/google çağrısı (Fraunces, opsz / SOFT, latin + latin-ext) uygulamanın
-   global Fraunces isteğiyle aynıydı ve aynı yüzleri paylaşıyordu; değişken bu global aileye bağlanır (root layout:
-   app/_fonts/google). Yalnız sınıfı alan kök öğenin altında geçerlidir — global tema değildir. */
-.vars {
-  --font-display: var(--font-fraunces);
-}

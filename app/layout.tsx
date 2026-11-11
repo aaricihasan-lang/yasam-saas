@@ -19,6 +19,7 @@ import { isAndroidAppRequest, readWebSessionTransport } from "@/lib/auth/session
 import { SESSION_TRANSPORT_HTML_ATTR } from "@/lib/auth/sessionTransportFlag";
 import { globalFontVars } from "./_fonts/google";
 import "./_fonts/google/yedek-metrikler.css";
+import "./_fonts/google/degiskenler.css";
 import "./globals.css";
 import "./mobile-360.css";
 

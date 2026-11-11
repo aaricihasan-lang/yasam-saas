@@ -18,8 +18,8 @@ import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { useEffect, useRef, type CSSProperties, type PointerEvent as ReactPointerEvent } from "react";
 import styles from "./premium/atlasGiris.module.css";
 
-// Yerel dosyalar (app/_fonts/FONTLAR.md): Google'ın sunduğu latin + latin-ext içeriğiyle aynı; build'de ağ isteği yok.
-const gaDisplay = localFont({ src: "../../../../_fonts/fraunces.woff2", weight: "100 900", variable: "--ga-display", display: "swap", adjustFontFallback: "Times New Roman" });
+// Yerel dosyalar (app/_fonts/FONTLAR.md); build'de ağ isteği yok. Başlık (--ga-display): global Fraunces — ys-fv-atlas-giris
+// (app/_fonts/google/degiskenler.css). Etiket: Jost 500.
 const gaLabel = localFont({ src: [{ path: "../../../../_fonts/jost.woff2", weight: "500", style: "normal" }], variable: "--ga-label", display: "swap" });
 
 const ART = "/premium/gokyuzu-atlasi";
@@ -338,7 +338,7 @@ export default function AtlasHero({
   const open = (k: PortalKey) => (k === "recent" ? onRecent() : onNavigate(k));
 
   return (
-    <div ref={firstRef} className={`${gaDisplay.variable} ${gaLabel.variable} ${styles.root}`} data-testid="atlas-hero" lang="tr">
+    <div ref={firstRef} className={`ys-fv-atlas-giris ${gaLabel.variable} ${styles.root}`} data-testid="atlas-hero" lang="tr">
       <div className={styles.page}>
         <nav aria-label="Gökyüzü Atlası" className={styles.cards}>
           {PORTALS.map((p) => (

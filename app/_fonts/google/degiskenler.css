@@ -1,0 +1,39 @@
+/*
+ * Modül yazı tipi değişkenleri → global aileler (root layout, app/_fonts/google). Önceki next/font/google kurulumunda bu
+ * çağrılar (Fraunces opsz / SOFT 100–900; Jost 400 + 500, latin + latin-ext) global istekle AYNIYDI ve aynı yüzleri
+ * paylaşıyordu; burada da aynı aileye bağlanırlar. Yalnız sınıfı alan kök öğenin altında geçerlidir (global tema değildir).
+ * Global stil sayfası olduğu için rotaya özel CSS parçalarına karışmaz → başka modüllerin yazı tipleri bu sayfalarda ön
+ * yüklenmez. Değişken adları önceki çağrılarınkiyle aynıdır.
+ */
+
+/* Premium sayfalar (app/_premium/fonts.ts) */
+.ys-fv-premium {
+  --font-display: var(--font-fraunces);
+}
+
+/* Enerji & Beden, Biyoenerji, Refleksoloji, Numeroloji, Kupa (app/_premium/enerji-beden/fonts.ts) */
+.ys-fv-enerji {
+  --eb-serif: var(--font-fraunces);
+  --eb-label: var(--font-jost);
+}
+
+/* Gökyüzü Atlası giriş başlığı (AtlasHero) */
+.ys-fv-atlas-giris {
+  --ga-display: var(--font-fraunces);
+}
+
+/* Danışan Yolculuğu başlığı */
+.ys-fv-danisan-yolculugu {
+  --dy-display: var(--font-fraunces);
+}
+
+/* Human Design merkez başlığı */
+.ys-fv-human-design {
+  --hd-display: var(--font-fraunces);
+}
+
+/* Analiz Merkezi üst bölüm (AnalysisCenterHero) */
+.ys-fv-analiz-hero {
+  --hero-serif: var(--font-fraunces);
+  --hero-sans: var(--font-jost);
+}

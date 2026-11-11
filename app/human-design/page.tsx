@@ -9,8 +9,8 @@ import { privateEnvKillSwitch } from "@/lib/human-design/education/private/priva
 
 // 2026-10-18 premium görünüm (owner onaylı prototip, tasarım arşivi 1fed59a): başlık Fraunces, etiket Jost —
 // next/font ile kendi sunucumuzdan (dış istek yok); Türkçe için latin-ext.
-// Yerel dosyalar (app/_fonts/FONTLAR.md): Google'ın sunduğu latin + latin-ext içeriğiyle aynı; build'de ağ isteği yok.
-const hdDisplay = localFont({ src: "../_fonts/fraunces.woff2", weight: "100 900", variable: "--hd-display", display: "swap", adjustFontFallback: "Times New Roman" });
+// Yerel dosyalar (app/_fonts/FONTLAR.md); build'de ağ isteği yok. Başlık (--hd-display): global Fraunces —
+// ys-fv-human-design (app/_fonts/google/degiskenler.css). Etiket: Jost 400.
 const hdLabel = localFont({ src: [{ path: "../_fonts/jost.woff2", weight: "400", style: "normal" }], variable: "--hd-label", display: "swap" });
 
 // AŞAMA 3C — premium, görev odaklı iki çalışma alanı. Eski kartların işlevleri silinmedi:
@@ -82,7 +82,7 @@ export default async function HumanDesignHubPage() {
   const ownerEducationCard = await resolveOwnerEducationCard();
   const catalogOpen = await resolveCatalogOpen();
   return (
-    <div className={`${styles.root} ${hdDisplay.variable} ${hdLabel.variable}`}>
+    <div className={`${styles.root} ys-fv-human-design ${hdLabel.variable}`}>
       <div className={styles.page}>
         {/* Panoramik başlık — iki yandaki sahneler dekor (ekran okuyucudan gizli). */}
         <section className={styles.hero} aria-labelledby="hd-hub-title">

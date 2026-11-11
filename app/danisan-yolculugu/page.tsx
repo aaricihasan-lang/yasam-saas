@@ -24,8 +24,8 @@ function fmtCount(n: number | null): string {
 
 // 2026-10-18 premium görünüm (owner onaylı v2 prototipi, tasarım arşivi 0f861c4): başlık Fraunces, etiket Jost —
 // next/font ile kendi sunucumuzdan (dış istek yok); Türkçe için latin-ext.
-// Yerel dosyalar (app/_fonts/FONTLAR.md): Google'ın sunduğu latin + latin-ext içeriğiyle aynı; build'de ağ isteği yok.
-const dyDisplay = localFont({ src: "../_fonts/fraunces.woff2", weight: "100 900", variable: "--dy-display", display: "swap", adjustFontFallback: "Times New Roman" });
+// Yerel dosyalar (app/_fonts/FONTLAR.md); build'de ağ isteği yok. Başlık (--dy-display): global Fraunces —
+// ys-fv-danisan-yolculugu (app/_fonts/google/degiskenler.css). Etiket: Jost 500.
 const dyLabel = localFont({ src: [{ path: "../_fonts/jost.woff2", weight: "500", style: "normal" }], variable: "--dy-label", display: "swap" });
 
 // ─── Sabit kart tanımları (renk + ikon) ─────────────────────────────────────
@@ -115,7 +115,7 @@ export default function DanisanYolculuguPage() {
   }, []);
 
   return (
-    <main className={`${styles.root} ${dyDisplay.variable} ${dyLabel.variable}`}>
+    <main className={`${styles.root} ys-fv-danisan-yolculugu ${dyLabel.variable}`}>
       <div className={styles.page}>
         {/* Başlık şeridi */}
         <header className={styles.hero}>
