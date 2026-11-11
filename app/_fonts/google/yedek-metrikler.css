@@ -1,0 +1,13 @@
+/*
+ * Yedek (fallback) yazı tipi yüzleri — önceki next/font/google build'inin ürettiği değerlerle birebir aynı (Google'ın
+ * hazır metrikleri; font yüklenene kadar yerleşim kaymasını en aza indirir). Kampanya CSS'i bu adları doğrudan da kullanır
+ * ("Geist Fallback", "Jost Fallback"). Değerler: önceki build'in global CSS'i (kanıt: app/_fonts/FONTLAR.md).
+ */
+@font-face {
+  font-family: "Geist Fallback";
+  src: local("Arial");
+  ascent-override: 95.94%;
+  descent-override: 28.16%;
+  line-gap-override: 0%;
+  size-adjust: 104.76%;
+}
