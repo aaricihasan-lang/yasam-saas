@@ -33,7 +33,12 @@ jobs:
           mkdir -p app/zz-ekran "$RUNNER_TEMP/kanit"
           cp -r .github/font-gorsel/sayfalar/* app/zz-ekran/
           echo "next/font/google (main, beklenen > 0): $(grep -rl 'from "next/font/google"' app | wc -l)"
-      - run: npx playwright install --with-deps chromium
+      # Chromium Playwright CDN'inden; sistem paketleri (apt) en iyi çaba — 11.11 runner'ı security.ubuntu.com'u çözemedi.
+      # Önce ve sonra aynı runner görüntüsünde aynı adımla kurulur → karşılaştırma koşulları eşit.
+      - name: Chromium
+        run: |
+          npx playwright install chromium
+          npx playwright install-deps chromium || echo "UYARI: sistem paketleri kurulamadı (apt); görüntü paketleriyle devam"
       - name: Build (main, normal ağ) + build sırasındaki DNS / bağlantı kaydı
         run: |
           (sudo tcpdump -i any -n -l 'udp port 53 or (tcp[tcpflags] & (tcp-syn|tcp-ack) == tcp-syn)' > "$RUNNER_TEMP/kanit/once-build-ag.txt" 2>/dev/null &)
@@ -112,7 +117,12 @@ jobs:
           echo "next/font/google kullanımı: 0 ✓"
           mkdir -p app/zz-ekran "$RUNNER_TEMP/kanit"
           cp -r .github/font-gorsel/sayfalar/* app/zz-ekran/
-      - run: npx playwright install --with-deps chromium
+      # Chromium Playwright CDN'inden; sistem paketleri (apt) en iyi çaba — 11.11 runner'ı security.ubuntu.com'u çözemedi.
+      # Önce ve sonra aynı runner görüntüsünde aynı adımla kurulur → karşılaştırma koşulları eşit.
+      - name: Chromium
+        run: |
+          npx playwright install chromium
+          npx playwright install-deps chromium || echo "UYARI: sistem paketleri kurulamadı (apt); görüntü paketleriyle devam"
       - name: Google Fonts ağını engelle ve doğrula (diğer servisler erişilebilir kalmalı)
         run: |
           printf '0.0.0.0 fonts.googleapis.com\n0.0.0.0 fonts.gstatic.com\n:: fonts.googleapis.com\n:: fonts.gstatic.com\n' | sudo tee -a /etc/hosts
