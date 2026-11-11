@@ -13,13 +13,14 @@
  * (onNavigate / onRecent), "Yeni doğum profili" (onNewProfile), Analiz Merkezi'ne dönüş ve "Yakında" aynen korunur.
  */
 import Link from "next/link";
-import { Fraunces, Jost } from "next/font/google";
+import localFont from "next/font/local";
 import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { useEffect, useRef, type CSSProperties, type PointerEvent as ReactPointerEvent } from "react";
 import styles from "./premium/atlasGiris.module.css";
 
-const gaDisplay = Fraunces({ subsets: ["latin", "latin-ext"], axes: ["opsz", "SOFT"], variable: "--ga-display", display: "swap" });
-const gaLabel = Jost({ subsets: ["latin", "latin-ext"], weight: ["500"], variable: "--ga-label", display: "swap" });
+// Yerel dosyalar (app/_fonts/FONTLAR.md): Google'ın sunduğu latin + latin-ext içeriğiyle aynı; build'de ağ isteği yok.
+const gaDisplay = localFont({ src: "../../../../_fonts/fraunces.woff2", weight: "100 900", variable: "--ga-display", display: "swap", adjustFontFallback: "Times New Roman" });
+const gaLabel = localFont({ src: [{ path: "../../../../_fonts/jost.woff2", weight: "500", style: "normal" }], variable: "--ga-label", display: "swap" });
 
 const ART = "/premium/gokyuzu-atlasi";
 

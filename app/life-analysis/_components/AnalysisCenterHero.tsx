@@ -7,19 +7,23 @@
  * Dekor (silik desen + yıldız) statik ve ekran okuyucudan gizli.
  */
 import { Brain } from "lucide-react";
-import { Fraunces, Jost } from "next/font/google";
+import localFont from "next/font/local";
 import styles from "./premium/analizMerkezi.module.css";
 
-const heroSerif = Fraunces({
-  subsets: ["latin", "latin-ext"],
-  axes: ["opsz", "SOFT"],
+// Yerel dosyalar (app/_fonts/FONTLAR.md): Google'ın sunduğu latin + latin-ext içeriğiyle aynı; build'de ağ isteği yok.
+const heroSerif = localFont({
+  src: "../../_fonts/fraunces.woff2",
+  weight: "100 900",
   variable: "--hero-serif",
   display: "swap",
+  adjustFontFallback: "Times New Roman",
 });
 
-const heroSans = Jost({
-  subsets: ["latin", "latin-ext"],
-  weight: ["400", "500"],
+const heroSans = localFont({
+  src: [
+    { path: "../../_fonts/jost.woff2", weight: "400", style: "normal" },
+    { path: "../../_fonts/jost.woff2", weight: "500", style: "normal" },
+  ],
   variable: "--hero-sans",
   display: "swap",
 });
