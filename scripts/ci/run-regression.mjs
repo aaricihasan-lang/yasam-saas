@@ -2,8 +2,11 @@
 /**
  * Bağımsız regresyon koşucusu — scripts/ci/regression-tests.json listesindeki testlerin TAMAMINI çalıştırır.
  *
- *   node scripts/ci/run-regression.mjs [--only <regex>] [--list <json>]
+ *   node scripts/ci/run-regression.mjs [--only <regex>] [--list <json>] [--parca k/n] [--sonuc <json>]
  *   (--list yalnız koşucunun kendi testleri içindir: scripts/ci/run-regression-timeout.harness.mjs; CI vermez.)
+ *   --parca k/n: listenin TAMAMI n parçaya bölünür (scripts/ci/regression-shard.mjs; her test tam bir parçada),
+ *   bu süreç yalnız k. parçayı koşar. --only ile birlikte kullanılamaz. --sonuc: test başına sonuç JSON'u
+ *   (CI kapısı, bütün parçaların listeyi tam bir kez ve PASS olarak kapsadığını bundan doğrular).
  *
  * Değişiklik analizi, test seçimi, PR kapsam bildirimi, etiket veya envanter kuralı YOKTUR.
  * Her test:
@@ -23,12 +26,15 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { parcaCoz, parcaPlani } from "./regression-shard.mjs";
 
 const CI_DIR = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(CI_DIR, "..", "..");
 const arg = (k) => { const i = process.argv.indexOf(k); return i > 0 ? process.argv[i + 1] : null; };
 const only = arg("--only") ? new RegExp(arg("--only")) : null;
 const LIST_FILE = arg("--list") ? path.resolve(arg("--list")) : path.join(CI_DIR, "regression-tests.json");
+const PARCA = arg("--parca");
+const SONUC_FILE = arg("--sonuc") ? path.resolve(arg("--sonuc")) : null;
 const IS_WIN = process.platform === "win32";
 /** Süreç çıktıktan / öldürüldükten sonra stdout/stderr kapanması için beklenen en uzun süre (ms). */
 const KANAL_BEKLEME_MS = 5000;
@@ -136,11 +142,16 @@ function runTest(t) {
   return new Promise((resolve) => {
     const netLog = path.join(os.tmpdir(), `ci-net-${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.log`);
     const guard = pathToFileURL(path.join(CI_DIR, "net-guard.mjs")).href;
+    // Yalnız F3 doğrulama iş akışı (golge-iz.yml) GOLGE_IZ_DIR verir: test başına çalışma zamanı yükleme izi. CI işlerinde YOK.
+    const iz = process.env.GOLGE_IZ_DIR
+      ? { GOLGE_IZ_DOSYA: path.join(process.env.GOLGE_IZ_DIR, `${t.file.replace(/[^A-Za-z0-9._-]+/g, "__")}.txt`), kanca: ` --import=${pathToFileURL(path.join(CI_DIR, "golge-iz-kanca.mjs")).href}` }
+      : null;
     const env = cleanEnv({
       CI_NET_LOG: netLog,
-      NODE_OPTIONS: `${process.env.NODE_OPTIONS ? process.env.NODE_OPTIONS + " " : ""}--import=${guard}`,
+      NODE_OPTIONS: `${process.env.NODE_OPTIONS ? process.env.NODE_OPTIONS + " " : ""}--import=${guard}${iz ? iz.kanca : ""}`,
       NEXT_TELEMETRY_DISABLED: "1",
       ...(process.env.POSTGREST_BIN ? { POSTGREST_BIN: process.env.POSTGREST_BIN } : {}),
+      ...(iz ? { GOLGE_IZ_DOSYA: iz.GOLGE_IZ_DOSYA } : {}),
     });
     const [cmd, ...args] = commandFor(t);
     const t0 = Date.now();
@@ -215,9 +226,29 @@ function judge(r) {
   return { ok: true, infra: false, neden: `${pass} PASS` };
 }
 
+function bootId() {
+  try { return fs.readFileSync("/proc/sys/kernel/random/boot_id", "utf8").trim(); } catch { return ""; }
+}
+
 async function main() {
   const list = JSON.parse(fs.readFileSync(LIST_FILE, "utf8")).tests;
-  const tests = list.filter((t) => !only || only.test(t.file));
+  let tests = list.filter((t) => !only || only.test(t.file));
+  let parcaEtiket = "";
+  if (PARCA) {
+    if (only) { console.log("::error::Regresyon: --parca ile --only birlikte kullanılamaz (kapsam eksik kalır)"); process.exit(1); }
+    let plan;
+    let pc;
+    try {
+      pc = parcaCoz(PARCA);
+      let sureler = {};
+      try { sureler = JSON.parse(fs.readFileSync(path.join(CI_DIR, "regression-durations.json"), "utf8")).sureler ?? {}; } catch { /* ağırlık yoksa varsayılan */ }
+      plan = parcaPlani(list.map((t) => t.file), pc.n, sureler);
+    } catch (e) { console.log(`::error::Regresyon: ${e.message}`); process.exit(1); }
+    const bu = new Set(plan[pc.k - 1]);
+    tests = list.filter((t) => bu.has(t.file));
+    parcaEtiket = ` (parça ${pc.k}/${pc.n})`;
+    console.log(`Regresyon parça ${pc.k}/${pc.n}: ${tests.length} test (listede ${list.length}; parçalar: ${plan.map((p) => p.length).join(" + ")})`);
+  }
   const missing = tests.filter((t) => !fs.existsSync(path.resolve(ROOT, t.file)));
   const t0 = Date.now();
   const rows = [];
@@ -234,11 +265,23 @@ async function main() {
   const secs = +((Date.now() - t0) / 1000).toFixed(1);
   const failed = rows.filter((x) => !x.ok);
   const md = [
-    `## Regresyon testleri — ${failed.length ? "❌ BAŞARISIZ" : "✅ GEÇTİ"}`,
+    `## Regresyon testleri${parcaEtiket} — ${failed.length ? "❌ BAŞARISIZ" : "✅ GEÇTİ"}`,
     `Çalışan test: **${rows.length}** / listede ${list.length}${only ? ` (filtre: ${only})` : ""} · ${secs} sn · başarısız: **${failed.length}**`,
     failed.length ? "\n| Test | Neden |\n|---|---|\n" + failed.map((x) => `| ${x.file} | ${x.neden} |`).join("\n") : "",
   ].filter(Boolean).join("\n");
   console.log("\n" + md);
+  if (SONUC_FILE) {
+    fs.mkdirSync(path.dirname(SONUC_FILE), { recursive: true });
+    fs.writeFileSync(SONUC_FILE, JSON.stringify({
+      parca: PARCA ?? "1/1",
+      listeUzunlugu: list.length,
+      filtre: only ? String(only) : null,
+      // Makine kimliği: runner adı + hostname + Linux boot_id (her VM açılışında benzersiz; hostname imajda aynı olabilir).
+      makine: [process.env.RUNNER_NAME, os.hostname(), bootId()].filter(Boolean).join(" @ "),
+      sn: secs,
+      tests: rows,
+    }, null, 1));
+  }
   if (process.env.GITHUB_STEP_SUMMARY) fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, md + "\n");
   for (const f of failed) console.log(`::error::Regresyon: ${f.file} — ${f.neden}`);
   if (tests.length === 0) { console.log("::error::Regresyon: çalışacak test yok"); process.exit(1); }

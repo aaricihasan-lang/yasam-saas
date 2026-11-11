@@ -159,7 +159,7 @@ ok(!/videolar|ders notları/i.test(read("messages/tr/home.json").match(/"digital
 
 // ─── Üye listesi aralık dışı sayfa (canlı bulgu: "9 sonuçtan 61–9") ───────────────
 console.log("\n[LIST] aralık dışı sayfa → son geçerli sayfaya replace");
-const listSrc = read("app/admin/users/page.tsx");
+const listSrc = read("app/admin/users/klasik/page.tsx");
 ok(/if \(query\.page > lastPage\) setQuery\(\{ page: lastPage \}, "replace"\)/.test(listSrc), "üye listesi: page > son sayfa → son sayfaya replace (pager'sız boş liste yok)");
 
 // ─── Kaynak sözleşmesi ────────────────────────────────────────────────────────
