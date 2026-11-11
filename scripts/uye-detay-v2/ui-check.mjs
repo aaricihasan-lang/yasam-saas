@@ -151,7 +151,7 @@ console.log("\n[3] Üyelik durumları");
   await selectTab(page, "uyelik", "Üyelik ve Ödeme");
   await openPayment(page);
   ok(await page.locator("#uye-panel-uyelik textarea").first().inputValue() === "Kurucu ekip · Owner kararı (sentetik)", "B: muafiyet gerekçesi (Ödeme Notu) gösteriliyor");
-  ok(await page.locator("#uye-panel-uyelik").getByText("muafiyet gerekçesi zorunlu").isVisible(), "B: Ödeme Notu 'muafiyet gerekçesi zorunlu' işaretli");
+  ok(await page.locator("#uye-panel-uyelik").getByText("· muafiyet gerekçesi", { exact: true }).isVisible(), "B: zaten muaf kayıtta Ödeme Notu 'muafiyet gerekçesi' olarak işaretli (eski kayıt engellenmez)");
   await shot(page, "03-durum-B-muaf-pro-uyelik");
   await page.close();
   // C — deneme
@@ -390,16 +390,16 @@ console.log("\n[8] Yetki: sunucu kontrolleri (arayüzle aynı kimlik başlıklar
   const r5 = await fetch(`${BASE}/api/admin/users/${I.proPaid}/logout-all`, { method: "POST", headers: H(O, true), body: JSON.stringify({ confirm: "ÇIKIŞ YAP" }) });
   ok(r5.status >= 400 && r5.status < 500, "yanlış onay metniyle tüm cihazlardan çıkış sunucuda reddedilir", r5.status);
   ok((await q1(`select package_type from public.users where id=$1`, [I.legacy])).package_type === null, "eski kayıt değişmedi");
-  // BİLGİ (Owner kararı için ölçüm): gerekçe zorunluluğu yalnız ARAYÜZDE mi? Doğrudan API'ye boş notlu muaf kayıt.
+  // Owner kararı (11.11.2026): YENİ muafiyet sunucuda da gerekçesiz reddedilir; hiçbir şey yazılmaz.
   {
+    const before = await q1(`select md5(u::text) h, (select count(*)::int from public.user_payment_history x where x.user_id=u.id) n from public.users u where id=$1`, [I.archived]);
     const r6 = await fetch(`${BASE}/api/admin/users/${I.archived}/payment`, {
       method: "POST", headers: H(O, true),
-      body: JSON.stringify({ draft: { status: "exempt", lastPaymentDate: "", nextPaymentDate: "", paidAmount: "", note: "", agreedFee: "", billingPeriod: "" } }),
+      body: JSON.stringify({ draft: { status: "exempt", lastPaymentDate: "", nextPaymentDate: "", paidAmount: "", note: "  ", agreedFee: "", billingPeriod: "" } }),
     });
-    const after = await q1(`select payment_status, payment_note from public.users where id=$1`, [I.archived]);
-    console.log(`  ℹ BİLGİ: doğrudan API, boş gerekçeli muaf kayıt → HTTP ${r6.status}; DB payment_status=${after.payment_status}, payment_note=${JSON.stringify(after.payment_note)}`);
+    const after = await q1(`select md5(u::text) h, (select count(*)::int from public.user_payment_history x where x.user_id=u.id) n from public.users u where id=$1`, [I.archived]);
+    ok(r6.status === 400 && before.h === after.h && before.n === after.n, "doğrudan API: gerekçesiz YENİ muafiyet sunucuda reddedilir (400), satır ve geçmiş değişmez", { status: r6.status, before, after });
   }
-
 }
 
 // ───────────── 9) Genişlikler · uzun içerik · mobil sekme ─────────────

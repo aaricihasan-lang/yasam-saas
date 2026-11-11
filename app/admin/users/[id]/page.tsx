@@ -1480,9 +1480,10 @@ export default function AdminUserDetailPage() {
       showToast({ title: "Kayıt yapılamadı", message: "Veritabanında ödeme kolonları bulunamadı.", type: "error" });
       return;
     }
-    // V2 (Owner kararı): ödemeden muaf Pro gerekçesiz kaydedilmez. Gerekçe mevcut "Ödeme Notu" alanında
-    // (users.payment_note + ödeme geçmişi satırı) saklanır; sunucu davranışı değişmez.
-    if (paymentDraft.status === "exempt" && !paymentDraft.note.trim()) {
+    // V2 (Owner kararı 11.11.2026): YENİ muafiyete geçiş gerekçesiz kaydedilmez — sunucu da aynı kuralı uygular
+    // (payment route). Gerekçe "Ödeme Notu" (users.payment_note + ödeme geçmişi satırı). Zaten muaf olan kaydın
+    // diğer alanlarının güncellenmesi engellenmez.
+    if (paymentDraft.status === "exempt" && user.payment.status !== "exempt" && !paymentDraft.note.trim()) {
       showToast({
         title: "Muafiyet gerekçesi gerekli",
         message: "Ödemeden muaf Pro için “Ödeme Notu” alanına gerekçe yazın (ör. kurucu ekip · Owner kararı).",
@@ -2516,7 +2517,9 @@ export default function AdminUserDetailPage() {
                     <span className={labelClass}>
                       Ödeme Notu
                       {paymentDraft.status === "exempt" ? (
-                        <span className="ml-1 text-rose-700">· muafiyet gerekçesi zorunlu</span>
+                        <span className="ml-1 text-rose-700">
+                          {user.payment.status === "exempt" ? "· muafiyet gerekçesi" : "· muafiyet gerekçesi zorunlu"}
+                        </span>
                       ) : null}
                     </span>
                     <textarea
