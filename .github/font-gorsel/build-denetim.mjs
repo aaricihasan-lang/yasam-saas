@@ -14,8 +14,9 @@ const gez = (d, f = []) => {
   if (!fs.existsSync(d)) return f;
   for (const e of fs.readdirSync(d, { withFileTypes: true })) {
     const p = path.join(d, e.name);
+    if (e.isSymbolicLink()) continue; // .next içindeki bağlantılar (node_modules vb.) taranmaz; döngü / dizin okuma hatası yok
     if (e.isDirectory()) gez(p, f);
-    else f.push(p);
+    else if (e.isFile()) f.push(p);
   }
   return f;
 };
