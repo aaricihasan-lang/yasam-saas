@@ -1,0 +1,8 @@
+/* Enerji & Beden ailesi değişkenleri. Önceki next/font/google çağrıları (Fraunces opsz / SOFT + Jost 400 / 500, latin +
+   latin-ext) uygulamanın global Fraunces / Jost istekleriyle aynıydı ve aynı yüzleri paylaşıyordu; değişkenler bu global
+   ailelere bağlanır (root layout: app/_fonts/google). Ayrı yazı tipi modülü olmadığı için başka modüllerin fontları bu
+   sayfalarda ön yüklenmez. */
+.vars {
+  --eb-serif: var(--font-fraunces);
+  --eb-label: var(--font-jost);
+}
