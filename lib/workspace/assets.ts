@@ -11,7 +11,7 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { assertServerOnly } from "@/lib/server/serverOnlyGuard";
-import { ASSET_BUCKET, ASSET_KINDS, ASSET_MAX_BYTES, PROCESSING_LEASE_MS, STAGING_BUCKET, UPLOAD_CHUNK_BYTES, type AssetKind } from "./catalog";
+import { ASSET_BUCKET, ASSET_KINDS, ASSET_MAX_BYTES, PROCESSING_LEASE_MS, REPORT_LOGO_REF, STAGING_BUCKET, UPLOAD_CHUNK_BYTES, type AssetKind } from "./catalog";
 import { checkDeclared, processImage, type ImageErrorCode } from "./imageProcess";
 import type { WorkspaceDesign } from "./schema";
 import { DESIGNS_TABLE, type Owner } from "./service";
@@ -348,7 +348,7 @@ export async function findOwnAsset(db: SupabaseClient, o: Owner, assetId: string
 
 /** Uzman profilinin (F1 expert_profiles) rapor logosu tablosu. Tablo henüz yoksa (migration uygulanmamış) referans yok sayılır. */
 const PROFILES_TABLE = "expert_profiles";
-export const REPORT_LOGO_REF = "rapor logosu (Ayarlar › Profilim)";
+export { REPORT_LOGO_REF };
 const isMissingTable = (e: unknown) => ["PGRST205", "42P01"].includes(String((e as { code?: unknown } | null)?.code ?? ""));
 
 /**
@@ -371,6 +371,9 @@ export async function assetReferences(db: SupabaseClient, o: Owner, assetId: str
   }
   const p = await db.from(PROFILES_TABLE).select("logo_source, logo_asset_id").eq("tenant_id", o.tenantId).eq("user_id", o.userId).maybeSingle();
   if (p.error && !isMissingTable(p.error)) return f(500, "db", "Profil okunamadı.", p.error);
+  // Beklenmeyen biçimdeki yanıt "referans yok" sayılmaz (aksi hâlde rapor logosu silinebilirdi) → hata; görsel silinmez.
+  const pd: unknown = p.error ? null : p.data;
+  if (pd != null && (typeof pd !== "object" || Array.isArray(pd) || typeof (pd as { logo_source?: unknown }).logo_source !== "string")) return f(500, "db", "Profil okunamadı.", { message: "expert_profiles: beklenmeyen yanıt biçimi" });
   const prof = (p.data as { logo_source: string; logo_asset_id: string | null } | null) ?? null;
   if (prof && prof.logo_source === "custom" && prof.logo_asset_id === assetId) where.push(REPORT_LOGO_REF);
   return { ok: true, where };
@@ -383,8 +386,9 @@ export async function deleteAsset(db: SupabaseClient, o: Owner, assetId: string)
   const refs = await assetReferences(db, o, assetId);
   if (!refs.ok) return refs;
   if (refs.where.length) {
+    // Rapor logosu girdisi yoksa metin F2 öncesiyle BİREBİR aynı ("önce tasarımdan kaldırın."); istemci: studio/i18n inUseMessage.
     const report = refs.where.includes(REPORT_LOGO_REF);
-    const hint = !report ? "önce tasarımdan kaldırın." : refs.where.length === 1 ? "önce Profilim › Rapor logosu bölümünden başka bir seçim yapın." : "önce kullanıldığı yerlerden kaldırın.";
+    const hint = !report ? "önce tasarımdan kaldırın." : refs.where.length === 1 ? "önce rapor logosundan kaldırın." : "önce tasarımdan ve rapor logosundan kaldırın.";
     return { ...f(409, "asset_in_use", `Bu görsel kullanılıyor (${refs.where.join(", ")}); ${hint}`), where: refs.where } as Fail & { where: string[] };
   }
   const rm = await db.storage.from(ASSET_BUCKET).remove([a.row.desktop_path, a.row.mobile_path]);

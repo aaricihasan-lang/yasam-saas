@@ -19,12 +19,59 @@ function ok(cond: boolean, label: string): void {
 const PORT = 54391;
 const TODAY = "2026-10-04";
 
+/**
+ * Fiyat dönemi audit context denetimi (saf; DB gerektirmez). Context = { op, phase_id, fields[] } olmalı:
+ * tutar / etiket / not DEĞERİ taşımamalı. Değer taraması phase_id ÇIKARILMIŞ metinde yapılır — phase_id rastgele bir
+ * UUID'dir ve "…200…" / "…600…" gibi rakam dizileri içerebilir (eski kontrol bu yüzden ~%4 olasılıkla yanlış FAIL veriyordu).
+ * Ek olarak yapı katılaştırılır: bilinmeyen anahtar, geçersiz op, UUID olmayan phase_id, alan adı olmayan fields girdisi ihlaldir.
+ */
+const AUDIT_OPS = new Set(["created", "updated", "deleted"]);
+const AUDIT_ALANLAR = new Set(["starts_on", "ends_on", "amount", "billing_period", "label", "terms_note"]);
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+export function pricingAuditIhlalleri(contexts: unknown[], yasakDeger: RegExp): string[] {
+  const ihlal: string[] = [];
+  contexts.forEach((c, i) => {
+    if (!c || typeof c !== "object" || Array.isArray(c)) { ihlal.push(`#${i}: context nesne değil`); return; }
+    const o = c as Record<string, unknown>;
+    for (const k of Object.keys(o)) if (!["op", "phase_id", "fields"].includes(k)) ihlal.push(`#${i}: beklenmeyen anahtar ${k}`);
+    if (!AUDIT_OPS.has(String(o.op))) ihlal.push(`#${i}: geçersiz op ${String(o.op)}`);
+    if (typeof o.phase_id !== "string" || !UUID_RE.test(o.phase_id)) ihlal.push(`#${i}: phase_id UUID değil`);
+    if (!Array.isArray(o.fields) || o.fields.some((f) => typeof f !== "string" || !AUDIT_ALANLAR.has(f))) ihlal.push(`#${i}: fields yalnız alan adı olmalı`);
+    const degerler: Record<string, unknown> = { ...o };
+    delete degerler.phase_id;
+    if (yasakDeger.test(JSON.stringify(degerler))) ihlal.push(`#${i}: tutar / etiket / not değeri sızmış`);
+  });
+  return ihlal;
+}
+
 function addDays(iso: string, n: number): string {
   const [y, m, d] = iso.split("-").map(Number);
   return new Date(Date.UTC(y, m - 1, d + n)).toISOString().slice(0, 10);
 }
 
+/** Bu harness'teki fiyat dönemlerinde kullanılan tutar / etiket / not değerleri (context'te görünmemeli). */
+const FIYAT_DEGER_RE = /200|600|Tanışma|İlk 5 ay|Ücretsiz deneme|amount":\s*\d/;
+
+/** Saf, belirlenimci sınama: eski kontrolün UUID kaynaklı yanlış FAIL'i ve yeni kontrolün gerçek sızıntıyı yakalaması. */
+function auditKontrolSinamasi(): void {
+  const uuidIcinde200 = { op: "created", phase_id: "a2000000-0000-4000-8600-000000000000", fields: ["starts_on", "amount", "label"] };
+  ok(/200|600|Tanışma|İlk 5 ay|amount":\s*\d/.test(JSON.stringify([uuidIcinde200])),
+    "sınama: ESKİ kontrol, '200' / '600' içeren UUID'de (değer sızıntısı yokken) yanlış FAIL veriyordu — yeniden üretildi");
+  ok(pricingAuditIhlalleri([uuidIcinde200], FIYAT_DEGER_RE).length === 0, "sınama: YENİ kontrol aynı temiz context'te PASS");
+  const sizinti: [string, Record<string, unknown>][] = [
+    ["tutar ek anahtarda", { ...uuidIcinde200, amount: 200 }],
+    ["etiket fields içinde", { ...uuidIcinde200, fields: ["Tanışma fiyatı"] }],
+    ["not ek anahtarda", { ...uuidIcinde200, terms_note: "İlk 5 ay" }],
+    ["tutar fields içinde", { ...uuidIcinde200, fields: ["600"] }],
+    ["etiket op içinde", { ...uuidIcinde200, op: "Ücretsiz deneme" }],
+    ["phase_id yerine değer", { ...uuidIcinde200, phase_id: "200" }],
+    ["iç içe değer", { ...uuidIcinde200, fields: [{ amount: 600 }] }],
+  ];
+  for (const [ad, ctx] of sizinti) ok(pricingAuditIhlalleri([ctx], FIYAT_DEGER_RE).length > 0, `sınama: gerçek sızıntı yakalanır (${ad})`);
+}
+
 async function main(): Promise<void> {
+  auditKontrolSinamasi();
   const db = await startTestDb360(PORT, "uye-yonetimi-360-db");
   const { su, pool } = db;
   const asRole = async <T extends pg.QueryResultRow = Record<string, unknown>>(role: string, sql: string, params: unknown[] = []) => {
@@ -419,10 +466,9 @@ async function main(): Promise<void> {
     ok(nAudit === 3, `audit: yalnız başarılı 3 yazım (${nAudit})`);
     const aud = await su.query(`select context, old_value, new_value, actor_is_main_admin from public.admin_audit_log
       where action='pricing_phase_changed' and target_user_id=$1 order by created_at`, [E.id]);
-    const ctxJson = JSON.stringify(aud.rows.map((r) => r.context));
-    ok(!/200|600|Tanışma|İlk 5 ay|amount":\s*\d/.test(ctxJson) && aud.rows.every((r) => r.old_value === null && r.new_value === null),
-      "audit context'inde tutar/etiket/not DEĞERİ yok");
-    ok(aud.rows[0].actor_is_main_admin === false && aud.rows[1].actor_is_main_admin === true, "actor_is_main_admin DB'den türetilir");
+    const ihlaller = pricingAuditIhlalleri(aud.rows.map((r) => r.context), FIYAT_DEGER_RE);
+    ok(ihlaller.length === 0 && aud.rows.every((r) => r.old_value === null && r.new_value === null),
+      `audit context'inde tutar/etiket/not DEĞERİ yok${ihlaller.length ? ` → ${ihlaller.join("; ")}` : ""}`);    ok(aud.rows[0].actor_is_main_admin === false && aud.rows[1].actor_is_main_admin === true, "actor_is_main_admin DB'den türetilir");
     // Güncelleme: no-op / bayat / gerçek
     const ph1 = phase1.id as string;
     const upd0 = await save(ADMIN.id, E.id, ph1, "2026-10-01", "2027-02-28", 200, "monthly", "Tanışma fiyatı", "İlk 5 ay", String(phase1.updated_at));

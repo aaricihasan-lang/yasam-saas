@@ -7,6 +7,10 @@
 #   - Regresyon testleri (scripts/ci/regression-tests.json — satış/stok dahil): her çalıştırmada TAMAMI,
 #     sır içermeyen ortam + net-guard (yalnız 127.0.0.1) + yerel embedded-postgres / sabit sürümlü PostgREST
 #   - Next.js production build
+# Akıllı CI F2 (2026-11-10): önceki tek `checks` işi KAPSAM DEĞİŞMEDEN bağımsız işlere bölündü — typescript, build, guvenlik
+# (DB-02 + güvenlik çekirdeği + AŞAMA 1 PG + yedek), regresyon (listenin TAMAMI 3 paralel parçada; her test tam bir kez).
+# Her iş ayrı makinede koşar (port / geçici dizin / süreç paylaşımı yok). `ci-kapisi` tek karar noktasıdır: zorunlu işlerin
+# hepsi "success" değilse veya regresyon parçaları listeyi tam bir kez PASS olarak kapsamıyorsa kapı FAIL verir.
 # Deploy, merge veya Vercel ile ilişkisi yoktur (deploy Vercel Git entegrasyonundadır).
 name: CI
 
@@ -25,53 +29,46 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  checks:
+  typescript:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 15
+    env:
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/kurulum
+
+      - name: TypeScript
+        run: npx tsc --noEmit -p tsconfig.json
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
+
+  # Üretim derlemesi (Turbopack, varsayılan `next build`). Sır/ortam değişkeni gerektirmez.
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/kurulum
+
+      - name: Next.js production build
+        run: npx next build
+        env:
+          NODE_OPTIONS: --max-old-space-size=6144
+
+  # Güvenlik ve migration doğrulamaları (önceki `checks` işindeki sıra ve komutlar aynen).
+  guvenlik:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
     env:
       NEXT_TELEMETRY_DISABLED: "1"
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "24"
-          cache: npm
-
-      # ffmpeg-static postinstall'u her kurulumda GitHub release'ten indirir; geçici HTTP 504 kurulumu düşürüyordu.
-      # Resmî b6.1.1 linux-x64 dosyaları (ffmpeg + README + LICENSE) önbellekten; yoksa sınırlı tekrarla indirilir.
-      # Her durumda sabit SHA-256 doğrulanır; tüm denemeler başarısızsa iş kırmızı biter (scripts/ci/ffmpeg-static-cache.mjs).
-      - name: ffmpeg-static dosyaları (önbellek)
-        id: ffmpeg-cache
-        uses: actions/cache/restore@v4
-        with:
-          path: ${{ runner.temp }}/ffmpeg-static
-          key: ffmpeg-static-b6.1.1-linux-x64-e7e7fb30477f717e
-
-      - name: ffmpeg-static dosyaları (sınırlı tekrar + SHA-256)
-        run: node scripts/ci/ffmpeg-static-cache.mjs prepare --dir "$RUNNER_TEMP/ffmpeg-static"
-
-      - name: ffmpeg-static dosyalarını önbelleğe kaydet
-        if: steps.ffmpeg-cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
-        with:
-          path: ${{ runner.temp }}/ffmpeg-static
-          key: ffmpeg-static-b6.1.1-linux-x64-e7e7fb30477f717e
-
-      - name: Bağımlılıklar
-        run: npm ci --no-audit --no-fund
-        env:
-          FFMPEG_BIN: ${{ runner.temp }}/ffmpeg-static/ffmpeg
-
-      - name: ffmpeg-static kurulum çıktıları (SHA-256 + sürüm denetimi)
-        run: node scripts/ci/ffmpeg-static-cache.mjs install --dir "$RUNNER_TEMP/ffmpeg-static"
-
-      - name: TypeScript
-        run: npx tsc --noEmit -p tsconfig.json
-        env:
-          NODE_OPTIONS: --max-old-space-size=4096
+      - uses: ./.github/actions/kurulum
 
       - name: Migration adlandırma (DB-02)
         run: |
@@ -96,6 +93,29 @@ jobs:
         env:
           BACKUP_PROD_TABLES_OPTIONAL: "1"
 
+  # Bağımsız regresyon testleri: listenin TAMAMI her çalıştırmada koşar (seçim / kapsam bildirimi / etiket kuralı yok).
+  # Liste scripts/ci/regression-shard.mjs ile 3 parçaya bölünür (ölçülmüş sürelerle dengeli, deterministik; her test tam bir
+  # parçada). Parça içinde testler önceki gibi SERİ koşar; parçalar ayrı makinelerdedir. Sır içermeyen ortam + net-guard;
+  # dış ağ denemesi, atlanan bölüm, FAIL veya okunamayan özet başarısızlıktır. Her parça sonuç dosyasını yükler; ci-kapisi
+  # üç dosyanın listeyi tam bir kez ve PASS olarak kapsadığını doğrular.
+  regresyon:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        parca: [1, 2, 3]
+    name: regresyon (${{ matrix.parca }}/3)
+    env:
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      # Tam geçmiş (önceki `checks` işi gibi): bazı regresyon testleri origin/main ile karşılaştırma yapar
+      # (ör. wt5/ux, manual-14-20/m14-routes, yebs-create-tradition-audit-rpc). Sığ checkout bu testleri düşürür.
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: ./.github/actions/kurulum
+
       # Regresyon testleri için yerel PostgREST (yalnız 127.0.0.1; production'a / Supabase'e / ücretli
       # API'ye istek YOK). Sürüm ve SHA-256 sabit (upstream checksum yayınlamıyor; değer resmi v12.2.3
       # sürüm dosyasından).
@@ -103,25 +123,24 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p "$RUNNER_TEMP/postgrest"
-          curl -fsSL --retry 3 -o "$RUNNER_TEMP/postgrest.tar.xz" \
-            https://github.com/PostgREST/postgrest/releases/download/v12.2.3/postgrest-v12.2.3-linux-static-x64.tar.xz
+          curl -fsSL --retry 3 -o "$RUNNER_TEMP/postgrest.tar.xz"             https://github.com/PostgREST/postgrest/releases/download/v12.2.3/postgrest-v12.2.3-linux-static-x64.tar.xz
           echo "9f71269e61ac3a940281e93ff415760f5957e430e475ba4c3889f3ede7d5527c  $RUNNER_TEMP/postgrest.tar.xz" | sha256sum -c -
           tar -xJf "$RUNNER_TEMP/postgrest.tar.xz" -C "$RUNNER_TEMP/postgrest"
           "$RUNNER_TEMP/postgrest/postgrest" --version
 
-      # Bağımsız regresyon testleri: listenin TAMAMI her çalıştırmada koşar (seçim / kapsam bildirimi /
-      # etiket kuralı yok). Sır içermeyen ortam + net-guard; dış ağ denemesi, atlanan bölüm, FAIL veya
-      # okunamayan özet başarısızlıktır.
-      - name: Regresyon testleri
+      - name: Regresyon testleri (parça ${{ matrix.parca }}/3)
         env:
           POSTGREST_BIN: ${{ runner.temp }}/postgrest/postgrest
-        run: node scripts/ci/run-regression.mjs
+        run: node scripts/ci/run-regression.mjs --parca "${{ matrix.parca }}/3" --sonuc "$RUNNER_TEMP/regresyon-sonuc/parca-${{ matrix.parca }}.json"
 
-      # Üretim derlemesi (Turbopack, varsayılan `next build`). Sır/ortam değişkeni gerektirmez.
-      - name: Next.js production build
-        run: npx next build
-        env:
-          NODE_OPTIONS: --max-old-space-size=6144
+      - name: Regresyon parça sonucu (CI kapısı için)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: regresyon-sonuc-${{ matrix.parca }}
+          path: ${{ runner.temp }}/regresyon-sonuc/parca-${{ matrix.parca }}.json
+          if-no-files-found: warn
+          retention-days: 14
 
   # Gökyüzü Atlası — Batı Horary (William Lilly) hesaplama motoru. Bağımsız ve paralel; ağ/sır/PostgreSQL kullanmaz.
   # Herhangi bir FAIL komutu sıfırdan farklı çıkışla bitirir → bu iş ve CI başarısız olur.
@@ -135,38 +154,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "24"
-          cache: npm
-
-      # ffmpeg-static postinstall'u her kurulumda GitHub release'ten indirir; geçici HTTP 504 kurulumu düşürüyordu.
-      # Resmî b6.1.1 linux-x64 dosyaları (ffmpeg + README + LICENSE) önbellekten; yoksa sınırlı tekrarla indirilir.
-      # Her durumda sabit SHA-256 doğrulanır; tüm denemeler başarısızsa iş kırmızı biter (scripts/ci/ffmpeg-static-cache.mjs).
-      - name: ffmpeg-static dosyaları (önbellek)
-        id: ffmpeg-cache
-        uses: actions/cache/restore@v4
-        with:
-          path: ${{ runner.temp }}/ffmpeg-static
-          key: ffmpeg-static-b6.1.1-linux-x64-e7e7fb30477f717e
-
-      - name: ffmpeg-static dosyaları (sınırlı tekrar + SHA-256)
-        run: node scripts/ci/ffmpeg-static-cache.mjs prepare --dir "$RUNNER_TEMP/ffmpeg-static"
-
-      - name: ffmpeg-static dosyalarını önbelleğe kaydet
-        if: steps.ffmpeg-cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
-        with:
-          path: ${{ runner.temp }}/ffmpeg-static
-          key: ffmpeg-static-b6.1.1-linux-x64-e7e7fb30477f717e
-
-      - name: Bağımlılıklar
-        run: npm ci --no-audit --no-fund
-        env:
-          FFMPEG_BIN: ${{ runner.temp }}/ffmpeg-static/ffmpeg
-
-      - name: ffmpeg-static kurulum çıktıları (SHA-256 + sürüm denetimi)
-        run: node scripts/ci/ffmpeg-static-cache.mjs install --dir "$RUNNER_TEMP/ffmpeg-static"
+      - uses: ./.github/actions/kurulum
 
       - name: Horary (Batı / Lilly) harness'ları
         run: npm run test:astrology:horary-western
@@ -191,38 +179,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "24"
-          cache: npm
-
-      # ffmpeg-static postinstall'u her kurulumda GitHub release'ten indirir; geçici HTTP 504 kurulumu düşürüyordu.
-      # Resmî b6.1.1 linux-x64 dosyaları (ffmpeg + README + LICENSE) önbellekten; yoksa sınırlı tekrarla indirilir.
-      # Her durumda sabit SHA-256 doğrulanır; tüm denemeler başarısızsa iş kırmızı biter (scripts/ci/ffmpeg-static-cache.mjs).
-      - name: ffmpeg-static dosyaları (önbellek)
-        id: ffmpeg-cache
-        uses: actions/cache/restore@v4
-        with:
-          path: ${{ runner.temp }}/ffmpeg-static
-          key: ffmpeg-static-b6.1.1-linux-x64-e7e7fb30477f717e
-
-      - name: ffmpeg-static dosyaları (sınırlı tekrar + SHA-256)
-        run: node scripts/ci/ffmpeg-static-cache.mjs prepare --dir "$RUNNER_TEMP/ffmpeg-static"
-
-      - name: ffmpeg-static dosyalarını önbelleğe kaydet
-        if: steps.ffmpeg-cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
-        with:
-          path: ${{ runner.temp }}/ffmpeg-static
-          key: ffmpeg-static-b6.1.1-linux-x64-e7e7fb30477f717e
-
-      - name: Bağımlılıklar
-        run: npm ci --no-audit --no-fund
-        env:
-          FFMPEG_BIN: ${{ runner.temp }}/ffmpeg-static/ffmpeg
-
-      - name: ffmpeg-static kurulum çıktıları (SHA-256 + sürüm denetimi)
-        run: node scripts/ci/ffmpeg-static-cache.mjs install --dir "$RUNNER_TEMP/ffmpeg-static"
+      - uses: ./.github/actions/kurulum
 
       # JPL DE440 (efemeris + derece geçişleri konum motoru): depoda yok; resmî NASA/JPL kaynağından indirilir, SHA-256 doğrulanır.
       - name: JPL DE440 verisi (önbellek)
@@ -238,3 +195,100 @@ jobs:
 
       - name: Profesyonel astroloji motorları (pro-*) harness'ları
         run: npm run test:astrology:pro
+
+  # CI KAPISI — tek karar noktası. Her koşulda çalışır; zorunlu işlerden biri failure / cancelled / skipped ise ya da
+  # regresyon parçaları listeyi tam bir kez ve PASS olarak kapsamıyorsa FAIL verir (scripts/ci/ci-gate.mjs).
+  ci-kapisi:
+    if: always()
+    needs: [typescript, build, guvenlik, regresyon, astro-pro, horary-western]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      # Eksik parça sonucu kapıda FAIL'dir; indirme hatası kararı kapıya bırakır (sessiz geçiş olmaz).
+      - name: Regresyon parça sonuçları
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          pattern: regresyon-sonuc-*
+          merge-multiple: true
+          path: ${{ runner.temp }}/regresyon-sonuc
+
+      - name: CI kapısı
+        env:
+          CI_KAPISI_NEEDS: ${{ toJSON(needs) }}
+        run: node scripts/ci/ci-gate.mjs --sonuc-dir "$RUNNER_TEMP/regresyon-sonuc" --parca-sayisi 3
+
+  # ── Akıllı CI F3 — GÖLGE MOD (yalnız gözlem). CI kapısına BAĞLI DEĞİL; hiçbir zorunlu iş bunlara bağlı değil ve bunların
+  # sonucu hiçbir işin çalışıp çalışmamasını etkilemez (F2'nin bütün işleri + regresyonun tamamı her koşulda çalışır).
+  # Değişiklik etki analizi + "F4 olsaydı ne önerilirdi" tahmini üretir; analiz hatası FULL FALLBACK olarak raporlanır.
+  golge-analiz:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - name: Gölge analiz (değişiklik etki analizi)
+        env:
+          GOLGE_OLAY: ${{ github.event_name }}
+          GOLGE_PR_BASE: ${{ github.event.pull_request.base.sha }}
+          GOLGE_PR_HEAD: ${{ github.event.pull_request.head.sha }}
+          GOLGE_PUSH_BEFORE: ${{ github.event.before }}
+          GOLGE_PUSH_AFTER: ${{ github.event.after }}
+        run: node scripts/ci/golge-analiz.mjs --cikti "$RUNNER_TEMP/golge/golge-analiz.json"
+
+      - name: Gölge analiz sonucu
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: golge-analiz
+          path: ${{ runner.temp }}/golge/golge-analiz.json
+          if-no-files-found: warn
+          retention-days: 30
+
+  golge-rapor:
+    if: always()
+    needs: [golge-analiz, typescript, build, guvenlik, regresyon, astro-pro, horary-western]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - name: Gölge analiz ve regresyon parça sonuçları
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          path: ${{ runner.temp }}/golge-girdi
+
+      - name: Gölge rapor (öneri ↔ gerçek)
+        env:
+          CI_KAPISI_NEEDS: ${{ toJSON(needs) }}
+        run: >-
+          mkdir -p "$RUNNER_TEMP/golge-sonuc" &&
+          (cp "$RUNNER_TEMP"/golge-girdi/regresyon-sonuc-*/*.json "$RUNNER_TEMP/golge-sonuc/" 2>/dev/null || true) &&
+          node scripts/ci/golge-rapor.mjs --golge "$RUNNER_TEMP/golge-girdi/golge-analiz/golge-analiz.json"
+          --sonuc-dir "$RUNNER_TEMP/golge-sonuc" --beklenen-sha "$GITHUB_SHA" --cikti "$RUNNER_TEMP/golge-rapor.json"
+
+      - name: Gölge rapor sonucu
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: golge-rapor
+          path: ${{ runner.temp }}/golge-rapor.json
+          if-no-files-found: warn
+          retention-days: 30

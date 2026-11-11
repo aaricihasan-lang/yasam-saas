@@ -6,6 +6,8 @@
  *   UI_BASE=http://127.0.0.1:3980 UI_OUT=<klasör> npx tsx scripts/profile/ui-profile.harness.ts
  * Bölümler:
  *   V  320 / 375 / 390 / 768 / 1024 / 1280 / 1440: ekran görüntüsü + yatay taşma yok + salt-okunur hesap alanı görünür
+ *      + sekme çubuğu: beklenen sekme kümesi/sırası, her sekme erişilebilir/tıklanabilir, kırpılma yok
+ *   W  aynı genişlikler, Çalışma Alanım sekmesi açıkken sekme çubuğu
  *   K  kaydet → sayfayı yenile → değerler kalıcı (mock); Vazgeç; karakter sayacı
  *   E  hata gösterimi: istemci doğrulaması (aria-invalid + aria-describedby + odak), sunucu 400 alan hatası, 409 çakışma,
  *      yükleme hatası (503) + yeniden dene
@@ -74,7 +76,7 @@ function createMock(opts: { demo?: boolean } = {}) {
 type Mock = ReturnType<typeof createMock>;
 
 type Ctx = { ctx: BrowserContext; page: Page; errors: string[]; dialogs: string[] };
-async function open(browser: Browser, mock: Mock, vp: { width: number; height: number }, user = USER): Promise<Ctx> {
+async function open(browser: Browser, mock: Mock, vp: { width: number; height: number }, user = USER, workspaceOn = false): Promise<Ctx> {
   const ctx = await browser.newContext({ viewport: vp, deviceScaleFactor: 1, locale: "tr-TR", timezoneId: "Europe/Istanbul", hasTouch: vp.width < 768 && browser.browserType().name() !== "firefox" });
   await ctx.addInitScript((u) => {
     try {
@@ -98,7 +100,9 @@ async function open(browser: Browser, mock: Mock, vp: { width: number; height: n
       const st = mock.state();
       return route.fulfill({ status: 200, json: { ok: true, logo: { source: "none", assetId: null, status: "none" }, workspace: { access: false, logoAssetId: null }, checkFailed: false, brandingEnabled: st.profile.reportBrandingEnabled, version: st.version, updatedAt: null, readOnly: false } });
     }
-    if (url.pathname.startsWith("/api/settings/workspace")) return route.fulfill({ status: 404, json: { ok: false, error: "Bulunamadı." } });
+    if (url.pathname.startsWith("/api/settings/workspace")) {
+      return workspaceOn ? route.fulfill({ status: 200, json: { ok: true, design: null } }) : route.fulfill({ status: 404, json: { ok: false, error: "Bulunamadı." } });
+    }
     if (url.pathname === "/api/auth/session") return route.fulfill({ status: 200, json: { valid: true } });
     if (url.pathname === "/api/auth/profile") return route.fulfill({ status: 200, json: { profile: user } });
     return route.fulfill({ status: 200, json: { ok: true, rows: [], items: [], count: 0, messages: [] } });
@@ -121,6 +125,59 @@ async function settle(page: Page) {
   await page.addStyleTag({ content: FREEZE_CSS });
   await page.evaluate("document.fonts.ready");
   await page.waitForTimeout(400);
+}
+/**
+ * Sekme çubuğu denetimi (SettingsTabBar). Her sekme için: çubuk içinde görünür alana getirilebilir (çubuk kendi içinde
+ * kaydırılıyorsa yalnız overflow-x auto/scroll ile), getirildiğinde tamamen çubuğun ve ekranın içinde, merkezi tıklanabilir
+ * (elementFromPoint = sekme), metni kırpılmıyor. Açılır menüde (kapalı panel) duran sekme için menü düğmesi aynı ölçütlerle
+ * denetlenir. Çubuk ekran dışına taşmaz. Denetim sonunda çubuğun kaydırma konumu geri yüklenir.
+ */
+const TABBAR_JS = `(async () => {
+  var bar = document.querySelector('main [data-settings-tabbar]');
+  var tabs = Array.prototype.slice.call(document.querySelectorAll('main button[data-settings-tab]'));
+  if (!bar || !tabs.length) return null;
+  var vw = window.innerWidth;
+  var cs = getComputedStyle(bar);
+  var scrollable = bar.scrollWidth > bar.clientWidth + 1;
+  var controlled = cs.overflowX === 'auto' || cs.overflowX === 'scroll';
+  var save = bar.scrollLeft;
+  var frame = () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+  var check = async (el) => {
+    if (scrollable && controlled) { el.scrollIntoView({ block: 'nearest', inline: 'center' }); await frame(); }
+    var br = bar.getBoundingClientRect(); var r = el.getBoundingClientRect();
+    var inside = r.width > 0 && r.left >= br.left - 0.5 && r.right <= br.right + 0.5 && r.left >= -0.5 && r.right <= vw + 0.5;
+    var hitEl = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+    var hit = !!hitEl && (hitEl === el || el.contains(hitEl));
+    return { inside: inside, hit: hit, textClip: el.scrollWidth > el.clientWidth + 1 };
+  };
+  var items = [];
+  for (var i = 0; i < tabs.length; i++) {
+    var b = tabs[i];
+    var inPanel = !!b.closest('[hidden]');
+    var target = inPanel ? document.querySelector('main [aria-controls="' + b.closest('[hidden]').id + '"]') : b;
+    var c = target ? await check(target) : { inside: false, hit: false, textClip: true };
+    items.push({ id: b.getAttribute('data-settings-tab'), label: (b.textContent || '').trim(), viaMenu: inPanel, inside: c.inside, hit: c.hit, textClip: c.textClip, ok: c.inside && c.hit && !c.textClip });
+  }
+  bar.scrollLeft = save; await frame();
+  var br2 = bar.getBoundingClientRect();
+  return {
+    ids: items.map((x) => x.id), n: items.length, scrollable: scrollable, controlled: controlled,
+    barInViewport: br2.left >= -0.5 && br2.right <= vw + 0.5,
+    bad: items.filter((x) => !x.ok), hscroll: document.documentElement.scrollWidth > vw + 1
+  };
+})()`;
+type TabBar = { ids: string[]; n: number; scrollable: boolean; controlled: boolean; barInViewport: boolean; bad: unknown[]; hscroll: boolean } | null;
+/** Beklenen sekme kümesi ve SIRASI. "membership" (F4 Üyeliğim) varsa Geri Yükleme'den hemen sonra kabul edilir. */
+function expectedTabs(ids: string[], workspaceOn: boolean): string[] {
+  const e = ["security", "profile", "location", "contact", "export", "backup", "restore"];
+  if (ids.includes("membership")) e.push("membership");
+  if (workspaceOn) e.push("workspace");
+  return e;
+}
+function tabBarOk(t: TabBar, workspaceOn: boolean): boolean {
+  if (!t) return false;
+  const exp = expectedTabs(t.ids, workspaceOn);
+  return t.ids.join(",") === exp.join(",") && t.bad.length === 0 && t.barInViewport && !t.hscroll && (!t.scrollable || t.controlled);
 }
 const overflow = (page: Page) => page.evaluate("({ sw: document.documentElement.scrollWidth, iw: window.innerWidth, bw: document.body.scrollWidth })") as Promise<{ sw: number; iw: number; bw: number }>;
 const field = (page: Page, name: string) => page.locator(`[data-testid="settings-profile"] [name="${name}"]`);
@@ -161,10 +218,23 @@ async function main() {
         ok("V", `${width}px: Hacamat'ta iletişim ve dipnot eklenmez`, st.includes("yalnız unvan, kurum ve logo eklenir, iletişim bilgisi ve dipnot eklenmez") && !st.includes("seçtiyseniz iletişim ile dipnot"));
         ok("V", `${width}px: eski "henüz bu kapsamda değildir" metni kalmadı`, !st.includes("henüz bu kapsamda değildir"));
       }
-      const tabsBox = await c.page.locator("main button[aria-pressed]").evaluateAll((els) => els.map((e) => { const r = e.getBoundingClientRect(); const p = e.parentElement!.getBoundingClientRect(); return { l: Math.round(r.left), r: Math.round(r.right), pl: Math.round(p.left), pr: Math.round(p.right), sw: e.scrollWidth, cw: e.clientWidth }; }));
-      ok("V", `${width}px: sekme düğmeleri sekme çubuğunun içinde, metin taşmıyor`, tabsBox.every((b) => b.l >= b.pl && b.r <= b.pr && b.r <= width && b.sw <= b.cw + 1), tabsBox);
       await c.page.screenshot({ path: join(OUT, `profilim-${width}.png`), fullPage: true });
+      const tb = (await c.page.evaluate(TABBAR_JS)) as TabBar;
+      ok("V", `${width}px: sekme kümesi/sırası doğru; her sekme erişilebilir, tıklanabilir, metni kırpılmıyor; çubuk taşmıyor`, tabBarOk(tb, false), tb);
       ok("V", `${width}px: sayfa hatası yok`, c.errors.length === 0, c.errors);
+      await c.ctx.close();
+    }
+
+    // ── W: Çalışma Alanım sekmesi de açıkken sekme çubuğu ──
+    for (const width of [320, 375, 390, 768, 1024, 1280, 1440]) {
+      const c = await open(browser, createMock(), { width, height: width < 768 ? 800 : 900 }, USER, true);
+      await gotoProfile(c.page);
+      await c.page.waitForSelector("main button[aria-pressed]:text-is('Çalışma Alanım')", { state: "attached", timeout: 20000 });
+      await settle(c.page);
+      await c.page.screenshot({ path: join(OUT, `profilim-calisma-alani-${width}.png`) });
+      const tb = (await c.page.evaluate(TABBAR_JS)) as TabBar;
+      ok("W", `Çalışma Alanım açık @${width}: sekme kümesi/sırası (${tb ? tb.n : 0} sekme; membership varsa F4) + her sekme erişilebilir/tıklanabilir, kırpılan yok, taşma yok`, tabBarOk(tb, true), tb);
+      ok("W", `Çalışma Alanım açık @${width}: Profilim seçili kalır`, (await tabBtn(c.page, "Profilim").getAttribute("aria-pressed")) === "true");
       await c.ctx.close();
     }
 

@@ -415,6 +415,14 @@
    "timeoutSec": 180
   },
   {
+   "file": "scripts/ci/ci-paralel.harness.mjs",
+   "timeoutSec": 120
+  },
+  {
+   "file": "scripts/ci/golge.harness.mjs",
+   "timeoutSec": 240
+  },
+  {
    "file": "scripts/ci/run-regression-timeout.harness.mjs",
    "timeoutSec": 150
   },
@@ -768,6 +776,16 @@
   },
   {
    "file": "scripts/pre-sale-a2b/system-health-counts.harness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/profile/delete-guard.harness.ts",
+   "tsx": true,
+   "timeoutSec": 240
+  },
+  {
+   "file": "scripts/profile/deleteMessage.test.ts",
    "tsx": true,
    "timeoutSec": 60
   },
@@ -1514,6 +1532,11 @@
    "file": "scripts/trial7/trial7-routes.harness.ts",
    "tsx": true,
    "timeoutSec": 180
+  },
+  {
+   "file": "scripts/uye-listesi-v2/uye-listesi-v2.harness.ts",
+   "tsx": true,
+   "timeoutSec": 240
   }
  ]
 }

@@ -43,7 +43,7 @@ import { legacyLogoBox, legacyToFree, nudgeLogo } from "../FreeLogo";
 import { useMode } from "../PersonalLogo";
 import { defaultDesign, type PersonalWorkspace } from "../usePersonalWorkspace";
 import type { ModuleLinkView } from "../moduleLinks";
-import { studioDict, type StudioDict } from "./i18n";
+import { inUseMessage, studioDict, type StudioDict } from "./i18n";
 import s from "./studio.module.css";
 
 export type DesignStudioProps = {
@@ -376,7 +376,7 @@ export default function DesignStudio({ pw, modules, moduleLabel, centerLabel, on
     if (w.logo.assetId === id || w.bg.photoAssetId === id) { setMsg({ tone: "warn", text: t.inUseLocal }); return; }
     const r = await deleteAsset(id);
     if (r.kind === "ok") { setAssets((x) => ({ ...x, items: x.items.filter((i) => i.id !== id) })); setMsg({ tone: "ok", text: t.deleted }); return; }
-    if (r.kind === "error" && r.where?.length) { setMsg({ tone: "warn", text: t.inUse(r.where.join(", ")) }); return; }
+    if (r.kind === "error" && r.where?.length) { setMsg({ tone: "warn", text: inUseMessage(t, r.where) }); return; }
     setMsg({ tone: "error", text: r.kind === "off" ? "İşlem tamamlanamadı." : r.error });
   };
 
