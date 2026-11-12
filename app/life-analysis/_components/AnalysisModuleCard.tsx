@@ -9,23 +9,19 @@
  */
 import Link from "next/link";
 import localFont from "next/font/local";
+import { jost500Vars } from "@/app/_fonts/google/etiket-500";
 import { ArrowRight, CalendarDays, ChartColumn } from "lucide-react";
 import type { ComponentType } from "react";
 import styles from "./premium/analizMerkezi.module.css";
 
 // Yerel dosyalar (app/_fonts/FONTLAR.md). Playfair Display: OFL "Reserved Font Name" → özgün değişken dosya değiştirilmeden
-// kullanılır (Google'ın statik 600 örneğiyle aynı ilerleme genişlikleri). Jost: Google'ın sunduğu latin + latin-ext içeriği.
+// kullanılır (Google'ın statik 600 örneğiyle aynı ilerleme genişlikleri). Jost 500 (--amc-sans): önceki Google alt küme
+// dosyaları — ys-fv-analiz-kart (app/_fonts/google/degiskenler.css).
 const serif = localFont({
   src: [{ path: "../../_fonts/playfair-display.ttf", weight: "600", style: "normal" }],
   variable: "--amc-serif",
   display: "swap",
   adjustFontFallback: "Times New Roman",
-});
-
-const sans = localFont({
-  src: [{ path: "../../_fonts/jost.woff2", weight: "500", style: "normal" }],
-  variable: "--amc-sans",
-  display: "swap",
 });
 
 export type AnalysisModuleVariant = "numerology" | "humanDesign" | "cosmicAgenda" | "skyAtlas";
@@ -94,7 +90,7 @@ export default function AnalysisModuleCard({
   const [before, accent, after] = splitTitle(title, v.accent);
 
   return (
-    <Link href={href} className={`${styles.card} ${serif.variable} ${sans.variable}`} data-variant={variant} data-testid={testId}>
+    <Link href={href} className={`${styles.card} ${serif.variable} ys-fv-analiz-kart ${jost500Vars}`} data-variant={variant} data-testid={testId}>
       {/* eslint-disable-next-line @next/next/no-img-element -- sabit dekor zemini; boyutlar CSS ile, dış istek yok */}
       <img className={styles.cardArt} src={`/premium/analiz-merkezi/${v.art}.webp`} alt="" aria-hidden="true" draggable={false} decoding="async" />
       <span className={styles.cardScrim} aria-hidden="true" />

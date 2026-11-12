@@ -1,4 +1,4 @@
-import localFont from "next/font/local";
+import { jost400Vars } from "@/app/_fonts/google/etiket-400";
 import { HdHubModules, type HdHubModule } from "./components/HdHubModules";
 import styles from "./_premium/hd.module.css";
 import { cookies } from "next/headers";
@@ -9,9 +9,8 @@ import { privateEnvKillSwitch } from "@/lib/human-design/education/private/priva
 
 // 2026-10-18 premium görünüm (owner onaylı prototip, tasarım arşivi 1fed59a): başlık Fraunces, etiket Jost —
 // next/font ile kendi sunucumuzdan (dış istek yok); Türkçe için latin-ext.
-// Yerel dosyalar (app/_fonts/FONTLAR.md); build'de ağ isteği yok. Başlık (--hd-display): global Fraunces —
-// ys-fv-human-design (app/_fonts/google/degiskenler.css). Etiket: Jost 400.
-const hdLabel = localFont({ src: [{ path: "../_fonts/jost.woff2", weight: "400", style: "normal" }], variable: "--hd-label", display: "swap" });
+// Yerel dosyalar (app/_fonts/FONTLAR.md); build'de ağ isteği yok. Başlık (--hd-display): global Fraunces; etiket (--hd-label):
+// Jost 400 — ys-fv-human-design (app/_fonts/google/degiskenler.css).
 
 // AŞAMA 3C — premium, görev odaklı iki çalışma alanı. Eski kartların işlevleri silinmedi:
 //   • Danışanlar / Human Design Haritası / Kayıtlı Haritalar / Kayıtlı Raporlar → Hesaplama çalışma
@@ -82,7 +81,7 @@ export default async function HumanDesignHubPage() {
   const ownerEducationCard = await resolveOwnerEducationCard();
   const catalogOpen = await resolveCatalogOpen();
   return (
-    <div className={`${styles.root} ys-fv-human-design ${hdLabel.variable}`}>
+    <div className={`${styles.root} ys-fv-human-design ${jost400Vars}`}>
       <div className={styles.page}>
         {/* Panoramik başlık — iki yandaki sahneler dekor (ekran okuyucudan gizli). */}
         <section className={styles.hero} aria-labelledby="hd-hub-title">

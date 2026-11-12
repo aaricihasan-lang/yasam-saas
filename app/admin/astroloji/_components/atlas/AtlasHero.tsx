@@ -13,14 +13,13 @@
  * (onNavigate / onRecent), "Yeni doğum profili" (onNewProfile), Analiz Merkezi'ne dönüş ve "Yakında" aynen korunur.
  */
 import Link from "next/link";
-import localFont from "next/font/local";
+import { jost500Vars } from "@/app/_fonts/google/etiket-500";
 import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { useEffect, useRef, type CSSProperties, type PointerEvent as ReactPointerEvent } from "react";
 import styles from "./premium/atlasGiris.module.css";
 
-// Yerel dosyalar (app/_fonts/FONTLAR.md); build'de ağ isteği yok. Başlık (--ga-display): global Fraunces — ys-fv-atlas-giris
-// (app/_fonts/google/degiskenler.css). Etiket: Jost 500.
-const gaLabel = localFont({ src: [{ path: "../../../../_fonts/jost.woff2", weight: "500", style: "normal" }], variable: "--ga-label", display: "swap" });
+// Yerel dosyalar (app/_fonts/FONTLAR.md); build'de ağ isteği yok. Başlık (--ga-display): global Fraunces; etiket (--ga-label):
+// Jost 500 — ys-fv-atlas-giris (app/_fonts/google/degiskenler.css).
 
 const ART = "/premium/gokyuzu-atlasi";
 
@@ -338,7 +337,7 @@ export default function AtlasHero({
   const open = (k: PortalKey) => (k === "recent" ? onRecent() : onNavigate(k));
 
   return (
-    <div ref={firstRef} className={`ys-fv-atlas-giris ${gaLabel.variable} ${styles.root}`} data-testid="atlas-hero" lang="tr">
+    <div ref={firstRef} className={`ys-fv-atlas-giris ${jost500Vars} ${styles.root}`} data-testid="atlas-hero" lang="tr">
       <div className={styles.page}>
         <nav aria-label="Gökyüzü Atlası" className={styles.cards}>
           {PORTALS.map((p) => (
