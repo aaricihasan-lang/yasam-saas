@@ -36,8 +36,9 @@ hatasıyla build'i düşürüyordu: 01.11–10.11.2026 arasında 231 build'in 12
   harfler (ğ ş İ Ğ Ş …) latin-ext dosyasındaydı; tek dosyada bu harflere kerning uygulanınca 320 px'te satır kırılmaları
   değişiyordu. Ayrım korunduğu için davranış önceki gibidir.
 - **Örtüşme:** Google alt kümelerinin aralıkları kısmen örtüşür (ör. `ı` U+0131 hem latin hem latin-ext); tarayıcı aynı
-  ailede son tanımlanan yüzü önce dener. Aralıklar bu seçime göre örtüşmez hâle getirildi → her karakter eskisiyle aynı
-  dosyadan gelir ve sonuç CSS sırasına bağlı değildir.
+  ailede son tanımlanan yüzü önce dener, o dosyada glif yoksa sıradaki yüze düşer (ör. `†` U+2020: aralığı latin'de, glifi
+  latin-ext'te). Aralıklar bu seçime göre örtüşmez hâle getirildi: her karakter, öncelik sırasında glifi gerçekten içeren
+  ilk alt kümeye atanır → eskisiyle aynı dosyadan çizilir ve sonuç CSS sırasına bağlı değildir.
 - **Aile adı:** `next/font/local` aileyi sabit adından türetir (`const Geist = localFont(…)` → `"Geist"`). Kampanya CSS'i
   (`"Geist"`, `"Jost"`, `"Geist Fallback"`, `"Jost Fallback"`) ve bazı CSS yedekleri (`"Fraunces"`) bu adları doğrudan kullanır.
 - **Yedek metrikler:** `google/yedek-metrikler.css` — önceki build'in ürettiği değerlerle birebir (`Geist Fallback`,
