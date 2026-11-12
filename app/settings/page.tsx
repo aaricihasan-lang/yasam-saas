@@ -699,7 +699,7 @@ export default function SettingsPage() {
           </div>
         </header>
 
-        {/* Sekme çubuğu: her genişlikte tek satır; sığmazsa çubuk içinde yatay kaydırma (bkz. SettingsTabBar). */}
+        {/* Sekme çubuğu (Owner kararı 12.11 — Alternatif B): Dışa Aktarım · Sistem Yedeği · Geri Yükleme "Yedek & Aktarım" menüsünde; ≥1024 px tek satır, sığmayan sondaki öğeler "Diğer" menüsünde; mobilde eski ızgara (bkz. SettingsTabBar). */}
         <SettingsTabBar tabs={tabs} active={tab} onSelect={setTab} />
 
         {isDemo && (
