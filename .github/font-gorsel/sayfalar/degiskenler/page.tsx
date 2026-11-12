@@ -5,7 +5,7 @@ import { premiumFontVars } from "@/app/_premium/fonts";
 import { energyFontVars } from "@/app/_premium/enerji-beden/fonts";
 import { atlasDisplay, atlasText } from "@/app/admin/astroloji/_components/atlas/fonts";
 
-const METIN = "Ağaç gölgesinde İğdır şıkışık çiçekleri — ĞÜŞİÖÇ ğüşıöç 0123456789 ₺ € % “Ş”";
+const METIN = "Ağaç gölgesinde İğdır şıkışık çiçekleri — ĞÜŞİÖÇ ğüşıöç 0123456789 ₺ € % “Ş” † Œ œ";
 const DEGISKENLER: [string, number[]][] = [
   ["--font-geist-sans", [300, 400, 500, 600, 700]],
   ["--font-geist-mono", [400, 600]],
