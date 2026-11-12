@@ -1,6 +1,6 @@
 /**
- * Jost 500 etiket yüzleri (Atlas girişi, Danışan Yolculuğu, Analiz Merkezi kartları). Önceki kurulumda bu bileşenler Jost'u
- * yalnız 500 ağırlığıyla isterdi → Google'ın statik 500 alt küme dosyaları; buradaki dosyalar onlarla bayt bayt aynı.
+ * Jost 500 etiket yüzleri (Atlas girişi, Analiz Merkezi kartları; Danışan Yolculuğu: etiket-500-dy.ts). Önceki kurulumda
+ * bu bileşenler Jost'u yalnız 500 ağırlığıyla isterdi → Google'ın statik 500 alt küme dosyaları; buradaki dosyalar onlarla bayt bayt aynı.
  * Global değildir: yalnız içe aktaran bileşenin rotasında yüklenir. Değişken eşlemesi: degiskenler.css (--font-jost-500).
  */
 import jost500Cyrillic from "./jost-500-cyrillic";

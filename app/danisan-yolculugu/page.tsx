@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
-import { jost500Vars } from "@/app/_fonts/google/etiket-500";
+import { jost500Vars } from "@/app/_fonts/google/etiket-500-dy";
 import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
 import { DyIcon, type DyIconName } from "@/app/danisan-yolculugu/_premium/DyArt";
 import { DyFolderCard } from "@/app/danisan-yolculugu/_premium/DyFolderCard";
