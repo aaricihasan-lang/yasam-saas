@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
-import { Fraunces, Jost } from "next/font/google";
+import { jost500Vars } from "@/app/_fonts/google/etiket-500-dy";
 import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
 import { DyIcon, type DyIconName } from "@/app/danisan-yolculugu/_premium/DyArt";
 import { DyFolderCard } from "@/app/danisan-yolculugu/_premium/DyFolderCard";
@@ -24,8 +24,8 @@ function fmtCount(n: number | null): string {
 
 // 2026-10-18 premium görünüm (owner onaylı v2 prototipi, tasarım arşivi 0f861c4): başlık Fraunces, etiket Jost —
 // next/font ile kendi sunucumuzdan (dış istek yok); Türkçe için latin-ext.
-const dyDisplay = Fraunces({ subsets: ["latin", "latin-ext"], axes: ["opsz", "SOFT"], variable: "--dy-display", display: "swap" });
-const dyLabel = Jost({ subsets: ["latin", "latin-ext"], weight: ["500"], variable: "--dy-label", display: "swap" });
+// Yerel dosyalar (app/_fonts/FONTLAR.md); build'de ağ isteği yok. Başlık (--dy-display): global Fraunces; etiket (--dy-label):
+// Jost 500 — ys-fv-danisan-yolculugu (app/_fonts/google/degiskenler.css).
 
 // ─── Sabit kart tanımları (renk + ikon) ─────────────────────────────────────
 // `id` = stabil çeviri anahtarı (clients.landing.stats.<id>); görünen etiket
@@ -114,7 +114,7 @@ export default function DanisanYolculuguPage() {
   }, []);
 
   return (
-    <main className={`${styles.root} ${dyDisplay.variable} ${dyLabel.variable}`}>
+    <main className={`${styles.root} ys-fv-danisan-yolculugu ${jost500Vars}`}>
       <div className={styles.page}>
         {/* Başlık şeridi */}
         <header className={styles.hero}>

@@ -108,7 +108,8 @@ async function main() {
       return { ctx, page, puts };
     };
     const openUser = async (page: Page, id: string) => {
-      await page.goto(`${APP}/admin/users/${id}`, { waitUntil: "networkidle" });
+      // Üye Detayı V2 (PR #779): Modül İzinleri "Modüller ve Kredi" sekmesinde → sekmeyle aç.
+      await page.goto(`${APP}/admin/users/${id}#moduller`, { waitUntil: "networkidle" });
       await page.locator("#uye-erisim").waitFor({ timeout: 30_000 });
       await page.locator("#uye-erisim").scrollIntoViewIfNeeded();
     };
@@ -233,7 +234,8 @@ async function main() {
     {
       const { ctx, page } = await ctxFor({ width: 1440, height: 900 });
       await page.goto(`${APP}/admin/users/${applicant.id}`, { waitUntil: "networkidle" });
-      await page.getByRole("button", { name: "Onayla", exact: true }).click();
+      // TRIAL7 sonrası başvuru onayı: "Pro Üyeliği Onayla" (eski "Onayla" düğmesi yok). Gönder düğmesi pencerede aynı adı taşır.
+      await page.getByRole("button", { name: "Pro Üyeliği Onayla", exact: true }).first().click();
       await page.locator("#approve-title").waitFor({ timeout: 15_000 });
       await page.locator("#module-astrology").click();
       await drawer(page).waitFor({ timeout: 10_000 });
@@ -242,7 +244,11 @@ async function main() {
       ok(!(await drawer(page).isVisible()) && !(await page.locator("#module-astrology").isChecked()) && (await page.locator("#approve-title").isVisible()), "panel İptal → Astroloji seçilmedi, onay penceresi açık kaldı");
       await page.getByRole("button", { name: "Tüm modülleri seç" }).click();
       ok(await page.locator("[data-approve-astro-missing]").isVisible(), "Tüm modüller + teknik yok → açık uyarı");
-      ok(await page.getByRole("button", { name: "Uzmanı Onayla" }).isDisabled(), "teknik seçilmeden 'Uzmanı Onayla' pasif");
+      const approveDialog = page.locator('[role="dialog"][aria-labelledby="approve-title"]');
+      const approveSubmit = approveDialog.getByRole("button", { name: "Pro Üyeliği Onayla", exact: true });
+      // Ücretli Pro onay kutusu işaretlenir ki pasiflik YALNIZ eksik teknikten kaynaklansın (sahte PASS olmasın).
+      await approveDialog.locator('input[type="checkbox"]').last().check();
+      ok(await approveSubmit.isDisabled(), "onay kutusu işaretli + teknik seçilmeden onay düğmesi pasif");
       await page.locator("[data-approve-astro-edit]").click();
       await drawer(page).waitFor();
       await page.keyboard.press("Escape");
@@ -256,7 +262,8 @@ async function main() {
       ok(!(await drawer(page).isVisible()) && (await page.locator("[data-approve-astro-summary]").innerText()).includes("2/48"), "Seçimi Uygula → özet 2/48, panel kapandı");
       ok((await row(applicant.id)).astrology_technique_grants === null, "seçim uygulandı ama henüz HİÇBİR şey kaydedilmedi");
       await snap(page, "onay-penceresi-ozet");
-      await page.getByRole("button", { name: "Uzmanı Onayla" }).click();
+      ok(await approveSubmit.isEnabled(), "teknik seçildi + onay kutusu işaretli → onay düğmesi etkin");
+      await approveSubmit.click();
       await page.locator("#approve-title").waitFor({ state: "detached", timeout: 20_000 });
       const r = await q(`select approval_status, active, module_permissions, astrology_technique_grants from public.users where id=$1`, [applicant.id]);
       const u = r.rows[0] as { approval_status: string; active: boolean; module_permissions: Record<string, unknown>; astrology_technique_grants: unknown };
@@ -268,7 +275,8 @@ async function main() {
     section("5. Yeni Uzman formu — Astroloji için teknik seçimi zorunlu (mobil 390×844)");
     {
       const { ctx, page } = await ctxFor({ width: 390, height: 844 }, true);
-      await page.goto(`${APP}/admin/users`, { waitUntil: "networkidle" });
+      // Üye Listesi V2 (#759) sonrası "Yeni Uzman" formu klasik listede.
+      await page.goto(`${APP}/admin/users/klasik`, { waitUntil: "networkidle" });
       await page.getByRole("button", { name: "Yeni Uzman" }).click();
       await page.locator("#create-name").fill("ZZ Formdan Öğrenci");
       await page.locator("#create-email").fill("zz.formdan@example.test");
