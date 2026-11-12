@@ -1,0 +1,49 @@
+/*
+ * Modül yazı tipi değişkenleri → global aileler (root layout, app/_fonts/google). Önceki next/font/google kurulumunda bu
+ * çağrılar (Fraunces opsz / SOFT 100–900; Jost 400 + 500, latin + latin-ext) global istekle AYNIYDI ve aynı yüzleri
+ * paylaşıyordu; burada da aynı aileye bağlanırlar. Yalnız sınıfı alan kök öğenin altında geçerlidir (global tema değildir).
+ * Global stil sayfası olduğu için rotaya özel CSS parçalarına karışmaz → başka modüllerin yazı tipleri bu sayfalarda ön
+ * yüklenmez. Değişken adları önceki çağrılarınkiyle aynıdır.
+ * Tek ağırlıklı Jost etiketleri (--ga / --dy / --hd-label, --amc-sans) global değildir: --font-jost-500 / --font-jost-400
+ * yalnız etiket-500.ts / etiket-400.ts'i içe aktaran bileşenin kök öğesinde tanımlanır (önceki ayrı statik istekler gibi).
+ */
+
+/* Premium sayfalar (app/_premium/fonts.ts) */
+.ys-fv-premium {
+  --font-display: var(--font-fraunces);
+}
+
+/* Enerji & Beden, Biyoenerji, Refleksoloji, Numeroloji, Kupa (app/_premium/enerji-beden/fonts.ts) */
+.ys-fv-enerji {
+  --eb-serif: var(--font-fraunces);
+  --eb-label: var(--font-jost);
+}
+
+/* Gökyüzü Atlası giriş başlığı ve etiketi (AtlasHero; etiket: Jost 500 — etiket-500.ts) */
+.ys-fv-atlas-giris {
+  --ga-display: var(--font-fraunces);
+  --ga-label: var(--font-jost-500);
+}
+
+/* Danışan Yolculuğu başlığı ve etiketi (etiket: Jost 500 — etiket-500.ts) */
+.ys-fv-danisan-yolculugu {
+  --dy-display: var(--font-fraunces);
+  --dy-label: var(--font-jost-500);
+}
+
+/* Human Design merkez başlığı ve etiketi (etiket: Jost 400 — etiket-400.ts) */
+.ys-fv-human-design {
+  --hd-display: var(--font-fraunces);
+  --hd-label: var(--font-jost-400);
+}
+
+/* Analiz Merkezi üst bölüm (AnalysisCenterHero) */
+.ys-fv-analiz-hero {
+  --hero-serif: var(--font-fraunces);
+  --hero-sans: var(--font-jost);
+}
+
+/* Analiz Merkezi modül kartı etiketi (AnalysisModuleCard; Jost 500 — etiket-500.ts). Başlık: Playfair Display (modül fontu). */
+.ys-fv-analiz-kart {
+  --amc-sans: var(--font-jost-500);
+}
