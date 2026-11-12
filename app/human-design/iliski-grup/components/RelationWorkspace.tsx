@@ -3,7 +3,8 @@
 // İlişki / Grup analizi çalışma alanı:
 //   • Yorum Kaynakları — [Analiz Açıklamaları] [Bilgi Bankam] (+ yalnız admin: [Merkezi Bilgi Bankası Yorumu]).
 //     Bu analiz türleri için hesaplama servisi metin yorumu sağlamaz → "Sistem Yorumu" sekmesi YOK (uydurma yok).
-//   • Uzman Yorumu — analize özel; kaydet / düzenle; iyimser eşzamanlılık; boşaltma iki adımlı onay.
+//   • Uzman Yorumu — analize özel; kayıtlı yorum salt okunur → Düzenle (Kaydet / Vazgeç) · Yorumu Sil (iki adımlı
+//     onay, her zaman görünür); iyimser eşzamanlılık.
 //   • Raporu Hazırla — içerik seçimi (hepsi varsayılan KAPALI) + Raporu Hazırlayan → donmuş rapor + indir.
 //     Kayıtlı rapor tekrar indirilince değişmez; yeni içerik için yeni rapor. Android'de Word kapalı (mevcut kural).
 
@@ -141,6 +142,7 @@ export function ExpertCommentEditor({ id }: { id: string }) {
   const [text, setText] = useState("");
   const [saving, setSaving] = useState(false);
   const [confirmClear, setConfirmClear] = useState(false);
+  const [editing, setEditing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
     let alive = true;
@@ -167,6 +169,7 @@ export function ExpertCommentEditor({ id }: { id: string }) {
       if (r.ok) {
         setLoaded(r.comment);
         setText(r.comment.text ?? "");
+        setEditing(false);
         showToast({ message: clear ? "Uzman yorumu silindi." : "Uzman yorumu kaydedildi.", type: "success" });
       } else {
         setError(r.error); // metin ekranda KALIR (kaybolmaz)
@@ -185,7 +188,15 @@ export function ExpertCommentEditor({ id }: { id: string }) {
       </section>
     );
   }
-  const willClear = !text.trim() && !!loaded.text;
+  // Kayıtlı yorum varsayılan SALT OKUNUR: Düzenle → Kaydet / Vazgeç; "Yorumu Sil" her zaman görünür (iki adımlı onay).
+  // Yorum yoksa doğrudan yazma alanı. Silme, metni boşaltmadan mevcut açık onaylı boşaltma isteğiyle yapılır.
+  const saved = !!loaded.text;
+  const readOnly = saved && !editing;
+  const cancelEdit = () => {
+    setText(loaded.text ?? "");
+    setEditing(false);
+    setError(null);
+  };
   return (
     <section className={card} data-hd-rel-comment="ready">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
@@ -193,37 +204,66 @@ export function ExpertCommentEditor({ id }: { id: string }) {
         <span className="text-[11px] text-slate-500">{loaded.updatedAt ? `Son kayıt: ${dmyHm(loaded.updatedAt)}` : "Henüz kaydedilmedi"}</span>
       </div>
       <p className="mt-1 text-[11px] text-slate-500">Bu analize özel mesleki yorumunuz. Word&apos;e yalnız rapor hazırlarken “Uzman Yorumumu Ekle” seçerseniz eklenir.</p>
-      <textarea
-        value={text}
-        onChange={(e) => setText(e.target.value.slice(0, EXPERT_COMMENT_MAX))}
-        rows={7}
-        maxLength={EXPERT_COMMENT_MAX}
-        className="mt-2 w-full rounded-xl border border-indigo-200 bg-white px-3 py-2 text-base leading-relaxed text-slate-900 sm:text-sm"
-        placeholder="Bu ilişki / grup için mesleki yorumunuzu yazın…"
-        aria-label="Uzman Yorumu"
-        data-hd-rel-comment-input
-      />
+      {readOnly ? (
+        <div
+          className="mt-2 max-h-80 overflow-y-auto whitespace-pre-wrap break-words rounded-xl border border-slate-200 bg-slate-50/70 px-3 py-2 text-base leading-relaxed text-slate-900 sm:text-sm"
+          aria-label="Kayıtlı Uzman Yorumu"
+          data-hd-rel-comment-view
+        >
+          {loaded.text}
+        </div>
+      ) : (
+        <textarea
+          value={text}
+          onChange={(e) => setText(e.target.value.slice(0, EXPERT_COMMENT_MAX))}
+          rows={7}
+          maxLength={EXPERT_COMMENT_MAX}
+          className="mt-2 w-full rounded-xl border border-indigo-200 bg-white px-3 py-2 text-base leading-relaxed text-slate-900 sm:text-sm"
+          placeholder="Bu ilişki / grup için mesleki yorumunuzu yazın…"
+          aria-label="Uzman Yorumu"
+          data-hd-rel-comment-input
+        />
+      )}
       <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
-        <span className={`text-[11px] ${text.length > EXPERT_COMMENT_MAX * 0.95 ? "text-amber-700" : "text-slate-500"}`}>
-          {text.length.toLocaleString("tr-TR")} / {EXPERT_COMMENT_MAX.toLocaleString("tr-TR")}
-          {dirty ? " · kaydedilmemiş değişiklik" : ""}
-        </span>
-        {willClear ? (
-          confirmClear ? (
-            <span className="flex flex-wrap items-center gap-1.5">
-              <span className="text-[11px] font-semibold text-rose-700">Kayıtlı yorum silinecek.</span>
-              <button type="button" disabled={saving} onClick={() => void save(true)} className="min-h-[40px] rounded-xl bg-rose-600 px-3 text-xs font-bold text-white" data-hd-rel-comment-clear-confirm>Evet, sil</button>
-              <button type="button" onClick={() => setConfirmClear(false)} className="min-h-[40px] rounded-xl border border-slate-200 px-3 text-xs font-bold text-slate-600">Vazgeç</button>
-            </span>
-          ) : (
-            <button type="button" onClick={() => setConfirmClear(true)} className="min-h-[40px] rounded-xl border border-rose-200 px-3 text-xs font-bold text-rose-700" data-hd-rel-comment-clear>Yorumu Sil</button>
-          )
+        {readOnly ? (
+          <span className="text-[11px] text-slate-500">{(loaded.text ?? "").length.toLocaleString("tr-TR")} karakter</span>
         ) : (
-          <button type="button" disabled={!dirty || saving} onClick={() => void save(false)} className="min-h-[40px] rounded-xl bg-indigo-600 px-4 text-xs font-bold text-white disabled:opacity-50" data-hd-rel-comment-save>
-            {saving ? "Kaydediliyor…" : "Kaydet"}
-          </button>
+          <span className={`text-[11px] ${text.length > EXPERT_COMMENT_MAX * 0.95 ? "text-amber-700" : "text-slate-500"}`}>
+            {text.length.toLocaleString("tr-TR")} / {EXPERT_COMMENT_MAX.toLocaleString("tr-TR")}
+            {dirty ? " · kaydedilmemiş değişiklik" : ""}
+          </span>
+        )}
+        {confirmClear ? (
+          <span className="flex flex-wrap items-center gap-1.5">
+            <span className="text-[11px] font-semibold text-rose-700">Kayıtlı yorum silinecek.</span>
+            <button type="button" disabled={saving} onClick={() => void save(true)} className="min-h-[40px] rounded-xl bg-rose-600 px-3 text-xs font-bold text-white disabled:opacity-50" data-hd-rel-comment-clear-confirm>
+              {saving ? "Siliniyor…" : "Evet, sil"}
+            </button>
+            <button type="button" disabled={saving} onClick={() => setConfirmClear(false)} className="min-h-[40px] rounded-xl border border-slate-200 px-3 text-xs font-bold text-slate-600" data-hd-rel-comment-clear-cancel>Vazgeç</button>
+          </span>
+        ) : (
+          <span className="flex flex-wrap items-center gap-1.5">
+            {saved ? (
+              <button type="button" disabled={saving} onClick={() => setConfirmClear(true)} className="min-h-[40px] rounded-xl border border-rose-200 px-3 text-xs font-bold text-rose-700 disabled:opacity-50" data-hd-rel-comment-clear>Yorumu Sil</button>
+            ) : null}
+            {readOnly ? (
+              <button type="button" onClick={() => setEditing(true)} className="min-h-[40px] rounded-xl border border-indigo-200 px-4 text-xs font-bold text-indigo-700" data-hd-rel-comment-edit>Düzenle</button>
+            ) : (
+              <>
+                {saved ? (
+                  <button type="button" disabled={saving} onClick={cancelEdit} className="min-h-[40px] rounded-xl border border-slate-200 px-3 text-xs font-bold text-slate-600 disabled:opacity-50" data-hd-rel-comment-cancel>Vazgeç</button>
+                ) : null}
+                <button type="button" disabled={!dirty || !text.trim() || saving} onClick={() => void save(false)} className="min-h-[40px] rounded-xl bg-indigo-600 px-4 text-xs font-bold text-white disabled:opacity-50" data-hd-rel-comment-save>
+                  {saving ? "Kaydediliyor…" : "Kaydet"}
+                </button>
+              </>
+            )}
+          </span>
         )}
       </div>
+      {editing && saved && !text.trim() ? (
+        <p className="mt-1 text-[11px] text-slate-500" data-hd-rel-comment-empty-hint>Boş yorum kaydedilmez; kayıtlı yorumu kaldırmak için “Yorumu Sil”i kullanın.</p>
+      ) : null}
       {error ? <p role="alert" className="mt-1 text-[11px] font-semibold text-rose-700" data-hd-rel-comment-error>{error}</p> : null}
     </section>
   );

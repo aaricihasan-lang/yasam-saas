@@ -92,7 +92,7 @@ async function main() {
   }) as typeof fetch;
   process.env.ROXY_API_KEY = "zz-harness-fake-roxy-key";
 
-  const env: TestEnv = await startAnamnezTestEnv({ port: 54433, dirName: "hd-relations-browser-pgdata", httpPort: 54523, extraSql: [HD_DDL, src("supabase/migrations/20271102000000_hd_relation_analyses.sql"), src("supabase/migrations/20271103000000_hd_relation_comments_reports.sql")] });
+  const env: TestEnv = await startAnamnezTestEnv({ port: Number(process.env.HD_REL_PG_PORT ?? 54433), dirName: process.env.HD_REL_PG_DIR ?? "hd-relations-browser-pgdata", httpPort: 54523, extraSql: [HD_DDL, src("supabase/migrations/20271102000000_hd_relation_analyses.sql"), src("supabase/migrations/20271103000000_hd_relation_comments_reports.sql")] });
   process.env.NEXT_PUBLIC_SUPABASE_URL = env.url;
   process.env.SUPABASE_SERVICE_ROLE_KEY = SERVICE_KEY;
   process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY = ANON_KEY;
@@ -137,6 +137,8 @@ async function main() {
     const only = (process.env.HD_E2E_ONLY ?? "").split(",").filter(Boolean);
     for (const d of DEVICES.filter((x) => !only.length || only.includes(x.name))) {
       section(d.name);
+      // Uzman Yorumu her ekranda boş başlar (UX-03 akışı: yorum yok → yaz → salt okunur → düzenle / sil).
+      await su.query(`update public.human_design_relation_analyses set expert_comment=null, expert_comment_updated_at=null, expert_comment_updated_by=null where id = any($1::uuid[])`, [[CONN, PENTA]]);
       const ctx = await browser.newContext({ viewport: { width: d.w, height: d.h }, isMobile: !!d.ua, hasTouch: !!d.ua, locale: "tr-TR", timezoneId: "Europe/Istanbul", ...(d.ua ? { userAgent: d.ua } : {}) });
       await ctx.addCookies([{ name: "NEXT_LOCALE", value: "tr", url: APP }]);
       await ctx.addInitScript(([uj, tok]) => { localStorage.setItem("yasam_user", uj as string); localStorage.setItem("yasam_session_token", tok as string); }, [JSON.stringify(userJson), UA.token!]);
@@ -219,11 +221,7 @@ async function main() {
       ok(await page.locator("[data-hd-composite-legend]").isVisible(), `${d.name}: Türkçe lejant görünür`);
       // Seçimsiz grafik görüntüsü (owner referans karşılaştırması)
       await page.locator("svg[data-hd-cbg]").screenshot({ path: path.join(OUT, `${d.name}-connection-bodygraph-clean.png`) });
-      // Etkileşim: kanal ortasına fare / dokunma (telefonda büyütülmüş harita); klavye (odak + Enter)
-      if (d.ua) {
-        await page.locator("[data-hd-composite-zoom]").click();
-        await page.waitForTimeout(250);
-      }
+      // Etkileşim: kanal ortasına fare / dokunma (normal boyutlu harita; ayrı büyüt düğmesi yok); klavye (odak + Enter)
       // Hedef: kayıtlı ilk kanal; dokunma noktası = kanal boyunca ekranda görünen ve en üstte o kanalın hedefi olan nokta.
       const target = stored[0].id;
       await page.locator(`[data-hd-cbg-hit='${target}']`).scrollIntoViewIfNeeded();
@@ -258,13 +256,72 @@ async function main() {
       await page.locator(`[data-hd-cbg-hit='${kb}']`).focus();
       await page.keyboard.press("Enter");
       ok((await page.locator("[data-hd-composite-info]").getAttribute("data-hd-composite-info")) === kb && (await page.locator("svg[data-hd-cbg]").getAttribute("data-hd-cbg-selected")) === kb, `${d.name}: klavye (odak + Enter) ile kanal seçimi (${kb})`);
-      if (d.ua) {
-        const zw = await page.evaluate(() => document.querySelector("svg[data-hd-cbg]")!.getBoundingClientRect().width);
-        ok(zw >= 800 && !(await overflowX()), `${d.name}: "Haritayı büyüt" → grafik ${Math.round(zw)}px, sayfa yatay taşmıyor (kaydırma kabı içinde)`);
-        await page.locator("[data-hd-composite-zoom]").click();
+      // UX-01: Esc seçimi bırakır; fareyle üzerine gelme geçicidir — grafikten çıkınca kanallar soluk kalmaz.
+      const selNow = () => page.locator("svg[data-hd-cbg]").getAttribute("data-hd-cbg-selected");
+      const dimmed = () => page.locator("svg[data-hd-cbg] g[opacity='0.3']").count();
+      await page.locator(`[data-hd-cbg-hit='${kb}']`).press("Escape");
+      const escSel = await selNow();
+      const escDim = await dimmed();
+      ok(escSel === "" && escDim === 0, `${d.name}: UX-01 klavye Esc → seçim temizlendi, soluk kanal yok`, { escSel, escDim, info: await page.locator("[data-hd-composite-info]").getAttribute("data-hd-composite-info") });
+      if (!d.ua) {
+        const pointOf = (id: string) => page.evaluate((cid) => {
+          const el = document.querySelector(`[data-hd-cbg-hit='${cid}']`) as SVGGeometryElement;
+          const L = el.getTotalLength();
+          for (const t of [0.5, 0.45, 0.55, 0.4, 0.6, 0.35, 0.65, 0.3, 0.7]) {
+            const p = el.getPointAtLength(L * t);
+            const m = el.getScreenCTM()!;
+            const q = { x: m.a * p.x + m.c * p.y + m.e, y: m.b * p.x + m.d * p.y + m.f };
+            if (q.x < 4 || q.y < 4 || q.x > window.innerWidth - 4 || q.y > window.innerHeight - 4) continue;
+            if (document.elementFromPoint(q.x, q.y)?.getAttribute("data-hd-cbg-hit") === cid) return q;
+          }
+          return null;
+        }, id);
+        const outside = async () => {
+          const r = await page.locator("svg[data-hd-cbg]").boundingBox();
+          await page.mouse.move(Math.max(2, (r?.x ?? 10) - 8), Math.max(2, (r?.y ?? 10) + 40));
+          await page.waitForTimeout(120);
+        };
+        const pA = await pointOf(target);
+        const other = [...stored].reverse().map((c) => c.id).find((id) => id !== target) ?? null;
+        const pB = other ? await pointOf(other) : null;
+        ok(!!pA && !!pB, `${d.name}: UX-01 test noktaları bulundu`, { pA, pB, other });
+        if (pA && pB && other) {
+          await outside(); // fare zaten hedefin üstündeyse yeni "üzerine gelme" oluşmaz
+          await page.mouse.move(pA.x, pA.y);
+          await page.waitForTimeout(120);
+          const hoverSel = await selNow();
+          const hoverDim = await dimmed();
+          await outside();
+          ok(hoverSel === target && hoverDim > 0 && (await selNow()) === "" && (await dimmed()) === 0 && (await page.locator("[data-hd-composite-info]").getAttribute("data-hd-composite-info")) === "", `${d.name}: UX-01 fare üzerine gelince vurgu (${hoverDim} soluk öğe); grafikten çıkınca tüm kanallar canlı renge döndü`, { hoverSel, hoverDim });
+          await page.mouse.move(pA.x, pA.y);
+          await page.mouse.down();
+          await page.mouse.up();
+          await page.waitForTimeout(120);
+          await outside();
+          ok((await selNow()) === target && (await page.locator("[data-hd-composite-info]").innerText()).includes("kapı"), `${d.name}: UX-01 tıklanan kanal fare çıkınca da seçili kalır (bilgi paneli)`);
+          await page.mouse.move(pB.x, pB.y);
+          await page.waitForTimeout(120);
+          const hov2 = await selNow();
+          await outside();
+          ok(hov2 === other && (await selNow()) === target, `${d.name}: UX-01 tıklamadan sonra başka kanala gelip çıkınca tıklanan kanala dönülür`, { hov2 });
+          await page.locator(`[data-hd-cbg-hit='${target}']`).press("Escape");
+          ok((await selNow()) === "" && (await dimmed()) === 0, `${d.name}: UX-01 Esc sonrası soluk kanal yok`);
+        }
       } else {
-        ok(!(await page.locator("[data-hd-composite-zoom]").isVisible()), `${d.name}: masaüstünde büyütme düğmesi yok`);
+        // Dokunma: seçim kalıcı (sanal fare olayları temizlemez)
+        await page.touchscreen.tap(pt2.x, pt2.y);
+        await page.waitForTimeout(400);
+        ok((await selNow()) === pt2.top, `${d.name}: UX-01 dokunma seçimi kalıcı (${pt2.top})`);
+        // Dokunmatik cihazda (hover yok) sanal fare hareketi seçimi değiştirmez
+        const kbBox = await page.locator(`[data-hd-cbg-hit='${kb}']`).boundingBox();
+        if (kbBox) await page.mouse.move(kbBox.x + kbBox.width / 2, kbBox.y + kbBox.height / 2);
+        await page.mouse.move(2, 2);
+        await page.waitForTimeout(150);
+        ok((await selNow()) === pt2.top, `${d.name}: UX-01 dokunmatikte sanal fare olayı seçimi değiştirmedi`);
       }
+      // UX-02: büyüt / küçült düğmesi hiçbir ekranda yok; harita normal boyutta, sayfa taşmıyor; yakınlaştırma engellenmemiş
+      const vpMeta = await page.evaluate(() => document.querySelector('meta[name="viewport"]')?.getAttribute("content") ?? "");
+      ok((await page.locator("[data-hd-composite-zoom]").count()) === 0 && !(await overflowX()) && !/user-scalable\s*=\s*(no|0)|maximum-scale\s*=\s*1(\.0)?(?![0-9.])/i.test(vpMeta), `${d.name}: UX-02 "Haritayı büyüt" düğmesi yok; yatay taşma yok; iki parmakla yakınlaştırma engellenmemiş (viewport: ${vpMeta})`);
       await page.locator("svg[data-hd-cbg]").screenshot({ path: path.join(OUT, `${d.name}-connection-bodygraph.png`) });
       ok((await page.locator("[data-hd-rel-channel]").count()) === stored.length && (await page.locator("[data-hd-rel-dynamic]").count()) >= 1, `${d.name}: kanal listesi bağlantı türüne göre Türkçe (${stored.length})`);
       const halfIds = await page.locator("[data-hd-half-channel]").evaluateAll((els) => els.map((e) => e.getAttribute("data-hd-half-channel") ?? ""));
@@ -279,15 +336,51 @@ async function main() {
       ok((await page.locator("[data-hd-rel-source-tab]").count()) === 2, `${d.name}: normal uzmanda 2 kaynak sekmesi (Analiz Açıklamaları + Bilgi Bankam; Sistem Yorumu / Merkezi yok)`);
       await page.locator("[data-hd-rel-source-tab='expert']").click();
       await page.locator("[data-hd-rel-source='expert']").waitFor({ timeout: 10_000 });
-      // Uzman Yorumu: yaz → kaydet → yeniden aç
+      // UX-03 Uzman Yorumu: yorum yok → yaz/kaydet → salt okunur (Düzenle + Yorumu Sil) → yeniden aç → düzenle/vazgeç → 409
       await page.locator("[data-hd-rel-comment='ready']").waitFor({ timeout: 30_000 });
+      const cm = (s: string) => page.locator(`[data-hd-rel-comment-${s}]`);
+      const dbComment = async (id: string) => (await su.query(`select expert_comment c from public.human_design_relation_analyses where id=$1`, [id])).rows[0]?.c ?? null;
+      ok((await cm("input").isVisible()) && (await cm("edit").count()) === 0 && (await cm("clear").count()) === 0 && (await cm("save").isDisabled()), `${d.name}: UX-03 yorum yokken boş yazma alanı; Düzenle / Yorumu Sil yok; boş Kaydet pasif`);
       const note = `Uzman yorumu (${d.name})`;
-      await page.locator("[data-hd-rel-comment-input]").fill(note);
-      await page.locator("[data-hd-rel-comment-save]").click();
-      await page.waitForFunction(() => !document.querySelector("[data-hd-rel-comment-save]") || (document.querySelector("[data-hd-rel-comment-save]") as HTMLButtonElement).disabled, null, { timeout: 15_000 });
+      await cm("input").fill(note);
+      await cm("save").click();
+      await cm("view").waitFor({ timeout: 15_000 });
+      ok((await cm("view").innerText()) === note && (await cm("input").count()) === 0 && (await cm("edit").isVisible()) && (await cm("clear").isVisible()) && (await dbComment(CONN)) === note, `${d.name}: UX-03 kayıt sonrası salt okunur metin + görünür Düzenle ve Yorumu Sil`);
+      await page.locator("[data-hd-rel-comment='ready']").screenshot({ path: path.join(OUT, `${d.name}-comment-view.png`) });
       await page.reload();
-      await page.locator("[data-hd-rel-comment='ready']").waitFor({ timeout: 30_000 });
-      ok((await page.locator("[data-hd-rel-comment-input]").inputValue()) === note, `${d.name}: Uzman Yorumu kaydedildi ve yeniden açınca aynı`);
+      await cm("view").waitFor({ timeout: 30_000 });
+      ok((await cm("view").innerText()) === note && (await cm("input").count()) === 0, `${d.name}: Uzman Yorumu kaydedildi ve yeniden açınca aynı (salt okunur)`);
+      // Düzenle → değiştir → Vazgeç: kayıtlı metin geri gelir, DB değişmez
+      await cm("edit").click();
+      await page.locator("[data-hd-rel-comment='ready']").screenshot({ path: path.join(OUT, `${d.name}-comment-edit.png`) });
+      ok((await cm("input").inputValue()) === note && (await cm("cancel").isVisible()) && (await cm("save").isVisible()), `${d.name}: UX-03 Düzenle → metin düzenlenebilir + Kaydet / Vazgeç`);
+      await cm("input").fill(`${note} — değişti`);
+      await cm("cancel").click();
+      ok((await cm("view").innerText()) === note && (await dbComment(CONN)) === note, `${d.name}: UX-03 Vazgeç → kayıtlı orijinal metin geri geldi`);
+      // Düzenle → boşalt: Kaydet pasif (silme yalnız Yorumu Sil ile)
+      await cm("edit").click();
+      await cm("input").fill("");
+      ok((await cm("save").isDisabled()) && (await cm("empty-hint").isVisible()), `${d.name}: UX-03 düzenlemede boş metin kaydedilmez (Yorumu Sil yönlendirmesi)`);
+      // Düzenle → Kaydet: yeni metinle salt okunura dönülür
+      const note2 = `${note} · güncel`;
+      await cm("input").fill(note2);
+      await cm("save").click();
+      await cm("view").waitFor({ timeout: 15_000 });
+      ok((await cm("view").innerText()) === note2 && (await dbComment(CONN)) === note2, `${d.name}: UX-03 Düzenle → Kaydet → yeni metin salt okunur`);
+      // 409: başka oturum değiştirdi → kayıt reddedilir, kullanıcının metni kaybolmaz
+      await cm("edit").click();
+      await cm("input").fill(`${note2} · çakışma`);
+      await su.query(`update public.human_design_relation_analyses set expert_comment_updated_at = expert_comment_updated_at + interval '1 second' where id=$1`, [CONN]);
+      await cm("save").click();
+      await cm("error").waitFor({ timeout: 15_000 });
+      ok((await cm("input").inputValue()) === `${note2} · çakışma` && (await dbComment(CONN)) === note2 && /başka bir oturumda/.test(await cm("error").innerText()), `${d.name}: UX-03 409 eşzamanlı değişiklik → kayıt yok, yazılan metin ekranda kaldı`);
+      await page.reload();
+      await cm("view").waitFor({ timeout: 30_000 });
+      // Yorumu Sil → Vazgeç: yorum değişmez
+      await cm("clear").click();
+      ok(await cm("clear-confirm").isVisible(), `${d.name}: UX-03 Yorumu Sil → "Evet, sil / Vazgeç" onayı`);
+      await cm("clear-cancel").click();
+      ok((await cm("view").innerText()) === note2 && (await dbComment(CONN)) === note2, `${d.name}: UX-03 silme Vazgeç → yorum değişmedi`);
       // Rapor: Android'de gizli; diğerlerinde seçimler varsayılan kapalı
       const repVisible = await page.locator("[data-hd-rel-reports]").isVisible();
       const wordVisible = await page.locator("[data-hd-rel-word]").isVisible();
@@ -318,6 +411,20 @@ async function main() {
           await page.keyboard.press("Escape");
         }
       }
+      // UX-03 Yorumu Sil → Evet, sil: yalnız yorum silinir; analiz, katılımcılar, danışan, bireysel analiz ve kayıtlı raporlar aynen
+      const relState = async () => ({
+        analysis: Number((await su.query(`select count(*) n from public.human_design_relation_analyses where id=$1`, [CONN])).rows[0].n),
+        parts: Number((await su.query(`select count(*) n from public.human_design_relation_participants where analysis_id=$1`, [CONN])).rows[0].n),
+        clients: Number((await su.query(`select count(*) n from public.human_design_clients where tenant_id=$1`, [TA])).rows[0].n),
+        charts: Number((await su.query(`select count(*) n from public.human_design_charts where tenant_id=$1`, [TA])).rows[0].n),
+        reports: (await su.query(`select id, md5(snapshot::text) h from public.human_design_relation_reports where analysis_id=$1 order by id`, [CONN])).rows.map((r) => `${r.id}:${r.h}`).join(","),
+      });
+      const before = await relState();
+      await cm("clear").click();
+      await cm("clear-confirm").click();
+      await cm("input").waitFor({ timeout: 15_000 });
+      const after = await relState();
+      ok((await dbComment(CONN)) === null && (await cm("input").inputValue()) === "" && (await cm("view").count()) === 0 && JSON.stringify(before) === JSON.stringify(after), `${d.name}: UX-03 Evet, sil → yalnız uzman yorumu silindi; analiz/katılımcı/danışan/BodyGraph/rapor snapshot'ları aynen`, { before, after });
       await page.screenshot({ path: path.join(OUT, `${d.name}-connection.png`), fullPage: true });
       // Geri tuşu (Android/tarayıcı) → listeye döner
       await page.goBack();
@@ -351,6 +458,20 @@ async function main() {
       }
       ok((await page.locator("[data-hd-penta-info]").getAttribute("data-hd-penta-info")) === "2-14" && (await page.locator("[data-hd-penta-info]").innerText()).includes("14. kapı"), `${d.name}: Penta kanalına dokunma → kapılar ve taşıyan üyeler`);
       ok(!(await overflowX()), `${d.name}: Penta detayında yatay taşma yok`);
+      // UX-03 Penta (ortak bileşen): yaz → salt okunur → Düzenle/Vazgeç → Yorumu Sil
+      await page.locator("[data-hd-rel-comment='ready']").waitFor({ timeout: 30_000 });
+      const pNote = `Penta uzman yorumu (${d.name})`;
+      await cm("input").fill(pNote);
+      await cm("save").click();
+      await cm("view").waitFor({ timeout: 15_000 });
+      await cm("edit").click();
+      await cm("input").fill("geçici");
+      await cm("cancel").click();
+      const pView = await cm("view").innerText();
+      await cm("clear").click();
+      await cm("clear-confirm").click();
+      await cm("input").waitFor({ timeout: 15_000 });
+      ok(pView === pNote && (await dbComment(PENTA)) === null && Number((await su.query(`select count(*) n from public.human_design_relation_participants where analysis_id=$1`, [PENTA])).rows[0].n) === 4, `${d.name}: UX-03 Penta'da aynı kaydet / düzenle-vazgeç / sil akışı; analiz ve 4 üye korunur`);
       await page.screenshot({ path: path.join(OUT, `${d.name}-penta.png`), fullPage: true });
 
       // Silme (yalnız bir kez): iki adımlı onay
