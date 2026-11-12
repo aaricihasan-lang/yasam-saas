@@ -38,3 +38,21 @@
   line-gap-override: 0%;
   size-adjust: 96.01%;
 }
+
+@font-face {
+  font-family: "Unbounded Fallback";
+  src: local("Arial");
+  ascent-override: 73.93%;
+  descent-override: 18.2%;
+  line-gap-override: 0%;
+  size-adjust: 134.59%;
+}
+
+@font-face {
+  font-family: "Manrope Fallback";
+  src: local("Arial");
+  ascent-override: 103.31%;
+  descent-override: 29.07%;
+  line-gap-override: 0%;
+  size-adjust: 103.19%;
+}
