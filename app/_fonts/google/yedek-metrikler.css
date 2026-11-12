@@ -1,0 +1,58 @@
+/*
+ * Yedek (fallback) yazı tipi yüzleri — önceki next/font/google build'inin ürettiği değerlerle birebir aynı (Google'ın
+ * hazır metrikleri; font yüklenene kadar yerleşim kaymasını en aza indirir). Kampanya CSS'i bu adları doğrudan da kullanır
+ * ("Geist Fallback", "Jost Fallback"). Değerler: önceki build'in global CSS'i (kanıt: app/_fonts/FONTLAR.md).
+ */
+@font-face {
+  font-family: "Geist Fallback";
+  src: local("Arial");
+  ascent-override: 95.94%;
+  descent-override: 28.16%;
+  line-gap-override: 0%;
+  size-adjust: 104.76%;
+}
+
+@font-face {
+  font-family: "Geist Mono Fallback";
+  src: local("Arial");
+  ascent-override: 74.67%;
+  descent-override: 21.92%;
+  line-gap-override: 0%;
+  size-adjust: 134.59%;
+}
+
+@font-face {
+  font-family: "Fraunces Fallback";
+  src: local("Times New Roman");
+  ascent-override: 84.71%;
+  descent-override: 22.09%;
+  line-gap-override: 0%;
+  size-adjust: 115.45%;
+}
+
+@font-face {
+  font-family: "Jost Fallback";
+  src: local("Arial");
+  ascent-override: 111.45%;
+  descent-override: 39.06%;
+  line-gap-override: 0%;
+  size-adjust: 96.01%;
+}
+
+@font-face {
+  font-family: "Unbounded Fallback";
+  src: local("Arial");
+  ascent-override: 73.93%;
+  descent-override: 18.2%;
+  line-gap-override: 0%;
+  size-adjust: 134.59%;
+}
+
+@font-face {
+  font-family: "Manrope Fallback";
+  src: local("Arial");
+  ascent-override: 103.31%;
+  descent-override: 29.07%;
+  line-gap-override: 0%;
+  size-adjust: 103.19%;
+}
