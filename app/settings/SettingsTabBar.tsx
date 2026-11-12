@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useId, useRef, useState, useSyncExternalStore, type ElementType, type KeyboardEvent } from "react";
+import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState, useSyncExternalStore, type ElementType, type KeyboardEvent } from "react";
 import { Archive, ChevronDown, MoreHorizontal } from "lucide-react";
 
 export type SettingsTabDef<T extends string> = { id: T; label: string; icon: ElementType };
@@ -16,6 +16,7 @@ const GROUP_IDS: readonly string[] = ["export", "backup", "restore"];
 const GROUP_LABEL = "Yedek & Aktarım";
 const MORE_LABEL = "Diğer";
 const GAP = 6; // gap-1.5
+const EDGE = 8; // menü paneli ile görünür alan kenarı arasındaki en az boşluk (px)
 const LG_QUERY = "(min-width: 1024px)";
 
 type Item<T extends string> =
@@ -46,7 +47,7 @@ const LAST_ODD = "col-span-2 mx-auto w-1/2 md:col-span-1 md:mx-0 md:w-auto";
  * - ≥ 1024 px: tek satır eşit genişlik (eski görünüm). Sığmayan SONDAKİ öğeler sırası korunarak "Diğer" menüsüne
  *   alınır (ölçülerek; sığıyorsa "Diğer" hiç görünmez).
  * Klavye: menü düğmesinde Enter/Space/↓ açar ve seçili (yoksa ilk) öğeye odaklanır; menüde ↑/↓/Home/End, Esc kapatır ve
- * odağı düğmeye döndürür; dışarı tıklama / odak çıkışı kapatır.
+ * odağı düğmeye döndürür; dışarı tıklama / odak çıkışı (pencere dışı dahil) kapatır. Panel her genişlikte görünür alan içinde kalır.
  */
 export function SettingsTabBar<T extends string>({ tabs, active, onSelect }: Props<T>) {
   const grouped = tabs.filter((t) => GROUP_IDS.includes(t.id));
@@ -94,7 +95,7 @@ export function SettingsTabBar<T extends string>({ tabs, active, onSelect }: Pro
     return () => ro.disconnect();
   }, [isLg, items.length, recompute]);
 
-  // Menü dışına tıklama / pencere boyutu → kapat.
+  // Menü dışına tıklama / pencere boyutu / pencerenin odağı kaybetmesi → kapat.
   useEffect(() => {
     if (!openKey) return;
     const onDown = (e: PointerEvent) => {
@@ -104,9 +105,11 @@ export function SettingsTabBar<T extends string>({ tabs, active, onSelect }: Pro
     const onResize = () => setOpenKey(null);
     document.addEventListener("pointerdown", onDown);
     window.addEventListener("resize", onResize);
+    window.addEventListener("blur", onResize);
     return () => {
       document.removeEventListener("pointerdown", onDown);
       window.removeEventListener("resize", onResize);
+      window.removeEventListener("blur", onResize);
     };
   }, [openKey]);
 
@@ -216,6 +219,7 @@ function Menu<T extends string>(props: {
   const panelId = useId();
   const wrapRef = useRef<HTMLDivElement>(null);
   const toggleRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
   const [right, setRight] = useState(!!alignRight);
   const on = sections.some((s) => s.tabs.some((t) => t.id === active));
 
@@ -231,6 +235,16 @@ function Menu<T extends string>(props: {
       (focus === "last" ? b[b.length - 1] : cur ?? b[0])?.focus();
     });
   };
+  // Panel görünür alanın dışına taşarsa (ör. 320 px'te ortalanmış son öğe + sağa hizalama) kenara kaydırılır.
+  useLayoutEffect(() => {
+    const p = panelRef.current;
+    if (!open || !p) return;
+    p.style.transform = "";
+    const r = p.getBoundingClientRect();
+    const vw = document.documentElement.clientWidth;
+    const dx = r.left < EDGE ? EDGE - r.left : r.right > vw - EDGE ? Math.max(EDGE - r.left, vw - EDGE - r.right) : 0;
+    if (dx) p.style.transform = `translateX(${Math.round(dx)}px)`;
+  }, [open, right]);
   const close = (refocus: boolean) => {
     setOpen(false);
     if (refocus) toggleRef.current?.focus();
@@ -250,6 +264,16 @@ function Menu<T extends string>(props: {
     const next = e.key === "Home" ? 0 : e.key === "End" ? n - 1 : e.key === "ArrowDown" ? (i + 1) % n : (i - 1 + n) % n;
     b[next]?.focus();
   };
+  // Tab ile odak menüden ayrılınca kapat. Firefox'ta belgedeki son öğeden Tab ile tarayıcı arayüzüne geçişte focusout gelmeyebilir
+  // (odak aynı öğede kalır) → Tab'dan sonra odak menü içinde başka bir öğeye geçmediyse kapatılır.
+  const onWrapKey = (e: KeyboardEvent<HTMLDivElement>) => {
+    if (e.key !== "Tab" || !open) return;
+    const from = e.target;
+    window.setTimeout(() => {
+      const a = document.activeElement;
+      if (!document.hasFocus() || a === from || !wrapRef.current?.contains(a)) setOpen(false);
+    }, 0);
+  };
 
   return (
     <div
@@ -257,6 +281,7 @@ function Menu<T extends string>(props: {
       data-settings-menu-key={menuKey}
       className={["relative lg:flex-1", extra].filter(Boolean).join(" ")}
       onBlur={(e) => { if (open && !e.currentTarget.contains(e.relatedTarget as Node | null)) setOpen(false); }}
+      onKeyDown={onWrapKey}
     >
       <button
         ref={toggleRef}
@@ -274,6 +299,7 @@ function Menu<T extends string>(props: {
         <ChevronDown className={`h-3.5 w-3.5 shrink-0 transition-transform ${open ? "rotate-180" : ""}`} strokeWidth={2.5} />
       </button>
       <div
+        ref={panelRef}
         id={panelId}
         hidden={!open}
         onKeyDown={onPanelKey}
