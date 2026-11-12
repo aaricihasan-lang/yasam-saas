@@ -50,7 +50,11 @@ export function ApprovalBadge({ status }: { status: ApprovalStatusUi }) {
   return <span className={`${pill} ${tone}`}>{APPROVAL_LABELS[status]}</span>;
 }
 
-export function AccountBadge({ active }: { active: boolean }) {
+/** AŞAMA 4a: `archived` verilirse (yönetim arşivi) "Arşivde" gösterilir; verilmezse eski davranış aynen. */
+export function AccountBadge({ active, archived = false }: { active: boolean; archived?: boolean }) {
+  if (archived) {
+    return <span className={`${pill} bg-stone-200 text-stone-800 ring-stone-300`}>Arşivde</span>;
+  }
   return (
     <span
       className={`${pill} ${
