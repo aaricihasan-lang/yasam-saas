@@ -15,19 +15,31 @@ export const runtime = "nodejs";
  * karışmaz). İKİNCİ bir users tablosu veya içerik kopyası YOKTUR — mevcut hesap satırları
  * üzerinden türetilir. Her arşiv kaydı için pasife alınma tarih+aktörü admin_audit_log'un
  * EN SON user_deactivated/user_archived kaydından çözülür. Yazma YOK.
+ *
+ * AŞAMA 4a: bu görünüm "Pasif ve Arşiv" görünümüdür — kapsam DEĞİŞMEDİ (eski pasif hesaplar kaybolmaz).
+ * Her satıra `archived_at` eklenir: dolu = ARŞİVDE, boş = PASİF (arşivlenmemiş). `archiveModel` false ise
+ * (migration 20280101000600 uygulanmamış) ayrım yoktur ve istemci eski davranışı gösterir.
  */
 export async function GET(req: NextRequest): Promise<Response> {
   const guard = await verifyAdminRequest(req);
   if (!guard.ok) return guard.response;
   const { db, adminId } = guard;
 
-  const { data, error } = await db
-    .from("users")
-    .select(USERS_SAFE_SELECT)
-    .eq("role", "expert")
-    .eq("approval_status", "approved")
-    .eq("active", false)
-    .order("full_name", { ascending: true });
+  const query = (select: string) =>
+    db
+      .from("users")
+      .select(select)
+      .eq("role", "expert")
+      .eq("approval_status", "approved")
+      .eq("active", false)
+      .order("full_name", { ascending: true });
+  let archiveModel = true;
+  let { data, error } = await query(`${USERS_SAFE_SELECT}, archived_at`);
+  if (error && (error as { code?: string }).code === "42703") {
+    // archived_at kolonu yok (migration öncesi) → eski görünüm (ayrım yok).
+    archiveModel = false;
+    ({ data, error } = await query(USERS_SAFE_SELECT));
+  }
 
   if (error) {
     return NextResponse.json({ ok: false, error: "Arşiv okunamadı." }, { status: 500, headers: { "Cache-Control": "private, no-store" } });
@@ -90,7 +102,7 @@ export async function GET(req: NextRequest): Promise<Response> {
   const canPermanentDelete = (await resolveIsSuperAdmin(db, adminId)) && (await isPurgeRpcAvailable(db));
 
   return NextResponse.json(
-    { ok: true, users, deactivations, viewer: { canPermanentDelete } },
+    { ok: true, users, deactivations, archiveModel, viewer: { canPermanentDelete } },
     { headers: { "Cache-Control": "private, no-store" } },
   );
 }

@@ -74,8 +74,21 @@ export async function GET(req: NextRequest, ctx: RouteContext) {
   // sıfırlama, e-posta, lisans/güvenlik politikası) göstermesi için SUNUCU kararı. İstemcideki
   // admin_level (canlıda varsayılan 'owner') güvenilmez. Yetki her işlemde ayrıca sunucuda doğrulanır.
   const isMainAdmin = await resolveIsSuperAdmin(db, adminId);
+
+  // AŞAMA 4a: yönetim arşivi (users.archived_at) AYRI okunur — USERS_SAFE_SELECT'e eklenmez (onu kullanan diğer
+  // ekranlar migration'a bağlanmasın). Kolon yoksa (migration öncesi) supported=false → istemci eski davranış.
+  const { data: archiveRow, error: archiveErr } = await db
+    .from("users")
+    .select("archived_at")
+    .eq("id", id)
+    .maybeSingle();
+  const archive = {
+    supported: !archiveErr,
+    archivedAt: !archiveErr && archiveRow?.archived_at != null ? String(archiveRow.archived_at) : null,
+  };
+
   return NextResponse.json(
-    { user: data, paymentHistory: history ?? [], viewer: { isMainAdmin } },
+    { user: data, paymentHistory: history ?? [], viewer: { isMainAdmin }, archive },
     { headers: { "Cache-Control": "private, no-store" } },
   );
 }

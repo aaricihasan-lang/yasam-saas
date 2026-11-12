@@ -1,0 +1,505 @@
+/**
+ * ADMIN ÜYE YÖNETİMİ V2 · AŞAMA 4a — PASİF ≠ ARŞİV harness'ı.
+ * Gerçek PostgreSQL (embedded) + gerçek migration zinciri (… → liste V2 → 4a) + gerçek RPC'ler + gerçek Next route
+ * handler'ları (test-only PostgREST şimi). Production'a / ağa SIFIR temas; tüm hesaplar sentetik (ZZ_4A_*).
+ *
+ *   F  migration ÖNCESİ: route'lar archived_at olmadan eski davranışa düşer (deploy sırası güvenliği)
+ *   M  migration: ön koşul fail-closed · 2× uygulama · mevcut satır / fonksiyon / audit değişmez · yetkiler · CHECK
+ *   L  eski kayıtlar: active=false hesaplar "pasif" (kaybolmaz, arşiv sayılmaz) · salt-okunur rapor · Owner onaylı geçiş
+ *   D  geçişler: aktif→pasif→aktif, aktif→arşiv, pasif→arşiv, arşiv→(çıkar)→pasif→aktif; deneme/Pro/ödeme/modül korunur
+ *   C  eşzamanlılık + tekrar: çift arşiv tek audit · çift çıkarma tek başarı · arşiv ∥ aktifleştir tutarlı
+ *   G  giriş/oturum kapısı (gerçek verifyUserRequest): pasif ve arşivdeki hesap yeni oturumla da giremez
+ *   R  route'lar: arşivle / durum / arşivden çıkar / arşiv listesi / detay — yetki, parola, bayat istek, hata eşlemesi
+ *   V  Üye Listesi V2 + klasik liste + zil: aşama/filtre/sayaç tutarlılığı, ticari sayaçlar değişmez
+ *
+ * Çalıştır: npx tsx scripts/uye-arsiv-4a/arsiv-4a.harness.ts
+ */
+import { randomUUID } from "node:crypto";
+import { readFileSync } from "node:fs";
+import path from "node:path";
+import { NextRequest } from "next/server";
+import { startPgrestShim } from "../uye-yonetimi-faz1/pgrestShim";
+import { startTestDb } from "../uye-yonetimi-faz2/testDb";
+import { readMig } from "../uye-yonetimi-360/migrationChain";
+import { memberAccountState } from "../../lib/admin/membershipActions";
+import { memberStageLabel, MEMBER_V2_MORE_FILTERS, parseMemberV2Query } from "../../lib/admin/memberListV2";
+import { ADMIN_AUDIT_ACTIONS } from "../../lib/admin/adminAudit";
+import { AUDIT_ACTION_LABELS } from "../../lib/admin/member360";
+
+let pass = 0;
+let fail = 0;
+const failures: string[] = [];
+function ok(cond: boolean, label: string, detail?: unknown): void {
+  if (cond) {
+    pass++;
+    console.log(`  ✓ ${label}`);
+  } else {
+    fail++;
+    failures.push(label);
+    console.error(`  ✗ ${label}${detail === undefined ? "" : ` — ${JSON.stringify(detail).slice(0, 700)}`}`);
+  }
+}
+
+const MIG_4A = "20280101000600_admin_member_archive_state.sql";
+const OWNER = "00000000-0000-4000-8000-0000000004a1";
+const ADMIN2 = "00000000-0000-4000-8000-0000000004a2";
+const TOK = { owner: "zz-4a-owner-token-0001", admin2: "zz-4a-admin2-token-0001" };
+const PASS = "zz-owner-pass"; // testDb verify_admin_login taslağı
+const D = 86_400_000;
+
+type U = {
+  id: string; key: string; approval: string; active: boolean; demo?: boolean; pkg?: string | null; plan?: string;
+  tk?: string | null; ts?: string | null; t0?: number | null; te?: number | null; pay?: string | null; npd?: string | null;
+  mods?: Record<string, boolean>;
+};
+
+async function main(): Promise<void> {
+  const port = 57000 + Math.floor(Math.random() * 900);
+  const db = await startTestDb(port, `uye-arsiv-4a-${port}`);
+  const { su, pool } = db;
+  let shim: Awaited<ReturnType<typeof startPgrestShim>> | null = null;
+  try {
+    for (const f of [
+      "20271230000000_astrology_technique_grants.sql",
+      "20280101000000_trial7_self_trial.sql",
+      "20280101000100_trial7_claims_retention.sql",
+      "20280101000200_trial7_admin_trial_approval.sql",
+      "20280101000300_admin_legacy_package_repair.sql",
+      "20280101000400_admin_owner_notifications.sql",
+      "20280101000500_admin_list_members_v2.sql",
+    ]) await su.query(readMig(f));
+
+    const tenant = async () => {
+      const id = randomUUID();
+      await su.query(`insert into public.tenants(id, name, slug, status) values ($1,'ZZ4A',$2,'active')`, [id, `zz4a-${id.slice(0, 12)}`]);
+      return id;
+    };
+    for (const [id, sup] of [[OWNER, true], [ADMIN2, false]] as [string, boolean][]) {
+      await su.query(
+        `insert into public.users(id, full_name, email, role, active, approval_status, is_super_admin, admin_level, tenant_id, created_at)
+         values ($1,$2,$3,'admin',true,'approved',$4,$5,$6, now() - interval '400 days')`,
+        [id, `ZZ_4A Yönetici ${id.slice(-2)}`, `zz.4a.admin.${id.slice(-2)}@example.test`, sup, sup ? "owner" : "admin", await tenant()],
+      );
+    }
+    await su.query(`insert into public.user_sessions(user_id, session_token) values ($1,$2),($3,$4)`, [OWNER, TOK.owner, ADMIN2, TOK.admin2]);
+
+    // ── Sentetik uzmanlar ────────────────────────────────────────────────────
+    const NOW = Date.now();
+    const day = (ms: number) => new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Istanbul" }).format(new Date(ms));
+    const mods = { clients: true, numerology: true, human_design: false, stones: true };
+    const defs: U[] = [
+      { id: "", key: "pro_paid", approval: "approved", active: true, pkg: "premium", plan: "premium", pay: "paid", npd: day(NOW + 20 * D), mods },
+      { id: "", key: "pro_exempt", approval: "approved", active: true, pkg: "premium", plan: "premium", pay: "exempt", mods },
+      { id: "", key: "pro_overdue", approval: "approved", active: true, pkg: "premium", plan: "premium", pay: "overdue", npd: day(NOW - 9 * D), mods },
+      { id: "", key: "trial_exp", approval: "approved", active: true, pkg: "trial", tk: "self_7d", ts: "active", t0: NOW - 9 * D, te: NOW - 2 * D },
+      { id: "", key: "trial_act", approval: "approved", active: true, pkg: "trial", tk: "self_7d", ts: "active", t0: NOW - 2 * D, te: NOW + 5 * D },
+      { id: "", key: "trial_ns", approval: "approved", active: true, pkg: "trial", tk: "self_7d", ts: "not_started" },
+      { id: "", key: "legacy", approval: "approved", active: true, pkg: null, plan: "trial" },
+      { id: "", key: "pending", approval: "pending", active: false },
+      { id: "", key: "rejected", approval: "rejected", active: false },
+      { id: "", key: "demo", approval: "approved", active: true, demo: true, pkg: "premium", plan: "premium" },
+      { id: "", key: "old_deact", approval: "approved", active: false, pkg: "premium", plan: "premium", pay: "paid", mods },
+      { id: "", key: "old_arch", approval: "approved", active: false, pkg: "premium", plan: "premium", pay: "paid", mods },
+      { id: "", key: "old_noaudit", approval: "approved", active: false, pkg: "premium", plan: "premium", pay: "exempt", mods },
+      { id: "", key: "conc", approval: "approved", active: true, pkg: "premium", plan: "premium", pay: "paid", mods },
+      { id: "", key: "race", approval: "approved", active: true, pkg: "premium", plan: "premium", pay: "paid", mods },
+      { id: "", key: "route", approval: "approved", active: true, pkg: "premium", plan: "premium", pay: "paid", mods },
+    ];
+    const id: Record<string, string> = {};
+    const tenantOf: Record<string, string> = {};
+    for (const u of defs) {
+      u.id = randomUUID();
+      id[u.key] = u.id;
+      tenantOf[u.key] = await tenant();
+      await su.query(
+        `insert into public.users(id, full_name, email, role, active, approval_status, approved_at, is_demo_account, package_type, plan, trial_kind,
+            trial_status, trial_started_at, trial_ends_at, payment_status, next_payment_date, module_permissions, tenant_id, created_at)
+         values ($1,$2,$3,'expert',$4,$5, case when $5='approved' then now() - interval '30 days' end, $6,$7,$8,$9,$10,$11,$12,$13,$14::date,$15,$16, now() - interval '40 days')`,
+        [u.id, `ZZ_4A Uzman ${u.key}`, `zz.4a.${u.key}@example.test`, u.active, u.approval, u.demo === true, u.pkg ?? null, u.plan ?? "trial",
+          u.tk ?? null, u.ts ?? null, u.t0 ? new Date(u.t0) : null, u.te ? new Date(u.te) : null, u.pay ?? null, u.npd ?? null,
+          JSON.stringify(u.mods ?? {}), tenantOf[u.key]],
+      );
+      // Korunacak iş verisi: danışanlar + ödeme geçmişi (+ etkin uzmanda oturum)
+      await su.query(`insert into public.clients(tenant_id, full_name) values ($1,'ZZ Danışan A'),($1,'ZZ Danışan B')`, [tenantOf[u.key]]);
+      await su.query(`insert into public.user_payment_history(user_id, payment_status, paid_amount, payment_note) values ($1,'paid',1500,'zz')`, [u.id]);
+      if (u.active) await su.query(`insert into public.user_sessions(user_id, session_token) values ($1,$2)`, [u.id, `zz-4a-${u.key}-s1`]);
+    }
+    // Eski sistem geçmişi: biri "Pasif Yap", biri "Pasife Al ve Arşivle" ile kapatılmış; biri kayıtsız.
+    await su.query(`insert into public.admin_audit_log(actor_admin_id, actor_is_main_admin, target_user_id, action, old_value, new_value, created_at)
+      values ($1,true,$2,'user_deactivated','{"active":true}','{"active":false}', now() - interval '20 days'),
+             ($1,true,$3,'user_deactivated','{"active":true}','{"active":false}', now() - interval '30 days'),
+             ($1,true,$3,'user_archived','{"active":false}','{"active":false}', now() - interval '10 days')`,
+      [OWNER, id.old_deact, id.old_arch]);
+    await su.query(`insert into public.pro_upgrade_requests(user_id, note) values ($1,'zz')`, [id.trial_exp]);
+
+    // Korunacak kayıtların parmak izi (iş verisi + üyelik/deneme/ödeme/modül alanları — yalnız active/archived_at hariç)
+    const recordsFp = async () => (await su.query(`select
+        (select md5(string_agg(c::text, ',' order by c.id)) from public.clients c) cl,
+        (select md5(string_agg(h::text, ',' order by h.id)) from public.user_payment_history h) ph,
+        (select md5(string_agg(q::text, ',' order by q.id)) from public.pro_upgrade_requests q) pr,
+        (select md5(coalesce(string_agg(t::text, ',' order by t.claim_hash), '')) from public.trial_claims t) tc,
+        (select md5(string_agg((to_jsonb(u) - 'active' - 'archived_at')::text, ',' order by u.id)) from public.users u) us`)).rows[0];
+    const auditRows = async (uid: string) =>
+      (await su.query(`select action, old_value, new_value, context from public.admin_audit_log where target_user_id=$1 order by created_at, id`, [uid])).rows as
+        { action: string; old_value: Record<string, unknown>; new_value: Record<string, unknown>; context: Record<string, unknown> }[];
+    const userRow = async (uid: string) => (await su.query(`select * from public.users where id=$1`, [uid])).rows[0] as Record<string, unknown>;
+    const activeSessions = async (uid: string) =>
+      (await su.query(`select count(*)::int n from public.user_sessions where user_id=$1 and is_active`, [uid])).rows[0].n as number;
+    const asSvc = async (sql: string, args: unknown[]) => {
+      const c = await pool.connect();
+      try {
+        await c.query("set role service_role");
+        return (await c.query(sql, args)).rows[0];
+      } finally {
+        await c.query("reset role").catch(() => undefined);
+        c.release();
+      }
+    };
+    const code = async (sql: string, args: unknown[]) => {
+      try { await asSvc(sql, args); return "OK"; } catch (e) { return (e as { code?: string }).code ?? "ERR"; }
+    };
+    const list = async (f = "all", actor = OWNER) =>
+      (await su.query(`select public.admin_list_members_v2($1,$2,'', 'expert', null, 'all', 'attn', 100, 0) r`, [actor, f])).rows[0].r as
+        { total: number; rows: { id: string; stage: string }[]; presets: Record<string, number>; counts: Record<string, number>; decisions: Record<string, number> };
+    const stageOf = async (uid: string) => (await list("all")).rows.find((r) => r.id === uid)?.stage
+      ?? (await list("arsiv")).rows.find((r) => r.id === uid)?.stage ?? null;
+
+    // ── ROUTE altyapısı (şim migration ÖNCESİ başlar → geri düşüş de sınanır) ───────────
+    shim = await startPgrestShim(pool);
+    process.env.NEXT_PUBLIC_SUPABASE_URL = shim.url;
+    process.env.SUPABASE_SERVICE_ROLE_KEY = "zz-test-service-role-not-a-secret";
+    const detailRoute = await import("../../app/api/admin/users/[id]/route");
+    const archiveListRoute = await import("../../app/api/admin/users/archive/route");
+    const deleteRoute = await import("../../app/api/admin/users/[id]/delete/route");
+    const statusRoute = await import("../../app/api/admin/users/[id]/status/route");
+    const unarchiveRoute = await import("../../app/api/admin/users/[id]/unarchive/route");
+    const membersRoute = await import("../../app/api/admin/members/route");
+    const { verifyUserRequest } = await import("../../lib/auth/userGuard");
+    type H = (r: NextRequest, ctx: { params: Promise<{ id: string }> }) => Promise<Response>;
+    const call = async (h: unknown, url: string, auth: { adminId?: string; token?: string }, body?: unknown, paramId?: string) => {
+      const headers: Record<string, string> = {};
+      if (auth.adminId) headers["x-admin-id"] = auth.adminId;
+      if (auth.token) headers["x-session-token"] = auth.token;
+      if (body !== undefined) headers["content-type"] = "application/json";
+      const req = new NextRequest(`http://localhost${url}`, {
+        method: body === undefined ? "GET" : "POST", headers, body: body === undefined ? undefined : JSON.stringify(body),
+      });
+      const res = await (h as H)(req, { params: Promise.resolve({ id: paramId ?? "" }) });
+      let json: Record<string, unknown> = {};
+      try { json = await res.json(); } catch { /* boş */ }
+      return { status: res.status, json };
+    };
+    const asOwner = { adminId: OWNER, token: TOK.owner };
+    const asAdmin2 = { adminId: ADMIN2, token: TOK.admin2 };
+    const userGate = async (uid: string, token: string) => {
+      const r = await verifyUserRequest(new NextRequest("http://localhost/api/x", { headers: { "x-user-id": uid, "x-session-token": token } }));
+      return r.ok ? 200 : r.response.status;
+    };
+
+    console.log("[F] Migration ÖNCESİ geri düşüş (yeni kod + eski şema)");
+    const f1 = await call(detailRoute.GET, `/api/admin/users/${id.old_arch}`, asOwner, undefined, id.old_arch);
+    ok(f1.status === 200 && (f1.json.archive as { supported: boolean }).supported === false && (f1.json.archive as { archivedAt: unknown }).archivedAt === null,
+      "F1 detay: archived_at kolonu yokken 200 + archive.supported=false (ekran eski davranışla açılır)", f1.json.archive);
+    const f2 = await call(archiveListRoute.GET, "/api/admin/users/archive", asOwner);
+    ok(f2.status === 200 && f2.json.archiveModel === false && (f2.json.users as unknown[]).length === 3,
+      "F2 arşiv listesi: kolon yokken eski sorguya düşer (3 eski pasif hesap, archiveModel=false)", { s: f2.status, m: f2.json.archiveModel });
+    const f3 = await call(unarchiveRoute.POST, `/api/admin/users/${id.old_arch}/unarchive`, asOwner, { adminPassword: PASS }, id.old_arch);
+    ok(f3.status === 503, "F3 arşivden çıkar: fonksiyon yokken 503, hiçbir şey yazılmaz", f3);
+
+    console.log("\n[M] Migration");
+    const listBefore = await list("all");
+    const fnFp = `select md5(string_agg(p.oid::regprocedure::text||md5(p.prosrc)||coalesce(p.proacl::text,''), ',' order by p.oid::regprocedure::text)) h
+      from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public'
+       and p.proname not in ('admin_archive_user','admin_set_user_active','admin_unarchive_user','admin_list_members_v2')`;
+    const before = { fn: (await su.query(fnFp)).rows[0].h, rec: await recordsFp(),
+      act: (await su.query(`select md5(string_agg(id::text||active::text, ',' order by id)) h from public.users`)).rows[0].h,
+      audit: (await su.query(`select count(*)::int n, md5(string_agg(a::text, ',' order by a.id)) h from public.admin_audit_log a`)).rows[0],
+      chk: (await su.query(`select pg_get_constraintdef(oid) d from pg_constraint where conname='admin_audit_action_chk'`)).rows[0].d as string };
+
+    // M0 ön koşul: canlı audit CHECK beklenenden farklıysa migration HİÇBİR şey uygulamaz.
+    await su.query(`alter table public.admin_audit_log drop constraint admin_audit_action_chk;
+      alter table public.admin_audit_log add constraint admin_audit_action_chk ${before.chk.replace("'pricing_phase_changed'::text", "'pricing_phase_changed'::text, 'zz_prod_only'::text")}`);
+    let m0err = "";
+    try { await su.query(readMig(MIG_4A)); } catch (e) { m0err = (e as Error).message; }
+    await su.query("rollback").catch(() => undefined);
+    const colAfterFail = (await su.query(`select count(*)::int n from information_schema.columns where table_name='users' and column_name='archived_at'`)).rows[0].n;
+    ok(/on kosul/.test(m0err) && colAfterFail === 0, "M0 audit CHECK sürüklenmişse migration fail-closed (kolon eklenmedi, hiçbir şey değişmedi)", m0err);
+    await su.query(`alter table public.admin_audit_log drop constraint admin_audit_action_chk;
+      alter table public.admin_audit_log add constraint admin_audit_action_chk ${before.chk}`);
+
+    await su.query(readMig(MIG_4A));
+    await su.query(readMig(MIG_4A));
+    ok((await su.query(fnFp)).rows[0].h === before.fn, "M1 migration 2× uygulandı; değiştirilen 4 fonksiyon dışında hiçbir fonksiyon (gövde/yetki) değişmedi");
+    const recAfter = await recordsFp();
+    ok(JSON.stringify(recAfter) === JSON.stringify(before.rec), "M2 danışan, ödeme geçmişi, Pro talebi, deneme hakkı ve tüm üyelik/modül alanları birebir aynı");
+    ok((await su.query(`select md5(string_agg(id::text||active::text, ',' order by id)) h from public.users`)).rows[0].h === before.act
+       && (await su.query(`select count(*)::int n from public.users where archived_at is not null`)).rows[0].n === 0,
+      "M3 hiçbir hesabın erişimi (active) değişmedi; backfill YOK (archived_at hepsinde NULL)");
+    const aud = (await su.query(`select count(*)::int n, md5(string_agg(a::text, ',' order by a.id)) h from public.admin_audit_log a`)).rows[0];
+    ok(aud.n === before.audit.n && aud.h === before.audit.h, "M4 yönetim geçmişi değişmedi (migration audit yazmaz/silmez)");
+    const acl = (await su.query(`select p.proname, has_function_privilege('anon', p.oid,'EXECUTE') a, has_function_privilege('authenticated', p.oid,'EXECUTE') au,
+        has_function_privilege('service_role', p.oid,'EXECUTE') s, p.prosecdef d, array_to_string(p.proconfig, ',') cfg
+      from pg_proc p where p.proname in ('admin_archive_user','admin_set_user_active','admin_unarchive_user','admin_list_members_v2')`)).rows as Record<string, unknown>[];
+    ok(acl.length === 4 && acl.every((r) => r.a === false && r.au === false && r.s === true && r.d === true && String(r.cfg).includes("search_path")),
+      "M5 4 fonksiyon: SECURITY DEFINER + sabit search_path; anon/authenticated çalıştıramaz, yalnız service_role", acl);
+    const chk = (await su.query(`select pg_get_constraintdef(oid) d from pg_constraint where conname='admin_audit_action_chk'`)).rows[0].d as string;
+    const liveActions = Array.from(chk.matchAll(/'([a-z_]+)'::text/g)).map((m) => m[1]).sort();
+    ok(JSON.stringify(liveActions) === JSON.stringify([...ADMIN_AUDIT_ACTIONS].sort()), "M6 audit CHECK = TS eylem listesi (user_unarchived dahil 33)", liveActions.length);
+    ok(Boolean(AUDIT_ACTION_LABELS.user_unarchived), "M7 yönetim geçmişinde “Arşivden çıkarıldı” etiketi var");
+
+    console.log("\n[L] Eski kayıtlar (otomatik arşivleme YOK)");
+    const lAll = await list("all");
+    const lArs = await list("arsiv");
+    for (const k of ["old_deact", "old_arch", "old_noaudit"]) {
+      ok(lAll.rows.find((r) => r.id === id[k])?.stage === "pasif" && !lArs.rows.some((r) => r.id === id[k]),
+        `L1 eski active=false hesap (${k}) “Pasif” — Tüm üyeler'de görünür, arşiv sayılmaz`);
+    }
+    ok(lAll.presets.pasif === 3 && lAll.presets.arsiv === 0 && listBefore.presets.arsiv === 3,
+      "L2 önce arşiv=3 (pasif dahil) → sonra pasif=3, arşiv=0 (hiçbir eski hesap listeden kaybolmadı)", { before: listBefore.presets.arsiv, after: lAll.presets });
+    ok(lAll.presets.all === listBefore.presets.all + 3, "L3 Tüm üyeler sayısı = önceki + 3 eski pasif hesap");
+    ok(JSON.stringify(lAll.counts) === JSON.stringify(listBefore.counts) && JSON.stringify(lAll.decisions) === JSON.stringify(listBefore.decisions),
+      "L4 ticari sayaçlar (Pro/deneme/ödeme/bugün) ve karar sayıları DEĞİŞMEDİ");
+    const roSql = readFileSync(path.join(process.cwd(), "scripts/uye-arsiv-4a/legacy-archive-readonly.sql"), "utf8");
+    const roRes = await su.query(roSql) as unknown as { rows: Record<string, unknown>[] }[];
+    const roRows = roRes.find((r) => Array.isArray(r.rows) && r.rows.length && "son_olay" in r.rows[0])?.rows ?? [];
+    const byEvt = Object.fromEntries(roRows.map((r) => [String(r.son_olay), Number(r.hesap_sayisi)]));
+    ok(byEvt.user_archived === 1 && byEvt.user_deactivated === 1 && byEvt["(yok)"] === 1 && roRows.every((r) => !("email" in r) && !("full_name" in r)),
+      "L5 salt-okunur rapor: son olay user_archived 1 · user_deactivated 1 · kayıtsız 1 (yalnız toplu sayı, kişisel veri yok)", roRows);
+    const bfSql = readFileSync(path.join(process.cwd(), "scripts/uye-arsiv-4a/legacy-archive-backfill.sql"), "utf8").split(":'actor'").join(`'${OWNER}'`);
+    const recPre = await recordsFp();
+    const dry = await su.query(bfSql) as unknown as { rows: Record<string, unknown>[] }[];
+    const aday = dry.find((r) => r.rows?.[0] && "aktarilacak" in r.rows[0])?.rows[0].aktarilacak;
+    ok(aday === 1 && (await su.query(`select count(*)::int n from public.users where archived_at is not null`)).rows[0].n === 0
+       && JSON.stringify(await recordsFp()) === JSON.stringify(recPre), "L6 geçiş betiği varsayılan KURU: aday 1, ROLLBACK → hiçbir şey yazılmadı");
+    const bad = await su.query(bfSql.split(`'${OWNER}'`).join(`'${ADMIN2}'`)).then(() => "OK", (e: Error) => e.message);
+    await su.query("rollback").catch(() => undefined);
+    ok(/ana yonetici degil/.test(bad), "L7 geçiş betiği ana yönetici olmayan aktörle çalışmaz", bad);
+    const archEvtAt = (await su.query(`select created_at from public.admin_audit_log where target_user_id=$1 and action='user_archived'`, [id.old_arch])).rows[0].created_at as Date;
+    await su.query(bfSql.replace(/ROLLBACK; -- Owner onayıyla COMMIT yapılır\.\s*$/, "COMMIT;"));
+    const oa = await userRow(id.old_arch);
+    ok(oa.archived_at instanceof Date && (oa.archived_at as Date).getTime() === archEvtAt.getTime() && oa.active === false
+       && (await userRow(id.old_deact)).archived_at === null && (await userRow(id.old_noaudit)).archived_at === null,
+      "L8 Owner onaylı uygulamada yalnız açıkça arşivlenmiş eski hesap arşive geçer; tarih = kendi arşiv olayı; diğerleri pasif kalır");
+    const oaAud = await auditRows(id.old_arch);
+    ok(oaAud.length === 3 && oaAud[2].action === "user_archived" && oaAud[2].context.backfill === true
+       && oaAud[0].action === "user_deactivated" && oaAud[1].action === "user_archived",
+      "L9 geçiş audit'i eklendi (backfill=true); eski pasifleştirme/arşiv olayları korunur");
+    ok(JSON.stringify(await recordsFp()) === JSON.stringify(recPre), "L10 geçiş yalnız archived_at yazdı; diğer tüm alanlar ve iş verisi aynı");
+
+    console.log("\n[D] Durum geçişleri (gerçek RPC, service_role)");
+    const rec0 = await recordsFp();
+    // D1 Aktif → Pasif
+    const p = id.trial_exp;
+    const d1 = await asSvc(`select public.admin_set_user_active($1,$2,false,true) r`, [p, ADMIN2]);
+    const u1 = await userRow(p);
+    ok(d1.r.revoked_session_count === 1 && u1.active === false && u1.archived_at === null && (await activeSessions(p)) === 0,
+      "D1 Aktif→Pasif: giriş kapandı, oturum sonlandırıldı, arşivlenmedi");
+    ok((await stageOf(p)) === "pasif" && (await list("all")).rows.some((r) => r.id === p) && !(await list("arsiv")).rows.some((r) => r.id === p),
+      "D2 Pasif hesap normal yönetimden kaybolmaz; “Arşiv”de görünmez");
+    // D3 Pasif → Aktif (normal admin de yapabilir; deneme hakkı sıfırlanmaz)
+    const d3 = await asSvc(`select public.admin_set_user_active($1,$2,true,false) r`, [p, ADMIN2]);
+    const u3 = await userRow(p);
+    ok(d3.r.active === true && (u3.trial_ends_at as Date).getTime() === (u1.trial_ends_at as Date).getTime() && u3.trial_status === "active"
+       && (await stageOf(p)) === "deneme_bitti"
+       && (await su.query(`select public.trial_phase_of(trial_kind, trial_status, package_type, trial_ends_at) ph from public.users where id=$1`, [p])).rows[0].ph === "expired",
+      "D3 Pasif→Aktif: denemesi bitmiş hesap yine “deneme bitti” (süre uzamadı/sıfırlanmadı, yeni işlem hakkı açılmadı)");
+    // D4 Aktif → Arşiv
+    const a = id.pro_paid;
+    const d4 = await code(`select public.admin_archive_user($1,$2)`, [a, OWNER]);
+    const u4 = await userRow(a);
+    ok(d4 === "OK" && u4.active === false && u4.archived_at instanceof Date && (await activeSessions(a)) === 0,
+      "D4 Aktif→Arşiv: erişim kapandı, archived_at yazıldı, oturumlar sonlandırıldı");
+    ok((await stageOf(a)) === "arsiv" && !(await list("all")).rows.some((r) => r.id === a) && (await list("arsiv")).rows.some((r) => r.id === a),
+      "D5 arşivlenen hesap Tüm üyeler'de yok, Arşiv'de var");
+    const a4 = await auditRows(a);
+    ok(a4.length === 1 && a4[0].action === "user_archived" && a4[0].new_value.archived === true && a4[0].old_value.active === true,
+      "D6 tek user_archived audit (önce aktif / sonra arşivde)");
+    // D7 tekrar arşiv → değişiklik yok, yeni audit yok
+    const d7 = await asSvc(`select public.admin_archive_user($1,$2) r`, [a, OWNER]);
+    ok(d7.r.already_archived === true && (await auditRows(a)).length === 1
+       && ((await userRow(a)).archived_at as Date).getTime() === (u4.archived_at as Date).getTime(),
+      "D7 tekrarlanan arşiv isteği: durum ve tarih aynı, ikinci audit YOK");
+    // D8 Arşivdeki hesap aktifleştirilemez (DB kuralı)
+    ok(await code(`select public.admin_set_user_active($1,$2,true,false)`, [a, OWNER]) === "UY004" && (await userRow(a)).active === false
+       && (await auditRows(a)).length === 1, "D8 arşivdeki hesap “Aktif Yap” ile açılamaz (UY004); durum/audit değişmez");
+    let chkCode = "";
+    try { await su.query(`update public.users set active = true where id=$1`, [a]); } catch (e) { chkCode = (e as { code?: string }).code ?? ""; }
+    ok(chkCode === "23514", "D9 doğrudan veri yazımı da arşivdeki hesabı aktif yapamaz (CHECK 23514)");
+    ok(await code(`select public.admin_approve_expert_with_modules($1,$2,$3,$4,$5,$6)`,
+      [a, JSON.stringify({ package_type: "premium" }), OWNER, JSON.stringify({ clients: true }), [], "pending"]) !== "OK" && (await userRow(a)).active === false,
+      "D10 onay akışı arşivdeki (onaylı) hesabı açamaz");
+    // D11 Arşivden çıkar: yalnız ana yönetici
+    ok(await code(`select public.admin_unarchive_user($1,$2)`, [a, ADMIN2]) === "42501" && (await userRow(a)).archived_at !== null,
+      "D11 normal yönetici arşivden çıkaramaz (42501)");
+    ok(await code(`select public.admin_unarchive_user($1,$2)`, [OWNER, OWNER]) === "UY003", "D12 ana yönetici kendi hesabında işlem yapamaz");
+    const d13 = await asSvc(`select public.admin_unarchive_user($1,$2) r`, [a, OWNER]);
+    const u13 = await userRow(a);
+    ok(d13.r.archived === false && u13.archived_at === null && u13.active === false && (await stageOf(a)) === "pasif",
+      "D13 arşivden çıkan hesap PASİF (giriş hâlâ kapalı); Tüm üyeler'e döner");
+    const a13 = await auditRows(a);
+    ok(a13.length === 2 && a13[1].action === "user_unarchived" && a13[1].new_value.archived === false && a13[1].new_value.active === false,
+      "D14 user_unarchived audit (aynı tx)");
+    ok(await code(`select public.admin_unarchive_user($1,$2)`, [a, OWNER]) === "UY002", "D15 arşivde olmayan hesabı çıkarma → UY002 (409)");
+    const d16 = await asSvc(`select public.admin_set_user_active($1,$2,true,false) r`, [a, OWNER]);
+    ok(d16.r.active === true && (await activeSessions(a)) === 0 && (await stageOf(a)) === "pro",
+      "D16 sonra Aktif Yap: Pro üyelik aynen döner; eski oturumlar CANLANMAZ");
+    const ua = await userRow(a);
+    ok(ua.package_type === "premium" && ua.payment_status === "paid" && JSON.stringify(ua.module_permissions) === JSON.stringify(u4.module_permissions),
+      "D17 paket, ödeme durumu ve modül izinleri tüm döngü boyunca korundu");
+    // D18 Pasif → Arşiv (pasiflik olayı korunur)
+    const q = id.pro_exempt;
+    await asSvc(`select public.admin_set_user_active($1,$2,false,true) r`, [q, OWNER]);
+    await asSvc(`select public.admin_archive_user($1,$2) r`, [q, OWNER]);
+    const qa = await auditRows(q);
+    ok((await userRow(q)).archived_at !== null && qa.map((r) => r.action).join(",") === "user_deactivated,user_archived" && qa[1].old_value.active === false,
+      "D18 Pasif→Arşiv: arşive geçti; önceki pasifleştirme olayı yönetim geçmişinde duruyor");
+    // D19 Deneme hesabı arşiv döngüsü: deneme alanları ve hak kaydı değişmez
+    const t = id.trial_act;
+    const tBefore = await userRow(t);
+    await asSvc(`select public.admin_archive_user($1,$2) r`, [t, OWNER]);
+    await asSvc(`select public.admin_unarchive_user($1,$2) r`, [t, OWNER]);
+    await asSvc(`select public.admin_set_user_active($1,$2,true,false) r`, [t, OWNER]);
+    const tAfter = await userRow(t);
+    ok(["trial_kind", "trial_status", "package_type", "plan"].every((k) => tAfter[k] === tBefore[k])
+       && (tAfter.trial_ends_at as Date).getTime() === (tBefore.trial_ends_at as Date).getTime() && (await stageOf(t)) === "deneme",
+      "D19 deneme hesabı arşiv→çıkar→aktif: deneme türü/durumu/bitişi aynı (uzamadı, sıfırlanmadı)");
+    // D20 Eski kayıt + onay bekleyen / reddedilen akışlar bozulmadı
+    ok(await code(`select public.admin_set_user_active($1,$2,true,false)`, [id.pending, OWNER]) === "UY002",
+      "D20 onaysız uzmanı aktifleştirme hâlâ UY002 (mevcut kural korunur)");
+    ok(JSON.stringify((await recordsFp()).cl) === JSON.stringify(rec0.cl) && (await recordsFp()).ph === rec0.ph && (await recordsFp()).pr === rec0.pr,
+      "D21 tüm geçişlerden sonra danışan, ödeme geçmişi ve Pro talebi kayıtları birebir aynı (hiçbir şey silinmedi)");
+
+    console.log("\n[C] Eşzamanlılık + tekrar");
+    const c = id.conc;
+    const conc = await Promise.allSettled([1, 2, 3].map(() => asSvc(`select public.admin_archive_user($1,$2) r`, [c, OWNER])));
+    const cAud = (await auditRows(c)).filter((r) => r.action === "user_archived");
+    ok(conc.every((r) => r.status === "fulfilled") && cAud.length === 1 && (await userRow(c)).archived_at !== null,
+      "C1 3 eşzamanlı arşiv isteği → tek arşiv, TEK audit");
+    const un = await Promise.allSettled([1, 2].map(() => asSvc(`select public.admin_unarchive_user($1,$2) r`, [c, OWNER])));
+    const unOk = un.filter((r) => r.status === "fulfilled").length;
+    const unCodes = un.filter((r): r is PromiseRejectedResult => r.status === "rejected").map((r) => (r.reason as { code?: string }).code);
+    ok(unOk === 1 && unCodes.join() === "UY002" && (await auditRows(c)).filter((r) => r.action === "user_unarchived").length === 1,
+      "C2 2 eşzamanlı arşivden çıkarma → 1 başarı + 1 UY002, tek audit", { unOk, unCodes });
+    const r = id.race;
+    await asSvc(`select public.admin_set_user_active($1,$2,false,true) r`, [r, OWNER]);
+    const race = await Promise.allSettled([
+      asSvc(`select public.admin_archive_user($1,$2) r`, [r, OWNER]),
+      asSvc(`select public.admin_set_user_active($1,$2,true,false) r`, [r, ADMIN2]),
+    ]);
+    const ru = await userRow(r);
+    ok(!(ru.active === true && ru.archived_at !== null) && race.some((x) => x.status === "fulfilled"),
+      "C3 arşiv ∥ aktifleştir yarışı: sonuç ya ‘aktif’ ya ‘arşivde’ — asla ‘aktif ve arşivde’", { active: ru.active, archived: ru.archived_at !== null });
+    ok((await su.query(`select count(*)::int n from public.users where archived_at is not null and active`)).rows[0].n === 0,
+      "C4 tüm veritabanında aktif+arşiv çelişkisi 0");
+
+    console.log("\n[G] Giriş / oturum kapısı (gerçek verifyUserRequest)");
+    const g = id.conc; // şu an pasif (arşivden çıkmış)
+    await su.query(`insert into public.user_sessions(user_id, session_token) values ($1,'zz-4a-g-pasif')`, [g]);
+    ok((await userGate(g, "zz-4a-g-pasif")) !== 200, "G1 pasif hesap geçerli görünen yeni oturumla da giremez");
+    await asSvc(`select public.admin_archive_user($1,$2) r`, [g, OWNER]);
+    await su.query(`insert into public.user_sessions(user_id, session_token) values ($1,'zz-4a-g-arsiv')`, [g]);
+    ok((await userGate(g, "zz-4a-g-arsiv")) !== 200, "G2 arşivdeki hesap yeni oturumla da giremez");
+    ok((await userGate(g, "zz-4a-conc-s1")) !== 200, "G3 arşiv öncesi eski oturum token'ı kullanılamaz");
+    await su.query(`insert into public.user_sessions(user_id, session_token) values ($1,'zz-4a-g-ok')`, [id.pro_overdue]);
+    ok((await userGate(id.pro_overdue, "zz-4a-g-ok")) === 200, "G4 kontrol: aktif hesap aynı kapıdan geçer (sahte negatif yok)");
+
+    console.log("\n[R] Route'lar (gerçek handler)");
+    const rt = id.route;
+    const del = (auth: typeof asOwner, body: unknown, uid = rt) => call(deleteRoute.POST, `/api/admin/users/${uid}/delete`, auth, body, uid);
+    ok((await del(asAdmin2, { adminPassword: PASS })).status === 403 && (await userRow(rt)).archived_at === null, "R1 normal yönetici arşivleyemez (403)");
+    ok((await del(asOwner, { adminPassword: "yanlis" })).status === 403 && (await userRow(rt)).active === true, "R2 yanlış parola → 403, değişiklik yok");
+    ok((await del(asOwner, {})).status === 400, "R3 parola yok → 400");
+    ok((await call(deleteRoute.POST, "/api/admin/users/x/delete", asOwner, { adminPassword: PASS }, "not-a-uuid")).status === 400, "R4 geçersiz ID → 400");
+    const r5 = await del(asOwner, { adminPassword: PASS });
+    ok(r5.status === 200 && r5.json.alreadyArchived === false && typeof r5.json.archivedAt === "string" && (await userRow(rt)).archived_at !== null,
+      "R5 ana yönetici + parola → arşivlendi (archivedAt döner)");
+    const r6 = await del(asOwner, { adminPassword: PASS });
+    ok(r6.status === 200 && r6.json.alreadyArchived === true && (await auditRows(rt)).filter((x) => x.action === "user_archived").length === 1,
+      "R6 tekrar gönderim → 200 alreadyArchived, ikinci audit yok");
+    const st = await call(statusRoute.POST, `/api/admin/users/${rt}/status`, asOwner, { action: "toggle_active", currentActive: false }, rt);
+    ok(st.status === 409 && /arşivde/i.test(String(st.json.error)) && (await userRow(rt)).active === false, "R7 durum route'u: arşivdeki hesabı Aktif Yap → 409 açıklamalı");
+    const una = (auth: { adminId?: string; token?: string }, body: unknown, uid = rt) => call(unarchiveRoute.POST, `/api/admin/users/${uid}/unarchive`, auth, body, uid);
+    ok((await una({}, { adminPassword: PASS })).status === 401, "R8 kimliksiz arşivden çıkarma → 401");
+    ok((await una(asAdmin2, { adminPassword: PASS })).status === 403 && (await userRow(rt)).archived_at !== null, "R9 normal yönetici → 403 (hedef bilgisi sızmaz)");
+    const expTok = "zz-4a-expert-tok";
+    await su.query(`insert into public.user_sessions(user_id, session_token) values ($1,$2)`, [id.pro_overdue, expTok]);
+    const r10 = await una({ adminId: id.pro_overdue, token: expTok }, { adminPassword: PASS });
+    ok(r10.status === 401 || r10.status === 403, `R10 uzman hesabı yönetici taklidi yapamaz (${r10.status})`);
+    ok((await una(asOwner, { adminPassword: "yanlis" })).status === 403, "R11 yanlış parola → 403");
+    ok((await una(asOwner, {})).status === 400, "R12 parola yok → 400");
+    ok((await una(asOwner, { adminPassword: PASS }, OWNER)).status === 400, "R13 kendi hesabı → 400");
+    ok((await una(asOwner, { adminPassword: PASS }, randomUUID())).status === 404, "R14 olmayan kullanıcı → 404");
+    const r15 = await una(asOwner, { adminPassword: PASS });
+    ok(r15.status === 200 && r15.json.active === false && (await userRow(rt)).archived_at === null && (await userRow(rt)).active === false,
+      "R15 ana yönetici + parola → arşivden çıktı, hesap pasif");
+    ok((await una(asOwner, { adminPassword: PASS })).status === 409, "R16 tekrar → 409 (arşivde değil)");
+    const r17 = await call(statusRoute.POST, `/api/admin/users/${rt}/status`, asAdmin2, { action: "toggle_active", currentActive: false }, rt);
+    ok(r17.status === 200 && (await userRow(rt)).active === true, "R17 sonra normal yönetici “Aktif Yap” → 200 (pasif hesap kuralı aynen)");
+    await del(asOwner, { adminPassword: PASS });
+    const r18 = await call(detailRoute.GET, `/api/admin/users/${rt}`, asOwner, undefined, rt);
+    const r18a = r18.json.archive as { supported: boolean; archivedAt: string | null };
+    ok(r18.status === 200 && r18a.supported === true && typeof r18a.archivedAt === "string" && (r18.json.user as Record<string, unknown>).archived_at === undefined,
+      "R18 detay: archive.supported + archivedAt; USERS_SAFE_SELECT sözleşmesi değişmedi");
+    const r19 = await call(archiveListRoute.GET, "/api/admin/users/archive", asOwner);
+    const r19u = (r19.json.users as Record<string, unknown>[]) ?? [];
+    const r19arch = r19u.filter((u) => u.archived_at != null).map((u) => String(u.id)).sort();
+    const dbArch = (await su.query(`select id::text from public.users where role='expert' and approval_status='approved' and active=false and archived_at is not null order by 1`)).rows.map((x) => x.id);
+    const dbPas = (await su.query(`select count(*)::int n from public.users where role='expert' and approval_status='approved' and active=false`)).rows[0].n;
+    ok(r19.status === 200 && r19.json.archiveModel === true && JSON.stringify(r19arch) === JSON.stringify(dbArch) && r19u.length === dbPas,
+      "R19 klasik “Pasif ve Arşiv” görünümü: kapsam aynı (kaybolan yok) + satır bazında archived_at doğru", { list: r19u.length, dbPas });
+    const m1 = await call(membersRoute.GET, "/api/admin/members?f=pasif", asOwner);
+    const m2 = await call(membersRoute.GET, "/api/admin/members?f=arsiv", asOwner);
+    ok(m1.status === 200 && (m1.json.rows as { stage: string }[]).every((x) => x.stage === "pasif") && (m1.json.rows as unknown[]).length > 0
+       && m2.status === 200 && (m2.json.rows as { id: string; stage: string }[]).every((x) => x.stage === "arsiv")
+       && JSON.stringify((m2.json.rows as { id: string }[]).map((x) => x.id).sort()) === JSON.stringify(dbArch),
+      "R20 /api/admin/members: f=pasif yalnız pasif, f=arsiv yalnız archived_at dolu hesaplar");
+    ok(parseMemberV2Query(new URLSearchParams("f=pasif")).ok === true, "R21 URL filtresi f=pasif geçerli");
+    let down = 0;
+    await su.query(`alter function public.admin_unarchive_user(uuid, uuid) rename to admin_unarchive_user_zz`);
+    await del(asOwner, { adminPassword: PASS }).catch(() => undefined);
+    const dd = await una(asOwner, { adminPassword: PASS });
+    if (dd.status === 503 || dd.status === 500) down++;
+    await su.query(`alter function public.admin_unarchive_user_zz(uuid, uuid) rename to admin_unarchive_user`);
+    ok(down === 1 && (await userRow(rt)).archived_at !== null, "R22 veritabanı hatası → 5xx; arşiv durumu değişmez");
+
+    console.log("\n[V] Liste / klasik / zil tutarlılığı");
+    const v = await list("all");
+    const vp = await list("pasif");
+    const va = await list("arsiv");
+    ok(v.presets.pasif === vp.total && v.presets.arsiv === va.total && vp.rows.every((x) => x.stage === "pasif") && va.rows.every((x) => x.stage === "arsiv"),
+      "V1 hazır filtre sayıları = filtre sonuçları (pasif/arşiv)");
+    const ids = new Set(v.rows.map((x) => x.id));
+    ok(vp.rows.every((x) => ids.has(x.id)) && va.rows.every((x) => !ids.has(x.id)), "V2 pasif ⊂ Tüm üyeler; arşiv ∩ Tüm üyeler = ∅");
+    const manual = (await su.query(`select
+        count(*) filter (where role='expert' and not is_demo_account and package_type='premium' and active and approval_status='approved' and (trial_kind is null or trial_status='converted')) pro
+      from public.users`)).rows[0];
+    ok(v.counts.pro === Number(manual.pro), "V3 Pro sayacı yalnız aktif Pro üyeler (pasif/arşiv sayılmaz — eskisi gibi)", { got: v.counts.pro, exp: manual.pro });
+    const klasik = (await su.query(`select public.admin_list_users('', null, 'members', 'all', 'all', 'all', 'all', 20, 0) r`)).rows[0].r as { counts?: Record<string, number> };
+    const klasikExp = (await su.query(`select count(*)::int n from public.users where role='expert' and approval_status='approved' and active is not true`)).rows[0].n;
+    ok(Number(klasik.counts?.archived) === klasikExp && klasikExp > 0,
+      "V4 klasik liste/sistem sağlığı “Pasif (arşiv)” sayacı aynı tanımla (değişmedi)");
+    await su.query(`select public.admin_notifications_reconcile()`);
+    const openAct = (await su.query(`select type, count(*)::int n from public.admin_notifications where kind='action' and resolved_at is null group by 1 order by 1`)).rows;
+    ok(!openAct.some((x) => ["basvuru"].includes(x.type) && x.n > 1), "V5 zil: pasif/arşiv işlemleri yeni karar bildirimi üretmez", openAct);
+    ok(memberStageLabel("pasif", { nowMs: NOW }).label.includes("Pasif") && memberStageLabel("arsiv", { nowMs: NOW }).label === "Arşivde"
+       && MEMBER_V2_MORE_FILTERS.some(([k, l]) => k === "askida" && l === "Denemesi durdurulanlar") && MEMBER_V2_MORE_FILTERS.some(([k]) => k === "pasif"),
+      "V6 etiketler: Pasif ≠ Arşiv ≠ Denemesi durdurulanlar");
+    ok(memberAccountState({ active: true, archivedAt: null }) === "active" && memberAccountState({ active: false, archivedAt: null }) === "passive"
+       && memberAccountState({ active: false, archivedAt: "2026-11-12T00:00:00Z" }) === "archived"
+       && memberAccountState({ active: true, archivedAt: "x" }) === "archived", "V7 saf yardımcı: aktif / pasif / arşiv (çelişkide arşiv = kapalı)");
+  } finally {
+    if (shim) await shim.close().catch(() => undefined);
+    await db.stop();
+  }
+  console.log(`\n──────────\nAŞAMA 4a (pasif ≠ arşiv): PASS ${pass} · FAIL ${fail}`);
+  if (fail > 0) {
+    for (const f of failures) console.error(`  ✗ ${f}`);
+    process.exit(1);
+  }
+  process.exit(0); // açık havuz/şim tanıtıcıları süreci asılı tutmasın
+}
+
+main().catch((e) => {
+  console.error("BEKLENMEYEN:", e);
+  process.exit(1);
+});

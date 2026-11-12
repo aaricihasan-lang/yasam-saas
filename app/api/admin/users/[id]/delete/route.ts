@@ -11,8 +11,9 @@ type RouteContext = { params: Promise<{ id: string }> };
 /**
  * POST /api/admin/users/[id]/delete
  *
- * "Pasife Al ve Arşivle" (soft delete): active=false olarak işaretler ve user_archived
- * audit kaydı yazar. Gerçek (kalıcı) silme DEĞİLDİR — geri alınabilir; hedef otomatik
+ * "Pasife Al ve Arşivle" (soft delete): active=false + archived_at (AŞAMA 4a) olarak işaretler ve
+ * user_archived audit kaydı yazar. Arşivdeki hesap "Aktif Yap" ile açılmaz; önce ana yönetici
+ * /unarchive ile arşivden çıkarır (hesap pasif kalır). Gerçek (kalıcı) silme DEĞİLDİR — geri alınabilir; hedef otomatik
  * arşivde görünür. Audit sayesinde pasife alınma tarih+aktörü türetilebilir (toggle_active
  * ile TUTARLI). Audit zorunludur (fail-closed): yazılamazsa hesap değişimi geri alınır.
  *
@@ -98,7 +99,15 @@ export async function POST(req: NextRequest, ctx: RouteContext) {
   if (error) {
     return NextResponse.json({ error: "Arşivleme tamamlanamadı." }, { status: 500 });
   }
-  const result = (data ?? {}) as { revoked_session_count?: number };
+  // AŞAMA 4a (20280101000600): RPC archived_at yazar; zaten arşivdeyse durum ve audit değişmez (already_archived).
+  // Migration öncesi RPC bu alanları döndürmez → alreadyArchived false, archivedAt null (eski davranış).
+  const result = (data ?? {}) as { revoked_session_count?: number; already_archived?: boolean; archived_at?: string | null };
 
-  return jsonNoStore({ ok: true, active: false, revokedSessionCount: result.revoked_session_count ?? 0 });
+  return jsonNoStore({
+    ok: true,
+    active: false,
+    revokedSessionCount: result.revoked_session_count ?? 0,
+    alreadyArchived: result.already_archived === true,
+    archivedAt: result.archived_at ?? null,
+  });
 }

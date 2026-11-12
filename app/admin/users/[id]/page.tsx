@@ -5,6 +5,7 @@ import { useBfcacheRefresh } from "@/hooks/useBfcacheRefresh";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import {
+  ArchiveRestore,
   Banknote,
   ChevronDown,
   Eye,
@@ -113,6 +114,7 @@ import { MemberDetailTabs } from "@/components/admin/members/detail/MemberDetail
 import { memberDetailTabFromHash, type MemberDetailTab } from "@/components/admin/members/detail/memberDetailTabModel";
 import detailCss from "@/components/admin/members/detail/MemberDetailV2.module.css";
 import { TrialCreditPanel, TrialStatePanel, useTrialManagement } from "@/components/admin/members/detail/TrialManagementPanel";
+import { MemberUnarchiveDialog } from "@/components/admin/members/detail/MemberUnarchiveDialog";
 
 const panelClass =
   "rounded-[28px] border-2 border-white/80 bg-white/90 p-6 shadow-[0_18px_50px_rgba(15,23,42,0.08)] backdrop-blur-xl sm:p-8";
@@ -359,7 +361,7 @@ const TRIAL_PHASE_ACCESS: Record<"not_started" | "active" | "expired" | "review"
  * H2/H3: Aktiflik, deneme hakkı ve Pro üyelik AYRI kavramlardır — üye detayında üçü yan yana gösterilir.
  * null → kutu gösterilmez (Premium / admin / onaysız başvuru: mevcut ekran aynen).
  */
-function membershipStatusInfo(user: ManagedUser): {
+function membershipStatusInfo(user: ManagedUser, archived = false): {
   kind: "legacy" | "trial";
   account: string;
   trial: string;
@@ -367,7 +369,7 @@ function membershipStatusInfo(user: ManagedUser): {
   hint: string;
 } | null {
   if (user.role !== "expert" || user.approvalStatus !== "approved") return null;
-  const account = user.active ? "Aktif — giriş yapabilir." : "Pasif — giriş yapamaz.";
+  const account = archived ? "Arşivde — giriş yapamaz." : user.active ? "Aktif — giriş yapabilir." : "Pasif — giriş yapamaz.";
   const ends = user.membership.trialEndsAt ? formatDateTimeTr(user.membership.trialEndsAt) : null;
   if (user.legacyPackage) {
     return {
@@ -403,12 +405,15 @@ function membershipStatusInfo(user: ManagedUser): {
   };
 }
 
-function membershipAccessState(user: ManagedUser): { label: string; cls: string } {
+function membershipAccessState(user: ManagedUser, archived = false): { label: string; cls: string } {
   if (user.approvalStatus === "rejected") {
     return { label: "Reddedildi · erişim yok", cls: "border-rose-300 bg-rose-50 text-rose-700" };
   }
   if (user.approvalStatus === "pending") {
     return { label: "Onay bekliyor · erişim yok", cls: "border-amber-300 bg-amber-50 text-amber-800" };
+  }
+  if (archived) {
+    return { label: "Hesap arşivde · erişim kapalı", cls: "border-stone-300 bg-stone-100 text-stone-700" };
   }
   if (!user.active) {
     return { label: "Hesap pasif · erişim kapalı", cls: "border-slate-300 bg-slate-100 text-slate-700" };
@@ -598,6 +603,8 @@ type UserDetailJson = {
   paymentHistory: Record<string, unknown>[];
   /** P1-7 — sunucu kararı: görüntüleyen admin ana yönetici mi? */
   viewer?: { isMainAdmin?: boolean };
+  /** AŞAMA 4a — yönetim arşivi (users.archived_at). supported=false → migration öncesi (eski davranış). */
+  archive?: { supported?: boolean; archivedAt?: string | null };
 };
 
 type UserDetailResult =
@@ -723,6 +730,13 @@ export default function AdminUserDetailPage() {
   const [paymentDraft, setPaymentDraft] = useState<PaymentEditDraft | null>(null);
   // P1-7: sunucudan gelen ana-yönetici kararı (varsayılan KAPALI → yetkisiz kontrol gösterilmez).
   const [viewerIsMainAdmin, setViewerIsMainAdmin] = useState(false);
+  // AŞAMA 4a: pasif ≠ arşiv. archivedAt dolu → arşivde ("Aktif Yap" yok; önce ana yönetici arşivden çıkarır).
+  const [archiveInfo, setArchiveInfo] = useState<{ supported: boolean; archivedAt: string | null }>({
+    supported: false,
+    archivedAt: null,
+  });
+  const [unarchiveOpen, setUnarchiveOpen] = useState(false);
+  const isArchived = archiveInfo.archivedAt !== null;
   const [savingPayment, setSavingPayment] = useState(false);
   const [paymentReceivedHint, setPaymentReceivedHint] = useState(false);
   const [canPersistPayment, setCanPersistPayment] = useState(true);
@@ -943,6 +957,10 @@ export default function AdminUserDetailPage() {
     const mapped = mapDbUser(row);
     setUser(mapped);
     setViewerIsMainAdmin(json.viewer?.isMainAdmin === true);
+    setArchiveInfo({
+      supported: json.archive?.supported === true,
+      archivedAt: json.archive?.supported === true && json.archive.archivedAt ? String(json.archive.archivedAt) : null,
+    });
     setPaymentDraft(paymentSnapshotToEditDraft(mapped.payment));
     setLicenseDraft({ ...mapped.licenseSettings });
     setPaymentHistory((json.paymentHistory ?? []).map((r) => mapPaymentHistoryRow(r)));
@@ -1074,10 +1092,36 @@ export default function AdminUserDetailPage() {
     closeDeleteModals();
     showToast({
       title: "Başarılı",
-      message: "Uzman pasife alınıp arşivlendi. Arşiv sekmesinden yeniden aktifleştirilebilir.",
+      message: archiveInfo.supported
+        ? "Uzman arşivlendi; giriş kapalı. Yeniden kullanım için önce ana yönetici arşivden çıkarır."
+        : "Uzman pasife alınıp arşivlendi. Arşiv sekmesinden yeniden aktifleştirilebilir.",
       type: "success",
     });
     router.push(listHref);
+  }
+
+  /** AŞAMA 4a: arşivden çıkar (yalnız ana yönetici; hesap pasif kalır). true → başarılı. */
+  async function executeUnarchive(adminPassword: string): Promise<boolean> {
+    if (!user || isSelf() || !viewerIsMainAdmin) return false;
+    const res = await fetch(`/api/admin/users/${encodeURIComponent(user.id)}/unarchive`, {
+      method: "POST",
+      headers: adminHeaders(currentAdminId, true),
+      body: JSON.stringify({ adminPassword }),
+    }).catch(() => null);
+    const json = (res ? await res.json().catch(() => ({})) : {}) as { ok?: boolean; error?: string };
+    if (!res || !res.ok || !json.ok) {
+      showToast({ title: "İşlem başarısız", message: json.error ?? "Arşivden çıkarılamadı.", type: "error" });
+      // Bayat ekran (başka yönetici değiştirmiş) → güncel durumu yeniden oku.
+      if (res && res.status === 409) void loadUser(currentAdminId);
+      return false;
+    }
+    showToast({
+      title: "Arşivden çıkarıldı",
+      message: "Hesap pasif durumda; uzman henüz giriş yapamaz. Girişi açmak için “Aktif Yap” kullanın.",
+      type: "success",
+    });
+    await loadUser(currentAdminId);
+    return true;
   }
 
   function openEdit() {
@@ -1878,7 +1922,7 @@ export default function AdminUserDetailPage() {
                 <>
                   <RoleBadge role={user.role} />
                   {user.role === "expert" ? <ApprovalBadge status={user.approvalStatus} /> : null}
-                  <AccountBadge active={user.active} />
+                  <AccountBadge active={user.active} archived={isArchived} />
                   {user.role === "expert" ? <PaymentBadge status={user.payment.status} /> : null}
                   {user.licenseSettings.securityExempt ? <SecurityExemptBadge /> : null}
                 </>
@@ -1940,7 +1984,7 @@ export default function AdminUserDetailPage() {
                     </>
                   );
                 }
-                const info = membershipStatusInfo(user);
+                const info = membershipStatusInfo(user, isArchived);
                 if (info) {
                   const legacyBlocked = info.kind === "legacy" && !viewerIsMainAdmin;
                   return (
@@ -2063,7 +2107,7 @@ export default function AdminUserDetailPage() {
                   approvalStatus: user.approvalStatus,
                 });
                 const accessModules = enabledAccessModules(user.modulePermissions);
-                const access = membershipAccessState(user);
+                const access = membershipAccessState(user, isArchived);
                 const sessions = activeSessionsSummary;
                 const lim = (sessions?.limits ?? {}) as Record<string, number>;
                 const tile = "rounded-2xl border-2 border-slate-100 bg-white/90 p-4";
@@ -2089,10 +2133,15 @@ export default function AdminUserDetailPage() {
                     <div className={tile}>
                       <dt className={term}>Hesap Durumu</dt>
                       <dd className="mt-2">
-                        <AccountBadge active={user.active} />
+                        <AccountBadge active={user.active} archived={isArchived} />
                         <p className="mt-2 text-xs font-semibold text-slate-600">
                           Kayıt: {formatCreatedAt(user.createdAt)}
                         </p>
+                        {isArchived && archiveInfo.archivedAt ? (
+                          <p className="text-xs font-semibold text-slate-600" data-archived-at>
+                            Arşivlenme: {formatDateTimeTr(archiveInfo.archivedAt)}
+                          </p>
+                        ) : null}
                         {!user.active && deactivation ? (
                           <p className="text-xs font-semibold text-slate-600">
                             Pasife alınma: {deactivation.createdAt ? formatDateTimeTr(deactivation.createdAt) : "—"} ·{" "}
@@ -2297,7 +2346,7 @@ export default function AdminUserDetailPage() {
                 </div>
               ) : null}
               {(() => {
-                const info = membershipStatusInfo(user);
+                const info = membershipStatusInfo(user, isArchived);
                 if (!info) return null;
                 const legacyBlocked = info.kind === "legacy" && !viewerIsMainAdmin;
                 return (
@@ -3665,7 +3714,7 @@ export default function AdminUserDetailPage() {
                     <KeyRound className="h-4 w-4" aria-hidden />
                     Parolayı Sıfırla
                   </button>
-                  {!user.active && (user.role === "admin" || user.approvalStatus === "approved") ? (
+                  {!user.active && !isArchived && (user.role === "admin" || user.approvalStatus === "approved") ? (
                     <button
                       type="button"
                       disabled={actionUserId === user.id || !canManageAccountActions()}
@@ -3728,7 +3777,19 @@ export default function AdminUserDetailPage() {
                     <LogOut className="h-4 w-4" aria-hidden />
                     Tüm Cihazlardan Çıkış
                   </button>
-                  {isSelf() ? null : canDeleteAsOwner ? (
+                  {isSelf() ? null : isArchived ? (
+                    <button
+                      type="button"
+                      disabled={!viewerIsMainAdmin}
+                      title={viewerIsMainAdmin ? undefined : "Arşivden çıkarma yalnızca ana yöneticiye açıktır."}
+                      onClick={() => setUnarchiveOpen(true)}
+                      data-unarchive-open
+                      className={`${actionBtn} border-sky-300 bg-white text-sky-900 hover:bg-sky-50 disabled:opacity-60`}
+                    >
+                      <ArchiveRestore className="h-4 w-4" aria-hidden />
+                      Arşivden Çıkar
+                    </button>
+                  ) : canDeleteAsOwner ? (
                     <button
                       type="button"
                       disabled={deleteSubmitting}
@@ -3751,7 +3812,14 @@ export default function AdminUserDetailPage() {
                   )}
                 </div>
                 {!isSelf() && !canDeleteAsOwner ? (
-                  <p className="mt-2 text-[11px] font-bold text-slate-500">Arşivleme yetkisi yalnızca ana yöneticiye aittir.</p>
+                  <p className="mt-2 text-[11px] font-bold text-slate-500">
+                    {isArchived ? "Arşivden çıkarma yetkisi yalnızca ana yöneticiye aittir." : "Arşivleme yetkisi yalnızca ana yöneticiye aittir."}
+                  </p>
+                ) : null}
+                {isArchived ? (
+                  <p className="mt-2 text-[11px] font-bold text-slate-600" data-archived-note>
+                    Hesap arşivde: “Aktif Yap” kullanılamaz. Önce arşivden çıkarılır (hesap pasif kalır), ardından aktifleştirilebilir.
+                  </p>
                 ) : null}
               </div>
 
@@ -3883,10 +3951,20 @@ export default function AdminUserDetailPage() {
               ) : null}
               <div className="mt-4 grid gap-3">
                 <p className={detailCss.note}>
-                  <b>Pasif yap ile arşivleme farkı (bugünkü sistem):</b> ikisi de girişi ve bütün oturumları kapatır;
-                  onaylı uzman bugün her iki durumda da Arşiv listesinde görünür. “Pasife Al ve Arşivle” ayrıca
-                  yönetici parolası ile onay metni ister ve yönetim geçmişine “arşivlendi” olarak yazılır. Bu ekran bu
-                  davranışı değiştirmez.
+                  {archiveInfo.supported ? (
+                    <>
+                      <b>Pasif ile arşiv farkı:</b> ikisi de girişi ve bütün oturumları kapatır; kayıtlar silinmez.
+                      Pasif hesap normal üye listesinde kalır ve “Aktif Yap” ile açılır. Arşivlenen hesap (yalnız ana
+                      yönetici, parola + onay metni) normal listeden çıkar; “Aktif Yap” ile açılamaz — önce ana yönetici
+                      arşivden çıkarır.
+                    </>
+                  ) : (
+                    <>
+                      <b>Pasif yap ile arşivleme farkı (bugünkü sistem):</b> ikisi de girişi ve bütün oturumları kapatır;
+                      onaylı uzman bugün her iki durumda da Arşiv listesinde görünür. “Pasife Al ve Arşivle” ayrıca
+                      yönetici parolası ile onay metni ister ve yönetim geçmişine “arşivlendi” olarak yazılır.
+                    </>
+                  )}
                 </p>
                 <p className={detailCss.note}>
                   <b>Kalıcı silme bu ekranda yapılmaz.</b> Yalnız arşivdeki uzman için Arşiv listesinden; e-posta,
@@ -3928,10 +4006,21 @@ export default function AdminUserDetailPage() {
               Uzmanı pasife al ve arşivle
             </h2>
             <p className="mt-4 text-sm font-medium leading-relaxed text-slate-700">
-              Bu işlem <b>kalıcı silme değildir</b>. Uzman pasife alınır ve Arşiv
-              sekmesinde görünür; hesap, dosyalar ve modül izinleri korunur ve daha sonra
-              yeniden aktifleştirilebilir. (Kalıcı silme ayrı bir işlemdir ve bu ekranda
-              yapılmaz.) Devam etmek istiyor musunuz?
+              {archiveInfo.supported ? (
+                <>
+                  Bu işlem <b>kalıcı silme değildir</b>. Uzmanın girişi ve tüm oturumları kapanır,
+                  hesap normal üye listesinden çıkıp Arşiv&apos;e taşınır; hesap, kayıtlar, üyelik ve
+                  modül izinleri korunur. Yeniden kullanım için önce ana yönetici arşivden çıkarır.
+                  (Kalıcı silme ayrı bir işlemdir ve bu ekranda yapılmaz.) Devam etmek istiyor musunuz?
+                </>
+              ) : (
+                <>
+                  Bu işlem <b>kalıcı silme değildir</b>. Uzman pasife alınır ve Arşiv
+                  sekmesinde görünür; hesap, dosyalar ve modül izinleri korunur ve daha sonra
+                  yeniden aktifleştirilebilir. (Kalıcı silme ayrı bir işlemdir ve bu ekranda
+                  yapılmaz.) Devam etmek istiyor musunuz?
+                </>
+              )}
             </p>
             <div className="mt-8 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
               <button
@@ -4048,6 +4137,17 @@ export default function AdminUserDetailPage() {
             </div>
           </div>
         </div>
+      ) : null}
+
+      {/* ── AŞAMA 4a: arşivden çıkar (ayrı bileşen; hesap pasif kalır) ───────────── */}
+      {user && isArchived && viewerIsMainAdmin && !isSelf() ? (
+        <MemberUnarchiveDialog
+          open={unarchiveOpen}
+          fullName={user.fullName}
+          email={user.email}
+          onClose={() => setUnarchiveOpen(false)}
+          onSubmit={executeUnarchive}
+        />
       ) : null}
 
       {/* ── TRIAL7: 7 günlük deneme onayı (Premium/Pro VERİLMEZ) ─────────────── */}

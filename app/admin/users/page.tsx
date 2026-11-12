@@ -461,12 +461,18 @@ function MembersV2Content() {
 
           {query.filter === "askida" ? (
             <div className={styles.notice} data-notice="askida">
-              Burada yalnız denemesi durdurulmuş hesaplar görünür. Hesap askısı ile arşiv şu an ayrı tutulmuyor; pasife alınan
-              onaylı uzmanlar “Arşiv” filtresindedir.
+              Burada yalnız denemesi durdurulmuş hesaplar görünür (deneme durumu). Girişi kapatılmış hesaplar “Pasif hesaplar”,
+              arşivlenen hesaplar “Arşiv” filtresindedir.
+            </div>
+          ) : query.filter === "pasif" ? (
+            <div className={styles.notice} data-notice="pasif">
+              Pasif = girişi kapatılmış, arşivlenmemiş hesap. Kayıtları ve üyelik bilgileri korunur; arşiv sayılmaz ve
+              “Tüm üyeler”de de görünür. Yeniden etkinleştirme üye detayındaki “Aktif Yap” ile yapılır.
             </div>
           ) : query.filter === "arsiv" ? (
             <div className={styles.notice} data-notice="arsiv">
-              Arşiv = onaylı ancak pasife alınmış uzmanlar. Yeniden aktifleştirme ve kalıcı silme için{" "}
+              Arşiv = ana yöneticinin arşivlediği hesaplar; normal üye listesinde görünmez, girişleri kapalıdır. Arşivden
+              çıkarma (yalnız ana yönetici) ve kalıcı silme için{" "}
               <Link href={`${MEMBER_CLASSIC_PATH}?view=archive`} className={styles.linkbtn}>arşiv işlemleri</Link>.
             </div>
           ) : query.filter === "pay" ? (
