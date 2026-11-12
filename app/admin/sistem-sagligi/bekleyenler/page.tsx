@@ -182,7 +182,7 @@ export default function SistemSagligiBekleyenlerPage() {
   return (
     <SistemSagligiDetailShell
       title="Pasif / Bekleyen Kullanıcı"
-      description="Onay bekleyen ve pasif (arşivdeki) hesaplar — yalnızca users tablosundaki yönetimsel bilgiler."
+      description="Onay bekleyen, pasif ve arşivdeki hesaplar — yalnızca users tablosundaki yönetimsel bilgiler."
       headerGradient="from-slate-900 via-amber-900 to-orange-800"
       loading={loading}
       loadingLabel="Bekleyen kullanıcılar yükleniyor…"
@@ -196,7 +196,7 @@ export default function SistemSagligiBekleyenlerPage() {
         >
           <SummaryStatCard label="Pasif + bekleyen uzman" value={stats.combined} tone="amber" />
           <SummaryStatCard label="Onay bekleyen uzman" value={stats.pending} tone="violet" />
-          <SummaryStatCard label="Pasif (arşiv) uzman" value={stats.archived} tone="slate" />
+          <SummaryStatCard label="Pasif + Arşiv uzman" value={stats.archived} tone="slate" />
         </section>
       ) : null}
 
@@ -209,10 +209,10 @@ export default function SistemSagligiBekleyenlerPage() {
         dataList="pending"
       />
       <MemberTable
-        title="Son 10 pasif (arşiv) kayıt"
-        subtitle="Onaylı ancak pasif uzman hesapları"
+        title="Son 10 pasif + arşiv kayıt"
+        subtitle="Onaylı ancak girişi kapalı (pasif veya arşivdeki) uzman hesapları"
         list={archived}
-        emptyLabel="Pasif (arşivdeki) kullanıcı yok."
+        emptyLabel="Pasif veya arşivdeki kullanıcı yok."
         fullListHref="/admin/users?view=archive"
         dataList="archived"
       />

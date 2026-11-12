@@ -19,11 +19,16 @@
 --   0) Ön koşul: admin_audit_action_chk canlıda depodaki 32 eylemle BİREBİR mi? Değilse FAIL-CLOSED (hiçbir şey uygulanmaz).
 --   1) users.archived_at (NULL) + users_archived_inactive_chk.
 --   2) admin_audit_action_chk süperseti + 'user_unarchived'.
---   3) admin_archive_user (REPLACE): active=false + archived_at=now() + oturum iptali + user_archived audit (aynı tx).
+--   3) admin_archive_user (REPLACE): YALNIZ onaylı uzman (aksi UY002); active=false + archived_at=now() + oturum iptali +
+--      user_archived audit (aynı tx).
 --      Zaten arşivde → DEĞİŞİKLİK YOK, yeni audit YOK (tekrarlanan / eşzamanlı istek tutarlı).
 --   4) admin_set_user_active (REPLACE): arşivdeki hesabı aktifleştirme REDDİ (UY004). Diğer davranış aynen.
 --   5) admin_unarchive_user (YENİ): YALNIZ ana yönetici (DB'de is_super_admin). archived_at=NULL; hesap PASİF kalır
 --      (erişim açılmaz; ayrıca "Aktif Yap" gerekir). user_unarchived audit (aynı tx).
+--   5b) Kalıcı silme YALNIZ ARŞİVDE: admin_purge_context BEFORE INSERT tetikleyicisi (purge fonksiyonu yeniden yazılmaz);
+--       archived_at NULL / active=true → UP006, hiçbir satır silinmeden tam geri alma.
+--   5c) Arşivdeki hesapta değişiklik koruması (UY005): users BEFORE UPDATE (üyelik/deneme/modül/ödeme/lisans/rol/onay
+--       kolonları) + trial_profiles, member_pricing_phases, user_payment_history yazmaları. Okuma serbest.
 --   6) admin_list_members_v2 (REPLACE): yeni aşama 'pasif' (arşivlenmemiş pasif onaylı uzman) + filtre 'pasif';
 --      'pasif' "Tüm üyeler"de görünür; 'arsiv' yalnız archived_at dolu. Ticari sayaçlar DEĞİŞMEZ
 --      (pasif/arşiv hiçbir sayaca girmez — bugünkü gibi). admin_member_stage_of DEĞİŞMEZ.
@@ -33,7 +38,8 @@
 --   arşive alınacağı Owner kararıdır: scripts/uye-arsiv-4a/legacy-archive-*.sql (ayrı onay; migration DEĞİL).
 --
 -- GÜVENLİK: SECURITY DEFINER + sabit search_path; EXECUTE yalnız service_role. Aktör DB'de aktif admin doğrulanır.
--- HATA KODLARI: UY001 bayat istemci · UY002 iş kuralı · UY003 geçersiz girdi · UY004 arşivde · 42501 yetki.
+-- HATA KODLARI: UY001 bayat istemci · UY002 iş kuralı · UY003 geçersiz girdi · UY004 arşivde (aktifleştirme) ·
+--               UY005 arşivde (değişiklik) · UP006 kalıcı silme: arşivde değil · 42501 yetki.
 -- DEPLOY SIRASI (ZORUNLU): ÖNCE bu migration, SONRA kod. Kod archived_at yoksa eski davranışa düşer (fail-safe).
 -- UYGULAMA: AYRI OWNER ONAYI. Bu PR'da production'a UYGULANMAZ.
 -- =============================================================================
@@ -61,6 +67,12 @@ BEGIN
    WHERE c.conname = 'admin_audit_action_chk' AND c.conrelid = 'public.admin_audit_log'::regclass;
   IF v_def IS NULL THEN
     RAISE EXCEPTION '4a on kosul: admin_audit_action_chk bulunamadi';
+  END IF;
+  -- Kalıcı silme koruması (5b/5c) 20271009100000'in işaret tablosu + yardımcı fonksiyonuna dayanır.
+  IF to_regclass('public.admin_purge_context') IS NULL
+     OR to_regprocedure('public.admin_purge_in_progress(uuid,uuid)') IS NULL
+     OR to_regclass('public.trial_profiles') IS NULL OR to_regclass('public.member_pricing_phases') IS NULL THEN
+    RAISE EXCEPTION '4a on kosul: admin_purge_context / admin_purge_in_progress / trial_profiles / member_pricing_phases yok; uygulanmadi';
   END IF;
   SELECT array_agg(DISTINCT m[1] ORDER BY m[1]) INTO v_live
     FROM regexp_matches(v_def, '''([a-z_]+)''', 'g') AS m;
@@ -152,6 +164,11 @@ BEGIN
   SELECT * INTO v_target FROM public.users WHERE id = p_user_id FOR UPDATE;
   IF NOT FOUND THEN
     RAISE EXCEPTION 'admin_archive_user: kullanici bulunamadi' USING ERRCODE = 'UY003';
+  END IF;
+  -- Owner kararı (12.11): yalnız ONAYLI UZMAN arşivlenir. Başvuru (pending/boş), reddedilen ve yönetici hesapları
+  -- bu akışla arşivlenemez (yöneticilerin ayrı pasifleştirme + kilitlenme korumaları değişmez).
+  IF lower(coalesce(v_target.role, '')) <> 'expert' OR lower(coalesce(v_target.approval_status, '')) <> 'approved' THEN
+    RAISE EXCEPTION 'admin_archive_user: yalniz onayli uzman arsivlenebilir' USING ERRCODE = 'UY002';
   END IF;
 
   -- Zaten arşivde: durum DEĞİŞMEZ, yeni audit YAZILMAZ (çift tık / eşzamanlı istek tek kayıt üretir).
@@ -301,6 +318,115 @@ REVOKE ALL ON FUNCTION public.admin_archive_user(uuid, uuid) FROM PUBLIC, anon, 
 GRANT EXECUTE ON FUNCTION public.admin_archive_user(uuid, uuid) TO service_role;
 REVOKE ALL ON FUNCTION public.admin_set_user_active(uuid, uuid, boolean, boolean) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.admin_set_user_active(uuid, uuid, boolean, boolean) TO service_role;
+
+-- ── 5b) KALICI SİLME YALNIZ ARŞİVDE (Owner kararı 12.11) ─────────────────────
+-- admin_purge_archived_expert YENİDEN YAZILMAZ. Fonksiyon hedef satırı FOR UPDATE kilitledikten sonra ve HİÇBİR satırı
+-- silmeden ÖNCE admin_purge_context'e işlem işaretini yazar (20271009100000 :211). Bu işarete eklenen BEFORE INSERT
+-- tetikleyicisi, kilitli hedef satırı yeniden okur: archived_at NULL veya active=true ise mevcut UP006 ile reddeder →
+-- tüm işlem geri alınır, hiçbir ilişkili kayıt silinmez. Eşzamanlı arşivden çıkarma / aktifleştirme hedef satır
+-- kilidiyle serileşir; tetikleyici her zaman COMMIT edilmiş son durumu görür.
+CREATE OR REPLACE FUNCTION public.admin_purge_require_archived_trg()
+RETURNS trigger
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_catalog
+AS $$
+DECLARE
+  v_archived timestamptz;
+  v_active   boolean;
+BEGIN
+  SELECT u.archived_at, u.active INTO v_archived, v_active FROM public.users u WHERE u.id = NEW.user_id;
+  IF NOT FOUND OR v_archived IS NULL OR v_active IS NOT FALSE THEN
+    RAISE EXCEPTION 'admin_purge: uzman arsivde degil (archived_at)' USING ERRCODE = 'UP006';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+REVOKE ALL ON FUNCTION public.admin_purge_require_archived_trg() FROM PUBLIC, anon, authenticated;
+DROP TRIGGER IF EXISTS admin_purge_require_archived ON public.admin_purge_context;
+CREATE TRIGGER admin_purge_require_archived
+  BEFORE INSERT ON public.admin_purge_context
+  FOR EACH ROW EXECUTE FUNCTION public.admin_purge_require_archived_trg();
+
+-- ── 5c) ARŞİVDEKİ HESAPTA DEĞİŞİKLİK KORUMASI (Owner kararı 12.11) ────────────
+-- Arşivdeki hesabın kayıtları OKUNUR; üyelik / deneme / modül / kredi / ödeme-ticari / lisans-erişim / rol / onay
+-- alanları DEĞİŞMEZ. Mevcut RPC ve route'lar yeniden yazılmaz: koruma, tüm yazma yollarını (RPC, doğrudan UPDATE)
+-- aynı işlem içinde kapsayan tetikleyicilerdedir (ERRCODE UY005). Yeniden değişiklik için ana yönetici önce arşivden
+-- çıkarır (hesap pasif kalır). Ad, e-posta ve parola değişebilir. archive/unarchive geçişleri etkilenmez (yalnız
+-- "arşivde kalan" satır korunur). Kalıcı silme (admin_purge_in_progress) muaf.
+CREATE OR REPLACE FUNCTION public.admin_archived_user_guard_trg()
+RETURNS trigger
+LANGUAGE plpgsql SET search_path = public, pg_catalog
+AS $$
+DECLARE
+  v_old jsonb := to_jsonb(OLD);
+  v_new jsonb := to_jsonb(NEW);
+  k text;
+BEGIN
+  IF OLD.archived_at IS NULL OR NEW.archived_at IS NULL THEN
+    RETURN NEW; -- arşive giriş / arşivden çıkış (yalnız RPC'ler yapar) veya arşivde değil
+  END IF;
+  -- Kolon yoksa her iki taraf NULL → eşit (şema farklarına dayanıklı).
+  FOREACH k IN ARRAY ARRAY[
+    'role', 'approval_status', 'approved_at', 'active',
+    'package_type', 'plan', 'membership_status', 'subscription_status', 'membership_started_at', 'membership_ends_at',
+    'trial_kind', 'trial_status', 'trial_started_at', 'trial_ends_at',
+    'module_permissions', 'astrology_technique_grants',
+    'payment_status', 'last_payment_date', 'next_payment_date', 'paid_amount', 'payment_note', 'agreed_fee', 'billing_period',
+    'license_type', 'allowed_active_sessions', 'allowed_locations', 'security_mode', 'security_exempt', 'license_note',
+    'allowed_desktop_sessions', 'allowed_mobile_sessions', 'allowed_tablet_sessions', 'allowed_unknown_sessions',
+    'tenant_id', 'is_super_admin', 'is_demo_account'
+  ] LOOP
+    IF (v_old -> k) IS DISTINCT FROM (v_new -> k) THEN
+      RAISE EXCEPTION 'hesap arsivde: % degistirilemez (once arsivden cikarin)', k USING ERRCODE = 'UY005';
+    END IF;
+  END LOOP;
+  RETURN NEW;
+END;
+$$;
+REVOKE ALL ON FUNCTION public.admin_archived_user_guard_trg() FROM PUBLIC, anon, authenticated;
+DROP TRIGGER IF EXISTS admin_archived_user_guard ON public.users;
+CREATE TRIGGER admin_archived_user_guard
+  BEFORE UPDATE ON public.users
+  FOR EACH ROW EXECUTE FUNCTION public.admin_archived_user_guard_trg();
+
+-- Kullanıcıya bağlı ticari/deneme tabloları: arşivdeki hesap için yazma yok (okuma serbest).
+-- DELETE yalnız fiyat dönemlerinde korunur; kalıcı silme (admin_purge_in_progress) ve CASCADE (kullanıcı satırı
+-- silinmişse arşiv satırı da yoktur) muaftır.
+CREATE OR REPLACE FUNCTION public.admin_archived_child_guard_trg()
+RETURNS trigger
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_catalog
+AS $$
+DECLARE
+  v_uid uuid := CASE WHEN TG_OP = 'DELETE' THEN OLD.user_id ELSE NEW.user_id END;
+BEGIN
+  IF v_uid IS NOT NULL
+     AND EXISTS (SELECT 1 FROM public.users u WHERE u.id = v_uid AND u.archived_at IS NOT NULL)
+     AND NOT public.admin_purge_in_progress(v_uid, NULL) THEN
+    RAISE EXCEPTION 'hesap arsivde: % degistirilemez (once arsivden cikarin)', TG_TABLE_NAME USING ERRCODE = 'UY005';
+  END IF;
+  RETURN CASE WHEN TG_OP = 'DELETE' THEN OLD ELSE NEW END;
+END;
+$$;
+REVOKE ALL ON FUNCTION public.admin_archived_child_guard_trg() FROM PUBLIC, anon, authenticated;
+
+DROP TRIGGER IF EXISTS admin_archived_guard ON public.trial_profiles;
+CREATE TRIGGER admin_archived_guard
+  BEFORE INSERT OR UPDATE ON public.trial_profiles
+  FOR EACH ROW EXECUTE FUNCTION public.admin_archived_child_guard_trg();
+DROP TRIGGER IF EXISTS admin_archived_guard ON public.member_pricing_phases;
+CREATE TRIGGER admin_archived_guard
+  BEFORE INSERT OR UPDATE OR DELETE ON public.member_pricing_phases
+  FOR EACH ROW EXECUTE FUNCTION public.admin_archived_child_guard_trg();
+-- user_payment_history depo dışı eski tablodur (CREATE TABLE migration'da yok) → yalnız varsa; geçmiş satırlar
+-- silinmez/okunur, yalnız yeni kayıt ve düzenleme engellenir.
+DO $uph$
+BEGIN
+  IF to_regclass('public.user_payment_history') IS NOT NULL THEN
+    EXECUTE 'DROP TRIGGER IF EXISTS admin_archived_guard ON public.user_payment_history';
+    EXECUTE 'CREATE TRIGGER admin_archived_guard BEFORE INSERT OR UPDATE ON public.user_payment_history '
+         || 'FOR EACH ROW EXECUTE FUNCTION public.admin_archived_child_guard_trg()';
+  END IF;
+END
+$uph$;
 
 -- ── 6) ÜYE LİSTESİ V2 — 'pasif' aşaması ──────────────────────────────────────
 -- 20280101000500 gövdesi AYNEN; farklar yalnız: src.stage (arsiv → archived_at yoksa pasif), filtre/preset 'pasif',

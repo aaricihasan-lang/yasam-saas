@@ -84,9 +84,10 @@ const st = async (id) => q1(`select active, archived_at from public.users where 
 console.log("[1] Arşivdeki hesap — detay (ana yönetici)");
 {
   const ctx = await ctxFor(O);
-  const page = await openDetail(ctx, I.archived);
+  const page = await openDetail(ctx, I.archivedOne);
   ok((await page.locator("header, [class*=head]").first().innerText()).includes("Arşivde"), "başlık rozeti “Arşivde”");
   ok(await page.locator("[data-archived-at]").first().isVisible(), "Özet › Hesap Durumu: arşivlenme tarihi");
+  ok(await page.locator("[data-archived-banner]").isVisible(), "arşiv bandı: kayıtlar görünür, değişiklik için önce arşivden çıkarma");
   await shot(page, "01-arsivde-ozet");
   await tab(page, "gelismis", "Gelişmiş");
   ok((await page.getByRole("button", { name: "Aktif Yap" }).count()) === 0, "“Aktif Yap” YOK (arşivdeki hesap doğrudan açılmaz)");
@@ -101,26 +102,26 @@ console.log("[1] Arşivdeki hesap — detay (ana yönetici)");
   await shot(page, "03-arsivden-cikar-pencere", false);
   await page.keyboard.press("Escape");
   await page.waitForTimeout(300);
-  ok((await page.locator("#unarchive-title").count()) === 0 && (await st(I.archived)).archived_at !== null, "Escape kapatır; kayıt değişmez");
+  ok((await page.locator("#unarchive-title").count()) === 0 && (await st(I.archivedOne)).archived_at !== null, "Escape kapatır; kayıt değişmez");
   await unBtn.click();
   await page.locator("[data-unarchive-dialog] input").first().fill("yanlis-parola");
   await page.locator("[data-unarchive-submit]").click();
   await page.waitForTimeout(1500);
-  ok(await page.locator("#unarchive-title").isVisible() && (await st(I.archived)).archived_at !== null, "yanlış parola → pencere açık kalır, arşiv durumu değişmez");
+  ok(await page.locator("#unarchive-title").isVisible() && (await st(I.archivedOne)).archived_at !== null, "yanlış parola → pencere açık kalır, arşiv durumu değişmez");
   await page.locator("[data-unarchive-dialog] input").first().fill("zz-owner-pass");
   await page.locator("[data-unarchive-submit]").click();
   await page.locator("#unarchive-title").waitFor({ state: "detached", timeout: 30_000 });
   await page.waitForTimeout(1200);
-  const s1 = await st(I.archived);
+  const s1 = await st(I.archivedOne);
   ok(s1.archived_at === null && s1.active === false, "doğru parola → arşivden çıktı, hesap PASİF (giriş hâlâ kapalı)", s1);
   ok(await page.getByRole("button", { name: "Aktif Yap" }).isVisible() && (await danger(page).getByRole("button", { name: "Arşivden Çıkar" }).count()) === 0,
     "ekran yerinde güncellendi: “Aktif Yap” geri geldi, “Arşivden Çıkar” kalktı");
-  const aud = await q1(`select count(*)::int n from public.admin_audit_log where target_user_id=$1 and action='user_unarchived'`, [I.archived]);
+  const aud = await q1(`select count(*)::int n from public.admin_audit_log where target_user_id=$1 and action='user_unarchived'`, [I.archivedOne]);
   ok(aud.n === 1, "yönetim geçmişine user_unarchived yazıldı");
   await shot(page, "04-arsivden-cikti-pasif");
   await page.getByRole("button", { name: "Aktif Yap" }).click();
   await page.waitForTimeout(1500);
-  ok((await st(I.archived)).active === true, "sonra “Aktif Yap” → hesap aktif (mevcut kural)");
+  ok((await st(I.archivedOne)).active === true, "sonra “Aktif Yap” → hesap aktif (mevcut kural)");
   await page.close();
   await ctx.close();
 }
@@ -141,6 +142,44 @@ console.log("\n[2] Yardımcı yönetici — arşivdeki hesap");
     return res.status;
   }, [I.archivedLong, A2.user.id, A2.token]);
   ok(r2 === 409 && (await st(I.archivedLong)).active === false, "arşivdeki hesaba doğrudan “Aktif Yap” isteği → 409");
+  await page.close();
+  await ctx.close();
+}
+
+console.log("\n[2b] Arşivdeki hesapta değişiklik reddi (arayüzden)");
+{
+  const ctx = await ctxFor(O);
+  const page = await openDetail(ctx, I.archivedLong, "#moduller");
+  const before = await q1(`select md5(module_permissions::text) h from public.users where id=$1`, [I.archivedLong]);
+  const sw = page.locator('#uye-panel-moduller [role="switch"], #uye-panel-moduller input[type="checkbox"]').first();
+  const hasSwitch = (await sw.count()) > 0;
+  if (hasSwitch) {
+    await sw.click({ force: true });
+    await page.waitForTimeout(1500);
+  }
+  const after = await q1(`select md5(module_permissions::text) h from public.users where id=$1`, [I.archivedLong]);
+  ok(hasSwitch && after.h === before.h, "arşivde modül anahtarı → sunucu reddeder, izinler değişmez");
+  const r = await page.evaluate(async ([id, a, t]) => {
+    const res = await fetch(`/api/admin/users/${id}/payment`, { method: "POST", headers: { "x-admin-id": a, "x-session-token": t, "Content-Type": "application/json" }, body: JSON.stringify({ draft: { status: "paid" } }) });
+    return { s: res.status, j: await res.json().catch(() => ({})) };
+  }, [I.archivedLong, O.user.id, O.token]);
+  ok(r.s === 409 && /arşivde/i.test(String(r.j.error)), "arşivde ödeme kaydı → 409 açıklamalı");
+  await shot(page, "02b-arsivde-moduller-red");
+  await page.close();
+  await ctx.close();
+}
+
+console.log("\n[2c] Arşivleme seçeneği yalnız onaylı uzmanda");
+{
+  const ctx = await ctxFor(O);
+  for (const [k, label] of [["pending", "onay bekleyen"], ["rejected", "reddedilen"]]) {
+    const page = await openDetail(ctx, I[k], "#gelismis");
+    ok((await page.getByRole("button", { name: "Pasife Al ve Arşivle" }).count()) === 0, `${label} başvuruda “Pasife Al ve Arşivle” sunulmaz`);
+    await page.close();
+  }
+  const page = await openDetail(ctx, A2.user.id, "#gelismis");
+  ok((await page.getByRole("button", { name: "Pasife Al ve Arşivle" }).count()) === 0 && (await page.getByRole("button", { name: "Pasif Yap" }).count()) === 1,
+    "yönetici hesabında arşivleme yok; ayrı “Pasif Yap” korunur");
   await page.close();
   await ctx.close();
 }
@@ -222,6 +261,8 @@ console.log("\n[6] Klasik “Pasif ve Arşiv” görünümü");
   ok(await rowOf("Nurcihan").locator('[data-row-state="arsiv"]').count() === 1
      && await rowOf("Nurcihan").getByRole("button", { name: "Yeniden Aktifleştir" }).count() === 0, "arşiv satırı: “Arşivde” + Yeniden Aktifleştir YOK");
   ok((await page.locator("h2").filter({ hasText: "Pasif ve arşivdeki" }).count()) === 1, "başlık “Pasif ve arşivdeki onaylı uzmanlar”");
+  ok((await page.getByRole("tab", { name: /Pasif \+ Arşiv/ }).count()) === 1 && (await page.getByText("Pasif + Arşiv", { exact: false }).count()) >= 2,
+    "birleşik sayaç/sekme adı açıkça “Pasif + Arşiv”");
   await shot(page, "10-klasik-pasif-arsiv");
   await page.close();
   await ctx.close();

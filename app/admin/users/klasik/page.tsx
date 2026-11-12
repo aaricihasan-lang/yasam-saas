@@ -984,7 +984,7 @@ function AdminUsersContent() {
           <CountCard label="Onaylı · Aktif" value={counts?.approved_active ?? null} tone="emerald"
             active={!isArchive && query.approval === "approved" && query.active === "active"}
             onClick={() => navigate({ view: "members", role: "expert", approval: "approved", active: "active", payment: "all", due: "all", ...RESET_360, page: 1 })} />
-          <CountCard label="Arşiv" hint="Onaylı · Pasif" value={counts?.archived ?? null} tone="slate"
+          <CountCard label="Pasif + Arşiv" hint="Onaylı · giriş kapalı" value={counts?.archived ?? null} tone="slate"
             active={isArchive}
             onClick={() => navigate({ ...DEFAULT_MEMBER_LIST_QUERY, view: "archive" })} />
           <CountCard label="Reddedilen" value={counts?.rejected ?? null} tone="rose"
@@ -1024,7 +1024,7 @@ function AdminUsersContent() {
               isArchive ? "border-amber-400 bg-amber-100 text-amber-950" : "border-slate-200 bg-white text-slate-700 hover:bg-amber-50/80"
             }`}>
             <Archive className="h-4 w-4" aria-hidden />
-            Arşiv{counts ? ` (${counts.archived})` : ""}
+            Pasif + Arşiv{counts ? ` (${counts.archived})` : ""}
           </button>
         </div>
 

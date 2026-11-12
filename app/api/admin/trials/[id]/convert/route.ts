@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { verifyAdminRequest } from "@/lib/auth/adminGuard";
 import { readLimitedJsonBody } from "@/lib/admin/accountSessionControls";
 import { isUuid } from "@/lib/admin/memberRequestValidation";
+import { archivedTargetResponse } from "@/lib/admin/archivedGuard";
 import { ADMIN_MODULE_ALIAS_KEYS, validateApprovalModules } from "@/lib/admin/userManagement";
 
 export const runtime = "nodejs";
@@ -29,6 +30,9 @@ export async function POST(req: NextRequest, ctx: RouteContext) {
   if (!guard.ok) return guard.response;
   const { id } = await ctx.params;
   if (!isUuid(id)) return bad("Geçersiz kullanıcı ID.");
+  // AŞAMA 4a: arşivdeki hesapta değişiklik yok (erken yanıt; atomik güvence DB tetikleyicisinde, UY005).
+  const archived = await archivedTargetResponse(guard.db, id);
+  if (archived) return archived;
   const parsed = await readLimitedJsonBody(req);
   if (!parsed.ok) return bad(parsed.error, parsed.status);
   for (const k of Object.keys(parsed.value)) if (k !== "modules") return bad("Beklenmeyen alan.");

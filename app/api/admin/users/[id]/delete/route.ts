@@ -88,6 +88,28 @@ export async function POST(req: NextRequest, ctx: RouteContext) {
     return NextResponse.json({ error: lock.error }, { status: lock.status });
   }
 
+  // Owner kararı (12.11): yalnız ONAYLI UZMAN arşivlenir (RPC de UY002 ile ayrıca reddeder).
+  const { data: targetRow, error: targetErr } = await db
+    .from("users")
+    .select("role, approval_status")
+    .eq("id", id)
+    .maybeSingle();
+  if (targetErr) {
+    return NextResponse.json({ error: "Kullanıcı okunamadı." }, { status: 500 });
+  }
+  if (!targetRow) {
+    return NextResponse.json({ error: "Kullanıcı bulunamadı." }, { status: 404 });
+  }
+  if (
+    String(targetRow.role ?? "").trim().toLowerCase() !== "expert" ||
+    String(targetRow.approval_status ?? "").trim().toLowerCase() !== "approved"
+  ) {
+    return NextResponse.json(
+      { error: "Yalnız onaylı uzman hesapları arşivlenebilir. Başvurular için Onayla/Reddet, yönetici hesapları için Pasif Yap kullanılır." },
+      { status: 409 },
+    );
+  }
+
   // Atomik arşivle: active=false + TÜM aktif oturumların iptali + user_archived audit TEK
   // PostgreSQL transaction'ında (FOR UPDATE kilidi) — migration 20270129235900 (MEM-006).
   // Audit yazılamazsa hesap değişimi de COMMIT edilmez. Eski token, hesap sonradan yeniden
@@ -97,6 +119,9 @@ export async function POST(req: NextRequest, ctx: RouteContext) {
     p_actor_admin_id: adminId,
   });
   if (error) {
+    if ((error as { code?: string }).code === "UY002") {
+      return NextResponse.json({ error: "Yalnız onaylı uzman hesapları arşivlenebilir." }, { status: 409 });
+    }
     return NextResponse.json({ error: "Arşivleme tamamlanamadı." }, { status: 500 });
   }
   // AŞAMA 4a (20280101000600): RPC archived_at yazar; zaten arşivdeyse durum ve audit değişmez (already_archived).

@@ -28,6 +28,7 @@ import {
 } from "@/lib/admin/licenseLimits";
 import { isUuid, rpcErrorStatus, validateProfileEdit } from "@/lib/admin/memberRequestValidation";
 import { isTrialAllowedModuleKey, isTrialRestrictedRow } from "@/lib/trial/trialCore";
+import { archivedTargetResponse } from "@/lib/admin/archivedGuard";
 
 export const runtime = "nodejs";
 
@@ -143,6 +144,9 @@ type Db = Parameters<typeof writeAdminAudit>[0];
 async function patchLicense(db: Db, adminId: string, id: string, body: Record<string, unknown>) {
   // Self-target koruması: admin kendi oturum limitlerini bu ekrandan değiştiremez.
   if (id === adminId) return bad("Kendi oturum limitlerinizi bu ekrandan değiştiremezsiniz.", 403);
+  // AŞAMA 4a: arşivdeki hesapta değişiklik yok (erken yanıt; atomik güvence DB tetikleyicisinde, UY005).
+  const archivedLicense = await archivedTargetResponse(db, id);
+  if (archivedLicense) return archivedLicense;
 
   // AŞAMA 2 · P1-7 (owner kararı 14): bu action'ın yazdığı TÜM alanlar (lisans türü, oturum /
   // cihaz limitleri, lokasyon, güvenlik modu, güvenlik istisnası, lisans notu) güvenlik
@@ -315,6 +319,9 @@ async function patchLicense(db: Db, adminId: string, id: string, body: Record<st
 }
 
 async function patchModules(db: Db, adminId: string, id: string, body: Record<string, unknown>) {
+  // AŞAMA 4a: arşivdeki hesapta değişiklik yok (erken yanıt; atomik güvence DB tetikleyicisinde, UY005).
+  const archivedModules = await archivedTargetResponse(db, id);
+  if (archivedModules) return archivedModules;
   if ("modulePermissions" in body) {
     return bad("Tam izin haritası kabul edilmez; yalnız değişen modül(ler) `changes` ile gönderilmelidir.");
   }
@@ -406,6 +413,9 @@ async function patchProfile(db: Db, adminId: string, id: string, body: Record<st
 
   if (roleChanged) {
     if (id === adminId) return bad("Kendi rolünüzü değiştiremezsiniz.", 403);
+    // AŞAMA 4a: arşivdeki hesabın rolü değişmez (ad/e-posta düzenlemesi serbest).
+    const archivedRole = await archivedTargetResponse(db, id);
+    if (archivedRole) return archivedRole;
     // Bir kullanıcıyı ADMIN yapmak (rol yükseltme) yalnız ana yöneticiye açıktır.
     if (role === "admin") {
       const main = await requireMainAdmin(db, adminId);

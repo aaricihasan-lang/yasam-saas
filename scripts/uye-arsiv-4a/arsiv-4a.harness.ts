@@ -11,6 +11,10 @@
  *   G  giriş/oturum kapısı (gerçek verifyUserRequest): pasif ve arşivdeki hesap yeni oturumla da giremez
  *   R  route'lar: arşivle / durum / arşivden çıkar / arşiv listesi / detay — yetki, parola, bayat istek, hata eşlemesi
  *   V  Üye Listesi V2 + klasik liste + zil: aşama/filtre/sayaç tutarlılığı, ticari sayaçlar değişmez
+ *   S  arşivleme kapsamı: yalnız onaylı uzman (başvuru / reddedilen / yönetici → RPC UY002, route 409)
+ *   Y  arşivdeki hesapta üyelik / deneme / modül / kredi / ödeme / lisans / rol değişikliği yok (DB UY005 + route 409); okuma serbest
+ *   K  kalıcı silme yalnız arşivde (admin_purge_context tetikleyicisi UP006; eşzamanlı arşivden çıkarma; hiçbir satır silinmez)
+ *   P  production salt-okunur ön kontrol sorgusu yerelde READ ONLY çalışır ve bağımsız sayımla aynı
  *
  * Çalıştır: npx tsx scripts/uye-arsiv-4a/arsiv-4a.harness.ts
  */
@@ -60,6 +64,7 @@ async function main(): Promise<void> {
   let shim: Awaited<ReturnType<typeof startPgrestShim>> | null = null;
   try {
     for (const f of [
+      "20271009100000_admin_purge_archived_expert.sql",
       "20271230000000_astrology_technique_grants.sql",
       "20280101000000_trial7_self_trial.sql",
       "20280101000100_trial7_claims_retention.sql",
@@ -104,6 +109,11 @@ async function main(): Promise<void> {
       { id: "", key: "conc", approval: "approved", active: true, pkg: "premium", plan: "premium", pay: "paid", mods },
       { id: "", key: "race", approval: "approved", active: true, pkg: "premium", plan: "premium", pay: "paid", mods },
       { id: "", key: "route", approval: "approved", active: true, pkg: "premium", plan: "premium", pay: "paid", mods },
+      { id: "", key: "frozen", approval: "approved", active: true, pkg: "premium", plan: "premium", pay: "paid", npd: day(NOW + 10 * D), mods },
+      { id: "", key: "arch_trial", approval: "approved", active: true, pkg: "trial", tk: "self_7d", ts: "active", t0: NOW - D, te: NOW + 6 * D },
+      { id: "", key: "other", approval: "approved", active: true, pkg: "premium", plan: "premium", pay: "paid", mods },
+      { id: "", key: "purge_ok", approval: "approved", active: true, pkg: "premium", plan: "premium", pay: "paid", mods },
+      { id: "", key: "purge_conc", approval: "approved", active: true, pkg: "premium", plan: "premium", pay: "paid", mods },
     ];
     const id: Record<string, string> = {};
     const tenantOf: Record<string, string> = {};
@@ -174,6 +184,11 @@ async function main(): Promise<void> {
     const statusRoute = await import("../../app/api/admin/users/[id]/status/route");
     const unarchiveRoute = await import("../../app/api/admin/users/[id]/unarchive/route");
     const membersRoute = await import("../../app/api/admin/members/route");
+    const paymentRoute = await import("../../app/api/admin/users/[id]/payment/route");
+    const pricingRoute = await import("../../app/api/admin/users/[id]/pricing-phases/route");
+    const astroRoute = await import("../../app/api/admin/users/[id]/astrology-techniques/route");
+    const trialRoute = await import("../../app/api/admin/trials/[id]/route");
+    const convertRoute = await import("../../app/api/admin/trials/[id]/convert/route");
     const { verifyUserRequest } = await import("../../lib/auth/userGuard");
     type H = (r: NextRequest, ctx: { params: Promise<{ id: string }> }) => Promise<Response>;
     const call = async (h: unknown, url: string, auth: { adminId?: string; token?: string }, body?: unknown, paramId?: string) => {
@@ -206,11 +221,31 @@ async function main(): Promise<void> {
     const f3 = await call(unarchiveRoute.POST, `/api/admin/users/${id.old_arch}/unarchive`, asOwner, { adminPassword: PASS }, id.old_arch);
     ok(f3.status === 503, "F3 arşivden çıkar: fonksiyon yokken 503, hiçbir şey yazılmaz", f3);
 
+    console.log("\n[P] Production salt-okunur sorgusu (yerel, READ ONLY)");
+    await su.query(`create schema if not exists supabase_migrations;
+      create table if not exists supabase_migrations.schema_migrations(version text primary key, name text, created_by text);
+      insert into supabase_migrations.schema_migrations(version, name) values ('20280101000500', 'admin_list_members_v2') on conflict do nothing`);
+    const prodSql = readFileSync(path.join(process.cwd(), "scripts/uye-arsiv-4a/prod-readonly-check.sql"), "utf8");
+    ok(!/\b(insert|update|delete|create|alter|drop|truncate|grant|revoke|copy|vacuum|lock|call)\b/i.test(prodSql.replace(/--.*$/gm, "")),
+      "P0 sorguda yazma/DDL anahtar kelimesi yok");
+    const pRes = (await su.query(`begin transaction read only; ${prodSql}; rollback;`)) as unknown as { rows: Record<string, unknown>[] }[];
+    const pRow = (k: string) => pRes.flatMap((r) => r.rows ?? []).filter((r) => r.kontrol === k);
+    const a1 = pRow("A1 4a_nesneleri")[0]; const a2 = pRow("A2 on_kosullar")[0]; const a3 = pRow("A3 audit_check")[0]; const a6 = pRow("A6 pasif_siniflandirma")[0];
+    ok(a1 && a1.archived_at_kolonu === false && a1.unarchive_fn === false && Number(a1.ledger_000600) === 0, "P1 migration öncesi: 4a nesneleri yok, ledger'da 000600 yok", a1);
+    ok(a2 && a2.purge_context === true && a2.purge_in_progress === true && a2.trial_profiles === true && a2.pricing_phases === true && a2.payment_history === true,
+      "P2 ön koşullar mevcut", a2);
+    ok(a3 && Number(a3.canli_eylem) === 32 && Number(a3.beklenen_eylem) === 32 && a3.yalniz_canlida === null && a3.yalniz_depoda === null, "P3 audit CHECK 32 = 32, fark yok", a3);
+    ok(pRow("A4 parmak_izi").length === 6, "P4 6 fonksiyonun parmak izi üretildi");
+    ok(a6 && Number(a6.toplam_pasif_uzman) === 3 && Number(a6.son_islem_arsivleme) === 1 && Number(a6.son_islem_pasiflestirme) === 1 && Number(a6.belirsiz) === 1
+       && Number(a6.demo) === 0 && Object.keys(a6).every((k) => !/mail|name|ad$|id$/.test(k)),
+      "P5 toplu sınıflandırma = bağımsız beklenti (3 pasif: 1 arşivleme · 1 pasifleştirme · 1 belirsiz); kişisel alan yok", a6);
+
     console.log("\n[M] Migration");
     const listBefore = await list("all");
     const fnFp = `select md5(string_agg(p.oid::regprocedure::text||md5(p.prosrc)||coalesce(p.proacl::text,''), ',' order by p.oid::regprocedure::text)) h
       from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public'
-       and p.proname not in ('admin_archive_user','admin_set_user_active','admin_unarchive_user','admin_list_members_v2')`;
+       and p.proname not in ('admin_archive_user','admin_set_user_active','admin_unarchive_user','admin_list_members_v2',
+                             'admin_purge_require_archived_trg','admin_archived_user_guard_trg','admin_archived_child_guard_trg')`;
     const before = { fn: (await su.query(fnFp)).rows[0].h, rec: await recordsFp(),
       act: (await su.query(`select md5(string_agg(id::text||active::text, ',' order by id)) h from public.users`)).rows[0].h,
       audit: (await su.query(`select count(*)::int n, md5(string_agg(a::text, ',' order by a.id)) h from public.admin_audit_log a`)).rows[0],
@@ -324,7 +359,7 @@ async function main(): Promise<void> {
        && (await auditRows(a)).length === 1, "D8 arşivdeki hesap “Aktif Yap” ile açılamaz (UY004); durum/audit değişmez");
     let chkCode = "";
     try { await su.query(`update public.users set active = true where id=$1`, [a]); } catch (e) { chkCode = (e as { code?: string }).code ?? ""; }
-    ok(chkCode === "23514", "D9 doğrudan veri yazımı da arşivdeki hesabı aktif yapamaz (CHECK 23514)");
+    ok(chkCode === "23514" || chkCode === "UY005", `D9 doğrudan veri yazımı da arşivdeki hesabı aktif yapamaz (${chkCode})`);
     ok(await code(`select public.admin_approve_expert_with_modules($1,$2,$3,$4,$5,$6)`,
       [a, JSON.stringify({ package_type: "premium" }), OWNER, JSON.stringify({ clients: true }), [], "pending"]) !== "OK" && (await userRow(a)).active === false,
       "D10 onay akışı arşivdeki (onaylı) hesabı açamaz");
@@ -461,6 +496,180 @@ async function main(): Promise<void> {
     if (dd.status === 503 || dd.status === 500) down++;
     await su.query(`alter function public.admin_unarchive_user_zz(uuid, uuid) rename to admin_unarchive_user`);
     ok(down === 1 && (await userRow(rt)).archived_at !== null, "R22 veritabanı hatası → 5xx; arşiv durumu değişmez");
+
+    console.log("\n[S] Arşivleme kapsamı (Owner kararı: yalnız onaylı uzman)");
+    for (const [k, uid] of [["onay bekleyen", id.pending], ["reddedilen", id.rejected], ["yardımcı yönetici", ADMIN2]] as [string, string][]) {
+      const b = await userRow(uid);
+      const c0 = await code(`select public.admin_archive_user($1,$2)`, [uid, OWNER]);
+      const a0 = await userRow(uid);
+      ok(c0 === "UY002" && a0.archived_at === null && a0.active === b.active && a0.approval_status === b.approval_status,
+        `S1 ${k} arşivlenemez (RPC UY002); durum değişmez`, c0);
+    }
+    const sPend = await call(deleteRoute.POST, `/api/admin/users/${id.pending}/delete`, asOwner, { adminPassword: PASS }, id.pending);
+    const sRej = await call(deleteRoute.POST, `/api/admin/users/${id.rejected}/delete`, asOwner, { adminPassword: PASS }, id.rejected);
+    const sAdm = await call(deleteRoute.POST, `/api/admin/users/${ADMIN2}/delete`, asOwner, { adminPassword: PASS }, ADMIN2);
+    ok(sPend.status === 409 && sRej.status === 409 && sAdm.status === 409 && (await userRow(ADMIN2)).active === true,
+      "S2 route: başvuru / reddedilen / yönetici arşivleme → 409; yönetici hesabı aktif kalır", [sPend.status, sRej.status, sAdm.status]);
+    ok((await su.query(`select count(*)::int n from public.admin_audit_log where action='user_archived' and target_user_id = any($1)`,
+      [[id.pending, id.rejected, ADMIN2]])).rows[0].n === 0, "S3 reddedilen arşiv denemeleri yönetim geçmişine arşiv olarak yazılmaz");
+
+    console.log("\n[Y] Arşivdeki hesapta değişiklik yok (veritabanı + sunucu)");
+    const z = id.frozen;
+    const zt = id.arch_trial;
+    await asSvc(`select public.admin_pricing_phase_save($1,$2,null,$3::date,null,1500,'monthly','zz',null) r`, [OWNER, z, day(NOW - 30 * D)]);
+    const phaseId = (await su.query(`select id from public.member_pricing_phases where user_id=$1`, [z])).rows[0]?.id as string | undefined;
+    ok(Boolean(phaseId), "Y0 arşiv öncesi fiyat dönemi eklenebildi (kontrol)");
+    await asSvc(`select public.admin_archive_user($1,$2) r`, [z, OWNER]);
+    await asSvc(`select public.admin_archive_user($1,$2) r`, [zt, OWNER]);
+    const zFp = async () => (await su.query(`select md5((to_jsonb(u) - 'full_name' - 'email' - 'password_hash')::text) h from public.users u where id=$1`, [z])).rows[0].h as string;
+    const ztFp = async () => (await su.query(`select md5(to_jsonb(u)::text) h from public.users u where id=$1`, [zt])).rows[0].h as string;
+    const childFp = async () => (await su.query(`select
+        (select md5(coalesce(string_agg(p::text, ',' order by p.id), '')) from public.member_pricing_phases p where p.user_id = any($1)) pp,
+        (select md5(coalesce(string_agg(h::text, ',' order by h.id), '')) from public.user_payment_history h where h.user_id = any($1)) ph,
+        (select md5(coalesce(string_agg(t::text, ',' order by t.user_id), '')) from public.trial_profiles t where t.user_id = any($1)) tp`, [[z, zt]])).rows[0];
+    const zBefore = await zFp(); const ztBefore = await ztFp(); const chBefore = await childFp();
+    const directCols: [string, string][] = [
+      ["module_permissions", `'{"clients":false}'::jsonb`], ["payment_status", "'overdue'"], ["next_payment_date", "current_date + 400"],
+      ["paid_amount", "1"], ["agreed_fee", "9"], ["package_type", "'trial'"], ["membership_status", "'expired'"],
+      ["license_type", "'family'"], ["security_exempt", "true"], ["allowed_active_sessions", "7"],
+      ["role", "'admin'"], ["approval_status", "'pending'"], ["astrology_technique_grants", `'{"mode":"all"}'::jsonb`],
+    ];
+    let blocked = 0;
+    const leaks: string[] = [];
+    for (const [col, val] of directCols) {
+      const cc = await code(`update public.users set ${col} = ${val} where id = $1`, [z]);
+      if (cc === "UY005") blocked++; else leaks.push(`${col}:${cc}`);
+    }
+    ok(blocked === directCols.length, `Y1 doğrudan veri yazımı: ${blocked}/${directCols.length} üyelik/ödeme/lisans/rol/onay/Atlas alanı reddedildi (UY005)`, leaks);
+    ok(await code(`update public.users set trial_status = 'suspended' where id = $1`, [zt]) === "UY005"
+       && await code(`update public.users set trial_ends_at = trial_ends_at + interval '7 days' where id = $1`, [zt]) === "UY005",
+      "Y2 deneme durumu / süresi değiştirilemez (uzatma veya yeniden başlatma yok)");
+    const rpcCases: [string, string, unknown[]][] = [
+      ["modül izni RPC", `select public.admin_set_module_permissions($1,$2,$3::jsonb)`, [z, OWNER, JSON.stringify({ stones: false })]],
+      ["deneme kredi limiti RPC", `select public.admin_trial_set_limits($1,$2,10,'{}'::jsonb)`, [OWNER, zt]],
+      ["deneme durdurma RPC", `select public.admin_trial_set_state($1,$2,'suspend',null)`, [OWNER, zt]],
+      ["denemeden Pro'ya geçiş RPC", `select public.admin_trial_convert_to_pro($1,$2,$3::jsonb,'{}'::text[])`, [OWNER, zt, JSON.stringify({ clients: true })]],
+      ["fiyat dönemi ekleme RPC", `select public.admin_pricing_phase_save($1,$2,null,current_date,null,999,'monthly','x',null)`, [OWNER, z]],
+      ["fiyat dönemi silme RPC", `select public.admin_pricing_phase_delete($1,$2,$3)`, [OWNER, z, phaseId]],
+      ["ödeme geçmişi kaydı", `insert into public.user_payment_history(user_id, payment_status, paid_amount) values ($1,'paid',5)`, [z]],
+    ];
+    for (const [label, sql, args] of rpcCases) {
+      const cc = await code(sql, args);
+      ok(cc === "UY005", `Y3 ${label} → reddedildi (UY005)`, cc);
+    }
+    ok((await zFp()) === zBefore && (await ztFp()) === ztBefore && JSON.stringify(await childFp()) === JSON.stringify(chBefore),
+      "Y4 tüm denemelerden sonra hesap satırları, fiyat dönemi, ödeme geçmişi ve deneme profili birebir aynı");
+    ok(await code(`update public.users set full_name = 'ZZ_4A Uzman frozen (ad düzeltme)' where id = $1`, [z]) === "OK"
+       && await code(`update public.users set password_hash = 'zz-test-hash:yeni' where id = $1`, [z]) === "OK",
+      "Y5 ad ve parola değişebilir (üyelik/erişim değil)");
+    const readOk = (await su.query(`select count(*)::int n from public.user_payment_history where user_id=$1`, [z])).rows[0].n >= 1
+      && (await asSvc(`select public.admin_pricing_phase_list($1) r`, [z])) !== undefined;
+    ok(readOk, "Y6 arşivdeki hesabın ödeme geçmişi ve fiyat dönemleri OKUNUR");
+    ok(await code(`select public.admin_pricing_phase_save($1,$2,null,current_date,null,700,'monthly','iz',null)`, [OWNER, id.other]) === "OK"
+       && await code(`select public.admin_set_module_permissions($1,$2,$3::jsonb)`, [id.other, OWNER, JSON.stringify({ stones: false })]) === "OK",
+      "Y7 izolasyon: arşivde olmayan başka uzmanın işlemleri etkilenmez");
+    // Rotalar (arayüzle aynı kimlik başlıkları)
+    const patch = async (url: string, body: unknown, uid: string, h: unknown) => {
+      const req = new NextRequest(`http://localhost${url}`, { method: "PATCH", headers: { "x-admin-id": OWNER, "x-session-token": TOK.owner, "content-type": "application/json" }, body: JSON.stringify(body) });
+      const res = await (h as H)(req, { params: Promise.resolve({ id: uid }) });
+      let j: Record<string, unknown> = {}; try { j = await res.json(); } catch { /* boş */ }
+      return { status: res.status, json: j };
+    };
+    const del2 = async (url: string, body: unknown, uid: string, h: unknown) => {
+      const req = new NextRequest(`http://localhost${url}`, { method: "DELETE", headers: { "x-admin-id": OWNER, "x-session-token": TOK.owner, "content-type": "application/json" }, body: JSON.stringify(body) });
+      const res = await (h as H)(req, { params: Promise.resolve({ id: uid }) });
+      return { status: res.status };
+    };
+    const put = async (url: string, body: unknown, uid: string, h: unknown) => {
+      const req = new NextRequest(`http://localhost${url}`, { method: "PUT", headers: { "x-admin-id": OWNER, "x-session-token": TOK.owner, "content-type": "application/json" }, body: JSON.stringify(body) });
+      const res = await (h as H)(req, { params: Promise.resolve({ id: uid }) });
+      return { status: res.status };
+    };
+    const zRow = await userRow(z);
+    const routeCases: [string, Promise<{ status: number }>][] = [
+      ["ödeme kaydet", call(paymentRoute.POST, `/api/admin/users/${z}/payment`, asOwner, { draft: { status: "paid" } }, z)],
+      ["fiyat dönemi ekle", call(pricingRoute.POST, `/api/admin/users/${z}/pricing-phases`, asOwner, { startsOn: day(NOW), amount: 1, billingPeriod: "monthly" }, z)],
+      ["fiyat dönemi sil", del2(`/api/admin/users/${z}/pricing-phases`, { phaseId, expectedUpdatedAt: null }, z, pricingRoute.DELETE)],
+      ["modül anahtarı", patch(`/api/admin/users/${z}`, { action: "modules", changes: { stones: false } }, z, detailRoute.PATCH)],
+      ["lisans / oturum limiti", patch(`/api/admin/users/${z}`, { action: "license", license_type: "family" }, z, detailRoute.PATCH)],
+      ["rol değişimi", patch(`/api/admin/users/${z}`, { action: "edit", fullName: zRow.full_name, email: zRow.email, role: "admin" }, z, detailRoute.PATCH)],
+      ["Atlas teknik izinleri", put(`/api/admin/users/${z}/astrology-techniques`, { grants: { mode: "all" }, enableModule: true }, z, astroRoute.PUT)],
+      ["deneme kredi limiti", patch(`/api/admin/trials/${zt}`, { action: "limits", dailyLimit: 10 }, zt, trialRoute.PATCH)],
+      ["deneme durdur/sürdür", patch(`/api/admin/trials/${zt}`, { action: "suspend" }, zt, trialRoute.PATCH)],
+      ["denemeden Pro'ya geçiş", call(convertRoute.POST, `/api/admin/trials/${zt}/convert`, asOwner, { modules: ["clients"] }, zt)],
+    ];
+    for (const [label, p] of routeCases) {
+      const r = await p;
+      ok(r.status === 409, `Y8 route: ${label} → 409 (arşivde)`, r.status);
+    }
+    ok((await zFp()) === zBefore
+       && (await ztFp()) === ztBefore && JSON.stringify(await childFp()) === JSON.stringify(chBefore) && (await userRow(z)).role === "expert",
+      "Y9 route denemelerinden sonra da hiçbir üyelik/ticari kayıt değişmedi");
+    const nameEdit = await patch(`/api/admin/users/${z}`, { action: "edit", fullName: "ZZ_4A Uzman frozen (yeni ad)", email: zRow.email, role: "expert" }, z, detailRoute.PATCH);
+    ok(nameEdit.status === 200 && (await userRow(z)).full_name === "ZZ_4A Uzman frozen (yeni ad)", "Y10 arşivdeki hesapta ad düzeltmesi serbest (200)", nameEdit.status);
+    const dGet = await call(detailRoute.GET, `/api/admin/users/${z}`, asOwner, undefined, z);
+    ok(dGet.status === 200 && (dGet.json.paymentHistory as unknown[]).length >= 1, "Y11 detay + ödeme geçmişi okunur (200)");
+    const dismiss = await patch(`/api/admin/trials/${zt}`, { action: "dismiss_pro_request" }, zt, trialRoute.PATCH);
+    ok(dismiss.status !== 409, `Y12 Pro talebini kapatma (hak açmaz) engellenmez (${dismiss.status})`);
+    await asSvc(`select public.admin_unarchive_user($1,$2) r`, [z, OWNER]);
+    ok(await code(`select public.admin_set_module_permissions($1,$2,$3::jsonb)`, [z, OWNER, JSON.stringify({ stones: false })]) === "OK"
+       && await code(`update public.users set payment_status = 'pending' where id = $1`, [z]) === "OK"
+       && (await userRow(z)).active === false,
+      "Y13 arşivden çıkınca değişiklik yeniden mümkün; hesap yine PASİF (erişim açılmadı)");
+
+    console.log("\n[K] Kalıcı silme yalnız arşivde (DB tetikleyicisi + route)");
+    const PURGE_COUNTS = async (uid: string, tenantId: string) => (await su.query(`select
+        (select count(*)::int from public.users where id=$1) u,
+        (select count(*)::int from public.clients where tenant_id=$2) c,
+        (select count(*)::int from public.user_payment_history where user_id=$1) h,
+        (select count(*)::int from public.member_pricing_phases where user_id=$1) p,
+        (select count(*)::int from public.tenants where id=$2) t`, [uid, tenantId])).rows[0];
+    const totalOthers = async () => (await su.query(`select count(*)::int n from public.clients`)).rows[0].n as number;
+    const purge = (uid: string, email: string) => code(`select public.admin_purge_archived_expert($1,$2,$3)`, [uid, OWNER, email]);
+    for (const [k, label] of [["old_deact", "eski pasif (arşivlenmemiş)"], ["old_noaudit", "kayıtsız eski pasif"], ["pro_overdue", "aktif"]] as [string, string][]) {
+      const b = await PURGE_COUNTS(id[k], tenantOf[k]);
+      const cc = await purge(id[k], `zz.4a.${k}@example.test`);
+      ok(cc === "UP006" && JSON.stringify(await PURGE_COUNTS(id[k], tenantOf[k])) === JSON.stringify(b),
+        `K1 ${label} hesap kalıcı silinemez (UP006); hiçbir ilişkili kayıt silinmedi`, cc);
+    }
+    const po = id.purge_ok;
+    await asSvc(`select public.admin_pricing_phase_save($1,$2,null,current_date,null,1200,'monthly','p',null) r`, [OWNER, po]);
+    await asSvc(`select public.admin_archive_user($1,$2) r`, [po, OWNER]);
+    const others0 = await totalOthers();
+    const k2 = await purge(po, "zz.4a.purge_ok@example.test");
+    const k2c = await PURGE_COUNTS(po, tenantOf.purge_ok);
+    ok(k2 === "OK" && k2c.u === 0 && k2c.c === 0 && k2c.h === 0 && k2c.p === 0 && k2c.t === 0 && (await totalOthers()) === others0 - 2,
+      "K2 arşivdeki uzman (fiyat dönemi + ödeme geçmişi ile) kalıcı silinir; yalnız kendi kayıtları gider, başkalarınınki kalır", { k2, k2c });
+    ok((await su.query(`select count(*)::int n from public.admin_purge_context`)).rows[0].n === 0, "K3 işlem işareti temizlendi (artık satır yok)");
+    // Eşzamanlılık: arşivden çıkarma işlemi kilit tutarken gelen kalıcı silme beklemeli ve güncel (arşivde değil) durumu görmeli.
+    const pc = id.purge_conc;
+    await asSvc(`select public.admin_archive_user($1,$2) r`, [pc, OWNER]);
+    const pcBefore = await PURGE_COUNTS(pc, tenantOf.purge_conc);
+    const holder = await pool.connect();
+    let k4 = "";
+    try {
+      await holder.query("begin");
+      await holder.query("set local role service_role");
+      await holder.query(`select public.admin_unarchive_user($1,$2)`, [pc, OWNER]);
+      const pending = purge(pc, "zz.4a.purge_conc@example.test");
+      await new Promise((r) => setTimeout(r, 700));
+      await holder.query("commit");
+      k4 = await pending;
+    } finally {
+      holder.release();
+    }
+    const pcRow = await userRow(pc);
+    ok(k4 === "UP006" && pcRow && pcRow.archived_at === null && JSON.stringify(await PURGE_COUNTS(pc, tenantOf.purge_conc)) === JSON.stringify(pcBefore),
+      "K4 eşzamanlı: arşivden çıkarma ile yarışan kalıcı silme UP006; hesap ve tüm kayıtları duruyor", k4);
+    const purgeRoute = await import("../../app/api/admin/users/[id]/purge/route");
+    const { PURGE_FINAL_PHRASE } = await import("../../lib/admin/expertPurge");
+    const k5 = await call(purgeRoute.POST, `/api/admin/users/${id.old_deact}/purge`, asOwner,
+      { adminPassword: PASS, confirmEmail: "zz.4a.old_deact@example.test", finalPhrase: PURGE_FINAL_PHRASE }, id.old_deact);
+    ok(k5.status === 409 && /arşivlenmiş/.test(String(k5.json.error)) && (await userRow(id.old_deact)) !== undefined,
+      "K5 route: pasif (arşivlenmemiş) hesap için kalıcı silme → 409, hesap duruyor", k5);
+    const k6 = await call(purgeRoute.POST, `/api/admin/users/${pc}/purge`, asAdmin2,
+      { adminPassword: PASS, confirmEmail: "zz.4a.purge_conc@example.test", finalPhrase: PURGE_FINAL_PHRASE }, pc);
+    ok(k6.status === 403, "K6 route: yardımcı yönetici kalıcı silme yapamaz (403, mevcut kural)");
 
     console.log("\n[V] Liste / klasik / zil tutarlılığı");
     const v = await list("all");

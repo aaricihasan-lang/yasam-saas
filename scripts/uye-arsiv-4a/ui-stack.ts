@@ -29,6 +29,7 @@ async function main(): Promise<void> {
   const db = await startTestDb(port, `uye-arsiv-4a-ui-${port}`);
   const { su } = db;
   for (const f of [
+    "20271009100000_admin_purge_archived_expert.sql", // 4a migration'ının ön koşulu (canlıda var)
     "20271230000000_astrology_technique_grants.sql",
     "20280101000000_trial7_self_trial.sql",
     "20280101000100_trial7_claims_retention.sql",
@@ -99,8 +100,9 @@ async function main(): Promise<void> {
     { pkg: "premium", plan: "premium", pay: "paid", npd: day(NOW + 10 * D), note: "Uzun not ".repeat(30), login: NOW - 5 * H },
   );
   // AŞAMA 4a durumları — gerçek RPC'lerle (yönetim geçmişi de gerçek): arşivde · pasif · eski pasif (audit yok, archived_at NULL)
-  await su.query(`update public.users set active = true where id=$1`, [ids.archived]);
-  await su.query(`select public.admin_archive_user($1,$2)`, [ids.archived, OWNER]);
+  // ids.archived PR #779 yığınıyla AYNI anlamda kalır (pasif; onun testleri bu hesapla koşar). 4a arşivi ayrı hesapta:
+  ids.archivedOne = await mk("ZZ_UD2 Arşivde Hesap", "zz.ud2.arsivde@example.test", { pkg: "premium", plan: "premium", pay: "paid", npd: day(NOW + 20 * D) });
+  await su.query(`select public.admin_archive_user($1,$2)`, [ids.archivedOne, OWNER]);
   ids.passive = await mk("ZZ_UD2 Pasif Hesap", "zz.ud2.pasif@example.test", { pkg: "premium", plan: "premium", pay: "paid", npd: day(NOW + 15 * D), login: NOW - 6 * D });
   await su.query(`select public.admin_set_user_active($1,$2,false,true)`, [ids.passive, OWNER]);
   ids.legacyPassive = await mk("ZZ_UD2 Eski Pasif Kayıt", "zz.ud2.eskipasif@example.test", { pkg: "premium", plan: "premium", pay: "exempt", active: false });

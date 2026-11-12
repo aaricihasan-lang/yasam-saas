@@ -737,6 +737,8 @@ export default function AdminUserDetailPage() {
   });
   const [unarchiveOpen, setUnarchiveOpen] = useState(false);
   const isArchived = archiveInfo.archivedAt !== null;
+  // Owner kararı (12.11): arşivleme yalnız onaylı uzmana sunulur (sunucu + RPC de reddeder).
+  const canArchiveTarget = user?.role === "expert" && user.approvalStatus === "approved";
   const [savingPayment, setSavingPayment] = useState(false);
   const [paymentReceivedHint, setPaymentReceivedHint] = useState(false);
   const [canPersistPayment, setCanPersistPayment] = useState(true);
@@ -1053,7 +1055,7 @@ export default function AdminUserDetailPage() {
   }
 
   function openDeleteConfirmModal() {
-    if (!user || isSelf() || !canDeleteAsOwner) return;
+    if (!user || isSelf() || !canDeleteAsOwner || !canArchiveTarget) return;
     setDeleteModalStep("confirm");
   }
 
@@ -2027,6 +2029,18 @@ export default function AdminUserDetailPage() {
                 );
               })()}
             />
+
+            {isArchived ? (
+              <div
+                role="note"
+                data-archived-banner
+                className="rounded-2xl border border-stone-300 bg-stone-50 px-4 py-3 text-sm font-semibold text-stone-800"
+              >
+                <b>Hesap arşivde.</b> Kayıtlar görüntülenebilir; üyelik, deneme, modül, kredi, ödeme ve erişim
+                bilgileri değiştirilemez. Değişiklik için önce ana yönetici “Gelişmiş” sekmesinden arşivden çıkarır
+                (hesap pasif kalır).
+              </div>
+            ) : null}
 
             <MemberDetailTabs
               active={detailTab}
@@ -3789,7 +3803,7 @@ export default function AdminUserDetailPage() {
                       <ArchiveRestore className="h-4 w-4" aria-hidden />
                       Arşivden Çıkar
                     </button>
-                  ) : canDeleteAsOwner ? (
+                  ) : !canArchiveTarget ? null : canDeleteAsOwner ? (
                     <button
                       type="button"
                       disabled={deleteSubmitting}
@@ -3811,7 +3825,7 @@ export default function AdminUserDetailPage() {
                     </button>
                   )}
                 </div>
-                {!isSelf() && !canDeleteAsOwner ? (
+                {!isSelf() && !canDeleteAsOwner && (isArchived || canArchiveTarget) ? (
                   <p className="mt-2 text-[11px] font-bold text-slate-500">
                     {isArchived ? "Arşivden çıkarma yetkisi yalnızca ana yöneticiye aittir." : "Arşivleme yetkisi yalnızca ana yöneticiye aittir."}
                   </p>
