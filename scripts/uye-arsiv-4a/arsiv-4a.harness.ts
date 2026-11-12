@@ -220,6 +220,20 @@ async function main(): Promise<void> {
       "F2 arşiv listesi: kolon yokken eski sorguya düşer (3 eski pasif hesap, archiveModel=false)", { s: f2.status, m: f2.json.archiveModel });
     const f3 = await call(unarchiveRoute.POST, `/api/admin/users/${id.old_arch}/unarchive`, asOwner, { adminPassword: PASS }, id.old_arch);
     ok(f3.status === 503, "F3 arşivden çıkar: fonksiyon yokken 503, hiçbir şey yazılmaz", f3);
+    // Yayın sırası "önce kod, sonra migration": yeni kod eski şemada çalışmaya devam eder (çökme yok, davranış bugünkü gibi).
+    const f4 = await call(membersRoute.GET, "/api/admin/members", asOwner);
+    ok(f4.status === 200 && Array.isArray(f4.json.rows) && (f4.json.rows as { stage: string }[]).every((x) => x.stage !== "pasif"),
+      "F4 yeni kod + eski şema: Üye Listesi V2 200 (eski aşamalar; yeni istemci hepsini tanır)");
+    const f5 = await call(membersRoute.GET, "/api/admin/members?f=pasif", asOwner);
+    ok(f5.status >= 400 && f5.status < 600 && f5.json.rows === undefined, `F5 yeni kod + eski şema: yalnız yeni “Pasif hesaplar” filtresi kontrollü hata (${f5.status}); sayfa çökmez, sayaç dönmez`);
+    const f6 = await (async () => {
+      const req = new NextRequest(`http://localhost/api/admin/users/${id.pro_overdue}`, { method: "PATCH", headers: { "x-admin-id": OWNER, "x-session-token": TOK.owner, "content-type": "application/json" }, body: JSON.stringify({ action: "modules", changes: { stones: false } }) });
+      const res = await (detailRoute.PATCH as unknown as H)(req, { params: Promise.resolve({ id: id.pro_overdue }) });
+      return res.status;
+    })();
+    const f6row = await userRow(id.pro_overdue);
+    ok(f6 === 200 && (f6row.module_permissions as Record<string, boolean>).stones === false, "F6 yeni kod + eski şema: arşiv koruması kolon yokken atlanır, modül değişikliği bugünkü gibi çalışır");
+    await su.query(`update public.users set module_permissions = module_permissions || '{"stones":true}'::jsonb where id=$1`, [id.pro_overdue]);
 
     console.log("\n[P] Production salt-okunur sorgusu (yerel, READ ONLY)");
     await su.query(`create schema if not exists supabase_migrations;

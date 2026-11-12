@@ -3,11 +3,15 @@
  * prod-readonly-check.sql aynı ifadeyi canlıda hesaplar → eşitse migration'daki CREATE OR REPLACE gövdeleri
  * canlı gövdelerin birebir devamıdır (sürüklenme yok). Production'a temas YOK (embedded PG).
  *
- * Çalıştır: npx tsx scripts/uye-arsiv-4a/repo-fingerprints.ts
+ * Çalıştır: npx tsx scripts/uye-arsiv-4a/repo-fingerprints.ts [after]
+ *   after → 20280101000600 de uygulanır; 4a'nın yeni/değişen fonksiyonları dahil BEKLENEN SONRASI parmak izleri
+ *           (prod-postcheck.sql çıktısıyla karşılaştırılır).
  */
 import { startTestDb } from "../uye-yonetimi-faz2/testDb";
 import { readMig } from "../uye-yonetimi-360/migrationChain";
-import { FINGERPRINT_FUNCTIONS } from "./fingerprintList";
+import { FINGERPRINT_FUNCTIONS, FINGERPRINT_FUNCTIONS_AFTER } from "./fingerprintList";
+
+const AFTER = process.argv[2] === "after";
 
 async function main(): Promise<void> {
   const port = 58000 + Math.floor(Math.random() * 900);
@@ -23,9 +27,10 @@ async function main(): Promise<void> {
       "20280101000400_admin_owner_notifications.sql",
       "20280101000500_admin_list_members_v2.sql",
     ]) await db.su.query(readMig(f));
+    if (AFTER) await db.su.query(readMig("20280101000600_admin_member_archive_state.sql"));
     const rows = (await db.su.query(
       `select p.oid::regprocedure::text sig, md5(replace(p.prosrc, chr(13), '')) h from pg_proc p join pg_namespace n on n.oid=p.pronamespace
-        where n.nspname='public' and p.proname = any($1) order by 1`, [FINGERPRINT_FUNCTIONS])).rows;
+        where n.nspname='public' and p.proname = any($1) order by 1`, [AFTER ? FINGERPRINT_FUNCTIONS_AFTER : FINGERPRINT_FUNCTIONS])).rows;
     for (const r of rows) console.log(`${r.sig}\t${r.h}`);
   } finally {
     await db.stop();

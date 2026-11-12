@@ -7,3 +7,12 @@ export const FINGERPRINT_FUNCTIONS = [
   "admin_purge_archived_expert",
   "admin_purge_in_progress",
 ];
+
+/** Migration SONRASI: yukarıdakiler + 4a'nın yeni fonksiyonları (tetikleyici fonksiyonları dahil). */
+export const FINGERPRINT_FUNCTIONS_AFTER = [
+  ...FINGERPRINT_FUNCTIONS,
+  "admin_unarchive_user",
+  "admin_purge_require_archived_trg",
+  "admin_archived_user_guard_trg",
+  "admin_archived_child_guard_trg",
+];
