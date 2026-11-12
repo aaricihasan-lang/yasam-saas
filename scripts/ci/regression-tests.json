@@ -1497,6 +1497,11 @@
    "file": "scripts/uye-listesi-v2/uye-listesi-v2.harness.ts",
    "tsx": true,
    "timeoutSec": 240
+  },
+  {
+   "file": "scripts/uye-detay-v2/payment-exempt.harness.ts",
+   "tsx": true,
+   "timeoutSec": 240
   }
  ]
 }

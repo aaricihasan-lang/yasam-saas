@@ -1,28 +1,13 @@
 /**
  * Yaşam Analiz Merkezi — üst başlık paneli. Yalnız görsel/tipografi; metinler sayfadan gelir.
  * 2026-10-21 açık premium görünüm: stil tek kaynakta (premium/analizMerkezi.module.css).
- * Fontlar next/font ile kendi sunucumuzdan (dış istek yok, CSP uyumlu); Türkçe için latin-ext alt kümesi.
+ * Fontlar: root layout'taki global Fraunces / Jost — ys-fv-analiz-hero (app/_fonts/google/degiskenler.css); dış istek yok.
  *   Başlık            → Fraunces (modern, yumuşak serif; opsz/SOFT ekseni)
  *   Etiket + açıklama → Jost (ince, geometrik sans)
  * Dekor (silik desen + yıldız) statik ve ekran okuyucudan gizli.
  */
 import { Brain } from "lucide-react";
-import { Fraunces, Jost } from "next/font/google";
 import styles from "./premium/analizMerkezi.module.css";
-
-const heroSerif = Fraunces({
-  subsets: ["latin", "latin-ext"],
-  axes: ["opsz", "SOFT"],
-  variable: "--hero-serif",
-  display: "swap",
-});
-
-const heroSans = Jost({
-  subsets: ["latin", "latin-ext"],
-  weight: ["400", "500"],
-  variable: "--hero-sans",
-  display: "swap",
-});
 
 /** Sağdaki yıldız detayı (ince halkalar + dört köşeli parıltı). */
 function HeroSpark() {
@@ -39,7 +24,7 @@ function HeroSpark() {
 
 export default function AnalysisCenterHero({ eyebrow, title, description }: { eyebrow: string; title: string; description: string }) {
   return (
-    <header className={`${styles.hero} ${heroSerif.variable} ${heroSans.variable}`}>
+    <header className={`${styles.hero} ys-fv-analiz-hero`}>
       <span className={styles.heroPattern} aria-hidden="true" />
       <span className={styles.heroSpark} aria-hidden="true">
         <HeroSpark />

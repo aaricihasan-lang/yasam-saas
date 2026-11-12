@@ -71,6 +71,13 @@ export async function POST(req: NextRequest, ctx: RouteContext) {
 
   const rawRow = currentRow as unknown as Record<string, unknown>;
   const before = paymentFieldsFromRow(rawRow);
+  // Owner kararı (11.11.2026, PR #779): YENİ muafiyete geçişte (önceki durum muaf DEĞİLKEN "exempt") gerekçe zorunlu.
+  // Gerekçe mevcut payment_note alanıdır (boş / yalnız boşluk → validatePaymentDraft null yapar). Hiçbir yazımdan
+  // ÖNCE reddedilir → kullanıcı satırı ve ödeme geçmişi değişmez. Zaten muaf olan (eski) kayıtların diğer alan
+  // güncellemeleri ve paid / pending / overdue durumları etkilenmez.
+  if (next.payment_status === "exempt" && before.payment_status !== "exempt" && !(next.payment_note ?? "").trim()) {
+    return bad("Ödemeden muaf için gerekçe zorunludur: “Ödeme Notu” alanına gerekçe yazın.");
+  }
   const changed = diffPaymentFields(before, next);
   if (changed.length === 0) {
     return NextResponse.json({ ok: true, changed: false }, { headers: NO_STORE });
