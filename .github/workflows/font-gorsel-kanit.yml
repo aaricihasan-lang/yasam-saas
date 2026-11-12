@@ -4,7 +4,7 @@
 #   once         : main (bu dalın ürün kodu = main b25648c1) next/font/google, normal ağ → build + ağ kaydı + build denetimi +
 #                  ekran görüntüsü İKİ KEZ (gürültü tabanı) + performans
 #   once-engelli : main, Google Fonts AĞI ENGELLİ → build BAŞARISIZ olmalı (eski davranışın kanıtı)
-#   sonra        : main + #777 (060b71dc; main PR'ın atası → birleşim ağacı = PR ağacı, ağaç eşitliği doğrulanır), Google Fonts AĞI ENGELLİ →
+#   sonra        : main + #777 (f828f45c; main PR'ın atası → birleşim ağacı = PR ağacı, ağaç eşitliği doğrulanır), Google Fonts AĞI ENGELLİ →
 #                  build + ağ kaydı + build denetimi + ekran görüntüsü + performans
 #   kiyas        : gürültü (önce↔önce2) ve fark (önce↔sonra) + @font-face/yedek metrik + performans karşılaştırması
 name: Font görsel kanıt (#777)
@@ -18,8 +18,8 @@ permissions:
 
 env:
   NEXT_TELEMETRY_DISABLED: "1"
-  PR_UCU: 060b71dc4adab97e76af2d50dec2575255dd1225
-  BIRLESIM: 060b71dc4adab97e76af2d50dec2575255dd1225  # main b25648c1 PR'ın atası → birleşim ağacı = PR ağacı
+  PR_UCU: f828f45cd1b2eac30a4b966b8dd3a40068d806a4
+  BIRLESIM: f828f45cd1b2eac30a4b966b8dd3a40068d806a4  # main b25648c1 PR'ın atası → birleşim ağacı = PR ağacı
 
 jobs:
   once:
@@ -184,7 +184,7 @@ jobs:
       - name: Önce ↔ sonra
         run: node .github/font-gorsel/kiyas.mjs "$RUNNER_TEMP/k/gorsel-once/once" "$RUNNER_TEMP/k/gorsel-sonra/sonra" "$RUNNER_TEMP/k/fark/fark"
         env:
-          KIYAS_BASLIK: "ÖNCE (main, next/font/google) ↔ SONRA (#777 060b71dc, Google Fonts ağı engelli build)"
+          KIYAS_BASLIK: "ÖNCE (main, next/font/google) ↔ SONRA (#777 f828f45c, Google Fonts ağı engelli build)"
       - name: "@font-face ve yedek font metrikleri"
         run: node .github/font-gorsel/fontface-kiyas.mjs "$RUNNER_TEMP/k/gorsel-once/once-build.json" "$RUNNER_TEMP/k/gorsel-sonra/sonra-build.json" "$RUNNER_TEMP/k/fark/fontface.md"
       - name: Performans
