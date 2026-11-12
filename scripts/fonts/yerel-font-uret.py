@@ -13,7 +13,7 @@ Kaynak: resmî google/fonts deposu, SABİT commit (GF_COMMIT). Her kaynak dosyan
   * Değişken eksenler korunur.
   * Playfair Display: OFL "Reserved Font Name" içerdiğinden alt küme ALINMAZ — özgün dosya bayt bayt kopyalanır.
   * Ad tablosu (telif / lisans kayıtları) tamamen korunur.
-  * Global Geist / Geist Mono / Fraunces / Jost (root layout) üretilmez: Google'ın sunduğu alt küme dosyaları indirilip doğrulanır
+  * Geist / Geist Mono / Fraunces / Jost / Unbounded / Manrope üretilmez: Google'ın sunduğu alt küme dosyaları indirilip doğrulanır
     (GOOGLE_ALT_KUME) — önceki build'le bayt bayt aynı.
 """
 import argparse
@@ -30,27 +30,17 @@ from fontTools.ttLib import TTFont
 from fontTools.varLib import instancer
 
 GF_COMMIT = "5bb28733cec313b63fbd415b574b5ae35c8aa8b8"  # google/fonts main, 2026-11-08
-# Önceki next/font/google CSS'inin ETKİN kapsamı (aile başına): Google'ın o istek için döndürdüğü TÜM alt kümelerde
-# (subsets yalnız ön yüklemeyi seçer; CSS bütün alt kümeleri içerir) her dosyanın karakterleri ∩ o alt kümenin unicode-range'i.
-# Google Fonts API, 2026-11-10 (Geist v5, Geist Mono v6, Fraunces v38, Jost v20, Manrope v23, Unbounded v12) yanıtlarından hesaplandı.
-KAPSAM = {
-    "jost.woff2": "U+0000,U+000D,U+0020-007E,U+00A0-017E,U+0192,U+0212-0213,U+0218-021B,U+0237,U+02C6-02C7,U+02DA,U+02DC-02DD,U+0301,U+0304,U+0308,U+0400-0401,U+0403,U+040C-040E,U+0410-0451,U+0453,U+045C-045E,U+1E80-1E89,U+1E9E,U+1EF2-1EF3,U+2013-2014,U+2018-201A,U+201C-201E,U+2020,U+2022,U+2026,U+2039-203A,U+2044,U+20AC,U+20BD,U+2122,U+2212,U+2215",
-    "manrope.woff2": "U+000D,U+0020-007E,U+00A0-0113,U+0116-012B,U+012E-0131,U+0134-0137,U+0139-013E,U+0141-0148,U+014A-014D,U+0150-017E,U+0192,U+01A0-01A1,U+01AF-01B0,U+0218-021B,U+0259,U+02C6-02C7,U+02DA,U+02DC-02DD,U+0374-0375,U+037E,U+0384-038A,U+038C,U+038E-03A1,U+03A3-03CE,U+0400-045F,U+0490-0491,U+04AE-04AF,U+04BA-04BB,U+04E8-04E9,U+1E80-1E85,U+1E9E,U+1EA0-1EF9,U+2013-2014,U+2018-201A,U+201C-201E,U+2020,U+2022,U+2026,U+2039-203A,U+2044,U+20A3,U+20A9-20AC,U+20AE,U+20B1,U+20B4,U+20B9-20BA,U+20BD,U+20BF,U+2116,U+2122,U+2191,U+2193,U+2212,U+2215",
-    "unbounded.woff2": "U+0020-007E,U+00A0-00B4,U+00B6-0181,U+0186-018A,U+018E-0194,U+0196-01A1,U+01A4-01A5,U+01A9-01AA,U+01AC-01B9,U+01C0-01F5,U+01F8-0220,U+0226-0233,U+0237-023E,U+0241-0254,U+0256-0257,U+0259,U+025B,U+025F-0261,U+0263-026A,U+026C,U+026F,U+0271-0272,U+0275,U+0278,U+027D-027E,U+0283-0284,U+0288-028C,U+028E,U+0292,U+0294-0295,U+0298,U+029D,U+02A7,U+02B0-02B3,U+02B7-02B9,U+02BB-02BC,U+02BE-02C1,U+02C6-02C9,U+02DA,U+02DC-02DD,U+02E1-02E3,U+0300-0301,U+0303-0304,U+0308-0309,U+0323,U+0329,U+0400-045F,U+0490-0491,U+1D7D,U+1DBB,U+1DBF,U+1E00-1E9B,U+1E9E,U+1EA0-1EF9,U+2013-2014,U+2018-201A,U+201C-201E,U+2020,U+2022,U+2026,U+2039-203A,U+2044,U+20A1,U+20A3-20A4,U+20A6,U+20A9,U+20AB-20AD,U+20B1-20B2,U+20B4-20B5,U+20B8-20BA,U+20BC-20BD,U+2116,U+2122,U+2191,U+2193,U+2212,U+2215,U+2C63-2C66,U+2C6D-2C70,U+2C72-2C73,U+A726-A727,U+A78B-A78D,U+A798-A799,U+A7AA,U+A7AC-A7AE,U+A7B2-A7B7",
-}
+# Kaynaktan alt küme üretilen aile kalmadı: hepsi Google'ın sunduğu alt küme dosyaları (GOOGLE_ALT_KUME); Playfair Display
+# özgün dosyanın kopyasıdır. Üretim yolu (subset) gelecekte gerekirse diye korunur.
+KAPSAM = {}
 
 # (çıktı, google/fonts yolu, kaynak SHA-256, Google'ın sunduğu dosyadaki özellikler, ek işlem, karakter kapsamı)
 FONTLAR = [
-    ("jost.woff2", "ofl/jost/Jost[wght].ttf", "6343b70971000b04c5d401c96ae08ce371086135e999d5e1e1413039c0213076",
-     ["tnum", "kern"], None, KAPSAM["jost.woff2"]),
-    ("manrope.woff2", "ofl/manrope/Manrope[wght].ttf", "3ae11c49db0455a3cc33e37d380f20fdb8c7f8b41dc07625c177e3d87a9d6ae6",
-     ["calt", "dnom", "frac", "liga", "locl", "numr", "pnum", "tnum", "kern"], None, KAPSAM["manrope.woff2"]),
-    ("unbounded.woff2", "ofl/unbounded/Unbounded[wght].ttf", "323b511be380c8d474ef030686b71aedde501f8d9cd46da558b7c40454372c3f",
-     ["ccmp", "dnom", "frac", "liga", "locl", "numr", "pnum", "rlig", "tnum", "kern", "mark", "mkmk"], None, KAPSAM["unbounded.woff2"]),
     ("playfair-display.ttf", "ofl/playfairdisplay/PlayfairDisplay[wght].ttf", "c40f2293766a503bc70cce9e512ef844a4ccb7cbcde792fe2ea31d191917d8d6",
      None, "KOPYA", None),
 ]
-# Google Fonts'un sunduğu ALT KÜME dosyaları (global Geist / Geist Mono / Fraunces / Jost; app/_fonts/google). Önceki next/font/google
+# Google Fonts'un sunduğu ALT KÜME dosyaları (app/_fonts/google): global Geist / Geist Mono / Fraunces / Jost; Atlas Unbounded /
+# Manrope; tek ağırlıklı Jost 500 / 400 etiketleri. Önceki next/font/google
 # build'inin indirdiği dosyalarla BAYT BAYT aynı (aynı istek + next/font'un User-Agent'ı); alt küme ayrımı korunduğu için Türkçe
 # harflerin harf aralığı ve satır kırılması önceki gibidir. Yeniden üretilmez — indirilir ve sabit SHA-256 ile doğrulanır.
 # Fraunces / Jost latin + latin-ext: depoda zaten bulunan public/premium/fonts dosyaları (Doğal Destek ile ortak; kopya yok).
@@ -107,6 +97,57 @@ GOOGLE_ALT_KUME = [
     ("app/_fonts/google/geist-mono-latin.woff2",
      "https://fonts.gstatic.com/s/geistmono/v6/or3nQ6H-1_WfwkMZI_qYFrcdmhHkjko.woff2",
      "5f3d6ad60f29d6cb708414ec6887163d63bf197377ef5417d2483ff31ace6c3b"),
+    ("app/_fonts/google/unbounded-cyrillic-ext.woff2",
+     "https://fonts.gstatic.com/s/unbounded/v12/Yq6W-LOTXCb04q32xlpwtsZfvRIkSYZH.woff2",
+     "5501f713602e4960a52d096d6a4afb72b5d163c5bf27173e93da41a6837e3a2d"),
+    ("app/_fonts/google/unbounded-cyrillic.woff2",
+     "https://fonts.gstatic.com/s/unbounded/v12/Yq6W-LOTXCb04q32xlpwv8ZfvRIkSYZH.woff2",
+     "c3880f0c5afb7890a102bc4b9c8257703664388f708b4be880ec5f5f68e8ea9d"),
+    ("app/_fonts/google/unbounded-vietnamese.woff2",
+     "https://fonts.gstatic.com/s/unbounded/v12/Yq6W-LOTXCb04q32xlpwtMZfvRIkSYZH.woff2",
+     "54a956ea5b2cfddfea2d336dd36bfcba64f40fa8b2d41685d9d4edf4a2910ab8"),
+    ("app/_fonts/google/unbounded-latin-ext.woff2",
+     "https://fonts.gstatic.com/s/unbounded/v12/Yq6W-LOTXCb04q32xlpwtcZfvRIkSYZH.woff2",
+     "ed84482df7b95e6a56a113de1ba2a8d54337f499ba19d54ca697a7e15427ff5f"),
+    ("app/_fonts/google/unbounded-latin.woff2",
+     "https://fonts.gstatic.com/s/unbounded/v12/Yq6W-LOTXCb04q32xlpwu8ZfvRIkSQ.woff2",
+     "d7f07f8a308ce0a7287d79a65a85cfbc0f4741ef426bf1a3902d24392cc71723"),
+    ("app/_fonts/google/manrope-cyrillic-ext.woff2",
+     "https://fonts.gstatic.com/s/manrope/v23/xn7gYHE41ni1AdIRggqxSvfedN62Zw.woff2",
+     "347c589d57130c68f9829c2cd24969eed590328078ff921ca6000a56e5a2cc84"),
+    ("app/_fonts/google/manrope-cyrillic.woff2",
+     "https://fonts.gstatic.com/s/manrope/v23/xn7gYHE41ni1AdIRggOxSvfedN62Zw.woff2",
+     "93bef303b8220d2f59dbe8db119891c9f38d94f48a26d373c28256fb2b50cba7"),
+    ("app/_fonts/google/manrope-greek.woff2",
+     "https://fonts.gstatic.com/s/manrope/v23/xn7gYHE41ni1AdIRggSxSvfedN62Zw.woff2",
+     "6b478f45d63e18352735fd427e92ae4704800a998ec3337c01b59e4f6ef87d44"),
+    ("app/_fonts/google/manrope-vietnamese.woff2",
+     "https://fonts.gstatic.com/s/manrope/v23/xn7gYHE41ni1AdIRggixSvfedN62Zw.woff2",
+     "ddbf28cebf2fbbf800d307f020689bed6d1a96c5a22aed50fee23bf7de80d0f1"),
+    ("app/_fonts/google/manrope-latin-ext.woff2",
+     "https://fonts.gstatic.com/s/manrope/v23/xn7gYHE41ni1AdIRggmxSvfedN62Zw.woff2",
+     "27eccb1f8944bc26f6511601bac9284786feb5e5bbb0c8035ff09ac63aaf7c52"),
+    ("app/_fonts/google/manrope-latin.woff2",
+     "https://fonts.gstatic.com/s/manrope/v23/xn7gYHE41ni1AdIRggexSvfedN4.woff2",
+     "8bd97e6bbbc1f602a8f791530eed1064c9a357d5731bbc76e3fc587fb068728f"),
+    ("app/_fonts/google/jost-500-cyrillic.woff2",
+     "https://fonts.gstatic.com/s/jost/v20/92zPtBhPNqw79Ij1E865zBUv7myRJTVFNIgun_HKOEp-Cw.woff2",
+     "0e535fec0bf5e53445aa835d8ea667dabea2d00e2b356fb9492c3f16f77e3505"),
+    ("app/_fonts/google/jost-500-latin-ext.woff2",
+     "https://fonts.gstatic.com/s/jost/v20/92zPtBhPNqw79Ij1E865zBUv7myRJTVPNIgun_HKOEp-Cw.woff2",
+     "59516d45ab9b34bb74e1c8de5bb93df757d428bb3b9653adc1b2258964fe4f8d"),
+    ("app/_fonts/google/jost-500-latin.woff2",
+     "https://fonts.gstatic.com/s/jost/v20/92zPtBhPNqw79Ij1E865zBUv7myRJTVBNIgun_HKOEo.woff2",
+     "1af44df083279dd8d8d80ff7be66d7132cce3c5be0c2f80c46d06f9559882239"),
+    ("app/_fonts/google/jost-400-cyrillic.woff2",
+     "https://fonts.gstatic.com/s/jost/v20/92zPtBhPNqw79Ij1E865zBUv7myjJTVFNIgun_HKOEp-Cw.woff2",
+     "c7a905112b2f751b32417df6d8a9446b3fce90211ba14b69906fd600a2699185"),
+    ("app/_fonts/google/jost-400-latin-ext.woff2",
+     "https://fonts.gstatic.com/s/jost/v20/92zPtBhPNqw79Ij1E865zBUv7myjJTVPNIgun_HKOEp-Cw.woff2",
+     "f0f29b491ceac5bbaf1024d9cbfd0e3be5607c565012124ab4b6b45f56b6af21"),
+    ("app/_fonts/google/jost-400-latin.woff2",
+     "https://fonts.gstatic.com/s/jost/v20/92zPtBhPNqw79Ij1E865zBUv7myjJTVBNIgun_HKOEo.woff2",
+     "b249869fc8fb37ef0328d6f603283863ce373f52d1a4af6380f54d991f45dec1"),
 ]
 
 LISANSLAR = {

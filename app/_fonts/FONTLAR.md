@@ -12,16 +12,19 @@ hatasıyla build'i düşürüyordu: 01.11–10.11.2026 arasında 231 build'in 12
    AYNI olan çağrıların değişkenleri bu ailelere bağlanır (`google/degiskenler.css`): `--font-display` (premium), `--eb-serif`
    / `--eb-label` (Enerji & Beden), `--ga-display` (Atlas girişi), `--dy-display`, `--hd-display`, `--hero-serif` /
    `--hero-sans` (Analiz Merkezi). Bu bağlama global stil sayfasında olduğu için rotaya özel CSS parçalarına karışmaz.
-2. **Modül aileleri** (Atlas Unbounded / Manrope, Analiz Merkezi kart başlığı Playfair Display, tek ağırlıklı Jost etiketleri:
-   `--ga-label`, `--dy-label`, `--hd-label`, `--amc-sans`): tek dosya, kaynaktan üretilmiş; önceki
-   build'in indirdiği dosyalarla aynı glifler, metrikler, eksenler ve OpenType özellikleri; karakter kapsamı önceki CSS'in
-   **etkin** kapsamına eşittir.
+2. **Modül aileleri (global değil — yalnız içe aktaran rotada):** Atlas `Unbounded` (`--font-atlas-display`) ve `Manrope`
+   (`--font-atlas-text`) — `atlas/fonts.ts`; tek ağırlıklı Jost etiketleri `Jost500` (`--ga-label`, `--dy-label`,
+   `--amc-sans`; `google/etiket-500.ts`) ve `Jost400` (`--hd-label`; `google/etiket-400.ts`). Hepsi Google'ın sunduğu alt küme
+   dosyaları (önceki build'le bayt bayt aynı), aynı ön yükleme (latin + latin-ext) ve önceki yedek metrikler.
+3. **Playfair Display** (Analiz Merkezi kart başlığı): OFL "Reserved Font Name" → özgün dosya değiştirilmeden kullanılır.
 
-## Global aileler (`google/`)
+## Google alt küme aileleri (`google/`)
 
 | Aile | Alt kümeler (ön yükleme) | Dosyalar | Değişken |
 |---|---|---|---|
 | Geist v5 | kiril-ext, kiril, Vietnamca, latin-ext, **latin** | `google/geist-*.woff2` | `--font-geist-sans` |
+| Unbounded v12 (300, 400) · Manrope v23 (300–600) — Atlas, global değil | kiril-ext, kiril, (Yunanca), Vietnamca, **latin-ext**, **latin** | `google/unbounded-*`, `google/manrope-*` | `--font-atlas-display`, `--font-atlas-text` |
+| Jost v20 yalnız 500 / yalnız 400 — etiketler, global değil | kiril, **latin-ext**, **latin** | `google/jost-500-*`, `google/jost-400-*` | `--font-jost-500` / `--font-jost-400` → etiket değişkenleri |
 | Geist Mono v6 | kiril-ext, kiril, symbols2, Vietnamca, latin-ext, **latin** | `google/geist-mono-*.woff2` | `--font-geist-mono` |
 | Fraunces v38 (opsz, wght, SOFT) | Vietnamca, **latin-ext**, **latin** | `google/fraunces-vietnamese.woff2`; latin / latin-ext: `public/premium/fonts/` (Doğal Destek ile ortak) | `--font-fraunces` → `--font-display`, `--eb-serif` |
 | Jost v20 (400, 500) | kiril, **latin-ext**, **latin** | `google/jost-cyrillic.woff2`; latin / latin-ext: `public/premium/fonts/` | `--font-jost` → `--eb-label` |
@@ -38,22 +41,19 @@ hatasıyla build'i düşürüyordu: 01.11–10.11.2026 arasında 231 build'in 12
 - **Aile adı:** `next/font/local` aileyi sabit adından türetir (`const Geist = localFont(…)` → `"Geist"`). Kampanya CSS'i
   (`"Geist"`, `"Jost"`, `"Geist Fallback"`, `"Jost Fallback"`) ve bazı CSS yedekleri (`"Fraunces"`) bu adları doğrudan kullanır.
 - **Yedek metrikler:** `google/yedek-metrikler.css` — önceki build'in ürettiği değerlerle birebir (`Geist Fallback`,
-  `Geist Mono Fallback`, `Fraunces Fallback`, `Jost Fallback`).
+  `Geist Mono Fallback`, `Fraunces Fallback`, `Jost Fallback`, `Unbounded Fallback`, `Manrope Fallback`).
 
-## Kaynak (modül aileleri)
+## Kaynak (Playfair Display)
 
 - Depo: [google/fonts](https://github.com/google/fonts), **sabit commit** `5bb28733cec313b63fbd415b574b5ae35c8aa8b8` (2026-11-08).
 - Üretim: `python scripts/fonts/yerel-font-uret.py` (fontTools + brotli; CI'da çalışmaz). Kaynak SHA-256'ları betikte
   doğrulanır; üretim belirlenimcidir (aynı girdi → aynı baytlar).
 - Sürümler, Google Fonts API'nin build'e sunduğu dosyalarla aynıdır.
 
-## Modül aileleri
+## Playfair Display
 
 | Dosya | Aile (sürüm) | Kaynak dosya (SHA-256 başı) | Kapsam | Kullanım |
 |---|---|---|---|---|
-| `jost.woff2` | Jost 3.710 | `ofl/jost/Jost[wght].ttf` (`6343b709…`) | latin, latin-ext, kiril | 400, 500 |
-| `manrope.woff2` | Manrope 4.505 | `ofl/manrope/Manrope[wght].ttf` (`3ae11c49…`) | latin, latin-ext, kiril, kiril-ext, Yunanca, Vietnamca | 300–600 |
-| `unbounded.woff2` | Unbounded 1.701 | `ofl/unbounded/Unbounded[wght].ttf` (`323b511b…`) | latin, latin-ext, kiril, kiril-ext, Vietnamca | 300, 400 |
 | `playfair-display.ttf` | Playfair Display 1.203 | `ofl/playfairdisplay/PlayfairDisplay[wght].ttf` (`c40f2293…`) | **özgün dosya (değiştirilmedi)** | 600 |
 
 Tam kaynak SHA-256 değerleri `scripts/fonts/yerel-font-uret.py` içindedir; çıktıların SHA-256'ları betik çıktısında yazılır.
