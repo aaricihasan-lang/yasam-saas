@@ -16,12 +16,12 @@ export const MEMBER_V2_PAGE_SIZE = 20;
 export const MEMBER_V2_QUERY_MAX = 120;
 
 export type MemberStage =
-  | "yonetici" | "demo" | "basvuru" | "red" | "arsiv" | "inceleme" | "deneme_durdu"
+  | "yonetici" | "demo" | "basvuru" | "red" | "pasif" | "arsiv" | "inceleme" | "deneme_durdu"
   | "deneme_baslamadi" | "deneme" | "deneme_bitti" | "pro" | "eski_kayit";
 
 export type MemberV2Filter =
   | "all" | "basvuru" | "trial" | "bitti" | "pro" | "prores"
-  | "yeni" | "notstarted" | "inceleme" | "pay" | "paynext" | "soon" | "eski" | "askida" | "arsiv";
+  | "yeni" | "notstarted" | "inceleme" | "pay" | "paynext" | "soon" | "eski" | "askida" | "pasif" | "arsiv";
 export type MemberV2Sort = "attn" | "new" | "login" | "name";
 export type MemberV2Payment = "all" | "check" | "paid" | "pending" | "overdue" | "exempt";
 export type MemberV2Role = "expert" | "admin";
@@ -44,7 +44,9 @@ export const MEMBER_V2_MORE_FILTERS: readonly (readonly [MemberV2Filter, string]
   ["paynext", "7 gün içinde ödeme"],
   ["soon", "2 gün içinde bitecek"],
   ["eski", "Eski kayıt"],
-  ["askida", "Askıya alınanlar"],
+  // AŞAMA 4a: "askida" = denemesi durdurulmuş hesap (trial_status suspended) — hesap askısı DEĞİL; etiket buna göre.
+  ["askida", "Denemesi durdurulanlar"],
+  ["pasif", "Pasif hesaplar"],
   ["arsiv", "Arşiv"],
 ];
 const FILTERS: readonly MemberV2Filter[] = [...MEMBER_V2_MAIN_FILTERS, ...MEMBER_V2_MORE_FILTERS].map(([k]) => k);
@@ -159,7 +161,8 @@ export function memberStageLabel(stage: MemberStage, opts: { exempt?: boolean; t
     case "demo": return { label: "Demo hesap", tone: "muted" };
     case "basvuru": return { label: "Başvuru · onay bekliyor", tone: "act" };
     case "red": return { label: "Reddedildi", tone: "muted" };
-    case "arsiv": return { label: "Arşiv · pasif", tone: "muted" };
+    case "pasif": return { label: "Pasif · giriş kapalı", tone: "slate" };
+    case "arsiv": return { label: "Arşivde", tone: "muted" };
     case "inceleme": return { label: "İncelemede", tone: "bad" };
     case "deneme_durdu": return { label: "Deneme durduruldu", tone: "slate" };
     case "deneme_baslamadi": return { label: "Deneme · başlamadı", tone: "slate" };

@@ -253,6 +253,7 @@ export const AUDIT_ACTION_LABELS: Record<string, string> = {
   user_approved: "Başvuru onaylandı",
   user_rejected: "Başvuru reddedildi",
   user_archived: "Pasife alındı ve arşivlendi",
+  user_unarchived: "Arşivden çıkarıldı (hesap pasif)",
   user_deleted: "Hesap silindi",
   password_changed_by_admin: "Parola yönetici tarafından değiştirildi",
   all_sessions_terminated: "Tüm oturumlar sonlandırıldı",
@@ -285,7 +286,7 @@ export type AuditCategory = "approval" | "account" | "modules" | "commercial" | 
 
 export const AUDIT_CATEGORY: Record<string, AuditCategory> = {
   user_approved: "approval", user_rejected: "approval",
-  user_created: "account", user_activated: "account", user_deactivated: "account", user_archived: "account", user_deleted: "account",
+  user_created: "account", user_activated: "account", user_deactivated: "account", user_archived: "account", user_unarchived: "account", user_deleted: "account",
   module_enabled: "modules", module_disabled: "modules",
   payment_status_changed: "commercial", pricing_phase_changed: "commercial",
   password_changed_by_admin: "security", all_sessions_terminated: "security", single_session_terminated: "security",

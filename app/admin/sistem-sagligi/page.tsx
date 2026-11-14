@@ -130,7 +130,7 @@ async function loadMemberMetrics(): Promise<Pick<Metrics, "users" | "activeExper
     passivePending: {
       state: "ok",
       value: fmt(c.pending + c.archived),
-      detail: `${fmt(c.pending)} onay bekleyen · ${fmt(c.archived)} pasif`,
+      detail: `${fmt(c.pending)} onay bekleyen · ${fmt(c.archived)} pasif + arşiv`,
     },
   };
 }

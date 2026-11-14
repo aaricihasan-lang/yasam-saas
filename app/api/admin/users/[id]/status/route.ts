@@ -302,6 +302,10 @@ export async function POST(req: NextRequest, ctx: RouteContext) {
     if (code === "UY002") {
       return bad("Onaylanmamış uzman aktifleştirilemez; önce modül seçerek onaylayın.", 409);
     }
+    if (code === "UY004") {
+      // AŞAMA 4a: arşivdeki hesap doğrudan aktifleştirilemez (DB kuralı; düğme gizlemeye güvenilmez).
+      return bad("Hesap arşivde. Önce ana yönetici arşivden çıkarmalıdır; ardından hesap aktifleştirilebilir.", 409);
+    }
     return bad("Durum değişikliği tamamlanamadı.", rpcErrorStatus(error) === 400 ? 400 : 500);
   }
   const result = (data ?? {}) as { revoked_session_count?: number };
