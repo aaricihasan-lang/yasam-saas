@@ -135,6 +135,8 @@ async function main(): Promise<void> {
     await su.query(readMig("20271001000300_admin_member_commercial.sql"));
     // ÜYE YÖNETİMİ 360° — liste route'u 15 argümanlı RPC'yi çağırır (migration FIRST); Usage360 önkoşulları ile.
     await applyMember360Chain(su);
+    // AŞAMA 4b — ödeme kaydı tek işlem (ödeme route'u bu RPC'yi kullanır).
+    await su.query(readMig("20280101000700_admin_payment_atomic_4b.sql"));
     // TRIAL7 (canlıda uygulanmış): deneme kolonları + yönetici onaylı deneme RPC'si (admin kolon seçimi trial_kind içerir).
     await su.query(readMig("20280101000000_trial7_self_trial.sql"));
     await su.query(readMig("20280101000100_trial7_claims_retention.sql"));
@@ -775,11 +777,17 @@ async function main(): Promise<void> {
     const uUnknown = await pay(L1p, asOwner, { ...okDraft, status: "unknown" });
     ok(uUnknown.status === 200 && (await row(L1p)).payment_status === null, "'Belirtilmemiş' bilinçli seçilirse NULL yazılır");
     // Geçmiş yazılamazsa: kullanıcı satırı geri alınır + HATA (ok+warning DEĞİL).
+    // AŞAMA 4b: yazım SECURITY DEFINER RPC'de (tek işlem) → service_role yetkisini geri almak geçmiş yazımını bozmaz;
+    // hata, geçmiş tablosuna geçici BEFORE INSERT tetikleyicisiyle üretilir (aynı amaç: geçmiş yazılamaz).
     const beforeFail = await row(L1p);
-    await su.query(`revoke insert on public.user_payment_history from service_role`);
+    const histBeforeFail = await histCount(L1p);
+    const auditBeforeFail = (await audits(L1p)).length;
+    await su.query(`create function public.zz_fail_hist() returns trigger language plpgsql as $f$ begin raise exception 'zz gecmis hatasi'; end $f$;
+                    create trigger zz_fail_hist before insert on public.user_payment_history for each row execute function public.zz_fail_hist();`);
     const failSave = await pay(L1p, asOwner, { ...okDraft, agreedFee: "2500" });
-    await su.query(`grant insert on public.user_payment_history to service_role`);
+    await su.query(`drop trigger zz_fail_hist on public.user_payment_history; drop function public.zz_fail_hist();`);
     const afterFail = await row(L1p);
+    ok((await histCount(L1p)) === histBeforeFail && (await audits(L1p)).length === auditBeforeFail, "geçmiş hatası → geçmiş ve audit de yazılmadı (tek işlem)");
     ok(failSave.status === 500 && failSave.json.ok === false && !("warning" in failSave.json), "geçmiş insert hatası → 500 (ok+warning değil)");
     ok(Number(afterFail.agreed_fee) === Number(beforeFail.agreed_fee) && afterFail.payment_status === beforeFail.payment_status, "geçmiş hatası → kullanıcı satırı ESKİ değerlerine geri alındı");
     ok(!/permission|denied|relation|42501/i.test(JSON.stringify(failSave.json)), "ödeme route: ham DB hatası sızmaz");

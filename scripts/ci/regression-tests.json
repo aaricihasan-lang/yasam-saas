@@ -1498,6 +1498,11 @@
    "file": "scripts/uye-arsiv-4a/rehearsal.harness.ts",
    "tsx": true,
    "timeoutSec": 240
+  },
+  {
+   "file": "scripts/uye-4b/uye-4b.harness.ts",
+   "tsx": true,
+   "timeoutSec": 300
   }
  ]
 }

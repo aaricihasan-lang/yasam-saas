@@ -171,6 +171,8 @@ export async function startTestDb(port: number, dirName: string): Promise<TestDb
   }
   // ÜYE YÖNETİMİ 360° — Usage360 rollup + audit v2 + 20271006000000 (liste RPC 15 arg, fiyat dönemleri).
   await applyMember360Chain(su);
+  // AŞAMA 4b — ödeme kaydı tek işlem (ödeme route'u bu RPC'yi kullanır; 4a / TRIAL7'ye bağımlı değil).
+  await su.query(readMig("20280101000700_admin_payment_atomic_4b.sql"));
   await su.query(`grant select, insert, update on public.users, public.tenants, public.user_sessions, public.user_payment_history,
                     public.yasam_hafizasi_flags, public.yasam_hafizasi_index, public.stone_exclusions,
                     public.clients to service_role;
