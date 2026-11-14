@@ -77,7 +77,9 @@ const tab = async (page, id, label) => {
   await page.locator(`#uye-panel-${id}`).waitFor({ state: "visible" });
   await page.waitForTimeout(200);
 };
-const danger = (page) => page.locator('[role="group"][aria-labelledby="actions-danger"]');
+// V3: arşiv işlemleri üstteki Hızlı Hesap İşlemleri alanının "Tehlikeli İşlemler" grubunda (her sekmede görünür).
+const danger = (page) => page.locator('section[data-quick-actions] [role="group"][aria-labelledby="actions-danger"]');
+const access = (page) => page.locator('section[data-quick-actions] [role="group"][aria-labelledby="actions-access"]');
 const O = cfg.owner, A2 = cfg.admin2, I = cfg.ids;
 const st = async (id) => q1(`select active, archived_at from public.users where id=$1`, [id]);
 
@@ -86,16 +88,23 @@ console.log("[1] Arşivdeki hesap — detay (ana yönetici)");
   const ctx = await ctxFor(O);
   const page = await openDetail(ctx, I.archivedOne);
   ok((await page.locator("header, [class*=head]").first().innerText()).includes("Arşivde"), "başlık rozeti “Arşivde”");
-  ok(await page.locator("[data-archived-at]").first().isVisible(), "Özet › Hesap Durumu: arşivlenme tarihi");
+  ok(await page.locator("#uye-panel-hesap [data-archived-at]").isVisible(), "açılış (Hesap ve Güvenlik) › Hesap durumu: arşivlenme tarihi");
   ok(await page.locator("[data-archived-banner]").isVisible(), "arşiv bandı: kayıtlar görünür, değişiklik için önce arşivden çıkarma");
+  await shot(page, "01-arsivde-acilis");
+  await tab(page, "ozet", "Özet");
+  ok(await page.locator("#uye-panel-ozet [data-archived-at]").isVisible(), "Özet › Hesap Durumu: arşivlenme tarihi");
   await shot(page, "01-arsivde-ozet");
-  await tab(page, "gelismis", "Gelişmiş");
+  ok((await page.locator("section[data-quick-actions]").getAttribute("data-quick-actions")) === "archived", "hızlı işlemler: arşiv durumu");
+  ok((await access(page).count()) === 0 && (await page.getByRole("button", { name: "Tüm Cihazlardan Çıkış" }).count()) === 0, "arşivde yalnız “Arşivden Çıkar” sunulur (erişim grubu yok)");
+  const purge = page.locator("section[data-quick-actions] [data-purge-link] a");
+  ok((await purge.getAttribute("href")) === "/admin/users/klasik?view=archive" && (await page.getByRole("button", { name: /kalıcı/i }).count()) === 0, "kalıcı silme: yalnız Arşiv ekranı bağlantısı (doğrudan silme kısayolu YOK)");
+  await tab(page, "hesap", "Hesap ve Güvenlik");
   ok((await page.getByRole("button", { name: "Aktif Yap" }).count()) === 0, "“Aktif Yap” YOK (arşivdeki hesap doğrudan açılmaz)");
   ok((await danger(page).getByRole("button", { name: "Pasife Al ve Arşivle" }).count()) === 0, "arşivdeki hesapta “Pasife Al ve Arşivle” yok");
   const unBtn = danger(page).getByRole("button", { name: "Arşivden Çıkar" });
   ok(await unBtn.isVisible() && await unBtn.isEnabled(), "“Arşivden Çıkar” görünür ve etkin (ana yönetici)");
   ok(await page.locator("[data-archived-note]").isVisible(), "açıklama: önce arşivden çıkarılır, hesap pasif kalır");
-  await shot(page, "02-arsivde-gelismis");
+  await shot(page, "02-arsivde-hesap-guvenlik");
   await unBtn.click();
   ok(await page.locator("#unarchive-title").isVisible(), "pencere açıldı");
   ok(await page.locator("[data-unarchive-submit]").isDisabled(), "parola boşken düğme kapalı");
@@ -188,11 +197,11 @@ console.log("\n[3] Pasif hesap — detay");
 {
   const ctx = await ctxFor(O);
   const page = await openDetail(ctx, I.passive, "#gelismis");
-  ok(await page.getByRole("button", { name: "Aktif Yap" }).isVisible(), "pasif hesapta “Aktif Yap” var");
+  ok(await access(page).getByRole("button", { name: "Aktif Yap" }).isVisible() && await access(page).getByRole("button", { name: "Tüm Cihazlardan Çıkış" }).isVisible() && (await page.getByRole("button", { name: "Pasif Yap" }).count()) === 0, "pasif hesapta hızlı işlemler: “Aktif Yap” + “Tüm Cihazlardan Çıkış” (Pasif Yap yok)");
   ok((await danger(page).getByRole("button", { name: "Arşivden Çıkar" }).count()) === 0 && await danger(page).getByRole("button", { name: "Pasife Al ve Arşivle" }).isVisible(),
     "pasif hesap arşivde sayılmaz: “Arşivden Çıkar” yok, “Pasife Al ve Arşivle” var");
   ok((await page.locator("header, [class*=head]").first().innerText()).includes("Pasif"), "başlık rozeti “Pasif”");
-  await shot(page, "05-pasif-gelismis");
+  await shot(page, "05-pasif-hesap-guvenlik");
   await page.close();
   await ctx.close();
 }
