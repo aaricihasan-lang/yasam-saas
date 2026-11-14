@@ -11,7 +11,7 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { assertServerOnly } from "@/lib/server/serverOnlyGuard";
-import { ASSET_BUCKET, ASSET_KINDS, ASSET_MAX_BYTES, PROCESSING_LEASE_MS, STAGING_BUCKET, UPLOAD_CHUNK_BYTES, type AssetKind } from "./catalog";
+import { ASSET_BUCKET, ASSET_KINDS, ASSET_MAX_BYTES, PROCESSING_LEASE_MS, REPORT_LOGO_REF, STAGING_BUCKET, UPLOAD_CHUNK_BYTES, type AssetKind } from "./catalog";
 import { checkDeclared, processImage, type ImageErrorCode } from "./imageProcess";
 import type { WorkspaceDesign } from "./schema";
 import { DESIGNS_TABLE, type Owner } from "./service";
@@ -324,29 +324,58 @@ export async function cleanupStaging(db: SupabaseClient, opts: { owner?: Owner; 
 
 // ── Okuma ────────────────────────────────────────────────────────────────────
 
-export async function readAssetVariant(db: SupabaseClient, o: Owner, assetId: string, variant: "desktop" | "mobile"): Promise<{ ok: true; bytes: Buffer; sha256: string } | Fail> {
+/**
+ * `opts.kind` verilirse görsel o türde olmalıdır; değilse "bulunamadı" ile AYNI yanıt döner (rapor logosu çözücüsü fotoğrafı
+ * logo olarak okuyamaz). Verilmezse davranış önceki gibidir.
+ */
+export async function readAssetVariant(db: SupabaseClient, o: Owner, assetId: string, variant: "desktop" | "mobile", opts: { kind?: AssetKind } = {}): Promise<{ ok: true; bytes: Buffer; sha256: string } | Fail> {
   const a = await ownAsset(db, o, assetId);
   if (!a.ok) return a;
-  if (!a.row) return f(404, "not_found", "Görsel bulunamadı.");
+  if (!a.row || (opts.kind && a.row.kind !== opts.kind)) return f(404, "not_found", "Görsel bulunamadı.");
   const { data, error } = await db.storage.from(ASSET_BUCKET).download(variant === "desktop" ? a.row.desktop_path : a.row.mobile_path);
   if (error || !data) return f(502, "storage", "Görsel okunamadı.", error);
   return { ok: true, bytes: Buffer.from(await data.arrayBuffer()), sha256: a.row.sha256 };
 }
 
+/** Uzmanın KENDİ, silinmemiş görseli (yalnız kimlik + tür). Başkasının / silinmiş / olmayan görsel → asset: null (ayrım yok). */
+export async function findOwnAsset(db: SupabaseClient, o: Owner, assetId: string): Promise<{ ok: true; asset: { id: string; kind: AssetKind } | null } | Fail> {
+  const a = await ownAsset(db, o, assetId);
+  if (!a.ok) return a;
+  return { ok: true, asset: a.row ? { id: a.row.id, kind: a.row.kind } : null };
+}
+
 // ── Referans kontrolü + silme ───────────────────────────────────────────────
 
-/** Görselin uzmanın tasarım satırında (uygulanan / taslak / geçmiş) geçtiği yerler. Ham JSON taranır → şemaya uymayan eski kayıt da korunur. */
+/** Uzman profilinin (F1 expert_profiles) rapor logosu tablosu. Tablo henüz yoksa (migration uygulanmamış) referans yok sayılır. */
+const PROFILES_TABLE = "expert_profiles";
+export { REPORT_LOGO_REF };
+const isMissingTable = (e: unknown) => ["PGRST205", "42P01"].includes(String((e as { code?: unknown } | null)?.code ?? ""));
+
+/**
+ * Görselin kullanıldığı yerler: uzmanın tasarım satırı (uygulanan / taslak / geçmiş; ham JSON taranır → şemaya uymayan eski
+ * kayıt da korunur) + rapor logosu (expert_profiles.logo_source = 'custom' ve logo_asset_id = görsel).
+ * "Çalışma alanı logomu kullan" (logo_source = 'workspace') ayrıca sayılmaz: o logo zaten uygulanan tasarımda geçtiği için
+ * korunur; tasarımdan kaldırılırsa rapor logosuz üretilir (dosya silinmez).
+ */
 export async function assetReferences(db: SupabaseClient, o: Owner, assetId: string): Promise<{ ok: true; where: string[] } | Fail> {
   const { data, error } = await db.from(DESIGNS_TABLE).select("applied, draft, history").eq("tenant_id", o.tenantId).eq("user_id", o.userId).maybeSingle();
   if (error) return f(500, "db", "Tasarım okunamadı.", error);
-  if (!data) return { ok: true, where: [] };
-  const row = data as { applied: unknown; draft: unknown; history: unknown };
-  const has = (v: unknown) => v !== null && v !== undefined && JSON.stringify(v).includes(assetId);
   const where: string[] = [];
-  if (has(row.applied)) where.push("uygulanan tasarım");
-  if (has(row.draft)) where.push("taslak");
-  if (Array.isArray(row.history)) row.history.forEach((h, i) => { if (has(h)) where.push(`geçmiş tasarım ${i + 1}`); });
-  else if (has(row.history)) where.push("geçmiş");
+  if (data) {
+    const row = data as { applied: unknown; draft: unknown; history: unknown };
+    const has = (v: unknown) => v !== null && v !== undefined && JSON.stringify(v).includes(assetId);
+    if (has(row.applied)) where.push("uygulanan tasarım");
+    if (has(row.draft)) where.push("taslak");
+    if (Array.isArray(row.history)) row.history.forEach((h, i) => { if (has(h)) where.push(`geçmiş tasarım ${i + 1}`); });
+    else if (has(row.history)) where.push("geçmiş");
+  }
+  const p = await db.from(PROFILES_TABLE).select("logo_source, logo_asset_id").eq("tenant_id", o.tenantId).eq("user_id", o.userId).maybeSingle();
+  if (p.error && !isMissingTable(p.error)) return f(500, "db", "Profil okunamadı.", p.error);
+  // Beklenmeyen biçimdeki yanıt "referans yok" sayılmaz (aksi hâlde rapor logosu silinebilirdi) → hata; görsel silinmez.
+  const pd: unknown = p.error ? null : p.data;
+  if (pd != null && (typeof pd !== "object" || Array.isArray(pd) || typeof (pd as { logo_source?: unknown }).logo_source !== "string")) return f(500, "db", "Profil okunamadı.", { message: "expert_profiles: beklenmeyen yanıt biçimi" });
+  const prof = (p.data as { logo_source: string; logo_asset_id: string | null } | null) ?? null;
+  if (prof && prof.logo_source === "custom" && prof.logo_asset_id === assetId) where.push(REPORT_LOGO_REF);
   return { ok: true, where };
 }
 
@@ -356,7 +385,12 @@ export async function deleteAsset(db: SupabaseClient, o: Owner, assetId: string)
   if (!a.row) return f(404, "not_found", "Görsel bulunamadı.");
   const refs = await assetReferences(db, o, assetId);
   if (!refs.ok) return refs;
-  if (refs.where.length) return { ...f(409, "asset_in_use", `Bu görsel kullanılıyor (${refs.where.join(", ")}); önce tasarımdan kaldırın.`), where: refs.where } as Fail & { where: string[] };
+  if (refs.where.length) {
+    // Rapor logosu girdisi yoksa metin F2 öncesiyle BİREBİR aynı ("önce tasarımdan kaldırın."); istemci: studio/i18n inUseMessage.
+    const report = refs.where.includes(REPORT_LOGO_REF);
+    const hint = !report ? "önce tasarımdan kaldırın." : refs.where.length === 1 ? "önce rapor logosundan kaldırın." : "önce tasarımdan ve rapor logosundan kaldırın.";
+    return { ...f(409, "asset_in_use", `Bu görsel kullanılıyor (${refs.where.join(", ")}); ${hint}`), where: refs.where } as Fail & { where: string[] };
+  }
   const rm = await db.storage.from(ASSET_BUCKET).remove([a.row.desktop_path, a.row.mobile_path]);
   if (rm.error) return f(502, "storage", "Görsel dosyası silinemedi; kayıt korundu. Yeniden deneyin.", rm.error);
   const upd = await db.from(ASSETS_TABLE).update({ deleted_at: new Date().toISOString(), deleted_by: o.userId }).eq("id", assetId).eq("tenant_id", o.tenantId).eq("user_id", o.userId).is("deleted_at", null).select("id");
