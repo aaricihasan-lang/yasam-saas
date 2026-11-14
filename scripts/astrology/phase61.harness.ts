@@ -111,7 +111,8 @@ const horaryPW = (n: string) => HO.response.significators.planetWise.find((x: J)
 const AT = "2026-10-07T09:00";
 const project = (id: string, opts: Record<string, unknown>, raw: J) => {
   const def = getTechnique(id)!;
-  const o = def.parseOptions(opts, new Date("2026-10-08T12:00:00Z"))!;
+  // ATL-B03: kp.horary'de değerlendirme yeri ofsetini motor ekler (doğum yeri İstanbul 2026-10-07 → +3).
+  const o = { ...def.parseOptions(opts, new Date("2026-10-08T12:00:00Z"))!, ...(id === "kp.horary" ? { offsetHours: 3 } : {}) };
   const u = def.units({ birth: SYNTH_A, birthUtc: SYNTH_A.utc, partner: null }, o)[0];
   const p = def.project(u, raw, o) as J;
   assert.ok(p.ok, `${id}: ${JSON.stringify(p.errors)}`);

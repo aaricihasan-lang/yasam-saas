@@ -5,7 +5,7 @@
 import { resolveAstroBirthTime, type DstChoice } from "./birth/timeResolution";
 import { TZ_BACKZONE_OVERLAY } from "./birth/tzBackzoneOverlay.generated";
 
-export type LegacyMethodCode = "composite_angles" | "composite_whole_sign" | "whole_sign_sect" | "historical_timezone" | "upagraha_kala_vela" | "upagraha_mandi" | "dashakoot_rasi";
+export type LegacyMethodCode = "composite_angles" | "composite_whole_sign" | "whole_sign_sect" | "historical_timezone" | "upagraha_kala_vela" | "upagraha_mandi" | "dashakoot_rasi" | "kp_horary_day_lord";
 export type LegacyMethodNote = { code: LegacyMethodCode; text: string };
 
 type RevisionLike = { birthDate?: unknown; birthTime?: unknown; timeKnown?: unknown; timezone?: unknown; dstChoice?: unknown; utcOffsetSeconds?: unknown } | null | undefined;
@@ -61,6 +61,9 @@ export function legacyMethodNotes(input: { technique: string; adapterVersion: un
   // ATL-B02 (07.11.2026): -1 sürümlü On Porutham kayıtlarında Rasi servisin kuralıyla (6., 8., 12. sayım karşılanmaz).
   if (input.technique === "vedic.dashakoot" && av === "astro-roxy-vedic-dashakoot-1")
     out.push({ code: "dashakoot_rasi", text: "Rasi kriteri bu kayıttan sonra Kalaprakasika (Bölüm XIII, s. 73–74) kuralıyla hesaplanıyor: gelinden damada 2.–6. sayım karşılanmaz (2. sayımda damadın burcu çift burçsa ve 6. sayımda kaynağın listelediği altı burç çiftinde karşılanır), 7. ve 8.–12. sayım karşılanır, aynı burç belirsizdir. Bu kayıttaki Rasi sonucu, toplam ve servis değerlendirmesi hesap servisinin kuralıyladır (6., 8. ve 12. sayım karşılanmaz, diğerleri karşılanır). Değerler kayıt anındaki gibidir, değiştirilmedi; yeni yöntem için yeniden hesaplayıp yeni kayıt oluşturun." });
+  // ATL-B03 (14.11.2026): -1 sürümlü KP horary kayıtlarında soru anı sağlayıcıya UTC (saat dilimi 0) olarak gönderilmişti.
+  if (input.technique === "kp.horary" && av === "astro-roxy-kp-horary-1")
+    out.push({ code: "kp_horary_day_lord", text: "Ruling planets'ın gün lordu bu kayıttan sonra değerlendirme yerinin yerel gününe (gün doğumu kuralı) göre hesaplanıyor; bu kayıtta soru anı hesaplama hizmetine UTC olarak gönderilmişti. Yerel tarih UTC tarihinden farklıysa ya da an yerel gün doğumuna yakınsa bu kayıttaki gün lordu ve ruling planets kümesi farklı olabilir. Gezegen konumları, ev başlangıçları, Lagna ve significator'lar aynı andır, değişmez. Değerler kayıt anındaki gibidir, değiştirilmedi; güncel kural için yeniden hesaplayıp yeni kayıt oluşturun." });
   for (const { who, revision } of input.revisions) {
     const tz = staleTimezoneOffset(revision);
     if (tz)

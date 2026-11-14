@@ -196,11 +196,28 @@ jobs:
       - name: Profesyonel astroloji motorları (pro-*) harness'ları
         run: npm run test:astrology:pro
 
+  # Gökyüzü Atlası — 44 tekniğin regresyon zinciri (`npm run test:astrology` + transit02/03). KOD-01 (30.10.2026 büyük denetim):
+  # bu zincir CI'da HİÇ koşmuyordu ve 4 harness sessizce eskimişti. astrology-run-all.mjs zinciri package.json'dan okur, ilk FAIL'de
+  # durmaz (her komut ayrı raporlanır), sırları siler, ağ korumasını yükler; Roxy'ye / production'a ÇAĞRI YOK (kayıtlı fixture +
+  # sahte arka uç; PostgreSQL adımları geçici embedded-postgres).
+  astro-regresyon:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ./.github/actions/kurulum
+
+      - name: Gökyüzü Atlası regresyon zinciri (test:astrology, ağsız)
+        run: npm run test:astrology:ci
+
   # CI KAPISI — tek karar noktası. Her koşulda çalışır; zorunlu işlerden biri failure / cancelled / skipped ise ya da
   # regresyon parçaları listeyi tam bir kez ve PASS olarak kapsamıyorsa FAIL verir (scripts/ci/ci-gate.mjs).
   ci-kapisi:
     if: always()
-    needs: [typescript, build, guvenlik, regresyon, astro-pro, horary-western]
+    needs: [typescript, build, guvenlik, regresyon, astro-pro, horary-western, astro-regresyon]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:

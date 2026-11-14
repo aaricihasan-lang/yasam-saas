@@ -180,9 +180,21 @@ export function kpRulingBody(b: BirthPoint, atUtcMinute: string, nodeType: KpNod
   return { latitude: lat, longitude: lon, timezone: bb.timezone, datetime: `${t.date}T${t.time}`, birthDate: bb.date, birthTime: bb.time, nodeType };
 }
 
-/** /vedic-astrology/kp/horary — doğum verisi YOK; soru anı UTC (timezone 0) + değerlendirme konumu. */
-export function kpHoraryBody(horaryNumber: number, atUtcMinute: string, place: GeoPoint, ayanamsa: KpAyanamsa, nodeType: KpNodeType) {
-  return { horaryNumber, date: atUtcMinute.slice(0, 10), time: `${atUtcMinute.slice(11, 16)}:00`, latitude: r6(place.latitude), longitude: r6(place.longitude), timezone: 0, ayanamsa, nodeType };
+/**
+ * /vedic-astrology/kp/horary — doğum verisi YOK; soru anı DEĞERLENDİRME YERİNİN YEREL saatiyle + o andaki ofset + konum.
+ *
+ * ATL-B03 (30.10.2026 büyük denetim, 14.11.2026 düzeltme): eski gövde anı UTC (timezone 0) gönderiyordu. Sağlayıcı ruling planets'ın
+ * GÜN LORDUNU (vara) gövdedeki takvim gününün gün doğumuna göre kurar → yerel gün UTC gününden farklıysa ya da an UTC gününe göre
+ * "gün doğumundan önce" görünüyorsa gün lordu (ve ruling kümesi) yanlıştı: 245 sorunun 20'si (%8,2), küme 17'sinde değişti; aynı an
+ * yerel ofsetle gönderilince doğru (2 gerçek çağrı). UTC an DEĞİŞMEZ (yanıttaki questionTime aynı UTC an olarak denetlenir);
+ * gezegen / cusp / Lagna hesabı aynı an olduğu için aynıdır. Ofset dakikaya yuvarlanır ve yerel saat AYNI dakika ofsetiyle kurulur
+ * (saniyeli tarihsel LMT'de UTC an birebir korunur — natal gövdeleriyle aynı kural). Ofset sunucuda IANA bölgeden çözülür (service.ts).
+ */
+export function kpHoraryBody(horaryNumber: number, atUtcMinute: string, place: GeoPoint, offsetHours: number, ayanamsa: KpAyanamsa, nodeType: KpNodeType) {
+  if (!Number.isFinite(offsetHours) || Math.abs(offsetHours) > 14) throw new Error("kpHoraryBody: geçersiz yerel ofset");
+  const offMin = Math.round(offsetHours * 60);
+  const local = new Date(Date.parse(`${atUtcMinute}:00Z`) + offMin * 60_000).toISOString();
+  return { horaryNumber, date: local.slice(0, 10), time: local.slice(11, 19), latitude: r6(place.latitude), longitude: r6(place.longitude), timezone: r6(offMin / 60), ayanamsa, nodeType };
 }
 
 /** /vedic-astrology/kp/planets-interval — tek an KP efemerisi (UTC; 15 dk aralıkla 2 nokta: an ve +15 dk). */
