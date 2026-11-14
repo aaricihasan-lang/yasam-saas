@@ -334,7 +334,8 @@ function startFakeRoxy() {
         raw = structuredClone(GOLDEN_KP[path]);
         // SENTETİK yankılar (yalnız UI testi; içerik golden anıdır): istenen an / sayı.
         if (path === "/vedic-astrology/kp/ruling-planets") raw.datetime = new Date(Date.parse(`${String(body.datetime)}Z`) - Number(body.timezone) * 3600_000).toISOString();
-        if (path === "/vedic-astrology/kp/horary") raw.questionTime = `${String(body.date)}T${String(body.time)}.000Z`;
+        // ATL-B03: gövde yerel saat + ofset → yanıt questionTime UTC an (sağlayıcı sözleşmesi).
+        if (path === "/vedic-astrology/kp/horary") raw.questionTime = new Date(Date.parse(`${String(body.date)}T${String(body.time)}Z`) - Number(body.timezone) * 3600_000).toISOString();
         if (path === "/vedic-astrology/kp/planets-interval") (raw.intervals as { datetime: string }[])[0].datetime = String(body.startDatetime);
       } else if (kpReq && path.startsWith("/vedic-astrology/dasha/sub/") && GOLDEN_KP["/vedic-astrology/dasha/major"]) {
         const m = /^\/vedic-astrology\/dasha\/sub\/([A-Za-z]+)(?:\/([A-Za-z]+))?(?:\/([A-Za-z]+))?(?:\/([A-Za-z]+))?$/.exec(path);

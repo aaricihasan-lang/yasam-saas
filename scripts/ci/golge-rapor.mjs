@@ -14,7 +14,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { SEMA } from "./golge-analiz.mjs";
 
-const ISLER = ["typescript", "build", "guvenlik", "regresyon", "astro-pro", "horary-western"];
+const ISLER = ["typescript", "build", "guvenlik", "regresyon", "astro-pro", "horary-western", "astro-regresyon"];
 
 /** Gölge JSON doğrulaması → hata listesi (boşsa geçerli). */
 export function golgeDogrula(g, beklenenSha) {

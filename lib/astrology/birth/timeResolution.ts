@@ -95,6 +95,17 @@ function wallClockMs(utcMs: number, timeZone: string): number {
   return d.getTime();
 }
 
+/**
+ * Bir UTC anında tz'deki YEREL duvar saati ("YYYY-MM-DD", "HH:MM:SS") — resolveAstroBirthTime ile AYNI ofset kaynağı (tablodaki
+ * bölgede cutoff öncesi backzone, aksi hâlde Intl). Geçersiz bölge → null. (14.11.2026, ATL-B03: UTC → yerel çevirisi Intl'den
+ * alınınca backzone bölgelerinde geri doğrulama tutmuyordu; ör. Europe/Oslo 1965.)
+ */
+export function wallClockAt(utcMs: number, timeZone: string): { date: string; time: string } | null {
+  if (!isValidIanaTimeZone(timeZone) || !Number.isFinite(utcMs)) return null;
+  const iso = new Date(wallClockMs(utcMs, timeZone)).toISOString();
+  return { date: iso.slice(0, 10), time: iso.slice(11, 19) };
+}
+
 export function resolveAstroBirthTime(date: string, time: string, timeZone: string, choice: DstChoice = "auto"): AstroTimeResolution {
   if (!isValidIsoDate(date)) return { kind: "invalid", reason: "date" };
   const hms = normalizeTime(time);

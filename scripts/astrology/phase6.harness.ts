@@ -599,7 +599,8 @@ async function main() {
   const PLACE = { latitude: SYNTH_A.latitude, longitude: SYNTH_A.longitude };
   const unitOf = (id: string, opts: Record<string, unknown>) => {
     const def = getTechnique(id)!;
-    const o = def.parseOptions(opts, new Date())!;
+    // ATL-B03: kp.horary'de değerlendirme yerinin ofsetini motor (service.ts) ekler; burada doğum yeri İstanbul, 2026-10-07 → +3.
+    const o = { ...def.parseOptions(opts, new Date())!, ...(id === "kp.horary" ? { offsetHours: 3 } : {}) };
     return { def, o, u: def.units({ birth: SYNTH_A, birthUtc: SYNTH_A.utc, partner: null }, o)[0] };
   };
   const rpT = () => {
@@ -637,7 +638,12 @@ async function main() {
   await t("6F golden: 3 fixture = ürün birimi gövdeleri (ruling: doğum yeri + doğum ofsetinde yerel an + doğum verisi; efemeris: UTC tek an; horary: sayı 108, UTC, doğum yeri); projeksiyonlar temiz", () => {
     for (const [id, g, opts] of [["kp.ruling", RP, { atUtc: AT }], ["kp.transit", PA, { atUtc: AT }], ["kp.horary", HO, { atUtc: AT, horaryNumber: 108 }]] as const) {
       const { u } = unitOf(id, opts);
-      assert.deepEqual(JSON.parse(JSON.stringify(u.body)), g.body, id);
+      // ATL-B03 (14.11.2026): horary golden'ı (07.10.2026) eski UTC gövdesiyle (09:00, timezone 0) alındı. Ürün gövdesi artık AYNI UTC
+      // anı İstanbul yerel saatiyle (12:00, +3) gönderir; sözleşmeye göre questionTime / gezegenler / cusp'lar aynı andır ve bu anın gün
+      // lordu iki gövdede de aynıdır (Çarşamba, yerel öğle — gün doğumundan sonra) → golden yanıt yeni gövdenin yanıtı olarak geçerlidir.
+      const want = id === "kp.horary" ? { ...g.body, time: "12:00:00", timezone: 3 } : g.body;
+      if (id === "kp.horary") assert.equal(Date.parse(`${u.body.date}T${u.body.time}Z`) - Number(u.body.timezone) * 3600_000, Date.parse(`${g.body.date}T${g.body.time}Z`), "aynı UTC an");
+      assert.deepEqual(JSON.parse(JSON.stringify(u.body)), want, id);
       assert.equal(u.endpoint, g.endpoint);
     }
     assert.equal(RP.body.datetime, "2026-10-07T12:00:00");
@@ -811,7 +817,7 @@ async function main() {
         // SENTETİK yankı (yalnız anahtar ayrımı testi): başka sayı/an/konum.
         if (endpoint === HO.endpoint) {
           r.horaryNumber = body.horaryNumber;
-          r.questionTime = `${String(body.date)}T${String(body.time)}.000Z`;
+          r.questionTime = new Date(Date.parse(`${String(body.date)}T${String(body.time)}Z`) - Number(body.timezone) * 3600_000).toISOString();
         }
         return { ok: true, raw: r, attempts: 1 };
       },
@@ -829,6 +835,9 @@ async function main() {
     const ank = await run(ctx, pu, [{ technique: "kp.horary", options: { atUtc: AT, horaryNumber: 108, placeLocationId: "tr-06-ankara" } }], deps);
     assert.equal(calls.length, 4);
     assert.ok(Math.abs(Number(calls[3].body.latitude) - 39.9334) < 0.1, JSON.stringify(calls[3].body));
+    // ATL-B03: soru anı değerlendirme yerinin yerel saati + o anki ofsetiyle (Ankara 2026-10-07 → +3); UTC an aynı.
+    assert.deepEqual([calls[3].body.date, calls[3].body.time, calls[3].body.timezone], ["2026-10-07", "12:00:00", 3]);
+    assert.deepEqual([calls[0].body.date, calls[0].body.time, calls[0].body.timezone], ["2026-10-07", "12:00:00", 3], "doğum yeri İstanbul");
     void ank;
     const bad = ((await run(ctx, pu, [{ technique: "kp.horary", options: { atUtc: AT, horaryNumber: 108, placeLocationId: "yok-boyle-yer" } }], deps)).body as J).results[0];
     assert.equal(bad.code, "LOCATION_NOT_FOUND");

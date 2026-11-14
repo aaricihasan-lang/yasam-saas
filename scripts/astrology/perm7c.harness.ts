@@ -164,10 +164,17 @@ async function main() {
       for (const v of ["true", 1, { on: true }, null]) assert.equal(R({ isOwner: false, role: "expert", flags: { astrology: v } }).module, false, `bayrak ${JSON.stringify(v)}`);
     });
 
-    await t("yetkisiz matris (uzman yüzeyi): izinsiz uzman / owner olmayan admin / yalnız-yorum / demo / onay bekleyen / Premium değil / oturumsuz → 24 route'un (Aşama 8 tekli + UAT 2. tur toplu rapor ucu dahil) hepsi tek tip 404, astroloji verisine sorgu yok", async () => {
+    await t("yetkisiz matris (uzman yüzeyi): izinsiz uzman / owner olmayan admin / yalnız-yorum / demo / onay bekleyen / Premium değil / oturumsuz → uzman yüzeyindeki TÜM route'lar (admin aynasıyla aynı küme; Horary + Gökyüzü Araçları dahil) tek tip 404, astroloji verisine sorgu yok", async () => {
       // D8: demo örnek görünümü ucu (app/api/astroloji/demo/**) admin aynası DEĞİL → bu matristen ayrı test edilir (aşağıda).
       const routes = walk(join(ROOT, "app/api/astroloji")).filter((f) => !/[\\/]astroloji[\\/]demo[\\/]/.test(f));
-      assert.equal(routes.length, 24); // Aşama 8: analyses/[id]/report; UAT 2. tur (L): analyses/report (seçili/tüm)
+      // KOD-02 (14.11.2026, İP-0): sabit "24" Horary (5 uç, #591–#611) ve Gökyüzü Araçları (3 uç, #687) eklenince eskimişti ve
+      // `&&` zincirinde sonraki harness'ları durduruyordu. Beklenen küme artık admin aynasından türetilir (ayna eşitliği static
+      // harness'ta ayrıca denetlenir) → yeni uç eklendiğinde matris onu da KENDİLİĞİNDEN kapsar; alt sınır eski 24 uç.
+      const adminRoutes = walk(join(ROOT, "app/api/admin/astroloji")).filter((f) => /route\.ts$/.test(f));
+      assert.equal(routes.length, adminRoutes.length, "uzman yüzeyi = admin aynası");
+      assert.ok(routes.length >= 24, `uç sayısı ${routes.length}`);
+      for (const must of ["horary/western/route.ts", "horary/western/records/[id]/report/route.ts", "efemeris/route.ts", "engine/run/route.ts", "analyses/report/route.ts"])
+        assert.ok(routes.some((f) => f.replace(/\\/g, "/").endsWith(`app/api/astroloji/${must}`)), `matris dışı: ${must}`);
       const before = astroQueries();
       for (const who of ["exNone", "admin2", "exInterpOnly", "demo", "pending", "nonPremium", "anon"] as const) {
         for (const f of routes) {

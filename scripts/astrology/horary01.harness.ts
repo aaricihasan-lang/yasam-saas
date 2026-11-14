@@ -31,6 +31,7 @@ import { buildAstroReportPdf } from "@/lib/astrology/report/pdf";
 import { symbolFontBuffers, symbolFontsBase64 } from "@/lib/astrology/report/symbolFontData";
 import { describeOptions, runOptionsFor } from "@/app/admin/astroloji/_lib/techniques";
 import { horaryDisplayZone, momentLabel, questionMomentLabel } from "@/lib/astrology/transitDetail";
+import { kpIntervalOffset } from "@/lib/astrology/engine/kpRulingIntervalOptions";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type J = any;
@@ -56,9 +57,24 @@ const D2R = Math.PI / 180;
 const n360 = (x: number) => ((x % 360) + 360) % 360;
 const def = getTechnique("kp.horary")!;
 const ctx = { birth: SYNTH_A, birthUtc: SYNTH_A.utc, partner: null } as J;
+// ATL-B03 (14.11.2026): değerlendirme yerinin (burada doğum yeri İstanbul) soru anındaki ofsetini motor ekler (service.ts →
+// offsetHours); doğrudan birim testlerinde aynı çözüm burada uygulanır. Gövde yerel saat + ofset; UTC an aynı.
+const placeOffset = (o: Record<string, unknown>) => ({ ...o, offsetHours: (kpIntervalOffset("Europe/Istanbul", String(o.atUtc), 0) as { hours: number }).hours });
+const unitsOf = (o: Record<string, unknown>) => def.units(ctx, placeOffset(o));
+/** İstanbul yerel gövde alanları (UTC dakika → [tarih, saat, ofset]). */
+const istLocal = (utcMin: string): [string, string, number] => {
+  const h = (kpIntervalOffset("Europe/Istanbul", utcMin, 0) as { hours: number }).hours;
+  const l = new Date(Date.parse(`${utcMin}:00Z`) + h * 3_600_000).toISOString();
+  return [l.slice(0, 10), l.slice(11, 19), h];
+};
+/** Golden (eski UTC gövdesiyle alındı) → aynı UTC anın İstanbul yerel gövdesi (ATL-B03). */
+const goldenBodyLocal = () => {
+  const [date, time, timezone] = istLocal(`${HO.body.date}T${String(HO.body.time).slice(0, 5)}`);
+  return { ...HO.body, date, time, timezone };
+};
 const horaryOf = (opts: Record<string, unknown>) => {
   const o = def.parseOptions(opts, new Date("2026-10-18T10:17:00Z"))!;
-  const u = def.units(ctx, o)[0];
+  const u = unitsOf(o)[0];
   return { o, u, r: def.project(u, HO.response, o) as J };
 };
 const HT = (): KpHoraryTechnical => horaryOf({ atUtc: AT, horaryNumber: 108 }).r.technical;
@@ -73,7 +89,7 @@ async function main() {
     assert.equal(local.o.displayTz, "Europe/Istanbul");
     assert.deepEqual(local.u.body, old.u.body);
     assert.equal(local.u.inputHash, old.u.inputHash);
-    assert.deepEqual(local.u.body, HO.body, "ürün gövdesi = golden gövdesi");
+    assert.deepEqual(local.u.body, goldenBodyLocal(), "ürün gövdesi = golden'ın aynı UTC anı, İstanbul yerel saatiyle (ATL-B03)");
     // Kayıtlı seçenek yeniden ayrıştırılınca (atUtc + displayTz) aynı kalır.
     assert.deepEqual(def.parseOptions({ ...local.o }, new Date()), local.o);
     assert.equal(def.parseOptions({ atUtc: AT, horaryNumber: 108, displayTz: "Mars/Olympus" }, new Date()), null, "geçersiz IANA");
@@ -84,7 +100,7 @@ async function main() {
     assert.equal(now.displayTz, undefined);
   });
 
-  await t("H2 saat dilimi: yaz saati, tarih değişimi, belirsiz saat — yerel an → UTC doğru; gövde UTC (timezone 0)", () => {
+  await t("H2 saat dilimi: yaz saati, tarih değişimi, belirsiz saat — yerel an → UTC doğru; gövde DEĞERLENDİRME YERİNİN yerel saati + o anki ofseti (ATL-B03), UTC an aynı", () => {
     const cases: [string, string, string, string][] = [
       ["2026-07-07", "12:00", "Europe/Berlin", "2026-07-07T10:00"], // CEST +2
       ["2026-01-07", "12:00", "Europe/Berlin", "2026-01-07T11:00"], // CET +1
@@ -96,9 +112,9 @@ async function main() {
       const { o, u } = horaryOf({ date, time, timezone: tz, horaryNumber: 1 });
       assert.equal(o.atUtc, utc, `${date} ${time} ${tz}`);
       assert.equal(o.displayTz, tz);
-      assert.equal((u.body as J).timezone, 0);
-      assert.equal((u.body as J).date, utc.slice(0, 10));
-      assert.equal((u.body as J).time, `${utc.slice(11, 16)}:00`);
+      // Gösterim dilimi (tz) gövdeye girmez; gövde değerlendirme yeri (İstanbul) yerel saatidir.
+      assert.deepEqual([(u.body as J).date, (u.body as J).time, (u.body as J).timezone], istLocal(utc));
+      assert.equal(Date.parse(`${(u.body as J).date}T${(u.body as J).time}Z`) - (u.body as J).timezone * 3_600_000, Date.parse(`${utc}:00Z`));
     }
   });
 
@@ -270,7 +286,7 @@ async function main() {
 
   // ── HORARY-P1 (2026-10-18): "Şimdi" = gerçek soru anı (UTC dakika; saat başı DEĞİL) — yalnız kp.horary ───────────
   const nowOpts = (iso: string, extra: Record<string, unknown> = {}) => def.parseOptions({ now: true, horaryNumber: 108, ...extra }, new Date(iso))!;
-  const unitAt = (iso: string) => def.units(ctx, nowOpts(iso))[0];
+  const unitAt = (iso: string) => unitsOf(nowOpts(iso))[0];
 
   await t("P1-1…4 şimdi → UTC dakika: 17:18:42 → 17:18 · 17:59:59 → 17:59 · 18:00:01 → 18:00 · gece yarısı / yıl değişimi; gövde tarih+saat aynı dakika", () => {
     const cases: [string, string][] = [
@@ -287,8 +303,8 @@ async function main() {
       assert.equal(o.atUtc, want, iso);
       assert.equal(o.now, undefined, "normalize seçenekte 'now' kalmaz (kayıt UTC dakikayı taşır)");
       assert.equal(o.displayTz, undefined);
-      const b = def.units(ctx, o)[0].body as J;
-      assert.deepEqual([b.date, b.time, b.timezone], [want.slice(0, 10), `${want.slice(11, 16)}:00`, 0], iso);
+      const b = unitsOf(o)[0].body as J;
+      assert.deepEqual([b.date, b.time, b.timezone], istLocal(want), iso);
     }
     // Önceki hata örneği: 20:18 TR (17:18 UTC) artık 17:00'ye düşmez.
     assert.notEqual(nowOpts("2026-10-18T17:18:42Z").atUtc, "2026-10-18T17:00");
@@ -303,13 +319,13 @@ async function main() {
     assert.notEqual((a.body as J).time, (c.body as J).time);
     assert.notEqual(a.inputHash, c.inputHash);
     // Şimdi ile aynı dakikanın elle girilmiş UTC anı aynı anahtardır (tek önbellek).
-    assert.equal(def.units(ctx, def.parseOptions({ atUtc: "2026-10-18T17:18", horaryNumber: 108 }, new Date())!)[0].inputHash, a.inputHash);
+    assert.equal(unitsOf(def.parseOptions({ atUtc: "2026-10-18T17:18", horaryNumber: 108 }, new Date())!)[0].inputHash, a.inputHash);
   });
 
   await t("P1-7/8 elle tarih-saat ve eski kayıtlar DEĞİŞMEZ: 07.10.2026 12:00 Europe/Istanbul → 09:00 UTC (golden 108); kayıtlı atUtc hangi 'şimdi'de açılırsa açılsın yeniden hesaplanmaz", () => {
     const m = horaryOf({ date: "2026-10-07", time: "12:00", timezone: "Europe/Istanbul", horaryNumber: 108 });
     assert.equal(m.o.atUtc, AT);
-    assert.deepEqual(m.u.body, HO.body);
+    assert.deepEqual(m.u.body, goldenBodyLocal());
     assert.equal(m.r.ok, true, "golden projeksiyon temiz");
     for (const saved of [{ atUtc: "2026-10-07T09:00", horaryNumber: 108, ayanamsa: "kp-newcomb", nodeType: "mean", placeLocationId: null }, { atUtc: "2026-10-18T17:00", horaryNumber: 5, ayanamsa: "kp-newcomb", nodeType: "mean", placeLocationId: null }]) {
       assert.deepEqual(def.parseOptions(saved, new Date("2026-10-19T06:42:17Z")), saved, `eski kayıt ${saved.atUtc}`);
@@ -363,7 +379,8 @@ async function main() {
         calls.push(body);
         if (endpoint !== HO.endpoint) return { ok: false, kind: "bad_request", status: 400, attempts: 1 };
         const r = structuredClone(HO.response);
-        r.questionTime = `${String(body.date)}T${String(body.time)}.000Z`; // SENTETİK yankı: yalnız soru anı (golden 108 gövdesi aynı)
+        // SENTETİK yankı: yalnız soru anı (golden 108 gövdesi aynı); gövde yerel saat + ofset → questionTime UTC an (sözleşme).
+        r.questionTime = new Date(Date.parse(`${String(body.date)}T${String(body.time)}Z`) - Number(body.timezone) * 3_600_000).toISOString();
         return { ok: true, raw: r, attempts: 1 };
       },
       rateLimit: async () => ({ allowed: true, retryAfterSec: 0 }),
@@ -372,7 +389,7 @@ async function main() {
     const res = ((await runAstrology(ectx, { profileId: pid, selections: [sel] }, deps, { ownerPreviewHideInterp: false })).body as J).results[0];
     assert.equal(res.ok, true, JSON.stringify(res).slice(0, 300));
     assert.equal(calls.length, 1);
-    assert.deepEqual([calls[0].date, calls[0].time, calls[0].timezone], ["2026-10-18", "17:18:00", 0]);
+    assert.deepEqual([calls[0].date, calls[0].time, calls[0].timezone], ["2026-10-18", "20:18:00", 3], "ATL-B03: İstanbul yerel saati + ofset (17:18 UTC)");
     assert.equal(res.view.options.atUtc, "2026-10-18T17:18");
     assert.equal(res.view.technical.at.utc, "2026-10-18T17:18");
     // Aynı dakika (17:18:59) → önbellek; 17:19:05 → yeni istek.
@@ -404,7 +421,7 @@ async function main() {
     clock = new Date("2026-10-18T17:19:05.000Z");
     const r2 = ((await runAstrology(ectx, { profileId: pid, selections: [sel] }, deps, { ownerPreviewHideInterp: false })).body as J).results[0];
     assert.equal(calls.length, 2);
-    assert.equal(calls[1].time, "17:19:00");
+    assert.deepEqual([calls[1].time, calls[1].timezone], ["20:19:00", 3], "ATL-B03: İstanbul yerel saati (17:19 UTC)");
     assert.equal(r2.view.options.atUtc, "2026-10-18T17:19");
   });
 
@@ -433,7 +450,7 @@ async function main() {
   await t("P2-3 golden 108: 07.10.2026 12:00 Europe/Istanbul → 09:00 UTC; gövde golden'la BİREBİR, projeksiyon temiz; gösterim 12:00 Türkiye saati", () => {
     const m = horaryOf({ date: "2026-10-07", time: "12:00", timezone: "Europe/Istanbul", horaryNumber: 108 });
     assert.equal(m.o.atUtc, AT);
-    assert.deepEqual(m.u.body, HO.body);
+    assert.deepEqual(m.u.body, goldenBodyLocal());
     assert.equal(m.r.ok, true);
     assert.equal(qm(AT, horaryDisplayZone(m.o)), "07.10.2026 12:00 — Türkiye saati, GMT+3 (09:00 UTC)");
   });
@@ -476,8 +493,8 @@ async function main() {
     assert.equal(describeOptions("kp.horary", withPlace), "sayı 108 · 18.10.2026 20:35 — Europe/Berlin, GMT+2 (18:35 UTC) · İstanbul, Türkiye");
     const bare: Record<string, unknown> = { ...o };
     delete bare.displayTz;
-    assert.equal(def.units(ctx, o)[0].inputHash, def.units(ctx, bare)[0].inputHash, "gösterim dilimi önbellek anahtarına girmez");
-    assert.deepEqual(def.units(ctx, o)[0].body, def.units(ctx, bare)[0].body);
+    assert.equal(unitsOf(o)[0].inputHash, unitsOf(bare)[0].inputHash, "gösterim dilimi önbellek anahtarına girmez");
+    assert.deepEqual(unitsOf(o)[0].body, unitsOf(bare)[0].body);
   });
 
   await t("P2-8 eski kayıtlar: displayTz yoksa kayıtlı place.timezone; o da yok / geçersizse UTC + not (GMT+3 / tarayıcı saati VARSAYILMAZ); parseOptions kaydı aynen döndürür (yeniden hesap yok)", () => {
