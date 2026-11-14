@@ -29,6 +29,7 @@ import {
   buildWhatsAppUrl,
 } from "@/lib/contact/whatsapp";
 import { useToast } from "@/components/ui/ToastProvider";
+import { SettingsTabBar } from "./SettingsTabBar";
 import PasswordInput from "@/components/ui/PasswordInput";
 import { PASSWORD_HINT, newPasswordPolicyMessage } from "@/lib/auth/passwordPolicy";
 import { searchLocations, type Location } from "@/lib/location";
@@ -37,10 +38,11 @@ import { getUserLocationPref, saveUserLocationPref, type UserLocationPref } from
 import { BackupTab, ExportTab, RestoreTab } from "./BackupSections";
 import MySessionsPanel from "@/components/settings/MySessionsPanel";
 import { WorkspaceSettingsTab, useWorkspaceAccess } from "./WorkspaceSettingsTab";
+import { PROFILE_LEAVE_MESSAGE, PROFILE_TAB_ICON, ProfileSettingsTab } from "./ProfileSettingsTab";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type Tab = "security" | "location" | "contact" | "export" | "backup" | "restore" | "workspace";
+type Tab = "security" | "profile" | "location" | "contact" | "export" | "backup" | "restore" | "workspace";
 
 type SupportMessage = {
   id: string;
@@ -57,6 +59,7 @@ type SupportMessage = {
 
 const TABS: { id: Tab; label: string; icon: React.ElementType }[] = [
   { id: "security",  label: "Hesap Güvenliği",    icon: KeyRound      },
+  { id: "profile",   label: "Profilim",           icon: PROFILE_TAB_ICON },
   { id: "location",  label: "Konum",               icon: MapPin        },
   { id: "contact",   label: "Admin ile İrtibat",   icon: MessageSquare },
   { id: "export",    label: "Dışa Aktarım",        icon: FileText      },
@@ -635,7 +638,13 @@ export default function SettingsPage() {
   // storedUserRaw değişince yeniden ayrıştır (readYasamUser şema doğrulamasını yapar).
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const user = useMemo<YasamUser | null>(() => (checked ? readYasamUser() : null), [checked, storedUserRaw]);
-  const [tab,     setTab]     = useState<Tab>("security");
+  const [tab,     setTabState] = useState<Tab>("security");
+  // Profilim: kaydedilmemiş değişiklik varken sekme değişimi onay ister.
+  const [profileDirty, setProfileDirty] = useState(false);
+  const setTab = (id: Tab) => {
+    if (tab === "profile" && id !== "profile" && profileDirty && !window.confirm(PROFILE_LEAVE_MESSAGE)) return;
+    setTabState(id);
+  };
   const workspaceAccess = useWorkspaceAccess(!!user);
   const tabs = workspaceAccess.status === "on" ? [...TABS, WORKSPACE_TAB] : TABS;
 
@@ -690,35 +699,8 @@ export default function SettingsPage() {
           </div>
         </header>
 
-        {/* Mobil: 2 sütun · tablet (md): 3 sütun · lg+: tek satır eşit genişlikte sekmeler.
-            (md'de tek satır 768–1000px arasında son sekmeyi ekran dışına itiyordu.) */}
-        <div className="mb-5">
-          <div className="grid grid-cols-2 gap-1.5 rounded-2xl border border-white/80 bg-white/70 p-2 shadow-md backdrop-blur-xl md:grid-cols-3 lg:flex lg:gap-1.5">
-            {tabs.map((t, idx) => {
-              const Icon = t.icon;
-              const isActive = tab === t.id;
-              return (
-                <button
-                  key={t.id}
-                  type="button"
-                  aria-pressed={isActive}
-                  onClick={() => setTab(t.id)}
-                  className={[
-                    "flex items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-xs font-bold transition-all duration-200",
-                    "md:text-sm lg:flex-1 lg:whitespace-nowrap",
-                    idx === tabs.length - 1 ? "col-span-2 mx-auto w-1/2 md:col-span-1 md:mx-0 md:w-auto" : "",
-                    isActive
-                      ? "bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white shadow-md"
-                      : "text-slate-500 hover:bg-violet-50 hover:text-violet-700",
-                  ].filter(Boolean).join(" ")}
-                >
-                  <Icon className="h-4 w-4 shrink-0" strokeWidth={2} />
-                  {t.label}
-                </button>
-              );
-            })}
-          </div>
-        </div>
+        {/* Sekme çubuğu (Owner kararı 12.11 — Alternatif B): Dışa Aktarım · Sistem Yedeği · Geri Yükleme "Yedek & Aktarım" menüsünde; ≥1024 px tek satır, sığmayan sondaki öğeler "Diğer" menüsünde; mobilde eski ızgara (bkz. SettingsTabBar). */}
+        <SettingsTabBar tabs={tabs} active={tab} onSelect={setTab} />
 
         {isDemo && (
           <div className="mb-4 flex items-start gap-3 rounded-[14px] border border-amber-300/80 bg-amber-50/90 px-4 py-3">
@@ -753,6 +735,7 @@ export default function SettingsPage() {
           ) : (
             <>
               {tab === "security"  && <SecurityTabWithSessions user={user} />}
+              {tab === "profile"   && <ProfileSettingsTab readOnly={isDemo} onDirtyChange={setProfileDirty} />}
               {tab === "location"  && <LocationTab user={user} />}
               {tab === "contact"   && <ContactTab  user={user} />}
               {tab === "export"    && <ExportTab   user={user} />}
