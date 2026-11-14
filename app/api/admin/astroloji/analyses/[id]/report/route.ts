@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { ASTRO_NO_STORE, requireAstrologyAccess } from "@/lib/astrology/access/ownerGate";
 import { parseOwnerPreviewHideInterp } from "@/lib/astrology/access/entitlements";
 import { buildAnalysisReport, type ReportFormat } from "@/lib/astrology/report/service";
-import { checkRateLimit } from "@/lib/rateLimit";
+import { enforceAstroReport } from "@/lib/astrology/limits";
 
 export const runtime = "nodejs";
 
@@ -24,13 +24,9 @@ export async function GET(req: NextRequest, ctx: RouteContext): Promise<Response
   if (fmt !== "docx" && fmt !== "pdf") {
     return NextResponse.json({ ok: false, code: "INVALID_FORMAT", error: "Rapor biçimi docx veya pdf olmalı." }, { status: 400, headers: ASTRO_NO_STORE });
   }
-  const rl = checkRateLimit(`astro-report:${gate.ctx.tenantId}:${gate.ctx.userId}`, 20, 60_000);
-  if (!rl.allowed) {
-    return NextResponse.json(
-      { ok: false, code: "RATE_LIMITED", error: "Çok fazla rapor isteği. Lütfen biraz sonra tekrar deneyin." },
-      { status: 429, headers: { ...ASTRO_NO_STORE, "Retry-After": String(rl.retryAfterSeconds) } },
-    );
-  }
+  // YENİ-P3-03: global DB sayacı (dakikada 20 rapor, uzman başına; instance başına DEĞİL).
+  const limited = await enforceAstroReport(gate.ctx);
+  if (limited) return limited;
   const { id } = await ctx.params;
   const r = await buildAnalysisReport(gate.ctx, id, fmt as ReportFormat, parseOwnerPreviewHideInterp(req.nextUrl.searchParams.get("previewNoInterp")));
   if (!r.ok) return NextResponse.json(r.body, { status: r.status, headers: ASTRO_NO_STORE });
