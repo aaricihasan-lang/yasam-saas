@@ -481,6 +481,8 @@ function ArchiveUserRow({
   onReactivate,
   reactivating,
   onPurge,
+  archiveModel = false,
+  archivedAt = null,
 }: {
   user: ManagedUser;
   deactivation?: DeactivationInfo;
@@ -488,7 +490,14 @@ function ArchiveUserRow({
   reactivating: boolean;
   /** Yalnız sistem sahibine verilir (owner-only kalıcı silme); yoksa buton render edilmez. */
   onPurge?: (user: ManagedUser) => void;
+  /** AŞAMA 4a: pasif/arşiv ayrımı etkin mi (migration 20280101000600). false → eski satır aynen. */
+  archiveModel?: boolean;
+  archivedAt?: string | null;
 }) {
+  // AŞAMA 4a: arşivdeki hesap "Yeniden Aktifleştir" ile açılmaz (sunucu da reddeder, UY004) — önce ana yönetici
+  // detaydan arşivden çıkarır. Kalıcı silme düğmesi yalnız gerçekten ARŞİVLENMİŞ satırda gösterilir.
+  const archived = archiveModel && archivedAt != null;
+  const passiveOnly = archiveModel && archivedAt == null;
   return (
     <article className="flex min-w-0 flex-col gap-3 rounded-2xl border-2 border-slate-200/80 bg-white/95 px-4 py-4 shadow-sm transition hover:border-amber-200/80 hover:shadow-md sm:flex-row sm:items-center sm:justify-between sm:gap-6 sm:px-5">
       <div className="min-w-0 flex-1">
@@ -496,9 +505,15 @@ function ArchiveUserRow({
           <p className="min-w-0 truncate text-base font-black text-slate-900 sm:text-lg" title={user.fullName}>
             {user.fullName}
           </p>
-          <span className="shrink-0 rounded-full bg-amber-100 px-2.5 py-0.5 text-[11px] font-black text-amber-950 ring-1 ring-amber-200">
-            Arşivde · Onaylı · Pasif
-          </span>
+          {passiveOnly ? (
+            <span className="shrink-0 rounded-full bg-slate-200 px-2.5 py-0.5 text-[11px] font-black text-slate-800 ring-1 ring-slate-300" data-row-state="pasif">
+              Pasif · arşivlenmemiş
+            </span>
+          ) : (
+            <span className="shrink-0 rounded-full bg-amber-100 px-2.5 py-0.5 text-[11px] font-black text-amber-950 ring-1 ring-amber-200" data-row-state="arsiv">
+              Arşivde · Onaylı · Pasif
+            </span>
+          )}
         </div>
         <p className="truncate text-sm font-medium text-slate-600" title={user.email}>
           {user.email}
@@ -510,19 +525,27 @@ function ArchiveUserRow({
           <span>
             İşlemi yapan: <span className="text-slate-700">{deactivation?.byName ?? "Kayıt bulunamadı"}</span>
           </span>
+          {archived && archivedAt ? (
+            <span>
+              Arşivlenme: <span className="text-slate-700">{formatDateTimeTr(archivedAt)}</span> · yeniden kullanım için önce
+              detaydan arşivden çıkarılır (yalnız ana yönetici)
+            </span>
+          ) : null}
         </div>
       </div>
       <div className="flex w-full shrink-0 flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
-        <button
-          type="button"
-          onClick={() => onReactivate(user)}
-          disabled={reactivating}
-          className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border-2 border-emerald-300/90 bg-gradient-to-r from-emerald-50 to-teal-50 px-4 text-sm font-black text-emerald-950 transition hover:border-emerald-400 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          {reactivating ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <RotateCcw className="h-4 w-4" aria-hidden />}
-          Yeniden Aktifleştir
-        </button>
-        {onPurge ? (
+        {archived ? null : (
+          <button
+            type="button"
+            onClick={() => onReactivate(user)}
+            disabled={reactivating}
+            className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border-2 border-emerald-300/90 bg-gradient-to-r from-emerald-50 to-teal-50 px-4 text-sm font-black text-emerald-950 transition hover:border-emerald-400 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {reactivating ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <RotateCcw className="h-4 w-4" aria-hidden />}
+            Yeniden Aktifleştir
+          </button>
+        )}
+        {onPurge && !passiveOnly ? (
           <button
             type="button"
             onClick={() => onPurge(user)}
@@ -573,7 +596,15 @@ type ListState =
 
 type ArchiveState =
   | { kind: "loading" }
-  | { kind: "ready"; users: ManagedUser[]; deactivations: Record<string, DeactivationInfo>; canPermanentDelete: boolean }
+  | {
+      kind: "ready";
+      users: ManagedUser[];
+      deactivations: Record<string, DeactivationInfo>;
+      canPermanentDelete: boolean;
+      /** AŞAMA 4a: pasif/arşiv ayrımı etkin mi + satır başına archived_at (null = pasif, arşivlenmemiş). */
+      archiveModel: boolean;
+      archivedAt: Record<string, string | null>;
+    }
   | { kind: "error"; failure: FetchFailureKind };
 
 /** İstek anahtarına bağlı sonuç: anahtar değişince türetilmiş durum otomatik "loading" olur. */
@@ -744,13 +775,20 @@ function AdminUsersContent() {
         const json = (await res.json()) as {
           users?: Record<string, unknown>[];
           deactivations?: Record<string, DeactivationInfo>;
+          archiveModel?: boolean;
           viewer?: { canPermanentDelete?: boolean };
         };
+        const archivedAt: Record<string, string | null> = {};
+        for (const r of json.users ?? []) {
+          if (r.id != null) archivedAt[String(r.id)] = r.archived_at != null ? String(r.archived_at) : null;
+        }
         setArchive({
           kind: "ready",
           users: (json.users ?? []).map((r) => mapDbUser(r)),
           deactivations: json.deactivations ?? {},
           canPermanentDelete: json.viewer?.canPermanentDelete === true,
+          archiveModel: json.archiveModel === true,
+          archivedAt,
         });
       })
       .catch((e: unknown) => {
@@ -946,7 +984,7 @@ function AdminUsersContent() {
           <CountCard label="Onaylı · Aktif" value={counts?.approved_active ?? null} tone="emerald"
             active={!isArchive && query.approval === "approved" && query.active === "active"}
             onClick={() => navigate({ view: "members", role: "expert", approval: "approved", active: "active", payment: "all", due: "all", ...RESET_360, page: 1 })} />
-          <CountCard label="Arşiv" hint="Onaylı · Pasif" value={counts?.archived ?? null} tone="slate"
+          <CountCard label="Pasif + Arşiv" hint="Onaylı · giriş kapalı" value={counts?.archived ?? null} tone="slate"
             active={isArchive}
             onClick={() => navigate({ ...DEFAULT_MEMBER_LIST_QUERY, view: "archive" })} />
           <CountCard label="Reddedilen" value={counts?.rejected ?? null} tone="rose"
@@ -986,7 +1024,7 @@ function AdminUsersContent() {
               isArchive ? "border-amber-400 bg-amber-100 text-amber-950" : "border-slate-200 bg-white text-slate-700 hover:bg-amber-50/80"
             }`}>
             <Archive className="h-4 w-4" aria-hidden />
-            Arşiv{counts ? ` (${counts.archived})` : ""}
+            Pasif + Arşiv{counts ? ` (${counts.archived})` : ""}
           </button>
         </div>
 
@@ -1267,11 +1305,16 @@ function AdminUsersContent() {
             <div className="mb-4 rounded-2xl border border-amber-200/80 bg-amber-50/70 px-5 py-4">
               <h2 className="flex items-center gap-2 text-base font-black text-amber-950">
                 <Archive className="h-4 w-4" aria-hidden />
-                Arşiv — Onaylı ancak pasife alınmış uzmanlar
+                {archive.kind === "ready" && archive.archiveModel
+                  ? "Pasif ve arşivdeki onaylı uzmanlar"
+                  : "Arşiv — Onaylı ancak pasife alınmış uzmanlar"}
               </h2>
               <p className="mt-1 text-sm font-medium text-amber-900/80">
                 Hesap, veriler ve modül izinleri korunur. Açık oturumları kapatılmıştır;
                 yeniden aktifleştirilen uzman tekrar giriş yapar. Onay bekleyen ve reddedilen başvurular arşivde gösterilmez.
+                {archive.kind === "ready" && archive.archiveModel
+                  ? " “Pasif · arşivlenmemiş” hesaplar doğrudan yeniden aktifleştirilebilir; “Arşivde” olanlar önce ana yönetici tarafından üye detayından arşivden çıkarılır. Kalıcı silme yalnız arşivdeki hesapta gösterilir."
+                  : ""}
                 {archive.kind === "ready" && archive.canPermanentDelete
                   ? " Kalıcı silme yalnız sistem sahibine açıktır ve 3 aşamalı onay gerektirir."
                   : ""}
@@ -1288,6 +1331,7 @@ function AdminUsersContent() {
               <div className="grid gap-3">
                 {archive.users.map((user) => (
                   <ArchiveUserRow key={user.id} user={user} deactivation={archive.deactivations[user.id]}
+                    archiveModel={archive.archiveModel} archivedAt={archive.archivedAt[user.id] ?? null}
                     onReactivate={reactivateUser} reactivating={reactivatingId === user.id}
                     onPurge={archive.canPermanentDelete ? (u) => setPurgeTarget({ id: u.id, fullName: u.fullName, email: u.email }) : undefined} />
                 ))}

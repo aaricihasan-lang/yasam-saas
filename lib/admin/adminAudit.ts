@@ -67,6 +67,9 @@ export const ADMIN_AUDIT_ACTIONS = [
   // ÜYE YÖNETİMİ 360° — ⚠️ 20271006000000_admin_member360_commercial.sql CHECK süperseti ile BİREBİR.
   // Yalnız SQL RPC (admin_pricing_phase_save/delete) yazar; context = {op, phase_id, fields} (değer YOK).
   "pricing_phase_changed",
+  // AŞAMA 4a — ⚠️ 20280101000600_admin_member_archive_state.sql CHECK süperseti ile BİREBİR.
+  // Yalnız SQL RPC (admin_unarchive_user) yazar; hesap pasif kalır.
+  "user_unarchived",
 ] as const;
 
 export type AdminAuditAction = (typeof ADMIN_AUDIT_ACTIONS)[number];

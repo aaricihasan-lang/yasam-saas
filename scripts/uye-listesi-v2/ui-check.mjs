@@ -88,7 +88,7 @@ try {
   await ready(O.page);
   st = await stagesOnPage(O.page);
   ok(st.length === 2 && st.every((s) => s === "deneme_baslamadi"), "“Başlamamış deneme” → 2 satır (denemedekilere karışmaz)");
-  for (const [f, stage, n] of [["askida", "deneme_durdu", 1], ["arsiv", "arsiv", 1], ["eski", "eski_kayit", 1], ["inceleme", "inceleme", 1]]) {
+  for (const [f, stage, n] of [["askida", "deneme_durdu", 1], ["pasif", "pasif", 1], ["arsiv", "arsiv", 1], ["eski", "eski_kayit", 1], ["inceleme", "inceleme", 1]]) {
     await go(O.page, `/admin/users?f=${f}`);
     await ready(O.page);
     st = await stagesOnPage(O.page);
@@ -97,7 +97,15 @@ try {
   ok((await O.page.locator("[data-active-more]").count()) === 1, "Diğer filtrelerden seçilen filtre çipi ✕ ile görünür");
   await go(O.page, "/admin/users?f=askida");
   await ready(O.page);
-  ok(/ayrı tutulmuyor/.test(await O.page.locator('[data-notice="askida"]').innerText()), "Askıya alınanlar: hesap askısı ile arşiv ayrımı yok notu (yanlış etiket yok)");
+  // Aşama 4a (Owner onayı 12.11): bu filtre deneme durdurmadır; hesap askısı/arşiv ayrı filtrelerdedir (yanlış etiket yok).
+  const askNote = await O.page.locator('[data-notice="askida"]').innerText();
+  ok(/denemesi durdurulmuş/.test(askNote) && /Pasif hesaplar/.test(askNote) && /Arşiv/.test(askNote),
+    "Denemesi durdurulanlar: notu deneme durumu olduğunu ve pasif/arşivin ayrı filtrelerde olduğunu söyler (yanlış etiket yok)");
+  await O.page.locator("[data-more]").click();
+  const morePanel = await O.page.locator("[data-more-panel]").innerText();
+  ok(morePanel.includes("Denemesi durdurulanlar") && morePanel.includes("Pasif hesaplar") && !morePanel.includes("Askıya alınanlar"),
+    "Diğer filtreler: “Denemesi durdurulanlar” + ayrı “Pasif hesaplar”; eski yanıltıcı “Askıya alınanlar” yok");
+  ok(!(await stagesOnPage(O.page)).includes("pasif") && !(await stagesOnPage(O.page)).includes("arsiv"), "Denemesi durdurulan hesap pasif/arşiv sayılmaz");
   await go(O.page, "/admin/users?f=pay");
   await ready(O.page);
   ok(/borç anlamına gelmez/.test(await O.page.locator('[data-notice="pay"]').innerText()), "Ödeme kontrolü: “tarihin geçmesi borç değildir” notu");
@@ -162,8 +170,13 @@ try {
   ok(true, "Ana panel “Yenileme geçti” bağlantısı (due=overdue) klasik listede aynı filtreyle açılır");
   await go(O.page, "/admin/users?view=archive");
   await O.page.waitForURL(/klasik\?view=archive/, { timeout: 120000 });
-  await O.page.locator("text=Arşiv — Onaylı ancak pasife alınmış uzmanlar").waitFor({ timeout: 120000 });
-  ok(await O.page.locator("text=Yeniden Aktifleştir").first().isVisible(), "Arşiv işlemleri (Yeniden Aktifleştir / Kalıcı Sil) klasik ekranda aynen");
+  await O.page.locator("text=Pasif ve arşivdeki onaylı uzmanlar").waitFor({ timeout: 120000 });
+  // Aşama 4a: pasif satır doğrudan yeniden aktifleştirilir; arşiv satırında Yeniden Aktifleştir YOK (önce arşivden çıkarma).
+  const rowOf = (state) => O.page.locator(`article:has([data-row-state="${state}"])`);
+  ok((await rowOf("pasif").count()) === 1 && await rowOf("pasif").getByRole("button", { name: "Yeniden Aktifleştir" }).isVisible(),
+    "Pasif + Arşiv işlemleri: pasif satırda Yeniden Aktifleştir klasik ekranda aynen");
+  ok((await rowOf("arsiv").count()) === 1 && (await rowOf("arsiv").getByRole("button", { name: "Yeniden Aktifleştir" }).count()) === 0,
+    "Arşivdeki satırda Yeniden Aktifleştir yok (önce arşivden çıkarma)");
   // Kalıcı Sil düğmesi (değişmeyen mantık): yalnız owner VE purge RPC'si veritabanında varsa çizilir. Yerel test
   // zincirinde purge migration'ı yok → sunucu bayrağı false; düğme bayrakla birebir uyumlu olmalı.
   const arch = await O.page.evaluate(async ([id, t]) => (await (await fetch("/api/admin/users/archive", { headers: { "x-admin-id": id, "x-session-token": t } })).json()).viewer, [cfg.owner.user.id, cfg.owner.token]);
