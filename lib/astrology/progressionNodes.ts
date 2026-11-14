@@ -6,10 +6,12 @@
 // denetimi 60/60), yani hata bu uç noktaya özgü.
 // Tanım: ortalama düğüm = Ay yörüngesinin ortalama çıkış düğümü, tarihin GERÇEK ekinoksundan ölçülen ekliptik boylamı (Ω ortalama
 // polinomu + boylamda nütasyon Δψ) — Swiss Ephemeris SE_MEAN_NODE (varsayılan bayraklar) ve sağlayıcının natal "mean" tanımıyla aynı.
-// Hesap: profesyonel efemeris modülünün mevcut meanNodeLon fonksiyonu (Meeus 47.7 + IAU 2000A_R06 Δψ; DE440 dosyası GEREKMEZ),
+// Hesap (pro/** modülleri ürün kodundan import EDİLMEZ — astro-pro Z19/A14 statik kuralı): Meeus 47.7 Ω polinomu (pro/ephemeris
+// meanNodeLon ile AYNI katsayılar) + Δψ (astronomy-engine e_tilt, IAU 2000B kısaltılmış seri; ölçülen 2000A farkı ≤ 0,25″); TT ortak zaman katmanından
+// (lib/astrology/time; 1961 öncesi sivil an = UT, sağlayıcı sözleşmesi <1972 UT1 ile uyumlu). DE440 dosyası GEREKMEZ.
 // İLERLETİLMİŞ ANDA: doğum anı (sağlayıcıya gönderilen gövdedeki yerel saat − ofset) + geçen yıl × 1 gün; geçen yıl = (hedef tarih −
 // yerel doğum tarihi) / 365,2422 (sağlayıcı sözleşmesi; 500/500 yanıtta ≤ 1,4e-6 yıl). Doğrulama (500 ilerletilmiş an, 1940–2026):
-// Swiss SE_MEAN_NODE ile ≤ 0,078″, Simon vd. 1994 + Skyfield IAU 2000A ile ≤ 0,072″ (tolerans 5″). Gerçek düğüm DEĞİŞMEZ (sağlayıcı).
+// Swiss SE_MEAN_NODE ile ≤ 0,28″, Simon vd. 1994 + Skyfield IAU 2000A ile ≤ 0,32″ (tolerans 5″; fark Δψ serisinin kısaltılmasından). Gerçek düğüm DEĞİŞMEZ (sağlayıcı).
 //
 // F2 — KUTUP EVLERİ. Sağlayıcının `planets[].house` alanı natal Placidus evidir; doğum yeri kutup dairesi ötesindeyse (|enlem| > 66,5°;
 // Placidus |φ| > 90° − ε'da tanımsız) sağlayıcı sessizce TAM BURÇ evlerine geçiyor (Tromsø 69,65°: 2/2 yanıtta 14/14 tam burç, Placidus
@@ -17,7 +19,8 @@
 // natal çerçevesinden gösterilir. Eşik ürünün natal kutup engeliyle AYNI (POLAR_HOUSE_LATITUDE = 66,5°).
 
 import { SIGN_IDS, type SignId } from "./model/western";
-import { inLocalRange, localSpeed, meanNodeLon } from "./pro/ephemeris/local";
+import * as Astronomy from "astronomy-engine";
+import { ephemerisTime, isTimeScalesError, scalesFromUtc } from "./time";
 import { PROGRESSION_POLAR_LATITUDE } from "./progressionNodesText";
 
 export const MEAN_NODE_METHOD = "meeus-47.7+dpsi" as const;
@@ -47,6 +50,34 @@ export function progressedInstant(f: ProgressionRequestFrame): { ms: number; ela
 }
 
 const norm = (x: number) => ((x % 360) + 360) % 360;
+const HOUR_MS = 3_600_000;
+const J2000_TT_MS = Date.UTC(2000, 0, 1, 12, 0, 0);
+
+/** TT (ms) — ortak zaman katmanı; aralık dışında (ΔT tablosu) null. */
+function ttMsOf(ms: number): number | null {
+  const s = scalesFromUtc(ms, { pre1961: "civil_as_ut" });
+  return isTimeScalesError(s) ? null : s.ttMs;
+}
+
+/** Ortalama çıkış düğümü, tarihin GERÇEK ekinoksu: Meeus 47.7 Ω (T = TT Jülyen yüzyılı) + Δψ. */
+export function meanNodeLongitude(ms: number): number | null {
+  const ttMs = ttMsOf(ms);
+  if (ttMs === null) return null;
+  const T = (ttMs - J2000_TT_MS) / 86_400_000 / 36525;
+  const om = 125.0445479 - 1934.1362891 * T + 0.0020754 * T * T + (T * T * T) / 467441 - (T * T * T * T) / 60616000;
+  const dpsiArcsec = Astronomy.e_tilt(ephemerisTime({ ttMs })).dpsi;
+  return norm(om + dpsiArcsec / 3600);
+}
+
+/** Boylam hızı (°/gün, TT): ±1 saat merkezi fark (pro/ephemeris localSpeed ile aynı tanım). */
+function meanNodeSpeed(ms: number): number | null {
+  const a = meanNodeLongitude(ms - HOUR_MS);
+  const b = meanNodeLongitude(ms + HOUR_MS);
+  const ta = ttMsOf(ms - HOUR_MS);
+  const tb = ttMsOf(ms + HOUR_MS);
+  if (a === null || b === null || ta === null || tb === null) return null;
+  return ((((b - a + 540) % 360) - 180) / (tb - ta)) * 86_400_000;
+}
 const pointOf = (lon: number): { longitude: number; sign: SignId; degreeInSign: number } => {
   const l = norm(lon);
   return { longitude: l, sign: SIGN_IDS[Math.floor(l / 30) % 12] as SignId, degreeInSign: l % 30 };
@@ -61,10 +92,10 @@ export type LocalMeanNodes = {
 /** İlerletilmiş anda ortalama Kuzey/Güney düğüm (tropikal, tarihin gerçek ekinoksu). Yerel efemeris aralığı dışında null. */
 export function progressedMeanNodes(f: ProgressionRequestFrame): LocalMeanNodes | null {
   const p = progressedInstant(f);
-  if (!p || !inLocalRange(p.ms)) return null;
-  const lon = meanNodeLon(p.ms);
-  const speed = localSpeed("mean_node", p.ms);
-  if (!Number.isFinite(lon) || !Number.isFinite(speed)) return null;
+  if (!p) return null;
+  const lon = meanNodeLongitude(p.ms);
+  const speed = meanNodeSpeed(p.ms);
+  if (lon === null || speed === null || !Number.isFinite(lon) || !Number.isFinite(speed)) return null;
   const retrograde = speed < 0;
   return {
     north: { ...pointOf(lon), speed, retrograde },

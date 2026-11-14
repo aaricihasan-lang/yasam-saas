@@ -5,7 +5,7 @@
 export const PROGRESSION_POLAR_LATITUDE = 66.5;
 
 export const MEAN_NODE_LOCAL_NOTE =
-  "Ortalama düğüm: hesaplama hizmeti bu teknikte ortalama düğüm yerine gerçek düğüm döndürdüğü için Kuzey/Güney düğüm ilerletilmiş anda yerel olarak hesaplandı (Meeus 47.7 ortalama düğüm polinomu + boylamda nütasyon; tarihin gerçek ekinoksu). Bağımsız doğrulama: 1940–2026 arası 500 ilerletilmiş anda Swiss Ephemeris ortalama düğümüyle en fazla 0,08″ fark. Düğümlerin natal ev numarası hizmetten gelmediği için natal ev sütununda düğümler, uyumlu natal analiz yoksa boş kalır.";
+  "Ortalama düğüm: hesaplama hizmeti bu teknikte ortalama düğüm yerine gerçek düğüm döndürdüğü için Kuzey/Güney düğüm ilerletilmiş anda yerel olarak hesaplandı (Meeus 47.7 ortalama düğüm polinomu + boylamda nütasyon (IAU 2000B); tarihin gerçek ekinoksu). Bağımsız doğrulama: 1940–2026 arası 500 ilerletilmiş anda Swiss Ephemeris ortalama düğümüyle en fazla 0,3″ fark. Düğümlerin natal ev numarası hizmetten gelmediği için natal ev sütununda düğümler, uyumlu natal analiz yoksa boş kalır.";
 
 export const LEGACY_MEAN_NODE_WARNING =
   "Bu kayıtta ortalama düğüm (mean) istendi, ancak kayıttaki Kuzey/Güney düğüm değerleri hesaplama hizmetinin döndürdüğü GERÇEK (true) düğümdür; ortalama düğümden yaklaşık 1,7°'ye kadar farklı olabilir (ölçülen 10 yanıtta 0,3°–1,6°). Düğüme bağlı açılar ve evler de bu gerçek düğüm değerine göredir. Değerler kayıt anındaki gibidir, değiştirilmedi; ortalama düğüm için yeniden hesaplayıp yeni kayıt oluşturun.";

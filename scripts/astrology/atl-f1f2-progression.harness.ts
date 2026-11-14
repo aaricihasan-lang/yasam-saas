@@ -8,7 +8,7 @@
  *                                  SE_MEAN_NODE / SE_TRUE_NODE — pyswisseph depo DIŞINDA; Simon vd. 1994 + Skyfield IAU 2000A).
  *
  *   A) Tanım: ürünün ortalama düğümü (Meeus 47.7 + Δψ) 500 ilerletilmiş anda Swiss SE_MEAN_NODE ile ≤ 5″ (önceden sabitlenmiş tolerans;
- *      ölçülen ≤ 0,08″ → koruma eşiği 0,2″), Simon 1994 ile ≤ 0,2″; ilerletilmiş an referansla birebir; Güney = Kuzey + 180°; geri hareket.
+ *      ölçülen ≤ 0,28″ → koruma eşiği 0,5″), Simon 1994 ile ≤ 0,5″; ilerletilmiş an referansla birebir; Güney = Kuzey + 180°; geri hareket.
  *   B) Mean ≠ true: sağlayıcının mean yanıtları bağımsız TRUE ile ≤ 1″, MEAN ile > 1000″ (bulgu); -2 çıktısı MEAN, sağlayıcı değeri DEĞİL.
  *   C) 10 gerçek mean vakası adaptör -2'den: düğümler yerel mean, nodeComputation damgası, düğüm natal evi null, diğer 12 nokta aynen.
  *   D) True kontrol + bütün true düğümler: -2 çıktısı sağlayıcı değerleriyle BİREBİR (gerçek düğüm hesabı değişmedi).
@@ -98,7 +98,7 @@ const reportOf = (technique: string, technical: J, legacyNotes: J[] = [], profil
   const polars = REAL.filter((c) => c.grup === "polar");
   const controls = REAL.filter((c) => c.grup === "true_kontrol");
 
-  await t(`A) tanım: 500 ilerletilmiş anda ürün ortalama düğümü ↔ Swiss SE_MEAN_NODE ≤ 5″ (koruma 0,2″) ve ↔ Simon 1994 ≤ 0,2″; an birebir`, () => {
+  await t(`A) tanım: 500 ilerletilmiş anda ürün ortalama düğümü ↔ Swiss SE_MEAN_NODE ≤ 5″ (koruma 0,5″) ve ↔ Simon 1994 ≤ 0,5″; an birebir`, () => {
     assert.equal(REF.length, 500);
     let mxS = 0;
     let mxM = 0;
@@ -113,8 +113,10 @@ const reportOf = (technique: string, technical: J, legacyNotes: J[] = [], profil
       assert.ok(m.north.retrograde && m.south.retrograde && m.north.speed < -0.05 && m.north.speed > -0.056, `${r.testId} hız ${m.north.speed}`);
     }
     assert.ok(mxS <= 5, `Swiss tolerans ${mxS}`);
-    assert.ok(mxS <= 0.2, `Swiss koruma ${mxS}`);
-    assert.ok(mxM <= 0.2, `Simon ${mxM}`);
+    // Koruma eşiği 0,5″ (KABUL toleransı 5″ değişmedi): Δψ astronomy-engine e_tilt'ten (IAU 2000B, kısaltılmış seri) — pro/** ürün
+    // kodundan import edilemez (astro-pro Z19/A14). Ölçülen: 2000A'lı pro meanNodeLon'dan en çok 0,25″; Swiss'ten en çok ~0,28″.
+    assert.ok(mxS <= 0.5, `Swiss koruma ${mxS}`);
+    assert.ok(mxM <= 0.5, `Simon ${mxM}`);
     console.log(`     ölçülen: Swiss max ${mxS.toFixed(3)}″ · Simon max ${mxM.toFixed(3)}″`);
     const years = new Set(REF.map((r) => Number(r.body.date.slice(0, 4))));
     assert.ok(Math.min(...years) <= 1940 && Math.max(...years) >= 2026 && years.size >= 80, "1940–2026 kapsamı");
@@ -136,7 +138,7 @@ const reportOf = (technique: string, technical: J, legacyNotes: J[] = [], profil
       assert.ok(p.ok, `${c.testId} ${JSON.stringify(p.errors)}`);
       const nn = p.technical.bodies.find((b: J) => b.id === "north_node");
       const r = refById.get(c.testId)!;
-      assert.ok(sec(nn.longitude, r.swissMean) <= 0.2, `${c.testId} -2 ≠ mean`);
+      assert.ok(sec(nn.longitude, r.swissMean) <= 0.5, `${c.testId} -2 ≠ mean`);
       assert.ok(sec(nn.longitude, r.providerNorthNode) > 1000, `${c.testId} -2 sağlayıcı değerini taşıyor`);
     }
   });
