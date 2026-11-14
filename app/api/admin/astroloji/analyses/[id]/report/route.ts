@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ASTRO_NO_STORE, requireAstrologyAccess } from "@/lib/astrology/access/ownerGate";
 import { parseOwnerPreviewHideInterp } from "@/lib/astrology/access/entitlements";
+import { astroReportBrandingLoader } from "@/lib/astrology/report/branding";
 import { buildAnalysisReport, type ReportFormat } from "@/lib/astrology/report/service";
 import { checkRateLimit } from "@/lib/rateLimit";
 
@@ -32,7 +33,8 @@ export async function GET(req: NextRequest, ctx: RouteContext): Promise<Response
     );
   }
   const { id } = await ctx.params;
-  const r = await buildAnalysisReport(gate.ctx, id, fmt as ReportFormat, parseOwnerPreviewHideInterp(req.nextUrl.searchParams.get("previewNoInterp")));
+  // F3B: uzman markalaması — sahip yalnız kapıdan (gate.ctx); anahtar kapalı / profil yok → rapor birebir.
+  const r = await buildAnalysisReport(gate.ctx, id, fmt as ReportFormat, parseOwnerPreviewHideInterp(req.nextUrl.searchParams.get("previewNoInterp")), { loadBranding: astroReportBrandingLoader(gate.ctx) });
   if (!r.ok) return NextResponse.json(r.body, { status: r.status, headers: ASTRO_NO_STORE });
   const asciiName = r.filename.replace(/[^\x20-\x7E]/g, "_");
   return new NextResponse(Buffer.from(r.bytes), {

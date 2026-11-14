@@ -182,10 +182,13 @@ const SZ = { label: 16, name: 24, nameCover: 26, line: 20, small: 17, note: 17 }
 
 type Align = (typeof AlignmentType)[keyof typeof AlignmentType];
 
-function run(text: string, o: { size: number; color: string; bold?: boolean; italics?: boolean; allCaps?: boolean; spacing?: number; brk?: boolean }): TextRun {
+type RunOpts = { size: number; color: string; bold?: boolean; italics?: boolean; allCaps?: boolean; spacing?: number; brk?: boolean; font?: string };
+function run(text: string, o: RunOpts): TextRun {
   // Yazı tipi belirtilmez → belgenin varsayılan yazı tipini (modülün kendi tipografisi) devralır.
+  // F3B: varsayılan stil tanımlamayan belgeler (Refleksoloji / Kupa / Hacamat) modül yazı tipini `font` ile verir.
   return new TextRun({
     text,
+    ...(o.font ? { font: o.font } : {}),
     size: o.size,
     color: o.color,
     bold: o.bold,
@@ -196,7 +199,7 @@ function run(text: string, o: { size: number; color: string; bold?: boolean; ita
   });
 }
 
-function multilineRuns(text: string, o: { size: number; color: string; italics?: boolean }): TextRun[] {
+function multilineRuns(text: string, o: { size: number; color: string; italics?: boolean; font?: string }): TextRun[] {
   return text.split("\n").map((line, i) => run(line, { ...o, brk: i > 0 }));
 }
 
@@ -324,6 +327,11 @@ export type ExpertSignatureOptions = {
   fill?: string;
   /** Etiket metni (varsayılan "Hazırlayan"). */
   label?: string;
+  /**
+   * F3B: metin yazı tipi. Verilmezse belge varsayılanı devralınır (Kademe A — birebir aynı). Varsayılan stil tanımlamayan
+   * belgeler (Refleksoloji / Kupa / Hacamat) modülün kendi yazı tipini verir.
+   */
+  font?: string;
 };
 
 /**
@@ -335,10 +343,10 @@ export type ExpertSignatureOptions = {
 export const EXPERT_SIGNATURE_CARD_TWIPS = { padY: 100, labelAfter: 40, signBefore: 200, gapBefore: 160, noteBefore: 100 } as const;
 const CARD = EXPERT_SIGNATURE_CARD_TWIPS;
 
-function noteParagraphs(note: string, o: { before: number }): Paragraph[] {
+function noteParagraphs(note: string, o: { before: number; font?: string }): Paragraph[] {
   return [
-    para([run("Uzman Notu", { size: SZ.label, color: C_MID, bold: true })], { before: o.before, after: 40, keepNext: true }),
-    para(multilineRuns(note, { size: SZ.note, color: C_MID, italics: true }), { after: 60 }),
+    para([run("Uzman Notu", { size: SZ.label, color: C_MID, bold: true, font: o.font })], { before: o.before, after: 40, keepNext: true }),
+    para(multilineRuns(note, { size: SZ.note, color: C_MID, italics: true, font: o.font }), { after: 60 }),
   ];
 }
 
@@ -355,6 +363,8 @@ export function expertSignatureBlock(b: ExpertBranding | null | undefined, o: Ex
   const label = o.label ?? "Hazırlayan";
   const name = o.omitName ? "" : r.name ?? brandingLine(o.fallbackName);
   const credential = [r.title, r.organization].filter(Boolean).join(" · ");
+  const font = o.font;
+  const frun = (text: string, ro: RunOpts): TextRun => run(text, { ...ro, font });
   const out: ReportChild[] = [];
 
   if (variant === "B" && (name || credential || r.contactLine || r.logoPng)) {
@@ -365,18 +375,18 @@ export function expertSignatureBlock(b: ExpertBranding | null | undefined, o: Ex
     // TEK BAŞINA düşmez; sığmazsa kart + dipnot birlikte yeni sayfaya geçer (bilgilendirme metni zincire dahil DEĞİL).
     const kn = !!r.note;
     const text: Paragraph[] = [
-      para([run(label, { size: SZ.label, color: accent, bold: true, allCaps: true, spacing: 30 })], { after: CARD.labelAfter, keepNext: kn }),
+      para([frun(label, { size: SZ.label, color: accent, bold: true, allCaps: true, spacing: 30 })], { after: CARD.labelAfter, keepNext: kn }),
     ];
-    if (name) text.push(para([run(name, { size: SZ.name, color: C_DARK, bold: true })], { after: 30, keepNext: kn }));
+    if (name) text.push(para([frun(name, { size: SZ.name, color: C_DARK, bold: true })], { after: 30, keepNext: kn }));
     // Kompakt düzen: unvan ve kurum tek satırda ("unvan · kurum"; uzun değerler Word'de doğal olarak sarılır).
     const cred: TextRun[] = [];
-    if (r.title) cred.push(run(r.title, { size: SZ.line, color: C_MID }));
-    if (r.organization) cred.push(run(r.title ? `  ·  ${r.organization}` : r.organization, { size: SZ.line, color: C_MID, bold: true }));
+    if (r.title) cred.push(frun(r.title, { size: SZ.line, color: C_MID }));
+    if (r.organization) cred.push(frun(r.title ? `  ·  ${r.organization}` : r.organization, { size: SZ.line, color: C_MID, bold: true }));
     if (cred.length) text.push(para(cred, { after: 20, keepNext: kn }));
-    if (r.contactLine) text.push(para([run(r.contactLine, { size: SZ.small, color: C_LIGHT })], { after: 0, keepNext: kn }));
+    if (r.contactLine) text.push(para([frun(r.contactLine, { size: SZ.small, color: C_LIGHT })], { after: 0, keepNext: kn }));
     // İmza alanı: ince çizgi; "İmza" etiketi çizginin üzerinde, solda (ayrı satır kullanılmaz).
     text.push(
-      new Paragraph({ spacing: { before: CARD.signBefore, after: 0 }, keepNext: kn, keepLines: true, indent: { right: Math.round(textW * 0.45) }, border: { bottom: { style: BorderStyle.SINGLE, size: 4, color: "cbd5e1" } }, children: [run("İmza", { size: 15, color: C_LIGHT })] }),
+      new Paragraph({ spacing: { before: CARD.signBefore, after: 0 }, keepNext: kn, keepLines: true, indent: { right: Math.round(textW * 0.45) }, border: { bottom: { style: BorderStyle.SINGLE, size: 4, color: "cbd5e1" } }, children: [frun("İmza", { size: 15, color: C_LIGHT })] }),
     );
     const none = { style: BorderStyle.NONE, size: 0, color: "auto" } as const;
     const top = { style: BorderStyle.SINGLE, size: 18, color: accent } as const;
@@ -408,7 +418,7 @@ export function expertSignatureBlock(b: ExpertBranding | null | undefined, o: Ex
       borders: { top: none, bottom: none, left: none, right: none, insideHorizontal: none, insideVertical: none },
       rows: [new TableRow({ cantSplit: true, children: cells })],
     }));
-    if (r.note) out.push(...noteParagraphs(r.note, { before: CARD.noteBefore }));
+    if (r.note) out.push(...noteParagraphs(r.note, { before: CARD.noteBefore, font }));
     // Kart belgenin son öğesiyse Word tablodan sonra varsayılan yükseklikte boş paragraf ekler; bu satır dolu bir sayfadan
     // boş bir sayfaya taşmasın diye tam 1 pt yükseklikli kapanış paragrafı (yalnız dipnot yokken; görünmez).
     else out.push(new Paragraph({ spacing: { before: 0, after: 0, line: 20, lineRule: LineRuleType.EXACT }, children: [] }));
@@ -418,25 +428,25 @@ export function expertSignatureBlock(b: ExpertBranding | null | undefined, o: Ex
   if (variant === "A" && (name || credential || r.contactLine)) {
     const lines: LineSpec[] = [
       name
-        ? { runs: [run(`${label}: `, { size: SZ.small, color: C_MID }), run(name, { size: SZ.small + 1, color: C_DARK, bold: true })], before: 60, after: 20 }
-        : { runs: [run(label, { size: SZ.small, color: C_MID, bold: true })], before: 60, after: 20 },
+        ? { runs: [frun(`${label}: `, { size: SZ.small, color: C_MID }), frun(name, { size: SZ.small + 1, color: C_DARK, bold: true })], before: 60, after: 20 }
+        : { runs: [frun(label, { size: SZ.small, color: C_MID, bold: true })], before: 60, after: 20 },
     ];
-    if (credential) lines.push({ runs: [run(credential, { size: SZ.small, color: C_MID })], after: 20 });
-    if (r.contactLine) lines.push({ runs: [run(r.contactLine, { size: SZ.small - 1, color: C_LIGHT })], after: 40 });
+    if (credential) lines.push({ runs: [frun(credential, { size: SZ.small, color: C_MID })], after: 20 });
+    if (r.contactLine) lines.push({ runs: [frun(r.contactLine, { size: SZ.small - 1, color: C_LIGHT })], after: 40 });
     out.push(...chained(lines, !!r.note));
-    if (r.note) out.push(...noteParagraphs(r.note, { before: 120 }));
+    if (r.note) out.push(...noteParagraphs(r.note, { before: 120, font }));
     return out;
   }
 
   if (variant === "C" && (name || r.title)) {
     const t = [name, r.title].filter(Boolean).join(" — ");
-    out.push(para([run(`${label}: ${t}`, { size: 16, color: C_MID })], { before: 0, after: 60, keepNext: !!r.note }));
-    if (r.note) out.push(...noteParagraphs(r.note, { before: 80 }));
+    out.push(para([frun(`${label}: ${t}`, { size: 16, color: C_MID })], { before: 0, after: 60, keepNext: !!r.note }));
+    if (r.note) out.push(...noteParagraphs(r.note, { before: 80, font }));
     return out;
   }
 
   // Yalnız dipnot (ya da varyantın göstermediği alanlar) → yalnız dipnot.
-  if (r.note) out.push(...noteParagraphs(r.note, { before: 120 }));
+  if (r.note) out.push(...noteParagraphs(r.note, { before: 120, font }));
   return out;
 }
 

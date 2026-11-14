@@ -21,6 +21,7 @@ import {
   twoColTable,
   type ReportChild,
 } from "@/lib/docx/reportHelpers";
+import { expertSignatureBlock, type ExpertBranding, type ExpertBrandingVariant } from "@/lib/docx/expertBranding";
 import type { AstroReport, ReportTable } from "./model";
 import { isWideFigure } from "./figures";
 import { fontRuns, hasSymbolChars, SYMBOL_FONT_A, SYMBOL_FONT_B } from "./symbolFonts";
@@ -160,10 +161,18 @@ function dataTable(tb: ReportTable): Table {
 }
 
 /**
+ * F3B: uzman rapor markalaması. Gökyüzü Atlası raporu bugün uzman adı GÖSTERMEZ; yalnız uzmanın rapor kimliği anahtarı
+ * AÇIKKEN (route → service `resolveReportBranding(..., { purpose: "signature" })`) rapor sonuna "Hazırlayan" imza kartı
+ * (+ uzman dipnotu) eklenir. Hesaplama / içerik / kapak / üst-alt bilgi DEĞİŞMEZ. PDF (pdf.ts) AYNI markalama verisini
+ * ortak lib/pdf/expertBrandingPdf ile çizer. null / yok → rapor bugünküyle birebir.
+ */
+export type AstroReportBrandingOptions = { branding?: ExpertBranding | null; brandingVariant?: ExpertBrandingVariant };
+
+/**
  * `chartPng`: tekli raporda tek görsel; toplu raporda (UAT 2. tur, madde L) rapordaki "chart" bloklarıyla AYNI sırada
  * görsel dizisi (çizilemeyen için null).
  */
-export function buildAstroReportDocument(r: AstroReport, chartPng: Buffer | null | (Buffer | null)[], symbolFonts: SymbolFontBuffers = null): Document {
+export function buildAstroReportDocument(r: AstroReport, chartPng: Buffer | null | (Buffer | null)[], symbolFonts: SymbolFontBuffers = null, brand: AstroReportBrandingOptions = {}): Document {
   const charts = Array.isArray(chartPng) ? chartPng : [chartPng];
   let chartIdx = 0;
   let breakNext = false;
@@ -234,6 +243,8 @@ export function buildAstroReportDocument(r: AstroReport, chartPng: Buffer | null
     }
   }
   body.push(...paragraphs("Rapor Yaşam Sistemi Astroloji modülünde, kayıtlı analizden oluşturulmuştur.", "muted"));
+  // F3B: "Hazırlayan" imza kartı — yalnız markalama açıkken (Yaşam Sistemi notu ve içerik aynen kalır).
+  body.push(...expertSignatureBlock(brand.branding, { variant: brand.brandingVariant, accent: "5b21b6", contentWidth: CONTENT_DXA, fill: "f8fafc", font: REPORT_FONT }));
 
   const page = { size: { width: 11906, height: 16838 }, margin: { top: 1134, bottom: 1134, left: 1134, right: 1134 } };
   return new Document({
@@ -255,6 +266,6 @@ export function buildAstroReportDocument(r: AstroReport, chartPng: Buffer | null
   });
 }
 
-export async function renderAstroReportDocx(r: AstroReport, chartPng: Buffer | null | (Buffer | null)[], symbolFonts: SymbolFontBuffers = null): Promise<Buffer> {
-  return Packer.toBuffer(buildAstroReportDocument(r, chartPng, symbolFonts));
+export async function renderAstroReportDocx(r: AstroReport, chartPng: Buffer | null | (Buffer | null)[], symbolFonts: SymbolFontBuffers = null, brand: AstroReportBrandingOptions = {}): Promise<Buffer> {
+  return Packer.toBuffer(buildAstroReportDocument(r, chartPng, symbolFonts, brand));
 }

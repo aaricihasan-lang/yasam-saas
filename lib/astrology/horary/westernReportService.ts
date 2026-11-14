@@ -2,6 +2,7 @@
 // (chartPng), docx (renderAstroReportDocx), jsPDF + Geist/sembol yazı tipleri (buildAstroReportPdf). Veritabanı YOK; kayıt YOK.
 import "server-only";
 import { assertServerOnly } from "@/lib/server/serverOnlyGuard";
+import type { ExpertBranding } from "@/lib/docx/expertBranding";
 import { anamnezPdfFontBase64 } from "@/lib/danisan/anamnez/pdfFont";
 import { renderWheelPng } from "@/lib/astrology/report/chartPng";
 import { DOCX_MIME, renderAstroReportDocx } from "@/lib/astrology/report/docx";
@@ -17,15 +18,19 @@ export const PDF_MIME = "application/pdf";
 export async function renderHoraryReport(
   r: WesternHoraryResult,
   format: "docx" | "pdf",
-  opts: { question: string | null; demo: boolean; generatedAt: string; saved?: HorarySavedMeta },
+  opts: {
+    question: string | null; demo: boolean; generatedAt: string; saved?: HorarySavedMeta;
+    /** F3B: uzman markalaması (Word ve PDF AYNI veri; null / yok → birebir). Route astroReportBrandingLoader ile çözer. */
+    branding?: ExpertBranding | null;
+  },
 ): Promise<{ bytes: Uint8Array; filename: string; contentType: string; hasChart: boolean }> {
   const report = buildHoraryReport(r, opts);
   const chart = renderWheelPng(horaryWheelInput(r), 1200);
   if (!chart) console.error("[astro-horary-report] çark görseli üretilemedi");
   if (format === "docx") {
-    const buf = await renderAstroReportDocx(report, chart?.png ?? null, symbolFontBuffers());
+    const buf = await renderAstroReportDocx(report, chart?.png ?? null, symbolFontBuffers(), { branding: opts.branding ?? null });
     return { bytes: new Uint8Array(buf), filename: `${report.fileBase}.docx`, contentType: DOCX_MIME, hasChart: !!chart };
   }
-  const bytes = buildAstroReportPdf(report, chart, anamnezPdfFontBase64(), symbolFontsBase64());
+  const bytes = buildAstroReportPdf(report, chart, anamnezPdfFontBase64(), symbolFontsBase64(), { branding: opts.branding ?? null, balancedSignature: true });
   return { bytes, filename: `${report.fileBase}.pdf`, contentType: PDF_MIME, hasChart: !!chart };
 }

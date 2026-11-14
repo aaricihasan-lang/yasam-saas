@@ -1,6 +1,8 @@
 import { NextRequest } from "next/server";
 import { Document, Packer } from "docx";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
+import { expertDisplayName } from "@/lib/docx/reportDisclaimer";
+import { resolveReportBranding } from "@/lib/profile/reportBranding";
 import { trackUsage } from "@/lib/usage/trackUsage";
 import type { ReportChild } from "@/lib/docx/reportHelpers";
 import { readSnapshotsForDelivery } from "@/lib/yasam-hafizasi/client/snapshotStore";
@@ -200,12 +202,16 @@ export async function POST(request: NextRequest): Promise<Response> {
     };
   };
 
+  // F3B: uzman markalaması — sahip ve ad YALNIZ oturumdan (guard). Anahtar kapalı / profil yok / tablo yok → null (birebir).
+  // purpose "signature": Refleksoloji bugün uzman adı göstermez; anahtar açıkken yalnız rapor sonuna "Hazırlayan" imza bloğu.
+  const branding = await resolveReportBranding(db, { tenantId, userId: guard.userId }, { fullName: expertDisplayName(guard.profile) }, { purpose: "signature" });
+
   let children: ReportChild[];
   if (isSingle) {
     const input = toInput(protocols[0]!, 0);
     // "Oluşturulma Tarihi" = raporun ÜRETİM tarihi (bugün). Protokolün kayıt tarihi
     // ayrı "Protokol Tarihi" metadata'sı olarak korunur (yanlış etiketlenmez).
-    children = await buildSingleReport(input, reportDateTR(), formatDateTR(protocols[0]!.created_at));
+    children = await buildSingleReport(input, reportDateTR(), formatDateTR(protocols[0]!.created_at), { branding });
 
     // ── Yaşam Hafızası Seçimleri (BF-14 P2; danışana özel teslim eki, OPSİYONEL) ──
     // Yalnız exportMode === "single" + doğrulanmış client + selection group.
@@ -235,7 +241,7 @@ export async function POST(request: NextRequest): Promise<Response> {
   } else {
     const inputs = protocols.map(toInput);
     const scopeLabel = exportMode === "selected" ? "Seçili Protokoller" : "Tüm Protokoller";
-    children = await buildBulkReport(inputs, reportDateTR(), scopeLabel);
+    children = await buildBulkReport(inputs, reportDateTR(), scopeLabel, { branding });
   }
 
   const doc = new Document({

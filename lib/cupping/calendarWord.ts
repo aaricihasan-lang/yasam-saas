@@ -24,6 +24,8 @@ import {
   ExternalHyperlink,
   Footer,
   HeightRule,
+  ImageRun,
+  LineRuleType,
   PageNumber,
   PageOrientation,
   Packer,
@@ -49,6 +51,7 @@ import type {
   CuppingCalendarPlanDay,
   CuppingDayColorKey,
 } from "@/lib/cupping/calendarTypes";
+import { EXPERT_SIGNATURE_CARD_TWIPS as CARD, DEFAULT_EXPERT_BRANDING_VARIANT, expertSignatureBlock, expertBrandingFields, fitLogo, type ExpertBranding, type ExpertBrandingVariant } from "@/lib/docx/expertBranding";
 
 export const WORD_CONTENT_TYPE =
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
@@ -592,6 +595,16 @@ function trailingPara(): Paragraph {
   return new Paragraph({ spacing: { before: 0, after: 0 }, children: [new TextRun({ text: "", size: 2, font: FONT })] });
 }
 
+/**
+ * Sayfa düzeni (10.11): imza bölümü mevcut son paragraftan (`trailingPara()`, AYNEN yerinde) SONRA eklenir ve belge tam 1 pt
+ * yükseklikli bir paragrafla biter → kart / dipnot sayfayı doldurduğunda belge sonu paragrafı tek başına BOŞ bir sayfaya
+ * taşmaz. Markasız belgede hiçbir şey eklenmez (gövde birebir; markalı gövde = markasız + sonda tek ekleme).
+ */
+function signatureTail(signature: readonly (Paragraph | Table)[]): (Paragraph | Table)[] {
+  if (!signature.length) return [];
+  return [...signature, new Paragraph({ spacing: { before: 0, after: 0, line: 20, lineRule: LineRuleType.EXACT }, children: [new TextRun({ text: "", size: 2, font: FONT })] })];
+}
+
 // ═══════════════════════════════════════════════════════════════════════════
 // SAYFA 2+ — SEÇİLİ GÜNLER VE AÇIKLAMALAR (A4 dikey)
 // ═══════════════════════════════════════════════════════════════════════════
@@ -732,10 +745,15 @@ function buildAdviceSection(template: CuppingAdviceTemplate | null): (Paragraph 
 // Kurumsal footer (yerel; paylaşımlı helper'a dokunulmaz)
 // ═══════════════════════════════════════════════════════════════════════════
 
-function buildFooter(planLabel: string): Footer {
+function buildFooter(planLabel: string, identity: (TextRun | ImageRun)[] | null = null): Footer {
   return new Footer({
     children: [
-      ruleParagraph(0, 40),
+      // Görsel kabul (11.11): A3 yıllık takvimde uzman kimliği, alt bilgi çizgisinin üstündeki MEVCUT boş satıra yazılır
+      // (aynı paragraf, aynı boşluklar; gövde alanı ve takvim ızgarası değişmez — Word render ölçümü: çizgi ≤ 0,3 pt). Kimlik
+      // yoksa paragraf bugünküyle birebir.
+      identity
+        ? new Paragraph({ border: { bottom: { style: BorderStyle.SINGLE, size: 4, color: RULE_GRAY } }, spacing: { before: 0, after: 40 }, children: identity })
+        : ruleParagraph(0, 40),
       // HAC-MED-1 — danışana giden çıktıda kısa, nötr kullanım notu (tıbbi tavsiye/disclaimer DEĞİL).
       new Paragraph({
         alignment: AlignmentType.CENTER,
@@ -794,7 +812,87 @@ export type BuildCalendarWordInput = {
    *   (A4 dikey tek-ay takvimi). Aralık dışı/geçersiz değer YILLIK gibi ele alınır (route KATI doğrular).
    */
   month?: number | null;
+  /**
+   * F3B: uzman rapor markalaması. Takvim belgesi bugün uzman adı GÖSTERMEZ; yalnız uzmanın rapor kimliği anahtarı AÇIKKEN
+   * (route `resolveReportBranding(..., { purpose: "signature" })`) belge sonuna "Hazırlayan" imza kartı (+ uzman dipnotu)
+   * eklenir; tek-A3 sayfa kararı bu bloğun tahmini yüksekliğini de hesaba katar. null / yok → belge bugünküyle birebir.
+   */
+  branding?: ExpertBranding | null;
+  /** Yalnız örnek/test üretimi için tasarım varyantı. */
+  brandingVariant?: ExpertBrandingVariant;
 };
+
+/** F3B: imza kartı genişliği (twip) — A3 yatayda da okunaklı A4 genişliğinde kart (sola yaslı). */
+const SIGNATURE_W = 11906 - 2 * 1000;
+
+/** F3B: "Hazırlayan" imza kartı (+ dipnot). Markalama yoksa []. */
+function buildSignatureSection(branding: ExpertBranding | null | undefined, variant: ExpertBrandingVariant | undefined): (Paragraph | Table)[] {
+  return expertSignatureBlock(branding, { variant, accent: C_BRAND, contentWidth: SIGNATURE_W, fill: "F3F1EA", font: FONT }) as (Paragraph | Table)[];
+}
+
+/**
+ * F3B: imza kartının KONSERVATİF tahmini yüksekliği (twips). Markalama yoksa 0 (sayfa kararı bugünküyle birebir).
+ * Kart: boşluk + etiket + ad + unvan · kurum + iletişim + imza çizgisi; logo kart yüksekliğini aşmaz (≤ 70 px).
+ * Dipnot: başlık + satırlar (estLines ile konservatif sarma).
+ */
+function estimateSignatureTwips(branding: ExpertBranding | null | undefined): number {
+  const f = expertBrandingFields(branding);
+  if (!f) return 0;
+  let h = 0;
+  if (f.name || f.title || f.organization || f.contactLine || f.logoPng) {
+    // Kompakt kart (EXPERT_SIGNATURE_CARD_TWIPS): ayırıcı + hücre kenarları + etiket; unvan · kurum tek satır (sarılabilir).
+    h += CARD.gapBefore + 2 * CARD.padY + 240 + CARD.labelAfter;
+    if (f.name) h += 330;
+    const cred = [f.title, f.organization].filter(Boolean).join("  ·  ");
+    if (cred) h += Math.max(1, Math.ceil(cred.length / 60)) * 270;
+    if (f.contactLine) h += Math.max(1, Math.ceil(f.contactLine.length / 70)) * 240;
+    h += CARD.signBefore + 240; // imza çizgisi üstü boşluk + "İmza" etiketli çizgi satırı
+    if (f.logoPng) h = Math.max(h, CARD.gapBefore + 2 * CARD.padY + 1100);
+  }
+  if (f.note) h += CARD.noteBefore + 260 + estLines(f.note) * EST.NOTE_LINE + 60;
+  return h;
+}
+
+/**
+ * Görsel kabul (11.11) — A3 yıllık takvim: imza kartı A3'e sığmadığında kart için ayrı A4 sayfası AÇILMAZ; uzmanın kimliği A3
+ * alt bilgi çizgisinin üstündeki mevcut boş satıra TEK SATIR yazılır: "HAZIRLAYAN  [ad ·] unvan · kurum · iletişim" + küçük logo.
+ * Ad yalnız çözücü verdiyse (üretimde SIGNATURE_INCLUDES_PROFILE_NAME=false → yok). Punto alt bilgi metinleriyle aynı ölçekte;
+ * logo satır yüksekliğini aşmaz (≤ 12 px). Yalnız B (üretim) varyantında; gösterilecek kart alanı yoksa null.
+ */
+const A3_IDENTITY_LOGO_PX = { w: 48, h: 12 } as const;
+/** A3 alt bilgi satırına tek satırda sığan güvenli karakter sayısı (6,5 pt; 403 mm satırda ölçülen ≈ 1,16 mm/karakter → ≈ 335) — aşan kimlikte bu yol kullanılmaz (mevcut davranış). */
+const A3_IDENTITY_MAX_CHARS = 300;
+function a3IdentityRuns(branding: ExpertBranding | null | undefined, variant: ExpertBrandingVariant | undefined): (TextRun | ImageRun)[] | null {
+  if ((variant ?? DEFAULT_EXPERT_BRANDING_VARIANT) !== "B") return null;
+  const f = expertBrandingFields(branding);
+  if (!f || !(f.name || f.title || f.organization || f.contactLine || f.logoPng)) return null;
+  const text = [f.name, f.title, f.organization, f.contactLine].filter(Boolean).join("  ·  ");
+  if (text.length > A3_IDENTITY_MAX_CHARS) return null;
+  const out: (TextRun | ImageRun)[] = [];
+  if (f.logoPng) {
+    out.push(new ImageRun({ type: "png", data: f.logoPng.data, transformation: fitLogo(f.logoPng, A3_IDENTITY_LOGO_PX.w, A3_IDENTITY_LOGO_PX.h) }));
+    out.push(new TextRun({ text: "  ", size: 13, font: FONT }));
+  }
+  out.push(new TextRun({ text: "HAZIRLAYAN", bold: true, size: 12, font: FONT, color: C_BRAND, characterSpacing: 30 }));
+  if (text) out.push(new TextRun({ text: `   ${text}`, size: 13, font: FONT, color: C_MID }));
+  return out;
+}
+
+/**
+ * A3'te tam satır genişliğinde (≈ 403 mm, 8,5 pt) akan dipnotun KONSERVATİF tahmini yüksekliği (twips). Satır başına 180
+ * karakter (gerçek ≈ 290) → tahmin ≥ gerçek. Başlık + boşluklar `estimateSignatureTwips` dipnot payıyla aynı.
+ */
+const A3_NOTE_CHARS_PER_LINE = 180;
+function estimateA3NoteTwips(note: string): number {
+  const lines = toLines(note).reduce((n, l) => n + Math.max(1, Math.ceil(l.length / A3_NOTE_CHARS_PER_LINE)), 0);
+  return CARD.noteBefore + 260 + lines * EST.NOTE_LINE + 60;
+}
+
+/** Yalnız uzman dipnotu (kart alanları olmadan) — A3 kimlik satırı kullanıldığında dipnot bu biçimde yerleşir. */
+function noteOnlyBranding(branding: ExpertBranding | null | undefined): ExpertBranding | null {
+  const f = expertBrandingFields(branding);
+  return f?.note ? { note: f.note } : null;
+}
 
 /** Geçerli ay numarası mı? (1–12 tam sayı.) */
 function isValidMonth(m: unknown): m is number {
@@ -852,6 +950,8 @@ async function buildMonthlyBuffer(args: {
   sorted: CuppingCalendarPlanDay[];
   template: CuppingAdviceTemplate | null;
   month: number;
+  branding?: ExpertBranding | null;
+  brandingVariant?: ExpertBrandingVariant;
 }): Promise<Buffer> {
   const { plan, sorted, template, month } = args;
   const prefix = `${plan.year}-${String(month).padStart(2, "0")}-`;
@@ -861,6 +961,7 @@ async function buildMonthlyBuffer(args: {
   for (const d of monthDays) selected.set(d.gregorian_date, d);
 
   const planLabel = `${plan.name} · ${GREGORIAN_MONTHS_TR[month - 1]} ${plan.year}`;
+  const monthSignature = buildSignatureSection(args.branding, args.brandingVariant);
   const children: (Paragraph | Table)[] = [
     ...monthTitleBlock(plan, month),
     monthCalendarTable(plan.year, month, selected),
@@ -869,6 +970,7 @@ async function buildMonthlyBuffer(args: {
     ...buildDetailNotesSection(monthDays),
     ...buildAdviceSection(template),
     trailingPara(),
+    ...signatureTail(monthSignature), // F3B (yalnız markalama açıkken)
   ];
 
   const doc = new Document({
@@ -896,7 +998,7 @@ async function buildMonthlyBuffer(args: {
  *   bilgi TEKRAR EDİLMEZ; kronolojik sıra korunur.
  */
 export async function buildCalendarPlanWordBuffer(input: BuildCalendarWordInput): Promise<Buffer> {
-  const { plan, days, template = null, month = null } = input;
+  const { plan, days, template = null, month = null, branding = null, brandingVariant } = input;
 
   const selected = new Map<string, CuppingCalendarPlanDay>();
   for (const d of days) selected.set(d.gregorian_date, d);
@@ -906,12 +1008,13 @@ export async function buildCalendarPlanWordBuffer(input: BuildCalendarWordInput)
 
   // ── AYLIK RAPOR (A4 dikey, tek ay) — month 1–12 verildiğinde ─────────────────
   if (isValidMonth(month)) {
-    return buildMonthlyBuffer({ plan, sorted, template, month });
+    return buildMonthlyBuffer({ plan, sorted, template, month, branding, brandingVariant });
   }
 
   const grid = buildAnnualGrid(plan.year, selected);
   const notesSection = buildDetailNotesSection(sorted);
   const adviceSection = buildAdviceSection(template);
+  const signatureSection = buildSignatureSection(branding, brandingVariant); // F3B: markalama yoksa []
 
   // Konservatif toplam yükseklik tahmini (twips).
   const gridTitle = EST.TITLE + EST.GRID;
@@ -919,6 +1022,8 @@ export async function buildCalendarPlanWordBuffer(input: BuildCalendarWordInput)
   const notesH = estimateNotesTwips(sorted);
   const adviceH = estimateAdviceTwips(template);
   const totalH = gridTitle + summaryH + notesH + adviceH;
+  // F3B: imza kartının tahmini yüksekliği (markalama yoksa 0 → sayfa kararı bugünküyle birebir).
+  const signatureH = estimateSignatureTwips(branding);
 
   // A3 kenar boşlukları sıkılaştırıldı — ilk sayfada dikey alanı geri kazanır (owner: alt boşluk).
   const A3_MARGIN = { top: 400, bottom: 700, left: 480, right: 480, header: 200, footer: 260 };
@@ -928,6 +1033,17 @@ export async function buildCalendarPlanWordBuffer(input: BuildCalendarWordInput)
 
   // ── SENARYO A/C — HER ŞEY TEK A3 SAYFADA (2. sayfa yok) ──────────────────────
   if (totalH <= A3_CONTENT_BUDGET) {
+    // F3B: imza kartı A3'e de sığıyorsa aynı sayfanın sonuna; sığmıyorsa A3 sayfası BİREBİR aynı kalır ve kart
+    // yalnız kendisi için açılan A4 dikey devam sayfasına yerleşir (mevcut içerik yer değiştirmez).
+    const signatureFits = totalH + signatureH <= A3_CONTENT_BUDGET;
+    // Görsel kabul (11.11): kart sığmıyorsa kimlik A3 alt bilgi satırına (sayfa düzeni / bütçe değişmez); dipnot A3'e sığıyorsa
+    // içerik sonuna, sığmıyorsa YALNIZ dipnot için A4 devam sayfası (Owner kararına açık; seçenekler raporda).
+    const identity = signatureFits ? null : a3IdentityRuns(branding, brandingVariant);
+    const noteSection = identity ? buildSignatureSection(noteOnlyBranding(branding), brandingVariant) : [];
+    const a3Note = identity ? noteOnlyBranding(branding)?.note ?? null : null;
+    const noteFitsA3 = !!a3Note && totalH + estimateA3NoteTwips(a3Note) <= A3_CONTENT_BUDGET;
+    const a3Tail = signatureFits ? signatureSection : noteFitsA3 ? noteSection : [];
+    const a4Tail = signatureFits ? [] : identity ? (noteFitsA3 ? [] : noteSection) : signatureSection;
     const children: (Paragraph | Table)[] = [
       ...titleBlock(plan),
       grid,
@@ -936,15 +1052,19 @@ export async function buildCalendarPlanWordBuffer(input: BuildCalendarWordInput)
       ...notesSection,
       ...adviceSection,
       trailingPara(),
+      ...signatureTail(a3Tail),
     ];
     const doc = new Document({
       ...docMeta,
       sections: [
         {
           properties: { page: { size: A3_LANDSCAPE, margin: A3_MARGIN } },
-          footers: { default: buildFooter(planLabel) },
+          footers: { default: buildFooter(planLabel, identity) },
           children,
         },
+        ...(a4Tail.length === 0
+          ? []
+          : [{ properties: { page: { size: A4_PORTRAIT, margin: A4_MARGIN } }, footers: { default: buildFooter(planLabel) }, children: signatureTail(a4Tail) }]),
       ],
     });
     return Buffer.from(await Packer.toBuffer(doc));
@@ -963,6 +1083,7 @@ export async function buildCalendarPlanWordBuffer(input: BuildCalendarWordInput)
   if (daysA4.length > 0) contParts.push(`${daysA4.length} gün daha`);
   if (notesSection.length > 0) contParts.push("detay notları");
   if (adviceSection.length > 0) contParts.push("bilgilendirme");
+  if (signatureSection.length > 0) contParts.push("hazırlayan bilgisi"); // F3B
   const contText =
     daysA4.length > 0
       ? `İlk sayfada ${daysA3.length} gün gösteriliyor · ${contParts.join(" + ")} sonraki sayfalardadır.`
@@ -983,7 +1104,7 @@ export async function buildCalendarPlanWordBuffer(input: BuildCalendarWordInput)
   if (daysA4.length > 0) {
     sec2Children.push(summaryHeading("SEÇİLİ GÜNLER VE AÇIKLAMALARI (devam)"), daySummaryTable(daysA4));
   }
-  sec2Children.push(...notesSection, ...adviceSection, trailingPara());
+  sec2Children.push(...notesSection, ...adviceSection, trailingPara(), ...signatureTail(signatureSection));
 
   const doc = new Document({
     ...docMeta,

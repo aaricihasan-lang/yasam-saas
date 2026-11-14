@@ -7,6 +7,7 @@
 import "server-only";
 import { assertServerOnly } from "@/lib/server/serverOnlyGuard";
 import { anamnezPdfFontBase64 } from "@/lib/danisan/anamnez/pdfFont";
+import type { ExpertBranding } from "@/lib/docx/expertBranding";
 import { getAnalysis, listAnalyses } from "../analyses/service";
 import type { EngineCtx } from "../engine/service";
 import { renderWheelPng } from "./chartPng";
@@ -46,18 +47,34 @@ async function renderChartBlock(block: Extract<ReportBlock, { kind: "chart" }>, 
   return r;
 }
 
-export async function buildAnalysisReport(ctx: EngineCtx, id: string, format: ReportFormat, ownerPreviewHideInterp: boolean): Promise<ReportResult> {
+/**
+ * F3B — rapor markalaması seçeneği. `loadBranding` yalnız rapor verisi doğrulandıktan SONRA bir kez çağrılır; Word ve PDF
+ * AYNI sonucu kullanır. Verilmezse (arşiv / kampanya / testler) rapor bugünküyle birebir.
+ */
+export type AstroReportBrandingLoader = { loadBranding?: () => Promise<ExpertBranding | null> };
+
+async function loadBrandingSafe(opts: AstroReportBrandingLoader): Promise<ExpertBranding | null> {
+  if (!opts.loadBranding) return null;
+  try {
+    return await opts.loadBranding();
+  } catch {
+    return null;
+  }
+}
+
+export async function buildAnalysisReport(ctx: EngineCtx, id: string, format: ReportFormat, ownerPreviewHideInterp: boolean, opts: AstroReportBrandingLoader = {}): Promise<ReportResult> {
   const r = await getAnalysis(ctx, id, ownerPreviewHideInterp);
   if (r.status !== 200) return { ok: false, status: r.status, body: r.body as Record<string, unknown> };
   const analysis = (r.body as { analysis: ReportAnalysisInput }).analysis;
   const report = buildAstroReport(analysis);
   const chartBlock = report.blocks.find((b) => b.kind === "chart");
   const chart = chartBlock && chartBlock.kind === "chart" ? await renderChartBlock(chartBlock, 1200, analysis.technique) : null;
+  const branding = await loadBrandingSafe(opts);
   if (format === "docx") {
-    const buf = await renderAstroReportDocx(report, chart?.png ?? null, symbolFontBuffers());
+    const buf = await renderAstroReportDocx(report, chart?.png ?? null, symbolFontBuffers(), { branding });
     return { ok: true, bytes: new Uint8Array(buf), filename: `${report.fileBase}.docx`, contentType: DOCX_MIME, hasInterpretation: report.hasInterpretation, hasChart: !!chart };
   }
-  const bytes = buildAstroReportPdf(report, chart, anamnezPdfFontBase64(), symbolFontsBase64());
+  const bytes = buildAstroReportPdf(report, chart, anamnezPdfFontBase64(), symbolFontsBase64(), { branding });
   return { ok: true, bytes, filename: `${report.fileBase}.pdf`, contentType: PDF_MIME, hasInterpretation: report.hasInterpretation, hasChart: !!chart };
 }
 
@@ -99,6 +116,7 @@ export async function buildCombinedAnalysisReport(
   input: { profileId: unknown; ids?: unknown; all?: unknown },
   format: ReportFormat,
   ownerPreviewHideInterp: boolean,
+  opts: AstroReportBrandingLoader = {},
 ): Promise<ReportResult> {
   if (!isUuidLike(input.profileId)) return err(400, "INVALID_PROFILE", "Geçerli danışan profili gerekli.");
   const profileId = input.profileId;
@@ -136,13 +154,14 @@ export async function buildCombinedAnalysisReport(
   const report = buildCombinedAstroReport(items, scope, today);
   const charts = await chartImages(report, 1000);
   const hasChart = charts.some(Boolean);
+  const branding = await loadBrandingSafe(opts);
   if (format === "docx") {
-    const buf = await renderAstroReportDocx(report, charts.map((c) => c?.png ?? null), symbolFontBuffers());
+    const buf = await renderAstroReportDocx(report, charts.map((c) => c?.png ?? null), symbolFontBuffers(), { branding });
     const tooLarge = combinedReportTooLarge(buf.byteLength, items.length);
     if (tooLarge) return tooLarge;
     return { ok: true, bytes: new Uint8Array(buf), filename: `${report.fileBase}.docx`, contentType: DOCX_MIME, hasInterpretation: report.hasInterpretation, hasChart };
   }
-  const bytes = buildAstroReportPdf(report, charts, anamnezPdfFontBase64(), symbolFontsBase64());
+  const bytes = buildAstroReportPdf(report, charts, anamnezPdfFontBase64(), symbolFontsBase64(), { branding });
   const tooLarge = combinedReportTooLarge(bytes.byteLength, items.length);
   if (tooLarge) return tooLarge;
   return { ok: true, bytes, filename: `${report.fileBase}.pdf`, contentType: PDF_MIME, hasInterpretation: report.hasInterpretation, hasChart };

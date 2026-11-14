@@ -16,6 +16,8 @@ import {
 } from "docx";
 import type { NextRequest } from "next/server";
 import { buildWellnessNoteSection, type ReportChild } from "@/lib/docx/reportHelpers";
+import { expertSignatureBlock, type ExpertBranding, type ExpertBrandingVariant } from "@/lib/docx/expertBranding";
+import { resolveReportBranding } from "@/lib/profile/reportBranding";
 import {
   getHacamatMonthData,
   MONTH_NAMES_TR,
@@ -336,6 +338,9 @@ async function buildWordBuffer(params: {
   title?:          string;
   expertName?:     string;
   includeSections?: Partial<IncludeSections>;
+  /** F3B: uzman markalaması (yalnız form adı doluyken uygulanır; null/yok → birebir). */
+  branding?:       ExpertBranding | null;
+  brandingVariant?: ExpertBrandingVariant;
 }): Promise<Buffer> {
   const {
     year, month,
@@ -425,6 +430,15 @@ async function buildWordBuffer(params: {
   // FA-16: sade bilgilendirme notu (uzman adı başlıkta zaten gösterildiği için tekrarlanmaz).
   all.push(...buildWellnessNoteSection("hacamat"));
 
+  // F3B: "Hazırlayan" kartı — ad formdaki serbest alandan (profil adı yazılmaz); yalnız form adı doluyken.
+  if (expertName?.trim()) {
+    // Savunma: markalamada ad olsa bile YOK sayılır → kartta daima formdaki ad (profil adıyla ezilmez).
+    all.push(...expertSignatureBlock(params.branding ? { ...params.branding, name: null } : null, {
+      variant: params.brandingVariant, accent: C_TEAL, fallbackName: expertName, omitName: false,
+      contentWidth: 11906 - 2 * 600, fill: "F0FDFA", font: FONT,
+    }));
+  }
+
   const doc = new Document({
     sections: [{
       properties: {
@@ -443,6 +457,19 @@ async function buildWordBuffer(params: {
 }
 
 const WORD_CONTENT_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+
+/**
+ * F3B — Hacamat raporu (Word + PDF AYNI kural) uzman markalaması. OWNER KARARI:
+ *   - Formdaki serbest "Hazırlayan" (expertName) KORUNUR; profil adı ile EZİLMEZ (purpose "named-by-form" ad döndürmez).
+ *   - Yalnız form adı DOLUYSA ve uzmanın rapor kimliği anahtarı açıksa: unvan / kurum / logo rapor sonunda "Hazırlayan"
+ *     kartında yer alır; iletişim ve dipnot otomatik EKLENMEZ (NAMED_BY_FORM_INCLUDES_CONTACT_NOTE = false).
+ *   - Form adı boş / anahtar kapalı / profil yok / tablo yok → null → rapor bugünküyle birebir.
+ * Sahip (tenant / kullanıcı) YALNIZ oturumdan (guard).
+ */
+async function hacamatBranding(guard: { db: Parameters<typeof resolveReportBranding>[0]; tenantId: string; userId: string }, expertName: string): Promise<ExpertBranding | null> {
+  if (!expertName.trim()) return null;
+  return resolveReportBranding(guard.db, { tenantId: guard.tenantId, userId: guard.userId }, { fullName: null }, { purpose: "named-by-form" });
+}
 
 // ─── GET — mobil için doğrudan indirme ───────────────────────────────────────
 
@@ -503,7 +530,8 @@ export async function POST(request: Request): Promise<Response> {
 
   let buffer: Buffer;
   try {
-    buffer = await buildWordBuffer({ year, month, rules, expertNotes, title, expertName, includeSections });
+    const branding = await hacamatBranding(guard, expertName);
+    buffer = await buildWordBuffer({ year, month, rules, expertNotes, title, expertName, includeSections, branding });
   } catch {
     await trackUsage(guard, request, { module: "cosmic_calendar", action: "action_failed", failedAction: "report_generated", subEntity: "hacamat_calendar", errorClass: "server" });
     return Response.json({ ok: false, error: "Rapor oluşturulamadı." }, { status: 500 });
