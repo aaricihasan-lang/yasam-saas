@@ -67,6 +67,30 @@ type Loaded = {
 };
 type State = { kind: "loading" } | { kind: "error"; denied: boolean } | { kind: "ready"; data: Loaded };
 
+/**
+ * Filtre çiplerinin pastel renk ailesi (yalnız görsel; Üye Detayı sekme paletiyle aynı aileler).
+ * lav = genel · mint = süren üyelik/deneme · blue = ticari/ödeme · peach = dikkat gerektiren · rose = durdurulmuş/pasif/arşiv
+ */
+type ChipTone = "lav" | "mint" | "blue" | "peach" | "rose";
+const FILTER_CHIP_TONE: Record<MemberV2Filter, ChipTone> = {
+  all: "lav",
+  yeni: "lav",
+  trial: "mint",
+  notstarted: "mint",
+  pro: "mint",
+  prores: "blue",
+  pay: "blue",
+  paynext: "blue",
+  eski: "blue",
+  basvuru: "peach",
+  bitti: "peach",
+  inceleme: "peach",
+  soon: "peach",
+  askida: "rose",
+  pasif: "rose",
+  arsiv: "rose",
+};
+
 const noopSubscribe = () => () => {};
 const readStoredUserRaw = () => {
   try {
@@ -402,23 +426,23 @@ function MembersV2Content() {
           <div className={styles.presets} role="toolbar" aria-label="Hazır filtreler" data-presets>
             {MEMBER_V2_MAIN_FILTERS.map(([k, l]) => (
               <button type="button" key={k} className={styles.chip} aria-pressed={query.role === "expert" && query.filter === k}
-                onClick={() => pick(k)} data-preset={k}>
+                onClick={() => pick(k)} data-preset={k} data-tone={FILTER_CHIP_TONE[k]}>
                 {l} <span className={styles.chipN}>{pc ? pc[k] : ""}</span>
               </button>
             ))}
             {activeMore && !moreOpen ? (
-              <button type="button" className={styles.chip} aria-pressed="true" title="Filtreyi kaldır" onClick={() => pick("all")} data-active-more>
+              <button type="button" className={styles.chip} aria-pressed="true" title="Filtreyi kaldır" onClick={() => pick("all")} data-active-more data-tone={FILTER_CHIP_TONE[activeMore[0]]}>
                 {activeMore[1]} <span className={styles.chipN}>{pc ? pc[activeMore[0]] : ""}</span> ✕
               </button>
             ) : null}
-            <button type="button" className={styles.chip} aria-expanded={moreOpen} onClick={() => setMoreOpen((v) => !v)} data-more>
+            <button type="button" className={styles.chip} aria-expanded={moreOpen} onClick={() => setMoreOpen((v) => !v)} data-more data-tone="lav">
               Diğer filtreler {moreOpen ? "▴" : "▾"}
             </button>
             {moreOpen ? (
               <div className={styles.morePanel} data-more-panel>
                 {MEMBER_V2_MORE_FILTERS.map(([k, l]) => (
                   <button type="button" key={k} className={styles.chip} aria-pressed={query.role === "expert" && query.filter === k}
-                    onClick={() => pick(k)} data-preset={k}>
+                    onClick={() => pick(k)} data-preset={k} data-tone={FILTER_CHIP_TONE[k]}>
                     {l} <span className={styles.chipN}>{pc ? pc[k] : ""}</span>
                   </button>
                 ))}
