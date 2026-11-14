@@ -28,7 +28,7 @@ DECLARE
 BEGIN
   SELECT string_agg(c, ', ') INTO v_missing
     FROM unnest(ARRAY['user_id','payment_status','payment_date','next_payment_date','paid_amount','payment_note',
-                      'agreed_fee','billing_period','actor_admin_id']) AS c
+                      'agreed_fee','billing_period','actor_admin_id','created_at']) AS c
    WHERE NOT EXISTS (SELECT 1 FROM information_schema.columns
                       WHERE table_schema = 'public' AND table_name = 'user_payment_history' AND column_name = c);
   IF v_missing IS NOT NULL THEN
@@ -74,6 +74,7 @@ DECLARE
   v_changed text[] := '{}'::text[];
   v_key     text;
   v_hist    jsonb;
+  v_at      timestamptz;
 BEGIN
   IF p_actor IS NULL OR p_user_id IS NULL OR p_changes IS NULL OR jsonb_typeof(p_changes) <> 'object' THEN
     RAISE EXCEPTION 'admin_save_member_payment: eksik parametre' USING ERRCODE = 'PY400';
@@ -96,6 +97,9 @@ BEGIN
   IF (to_jsonb(r) ->> 'archived_at') IS NOT NULL THEN
     RAISE EXCEPTION 'admin_save_member_payment: hesap arsivde' USING ERRCODE = 'UY005';
   END IF;
+  -- Geçmiş zaman damgası KİLİT ALINDIKTAN SONRA (clock_timestamp): now() işlem başlangıcıdır; kilidi bekleyen
+  -- eşzamanlı kayıt daha erken damgayla ama daha SONRA yazardı → "en son geçmiş satırı" gerçek son durum olmazdı.
+  v_at := clock_timestamp();
 
   v_next := jsonb_populate_record(r, p_changes);
   IF p_changes ? 'payment_status'    AND v_next.payment_status    IS DISTINCT FROM r.payment_status    THEN v_changed := array_append(v_changed, 'payment_status'); END IF;
@@ -138,11 +142,12 @@ BEGIN
     'payment_note', to_jsonb(v_after.payment_note),
     'agreed_fee', to_jsonb(v_after.agreed_fee),
     'billing_period', to_jsonb(v_after.billing_period),
-    'actor_admin_id', p_actor);
+    'actor_admin_id', p_actor,
+    'created_at', to_jsonb(v_at));
   INSERT INTO public.user_payment_history
-    (user_id, payment_status, payment_date, next_payment_date, paid_amount, payment_note, agreed_fee, billing_period, actor_admin_id)
+    (user_id, payment_status, payment_date, next_payment_date, paid_amount, payment_note, agreed_fee, billing_period, actor_admin_id, created_at)
   SELECT h.user_id, h.payment_status, h.payment_date, h.next_payment_date, h.paid_amount, h.payment_note,
-         h.agreed_fee, h.billing_period, h.actor_admin_id
+         h.agreed_fee, h.billing_period, h.actor_admin_id, h.created_at
     FROM jsonb_populate_record(NULL::public.user_payment_history, v_hist) h;
 
   INSERT INTO public.admin_audit_log

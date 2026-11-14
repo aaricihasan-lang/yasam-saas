@@ -4,6 +4,10 @@
  * handler'ları (test-only PostgREST şimi). Production'a / ağa SIFIR temas; tüm hesaplar sentetik (ZZ_4B_*).
  *
  *   M  migration: ön koşul fail-closed · 2× uygulama · mevcut satırlar değişmez · yetkiler (yalnız service_role)
+ *   R  production NOT NULL (user_payment_history.payment_date): eski hata yeniden üretilir (yeni + bugünkü kod) → 000690
+ *      ile giderilir; mevcut geçmiş satırları değişmez; 'bugün' varsayılanı tarih uydurmaz
+ *   N  tarihi boş üye: durum değişikliği · muafiyet (gerekçe kuralı) · geçmiş · ödeme geçmişi ekranı · atomik geri alma
+ *   E  eski kod (main e8962223, dondurulmuş kopya) + yeni şema: ödeme çalışır; pasif Pro geçişi veri değişmeden reddedilir
  *   P  Pro geçişi: aktif deneme → Pro · PASİF deneme → 409 (hesap pasif kalır, hiçbir satır değişmez) · arşiv → 409 ·
  *      doğrudan RPC (TR412 / UY005) · Pro geçişi ∥ pasife alma yarışı → pasif hesap hiçbir sırada aktifleşmez
  *   D  ödeme: başarı (kullanıcı + geçmiş + audit birlikte) · geçmiş hatası → hiçbir şey kalmaz · audit hatası → tamamı geri ·
@@ -16,6 +20,7 @@
  */
 import { spawnSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
+import { createServer } from "node:net";
 import { NextRequest } from "next/server";
 import { startPgrestShim } from "../uye-yonetimi-faz1/pgrestShim";
 import { startTestDb, type TestDb } from "../uye-yonetimi-faz2/testDb";
@@ -35,6 +40,7 @@ function ok(cond: boolean, label: string, detail?: unknown): void {
   }
 }
 
+const MIG_NULL = "20280101000690_user_payment_history_payment_date_optional_4b.sql";
 const MIG_PAY = "20280101000700_admin_payment_atomic_4b.sql";
 const MIG_CONV = "20280101000710_admin_trial_convert_passive_guard_4b.sql";
 const PRE_4B = [
@@ -102,6 +108,24 @@ async function mkExpert(db: TestDb, tenant: () => Promise<string>, e: Expert): P
   return id;
 }
 
+/** İşletim sisteminden boş bir TCP portu (sabit / rastgele aralık, yetim postmaster veya paralel testle çakışmasın). */
+async function freePort(): Promise<number> {
+  return new Promise((resolve, reject) => {
+    const srv = createServer();
+    srv.once("error", reject);
+    srv.listen(0, "127.0.0.1", () => {
+      const a = srv.address();
+      const p = typeof a === "object" && a ? a.port : 0;
+      srv.close(() => (p ? resolve(p) : reject(new Error("boş port alınamadı"))));
+    });
+  });
+}
+
+/** SQL çalıştır; başarılıysa "OK", hata varsa PostgreSQL hata kodu. */
+async function rpcErrIn(c: { query: (sql: string, args?: unknown[]) => Promise<unknown> }, sql: string, args: unknown[] = []): Promise<string> {
+  try { await c.query(sql, args); return "OK"; } catch (e) { return (e as { code?: string }).code ?? "?"; }
+}
+
 function makeCaller(routes: { payment: Handler; convert: Handler; history: Handler }) {
   async function call(h: Handler, method: string, id: string, auth: Auth, body?: unknown) {
     const headers: Record<string, string> = { "x-admin-id": auth.adminId, "x-session-token": auth.token };
@@ -125,7 +149,7 @@ function makeCaller(routes: { payment: Handler; convert: Handler; history: Handl
 }
 
 async function main(): Promise<void> {
-  const port = 58100 + Math.floor(Math.random() * 800);
+  const port = await freePort();
   const db = await startTestDb(port, `uye-4b-${port}`);
   const { su, pool } = db;
   let shim: Awaited<ReturnType<typeof startPgrestShim>> | null = null;
@@ -142,6 +166,8 @@ async function main(): Promise<void> {
         (select md5(string_agg(a::text, '|' order by id)) from public.admin_audit_log a) a,
         (select count(*)::int from public.user_sessions) s`)).rows[0];
     const s0 = await snap();
+    await su.query(readMig(MIG_NULL));
+    await su.query(readMig(MIG_NULL));
     await su.query(readMig(MIG_PAY));
     await su.query(readMig(MIG_PAY));
     await su.query(readMig(MIG_CONV));
@@ -194,6 +220,55 @@ async function main(): Promise<void> {
     const rpcErr = async (sql: string, args: unknown[]) => {
       try { await su.query(sql, args); return "OK"; } catch (e) { return (e as { code?: string }).code ?? "?"; }
     };
+    // 4b ÖNCESİ kod (main e8962223, dondurulmuş kopya) — "eski kod + yeni şema" uyumluluğu için.
+    const oldPaymentRoute = await import("./fixtures/eski-kod/payment-route.pre4b");
+    const oldConvertRoute = await import("./fixtures/eski-kod/convert-route.pre4b");
+    const oldApi = makeCaller({ payment: oldPaymentRoute.POST as unknown as Handler, convert: oldConvertRoute.POST as unknown as Handler, history: historyRoute.GET as unknown as Handler });
+    const lastHist = async (id: string) => (await su.query(`select * from public.user_payment_history where user_id=$1 order by created_at desc, id desc limit 1`, [id])).rows[0];
+
+    // ── N) Tarihi boş üyelerde ödeme senaryoları (düzeltme sonrası) ─────────────────
+    console.log("\n[N] Tarihi boş üye: durum · muafiyet · geçmiş · atomik geri alma");
+    const nU = await mkExpert(db, tenant, { key: "n_null", pay: "undefined" });
+    const n1 = await api.pay(nU, api.draft({ status: "pending", agreedFee: "500", billingPeriod: "monthly" }));
+    ok(n1.status === 200 && (await user(nU)).payment_status === "pending" && (await lastHist(nU)).payment_date === null && Number((await lastHist(nU)).agreed_fee) === 500,
+      "N1) durum değişikliği (tarih boş) → 200; geçmiş anlık görüntüsü tarih BOŞ", n1);
+    const hN2 = await rowHash(nU);
+    const n2 = await api.pay(nU, api.draft({ status: "exempt", note: " ", agreedFee: "500", billingPeriod: "monthly" }));
+    ok(n2.status === 400 && (await rowHash(nU)) === hN2, "N2) gerekçesiz yeni muafiyet → 400 (kural korunur)", n2);
+    const n3 = await api.pay(nU, api.draft({ status: "exempt", note: "Owner kararı", agreedFee: "500", billingPeriod: "monthly" }));
+    ok(n3.status === 200 && (await user(nU)).payment_status === "exempt" && (await lastHist(nU)).payment_date === null, "N3) gerekçeli muafiyet (tarih boş) → 200", n3);
+    const n4 = await api.pay(nU, api.draft({ status: "paid", lastPaymentDate: "2026-11-12", paidAmount: "500", agreedFee: "500", billingPeriod: "monthly" }));
+    ok(n4.status === 200 && String((await lastHist(nU)).payment_date).length > 0 && (await lastHist(nU)).payment_date !== null, "N4) gerçek ödeme tarihi girilince geçmişe o tarih yazılır", n4);
+    const nH = await api.history(nU);
+    ok(nH.status === 200 && Array.isArray(nH.json.history) && (nH.json.history as Array<{ payment_date: unknown }>).some((r) => r.payment_date === null),
+      "N5) ödeme geçmişi ekranı uç noktası tarihi boş satırları döndürür (200)", nH.status);
+    const nU2 = await mkExpert(db, tenant, { key: "n_null2", pay: "pending" });
+    const hN6 = await rowHash(nU2);
+    const cN6 = await counts(nU2);
+    await su.query(`create function public.zz4b_fail_audit_n() returns trigger language plpgsql as $f$
+                      begin if new.action = 'payment_status_changed' then raise exception 'zz audit hata'; end if; return new; end $f$;
+                    create trigger zz4b_fail_audit_n before insert on public.admin_audit_log for each row execute function public.zz4b_fail_audit_n();`);
+    const n6 = await api.pay(nU2, api.draft({ status: "exempt", note: "gerekçe" }));
+    await su.query(`drop trigger zz4b_fail_audit_n on public.admin_audit_log; drop function public.zz4b_fail_audit_n();`);
+    ok(n6.status === 500 && (await rowHash(nU2)) === hN6 && JSON.stringify(await counts(nU2)) === JSON.stringify(cN6),
+      "N6) tarih boş üyede audit hatası → tamamı geri alındı (kullanıcı + geçmiş + audit)", { n6 });
+
+    // ── E) Eski kod + yeni şema (000690 + 000700 + 000710 uygulanmış; kod henüz eski) ─────
+    console.log("\n[E] Eski kod + yeni şema");
+    const eP = await mkExpert(db, tenant, { key: "e_pay", pay: "pending", fee: 200 });
+    const cE = await counts(eP);
+    const e1 = await oldApi.pay(eP, api.draft({ status: "paid", lastPaymentDate: "2026-11-10", paidAmount: "200", agreedFee: "200", billingPeriod: "monthly" }));
+    ok(e1.status === 200 && (await counts(eP)).hist === cE.hist + 1 && (await counts(eP)).pay_audit === cE.pay_audit + 1,
+      "E1) eski ödeme route'u yeni şemada çalışır (kullanıcı + geçmiş + audit)", { e1, after: await counts(eP) });
+    const eT = await mkExpert(db, tenant, { key: "e_trial", trial: true });
+    await su.query(`select public.admin_set_user_active($1,$2,false)`, [eT, OWNER]);
+    const hE = await rowHash(eT);
+    const e2 = await oldApi.convert(eT);
+    ok(e2.status === 500 && (await rowHash(eT)) === hE && (await user(eT)).active === false,
+      "E2) eski Pro geçişi route'u: pasif hesap genel hata ile reddedilir (TR412 tanınmaz), hesap pasif kalır, veri değişmez", e2);
+    const eT2 = await mkExpert(db, tenant, { key: "e_trial2", trial: true });
+    const e3 = await oldApi.convert(eT2);
+    ok(e3.status === 200 && (await user(eT2)).package_type === "premium", "E3) eski Pro geçişi route'u: aktif deneme normal geçer", e3);
 
     // ── P) Pro geçişi ────────────────────────────────────────────────────────
     console.log("\n[P] Pro geçişi: aktif · pasif · arşiv · doğrudan RPC · yarış");
@@ -374,6 +449,9 @@ async function main(): Promise<void> {
   const m = /yayın sırası \(eski şema\): PASS (\d+) · FAIL (\d+)/.exec(child.stdout ?? "");
   const cPass = m ? Number(m[1]) : 0;
   const cFail = m ? Number(m[2]) : 1;
+  // Koşucu (scripts/ci/run-regression.mjs) yalnız son satırları gösterir → başarısız kontroller özetin hemen üstünde.
+  const childFails = (child.stdout ?? "").split(/\r?\n/).filter((l) => l.trimStart().startsWith("✗"));
+  for (const l of [...failures.map((f) => `  ✗ ${f}`), ...childFails]) console.log(`BAŞARISIZ:${l}`);
   console.log(`\nAŞAMA 4b TOPLAM: PASS ${pass + cPass} · FAIL ${fail + cFail}`);
   if (fail || cFail || child.status !== 0) process.exit(1);
 }
@@ -381,12 +459,14 @@ async function main(): Promise<void> {
 /** C) Yayın sırası: YENİ kod + ESKİ şema (4b migration'ları yok). Ayrı süreç (temiz Supabase istemcisi). */
 async function eskiSema(): Promise<void> {
   console.log("\n[C] Yayın sırası: yeni kod + 4b'siz şema");
-  const port2 = 58950 + Math.floor(Math.random() * 40);
+  const port2 = await freePort();
   const db2 = await startTestDb(port2, `uye-4b-eski-${port2}`);
   let shim2: Awaited<ReturnType<typeof startPgrestShim>> | null = null;
   try {
-    // startTestDb 4b ödeme fonksiyonunu kurar → "eski şema" için kaldırılır; 000710 hiç uygulanmaz.
+    // startTestDb 4b'yi (000690 + 000700) kurar → "eski şema" = production bugünü: fonksiyon kaldırılır, payment_date
+    // yeniden NOT NULL DEFAULT CURRENT_DATE yapılır; 000710 hiç uygulanmaz.
     await db2.su.query(`drop function public.admin_save_member_payment(uuid,uuid,jsonb)`);
+    await db2.su.query(`alter table public.user_payment_history alter column payment_date set default current_date, alter column payment_date set not null`);
     for (const f of PRE_4B) await db2.su.query(readMig(f));
     const tenant2 = await seedActors(db2);
     shim2 = await startPgrestShim(db2.pool);
@@ -410,6 +490,76 @@ async function eskiSema(): Promise<void> {
     const ut = (await db2.su.query(`select active, package_type from public.users where id=$1`, [t])).rows[0];
     ok(rc.status === 200 && ut.active === true,
       "C2) eski şemada (4b yok) pasif deneme Pro geçişinde AKTİFLEŞİR — bulunan hata yeniden üretildi (düzeltme migration'da)", { rc: rc.status, ut });
+    const su = db2.su;
+    const db = db2;
+    const tenant = tenant2;
+    const rowHash = async (id: string) => (await su.query(`select md5(u::text) h from public.users u where id=$1`, [id])).rows[0].h as string;
+    const user = async (id: string) => (await su.query(`select * from public.users where id=$1`, [id])).rows[0];
+    const counts = async (id: string) => (await su.query(`select (select count(*)::int from public.user_payment_history where user_id=$1) hist,
+        (select count(*)::int from public.admin_audit_log where target_user_id=$1) audit`, [id])).rows[0];
+    const pdCol = async () => (await su.query(`select is_nullable n, column_default d from information_schema.columns
+        where table_schema='public' and table_name='user_payment_history' and column_name='payment_date'`)).rows[0] as { n: string; d: string | null };
+    const lastHist = async (id: string) => (await su.query(`select * from public.user_payment_history where user_id=$1 order by created_at desc, id desc limit 1`, [id])).rows[0];
+    const oldPaymentRoute = await import("./fixtures/eski-kod/payment-route.pre4b");
+    const oldApi = makeCaller({ payment: oldPaymentRoute.POST as unknown as Handler, convert: convertRoute.POST as unknown as Handler, history: historyRoute.GET as unknown as Handler });
+    // ── R) Production NOT NULL hatası: önce yeniden üret, sonra 000690 ile gider ───────
+    console.log("\n[R] Ödeme geçmişi tarih zorunluluğu: eski hata → düzeltme");
+    // Production'ın düzeltme ÖNCESİ şeması (14.11 salt-okunur katalog): NOT NULL DEFAULT CURRENT_DATE.
+    await su.query(readMig(MIG_PAY)); // 4b RPC kurulu, ödeme tarihi kısıtı HÂLÂ production bugünü (NOT NULL)
+    ok((await pdCol()).n === "NO" && /current_date/i.test(String((await pdCol()).d)), "R0) yerel şema = production düzeltme öncesi (NOT NULL DEFAULT CURRENT_DATE)", await pdCol());
+    const rNull = await mkExpert(db, tenant, { key: "r_null", pay: "pending" });
+    const rNull2 = await mkExpert(db, tenant, { key: "r_null2", pay: "pending" });
+    ok((await user(rNull)).last_payment_date === null, "R0) üyenin son ödeme tarihi BOŞ (canlıda 10 uzmanın 9'u)");
+    const hR = await rowHash(rNull);
+    const cR = await counts(rNull);
+    const rR1 = await api.pay(rNull, api.draft({ status: "exempt", note: "Kurucu ekip" }));
+    ok(rR1.status === 500 && (await rowHash(rNull)) === hR && JSON.stringify(await counts(rNull)) === JSON.stringify(cR),
+      "R1) ESKİ HATA yeniden üretildi (yeni kod): tarihi boş üyede ödeme kaydı 500; 4b tam geri aldı (satır/geçmiş/audit aynı)", { rR1 });
+    const hR2 = await rowHash(rNull2);
+    const rR2 = await oldApi.pay(rNull2, api.draft({ status: "paid", paidAmount: "100" }));
+    ok(rR2.status === 500 && (await rowHash(rNull2)) === hR2,
+      "R2) ESKİ HATA yeniden üretildi (bugünkü canlı kod): geçmiş insert'i düşer, route telafiyle 500 döner", { rR2 });
+    const histSnapR = (await su.query(`select md5(string_agg(h::text,'|' order by id)) m, count(*)::int n, count(payment_date)::int d from public.user_payment_history h`)).rows[0];
+    await su.query(readMig(MIG_NULL));
+    ok((await pdCol()).n === "YES" && (await pdCol()).d === null, "R3) 000690: payment_date NOT NULL ve 'bugün' varsayılanı kaldırıldı", await pdCol());
+    const histSnapR2 = (await su.query(`select md5(string_agg(h::text,'|' order by id)) m, count(*)::int n, count(payment_date)::int d from public.user_payment_history h`)).rows[0];
+    ok(JSON.stringify(histSnapR) === JSON.stringify(histSnapR2), "R3) mevcut ödeme geçmişi satırları DEĞİŞMEDİ (tarih doldurma yok)", { histSnapR, histSnapR2 });
+    const rR4 = await api.pay(rNull, api.draft({ status: "exempt", note: "Kurucu ekip" }));
+    const hR4 = await lastHist(rNull);
+    ok(rR4.status === 200 && (await user(rNull)).payment_status === "exempt" && hR4.payment_status === "exempt" && hR4.payment_date === null,
+      "R4) DÜZELTME: aynı kayıt şimdi 200; geçmiş satırının ödeme tarihi BOŞ (uydurma tarih yok)", { rR4, pd: hR4?.payment_date });
+    const rR5 = await oldApi.pay(rNull2, api.draft({ status: "paid", paidAmount: "100" }));
+    ok(rR5.status === 200 && (await lastHist(rNull2)).payment_date === null, "R5) bugünkü canlı kod da 000690 sonrası çalışır (eski kod + yeni şema)", rR5);
+    await su.query(`insert into public.user_payment_history(user_id, payment_status) values ($1,'pending')`, [rNull2]);
+    ok((await lastHist(rNull2)).payment_date === null, "R6) kolonu atlayan bir yazım artık 'bugün' tarihi UYDURMAZ (NULL kalır)");
+
+    // ── G) Geri alma provası (yalnız yerel): migration dosyalarındaki GERİ ALMA adımları ─────────
+    console.log("\n[G] Geri alma provası (yerel)");
+    const fp = async (sig: string) => (await su.query(`select md5(replace(prosrc, chr(13), '')) h from pg_proc where oid = to_regprocedure($1)`, [sig])).rows[0]?.h as string | undefined;
+    const convSig = "public.admin_trial_convert_to_pro(uuid,uuid,jsonb,text[])";
+    const fpBefore = await fp(convSig);
+    await su.query(readMig(MIG_CONV));
+    const fpAfter = await fp(convSig);
+    const trial7 = readMig("20280101000000_trial7_self_trial.sql");
+    const i0 = trial7.indexOf("CREATE OR REPLACE FUNCTION public.admin_trial_convert_to_pro(");
+    const oldBody = trial7.slice(i0, trial7.indexOf("$$;", i0) + 3);
+    await su.query(oldBody);
+    ok(fpAfter !== fpBefore && (await fp(convSig)) === fpBefore, "G1) 000710 geri alma: 20280101000000 §12 gövdesi yeniden uygulanınca fonksiyon birebir eski hâline döner", { fpBefore, fpAfter });
+    await su.query(readMig(MIG_CONV));
+    const histG = (await su.query(`select md5(string_agg(h::text,'|' order by id)) m from public.user_payment_history h`)).rows[0].m;
+    await su.query(`drop function public.admin_save_member_payment(uuid,uuid,jsonb)`);
+    const g2 = await oldApi.pay(rNull2, api.draft({ status: "pending" }));
+    ok(g2.status === 200, "G2) 000700 geri alma: (önce eski kod) fonksiyon kaldırılınca eski ödeme route'u çalışmaya devam eder", g2);
+    await su.query(`alter table public.user_payment_history alter column payment_date set default current_date`);
+    const nullRows = (await su.query(`select count(*)::int n from public.user_payment_history where payment_date is null`)).rows[0].n as number;
+    const g3 = await rpcErrIn(su, `alter table public.user_payment_history alter column payment_date set not null`);
+    const histG3 = (await su.query(`select count(*)::int n, count(payment_date)::int d from public.user_payment_history`)).rows[0];
+    ok(nullRows > 0 && g3 === "23502" && histG3.n - histG3.d === nullRows,
+      "G3) 000690 geri alma: varsayılan geri konabilir; tarihi boş satır varken NOT NULL GERİ KONAMAZ (23502) — boş tarihler otomatik DOLDURULMAZ", { nullRows, g3, histG3 });
+    ok(histG.length > 0, "G) geri alma provası sırasında mevcut geçmiş satırları silinmedi");
+    await su.query(readMig(MIG_NULL));
+    await su.query(readMig(MIG_PAY));
+
   } finally {
     if (shim2) await shim2.close().catch(() => undefined);
     await db2.stop();

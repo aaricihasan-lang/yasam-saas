@@ -80,10 +80,11 @@ create table public.user_sessions (
   ended_at timestamptz, end_reason text,
   platform text default 'desktop', city text, country text, ip_address text, user_agent text
 );
+-- Production (Frankfurt) ile birebir — 4b düzeltmesi (20280101000690) ÖNCESİ (14.11.2026 salt-okunur katalog).
 create table public.user_payment_history (
-  id uuid primary key default gen_random_uuid(), user_id uuid, payment_status text,
-  payment_date date, next_payment_date date, paid_amount numeric, payment_note text,
-  created_at timestamptz default now()
+  id uuid primary key default gen_random_uuid(), user_id uuid not null references public.users(id) on delete cascade,
+  payment_status text default 'paid', payment_date date not null default current_date, next_payment_date date,
+  paid_amount numeric default 0, payment_note text, created_at timestamptz default now()
 );
 create table public.yasam_hafizasi_flags (
   tenant_id uuid primary key, yh_enabled boolean default false, yh_hizli boolean default false, yh_shared boolean default false
@@ -135,7 +136,8 @@ async function main(): Promise<void> {
     await su.query(readMig("20271001000300_admin_member_commercial.sql"));
     // ÜYE YÖNETİMİ 360° — liste route'u 15 argümanlı RPC'yi çağırır (migration FIRST); Usage360 önkoşulları ile.
     await applyMember360Chain(su);
-    // AŞAMA 4b — ödeme kaydı tek işlem (ödeme route'u bu RPC'yi kullanır).
+    // AŞAMA 4b — ödeme geçmişinde tarih isteğe bağlı (prod NOT NULL düzeltmesi) + ödeme kaydı tek işlem.
+    await su.query(readMig("20280101000690_user_payment_history_payment_date_optional_4b.sql"));
     await su.query(readMig("20280101000700_admin_payment_atomic_4b.sql"));
     // TRIAL7 (canlıda uygulanmış): deneme kolonları + yönetici onaylı deneme RPC'si (admin kolon seçimi trial_kind içerir).
     await su.query(readMig("20280101000000_trial7_self_trial.sql"));
