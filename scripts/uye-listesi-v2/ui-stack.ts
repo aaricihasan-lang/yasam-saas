@@ -25,6 +25,7 @@ async function main(): Promise<void> {
   const db = await startTestDb(54696, "uye-listesi-v2-ui");
   const { su } = db;
   for (const f of [
+    "20271009100000_admin_purge_archived_expert.sql", // 4a migration'ının ön koşulu (canlıda var)
     "20271230000000_astrology_technique_grants.sql",
     "20280101000000_trial7_self_trial.sql",
     "20280101000100_trial7_claims_retention.sql",
@@ -32,6 +33,8 @@ async function main(): Promise<void> {
     "20280101000300_admin_legacy_package_repair.sql",
     "20280101000400_admin_owner_notifications.sql",
     "20280101000500_admin_list_members_v2.sql",
+    // Aşama 4a (PR #780): pasif ≠ arşiv — üretimdeki hedef şema.
+    "20280101000600_admin_member_archive_state.sql",
   ]) await su.query(readMig(f));
   const tenant = async () => {
     const id = randomUUID();
@@ -85,7 +88,10 @@ async function main(): Promise<void> {
   ids.proNext = await mk("Pro 7 Gün", { ...pro("paid", day(NOW + 4 * D)) });
   ids.proExempt = await mk("Pro Muaf", { ...pro("exempt", null) });
   ids.legacy = await mk("Eski Kayıt", { pkg: null, plan: "trial", mods: {} });
-  ids.archived = await mk("Arşivde", { ...pro("paid", day(NOW + 20 * D)), active: false });
+  // Aşama 4a: "Arşivde" gerçek arşiv RPC'siyle arşivlenir (archived_at); "Pasif" yalnız pasif (arşivlenmemiş) hesaptır.
+  ids.archived = await mk("Arşivde", { ...pro("paid", day(NOW + 20 * D)), active: true });
+  await su.query(`select public.admin_archive_user($1,$2)`, [ids.archived, OWNER]);
+  ids.passive = await mk("Pasif", { ...pro("paid", day(NOW + 18 * D)), active: false });
   ids.rejected = await mk("Reddedilen", { approval: "rejected", active: false });
   ids.demo = await mk("Demo", { demo: true, ...trial("active", NOW - D, NOW + 6 * D) });
   ids.today = await mk("Bugün Kayıt", { approval: "pending", active: false, created: NOW - 20 * 60_000 });

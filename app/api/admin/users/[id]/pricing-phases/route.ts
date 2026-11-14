@@ -3,6 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { verifyAdminRequest } from "@/lib/auth/adminGuard";
 import { readLimitedJsonBody } from "@/lib/admin/accountSessionControls";
 import { isUuid } from "@/lib/admin/memberRequestValidation";
+import { archivedTargetResponse } from "@/lib/admin/archivedGuard";
 import { mapPricingPhaseRow, validatePricingPhaseDraft, type PricingPhase } from "@/lib/admin/memberPricing";
 
 export const runtime = "nodejs";
@@ -66,6 +67,9 @@ async function save(req: NextRequest, ctx: RouteContext, mode: "create" | "updat
   const { db, adminId } = guard;
   const { id } = await ctx.params;
   if (!isUuid(id)) return bad("Geçersiz kullanıcı ID.");
+  // AŞAMA 4a: arşivdeki hesapta değişiklik yok (erken yanıt; atomik güvence DB tetikleyicisinde, UY005).
+  const archived = await archivedTargetResponse(db, id);
+  if (archived) return archived;
 
   const parsed = await readLimitedJsonBody(req);
   if (!parsed.ok) return bad(parsed.error, parsed.status);
@@ -120,6 +124,9 @@ export async function DELETE(req: NextRequest, ctx: RouteContext): Promise<Respo
   const { db, adminId } = guard;
   const { id } = await ctx.params;
   if (!isUuid(id)) return bad("Geçersiz kullanıcı ID.");
+  // AŞAMA 4a: arşivdeki hesapta değişiklik yok (erken yanıt; atomik güvence DB tetikleyicisinde, UY005).
+  const archived = await archivedTargetResponse(db, id);
+  if (archived) return archived;
 
   const parsed = await readLimitedJsonBody(req);
   if (!parsed.ok) return bad(parsed.error, parsed.status);

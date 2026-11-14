@@ -71,6 +71,15 @@ export async function POST(req: NextRequest, ctx: RouteContext) {
 
   const eligible = checkPurgeEligibility(target);
   if (!eligible.ok) return bad(eligible.error, eligible.status);
+
+  // AŞAMA 4a (Owner kararı 12.11): kalıcı silme YALNIZ arşivlenmiş hesapta. Pasif ama arşivlenmemiş (eski pasif
+  // kayıtlar dahil) hesap silinemez. Veritabanı da ayrıca reddeder (admin_purge_context tetikleyicisi, UP006 —
+  // hiçbir satır silinmeden). archived_at kolonu yoksa (migration öncesi) mevcut davranış.
+  const { data: archiveRow, error: archiveErr } = await db.from("users").select("archived_at").eq("id", id).maybeSingle();
+  if (archiveErr && (archiveErr as { code?: string }).code !== "42703") return bad("Kullanıcı okunamadı.", 500);
+  if (!archiveErr && (archiveRow as { archived_at?: unknown } | null)?.archived_at == null) {
+    return bad("Kalıcı silme yalnız arşivlenmiş hesapta yapılabilir. Pasif hesap önce ana yönetici tarafından arşivlenmelidir.", 409);
+  }
   if (!purgeEmailMatches(confirmEmail, target.email)) return bad("E-posta doğrulaması uyuşmadı.");
 
   const { data: adminRow } = await db.from("users").select("email").eq("id", adminId).maybeSingle();

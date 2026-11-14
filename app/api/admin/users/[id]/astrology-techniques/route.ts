@@ -3,6 +3,7 @@ import { verifyAdminRequest } from "@/lib/auth/adminGuard";
 import { requireMainAdminForAdminTarget } from "@/lib/admin/adminGuards";
 import { readLimitedJsonBody } from "@/lib/admin/accountSessionControls";
 import { isUuid, rpcErrorStatus } from "@/lib/admin/memberRequestValidation";
+import { archivedTargetResponse } from "@/lib/admin/archivedGuard";
 import { readTechniqueGrants, validateTechniqueGrants } from "@/lib/astrology/access/techniqueGrants";
 
 export const runtime = "nodejs";
@@ -55,6 +56,9 @@ export async function PUT(req: NextRequest, ctx: RouteContext) {
 
   const adminTarget = await requireMainAdminForAdminTarget(db, adminId, id);
   if (!adminTarget.ok) return bad(adminTarget.error, adminTarget.status);
+  // AŞAMA 4a: arşivdeki hesapta değişiklik yok (erken yanıt; atomik güvence DB tetikleyicisinde, UY005).
+  const archived = await archivedTargetResponse(db, id);
+  if (archived) return archived;
 
   const parsed = await readLimitedJsonBody(req);
   if (!parsed.ok) return bad(parsed.error, parsed.status);
