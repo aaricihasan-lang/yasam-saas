@@ -1498,6 +1498,16 @@
    "file": "scripts/uye-detay-v2/payment-exempt.harness.ts",
    "tsx": true,
    "timeoutSec": 240
+  },
+  {
+   "file": "scripts/uye-arsiv-4a/arsiv-4a.harness.ts",
+   "tsx": true,
+   "timeoutSec": 300
+  },
+  {
+   "file": "scripts/uye-arsiv-4a/rehearsal.harness.ts",
+   "tsx": true,
+   "timeoutSec": 240
   }
  ]
 }
