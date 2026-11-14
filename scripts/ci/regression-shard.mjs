@@ -13,7 +13,7 @@
 export const VARSAYILAN_AGIRLIK_SN = 2;
 
 /** CI kapısının beklediği zorunlu işler (.github/workflows/ci.yml `ci-kapisi.needs` ile birebir). */
-export const ZORUNLU_ISLER = ["typescript", "build", "guvenlik", "regresyon", "astro-pro", "horary-western"];
+export const ZORUNLU_ISLER = ["typescript", "build", "guvenlik", "regresyon", "astro-pro", "horary-western", "astro-regresyon"];
 
 /** F3 gölge mod gözlem işleri: kapıya BAĞLI DEĞİL; hiçbir zorunlu iş bunlara `needs` ile bağlanamaz (ci-paralel harness denetler). */
 export const GOZLEM_ISLERI = ["golge-analiz", "golge-rapor"];

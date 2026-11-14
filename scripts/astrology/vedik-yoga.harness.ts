@@ -48,6 +48,7 @@ import { parseAnyTopicKey, topicsForTechnique } from "@/lib/astrology/topics/ind
 import { VEDIC_SPECS } from "@/lib/astrology/topics/vedic";
 import type { ResolvedLocation } from "@/lib/astrology/birth/profileInput";
 import { SYNTH_A, SYNTH_B } from "./golden/phase3-golden-calls";
+import { lockUnits } from "./kpHoraryLegacyUnits";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type J = any;
@@ -486,7 +487,8 @@ async function main() {
       for (const raw of CANDIDATES) {
         const o = def.parseOptions(raw, NOW);
         if (!o) continue;
-        for (const u of def.units(ctx, o)) out.push(`${JSON.stringify(raw)} → ${u.endpoint} · ${u.adapterVersion} · ${u.inputHash}`);
+        // ATL-B03: kp.horary satırı eski kuralla (gövde + adaptör bilinçli değişti; yeni birimin farkı lockUnits içinde denetlenir).
+        for (const u of lockUnits(def, ctx, o)) out.push(`${JSON.stringify(raw)} → ${u.endpoint} · ${u.adapterVersion} · ${u.inputHash}`);
       }
       return [id, out];
     });

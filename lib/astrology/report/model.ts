@@ -54,6 +54,7 @@ import { ACG_TECHNICAL_SCHEMA, LOCAL_SPACE_TECHNICAL_SCHEMA, type Astrocartograp
 import type { BodyId } from "../model/western";
 import type { TransitAspect, TransitCalendarExact } from "../model/westernTiming";
 import { LEGACY_METHOD_LEAD } from "../legacyMethodText";
+import { progressionHouseColumns, type ProgressionHouseColumns } from "../progressionHouses";
 import { BALA_POLAR_TECHNIQUES, balaPolarNotice } from "../balaPolarNotice";
 // 22.10.2026 Vedik harita (Bhav Chalit · Chara Karaka · Arudha · Bhava Bala) bölümleri ayrı dosyada (ayrı satır).
 import { VEDIC_HARITA_INTERP_SCHEMAS, VEDIC_HARITA_TECHNIQUES, vedicHaritaFigure, vedicHaritaInterp, vedicHaritaTechnical } from "./vedicHarita";
@@ -343,6 +344,15 @@ function progressionAspectsOf(t: O): DirectionAspect[] | null {
   const bodies = arr(t.bodies).filter((b) => typeof b.id === "string" && num(b.longitude) !== null && num(b.speed) !== null) as unknown as ProgressionTechnical["bodies"];
   const a = isObj(t.angles) && isObj(t.angles.ascendant) && isObj(t.angles.midheaven) && num(t.angles.ascendant.longitude) !== null && num(t.angles.midheaven.longitude) !== null ? (t.angles as unknown as ProgressionTechnical["angles"]) : null;
   return progressedToNatalAspects({ bodies, angles: a, natalFrame: f });
+}
+
+/** ATL-B04: progresyon ev sütunları (ekranla AYNI saf fonksiyon; kayıtlı değerler aynen, ilerletilmiş harita evi aritmetik). */
+function progressionHouseColumnsOf(t: O): ProgressionHouseColumns {
+  const bodies = arr(t.bodies)
+    .filter((b) => typeof b.id === "string" && num(b.longitude) !== null)
+    .map((b) => ({ ...b, house: num(b.house) })) as unknown as ProgressionTechnical["bodies"];
+  const a = isObj(t.angles) && isObj(t.angles.ascendant) && isObj(t.angles.midheaven) && num(t.angles.ascendant.longitude) !== null && num(t.angles.midheaven.longitude) !== null ? (t.angles as unknown as ProgressionTechnical["angles"]) : null;
+  return progressionHouseColumns({ bodies, angles: a, natalFrame: frameOf(t) });
 }
 
 /** Solar Arc açıları + yaklaşan/ayrılan (ekranla AYNI saf fonksiyon; kayıtlı açı değerleri aynen). */
@@ -671,18 +681,24 @@ function westernTiming(b: B, technique: string, t: O, people: { a: string; b: st
     case "western.progression": {
       // AŞAMA 2.1 (2026-10-21): hesap dönemi + yöntem + natal karşılaştırmalı konum tablosu + ilerletilmiş → natal açılar.
       const f = frameOf(t);
+      const hc = progressionHouseColumnsOf(t);
       b.kv([
         ["Hedef tarih (hesap tarihi)", dateTr(t.targetDate)],
         ["İlerletilmiş tarih", dateTr(t.progressedDate)],
         ["Geçen yıl", fix(t.elapsedYears, 2)],
-        ["Ev yöntemi", "İlerletilmiş Yükselen'den bütün-burç evleri"],
+        // ATL-B04 (14.11.2026): iki ev çerçevesi ayrı ve doğru etiketli (ekranla aynı kaynak: progressionHouses.ts).
+        ...(hc.natal ? ([[hc.natal.label, hc.natal.method]] as [string, string][]) : []),
+        ...(hc.progressed ? ([[hc.progressed.label, hc.progressed.method]] as [string, string][]) : []),
         ["Açı kuralı", "Majör açılar, orb ≤ 1°"],
       ]);
       b.p(PROGRESSION_METHOD_NOTE, "muted");
       anglesKv(b, t.angles);
       const natalById = new Map(f ? arr(f.bodies as unknown).map((x) => [String(x.id), x] as [string, O]) : []);
       const rows = arr(t.bodies).map((x) => {
-        const r = [bodyL(x.id), pos(x.sign, x.degreeInSign), houseL(x.house), x.retrograde === true ? "℞ Retro" : ""];
+        const r = [bodyL(x.id), pos(x.sign, x.degreeInSign)];
+        if (hc.natal) r.push(houseL(hc.natal.of(String(x.id))));
+        if (hc.progressed) r.push(houseL(hc.progressed.of(String(x.id))));
+        r.push(x.retrograde === true ? "℞ Retro" : "");
         if (f) {
           const n = natalById.get(String(x.id));
           r.push(n ? pos(n.sign, n.degreeInSign) : DASH);
@@ -690,7 +706,7 @@ function westernTiming(b: B, technique: string, t: O, people: { a: string; b: st
         return r;
       });
       b.h(3, "İlerletilmiş gezegenler");
-      b.table(f ? ["Gezegen / nokta", "İlerletilmiş burç ve derece", "Ev", "Retro", "Natal"] : ["Gezegen / nokta", "Burç ve derece", "Ev", "Retro"], rows, { empty: "Kayıtta gezegen verisi yok." });
+      b.table([f ? "Gezegen / nokta" : "Gezegen / nokta", f ? "İlerletilmiş burç ve derece" : "Burç ve derece", ...(hc.natal ? [hc.natal.label] : []), ...(hc.progressed ? [hc.progressed.label] : []), "Retro", ...(f ? ["Natal"] : [])], rows, { empty: "Kayıtta gezegen verisi yok." });
       b.h(3, "İlerletilmiş → natal açılar");
       b.p(PROGRESSION_ASPECT_RULE, "muted");
       const pa = progressionAspectsOf(t);

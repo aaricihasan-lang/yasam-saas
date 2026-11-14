@@ -1689,7 +1689,10 @@ const kpHorary: TechniqueDefinition = {
   },
   units: (ctx, opt) => {
     const place = ctx.places?.target ?? { latitude: ctx.birth.latitude, longitude: ctx.birth.longitude };
-    return [unit("kp.horary", ROXY_KP_HORARY, kpHoraryBody(Number(opt.horaryNumber), String(opt.atUtc), place, opt.ayanamsa as KpAyanamsa, opt.nodeType as KpNodeType), { timeDependent: true })];
+    // ATL-B03: değerlendirme yerinin soru anındaki ofseti SUNUCUDA çözülür (service.ts → opt.offsetHours). Ofsetsiz seçenekle istek
+    // KURULMAZ (eski UTC gövdesi yanlış gün lordu üretiyordu; sessiz geri dönüş yok).
+    if (typeof opt.offsetHours !== "number") throw new Error("kp.horary: değerlendirme yeri ofseti çözülmeden birim kurulamaz");
+    return [unit("kp.horary", ROXY_KP_HORARY, kpHoraryBody(Number(opt.horaryNumber), String(opt.atUtc), place, opt.offsetHours, opt.ayanamsa as KpAyanamsa, opt.nodeType as KpNodeType), { timeDependent: true })];
   },
   // Not bağlamı = sayı (aynı sayının farklı anları aynı soru dosyasında toplanır).
   noteContext: (opt) => `horary:${String(opt.horaryNumber)}`,

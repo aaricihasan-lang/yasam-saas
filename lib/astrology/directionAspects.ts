@@ -44,7 +44,7 @@ export const PROGRESSION_ASPECT_RULE =
 export const SOLAR_ARC_ASPECT_RULE =
   "Açı kuralı: yalnız majör açılar (kavuşum, altmışlık, kare, üçgen, karşıt), orb ≤ 1°. Solar Arc noktaları ile natal konumlar arasındaki boylam farkından hesaplanır. Bir noktanın kendi natal konumu listelenmez. Yaklaşan/ayrılan: Solar Arc yayı zamanla hep ileri gider.";
 export const PROGRESSION_METHOD_NOTE =
-  "Yöntem: ikincil ilerletme (doğumdan sonraki her gün = bir yaşam yılı). İlerletilmiş gezegenler ile ilerletilmiş Yükselen/MC hesaplama hizmetinden hazır gelir; hizmet Yükselen/MC yönteminin adını vermez — değerler ilerletilmiş günün doğum saati ve doğum yerindeki haritasıyla uyumludur. Evler: ilerletilmiş Yükselen'in burcundan sayılan tam burç evleri.";
+  "Yöntem: ikincil ilerletme (doğumdan sonraki her gün = bir yaşam yılı). İlerletilmiş gezegenler ile ilerletilmiş Yükselen/MC hesaplama hizmetinden hazır gelir; MC, sağ açıklıkta Naibod yayıyla (doğum RAMC'si + geçen yıl × 0,98564733°), Yükselen aynı RAMC'den doğum enleminde bulunur. Evler iki ayrı çerçevede gösterilir: natal ev — ilerletilmiş gezegenin natal ev başlarına göre yeri (progresyon okumasının standart çerçevesi); ilerletilmiş harita evi — ilerletilmiş Yükselen'in burcundan sayılan tam burç evi (ilerletilmiş harita çarkı bu evlerle çizilir).";
 export const SOLAR_ARC_METHOD_NOTE =
   "Yöntem: gerçek Solar Arc (boylamda) — yay = ilerletilmiş Güneş − natal Güneş; aynı yay bütün natal noktalara (Yükselen/MC dahil) eklenir. Konumlar hesaplama hizmetinden hazır gelir.";
 

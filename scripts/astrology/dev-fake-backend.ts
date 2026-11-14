@@ -263,6 +263,19 @@ const queryOk = (g: { query: Record<string, string> | null }, params: URLSearchP
 function strictMatch(path: string, body: Record<string, unknown>, params: URLSearchParams | null = null): { raw: Record<string, unknown>; source: string } | null {
   const exact = ALL_GOLDEN.find((g) => g.endpoint === path && g.body === canon(body) && queryOk(g, params));
   if (exact) return { raw: structuredClone(exact.response), source: `golden ${exact.file}` };
+  // ATL-B03 (14.11.2026): kp/horary gövdesi artık yerel saat + ofset; golden (07.10.2026) eski UTC gövdesiyle (timezone 0) alındı.
+  // KATI eşleşme korunur: sayı / yer / ayanamsa / düğüm BİREBİR, date + time + timezone AYNI UTC ANI göstermeli (sağlayıcı sözleşmesi:
+  // questionTime = date/time/timezone'dan çözülen UTC an; 14.11 gerçek 5 çağrıda yerel gövde = aynı konum/cusp, fark 0).
+  if (path === "/vedic-astrology/kp/horary") {
+    const utcOf = (b: Record<string, unknown>) => Date.parse(`${String(b.date)}T${String(b.time)}Z`) - Number(b.timezone) * 3_600_000;
+    const rest = (b: Record<string, unknown>) => canon(Object.fromEntries(Object.entries(b).filter(([k]) => !["date", "time", "timezone"].includes(k))));
+    const g = ALL_GOLDEN.find((x) => {
+      if (x.endpoint !== path) return false;
+      const gb = JSON.parse(x.body) as Record<string, unknown>;
+      return rest(gb) === rest(body) && Number.isFinite(utcOf(body)) && utcOf(gb) === utcOf(body);
+    });
+    if (g) return { raw: structuredClone(g.response), source: `golden ${g.file} (aynı UTC an, yerel gövde — ATL-B03)` };
+  }
   const schemaHit = SCHEMA_EXAMPLES.find((g) => g.endpoint === path && g.body === canon(body));
   if (schemaHit) return { raw: structuredClone(schemaHit.response), source: `ŞEMA-ÖRNEĞİ ${schemaHit.file} (gerçek yanıt değil)` };
   if (path === "/astrology/natal-chart") {
@@ -334,7 +347,8 @@ function startFakeRoxy() {
         raw = structuredClone(GOLDEN_KP[path]);
         // SENTETİK yankılar (yalnız UI testi; içerik golden anıdır): istenen an / sayı.
         if (path === "/vedic-astrology/kp/ruling-planets") raw.datetime = new Date(Date.parse(`${String(body.datetime)}Z`) - Number(body.timezone) * 3600_000).toISOString();
-        if (path === "/vedic-astrology/kp/horary") raw.questionTime = `${String(body.date)}T${String(body.time)}.000Z`;
+        // ATL-B03: gövde yerel saat + ofset → yanıt questionTime UTC an (sağlayıcı sözleşmesi).
+        if (path === "/vedic-astrology/kp/horary") raw.questionTime = new Date(Date.parse(`${String(body.date)}T${String(body.time)}Z`) - Number(body.timezone) * 3600_000).toISOString();
         if (path === "/vedic-astrology/kp/planets-interval") (raw.intervals as { datetime: string }[])[0].datetime = String(body.startDatetime);
       } else if (kpReq && path.startsWith("/vedic-astrology/dasha/sub/") && GOLDEN_KP["/vedic-astrology/dasha/major"]) {
         const m = /^\/vedic-astrology\/dasha\/sub\/([A-Za-z]+)(?:\/([A-Za-z]+))?(?:\/([A-Za-z]+))?(?:\/([A-Za-z]+))?$/.exec(path);
