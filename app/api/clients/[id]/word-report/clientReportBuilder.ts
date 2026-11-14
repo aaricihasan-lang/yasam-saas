@@ -34,6 +34,12 @@ import {
 } from "@/lib/docx/reportHelpers";
 import { wellnessNote } from "@/lib/docx/reportDisclaimer";
 import {
+  expertFooterParagraph,
+  expertSignatureBlock,
+  type ExpertBranding,
+  type ExpertBrandingVariant,
+} from "@/lib/docx/expertBranding";
+import {
   formatDateLoose,
   formatDateOnly,
   formatInstantDate,
@@ -49,6 +55,7 @@ import { buildSavedNumerologySection, type SavedNumerologyRow } from "./numerolo
 import { buildAnamnezSection, buildBeslenmeSection, type AnamnezReportRow, type BeslenmeReportInput } from "./sensitiveSections";
 import { paymentStatusLabelTR, summarizeUnpaid } from "@/lib/danisan/chargePayment";
 import {
+  DY_CONTENT_W,
   DY_NAVY,
   DY_PAGE,
   dyBody,
@@ -434,9 +441,11 @@ function analysisImage(img: Buffer): Paragraph {
  * FA-16 bilgilendirme notu + "Hazırlayan" — tek blok (başlık/metin/ad sayfa sonunda bölünmez;
  * "Hazırlayan" satırı tek başına yeni sayfaya düşmez).
  */
-function wellnessBlock(expertName?: string | null): Paragraph[] {
+function wellnessBlock(expertName?: string | null, ctx: ClientReportCtx = {}): ReportChild[] {
   const note = wellnessNote("danisan");
   const name = expertName?.trim();
+  // F3A: markalama açıksa "Hazırlayan" satırı genişletilmiş imza bloğuyla değişir (bilgilendirme metni AYNEN).
+  const signature = expertSignatureBlock(ctx.branding, { variant: ctx.brandingVariant, accent: DY_NAVY, fallbackName: name, contentWidth: DY_CONTENT_W, fill: "f8fafc" });
   return [
     new Paragraph({
       keepNext: true,
@@ -445,12 +454,13 @@ function wellnessBlock(expertName?: string | null): Paragraph[] {
       children: [new TextRun({ text: "Bilgilendirme", bold: true, size: 18, font: REPORT_FONT, color: C_MID })],
     }),
     new Paragraph({
-      keepNext: !!name,
+      // Sayfa düzeni (10.11): imza kartı bilgilendirmeyle ZORLA birlikte tutulmaz (kart kendi içinde bölünmez).
+      keepNext: !!name && signature.length === 0,
       keepLines: true,
       spacing: { after: 80 },
       children: [new TextRun({ text: note.full, italics: true, size: 16, font: REPORT_FONT, color: C_LIGHT })],
     }),
-    ...(name ? [new Paragraph({
+    ...(signature.length ? signature : name ? [new Paragraph({
       keepLines: true,
       spacing: { after: 60 },
       children: [new TextRun({ text: `Hazırlayan: ${safe(name)}`, size: 16, font: REPORT_FONT, color: C_MID })],
@@ -459,9 +469,10 @@ function wellnessBlock(expertName?: string | null): Paragraph[] {
 }
 
 /** Kapak (üst/alt bilgisiz, tek sayfa) + gövde (A4 dikey, 2 cm kenar). */
-function buildDocument(cover: ReportChild[], body: ReportChild[], footerText: string, title: string): Document {
+function buildDocument(cover: ReportChild[], body: ReportChild[], footerText: string, title: string, ctx: ClientReportCtx = {}): Document {
   // FA-16: danışana giden belge → sayfa altında kısa bilgilendirme notu.
-  const footer = buildFooter(safe(footerText), { note: "danisan" });
+  // F3A: markalama açıksa alt bilgide küçük kurum satırı (yoksa footer birebir aynı).
+  const footer = buildFooter(safe(footerText), { note: "danisan", brandLine: expertFooterParagraph(ctx.branding, { variant: ctx.brandingVariant }) });
   const page = { size: DY_PAGE.size, margin: DY_PAGE.margin };
   return new Document({
     creator: "Yaşam Sistemi",
@@ -489,6 +500,13 @@ export type ClientReportCtx = {
   sections?: readonly ClientReportSection[];
   /** Kapakta "Tam Rapor" / "Özel Rapor" ibaresi. */
   variant?: "full" | "custom";
+  /**
+   * F3A: uzman rapor markalaması (render-hazır; `normalizeExpertBranding`). null/yok → çıktı bugünküyle
+   * birebir. Veri kaynağı (expert_profiles / logo) F1/F2 ile bağlanacak; route'lar şimdilik null geçer.
+   */
+  branding?: ExpertBranding | null;
+  /** Yalnız örnek/test üretimi için tasarım varyantı; üretimde DEFAULT_EXPERT_BRANDING_VARIANT. */
+  brandingVariant?: ExpertBrandingVariant;
 };
 
 export type ClientReportResult = { doc: Document; filename: string };
@@ -839,10 +857,10 @@ export function buildClientTabReport(
   }
   // tab === "genel": içerik = Danışan Bilgileri bölümünün kendisi.
 
-  all.push(...wellnessBlock(ctx.expertName));
+  all.push(...wellnessBlock(ctx.expertName, ctx));
 
-  const cover = dyCover({ logo: ctx.logo ?? null, reportTitle: cfg.title, reportSubtitle: "Danışan Yolculuğu", clientName: fullName, dateLabel: today, expertName: ctx.expertName });
-  const doc = buildDocument(cover, all, `${cfg.title} · ${fullName}`, `${cfg.title} — ${fullName}`);
+  const cover = dyCover({ logo: ctx.logo ?? null, reportTitle: cfg.title, reportSubtitle: "Danışan Yolculuğu", clientName: fullName, dateLabel: today, expertName: ctx.expertName, branding: ctx.branding, brandingVariant: ctx.brandingVariant });
+  const doc = buildDocument(cover, all, `${cfg.title} · ${fullName}`, `${cfg.title} — ${fullName}`, ctx);
   return { doc, filename: `danisan-${cfg.slug}-${nameSlug}-${dateSlug}.docx`, empty };
 }
 
@@ -869,7 +887,7 @@ export function buildClientSingleAnalysisReport(
   } else {
     all.push(dyNote("Bu analiz kaydında ölçülmüş değer bulunmuyor."));
   }
-  all.push(...wellnessBlock(ctx.expertName));
+  all.push(...wellnessBlock(ctx.expertName, ctx));
 
   const cover = dyCover({
     logo: ctx.logo ?? null,
@@ -878,9 +896,11 @@ export function buildClientSingleAnalysisReport(
     clientName: fullName,
     dateLabel: today,
     expertName: ctx.expertName,
+    branding: ctx.branding,
+    brandingVariant: ctx.brandingVariant,
     meta: [["Analiz Tarihi", dateTimeTR(an.created_at)]],
   });
-  const doc = buildDocument(cover, all, `${label} · ${fullName}`, `${label} — ${fullName}`);
+  const doc = buildDocument(cover, all, `${label} · ${fullName}`, `${label} — ${fullName}`, ctx);
   return { doc, filename: `danisan-analiz-${slugify(label)}-${nameSlug}-${dateSlug}.docx` };
 }
 
@@ -1087,7 +1107,7 @@ export function countClientReportSections(input: ClientFullInput, ctx: ClientRep
 export function buildClientFullReport(input: ClientFullInput, ctx: ClientReportCtx = {}): ClientReportResult {
   const { today, dateSlug } = reportDates(ctx);
   const body = buildClientBody(input, ctx, {});
-  body.all.push(...wellnessBlock(ctx.expertName));
+  body.all.push(...wellnessBlock(ctx.expertName, ctx));
   const cover = dyCover({
     logo: ctx.logo ?? null,
     reportTitle: "Danışan Dosyası",
@@ -1095,8 +1115,10 @@ export function buildClientFullReport(input: ClientFullInput, ctx: ClientReportC
     clientName: body.fullName,
     dateLabel: today,
     expertName: ctx.expertName,
+    branding: ctx.branding,
+    brandingVariant: ctx.brandingVariant,
   });
-  const doc = buildDocument(cover, body.all, `Danışan Raporu · ${body.fullName}`, `Danışan Dosyası — ${body.fullName}`);
+  const doc = buildDocument(cover, body.all, `Danışan Raporu · ${body.fullName}`, `Danışan Dosyası — ${body.fullName}`, ctx);
   return { doc, filename: `danisan-raporu-${body.nameSlug}-${dateSlug}.docx` };
 }
 
@@ -1122,7 +1144,7 @@ export function buildClientDateRangeReport(
     { scopeNote: `Bu rapor ${startFmt} — ${endFmt} arasındaki kayıtları içerir. Danışan bilgileri tarihten bağımsızdır.` },
   );
   if (body.sectionCount === 0) body.all.push(dyNote("Seçilen tarih aralığında rapora girecek kayıt bulunmuyor."));
-  body.all.push(...wellnessBlock(ctx.expertName));
+  body.all.push(...wellnessBlock(ctx.expertName, ctx));
   const cover = dyCover({
     logo: ctx.logo ?? null,
     reportTitle: "Tarih Aralığı Raporu",
@@ -1130,9 +1152,11 @@ export function buildClientDateRangeReport(
     clientName: body.fullName,
     dateLabel: today,
     expertName: ctx.expertName,
+    branding: ctx.branding,
+    brandingVariant: ctx.brandingVariant,
     meta: [["Tarih Aralığı", `${startFmt} — ${endFmt}`]],
   });
-  const doc = buildDocument(cover, body.all, `Tarih Aralığı Raporu · ${body.fullName}`, `Tarih Aralığı Raporu — ${body.fullName}`);
+  const doc = buildDocument(cover, body.all, `Tarih Aralığı Raporu · ${body.fullName}`, `Tarih Aralığı Raporu — ${body.fullName}`, ctx);
   // DY-04: aralıkta gerçek kayıt yoksa `empty` (route boş Word üretmez).
   return { doc, filename: `danisan-tarih-araligi-${body.nameSlug}-${input.drStart}-${input.drEnd}.docx`, empty: body.sectionCount === 0 };
 }
@@ -1158,7 +1182,7 @@ export function buildClientsBulkFullReport(items: ClientFullInput[], ctx: Client
     all.push(...buildClientBody(it, ctx, { badge: `Danışan ${i + 1} / ${total}`, pageBreakBefore: true }).all);
   });
 
-  all.push(...wellnessBlock(ctx.expertName));
+  all.push(...wellnessBlock(ctx.expertName, ctx));
   const cover = dyCover({
     logo: ctx.logo ?? null,
     reportTitle: "Danışan Dosyaları",
@@ -1166,8 +1190,10 @@ export function buildClientsBulkFullReport(items: ClientFullInput[], ctx: Client
     clientName: `${total} Danışan`,
     dateLabel: today,
     expertName: ctx.expertName,
+    branding: ctx.branding,
+    brandingVariant: ctx.brandingVariant,
   });
-  const doc = buildDocument(cover, all, "Danışan Dosyaları · Yaşam Sistemi", "Danışan Dosyaları — Yaşam Sistemi");
+  const doc = buildDocument(cover, all, "Danışan Dosyaları · Yaşam Sistemi", "Danışan Dosyaları — Yaşam Sistemi", ctx);
   return { doc, filename: `danisan-dosyalari-${total}-danisan-${dateSlug}.docx` };
 }
 

@@ -1,3 +1,4 @@
+import { resolveReportBranding } from "@/lib/profile/reportBranding";
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { readAllPaged } from "@/lib/db/readAllPaged";
@@ -135,7 +136,9 @@ export async function POST(req: NextRequest): Promise<Response> {
   // yeniden çözülür; body'de gelen hiçbir alan yetki sayılmaz. Rapor saklanmaz/önbelleğe alınmaz →
   // yetki kapatıldıktan sonraki ilk indirme sınırı yeniden uygular.
   const futureYears = canSeeNumerologyFutureYears(guard.profile);
-  const { children, emptyTabs, anyContent } = buildNumerolojiWordChildren(rows, sections, shared, stockIndex, refCalendar, new Date(), futureYears);
+  // F3A: uzman markalaması (oturum sahibinin profili; anahtar kapalı / tablo yok / hata → null = markasız).
+  const branding = await resolveReportBranding(db, { tenantId, userId: guard.userId }, { fullName: expertDisplayName(guard.profile) });
+  const { children, emptyTabs, anyContent } = buildNumerolojiWordChildren(rows, sections, shared, stockIndex, refCalendar, new Date(), futureYears, { branding });
 
   // Tüm seçilen sekmeler boşsa → dosya üretme, açık mesaj döndür.
   if (!anyContent) {
@@ -153,6 +156,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   // FA-16: belge sonunda sade bilgilendirme notu + Hazırlayan (packNumerolojiDocx ekler).
   const buffer = await packNumerolojiDocx(children, `${rows[0]!.name} ${rows[0]!.surname}`.trim(), {
     expertName: expertDisplayName(guard.profile),
+    branding,
   });
 
   const filename = isSingle

@@ -1,3 +1,4 @@
+import { resolveReportBranding } from "@/lib/profile/reportBranding";
 import { NextRequest, NextResponse } from "next/server";
 import { trackUsage, usageErrorClassForStatus } from "@/lib/usage/trackUsage";
 import { beslenmeJson } from "@/lib/beslenme/ownerGuard";
@@ -50,7 +51,9 @@ export async function POST(req: NextRequest, ctx: RouteCtx): Promise<Response> {
 
   let result;
   try {
-    result = await buildPlanDocxBuffer(db, tenantId, id, { expertName: expertDisplayName(guard.profile) });
+    // F3A: uzman markalaması (oturum sahibinin profili; anahtar kapalı / tablo yok / hata → null = markasız).
+    const branding = await resolveReportBranding(db, { tenantId, userId }, { fullName: expertDisplayName(guard.profile) });
+    result = await buildPlanDocxBuffer(db, tenantId, id, { expertName: expertDisplayName(guard.profile), branding });
   } catch (e) {
     // BES-02: eksik Word ÜRETİLMEZ; sunucu tarafı güvenli kayıt (tablo + hata kodu; içerik/PII yok).
     const table = e instanceof PlanDocxReadError ? e.table : "unknown";

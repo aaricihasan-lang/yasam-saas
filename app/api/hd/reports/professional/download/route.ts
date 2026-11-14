@@ -1,3 +1,4 @@
+import { resolveReportBranding } from "@/lib/profile/reportBranding";
 import { NextRequest, NextResponse } from "next/server";
 import { androidWordGuard } from "@/lib/platform/androidWordGuard";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
@@ -99,6 +100,11 @@ export async function POST(req: NextRequest): Promise<Response> {
     if (isHdReportSnapshotV2(snapshot)) {
       const view = applyDownloadPermissions(snapshot, hasModulePermissionForProfile(guard.profile, "hd_system_reading"));
       redacted = view.systemReadingRedacted;
+      // F3A: markalama YALNIZ pro-1 düzende ve rapora yazılan "Hazırlayan" (preparedBy) doluysa okunur; ad daima
+      // preparedBy (profil adı otomatik yazılmaz); iletişim/dipnot HD'de gösterilmez (purpose "hd"). Hata → null.
+      const hdBranding = view.snapshot.layout === "pro-1" && view.snapshot.preparedBy?.trim()
+        ? await resolveReportBranding(guard.db, { tenantId: guard.tenantId, userId: guard.userId }, { fullName: null }, { purpose: "hd" })
+        : null;
       buffer = await renderHdReportV2Buffer(view.snapshot, {
         bodygraphImage: chartImage,
         logo: await loadHdReportLogo(),
@@ -106,6 +112,7 @@ export async function POST(req: NextRequest): Promise<Response> {
         // yalnız snapshot.preparedBy'dan gelir; kayıtlı snapshot DEĞİŞMEZ, yalnız çıktı davranışı.
         expertName: null,
         systemReadingRedacted: redacted,
+        branding: hdBranding,
       });
     } else {
       buffer = await renderHdReportBuffer(snapshot, { chartImage, expertName: null });

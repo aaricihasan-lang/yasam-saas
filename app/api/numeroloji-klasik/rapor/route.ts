@@ -1,3 +1,4 @@
+import { resolveReportBranding } from "@/lib/profile/reportBranding";
 import { NextRequest } from "next/server";
 import { classicReportRateLimit } from "@/lib/numeroloji-klasik/server/reportRateLimit";
 import { resolveModuleAccess } from "@/lib/auth/moduleAccess";
@@ -47,7 +48,8 @@ export async function POST(req: NextRequest): Promise<Response> {
   let out: Awaited<ReturnType<typeof buildClassicReport>>;
   try {
     out = await buildClassicReport(
-      { db: guard.db, tenantId: guard.tenantId, viewerId: guard.userId, expertName: expertDisplayName(guard.profile), futureYears: canSeeNumerologyFutureYears(guard.profile), canSeeStock: resolveModuleAccess(guard.profile?.role, guard.profile?.module_permissions, "stones") },
+      // F3A: branding — oturum sahibinin profili (anahtar kapalı / tablo yok / hata → null = markasız).
+      { db: guard.db, tenantId: guard.tenantId, viewerId: guard.userId, expertName: expertDisplayName(guard.profile), futureYears: canSeeNumerologyFutureYears(guard.profile), canSeeStock: resolveModuleAccess(guard.profile?.role, guard.profile?.module_permissions, "stones"), branding: await resolveReportBranding(guard.db, { tenantId: guard.tenantId, userId: guard.userId }, { fullName: expertDisplayName(guard.profile) }) },
       v.value,
       undefined,
       draftRow,
