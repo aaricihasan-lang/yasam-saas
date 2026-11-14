@@ -563,9 +563,9 @@ const targetDateTechnique = (id: "western.progression" | "western.solar_arc", la
     return { targetDate: r.targetDate, nodeType };
   },
   units: (ctx, opt) => [unit(id, meta, targetDateBody(ctx.birth, String(opt.targetDate), opt.nodeType as NodeType), { timeDependent: true })],
-  project: (_u, raw, opt) =>
+  project: (u, raw, opt) =>
     id === "western.progression"
-      ? fromAdapter(projectRoxyProgression(raw, { nodeType: opt.nodeType as NodeType, targetDate: String(opt.targetDate) }), PROGRESSION_TECHNICAL_SCHEMA, PROGRESSION_INTERP_SCHEMA, meta.projection)
+      ? fromAdapter(projectRoxyProgression(raw, { nodeType: opt.nodeType as NodeType, targetDate: String(opt.targetDate), request: u.body }), PROGRESSION_TECHNICAL_SCHEMA, PROGRESSION_INTERP_SCHEMA, meta.projection)
       : fromAdapter(projectRoxySolarArc(raw, { nodeType: opt.nodeType as NodeType, targetDate: String(opt.targetDate) }), SOLAR_ARC_TECHNICAL_SCHEMA, SOLAR_ARC_INTERP_SCHEMA, meta.projection),
   // AŞAMA 2.1/2.2 (2026-10-21): çift halka natal çerçevesi — transit deseniyle AYNI (YALNIZ önbellek; plana / istek sayısına
   // girmez, sağlayıcıya natal GÖNDERİLMEZ). Aynı doğum verisi (= aynı revizyon) + aynı düğüm türü; ev sistemi önceliği

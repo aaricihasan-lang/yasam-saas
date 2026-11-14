@@ -55,6 +55,7 @@ import type { BodyId } from "../model/western";
 import type { TransitAspect, TransitCalendarExact } from "../model/westernTiming";
 import { LEGACY_METHOD_LEAD } from "../legacyMethodText";
 import { progressionHouseColumns, type ProgressionHouseColumns } from "../progressionHouses";
+import { LEGACY_MEAN_NODE_WARNING, LEGACY_POLAR_NATAL_HOUSE_WARNING, MEAN_NODE_LOCAL_NOTE, polarNatalHouseNote } from "../progressionNodesText";
 import { BALA_POLAR_TECHNIQUES, balaPolarNotice } from "../balaPolarNotice";
 // 22.10.2026 Vedik harita (Bhav Chalit · Chara Karaka · Arudha · Bhava Bala) bölümleri ayrı dosyada (ayrı satır).
 import { VEDIC_HARITA_INTERP_SCHEMAS, VEDIC_HARITA_TECHNIQUES, vedicHaritaFigure, vedicHaritaInterp, vedicHaritaTechnical } from "./vedicHarita";
@@ -352,7 +353,8 @@ function progressionHouseColumnsOf(t: O): ProgressionHouseColumns {
     .filter((b) => typeof b.id === "string" && num(b.longitude) !== null)
     .map((b) => ({ ...b, house: num(b.house) })) as unknown as ProgressionTechnical["bodies"];
   const a = isObj(t.angles) && isObj(t.angles.ascendant) && isObj(t.angles.midheaven) && num(t.angles.ascendant.longitude) !== null && num(t.angles.midheaven.longitude) !== null ? (t.angles as unknown as ProgressionTechnical["angles"]) : null;
-  return progressionHouseColumns({ bodies, angles: a, natalFrame: frameOf(t) });
+  const nhs = isObj(t.natalHouseStatus) && (t.natalHouseStatus.status === "polar_undefined" || t.natalHouseStatus.status === "legacy_polar_provider") ? { status: t.natalHouseStatus.status as "polar_undefined" | "legacy_polar_provider", latitude: num(t.natalHouseStatus.latitude) } : undefined;
+  return progressionHouseColumns({ bodies, angles: a, natalFrame: frameOf(t), natalHouseStatus: nhs });
 }
 
 /** Solar Arc açıları + yaklaşan/ayrılan (ekranla AYNI saf fonksiyon; kayıtlı açı değerleri aynen). */
@@ -692,6 +694,12 @@ function westernTiming(b: B, technique: string, t: O, people: { a: string; b: st
         ["Açı kuralı", "Majör açılar, orb ≤ 1°"],
       ]);
       b.p(PROGRESSION_METHOD_NOTE, "muted");
+      // F1/F2 (14.11.2026): ekranla AYNI metinler (progressionNodesText.ts).
+      if (isObj(t.nodeComputation)) b.p(MEAN_NODE_LOCAL_NOTE, "muted");
+      else if (t.nodeType === "mean") b.p(LEGACY_MEAN_NODE_WARNING, "warn");
+      const nhs = isObj(t.natalHouseStatus) ? t.natalHouseStatus : null;
+      if (!f && nhs?.status === "polar_undefined") b.p(polarNatalHouseNote(num(nhs.latitude)), "warn");
+      if (!f && nhs?.status === "legacy_polar_provider") b.p(LEGACY_POLAR_NATAL_HOUSE_WARNING, "warn");
       anglesKv(b, t.angles);
       const natalById = new Map(f ? arr(f.bodies as unknown).map((x) => [String(x.id), x] as [string, O]) : []);
       const rows = arr(t.bodies).map((x) => {

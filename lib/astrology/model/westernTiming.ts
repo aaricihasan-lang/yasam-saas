@@ -142,6 +142,18 @@ export type ProgressionTechnical = {
    * isteği YOK). Bulunamazsa / saat bilinmiyorsa null; eski kayıtlarda alan hiç yoktur.
    */
   natalFrame?: TransitNatalFrame | null;
+  /**
+   * F1 (14.11.2026, adaptör -2): ortalama düğüm istendiğinde Kuzey/Güney düğüm ilerletilmiş anda YEREL hesaplanmıştır (sağlayıcı bu uç
+   * noktada mean isteğine gerçek düğüm döndürüyor; progressionNodes.ts). Alan yoksa ve nodeType "mean" ise kayıt eski (-1) sürümdür:
+   * düğüm değerleri gerçek düğümdür.
+   */
+  nodeComputation?: { source: "local_mean"; method: string; instantUtc: string };
+  /**
+   * F2 (14.11.2026): natal ev sütununun durumu. "polar_undefined" — doğum yeri kutup dairesi ötesinde, sağlayıcının natal ev numarası
+   * taşınmadı (adaptör -2). "legacy_polar_provider" — YALNIZ okuma anında eski (-1) kutup kaydına eklenir (kayıt değişmez): saklı ev
+   * numaraları Placidus değil, sağlayıcının sessiz tam burç geri dönüşüdür.
+   */
+  natalHouseStatus?: { status: "polar_undefined" | "legacy_polar_provider"; latitude: number | null };
 };
 export const PROGRESSION_INTERP_SCHEMA = "astro.western.progression.interp.v1" as const;
 export type ProgressionInterpretation = {

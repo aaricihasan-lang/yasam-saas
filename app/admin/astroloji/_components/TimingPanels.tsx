@@ -96,6 +96,7 @@ import { DeclinationParallelsPanel } from "./DeclinationParallelsPanel";
 import type { DeclinationParallelsTechnical } from "@/lib/astrology/model/westernDeclination";
 import { deltaTBirthNotes, deltaTTargetNotes } from "@/lib/astrology/deltaTNotice";
 import { fitGridCell, fitGridStyle } from "./atlas/fitGrid";
+import { LEGACY_MEAN_NODE_WARNING, LEGACY_POLAR_NATAL_HOUSE_WARNING, MEAN_NODE_LOCAL_NOTE, polarNatalHouseNote } from "@/lib/astrology/progressionNodesText";
 
 const th = "px-2 py-1.5 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500";
 const td = "px-2 py-1.5 text-sm text-slate-800";
@@ -334,6 +335,23 @@ export function ProgressionPanel({ t, timeUnknownMasked = false }: { t: Progress
         {t.elapsedYears !== null && <> · doğumdan bu yana {t.elapsedYears.toFixed(2)} yıl</>}
       </p>
       <MethodBox testId="astro-progression-method">{PROGRESSION_METHOD_NOTE}</MethodBox>
+      {/* F1/F2 (14.11.2026): düğüm kaynağı ve kutup natal evleri — açık yöntem notu / eski kayıt uyarısı (progressionNodesText.ts). */}
+      {t.nodeComputation && <MethodBox testId="astro-progression-mean-node-note">{MEAN_NODE_LOCAL_NOTE}</MethodBox>}
+      {t.nodeType === "mean" && !t.nodeComputation && (
+        <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-900" data-testid="astro-progression-legacy-mean">
+          {LEGACY_MEAN_NODE_WARNING}
+        </p>
+      )}
+      {t.natalHouseStatus?.status === "polar_undefined" && !f && (
+        <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-900" data-testid="astro-progression-polar-note">
+          {polarNatalHouseNote(t.natalHouseStatus.latitude)}
+        </p>
+      )}
+      {t.natalHouseStatus?.status === "legacy_polar_provider" && !f && (
+        <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-900" data-testid="astro-progression-legacy-polar">
+          {LEGACY_POLAR_NATAL_HOUSE_WARNING}
+        </p>
+      )}
       {t.angles && (
         <Section title="İlerletilmiş açısal noktalar">
           <table className="min-w-full">
