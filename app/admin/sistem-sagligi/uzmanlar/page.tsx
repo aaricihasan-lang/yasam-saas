@@ -85,7 +85,7 @@ export default function SistemSagligiUzmanlarPage() {
           <SummaryStatCard label="Toplam uzman" value={stats.total} tone="indigo" />
           <SummaryStatCard label="Aktif uzman" value={stats.active} tone="emerald" />
           <SummaryStatCard label="Onay bekleyen uzman" value={stats.pending} tone="amber" />
-          <SummaryStatCard label="Pasif (arşiv) uzman" value={stats.archived} tone="slate" />
+          <SummaryStatCard label="Pasif + Arşiv uzman" value={stats.archived} tone="slate" />
           <SummaryStatCard label="Reddedilen uzman" value={stats.rejected} tone="rose" />
         </section>
       ) : null}

@@ -213,7 +213,7 @@ export default function SistemSagligiKullanicilarPage() {
                 value={stats.pendingCount}
                 tone="amber"
               />
-              <SummaryStatCard label="Pasif (arşiv) uzman" value={stats.archivedCount} tone="slate" />
+              <SummaryStatCard label="Pasif + Arşiv uzman" value={stats.archivedCount} tone="slate" />
               <SummaryStatCard label="Reddedilen uzman" value={stats.rejectedCount} tone="rose" />
             </section>
 

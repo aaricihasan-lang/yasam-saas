@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { verifyAdminRequest } from "@/lib/auth/adminGuard";
 import { readLimitedJsonBody } from "@/lib/admin/accountSessionControls";
 import { isUuid } from "@/lib/admin/memberRequestValidation";
+import { archivedTargetResponse } from "@/lib/admin/archivedGuard";
 import { TRIAL_CREDIT_MODULES } from "@/lib/trial/trialCore";
 
 export const runtime = "nodejs";
@@ -44,6 +45,12 @@ export async function PATCH(req: NextRequest, ctx: RouteContext) {
   if (!parsed.ok) return bad(parsed.error, parsed.status);
   const body = parsed.value;
   const action = body.action;
+
+  if (action === "limits" || (typeof action === "string" && STATE_ACTIONS.has(action))) {
+    // AŞAMA 4a: arşivdeki hesapta değişiklik yok (erken yanıt; atomik güvence DB tetikleyicisinde, UY005).
+    const archived = await archivedTargetResponse(guard.db, id);
+    if (archived) return archived;
+  }
 
   if (action === "limits") {
     for (const k of Object.keys(body)) if (!["action", "dailyLimit", "moduleLimits"].includes(k)) return bad("Beklenmeyen alan.");

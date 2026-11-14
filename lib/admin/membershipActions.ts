@@ -81,6 +81,20 @@ export function isArchivedExpert(u: {
 }
 
 /**
+ * AŞAMA 4a — hesap YÖNETİM durumu (erişim kararı DEĞİL; giriş/oturum kapıları yalnız `active`e bakar).
+ *   "archived" → archived_at dolu (DB değişmezi: archived_at dolu ⇒ active false)
+ *   "passive"  → active=false ve arşivde değil (askı; normal üye yönetiminde görünür, arşiv SAYILMAZ)
+ *   "active"   → active=true
+ * Eski active=false kayıtlar (archived_at NULL) "passive"dir — otomatik arşivlenmiş sayılmaz.
+ */
+export type MemberAccountState = "active" | "passive" | "archived";
+export function memberAccountState(input: { active?: unknown; archivedAt?: unknown }): MemberAccountState {
+  const archived = input.archivedAt != null && String(input.archivedAt).trim() !== "";
+  if (archived) return "archived";
+  return input.active === true ? "active" : "passive";
+}
+
+/**
  * Gerçek TEMEL erişim (uzman modüllerine erişebilir mi?) — hasExpertMembershipAccess ile
  * TUTARLI: admin her zaman; uzman ancak active && approved ise (FAZ 1: her onaylı uzman
  * Premium; legacy package_type erişim kararına GİRMEZ). Temel erişim tek başına modül
