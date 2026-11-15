@@ -85,3 +85,18 @@ Owner kendi cihazını panelden onaylayamaz. Supabase SQL konsolunda `select pub
 - Owner onayı: yalnız `is_super_admin=true` + **MFA'lı** Owner oturumu; kendi cihazını onaylayamaz.
 - Cihaz iptali: o cihazın onayladığı oturumlar kapanır; iptal edilmiş cihaz hiçbir uçta kabul edilmez.
 - Kullanıcı başına en fazla 2 aktif cihaz; tek bekleyen eşleştirme.
+
+## 7. Protokol v1.1 — tek biyometri istemi (geriye uyumlu)
+
+Amaç: QR akışında yalnız **bir** kullanıcı doğrulama istemi (onay anında); güvenlik seviyesi aynı.
+
+- Cihaz ikinci bir Keystore anahtarı üretir: `ys_device_presence_v1` (EC P-256, **kullanıcı doğrulaması YOK**).
+  Bu anahtar yalnız **QR isteğini okuma** (`YS-QR-FETCH-V1`) imzası içindir. Okuma yalnız aynı kullanıcının
+  isteğine ait 3 seçeneği ve tarayıcı özetini gösterir; tek başına hiçbir yetki vermez.
+- **Onay/ret** (`YS-QR-DECIDE-V1`) ve **aktivasyon** (`YS-ACTIVATE-V1`) her zaman kullanıcı doğrulamalı asıl
+  anahtarla imzalanır (sunucu varlık anahtarıyla gelen onayı `BAD_SIGNATURE` ile reddeder).
+- Eşleştirme v2 mesajı: `YS-ENROLL-V2\n{email}\n{fingerprint}\n{presenceFingerprint}\n{ts}`; gövdede
+  `presencePublicKey` + `presenceSignature`. **İki anahtar da aynı mesajı imzalar** (iki anahtara sahiplik + bağlama).
+  Varlık anahtarı asıl anahtarla aynı olamaz.
+- v1 istemci (varlık anahtarı yok) çalışmaya devam eder: okuma asıl anahtarla doğrulanır.
+- Varlık anahtarı kayıtlı cihazda okuma **yalnız** varlık anahtarıyla kabul edilir.

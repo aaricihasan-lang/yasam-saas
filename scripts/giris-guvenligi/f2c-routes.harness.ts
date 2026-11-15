@@ -386,6 +386,44 @@ async function main() {
       ok(f.res.status === 404, "iptal edilen cihaz bir daha onaylayamaz");
     }
 
+    section("H) Protokol v1.1 — varlık anahtarı (okuma) + biyometrili anahtar (onay) → tek biyometri istemi");
+    {
+      const { enrollMessageV2 } = await import("@/lib/auth/deviceSignature");
+      const main = newPhone();
+      const presence = newPhone();
+      const code = displayCodeForSpki(Buffer.from(main.spki, "base64"));
+      const pcode = displayCodeForSpki(Buffer.from(presence.spki, "base64"));
+      const ts = nowTs();
+      const msg = enrollMessageV2(EMAIL.and1, code, pcode, ts);
+      const base = { email: EMAIL.and1, password: pw(EMAIL.and1), publicKey: main.spki, presencePublicKey: presence.spki, ts, signature: signWith(main, msg) };
+      const noPres = await post(enrollRoute.POST, `${L}/api/devices/enroll`, { ...base });
+      ok(noPres.res.status === 400 && noPres.json.code === "BAD_SIGNATURE", "v1.1: varlık anahtarı imzası olmadan eşleştirme reddedilir", noPres.json);
+      const same = await post(enrollRoute.POST, `${L}/api/devices/enroll`, { ...base, presencePublicKey: main.spki, presenceSignature: signWith(main, enrollMessageV2(EMAIL.and1, code, code, ts)) });
+      ok(same.res.status === 400, "v1.1: varlık anahtarı asıl anahtarla aynı olamaz", same.json);
+      const e = await post(enrollRoute.POST, `${L}/api/devices/enroll`, { ...base, presenceSignature: signWith(presence, msg) });
+      ok(e.res.status === 200 && e.json.state === "pending_owner", "v1.1: iki anahtarlı eşleştirme isteği", e.json);
+      main.deviceId = String(e.json.deviceId);
+      await post(adminDeviceRoute.POST, `${L}/api/admin/devices/${main.deviceId}`, { action: "approve", fingerprintConfirmed: true, verificationMethod: "telefon" },
+        adminHeaders(U.owner, ownerMfaSid), { params: Promise.resolve({ id: main.deviceId }) });
+      ok((await activate(main)).res.status === 200, "v1.1: asıl anahtarla aktivasyon");
+      presence.deviceId = main.deviceId;
+      const r = (await admin.query(`SELECT public.auth_mfa_set_required($1, $2, true, 'v1.1 testi') AS r`, [ownerMfaSid, U.and1])).rows[0].r;
+      ok(r.ok === true, "AND1 MFA zorunlu");
+      const l = await webLogin(EMAIL.and1);
+      const q = (l.json.qr ?? {}) as J;
+      const p = parseQr(String(q.url))!;
+      const fetchMain = await qrFetch(main, p.c, p.n);
+      ok(fetchMain.res.status === 400, "v1.1 cihazda okuma ASIL anahtarla değil, varlık anahtarıyla (asıl anahtar → red)", fetchMain.json);
+      const f = await qrFetch(presence, p.c, p.n);
+      ok(f.res.status === 200 && Array.isArray(f.json.options), "varlık anahtarıyla okuma (biyometri istemi yok)", f.json);
+      const viaPresence = await qrDecide(main, p.c, p.n, "approve", String(q.matchCode), presence);
+      ok(viaPresence.res.status === 400 && viaPresence.json.code === "BAD_SIGNATURE", "varlık anahtarı ONAY veremez (onay yalnız biyometrili anahtar)", viaPresence.json);
+      const d = await qrDecide(main, p.c, p.n, "approve", String(q.matchCode));
+      ok(d.json.result === "approved", "biyometrili asıl anahtarla tek onay");
+      const c = await complete(p.c, l.bind);
+      ok(c.res.status === 200, "v1.1 cihazla QR girişi tamamlandı");
+    }
+
     section("G) MFA zorunlu OLMAYAN hesap regresyonsuz");
     {
       const l = await webLogin(EMAIL.free);

@@ -83,6 +83,13 @@ export function isFreshTimestamp(ts: unknown, nowMs: number = Date.now()): ts is
 // ─── Kanonik mesajlar (protokol §2; satır ayırıcı \n, sonda \n YOK) ────────────
 export const enrollMessage = (emailLower: string, displayCode: string, ts: number) =>
   ["YS-ENROLL-V1", emailLower, displayCode, String(ts)].join("\n");
+/**
+ * Protokol v1.1 eşleştirme: asıl (kullanıcı doğrulamalı) anahtar + varlık anahtarı (kullanıcı doğrulamasız,
+ * yalnız QR okuma). Mesaj iki parmak izini de içerir; HER İKİ anahtar aynı mesajı imzalar (iki anahtara da
+ * sahiplik + birbirine bağlama).
+ */
+export const enrollMessageV2 = (emailLower: string, displayCode: string, presenceDisplayCode: string, ts: number) =>
+  ["YS-ENROLL-V2", emailLower, displayCode, presenceDisplayCode, String(ts)].join("\n");
 export const activateMessage = (deviceId: string, nonce: string, ts: number) =>
   ["YS-ACTIVATE-V1", deviceId, nonce, String(ts)].join("\n");
 export const qrFetchMessage = (challengeId: string, qrNonce: string, deviceId: string, ts: number) =>

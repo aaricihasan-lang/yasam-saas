@@ -35,6 +35,9 @@ CREATE TABLE IF NOT EXISTS public.auth_trusted_devices (
   id                    uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id               uuid NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
   public_key_spki       text NOT NULL CHECK (length(public_key_spki) BETWEEN 80 AND 400),
+  -- Protokol v1.1: kullanıcı doğrulaması GEREKTİRMEYEN "varlık" anahtarı — yalnız QR isteğini OKUMA (fetch)
+  -- imzası için. Onay (decide) her zaman yukarıdaki kullanıcı doğrulamalı anahtarla. NULL → v1 istemci.
+  presence_key_spki     text CHECK (presence_key_spki IS NULL OR length(presence_key_spki) BETWEEN 80 AND 400),
   key_fingerprint       text NOT NULL CHECK (key_fingerprint ~ '^[0-9a-f]{64}$'),
   display_code          text NOT NULL CHECK (display_code ~ '^[A-Z2-7]{4}-[A-Z2-7]{4}$'),
   key_alg               text NOT NULL DEFAULT 'ES256' CHECK (key_alg = 'ES256'),
@@ -283,7 +286,8 @@ CREATE OR REPLACE FUNCTION public.auth_device_enroll_begin(
   p_android_api      integer,
   p_app_version      text,
   p_ip_hash          text,
-  p_bootstrap_hash   text
+  p_bootstrap_hash   text,
+  p_presence_key_spki text DEFAULT NULL
 ) RETURNS jsonb
 LANGUAGE plpgsql
 VOLATILE
@@ -340,10 +344,10 @@ BEGIN
     v_nonce := translate(rtrim(encode(extensions.gen_random_bytes(24), 'base64'), '='), '+/', '-_');
   END IF;
 
-  INSERT INTO public.auth_trusted_devices (user_id, public_key_spki, key_fingerprint, display_code, device_model,
+  INSERT INTO public.auth_trusted_devices (user_id, public_key_spki, presence_key_spki, key_fingerprint, display_code, device_model,
       android_api, app_version, enroll_ip_hash, via_bootstrap, state, activation_nonce, activation_expires_at,
       decided_at, decided_by, created_at)
-  VALUES (p_user_id, p_public_key_spki, p_key_fingerprint, p_display_code, left(p_device_model, 80),
+  VALUES (p_user_id, p_public_key_spki, p_presence_key_spki, p_key_fingerprint, p_display_code, left(p_device_model, 80),
       p_android_api, left(p_app_version, 32), left(p_ip_hash, 128), p_bootstrap_hash IS NOT NULL, v_state,
       v_nonce, CASE WHEN v_nonce IS NULL THEN NULL ELSE v_now + interval '15 minutes' END,
       CASE WHEN v_nonce IS NULL THEN NULL ELSE v_now END, CASE WHEN v_nonce IS NULL THEN NULL ELSE p_user_id END, v_now)
@@ -364,8 +368,8 @@ BEGIN
 
   RETURN jsonb_build_object('ok', true, 'device_id', v_id, 'state', v_state);
 END $$;
-REVOKE ALL ON FUNCTION public.auth_device_enroll_begin(uuid,text,text,text,text,integer,text,text,text) FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.auth_device_enroll_begin(uuid,text,text,text,text,integer,text,text,text) TO service_role;
+REVOKE ALL ON FUNCTION public.auth_device_enroll_begin(uuid,text,text,text,text,integer,text,text,text,text) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.auth_device_enroll_begin(uuid,text,text,text,text,integer,text,text,text,text) TO service_role;
 
 -- ── 8) Cihaz durumu (aktivasyon nonce'u yalnız owner_approved iken) ──────────
 CREATE OR REPLACE FUNCTION public.auth_device_status(p_device_id uuid)
@@ -402,7 +406,8 @@ STABLE
 SECURITY DEFINER
 SET search_path = ''
 AS $$
-  SELECT jsonb_build_object('public_key_spki', d.public_key_spki, 'state', d.state, 'user_id', d.user_id)
+  SELECT jsonb_build_object('public_key_spki', d.public_key_spki, 'presence_key_spki', d.presence_key_spki,
+                            'state', d.state, 'user_id', d.user_id)
     FROM public.auth_trusted_devices d
    WHERE d.id = p_device_id AND d.state IN ('owner_approved', 'active');
 $$;

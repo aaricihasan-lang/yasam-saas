@@ -30,7 +30,8 @@ export async function POST(req: NextRequest) {
     if (limited) return NextResponse.json({ code: "RATE_LIMITED", retryAfter: limited }, { status: 429, headers: { ...NO_STORE, "Retry-After": String(limited) } });
     const dev = await loadDeviceRecordWithKey(db, deviceId);
     if (!dev || dev.record.state !== "active") return INVALID();
-    if (!dev.verify(qrFetchMessage(challengeId, qrNonce, deviceId, body?.ts as number), body?.signature)) return json({ code: "BAD_SIGNATURE" }, 400);
+    // v1.1: okuma yalnız varlık anahtarıyla (biyometri istemi yok); onay ayrıca kullanıcı doğrulamalı anahtar ister.
+    if (!dev.verifyPresence(qrFetchMessage(challengeId, qrNonce, deviceId, body?.ts as number), body?.signature)) return json({ code: "BAD_SIGNATURE" }, 400);
     const { data, error } = await db.rpc("auth_qr_fetch", { p_challenge_id: challengeId, p_qr_nonce: qrNonce, p_device_id: deviceId });
     if (error) return json({ code: "ERROR" }, 500);
     const r = (data ?? {}) as { ok?: unknown; options?: unknown; user_agent?: unknown; created_at?: unknown; expires_at?: unknown };

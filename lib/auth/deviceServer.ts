@@ -15,16 +15,25 @@ export type DeviceRecord = { userId: string; state: "owner_approved" | "active" 
 export async function loadDeviceRecordWithKey(
   db: SupabaseClient,
   deviceId: string,
-): Promise<{ record: DeviceRecord; verify: (message: string, signature: unknown) => boolean } | null> {
+): Promise<{
+  record: DeviceRecord;
+  /** Asıl anahtar (kullanıcı doğrulamalı) — onay/aktivasyon. */
+  verify: (message: string, signature: unknown) => boolean;
+  /** Yalnız QR OKUMA: v1.1 varlık anahtarı varsa o, yoksa (v1 istemci) asıl anahtar. */
+  verifyPresence: (message: string, signature: unknown) => boolean;
+} | null> {
   if (!isMfaChallengeId(deviceId)) return null;
   const { data, error } = await db.rpc("auth_device_public_key", { p_device_id: deviceId });
   if (error || !data || typeof data !== "object") return null;
-  const r = data as { public_key_spki?: unknown; state?: unknown; user_id?: unknown };
+  const r = data as { public_key_spki?: unknown; presence_key_spki?: unknown; state?: unknown; user_id?: unknown };
   const key = parseDevicePublicKey(r.public_key_spki);
+  const presence = r.presence_key_spki == null ? null : parseDevicePublicKey(r.presence_key_spki);
+  if (r.presence_key_spki != null && !presence) return null;
   if (!key || (r.state !== "owner_approved" && r.state !== "active") || !isMfaChallengeId(r.user_id)) return null;
   return {
     record: { userId: String(r.user_id), state: r.state },
     verify: (message, signature) => verifyDeviceSignature(key.key, message, signature),
+    verifyPresence: (message, signature) => verifyDeviceSignature((presence ?? key).key, message, signature),
   };
 }
 

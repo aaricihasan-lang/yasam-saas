@@ -7,6 +7,7 @@ import { isExpertReady, normalizeRole, resolveApprovalStatus } from "@/lib/auth/
 import { hitDbRateLimit, rateLimitBucket } from "@/lib/security/dbRateLimit";
 import {
   enrollMessage,
+  enrollMessageV2,
   hashBootstrapCode,
   isFreshTimestamp,
   parseDevicePublicKey,
@@ -41,7 +42,16 @@ export async function POST(req: NextRequest) {
     const ts = body?.ts;
     if (!email || !password.trim() || !key) return json({ code: "BAD_REQUEST", error: "Eksik veya geçersiz eşleştirme isteği." }, 400);
     if (!isFreshTimestamp(ts)) return json({ code: "BAD_TIMESTAMP", error: "Telefonunuzun saati hatalı görünüyor." }, 400);
-    if (!verifyDeviceSignature(key.key, enrollMessage(email, key.displayCode, ts), body?.signature)) {
+    // Protokol v1.1: varlık anahtarı (isteğe bağlı) — asıl anahtardan FARKLI olmalı; iki anahtar da v2 mesajını imzalar.
+    const presence = body?.presencePublicKey == null ? null : parseDevicePublicKey(body.presencePublicKey);
+    if (body?.presencePublicKey != null && (!presence || presence.fingerprintHex === key.fingerprintHex)) {
+      return json({ code: "BAD_REQUEST", error: "Geçersiz cihaz varlık anahtarı." }, 400);
+    }
+    const signedOk = presence
+      ? verifyDeviceSignature(key.key, enrollMessageV2(email, key.displayCode, presence.displayCode, ts), body?.signature)
+        && verifyDeviceSignature(presence.key, enrollMessageV2(email, key.displayCode, presence.displayCode, ts), body?.presenceSignature)
+      : verifyDeviceSignature(key.key, enrollMessage(email, key.displayCode, ts), body?.signature);
+    if (!signedOk) {
       return json({ code: "BAD_SIGNATURE", error: "Cihaz imzası doğrulanamadı." }, 400);
     }
     const bootstrapRaw = typeof body?.bootstrapCode === "string" && body.bootstrapCode.trim() ? body.bootstrapCode : null;
@@ -90,6 +100,7 @@ export async function POST(req: NextRequest) {
       p_app_version: appVersion,
       p_ip_hash: ipHash,
       p_bootstrap_hash: bootstrapHash,
+      p_presence_key_spki: presence ? presence.spkiB64 : null,
     });
     if (error) return json({ code: "ERROR", error: "Eşleştirme şu anda yapılamıyor." }, 500);
     const r = (data ?? {}) as { ok?: unknown; device_id?: unknown; state?: unknown; reason?: unknown };
