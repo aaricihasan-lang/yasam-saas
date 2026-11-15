@@ -504,6 +504,10 @@ export const BACKUP_REGISTRY: readonly RegistryEntry[] = [
   // Okuma yolu her tasarımı sunucu şemasından geçirir (lib/workspace/schema.ts) → yedekten gelen geçersiz içerik gösterilmez.
   entry("expert_workspace_designs", null, "backup", "Kişisel Ofis Tasarımı", { naturalKey: "user_id", ownerScope: USER_OWNER }),
   entry("expert_ui_prefs", null, "backup", "Kişisel Ofis Tercihleri", { naturalKey: "user_id", ownerScope: USER_OWNER }),
+  // Uzman profili (F1; uzman başına tek satır). Geri yükleme yalnız EKSİK satırı ekler (naturalKey user_id): mevcut profil
+  // EZİLMEZ; tenant_id / user_id sunucuda zorlanır. Okuma yolu metinleri sunucu şemasından geçirir (lib/profile/schema.ts).
+  // logo_asset_id (F2) yalnız kimliktir; F2 kullanmadan önce sahipliği expert_workspace_assets'te doğrular.
+  entry("expert_profiles", null, "backup", "Uzman Profili", { naturalKey: "user_id", ownerScope: USER_OWNER }),
   // Görsel kayıtları (assetId ↔ yol). Tenant yedeği DB satırıdır; dosyalar platform yedeğindedir (lib/backup kuralı). Yol tenant
   // önekli olmalı → başka tenant'ın yolu geri yüklenmez (storageRefs). Satır silinmez; deleted_at korunur.
   entry("expert_workspace_assets", null, "backup", "Kişisel Ofis Görselleri", {

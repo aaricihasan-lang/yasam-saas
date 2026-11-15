@@ -760,6 +760,20 @@
    "timeoutSec": 60
   },
   {
+   "file": "scripts/profile/pg/expert-profiles-tables.mjs",
+   "timeoutSec": 240
+  },
+  {
+   "file": "scripts/profile/routes.harness.ts",
+   "tsx": true,
+   "timeoutSec": 180
+  },
+  {
+   "file": "scripts/profile/schema.test.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
    "file": "scripts/raw-db-error-hygiene/routes.harness.ts",
    "tsx": true,
    "timeoutSec": 64
