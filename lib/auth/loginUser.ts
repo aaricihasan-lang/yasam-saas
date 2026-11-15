@@ -142,6 +142,8 @@ export type MfaChallengeInfo = {
   expiresAt: string;
   methods: string[];
   qr: { url: string; matchCode: string } | null;
+  /** F2-D: e-posta kodu sunuluyorsa maskeli adres ("f***@a***.com"); tam adres istemciye gelmez. */
+  emailHint: string | null;
   /** Yalnız resmî Android (çerezsiz) — web'de null; bağlama HttpOnly `__Host-yasam_mfa` çerezinde. */
   binding: string | null;
   message: string | null;
@@ -155,6 +157,7 @@ export function parseMfaChallenge(j: Record<string, unknown>): MfaChallengeInfo 
     expiresAt: j.expiresAt,
     methods: Array.isArray(j.methods) ? j.methods.filter((m): m is string => typeof m === "string") : [],
     qr: qr && typeof qr.url === "string" && typeof qr.matchCode === "string" ? { url: qr.url, matchCode: qr.matchCode } : null,
+    emailHint: typeof j.emailHint === "string" ? j.emailHint : null,
     binding: typeof j.mfaBinding === "string" ? j.mfaBinding : null,
     message: typeof j.error === "string" ? j.error : null,
   };
@@ -205,6 +208,38 @@ export async function completeMfaLogin(
     return { ok: true, row, sessionToken: bodyToken, suspiciousLogin: j.suspiciousLogin === true || j.highRisk === true };
   }
   return { ok: false, code: typeof j.code === "string" ? j.code : `HTTP_${res.status}`, message: typeof j.error === "string" ? j.error : null };
+}
+
+export type MfaEmailResult = { ok: true; expiresAt?: string } | { ok: false; code: string; message: string | null; attemptsLeft?: number; retryAfter?: number };
+
+/** F2-D: bekleyen challenge için e-posta kodu iste / doğrula (yalnız bu tarayıcı — bağlama çerezi). */
+export async function mfaEmailRequest(
+  info: MfaChallengeInfo,
+  action: "send" | "verify",
+  code?: string,
+  fetchImpl: typeof fetch = fetch,
+): Promise<MfaEmailResult> {
+  let res: Response;
+  try {
+    res = await fetchImpl(`/api/auth/mfa/email/${action}`, {
+      method: "POST",
+      cache: "no-store",
+      credentials: "same-origin",
+      headers: { "Content-Type": "application/json", ...(info.binding ? { "x-yasam-mfa-binding": info.binding } : {}), ...officialAppHeaders() },
+      body: JSON.stringify(action === "send" ? { challengeId: info.challengeId } : { challengeId: info.challengeId, code }),
+    });
+  } catch {
+    return { ok: false, code: "NETWORK", message: "Bağlantı kurulamadı. İnternetinizi kontrol edip tekrar deneyin." };
+  }
+  const j = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+  if (res.ok) return { ok: true, ...(typeof j.expiresAt === "string" ? { expiresAt: j.expiresAt } : {}) };
+  return {
+    ok: false,
+    code: typeof j.code === "string" ? j.code : `HTTP_${res.status}`,
+    message: typeof j.error === "string" ? j.error : null,
+    ...(typeof j.attemptsLeft === "number" ? { attemptsLeft: j.attemptsLeft } : {}),
+    ...(typeof j.retryAfter === "number" ? { retryAfter: j.retryAfter } : {}),
+  };
 }
 
 export function normalizeLoginEmail(email: string): string {

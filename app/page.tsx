@@ -1178,6 +1178,7 @@ export default function Home() {
         setMessage(t("auth.noValidRole"));
       } else if (
         attempt.code === "LOCKED" ||
+        attempt.code === "MFA_TOO_MANY_OPEN" ||
         attempt.code === "INACTIVE" ||
         attempt.code === "PENDING"
       ) {

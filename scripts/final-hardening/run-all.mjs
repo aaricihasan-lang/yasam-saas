@@ -150,6 +150,15 @@ const STEPS = [
     M("20280103000100_auth_mfa_core_f2b.sql"), M("20280103000200_auth_session_insert_lock_f2b.sql")],
     ["20280103000300_auth_trusted_devices_qr_f2c.sql"],
     ["session-f2c-assert.sql"])],
+  // GİRİŞ GÜVENLİĞİ F2-D: e-posta OTP (kod özeti, sınırlar, kilit, kota, Owner uyarısı, yalıtım, yetkiler).
+  ["pg:session-f2d", ...pg([F("session-model-fixture.sql"), F("session-f2a-fixture.sql"), F("session-f2b-fixture.sql"), F("session-f2c-fixture.sql"),
+    F("session-f2d-fixture.sql"),
+    M("20270129000200_user_sessions_expiry_touch.sql"), M("20271003200000_session_model_v2.sql"),
+    M("20271003200100_admin_audit_session_actions.sql"), M("20280103000000_auth_session_hardening_f2a.sql"),
+    M("20280103000100_auth_mfa_core_f2b.sql"), M("20280103000200_auth_session_insert_lock_f2b.sql"),
+    M("20280103000300_auth_trusted_devices_qr_f2c.sql")],
+    ["20280103000400_auth_email_otp_f2d.sql"],
+    ["session-f2d-assert.sql"])],
 ];
 
 const only = process.argv.includes("--only") ? process.argv[process.argv.indexOf("--only") + 1] : null;

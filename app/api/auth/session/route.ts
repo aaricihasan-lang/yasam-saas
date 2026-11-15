@@ -40,9 +40,10 @@ import {
   MFA_CHALLENGE_TTL_SECONDS,
   newMfaBindingSecret,
   readMfaRequirement,
-  resolveOfferedMfaMethods,
+  resolveUserMfaMethods,
   setMfaBindingCookie,
 } from "@/lib/auth/mfaChallenge";
+import { emailOtpConfigured, emailOtpRoleAllowed, maskEmail } from "@/lib/auth/emailOtp";
 import { qrApprovalUrl } from "@/lib/auth/deviceSignature";
 
 export const runtime = "nodejs";
@@ -206,13 +207,31 @@ export async function POST(req: NextRequest) {
         userAgent: location.userAgent,
       });
       if (!begun.ok) {
-        if (begun.reason === "too_many_open") return rateLimited(MFA_CHALLENGE_TTL_SECONDS);
+        if (begun.reason === "too_many_open") {
+          // Parola DOĞRU; sorun açık (tamamlanmamış) doğrulama istekleri — "başarısız giriş" denmez.
+          const retryAfter = MFA_CHALLENGE_TTL_SECONDS;
+          return json(
+            {
+              code: "MFA_TOO_MANY_OPEN",
+              error: "Bu hesap için tamamlanmamış çok sayıda doğrulama isteği var. Lütfen açık kalan giriş ekranlarındaki isteği tamamlayın veya 5 dakika sonra tekrar deneyin.",
+              retryAfter,
+            },
+            429,
+            { "Retry-After": String(retryAfter) },
+          );
+        }
         if (begun.reason === "inactive") {
           return json({ code: "INACTIVE", error: "Hesabınız pasif durumda. Lütfen sistem yöneticisiyle iletişime geçin." }, 403);
         }
         return json({ code: "ERROR", error: "Giriş şu anda yapılamıyor. Lütfen tekrar deneyin." }, 500);
       }
-      const methods = resolveOfferedMfaMethods(await isMfaTestAccount(db, String(row.id)));
+      const methods = await resolveUserMfaMethods(db, {
+        userId: String(row.id),
+        role,
+        isTestAccount: await isMfaTestAccount(db, String(row.id)),
+        emailConfigured: emailOtpConfigured(),
+        emailRoleAllowed: emailOtpRoleAllowed(role),
+      });
       const mfaResponse = json(
         {
           code: "MFA_REQUIRED",
@@ -223,6 +242,8 @@ export async function POST(req: NextRequest) {
           ...(methods.includes("qr_device") && begun.qrNonce && begun.matchCode
             ? { qr: { url: qrApprovalUrl(begun.challengeId, begun.qrNonce), matchCode: begun.matchCode } }
             : {}),
+          // F2-D: e-posta yöntemi — tam adres DEĞİL, maske (kod istenince gönderilir; burada gönderim YOK).
+          ...(methods.includes("email_otp") && typeof row.email === "string" ? { emailHint: maskEmail(row.email) } : {}),
           ...(androidApp ? { mfaBinding: bindingSecret } : {}),
           error: methods.length > 0
             ? "Girişi tamamlamak için ikinci doğrulama gerekiyor."
