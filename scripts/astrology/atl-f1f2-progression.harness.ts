@@ -89,7 +89,8 @@ function legacyTechnical(c: Real): ProgressionTechnical {
   return { ...rest, bodies } as ProgressionTechnical;
 }
 const mapId = (n: string) => ({ Sun: "sun", Moon: "moon", Mercury: "mercury", Venus: "venus", Mars: "mars", Jupiter: "jupiter", Saturn: "saturn", Uranus: "uranus", Neptune: "neptune", Pluto: "pluto", "North Node": "north_node", "South Node": "south_node", Chiron: "chiron", "Black Moon Lilith": "lilith" })[n] ?? n;
-const html = (t: ProgressionTechnical) => renderToStaticMarkup(createElement(ProgressionPanel, { t }));
+// K4 (15.11.2026): başlıktaki Latince/İngilizce ev sistemi adı büyük harf için <span lang="en"> ile sarılır; metin karşılaştırması işaretsiz.
+const html = (t: ProgressionTechnical) => renderToStaticMarkup(createElement(ProgressionPanel, { t })).replace(/<span lang="en">([^<]*)<\/span>/g, "$1");
 const reportOf = (technique: string, technical: J, legacyNotes: J[] = [], profile: J = null) =>
   reportTexts(buildAstroReport({ technique, technical, title: "TEST", analysisAt: "2026-11-14T00:00:00Z", params: {}, method: {}, profile, versions: {}, legacyNotes } as J)).join("\n");
 

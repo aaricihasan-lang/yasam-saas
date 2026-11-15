@@ -21,7 +21,7 @@ export { fmtDms, kpChartItems, type KpSel } from "../_lib/kpChart";
 import { fmtDms } from "../_lib/kpChart";
 import type { KbLookup } from "./VedicPanels";
 import { KP_HORARY_TEXT, kpCuspSublordRows, kpHoraryLagnaContrast } from "@/lib/astrology/view/kpHorary";
-import { questionMomentLabel } from "@/lib/astrology/transitDetail";
+import { questionMomentLabel, questionMomentPlaceNote } from "@/lib/astrology/transitDetail";
 
 const th = "px-2 py-1.5 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500";
 const td = "px-2 py-1.5 text-sm text-slate-800";
@@ -140,14 +140,14 @@ export function KpSouthChart({
       <div
         ref={gridRef}
         style={side !== null ? { width: side, gridTemplateRows: `repeat(4, minmax(${Math.floor(side / 4)}px, auto))` } : undefined}
-        className={`mx-auto grid grid-cols-4 grid-rows-[repeat(4,minmax(5.5rem,auto))] overflow-hidden rounded-xl sm:grid-rows-[repeat(4,minmax(8.5rem,auto))] border border-slate-300 bg-white text-[10px] sm:text-xs ${big ? "sm:!text-sm" : ""}`}
+        className={`mx-auto grid grid-cols-4 grid-rows-[repeat(4,minmax(5.5rem,auto))] overflow-hidden rounded-xl sm:grid-rows-[repeat(4,minmax(8.5rem,auto))] border border-slate-300 bg-white text-[11px] sm:text-xs ${big ? "sm:!text-sm" : ""}`}
       >
         {SIGN_IDS.map((s) => {
           const [r, c] = SOUTH_CELLS[s];
           const hasAsc = items[s].some((x) => x.key === "c1");
           return (
             <div key={s} style={{ gridRow: r, gridColumn: c }} className={`flex min-w-0 flex-col gap-0.5 overflow-hidden border border-slate-200 p-1 ${hasAsc ? "bg-amber-50" : ""}`} data-kp-sign={s}>
-              <div className="flex items-center justify-between text-[9px] font-semibold uppercase tracking-wide text-slate-500 sm:text-[10px]" title={SIGN_LABELS[s]}>
+              <div className="flex items-center justify-between text-[10px] font-semibold uppercase tracking-wide text-slate-500 sm:text-[11px]" title={SIGN_LABELS[s]}>
                 <span>{SIGN_TR_ABBR[s]}</span>
                 <span aria-hidden>{SIGN_GLYPHS[s]}</span>
               </div>
@@ -159,7 +159,7 @@ export function KpSouthChart({
                     title={it.title}
                     onClick={() => onSel(it.sel)}
                     data-kp-item={it.key}
-                    className={`inline-flex min-h-[24px] max-w-full items-center truncate rounded px-1 leading-tight ${it.cusp ? `border ${it.strong ? "border-amber-500 font-bold text-amber-900" : "border-amber-300 text-amber-800"} bg-white` : "bg-slate-100 font-semibold text-slate-900"} ${isSel(it.sel) ? "ring-2 ring-violet-500" : ""}`}
+                    className={`inline-flex min-h-[24px] max-w-full items-center whitespace-normal break-words rounded px-1 text-left leading-tight [overflow-wrap:anywhere] ${it.cusp ? `border ${it.strong ? "border-amber-500 font-bold text-amber-900" : "border-amber-300 text-amber-800"} bg-white` : "bg-slate-100 font-semibold text-slate-900"} ${isSel(it.sel) ? "ring-2 ring-violet-500" : ""}`}
                   >
                     {it.label}
                   </button>
@@ -462,7 +462,7 @@ function Center({ title, lines }: { title: string; lines: string[] }) {
     <>
       <div className="text-xs font-bold text-slate-800 sm:text-sm">{title}</div>
       {lines.map((l) => (
-        <div key={l} className="text-[9px] leading-tight sm:text-[11px]">
+        <div key={l} className="text-[10px] leading-tight sm:text-[11px]">
           {l}
         </div>
       ))}
@@ -781,14 +781,23 @@ function KpCuspSublordTable({ t, sel, onSel }: { t: KpHoraryTechnical; sel: KpSe
     </div>
   );
 }
-export function KpHoraryPanel({ t, kbLookup, placeLabel, displayTz = null }: { t: KpHoraryTechnical; kbLookup?: KbLookup | null; placeLabel?: string | null; displayTz?: string | null }) {
+export function KpHoraryPanel({ t, kbLookup, placeLabel, displayTz = null, placeTz = null }: { t: KpHoraryTechnical; kbLookup?: KbLookup | null; placeLabel?: string | null; displayTz?: string | null; /** K5: değerlendirme yerinin saat dilimi (yalnız gösterim). */ placeTz?: string | null }) {
   const [sel, setSel] = useState<KpSel | null>({ kind: "cusp", house: 1 });
   const kbNum = kbLookup ? kbLookup([`kp_horary_number:${t.horaryNumber}`]) : null;
   const cuspKb: KbLookup | null = kbLookup ? (keys) => kbLookup([...keys.filter((k) => !k.startsWith("kp_cusp_")), ...keys.filter((k) => k.startsWith("kp_cusp_sublord:")).map((k) => k.replace("kp_cusp_sublord:", "kp_horary_cusp_sublord:"))]) : null;
   return (
     <div className="flex min-w-0 flex-col gap-3" data-testid="astro-kp-horary-panel">
       <p className="text-sm text-slate-700">
-        <strong>KP horary · sayı {t.horaryNumber}</strong> · soru anı <span data-testid="astro-kp-horary-moment">{questionMomentLabel(t.at.utc, displayTz)}</span> · değerlendirme yeri{" "}
+        <strong>KP horary · sayı {t.horaryNumber}</strong> · soru anı <span data-testid="astro-kp-horary-moment">{questionMomentLabel(t.at.utc, displayTz)}</span>
+        {(() => {
+          const note = questionMomentPlaceNote(t.at.utc, displayTz, placeTz);
+          return note ? (
+            <>
+              {" "}
+              (<span data-testid="astro-kp-horary-moment-place">{note}</span>)
+            </>
+          ) : null;
+        })()} · değerlendirme yeri{" "}
         {placeLabel ?? `${t.place.latitude.toFixed(4)}, ${t.place.longitude.toFixed(4)}`} · {AY[t.frame.ayanamsa]} · Placidus
       </p>
       <p className="text-xs text-slate-500" data-testid="astro-kp-horary-method">

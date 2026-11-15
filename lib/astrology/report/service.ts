@@ -14,6 +14,7 @@ import { renderFigurePng } from "./figurePng";
 import { DOCX_MIME, renderAstroReportDocx } from "./docx";
 import { buildAstroReport, buildCombinedAstroReport, type AstroReport, type ReportAnalysisInput, type ReportBlock } from "./model";
 import { buildAstroReportPdf } from "./pdf";
+import { COMBINED_REPORT_MAX } from "./limits";
 import { symbolFontBuffers, symbolFontsBase64 } from "./symbolFontData";
 
 assertServerOnly("lib/astrology/report/service");
@@ -63,8 +64,8 @@ export async function buildAnalysisReport(ctx: EngineCtx, id: string, format: Re
 
 // ─── 2026-10-12 (UAT 2. tur, madde L): seçili / tüm analizler TEK Word / TEK PDF ───────────────────────
 
-/** Tek dosyada en çok analiz (sunucu süresi + dosya boyutu sınırı). */
-export const COMBINED_REPORT_MAX = 30;
+/** Tek dosyada en çok analiz (sunucu süresi + dosya boyutu sınırı) — değer limits.ts'te (istemci düğmeleriyle ortak). */
+export { COMBINED_REPORT_MAX };
 
 const isUuidLike = (v: unknown): v is string => typeof v === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
 const err = (status: number, code: string, error: string): ReportResult => ({ ok: false, status, body: { ok: false, code, error } });

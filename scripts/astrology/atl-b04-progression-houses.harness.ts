@@ -145,7 +145,8 @@ async function main() {
 
   await t("E) ekran: iki çerçeve ayrı ve doğru adlı başlıkla; eski 'Ev (ilerl.)' YOK; hücreler sütun fonksiyonlarıyla aynı; saat bilinmiyorsa iki sütun da yok", () => {
     const c = cases.find((k) => k.id.endsWith("TR-0291"))!;
-    const html = renderToStaticMarkup(createElement(ProgressionPanel, { t: techOf(c, false) }));
+    // K4 (15.11.2026): başlıktaki Latince/İngilizce ev sistemi adı büyük harf için <span lang="en"> ile sarılır; metin karşılaştırması işaretsiz.
+    const html = renderToStaticMarkup(createElement(ProgressionPanel, { t: techOf(c, false) })).replace(/<span lang="en">([^<]*)<\/span>/g, "$1");
     assert.ok(!html.includes("Ev (ilerl.)"));
     assert.ok(html.includes("Natal ev (Placidus)") && html.includes(PROGRESSED_CHART_HOUSE_LABEL));
     // Dar ekran (<640 px) kısa başlık + masaüstü tam başlık AYNI hücrede (owner kararı 14.11.2026, A seçeneği).
@@ -160,7 +161,7 @@ async function main() {
     const masked = maskTechnical("western.progression", techOf(c, true), { primary: false, partner: null } as J).technical as ProgressionTechnical;
     const mc = progressionHouseColumns(masked);
     assert.deepEqual([mc.natal, mc.progressed], [null, null]);
-    const mhtml = renderToStaticMarkup(createElement(ProgressionPanel, { t: masked, timeUnknownMasked: true }));
+    const mhtml = renderToStaticMarkup(createElement(ProgressionPanel, { t: masked, timeUnknownMasked: true })).replace(/<span lang="en">([^<]*)<\/span>/g, "$1");
     assert.ok(!mhtml.includes("astro-progression-natal-house") && !mhtml.includes("astro-progression-chart-house"));
   });
 

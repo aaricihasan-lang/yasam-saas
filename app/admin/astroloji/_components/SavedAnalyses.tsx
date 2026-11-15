@@ -25,6 +25,7 @@ import { NO_PROVIDER_INTERPRETATION_NOTE, hasNoProviderInterpretation } from "@/
 import type { NatalTechnical } from "@/lib/astrology/model/western";
 import { localSpaceCenter } from "@/lib/astrology/localSpaceCenter";
 import { LEGACY_METHOD_LEAD } from "@/lib/astrology/legacyMethodText";
+import { COMBINED_REPORT_MAX } from "@/lib/astrology/report/limits";
 
 type ListItem = {
   id: string;
@@ -667,7 +668,12 @@ function BulkReportBar({ profileId, total, selectedIds, previewNoInterp, onClear
     if (!r.ok) setErr(r.error);
   }
   const n = selectedIds.length;
+  // K3 (15.11.2026): sunucu tek dosyada en çok COMBINED_REPORT_MAX analiz verir; sınırı aşan düğme etkin görünüp tıklanınca
+  // "30 sınırı" hatasıyla dosya indirmiyordu → düğme baştan kapalı + açıklama (sunucu denetimi aynen kalır).
+  const allOver = total > COMBINED_REPORT_MAX;
+  const selOver = n > COMBINED_REPORT_MAX;
   const btn = "inline-flex min-h-[40px] items-center gap-1 rounded-lg border px-3 py-1.5 text-xs font-medium transition disabled:cursor-not-allowed disabled:opacity-50 md:min-h-0";
+  const limitText = `Bu danışanda ${total} analiz var; tek dosyada en çok ${COMBINED_REPORT_MAX} analiz indirilebilir. "Tümü" yerine listeden en çok ${COMBINED_REPORT_MAX} analiz seçip "Seçilenleri İndir" düğmesini kullanın.`;
   const word = `${btn} border-blue-200 bg-blue-50 text-blue-800 hover:bg-blue-100`;
   const pdf = `${btn} border-rose-200 bg-rose-50 text-rose-800 hover:bg-rose-100`;
   return (
@@ -677,10 +683,10 @@ function BulkReportBar({ profileId, total, selectedIds, previewNoInterp, onClear
         <span className="text-xs text-slate-600" data-testid="astro-bulk-count">
           {n ? `${n} analiz seçili` : "Seçili analiz yok — listeden kutucukları işaretleyin"}
         </span>
-        <button type="button" className={word} disabled={!n || busy !== null} onClick={() => void run("selected", "docx")} data-testid="astro-bulk-selected-docx">
+        <button type="button" className={word} disabled={!n || selOver || busy !== null} onClick={() => void run("selected", "docx")} data-testid="astro-bulk-selected-docx">
           {busy === "selected-docx" ? "Hazırlanıyor…" : "Seçilenleri Word İndir"}
         </button>
-        <button type="button" className={pdf} disabled={!n || busy !== null} onClick={() => void run("selected", "pdf")} data-testid="astro-bulk-selected-pdf">
+        <button type="button" className={pdf} disabled={!n || selOver || busy !== null} onClick={() => void run("selected", "pdf")} data-testid="astro-bulk-selected-pdf">
           {busy === "selected-pdf" ? "Hazırlanıyor…" : "Seçilenleri PDF İndir"}
         </button>
         {n > 0 && (
@@ -689,14 +695,19 @@ function BulkReportBar({ profileId, total, selectedIds, previewNoInterp, onClear
           </button>
         )}
         <span className="mx-1 hidden h-4 w-px bg-[#e7dcc3] lg:inline-block" aria-hidden="true" />
-        <button type="button" className={word} disabled={busy !== null} onClick={() => void run("all", "docx")} data-testid="astro-bulk-all-docx">
+        <button type="button" className={word} disabled={allOver || busy !== null} onClick={() => void run("all", "docx")} title={allOver ? limitText : undefined} data-testid="astro-bulk-all-docx">
           {busy === "all-docx" ? "Hazırlanıyor…" : `Tüm Analizleri Word İndir (${total})`}
         </button>
-        <button type="button" className={pdf} disabled={busy !== null} onClick={() => void run("all", "pdf")} data-testid="astro-bulk-all-pdf">
+        <button type="button" className={pdf} disabled={allOver || busy !== null} onClick={() => void run("all", "pdf")} title={allOver ? limitText : undefined} data-testid="astro-bulk-all-pdf">
           {busy === "all-pdf" ? "Hazırlanıyor…" : `Tüm Analizleri PDF İndir (${total})`}
         </button>
       </div>
-      <p className="text-[11px] text-slate-500">Tek dosya; her analiz ayrı bölümde, kayıtlı veriden (yeni hesaplama yapılmaz). Tek analiz için analizi açıp Word / PDF düğmelerini kullanın.</p>
+      <p className="text-[11px] text-slate-500">Tek dosya; her analiz ayrı bölümde, kayıtlı veriden (yeni hesaplama yapılmaz). Tek dosyada en çok {COMBINED_REPORT_MAX} analiz. Tek analiz için analizi açıp Word / PDF düğmelerini kullanın.</p>
+      {(allOver || selOver) && (
+        <p className="text-[11px] font-medium text-amber-800" data-testid="astro-bulk-limit">
+          {selOver ? `${n} analiz seçili — tek dosyada en çok ${COMBINED_REPORT_MAX} analiz indirilebilir; seçimi ${COMBINED_REPORT_MAX} veya daha aza indirin.` : limitText}
+        </p>
+      )}
       {err && (
         <p role="alert" className="text-xs text-rose-700" data-testid="astro-bulk-error">
           {err}
