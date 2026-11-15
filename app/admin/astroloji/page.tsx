@@ -321,6 +321,8 @@ export default function AstrologyWorkspacePage() {
     return () => window.clearTimeout(t);
   }, [saveToast]);
   const [addOpen, setAddOpen] = useState<{ initial: UiTechniqueId | null } | null>(null);
+  // K1 (15.11.2026): Teknik Ekle penceresinde ikili teknik seçili / ayarı açık mı (karşı taraf listesi bundan da yüklenir).
+  const [addNeedsPartner, setAddNeedsPartner] = useState(false);
   // FINAL: tüm seçili teknikler başarısız olduğunda sonuç ekranı AÇILMAZ; özet Yeni Analiz'de gösterilir.
   const [lastFailures, setLastFailures] = useState<{ key: string; at: number; items: { technique: string; code: string; error: string; retryAfterSec?: number }[] } | null>(null);
   const [deskTab, setDeskTab] = useState("harita");
@@ -504,7 +506,8 @@ export default function AstrologyWorkspacePage() {
   }, [selectedId, detailReload]);
 
   // Karşı taraf seçimi (sinastri / composite): yalnız ikili teknik seçiliyken, sunucu aramasıyla (≤100; etkin kayıtlar).
-  const anyPartnerChecked = !!(checked["western.synastry"] || checked["western.composite"] || checked["vedic.gun_milan"] || checked["vedic.dashakoot"] || checked["vedic.papasamyam"]);
+  // K1: arşivden açılan analizde "Teknik Ekle" ana seçimi (checked) kullanmaz → pencerenin kendi ikili teknik seçimi de tetikler.
+  const anyPartnerChecked = !!(checked["western.synastry"] || checked["western.composite"] || checked["vedic.gun_milan"] || checked["vedic.dashakoot"] || checked["vedic.papasamyam"]) || (!!addOpen && addNeedsPartner);
   useEffect(() => {
     if (!anyPartnerChecked) return;
     let alive = true;
@@ -2042,6 +2045,7 @@ export default function AstrologyWorkspacePage() {
               else setAddOpen(null);
             }}
             onDirtyChange={setAddDirty}
+            onPartnerNeedChange={setAddNeedsPartner}
             profileId={shownDetail.id}
             revision={revision}
             profileLabel={shownDetail.label}
