@@ -67,6 +67,7 @@ export default function AddTechniqueDialog<T>({
   previewNoInterp,
   onDone,
   onDirtyChange,
+  onPartnerNeedChange,
   allowedTechniques = null,
 }: {
   open: boolean;
@@ -100,6 +101,8 @@ export default function AddTechniqueDialog<T>({
   onDone: (r: AddRunResult<T>) => void;
   /** Seçilmiş ama hesaplanmamış teknik var mı (çıkış koruması). */
   onDirtyChange?: (dirty: boolean) => void;
+  /** K1 (15.11.2026): ikili teknik (sinastri/composite/…) seçili ya da ayarı açıkken true → üst bileşen karşı taraf listesini yükler. */
+  onPartnerNeedChange?: (need: boolean) => void;
   /** 2026-11-03 teknik izinleri: izinli teknikler (null → kısıt yok). Kapalı teknik listelenmez; yetki ayrıca sunucuda. */
   allowedTechniques?: ReadonlySet<string> | null;
 }) {
@@ -119,6 +122,12 @@ export default function AddTechniqueDialog<T>({
     onDirtyChange?.(picked.length > 0 && !busy);
   }, [picked.length, busy, onDirtyChange]);
   useEffect(() => () => onDirtyChange?.(false), [onDirtyChange]);
+  // K1: karşı taraf listesi Yeni Analiz seçiminden bağımsız — Teknik Ekle'de ikili teknik seçilince / ayarı açılınca da yüklenir.
+  const needsPartner = (focus !== null && !!TECHNIQUE_META[focus]?.needsPartner) || picked.some((id) => TECHNIQUE_META[id]?.needsPartner);
+  useEffect(() => {
+    onPartnerNeedChange?.(needsPartner);
+  }, [needsPartner, onPartnerNeedChange]);
+  useEffect(() => () => onPartnerNeedChange?.(false), [onPartnerNeedChange]);
 
   // Seçimler UI_TECHNIQUES sırasında (Yeni Analiz ile aynı kurucu). Eksik ayarlılar plana girmez.
   const chosen = UI_TECHNIQUES.filter((id) => picked.includes(id));
