@@ -479,9 +479,13 @@ export function KpChartPanel({ t, kbLookup }: { t: KpChartTechnical; kbLookup?: 
         <strong>KP doğum haritası</strong> · sidereal, {AY[t.frame.ayanamsa]} {fmtDms(t.frame.ayanamsaDegrees)} · ev sistemi <strong>Placidus</strong> (KP hesaplamasında tek seçenek) ·
         düğüm {t.nodeType === "mean" ? "ortalama" : "gerçek"} · Lagna {posLabel(t.ascendant)}
       </p>
-      <div className="grid min-w-0 gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-        <KpSouthChart cusps={t.cusps} bodies={t.bodies} sel={sel} onSel={setSel} center={<Center title="KP · Placidus" lines={[AY[t.frame.ayanamsa], `Lagna ${SIGN_LABELS[t.ascendant.rashi]}`]} />} />
-        <section className="min-w-0 rounded-xl border border-amber-200 bg-amber-50/40 p-3 text-sm" aria-label="KP seçili ayrıntı" data-testid="astro-kp-detail">
+      {/* Y2 (15.11.2026): yan yana düzen görünüm genişliğine (xl) değil KAP genişliğine bağlı — harita en az 26rem, ayrıntı en az
+          16rem; sığmazsa ayrıntı haritanın altına iner (1366 px masada sol panel ~490 px → etiketler kesiliyordu). */}
+      <div className="flex min-w-0 flex-wrap items-start gap-3">
+        <div className="min-w-0 flex-[1_1_26rem]">
+          <KpSouthChart cusps={t.cusps} bodies={t.bodies} sel={sel} onSel={setSel} center={<Center title="KP · Placidus" lines={[AY[t.frame.ayanamsa], `Lagna ${SIGN_LABELS[t.ascendant.rashi]}`]} />} />
+        </div>
+        <section className="min-w-0 flex-[1_1_16rem] rounded-xl border border-amber-200 bg-amber-50/40 p-3 text-sm" aria-label="KP seçili ayrıntı" data-testid="astro-kp-detail">
           <Detail sel={sel} cusps={t.cusps} bodies={t.bodies} sig={t.significators} kbLookup={kbLookup} />
         </section>
       </div>
@@ -790,9 +794,13 @@ export function KpHoraryPanel({ t, kbLookup, placeLabel, displayTz = null }: { t
       <p className="text-xs text-slate-500" data-testid="astro-kp-horary-method">
         Sayı {t.horaryNumber} → {SIGN_LABELS[t.ascendant.rashi]} {fmtDms(t.span.from % 30)}–{fmtDms(t.span.to % 30)} (yıldız {g(t.ascendant.starLord)}, sub {g(t.ascendant.subLord)}) → Lagna {posLabel(t.ascendant)}. {KP_HORARY_TEXT.numberRule}
       </p>
-      <div className="grid min-w-0 gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-        <KpSouthChart cusps={t.cusps} bodies={t.bodies} sel={sel} onSel={setSel} center={<Center title={`Horary ${t.horaryNumber}`} lines={["KP · Placidus", `Lagna ${SIGN_LABELS[t.ascendant.rashi]}`]} />} />
-        <section className="min-w-0 rounded-xl border border-amber-200 bg-amber-50/40 p-3 text-sm" aria-label="Horary seçili ayrıntı">
+      {/* Y2 (15.11.2026): yan yana düzen görünüm genişliğine (xl) değil KAP genişliğine bağlı — harita en az 26rem, ayrıntı en az
+          16rem; sığmazsa ayrıntı haritanın altına iner (1366 px masada sol panel ~490 px → etiketler kesiliyordu). */}
+      <div className="flex min-w-0 flex-wrap items-start gap-3">
+        <div className="min-w-0 flex-[1_1_26rem]">
+          <KpSouthChart cusps={t.cusps} bodies={t.bodies} sel={sel} onSel={setSel} center={<Center title={`Horary ${t.horaryNumber}`} lines={["KP · Placidus", `Lagna ${SIGN_LABELS[t.ascendant.rashi]}`]} />} />
+        </div>
+        <section className="min-w-0 flex-[1_1_16rem] rounded-xl border border-amber-200 bg-amber-50/40 p-3 text-sm" aria-label="Horary seçili ayrıntı">
           <Detail sel={sel} cusps={t.cusps} bodies={t.bodies} sig={t.significators} kbLookup={cuspKb} />
           <KbBox kb={kbNum} empty="Bu horary sayısı için KP Bilgi Bankası kaydınız yok." />
         </section>
