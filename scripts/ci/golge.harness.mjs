@@ -228,7 +228,7 @@ for (const [ad, yol, mod] of [["Human Design", "lib/human-design/x.ts", "human-d
   check(c.status === 1 && j.fullFallback && j.hata, "CLI: analiz hatası → çıkış 1 (görünür) + FULL JSON (sessiz başarı yok)"); }
 
 // ── Gölge raporu (öneri ↔ gerçek) ─────────────────────────────────────────────────────────────
-const okNeeds = Object.fromEntries(["typescript", "build", "guvenlik", "regresyon", "astro-pro", "horary-western"].map((i) => [i, { result: "success" }]));
+const okNeeds = Object.fromEntries(["typescript", "build", "guvenlik", "regresyon", "astro-pro", "horary-western", "astro-regresyon"].map((i) => [i, { result: "success" }]));
 const parca = (tests) => [{ tests: tests.map((file) => ({ file, ok: true })) }];
 { const g = golgeAnaliz({ cwd: repo, olay: "workflow_dispatch", head: MAIN0 });
   check(golgeDogrula(g, MAIN0).length === 0, "rapor: geçerli FULL gölge doğrulanır");

@@ -29,7 +29,7 @@ export function goldenPlan6(): GoldenEntry[] {
     { name: "kp-dasha-sub-md", subphase: "6E", endpoint: "/vedic-astrology/dasha/sub/{md}", body: kpDasha },
     { name: "kp-ruling-planets", subphase: "6F", endpoint: "/vedic-astrology/kp/ruling-planets", body: kpRulingBody(SYNTH_A, KP_GOLDEN_AT, "mean") },
     { name: "kp-planets-at", subphase: "6F", endpoint: "/vedic-astrology/kp/planets-interval", body: kpPlanetsAtBody(KP_GOLDEN_AT, ISTANBUL, "kp-newcomb", "mean") },
-    { name: "kp-horary", subphase: "6F", endpoint: "/vedic-astrology/kp/horary", body: kpHoraryBody(KP_HORARY_NUMBER, KP_GOLDEN_AT, ISTANBUL, "kp-newcomb", "mean") },
+    { name: "kp-horary", subphase: "6F", endpoint: "/vedic-astrology/kp/horary", body: kpHoraryBody(KP_HORARY_NUMBER, KP_GOLDEN_AT, ISTANBUL, 3, "kp-newcomb", "mean") /* ATL-B03: İstanbul yerel saat (+3) */ },
   ];
 }
 

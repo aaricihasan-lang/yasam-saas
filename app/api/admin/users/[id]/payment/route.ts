@@ -1,17 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyAdminRequest } from "@/lib/auth/adminGuard";
-import { buildPaymentHistoryInsertPayload } from "@/lib/admin/userManagement";
 import {
   diffPaymentFields,
   paymentFieldsFromRow,
   validatePaymentDraft,
-  type ValidatedPayment,
 } from "@/lib/admin/memberCommercial";
-import { requireMainAdminForAdminTarget, resolveIsSuperAdmin } from "@/lib/admin/adminGuards";
+import { requireMainAdminForAdminTarget } from "@/lib/admin/adminGuards";
 import { readLimitedJsonBody } from "@/lib/admin/accountSessionControls";
-import { writeAdminAudit, AdminAuditError } from "@/lib/admin/adminAudit";
 import { isUuid } from "@/lib/admin/memberRequestValidation";
-import { archivedTargetResponse } from "@/lib/admin/archivedGuard";
+import { ARCHIVED_CHANGE_MESSAGE, archivedTargetResponse, isArchivedDbError } from "@/lib/admin/archivedGuard";
 
 export const runtime = "nodejs";
 
@@ -36,9 +33,9 @@ const PAYMENT_ROW_SELECT =
  *   - SIKI doğrulama (validatePaymentDraft): durum allowlist (paid/pending/overdue/exempt/unknown),
  *     tarih YYYY-MM-DD, tutar/ücret ≥ 0, not uzunluğu, ödeme dönemi allowlist.
  *   - Yalnız DEĞİŞEN kolonlar yazılır; değişiklik yoksa DB'ye dokunulmaz (changed:false).
- *   - Geçmiş satırı (agreed_fee, billing_period, actor_admin_id dahil) yazılamazsa kullanıcı
- *     satırı ESKİ değerlerine geri alınır ve HATA döner (eski "ok + warning" davranışı YOK).
- *   - Audit `payment_status_changed`: yalnız değişen alan ADLARI (tutar/not DEĞERİ yazılmaz).
+ *   - AŞAMA 4b: kullanıcı satırı + geçmiş satırı (agreed_fee, billing_period, actor_admin_id dahil) + audit
+ *     `payment_status_changed` (yalnız değişen alan ADLARI; tutar/not DEĞERİ yazılmaz) TEK veritabanı işleminde
+ *     (admin_save_member_payment, hedef satır kilidi). Biri başarısızsa hiçbiri yazılmaz; uygulama telafisi YOK.
  *   - Ham DB hatası istemciye dönmez.
  */
 export async function POST(req: NextRequest, ctx: RouteContext) {
@@ -87,46 +84,29 @@ export async function POST(req: NextRequest, ctx: RouteContext) {
     return NextResponse.json({ ok: true, changed: false }, { headers: NO_STORE });
   }
 
-  // Yalnız değişen kolonlar (değişmeyen legacy değer — ör. literal 'undefined' durum — yeniden yazılmaz).
-  const updatePayload: Partial<ValidatedPayment> = {};
-  for (const f of changed) (updatePayload as Record<string, unknown>)[f] = next[f];
-
-  const { error: userErr } = await db.from("users").update(updatePayload).eq("id", id);
-  if (userErr) return bad("Ödeme güncellenemedi.", 500);
-
-  // Geçmiş: kaydedilen SON durumun anlık görüntüsü (değişmeyen alanlar mevcut ham değerle).
-  const finalState: Record<string, unknown> = { ...rawRow, ...updatePayload };
-  const { error: histErr } = await db
-    .from("user_payment_history")
-    .insert(buildPaymentHistoryInsertPayload(id, finalState, adminId));
-
-  if (histErr) {
-    // Telafi: kullanıcı satırını ESKİ ham değerlerine döndür (geçmişsiz değişiklik kalmasın).
-    const revert: Record<string, unknown> = {};
-    for (const f of changed) revert[f] = rawRow[f] ?? null;
-    const { error: revertErr } = await db.from("users").update(revert).eq("id", id);
-    return bad(
-      revertErr
-        ? "Ödeme kaydı tamamlanamadı. Lütfen sayfayı yenileyip tekrar deneyin."
-        : "Ödeme geçmişi kaydedilemediği için değişiklik uygulanmadı. Lütfen tekrar deneyin.",
-      500,
-    );
+  // AŞAMA 4b: kullanıcı ödeme alanları + ödeme geçmişi + audit TEK veritabanı işleminde (admin_save_member_payment).
+  // Hedef satır kilitlenir; kilit altında yeniden karşılaştırılır → yalnız GERÇEKTEN değişen kolonlar yazılır, hiçbiri
+  // değişmiyorsa (eşzamanlı tekrar) geçmiş / audit yazılmaz. Herhangi bir adım başarısızsa TAMAMI geri alınır.
+  const changes: Record<string, unknown> = {};
+  for (const f of changed) changes[f] = next[f];
+  const { data: saved, error: saveErr } = await db.rpc("admin_save_member_payment", {
+    p_actor: adminId,
+    p_user_id: id,
+    p_changes: changes,
+  });
+  if (saveErr) {
+    if (isArchivedDbError(saveErr)) return bad(ARCHIVED_CHANGE_MESSAGE, 409);
+    const code = (saveErr as { code?: unknown }).code;
+    if (code === "PY404") return bad("Kullanıcı bulunamadı.", 404);
+    if (code === "PY400") return bad("Ödemeden muaf için gerekçe zorunludur: “Ödeme Notu” alanına gerekçe yazın.");
+    if (code === "42501") return bad("Yetki yok.", 403);
+    return bad("Ödeme kaydı tamamlanamadı; hiçbir değişiklik uygulanmadı. Lütfen tekrar deneyin.", 500);
   }
-
-  try {
-    const actorIsMainAdmin = await resolveIsSuperAdmin(db, adminId);
-    await writeAdminAudit(db, {
-      actorAdminId: adminId,
-      action: "payment_status_changed",
-      targetUserId: id,
-      actorIsMainAdmin,
-      // Yalnız alan ADLARI — tutar, tarih, not DEĞERİ yazılmaz.
-      context: { fields: changed },
-    });
-  } catch (e) {
-    if (e instanceof AdminAuditError) return bad("İşlem kaydı oluşturulamadı.", 500);
-    throw e;
+  const result = (saved ?? {}) as { changed?: unknown; fields?: unknown };
+  if (result.changed !== true) {
+    return NextResponse.json({ ok: true, changed: false }, { headers: NO_STORE });
   }
+  const fields = Array.isArray(result.fields) ? (result.fields as string[]) : changed;
 
-  return NextResponse.json({ ok: true, changed: true, fields: changed }, { headers: NO_STORE });
+  return NextResponse.json({ ok: true, changed: true, fields }, { headers: NO_STORE });
 }

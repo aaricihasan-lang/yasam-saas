@@ -358,6 +358,18 @@ export async function resolveSelectionContexts(
         out.push({ ...s, ctx: null, partnerRevision: null, blocked: { code: "HOUSE_SYSTEM_POLAR", error: `${def.label} yalnız Placidus evleriyle hesaplanır; değerlendirme yeri kutup dairesi ötesinde (enlem ${place.latitude.toFixed(1)}°) olduğundan bu bölme tanımsızdır. Daha güneyde bir değerlendirme yeri seçin.` } });
         continue;
       }
+      if (def.id === "kp.horary") {
+        // ATL-B03 (14.11.2026): ruling planets'ın gün lordu yerel takvim gününün gün doğumuna göre kurulur → soru anı sağlayıcıya
+        // değerlendirme yerinin O ANDAKİ ofsetiyle (IANA, yaz/kış saati ve tarihsel ofset dahil) yerel saat olarak gider. Ofset
+        // çözülemezse istek YOK (eski UTC gövdesine sessiz geri dönüş yok; ücretli istek yok).
+        const off = kpIntervalOffset(place.timezone ?? null, String(s.options.atUtc), 0);
+        if (off.kind !== "ok") {
+          out.push({ ...s, ctx: null, partnerRevision: null, blocked: { code: "TIMEZONE_UNRESOLVED", error: "Soru anı için değerlendirme yerinin saat dilimi çözülemedi; KP horary ruling planets (gün lordu) yerel güne göre kurulduğundan hesap başlatılmadı. Saat dilimi doğrulanmış bir değerlendirme yeri seçin." } });
+          continue;
+        }
+        out.push({ ...s, options: { ...s.options, place, offsetHours: off.hours }, ctx: loc ? { ...base, places: { target: { latitude: loc.latitude, longitude: loc.longitude } } } : base, partnerRevision: null, blocked: null });
+        continue;
+      }
       out.push({ ...s, options: { ...s.options, place }, ctx: loc ? { ...base, places: { target: { latitude: loc.latitude, longitude: loc.longitude } } } : base, partnerRevision: null, blocked: null });
       continue;
     }

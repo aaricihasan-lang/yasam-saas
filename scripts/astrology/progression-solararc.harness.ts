@@ -179,7 +179,8 @@ async function main() {
       assert.deepEqual(opts, { targetDate: "2026-10-07", nodeType: "true" }, "seçenek nesnesi aynı");
       const u = def.units({ birth, birthUtc: birth.utc, partner: null }, opts);
       assert.equal(u.length, 1);
-      assert.equal(u[0].adapterVersion, id === "western.progression" ? "astro-roxy-progression-1" : "astro-roxy-solar-arc-1", "adaptör sürümü değişmemeli");
+      // F1/F2 (14.11.2026): progresyon adaptörü -2 (mean düğüm yerel + kutup natal evi); gövde AYNI. Solar Arc değişmez.
+      assert.equal(u[0].adapterVersion, id === "western.progression" ? "astro-roxy-progression-2" : "astro-roxy-solar-arc-1", "adaptör sürümü");
       assert.deepEqual(JSON.parse(JSON.stringify(u[0].body)), g.body, `${id} gövde farklı`);
       const cu = def.contextUnits!({ birth, birthUtc: birth.utc, partner: null }, opts);
       assert.deepEqual(cu.map((x) => x.endpoint), ["/astrology/natal-chart", "/astrology/natal-chart", "/astrology/natal-chart", "/astrology/natal-chart"]);

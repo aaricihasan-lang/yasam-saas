@@ -170,11 +170,19 @@ const wheelStats = (page) =>
     await page.waitForTimeout(2500);
     if (LOG) ok("masa: önbellekteki sonuçlar → 0 yeni sağlayıcı isteği", hits() === h2, `${h2} → ${hits()}`);
     for (const tech of [PROG.technique, SA.technique]) {
-      // Açık analiz sekmesi: anahtar "<teknik>|…" (masaüstü şeridi).
-      const tabSel = page.locator(`[data-tab-key^='${tech}|']`).first();
-      ok(`masa ${tech}: açık analiz sekmesi`, (await tabSel.count()) === 1);
-      if (await tabSel.count()) await tabSel.click().catch(() => {});
+      // Açık analiz (14.11.2026): V3/V4 sonuç masasında sekme şeridi (data-tab-key) KALDIRILDI; açık analizler başlıktaki
+      // "Analiz seç" listesinde masadaki satır (data-picker-kind=bench) olarak durur (atlas-picker-ui.e2e ile aynı yol). Denetim aynı:
+      // bu tekniğin TEK açık analizi var ve seçilince masa o analize geçer (başlık tekniğin adını taşır).
+      const want = tech === PROG.technique ? /^Secondary progression/ : /^Solar arc/;
+      await page.locator("[data-testid=atlas-picker-trigger]:visible").first().click();
+      await page.waitForSelector("[data-testid=atlas-picker-panel]", { timeout: 30000 });
+      const opt = page.locator(`[data-testid=atlas-picker-panel] [role=option][data-picker-kind=bench][data-picker-technique='${tech}']`);
+      const n = await opt.count();
+      if (n) await opt.first().click().catch(() => {});
+      await page.waitForFunction(() => !/Analiz yükleniyor/.test(document.body.innerText), null, { timeout: 60000 }).catch(() => {});
       await page.waitForTimeout(1500);
+      const head = (await page.locator("[data-testid=atlas-picker-headline]:visible").first().innerText().catch(() => "")).replace(/\s+/g, " ").trim();
+      ok(`masa ${tech}: açık analiz (Analiz seç listesinde tek masa satırı; seçilince masa o analize geçer)`, n === 1 && want.test(head), `${n} satır · başlık "${head}"`);
       const w = await wheelStats(page);
       const cap = await page.locator("[data-testid=astro-directed-caption]").first().innerText().catch(() => "");
       ok(`masa ${tech}: çift halka (dış halka ≥ 10 gövde)`, !!w && w.outer >= 10, JSON.stringify(w && { outer: w.outer, cross: w.cross, label: w.label }));

@@ -10,6 +10,7 @@
 
 import { BODY_IDS, HOUSE_SYSTEMS, NODE_TYPES, SIGN_IDS, type AspectType, type EclipticPoint, type HouseSystem, type NatalHouse, type NodeType } from "../../model/western";
 import { wholeSignSectPof } from "./sect";
+import { MEAN_NODE_METHOD, isPolarProgressionLatitude, progressedMeanNodes, progressionRequestFrame } from "../../progressionNodes";
 import {
   COMPOSITE_INTERP_SCHEMA,
   COMPOSITE_TECHNICAL_SCHEMA,
@@ -289,7 +290,11 @@ export function mergeForecast(parts: ForecastTechnical[], window: { start: strin
 }
 
 // ═══ SECONDARY PROGRESSION (/astrology/progressions) ═════════════════════════
-export const ROXY_PROGRESSION = { endpoint: "/astrology/progressions", adapter: "astro-roxy-progression-1", projection: "progression-proj-1" } as const;
+// F1/F2 (14.11.2026, progressionNodes.ts): -2 — ortalama düğüm istenince Kuzey/Güney düğüm ilerletilmiş anda YEREL hesaplanır (sağlayıcı
+// bu uç noktada mean isteğine gerçek düğüm döndürüyor); kutup dairesi ötesindeki doğumda sağlayıcının natal ev numarası (Placidus
+// yerine sessizce tam burç) taşınmaz. Gerçek düğüm ve diğer bütün değerler -1 ile birebir aynıdır. Sürüm önbellek anahtarına girer →
+// -1 önbellek satırları (yanlış etiketli mean / kutup evleri) yeniden KULLANILMAZ.
+export const ROXY_PROGRESSION = { endpoint: "/astrology/progressions", adapter: "astro-roxy-progression-2", projection: "progression-proj-2" } as const;
 
 const PROGRESSION_KNOWN = new Set<string>([
   ...paths("birthDetails", ["date", "time", "latitude", "longitude", "timezone", "nodeType"]),
@@ -303,12 +308,29 @@ const PROGRESSION_KNOWN = new Set<string>([
   "summary",
 ]);
 
-export function projectRoxyProgression(raw: unknown, opts: { nodeType: NodeType; targetDate: string }): AdapterResult<ProgressionTechnical, ProgressionInterpretation> {
+export function projectRoxyProgression(
+  raw: unknown,
+  opts: { nodeType: NodeType; targetDate: string; /** Sağlayıcıya gönderilen gövde (doğum anı + enlem; F1/F2). */ request: Record<string, unknown> },
+): AdapterResult<ProgressionTechnical, ProgressionInterpretation> {
   const errors: string[] = [];
   const dropped: string[] = [];
   const r = obj(raw);
   if (!r) return { ok: false, errors: ["root"] };
   if (isoDate(r.targetDate) !== opts.targetDate) errors.push("targetDate uyuşmuyor");
+  const frame = progressionRequestFrame({ ...opts.request, targetDate: opts.targetDate });
+  const polar = frame ? isPolarProgressionLatitude(frame.latitude) : false;
+  let meanNodes: ReturnType<typeof progressedMeanNodes> = null;
+  if (opts.nodeType === "mean") {
+    // F1: yerel ortalama düğüm doğum anını GÖVDEDEN alır → sağlayıcının yankısı aynı anı göstermeli (farklıysa sonuç verilmez).
+    // Gerçek düğüm yolunda bu denetim YOK (-1 davranışı aynen).
+    const bd = obj(r.birthDetails);
+    if (!frame) errors.push("istek gövdesi: doğum anı");
+    else if (!bd || bd.date !== frame.date || String(bd.time).slice(0, 8) !== frame.time || bd.timezone !== frame.timezone) errors.push("birthDetails yankısı istek gövdesiyle uyuşmuyor");
+    else {
+      meanNodes = progressedMeanNodes(frame);
+      if (!meanNodes) errors.push("ortalama düğüm: ilerletilmiş an yerel efemeris aralığı dışında");
+    }
+  }
   const bodies: ProgressionTechnical["bodies"] = [];
   const iBodies: ProgressionInterpretation["bodies"] = [];
   for (const p of arr(r.planets) ?? []) {
@@ -324,11 +346,20 @@ export function projectRoxyProgression(raw: unknown, opts: { nodeType: NodeType;
       errors.push(`planets[${id}]: sayısal alan`);
       continue;
     }
-    bodies.push({ id, ...pt, house: int(o.house, 1, 12), speed, retrograde: o.isRetrograde });
+    // F2: kutupta natal Placidus tanımsız → sağlayıcının (sessizce tam burç) natal ev numarası TAŞINMAZ.
+    const house = polar ? null : int(o.house, 1, 12);
+    if (meanNodes && (id === "north_node" || id === "south_node")) {
+      // F1: sağlayıcının değeri gerçek düğümdür → ortalama düğüm yerel; natal ev numarası (gerçek düğüme göre) taşınmaz.
+      const m = id === "north_node" ? meanNodes.north : meanNodes.south;
+      bodies.push({ id, longitude: m.longitude, sign: m.sign, degreeInSign: m.degreeInSign, house: null, speed: m.speed, retrograde: m.retrograde });
+    } else bodies.push({ id, ...pt, house, speed, retrograde: o.isRetrograde });
     const t = text(o.interpretation);
-    if (t) iBodies.push({ id, text: t });
+    // Sağlayıcının düğüm yorumu gerçek düğümün BURCUNU anlatır → ortalama düğüm başka burçtaysa o yorum gösterilmez.
+    const nodeSignChanged = meanNodes && (id === "north_node" || id === "south_node") && bodies[bodies.length - 1].sign !== pt.sign;
+    if (t && !nodeSignChanged) iBodies.push({ id, text: t });
   }
   if (bodies.filter((b) => BODY_IDS.indexOf(b.id) < 10).length < 10) errors.push("planets: 10 klasik gezegen yok");
+  if (meanNodes && !bodies.some((b) => b.id === "north_node")) errors.push("planets: düğüm yok");
   const asc = eclipticPoint(obj(r.ascendant));
   const mc = eclipticPoint(obj(r.midheaven));
   return done(
@@ -344,6 +375,8 @@ export function projectRoxyProgression(raw: unknown, opts: { nodeType: NodeType;
       houseMethod: "whole_sign_from_progressed_ascendant",
       bodies,
       angles: asc && mc ? { ascendant: asc, midheaven: mc } : null,
+      ...(meanNodes ? { nodeComputation: { source: "local_mean" as const, method: MEAN_NODE_METHOD, instantUtc: meanNodes.instantUtc } } : {}),
+      ...(polar && frame ? { natalHouseStatus: { status: "polar_undefined" as const, latitude: frame.latitude } } : {}),
     }),
     () => ({ schema: PROGRESSION_INTERP_SCHEMA, bodies: iBodies, overall: text(r.summary) }),
     raw,

@@ -1,0 +1,38 @@
+{
+ "source": "C:/YasamSistemi-QA/ATLAS-BUYUK-DENETIM-2026-10-30/ham/sonuc (30.10.2026 gerçek sağlayıcı yanıtlarının ürün projeksiyonu)",
+ "note": "ATL-B03 tarih çizgisi kanıtı: yerel ofsetle (+13) gönderilmiş gerçek yanıtlar. Gulika haftanın gününe bağlı gece/gündüz parçasından; KP ruling gün lordu gün doğumu kuralıyla.",
+ "upagraha": [
+  {
+   "id": "WD-0618",
+   "utc": "2017-07-25T15:56:00.000Z",
+   "offsetHours": 13.0,
+   "latitude": -13.8333,
+   "longitude": -171.7667,
+   "timezone": "Pacific/Apia",
+   "ayanamsaDegrees": 24.1000753789231,
+   "providerGulika": 279.2
+  },
+  {
+   "id": "WD-0667",
+   "utc": "1963-02-19T08:21:00.000Z",
+   "offsetHours": 13.0,
+   "latitude": -21.1368,
+   "longitude": -175.2011,
+   "timezone": "Pacific/Tongatapu",
+   "ayanamsaDegrees": 23.33819191018939,
+   "providerGulika": 127.67
+  }
+ ],
+ "kpRuling": [
+  {
+   "id": "WD-0644",
+   "atUtc": "1999-05-02T17:43",
+   "local": "1999-05-03T06:43:00",
+   "utcOffsetHours": 13,
+   "latitude": -21.1368,
+   "longitude": -175.2011,
+   "timezone": "Pacific/Tongatapu",
+   "providerDayLord": "sun"
+  }
+ ]
+}
