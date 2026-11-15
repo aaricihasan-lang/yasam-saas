@@ -1270,8 +1270,8 @@ function codeFromTables(): string[] {
   });
 
   // 10) Çok kullanıcılı tenant — uygulamanın KULLANICI bazında okuduğu kişisel kayıtlar
-  const USER_SCOPED = ["support_messages", "user_location_prefs", "expert_workspace_designs", "expert_ui_prefs", "expert_workspace_assets"];
-  await t("çok kullanıcılı tenant: kişisel kayıtlar (destek, konum, Kişisel Ofis) yalnız oturumdaki kullanıcıya dışa aktarılır", async () => {
+  const USER_SCOPED = ["support_messages", "user_location_prefs", "expert_workspace_designs", "expert_ui_prefs", "expert_workspace_assets", "expert_profiles"];
+  await t("çok kullanıcılı tenant: kişisel kayıtlar (destek, konum, Kişisel Ofis, Uzman Profili) yalnız oturumdaki kullanıcıya dışa aktarılır", async () => {
     const db = new FakeDb(1000);
     for (const [u, tag] of [[UA, "BENİM"], [UA2, "BAŞKASININ"]] as const) {
       db.seed("support_messages", [{ id: uid("sm"), tenant_id: TA, user_id: u, subject: `${tag} konu`, message: "m", priority: "normal", status: "open" }]);
@@ -1279,6 +1279,7 @@ function codeFromTables(): string[] {
       db.seed("expert_workspace_designs", [{ id: uid("wd"), tenant_id: TA, user_id: u, design: { tag } }]);
       db.seed("expert_ui_prefs", [{ id: uid("wp"), tenant_id: TA, user_id: u, prefs: { tag } }]);
       db.seed("expert_workspace_assets", [{ id: uid("wa"), tenant_id: TA, user_id: u, desktop_path: `${TA}/a.webp` }]);
+      db.seed("expert_profiles", [{ id: uid("ep"), tenant_id: TA, user_id: u, title: `${tag} unvan` }]);
     }
     for (const table of USER_SCOPED) {
       const e = getRegistryEntry(table)!;
