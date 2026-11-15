@@ -1,5 +1,6 @@
 /**
- * "Sabit taban" kilit testleri için (J / E SABİT: mevcut tekniklerin gövde + adaptör + input_hash özeti) — ATL-B03 (14.11.2026).
+ * "Sabit taban" kilit testleri için (J / E SABİT: mevcut tekniklerin gövde + adaptör + input_hash özeti) — ATL-B03 (14.11.2026),
+ * F1/F2 (14.11.2026, western.progression adaptörü -2; aşağıda legacyProgressionUnits).
  *
  * kp.horary gövdesi ve adaptörü BİLİNÇLİ değişti (UTC / timezone 0 + astro-roxy-kp-horary-1 → yerel saat + ofset + -2). Kilit
  * özetleri değiştirilmez: kp.horary satırı ESKİ kuralla (o kurulumun birebir kopyası) yeniden üretilir ve taban özete girer → özet
@@ -11,6 +12,7 @@ import { ASTRO_PROVIDER_LANG, ROXY_API_VERSION, ROXY_PROVIDER } from "@/lib/astr
 import { calcInputHash } from "@/lib/astrology/engine/inputHash";
 import type { CalcUnit, TechniqueDefinition } from "@/lib/astrology/engine/techniques";
 import { ROXY_KP_HORARY } from "@/lib/astrology/providers/roxy/kp";
+import { ROXY_PROGRESSION } from "@/lib/astrology/providers/roxy/timing";
 
 const r6 = (v: number) => Math.round(v * 1e6) / 1e6;
 const LEGACY_ADAPTER = "astro-roxy-kp-horary-1";
@@ -24,8 +26,26 @@ export function legacyKpHoraryUnit(ctx: { birth: { latitude: number; longitude: 
   return { technique: "kp.horary", ...identity, inputHash: calcInputHash(identity), covers: [], timeDependent: true, part: 0 } as CalcUnit;
 }
 
-/** Kilit testinde def.units yerine: kp.horary → eski birim (+ yeni birimin farkı denetlenir); diğer teknikler → def.units aynen. */
+/**
+ * F1/F2 (14.11.2026): western.progression adaptörü BİLİNÇLİ -1 → -2 (gövde AYNI). Kilit özetinde eski adaptörle yeniden kurulur; yeni
+ * birimin farkının YALNIZ adaptör sürümü (→ inputHash) olduğu denetlenir (uç ve gövde bayt düzeyinde aynı).
+ */
+export function legacyProgressionUnits(def: TechniqueDefinition, ctx: unknown, o: Record<string, unknown>): CalcUnit[] {
+  return def.units(ctx as never, o).map((fresh) => {
+    assert.equal(fresh.adapterVersion, ROXY_PROGRESSION.adapter);
+    assert.equal(fresh.endpoint, ROXY_PROGRESSION.endpoint);
+    const identity = { provider: fresh.provider, providerApiVersion: fresh.providerApiVersion, adapterVersion: LEGACY_PROGRESSION_ADAPTER, endpoint: fresh.endpoint, lang: fresh.lang, body: fresh.body };
+    const legacy = { ...fresh, adapterVersion: LEGACY_PROGRESSION_ADAPTER, inputHash: calcInputHash(identity) };
+    assert.notEqual(fresh.inputHash, legacy.inputHash, "yeni adaptör ayrı önbellek anahtarı");
+    assert.equal(calcInputHash({ ...identity, adapterVersion: fresh.adapterVersion }), fresh.inputHash, "fark yalnız adaptör sürümü");
+    return legacy;
+  });
+}
+const LEGACY_PROGRESSION_ADAPTER = "astro-roxy-progression-1";
+
+/** Kilit testinde def.units yerine: kp.horary / western.progression → eski birim (+ yeni birimin farkı denetlenir); diğerleri aynen. */
 export function lockUnits(def: TechniqueDefinition, ctx: unknown, o: Record<string, unknown>): CalcUnit[] {
+  if (def.id === "western.progression") return legacyProgressionUnits(def, ctx, o);
   if (def.id !== "kp.horary") return def.units(ctx as never, o);
   const legacy = legacyKpHoraryUnit(ctx as never, o);
   const fresh = def.units(ctx as never, { ...o, offsetHours: 3 })[0];

@@ -43,6 +43,7 @@ import { buildSelections, defaultParams, describeOptions, missingReason, TECHNIQ
 import { AVAILABLE_TECHNIQUES, COMING_SOON_AVAILABLE_AS, visibleComingSoonSections } from "@/app/admin/astroloji/_lib/comingSoon";
 import { SYNTH_A, SYNTH_B } from "./golden/phase3-golden-calls";
 import type { ResolvedLocation } from "@/lib/astrology/birth/profileInput";
+import { lockUnits } from "./kpHoraryLegacyUnits";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type J = any;
@@ -842,7 +843,8 @@ async function main() {
         const def = getTechnique(id)!;
         const opt = def.parseOptions(raw, now)!;
         assert.ok(opt, id);
-        got[id + JSON.stringify(raw)] = def.units(ctxU, opt).map((u) => `${u.endpoint}#${u.inputHash}`).join(",");
+        // F1/F2 (14.11.2026): western.progression satırı eski adaptörle (gövde aynı; farkın yalnız adaptör olduğu lockUnits içinde denetlenir).
+        got[id + JSON.stringify(raw)] = lockUnits(def, ctxU, opt).map((u) => `${u.endpoint}#${u.inputHash}`).join(",");
       }
       return sha(canon(got));
     };

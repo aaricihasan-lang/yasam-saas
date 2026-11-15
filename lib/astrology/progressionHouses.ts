@@ -19,6 +19,7 @@ import { NATAL_HOUSE_SYSTEM_LABELS } from "./labels/tr";
 import { SIGN_IDS, type SignId } from "./model/western";
 import type { ProgressionTechnical } from "./model/westernTiming";
 import { natalHouseOf } from "./transitDetail";
+import { LEGACY_POLAR_NATAL_HOUSE_LABEL, LEGACY_POLAR_NATAL_HOUSE_WARNING } from "./progressionNodesText";
 
 const norm = (x: number) => ((x % 360) + 360) % 360;
 const signIndex = (lon: number) => Math.floor(norm(lon) / 30) % 12;
@@ -51,7 +52,7 @@ export type ProgressionHouseColumns = {
  * Tablonun iki ev sütunu. Saat bilinmiyorsa (maskeli görünüm: bodies[].house null, angles null, natalFrame null) iki sütun da yok.
  * Natal sütun: çerçeve varsa çerçevenin 12 ev başından (çift halkayla aynı), yoksa sağlayıcının natal Placidus değeri.
  */
-export function progressionHouseColumns(t: Pick<ProgressionTechnical, "bodies" | "angles" | "natalFrame">): ProgressionHouseColumns {
+export function progressionHouseColumns(t: Pick<ProgressionTechnical, "bodies" | "angles" | "natalFrame" | "natalHouseStatus">): ProgressionHouseColumns {
   const byId = new Map(t.bodies.map((b) => [b.id as string, b]));
   const f = t.natalFrame && Array.isArray(t.natalFrame.houses) && t.natalFrame.houses.length === 12 ? t.natalFrame : null;
   let natal: ProgressionHouseColumns["natal"] = null;
@@ -64,6 +65,20 @@ export function progressionHouseColumns(t: Pick<ProgressionTechnical, "bodies" |
       of: (id) => {
         const b = byId.get(id);
         return b ? natalHouseOf(b.longitude, f.houses) : null;
+      },
+    };
+  } else if (t.natalHouseStatus?.status === "polar_undefined") {
+    // F2 (adaptör -2): kutupta natal Placidus tanımsız → sağlayıcı ev numarası taşınmadı; natal sütun yok (progressionNodes.ts notu).
+    natal = null;
+  } else if (t.natalHouseStatus?.status === "legacy_polar_provider" && t.bodies.some((b) => typeof b.house === "number")) {
+    // F2: eski (-1) kutup kaydı — saklı değerler aynen, ama Placidus diye etiketlenmez.
+    natal = {
+      label: LEGACY_POLAR_NATAL_HOUSE_LABEL,
+      method: LEGACY_POLAR_NATAL_HOUSE_WARNING,
+      source: "provider",
+      of: (id) => {
+        const h = byId.get(id)?.house;
+        return typeof h === "number" ? h : null;
       },
     };
   } else if (t.bodies.some((b) => typeof b.house === "number")) {

@@ -27,6 +27,7 @@ import { saveAnalysis } from "@/lib/astrology/analyses/service";
 import { lunarReturnsInMonth, natalMoonLongitude } from "@/lib/astrology/engine/lunarReturnDate";
 import { syntheticCurrentResponse, syntheticDeepResponse, syntheticSubResponse } from "./syntheticDasha";
 import { syntheticPlanetsInterval, syntheticRasiChanges, syntheticSublordChanges } from "./syntheticKpTiming";
+import { seedF1F2 } from "./f1f2Seed";
 
 const PORT = Number(process.argv[2] ?? 54329);
 const TENANT_A = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
@@ -186,6 +187,9 @@ async function seed() {
       });
     }
   }
+  // F1/F2 (14.11.2026, YALNIZ FAKE_F1F2_SEED=1 — mevcut testlerin sayımları değişmez): gerçek progresyon yanıtlarından mean / kutup
+  // kayıtları + -1 dönemi taklidi (f1f2Seed.ts; hepsi SENTETİK "TEST" kişileri).
+  if (process.env.FAKE_F1F2_SEED === "1") console.log(`F1F2 tohum ${JSON.stringify(await seedF1F2(ctx, store))}`);
 }
 
 const GOLDEN_DIR = join(__dirname, "fixtures", "golden");

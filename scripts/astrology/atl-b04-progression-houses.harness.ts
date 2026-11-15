@@ -186,9 +186,10 @@ async function main() {
     assert.ok(!/hizmet Yükselen\/MC yönteminin adını vermez/.test(PROGRESSION_METHOD_NOTE));
   });
 
-  await t("G) kayıtlı katman / önbellek DEĞİŞMEZ: adaptör -1, gövde alanları aynı (houseSystem gönderilmez), houseMethod damgası aynen", () => {
-    assert.equal(ROXY_PROGRESSION.adapter, "astro-roxy-progression-1");
-    assert.equal(ROXY_PROGRESSION.projection, "progression-proj-1");
+  await t("G) gövde alanları aynı (houseSystem gönderilmez), houseMethod damgası aynen; adaptör -2 (F1/F2: yalnız mean düğüm + kutup natal evi)", () => {
+    // F1/F2 (14.11.2026): adaptör -2 (yalnız mean düğüm + kutup natal evi değişti; ev çerçeveleri ve gövde aynı — atl-f1f2 harness).
+    assert.equal(ROXY_PROGRESSION.adapter, "astro-roxy-progression-2");
+    assert.equal(ROXY_PROGRESSION.projection, "progression-proj-2");
     const b = targetDateBody({ date: "1990-07-15", time: "14:30", latitude: 41.0082, longitude: 28.9784, timezone: 3, utcOffsetSeconds: 10800 } as J, "2026-10-07", "true");
     assert.ok(!("houseSystem" in b));
     assert.equal(techOf(cases[0], false).houseMethod, "whole_sign_from_progressed_ascendant");
