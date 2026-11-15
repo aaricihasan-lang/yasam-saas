@@ -157,6 +157,28 @@ export function questionMomentLabel(utcIso: string, tz: string | null | undefine
   return `${z.text} — ${name}, ${z.zone} (${utc})`;
 }
 
+/** Değerlendirme yerinin sunucuda çözülmüş saat dilimi (`place.timezone`); yoksa / geçersizse null. Yalnız gösterim. */
+export function horaryPlaceZone(o: Record<string, unknown> | null | undefined): string | null {
+  const pt = (o?.place as { timezone?: unknown } | null | undefined)?.timezone;
+  return isIanaZone(pt) ? pt : null;
+}
+
+/**
+ * K5 (15.11.2026): soru anı başka bir dilimde (ör. UTC) girildiyse değerlendirme yerinin YEREL saati de yazılır —
+ * "değerlendirme yerinde 19.10.2026 07:00 — Pacific/Apia, GMT+13". Gösterim dilimi zaten yerin dilimiyse (ya da iki dilim
+ * o anda aynı saati gösteriyorsa) veya yer dilimi bilinmiyorsa null. Hesap / istek gövdesi / önbellek anahtarı DEĞİŞMEZ.
+ */
+export function questionMomentPlaceNote(utcIso: string, displayTz: string | null | undefined, placeTz: string | null | undefined): string | null {
+  if (!placeTz || !isIanaZone(placeTz) || placeTz === displayTz) return null;
+  const p = formatInZone(utcIso, placeTz);
+  if (!p) return null;
+  const d = displayTz && displayTz !== "UTC" && displayTz !== "Etc/UTC" ? formatInZone(utcIso, displayTz) : null;
+  const utcText = `${utcIso.slice(8, 10)}.${utcIso.slice(5, 7)}.${utcIso.slice(0, 4)} ${utcIso.slice(11, 16)}`;
+  if ((d ? d.text : displayTz ? utcText : null) === p.text) return null;
+  const name = TURKEY_ZONES.has(placeTz) ? "Türkiye saati" : placeTz;
+  return `değerlendirme yerinde ${p.text} — ${name}, ${p.zone}`;
+}
+
 /** İki an arasındaki işaretli fark — "3 gün 4 sa sonra" / "2 sa önce" / "aynı an". */
 export function relativeTo(atUtc: string, exactUtc: string): string {
   const a = Date.parse(/Z$/.test(atUtc) ? atUtc : `${atUtc}Z`);

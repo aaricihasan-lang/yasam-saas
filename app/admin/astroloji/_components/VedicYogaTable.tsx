@@ -86,7 +86,12 @@ export function VedicYogaTable({ t }: { t: VedicD1Technical }) {
             {(r.evidence || r.school) && (
               <details className="mt-1 text-xs text-slate-600">
                 <summary className="cursor-pointer select-none">Kanıt ve ekol notu</summary>
-                {r.evidence && <div className="mt-1 break-words">Kanıt: {r.evidence}</div>}
+                {r.evidence && (
+                  <div className="mt-1 break-words">
+                    {/* K2: hizmetin kanıt cümlesi İngilizce — özgün metin olarak işaretli (Türkçe kural yukarıda). */}
+                    Kanıt (hesaplama hizmetinin özgün İngilizce metni): <span lang="en">{r.evidence}</span>
+                  </div>
+                )}
                 {r.school && <div className="mt-1 break-words">Ekol: {r.school}</div>}
               </details>
             )}
