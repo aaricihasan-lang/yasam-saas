@@ -40,6 +40,7 @@ import { KOOTA_IDS, saturnSignOf } from "@/lib/astrology/model/vedicMatch";
 import { buildSelections, defaultParams, describeOptions, missingReason, TECHNIQUE_META, UI_TECHNIQUES } from "@/app/admin/astroloji/_lib/techniques";
 import { SYNTH_A, SYNTH_B } from "./golden/phase3-golden-calls";
 import type { ResolvedLocation } from "@/lib/astrology/birth/profileInput";
+import { lockUnits } from "./kpHoraryLegacyUnits";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type J = any;
@@ -838,7 +839,8 @@ async function main() {
       const def = getTechnique(id)!;
       const opt = def.parseOptions(raw, now)!;
       assert.ok(opt, id);
-      got[id] = def.units(ctxU, opt).map((u) => `${u.endpoint}#${u.inputHash.slice(0, 16)}`).join(",");
+      // F1/F2 (14.11.2026): western.progression satırı eski adaptörle (gövde aynı; farkın yalnız adaptör olduğu lockUnits içinde denetlenir).
+      got[id] = lockUnits(def, ctxU, opt).map((u) => `${u.endpoint}#${u.inputHash.slice(0, 16)}`).join(",");
     }
     const digest = canon(got);
     // Bu özet, TABAN (93b16b06) kodunda aynı betikle üretildi (RAPOR.md "önce" kanıtı).

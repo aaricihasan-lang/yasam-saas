@@ -331,7 +331,9 @@ async function main() {
   await t("plan: seçim doğrulama (boş / bilinmeyen teknik / geçersiz seçenek / 20+ seçim)", () => {
     assert.equal((parseSelections([]) as { code: string }).code, "NO_SELECTION");
     assert.equal((parseSelections([{ technique: "western.everything" }]) as { code: string }).code, "UNKNOWN_TECHNIQUE");
-    assert.equal((parseSelections([{ technique: "western.natal", options: { houseSystem: "regiomontanus" } }]) as { code: string }).code, "INVALID_OPTIONS");
+    assert.equal((parseSelections([{ technique: "western.natal", options: { houseSystem: "topocentric" } }]) as { code: string }).code, "INVALID_OPTIONS");
+    // 14.11.2026 (İP-0): Regiomontanus #643 ile GEÇERLİ natal sistemi oldu (8 sistem) → geçersiz örnek desteklenmeyen Topocentric.
+    assert.notEqual((parseSelections([{ technique: "western.natal", options: { houseSystem: "regiomontanus" } }]) as { code?: string }).code, "INVALID_OPTIONS");
     assert.equal((parseSelections(Array.from({ length: 21 }, () => NATAL_SEL[0])) as { code: string }).code, "TOO_MANY_SELECTIONS");
   });
 

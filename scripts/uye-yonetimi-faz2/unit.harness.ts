@@ -189,7 +189,10 @@ for (const f of ["app/api/admin/users/route.ts", "app/api/admin/users/archive/ro
 // ─── Aksiyon hiyerarşisi / erişilebilirlik ───────────────────────────────────
 console.log("\n[UX] Aksiyon hiyerarşisi + erişilebilirlik");
 ok(/Tehlikeli İşlemler/.test(detailPage) && /Hesap Yönetimi/.test(detailPage), "aksiyonlar gruplu (Onay / Hesap Yönetimi / Tehlikeli İşlemler)");
-const danger = detailPage.slice(detailPage.indexOf("Tehlikeli İşlemler"), detailPage.indexOf("{passwordOpen"));
+// V3: erişim + tehlikeli işlemler üstteki Hızlı Hesap İşlemleri alanında (onay grubundan SONRA, bölüm sonuna kadar).
+const dangerStart = detailPage.indexOf('aria-labelledby="actions-access"');
+const danger = dangerStart > 0 ? detailPage.slice(dangerStart, detailPage.indexOf("</section>", dangerStart)) : "";
+ok(/Pasif Yap/.test(danger) && /Tüm Cihazlardan Çıkış/.test(danger) && /Tehlikeli İşlemler/.test(danger) && /Pasife Al ve Arşivle/.test(danger) && /Arşivden Çıkar/.test(danger), "erişim + tehlikeli işlemler tek alanda (Hızlı Hesap İşlemleri)");
 ok(!/emerald/.test(danger), "tehlikeli işlemlerde yeşil stil YOK");
 ok((detailPage.match(/ref=\{dialogRefs\["/g) ?? []).length === 7 && /useDialogA11y/.test(detailPage), "7 modal: odak + Escape (useDialogA11y)");
 ok(/aria-describedby=\{descId\}/.test(read("components/admin/members/ModuleCheckboxGrid.tsx")), "modül onay kutuları açıklamaya bağlı (aria-describedby)");

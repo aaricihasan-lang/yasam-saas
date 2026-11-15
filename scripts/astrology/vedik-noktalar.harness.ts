@@ -44,6 +44,7 @@ import { SYNTH_A, SYNTH_B } from "./golden/phase3-golden-calls";
 import { eightfold, elongation, heliacalDay, partPositionOfLongitude, siderealAscendant, sunBasedUpagrahas, sunRiseSet, timeUpagrahas } from "./vedicNoktaRef";
 import { resolveAstroBirthTime } from "@/lib/astrology/birth/timeResolution";
 import type { ResolvedLocation } from "@/lib/astrology/birth/profileInput";
+import { lockUnits } from "./kpHoraryLegacyUnits";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type J = any;
@@ -555,7 +556,8 @@ async function main() {
       const def = getTechnique(id)!;
       const opt = def.parseOptions(raw, now)!;
       assert.ok(opt, id);
-      got[id] = def.units(ctxU, opt).map((u) => `${u.endpoint}#${u.inputHash.slice(0, 16)}`).join(",");
+      // F1/F2 (14.11.2026): western.progression satırı eski adaptörle (gövde aynı; farkın yalnız adaptör olduğu lockUnits içinde denetlenir).
+      got[id] = lockUnits(def, ctxU, opt).map((u) => `${u.endpoint}#${u.inputHash.slice(0, 16)}`).join(",");
     }
     const digest = createHash("sha256").update(canon(got)).digest("hex");
     console.log(`     mevcut teknik özet: ${digest}`);

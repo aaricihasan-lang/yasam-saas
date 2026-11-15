@@ -23,6 +23,11 @@ import { createFakeClient, createStore } from "./fakeSupabase";
 const ROOT = join(__dirname, "..", "..");
 const rel = (p: string) => relative(ROOT, p).replace(/\\/g, "/");
 const read = (p: string) => readFileSync(join(ROOT, p), "utf8");
+/** TRIAL7 (#750) deneme kredisi sayacıyla SARILAN uzman uçları: alt yol → yerel ad + sayaç etiketi (başka uç eklenemez). */
+const TRIAL_METERED_EXPERT_ROUTES: Record<string, { local: string; meter: string }> = {
+  "/efemeris": { local: "efemerisPost", meter: "astroloji/efemeris" },
+  "/engine/run": { local: "enginePost", meter: "astroloji/engine/run" },
+};
 
 let pass = 0;
 let fail = 0;
@@ -96,7 +101,15 @@ async function main() {
       const methods = [...adminSrc.matchAll(/export async function (GET|POST|PUT|PATCH|DELETE)\b/g)].map((m) => m[1]);
       // 9A-P2-02: admin route `maxDuration` taşıyorsa ayna da AYNI değeri taşır (segment ayarı yeniden dışa aktarılamaz).
       const md = /^export const maxDuration = (\d+);$/m.exec(adminSrc);
-      assert.equal(s, `export { ${methods.join(", ")} } from "@/app/api/admin/astroloji${sub}/route";\nexport const runtime = "nodejs";${md ? `\nexport const maxDuration = ${md[1]};` : ""}`, `${rel(f)}: yalnız re-export olmalı`);
+      const tail = `\nexport const runtime = "nodejs";${md ? `\nexport const maxDuration = ${md[1]};` : ""}`;
+      // TRIAL7 (#750, 06.11.2026 PROD): Roxy'ye giden uzman uçları deneme uzmanının günlük ortak kredisinden düşmek için admin
+      // handler'ını `withTrialRoxyMeter` ile SARAR — kendi mantığı yine YOK. İzin verilen TEK ek biçim tam metinle denetlenir
+      // (14.11.2026 İP-0: bu test #750'den beri bu iki uçta düşüyordu). Kapsam: yalnız tek POST + bu sarmalayıcı.
+      const metered = TRIAL_METERED_EXPERT_ROUTES[sub];
+      if (metered) {
+        assert.deepEqual(methods, ["POST"], `${rel(f)}: sarılı uçta yalnız POST`);
+        assert.equal(s, `import { POST as ${metered.local} } from "@/app/api/admin/astroloji${sub}/route";\nimport { withTrialRoxyMeter } from "@/lib/trial/roxyMeter";\n\nexport const POST = withTrialRoxyMeter("astrology", "${metered.meter}", ${metered.local});${tail}`, `${rel(f)}: yalnız re-export + deneme kredisi sarmalayıcısı olmalı`);
+      } else assert.equal(s, `export { ${methods.join(", ")} } from "@/app/api/admin/astroloji${sub}/route";${tail}`, `${rel(f)}: yalnız re-export olmalı`);
     }
     // Kapı yüzeyi yoldan seçer: admin yolu owner-only, uzman yolu modül yetkisi; başka yol 404.
     const g = read("lib/astrology/access/ownerGate.ts");
@@ -285,6 +298,13 @@ async function main() {
       // 2026-10-29 (Owner talimatı): CI'da bağımsız `horary-western` işi (#591). RKS-3 main'den kaldırıldı (#610) →
       // scripts/rks/** artık yok; yalnız bu CI dosyası.
       /^\.github\/workflows\/ci\.yml$/,
+      // 2026-11-14 (Owner talimatı İP-0 / KOD-01): `astro-regresyon` CI işi (test:astrology zinciri) zorunlu iş listesine ve gölge
+      // analiz iş listelerine eklendi — yalnız bu tam yollar (iş adı dizileri; kapı mantığı değişmedi).
+      /^scripts\/ci\/regression-shard\.mjs$/,
+      /^scripts\/ci\/ci-paralel\.harness\.mjs$/,
+      /^scripts\/ci\/golge-analiz\.mjs$/,
+      /^scripts\/ci\/golge-rapor\.mjs$/,
+      /^scripts\/ci\/golge\.harness\.mjs$/,
       // 2026-11-03 (Owner onayı, AŞAMA 2): Gökyüzü Atlası teknik bazlı yetkilendirme — Admin > Üye Detayı > Modül İzinleri paneli,
       // admin kayıt ucu, denetim zaman çizelgesi etiketi ve migration (yalnız bu tam yollar).
       /^app\/admin\/users\/\[id\]\/page\.tsx$/,

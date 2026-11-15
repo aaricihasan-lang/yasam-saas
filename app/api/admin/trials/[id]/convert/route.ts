@@ -2,8 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { verifyAdminRequest } from "@/lib/auth/adminGuard";
 import { readLimitedJsonBody } from "@/lib/admin/accountSessionControls";
 import { isUuid } from "@/lib/admin/memberRequestValidation";
-import { archivedTargetResponse } from "@/lib/admin/archivedGuard";
+import { ARCHIVED_CHANGE_MESSAGE, archivedTargetResponse, isArchivedDbError } from "@/lib/admin/archivedGuard";
 import { ADMIN_MODULE_ALIAS_KEYS, validateApprovalModules } from "@/lib/admin/userManagement";
+
+const PASSIVE_PRO_CONVERT_MESSAGE =
+  "Bu hesap pasif. Pro'ya geçirmek için önce yetkili yönetici tarafından Aktif Yap işlemi gerçekleştirilmelidir.";
 
 export const runtime = "nodejs";
 
@@ -49,6 +52,9 @@ export async function POST(req: NextRequest, ctx: RouteContext) {
     const code = (error as { code?: unknown }).code;
     if (code === "TR404") return bad("Bu hesap bir deneme üyesi değil.", 404);
     if (code === "TR409") return bad("Bu üye zaten Pro üyeliğe geçmiş.", 409);
+    // AŞAMA 4b: Pro geçişi pasif hesabı aktifleştirmez (DB kuralı, hedef satır kilidi altında; hiçbir satır değişmez).
+    if (code === "TR412") return bad(PASSIVE_PRO_CONVERT_MESSAGE, 409);
+    if (isArchivedDbError(error)) return bad(ARCHIVED_CHANGE_MESSAGE, 409);
     if (code === "TR400") return bad("Pro üyelik için en az bir modül seçilmelidir.");
     if (code === "TR401") return bad("Yetki yok.", 403);
     return bad("Pro üyeliğe geçiş tamamlanamadı (tekrar deneyin).", 500);

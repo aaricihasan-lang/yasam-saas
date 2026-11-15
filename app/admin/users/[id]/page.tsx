@@ -111,7 +111,7 @@ import {
 } from "@/components/admin/members/MemberDetail360";
 import { MemberDetailHeader } from "@/components/admin/members/detail/MemberDetailHeader";
 import { MemberDetailTabs } from "@/components/admin/members/detail/MemberDetailTabs";
-import { memberDetailTabFromHash, type MemberDetailTab } from "@/components/admin/members/detail/memberDetailTabModel";
+import { DEFAULT_MEMBER_DETAIL_TAB, memberDetailTabFromHash, type MemberDetailTab } from "@/components/admin/members/detail/memberDetailTabModel";
 import detailCss from "@/components/admin/members/detail/MemberDetailV2.module.css";
 import { TrialCreditPanel, TrialStatePanel, useTrialManagement } from "@/components/admin/members/detail/TrialManagementPanel";
 import { MemberUnarchiveDialog } from "@/components/admin/members/detail/MemberUnarchiveDialog";
@@ -125,7 +125,7 @@ const inputClass =
 const labelClass = "block text-sm font-black text-slate-700";
 
 const navBtn =
-  "inline-flex min-h-[56px] w-full items-center justify-center gap-2.5 rounded-2xl border-2 px-6 text-base font-black shadow-md transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg sm:min-h-[60px]";
+  "inline-flex min-h-[56px] w-full items-center justify-center gap-2.5 rounded-2xl border-2 px-6 text-base font-black shadow-md transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg sm:min-h-[60px] max-sm:min-h-[44px] max-sm:gap-1.5 max-sm:rounded-xl max-sm:px-2 max-sm:text-center max-sm:text-xs max-sm:leading-tight";
 
 const saveBtnClass =
   "inline-flex h-14 items-center justify-center rounded-2xl border-2 border-violet-400 bg-gradient-to-r from-violet-100 via-fuchsia-100 to-rose-100 px-8 text-base font-black text-violet-950 shadow-md transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50";
@@ -753,7 +753,7 @@ export default function AdminUserDetailPage() {
 
   // V2 — beş sekme (Owner görsel PASS sürüm 5). Paneller yalnız GİZLENİR (DOM'da kalır): veri yükleme, form
   // taslakları ve pencereler bugünkü gibi çalışır. Adres #sekme (veya eski #uye-* bölüm bağlantısı) ile açılır.
-  const [detailTab, setDetailTab] = useState<MemberDetailTab>("ozet");
+  const [detailTab, setDetailTab] = useState<MemberDetailTab>(DEFAULT_MEMBER_DETAIL_TAB);
   /** Eski #uye-* bağlantısıyla gelinince sekme açıldıktan sonra kaydırılacak bölüm (bir kez). */
   const pendingAnchorRef = useRef<string | null>(null);
   const [anchorTick, setAnchorTick] = useState(0);
@@ -1857,7 +1857,8 @@ export default function AdminUserDetailPage() {
           className="sticky top-0 z-50 mb-6 rounded-[28px] border-2 border-white/80 bg-gradient-to-r from-violet-100/90 via-indigo-100/85 to-rose-100/90 p-3 shadow-lg backdrop-blur-xl sm:p-4"
           aria-label="Üst navigasyon"
         >
-          <div className="flex flex-col gap-3 lg:grid lg:grid-cols-3 lg:gap-4">
+          {/* V3: telefonda da tek satır (üç kısa düğme) — Hızlı Hesap İşlemleri ilk ekrana sığar. */}
+          <div className="grid grid-cols-3 gap-2 sm:gap-3 lg:gap-4">
             <Link
               href={listHref}
               className={`${navBtn} border-violet-300/80 bg-gradient-to-r from-violet-50 to-indigo-50 text-violet-950 no-underline`}
@@ -1948,12 +1949,34 @@ export default function AdminUserDetailPage() {
                     ]
                   : [{ label: "Modül erişimi", value: "Yönetici · tüm modüller" }]),
               ]}
-              actions={(() => {
-                // Kısayollar: aynı işlem fonksiyonları + aynı koşullar (sunucu yetkisi ayrıca doğrular).
-                if (user.role !== "expert") return null;
-                if (user.approvalStatus !== "approved") {
-                  return (
-                    <>
+            />
+
+            {/* V3 — HIZLI HESAP İŞLEMLERİ: günlük hesap işlemleri üye bilgisinin hemen altında, her sekmede aynı yerde ve
+                yalnız burada. Aynı işlem fonksiyonları, aynı koşullar ve aynı onay pencereleri (sunucu yetkisi ayrıca doğrular).
+                Kalıcı silme kısayolu YOK: yalnız Arşiv ekranındaki üç adımlı süreç (bağlantı). */}
+            <section
+              className={detailCss.quick}
+              aria-labelledby="hizli-hesap-islemleri"
+              data-quick-actions={isArchived ? "archived" : user.active ? "active" : "passive"}
+            >
+              <div className={detailCss.quickHead}>
+                <h2 id="hizli-hesap-islemleri" className={detailCss.quickTitle}>
+                  Hızlı Hesap İşlemleri
+                </h2>
+                <p className={detailCss.quickSub}>Her işlem önce onay penceresi açar; tek tıkla uygulanmaz.</p>
+              </div>
+              <div className={detailCss.quickGroups}>
+                {user.role === "expert" && user.approvalStatus !== "approved" ? (
+                  <div className={`${detailCss.quickGroup} ${detailCss.quickApprove}`} role="group" aria-labelledby="actions-approval">
+                    <p id="actions-approval" className="text-xs font-black uppercase tracking-wide text-emerald-900">
+                      Onay
+                    </p>
+                    <p className="mt-1 text-xs font-medium text-slate-600">
+                      {user.approvalStatus === "pending"
+                        ? "7 günlük deneme veya ödeme alınmışsa Pro üyelik onaylanır. Deneme, ilk başarılı girişte başlar; Pro, seçilen modüllerle ücretli üyeliktir."
+                        : "Reddedilmiş başvuru, 7 günlük deneme veya Pro üyelik olarak kontrollü biçimde yeniden onaylanabilir."}
+                    </p>
+                    <div className="mt-3 flex flex-wrap items-center gap-2">
                       <button
                         type="button"
                         disabled={actionUserId === user.id}
@@ -1961,74 +1984,147 @@ export default function AdminUserDetailPage() {
                         className={`${actionBtn} border-emerald-600 bg-emerald-600 text-white hover:bg-emerald-700`}
                       >
                         <Hourglass className="h-4 w-4" aria-hidden />
-                        Denemeyi onayla
+                        7 Günlük Denemeyi Onayla
                       </button>
                       <button
                         type="button"
                         disabled={actionUserId === user.id}
                         onClick={openApproveModal}
-                        className={`${actionBtn} border-violet-600 bg-violet-600 text-white hover:bg-violet-700`}
+                        className={`${actionBtn} border-violet-300 bg-white text-violet-900 hover:bg-violet-50`}
                       >
                         <UserCheck className="h-4 w-4" aria-hidden />
-                        Pro üyeliği onayla
+                        Pro Üyeliği Onayla
                       </button>
                       {user.approvalStatus === "pending" ? (
-                        <button
-                          type="button"
-                          disabled={actionUserId === user.id}
-                          onClick={() => setRejectOpen(true)}
-                          className={`${actionBtn} border-rose-300 bg-white text-rose-800 hover:bg-rose-50`}
-                        >
-                          <UserX className="h-4 w-4" aria-hidden />
-                          Reddet
-                        </button>
+                        <>
+                          <span className="mx-1 hidden h-6 w-px bg-slate-200 sm:block" aria-hidden />
+                          <button
+                            type="button"
+                            disabled={actionUserId === user.id}
+                            onClick={() => setRejectOpen(true)}
+                            className={`${actionBtn} border-rose-300 bg-white text-rose-800 hover:bg-rose-50`}
+                          >
+                            <UserX className="h-4 w-4" aria-hidden />
+                            Başvuruyu Reddet
+                          </button>
+                        </>
                       ) : null}
-                    </>
-                  );
-                }
-                const info = membershipStatusInfo(user, isArchived);
-                if (info) {
-                  const legacyBlocked = info.kind === "legacy" && !viewerIsMainAdmin;
-                  return (
+                    </div>
+                  </div>
+                ) : null}
+              {isArchived ? null : (
+                <div className={detailCss.quickGroup} role="group" aria-labelledby="actions-access">
+                  <p id="actions-access" className={detailCss.quickLabel}>
+                    Erişim
+                  </p>
+                  <div className={detailCss.quickButtons}>
+                    {!user.active && !isArchived && (user.role === "admin" || user.approvalStatus === "approved") ? (
+                      <button
+                        type="button"
+                        disabled={actionUserId === user.id || !canManageAccountActions()}
+                        onClick={requestToggleActive}
+                        className={`${actionBtn} border-sky-300 bg-sky-50 text-sky-950 hover:bg-sky-100`}
+                      >
+                        <UserCheck className="h-4 w-4" aria-hidden />
+                        Aktif Yap
+                      </button>
+                    ) : null}
+                    {user.active ? (
+                      <button
+                        type="button"
+                        disabled={actionUserId === user.id || !canManageAccountActions()}
+                        title={
+                          isSelf()
+                            ? "Kendi hesabınız üzerinde durum değişikliği yapamazsınız."
+                            : isManagedOwnerAdmin(user)
+                              ? "Ana yönetici pasifleştirilemez."
+                              : user.role === "admin" && !viewerIsMainAdmin
+                                ? "Yönetici hesabı durumunu yalnızca ana yönetici değiştirebilir."
+                                : undefined
+                        }
+                        onClick={requestToggleActive}
+                        className={`${actionBtn} border-slate-300 bg-white text-slate-800 hover:bg-slate-100`}
+                      >
+                        <UserX className="h-4 w-4" aria-hidden />
+                        Pasif Yap
+                      </button>
+                    ) : null}
                     <button
                       type="button"
-                      disabled={actionUserId === user.id || legacyBlocked || !user.active}
+                      disabled={!canManageAccountActions()}
                       title={
-                        legacyBlocked
-                          ? "Eski kayıt onarımı yalnız ana yöneticiye açıktır."
-                          : !user.active
-                            ? "Önce hesabı aktif yapın."
+                        isManagedOwnerAdmin(user)
+                          ? "Ana yönetici hesabına bu işlem uygulanamaz."
+                          : user.role === "admin" && !viewerIsMainAdmin
+                            ? "Bu işlem yalnızca ana yöneticiye açıktır."
                             : undefined
                       }
-                      onClick={() => openProConversionModal(info.kind === "legacy" ? "legacy_repair" : "trial_convert")}
-                      className={`${actionBtn} border-violet-600 bg-violet-600 text-white hover:bg-violet-700`}
+                      onClick={openLogoutAllModal}
+                      className={`${actionBtn} border-orange-300 bg-white text-orange-900 hover:bg-orange-50`}
                     >
-                      <UserCheck className="h-4 w-4" aria-hidden />
-                      {info.kind === "legacy" ? "Eski kaydı Pro'ya geçir" : "Pro'ya geçir"}
+                      <LogOut className="h-4 w-4" aria-hidden />
+                      Tüm Cihazlardan Çıkış
                     </button>
-                  );
-                }
-                return (
-                  <>
-                    <button
-                      type="button"
-                      onClick={() => selectDetailTab("uyelik")}
-                      className={`${actionBtn} border-violet-600 bg-violet-600 text-white hover:bg-violet-700`}
-                    >
-                      <Banknote className="h-4 w-4" aria-hidden />
-                      Ödeme bilgisi
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => selectDetailTab("moduller")}
-                      className={`${actionBtn} border-slate-300 bg-white text-slate-800 hover:bg-slate-50`}
-                    >
-                      Modüller
-                    </button>
-                  </>
-                );
-              })()}
-            />
+                  </div>
+                </div>
+              )}
+              {isSelf() || !(isArchived || canArchiveTarget) ? null : (
+                <div className={`${detailCss.quickGroup} ${detailCss.quickDanger}`} role="group" aria-labelledby="actions-danger">
+                  <p id="actions-danger" className={detailCss.quickLabel}>
+                    Tehlikeli İşlemler
+                  </p>
+                  <div className={detailCss.quickButtons}>
+                    {isSelf() ? null : isArchived ? (
+                      <button
+                        type="button"
+                        disabled={!viewerIsMainAdmin}
+                        title={viewerIsMainAdmin ? undefined : "Arşivden çıkarma yalnızca ana yöneticiye açıktır."}
+                        onClick={() => setUnarchiveOpen(true)}
+                        data-unarchive-open
+                        className={`${actionBtn} border-sky-300 bg-white text-sky-900 hover:bg-sky-50 disabled:opacity-60`}
+                      >
+                        <ArchiveRestore className="h-4 w-4" aria-hidden />
+                        Arşivden Çıkar
+                      </button>
+                    ) : !canArchiveTarget ? null : canDeleteAsOwner ? (
+                      <button
+                        type="button"
+                        disabled={deleteSubmitting}
+                        onClick={openDeleteConfirmModal}
+                        className={`${actionBtn} border-rose-400 bg-white text-rose-900 hover:bg-rose-100`}
+                      >
+                        <Trash2 className="h-4 w-4" aria-hidden />
+                        Pasife Al ve Arşivle
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        disabled
+                        title="Arşivleme yetkisi yalnızca ana yöneticiye aittir."
+                        className={`${actionBtn} border-rose-200/60 bg-white/60 text-rose-400`}
+                      >
+                        <Trash2 className="h-4 w-4" aria-hidden />
+                        Pasife Al ve Arşivle
+                      </button>
+                    )}
+                  </div>
+                  {!isSelf() && !canDeleteAsOwner && (isArchived || canArchiveTarget) ? (
+                    <p className="mt-2 text-[11px] font-bold text-slate-500">
+                      {isArchived ? "Arşivden çıkarma yetkisi yalnızca ana yöneticiye aittir." : "Arşivleme yetkisi yalnızca ana yöneticiye aittir."}
+                    </p>
+                  ) : null}
+                  {isArchived ? (
+                    <p className={detailCss.quickHint} data-purge-link>
+                      Kalıcı silme yalnız Arşiv ekranında, e-posta + onay metni + parola ile (3 adım).{" "}
+                      <Link href="/admin/users/klasik?view=archive" className="font-black underline underline-offset-2">
+                        Arşiv ekranını aç
+                      </Link>
+                    </p>
+                  ) : null}
+                </div>
+              )}
+              </div>
+            </section>
 
             {isArchived ? (
               <div
@@ -2037,7 +2133,7 @@ export default function AdminUserDetailPage() {
                 className="rounded-2xl border border-stone-300 bg-stone-50 px-4 py-3 text-sm font-semibold text-stone-800"
               >
                 <b>Hesap arşivde.</b> Kayıtlar görüntülenebilir; üyelik, deneme, modül, kredi, ödeme ve erişim
-                bilgileri değiştirilemez. Değişiklik için önce ana yönetici “Gelişmiş” sekmesinden arşivden çıkarır
+                bilgileri değiştirilemez. Değişiklik için önce ana yönetici üstteki “Hızlı Hesap İşlemleri” alanından arşivden çıkarır
                 (hesap pasif kalır).
               </div>
             ) : null}
@@ -2046,8 +2142,8 @@ export default function AdminUserDetailPage() {
               active={detailTab}
               onChange={selectDetailTab}
               marks={{
-                ozet:
-                  user.role === "expert" && (user.approvalStatus === "pending" || (user.approvalStatus === "approved" && user.legacyPackage))
+                uyelik:
+                  user.role === "expert" && user.approvalStatus === "approved" && user.legacyPackage
                     ? { kind: "count", text: "1", label: "Karar bekleyen işlem var" }
                     : null,
               }}
@@ -2061,52 +2157,6 @@ export default function AdminUserDetailPage() {
               className={detailCss.stage}
               data-tab="ozet"
             >
-              {user.role === "expert" && user.approvalStatus !== "approved" ? (
-                <div className="mt-4 rounded-2xl border-2 border-emerald-100 bg-emerald-50/40 p-4" role="group" aria-labelledby="actions-approval">
-                  <p id="actions-approval" className="text-xs font-black uppercase tracking-wide text-emerald-900">
-                    Onay
-                  </p>
-                  <p className="mt-1 text-xs font-medium text-slate-600">
-                    {user.approvalStatus === "pending"
-                      ? "7 günlük deneme veya ödeme alınmışsa Pro üyelik onaylanır. Deneme, ilk başarılı girişte başlar; Pro, seçilen modüllerle ücretli üyeliktir."
-                      : "Reddedilmiş başvuru, 7 günlük deneme veya Pro üyelik olarak kontrollü biçimde yeniden onaylanabilir."}
-                  </p>
-                  <div className="mt-3 flex flex-wrap items-center gap-2">
-                    <button
-                      type="button"
-                      disabled={actionUserId === user.id}
-                      onClick={() => setTrialApproveOpen(true)}
-                      className={`${actionBtn} border-emerald-600 bg-emerald-600 text-white hover:bg-emerald-700`}
-                    >
-                      <Hourglass className="h-4 w-4" aria-hidden />
-                      7 Günlük Denemeyi Onayla
-                    </button>
-                    <button
-                      type="button"
-                      disabled={actionUserId === user.id}
-                      onClick={openApproveModal}
-                      className={`${actionBtn} border-violet-300 bg-white text-violet-900 hover:bg-violet-50`}
-                    >
-                      <UserCheck className="h-4 w-4" aria-hidden />
-                      Pro Üyeliği Onayla
-                    </button>
-                    {user.approvalStatus === "pending" ? (
-                      <>
-                        <span className="mx-1 hidden h-6 w-px bg-slate-200 sm:block" aria-hidden />
-                        <button
-                          type="button"
-                          disabled={actionUserId === user.id}
-                          onClick={() => setRejectOpen(true)}
-                          className={`${actionBtn} border-rose-300 bg-white text-rose-800 hover:bg-rose-50`}
-                        >
-                          <UserX className="h-4 w-4" aria-hidden />
-                          Başvuruyu Reddet
-                        </button>
-                      </>
-                    ) : null}
-                  </div>
-                </div>
-              ) : null}
             {/* FAZ 2 — PROFİL ÖZETİ: her eksen AYRI alan; biri diğerinin yerine kullanılmaz. */}
             <section id="uye-ozet" className={`${panelClass} scroll-mt-28 border-slate-200/80`} aria-labelledby="profile-summary-title">
               <h2 id="profile-summary-title" className="text-xl font-black text-slate-950">Özet</h2>
@@ -2413,6 +2463,15 @@ export default function AdminUserDetailPage() {
                         >
                           Deneme Üyeleri ekranı (kredi, inceleme, durdurma)
                         </Link>
+                      ) : null}
+                      {isTrialMember ? (
+                        <button
+                          type="button"
+                          onClick={() => selectDetailTab("hesap")}
+                          className="text-xs font-bold text-amber-900 underline underline-offset-2 hover:text-amber-950"
+                        >
+                          Deneme erişimi (inceleme, durdurma): Hesap ve Güvenlik
+                        </button>
                       ) : null}
                     </div>
                   </div>
@@ -2814,6 +2873,12 @@ export default function AdminUserDetailPage() {
                 <div className="mt-4 rounded-2xl border border-violet-200 bg-violet-50/40 p-4" aria-labelledby="uye-deneme-kredi">
                   <p id="uye-deneme-kredi" className="mb-3 text-sm font-black text-violet-950">Bu üyenin günlük Roxy kredisi</p>
                   <TrialCreditPanel mgmt={trialMgmt} />
+                  <p className="mt-3 text-xs font-semibold text-violet-900">
+                    Deneme erişimini incelemeye alma veya durdurma “Hesap ve Güvenlik” sekmesindedir.{" "}
+                    <button type="button" onClick={() => selectDetailTab("hesap")} className="font-black underline underline-offset-2">
+                      Deneme erişimine git
+                    </button>
+                  </p>
                 </div>
               ) : null}
               {user.role === "expert" ? null : (
@@ -3115,13 +3180,494 @@ export default function AdminUserDetailPage() {
 
             <div
               role="tabpanel"
-              id="uye-panel-gelismis"
-              aria-labelledby="uye-tab-gelismis"
-              hidden={detailTab !== "gelismis"}
+              id="uye-panel-hesap"
+              aria-labelledby="uye-tab-hesap"
+              hidden={detailTab !== "hesap"}
               className={detailCss.stage}
-              data-tab="gelismis"
+              data-tab="hesap"
             >
-            {/* ── Lisans & Oturum Limitleri ────────────────────────────── */}
+            {/* ── 1. Hesap durumu ve erişim özeti (işlemler üstteki Hızlı Hesap İşlemleri alanında) ── */}
+            <section
+              id="uye-hesap-durumu"
+              className={`${panelClass} border-slate-200/80`}
+              aria-labelledby="uye-hesap-durumu-baslik"
+              data-account-state={isArchived ? "archived" : user.active ? "active" : "passive"}
+            >
+              <h2 id="uye-hesap-durumu-baslik" className="text-xl font-black text-slate-950">Hesap durumu ve erişim özeti</h2>
+              <div className={`mt-4 ${detailCss.infoGrid}`}>
+                <div className={detailCss.infoCard}>
+                  <b>Hesap</b>
+                  <span>
+                    <AccountBadge active={user.active} archived={isArchived} />
+                  </span>
+                  <span>
+                    {isArchived
+                      ? "Giriş kapalı. Kayıtlar korunur; üyelik, modül, ödeme ve erişim bilgileri değiştirilemez."
+                      : user.active
+                        ? "Giriş açık."
+                        : "Giriş kapalı. Kayıtlar korunur; “Aktif Yap” ile yeniden açılır."}
+                  </span>
+                  {isArchived && archiveInfo.archivedAt ? <span data-archived-at>Arşivlenme: {formatDateTimeTr(archiveInfo.archivedAt)}</span> : null}
+                </div>
+                {user.role === "expert" ? (
+                  <div className={detailCss.infoCard}>
+                    <b>Başvuru</b>
+                    <span>
+                      <ApprovalBadge status={user.approvalStatus} />
+                    </span>
+                    {user.approvalStatus === "approved" ? null : <span>Onay ve ret işlemleri üstteki “Hızlı Hesap İşlemleri” alanındadır.</span>}
+                  </div>
+                ) : null}
+                <div className={detailCss.infoCard}>
+                  <b>Oturum güvenliği</b>
+                  <span>
+                    {user.licenseSettings.securityExempt
+                      ? "Güvenlik istisnası açık — oturum ve cihaz limitleri uygulanmaz."
+                      : "Oturum ve cihaz limitleri uygulanır (aşağıda “Lisans & Oturum Limitleri”)."}
+                  </span>
+                  {activeSessionsSummary ? <span>Aktif cihaz: {Number(activeSessionsSummary.totalActive ?? 0)}</span> : null}
+                </div>
+              </div>
+              <p className={`mt-3 ${detailCss.note}`}>
+                Aktif / pasif yapma, tüm cihazlardan çıkış ve arşiv işlemleri sayfanın üstündeki “Hızlı Hesap İşlemleri”
+                alanındadır; her biri ayrıca onay ister.{" "}
+                <button
+                  type="button"
+                  onClick={() => document.getElementById("hizli-hesap-islemleri")?.scrollIntoView({ block: "start" })}
+                  className="font-black underline underline-offset-2"
+                >
+                  İşlemlere git
+                </button>
+              </p>
+            </section>
+            {/* ── 2. Aktif Cihazlar & Güvenlik Özeti ─────────────────────── */}
+            <section className={`${panelClass} border-sky-200/80 bg-gradient-to-br from-sky-50/90 via-white to-cyan-50/60`}>
+              <button
+                type="button"
+                onClick={() => {
+                  if (!showActiveSessions && !activeSessionsLoaded) {
+                    void loadActiveSessions(user.id, currentAdminId);
+                  }
+                  setShowActiveSessions((o) => !o);
+                }}
+                className="flex w-full items-center gap-4 rounded-2xl border-2 border-sky-200/90 bg-white/80 px-4 py-4 text-left shadow-sm transition hover:border-sky-300 hover:bg-sky-50/60 sm:px-5"
+                aria-expanded={showActiveSessions}
+              >
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-sky-500 to-cyan-600 text-white shadow-md">
+                  <Eye className="h-5 w-5" aria-hidden />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-lg font-black text-sky-950 sm:text-xl">
+                    Aktif Cihazlar & Güvenlik Özeti
+                    {activeSessionsSummary ? (
+                      <span className="ml-2 text-sm font-medium text-sky-600">
+                        ({Number(activeSessionsSummary.totalActive ?? 0)} aktif cihaz)
+                      </span>
+                    ) : null}
+                  </p>
+                  <p className="mt-0.5 text-sm font-medium text-sky-900/70">
+                    Gerçek zamanlı oturum durumu ve platform kullanımı
+                  </p>
+                </div>
+                {activeSessionsLoaded ? (
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); void loadActiveSessions(user.id, currentAdminId); }}
+                    disabled={activeSessionsLoading}
+                    className="shrink-0 rounded-xl border-2 border-sky-200 bg-white px-3 py-1.5 text-xs font-black text-sky-800 transition hover:border-sky-400 hover:bg-sky-50 disabled:opacity-50"
+                  >
+                    {activeSessionsLoading ? <Loader2 className="inline h-3 w-3 animate-spin" aria-hidden /> : "Yenile"}
+                  </button>
+                ) : null}
+                {/* Limit/lokasyon uyarı badge'leri (her zaman görünür) */}
+                {activeSessionsSummary ? (() => {
+                  const s   = activeSessionsSummary;
+                  const lim = (s.limits ?? {}) as Record<string, number>;
+                  // MEM-001: sınırsız (-1) limitte ASLA "Limit Aşıldı" yok.
+                  const limitOver = isLimitExceeded(s.totalFresh, lim.allowedActiveSessions);
+                  const locOver   = Number(s.distinctLocations ?? 0) > (lim.allowedLocations ?? 1);
+                  return (
+                    <>
+                      {limitOver ? <span className="shrink-0 rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-black text-rose-800 ring-1 ring-rose-300">Limit Aşıldı</span> : null}
+                      {locOver   ? <span className="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-black text-amber-800 ring-1 ring-amber-300">Şüpheli Konum</span> : null}
+                    </>
+                  );
+                })() : null}
+                <ChevronDown className={`h-6 w-6 shrink-0 text-sky-700 transition-transform ${showActiveSessions ? "rotate-180" : ""}`} aria-hidden />
+              </button>
+
+              {showActiveSessions ? (
+                <div className="mt-5 border-t border-sky-200/70 pt-5">
+                  {activeSessionsLoading && !activeSessionsLoaded ? (
+                    <div className="flex items-center justify-center gap-3 py-10">
+                      <Loader2 className="h-8 w-8 animate-spin text-sky-500" aria-hidden />
+                      <span className="font-bold text-slate-600">Yükleniyor…</span>
+                    </div>
+                  ) : activeSessionsSummary ? (
+                    <>
+                      {/* ── Özet sayaç kartları ────────────────────────── */}
+                      {(() => {
+                        const s   = activeSessionsSummary;
+                        const lim = (s.limits ?? {}) as Record<string, number>;
+                        const bp  = (s.byPlatform ?? {}) as Record<string, number>;
+                        const statItems = [
+                          { label: "Toplam Aktif", current: Number(s.totalFresh ?? 0), limit: lim.allowedActiveSessions ?? -1 },
+                          { label: "Lokasyon",     current: Number(s.distinctLocations ?? 0), limit: lim.allowedLocations ?? 1 },
+                          { label: "Bilgisayar",   current: bp.desktop ?? 0, limit: lim.allowedDesktopSessions ?? -1 },
+                          { label: "Mobil",        current: bp.mobile  ?? 0, limit: lim.allowedMobileSessions  ?? -1 },
+                          { label: "Tablet",       current: bp.tablet  ?? 0, limit: lim.allowedTabletSessions  ?? -1 },
+                          { label: "Tanınmayan",   current: bp.unknown ?? 0, limit: lim.allowedUnknownSessions ?? -1 },
+                        ];
+                        return (
+                          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
+                            {statItems.map((item) => {
+                              const over = isLimitExceeded(item.current, item.limit);
+                              return (
+                                <div key={item.label} className={`rounded-2xl border-2 p-3 text-center ${over ? "border-rose-300 bg-rose-50" : "border-white bg-white/80 shadow-sm"}`}>
+                                  <p className="text-xs font-bold text-slate-500">{item.label}</p>
+                                  <p className={`mt-1 text-2xl font-black tabular-nums ${over ? "text-rose-700" : "text-slate-900"}`}>
+                                    {item.current}<span className="text-base font-medium text-slate-400">/{formatLimitLabel(item.limit)}</span>
+                                  </p>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        );
+                      })()}
+
+                      {activeSessionsSummary.securityExempt === true ? (
+                        <div className="mt-4 rounded-2xl border-2 border-rose-200 bg-rose-50/70 px-4 py-3">
+                          <p className="text-sm font-black text-rose-900">Güvenlik İstisnası Aktif — Oturum kapatma yapılmaz.</p>
+                        </div>
+                      ) : null}
+
+                      {/* ── Tarih Filtresi ──────────────────────────────── */}
+                      <div className="mt-5 flex flex-wrap items-center gap-2 rounded-2xl border border-sky-100 bg-white/60 px-4 py-3">
+                        <Filter className="h-3.5 w-3.5 text-slate-400" aria-hidden />
+                        <input
+                          type="date"
+                          value={devicesDateFrom}
+                          onChange={(e) => { setDevicesDateFrom(e.target.value); setShowActiveSessions(false); }}
+                          className="h-8 rounded-xl border border-slate-200 bg-white px-2 text-xs font-medium text-slate-700"
+                        />
+                        <span className="text-xs text-slate-400">—</span>
+                        <input
+                          type="date"
+                          value={devicesDateTo}
+                          onChange={(e) => { setDevicesDateTo(e.target.value); setShowActiveSessions(false); }}
+                          className="h-8 rounded-xl border border-slate-200 bg-white px-2 text-xs font-medium text-slate-700"
+                        />
+                        {(devicesDateFrom || devicesDateTo) ? (
+                          <button type="button"
+                            onClick={() => { setDevicesDateFrom(""); setDevicesDateTo(""); setShowActiveSessions(false); }}
+                            className="rounded-full bg-slate-100 px-3 py-1 text-[11px] font-black text-slate-600 ring-1 ring-slate-200 hover:bg-slate-200">
+                            Temizle
+                          </button>
+                        ) : null}
+                      </div>
+
+                      {/* ── Cihaz Listesi ──────────────────────────────── */}
+                      {(() => {
+                        const PLATFORM_LABELS: Record<string, string> = { desktop: "Bilgisayar", mobile: "Telefon", tablet: "Tablet", unknown: "Tanınmayan" };
+                        const END_REASON_LABELS: Record<string, string> = {
+                          stale: "Pasife düştü", new_login: "Yeni giriş",
+                          session_limit: "Oturum limiti", admin_terminated: "Admin sonlandırdı",
+                        };
+                        function parseBrowser(ua: string): string {
+                          const lower = ua.toLowerCase();
+                          if (lower.includes("firefox")) return "Firefox";
+                          if (lower.includes("edg/") || lower.includes("edge")) return "Edge";
+                          if (lower.includes("chrome") && !lower.includes("chromium")) return "Chrome";
+                          if (lower.includes("safari") && !lower.includes("chrome")) return "Safari";
+                          if (lower.includes("opera") || lower.includes("opr/")) return "Opera";
+                          return "Tarayıcı";
+                        }
+                        const hasDateFilter = !!(devicesDateFrom || devicesDateTo);
+                        return (
+                          <div className="mt-4">
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                              <h3 className="text-base font-black text-slate-900">Oturumlar <span className="text-sm font-medium text-slate-400">({activeSessions.length}/{actSessTotal})</span></h3>
+                              {!hasDateFilter ? (
+                                <div className="flex gap-1">
+                                  {([5, 10, 25] as const).map((n) => (
+                                    <button key={n} type="button"
+                                      onClick={() => { void fetchActiveSessionsPaged({ limit: n, offset: 0, dateFrom: devicesDateFrom, dateTo: devicesDateTo }); }}
+                                      className={`rounded-lg px-2.5 py-1 text-[11px] font-black ring-1 transition ${actSessLimit === n && actSessOffset === 0 ? "bg-sky-600 text-white ring-sky-600" : "bg-white text-slate-600 ring-slate-200 hover:ring-sky-300"}`}
+                                    >Son {n}</button>
+                                  ))}
+                                </div>
+                              ) : null}
+                            </div>
+                            {activeSessions.length === 0 ? (
+                              <p className="mt-2 text-sm font-medium text-slate-500">Oturum yok.</p>
+                            ) : (
+                              <div className="mt-3 grid gap-2">
+                                {activeSessions.map((s: Record<string, unknown>) => {
+                                  const isActive  = s.is_active === true;
+                                  const platform  = String(s.platform  ?? "desktop");
+                                  const endReason = s.end_reason ? (END_REASON_LABELS[String(s.end_reason)] ?? String(s.end_reason)) : null;
+                                  const statusLabel = isActive ? "Aktif" : endReason === "Admin sonlandırdı" ? "Sonlandırıldı" : "Pasif";
+                                  const statusCls   = isActive ? "bg-sky-100 text-sky-900 ring-sky-200" : endReason === "Admin sonlandırdı" ? "bg-rose-100 text-rose-900 ring-rose-200" : "bg-slate-100 text-slate-600 ring-slate-200";
+                                  const platformIcon = platform === "mobile" ? <Smartphone className="h-3 w-3" /> : platform === "tablet" ? <Tablet className="h-3 w-3" /> : <Monitor className="h-3 w-3" />;
+                                  const browser   = parseBrowser(String(s.user_agent ?? ""));
+                                  const city      = String(s.city      ?? "—");
+                                  const country   = String(s.country   ?? "");
+                                  const ip        = String(s.ip_address ?? "—");
+                                  const lastSeen  = s.last_seen_at ? new Date(String(s.last_seen_at)).toLocaleString("tr-TR") : "—";
+                                  const createdAt = s.created_at   ? new Date(String(s.created_at)).toLocaleString("tr-TR")   : "—";
+                                  const sid       = String(s.id);
+                                  return (
+                                    <div key={sid} className={`rounded-xl border px-4 py-3 text-sm ${isActive ? "border-sky-200 bg-sky-50/60" : "border-slate-200 bg-white/70 opacity-75"}`}>
+                                      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                                        <div className="min-w-0 flex-1 space-y-1.5">
+                                          {/* Durum + Platform + Lokasyon satırı */}
+                                          <div className="flex flex-wrap items-center gap-1.5">
+                                            <span className={`rounded-full px-2 py-0.5 text-[10px] font-black ring-1 ${statusCls}`}>{statusLabel}</span>
+                                            <span className="inline-flex items-center gap-1 rounded-full bg-indigo-50 px-2 py-0.5 text-[10px] font-black text-indigo-800 ring-1 ring-indigo-100">
+                                              {platformIcon} {PLATFORM_LABELS[platform] ?? platform}
+                                            </span>
+                                            {s.client_channel === "android_app" && (
+                                              <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-black text-emerald-800 ring-1 ring-emerald-100">Android uygulama (kalıcı)</span>
+                                            )}
+                                            {s.session_state === "pending_approval" && !s.ended_at && (
+                                              <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-black text-amber-800 ring-1 ring-amber-100">Onay bekliyor</span>
+                                            )}
+                                            <span className="font-bold text-slate-900">{city}{country ? `, ${country}` : ""}</span>
+                                          </div>
+                                          {/* IP + Tarayıcı satırı */}
+                                          <div className="flex flex-wrap items-center gap-3">
+                                            <span className="font-mono text-xs text-slate-500">{ip}</span>
+                                            <span className="rounded-full bg-slate-50 px-2 py-0.5 text-[10px] font-bold text-slate-600 ring-1 ring-slate-100">{browser}</span>
+                                          </div>
+                                          {/* Zaman bilgisi */}
+                                          <div className="text-xs text-slate-400">
+                                            <span>Giriş: {createdAt}</span>
+                                            <span className="mx-1.5">·</span>
+                                            <span>Son: {lastSeen}</span>
+                                            {endReason ? <><span className="mx-1.5">·</span><span className="text-rose-500">{endReason}</span></> : null}
+                                          </div>
+                                        </div>
+                                        {/* P1-7: kendi hesabı / ana yönetici hedefi / (normal admin için) admin hedefi → buton GİZLİ. */}
+                                        {isActive && canManageAccountActions() ? (
+                                          <button type="button" onClick={() => void terminateSession(sid)} disabled={terminatingSessionId === sid}
+                                            className="inline-flex h-8 shrink-0 items-center gap-1.5 self-start rounded-xl border-2 border-rose-200 bg-white px-3 text-xs font-black text-rose-800 transition hover:border-rose-400 hover:bg-rose-50 disabled:opacity-50 sm:self-center">
+                                            {terminatingSessionId === sid ? <Loader2 className="h-3 w-3 animate-spin" aria-hidden /> : null}
+                                            Sonlandır
+                                          </button>
+                                        ) : null}
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
+                            {hasDateFilter && activeSessions.length < actSessTotal ? (
+                              <button type="button"
+                                onClick={() => { void fetchActiveSessionsPaged({ limit: 25, offset: actSessOffset + 25, dateFrom: devicesDateFrom, dateTo: devicesDateTo, append: true }); }}
+                                className="mt-3 rounded-xl border-2 border-sky-200 bg-white px-4 py-1.5 text-sm font-black text-sky-700 transition hover:bg-sky-50">
+                                Daha Fazla Yükle ({actSessTotal - activeSessions.length} kaldı)
+                              </button>
+                            ) : null}
+                          </div>
+                        );
+                      })()}
+                    </>
+                  ) : (
+                    <p className="text-sm font-medium text-slate-500">Veri yüklenemedi.</p>
+                  )}
+                </div>
+              ) : null}
+            </section>
+            {/* ── 3. Deneme erişimi (yalnız deneme üyesinde) ── */}
+            {isTrialMember ? (
+              <section className={`${panelClass} border-slate-200/80`} aria-labelledby="uye-deneme-erisimi">
+                <h2 id="uye-deneme-erisimi" className="text-xl font-black text-slate-950">Deneme erişimi</h2>
+                <div className="mt-4">
+                  <TrialStatePanel mgmt={trialMgmt} />
+                </div>
+                <p className={`mt-3 ${detailCss.note}`}>
+                  Deneme kredisi “Modüller ve Kredi”, Pro üyeliğe geçiş “Üyelik ve Ödeme” sekmesindedir.{" "}
+                  <button type="button" onClick={() => selectDetailTab("moduller")} className="font-black underline underline-offset-2">Krediye git</button> ·{" "}
+                  <button type="button" onClick={() => selectDetailTab("uyelik")} className="font-black underline underline-offset-2">Pro geçişine git</button>
+                </p>
+              </section>
+            ) : null}
+            {/* ── 4. Profil ve parola yönetimi ── */}
+            <section className={`${panelClass} border-slate-200/80`} aria-labelledby="uye-hesap-islemleri">
+              <h2 id="uye-hesap-islemleri" className="text-xl font-black text-slate-950">Profil ve parola yönetimi</h2>
+              <div className="mt-4 rounded-2xl border-2 border-slate-100 bg-white/70 p-4" role="group" aria-labelledby="actions-account">
+                <p id="actions-account" className="text-xs font-black uppercase tracking-wide text-slate-700">
+                  Hesap Yönetimi
+                </p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={openEdit}
+                    className={`${actionBtn} border-violet-200 bg-violet-50 text-violet-950`}
+                  >
+                    <Pencil className="h-4 w-4" aria-hidden />
+                    Profili Düzenle
+                  </button>
+                  <button
+                    type="button"
+                    disabled={!canResetPassword()}
+                    title={
+                      isManagedOwnerAdmin(user)
+                        ? "Ana yönetici hesabına bu işlem uygulanamaz."
+                        : !viewerIsMainAdmin
+                          ? "Parola sıfırlama yalnızca ana yöneticiye açıktır."
+                          : undefined
+                    }
+                    onClick={() => {
+                      if (passwordOpen) {
+                        closePasswordPanel();
+                      } else {
+                        setPasswordOpen(true);
+                        setEditOpen(false);
+                      }
+                    }}
+                    aria-expanded={passwordOpen}
+                    className={`${actionBtn} border-amber-200 bg-amber-50 text-amber-950`}
+                  >
+                    <KeyRound className="h-4 w-4" aria-hidden />
+                    Parolayı Sıfırla
+                  </button>
+                </div>
+                <p className="mt-2 text-[11px] font-medium text-slate-500">
+                  {viewerIsMainAdmin
+                    ? "Parola sıfırlandığında kullanıcı tüm cihazlardan çıkarılır."
+                    : "Parola sıfırlama ve e-posta değişikliği yalnızca ana yöneticiye açıktır (hesap güvenliği)."}
+                </p>
+              </div>
+
+              {passwordOpen && canResetPassword() ? (
+                <div className="mt-4 rounded-2xl border-2 border-amber-200 bg-amber-50/80 p-4">
+                  <p className="text-sm font-black text-amber-950">Yeni parola belirle</p>
+                  <p className="mt-1 text-xs font-bold text-amber-900/85">
+                    Parola değiştirildiğinde kullanıcı tüm cihazlardan çıkarılır ve tekrar giriş yapması gerekir.
+                  </p>
+                  <div className="mt-3 space-y-2">
+                    <PasswordInput
+                      id="admin-reset-password"
+                      autoComplete="new-password"
+                      aria-label="Yeni parola"
+                      className={`${inputClass} mt-0 w-full`}
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      placeholder="Yeni parola (en az 6 karakter)"
+                    />
+                    <PasswordInput
+                      id="admin-reset-password-repeat"
+                      autoComplete="new-password"
+                      aria-label="Yeni parola (tekrar)"
+                      className={`${inputClass} mt-0 w-full`}
+                      value={newPasswordRepeat}
+                      onChange={(e) => setNewPasswordRepeat(e.target.value)}
+                      placeholder="Yeni parola (tekrar)"
+                    />
+                    <p className="text-xs font-medium text-amber-900/80">{PASSWORD_HINT}</p>
+                    {newPasswordRepeat.length > 0 && newPassword.trim() !== newPasswordRepeat.trim() ? (
+                      <p className="text-xs font-bold text-rose-700">Parolalar eşleşmiyor.</p>
+                    ) : null}
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={savePassword}
+                      disabled={
+                        savingPassword ||
+                        newPassword.trim().length < PASSWORD_MIN_LENGTH ||
+                        newPassword.trim() !== newPasswordRepeat.trim()
+                      }
+                      className={`${saveBtnClass} disabled:cursor-not-allowed disabled:opacity-50`}
+                    >
+                      {savingPassword ? "Kaydediliyor…" : "Parolayı Sıfırla"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={closePasswordPanel}
+                      disabled={savingPassword}
+                      className={`${actionBtn} border-slate-200 bg-white text-slate-800`}
+                    >
+                      İptal
+                    </button>
+                  </div>
+                </div>
+              ) : null}
+
+              {editOpen && editForm ? (
+                <div className="mt-4 rounded-2xl border-2 border-violet-200 bg-violet-50/50 p-4">
+                  <p className="text-sm font-black text-violet-950">Profil bilgilerini düzenle</p>
+                  <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                    <label className="block sm:col-span-2">
+                      <span className={labelClass}>Ad Soyad</span>
+                      <input
+                        className={inputClass}
+                        value={editForm.fullName}
+                        onChange={(e) =>
+                          setEditForm((f) =>
+                            f ? { ...f, fullName: e.target.value } : f,
+                          )
+                        }
+                      />
+                    </label>
+                    <label className="block">
+                      <span className={labelClass}>E-posta</span>
+                      <input
+                        type="email"
+                        className={`${inputClass} read-only:bg-slate-50 read-only:text-slate-500`}
+                        value={viewerIsMainAdmin ? editForm.email : user.email}
+                        readOnly={!viewerIsMainAdmin}
+                        aria-describedby={viewerIsMainAdmin ? undefined : "edit-email-hint"}
+                        onChange={(e) =>
+                          setEditForm((f) => (f ? { ...f, email: e.target.value } : f))
+                        }
+                      />
+                      {!viewerIsMainAdmin ? (
+                        <span id="edit-email-hint" className="mt-1 block text-xs font-bold text-slate-500">
+                          E-posta (giriş kimliği) yalnızca ana yönetici tarafından değiştirilebilir.
+                        </span>
+                      ) : null}
+                    </label>
+                    <label className="block">
+                      <span className={labelClass}>Rol</span>
+                      <select
+                        className={inputClass}
+                        value={editForm.role}
+                        onChange={(e) =>
+                          setEditForm((f) =>
+                            f
+                              ? { ...f, role: e.target.value as ManagedUserRole }
+                              : f,
+                          )
+                        }
+                      >
+                        <option value="expert">Uzman</option>
+                        <option value="admin">Yönetici</option>
+                      </select>
+                    </label>
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={saveEdit}
+                      disabled={savingEdit}
+                      className={saveBtnClass}
+                    >
+                      {savingEdit ? "Kaydediliyor…" : "Kaydet"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setEditOpen(false)}
+                      className={`${actionBtn} border-slate-200 bg-white text-slate-800`}
+                    >
+                      İptal
+                    </button>
+                  </div>
+                </div>
+              ) : null}
+            </section>
+            {/* ── 5. Lisans & Oturum Limitleri ────────────────────────────── */}
             <section className={`${panelClass} border-indigo-200/80 bg-gradient-to-br from-indigo-50/90 via-white to-violet-50/60`}>
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="flex min-w-0 items-center gap-4">
@@ -3443,525 +3989,13 @@ export default function AdminUserDetailPage() {
                 );
               })() : null}
             </section>
-            {/* ── Aktif Cihazlar & Güvenlik Özeti ─────────────────────── */}
-            <section className={`${panelClass} border-sky-200/80 bg-gradient-to-br from-sky-50/90 via-white to-cyan-50/60`}>
-              <button
-                type="button"
-                onClick={() => {
-                  if (!showActiveSessions && !activeSessionsLoaded) {
-                    void loadActiveSessions(user.id, currentAdminId);
-                  }
-                  setShowActiveSessions((o) => !o);
-                }}
-                className="flex w-full items-center gap-4 rounded-2xl border-2 border-sky-200/90 bg-white/80 px-4 py-4 text-left shadow-sm transition hover:border-sky-300 hover:bg-sky-50/60 sm:px-5"
-                aria-expanded={showActiveSessions}
-              >
-                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-sky-500 to-cyan-600 text-white shadow-md">
-                  <Eye className="h-5 w-5" aria-hidden />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-lg font-black text-sky-950 sm:text-xl">
-                    Aktif Cihazlar & Güvenlik Özeti
-                    {activeSessionsSummary ? (
-                      <span className="ml-2 text-sm font-medium text-sky-600">
-                        ({Number(activeSessionsSummary.totalActive ?? 0)} aktif cihaz)
-                      </span>
-                    ) : null}
-                  </p>
-                  <p className="mt-0.5 text-sm font-medium text-sky-900/70">
-                    Gerçek zamanlı oturum durumu ve platform kullanımı
-                  </p>
-                </div>
-                {activeSessionsLoaded ? (
-                  <button
-                    type="button"
-                    onClick={(e) => { e.stopPropagation(); void loadActiveSessions(user.id, currentAdminId); }}
-                    disabled={activeSessionsLoading}
-                    className="shrink-0 rounded-xl border-2 border-sky-200 bg-white px-3 py-1.5 text-xs font-black text-sky-800 transition hover:border-sky-400 hover:bg-sky-50 disabled:opacity-50"
-                  >
-                    {activeSessionsLoading ? <Loader2 className="inline h-3 w-3 animate-spin" aria-hidden /> : "Yenile"}
-                  </button>
-                ) : null}
-                {/* Limit/lokasyon uyarı badge'leri (her zaman görünür) */}
-                {activeSessionsSummary ? (() => {
-                  const s   = activeSessionsSummary;
-                  const lim = (s.limits ?? {}) as Record<string, number>;
-                  // MEM-001: sınırsız (-1) limitte ASLA "Limit Aşıldı" yok.
-                  const limitOver = isLimitExceeded(s.totalFresh, lim.allowedActiveSessions);
-                  const locOver   = Number(s.distinctLocations ?? 0) > (lim.allowedLocations ?? 1);
-                  return (
-                    <>
-                      {limitOver ? <span className="shrink-0 rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-black text-rose-800 ring-1 ring-rose-300">Limit Aşıldı</span> : null}
-                      {locOver   ? <span className="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-black text-amber-800 ring-1 ring-amber-300">Şüpheli Konum</span> : null}
-                    </>
-                  );
-                })() : null}
-                <ChevronDown className={`h-6 w-6 shrink-0 text-sky-700 transition-transform ${showActiveSessions ? "rotate-180" : ""}`} aria-hidden />
-              </button>
-
-              {showActiveSessions ? (
-                <div className="mt-5 border-t border-sky-200/70 pt-5">
-                  {activeSessionsLoading && !activeSessionsLoaded ? (
-                    <div className="flex items-center justify-center gap-3 py-10">
-                      <Loader2 className="h-8 w-8 animate-spin text-sky-500" aria-hidden />
-                      <span className="font-bold text-slate-600">Yükleniyor…</span>
-                    </div>
-                  ) : activeSessionsSummary ? (
-                    <>
-                      {/* ── Özet sayaç kartları ────────────────────────── */}
-                      {(() => {
-                        const s   = activeSessionsSummary;
-                        const lim = (s.limits ?? {}) as Record<string, number>;
-                        const bp  = (s.byPlatform ?? {}) as Record<string, number>;
-                        const statItems = [
-                          { label: "Toplam Aktif", current: Number(s.totalFresh ?? 0), limit: lim.allowedActiveSessions ?? -1 },
-                          { label: "Lokasyon",     current: Number(s.distinctLocations ?? 0), limit: lim.allowedLocations ?? 1 },
-                          { label: "Bilgisayar",   current: bp.desktop ?? 0, limit: lim.allowedDesktopSessions ?? -1 },
-                          { label: "Mobil",        current: bp.mobile  ?? 0, limit: lim.allowedMobileSessions  ?? -1 },
-                          { label: "Tablet",       current: bp.tablet  ?? 0, limit: lim.allowedTabletSessions  ?? -1 },
-                          { label: "Tanınmayan",   current: bp.unknown ?? 0, limit: lim.allowedUnknownSessions ?? -1 },
-                        ];
-                        return (
-                          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
-                            {statItems.map((item) => {
-                              const over = isLimitExceeded(item.current, item.limit);
-                              return (
-                                <div key={item.label} className={`rounded-2xl border-2 p-3 text-center ${over ? "border-rose-300 bg-rose-50" : "border-white bg-white/80 shadow-sm"}`}>
-                                  <p className="text-xs font-bold text-slate-500">{item.label}</p>
-                                  <p className={`mt-1 text-2xl font-black tabular-nums ${over ? "text-rose-700" : "text-slate-900"}`}>
-                                    {item.current}<span className="text-base font-medium text-slate-400">/{formatLimitLabel(item.limit)}</span>
-                                  </p>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        );
-                      })()}
-
-                      {activeSessionsSummary.securityExempt === true ? (
-                        <div className="mt-4 rounded-2xl border-2 border-rose-200 bg-rose-50/70 px-4 py-3">
-                          <p className="text-sm font-black text-rose-900">Güvenlik İstisnası Aktif — Oturum kapatma yapılmaz.</p>
-                        </div>
-                      ) : null}
-
-                      {/* ── Tarih Filtresi ──────────────────────────────── */}
-                      <div className="mt-5 flex flex-wrap items-center gap-2 rounded-2xl border border-sky-100 bg-white/60 px-4 py-3">
-                        <Filter className="h-3.5 w-3.5 text-slate-400" aria-hidden />
-                        <input
-                          type="date"
-                          value={devicesDateFrom}
-                          onChange={(e) => { setDevicesDateFrom(e.target.value); setShowActiveSessions(false); }}
-                          className="h-8 rounded-xl border border-slate-200 bg-white px-2 text-xs font-medium text-slate-700"
-                        />
-                        <span className="text-xs text-slate-400">—</span>
-                        <input
-                          type="date"
-                          value={devicesDateTo}
-                          onChange={(e) => { setDevicesDateTo(e.target.value); setShowActiveSessions(false); }}
-                          className="h-8 rounded-xl border border-slate-200 bg-white px-2 text-xs font-medium text-slate-700"
-                        />
-                        {(devicesDateFrom || devicesDateTo) ? (
-                          <button type="button"
-                            onClick={() => { setDevicesDateFrom(""); setDevicesDateTo(""); setShowActiveSessions(false); }}
-                            className="rounded-full bg-slate-100 px-3 py-1 text-[11px] font-black text-slate-600 ring-1 ring-slate-200 hover:bg-slate-200">
-                            Temizle
-                          </button>
-                        ) : null}
-                      </div>
-
-                      {/* ── Cihaz Listesi ──────────────────────────────── */}
-                      {(() => {
-                        const PLATFORM_LABELS: Record<string, string> = { desktop: "Bilgisayar", mobile: "Telefon", tablet: "Tablet", unknown: "Tanınmayan" };
-                        const END_REASON_LABELS: Record<string, string> = {
-                          stale: "Pasife düştü", new_login: "Yeni giriş",
-                          session_limit: "Oturum limiti", admin_terminated: "Admin sonlandırdı",
-                        };
-                        function parseBrowser(ua: string): string {
-                          const lower = ua.toLowerCase();
-                          if (lower.includes("firefox")) return "Firefox";
-                          if (lower.includes("edg/") || lower.includes("edge")) return "Edge";
-                          if (lower.includes("chrome") && !lower.includes("chromium")) return "Chrome";
-                          if (lower.includes("safari") && !lower.includes("chrome")) return "Safari";
-                          if (lower.includes("opera") || lower.includes("opr/")) return "Opera";
-                          return "Tarayıcı";
-                        }
-                        const hasDateFilter = !!(devicesDateFrom || devicesDateTo);
-                        return (
-                          <div className="mt-4">
-                            <div className="flex flex-wrap items-center justify-between gap-2">
-                              <h3 className="text-base font-black text-slate-900">Oturumlar <span className="text-sm font-medium text-slate-400">({activeSessions.length}/{actSessTotal})</span></h3>
-                              {!hasDateFilter ? (
-                                <div className="flex gap-1">
-                                  {([5, 10, 25] as const).map((n) => (
-                                    <button key={n} type="button"
-                                      onClick={() => { void fetchActiveSessionsPaged({ limit: n, offset: 0, dateFrom: devicesDateFrom, dateTo: devicesDateTo }); }}
-                                      className={`rounded-lg px-2.5 py-1 text-[11px] font-black ring-1 transition ${actSessLimit === n && actSessOffset === 0 ? "bg-sky-600 text-white ring-sky-600" : "bg-white text-slate-600 ring-slate-200 hover:ring-sky-300"}`}
-                                    >Son {n}</button>
-                                  ))}
-                                </div>
-                              ) : null}
-                            </div>
-                            {activeSessions.length === 0 ? (
-                              <p className="mt-2 text-sm font-medium text-slate-500">Oturum yok.</p>
-                            ) : (
-                              <div className="mt-3 grid gap-2">
-                                {activeSessions.map((s: Record<string, unknown>) => {
-                                  const isActive  = s.is_active === true;
-                                  const platform  = String(s.platform  ?? "desktop");
-                                  const endReason = s.end_reason ? (END_REASON_LABELS[String(s.end_reason)] ?? String(s.end_reason)) : null;
-                                  const statusLabel = isActive ? "Aktif" : endReason === "Admin sonlandırdı" ? "Sonlandırıldı" : "Pasif";
-                                  const statusCls   = isActive ? "bg-sky-100 text-sky-900 ring-sky-200" : endReason === "Admin sonlandırdı" ? "bg-rose-100 text-rose-900 ring-rose-200" : "bg-slate-100 text-slate-600 ring-slate-200";
-                                  const platformIcon = platform === "mobile" ? <Smartphone className="h-3 w-3" /> : platform === "tablet" ? <Tablet className="h-3 w-3" /> : <Monitor className="h-3 w-3" />;
-                                  const browser   = parseBrowser(String(s.user_agent ?? ""));
-                                  const city      = String(s.city      ?? "—");
-                                  const country   = String(s.country   ?? "");
-                                  const ip        = String(s.ip_address ?? "—");
-                                  const lastSeen  = s.last_seen_at ? new Date(String(s.last_seen_at)).toLocaleString("tr-TR") : "—";
-                                  const createdAt = s.created_at   ? new Date(String(s.created_at)).toLocaleString("tr-TR")   : "—";
-                                  const sid       = String(s.id);
-                                  return (
-                                    <div key={sid} className={`rounded-xl border px-4 py-3 text-sm ${isActive ? "border-sky-200 bg-sky-50/60" : "border-slate-200 bg-white/70 opacity-75"}`}>
-                                      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                                        <div className="min-w-0 flex-1 space-y-1.5">
-                                          {/* Durum + Platform + Lokasyon satırı */}
-                                          <div className="flex flex-wrap items-center gap-1.5">
-                                            <span className={`rounded-full px-2 py-0.5 text-[10px] font-black ring-1 ${statusCls}`}>{statusLabel}</span>
-                                            <span className="inline-flex items-center gap-1 rounded-full bg-indigo-50 px-2 py-0.5 text-[10px] font-black text-indigo-800 ring-1 ring-indigo-100">
-                                              {platformIcon} {PLATFORM_LABELS[platform] ?? platform}
-                                            </span>
-                                            {s.client_channel === "android_app" && (
-                                              <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-black text-emerald-800 ring-1 ring-emerald-100">Android uygulama (kalıcı)</span>
-                                            )}
-                                            {s.session_state === "pending_approval" && !s.ended_at && (
-                                              <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-black text-amber-800 ring-1 ring-amber-100">Onay bekliyor</span>
-                                            )}
-                                            <span className="font-bold text-slate-900">{city}{country ? `, ${country}` : ""}</span>
-                                          </div>
-                                          {/* IP + Tarayıcı satırı */}
-                                          <div className="flex flex-wrap items-center gap-3">
-                                            <span className="font-mono text-xs text-slate-500">{ip}</span>
-                                            <span className="rounded-full bg-slate-50 px-2 py-0.5 text-[10px] font-bold text-slate-600 ring-1 ring-slate-100">{browser}</span>
-                                          </div>
-                                          {/* Zaman bilgisi */}
-                                          <div className="text-xs text-slate-400">
-                                            <span>Giriş: {createdAt}</span>
-                                            <span className="mx-1.5">·</span>
-                                            <span>Son: {lastSeen}</span>
-                                            {endReason ? <><span className="mx-1.5">·</span><span className="text-rose-500">{endReason}</span></> : null}
-                                          </div>
-                                        </div>
-                                        {/* P1-7: kendi hesabı / ana yönetici hedefi / (normal admin için) admin hedefi → buton GİZLİ. */}
-                                        {isActive && canManageAccountActions() ? (
-                                          <button type="button" onClick={() => void terminateSession(sid)} disabled={terminatingSessionId === sid}
-                                            className="inline-flex h-8 shrink-0 items-center gap-1.5 self-start rounded-xl border-2 border-rose-200 bg-white px-3 text-xs font-black text-rose-800 transition hover:border-rose-400 hover:bg-rose-50 disabled:opacity-50 sm:self-center">
-                                            {terminatingSessionId === sid ? <Loader2 className="h-3 w-3 animate-spin" aria-hidden /> : null}
-                                            Sonlandır
-                                          </button>
-                                        ) : null}
-                                      </div>
-                                    </div>
-                                  );
-                                })}
-                              </div>
-                            )}
-                            {hasDateFilter && activeSessions.length < actSessTotal ? (
-                              <button type="button"
-                                onClick={() => { void fetchActiveSessionsPaged({ limit: 25, offset: actSessOffset + 25, dateFrom: devicesDateFrom, dateTo: devicesDateTo, append: true }); }}
-                                className="mt-3 rounded-xl border-2 border-sky-200 bg-white px-4 py-1.5 text-sm font-black text-sky-700 transition hover:bg-sky-50">
-                                Daha Fazla Yükle ({actSessTotal - activeSessions.length} kaldı)
-                              </button>
-                            ) : null}
-                          </div>
-                        );
-                      })()}
-                    </>
-                  ) : (
-                    <p className="text-sm font-medium text-slate-500">Veri yüklenemedi.</p>
-                  )}
-                </div>
-              ) : null}
-            </section>
-            {isTrialMember ? (
-              <section className={`${panelClass} border-slate-200/80`} aria-labelledby="uye-deneme-erisimi">
-                <h2 id="uye-deneme-erisimi" className="text-xl font-black text-slate-950">Deneme erişimi</h2>
-                <div className="mt-4">
-                  <TrialStatePanel mgmt={trialMgmt} />
-                </div>
-              </section>
-            ) : null}
-            <section className={`${panelClass} border-slate-200/80`} aria-labelledby="uye-hesap-islemleri">
-              <h2 id="uye-hesap-islemleri" className="text-xl font-black text-slate-950">Hesap ve erişim işlemleri</h2>
-              <div className="mt-4 rounded-2xl border-2 border-slate-100 bg-white/70 p-4" role="group" aria-labelledby="actions-account">
-                <p id="actions-account" className="text-xs font-black uppercase tracking-wide text-slate-700">
-                  Hesap Yönetimi
+            {/* ── 6. Arşiv durumu, açıklamalar ve ilgili bağlantılar ── */}
+            <section id="uye-arsiv-durumu" className={`${panelClass} border-slate-200/80`} aria-labelledby="uye-arsiv-durumu-baslik">
+              <h2 id="uye-arsiv-durumu-baslik" className="text-xl font-black text-slate-950">Arşiv durumu ve açıklamalar</h2>
+              {isArchived ? (
+                <p className="mt-3 text-sm font-bold text-slate-700" data-archived-note>
+                  Hesap arşivde: “Aktif Yap” kullanılamaz. Önce arşivden çıkarılır (hesap pasif kalır), ardından aktifleştirilebilir.
                 </p>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    onClick={openEdit}
-                    className={`${actionBtn} border-violet-200 bg-violet-50 text-violet-950`}
-                  >
-                    <Pencil className="h-4 w-4" aria-hidden />
-                    Profili Düzenle
-                  </button>
-                  <button
-                    type="button"
-                    disabled={!canResetPassword()}
-                    title={
-                      isManagedOwnerAdmin(user)
-                        ? "Ana yönetici hesabına bu işlem uygulanamaz."
-                        : !viewerIsMainAdmin
-                          ? "Parola sıfırlama yalnızca ana yöneticiye açıktır."
-                          : undefined
-                    }
-                    onClick={() => {
-                      if (passwordOpen) {
-                        closePasswordPanel();
-                      } else {
-                        setPasswordOpen(true);
-                        setEditOpen(false);
-                      }
-                    }}
-                    aria-expanded={passwordOpen}
-                    className={`${actionBtn} border-amber-200 bg-amber-50 text-amber-950`}
-                  >
-                    <KeyRound className="h-4 w-4" aria-hidden />
-                    Parolayı Sıfırla
-                  </button>
-                  {!user.active && !isArchived && (user.role === "admin" || user.approvalStatus === "approved") ? (
-                    <button
-                      type="button"
-                      disabled={actionUserId === user.id || !canManageAccountActions()}
-                      onClick={requestToggleActive}
-                      className={`${actionBtn} border-sky-300 bg-sky-50 text-sky-950 hover:bg-sky-100`}
-                    >
-                      <UserCheck className="h-4 w-4" aria-hidden />
-                      Aktif Yap
-                    </button>
-                  ) : null}
-                </div>
-                <p className="mt-2 text-[11px] font-medium text-slate-500">
-                  {viewerIsMainAdmin
-                    ? "Parola sıfırlandığında kullanıcı tüm cihazlardan çıkarılır."
-                    : "Parola sıfırlama ve e-posta değişikliği yalnızca ana yöneticiye açıktır (hesap güvenliği)."}
-                </p>
-              </div>
-
-              <div className="mt-4 rounded-2xl border-2 border-rose-200 bg-rose-50/40 p-4" role="group" aria-labelledby="actions-danger">
-                <p id="actions-danger" className="text-xs font-black uppercase tracking-wide text-rose-900">
-                  Tehlikeli İşlemler
-                </p>
-                <p className="mt-1 text-xs font-medium text-rose-900/80">
-                  Bu işlemler kullanıcının erişimini keser; her biri ayrıca onay ister.
-                </p>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {user.active ? (
-                    <button
-                      type="button"
-                      disabled={actionUserId === user.id || !canManageAccountActions()}
-                      title={
-                        isSelf()
-                          ? "Kendi hesabınız üzerinde durum değişikliği yapamazsınız."
-                          : isManagedOwnerAdmin(user)
-                            ? "Ana yönetici pasifleştirilemez."
-                            : user.role === "admin" && !viewerIsMainAdmin
-                              ? "Yönetici hesabı durumunu yalnızca ana yönetici değiştirebilir."
-                              : undefined
-                      }
-                      onClick={requestToggleActive}
-                      className={`${actionBtn} border-slate-300 bg-white text-slate-800 hover:bg-slate-100`}
-                    >
-                      <UserX className="h-4 w-4" aria-hidden />
-                      Pasif Yap
-                    </button>
-                  ) : null}
-                  <button
-                    type="button"
-                    disabled={!canManageAccountActions()}
-                    title={
-                      isManagedOwnerAdmin(user)
-                        ? "Ana yönetici hesabına bu işlem uygulanamaz."
-                        : user.role === "admin" && !viewerIsMainAdmin
-                          ? "Bu işlem yalnızca ana yöneticiye açıktır."
-                          : undefined
-                    }
-                    onClick={openLogoutAllModal}
-                    className={`${actionBtn} border-orange-300 bg-white text-orange-900 hover:bg-orange-50`}
-                  >
-                    <LogOut className="h-4 w-4" aria-hidden />
-                    Tüm Cihazlardan Çıkış
-                  </button>
-                  {isSelf() ? null : isArchived ? (
-                    <button
-                      type="button"
-                      disabled={!viewerIsMainAdmin}
-                      title={viewerIsMainAdmin ? undefined : "Arşivden çıkarma yalnızca ana yöneticiye açıktır."}
-                      onClick={() => setUnarchiveOpen(true)}
-                      data-unarchive-open
-                      className={`${actionBtn} border-sky-300 bg-white text-sky-900 hover:bg-sky-50 disabled:opacity-60`}
-                    >
-                      <ArchiveRestore className="h-4 w-4" aria-hidden />
-                      Arşivden Çıkar
-                    </button>
-                  ) : !canArchiveTarget ? null : canDeleteAsOwner ? (
-                    <button
-                      type="button"
-                      disabled={deleteSubmitting}
-                      onClick={openDeleteConfirmModal}
-                      className={`${actionBtn} border-rose-400 bg-white text-rose-900 hover:bg-rose-100`}
-                    >
-                      <Trash2 className="h-4 w-4" aria-hidden />
-                      Pasife Al ve Arşivle
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      disabled
-                      title="Arşivleme yetkisi yalnızca ana yöneticiye aittir."
-                      className={`${actionBtn} border-rose-200/60 bg-white/60 text-rose-400`}
-                    >
-                      <Trash2 className="h-4 w-4" aria-hidden />
-                      Pasife Al ve Arşivle
-                    </button>
-                  )}
-                </div>
-                {!isSelf() && !canDeleteAsOwner && (isArchived || canArchiveTarget) ? (
-                  <p className="mt-2 text-[11px] font-bold text-slate-500">
-                    {isArchived ? "Arşivden çıkarma yetkisi yalnızca ana yöneticiye aittir." : "Arşivleme yetkisi yalnızca ana yöneticiye aittir."}
-                  </p>
-                ) : null}
-                {isArchived ? (
-                  <p className="mt-2 text-[11px] font-bold text-slate-600" data-archived-note>
-                    Hesap arşivde: “Aktif Yap” kullanılamaz. Önce arşivden çıkarılır (hesap pasif kalır), ardından aktifleştirilebilir.
-                  </p>
-                ) : null}
-              </div>
-
-              {passwordOpen && canResetPassword() ? (
-                <div className="mt-4 rounded-2xl border-2 border-amber-200 bg-amber-50/80 p-4">
-                  <p className="text-sm font-black text-amber-950">Yeni parola belirle</p>
-                  <p className="mt-1 text-xs font-bold text-amber-900/85">
-                    Parola değiştirildiğinde kullanıcı tüm cihazlardan çıkarılır ve tekrar giriş yapması gerekir.
-                  </p>
-                  <div className="mt-3 space-y-2">
-                    <PasswordInput
-                      id="admin-reset-password"
-                      autoComplete="new-password"
-                      aria-label="Yeni parola"
-                      className={`${inputClass} mt-0 w-full`}
-                      value={newPassword}
-                      onChange={(e) => setNewPassword(e.target.value)}
-                      placeholder="Yeni parola (en az 6 karakter)"
-                    />
-                    <PasswordInput
-                      id="admin-reset-password-repeat"
-                      autoComplete="new-password"
-                      aria-label="Yeni parola (tekrar)"
-                      className={`${inputClass} mt-0 w-full`}
-                      value={newPasswordRepeat}
-                      onChange={(e) => setNewPasswordRepeat(e.target.value)}
-                      placeholder="Yeni parola (tekrar)"
-                    />
-                    <p className="text-xs font-medium text-amber-900/80">{PASSWORD_HINT}</p>
-                    {newPasswordRepeat.length > 0 && newPassword.trim() !== newPasswordRepeat.trim() ? (
-                      <p className="text-xs font-bold text-rose-700">Parolalar eşleşmiyor.</p>
-                    ) : null}
-                  </div>
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    <button
-                      type="button"
-                      onClick={savePassword}
-                      disabled={
-                        savingPassword ||
-                        newPassword.trim().length < PASSWORD_MIN_LENGTH ||
-                        newPassword.trim() !== newPasswordRepeat.trim()
-                      }
-                      className={`${saveBtnClass} disabled:cursor-not-allowed disabled:opacity-50`}
-                    >
-                      {savingPassword ? "Kaydediliyor…" : "Parolayı Sıfırla"}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={closePasswordPanel}
-                      disabled={savingPassword}
-                      className={`${actionBtn} border-slate-200 bg-white text-slate-800`}
-                    >
-                      İptal
-                    </button>
-                  </div>
-                </div>
-              ) : null}
-
-              {editOpen && editForm ? (
-                <div className="mt-4 rounded-2xl border-2 border-violet-200 bg-violet-50/50 p-4">
-                  <p className="text-sm font-black text-violet-950">Profil bilgilerini düzenle</p>
-                  <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                    <label className="block sm:col-span-2">
-                      <span className={labelClass}>Ad Soyad</span>
-                      <input
-                        className={inputClass}
-                        value={editForm.fullName}
-                        onChange={(e) =>
-                          setEditForm((f) =>
-                            f ? { ...f, fullName: e.target.value } : f,
-                          )
-                        }
-                      />
-                    </label>
-                    <label className="block">
-                      <span className={labelClass}>E-posta</span>
-                      <input
-                        type="email"
-                        className={`${inputClass} read-only:bg-slate-50 read-only:text-slate-500`}
-                        value={viewerIsMainAdmin ? editForm.email : user.email}
-                        readOnly={!viewerIsMainAdmin}
-                        aria-describedby={viewerIsMainAdmin ? undefined : "edit-email-hint"}
-                        onChange={(e) =>
-                          setEditForm((f) => (f ? { ...f, email: e.target.value } : f))
-                        }
-                      />
-                      {!viewerIsMainAdmin ? (
-                        <span id="edit-email-hint" className="mt-1 block text-xs font-bold text-slate-500">
-                          E-posta (giriş kimliği) yalnızca ana yönetici tarafından değiştirilebilir.
-                        </span>
-                      ) : null}
-                    </label>
-                    <label className="block">
-                      <span className={labelClass}>Rol</span>
-                      <select
-                        className={inputClass}
-                        value={editForm.role}
-                        onChange={(e) =>
-                          setEditForm((f) =>
-                            f
-                              ? { ...f, role: e.target.value as ManagedUserRole }
-                              : f,
-                          )
-                        }
-                      >
-                        <option value="expert">Uzman</option>
-                        <option value="admin">Yönetici</option>
-                      </select>
-                    </label>
-                  </div>
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    <button
-                      type="button"
-                      onClick={saveEdit}
-                      disabled={savingEdit}
-                      className={saveBtnClass}
-                    >
-                      {savingEdit ? "Kaydediliyor…" : "Kaydet"}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setEditOpen(false)}
-                      className={`${actionBtn} border-slate-200 bg-white text-slate-800`}
-                    >
-                      İptal
-                    </button>
-                  </div>
-                </div>
               ) : null}
               <div className="mt-4 grid gap-3">
                 <p className={detailCss.note}>
