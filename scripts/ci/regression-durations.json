@@ -99,6 +99,7 @@
   "scripts/demo-vitrin/harness.ts": 3.4,
   "scripts/demo-vitrin/insan-tasarimi-demo.harness.ts": 0.7,
   "scripts/demo-vitrin/provider-policy.harness.ts": 0.5,
+  "scripts/deneme-hesap-durumu/hesap-durumu.harness.ts": 7.1,
   "scripts/dogal-destek-p2/aroma/routes.harness.ts": 2.2,
   "scripts/dogal-destek-p2/beslenme/routes.harness.ts": 4.0,
   "scripts/dogal-destek-p2/sifa/routes.harness.ts": 1.8,
