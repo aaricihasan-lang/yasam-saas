@@ -57,7 +57,9 @@ async function main() {
 
   console.log("\n── C) Sayfa: kilit + otomatik sürdürme + sekmeler arası ──");
   const page = read("app/page.tsx");
-  ok(/\{!pendingLogin && \(\s*<>\s*<div className="relative z-10 mt-5 space-y-3\.5">/.test(page), "bekleme sırasında e-posta/parola/giriş butonu gösterilmez (form kilitli)");
+  // F2-C: form ayrıca MFA QR paneli açıkken de gizlenir (`&& !mfaChallenge`); bekleme kilidi aynen korunur.
+  ok(/\{!pendingLogin(?: && !mfaChallenge)? && \(\s*<>\s*<div className="relative z-10 mt-5 space-y-3\.5">/.test(page), "bekleme sırasında e-posta/parola/giriş butonu gösterilmez (form kilitli)");
+  ok(/\{mfaChallenge && \(\s*<MfaQrPanel/.test(page) && /\{!pendingLogin && !mfaChallenge && \(/.test(page), "F2-C: QR onay paneli açıkken parola formu gösterilmez");
   ok(/if \(pendingLogin \|\| readPendingLogin\(\)\) return;/.test(page), "bekleyen işlem varken yeni login/session OLUŞTURULMAZ");
   ok(/void cancelPendingLogin\(tok\)/.test(page) && /auth\.pendingCancel/.test(page), "'Beklemeyi iptal et' sunucu iptaliyle");
   ok(/const restore = \(\) => \{[\s\S]*readPendingLogin\(\)[\s\S]*setPendingLogin\(/.test(page) && /window\.addEventListener\("storage", onStorage\)/.test(page),

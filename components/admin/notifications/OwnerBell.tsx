@@ -134,7 +134,9 @@ export default function OwnerBell({ placement, compact = false }: Props) {
   const row = (it: OwnerNotificationItem, kind: "action" | "info") => {
     const name = it.full_name || it.email || "Silinmiş üye";
     const hint = OWNER_ACTION_HINT[it.type];
-    const href = it.target_user_id ? `/admin/users/${encodeURIComponent(it.target_user_id)}` : "/admin/bildirimler";
+    const href = it.type === "cihaz_eslesme"
+      ? "/admin/cihaz-onaylari"
+      : it.target_user_id ? `/admin/users/${encodeURIComponent(it.target_user_id)}` : "/admin/bildirimler";
     const unread = kind === "info" && !it.read;
     return (
       <li key={it.id}>

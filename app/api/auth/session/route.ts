@@ -43,6 +43,7 @@ import {
   resolveOfferedMfaMethods,
   setMfaBindingCookie,
 } from "@/lib/auth/mfaChallenge";
+import { qrApprovalUrl } from "@/lib/auth/deviceSignature";
 
 export const runtime = "nodejs";
 
@@ -218,6 +219,10 @@ export async function POST(req: NextRequest) {
           challengeId: begun.challengeId,
           expiresAt: begun.expiresAt,
           methods,
+          // F2-C: QR (App Link) + eşleştirme kodu YALNIZ başlatan istemciye; challenge_id tek başına yetmez.
+          ...(methods.includes("qr_device") && begun.qrNonce && begun.matchCode
+            ? { qr: { url: qrApprovalUrl(begun.challengeId, begun.qrNonce), matchCode: begun.matchCode } }
+            : {}),
           ...(androidApp ? { mfaBinding: bindingSecret } : {}),
           error: methods.length > 0
             ? "Girişi tamamlamak için ikinci doğrulama gerekiyor."

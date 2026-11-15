@@ -123,6 +123,10 @@ export const TABLE_POLICY_OVERRIDES: Readonly<Record<string, RestorePolicy>> = {
   // GİRİŞ GÜVENLİĞİ F2-B: MFA challenge / test izni geri yüklenirse MFA atlatılabilir → asla restore edilmez.
   auth_mfa_challenges: "DO_NOT_RESTORE",
   auth_mfa_test_accounts: "DO_NOT_RESTORE",
+  // GİRİŞ GÜVENLİĞİ F2-C: güvenilir cihaz / karar / Owner ilk cihaz kodu → asla restore edilmez.
+  auth_trusted_devices: "DO_NOT_RESTORE",
+  auth_device_decisions: "DO_NOT_RESTORE",
+  auth_owner_bootstrap_codes: "DO_NOT_RESTORE",
 };
 
 /**

@@ -544,6 +544,11 @@ export const BACKUP_REGISTRY: readonly RegistryEntry[] = [
   // challenge'ı/izni yeniden canlandırıp MFA'yı atlatma yolu olurdu → yedeğe GİRMEZ.
   off("auth_mfa_challenges", "system", "MFA giriş challenge'ları (güvenlik; kısa ömürlü).", "none"),
   off("auth_mfa_test_accounts", "system", "MFA kontrollü test hesabı izin listesi (Owner; güvenlik).", "none"),
+  // GİRİŞ GÜVENLİĞİ F2-C (migration 20280103000300): güvenilir cihaz açık anahtarları, Owner kararları ve
+  // Owner ilk cihaz kodları — geri yükleme iptal edilmiş bir cihazı/kodu canlandırıp MFA'yı atlatabilirdi.
+  off("auth_trusted_devices", "system", "Güvenilir Android cihazı kayıtları (güvenlik).", "none"),
+  off("auth_device_decisions", "system", "Cihaz eşleştirme karar kaydı (güvenlik; değiştirilemez).", "none"),
+  off("auth_owner_bootstrap_codes", "system", "Owner ilk cihaz kodları (güvenlik; tek kullanımlık).", "none"),
   // Migration 20271009100000: purge transaction'ına bağlı işaret; aynı tx'te yazılıp silinir, hiçbir role açık değil.
   off("session_limit_exceptions", "system", "Geçici test hesabı oturum-limiti istisnası (TEMPORARY — satış sonrası kaldırılacak).", "none"),
   off("auth_rate_limit_events", "system", "Global DB tabanlı istek hız sınırı olayları (güvenlik).", "none"),
