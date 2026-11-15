@@ -9,7 +9,8 @@
  *      (aktif / pasif / arşivde hesap × devam eden deneme, başlamamış, süresi dolmuş, durdurulmuş, incelemede)
  *   Y  salt-okunur: liste çağrısı kullanıcı / deneme / audit satırlarını değiştirmez
  *   F  4a öncesi şema (archived_at yok, 42703): uç yine 200; arşivdeki hesap en kötü "Pasif", asla "Aktif"
- *   S  ekran kaynağı: iki ayrı rozet ("Hesap: …" ve "Deneme: …"); tek başına faz etiketi kalmadı
+ *   S  ekran kaynağı: iki ayrı rozet ("Hesap: …" ve "Deneme: …"); tek başına faz etiketi kalmadı; arşivde işlem
+ *      düğmeleri çizilmez; kredi kutuları mobilde alt alta
  *
  * Çalıştır: npx tsx scripts/deneme-hesap-durumu/hesap-durumu.harness.ts
  */
@@ -100,6 +101,13 @@ function sectionS(): void {
   ok(!/\{PHASE_LABEL\[r\.phase\]\}/.test(src), "eski tek faz rozeti (yalnız \"Aktif\") kaldırıldı");
   ok(/trialAccountState\(r\)/.test(src) && /data-account-note/.test(src), "hesap durumu satır verisinden türetilir; pasif / arşiv notu çizilir");
   ok(/\{ key: "active", label: "Devam eden" \}/.test(src), "filtre sekmesi deneme fazını adlandırır (\"Devam eden\"); filtre anahtarları aynı");
+  ok(/const archived = account === "archived";/.test(src) && /data-archived-readonly/.test(src) && /converting && !archived/.test(src),
+    "arşivdeki hesapta deneme işlem düğmeleri ve Pro geçiş paneli çizilmez (salt-okunur blok)");
+  ok(/archived \? \(\s*<dl data-credit-readonly/.test(src), "arşivde kredi limitleri salt-okunur gösterilir (giriş kutusu / Limitleri kaydet yok)");
+  ok(/data-credit-inputs className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-4"/.test(src) && (src.match(/h-9 w-full min-w-0/g) ?? []).length === 2,
+    "kredi kutuları mobilde alt alta (grid-cols-1), masaüstünde 4 sütun (sm:grid-cols-4) korunur; kutular kapsayıcıya sığar");
+  ok(/action: "dismiss_pro_request"/.test(src.slice(src.indexOf("data-archived-readonly"))), "arşivde sunucunun izin verdiği \"Talebi kapat\" korunur (hak açmaz)");
+  ok(/href=\{`\/admin\/users\/\$\{encodeURIComponent\(r\.id\)\}`\}/.test(src), "arşivden çıkarma yolu: Üye Detayı bağlantısı (mevcut ana yönetici akışı)");
 }
 
 async function main(): Promise<void> {

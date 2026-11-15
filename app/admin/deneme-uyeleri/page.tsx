@@ -279,6 +279,9 @@ function TrialRowCard({
   const flags = useMemo(() => (r.risk_flags ?? []).map((f) => RISK_LABEL[f] ?? f), [r.risk_flags]);
   const account = trialAccountState(r);
   const accountNote = trialAccountNote(account, r.phase);
+  // Aşama 4a: arşivdeki hesapta kredi limiti, inceleme, durdur/sürdür ve Pro'ya geçiş sunucuda 409 ile reddedilir →
+  // bu düğmeler hiç çizilmez; bilgiler okunur kalır. Pro talebini kapatma hak açmadığı için sunucuda serbesttir.
+  const archived = account === "archived";
 
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
@@ -321,20 +324,42 @@ function TrialRowCard({
             <p className="mt-0.5 text-xs text-slate-500">
               Bugün: {(Object.keys(CREDIT_LABEL) as CreditModule[]).map((k) => `${CREDIT_LABEL[k]} ${r.used_by_module[k] ?? 0}`).join(" · ")} · Kalan {Math.max(0, r.daily_limit - r.used_total)}
             </p>
-            <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
-              <label className="grid gap-1 text-xs font-semibold text-slate-600">Ortak günlük
-                <input inputMode="numeric" value={daily} onChange={(e) => setDaily(e.target.value.replace(/\D/g, ""))} className="h-9 rounded-lg border border-slate-200 px-2 text-sm" />
-              </label>
-              {(Object.keys(CREDIT_LABEL) as CreditModule[]).map((k) => (
-                <label key={k} className="grid gap-1 text-xs font-semibold text-slate-600">{CREDIT_LABEL[k]} (isteğe bağlı)
-                  <input inputMode="numeric" placeholder="—" value={mods[k]} onChange={(e) => setMods((m) => ({ ...m, [k]: e.target.value.replace(/\D/g, "") }))} className="h-9 rounded-lg border border-slate-200 px-2 text-sm" />
-                </label>
-              ))}
-            </div>
-            <button type="button" disabled={busy || daily === ""} onClick={saveLimits} className="mt-3 rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-bold text-white disabled:opacity-50">Limitleri kaydet</button>
+            {archived ? (
+              <dl data-credit-readonly className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-4">
+                <div className="min-w-0"><dt className="text-xs font-semibold text-slate-600">Ortak günlük</dt><dd className="font-semibold text-slate-800">{r.daily_limit}</dd></div>
+                {(Object.keys(CREDIT_LABEL) as CreditModule[]).map((k) => (
+                  <div key={k} className="min-w-0"><dt className="text-xs font-semibold text-slate-600">{CREDIT_LABEL[k]}</dt><dd className="font-semibold text-slate-800">{r.module_limits[k] ?? "—"}</dd></div>
+                ))}
+              </dl>
+            ) : (
+              <>
+                <div data-credit-inputs className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-4">
+                  <label className="grid min-w-0 gap-1 text-xs font-semibold text-slate-600">Ortak günlük
+                    <input inputMode="numeric" value={daily} onChange={(e) => setDaily(e.target.value.replace(/\D/g, ""))} className="h-9 w-full min-w-0 rounded-lg border border-slate-200 px-2 text-sm" />
+                  </label>
+                  {(Object.keys(CREDIT_LABEL) as CreditModule[]).map((k) => (
+                    <label key={k} className="grid min-w-0 gap-1 text-xs font-semibold text-slate-600">{CREDIT_LABEL[k]} (isteğe bağlı)
+                      <input inputMode="numeric" placeholder="—" value={mods[k]} onChange={(e) => setMods((m) => ({ ...m, [k]: e.target.value.replace(/\D/g, "") }))} className="h-9 w-full min-w-0 rounded-lg border border-slate-200 px-2 text-sm" />
+                    </label>
+                  ))}
+                </div>
+                <button type="button" disabled={busy || daily === ""} onClick={saveLimits} className="mt-3 rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-bold text-white disabled:opacity-50">Limitleri kaydet</button>
+              </>
+            )}
           </div>
 
-          <div className="flex flex-wrap gap-2">
+          {archived ? (
+            <div data-archived-readonly className="grid gap-2 rounded-xl border border-slate-200 bg-slate-50 p-3 text-slate-700">
+              <p>Arşivdeki hesapta deneme işlemleri (kredi limiti, inceleme, durdurma / sürdürme, Pro üyeliğe geçiş) yapılamaz. Arşivden çıkarma yalnız ana yönetici tarafından Üye Detayı&apos;ndaki &quot;Arşivden Çıkar&quot; ile yapılır; hesap arşivden çıkınca pasif kalır.</p>
+              <div className="flex flex-wrap gap-2">
+                <Link href={`/admin/users/${encodeURIComponent(r.id)}`} className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700">Üye detayını aç</Link>
+                {r.pro_request_at ? (
+                  <button type="button" disabled={busy} onClick={() => run(() => act(base, "PATCH", { action: "dismiss_pro_request" }, "Pro talebi kapatıldı."))} className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700">Talebi kapat</button>
+                ) : null}
+              </div>
+            </div>
+          ) : (
+          <div data-trial-actions className="flex flex-wrap gap-2">
             {r.phase === "review" ? (
               <button type="button" disabled={busy} onClick={() => state("clear_review", "İnceleme kaldırıldı.")} className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-800">İncelemeyi kaldır</button>
             ) : r.phase === "active" || r.phase === "not_started" ? (
@@ -352,8 +377,9 @@ function TrialRowCard({
               <Crown className="h-3.5 w-3.5" /> Pro üyeliğe geçir
             </button>
           </div>
+          )}
 
-          {converting ? (
+          {converting && !archived ? (
             <div className="rounded-xl border border-violet-200 bg-violet-50/50 p-3">
               <p className="font-bold text-slate-800">Ödeme alındıktan sonra açılacak modülleri seçin</p>
               <p className="text-xs text-slate-500">Hesap, tenant ve tüm kayıtlar korunur. Dijital İçerik otomatik açılmaz; gerekiyorsa seçin.</p>

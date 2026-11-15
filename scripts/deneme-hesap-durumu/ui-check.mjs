@@ -68,6 +68,17 @@ const CASES = [
   ["ZZ_DHD Gül Pasif Süresi Bitmiş", "Hesap: Pasif", "Deneme: Süresi dolmuş"],
 ];
 
+const ACT = ["İncelemeye al", "Deneme erişimini durdur", "Pro üyeliğe geçir"];
+const OPEN_CASES = [
+  ["ZZ_DHD Ada Aktif Denemede", { slug: "aktif-devam", buttons: ACT }],
+  ["ZZ_DHD Bora Pasif Denemede", { slug: "pasif-devam", buttons: ACT }],
+  ["ZZ_DHD Cem Arşivde Denemede", { slug: "arsiv-devam", archived: true }],
+  ["ZZ_DHD Derya Başlamamış", { slug: "baslamamis", buttons: ACT }],
+  ["ZZ_DHD Ece Süresi Bitmiş", { slug: "suresi-bitmis", buttons: ["Pro üyeliğe geçir"] }],
+  ["ZZ_DHD Fikret Durdurulmuş", { slug: "durdurulmus", buttons: ["Erişimi sürdür", "Pro üyeliğe geçir"] }],
+  ["ZZ_DHD Gül Pasif Süresi Bitmiş", { slug: "pasif-suresi-bitmis", buttons: ["Pro üyeliğe geçir"] }],
+];
+
 for (const [label, vp] of [["masaustu-1280", { width: 1280, height: 900 }], ["mobil-320", { width: 320, height: 780 }], ["mobil-375", { width: 375, height: 812 }], ["mobil-390", { width: 390, height: 844 }]]) {
   console.log(`\n[${label}]`);
   const { ctx, page } = await open(vp);
@@ -89,15 +100,63 @@ for (const [label, vp] of [["masaustu-1280", { width: 1280, height: 900 }], ["mo
   await note.waitFor({ timeout: 5000 });
   ok(/Hesap pasif: üye giriş yapamaz\. Deneme süresi hesap durumundan bağımsız işlemeye devam eder\./.test(await note.innerText()), "pasif kart açılınca açıklama notu görünür");
   ok((await card(page, "ZZ_DHD Ada Aktif Denemede").locator("[data-account-note]").count()) === 0, "aktif hesapta not yok");
-  // Not: "Günlük Roxy kredisi" limit girişleri (bu PR'da DEĞİŞMEYEN bölüm) dar ekranda kartın dışına taşıyor — main'de
-  // de aynı, ayrı bulgu olarak raporlanır. Burada yalnız sayfa kaydırması ve bu PR'ın öğeleri (rozet / not) denetlenir.
-  const ov2 = await overflow(page);
-  const extra = ov2.out.filter((o) => !o.startsWith("INPUT.h-9 rounded-lg border border-slate-200"));
-  ok(ov2.pageOv <= 0 && extra.length === 0, `açık kartta sayfa kaydırması yok; rozet / not taşmıyor (${vp.width}px)`, ov2);
-  if (ov2.n > 0) console.log(`    · bilgi: mevcut kredi limiti girişlerinde ${ov2.n} taşma (değişmeyen bölüm, ayrı bulgu)`);
   const noteBox = await note.boundingBox();
   ok(noteBox && noteBox.x >= 0 && noteBox.x + noteBox.width <= vp.width, "pasif notu ekran genişliği içinde", noteBox);
-  await card(page, "ZZ_DHD Bora Pasif Denemede").screenshot({ path: path.join(SHOTS, `${label}-02-pasif-kart-acik.png`) });
+  await card(page, "ZZ_DHD Bora Pasif Denemede").locator("button").first().click();
+  await page.waitForTimeout(300);
+
+  // Açık kart vakaları: kredi kutuları taşmaz / çakışmaz; arşivde işlem düğmeleri yok; diğerlerinde düğmeler aynen.
+  for (const [i, [name, expect]] of OPEN_CASES.entries()) {
+    const short = name.replace("ZZ_DHD ", "");
+    const c = card(page, name);
+    await c.locator("button").first().click();
+    await c.getByText("Günlük Roxy kredisi").waitFor({ timeout: 5000 });
+    await page.waitForTimeout(250);
+    const ovc = await overflow(page);
+    ok(ovc.pageOv <= 0 && ovc.n === 0, `${short}: açık kartta hiçbir öğe taşmıyor (${vp.width}px)`, ovc);
+    const geo = await c.evaluate((el) => {
+      const cr = el.getBoundingClientRect();
+      const box = [...el.querySelectorAll("[data-credit-inputs] label, [data-credit-readonly] > div")].map((n) => n.getBoundingClientRect());
+      const inputs = [...el.querySelectorAll("[data-credit-inputs] input")].map((n) => n.getBoundingClientRect());
+      const inside = [...box, ...inputs].every((r) => r.left >= cr.left - 0.5 && r.right <= cr.right + 0.5);
+      let overlap = 0;
+      for (let a = 0; a < box.length; a++) for (let b = a + 1; b < box.length; b++) {
+        const A = box[a], B = box[b];
+        if (A.left < B.right - 0.5 && B.left < A.right - 0.5 && A.top < B.bottom - 0.5 && B.top < A.bottom - 0.5) overlap++;
+      }
+      // Her etiketin metni tek satır mı / girişin üstünde mi: metin alanı girişle çakışmamalı.
+      const labelText = [...el.querySelectorAll("[data-credit-inputs] label")].map((l) => {
+        const rng = document.createRange(); rng.selectNodeContents(l.firstChild); const t = rng.getBoundingClientRect();
+        const inp = l.querySelector("input").getBoundingClientRect();
+        return t.bottom <= inp.top + 0.5;
+      });
+      const rows = new Set(inputs.map((r) => Math.round(r.top))).size;
+      return { n: box.length, inputs: inputs.length, inside, overlap, textAbove: labelText.every(Boolean), rows };
+    });
+    ok(geo.n === 4 && geo.inside && geo.overlap === 0, `${short}: 4 kredi alanı kartın içinde, birbirine binmiyor`, geo);
+    if (expect.archived) {
+      ok(geo.inputs === 0 && (await c.getByRole("button", { name: "Limitleri kaydet" }).count()) === 0, `${short}: arşivde kredi limitleri salt-okunur (giriş / kaydet yok)`, geo);
+      const ro = await c.locator("[data-credit-readonly]").innerText();
+      ok(/Ortak günlük\s*50/.test(ro), `${short}: arşivde kredi bilgisi okunur`, ro);
+      for (const n of ["İncelemeye al", "İncelemeyi kaldır", "Deneme erişimini durdur", "Erişimi sürdür", "Pro üyeliğe geçir", "Pro üyeliğe geçişi onayla"]) {
+        ok((await c.getByRole("button", { name: n, exact: true }).count()) === 0, `${short}: arşivde "${n}" düğmesi yok`);
+      }
+      ok((await c.locator("[data-trial-actions]").count()) === 0 && await c.locator("[data-archived-readonly]").isVisible(), `${short}: işlem alanı yerine salt-okunur açıklama`);
+      const href = await c.getByRole("link", { name: "Üye detayını aç" }).getAttribute("href");
+      ok(href === `/admin/users/${cfg.ids.archivedRun}`, `${short}: arşivden çıkarma yolu (Üye Detayı) bağlantısı`, href);
+      ok(await c.getByRole("button", { name: "Talebi kapat", exact: true }).isVisible(), `${short}: sunucunun izin verdiği "Talebi kapat" korunur`);
+      ok(/Deneme bitişi/.test(await c.innerText()), `${short}: hesap / deneme bilgileri okunur kalır`);
+    } else {
+      ok(geo.inputs === 4 && geo.textAbove, `${short}: etiket metinleri kutuların üstünde, üst üste binme yok`, geo);
+      ok(vp.width >= 640 ? geo.rows === 1 : geo.rows === 4, vp.width >= 640 ? `${short}: masaüstünde 4 kutu tek satırda (mevcut görünüm)` : `${short}: mobilde kutular alt alta`, geo);
+      ok(await c.getByRole("button", { name: "Limitleri kaydet" }).isVisible(), `${short}: "Limitleri kaydet" var`);
+      const btns = (await c.locator("[data-trial-actions] button").allInnerTexts()).map((t) => t.trim());
+      ok(JSON.stringify(btns) === JSON.stringify(expect.buttons), `${short}: yetkili işlem düğmeleri değişmedi (${expect.buttons.join(" · ")})`, btns);
+    }
+    await c.screenshot({ path: path.join(SHOTS, `${label}-02-kart-${String(i + 1).padStart(2, "0")}-${expect.slug}.png`) });
+    await c.locator("button").first().click();
+    await page.waitForTimeout(250);
+  }
 
   await page.locator("main > div.mt-5 button").nth(1).click();
   await page.waitForTimeout(1200);

@@ -71,6 +71,9 @@ async function main(): Promise<void> {
     passiveExpired: await mk("ZZ_DHD Gül Pasif Süresi Bitmiş", "pasif-bitmis", { active: false, ...run(NOW - 10 * D, NOW - 3 * D) }),
   };
 
+  // Arşivdeki hesapta açık Pro talebi: "Talebi kapat" (sunucuda serbest, hak açmaz) korunmalı.
+  await su.query(`insert into public.pro_upgrade_requests(user_id, note) values ($1,'zz sentetik talep')`, [ids.archivedRun]);
+
   const shim = await startPgrestShim(db.pool);
   const cfg = {
     owner: { token: TOK, user: { id: OWNER, email: "zz.dhd.owner@example.test", name: "ZZ_DHD Owner", full_name: "ZZ_DHD Owner", role: "admin", status: "active", active: true, approval_status: "approved", is_super_admin: true, module_permissions: MODS } },
