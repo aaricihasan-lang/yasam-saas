@@ -9,7 +9,7 @@ import path from "node:path";
 
 const BASE = process.env.ONUI_BASE ?? "http://localhost:3951";
 const SHOTS = process.env.ONUI_SHOTS ?? path.join(os.tmpdir(), "owner-notifications-shots");
-const cfg = JSON.parse(readFileSync(path.join(os.tmpdir(), "owner-notifications-ui.json"), "utf8"));
+const cfg = JSON.parse(readFileSync(process.env.ONUI_CFG ?? path.join(os.tmpdir(), "owner-notifications-ui.json"), "utf8"));
 mkdirSync(SHOTS, { recursive: true });
 
 let pass = 0, fail = 0;

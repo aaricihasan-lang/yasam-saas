@@ -9,7 +9,7 @@ import path from "node:path";
 
 const BASE = process.env.L2UI_BASE ?? "http://localhost:3961";
 const SHOTS = process.env.L2UI_SHOTS ?? path.join(os.tmpdir(), "uye-listesi-v2-shots");
-const cfg = JSON.parse(readFileSync(path.join(os.tmpdir(), "uye-listesi-v2-ui.json"), "utf8"));
+const cfg = JSON.parse(readFileSync(process.env.L2UI_CFG ?? path.join(os.tmpdir(), "uye-listesi-v2-ui.json"), "utf8"));
 mkdirSync(SHOTS, { recursive: true });
 
 let pass = 0, fail = 0;

@@ -10,7 +10,7 @@ import path from "node:path";
 
 const BASE = process.env.H1H4_BASE ?? "http://localhost:3941";
 const SHOTS = process.env.H1H4_SHOTS ?? path.join(os.tmpdir(), "uye-yonetimi-h1h4-shots");
-const cfg = JSON.parse(readFileSync(path.join(os.tmpdir(), "uye-yonetimi-h1h4-ui.json"), "utf8"));
+const cfg = JSON.parse(readFileSync(process.env.H1H4_CFG ?? path.join(os.tmpdir(), "uye-yonetimi-h1h4-ui.json"), "utf8"));
 mkdirSync(SHOTS, { recursive: true });
 
 let pass = 0, fail = 0;

@@ -3,6 +3,10 @@
  * Ephemeral embedded-postgres (FAZ 2 tabanı + 360 + TRIAL7 + H2 + owner zili + liste V2) + PostgREST shim.
  *   NEXT_PUBLIC_SUPABASE_URL=<shim> SUPABASE_SERVICE_ROLE_KEY=zz-l2ui npx next dev --webpack -p 3961
  * Ardından: node scripts/uye-listesi-v2/ui-check.mjs
+ * YALITIM: test DB her koşuda kendine özgü geçici dizin + boş port kullanır (testDbRun.ts); başka koşuların klasörleri
+ * silinmez. Aynı anda birden çok yığın için L2UI_CFG ile ayrı yapılandırma yolu verin (ui-check aynı değişkeni okur);
+ * Postgres portu L2UI_PG_PORT ile sabitlenebilir. Kapatma: Ctrl+C (ya da TESTDB_STDIN_KAPAT=1 iken stdin'i kapatmak)
+ * → shim + test DB kapanır, yalnız bu koşunun dizini silinir.
  */
 import { randomUUID } from "node:crypto";
 import { writeFileSync } from "node:fs";
@@ -10,6 +14,7 @@ import os from "node:os";
 import path from "node:path";
 import { startPgrestShim } from "../uye-yonetimi-faz1/pgrestShim";
 import { startTestDb } from "../uye-yonetimi-faz2/testDb";
+import { freePort, installStackShutdown } from "../uye-yonetimi-faz2/testDbRun";
 import { readMig } from "../uye-yonetimi-360/migrationChain";
 
 const OWNER = "00000000-0000-4000-8000-0000000019a1";
@@ -22,7 +27,7 @@ const D = 86_400_000;
 const day = (ms: number) => new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Istanbul" }).format(new Date(ms));
 
 async function main(): Promise<void> {
-  const db = await startTestDb(54696, "uye-listesi-v2-ui");
+  const db = await startTestDb(Number(process.env.L2UI_PG_PORT ?? (await freePort())), "uye-listesi-v2-ui");
   const { su } = db;
   for (const f of [
     "20271009100000_admin_purge_archived_expert.sql", // 4a migration'ının ön koşulu (canlıda var)
@@ -106,9 +111,10 @@ async function main(): Promise<void> {
     expert: { token: TOK.expert, user: u(EXPERT, "ZZ_L2UI Uzman Kendisi", "expert") },
     ids,
   };
-  const cfgPath = path.join(os.tmpdir(), "uye-listesi-v2-ui.json");
+  const cfgPath = process.env.L2UI_CFG ?? path.join(os.tmpdir(), "uye-listesi-v2-ui.json");
   writeFileSync(cfgPath, JSON.stringify(cfg));
   console.log(`UI STACK HAZIR · shim ${shim.url} · cfg ${cfgPath}`);
+  installStackShutdown([() => shim.close(), () => db.stop()]);
   setInterval(() => { /* açık kal */ }, 1 << 30);
 }
 main().catch((e) => {
