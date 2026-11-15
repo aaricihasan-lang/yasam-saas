@@ -133,7 +133,16 @@ BEGIN
     END IF;
     RETURN NEW;
   END IF;
-  -- UPDATE: MFA kanıtı yalnız finalize içinde (NULL → değer) yazılır; sonra DEĞİŞMEZ.
+  -- UPDATE: kapalı/bekleyen oturumun AKTİFLEŞMESİ (admin_decide_pending_session) MFA zorunlu kullanıcıda
+  -- yalnız finalize içinde olabilir → MFA öncesi oluşmuş pending satırı onayla MFA'sız oturuma dönemez.
+  IF OLD.is_active = false AND NEW.is_active = true AND NOT v_finalize THEN
+    SELECT u.mfa_required INTO v_required FROM public.users u WHERE u.id = NEW.user_id;
+    IF coalesce(v_required, false) THEN
+      RAISE EXCEPTION 'MFA zorunlu kullanıcı için oturum yalnız auth_finalize_login ile aktifleşir'
+        USING ERRCODE = 'insufficient_privilege';
+    END IF;
+  END IF;
+  -- MFA kanıtı yalnız finalize içinde (NULL → değer) yazılır; sonra DEĞİŞMEZ.
   IF (NEW.mfa_method IS DISTINCT FROM OLD.mfa_method OR NEW.mfa_challenge_id IS DISTINCT FROM OLD.mfa_challenge_id)
      AND NOT (v_finalize AND OLD.mfa_method IS NULL AND OLD.mfa_challenge_id IS NULL) THEN
     RAISE EXCEPTION 'user_sessions MFA kanıt alanları değiştirilemez' USING ERRCODE = 'insufficient_privilege';
@@ -163,9 +172,29 @@ $$;
 REVOKE ALL ON FUNCTION public.auth_mfa_is_test_account(uuid) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.auth_mfa_is_test_account(uuid) TO service_role;
 
--- ── 7) Zorunluluk değişikliği (yalnız Owner, audit'li) ──────────────────────
+-- ── 7a) Kullanıcının kullanılabilir ikinci doğrulama yöntemi var mı? ─────────
+--   F2-B'de HİÇBİR yöntem yok → her zaman false (kimse hazırlıksız zorunlu yapılamaz).
+--   F2-C (güvenilir Android cihazı) / F2-D (doğrulanmış e-posta) bu fonksiyonu GENİŞLETİR.
+CREATE OR REPLACE FUNCTION public.auth_mfa_user_has_method(p_user_id uuid)
+RETURNS boolean
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+BEGIN
+  RETURN false;
+END $$;
+
+REVOKE ALL ON FUNCTION public.auth_mfa_user_has_method(uuid) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.auth_mfa_user_has_method(uuid) TO service_role;
+
+-- ── 7b) Zorunluluk değişikliği (yalnız Owner, audit'li) ─────────────────────
+--   Aktör ID olarak DEĞİL, aktif oturum TOKEN'ı ile kanıtlanır (service_role kodu başkasının ID'sini
+--   geçirip Owner taklidi yapamaz). Açmak için kullanıcının kullanılabilir yöntemi OLMALI.
+DROP FUNCTION IF EXISTS public.auth_mfa_set_required(uuid, uuid, boolean, text);
 CREATE OR REPLACE FUNCTION public.auth_mfa_set_required(
-  p_actor_id uuid, p_user_id uuid, p_required boolean, p_reason text
+  p_actor_token text, p_user_id uuid, p_required boolean, p_reason text
 ) RETURNS jsonb
 LANGUAGE plpgsql
 VOLATILE
@@ -174,12 +203,24 @@ SET search_path = ''
 AS $$
 DECLARE
   v_old boolean;
+  p_actor_id uuid;
 BEGIN
-  IF p_actor_id IS NULL OR p_user_id IS NULL OR p_required IS NULL THEN
+  IF p_actor_token IS NULL OR btrim(p_actor_token) = '' OR p_user_id IS NULL OR p_required IS NULL THEN
     RETURN jsonb_build_object('ok', false, 'code', 'bad_request');
   END IF;
-  IF NOT public.auth_is_owner_admin(p_actor_id) THEN
+  SELECT s.user_id INTO p_actor_id
+    FROM public.user_sessions s
+   WHERE s.session_token = p_actor_token
+     AND s.is_active = true
+     AND s.session_state = 'active'
+     AND (s.expires_at IS NULL OR s.expires_at > now())
+   LIMIT 1;
+  IF p_actor_id IS NULL OR NOT public.auth_is_owner_admin(p_actor_id) THEN
     RETURN jsonb_build_object('ok', false, 'code', 'forbidden');
+  END IF;
+  IF p_required = true AND NOT public.auth_mfa_user_has_method(p_user_id) THEN
+    -- Yöntemi olmayan hesabı zorunlu yapmak kullanıcıyı kilitler → reddedilir.
+    RETURN jsonb_build_object('ok', false, 'code', 'no_method');
   END IF;
   IF p_reason IS NULL OR length(btrim(p_reason)) < 3 OR length(p_reason) > 500 THEN
     RETURN jsonb_build_object('ok', false, 'code', 'reason_required');
@@ -212,8 +253,8 @@ BEGIN
   RETURN jsonb_build_object('ok', true, 'changed', true, 'required', p_required);
 END $$;
 
-REVOKE ALL ON FUNCTION public.auth_mfa_set_required(uuid, uuid, boolean, text) FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.auth_mfa_set_required(uuid, uuid, boolean, text) TO service_role;
+REVOKE ALL ON FUNCTION public.auth_mfa_set_required(text, uuid, boolean, text) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.auth_mfa_set_required(text, uuid, boolean, text) TO service_role;
 
 -- ── 8) Challenge başlatma (parola doğrulandıktan SONRA; oturum AÇMAZ) ───────
 CREATE OR REPLACE FUNCTION public.auth_mfa_begin(
@@ -478,6 +519,17 @@ BEGIN
      SET state = 'consumed', consumed_at = v_now, session_id = v_sid
    WHERE id = v_ch.id;
   PERFORM set_config('yasam.mfa_finalize', 'off', true);
+
+  -- TRIAL7: deneme penceresi oturumla AYNI işlemde başlar (oturum commit'lenmeden deneme başlamaz;
+  -- deneme başlatma hatası girişi ENGELLEMEZ — alt blok geri alınır, /api/trial/status yeniden dener).
+  -- trial_activate_on_login koşullu ve idempotenttir (yalnız self_7d + not_started; tekrar süreyi sıfırlamaz).
+  IF v_role = 'expert' AND to_regprocedure('public.trial_activate_on_login(uuid)') IS NOT NULL THEN
+    BEGIN
+      PERFORM public.trial_activate_on_login(v_ch.user_id);
+    EXCEPTION WHEN OTHERS THEN
+      NULL;
+    END;
+  END IF;
 
   RETURN jsonb_build_object('ok', true) || v_res || jsonb_build_object('user_id', v_ch.user_id, 'mfa_method', v_ch.method);
 END $$;

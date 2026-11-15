@@ -63,7 +63,8 @@ try {
   await admin.connect();
   await admin.query(BOOT);
   for (const f of files) await admin.query(fs.readFileSync(path.join(root, f), "utf8"));
-  await admin.query(`SELECT public.auth_mfa_set_required('${OWNER}', '${EXP}', true, 'eşzamanlılık testi')`);
+  // Test kurulumu: süper kullanıcı politika bayrağıyla (F2-B'de yöntem yok → set_required 'no_method').
+  await admin.query(`SELECT set_config('yasam.mfa_policy', 'on', false); UPDATE public.users SET mfa_required = true WHERE id = '${EXP}'; SELECT set_config('yasam.mfa_policy', 'off', false);`);
 
   const N = 8;
   for (let i = 0; i < N; i++) { const c = new pg.Client(cfg); await c.connect(); clients.push(c); }

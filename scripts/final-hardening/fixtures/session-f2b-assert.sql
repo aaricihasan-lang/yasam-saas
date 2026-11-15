@@ -43,21 +43,60 @@ BEGIN
   -- Başka kolon güncellemesi (mfa_required aynı) serbest — mevcut admin araçları bozulmaz.
   UPDATE public.users SET approval_status = 'approved' WHERE id = FREE;
 
-  -- ── B) auth_mfa_set_required: yalnız Owner, gerekçe zorunlu, kendi kapatma YASAK ─
-  r := public.auth_mfa_set_required(ADM2, EXP, true, 'test');
+  -- ── B) auth_mfa_set_required: aktör OTURUM TOKEN'ı ile; yalnız Owner; yöntem şartı; kendi kapatma YASAK ─
+  -- Aktör oturumları (MFA zorunluluğu açılmadan önce, normal yoldan).
+  PERFORM public.create_session_admin_web(OWNER, 'f2b-owner-actor', '203.0.113.9', 'TR', 'Istanbul', 'UA', 'desktop', 'desktop_web', NULL, now() + interval '1 day');
+  PERFORM public.create_session_admin_web(ADM2, 'f2b-adm2-actor', '203.0.113.9', 'TR', 'Istanbul', 'UA', 'desktop', 'desktop_web', NULL, now() + interval '1 day');
+  PERFORM public.create_session_admin_web(OWNER, 'f2b-owner-expired', '203.0.113.9', 'TR', 'Istanbul', 'UA', 'desktop', 'desktop_web', NULL, now() - interval '1 minute');
+  r := public.auth_mfa_set_required(OWNER::text, EXP, true, 'Owner UUID token yerine');
+  IF r->>'code' <> 'forbidden' THEN RAISE EXCEPTION 'B0 Owner UUID''si aktör kanıtı DEĞİL: %', r; END IF;
+  r := public.auth_mfa_set_required('f2b-owner-expired', EXP, true, 'süresi dolmuş');
+  IF r->>'code' <> 'forbidden' THEN RAISE EXCEPTION 'B0b süresi dolmuş Owner oturumu yetki vermemeli: %', r; END IF;
+  r := public.auth_mfa_set_required('f2b-adm2-actor', EXP, true, 'test');
   IF r->>'code' <> 'forbidden' THEN RAISE EXCEPTION 'B1 Owner olmayan admin reddedilmeli: %', r; END IF;
-  r := public.auth_mfa_set_required(OWNER, EXP, true, ' ');
+  r := public.auth_mfa_set_required('f2b-owner-actor', EXP, true, 'yöntem yokken');
+  IF r->>'code' <> 'no_method' THEN RAISE EXCEPTION 'B1b yöntemi olmayan kullanıcı zorunlu yapılamamalı: %', r; END IF;
+  SELECT count(*) INTO n FROM public.users WHERE mfa_required;
+  IF n <> 0 THEN RAISE EXCEPTION 'B1c yöntem yokken hiçbir hesap zorunlu olmamalı'; END IF;
+  -- Test hesabı izin listesi zorunluluğu KENDİ BAŞINA açmaz.
+  INSERT INTO public.auth_mfa_test_accounts (user_id, note, added_by, expires_at) VALUES (AND1, 'izin listesi', OWNER, now() + interval '1 day');
+  SELECT count(*) INTO n FROM public.users WHERE id = AND1 AND mfa_required;
+  IF n <> 0 THEN RAISE EXCEPTION 'B1d izin listesi mfa_required açmamalı'; END IF;
+  DELETE FROM public.auth_mfa_test_accounts WHERE user_id = AND1;
+  -- F2-C'nin yapacağı genişletmenin TEST taklidi: herkesin kullanılabilir yöntemi var.
+  CREATE OR REPLACE FUNCTION public.auth_mfa_user_has_method(p_user_id uuid) RETURNS boolean
+    LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = '' AS $f$ BEGIN RETURN true; END $f$;
+  r := public.auth_mfa_set_required('f2b-owner-actor', EXP, true, ' ');
   IF r->>'code' <> 'reason_required' THEN RAISE EXCEPTION 'B2 gerekçe zorunlu: %', r; END IF;
-  r := public.auth_mfa_set_required(OWNER, EXP, true, 'F2-B test hesabı');
+  r := public.auth_mfa_set_required('f2b-owner-actor', EXP, true, 'F2-B test hesabı');
   IF NOT (r->>'ok')::boolean OR NOT (r->>'changed')::boolean THEN RAISE EXCEPTION 'B3 Owner açabilmeli: %', r; END IF;
-  SELECT count(*) INTO n FROM public.security_events WHERE user_id = EXP AND event_type = 'mfa_policy_changed';
-  IF n <> 1 THEN RAISE EXCEPTION 'B4 değişiklik security_events''e yazılmalı (%)', n; END IF;
-  r := public.auth_mfa_set_required(OWNER, OWNER, true, 'Owner kendi hesabı');
+  SELECT count(*) INTO n FROM public.security_events WHERE user_id = EXP AND event_type = 'mfa_policy_changed'
+     AND metadata->>'actor_id' = OWNER::text;
+  IF n <> 1 THEN RAISE EXCEPTION 'B4 değişiklik security_events''e (aktör ile) yazılmalı (%)', n; END IF;
+  r := public.auth_mfa_set_required('f2b-owner-actor', OWNER, true, 'Owner kendi hesabı');
   IF NOT (r->>'ok')::boolean THEN RAISE EXCEPTION 'B5 Owner kendi zorunluluğunu açabilir: %', r; END IF;
-  r := public.auth_mfa_set_required(OWNER, OWNER, false, 'kapat');
+  r := public.auth_mfa_set_required('f2b-owner-actor', OWNER, false, 'kapat');
   IF r->>'code' <> 'self_disable_forbidden' THEN RAISE EXCEPTION 'B6 Owner kendi MFA''sını kapatamaz: %', r; END IF;
-  PERFORM public.auth_mfa_set_required(OWNER, AND1, true, 'Android test');
-  PERFORM public.auth_mfa_set_required(OWNER, LIM, true, 'Limit test');
+  PERFORM public.auth_mfa_set_required('f2b-owner-actor', AND1, true, 'Android test');
+  PERFORM public.auth_mfa_set_required('f2b-owner-actor', LIM, true, 'Limit test');
+  -- Aktör oturumlarını kapat (C bölümündeki Owner oturum sayımı için).
+  UPDATE public.user_sessions SET is_active = false, ended_at = now(), end_reason = 'test_close'
+   WHERE session_token IN ('f2b-owner-actor', 'f2b-adm2-actor', 'f2b-owner-expired') AND is_active;
+
+  -- Bekleyen onay satırı (MFA öncesi oluşmuş) onayla MFA'sız AKTİF oturuma dönüşemez.
+  PERFORM set_config('yasam.mfa_finalize', 'on', true);
+  INSERT INTO public.user_sessions (user_id, session_token, is_active, session_state, pending_expires_at, client_channel, session_role)
+  VALUES (OWNER, 'f2b-owner-pending', false, 'pending_approval', now() + interval '10 minutes', 'desktop_web', 'admin');
+  PERFORM set_config('yasam.mfa_finalize', 'off', true);
+  BEGIN
+    PERFORM set_config('yasam.session_decision', 'on', true);
+    UPDATE public.user_sessions SET is_active = true, session_state = 'active', approved_at = now()
+     WHERE session_token = 'f2b-owner-pending';
+    RAISE EXCEPTION 'B7 MFA zorunlu kullanıcının bekleyen oturumu onayla aktifleşmemeli';
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+  PERFORM set_config('yasam.session_decision', 'off', true);
+  UPDATE public.user_sessions SET ended_at = now(), end_reason = 'test_close' WHERE session_token = 'f2b-owner-pending';
 
   -- ── C) MFA zorunlu kullanıcı için HİÇBİR alternatif yol oturum açamaz ────────
   before_n := (SELECT count(*) FROM public.user_sessions WHERE user_id IN (EXP, OWNER));
@@ -212,13 +251,53 @@ BEGIN
   SELECT state INTO t FROM public.auth_mfa_challenges WHERE id = ch2;
   IF t <> 'verified' THEN RAISE EXCEPTION 'E25 limit reddinde challenge tüketilmemeli (%)', t; END IF;
 
+  -- ── T) TRIAL7: deneme oturumla AYNI işlemde; deneme hatası girişi engellemez ─
+  CREATE TABLE IF NOT EXISTS public.f2b_trial_log (user_id uuid NOT NULL, at timestamptz NOT NULL DEFAULT clock_timestamp());
+  CREATE OR REPLACE FUNCTION public.trial_activate_on_login(p_user_id uuid) RETURNS jsonb
+    LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $f$
+    BEGIN INSERT INTO public.f2b_trial_log (user_id) VALUES (p_user_id); RETURN jsonb_build_object('ok', true); END $f$;
+  r := pg_temp.begin(EXP, 'b-trial-1');
+  ch2 := (r->>'challenge_id')::uuid;
+  SELECT count(*) INTO n FROM public.f2b_trial_log WHERE user_id = EXP;
+  IF n <> 0 THEN RAISE EXCEPTION 'T1 challenge başlatma denemeyi başlatmamalı'; END IF;
+  PERFORM public.auth_mfa_mark_verified(ch2, 'qr_device');
+  SELECT count(*) INTO n FROM public.f2b_trial_log WHERE user_id = EXP;
+  IF n <> 0 THEN RAISE EXCEPTION 'T2 doğrulama işareti denemeyi başlatmamalı'; END IF;
+  r := pg_temp.fin(ch2, pg_temp.h('b-trial-1'), 'f2b-trial-tok-1');
+  SELECT count(*) INTO n FROM public.f2b_trial_log WHERE user_id = EXP;
+  IF NOT (r->>'inserted')::boolean OR n <> 1 THEN RAISE EXCEPTION 'T3 MFA''lı oturumla deneme aynı işlemde başlamalı (% / %)', r, n; END IF;
+  r := pg_temp.fin(ch2, pg_temp.h('b-trial-1'), 'f2b-trial-tok-1b');
+  SELECT count(*) INTO n FROM public.f2b_trial_log WHERE user_id = EXP;
+  IF n <> 1 THEN RAISE EXCEPTION 'T4 tüketilmiş challenge denemeyi yeniden tetiklememeli'; END IF;
+  -- Uzman olmayan (Owner) için deneme çağrılmaz.
+  r := pg_temp.begin(OWNER, 'b-trial-owner');
+  ch2 := (r->>'challenge_id')::uuid;
+  PERFORM public.auth_mfa_mark_verified(ch2, 'qr_device');
+  PERFORM pg_temp.fin(ch2, pg_temp.h('b-trial-owner'), 'f2b-trial-owner-tok');
+  SELECT count(*) INTO n FROM public.f2b_trial_log WHERE user_id = OWNER;
+  IF n <> 0 THEN RAISE EXCEPTION 'T5 admin için deneme çağrılmamalı'; END IF;
+  -- Deneme fonksiyonu hata verirse: oturum yine açılır (giriş engellenmez), challenge tüketilir.
+  CREATE OR REPLACE FUNCTION public.trial_activate_on_login(p_user_id uuid) RETURNS jsonb
+    LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $f$
+    BEGIN INSERT INTO public.f2b_trial_log (user_id) VALUES (p_user_id); RAISE EXCEPTION 'deneme hatası (test)'; END $f$;
+  r := pg_temp.begin(EXP, 'b-trial-2');
+  ch2 := (r->>'challenge_id')::uuid;
+  PERFORM public.auth_mfa_mark_verified(ch2, 'qr_device');
+  r := pg_temp.fin(ch2, pg_temp.h('b-trial-2'), 'f2b-trial-tok-2');
+  SELECT count(*) INTO n FROM public.f2b_trial_log WHERE user_id = EXP;
+  IF NOT (r->>'inserted')::boolean OR n <> 1 THEN
+    RAISE EXCEPTION 'T6 deneme hatası girişi engellememeli ve yarım deneme kaydı bırakmamalı (% / %)', r, n; END IF;
+  SELECT state INTO t FROM public.auth_mfa_challenges WHERE id = ch2;
+  IF t <> 'consumed' THEN RAISE EXCEPTION 'T7 deneme hatasında da challenge tüketilmeli (%)', t; END IF;
+  DROP FUNCTION public.trial_activate_on_login(uuid);
+
   -- ── G) Yetkiler ───────────────────────────────────────────────────────────
   IF has_function_privilege('service_role', 'public.auth_mfa_mark_verified(uuid,text)', 'EXECUTE') THEN
     RAISE EXCEPTION 'G1 service_role challenge''ı doğrulanmış işaretleyememeli'; END IF;
   IF NOT has_function_privilege('service_role', 'public.auth_finalize_login(uuid,text,text,text,text,text,text,text,text,text,timestamptz,boolean,boolean,integer,integer,integer,integer,integer,integer)', 'EXECUTE')
      OR has_function_privilege('anon', 'public.auth_finalize_login(uuid,text,text,text,text,text,text,text,text,text,timestamptz,boolean,boolean,integer,integer,integer,integer,integer,integer)', 'EXECUTE')
      OR has_function_privilege('authenticated', 'public.auth_mfa_begin(uuid,text,text,text,text,integer)', 'EXECUTE')
-     OR has_function_privilege('anon', 'public.auth_mfa_set_required(uuid,uuid,boolean,text)', 'EXECUTE')
+     OR has_function_privilege('anon', 'public.auth_mfa_set_required(text,uuid,boolean,text)', 'EXECUTE')
      OR has_function_privilege('anon', 'public.create_session_admin_web(uuid,text,text,text,text,text,text,text,text,timestamptz)', 'EXECUTE') THEN
     RAISE EXCEPTION 'G2 MFA RPC yetkileri yalnız service_role'; END IF;
   IF has_table_privilege('service_role', 'public.auth_mfa_challenges', 'SELECT')
@@ -227,7 +306,7 @@ BEGIN
     RAISE EXCEPTION 'G3 MFA tablolarına doğrudan erişim olmamalı'; END IF;
   SELECT count(*) INTO n FROM pg_proc p JOIN pg_namespace s ON s.oid = p.pronamespace
    WHERE s.nspname = 'public' AND p.proname IN ('auth_mfa_begin','auth_mfa_challenge_status','auth_mfa_mark_verified','auth_finalize_login',
-         'auth_mfa_set_required','auth_mfa_is_test_account','create_session_admin_web','user_sessions_mfa_guard')
+         'auth_mfa_set_required','auth_mfa_is_test_account','auth_mfa_user_has_method','create_session_admin_web','user_sessions_mfa_guard')
      AND NOT (p.prosecdef AND array_to_string(p.proconfig, ',') LIKE '%search_path=%');
   IF n <> 0 THEN RAISE EXCEPTION 'G4 SECURITY DEFINER + search_path zorunlu (% eksik)', n; END IF;
   -- Test hesabı izin listesi: satır yok → false; satır (süreli) → true.

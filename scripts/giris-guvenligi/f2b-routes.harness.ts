@@ -85,7 +85,10 @@ CREATE TABLE public.harness_trial_log (user_id uuid NOT NULL, at timestamptz NOT
 CREATE FUNCTION public.trial_activate_on_login(p_user_id uuid) RETURNS jsonb
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
 BEGIN
-  INSERT INTO public.harness_trial_log (user_id) VALUES (p_user_id);
+  -- Gerçek fonksiyon gibi İDEMPOTENT: yalnız ilk çağrı pencereyi "başlatır" (log satırı = başlatma anı).
+  IF NOT EXISTS (SELECT 1 FROM public.harness_trial_log WHERE user_id = p_user_id) THEN
+    INSERT INTO public.harness_trial_log (user_id) VALUES (p_user_id);
+  END IF;
   RETURN jsonb_build_object('ok', true, 'activated', false, 'phase', 'none');
 END $$;
 GRANT EXECUTE ON FUNCTION public.trial_activate_on_login(uuid) TO service_role;
@@ -135,9 +138,11 @@ async function main() {
     for (const f of FILES) await admin.query(fs.readFileSync(path.join(ROOT, f), "utf8"));
     await admin.query(HARNESS_SQL);
     // Sentetik MFA test hesapları: Owner (kendi), uzman, Android uzmanı. FREE / ADM2 zorunlu DEĞİL.
-    for (const id of [U.owner, U.exp, U.and1]) {
-      await admin.query(`SELECT public.auth_mfa_set_required($1, $2, true, 'F2-B route harness')`, [U.owner, id]);
-    }
+    // (Test kurulumu: F2-B'de yöntem olmadığından auth_mfa_set_required 'no_method' der — bu pg:session-f2b'de
+    //  sınanır. Burada süper kullanıcı politika bayrağıyla doğrudan açar.)
+    await admin.query(`SELECT set_config('yasam.mfa_policy', 'on', false)`);
+    await admin.query(`UPDATE public.users SET mfa_required = true, mfa_required_at = now() WHERE id = ANY($1::uuid[])`, [[U.owner, U.exp, U.and1]]);
+    await admin.query(`SELECT set_config('yasam.mfa_policy', 'off', false)`);
 
     pool = new pg.Pool({ host: "localhost", port, user: "postgres", password: "pw", database: "postgres", max: 6 });
     shim = await startEmbedShim(pool);
