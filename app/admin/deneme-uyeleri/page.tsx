@@ -11,6 +11,15 @@ import {
   ADMIN_MODULE_UI_LABELS,
   type AdminModuleUiKey,
 } from "@/lib/admin/userManagement";
+import {
+  ACCOUNT_STATE_CLASS,
+  ACCOUNT_STATE_LABEL,
+  TRIAL_PHASE_CLASS,
+  TRIAL_PHASE_LABEL,
+  trialAccountNote,
+  trialAccountState,
+  type TrialPhase,
+} from "@/lib/admin/trialAccountStatus";
 
 /**
  * TRIAL7 — "Deneme Üyeleri" (sade yönetim görünümü). Yalnız 7 günlük deneme rejimindeki uzmanlar
@@ -19,7 +28,7 @@ import {
  * ödeme sonrası Pro'ya geçir (modülleri yönetici seçer). SÜRE UZATMA YOKTUR (Owner kararı).
  */
 
-type Phase = "not_started" | "active" | "expired" | "review" | "suspended" | "converted";
+type Phase = TrialPhase;
 type Row = {
   id: string;
   full_name: string | null;
@@ -27,6 +36,9 @@ type Row = {
   created_at: string | null;
   registered_at: string | null;
   phase: Phase;
+  /** Hesap durumu (deneme durumundan AYRI): users.active + archived_at (archived_at yoksa yalnız active). */
+  active?: boolean;
+  archived_at?: string | null;
   trial_started_at: string | null;
   trial_ends_at: string | null;
   risk_score: number;
@@ -43,29 +55,13 @@ type ListResponse = { rows: Row[]; total: number; counts: Record<string, number>
 
 const TABS: { key: string; label: string }[] = [
   { key: "all", label: "Tümü" },
-  { key: "active", label: "Aktif" },
+  { key: "active", label: "Devam eden" },
   { key: "not_started", label: "Başlamamış" },
   { key: "expired", label: "Süresi Dolmuş" },
   { key: "review", label: "İncelemede" },
   { key: "suspended", label: "Durdurulmuş" },
   { key: "pro_request", label: "Pro Talebi" },
 ];
-const PHASE_LABEL: Record<Phase, string> = {
-  not_started: "Başlamamış",
-  active: "Aktif",
-  expired: "Süresi dolmuş",
-  review: "İncelemede",
-  suspended: "Durdurulmuş",
-  converted: "Pro",
-};
-const PHASE_CLASS: Record<Phase, string> = {
-  not_started: "bg-slate-100 text-slate-700",
-  active: "bg-emerald-50 text-emerald-700",
-  expired: "bg-amber-50 text-amber-800",
-  review: "bg-rose-50 text-rose-700",
-  suspended: "bg-slate-200 text-slate-700",
-  converted: "bg-violet-50 text-violet-700",
-};
 const CREDIT_LABEL: Record<CreditModule, string> = { astrology: "Atlas", human_design: "Human Design", numerology: "Numeroloji" };
 const RISK_LABEL: Record<string, string> = {
   tek_kullanimlik_eposta: "Tek kullanımlık e-posta",
@@ -281,6 +277,11 @@ function TrialRowCard({
     });
 
   const flags = useMemo(() => (r.risk_flags ?? []).map((f) => RISK_LABEL[f] ?? f), [r.risk_flags]);
+  const account = trialAccountState(r);
+  const accountNote = trialAccountNote(account, r.phase);
+  // Aşama 4a: arşivdeki hesapta kredi limiti, inceleme, durdur/sürdür ve Pro'ya geçiş sunucuda 409 ile reddedilir →
+  // bu düğmeler hiç çizilmez; bilgiler okunur kalır. Pro talebini kapatma hak açmadığı için sunucuda serbesttir.
+  const archived = account === "archived";
 
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
@@ -292,7 +293,10 @@ function TrialRowCard({
         <div className="flex flex-wrap items-center gap-2 text-xs font-bold">
           {r.pro_request_at ? <span className="inline-flex items-center gap-1 rounded-full bg-violet-100 px-2.5 py-1 text-violet-800"><Crown className="h-3.5 w-3.5" />Pro talebi</span> : null}
           {r.risk_score > 0 ? <span className="inline-flex items-center gap-1 rounded-full bg-rose-50 px-2.5 py-1 text-rose-700"><ShieldAlert className="h-3.5 w-3.5" />Risk {r.risk_score}</span> : null}
-          <span className={`rounded-full px-2.5 py-1 ${PHASE_CLASS[r.phase]}`}>{PHASE_LABEL[r.phase]}</span>
+          {account ? (
+            <span data-account-state={account} className={`rounded-full px-2.5 py-1 ${ACCOUNT_STATE_CLASS[account]}`}>Hesap: {ACCOUNT_STATE_LABEL[account]}</span>
+          ) : null}
+          <span data-trial-phase={r.phase} className={`rounded-full px-2.5 py-1 ${TRIAL_PHASE_CLASS[r.phase]}`}>Deneme: {TRIAL_PHASE_LABEL[r.phase]}</span>
           <span className="rounded-full bg-slate-50 px-2.5 py-1 text-slate-700">Kalan: {r.phase === "active" ? remaining(r.trial_ends_at, serverNow) : "—"}</span>
           <span className="rounded-full bg-slate-50 px-2.5 py-1 text-slate-700">Roxy: {r.used_total} / {r.daily_limit}</span>
         </div>
@@ -306,6 +310,9 @@ function TrialRowCard({
             <div><dt className="text-xs text-slate-500">Deneme bitişi</dt><dd className="font-semibold text-slate-800">{fmt(r.trial_ends_at)}</dd></div>
             <div><dt className="text-xs text-slate-500">Pro talebi</dt><dd className="font-semibold text-slate-800">{fmt(r.pro_request_at)}</dd></div>
           </dl>
+          {accountNote ? (
+            <p data-account-note className="rounded-xl bg-slate-50 px-3 py-2 text-slate-700">{accountNote}</p>
+          ) : null}
           {flags.length > 0 || r.review_reason ? (
             <p className="rounded-xl bg-rose-50 px-3 py-2 text-rose-800">
               {flags.join(" · ")}{r.review_reason ? ` — ${r.review_reason}` : ""}
@@ -317,20 +324,42 @@ function TrialRowCard({
             <p className="mt-0.5 text-xs text-slate-500">
               Bugün: {(Object.keys(CREDIT_LABEL) as CreditModule[]).map((k) => `${CREDIT_LABEL[k]} ${r.used_by_module[k] ?? 0}`).join(" · ")} · Kalan {Math.max(0, r.daily_limit - r.used_total)}
             </p>
-            <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
-              <label className="grid gap-1 text-xs font-semibold text-slate-600">Ortak günlük
-                <input inputMode="numeric" value={daily} onChange={(e) => setDaily(e.target.value.replace(/\D/g, ""))} className="h-9 rounded-lg border border-slate-200 px-2 text-sm" />
-              </label>
-              {(Object.keys(CREDIT_LABEL) as CreditModule[]).map((k) => (
-                <label key={k} className="grid gap-1 text-xs font-semibold text-slate-600">{CREDIT_LABEL[k]} (isteğe bağlı)
-                  <input inputMode="numeric" placeholder="—" value={mods[k]} onChange={(e) => setMods((m) => ({ ...m, [k]: e.target.value.replace(/\D/g, "") }))} className="h-9 rounded-lg border border-slate-200 px-2 text-sm" />
-                </label>
-              ))}
-            </div>
-            <button type="button" disabled={busy || daily === ""} onClick={saveLimits} className="mt-3 rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-bold text-white disabled:opacity-50">Limitleri kaydet</button>
+            {archived ? (
+              <dl data-credit-readonly className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-4">
+                <div className="min-w-0"><dt className="text-xs font-semibold text-slate-600">Ortak günlük</dt><dd className="font-semibold text-slate-800">{r.daily_limit}</dd></div>
+                {(Object.keys(CREDIT_LABEL) as CreditModule[]).map((k) => (
+                  <div key={k} className="min-w-0"><dt className="text-xs font-semibold text-slate-600">{CREDIT_LABEL[k]}</dt><dd className="font-semibold text-slate-800">{r.module_limits[k] ?? "—"}</dd></div>
+                ))}
+              </dl>
+            ) : (
+              <>
+                <div data-credit-inputs className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-4">
+                  <label className="grid min-w-0 gap-1 text-xs font-semibold text-slate-600">Ortak günlük
+                    <input inputMode="numeric" value={daily} onChange={(e) => setDaily(e.target.value.replace(/\D/g, ""))} className="h-9 w-full min-w-0 rounded-lg border border-slate-200 px-2 text-sm" />
+                  </label>
+                  {(Object.keys(CREDIT_LABEL) as CreditModule[]).map((k) => (
+                    <label key={k} className="grid min-w-0 gap-1 text-xs font-semibold text-slate-600">{CREDIT_LABEL[k]} (isteğe bağlı)
+                      <input inputMode="numeric" placeholder="—" value={mods[k]} onChange={(e) => setMods((m) => ({ ...m, [k]: e.target.value.replace(/\D/g, "") }))} className="h-9 w-full min-w-0 rounded-lg border border-slate-200 px-2 text-sm" />
+                    </label>
+                  ))}
+                </div>
+                <button type="button" disabled={busy || daily === ""} onClick={saveLimits} className="mt-3 rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-bold text-white disabled:opacity-50">Limitleri kaydet</button>
+              </>
+            )}
           </div>
 
-          <div className="flex flex-wrap gap-2">
+          {archived ? (
+            <div data-archived-readonly className="grid gap-2 rounded-xl border border-slate-200 bg-slate-50 p-3 text-slate-700">
+              <p>Arşivdeki hesapta deneme işlemleri (kredi limiti, inceleme, durdurma / sürdürme, Pro üyeliğe geçiş) yapılamaz. Arşivden çıkarma yalnız ana yönetici tarafından Üye Detayı&apos;ndaki &quot;Arşivden Çıkar&quot; ile yapılır; hesap arşivden çıkınca pasif kalır.</p>
+              <div className="flex flex-wrap gap-2">
+                <Link href={`/admin/users/${encodeURIComponent(r.id)}`} className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700">Üye detayını aç</Link>
+                {r.pro_request_at ? (
+                  <button type="button" disabled={busy} onClick={() => run(() => act(base, "PATCH", { action: "dismiss_pro_request" }, "Pro talebi kapatıldı."))} className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700">Talebi kapat</button>
+                ) : null}
+              </div>
+            </div>
+          ) : (
+          <div data-trial-actions className="flex flex-wrap gap-2">
             {r.phase === "review" ? (
               <button type="button" disabled={busy} onClick={() => state("clear_review", "İnceleme kaldırıldı.")} className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-800">İncelemeyi kaldır</button>
             ) : r.phase === "active" || r.phase === "not_started" ? (
@@ -348,8 +377,9 @@ function TrialRowCard({
               <Crown className="h-3.5 w-3.5" /> Pro üyeliğe geçir
             </button>
           </div>
+          )}
 
-          {converting ? (
+          {converting && !archived ? (
             <div className="rounded-xl border border-violet-200 bg-violet-50/50 p-3">
               <p className="font-bold text-slate-800">Ödeme alındıktan sonra açılacak modülleri seçin</p>
               <p className="text-xs text-slate-500">Hesap, tenant ve tüm kayıtlar korunur. Dijital İçerik otomatik açılmaz; gerekiyorsa seçin.</p>
