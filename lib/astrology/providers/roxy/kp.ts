@@ -473,7 +473,9 @@ export function projectRoxyKpPlanetsAt(raw: unknown, opts: { atUtc: string; ayan
 // Denetimler: sayı + soru anı + ayanamsa yankısı; Asc KP numarası = sayı; spanFrom/To = KP tablosundaki dilim; Asc = dilim ORTA
 // noktası (belge); cusp 1 = Asc; 12 cusp sırayla ve karşıt; noktalar KP alt bölüm kuralıyla tutarlı; gezegen evi ↔ Placidus aralığı;
 // significator çaprazı; ruling planets klasik 5 öğe.
-export const ROXY_KP_HORARY = { endpoint: "/vedic-astrology/kp/horary", adapter: "astro-roxy-kp-horary-1", projection: "kp-horary-proj-1" } as const;
+// ATL-B03 (14.11.2026): -2 = soru anı değerlendirme yerinin yerel saati + ofsetiyle (gün lordu yerel güne göre). -1 kayıtları UTC
+// gövdesiyle (timezone 0) hesaplanmıştı; okumada legacyMethod "kp_horary_day_lord" notu. Ayrı önbellek anahtarı (eski satırlar korunur).
+export const ROXY_KP_HORARY = { endpoint: "/vedic-astrology/kp/horary", adapter: "astro-roxy-kp-horary-2", projection: "kp-horary-proj-1" } as const;
 const H_POINT = ["longitude", "sign", "star", "starLord", "subLord", "kpNumber"];
 const KP_HORARY_KNOWN = new Set<string>([
   "horaryNumber",
@@ -583,7 +585,18 @@ export const ROXY_KP_PLANETS_RANGE = { endpoint: "/vedic-astrology/kp/planets-in
 export const KP_TIMING_MAX_ROWS = 2000;
 
 const CHANGE_DT = /^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})(:\d{2}(\.\d+)?)?(Z|[+-]00:?00)?$/;
-/** Sağlayıcı anı (timezone 0) → ISO UTC "YYYY-MM-DDTHH:MM:SSZ"; tarih/saat alanlarıyla tutarlılık. */
+const CHANGE_DATE = /^\d{4}-\d{2}-\d{2}$/;
+const CHANGE_TIME = /^(\d{2}):(\d{2})(?::(\d{2}))?$/;
+/**
+ * Sağlayıcı anı (timezone 0) → ISO UTC "YYYY-MM-DDTHH:MM:SSZ"; tarih/saat alanlarıyla tutarlılık.
+ *
+ * KP zaman kontrolü (14.11.2026, Profesyonel Kapsam 10-30 P0 adayı / Roxy Tam Kapsam Ç4): `datetime` saniye taşıyabilir; ayrı
+ * `date` + `time` alanları ise dakikaya YUVARLANMIŞ ya da KESİLMİŞ olabilir (ör. 23:59:57 → "00:00" + ertesi gün). Eski kural
+ * `time` = datetime'ın HH:MM'si şartıyla bu yanıtları reddediyordu (ücretli istek boşa). Yeni kural: `date` + `time` alanlarının
+ * gösterdiği an, `datetime` anından 60 saniyeden AZ farklıysa tutarlıdır (kesme: 0–59 sn geride; yuvarlama: ±30 sn; gün / ay / yıl
+ * devri dahil). 60 sn ve üstü fark, biçim bozukluğu, saniyesiz `time` dışında saniyeli `time`'da saniye farkı → RED (gerçekten farklı
+ * tarih/saat kabul edilmez). Döndürülen an HER ZAMAN `datetime`'dır (en hassas alan).
+ */
 function changeInstant(o: Record<string, unknown> | null, ctx: string, errors: string[]): string | null {
   const dt = typeof o?.datetime === "string" ? o.datetime.trim() : "";
   const m = CHANGE_DT.exec(dt);
@@ -591,13 +604,25 @@ function changeInstant(o: Record<string, unknown> | null, ctx: string, errors: s
     errors.push(`${ctx}: datetime biçimi`);
     return null;
   }
-  if (o?.date !== undefined && o.date !== m[1]) errors.push(`${ctx}: date ↔ datetime`);
-  if (o?.time !== undefined && o.time !== m[2]) errors.push(`${ctx}: time ↔ datetime`);
   const iso = `${m[1]}T${m[2]}${m[3] ? m[3].slice(0, 3) : ":00"}Z`;
-  if (!Number.isFinite(Date.parse(iso))) {
+  const at = Date.parse(iso);
+  if (!Number.isFinite(at)) {
     errors.push(`${ctx}: geçersiz an`);
     return null;
   }
+  const date = o?.date;
+  const time = o?.time;
+  if (date !== undefined && (typeof date !== "string" || !CHANGE_DATE.test(date))) errors.push(`${ctx}: date biçimi`);
+  else if (time !== undefined) {
+    const tm = typeof time === "string" ? CHANGE_TIME.exec(time) : null;
+    if (!tm || Number(tm[1]) > 23 || Number(tm[2]) > 59 || (tm[3] !== undefined && Number(tm[3]) > 59)) errors.push(`${ctx}: time biçimi`);
+    else {
+      const fieldAt = Date.parse(`${typeof date === "string" ? date : m[1]}T${tm[1]}:${tm[2]}:${tm[3] ?? "00"}Z`);
+      const diff = Math.abs(fieldAt - Math.floor(at / 1000) * 1000);
+      // Saniyeli `time` saniyesine kadar aynı olmalı; dakikalık `time` en çok 59 sn (kesme/yuvarlama) farklı olabilir.
+      if (!Number.isFinite(fieldAt) || (tm[3] !== undefined ? diff !== 0 : diff >= 60_000)) errors.push(`${ctx}: time ↔ datetime`);
+    }
+  } else if (typeof date === "string" && date !== m[1]) errors.push(`${ctx}: date ↔ datetime`);
   return iso;
 }
 /**
@@ -659,12 +684,23 @@ function changesHeader(r: Record<string, unknown>, ex: KpChangesExpect, errors: 
   if (list.length > KP_TIMING_MAX_ROWS) errors.push(`satır sınırı aşıldı (${list.length} > ${KP_TIMING_MAX_ROWS}) — daha kısa bir aralık seçin`);
   return list;
 }
+/**
+ * Pencere [başlangıç günü 00:00:00Z, bitiş günü 24:00:00Z). KP zaman kontrolü (14.11.2026, C-WD-0972): sağlayıcı anı DAKİKAYA
+ * YUVARLAYINCA pencerenin son 30 saniyesindeki gerçek bir geçiş "ertesi gün 00:00" olarak gelir (2001-12-31T23:59:57Z →
+ * 2002-01-01T00:00) ve eski kural tüm yanıtı reddediyordu (4 kredi boşa). YALNIZ tam olarak bitişten sonraki gün 00:00:00Z anı
+ * kabul edilir (yuvarlama payı < 60 sn); 00:00:01 ve sonrası ya da başlangıçtan önceki her an yine RED.
+ */
 function inWindowSorted<T extends { atUtc: string }>(rows: T[], ex: KpChangesExpect, errors: string[]) {
+  const roundedEnd = `${addDaysIso(ex.endDate, 1)}T00:00:00Z`;
   for (let i = 0; i < rows.length; i++) {
     const d = rows[i].atUtc.slice(0, 10);
-    if (d < ex.startDate || d > ex.endDate) errors.push(`changes[${i}]: pencere dışı`);
+    if (d < ex.startDate || (d > ex.endDate && rows[i].atUtc !== roundedEnd)) errors.push(`changes[${i}]: pencere dışı`);
     if (i > 0 && rows[i].atUtc < rows[i - 1].atUtc) errors.push("changes: kronolojik değil");
   }
+}
+
+function addDaysIso(day: string, n: number): string {
+  return new Date(Date.parse(`${day}T00:00:00Z`) + n * 86_400_000).toISOString().slice(0, 10);
 }
 
 type PartOf<K extends KpTimingPart["kind"]> = Extract<KpTimingPart, { kind: K }>;

@@ -45,6 +45,7 @@ import { interpretationKindOfSchema } from "@/lib/astrology/interpretationKind";
 import { topicsForTechnique } from "@/lib/astrology/topics/index";
 import { buildSelections, defaultParams, describeOptions, missingReason, TECHNIQUE_META, UI_TECHNIQUES } from "@/app/admin/astroloji/_lib/techniques";
 import type { ResolvedLocation } from "@/lib/astrology/birth/profileInput";
+import { lockUnits } from "./kpHoraryLegacyUnits";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type J = any;
@@ -582,7 +583,8 @@ async function main() {
       let opt = HASH_OPTS[id] as Record<string, unknown> | undefined;
       if (!opt) opt = def.parseOptions({}, now) ?? def.parseOptions({ now: true, horaryNumber: 1 }, now) ?? undefined;
       assert.ok(opt, id);
-      const us = def.units(ctx as never, opt!);
+      // ATL-B03: kp.horary satırı eski kuralla (gövde + adaptör bilinçli değişti; yeni birimin farkı lockUnits içinde denetlenir).
+      const us = lockUnits(def, ctx, opt!);
       const cu = def.contextUnits ? def.contextUnits(ctx as never, opt!) : [];
       const h = createHash("sha256").update(JSON.stringify([us.map((u) => [u.endpoint, u.adapterVersion, u.inputHash, u.body, u.query ?? null]), cu.map((u) => u.inputHash)])).digest("hex").slice(0, 16);
       assert.equal(h, BASE_HASHES[id], `${id} girdi özeti değişti`);

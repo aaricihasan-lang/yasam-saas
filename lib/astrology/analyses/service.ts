@@ -31,6 +31,7 @@ import { TRADITIONS, type Tradition } from "../topics/western";
 import { PROVIDER_INTERP_NOTICE, publicRevision } from "../view/natalView";
 import type { TechniqueView } from "../view/techniqueView";
 import { legacyMethodNotes } from "../legacyMethod";
+import { PROGRESSION_POLAR_LATITUDE } from "../progressionNodesText";
 import { LOCAL_NATAL_INTERP_NOTE, localNatalMethodExtra, localNatalPrecheck, parseNatalSelectionOptions, providerHouseSystemFor } from "../engine/natalHouses";
 
 assertServerOnly("lib/astrology/analyses/service");
@@ -702,6 +703,17 @@ export async function getAnalysis(ctx: EngineCtx, id: string, ownerPreviewHideIn
     }
   }
 
+  // F2 (14.11.2026): eski (-1) progresyon kaydı + kutup dairesi ötesindeki doğum + natal çerçeve yok → saklı natal ev numaraları
+  // Placidus değil (sağlayıcının sessiz tam burç geri dönüşü). YALNIZ bu yanıtta işaret eklenir (kayıt DEĞİŞMEZ); ekran ve Word/PDF
+  // sütunu "Placidus" diye etiketlemez (progressionHouses.ts).
+  if (a.technique === "western.progression" && technical && typeof technical === "object") {
+    const t = technical as { natalFrame?: unknown; natalHouseStatus?: unknown; bodies?: { house?: unknown }[] };
+    const lat = (a.profile_snapshot as { revision?: { latitude?: unknown } } | null)?.revision?.latitude;
+    const legacy = (a.versions_snapshot as { adapterVersion?: unknown } | null)?.adapterVersion === "astro-roxy-progression-1";
+    if (legacy && !t.natalFrame && !t.natalHouseStatus && typeof lat === "number" && Math.abs(lat) > PROGRESSION_POLAR_LATITUDE && (t.bodies ?? []).some((b) => typeof b.house === "number"))
+      technical = { ...technical, natalHouseStatus: { status: "legacy_polar_provider", latitude: lat } };
+  }
+
   // NATAL AŞAMA 4 (2026-11-01): klasik ev sistemli Natal kaydı (kayıtlı technical_snapshot'ta houseSource.kind = "local") — okuma
   // anında yalnız snapshot'tan türetilir (kayıt DEĞİŞMEZ, yeniden hesap yok): yöntemde ev hesabı kaynağı + yorum notu canlı görünümle
   // aynı (techniqueView). Mevcut 4 sistemde hiçbir alan eklenmez / değişmez. Motor sürümü yanıta eklenmez.
@@ -761,6 +773,7 @@ export async function getAnalysis(ctx: EngineCtx, id: string, ownerPreviewHideIn
           technique: a.technique,
           adapterVersion: (a.versions_snapshot as { adapterVersion?: unknown } | null)?.adapterVersion,
           houseSystem: (a.method_snapshot as { houseSystem?: unknown } | null)?.houseSystem,
+          technical,
           revisions: [
             { who: "danışanın", revision: (a.profile_snapshot as { revision?: Record<string, unknown> } | null)?.revision },
             { who: "karşı tarafın", revision: (a.profile_snapshot as { partner?: { revision?: Record<string, unknown> } | null } | null)?.partner?.revision },
