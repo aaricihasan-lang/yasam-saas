@@ -1528,6 +1528,10 @@
    "file": "scripts/uye-yonetimi-faz2/testDb-izolasyon.harness.ts",
    "tsx": true,
    "timeoutSec": 240
+  },
+  {
+   "file": "scripts/uye-yonetimi-faz2/uiKosu.harness.mjs",
+   "timeoutSec": 120
   }
  ]
 }

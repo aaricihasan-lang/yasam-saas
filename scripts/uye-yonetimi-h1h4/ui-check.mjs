@@ -4,13 +4,18 @@
  * Ekran görüntüleri: SHOTS dizini.
  */
 import { chromium } from "playwright";
-import { mkdirSync, readFileSync } from "node:fs";
+import { mkdirSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { claimShotsDir, resolveUiConfig } from "../uye-yonetimi-faz2/uiKosu.mjs";
 
 const BASE = process.env.H1H4_BASE ?? "http://localhost:3941";
-const SHOTS = process.env.H1H4_SHOTS ?? path.join(os.tmpdir(), "uye-yonetimi-h1h4-shots");
-const cfg = JSON.parse(readFileSync(process.env.H1H4_CFG ?? path.join(os.tmpdir(), "uye-yonetimi-h1h4-ui.json"), "utf8"));
+// Koşuya özgü: dizin canlı başka bir koşuya aitse `kosu-*` alt dizini (uiKosu.mjs).
+const SHOTS = claimShotsDir(process.env.H1H4_SHOTS ?? path.join(os.tmpdir(), "uye-yonetimi-h1h4-shots"));
+// Yapılandırma: H1H4_CFG ya da tek canlı yığın (birden çoksa durur; yanlış yığına bağlanmaz).
+const UI_CFG = await resolveUiConfig({ envVar: "H1H4_CFG", prefixes: ["uye-yonetimi-h1h4-ui-"] });
+const cfg = UI_CFG.cfg;
+console.log(`yapılandırma: ${UI_CFG.path} (${UI_CFG.source}) · görüntüler: ${SHOTS}`);
 mkdirSync(SHOTS, { recursive: true });
 
 let pass = 0, fail = 0;

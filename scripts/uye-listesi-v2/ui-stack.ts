@@ -4,17 +4,16 @@
  *   NEXT_PUBLIC_SUPABASE_URL=<shim> SUPABASE_SERVICE_ROLE_KEY=zz-l2ui npx next dev --webpack -p 3961
  * Ardından: node scripts/uye-listesi-v2/ui-check.mjs
  * YALITIM: test DB her koşuda kendine özgü geçici dizin + boş port kullanır (testDbRun.ts); başka koşuların klasörleri
- * silinmez. Aynı anda birden çok yığın için L2UI_CFG ile ayrı yapılandırma yolu verin (ui-check aynı değişkeni okur);
+ * silinmez. Yapılandırma koşu dizinine yazılır; tek canlı yığını ui-check kendisi bulur, birden çoksa
+ * L2UI_CFG=<yol> ile seçilir;
  * Postgres portu L2UI_PG_PORT ile sabitlenebilir. Kapatma: Ctrl+C (ya da TESTDB_STDIN_KAPAT=1 iken stdin'i kapatmak)
  * → shim + test DB kapanır, yalnız bu koşunun dizini silinir.
  */
 import { randomUUID } from "node:crypto";
-import { writeFileSync } from "node:fs";
-import os from "node:os";
-import path from "node:path";
 import { startPgrestShim } from "../uye-yonetimi-faz1/pgrestShim";
 import { startTestDb } from "../uye-yonetimi-faz2/testDb";
 import { freePort, installStackShutdown } from "../uye-yonetimi-faz2/testDbRun";
+import { writeStackConfig } from "../uye-yonetimi-faz2/uiKosu.mjs";
 import { readMig } from "../uye-yonetimi-360/migrationChain";
 
 const OWNER = "00000000-0000-4000-8000-0000000019a1";
@@ -111,8 +110,8 @@ async function main(): Promise<void> {
     expert: { token: TOK.expert, user: u(EXPERT, "ZZ_L2UI Uzman Kendisi", "expert") },
     ids,
   };
-  const cfgPath = process.env.L2UI_CFG ?? path.join(os.tmpdir(), "uye-listesi-v2-ui.json");
-  writeFileSync(cfgPath, JSON.stringify(cfg));
+  // Koşuya özgü yapılandırma (kendi koşu dizininde; sabit ortak dosyaya yazılmaz) — uiKosu.mjs.
+  const cfgPath = writeStackConfig({ runDir: db.runDir, shimUrl: shim.url, cfg, envPath: process.env.L2UI_CFG });
   console.log(`UI STACK HAZIR · shim ${shim.url} · cfg ${cfgPath}`);
   installStackShutdown([() => shim.close(), () => db.stop()]);
   setInterval(() => { /* açık kal */ }, 1 << 30);
