@@ -195,8 +195,8 @@ ok(/changes: \{ \[key\]: nextValue \}/.test(page) && !/modulePermissions: adminP
 ok(!/active: editForm\.active/.test(page) && !/active: user\.active,\s*modulePermissions/.test(page), "profil formu active göndermez");
 ok(!/\?\s*"VAR"\s*:\s*"YOK"/.test(page), "sabit 'Erişim VAR/YOK' kaldırıldı (gerçek modül sayısı)");
 ok(!/Üyelik Durumu/.test(page) && /Hesap Durumu/.test(page), "'Üyelik Durumu' → 'Hesap Durumu' (Aktif/Pasif)");
-ok(/Tehlikeli İşlemler[\s\S]{0,1600}border-slate-300 bg-white text-slate-800[\s\S]{0,200}Pasif Yap/.test(page)
-  && !/emerald[^"\n]*"?\}?\s*>\s*<UserX[^>]*>\s*Pasif Yap/.test(page), "Pasif Yap yeşil DEĞİL (nötr; Tehlikeli İşlemler alanında)");
+ok(/aria-labelledby="actions-access"[\s\S]{0,2400}border-slate-300 bg-white text-slate-800[\s\S]{0,200}Pasif Yap[\s\S]{0,1600}aria-labelledby="actions-danger"/.test(page)
+  && !/emerald[^"\n]*"?\}?\s*>\s*<UserX[^>]*>\s*Pasif Yap/.test(page), "Pasif Yap yeşil DEĞİL (nötr; Hızlı Hesap İşlemleri › Erişim alanında)");
 ok(/isLimitExceeded\(s\.totalFresh, lim\.allowedActiveSessions\)/.test(page), "'Limit Aşıldı' sınırsız-farkında hesap");
 ok(/licenseLockoutAck/.test(page) && /confirmLockout/.test(page), "kilitleyici lisans ayarı açık onay ister");
 ok(/diffLicenseSettings\(user\.licenseSettings, licenseDraft\)/.test(page), "lisans kaydı önce/sonra farkını gösterir");

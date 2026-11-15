@@ -4,7 +4,7 @@
 // düğüm, gözlem yeri kimliği (yoksa doğum yeri). Sağlayıcı aralık için TEK ofset kullanır → ofset gözlem yerinin pencere
 // başlangıcındaki ofsetidir; pencere içinde (yaz/kış saati) değişirse istek GÖNDERİLMEZ (service.ts).
 
-import { isValidIanaTimeZone, resolveAstroBirthTime } from "../birth/timeResolution";
+import { resolveAstroBirthTime, wallClockAt } from "../birth/timeResolution";
 import { kpIntervalWindowOk } from "../model/kpRulingInterval";
 
 export type KpRiOptions = { atUtc: string; durationMinutes: number; intervalMinutes: number; ayanamsa: string; nodeType: string; placeLocationId: string | null };
@@ -23,18 +23,17 @@ export function parseKpRulingIntervalOptions(
   return { atUtc, durationMinutes: d, intervalMinutes: i, ayanamsa, nodeType, placeLocationId: place };
 }
 
-/** Bir UTC anında IANA bölgesinin ofseti (saniye). Duvar saati Intl'den, ardından ürünün çözümleyicisiyle (tarihsel kurallar) TEYİT. */
+/**
+ * Bir UTC anında IANA bölgesinin ofseti (saniye). Duvar saati ürünün tarihsel ofset kaynağından (wallClockAt: backzone + Intl),
+ * ardından ürünün çözümleyicisiyle (tarihsel kurallar) TEYİT. 14.11.2026 (ATL-B03): duvar saati eskiden yalnız Intl'den
+ * alınıyordu → backzone bölgelerinde (ör. Europe/Oslo 1965) teyit tutmuyor ve ofset "çözülemedi" sayılıyordu (istek
+ * engelleniyordu). Teyit kuralı aynen; daha önce çözülen anların sonucu değişmez.
+ */
 export function offsetSecondsAtUtc(timeZone: string, utcMs: number): number | null {
-  if (!isValidIanaTimeZone(timeZone)) return null;
-  const p = Object.fromEntries(
-    new Intl.DateTimeFormat("en-CA", { timeZone, hourCycle: "h23", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit" })
-      .formatToParts(new Date(utcMs))
-      .map((x) => [x.type, x.value]),
-  );
-  const date = `${p.year}-${p.month}-${p.day}`;
-  const time = `${p.hour}:${p.minute}:${p.second}`;
+  const w = wallClockAt(utcMs, timeZone);
+  if (!w) return null;
   for (const choice of ["earlier", "later"] as const) {
-    const res = resolveAstroBirthTime(date, time, timeZone, choice);
+    const res = resolveAstroBirthTime(w.date, w.time, timeZone, choice);
     if (res.kind === "ok" && Date.parse(res.utcIso) === utcMs) return res.offsetSeconds;
   }
   return null;

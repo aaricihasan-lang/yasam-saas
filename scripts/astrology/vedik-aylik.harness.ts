@@ -39,6 +39,7 @@ import { formatInZone } from "@/lib/astrology/transitDetail";
 import * as UI from "@/app/admin/astroloji/_lib/techniques";
 import * as SOON from "@/app/admin/astroloji/_lib/comingSoon";
 import type { ResolvedLocation } from "@/lib/astrology/birth/profileInput";
+import { lockUnits } from "./kpHoraryLegacyUnits";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type J = any;
@@ -241,7 +242,8 @@ function techniqueHash(id: string, opts?: unknown): string {
   const ctx = { birth: BIRTH_A, birthUtc: "1990-07-15T11:30:00.000Z", partner, places: { target: { latitude: 51.5072, longitude: -0.1276 }, reference: { latitude: 51.5072, longitude: -0.1276 } } };
   let opt = (opts !== undefined ? def.parseOptions(opts, now) : null) ?? def.parseOptions({}, now) ?? def.parseOptions({ now: true, horaryNumber: 1 }, now);
   if (id === "kp.ruling_interval") opt = { ...opt, offsetHours: 3 };
-  const us = def.units(ctx, opt);
+  // ATL-B03: kp.horary satırı eski kuralla (gövde + adaptör bilinçli değişti; yeni birimin farkı lockUnits içinde denetlenir).
+  const us = lockUnits(def, ctx, opt);
   const cu = def.contextUnits ? def.contextUnits(ctx, opt) : [];
   return createHash("sha256")
     .update(JSON.stringify([us.map((u: J) => [u.endpoint, u.adapterVersion, u.inputHash, u.body, u.query ?? null]), cu.map((u: J) => u.inputHash)]))

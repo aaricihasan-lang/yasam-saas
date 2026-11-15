@@ -119,14 +119,14 @@ for (const j of ["regresyon", "guvenlik"]) {
   const b = yml.slice(yml.indexOf(`\n  ${j}:`) + 1).split(/\n {2}[a-z0-9-]+:\n/)[0];
   check(/uses: actions\/checkout@v4\n\s+with:\n\s+fetch-depth: 0/.test(b), `${j}: tam git geçmişi (fetch-depth: 0, önceki checks ile aynı)`);
 }
-for (const j of ["typescript", "build", "guvenlik", "regresyon", "astro-pro", "horary-western"]) {
+for (const j of ["typescript", "build", "guvenlik", "regresyon", "astro-pro", "horary-western", "astro-regresyon"]) {
   const b = yml.slice(yml.indexOf(`\n  ${j}:`) + 1).split(/\n {2}[a-z0-9-]+:\n/)[0];
   check(b.includes("uses: ./.github/actions/kurulum"), `${j}: ortak kurulum (ffmpeg önbellek + SHA-256 + npm ci)`);
 }
 const kurulum = fs.readFileSync(path.join(ROOT, ".github", "actions", "kurulum", "action.yml"), "utf8");
 check(/ffmpeg-static-cache\.mjs prepare/.test(kurulum) && /ffmpeg-static-cache\.mjs install/.test(kurulum) && /FFMPEG_BIN/.test(kurulum) && /npm ci --no-audit --no-fund/.test(kurulum),
   "ortak kurulum PR #765 ffmpeg adımlarını içerir (prepare + FFMPEG_BIN + npm ci + install denetimi)");
-const yerler = { "tsc --noEmit": "typescript", "next build": "build", "migration-naming-check.mjs": "guvenlik", "test:asama1\n": "guvenlik", "test:asama1:pg": "guvenlik", "test:backup": "guvenlik", "test:astrology:horary-western": "horary-western", "test:astrology:horary-pg": "horary-western", "test:astrology:horary-backup": "horary-western", "test:astrology:pro": "astro-pro" };
+const yerler = { "tsc --noEmit": "typescript", "next build": "build", "migration-naming-check.mjs": "guvenlik", "test:asama1\n": "guvenlik", "test:asama1:pg": "guvenlik", "test:backup": "guvenlik", "test:astrology:horary-western": "horary-western", "test:astrology:horary-pg": "horary-western", "test:astrology:horary-backup": "horary-western", "test:astrology:pro": "astro-pro", "test:astrology:ci": "astro-regresyon" };
 for (const [cmd, is] of Object.entries(yerler)) {
   const b = yml.slice(yml.indexOf(`\n  ${is}:`) + 1).split(/\n {2}[a-z0-9-]+:\n/)[0];
   check(b.includes(cmd), `önceki kontrol korunuyor: ${cmd.trim()} → ${is}`);
