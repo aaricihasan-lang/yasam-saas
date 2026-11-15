@@ -5,20 +5,24 @@
  * PostgREST shim (port çıktıda yazar). Yerel Next sunucusu bu adrese işaret eder:
  *   NEXT_PUBLIC_SUPABASE_URL=<shim adresi> SUPABASE_SERVICE_ROLE_KEY=zz-h1h4ui npx next dev --webpack -p 3941
  * Ardından: node scripts/uye-yonetimi-h1h4/ui-check.mjs
+ * YALITIM: test DB her koşuda kendine özgü geçici dizin + boş port kullanır (testDbRun.ts); başka koşuların klasörleri
+ * silinmez. Yapılandırma koşu dizinine yazılır; tek canlı yığını ui-check kendisi bulur, birden çoksa
+ * H1H4_CFG=<yol> ile seçilir;
+ * Postgres portu H1H4_PG_PORT ile sabitlenebilir. Kapatma: Ctrl+C (ya da TESTDB_STDIN_KAPAT=1 iken stdin'i kapatmak)
+ * → shim + test DB kapanır, yalnız bu koşunun dizini silinir.
  */
 import { randomUUID } from "node:crypto";
-import { writeFileSync } from "node:fs";
-import os from "node:os";
-import path from "node:path";
 import { startPgrestShim } from "../uye-yonetimi-faz1/pgrestShim";
 import { startTestDb } from "../uye-yonetimi-faz2/testDb";
+import { freePort, installStackShutdown } from "../uye-yonetimi-faz2/testDbRun";
+import { writeStackConfig } from "../uye-yonetimi-faz2/uiKosu.mjs";
 import { readMig } from "../uye-yonetimi-360/migrationChain";
 
 const ADMIN = "00000000-0000-4000-8000-0000000014c1";
 const ADMIN_TOKEN = "zz-h1h4ui-admin-token-000001";
 
 async function main(): Promise<void> {
-  const db = await startTestDb(54496, "uye-yonetimi-h1h4-ui");
+  const db = await startTestDb(Number(process.env.H1H4_PG_PORT ?? (await freePort())), "uye-yonetimi-h1h4-ui");
   const { su } = db;
   for (const f of [
     "20271230000000_astrology_technique_grants.sql",
@@ -68,9 +72,10 @@ async function main(): Promise<void> {
   const shim = await startPgrestShim(db.pool);
   const user = { id: ADMIN, email: "zz.h1h4ui.admin@example.test", name: "ZZ_H1H4UI Yönetici", full_name: "ZZ_H1H4UI Yönetici", role: "admin", status: "active", active: true, approval_status: "approved" };
   const cfg = { adminId: ADMIN, token: ADMIN_TOKEN, user, ids: { pro, legacy, trial } };
-  const cfgPath = path.join(os.tmpdir(), "uye-yonetimi-h1h4-ui.json");
-  writeFileSync(cfgPath, JSON.stringify(cfg));
+  // Koşuya özgü yapılandırma (kendi koşu dizininde; sabit ortak dosyaya yazılmaz) — uiKosu.mjs.
+  const cfgPath = writeStackConfig({ runDir: db.runDir, shimUrl: shim.url, cfg, envPath: process.env.H1H4_CFG });
   console.log(`UI STACK HAZIR · shim ${shim.url} · cfg ${cfgPath}`);
+  installStackShutdown([() => shim.close(), () => db.stop()]);
   setInterval(() => { /* açık kal */ }, 1 << 30);
 }
 main().catch((e) => {
