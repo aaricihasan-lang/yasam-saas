@@ -25,7 +25,18 @@ function headers(adminId: string, json = false): Record<string, string> {
   return h;
 }
 
-export function HdEducationAccessSwitch({ userId, adminId, refreshKey }: { userId: string; adminId: string; refreshKey: string }) {
+export function HdEducationAccessSwitch({
+  userId,
+  adminId,
+  refreshKey,
+  locked = false,
+}: {
+  userId: string;
+  adminId: string;
+  refreshKey: string;
+  /** Aşama 4a: arşivdeki hesap — anahtar salt-okunur (mevcut durum görünür, değiştirilemez). */
+  locked?: boolean;
+}) {
   const [state, setState] = useState<State>({ phase: "loading" });
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
@@ -46,7 +57,7 @@ export function HdEducationAccessSwitch({ userId, adminId, refreshKey }: { userI
 
   if (state.phase !== "ready") return null;
   const { access, label, gates } = state;
-  const disabled = busy || (!access.enabled && !access.eligible);
+  const disabled = busy || locked || (!access.enabled && !access.eligible);
   const live = gates.catalogEnabled || gates.privateEnabled;
 
   const toggle = async () => {
@@ -99,6 +110,7 @@ export function HdEducationAccessSwitch({ userId, adminId, refreshKey }: { userI
             {access.enabled
               ? `${live ? "Açık" : "Yetki verildi"}${access.grantedAt ? ` · ${new Date(access.grantedAt).toLocaleDateString("tr-TR")}` : ""}.${live ? "" : " Uzman erişimi henüz kapalı (yayın hazırlığı)."} Kapatınca menü, bağlantılar ve açık oturumlar dahil tüm eğitim erişimi kapanır; veriler silinmez.`
               : access.eligible ? (live ? "Kapalı. Açınca eğitim merkezi ve özel eğitim arşivi bu uzmana açılır." : "Kapalı. Açarsanız yetki kaydedilir; içerik Eğitim Merkezi yayına açılınca görünür.") : `Verilemez: ${access.reason ?? "uygun değil"}.`}
+            {locked ? " Hesap arşivde · salt-okunur." : ""}
           </span>
         </div>
         <button

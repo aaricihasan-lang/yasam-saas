@@ -56,6 +56,7 @@ export function MemberCommercialPanel({
   paymentExempt,
   onPhasesChange,
   onNotify,
+  readOnly = false,
 }: {
   userId: string;
   adminId: string;
@@ -65,6 +66,8 @@ export function MemberCommercialPanel({
   paymentExempt: boolean;
   onPhasesChange: (phases: PricingPhase[]) => void;
   onNotify: (type: "success" | "error", title: string, message: string) => void;
+  /** Aşama 4a: arşivdeki hesap — fiyat dönemleri okunur, eklenemez / düzenlenemez / silinemez (sunucu 409). */
+  readOnly?: boolean;
 }) {
   const [reload, setReload] = useState(0);
   const loadKey = `${userId}|${adminId}|${reload}`;
@@ -194,7 +197,8 @@ export function MemberCommercialPanel({
             Uzmana özel fiyat dönemleri (ör. ilk 5 ay 200 TL, sonra 600 TL). Yalnız kayıttır — otomatik tahsilat veya erişim kısıtı yoktur.
           </p>
         </div>
-        <button type="button" onClick={openCreate} disabled={state.kind !== "ready" || formOpen}
+        <button type="button" onClick={openCreate} disabled={readOnly || state.kind !== "ready" || formOpen}
+          title={readOnly ? "Hesap arşivde: fiyat dönemi eklenemez. Önce ana yönetici arşivden çıkarır." : undefined}
           className={`${btn} border-teal-300 bg-white text-teal-950 hover:bg-teal-50`}>
           <Plus className="h-4 w-4" aria-hidden /> Fiyat dönemi ekle
         </button>
@@ -295,10 +299,10 @@ export function MemberCommercialPanel({
                       </div>
                     ) : (
                       <div className="flex shrink-0 gap-2">
-                        <button type="button" onClick={() => openEdit(p)} disabled={saving || formOpen} className={`${btn} border-slate-200 bg-white text-slate-800 hover:bg-slate-50`} aria-label={`${formatPhaseRange(p)} dönemini düzenle`}>
+                        <button type="button" onClick={() => openEdit(p)} disabled={readOnly || saving || formOpen} className={`${btn} border-slate-200 bg-white text-slate-800 hover:bg-slate-50`} aria-label={`${formatPhaseRange(p)} dönemini düzenle`}>
                           <Pencil className="h-4 w-4" aria-hidden /> Düzenle
                         </button>
-                        <button type="button" onClick={() => setConfirmDelete(p.id)} disabled={saving || formOpen} className={`${btn} border-rose-200 bg-white text-rose-800 hover:bg-rose-50`} aria-label={`${formatPhaseRange(p)} dönemini sil`}>
+                        <button type="button" onClick={() => setConfirmDelete(p.id)} disabled={readOnly || saving || formOpen} className={`${btn} border-rose-200 bg-white text-rose-800 hover:bg-rose-50`} aria-label={`${formatPhaseRange(p)} dönemini sil`}>
                           <Trash2 className="h-4 w-4" aria-hidden />
                         </button>
                       </div>
