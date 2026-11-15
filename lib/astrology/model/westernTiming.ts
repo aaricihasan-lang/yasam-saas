@@ -116,6 +116,11 @@ export type ForecastInterpretation = {
 
 // ─── Secondary progression ───────────────────────────────────────────────────
 export const PROGRESSION_TECHNICAL_SCHEMA = "astro.western.progression.v1" as const;
+/**
+ * `house` = sağlayıcının NATAL ev numarası (OpenAPI /astrology/progressions: ilerletilmiş gezegenin natal ev başlarına göre evi,
+ * gövdede houseSystem yok → Placidus; 30.10.2026 ölçümü 302/302). İlerletilmiş Yükselen'den tam burç evi bu alan DEĞİLDİR —
+ * progressionHouses.ts'de kayıtlı boylamlardan türetilir (ATL-B04).
+ */
 export type ProgressedBody = EclipticPoint & { id: BodyId; house: number | null; speed: number; retrograde: boolean };
 export type ProgressionTechnical = {
   schema: typeof PROGRESSION_TECHNICAL_SCHEMA;
@@ -124,7 +129,10 @@ export type ProgressionTechnical = {
   targetDate: string;
   progressedDate: string | null;
   elapsedYears: number | null;
-  /** Ev yerleşimi: ilerletilmiş Yükselen'den sayılan TAM BURÇ evi (sağlayıcı yöntemi). */
+  /**
+   * İlerletilmiş HARİTA (tek çark + "İlerletilmiş harita evi" sütunu) ev yöntemi: ilerletilmiş Yükselen'den tam burç. Kayıtlı
+   * değer (eski kayıtlarla uyum için aynen). bodies[].house bu yöntemle DEĞİL, natal evdir (ATL-B04, progressionHouses.ts).
+   */
   houseMethod: "whole_sign_from_progressed_ascendant";
   bodies: ProgressedBody[];
   angles: { ascendant: EclipticPoint; midheaven: EclipticPoint } | null;
@@ -134,6 +142,18 @@ export type ProgressionTechnical = {
    * isteği YOK). Bulunamazsa / saat bilinmiyorsa null; eski kayıtlarda alan hiç yoktur.
    */
   natalFrame?: TransitNatalFrame | null;
+  /**
+   * F1 (14.11.2026, adaptör -2): ortalama düğüm istendiğinde Kuzey/Güney düğüm ilerletilmiş anda YEREL hesaplanmıştır (sağlayıcı bu uç
+   * noktada mean isteğine gerçek düğüm döndürüyor; progressionNodes.ts). Alan yoksa ve nodeType "mean" ise kayıt eski (-1) sürümdür:
+   * düğüm değerleri gerçek düğümdür.
+   */
+  nodeComputation?: { source: "local_mean"; method: string; instantUtc: string };
+  /**
+   * F2 (14.11.2026): natal ev sütununun durumu. "polar_undefined" — doğum yeri kutup dairesi ötesinde, sağlayıcının natal ev numarası
+   * taşınmadı (adaptör -2). "legacy_polar_provider" — YALNIZ okuma anında eski (-1) kutup kaydına eklenir (kayıt değişmez): saklı ev
+   * numaraları Placidus değil, sağlayıcının sessiz tam burç geri dönüşüdür.
+   */
+  natalHouseStatus?: { status: "polar_undefined" | "legacy_polar_provider"; latitude: number | null };
 };
 export const PROGRESSION_INTERP_SCHEMA = "astro.western.progression.interp.v1" as const;
 export type ProgressionInterpretation = {

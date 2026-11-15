@@ -33,7 +33,7 @@
 .tab[data-tab="uyelik"] { --cb: #e7f1ff; --ch: #dceafe; --ca: #d0e3fd; --cl: #afcdf2; --cink: #1a477c; }
 .tab[data-tab="moduller"] { --cb: #e6f6ea; --ch: #daf1e0; --ca: #cbebd4; --cl: #a5d9b4; --cink: #195a38; }
 .tab[data-tab="gecmis"] { --cb: #fff0e4; --ch: #fee6d3; --ca: #fddcc2; --cl: #f0be97; --cink: #80421a; }
-.tab[data-tab="gelismis"] { --cb: #fbeaf0; --ch: #f8dfe8; --ca: #f4d2df; --cl: #e3afc3; --cink: #78334f; }
+.tab[data-tab="hesap"] { --cb: #fbeaf0; --ch: #f8dfe8; --ca: #f4d2df; --cl: #e3afc3; --cink: #78334f; }
 .tab:hover { background: var(--ch); }
 .tab[aria-selected="true"] {
   background: var(--ca);
@@ -64,7 +64,7 @@
 .stage[data-tab="uyelik"] { --t25: #f6faff; --t50: #ecf4fd; --t100: #d9e8fa; --t200: #b9d4f3; --tink: #1d4c82; --tstr: #3a78c2; }
 .stage[data-tab="moduller"] { --t25: #f6fcf8; --t50: #eaf6ef; --t100: #d3eedd; --t200: #b0dfc3; --tink: #1b5f3f; --tstr: #2c8657; }
 .stage[data-tab="gecmis"] { --t25: #fffaf5; --t50: #fdf0e6; --t100: #fae0cc; --t200: #f2c6a3; --tink: #86461a; --tstr: #c26d33; }
-.stage[data-tab="gelismis"] { --t25: #fdf9f9; --t50: #f8eef0; --t100: #f0dde0; --t200: #e1c1c6; --tink: #793843; --tstr: #a3525f; }
+.stage[data-tab="hesap"] { --t25: #fdf9f9; --t50: #f8eef0; --t100: #f0dde0; --t200: #e1c1c6; --tink: #793843; --tstr: #a3525f; }
 .stage > * { min-width: 0; }
 /* `display: grid` tarayıcının [hidden] kuralını ezmesin: gizli sekme paneli GERÇEKTEN gizli kalır. */
 .stage[hidden] { display: none; }
@@ -159,6 +159,45 @@
   .avatar { width: 44px; height: 44px; border-radius: 13px; font-size: 15px; }
   .fact { border-left: 0; border-top: 1px solid #efedf5; }
   .fact:first-child { border-top: 0; }
+}
+
+/* ---------- V3 Hızlı Hesap İşlemleri (üye bilgisinin hemen altı, her sekmede) ---------- */
+.quick {
+  display: grid;
+  gap: 12px;
+  padding: 14px 18px 16px;
+  border: 1px solid #e4dcfb;
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(22, 19, 31, 0.05);
+}
+.quickHead { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; }
+.quickTitle { margin: 0; font-size: 15px; font-weight: 800; letter-spacing: -0.01em; color: #2a1d6e; }
+.quickSub { margin: 0; font-size: 12.5px; color: #6b6780; }
+.quickGroups { display: flex; flex-wrap: wrap; gap: 12px; align-items: stretch; }
+.quickGroups > * { min-width: 0; }
+.quickGroup {
+  flex: 1 1 280px;
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  padding: 12px 14px;
+  border: 1px solid #e7e3f1;
+  border-radius: 14px;
+  background: #faf9fd;
+}
+.quickApprove { flex-basis: 100%; border-color: #c9ead6; background: #f4fbf6; }
+/* Tehlikeli bölge: ayrı kutu, gül kurusu kenar — günlük erişim işlemlerinden görsel olarak ayrık. */
+.quickDanger { flex: 0 1 320px; border-color: #f3c3cb; background: #fdf5f6; }
+.quickLabel { margin: 0; font-size: 11px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: #4d485f; }
+.quickDanger .quickLabel { color: #8c1328; }
+.quickButtons { display: flex; flex-wrap: wrap; gap: 10px; }
+.quickButtons > button { min-height: 44px; }
+.quickHint { margin: 0; font-size: 12px; line-height: 1.5; color: #5b566e; overflow-wrap: anywhere; }
+@media (max-width: 640px) {
+  .quick { padding: 12px; border-radius: 16px; }
+  .quickGroup, .quickDanger { flex-basis: 100%; padding: 10px 12px; }
+  .quickButtons > button { flex: 1 1 100%; justify-content: center; }
 }
 
 /* ---------- Bilgi kartları ve bölgeler ---------- */

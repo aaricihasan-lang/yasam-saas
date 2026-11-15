@@ -112,7 +112,7 @@ export function golgeAnaliz(o) {
     const ustAgac = agacOku(cwd, t.grafUst ?? t.tested);
     const ustListe = listeOku(ustAgac);
     if (!ustListe) throw new Error(`${LISTE} okunamadı`);
-    const tumIsler = ["typescript", "build", "guvenlik", "regresyon", "astro-pro", "horary-western", "ci-kapisi"];
+    const tumIsler = ["typescript", "build", "guvenlik", "regresyon", "astro-pro", "horary-western", "astro-regresyon", "ci-kapisi"];
     const full = (gerekce) => { sonuc.fullFallback = true; sonuc.gerekceler.push(gerekce); };
     const sureler = (() => { try { return JSON.parse(ustAgac.read(SURELER)).sureler ?? {}; } catch { return {}; } })();
     const sn = (ts) => Math.round(ts.reduce((a, f) => a + (sureler[f] ?? 2), 0));
@@ -169,7 +169,7 @@ export function golgeAnaliz(o) {
       kayit.gerekce = kullanan.length ? `${kullanan.length} test bu dosyayı kullanıyor (import grafiği)` : (testMi ? "test dosyasının kendisi" : "modül dosyası; doğrudan kullanan regresyon testi yok");
       kullanan.forEach((x) => secilen.add(x));
       for (const [is, ks] of Object.entries(isKapanis)) if (ks.some((k) => kullaniyorMu(k, p))) onerIs.add(is);
-      if (kayit.moduller.includes("atlas")) { onerIs.add("astro-pro"); onerIs.add("horary-western"); }
+      if (kayit.moduller.includes("atlas")) { onerIs.add("astro-pro"); onerIs.add("horary-western"); onerIs.add("astro-regresyon"); }
       return kayit;
     };
 
@@ -218,7 +218,7 @@ export function golgeAnaliz(o) {
     sonuc.hata = String(e?.message ?? e).slice(0, 500);
     sonuc.fullFallback = true; sonuc.sinif = "E";
     sonuc.gerekceler.push(`Gölge analizi hata verdi → FULL FALLBACK (${sonuc.hata})`);
-    sonuc.oneri = { isler: ["typescript", "build", "guvenlik", "regresyon", "astro-pro", "horary-western", "ci-kapisi"], regresyonTestleri: null, regresyonTestSayisi: null, tumIsler: true };
+    sonuc.oneri = { isler: ["typescript", "build", "guvenlik", "regresyon", "astro-pro", "horary-western", "astro-regresyon", "ci-kapisi"], regresyonTestleri: null, regresyonTestSayisi: null, tumIsler: true };
     return sonuc;
   }
 }
@@ -230,7 +230,7 @@ function tamamla(sonuc, liste, sn) {
     listeTestSayisi: liste.length, onerilenTestSayisi: sonuc.oneri.regresyonTestSayisi,
     regresyonSnTum: sn(liste), regresyonSnOneri: oneriSn,
     atlanabilecekTestSayisi: liste.length - (sonuc.oneri.regresyonTestSayisi ?? liste.length),
-    atlanabilecekIsler: ["typescript", "build", "guvenlik", "regresyon", "astro-pro", "horary-western", "ci-kapisi"].filter((i) => !sonuc.oneri.isler.includes(i) && !(i === "regresyon" && sonuc.oneri.regresyonTestSayisi)),
+    atlanabilecekIsler: ["typescript", "build", "guvenlik", "regresyon", "astro-pro", "horary-western", "astro-regresyon", "ci-kapisi"].filter((i) => !sonuc.oneri.isler.includes(i) && !(i === "regresyon" && sonuc.oneri.regresyonTestSayisi)),
   };
   sonuc.gerekceler = [...new Set(sonuc.gerekceler)];
   return sonuc;

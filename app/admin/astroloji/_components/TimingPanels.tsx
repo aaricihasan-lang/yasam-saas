@@ -58,6 +58,7 @@ import type {
 } from "@/lib/astrology/model/vedic";
 import { KpChartPanel, KpHoraryPanel, KpRulingPanel, KpTransitPanel } from "./KpPanels";
 import { horaryDisplayZone } from "@/lib/astrology/transitDetail";
+import { PROGRESSED_CHART_HOUSE_SHORT_LABEL, progressedWholeSignCusps, progressionHouseColumns } from "@/lib/astrology/progressionHouses";
 import { KP_TIMING_TECHNICAL_SCHEMA, type KpChartTechnical, type KpHoraryTechnical, type KpRulingTechnical, type KpTimingTechnical, type KpTransitTechnical } from "@/lib/astrology/model/kp";
 import { KpTimingPanel } from "./KpTimingPanel";
 import { KpRulingIntervalPanel } from "./KpRulingIntervalPanel";
@@ -95,6 +96,7 @@ import { DeclinationParallelsPanel } from "./DeclinationParallelsPanel";
 import type { DeclinationParallelsTechnical } from "@/lib/astrology/model/westernDeclination";
 import { deltaTBirthNotes, deltaTTargetNotes } from "@/lib/astrology/deltaTNotice";
 import { fitGridCell, fitGridStyle } from "./atlas/fitGrid";
+import { LEGACY_MEAN_NODE_WARNING, LEGACY_POLAR_NATAL_HOUSE_WARNING, MEAN_NODE_LOCAL_NOTE, polarNatalHouseNote } from "@/lib/astrology/progressionNodesText";
 
 const th = "px-2 py-1.5 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500";
 const td = "px-2 py-1.5 text-sm text-slate-800";
@@ -318,6 +320,8 @@ export function ProgressionPanel({ t, timeUnknownMasked = false }: { t: Progress
   const f = t.natalFrame ?? null;
   const natalById = new Map((f?.bodies ?? []).map((b) => [b.id, b]));
   const aspects = progressedToNatalAspects(t);
+  // ATL-B04: iki ev çerçevesi ayrı ve doğru etiketli sütunlarda (natal ev / ilerletilmiş harita evi) — progressionHouses.ts.
+  const hc = progressionHouseColumns(t);
   return (
     <div className="flex flex-col gap-3" data-testid="astro-progression-panel">
       <p className="text-sm text-slate-600" data-testid="astro-progression-period">
@@ -331,6 +335,23 @@ export function ProgressionPanel({ t, timeUnknownMasked = false }: { t: Progress
         {t.elapsedYears !== null && <> · doğumdan bu yana {t.elapsedYears.toFixed(2)} yıl</>}
       </p>
       <MethodBox testId="astro-progression-method">{PROGRESSION_METHOD_NOTE}</MethodBox>
+      {/* F1/F2 (14.11.2026): düğüm kaynağı ve kutup natal evleri — açık yöntem notu / eski kayıt uyarısı (progressionNodesText.ts). */}
+      {t.nodeComputation && <MethodBox testId="astro-progression-mean-node-note">{MEAN_NODE_LOCAL_NOTE}</MethodBox>}
+      {t.nodeType === "mean" && !t.nodeComputation && (
+        <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-900" data-testid="astro-progression-legacy-mean">
+          {LEGACY_MEAN_NODE_WARNING}
+        </p>
+      )}
+      {t.natalHouseStatus?.status === "polar_undefined" && !f && (
+        <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-900" data-testid="astro-progression-polar-note">
+          {polarNatalHouseNote(t.natalHouseStatus.latitude)}
+        </p>
+      )}
+      {t.natalHouseStatus?.status === "legacy_polar_provider" && !f && (
+        <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-900" data-testid="astro-progression-legacy-polar">
+          {LEGACY_POLAR_NATAL_HOUSE_WARNING}
+        </p>
+      )}
       {t.angles && (
         <Section title="İlerletilmiş açısal noktalar">
           <table className="min-w-full">
@@ -366,7 +387,20 @@ export function ProgressionPanel({ t, timeUnknownMasked = false }: { t: Progress
             <tr>
               <th className={th}>Gök cismi</th>
               <th className={th}>İlerletilmiş</th>
-              {t.angles !== null && <th className={th}>Ev (ilerl.)</th>}
+              {hc.natal && (
+                <th className={th} title={hc.natal.method} data-testid="astro-progression-natal-house-head">
+                  {hc.natal.label}
+                </th>
+              )}
+              {hc.progressed && (
+                <th className={th} title={hc.progressed.method} data-testid="astro-progression-chart-house-head">
+                  {/* 390 px'te tam etiket tablo kutusunu taşırıyordu (owner kararı 14.11.2026: dar ekranda kısa etiket). */}
+                  <span className="sm:hidden" data-testid="astro-progression-chart-house-head-short">
+                    {PROGRESSED_CHART_HOUSE_SHORT_LABEL}
+                  </span>
+                  <span className="hidden sm:inline">{hc.progressed.label}</span>
+                </th>
+              )}
               {f && <th className={th}>Natal</th>}
             </tr>
           </thead>
@@ -383,7 +417,8 @@ export function ProgressionPanel({ t, timeUnknownMasked = false }: { t: Progress
                   <td className={td}>
                     <SignCell sign={b.sign} degree={b.degreeInSign} />
                   </td>
-                  {t.angles !== null && <td className={td}>{b.house ?? "—"}</td>}
+                  {hc.natal && <td className={td} data-testid="astro-progression-natal-house">{hc.natal.of(b.id) ?? "—"}</td>}
+                  {hc.progressed && <td className={td} data-testid="astro-progression-chart-house">{hc.progressed.of(b.id) ?? "—"}</td>}
                   {f && <td className={`${td} text-slate-500`}>{n ? <SignCell sign={n.sign} degree={n.degreeInSign} /> : "—"}</td>}
                 </tr>
               );
@@ -559,11 +594,8 @@ export function wheelForTechnique(technique: string, technical: unknown): { whee
       };
     }
     if (!t.angles) return null;
-    const first = Math.floor(t.angles.ascendant.longitude / 30) * 30;
-    const houses = Array.from({ length: 12 }, (_, i) => {
-      const lon = (first + i * 30) % 360;
-      return { number: i + 1, longitude: lon, sign: SIGN_IDS[Math.floor(lon / 30)], degreeInSign: 0 };
-    });
+    // ATL-B04: tablodaki "İlerletilmiş harita evi" sütunuyla AYNI kural (progressionHouses.ts).
+    const houses = progressedWholeSignCusps(t.angles.ascendant.longitude);
     return {
       wheel: { bodies: t.bodies.map((b) => ({ id: b.id, longitude: b.longitude, sign: b.sign, degreeInSign: b.degreeInSign, retrograde: b.retrograde })), houses, angles: t.angles, aspects: [] },
       label: "İlerletilmiş (secondary progression) harita çarkı · tam burç evleri",

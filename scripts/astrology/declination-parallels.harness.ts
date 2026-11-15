@@ -47,6 +47,7 @@ import { isSectionKeyForTechnique, parseAnyTopicKey, topicsForTechnique } from "
 import { buildSelections, defaultParams, describeOptions, missingReason, TECHNIQUE_META, UI_TECHNIQUES } from "@/app/admin/astroloji/_lib/techniques";
 import * as SOON from "@/app/admin/astroloji/_lib/comingSoon";
 import type { ResolvedLocation } from "@/lib/astrology/birth/profileInput";
+import { lockUnits } from "./kpHoraryLegacyUnits";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type J = any;
@@ -691,7 +692,8 @@ async function main() {
   // ═══ F) MEVCUT TEKNİKLER DEĞİŞMEDİ · UI · GÜVENLİK ═════════════════════════════
   await t("F: mevcut tekniklerin girdi özeti DEĞİŞMEDİ (sabit hash; taban 40f31195)", () => {
     const ctx = { birth: A, birthUtc: "1990-07-15T11:30:00.000Z", partner: null };
-    const h = (id: string, opt: Record<string, unknown>) => getTechnique(id as never)!.units(ctx, getTechnique(id as never)!.parseOptions(opt, new Date("2026-10-22T09:00:00Z"))!).map((u) => u.inputHash).join(",");
+    // F1/F2 (14.11.2026): western.progression satırı eski adaptörle (gövde aynı; farkın yalnız adaptör olduğu lockUnits içinde denetlenir).
+    const h = (id: string, opt: Record<string, unknown>) => lockUnits(getTechnique(id as never)!, ctx, getTechnique(id as never)!.parseOptions(opt, new Date("2026-10-22T09:00:00Z"))!).map((u) => u.inputHash).join(",");
     for (const [id, opt, want] of FIXED) assert.equal(h(id, opt), want, `${id} ${JSON.stringify(opt)}`);
   });
 

@@ -1,0 +1,1089 @@
+{
+ "body": {
+  "horaryNumber": 193,
+  "date": "1951-01-29",
+  "time": "03:39:00",
+  "latitude": 42.8882,
+  "longitude": 129.5024,
+  "timezone": 8,
+  "ayanamsa": "kp-newcomb",
+  "nodeType": "mean"
+ },
+ "response": {
+  "horaryNumber": 193,
+  "questionTime": "1951-01-28T19:39:00.000Z",
+  "ayanamsaType": "kp-newcomb",
+  "ayanamsaDegrees": 23.0782,
+  "ascendant": {
+   "longitude": 277.3889,
+   "degreeInSign": 7.3889,
+   "sign": "Capricorn",
+   "star": "Uttara Ashadha",
+   "starLord": "Sun",
+   "subLord": "Ketu",
+   "kpNumber": 193,
+   "spanFrom": 277,
+   "spanTo": 277.7778
+  },
+  "cusps": [
+   {
+    "house": 1,
+    "longitude": 277.3889,
+    "sign": "Capricorn",
+    "star": "Uttara Ashadha",
+    "starLord": "Sun",
+    "subLord": "Ketu",
+    "kpNumber": 193
+   },
+   {
+    "house": 2,
+    "longitude": 325.7763,
+    "sign": "Aquarius",
+    "star": "Purva Bhadrapada",
+    "starLord": "Jupiter",
+    "subLord": "Mercury",
+    "kpNumber": 224
+   },
+   {
+    "house": 3,
+    "longitude": 4.7805,
+    "sign": "Aries",
+    "star": "Ashwini",
+    "starLord": "Ketu",
+    "subLord": "Mars",
+    "kpNumber": 5
+   },
+   {
+    "house": 4,
+    "longitude": 31.772,
+    "sign": "Taurus",
+    "star": "Krittika",
+    "starLord": "Sun",
+    "subLord": "Jupiter",
+    "kpNumber": 24
+   },
+   {
+    "house": 5,
+    "longitude": 52.986,
+    "sign": "Taurus",
+    "star": "Rohini",
+    "starLord": "Moon",
+    "subLord": "Sun",
+    "kpNumber": 37
+   },
+   {
+    "house": 6,
+    "longitude": 73.1393,
+    "sign": "Gemini",
+    "star": "Ardra",
+    "starLord": "Rahu",
+    "subLord": "Mercury",
+    "kpNumber": 50
+   },
+   {
+    "house": 7,
+    "longitude": 97.3889,
+    "sign": "Cancer",
+    "star": "Pushya",
+    "starLord": "Saturn",
+    "subLord": "Ketu",
+    "kpNumber": 68
+   },
+   {
+    "house": 8,
+    "longitude": 145.7763,
+    "sign": "Leo",
+    "star": "Purva Phalguni",
+    "starLord": "Venus",
+    "subLord": "Mercury",
+    "kpNumber": 100
+   },
+   {
+    "house": 9,
+    "longitude": 184.7805,
+    "sign": "Libra",
+    "star": "Chitra",
+    "starLord": "Mars",
+    "subLord": "Venus",
+    "kpNumber": 127
+   },
+   {
+    "house": 10,
+    "longitude": 211.772,
+    "sign": "Scorpio",
+    "star": "Vishakha",
+    "starLord": "Jupiter",
+    "subLord": "Rahu",
+    "kpNumber": 148
+   },
+   {
+    "house": 11,
+    "longitude": 232.986,
+    "sign": "Scorpio",
+    "star": "Jyeshtha",
+    "starLord": "Mercury",
+    "subLord": "Moon",
+    "kpNumber": 162
+   },
+   {
+    "house": 12,
+    "longitude": 253.1393,
+    "sign": "Sagittarius",
+    "star": "Moola",
+    "starLord": "Ketu",
+    "subLord": "Mercury",
+    "kpNumber": 175
+   }
+  ],
+  "planets": [
+   {
+    "planet": "Sun",
+    "longitude": 285.0028,
+    "house": 1,
+    "isRetrograde": false,
+    "subSubLord": "Venus",
+    "sign": "Capricorn",
+    "star": "Shravana",
+    "starLord": "Moon",
+    "subLord": "Jupiter",
+    "kpNumber": 198
+   },
+   {
+    "planet": "Moon",
+    "longitude": 171.9058,
+    "house": 8,
+    "isRetrograde": false,
+    "subSubLord": "Saturn",
+    "sign": "Virgo",
+    "star": "Hasta",
+    "starLord": "Moon",
+    "subLord": "Venus",
+    "kpNumber": 119
+   },
+   {
+    "planet": "Mars",
+    "longitude": 311.8574,
+    "house": 1,
+    "isRetrograde": false,
+    "subSubLord": "Mars",
+    "sign": "Aquarius",
+    "star": "Shatabhisha",
+    "starLord": "Rahu",
+    "subLord": "Saturn",
+    "kpNumber": 215
+   },
+   {
+    "planet": "Mercury",
+    "longitude": 260.9745,
+    "house": 12,
+    "isRetrograde": false,
+    "subSubLord": "Ketu",
+    "sign": "Sagittarius",
+    "star": "Purva Ashadha",
+    "starLord": "Venus",
+    "subLord": "Jupiter",
+    "kpNumber": 181
+   },
+   {
+    "planet": "Jupiter",
+    "longitude": 317.3581,
+    "house": 1,
+    "isRetrograde": false,
+    "subSubLord": "Ketu",
+    "sign": "Aquarius",
+    "star": "Shatabhisha",
+    "starLord": "Rahu",
+    "subLord": "Venus",
+    "kpNumber": 218
+   },
+   {
+    "planet": "Venus",
+    "longitude": 303.144,
+    "house": 1,
+    "isRetrograde": false,
+    "subSubLord": "Sun",
+    "sign": "Aquarius",
+    "star": "Dhanishta",
+    "starLord": "Mars",
+    "subLord": "Venus",
+    "kpNumber": 210
+   },
+   {
+    "planet": "Saturn",
+    "longitude": 159.0351,
+    "house": 8,
+    "isRetrograde": true,
+    "subSubLord": "Jupiter",
+    "sign": "Virgo",
+    "star": "Uttara Phalguni",
+    "starLord": "Sun",
+    "subLord": "Venus",
+    "kpNumber": 111
+   },
+   {
+    "planet": "Rahu",
+    "longitude": 328.2348,
+    "house": 2,
+    "isRetrograde": true,
+    "subSubLord": "Saturn",
+    "sign": "Aquarius",
+    "star": "Purva Bhadrapada",
+    "starLord": "Jupiter",
+    "subLord": "Venus",
+    "kpNumber": 226
+   },
+   {
+    "planet": "Ketu",
+    "longitude": 148.2348,
+    "house": 8,
+    "isRetrograde": true,
+    "subSubLord": "Venus",
+    "sign": "Leo",
+    "star": "Uttara Phalguni",
+    "starLord": "Sun",
+    "subLord": "Moon",
+    "kpNumber": 103
+   }
+  ],
+  "rulingPlanets": {
+   "dayLord": "Sun",
+   "moonSignLord": "Mercury",
+   "moonStarLord": "Moon",
+   "moonSublord": "Venus",
+   "moonSubSublord": "Saturn",
+   "lagnaSignLord": "Mars",
+   "lagnaStarLord": "Mercury",
+   "lagnaSublord": "Jupiter",
+   "lagnaSubSublord": "Jupiter",
+   "rulingPlanets": [
+    "Mercury",
+    "Mars",
+    "Moon",
+    "Sun"
+   ]
+  },
+  "significators": {
+   "houseWise": [
+    {
+     "house": 1,
+     "significators": [
+      {
+       "level": 1,
+       "description": "Yerleşik gezegenin yıldızındaki gezegenler",
+       "planets": [
+        "Saturn",
+        "Ketu",
+        "Venus",
+        "Rahu",
+        "Mercury"
+       ]
+      },
+      {
+       "level": 2,
+       "description": "Hanenin yerleşik gezegenleri",
+       "planets": [
+        "Sun",
+        "Mars",
+        "Jupiter",
+        "Venus"
+       ]
+      },
+      {
+       "level": 4,
+       "description": "Hanenin yöneticisi",
+       "planets": [
+        "Saturn"
+       ]
+      }
+     ],
+     "all": [
+      "Saturn",
+      "Ketu",
+      "Venus",
+      "Rahu",
+      "Mercury",
+      "Sun",
+      "Mars",
+      "Jupiter",
+      "Venus",
+      "Saturn"
+     ]
+    },
+    {
+     "house": 2,
+     "significators": [
+      {
+       "level": 1,
+       "description": "Yerleşik gezegenin yıldızındaki gezegenler",
+       "planets": [
+        "Mars",
+        "Jupiter"
+       ]
+      },
+      {
+       "level": 2,
+       "description": "Hanenin yerleşik gezegenleri",
+       "planets": [
+        "Rahu"
+       ]
+      },
+      {
+       "level": 4,
+       "description": "Hanenin yöneticisi",
+       "planets": [
+        "Saturn"
+       ]
+      }
+     ],
+     "all": [
+      "Mars",
+      "Jupiter",
+      "Rahu",
+      "Saturn"
+     ]
+    },
+    {
+     "house": 3,
+     "significators": [
+      {
+       "level": 3,
+       "description": "Hane yöneticisinin yıldızındaki gezegenler",
+       "planets": [
+        "Venus"
+       ]
+      },
+      {
+       "level": 4,
+       "description": "Hanenin yöneticisi",
+       "planets": [
+        "Mars"
+       ]
+      }
+     ],
+     "all": [
+      "Venus",
+      "Mars"
+     ]
+    },
+    {
+     "house": 4,
+     "significators": [
+      {
+       "level": 3,
+       "description": "Hane yöneticisinin yıldızındaki gezegenler",
+       "planets": [
+        "Mercury"
+       ]
+      },
+      {
+       "level": 4,
+       "description": "Hanenin yöneticisi",
+       "planets": [
+        "Venus"
+       ]
+      }
+     ],
+     "all": [
+      "Mercury",
+      "Venus"
+     ]
+    },
+    {
+     "house": 5,
+     "significators": [
+      {
+       "level": 3,
+       "description": "Hane yöneticisinin yıldızındaki gezegenler",
+       "planets": [
+        "Mercury"
+       ]
+      },
+      {
+       "level": 4,
+       "description": "Hanenin yöneticisi",
+       "planets": [
+        "Venus"
+       ]
+      }
+     ],
+     "all": [
+      "Mercury",
+      "Venus"
+     ]
+    },
+    {
+     "house": 6,
+     "significators": [
+      {
+       "level": 4,
+       "description": "Hanenin yöneticisi",
+       "planets": [
+        "Mercury"
+       ]
+      }
+     ],
+     "all": [
+      "Mercury"
+     ]
+    },
+    {
+     "house": 7,
+     "significators": [
+      {
+       "level": 3,
+       "description": "Hane yöneticisinin yıldızındaki gezegenler",
+       "planets": [
+        "Sun",
+        "Moon"
+       ]
+      },
+      {
+       "level": 4,
+       "description": "Hanenin yöneticisi",
+       "planets": [
+        "Moon"
+       ]
+      }
+     ],
+     "all": [
+      "Sun",
+      "Moon",
+      "Moon"
+     ]
+    },
+    {
+     "house": 8,
+     "significators": [
+      {
+       "level": 1,
+       "description": "Yerleşik gezegenin yıldızındaki gezegenler",
+       "planets": [
+        "Sun",
+        "Moon"
+       ]
+      },
+      {
+       "level": 2,
+       "description": "Hanenin yerleşik gezegenleri",
+       "planets": [
+        "Moon",
+        "Saturn",
+        "Ketu"
+       ]
+      },
+      {
+       "level": 3,
+       "description": "Hane yöneticisinin yıldızındaki gezegenler",
+       "planets": [
+        "Saturn",
+        "Ketu"
+       ]
+      },
+      {
+       "level": 4,
+       "description": "Hanenin yöneticisi",
+       "planets": [
+        "Sun"
+       ]
+      }
+     ],
+     "all": [
+      "Sun",
+      "Moon",
+      "Moon",
+      "Saturn",
+      "Ketu",
+      "Saturn",
+      "Ketu",
+      "Sun"
+     ]
+    },
+    {
+     "house": 9,
+     "significators": [
+      {
+       "level": 3,
+       "description": "Hane yöneticisinin yıldızındaki gezegenler",
+       "planets": [
+        "Mercury"
+       ]
+      },
+      {
+       "level": 4,
+       "description": "Hanenin yöneticisi",
+       "planets": [
+        "Venus"
+       ]
+      }
+     ],
+     "all": [
+      "Mercury",
+      "Venus"
+     ]
+    },
+    {
+     "house": 10,
+     "significators": [
+      {
+       "level": 3,
+       "description": "Hane yöneticisinin yıldızındaki gezegenler",
+       "planets": [
+        "Venus"
+       ]
+      },
+      {
+       "level": 4,
+       "description": "Hanenin yöneticisi",
+       "planets": [
+        "Mars"
+       ]
+      }
+     ],
+     "all": [
+      "Venus",
+      "Mars"
+     ]
+    },
+    {
+     "house": 11,
+     "significators": [
+      {
+       "level": 3,
+       "description": "Hane yöneticisinin yıldızındaki gezegenler",
+       "planets": [
+        "Venus"
+       ]
+      },
+      {
+       "level": 4,
+       "description": "Hanenin yöneticisi",
+       "planets": [
+        "Mars"
+       ]
+      }
+     ],
+     "all": [
+      "Venus",
+      "Mars"
+     ]
+    },
+    {
+     "house": 12,
+     "significators": [
+      {
+       "level": 2,
+       "description": "Hanenin yerleşik gezegenleri",
+       "planets": [
+        "Mercury"
+       ]
+      },
+      {
+       "level": 3,
+       "description": "Hane yöneticisinin yıldızındaki gezegenler",
+       "planets": [
+        "Rahu"
+       ]
+      },
+      {
+       "level": 4,
+       "description": "Hanenin yöneticisi",
+       "planets": [
+        "Jupiter"
+       ]
+      }
+     ],
+     "all": [
+      "Mercury",
+      "Rahu",
+      "Jupiter"
+     ]
+    }
+   ],
+   "planetWise": [
+    {
+     "planet": "Sun",
+     "house": 1,
+     "starLord": "Moon",
+     "subLord": "Jupiter",
+     "signifies": [
+      {
+       "level": 1,
+       "houses": [
+        8
+       ]
+      },
+      {
+       "level": 2,
+       "houses": [
+        1
+       ]
+      },
+      {
+       "level": 3,
+       "houses": [
+        7
+       ]
+      },
+      {
+       "level": 4,
+       "houses": [
+        8
+       ]
+      }
+     ],
+     "allHouses": [
+      8,
+      1,
+      7,
+      8
+     ]
+    },
+    {
+     "planet": "Moon",
+     "house": 8,
+     "starLord": "Moon",
+     "subLord": "Venus",
+     "signifies": [
+      {
+       "level": 1,
+       "houses": [
+        8
+       ]
+      },
+      {
+       "level": 2,
+       "houses": [
+        8
+       ]
+      },
+      {
+       "level": 3,
+       "houses": [
+        7
+       ]
+      },
+      {
+       "level": 4,
+       "houses": [
+        7
+       ]
+      }
+     ],
+     "allHouses": [
+      8,
+      8,
+      7,
+      7
+     ]
+    },
+    {
+     "planet": "Mars",
+     "house": 1,
+     "starLord": "Rahu",
+     "subLord": "Saturn",
+     "signifies": [
+      {
+       "level": 1,
+       "houses": [
+        2
+       ]
+      },
+      {
+       "level": 2,
+       "houses": [
+        1
+       ]
+      },
+      {
+       "level": 4,
+       "houses": [
+        3,
+        10,
+        11
+       ]
+      }
+     ],
+     "allHouses": [
+      2,
+      1,
+      3,
+      10,
+      11
+     ]
+    },
+    {
+     "planet": "Mercury",
+     "house": 12,
+     "starLord": "Venus",
+     "subLord": "Jupiter",
+     "signifies": [
+      {
+       "level": 1,
+       "houses": [
+        1
+       ]
+      },
+      {
+       "level": 2,
+       "houses": [
+        12
+       ]
+      },
+      {
+       "level": 3,
+       "houses": [
+        4,
+        5,
+        9
+       ]
+      },
+      {
+       "level": 4,
+       "houses": [
+        6
+       ]
+      }
+     ],
+     "allHouses": [
+      1,
+      12,
+      4,
+      5,
+      9,
+      6
+     ]
+    },
+    {
+     "planet": "Jupiter",
+     "house": 1,
+     "starLord": "Rahu",
+     "subLord": "Venus",
+     "signifies": [
+      {
+       "level": 1,
+       "houses": [
+        2
+       ]
+      },
+      {
+       "level": 2,
+       "houses": [
+        1
+       ]
+      },
+      {
+       "level": 4,
+       "houses": [
+        12
+       ]
+      }
+     ],
+     "allHouses": [
+      2,
+      1,
+      12
+     ]
+    },
+    {
+     "planet": "Venus",
+     "house": 1,
+     "starLord": "Mars",
+     "subLord": "Venus",
+     "signifies": [
+      {
+       "level": 1,
+       "houses": [
+        1
+       ]
+      },
+      {
+       "level": 2,
+       "houses": [
+        1
+       ]
+      },
+      {
+       "level": 3,
+       "houses": [
+        3,
+        10,
+        11
+       ]
+      },
+      {
+       "level": 4,
+       "houses": [
+        4,
+        5,
+        9
+       ]
+      }
+     ],
+     "allHouses": [
+      1,
+      1,
+      3,
+      10,
+      11,
+      4,
+      5,
+      9
+     ]
+    },
+    {
+     "planet": "Saturn",
+     "house": 8,
+     "starLord": "Sun",
+     "subLord": "Venus",
+     "signifies": [
+      {
+       "level": 1,
+       "houses": [
+        1
+       ]
+      },
+      {
+       "level": 2,
+       "houses": [
+        8
+       ]
+      },
+      {
+       "level": 3,
+       "houses": [
+        8
+       ]
+      },
+      {
+       "level": 4,
+       "houses": [
+        1,
+        2
+       ]
+      }
+     ],
+     "allHouses": [
+      1,
+      8,
+      8,
+      1,
+      2
+     ]
+    },
+    {
+     "planet": "Rahu",
+     "house": 2,
+     "starLord": "Jupiter",
+     "subLord": "Venus",
+     "signifies": [
+      {
+       "level": 1,
+       "houses": [
+        1,
+        2
+       ]
+      },
+      {
+       "level": 2,
+       "houses": [
+        2,
+        1,
+        8
+       ]
+      },
+      {
+       "level": 3,
+       "houses": [
+        12,
+        3,
+        10,
+        11,
+        8
+       ]
+      },
+      {
+       "level": 4,
+       "houses": [
+        3,
+        10,
+        11,
+        12,
+        4,
+        5,
+        9,
+        1,
+        2
+       ]
+      }
+     ],
+     "allHouses": [
+      1,
+      2,
+      12
+     ],
+     "agentHouses": [
+      2,
+      1,
+      3,
+      10,
+      11,
+      12,
+      4,
+      5,
+      9,
+      8
+     ]
+    },
+    {
+     "planet": "Ketu",
+     "house": 8,
+     "starLord": "Sun",
+     "subLord": "Moon",
+     "signifies": [
+      {
+       "level": 1,
+       "houses": [
+        1,
+        2,
+        8
+       ]
+      },
+      {
+       "level": 2,
+       "houses": [
+        8,
+        1
+       ]
+      },
+      {
+       "level": 3,
+       "houses": [
+        8,
+        3,
+        10,
+        11,
+        7
+       ]
+      },
+      {
+       "level": 4,
+       "houses": [
+        3,
+        10,
+        11,
+        12,
+        4,
+        5,
+        9,
+        8
+       ]
+      }
+     ],
+     "allHouses": [
+      1,
+      8,
+      8
+     ],
+     "agentHouses": [
+      8,
+      1,
+      3,
+      10,
+      11,
+      12,
+      4,
+      5,
+      9
+     ]
+    }
+   ]
+  },
+  "houseThemes": {
+   "1": [
+    "benlik",
+    "beden",
+    "sağlık",
+    "kişilik",
+    "canlılık"
+   ],
+   "2": [
+    "zenginlik",
+    "aile",
+    "konuşma",
+    "mal varlığı",
+    "yiyecek"
+   ],
+   "3": [
+    "kardeşler",
+    "cesaret",
+    "iletişim",
+    "kısa yolculuklar",
+    "beceriler"
+   ],
+   "4": [
+    "ev",
+    "anne",
+    "mülk",
+    "araçlar",
+    "ev huzuru"
+   ],
+   "5": [
+    "çocuklar",
+    "aşk",
+    "yaratıcılık",
+    "eğitim",
+    "spekülasyon"
+   ],
+   "6": [
+    "düşmanlar",
+    "hastalık",
+    "borçlar",
+    "hizmet",
+    "rekabet"
+   ],
+   "7": [
+    "evlilik",
+    "eş",
+    "iş ortaklığı",
+    "sözleşmeler",
+    "halkla ilişkiler"
+   ],
+   "8": [
+    "uzun ömür",
+    "miras",
+    "ani olaylar",
+    "okült",
+    "dönüşüm"
+   ],
+   "9": [
+    "talih",
+    "baba",
+    "dharma",
+    "yüksek öğrenim",
+    "uzun yolculuklar"
+   ],
+   "10": [
+    "kariyer",
+    "meslek",
+    "statü",
+    "otorite",
+    "karma"
+   ],
+   "11": [
+    "kazançlar",
+    "gelir",
+    "arkadaşlar",
+    "büyük kardeşler",
+    "dileklerin gerçekleşmesi"
+   ],
+   "12": [
+    "kayıplar",
+    "giderler",
+    "yabancı ülkeler",
+    "izolasyon",
+    "moksha"
+   ]
+  },
+  "focus": "general"
+ }
+}
