@@ -263,9 +263,10 @@ async function main() {
     assert.ok(/cfg\.mode === "off"\) return json\(\{ error: "Bulunamadı\." \}, 404\)/.test(boot));
     assert.ok(!/json\(\{[^}]*token/.test(boot), "token gövdede");
   });
-  await t("Android oturum politikası dosyalarına dokunulmadı (sessionSecurity.ts kanal/süre satırları)", () => {
+  await t("Android oturum politikası yalnız onaylı F2-A satırı (sessionSecurity.ts kanal/süre satırları)", () => {
     const s = read("lib/auth/sessionSecurity.ts");
-    assert.ok(s.includes('p_expires_at: clientChannel === "android_app" ? null : computeSessionExpiresAt(lr?.role),'));
+    // Owner 2026-11-15 F2-A: yeni android_app oturumları süreli (30 gün). Satır yine sabitlenir.
+    assert.ok(s.includes('p_expires_at: clientChannel === "android_app" ? computeAndroidSessionExpiresAt() : computeSessionExpiresAt(lr?.role),'));
   });
 
   console.log(`httponly-h1h4 harness: ${pass} PASS / ${fail} FAIL`);

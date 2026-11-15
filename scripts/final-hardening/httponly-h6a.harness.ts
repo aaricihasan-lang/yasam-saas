@@ -248,8 +248,9 @@ async function main() {
     for (const f of ["lib/auth/yasamUser.ts", "lib/auth/sessionExpiry.ts"]) assert.ok(!/lib\/auth\/sessionCookie/.test(read(f)), f);
     assert.ok(!/import/.test(read("lib/auth/sessionTransportFlag.ts")));
   });
-  await t("Android oturum politikası değişmedi (no-expiry satırı)", () => {
-    assert.ok(read("lib/auth/sessionSecurity.ts").includes('p_expires_at: clientChannel === "android_app" ? null : computeSessionExpiresAt(lr?.role),'));
+  await t("Android oturum politikası yalnız onaylı F2-A satırı (30 gün)", () => {
+    // Owner 2026-11-15 F2-A: yeni android_app oturumları süreli (önceden no-expiry satırı).
+    assert.ok(read("lib/auth/sessionSecurity.ts").includes('p_expires_at: clientChannel === "android_app" ? computeAndroidSessionExpiresAt() : computeSessionExpiresAt(lr?.role),'));
   });
 
   console.log(`httponly-h6a harness: ${pass} PASS / ${fail} FAIL`);

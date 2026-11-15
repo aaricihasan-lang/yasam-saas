@@ -129,6 +129,13 @@ const STEPS = [
     ["20270129000200_user_sessions_expiry_touch.sql", "20271003200000_session_model_v2.sql", "20271003200100_admin_audit_session_actions.sql"],
     ["session-model-assert.sql"])],
   ["session-model-concurrency", "node", ["scripts/session-model/pg-concurrency.mjs"]],
+  // GİRİŞ GÜVENLİĞİ F2-A: süreli yeni android oturumu (eski süresiz korunur) / pasif kullanıcı / token_hash / Owner işareti.
+  //   Eski zincir fixture olarak (bir kez) → eski RPC ile süresiz android tohumu → F2-A migration (iki kez).
+  ["pg:session-f2a", ...pg([F("session-model-fixture.sql"), F("session-f2a-fixture.sql"),
+    M("20270129000200_user_sessions_expiry_touch.sql"), M("20271003200000_session_model_v2.sql"),
+    M("20271003200100_admin_audit_session_actions.sql"), F("session-f2a-legacy-seed.sql")],
+    ["20280103000000_auth_session_hardening_f2a.sql"],
+    ["session-f2a-assert.sql"])],
 ];
 
 const only = process.argv.includes("--only") ? process.argv[process.argv.indexOf("--only") + 1] : null;
