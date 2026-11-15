@@ -411,7 +411,22 @@ async function testResetMobile() {
     await o.page.goto(BASE + "/settings", { waitUntil: "load" });
     await o.page.waitForSelector("text=Hesap Güvenliği", { timeout: 90000 });
     await o.page.waitForTimeout(1500);
-    ok("R-ayarlar", "bayrak kapalı / erişim yok: Çalışma Alanım sekmesi yok, diğer sekmeler aynı", (await o.page.getByRole("button", { name: /Çalışma Alanım/ }).count()) === 0 && (await o.page.getByRole("button", { name: /Geri Yükleme/ }).count()) === 1);
+    // Ayarlar Alternatif B (Owner kararı 12.11): Dışa Aktarım · Sistem Yedeği · Geri Yükleme "Yedek & Aktarım" menüsünde.
+    // Çalışma Alanım ne üst düzeyde ne herhangi bir menüde (gizli panel dahil) var; Geri Yükleme gerçek menü yolundan açılır.
+    const grp = o.page.getByRole("button", { name: /Yedek & Aktarım/ });
+    const grpCount = await grp.count();
+    if (grpCount === 1) await grp.click();
+    const menuItems = await o.page.locator('[data-settings-tab-group="group-data"] ~ div [data-settings-tab]').evaluateAll((els) => els.map((e) => (e.textContent ?? "").trim()));
+    const restoreBtn = o.page.getByRole("button", { name: /Geri Yükleme/ });
+    const restoreCount = await restoreBtn.count();
+    if (restoreCount === 1) await restoreBtn.click();
+    const restoreOpen = await waitFor(async () => (await o.page.locator("h2", { hasText: /^Geri Yükleme$/ }).count()) === 1 && (await o.page.locator('input[type="file"][accept=".json,application/json"]').count()) === 1 && (await o.page.getByText("Dosyayı seçmek için tıklayın").isVisible()), 15000);
+    const restoreSel = (await o.page.locator('[data-settings-tab="restore"]').getAttribute("aria-pressed")) === "true";
+    const menuClosed = (await o.page.locator('[data-settings-tab-group="group-data"]').getAttribute("aria-expanded")) === "false";
+    const noWs = (await o.page.getByRole("button", { name: /Çalışma Alanım/ }).count()) === 0 && (await o.page.locator('[data-settings-tab="workspace"]').count()) === 0;
+    ok("R-ayarlar", "bayrak kapalı / erişim yok: Çalışma Alanım sekmesi yok, diğer sekmeler aynı (Yedek & Aktarım menüsü → Geri Yükleme açılır)",
+      noWs && grpCount === 1 && menuItems.join("|") === "Dışa Aktarım|Sistem Yedeği|Geri Yükleme" && restoreCount === 1 && restoreOpen && restoreSel && menuClosed,
+      { noWs, grpCount, menuItems, restoreCount, restoreOpen, restoreSel, menuClosed });
     await o.ctx.close();
   }
 
