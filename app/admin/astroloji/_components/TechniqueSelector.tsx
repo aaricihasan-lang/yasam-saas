@@ -574,13 +574,8 @@ export function TechniqueParamFields({
                 <input type="date" className={inp} value={params.kpDate} onChange={(e) => set("kpDate", e.target.value)} aria-label="KP tarihi" />
                 <input type="time" className={inp} value={params.kpTime} onChange={(e) => set("kpTime", e.target.value)} aria-label="KP saati" />
                 <FieldIssue text={dateInputIssue(params.kpDate) ?? timeInputIssue(params.kpTime)} testId="astro-kp-date-issue" />
-                <select className={inp} value={params.kpTz} onChange={(e) => set("kpTz", e.target.value)} aria-label="KP saat dilimi">
-                  {TZ_OPTIONS.map((z) => (
-                    <option key={z} value={z}>
-                      {z}
-                    </option>
-                  ))}
-                </select>
+                {/* K5 (15.11.2026): 6 sabit seçenek yerine tüm IANA bölgeleri (sunucu her geçerli IANA adını kabul eder; ör. Pacific/Apia). */}
+                <TzSelect value={params.kpTz} onChange={(v) => set("kpTz", v)} label="KP saat dilimi" />
               </>
             )}
             <span className="text-slate-500">(ruling / transit / horary ortak an)</span>
