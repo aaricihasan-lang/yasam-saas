@@ -172,6 +172,19 @@ const PAYMENT_BADGE_STYLES: Record<PaymentStatusUi, string> = {
   unknown: "bg-slate-100 text-slate-700 ring-slate-200",
 };
 
+/** Aşama 4a: arşivdeki hesapta değiştirme alanlarının üstünde gösterilen kısa salt-okunur notu. */
+function ArchivedReadOnlyNote({ what }: { what: string }) {
+  return (
+    <p
+      role="note"
+      data-archived-readonly
+      className="mt-3 rounded-xl border border-stone-300 bg-stone-50 px-3 py-2 text-xs font-bold text-stone-700"
+    >
+      Hesap arşivde · {what} salt-okunur. Değişiklik için önce ana yönetici arşivden çıkarır.
+    </p>
+  );
+}
+
 function PaymentStatusBadge({ status }: { status: PaymentStatusUi }) {
   return (
     <span
@@ -472,7 +485,7 @@ function ModulePermissionSwitches({
         onClick={() => onToggle(key, !value[key])}
         className={`relative shrink-0 rounded-full transition disabled:cursor-not-allowed ${small ? "h-7 w-12" : "h-8 w-14"} ${
           value[key] ? "bg-emerald-600" : "bg-slate-300"
-        } ${busy ? "opacity-60" : ""}`}
+        } ${busy || disabled ? "opacity-60" : ""}`}
       >
         <span
           className={`absolute top-1 rounded-full bg-white shadow transition ${small ? "h-5 w-5" : "h-6 w-6"} ${
@@ -805,6 +818,7 @@ export default function AdminUserDetailPage() {
     headers: trialHeaders,
     notify: trialNotify,
     onChanged: () => void loadUser(currentAdminId),
+    locked: isArchived,
   });
   const [showPaymentHistory, setShowPaymentHistory] = useState(false);
   const [showSecurityPanel, setShowSecurityPanel] = useState(false);
@@ -1521,7 +1535,7 @@ export default function AdminUserDetailPage() {
   }
 
   async function savePayment() {
-    if (!user || !paymentDraft) return;
+    if (!user || !paymentDraft || isArchived) return;
     if (!canPersistPayment) {
       showToast({ title: "Kayıt yapılamadı", message: "Veritabanında ödeme kolonları bulunamadı.", type: "error" });
       return;
@@ -1598,7 +1612,7 @@ export default function AdminUserDetailPage() {
    * paralel iki farklı toggle birbirini EZMEZ. Yanıttaki gerçek final izinlerle state güncellenir.
    */
   async function saveModuleChange(key: AdminModuleUiKey, nextValue: boolean) {
-    if (!user || user.role !== "expert" || !canPersistModulePermissions) return;
+    if (!user || user.role !== "expert" || !canPersistModulePermissions || isArchived) return;
     if (modulePendingKeys.has(key)) return;
 
     setModulePendingKeys((prev) => new Set(prev).add(key));
@@ -2441,9 +2455,11 @@ export default function AdminUserDetailPage() {
                     <div className="mt-3 flex flex-wrap items-center gap-2">
                       <button
                         type="button"
-                        disabled={actionUserId === user.id || legacyBlocked || !user.active}
+                        disabled={actionUserId === user.id || legacyBlocked || !user.active || isArchived}
                         title={
-                          legacyBlocked
+                          isArchived
+                            ? "Hesap arşivde: önce ana yönetici arşivden çıkarır."
+                            : legacyBlocked
                             ? "Eski kayıt onarımı yalnız ana yöneticiye açıktır."
                             : !user.active
                               ? "Önce hesabı aktif yapın."
@@ -2490,6 +2506,7 @@ export default function AdminUserDetailPage() {
                 paymentExempt={user.payment.status === "exempt"}
                 onPhasesChange={setPricingPhases}
                 onNotify={(type, title, message) => showToast({ type, title, message })}
+                readOnly={isArchived}
               />
             ) : null}
             {(() => {
@@ -2540,6 +2557,13 @@ export default function AdminUserDetailPage() {
 
                 {showPaymentPanel ? (
                   <div className="mt-5 border-t border-teal-200/70 pt-5">
+                {isArchived ? <ArchivedReadOnlyNote what="ödeme bilgileri" /> : null}
+                <fieldset
+                  disabled={isArchived}
+                  aria-disabled={isArchived}
+                  data-payment-form
+                  className="m-0 min-w-0 border-0 p-0 disabled:opacity-80"
+                >
                 <div className="grid gap-4 sm:grid-cols-2">
                   <label className="block sm:col-span-2">
                     <span className={labelClass}>Ödeme Durumu</span>
@@ -2693,6 +2717,8 @@ export default function AdminUserDetailPage() {
                   ) : null}
                 </div>
 
+                </fieldset>
+
                 <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                   <div className="rounded-xl border border-white/90 bg-white/85 px-4 py-3 text-sm">
                     <p className="text-[11px] font-black uppercase text-slate-500">
@@ -2733,7 +2759,7 @@ export default function AdminUserDetailPage() {
                   <button
                     type="button"
                     onClick={savePayment}
-                    disabled={savingPayment || !canPersistPayment}
+                    disabled={savingPayment || !canPersistPayment || isArchived}
                     className={`${saveBtnClass} sm:min-w-[200px] sm:flex-1 sm:max-w-xs`}
                   >
                     {savingPayment ? (
@@ -2795,6 +2821,7 @@ export default function AdminUserDetailPage() {
                       sırasında seçilir.
                     </p>
                   ) : null}
+                  {isArchived ? <ArchivedReadOnlyNote what="modül izinleri" /> : null}
                   <ModulePermissionSwitches
                     value={user.modulePermissions}
                     onToggle={(key, next) =>
@@ -2803,7 +2830,7 @@ export default function AdminUserDetailPage() {
                         : void saveModuleChange(key, next)
                     }
                     pendingKeys={modulePendingKeys}
-                    disabled={!canPersistModulePermissions}
+                    disabled={!canPersistModulePermissions || isArchived}
                     renderExtra={(key) =>
                       key === "astrology" ? (
                         <AstrologyTechniqueAccess
@@ -2812,7 +2839,7 @@ export default function AdminUserDetailPage() {
                           adminId={currentAdminId}
                           moduleEnabled={user.modulePermissions.astrology === true}
                           openForEnableSignal={astroTechOpenSignal}
-                          disabled={!canPersistModulePermissions}
+                          disabled={!canPersistModulePermissions || isArchived}
                           onModuleEnabled={(perms) => {
                             const serverPerms = parseAdminModulePermissions(perms);
                             setUser((prev) =>
@@ -2827,6 +2854,7 @@ export default function AdminUserDetailPage() {
                     userId={user.id}
                     adminId={currentAdminId}
                     refreshKey={`${user.approvalStatus}:${String(user.modulePermissions.human_design)}`}
+                    locked={isArchived}
                   />
                   <HdUnlimitedGrantPanel userId={user.id} adminId={currentAdminId} />
                 </div>
@@ -3632,7 +3660,9 @@ export default function AdminUserDetailPage() {
                     <label className="block">
                       <span className={labelClass}>Rol</span>
                       <select
-                        className={inputClass}
+                        className={`${inputClass} disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500`}
+                        disabled={isArchived}
+                        aria-describedby={isArchived ? "edit-role-hint" : undefined}
                         value={editForm.role}
                         onChange={(e) =>
                           setEditForm((f) =>
@@ -3645,6 +3675,11 @@ export default function AdminUserDetailPage() {
                         <option value="expert">Uzman</option>
                         <option value="admin">Yönetici</option>
                       </select>
+                      {isArchived ? (
+                        <span id="edit-role-hint" className="mt-1 block text-xs font-bold text-slate-500">
+                          Hesap arşivde: rol değiştirilemez (ad ve e-posta düzeltilebilir).
+                        </span>
+                      ) : null}
                     </label>
                   </div>
                   <div className="mt-3 flex flex-wrap gap-2">
@@ -3692,7 +3727,8 @@ export default function AdminUserDetailPage() {
               </div>
 
               {/* P1-7 (owner kararı 14): lisans + güvenlik politikası yalnız ana yöneticide düzenlenebilir. */}
-              {!viewerIsMainAdmin ? (
+              {isArchived ? <ArchivedReadOnlyNote what="lisans ve oturum ayarları" /> : null}
+              {!viewerIsMainAdmin && !isArchived ? (
                 <p className="mt-4 rounded-2xl border-2 border-slate-200 bg-slate-50/90 px-4 py-3 text-sm font-bold text-slate-700">
                   Yalnız ana yönetici değiştirebilir. Lisans türü, oturum/cihaz limitleri, lokasyon, güvenlik
                   modu ve güvenlik istisnası burada salt-okunur gösterilir.
@@ -3748,8 +3784,8 @@ export default function AdminUserDetailPage() {
               ) : null}
 
               <fieldset
-                disabled={!viewerIsMainAdmin}
-                aria-disabled={!viewerIsMainAdmin}
+                disabled={!viewerIsMainAdmin || isArchived}
+                aria-disabled={!viewerIsMainAdmin || isArchived}
                 className="m-0 min-w-0 border-0 p-0 disabled:opacity-80"
               >
               {/* Hazır Ayarlar */}
@@ -3919,7 +3955,7 @@ export default function AdminUserDetailPage() {
               </fieldset>
 
               {/* ── Kaydet: önce/sonra farkı + kilitlenme onayı (MEM-001) ───────── */}
-              {viewerIsMainAdmin ? (() => {
+              {viewerIsMainAdmin && !isArchived ? (() => {
                 const diff = diffLicenseSettings(user.licenseSettings, licenseDraft);
                 const lockout = analyzeLockout(licenseDraft);
                 const noChange = diff.length === 0;

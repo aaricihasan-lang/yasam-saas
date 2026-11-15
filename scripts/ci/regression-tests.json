@@ -1518,6 +1518,11 @@
    "file": "scripts/deneme-hesap-durumu/hesap-durumu.harness.ts",
    "tsx": true,
    "timeoutSec": 240
+  },
+  {
+   "file": "scripts/uye-arsiv-salt-okunur/salt-okunur.harness.ts",
+   "tsx": true,
+   "timeoutSec": 120
   }
  ]
 }
