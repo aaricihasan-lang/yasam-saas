@@ -208,11 +208,18 @@ export type CreateSessionResult =
       highRisk: boolean;
       exceptionUsed: boolean;
     }
-  | { ok: false; reason: LimitReason; deviceType: string; role: "admin" | "expert" | null };
+  | { ok: false; reason: LimitReason; deviceType: string; role: "admin" | "expert" | null }
+  /** F2-B: MFA challenge reddi (geçersiz/doğrulanmamış/süresi dolmuş/kullanılmış) — oturum AÇILMADI. */
+  | { ok: false; mfaRejected: true; reason: string; role: "admin" | "expert" | null };
 
 export type CreateSessionOptions = {
   /** Aynı cihazdaki ÖNCEKİ token (localStorage/pending) — aynı kullanıcıya aitse kapatılır. */
   replaceToken?: string | null;
+  /**
+   * F2-B: MFA'lı tamamlama. Verilirse oturum YALNIZ auth_finalize_login ile (challenge tüketimi +
+   * tarayıcı bağlama kontrolü aynı işlemde) açılır; create_session_v2 / admin RPC doğrudan çağrılmaz.
+   */
+  mfa?: { challengeId: string; bindingHash: string } | null;
 };
 
 export async function createUserSession(
@@ -255,57 +262,11 @@ export async function createUserSession(
   // dışındaki her kanal) doğrudan AKTİF oturum açar; başka oturumlara dokunulmaz. Parola, rol,
   // active/approval, throttle, audit ve süre (2 sa / 24 sa) kuralları AYNEN geçerli. Uzman yolu ve
   // resmî Android (android_app) yolu DEĞİŞMEZ (create_session_v2).
-  if (role === "admin" && clientChannel !== "android_app") {
-    if (replaceToken && replaceToken !== sessionToken) {
-      // Aynı cihazdaki eski token (yalnız bu kullanıcıya aitse) kapanır — mevcut davranışla aynı.
-      await db
-        .from("user_sessions")
-        .update({ is_active: false, ended_at: new Date().toISOString(), end_reason: "replaced_same_device" })
-        .eq("session_token", replaceToken)
-        .eq("user_id", userId)
-        .eq("is_active", true);
-    }
-    const nowIso = new Date().toISOString();
-    const { error: insErr } = await db.from("user_sessions").insert({
-      user_id: userId,
-      ip_address: location.ip,
-      country: location.country,
-      city: location.city,
-      user_agent: location.userAgent,
-      platform,
-      client_channel: clientChannel,
-      session_token: sessionToken,
-      is_active: true,
-      created_at: nowIso,
-      last_seen_at: nowIso,
-      expires_at: computeSessionExpiresAt(lr?.role),
-      session_role: "admin",
-      session_state: "active",
-    });
-    if (insErr) throw new Error(`Oturum oluşturulamadı: ${insErr.message}`);
-    if (risk.level !== "low") {
-      await logSecurityEvent(db, userId, location, {
-        event_type: risk.level === "high_risk" ? "high_risk_login" : "suspicious_login",
-        severity: risk.level === "high_risk" ? "high" : "medium",
-        message: `Admin girişi (onay devre dışı): ${risk.refSession?.country?.toUpperCase() ?? "?"} → ${location.country?.toUpperCase() ?? "?"}`,
-        metadata: { platform: limitPlatform, existing_sessions_closed: 0, admin_pending: false },
-      });
-    }
-    return {
-      ok: true,
-      state: "active",
-      sessionId: null,
-      pendingExpiresAt: null,
-      channel: clientChannel,
-      role: "admin",
-      suspiciousLogin: risk.level === "suspicious",
-      highRisk: risk.level === "high_risk",
-      exceptionUsed: false,
-    };
-  }
-
-  const { data: rpcData, error: rpcError } = await db.rpc("create_session_v2", {
-    p_user_id: userId,
+  // F2-B (D-04): admin web oturumu artık doğrudan INSERT ile DEĞİL, create_session_admin_web RPC'si
+  // (aynı davranış: eski aynı-cihaz token'ı kapanır, yeni oturum doğrudan aktif) ile açılır.
+  // MFA'lı tamamlamada (options.mfa) her iki yol da auth_finalize_login içinden yürür.
+  const isAdminWeb = role === "admin" && clientChannel !== "android_app";
+  const v2Args = {
     p_session_token: sessionToken,
     p_ip: location.ip,
     p_country: location.country,
@@ -323,19 +284,71 @@ export async function createUserSession(
     p_expert_stale_seconds: expertStaleSeconds(secMode),
     p_admin_web_cap: ADMIN_WEB_SESSION_CAP,
     p_pending_ttl_seconds: PENDING_APPROVAL_TTL_SECONDS,
-  });
+  };
+  const mfa = options.mfa ?? null;
+  const { data: rpcData, error: rpcError } = mfa
+    ? await db.rpc("auth_finalize_login", { p_challenge_id: mfa.challengeId, p_browser_secret_hash: mfa.bindingHash, ...v2Args })
+    : isAdminWeb
+      ? await db.rpc("create_session_admin_web", {
+          p_user_id: userId,
+          p_session_token: sessionToken,
+          p_ip: location.ip,
+          p_country: location.country,
+          p_city: location.city,
+          p_user_agent: location.userAgent,
+          p_platform: platform,
+          p_client_channel: clientChannel,
+          p_replace_token: replaceToken,
+          p_expires_at: computeSessionExpiresAt(lr?.role), // admin web: android_app değil
+        })
+      : await db.rpc("create_session_v2", { p_user_id: userId, ...v2Args });
   if (rpcError) {
     throw new Error(`Oturum oluşturulamadı: ${rpcError.message}`);
   }
 
   const result = (rpcData ?? {}) as {
+    ok?: boolean;
     inserted?: boolean;
     reason?: string;
     state?: string;
     session_id?: string | null;
     pending_expires_at?: string | null;
     exception_used?: boolean;
+    user_id?: string;
   };
+
+  if (mfa) {
+    // auth_finalize_login: ok=false → challenge reddi (oturum yok). user_id challenge'ın sahibidir;
+    // çağıranın userId'si ile uyuşmazsa (savunma) reddedilir.
+    if (result.ok !== true) {
+      return { ok: false, mfaRejected: true, reason: String(result.reason ?? "invalid"), role };
+    }
+    if (result.inserted === true && String(result.user_id ?? "") !== userId) {
+      throw new Error("Oturum oluşturulamadı: kullanıcı uyuşmazlığı");
+    }
+  }
+
+  if (isAdminWeb && result.inserted === true) {
+    if (risk.level !== "low") {
+      await logSecurityEvent(db, userId, location, {
+        event_type: risk.level === "high_risk" ? "high_risk_login" : "suspicious_login",
+        severity: risk.level === "high_risk" ? "high" : "medium",
+        message: `Admin girişi (onay devre dışı): ${risk.refSession?.country?.toUpperCase() ?? "?"} → ${location.country?.toUpperCase() ?? "?"}`,
+        metadata: { platform: limitPlatform, existing_sessions_closed: 0, admin_pending: false },
+      });
+    }
+    return {
+      ok: true,
+      state: "active",
+      sessionId: typeof result.session_id === "string" ? result.session_id : null,
+      pendingExpiresAt: null,
+      channel: clientChannel,
+      role: "admin",
+      suspiciousLogin: risk.level === "suspicious",
+      highRisk: risk.level === "high_risk",
+      exceptionUsed: false,
+    };
+  }
 
   if (!result.inserted) {
     const reason = String(result.reason ?? "total_limit");

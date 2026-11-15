@@ -160,6 +160,7 @@ function rpc(name: string, b: Row): unknown {
       rate.set(String(b.p_bucket), n);
       return n > Number(b.p_limit) ? { allowed: false, retry_after: 60 } : { allowed: true, retry_after: 0 };
     }
+    case "create_session_admin_web": // F2-B (D-04): admin web oturumu RPC ile
     case "create_session_v2":
       tables.user_sessions.push({ id: `s${tables.user_sessions.length}`, user_id: b.p_user_id, session_token: b.p_session_token, is_active: true, session_state: "active" });
       return { inserted: true, state: "active", session_id: "s", exception_used: false };
