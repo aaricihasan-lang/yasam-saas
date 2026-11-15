@@ -1537,6 +1537,11 @@
    "file": "scripts/uye-4b/uye-4b.harness.ts",
    "tsx": true,
    "timeoutSec": 300
+  },
+  {
+   "file": "scripts/deneme-hesap-durumu/hesap-durumu.harness.ts",
+   "tsx": true,
+   "timeoutSec": 240
   }
  ]
 }
