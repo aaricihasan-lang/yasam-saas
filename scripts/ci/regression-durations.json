@@ -221,6 +221,8 @@
   "scripts/uye-yonetimi-asama1/harness.ts": 0.5,
   "scripts/uye-yonetimi-faz1/db-contract.harness.ts": 1.4,
   "scripts/uye-yonetimi-faz2/hub-visibility.harness.ts": 0.5,
+  "scripts/uye-yonetimi-faz2/testDb-izolasyon.harness.ts": 53.6,
+  "scripts/uye-yonetimi-faz2/uiKosu.harness.mjs": 0.4,
   "scripts/uye-yonetimi-faz2/unit.harness.ts": 0.6,
   "scripts/verify-dogaltas-cart-basket.ts": 0.5,
   "scripts/workspace/assets.harness.ts": 6.2,

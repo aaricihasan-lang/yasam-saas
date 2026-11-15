@@ -20,6 +20,7 @@ import { randomUUID } from "node:crypto";
 import { NextRequest } from "next/server";
 import { startPgrestShim } from "../uye-yonetimi-faz1/pgrestShim";
 import { startTestDb } from "../uye-yonetimi-faz2/testDb";
+import { freePort } from "../uye-yonetimi-faz2/testDbRun";
 import { readMig } from "../uye-yonetimi-360/migrationChain";
 import { foldTr, memberListReturnHref } from "../../lib/admin/memberListQuery";
 import { legacyMemberListRedirect, parseMemberV2Query, memberV2QueryToSearch, DEFAULT_MEMBER_V2_QUERY } from "../../lib/admin/memberListV2";
@@ -76,7 +77,7 @@ function istDay(ms: number): string {
 }
 
 async function main(): Promise<void> {
-  const port = 59000 + Math.floor(Math.random() * 900);
+  const port = await freePort(); // işletim sisteminden boş port (paralel koşular çakışmaz)
   const db = await startTestDb(port, `uye-listesi-v2-${port}`);
   const { su } = db;
   let shim: Awaited<ReturnType<typeof startPgrestShim>> | null = null;
