@@ -120,6 +120,9 @@ export const TABLE_POLICY_OVERRIDES: Readonly<Record<string, RestorePolicy>> = {
   // Session/token & rebuild edilebilir → DO_NOT_RESTORE (yalnız metadata/count)
   user_sessions: "DO_NOT_RESTORE",
   demo_numerology_ip_usage: "DO_NOT_RESTORE",
+  // GİRİŞ GÜVENLİĞİ F2-B: MFA challenge / test izni geri yüklenirse MFA atlatılabilir → asla restore edilmez.
+  auth_mfa_challenges: "DO_NOT_RESTORE",
+  auth_mfa_test_accounts: "DO_NOT_RESTORE",
 };
 
 /**

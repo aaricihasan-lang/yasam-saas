@@ -33,6 +33,16 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { writeAdminAudit } from "@/lib/admin/adminAudit";
 import { activateTrialOnLogin } from "@/lib/trial/trialServer";
 import { resolveActorIsMainAdmin } from "@/lib/admin/accountSessionControls";
+import {
+  beginMfaChallenge,
+  hashMfaBinding,
+  isMfaTestAccount,
+  MFA_CHALLENGE_TTL_SECONDS,
+  newMfaBindingSecret,
+  readMfaRequirement,
+  resolveOfferedMfaMethods,
+  setMfaBindingCookie,
+} from "@/lib/auth/mfaChallenge";
 
 export const runtime = "nodejs";
 
@@ -176,12 +186,59 @@ export async function POST(req: NextRequest) {
     }
 
     const location     = extractLocationFromHeaders(req.headers);
+
+    // GİRİŞ GÜVENLİĞİ F2-B: MFA zorunlu kullanıcıda parola tek başına oturum AÇMAZ. Yalnız kısa
+    // ömürlü, bu istemciye bağlı bir challenge oluşur; token/kullanıcı satırı/deneme başlangıcı YOK.
+    // Zorunluluk okunamazsa fail-closed (500). Yöntem sunulamıyorsa da parolaya DÜŞÜLMEZ.
+    const mfaRequirement = await readMfaRequirement(db, String(row.id));
+    if (mfaRequirement.status === "error") {
+      return json({ code: "ERROR", error: "Giriş şu anda yapılamıyor. Lütfen tekrar deneyin." }, 500);
+    }
+    if (mfaRequirement.status === "required") {
+      const androidApp = isAndroidAppRequest(req.headers);
+      const bindingSecret = newMfaBindingSecret();
+      const begun = await beginMfaChallenge(db, {
+        userId: String(row.id),
+        bindingHash: hashMfaBinding(bindingSecret),
+        clientChannel: location.channel ?? "unknown",
+        ipHash,
+        userAgent: location.userAgent,
+      });
+      if (!begun.ok) {
+        if (begun.reason === "too_many_open") return rateLimited(MFA_CHALLENGE_TTL_SECONDS);
+        if (begun.reason === "inactive") {
+          return json({ code: "INACTIVE", error: "Hesabınız pasif durumda. Lütfen sistem yöneticisiyle iletişime geçin." }, 403);
+        }
+        return json({ code: "ERROR", error: "Giriş şu anda yapılamıyor. Lütfen tekrar deneyin." }, 500);
+      }
+      const methods = resolveOfferedMfaMethods(await isMfaTestAccount(db, String(row.id)));
+      const mfaResponse = json(
+        {
+          code: "MFA_REQUIRED",
+          challengeId: begun.challengeId,
+          expiresAt: begun.expiresAt,
+          methods,
+          ...(androidApp ? { mfaBinding: bindingSecret } : {}),
+          error: methods.length > 0
+            ? "Girişi tamamlamak için ikinci doğrulama gerekiyor."
+            : "Hesabınız için ikinci doğrulama zorunlu; şu anda kullanılabilir doğrulama yöntemi yok. Lütfen sistem yöneticisiyle iletişime geçin.",
+        },
+        202,
+      );
+      if (!androidApp) setMfaBindingCookie(mfaResponse, bindingSecret);
+      return mfaResponse;
+    }
+
     const sessionToken = randomUUID();
 
     const result = await createUserSession(db, row.id, location, sessionToken, {
       replaceToken: replaceSessionToken,
     });
 
+    // Bu yol MFA tamamlaması kullanmaz; MFA reddi burada beklenmez (savunma: oturum yok → 500).
+    if (!result.ok && "mfaRejected" in result) {
+      return json({ code: "ERROR", error: "Oturum oluşturulamadı." }, 500);
+    }
     // P3 reject-new: limit aşımında yeni oturum OLUŞTURULMAZ (mevcut oturumlar korunur).
     if (!result.ok) {
       if (result.reason === "admin_mobile_active" || result.reason === "admin_web_limit") {

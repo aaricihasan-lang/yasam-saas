@@ -195,6 +195,19 @@ function fakeCreateSessionV2(args: Row): unknown {
   return { inserted: true, state: "active", session_id: `s-${tables.user_sessions.length}`, exception_used: false };
 }
 
+/** F2-B (D-04): admin web oturumu artık create_session_admin_web RPC'siyle açılır — önceki doğrudan
+ *  INSERT davranışının birebir sahte karşılığı (aynı cihaz eski token'ı kapanır, yeni oturum aktif). */
+function fakeCreateSessionAdminWeb(args: Row): unknown {
+  if (args.p_replace_token && args.p_replace_token !== args.p_session_token) {
+    for (const s of tables.user_sessions) {
+      if (s.session_token === args.p_replace_token && s.user_id === args.p_user_id && s.is_active === true) {
+        s.is_active = false; s.ended_at = new Date(nowMs).toISOString(); s.end_reason = "replaced_same_device";
+      }
+    }
+  }
+  return fakeCreateSessionV2(args);
+}
+
 const missingRpc = new Set<string>();
 
 function parseFilters(url: URL): ((r: Row) => boolean)[] {
@@ -238,6 +251,7 @@ globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
     if (name === "touch_active_session") return jsonRes(fakeTouch(body));
     if (name === "create_session_within_limits") return jsonRes(fakeCreateSession(body));
     if (name === "create_session_v2") return jsonRes(fakeCreateSessionV2(body));
+    if (name === "create_session_admin_web") return jsonRes(fakeCreateSessionAdminWeb(body));
     if (name === "login_user") {
       const r = fakeAuthLoginGuarded({ ...body, p_ip_hash: "" }) as Row;
       return jsonRes(r.status === "ok" ? [r.user] : []);

@@ -105,6 +105,18 @@ function fakeCreateSessionV2(args: Row): unknown {
   });
   return { inserted: true, state: "active", session_id: tables.user_sessions.at(-1)!.id, exception_used: false };
 }
+/** F2-B (D-04): admin web oturumu artık create_session_admin_web RPC'siyle açılır — önceki doğrudan
+ *  INSERT davranışının birebir sahte karşılığı (aynı cihaz eski token'ı kapanır, yeni oturum aktif). */
+function fakeCreateSessionAdminWeb(args: Row): unknown {
+  if (args.p_replace_token && args.p_replace_token !== args.p_session_token) {
+    for (const s of tables.user_sessions) {
+      if (s.session_token === args.p_replace_token && s.user_id === args.p_user_id && s.is_active === true) {
+        s.is_active = false; s.ended_at = new Date(nowMs).toISOString(); s.end_reason = "replaced_same_device";
+      }
+    }
+  }
+  return fakeCreateSessionV2(args);
+}
 function fakeTouch(args: Row): unknown {
   const s = tables.user_sessions.find((r) => r.session_token === args.p_token && r.is_active === true && r.ended_at == null);
   return s ? String(s.user_id) : null;
@@ -148,6 +160,7 @@ globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
     if (name === "auth_login_guarded") return jsonRes(fakeLogin(body));
     if (name === "auth_rate_limit_hit") return jsonRes(fakeRate(body));
     if (name === "create_session_v2") return jsonRes(fakeCreateSessionV2(body));
+    if (name === "create_session_admin_web") return jsonRes(fakeCreateSessionAdminWeb(body));
     if (name === "touch_active_session") return jsonRes(fakeTouch(body));
     if (name === "hash_password") return jsonRes("$2a$10$fakehashfakehashfakehashfakehashfakehashfakehashfake");
     if (name === "provision_expert") return jsonRes(fakeProvision(body));

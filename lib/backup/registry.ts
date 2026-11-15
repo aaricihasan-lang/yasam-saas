@@ -539,6 +539,11 @@ export const BACKUP_REGISTRY: readonly RegistryEntry[] = [
   // AUTH-01 (migration 20271120001000): e-posta özeti + IP güven kaydı; tenant_id YOK, yalnız auth_login_guarded
   // yazar. Tenant yedeğinden geri yüklenmesi e-posta kilidini atlatacak "güvenilen IP" enjeksiyonu olurdu.
   off("auth_login_trusted", "system", "Giriş güven kaydı (e-posta özeti + IP; güvenlik).", "none"),
+  // GİRİŞ GÜVENLİĞİ F2-B (migration 20280103000100): MFA challenge'ları (bağlama sırrı özeti) ve Owner'ın
+  // test hesabı izin listesi; tenant_id YOK, yalnız SECURITY DEFINER RPC'ler yazar. Geri yükleme bir
+  // challenge'ı/izni yeniden canlandırıp MFA'yı atlatma yolu olurdu → yedeğe GİRMEZ.
+  off("auth_mfa_challenges", "system", "MFA giriş challenge'ları (güvenlik; kısa ömürlü).", "none"),
+  off("auth_mfa_test_accounts", "system", "MFA kontrollü test hesabı izin listesi (Owner; güvenlik).", "none"),
   // Migration 20271009100000: purge transaction'ına bağlı işaret; aynı tx'te yazılıp silinir, hiçbir role açık değil.
   off("session_limit_exceptions", "system", "Geçici test hesabı oturum-limiti istisnası (TEMPORARY — satış sonrası kaldırılacak).", "none"),
   off("auth_rate_limit_events", "system", "Global DB tabanlı istek hız sınırı olayları (güvenlik).", "none"),
