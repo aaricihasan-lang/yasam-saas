@@ -10,6 +10,7 @@
  */
 import { useCallback, useEffect, useState } from "react";
 import { ownerAdminHeaders } from "@/components/admin/notifications/ownerBellStore";
+import OwnerStepUpDialog from "@/components/admin/OwnerStepUpDialog";
 
 type Pending = {
   id: string;
@@ -40,6 +41,8 @@ export default function CihazOnaylariPage() {
   const [items, setItems] = useState<Pending[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [rows, setRows] = useState<Record<string, RowState>>({});
+  // F2-G: onay için işleme özel yeniden doğrulama penceresi (hedef cihaz).
+  const [stepUpFor, setStepUpFor] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     const headers = ownerAdminHeaders();
@@ -77,7 +80,12 @@ export default function CihazOnaylariPage() {
         cache: "no-store",
         body: JSON.stringify({ action, fingerprintConfirmed: r.confirmed, verificationMethod: r.method || null, note: r.note || null }),
       });
-      const j = (await res.json().catch(() => ({}))) as { error?: string };
+      const j = (await res.json().catch(() => ({}))) as { error?: string; code?: string };
+      if (!res.ok && j.code === "step_up_required" && action === "approve") {
+        patch(id, { busy: false, msg: "Telefonunuzdan (QR) veya e-postanızdan onay bekleniyor…" });
+        setStepUpFor(id);
+        return;
+      }
       if (!res.ok) { patch(id, { busy: false, msg: j.error ?? "İşlem tamamlanamadı." }); return; }
       patch(id, { busy: false, msg: action === "approve" ? "Onaylandı. Uzman telefonundan aktivasyonu 15 dakika içinde tamamlamalı." : "Reddedildi." });
       await load();
@@ -88,6 +96,14 @@ export default function CihazOnaylariPage() {
 
   return (
     <main className="mx-auto w-full max-w-3xl px-4 py-6">
+      {stepUpFor && (
+        <OwnerStepUpDialog
+          action="device_approve"
+          targetId={stepUpFor}
+          onVerified={() => { const id = stepUpFor; setStepUpFor(null); void decide(id, "approve"); }}
+          onCancel={() => { patch(stepUpFor, { msg: "Onay iptal edildi." }); setStepUpFor(null); }}
+        />
+      )}
       <h1 className="text-xl font-extrabold text-slate-900">Cihaz eşleştirme onayları</h1>
       <p className="mt-1 text-sm text-slate-600">
         Uzmanın telefonunu güvenilir cihaz yapmadan önce kimliğini doğrulayın. Onay oturum açmaz; telefon kendi güvenli anahtarıyla aktifleşir.

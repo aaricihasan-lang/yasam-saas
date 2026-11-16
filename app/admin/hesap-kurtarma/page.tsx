@@ -13,6 +13,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { ownerAdminHeaders } from "@/components/admin/notifications/ownerBellStore";
 import PasswordInput from "@/components/ui/PasswordInput";
+import OwnerStepUpDialog from "@/components/admin/OwnerStepUpDialog";
 
 type Case = {
   id: string;
@@ -75,6 +76,8 @@ export default function HesapKurtarmaPage() {
   const [execConfirm, setExecConfirm] = useState(false);
   const [execPassword, setExecPassword] = useState("");
   const [ticket, setTicket] = useState<{ caseId: string; ticket: string; expiresAt: string | null } | null>(null);
+  // F2-G: yürütme için işleme özel yeniden doğrulama (hedef talep).
+  const [stepUpCase, setStepUpCase] = useState<Case | null>(null);
 
   const load = useCallback(async () => {
     const headers = ownerAdminHeaders();
@@ -97,7 +100,7 @@ export default function HesapKurtarmaPage() {
     return () => { window.clearTimeout(id); window.clearInterval(t); };
   }, [load]);
 
-  async function call(key: string, url: string, body: unknown): Promise<Record<string, unknown> | null> {
+  async function call(key: string, url: string, body: unknown, onStepUp?: () => void): Promise<Record<string, unknown> | null> {
     const headers = ownerAdminHeaders(true);
     if (!headers || busy) return null;
     setBusy(key);
@@ -106,6 +109,7 @@ export default function HesapKurtarmaPage() {
     try {
       const res = await fetch(url, { method: "POST", headers, body: JSON.stringify(body) });
       const j = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+      if (!res.ok && j.code === "STEP_UP_REQUIRED" && onStepUp) { setMsg("Telefonunuzdan (QR) veya e-postanızdan onay bekleniyor…"); onStepUp(); return null; }
       if (!res.ok) { setError(typeof j.error === "string" ? j.error : "İşlem yapılamadı."); return null; }
       return j;
     } catch {
@@ -133,9 +137,10 @@ export default function HesapKurtarmaPage() {
   }
 
   async function execute(c: Case) {
-    const j = await call(`exec:${c.id}`, `/api/admin/recovery-cases/${c.id}`, { action: "execute", identityReconfirmed: execConfirm, password: execPassword });
-    setExecPassword("");
+    const j = await call(`exec:${c.id}`, `/api/admin/recovery-cases/${c.id}`, { action: "execute", identityReconfirmed: execConfirm, password: execPassword },
+      () => setStepUpCase(c));
     if (!j || typeof j.ticket !== "string") return;
+    setExecPassword("");
     setExecFor(null);
     setExecConfirm(false);
     setTicket({ caseId: c.id, ticket: j.ticket, expiresAt: typeof j.ticketExpiresAt === "string" ? j.ticketExpiresAt : null });
@@ -147,6 +152,14 @@ export default function HesapKurtarmaPage() {
 
   return (
     <div className="mx-auto w-full max-w-3xl px-4 py-6" data-testid="recovery-admin-page">
+      {stepUpCase && (
+        <OwnerStepUpDialog
+          action="recovery_execute"
+          targetId={stepUpCase.id}
+          onVerified={() => { const c = stepUpCase; setStepUpCase(null); void execute(c); }}
+          onCancel={() => { setStepUpCase(null); setMsg(null); }}
+        />
+      )}
       <h1 className="text-xl font-black text-slate-900">Hesap kurtarma</h1>
       <p className="mt-1 text-sm text-slate-600">
         Telefonunu, e-postasını ve kurtarma kodlarını kaybeden kullanıcılar içindir. Talep açıldıktan sonra <strong>72 saat</strong> beklenir;

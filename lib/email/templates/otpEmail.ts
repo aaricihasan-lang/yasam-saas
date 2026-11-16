@@ -3,7 +3,7 @@
  * Kimlik avına karşı: BAĞLANTI / buton YOK (kullanıcı kodu yalnız açık olan Yaşam Sistemi ekranına girer),
  * ek dosya yok, uzaktan görsel yok. Kod ve geçerlilik süresi açıkça yazılır; paylaşılmaması uyarılır.
  */
-export type OtpPurpose = "login" | "verify_email" | "owner_test" | "change_email";
+export type OtpPurpose = "login" | "verify_email" | "owner_test" | "change_email" | "step_up";
 
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
 
@@ -19,6 +19,7 @@ export function renderOtpEmail(input: { purpose: OtpPurpose; code?: string; name
   if (!/^[0-9]{6}$/.test(code)) throw new Error("otp şablonu: kod 6 hane olmalı");
   const action = input.purpose === "login" ? "Yaşam Sistemi'ne giriş"
     : input.purpose === "change_email" ? "Yaşam Sistemi hesabınızın e-posta adresini bu adresle değiştirme"
+      : input.purpose === "step_up" ? "Yaşam Sistemi yönetim panelindeki kritik bir işlemi onaylama"
       : "Yaşam Sistemi e-posta adresinizi doğrulama";
   const subject = `${code} — Yaşam Sistemi doğrulama kodunuz`;
   const text = [

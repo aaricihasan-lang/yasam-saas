@@ -98,7 +98,11 @@ export const signWith = (p: Phone, msg: string) =>
 
 export type F2cDb = { admin: pg.Client; pool: pg.Pool; shimUrl: string; close: () => Promise<void> };
 
-export async function startF2cDb(opts: { withF2d?: boolean; withF2e?: boolean } = {}): Promise<F2cDb> {
+/** F2-G eki: Owner işleme özel yeniden doğrulama + saklama politikası kaydı. startF2cDb({ withF2g: true }). */
+export const F2G_FILES = [
+  "supabase/migrations/20280103000700_auth_owner_step_up_f2g.sql",
+];
+export async function startF2cDb(opts: { withF2d?: boolean; withF2e?: boolean; withF2g?: boolean } = {}): Promise<F2cDb> {
   // Uyumluluk koşusu: F2_TEST_DB_WITH_F2E=1 → önceki fazların harness'ları bütün zincir (000500 dahil) üstünde koşar.
   if (process.env.F2_TEST_DB_WITH_F2E === "1") opts = { ...opts, withF2d: true, withF2e: true };
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "f2c-db-"));
@@ -116,7 +120,7 @@ export async function startF2cDb(opts: { withF2d?: boolean; withF2e?: boolean } 
   // alır; dinleyicisiz 'error' olayı süreci ÇÖKERTİR (özet satırı yazılmadan). Kapanış hatası test sonucu değildir.
   admin.on("error", () => {});
   await admin.query(BOOT);
-  for (const f of [...F2C_FILES, ...(opts.withF2d || opts.withF2e ? F2D_FILES : []), ...(opts.withF2e ? F2E_FILES : [])]) await admin.query(fs.readFileSync(path.join(ROOT, f), "utf8"));
+  for (const f of [...F2C_FILES, ...(opts.withF2d || opts.withF2e || opts.withF2g ? F2D_FILES : []), ...(opts.withF2e || opts.withF2g ? F2E_FILES : []), ...(opts.withF2g ? F2G_FILES : [])]) await admin.query(fs.readFileSync(path.join(ROOT, f), "utf8"));
   await admin.query(HARNESS_SQL);
   const pool = new pg.Pool({ host: "localhost", port, user: "postgres", password: "pw", database: "postgres", max: 8 });
   pool.on("error", () => {});

@@ -400,6 +400,8 @@ async function main() {
     console.log(failures.map((f) => `  - ${f}`).join("\n"));
     process.exit(1);
   }
+  // Açık kalan keep-alive bağlantıları olay döngüsünü canlı tutabiliyor → başarıda da açıkça çık.
+  process.exit(0);
 }
 
 main().catch((e) => {
