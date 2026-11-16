@@ -67,6 +67,7 @@ jobs:
         env:
           UI_BASE: http://127.0.0.1:3984
         run: |
+          set +e  # her takım kendi RC'sini raporlasın; karar sonda toplu (GitHub varsayılanı bash -e ilk FAIL'de durduruyordu)
           K="$RUNNER_TEMP/f2-arayuz"; mkdir -p "$K"; rc=0
           T="ui-logo:scripts/profile/ui-logo.harness.ts ui-delete-message:scripts/profile/ui-delete-message.harness.ts ui-profile:scripts/profile/ui-profile.harness.ts ui-membership:scripts/settings-membership/ui-membership.harness.ts"
           for t in $T; do
@@ -91,6 +92,13 @@ jobs:
           kos silme-onay scripts/profile/.silme-onay.harness.ts uc-tarayici
           cat "$K/ozet.txt" >> "$GITHUB_STEP_SUMMARY"
           exit $rc
+
+      # ORTAM PROBU (uygulama kodu yok): aynı PNG blob: ve data: URL ile, 3 tarayıcıda yalın sayfada. Karar bu adıma bağlı DEĞİL.
+      - name: Ortam probu — blob görsel çizimi (Chromium / Firefox / WebKit)
+        if: always()
+        run: |
+          mkdir -p "$RUNNER_TEMP/f2-arayuz"
+          node .github/f2-arayuz/blob-gorsel-probu.mjs 2>&1 | tee "$RUNNER_TEMP/f2-arayuz/blob-probu.log" | tee -a "$GITHUB_STEP_SUMMARY"
 
       - name: Kanıtlar (ekran görüntüleri + günlükler)
         if: always()
