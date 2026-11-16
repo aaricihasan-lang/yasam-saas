@@ -64,6 +64,27 @@ jobs:
           cat "$K/ozet.txt" >> "$GITHUB_STEP_SUMMARY"
           exit $rc
 
+      # TANILAMA (yalnız runner'daki geçici kopya; repodaki harness DEĞİŞMEZ): ui-profile [E] "ilk hatalı alana odak" kontrolü
+      # odak requestAnimationFrame içinde taşındığı hâlde tıklamadan hemen sonra okunuyor. Kopyada aynı kontrol önce anlık değeri
+      # kaydeder, sonra odağı en çok 2 sn bekler → odağın geç mi geldiği, hiç mi gelmediği ayrılır. Karar bu adıma bağlı DEĞİL.
+      - name: Tanılama — ui-profile odak zamanlaması (geçici kopya)
+        if: always()
+        env:
+          UI_BASE: http://127.0.0.1:3984
+        run: |
+          K="$RUNNER_TEMP/f2-arayuz"; mkdir -p "$K"
+          node -e '
+            const fs = require("fs");
+            const src = "scripts/profile/ui-profile.harness.ts", dst = "scripts/profile/.odak-tani.harness.ts";
+            const eski = "(await c.page.evaluate(\"document.activeElement && document.activeElement.getAttribute(\x27name\x27)\")) === \"title\"";
+            const s = fs.readFileSync(src, "utf8");
+            if (s.split(eski).length !== 2) { console.error("kontrol satırı tek değil"); process.exit(2); }
+            const yeni = "(await (async () => { const t0 = Date.now(); const ilk = await c.page.evaluate(\"document.activeElement && document.activeElement.getAttribute(\x27name\x27)\"); const r = await c.page.waitForFunction(\"document.activeElement && document.activeElement.getAttribute(\x27name\x27) === \x27title\x27\", null, { timeout: 2000 }).then(() => true, () => false); const son = await c.page.evaluate(\"document.activeElement && document.activeElement.getAttribute(\x27name\x27)\"); console.log(\"ODAK-TANI ilk=\" + ilk + \" son=\" + son + \" bekleme_sonucu=\" + r + \" ms=\" + (Date.now() - t0)); return son; })()) === \"title\"";
+            fs.writeFileSync(dst, s.replace(eski, yeni));
+          '
+          UI_OUT="$K/odak-tani" npx tsx scripts/profile/.odak-tani.harness.ts > "$K/odak-tani.log" 2>&1; echo "odak-tani RC=$?"
+          grep -a "ODAK-TANI\|\[E\] ilk hatalı\|PASS / " "$K/odak-tani.log" | tee -a "$GITHUB_STEP_SUMMARY"
+
       - name: Kanıtlar (ekran görüntüleri + günlükler)
         if: always()
         uses: actions/upload-artifact@v4
