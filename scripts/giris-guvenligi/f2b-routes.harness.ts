@@ -338,6 +338,7 @@ async function main() {
   }
   console.log(`\nf2b routes harness: ${pass} PASS / ${fail} FAIL`);
   if (fail) { for (const f of failures) console.log(`  - ${f}`); process.exit(1); }
+  process.exit(0);   // açık keep-alive bağlantıları süreci canlı tutmasın
 }
 
 function walk(dir: string): string[] {

@@ -438,6 +438,7 @@ async function main() {
   }
   console.log(`\nf2c routes harness: ${pass} PASS / ${fail} FAIL`);
   if (fail) { for (const f of failures) console.log(`  - ${f}`); process.exit(1); }
+  process.exit(0);   // açık keep-alive bağlantıları süreci canlı tutmasın
 }
 
 main().catch((e) => { console.error(e); process.exit(1); });
