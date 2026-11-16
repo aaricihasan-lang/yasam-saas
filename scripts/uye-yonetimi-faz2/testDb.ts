@@ -12,7 +12,7 @@
 import type { ChildProcess } from "node:child_process";
 import EmbeddedPostgres from "embedded-postgres";
 import pg from "pg";
-import { readFileSync } from "node:fs";
+import { readFileSync, writeSync } from "node:fs";
 import path from "node:path";
 import { applyMember360Chain } from "../uye-yonetimi-360/migrationChain";
 import {
@@ -169,14 +169,35 @@ export async function startTestDb(port: number, dirName: string): Promise<TestDb
   // Beklenmeyen çıkış (yakalanmamış hata / process.exit): yalnız kendi canlı postmaster'ımız + kendi dizinimiz.
   const exitHook = () => {
     if (stopped) return;
-    const stamps = ownChildStampsSync(child());
+    const c = child();
+    const kanca: Record<string, unknown> = {
+      sira: process.listeners("exit").indexOf(exitHook),
+      cocukCanli: ownChildAlive(c),
+      cocuk: { killed: c?.killed ?? null, exitCode: c?.exitCode ?? null, signalCode: c?.signalCode ?? null },
+    };
+    const stamps = ownChildStampsSync(c);
     // Önce postgres'in kendi kapanışı; olmazsa kendi canlı postmaster ağacımız. (pg_ctl başarılıysa postmaster
     // bitmiştir → PID'e ayrıca sinyal gönderilmez.)
-    if (!pgCtlStopSync(child(), run.dataDir)) killOwnChildSync(child());
+    kanca.pgCtl = pgCtlStopSync(c, run.dataDir);
+    if (!kanca.pgCtl) kanca.kill = killOwnChildSync(c);
     killStampedSync(stamps);
-    try { removeOwnRunDir(run); } catch { /* son çare; başka hiçbir şeye dokunulmaz */ }
+    try {
+      const r = removeOwnRunDir(run);
+      kanca.dizin = r.removed ? "silindi" : r.reason;
+    } catch (e) {
+      kanca.dizin = `hata: ${String((e as Error)?.message ?? e)}`; // son çare; başka hiçbir şeye dokunulmaz
+    }
+    // Postmaster bu kancada kapatıldı (ya da zaten bitmişti): kütüphanenin sonradan çalışan exit kancası artık bu
+    // PID'e taskkill / SIGINT göndermesin ve silinmiş dizini yeniden silmeye çalışmasın.
+    (epg as unknown as { process?: ChildProcess }).process = undefined;
+    // Sessiz yutma yok: kancanın kararı stderr'e (çıkış anında eşzamanlı yazım).
+    try { writeSync(2, `TESTDB CIKIS KANCASI ${JSON.stringify(kanca)}\n`); } catch { /* stderr kapalı */ }
   };
-  process.on("exit", exitHook);
+  // ÖNE eklenir: embedded-postgres modül yüklenirken (async-exit-hook) kendi `exit` dinleyicisini kaydeder ve orada
+  // postmaster'a eşzamansız SIGINT (Linux; `child.killed` = true olur) ya da taskkill (Windows) gönderir. Bizim kanca
+  // ondan sonra çalışırsa postmaster'ı kapanış ortasında bulur: pg_ctl atlanır / başarısız olur ve dizin silme
+  // postgres'in kapanış yazımlarıyla yarışır (Linux'ta koşu dizini kalıyordu). Önce bizim eşzamanlı kapanışımız.
+  process.prependListener("exit", exitHook);
   const stop = async () => {
     if (stopped) return;
     stopped = true;
