@@ -12,7 +12,7 @@
 import type { ChildProcess } from "node:child_process";
 import EmbeddedPostgres from "embedded-postgres";
 import pg from "pg";
-import { readFileSync } from "node:fs";
+import { readFileSync, writeSync } from "node:fs";
 import path from "node:path";
 import { applyMember360Chain } from "../uye-yonetimi-360/migrationChain";
 import {
@@ -169,12 +169,26 @@ export async function startTestDb(port: number, dirName: string): Promise<TestDb
   // Beklenmeyen çıkış (yakalanmamış hata / process.exit): yalnız kendi canlı postmaster'ımız + kendi dizinimiz.
   const exitHook = () => {
     if (stopped) return;
-    const stamps = ownChildStampsSync(child());
+    const c = child();
+    const kanca: Record<string, unknown> = {
+      sira: process.listeners("exit").indexOf(exitHook),
+      cocukCanli: ownChildAlive(c),
+      cocuk: { killed: c?.killed ?? null, exitCode: c?.exitCode ?? null, signalCode: c?.signalCode ?? null },
+    };
+    const stamps = ownChildStampsSync(c);
     // Önce postgres'in kendi kapanışı; olmazsa kendi canlı postmaster ağacımız. (pg_ctl başarılıysa postmaster
     // bitmiştir → PID'e ayrıca sinyal gönderilmez.)
-    if (!pgCtlStopSync(child(), run.dataDir)) killOwnChildSync(child());
+    kanca.pgCtl = pgCtlStopSync(c, run.dataDir);
+    if (!kanca.pgCtl) kanca.kill = killOwnChildSync(c);
     killStampedSync(stamps);
-    try { removeOwnRunDir(run); } catch { /* son çare; başka hiçbir şeye dokunulmaz */ }
+    try {
+      const r = removeOwnRunDir(run);
+      kanca.dizin = r.removed ? "silindi" : r.reason;
+    } catch (e) {
+      kanca.dizin = `hata: ${String((e as Error)?.message ?? e)}`; // son çare; başka hiçbir şeye dokunulmaz
+    }
+    // Sessiz yutma yok: kancanın kararı stderr'e (çıkış anında eşzamanlı yazım).
+    try { writeSync(2, `TESTDB CIKIS KANCASI ${JSON.stringify(kanca)}\n`); } catch { /* stderr kapalı */ }
   };
   process.on("exit", exitHook);
   const stop = async () => {
