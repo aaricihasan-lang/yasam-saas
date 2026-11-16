@@ -15,6 +15,8 @@ const DECIDE_ERRORS: Record<string, [number, string]> = {
   verification_required: [400, "Onay için uzmanı kayıtlı telefonundan arayıp kodu ONA okutmanız ve bunu işaretlemeniz gerekir."],
   not_found: [404, "Eşleştirme isteği bulunamadı."],
   bad_decision: [400, "Geçersiz karar."],
+  // F2-F: onay, son 30 dakikada ikinci doğrulamayla açılmış Owner oturumu ister.
+  fresh_mfa_required: [403, "Güvenliğiniz için cihaz onayından önce çıkış yapıp yeniden giriş yapın (son 30 dakika içinde ikinci doğrulamayla açılmış oturum gerekir)."],
 };
 
 /**

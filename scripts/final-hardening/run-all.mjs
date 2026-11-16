@@ -39,6 +39,7 @@ const F2_BASE_FIXTURES = [F("session-model-fixture.sql"), F("session-f2a-fixture
 const F2_ALL_MIGRATIONS = ["20280103000000_auth_session_hardening_f2a.sql", "20280103000100_auth_mfa_core_f2b.sql",
   "20280103000200_auth_session_insert_lock_f2b.sql", "20280103000300_auth_trusted_devices_qr_f2c.sql",
   "20280103000400_auth_email_otp_f2d.sql", "20280103000500_auth_account_recovery_f2e.sql"];
+const F2F_MIGRATION = "20280103000600_auth_purge_audit_retention_f2f.sql";
 
 const TZ_SENSITIVE = new Set(["foundation", "word-tz", "dy", "backup", "hday"]);
 
@@ -191,10 +192,18 @@ const STEPS = [
     F2_ALL_MIGRATIONS, [`session-${x}-assert.sql`])]),
   // YAYIN SIRASI: 000200 (service_role INSERT kilidi) EN SONDA. Ara durumda eski kod çalışır + MFA atlatılamaz;
   // 000200 sonrası yeni kodun bütün oturum yolları çalışır, doğrudan INSERT kapanır.
-  ["pg:deploy-order-f2-pre", ...pg(F2_BASE_FIXTURES, F2_ALL_MIGRATIONS.filter((m) => !m.startsWith("20280103000200")), ["deploy-order-f2-pre-assert.sql"])],
-  ["pg:deploy-order-f2-post", ...pg(F2_BASE_FIXTURES,
-    [...F2_ALL_MIGRATIONS.filter((m) => !m.startsWith("20280103000200")), "20280103000200_auth_session_insert_lock_f2b.sql"],
-    ["deploy-order-f2-post-assert.sql"])],
+  // F2-F (000600): 000500 bu dosyadan sonra yeniden çalıştırılamaz (eski kolon adı) → önceki zincir FİXTURE (bir kez),
+  // 000600 migration (iki kez). Ara durum: 000200 YOK; son durum: 000200 EN SONDA (000600'dan da sonra).
+  ["pg:deploy-order-f2-pre", ...pg([...F2_BASE_FIXTURES, ...F2_ALL_MIGRATIONS.filter((m) => !m.startsWith("20280103000200")).map(M)],
+    [F2F_MIGRATION], ["deploy-order-f2-pre-assert.sql"])],
+  ["pg:deploy-order-f2-post", ...pg([...F2_BASE_FIXTURES, ...F2_ALL_MIGRATIONS.filter((m) => !m.startsWith("20280103000200")).map(M), M(F2F_MIGRATION)],
+    ["20280103000200_auth_session_insert_lock_f2b.sql"], ["deploy-order-f2-post-assert.sql"])],
+  // GİRİŞ GÜVENLİĞİ F2-F: silme × denetim saklama + Owner taze MFA; önceki satırların taşınması (seed) dahil.
+  ["pg:session-f2f", ...pg([...F2_BASE_FIXTURES, ...F2_ALL_MIGRATIONS.map(M), F("session-f2f-seed.sql")], [F2F_MIGRATION], ["session-f2f-assert.sql"])],
+  // F2-A…F2-D sözleşmeleri 000600 üstünde aynen (Owner taze-MFA sarmalayıcıları eski ret kodlarını korur).
+  ...["f2a", "f2b", "f2c", "f2d"].map((x) => [`pg:session-${x}-on-f2f`, ...pg(
+    [...F2_BASE_FIXTURES, ...(x === "f2a" ? [F("session-f2a-legacy-seed.sql")] : []), ...F2_ALL_MIGRATIONS.map(M)],
+    [F2F_MIGRATION], [`session-${x}-assert.sql`])]),
 ];
 
 const only = process.argv.includes("--only") ? process.argv[process.argv.indexOf("--only") + 1] : null;

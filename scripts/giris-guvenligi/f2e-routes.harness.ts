@@ -80,6 +80,7 @@ async function main() {
     const meEmailChange = await import("@/app/api/me/email-change/route");
     const meReplace = await import("@/app/api/me/devices/replace/route");
     const meDevice = await import("@/app/api/me/devices/[id]/route");
+    const adminDevice = await import("@/app/api/admin/devices/[id]/route");
     const adminDevices = await import("@/app/api/admin/devices/route");
     const adminCases = await import("@/app/api/admin/recovery-cases/route");
     const adminCase = await import("@/app/api/admin/recovery-cases/[id]/route");
@@ -406,6 +407,32 @@ async function main() {
       ok(offlineOther.v.res.status === 401, "Owner kodu başka hesapta geçmez", offlineOther.v.json);
       const selfDisable = (await admin.query(`SELECT public.auth_mfa_set_required($1, $2, false, 'kapat') AS r`, [c.sid, U.owner])).rows[0].r;
       ok(selfDisable.code === "self_disable_forbidden", "ele geçirilmiş Owner oturumu kendi MFA'sını kapatamaz", selfDisable);
+    }
+
+    section("H) F2-F: Owner yüksek riskli işlemleri taze ikinci doğrulama ister");
+    {
+      // Yeni MFA'lı Owner oturumu (F bölümünde çevrimdışı kod diğerlerini kapattı).
+      await expireOpen(U.owner);
+      await admin.query(`UPDATE public.auth_recovery_attempts SET created_at = created_at - interval '2 days' WHERE user_id = $1`, [U.owner]);
+      const fresh = await loginEmailOtp({ id: U.owner, email: EMAIL.owner });
+      ok(!!fresh, "Owner yeni MFA'lı oturum");
+      const pendDev = (await admin.query(
+        `INSERT INTO public.auth_trusted_devices (user_id, public_key_spki, key_fingerprint, display_code, device_model, state)
+         VALUES ($1, repeat('H', 120), encode(sha256('h-phone'::bytea), 'hex'), 'HHHH-PHON', 'Pixel H', 'pending_owner') RETURNING id`, [VE.id])).rows[0].id as string;
+      await admin.query(`UPDATE public.user_sessions SET created_at = now() - interval '31 minutes' WHERE session_token = $1`, [fresh]);
+      const staleApprove = await call(adminDevice.POST as unknown as Handler, `${L}/api/admin/devices/${pendDev}`, "POST",
+        { action: "approve", fingerprintConfirmed: true, verificationMethod: "telefon" }, adminH(U.owner, fresh), { params: Promise.resolve({ id: pendDev }) });
+      ok(staleApprove.res.status === 403 && staleApprove.json.code === "fresh_mfa_required" && /yeniden giriş/.test(String(staleApprove.json.error)),
+        "30 dk'dan eski Owner oturumu cihaz ONAYLAYAMAZ (Türkçe yönlendirme)", staleApprove.json);
+      const staleCase = await call(adminCases.POST as unknown as Handler, `${L}/api/admin/recovery-cases`, "POST",
+        { email: veEmail, verificationMethod: "telefon", note: "kayıtlı numaradan arandı" }, adminH(U.owner, fresh));
+      ok(staleCase.res.status === 403 && staleCase.json.code === "FRESH_MFA_REQUIRED", "bayat oturum kurtarma talebi AÇAMAZ", staleCase.json);
+      const staleReject = await call(adminDevice.POST as unknown as Handler, `${L}/api/admin/devices/${pendDev}`, "POST",
+        { action: "reject" }, adminH(U.owner, fresh), { params: Promise.resolve({ id: pendDev }) });
+      ok(staleReject.res.status === 200, "RET bayat oturumla da yapılabilir (yalnız yetki azaltır)", staleReject.json);
+      const disable = (await admin.query(`SELECT public.auth_mfa_set_required($1, $2, false, 'kapat') AS r`, [fresh, VE.id])).rows[0].r;
+      ok(disable.code === "fresh_mfa_required", "bayat oturum başka kullanıcının MFA'sını KAPATAMAZ", disable);
+      ok(await count(`SELECT count(*)::int n FROM public.users WHERE id = $1 AND mfa_required`, [VE.id]) === 1, "zorunluluk yerinde");
     }
 
     section("G) Sızıntı taraması");

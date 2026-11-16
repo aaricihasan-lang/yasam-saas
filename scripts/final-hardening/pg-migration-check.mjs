@@ -77,7 +77,14 @@ try {
   await c.end();
 } finally {
   await server.stop().catch(() => {});
-  fs.rmSync(dir, { recursive: true, force: true });
+  // Windows: pg_ctl stop döndükten sonra PostgreSQL yardımcı süreçleri (io_worker) dosya tutamaçlarını kısa süre
+  // daha tutar → rmSync EPERM/EBUSY. Node'un yerleşik yeniden denemesiyle beklenir. Yine de silinemezse geçici
+  // klasör uyarıyla bırakılır: temizlik bir TEST SONUCU değildir (sonuç yukarıdaki doğrulamalardan belirlenir).
+  try {
+    fs.rmSync(dir, { recursive: true, force: true, maxRetries: 20, retryDelay: 250 });
+  } catch (e) {
+    console.warn(`UYARI geçici klasör silinemedi (test sonucu etkilenmez): ${dir} — ${e?.code ?? e}`);
+  }
 }
 console.log(failed ? "RESULT: FAIL" : "RESULT: PASS");
 process.exit(failed ? 1 : 0);

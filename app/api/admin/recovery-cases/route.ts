@@ -59,6 +59,7 @@ export async function POST(req: NextRequest) {
       not_found: [404, "Kullanıcı bulunamadı veya aktif değil."],
       mfa_not_required: [400, "Bu hesapta ikinci doğrulama zorunlu değil; normal parola sıfırlama yeterlidir."],
       case_exists: [409, "Bu kullanıcı için zaten bekleyen bir kurtarma talebi var."],
+      fresh_mfa_required: [403, "Güvenliğiniz için bu işlemden önce çıkış yapıp yeniden giriş yapın (son 30 dakika içinde ikinci doğrulamayla açılmış oturum gerekir)."],
     };
     const [status, msg] = map[String(r.code)] ?? [400, "Talep açılamadı."];
     return json({ code: String(r.code ?? "error").toUpperCase(), error: msg }, status);

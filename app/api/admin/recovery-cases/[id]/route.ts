@@ -63,6 +63,7 @@ export async function POST(req: NextRequest, ctx: RouteContext) {
         not_waiting: [409, "Talep artık beklemede değil."],
         verification_required: [400, "Kullanıcının kimliğini yeniden teyit ettiğinizi onaylayın."],
         forbidden: [403, "Hesap kurtarma yalnız Owner'ın ikinci doğrulamayla açılmış oturumunda yönetilir."],
+      fresh_mfa_required: [403, "Güvenliğiniz için bu işlemden önce çıkış yapıp yeniden giriş yapın (son 30 dakika içinde ikinci doğrulamayla açılmış oturum gerekir)."],
       };
       const [status, msg] = map[String(r.code)] ?? [400, "Kurtarma yürütülemedi."];
       return json({ code: String(r.code ?? "error").toUpperCase(), error: msg, ...(r.not_before ? { notBefore: r.not_before } : {}) }, status);

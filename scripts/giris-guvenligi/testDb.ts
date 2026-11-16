@@ -32,6 +32,8 @@ export const F2D_FILES = [
 /** F2-E eki: hesap kurtarma (20280103000500). startF2cDb({ withF2d: true, withF2e: true }). */
 export const F2E_FILES = [
   "supabase/migrations/20280103000500_auth_account_recovery_f2e.sql",
+  // F2-F: silme × denetim saklama + Owner taze ikinci doğrulama.
+  "supabase/migrations/20280103000600_auth_purge_audit_retention_f2f.sql",
 ];
 const BOOT = `
 DO $$ BEGIN
