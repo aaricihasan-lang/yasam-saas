@@ -306,7 +306,14 @@ async function bolumY() {
   await test("Y", "demo", async () => {
     await oturum("demo");
     await profilim();
-    const kilit = await exec("const r = document.querySelector('[data-testid=report-logo-opt-none]'); return { kilitli: !!r && r.disabled, kaydet: !!document.querySelector('[data-testid=report-logo-save]') };");
+    // Seçenekler <fieldset disabled> ile kilitlenir: input'un kendi .disabled özelliği false kalır → doğru ölçüt :disabled eşleşmesi.
+    const kilit = await exec("const r = document.querySelector('[data-testid=report-logo-opt-none]'); return { kilitli: !!r && r.matches(':disabled'), kaydet: !!document.querySelector('[data-testid=report-logo-save]') };");
+    // Gerçek etkileşim: kilitli seçeneğe tıklamak seçimi DEĞİŞTİRMEMELİ.
+    const onceSecim = await exec("return Array.from(document.querySelectorAll('[data-testid^=report-logo-opt-]')).filter((x) => x.checked).map((x) => x.getAttribute('data-testid'));");
+    const hedef = (onceSecim ?? []).includes("report-logo-opt-none") ? "report-logo-opt-custom" : "report-logo-opt-none";
+    await wd("POST", s(`/element/${await bul(tid(hedef))}/click`), {}).catch(() => {});
+    const sonraSecim = await exec("return Array.from(document.querySelectorAll('[data-testid^=report-logo-opt-]')).filter((x) => x.checked).map((x) => x.getAttribute('data-testid'));");
+    ok("Y", "demo: kilitli seçeneğe tıklama seçimi değiştirmedi", JSON.stringify(onceSecim) === JSON.stringify(sonraSecim), { onceSecim, sonraSecim });
     await ekran("Y1-demo");
     const d = await sunucu("/__test/durum");
     ok("Y", "demo: seçenekler kilitli, kaydet yok, yazma isteği yok", kilit.kilitli && !kilit.kaydet && d.yazmalar.length === 0, { kilit, yazmalar: d.yazmalar });
