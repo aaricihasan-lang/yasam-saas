@@ -125,7 +125,9 @@ jobs:
       - name: Gerçek Safari uygulama testleri (${{ matrix.mod }})
         run: |
           echo "Safari: $(defaults read /Applications/Safari.app/Contents/Info.plist CFBundleShortVersionString) · macOS $(sw_vers -productVersion)" | tee -a "$GITHUB_STEP_SUMMARY"
-          MOD=${{ matrix.mod }} OUT="$RUNNER_TEMP/safari-uygulama" node "$RUNNER_TEMP/arac/safari-uygulama.mjs" 2>&1 | tee "$RUNNER_TEMP/safari-uygulama.log"
+          # Sürücü depo ağacından koşar (sharp vb. node_modules çözümü için); yalnız runner kopyası.
+          cp "$RUNNER_TEMP/arac/safari-uygulama.mjs" scripts/workspace/.safari-uygulama.mjs
+          MOD=${{ matrix.mod }} OUT="$RUNNER_TEMP/safari-uygulama" node scripts/workspace/.safari-uygulama.mjs 2>&1 | tee "$RUNNER_TEMP/safari-uygulama.log"
           rc=${PIPESTATUS[0]}
           grep -E "^(PASS|FAIL|NOT TESTED) |SAFARI-" "$RUNNER_TEMP/safari-uygulama.log" | cut -c1-300 >> "$GITHUB_STEP_SUMMARY"
           exit $rc
