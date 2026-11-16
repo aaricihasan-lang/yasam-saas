@@ -31,11 +31,30 @@ await ctx.addInitScript(([u, t]) => {
 }, [JSON.stringify(cfg.user), cfg.token]);
 const page = await ctx.newPage();
 const consoleErrors = [];
-page.on("console", (m) => { if (m.type() === "error") consoleErrors.push(m.text().slice(0, 200)); });
+// Ağ hataları konsol yerine yanıt durumundan izlenir (Üye Detayı V2 ui-check ile aynı süzgeç): 5xx veren her
+// uç aşağıda AYRI bir kontrolle yakalanır. Tek istisna: HD Eğitim erişim ucu — tabloları (HD Eğitim migration
+// zinciri) bu admin yığınında yok; HD Eğitim kendi testleriyle doğrulanır.
+page.on("pageerror", (e) => consoleErrors.push(`pageerror ${e.message.slice(0, 200)}`));
+page.on("console", (m) => { if (m.type() === "error" && !/Failed to load resource/.test(m.text())) consoleErrors.push(m.text().slice(0, 200)); });
+const STACK_OUT_OF_SCOPE_5XX = /\/api\/admin\/hd\/education\/training-access(\?|$)/;
+const serverErrors = [];
+const outOfScope5xx = [];
+page.on("response", (r) => {
+  if (r.status() < 500) return;
+  const u = new URL(r.url());
+  (STACK_OUT_OF_SCOPE_5XX.test(u.pathname + u.search) ? outOfScope5xx : serverErrors).push(`${r.status()} ${u.pathname}`);
+});
 
-async function openDetail(id) {
-  await page.goto(`${BASE}/admin/users/${id}`, { waitUntil: "domcontentloaded", timeout: 240000 });
+// Üye Detayı V2/V3 (#779/#785): beş sekme; paneller gizlenir (DOM'da kalır). "Paket ve Deneme" kutusu ve Pro
+// geçiş düğmesi "Üyelik ve Ödeme" (#uyelik), erişim rozeti ve paket metni "Özet" (#ozet) sekmesindedir.
+async function openDetail(id, tab = "uyelik") {
+  await page.goto(`${BASE}/admin/users/${id}#${tab}`, { waitUntil: "domcontentloaded", timeout: 240000 });
   await page.waitForSelector("text=İşlemler", { timeout: 240000 });
+  await page.locator(`#uye-panel-${tab}`).waitFor({ state: "visible", timeout: 60000 });
+}
+async function showTab(tab) {
+  await page.locator(`[role="tab"][data-tab="${tab}"]`).first().click();
+  await page.locator(`#uye-panel-${tab}`).waitFor({ state: "visible", timeout: 30000 });
 }
 
 try {
@@ -43,15 +62,18 @@ try {
   console.log("[Liste]");
   await page.goto(`${BASE}/admin/users`, { waitUntil: "domcontentloaded", timeout: 240000 });
   await page.waitForSelector("text=ZZ_H1H4UI Eski Kayıt", { timeout: 240000 });
-  const cardText = async (name) => (await page.locator("article", { hasText: name }).first().innerText()).replace(/\s+/g, " ");
-  const proCard = await cardText("ZZ_H1H4UI Pro (eski pencere)");
-  const legacyCard = await cardText("ZZ_H1H4UI Eski Kayıt");
-  const trialCard = await cardText("ZZ_H1H4UI Deneme Bitti");
-  ok(/Paket: Premium/.test(proCard) && !/Deneme süresi doldu|deneme sona erdi/i.test(proCard), "H1 Pro kartında 'Deneme süresi doldu' YOK (Premium)");
-  ok(/Eski deneme sona erdi/.test(legacyCard) && /Paket eksik/.test(legacyCard) && !/7 günlük/.test(legacyCard), "H4 eski kayıt: 'Eski deneme sona erdi', süre sayısı yok");
-  ok(/Deneme süresi doldu/.test(trialCard) && /Ücretsiz deneme \(7 gün\)/.test(trialCard), "H4 7 günlük deneme: 'Deneme süresi doldu'");
-  const legacyTitle = await page.locator("article", { hasText: "ZZ_H1H4UI Eski Kayıt" }).locator("span[title]", { hasText: "Eski deneme" }).getAttribute("title");
-  ok(!!legacyTitle && !/7 günlük|3 günlük/.test(legacyTitle) && /Eski Kaydı Pro Üyeliğe Geçir/.test(legacyTitle), "H4 eski kayıt rozet açıklaması süre sayısı içermiyor, doğru yolu gösteriyor");
+  // Üye Listesi V2 (#759, f846d601): kart (article) yerine tablo satırı tr[data-row=<id>]; aşama etiketi +
+  // "Süre / tarih" sütunu (lib/admin/memberListV2 memberStageBadge / memberPeriodText). Rozet açıklaması
+  // (title) V2'de yok; eski kaydın doğru yolu ("Eski kaydı Pro üyeliğe geçir") aşağıda detayda doğrulanır.
+  const rowText = async (id) => (await page.locator(`tr[data-row="${id}"]`).first().innerText()).replace(/\s+/g, " ");
+  const proCard = await rowText(cfg.ids.pro);
+  const legacyCard = await rowText(cfg.ids.legacy);
+  const trialCard = await rowText(cfg.ids.trial);
+  ok(/ZZ_H1H4UI Pro \(eski pencere\)/.test(proCard) && /example\.test Pro /.test(proCard) && !/deneme/i.test(proCard), "H1 Pro satırı 'Pro'; deneme / 'Deneme süresi doldu' metni YOK");
+  ok(/ZZ_H1H4UI Eski Kayıt/.test(legacyCard) && /Eski kayıt · paket eksik/.test(legacyCard) && /eski deneme \d{2}\.\d{2}\.\d{4} bitti/.test(legacyCard)
+    && !/Deneme bitti|\d+ gün|günlük/.test(legacyCard), "H4 eski kayıt: 'Eski kayıt · paket eksik', 'eski deneme … bitti'; süre sayısı / 7 günlük deneme etiketi yok");
+  ok(/ZZ_H1H4UI Deneme Bitti/.test(trialCard) && /Deneme bitti/.test(trialCard) && /bitti \d{2}\.\d{2}\.\d{4}/.test(trialCard) && !/paket eksik/.test(trialCard), "H4 7 günlük deneme: 'Deneme bitti' (eski kayıttan ayrı)");
+  ok(await page.locator(`tr[data-row="${cfg.ids.legacy}"] a[href="/admin/users/${cfg.ids.legacy}"]`).count() > 0, "H4 eski kayıt satırı detaya (Pro geçiş yolu) bağlanır");
   await page.screenshot({ path: path.join(SHOTS, "01-liste-masaustu.png"), fullPage: true });
 
   // ── Mobil detay (dönüşümlerden ÖNCE; 360 px) ─────────────────────────────────
@@ -75,8 +97,10 @@ try {
   const boxText = (await box.innerText()).replace(/\s+/g, " ");
   ok(/Aktif — giriş yapabilir/.test(boxText) && /Yok — paket tanımlı değil/.test(boxText) && /“Aktif Yap” ve modül anahtarları bu hesabı açmaz/.test(boxText),
     "H2 aktiflik / deneme / Pro ayrı ayrı ve açıkça yazıyor");
+  await showTab("ozet");
   ok(await page.locator("text=Aktif · paket eksik · erişim yok").first().isVisible(), "H2 Özet erişim rozeti 'paket eksik · erişim yok'");
   ok(!(await page.locator("text=Tek paket; süresiz").count()), "H2 çelişkili 'Tek paket; süresiz' metni yok");
+  await showTab("uyelik");
   await box.scrollIntoViewIfNeeded();
   await page.screenshot({ path: path.join(SHOTS, "02-eski-kayit-detay.png"), fullPage: false });
   await page.locator("[data-pro-conversion='legacy']").click();
@@ -95,6 +119,7 @@ try {
   await page.waitForSelector("text=Pro üyeliğe geçirildi", { timeout: 60000 });
   await page.waitForTimeout(800);
   ok(!(await page.locator("[data-membership-status='legacy']").count()), "H2 sonrası kutu kalktı (hesap artık Pro)");
+  await showTab("ozet");
   ok(await page.locator("text=Ücretli Pro üyelik; süresiz").first().isVisible(), "H2 sonrası Paket: ücretli Pro");
   ok(await page.locator("text=legacy_package_repair").count() === 0, "H2 audit ham anahtarı ekranda görünmüyor");
   await page.screenshot({ path: path.join(SHOTS, "04-eski-kayit-sonrasi.png"), fullPage: false });
@@ -107,8 +132,10 @@ try {
   const tText = (await tbox.innerText()).replace(/\s+/g, " ");
   ok(/7 günlük deneme sona erdi/.test(tText) && /salt okunur/.test(tText) && /“Aktif Yap” deneme kısıtını kaldırmaz/.test(tText) && /Yok — ücretsiz deneme üyesi/.test(tText),
     "H3 aktiflik / deneme bitti (salt okunur) / Pro yok ayrımı açık");
+  ok(await tbox.locator("a[href='/admin/deneme-uyeleri']").first().isVisible(), "H3 Deneme Üyeleri ekranına bağlantı var");
+  await showTab("ozet");
   ok(await page.locator("text=Deneme bitti · salt okunur").first().isVisible(), "H3 Özet erişim rozeti 'Deneme bitti · salt okunur'");
-  ok(await page.locator("a[href='/admin/deneme-uyeleri']").first().isVisible(), "H3 Deneme Üyeleri ekranına bağlantı var");
+  await showTab("uyelik");
   await tbox.scrollIntoViewIfNeeded();
   await page.screenshot({ path: path.join(SHOTS, "05-deneme-bitti-detay.png"), fullPage: false });
   await page.locator("[data-pro-conversion='trial']").click();
@@ -136,6 +163,8 @@ try {
   await page.screenshot({ path: path.join(SHOTS, "08-liste-mobil-390.png"), fullPage: true });
   ok(consoleErrors.length === 0, `konsol hatası yok (${consoleErrors.length})`);
   if (consoleErrors.length) console.error(consoleErrors.slice(0, 5));
+  ok(serverErrors.length === 0, `sunucu 5xx yanıtı yok (${serverErrors.length}${serverErrors.length ? `: ${[...new Set(serverErrors)].slice(0, 5).join(", ")}` : ""})`);
+  console.log(`  · kapsam dışı (HD Eğitim tabloları yığında yok) 5xx: ${outOfScope5xx.length}`);
 } catch (e) {
   fail++;
   console.error("UI HATASI:", e);
