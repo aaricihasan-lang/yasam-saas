@@ -93,6 +93,18 @@ jobs:
           cat "$K/ozet.txt" >> "$GITHUB_STEP_SUMMARY"
           exit $rc
 
+      # SALT-OKUNUR KARŞILAŞTIRMA (karar dışı): Kişisel Dijital Ofis blob önizlemeleri, 3 tarayıcı — main işiyle AYNI betik/görseller.
+      - name: Karşılaştırma — Kişisel Ofis önizlemeleri (F2)
+        if: always()
+        env:
+          UI_BASE: http://127.0.0.1:3984
+        run: |
+          set +e
+          K="$RUNNER_TEMP/f2-arayuz"; mkdir -p "$K"
+          cp .github/f2-arayuz/kucuk-resim-karsilastirma.harness.ts scripts/workspace/.kucuk-resim.harness.ts
+          UI_ETIKET=f2 UI_OUT="$K/karsilastirma-f2" npx tsx scripts/workspace/.kucuk-resim.harness.ts > "$K/karsilastirma-f2.log" 2>&1
+          grep -a "KUCUK-RESIM" "$K/karsilastirma-f2.log" | cut -c1-200 | tee -a "$GITHUB_STEP_SUMMARY"
+
       # TANILAMA (karar bu adıma bağlı DEĞİL): WebKit'te ui-logo önizleme kontrolü düşerse <img> durumu, /assets/ istekleri,
       # img.decode() ve blob içeriği "ONIZLEME-TANI" satırına yazılır (runner'da ayrı kopya; kontroller aynen).
       - name: Tanılama — WebKit ui-logo önizleme
@@ -124,5 +136,54 @@ jobs:
         with:
           name: f2-arayuz-kanit
           path: ${{ runner.temp }}/f2-arayuz
+          if-no-files-found: warn
+          retention-days: 30
+
+  # SALT-OKUNUR KARŞILAŞTIRMA: güncel main (eef3e1fe, F2 YOK) aynı koşullarda derlenir; aynı prob aynı sentetik görsellerle.
+  ana-karsilastirma:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      NEXT_TELEMETRY_DISABLED: "1"
+      NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:54399
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_fake_local
+      SUPABASE_SERVICE_ROLE_KEY: fake-local-service-key
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: eef3e1fe38762c6ce8b7196c5312fa6eb8be03ff
+      - name: Prob dosyası (#804'ten; main ağacına yalnız runner'da kopyalanır)
+        uses: actions/checkout@v4
+        with:
+          path: arac
+          sparse-checkout: .github/f2-arayuz
+      - run: git log --oneline -1 | tee -a "$GITHUB_STEP_SUMMARY"
+      - uses: ./.github/actions/kurulum
+      - name: Playwright tarayıcıları (Chromium + Firefox + WebKit)
+        run: npx playwright install --with-deps chromium firefox webkit
+      - name: Next.js production build (main)
+        run: npx next build
+        env:
+          NODE_OPTIONS: --max-old-space-size=6144
+      - name: Tek sunucu (next start, 127.0.0.1:3984)
+        run: |
+          nohup node node_modules/next/dist/bin/next start -p 3984 -H 127.0.0.1 > "$RUNNER_TEMP/next-start.log" 2>&1 &
+          for i in $(seq 90); do [ "$(curl -s -o /dev/null -m 3 -w '%{http_code}' http://127.0.0.1:3984/settings)" = 200 ] && exit 0; sleep 2; done
+          cat "$RUNNER_TEMP/next-start.log"; exit 1
+      - name: Karşılaştırma — Kişisel Ofis önizlemeleri (main)
+        env:
+          UI_BASE: http://127.0.0.1:3984
+        run: |
+          set +e
+          K="$RUNNER_TEMP/ana"; mkdir -p "$K"
+          cp arac/.github/f2-arayuz/kucuk-resim-karsilastirma.harness.ts scripts/workspace/.kucuk-resim.harness.ts
+          UI_ETIKET=main UI_OUT="$K/karsilastirma-main" npx tsx scripts/workspace/.kucuk-resim.harness.ts > "$K/karsilastirma-main.log" 2>&1
+          grep -a "KUCUK-RESIM" "$K/karsilastirma-main.log" | cut -c1-200 | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Kanıtlar (main karşılaştırma)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ana-karsilastirma-kanit
+          path: ${{ runner.temp }}/ana
           if-no-files-found: warn
           retention-days: 30

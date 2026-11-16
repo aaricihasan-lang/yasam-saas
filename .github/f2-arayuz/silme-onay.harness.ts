@@ -105,8 +105,10 @@ async function runBrowser(name: string, bt: BrowserType) {
       && ((await dlg.locator("p").first().textContent()) ?? "").includes("kalıcı olarak silinir"));
     const focusText = await page.evaluate(`new Promise((resolve) => {
       const cur = () => (document.activeElement && document.activeElement.textContent || '').trim();
-      const stop = setTimeout(() => resolve(cur()), 2000);
-      const tick = () => { if (cur() === 'Düzenlemeye devam') { clearTimeout(stop); resolve(cur()); } else requestAnimationFrame(tick); };
+      let done = false, raf = 0;
+      const finish = (v) => { if (done) return; done = true; clearTimeout(stop); cancelAnimationFrame(raf); resolve(v); };
+      const stop = setTimeout(() => finish(cur()), 2000);
+      const tick = () => { if (done) return; if (cur() === 'Düzenlemeye devam') finish(cur()); else raf = requestAnimationFrame(tick); };
       tick();
     })`);
     ok(G, "P güvenli seçenek (Düzenlemeye devam) ilk odakta", focusText === "Düzenlemeye devam", focusText);
