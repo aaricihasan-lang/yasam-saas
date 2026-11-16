@@ -1,0 +1,75 @@
+#!/usr/bin/env node
+/**
+ * GİRİŞ GÜVENLİĞİ F2 — CI güvenlik paketi (GitHub Actions `guvenlik` işi; yerelde de aynı komut).
+ *
+ * Gerçek PostgreSQL (embedded) + gerçek migration zinciri + gerçek route'lar; ağ / sır / production YOK.
+ * Kapsam: MFA'sız oturum engeli, eski oturum yollarının kapalılığı (F2-A/B), QR + cihaz imzası (F2-C), e-posta OTP
+ * süre / kota / deneme sınırları (F2-D), kurtarma kodu tek kullanım + 72 saat + Owner yetkisi (F2-E), silme × denetim
+ * saklama + Owner taze ikinci doğrulama (F2-F), paralel istek güvenliği, migration / yayın sırası (000200 en sonda),
+ * mevcut oturumların ve 7 günlük denemenin korunması.
+ *
+ * SESSİZ GEÇİŞ YOK: her adım çıkış kodu 0 VE tanınan bir "geçti" özet satırı (sıfır FAIL) üretmek zorundadır;
+ * özeti okunamayan, atlanan veya zaman aşımına uğrayan adım FAIL'dir. Adımlar SIRAYLA koşar (bellek baskısı yok).
+ *
+ * Kullanım: node scripts/giris-guvenligi/ci-f2.mjs [--yalniz-pg]
+ */
+import { spawnSync } from "node:child_process";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
+const onlyPg = process.argv.includes("--yalniz-pg");
+
+const PG = [
+  "pg:session-f2a", "pg:session-f2b", "session-f2b-concurrency", "pg:session-f2c", "pg:session-f2d", "pg:session-f2e",
+  "session-f2e-concurrency", "pg:session-f2a-on-f2e", "pg:session-f2b-on-f2e", "pg:session-f2c-on-f2e", "pg:session-f2d-on-f2e",
+  "pg:session-f2f", "pg:session-f2a-on-f2f", "pg:session-f2b-on-f2f", "pg:session-f2c-on-f2f", "pg:session-f2d-on-f2f",
+  "pg:deploy-order-f2-pre", "pg:deploy-order-f2-post",
+];
+const TSX = [
+  // Varsayılan veritabanları: yeni kod, kendi fazının migration'larıyla (kod migration'dan önce yayına çıkarsa).
+  "scripts/giris-guvenligi/f2b-routes.harness.ts",
+  "scripts/giris-guvenligi/f2c-routes.harness.ts",
+  "scripts/giris-guvenligi/f2d-routes.harness.ts",
+  // Tam zincir (000000…000600): F2-E/F akışları + Owner taze MFA.
+  "scripts/giris-guvenligi/f2e-routes.harness.ts",
+  // Arşiv uzman kalıcı silme × F2 denetim tabloları (gerçek purge fonksiyonu).
+  "scripts/giris-guvenligi/f2-purge.harness.ts",
+  "scripts/giris-guvenligi/gmail-provider.check.ts",
+  "scripts/giris-guvenligi/qr-encode.check.ts",
+];
+
+const steps = [
+  ...PG.map((name) => ({ label: name, cmd: process.execPath, args: ["scripts/final-hardening/run-all.mjs", "--only", name], env: {},
+    passRe: /final-hardening run-all: 1\/1 PASS/ })),
+  ...(onlyPg ? [] : [
+    ...TSX.map((f) => ({ label: f, cmd: process.execPath, args: [path.join("node_modules", "tsx", "dist", "cli.mjs"), f], env: {},
+      passRe: /:\s*[1-9][0-9]* PASS[ ,/]+0 FAIL/ })),
+    // Önceki fazların route sözleşmeleri TAM zincir üzerinde (000500 + 000600 dahil).
+    ...["f2b", "f2c", "f2d"].map((x) => ({ label: `${x}-routes (tam zincir)`, cmd: process.execPath,
+      args: [path.join("node_modules", "tsx", "dist", "cli.mjs"), `scripts/giris-guvenligi/${x}-routes.harness.ts`],
+      env: { F2_TEST_DB_WITH_F2E: "1" }, passRe: /:\s*[1-9][0-9]* PASS[ ,/]+0 FAIL/ })),
+  ]),
+];
+
+const results = [];
+for (const s of steps) {
+  const t0 = Date.now();
+  const r = spawnSync(s.cmd, s.args, {
+    cwd: root, encoding: "utf8", timeout: 15 * 60 * 1000, maxBuffer: 64 * 1024 * 1024,
+    env: { ...process.env, ...s.env },
+  });
+  const out = `${r.stdout ?? ""}\n${r.stderr ?? ""}`;
+  const summary = out.split("\n").filter((l) => s.passRe.test(l) || /RESULT:|PASS \/|PASS,|run-all:/.test(l)).slice(-2).join(" | ").trim();
+  // Çıkış kodu 0 (harness / run-all FAIL varsa 1 döner) VE tanınan "geçti" özeti — ikisi birden şart.
+  const passed = r.status === 0 && !r.error && s.passRe.test(out);
+  results.push({ label: s.label, passed, sec: Math.round((Date.now() - t0) / 1000), summary: summary || "(özet satırı yok)" });
+  console.log(`${passed ? "PASS" : "FAIL"}  ${s.label}  (${Math.round((Date.now() - t0) / 1000)} sn)  ${summary || "(özet satırı yok)"}`);
+  if (!passed) {
+    console.log(out.split("\n").filter((l) => /FAIL|Error|HATA|error/.test(l)).slice(0, 30).join("\n"));
+    if (r.error) console.log(`  süreç hatası: ${r.error.message}`);
+  }
+}
+const failed = results.filter((x) => !x.passed);
+console.log(`\ngiriş güvenliği F2 CI: ${results.length - failed.length}/${results.length} PASS${failed.length ? ` — FAIL: ${failed.map((f) => f.label).join(", ")}` : ""}`);
+process.exit(failed.length ? 1 : 0);
