@@ -1,7 +1,8 @@
 /**
  * ÜYE YÖNETİMİ H1–H4 — yerel UI doğrulama yığını (production'a SIFIR temas; sentetik ZZ_H1H4UI_* verisi).
  *
- * Ephemeral embedded-postgres (FAZ 2 tabanı + 360 zinciri + Gökyüzü Atlası + TRIAL7 + H2 migration'ı) +
+ * Ephemeral embedded-postgres (FAZ 2 tabanı + 360 zinciri + Gökyüzü Atlası + TRIAL7 + H2 migration'ı +
+ * Owner zili / Üye Listesi V2 / arşiv durumu / 4b Pro geçişi — production zinciriyle aynı sıra) +
  * PostgREST shim (port çıktıda yazar). Yerel Next sunucusu bu adrese işaret eder:
  *   NEXT_PUBLIC_SUPABASE_URL=<shim adresi> SUPABASE_SERVICE_ROLE_KEY=zz-h1h4ui npx next dev --webpack -p 3941
  * Ardından: node scripts/uye-yonetimi-h1h4/ui-check.mjs
@@ -25,11 +26,18 @@ async function main(): Promise<void> {
   const db = await startTestDb(Number(process.env.H1H4_PG_PORT ?? (await freePort())), "uye-yonetimi-h1h4-ui");
   const { su } = db;
   for (const f of [
+    "20271009100000_admin_purge_archived_expert.sql", // 000600'ün ön koşulu (canlıda var)
     "20271230000000_astrology_technique_grants.sql",
     "20280101000000_trial7_self_trial.sql",
     "20280101000100_trial7_claims_retention.sql",
     "20280101000200_trial7_admin_trial_approval.sql",
     "20280101000300_admin_legacy_package_repair.sql",
+    // Liste ekranı /api/admin/members → admin_list_members_v2 (000500; karar sayısı admin_notifications'tan,
+    // 000400) ve /api/admin/notifications. Bunlar olmadan liste 500 verir (yığın eksiği, uygulama hatası değil).
+    "20280101000400_admin_owner_notifications.sql",
+    "20280101000500_admin_list_members_v2.sql",
+    "20280101000600_admin_member_archive_state.sql", // canlıdaki liste RPC sürümü (aşama 'pasif') + arşiv durumu
+    "20280101000710_admin_trial_convert_passive_guard_4b.sql", // canlıdaki Pro geçişi (H3); 000690/000700 testDb tabanında
   ]) {
     await su.query(readMig(f));
   }

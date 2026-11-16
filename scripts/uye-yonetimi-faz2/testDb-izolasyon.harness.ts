@@ -21,7 +21,8 @@ import { createConnection } from "node:net";
 import os from "node:os";
 import path from "node:path";
 import { startTestDb } from "./testDb";
-import { OWNER_FILE, createRunDir, freePort, killStampedSync, ownChildAlive, removeOwnRunDir, sameDataDir } from "./testDbRun";
+import { OWNER_FILE, createRunDir, freePort, killStampedSync, ownChildAlive, removeOwnRunDir, sameDataDir, startOwnedEmbeddedPg } from "./testDbRun";
+import pg from "pg";
 
 const TAG = `zz-izolasyon-${randomUUID().slice(0, 8)}`;
 
@@ -166,6 +167,42 @@ async function main(): Promise<void> {
     ok(stopped === "bitti" && Date.now() - t0 < 15_000, `stop() askıda kalmadı (${Date.now() - t0} ms; eski kod ölü süreci 'exit' için sonsuza dek bekler)`);
     ok(!existsSync(D.runDir), "stop(): kendi dizini silindi");
 
+    // ── O) startOwnedEmbeddedPg (kendi DDL'ini kuran harness'lar: FAZ 1 db-contract / route-integration) ─────
+    console.log("\n[O] startOwnedEmbeddedPg — aynı sahiplik kuralları");
+    const legacyO = path.join(os.tmpdir(), `${TAG}-o`); // FAZ 1'in ESKİ sabit dizini gibi
+    mkdirSync(legacyO);
+    created.push(path.basename(legacyO));
+    writeFileSync(path.join(legacyO, "baska-kosu.txt"), "dokunulmamalı");
+    const [O1, O2] = await Promise.all([startOwnedEmbeddedPg(`${TAG}-o`), startOwnedEmbeddedPg(`${TAG}-o`)]);
+    ok(O1.runDir !== O2.runDir && O1.port !== O2.port && existsSync(O1.dataDir) && existsSync(O2.dataDir), "eşzamanlı iki koşu: ayrı dizin + ayrı boş port", { O1: O1.runDir, O2: O2.runDir });
+    ok(existsSync(path.join(legacyO, "baska-kosu.txt")), "eski sabit adlı klasör açılışta SİLİNMEDİ");
+    const c2 = new pg.Client({ host: "127.0.0.1", port: O2.port, user: "postgres", password: "testpw", database: "postgres" });
+    await c2.connect();
+    await c2.query(`create table zz_o2(x int); insert into zz_o2 values (5)`);
+    let errO = "";
+    try {
+      const O3 = await startOwnedEmbeddedPg(`${TAG}-o`, { port: O2.port });
+      await O3.stop();
+    } catch (e) {
+      errO = String((e as Error)?.message ?? e ?? "red");
+    }
+    ok(errO !== "", "O2'nin portunda yeni koşu BAŞLAMAZ (hata verir)", errO);
+    ok((await c2.query(`select x from zz_o2`)).rows[0]?.x === 5, "O2'nin sunucusu ve verisi etkilenmedi");
+    await c2.end();
+    const pmO1 = pmPidOf(O1.dataDir);
+    if (process.platform === "win32") spawnSync("taskkill", ["/pid", String(pmO1), "/t", "/f"], { stdio: "ignore" });
+    else process.kill(pmO1, "SIGKILL");
+    for (let i = 0; i < 50 && pidAlive(pmO1); i++) await new Promise((r) => setTimeout(r, 100));
+    await new Promise((r) => setTimeout(r, 300));
+    const tO = Date.now();
+    const stoppedO = await Promise.race([O1.stop().then(() => "bitti"), new Promise((r) => setTimeout(() => r("ASKIDA"), 15_000))]);
+    ok(stoppedO === "bitti" && !existsSync(O1.runDir), `dışarıdan ölen postmaster: stop() askıda kalmadı, PID'e sinyal yok, kendi dizini silindi (${Date.now() - tO} ms)`);
+    const pmO2 = pmPidOf(O2.dataDir);
+    await O2.stop();
+    ok(!existsSync(O2.runDir) && !(await portOpen(O2.port)) && childrenOf(pmO2).length === 0 && !pidAlive(pmO2), "O2 durdu: dizin silindi, port kapandı, yetim süreç yok", childrenOf(pmO2));
+    ok(existsSync(path.join(legacyO, "baska-kosu.txt")) && own([path.basename(legacy), path.basename(foreign), path.basename(legacyO)]).length === 0,
+      "eski klasör yerinde; [O] koşularından dizin kalmadı", own([]));
+
     // ── C) Yakalanmamış hata ile çıkış ─────────────────────────────────────────────────────────────────────
     console.log("\n[C] Alt süreç yakalanmamış hata ile çıkar");
     const tsxCli = path.join(process.cwd(), "node_modules", "tsx", "dist", "cli.mjs");
@@ -183,7 +220,7 @@ async function main(): Promise<void> {
     ok(!!info && !existsSync(info.runDir), "çıkış kancası: alt sürecin kendi dizini silindi", info);
     ok(!!info && !pidAlive(info.pid) && !(await portOpen(info.port)), "çıkış kancası: alt sürecin postmaster'ı kapandı (yetim yok)", info);
     ok(existsSync(path.join(foreign, "veri.txt")) && existsSync(path.join(legacy, "baska-kosu.txt")), "yabancı / eski klasörler hâlâ yerinde");
-    ok(own([path.basename(legacy), path.basename(foreign)]).length === 0, "bu harness'ın açtığı test DB dizinlerinden hiçbiri kalmadı", own([]));
+    ok(own([path.basename(legacy), path.basename(foreign), path.basename(legacyO)]).length === 0, "bu harness'ın açtığı test DB dizinlerinden hiçbiri kalmadı", own([]));
   } finally {
     // Yalnız harness'ın elle oluşturduğu tuzak dizinler (benzersiz TAG önekli) silinir.
     for (const n of created) {

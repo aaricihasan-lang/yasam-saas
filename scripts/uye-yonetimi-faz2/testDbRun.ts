@@ -13,6 +13,8 @@
  *   - Postmaster'a yalnız KENDİ çocuk süreç tutamacımız hâlâ canlıyken sinyal gönderilir (Windows'ta açık tutamaç
  *     varken PID yeniden atanamaz); süreç bitmişse PID'e hiçbir işlem yapılmaz.
  */
+import EmbeddedPostgres from "embedded-postgres";
+import pg from "pg";
 import { spawnSync, type ChildProcess } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { existsSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
@@ -165,4 +167,79 @@ export function pgCtlStopSync(postmaster: ChildProcess | null | undefined, dataD
   if (!existsSync(exe)) return false;
   const r = spawnSync(exe, ["stop", "-D", dataDir, "-m", "fast", "-w", "-t", String(timeoutSec)], { stdio: "ignore", windowsHide: true });
   return r.status === 0;
+}
+
+export type OwnedEmbeddedPg = {
+  port: number;
+  /** Bu koşuya özgü dizin (`<tmpdir>/<dirName>-<rastgele>`) ve içindeki veri dizini. */
+  runDir: string;
+  dataDir: string;
+  stop: () => Promise<void>;
+};
+
+/**
+ * Kendi DDL'ini kendisi kuran harness'lar (ör. üye yönetimi FAZ 1 db-contract / route-integration) için yalnız
+ * embedded-postgres yaşam döngüsü — startTestDb ile AYNI sahiplik kuralları: koşuya özgü dizin + sahiplik işareti
+ * (önceden var olan klasör silinmez), varsayılan boş port, bağlanılan sunucunun data_directory'si bu koşunun değilse
+ * hata (çağıran DDL çalıştırmaz), kapanışta pg_ctl + yalnız PID ve oluşturulma zamanıyla doğrulanan kendi
+ * çocuklarımız, son olarak yalnız kendi dizinimiz. Süreç beklenmedik biterse `exit` kancası aynı kuralları uygular.
+ */
+export async function startOwnedEmbeddedPg(dirName: string, opts: { port?: number; password?: string } = {}): Promise<OwnedEmbeddedPg> {
+  const port = opts.port ?? (await freePort());
+  const password = opts.password ?? "testpw";
+  const run = createRunDir(dirName, port);
+  const epg = new EmbeddedPostgres({
+    databaseDir: run.dataDir, user: "postgres", password, port, persistent: false,
+    initdbFlags: ["--locale=C", "--encoding=UTF8"],
+  });
+  const child = () => (epg as unknown as { process?: ChildProcess }).process;
+  let stopped = false;
+  const exitHook = () => {
+    if (stopped) return;
+    const stamps = ownChildStampsSync(child());
+    if (!pgCtlStopSync(child(), run.dataDir)) killOwnChildSync(child());
+    killStampedSync(stamps);
+    try { removeOwnRunDir(run); } catch { /* son çare; başka hiçbir şeye dokunulmaz */ }
+  };
+  process.on("exit", exitHook);
+  const stop = async () => {
+    if (stopped) return;
+    stopped = true;
+    process.off("exit", exitHook);
+    if (ownChildAlive(child())) {
+      const stamps = ownChildStampsSync(child());
+      pgCtlStopSync(child(), run.dataDir);
+      for (let i = 0; i < 50 && ownChildAlive(child()); i++) await new Promise((r) => setTimeout(r, 100));
+      if (ownChildAlive(child())) await epg.stop().catch(() => undefined);
+      else (epg as unknown as { process?: ChildProcess }).process = undefined;
+      killStampedSync(stamps);
+    } else {
+      // Postmaster zaten bitmiş: PID başka bir sürece verilmiş olabilir → taskkill / sinyal GÖNDERİLMEZ. Yalnız
+      // kendi (bitmiş) çocuğumuzun stdout/stderr borularını kapat: dışarıdan /t ile öldürülünce açık kalabiliyor ve
+      // olay döngüsünü (harness'ın doğal çıkışını) askıda tutuyordu.
+      const dead = child();
+      dead?.stdout?.destroy();
+      dead?.stderr?.destroy();
+      (epg as unknown as { process?: ChildProcess }).process = undefined;
+    }
+    removeOwnRunDir(run);
+  };
+  try {
+    await epg.initialise();
+    await epg.start();
+    const c = new pg.Client({ host: "127.0.0.1", port, user: "postgres", password, database: "postgres" });
+    await c.connect();
+    try {
+      const dd = String((await c.query(`select current_setting('data_directory') d`)).rows[0].d);
+      if (!sameDataDir(dd, run.dataDir)) {
+        throw new Error(`test DB sahiplik hatası: ${port} portundaki sunucu bu koşunun değil (${dd}); DDL çalıştırılmadı`);
+      }
+    } finally {
+      await c.end().catch(() => undefined);
+    }
+  } catch (e) {
+    await stop();
+    throw e;
+  }
+  return { port, runDir: run.runDir, dataDir: run.dataDir, stop };
 }
