@@ -133,11 +133,13 @@ async function main() {
     await server.initialise();
     await server.start();
     await admin.connect();
+    admin.on("error", () => {});
     await admin.query(BOOT);
     for (const f of FILES) await admin.query(fs.readFileSync(path.join(ROOT, f), "utf8"));
     await admin.query(HARNESS_SQL);
 
     pool = new pg.Pool({ host: "localhost", port, user: "postgres", password: "pw", database: "postgres", max: 6 });
+    pool.on("error", () => {});   // kapanışta sunucu durdurulurken boştaki bağlantı hatası süreci çökertmesin
     shim = await startEmbedShim(pool);
     process.env.NEXT_PUBLIC_SUPABASE_URL = shim.url;
     process.env.SUPABASE_SERVICE_ROLE_KEY = "f2c-harness-service-key";
