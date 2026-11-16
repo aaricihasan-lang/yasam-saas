@@ -281,18 +281,37 @@ async function main(): Promise<void> {
     const regRow = (await su.query(`select * from public.users where email='zz.p2.reg1@example.test'`)).rows[0];
     ok(good.status === 200 && !!regRow && regRow.approval_status === "pending" && regRow.active === false && regRow.role === "expert", "geçerli kayıt → pending + pasif uzman");
     ok(!!regRow && regRow.full_name === "ZZ Kayıt Uzman", "ad normalize (fazla boşluk temiz)");
-    const dup = await reg({ fullName: "ZZ Kayıt", email: "zz.p2.reg1@EXAMPLE.test", password: "abcd123456" });
-    ok(dup.status === 409 && dup.json.code === "already_exists", "yinelenen e-posta → 409");
+    // AUTH-03 (6158169c, 2026-10-20): hesap varlığı sızdırılmaz — kayıtlı e-postaya yeni başvuruyla AYNI
+    // yanıt (200 {ok:true}); yeni kullanıcı/tenant OLUŞMAZ ve mevcut kayıt DEĞİŞMEZ.
+    const usersBeforeDup = (await su.query(`select count(*)::int n from public.users`)).rows[0].n;
+    const tenantsBeforeDup = (await su.query(`select count(*)::int n from public.tenants`)).rows[0].n;
+    const dup = await reg({ fullName: "ZZ Kayıt", email: "zz.p2.reg1@EXAMPLE.test", password: "abcd654321" });
+    ok(dup.status === good.status && JSON.stringify(dup.json) === JSON.stringify(good.json) && dup.json.code === undefined, `yinelenen e-posta → yeni kayıtla aynı yanıt, hesap varlığı sızmaz (AUTH-03) (${dup.status} ${JSON.stringify(dup.json)})`);
+    const regRowAfterDup = (await su.query(`select * from public.users where email='zz.p2.reg1@example.test'`)).rows;
+    ok((await su.query(`select count(*)::int n from public.users`)).rows[0].n === usersBeforeDup
+      && (await su.query(`select count(*)::int n from public.tenants`)).rows[0].n === tenantsBeforeDup
+      && regRowAfterDup.length === 1 && regRowAfterDup[0].id === regRow.id && regRowAfterDup[0].full_name === regRow.full_name
+      && regRowAfterDup[0].password_hash === regRow.password_hash && regRowAfterDup[0].approval_status === "pending",
+      "yinelenen e-posta → yeni kullanıcı/tenant OLUŞMAZ, mevcut kayıt (ad/parola/durum) değişmez");
     // IP rate limit: 10 / 15 dk
     const ip = "198.51.100.77";
     let lastIp: Awaited<ReturnType<typeof reg>> | null = null;
     for (let i = 0; i < 11; i++) lastIp = await reg({ fullName: "ZZ RL", email: `zz.p2.rl${i}@example.test`, password: "short" }, { ip });
     ok(lastIp!.status === 429 && lastIp!.json.code === "rate_limited" && Number(lastIp!.headers.get("retry-after")) > 0, "aynı IP 11. deneme → 429 + Retry-After (hatalı denemeler de sayılır)");
     ok((await reg({ fullName: "ZZ RL", email: "zz.p2.rl-other@example.test", password: "short" }, { ip: "198.51.100.78" })).status === 400, "farklı IP etkilenmez");
-    // E-posta rate limit: 3 / saat (farklı IP'lerden)
+    // E-posta rate limit: 3 / saat (farklı IP'lerden). AUTH-03: 2. ve 3. deneme (kayıtlı e-posta) ilkiyle
+    // aynı 200 yanıtı alır; limit sonuçtan ÖNCE sayıldığı için 4. deneme yine 429.
     const statuses: number[] = [];
-    for (let i = 0; i < 4; i++) statuses.push((await reg({ fullName: "ZZ EM", email: "zz.p2.emrl@example.test", password: "abcd123456" }, { ip: `192.0.2.${10 + i}` })).status);
-    ok(statuses[0] === 200 && statuses[1] === 409 && statuses[2] === 409 && statuses[3] === 429, `aynı e-posta 4. deneme (farklı IP'ler) → 429 (${statuses.join(",")})`);
+    const emBodies: string[] = [];
+    for (let i = 0; i < 4; i++) {
+      const r = await reg({ fullName: "ZZ EM", email: "zz.p2.emrl@example.test", password: "abcd123456" }, { ip: `192.0.2.${10 + i}` });
+      statuses.push(r.status);
+      emBodies.push(JSON.stringify(r.json));
+    }
+    ok(statuses[0] === 200 && statuses[1] === 200 && statuses[2] === 200 && statuses[3] === 429
+      && emBodies[1] === emBodies[0] && emBodies[2] === emBodies[0] && JSON.parse(emBodies[3]).code === "rate_limited",
+      `aynı e-posta 4. deneme (farklı IP'ler) → 429; önceki tekrarlar ilk kayıtla aynı yanıt (${statuses.join(",")})`);
+    ok((await su.query(`select count(*)::int n from public.users where email='zz.p2.emrl@example.test'`)).rows[0].n === 1, "e-posta hız sınırı: tekrarlar ikinci hesap OLUŞTURMADI");
     const buckets = JSON.stringify((await su.query(`select bucket from public.auth_rate_limit_events`)).rows);
     ok(!/198\.51\.100|zz\.p2\.|example\.test/.test(buckets), "rate-limit tablosunda ham IP/e-posta YOK (HMAC kova)");
     ok((await su.query(`select has_table_privilege('anon','public.auth_rate_limit_events','SELECT') a`)).rows[0].a === false, "rate-limit tablosu anon'a kapalı");
