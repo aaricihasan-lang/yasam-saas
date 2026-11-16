@@ -112,10 +112,14 @@ export async function startF2cDb(opts: { withF2d?: boolean; withF2e?: boolean } 
   await server.start();
   const admin = new pg.Client({ host: "localhost", port, user: "postgres", password: "pw", database: "postgres" });
   await admin.connect();
+  // Kapanışta PostgreSQL durdurulurken boştaki bağlantılar "terminating connection due to administrator command"
+  // alır; dinleyicisiz 'error' olayı süreci ÇÖKERTİR (özet satırı yazılmadan). Kapanış hatası test sonucu değildir.
+  admin.on("error", () => {});
   await admin.query(BOOT);
   for (const f of [...F2C_FILES, ...(opts.withF2d || opts.withF2e ? F2D_FILES : []), ...(opts.withF2e ? F2E_FILES : [])]) await admin.query(fs.readFileSync(path.join(ROOT, f), "utf8"));
   await admin.query(HARNESS_SQL);
   const pool = new pg.Pool({ host: "localhost", port, user: "postgres", password: "pw", database: "postgres", max: 8 });
+  pool.on("error", () => {});
   const shim = await startEmbedShim(pool);
   return {
     admin, pool, shimUrl: shim.url,
