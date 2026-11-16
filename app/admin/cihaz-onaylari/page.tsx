@@ -22,6 +22,8 @@ type Pending = {
   app_version: string | null;
   attestation: string;
   created_at: string;
+  /** F2-E: kullanıcı eski telefonuyla (QR) doğrulanmış oturumdan telefon değişimi başlattıysa eski cihaz. */
+  replaces?: { display_code: string | null; model: string | null } | null;
 };
 
 type RowState = { method: "telefon" | "yuz_yuze" | ""; confirmed: boolean; note: string; busy: boolean; msg: string | null };
@@ -90,6 +92,11 @@ export default function CihazOnaylariPage() {
       <p className="mt-1 text-sm text-slate-600">
         Uzmanın telefonunu güvenilir cihaz yapmadan önce kimliğini doğrulayın. Onay oturum açmaz; telefon kendi güvenli anahtarıyla aktifleşir.
       </p>
+      <p className="mt-1 text-sm">
+        <a href="/admin/hesap-kurtarma" className="font-bold text-violet-700 hover:underline" data-testid="link-recovery-cases">
+          Bütün giriş yöntemlerini kaybeden kullanıcılar için: Hesap kurtarma talepleri →
+        </a>
+      </p>
 
       <section className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-[13px] leading-relaxed text-amber-900">
         <p className="font-bold">Doğrulama kuralı</p>
@@ -117,6 +124,12 @@ export default function CihazOnaylariPage() {
                   <p className="mt-1 text-xs text-slate-500">
                     {d.model ?? "Bilinmeyen cihaz"}{d.android_api ? ` · Android API ${d.android_api}` : ""}{d.app_version ? ` · uygulama ${d.app_version}` : ""} · {fmt(d.created_at)}
                   </p>
+                  {d.replaces && (
+                    <p className="mt-1 text-[11px] font-semibold text-sky-700" data-testid="device-replaces">
+                      Telefon değişimi: kullanıcı eski telefonuyla ({d.replaces.model ?? "Android cihaz"} {d.replaces.display_code ?? ""}) doğrulanmış oturumdan başlattı.
+                      Yeni cihaz etkinleşince eski cihaz otomatik iptal edilir. Kimlik kontrolü yine gereklidir.
+                    </p>
+                  )}
                   {d.attestation === "unverified" && (
                     <p className="mt-1 text-[11px] font-semibold text-amber-700">Donanım doğrulaması (attestation) henüz denetlenmiyor — kimlik kontrolüne özen gösterin.</p>
                   )}

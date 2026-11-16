@@ -130,6 +130,13 @@ export const TABLE_POLICY_OVERRIDES: Readonly<Record<string, RestorePolicy>> = {
   // GİRİŞ GÜVENLİĞİ F2-D: e-posta kodu / gönderim kaydı → asla restore edilmez.
   auth_email_otps: "DO_NOT_RESTORE",
   auth_email_deliveries: "DO_NOT_RESTORE",
+  // GİRİŞ GÜVENLİĞİ F2-E: kurtarma kodları / talepler / denetim → asla restore edilmez.
+  auth_recovery_codes: "DO_NOT_RESTORE",
+  auth_recovery_attempts: "DO_NOT_RESTORE",
+  auth_recovery_events: "DO_NOT_RESTORE",
+  auth_recovery_cases: "DO_NOT_RESTORE",
+  auth_email_change_requests: "DO_NOT_RESTORE",
+  auth_device_replacements: "DO_NOT_RESTORE",
 };
 
 /**

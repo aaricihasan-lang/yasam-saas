@@ -160,6 +160,7 @@ export default function AdminNotificationsPage() {
               const name = r.type === "eposta_uyari" ? "Sistem" : r.full_name || r.email || "Silinmiş üye";
               const href = r.type === "eposta_uyari" ? "/admin/eposta-durumu"
                 : r.type === "cihaz_eslesme" ? "/admin/cihaz-onaylari"
+                  : r.type === "hesap_kurtarma" ? "/admin/hesap-kurtarma"
                   : r.target_user_id ? `/admin/users/${encodeURIComponent(r.target_user_id)}` : null;
               const st =
                 r.kind === "info"

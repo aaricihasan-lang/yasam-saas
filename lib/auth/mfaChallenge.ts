@@ -71,11 +71,16 @@ export async function resolveUserMfaMethods(
   // 000400 henüz uygulanmamışsa (veya okuma hatası) F2-C davranışı: yalnız QR (cihaz imzası yine şart;
   // e-posta asla bu yoldan sunulmaz). Kod migration'dan önce yayına çıksa da zorunlu kullanıcı kilitlenmez.
   if (error || !data || typeof data !== "object") return flags.filter((f) => f === "qr_device");
-  const m = data as { has_device?: unknown; email_verified?: unknown };
-  return flags.filter((f) =>
+  const m = data as { has_device?: unknown; email_verified?: unknown; recovery_codes?: unknown };
+  const methods = flags.filter((f) =>
     f === "qr_device" ? m.has_device === true
       : f === "email_otp" ? m.email_verified === true && args.emailConfigured && args.emailRoleAllowed
         : false);
+  // F2-E: kurtarma kodu ayrı bir env bayrağı İSTEMEZ (asıl yöntemler kaybolduğunda da çalışmalı); yalnız
+  // kapsam izin veriyorsa (flags boş değil) ve kullanılmamış kod / kurtarma bileti varsa sunulur.
+  // 000500 öncesi DB'de alan yoktur → sunulmaz.
+  if (Number(m.recovery_codes) > 0) methods.push("recovery_code");
+  return methods;
 }
 
 export function newMfaBindingSecret(): string {

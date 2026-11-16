@@ -29,6 +29,10 @@ export const F2D_FILES = [
   "scripts/final-hardening/fixtures/session-f2d-fixture.sql",
   "supabase/migrations/20280103000400_auth_email_otp_f2d.sql",
 ];
+/** F2-E eki: hesap kurtarma (20280103000500). startF2cDb({ withF2d: true, withF2e: true }). */
+export const F2E_FILES = [
+  "supabase/migrations/20280103000500_auth_account_recovery_f2e.sql",
+];
 const BOOT = `
 DO $$ BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='anon') THEN CREATE ROLE anon NOLOGIN; END IF;
@@ -92,7 +96,9 @@ export const signWith = (p: Phone, msg: string) =>
 
 export type F2cDb = { admin: pg.Client; pool: pg.Pool; shimUrl: string; close: () => Promise<void> };
 
-export async function startF2cDb(opts: { withF2d?: boolean } = {}): Promise<F2cDb> {
+export async function startF2cDb(opts: { withF2d?: boolean; withF2e?: boolean } = {}): Promise<F2cDb> {
+  // Uyumluluk koşusu: F2_TEST_DB_WITH_F2E=1 → önceki fazların harness'ları bütün zincir (000500 dahil) üstünde koşar.
+  if (process.env.F2_TEST_DB_WITH_F2E === "1") opts = { ...opts, withF2d: true, withF2e: true };
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "f2c-db-"));
   const port = 57000 + Math.floor(Math.random() * 900);
   const { default: EmbeddedPostgres } = await import("embedded-postgres");
@@ -105,7 +111,7 @@ export async function startF2cDb(opts: { withF2d?: boolean } = {}): Promise<F2cD
   const admin = new pg.Client({ host: "localhost", port, user: "postgres", password: "pw", database: "postgres" });
   await admin.connect();
   await admin.query(BOOT);
-  for (const f of [...F2C_FILES, ...(opts.withF2d ? F2D_FILES : [])]) await admin.query(fs.readFileSync(path.join(ROOT, f), "utf8"));
+  for (const f of [...F2C_FILES, ...(opts.withF2d || opts.withF2e ? F2D_FILES : []), ...(opts.withF2e ? F2E_FILES : [])]) await admin.query(fs.readFileSync(path.join(ROOT, f), "utf8"));
   await admin.query(HARNESS_SQL);
   const pool = new pg.Pool({ host: "localhost", port, user: "postgres", password: "pw", database: "postgres", max: 8 });
   const shim = await startEmbedShim(pool);

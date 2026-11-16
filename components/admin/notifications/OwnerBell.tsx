@@ -138,7 +138,9 @@ export default function OwnerBell({ placement, compact = false }: Props) {
       ? "/admin/cihaz-onaylari"
       : it.type === "eposta_uyari"
         ? "/admin/eposta-durumu"
-        : it.target_user_id ? `/admin/users/${encodeURIComponent(it.target_user_id)}` : "/admin/bildirimler";
+        : it.type === "hesap_kurtarma"
+          ? "/admin/hesap-kurtarma"
+          : it.target_user_id ? `/admin/users/${encodeURIComponent(it.target_user_id)}` : "/admin/bildirimler";
     const unread = kind === "info" && !it.read;
     return (
       <li key={it.id}>

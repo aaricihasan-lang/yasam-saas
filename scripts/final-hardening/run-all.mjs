@@ -32,6 +32,14 @@ const pg = (fixtures, migrations, asserts) => [
   ],
 ];
 
+// GİRİŞ GÜVENLİĞİ F2 zinciri: ortak fixture tabanı ve migration sırası (F2-E kontrolleri).
+const F2_BASE_FIXTURES = [F("session-model-fixture.sql"), F("session-f2a-fixture.sql"), F("session-f2b-fixture.sql"),
+  F("session-f2c-fixture.sql"), F("session-f2d-fixture.sql"),
+  M("20270129000200_user_sessions_expiry_touch.sql"), M("20271003200000_session_model_v2.sql"), M("20271003200100_admin_audit_session_actions.sql")];
+const F2_ALL_MIGRATIONS = ["20280103000000_auth_session_hardening_f2a.sql", "20280103000100_auth_mfa_core_f2b.sql",
+  "20280103000200_auth_session_insert_lock_f2b.sql", "20280103000300_auth_trusted_devices_qr_f2c.sql",
+  "20280103000400_auth_email_otp_f2d.sql", "20280103000500_auth_account_recovery_f2e.sql"];
+
 const TZ_SENSITIVE = new Set(["foundation", "word-tz", "dy", "backup", "hday"]);
 
 const STEPS = [
@@ -143,6 +151,7 @@ const STEPS = [
     ["20280103000100_auth_mfa_core_f2b.sql", "20280103000200_auth_session_insert_lock_f2b.sql"],
     ["session-f2b-assert.sql"])],
   ["session-f2b-concurrency", "node", ["scripts/session-model/f2b-finalize-concurrency.mjs"]],
+  ["session-f2e-concurrency", "node", ["scripts/session-model/f2e-recovery-concurrency.mjs"]],
   // GİRİŞ GÜVENLİĞİ F2-C: güvenilir Android cihazı (Owner onayı + cihaz imzası) + QR onay durum makinesi.
   ["pg:session-f2c", ...pg([F("session-model-fixture.sql"), F("session-f2a-fixture.sql"), F("session-f2b-fixture.sql"), F("session-f2c-fixture.sql"),
     M("20270129000200_user_sessions_expiry_touch.sql"), M("20271003200000_session_model_v2.sql"),
@@ -159,6 +168,33 @@ const STEPS = [
     M("20280103000300_auth_trusted_devices_qr_f2c.sql")],
     ["20280103000400_auth_email_otp_f2d.sql"],
     ["session-f2d-assert.sql"])],
+  // GİRİŞ GÜVENLİĞİ F2-E: hesap kurtarma (kodlar, kilit/sınır, Owner kiti, e-posta/telefon değişimi, 72 saat,
+  // atomiklik, yalıtım, yetkiler) + F2-D sözleşmesi 000500 üstünde aynen (f2d assert'i yeniden koşar).
+  ["pg:session-f2e", ...pg([F("session-model-fixture.sql"), F("session-f2a-fixture.sql"), F("session-f2b-fixture.sql"), F("session-f2c-fixture.sql"),
+    F("session-f2d-fixture.sql"),
+    M("20270129000200_user_sessions_expiry_touch.sql"), M("20271003200000_session_model_v2.sql"),
+    M("20271003200100_admin_audit_session_actions.sql"), M("20280103000000_auth_session_hardening_f2a.sql"),
+    M("20280103000100_auth_mfa_core_f2b.sql"), M("20280103000200_auth_session_insert_lock_f2b.sql"),
+    M("20280103000300_auth_trusted_devices_qr_f2c.sql"), M("20280103000400_auth_email_otp_f2d.sql")],
+    ["20280103000500_auth_account_recovery_f2e.sql"],
+    ["session-f2e-assert.sql"])],
+  ["pg:session-f2d-on-f2e", ...pg([F("session-model-fixture.sql"), F("session-f2a-fixture.sql"), F("session-f2b-fixture.sql"), F("session-f2c-fixture.sql"),
+    F("session-f2d-fixture.sql"),
+    M("20270129000200_user_sessions_expiry_touch.sql"), M("20271003200000_session_model_v2.sql"),
+    M("20271003200100_admin_audit_session_actions.sql"), M("20280103000000_auth_session_hardening_f2a.sql"),
+    M("20280103000100_auth_mfa_core_f2b.sql"), M("20280103000200_auth_session_insert_lock_f2b.sql"),
+    M("20280103000300_auth_trusted_devices_qr_f2c.sql")],
+    ["20280103000400_auth_email_otp_f2d.sql", "20280103000500_auth_account_recovery_f2e.sql"],
+    ["session-f2d-assert.sql"])],
+  // F2-A/B/C sözleşmeleri de bütün zincir (000500 dahil) üstünde aynen geçer.
+  ...["f2a", "f2b", "f2c"].map((x) => [`pg:session-${x}-on-f2e`, ...pg([...F2_BASE_FIXTURES, ...(x === "f2a" ? [F("session-f2a-legacy-seed.sql")] : [])],
+    F2_ALL_MIGRATIONS, [`session-${x}-assert.sql`])]),
+  // YAYIN SIRASI: 000200 (service_role INSERT kilidi) EN SONDA. Ara durumda eski kod çalışır + MFA atlatılamaz;
+  // 000200 sonrası yeni kodun bütün oturum yolları çalışır, doğrudan INSERT kapanır.
+  ["pg:deploy-order-f2-pre", ...pg(F2_BASE_FIXTURES, F2_ALL_MIGRATIONS.filter((m) => !m.startsWith("20280103000200")), ["deploy-order-f2-pre-assert.sql"])],
+  ["pg:deploy-order-f2-post", ...pg(F2_BASE_FIXTURES,
+    [...F2_ALL_MIGRATIONS.filter((m) => !m.startsWith("20280103000200")), "20280103000200_auth_session_insert_lock_f2b.sql"],
+    ["deploy-order-f2-post-assert.sql"])],
 ];
 
 const only = process.argv.includes("--only") ? process.argv[process.argv.indexOf("--only") + 1] : null;
