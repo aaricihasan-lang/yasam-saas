@@ -1566,6 +1566,16 @@
   {
    "file": "scripts/uye-yonetimi-faz2/uiKosu.harness.mjs",
    "timeoutSec": 120
+  },
+  {
+   "file": "scripts/uye-yonetimi-faz1/unit.harness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/uye-yonetimi-faz2/phase2-integration.harness.ts",
+   "tsx": true,
+   "timeoutSec": 240
   }
  ]
 }
