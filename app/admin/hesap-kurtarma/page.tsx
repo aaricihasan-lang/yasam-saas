@@ -12,6 +12,7 @@
  */
 import { useCallback, useEffect, useState } from "react";
 import { ownerAdminHeaders } from "@/components/admin/notifications/ownerBellStore";
+import PasswordInput from "@/components/ui/PasswordInput";
 
 type Case = {
   id: string;
@@ -237,7 +238,7 @@ export default function HesapKurtarmaPage() {
                         <input type="checkbox" data-testid="recovery-exec-confirm" checked={execConfirm} onChange={(e) => setExecConfirm(e.target.checked)} className="mt-0.5 h-4 w-4" />
                         Kullanıcının kimliğini bugün yeniden teyit ettim. Bütün cihazları iptal edilecek, oturumları kapanacak ve eski kurtarma kodları geçersiz olacak.
                       </label>
-                      <input type="password" data-testid="recovery-exec-password" value={execPassword} onChange={(e) => setExecPassword(e.target.value)}
+                      <PasswordInput wrapperClassName="w-full" data-testid="recovery-exec-password" value={execPassword} onChange={(e) => setExecPassword(e.target.value)}
                         autoComplete="current-password" placeholder="Owner parolanız" aria-label="Owner parolanız" className={inputCls} />
                       <button type="submit" data-testid="recovery-exec-submit" disabled={busy !== null || !execConfirm || !execPassword}
                         className={`${btn} w-full bg-rose-600 text-white hover:bg-rose-700`}>Kurtarmayı yürüt ve bilet üret</button>

@@ -106,15 +106,15 @@ async function main() {
     const expireOpen = (userId: string) =>
       admin.query(`UPDATE public.auth_mfa_challenges SET state = 'expired' WHERE user_id = $1 AND state IN ('pending', 'verified')`, [userId]);
     const webLogin = async (email: string, password = pw(email)) => {
-      const r = await call(sessionRoute.POST as Handler, `${L}/api/auth/session`, "POST", { email, password });
+      const r = await call(sessionRoute.POST as unknown as Handler, `${L}/api/auth/session`, "POST", { email, password });
       return { ...r, bind: cookieFrom(r.res, "__Host-yasam_mfa"), sid: cookieFrom(r.res, "__Host-yasam_sid") };
     };
     const web = (bind: string) => ({ "sec-fetch-site": "same-origin", cookie: `__Host-yasam_mfa=${bind}` });
     const self = (userId: string, sid: string) => ({ "x-user-id": userId, cookie: `__Host-yasam_sid=${sid}`, "sec-fetch-site": "same-origin" });
     const adminH = (adminId: string, sid: string) => ({ "x-admin-id": adminId, cookie: `__Host-yasam_sid=${sid}`, "sec-fetch-site": "same-origin" });
-    const recover = (ch: string, code: string, h: Record<string, string>) => call(recoveryRoute.POST as Handler, `${L}/api/auth/mfa/recovery/verify`, "POST", { challengeId: ch, code }, h);
+    const recover = (ch: string, code: string, h: Record<string, string>) => call(recoveryRoute.POST as unknown as Handler, `${L}/api/auth/mfa/recovery/verify`, "POST", { challengeId: ch, code }, h);
     const complete = async (ch: string, bind: string) => {
-      const r = await call(completeRoute.POST as Handler, `${L}/api/auth/mfa/complete`, "POST", { challengeId: ch }, web(bind));
+      const r = await call(completeRoute.POST as unknown as Handler, `${L}/api/auth/mfa/complete`, "POST", { challengeId: ch }, web(bind));
       return { ...r, sid: cookieFrom(r.res, "__Host-yasam_sid") };
     };
     /** Parola → 202 → e-posta kodu → tamamla. MFA'lı (email_otp) oturum döner. */
@@ -122,8 +122,8 @@ async function main() {
       await ageOtps(user.id);
       const l = await webLogin(loginEmail, password);
       const ch = String(l.json.challengeId ?? "");
-      await call(sendRoute.POST as Handler, `${L}/api/auth/mfa/email/send`, "POST", { challengeId: ch }, web(l.bind));
-      await call(verifyRoute.POST as Handler, `${L}/api/auth/mfa/email/verify`, "POST", { challengeId: ch, code: lastCode(loginEmail.toLowerCase()) }, web(l.bind));
+      await call(sendRoute.POST as unknown as Handler, `${L}/api/auth/mfa/email/send`, "POST", { challengeId: ch }, web(l.bind));
+      await call(verifyRoute.POST as unknown as Handler, `${L}/api/auth/mfa/email/verify`, "POST", { challengeId: ch, code: lastCode(loginEmail.toLowerCase()) }, web(l.bind));
       const c = await complete(ch, l.bind);
       return c.sid;
     };
@@ -138,8 +138,8 @@ async function main() {
     const verifyEmailFor = async (user: { id: string; email: string }) => {
       const s = await webLogin(user.email);
       await ageOtps(user.id);
-      await call(meEmailRoute.POST as Handler, `${L}/api/me/email-verification`, "POST", { action: "send" }, self(user.id, s.sid));
-      const v = await call(meEmailRoute.POST as Handler, `${L}/api/me/email-verification`, "POST", { action: "confirm", code: lastCode(user.email) }, self(user.id, s.sid));
+      await call(meEmailRoute.POST as unknown as Handler, `${L}/api/me/email-verification`, "POST", { action: "send" }, self(user.id, s.sid));
+      const v = await call(meEmailRoute.POST as unknown as Handler, `${L}/api/me/email-verification`, "POST", { action: "confirm", code: lastCode(user.email) }, self(user.id, s.sid));
       return v.json.verified === true;
     };
 
@@ -159,17 +159,17 @@ async function main() {
     section("A) Kurtarma kodu üretimi");
     let veCodes: string[] = [];
     {
-      const plainVe2 = await call(meRecovery.POST as Handler, `${L}/api/me/account-recovery`, "POST", { action: "generate", password: pw(ADM2.email) }, self(ADM2.id, (await webLogin(ADM2.email)).sid));
+      const plainVe2 = await call(meRecovery.POST as unknown as Handler, `${L}/api/me/account-recovery`, "POST", { action: "generate", password: pw(ADM2.email) }, self(ADM2.id, (await webLogin(ADM2.email)).sid));
       ok(plainVe2.res.status === 403 && plainVe2.json.code === "MFA_SESSION_REQUIRED", "MFA'sız oturum kod üretemez", plainVe2.json);
       const sid = await loginEmailOtp(VE);
-      const noPw = await call(meRecovery.POST as Handler, `${L}/api/me/account-recovery`, "POST", { action: "generate" }, self(VE.id, sid));
+      const noPw = await call(meRecovery.POST as unknown as Handler, `${L}/api/me/account-recovery`, "POST", { action: "generate" }, self(VE.id, sid));
       ok(noPw.res.status === 400 && noPw.json.code === "PASSWORD_REQUIRED", "parola şart", noPw.json);
-      const badPw = await call(meRecovery.POST as Handler, `${L}/api/me/account-recovery`, "POST", { action: "generate", password: "yanlis-parola" }, self(VE.id, sid));
+      const badPw = await call(meRecovery.POST as unknown as Handler, `${L}/api/me/account-recovery`, "POST", { action: "generate", password: "yanlis-parola" }, self(VE.id, sid));
       ok(badPw.res.status === 400 && badPw.json.code === "PASSWORD_WRONG", "yanlış parola", badPw.json);
-      const cross = await call(meRecovery.POST as Handler, `${L}/api/me/account-recovery`, "POST", { action: "generate", password: pw(VE.email) }, self(VE2.id, sid));
+      const cross = await call(meRecovery.POST as unknown as Handler, `${L}/api/me/account-recovery`, "POST", { action: "generate", password: pw(VE.email) }, self(VE2.id, sid));
       ok(cross.res.status === 403, "başka kullanıcının kimliğiyle istek reddedilir");
       const outBefore = syntheticOutbox().length;
-      const g = await call(meRecovery.POST as Handler, `${L}/api/me/account-recovery`, "POST", { action: "generate", password: pw(VE.email) }, self(VE.id, sid));
+      const g = await call(meRecovery.POST as unknown as Handler, `${L}/api/me/account-recovery`, "POST", { action: "generate", password: pw(VE.email) }, self(VE.id, sid));
       veCodes = Array.isArray(g.json.codes) ? (g.json.codes as string[]) : [];
       secrets.push(...veCodes);
       ok(g.res.status === 200 && veCodes.length === 10 && veCodes.every((c) => /^[A-Z2-7]{4}(-[A-Z2-7]{4}){6}$/.test(c)) && new Set(veCodes).size === 10,
@@ -178,7 +178,7 @@ async function main() {
       const notice = syntheticOutbox().slice(outBefore).find((m) => m.to === VE.email);
       ok(!!notice && /kurtarma kodlarınız yenilendi/i.test(notice.subject) && !veCodes.some((c) => notice.text.includes(c) || notice.html.includes(c)),
         "kod İÇERMEYEN güvenlik bildirimi gitti");
-      const st = await call(meRecovery.GET as Handler, `${L}/api/me/account-recovery`, "GET", undefined, self(VE.id, sid));
+      const st = await call(meRecovery.GET as unknown as Handler, `${L}/api/me/account-recovery`, "GET", undefined, self(VE.id, sid));
       ok(st.res.status === 200 && st.json.codesActive === 10 && st.json.sessionMethod === "email_otp" && !veCodes.some((c) => st.text.includes(c)),
         "durum: 10 aktif kod; kodlar bir daha GÖSTERİLMEZ", st.json);
       ok(await count(`SELECT count(*)::int n FROM public.auth_recovery_codes WHERE user_id = $1 AND state = 'active' AND code_hash ~ '^[0-9a-f]{64}$'`, [VE.id]) === 10,
@@ -214,7 +214,7 @@ async function main() {
       ok(await count(`SELECT count(*)::int n FROM public.user_sessions WHERE session_token = $1 AND mfa_method = 'recovery_code'`, [c.sid]) === 1, "oturum kanıtı recovery_code");
       const n = syntheticOutbox().slice(outBefore).find((m) => m.to === VE.email);
       ok(!!n && /kurtarma koduyla giriş/i.test(n.subject) && !n.text.includes(veCodes[0]), "kurtarma girişi bildirimi (kodsuz)");
-      const st = await call(meRecovery.GET as Handler, `${L}/api/me/account-recovery`, "GET", undefined, self(VE.id, c.sid));
+      const st = await call(meRecovery.GET as unknown as Handler, `${L}/api/me/account-recovery`, "GET", undefined, self(VE.id, c.sid));
       ok(st.json.sessionMethod === "recovery_code" && st.json.sessionRecoveryKind === "user" && st.json.codesActive === 9, "durum: kurtarma oturumu, 9 kod", st.json);
       const again = await webLogin(VE.email);
       const reuse = await recover(String(again.json.challengeId), veCodes[0], web(again.bind));
@@ -239,23 +239,23 @@ async function main() {
     {
       await expireOpen(VE.id);
       const emailSid = await loginEmailOtp(VE);
-      const weak = await call(meEmailChange.POST as Handler, `${L}/api/me/email-change`, "POST", { action: "start", newEmail: "ve-yeni@test.local", password: pw(VE.email) }, self(VE.id, emailSid));
+      const weak = await call(meEmailChange.POST as unknown as Handler, `${L}/api/me/email-change`, "POST", { action: "start", newEmail: "ve-yeni@test.local", password: pw(VE.email) }, self(VE.id, emailSid));
       ok(weak.res.status === 403 && weak.json.code === "STRONG_MFA_REQUIRED", "e-posta koduyla açılmış oturum adresi değiştiremez", weak.json);
       await expireOpen(VE.id);
       const rec = await loginRecovery(VE, veCodes[3]);
       ok(rec.c.res.status === 200, "kurtarma koduyla giriş");
-      const badPw = await call(meEmailChange.POST as Handler, `${L}/api/me/email-change`, "POST", { action: "start", newEmail: "ve-yeni@test.local", password: "yanlis" }, self(VE.id, rec.sid));
+      const badPw = await call(meEmailChange.POST as unknown as Handler, `${L}/api/me/email-change`, "POST", { action: "start", newEmail: "ve-yeni@test.local", password: "yanlis" }, self(VE.id, rec.sid));
       ok(badPw.res.status === 400 && badPw.json.code === "PASSWORD_WRONG", "parola şart", badPw.json);
-      const taken = await call(meEmailChange.POST as Handler, `${L}/api/me/email-change`, "POST", { action: "start", newEmail: VE2.email, password: pw(VE.email) }, self(VE.id, rec.sid));
+      const taken = await call(meEmailChange.POST as unknown as Handler, `${L}/api/me/email-change`, "POST", { action: "start", newEmail: VE2.email, password: pw(VE.email) }, self(VE.id, rec.sid));
       ok(taken.res.status === 409, "başka hesabın adresi kullanılamaz", taken.json);
-      const start = await call(meEmailChange.POST as Handler, `${L}/api/me/email-change`, "POST", { action: "start", newEmail: "VE-Yeni@Test.local", password: pw(VE.email) }, self(VE.id, rec.sid));
+      const start = await call(meEmailChange.POST as unknown as Handler, `${L}/api/me/email-change`, "POST", { action: "start", newEmail: "VE-Yeni@Test.local", password: pw(VE.email) }, self(VE.id, rec.sid));
       ok(start.res.status === 200 && typeof start.json.requestId === "string" && start.json.sentTo === "v***@t***.local", "yeni adrese kod", start.json);
       const code = lastCode("ve-yeni@test.local");
       ok(/^[0-9]{6}$/.test(code) && /e-posta adresini bu adresle değiştirme/.test(lastMailTo("ve-yeni@test.local")?.text ?? ""), "kod YENİ adrese gitti (Türkçe şablon)");
-      const wrong = await call(meEmailChange.POST as Handler, `${L}/api/me/email-change`, "POST", { action: "confirm", requestId: start.json.requestId, code: code === "000000" ? "111111" : "000000" }, self(VE.id, rec.sid));
+      const wrong = await call(meEmailChange.POST as unknown as Handler, `${L}/api/me/email-change`, "POST", { action: "confirm", requestId: start.json.requestId, code: code === "000000" ? "111111" : "000000" }, self(VE.id, rec.sid));
       ok(wrong.res.status === 400 && /Kalan deneme: 4/.test(String(wrong.json.error)), "yanlış kod", wrong.json);
       const outBefore = syntheticOutbox().length;
-      const conf = await call(meEmailChange.POST as Handler, `${L}/api/me/email-change`, "POST", { action: "confirm", requestId: start.json.requestId, code }, self(VE.id, rec.sid));
+      const conf = await call(meEmailChange.POST as unknown as Handler, `${L}/api/me/email-change`, "POST", { action: "confirm", requestId: start.json.requestId, code }, self(VE.id, rec.sid));
       ok(conf.res.status === 200 && conf.json.ok === true, "adres değişti", conf.json);
       const old = syntheticOutbox().slice(outBefore).find((m) => m.to === VE.email);
       ok(!!old && /e-posta adresi değiştirildi/i.test(old.subject), "ESKİ adrese güvenlik bildirimi");
@@ -293,21 +293,21 @@ async function main() {
       ok(dec.ok === true && dec.result === "approved", "eski telefon QR onayı", { dec, url: String((l.json.qr as J).url).replace(/n=[^&]+/, "n=…") });
       const c = await complete(chId, l.bind);
       ok(c.res.status === 200, "QR ile giriş");
-      const st = await call(meReplace.GET as Handler, `${L}/api/me/devices/replace`, "GET", undefined, self(VE2.id, c.sid));
+      const st = await call(meReplace.GET as unknown as Handler, `${L}/api/me/devices/replace`, "GET", undefined, self(VE2.id, c.sid));
       ok(st.json.proofDeviceId === dev && st.json.waiting === null, "bu oturumun kanıt cihazı = eski telefon", st.json);
       const emailSid = await loginEmailOtp(VE2);
-      const weak = await call(meReplace.POST as Handler, `${L}/api/me/devices/replace`, "POST", { oldDeviceId: dev }, self(VE2.id, emailSid));
+      const weak = await call(meReplace.POST as unknown as Handler, `${L}/api/me/devices/replace`, "POST", { oldDeviceId: dev }, self(VE2.id, emailSid));
       ok(weak.res.status === 403 && weak.json.code === "OLD_DEVICE_PROOF_REQUIRED", "e-posta oturumu eski cihaz kanıtı değildir", weak.json);
-      const b = await call(meReplace.POST as Handler, `${L}/api/me/devices/replace`, "POST", { oldDeviceId: dev }, self(VE2.id, c.sid));
+      const b = await call(meReplace.POST as unknown as Handler, `${L}/api/me/devices/replace`, "POST", { oldDeviceId: dev }, self(VE2.id, c.sid));
       ok(b.res.status === 200, "telefon değişimi başladı", b.json);
       await admin.query(
         `INSERT INTO public.auth_trusted_devices (user_id, public_key_spki, key_fingerprint, display_code, device_model, state)
          VALUES ($1, repeat('B', 120), encode(sha256('new-phone'::bytea), 'hex'), 'NEWP-HONE', 'Yeni Pixel', 'pending_owner')`, [VE2.id]);
-      const pend = await call(adminDevices.GET as Handler, `${L}/api/admin/devices`, "GET", undefined, adminH(U.owner, ownerSid));
+      const pend = await call(adminDevices.GET as unknown as Handler, `${L}/api/admin/devices`, "GET", undefined, adminH(U.owner, ownerSid));
       const row = ((pend.json.devices ?? []) as J[]).find((d) => d.user_id === VE2.id);
       ok(pend.res.status === 200 && !!row && (row.replaces as J)?.display_code === "OLDP-HONE", "Owner bekleyen listesinde telefon değişimi görünür", pend.json);
       // Kayıp senaryosu: eski cihaz iptal → onunla açılmış oturum kapanır, bir daha onay veremez.
-      const rv = await call(meDevice.DELETE as Handler, `${L}/api/me/devices/${dev}`, "DELETE", { reason: "Kayıp" }, self(VE2.id, emailSid), { params: Promise.resolve({ id: dev }) });
+      const rv = await call(meDevice.DELETE as unknown as Handler, `${L}/api/me/devices/${dev}`, "DELETE", { reason: "Kayıp" }, self(VE2.id, emailSid), { params: Promise.resolve({ id: dev }) });
       ok(rv.res.status === 200 && Number(rv.json.sessionsClosed) >= 1, "cihaz iptali + onunla açılan oturum kapandı", rv.json);
       ok(await count(`SELECT count(*)::int n FROM public.user_sessions WHERE session_token = $1 AND is_active`, [c.sid]) === 0, "QR oturumu kapalı");
       await expireOpen(VE2.id);
@@ -322,40 +322,40 @@ async function main() {
     let ticket = "";
     {
       const adm2 = await webLogin(ADM2.email);
-      const noOwner = await call(adminCases.GET as Handler, `${L}/api/admin/recovery-cases`, "GET", undefined, adminH(ADM2.id, adm2.sid));
+      const noOwner = await call(adminCases.GET as unknown as Handler, `${L}/api/admin/recovery-cases`, "GET", undefined, adminH(ADM2.id, adm2.sid));
       ok(noOwner.res.status === 403, "Owner olmayan yönetici talepleri göremez", noOwner.json);
-      const plain = await call(adminCases.POST as Handler, `${L}/api/admin/recovery-cases`, "POST", { email: VE2.email, verificationMethod: "telefon", note: "kayıtlı numaradan arandı" }, adminH(U.owner, ownerPlain.sid));
+      const plain = await call(adminCases.POST as unknown as Handler, `${L}/api/admin/recovery-cases`, "POST", { email: VE2.email, verificationMethod: "telefon", note: "kayıtlı numaradan arandı" }, adminH(U.owner, ownerPlain.sid));
       ok(plain.res.status === 403, "Owner'ın MFA'sız oturumu talep açamaz", plain.json);
       const outBefore = syntheticOutbox().length;
-      const o = await call(adminCases.POST as Handler, `${L}/api/admin/recovery-cases`, "POST", { email: VE2.email.toUpperCase(), verificationMethod: "telefon", note: "kayıtlı numaradan arandı, kimlik teyit" }, adminH(U.owner, ownerSid));
+      const o = await call(adminCases.POST as unknown as Handler, `${L}/api/admin/recovery-cases`, "POST", { email: VE2.email.toUpperCase(), verificationMethod: "telefon", note: "kayıtlı numaradan arandı, kimlik teyit" }, adminH(U.owner, ownerSid));
       ok(o.res.status === 200 && typeof o.json.caseId === "string", "talep açıldı", o.json);
       const cid = String(o.json.caseId);
       ok(!!syntheticOutbox().slice(outBefore).find((m) => m.to === VE2.email && /kurtarma talebi açıldı/i.test(m.subject)), "kullanıcıya bildirim");
-      const early = await call(adminCase.POST as Handler, `${L}/api/admin/recovery-cases/${cid}`, "POST", { action: "execute", identityReconfirmed: true, password: pw(EMAIL.owner) }, adminH(U.owner, ownerSid), { params: Promise.resolve({ id: cid }) });
+      const early = await call(adminCase.POST as unknown as Handler, `${L}/api/admin/recovery-cases/${cid}`, "POST", { action: "execute", identityReconfirmed: true, password: pw(EMAIL.owner) }, adminH(U.owner, ownerSid), { params: Promise.resolve({ id: cid }) });
       ok(early.res.status === 409 && early.json.code === "TOO_EARLY", "72 saat dolmadan yürütme yok", early.json);
       // Kullanıcı (hâlâ erişimi var) kendi talebini iptal eder.
       await expireOpen(VE2.id);
       const v2Sid = await loginEmailOtp(VE2);
-      const mine = await call(meRecovery.GET as Handler, `${L}/api/me/account-recovery`, "GET", undefined, self(VE2.id, v2Sid));
+      const mine = await call(meRecovery.GET as unknown as Handler, `${L}/api/me/account-recovery`, "GET", undefined, self(VE2.id, v2Sid));
       ok((mine.json.openCase as J)?.id === cid, "kullanıcı açık talebi görür", mine.json);
-      const cancel = await call(meRecovery.POST as Handler, `${L}/api/me/account-recovery`, "POST", { action: "cancel_case", caseId: cid }, self(VE2.id, v2Sid));
+      const cancel = await call(meRecovery.POST as unknown as Handler, `${L}/api/me/account-recovery`, "POST", { action: "cancel_case", caseId: cid }, self(VE2.id, v2Sid));
       ok(cancel.res.status === 200, "kullanıcı talebi iptal etti", cancel.json);
       // Yeni talep → 72 saat geçmiş say → yürüt.
-      const o2 = await call(adminCases.POST as Handler, `${L}/api/admin/recovery-cases`, "POST", { email: VE2.email, verificationMethod: "yuz_yuze", note: "yüz yüze kimlik kartı görüldü" }, adminH(U.owner, ownerSid));
+      const o2 = await call(adminCases.POST as unknown as Handler, `${L}/api/admin/recovery-cases`, "POST", { email: VE2.email, verificationMethod: "yuz_yuze", note: "yüz yüze kimlik kartı görüldü" }, adminH(U.owner, ownerSid));
       const cid2 = String(o2.json.caseId);
       await admin.query(`UPDATE public.auth_recovery_cases SET opened_at = opened_at - interval '73 hours', not_before = not_before - interval '73 hours', expires_at = expires_at - interval '73 hours' WHERE id = $1`, [cid2]);
       await admin.query(`UPDATE public.user_sessions SET created_at = created_at - interval '74 hours' WHERE user_id = $1`, [VE2.id]);
-      const noConf = await call(adminCase.POST as Handler, `${L}/api/admin/recovery-cases/${cid2}`, "POST", { action: "execute", password: pw(EMAIL.owner) }, adminH(U.owner, ownerSid), { params: Promise.resolve({ id: cid2 }) });
+      const noConf = await call(adminCase.POST as unknown as Handler, `${L}/api/admin/recovery-cases/${cid2}`, "POST", { action: "execute", password: pw(EMAIL.owner) }, adminH(U.owner, ownerSid), { params: Promise.resolve({ id: cid2 }) });
       ok(noConf.res.status === 400 && noConf.json.code === "VERIFICATION_REQUIRED", "yeniden kimlik teyidi şart", noConf.json);
-      const badPw = await call(adminCase.POST as Handler, `${L}/api/admin/recovery-cases/${cid2}`, "POST", { action: "execute", identityReconfirmed: true, password: "yanlis" }, adminH(U.owner, ownerSid), { params: Promise.resolve({ id: cid2 }) });
+      const badPw = await call(adminCase.POST as unknown as Handler, `${L}/api/admin/recovery-cases/${cid2}`, "POST", { action: "execute", identityReconfirmed: true, password: "yanlis" }, adminH(U.owner, ownerSid), { params: Promise.resolve({ id: cid2 }) });
       ok(badPw.res.status === 400 && badPw.json.code === "PASSWORD_WRONG", "Owner parolası şart", badPw.json);
-      const ex = await call(adminCase.POST as Handler, `${L}/api/admin/recovery-cases/${cid2}`, "POST", { action: "execute", identityReconfirmed: true, password: pw(EMAIL.owner) }, adminH(U.owner, ownerSid), { params: Promise.resolve({ id: cid2 }) });
+      const ex = await call(adminCase.POST as unknown as Handler, `${L}/api/admin/recovery-cases/${cid2}`, "POST", { action: "execute", identityReconfirmed: true, password: pw(EMAIL.owner) }, adminH(U.owner, ownerSid), { params: Promise.resolve({ id: cid2 }) });
       ticket = String(ex.json.ticket ?? "");
       secrets.push(ticket);
       ok(ex.res.status === 200 && /^[A-Z2-7]{4}(-[A-Z2-7]{4}){6}$/.test(ticket), "yürütüldü; bilet bir kez döndü", ex.json);
       ok(await count(`SELECT count(*)::int n FROM public.user_sessions WHERE user_id = $1 AND is_active`, [VE2.id]) === 0, "kullanıcının bütün oturumları kapandı");
       ok(await count(`SELECT count(*)::int n FROM public.users WHERE id = $1 AND mfa_required AND email_verified_at IS NULL`, [VE2.id]) === 1, "MFA zorunlu kaldı; e-posta doğrulaması düştü");
-      const list = await call(adminCases.GET as Handler, `${L}/api/admin/recovery-cases`, "GET", undefined, adminH(U.owner, ownerSid));
+      const list = await call(adminCases.GET as unknown as Handler, `${L}/api/admin/recovery-cases`, "GET", undefined, adminH(U.owner, ownerSid));
       ok(list.res.status === 200 && !list.text.includes(ticket), "liste bileti içermez");
       // Kullanıcı: parola + bilet.
       await expireOpen(VE2.id);
@@ -365,7 +365,7 @@ async function main() {
       ok(v.res.status === 200 && v.json.kind === "ticket", "bilet kabul", v.json);
       const c = await complete(String(l.json.challengeId), l.bind);
       ok(c.res.status === 200, "bilet ile giriş");
-      const st = await call(meRecovery.GET as Handler, `${L}/api/me/account-recovery`, "GET", undefined, self(VE2.id, c.sid));
+      const st = await call(meRecovery.GET as unknown as Handler, `${L}/api/me/account-recovery`, "GET", undefined, self(VE2.id, c.sid));
       ok(st.json.sessionRecoveryKind === "case_ticket" && st.json.codesActive === 0, "kurtarma oturumu (bilet); yeni kod oluşturması gerekir", st.json);
       const l3 = await webLogin(VE2.email);
       const reuse = await recover(String(l3.json.challengeId ?? ""), ticket, web(l3.bind));
@@ -388,15 +388,15 @@ async function main() {
       ok(await count(`SELECT count(*)::int n FROM public.user_sessions WHERE user_id = $1 AND is_active`, [U.owner]) === 0, "Owner'ın diğer bütün oturumları kapandı");
       const c = await complete(String(l.json.challengeId), l.bind);
       ok(c.res.status === 200, "Owner girişi");
-      const st = await call(meRecovery.GET as Handler, `${L}/api/me/account-recovery`, "GET", undefined, self(U.owner, c.sid));
+      const st = await call(meRecovery.GET as unknown as Handler, `${L}/api/me/account-recovery`, "GET", undefined, self(U.owner, c.sid));
       ok(st.json.isOwner === true && st.json.ownerBootstrapAvailable === true && st.json.ownerOfflineActive === 4, "eşleştirme kodu alınabilir; 4 kod kaldı", st.json);
-      const noPw = await call(meRecovery.POST as Handler, `${L}/api/me/account-recovery`, "POST", { action: "owner_bootstrap" }, self(U.owner, c.sid));
+      const noPw = await call(meRecovery.POST as unknown as Handler, `${L}/api/me/account-recovery`, "POST", { action: "owner_bootstrap" }, self(U.owner, c.sid));
       ok(noPw.res.status === 400, "parola şart");
-      const bs = await call(meRecovery.POST as Handler, `${L}/api/me/account-recovery`, "POST", { action: "owner_bootstrap", password: pw(EMAIL.owner) }, self(U.owner, c.sid));
+      const bs = await call(meRecovery.POST as unknown as Handler, `${L}/api/me/account-recovery`, "POST", { action: "owner_bootstrap", password: pw(EMAIL.owner) }, self(U.owner, c.sid));
       const code = String(bs.json.code ?? "");
       secrets.push(code);
       ok(bs.res.status === 200 && /^[A-Z2-7]{4}(-[A-Z2-7]{4}){4}$/.test(code), "yeni telefon için 20 karakter eşleştirme kodu", bs.json);
-      const again = await call(meRecovery.POST as Handler, `${L}/api/me/account-recovery`, "POST", { action: "owner_bootstrap", password: pw(EMAIL.owner) }, self(U.owner, c.sid));
+      const again = await call(meRecovery.POST as unknown as Handler, `${L}/api/me/account-recovery`, "POST", { action: "owner_bootstrap", password: pw(EMAIL.owner) }, self(U.owner, c.sid));
       ok(again.res.status === 403 && again.json.code === "ALREADY_ISSUED", "oturum başına bir kez", again.json);
       const { hashBootstrapCode } = await import("@/lib/auth/deviceSignature");
       const en = (await admin.query(`SELECT public.auth_device_enroll_begin($1, repeat('Q', 120), encode(sha256('owner-new'::bytea), 'hex'), 'OWNR-NEWP', 'Pixel 9', 34, '2.0.0', 'iph', $2, NULL) AS r`,

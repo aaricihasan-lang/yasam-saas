@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { AlertTriangle, Copy, Download, KeyRound, Loader2, Mail, ShieldAlert, Smartphone } from "lucide-react";
 import { readSessionToken, hasSessionCredential, sessionTokenHeader } from "@/lib/auth/yasamUser";
+import PasswordInput from "@/components/ui/PasswordInput";
 
 /**
  * GİRİŞ GÜVENLİĞİ F2-E — "Giriş Yöntemlerim" altındaki hesap kurtarma bölümleri.
@@ -277,7 +278,7 @@ export default function AccountRecoverySection({
           </div>
         ) : (
           <form className="mt-3 flex flex-col gap-2 min-[480px]:flex-row" onSubmit={(e) => { e.preventDefault(); void generate(); }}>
-            <input type="password" data-testid="recovery-gen-password" value={genPassword} onChange={(e) => setGenPassword(e.target.value)}
+            <PasswordInput wrapperClassName="w-full" data-testid="recovery-gen-password" value={genPassword} onChange={(e) => setGenPassword(e.target.value)}
               autoComplete="current-password" aria-label="Parolanız" placeholder="Parolanız" className={input} />
             <button type="submit" data-testid="recovery-generate" disabled={busy !== null || !genPassword} className={`${primary} shrink-0`}>
               {busy === "gen" && <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />}
@@ -308,7 +309,7 @@ export default function AccountRecoverySection({
           <form className="mt-2 space-y-2" onSubmit={(e) => { e.preventDefault(); void startEmail(); }}>
             <input type="email" data-testid="email-change-new" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} autoComplete="email"
               aria-label="Yeni e-posta adresi" placeholder="Yeni e-posta adresi" className={input} />
-            <input type="password" data-testid="email-change-password" value={emailPassword} onChange={(e) => setEmailPassword(e.target.value)}
+            <PasswordInput wrapperClassName="w-full" data-testid="email-change-password" value={emailPassword} onChange={(e) => setEmailPassword(e.target.value)}
               autoComplete="current-password" aria-label="Parolanız" placeholder="Parolanız" className={input} />
             <button type="submit" data-testid="email-change-start" disabled={busy !== null || !newEmail || !emailPassword} className={`${primary} w-full`}>
               {busy === "email-start" && <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />} Yeni adrese kod gönder
@@ -372,7 +373,7 @@ export default function AccountRecoverySection({
             </div>
           ) : st.ownerBootstrapAvailable ? (
             <form className="mt-2 flex flex-col gap-2 min-[480px]:flex-row" onSubmit={(e) => { e.preventDefault(); void ownerBootstrap(); }}>
-              <input type="password" data-testid="owner-bootstrap-password" value={ownerPassword} onChange={(e) => setOwnerPassword(e.target.value)}
+              <PasswordInput wrapperClassName="w-full" data-testid="owner-bootstrap-password" value={ownerPassword} onChange={(e) => setOwnerPassword(e.target.value)}
                 autoComplete="current-password" aria-label="Parolanız" placeholder="Parolanız" className={input} />
               <button type="submit" data-testid="owner-bootstrap-issue" disabled={busy !== null || !ownerPassword} className={`${primary} shrink-0`}>
                 {busy === "owner" && <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />} Yeni telefon için eşleştirme kodu üret
