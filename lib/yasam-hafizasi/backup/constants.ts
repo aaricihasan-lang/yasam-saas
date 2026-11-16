@@ -137,6 +137,7 @@ export const TABLE_POLICY_OVERRIDES: Readonly<Record<string, RestorePolicy>> = {
   auth_recovery_cases: "DO_NOT_RESTORE",
   auth_email_change_requests: "DO_NOT_RESTORE",
   auth_device_replacements: "DO_NOT_RESTORE",
+  auth_audit_retention_policy: "DO_NOT_RESTORE",
 };
 
 /**

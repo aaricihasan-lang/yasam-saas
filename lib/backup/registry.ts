@@ -562,6 +562,8 @@ export const BACKUP_REGISTRY: readonly RegistryEntry[] = [
   off("auth_recovery_cases", "system", "Owner aracılı hesap kurtarma talepleri (güvenlik).", "none"),
   off("auth_email_change_requests", "system", "E-posta adresi değişikliği istekleri (güvenlik; kısa ömürlü).", "none"),
   off("auth_device_replacements", "system", "Telefon değişimi işaretleri (güvenlik; kısa ömürlü).", "none"),
+  // GİRİŞ GÜVENLİĞİ F2-G (migration 20280103000700): denetim kayıtları saklama politikası (hukuki karar kaydı).
+  off("auth_audit_retention_policy", "system", "Denetim kayıtları saklama politikası (Owner / hukuk kararı).", "none"),
   // Migration 20271009100000: purge transaction'ına bağlı işaret; aynı tx'te yazılıp silinir, hiçbir role açık değil.
   off("session_limit_exceptions", "system", "Geçici test hesabı oturum-limiti istisnası (TEMPORARY — satış sonrası kaldırılacak).", "none"),
   off("auth_rate_limit_events", "system", "Global DB tabanlı istek hız sınırı olayları (güvenlik).", "none"),

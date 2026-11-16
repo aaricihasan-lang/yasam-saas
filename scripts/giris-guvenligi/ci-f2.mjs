@@ -5,7 +5,7 @@
  * Gerçek PostgreSQL (embedded) + gerçek migration zinciri + gerçek route'lar; ağ / sır / production YOK.
  * Kapsam: MFA'sız oturum engeli, eski oturum yollarının kapalılığı (F2-A/B), QR + cihaz imzası (F2-C), e-posta OTP
  * süre / kota / deneme sınırları (F2-D), kurtarma kodu tek kullanım + 72 saat + Owner yetkisi (F2-E), silme × denetim
- * saklama + Owner taze ikinci doğrulama (F2-F), paralel istek güvenliği, migration / yayın sırası (000200 en sonda),
+ * saklama + Owner taze ikinci doğrulama (F2-F), Owner işleme özel kanıt (F2-G), paralel istek güvenliği, migration / yayın sırası (000200 en sonda),
  * mevcut oturumların ve 7 günlük denemenin korunması.
  *
  * SESSİZ GEÇİŞ YOK: her adım çıkış kodu 0 VE tanınan bir "geçti" özet satırı (sıfır FAIL) üretmek zorundadır;
@@ -25,6 +25,9 @@ const PG = [
   "session-f2e-concurrency", "pg:session-f2a-on-f2e", "pg:session-f2b-on-f2e", "pg:session-f2c-on-f2e", "pg:session-f2d-on-f2e",
   "pg:session-f2f", "pg:session-f2a-on-f2f", "pg:session-f2b-on-f2f", "pg:session-f2c-on-f2f", "pg:session-f2d-on-f2f",
   "pg:deploy-order-f2-pre", "pg:deploy-order-f2-post",
+  // F2-G: Owner işleme özel yeniden doğrulama (çalınmış taze oturum saldırısı), saklama politikası, geri dönüş.
+  "pg:session-f2g", "session-f2g-concurrency", "pg:session-f2a-on-f2g", "pg:session-f2b-on-f2g", "pg:session-f2d-on-f2g",
+  "pg:deploy-order-f2-rollback",
 ];
 const TSX = [
   // Varsayılan veritabanları: yeni kod, kendi fazının migration'larıyla (kod migration'dan önce yayına çıkarsa).
@@ -35,6 +38,8 @@ const TSX = [
   "scripts/giris-guvenligi/f2e-routes.harness.ts",
   // Arşiv uzman kalıcı silme × F2 denetim tabloları (gerçek purge fonksiyonu).
   "scripts/giris-guvenligi/f2-purge.harness.ts",
+  // Owner kritik işlemleri: kanıt (QR / e-posta), saldırı senaryosu, tek kullanım (tam zincir 000700).
+  "scripts/giris-guvenligi/f2g-routes.harness.ts",
   "scripts/giris-guvenligi/gmail-provider.check.ts",
   "scripts/giris-guvenligi/qr-encode.check.ts",
 ];

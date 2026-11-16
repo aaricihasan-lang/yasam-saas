@@ -40,6 +40,7 @@ const F2_ALL_MIGRATIONS = ["20280103000000_auth_session_hardening_f2a.sql", "202
   "20280103000200_auth_session_insert_lock_f2b.sql", "20280103000300_auth_trusted_devices_qr_f2c.sql",
   "20280103000400_auth_email_otp_f2d.sql", "20280103000500_auth_account_recovery_f2e.sql"];
 const F2F_MIGRATION = "20280103000600_auth_purge_audit_retention_f2f.sql";
+const F2G_MIGRATION = "20280103000700_auth_owner_step_up_f2g.sql";
 
 const TZ_SENSITIVE = new Set(["foundation", "word-tz", "dy", "backup", "hday"]);
 
@@ -153,6 +154,7 @@ const STEPS = [
     ["session-f2b-assert.sql"])],
   ["session-f2b-concurrency", "node", ["scripts/session-model/f2b-finalize-concurrency.mjs"]],
   ["session-f2e-concurrency", "node", ["scripts/session-model/f2e-recovery-concurrency.mjs"]],
+  ["session-f2g-concurrency", "node", ["scripts/session-model/f2g-step-up-concurrency.mjs"]],
   // GİRİŞ GÜVENLİĞİ F2-C: güvenilir Android cihazı (Owner onayı + cihaz imzası) + QR onay durum makinesi.
   ["pg:session-f2c", ...pg([F("session-model-fixture.sql"), F("session-f2a-fixture.sql"), F("session-f2b-fixture.sql"), F("session-f2c-fixture.sql"),
     M("20270129000200_user_sessions_expiry_touch.sql"), M("20271003200000_session_model_v2.sql"),
@@ -204,6 +206,16 @@ const STEPS = [
   ...["f2a", "f2b", "f2c", "f2d"].map((x) => [`pg:session-${x}-on-f2f`, ...pg(
     [...F2_BASE_FIXTURES, ...(x === "f2a" ? [F("session-f2a-legacy-seed.sql")] : []), ...F2_ALL_MIGRATIONS.map(M)],
     [F2F_MIGRATION], [`session-${x}-assert.sql`])]),
+  // GERİ DÖNÜŞ: bütün zincir + 000200 en sonda; ardından eski koda dönüş taklidi (erişim kaybı / MFA atlatma / oturumlar).
+  ["pg:deploy-order-f2-rollback", ...pg([...F2_BASE_FIXTURES, ...F2_ALL_MIGRATIONS.filter((m) => !m.startsWith("20280103000200")).map(M), M(F2F_MIGRATION)],
+    [F2G_MIGRATION, "20280103000200_auth_session_insert_lock_f2b.sql"], ["deploy-order-f2-rollback-assert.sql"])],
+  // GİRİŞ GÜVENLİĞİ F2-G: Owner işleme özel yeniden doğrulama (çalınmış taze oturum saldırısı) + saklama politikası kaydı.
+  ["pg:session-f2g", ...pg([...F2_BASE_FIXTURES, ...F2_ALL_MIGRATIONS.map(M), M(F2F_MIGRATION)], [F2G_MIGRATION], ["session-f2g-assert.sql"])],
+  // Owner kritik işlemlerine DOKUNMAYAN önceki sözleşmeler 000700 üstünde aynen (F2-C / F2-E / F2-F'nin Owner onay
+  // senaryoları bilinçli olarak değişti — kanıt şartı; bunlar session-f2g'de yeniden sınanır).
+  ...["f2a", "f2b", "f2d"].map((x) => [`pg:session-${x}-on-f2g`, ...pg(
+    [...F2_BASE_FIXTURES, ...(x === "f2a" ? [F("session-f2a-legacy-seed.sql")] : []), ...F2_ALL_MIGRATIONS.map(M), M(F2F_MIGRATION)],
+    [F2G_MIGRATION], [`session-${x}-assert.sql`])]),
 ];
 
 const only = process.argv.includes("--only") ? process.argv[process.argv.indexOf("--only") + 1] : null;

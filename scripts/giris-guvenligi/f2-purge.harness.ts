@@ -30,6 +30,25 @@ function ok(cond: boolean, label: string, extra?: unknown): void {
 }
 const readMig = (f: string) => readFileSync(path.join(process.cwd(), "supabase/migrations", f), "utf8");
 const WITHOUT_FIX = process.env.F2_PURGE_WITHOUT_FIX === "1";
+/** Production ile aynı arşiv / silme zinciri (Üye Arşiv 4a harness'ındaki sıra) — 20280101000600 arşiv durumu dahil. */
+const PROD_ARCHIVE_CHAIN = [
+  "20271230000000_astrology_technique_grants.sql",
+  "20280101000000_trial7_self_trial.sql",
+  "20280101000100_trial7_claims_retention.sql",
+  "20280101000200_trial7_admin_trial_approval.sql",
+  "20280101000300_admin_legacy_package_repair.sql",
+  "20280101000400_admin_owner_notifications.sql",
+  "20280101000500_admin_list_members_v2.sql",
+  "20280101000600_admin_member_archive_state.sql",
+];
+/** Production salt-okunur KATALOG denetimi (2026-11-16, kayıt verisi okunmadı): md5(pg_proc.prosrc). */
+const PROD_FN_MD5: Record<string, string> = {
+  admin_archive_user: "ce0371defa6f9e24a600a0d254f31ea8",
+  admin_purge_archived_expert: "e7219176868c97b179b433881ee4778f",
+  admin_purge_in_progress: "ed71a230b07a2f34579f8a31b24421a9",
+  admin_purge_require_archived_trg: "7dd4e55b7c7ad8c9c8e77dccfa8e152b",
+  admin_unarchive_user: "4a894aab14b8a9ac36e1190596ed2ca6",
+};
 
 const F2_CHAIN = [
   "20271003200000_session_model_v2.sql",
@@ -52,10 +71,17 @@ async function main(): Promise<void> {
       event_type text NOT NULL, severity text NOT NULL, message text, ip_address text, country text, city text,
       user_agent text, metadata jsonb, created_at timestamptz NOT NULL DEFAULT now(), reviewed_by_admin boolean NOT NULL DEFAULT false)`);
     await su.query(readMig("20271009100000_admin_purge_archived_expert.sql"));
+    for (const f of PROD_ARCHIVE_CHAIN) await su.query(readMig(f));
+    const md5s = (await su.query(`select p.proname, md5(replace(p.prosrc, chr(13), '')) h from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+                                   where n.nspname = 'public' and p.proname = any($1)`, [Object.keys(PROD_FN_MD5)])).rows as { proname: string; h: string }[];
+    for (const [fn, h] of Object.entries(PROD_FN_MD5)) {
+      ok(md5s.find((r) => r.proname === fn)?.h === h, `test DB'deki ${fn} gövdesi production ile BİREBİR (md5)`);
+    }
     for (const f of F2_CHAIN) await su.query(readMig(f));
     if (!WITHOUT_FIX) {
       await su.query(readMig("20280103000600_auth_purge_audit_retention_f2f.sql"));
       await su.query(readMig("20280103000600_auth_purge_audit_retention_f2f.sql"));   // idempotent
+      await su.query(readMig("20280103000700_auth_owner_step_up_f2g.sql"));
     }
     console.log(`Test DB hazır (F2 zinciri${WITHOUT_FIX ? ", 000600 YOK — kusur yeniden üretimi" : " + 000600 ×2"}).\n`);
 
@@ -68,6 +94,7 @@ async function main(): Promise<void> {
                       values ($1,$2,$3,$4,$5,'approved',$6,$7)`, [id, `ZZ ${role}`, email, role, o.active ?? true, o.superAdmin ?? false, tenant]);
       return { id, tenant, email };
     };
+    const cnt = async (sql: string, a: unknown[] = []) => Number((await su.query(sql, a)).rows[0].n);
     const owner = await mkUser("admin", { superAdmin: true });
     const target = await mkUser("expert");
     const other = await mkUser("expert");
@@ -90,11 +117,11 @@ async function main(): Promise<void> {
     };
     const tDev = await seedF2(target, "t");
     const oDev = await seedF2(other, "o");
-    await su.query(`update public.users set active = false, archived_at = now() where id = $1`, [target.id]).catch(async () => {
-      await su.query(`update public.users set active = false where id = $1`, [target.id]);   // arşiv kolonu yoksa (eski taban)
-    });
+    // Gerçek arşiv yolu (production fonksiyonu): aktif → arşivde (active=false + archived_at + oturum iptali + audit).
+    const arch = (await su.query(`select public.admin_archive_user($1, $2) as r`, [target.id, owner.id])).rows[0].r;
+    ok(arch?.ok !== false && (await cnt(`select count(*) n from public.users where id = $1 and archived_at is not null and active is not true`, [target.id])) === 1,
+      "uzman production arşiv fonksiyonuyla arşivlendi", arch);
 
-    const cnt = async (sql: string, a: unknown[] = []) => Number((await su.query(sql, a)).rows[0].n);
     const decisionsBefore = await cnt(`select count(*) n from public.auth_device_decisions`);
     const eventsBefore = await cnt(`select count(*) n from public.auth_recovery_events`);
     const otherSnapshot = async () => JSON.stringify((await su.query(

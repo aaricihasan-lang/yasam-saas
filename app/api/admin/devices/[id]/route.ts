@@ -16,6 +16,8 @@ const DECIDE_ERRORS: Record<string, [number, string]> = {
   not_found: [404, "Eşleştirme isteği bulunamadı."],
   bad_decision: [400, "Geçersiz karar."],
   // F2-F: onay, son 30 dakikada ikinci doğrulamayla açılmış Owner oturumu ister.
+  // F2-G: onay işleme özel yeniden doğrulama (telefon QR veya e-posta kodu) ister.
+  step_up_required: [403, "Bu onay için telefonunuzdan (QR) veya e-postanıza gelen kodla ek doğrulama gerekiyor."],
   fresh_mfa_required: [403, "Güvenliğiniz için cihaz onayından önce çıkış yapıp yeniden giriş yapın (son 30 dakika içinde ikinci doğrulamayla açılmış oturum gerekir)."],
 };
 
