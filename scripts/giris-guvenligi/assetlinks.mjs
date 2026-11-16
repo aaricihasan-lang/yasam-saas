@@ -69,7 +69,7 @@ const arg = (n) => { const i = process.argv.indexOf(n); return i > 0 ? process.a
 
 async function selfTest() {
   let pass = 0, fail = 0;
-  const ok = (c, m) => { c ? pass++ : fail++; console.log(`  ${c ? "PASS" : "FAIL"} ${m}`); };
+  const ok = (c, m) => { if (c) pass++; else fail++; console.log(`  ${c ? "PASS" : "FAIL"} ${m}`); };
   const FP = "14:6D:E9:83:C5:73:06:50:D8:EE:B9:95:2F:34:FC:64:16:A0:83:42:E6:1D:BE:A8:8A:04:96:B2:3F:CF:44:E5"; // biçim örneği (SAHTE)
   ok(normalizeFingerprint(FP.toLowerCase()) === FP, "parmak izi normalleştirme");
   ok(normalizeFingerprint("12:34") === null && normalizeFingerprint("00".repeat(32)) === null, "eksik / yer tutucu parmak izi reddedilir");
