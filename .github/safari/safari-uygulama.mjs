@@ -41,6 +41,18 @@ async function bekle(js, ms = 20000, args = []) {
   }
 }
 const git = (yol) => wd("POST", s("/url"), { url: BASE + yol });
+// Yenileme: kaydedilmemiş değişiklik varsa uygulama "sayfadan ayrıl?" (beforeunload) uyarısı gösterir. Uyarı metni kanıt olarak
+// kaydedilir ve kabul edilir (Safari'de uyarının çalıştığının da kanıtı).
+const uyarilar = [];
+async function yenile() {
+  await wd("POST", s("/refresh"), {}).catch((e) => uyarilar.push("refresh: " + String(e).slice(0, 120)));
+  for (let i = 0; i < 6; i++) {
+    const t = await wd("GET", s("/alert/text")).catch(() => null);
+    if (t === null) break;
+    uyarilar.push(String(t).slice(0, 160)); await wd("POST", s("/alert/accept"), {}).catch(() => {});
+    await new Promise((r) => setTimeout(r, 500));
+  }
+}
 async function bul(xpath, ms = 20000) {
   const son = Date.now() + ms;
   for (;;) {
@@ -141,7 +153,7 @@ async function bolumK() {
   await test("K", "Uygula → yenile → liste yeniden yüklendi", async () => {
     await tikla("//*[@role='dialog' and @aria-labelledby='studio-title']//button[normalize-space(.)='Uygula' or contains(normalize-space(.), 'Uygula')][not(@disabled)]");
     await bekle("!document.querySelector('[role=dialog][aria-labelledby=studio-title]') || /uygulandı|Uygulanacak değişiklik yok/i.test(document.body.innerText)", 20000);
-    await wd("POST", s("/refresh"), {});
+    await yenile();
     await exec(HATA_TOPLA);
     const ana = await blobOlc(1, 20000);
     await ekran("K3-yenile-ana-sayfa");
@@ -195,7 +207,7 @@ async function bolumL(dosyalar) {
     const n = await bildirim();
     const d = await sunucu("/__test/durum");
     ok("L", "kaydet → bildirim ok + sunucuda custom", n?.ton === "ok" && d.logo.source === "custom" && !!d.logo.assetId, { n, logo: d.logo });
-    await wd("POST", s("/refresh"), {});
+    await yenile();
     await profilim();
     const sec = await exec("const r = document.querySelector('[data-testid=report-logo-opt-custom]'); return r ? r.checked : null;");
     const on2 = await onizlemeYuklu();
@@ -210,7 +222,7 @@ async function bolumL(dosyalar) {
     ok("L", "ikinci logo seçilince önizleme güncellendi ve yüklendi", !!degisti);
     await tikla(tid("report-logo-save"));
     await bildirim();
-    await wd("POST", s("/refresh"), {});
+    await yenile();
     await profilim();
     const d = await sunucu("/__test/durum");
     ok("L", "kaydet + yenile → son seçilen logo korundu", d.logo.source === "custom" && d.logo.assetId !== once && !!(await onizlemeYuklu()), d.logo);
@@ -227,10 +239,11 @@ async function bolumL(dosyalar) {
     ok("L", "sunucu 500 → hata bildirimi, sunucudaki logo DEĞİŞMEDİ", n?.ton !== "ok" && d.logo.assetId === once.assetId, { n, once, sonra: d.logo });
   });
   await test("L", "yükleme (gerçek dosya + gerçek HTTP)", async () => {
-    await wd("POST", s("/refresh"), {});
+    await tikla(tid("report-logo-cancel"), 3000).catch(() => {}); // önceki adımdan kalan kaydedilmemiş seçimi bırak (Vazgeç)
+    await yenile();
     await profilim();
     for (const [ad, yol, beklenen] of [["PNG", dosyalar.png, "kabul"], ["JPEG", dosyalar.jpg, "kabul"], ["SVG", dosyalar.svg, "ret-istemci"], ["2 MB üstü", dosyalar.buyuk, "ret-istemci"], ["bozuk PNG", dosyalar.bozuk, "ret-sunucu"]]) {
-      await wd("POST", s("/refresh"), {}); await profilim();
+      await yenile(); await profilim();
       const once = await sunucu("/__test/durum");
       const sec = await bul(tid("report-logo-opt-custom")); await wd("POST", s(`/element/${sec}/click`), {}).catch(() => {});
       let secilemedi = null;
@@ -257,7 +270,7 @@ async function bolumL(dosyalar) {
     }
   });
   await test("L", "kaldırma (Logo kullanma)", async () => {
-    await wd("POST", s("/refresh"), {});
+    await yenile();
     await profilim();
     await tikla(tid("report-logo-opt-none")).catch(async () => exec("document.querySelector('[data-testid=report-logo-opt-none]').click(); return true;"));
     await tikla(tid("report-logo-save"));
@@ -379,6 +392,7 @@ async function bolumG() {
     kayit("FAIL", "genel", "koşu tamamlanamadı", String(e).slice(0, 500));
   } finally {
     if (sid) await wd("DELETE", s("")).catch(() => {});
+    console.log(`SAFARI-UYARILAR ${JSON.stringify(uyarilar)}`);
     console.log(`\nSAFARI-UYGULAMA ${MOD}: ${sonuc.PASS} PASS / ${sonuc.FAIL} FAIL / ${sonuc["NOT TESTED"]} NOT TESTED`);
     writeFileSync(join(OUT, `${MOD}-sonuc.txt`), satirlar.join("\n") + `\n${JSON.stringify(sonuc)}\n`);
     process.exit(sonuc.FAIL ? 1 : 0);
