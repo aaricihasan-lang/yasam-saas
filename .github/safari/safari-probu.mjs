@@ -101,6 +101,20 @@ try {
       varyantlar[ad] = await bekle("return window.__u;");
     }
     log("5-dosya", { secim, istemciYanitlari: varyantlar, beklenen: PNG.length });
+    // WebDriver ile verilen dosya Safari sandbox'ında okunabiliyor mu? Farklı konumlar (ilk koşuda RUNNER_TEMP: NotReadableError).
+    const konumlar = {};
+    for (const dizin of ["/tmp", `${process.env.HOME}/Downloads`, `${process.env.HOME}/Desktop`, `${process.env.HOME}`]) {
+      try {
+        mkdirSync(dizin, { recursive: true });
+        const yol = join(dizin, "safari-probu-yukle.png"); writeFileSync(yol, PNG);
+        await wd("POST", `/session/${sid}/url`, { url: "http://127.0.0.1:8123/" });
+        const e2 = await wd("POST", `/session/${sid}/element`, { using: "css selector", value: "#f" });
+        await wd("POST", `/session/${sid}/element/${Object.values(e2)[0]}/value`, { text: yol });
+        await sync("window.__r = null; const f = document.getElementById('f').files[0]; f.arrayBuffer().then((b) => { window.__r = { okundu: b.byteLength }; }).catch((e) => { window.__r = { hata: String(e) }; }); return true;");
+        konumlar[dizin] = await bekle("return window.__r;");
+      } catch (e) { konumlar[dizin] = { hata: String(e).slice(0, 160) }; }
+    }
+    log("5-dosya-konum", konumlar);
     log("5-sunucu-yuklemeleri", yuklemeler);
   } catch (e) {
     log("5-dosya", { hata: String(e).slice(0, 300), secim });
