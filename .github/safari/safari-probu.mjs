@@ -37,20 +37,24 @@ async function wd(method, path, body) {
   if (!r.ok) throw new Error(`${method} ${path} → ${r.status} ${JSON.stringify(j).slice(0, 300)}`);
   return j.value;
 }
-// Görseli <img>'e yükle, canvas'a çiz, piksel oku → gerçekten çizildi mi?
-const CIZ = `const [src, done] = arguments;
-  const i = document.getElementById('i'); i.removeAttribute('src');
-  i.onload = () => { const c = document.getElementById('c'); const x = c.getContext('2d'); x.clearRect(0, 0, 4, 4); x.drawImage(i, 0, 0);
-    const p = x.getImageData(0, 0, 1, 1).data; done({ e: 'load', w: i.naturalWidth, h: i.naturalHeight, piksel: Array.from(p) }); };
-  i.onerror = () => done({ e: 'error', w: i.naturalWidth });
-  i.src = src;`;
-const BLOB = `const [path, type, done] = arguments;
-  fetch(path).then((r) => r.blob()).then((b) => { const u = URL.createObjectURL(new Blob([b], { type }));
-    const i = document.getElementById('i'); i.removeAttribute('src');
+// execute/async Safari 27.2'de 408 verdi (ilk koşu) → yalnız execute/sync + sınırlı yoklama (sabit uyku yok, üst sınır 15 sn).
+const sync = (script, args = []) => wd("POST", `/session/${sid}/execute/sync`, { script, args });
+async function bekle(script, args = [], ms = 15000) {
+  const son = Date.now() + ms;
+  for (;;) { const v = await sync(script, args); if (v !== null && v !== undefined) return v; if (Date.now() > son) return { e: "zaman-asimi" }; await new Promise((r) => setTimeout(r, 200)); }
+}
+// Görseli <img>'e yükle (src: doğrudan yol ya da blob: URL), yüklenince canvas'a çiz ve piksel oku → gerçekten çizildi mi?
+const BASLAT = `window.__s = null; const [src, blobType] = arguments;
+  const yukle = (u, n) => { const i = document.getElementById('i'); i.removeAttribute('src');
     i.onload = () => { const c = document.getElementById('c'); const x = c.getContext('2d'); x.clearRect(0, 0, 4, 4); x.drawImage(i, 0, 0);
-      done({ e: 'load', w: i.naturalWidth, h: i.naturalHeight, boyut: b.size, piksel: Array.from(x.getImageData(0, 0, 1, 1).data) }); };
-    i.onerror = () => done({ e: 'error', boyut: b.size });
-    i.src = u; }).catch((e) => done({ e: 'hata ' + e }));`;
+      window.__s = { e: 'load', w: i.naturalWidth, h: i.naturalHeight, boyut: n, src: i.src.slice(0, 5), piksel: Array.from(x.getImageData(0, 0, 1, 1).data) }; };
+    i.onerror = () => { window.__s = { e: 'error', w: i.naturalWidth, boyut: n, src: i.src.slice(0, 5) }; };
+    i.src = u; };
+  if (!blobType) yukle(src, null);
+  else fetch(src).then((r) => r.blob()).then((b) => yukle(URL.createObjectURL(new Blob([b], { type: blobType })), b.size)).catch((e) => { window.__s = { e: 'hata ' + e }; });
+  return true;`;
+const SONUC = "return window.__s;";
+async function gorsel(src, blobType) { await sync(BASLAT, [src, blobType ?? null]); return bekle(SONUC); }
 
 let sid = null;
 try {
@@ -59,11 +63,11 @@ try {
   log("1-oturum", { ok: !!sid, browserName: s.capabilities?.browserName, browserVersion: s.capabilities?.browserVersion, platformName: s.capabilities?.platformName });
   await wd("POST", `/session/${sid}/timeouts`, { script: 15000 });
   await wd("POST", `/session/${sid}/url`, { url: "http://127.0.0.1:8123/" });
-  log("2-sayfa", { baslik: await wd("GET", `/session/${sid}/title`), ua: await wd("POST", `/session/${sid}/execute/sync`, { script: "return navigator.userAgent", args: [] }) });
-  log("3-png", await wd("POST", `/session/${sid}/execute/async`, { script: CIZ, args: ["/img.png"] }));
-  log("3-webp", await wd("POST", `/session/${sid}/execute/async`, { script: CIZ, args: ["/img.webp"] }));
-  log("4-blob-png", await wd("POST", `/session/${sid}/execute/async`, { script: BLOB, args: ["/img.png", "image/png"] }));
-  log("4-blob-webp", await wd("POST", `/session/${sid}/execute/async`, { script: BLOB, args: ["/img.webp", "image/webp"] }));
+  log("2-sayfa", { baslik: await wd("GET", `/session/${sid}/title`), ua: await sync("return navigator.userAgent") });
+  log("3-png", await gorsel("/img.png"));
+  log("3-webp", await gorsel("/img.webp"));
+  log("4-blob-png", await gorsel("/img.png", "image/png"));
+  log("4-blob-webp", await gorsel("/img.webp", "image/webp"));
   // 5 Dosya seçme: gerçek dosya yolu → <input type=file>; ardından File gövdesiyle gerçek PUT (sunucu bayt sayar).
   const dosya = resolve(OUT, "yukle.png");
   writeFileSync(dosya, PNG);
@@ -72,8 +76,9 @@ try {
     const el = await wd("POST", `/session/${sid}/element`, { using: "css selector", value: "#f" });
     const id = Object.values(el)[0];
     await wd("POST", `/session/${sid}/element/${id}/value`, { text: dosya });
-    secim = await wd("POST", `/session/${sid}/execute/sync`, { script: "const f = document.getElementById('f').files[0]; return f ? { ad: f.name, boyut: f.size, tur: f.type } : null", args: [] });
-    const up = await wd("POST", `/session/${sid}/execute/async`, { script: "const done = arguments[0]; const f = document.getElementById('f').files[0]; fetch('/up', { method: 'PUT', headers: { 'content-type': 'application/octet-stream' }, body: f.slice(0, f.size) }).then((r) => r.json()).then((j) => done(j)).catch((e) => done({ hata: String(e) }));", args: [] });
+    secim = await sync("const f = document.getElementById('f').files[0]; return f ? { ad: f.name, boyut: f.size, tur: f.type } : null");
+    await sync("window.__u = null; const f = document.getElementById('f').files[0]; fetch('/up', { method: 'PUT', headers: { 'content-type': 'application/octet-stream' }, body: f.slice(0, f.size) }).then((r) => r.json()).then((j) => { window.__u = j; }).catch((e) => { window.__u = { hata: String(e) }; }); return true;");
+    const up = await bekle("return window.__u;");
     log("5-dosya", { secim, istemciYanit: up, sunucuGordu: yuklenen, beklenen: PNG.length });
   } catch (e) {
     log("5-dosya", { hata: String(e).slice(0, 300), secim });
