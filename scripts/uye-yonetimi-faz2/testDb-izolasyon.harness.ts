@@ -227,6 +227,22 @@ async function main(): Promise<void> {
     ok(!!info && !existsSync(info.runDir), "çıkış kancası: alt sürecin kendi dizini silindi", info);
     ok(!!info && !pidAlive(info.pid) && !(await portOpen(info.port)), "çıkış kancası: alt sürecin postmaster'ı kapandı (yetim yok)", info);
     ok(existsSync(path.join(foreign, "veri.txt")) && existsSync(path.join(legacy, "baska-kosu.txt")), "yabancı / eski klasörler hâlâ yerinde");
+    // Aynı deney startOwnedEmbeddedPg ile (FAZ 1 harness'larının yolu).
+    const childO: ChildProcess = spawn(process.execPath, [tsxCli, path.join("scripts", "uye-yonetimi-faz2", "testDb-izolasyon.harness.ts"), "--alt-cikis-sahipli", `${TAG}-c`], {
+      cwd: process.cwd(), stdio: ["ignore", "pipe", "pipe"],
+    });
+    let outO = "";
+    childO.stdout?.on("data", (b) => { outO += String(b); });
+    childO.stderr?.on("data", (b) => { outO += String(b); });
+    const codeO = await new Promise<number | null>((r) => childO.on("exit", (c) => r(c)));
+    const mO = /ALT (\{.*\})/.exec(outO);
+    const infoO = mO ? (JSON.parse(mO[1]) as { runDir: string; pid: number; port: number }) : null;
+    await new Promise((r) => setTimeout(r, 800));
+    const kmO = /TESTDB CIKIS KANCASI (\{.*\})/.exec(outO);
+    const kancaO = kmO ? (JSON.parse(kmO[1]) as { cocukCanli?: boolean; pgCtl?: boolean; kill?: boolean; dizin?: string }) : null;
+    ok(codeO !== 0 && !!infoO && !!kancaO && kancaO.cocukCanli === true && (kancaO.pgCtl === true || kancaO.kill === true) && kancaO.dizin === "silindi",
+      "startOwnedEmbeddedPg çıkış kancası: kendi postmaster'ını kapattı, dizini sildi", { codeO, kancaO, out: outO.slice(-300) });
+    ok(!!infoO && !existsSync(infoO.runDir) && !pidAlive(infoO.pid) && !(await portOpen(infoO.port)), "startOwnedEmbeddedPg çıkış kancası: dizin + postmaster + port kalmadı", infoO);
     ok(own([path.basename(legacy), path.basename(foreign), path.basename(legacyO)]).length === 0, "bu harness'ın açtığı test DB dizinlerinden hiçbiri kalmadı", own([]));
   } finally {
     // Yalnız harness'ın elle oluşturduğu tuzak dizinler (benzersiz TAG önekli) silinir.
@@ -250,6 +266,13 @@ if (process.argv[2] === "--alt-cikis") {
     const port = Number(readFileSync(path.join(db.dataDir, "postmaster.pid"), "utf8").split(/\r?\n/)[3]);
     console.log(`ALT ${JSON.stringify({ runDir: db.runDir, pid, port })}`);
     setTimeout(() => { throw new Error("kasıtlı yakalanmamış hata (alt süreç)"); }, 50);
+  })();
+} else if (process.argv[2] === "--alt-cikis-sahipli") {
+  (async () => {
+    const db = await startOwnedEmbeddedPg(process.argv[3]);
+    const pid = Number(readFileSync(path.join(db.dataDir, "postmaster.pid"), "utf8").split(/\r?\n/)[0]);
+    console.log(`ALT ${JSON.stringify({ runDir: db.runDir, pid, port: db.port })}`);
+    setTimeout(() => { throw new Error("kasıtlı yakalanmamış hata (alt süreç, sahipli)"); }, 50);
   })();
 } else {
   void main();

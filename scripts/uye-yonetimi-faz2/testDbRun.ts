@@ -17,7 +17,7 @@ import EmbeddedPostgres from "embedded-postgres";
 import pg from "pg";
 import { spawnSync, type ChildProcess } from "node:child_process";
 import { randomUUID } from "node:crypto";
-import { existsSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync, writeSync } from "node:fs";
 import { createServer } from "node:net";
 import os from "node:os";
 import path from "node:path";
@@ -196,12 +196,25 @@ export async function startOwnedEmbeddedPg(dirName: string, opts: { port?: numbe
   let stopped = false;
   const exitHook = () => {
     if (stopped) return;
-    const stamps = ownChildStampsSync(child());
-    if (!pgCtlStopSync(child(), run.dataDir)) killOwnChildSync(child());
+    const c = child();
+    const kanca: Record<string, unknown> = { cocukCanli: ownChildAlive(c) };
+    const stamps = ownChildStampsSync(c);
+    kanca.pgCtl = pgCtlStopSync(c, run.dataDir);
+    if (!kanca.pgCtl) kanca.kill = killOwnChildSync(c);
     killStampedSync(stamps);
-    try { removeOwnRunDir(run); } catch { /* son çare; başka hiçbir şeye dokunulmaz */ }
+    try {
+      const r = removeOwnRunDir(run);
+      kanca.dizin = r.removed ? "silindi" : r.reason;
+    } catch (e) {
+      kanca.dizin = `hata: ${String((e as Error)?.message ?? e)}`; // son çare; başka hiçbir şeye dokunulmaz
+    }
+    // startTestDb ile aynı (#800): kütüphanenin sonradan çalışan exit kancası bu PID'e sinyal göndermesin.
+    (epg as unknown as { process?: ChildProcess }).process = undefined;
+    try { writeSync(2, `TESTDB CIKIS KANCASI ${JSON.stringify(kanca)}\n`); } catch { /* stderr kapalı */ }
   };
-  process.on("exit", exitHook);
+  // ÖNE eklenir (startTestDb / #800 ile aynı gerekçe): embedded-postgres'in kendi exit dinleyicisi postmaster'a
+  // eşzamansız sinyal göndermeden ÖNCE bizim eşzamanlı kapanışımız çalışsın.
+  process.prependListener("exit", exitHook);
   const stop = async () => {
     if (stopped) return;
     stopped = true;
