@@ -114,6 +114,8 @@ jobs:
         if: always()
         run: |
           mkdir -p "$RUNNER_TEMP/f2-arayuz"
+          # Uygulamanın gerçek doküman CSP'si (çalışan next start'tan; proxy.ts nonce'lu) → probun /csp sayfasına aynen uygulanır.
+          export APP_CSP="$(curl -s -D - -o /dev/null http://127.0.0.1:3984/settings | tr -d '\r' | grep -i '^content-security-policy:' | head -1 | cut -d' ' -f2-)"
           node .github/f2-arayuz/blob-gorsel-probu.mjs 2>&1 | tee "$RUNNER_TEMP/f2-arayuz/blob-probu.log" | tee -a "$GITHUB_STEP_SUMMARY"
 
       - name: Kanıtlar (ekran görüntüleri + günlükler)

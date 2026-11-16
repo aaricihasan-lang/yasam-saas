@@ -41,11 +41,16 @@ window.upload = async () => { // lib/workspace/client.ts parça yüklemesi ile a
   return r.status;
 };
 </script>`;
+const APP_CSP = (process.env.APP_CSP ?? "").split(";").map((d) => d.trim()).filter(Boolean)
+  .map((d) => (/^script-src(\s|$)/.test(d) ? "script-src 'unsafe-inline'" : d)).join("; ");
 const srv = http.createServer((req, res) => {
   const k = (req.url ?? "").match(/^\/srv\/(png|webp)$/)?.[1];
   if (k) { res.writeHead(200, { "content-type": IMG[k].type }); res.end(IMG[k].buf); return; }
-  res.writeHead(200, { "content-type": "text/html; charset=utf-8" }); res.end(html);
+  const h = { "content-type": "text/html; charset=utf-8" };
+  if (APP_CSP && req.url === "/csp") h["content-security-policy"] = APP_CSP;
+  res.writeHead(200, h); res.end(html);
 });
+if (APP_CSP) console.log("BLOB-PROBU uygulanan CSP: " + APP_CSP);
 await new Promise((r) => srv.listen(3997, "127.0.0.1", r));
 for (const [name, bt] of [["chromium", chromium], ["firefox", firefox], ["webkit", webkit]]) {
   const b = await bt.launch();
@@ -58,8 +63,9 @@ for (const [name, bt] of [["chromium", chromium], ["firefox", firefox], ["webkit
       return route.fulfill({ status: 200, body: IMG[k].buf, headers: { "Content-Type": IMG[k].type, "Cache-Control": "private, no-store" } });
     });
     const p = await ctx.newPage();
-    await p.goto("http://127.0.0.1:3997/", { waitUntil: "load" });
-    const row = {};
+    for (const sayfa of APP_CSP ? ["/", "/csp"] : ["/"]) {
+    await p.goto("http://127.0.0.1:3997" + sayfa, { waitUntil: "load" });
+    const row = { sayfa };
     for (const fmt of ["png", "webp"]) for (const via of ["srv", "route"]) for (const kind of ["blob", "data", "urun"]) {
       const r = await p.evaluate(`probe('/${via}/${fmt}', '${IMG[fmt].type}', '${kind}')`);
       row[`${fmt}/${via}/${kind}`] = `${r.e}:${r.w}`;
@@ -67,6 +73,7 @@ for (const [name, bt] of [["chromium", chromium], ["firefox", firefox], ["webkit
     await p.evaluate("upload()");
     row["yukleme-govdesi(route)"] = `${upLen}/4096`;
     console.log(`BLOB-PROBU ${name} ${JSON.stringify(row)}`);
+    }
   } finally { await b.close(); }
 }
 srv.close();
