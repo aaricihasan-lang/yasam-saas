@@ -271,7 +271,18 @@ async function main() {
       const desc = (await field(c.page, "website").getAttribute("aria-describedby")) ?? "";
       const errId = desc.split(" ").find((x) => x.endsWith("-err"));
       ok("E", "hata metni aria-describedby ile bağlı", !!errId && ((await c.page.locator(`#${errId}`).textContent()) ?? "").includes("https://"));
-      ok("E", "ilk hatalı alana odak (unvan)", (await c.page.evaluate("document.activeElement && document.activeElement.getAttribute('name')")) === "title");
+      // Ürün odağı requestAnimationFrame içinde taşır → sabit gecikme yok: her karede bakılır, odak Unvan'a gelince hemen döner;
+      // üst sınır 2 sn (dolarsa o anki odak döner ve kontrol FAIL verir). Beklenen davranış aynı: odak mutlaka Unvan'da.
+      // Hangi taraf önce biterse diğerini durdurur: süre dolunca bekleyen kare iptal edilir ve yeni kare istenmez.
+      const focusedName = await c.page.evaluate(`new Promise((resolve) => {
+        const cur = () => (document.activeElement && document.activeElement.getAttribute('name')) || null;
+        let done = false, raf = 0;
+        const finish = (v) => { if (done) return; done = true; clearTimeout(stop); cancelAnimationFrame(raf); resolve(v); };
+        const stop = setTimeout(() => finish(cur()), 2000);
+        const tick = () => { if (done) return; if (cur() === 'title') finish('title'); else raf = requestAnimationFrame(tick); };
+        tick();
+      })`);
+      ok("E", "ilk hatalı alana odak (unvan)", focusedName === "title", focusedName);
       ok("E", "sayaç sınır aşımını gösterir (81/80)", ((await c.page.locator('[id$="-title-count"]').textContent()) ?? "").includes("81/80"));
       ok("E", "genel hata bildirimi (role=alert)", (await c.page.locator('[data-testid="profile-notice"][role="alert"]').count()) === 1);
       await c.page.screenshot({ path: join(OUT, "profilim-hata-390.png"), fullPage: true });
