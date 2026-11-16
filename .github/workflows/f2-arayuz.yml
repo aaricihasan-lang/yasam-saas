@@ -157,7 +157,12 @@ jobs:
         with:
           path: arac
           sparse-checkout: .github/f2-arayuz
-      - run: git log --oneline -1 | tee -a "$GITHUB_STEP_SUMMARY"
+      # Prob dosyasını runner geçici dizinine al; arac/ kopyası (kök dosyaları içerir) build'e karışmasın diye kaldırılır.
+      - run: |
+          cp arac/.github/f2-arayuz/kucuk-resim-karsilastirma.harness.ts "$RUNNER_TEMP/kucuk-resim.harness.ts"
+          rm -rf arac
+          git status --porcelain | tee -a "$GITHUB_STEP_SUMMARY"
+          git log --oneline -1 | tee -a "$GITHUB_STEP_SUMMARY"
       - uses: ./.github/actions/kurulum
       - name: Playwright tarayıcıları (Chromium + Firefox + WebKit)
         run: npx playwright install --with-deps chromium firefox webkit
@@ -176,7 +181,7 @@ jobs:
         run: |
           set +e
           K="$RUNNER_TEMP/ana"; mkdir -p "$K"
-          cp arac/.github/f2-arayuz/kucuk-resim-karsilastirma.harness.ts scripts/workspace/.kucuk-resim.harness.ts
+          cp "$RUNNER_TEMP/kucuk-resim.harness.ts" scripts/workspace/.kucuk-resim.harness.ts
           UI_ETIKET=main UI_OUT="$K/karsilastirma-main" npx tsx scripts/workspace/.kucuk-resim.harness.ts > "$K/karsilastirma-main.log" 2>&1
           grep -a "KUCUK-RESIM" "$K/karsilastirma-main.log" | cut -c1-200 | tee -a "$GITHUB_STEP_SUMMARY"
       - name: Kanıtlar (main karşılaştırma)
