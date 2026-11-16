@@ -273,10 +273,13 @@ async function main() {
       ok("E", "hata metni aria-describedby ile bağlı", !!errId && ((await c.page.locator(`#${errId}`).textContent()) ?? "").includes("https://"));
       // Ürün odağı requestAnimationFrame içinde taşır → sabit gecikme yok: her karede bakılır, odak Unvan'a gelince hemen döner;
       // üst sınır 2 sn (dolarsa o anki odak döner ve kontrol FAIL verir). Beklenen davranış aynı: odak mutlaka Unvan'da.
+      // Hangi taraf önce biterse diğerini durdurur: süre dolunca bekleyen kare iptal edilir ve yeni kare istenmez.
       const focusedName = await c.page.evaluate(`new Promise((resolve) => {
         const cur = () => (document.activeElement && document.activeElement.getAttribute('name')) || null;
-        const stop = setTimeout(() => resolve(cur()), 2000);
-        const tick = () => { if (cur() === 'title') { clearTimeout(stop); resolve('title'); } else requestAnimationFrame(tick); };
+        let done = false, raf = 0;
+        const finish = (v) => { if (done) return; done = true; clearTimeout(stop); cancelAnimationFrame(raf); resolve(v); };
+        const stop = setTimeout(() => finish(cur()), 2000);
+        const tick = () => { if (done) return; if (cur() === 'title') finish('title'); else raf = requestAnimationFrame(tick); };
         tick();
       })`);
       ok("E", "ilk hatalı alana odak (unvan)", focusedName === "title", focusedName);
