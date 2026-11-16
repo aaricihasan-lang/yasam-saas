@@ -161,6 +161,9 @@ export default function HesapKurtarmaPage() {
         />
       )}
       <h1 className="text-xl font-black text-slate-900">Hesap kurtarma</h1>
+      <p className="mt-1 text-sm">
+        <a href="/admin/denetim-saklama" className="font-bold text-violet-700 hover:underline" data-testid="link-retention">Denetim kayıtları — saklama ve imha →</a>
+      </p>
       <p className="mt-1 text-sm text-slate-600">
         Telefonunu, e-postasını ve kurtarma kodlarını kaybeden kullanıcılar içindir. Talep açıldıktan sonra <strong>72 saat</strong> beklenir;
         bu sürede kullanıcıya bildirim gider ve kullanıcı talebi iptal edebilir. Kimliği güvenilir biçimde doğrulayamıyorsanız talebi reddedin.

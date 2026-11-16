@@ -10,12 +10,14 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { ownerAdminHeaders } from "@/components/admin/notifications/ownerBellStore";
 import { encodeQr, qrToSvgPath } from "@/lib/qr/qrEncode";
 
-export type StepUpAction = "device_approve" | "mfa_disable" | "recovery_execute";
+export type StepUpAction = "device_approve" | "mfa_disable" | "recovery_execute" | "retention_policy" | "retention_execute";
 
 const ACTION_LABEL: Record<StepUpAction, string> = {
   device_approve: "güvenilir cihaz onayı",
   mfa_disable: "ikinci doğrulama zorunluluğunu kaldırma",
   recovery_execute: "hesap kurtarma yürütme",
+  retention_policy: "denetim kaydı saklama kararı",
+  retention_execute: "denetim kaydı imhası / anonimleştirme",
 };
 
 type Begun = { challengeId: string; expiresAt: string | null; qr?: { url: string; matchCode: string }; emailHint?: string | null };

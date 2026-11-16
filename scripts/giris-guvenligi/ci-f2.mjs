@@ -28,6 +28,8 @@ const PG = [
   // F2-G: Owner işleme özel yeniden doğrulama (çalınmış taze oturum saldırısı), saklama politikası, geri dönüş.
   "pg:session-f2g", "session-f2g-concurrency", "pg:session-f2a-on-f2g", "pg:session-f2b-on-f2g", "pg:session-f2d-on-f2g",
   "pg:deploy-order-f2-rollback",
+  // F2-H: denetim kayıtları kontrollü imha / anonimleştirme (sentetik süre / gerekçe), paralel yürütme.
+  "pg:session-f2h", "session-f2h-concurrency", "pg:session-f2g-on-f2h",
 ];
 const TSX = [
   // Varsayılan veritabanları: yeni kod, kendi fazının migration'larıyla (kod migration'dan önce yayına çıkarsa).
@@ -40,6 +42,7 @@ const TSX = [
   "scripts/giris-guvenligi/f2-purge.harness.ts",
   // Owner kritik işlemleri: kanıt (QR / e-posta), saldırı senaryosu, tek kullanım (tam zincir 000700).
   "scripts/giris-guvenligi/f2g-routes.harness.ts",
+  "scripts/giris-guvenligi/f2h-routes.harness.ts",
   "scripts/giris-guvenligi/gmail-provider.check.ts",
   "scripts/giris-guvenligi/qr-encode.check.ts",
 ];
