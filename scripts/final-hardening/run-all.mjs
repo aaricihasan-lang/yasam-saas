@@ -159,6 +159,7 @@ const STEPS = [
   ["session-f2g-concurrency", "node", ["scripts/session-model/f2g-step-up-concurrency.mjs"]],
   ["session-f2h-concurrency", "node", ["scripts/session-model/f2h-retention-concurrency.mjs"]],
   ["session-f2i-hold-race", "node", ["scripts/session-model/f2i-hold-race.mjs"]],
+  ["assetlinks-araci", "node", ["scripts/giris-guvenligi/assetlinks.mjs", "--kendini-sina"]],
   // GİRİŞ GÜVENLİĞİ F2-C: güvenilir Android cihazı (Owner onayı + cihaz imzası) + QR onay durum makinesi.
   ["pg:session-f2c", ...pg([F("session-model-fixture.sql"), F("session-f2a-fixture.sql"), F("session-f2b-fixture.sql"), F("session-f2c-fixture.sql"),
     M("20270129000200_user_sessions_expiry_touch.sql"), M("20271003200000_session_model_v2.sql"),

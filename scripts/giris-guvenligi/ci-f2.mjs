@@ -32,7 +32,7 @@ const PG = [
   "pg:session-f2h", "session-f2h-concurrency", "pg:session-f2g-on-f2h",
   // F2-I: 17.11 bağımsız güvenlik denetimi düzeltmeleri + önceki sözleşmeler 000900 üstünde + yayın sonrası doğrulama.
   "pg:session-f2i", "pg:session-f2h-on-f2i", "pg:session-f2g-on-f2i", "pg:f2-postflight", "session-f2i-hold-race",
-  "pg:deploy-order-f2-pre-full", "pg:deploy-order-f2-post-full", "pg:deploy-order-f2-rollback-full",
+  "pg:deploy-order-f2-pre-full", "pg:deploy-order-f2-post-full", "pg:deploy-order-f2-rollback-full", "assetlinks-araci",
 ];
 const TSX = [
   // Varsayılan veritabanları: yeni kod, kendi fazının migration'larıyla (kod migration'dan önce yayına çıkarsa).

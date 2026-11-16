@@ -39,7 +39,10 @@ commitsiz çalışmanın birebir kopyası), F2-C QR onayını ve `fragment-ktx 1
 
    - Yayın adresi `https://www.yasamsistemi.com/.well-known/assetlinks.json` olacak ve 200, `application/json` dönmeli,
      yönlendirme olmamalı.
-   - 16.11.2026 itibarıyla bu adres canlıda **404** döner. Bu beklenen durum: dosya henüz yok.
+   - 17.11.2026 itibarıyla bu adres canlıda **404** döner. Bu beklenen durum: dosya henüz yok.
+   - Araç (F2-I): `node scripts/giris-guvenligi/assetlinks.mjs uret --sha256 "<değer>" --cikti public/.well-known/assetlinks.json`
+     biçimi doğrular ve dosyayı yazar. Yayından sonra `node scripts/giris-guvenligi/assetlinks.mjs dogrula --sha256 "<değer>"`
+     200 / yönlendirmesiz / application/json / paket adı / parmak izi kontrolünü yapar. Son adım A3 (gerçek cihaz).
 
 ### Gerçek telefonda yapılacak testler
 
@@ -53,6 +56,8 @@ commitsiz çalışmanın birebir kopyası), F2-C QR onayını ve `fragment-ktx 1
 | A6 | Onayla / Reddet | Web girişi tamamlanır / reddedilir |
 | A7 | Web'den cihazı iptal et, yeniden QR okut | Telefon onayı reddedilir |
 | A8 | Parmak izi kayıtlı olmayan / yalnız PIN'li cihaz (mümkünse Android 7–10) | Kilit ekranı doğrulaması açılır, uygulama çökmez |
+| A10 | Owner'ın kritik işlem onayı (ör. cihaz onayı, parola sıfırlama) için QR okut | Başlık "Kritik işlem onayı", işlem adı ve "Bu bir GİRİŞ değildir" uyarısı (F2-I) |
+| A11 | Telefon saatini 5 dk kaydırıp onayla | "Telefonun saati sunucuyla uyuşmuyor…" mesajı (F2-I) |
 | A9 | Keystore türü (StrongBox / TEE) | Web'deki cihaz kaydında görünen değer not edilir; attestation "doğrulanmamış" kaydedilir (bilinçli) |
 
 ## 2. iPhone (Safari) — uygulama gerekmez
@@ -89,7 +94,11 @@ Ayrıntılı adımlar `f2d-google-workspace-kurulum.md` §2–§8'dedir. Özet s
    - "Orijinali göster" ekranında SPF / DKIM / DMARC üçü de PASS olmalı.
    - Spam klasörü kontrol edilir.
 
-**Açık karar — `AUTH_MFA_EMAIL_ROLES`:** `f2d` belgesine göre varsayılan `expert`; yöneticiler e-posta yöntemi
+**Açık karar — `AUTH_MFA_EMAIL_ROLES` (17.11 değerlendirmesi):** ayar rol bazındadır; `expert,admin` e-posta ile girişi
+Owner'a değil **bütün yöneticilere** açar (Owner'a özel ayar yoktur). F2-I sonrası Owner'ın kritik işlem e-posta kodu yalnız
+oturumdan önce doğrulanmış adrese gider ve Owner e-postası admin düzenleme yolundan değiştirilemez. Öneri: başka yönetici
+hesabı yoksa veya hepsi MFA'lı ise `expert,admin`; aksi halde `expert` kalsın ve Owner telefonu + çevrimdışı kurtarma kiti
+yedek olsun. Eski not: `f2d` belgesine göre varsayılan `expert`; yöneticiler e-posta yöntemi
 almaz, QR zorunludur. Owner hesabının telefonu yoksa e-posta ile girebilmesi için `expert,admin` gerekir. Owner'ın
 kritik işlem e-posta kodu (step-up) bu ayardan bağımsızdır.
 
@@ -118,7 +127,15 @@ vercel env ls production
 | `AUTH_OTP_PEPPER`, `RATE_LIMIT_SECRET`, `LOGIN_IP_PEPPER` | dolu, ≥32 karakter | Sensitive |
 | `EMAIL_DAILY_LIMIT` / `EMAIL_WARN_AT` | 1800 / 1500 (varsayılan) | düz |
 
-## 5. Canlı PASS koşulu
+## 5. Yayın sonrası doğrulama ve dikkat
+
+- Migration'lar `000000 … 000900` (000200 hariç) uygulandıktan sonra ve `000200`'den sonra `scripts/giris-guvenligi/f2-postflight-check.sql`
+  salt-okunur çalıştırılır → **PASS** olmalı. Hiçbir F2 migration'ı yeniden çalıştırılmaz.
+- Bir kullanıcının MFA zorunluluğu açılınca o kullanıcının MFA'sız oturumları hemen kapanır (yeniden giriş gerekir).
+- Tarayıcı emülasyonu (Chrome, Edge, WebKit iPhone, Android emülasyonu, 320/375/390 px) yerelde PASS; gerçek cihaz
+  testlerinin yerine GEÇMEZ.
+
+## 6. Canlı PASS koşulu
 
 §1 A1–A8, §2 I1–I5, §3 madde 7 ve §4 tablosu Owner tarafından doğrulanmadan canlı kabul PASS verilmez. Yayın sırası
 ve migration `000200`'ün en son uygulanması için bkz. `f2g-son-kabul.md`.
