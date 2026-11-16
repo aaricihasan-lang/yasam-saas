@@ -58,6 +58,9 @@ export async function POST(req: NextRequest) {
     const r = (data ?? {}) as { ok?: unknown; code?: unknown; revoked?: unknown };
     if (r.ok !== true) {
       if (r.code === "rate_limited") return jsonNoStore({ code: "RATE_LIMITED", error: "Son 24 saatte en fazla 3 kez kod oluşturabilirsiniz." }, 429);
+      if (r.code === "strong_mfa_required") {
+        return jsonNoStore({ code: "STRONG_MFA_REQUIRED", error: "Telefonunuz kayıtlı olduğu için kurtarma kodları yalnız telefonla (QR) açılmış bir oturumda oluşturulabilir." }, 403);
+      }
       if (r.code === "forbidden") {
         return jsonNoStore({ code: "MFA_SESSION_REQUIRED", error: "Kurtarma kodları yalnız ikinci doğrulamayla açılmış bir oturumda oluşturulabilir." }, 403);
       }

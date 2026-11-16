@@ -12,7 +12,7 @@ export const runtime = "nodejs";
 
 const NO_STORE = { "Cache-Control": "no-store" } as const;
 const json = (body: Record<string, unknown>, status: number) => NextResponse.json(body, { status, headers: NO_STORE });
-const ACTIONS = ["device_approve", "mfa_disable", "recovery_execute", "retention_policy", "retention_execute"] as const;
+const ACTIONS = ["device_approve", "mfa_disable", "recovery_execute", "retention_policy", "retention_execute", "password_reset"] as const;
 const INVALID = "Onay isteği geçersiz veya süresi dolmuş. İşlemi yeniden başlatın.";
 
 /**

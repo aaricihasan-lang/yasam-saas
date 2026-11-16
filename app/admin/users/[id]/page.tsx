@@ -115,6 +115,7 @@ import { DEFAULT_MEMBER_DETAIL_TAB, memberDetailTabFromHash, type MemberDetailTa
 import detailCss from "@/components/admin/members/detail/MemberDetailV2.module.css";
 import { TrialCreditPanel, TrialStatePanel, useTrialManagement } from "@/components/admin/members/detail/TrialManagementPanel";
 import { MemberUnarchiveDialog } from "@/components/admin/members/detail/MemberUnarchiveDialog";
+import OwnerStepUpDialog from "@/components/admin/OwnerStepUpDialog";
 
 const panelClass =
   "rounded-[28px] border-2 border-white/80 bg-white/90 p-6 shadow-[0_18px_50px_rgba(15,23,42,0.08)] backdrop-blur-xl sm:p-8";
@@ -685,6 +686,8 @@ export default function AdminUserDetailPage() {
   const [actionUserId, setActionUserId] = useState<string | null>(null);
   const [savingEdit, setSavingEdit] = useState(false);
   const [savingPassword, setSavingPassword] = useState(false);
+  // F2-I: parola sıfırlama için Owner'ın işleme özel doğrulaması (telefon QR / e-posta kodu).
+  const [passwordStepUp, setPasswordStepUp] = useState<string | null>(null);
   // MEM-007: anahtar bazlı kayıt — aynı anda yalnız ilgili anahtar kilitlenir.
   const [modulePendingKeys, setModulePendingKeys] = useState<Set<AdminModuleUiKey>>(() => new Set());
   // Gökyüzü Atlası teknik izinleri: Astroloji anahtarı AÇILIRKEN modül hemen kaydedilmez; sağdan panel açılır (sayaç = açma isteği).
@@ -1229,10 +1232,16 @@ export default function AdminUserDetailPage() {
     const json = (await res.json().catch(() => ({}))) as {
       ok?: boolean;
       error?: string;
+      code?: string;
+      target?: string;
       revokedSessionCount?: number;
     };
     setSavingPassword(false);
 
+    if (!res.ok && json.code === "STEP_UP_REQUIRED" && typeof json.target === "string") {
+      setPasswordStepUp(json.target);
+      return;
+    }
     if (!res.ok || !json.ok) {
       showToast({ title: "İşlem başarısız", message: json.error ?? "Parola güncellenemedi.", type: "error" });
       return;
@@ -4185,6 +4194,15 @@ export default function AdminUserDetailPage() {
             </div>
           </div>
         </div>
+      ) : null}
+
+      {passwordStepUp ? (
+        <OwnerStepUpDialog
+          action="password_reset"
+          targetId={passwordStepUp}
+          onVerified={() => { setPasswordStepUp(null); void savePassword(); }}
+          onCancel={() => setPasswordStepUp(null)}
+        />
       ) : null}
 
       {/* ── AŞAMA 4a: arşivden çıkar (ayrı bileşen; hesap pasif kalır) ───────────── */}

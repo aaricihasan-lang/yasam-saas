@@ -409,6 +409,12 @@ async function patchProfile(db: Db, adminId: string, id: string, body: Record<st
   if (emailChanged) {
     const main = await requireMainAdmin(db, adminId);
     if (!main.ok) return bad("E-posta adresini yalnızca ana yönetici değiştirebilir.", 403);
+    // GİRİŞ GÜVENLİĞİ F2-I: Owner hesabının e-postası (ikinci doğrulama kanalı) bu yoldan değişmez; yalnız Owner'ın
+    // kendi e-posta değiştirme akışıyla (telefon / kurtarma kodu oturumu + parola + yeni adres doğrulaması).
+    const { data: tgt } = await db.from("users").select("is_super_admin").eq("id", id).maybeSingle();
+    if ((tgt as { is_super_admin?: unknown } | null)?.is_super_admin === true) {
+      return bad("Owner e-posta adresi yalnız Ayarlar › Hesap güvenliği › E-posta değiştirme ile değiştirilebilir.", 403);
+    }
   }
 
   if (roleChanged) {

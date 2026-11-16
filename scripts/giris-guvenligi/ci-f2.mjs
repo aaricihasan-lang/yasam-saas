@@ -30,6 +30,9 @@ const PG = [
   "pg:deploy-order-f2-rollback",
   // F2-H: denetim kayıtları kontrollü imha / anonimleştirme (sentetik süre / gerekçe), paralel yürütme.
   "pg:session-f2h", "session-f2h-concurrency", "pg:session-f2g-on-f2h",
+  // F2-I: 17.11 bağımsız güvenlik denetimi düzeltmeleri + önceki sözleşmeler 000900 üstünde + yayın sonrası doğrulama.
+  "pg:session-f2i", "pg:session-f2h-on-f2i", "pg:session-f2g-on-f2i", "pg:f2-postflight", "session-f2i-hold-race",
+  "pg:deploy-order-f2-pre-full", "pg:deploy-order-f2-post-full", "pg:deploy-order-f2-rollback-full", "assetlinks-araci",
 ];
 const TSX = [
   // Varsayılan veritabanları: yeni kod, kendi fazının migration'larıyla (kod migration'dan önce yayına çıkarsa).
@@ -43,6 +46,8 @@ const TSX = [
   // Owner kritik işlemleri: kanıt (QR / e-posta), saldırı senaryosu, tek kullanım (tam zincir 000700).
   "scripts/giris-guvenligi/f2g-routes.harness.ts",
   "scripts/giris-guvenligi/f2h-routes.harness.ts",
+  "scripts/giris-guvenligi/f2i-routes.harness.ts",
+  "scripts/giris-guvenligi/purge-senaryolari.harness.ts",
   "scripts/giris-guvenligi/gmail-provider.check.ts",
   "scripts/giris-guvenligi/qr-encode.check.ts",
 ];

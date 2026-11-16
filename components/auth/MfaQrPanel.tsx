@@ -161,7 +161,8 @@ export default function MfaQrPanel({
     }
     if (r.code === "OTP_LOCKED") { doneRef.current = true; setFinal("locked"); return; }
     if (r.code === "MFA_INVALID") { doneRef.current = true; setFinal("invalid"); return; }
-    setCode("");
+    // F2-I: bağlantı hatasında kod sunucuya ulaşmadı → girilen kod korunur (bağlantı gelince aynı kodla yeniden denenir).
+    if (r.code !== "NETWORK") setCode("");
     if (r.code === "OTP_EXPIRED" || r.code === "OTP_NONE") setResendAt(0);
     setEmailError(r.message ?? "Kod doğrulanamadı.");
     window.setTimeout(() => codeRef.current?.focus(), 0);
@@ -339,7 +340,6 @@ export default function MfaQrPanel({
                       inputMode="numeric"
                       autoComplete="one-time-code"
                       pattern="[0-9]*"
-                      maxLength={6}
                       enterKeyHint="done"
                       className="mt-1 h-12 w-full rounded-xl border border-slate-300 bg-white text-center font-mono text-2xl font-bold tracking-[0.4em] text-slate-900 focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-200"
                     />

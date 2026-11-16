@@ -161,6 +161,16 @@ async function main() {
         await card.getByLabel("Kayıtlı numarasından aradım").check();
         await card.getByRole("checkbox").check();
         await page.screenshot({ path: path.join(OUT, `${label}-3-owner-onay-oncesi.png`), fullPage: true });
+        // F2-G (000700) sonrası: Owner onayı işleme özel kanıt ister. Zincirde 000700 varsa Owner'ın telefonu (test anahtarı;
+        // "telefon" adımı = DB'deki QR kararı) BU tarayıcı oturumu için kanıtı önceden onaylar → Onayla doğrudan sonuçlanır.
+        const hasStepUp = (await db.admin.query(`SELECT to_regprocedure('public.auth_owner_step_up_begin(text,text,uuid)') IS NOT NULL AS x`)).rows[0].x;
+        if (hasStepUp) {
+          const tok = (await db.admin.query(`SELECT session_token FROM public.user_sessions WHERE user_id = $1 AND is_active AND mfa_method IS NOT NULL
+                                             ORDER BY created_at DESC LIMIT 1`, [U.owner])).rows[0]?.session_token;
+          const su = (await db.admin.query(`SELECT public.auth_owner_step_up_begin($1, 'device_approve', $2) AS r`, [tok, expPhone.deviceId])).rows[0].r;
+          await db.admin.query(`SELECT public.auth_qr_decide($1, $2, $3, 'approve', $4)`, [su.challenge_id, su.qr_nonce, ownerPhone.deviceId, su.match_code]);
+          ok(su?.ok === true, "Chrome: (000700+) Owner telefonu kritik işlem onayını verdi");
+        }
         await approveBtn.click();
         await card.getByRole("status").waitFor({ timeout: 10000 }).catch(() => {});
         const st = (await db.admin.query(`SELECT state FROM public.auth_trusted_devices WHERE id = $1`, [expPhone.deviceId])).rows[0]?.state;

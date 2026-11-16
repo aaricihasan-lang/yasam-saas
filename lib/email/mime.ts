@@ -7,9 +7,24 @@ import { randomBytes } from "node:crypto";
 const HEADER_UNSAFE = /[\r\n]/;
 const EMAIL_RE = /^[^\s@<>()",;:]+@[^\s@<>()",;:]+\.[^\s@<>()",;:]+$/;
 
-/** RFC 2047 encoded-word (UTF-8, base64). */
+/**
+ * RFC 2047 encoded-word (UTF-8, base64). Her kelime ≤ 75 karakter (RFC 2047 §2): metin ≤ 45 baytlık parçalara bölünür
+ * (çok baytlı karakter bölünmez), kelimeler katlanmış başlık satırlarıyla birleştirilir (aradaki boşluk okunurken atılır).
+ */
 export function encodeHeaderWord(value: string): string {
-  return /^[\x20-\x7e]*$/.test(value) ? value : `=?UTF-8?B?${Buffer.from(value, "utf8").toString("base64")}?=`;
+  if (/^[\x20-\x7e]*$/.test(value)) return value;
+  const parts: string[] = [];
+  let cur = "";
+  for (const ch of value) {
+    if (cur && Buffer.byteLength(cur + ch, "utf8") > 45) {
+      parts.push(cur);
+      cur = ch;
+    } else {
+      cur += ch;
+    }
+  }
+  if (cur) parts.push(cur);
+  return parts.map((p) => `=?UTF-8?B?${Buffer.from(p, "utf8").toString("base64")}?=`).join("\r\n ");
 }
 
 function b64Lines(s: string): string {

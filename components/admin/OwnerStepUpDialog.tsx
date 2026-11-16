@@ -10,7 +10,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { ownerAdminHeaders } from "@/components/admin/notifications/ownerBellStore";
 import { encodeQr, qrToSvgPath } from "@/lib/qr/qrEncode";
 
-export type StepUpAction = "device_approve" | "mfa_disable" | "recovery_execute" | "retention_policy" | "retention_execute";
+export type StepUpAction = "device_approve" | "mfa_disable" | "recovery_execute" | "retention_policy" | "retention_execute" | "password_reset";
 
 const ACTION_LABEL: Record<StepUpAction, string> = {
   device_approve: "güvenilir cihaz onayı",
@@ -18,6 +18,7 @@ const ACTION_LABEL: Record<StepUpAction, string> = {
   recovery_execute: "hesap kurtarma yürütme",
   retention_policy: "denetim kaydı saklama kararı",
   retention_execute: "denetim kaydı imhası / anonimleştirme",
+  password_reset: "kullanıcı parolasını sıfırlama",
 };
 
 type Begun = { challengeId: string; expiresAt: string | null; qr?: { url: string; matchCode: string }; emailHint?: string | null };
@@ -136,7 +137,7 @@ export default function OwnerStepUpDialog({
             ) : (
               <form onSubmit={(e) => { e.preventDefault(); void email("email_verify"); }} className="space-y-2">
                 <input data-testid="step-up-email-code" value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                  inputMode="numeric" autoComplete="one-time-code" maxLength={6} aria-label="Onay kodu" placeholder="6 haneli kod"
+                  inputMode="numeric" autoComplete="one-time-code" aria-label="Onay kodu" placeholder="6 haneli kod"
                   className="h-10 w-full rounded-lg border border-slate-300 text-center font-mono text-lg tracking-[0.3em]" />
                 <button type="submit" data-testid="step-up-email-verify" disabled={busy || code.length !== 6}
                   className="w-full rounded-lg bg-violet-600 px-3 py-2 text-xs font-bold text-white disabled:opacity-60">Kodu doğrula</button>

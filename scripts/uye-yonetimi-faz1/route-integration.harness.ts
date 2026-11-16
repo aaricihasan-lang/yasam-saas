@@ -651,6 +651,15 @@ async function main(): Promise<void> {
     ok((await userGuardStatus(K1, kTok)) === 200, "reddedilen sıfırlama oturumu kapatmadı");
     ok((await audits(K1)).every((a) => a.action !== "password_changed_by_admin"), "reddedilen sıfırlama audit yazmadı");
     ok((await call(passwordRoute.POST as Handler, "POST", "not-a-uuid", asOwner, pw)).status === 400, "şifre route: bozuk UUID → 400");
+    // GİRİŞ GÜVENLİĞİ F2-I: rota Owner'ın işleme özel kanıtını DB'ye sorar (auth_owner_step_up_take, migration 000900).
+    // (1) Bu test DB'si F2 öncesi şemadır: fonksiyon YOKKEN sıfırlama YAPILMAZ (kapalı kalır; yayında migration'lar koddan önce).
+    const pwNoFn = await call(passwordRoute.POST as Handler, "POST", K1, asOwner, pw);
+    ok(pwNoFn.status === 500 && (await row(K1)).password_hash === "zz-orig-hash", "F2-I: kanıt fonksiyonu yokken (migration eksik) sıfırlama YAPILMAZ, hash DEĞİŞMEDİ");
+    // (2) Gerçek fonksiyonun MFA KULLANMAYAN Owner için yanıtı {ok:true, step_up:false}'tır (bu test DB'sinin Owner'ı MFA'sız).
+    //     MFA kullanan Owner'ın kanıt zorunluluğu gerçek fonksiyonla scripts/giris-guvenligi/f2i-routes.harness.ts'te sınanır.
+    await su.query(`CREATE FUNCTION public.auth_owner_step_up_take(p_actor_token text, p_action text, p_target uuid) RETURNS jsonb
+                    LANGUAGE sql AS $f$ SELECT '{"ok": true, "step_up": false}'::jsonb $f$;
+                    GRANT EXECUTE ON FUNCTION public.auth_owner_step_up_take(text, text, uuid) TO service_role;`);
     const pwOwner = await call(passwordRoute.POST as Handler, "POST", K1, asOwner, pw);
     const k1AfterPw = await row(K1);
     ok(pwOwner.status === 200 && k1AfterPw.password_hash !== "zz-orig-hash" && String(k1AfterPw.password_hash).startsWith("zz-test-hash:"), "ana yönetici → şifre sıfırlama 200, hash değişti");
