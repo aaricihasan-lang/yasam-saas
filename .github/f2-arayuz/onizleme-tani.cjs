@@ -15,7 +15,13 @@ const probe = `(async () => {
   if (i) { try { await i.decode(); dec = 'ok w=' + i.naturalWidth; } catch (e) { dec = 'hata: ' + String(e && e.message || e); } }
   let blob = 'yok';
   if (i && i.src.startsWith('blob:')) { try { const b = await (await fetch(i.src)).blob(); blob = b.type + ' ' + b.size; } catch (e) { blob = 'hata: ' + String(e && e.message || e); } }
-  return { img: !!i, src: i ? i.src.slice(0, 32) : null, complete: i ? i.complete : null, w: i ? i.naturalWidth : null, decode: dec, blob, istekler: res };
+  const u = '/api/settings/workspace/assets/11111111-1111-4111-8111-111111111111?v=mobile';
+  const boyut = {};
+  for (const m of ['force-cache', 'no-store', 'default']) for (const n of [1, 2]) {
+    try { const r = await fetch(u, { cache: m, headers: { authorization: 'Bearer zz-local-fake-token' } }); const b = await r.blob(); boyut[m + n] = r.status + ':' + b.size + ':' + b.type; }
+    catch (e) { boyut[m + n] = 'hata: ' + String(e && e.message || e); }
+  }
+  return { img: !!i, src: i ? i.src.slice(0, 32) : null, complete: i ? i.complete : null, w: i ? i.naturalWidth : null, decode: dec, blob, istekler: res, boyut };
 })()`;
 const wrap = `const __previewLoaded0 = (page: Page) => poll(`;
 let out = s.replace(anchor, wrap);
