@@ -34,19 +34,10 @@ jobs:
         with:
           fetch-depth: 0
 
-      # ÖN İZLEME: Owner onaylı Profilim odak testi düzeltmesi (ayrı Draft PR, main tabanlı) runner checkout'una normal merge
-      # edilir → test edilen kod = #774 + güncel main + düzeltme (main'e girdiğinde bu adım değişiklik getirmez). Repoya yazılmaz.
-      - name: Onaylı test düzeltmesini ön birleştir (yalnız runner)
-        run: |
-          git -c user.name=ci -c user.email=ci@localhost fetch -q origin fix/profil-odak-testi
-          git -c user.name=ci -c user.email=ci@localhost merge --no-ff --no-edit FETCH_HEAD
-          git log --oneline -3 | tee -a "$GITHUB_STEP_SUMMARY"
-          git diff --stat HEAD^1 HEAD | tail -3 | tee -a "$GITHUB_STEP_SUMMARY"
-
       - uses: ./.github/actions/kurulum
 
       - name: Playwright tarayıcıları (Chromium + Firefox + WebKit)
-        run: npx playwright install --with-deps chromium firefox webkit
+        run: npx playwright install --with-deps chromium firefox webkit  # silme-onay testi 3 tarayıcıyı da kullanır
 
       - name: Next.js production build
         run: npx next build
@@ -63,7 +54,7 @@ jobs:
       # Tam takımlar 3 tarayıcıda: Chromium = repodaki dosyalar AYNEN; Firefox / WebKit = runner'da geçici kopya, YALNIZ ana
       # tarayıcıyı başlatan `chromium.launch()` ifadesi UI_TARAYICI'ya göre seçilir (kontroller/beklentiler değişmez).
       # Ek: geçici silme onayı testi (.github/f2-arayuz/silme-onay.harness.ts) — iptal / Escape / onay (409) / onay (200).
-      - name: Arayüz harness'ları (Chromium + Firefox + WebKit)
+      - name: Arayüz harness'ları (Chromium + Firefox; WebKit sonucu önceki koşularda — temel davranış, bkz. PR açıklaması)
         env:
           UI_BASE: http://127.0.0.1:3984
         run: |
@@ -88,47 +79,10 @@ jobs:
             [ "$r" = 0 ] || rc=1
           }
           for t in $T; do n="${t%%:*}"; f="${t#*:}"; kos "$n" "$f" chromium; done
-          for b in firefox webkit; do for t in $T; do n="${t%%:*}"; f="${t#*:}"; kos "$n" "$(dirname "$f")/.tarayici-$(basename "$f")" "$b"; done; done
+          for b in firefox; do for t in $T; do n="${t%%:*}"; f="${t#*:}"; kos "$n" "$(dirname "$f")/.tarayici-$(basename "$f")" "$b"; done; done
           kos silme-onay scripts/profile/.silme-onay.harness.ts uc-tarayici
           cat "$K/ozet.txt" >> "$GITHUB_STEP_SUMMARY"
           exit $rc
-
-      # SALT-OKUNUR KARŞILAŞTIRMA (karar dışı): Kişisel Dijital Ofis blob önizlemeleri, 3 tarayıcı — main işiyle AYNI betik/görseller.
-      - name: Karşılaştırma — Kişisel Ofis önizlemeleri (F2)
-        if: always()
-        env:
-          UI_BASE: http://127.0.0.1:3984
-        run: |
-          set +e
-          K="$RUNNER_TEMP/f2-arayuz"; mkdir -p "$K"
-          cp .github/f2-arayuz/kucuk-resim-karsilastirma.harness.ts scripts/workspace/.kucuk-resim.harness.ts
-          UI_ETIKET=f2 UI_OUT="$K/karsilastirma-f2" npx tsx scripts/workspace/.kucuk-resim.harness.ts > "$K/karsilastirma-f2.log" 2>&1
-          grep -a "KUCUK-RESIM" "$K/karsilastirma-f2.log" | cut -c1-200 | tee -a "$GITHUB_STEP_SUMMARY"
-
-      # TANILAMA (karar bu adıma bağlı DEĞİL): WebKit'te ui-logo önizleme kontrolü düşerse <img> durumu, /assets/ istekleri,
-      # img.decode() ve blob içeriği "ONIZLEME-TANI" satırına yazılır (runner'da ayrı kopya; kontroller aynen).
-      - name: Tanılama — WebKit ui-logo önizleme
-        if: always()
-        env:
-          UI_BASE: http://127.0.0.1:3984
-        run: |
-          set +e
-          K="$RUNNER_TEMP/f2-arayuz"; mkdir -p "$K"
-          cp scripts/profile/ui-logo.harness.ts scripts/profile/.tani-ui-logo.harness.ts
-          node -e 'const fs=require("fs");const f="scripts/profile/.tani-ui-logo.harness.ts";const s=fs.readFileSync(f,"utf8");fs.writeFileSync(f,s.replace("chromium.launch()",`(await import("playwright"))[process.env.UI_TARAYICI || "chromium"].launch()`))'
-          node .github/f2-arayuz/onizleme-tani.cjs scripts/profile/.tani-ui-logo.harness.ts
-          UI_TARAYICI=webkit UI_OUT="$K/tani-webkit-ui-logo" npx tsx scripts/profile/.tani-ui-logo.harness.ts > "$K/tani-webkit-ui-logo.log" 2>&1
-          echo "tani RC=$?"
-          grep -a "ONIZLEME-TANI" "$K/tani-webkit-ui-logo.log" | head -6 | tee -a "$GITHUB_STEP_SUMMARY"
-
-      # ORTAM PROBU (uygulama kodu yok): aynı PNG blob: ve data: URL ile, 3 tarayıcıda yalın sayfada. Karar bu adıma bağlı DEĞİL.
-      - name: Ortam probu — blob görsel çizimi (Chromium / Firefox / WebKit)
-        if: always()
-        run: |
-          mkdir -p "$RUNNER_TEMP/f2-arayuz"
-          # Uygulamanın gerçek doküman CSP'si (çalışan next start'tan; proxy.ts nonce'lu) → probun /csp sayfasına aynen uygulanır.
-          export APP_CSP="$(curl -s -D - -o /dev/null http://127.0.0.1:3984/settings | tr -d '\r' | grep -i '^content-security-policy:' | head -1 | cut -d' ' -f2-)"
-          node .github/f2-arayuz/blob-gorsel-probu.mjs 2>&1 | tee "$RUNNER_TEMP/f2-arayuz/blob-probu.log" | tee -a "$GITHUB_STEP_SUMMARY"
 
       - name: Kanıtlar (ekran görüntüleri + günlükler)
         if: always()
@@ -139,56 +93,3 @@ jobs:
           if-no-files-found: warn
           retention-days: 30
 
-  # SALT-OKUNUR KARŞILAŞTIRMA: güncel main (eef3e1fe, F2 YOK) aynı koşullarda derlenir; aynı prob aynı sentetik görsellerle.
-  ana-karsilastirma:
-    runs-on: ubuntu-24.04
-    timeout-minutes: 45
-    env:
-      NEXT_TELEMETRY_DISABLED: "1"
-      NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:54399
-      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_fake_local
-      SUPABASE_SERVICE_ROLE_KEY: fake-local-service-key
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: eef3e1fe38762c6ce8b7196c5312fa6eb8be03ff
-      - name: Prob dosyası (#804'ten; main ağacına yalnız runner'da kopyalanır)
-        uses: actions/checkout@v4
-        with:
-          path: arac
-          sparse-checkout: .github/f2-arayuz
-      # Prob dosyasını runner geçici dizinine al; arac/ kopyası (kök dosyaları içerir) build'e karışmasın diye kaldırılır.
-      - run: |
-          cp arac/.github/f2-arayuz/kucuk-resim-karsilastirma.harness.ts "$RUNNER_TEMP/kucuk-resim.harness.ts"
-          rm -rf arac
-          git status --porcelain | tee -a "$GITHUB_STEP_SUMMARY"
-          git log --oneline -1 | tee -a "$GITHUB_STEP_SUMMARY"
-      - uses: ./.github/actions/kurulum
-      - name: Playwright tarayıcıları (Chromium + Firefox + WebKit)
-        run: npx playwright install --with-deps chromium firefox webkit
-      - name: Next.js production build (main)
-        run: npx next build
-        env:
-          NODE_OPTIONS: --max-old-space-size=6144
-      - name: Tek sunucu (next start, 127.0.0.1:3984)
-        run: |
-          nohup node node_modules/next/dist/bin/next start -p 3984 -H 127.0.0.1 > "$RUNNER_TEMP/next-start.log" 2>&1 &
-          for i in $(seq 90); do [ "$(curl -s -o /dev/null -m 3 -w '%{http_code}' http://127.0.0.1:3984/settings)" = 200 ] && exit 0; sleep 2; done
-          cat "$RUNNER_TEMP/next-start.log"; exit 1
-      - name: Karşılaştırma — Kişisel Ofis önizlemeleri (main)
-        env:
-          UI_BASE: http://127.0.0.1:3984
-        run: |
-          set +e
-          K="$RUNNER_TEMP/ana"; mkdir -p "$K"
-          cp "$RUNNER_TEMP/kucuk-resim.harness.ts" scripts/workspace/.kucuk-resim.harness.ts
-          UI_ETIKET=main UI_OUT="$K/karsilastirma-main" npx tsx scripts/workspace/.kucuk-resim.harness.ts > "$K/karsilastirma-main.log" 2>&1
-          grep -a "KUCUK-RESIM" "$K/karsilastirma-main.log" | cut -c1-200 | tee -a "$GITHUB_STEP_SUMMARY"
-      - name: Kanıtlar (main karşılaştırma)
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: ana-karsilastirma-kanit
-          path: ${{ runner.temp }}/ana
-          if-no-files-found: warn
-          retention-days: 30
