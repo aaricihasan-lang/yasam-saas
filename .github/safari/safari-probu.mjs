@@ -19,7 +19,9 @@ const WEBP = Buffer.from("UklGRh4AAABXRUJQVlA4TBEAAAAvAQAAAAfQtT5Uq/+BiOh/AAA=",
 let yuklenen = -1;
 const html = `<!doctype html><meta charset="utf-8"><title>safari-probu</title><body>
 <h1>Safari probu</h1><input type="file" id="f"><img id="i"><canvas id="c" width="4" height="4"></canvas></body>`;
+const istekler = [];
 const srv = http.createServer((req, res) => {
+  istekler.push(`${req.method} ${req.headers.host} ${req.url}`);
   if (req.url === "/img.png") { res.writeHead(200, { "content-type": "image/png" }); return res.end(PNG); }
   if (req.url === "/img.webp") { res.writeHead(200, { "content-type": "image/webp" }); return res.end(WEBP); }
   if (req.url === "/up" && req.method === "PUT") {
@@ -29,7 +31,7 @@ const srv = http.createServer((req, res) => {
   }
   res.writeHead(200, { "content-type": "text/html; charset=utf-8" }); res.end(html);
 });
-await new Promise((r) => srv.listen(8123, "127.0.0.1", r));
+await new Promise((r) => srv.listen(8123, r)); // tüm yerel arayüzler (127.0.0.1 + ::1 / localhost)
 
 async function wd(method, path, body) {
   const r = await fetch(WD + path, { method, headers: { "content-type": "application/json" }, body: body ? JSON.stringify(body) : undefined });
@@ -64,6 +66,7 @@ try {
   await wd("POST", `/session/${sid}/timeouts`, { script: 15000 });
   await wd("POST", `/session/${sid}/url`, { url: "http://127.0.0.1:8123/" });
   log("2-sayfa", { baslik: await wd("GET", `/session/${sid}/title`), ua: await sync("return navigator.userAgent") });
+  log("3-data-png", await gorsel("data:image/png;base64," + PNG.toString("base64")));
   log("3-png", await gorsel("/img.png"));
   log("3-webp", await gorsel("/img.webp"));
   log("4-blob-png", await gorsel("/img.png", "image/png"));
@@ -83,13 +86,19 @@ try {
   } catch (e) {
     log("5-dosya", { hata: String(e).slice(0, 300), secim });
   }
+  log("7-kaynak-zamanlama", await sync("return performance.getEntriesByType('resource').map((e) => ({ ad: e.name.slice(-30), sure: Math.round(e.duration), durum: e.responseStatus }))"));
+  // localhost adıyla aynı ölçümler (127.0.0.1'e özgü bir kısıt var mı?)
+  await wd("POST", `/session/${sid}/url`, { url: "http://localhost:8123/" });
+  log("8-localhost-png", await gorsel("/img.png"));
+  log("8-localhost-blob-webp", await gorsel("/img.webp", "image/webp"));
+  log("9-sunucu-istekleri", istekler.slice(0, 40));
   const png = await wd("GET", `/session/${sid}/screenshot`);
   writeFileSync(join(OUT, "safari-probu.png"), Buffer.from(png, "base64"));
 } catch (e) {
   log("HATA", String(e).slice(0, 500));
 } finally {
   if (sid) await wd("DELETE", `/session/${sid}`).catch((e) => log("kapanis-hata", String(e)));
-  await new Promise((r) => setTimeout(r, 3000));
+  await new Promise((r) => setTimeout(r, 10000));
   let kalan = "";
   try { kalan = execSync("pgrep -fl 'Safari|WebDriver' || true", { encoding: "utf8" }).trim(); } catch { /* */ }
   const satir = kalan.split("\n").filter(Boolean);
