@@ -41,6 +41,7 @@ const F2_ALL_MIGRATIONS = ["20280103000000_auth_session_hardening_f2a.sql", "202
   "20280103000400_auth_email_otp_f2d.sql", "20280103000500_auth_account_recovery_f2e.sql"];
 const F2F_MIGRATION = "20280103000600_auth_purge_audit_retention_f2f.sql";
 const F2G_MIGRATION = "20280103000700_auth_owner_step_up_f2g.sql";
+const F2H_MIGRATION = "20280103000800_auth_audit_retention_disposal_f2h.sql";
 
 const TZ_SENSITIVE = new Set(["foundation", "word-tz", "dy", "backup", "hday"]);
 
@@ -155,6 +156,7 @@ const STEPS = [
   ["session-f2b-concurrency", "node", ["scripts/session-model/f2b-finalize-concurrency.mjs"]],
   ["session-f2e-concurrency", "node", ["scripts/session-model/f2e-recovery-concurrency.mjs"]],
   ["session-f2g-concurrency", "node", ["scripts/session-model/f2g-step-up-concurrency.mjs"]],
+  ["session-f2h-concurrency", "node", ["scripts/session-model/f2h-retention-concurrency.mjs"]],
   // GİRİŞ GÜVENLİĞİ F2-C: güvenilir Android cihazı (Owner onayı + cihaz imzası) + QR onay durum makinesi.
   ["pg:session-f2c", ...pg([F("session-model-fixture.sql"), F("session-f2a-fixture.sql"), F("session-f2b-fixture.sql"), F("session-f2c-fixture.sql"),
     M("20270129000200_user_sessions_expiry_touch.sql"), M("20271003200000_session_model_v2.sql"),
@@ -216,6 +218,11 @@ const STEPS = [
   ...["f2a", "f2b", "f2d"].map((x) => [`pg:session-${x}-on-f2g`, ...pg(
     [...F2_BASE_FIXTURES, ...(x === "f2a" ? [F("session-f2a-legacy-seed.sql")] : []), ...F2_ALL_MIGRATIONS.map(M), M(F2F_MIGRATION)],
     [F2G_MIGRATION], [`session-${x}-assert.sql`])]),
+  // GİRİŞ GÜVENLİĞİ F2-H: denetim kayıtları kontrollü imha / anonimleştirme (sentetik süre / gerekçe).
+  ["pg:session-f2h", ...pg([...F2_BASE_FIXTURES, ...F2_ALL_MIGRATIONS.map(M), M(F2F_MIGRATION), M(F2G_MIGRATION)], [F2H_MIGRATION], ["session-f2h-assert.sql"])],
+  // F2-G sözleşmesi (Owner kanıtı, saklama politikası kaydı) 000800 üstünde aynen. (F2-F'nin Owner senaryoları
+  // 000700'de bilinçli olarak değişti → session-f2f yalnız kendi zincirinde koşar.)
+  ["pg:session-f2g-on-f2h", ...pg([...F2_BASE_FIXTURES, ...F2_ALL_MIGRATIONS.map(M), M(F2F_MIGRATION)], [F2G_MIGRATION, F2H_MIGRATION], ["session-f2g-assert.sql"])],
 ];
 
 const only = process.argv.includes("--only") ? process.argv[process.argv.indexOf("--only") + 1] : null;
