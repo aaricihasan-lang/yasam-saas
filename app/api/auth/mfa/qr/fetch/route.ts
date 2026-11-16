@@ -34,7 +34,7 @@ export async function POST(req: NextRequest) {
     if (!dev.verifyPresence(qrFetchMessage(challengeId, qrNonce, deviceId, body?.ts as number), body?.signature)) return json({ code: "BAD_SIGNATURE" }, 400);
     const { data, error } = await db.rpc("auth_qr_fetch", { p_challenge_id: challengeId, p_qr_nonce: qrNonce, p_device_id: deviceId });
     if (error) return json({ code: "ERROR" }, 500);
-    const r = (data ?? {}) as { ok?: unknown; options?: unknown; user_agent?: unknown; created_at?: unknown; expires_at?: unknown };
+    const r = (data ?? {}) as { ok?: unknown; options?: unknown; user_agent?: unknown; created_at?: unknown; expires_at?: unknown; purpose?: unknown; action?: unknown };
     if (r.ok !== true || !Array.isArray(r.options)) return INVALID();
     return json({
       options: (r.options as unknown[]).map(String),
@@ -42,6 +42,9 @@ export async function POST(req: NextRequest) {
       city: null,
       createdAt: r.created_at,
       expiresAt: r.expires_at,
+      // F2-I: telefon isteğin amacını gösterir — "login" (giriş) veya "step_up" (Owner'ın kritik işlemi + işlem adı).
+      purpose: r.purpose === "step_up" ? "step_up" : "login",
+      ...(r.purpose === "step_up" && typeof r.action === "string" ? { action: r.action } : {}),
     }, 200);
   } catch {
     return json({ code: "ERROR" }, 500);

@@ -27,7 +27,7 @@ DECLARE
   r jsonb; s jsonb; n int; t text; odev uuid; adev uuid; xdev uuid; ldev uuid; ch uuid; ch2 uuid; cid uuid; nonce text; mc text; bh text;
 BEGIN
   -- Kurulum: Owner + uzmanlar e-posta doğrulanmış ve MFA zorunlu; Owner'ın aktif güvenilir telefonu; AND1'in telefonu.
-  UPDATE public.users SET email_verified_at = now() WHERE id IN (OWNER, EXP, AND1, VE);
+  UPDATE public.users SET email_verified_at = now() - interval '1 day' WHERE id IN (OWNER, EXP, AND1, VE);   -- oturumlardan önce doğrulanmış
   PERFORM set_config('yasam.mfa_policy', 'on', true);
   UPDATE public.users SET mfa_required = true WHERE id IN (OWNER, EXP, AND1, VE);
   PERFORM set_config('yasam.mfa_policy', 'off', true);

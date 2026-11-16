@@ -74,6 +74,11 @@ async function main() {
     ok(!r.ok && r.code === "oauth_invalid_grant" && !r.retryable, "invalid_grant → oauth_invalid_grant (Owner yeniden yetkilendirir)", r);
   }
   {
+    const { f, calls } = fakeFetch([{ status: 200, body: { access_token: "ya29.genis", expires_in: 3599, scope: `${GMAIL_SEND_SCOPE} https://mail.google.com/` } }]);
+    const r = await createGmailProvider(ENV, f)!.send(MSG);
+    ok(!r.ok && r.code === "oauth_error" && calls.length === 1, "F2-I: gmail.send dışında kapsamlı token KULLANILMAZ (gönderim yok)", r);
+  }
+  {
     const { f } = fakeFetch([{ status: 401, body: { error: "invalid_client" } }]);
     const r = await createGmailProvider(ENV, f)!.send(MSG);
     ok(!r.ok && r.code === "oauth_error", "token uç noktası başka hata → oauth_error", r);
@@ -125,6 +130,15 @@ async function main() {
   try { buildMimeMessage({ fromName: "x", fromAddress: "a@b.co", to: "c@d.co", subject: "s\r\nBcc: e@f.co", text: "t", html: "h" }); } catch { threw = true; }
   ok(threw, "konuda CR/LF → MIME kurulmaz");
   ok(encodeHeaderWord("Yaşam") === `=?UTF-8?B?${Buffer.from("Yaşam").toString("base64")}?=`, "RFC 2047 başlık kodlaması");
+  {
+    const long = "Güvenlik bildirimi — hesabınızın kurtarma kodları yenilendi; eski kodlar artık geçersiz (Yaşam Sistemi)";
+    const enc = encodeHeaderWord(long);
+    const words = enc.split("\r\n ");
+    const dec = words.map((w) => Buffer.from(/^=\?UTF-8\?B\?(.*)\?=$/.exec(w)?.[1] ?? "", "base64").toString("utf8")).join("");
+    ok(words.length > 1 && words.every((w) => w.length <= 75) && dec === long, "F2-I: uzun Türkçe konu — her kodlanmış kelime ≤ 75 karakter, içerik birebir", words.map((w) => w.length));
+    const mm = buildMimeMessage({ fromName: "Yaşam Sistemi", fromAddress: "a@b.co", to: "c@d.co", subject: long, text: "t", html: "h" });
+    ok(/\r\nSubject: =\?UTF-8\?B\?[^\r\n]+\?=\r\n =\?UTF-8/.test(mm), "F2-I: katlanmış Subject başlığı (devam satırı boşlukla)");
+  }
   const m = renderOtpEmail({ purpose: "login", code: "042917", name: "Ayşe", minutes: 3 });
   ok(m.subject.startsWith("042917 — ") && /giriş/i.test(m.text) && /3 dakika/.test(m.text) && /kimseyle paylaşmayın/i.test(m.text), "giriş şablonu (TR)", m.subject);
   ok(!/https?:\/\//.test(m.text + m.html) && !/<script|<img/i.test(m.html), "şablonda bağlantı / görsel / betik YOK");

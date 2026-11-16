@@ -48,15 +48,17 @@ eklenir. Değiştirilemezlik tetikleyicileri bu sürümde değiştirilmedi; hiç
 
 ## 4. Tek production yayını
 
-1. Ekleyici migration'lar (eski kod canlıyken): `000000` → `000100` → `000300` → `000400` → `000500` → `000600` → `000700`.
-2. **Birleştirme hazırlığı (zorunlu):** #797'nin dalı (`work/giris-guvenligi-f2c`) #799'un dalına normal merge ile alınır.
-   Ağaç değişmez; yalnız geçmiş birleşir. Bu yapılmazsa alttan-üste birleştirmede `lib/backup/schema.generated.ts` çakışır
-   (geçici klonda kanıtlandı).
-3. Zincir üstten aşağı birleştirilir: #806 → f2f, #803 → f2e, #802 → f2d, #799 → f2c, #797 → f2b, #795 → f2a; en son
-   #792 → main. Yöntem "merge commit" olmalı, squash kullanılmamalı. Geçici klonda: 7 adım çakışmasız, main'e tek commit
-   (tek Vercel deploy), sonuç ağacı main + F2-G birleşimiyle birebir.
-4. Canlı doğrulama: Owner + test hesapları; QR, e-posta kodu, kurtarma kodu, kritik işlem onayı.
-5. `000200` en son.
+1. Ekleyici migration'lar (eski kod canlıyken): `000000` → `000100` → `000300` → `000400` → `000500` → `000600` → `000700`
+   → `000800` → `000900` (güncel zincir: F2-H imha altyapısı + F2-I güvenlik düzeltmeleri; `pg:deploy-order-f2-*-full`).
+   Ardından `scripts/giris-guvenligi/f2-postflight-check.sql` salt-okunur çalıştırılır → PASS olmalı.
+2. **Birleştirme hazırlığı:** #797'nin dalı #799'un dalına normal merge ile alındı (`fcc9df0d`, 16.11 — TAMAM).
+3. Zincir üstten aşağı birleştirilir: F2-I → f2h, #808 → f2g, #806 → f2f, #803 → f2e, #802 → f2d, #799 → f2c,
+   #797 → f2b, #795 → f2a; en son #792 → main. Yöntem "merge commit" olmalı, squash kullanılmamalı. Geçici klonda
+   çakışmasız; main'e tek commit (tek Vercel deploy).
+4. Canlı doğrulama: Owner + test hesapları; QR, e-posta kodu, kurtarma kodu, kritik işlem onayı (telefonda "Kritik işlem
+   onayı" başlığı), parola sıfırlama onayı.
+5. `000200` en son; ardından postflight `SELECT set_config('f2.postflight_final','on',true)` ile yeniden → PASS.
+   **Uyarı:** hiçbir F2 migration'ı yeniden çalıştırılmamalı (Owner korumaları eski gövdeye döner; postflight yakalar).
 
 **Geri dönüş (rollback) — sentetik veritabanında kanıtlandı (`pg:deploy-order-f2-rollback`):**
 - `000200` yerindeyken eski koda dönülürse admin web girişi reddedilir (erişim kaybı).

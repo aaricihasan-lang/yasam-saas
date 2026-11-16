@@ -57,6 +57,10 @@ export function createGmailProvider(env: Env = process.env, fetchImpl: FetchLike
       // invalid_grant: yenileme token'ı iptal/süresi dolmuş → Owner yeniden yetkilendirmeli (zil bildirimi).
       return { ok: false, code: j.error === "invalid_grant" ? "oauth_invalid_grant" : "oauth_error" };
     }
+    // F2-I: verilen yetki kapsamı YALNIZ gmail.send olmalı (daha geniş kapsamlı token kullanılmaz; kurulum hatası).
+    if (typeof j.scope === "string" && j.scope.split(/\s+/).filter(Boolean).some((s) => s !== GMAIL_SEND_SCOPE)) {
+      return { ok: false, code: "oauth_error" };
+    }
     const ttl = Number(j.expires_in);
     access = { token: j.access_token, until: Date.now() + Math.max(60, (Number.isFinite(ttl) ? ttl : 3600) - 60) * 1000 };
     return { ok: true, token: j.access_token };

@@ -61,6 +61,9 @@ export async function POST(req: NextRequest, ctx: RouteContext) {
       if (error) return json({ error: "Cihaz iptal edilemedi." }, 500);
       const r = (data ?? {}) as { ok?: unknown; code?: unknown; sessions_closed?: unknown };
       if (r.ok === true) return json({ ok: true, sessionsClosed: Number(r.sessions_closed) || 0 }, 200);
+      if (r.code === "fresh_mfa_required") {
+        return json({ code: "FRESH_MFA_REQUIRED", error: "Başkasının cihazını iptal etmek için çıkış yapıp yeniden giriş yapın (son 30 dakika içinde ikinci doğrulamayla açılmış oturum gerekir)." }, 403);
+      }
       return json({ code: String(r.code ?? "error"), error: "Cihaz bulunamadı veya yetki yok." }, 404);
     }
     return json({ error: "Geçersiz işlem." }, 400);

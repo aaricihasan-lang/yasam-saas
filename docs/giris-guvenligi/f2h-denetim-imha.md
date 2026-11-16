@@ -23,7 +23,10 @@ girilmeden önizleme ve imha yapılamaz. Bu sürüm hiçbir süreyi dayatmaz, hi
    - Hata olursa işlem geri alınır, durum `failed` olur; kısmi imha olmaz.
    - Paralel ikinci yürütme reddedilir.
 4. **Yasal saklama:**
-   - Kişi veya cihaz bazında. Saklamadaki kayıtlar imha edilmez.
+   - Kişi veya cihaz bazında. Saklamadaki kayıtlar imha edilmez. Kişi saklaması, kişinin cihazlarına ait kararları ve
+     ayrıntı / metadata alanında kişinin kimliği geçen kayıtları da kapsar (F2-I).
+   - Kalıcı uzman silme (Owner parolası ile) `security_events` satırlarını yasal saklamaya bakmadan siler (mevcut Owner
+     silme politikası; değişikliği Owner kararıdır).
    - Saklamaya almak serbesttir; kaldırmak ek doğrulama ister.
    - İkisi de açık önizlemeleri geçersiz kılar.
 
@@ -32,11 +35,17 @@ girilmeden önizleme ve imha yapılamaz. Bu sürüm hiçbir süreyi dayatmaz, hi
 | Yöntem | `auth_recovery_events` | `auth_device_decisions` | `security_events` |
 |---|---|---|---|
 | Silme | Satır silinir | Satır silinir | Satır silinir |
-| Anonimleştirme | Kişi kimliği sıfır kimlik, aktör yok, ayrıntı boş; olay türü ve tarih kalır | Cihaz ve aktör kimliği sıfır, not boş; karar türü ve tarih kalır | İzin yok |
+| Anonimleştirme | Kişi kimliği sıfır kimlik, aktör yok, ayrıntı boş; olay türü ve tarih (güne yuvarlanır) kalır | Cihaz ve aktör kimliği sıfır, not boş; karar türü ve tarih (güne yuvarlanır) kalır | İzin yok |
+
+**Sınır (F2-I):** Anonimleştirilen satır, kişiyle aynı güne ait başka tablolardaki kayıtlarla (ör. güvenlik olayları,
+cihaz kaydındaki karar tarihi) **gün düzeyinde** ilişkilendirilebilir. Tam anonimlik için ilgili tabloların da imha
+edilmesi gerekir; aksi halde sonuç "takma adlandırma"dır. Bu, hukuki kararda dikkate alınmalıdır.
 
 ## Değiştirilemezlik
 
-Denetim tabloları sıradan işlemlere (veritabanı yöneticisi dahil) kapalı kalır. Tetikleyici yalnız şu durumda izin verir:
+Denetim tabloları sıradan işlemlere (sunucu rolü ve olağan veritabanı oturumları dahil) kapalı kalır. Tabloların sahibi
+olan süper kullanıcı tetikleyiciyi devre dışı bırakabilir; bu teknik olarak engellenemez ve yalnız yayın / bakım
+yetkisinde olmalıdır. Tetikleyici yalnız şu durumda izin verir:
 - Bu işlemde yürüyen bir imha çalıştırması var (işlem kimliğine bağlı bağlam; API rolüne kapalı),
 - çalıştırma bu tablo içindir,
 - satır kesim tarihinden eskidir,

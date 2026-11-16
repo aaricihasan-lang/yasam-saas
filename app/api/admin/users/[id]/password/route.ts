@@ -58,6 +58,25 @@ export async function POST(req: NextRequest, ctx: RouteContext) {
   // gider; hiçbir yere loglanmaz.
   const pw = validateNewPassword(body.value.newPassword);
   if (!pw.ok) return jsonNoStore({ ok: false, error: pw.error }, pw.status);
+  // GİRİŞ GÜVENLİĞİ F2-I: MFA kullanan Owner için işleme özel kanıt (telefon QR / e-posta kodu). Çalınmış Owner
+  // çerezi tek başına parola sıfırlayıp hesabı devralamaz. MFA kullanmayan Owner'da davranış değişmez (DB kararı).
+  if (!guard.sessionToken) return jsonNoStore({ ok: false, error: "Oturum doğrulanamadı." }, 401);
+  const { data: take, error: takeError } = await db.rpc("auth_owner_step_up_take", {
+    p_actor_token: guard.sessionToken, p_action: "password_reset", p_target: id,
+  });
+  if (takeError) return jsonNoStore({ ok: false, error: "Parola güncellenemedi." }, 500);
+  const t = (take ?? {}) as { ok?: unknown; code?: unknown; action?: unknown; target?: unknown };
+  if (t.ok !== true) {
+    if (t.code === "step_up_required") {
+      return jsonNoStore({ ok: false, code: "STEP_UP_REQUIRED", action: t.action, target: t.target,
+        error: "Bu işlem için telefonunuzdan (QR) veya e-postanıza gelen kodla ek doğrulama gerekiyor." }, 403);
+    }
+    if (t.code === "fresh_mfa_required") {
+      return jsonNoStore({ ok: false, code: "FRESH_MFA_REQUIRED",
+        error: "Güvenliğiniz için çıkış yapıp yeniden giriş yapın (son 30 dakika içinde ikinci doğrulamayla açılmış oturum gerekir)." }, 403);
+    }
+    return jsonNoStore({ ok: false, error: "Bu işlem yalnız Owner'a açıktır." }, 403);
+  }
 
   // Server-side bcrypt hash (pgcrypto RPC).
   const { data: hashResult, error: hashError } = await db.rpc("hash_password", {
