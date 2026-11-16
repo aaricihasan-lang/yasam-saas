@@ -92,6 +92,8 @@ try {
   await new Promise((r) => setTimeout(r, 3000));
   let kalan = "";
   try { kalan = execSync("pgrep -fl 'Safari|WebDriver' || true", { encoding: "utf8" }).trim(); } catch { /* */ }
-  log("6-surec", { kalan: kalan.split("\n").filter(Boolean) });
+  const satir = kalan.split("\n").filter(Boolean);
+  // Safari'nin kendi tarayıcı süreci (Safari.app/Contents/MacOS/Safari) kalmamalı; WebDriver/uzantı XPC hizmetleri macOS sistem hizmetleridir.
+  log("6-surec", { safariAnaSurecKaldi: satir.some((l) => /Safari\.app\/Contents\/MacOS\/Safari(\s|$)/.test(l)), digerHizmetSayisi: satir.length, ornek: satir.map((l) => l.slice(0, 140)).slice(0, 6) });
   srv.close();
 }
