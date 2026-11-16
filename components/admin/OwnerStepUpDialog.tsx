@@ -137,7 +137,7 @@ export default function OwnerStepUpDialog({
             ) : (
               <form onSubmit={(e) => { e.preventDefault(); void email("email_verify"); }} className="space-y-2">
                 <input data-testid="step-up-email-code" value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                  inputMode="numeric" autoComplete="one-time-code" maxLength={6} aria-label="Onay kodu" placeholder="6 haneli kod"
+                  inputMode="numeric" autoComplete="one-time-code" aria-label="Onay kodu" placeholder="6 haneli kod"
                   className="h-10 w-full rounded-lg border border-slate-300 text-center font-mono text-lg tracking-[0.3em]" />
                 <button type="submit" data-testid="step-up-email-verify" disabled={busy || code.length !== 6}
                   className="w-full rounded-lg bg-violet-600 px-3 py-2 text-xs font-bold text-white disabled:opacity-60">Kodu doğrula</button>

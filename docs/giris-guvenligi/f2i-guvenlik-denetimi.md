@@ -20,6 +20,8 @@ Migration: `supabase/migrations/20280103000900_auth_security_hardening_f2i.sql` 
 | `session-f2i-hold-race` (iki bağlantı) | — | 11/0, kilitlenme yok |
 | `pg:f2-postflight` (yayın sonrası doğrulama) | eski migration yeniden çalıştırılınca FAIL (4 madde) | PASS |
 | `purge-senaryolari` (kalıcı silme, HD eğitim RESTRICT) | — | 19/0 |
+| `f2i-mobil-ui` (Chrome, Edge, iPhone WebKit HTTPS, Android, 320 px) | yapıştırma FAIL ("90") | 55/0 |
+| F2-C / D / E / G tarayıcı testleri, tam zincir (000900) | — | 36 / 48 / 68 / 16, hepsi 0 FAIL |
 
 ## Bulgular ve düzeltmeler
 
@@ -38,6 +40,8 @@ Migration: `supabase/migrations/20280103000900_auth_security_hardening_f2i.sql` 
 | I11 | LOW | `auth_retention_table_uuid` anon rolüne açıktı (zararsız md5). | Yalnız sunucu rolü. |
 | G1 | LOW | Gmail yanıtındaki yetki kapsamı denetlenmiyordu. | Yalnız `gmail.send` kapsamlı token kullanılır. |
 | G2 | LOW | Uzun Türkçe konu satırı RFC 2047 sınırını (75 karakter) aşıyordu. | Kodlanmış kelimeler bölünür ve katlanır. |
+| U1 | MEDIUM (kullanılabilirlik) | Kod alanlarındaki `maxLength={6}`, boşluklu yapıştırılan kodu (düz metin e-postadaki satır "    123456") temizlemeden önce kesiyordu ("    904 136" → "90"). 4 alanda (giriş, Owner onayı, Ayarlar doğrulama, e-posta değişikliği) geçerliydi. Tarayıcıda yeniden üretildi. | Sınır kaldırıldı; değer zaten yalnız rakamlara ve 6 haneye indiriliyor. |
+| U2 | LOW (kullanılabilirlik) | Ağ hatasında doğru kod alandan siliniyordu. | Bağlantı hatasında kod korunur; bağlantı gelince aynı kodla giriş yapılır. |
 | M3 | MEDIUM (işletim) | Eski bir F2 migration'ı yanlışlıkla yeniden çalıştırılırsa Owner korumalı fonksiyonlar sessizce korumasız sürüme döner. | `scripts/giris-guvenligi/f2-postflight-check.sql` (salt-okunur) yayından sonra çalıştırılır ve bu durumu yakalar. |
 
 Android tarafında (entegrasyon dalı) ek olarak şunlar yapıldı:

@@ -180,7 +180,6 @@ export default function MyLoginMethodsPanel({ userId }: { userId: string }) {
                 onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
                 inputMode="numeric"
                 autoComplete="one-time-code"
-                maxLength={6}
                 aria-label="Doğrulama kodu"
                 placeholder="6 haneli kod"
                 className="h-9 w-32 rounded-lg border border-slate-300 px-2 text-center font-mono text-base tracking-[0.3em]"

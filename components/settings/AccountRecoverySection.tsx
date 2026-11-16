@@ -318,7 +318,7 @@ export default function AccountRecoverySection({
         ) : (
           <form className="mt-2 space-y-2" onSubmit={(e) => { e.preventDefault(); void confirmEmail(); }}>
             <input data-testid="email-change-code" value={emailCode} onChange={(e) => setEmailCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
-              inputMode="numeric" autoComplete="one-time-code" maxLength={6} aria-label="Doğrulama kodu" placeholder="6 haneli kod"
+              inputMode="numeric" autoComplete="one-time-code" aria-label="Doğrulama kodu" placeholder="6 haneli kod"
               className={`${input} text-center font-mono tracking-[0.3em]`} />
             <button type="submit" data-testid="email-change-confirm" disabled={busy !== null || emailCode.length !== 6} className={`${primary} w-full`}>
               {busy === "email-confirm" && <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />} Doğrula ve adresi değiştir

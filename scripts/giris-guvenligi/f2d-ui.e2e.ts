@@ -153,6 +153,11 @@ async function main() {
       VALUES ('${U.owner}', 'f2d-ui-owner-mfa', true, 'desktop_web', 'admin', now() + interval '1 day', 'qr_device');
       SELECT set_config('yasam.mfa_finalize','off',false);`);
     const enr = (await q(`SELECT public.auth_device_enroll_begin($1, repeat('A', 120), encode(sha256('f2d-ui-k'::bytea), 'hex'), 'ABCD-EFGH', 'Pixel 8', 34, '2.0.0', 'iph', NULL) AS r`, [VE2.id])).rows[0].r;
+    // F2-G (000700) sonrası Owner cihaz onayı işleme özel kanıt ister: Owner'ın telefonu (yerel test) QR ile onaylar.
+    const oDev = (await q(`INSERT INTO public.auth_trusted_devices (user_id, public_key_spki, key_fingerprint, display_code, state, activated_at)
+      VALUES ($1, repeat('O', 120), encode(sha256('f2d-ui-owner-phone'::bytea), 'hex'), 'OWNR-PHON', 'active', now()) RETURNING id`, [U.owner])).rows[0].id;
+    const su = (await q(`SELECT public.auth_owner_step_up_begin('f2d-ui-owner-mfa', 'device_approve', $1) AS r`, [enr.device_id])).rows[0].r;
+    if (su?.ok === true) await q(`SELECT public.auth_qr_decide($1, $2, $3, 'approve', $4)`, [su.challenge_id, su.qr_nonce, oDev, su.match_code]);
     await q(`SELECT public.auth_device_owner_decide('f2d-ui-owner-mfa', $1, 'approve', true, 'telefon', NULL)`, [enr.device_id]);
     await q(`SELECT public.auth_device_activate($1, (SELECT activation_nonce FROM public.auth_trusted_devices WHERE id = $1))`, [enr.device_id]);
     await q(`UPDATE public.users SET email_verified_at = now() WHERE id = $1`, [VE2.id]);
