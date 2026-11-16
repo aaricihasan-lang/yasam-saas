@@ -54,9 +54,12 @@ async function bekle(script, args = [], ms = 15000) {
 const BASLAT = `window.__s = null; const [src, blobType] = arguments;
   const yukle = (u, n) => { const i = document.getElementById('i'); i.removeAttribute('src');
     i.onload = () => { const r = { e: 'load', w: i.naturalWidth, h: i.naturalHeight, boyut: n, src: i.src.slice(0, 5) };
-      try { const c = document.getElementById('c'); const x = c.getContext('2d'); x.clearRect(0, 0, 4, 4); x.drawImage(i, 0, 0); r.piksel = Array.from(x.getImageData(0, 0, 1, 1).data); }
-      catch (e) { r.cizimHata = String(e && e.name || '') + ': ' + String(e && e.message || e); }
-      window.__s = r; };
+      i.decode().catch(() => undefined).then(() => {
+        try { const c = document.createElement('canvas'); c.width = 4; c.height = 4; const x = c.getContext('2d'); x.drawImage(i, 0, 0); r.piksel = Array.from(x.getImageData(0, 0, 1, 1).data); }
+        catch (e) { r.cizimHata = String(e && e.name || '') + ': ' + String(e && e.message || e); }
+        try { const c2 = document.createElement('canvas'); c2.width = 4; c2.height = 4; c2.getContext('2d').fillRect(0, 0, 1, 1); r.bosCanvasOkuma = Array.from(c2.getContext('2d').getImageData(0, 0, 1, 1).data); }
+        catch (e) { r.bosCanvasHata = String(e && e.name || '') + ': ' + String(e && e.message || e); }
+        window.__s = r; }); };
     i.onerror = () => { window.__s = { e: 'error', w: i.naturalWidth, boyut: n, src: i.src.slice(0, 5) }; };
     i.src = u; };
   if (!blobType) yukle(src, null);
@@ -93,8 +96,8 @@ try {
     await wd("POST", `/session/${sid}/element/${id}/value`, { text: dosya });
     secim = await sync("const f = document.getElementById('f').files[0]; return f ? { ad: f.name, boyut: f.size, tur: f.type } : null");
     const varyantlar = {};
-    for (const [ad, govde, yontem] of [["string", "'x'.repeat(92)", "PUT"], ["arraybuffer", "new Uint8Array(92).buffer", "PUT"], ["blob-dilim", "f.slice(0, f.size)", "PUT"], ["dosya", "f", "PUT"], ["post-blob", "f.slice(0, f.size)", "POST"]]) {
-      await sync(`window.__u = null; const f = document.getElementById('f').files[0]; fetch('/up?' + arguments[0], { method: arguments[1], headers: { 'content-type': 'application/octet-stream' }, body: ${govde} }).then((r) => r.json()).then((j) => { window.__u = j; }).catch((e) => { window.__u = { hata: String(e) }; }); return true;`, [ad, yontem]);
+    for (const [ad, govde, yontem] of [["string", "'x'.repeat(92)", "PUT"], ["arraybuffer", "new Uint8Array(92).buffer", "PUT"], ["bellek-blob", "new Blob([new Uint8Array(92)], { type: 'application/octet-stream' })", "PUT"], ["bellek-blob-dilim", "new Blob([new Uint8Array(92)]).slice(0, 92)", "PUT"], ["dosya-okunup-arraybuffer", "await f.arrayBuffer()", "PUT"], ["dosya-okunup-blob", "new Blob([await f.arrayBuffer()])", "PUT"], ["blob-dilim", "f.slice(0, f.size)", "PUT"], ["dosya", "f", "PUT"], ["post-blob", "f.slice(0, f.size)", "POST"]]) {
+      await sync(`window.__u = null; const [ad, yontem] = arguments; const f = document.getElementById('f').files[0]; (async () => fetch('/up?' + ad, { method: yontem, headers: { 'content-type': 'application/octet-stream' }, body: ${govde} }))().then((r) => r.json()).then((j) => { window.__u = j; }).catch((e) => { window.__u = { hata: String(e) }; }); return true;`, [ad, yontem]);
       varyantlar[ad] = await bekle("return window.__u;");
     }
     log("5-dosya", { secim, istemciYanitlari: varyantlar, beklenen: PNG.length });
