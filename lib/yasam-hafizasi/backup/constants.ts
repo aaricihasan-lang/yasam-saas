@@ -127,6 +127,9 @@ export const TABLE_POLICY_OVERRIDES: Readonly<Record<string, RestorePolicy>> = {
   auth_trusted_devices: "DO_NOT_RESTORE",
   auth_device_decisions: "DO_NOT_RESTORE",
   auth_owner_bootstrap_codes: "DO_NOT_RESTORE",
+  // GİRİŞ GÜVENLİĞİ F2-D: e-posta kodu / gönderim kaydı → asla restore edilmez.
+  auth_email_otps: "DO_NOT_RESTORE",
+  auth_email_deliveries: "DO_NOT_RESTORE",
 };
 
 /**

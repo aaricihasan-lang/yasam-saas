@@ -1,0 +1,76 @@
+import { NextRequest, NextResponse } from "next/server";
+import { verifyAdminRequest } from "@/lib/auth/adminGuard";
+import { getEmailProvider } from "@/lib/email/provider";
+import { renderOtpEmail } from "@/lib/email/templates/otpEmail";
+import { EMAIL_DAILY_LIMIT_DEFAULT, EMAIL_WARN_AT_DEFAULT, emailOtpConfigured, hashRecipient, otpPepper } from "@/lib/auth/emailOtp";
+
+export const runtime = "nodejs";
+
+const NO_STORE = { "Cache-Control": "no-store" } as const;
+const json = (body: Record<string, unknown>, status: number) => NextResponse.json(body, { status, headers: NO_STORE });
+
+/**
+ * GİRİŞ GÜVENLİĞİ F2-D — Owner e-posta gönderim durumu ve test gönderimi.
+ * Yetki DB'de (auth_email_status / auth_email_owner_test_reserve: yalnız is_super_admin Owner).
+ * Gizli değer, alıcı adresi veya kod DÖNMEZ; yapılandırma yalnız var/yok olarak gösterilir.
+ *
+ * GET  → { configured, provider, limits, last_24h, last_failure, last_success_at, verified_users }
+ * POST { action: "test" } → Owner'ın KENDİ adresine test iletisi (kod içermez; saatte ≤5).
+ * POST { action: "ack" }  → açık "e-posta uyarısı" bildirimlerini kapatır (sorun giderildikten sonra).
+ */
+export async function GET(req: NextRequest) {
+  const guard = await verifyAdminRequest(req);
+  if (!guard.ok) return guard.response;
+  if (!guard.sessionToken) return json({ error: "Oturum doğrulanamadı." }, 401);
+  const { data, error } = await guard.db.rpc("auth_email_status", { p_actor_token: guard.sessionToken });
+  if (error) return json({ error: "Durum alınamadı." }, 500);
+  const r = (data ?? {}) as Record<string, unknown>;
+  if (r.ok !== true) return json({ error: "Bu bilgi yalnız Owner'a açıktır." }, 403);
+  const provider = getEmailProvider();
+  return json({
+    configured: emailOtpConfigured(),
+    provider: provider?.name ?? null,
+    pepperConfigured: !!otpPepper(),
+    limits: {
+      dailyLimit: Number(process.env.EMAIL_DAILY_LIMIT ?? EMAIL_DAILY_LIMIT_DEFAULT) || EMAIL_DAILY_LIMIT_DEFAULT,
+      warnAt: Number(process.env.EMAIL_WARN_AT ?? EMAIL_WARN_AT_DEFAULT) || EMAIL_WARN_AT_DEFAULT,
+    },
+    last24h: r.last_24h ?? null,
+    lastFailure: r.last_failure ?? null,
+    lastSuccessAt: r.last_success_at ?? null,
+    verifiedUsers: r.verified_users ?? 0,
+    openAlerts: Array.isArray(r.open_alerts) ? r.open_alerts : [],
+  }, 200);
+}
+
+export async function POST(req: NextRequest) {
+  const guard = await verifyAdminRequest(req);
+  if (!guard.ok) return guard.response;
+  if (!guard.sessionToken) return json({ error: "Oturum doğrulanamadı." }, 401);
+  const body = (await req.json().catch(() => null)) as { action?: unknown } | null;
+  if (body?.action === "ack") {
+    const { data, error } = await guard.db.rpc("auth_email_alerts_ack", { p_actor_token: guard.sessionToken });
+    const r = (data ?? {}) as { ok?: unknown; closed?: unknown };
+    if (error) return json({ error: "Uyarılar kapatılamadı." }, 500);
+    if (r.ok !== true) return json({ error: "Bu işlem yalnız Owner'a açıktır." }, 403);
+    return json({ ok: true, closed: Number(r.closed) || 0 }, 200);
+  }
+  if (body?.action !== "test") return json({ error: "Geçersiz işlem." }, 400);
+  const provider = getEmailProvider();
+  const pepper = otpPepper();
+  if (!provider || !pepper) return json({ code: "NOT_CONFIGURED", error: "E-posta sağlayıcısı yapılandırılmamış." }, 503);
+  const { data: me } = await guard.db.from("users").select("email, name").eq("id", guard.adminId).maybeSingle();
+  const email = typeof (me as { email?: unknown } | null)?.email === "string" ? String((me as { email: string }).email) : "";
+  if (!email) return json({ error: "Owner e-posta adresi yok." }, 400);
+  const toHash = hashRecipient(email, pepper);
+  const { data, error } = await guard.db.rpc("auth_email_owner_test_reserve", { p_actor_token: guard.sessionToken, p_to_hash: toHash, p_provider: provider.name });
+  if (error) return json({ error: "Test başlatılamadı." }, 500);
+  const r = (data ?? {}) as { ok?: unknown; code?: unknown; delivery_id?: unknown };
+  if (r.ok !== true) return json({ error: r.code === "rate_limited" ? "Saatte en fazla 5 test gönderilebilir." : "Bu işlem yalnız Owner'a açıktır." }, r.code === "rate_limited" ? 429 : 403);
+  const mail = renderOtpEmail({ purpose: "owner_test", name: (me as { name?: string } | null)?.name ?? null });
+  const sent = await provider.send({ to: email, subject: mail.subject, text: mail.text, html: mail.html, category: "owner_test" });
+  await guard.db.rpc("auth_email_delivery_result", {
+    p_delivery_id: Number(r.delivery_id), p_ok: sent.ok, p_error_code: sent.ok ? null : sent.code, p_provider_message_id: sent.ok ? sent.providerMessageId : null,
+  });
+  return sent.ok ? json({ ok: true }, 200) : json({ ok: false, code: sent.code, error: "Test iletisi gönderilemedi." }, 503);
+}

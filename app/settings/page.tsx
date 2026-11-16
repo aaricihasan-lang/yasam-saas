@@ -38,6 +38,7 @@ import { getUserLocationPref, saveUserLocationPref, type UserLocationPref } from
 import { BackupTab, ExportTab, RestoreTab } from "./BackupSections";
 import { MembershipSettingsTab, MEMBERSHIP_TAB_ICON } from "./MembershipSettingsTab";
 import MySessionsPanel from "@/components/settings/MySessionsPanel";
+import MyLoginMethodsPanel from "@/components/settings/MyLoginMethodsPanel";
 import { WorkspaceSettingsTab, useWorkspaceAccess } from "./WorkspaceSettingsTab";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -226,6 +227,7 @@ function SecurityTabWithSessions({ user }: { user: YasamUser }) {
   return (
     <div className="w-full">
       <SecurityTab user={user} />
+      <MyLoginMethodsPanel userId={String(user.id)} />
       <MySessionsPanel userId={String(user.id)} />
     </div>
   );

@@ -549,6 +549,10 @@ export const BACKUP_REGISTRY: readonly RegistryEntry[] = [
   off("auth_trusted_devices", "system", "Güvenilir Android cihazı kayıtları (güvenlik).", "none"),
   off("auth_device_decisions", "system", "Cihaz eşleştirme karar kaydı (güvenlik; değiştirilemez).", "none"),
   off("auth_owner_bootstrap_codes", "system", "Owner ilk cihaz kodları (güvenlik; tek kullanımlık).", "none"),
+  // GİRİŞ GÜVENLİĞİ F2-D (migration 20280103000400): e-posta kodu özetleri (HMAC) ve gönderim kaydı (alıcı
+  // özeti). Geri yükleme kullanılmış/kilitli bir kodu canlandırabilir veya kota sayacını sıfırlayabilirdi.
+  off("auth_email_otps", "system", "E-posta doğrulama kodu özetleri (güvenlik; kısa ömürlü).", "none"),
+  off("auth_email_deliveries", "system", "Doğrulama e-postası gönderim kaydı (kota/denetim; adres yok).", "none"),
   // Migration 20271009100000: purge transaction'ına bağlı işaret; aynı tx'te yazılıp silinir, hiçbir role açık değil.
   off("session_limit_exceptions", "system", "Geçici test hesabı oturum-limiti istisnası (TEMPORARY — satış sonrası kaldırılacak).", "none"),
   off("auth_rate_limit_events", "system", "Global DB tabanlı istek hız sınırı olayları (güvenlik).", "none"),

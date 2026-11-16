@@ -31,7 +31,7 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
  * Sunulabilecek ikinci doğrulama yöntemleri. F2-C: qr_device (güvenilir Android cihazı + QR).
  * F2-D (email_otp) eklendiğinde buraya girer. Sunulması ayrıca AUTH_MFA_METHODS + kapsam bayrağına bağlı.
  */
-export const IMPLEMENTED_MFA_METHODS: readonly string[] = ["qr_device"];
+export const IMPLEMENTED_MFA_METHODS: readonly string[] = ["qr_device", "email_otp"];
 
 export type MfaMethodScope = "test_accounts" | "all";
 
@@ -53,6 +53,29 @@ export function resolveOfferedMfaMethods(
   const scope: MfaMethodScope = String(env.AUTH_MFA_METHOD_SCOPE ?? "").trim().toLowerCase() === "all" ? "all" : "test_accounts";
   if (scope === "test_accounts" && !isTestAccount) return [];
   return IMPLEMENTED_MFA_METHODS.filter((m) => enabled.has(m));
+}
+
+/**
+ * F2-D: kullanıcıya göre sunulan yöntemler. Bayraklarla açık olsa bile:
+ *   qr_device → kullanıcının AKTİF güvenilir cihazı varsa; email_otp → e-posta DOĞRULANMIŞ + sağlayıcı ve
+ *   pepper yapılandırılmış + rol izinli (AUTH_MFA_EMAIL_ROLES). Boş liste = giriş YOK (parolaya düşülmez).
+ */
+export async function resolveUserMfaMethods(
+  db: SupabaseClient,
+  args: { userId: string; role: string; isTestAccount: boolean; emailConfigured: boolean; emailRoleAllowed: boolean },
+  env: Record<string, string | undefined> = process.env,
+): Promise<string[]> {
+  const flags = resolveOfferedMfaMethods(args.isTestAccount, env);
+  if (flags.length === 0) return [];
+  const { data, error } = await db.rpc("auth_mfa_user_methods", { p_user_id: args.userId });
+  // 000400 henüz uygulanmamışsa (veya okuma hatası) F2-C davranışı: yalnız QR (cihaz imzası yine şart;
+  // e-posta asla bu yoldan sunulmaz). Kod migration'dan önce yayına çıksa da zorunlu kullanıcı kilitlenmez.
+  if (error || !data || typeof data !== "object") return flags.filter((f) => f === "qr_device");
+  const m = data as { has_device?: unknown; email_verified?: unknown };
+  return flags.filter((f) =>
+    f === "qr_device" ? m.has_device === true
+      : f === "email_otp" ? m.email_verified === true && args.emailConfigured && args.emailRoleAllowed
+        : false);
 }
 
 export function newMfaBindingSecret(): string {

@@ -17,7 +17,8 @@ export type OwnerNotificationType =
   | "odeme"
   | "deneme_basladi"
   | "deneme_bitti"
-  | "cihaz_eslesme";
+  | "cihaz_eslesme"
+  | "eposta_uyari";
 
 export type OwnerNotificationItem = {
   id: number;
@@ -51,6 +52,7 @@ export const OWNER_NOTIFICATION_TYPES: readonly OwnerNotificationType[] = [
   "deneme_basladi",
   "deneme_bitti",
   "cihaz_eslesme",
+  "eposta_uyari",
 ];
 
 /** Bildirim başlığı (ad okuma anında eklenir). */
@@ -63,6 +65,7 @@ export const OWNER_NOTIFICATION_TITLE: Record<OwnerNotificationType, string> = {
   deneme_basladi: "7 günlük denemeye başladı",
   deneme_bitti: "deneme süresi doldu — kayıtları korunuyor",
   cihaz_eslesme: "güvenilir telefon eşleştirme isteği",
+  eposta_uyari: "doğrulama e-postası gönderim uyarısı",
 };
 
 /** Karar satırının alt açıklaması ve düğme metni. */
@@ -73,6 +76,7 @@ export const OWNER_ACTION_HINT: Partial<Record<OwnerNotificationType, { sub: str
   eski_kayit: { sub: "Modüllere erişemiyor; owner kararı gerekir", go: "İncele" },
   odeme: { sub: "Ödeme kaydını kontrol edin", go: "Kontrol et" },
   cihaz_eslesme: { sub: "Uzmanı kayıtlı numarasından arayın; kodu O okusun", go: "Doğrula" },
+  eposta_uyari: { sub: "Kota veya Google bağlantı sorunu; QR yöntemi etkilenmez", go: "Durumu gör" },
 };
 
 export const OWNER_NOTIFICATION_TYPE_LABEL: Record<OwnerNotificationType, string> = {
@@ -84,6 +88,7 @@ export const OWNER_NOTIFICATION_TYPE_LABEL: Record<OwnerNotificationType, string
   deneme_basladi: "Deneme başladı",
   deneme_bitti: "Deneme bitti",
   cihaz_eslesme: "Cihaz eşleştirme",
+  eposta_uyari: "E-posta gönderimi",
 };
 
 export const OWNER_NOTIFICATION_RESOLUTION_LABEL: Record<string, string> = {
