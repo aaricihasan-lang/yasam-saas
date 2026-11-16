@@ -183,8 +183,11 @@ function rpc(name: string, b: Row): unknown {
       let activated = false;
       if (u.trial_kind && u.trial_status === "not_started" && !u.trial_started_at) {
         u.trial_status = "active";
-        u.trial_started_at = iso(Date.now());
-        u.trial_ends_at = iso(Date.now() + 168 * HOUR);
+        // Gerçek RPC gibi TEK an: PostgreSQL now() işlem boyunca sabittir (20280101000000_trial7_self_trial.sql).
+        // İki ayrı Date.now() arasında milisaniye değişirse pencere 168 sa + 1 ms olup L2'yi yanlışlıkla düşürüyordu.
+        const t = Date.now();
+        u.trial_started_at = iso(t);
+        u.trial_ends_at = iso(t + 168 * HOUR);
         activated = true;
       }
       return { ok: true, activated, trial_kind: u.trial_kind, trial_status: u.trial_status, phase: phaseOf(u), trial_started_at: u.trial_started_at, trial_ends_at: u.trial_ends_at, server_now: iso(Date.now()) };
