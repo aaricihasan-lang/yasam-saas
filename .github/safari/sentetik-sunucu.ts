@@ -45,12 +45,15 @@ let lp: typeof import("../../lib/profile/schema") | null = null;
 let ls: typeof import("../../lib/profile/logoSchema") | null = null;
 
 async function sifirla(s: Senaryo) {
-  senaryo = s;
-  ws = createWorkspaceMock({ enabled: s !== "erisim-kapali", demo: s === "demo" });
-  ids = {};
+  // Sayaçlar ÖNCE sıfırlanır (tohumlama hata verse bile önceki senaryonun kayıtları taşınmaz).
+  senaryo = s; surum = 1; silmeler.length = 0; yazmalar.length = 0; enjekte = {}; ids = {};
+  // Demo: UI hiçbir yazma göndermemeli — bu, yazmalar[] ile ölçülür. Görseller normal (demo olmayan) arka uçla tohumlanır
+  // (demo arka ucu yüklemeyi doğru biçimde reddettiği için tohumlama yapılamaz); ui-logo D bölümüyle aynı kurulum.
+  ws = createWorkspaceMock({ enabled: s !== "erisim-kapali" });
   if (s !== "erisim-kapali") for (const [ad, b] of await fikstur()) ids[ad] = await ws.seedAsset("logo", b, ad, "image/png");
-  logo = s === "erisim-kapali" ? { source: "custom", assetId: "11111111-1111-4111-8111-111111111111" } : { source: "none", assetId: null };
-  surum = 1; silmeler.length = 0; yazmalar.length = 0; enjekte = {};
+  logo = s === "erisim-kapali" ? { source: "custom", assetId: "11111111-1111-4111-8111-111111111111" }
+    : s === "demo" ? { source: "custom", assetId: ids["kare.png"] } : { source: "none", assetId: null };
+  yazmalar.length = 0;
   if (MOD === "f2") {
     lp = await import("../../lib/profile/schema");
     ls = await import("../../lib/profile/logoSchema");

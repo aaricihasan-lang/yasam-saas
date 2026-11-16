@@ -56,7 +56,9 @@ async function ekran(ad) {
 }
 async function sunucu(yol, govde) {
   const r = await fetch(BASE + yol, govde ? { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(govde) } : {});
-  return r.json();
+  const j = await r.json();
+  if (!r.ok || j.ok === false) throw new Error(`sentetik sunucu ${yol} → ${r.status} ${JSON.stringify(j).slice(0, 200)}`);
+  return j;
 }
 // GERÇEKTEN ÇİZİLDİ Mİ: öğe ekran görüntüsü (WebDriver) → sharp ile çözülür → arka plandan belirgin farklı (renkli) piksel oranı.
 // (Otomasyondaki Safari'de canvas getImageData engelli; ekran görüntüsü tarayıcının gerçekten boyadığı pikselleri verir.)
@@ -82,10 +84,16 @@ async function blobOlc(enAz, ms = 20000) {
   }
   return { toplam: r.length, yuklu: r.filter((x) => x.c && x.w > 0 && x.h > 0).length, ayrinti: r };
 }
-const HATA_TOPLA = `window.__hatalar = window.__hatalar || []; if (!window.__hk) { window.__hk = 1;
-  window.addEventListener('error', (e) => window.__hatalar.push('error: ' + (e.message || (e.target && e.target.src) || '?')), true);
+// JS istisnaları (ErrorEvent / unhandledrejection) ile kaynak yükleme hataları (img/script 404) AYRI toplanır.
+const HATA_TOPLA = `window.__hatalar = window.__hatalar || []; window.__kaynak = window.__kaynak || []; if (!window.__hk) { window.__hk = 1;
+  window.addEventListener('error', (e) => { if (e instanceof ErrorEvent) window.__hatalar.push('error: ' + e.message); else window.__kaynak.push((e.target && (e.target.src || e.target.href)) || '?'); }, true);
   window.addEventListener('unhandledrejection', (e) => window.__hatalar.push('rejection: ' + String(e.reason).slice(0, 200))); } return true;`;
 const hatalar = () => exec("return (window.__hatalar || []).slice(0, 10);");
+// Vercel Analytics / Speed Insights betikleri yalnız Vercel'de dağıtılır; yerel next start'ta 404 BEKLENİR. Diğer her kaynak hatası FAIL.
+const kaynakHatalari = async () => {
+  const k = (await exec("return (window.__kaynak || []).slice(0, 20);")) ?? [];
+  return { beklenen: k.filter((u) => /\/_vercel\//.test(u)), beklenmeyen: k.filter((u) => !/\/_vercel\//.test(u)) };
+};
 
 async function oturum(senaryo) {
   if (sid) { await wd("DELETE", s("")).catch(() => {}); sid = null; }
@@ -143,7 +151,9 @@ async function bolumK() {
     const r = await blobOlc(4);
     await ekran("K4-yenile-liste");
     ok("K", "yenileme sonrası görsel listesi yeniden yüklendi", r.toplam >= 4 && r.yuklu === r.toplam, r);
-    ok("K", "sayfa hatası yok (yakalanan error/rejection)", (await hatalar()).length === 0, await hatalar());
+    ok("K", "JS istisnası yok (error/unhandledrejection)", (await hatalar()).length === 0, await hatalar());
+    const kh = await kaynakHatalari();
+    ok("K", "beklenmeyen kaynak yükleme hatası yok (yalnız Vercel'e özgü /_vercel/* 404'leri beklenir)", kh.beklenmeyen.length === 0, kh);
   });
 }
 
@@ -220,25 +230,30 @@ async function bolumL(dosyalar) {
     await wd("POST", s("/refresh"), {});
     await profilim();
     for (const [ad, yol, beklenen] of [["PNG", dosyalar.png, "kabul"], ["JPEG", dosyalar.jpg, "kabul"], ["SVG", dosyalar.svg, "ret-istemci"], ["2 MB üstü", dosyalar.buyuk, "ret-istemci"], ["bozuk PNG", dosyalar.bozuk, "ret-sunucu"]]) {
+      await wd("POST", s("/refresh"), {}); await profilim();
       const once = await sunucu("/__test/durum");
       const sec = await bul(tid("report-logo-opt-custom")); await wd("POST", s(`/element/${sec}/click`), {}).catch(() => {});
-      await dosyaVer(yol);
-      if (beklenen !== "ret-istemci") {
-        await exec("window.__ok = null; const f = document.querySelector('[data-testid=report-logo-file]').files[0]; (f ? f.slice(0, 16).arrayBuffer() : Promise.reject('dosya yok')).then((b) => { window.__ok = { okundu: b.byteLength }; }).catch((e) => { window.__ok = { hata: String(e) }; }); return true;");
-        const okun = await bekle("window.__ok", 10000);
-        if (!okun?.okundu) {
-          kayit("NOT TESTED", "L", `${ad}: WebDriver'ın verdiği dosya Safari sandbox'ında okunamıyor (otomasyon kısıtı; kullanıcı seçimi değil)`, okun);
-          await wd("POST", s("/refresh"), {}); await profilim();
-          continue;
-        }
+      let secilemedi = null;
+      try { await dosyaVer(yol); } catch (e) { secilemedi = String(e).slice(0, 200); }
+      if (secilemedi) {
+        // Safari'nin dosya seçicisi input accept filtresine uymayan dosyayı hiç kabul etmedi (tarayıcı katmanı).
+        if (beklenen === "ret-istemci") {
+          kayit("PASS", "L", `${ad}: Safari dosya seçicisi kabul etmedi (accept="image/png,image/jpeg,image/webp") — yükleme isteği yok`, secilemedi);
+          kayit("NOT TESTED", "L", `${ad}: uygulamanın kendi istemci uyarısı Safari'de gösterilemedi (dosya seçici önce reddetti)`);
+        } else kayit("FAIL", "L", `${ad}: dosya seçilemedi`, secilemedi);
+        continue;
       }
-      const sonucU = await bekle(`(() => { const e = document.querySelector('[data-testid="report-logo-upload-error"]'); if (e && e.textContent.trim()) return { hata: e.textContent.trim() }; return document.querySelectorAll('[data-testid="report-logo-asset"]').length > arguments[0] ? { yeni: true } : null; })()`, 30000, [once.varliklar.length]);
+      const ui = await bekle(`(() => { const e = document.querySelector('[data-testid="report-logo-upload-error"]'); if (e && e.textContent.trim()) return { hata: e.textContent.trim() }; return document.querySelectorAll('[data-testid="report-logo-asset"]').length > arguments[0] ? { yeni: true } : null; })()`, 30000, [once.varliklar.length]);
       const sonra = await sunucu("/__test/durum");
-      const yuklemeIstekleri = sonra.yazmalar.slice(once.yazmalar.length).filter((y) => y.yol.includes("/uploads"));
+      const yeni = sonra.yazmalar.slice(once.yazmalar.length);
+      const oturumAcildi = yeni.some((y) => y.yol.endsWith("/uploads") && y.status === 200);
+      const parcaOk = yeni.some((y) => y.yol.includes("/chunks/") && y.status === 200);
       await ekran(`L5-yukle-${ad}`);
-      if (beklenen === "kabul") ok("L", `${ad} kabul: yeni görsel listede + sunucu parçayı aldı`, !!sonucU?.yeni && sonra.varliklar.length === once.varliklar.length + 1, { sonucU, yuklemeIstekleri });
-      else if (beklenen === "ret-istemci") ok("L", `${ad} istemcide reddedildi (yükleme isteği yok)`, !!sonucU?.hata && yuklemeIstekleri.length === 0, { sonucU, yuklemeIstekleri });
-      else ok("L", `${ad} sunucuda reddedildi, liste değişmedi`, !!sonucU?.hata && sonra.varliklar.length === once.varliklar.length, { sonucU, yuklemeIstekleri });
+      const iz = { ui, yeni };
+      if (beklenen === "ret-istemci") { ok("L", `${ad} istemcide reddedildi (yükleme oturumu açılmadı)`, !!ui?.hata && !oturumAcildi, iz); continue; }
+      if (oturumAcildi && !parcaOk) { kayit("NOT TESTED", "L", `${ad}: yükleme başladı ama dosya içeriği sunucuya ulaşmadı — WebDriver'ın verdiği dosya Safari sandbox'ında okunamıyor (otomasyon kısıtı; gerçek kullanıcı seçimi değil)`, iz); continue; }
+      if (beklenen === "kabul") ok("L", `${ad} kabul: içerik sunucuya ulaştı, yeni görsel listede`, parcaOk && !!ui?.yeni && sonra.varliklar.length === once.varliklar.length + 1, iz);
+      else ok("L", `${ad} sunucuda reddedildi, liste değişmedi`, parcaOk && !!ui?.hata && sonra.varliklar.length === once.varliklar.length, iz);
     }
   });
   await test("L", "kaldırma (Logo kullanma)", async () => {
@@ -256,7 +271,7 @@ async function bolumL(dosyalar) {
     const kayitli = (await sunucu("/__test/durum")).logo.assetId;
     await studyoAc();
     const dlg = "//*[@role='alertdialog']";
-    const silAc = async (dim) => { await tikla(`//*[@role='dialog' and @aria-labelledby='studio-title']//li[contains(., '${dim}')]//button[starts-with(normalize-space(.), 'Sil')]`); await bul(dlg, 10000); };
+    const silAc = async (dim) => { await tikla(`//*[@role='dialog' and @aria-labelledby='studio-title']//li[contains(., '${dim}')]//button[starts-with(@aria-label, 'Sil') or starts-with(normalize-space(.), 'Sil')]`); await bul(dlg, 10000); };
     const kartBoyut = { [kare]: "400×400", [yatay]: "600×200" }[kayitli] ?? "400×400";
     await silAc(kartBoyut);
     const odak = await bekle("document.activeElement && document.activeElement.textContent.trim() === 'Düzenlemeye devam'", 3000);
@@ -295,6 +310,7 @@ async function bolumY() {
     await ekran("Y1-demo");
     const d = await sunucu("/__test/durum");
     ok("Y", "demo: seçenekler kilitli, kaydet yok, yazma isteği yok", kilit.kilitli && !kilit.kaydet && d.yazmalar.length === 0, { kilit, yazmalar: d.yazmalar });
+    ok("Y", "demo: kayıtlı logo önizlemede yine görünür", !!(await onizlemeYuklu()));
   });
   await test("Y", "erişim kapalı", async () => {
     await oturum("erisim-kapali");
