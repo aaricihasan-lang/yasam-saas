@@ -8,6 +8,12 @@
  *   - Her kayıt, ilin merkez ilçesinin (il merkezi) enlem/boylamıdır — GeoNames ile
  *     tutarlı, yaygın kabul gören il-merkezi koordinatları. `source: "manual"` (elle
  *     kürasyon), `verified: true` (koordinat düzeyinde).
+ *   - ATL-V01 (16.11.2026): 81 kayıt üç bağımsız kaynakla karşılaştırıldı — GeoNames il merkezi
+ *     (PPLA/PPLC), Wikidata il başkenti (P36 → P625) ve OpenStreetMap yerleşim düğümü (place=city/town).
+ *     Üç kaynağın HEPSİNE 2 km'den uzak olup kaynakları kendi aralarında ≤2 km uyuşan 7 kayıt
+ *     (Bitlis, Bolu, Gümüşhane, Kocaeli/İzmit, Muş, Nevşehir, Sakarya/Adapazarı) GeoNames PPLA noktasına
+ *     düzeltildi (eski değerler il yerleşim merkezinden 2,6–33 km uzaktaydı). Kimlik, ad ve saat dilimi
+ *     değişmedi. Kanıt: scripts/astrology/fixtures/atl-v01/tr-il-merkezi-kaynaklar-2026-11-16.json.
  *
  * Rakım (elev):
  *   - ⚠️ Bu aşamada TÜM iller için `elev: 0`. Rakım henüz doldurulmadı; astronomik
@@ -36,8 +42,8 @@ export const TR_LOCATIONS: ReadonlyArray<Location> = [
   { id: "tr-10-balikesir",      name: "Balıkesir",      country: "Türkiye", countryCode: "TR", adminRegion: "Balıkesir",      lat: 39.6484, lon: 27.8826, elev: 0, tz: "Europe/Istanbul", source: "manual", verified: true, origin: "bundled" },
   { id: "tr-11-bilecik",        name: "Bilecik",        country: "Türkiye", countryCode: "TR", adminRegion: "Bilecik",        lat: 40.1426, lon: 29.9793, elev: 0, tz: "Europe/Istanbul", source: "manual", verified: true, origin: "bundled" },
   { id: "tr-12-bingol",         name: "Bingöl",         country: "Türkiye", countryCode: "TR", adminRegion: "Bingöl",         lat: 38.8853, lon: 40.4980, elev: 0, tz: "Europe/Istanbul", source: "manual", verified: true, origin: "bundled" },
-  { id: "tr-13-bitlis",         name: "Bitlis",         country: "Türkiye", countryCode: "TR", adminRegion: "Bitlis",         lat: 38.4938, lon: 42.1232, elev: 0, tz: "Europe/Istanbul", source: "manual", verified: true, origin: "bundled" },
-  { id: "tr-14-bolu",           name: "Bolu",           country: "Türkiye", countryCode: "TR", adminRegion: "Bolu",           lat: 40.5760, lon: 31.5788, elev: 0, tz: "Europe/Istanbul", source: "manual", verified: true, origin: "bundled" },
+  { id: "tr-13-bitlis",         name: "Bitlis",         country: "Türkiye", countryCode: "TR", adminRegion: "Bitlis",         lat: 38.4012, lon: 42.1078, elev: 0, tz: "Europe/Istanbul", source: "manual", verified: true, origin: "bundled" },
+  { id: "tr-14-bolu",           name: "Bolu",           country: "Türkiye", countryCode: "TR", adminRegion: "Bolu",           lat: 40.7358, lon: 31.6061, elev: 0, tz: "Europe/Istanbul", source: "manual", verified: true, origin: "bundled" },
   { id: "tr-15-burdur",         name: "Burdur",         country: "Türkiye", countryCode: "TR", adminRegion: "Burdur",         lat: 37.7203, lon: 30.2908, elev: 0, tz: "Europe/Istanbul", source: "manual", verified: true, origin: "bundled" },
   { id: "tr-16-bursa",          name: "Bursa",          country: "Türkiye", countryCode: "TR", adminRegion: "Bursa",          lat: 40.1885, lon: 29.0610, elev: 0, tz: "Europe/Istanbul", source: "manual", verified: true, origin: "bundled" },
   { id: "tr-17-canakkale",      name: "Çanakkale",      country: "Türkiye", countryCode: "TR", adminRegion: "Çanakkale",      lat: 40.1553, lon: 26.4142, elev: 0, tz: "Europe/Istanbul", source: "manual", verified: true, origin: "bundled" },
@@ -52,7 +58,7 @@ export const TR_LOCATIONS: ReadonlyArray<Location> = [
   { id: "tr-26-eskisehir",      name: "Eskişehir",      country: "Türkiye", countryCode: "TR", adminRegion: "Eskişehir",      lat: 39.7767, lon: 30.5206, elev: 0, tz: "Europe/Istanbul", source: "manual", verified: true, origin: "bundled" },
   { id: "tr-27-gaziantep",      name: "Gaziantep",      country: "Türkiye", countryCode: "TR", adminRegion: "Gaziantep",      lat: 37.0662, lon: 37.3833, elev: 0, tz: "Europe/Istanbul", source: "manual", verified: true, origin: "bundled" },
   { id: "tr-28-giresun",        name: "Giresun",        country: "Türkiye", countryCode: "TR", adminRegion: "Giresun",        lat: 40.9128, lon: 38.3895, elev: 0, tz: "Europe/Istanbul", source: "manual", verified: true, origin: "bundled" },
-  { id: "tr-29-gumushane",      name: "Gümüşhane",      country: "Türkiye", countryCode: "TR", adminRegion: "Gümüşhane",      lat: 40.4603, lon: 39.5086, elev: 0, tz: "Europe/Istanbul", source: "manual", verified: true, origin: "bundled" },
+  { id: "tr-29-gumushane",      name: "Gümüşhane",      country: "Türkiye", countryCode: "TR", adminRegion: "Gümüşhane",      lat: 40.4600, lon: 39.4718, elev: 0, tz: "Europe/Istanbul", source: "manual", verified: true, origin: "bundled" },
   { id: "tr-30-hakkari",        name: "Hakkari",        country: "Türkiye", countryCode: "TR", adminRegion: "Hakkari",        lat: 37.5744, lon: 43.7408, elev: 0, tz: "Europe/Istanbul", source: "manual", verified: true, origin: "bundled" },
   { id: "tr-31-hatay",          name: "Hatay",          country: "Türkiye", countryCode: "TR", adminRegion: "Hatay",          lat: 36.2025, lon: 36.1606, elev: 0, tz: "Europe/Istanbul", source: "manual", verified: true, origin: "bundled" },
   { id: "tr-32-isparta",        name: "Isparta",        country: "Türkiye", countryCode: "TR", adminRegion: "Isparta",        lat: 37.7648, lon: 30.5566, elev: 0, tz: "Europe/Istanbul", source: "manual", verified: true, origin: "bundled" },
@@ -64,7 +70,7 @@ export const TR_LOCATIONS: ReadonlyArray<Location> = [
   { id: "tr-38-kayseri",        name: "Kayseri",        country: "Türkiye", countryCode: "TR", adminRegion: "Kayseri",        lat: 38.7312, lon: 35.4787, elev: 0, tz: "Europe/Istanbul", source: "manual", verified: true, origin: "bundled" },
   { id: "tr-39-kirklareli",     name: "Kırklareli",     country: "Türkiye", countryCode: "TR", adminRegion: "Kırklareli",     lat: 41.7333, lon: 27.2167, elev: 0, tz: "Europe/Istanbul", source: "manual", verified: true, origin: "bundled" },
   { id: "tr-40-kirsehir",       name: "Kırşehir",       country: "Türkiye", countryCode: "TR", adminRegion: "Kırşehir",       lat: 39.1425, lon: 34.1709, elev: 0, tz: "Europe/Istanbul", source: "manual", verified: true, origin: "bundled" },
-  { id: "tr-41-kocaeli",        name: "Kocaeli",        country: "Türkiye", countryCode: "TR", adminRegion: "Kocaeli",        lat: 40.8533, lon: 29.8815, elev: 0, tz: "Europe/Istanbul", source: "manual", verified: true, origin: "bundled" },
+  { id: "tr-41-kocaeli",        name: "Kocaeli",        country: "Türkiye", countryCode: "TR", adminRegion: "Kocaeli",        lat: 40.7650, lon: 29.9293, elev: 0, tz: "Europe/Istanbul", source: "manual", verified: true, origin: "bundled" },
   { id: "tr-42-konya",          name: "Konya",          country: "Türkiye", countryCode: "TR", adminRegion: "Konya",          lat: 37.8746, lon: 32.4932, elev: 0, tz: "Europe/Istanbul", source: "manual", verified: true, origin: "bundled" },
   { id: "tr-43-kutahya",        name: "Kütahya",        country: "Türkiye", countryCode: "TR", adminRegion: "Kütahya",        lat: 39.4242, lon: 29.9833, elev: 0, tz: "Europe/Istanbul", source: "manual", verified: true, origin: "bundled" },
   { id: "tr-44-malatya",        name: "Malatya",        country: "Türkiye", countryCode: "TR", adminRegion: "Malatya",        lat: 38.3552, lon: 38.3095, elev: 0, tz: "Europe/Istanbul", source: "manual", verified: true, origin: "bundled" },
@@ -72,12 +78,12 @@ export const TR_LOCATIONS: ReadonlyArray<Location> = [
   { id: "tr-46-kahramanmaras",  name: "Kahramanmaraş",  country: "Türkiye", countryCode: "TR", adminRegion: "Kahramanmaraş",  lat: 37.5858, lon: 36.9371, elev: 0, tz: "Europe/Istanbul", source: "manual", verified: true, origin: "bundled" },
   { id: "tr-47-mardin",         name: "Mardin",         country: "Türkiye", countryCode: "TR", adminRegion: "Mardin",         lat: 37.3212, lon: 40.7245, elev: 0, tz: "Europe/Istanbul", source: "manual", verified: true, origin: "bundled" },
   { id: "tr-48-mugla",          name: "Muğla",          country: "Türkiye", countryCode: "TR", adminRegion: "Muğla",          lat: 37.2153, lon: 28.3636, elev: 0, tz: "Europe/Istanbul", source: "manual", verified: true, origin: "bundled" },
-  { id: "tr-49-mus",            name: "Muş",            country: "Türkiye", countryCode: "TR", adminRegion: "Muş",            lat: 38.9462, lon: 41.7539, elev: 0, tz: "Europe/Istanbul", source: "manual", verified: true, origin: "bundled" },
-  { id: "tr-50-nevsehir",       name: "Nevşehir",       country: "Türkiye", countryCode: "TR", adminRegion: "Nevşehir",       lat: 38.6939, lon: 34.6857, elev: 0, tz: "Europe/Istanbul", source: "manual", verified: true, origin: "bundled" },
+  { id: "tr-49-mus",            name: "Muş",            country: "Türkiye", countryCode: "TR", adminRegion: "Muş",            lat: 38.7316, lon: 41.4848, elev: 0, tz: "Europe/Istanbul", source: "manual", verified: true, origin: "bundled" },
+  { id: "tr-50-nevsehir",       name: "Nevşehir",       country: "Türkiye", countryCode: "TR", adminRegion: "Nevşehir",       lat: 38.6250, lon: 34.7122, elev: 0, tz: "Europe/Istanbul", source: "manual", verified: true, origin: "bundled" },
   { id: "tr-51-nigde",          name: "Niğde",          country: "Türkiye", countryCode: "TR", adminRegion: "Niğde",          lat: 37.9667, lon: 34.6833, elev: 0, tz: "Europe/Istanbul", source: "manual", verified: true, origin: "bundled" },
   { id: "tr-52-ordu",           name: "Ordu",           country: "Türkiye", countryCode: "TR", adminRegion: "Ordu",           lat: 40.9839, lon: 37.8764, elev: 0, tz: "Europe/Istanbul", source: "manual", verified: true, origin: "bundled" },
   { id: "tr-53-rize",           name: "Rize",           country: "Türkiye", countryCode: "TR", adminRegion: "Rize",           lat: 41.0201, lon: 40.5234, elev: 0, tz: "Europe/Istanbul", source: "manual", verified: true, origin: "bundled" },
-  { id: "tr-54-sakarya",        name: "Sakarya",        country: "Türkiye", countryCode: "TR", adminRegion: "Sakarya",        lat: 40.7569, lon: 30.3781, elev: 0, tz: "Europe/Istanbul", source: "manual", verified: true, origin: "bundled" },
+  { id: "tr-54-sakarya",        name: "Sakarya",        country: "Türkiye", countryCode: "TR", adminRegion: "Sakarya",        lat: 40.7806, lon: 30.4033, elev: 0, tz: "Europe/Istanbul", source: "manual", verified: true, origin: "bundled" },
   { id: "tr-55-samsun",         name: "Samsun",         country: "Türkiye", countryCode: "TR", adminRegion: "Samsun",         lat: 41.2867, lon: 36.3300, elev: 0, tz: "Europe/Istanbul", source: "manual", verified: true, origin: "bundled" },
   { id: "tr-56-siirt",          name: "Siirt",          country: "Türkiye", countryCode: "TR", adminRegion: "Siirt",          lat: 37.9333, lon: 41.9500, elev: 0, tz: "Europe/Istanbul", source: "manual", verified: true, origin: "bundled" },
   { id: "tr-57-sinop",          name: "Sinop",          country: "Türkiye", countryCode: "TR", adminRegion: "Sinop",          lat: 42.0231, lon: 35.1531, elev: 0, tz: "Europe/Istanbul", source: "manual", verified: true, origin: "bundled" },

@@ -1,0 +1,3501 @@
+{
+ "_aciklama": "ATL-V01 (16.11.2026): lib/location/tr.ts 81 il merkezi koordinatının üç bağımsız kaynakla karşılaştırması. Karar: mevcut değer üç kaynağın HEPSİNE >2 km ve kaynaklar kendi aralarında ≤2 km uyuşuyorsa DUZELT (GeoNames PPLA, 4 ondalık, yarım-yukarı); en az bir kaynağa ≤2 km ise DOGRU.",
+ "_kaynaklar": {
+  "geonames": {
+   "url": "https://download.geonames.org/export/dump/TR.zip",
+   "indirme": "2026-11-16",
+   "sha256": "fe38e9b033df66e92138b892f8b4d5deeb8e644adb8c4eafb70b8045733a8c1a",
+   "secim": "feature code PPLA/PPLC (birinci düzey idari bölge merkezi yerleşimi)",
+   "lisans": "CC BY 4.0 — GeoNames (geonames.org)"
+  },
+  "wikidata": {
+   "url": "https://query.wikidata.org/sparql",
+   "sorgu": "?prov wdt:P31 wd:Q48336; wdt:P395 ?plate; wdt:P36 ?cap. ?cap wdt:P625 ?coord",
+   "indirme": "2026-11-16",
+   "lisans": "CC0"
+  },
+  "osm": {
+   "url": "Overpass API (overpass.kumi.systems)",
+   "sorgu": "node(35.8,25.6,42.2,44.9)[place~\"^(city|town)$\"]",
+   "osm_veri_zamani": "2026-07-15T15:22:01Z",
+   "lisans": "ODbL — © OpenStreetMap katkıcıları"
+  }
+ },
+ "_esik_km": 2.0,
+ "iller": [
+  {
+   "id": "tr-01-adana",
+   "ad": "Adana",
+   "tz": "Europe/Istanbul",
+   "onceki": [
+    37.0,
+    35.3213
+   ],
+   "yeni": [
+    37.0,
+    35.3213
+   ],
+   "karar": "DOGRU",
+   "geonames": {
+    "geonameid": 325363,
+    "fcode": "PPLA",
+    "p": [
+     36.98615,
+     35.32531
+    ]
+   },
+   "wikidata": {
+    "q": "Q38545",
+    "p": [
+     36.98636,
+     35.325286
+    ]
+   },
+   "osm": {
+    "node": "node/26480399",
+    "place": "city",
+    "p": [
+     36.98636,
+     35.325286
+    ]
+   },
+   "onceki_mesafe_km": {
+    "geonames": 1.58,
+    "wikidata": 1.56,
+    "osm": 1.56
+   },
+   "kaynak_yayilimi_km": 0.02
+  },
+  {
+   "id": "tr-02-adiyaman",
+   "ad": "Adıyaman",
+   "tz": "Europe/Istanbul",
+   "onceki": [
+    37.7648,
+    38.2786
+   ],
+   "yeni": [
+    37.7648,
+    38.2786
+   ],
+   "karar": "DOGRU",
+   "geonames": {
+    "geonameid": 325330,
+    "fcode": "PPLA",
+    "p": [
+     37.76441,
+     38.27629
+    ]
+   },
+   "wikidata": {
+    "q": "Q168197",
+    "p": [
+     37.76339,
+     38.27714
+    ]
+   },
+   "osm": {
+    "node": "node/26487468",
+    "place": "city",
+    "p": [
+     37.760298,
+     38.277299
+    ]
+   },
+   "onceki_mesafe_km": {
+    "geonames": 0.21,
+    "wikidata": 0.2,
+    "osm": 0.51
+   },
+   "kaynak_yayilimi_km": 0.47
+  },
+  {
+   "id": "tr-03-afyonkarahisar",
+   "ad": "Afyonkarahisar",
+   "tz": "Europe/Istanbul",
+   "onceki": [
+    38.7507,
+    30.5567
+   ],
+   "yeni": [
+    38.7507,
+    30.5567
+   ],
+   "karar": "DOGRU",
+   "geonames": {
+    "geonameid": 325303,
+    "fcode": "PPLA",
+    "p": [
+     38.75667,
+     30.54333
+    ]
+   },
+   "wikidata": {
+    "q": "Q166824",
+    "p": [
+     38.758056,
+     30.538611
+    ]
+   },
+   "osm": {
+    "node": "node/25869720",
+    "place": "city",
+    "p": [
+     38.75686,
+     30.538704
+    ]
+   },
+   "onceki_mesafe_km": {
+    "geonames": 1.34,
+    "wikidata": 1.77,
+    "osm": 1.7
+   },
+   "kaynak_yayilimi_km": 0.44
+  },
+  {
+   "id": "tr-04-agri",
+   "ad": "Ağrı",
+   "tz": "Europe/Istanbul",
+   "onceki": [
+    39.7191,
+    43.0503
+   ],
+   "yeni": [
+    39.7191,
+    43.0503
+   ],
+   "karar": "DOGRU",
+   "geonames": {
+    "geonameid": 309647,
+    "fcode": "PPLA",
+    "p": [
+     39.71467,
+     43.04015
+    ]
+   },
+   "wikidata": {
+    "q": "Q199575",
+    "p": [
+     39.7225,
+     43.054444
+    ]
+   },
+   "osm": {
+    "node": "node/26486334",
+    "place": "city",
+    "p": [
+     39.719125,
+     43.050489
+    ]
+   },
+   "onceki_mesafe_km": {
+    "geonames": 1.0,
+    "wikidata": 0.52,
+    "osm": 0.02
+   },
+   "kaynak_yayilimi_km": 1.5
+  },
+  {
+   "id": "tr-05-amasya",
+   "ad": "Amasya",
+   "tz": "Europe/Istanbul",
+   "onceki": [
+    40.6499,
+    35.8353
+   ],
+   "yeni": [
+    40.6499,
+    35.8353
+   ],
+   "karar": "DOGRU",
+   "geonames": {
+    "geonameid": 752015,
+    "fcode": "PPLA",
+    "p": [
+     40.65333,
+     35.83306
+    ]
+   },
+   "wikidata": {
+    "q": "Q170532",
+    "p": [
+     40.65,
+     35.833333
+    ]
+   },
+   "osm": {
+    "node": "node/26482974",
+    "place": "city",
+    "p": [
+     40.650325,
+     35.832915
+    ]
+   },
+   "onceki_mesafe_km": {
+    "geonames": 0.43,
+    "wikidata": 0.17,
+    "osm": 0.21
+   },
+   "kaynak_yayilimi_km": 0.37
+  },
+  {
+   "id": "tr-06-ankara",
+   "ad": "Ankara",
+   "tz": "Europe/Istanbul",
+   "onceki": [
+    39.9334,
+    32.8597
+   ],
+   "yeni": [
+    39.9334,
+    32.8597
+   ],
+   "karar": "DOGRU",
+   "geonames": {
+    "geonameid": 323786,
+    "fcode": "PPLC",
+    "p": [
+     39.91987,
+     32.85427
+    ]
+   },
+   "wikidata": {
+    "q": "Q3640",
+    "p": [
+     39.93576,
+     32.83869
+    ]
+   },
+   "osm": {
+    "node": "node/25869410",
+    "place": "city",
+    "p": [
+     39.920776,
+     32.85405
+    ]
+   },
+   "onceki_mesafe_km": {
+    "geonames": 1.57,
+    "wikidata": 1.81,
+    "osm": 1.48
+   },
+   "kaynak_yayilimi_km": 2.21
+  },
+  {
+   "id": "tr-07-antalya",
+   "ad": "Antalya",
+   "tz": "Europe/Istanbul",
+   "onceki": [
+    36.8969,
+    30.7133
+   ],
+   "yeni": [
+    36.8969,
+    30.7133
+   ],
+   "karar": "DOGRU",
+   "geonames": {
+    "geonameid": 323777,
+    "fcode": "PPLA",
+    "p": [
+     36.90812,
+     30.69556
+    ]
+   },
+   "wikidata": {
+    "q": "Q6487",
+    "p": [
+     36.90812,
+     30.69556
+    ]
+   },
+   "osm": {
+    "node": "node/428039517",
+    "place": "city",
+    "p": [
+     36.886573,
+     30.703024
+    ]
+   },
+   "onceki_mesafe_km": {
+    "geonames": 2.01,
+    "wikidata": 2.01,
+    "osm": 1.47
+   },
+   "kaynak_yayilimi_km": 2.49
+  },
+  {
+   "id": "tr-08-artvin",
+   "ad": "Artvin",
+   "tz": "Europe/Istanbul",
+   "onceki": [
+    41.1828,
+    41.8183
+   ],
+   "yeni": [
+    41.1828,
+    41.8183
+   ],
+   "karar": "DOGRU",
+   "geonames": {
+    "geonameid": 751817,
+    "fcode": "PPLA",
+    "p": [
+     41.18161,
+     41.82172
+    ]
+   },
+   "wikidata": {
+    "q": "Q193445",
+    "p": [
+     41.183081,
+     41.828745
+    ]
+   },
+   "osm": {
+    "node": "node/26482975",
+    "place": "city",
+    "p": [
+     41.183081,
+     41.828745
+    ]
+   },
+   "onceki_mesafe_km": {
+    "geonames": 0.32,
+    "wikidata": 0.87,
+    "osm": 0.87
+   },
+   "kaynak_yayilimi_km": 0.61
+  },
+  {
+   "id": "tr-09-aydin",
+   "ad": "Aydın",
+   "tz": "Europe/Istanbul",
+   "onceki": [
+    37.856,
+    27.8416
+   ],
+   "yeni": [
+    37.856,
+    27.8416
+   ],
+   "karar": "DOGRU",
+   "geonames": {
+    "geonameid": 322830,
+    "fcode": "PPLA",
+    "p": [
+     37.84501,
+     27.83963
+    ]
+   },
+   "wikidata": {
+    "q": "Q170457",
+    "p": [
+     37.848056,
+     27.845278
+    ]
+   },
+   "osm": {
+    "node": "node/8603453649",
+    "place": "city",
+    "p": [
+     37.848377,
+     27.843588
+    ]
+   },
+   "onceki_mesafe_km": {
+    "geonames": 1.23,
+    "wikidata": 0.94,
+    "osm": 0.87
+   },
+   "kaynak_yayilimi_km": 0.6
+  },
+  {
+   "id": "tr-10-balikesir",
+   "ad": "Balıkesir",
+   "tz": "Europe/Istanbul",
+   "onceki": [
+    39.6484,
+    27.8826
+   ],
+   "yeni": [
+    39.6484,
+    27.8826
+   ],
+   "karar": "DOGRU",
+   "geonames": {
+    "geonameid": 322165,
+    "fcode": "PPLA",
+    "p": [
+     39.64917,
+     27.88611
+    ]
+   },
+   "wikidata": {
+    "q": "Q199723",
+    "p": [
+     39.651111,
+     27.884167
+    ]
+   },
+   "osm": {
+    "node": "node/25869582",
+    "place": "city",
+    "p": [
+     39.647392,
+     27.887979
+    ]
+   },
+   "onceki_mesafe_km": {
+    "geonames": 0.31,
+    "wikidata": 0.33,
+    "osm": 0.47
+   },
+   "kaynak_yayilimi_km": 0.53
+  },
+  {
+   "id": "tr-11-bilecik",
+   "ad": "Bilecik",
+   "tz": "Europe/Istanbul",
+   "onceki": [
+    40.1426,
+    29.9793
+   ],
+   "yeni": [
+    40.1426,
+    29.9793
+   ],
+   "karar": "DOGRU",
+   "geonames": {
+    "geonameid": 750598,
+    "fcode": "PPLA",
+    "p": [
+     40.14192,
+     29.97932
+    ]
+   },
+   "wikidata": {
+    "q": "Q208006",
+    "p": [
+     40.143056,
+     29.979167
+    ]
+   },
+   "osm": {
+    "node": "node/25869729",
+    "place": "city",
+    "p": [
+     40.14351,
+     29.975291
+    ]
+   },
+   "onceki_mesafe_km": {
+    "geonames": 0.08,
+    "wikidata": 0.05,
+    "osm": 0.36
+   },
+   "kaynak_yayilimi_km": 0.39
+  },
+  {
+   "id": "tr-12-bingol",
+   "ad": "Bingöl",
+   "tz": "Europe/Istanbul",
+   "onceki": [
+    38.8853,
+    40.498
+   ],
+   "yeni": [
+    38.8853,
+    40.498
+   ],
+   "karar": "DOGRU",
+   "geonames": {
+    "geonameid": 321082,
+    "fcode": "PPLA",
+    "p": [
+     38.88472,
+     40.49389
+    ]
+   },
+   "wikidata": {
+    "q": null,
+    "p": null
+   },
+   "osm": {
+    "node": "node/26486414",
+    "place": "city",
+    "p": [
+     38.886127,
+     40.497233
+    ]
+   },
+   "onceki_mesafe_km": {
+    "geonames": 0.36,
+    "wikidata": null,
+    "osm": 0.11
+   },
+   "kaynak_yayilimi_km": 0.33
+  },
+  {
+   "id": "tr-13-bitlis",
+   "ad": "Bitlis",
+   "tz": "Europe/Istanbul",
+   "onceki": [
+    38.4938,
+    42.1232
+   ],
+   "yeni": [
+    38.4012,
+    42.1078
+   ],
+   "karar": "DUZELT",
+   "geonames": {
+    "geonameid": 321025,
+    "fcode": "PPLA",
+    "p": [
+     38.40115,
+     42.10784
+    ]
+   },
+   "wikidata": {
+    "q": "Q83531",
+    "p": [
+     38.4,
+     42.116667
+    ]
+   },
+   "osm": {
+    "node": "node/26486498",
+    "place": "city",
+    "p": [
+     38.402054,
+     42.108457
+    ]
+   },
+   "onceki_mesafe_km": {
+    "geonames": 10.39,
+    "wikidata": 10.45,
+    "osm": 10.28
+   },
+   "kaynak_yayilimi_km": 0.78
+  },
+  {
+   "id": "tr-14-bolu",
+   "ad": "Bolu",
+   "tz": "Europe/Istanbul",
+   "onceki": [
+    40.576,
+    31.5788
+   ],
+   "yeni": [
+    40.7358,
+    31.6061
+   ],
+   "karar": "DUZELT",
+   "geonames": {
+    "geonameid": 750516,
+    "fcode": "PPLA",
+    "p": [
+     40.73583,
+     31.60611
+    ]
+   },
+   "wikidata": {
+    "q": "Q200951",
+    "p": [
+     40.733333,
+     31.6
+    ]
+   },
+   "osm": {
+    "node": "node/3479054194",
+    "place": "city",
+    "p": [
+     40.733295,
+     31.611048
+    ]
+   },
+   "onceki_mesafe_km": {
+    "geonames": 17.92,
+    "wikidata": 17.59,
+    "osm": 17.7
+   },
+   "kaynak_yayilimi_km": 0.93
+  },
+  {
+   "id": "tr-15-burdur",
+   "ad": "Burdur",
+   "tz": "Europe/Istanbul",
+   "onceki": [
+    37.7203,
+    30.2908
+   ],
+   "yeni": [
+    37.7203,
+    30.2908
+   ],
+   "karar": "DOGRU",
+   "geonames": {
+    "geonameid": 320392,
+    "fcode": "PPLA",
+    "p": [
+     37.72028,
+     30.29083
+    ]
+   },
+   "wikidata": {
+    "q": "Q211811",
+    "p": [
+     37.716667,
+     30.283333
+    ]
+   },
+   "osm": {
+    "node": "node/25869752",
+    "place": "city",
+    "p": [
+     37.724839,
+     30.288729
+    ]
+   },
+   "onceki_mesafe_km": {
+    "geonames": 0.0,
+    "wikidata": 0.77,
+    "osm": 0.54
+   },
+   "kaynak_yayilimi_km": 1.03
+  },
+  {
+   "id": "tr-16-bursa",
+   "ad": "Bursa",
+   "tz": "Europe/Istanbul",
+   "onceki": [
+    40.1885,
+    29.061
+   ],
+   "yeni": [
+    40.1885,
+    29.061
+   ],
+   "karar": "DOGRU",
+   "geonames": {
+    "geonameid": 750269,
+    "fcode": "PPLA",
+    "p": [
+     40.19559,
+     29.06013
+    ]
+   },
+   "wikidata": {
+    "q": "Q40738",
+    "p": [
+     40.191331,
+     29.080539
+    ]
+   },
+   "osm": {
+    "node": "node/289534897",
+    "place": "city",
+    "p": [
+     40.182573,
+     29.067504
+    ]
+   },
+   "onceki_mesafe_km": {
+    "geonames": 0.79,
+    "wikidata": 1.69,
+    "osm": 0.86
+   },
+   "kaynak_yayilimi_km": 1.8
+  },
+  {
+   "id": "tr-17-canakkale",
+   "ad": "Çanakkale",
+   "tz": "Europe/Istanbul",
+   "onceki": [
+    40.1553,
+    26.4142
+   ],
+   "yeni": [
+    40.1553,
+    26.4142
+   ],
+   "karar": "DOGRU",
+   "geonames": {
+    "geonameid": 749780,
+    "fcode": "PPLA",
+    "p": [
+     40.15552,
+     26.41271
+    ]
+   },
+   "wikidata": {
+    "q": "Q199712",
+    "p": [
+     40.15,
+     26.4
+    ]
+   },
+   "osm": {
+    "node": "node/25869575",
+    "place": "city",
+    "p": [
+     40.146271,
+     26.402889
+    ]
+   },
+   "onceki_mesafe_km": {
+    "geonames": 0.13,
+    "wikidata": 1.34,
+    "osm": 1.39
+   },
+   "kaynak_yayilimi_km": 1.32
+  },
+  {
+   "id": "tr-18-cankiri",
+   "ad": "Çankırı",
+   "tz": "Europe/Istanbul",
+   "onceki": [
+    40.6013,
+    33.6134
+   ],
+   "yeni": [
+    40.6013,
+    33.6134
+   ],
+   "karar": "DOGRU",
+   "geonames": {
+    "geonameid": 749748,
+    "fcode": "PPLA",
+    "p": [
+     40.59995,
+     33.6153
+    ]
+   },
+   "wikidata": {
+    "q": "Q209925",
+    "p": [
+     40.6,
+     33.616667
+    ]
+   },
+   "osm": {
+    "node": "node/5798692759",
+    "place": "city",
+    "p": [
+     40.597195,
+     33.62127
+    ]
+   },
+   "onceki_mesafe_km": {
+    "geonames": 0.22,
+    "wikidata": 0.31,
+    "osm": 0.81
+   },
+   "kaynak_yayilimi_km": 0.59
+  },
+  {
+   "id": "tr-19-corum",
+   "ad": "Çorum",
+   "tz": "Europe/Istanbul",
+   "onceki": [
+    40.5506,
+    34.9556
+   ],
+   "yeni": [
+    40.5506,
+    34.9556
+   ],
+   "karar": "DOGRU",
+   "geonames": {
+    "geonameid": 748879,
+    "fcode": "PPLA",
+    "p": [
+     40.54889,
+     34.95333
+    ]
+   },
+   "wikidata": {
+    "q": "Q206900",
+    "p": [
+     40.548889,
+     34.953333
+    ]
+   },
+   "osm": {
+    "node": "node/26483306",
+    "place": "city",
+    "p": [
+     40.549911,
+     34.953734
+    ]
+   },
+   "onceki_mesafe_km": {
+    "geonames": 0.27,
+    "wikidata": 0.27,
+    "osm": 0.18
+   },
+   "kaynak_yayilimi_km": 0.12
+  },
+  {
+   "id": "tr-20-denizli",
+   "ad": "Denizli",
+   "tz": "Europe/Istanbul",
+   "onceki": [
+    37.7765,
+    29.0864
+   ],
+   "yeni": [
+    37.7765,
+    29.0864
+   ],
+   "karar": "DOGRU",
+   "geonames": {
+    "geonameid": 317109,
+    "fcode": "PPLA",
+    "p": [
+     37.77417,
+     29.0875
+    ]
+   },
+   "wikidata": {
+    "q": "Q170967",
+    "p": [
+     37.783333,
+     29.096389
+    ]
+   },
+   "osm": {
+    "node": "node/6196594141",
+    "place": "city",
+    "p": [
+     37.782787,
+     29.096648
+    ]
+   },
+   "onceki_mesafe_km": {
+    "geonames": 0.28,
+    "wikidata": 1.16,
+    "osm": 1.14
+   },
+   "kaynak_yayilimi_km": 1.28
+  },
+  {
+   "id": "tr-21-diyarbakir",
+   "ad": "Diyarbakır",
+   "tz": "Europe/Istanbul",
+   "onceki": [
+    37.9144,
+    40.2306
+   ],
+   "yeni": [
+    37.9144,
+    40.2306
+   ],
+   "karar": "DOGRU",
+   "geonames": {
+    "geonameid": 316541,
+    "fcode": "PPLA",
+    "p": [
+     37.91363,
+     40.21721
+    ]
+   },
+   "wikidata": {
+    "q": "Q83387",
+    "p": [
+     37.91583,
+     40.21889
+    ]
+   },
+   "osm": {
+    "node": "node/26487666",
+    "place": "city",
+    "p": [
+     37.916222,
+     40.236354
+    ]
+   },
+   "onceki_mesafe_km": {
+    "geonames": 1.18,
+    "wikidata": 1.04,
+    "osm": 0.54
+   },
+   "kaynak_yayilimi_km": 1.7
+  },
+  {
+   "id": "tr-22-edirne",
+   "ad": "Edirne",
+   "tz": "Europe/Istanbul",
+   "onceki": [
+    41.6771,
+    26.5557
+   ],
+   "yeni": [
+    41.6771,
+    26.5557
+   ],
+   "karar": "DOGRU",
+   "geonames": {
+    "geonameid": 747712,
+    "fcode": "PPLA",
+    "p": [
+     41.67719,
+     26.55597
+    ]
+   },
+   "wikidata": {
+    "q": "Q43387",
+    "p": [
+     41.67304,
+     26.57361
+    ]
+   },
+   "osm": {
+    "node": "node/25869574",
+    "place": "city",
+    "p": [
+     41.675933,
+     26.558722
+    ]
+   },
+   "onceki_mesafe_km": {
+    "geonames": 0.02,
+    "wikidata": 1.55,
+    "osm": 0.28
+   },
+   "kaynak_yayilimi_km": 1.54
+  },
+  {
+   "id": "tr-23-elazig",
+   "ad": "Elazığ",
+   "tz": "Europe/Istanbul",
+   "onceki": [
+    38.681,
+    39.2264
+   ],
+   "yeni": [
+    38.681,
+    39.2264
+   ],
+   "karar": "DOGRU",
+   "geonames": {
+    "geonameid": 315808,
+    "fcode": "PPLA",
+    "p": [
+     38.67431,
+     39.22321
+    ]
+   },
+   "wikidata": {
+    "q": "Q174060",
+    "p": [
+     38.666667,
+     39.216667
+    ]
+   },
+   "osm": {
+    "node": "node/26486523",
+    "place": "city",
+    "p": [
+     38.674716,
+     39.222713
+    ]
+   },
+   "onceki_mesafe_km": {
+    "geonames": 0.79,
+    "wikidata": 1.8,
+    "osm": 0.77
+   },
+   "kaynak_yayilimi_km": 1.04
+  },
+  {
+   "id": "tr-24-erzincan",
+   "ad": "Erzincan",
+   "tz": "Europe/Istanbul",
+   "onceki": [
+    39.75,
+    39.5
+   ],
+   "yeni": [
+    39.75,
+    39.5
+   ],
+   "karar": "DOGRU",
+   "geonames": {
+    "geonameid": 315373,
+    "fcode": "PPLA",
+    "p": [
+     39.73919,
+     39.49015
+    ]
+   },
+   "wikidata": {
+    "q": "Q136217",
+    "p": [
+     39.746389,
+     39.491389
+    ]
+   },
+   "osm": {
+    "node": "node/26486753",
+    "place": "city",
+    "p": [
+     39.746755,
+     39.49103
+    ]
+   },
+   "onceki_mesafe_km": {
+    "geonames": 1.47,
+    "wikidata": 0.84,
+    "osm": 0.85
+   },
+   "kaynak_yayilimi_km": 0.84
+  },
+  {
+   "id": "tr-25-erzurum",
+   "ad": "Erzurum",
+   "tz": "Europe/Istanbul",
+   "onceki": [
+    39.9043,
+    41.2679
+   ],
+   "yeni": [
+    39.9043,
+    41.2679
+   ],
+   "karar": "DOGRU",
+   "geonames": {
+    "geonameid": 315368,
+    "fcode": "PPLA",
+    "p": [
+     39.90861,
+     41.27694
+    ]
+   },
+   "wikidata": {
+    "q": "Q122803",
+    "p": [
+     39.909722,
+     41.275556
+    ]
+   },
+   "osm": {
+    "node": "node/26486754",
+    "place": "city",
+    "p": [
+     39.90632,
+     41.272771
+    ]
+   },
+   "onceki_mesafe_km": {
+    "geonames": 0.91,
+    "wikidata": 0.89,
+    "osm": 0.47
+   },
+   "kaynak_yayilimi_km": 0.45
+  },
+  {
+   "id": "tr-26-eskisehir",
+   "ad": "Eskişehir",
+   "tz": "Europe/Istanbul",
+   "onceki": [
+    39.7767,
+    30.5206
+   ],
+   "yeni": [
+    39.7767,
+    30.5206
+   ],
+   "karar": "DOGRU",
+   "geonames": {
+    "geonameid": 315202,
+    "fcode": "PPLA",
+    "p": [
+     39.77667,
+     30.52056
+    ]
+   },
+   "wikidata": {
+    "q": "Q168866",
+    "p": [
+     39.776667,
+     30.520556
+    ]
+   },
+   "osm": {
+    "node": "node/25869769",
+    "place": "city",
+    "p": [
+     39.774394,
+     30.519116
+    ]
+   },
+   "onceki_mesafe_km": {
+    "geonames": 0.0,
+    "wikidata": 0.01,
+    "osm": 0.29
+   },
+   "kaynak_yayilimi_km": 0.28
+  },
+  {
+   "id": "tr-27-gaziantep",
+   "ad": "Gaziantep",
+   "tz": "Europe/Istanbul",
+   "onceki": [
+    37.0662,
+    37.3833
+   ],
+   "yeni": [
+    37.0662,
+    37.3833
+   ],
+   "karar": "DOGRU",
+   "geonames": {
+    "geonameid": 314830,
+    "fcode": "PPLA",
+    "p": [
+     37.05944,
+     37.3825
+    ]
+   },
+   "wikidata": {
+    "q": "Q93338",
+    "p": [
+     37.062778,
+     37.379167
+    ]
+   },
+   "osm": {
+    "node": "node/26487670",
+    "place": "city",
+    "p": [
+     37.062832,
+     37.379262
+    ]
+   },
+   "onceki_mesafe_km": {
+    "geonames": 0.76,
+    "wikidata": 0.53,
+    "osm": 0.52
+   },
+   "kaynak_yayilimi_km": 0.47
+  },
+  {
+   "id": "tr-28-giresun",
+   "ad": "Giresun",
+   "tz": "Europe/Istanbul",
+   "onceki": [
+    40.9128,
+    38.3895
+   ],
+   "yeni": [
+    40.9128,
+    38.3895
+   ],
+   "karar": "DOGRU",
+   "geonames": {
+    "geonameid": 746881,
+    "fcode": "PPLA",
+    "p": [
+     40.91698,
+     38.38741
+    ]
+   },
+   "wikidata": {
+    "q": "Q201095",
+    "p": [
+     40.9,
+     38.416667
+    ]
+   },
+   "osm": {
+    "node": "node/26483307",
+    "place": "city",
+    "p": [
+     40.917635,
+     38.384153
+    ]
+   },
+   "onceki_mesafe_km": {
+    "geonames": 0.5,
+    "wikidata": 2.69,
+    "osm": 0.7
+   },
+   "kaynak_yayilimi_km": 3.36
+  },
+  {
+   "id": "tr-29-gumushane",
+   "ad": "Gümüşhane",
+   "tz": "Europe/Istanbul",
+   "onceki": [
+    40.4603,
+    39.5086
+   ],
+   "yeni": [
+    40.46,
+    39.4718
+   ],
+   "karar": "DUZELT",
+   "geonames": {
+    "geonameid": 746425,
+    "fcode": "PPLA",
+    "p": [
+     40.46001,
+     39.47176
+    ]
+   },
+   "wikidata": {
+    "q": "Q214303",
+    "p": [
+     40.459722,
+     39.477778
+    ]
+   },
+   "osm": {
+    "node": "node/26483350",
+    "place": "city",
+    "p": [
+     40.461784,
+     39.475734
+    ]
+   },
+   "onceki_mesafe_km": {
+    "geonames": 3.12,
+    "wikidata": 2.61,
+    "osm": 2.79
+   },
+   "kaynak_yayilimi_km": 0.51
+  },
+  {
+   "id": "tr-30-hakkari",
+   "ad": "Hakkari",
+   "tz": "Europe/Istanbul",
+   "onceki": [
+    37.5744,
+    43.7408
+   ],
+   "yeni": [
+    37.5744,
+    43.7408
+   ],
+   "karar": "DOGRU",
+   "geonames": {
+    "geonameid": 318137,
+    "fcode": "PPLA",
+    "p": [
+     37.57444,
+     43.74083
+    ]
+   },
+   "wikidata": {
+    "q": "Q206895",
+    "p": [
+     37.574444,
+     43.740833
+    ]
+   },
+   "osm": {
+    "node": "node/26480484",
+    "place": "city",
+    "p": [
+     37.576696,
+     43.737786
+    ]
+   },
+   "onceki_mesafe_km": {
+    "geonames": 0.01,
+    "wikidata": 0.01,
+    "osm": 0.37
+   },
+   "kaynak_yayilimi_km": 0.37
+  },
+  {
+   "id": "tr-31-hatay",
+   "ad": "Hatay",
+   "tz": "Europe/Istanbul",
+   "onceki": [
+    36.2025,
+    36.1606
+   ],
+   "yeni": [
+    36.2025,
+    36.1606
+   ],
+   "karar": "DOGRU",
+   "geonames": {
+    "geonameid": 323779,
+    "fcode": "PPLA",
+    "p": [
+     36.20655,
+     36.15722
+    ]
+   },
+   "wikidata": {
+    "q": "Q80561",
+    "p": [
+     36.2025,
+     36.160556
+    ]
+   },
+   "osm": {
+    "node": "node/8097170582",
+    "place": "town",
+    "p": [
+     36.203655,
+     36.163765
+    ]
+   },
+   "onceki_mesafe_km": {
+    "geonames": 0.54,
+    "wikidata": 0.0,
+    "osm": 0.31
+   },
+   "kaynak_yayilimi_km": 0.67
+  },
+  {
+   "id": "tr-32-isparta",
+   "ad": "Isparta",
+   "tz": "Europe/Istanbul",
+   "onceki": [
+    37.7648,
+    30.5566
+   ],
+   "yeni": [
+    37.7648,
+    30.5566
+   ],
+   "karar": "DOGRU",
+   "geonames": {
+    "geonameid": 311073,
+    "fcode": "PPLA",
+    "p": [
+     37.76444,
+     30.55222
+    ]
+   },
+   "wikidata": {
+    "q": "Q171031",
+    "p": [
+     37.766667,
+     30.55
+    ]
+   },
+   "osm": {
+    "node": "node/212488422",
+    "place": "city",
+    "p": [
+     37.763672,
+     30.555057
+    ]
+   },
+   "onceki_mesafe_km": {
+    "geonames": 0.39,
+    "wikidata": 0.62,
+    "osm": 0.18
+   },
+   "kaynak_yayilimi_km": 0.56
+  },
+  {
+   "id": "tr-33-mersin",
+   "ad": "Mersin",
+   "tz": "Europe/Istanbul",
+   "onceki": [
+    36.8121,
+    34.6415
+   ],
+   "yeni": [
+    36.8121,
+    34.6415
+   ],
+   "karar": "DOGRU",
+   "geonames": {
+    "geonameid": 304531,
+    "fcode": "PPLA",
+    "p": [
+     36.81196,
+     34.63886
+    ]
+   },
+   "wikidata": {
+    "q": "Q134291",
+    "p": [
+     36.8,
+     34.616667
+    ]
+   },
+   "osm": {
+    "node": "node/26481523",
+    "place": "city",
+    "p": [
+     36.797838,
+     34.629839
+    ]
+   },
+   "onceki_mesafe_km": {
+    "geonames": 0.24,
+    "wikidata": 2.59,
+    "osm": 1.9
+   },
+   "kaynak_yayilimi_km": 2.38
+  },
+  {
+   "id": "tr-34-istanbul",
+   "ad": "İstanbul",
+   "tz": "Europe/Istanbul",
+   "onceki": [
+    41.0082,
+    28.9784
+   ],
+   "yeni": [
+    41.0082,
+    28.9784
+   ],
+   "karar": "DOGRU",
+   "geonames": {
+    "geonameid": 745044,
+    "fcode": "PPLA",
+    "p": [
+     41.01384,
+     28.94966
+    ]
+   },
+   "wikidata": {
+    "q": "Q406",
+    "p": [
+     41.01,
+     28.960278
+    ]
+   },
+   "osm": {
+    "node": "node/1882099475",
+    "place": "city",
+    "p": [
+     41.006381,
+     28.975872
+    ]
+   },
+   "onceki_mesafe_km": {
+    "geonames": 2.49,
+    "wikidata": 1.53,
+    "osm": 0.29
+   },
+   "kaynak_yayilimi_km": 2.35
+  },
+  {
+   "id": "tr-35-izmir",
+   "ad": "İzmir",
+   "tz": "Europe/Istanbul",
+   "onceki": [
+    38.4237,
+    27.1428
+   ],
+   "yeni": [
+    38.4237,
+    27.1428
+   ],
+   "karar": "DOGRU",
+   "geonames": {
+    "geonameid": 311046,
+    "fcode": "PPLA",
+    "p": [
+     38.41273,
+     27.13838
+    ]
+   },
+   "wikidata": {
+    "q": "Q35997",
+    "p": [
+     38.41273,
+     27.13838
+    ]
+   },
+   "osm": {
+    "node": "node/428039507",
+    "place": "city",
+    "p": [
+     38.419254,
+     27.128469
+    ]
+   },
+   "onceki_mesafe_km": {
+    "geonames": 1.28,
+    "wikidata": 1.28,
+    "osm": 1.34
+   },
+   "kaynak_yayilimi_km": 1.13
+  },
+  {
+   "id": "tr-36-kars",
+   "ad": "Kars",
+   "tz": "Europe/Istanbul",
+   "onceki": [
+    40.6013,
+    43.0975
+   ],
+   "yeni": [
+    40.6013,
+    43.0975
+   ],
+   "karar": "DOGRU",
+   "geonames": {
+    "geonameid": 743952,
+    "fcode": "PPLA",
+    "p": [
+     40.59825,
+     43.08548
+    ]
+   },
+   "wikidata": {
+    "q": "Q127063",
+    "p": [
+     40.607778,
+     43.095833
+    ]
+   },
+   "osm": {
+    "node": "node/26486777",
+    "place": "city",
+    "p": [
+     40.607076,
+     43.094752
+    ]
+   },
+   "onceki_mesafe_km": {
+    "geonames": 1.07,
+    "wikidata": 0.73,
+    "osm": 0.68
+   },
+   "kaynak_yayilimi_km": 1.37
+  },
+  {
+   "id": "tr-37-kastamonu",
+   "ad": "Kastamonu",
+   "tz": "Europe/Istanbul",
+   "onceki": [
+    41.3887,
+    33.7827
+   ],
+   "yeni": [
+    41.3887,
+    33.7827
+   ],
+   "karar": "DOGRU",
+   "geonames": {
+    "geonameid": 743882,
+    "fcode": "PPLA",
+    "p": [
+     41.37805,
+     33.77528
+    ]
+   },
+   "wikidata": {
+    "q": "Q155915",
+    "p": [
+     41.383333,
+     33.783333
+    ]
+   },
+   "osm": {
+    "node": "node/26485876",
+    "place": "city",
+    "p": [
+     41.376536,
+     33.777009
+    ]
+   },
+   "onceki_mesafe_km": {
+    "geonames": 1.34,
+    "wikidata": 0.6,
+    "osm": 1.43
+   },
+   "kaynak_yayilimi_km": 0.92
+  },
+  {
+   "id": "tr-38-kayseri",
+   "ad": "Kayseri",
+   "tz": "Europe/Istanbul",
+   "onceki": [
+    38.7312,
+    35.4787
+   ],
+   "yeni": [
+    38.7312,
+    35.4787
+   ],
+   "karar": "DOGRU",
+   "geonames": {
+    "geonameid": 308464,
+    "fcode": "PPLA",
+    "p": [
+     38.73222,
+     35.48528
+    ]
+   },
+   "wikidata": {
+    "q": "Q48338",
+    "p": [
+     38.7225,
+     35.4875
+    ]
+   },
+   "osm": {
+    "node": "node/26482287",
+    "place": "city",
+    "p": [
+     38.721901,
+     35.487321
+    ]
+   },
+   "onceki_mesafe_km": {
+    "geonames": 0.58,
+    "wikidata": 1.23,
+    "osm": 1.28
+   },
+   "kaynak_yayilimi_km": 1.16
+  },
+  {
+   "id": "tr-39-kirklareli",
+   "ad": "Kırklareli",
+   "tz": "Europe/Istanbul",
+   "onceki": [
+    41.7333,
+    27.2167
+   ],
+   "yeni": [
+    41.7333,
+    27.2167
+   ],
+   "karar": "DOGRU",
+   "geonames": {
+    "geonameid": 743166,
+    "fcode": "PPLA",
+    "p": [
+     41.73508,
+     27.22521
+    ]
+   },
+   "wikidata": {
+    "q": "Q206903",
+    "p": [
+     41.734722,
+     27.225278
+    ]
+   },
+   "osm": {
+    "node": "node/25869577",
+    "place": "city",
+    "p": [
+     41.737022,
+     27.223552
+    ]
+   },
+   "onceki_mesafe_km": {
+    "geonames": 0.73,
+    "wikidata": 0.73,
+    "osm": 0.7
+   },
+   "kaynak_yayilimi_km": 0.29
+  },
+  {
+   "id": "tr-40-kirsehir",
+   "ad": "Kırşehir",
+   "tz": "Europe/Istanbul",
+   "onceki": [
+    39.1425,
+    34.1709
+   ],
+   "yeni": [
+    39.1425,
+    34.1709
+   ],
+   "karar": "DOGRU",
+   "geonames": {
+    "geonameid": 307515,
+    "fcode": "PPLA",
+    "p": [
+     39.14583,
+     34.16389
+    ]
+   },
+   "wikidata": {
+    "q": "Q208005",
+    "p": [
+     39.145,
+     34.160833
+    ]
+   },
+   "osm": {
+    "node": "node/26482519",
+    "place": "city",
+    "p": [
+     39.146114,
+     34.160559
+    ]
+   },
+   "onceki_mesafe_km": {
+    "geonames": 0.71,
+    "wikidata": 0.91,
+    "osm": 0.98
+   },
+   "kaynak_yayilimi_km": 0.29
+  },
+  {
+   "id": "tr-41-kocaeli",
+   "ad": "Kocaeli",
+   "tz": "Europe/Istanbul",
+   "onceki": [
+    40.8533,
+    29.8815
+   ],
+   "yeni": [
+    40.765,
+    29.9293
+   ],
+   "karar": "DUZELT",
+   "geonames": {
+    "geonameid": 745028,
+    "fcode": "PPLA",
+    "p": [
+     40.76499,
+     29.92928
+    ]
+   },
+   "wikidata": {
+    "q": "Q129649",
+    "p": [
+     40.771882,
+     29.949785
+    ]
+   },
+   "osm": {
+    "node": "node/8250973366",
+    "place": "town",
+    "p": [
+     40.772114,
+     29.950562
+    ]
+   },
+   "onceki_mesafe_km": {
+    "geonames": 10.61,
+    "wikidata": 10.72,
+    "osm": 10.74
+   },
+   "kaynak_yayilimi_km": 1.96
+  },
+  {
+   "id": "tr-42-konya",
+   "ad": "Konya",
+   "tz": "Europe/Istanbul",
+   "onceki": [
+    37.8746,
+    32.4932
+   ],
+   "yeni": [
+    37.8746,
+    32.4932
+   ],
+   "karar": "DOGRU",
+   "geonames": {
+    "geonameid": 306571,
+    "fcode": "PPLA",
+    "p": [
+     37.87135,
+     32.48464
+    ]
+   },
+   "wikidata": {
+    "q": null,
+    "p": null
+   },
+   "osm": {
+    "node": "node/25869814",
+    "place": "city",
+    "p": [
+     37.872734,
+     32.492438
+    ]
+   },
+   "onceki_mesafe_km": {
+    "geonames": 0.83,
+    "wikidata": null,
+    "osm": 0.22
+   },
+   "kaynak_yayilimi_km": 0.7
+  },
+  {
+   "id": "tr-43-kutahya",
+   "ad": "Kütahya",
+   "tz": "Europe/Istanbul",
+   "onceki": [
+    39.4242,
+    29.9833
+   ],
+   "yeni": [
+    39.4242,
+    29.9833
+   ],
+   "karar": "DOGRU",
+   "geonames": {
+    "geonameid": 305268,
+    "fcode": "PPLA",
+    "p": [
+     39.42417,
+     29.98333
+    ]
+   },
+   "wikidata": {
+    "q": "Q188894",
+    "p": [
+     39.424167,
+     29.983333
+    ]
+   },
+   "osm": {
+    "node": "node/25869815",
+    "place": "city",
+    "p": [
+     39.419911,
+     29.985789
+    ]
+   },
+   "onceki_mesafe_km": {
+    "geonames": 0.0,
+    "wikidata": 0.0,
+    "osm": 0.52
+   },
+   "kaynak_yayilimi_km": 0.52
+  },
+  {
+   "id": "tr-44-malatya",
+   "ad": "Malatya",
+   "tz": "Europe/Istanbul",
+   "onceki": [
+    38.3552,
+    38.3095
+   ],
+   "yeni": [
+    38.3552,
+    38.3095
+   ],
+   "karar": "DOGRU",
+   "geonames": {
+    "geonameid": 304922,
+    "fcode": "PPLA",
+    "p": [
+     38.35018,
+     38.31667
+    ]
+   },
+   "wikidata": {
+    "q": "Q165995",
+    "p": [
+     38.35062,
+     38.3094
+    ]
+   },
+   "osm": {
+    "node": "node/26486997",
+    "place": "city",
+    "p": [
+     38.348715,
+     38.319067
+    ]
+   },
+   "onceki_mesafe_km": {
+    "geonames": 0.84,
+    "wikidata": 0.51,
+    "osm": 1.1
+   },
+   "kaynak_yayilimi_km": 0.87
+  },
+  {
+   "id": "tr-45-manisa",
+   "ad": "Manisa",
+   "tz": "Europe/Istanbul",
+   "onceki": [
+    38.6191,
+    27.4289
+   ],
+   "yeni": [
+    38.6191,
+    27.4289
+   ],
+   "karar": "DOGRU",
+   "geonames": {
+    "geonameid": 304827,
+    "fcode": "PPLA",
+    "p": [
+     38.61202,
+     27.42647
+    ]
+   },
+   "wikidata": {
+    "q": "Q147089",
+    "p": [
+     38.611944,
+     27.426389
+    ]
+   },
+   "osm": {
+    "node": "node/25869819",
+    "place": "city",
+    "p": [
+     38.612579,
+     27.433397
+    ]
+   },
+   "onceki_mesafe_km": {
+    "geonames": 0.82,
+    "wikidata": 0.83,
+    "osm": 0.82
+   },
+   "kaynak_yayilimi_km": 0.61
+  },
+  {
+   "id": "tr-46-kahramanmaras",
+   "ad": "Kahramanmaraş",
+   "tz": "Europe/Istanbul",
+   "onceki": [
+    37.5858,
+    36.9371
+   ],
+   "yeni": [
+    37.5858,
+    36.9371
+   ],
+   "karar": "DOGRU",
+   "geonames": {
+    "geonameid": 310859,
+    "fcode": "PPLA",
+    "p": [
+     37.5847,
+     36.92641
+    ]
+   },
+   "wikidata": {
+    "q": "Q134703",
+    "p": [
+     37.5875,
+     36.945278
+    ]
+   },
+   "osm": {
+    "node": "node/26480875",
+    "place": "city",
+    "p": [
+     37.581274,
+     36.927509
+    ]
+   },
+   "onceki_mesafe_km": {
+    "geonames": 0.95,
+    "wikidata": 0.74,
+    "osm": 0.98
+   },
+   "kaynak_yayilimi_km": 1.71
+  },
+  {
+   "id": "tr-47-mardin",
+   "ad": "Mardin",
+   "tz": "Europe/Istanbul",
+   "onceki": [
+    37.3212,
+    40.7245
+   ],
+   "yeni": [
+    37.3212,
+    40.7245
+   ],
+   "karar": "DOGRU",
+   "geonames": {
+    "geonameid": 304797,
+    "fcode": "PPLA",
+    "p": [
+     37.31309,
+     40.74357
+    ]
+   },
+   "wikidata": {
+    "q": "Q188022",
+    "p": [
+     37.313056,
+     40.735
+    ]
+   },
+   "osm": {
+    "node": "node/26487735",
+    "place": "city",
+    "p": [
+     37.313258,
+     40.735438
+    ]
+   },
+   "onceki_mesafe_km": {
+    "geonames": 1.91,
+    "wikidata": 1.3,
+    "osm": 1.31
+   },
+   "kaynak_yayilimi_km": 0.76
+  },
+  {
+   "id": "tr-48-mugla",
+   "ad": "Muğla",
+   "tz": "Europe/Istanbul",
+   "onceki": [
+    37.2153,
+    28.3636
+   ],
+   "yeni": [
+    37.2153,
+    28.3636
+   ],
+   "karar": "DOGRU",
+   "geonames": {
+    "geonameid": 304184,
+    "fcode": "PPLA",
+    "p": [
+     37.21807,
+     28.3665
+    ]
+   },
+   "wikidata": {
+    "q": "Q216912",
+    "p": [
+     37.216667,
+     28.366667
+    ]
+   },
+   "osm": {
+    "node": "node/25869694",
+    "place": "city",
+    "p": [
+     37.215178,
+     28.363733
+    ]
+   },
+   "onceki_mesafe_km": {
+    "geonames": 0.4,
+    "wikidata": 0.31,
+    "osm": 0.02
+   },
+   "kaynak_yayilimi_km": 0.4
+  },
+  {
+   "id": "tr-49-mus",
+   "ad": "Muş",
+   "tz": "Europe/Istanbul",
+   "onceki": [
+    38.9462,
+    41.7539
+   ],
+   "yeni": [
+    38.7316,
+    41.4848
+   ],
+   "karar": "DUZELT",
+   "geonames": {
+    "geonameid": 304081,
+    "fcode": "PPLA",
+    "p": [
+     38.73163,
+     41.48482
+    ]
+   },
+   "wikidata": {
+    "q": "Q118995",
+    "p": [
+     38.733333,
+     41.491111
+    ]
+   },
+   "osm": {
+    "node": "node/26486736",
+    "place": "city",
+    "p": [
+     38.732222,
+     41.489893
+    ]
+   },
+   "onceki_mesafe_km": {
+    "geonames": 33.35,
+    "wikidata": 32.84,
+    "osm": 33.0
+   },
+   "kaynak_yayilimi_km": 0.58
+  },
+  {
+   "id": "tr-50-nevsehir",
+   "ad": "Nevşehir",
+   "tz": "Europe/Istanbul",
+   "onceki": [
+    38.6939,
+    34.6857
+   ],
+   "yeni": [
+    38.625,
+    34.7122
+   ],
+   "karar": "DUZELT",
+   "geonames": {
+    "geonameid": 303831,
+    "fcode": "PPLA",
+    "p": [
+     38.625,
+     34.71222
+    ]
+   },
+   "wikidata": {
+    "q": "Q206879",
+    "p": [
+     38.625,
+     34.712222
+    ]
+   },
+   "osm": {
+    "node": "node/26482523",
+    "place": "city",
+    "p": [
+     38.625039,
+     34.715069
+    ]
+   },
+   "onceki_mesafe_km": {
+    "geonames": 8.0,
+    "wikidata": 8.0,
+    "osm": 8.07
+   },
+   "kaynak_yayilimi_km": 0.25
+  },
+  {
+   "id": "tr-51-nigde",
+   "ad": "Niğde",
+   "tz": "Europe/Istanbul",
+   "onceki": [
+    37.9667,
+    34.6833
+   ],
+   "yeni": [
+    37.9667,
+    34.6833
+   ],
+   "karar": "DOGRU",
+   "geonames": {
+    "geonameid": 303827,
+    "fcode": "PPLA",
+    "p": [
+     37.96583,
+     34.67935
+    ]
+   },
+   "wikidata": {
+    "q": "Q194146",
+    "p": [
+     37.966667,
+     34.679167
+    ]
+   },
+   "osm": {
+    "node": "node/26482716",
+    "place": "city",
+    "p": [
+     37.969849,
+     34.676449
+    ]
+   },
+   "onceki_mesafe_km": {
+    "geonames": 0.36,
+    "wikidata": 0.36,
+    "osm": 0.7
+   },
+   "kaynak_yayilimi_km": 0.51
+  },
+  {
+   "id": "tr-52-ordu",
+   "ad": "Ordu",
+   "tz": "Europe/Istanbul",
+   "onceki": [
+    40.9839,
+    37.8764
+   ],
+   "yeni": [
+    40.9839,
+    37.8764
+   ],
+   "karar": "DOGRU",
+   "geonames": {
+    "geonameid": 741100,
+    "fcode": "PPLA",
+    "p": [
+     40.97782,
+     37.89047
+    ]
+   },
+   "wikidata": {
+    "q": "Q184539",
+    "p": [
+     40.983333,
+     37.883333
+    ]
+   },
+   "osm": {
+    "node": "node/26486071",
+    "place": "city",
+    "p": [
+     40.98523,
+     37.879773
+    ]
+   },
+   "onceki_mesafe_km": {
+    "geonames": 1.36,
+    "wikidata": 0.59,
+    "osm": 0.32
+   },
+   "kaynak_yayilimi_km": 1.22
+  },
+  {
+   "id": "tr-53-rize",
+   "ad": "Rize",
+   "tz": "Europe/Istanbul",
+   "onceki": [
+    41.0201,
+    40.5234
+   ],
+   "yeni": [
+    41.0201,
+    40.5234
+   ],
+   "karar": "DOGRU",
+   "geonames": {
+    "geonameid": 740483,
+    "fcode": "PPLA",
+    "p": [
+     41.02083,
+     40.52194
+    ]
+   },
+   "wikidata": {
+    "q": "Q201101",
+    "p": [
+     41.024825,
+     40.519914
+    ]
+   },
+   "osm": {
+    "node": "node/26486097",
+    "place": "city",
+    "p": [
+     41.024825,
+     40.519914
+    ]
+   },
+   "onceki_mesafe_km": {
+    "geonames": 0.15,
+    "wikidata": 0.6,
+    "osm": 0.6
+   },
+   "kaynak_yayilimi_km": 0.48
+  },
+  {
+   "id": "tr-54-sakarya",
+   "ad": "Sakarya",
+   "tz": "Europe/Istanbul",
+   "onceki": [
+    40.7569,
+    30.3781
+   ],
+   "yeni": [
+    40.7806,
+    30.4033
+   ],
+   "karar": "DUZELT",
+   "geonames": {
+    "geonameid": 752850,
+    "fcode": "PPLA",
+    "p": [
+     40.78056,
+     30.40333
+    ]
+   },
+   "wikidata": {
+    "q": "Q175323",
+    "p": [
+     40.77625,
+     30.40256
+    ]
+   },
+   "osm": {
+    "node": "node/25869708",
+    "place": "town",
+    "p": [
+     40.775521,
+     30.40203
+    ]
+   },
+   "onceki_mesafe_km": {
+    "geonames": 3.38,
+    "wikidata": 2.98,
+    "osm": 2.89
+   },
+   "kaynak_yayilimi_km": 0.57
+  },
+  {
+   "id": "tr-55-samsun",
+   "ad": "Samsun",
+   "tz": "Europe/Istanbul",
+   "onceki": [
+    41.2867,
+    36.33
+   ],
+   "yeni": [
+    41.2867,
+    36.33
+   ],
+   "karar": "DOGRU",
+   "geonames": {
+    "geonameid": 740264,
+    "fcode": "PPLA",
+    "p": [
+     41.27976,
+     36.3361
+    ]
+   },
+   "wikidata": {
+    "q": "Q160450",
+    "p": [
+     41.286667,
+     36.33
+    ]
+   },
+   "osm": {
+    "node": "node/26486105",
+    "place": "city",
+    "p": [
+     41.294615,
+     36.33206
+    ]
+   },
+   "onceki_mesafe_km": {
+    "geonames": 0.92,
+    "wikidata": 0.0,
+    "osm": 0.9
+   },
+   "kaynak_yayilimi_km": 1.69
+  },
+  {
+   "id": "tr-56-siirt",
+   "ad": "Siirt",
+   "tz": "Europe/Istanbul",
+   "onceki": [
+    37.9333,
+    41.95
+   ],
+   "yeni": [
+    37.9333,
+    41.95
+   ],
+   "karar": "DOGRU",
+   "geonames": {
+    "geonameid": 300822,
+    "fcode": "PPLA",
+    "p": [
+     37.9293,
+     41.94134
+    ]
+   },
+   "wikidata": {
+    "q": "Q185084",
+    "p": [
+     37.841667,
+     41.945833
+    ]
+   },
+   "osm": {
+    "node": "node/26487823",
+    "place": "city",
+    "p": [
+     37.927362,
+     41.94218
+    ]
+   },
+   "onceki_mesafe_km": {
+    "geonames": 0.88,
+    "wikidata": 10.2,
+    "osm": 0.95
+   },
+   "kaynak_yayilimi_km": 9.75
+  },
+  {
+   "id": "tr-57-sinop",
+   "ad": "Sinop",
+   "tz": "Europe/Istanbul",
+   "onceki": [
+    42.0231,
+    35.1531
+   ],
+   "yeni": [
+    42.0231,
+    35.1531
+   ],
+   "karar": "DOGRU",
+   "geonames": {
+    "geonameid": 739600,
+    "fcode": "PPLA",
+    "p": [
+     42.02683,
+     35.16253
+    ]
+   },
+   "wikidata": {
+    "q": "Q599416",
+    "p": [
+     42.026667,
+     35.151111
+    ]
+   },
+   "osm": {
+    "node": "node/26486164",
+    "place": "city",
+    "p": [
+     42.02658,
+     35.151151
+    ]
+   },
+   "onceki_mesafe_km": {
+    "geonames": 0.88,
+    "wikidata": 0.43,
+    "osm": 0.42
+   },
+   "kaynak_yayilimi_km": 0.94
+  },
+  {
+   "id": "tr-58-sivas",
+   "ad": "Sivas",
+   "tz": "Europe/Istanbul",
+   "onceki": [
+    39.7477,
+    37.0179
+   ],
+   "yeni": [
+    39.7477,
+    37.0179
+   ],
+   "karar": "DOGRU",
+   "geonames": {
+    "geonameid": 300619,
+    "fcode": "PPLA",
+    "p": [
+     39.74833,
+     37.01611
+    ]
+   },
+   "wikidata": {
+    "q": "Q107401",
+    "p": [
+     39.75,
+     37.016667
+    ]
+   },
+   "osm": {
+    "node": "node/26482940",
+    "place": "city",
+    "p": [
+     39.750357,
+     37.014517
+    ]
+   },
+   "onceki_mesafe_km": {
+    "geonames": 0.17,
+    "wikidata": 0.28,
+    "osm": 0.41
+   },
+   "kaynak_yayilimi_km": 0.26
+  },
+  {
+   "id": "tr-59-tekirdag",
+   "ad": "Tekirdağ",
+   "tz": "Europe/Istanbul",
+   "onceki": [
+    40.9833,
+    27.5167
+   ],
+   "yeni": [
+    40.9833,
+    27.5167
+   ],
+   "karar": "DOGRU",
+   "geonames": {
+    "geonameid": 738927,
+    "fcode": "PPLA",
+    "p": [
+     40.9781,
+     27.51101
+    ]
+   },
+   "wikidata": {
+    "q": "Q182009",
+    "p": [
+     40.983333,
+     27.516667
+    ]
+   },
+   "osm": {
+    "node": "node/1846826471",
+    "place": "city",
+    "p": [
+     40.978121,
+     27.51078
+    ]
+   },
+   "onceki_mesafe_km": {
+    "geonames": 0.75,
+    "wikidata": 0.0,
+    "osm": 0.76
+   },
+   "kaynak_yayilimi_km": 0.76
+  },
+  {
+   "id": "tr-60-tokat",
+   "ad": "Tokat",
+   "tz": "Europe/Istanbul",
+   "onceki": [
+    40.3167,
+    36.55
+   ],
+   "yeni": [
+    40.3167,
+    36.55
+   ],
+   "karar": "DOGRU",
+   "geonames": {
+    "geonameid": 738743,
+    "fcode": "PPLA",
+    "p": [
+     40.31389,
+     36.55444
+    ]
+   },
+   "wikidata": {
+    "q": "Q183651",
+    "p": [
+     40.309722,
+     36.554167
+    ]
+   },
+   "osm": {
+    "node": "node/26486186",
+    "place": "city",
+    "p": [
+     40.323353,
+     36.552162
+    ]
+   },
+   "onceki_mesafe_km": {
+    "geonames": 0.49,
+    "wikidata": 0.85,
+    "osm": 0.76
+   },
+   "kaynak_yayilimi_km": 1.53
+  },
+  {
+   "id": "tr-61-trabzon",
+   "ad": "Trabzon",
+   "tz": "Europe/Istanbul",
+   "onceki": [
+    41.0027,
+    39.7168
+   ],
+   "yeni": [
+    41.0027,
+    39.7168
+   ],
+   "karar": "DOGRU",
+   "geonames": {
+    "geonameid": 738648,
+    "fcode": "PPLA",
+    "p": [
+     41.005,
+     39.72694
+    ]
+   },
+   "wikidata": {
+    "q": "Q45301",
+    "p": [
+     41.005,
+     39.7225
+    ]
+   },
+   "osm": {
+    "node": "node/512552945",
+    "place": "city",
+    "p": [
+     41.00546,
+     39.730146
+    ]
+   },
+   "onceki_mesafe_km": {
+    "geonames": 0.89,
+    "wikidata": 0.54,
+    "osm": 1.16
+   },
+   "kaynak_yayilimi_km": 0.64
+  },
+  {
+   "id": "tr-62-tunceli",
+   "ad": "Tunceli",
+   "tz": "Europe/Istanbul",
+   "onceki": [
+    39.1079,
+    39.5401
+   ],
+   "yeni": [
+    39.1079,
+    39.5401
+   ],
+   "karar": "DOGRU",
+   "geonames": {
+    "geonameid": 298846,
+    "fcode": "PPLA",
+    "p": [
+     39.09921,
+     39.54351
+    ]
+   },
+   "wikidata": {
+    "q": "Q202195",
+    "p": [
+     39.106111,
+     39.548056
+    ]
+   },
+   "osm": {
+    "node": "node/26487261",
+    "place": "city",
+    "p": [
+     39.106064,
+     39.548269
+    ]
+   },
+   "onceki_mesafe_km": {
+    "geonames": 1.01,
+    "wikidata": 0.71,
+    "osm": 0.73
+   },
+   "kaynak_yayilimi_km": 0.87
+  },
+  {
+   "id": "tr-63-sanliurfa",
+   "ad": "Şanlıurfa",
+   "tz": "Europe/Istanbul",
+   "onceki": [
+    37.1591,
+    38.7969
+   ],
+   "yeni": [
+    37.1591,
+    38.7969
+   ],
+   "karar": "DOGRU",
+   "geonames": {
+    "geonameid": 298333,
+    "fcode": "PPLA",
+    "p": [
+     37.16708,
+     38.79392
+    ]
+   },
+   "wikidata": {
+    "q": "Q133118",
+    "p": [
+     37.158333,
+     38.791667
+    ]
+   },
+   "osm": {
+    "node": "node/26487743",
+    "place": "city",
+    "p": [
+     37.159624,
+     38.791929
+    ]
+   },
+   "onceki_mesafe_km": {
+    "geonames": 0.93,
+    "wikidata": 0.47,
+    "osm": 0.44
+   },
+   "kaynak_yayilimi_km": 0.99
+  },
+  {
+   "id": "tr-64-usak",
+   "ad": "Uşak",
+   "tz": "Europe/Istanbul",
+   "onceki": [
+    38.6823,
+    29.4082
+   ],
+   "yeni": [
+    38.6823,
+    29.4082
+   ],
+   "karar": "DOGRU",
+   "geonames": {
+    "geonameid": 298299,
+    "fcode": "PPLA",
+    "p": [
+     38.67351,
+     29.4058
+    ]
+   },
+   "wikidata": {
+    "q": null,
+    "p": null
+   },
+   "osm": {
+    "node": "node/25869820",
+    "place": "city",
+    "p": [
+     38.67404,
+     29.405842
+    ]
+   },
+   "onceki_mesafe_km": {
+    "geonames": 1.0,
+    "wikidata": null,
+    "osm": 0.94
+   },
+   "kaynak_yayilimi_km": 0.06
+  },
+  {
+   "id": "tr-65-van",
+   "ad": "Van",
+   "tz": "Europe/Istanbul",
+   "onceki": [
+    38.4942,
+    43.38
+   ],
+   "yeni": [
+    38.4942,
+    43.38
+   ],
+   "karar": "DOGRU",
+   "geonames": {
+    "geonameid": 298117,
+    "fcode": "PPLA",
+    "p": [
+     38.49457,
+     43.38323
+    ]
+   },
+   "wikidata": {
+    "q": "Q83061",
+    "p": [
+     38.501944,
+     43.416667
+    ]
+   },
+   "osm": {
+    "node": "node/26480571",
+    "place": "city",
+    "p": [
+     38.500875,
+     43.394605
+    ]
+   },
+   "onceki_mesafe_km": {
+    "geonames": 0.28,
+    "wikidata": 3.31,
+    "osm": 1.47
+   },
+   "kaynak_yayilimi_km": 3.02
+  },
+  {
+   "id": "tr-66-yozgat",
+   "ad": "Yozgat",
+   "tz": "Europe/Istanbul",
+   "onceki": [
+    39.8181,
+    34.8147
+   ],
+   "yeni": [
+    39.8181,
+    34.8147
+   ],
+   "karar": "DOGRU",
+   "geonames": {
+    "geonameid": 296562,
+    "fcode": "PPLA",
+    "p": [
+     39.82,
+     34.80444
+    ]
+   },
+   "wikidata": {
+    "q": "Q210292",
+    "p": [
+     39.820833,
+     34.808333
+    ]
+   },
+   "osm": {
+    "node": "node/26482958",
+    "place": "city",
+    "p": [
+     39.822197,
+     34.808097
+    ]
+   },
+   "onceki_mesafe_km": {
+    "geonames": 0.9,
+    "wikidata": 0.62,
+    "osm": 0.72
+   },
+   "kaynak_yayilimi_km": 0.4
+  },
+  {
+   "id": "tr-67-zonguldak",
+   "ad": "Zonguldak",
+   "tz": "Europe/Istanbul",
+   "onceki": [
+    41.4564,
+    31.7987
+   ],
+   "yeni": [
+    41.4564,
+    31.7987
+   ],
+   "karar": "DOGRU",
+   "geonames": {
+    "geonameid": 737022,
+    "fcode": "PPLA",
+    "p": [
+     41.45139,
+     31.79305
+    ]
+   },
+   "wikidata": {
+    "q": "Q187895",
+    "p": [
+     41.45,
+     31.783333
+    ]
+   },
+   "osm": {
+    "node": "node/26486267",
+    "place": "city",
+    "p": [
+     41.452677,
+     31.787598
+    ]
+   },
+   "onceki_mesafe_km": {
+    "geonames": 0.73,
+    "wikidata": 1.47,
+    "osm": 1.01
+   },
+   "kaynak_yayilimi_km": 0.82
+  },
+  {
+   "id": "tr-68-aksaray",
+   "ad": "Aksaray",
+   "tz": "Europe/Istanbul",
+   "onceki": [
+    38.3687,
+    34.037
+   ],
+   "yeni": [
+    38.3687,
+    34.037
+   ],
+   "karar": "DOGRU",
+   "geonames": {
+    "geonameid": 324496,
+    "fcode": "PPLA",
+    "p": [
+     38.37255,
+     34.02537
+    ]
+   },
+   "wikidata": {
+    "q": "Q182025",
+    "p": [
+     38.3686,
+     34.0297
+    ]
+   },
+   "osm": {
+    "node": "node/26482228",
+    "place": "city",
+    "p": [
+     38.370542,
+     34.026907
+    ]
+   },
+   "onceki_mesafe_km": {
+    "geonames": 1.1,
+    "wikidata": 0.64,
+    "osm": 0.9
+   },
+   "kaynak_yayilimi_km": 0.58
+  },
+  {
+   "id": "tr-69-bayburt",
+   "ad": "Bayburt",
+   "tz": "Europe/Istanbul",
+   "onceki": [
+    40.2552,
+    40.2249
+   ],
+   "yeni": [
+    40.2552,
+    40.2249
+   ],
+   "karar": "DOGRU",
+   "geonames": {
+    "geonameid": 750938,
+    "fcode": "PPLA",
+    "p": [
+     40.25631,
+     40.22289
+    ]
+   },
+   "wikidata": {
+    "q": "Q211828",
+    "p": [
+     40.254639,
+     40.226
+    ]
+   },
+   "osm": {
+    "node": "node/26483234",
+    "place": "city",
+    "p": [
+     40.255161,
+     40.220504
+    ]
+   },
+   "onceki_mesafe_km": {
+    "geonames": 0.21,
+    "wikidata": 0.11,
+    "osm": 0.37
+   },
+   "kaynak_yayilimi_km": 0.47
+  },
+  {
+   "id": "tr-70-karaman",
+   "ad": "Karaman",
+   "tz": "Europe/Istanbul",
+   "onceki": [
+    37.1759,
+    33.2287
+   ],
+   "yeni": [
+    37.1759,
+    33.2287
+   ],
+   "karar": "DOGRU",
+   "geonames": {
+    "geonameid": 309527,
+    "fcode": "PPLA",
+    "p": [
+     37.18111,
+     33.215
+    ]
+   },
+   "wikidata": {
+    "q": "Q262579",
+    "p": [
+     37.183333,
+     33.216667
+    ]
+   },
+   "osm": {
+    "node": "node/26482281",
+    "place": "city",
+    "p": [
+     37.18085,
+     33.219455
+    ]
+   },
+   "onceki_mesafe_km": {
+    "geonames": 1.34,
+    "wikidata": 1.35,
+    "osm": 0.99
+   },
+   "kaynak_yayilimi_km": 0.4
+  },
+  {
+   "id": "tr-71-kirikkale",
+   "ad": "Kırıkkale",
+   "tz": "Europe/Istanbul",
+   "onceki": [
+    39.8468,
+    33.5153
+   ],
+   "yeni": [
+    39.8468,
+    33.5153
+   ],
+   "karar": "DOGRU",
+   "geonames": {
+    "geonameid": 307654,
+    "fcode": "PPLA",
+    "p": [
+     39.84528,
+     33.50639
+    ]
+   },
+   "wikidata": {
+    "q": "Q206891",
+    "p": [
+     39.841667,
+     33.513889
+    ]
+   },
+   "osm": {
+    "node": "node/26482294",
+    "place": "city",
+    "p": [
+     39.841048,
+     33.505854
+    ]
+   },
+   "onceki_mesafe_km": {
+    "geonames": 0.78,
+    "wikidata": 0.58,
+    "osm": 1.03
+   },
+   "kaynak_yayilimi_km": 0.76
+  },
+  {
+   "id": "tr-72-batman",
+   "ad": "Batman",
+   "tz": "Europe/Istanbul",
+   "onceki": [
+    37.8812,
+    41.1351
+   ],
+   "yeni": [
+    37.8812,
+    41.1351
+   ],
+   "karar": "DOGRU",
+   "geonames": {
+    "geonameid": 321836,
+    "fcode": "PPLA",
+    "p": [
+     37.88738,
+     41.13221
+    ]
+   },
+   "wikidata": {
+    "q": "Q159835",
+    "p": [
+     37.883333,
+     41.133333
+    ]
+   },
+   "osm": {
+    "node": "node/26487469",
+    "place": "city",
+    "p": [
+     37.883574,
+     41.127756
+    ]
+   },
+   "onceki_mesafe_km": {
+    "geonames": 0.73,
+    "wikidata": 0.28,
+    "osm": 0.7
+   },
+   "kaynak_yayilimi_km": 0.58
+  },
+  {
+   "id": "tr-73-sirnak",
+   "ad": "Şırnak",
+   "tz": "Europe/Istanbul",
+   "onceki": [
+    37.5164,
+    42.4611
+   ],
+   "yeni": [
+    37.5164,
+    42.4611
+   ],
+   "karar": "DOGRU",
+   "geonames": {
+    "geonameid": 300640,
+    "fcode": "PPLA",
+    "p": [
+     37.51393,
+     42.45432
+    ]
+   },
+   "wikidata": {
+    "q": "Q131495",
+    "p": [
+     37.516389,
+     42.461111
+    ]
+   },
+   "osm": {
+    "node": "node/26487882",
+    "place": "city",
+    "p": [
+     37.521958,
+     42.457031
+    ]
+   },
+   "onceki_mesafe_km": {
+    "geonames": 0.66,
+    "wikidata": 0.0,
+    "osm": 0.71
+   },
+   "kaynak_yayilimi_km": 0.92
+  },
+  {
+   "id": "tr-74-bartin",
+   "ad": "Bartın",
+   "tz": "Europe/Istanbul",
+   "onceki": [
+    41.6344,
+    32.3375
+   ],
+   "yeni": [
+    41.6344,
+    32.3375
+   ],
+   "karar": "DOGRU",
+   "geonames": {
+    "geonameid": 751057,
+    "fcode": "PPLA",
+    "p": [
+     41.63583,
+     32.3375
+    ]
+   },
+   "wikidata": {
+    "q": "Q211805",
+    "p": [
+     41.634444,
+     32.3375
+    ]
+   },
+   "osm": {
+    "node": "node/26483113",
+    "place": "city",
+    "p": [
+     41.635046,
+     32.336621
+    ]
+   },
+   "onceki_mesafe_km": {
+    "geonames": 0.16,
+    "wikidata": 0.0,
+    "osm": 0.1
+   },
+   "kaynak_yayilimi_km": 0.15
+  },
+  {
+   "id": "tr-75-ardahan",
+   "ad": "Ardahan",
+   "tz": "Europe/Istanbul",
+   "onceki": [
+    41.1105,
+    42.7022
+   ],
+   "yeni": [
+    41.1105,
+    42.7022
+   ],
+   "karar": "DOGRU",
+   "geonames": {
+    "geonameid": 751952,
+    "fcode": "PPLA",
+    "p": [
+     41.10871,
+     42.70222
+    ]
+   },
+   "wikidata": {
+    "q": "Q202188",
+    "p": [
+     41.116667,
+     42.7
+    ]
+   },
+   "osm": {
+    "node": "node/26486338",
+    "place": "city",
+    "p": [
+     41.110297,
+     42.703558
+    ]
+   },
+   "onceki_mesafe_km": {
+    "geonames": 0.2,
+    "wikidata": 0.71,
+    "osm": 0.12
+   },
+   "kaynak_yayilimi_km": 0.9
+  },
+  {
+   "id": "tr-76-igdir",
+   "ad": "Iğdır",
+   "tz": "Europe/Istanbul",
+   "onceki": [
+    39.9237,
+    44.045
+   ],
+   "yeni": [
+    39.9237,
+    44.045
+   ],
+   "karar": "DOGRU",
+   "geonames": {
+    "geonameid": 311665,
+    "fcode": "PPLA",
+    "p": [
+     39.92371,
+     44.045
+    ]
+   },
+   "wikidata": {
+    "q": "Q483331",
+    "p": [
+     39.92371,
+     44.045
+    ]
+   },
+   "osm": {
+    "node": "node/26480597",
+    "place": "city",
+    "p": [
+     39.921878,
+     44.046796
+    ]
+   },
+   "onceki_mesafe_km": {
+    "geonames": 0.0,
+    "wikidata": 0.0,
+    "osm": 0.25
+   },
+   "kaynak_yayilimi_km": 0.25
+  },
+  {
+   "id": "tr-77-yalova",
+   "ad": "Yalova",
+   "tz": "Europe/Istanbul",
+   "onceki": [
+    40.65,
+    29.2667
+   ],
+   "yeni": [
+    40.65,
+    29.2667
+   ],
+   "karar": "DOGRU",
+   "geonames": {
+    "geonameid": 738025,
+    "fcode": "PPLA",
+    "p": [
+     40.65501,
+     29.27693
+    ]
+   },
+   "wikidata": {
+    "q": "Q205942",
+    "p": [
+     40.655556,
+     29.275
+    ]
+   },
+   "osm": {
+    "node": "node/25869857",
+    "place": "city",
+    "p": [
+     40.658253,
+     29.269992
+    ]
+   },
+   "onceki_mesafe_km": {
+    "geonames": 1.03,
+    "wikidata": 0.93,
+    "osm": 0.96
+   },
+   "kaynak_yayilimi_km": 0.69
+  },
+  {
+   "id": "tr-78-karabuk",
+   "ad": "Karabük",
+   "tz": "Europe/Istanbul",
+   "onceki": [
+    41.2061,
+    32.6204
+   ],
+   "yeni": [
+    41.2061,
+    32.6204
+   ],
+   "karar": "DOGRU",
+   "geonames": {
+    "geonameid": 744562,
+    "fcode": "PPLA",
+    "p": [
+     41.20488,
+     32.62768
+    ]
+   },
+   "wikidata": {
+    "q": "Q189697",
+    "p": [
+     41.2,
+     32.633333
+    ]
+   },
+   "osm": {
+    "node": "node/26485694",
+    "place": "city",
+    "p": [
+     41.19554,
+     32.623115
+    ]
+   },
+   "onceki_mesafe_km": {
+    "geonames": 0.62,
+    "wikidata": 1.28,
+    "osm": 1.2
+   },
+   "kaynak_yayilimi_km": 1.11
+  },
+  {
+   "id": "tr-79-kilis",
+   "ad": "Kilis",
+   "tz": "Europe/Istanbul",
+   "onceki": [
+    36.7184,
+    37.1212
+   ],
+   "yeni": [
+    36.7184,
+    37.1212
+   ],
+   "karar": "DOGRU",
+   "geonames": {
+    "geonameid": 307864,
+    "fcode": "PPLA",
+    "p": [
+     36.71611,
+     37.115
+    ]
+   },
+   "wikidata": {
+    "q": "Q206881",
+    "p": [
+     36.716667,
+     37.116667
+    ]
+   },
+   "osm": {
+    "node": "node/26487717",
+    "place": "city",
+    "p": [
+     36.716555,
+     37.114607
+    ]
+   },
+   "onceki_mesafe_km": {
+    "geonames": 0.61,
+    "wikidata": 0.45,
+    "osm": 0.62
+   },
+   "kaynak_yayilimi_km": 0.18
+  },
+  {
+   "id": "tr-80-osmaniye",
+   "ad": "Osmaniye",
+   "tz": "Europe/Istanbul",
+   "onceki": [
+    37.0742,
+    36.2464
+   ],
+   "yeni": [
+    37.0742,
+    36.2464
+   ],
+   "karar": "DOGRU",
+   "geonames": {
+    "geonameid": 303195,
+    "fcode": "PPLA",
+    "p": [
+     37.07417,
+     36.24778
+    ]
+   },
+   "wikidata": {
+    "q": "Q181379",
+    "p": [
+     37.075,
+     36.25
+    ]
+   },
+   "osm": {
+    "node": "node/26481742",
+    "place": "city",
+    "p": [
+     37.073359,
+     36.250767
+    ]
+   },
+   "onceki_mesafe_km": {
+    "geonames": 0.12,
+    "wikidata": 0.33,
+    "osm": 0.4
+   },
+   "kaynak_yayilimi_km": 0.28
+  },
+  {
+   "id": "tr-81-duzce",
+   "ad": "Düzce",
+   "tz": "Europe/Istanbul",
+   "onceki": [
+    40.8438,
+    31.1565
+   ],
+   "yeni": [
+    40.8438,
+    31.1565
+   ],
+   "karar": "DOGRU",
+   "geonames": {
+    "geonameid": 747764,
+    "fcode": "PPLA",
+    "p": [
+     40.83889,
+     31.16389
+    ]
+   },
+   "wikidata": {
+    "q": "Q206885",
+    "p": [
+     40.841667,
+     31.158333
+    ]
+   },
+   "osm": {
+    "node": "node/25869768",
+    "place": "city",
+    "p": [
+     40.839153,
+     31.159536
+    ]
+   },
+   "onceki_mesafe_km": {
+    "geonames": 0.83,
+    "wikidata": 0.28,
+    "osm": 0.58
+   },
+   "kaynak_yayilimi_km": 0.56
+  }
+ ]
+}

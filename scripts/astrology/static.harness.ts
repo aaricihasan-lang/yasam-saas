@@ -326,6 +326,9 @@ async function main() {
       /^public\/fonts\/YasamAstroSymbolsB-OFL\.txt$/,
       // next.config.ts: yalnız astroloji rapor route'larının font izleme satırları ("8" testi satır satır denetler).
       /^next\.config\.ts$/,
+      // 2026-11-16 (Owner kararı ATL-V01, seçenek B): ortak 81 il konum verisi merkezi düzeltilir (yalnız 7 il koordinatı;
+      // kimlik / ad / saat dilimi değişmez). Tüm modül etkisi atl-v01-il-merkezi.harness.ts ile denetlenir — yalnız bu tam yol.
+      /^lib\/location\/tr\.ts$/,
       /^lib\/backup\/ownerPilotTables\.ts$/,
       /^lib\/backup\/schema\.generated\.ts$/,
       /^scripts\/final-hardening\/backup\.harness\.ts$/,
