@@ -93,6 +93,22 @@ jobs:
           cat "$K/ozet.txt" >> "$GITHUB_STEP_SUMMARY"
           exit $rc
 
+      # TANILAMA (karar bu adıma bağlı DEĞİL): WebKit'te ui-logo önizleme kontrolü düşerse <img> durumu, /assets/ istekleri,
+      # img.decode() ve blob içeriği "ONIZLEME-TANI" satırına yazılır (runner'da ayrı kopya; kontroller aynen).
+      - name: Tanılama — WebKit ui-logo önizleme
+        if: always()
+        env:
+          UI_BASE: http://127.0.0.1:3984
+        run: |
+          set +e
+          K="$RUNNER_TEMP/f2-arayuz"; mkdir -p "$K"
+          cp scripts/profile/ui-logo.harness.ts scripts/profile/.tani-ui-logo.harness.ts
+          node -e 'const fs=require("fs");const f="scripts/profile/.tani-ui-logo.harness.ts";const s=fs.readFileSync(f,"utf8");fs.writeFileSync(f,s.replace("chromium.launch()",`(await import("playwright"))[process.env.UI_TARAYICI || "chromium"].launch()`))'
+          node .github/f2-arayuz/onizleme-tani.cjs scripts/profile/.tani-ui-logo.harness.ts
+          UI_TARAYICI=webkit UI_OUT="$K/tani-webkit-ui-logo" npx tsx scripts/profile/.tani-ui-logo.harness.ts > "$K/tani-webkit-ui-logo.log" 2>&1
+          echo "tani RC=$?"
+          grep -a "ONIZLEME-TANI" "$K/tani-webkit-ui-logo.log" | head -6 | tee -a "$GITHUB_STEP_SUMMARY"
+
       # ORTAM PROBU (uygulama kodu yok): aynı PNG blob: ve data: URL ile, 3 tarayıcıda yalın sayfada. Karar bu adıma bağlı DEĞİL.
       - name: Ortam probu — blob görsel çizimi (Chromium / Firefox / WebKit)
         if: always()
