@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { KeyRound, Loader2, Mail, RefreshCw, ShieldCheck, Smartphone, Trash2 } from "lucide-react";
 import { readSessionToken, hasSessionCredential, sessionTokenHeader } from "@/lib/auth/yasamUser";
+import AccountRecoverySection from "@/components/settings/AccountRecoverySection";
 
 /**
  * GİRİŞ GÜVENLİĞİ F2-D — "Giriş Yöntemlerim": kullanıcının KENDİ ikinci doğrulama yöntemleri.
@@ -261,6 +262,9 @@ export default function MyLoginMethodsPanel({ userId }: { userId: string }) {
           </details>
         )}
       </div>
+
+      {/* F2-E: hesap kurtarma (kurtarma kodları, e-posta / telefon değişimi, açık kurtarma talebi) */}
+      <AccountRecoverySection userId={userId} devices={liveDevices} onChanged={() => void load()} />
     </section>
   );
 }

@@ -553,6 +553,15 @@ export const BACKUP_REGISTRY: readonly RegistryEntry[] = [
   // özeti). Geri yükleme kullanılmış/kilitli bir kodu canlandırabilir veya kota sayacını sıfırlayabilirdi.
   off("auth_email_otps", "system", "E-posta doğrulama kodu özetleri (güvenlik; kısa ömürlü).", "none"),
   off("auth_email_deliveries", "system", "Doğrulama e-postası gönderim kaydı (kota/denetim; adres yok).", "none"),
+  // GİRİŞ GÜVENLİĞİ F2-E (migration 20280103000500): kurtarma kodu özetleri, deneme sayaçları, değiştirilemez
+  // kurtarma denetim kaydı, Owner kurtarma talepleri, e-posta değişikliği ve telefon değişimi istekleri.
+  // Geri yükleme kullanılmış/iptal edilmiş bir kodu canlandırabilir veya 72 saat beklemeyi atlatabilirdi.
+  off("auth_recovery_codes", "system", "Kurtarma kodu özetleri (güvenlik; düz kod yok).", "none"),
+  off("auth_recovery_attempts", "system", "Kurtarma kodu deneme sayacı (güvenlik).", "none"),
+  off("auth_recovery_events", "system", "Hesap kurtarma denetim kaydı (güvenlik; değiştirilemez).", "none"),
+  off("auth_recovery_cases", "system", "Owner aracılı hesap kurtarma talepleri (güvenlik).", "none"),
+  off("auth_email_change_requests", "system", "E-posta adresi değişikliği istekleri (güvenlik; kısa ömürlü).", "none"),
+  off("auth_device_replacements", "system", "Telefon değişimi işaretleri (güvenlik; kısa ömürlü).", "none"),
   // Migration 20271009100000: purge transaction'ına bağlı işaret; aynı tx'te yazılıp silinir, hiçbir role açık değil.
   off("session_limit_exceptions", "system", "Geçici test hesabı oturum-limiti istisnası (TEMPORARY — satış sonrası kaldırılacak).", "none"),
   off("auth_rate_limit_events", "system", "Global DB tabanlı istek hız sınırı olayları (güvenlik).", "none"),

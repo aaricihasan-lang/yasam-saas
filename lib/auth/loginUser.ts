@@ -242,6 +242,37 @@ export async function mfaEmailRequest(
   };
 }
 
+export type MfaRecoveryResult =
+  | { ok: true; remaining: number; kind: "code" | "ticket" | "owner_offline" }
+  | { ok: false; code: string; message: string | null; attemptsLeft?: number };
+
+/** F2-E: bekleyen challenge'ı kurtarma koduyla doğrula (yalnız bu tarayıcı — bağlama çerezi). Kod saklanmaz. */
+export async function mfaRecoveryVerify(info: MfaChallengeInfo, code: string, fetchImpl: typeof fetch = fetch): Promise<MfaRecoveryResult> {
+  let res: Response;
+  try {
+    res = await fetchImpl("/api/auth/mfa/recovery/verify", {
+      method: "POST",
+      cache: "no-store",
+      credentials: "same-origin",
+      headers: { "Content-Type": "application/json", ...(info.binding ? { "x-yasam-mfa-binding": info.binding } : {}), ...officialAppHeaders() },
+      body: JSON.stringify({ challengeId: info.challengeId, code }),
+    });
+  } catch {
+    return { ok: false, code: "NETWORK", message: "Bağlantı kurulamadı. İnternetinizi kontrol edip tekrar deneyin." };
+  }
+  const j = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+  if (res.ok && j.result === "verified") {
+    const kind = j.kind === "ticket" || j.kind === "owner_offline" ? j.kind : "code";
+    return { ok: true, remaining: typeof j.remaining === "number" ? j.remaining : 0, kind };
+  }
+  return {
+    ok: false,
+    code: typeof j.code === "string" ? j.code : `HTTP_${res.status}`,
+    message: typeof j.error === "string" ? j.error : null,
+    ...(typeof j.attemptsLeft === "number" ? { attemptsLeft: j.attemptsLeft } : {}),
+  };
+}
+
 export function normalizeLoginEmail(email: string): string {
   return email.trim().toLowerCase();
 }

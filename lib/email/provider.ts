@@ -17,7 +17,7 @@ export type EmailMessage = {
   text: string;
   html: string;
   /** Denetim/kota kategorisi — içerik DEĞİL. */
-  category: "login" | "verify_email" | "owner_test";
+  category: "login" | "verify_email" | "owner_test" | "change_email" | "security_notice";
 };
 
 export type EmailErrorCode =

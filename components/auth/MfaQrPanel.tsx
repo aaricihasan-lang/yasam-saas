@@ -9,15 +9,17 @@
  *  · QR: kod + telefonda seçilecek 2 haneli eşleştirme sayısı. Android telefonun kendi tarayıcısında
  *    "Bu telefonda uygulamayla onayla" bağlantısı (App Link) da sunulur.
  *  · E-posta: 6 haneli kod (3 dk, 5 yanlışta giriş isteği kapanır). iPhone'da uygulama GEREKMEZ.
+ *  · F2-E kurtarma kodu: telefon ve e-postaya erişilemiyorsa tek kullanımlık kurtarma kodu (veya Owner'ın
+ *    verdiği kurtarma bileti). Parola zaten doğrulanmış challenge'da çalışır; 5 yanlışta istek kapanır.
  * Challenge durumu 2 sn aralıkla sorulur (telefon reddi / süre dolumu her iki yöntemde de görünür).
  * Ağ hatası karar DEĞİLDİR. Token veya kullanıcı verisi bu bileşende tutulmaz.
  */
 import { useEffect, useMemo, useRef, useState } from "react";
-import { completeMfaLogin, mfaEmailRequest, pollMfaChallenge, type MfaChallengeInfo } from "@/lib/auth/loginUser";
+import { completeMfaLogin, mfaEmailRequest, mfaRecoveryVerify, pollMfaChallenge, type MfaChallengeInfo } from "@/lib/auth/loginUser";
 import { encodeQr, qrToSvgPath } from "@/lib/qr/qrEncode";
 
 type Done = { row: Record<string, unknown>; sessionToken: string | null; suspiciousLogin: boolean };
-type Method = "qr" | "email";
+type Method = "qr" | "email" | "recovery";
 
 const FINAL_TEXT: Record<string, string> = {
   denied: "Giriş isteği telefonunuzdan reddedildi. Bu siz değilseniz parolanızı değiştirin ve yöneticinize bildirin.",
@@ -25,6 +27,7 @@ const FINAL_TEXT: Record<string, string> = {
   consumed: "Bu giriş isteği zaten kullanıldı. Lütfen yeniden giriş yapın.",
   invalid: "Giriş isteği bu tarayıcıda bulunamadı. Lütfen yeniden giriş yapın.",
   locked: "Kod 5 kez hatalı girildi. Güvenliğiniz için bu giriş isteği kapatıldı; lütfen yeniden giriş yapın.",
+  recovery_locked: "Kurtarma kodu 5 kez hatalı girildi. Güvenliğiniz için bu giriş isteği kapatıldı; lütfen yeniden giriş yapın.",
   failed: "Giriş tamamlanamadı. Lütfen yeniden giriş yapın.",
 };
 
@@ -48,11 +51,13 @@ export default function MfaQrPanel({
 }) {
   const hasQr = challenge.methods.includes("qr_device") && !!challenge.qr;
   const hasEmail = challenge.methods.includes("email_otp");
-  const hasAny = hasQr || hasEmail;
+  const hasRecovery = challenge.methods.includes("recovery_code");
+  const hasAny = hasQr || hasEmail || hasRecovery;
 
   const [phone] = useState(detectPhone);
   // Telefondaki tarayıcıda QR okutulamaz → e-posta varsa o öne çıkar; aksi halde QR.
-  const [method, setMethod] = useState<Method>(() => (hasQr && !(phone && hasEmail) ? "qr" : hasEmail ? "email" : "qr"));
+  const [method, setMethod] = useState<Method>(() =>
+    hasQr && !(phone && hasEmail) ? "qr" : hasEmail ? "email" : hasQr ? "qr" : "recovery");
   const [final, setFinal] = useState<keyof typeof FINAL_TEXT | null>(null);
   const [completing, setCompleting] = useState(false);
   const [now, setNow] = useState(() => Date.now());
@@ -65,6 +70,13 @@ export default function MfaQrPanel({
   const [resendAt, setResendAt] = useState(0);
   const [code, setCode] = useState("");
   const codeRef = useRef<HTMLInputElement | null>(null);
+
+  const [recoveryCode, setRecoveryCode] = useState("");
+  const [recoveryBusy, setRecoveryBusy] = useState(false);
+  const [recoveryError, setRecoveryError] = useState<string | null>(null);
+  const [recoveryOk, setRecoveryOk] = useState<string | null>(null);
+  const recoveryRef = useRef<HTMLInputElement | null>(null);
+  const recoveryChars = recoveryCode.replace(/[^A-Za-z0-9]/g, "").length;
 
   const expiresMs = Date.parse(challenge.expiresAt);
   const remaining = Math.max(0, Math.floor((expiresMs - now) / 1000));
@@ -155,6 +167,33 @@ export default function MfaQrPanel({
     window.setTimeout(() => codeRef.current?.focus(), 0);
   }
 
+  async function verifyRecovery() {
+    if (recoveryBusy || doneRef.current || recoveryChars !== 28) return;
+    setRecoveryBusy(true);
+    setRecoveryError(null);
+    const r = await mfaRecoveryVerify(challenge, recoveryCode);
+    setRecoveryBusy(false);
+    if (r.ok) {
+      setRecoveryCode("");
+      setRecoveryOk(r.kind === "code"
+        ? `Kurtarma kodu kabul edildi. Kalan kullanılmamış kod: ${r.remaining}.`
+        : "Kurtarma bileti kabul edildi.");
+      await finish();
+      return;
+    }
+    if (r.code === "RECOVERY_LOCKED") { doneRef.current = true; setFinal("recovery_locked"); return; }
+    if (r.code === "MFA_INVALID") { doneRef.current = true; setFinal("invalid"); return; }
+    setRecoveryCode("");
+    setRecoveryError(r.message ?? "Kurtarma kodu doğrulanamadı.");
+    window.setTimeout(() => recoveryRef.current?.focus(), 0);
+  }
+
+  function openRecovery() {
+    setMethod("recovery");
+    setRecoveryError(null);
+    window.setTimeout(() => recoveryRef.current?.focus(), 0);
+  }
+
   const mm = String(Math.floor(remaining / 60)).padStart(1, "0");
   const ss = String(remaining % 60).padStart(2, "0");
   const tabCls = (on: boolean) =>
@@ -173,7 +212,55 @@ export default function MfaQrPanel({
         ) : shownFinal ? (
           <p role="alert" className="mt-2 text-sm font-semibold text-rose-700" data-testid="mfa-final">{FINAL_TEXT[shownFinal]}</p>
         ) : completing ? (
-          <p className="mt-3 text-sm font-semibold text-emerald-700" data-testid="mfa-completing">Doğrulandı — giriş tamamlanıyor…</p>
+          <>
+            {recoveryOk && <p className="mt-3 text-[13px] font-semibold text-slate-700" data-testid="mfa-recovery-ok">{recoveryOk}</p>}
+            <p className="mt-3 text-sm font-semibold text-emerald-700" data-testid="mfa-completing">Doğrulandı — giriş tamamlanıyor…</p>
+          </>
+        ) : method === "recovery" && hasRecovery ? (
+          <form
+            onSubmit={(e) => { e.preventDefault(); void verifyRecovery(); }}
+            className="mx-auto mt-3 max-w-xs text-left"
+            data-testid="mfa-recovery-panel"
+          >
+            <p className="text-[13px] leading-snug text-slate-600">
+              Kurtarma kodlarınızdan <span className="font-semibold">kullanılmamış birini</span> girin. Her kod yalnızca bir kez kullanılabilir.
+              Sistem yöneticisinin verdiği kurtarma biletini de buraya girebilirsiniz.
+            </p>
+            <label htmlFor="mfa-recovery-code" className="mt-3 block text-[12px] font-semibold uppercase tracking-wide text-slate-500">Kurtarma kodu</label>
+            <input
+              id="mfa-recovery-code"
+              ref={recoveryRef}
+              data-testid="mfa-recovery-code"
+              value={recoveryCode}
+              onChange={(e) => setRecoveryCode(e.target.value.toUpperCase().replace(/[^A-Z0-9\s-]/g, "").slice(0, 40))}
+              autoComplete="off"
+              autoCapitalize="characters"
+              autoCorrect="off"
+              spellCheck={false}
+              enterKeyHint="done"
+              placeholder="ABCD-EFGH-…"
+              className="mt-1 h-12 w-full rounded-xl border border-slate-300 bg-white px-3 text-center font-mono text-[15px] font-bold tracking-wider text-slate-900 focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-200"
+            />
+            <p className="mt-1 text-[11px] text-slate-500" aria-live="polite">{recoveryChars}/28 karakter</p>
+            <button
+              type="submit"
+              data-testid="mfa-recovery-verify"
+              disabled={recoveryBusy || recoveryChars !== 28}
+              className="mt-3 w-full rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-violet-700 disabled:opacity-60"
+            >
+              {recoveryBusy ? "Doğrulanıyor…" : "Kurtarma koduyla giriş yap"}
+            </button>
+            {recoveryError && (
+              <p role="alert" data-testid="mfa-recovery-error" className="mt-3 rounded-lg bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700">{recoveryError}</p>
+            )}
+            {(hasQr || hasEmail) && (
+              <button type="button" data-testid="mfa-recovery-back" onClick={() => setMethod(hasQr && !(phone && hasEmail) ? "qr" : hasEmail ? "email" : "qr")}
+                className="mt-3 w-full text-xs font-bold text-violet-700 hover:underline">
+                Telefon veya e-posta ile doğrulamaya dön
+              </button>
+            )}
+            <p className="mt-3 text-center text-xs font-semibold text-slate-500" data-testid="mfa-countdown">Kalan süre {mm}:{ss}</p>
+          </form>
         ) : (
           <>
             {hasQr && hasEmail && (
@@ -287,6 +374,12 @@ export default function MfaQrPanel({
               </div>
             )}
             <p className="mt-3 text-xs font-semibold text-slate-500" data-testid="mfa-countdown">Kalan süre {mm}:{ss}</p>
+            {hasRecovery && (
+              <button type="button" data-testid="mfa-use-recovery" onClick={openRecovery}
+                className="mt-3 w-full text-xs font-bold text-violet-700 hover:underline">
+                Telefonuma veya e-postama erişemiyorum — kurtarma kodu kullan
+              </button>
+            )}
           </>
         )}
       </div>
