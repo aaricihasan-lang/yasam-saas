@@ -1,0 +1,74 @@
+# UZMAN PROFİLİ F2 (#774) — rapor logosu ARAYÜZ KABULÜ (Playwright: Chromium + Firefox + WebKit). YALNIZ bu kabul için ayrı,
+# yol filtreli iş akışı; ana CI'ı (ci.yml) değiştirmez. Taban dalı work/rapor-logo-f2 olan ayrı Draft PR'da koşar; MERGE EDİLMEZ.
+# Sır KULLANMAZ. Production'a / Supabase'e / Vercel'e istek ATMAZ: harness'lar API'yi bellekte sahte arka uçla karşılar,
+# 127.0.0.1 dışı istekleri abort eder; build yalnız yerel sahte değerlerle. Kanıt: ekran görüntüleri + günlükler (artifact).
+name: F2 arayüz kabulü
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - ".github/workflows/f2-arayuz.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: f2-arayuz-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  arayuz:
+    # Playwright'ın resmî desteklediği imaj (WebKit/Firefox sistem bağımlılıkları).
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      NEXT_TELEMETRY_DISABLED: "1"
+      NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:54399
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_fake_local
+      SUPABASE_SERVICE_ROLE_KEY: fake-local-service-key
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/kurulum
+
+      - name: Playwright tarayıcıları (Chromium + Firefox + WebKit)
+        run: npx playwright install --with-deps chromium firefox webkit
+
+      - name: Next.js production build
+        run: npx next build
+        env:
+          NODE_OPTIONS: --max-old-space-size=6144
+
+      - name: Tek sunucu (next start, 127.0.0.1:3984)
+        run: |
+          nohup node node_modules/next/dist/bin/next start -p 3984 -H 127.0.0.1 > "$RUNNER_TEMP/next-start.log" 2>&1 &
+          for i in $(seq 90); do [ "$(curl -s -o /dev/null -m 3 -w '%{http_code}' http://127.0.0.1:3984/settings)" = 200 ] && exit 0; sleep 2; done
+          cat "$RUNNER_TEMP/next-start.log"; exit 1
+
+      # Harness'lar sırayla (tek tarayıcı süreci); biri düşse de diğerleri koşar, iş sonunda toplu karar.
+      - name: Arayüz harness'ları
+        env:
+          UI_BASE: http://127.0.0.1:3984
+        run: |
+          K="$RUNNER_TEMP/f2-arayuz"; mkdir -p "$K"; rc=0
+          for t in "ui-logo:scripts/profile/ui-logo.harness.ts" "ui-delete-message:scripts/profile/ui-delete-message.harness.ts" \
+                   "ui-profile:scripts/profile/ui-profile.harness.ts" "ui-membership:scripts/settings-membership/ui-membership.harness.ts"; do
+            n="${t%%:*}"; f="${t#*:}"
+            echo "::group::$n"
+            UI_OUT="$K/$n" npx tsx "$f" 2>&1 | tee "$K/$n.log"; r=${PIPESTATUS[0]}
+            echo "::endgroup::"
+            echo "$n RC=$r · $(grep -aE 'PASS / [0-9]+ FAIL|geçti, [0-9]+ kaldı' "$K/$n.log" | tail -1)" | tee -a "$K/ozet.txt"
+            [ "$r" = 0 ] || rc=1
+          done
+          cat "$K/ozet.txt" >> "$GITHUB_STEP_SUMMARY"
+          exit $rc
+
+      - name: Kanıtlar (ekran görüntüleri + günlükler)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: f2-arayuz-kanit
+          path: ${{ runner.temp }}/f2-arayuz
+          if-no-files-found: warn
+          retention-days: 30
