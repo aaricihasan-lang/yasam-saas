@@ -217,6 +217,13 @@ async function main(): Promise<void> {
     const info = m ? (JSON.parse(m[1]) as { runDir: string; pid: number; port: number }) : null;
     await new Promise((r) => setTimeout(r, 800));
     ok(code !== 0 && !!info, "alt süreç hata ile çıktı", { code, out: out.slice(-300) });
+    const km = /TESTDB CIKIS KANCASI (\{.*\})/.exec(out);
+    const kanca = km ? (JSON.parse(km[1]) as { cocukCanli?: boolean; pgCtl?: boolean; kill?: boolean; dizin?: string }) : null;
+    // embedded-postgres kendi `exit` dinleyicisinde postmaster'a eşzamansız SIGINT gönderir; bizim kanca ondan SONRA
+    // çalışırsa postmaster'ı kapanış ortasında bulur ve dizin silme kapanış yazımlarıyla yarışır.
+    ok(!!kanca && kanca.cocukCanli === true && (kanca.pgCtl === true || kanca.kill === true),
+      "çıkış kancası kendi postmaster'ını canlı buldu ve dizini silmeden önce kendisi kapattı", kanca);
+    ok(!!kanca && kanca.dizin === "silindi", "çıkış kancası: dizin silme sonucu bildirildi (silindi)", kanca);
     ok(!!info && !existsSync(info.runDir), "çıkış kancası: alt sürecin kendi dizini silindi", info);
     ok(!!info && !pidAlive(info.pid) && !(await portOpen(info.port)), "çıkış kancası: alt sürecin postmaster'ı kapandı (yetim yok)", info);
     ok(existsSync(path.join(foreign, "veri.txt")) && existsSync(path.join(legacy, "baska-kosu.txt")), "yabancı / eski klasörler hâlâ yerinde");
