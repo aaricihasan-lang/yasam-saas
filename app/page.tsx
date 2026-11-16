@@ -7,7 +7,9 @@ import {
   clearPendingLoginToken,
   loginWithCredentials,
   readPendingLogin,
+  type MfaChallengeInfo,
 } from "@/lib/auth/loginUser";
+import MfaQrPanel from "@/components/auth/MfaQrPanel";
 import PasswordInput from "@/components/ui/PasswordInput";
 import BfcacheRefreshHandler from "@/components/BfcacheRefreshHandler";
 import {
@@ -527,6 +529,8 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   // OTURUM MODELİ v2: admin ikinci/riskli web girişi onay bekliyor (token yalnız durum sorgusu içindir).
   const [pendingLogin, setPendingLogin] = useState<{ token: string; expiresAt: string | null } | null>(null);
+  // GİRİŞ GÜVENLİĞİ F2-C: parola doğru, MFA zorunlu → QR onay paneli (oturum henüz YOK).
+  const [mfaChallenge, setMfaChallenge] = useState<MfaChallengeInfo | null>(null);
   const [loginModalOpen, setLoginModalOpen] = useState(false);
   const [authModalView, setAuthModalView] = useState<
     "login" | "support" | "membership" | "membershipOptions"
@@ -1152,6 +1156,12 @@ export default function Home() {
     if (!attempt.ok) {
       if (attempt.code === "PENDING_APPROVAL" && attempt.pendingToken) {
         setPendingLogin({ token: attempt.pendingToken, expiresAt: attempt.pendingExpiresAt ?? null });
+        setMessage("");
+        setLoading(false);
+        return;
+      }
+      if (attempt.code === "MFA_REQUIRED" && attempt.mfa) {
+        setMfaChallenge(attempt.mfa);
         setMessage("");
         setLoading(false);
         return;
@@ -2830,7 +2840,20 @@ export default function Home() {
               />
             ) : (
               <>
-            {!pendingLogin && (
+            {mfaChallenge && (
+              <MfaQrPanel
+                challenge={mfaChallenge}
+                onDone={async (r) => {
+                  setMfaChallenge(null);
+                  await completeLogin(r.row, r.sessionToken, r.suspiciousLogin);
+                }}
+                onCancel={() => {
+                  setMfaChallenge(null);
+                  setMessage("");
+                }}
+              />
+            )}
+            {!pendingLogin && !mfaChallenge && (
             <>
             <div className="relative z-10 mt-5 space-y-3.5">
               <div>

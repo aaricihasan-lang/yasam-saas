@@ -28,10 +28,10 @@ const BINDING_RE = /^[A-Za-z0-9_-]{43}$/; // 32 bayt base64url (dolgusuz)
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
- * Sunulabilecek ikinci doğrulama yöntemleri. F2-B'de HİÇBİR yöntem uygulanmadı → liste boş.
- * F2-C (qr_device) / F2-D (email_otp) yöntemi eklediğinde buraya girer.
+ * Sunulabilecek ikinci doğrulama yöntemleri. F2-C: qr_device (güvenilir Android cihazı + QR).
+ * F2-D (email_otp) eklendiğinde buraya girer. Sunulması ayrıca AUTH_MFA_METHODS + kapsam bayrağına bağlı.
  */
-export const IMPLEMENTED_MFA_METHODS: readonly string[] = [];
+export const IMPLEMENTED_MFA_METHODS: readonly string[] = ["qr_device"];
 
 export type MfaMethodScope = "test_accounts" | "all";
 
@@ -115,7 +115,7 @@ export async function isMfaTestAccount(db: SupabaseClient, userId: string): Prom
 }
 
 export type MfaBeginResult =
-  | { ok: true; challengeId: string; expiresAt: string }
+  | { ok: true; challengeId: string; expiresAt: string; qrNonce: string | null; matchCode: string | null }
   | { ok: false; reason: string };
 
 export async function beginMfaChallenge(
@@ -131,9 +131,16 @@ export async function beginMfaChallenge(
     p_ttl_seconds: MFA_CHALLENGE_TTL_SECONDS,
   });
   if (error) return { ok: false, reason: "error" };
-  const r = (data ?? {}) as { ok?: unknown; challenge_id?: unknown; expires_at?: unknown; reason?: unknown };
+  const r = (data ?? {}) as { ok?: unknown; challenge_id?: unknown; expires_at?: unknown; reason?: unknown; qr_nonce?: unknown; match_code?: unknown };
   if (r.ok === true && isMfaChallengeId(r.challenge_id) && typeof r.expires_at === "string") {
-    return { ok: true, challengeId: String(r.challenge_id), expiresAt: r.expires_at };
+    return {
+      ok: true,
+      challengeId: String(r.challenge_id),
+      expiresAt: r.expires_at,
+      // F2-C: QR nonce yalnız bu yanıtta (DB'de yalnız özeti); eşleştirme kodu yalnız başlatan tarayıcıya.
+      qrNonce: typeof r.qr_nonce === "string" && /^[A-Za-z0-9_-]{32}$/.test(r.qr_nonce) ? r.qr_nonce : null,
+      matchCode: typeof r.match_code === "string" && /^[0-9]{2}$/.test(r.match_code) ? r.match_code : null,
+    };
   }
   return { ok: false, reason: typeof r.reason === "string" ? r.reason : "error" };
 }

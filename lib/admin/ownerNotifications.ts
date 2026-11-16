@@ -16,7 +16,8 @@ export type OwnerNotificationType =
   | "eski_kayit"
   | "odeme"
   | "deneme_basladi"
-  | "deneme_bitti";
+  | "deneme_bitti"
+  | "cihaz_eslesme";
 
 export type OwnerNotificationItem = {
   id: number;
@@ -49,6 +50,7 @@ export const OWNER_NOTIFICATION_TYPES: readonly OwnerNotificationType[] = [
   "odeme",
   "deneme_basladi",
   "deneme_bitti",
+  "cihaz_eslesme",
 ];
 
 /** Bildirim başlığı (ad okuma anında eklenir). */
@@ -60,6 +62,7 @@ export const OWNER_NOTIFICATION_TITLE: Record<OwnerNotificationType, string> = {
   odeme: "ödeme “Gecikti” olarak işaretli",
   deneme_basladi: "7 günlük denemeye başladı",
   deneme_bitti: "deneme süresi doldu — kayıtları korunuyor",
+  cihaz_eslesme: "güvenilir telefon eşleştirme isteği",
 };
 
 /** Karar satırının alt açıklaması ve düğme metni. */
@@ -69,6 +72,7 @@ export const OWNER_ACTION_HINT: Partial<Record<OwnerNotificationType, { sub: str
   inceleme: { sub: "Risk işareti olan deneme hesabı", go: "İncele" },
   eski_kayit: { sub: "Modüllere erişemiyor; owner kararı gerekir", go: "İncele" },
   odeme: { sub: "Ödeme kaydını kontrol edin", go: "Kontrol et" },
+  cihaz_eslesme: { sub: "Uzmanı kayıtlı numarasından arayın; kodu O okusun", go: "Doğrula" },
 };
 
 export const OWNER_NOTIFICATION_TYPE_LABEL: Record<OwnerNotificationType, string> = {
@@ -79,6 +83,7 @@ export const OWNER_NOTIFICATION_TYPE_LABEL: Record<OwnerNotificationType, string
   odeme: "Ödeme",
   deneme_basladi: "Deneme başladı",
   deneme_bitti: "Deneme bitti",
+  cihaz_eslesme: "Cihaz eşleştirme",
 };
 
 export const OWNER_NOTIFICATION_RESOLUTION_LABEL: Record<string, string> = {
@@ -93,6 +98,9 @@ export const OWNER_NOTIFICATION_RESOLUTION_LABEL: Record<string, string> = {
   odeme_durumu_guncellendi: "ödeme durumu güncellendi",
   kayit_silindi: "kayıt silindi",
   kapandi: "kapandı",
+  cihaz_onaylandi: "cihaz onaylandı",
+  cihaz_reddedildi: "cihaz reddedildi",
+  cihaz_iptal: "cihaz iptal edildi",
 };
 
 export const OWNER_HISTORY_STATUSES = ["all", "open", "resolved", "unread", "read"] as const;

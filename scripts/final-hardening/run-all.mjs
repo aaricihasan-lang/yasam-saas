@@ -143,6 +143,13 @@ const STEPS = [
     ["20280103000100_auth_mfa_core_f2b.sql", "20280103000200_auth_session_insert_lock_f2b.sql"],
     ["session-f2b-assert.sql"])],
   ["session-f2b-concurrency", "node", ["scripts/session-model/f2b-finalize-concurrency.mjs"]],
+  // GİRİŞ GÜVENLİĞİ F2-C: güvenilir Android cihazı (Owner onayı + cihaz imzası) + QR onay durum makinesi.
+  ["pg:session-f2c", ...pg([F("session-model-fixture.sql"), F("session-f2a-fixture.sql"), F("session-f2b-fixture.sql"), F("session-f2c-fixture.sql"),
+    M("20270129000200_user_sessions_expiry_touch.sql"), M("20271003200000_session_model_v2.sql"),
+    M("20271003200100_admin_audit_session_actions.sql"), M("20280103000000_auth_session_hardening_f2a.sql"),
+    M("20280103000100_auth_mfa_core_f2b.sql"), M("20280103000200_auth_session_insert_lock_f2b.sql")],
+    ["20280103000300_auth_trusted_devices_qr_f2c.sql"],
+    ["session-f2c-assert.sql"])],
 ];
 
 const only = process.argv.includes("--only") ? process.argv[process.argv.indexOf("--only") + 1] : null;
