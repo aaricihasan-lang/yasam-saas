@@ -20,13 +20,18 @@ let yuklenen = -1;
 const html = `<!doctype html><meta charset="utf-8"><title>safari-probu</title><body>
 <h1>Safari probu</h1><input type="file" id="f"><img id="i"><canvas id="c" width="4" height="4"></canvas></body>`;
 const istekler = [];
+const yuklemeler = [];
 const srv = http.createServer((req, res) => {
   istekler.push(`${req.method} ${req.headers.host} ${req.url}`);
   if (req.url === "/img.png") { res.writeHead(200, { "content-type": "image/png" }); return res.end(PNG); }
   if (req.url === "/img.webp") { res.writeHead(200, { "content-type": "image/webp" }); return res.end(WEBP); }
-  if (req.url === "/up" && req.method === "PUT") {
-    const parca = []; req.on("data", (d) => parca.push(d));
-    req.on("end", () => { yuklenen = Buffer.concat(parca).length; res.writeHead(200, { "content-type": "application/json" }); res.end(JSON.stringify({ n: yuklenen })); });
+  if (req.url.startsWith("/up")) {
+    const kayit = { yol: req.url, yontem: req.method, basliklar: { "content-type": req.headers["content-type"], "content-length": req.headers["content-length"], "transfer-encoding": req.headers["transfer-encoding"], expect: req.headers.expect }, alinan: 0, bitti: false };
+    yuklemeler.push(kayit);
+    req.on("data", (d) => { kayit.alinan += d.length; });
+    req.on("aborted", () => { kayit.iptal = true; });
+    req.on("error", (e) => { kayit.hata = String(e); });
+    req.on("end", () => { kayit.bitti = true; yuklenen = kayit.alinan; res.writeHead(200, { "content-type": "application/json" }); res.end(JSON.stringify({ n: kayit.alinan })); });
     return;
   }
   res.writeHead(200, { "content-type": "text/html; charset=utf-8" }); res.end(html);
@@ -48,15 +53,22 @@ async function bekle(script, args = [], ms = 15000) {
 // Görseli <img>'e yükle (src: doğrudan yol ya da blob: URL), yüklenince canvas'a çiz ve piksel oku → gerçekten çizildi mi?
 const BASLAT = `window.__s = null; const [src, blobType] = arguments;
   const yukle = (u, n) => { const i = document.getElementById('i'); i.removeAttribute('src');
-    i.onload = () => { const c = document.getElementById('c'); const x = c.getContext('2d'); x.clearRect(0, 0, 4, 4); x.drawImage(i, 0, 0);
-      window.__s = { e: 'load', w: i.naturalWidth, h: i.naturalHeight, boyut: n, src: i.src.slice(0, 5), piksel: Array.from(x.getImageData(0, 0, 1, 1).data) }; };
+    i.onload = () => { const r = { e: 'load', w: i.naturalWidth, h: i.naturalHeight, boyut: n, src: i.src.slice(0, 5) };
+      try { const c = document.getElementById('c'); const x = c.getContext('2d'); x.clearRect(0, 0, 4, 4); x.drawImage(i, 0, 0); r.piksel = Array.from(x.getImageData(0, 0, 1, 1).data); }
+      catch (e) { r.cizimHata = String(e && e.name || '') + ': ' + String(e && e.message || e); }
+      window.__s = r; };
     i.onerror = () => { window.__s = { e: 'error', w: i.naturalWidth, boyut: n, src: i.src.slice(0, 5) }; };
     i.src = u; };
   if (!blobType) yukle(src, null);
   else fetch(src).then((r) => r.blob()).then((b) => yukle(URL.createObjectURL(new Blob([b], { type: blobType })), b.size)).catch((e) => { window.__s = { e: 'hata ' + e }; });
   return true;`;
 const SONUC = "return window.__s;";
-async function gorsel(src, blobType) { await sync(BASLAT, [src, blobType ?? null]); return bekle(SONUC); }
+async function gorsel(src, blobType) {
+  await sync(BASLAT, [src, blobType ?? null]);
+  const r = await bekle(SONUC);
+  const dom = await sync("const i = document.getElementById('i'); return { complete: i.complete, w: i.naturalWidth, h: i.naturalHeight, src: (i.getAttribute('src') || '').slice(0, 5) };");
+  return { olay: r, dom };
+}
 
 let sid = null;
 try {
@@ -80,9 +92,13 @@ try {
     const id = Object.values(el)[0];
     await wd("POST", `/session/${sid}/element/${id}/value`, { text: dosya });
     secim = await sync("const f = document.getElementById('f').files[0]; return f ? { ad: f.name, boyut: f.size, tur: f.type } : null");
-    await sync("window.__u = null; const f = document.getElementById('f').files[0]; fetch('/up', { method: 'PUT', headers: { 'content-type': 'application/octet-stream' }, body: f.slice(0, f.size) }).then((r) => r.json()).then((j) => { window.__u = j; }).catch((e) => { window.__u = { hata: String(e) }; }); return true;");
-    const up = await bekle("return window.__u;");
-    log("5-dosya", { secim, istemciYanit: up, sunucuGordu: yuklenen, beklenen: PNG.length });
+    const varyantlar = {};
+    for (const [ad, govde, yontem] of [["string", "'x'.repeat(92)", "PUT"], ["arraybuffer", "new Uint8Array(92).buffer", "PUT"], ["blob-dilim", "f.slice(0, f.size)", "PUT"], ["dosya", "f", "PUT"], ["post-blob", "f.slice(0, f.size)", "POST"]]) {
+      await sync(`window.__u = null; const f = document.getElementById('f').files[0]; fetch('/up?' + arguments[0], { method: arguments[1], headers: { 'content-type': 'application/octet-stream' }, body: ${govde} }).then((r) => r.json()).then((j) => { window.__u = j; }).catch((e) => { window.__u = { hata: String(e) }; }); return true;`, [ad, yontem]);
+      varyantlar[ad] = await bekle("return window.__u;");
+    }
+    log("5-dosya", { secim, istemciYanitlari: varyantlar, beklenen: PNG.length });
+    log("5-sunucu-yuklemeleri", yuklemeler);
   } catch (e) {
     log("5-dosya", { hata: String(e).slice(0, 300), secim });
   }
