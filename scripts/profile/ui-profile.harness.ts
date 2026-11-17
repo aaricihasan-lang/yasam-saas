@@ -207,7 +207,7 @@ async function main() {
       ok("V", `${width}px: yatay taşma yok`, o.sw <= o.iw && o.bw <= o.iw, o);
       ok("V", `${width}px: salt-okunur ad soyad + e-posta görünür`, (await c.page.getByTestId("profile-full-name").textContent()) === USER.full_name && (await c.page.getByTestId("profile-email").textContent()) === USER.email);
       ok("V", `${width}px: ad/e-posta düzenlenebilir alan DEĞİL`, (await c.page.locator('[data-testid="settings-profile"] input[name="fullName"], [data-testid="settings-profile"] input[name="email"]').count()) === 0);
-      ok("V", `${width}px: dürüst durum metni`, ((await c.page.getByTestId("profile-branding-status").textContent()) ?? "").includes("Raporlarınız şu anda değişmez"));
+      ok("V", `${width}px: dürüst durum metni`, ((await c.page.getByTestId("profile-branding-status").textContent()) ?? "").includes("Anahtar kapalıyken hiçbir rapor değişmez"));
       await c.page.screenshot({ path: join(OUT, `profilim-${width}.png`), fullPage: true });
       const tb = (await c.page.evaluate(TABBAR_JS)) as TabBar;
       ok("V", `${width}px: sekme kümesi/sırası doğru; her sekme erişilebilir, tıklanabilir, metni kırpılmıyor; çubuk taşmıyor`, tabBarOk(tb, false), tb);
