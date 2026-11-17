@@ -245,6 +245,7 @@ const STEPS = [
   // F2-J: Android yönetici oturumu cihaz kanıtı, kanal tutarlılığı, eski süresiz oturum geçişi + önceki sözleşmeler 001000 üstünde.
   ["pg:session-f2j", ...pg([...F2_BASE_FIXTURES, ...F2_ALL_MIGRATIONS.map(M), M(F2F_MIGRATION), M(F2G_MIGRATION), M(F2H_MIGRATION), M(F2I_MIGRATION)], [F2J_MIGRATION], ["session-f2j-assert.sql"])],
   // F2-K: önceki sözleşmeler 001100 üstünde (yönetici yetkisi tetikleyicisi + kanıtlı fonksiyonlar).
+  ["pg:session-f2k", ...pg([...F2_BASE_FIXTURES, ...F2_ALL_MIGRATIONS.map(M), M(F2F_MIGRATION), M(F2G_MIGRATION), M(F2H_MIGRATION), M(F2I_MIGRATION), M(F2J_MIGRATION)], [F2K_MIGRATION], ["session-f2k-assert.sql"])],
   ["pg:session-f2j-on-f2k", ...pg([...F2_BASE_FIXTURES, ...F2_ALL_MIGRATIONS.map(M), M(F2F_MIGRATION), M(F2G_MIGRATION), M(F2H_MIGRATION), M(F2I_MIGRATION)], [F2J_MIGRATION, F2K_MIGRATION], ["session-f2j-assert.sql"])],
   ["pg:session-f2i-on-f2k", ...pg([...F2_BASE_FIXTURES, ...F2_ALL_MIGRATIONS.map(M), M(F2F_MIGRATION), M(F2G_MIGRATION), M(F2H_MIGRATION)], [F2I_MIGRATION, F2J_MIGRATION, F2K_MIGRATION], ["session-f2i-assert.sql"])],
   ["pg:session-f2g-on-f2k", ...pg([...F2_BASE_FIXTURES, ...F2_ALL_MIGRATIONS.map(M), M(F2F_MIGRATION)], [F2G_MIGRATION, F2H_MIGRATION, F2I_MIGRATION, F2J_MIGRATION, F2K_MIGRATION], ["session-f2g-assert.sql"])],

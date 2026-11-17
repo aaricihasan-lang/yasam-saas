@@ -144,6 +144,7 @@ BEGIN
   ('fn', 'auth_mfa_challenge_status', 100),
   ('fn', 'auth_mfa_is_test_account', 100),
   ('fn', 'auth_mfa_mark_verified', 100),
+  ('fn', 'auth_mfa_match_code6', 1100),
   ('fn', 'auth_mfa_required_end_sessions', 900),
   ('fn', 'auth_mfa_set_required', 100),
   ('fn', 'auth_mfa_user_has_method', 100),
@@ -524,10 +525,11 @@ lines AS (SELECT lvl, line FROM fnl UNION ALL SELECT lvl, line FROM trl UNION AL
       ('fn|auth_finalize_login(p_challenge_id uuid, p_browser_secret_hash text, p_session_token text, p_ip text, p_country text, p_city text, p_user_agent text, p_platform text, p_client_channel text, p_replace_token text, p_expires_at timestamp with time zone, p_high_risk boolean, p_enforce boolean, p_expert_idle_seconds integer, p_admin_idle_seconds integer, p_admin_absolute_seconds integer, p_expert_stale_seconds integer, p_admin_web_cap integer, p_pending_ttl_seconds integer)|6d8e3e4390ec7625ffeb2e1c1bcf82a8|true|search_path=""|api=false|svc=true'),
       ('fn|auth_is_owner_admin(p_user_id uuid)|a03ff002c1f3c1802b081a9a70615fba|true|search_path=""|api=false|svc=true'),
       ('fn|auth_legacy_session_policy_set(p_actor_token text, p_mode text, p_deadline timestamp with time zone)|d2bfc9cfd712f3b6a3fc39919e6454c8|true|search_path=""|api=false|svc=true'),
-      ('fn|auth_mfa_begin(p_user_id uuid, p_browser_secret_hash text, p_client_channel text, p_ip_hash text, p_user_agent text, p_ttl_seconds integer)|3931557e85f4ad54bf0ace3b48828dd3|true|search_path=""|api=false|svc=true'),
+      ('fn|auth_mfa_begin(p_user_id uuid, p_browser_secret_hash text, p_client_channel text, p_ip_hash text, p_user_agent text, p_ttl_seconds integer)|1de651826a93fc1e804406fe86c6255f|true|search_path=""|api=false|svc=true'),
       ('fn|auth_mfa_challenge_status(p_challenge_id uuid, p_browser_secret_hash text)|8f698b8e745b25c116424880eb6ca77f|true|search_path=""|api=false|svc=true'),
       ('fn|auth_mfa_is_test_account(p_user_id uuid)|1e7a4fb6cc6cae25ccc8f7bd29a772ba|true|search_path=""|api=false|svc=true'),
       ('fn|auth_mfa_mark_verified(p_challenge_id uuid, p_method text)|5f5270157feb936e7a1b1976b3e28765|true|search_path=""|api=false|svc=false'),
+      ('fn|auth_mfa_match_code6()|90cbfaf9ee026eb8cf37da42f854ae2a|false|search_path=""|api=false|svc=false'),
       ('fn|auth_mfa_required_end_sessions()|fc37fc4ea1fae68a50f8ca639b82668a|true|search_path=""|api=false|svc=*'),
       ('fn|auth_mfa_set_required(p_actor_token text, p_user_id uuid, p_required boolean, p_reason text)|37d16b03cf4b134e93e422ee00c2bcc6|true|search_path=""|api=false|svc=true'),
       ('fn|auth_mfa_user_has_method(p_user_id uuid)|407623f3e9cb1a67d4f2e51c8fd52937|true|search_path=""|api=false|svc=true'),
@@ -536,11 +538,11 @@ lines AS (SELECT lvl, line FROM fnl UNION ALL SELECT lvl, line FROM trl UNION AL
       ('fn|auth_owner_offline_bootstrap(p_actor_token text)|1590bcea0894b4c5e9fccbb38682158d|true|search_path=""|api=false|svc=true'),
       ('fn|auth_owner_offline_kit_issue()|6dc29724e07d9a7f2c751a2bdfeae4e4|true|search_path=""|api=false|svc=false'),
       ('fn|auth_owner_session_stale(p_token text)|0b03771f070976406fc0af768dd777bd|true|search_path=""|api=false|svc=false'),
-      ('fn|auth_owner_step_up_begin(p_actor_token text, p_action text, p_target uuid)|b2a608203cf9866644e7c3b1f146ad94|true|search_path=""|api=false|svc=true'),
+      ('fn|auth_owner_step_up_begin(p_actor_token text, p_action text, p_target uuid)|e09bd67b5a6060f78ad791721bfd82cc|true|search_path=""|api=false|svc=true'),
       ('fn|auth_owner_step_up_status(p_actor_token text, p_challenge_id uuid)|60e20bef5115e0860fdbb7db0c571135|true|search_path=""|api=false|svc=true'),
       ('fn|auth_owner_step_up_take(p_actor_token text, p_action text, p_target uuid)|6f8b13141d339713b4fc2d3e12770038|true|search_path=""|api=false|svc=true'),
-      ('fn|auth_qr_decide(p_challenge_id uuid, p_qr_nonce text, p_device_id uuid, p_decision text, p_match_code text)|0e345b640fbdb633a6a9b48b5233e43e|true|search_path=""|api=false|svc=true'),
-      ('fn|auth_qr_fetch(p_challenge_id uuid, p_qr_nonce text, p_device_id uuid)|83c0f23c8fbe2c2edc26a2271485b018|true|search_path=""|api=false|svc=true'),
+      ('fn|auth_qr_decide(p_challenge_id uuid, p_qr_nonce text, p_device_id uuid, p_decision text, p_match_code text)|45516fa407a543a95eb3571fd2e35f30|true|search_path=""|api=false|svc=true'),
+      ('fn|auth_qr_fetch(p_challenge_id uuid, p_qr_nonce text, p_device_id uuid)|68cb92cdcacd2263b0f53454bdbc06d7|true|search_path=""|api=false|svc=true'),
       ('fn|auth_recovery_case_close(p_actor_token text, p_case_id uuid, p_action text, p_reason text)|281e0a5a5eee73bcfb7cea886bbc2e53|true|search_path=""|api=false|svc=true'),
       ('fn|auth_recovery_case_execute(p_actor_token text, p_case_id uuid, p_ticket_hash text, p_identity_reconfirmed boolean)|a728bfa30260172e34da0eeb3677e82a|true|search_path=""|api=false|svc=true'),
       ('fn|auth_recovery_case_list(p_actor_token text)|163451bdc434d03d5ab72f3d1b650355|true|search_path=""|api=false|svc=true'),
@@ -633,6 +635,6 @@ lines AS (SELECT lvl, line FROM fnl UNION ALL SELECT lvl, line FROM trl UNION AL
     RAISE EXCEPTION 'F2 POSTFLIGHT KATALOG FAIL — kayıt=% (beklenen 1100) | beklenip bulunmayan/farklı: % | beklenmeyen: %',
       coalesce(v_reg::text, 'yok'), left(coalesce(v_missing, '-'), 3000), left(coalesce(v_extra, '-'), 3000);
   END IF;
-  RAISE NOTICE 'F2 POSTFLIGHT KATALOG PASS (% satır)', 349;
+  RAISE NOTICE 'F2 POSTFLIGHT KATALOG PASS (% satır)', 350;
 END $f2man$;
 -- <<< KATALOG MANİFESTİ

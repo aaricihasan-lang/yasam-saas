@@ -25,7 +25,8 @@ export async function POST(req: NextRequest) {
     const decision = body?.decision === "approve" || body?.decision === "deny" ? body.decision : null;
     const matchCode = typeof body?.matchCode === "string" ? body.matchCode : "";
     if (!isMfaChallengeId(challengeId) || !isDeviceNonce(qrNonce) || !decision) return INVALID();
-    if (decision === "approve" ? !/^[0-9]{2}$/.test(matchCode) : matchCode !== "") return json({ code: "BAD_REQUEST" }, 400);
+    // F2-K (O1): yeni istekler 6 haneli yazılan kod; geçiş süresince (≤ 5 dk) eski 2 haneli istekler de karşılaştırılır.
+    if (decision === "approve" ? !/^(?:[0-9]{2}|[0-9]{6})$/.test(matchCode) : matchCode !== "") return json({ code: "BAD_REQUEST" }, 400);
     if (!isFreshTimestamp(body?.ts)) return json({ code: "BAD_TIMESTAMP" }, 400);
     const db = getServerDb();
     const limited = await deviceRateLimited(db, req, "mfa-qr-ip", 60, 10 * 60);

@@ -101,15 +101,11 @@ BEGIN
   IF v_open >= 3 THEN
     RETURN jsonb_build_object('ok', false, 'code', 'too_many_open');
   END IF;
-  -- QR nonce (192 bit) + 3 farklı 2 haneli kod (1 doğru) — auth_mfa_begin (F2-C) ile aynı üretim.
+  -- QR nonce (192 bit) + 6 haneli yazılan eşleştirme kodu (F2-K O1).
   v_nonce := translate(rtrim(encode(extensions.gen_random_bytes(24), 'base64'), '='), '+/', '-_');
-  WHILE coalesce(array_length(v_codes, 1), 0) < 3 LOOP
-    v_c := lpad(((get_byte(extensions.gen_random_bytes(1), 0) * 100) / 256)::text, 2, '0');
-    IF NOT (v_c = ANY (v_codes)) THEN
-      v_codes := v_codes || v_c;
-    END IF;
-  END LOOP;
-  v_match := v_codes[1 + (get_byte(extensions.gen_random_bytes(1), 0) % 3)];
+  -- F2-K (O1): 6 haneli, kriptografik rastgele kod; seçenek listesi YOK → telefonda kullanıcı kodu YAZAR.
+  v_match := public.auth_mfa_match_code6();
+  v_codes := NULL;
   INSERT INTO public.auth_mfa_challenges (user_id, purpose, browser_secret_hash, client_channel, created_at, expires_at,
                                           qr_nonce_hash, match_code, match_options, step_action, step_target, step_session_id)
   VALUES (v_s.user_id, 'step_up', encode(sha256(extensions.gen_random_bytes(32)), 'hex'), 'desktop_web', v_now, v_now + interval '5 minutes',
@@ -300,6 +296,189 @@ BEGIN
 END $$;
 REVOKE ALL ON FUNCTION public.auth_admin_role_grant(text, uuid, text, boolean) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.auth_admin_role_grant(text, uuid, text, boolean) TO service_role;
+
+-- ── K2 (O1) QR eşleştirme: 6 haneli YAZILAN kod (3 seçenek yerine) + kullanıcı kilidi + yanlış kodda kardeş istekler ─
+-- Kod tek güvenlik faktörü DEĞİLDİR: onay yine güvenilir cihazın asıl anahtarıyla imzalanır (YS-QR-DECIDE-V1).
+ALTER TABLE public.auth_mfa_challenges DROP CONSTRAINT IF EXISTS auth_mfa_challenges_match_chk;
+ALTER TABLE public.auth_mfa_challenges ADD CONSTRAINT auth_mfa_challenges_match_chk
+  CHECK ((match_code IS NULL OR match_code ~ '^[0-9]{2}$' OR match_code ~ '^[0-9]{6}$')
+     AND (qr_nonce_hash IS NULL OR qr_nonce_hash ~ '^[0-9a-f]{64}$')
+     AND (denied_reason IS NULL OR denied_reason IN ('user_denied', 'wrong_match', 'device_revoked', 'otp_locked',
+                                                      'recovery_locked', 'account_recovery', 'credentials_changed')));
+
+-- 000000…999999 eşit dağılımlı (reddederek örnekleme; 32 bit).
+CREATE OR REPLACE FUNCTION public.auth_mfa_match_code6()
+RETURNS text
+LANGUAGE plpgsql
+VOLATILE
+SET search_path = ''
+AS $f2k$
+DECLARE
+  v_b bytea;
+  v_n bigint;
+BEGIN
+  LOOP
+    v_b := extensions.gen_random_bytes(4);
+    v_n := (get_byte(v_b, 0)::bigint << 24) | (get_byte(v_b, 1)::bigint << 16) | (get_byte(v_b, 2)::bigint << 8) | get_byte(v_b, 3)::bigint;
+    EXIT WHEN v_n < 4294000000;
+  END LOOP;
+  RETURN lpad((v_n % 1000000)::text, 6, '0');
+END $f2k$;
+REVOKE ALL ON FUNCTION public.auth_mfa_match_code6() FROM PUBLIC, anon, authenticated, service_role;
+
+CREATE OR REPLACE FUNCTION public.auth_mfa_begin(
+  p_user_id             uuid,
+  p_browser_secret_hash text,
+  p_client_channel      text,
+  p_ip_hash             text,
+  p_user_agent          text,
+  p_ttl_seconds         integer
+) RETURNS jsonb
+LANGUAGE plpgsql
+VOLATILE
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  v_now   timestamptz := now();
+  v_user  public.users%ROWTYPE;
+  v_open  integer;
+  v_ttl   integer := least(greatest(coalesce(p_ttl_seconds, 300), 60), 900);
+  v_id    uuid;
+  v_nonce text;
+  v_codes text[] := ARRAY[]::text[];
+  v_c     text;
+  v_match text;
+BEGIN
+  IF p_user_id IS NULL OR p_browser_secret_hash IS NULL OR p_browser_secret_hash !~ '^[0-9a-f]{64}$' THEN
+    RETURN jsonb_build_object('ok', false, 'reason', 'bad_request');
+  END IF;
+
+  PERFORM pg_advisory_xact_lock(hashtextextended('mfa:' || p_user_id::text, 0));
+
+  SELECT * INTO v_user FROM public.users WHERE id = p_user_id;
+  IF NOT FOUND OR v_user.active IS DISTINCT FROM true THEN
+    RETURN jsonb_build_object('ok', false, 'reason', 'inactive');
+  END IF;
+  IF v_user.mfa_required IS DISTINCT FROM true THEN
+    RETURN jsonb_build_object('ok', false, 'reason', 'not_required');
+  END IF;
+
+  UPDATE public.auth_mfa_challenges
+     SET state = 'expired'
+   WHERE user_id = p_user_id AND state IN ('pending', 'verified') AND expires_at <= v_now;
+  SELECT count(*) INTO v_open FROM public.auth_mfa_challenges
+   WHERE user_id = p_user_id AND state IN ('pending', 'verified');
+  IF v_open >= 5 THEN
+    RETURN jsonb_build_object('ok', false, 'reason', 'too_many_open');
+  END IF;
+
+  -- QR nonce: 192 bit, base64url; yalnız özeti saklanır. Eşleştirme: 6 haneli yazılan kod (F2-K O1).
+  v_nonce := translate(rtrim(encode(extensions.gen_random_bytes(24), 'base64'), '='), '+/', '-_');
+  -- F2-K (O1): 6 haneli, kriptografik rastgele kod; seçenek listesi YOK → telefonda kullanıcı kodu YAZAR.
+  v_match := public.auth_mfa_match_code6();
+  v_codes := NULL;
+
+  INSERT INTO public.auth_mfa_challenges (user_id, browser_secret_hash, client_channel, ip_hash, user_agent,
+                                          created_at, expires_at, qr_nonce_hash, match_code, match_options)
+  VALUES (p_user_id, p_browser_secret_hash,
+          CASE WHEN p_client_channel IN ('desktop_web','mobile_web','tablet_web','android_app','unknown') THEN p_client_channel ELSE 'unknown' END,
+          left(p_ip_hash, 128), left(p_user_agent, 512), v_now, v_now + make_interval(secs => v_ttl),
+          encode(sha256(convert_to(v_nonce, 'UTF8')), 'hex'), v_match, v_codes)
+  RETURNING id INTO v_id;
+
+  RETURN jsonb_build_object('ok', true, 'challenge_id', v_id, 'expires_at', v_now + make_interval(secs => v_ttl),
+                            'qr_nonce', v_nonce, 'match_code', v_match);
+END $$;
+REVOKE ALL ON FUNCTION public.auth_mfa_begin(uuid, text, text, text, text, integer) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.auth_mfa_begin(uuid, text, text, text, text, integer) TO service_role;
+
+CREATE OR REPLACE FUNCTION public.auth_qr_fetch(p_challenge_id uuid, p_qr_nonce text, p_device_id uuid)
+RETURNS jsonb
+LANGUAGE plpgsql
+VOLATILE
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  v_ch public.auth_mfa_challenges%ROWTYPE;
+  v_dev public.auth_trusted_devices%ROWTYPE;
+BEGIN
+  SELECT * INTO v_dev FROM public.auth_trusted_devices WHERE id = p_device_id AND state = 'active';
+  SELECT * INTO v_ch FROM public.auth_mfa_challenges WHERE id = p_challenge_id;
+  -- Ayrım YOK: yanlış kullanıcı / iptal cihaz / süresi dolmuş / kullanılmış → 'invalid' (bilgi sızmaz).
+  IF v_dev.id IS NULL OR v_ch.id IS NULL OR v_ch.user_id <> v_dev.user_id OR v_ch.state <> 'pending'
+     OR v_ch.expires_at <= now() OR v_ch.qr_nonce_hash IS NULL OR p_qr_nonce IS NULL
+     OR v_ch.qr_nonce_hash <> encode(sha256(convert_to(p_qr_nonce, 'UTF8')), 'hex') THEN
+    RETURN jsonb_build_object('ok', false, 'reason', 'invalid');
+  END IF;
+  UPDATE public.auth_trusted_devices SET last_used_at = now() WHERE id = v_dev.id;
+  RETURN jsonb_build_object('ok', true, 'options', to_jsonb(v_ch.match_options), 'user_agent', v_ch.user_agent,
+                            -- F2-K (O1): 'typed6' → telefonda 6 haneli kod yazılır; 'options' → eski 3 seçenek (geçiş).
+                            'match_mode', CASE WHEN v_ch.match_options IS NULL THEN 'typed6' ELSE 'options' END,
+                            'client_channel', v_ch.client_channel, 'created_at', v_ch.created_at, 'expires_at', v_ch.expires_at,
+                            -- F2-I: telefon isteğin amacını gösterir (giriş mi, Owner'ın kritik işlemi mi).
+                            'purpose', v_ch.purpose, 'action', v_ch.step_action);
+END $$;
+REVOKE ALL ON FUNCTION public.auth_qr_fetch(uuid, text, uuid) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.auth_qr_fetch(uuid, text, uuid) TO service_role;
+
+CREATE OR REPLACE FUNCTION public.auth_qr_decide(
+  p_challenge_id uuid, p_qr_nonce text, p_device_id uuid, p_decision text, p_match_code text
+) RETURNS jsonb
+LANGUAGE plpgsql
+VOLATILE
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  v_ch public.auth_mfa_challenges%ROWTYPE;
+  v_dev public.auth_trusted_devices%ROWTYPE;
+BEGIN
+  IF p_decision NOT IN ('approve', 'deny') THEN
+    RETURN jsonb_build_object('ok', false, 'reason', 'invalid');
+  END IF;
+  -- F2-K (O1): aynı kullanıcının kararları sıraya girer (paralel tahmin / çift dokunuş yarışı yok).
+  SELECT * INTO v_dev FROM public.auth_trusted_devices WHERE id = p_device_id AND state = 'active' FOR SHARE;
+  IF v_dev.id IS NOT NULL THEN
+    PERFORM pg_advisory_xact_lock(hashtextextended('mfa:' || v_dev.user_id::text, 0));
+  END IF;
+  SELECT * INTO v_ch FROM public.auth_mfa_challenges WHERE id = p_challenge_id FOR UPDATE;
+  IF v_dev.id IS NULL OR v_ch.id IS NULL OR v_ch.user_id <> v_dev.user_id OR v_ch.state <> 'pending'
+     OR v_ch.expires_at <= now() OR v_ch.qr_nonce_hash IS NULL OR p_qr_nonce IS NULL
+     OR v_ch.qr_nonce_hash <> encode(sha256(convert_to(p_qr_nonce, 'UTF8')), 'hex') THEN
+    RETURN jsonb_build_object('ok', false, 'reason', 'invalid');
+  END IF;
+
+  IF p_decision = 'deny' OR p_match_code IS DISTINCT FROM v_ch.match_code THEN
+    UPDATE public.auth_mfa_challenges
+       SET state = 'denied', denied_reason = CASE WHEN p_decision = 'deny' THEN 'user_denied' ELSE 'wrong_match' END,
+           approved_device_id = v_dev.id
+     WHERE id = v_ch.id;
+    INSERT INTO public.security_events (user_id, event_type, severity, message, metadata)
+    VALUES (v_ch.user_id, CASE WHEN p_decision = 'deny' THEN 'mfa_qr_denied' ELSE 'mfa_qr_wrong_match' END,
+            CASE WHEN p_decision = 'deny' THEN 'medium' ELSE 'high' END,
+            CASE WHEN p_decision = 'deny' THEN 'QR giriş isteği telefondan reddedildi' ELSE 'QR girişinde yanlış eşleştirme kodu (olası kimlik avı)' END,
+            jsonb_build_object('device_id', v_dev.id, 'challenge_id', v_ch.id));
+    -- F2-K (O1): yanlış kod = olası oltalama → kullanıcının BÜTÜN açık QR istekleri (giriş + kritik işlem) kapanır;
+    -- paralel gönderilmiş bağlantılarla körlemesine deneme sayısı 1'e iner. (Bilinçli ret yalnız bu isteği kapatır.)
+    IF p_decision = 'approve' THEN
+      UPDATE public.auth_mfa_challenges SET state = 'denied', denied_reason = 'wrong_match'
+       WHERE user_id = v_ch.user_id AND id <> v_ch.id AND state = 'pending' AND qr_nonce_hash IS NOT NULL;
+    END IF;
+    RETURN jsonb_build_object('ok', true, 'result', 'denied');
+  END IF;
+
+  IF NOT public.auth_mfa_mark_verified(v_ch.id, 'qr_device') THEN
+    RETURN jsonb_build_object('ok', false, 'reason', 'invalid');
+  END IF;
+  UPDATE public.auth_mfa_challenges SET approved_device_id = v_dev.id WHERE id = v_ch.id;
+  UPDATE public.auth_trusted_devices SET last_used_at = now() WHERE id = v_dev.id;
+  RETURN jsonb_build_object('ok', true, 'result', 'approved');
+END $$;
+REVOKE ALL ON FUNCTION public.auth_qr_decide(uuid, text, uuid, text, text) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.auth_qr_decide(uuid, text, uuid, text, text) TO service_role;
+
 
 -- >>> F2 ŞEMA DÜZEYİ KAYDI (F2-J; üretici: scripts/giris-guvenligi/f2-migration-guard.mjs — elle değiştirmeyin)
 CREATE OR REPLACE FUNCTION public.auth_f2_schema_level() RETURNS integer

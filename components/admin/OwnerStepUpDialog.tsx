@@ -116,7 +116,7 @@ export default function OwnerStepUpDialog({
         {info && !error && <p role="status" className="mt-3 rounded-lg bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700">{info}</p>}
         {begun?.qr && (
           <div className="mt-3 text-center" data-testid="step-up-qr">
-            <p className="text-[12px] text-slate-600">Güvenilir telefonunuzla QR kodu okutun ve aşağıdaki sayıyı seçin.</p>
+            <p className="text-[12px] text-slate-600">Güvenilir telefonunuzla QR kodu okutun; telefonda işlem adını kontrol edip aşağıdaki 6 haneli kodu yazın.</p>
             <div className="mx-auto mt-2 w-[min(200px,60vw)] rounded-xl bg-white p-2 ring-1 ring-slate-200">
               {svg && (
                 <svg viewBox={svg.viewBox} role="img" aria-label="Onay QR kodu" className="block h-auto w-full text-slate-900" shapeRendering="crispEdges">
