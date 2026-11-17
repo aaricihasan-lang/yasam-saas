@@ -760,8 +760,28 @@
    "timeoutSec": 60
   },
   {
+   "file": "scripts/profile/delete-guard.harness.ts",
+   "tsx": true,
+   "timeoutSec": 240
+  },
+  {
+   "file": "scripts/profile/deleteMessage.test.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/profile/logo.harness.ts",
+   "tsx": true,
+   "timeoutSec": 180
+  },
+  {
    "file": "scripts/profile/pg/expert-profiles-tables.mjs",
    "timeoutSec": 240
+  },
+  {
+   "file": "scripts/profile/reportLogo.test.ts",
+   "tsx": true,
+   "timeoutSec": 60
   },
   {
    "file": "scripts/profile/routes.harness.ts",

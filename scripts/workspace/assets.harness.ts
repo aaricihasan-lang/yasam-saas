@@ -38,7 +38,9 @@ type Auth = { id?: string; token?: string; admin?: boolean };
 type Json = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
 type Handler = (req: NextRequest, ctx: { params: Promise<Record<string, string>> }) => Promise<Response>;
 
-const MIGS = ["20271227000000_expert_workspace_designs_prefs.sql", "20271228000000_expert_workspace_assets_access.sql"]
+// F2: silme koruması rapor logosu referansı için expert_profiles'ı da okur → F1 tablosu (20280102000000) fikstüre eklendi.
+// Tablo yokken (migration uygulanmamış) davranış scripts/profile/logo.harness.ts'te ayrıca sınanır.
+const MIGS = ["20271227000000_expert_workspace_designs_prefs.sql", "20271228000000_expert_workspace_assets_access.sql", "20280102000000_expert_profiles.sql"]
   .map((f) => readFileSync(path.join(process.cwd(), "supabase/migrations", f), "utf8"));
 
 function pngChunk(type: string, data: Buffer): Buffer {

@@ -2,6 +2,7 @@
  * KİŞİSEL DİJİTAL OFİS (P4) — kişiselleştirme merkezi (DesignStudio) metinleri. Türkçe birincil; İngilizce karşılık.
  * Sunucudan gelen hata / bildirim metinleri (pw.notice, yükleme hataları) olduğu gibi gösterilir.
  */
+import { REPORT_LOGO_REF } from "@/lib/workspace/catalog";
 import type { Grade } from "@/lib/workspace/palette";
 
 const tr = {
@@ -197,6 +198,8 @@ const tr = {
   deleteYes: "Evet, sil",
   deleted: "Görsel silindi.",
   inUse: (where: string) => `Bu görsel kullanılıyor: ${where}. Önce tasarımlardan kaldırın.`,
+  inUseReport: (where: string) => `Bu görsel kullanılıyor: ${where}. Önce rapor logosundan kaldırın.`,
+  inUseBoth: (where: string) => `Bu görsel kullanılıyor: ${where}. Önce tasarımlardan ve rapor logosundan kaldırın.`,
   inUseLocal: "Bu görsel düzenlediğiniz taslakta kullanılıyor; önce taslaktan kaldırın.",
   // Arka plan
   bgTitle: "Arka plan",
@@ -532,6 +535,8 @@ const en: StudioDict = {
   deleteYes: "Yes, delete",
   deleted: "Image deleted.",
   inUse: (where) => `This image is in use: ${where}. Remove it from those designs first.`,
+  inUseReport: (where) => `This image is in use: ${where}. Remove it from the report logo first.`,
+  inUseBoth: (where) => `This image is in use: ${where}. Remove it from those designs and the report logo first.`,
   inUseLocal: "This image is used in the draft you are editing; remove it from the draft first.",
   bgTitle: "Background",
   bgModes: { default: "Default", theme: "Theme", photo: "My photo" },
@@ -678,4 +683,11 @@ const en: StudioDict = {
 
 export function studioDict(locale: string | undefined): StudioDict {
   return locale && locale.toLowerCase().startsWith("en") ? en : tr;
+}
+
+/** Görsel silme 409 uyarısı: `where` rapor logosu girdisi içermiyorsa F2 öncesi `inUse` metni (birebir). */
+export function inUseMessage(t: StudioDict, where: string[]): string {
+  const text = where.join(", ");
+  if (!where.includes(REPORT_LOGO_REF)) return t.inUse(text);
+  return where.length === 1 ? t.inUseReport(text) : t.inUseBoth(text);
 }
