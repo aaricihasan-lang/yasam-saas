@@ -13,6 +13,7 @@
  * Ön koşul: bu ağaçta `next build --webpack` (f2c-ui.e2e.ts başlığındaki sahte env ile); OpenSSL (Git Bash).
  * Çalıştır (build kökünde): npx tsx scripts/giris-guvenligi/android-kabul-ortami.ts <kalıcı-dizin>
  *   ANDROID_KIP=header|cookie (başlangıç, varsayılan header = bugünkü canlı)  KABUL_HTTPS_PORT=443  KABUL_DNS=1
+ *   Paralel testlerle port çakışmasında: KABUL_SUPA_PORT (build'deki NEXT_PUBLIC_SUPABASE_URL portu), KABUL_APP_PORT, KABUL_CTRL_PORT
  * Kontrol:  curl -X POST "http://127.0.0.1:3999/kip?android=cookie&killswitch=off"   ·  curl http://127.0.0.1:3999/durum
  *           curl http://127.0.0.1:3999/oturumlar  ·  curl -X POST http://127.0.0.1:3999/eski-suresiz
  *           curl -X POST "http://127.0.0.1:3999/iptal?kanal=android_app"
@@ -29,10 +30,10 @@ import { startF2cDb, U, EMAIL, pw } from "./testDb";
 const DIR = process.argv[2];
 if (!DIR) { console.log("kalıcı dizin gerekli (CA burada tutulur; aynı CA ile tekrar başlatılabilir)"); process.exit(2); }
 fs.mkdirSync(DIR, { recursive: true });
-const APP_PORT = 3993;
-const SUPA_PROXY_PORT = 54398; // build'e gömülü NEXT_PUBLIC_SUPABASE_URL
+const APP_PORT = Number(process.env.KABUL_APP_PORT ?? 3993);
+const SUPA_PROXY_PORT = Number(process.env.KABUL_SUPA_PORT ?? 54398); // build'e gömülü NEXT_PUBLIC_SUPABASE_URL ile AYNI olmalı
 const HTTPS_PORT = Number(process.env.KABUL_HTTPS_PORT ?? 443);
-const CTRL_PORT = 3999;
+const CTRL_PORT = Number(process.env.KABUL_CTRL_PORT ?? 3999);
 const CANON = "https://www.yasamsistemi.com";
 const SINK = path.join(DIR, "sentetik-eposta.jsonl");
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));

@@ -63,6 +63,8 @@ const TSX = [
   // ANDROID_APP_SESSION_TRANSPORT=cookie (taklit kapalı + mevcut Android oturumunun çereze yükseltilmesi).
   // "AÇIK" satırları varsayılan header kipinde bilinen Firefox/WebKit taklit boşluğudur (PASS sayılmaz; özette görünür).
   "scripts/giris-guvenligi/httponly-nihai.harness.ts",
+  // HttpOnly B-1: eski token → çerez geçiş kapısı (eşzamanlı istek, süre tavanı, ağ/sunucu hatası, değişmeyen kipler).
+  "scripts/giris-guvenligi/cookie-migration-gate.check.ts",
   // F2-K (O1): QR onayında 6 haneli yazılan kod + telefon imzası; yanlış kodda bütün açık istekler kapanır.
   "scripts/giris-guvenligi/f2k-qr.harness.ts",
   // F2-K (L4): güvenlik bildirimi kota ayrımı + gönderilemeyen bildirim kaydı.

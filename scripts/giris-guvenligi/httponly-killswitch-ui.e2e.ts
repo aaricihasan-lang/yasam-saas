@@ -23,7 +23,7 @@ import { startF2cDb, U, EMAIL, pw } from "./testDb";
 const PORT = 3991;
 const TLS_PORT = 3992;
 const BASE = `https://localhost:${TLS_PORT}`;
-const SUPA_PROXY_PORT = 54398; // build'e gömülü NEXT_PUBLIC_SUPABASE_URL
+const SUPA_PROXY_PORT = Number(process.env.KABUL_SUPA_PORT ?? 54398); // build'e gömülü NEXT_PUBLIC_SUPABASE_URL ile AYNI
 const TLS_DIR = process.env.HTTPONLY_TLS_DIR ?? "";
 let pass = 0;
 let fail = 0;

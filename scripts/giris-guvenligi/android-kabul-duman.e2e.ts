@@ -10,7 +10,7 @@ import path from "node:path";
 import { createRequire } from "node:module";
 import type { BrowserContext, Page } from "playwright";
 
-const CTRL = "http://127.0.0.1:3999";
+const CTRL = process.env.KABUL_CTRL ?? "http://127.0.0.1:3999";
 const APEX = "https://yasamsistemi.com"; // uygulamanın açılış adresi (MainActivity.baseUrl)
 const WWW = "https://www.yasamsistemi.com";
 const UA = "Mozilla/5.0 (Linux; Android 10; Pixel 3 Build/QQ3A; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/120.0 Mobile Safari/537.36";

@@ -8,7 +8,7 @@ import os from "node:os";
 import path from "node:path";
 import { createRequire } from "node:module";
 
-const CTRL = "http://127.0.0.1:3999";
+const CTRL = process.env.KABUL_CTRL ?? "http://127.0.0.1:3999";
 const APEX = "https://yasamsistemi.com";
 const UA = "Mozilla/5.0 (Linux; Android 10; Pixel 3 Build/QQ3A; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/120.0 Mobile Safari/537.36";
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
