@@ -16,8 +16,12 @@
  *   E) Gidiş-dönüş: yerel → UTC → yerel (wallClockAt) tutarlı; tablo dışı ad Intl yoluna düşer; tablo, Intl'e başvurmadan
  *      çalışır (Intl.formatToParts devre dışıyken uygulama bölgeleri aynı sonucu verir).
  *   F) Tablo başlığı: sürüm 2026f, kaynak SHA-256, sayılar; tüm uygulama bölgeleri (81 il, 973 ilçe, dünya, GeoNames) tabloda.
- *   G) Kayıt değişmezliği (sentetik): eski Havana revizyonu (UTC−5 saklı) aynı gövdeyle hesaplanır, kayıtlı analiz ve
- *      Word/PDF modeli değişmez; yeni profil UTC−4; profil düzenlenince YENİ revizyon 2026f ile, eski revizyon aynen.
+ *   G) Kayıt değişmezliği + Owner kararı A (17.11.2026): eski Havana revizyonu (UTC−5 saklı) korunur ama ondan YENİ doğum
+ *      analizi üretilmez (planda TIMEZONE_REVISION_STALE, 0 sağlayıcı isteği; KP Horary istisnası aynı); kayıtlı eski analiz ve
+ *      Word/PDF değişmez (not eklenmez); yeni profil UTC−4; profil düzenlenince YENİ revizyon 2026f ile ve engelsiz.
+ *   J) Owner kararı A kapsamı: 2026f bölgeleri ve tarihsel farklar işaretlenir; iki kişili analizde iki taraf; doğru profiller
+ *      (Türkiye dahil, eski Intl ile kaydedilmiş tüm uygulama bölgeleri) yanlış engellenmez; güncel kurala göre çözülemeyen
+ *      saklı yerel saat (Casablanca 2026-09-20 01:30) sessizce kabul edilmez.
  *
  * Çalıştırma: npx tsx --tsconfig scripts/astrology/tsconfig.json scripts/astrology/tz-iana-2026f.harness.ts
  */
@@ -32,10 +36,10 @@ import { TZ_IANA_LINKS, TZ_IANA_META, TZ_IANA_ZONES } from "@/lib/astrology/birt
 import type { ResolvedLocation } from "@/lib/astrology/birth/profileInput";
 import { resolveAstrologyEntitlements } from "@/lib/astrology/access/entitlements";
 import { appendAstroRevision, createAstroProfile, getAstroProfileDetail } from "@/lib/astrology/profiles/service";
-import { runAstrology, type EngineCtx, type EngineDeps } from "@/lib/astrology/engine/service";
+import { planAstrology, runAstrology, type EngineCtx, type EngineDeps } from "@/lib/astrology/engine/service";
 import { getAnalysis, saveAnalysis } from "@/lib/astrology/analyses/service";
 import { buildAstroReport, reportTexts } from "@/lib/astrology/report/model";
-import { staleTimezoneOffset } from "@/lib/astrology/legacyMethod";
+import { STALE_TIMEZONE_BLOCK_CODE, staleTimezoneOffset } from "@/lib/astrology/legacyMethod";
 import { buildAnalysisReport } from "@/lib/astrology/report/service";
 import { returnTimes } from "@/lib/astrology/report/model";
 import { formatInZone, dayKeyInZone, isIanaZone, momentLabel } from "@/lib/astrology/transitDetail";
@@ -287,28 +291,42 @@ async function main() {
   const NATAL = { technique: "western.natal", options: { houseSystem: "placidus", nodeType: "true" } };
   const revRows = () => store.tables.astro_birth_profile_revisions as J[];
 
-  await t("G: eski Havana revizyonu (UTC−5 saklı) aynı gövdeyle; kayıtlı analiz + Word/PDF modeli değişmez; yeni profil UTC−4; düzenleme = yeni revizyon", async () => {
-    // A/B — eski profil: düzeltme öncesi sunucunun yazacağı değerler (ofset −18000, UTC 17:00Z) saklı.
+  await t("G: eski Havana revizyonu (UTC−5 saklı) korunur, ondan yeni analiz YOK (0 istek); eski analiz + Word/PDF değişmez; yeni profil UTC−4; düzenleme = engelsiz yeni revizyon", async () => {
+    // A/B — eski profil + eski kayıtlı analiz: düzeltme ÖNCESİ sunucunun yazacağı değerler (ofset −18000, UTC 17:00Z). Eski analiz o
+    // dönemde kaydedilmiş gibi: analiz güncel kodla üretilip kaydedilir, sonra revizyon ve analiz künyesi eski değerlere çevrilir.
     const old = await createAstroProfile(ctx, { label: "Sentetik Havana eski", clientId: CLIENT, birthDate: "2026-11-10", birthTime: "12:00", timeKnown: true, timeAccuracy: "exact_record", locationId: HAV.id }, resolveLoc);
     assert.equal(old.status, 201, JSON.stringify(old.body));
     const oldPid = (old.body as J).profile.id as string;
     const oldRev = revRows().find((r) => r.profile_id === oldPid);
     assert.equal(oldRev.utc_offset_seconds, -14400, "yeni kayıt 2026f");
-    oldRev.utc_offset_seconds = -18000;
-    oldRev.birth_utc = "2026-11-10T17:00:00.000Z";
-    const oldSnap = JSON.stringify(oldRev);
-    assert.equal(staleTimezoneOffset({ birthDate: "2026-11-10", birthTime: "12:00:00", timeKnown: true, timezone: "America/Havana", dstChoice: "auto", utcOffsetSeconds: -18000 }), null, "backzone dışı: engel/uyarı yok (davranış değişmedi)");
-    // C — eski revizyonla hesap: sağlayıcı gövdesi SAKLI ofsetle (−5) aynı.
-    const run = (await runAstrology(ctx, { profileId: oldPid, selections: [NATAL] }, deps, { ownerPreviewHideInterp: false })).body as J;
-    assert.equal(run.ok, true, JSON.stringify(run).slice(0, 300));
-    assert.deepEqual([bodies.at(-1)!.date, bodies.at(-1)!.time, bodies.at(-1)!.timezone], ["2026-11-10", "12:00:00", -5]);
+    const run0 = (await runAstrology(ctx, { profileId: oldPid, selections: [NATAL] }, deps, { ownerPreviewHideInterp: false })).body as J;
+    assert.equal(run0.ok, true, JSON.stringify(run0).slice(0, 300));
     const sv = await saveAnalysis(ctx, { profileId: oldPid, revision: 1, ...NATAL, saveRequestId: randomUUID() }, false);
     assert.equal(sv.status, 201, JSON.stringify(sv.body));
     const aid = (sv.body as J).analysisId;
     const row = (store.tables.astro_analyses as J[]).find((x) => x.id === aid);
+    oldRev.utc_offset_seconds = -18000;
+    oldRev.birth_utc = "2026-11-10T17:00:00.000Z";
+    row.profile_snapshot = JSON.parse(JSON.stringify(row.profile_snapshot).replace(/-14400/g, "-18000").replace(/2026-11-10T16:00/g, "2026-11-10T17:00"));
+    const oldSnap = JSON.stringify(oldRev);
+    assert.deepEqual(staleTimezoneOffset({ birthDate: "2026-11-10", birthTime: "12:00:00", timeKnown: true, timezone: "America/Havana", dstChoice: "auto", utcOffsetSeconds: -18000 }), { stored: -18000, current: -14400 });
+    // C — eski revizyondan YENİ doğum analizi engellenir: planda engel, çalıştırmada 0 sağlayıcı isteği; KP Horary (doğumdan bağımsız) engellenmez.
+    const HORARY = { technique: "kp.horary", options: { atUtc: "2026-10-07T10:00", horaryNumber: 108, ayanamsa: "kp-newcomb", nodeType: "mean" } };
+    const plan = (await planAstrology(ctx, { profileId: oldPid, selections: [NATAL, HORARY] })).body as J;
+    assert.deepEqual(plan.plan.selections.map((x: J) => x.blocked?.code ?? null), [STALE_TIMEZONE_BLOCK_CODE, null]);
+    assert.match(plan.plan.selections[0].blocked.error, /danışanın doğum profili revizyonu \(rev 1\).*kayıtlı UTC−05:00, doğrusu UTC−04:00.*hesaplama başlatılmadı.*yeniden kaydedin/);
+    const before = bodies.length;
+    const blocked = (await runAstrology(ctx, { profileId: oldPid, selections: [NATAL] }, deps, { ownerPreviewHideInterp: false })).body as J;
+    assert.equal(bodies.length, before, "engellenen işlemde 0 sağlayıcı isteği");
+    assert.match(JSON.stringify(blocked), new RegExp(STALE_TIMEZONE_BLOCK_CODE));
+    assert.ok(!JSON.stringify(blocked).includes("\"technical\""), "sonuç dönmedi");
+    const d0 = ((await getAstroProfileDetail(ctx, oldPid)).body as J).profile;
+    assert.deepEqual({ s: d0.revisions[0].staleTimezone?.storedOffsetSeconds, c: d0.revisions[0].staleTimezone?.currentOffsetSeconds }, { s: -18000, c: -14400 });
+    assert.match(d0.revisions[0].staleTimezone.text, /bu revizyonla yeni hesaplama yapılmaz/);
     const snapBefore = JSON.stringify([row.technical_snapshot, row.method_snapshot, row.versions_snapshot, row.profile_snapshot]);
     // D — yeniden açma + Word/PDF modeli iki kez aynı; DB snapshot ve revizyon değişmez.
     const a1 = ((await getAnalysis(ctx, aid, false)).body as J).analysis;
+    assert.deepEqual((a1.legacyNotes ?? []).map((n: J) => n.code), [], "eski analize not EKLENMEZ (görünüm ve rapor aynı)");
     const rep1 = reportTexts(buildAstroReport(a1)).join("\n");
     const a2 = ((await getAnalysis(ctx, aid, false)).body as J).analysis;
     assert.equal(reportTexts(buildAstroReport(a2)).join("\n"), rep1);
@@ -342,12 +360,103 @@ async function main() {
     assert.deepEqual(revs.map((r) => [r.revision, r.utc_offset_seconds]), [[1, -18000], [2, -14400]]);
     assert.equal(JSON.stringify(revs[0]), oldSnap, "rev 1 değişmez");
     const detail = ((await getAstroProfileDetail(ctx, oldPid)).body as J).profile;
-    assert.deepEqual(detail.revisions.map((r: J) => [r.revision, r.utcOffsetSeconds]).sort(), [[1, -18000], [2, -14400]], "profil detayı iki revizyon");
+    assert.deepEqual(detail.revisions.map((r: J) => [r.revision, r.utcOffsetSeconds, !!r.staleTimezone]).sort(), [[1, -18000, true], [2, -14400, false]], "profil detayı iki revizyon; uyarı yalnız eski revizyonda");
+    // Yeni (düzeltilmiş) revizyonla doğum analizi engelsiz ve 2026f ofsetiyle.
+    const plan2 = (await planAstrology(ctx, { profileId: oldPid, selections: [NATAL] })).body as J;
+    assert.equal(plan2.plan.selections[0].blocked, null);
+    await runAstrology(ctx, { profileId: oldPid, selections: [NATAL] }, deps, { ownerPreviewHideInterp: false });
+    assert.deepEqual([bodies.at(-1)!.date, bodies.at(-1)!.time, bodies.at(-1)!.timezone], ["2026-11-10", "12:00:00", -4]);
     const again = ((await getAnalysis(ctx, aid, false)).body as J).analysis;
     assert.equal(reportTexts(buildAstroReport(again)).join("\n"), rep1, "yeni revizyon eski analizi değiştirmez");
     const oldFiles2 = await wordPdf(ctx, aid);
     assert.equal(oldFiles2.docx, oldFiles.docx, "eski kaydın Word metni düzenleme sonrası aynı");
     assert.equal(oldFiles2.pdf, oldFiles.pdf, "eski kaydın PDF metni düzenleme sonrası aynı");
+  });
+
+  await t("J: Owner kararı A — 2026f bölgeleri + tarihsel farklar işaretlenir; iki kişili analiz; doğru profiller engellenmez; çözülemeyen saat sessizce kabul edilmez", async () => {
+    const rv = (tz: string, d: string, tm: string, off: number, dstChoice = "auto") => ({ birthDate: d, birthTime: tm, timeKnown: true, timezone: tz, dstChoice, utcOffsetSeconds: off });
+    // [bölge, tarih, saat, eski Intl (2026a) ile saklanan ofset, 2026f ofseti]
+    const changed: [string, string, string, number, number][] = [
+      ["America/Havana", "2026-11-10", "12:00:00", -18000, -14400],
+      ["America/Havana", "2027-01-15", "12:00:00", -18000, -14400],
+      ["America/Winnipeg", "2026-12-15", "12:00:00", -21600, -18000],
+      ["America/Vancouver", "2026-12-15", "12:00:00", -28800, -25200],
+      ["America/Edmonton", "2026-12-15", "12:00:00", -25200, -21600],
+      ["Africa/Casablanca", "2026-10-15", "12:00:00", 3600, 0],
+      ["Africa/El_Aaiun", "2026-12-15", "12:00:00", 3600, 0],
+      ["America/Bogota", "1992-05-02", "12:00:00", -18000, -14400],
+      ["Asia/Tehran", "1979-05-26", "12:00:00", 12600, 16200],
+      ["Europe/Dublin", "1925-09-25", "12:00:00", 3600, 0],
+    ];
+    for (const [z, d, tm, stored, cur] of changed) {
+      assert.deepEqual(staleTimezoneOffset(rv(z, d, tm, stored)), { stored, current: cur }, `${z} ${d} eski`);
+      assert.equal(staleTimezoneOffset(rv(z, d, tm, cur)), null, `${z} ${d} güncel`);
+    }
+    // Brezilya 1965: eski kural tek anlamlı (−3) → 2026f'de iki kez yaşanan saat; seçim saklı değil → sessiz varsayım YOK.
+    assert.deepEqual(staleTimezoneOffset(rv("America/Sao_Paulo", "1965-03-31", "23:30:00", -10800)), { stored: -10800, current: null, unresolved: "ambiguous" });
+    assert.equal(staleTimezoneOffset(rv("America/Sao_Paulo", "1965-03-31", "23:30:00", -10800, "later")), null, "seçim saklı ve tutarlı");
+    // Casablanca 2026-09-20 01:30: eski Intl tek anlamlı (+1), 2026f'de iki kez yaşanır.
+    const cas = staleTimezoneOffset(rv("Africa/Casablanca", "2026-09-20", "01:30:00", 3600));
+    assert.deepEqual(cas, { stored: 3600, current: null, unresolved: "ambiguous" });
+    // Hiç yaşanmamış saat (güncel kurala göre): Havana 2028-03-12 00:30.
+    assert.deepEqual(staleTimezoneOffset(rv("America/Havana", "2028-03-12", "00:30:00", -18000)), { stored: -18000, current: null, unresolved: "gap" });
+    // Doğru profiller engellenmez: eski Intl (çalışma ortamı) ile kaydedilmiş gibi ofsetler, 2026f değişiklik aralıkları DIŞINDA → hiç işaret yok.
+    const zones = [...new Set([...readFileSync(join(ROOT, "lib/location/tr.ts"), "utf8").matchAll(/tz:\s*"([^"]+)"/g)].map((m) => m[1]).concat(
+      [...readFileSync(join(ROOT, "lib/location/world.ts"), "utf8").matchAll(/tz:\s*"([^"]+)"/g)].map((m) => m[1]),
+      (JSON.parse(readFileSync(join(ROOT, "lib/location/server-data/global-cities.json"), "utf8")) as { locations: { tz: string }[] }).locations.map((x) => x.tz),
+    ))];
+    const intlOff = (ms: number, tz: string) => {
+      const p = new Intl.DateTimeFormat("en-US", { timeZone: tz, hourCycle: "h23", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit" }).formatToParts(new Date(ms));
+      const g = (k: string) => Number(p.find((x) => x.type === k)!.value);
+      return (Date.UTC(g("year"), g("month") - 1, g("day"), g("hour"), g("minute"), g("second")) - ms) / 1000;
+    };
+    let checked = 0;
+    let flagged = 0;
+    for (const z of zones) {
+      for (let ms = Date.UTC(1995, 0, 3, 9, 17); ms < Date.UTC(2026, 6, 1); ms += 97 * 86_400_000 + 3_600_000 * 7) {
+        const w = wallClockAt(ms, z)!;
+        const r = resolveAstroBirthTime(w.date, w.time, z, "auto");
+        if (r.kind !== "ok") continue; // geçiş anı (kaydı zaten seçimle yapılır)
+        const io = intlOff(ms, z);
+        if (io !== r.offsetSeconds) continue; // ortamın eski Intl'i 2026f'den farklı (belgelenmiş aralık; yukarıda)
+        checked += 1;
+        if (staleTimezoneOffset(rv(z, w.date, w.time, io))) flagged += 1;
+      }
+    }
+    assert.equal(flagged, 0, "doğru ofsetli profil yanlış işaretlendi");
+    assert.ok(checked > 30_000, `kontrol ${checked}`);
+    // Türkiye: 81 il bölgesi (Europe/Istanbul) — 1980/1990/2000/2015/2016/2026 doğru ofsetle işaret yok.
+    for (const [d, tm, off] of [["1980-07-01", "12:00:00", 10800], ["1990-01-15", "16:20:00", 7200], ["2000-07-01", "12:00:00", 10800], ["2015-11-08", "03:30:00", 7200], ["2016-12-01", "12:00:00", 10800], ["2026-11-10", "12:00:00", 10800]] as const)
+      assert.equal(staleTimezoneOffset(rv("Europe/Istanbul", d, tm, off, d === "2015-11-08" ? "later" : "auto")), null, `İstanbul ${d}`);
+    // İki kişili analiz: karşı tarafın eski Havana revizyonu engeller; sağlam karşı taraf engellemez; eski kişi 1. kişi olunca da engel.
+    const mk = async (label: string, d: string, extra: Record<string, unknown> = {}) => {
+      const pr = await createAstroProfile(ctx, { label, clientId: CLIENT, birthDate: d, birthTime: "12:00", timeKnown: true, timeAccuracy: "exact_record", locationId: HAV.id, confirmDifferentPerson: (store.tables.astro_birth_profiles as J[]).map((x) => x.id), ...extra }, resolveLoc);
+      assert.equal(pr.status, 201, JSON.stringify(pr.body));
+      const pid = (pr.body as J).profile.id as string;
+      return { pid, row: revRows().find((r) => r.profile_id === pid) };
+    };
+    const a = await mk("Sentetik J-A", "1990-07-15");
+    const b = await mk("Sentetik J-B", "2026-12-01");
+    const c = await mk("Sentetik J-C", "1991-07-15");
+    assert.equal(b.row.utc_offset_seconds, -14400);
+    b.row.utc_offset_seconds = -18000; // eski Intl ile kaydedilmiş gibi
+    const syn = (partner: string) => ({ technique: "western.synastry", options: { partnerProfileId: partner, houseSystem: "placidus", nodeType: "true" } });
+    const comp = (partner: string) => ({ technique: "western.composite", options: { partnerProfileId: partner, houseSystem: "placidus", nodeType: "true" } });
+    const p1 = ((await planAstrology(ctx, { profileId: a.pid, selections: [syn(b.pid), comp(b.pid), syn(c.pid), NATAL] })).body as J).plan;
+    assert.deepEqual(p1.selections.map((x: J) => x.blocked?.code ?? null), [STALE_TIMEZONE_BLOCK_CODE, STALE_TIMEZONE_BLOCK_CODE, null, null]);
+    assert.match(p1.selections[0].blocked.error, /karşı tarafın doğum profili revizyonu/);
+    const p2 = ((await planAstrology(ctx, { profileId: b.pid, selections: [syn(a.pid)] })).body as J).plan;
+    assert.match(p2.selections[0].blocked?.error ?? "", /danışanın doğum profili/);
+    const before = bodies.length;
+    await runAstrology(ctx, { profileId: a.pid, selections: [syn(b.pid)] }, deps, { ownerPreviewHideInterp: false });
+    assert.equal(bodies.length, before, "iki kişili engelde 0 sağlayıcı isteği");
+    // Çözülemeyen saklı saat: planda engel + açık Türkçe metin (seçim gerekir).
+    const cz = await mk("Sentetik J-Cas", "2026-09-20");
+    Object.assign(cz.row, { timezone: "Africa/Casablanca", birth_time: "01:30:00", utc_offset_seconds: 3600, dst_choice: "auto" });
+    const p3 = ((await planAstrology(ctx, { profileId: cz.pid, selections: [NATAL] })).body as J).plan;
+    assert.equal(p3.selections[0].blocked?.code, STALE_TIMEZONE_BLOCK_CODE);
+    assert.match(p3.selections[0].blocked.error, /iki kez yaşanmış.*hesaplama başlatılmadı/);
+    console.log(`     ${changed.length} değişen bölge/an işaretli; ${checked} doğru ofsetli kayıt (${zones.length} bölge) işaretsiz`);
   });
 
   await t("H: gösterim = hesap — formatInZone / momentLabel / gün anahtarı / transit damgası / dönüş yerel saati / Horary etiketi aynı IANA tablosundan", () => {
