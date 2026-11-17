@@ -217,7 +217,8 @@ async function main() {
         await a.getByTestId("mfa-qr-panel").waitFor({ timeout: 15000 });
         const qr = (lr.json.qr ?? {}) as J;
         const dr = await phoneDecide(expPhone, String(qr.url), String(qr.matchCode));
-        await sleep(2000);
+        await a.waitForFunction(() => !document.querySelector('[data-testid="mfa-qr-panel"]'), undefined, { timeout: 20000 }).catch(() => {});
+        await sleep(1500);
         ok(dr.json.result === "approved" && (await sessionValid(ctx)), `${label}: reddedilmeden sonra yeniden deneme çalışır`, dr.json);
         await ctx.close();
       }
@@ -293,6 +294,7 @@ async function main() {
           const b = await begin;
           const bj = (await b.json().catch(() => ({}))) as J;
           const sq = (bj.qr ?? {}) as J;
+          if (!sq.url) console.log(`  TANI ${label}-stepup-yanit: ${b.status()} ${JSON.stringify(bj).slice(0, 300)}`);
           const pf = await phoneFetch(ownerPhone, String(sq.url));
           ok(pf.json.purpose === "step_up" && pf.json.action === "admin_grant", `${label}: telefon bunu GİRİŞ değil "yönetici yetkisi verme" kritik işlemi olarak görür`, pf.json);
           const wrong = await phoneDecide(ownerPhone, String(sq.url), wrongCode(String(sq.matchCode)));
@@ -303,8 +305,10 @@ async function main() {
           await sleep(500);
           begin = captureStepUp();
           await op.getByRole("button", { name: "Yöneticiyi Oluştur" }).click();
-          const b2 = (await (await begin).json().catch(() => ({}))) as J;
+          const b2r = await begin;
+          const b2 = (await b2r.json().catch(() => ({}))) as J;
           const sq2 = (b2.qr ?? {}) as J;
+          if (!sq2.url) console.log(`  TANI ${label}-stepup-yanit-2: ${b2r.status()} ${JSON.stringify(b2).slice(0, 300)}`);
           const okd = await phoneDecide(ownerPhone, String(sq2.url), String(sq2.matchCode));
           ok(okd.json.result === "approved", `${label}: Owner telefonu doğru kodla onayladı`, okd.json);
           let created: { id: string; role: string; mfa_required: boolean } | undefined;
@@ -338,38 +342,35 @@ async function main() {
         // Başka hedefe (other) ait ONAYLI kanıt hazırla — target için geçmemeli.
         if (hasF2k && ownerTok) {
           const su = (await q(`SELECT public.auth_owner_step_up_begin($1, 'admin_grant', $2) AS r`, [ownerTok, other.id])).rows[0].r as J;
-          await q(`SELECT public.auth_qr_decide($1, $2, $3, 'approve', $4)`, [su.challenge_id, su.qr_nonce, ownerPhone.deviceId, su.match_code]);
-        }
-        const promote = async () => {
-          await op.goto(`${BASE}/admin/users/${target.id}`, { waitUntil: "domcontentloaded" });
-          await op.getByRole("button", { name: "Profili Düzenle" }).click({ timeout: 25000 });
-          await op.getByLabel("Rol", { exact: true }).selectOption("admin");
-          const begin = captureStepUp();
-          await op.getByRole("button", { name: "Kaydet", exact: true }).click();
-          return begin;
-        };
-        let begin: Awaited<ReturnType<typeof captureStepUp>> | null = null;
-        try { begin = await promote(); } catch { await diag(op, `${label}-detay`); }
-        let dialog = false;
-        try { await op.getByTestId("step-up-dialog").waitFor({ timeout: 20000 }); dialog = true; } catch { await diag(op, `${label}-yukseltme-stepup-yok`); }
-        ok(dialog && (await role(target.id))?.role === "expert", `${label}: başka hedefe ait onaylı kanıt bu kullanıcı için GEÇMEZ (pencere açılır, rol değişmez)`);
-        if (dialog && begin) {
-          const sq = ((await begin.json().catch(() => ({}))) as J).qr as J;
-          const d = await phoneDecide(ownerPhone, String(sq?.url), String(sq?.matchCode));
-          ok(d.json.result === "approved", `${label}: yükseltme için telefon onayı`, d.json);
-          let r: { role: string; mfa_required: boolean } | undefined;
-          for (let i = 0; i < 20 && r?.role !== "admin"; i++) { await sleep(750); r = await role(target.id); }
-          ok(r?.role === "admin" && r.mfa_required === true, `${label}: uzman yöneticiye yükseltildi, MFA zorunlu`, r);
-          ok(Number((await q(`SELECT count(*)::int n FROM public.user_sessions WHERE user_id = $1 AND is_active`, [target.id])).rows[0].n) === 0, `${label}: yükseltilen kullanıcının açık oturumu yok`);
-          // Yetki düşür (doğrulama gerekmez) → yeniden yükselt: kullanılmış kanıt TEKRAR GEÇMEZ.
-          await q(`UPDATE public.users SET role = 'expert' WHERE id = $1`, [target.id]);
-          try { await promote(); } catch { await diag(op, `${label}-detay-2`); }
-          let again = false;
-          try { await op.getByTestId("step-up-dialog").waitFor({ timeout: 20000 }); again = true; } catch { /* yok */ }
-          ok(again && (await role(target.id))?.role === "expert", `${label}: kullanılmış kanıt yeniden kullanılamaz (pencere yeniden açılır)`);
-          await op.screenshot({ path: path.join(OUT, `${label}-7-yeniden-kanit.png`) });
-          await op.getByTestId("step-up-cancel").click().catch(() => {});
-        }
+          const dd = (await q(`SELECT public.auth_qr_decide($1, $2, $3, 'approve', $4) AS r`, [su.challenge_id, su.qr_nonce, ownerPhone.deviceId, su.match_code])).rows[0].r as J;
+          ok(su.ok === true && dd.result === "approved", `${label}: (ön koşul) BAŞKA hedefe ait kanıt Owner telefonuyla onaylandı`, { su, dd });
+        } else if (hasF2k) ok(false, `${label}: (ön koşul) Owner oturum anahtarı bulunamadı`);
+        // Tarayıcının GERÇEK Owner oturumu (HttpOnly çerez + uygulamanın kendi yönetici başlıkları) ile gerçek route'lar.
+        // Not: kullanıcı detay ekranı bu minimal test DB'sinde "Kayıt bulunamadı" gösterir → oradaki düğme akışı NOT TESTED.
+        const inPage = (url: string, method: string, body: unknown) => op.evaluate(async ([u, m, b]) => {
+          const user = JSON.parse(localStorage.getItem("yasam_user") ?? "{}") as { id?: string };
+          const tok = localStorage.getItem("yasam_session_token");
+          const r = await fetch(u as string, { method: m as string, credentials: "same-origin",
+            headers: { "content-type": "application/json", "x-admin-id": user.id ?? "", ...(tok ? { "x-session-token": tok } : {}) }, body: JSON.stringify(b) });
+          return { status: r.status, json: await r.json().catch(() => ({})) };
+        }, [url, method, body] as const);
+        const promoteApi = () => inPage(`${BASE}/api/admin/users/${target.id}`, "PATCH", { action: "edit", fullName: "F2L Hedef", email: target.email, role: "admin" });
+        const p1 = await promoteApi();
+        ok(p1.status === 403 && (p1.json as J).code === "STEP_UP_REQUIRED" && (await role(target.id))?.role === "expert",
+          `${label}: başka hedefe ait ONAYLI kanıt bu kullanıcı için GEÇMEZ (STEP_UP_REQUIRED, rol değişmez)`, p1);
+        const sb = await inPage(`${BASE}/api/admin/step-up`, "POST", { op: "begin", action: "admin_grant", targetId: target.id });
+        const sbq = ((sb.json as J).qr ?? {}) as J;
+        if (!sbq.url) console.log(`  TANI ${label}-api-stepup: ${sb.status} ${JSON.stringify(sb.json).slice(0, 300)}`);
+        const d = await phoneDecide(ownerPhone, String(sbq.url), String(sbq.matchCode));
+        ok(d.json.result === "approved", `${label}: bu hedef için telefon onayı`, d.json);
+        const p2 = await promoteApi();
+        const r2 = await role(target.id);
+        ok(p2.status === 200 && r2?.role === "admin" && r2.mfa_required === true, `${label}: kanıtla uzman yöneticiye yükseltildi, MFA zorunlu`, { p2, r2 });
+        ok(Number((await q(`SELECT count(*)::int n FROM public.user_sessions WHERE user_id = $1 AND is_active`, [target.id])).rows[0].n) === 0, `${label}: yükseltilen kullanıcının açık oturumu yok`);
+        await q(`UPDATE public.users SET role = 'expert' WHERE id = $1`, [target.id]);
+        const p3 = await promoteApi();
+        ok(p3.status === 403 && (p3.json as J).code === "STEP_UP_REQUIRED" && (await role(target.id))?.role === "expert",
+          `${label}: KULLANILMIŞ kanıt yeniden kullanılamaz (STEP_UP_REQUIRED)`, p3);
 
         // 5d) Süresi geçmiş cihaz talebi Owner listesinde görünmez; taze olan görünür.
         const fresh = await mkExpert("taze");

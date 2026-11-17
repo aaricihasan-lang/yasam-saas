@@ -135,7 +135,8 @@ async function main() {
         await input.click();
         await page.keyboard.insertText(`    ${code.slice(0, 3)} ${code.slice(3)} `);
         const val = await input.inputValue();
-        ok(val === code, `${r.label}: boşluklu yapıştırma → alan "${val}" (beklenen 6 hane)`, { val, code });
+        // F2-L: kod hiç gelmezse ("" === "") sahte PASS olmasın — 6 haneli kod ŞART.
+        ok(/^[0-9]{6}$/.test(code) && val === code, `${r.label}: boşluklu yapıştırma → alan "${val}" (beklenen 6 hane)`, { val, code });
         await page.getByTestId("mfa-email-verify").click();
         await page.waitForFunction(() => !document.querySelector('[data-testid="mfa-email-panel"]'), undefined, { timeout: 20000 }).catch(() => {});
         await sleep(1000);

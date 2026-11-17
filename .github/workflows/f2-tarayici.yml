@@ -93,6 +93,18 @@ jobs:
         if: always()
         run: free -m && df -h . | tail -1
 
+      # Yerel hata ayıklama için derleme çıktısı (sahte değerlerle; gizli değer YOK), 2 gün.
+      - name: Test build'i (yerel hata ayıklama)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: f2-tarayici-build
+          path: |
+            .next
+            !.next/cache
+          retention-days: 2
+          if-no-files-found: warn
+
       - name: Kanıtlar (ekran görüntüleri + günlükler + özet; sentetik veri)
         if: always()
         uses: actions/upload-artifact@v4
