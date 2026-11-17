@@ -197,7 +197,8 @@ async function main() {
     assert.equal(war.rows[0][2], `${ST.planetaryWars[0].distance.toFixed(2).replace(".", ",")}°`);
     const sup = tableOf(a, "Bastırılan yogalar")!;
     assert.ok(sup, "bastırılan yogalar tablosu yok");
-    assert.deepEqual(sup.columns, ["Yoga", "Aile", "Bastıran aile", "Kanıt"]);
+    // K2 (15.11.2026): kanıt sütunu hizmetin özgün İngilizce metni olarak etiketli.
+    assert.deepEqual(sup.columns, ["Yoga", "Aile", "Bastıran aile", "Kanıt (hizmetin özgün İngilizce metni)"]);
     assert.equal(sup.rows.length, 1);
     assert.equal(sup.rows[0][2], "Akriti (Nabhasa)");
     const nk = tableOf(a, "Nakshatra ilerlemesi")!;

@@ -51,8 +51,10 @@ export function useTrialManagement(opts: {
   notify: Notify;
   /** Başarılı işlemden sonra (ör. üye bilgisini yeniden yükle). */
   onChanged?: () => void;
+  /** Aşama 4a: arşivdeki hesap — deneme değişiklikleri sunucuda 409; panel salt-okunur gösterilir. */
+  locked?: boolean;
 }) {
-  const { enabled, userId, email, headers, notify, onChanged } = opts;
+  const { enabled, userId, email, headers, notify, onChanged, locked = false } = opts;
   const [state, setState] = useState<State>({ kind: "loading" });
   const [tick, setTick] = useState(0);
   const [busy, setBusy] = useState(false);
@@ -104,7 +106,7 @@ export function useTrialManagement(opts: {
     [busy, userId, headers, notify, onChanged],
   );
 
-  return { state, busy, act };
+  return { state, busy, act, locked };
 }
 
 type Mgmt = ReturnType<typeof useTrialManagement>;
@@ -124,7 +126,7 @@ function StateNote({ state }: { state: State }) {
 
 /** Modüller ve Kredi sekmesi: günlük ortak Roxy kredisi + üyeye özel limitler. */
 export function TrialCreditPanel({ mgmt }: { mgmt: Mgmt }) {
-  const { state, busy, act } = mgmt;
+  const { state, busy, act, locked } = mgmt;
   const row = state.kind === "ready" ? state.row : null;
   const [draft, setDraft] = useState<{ key: string; daily: string; mods: Record<CreditModule, string> } | null>(null);
   const rowKey = row ? `${row.id}:${row.daily_limit}:${JSON.stringify(row.module_limits)}` : "";
@@ -170,8 +172,9 @@ export function TrialCreditPanel({ mgmt }: { mgmt: Mgmt }) {
           <input
             inputMode="numeric"
             value={cur.daily}
+            disabled={locked}
             onChange={(e) => setDraft({ ...cur, daily: e.target.value.replace(/\D/g, "") })}
-            className="h-10 rounded-xl border border-slate-300 bg-white px-3 text-sm font-semibold tabular-nums"
+            className="h-10 rounded-xl border border-slate-300 bg-white px-3 text-sm font-semibold tabular-nums disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-600"
           />
         </label>
         {(Object.keys(CREDIT_LABEL) as CreditModule[]).map((k) => (
@@ -181,12 +184,18 @@ export function TrialCreditPanel({ mgmt }: { mgmt: Mgmt }) {
               inputMode="numeric"
               placeholder="boş = modül limiti yok"
               value={cur.mods[k]}
+              disabled={locked}
               onChange={(e) => setDraft({ ...cur, mods: { ...cur.mods, [k]: e.target.value.replace(/\D/g, "") } })}
-              className="h-10 rounded-xl border border-slate-300 bg-white px-3 text-sm font-semibold tabular-nums"
+              className="h-10 rounded-xl border border-slate-300 bg-white px-3 text-sm font-semibold tabular-nums disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-600"
             />
           </label>
         ))}
       </div>
+      {locked ? (
+        <p className="text-xs font-bold text-slate-600" data-trial-credit-locked>
+          Hesap arşivde · kredi limitleri salt-okunur. Değişiklik için önce ana yönetici arşivden çıkarır.
+        </p>
+      ) : (
       <div className="flex flex-wrap items-center justify-between gap-2">
         <span className="text-xs font-medium text-slate-500">
           Modül limiti günlük ortak limiti aşamaz (sunucu doğrular). Değişiklik deneme yönetim kaydına yazılır.
@@ -200,13 +209,14 @@ export function TrialCreditPanel({ mgmt }: { mgmt: Mgmt }) {
           Limitleri kaydet
         </button>
       </div>
+      )}
     </div>
   );
 }
 
 /** Gelişmiş sekmesi: inceleme / deneme erişimini durdur-sürdür / Pro talebini kapat (Deneme Üyeleri ile aynı koşullar). */
 export function TrialStatePanel({ mgmt }: { mgmt: Mgmt }) {
-  const { state, busy, act } = mgmt;
+  const { state, busy, act, locked } = mgmt;
   if (state.kind !== "ready") return <StateNote state={state} />;
   const r = state.row;
   const btn = "inline-flex h-10 items-center rounded-xl border-2 px-4 text-sm font-black disabled:opacity-50";
@@ -218,7 +228,7 @@ export function TrialStatePanel({ mgmt }: { mgmt: Mgmt }) {
         {r.review_reason ? ` · ${r.review_reason}` : ""}
       </p>
       <div className="flex flex-wrap gap-2">
-        {r.phase === "review" ? (
+        {locked ? null : r.phase === "review" ? (
           <button type="button" disabled={busy} onClick={() => void act({ action: "clear_review" }, "İnceleme kaldırıldı.")} className={`${btn} border-slate-300 bg-white text-slate-800`}>
             İncelemeyi kaldır
           </button>
@@ -227,7 +237,7 @@ export function TrialStatePanel({ mgmt }: { mgmt: Mgmt }) {
             İncelemeye al
           </button>
         ) : null}
-        {r.phase === "suspended" ? (
+        {locked ? null : r.phase === "suspended" ? (
           <button type="button" disabled={busy} onClick={() => void act({ action: "resume" }, "Deneme erişimi sürdürüldü (süre uzamaz).")} className={`${btn} border-slate-300 bg-white text-slate-800`}>
             Erişimi sürdür
           </button>
@@ -242,9 +252,15 @@ export function TrialStatePanel({ mgmt }: { mgmt: Mgmt }) {
           </button>
         ) : null}
       </div>
+      {locked ? (
+        <p className="text-xs font-bold text-slate-600" data-trial-state-locked>
+          Hesap arşivde · inceleme ve durdurma / sürdürme yapılamaz. Değişiklik için önce ana yönetici arşivden çıkarır.
+        </p>
+      ) : (
       <p className="text-xs font-medium text-slate-500">
         Deneme süresi hiçbir işlemle uzamaz veya yeniden başlamaz. Aynı işlemler Deneme Üyeleri ekranında da kullanılabilir.
       </p>
+      )}
     </div>
   );
 }

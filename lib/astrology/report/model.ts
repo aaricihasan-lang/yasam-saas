@@ -34,6 +34,7 @@ import { VEDIC_NOKTA_TECHNIQUES, vedicNoktaReport } from "./vedicNoktalarReport"
 // 2026-10-22 — Vedik aylık zamanlama (ayrı satır: paralel teknik eklemeleriyle birleştirme çakışması olmasın).
 import { vedicMonthlyReport } from "./vedicMonthlyReport";
 import { vedicYogaReport } from "./vedicYogaReport";
+import { VEDIC_YOGA_INFO, isVedicYogaDetectId } from "../model/vedicYoga";
 import { describeOptions, techniqueLabel as uiTechniqueLabel, zodiacLabel } from "@/app/admin/astroloji/_lib/techniques";
 import { KP_DASHA_TECHNICAL_SCHEMA, VEDIC_D1_TECHNICAL_SCHEMA, VEDIC_DASHA_TECHNICAL_SCHEMA, VEDIC_YOGA_FAMILY_LABELS, VEDIC_SHADBALA_TECHNICAL_SCHEMA, VEDIC_TRANSIT_TECHNICAL_SCHEMA, VEDIC_VARGA_TECHNICAL_SCHEMA, VIMSHOTTARI_YEARS, type VedicD1Technical, type VedicGrahaId, type VedicTransitTechnical, type VedicVargaTechnical } from "../model/vedic";
 import { KP_CHART_TECHNICAL_SCHEMA, KP_HORARY_TECHNICAL_SCHEMA, KP_TRANSIT_TECHNICAL_SCHEMA, type KpChartTechnical, type KpHoraryTechnical, type KpTransitTechnical } from "../model/kp";
@@ -83,8 +84,10 @@ import {
   formatInZone,
   groupEventsByDay,
   horaryDisplayZone,
+  horaryPlaceZone,
   isIanaZone,
   questionMomentLabel,
+  questionMomentPlaceNote,
   relativeTo,
   significanceBand,
   strongestTransits,
@@ -1007,15 +1010,18 @@ function vedic(b: B, technique: string, t: O) {
         b.p("Görünür iki graha 1° içinde; kazanan daha kuzey ekliptik enlemli grahadır, kaybeden zayıflar.", "muted");
       }
       const yogas = arr(t.yogas);
-      const present = yogas.filter((y) => y.present === true).map((y) => [s(y.name), s(y.family), typeof y.quality === "string" ? (QUALITY[y.quality] ?? y.quality) : DASH, s(y.evidence)]);
+      // K2 (15.11.2026): oluşum sütunu Türkçe kural tablosundan (VEDIC_YOGA_INFO); hizmetin İngilizce kanıt cümlesi ayrı sütunda,
+      // "özgün İngilizce" diye işaretli. Kural tablosunda olmayan kimlikte yalnız kanıt cümlesi kalır.
+      const formationOf = (y: Record<string, unknown>) => (isVedicYogaDetectId(y.id) ? VEDIC_YOGA_INFO[y.id].formation : DASH);
+      const present = yogas.filter((y) => y.present === true).map((y) => [s(y.name), s(y.family), typeof y.quality === "string" ? (QUALITY[y.quality] ?? y.quality) : DASH, formationOf(y), s(y.evidence)]);
       b.h(3, "Yogalar");
       if (yogas.length) b.p(`${yogas.length} yoga denetlendi; ${present.length} tanesi haritada oluşuyor.`, "muted");
-      b.table(["Yoga", "Aile", "Nitelik", "Oluşum kanıtı"], present, { widths: [1.5, 1.3, 1, 4], empty: "Kayıtta oluşan yoga yok." });
+      b.table(["Yoga", "Aile", "Nitelik", "Oluşum kuralı", "Kanıt (hizmetin özgün İngilizce metni)"], present, { widths: [1.3, 1.1, 0.9, 3, 2.6], empty: "Kayıtta oluşan yoga yok." });
       // AŞAMA 2: kuralı sağlayıp üst aile tarafından bastırılan yogalar (yalnız alan kayıtta varsa; eski kayıtta bölüm yok).
       const suppressed = yogas.filter((y) => y.present === false && typeof y.suppressedBy === "string").map((y) => [s(y.name), s(y.family), (VEDIC_YOGA_FAMILY_LABELS as Record<string, string>)[String(y.suppressedBy)] ?? s(y.suppressedBy), s(y.evidence)]);
       if (suppressed.length) {
         b.h(3, "Bastırılan yogalar");
-        b.table(["Yoga", "Aile", "Bastıran aile", "Kanıt"], suppressed, { widths: [1.5, 1.1, 1.4, 4] });
+        b.table(["Yoga", "Aile", "Bastıran aile", "Kanıt (hizmetin özgün İngilizce metni)"], suppressed, { widths: [1.5, 1.1, 1.4, 4] });
         b.p("Kural sağlandı, ancak klasik öncelik gereği üst sıradaki aile öne geçti (Akriti, Asraya'nın; Akriti, Asraya ve Dala, Sankhya'nın önüne geçer). Bu yogalar haritada oluşmuş sayılmaz.", "muted");
       }
       // 2026-10-22 (vedik-yoga): kural düzeyinde yoga denetim tablosu — yalnız kayıtlı D1 verisi; yeni istek yok.
@@ -1602,6 +1608,11 @@ function kp(b: B, technique: string, t: O, opts: O, birth: { lat: number; lon: n
         ...kpFrame(t),
         ["Horary sayısı", s(t.horaryNumber)],
         ["Soru anı", typeof at.utc === "string" ? questionMomentLabel(at.utc, tz) : DASH],
+        // K5: soru anı başka dilimde girildiyse değerlendirme yerinin yerel saati (ekranla aynı metin; yalnız gösterim).
+        ...((): [string, string][] => {
+          const note = typeof at.utc === "string" ? questionMomentPlaceNote(at.utc, tz, horaryPlaceZone(opts)) : null;
+          return note ? [["Soru anı (değerlendirme yeri)", note.replace(/^değerlendirme yerinde /, "")]] : [];
+        })(),
         ["Soru anı (UTC)", utcTr(at.utc)],
         ["Değerlendirme yeri", placeLabel ? `${placeLabel} (${coord(pl.latitude, pl.longitude)})` : coord(pl.latitude, pl.longitude)],
         ["Sayının aralığı", num(sp.from) !== null && num(sp.to) !== null ? `${lonPos(sp.from)} – ${lonPos(sp.to)}` : DASH],

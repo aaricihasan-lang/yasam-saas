@@ -10,13 +10,17 @@
  * Çalıştır: node scripts/uye-yonetimi-360/ui-smoke.mjs
  */
 import { chromium } from "playwright";
-import { readFileSync, mkdirSync } from "node:fs";
+import { mkdirSync } from "node:fs";
 import path from "node:path";
+import { claimShotsDir, resolveUiConfig } from "../uye-yonetimi-faz2/uiKosu.mjs";
 import os from "node:os";
 
 const BASE = process.env.M360_BASE ?? "http://127.0.0.1:3927";
-const cfg = JSON.parse(readFileSync(path.join(os.tmpdir(), "uye-yonetimi-360-ui.json"), "utf8"));
-const SHOTS = process.env.M360_SHOTS ?? path.join(os.tmpdir(), "m360-shots");
+// Yapılandırma: M360_CFG ya da tek canlı yığın; görüntü dizini koşuya özgü (uiKosu.mjs).
+const UI_CFG = await resolveUiConfig({ envVar: "M360_CFG", prefixes: ["uye-yonetimi-360-ui-"] });
+const cfg = UI_CFG.cfg;
+const SHOTS = claimShotsDir(process.env.M360_SHOTS ?? path.join(os.tmpdir(), "m360-shots"));
+console.log(`yapılandırma: ${UI_CFG.path} (${UI_CFG.source}) · görüntüler: ${SHOTS}`);
 mkdirSync(SHOTS, { recursive: true });
 
 let pass = 0, fail = 0;

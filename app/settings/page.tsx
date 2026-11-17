@@ -36,13 +36,14 @@ import { searchLocations, type Location } from "@/lib/location";
 import { TR_LOCATIONS } from "@/lib/location/tr";
 import { getUserLocationPref, saveUserLocationPref, type UserLocationPref } from "@/lib/location/userLocationPref";
 import { BackupTab, ExportTab, RestoreTab } from "./BackupSections";
+import { MembershipSettingsTab, MEMBERSHIP_TAB_ICON } from "./MembershipSettingsTab";
 import MySessionsPanel from "@/components/settings/MySessionsPanel";
 import { WorkspaceSettingsTab, useWorkspaceAccess } from "./WorkspaceSettingsTab";
 import { PROFILE_LEAVE_MESSAGE, PROFILE_TAB_ICON, ProfileSettingsTab } from "./ProfileSettingsTab";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type Tab = "security" | "profile" | "location" | "contact" | "export" | "backup" | "restore" | "workspace";
+type Tab = "security" | "profile" | "location" | "contact" | "export" | "backup" | "restore" | "workspace" | "membership";
 
 type SupportMessage = {
   id: string;
@@ -65,6 +66,7 @@ const TABS: { id: Tab; label: string; icon: React.ElementType }[] = [
   { id: "export",    label: "Dışa Aktarım",        icon: FileText      },
   { id: "backup",    label: "Sistem Yedeği",        icon: FileJson      },
   { id: "restore",   label: "Geri Yükleme",         icon: RotateCcw     },
+  { id: "membership", label: "Üyeliğim",           icon: MEMBERSHIP_TAB_ICON },
 ];
 // Kişisel Dijital Ofis: yalnız sunucu erişim verdiğinde (bayrak + Owner / izin listesi) eklenir.
 const WORKSPACE_TAB: { id: Tab; label: string; icon: React.ElementType } = { id: "workspace", label: "Çalışma Alanım", icon: Sparkles };
@@ -741,6 +743,7 @@ export default function SettingsPage() {
               {tab === "export"    && <ExportTab   user={user} />}
               {tab === "backup"    && <BackupTab   user={user} />}
               {tab === "restore"   && <RestoreTab  user={user} />}
+              {tab === "membership" && <MembershipSettingsTab user={user} onOpenContact={() => setTab("contact")} />}
               {tab === "workspace" && workspaceAccess.status === "on" && <WorkspaceSettingsTab access={workspaceAccess} readOnly={isDemo} />}
             </>
           )}

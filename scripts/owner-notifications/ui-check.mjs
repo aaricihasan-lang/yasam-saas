@@ -3,13 +3,18 @@
  * Önkoşul: scripts/owner-notifications/ui-stack.ts + yerel `next dev` (BASE). Sentetik veri; production'a temas YOK.
  */
 import { chromium } from "playwright";
-import { mkdirSync, readFileSync } from "node:fs";
+import { mkdirSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { claimShotsDir, resolveUiConfig } from "../uye-yonetimi-faz2/uiKosu.mjs";
 
 const BASE = process.env.ONUI_BASE ?? "http://localhost:3951";
-const SHOTS = process.env.ONUI_SHOTS ?? path.join(os.tmpdir(), "owner-notifications-shots");
-const cfg = JSON.parse(readFileSync(path.join(os.tmpdir(), "owner-notifications-ui.json"), "utf8"));
+// Koşuya özgü: dizin canlı başka bir koşuya aitse `kosu-*` alt dizini (uiKosu.mjs).
+const SHOTS = claimShotsDir(process.env.ONUI_SHOTS ?? path.join(os.tmpdir(), "owner-notifications-shots"));
+// Yapılandırma: ONUI_CFG ya da tek canlı yığın (birden çoksa durur; yanlış yığına bağlanmaz).
+const UI_CFG = await resolveUiConfig({ envVar: "ONUI_CFG", prefixes: ["owner-notifications-ui-"] });
+const cfg = UI_CFG.cfg;
+console.log(`yapılandırma: ${UI_CFG.path} (${UI_CFG.source}) · görüntüler: ${SHOTS}`);
 mkdirSync(SHOTS, { recursive: true });
 
 let pass = 0, fail = 0;
