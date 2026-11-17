@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { adminGrantEmailTarget, adminGrantFailure } from "@/lib/admin/adminGrant";
 import { verifyAdminRequest } from "@/lib/auth/adminGuard";
 import { buildTenantDisplayName, buildTenantSlugBase } from "@/lib/auth/createExpertTenant";
 import { requireMainAdmin } from "@/lib/admin/adminGuards";
@@ -172,6 +173,7 @@ export async function POST(req: NextRequest) {
     // Yeni admin oluşturma yalnız ANA YÖNETİCİYE açıktır (Faz 1/P1).
     const main = await requireMainAdmin(db, adminId);
     if (!main.ok) return bad(main.error, main.status);
+    if (astrologyGrants) return bad("Yönetici hesaplarında astroloji teknik izni seçilmez.");
   }
 
   // Şifreyi server-side bcrypt ile hashle (pgcrypto RPC; DB mutasyonu değil).
@@ -192,6 +194,30 @@ export async function POST(req: NextRequest) {
     p_modules: modules ?? {},
     p_remove_keys: [...ADMIN_MODULE_ALIAS_KEYS],
   };
+  // GİRİŞ GÜVENLİĞİ F2-K (N2): YÖNETİCİ oluşturma yalnız Owner'ın işleme özel kanıtıyla (QR / e-posta kodu; kanıt bu
+  // e-posta adresine bağlı, 5 dk, tek kullanım) — kanıtı tüketen DB fonksiyonu üzerinden. Yeni yöneticide MFA zorunludur
+  // (yöntem kurulup Owner onaylayana kadar oturum açılamaz). Çalınmış Owner çerezi tek başına yönetici açamaz.
+  if (role === "admin") {
+    if (!guard.sessionToken) return bad("Oturum doğrulanamadı.", 401);
+    const { data: g, error: gErr } = await db.rpc("auth_admin_create_admin", {
+      p_actor_token: guard.sessionToken,
+      p_payload: createArgs.p_payload,
+      p_membership: createArgs.p_membership,
+    });
+    if (gErr) return bad("Kayıt oluşturulamadı.", 500);
+    const gr = (g ?? {}) as Record<string, unknown>;
+    const fail = adminGrantFailure(gr.ok === true ? gr : { ...gr, target: gr.target ?? adminGrantEmailTarget(email) });
+    if (fail) return fail;
+    if (gr.outcome === "provisioned") {
+      return NextResponse.json(
+        { ok: true, userId: gr.user_id, role, modules: [], moduleCount: 0, mfaRequired: true },
+        { status: 201, headers: NO_STORE },
+      );
+    }
+    if (gr.outcome === "already_exists") return bad("Bu e-posta adresi zaten kayıtlı.", 409);
+    if (gr.outcome === "idempotency_key_conflict") return bad("İşlem kimliği çakışması.", 409);
+    return bad("Kayıt oluşturulamadı.", 500);
+  }
   const { data, error } = astrologyGrants
     ? await db.rpc("admin_create_user_with_modules_astrology", { ...createArgs, p_astrology_grants: astrologyGrants })
     : await db.rpc("admin_create_user_with_modules", createArgs);

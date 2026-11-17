@@ -34,7 +34,7 @@ BEGIN;
 DO $f2guard$
 DECLARE
   v_me      constant integer := 800;
-  v_known   constant integer := 1000;
+  v_known   constant integer := 1100;
   v_reg     integer;
   v_fp      integer := -1;
   v_missing text;
@@ -55,7 +55,8 @@ BEGIN
       (700, to_regclass('public.auth_audit_retention_policy') IS NOT NULL),
       (800, to_regclass('public.auth_retention_holds') IS NOT NULL),
       (900, to_regprocedure('public.user_sessions_user_id_immutable()') IS NOT NULL),
-      (1000, to_regclass('public.auth_session_device_proofs') IS NOT NULL)
+      (1000, to_regclass('public.auth_session_device_proofs') IS NOT NULL),
+      (1100, to_regprocedure('public.users_admin_grant_guard()') IS NOT NULL)
     ) AS t(lvl, present) ORDER BY lvl LOOP
     IF r.present THEN
       v_fp := greatest(v_fp, r.lvl);

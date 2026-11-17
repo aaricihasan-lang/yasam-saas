@@ -75,9 +75,9 @@ BEGIN
 END $$;
 
 -- >>> KATALOG MANİFESTİ (üretici: scripts/giris-guvenligi/f2-katalog.mjs --uret — elle değiştirmeyin)
--- Son aşamanın (001000) TAM katalog satırları: fonksiyon imzası + gövde özeti + SECURITY DEFINER + search_path +
+-- Son aşamanın (001100) TAM katalog satırları: fonksiyon imzası + gövde özeti + SECURITY DEFINER + search_path +
 -- API/service_role yetkisi, tetikleyiciler, F2 tabloları (RLS/yetki) ve kolonlar. Eksik, fazla (ör. eski overload) veya farklı her
--- satır FAIL'dir. Ayrıca kayıt düzeyi = 1000.
+-- satır FAIL'dir. Ayrıca kayıt düzeyi = 1100.
 DO $f2man$
 DECLARE
   v_missing text;
@@ -105,6 +105,11 @@ BEGIN
   ('col', 'users.mfa_required', 100),
   ('col', 'users.mfa_required_at', 100),
   ('fn', 'admin_notification_history', 400),
+  ('fn', 'auth_admin_create_admin', 1100),
+  ('fn', 'auth_admin_grant_email_target', 1100),
+  ('fn', 'auth_admin_grant_finish', 1100),
+  ('fn', 'auth_admin_grant_proof', 1100),
+  ('fn', 'auth_admin_role_grant', 1100),
   ('fn', 'auth_audit_retention_report', 700),
   ('fn', 'auth_credentials_changed_deny_challenges', 900),
   ('fn', 'auth_device_activate', 300),
@@ -196,6 +201,7 @@ BEGIN
   ('fn', 'user_sessions_mfa_guard', 100),
   ('fn', 'user_sessions_token_hash_fill', 0),
   ('fn', 'user_sessions_user_id_immutable', 900),
+  ('fn', 'users_admin_grant_guard', 1100),
   ('fn', 'users_email_change_guard', 500),
   ('fn', 'users_email_changed_after', 500),
   ('fn', 'users_mfa_policy_guard', 100),
@@ -227,6 +233,7 @@ BEGIN
   ('trg', 'trg_auth_mfa_required_end_sessions', 900),
   ('trg', 'trg_user_sessions_device_bind_guard', 1000),
   ('trg', 'trg_user_sessions_user_id_immutable', 900),
+  ('trg', 'trg_users_admin_grant_guard', 1100),
   ('trg', 'user_sessions_mfa_guard_trg', 100),
   ('trg', 'user_sessions_token_hash_trg', 0),
   ('trg', 'users_email_change_guard_trg', 500),
@@ -482,6 +489,11 @@ lines AS (SELECT lvl, line FROM fnl UNION ALL SELECT lvl, line FROM trl UNION AL
       ('col|users.mfa_required_at|timestamp with time zone|false'),
       ('col|users.mfa_required|boolean|true'),
       ('fn|admin_notification_history(p_actor uuid, p_q text, p_type text, p_status text, p_from timestamp with time zone, p_to timestamp with time zone, p_limit integer, p_offset integer)|8691fe62e7ac2989d4a24eb8649e171f|true|search_path=pg_catalog, public|api=false|svc=true'),
+      ('fn|auth_admin_create_admin(p_actor_token text, p_payload jsonb, p_membership jsonb)|df428dd9df63a2e769788ce45635b991|true|search_path=""|api=false|svc=true'),
+      ('fn|auth_admin_grant_email_target(p_email text)|d85b5f16885ab7d1a8d745ec032943ed|false|search_path=""|api=false|svc=true'),
+      ('fn|auth_admin_grant_finish(p_actor uuid, p_user uuid, p_kind text)|24be08ee2d6e9ab9a44754da5e4f83b5|true|search_path=""|api=false|svc=false'),
+      ('fn|auth_admin_grant_proof(p_actor_token text, p_target uuid)|49639c4767fffd2c7fbe34aff10bedaf|true|search_path=""|api=false|svc=false'),
+      ('fn|auth_admin_role_grant(p_actor_token text, p_user_id uuid, p_op text, p_expected_active boolean)|5cfd1fef85afc9a08eee65509788aacb|true|search_path=""|api=false|svc=true'),
       ('fn|auth_audit_retention_report()|9a224c02e78373133252ea42f13628eb|true|search_path=""|api=false|svc=false'),
       ('fn|auth_credentials_changed_deny_challenges()|097ca162aa99a5ba57973a49ee151451|true|search_path=""|api=false|svc=*'),
       ('fn|auth_device_activate(p_device_id uuid, p_nonce text)|4f30c929cc2371c57aaf53cee8fc324f|true|search_path=""|api=false|svc=true'),
@@ -508,7 +520,7 @@ lines AS (SELECT lvl, line FROM fnl UNION ALL SELECT lvl, line FROM trl UNION AL
       ('fn|auth_email_otp_verify(p_user_id uuid, p_purpose text, p_challenge_id uuid, p_code_hash text)|f7d4ed581471a614cb2ff000626b5f57|true|search_path=""|api=false|svc=true'),
       ('fn|auth_email_owner_test_reserve(p_actor_token text, p_to_hash text, p_provider text)|b4d5c771ab2b4b1d79ca0665c3e9c0c3|true|search_path=""|api=false|svc=true'),
       ('fn|auth_email_status(p_actor_token text)|b5dafd0002a44d41a726b875f018709d|true|search_path=""|api=false|svc=true'),
-      ('fn|auth_f2_schema_level()|56d9d61214140f04ff7254854ca6a7eb|false|search_path=""|api=false|svc=false'),
+      ('fn|auth_f2_schema_level()|cd02dd6c7fdef8fb2ccf0572e0533eb0|false|search_path=""|api=false|svc=false'),
       ('fn|auth_finalize_login(p_challenge_id uuid, p_browser_secret_hash text, p_session_token text, p_ip text, p_country text, p_city text, p_user_agent text, p_platform text, p_client_channel text, p_replace_token text, p_expires_at timestamp with time zone, p_high_risk boolean, p_enforce boolean, p_expert_idle_seconds integer, p_admin_idle_seconds integer, p_admin_absolute_seconds integer, p_expert_stale_seconds integer, p_admin_web_cap integer, p_pending_ttl_seconds integer)|6d8e3e4390ec7625ffeb2e1c1bcf82a8|true|search_path=""|api=false|svc=true'),
       ('fn|auth_is_owner_admin(p_user_id uuid)|a03ff002c1f3c1802b081a9a70615fba|true|search_path=""|api=false|svc=true'),
       ('fn|auth_legacy_session_policy_set(p_actor_token text, p_mode text, p_deadline timestamp with time zone)|d2bfc9cfd712f3b6a3fc39919e6454c8|true|search_path=""|api=false|svc=true'),
@@ -524,7 +536,7 @@ lines AS (SELECT lvl, line FROM fnl UNION ALL SELECT lvl, line FROM trl UNION AL
       ('fn|auth_owner_offline_bootstrap(p_actor_token text)|1590bcea0894b4c5e9fccbb38682158d|true|search_path=""|api=false|svc=true'),
       ('fn|auth_owner_offline_kit_issue()|6dc29724e07d9a7f2c751a2bdfeae4e4|true|search_path=""|api=false|svc=false'),
       ('fn|auth_owner_session_stale(p_token text)|0b03771f070976406fc0af768dd777bd|true|search_path=""|api=false|svc=false'),
-      ('fn|auth_owner_step_up_begin(p_actor_token text, p_action text, p_target uuid)|ac0f1adfcb04eee703245ead3ff904fa|true|search_path=""|api=false|svc=true'),
+      ('fn|auth_owner_step_up_begin(p_actor_token text, p_action text, p_target uuid)|b2a608203cf9866644e7c3b1f146ad94|true|search_path=""|api=false|svc=true'),
       ('fn|auth_owner_step_up_status(p_actor_token text, p_challenge_id uuid)|60e20bef5115e0860fdbb7db0c571135|true|search_path=""|api=false|svc=true'),
       ('fn|auth_owner_step_up_take(p_actor_token text, p_action text, p_target uuid)|6f8b13141d339713b4fc2d3e12770038|true|search_path=""|api=false|svc=true'),
       ('fn|auth_qr_decide(p_challenge_id uuid, p_qr_nonce text, p_device_id uuid, p_decision text, p_match_code text)|0e345b640fbdb633a6a9b48b5233e43e|true|search_path=""|api=false|svc=true'),
@@ -573,6 +585,7 @@ lines AS (SELECT lvl, line FROM fnl UNION ALL SELECT lvl, line FROM trl UNION AL
       ('fn|user_sessions_mfa_guard()|922dc5efcdcaecdeabe6a99e678a56bc|true|search_path=""|api=false|svc=*'),
       ('fn|user_sessions_token_hash_fill()|a86c30e87afd4cd30f113f6298006dbe|false|search_path=""|api=false|svc=*'),
       ('fn|user_sessions_user_id_immutable()|81bc7e636d00cd02878d4a68e3e33b24|false|search_path=""|api=false|svc=*'),
+      ('fn|users_admin_grant_guard()|7abd24113c9d5f3afa0f3ace405604af|false|search_path=""|api=false|svc=*'),
       ('fn|users_email_change_guard()|c0a90adba817b4a6a3ab9f049cdfdaff|false|search_path=""|api=false|svc=*'),
       ('fn|users_email_changed_after()|1b0e53f933a96897458c550b12e2ac88|true|search_path=""|api=false|svc=*'),
       ('fn|users_mfa_policy_guard()|3735254568fb78b07471c32d267698b2|false|search_path=""|api=false|svc=*'),
@@ -606,6 +619,7 @@ lines AS (SELECT lvl, line FROM fnl UNION ALL SELECT lvl, line FROM trl UNION AL
       ('trg|user_sessions.user_sessions_token_hash_trg|user_sessions_token_hash_fill|O|6a8e271e8b0a96e575c80c5358251a45'),
       ('trg|users.trg_auth_credentials_changed_deny_challenges|auth_credentials_changed_deny_challenges|O|bef21877e48d66cd327b9c377ba1ddee'),
       ('trg|users.trg_auth_mfa_required_end_sessions|auth_mfa_required_end_sessions|O|171f753724f86cf8981e5f4446802b97'),
+      ('trg|users.trg_users_admin_grant_guard|users_admin_grant_guard|O|c99d8304892cdf2b869988b2a4d3b6c9'),
       ('trg|users.users_email_change_guard_trg|users_email_change_guard|O|01ec0aa641f42ab49ce866e33977175f'),
       ('trg|users.users_email_changed_after_trg|users_email_changed_after|O|38969aed79fd7c25cf50596923d6d1cc'),
       ('trg|users.users_mfa_policy_guard_trg|users_mfa_policy_guard|O|71e7671d0a1db7d3b0bc85a85e21fd51')
@@ -615,10 +629,10 @@ lines AS (SELECT lvl, line FROM fnl UNION ALL SELECT lvl, line FROM trl UNION AL
     INTO v_missing, v_extra;
   SELECT max(substring(p.prosrc FROM '([0-9]+)')::int) INTO v_reg FROM pg_catalog.pg_proc p
     JOIN pg_catalog.pg_namespace n ON n.oid = p.pronamespace WHERE n.nspname = 'public' AND p.proname = 'auth_f2_schema_level';
-  IF v_missing IS NOT NULL OR v_extra IS NOT NULL OR v_reg IS DISTINCT FROM 1000 THEN
-    RAISE EXCEPTION 'F2 POSTFLIGHT KATALOG FAIL — kayıt=% (beklenen 1000) | beklenip bulunmayan/farklı: % | beklenmeyen: %',
+  IF v_missing IS NOT NULL OR v_extra IS NOT NULL OR v_reg IS DISTINCT FROM 1100 THEN
+    RAISE EXCEPTION 'F2 POSTFLIGHT KATALOG FAIL — kayıt=% (beklenen 1100) | beklenip bulunmayan/farklı: % | beklenmeyen: %',
       coalesce(v_reg::text, 'yok'), left(coalesce(v_missing, '-'), 3000), left(coalesce(v_extra, '-'), 3000);
   END IF;
-  RAISE NOTICE 'F2 POSTFLIGHT KATALOG PASS (% satır)', 342;
+  RAISE NOTICE 'F2 POSTFLIGHT KATALOG PASS (% satır)', 349;
 END $f2man$;
 -- <<< KATALOG MANİFESTİ

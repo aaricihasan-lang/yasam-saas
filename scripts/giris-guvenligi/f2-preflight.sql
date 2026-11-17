@@ -26,6 +26,11 @@ WITH obj(kind, name, lvl) AS (VALUES
   ('col', 'users.mfa_required', 100),
   ('col', 'users.mfa_required_at', 100),
   ('fn', 'admin_notification_history', 400),
+  ('fn', 'auth_admin_create_admin', 1100),
+  ('fn', 'auth_admin_grant_email_target', 1100),
+  ('fn', 'auth_admin_grant_finish', 1100),
+  ('fn', 'auth_admin_grant_proof', 1100),
+  ('fn', 'auth_admin_role_grant', 1100),
   ('fn', 'auth_audit_retention_report', 700),
   ('fn', 'auth_credentials_changed_deny_challenges', 900),
   ('fn', 'auth_device_activate', 300),
@@ -117,6 +122,7 @@ WITH obj(kind, name, lvl) AS (VALUES
   ('fn', 'user_sessions_mfa_guard', 100),
   ('fn', 'user_sessions_token_hash_fill', 0),
   ('fn', 'user_sessions_user_id_immutable', 900),
+  ('fn', 'users_admin_grant_guard', 1100),
   ('fn', 'users_email_change_guard', 500),
   ('fn', 'users_email_changed_after', 500),
   ('fn', 'users_mfa_policy_guard', 100),
@@ -148,6 +154,7 @@ WITH obj(kind, name, lvl) AS (VALUES
   ('trg', 'trg_auth_mfa_required_end_sessions', 900),
   ('trg', 'trg_user_sessions_device_bind_guard', 1000),
   ('trg', 'trg_user_sessions_user_id_immutable', 900),
+  ('trg', 'trg_users_admin_grant_guard', 1100),
   ('trg', 'user_sessions_mfa_guard_trg', 100),
   ('trg', 'user_sessions_token_hash_trg', 0),
   ('trg', 'users_email_change_guard_trg', 500),
@@ -187,7 +194,7 @@ cll AS (
     JOIN pg_catalog.pg_attribute a ON a.attrelid = c.oid AND a.attnum > 0 AND NOT a.attisdropped
          AND (o.kind = 'tbl' OR a.attname = split_part(o.name, '.', 2))),
 lines AS (SELECT lvl, line FROM fnl UNION ALL SELECT lvl, line FROM trl UNION ALL SELECT lvl, line FROM tbl UNION ALL SELECT lvl, line FROM cll),
-expected(lvl, hash) AS (VALUES (0, 'c8df9e5bf3db2c1a5670586976869092'), (100, '10a193da0f693addf4895ee64d163df9'), (300, '5faa54e46aadc4ebd290746b624fcc66'), (400, 'e34a756eb98e9efcf891ec8a7fb26feb'), (500, 'c01ff596af7235d716f1aab9cf77ac85'), (600, 'e2538a9ad08b006ef74030023aca00ce'), (700, '3bf7a7f5c63eaf0b98cbf459bdf669c8'), (800, '4cba2fb4eb68df4e0f84eb8c955181c2'), (900, '726e0d5127e8b2b01d39c9a1f0da0fb3'), (1000, 'f5aa59b54c2ab58524630ae7385b1275')),
+expected(lvl, hash) AS (VALUES (0, 'c8df9e5bf3db2c1a5670586976869092'), (100, '10a193da0f693addf4895ee64d163df9'), (300, '5faa54e46aadc4ebd290746b624fcc66'), (400, 'e34a756eb98e9efcf891ec8a7fb26feb'), (500, 'c01ff596af7235d716f1aab9cf77ac85'), (600, 'e2538a9ad08b006ef74030023aca00ce'), (700, '3bf7a7f5c63eaf0b98cbf459bdf669c8'), (800, '4cba2fb4eb68df4e0f84eb8c955181c2'), (900, '726e0d5127e8b2b01d39c9a1f0da0fb3'), (1000, 'f5aa59b54c2ab58524630ae7385b1275'), (1100, 'b2255114129d65286fbb79205ec6bf14')),
 fps(lvl, file, present) AS (VALUES
     (0, '20280103000000', to_regprocedure('public.auth_is_owner_admin(uuid)') IS NOT NULL),
     (100, '20280103000100', to_regclass('public.auth_mfa_challenges') IS NOT NULL),
@@ -198,7 +205,8 @@ fps(lvl, file, present) AS (VALUES
     (700, '20280103000700', to_regclass('public.auth_audit_retention_policy') IS NOT NULL),
     (800, '20280103000800', to_regclass('public.auth_retention_holds') IS NOT NULL),
     (900, '20280103000900', to_regprocedure('public.user_sessions_user_id_immutable()') IS NOT NULL),
-    (1000, '20280103001000', to_regclass('public.auth_session_device_proofs') IS NOT NULL)
+    (1000, '20280103001000', to_regclass('public.auth_session_device_proofs') IS NOT NULL),
+    (1100, '20280103001100', to_regprocedure('public.users_admin_grant_guard()') IS NOT NULL)
 ),
 reg AS (
   SELECT max(substring(p.prosrc FROM '([0-9]+)')::int) AS lvl
@@ -251,7 +259,7 @@ UNION ALL
 SELECT 'on_kontrol|20280103000200|' || CASE
     WHEN NOT s.svc_insert THEN 'ZATEN UYGULANMIŞ|service_role user_sessions INSERT kapalı'
     WHEN s.fp < 100 THEN 'SIRA HATASI|000100 gerekli'
-    WHEN s.fp < 1000 OR s.catalog_ok IS NOT TRUE THEN 'SIRA HATASI|tüm doğrusal zincir + kod yayını + canlı doğrulama SONRASI en son uygulanır'
+    WHEN s.fp < 1100 OR s.catalog_ok IS NOT TRUE THEN 'SIRA HATASI|tüm doğrusal zincir + kod yayını + canlı doğrulama SONRASI en son uygulanır'
     WHEN NOT (SELECT missing IS NULL AND extra IS NULL FROM ledger_diff) THEN 'İNSAN İNCELEMESİ GEREKLİ|migration geçmişi katalogla uyuşmuyor'
     ELSE 'UYGULANABİLİR|YALNIZ yeni kod production''da ve canlı doğrulama PASS ise (eski kodla admin web girişi kesilir)' END
   FROM state s

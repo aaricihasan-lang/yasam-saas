@@ -1,0 +1,310 @@
+-- GİRİŞ GÜVENLİĞİ F2-K — kritik yetki ve cihaz güvenliği kapatma. F2-A…F2-J'ye bağımlı, EKLEYİCİ.
+-- Owner talimatı 17.11.2026 (N2 → A3 → O1 → O5 → C3).
+--
+--   K1 (N2) Yönetici yetkisi kazandıran HER geçiş (yönetici satırı ekleme, rolü yöneticiye yükseltme, pasif yöneticiyi
+--      etkinleştirme) yalnız Owner'ın işleme özel kanıtını (step-up 'admin_grant', hedefe bağlı, 5 dk, tek kullanım) tüketen
+--      SECURITY DEFINER fonksiyonlarının açtığı işlem içi işaretle mümkündür (users tetikleyicisi; eski rota, toplu işlem,
+--      başka SQL fonksiyonu veya doğrudan sunucu rolü yazımı bunu atlayamaz). Süper yönetici işaretinin açılması hiçbir
+--      uygulama yolundan mümkün değildir. Yeni / yükseltilen yöneticide MFA zorunludur (MFA'sız oturum açılamaz).
+--      Yetki AZALTAN işlemler (rol düşürme, pasifleştirme, arşivleme) etkilenmez.
+
+BEGIN;
+-- >>> F2 MİGRATION KORUMASI (F2-J; üretici: scripts/giris-guvenligi/f2-migration-guard.mjs — elle değiştirmeyin)
+DO $f2guard$
+DECLARE
+  v_me      constant integer := 1100;
+  v_known   constant integer := 1100;
+  v_reg     integer;
+  v_fp      integer := -1;
+  v_missing text;
+  r         record;
+BEGIN
+  -- 1) Kayıt (her doğrusal F2 migration'ı COMMIT'ten önce yazar).
+  IF to_regprocedure('public.auth_f2_schema_level()') IS NOT NULL THEN
+    EXECUTE 'SELECT public.auth_f2_schema_level()' INTO v_reg;
+  END IF;
+  -- 2) Katalog parmak izleri (kayıttan bağımsız ikinci kaynak).
+  FOR r IN SELECT * FROM (VALUES
+      (0, to_regprocedure('public.auth_is_owner_admin(uuid)') IS NOT NULL),
+      (100, to_regclass('public.auth_mfa_challenges') IS NOT NULL),
+      (300, to_regclass('public.auth_trusted_devices') IS NOT NULL),
+      (400, to_regclass('public.auth_email_otps') IS NOT NULL),
+      (500, to_regclass('public.auth_recovery_codes') IS NOT NULL),
+      (600, EXISTS (SELECT 1 FROM pg_catalog.pg_proc p JOIN pg_catalog.pg_namespace n ON n.oid = p.pronamespace WHERE n.nspname = 'public' AND p.proname = 'auth_owner_session_stale')),
+      (700, to_regclass('public.auth_audit_retention_policy') IS NOT NULL),
+      (800, to_regclass('public.auth_retention_holds') IS NOT NULL),
+      (900, to_regprocedure('public.user_sessions_user_id_immutable()') IS NOT NULL),
+      (1000, to_regclass('public.auth_session_device_proofs') IS NOT NULL),
+      (1100, to_regprocedure('public.users_admin_grant_guard()') IS NOT NULL)
+    ) AS t(lvl, present) ORDER BY lvl LOOP
+    IF r.present THEN
+      v_fp := greatest(v_fp, r.lvl);
+    ELSIF r.lvl < v_me THEN
+      v_missing := concat_ws(',', v_missing, lpad(r.lvl::text, 6, '0'));
+    END IF;
+  END LOOP;
+  IF coalesce(v_reg, -1) > v_me OR v_fp > v_me THEN
+    RAISE EXCEPTION 'F2 MİGRATION KORUMASI: % daha yeni bir F2 aşamasının üzerine YENİDEN UYGULANAMAZ (kayıt=%, katalog=%). Owner korumalı fonksiyonlar eski gövdeye dönerdi; hiçbir değişiklik yapılmadı.',
+      lpad(v_me::text, 6, '0'), coalesce(lpad(v_reg::text, 6, '0'), 'yok'), lpad(greatest(v_fp, 0)::text, 6, '0')
+      USING ERRCODE = 'YF201';
+  END IF;
+  IF v_missing IS NOT NULL THEN
+    RAISE EXCEPTION 'F2 MİGRATION KORUMASI: SIRA HATASI — % uygulanmadan önce eksik aşama(lar): %. Hiçbir değişiklik yapılmadı.',
+      lpad(v_me::text, 6, '0'), v_missing USING ERRCODE = 'YF202';
+  END IF;
+  IF (v_reg IS NULL AND v_fp >= 0) OR (v_reg IS NOT NULL AND v_reg <= v_known AND v_reg <> v_fp) THEN
+    RAISE EXCEPTION 'F2 MİGRATION KORUMASI: ŞEMA SAPMASI — kayıt (%) ile katalog parmak izi (%) çelişiyor; insan incelemesi gerekli. Hiçbir değişiklik yapılmadı.',
+      coalesce(lpad(v_reg::text, 6, '0'), 'yok'), lpad(greatest(v_fp, 0)::text, 6, '0') USING ERRCODE = 'YF203';
+  END IF;
+END $f2guard$;
+-- <<< F2 MİGRATION KORUMASI
+
+-- ── K1a) Step-up işlem listesi: + admin_grant ─────────────────────────────────
+ALTER TABLE public.auth_mfa_challenges DROP CONSTRAINT IF EXISTS auth_mfa_challenges_step_up_chk;
+ALTER TABLE public.auth_mfa_challenges ADD CONSTRAINT auth_mfa_challenges_step_up_chk
+  CHECK ((purpose = 'step_up') = (step_action IS NOT NULL AND step_target IS NOT NULL AND step_session_id IS NOT NULL)
+     AND (step_action IS NULL OR step_action IN ('device_approve', 'mfa_disable', 'recovery_execute', 'retention_policy',
+                                                 'retention_execute', 'password_reset', 'admin_grant')));
+
+CREATE OR REPLACE FUNCTION public.auth_owner_step_up_begin(p_actor_token text, p_action text, p_target uuid)
+RETURNS jsonb
+LANGUAGE plpgsql
+VOLATILE
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  v_now   timestamptz := now();
+  v_s     record;
+  v_open  integer;
+  v_id    uuid;
+  v_nonce text;
+  v_codes text[] := ARRAY[]::text[];
+  v_c     text;
+  v_match text;
+BEGIN
+  SELECT * INTO v_s FROM public.auth_session_mfa(p_actor_token);
+  IF v_s.user_id IS NULL OR v_s.mfa_method IS NULL OR NOT public.auth_is_owner_admin(v_s.user_id) THEN
+    RETURN jsonb_build_object('ok', false, 'code', 'forbidden');
+  END IF;
+  IF public.auth_session_fresh_mfa(p_actor_token, 30) IS NULL THEN
+    RETURN jsonb_build_object('ok', false, 'code', 'fresh_mfa_required');
+  END IF;
+  IF p_action IS NULL OR p_action NOT IN ('device_approve', 'mfa_disable', 'recovery_execute', 'retention_policy', 'retention_execute', 'password_reset', 'admin_grant') OR p_target IS NULL THEN
+    RETURN jsonb_build_object('ok', false, 'code', 'bad_request');
+  END IF;
+  PERFORM pg_advisory_xact_lock(hashtextextended('mfa:' || v_s.user_id::text, 0));
+  UPDATE public.auth_mfa_challenges SET state = 'expired'
+   WHERE user_id = v_s.user_id AND state IN ('pending', 'verified') AND expires_at <= v_now;
+  SELECT count(*) INTO v_open FROM public.auth_mfa_challenges
+   WHERE user_id = v_s.user_id AND purpose = 'step_up' AND state IN ('pending', 'verified');
+  IF v_open >= 3 THEN
+    RETURN jsonb_build_object('ok', false, 'code', 'too_many_open');
+  END IF;
+  -- QR nonce (192 bit) + 3 farklı 2 haneli kod (1 doğru) — auth_mfa_begin (F2-C) ile aynı üretim.
+  v_nonce := translate(rtrim(encode(extensions.gen_random_bytes(24), 'base64'), '='), '+/', '-_');
+  WHILE coalesce(array_length(v_codes, 1), 0) < 3 LOOP
+    v_c := lpad(((get_byte(extensions.gen_random_bytes(1), 0) * 100) / 256)::text, 2, '0');
+    IF NOT (v_c = ANY (v_codes)) THEN
+      v_codes := v_codes || v_c;
+    END IF;
+  END LOOP;
+  v_match := v_codes[1 + (get_byte(extensions.gen_random_bytes(1), 0) % 3)];
+  INSERT INTO public.auth_mfa_challenges (user_id, purpose, browser_secret_hash, client_channel, created_at, expires_at,
+                                          qr_nonce_hash, match_code, match_options, step_action, step_target, step_session_id)
+  VALUES (v_s.user_id, 'step_up', encode(sha256(extensions.gen_random_bytes(32)), 'hex'), 'desktop_web', v_now, v_now + interval '5 minutes',
+          encode(sha256(convert_to(v_nonce, 'UTF8')), 'hex'), v_match, v_codes, p_action, p_target, v_s.session_id)
+  RETURNING id INTO v_id;
+  PERFORM public.auth_recovery_log(v_s.user_id, v_s.user_id, 'step_up_requested',
+                                   jsonb_build_object('challenge_id', v_id, 'action', p_action, 'target', p_target));
+  RETURN jsonb_build_object('ok', true, 'challenge_id', v_id, 'expires_at', v_now + interval '5 minutes',
+    'qr_nonce', v_nonce, 'match_code', v_match,
+    'has_device', EXISTS (SELECT 1 FROM public.auth_trusted_devices d WHERE d.user_id = v_s.user_id AND d.state = 'active'),
+    -- F2-I: e-posta yalnız BU oturum açılmadan ÖNCE doğrulanmışsa kanıt yöntemidir (oturum içinde adres değiştirilip
+    -- yeniden doğrulanırsa çalınmış oturum kendi kutusuna kanıt alamaz).
+    'email_verified', coalesce((SELECT u.email_verified_at IS NOT NULL AND u.email_verified_at <= v_s.created_at
+                                  FROM public.users u WHERE u.id = v_s.user_id), false));
+END $$;
+REVOKE ALL ON FUNCTION public.auth_owner_step_up_begin(text, text, uuid) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.auth_owner_step_up_begin(text, text, uuid) TO service_role;
+
+-- ── K1b) users: yönetici yetkisi kazanımı yalnız kanıtlı fonksiyonlarla ───────────
+CREATE OR REPLACE FUNCTION public.users_admin_grant_guard()
+RETURNS trigger
+LANGUAGE plpgsql
+SET search_path = ''
+AS $$
+DECLARE
+  v_new boolean := lower(btrim(coalesce(NEW.role::text, ''))) = 'admin' AND NEW.active IS TRUE;
+  v_old boolean := false;
+BEGIN
+  IF TG_OP = 'UPDATE' THEN
+    v_old := lower(btrim(coalesce(OLD.role::text, ''))) = 'admin' AND OLD.active IS TRUE;
+  END IF;
+  IF v_new AND NOT v_old AND current_setting('yasam.admin_grant', true) IS DISTINCT FROM 'on' THEN
+    RAISE EXCEPTION 'users: yönetici yetkisi yalnız Owner işleme özel doğrulamasıyla verilebilir' USING ERRCODE = '42501';
+  END IF;
+  IF NEW.is_super_admin IS TRUE AND (TG_OP = 'INSERT' OR OLD.is_super_admin IS NOT TRUE)
+     AND current_setting('yasam.super_admin_grant', true) IS DISTINCT FROM 'on' THEN
+    RAISE EXCEPTION 'users: sistem sahibi işareti uygulama yolundan verilemez' USING ERRCODE = '42501';
+  END IF;
+  RETURN NEW;
+END $$;
+REVOKE ALL ON FUNCTION public.users_admin_grant_guard() FROM PUBLIC, anon, authenticated, service_role;
+DROP TRIGGER IF EXISTS trg_users_admin_grant_guard ON public.users;
+CREATE TRIGGER trg_users_admin_grant_guard
+  BEFORE INSERT OR UPDATE ON public.users
+  FOR EACH ROW EXECUTE FUNCTION public.users_admin_grant_guard();
+
+-- ── K1c) Kanıt: Owner + son 30 dk MFA'lı oturum + 'admin_grant' kanıtı (hedefe bağlı, tek kullanım). İç yardımcı.
+--        MFA kullanmayan Owner için GEVŞEME YOK (password_reset'ten farkı): yetki verme her zaman kanıt ister.
+CREATE OR REPLACE FUNCTION public.auth_admin_grant_proof(p_actor_token text, p_target uuid)
+RETURNS jsonb
+LANGUAGE plpgsql
+VOLATILE
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  v_s     record;
+  v_proof uuid;
+BEGIN
+  SELECT * INTO v_s FROM public.auth_session_mfa(p_actor_token);
+  IF v_s.user_id IS NULL OR NOT public.auth_is_owner_admin(v_s.user_id) THEN
+    RETURN jsonb_build_object('ok', false, 'code', 'forbidden');
+  END IF;
+  IF p_target IS NULL THEN
+    RETURN jsonb_build_object('ok', false, 'code', 'bad_request');
+  END IF;
+  IF v_s.mfa_method IS NULL OR public.auth_session_fresh_mfa(p_actor_token, 30) IS NULL THEN
+    RETURN jsonb_build_object('ok', false, 'code', 'fresh_mfa_required');
+  END IF;
+  v_proof := public.auth_step_up_lock(p_actor_token, 'admin_grant', p_target);
+  IF v_proof IS NULL THEN
+    RETURN jsonb_build_object('ok', false, 'code', 'step_up_required', 'action', 'admin_grant', 'target', p_target);
+  END IF;
+  PERFORM public.auth_step_up_consume(v_proof);
+  RETURN jsonb_build_object('ok', true, 'actor', v_s.user_id);
+END $$;
+REVOKE ALL ON FUNCTION public.auth_admin_grant_proof(text, uuid) FROM PUBLIC, anon, authenticated, service_role;
+
+-- Yeni yönetici için kanıt hedefi: e-postadan türetilmiş sabit kimlik (kanıt bu adrese bağlıdır).
+CREATE OR REPLACE FUNCTION public.auth_admin_grant_email_target(p_email text)
+RETURNS uuid
+LANGUAGE sql
+IMMUTABLE
+SET search_path = ''
+AS $$ SELECT md5('admin_grant:' || lower(btrim(coalesce(p_email, ''))))::uuid $$;
+REVOKE ALL ON FUNCTION public.auth_admin_grant_email_target(text) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.auth_admin_grant_email_target(text) TO service_role;
+
+-- Yetki verildikten sonra: MFA zorunlu (yöntem kurulana kadar oturum açılamaz), açık oturumlar kapanır, denetim kaydı.
+CREATE OR REPLACE FUNCTION public.auth_admin_grant_finish(p_actor uuid, p_user uuid, p_kind text)
+RETURNS void
+LANGUAGE plpgsql
+VOLATILE
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+BEGIN
+  PERFORM set_config('yasam.mfa_policy', 'on', true);
+  UPDATE public.users SET mfa_required = true, mfa_required_at = coalesce(mfa_required_at, now())
+   WHERE id = p_user AND mfa_required IS NOT TRUE;
+  PERFORM set_config('yasam.mfa_policy', 'off', true);
+  UPDATE public.user_sessions SET is_active = false, ended_at = now(), end_reason = 'admin_granted'
+   WHERE user_id = p_user AND is_active = true;
+  INSERT INTO public.security_events (user_id, event_type, severity, message, metadata)
+  VALUES (p_user, 'admin_role_granted', 'high', 'Yönetici yetkisi verildi (Owner işleme özel doğrulaması ile)',
+          jsonb_build_object('actor_id', p_actor, 'kind', p_kind));
+END $$;
+REVOKE ALL ON FUNCTION public.auth_admin_grant_finish(uuid, uuid, text) FROM PUBLIC, anon, authenticated, service_role;
+
+-- ── K1d) Yeni yönetici oluşturma (yalnız bu yol) ──────────────────────────────
+CREATE OR REPLACE FUNCTION public.auth_admin_create_admin(p_actor_token text, p_payload jsonb, p_membership jsonb)
+RETURNS jsonb
+LANGUAGE plpgsql
+VOLATILE
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  v_email text := lower(btrim(coalesce(p_payload->>'email', '')));
+  v_p     jsonb;
+  v_res   jsonb;
+  v_uid   uuid;
+BEGIN
+  IF v_email = '' OR p_payload ? 'is_super_admin' THEN
+    RETURN jsonb_build_object('ok', false, 'code', 'bad_request');
+  END IF;
+  v_p := public.auth_admin_grant_proof(p_actor_token, public.auth_admin_grant_email_target(v_email));
+  IF coalesce((v_p->>'ok')::boolean, false) IS NOT TRUE THEN
+    RETURN v_p;
+  END IF;
+  PERFORM set_config('yasam.admin_grant', 'on', true);
+  v_res := public.admin_create_user_with_modules(
+    p_payload || jsonb_build_object('role', 'admin', 'actor_admin_id', v_p->>'actor'),
+    p_membership, '{}'::jsonb, '{}'::text[]);
+  PERFORM set_config('yasam.admin_grant', 'off', true);
+  IF coalesce(v_res->>'outcome', '') = 'provisioned' THEN
+    v_uid := (v_res->>'user_id')::uuid;
+    PERFORM public.auth_admin_grant_finish((v_p->>'actor')::uuid, v_uid, 'create');
+  END IF;
+  RETURN jsonb_build_object('ok', true) || v_res;
+END $$;
+REVOKE ALL ON FUNCTION public.auth_admin_create_admin(text, jsonb, jsonb) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.auth_admin_create_admin(text, jsonb, jsonb) TO service_role;
+
+-- ── K1e) Mevcut kullanıcıyı yöneticiye yükseltme / pasif yöneticiyi etkinleştirme ─────────────────
+CREATE OR REPLACE FUNCTION public.auth_admin_role_grant(p_actor_token text, p_user_id uuid, p_op text, p_expected_active boolean DEFAULT NULL)
+RETURNS jsonb
+LANGUAGE plpgsql
+VOLATILE
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  v_p   jsonb;
+  v_u   public.users%ROWTYPE;
+  v_res jsonb;
+BEGIN
+  IF p_user_id IS NULL OR p_op IS NULL OR p_op NOT IN ('promote', 'activate') THEN
+    RETURN jsonb_build_object('ok', false, 'code', 'bad_request');
+  END IF;
+  SELECT * INTO v_u FROM public.users WHERE id = p_user_id FOR UPDATE;
+  IF NOT FOUND THEN
+    RETURN jsonb_build_object('ok', false, 'code', 'not_found');
+  END IF;
+  IF v_u.is_super_admin IS TRUE THEN
+    RETURN jsonb_build_object('ok', false, 'code', 'forbidden');
+  END IF;
+  IF p_op = 'promote' AND lower(btrim(coalesce(v_u.role::text, ''))) = 'admin' THEN
+    RETURN jsonb_build_object('ok', true, 'changed', false);
+  END IF;
+  IF p_op = 'activate' AND lower(btrim(coalesce(v_u.role::text, ''))) <> 'admin' THEN
+    RETURN jsonb_build_object('ok', false, 'code', 'bad_request');
+  END IF;
+  v_p := public.auth_admin_grant_proof(p_actor_token, p_user_id);
+  IF coalesce((v_p->>'ok')::boolean, false) IS NOT TRUE THEN
+    RETURN v_p;
+  END IF;
+  PERFORM set_config('yasam.admin_grant', 'on', true);
+  IF p_op = 'promote' THEN
+    UPDATE public.users SET role = 'admin' WHERE id = p_user_id;
+    v_res := jsonb_build_object('changed', true);
+  ELSE
+    v_res := public.admin_set_user_active(p_user_id, (v_p->>'actor')::uuid, true, p_expected_active);
+  END IF;
+  PERFORM set_config('yasam.admin_grant', 'off', true);
+  PERFORM public.auth_admin_grant_finish((v_p->>'actor')::uuid, p_user_id, p_op);
+  RETURN jsonb_build_object('ok', true) || coalesce(v_res, '{}'::jsonb);
+END $$;
+REVOKE ALL ON FUNCTION public.auth_admin_role_grant(text, uuid, text, boolean) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.auth_admin_role_grant(text, uuid, text, boolean) TO service_role;
+
+-- >>> F2 ŞEMA DÜZEYİ KAYDI (F2-J; üretici: scripts/giris-guvenligi/f2-migration-guard.mjs — elle değiştirmeyin)
+CREATE OR REPLACE FUNCTION public.auth_f2_schema_level() RETURNS integer
+LANGUAGE sql IMMUTABLE SET search_path = '' AS $f2lvl$ SELECT 1100 $f2lvl$;
+REVOKE ALL ON FUNCTION public.auth_f2_schema_level() FROM PUBLIC, anon, authenticated, service_role;
+COMMENT ON FUNCTION public.auth_f2_schema_level() IS 'F2 giriş güvenliği şema düzeyi (migration yeniden uygulama korumasının kaydı). Yalnız F2 migration''ları yazar.';
+-- <<< F2 ŞEMA DÜZEYİ KAYDI
+COMMIT;

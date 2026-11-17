@@ -10,7 +10,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { ownerAdminHeaders } from "@/components/admin/notifications/ownerBellStore";
 import { encodeQr, qrToSvgPath } from "@/lib/qr/qrEncode";
 
-export type StepUpAction = "device_approve" | "mfa_disable" | "recovery_execute" | "retention_policy" | "retention_execute" | "password_reset";
+export type StepUpAction = "device_approve" | "mfa_disable" | "recovery_execute" | "retention_policy" | "retention_execute" | "password_reset" | "admin_grant";
 
 const ACTION_LABEL: Record<StepUpAction, string> = {
   device_approve: "güvenilir cihaz onayı",
@@ -19,6 +19,7 @@ const ACTION_LABEL: Record<StepUpAction, string> = {
   retention_policy: "denetim kaydı saklama kararı",
   retention_execute: "denetim kaydı imhası / anonimleştirme",
   password_reset: "kullanıcı parolasını sıfırlama",
+  admin_grant: "yönetici yetkisi verme",
 };
 
 type Begun = { challengeId: string; expiresAt: string | null; qr?: { url: string; matchCode: string }; emailHint?: string | null };

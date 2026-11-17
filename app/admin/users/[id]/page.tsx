@@ -688,6 +688,8 @@ export default function AdminUserDetailPage() {
   const [savingPassword, setSavingPassword] = useState(false);
   // F2-I: parola sıfırlama için Owner'ın işleme özel doğrulaması (telefon QR / e-posta kodu).
   const [passwordStepUp, setPasswordStepUp] = useState<string | null>(null);
+  // GİRİŞ GÜVENLİĞİ F2-K (N2): yönetici yetkisi verme (uzman → yönetici, pasif yönetici → etkin) işleme özel doğrulama ister.
+  const [adminGrantStepUp, setAdminGrantStepUp] = useState<{ target: string; retry: "edit" | "activate" } | null>(null);
   // MEM-007: anahtar bazlı kayıt — aynı anda yalnız ilgili anahtar kilitlenir.
   const [modulePendingKeys, setModulePendingKeys] = useState<Set<AdminModuleUiKey>>(() => new Set());
   // Gökyüzü Atlası teknik izinleri: Astroloji anahtarı AÇILIRKEN modül hemen kaydedilmez; sağdan panel açılır (sayaç = açma isteği).
@@ -1162,8 +1164,13 @@ export default function AdminUserDetailPage() {
         role: editForm.role,
       }),
     });
-    const json = (await res.json().catch(() => ({}))) as { ok?: boolean; changed?: boolean; error?: string };
+    const json = (await res.json().catch(() => ({}))) as { ok?: boolean; changed?: boolean; error?: string; code?: string; action?: string; target?: string };
     setSavingEdit(false);
+
+    if (!res.ok && json.code === "STEP_UP_REQUIRED" && json.action === "admin_grant" && typeof json.target === "string") {
+      setAdminGrantStepUp({ target: json.target, retry: "edit" });
+      return;
+    }
 
     if (!res.ok || !json.ok) {
       showToast({ title: "İşlem başarısız", message: json.error ?? "Güncelleme başarısız.", type: "error" });
@@ -1271,6 +1278,10 @@ export default function AdminUserDetailPage() {
       error?: string;
     };
     setActionUserId(null);
+    if (!res.ok && json.code === "STEP_UP_REQUIRED" && json.action === "admin_grant" && typeof json.target === "string") {
+      setAdminGrantStepUp({ target: json.target, retry: "activate" });
+      return null;
+    }
     if (!res.ok || !json.ok) {
       showToast({ title: "İşlem başarısız", message: json.error ?? "İşlem başarısız.", type: "error" });
       if (res.status === 409) await loadUser(currentAdminId);
@@ -4194,6 +4205,20 @@ export default function AdminUserDetailPage() {
             </div>
           </div>
         </div>
+      ) : null}
+
+      {adminGrantStepUp ? (
+        <OwnerStepUpDialog
+          action="admin_grant"
+          targetId={adminGrantStepUp.target}
+          onVerified={() => {
+            const retry = adminGrantStepUp.retry;
+            setAdminGrantStepUp(null);
+            if (retry === "edit") void saveEdit();
+            else void doToggleActive();
+          }}
+          onCancel={() => setAdminGrantStepUp(null)}
+        />
       ) : null}
 
       {passwordStepUp ? (

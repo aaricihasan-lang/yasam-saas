@@ -48,10 +48,13 @@ DECLARE
   r jsonb; r2 jsonb; ch uuid; n int; u uuid;
 BEGIN
   -- Ek yöneticiler (her yöneticinin tek etkin Android oturumu olabilir — ux_user_sessions_admin_android_active).
+  -- (Test kurulumu: F2-K sonrası etkin yönetici satırı yalnız kanıtlı fonksiyonla eklenir; burada işlem içi izin verilir.)
+  PERFORM set_config('yasam.admin_grant', 'on', true);
   INSERT INTO public.users SELECT (jsonb_populate_record(NULL::public.users, to_jsonb(x) || jsonb_build_object('id', A3, 'email', 'j-a3@test.invalid'))).*
     FROM public.users x WHERE x.id = ADM2;
   INSERT INTO public.users SELECT (jsonb_populate_record(NULL::public.users, to_jsonb(x) || jsonb_build_object('id', A4, 'email', 'j-a4@test.invalid'))).*
     FROM public.users x WHERE x.id = ADM2;
+  PERFORM set_config('yasam.admin_grant', 'off', true);
   INSERT INTO public.auth_trusted_devices (user_id, public_key_spki, key_fingerprint, display_code, state, activated_at)
   VALUES (OWNER, repeat('O', 120), pg_temp.h('j-owner-phone'), 'JJJJ-OOOO', 'active', now()) RETURNING id INTO odev;
   INSERT INTO public.auth_trusted_devices (user_id, public_key_spki, key_fingerprint, display_code, state, activated_at)
