@@ -509,6 +509,88 @@ REVOKE UPDATE ON public.user_sessions FROM service_role;
 GRANT UPDATE (is_active, ended_at, end_reason) ON public.user_sessions TO service_role;
 REVOKE UPDATE, DELETE, TRUNCATE ON public.security_events FROM service_role;
 
+-- ── J7) E-posta kodu doğrulaması: 24 saatlik tavan + kullanıcı kilidi (L2) ───────────────────────────────
+CREATE OR REPLACE FUNCTION public.auth_email_otp_verify(
+  p_user_id uuid, p_purpose text, p_challenge_id uuid, p_code_hash text
+) RETURNS jsonb
+LANGUAGE plpgsql
+VOLATILE
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  v_now timestamptz := now();
+  v public.auth_email_otps%ROWTYPE;
+  v_ch public.auth_mfa_challenges%ROWTYPE;
+  v_n  integer;
+BEGIN
+  IF p_user_id IS NULL OR p_purpose NOT IN ('login', 'verify_email') OR p_code_hash IS NULL THEN
+    RETURN jsonb_build_object('ok', false, 'reason', 'invalid');
+  END IF;
+  -- F2-J (L2): kod üretimiyle AYNI kullanıcı kilidi (aynı sıra: kilit → challenge → kod) — paralel doğrulamalar sıraya girer.
+  PERFORM pg_advisory_xact_lock(hashtextextended('email-otp:' || p_user_id::text, 0));
+  IF p_purpose = 'login' THEN
+    SELECT * INTO v_ch FROM public.auth_mfa_challenges WHERE id = p_challenge_id FOR UPDATE;
+    IF NOT FOUND OR v_ch.user_id <> p_user_id OR v_ch.state <> 'pending' OR v_ch.expires_at <= v_now THEN
+      RETURN jsonb_build_object('ok', false, 'reason', 'invalid');
+    END IF;
+  END IF;
+  SELECT * INTO v FROM public.auth_email_otps
+   WHERE user_id = p_user_id AND purpose = p_purpose AND challenge_id IS NOT DISTINCT FROM p_challenge_id
+     AND state = 'active'
+   ORDER BY id DESC LIMIT 1 FOR UPDATE;
+  IF NOT FOUND THEN
+    RETURN jsonb_build_object('ok', false, 'reason', 'no_code');
+  END IF;
+  IF v.expires_at <= v_now THEN
+    UPDATE public.auth_email_otps SET state = 'expired' WHERE id = v.id;
+    RETURN jsonb_build_object('ok', false, 'reason', 'expired');
+  END IF;
+  -- F2-J (L2): kayan 24 saatte toplam ≤10 yanlış deneme tavanı DOĞRULAMADA da (yalnız üretimde değil): birden çok açık
+  -- kodla tavan aşılamaz. Tavan dolunca kod KARŞILAŞTIRILMAZ (doğru kod da kabul edilmez → tahmin kahini yok); kod
+  -- kilitlenir, giriş isteği kapanır. QR / kurtarma yöntemleri etkilenmez.
+  SELECT coalesce(sum(attempts), 0) INTO v_n FROM public.auth_email_otps
+   WHERE user_id = p_user_id AND created_at > v_now - interval '24 hours';
+  IF v_n >= 10 THEN
+    UPDATE public.auth_email_otps SET state = 'locked' WHERE id = v.id;
+    IF p_purpose = 'login' THEN
+      UPDATE public.auth_mfa_challenges SET state = 'denied', denied_reason = 'otp_locked' WHERE id = v_ch.id;
+    END IF;
+    INSERT INTO public.security_events (user_id, event_type, severity, message, metadata)
+    VALUES (p_user_id, 'mfa_email_otp_daily_cap', 'high', 'E-posta kodu 24 saatlik yanlış deneme tavanına ulaştı',
+            jsonb_build_object('purpose', p_purpose, 'challenge_id', p_challenge_id, 'attempts_24h', v_n));
+    RETURN jsonb_build_object('ok', false, 'reason', 'locked');
+  END IF;
+  IF v.code_hash <> p_code_hash THEN
+    UPDATE public.auth_email_otps
+       SET attempts = attempts + 1, state = CASE WHEN attempts + 1 >= 5 THEN 'locked' ELSE state END
+     WHERE id = v.id;
+    IF v.attempts + 1 >= 5 THEN
+      IF p_purpose = 'login' THEN
+        UPDATE public.auth_mfa_challenges SET state = 'denied', denied_reason = 'otp_locked' WHERE id = v_ch.id;
+      END IF;
+      INSERT INTO public.security_events (user_id, event_type, severity, message, metadata)
+      VALUES (p_user_id, 'mfa_email_otp_locked', 'high', 'E-posta doğrulama kodu 5 kez yanlış girildi',
+              jsonb_build_object('purpose', p_purpose, 'challenge_id', p_challenge_id));
+      RETURN jsonb_build_object('ok', false, 'reason', 'locked');
+    END IF;
+    RETURN jsonb_build_object('ok', false, 'reason', 'wrong', 'attempts_left', 4 - v.attempts);
+  END IF;
+
+  UPDATE public.auth_email_otps SET state = 'used', used_at = v_now WHERE id = v.id;
+  -- Başarılı OTP = e-posta kutusuna sahiplik kanıtı.
+  UPDATE public.users SET email_verified_at = coalesce(email_verified_at, v_now) WHERE id = p_user_id;
+  IF p_purpose = 'login' THEN
+    IF NOT public.auth_mfa_mark_verified(v_ch.id, 'email_otp') THEN
+      RAISE EXCEPTION 'auth_email_otp_verify: challenge işaretlenemedi' USING ERRCODE = 'check_violation';
+    END IF;
+  END IF;
+  RETURN jsonb_build_object('ok', true);
+END $$;
+REVOKE ALL ON FUNCTION public.auth_email_otp_verify(uuid, text, uuid, text) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.auth_email_otp_verify(uuid, text, uuid, text) TO service_role;
+
+
 -- ── J1) auth_finalize_login: kanal = challenge'ın kayıtlı kanalı ────────────────
 CREATE OR REPLACE FUNCTION public.auth_finalize_login(
   p_challenge_id           uuid,

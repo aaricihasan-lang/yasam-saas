@@ -307,6 +307,24 @@ BEGIN
     PERFORM pg_temp.fail('J6f service_role meşru oturum sonlandırmasını yapamadı');
   END IF;
 
+  -- ── J7: e-posta kodu 24 saatlik yanlış deneme tavanı doğrulamada da (L2) ─────────────────────────────
+  r := public.auth_email_otp_issue(VE, 'verify_email', NULL, pg_temp.h('j7-dogru'), pg_temp.h('to'), 'synthetic', 1800, 1500);
+  IF NOT coalesce((r->>'ok')::boolean, false) THEN PERFORM pg_temp.fail('J7-hazırlık kod üretilemedi: ' || r::text); END IF;
+  PERFORM public.auth_email_delivery_result((r->>'delivery_id')::bigint, true, NULL, NULL);
+  -- Kod üretildikten SONRA başka açık kodlarla 10 yanlış deneme birikti (paralel girişler).
+  UPDATE public.auth_email_otps SET attempts = 0 WHERE user_id = VE;
+  INSERT INTO public.auth_email_otps (user_id, purpose, challenge_id, code_hash, state, attempts, created_at, expires_at)
+  SELECT VE, 'verify_email', NULL, pg_temp.h('j7-eski-' || g), 'locked', 5, now() - interval '1 hour', now() - interval '57 minutes'
+    FROM generate_series(1, 2) g;
+  r2 := public.auth_email_otp_verify(VE, 'verify_email', NULL, pg_temp.h('j7-yanlis'));
+  IF r2->>'reason' IS DISTINCT FROM 'locked' THEN
+    PERFORM pg_temp.fail('J7a tavan dolduktan sonra yanlış tahmin hâlâ değerlendirildi: ' || r2::text);
+  END IF;
+  r2 := public.auth_email_otp_verify(VE, 'verify_email', NULL, pg_temp.h('j7-dogru'));
+  IF coalesce((r2->>'ok')::boolean, false) THEN
+    PERFORM pg_temp.fail('J7b tavan dolduktan sonra doğru kod KABUL edildi (tahmin kahini)');
+  END IF;
+
   -- Denetim izi.
   SELECT count(*) INTO n FROM public.security_events WHERE event_type IN ('session_device_bound', 'session_device_reproof', 'session_device_bind_rejected', 'legacy_session_policy_set');
   IF n < 6 THEN

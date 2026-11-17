@@ -505,7 +505,7 @@ lines AS (SELECT lvl, line FROM fnl UNION ALL SELECT lvl, line FROM trl UNION AL
       ('fn|auth_email_notify(p_reason text, p_detail jsonb)|900c149f0a84e57266ba9df2836594e2|true|search_path=""|api=false|svc=false'),
       ('fn|auth_email_otp_issue(p_user_id uuid, p_purpose text, p_challenge_id uuid, p_code_hash text, p_to_hash text, p_provider text, p_daily_limit integer, p_warn_at integer)|6fffad2bb7d4e01a5dd5a1f746508c70|true|search_path=""|api=false|svc=true'),
       ('fn|auth_email_otp_step_up_guard()|c4e1f70ae64a997aaf6be5fbd7bc968f|true|search_path=""|api=false|svc=*'),
-      ('fn|auth_email_otp_verify(p_user_id uuid, p_purpose text, p_challenge_id uuid, p_code_hash text)|10c9711f6f06448b11c70ba26126817a|true|search_path=""|api=false|svc=true'),
+      ('fn|auth_email_otp_verify(p_user_id uuid, p_purpose text, p_challenge_id uuid, p_code_hash text)|f7d4ed581471a614cb2ff000626b5f57|true|search_path=""|api=false|svc=true'),
       ('fn|auth_email_owner_test_reserve(p_actor_token text, p_to_hash text, p_provider text)|b4d5c771ab2b4b1d79ca0665c3e9c0c3|true|search_path=""|api=false|svc=true'),
       ('fn|auth_email_status(p_actor_token text)|b5dafd0002a44d41a726b875f018709d|true|search_path=""|api=false|svc=true'),
       ('fn|auth_f2_schema_level()|56d9d61214140f04ff7254854ca6a7eb|false|search_path=""|api=false|svc=false'),
