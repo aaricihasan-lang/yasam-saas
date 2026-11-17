@@ -36,6 +36,15 @@ import { runAstrology, type EngineCtx, type EngineDeps } from "@/lib/astrology/e
 import { getAnalysis, saveAnalysis } from "@/lib/astrology/analyses/service";
 import { buildAstroReport, reportTexts } from "@/lib/astrology/report/model";
 import { staleTimezoneOffset } from "@/lib/astrology/legacyMethod";
+import { buildAnalysisReport } from "@/lib/astrology/report/service";
+import { returnTimes } from "@/lib/astrology/report/model";
+import { formatInZone, dayKeyInZone, isIanaZone, momentLabel } from "@/lib/astrology/transitDetail";
+import { toLocalStamp } from "@/lib/astrology/transits/display";
+import { formatZoned, formatZonedParts } from "@/lib/astrology/birth/zonedFormat";
+import { isValidIanaTimeZone, utcOffsetSecondsAt } from "@/lib/astrology/birth/timeResolution";
+import { localAt } from "@/app/admin/astroloji/_lib/horaryWesternLabels";
+import JSZip from "jszip";
+import { extractText, getDocumentProxy } from "unpdf";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type J = any;
@@ -54,6 +63,26 @@ async function t(name: string, fn: () => void | Promise<void>) {
     fail += 1;
     console.error(`FAIL ${name}\n     ${(e as Error).message}`);
   }
+}
+
+async function docxText(buf: Uint8Array): Promise<string> {
+  const zip = await JSZip.loadAsync(buf);
+  const xml = await zip.file("word/document.xml")!.async("string");
+  return [...xml.matchAll(/<w:t(?: [^>]*)?>([^<]*)<\/w:t>/g)].map((m) => m[1]).join(" ");
+}
+async function pdfText(buf: Uint8Array): Promise<string> {
+  const { text } = await extractText(await getDocumentProxy(new Uint8Array(buf)), { mergePages: true });
+  return String(text).replace(/\s+/g, " ");
+}
+/** Kayıtlı analizin Word + PDF metni (gerçek üretim yolu: buildAnalysisReport). */
+async function wordPdf(ctx: EngineCtx, id: string): Promise<{ docx: string; pdf: string }> {
+  const dx = await buildAnalysisReport(ctx, id, "docx", false);
+  const px = await buildAnalysisReport(ctx, id, "pdf", false);
+  assert.ok(dx.ok && px.ok, "rapor üretilemedi");
+  if (!dx.ok || !px.ok) throw new Error("rapor");
+  const out = { docx: await docxText(dx.bytes), pdf: await pdfText(px.bytes) };
+  for (const bad of ["undefined", "NaN", "[object Object]"]) assert.ok(!out.docx.includes(bad) && !out.pdf.includes(bad), bad);
+  return out;
 }
 
 function sig(r: AstroTimeResolution): string {
@@ -287,6 +316,8 @@ async function main() {
     assert.match(JSON.stringify(row.profile_snapshot), /-18000/, "kayıtlı analiz eski (saklı) ofseti taşır");
     assert.equal(JSON.stringify([row.technical_snapshot, row.method_snapshot, row.versions_snapshot, row.profile_snapshot]), snapBefore, "DB snapshot değişmez");
     assert.equal(JSON.stringify(oldRev), oldSnap, "eski revizyon değişmez");
+    const oldFiles = await wordPdf(ctx, aid); // arşivden açma → Word/PDF (eski kayıt)
+    assert.ok(oldFiles.docx.includes("America/Havana") && oldFiles.pdf.includes("America/Havana"));
     // E/F — yeni Havana profili 2026f: UTC−4, 16:00Z; sağlayıcı gövdesi −4.
     const neu = await createAstroProfile(ctx, { label: "Sentetik Havana yeni", clientId: CLIENT, birthDate: "2026-11-10", birthTime: "12:00", timeKnown: true, timeAccuracy: "exact_record", locationId: HAV.id, confirmDifferentPerson: [oldPid] }, resolveLoc);
     assert.equal(neu.status, 201, JSON.stringify(neu.body));
@@ -296,6 +327,12 @@ async function main() {
     assert.equal(new Date(newRev.birth_utc).toISOString(), "2026-11-10T16:00:00.000Z");
     await runAstrology(ctx, { profileId: newPid, selections: [NATAL] }, deps, { ownerPreviewHideInterp: false });
     assert.deepEqual([bodies.at(-1)!.date, bodies.at(-1)!.time, bodies.at(-1)!.timezone], ["2026-11-10", "12:00:00", -4]);
+    const sv2 = await saveAnalysis(ctx, { profileId: newPid, revision: 1, ...NATAL, saveRequestId: randomUUID() }, false);
+    assert.equal(sv2.status, 201, JSON.stringify(sv2.body));
+    const newRow = (store.tables.astro_analyses as J[]).find((x) => x.id === (sv2.body as J).analysisId);
+    assert.match(JSON.stringify(newRow.profile_snapshot), /-14400/, "yeni kayıt güncel ofset");
+    const newFiles = await wordPdf(ctx, (sv2.body as J).analysisId); // yeni kayıt → güncel UTC → Word/PDF
+    assert.ok(newFiles.docx.includes("America/Havana") && newFiles.pdf.includes("America/Havana"));
     // G — aynı yerel saat, beklenen 1 saatlik UTC farkı.
     assert.equal(Date.parse(oldRev.birth_utc) - Date.parse(newRev.birth_utc), 3_600_000);
     // Düzenleme: eski profil açıkça yeniden kaydedilirse YENİ revizyon 2026f ile; rev 1 aynen kalır.
@@ -308,6 +345,93 @@ async function main() {
     assert.deepEqual(detail.revisions.map((r: J) => [r.revision, r.utcOffsetSeconds]).sort(), [[1, -18000], [2, -14400]], "profil detayı iki revizyon");
     const again = ((await getAnalysis(ctx, aid, false)).body as J).analysis;
     assert.equal(reportTexts(buildAstroReport(again)).join("\n"), rep1, "yeni revizyon eski analizi değiştirmez");
+    const oldFiles2 = await wordPdf(ctx, aid);
+    assert.equal(oldFiles2.docx, oldFiles.docx, "eski kaydın Word metni düzenleme sonrası aynı");
+    assert.equal(oldFiles2.pdf, oldFiles.pdf, "eski kaydın PDF metni düzenleme sonrası aynı");
+  });
+
+  await t("H: gösterim = hesap — formatInZone / momentLabel / gün anahtarı / transit damgası / dönüş yerel saati / Horary etiketi aynı IANA tablosundan", () => {
+    // [bölge, UTC, beklenen yerel (GG.AA.YYYY SS:DD), ofset sn] — beklenen: Python zoneinfo 2026f (Kampala: IANA backzone).
+    const cases: [string, string, string, number][] = [
+      ["America/Havana", "2026-11-10T16:00:00Z", "10.11.2026 12:00", -14400],
+      ["America/Havana", "2026-11-01T05:30:00Z", "01.11.2026 01:30", -14400],
+      ["America/Havana", "2027-11-10T17:00:00Z", "10.11.2027 12:00", -18000],
+      ["America/Winnipeg", "2026-12-15T17:00:00Z", "15.12.2026 12:00", -18000],
+      ["America/Vancouver", "2026-12-15T19:00:00Z", "15.12.2026 12:00", -25200],
+      ["America/Edmonton", "2026-12-15T18:00:00Z", "15.12.2026 12:00", -21600],
+      ["Africa/Casablanca", "2026-10-15T12:00:00Z", "15.10.2026 12:00", 0],
+      ["America/Sao_Paulo", "1965-04-01T02:00:00Z", "31.03.1965 23:00", -10800],
+      ["America/Bogota", "1992-05-02T16:00:00Z", "02.05.1992 12:00", -14400],
+      ["Asia/Tehran", "1979-05-26T07:30:00Z", "26.05.1979 12:00", 16200],
+      ["Europe/Dublin", "1925-09-25T12:00:00Z", "25.09.1925 12:00", 0],
+      ["Africa/Kampala", "1951-04-13T17:51:00Z", "13.04.1951 20:36", 9900],
+      ["Europe/Istanbul", "2026-11-10T09:00:00Z", "10.11.2026 12:00", 10800],
+    ];
+    for (const [z, iso, local, off] of cases) {
+      const ms = Date.parse(iso);
+      assert.equal(utcOffsetSecondsAt(ms, z), off, `${z} ${iso} ofset`);
+      const w = wallClockAt(ms, z)!;
+      assert.equal(`${w.date.slice(8, 10)}.${w.date.slice(5, 7)}.${w.date.slice(0, 4)} ${w.time.slice(0, 5)}`, local, `${z} ${iso} wallClockAt`);
+      const f = formatInZone(iso, z)!;
+      assert.equal(f.text, local, `${z} ${iso} formatInZone`);
+      const sgn = off < 0 ? "-" : "+";
+      const a = Math.abs(off);
+      const short = `GMT${sgn}${Math.floor(a / 3600)}${a % 3600 ? `:${String((a % 3600) / 60).padStart(2, "0")}` : ""}`;
+      assert.ok(f.zone === short || (off === 0 && /^GMT(\+0)?$/.test(f.zone)), `${z} ${iso} kısaltma ${f.zone} ≠ ${short}`);
+      assert.ok(momentLabel(iso, z).startsWith(`${local} (${f.zone}, ${z})`), `${z} momentLabel`);
+      assert.equal(dayKeyInZone(iso, z), w.date, `${z} gün anahtarı`);
+      const st = toLocalStamp(ms, z)!;
+      assert.equal(st.local, `${w.date} ${w.time}`, `${z} transit damgası`);
+      const long = off === 0 ? ["+00:00"] : [`${sgn}${String(Math.floor(a / 3600)).padStart(2, "0")}:${String((a % 3600) / 60).padStart(2, "0")}`];
+      assert.ok(long.includes(st.offset), `${z} transit ofseti ${st.offset}`);
+      const hl = localAt(iso, z);
+      assert.equal(hl, formatZoned("tr-TR", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }, ms, z));
+      assert.ok(hl.includes(local.slice(11)), `${z} Horary etiketi ${hl}`);
+      const dp = Object.fromEntries(formatZonedParts("en-GB", { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }, ms, z).map((p) => [p.type, p.value]));
+      assert.equal(`${dp.day}.${dp.month}.${dp.year} ${dp.hour}:${dp.minute}`, local, `${z} formatZonedParts`);
+    }
+    // Dönüş anı yerel saati (Word/PDF): doğum yerinde hesaplanan dönüş → IANA ile gerçek yerel saat.
+    const rt = returnTimes({ returnLocal: "2026-11-10T11:00:00", returnOffsetHours: -5 }, "America/Havana", false);
+    assert.equal(rt.utc, "2026-11-10T16:00:00.000Z");
+    assert.match(rt.local ?? "", /^10\.11\.2026 12:00 \(GMT-4, America\/Havana\)$/, rt.local ?? "");
+    // Ofset Intl ile aynı olan anlarda çıktı Intl'in kendi çıktısıyla BAYT BAYT aynı (eski gösterim korunur).
+    let same = 0;
+    for (const z of ["Europe/Istanbul", "Europe/London", "America/New_York", "Asia/Kathmandu", "Australia/Lord_Howe", "America/Havana", "Africa/Casablanca"]) {
+      for (let ms = Date.UTC(1990, 0, 1, 3, 17); ms < Date.UTC(2026, 8, 1); ms += 41 * 86_400_000 + 3_600_000 * 5) {
+        const o: Intl.DateTimeFormatOptions = { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false, timeZoneName: "short" };
+        assert.equal(formatZoned("tr-TR", o, ms, z), new Intl.DateTimeFormat("tr-TR", { ...o, timeZone: z }).format(new Date(ms)), `${z} ${new Date(ms).toISOString()}`);
+        same += 1;
+      }
+    }
+    console.log(`     ${cases.length} bölge/an × 7 gösterim yolu; ${same} anda Intl ile bayt bayt aynı`);
+  });
+
+  await t("I: IANA kimliği — tablodaki her ad (eski Intl tanımasa da) kabul; geçersiz adlar ret; gösterim Intl'siz çalışır", () => {
+    const names = [...Object.keys(TZ_IANA_ZONES), ...Object.keys(TZ_IANA_LINKS)];
+    for (const z of names) assert.ok(isValidIanaTimeZone(z) && isIanaZone(z), z);
+    const bad = ["", "Mars/Olympus_Mons", "America/Havana/", "America/Hav ana", "../etc/passwd", "America/../Havana", "__proto__", "constructor", "Europe/__proto__", "Etc/GMT+15", "America/Havana\n", "x".repeat(65), "Havana", "EST5EDT", "+03:00"];
+    for (const z of bad) assert.equal(isValidIanaTimeZone(z), false, `geçersiz kabul edildi: ${JSON.stringify(z)}`);
+    assert.equal(resolveAstroBirthTime("2026-11-10", "12:00", "Mars/Olympus_Mons").kind, "invalid");
+    assert.equal(wallClockAt(0, "__proto__"), null);
+    // Eski ICU'yu taklit: Intl bu adları TANIMIYOR → doğrulama, çözüm ve gösterim yine tablodan.
+    const unknown = new Set(["America/Coyhaique", "Europe/Kyiv", "America/Ciudad_Juarez"]);
+    const Orig = Intl.DateTimeFormat;
+    const Fake = function (locale?: string | string[], o?: Intl.DateTimeFormatOptions) {
+      if (o?.timeZone && unknown.has(o.timeZone)) throw new RangeError(`Invalid time zone specified: ${o.timeZone}`);
+      return new Orig(locale, o);
+    } as unknown as typeof Intl.DateTimeFormat;
+    Object.assign(Fake, Orig);
+    (Intl as { DateTimeFormat: typeof Intl.DateTimeFormat }).DateTimeFormat = Fake;
+    try {
+      for (const z of unknown) assert.ok(isValidIanaTimeZone(z) && isIanaZone(z), `${z} reddedildi`);
+      assert.equal(sig(resolveAstroBirthTime("2026-07-15", "12:00", "America/Coyhaique")), "ok 2026-07-15T15:00:00Z -10800");
+      assert.deepEqual(formatInZone("2026-07-15T15:00:00Z", "America/Coyhaique"), { text: "15.07.2026 12:00", zone: "GMT-3" });
+      assert.equal(toLocalStamp(Date.parse("2026-07-15T09:00:00Z"), "Europe/Kyiv")!.local, "2026-07-15 12:00:00");
+      assert.equal(sig(resolveAstroBirthTime("2026-11-10", "12:00", "Mars/Olympus_Mons")), "invalid:timezone");
+    } finally {
+      (Intl as { DateTimeFormat: typeof Intl.DateTimeFormat }).DateTimeFormat = Orig;
+    }
+    console.log(`     ${names.length} tablo adı kabul; ${bad.length} geçersiz ad ret`);
   });
 
   console.log(`\nastrology tz-iana-2026f harness: ${pass} PASS / ${fail} FAIL`);

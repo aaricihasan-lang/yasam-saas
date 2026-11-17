@@ -8,6 +8,7 @@
 //   • Zaman: sağlayıcı anları UTC'dir; gösterim seçilen IANA saat dilimine Intl ile çevrilir (yaz/kış saati dahil).
 
 import { isValidIsoDate, normalizeTime, resolveAstroBirthTime } from "./birth/timeResolution";
+import { formatZonedParts, isDisplayZone } from "./birth/zonedFormat";
 import type { AspectType, BodyId, NatalHouse } from "./model/western";
 import type { ForecastEvent, ForecastTechnical, PointId, TransitAspect, TransitCalendarExact, TransitTechnical } from "./model/westernTiming";
 
@@ -88,13 +89,7 @@ export function transitNatalHouses(t: Pick<TransitTechnical, "bodies" | "natalFr
 // ─── Zaman gösterimi ─────────────────────────────────────────────────────────
 
 export function isIanaZone(tz: unknown): tz is string {
-  if (typeof tz !== "string" || tz.length === 0 || tz.length > 64) return false;
-  try {
-    new Intl.DateTimeFormat("en-US", { timeZone: tz });
-    return true;
-  } catch {
-    return false;
-  }
+  return isDisplayZone(tz); // ATL-TZ-2026F: sabit IANA tablosundaki ad ya da Intl'in tanıdığı ad
 }
 
 /** UTC anı ("YYYY-MM-DDTHH:MM[:SS][Z]") → seçilen saat diliminde "GG.AA.YYYY SS:DD" + kısaltma (ör. GMT+3). */
@@ -102,9 +97,7 @@ export function formatInZone(utcIso: string, tz: string): { text: string; zone: 
   const ms = Date.parse(/Z$/.test(utcIso) ? utcIso : `${utcIso.length === 16 ? `${utcIso}:00` : utcIso.slice(0, 19)}Z`);
   if (!Number.isFinite(ms) || !isIanaZone(tz)) return null;
   const p = Object.fromEntries(
-    new Intl.DateTimeFormat("en-GB", { timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23", timeZoneName: "shortOffset" })
-      .formatToParts(new Date(ms))
-      .map((x) => [x.type, x.value]),
+    formatZonedParts("en-GB", { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23", timeZoneName: "shortOffset" }, ms, tz).map((x) => [x.type, x.value]),
   );
   return { text: `${p.day}.${p.month}.${p.year} ${p.hour}:${p.minute}`, zone: String(p.timeZoneName ?? tz) };
 }
@@ -113,7 +106,7 @@ export function formatInZone(utcIso: string, tz: string): { text: string; zone: 
 export function dayKeyInZone(utcIso: string, tz: string): string | null {
   const ms = Date.parse(/Z$/.test(utcIso) ? utcIso : `${utcIso.slice(0, 19)}Z`);
   if (!Number.isFinite(ms) || !isIanaZone(tz)) return null;
-  const p = Object.fromEntries(new Intl.DateTimeFormat("en-GB", { timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(new Date(ms)).map((x) => [x.type, x.value]));
+  const p = Object.fromEntries(formatZonedParts("en-GB", { year: "numeric", month: "2-digit", day: "2-digit" }, ms, tz).map((x) => [x.type, x.value]));
   return `${p.year}-${p.month}-${p.day}`;
 }
 

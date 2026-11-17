@@ -27,6 +27,8 @@ const TIME_RE = /^(\d{2}):(\d{2})(?::(\d{2}))?$/;
 
 export function isValidIanaTimeZone(tz: string): boolean {
   if (!tz || tz.length > 64 || !/^[A-Za-z_]+(?:\/[A-Za-z0-9_+\-]+)+$|^UTC$/.test(tz)) return false;
+  // ATL-TZ-2026F: sabit IANA tablosundaki ad, çalışma ortamının (eski) Intl'i tanımasa da geçerlidir.
+  if (Object.hasOwn(TZ_IANA_ZONES, tz) || Object.hasOwn(TZ_IANA_LINKS, tz)) return true;
   try {
     new Intl.DateTimeFormat("en-US", { timeZone: tz });
     return true;
@@ -85,7 +87,8 @@ const IANA_CACHE = new Map<string, IanaZone>(); // yalnız tablodaki adlar (sın
 function ianaZone(timeZone: string): IanaZone | null {
   const hit = IANA_CACHE.get(timeZone);
   if (hit) return hit;
-  const raw = TZ_IANA_ZONES[TZ_IANA_LINKS[timeZone] ?? timeZone];
+  const name = Object.hasOwn(TZ_IANA_LINKS, timeZone) ? TZ_IANA_LINKS[timeZone] : timeZone;
+  const raw = Object.hasOwn(TZ_IANA_ZONES, name) ? TZ_IANA_ZONES[name] : undefined;
   if (!raw) return null;
   const [pal, idx, deltas, rule] = raw;
   const t = [-Infinity];
@@ -182,6 +185,13 @@ export function wallClockAt(utcMs: number, timeZone: string): { date: string; ti
   if (!isValidIanaTimeZone(timeZone) || !Number.isFinite(utcMs)) return null;
   const iso = new Date(wallClockMs(utcMs, timeZone)).toISOString();
   return { date: iso.slice(0, 10), time: iso.slice(11, 19) };
+}
+
+/** Bir UTC anında tz'nin UTC ofseti (saniye) — resolveAstroBirthTime / wallClockAt ile AYNI kaynak. Geçersiz bölge → null. */
+export function utcOffsetSecondsAt(utcMs: number, timeZone: string): number | null {
+  if (!isValidIanaTimeZone(timeZone) || !Number.isFinite(utcMs)) return null;
+  const sec = Math.floor(utcMs / 1000);
+  return (wallClockMs(sec * 1000, timeZone) - sec * 1000) / 1000;
 }
 
 export function resolveAstroBirthTime(date: string, time: string, timeZone: string, choice: DstChoice = "auto"): AstroTimeResolution {

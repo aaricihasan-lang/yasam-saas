@@ -72,6 +72,7 @@ import {
 } from "../directionAspects";
 import type { ProgressionTechnical, SolarArcTechnical, TransitNatalFrame } from "../model/westernTiming";
 import { representativeLmtNotice } from "../birth/representativeLmt";
+import { formatZonedParts, isDisplayZone } from "../birth/zonedFormat";
 import { deltaTBirthNotes, deltaTTargetNotes } from "../deltaTNotice";
 import {
   CALENDAR_UNMATCHED_NOTE,
@@ -663,9 +664,7 @@ export function returnTimes(t: O, birthTz: string | null, relocated: boolean): {
   if (relocated || !birthTz) return { utc, local: null };
   try {
     const p = Object.fromEntries(
-      new Intl.DateTimeFormat("tr-TR", { timeZone: birthTz, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false, timeZoneName: "short" })
-        .formatToParts(new Date(ms))
-        .map((x) => [x.type, x.value]),
+      formatZonedParts("tr-TR", { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false, timeZoneName: "short" }, ms, birthTz).map((x) => [x.type, x.value]),
     );
     return { utc, local: `${p.day}.${p.month}.${p.year} ${p.hour}:${p.minute} (${p.timeZoneName}, ${birthTz})` };
   } catch {
@@ -1410,23 +1409,13 @@ function kpSignificators(b: B, sig: unknown, method: KpNodeSigMethodId) {
 }
 
 // ─── TRANSİT-03: KP Transit zaman aralığı raporu (ekrandaki tablolarla aynı veri; yeni hesap YOK) ───────────────
-const kpTz = (v: unknown): string => {
-  if (typeof v !== "string" || !v) return "UTC";
-  try {
-    new Intl.DateTimeFormat("en-US", { timeZone: v });
-    return v;
-  } catch {
-    return "UTC";
-  }
-};
+const kpTz = (v: unknown): string => (isDisplayZone(v) ? v : "UTC");
 /** UTC anı → seçilen bölgede "GG.AA.YYYY SS:DD GMT+3" (UTC ise "… UTC"). */
 const kpAtZone = (utcIso: unknown, tz: string) => {
   if (typeof utcIso !== "string" || !Number.isFinite(Date.parse(utcIso))) return DASH;
   if (tz === "UTC") return utcTr(utcIso);
   const p = Object.fromEntries(
-    new Intl.DateTimeFormat("en-GB", { timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23", timeZoneName: "shortOffset" })
-      .formatToParts(new Date(Date.parse(utcIso)))
-      .map((x) => [x.type, x.value]),
+    formatZonedParts("en-GB", { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23", timeZoneName: "shortOffset" }, Date.parse(utcIso), tz).map((x) => [x.type, x.value]),
   );
   return `${p.day}.${p.month}.${p.year} ${p.hour}:${p.minute} ${p.timeZoneName}`;
 };

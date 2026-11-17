@@ -13,6 +13,7 @@ import {
   type TransitScanTechnical,
 } from "../model/westernTransitScan";
 import type { ReportBuilderLike } from "./vedicMatchReport";
+import { formatZoned } from "../birth/zonedFormat";
 
 const DASH = "—";
 const dmy = (iso: string) => `${iso.slice(8, 10)}.${iso.slice(5, 7)}.${iso.slice(0, 4)}`;
@@ -27,7 +28,7 @@ export function transitScanReport(b: ReportBuilderLike, raw: Record<string, unkn
   const tzLabel = tz === "Europe/Istanbul" ? "TSİ" : tz;
   const fmt = (ms: number) => {
     try {
-      return new Intl.DateTimeFormat("tr-TR", { timeZone: tz, day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }).format(new Date(ms));
+      return formatZoned("tr-TR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }, ms, tz);
     } catch {
       return new Date(ms).toISOString().slice(0, 16).replace("T", " ");
     }
