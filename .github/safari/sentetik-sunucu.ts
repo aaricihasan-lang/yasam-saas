@@ -40,7 +40,7 @@ let surum = 1;
 let logo: { source: "none" | "workspace" | "custom"; assetId: string | null } = { source: "none", assetId: null };
 const silmeler: { id: string; status: number }[] = [];
 const yazmalar: { yol: string; yontem: string; status: number }[] = [];
-let enjekte: { logoPut?: { status: number; json: unknown }; silme?: { status: number; json: unknown }; silmeId?: string } = {};
+let enjekte: { logoPut?: { status: number; json: unknown }; silme?: { status: number; json: unknown }; silmeId?: string; yuklemeBaslat?: { status: number; json: unknown } } = {};
 let lp: typeof import("../../lib/profile/schema") | null = null;
 let ls: typeof import("../../lib/profile/logoSchema") | null = null;
 
@@ -113,6 +113,8 @@ async function api(req: http.IncomingMessage, res: http.ServerResponse, url: URL
     return yaz(200, await logoGorunum());
   }
   if (p.startsWith("/api/settings/workspace")) {
+    // Tek seferlik: yükleme oturumu açılışı (POST …/assets/uploads) hata döndürsün — başarısız yüklemede kayıtlı logo korunuyor mu?
+    if (enjekte.yuklemeBaslat && m === "POST" && p === "/api/settings/workspace/assets/uploads") { const r = enjekte.yuklemeBaslat; enjekte.yuklemeBaslat = undefined; return yaz(r.status, r.json); }
     const am = /^\/api\/settings\/workspace\/assets\/([0-9a-f-]{36})$/.exec(p);
     if (am && m === "DELETE") {
       if (enjekte.silme && (!enjekte.silmeId || enjekte.silmeId === am[1])) {

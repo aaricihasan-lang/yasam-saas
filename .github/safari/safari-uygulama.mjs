@@ -312,6 +312,110 @@ async function bolumL(dosyalar) {
     await ekran("L8-silindi");
     ok("L", "onay + serbest görsel → silindi (200)", !!silindi && d.silmeler.at(-1)?.status === 200, d.silmeler);
   });
+  await bolumLD(dosyalar);
+}
+
+// ── LD: yükleme akışı — Safari İÇİNDE oluşturulan sentetik File + DataTransfer (native dosya seçicisi DEĞİL) ──
+// WebDriver'ın verdiği dosya Safari sandbox'ında okunamadığı için (yukarıdaki NOT TESTED), dosya baytları sayfaya verilir,
+// sayfada gerçek bir File nesnesi kurulur, DataTransfer ile <input type=file>.files'a atanır ve 'change' olayı gönderilir.
+// Böylece uygulamanın KENDİ onFile → preflightFile → uploadAsset (start → parça PUT → complete) akışı gerçek Safari'de koşar.
+// Bu, kullanıcının native seçiciden dosya seçmesiyle AYNI ŞEY DEĞİLDİR; native seçim ayrıca NOT TESTED kalır.
+// En sona konur: önceki L testlerinin görsel sırası (varlikSec sıra numaraları) yeni yüklemelerle değişmesin.
+const LD = "[sentetik File+DataTransfer]";
+async function dtVer(b64, ad, tip, boyut = 0) {
+  return exec(`const [b64, ad, tip, boyut] = arguments;
+    let u8; if (boyut > 0) { u8 = new Uint8Array(boyut); u8.set([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]); }
+    else { const s = atob(b64); u8 = new Uint8Array(s.length); for (let i = 0; i < s.length; i++) u8[i] = s.charCodeAt(i); }
+    const f = new File([u8], ad, { type: tip, lastModified: Date.now() });
+    const dt = new DataTransfer(); dt.items.add(f);
+    const inp = document.querySelector('[data-testid=report-logo-file]'); inp.files = dt.files;
+    const atandi = inp.files.length === 1 && inp.files[0] === f;
+    inp.dispatchEvent(new Event('change', { bubbles: true }));
+    return { atandi, ad: f.name, tip: f.type, boyut: f.size, fileCtor: f instanceof File };`, [b64, ad, tip, boyut]);
+}
+const onizlemeSrc = () => exec("const i = document.querySelector('[data-testid=report-logo-preview-img]'); return i ? { src: i.src, w: i.naturalWidth, tamam: i.complete } : null;");
+async function bolumLD(dosyalar) {
+  const { readFileSync } = await import("node:fs");
+  const b64 = (yol) => readFileSync(yol).toString("base64");
+  const hazirla = async () => {
+    await yenile(); await profilim();
+    const sec = await bul(tid("report-logo-opt-custom")); await wd("POST", s(`/element/${sec}/click`), {}).catch(() => {});
+    await bul(tid("report-logo-file"), 15000);
+    const d = await sunucu("/__test/durum");
+    return { d, kayitli: { ...d.logo }, on: await onizlemeYuklu(), src: await onizlemeSrc() };
+  };
+  const yeniYazmalar = (once, sonra) => sonra.yazmalar.slice(once.yazmalar.length);
+  const uiSonuc = (n) => bekle(`(() => { const e = document.querySelector('[data-testid="report-logo-upload-error"]'); if (e && e.textContent.trim()) return { hata: e.textContent.trim() }; return document.querySelectorAll('[data-testid="report-logo-asset"]').length > arguments[0] ? { yeni: true } : null; })()`, 45000, [n]);
+
+  await test("LD", "File/DataTransfer Safari desteği", async () => {
+    await hazirla();
+    const v = await exec("try { const dt = new DataTransfer(); dt.items.add(new File([new Uint8Array([1])], 'x.png', { type: 'image/png' })); return { ok: dt.files.length === 1, ua: navigator.userAgent }; } catch (e) { return { ok: false, hata: String(e) }; }");
+    ok("LD", `${LD} Safari'de new File + new DataTransfer + items.add çalışıyor`, v?.ok === true, v);
+  });
+
+  for (const [ad, dosya, tip] of [["PNG", "png", "image/png"], ["JPEG", "jpg", "image/jpeg"]]) {
+    await test("LD", `${ad} kabul`, async () => {
+      const h = await hazirla();
+      ok("LD", `${LD} ${ad}: başlangıçta kayıtlı logo var ve önizleme yüklü`, h.kayitli.source === "custom" && !!h.kayitli.assetId && !!h.on, { kayitli: h.kayitli, on: h.on });
+      const v = await dtVer(b64(dosyalar[dosya]), `yeni-logo.${dosya}`, tip);
+      ok("LD", `${LD} ${ad}: File input.files'a atandı + change gönderildi`, v?.atandi === true && v.fileCtor === true, v);
+      const ui = await uiSonuc(h.d.varliklar.length);
+      const sonra = await sunucu("/__test/durum");
+      const yeni = yeniYazmalar(h.d, sonra);
+      const basla = yeni.find((y) => y.yontem === "POST" && /\/assets\/uploads$/.test(y.yol));
+      const parca = yeni.filter((y) => y.yontem === "PUT" && /\/chunks\/\d+$/.test(y.yol));
+      const bitir = yeni.find((y) => y.yontem === "POST" && /\/complete$/.test(y.yol));
+      ok("LD", `${LD} ${ad}: HTTP start 200 → parça PUT 200 → complete 200 (içerik sunucuya ulaştı)`, basla?.status === 200 && parca.length > 0 && parca.every((y) => y.status === 200) && bitir?.status === 200, yeni);
+      const yeniId = sonra.varliklar.find((x) => !h.d.varliklar.includes(x));
+      ok("LD", `${LD} ${ad}: sunucu yeni görseli kaydetti + listede göründü, hata yok`, !!ui?.yeni && !!yeniId && sonra.varliklar.length === h.d.varliklar.length + 1, { ui, yeniId });
+      const secili = await exec("const r = document.querySelector('[data-testid=report-logo-opt-custom]'); const n = document.querySelector('[data-testid=report-logo-notice]'); return { custom: r ? r.checked : null, bildirim: n ? n.textContent.trim() : null };");
+      const degisti = await bekle(`(() => { const i = document.querySelector('[data-testid="report-logo-preview-img"]'); return !!i && i.src !== arguments[0] && i.src.startsWith('blob:') && i.complete && i.naturalWidth > 0 ? { w: i.naturalWidth, h: i.naturalHeight } : null; })()`, 20000, [h.src?.src ?? ""]);
+      await ekran(`LD-${ad}-yuklendi`);
+      const c = degisti ? await cizildi(tid("report-logo-preview-img")) : null;
+      ok("LD", `${LD} ${ad}: yüklenen logo otomatik seçildi, önizleme yeni görselle yüklendi ve boyandı`, secili?.custom === true && !!degisti && (c?.renkliOran ?? 0) > 0.3, { secili, degisti, c });
+      ok("LD", `${LD} ${ad}: yükleme tek başına kaydı değiştirmedi (Seçimi kaydet bekleniyor)`, sonra.logo.assetId === h.kayitli.assetId && sonra.logo.source === h.kayitli.source && /Seçimi kaydet/.test(secili?.bildirim ?? ""), { kayitli: h.kayitli, sonra: sonra.logo, secili });
+      if (ad === "PNG") {
+        await tikla(tid("report-logo-save"));
+        const n = await bildirim();
+        const d2 = await sunucu("/__test/durum");
+        ok("LD", `${LD} PNG: Seçimi kaydet → sunucuda yeni yüklenen logo kayıtlı`, n?.ton === "ok" && d2.logo.source === "custom" && d2.logo.assetId === yeniId, { n, logo: d2.logo, yeniId });
+        await yenile(); await profilim();
+        const on3 = await onizlemeYuklu();
+        await ekran("LD-PNG-kaydet-yenile");
+        ok("LD", `${LD} PNG: yenileme sonrası yeni logo seçili ve önizleme yüklü`, !!on3 && (await sunucu("/__test/durum")).logo.assetId === yeniId, on3);
+      } else {
+        await tikla(tid("report-logo-cancel"), 5000).catch(() => {});
+        const d2 = await sunucu("/__test/durum");
+        ok("LD", `${LD} JPEG: Vazgeç → kayıtlı logo değişmedi`, d2.logo.assetId === h.kayitli.assetId, { kayitli: h.kayitli, sonra: d2.logo });
+      }
+    });
+  }
+
+  // Başarısız yüklemeler: her birinde kayıtlı logo + önizleme korunmalı, liste değişmemeli.
+  const basarisiz = [
+    ["SVG (accept dışı; uygulamanın kendi istemci denetimi)", { b64: Buffer.from(readFileSync(dosyalar.svg)).toString("base64"), ad: "logo.svg", tip: "image/svg+xml" }, "istemci", /JPEG, PNG veya WebP/],
+    ["2 MB üstü (uygulamanın kendi boyut denetimi)", { b64: "", ad: "cok-buyuk.png", tip: "image/png", boyut: 2 * 1024 * 1024 + 1 }, "istemci", /çok büyük/],
+    ["bozuk PNG (sunucu reddi)", { b64: b64(dosyalar.bozuk), ad: "bozuk.png", tip: "image/png" }, "sunucu", null],
+    ["sunucu 500 (yükleme başlatılamadı)", { b64: b64(dosyalar.png), ad: "yeni-logo.png", tip: "image/png", enjekte: true }, "500", null],
+  ];
+  for (const [ad, f, tur, metin] of basarisiz) {
+    await test("LD", ad, async () => {
+      const h = await hazirla();
+      if (f.enjekte) await sunucu("/__test/enjekte", { tur: "yuklemeBaslat", status: 500, json: { ok: false, error: "İşlem sırasında bir hata oluştu." } });
+      const v = await dtVer(f.b64, f.ad, f.tip, f.boyut ?? 0);
+      const ui = await uiSonuc(h.d.varliklar.length);
+      const sonra = await sunucu("/__test/durum");
+      const yeni = yeniYazmalar(h.d, sonra);
+      const on2 = await onizlemeSrc();
+      await ekran(`LD-ret-${ad.split(" ")[0]}`);
+      const iz = { v, ui, yeni, once: h.kayitli, sonra: sonra.logo };
+      ok("LD", `${LD} ${ad}: uygulama hata gösterdi`, !!ui?.hata && (!metin || metin.test(ui.hata)), iz);
+      if (tur === "istemci") ok("LD", `${LD} ${ad}: sunucuya yükleme isteği GİTMEDİ`, !yeni.some((y) => /\/assets\/uploads/.test(y.yol)), yeni);
+      if (tur === "sunucu") ok("LD", `${LD} ${ad}: içerik sunucuya ulaştı ve sunucu reddetti`, yeni.some((y) => /\/chunks\//.test(y.yol) && y.status === 200) && yeni.some((y) => /\/complete$/.test(y.yol) && y.status >= 400), yeni);
+      if (tur === "500") ok("LD", `${LD} ${ad}: start 500 döndü, parça gönderilmedi`, yeni.some((y) => /\/assets\/uploads$/.test(y.yol) && y.status === 500) && !yeni.some((y) => /\/chunks\//.test(y.yol)), yeni);
+      ok("LD", `${LD} ${ad}: kayıtlı logo + görsel listesi + önizleme KORUNDU`, sonra.logo.source === h.kayitli.source && sonra.logo.assetId === h.kayitli.assetId && sonra.varliklar.length === h.d.varliklar.length && !!on2 && on2.tamam && on2.w > 0 && on2.src.startsWith('blob:'), { ...iz, onizlemeOnce: h.src?.src?.slice(0, 40), onizlemeSonra: on2?.src?.slice(0, 40) });
+    });
+  }
 }
 
 // ── Y: yetki senaryoları (sentetik) ──
