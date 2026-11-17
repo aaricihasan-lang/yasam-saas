@@ -308,7 +308,16 @@ export function ProfileSettingsTab({ readOnly: demoReadOnly, onDirtyChange }: { 
                 Human Design raporlarında adınız otomatik yazılmaz; yalnız raporda &quot;Hazırlayan&quot; alanı doluysa unvan ve kurum
                 (profesyonel raporda ayrıca logo) eklenir, iletişim bilgisi ve dipnot eklenmez.
               </p>
-              <p>Diğer raporlar (ör. Refleksoloji, Kupa/Hacamat, Atlas) henüz bu kapsamda değildir. Anahtar kapalıyken hiçbir rapor değişmez.</p>
+              <p>
+                Refleksoloji, Kupa (protokol ve takvim) ve Gökyüzü Atlası (Word ve PDF) raporlarında, anahtar açıkken rapor sonuna
+                bir &quot;Hazırlayan&quot; imza bölümü eklenir; adınız otomatik yazılmaz, yalnız seçtiğiniz unvan, kurum, iletişim, logo ve
+                dipnot yer alır.
+              </p>
+              <p>
+                Hacamat raporunda (Word ve PDF) formdaki &quot;Hazırlayan&quot; adı aynen kalır, profil adınızla değiştirilmez; bu alan
+                doluysa yalnız unvan, kurum ve logo eklenir, iletişim bilgisi ve dipnot eklenmez.
+              </p>
+              <p>Ansiklopediler, ders notları, stok ve arşiv dışa aktarımları bu kapsamda değildir. Anahtar kapalıyken hiçbir rapor değişmez.</p>
             </div>
           </div>
           <TextField
@@ -318,7 +327,7 @@ export function ProfileSettingsTab({ readOnly: demoReadOnly, onDirtyChange }: { 
           <div className="space-y-4 border-t border-slate-100 pt-4">
             <Switch
               id={`${idBase}-brand`} label="Raporlarımda kurumsal bilgilerimi göster"
-              description="Kapalıyken raporlarınız bugünkü gibi üretilir. Açtığınızda aşağıda seçtiğiniz bilgiler yukarıda sayılan Word raporlarına eklenir."
+              description="Kapalıyken raporlarınız bugünkü gibi üretilir. Açtığınızda aşağıda seçtiğiniz bilgiler yukarıda sayılan raporlara eklenir."
               checked={brandingOn} disabled={disabled} onChange={(v) => set("reportBrandingEnabled", v)}
             />
             <fieldset className="space-y-3 rounded-xl bg-slate-50/80 p-3 sm:p-4" disabled={disabled || !brandingOn} aria-describedby={`${idBase}-subs-hint`}>

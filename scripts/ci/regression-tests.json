@@ -589,6 +589,16 @@
    "timeoutSec": 120
   },
   {
+   "file": "scripts/expert-branding/kademeB/routes.harness.ts",
+   "tsx": true,
+   "timeoutSec": 300
+  },
+  {
+   "file": "scripts/expert-branding/kademeB/samples.ts",
+   "tsx": true,
+   "timeoutSec": 240
+  },
+  {
    "file": "scripts/expert-branding/routes.harness.ts",
    "tsx": true,
    "timeoutSec": 240
