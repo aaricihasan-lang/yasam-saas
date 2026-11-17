@@ -7,7 +7,7 @@
 #
 # Bu betik, sürümü sabitlenmiş resmî IANA TZif derlemesinden (PyPI `tzdata` paketi: IANA kaynağının zic çıktısı,
 # backzone'suz varsayılan veri — ICU ile aynı seçim) her bölge için TAM geçiş listesini ve TZif "footer" kalıcı kuralını
-# (RFC 9636 §3.3, POSIX TZ) çıkarır. Çıktı: lib/astrology/birth/tzIana.generated.ts.
+# (RFC 9636 §3.3, POSIX TZ) çıkarır. Çıktı: lib/time/tzdb/ianaTable.generated.ts (HD-TZ-00 ortak katman).
 # Doğrulama (TZDATA_SRC verilirse): bağımsız kaynak derleyicisi tzcomp.py (resmî kaynak metninden) ile 2037 sonuna kadar
 # birebir karşılaştırma; fark varsa üretim DURUR.
 #
@@ -19,7 +19,7 @@ import hashlib, importlib.resources as ir, json, os, re, struct, sys
 import tzdata  # noqa: E402
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
-OUT = os.path.join(ROOT, "lib", "astrology", "birth", "tzIana.generated.ts")
+OUT = os.path.join(ROOT, "lib", "time", "tzdb", "ianaTable.generated.ts")  # HD-TZ-00: ortak katman (tek kaynak)
 NAME_RE = re.compile(r"^[A-Za-z_]+(?:/[A-Za-z0-9_+\-]+)+$|^UTC$")  # timeResolution.isValidIanaTimeZone ile aynı
 B36 = "0123456789abcdefghijklmnopqrstuvwxyz"
 
