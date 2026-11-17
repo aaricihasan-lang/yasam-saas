@@ -51,6 +51,8 @@ const TSX = [
   "scripts/giris-guvenligi/f2i-routes.harness.ts",
   // F2-J: taklit Android yönetici oturumu + kriptografik cihaz kanıtı + kanal tutarlılığı (gerçek route'lar).
   "scripts/giris-guvenligi/f2j-routes.harness.ts",
+  // F2-J (N1): çalınmış Owner oturumuyla parola tahmini — arşiv / silme rotalarında giriş ile aynı kilit.
+  "scripts/giris-guvenligi/f2j-admin-parola.harness.ts",
   "scripts/giris-guvenligi/purge-senaryolari.harness.ts",
   "scripts/giris-guvenligi/gmail-provider.check.ts",
   "scripts/giris-guvenligi/qr-encode.check.ts",

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyAdminRequest } from "@/lib/auth/adminGuard";
+import { guardAdminPasswordAttempt } from "@/lib/auth/adminPasswordGuard";
 import { guardAdminLockoutById, requireMainAdmin } from "@/lib/admin/adminGuards";
 import { jsonNoStore, readLimitedJsonBody } from "@/lib/admin/accountSessionControls";
 import { isUuid } from "@/lib/admin/memberRequestValidation";
@@ -69,6 +70,14 @@ export async function POST(req: NextRequest, ctx: RouteContext) {
   }
   const adminEmail = String(adminRow.email ?? "").trim().toLowerCase();
 
+  // F2-J (N1): giriş ekranıyla AYNI deneme sınırı / kilit — çalınmış oturumla parola tahmini için yan kapı olmaz.
+  const pwGuard = await guardAdminPasswordAttempt(db, req, adminEmail, adminPassword);
+  if (!pwGuard.ok) {
+    return NextResponse.json(
+      { error: pwGuard.error, ...(pwGuard.retryAfter ? { retryAfter: pwGuard.retryAfter } : {}) },
+      { status: pwGuard.status, headers: { "Cache-Control": "no-store", ...(pwGuard.retryAfter ? { "Retry-After": String(pwGuard.retryAfter) } : {}) } },
+    );
+  }
   // Admin şifresini server-side RPC ile doğrula (plaintext browser'a gelmez)
   const { data: verified, error: verifyErr } = await db.rpc("verify_admin_login", {
     p_email: adminEmail,
