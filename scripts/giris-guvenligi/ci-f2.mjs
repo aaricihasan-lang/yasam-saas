@@ -61,6 +61,8 @@ const TSX = [
   "scripts/giris-guvenligi/f2k-token.harness.ts",
   // F2-K (O1): QR onayında 6 haneli yazılan kod + telefon imzası; yanlış kodda bütün açık istekler kapanır.
   "scripts/giris-guvenligi/f2k-qr.harness.ts",
+  // F2-K (L4): güvenlik bildirimi kota ayrımı + gönderilemeyen bildirim kaydı.
+  "scripts/giris-guvenligi/f2k-bildirim.harness.ts",
   "scripts/giris-guvenligi/purge-senaryolari.harness.ts",
   "scripts/giris-guvenligi/gmail-provider.check.ts",
   "scripts/giris-guvenligi/qr-encode.check.ts",

@@ -132,6 +132,8 @@ BEGIN
   ('fn', 'auth_email_change_confirm', 500),
   ('fn', 'auth_email_delivery_result', 400),
   ('fn', 'auth_email_notice_reserve', 500),
+  ('fn', 'auth_email_notice_reserve_quota', 1100),
+  ('fn', 'auth_email_notice_undelivered', 1100),
   ('fn', 'auth_email_notify', 400),
   ('fn', 'auth_email_otp_issue', 400),
   ('fn', 'auth_email_otp_step_up_guard', 900),
@@ -522,6 +524,8 @@ lines AS (SELECT lvl, line FROM fnl UNION ALL SELECT lvl, line FROM trl UNION AL
       ('fn|auth_email_change_confirm(p_actor_token text, p_request_id uuid, p_code_hash text)|f274662b261f73b400f4e92c7affcaf0|true|search_path=""|api=false|svc=true'),
       ('fn|auth_email_delivery_result(p_delivery_id bigint, p_ok boolean, p_error_code text, p_provider_message_id text)|cb1d6af074d72f45f607a8f0b3ccad3f|true|search_path=""|api=false|svc=true'),
       ('fn|auth_email_notice_reserve(p_user_id uuid, p_to_hash text, p_provider text)|068a8cb75051ebf8bf45e6cb41cf4ec4|true|search_path=""|api=false|svc=true'),
+      ('fn|auth_email_notice_reserve_quota(p_user_id uuid, p_to_hash text, p_provider text, p_daily_limit integer)|bdc0cd0db36534c1cf2458cbbf4847ac|true|search_path=""|api=false|svc=true'),
+      ('fn|auth_email_notice_undelivered(p_user_id uuid, p_kind text, p_reason text)|0cbfae2024dbc0dfcd2d85f5cf23825a|true|search_path=""|api=false|svc=true'),
       ('fn|auth_email_notify(p_reason text, p_detail jsonb)|900c149f0a84e57266ba9df2836594e2|true|search_path=""|api=false|svc=false'),
       ('fn|auth_email_otp_issue(p_user_id uuid, p_purpose text, p_challenge_id uuid, p_code_hash text, p_to_hash text, p_provider text, p_daily_limit integer, p_warn_at integer)|6fffad2bb7d4e01a5dd5a1f746508c70|true|search_path=""|api=false|svc=true'),
       ('fn|auth_email_otp_step_up_guard()|c4e1f70ae64a997aaf6be5fbd7bc968f|true|search_path=""|api=false|svc=*'),
@@ -644,6 +648,6 @@ lines AS (SELECT lvl, line FROM fnl UNION ALL SELECT lvl, line FROM trl UNION AL
     RAISE EXCEPTION 'F2 POSTFLIGHT KATALOG FAIL — kayıt=% (beklenen 1100) | beklenip bulunmayan/farklı: % | beklenmeyen: %',
       coalesce(v_reg::text, 'yok'), left(coalesce(v_missing, '-'), 3000), left(coalesce(v_extra, '-'), 3000);
   END IF;
-  RAISE NOTICE 'F2 POSTFLIGHT KATALOG PASS (% satır)', 354;
+  RAISE NOTICE 'F2 POSTFLIGHT KATALOG PASS (% satır)', 356;
 END $f2man$;
 -- <<< KATALOG MANİFESTİ

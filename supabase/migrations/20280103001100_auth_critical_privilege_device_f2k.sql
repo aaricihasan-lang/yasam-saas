@@ -774,6 +774,61 @@ BEGIN
   END IF;
 END $c3$;
 
+-- ── K5 (L4) Güvenlik bildirimi: kota ayrımı + sessiz düşme yok ─────────────────────────────────────────────
+-- (a) Bildirimler kayan 24 saatlik sağlayıcı kotasının en çok %80'ini kullanır; kalan %20 giriş / işlem kodlarına
+--     ayrılır (bildirim seli giriş kodlarını aç bırakamaz). Eski auth_email_notice_reserve GERİ DÖNÜŞ için aynen kalır
+--     (ayrı ad: PostgREST aşırı yükleme belirsizliği yok).
+-- (b) Gönderilemeyen bildirim (kota / sıklık / sağlayıcı yok / gönderim hatası) security_events'e yazılır:
+--     'security_notice_undelivered' (kullanıcı + tür + neden başına saatte 1; adres / içerik YOK).
+CREATE OR REPLACE FUNCTION public.auth_email_notice_reserve_quota(p_user_id uuid, p_to_hash text, p_provider text, p_daily_limit integer)
+RETURNS jsonb
+LANGUAGE plpgsql
+VOLATILE
+SECURITY DEFINER
+SET search_path = ''
+AS $f2k$
+DECLARE
+  v_24h integer;
+BEGIN
+  IF p_daily_limit IS NOT NULL AND p_daily_limit > 0 THEN
+    SELECT count(*) INTO v_24h FROM public.auth_email_deliveries
+     WHERE created_at > now() - interval '24 hours' AND state IN ('reserved', 'sent');
+    IF v_24h >= floor(p_daily_limit * 0.8) THEN
+      RETURN jsonb_build_object('ok', false, 'code', 'quota_reserved');
+    END IF;
+  END IF;
+  RETURN public.auth_email_notice_reserve(p_user_id, p_to_hash, p_provider);
+END $f2k$;
+REVOKE ALL ON FUNCTION public.auth_email_notice_reserve_quota(uuid, text, text, integer) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.auth_email_notice_reserve_quota(uuid, text, text, integer) TO service_role;
+
+CREATE OR REPLACE FUNCTION public.auth_email_notice_undelivered(p_user_id uuid, p_kind text, p_reason text)
+RETURNS jsonb
+LANGUAGE plpgsql
+VOLATILE
+SECURITY DEFINER
+SET search_path = ''
+AS $f2k$
+BEGIN
+  IF p_user_id IS NULL OR p_kind !~ '^[a-z_]{1,40}$' OR p_reason !~ '^[a-z_]{1,40}$' THEN
+    RETURN jsonb_build_object('ok', false, 'code', 'bad_request');
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM public.users WHERE id = p_user_id) THEN
+    RETURN jsonb_build_object('ok', false, 'code', 'not_found');
+  END IF;
+  IF EXISTS (SELECT 1 FROM public.security_events
+              WHERE user_id = p_user_id AND event_type = 'security_notice_undelivered' AND created_at > now() - interval '1 hour'
+                AND metadata->>'kind' = p_kind AND metadata->>'reason' = p_reason) THEN
+    RETURN jsonb_build_object('ok', true, 'recorded', false);
+  END IF;
+  INSERT INTO public.security_events (user_id, event_type, severity, message, metadata)
+  VALUES (p_user_id, 'security_notice_undelivered', 'medium', 'Güvenlik bildirimi e-postası gönderilemedi',
+          jsonb_build_object('kind', p_kind, 'reason', p_reason));
+  RETURN jsonb_build_object('ok', true, 'recorded', true);
+END $f2k$;
+REVOKE ALL ON FUNCTION public.auth_email_notice_undelivered(uuid, text, text) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.auth_email_notice_undelivered(uuid, text, text) TO service_role;
+
 -- >>> F2 ŞEMA DÜZEYİ KAYDI (F2-J; üretici: scripts/giris-guvenligi/f2-migration-guard.mjs — elle değiştirmeyin)
 CREATE OR REPLACE FUNCTION public.auth_f2_schema_level() RETURNS integer
 LANGUAGE sql IMMUTABLE SET search_path = '' AS $f2lvl$ SELECT 1100 $f2lvl$;

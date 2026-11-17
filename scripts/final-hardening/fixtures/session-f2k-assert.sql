@@ -1,4 +1,5 @@
--- GİRİŞ GÜVENLİĞİ F2-K — QR eşleştirme (O1), bekleyen cihaz eşleştirmesi (O5), kalıcı silme × yasal saklama (C3).
+-- GİRİŞ GÜVENLİĞİ F2-K — QR eşleştirme (O1), bekleyen cihaz eşleştirmesi (O5), güvenlik bildirimi kotası (L4).
+-- (Kalıcı silme × yasal saklama C3: scripts/giris-guvenligi/purge-senaryolari.harness.ts S6.)
 -- Yerel embedded-pg; prod'a temas YOK; sentetik kullanıcılar. Zincir: F2-A…F2-J ; migration: 20280103001100 (iki kez).
 -- Her madde ayrı kaydedilir; sonda BÜTÜN ihlaller tek hata olarak raporlanır.
 
@@ -135,6 +136,32 @@ BEGIN
   -- Yetki: kapatıcı fonksiyon dışarıya kapalı.
   IF has_function_privilege('service_role', 'public.auth_device_pending_expire(uuid,uuid)', 'EXECUTE') THEN
     PERFORM pg_temp.fail('O5k kapatıcı fonksiyon sunucu rolüne açık');
+  END IF;
+END $$;
+
+-- ── L4: bildirim kotası ayrımı + gönderilemeyen bildirim kaydı ─────────────────────────────────────────────
+DO $$
+DECLARE
+  VE constant uuid := '00000000-0000-0000-0000-00000000e0d1';
+  r jsonb; n0 integer;
+BEGIN
+  SELECT count(*) INTO n0 FROM public.auth_email_deliveries WHERE created_at > now() - interval '24 hours' AND state IN ('reserved', 'sent');
+  -- Sınır = mevcut + 10 → %80 eşiği altında kalan pay ile ayrım ölçülür.
+  r := public.auth_email_notice_reserve_quota(VE, pg_temp.h('l4'), 'synthetic', 1000000);
+  IF (r->>'ok')::boolean IS DISTINCT FROM true THEN PERFORM pg_temp.fail('L4a kota boşken bildirim ayrılamadı: ' || r::text); END IF;
+  r := public.auth_email_notice_reserve_quota(VE, pg_temp.h('l4'), 'synthetic', ceil((n0 + 1) / 0.8)::integer);
+  IF r->>'code' IS DISTINCT FROM 'quota_reserved' THEN PERFORM pg_temp.fail('L4b kotanın %80''i dolunca bildirim durmadı: ' || r::text); END IF;
+  r := public.auth_email_notice_undelivered(VE, 'recovery_login', 'quota_reserved');
+  IF (r->>'recorded')::boolean IS DISTINCT FROM true THEN PERFORM pg_temp.fail('L4c gönderilemeyen bildirim kaydedilmedi: ' || r::text); END IF;
+  r := public.auth_email_notice_undelivered(VE, 'recovery_login', 'quota_reserved');
+  IF (r->>'recorded')::boolean IS DISTINCT FROM false THEN PERFORM pg_temp.fail('L4d aynı neden saatte bir kez kaydedilmeli (sel yok): ' || r::text); END IF;
+  IF EXISTS (SELECT 1 FROM public.security_events WHERE event_type = 'security_notice_undelivered' AND metadata::text ~ '@') THEN
+    PERFORM pg_temp.fail('L4e kayıtta e-posta adresi var');
+  END IF;
+  IF (public.auth_email_notice_undelivered(VE, 'x''; drop', 'a')->>'ok')::boolean THEN PERFORM pg_temp.fail('L4f biçim dışı tür kabul edildi'); END IF;
+  IF has_function_privilege('anon', 'public.auth_email_notice_undelivered(uuid,text,text)', 'EXECUTE')
+     OR has_function_privilege('authenticated', 'public.auth_email_notice_reserve_quota(uuid,text,text,integer)', 'EXECUTE') THEN
+    PERFORM pg_temp.fail('L4g bildirim fonksiyonları istemci rollerine açık');
   END IF;
 END $$;
 

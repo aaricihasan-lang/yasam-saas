@@ -91,7 +91,8 @@ export function createGmailProvider(env: Env = process.env, fetchImpl: FetchLike
         try {
           res = await sendOnce(raw, tok.token);
         } catch {
-          if (attempt === 0) continue;
+          // F2-K (L5): zaman aşımı / bağlantı kopması → ileti Gmail'e ULAŞMIŞ olabilir; otomatik ikinci gönderim YOK
+          // (kopya e-posta + kota). Kullanıcı bekleme süresinden sonra "yeniden gönder" ile ister.
           return { ok: false, code: "network", retryable: true };
         }
         if (res.ok) {
