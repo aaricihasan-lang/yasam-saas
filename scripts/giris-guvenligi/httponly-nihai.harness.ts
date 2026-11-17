@@ -483,6 +483,35 @@ async function main() {
     }
 
     // ─────────────────────────────────────────────────────────────────────────────
+    section("K) Eski token → çerez taşıması: başka kullanıcının çerez oturumu EZİLMEZ");
+    {
+      await endAll(U.free); await endAll(U.and1);
+      // A: kill-switch döneminde (header) açılmış token — tarayıcıda localStorage'da kalmış
+      process.env.SESSION_COOKIE_WEB_HEADER = "on";
+      const a = await login(EMAIL.free, { "user-agent": UA.chromeWin });
+      const tokA = String(a.json.sessionToken ?? "");
+      delete process.env.SESSION_COOKIE_WEB_HEADER;
+      ok(tokA !== "", "hazırlık: A'nın eski header token'ı");
+      // B aynı tarayıcıda çerezle giriş yapmış
+      const b = await login(EMAIL.and1, { "user-agent": UA.chromeWin });
+      const cB = cookieValue(getCookie(b.set, "__Host-yasam_sid"));
+      ok(cB !== "" && cB !== tokA, "hazırlık: B'nin geçerli çerez oturumu");
+      const boot = await call(bootRoute.POST, "/api/auth/session/cookie", "POST", {}, { "user-agent": UA.chromeWin, "x-session-token": tokA, cookie: `__Host-yasam_sid=${cB}` });
+      ok(boot.status === 409 && getCookie(boot.set, "__Host-yasam_sid") === "", "A'nın token'ıyla taşıma B'nin çerezini EZMEZ (409, Set-Cookie yok)", { s: boot.status });
+      ok((await profile(U.and1, { cookie: `__Host-yasam_sid=${cB}`, "user-agent": UA.chromeWin })).status === 200, "B'nin oturumu sürüyor");
+      // Aynı kullanıcının başka oturumu (ör. eski sekme) → taşıma serbest (kimlik değişmez)
+      const a2 = await login(EMAIL.free, { "user-agent": UA.chromeWin });
+      const cA2 = cookieValue(getCookie(a2.set, "__Host-yasam_sid"));
+      const same = await call(bootRoute.POST, "/api/auth/session/cookie", "POST", {}, { "user-agent": UA.chromeWin, "x-session-token": tokA, cookie: `__Host-yasam_sid=${cA2}` });
+      ok(same.status === 200, "aynı kullanıcının başka oturumu: taşıma izinli (kimlik değişmez)", same.status);
+      // Mevcut çerez geçersizse (iptal) → taşıma serbest (çerez yok sayılır)
+      await q(`UPDATE public.user_sessions SET is_active = false, ended_at = now(), end_reason = 'logout' WHERE session_token = $1`, [cB]);
+      const stale = await call(bootRoute.POST, "/api/auth/session/cookie", "POST", {}, { "user-agent": UA.chromeWin, "x-session-token": tokA, cookie: `__Host-yasam_sid=${cB}` });
+      ok(stale.status === 200, "mevcut çerez iptal edilmişse taşıma çalışır", stale.status);
+      await endAll(U.free); await endAll(U.and1);
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────────
     section("I) Admin sınırları (web)");
     {
       await endAll(U.owner);

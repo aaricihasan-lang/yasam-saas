@@ -13,6 +13,10 @@
  * Ön koşul: bu ağaçta `next build --webpack` (f2c-ui.e2e.ts başlığındaki sahte env ile); OpenSSL (Git Bash).
  * Çalıştır (build kökünde): npx tsx scripts/giris-guvenligi/android-kabul-ortami.ts <kalıcı-dizin>
  *   ANDROID_KIP=header|cookie (başlangıç, varsayılan header = bugünkü canlı)  KABUL_HTTPS_PORT=443  KABUL_DNS=1
+ *   Emülatör: KABUL_DNS=1 KABUL_DNS_BIND=127.0.0.1 KABUL_DNS_IP=10.0.2.2 + `emulator -dns-server 127.0.0.1` (sistem DNS / hosts DEĞİŞMEZ).
+ *   Her yanıt `x-kabul-ortami: izole-test` başlığı taşır (cihazın production'a değil bu ortama bağlandığının kanıtı).
+ *   `/_kabul/indir` YALNIZ bu ortamda: geçerli HttpOnly oturum çereziyle küçük bir .docx eki döner (native DownloadManager'ın
+ *   çerezi taşıyıp taşımadığını ölçmek için; uygulamanın Word üretimini TEST ETMEZ). Çerez değeri loglanmaz.
  *   Paralel testlerle port çakışmasında: KABUL_SUPA_PORT (build'deki NEXT_PUBLIC_SUPABASE_URL portu), KABUL_APP_PORT, KABUL_CTRL_PORT
  * Kontrol:  curl -X POST "http://127.0.0.1:3999/kip?android=cookie&killswitch=off"   ·  curl http://127.0.0.1:3999/durum
  *           curl http://127.0.0.1:3999/oturumlar  ·  curl -X POST http://127.0.0.1:3999/eski-suresiz
@@ -78,7 +82,27 @@ async function main() {
 
   const front = https.createServer(tls, (req, res) => {
     const host = String(req.headers.host ?? "").split(":")[0].toLowerCase();
+    res.setHeader("x-kabul-ortami", "izole-test");
     if (host === "yasamsistemi.com") { res.writeHead(307, { location: `${CANON}${req.url ?? "/"}` }); res.end(); return; }
+    if ((req.url ?? "").startsWith("/_kabul/indir")) {
+      const cookie = String(req.headers.cookie ?? "");
+      const hasSid = /(?:^|;\s*)__Host-yasam_sid=/.test(cookie);
+      void (async () => {
+        let valid = false;
+        if (hasSid) {
+          try {
+            const r = await fetch(`http://127.0.0.1:${APP_PORT}/api/auth/session`, { headers: { cookie, "x-forwarded-proto": "https", "user-agent": String(req.headers["user-agent"] ?? "") } });
+            valid = ((await r.json()) as { valid?: unknown }).valid === true;
+          } catch { /* geçersiz say */ }
+        }
+        console.log(`[indir] cerez=${hasSid ? "var" : "yok"} gecerli=${valid} ua=${/; wv\)/.test(String(req.headers["user-agent"] ?? "")) ? "webview" : "diger"}`);
+        if (!valid) { res.writeHead(401, { "content-type": "text/plain" }); res.end("oturum yok"); return; }
+        res.writeHead(200, { "content-type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+          "content-disposition": 'attachment; filename="kabul-indirme-testi.docx"', "cache-control": "no-store" });
+        res.end(Buffer.from("KABUL TEST — gercek Word degildir"));
+      })();
+      return;
+    }
     const up = http.request({ host: "127.0.0.1", port: APP_PORT, path: req.url, method: req.method,
       headers: { ...req.headers, "x-forwarded-proto": "https", "x-forwarded-host": "www.yasamsistemi.com" } },
       (r) => { res.writeHead(r.statusCode ?? 502, r.headers); r.pipe(res); });
@@ -160,7 +184,7 @@ async function main() {
   await new Promise<void>((r) => ctrl.listen(CTRL_PORT, "127.0.0.1", () => r()));
 
   if (process.env.KABUL_DNS === "1") {
-    const ip = lanIp();
+    const ip = process.env.KABUL_DNS_IP ?? lanIp();
     const dns = dgram.createSocket("udp4");
     dns.on("message", (msg, rinfo) => {
       // Soru adı (tek soru varsayımı)
@@ -180,8 +204,9 @@ async function main() {
       up.send(msg, 53, "1.1.1.1");
       setTimeout(() => { try { up.close(); } catch { /* */ } }, 4000);
     });
-    dns.bind(53, "0.0.0.0");
-    console.log(`[kabul] DNS: yasamsistemi.com / www → ${ip} (UDP 53)`);
+    const bind = process.env.KABUL_DNS_BIND ?? "0.0.0.0";
+    dns.bind(53, bind);
+    console.log(`[kabul] DNS (${bind}:53): yasamsistemi.com / www → ${ip}`);
   }
 
   console.log(`

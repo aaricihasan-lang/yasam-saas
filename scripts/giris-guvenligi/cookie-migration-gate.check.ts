@@ -17,11 +17,11 @@ type Call = { path: string; at: number; hdr: string | null };
 
 /** Her senaryo için TAZE modül örneği (kapı sayfa başına bir kez kurulur → ayrı süreç benzetimi). */
 async function scenario(opts: {
-  transport: "cookie" | "header"; androidToken?: boolean; token: string | null; bootstrap: "ok" | "fail" | "hang" | "net";
+  transport: "cookie" | "header"; androidToken?: boolean; token: string | null; bootstrap: "ok" | "fail" | "hang" | "net" | "conflict"; revoked?: boolean;
 }) {
   const store = new Map<string, string>();
   if (opts.token) store.set("yasam_session_token", opts.token);
-  store.set("yasam_user", JSON.stringify({ id: "00000000-0000-0000-0000-00000000e001" }));
+  store.set("yasam_user", JSON.stringify({ id: "00000000-0000-0000-0000-00000000e001", role: "expert", email: "free@test.local" }));
   const attrs: Record<string, string> = { "data-session-transport": opts.transport };
   if (opts.androidToken) attrs["data-android-token"] = "";
   const calls: Call[] = [];
@@ -42,17 +42,22 @@ async function scenario(opts: {
       if (opts.bootstrap === "hang") return new Promise<Response>(() => {});
       if (opts.bootstrap === "net") throw new TypeError("ağ yok");
       if (opts.bootstrap === "fail") return new Response("{}", { status: 503 });
+      if (opts.bootstrap === "conflict") return new Response("{}", { status: 409 });
       await sleep(300);
       cookieWritten = true;
       return new Response("{}", { status: 200 });
     }
-    if (u.pathname === "/api/auth/session") return new Response(JSON.stringify({ valid: cookieWritten }), { status: 200 });
+    if (u.pathname === "/api/auth/session") {
+      // Sunucu taklidi: çerez varsa onunla; yoksa başlıktaki token ile karar (iptal edilmişse geçersiz)
+      const valid = cookieWritten || (!!hdr && hdr === opts.token && !opts.revoked);
+      return new Response(JSON.stringify({ valid, ...(valid ? {} : { reason: "revoked" }) }), { status: 200 });
+    }
     return new Response("{}", { status: cookieWritten || hdr ? 200 : 401 });
   };
   g.window = { fetch: baseFetch, location: { origin: "https://www.yasamsistemi.com" } };
   g.fetch = (i: RequestInfo | URL, n?: RequestInit) => (g.window as { fetch: typeof fetch }).fetch(i, n);
   // tsx: her senaryoda modül önbelleğini temizle (taze kapı durumu)
-  for (const k of Object.keys(require.cache)) if (/lib[\\/]auth[\\/](cookieMigrationGate|yasamUser)/.test(k)) delete require.cache[k];
+  for (const k of Object.keys(require.cache)) if (/lib[\\/]auth[\\/](cookieMigrationGate|yasamUser|sessionExpiry)/.test(k)) delete require.cache[k];
   const gateMod = await import(`@/lib/auth/cookieMigrationGate?s=${Math.random()}`).catch(() => import("@/lib/auth/cookieMigrationGate"));
   gateMod.installCookieMigrationFetchGate();
   const f = (g.window as { fetch: typeof fetch }).fetch;
@@ -100,6 +105,29 @@ async function main() {
     ok(typeof s.store.get("yasam_session_token") === "string", "eski token KORUNDU (sessiz çıkış yok)");
   }
 
+  console.log("\n── 3c) Bootstrap 409 (tarayıcıda BAŞKA kullanıcının çerez oturumu var) ──");
+  {
+    const s = await scenario({ transport: "cookie", token: "12121212-1111-4111-8111-121212121212", bootstrap: "conflict" });
+    const r = await s.f("/api/clients");
+    ok(s.store.get("yasam_session_token") === undefined, "yabancı eski token JS depolamasından SİLİNDİ");
+    ok(r.status === 401, "istek mevcut kimlik bilgisiyle devam etti (bu taklitte çerez yok → gerçek sonuç 401, gizlenmedi)", r.status);
+  }
+
+  console.log("\n── 3d) Geçiş başarısız (503) iken oturum denetimi geçerli kullanıcıyı ÇIKIŞA DÜŞÜRMEZ; iptal edilmişse düşürür ──");
+  {
+    const s = await scenario({ transport: "cookie", token: "34343434-1111-4111-8111-343434343434", bootstrap: "fail" });
+    const se = await import("@/lib/auth/sessionExpiry");
+    const st = await se.checkSessionStatus();
+    const statusCall = s.calls.filter((c) => c.path === "/api/auth/session").pop();
+    ok(st?.valid === true, "geçerli eski oturum: durum denetimi 'geçerli' (yanlış çıkış YOK)", st);
+    ok(statusCall?.hdr === "34343434-1111-4111-8111-343434343434", "karar JS deposundaki eski token'a soruldu (yeni açılım yok)");
+    const r = await scenario({ transport: "cookie", token: "56565656-1111-4111-8111-565656565656", bootstrap: "fail", revoked: true });
+    const se2 = await import("@/lib/auth/sessionExpiry");
+    const st2 = await se2.checkSessionStatus();
+    ok(st2?.valid === false, "iptal edilmiş eski oturum: 'geçersiz' (gerçek iptal gizlenmez)", st2);
+    void r;
+  }
+
   console.log("\n── 4) Kapı DIŞI: geçişin kendi uçları + yabancı köken ──");
   {
     const s = await scenario({ transport: "cookie", token: "dddddddd-1111-4111-8111-dddddddddddd", bootstrap: "hang" });
@@ -107,8 +135,10 @@ async function main() {
     await s.f("/api/auth/session", { method: "POST" });
     await s.f("https://cdn.example.com/x.js");
     ok(Date.now() - t < 200, "/api/auth/session ve yabancı köken istekleri beklemedi (kilitlenme yok)");
-    ok(s.gateMod.isGatedRequestPath("/api/clients") && !s.gateMod.isGatedRequestPath("/api/auth/session") && !s.gateMod.isGatedRequestPath("/api/auth/session/cookie") && !s.gateMod.isGatedRequestPath("/m/onay"),
-      "yol sınıflaması: /api/* evet, /api/auth/session* hayır, sayfa yolları hayır");
+    ok(s.gateMod.isGatedRequestPath("/api/clients") && !s.gateMod.isGatedRequestPath("/api/auth/session") && !s.gateMod.isGatedRequestPath("/api/auth/session/cookie") && !s.gateMod.isGatedRequestPath("/m/onay")
+      && !s.gateMod.isGatedRequestPath("/api/auth/mfa/complete") && !s.gateMod.isGatedRequestPath("/api/auth/mfa/email/verify")
+      && s.gateMod.isGatedRequestPath("/api/auth/profile") && s.gateMod.isGatedRequestPath("/api/auth/admin-session"),
+      "yol sınıflaması: /api/* evet (profil, admin-session, indirmeler dahil); /api/auth/session* ve /api/auth/mfa/* hayır; sayfa yolları hayır");
   }
 
   console.log("\n── 5) Değişmeyen durumlar (kapı devreye GİRMEZ) ──");

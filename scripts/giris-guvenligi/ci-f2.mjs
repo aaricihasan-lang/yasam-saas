@@ -65,6 +65,9 @@ const TSX = [
   "scripts/giris-guvenligi/httponly-nihai.harness.ts",
   // HttpOnly B-1: eski token → çerez geçiş kapısı (eşzamanlı istek, süre tavanı, ağ/sunucu hatası, değişmeyen kipler).
   "scripts/giris-guvenligi/cookie-migration-gate.check.ts",
+  // Owner / admin MFA etkinleştirme provası (e-posta doğrulama → ilk cihaz → çevrimdışı kit → zorunluluk → e-posta / QR girişi →
+  // kurtarma kodları → step-up → kayıp cihaz → yanlış hesap; kilitlenme kuralları).
+  "scripts/giris-guvenligi/owner-mfa-prova.harness.ts",
   // F2-K (O1): QR onayında 6 haneli yazılan kod + telefon imzası; yanlış kodda bütün açık istekler kapanır.
   "scripts/giris-guvenligi/f2k-qr.harness.ts",
   // F2-K (L4): güvenlik bildirimi kota ayrımı + gönderilemeyen bildirim kaydı.

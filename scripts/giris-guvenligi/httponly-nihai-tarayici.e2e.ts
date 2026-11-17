@@ -136,11 +136,12 @@ async function main() {
 
   const endAll = (uid: string) => q(`UPDATE public.user_sessions SET is_active = false, ended_at = now(), end_reason = 'logout' WHERE user_id = $1 AND is_active`, [uid]);
   try {
-    for (const [name, bt] of [["Chromium", chromium], ["Firefox", firefox], ["WebKit", webkit]] as const) {
+    const engines = [["Chromium", chromium, undefined], ["Edge", chromium, "msedge"], ["Firefox", firefox, undefined], ["WebKit", webkit, undefined]] as const;
+    for (const [name, bt, channel] of engines) {
       console.log(`\n── ${name} ──`);
       await endAll(U.free); await endAll(U.exp);
       const dir = fs.mkdtempSync(path.join(os.tmpdir(), `httponly-${name}-`));
-      const launch = () => bt.launchPersistentContext(dir, { ignoreHTTPSErrors: true });
+      const launch = () => bt.launchPersistentContext(dir, { ignoreHTTPSErrors: true, ...(channel ? { channel } : {}) });
       let ctx = await launch();
       let p = ctx.pages()[0] ?? await ctx.newPage();
       await p.goto(`${ORIGIN}/`);
@@ -223,6 +224,22 @@ async function main() {
         return { status: r.status, keys: Object.keys(j), tokenReadable: typeof j.sessionToken === "string" && j.sessionToken.length > 0,
           bindingReadable: typeof j.mfaBinding === "string" && j.mfaBinding.length > 0, binding: typeof j.mfaBinding === "string" ? j.mfaBinding : "", challengeId: String(j.challengeId ?? "") };
       }, [email, pw(email), headers] as const);
+      // Ek varyantlar: yanlış paket adı, çelişen işaretler (yalnız UA soneki / yalnız ipucu), eksik X-Requested-With
+      for (const [vLabel, vh] of [
+        ["yanlış paket adı (UA taklidi + com.yasamsistemi.app.fake)", { "User-Agent": APP_UA, "X-Requested-With": "com.yasamsistemi.app.fake" }],
+        ["eksik X-Requested-With (yalnız WebView UA taklidi)", { "User-Agent": APP_UA }],
+        ["çelişen işaretler (masaüstü UA + Android ipucu + paket)", { "x-yasam-client": "android", "X-Requested-With": "com.yasamsistemi.app", "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/130.0" }],
+        ["yalnız uygulama UA soneki (YasamSistemiAndroid/) + ipucu, Android değil", { "User-Agent": "Mozilla/5.0 (Windows NT 10.0) YasamSistemiAndroid/2.0.0", "x-yasam-client": "android" }],
+      ] as const) {
+        const r = await spoofLogin(EMAIL.free, vh as Record<string, string>);
+        const uaChanged = name !== "Chromium" && name !== "Edge";
+        // UA'yı değiştiremeyen motorda (Chromium/Edge) hiçbir varyant anahtar alamaz; Firefox/WebKit'te iki-sinyal tam taklidi
+        // olmayan varyantlar da alamaz (son varyant: sonek + ipucu = resmî (B) kanal → header kipinde AÇIK sayılır).
+        const fullB = vLabel.startsWith("yalnız uygulama UA soneki") && uaChanged;
+        if (fullB) spoofCheck(r.tokenReadable, `${name}: ${vLabel} ile oturum anahtarını OKUYABİLİYOR`, r);
+        else ok(!r.tokenReadable, `${name}: ${vLabel} → anahtar OKUNAMIYOR`, r);
+        await endAll(U.free);
+      }
       const hint = await spoofLogin(EMAIL.free, { "x-yasam-client": "android", "X-Requested-With": "com.yasamsistemi.app" });
       ok(!hint.tokenReadable, `${name}: sayfa JS'i istemci ipucu + X-Requested-With (UA değişmeden) ile anahtar OKUYAMIYOR`, hint);
       await endAll(U.free);
