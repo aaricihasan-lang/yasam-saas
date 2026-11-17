@@ -7,6 +7,7 @@ import {
   getSessionCookieConfig,
   isAndroidAppRequest,
   isSessionCookieEligible,
+  readWebSessionCookie,
   setWebSessionCookie,
   WEB_SESSION_COOKIE_MAX_AGE_CAP,
 } from "@/lib/auth/sessionCookie";
@@ -49,6 +50,16 @@ export async function POST(req: NextRequest) {
     if (state.status === "unavailable") return json({ error: "Geçici olarak kullanılamıyor." }, 503);
     if (state.status !== "active") return json({ error: "Oturum geçersiz veya süresi dolmuş." }, 401);
     if (!isSessionCookieEligible(cfg, state.userId)) return json({ error: "Kapsam dışı." }, 403);
+
+    // Bu tarayıcıda BAŞKA kullanıcıya ait GEÇERLİ bir oturum çerezi varsa üzerine yazılmaz: eski / yabancı bir token
+    // (ör. önceki kullanıcıdan kalmış) mevcut oturumu sessizce başka kimliğe çeviremez. İstemci 409'da eski token'ı siler.
+    const existing = readWebSessionCookie(req);
+    if (existing && existing !== token) {
+      const current = await resolveActiveSession(db, existing);
+      if (current.status === "active" && current.userId !== state.userId) {
+        return json({ error: "Bu tarayıcıda başka bir oturum açık.", code: "COOKIE_CONFLICT" }, 409);
+      }
+    }
 
     const { data, error } = await db
       .from("user_sessions")

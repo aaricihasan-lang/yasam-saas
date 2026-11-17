@@ -9,7 +9,8 @@
  *   - Kimlik bilgisi DEĞİŞMEZ (token başlığa geri eklenmez); sunucu kararı aynen gelir — gerçek 401 gizlenmez.
  *   - Üst sınır GATE_MAX_MS; sayfa başına TEK deneme (başarısız geçişte istekler hemen gerçek sonucunu alır, tekrar
  *     fırtınası yok). Ağ hatası / 5xx / geçersiz oturum → ensureWebCookieSession token'ı korur, istek devam eder.
- *   - `/api/auth/session*` (geçişin kendi uçları, giriş/çıkış/durum) kapı dışıdır → kilitlenme yok.
+ *   - `/api/auth/session*` (geçişin kendi uçları, giriş/çıkış/durum) ve `/api/auth/mfa/*` (oturumsuz ikinci adım; bağlama
+ *     kendi HttpOnly çerezinde) kapı dışıdır → kilitlenme / gereksiz bekleme yok.
  *   - Geçiş beklemiyorsa (normal web çerez oturumu, Android header kipi, token yok) davranış BİREBİR aynıdır.
  */
 import { ensureWebCookieSession, isWebCookieMigrationPending } from "@/lib/auth/yasamUser";
@@ -19,7 +20,8 @@ export const COOKIE_MIGRATION_GATE_MAX_MS = 4000;
 /** Bu istek geçişi beklemeli mi? (saf) */
 export function isGatedRequestPath(pathname: string): boolean {
   if (!pathname.startsWith("/api/")) return false;
-  return !(pathname === "/api/auth/session" || pathname.startsWith("/api/auth/session/"));
+  if (pathname === "/api/auth/session" || pathname.startsWith("/api/auth/session/")) return false;
+  return !pathname.startsWith("/api/auth/mfa/");
 }
 
 function requestPathname(input: RequestInfo | URL, origin: string): string | null {

@@ -348,6 +348,15 @@ export function ensureWebCookieSession(): Promise<void> {
         cache: "no-store",
         headers: { "x-session-token": raw },
       });
+      if (boot.status === 409) {
+        // Bu tarayıcıda BAŞKA kullanıcının geçerli çerez oturumu var → saklı token bu tarayıcının kimliği değil:
+        // JS depolamasından çıkarılır (mevcut çerez oturumu korunur; token'ın kendi sunucu oturumu kendi süresiyle biter).
+        if (readStoredSessionToken() === raw) {
+          localStorage.removeItem(SESSION_TOKEN_KEY);
+          localStorage.removeItem(COOKIE_SESSION_READY_KEY);
+        }
+        return;
+      }
       if (!boot.ok) return; // cookie yazılamadı → token KALIR
       markCookieSessionReady(raw);
     }
