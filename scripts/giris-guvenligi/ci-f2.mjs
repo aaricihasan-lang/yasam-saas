@@ -53,6 +53,8 @@ const TSX = [
   "scripts/giris-guvenligi/f2j-routes.harness.ts",
   // F2-J (N1): çalınmış Owner oturumuyla parola tahmini — arşiv / silme rotalarında giriş ile aynı kilit.
   "scripts/giris-guvenligi/f2j-admin-parola.harness.ts",
+  // F2-J (L1): adres doğrulama kodu gönderildiği adrese bağlı (adres değişikliği yarışı).
+  "scripts/giris-guvenligi/f2j-eposta.harness.ts",
   "scripts/giris-guvenligi/purge-senaryolari.harness.ts",
   "scripts/giris-guvenligi/gmail-provider.check.ts",
   "scripts/giris-guvenligi/qr-encode.check.ts",

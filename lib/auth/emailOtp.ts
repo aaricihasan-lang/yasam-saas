@@ -59,6 +59,16 @@ export type OtpSendOutcome =
   | { ok: true; expiresAt: string }
   | { ok: false; code: "not_configured" | "invalid" | "email_unverified" | "cooldown" | "too_many" | "rate_limited" | "quota_exhausted" | "send_failed" | "error"; retryAfter?: number };
 
+/**
+ * F2-J (L1): adres doğrulama kodu, kodun GÖNDERİLDİĞİ adrese bağlıdır (kapsam: verify:<kullanıcı>:<adres>). Adres, kod
+ * üretimi ile onay arasında değişirse (yönetici düzenlemesi ile yarış) eski adrese giden kod yeni adresi doğrulayamaz.
+ */
+function otpScope(purpose: "login" | "verify_email", userId: string, challengeId: string | null, email?: string | null): string | null {
+  if (purpose === "login") return `login:${challengeId}`;
+  const e = String(email ?? "").trim().toLowerCase();
+  return e ? `verify:${userId}:${e}` : null;
+}
+
 export async function issueAndSendOtp(
   db: SupabaseClient,
   args: { userId: string; email: string; name?: string | null; purpose: "login" | "verify_email"; challengeId: string | null },
@@ -69,7 +79,8 @@ export async function issueAndSendOtp(
   const provider = providerOverride === undefined ? getEmailProvider(env) : providerOverride;
   if (!pepper || !provider) return { ok: false, code: "not_configured" };
   const code = generateOtpCode();
-  const scope = args.purpose === "login" ? `login:${args.challengeId}` : `verify:${args.userId}`;
+  const scope = otpScope(args.purpose, args.userId, args.challengeId, args.email);
+  if (!scope) return { ok: false, code: "invalid" };
   const dailyLimit = Number(env.EMAIL_DAILY_LIMIT ?? EMAIL_DAILY_LIMIT_DEFAULT) || EMAIL_DAILY_LIMIT_DEFAULT;
   const warnAt = Number(env.EMAIL_WARN_AT ?? EMAIL_WARN_AT_DEFAULT) || EMAIL_WARN_AT_DEFAULT;
   const { data, error } = await db.rpc("auth_email_otp_issue", {
@@ -108,13 +119,14 @@ export type OtpVerifyOutcome = { ok: true } | { ok: false; code: "invalid" | "no
 
 export async function verifyOtp(
   db: SupabaseClient,
-  args: { userId: string; purpose: "login" | "verify_email"; challengeId: string | null; code: string },
+  args: { userId: string; purpose: "login" | "verify_email"; challengeId: string | null; code: string; email?: string | null },
   env: Env = process.env,
 ): Promise<OtpVerifyOutcome> {
   const pepper = otpPepper(env);
   if (!pepper) return { ok: false, code: "not_configured" };
   if (!/^[0-9]{6}$/.test(args.code)) return { ok: false, code: "wrong" };
-  const scope = args.purpose === "login" ? `login:${args.challengeId}` : `verify:${args.userId}`;
+  const scope = otpScope(args.purpose, args.userId, args.challengeId, args.email);
+  if (!scope) return { ok: false, code: "invalid" };
   const { data, error } = await db.rpc("auth_email_otp_verify", {
     p_user_id: args.userId,
     p_purpose: args.purpose,
