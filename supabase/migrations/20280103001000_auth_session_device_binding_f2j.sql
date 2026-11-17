@@ -501,6 +501,14 @@ $$;
 REVOKE ALL ON FUNCTION public.auth_session_legacy_info(text) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.auth_session_legacy_info(text) TO service_role;
 
+-- ── J5) Savunma derinliği (D2): sunucu rolü (service_role) oturum satırlarında YALNIZ sonlandırma kolonlarını
+--        güncelleyebilir (uygulama ve geri dönüş hedefi kod yalnız bunları yazar; token / created_at / expires_at /
+--        mfa_* / kanal / cihaz bağı yalnız SECURITY DEFINER fonksiyonlarla değişir). Güvenlik olay kayıtları sunucu rolü
+--        için yalnız EKLEME + OKUMA (imha / anonimleştirme yalnız F2-H fonksiyonlarıyla).
+REVOKE UPDATE ON public.user_sessions FROM service_role;
+GRANT UPDATE (is_active, ended_at, end_reason) ON public.user_sessions TO service_role;
+REVOKE UPDATE, DELETE, TRUNCATE ON public.security_events FROM service_role;
+
 -- ── J1) auth_finalize_login: kanal = challenge'ın kayıtlı kanalı ────────────────
 CREATE OR REPLACE FUNCTION public.auth_finalize_login(
   p_challenge_id           uuid,

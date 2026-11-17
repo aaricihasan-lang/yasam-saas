@@ -272,6 +272,41 @@ BEGIN
   IF NOT coalesce((r->>'ok')::boolean, false) OR (SELECT mode FROM public.auth_legacy_session_policy WHERE id = 1) <> 'kapali' THEN
     PERFORM pg_temp.fail('J4i politika kapatılamadı: ' || r::text);
   END IF;
+  -- ── J6: sunucu rolü (service_role) oturum satırında yalnız sonlandırma kolonlarını yazabilir ──────────
+  PERFORM pg_temp.sess(VE, 'j-svc', 'desktop_web', 'expert', interval '5 minutes', interval '1 minute', interval '20 days');
+  EXECUTE 'SET LOCAL ROLE service_role';
+  BEGIN
+    UPDATE public.user_sessions SET session_token = 'j-svc-hijack' WHERE session_token = 'j-svc';
+    PERFORM pg_temp.fail('J6a service_role oturum anahtarını yeniden yazdı');
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+  BEGIN
+    UPDATE public.user_sessions SET created_at = now() WHERE session_token = 'j-svc';
+    PERFORM pg_temp.fail('J6b service_role created_at (taze MFA penceresi) değiştirdi');
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+  BEGIN
+    UPDATE public.user_sessions SET expires_at = now() + interval '365 days' WHERE session_token = 'j-svc';
+    PERFORM pg_temp.fail('J6c service_role oturum süresini uzattı');
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+  BEGIN
+    DELETE FROM public.security_events WHERE user_id = VE;
+    PERFORM pg_temp.fail('J6d service_role güvenlik olay kaydı sildi');
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+  BEGIN
+    UPDATE public.security_events SET message = 'x' WHERE user_id = VE;
+    PERFORM pg_temp.fail('J6e service_role güvenlik olay kaydı değiştirdi');
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+  -- Meşru uygulama yolu (oturum sonlandırma) çalışır.
+  UPDATE public.user_sessions SET is_active = false, ended_at = now(), end_reason = 'user_logout' WHERE session_token = 'j-svc';
+  EXECUTE 'RESET ROLE';
+  IF (SELECT is_active FROM public.user_sessions WHERE session_token = 'j-svc') THEN
+    PERFORM pg_temp.fail('J6f service_role meşru oturum sonlandırmasını yapamadı');
+  END IF;
+
   -- Denetim izi.
   SELECT count(*) INTO n FROM public.security_events WHERE event_type IN ('session_device_bound', 'session_device_reproof', 'session_device_bind_rejected', 'legacy_session_policy_set');
   IF n < 6 THEN

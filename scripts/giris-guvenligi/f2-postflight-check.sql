@@ -55,6 +55,15 @@ BEGIN
   IF has_function_privilege('anon', 'public.auth_retention_table_uuid(text)', 'EXECUTE') THEN
     bad := bad || 'auth_retention_table_uuid anon''a açık'::text;
   END IF;
+  -- F2-J (D2): service_role oturumda yalnız sonlandırma kolonlarını günceller; güvenlik olaylarını silemez / değiştiremez.
+  IF has_table_privilege('service_role', 'public.user_sessions', 'UPDATE')
+     OR has_column_privilege('service_role', 'public.user_sessions', 'session_token', 'UPDATE')
+     OR has_column_privilege('service_role', 'public.user_sessions', 'created_at', 'UPDATE')
+     OR NOT has_column_privilege('service_role', 'public.user_sessions', 'is_active', 'UPDATE')
+     OR has_table_privilege('service_role', 'public.security_events', 'UPDATE')
+     OR has_table_privilege('service_role', 'public.security_events', 'DELETE') THEN
+    bad := bad || 'F2-J D2: service_role user_sessions / security_events yetkileri beklenenden geniş'::text;
+  END IF;
   -- 000200 (en son adım): service_role doğrudan oturum ekleyemez.
   IF current_setting('f2.postflight_final', true) = 'on' AND has_table_privilege('service_role', 'public.user_sessions', 'INSERT') THEN
     bad := bad || '000200 uygulanmamış: service_role user_sessions INSERT yetkisi var'::text;
