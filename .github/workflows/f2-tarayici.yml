@@ -104,6 +104,7 @@ jobs:
             !.next/cache
           retention-days: 2
           if-no-files-found: warn
+          include-hidden-files: true
 
       - name: Kanıtlar (ekran görüntüleri + günlükler + özet; sentetik veri)
         if: always()

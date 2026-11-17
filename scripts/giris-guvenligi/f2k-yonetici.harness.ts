@@ -160,6 +160,21 @@ async function main() {
       const dn = await call(userRoute.PATCH, `${L}/${u2.id}`, "PATCH", { action: "edit", fullName: "Saldırgan Yönetici", email: NEW_ADMIN.email, role: "expert" }, { id: u2.id });
       ok(dn.status === 200 && (await userBy(NEW_ADMIN.email)).role === "expert", "yetki azaltma: yönetici → uzman kanıt İSTEMEZ", dn);
 
+      // ══ F2-L: ARAYÜZ YOLU — doğrulama penceresinin çağırdığı /api/admin/step-up 'admin_grant'ı başlatabilmeli ══
+      // (tarayıcı e2e'si bu route'un 400 döndüğünü yakaladı; DB çağıran testler göremiyordu).
+      const stepUpRoute = await import("@/app/api/admin/step-up/route");
+      const UI_ADMIN = { ...NEW_ADMIN, email: "k-arayuz@example.test" };
+      const c0 = await call(usersRoute.POST, L, "POST", UI_ADMIN);
+      const sb = await call(stepUpRoute.POST, "http://localhost/api/admin/step-up", "POST", { op: "begin", action: "admin_grant", targetId: c0.json.target });
+      const sq = (sb.json.qr ?? {}) as J;
+      ok(c0.status === 403 && sb.status === 200 && /^[0-9]{6}$/.test(String(sq.matchCode)), "F2-L arayüz yolu: /api/admin/step-up 'admin_grant' doğrulamasını BAŞLATIR", sb);
+      const nonce = /#c=[^&]+&n=([A-Za-z0-9_-]+)$/.exec(String(sq.url ?? ""))?.[1];
+      if (sb.status === 200 && nonce) {
+        await q(`SELECT public.auth_qr_decide($1, $2, $3, 'approve', $4)`, [sb.json.challengeId, nonce, odev, sq.matchCode]);
+      }
+      const c0b = await call(usersRoute.POST, L, "POST", UI_ADMIN);
+      ok(c0b.status === 201 && (await userBy(UI_ADMIN.email))?.role === "admin", "F2-L arayüz yolu: telefon onayından sonra yönetici oluşur", c0b);
+
       // ══ Owner MFA'sız / bayat oturumla: yetki verme yolu kapalı ══
       await q(`UPDATE public.user_sessions SET created_at = now() - interval '2 hours' WHERE session_token = $1`, [sid]);
       const st = await call(usersRoute.POST, L, "POST", { ...NEW_ADMIN, email: "k-bayat@example.test" });
