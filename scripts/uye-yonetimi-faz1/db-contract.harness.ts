@@ -4,18 +4,18 @@
  *
  * Çalıştır: npx tsx scripts/uye-yonetimi-faz1/db-contract.harness.ts
  */
-import EmbeddedPostgres from "embedded-postgres";
 import pg from "pg";
-import { readFileSync, rmSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import path from "node:path";
-import os from "node:os";
 import { randomUUID } from "node:crypto";
+import { startOwnedEmbeddedPg } from "../uye-yonetimi-faz2/testDbRun";
 
 process.env.LC_ALL = "C";
 process.env.LANG = "C";
-const DATA_DIR = path.join(os.tmpdir(), "uye-yonetimi-faz1-dbcontract");
-try { rmSync(DATA_DIR, { recursive: true, force: true }); } catch { /* temiz */ }
-const PORT = 54342, PW = "testpw";
+// YALITIM (testDbRun.startOwnedEmbeddedPg): koşuya özgü TEMP dizini + boş port; sabit "uye-yonetimi-faz1-dbcontract"
+// klasörü artık koşulsuz SİLİNMEZ (paralel koşunun veri dizinini silebiliyordu) ve yalnız kendi postgres'imiz kapatılır.
+const PW = "testpw";
+let PORT = 0;
 const readMig = (f: string) => readFileSync(path.join(process.cwd(), "supabase/migrations", f), "utf8");
 
 let pass = 0, fail = 0;
@@ -46,9 +46,8 @@ const FULL = (sel: string[]) => {
 };
 
 async function main(): Promise<void> {
-  const epg = new EmbeddedPostgres({ databaseDir: DATA_DIR, user: "postgres", password: PW, port: PORT, persistent: false, initdbFlags: ["--locale=C", "--encoding=UTF8"] });
-  await epg.initialise();
-  await epg.start();
+  const db = await startOwnedEmbeddedPg("uye-yonetimi-faz1-dbcontract", { password: PW });
+  PORT = db.port;
   const su = conn();
   await su.connect();
   try {
@@ -171,7 +170,7 @@ async function main(): Promise<void> {
     ok(await expectCode(`select public.admin_set_user_active($1,$2,true,false)`, [pend, ACTOR]) === "UY002", "onaysız uzmanı aktifleştirme → UY002");
   } finally {
     await su.end().catch(() => undefined);
-    await epg.stop().catch((e: Error) => console.log("(teardown uyarısı)", e.message));
+    await db.stop().catch((e: Error) => console.log("(teardown uyarısı)", e.message));
   }
   console.log(`\n──────────\nFAZ 1 DB SÖZLEŞME: PASS ${pass} · FAIL ${fail}`);
   if (fail > 0) process.exit(1);

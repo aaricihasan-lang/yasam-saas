@@ -36,7 +36,7 @@ import {
   validateLicensePayload,
 } from "../../lib/admin/licenseLimits";
 import { isUuid, rpcErrorStatus, validateProfileEdit } from "../../lib/admin/memberRequestValidation";
-import { ADMIN_ONLY_MODULE_KEYS, MODULE_ALIASES } from "../../lib/auth/moduleAccessCore";
+import { ADMIN_ONLY_MODULE_KEYS, MODULE_ALIASES, PERSONAL_ARCHIVE_LOCK_KEYS } from "../../lib/auth/moduleAccessCore";
 import { MODULE_ROUTE_PREFIXES } from "../../lib/auth/moduleRouteRegistry";
 import { hasExpertMembershipAccess, buildPremiumMembershipPayload } from "../../lib/auth/membership";
 import { ADMIN_AUDIT_ACTIONS } from "../../lib/admin/adminAudit";
@@ -94,10 +94,14 @@ console.log("\n[MEM-005/008] Modül kataloğu / whitelist");
 const gateKeys = Object.keys(MODULE_ALIASES);
 // FAZ1 FINAL HARDENING (main): AI yüzeyleri (video_ceviri, belge_ceviri_ai, ders_notu) YALNIZ admin'e
 // açıktır (ADMIN_ONLY_MODULE_KEYS) → uzmana verilemez, bu yüzden admin UI'da toggle'ı yoktur.
-const manageable = (k: string) => (ADMIN_MODULE_UI_KEYS as readonly string[]).includes(k) || ADMIN_ONLY_MODULE_KEYS.has(k);
+// AŞAMA 1 KİŞİSEL ARŞİV YETKİ DONDURMA (owner 2026-10-24): personal_archive bilinçli olarak toggle'sız ve
+// verilemez (validate* reddeder; yalnız false/geri alma kabul) → kilitli anahtar "yönetilen" sayılır.
+const manageable = (k: string) => (ADMIN_MODULE_UI_KEYS as readonly string[]).includes(k) || ADMIN_ONLY_MODULE_KEYS.has(k) || PERSONAL_ARCHIVE_LOCK_KEYS.has(k);
 const missing = gateKeys.filter((k) => !manageable(k));
 ok(missing.length === 0, `her server modül kapısı anahtarı admin UI'da yönetilebilir veya admin-only (eksik: ${missing.join(",") || "yok"})`);
 const registryKeys = new Set(MODULE_ROUTE_PREFIXES.map((r) => r.key));
+ok([...PERSONAL_ARCHIVE_LOCK_KEYS].every((k) => !(ADMIN_MODULE_UI_KEYS as readonly string[]).includes(k) && !ADMIN_ONLY_MODULE_KEYS.has(k)), "Kişisel Arşiv kilidi: anahtarlar admin toggle listesinde YOK ve admin-only DEĞİL");
+ok([...PERSONAL_ARCHIVE_LOCK_KEYS].every((k) => !validateModuleChanges({ [k]: true }).ok && !validateApprovalModules([k, "numerology"]).ok), "Kişisel Arşiv kilidi: modül değişikliği ve onay yolu true vermeyi reddeder");
 ok([...registryKeys].every(manageable) && ![...ADMIN_ONLY_MODULE_KEYS].some((k) => (ADMIN_MODULE_UI_KEYS as readonly string[]).includes(k)), "moduleRouteRegistry anahtarları whitelist'te veya admin-only; admin-only anahtar uzmana verilemez");
 ok((ADMIN_MODULE_UI_KEYS as readonly string[]).includes("human_design"), "Human Design (human_design) yönetilebilir");
 ok((ADMIN_MODULE_UI_KEYS as readonly string[]).includes("cosmic_calendar"), "Kozmik Takvim (cosmic_calendar) yönetilebilir");
@@ -187,8 +191,12 @@ const page = read("app/admin/users/[id]/page.tsx");
 ok(/user\.role === "expert" && user\.approvalStatus !== "approved" \? \(/.test(page)
   && /user\.approvalStatus === "pending" \? \([\s\S]{0,700}Başvuruyu Reddet/.test(page), "Onayla/Reddet yalnız onay bekleyende (Reddet yalnız PENDING)");
 ok(/onClick=\{\(\) => setRejectOpen\(true\)\}/.test(page) && /confirmReject/.test(page), "Reddet → onay modalı (tek tık ret YOK)");
-ok(/Yeniden Onayla/.test(page), "reddedilmiş uzman için kontrollü 'Yeniden Onayla'");
-ok(/openApproveModal/.test(page) && /ModuleCheckboxGrid/.test(page) && /disabled=\{actionUserId === user\.id \|\| !approveHasModule\}/.test(page), "Onay modalı modül seçimi zorunlu (modülsüz submit disabled)");
+// TRIAL7 (#750, e9cfa51d): "Yeniden Onayla" → reddedilmiş uzmanda da aynı iki kontrollü düğme
+// ("7 Günlük Denemeyi Onayla" / "Pro Üyeliği Onayla"); onay grubu pending dışındaki onaysız uzmanda da görünür.
+ok(/kontrollü biçimde yeniden onaylanabilir/.test(page) && /onClick=\{openApproveModal\}[\s\S]{0,300}Pro Üyeliği Onayla[\s\S]{0,200}user\.approvalStatus === "pending" \? \(/.test(page), "reddedilmiş uzman için kontrollü yeniden onay ('Pro Üyeliği Onayla', pending koşulu dışında)");
+ok(/user\.approvalStatus === "approved"\) return;\s*setProFlow\("approve"\)/.test(page), "openApproveModal onaylı uzmanda açılmaz");
+// TRIAL7 (#750): ücretli Pro onayı ek olarak "ödeme alındı" onay kutusu (proConfirmed) ister.
+ok(/openApproveModal/.test(page) && /ModuleCheckboxGrid/.test(page) && /disabled=\{actionUserId === user\.id \|\| !approveHasModule \|\| !proConfirmed\}/.test(page), "Onay modalı modül seçimi + Pro onay kutusu zorunlu (modülsüz/onaysız submit disabled)");
 ok(/modül erişime açıldı/.test(page), "başarı mesajı açılan modül sayısını bildirir");
 ok(!/Mevcut modül izinleri korundu/.test(page), "eski eksik mesaj ('Premium yapıldı') kaldırıldı");
 ok(/changes: \{ \[key\]: nextValue \}/.test(page) && !/modulePermissions: adminPermissionsToPayload/.test(page), "modül toggle YALNIZ değişen anahtarı gönderir");

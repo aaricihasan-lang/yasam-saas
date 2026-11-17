@@ -22,6 +22,7 @@ import pg from "pg";
 import { NextRequest } from "next/server";
 import { startPgrestShim } from "../uye-yonetimi-faz1/pgrestShim";
 import { startTestDb } from "../uye-yonetimi-faz2/testDb";
+import { freePort } from "../uye-yonetimi-faz2/testDbRun";
 import { readMig } from "../uye-yonetimi-360/migrationChain";
 import { DEFAULT_MODULE_PERMISSIONS } from "../../lib/auth/modulePermissions";
 
@@ -48,7 +49,7 @@ const TOK = { owner: "zz-on-owner-token-0001", admin2: "zz-on-admin2-token-0001"
 const MIG = "20280101000400_admin_owner_notifications.sql";
 
 async function main(): Promise<void> {
-  const port = 57000 + Math.floor(Math.random() * 2000);
+  const port = await freePort(); // işletim sisteminden boş port (paralel koşular çakışmaz)
   const db = await startTestDb(port, `owner-notifications-${port}`);
   const { su } = db;
   let shim: Awaited<ReturnType<typeof startPgrestShim>> | null = null;

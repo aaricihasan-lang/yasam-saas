@@ -903,6 +903,16 @@
    "timeoutSec": 60
   },
   {
+   "file": "scripts/settings-membership/membershipView.test.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/settings-membership/profile-guard.harness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
    "file": "scripts/shared-library-removal/harness.mjs",
    "tsx": true,
    "timeoutSec": 60
@@ -1560,6 +1570,30 @@
   },
   {
    "file": "scripts/deneme-hesap-durumu/hesap-durumu.harness.ts",
+   "tsx": true,
+   "timeoutSec": 240
+  },
+  {
+   "file": "scripts/uye-arsiv-salt-okunur/salt-okunur.harness.ts",
+   "tsx": true,
+   "timeoutSec": 120
+  },
+  {
+   "file": "scripts/uye-yonetimi-faz2/testDb-izolasyon.harness.ts",
+   "tsx": true,
+   "timeoutSec": 240
+  },
+  {
+   "file": "scripts/uye-yonetimi-faz2/uiKosu.harness.mjs",
+   "timeoutSec": 120
+  },
+  {
+   "file": "scripts/uye-yonetimi-faz1/unit.harness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/uye-yonetimi-faz2/phase2-integration.harness.ts",
    "tsx": true,
    "timeoutSec": 240
   }

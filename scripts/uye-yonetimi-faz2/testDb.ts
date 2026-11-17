@@ -9,12 +9,16 @@
  * Yaşam Hafızası için yalnız test-stub: yasam_hafizasi_index (minimal) + yh_search_candidates
  * (tsquery'yi yok sayar; tenant satırlarını döner) — gerçek route kapsam mantığını sınamak için.
  */
+import type { ChildProcess } from "node:child_process";
 import EmbeddedPostgres from "embedded-postgres";
 import pg from "pg";
-import { readFileSync, rmSync } from "node:fs";
+import { readFileSync, writeSync } from "node:fs";
 import path from "node:path";
-import os from "node:os";
 import { applyMember360Chain } from "../uye-yonetimi-360/migrationChain";
+import {
+  createRunDir, killOwnChildSync, killStampedSync, ownChildAlive, ownChildStampsSync, pgCtlStopSync, removeOwnRunDir,
+  sameDataDir,
+} from "./testDbRun";
 
 process.env.LC_ALL = "C";
 process.env.LANG = "C";
@@ -141,56 +145,124 @@ export type TestDb = {
   su: pg.Client;
   pool: pg.Pool;
   stop: () => Promise<void>;
+  /** Bu koşuya özgü dizin (`<tmpdir>/<dirName>-<rastgele>`) ve içindeki veri dizini. */
+  runDir: string;
+  dataDir: string;
 };
 
+/**
+ * Ephemeral test DB. YALITIM (testDbRun.ts): her koşu kendine özgü dizin açar — `dirName` yalnız önektir; önceden
+ * var olan hiçbir klasör SİLİNMEZ. Bağlanılan sunucu bu koşunun veri dizinini kullanmıyorsa (port başka bir
+ * koşuda) hiçbir DDL çalıştırılmadan hata verilir. stop() ve süreç çıkışı yalnız KENDİ canlı postmaster'ımızı ve
+ * onun PID + oluşturulma zamanıyla doğrulanan çocuklarını kapatır; yalnız sahiplik işareti eşleşen kendi dizinimizi siler.
+ */
 export async function startTestDb(port: number, dirName: string): Promise<TestDb> {
-  const dataDir = path.join(os.tmpdir(), dirName);
-  try { rmSync(dataDir, { recursive: true, force: true }); } catch { /* temiz */ }
+  const run = createRunDir(dirName, port);
   const epg = new EmbeddedPostgres({
-    databaseDir: dataDir, user: "postgres", password: "testpw", port, persistent: false,
+    databaseDir: run.dataDir, user: "postgres", password: "testpw", port, persistent: false,
     initdbFlags: ["--locale=C", "--encoding=UTF8"],
   });
-  await epg.initialise();
-  await epg.start();
-  const su = new pg.Client({ host: "127.0.0.1", port, user: "postgres", password: "testpw", database: "postgres" });
-  await su.connect();
-  await su.query(`create role anon nologin; create role authenticated nologin; create role service_role nologin bypassrls;
+  const child = () => (epg as unknown as { process?: ChildProcess }).process;
+  let su: pg.Client | null = null;
+  let pool: pg.Pool | null = null;
+  let stopped = false;
+  // Beklenmeyen çıkış (yakalanmamış hata / process.exit): yalnız kendi canlı postmaster'ımız + kendi dizinimiz.
+  const exitHook = () => {
+    if (stopped) return;
+    const c = child();
+    const kanca: Record<string, unknown> = {
+      sira: process.listeners("exit").indexOf(exitHook),
+      cocukCanli: ownChildAlive(c),
+      cocuk: { killed: c?.killed ?? null, exitCode: c?.exitCode ?? null, signalCode: c?.signalCode ?? null },
+    };
+    const stamps = ownChildStampsSync(c);
+    // Önce postgres'in kendi kapanışı; olmazsa kendi canlı postmaster ağacımız. (pg_ctl başarılıysa postmaster
+    // bitmiştir → PID'e ayrıca sinyal gönderilmez.)
+    kanca.pgCtl = pgCtlStopSync(c, run.dataDir);
+    if (!kanca.pgCtl) kanca.kill = killOwnChildSync(c);
+    killStampedSync(stamps);
+    try {
+      const r = removeOwnRunDir(run);
+      kanca.dizin = r.removed ? "silindi" : r.reason;
+    } catch (e) {
+      kanca.dizin = `hata: ${String((e as Error)?.message ?? e)}`; // son çare; başka hiçbir şeye dokunulmaz
+    }
+    // Postmaster bu kancada kapatıldı (ya da zaten bitmişti): kütüphanenin sonradan çalışan exit kancası artık bu
+    // PID'e taskkill / SIGINT göndermesin ve silinmiş dizini yeniden silmeye çalışmasın.
+    (epg as unknown as { process?: ChildProcess }).process = undefined;
+    // Sessiz yutma yok: kancanın kararı stderr'e (çıkış anında eşzamanlı yazım).
+    try { writeSync(2, `TESTDB CIKIS KANCASI ${JSON.stringify(kanca)}\n`); } catch { /* stderr kapalı */ }
+  };
+  // ÖNE eklenir: embedded-postgres modül yüklenirken (async-exit-hook) kendi `exit` dinleyicisini kaydeder ve orada
+  // postmaster'a eşzamansız SIGINT (Linux; `child.killed` = true olur) ya da taskkill (Windows) gönderir. Bizim kanca
+  // ondan sonra çalışırsa postmaster'ı kapanış ortasında bulur: pg_ctl atlanır / başarısız olur ve dizin silme
+  // postgres'in kapanış yazımlarıyla yarışır (Linux'ta koşu dizini kalıyordu). Önce bizim eşzamanlı kapanışımız.
+  process.prependListener("exit", exitHook);
+  const stop = async () => {
+    if (stopped) return;
+    stopped = true;
+    process.off("exit", exitHook);
+    await pool?.end().catch(() => undefined);
+    await su?.end().catch(() => undefined);
+    if (ownChildAlive(child())) {
+      // Windows: postmaster'ın çocukları (io_worker…) dinleme soketini miras alır ve yetim kalabilir → önce PID +
+      // oluşturulma zamanıyla kaydedilir; kapanış postgres'in kendi yoluyla (pg_ctl -m fast) yapılır, gerekmedikçe
+      // taskkill'e başvurulmaz; en sonda yalnız kayıtla birebir eşleşen kalan çocuklar sonlandırılır.
+      const stamps = ownChildStampsSync(child());
+      pgCtlStopSync(child(), run.dataDir);
+      for (let i = 0; i < 50 && ownChildAlive(child()); i++) await new Promise((r) => setTimeout(r, 100));
+      if (ownChildAlive(child())) await epg.stop().catch(() => undefined);
+      else (epg as unknown as { process?: ChildProcess }).process = undefined;
+      killStampedSync(stamps);
+    } else {
+      // Postmaster zaten bitmiş: PID başka bir sürece verilmiş olabilir → taskkill / sinyal GÖNDERİLMEZ.
+      (epg as unknown as { process?: ChildProcess }).process = undefined;
+    }
+    removeOwnRunDir(run);
+  };
+
+  try {
+    await epg.initialise();
+    await epg.start();
+    su = new pg.Client({ host: "127.0.0.1", port, user: "postgres", password: "testpw", database: "postgres" });
+    await su.connect();
+    const dd = String((await su.query(`select current_setting('data_directory') d`)).rows[0].d);
+    if (!sameDataDir(dd, run.dataDir)) {
+      throw new Error(`test DB sahiplik hatası: ${port} portundaki sunucu bu koşunun değil (${dd}); DDL çalıştırılmadı`);
+    }
+    await su.query(`create role anon nologin; create role authenticated nologin; create role service_role nologin bypassrls;
                   grant usage on schema public to anon, authenticated, service_role;`);
-  await su.query(BASE_DDL);
-  for (const f of [
-    "20260903000000_admin_audit_log.sql",
-    "20260910000000_provisioning_integrity.sql",
-    "20261221000000_yh_grade_expert_premium_rpc.sql",
-    "20270107000000_admin_membership_atomic_rpcs.sql",
-    "20270129235900_admin_member_phase1_hardening.sql",
-    "20270130000000_admin_member_phase2.sql",
-    // Oturum süresi RPC'si — süre zorlaması varsayılan AÇIK (P1-3); guard'lar touch_active_session kullanır.
-    "20270129000200_user_sessions_expiry_touch.sql",
-    // AŞAMA 2 · M4 — agreed_fee/billing_period + admin_list_users(p_due, p_sort).
-    "20271001000300_admin_member_commercial.sql",
-  ]) {
-    await su.query(readMig(f));
-  }
-  // ÜYE YÖNETİMİ 360° — Usage360 rollup + audit v2 + 20271006000000 (liste RPC 15 arg, fiyat dönemleri).
-  await applyMember360Chain(su);
-  // AŞAMA 4b — ödeme geçmişinde tarih isteğe bağlı (prod NOT NULL düzeltmesi) + ödeme kaydı tek işlem
-  // (ödeme route'u bu RPC'yi kullanır; 4a / TRIAL7'ye bağımlı değil).
-  await su.query(readMig("20280101000690_user_payment_history_payment_date_optional_4b.sql"));
-  await su.query(readMig("20280101000700_admin_payment_atomic_4b.sql"));
-  await su.query(`grant select, insert, update on public.users, public.tenants, public.user_sessions, public.user_payment_history,
+    await su.query(BASE_DDL);
+    for (const f of [
+      "20260903000000_admin_audit_log.sql",
+      "20260910000000_provisioning_integrity.sql",
+      "20261221000000_yh_grade_expert_premium_rpc.sql",
+      "20270107000000_admin_membership_atomic_rpcs.sql",
+      "20270129235900_admin_member_phase1_hardening.sql",
+      "20270130000000_admin_member_phase2.sql",
+      // Oturum süresi RPC'si — süre zorlaması varsayılan AÇIK (P1-3); guard'lar touch_active_session kullanır.
+      "20270129000200_user_sessions_expiry_touch.sql",
+      // AŞAMA 2 · M4 — agreed_fee/billing_period + admin_list_users(p_due, p_sort).
+      "20271001000300_admin_member_commercial.sql",
+    ]) {
+      await su.query(readMig(f));
+    }
+    // ÜYE YÖNETİMİ 360° — Usage360 rollup + audit v2 + 20271006000000 (liste RPC 15 arg, fiyat dönemleri).
+    await applyMember360Chain(su);
+    // AŞAMA 4b — ödeme geçmişinde tarih isteğe bağlı (prod NOT NULL düzeltmesi) + ödeme kaydı tek işlem
+    // (ödeme route'u bu RPC'yi kullanır; 4a / TRIAL7'ye bağımlı değil).
+    await su.query(readMig("20280101000690_user_payment_history_payment_date_optional_4b.sql"));
+    await su.query(readMig("20280101000700_admin_payment_atomic_4b.sql"));
+    await su.query(`grant select, insert, update on public.users, public.tenants, public.user_sessions, public.user_payment_history,
                     public.yasam_hafizasi_flags, public.yasam_hafizasi_index, public.stone_exclusions,
                     public.clients to service_role;
                   grant select, insert, delete on public.yasam_hafizasi_report_snapshots to service_role;
                   grant execute on function public.verify_admin_login(text,text), public.hash_password(text),
                     public.yh_search_candidates(text,uuid,boolean,float4[],integer) to service_role;`);
-  const pool = new pg.Pool({ host: "127.0.0.1", port, user: "postgres", password: "testpw", database: "postgres", max: 24 });
-  return {
-    su,
-    pool,
-    stop: async () => {
-      await pool.end().catch(() => undefined);
-      await su.end().catch(() => undefined);
-      await epg.stop().catch(() => undefined);
-    },
-  };
+    pool = new pg.Pool({ host: "127.0.0.1", port, user: "postgres", password: "testpw", database: "postgres", max: 24 });
+  } catch (e) {
+    await stop();
+    throw e;
+  }
+  return { su, pool, stop, runDir: run.runDir, dataDir: run.dataDir };
 }
