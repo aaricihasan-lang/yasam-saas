@@ -17,11 +17,12 @@ import {
   type TransitScanTechnical,
 } from "@/lib/astrology/model/westernTransitScan";
 import { ProTable, pt as s } from "./proTechniqueUi";
+import { formatZoned } from "@/lib/astrology/birth/zonedFormat";
 
 const dmy = (iso: string) => `${iso.slice(8, 10)}.${iso.slice(5, 7)}.${iso.slice(0, 4)}`;
 function fmt(ms: number, tz: string): string {
   try {
-    return new Intl.DateTimeFormat("tr-TR", { timeZone: tz, day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }).format(new Date(ms));
+    return formatZoned("tr-TR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }, ms, tz);
   } catch {
     return new Date(ms).toISOString().slice(0, 16).replace("T", " ");
   }

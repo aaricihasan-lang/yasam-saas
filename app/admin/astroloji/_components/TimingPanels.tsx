@@ -58,6 +58,7 @@ import type {
 } from "@/lib/astrology/model/vedic";
 import { KpChartPanel, KpHoraryPanel, KpRulingPanel, KpTransitPanel } from "./KpPanels";
 import { horaryDisplayZone, horaryPlaceZone } from "@/lib/astrology/transitDetail";
+import { formatZoned } from "@/lib/astrology/birth/zonedFormat";
 import { PROGRESSED_CHART_HOUSE_SHORT_LABEL, progressedWholeSignCusps, progressionHouseColumns } from "@/lib/astrology/progressionHouses";
 import { KP_TIMING_TECHNICAL_SCHEMA, type KpChartTechnical, type KpHoraryTechnical, type KpRulingTechnical, type KpTimingTechnical, type KpTransitTechnical } from "@/lib/astrology/model/kp";
 import { KpTimingPanel } from "./KpTimingPanel";
@@ -559,7 +560,7 @@ export function returnUtcIso(t: Pick<ReturnTechnical, "returnLocal" | "returnOff
 export function localTimeIn(utcIso: string, timeZone: string | null): string | null {
   if (!timeZone) return null;
   try {
-    return new Intl.DateTimeFormat("tr-TR", { timeZone, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false, timeZoneName: "short" }).format(new Date(utcIso));
+    return formatZoned("tr-TR", { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false, timeZoneName: "short" }, Date.parse(utcIso), timeZone);
   } catch {
     return null;
   }

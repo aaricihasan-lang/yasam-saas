@@ -84,7 +84,7 @@ type PublicRevision = {
   birthUtc: string;
   changeNote: string | null;
   createdAt: string | null;
-  staleTimezone?: { storedOffsetSeconds: number; currentOffsetSeconds: number; text: string };
+  staleTimezone?: { storedOffsetSeconds: number; currentOffsetSeconds: number | null; text: string };
   lmtNotice?: { storedOffsetSeconds: number; localMeanOffsetSeconds: number; text: string };
 };
 
