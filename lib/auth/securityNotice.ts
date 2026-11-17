@@ -40,12 +40,18 @@ export async function sendSecurityNotice(
     }
     // F2-K (L4): bildirimler kotanın en çok %80'ini kullanır; kalan pay giriş / işlem kodlarına ayrılır.
     const dailyLimit = Number(env.EMAIL_DAILY_LIMIT ?? EMAIL_DAILY_LIMIT_DEFAULT) || EMAIL_DAILY_LIMIT_DEFAULT;
-    const { data, error } = await db.rpc("auth_email_notice_reserve_quota", {
+    const toHash = hashRecipient(to, pepper);
+    let { data, error } = await db.rpc("auth_email_notice_reserve_quota", {
       p_user_id: args.userId,
-      p_to_hash: hashRecipient(to, pepper),
+      p_to_hash: toHash,
       p_provider: provider.name,
       p_daily_limit: dailyLimit,
     });
+    // Geçiş: 001100 henüz uygulanmamış veritabanı (fonksiyon yok) → eski ayırma (kota payı olmadan) — bildirim düşmez.
+    const missing = String((error as { code?: unknown } | null)?.code ?? "");
+    if (error && (missing === "PGRST202" || missing === "42883")) {
+      ({ data, error } = await db.rpc("auth_email_notice_reserve", { p_user_id: args.userId, p_to_hash: toHash, p_provider: provider.name }));
+    }
     const r = (data ?? {}) as { ok?: unknown; delivery_id?: unknown; code?: unknown };
     if (error || r.ok !== true) {
       const code = typeof r.code === "string" && /^[a-z_]{1,40}$/.test(r.code) ? r.code : "reserve_error";

@@ -1,5 +1,5 @@
 /**
- * GİRİŞ GÜVENLİĞİ F2-K (L4) — güvenlik bildirimi: kota ayrımı + sessiz düşme yok. Gerçek PostgreSQL (PostgREST
+ * GİRİŞ GÜVENLİĞİ F2-K (L4) — güvenlik bildirimi: kota ayrımı + sessiz düşme yok. (+ AUTH_MFA_EMAIL_ROLES "owner" kapsamı.) Gerçek PostgreSQL (PostgREST
  * benzeri shim) + SAHTE e-posta sağlayıcısı (gerçek Gmail gönderimi YOK).
  *
  * Çalıştır: npx tsx scripts/giris-guvenligi/f2k-bildirim.harness.ts
@@ -62,6 +62,21 @@ async function main() {
       "kotanın %80'i dolunca bildirim gönderilmez, kayıt düşer (giriş kodu payı korunur)", { r4, n });
     ok(Number((await q(`SELECT count(*) n FROM public.security_events WHERE event_type = 'security_notice_undelivered' AND metadata::text LIKE '%@%'`)).rows[0].n) === 0,
       "kayıtlarda e-posta adresi yok");
+
+    // AUTH_MFA_EMAIL_ROLES "owner" kapsamı: e-posta yöntemi YALNIZ Owner'a; başka yöneticiye açılmaz.
+    const { emailOtpAllowedForUser } = await import("@/lib/auth/emailOtp");
+    await q(`SELECT set_config('yasam.admin_grant','on',false);
+      INSERT INTO public.users (id, email, role, tenant_id, active, approval_status)
+      SELECT '00000000-0000-0000-0000-00000000ad02', 'ikinci-yonetici@test.local', 'admin', tenant_id, true, 'approved' FROM public.users WHERE id = '${U.owner}';
+      SELECT set_config('yasam.admin_grant','off',false);`);
+    const OTHER = "00000000-0000-0000-0000-00000000ad02";
+    ok(!(await emailOtpAllowedForUser(client, U.owner, "admin", { AUTH_MFA_EMAIL_ROLES: "expert" })), "varsayılan (expert): Owner'a e-posta yöntemi YOK");
+    ok(await emailOtpAllowedForUser(client, U.owner, "admin", { AUTH_MFA_EMAIL_ROLES: "expert,owner" }), "expert,owner: Owner'a e-posta yöntemi VAR");
+    ok(!(await emailOtpAllowedForUser(client, OTHER, "admin", { AUTH_MFA_EMAIL_ROLES: "expert,owner" })), "expert,owner: başka yöneticiye e-posta yöntemi YOK");
+    ok(await emailOtpAllowedForUser(client, U.exp, "expert", { AUTH_MFA_EMAIL_ROLES: "expert,owner" }), "expert,owner: uzmana e-posta yöntemi VAR");
+    ok(!(await emailOtpAllowedForUser(client, U.exp, "expert", { AUTH_MFA_EMAIL_ROLES: "owner" })), "owner: uzmana e-posta yöntemi YOK");
+    const broken = { rpc: async () => ({ data: null, error: { message: "x" } }) };
+    ok(!(await emailOtpAllowedForUser(broken, U.owner, "admin", { AUTH_MFA_EMAIL_ROLES: "owner" })), "Owner sorgusu hata verirse kapalı (fail-closed)");
   } finally {
     await db.close();
   }
