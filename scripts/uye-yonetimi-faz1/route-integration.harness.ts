@@ -498,9 +498,18 @@ async function main(): Promise<void> {
     ok((await call(userRoute.PATCH as Handler, "PATCH", F1, asOwner, { ...staleForm, email: (await row(P1)).email.toUpperCase() })).status === 409, "çakışan e-posta → 409 (ham DB hatası sızmaz)");
     ok((await call(userRoute.PATCH as Handler, "PATCH", F1, asAdmin2, { ...staleForm, role: "admin" })).status === 403, "normal admin rol yükseltemez → 403");
     ok((await call(userRoute.PATCH as Handler, "PATCH", ADMIN2, asAdmin2, { action: "edit", fullName: "x", email: "zz.member.phase1.admin2@example.test", role: "admin" })).status === 403, "normal admin başka/kendi admin kaydını düzenleyemez (admin-hedef) → 403");
+    // F2-K (N2): yönetici yetkisi yalnız Owner + taze MFA + işleme özel doğrulama ile (auth_admin_role_grant; 001100).
+    // Bu fixture'da F2 zinciri yok → yükseltme FAIL-CLOSED: başarı yok, rol DEĞİŞMEZ, role_changed denetimi YOK.
+    // Olumlu yol (doğrulamalı yükseltme + denetim + MFA zorunluluğu) F2 zincirinde: scripts/giris-guvenligi/f2k-yonetici.harness.ts.
     const promote = await call(userRoute.PATCH as Handler, "PATCH", F1, asOwner, { ...staleForm, role: "admin" });
-    ok(promote.status === 200 && (await audits(F1)).some((a) => a.action === "role_changed" && a.new_value.role === "admin"), "ana yönetici rol değiştirir + role_changed audit");
-    await call(userRoute.PATCH as Handler, "PATCH", F1, asOwner, { ...staleForm, role: "expert" });
+    ok(promote.status !== 200 && (await row(F1)).role === "expert" && !(await audits(F1)).some((a) => a.action === "role_changed" && a.new_value?.role === "admin"),
+      "N2: Owner bile işleme özel doğrulama olmadan yönetici yapamaz (fail-closed, rol değişmez)", promote);
+    // Yetki DÜŞÜRME (admin → expert) eskisi gibi doğrudan + role_changed denetimi.
+    const DEMOTE = await makeUser({ label: "DEMOTE", role: "admin", approval: "approved", active: true });
+    const dRow = await row(DEMOTE);
+    const demote = await call(userRoute.PATCH as Handler, "PATCH", DEMOTE, asOwner, { action: "edit", fullName: dRow.full_name, email: dRow.email, role: "expert" });
+    ok(demote.status === 200 && (await row(DEMOTE)).role === "expert" && (await audits(DEMOTE)).some((a) => a.action === "role_changed" && a.new_value?.role === "expert"),
+      "ana yönetici yetki düşürür + role_changed audit", demote);
 
     // ── G. MODULES (MEM-005/007/008) ─────────────────────────────────────────
     console.log("\n[G] Modül izinleri — whitelist + eşzamanlılık");

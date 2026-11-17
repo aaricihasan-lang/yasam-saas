@@ -96,15 +96,15 @@ async function main() {
   await t("F2-K (A3) sunucu: token yolu YALNIZ resmî uygulamanın iki sinyalli kanalı + header taşıması", () => {
     const H = (h: Record<string, string>) => new Headers(h);
     // Resmî uygulama (WebView UA + paket başlığı) → token yolu (varsayılan, geriye uyumlu).
-    assert.equal(isAndroidAppRequest(H({ "user-agent": ANDROID_WV_UA, "x-requested-with": "com.yasamsistemi.app", "x-requested-with": "com.yasamsistemi.app" }), {}), true);
+    assert.equal(isAndroidAppRequest(H({ "user-agent": ANDROID_WV_UA, "x-requested-with": "com.yasamsistemi.app" }), {}), true);
     assert.equal(isAndroidAppRequest(H({ "user-agent": ANDROID_NATIVE_UA, "x-yasam-client": "android" }), {}), true);
     // Uygulama içi tarayıcılar (yalnız `; wv)`), başka paket, yalnız ipucu, normal tarayıcılar → çerez yolu.
     assert.equal(isAndroidAppRequest(H({ "user-agent": "Mozilla/5.0 (Linux; Android 13; Pixel; wv) AppleWebKit Instagram" }), {}), false);
-    assert.equal(isAndroidAppRequest(H({ "user-agent": ANDROID_WV_UA, "x-requested-with": "com.yasamsistemi.app", "x-requested-with": "com.instagram.android" }), {}), false);
+    assert.equal(isAndroidAppRequest(H({ "user-agent": ANDROID_WV_UA, "x-requested-with": "com.instagram.android" }), {}), false);
     assert.equal(isAndroidAppRequest(H({ "user-agent": ANDROID_CHROME_UA, "x-yasam-client": "android" }), {}), false);
     assert.equal(isAndroidAppRequest(H({ "user-agent": WEB_UA, "x-yasam-client": "android", "x-requested-with": "com.yasamsistemi.app" }), {}), false);
     // Opt-in: resmî uygulama da HttpOnly çerez kullanır (gerçek cihaz kabulünden sonra Owner kararıyla).
-    assert.equal(isAndroidAppRequest(H({ "user-agent": ANDROID_WV_UA, "x-requested-with": "com.yasamsistemi.app", "x-requested-with": "com.yasamsistemi.app" }), { ANDROID_APP_SESSION_TRANSPORT: "cookie" }), false);
+    assert.equal(isAndroidAppRequest(H({ "user-agent": ANDROID_WV_UA, "x-requested-with": "com.yasamsistemi.app" }), { ANDROID_APP_SESSION_TRANSPORT: "cookie" }), false);
   });
 
   // ── 2) oturum kimlik bilgisi ─────────────────────────────────────────────────────────────

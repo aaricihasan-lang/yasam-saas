@@ -201,7 +201,8 @@ async function main() {
     const r = read("app/api/auth/session/route.ts");
     assert.ok(/\.\.\.\(webCookieOnly \? \{ sessionCookie: true \} : \{ sessionToken \}\)/.test(r));
     assert.ok(/const webCookieOnly = webCookieSession && readWebSessionTransport\(\) === "cookie";/.test(r));
-    assert.ok(/result\.channel !== "android_app" &&\s*!isAndroidAppRequest\(req\.headers\)/.test(r));
+    // F2-K (A3): android_app kanalı yalnız ANDROID_APP_SESSION_TRANSPORT=cookie (opt-in) iken çerez alır.
+    assert.ok(/\(result\.channel !== "android_app" \|\| androidAppSessionTransport\(\) === "cookie"\) &&\s*!isAndroidAppRequest\(req\.headers\)/.test(r));
   });
   await t("URL/query token geri gelmedi (session GET başlık/cookie)", () => {
     assert.ok(!/searchParams\.get\("token"\)/.test(read("app/api/auth/session/route.ts")));
