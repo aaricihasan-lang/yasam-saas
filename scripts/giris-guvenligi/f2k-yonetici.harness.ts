@@ -37,7 +37,7 @@ const WEB_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chr
 const WITHOUT_FIX = process.env.F2K_WITHOUT_FIX === "1";
 
 async function main() {
-  const { startF2cDb, U, EMAIL, pw } = await import("./testDb");
+  const { startF2cDb, U, EMAIL, pw, installAdminStandIns } = await import("./testDb");
   const db = await startF2cDb(WITHOUT_FIX ? { withF2j: true } : { withF2k: true });
   const { admin } = db;
   try {
@@ -47,32 +47,8 @@ async function main() {
       AUTH_MFA_METHODS: "qr_device,email_otp", AUTH_MFA_METHOD_SCOPE: "all", AUTH_MFA_EMAIL_ROLES: "expert,admin",
     });
     const q = (sql: string, a: unknown[] = []) => admin.query(sql, a);
-    // Sade karşılıklar (gerçek fonksiyonlar bu test veritabanında yok).
-    await q(`CREATE OR REPLACE FUNCTION public.hash_password(p_plain text) RETURNS text LANGUAGE sql SECURITY DEFINER
-             SET search_path = public, extensions AS $f$ SELECT crypt(p_plain, gen_salt('bf', 4)) $f$;
-             GRANT EXECUTE ON FUNCTION public.hash_password(text) TO service_role;`);
-    await q(`CREATE OR REPLACE FUNCTION public.admin_create_user_with_modules(p_payload jsonb, p_membership jsonb, p_modules jsonb, p_remove_keys text[])
-      RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_catalog AS $f$
-      DECLARE v uuid := gen_random_uuid(); r text := p_payload->>'role';
-      BEGIN
-        IF EXISTS (SELECT 1 FROM public.users WHERE lower(email) = lower(p_payload->>'email')) THEN
-          RETURN jsonb_build_object('outcome', 'already_exists');
-        END IF;
-        INSERT INTO public.users (id, email, role, tenant_id, active, approval_status, password_hash)
-        VALUES (v, lower(p_payload->>'email'), r, (SELECT tenant_id FROM public.users WHERE id = '${U.owner}'), r = 'admin', 'approved', p_payload->>'password_hash');
-        RETURN jsonb_build_object('outcome', 'provisioned', 'user_id', v);
-      END $f$;
-      GRANT EXECUTE ON FUNCTION public.admin_create_user_with_modules(jsonb, jsonb, jsonb, text[]) TO service_role;`);
-    await q(`CREATE OR REPLACE FUNCTION public.admin_set_user_active(p_user_id uuid, p_actor_admin_id uuid, p_active boolean, p_expected_active boolean DEFAULT NULL)
-      RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_catalog AS $f$
-      BEGIN
-        UPDATE public.users SET active = p_active WHERE id = p_user_id AND (p_expected_active IS NULL OR active IS NOT DISTINCT FROM p_expected_active);
-        IF NOT FOUND THEN RAISE EXCEPTION 'durum' USING ERRCODE = 'UY001'; END IF;
-        RETURN jsonb_build_object('ok', true, 'revoked_session_count', 0);
-      END $f$;
-      GRANT EXECUTE ON FUNCTION public.admin_set_user_active(uuid, uuid, boolean, boolean) TO service_role;`);
-    // Production gibi: yönetici denetim kaydı sunucu rolüyle yazılır (fixture bu yetkiyi içermiyor).
-    await q(`GRANT SELECT, INSERT ON public.admin_audit_log TO service_role`);
+    // Sade karşılıklar + denetim kaydı yetkisi (ortak: testDb.installAdminStandIns).
+    await installAdminStandIns(admin);
     // Owner: MFA zorunlu, etkin telefon, TAZE MFA'lı oturum (saldırganın çaldığı çerez).
     await q(`SELECT set_config('yasam.mfa_policy','on',false); UPDATE public.users SET mfa_required = true WHERE id = '${U.owner}'; SELECT set_config('yasam.mfa_policy','off',false);`);
     const odev = (await q(`INSERT INTO public.auth_trusted_devices (user_id, public_key_spki, key_fingerprint, display_code, state, activated_at)
@@ -183,6 +159,21 @@ async function main() {
       // Yetki düşürme (yönetici → uzman) kanıt istemez.
       const dn = await call(userRoute.PATCH, `${L}/${u2.id}`, "PATCH", { action: "edit", fullName: "Saldırgan Yönetici", email: NEW_ADMIN.email, role: "expert" }, { id: u2.id });
       ok(dn.status === 200 && (await userBy(NEW_ADMIN.email)).role === "expert", "yetki azaltma: yönetici → uzman kanıt İSTEMEZ", dn);
+
+      // ══ F2-L: ARAYÜZ YOLU — doğrulama penceresinin çağırdığı /api/admin/step-up 'admin_grant'ı başlatabilmeli ══
+      // (tarayıcı e2e'si bu route'un 400 döndüğünü yakaladı; DB çağıran testler göremiyordu).
+      const stepUpRoute = await import("@/app/api/admin/step-up/route");
+      const UI_ADMIN = { ...NEW_ADMIN, email: "k-arayuz@example.test" };
+      const c0 = await call(usersRoute.POST, L, "POST", UI_ADMIN);
+      const sb = await call(stepUpRoute.POST, "http://localhost/api/admin/step-up", "POST", { op: "begin", action: "admin_grant", targetId: c0.json.target });
+      const sq = (sb.json.qr ?? {}) as J;
+      ok(c0.status === 403 && sb.status === 200 && /^[0-9]{6}$/.test(String(sq.matchCode)), "F2-L arayüz yolu: /api/admin/step-up 'admin_grant' doğrulamasını BAŞLATIR", sb);
+      const nonce = /#c=[^&]+&n=([A-Za-z0-9_-]+)$/.exec(String(sq.url ?? ""))?.[1];
+      if (sb.status === 200 && nonce) {
+        await q(`SELECT public.auth_qr_decide($1, $2, $3, 'approve', $4)`, [sb.json.challengeId, nonce, odev, sq.matchCode]);
+      }
+      const c0b = await call(usersRoute.POST, L, "POST", UI_ADMIN);
+      ok(c0b.status === 201 && (await userBy(UI_ADMIN.email))?.role === "admin", "F2-L arayüz yolu: telefon onayından sonra yönetici oluşur", c0b);
 
       // ══ Owner MFA'sız / bayat oturumla: yetki verme yolu kapalı ══
       await q(`UPDATE public.user_sessions SET created_at = now() - interval '2 hours' WHERE session_token = $1`, [sid]);
