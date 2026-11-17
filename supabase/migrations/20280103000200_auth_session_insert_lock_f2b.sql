@@ -23,6 +23,21 @@
 -- =============================================================================
 
 BEGIN;
+-- >>> F2 MİGRATION KORUMASI (F2-J; üretici: scripts/giris-guvenligi/f2-migration-guard.mjs — elle değiştirmeyin)
+DO $f2guard$
+DECLARE
+  v_reg integer;
+BEGIN
+  -- 000200 doğrusal zincirin dışındadır (kod yayınından SONRA en son uygulanır); yalnız 000100 şarttır.
+  IF to_regprocedure('public.auth_f2_schema_level()') IS NOT NULL THEN
+    EXECUTE 'SELECT public.auth_f2_schema_level()' INTO v_reg;
+  END IF;
+  IF coalesce(v_reg, -1) < 100 OR to_regclass('public.auth_mfa_challenges') IS NULL THEN
+    RAISE EXCEPTION 'F2 MİGRATION KORUMASI: SIRA HATASI — 000200 için 000100 (MFA çekirdeği) gerekli (kayıt=%). Hiçbir değişiklik yapılmadı.',
+      coalesce(lpad(v_reg::text, 6, '0'), 'yok') USING ERRCODE = 'YF202';
+  END IF;
+END $f2guard$;
+-- <<< F2 MİGRATION KORUMASI
 
 REVOKE INSERT ON TABLE public.user_sessions FROM service_role, anon, authenticated, PUBLIC;
 

@@ -52,7 +52,17 @@ const TSX = [
   "scripts/giris-guvenligi/qr-encode.check.ts",
 ];
 
+// F2-J: migration yeniden / sırasız uygulama koruması (statik blok denetimi, üretilmiş katalog dosyalarının güncelliği,
+// 15 saldırı / hata senaryosu — gerçek embedded-postgres, prod varsayılan yetkileri taklit edilir).
+const NODE = [
+  ["scripts/giris-guvenligi/f2-migration-guard.mjs", "--denetle"],
+  ["scripts/giris-guvenligi/f2-katalog.mjs", "--denetle"],
+  ["scripts/giris-guvenligi/f2-migration-guard.harness.mjs"],
+];
+
 const steps = [
+  ...NODE.map(([f, ...a]) => ({ label: [f, ...a].join(" "), cmd: process.execPath, args: [f, ...a], env: {},
+    passRe: /:\s*[1-9][0-9]* PASS[ ,/]+0 FAIL/ })),
   ...PG.map((name) => ({ label: name, cmd: process.execPath, args: ["scripts/final-hardening/run-all.mjs", "--only", name], env: {},
     passRe: /final-hardening run-all: 1\/1 PASS/ })),
   ...(onlyPg ? [] : [

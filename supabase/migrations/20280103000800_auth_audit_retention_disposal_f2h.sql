@@ -30,6 +30,54 @@
 -- =============================================================================
 
 BEGIN;
+-- >>> F2 MİGRATION KORUMASI (F2-J; üretici: scripts/giris-guvenligi/f2-migration-guard.mjs — elle değiştirmeyin)
+DO $f2guard$
+DECLARE
+  v_me      constant integer := 800;
+  v_known   constant integer := 1000;
+  v_reg     integer;
+  v_fp      integer := -1;
+  v_missing text;
+  r         record;
+BEGIN
+  -- 1) Kayıt (her doğrusal F2 migration'ı COMMIT'ten önce yazar).
+  IF to_regprocedure('public.auth_f2_schema_level()') IS NOT NULL THEN
+    EXECUTE 'SELECT public.auth_f2_schema_level()' INTO v_reg;
+  END IF;
+  -- 2) Katalog parmak izleri (kayıttan bağımsız ikinci kaynak).
+  FOR r IN SELECT * FROM (VALUES
+      (0, to_regprocedure('public.auth_is_owner_admin(uuid)') IS NOT NULL),
+      (100, to_regclass('public.auth_mfa_challenges') IS NOT NULL),
+      (300, to_regclass('public.auth_trusted_devices') IS NOT NULL),
+      (400, to_regclass('public.auth_email_otps') IS NOT NULL),
+      (500, to_regclass('public.auth_recovery_codes') IS NOT NULL),
+      (600, EXISTS (SELECT 1 FROM pg_catalog.pg_proc p JOIN pg_catalog.pg_namespace n ON n.oid = p.pronamespace WHERE n.nspname = 'public' AND p.proname = 'auth_owner_session_stale')),
+      (700, to_regclass('public.auth_audit_retention_policy') IS NOT NULL),
+      (800, to_regclass('public.auth_retention_holds') IS NOT NULL),
+      (900, to_regprocedure('public.user_sessions_user_id_immutable()') IS NOT NULL),
+      (1000, to_regclass('public.auth_session_device_proofs') IS NOT NULL)
+    ) AS t(lvl, present) ORDER BY lvl LOOP
+    IF r.present THEN
+      v_fp := greatest(v_fp, r.lvl);
+    ELSIF r.lvl < v_me THEN
+      v_missing := concat_ws(',', v_missing, lpad(r.lvl::text, 6, '0'));
+    END IF;
+  END LOOP;
+  IF coalesce(v_reg, -1) > v_me OR v_fp > v_me THEN
+    RAISE EXCEPTION 'F2 MİGRATION KORUMASI: % daha yeni bir F2 aşamasının üzerine YENİDEN UYGULANAMAZ (kayıt=%, katalog=%). Owner korumalı fonksiyonlar eski gövdeye dönerdi; hiçbir değişiklik yapılmadı.',
+      lpad(v_me::text, 6, '0'), coalesce(lpad(v_reg::text, 6, '0'), 'yok'), lpad(greatest(v_fp, 0)::text, 6, '0')
+      USING ERRCODE = 'YF201';
+  END IF;
+  IF v_missing IS NOT NULL THEN
+    RAISE EXCEPTION 'F2 MİGRATION KORUMASI: SIRA HATASI — % uygulanmadan önce eksik aşama(lar): %. Hiçbir değişiklik yapılmadı.',
+      lpad(v_me::text, 6, '0'), v_missing USING ERRCODE = 'YF202';
+  END IF;
+  IF (v_reg IS NULL AND v_fp >= 0) OR (v_reg IS NOT NULL AND v_reg <= v_known AND v_reg <> v_fp) THEN
+    RAISE EXCEPTION 'F2 MİGRATION KORUMASI: ŞEMA SAPMASI — kayıt (%) ile katalog parmak izi (%) çelişiyor; insan incelemesi gerekli. Hiçbir değişiklik yapılmadı.',
+      coalesce(lpad(v_reg::text, 6, '0'), 'yok'), lpad(greatest(v_fp, 0)::text, 6, '0') USING ERRCODE = 'YF203';
+  END IF;
+END $f2guard$;
+-- <<< F2 MİGRATION KORUMASI
 
 -- ── 1) Step-up işlem listesi: + retention_policy / retention_execute ──────────
 ALTER TABLE public.auth_mfa_challenges DROP CONSTRAINT IF EXISTS auth_mfa_challenges_step_up_chk;
@@ -620,4 +668,10 @@ END $$;
 REVOKE ALL ON FUNCTION public.auth_retention_overview(text) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.auth_retention_overview(text) TO service_role;
 
+-- >>> F2 ŞEMA DÜZEYİ KAYDI (F2-J; üretici: scripts/giris-guvenligi/f2-migration-guard.mjs — elle değiştirmeyin)
+CREATE OR REPLACE FUNCTION public.auth_f2_schema_level() RETURNS integer
+LANGUAGE sql IMMUTABLE SET search_path = '' AS $f2lvl$ SELECT 800 $f2lvl$;
+REVOKE ALL ON FUNCTION public.auth_f2_schema_level() FROM PUBLIC, anon, authenticated, service_role;
+COMMENT ON FUNCTION public.auth_f2_schema_level() IS 'F2 giriş güvenliği şema düzeyi (migration yeniden uygulama korumasının kaydı). Yalnız F2 migration''ları yazar.';
+-- <<< F2 ŞEMA DÜZEYİ KAYDI
 COMMIT;
