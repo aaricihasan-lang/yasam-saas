@@ -43,6 +43,7 @@ const F2F_MIGRATION = "20280103000600_auth_purge_audit_retention_f2f.sql";
 const F2G_MIGRATION = "20280103000700_auth_owner_step_up_f2g.sql";
 const F2H_MIGRATION = "20280103000800_auth_audit_retention_disposal_f2h.sql";
 const F2I_MIGRATION = "20280103000900_auth_security_hardening_f2i.sql";
+const F2J_MIGRATION = "20280103001000_auth_session_device_binding_f2j.sql";
 
 const TZ_SENSITIVE = new Set(["foundation", "word-tz", "dy", "backup", "hday"]);
 
@@ -234,12 +235,18 @@ const STEPS = [
   // YAYIN SIRASI — bugünkü TAM zincir (000000…000900; 000200 en sonda): eski kod migration'lardan sonra çalışır, 000200
   // sonrası yeni yol, eski koda geri dönüşte MFA atlatma yok (17.11 yeniden doğrulama).
   ["pg:deploy-order-f2-pre-full", ...pg([...F2_BASE_FIXTURES, ...F2_ALL_MIGRATIONS.filter((m) => !m.startsWith("20280103000200")).map(M)],
-    [F2F_MIGRATION, F2G_MIGRATION, F2H_MIGRATION, F2I_MIGRATION], ["deploy-order-f2-pre-assert.sql"])],
+    [F2F_MIGRATION, F2G_MIGRATION, F2H_MIGRATION, F2I_MIGRATION, F2J_MIGRATION], ["deploy-order-f2-pre-assert.sql"])],
   ["pg:deploy-order-f2-post-full", ...pg([...F2_BASE_FIXTURES, ...F2_ALL_MIGRATIONS.filter((m) => !m.startsWith("20280103000200")).map(M),
-    M(F2F_MIGRATION), M(F2G_MIGRATION), M(F2H_MIGRATION), M(F2I_MIGRATION)], ["20280103000200_auth_session_insert_lock_f2b.sql"], ["deploy-order-f2-post-assert.sql"])],
+    M(F2F_MIGRATION), M(F2G_MIGRATION), M(F2H_MIGRATION), M(F2I_MIGRATION), M(F2J_MIGRATION)], ["20280103000200_auth_session_insert_lock_f2b.sql"], ["deploy-order-f2-post-assert.sql"])],
   ["pg:deploy-order-f2-rollback-full", ...pg([...F2_BASE_FIXTURES, ...F2_ALL_MIGRATIONS.filter((m) => !m.startsWith("20280103000200")).map(M), M(F2F_MIGRATION)],
-    [F2G_MIGRATION, F2H_MIGRATION, F2I_MIGRATION, "20280103000200_auth_session_insert_lock_f2b.sql"], ["deploy-order-f2-rollback-assert.sql"])],
-  ["pg:f2-postflight", ...pg([...F2_BASE_FIXTURES, ...F2_ALL_MIGRATIONS.map(M), M(F2F_MIGRATION), M(F2G_MIGRATION), M(F2H_MIGRATION)], [F2I_MIGRATION], ["../../giris-guvenligi/f2-postflight-check.sql"])],
+    [F2G_MIGRATION, F2H_MIGRATION, F2I_MIGRATION, F2J_MIGRATION, "20280103000200_auth_session_insert_lock_f2b.sql"], ["deploy-order-f2-rollback-assert.sql"])],
+  ["pg:f2-postflight", ...pg([...F2_BASE_FIXTURES, ...F2_ALL_MIGRATIONS.map(M), M(F2F_MIGRATION), M(F2G_MIGRATION), M(F2H_MIGRATION), M(F2I_MIGRATION)], [F2J_MIGRATION], ["../../giris-guvenligi/f2-postflight-check.sql"])],
+  // F2-J: Android yönetici oturumu cihaz kanıtı, kanal tutarlılığı, eski süresiz oturum geçişi + önceki sözleşmeler 001000 üstünde.
+  ["pg:session-f2j", ...pg([...F2_BASE_FIXTURES, ...F2_ALL_MIGRATIONS.map(M), M(F2F_MIGRATION), M(F2G_MIGRATION), M(F2H_MIGRATION), M(F2I_MIGRATION)], [F2J_MIGRATION], ["session-f2j-assert.sql"])],
+  ["pg:session-f2i-on-f2j", ...pg([...F2_BASE_FIXTURES, ...F2_ALL_MIGRATIONS.map(M), M(F2F_MIGRATION), M(F2G_MIGRATION), M(F2H_MIGRATION)], [F2I_MIGRATION, F2J_MIGRATION], ["session-f2i-assert.sql"])],
+  ["pg:session-f2g-on-f2j", ...pg([...F2_BASE_FIXTURES, ...F2_ALL_MIGRATIONS.map(M), M(F2F_MIGRATION)], [F2G_MIGRATION, F2H_MIGRATION, F2I_MIGRATION, F2J_MIGRATION], ["session-f2g-assert.sql"])],
+  ["pg:session-f2b-on-f2j", ...pg([...F2_BASE_FIXTURES, ...F2_ALL_MIGRATIONS.map(M), M(F2F_MIGRATION), M(F2G_MIGRATION), M(F2H_MIGRATION), M(F2I_MIGRATION)], [F2J_MIGRATION], ["session-f2b-assert.sql"])],
+  ["pg:session-f2a-on-f2j", ...pg([...F2_BASE_FIXTURES, ...F2_ALL_MIGRATIONS.map(M), M(F2F_MIGRATION), M(F2G_MIGRATION), M(F2H_MIGRATION), M(F2I_MIGRATION)], [F2J_MIGRATION], ["session-f2a-assert.sql"])],
   ["pg:session-f2g-on-f2i", ...pg([...F2_BASE_FIXTURES, ...F2_ALL_MIGRATIONS.map(M), M(F2F_MIGRATION)], [F2G_MIGRATION, F2H_MIGRATION, F2I_MIGRATION], ["session-f2g-assert.sql"])],
 ];
 

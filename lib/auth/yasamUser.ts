@@ -1,6 +1,7 @@
 /** Oturum — Supabase `login_user` RPC / users tablosundan gelen rol ile */
 
 import { runLogoutCleanups } from "@/lib/auth/logoutCleanup";
+import { requestSessionDeviceBind, supportsSessionDeviceBind } from "@/lib/auth/androidSessionBind";
 import { hasExpertMembershipAccess } from "@/lib/auth/membership";
 import {
   isExpertReady,
@@ -558,10 +559,16 @@ async function refreshYasamUserOutcome(user: YasamUser): Promise<YasamUserSyncOu
   await ensureWebCookieSession();
 
   try {
-    const res = await fetch("/api/auth/profile", {
+    const fetchProfile = () => fetch("/api/auth/profile", {
       headers: { "x-user-id": user.id, ...sessionTokenHeader(token) },
       cache: "no-store",
     });
+    let res = await fetchProfile();
+    // F2-J: Android uygulamasında (2.0.0+) yönetici oturumunun 24 saatlik cihaz kanıtı bayatlamış olabilir →
+    // telefonla bir kez yeniden kanıt (biyometri) ve tek tekrar. Başarısızsa normal 401 akışı (yeniden giriş).
+    if (res.status === 401 && token && supportsSessionDeviceBind()) {
+      if ((await requestSessionDeviceBind(token)) === "bound") res = await fetchProfile();
+    }
 
     if (!res.ok) {
       console.error("Kullanıcı kaydı yenilenemedi:", res.status);
