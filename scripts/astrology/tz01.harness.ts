@@ -122,6 +122,35 @@ t("B: yeni gap/ambiguous örnekleri (Kampala 1948/1957 gap, Oslo 1959 gap + ambi
   assert.equal(later.kind, "ok");
 });
 
+// ATL-TZ-2026F (17.11.2026): cutoff sonrası ofset kaynağı artık sürümü sabitlenmiş IANA 2026f tablosu (tzIana.generated.ts).
+// Çalışma ortamının Intl'i (Node 24.15 = tz 2026a) yalnız IANA 2026b–2026f'nin değiştirdiği aralıklarda farklı olabilir
+// (IANA NEWS); oradaki doğru değer tz-iana-2026f harness'ında zoneinfo 2026f'ye karşı sınanır. Bu aralıkların DIŞINDA eski
+// Intl yoluyla birebirlik aynen aranır. Aralıklar ±2 gün payla (±36 sa yoklama).
+const BR_1965_66: [string, string][] = [["1965-03-31", "1965-04-01"], ["1966-03-01", "1966-03-01"]];
+const TZ_2026F_CHANGES: Record<string, [string, string][]> = {
+  "America/Havana": [["2026-11-01", "2027-03-14"]],
+  "America/Winnipeg": [["2026-11-01", "2100-12-31"]],
+  "America/Edmonton": [["2026-11-01", "2100-12-31"]],
+  "America/Vancouver": [["2026-11-01", "2100-12-31"]],
+  "Africa/Casablanca": [["2026-09-20", "2100-12-31"]],
+  "Africa/El_Aaiun": [["2026-09-20", "2100-12-31"]],
+  "America/Bogota": [["1992-05-02", "1992-05-03"]],
+  "Asia/Tehran": [["1979-05-25", "1979-05-26"]],
+  "Europe/Dublin": [["1925-09-20", "1925-10-04"]],
+  ...Object.fromEntries(
+    ["Araguaina", "Bahia", "Belem", "Boa_Vista", "Campo_Grande", "Cuiaba", "Eirunepe", "Fortaleza", "Maceio", "Manaus", "Porto_Velho", "Recife", "Rio_Branco", "Santarem", "Sao_Paulo"].map((c) => [`America/${c}`, BR_1965_66]),
+  ),
+};
+let changedByIana2026f = 0;
+function assertSameAsIntl(ms: number, z: string, label: string) {
+  const got = sig(resolveNaive(ms, z));
+  const old = oldResolve(ms, z);
+  if (got === old) return;
+  const inChange = (TZ_2026F_CHANGES[z] ?? []).some(([a, b]) => ms >= Date.parse(`${a}T00:00:00Z`) - 2 * 86_400_000 && ms < Date.parse(`${b}T00:00:00Z`) + 3 * 86_400_000);
+  assert.ok(inChange, `${label}: ${got} ≠ Intl ${old} (IANA 2026f değişiklik aralığı dışında)`);
+  changedByIana2026f += 1;
+}
+
 t("C: 81 il + 973 ilçe + tablo dışı bölgeler 1880–2026 eski Intl yoluyla birebir; tablodaki bölgeler cutoff sonrası aynı", () => {
   const tr = [...readFileSync(join(ROOT, "lib/location/tr.ts"), "utf8").matchAll(/tz:\s*"([^"]+)"/g)].map((m) => m[1]);
   const districts = JSON.stringify(JSON.parse(readFileSync(join(ROOT, "lib/human-design/location/trDistricts.generated.json"), "utf8")));
@@ -143,17 +172,17 @@ t("C: 81 il + 973 ilçe + tablo dışı bölgeler 1880–2026 eski Intl yoluyla 
   }
   for (const z of outside) {
     for (let ms = Date.UTC(1880, 0, 1, 1, 30); ms < Date.UTC(2026, 11, 31); ms += step) {
-      assert.equal(sig(resolveNaive(ms, z)), oldResolve(ms, z), `${z} ${new Date(ms).toISOString()}`);
+      assertSameAsIntl(ms, z, `${z} ${new Date(ms).toISOString()}`);
       n += 1;
     }
   }
   for (const [z, v] of Object.entries(TZ_BACKZONE_OVERLAY)) {
     for (let ms = v.cutoff * 1000 + 2 * 86_400_000; ms < Date.UTC(2026, 11, 31); ms += step) {
-      assert.equal(sig(resolveNaive(ms, z)), oldResolve(ms, z), `${z} cutoff sonrası ${new Date(ms).toISOString()}`);
+      assertSameAsIntl(ms, z, `${z} cutoff sonrası ${new Date(ms).toISOString()}`);
       n += 1;
     }
   }
-  console.log(`     ${n} nokta; tablo dışı ${outside.length} bölge`);
+  console.log(`     ${n} nokta; tablo dışı ${outside.length} bölge; IANA 2026f değişiklik aralığında Intl'den farklı ${changedByIana2026f}`);
 });
 
 t("D: tablo başlığı — IANA 2026e, SHA-256, 91 bölge / 721 geçiş; Europe/Istanbul yok; cutoff ≤ 1970", () => {
