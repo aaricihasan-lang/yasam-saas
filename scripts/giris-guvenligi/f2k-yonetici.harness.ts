@@ -37,7 +37,7 @@ const WEB_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chr
 const WITHOUT_FIX = process.env.F2K_WITHOUT_FIX === "1";
 
 async function main() {
-  const { startF2cDb, U, EMAIL, pw } = await import("./testDb");
+  const { startF2cDb, U, EMAIL, pw, installAdminStandIns } = await import("./testDb");
   const db = await startF2cDb(WITHOUT_FIX ? { withF2j: true } : { withF2k: true });
   const { admin } = db;
   try {
@@ -47,32 +47,8 @@ async function main() {
       AUTH_MFA_METHODS: "qr_device,email_otp", AUTH_MFA_METHOD_SCOPE: "all", AUTH_MFA_EMAIL_ROLES: "expert,admin",
     });
     const q = (sql: string, a: unknown[] = []) => admin.query(sql, a);
-    // Sade karşılıklar (gerçek fonksiyonlar bu test veritabanında yok).
-    await q(`CREATE OR REPLACE FUNCTION public.hash_password(p_plain text) RETURNS text LANGUAGE sql SECURITY DEFINER
-             SET search_path = public, extensions AS $f$ SELECT crypt(p_plain, gen_salt('bf', 4)) $f$;
-             GRANT EXECUTE ON FUNCTION public.hash_password(text) TO service_role;`);
-    await q(`CREATE OR REPLACE FUNCTION public.admin_create_user_with_modules(p_payload jsonb, p_membership jsonb, p_modules jsonb, p_remove_keys text[])
-      RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_catalog AS $f$
-      DECLARE v uuid := gen_random_uuid(); r text := p_payload->>'role';
-      BEGIN
-        IF EXISTS (SELECT 1 FROM public.users WHERE lower(email) = lower(p_payload->>'email')) THEN
-          RETURN jsonb_build_object('outcome', 'already_exists');
-        END IF;
-        INSERT INTO public.users (id, email, role, tenant_id, active, approval_status, password_hash)
-        VALUES (v, lower(p_payload->>'email'), r, (SELECT tenant_id FROM public.users WHERE id = '${U.owner}'), r = 'admin', 'approved', p_payload->>'password_hash');
-        RETURN jsonb_build_object('outcome', 'provisioned', 'user_id', v);
-      END $f$;
-      GRANT EXECUTE ON FUNCTION public.admin_create_user_with_modules(jsonb, jsonb, jsonb, text[]) TO service_role;`);
-    await q(`CREATE OR REPLACE FUNCTION public.admin_set_user_active(p_user_id uuid, p_actor_admin_id uuid, p_active boolean, p_expected_active boolean DEFAULT NULL)
-      RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_catalog AS $f$
-      BEGIN
-        UPDATE public.users SET active = p_active WHERE id = p_user_id AND (p_expected_active IS NULL OR active IS NOT DISTINCT FROM p_expected_active);
-        IF NOT FOUND THEN RAISE EXCEPTION 'durum' USING ERRCODE = 'UY001'; END IF;
-        RETURN jsonb_build_object('ok', true, 'revoked_session_count', 0);
-      END $f$;
-      GRANT EXECUTE ON FUNCTION public.admin_set_user_active(uuid, uuid, boolean, boolean) TO service_role;`);
-    // Production gibi: yönetici denetim kaydı sunucu rolüyle yazılır (fixture bu yetkiyi içermiyor).
-    await q(`GRANT SELECT, INSERT ON public.admin_audit_log TO service_role`);
+    // Sade karşılıklar + denetim kaydı yetkisi (ortak: testDb.installAdminStandIns).
+    await installAdminStandIns(admin);
     // Owner: MFA zorunlu, etkin telefon, TAZE MFA'lı oturum (saldırganın çaldığı çerez).
     await q(`SELECT set_config('yasam.mfa_policy','on',false); UPDATE public.users SET mfa_required = true WHERE id = '${U.owner}'; SELECT set_config('yasam.mfa_policy','off',false);`);
     const odev = (await q(`INSERT INTO public.auth_trusted_devices (user_id, public_key_spki, key_fingerprint, display_code, state, activated_at)
