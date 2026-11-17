@@ -34,7 +34,7 @@ const PG = [
   "pg:session-f2i", "pg:session-f2h-on-f2i", "pg:session-f2g-on-f2i", "pg:f2-postflight", "session-f2i-hold-race",
   "pg:deploy-order-f2-pre-full", "pg:deploy-order-f2-post-full", "pg:deploy-order-f2-rollback-full", "assetlinks-araci",
   // F2-J: Android yönetici oturumu cihaz kanıtı + kanal + eski oturum geçişi; önceki sözleşmeler 001000 üstünde.
-  "pg:session-f2j", "pg:session-f2i-on-f2j", "pg:session-f2g-on-f2j", "pg:session-f2b-on-f2j", "pg:session-f2a-on-f2j",
+  "pg:session-f2j", "pg:session-f2i-on-f2j", "pg:session-f2g-on-f2j", "pg:session-f2a-on-f2j",
 ];
 const TSX = [
   // Varsayılan veritabanları: yeni kod, kendi fazının migration'larıyla (kod migration'dan önce yayına çıkarsa).

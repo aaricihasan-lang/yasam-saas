@@ -85,7 +85,7 @@ async function main() {
       const l = await call(sessionRoute.POST, `${L}/api/auth/session`, "POST", { email: EMAIL.owner, password: `parola-${EMAIL.owner.split("@")[0]}` }, headers);
       const ch = String(l.json.challengeId);
       const bind = String(l.json.mfaBinding ?? "");
-      const bh = bind ? { "x-yasam-mfa-binding": bind } : {};
+      const bh: Record<string, string> = bind ? { "x-yasam-mfa-binding": bind } : {};
       await call(sendRoute.POST, `${L}/api/auth/mfa/email/send`, "POST", { challengeId: ch }, { ...headers, ...bh });
       await call(verifyRoute.POST, `${L}/api/auth/mfa/email/verify`, "POST", { challengeId: ch, code: lastCode(EMAIL.owner) }, { ...headers, ...bh });
       const c = await call(completeRoute.POST, `${L}/api/auth/mfa/complete`, "POST", { challengeId: ch }, { ...completeHeaders, ...bh });

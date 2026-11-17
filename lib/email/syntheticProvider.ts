@@ -15,8 +15,27 @@ export function syntheticOutbox(): readonly SyntheticMail[] {
   return outbox;
 }
 
+/**
+ * F2-J (L3): sentetik sağlayıcı FAIL-CLOSED — yalnız AÇIKÇA izin verilmiş YEREL test ortamında seçilebilir:
+ *   EMAIL_SYNTHETIC_ALLOW=1  VE  VERCEL_ENV üretim/önizleme DEĞİL  VE  veritabanı adresi (NEXT_PUBLIC_SUPABASE_URL)
+ *   yerel döngü adresi (127.0.0.1 / localhost / ::1). Yanlış yapılandırılmış üretim, Vercel önizlemesi, kendi
+ *   sunucusunda üretim veya üretim veritabanına bağlı bir önizleme → sağlayıcı YOK (e-posta yöntemi sunulmaz).
+ */
+export function syntheticEmailAllowed(env: Env = process.env): boolean {
+  if (String(env.EMAIL_SYNTHETIC_ALLOW ?? "") !== "1") return false;
+  const vercel = String(env.VERCEL_ENV ?? "").trim().toLowerCase();
+  if (vercel === "production" || vercel === "preview") return false;
+  let host = "";
+  try {
+    host = new URL(String(env.NEXT_PUBLIC_SUPABASE_URL ?? "")).hostname.toLowerCase();
+  } catch {
+    return false;
+  }
+  return host === "127.0.0.1" || host === "localhost" || host === "[::1]" || host === "::1";
+}
+
 export function createSyntheticProvider(env: Env = process.env): EmailProvider | null {
-  if (String(env.VERCEL_ENV ?? "") === "production") return null;
+  if (!syntheticEmailAllowed(env)) return null;
   return {
     name: "synthetic",
     async send(msg) {

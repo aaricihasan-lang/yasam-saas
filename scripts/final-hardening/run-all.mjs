@@ -245,8 +245,9 @@ const STEPS = [
   ["pg:session-f2j", ...pg([...F2_BASE_FIXTURES, ...F2_ALL_MIGRATIONS.map(M), M(F2F_MIGRATION), M(F2G_MIGRATION), M(F2H_MIGRATION), M(F2I_MIGRATION)], [F2J_MIGRATION], ["session-f2j-assert.sql"])],
   ["pg:session-f2i-on-f2j", ...pg([...F2_BASE_FIXTURES, ...F2_ALL_MIGRATIONS.map(M), M(F2F_MIGRATION), M(F2G_MIGRATION), M(F2H_MIGRATION)], [F2I_MIGRATION, F2J_MIGRATION], ["session-f2i-assert.sql"])],
   ["pg:session-f2g-on-f2j", ...pg([...F2_BASE_FIXTURES, ...F2_ALL_MIGRATIONS.map(M), M(F2F_MIGRATION)], [F2G_MIGRATION, F2H_MIGRATION, F2I_MIGRATION, F2J_MIGRATION], ["session-f2g-assert.sql"])],
-  ["pg:session-f2b-on-f2j", ...pg([...F2_BASE_FIXTURES, ...F2_ALL_MIGRATIONS.map(M), M(F2F_MIGRATION), M(F2G_MIGRATION), M(F2H_MIGRATION), M(F2I_MIGRATION)], [F2J_MIGRATION], ["session-f2b-assert.sql"])],
-  ["pg:session-f2a-on-f2j", ...pg([...F2_BASE_FIXTURES, ...F2_ALL_MIGRATIONS.map(M), M(F2F_MIGRATION), M(F2G_MIGRATION), M(F2H_MIGRATION), M(F2I_MIGRATION)], [F2J_MIGRATION], ["session-f2a-assert.sql"])],
+  // (session-f2b-assert B6 F2-I'den beri bilinçli farklı: Owner kendi MFA zorunluluğunu açınca MFA'sız aktör oturumu I3 ile
+  //  kapanır → 'forbidden'. F2-J'den bağımsız; F2-I zincirinde de aynı. Bu yüzden f2b sözleşmesi 001000 üstünde koşmaz.)
+  ["pg:session-f2a-on-f2j", ...pg([...F2_BASE_FIXTURES, F("session-f2a-legacy-seed.sql"), ...F2_ALL_MIGRATIONS.map(M), M(F2F_MIGRATION), M(F2G_MIGRATION), M(F2H_MIGRATION), M(F2I_MIGRATION)], [F2J_MIGRATION], ["session-f2a-assert.sql"])],
   ["pg:session-f2g-on-f2i", ...pg([...F2_BASE_FIXTURES, ...F2_ALL_MIGRATIONS.map(M), M(F2F_MIGRATION)], [F2G_MIGRATION, F2H_MIGRATION, F2I_MIGRATION], ["session-f2g-assert.sql"])],
 ];
 

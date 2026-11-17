@@ -63,7 +63,7 @@ async function main() {
       AUTH_MFA_METHODS: "qr_device,email_otp",
       AUTH_MFA_METHOD_SCOPE: "all",
       AUTH_MFA_EMAIL_ROLES: "expert,admin",
-      EMAIL_PROVIDER: "synthetic",
+      EMAIL_PROVIDER: "synthetic", EMAIL_SYNTHETIC_ALLOW: "1",
       AUTH_OTP_PEPPER: PEPPER,
     });
     delete process.env.SESSION_EXPIRY_ENFORCE;

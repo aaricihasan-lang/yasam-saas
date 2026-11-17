@@ -107,7 +107,7 @@ async function main() {
     AUTH_MFA_METHODS: "qr_device,email_otp",
     AUTH_MFA_METHOD_SCOPE: "all",
     AUTH_MFA_EMAIL_ROLES: "expert,admin",
-    EMAIL_PROVIDER: "synthetic",
+    EMAIL_PROVIDER: "synthetic", EMAIL_SYNTHETIC_ALLOW: "1",
     EMAIL_SYNTHETIC_SINK: SINK,
     AUTH_OTP_PEPPER: "f2e-ui-pepper-0123456789abcdefghijklmnopqrstu",
     NEXT_TELEMETRY_DISABLED: "1",

@@ -9,7 +9,7 @@
  * Gizli değerler loglanmaz; hata yalnız kısa KOD olarak döner.
  */
 import { createGmailProvider } from "@/lib/email/gmailProvider";
-import { createSyntheticProvider } from "@/lib/email/syntheticProvider";
+import { createSyntheticProvider, syntheticEmailAllowed } from "@/lib/email/syntheticProvider";
 
 export type EmailMessage = {
   to: string;
@@ -49,11 +49,11 @@ let cached: { key: string; provider: EmailProvider | null } | null = null;
 /** Yapılandırılmış sağlayıcı; yoksa/geçersizse null (e-posta yöntemi SUNULMAZ). */
 export function getEmailProvider(env: Env = process.env): EmailProvider | null {
   const mode = String(env.EMAIL_PROVIDER ?? "disabled").trim().toLowerCase();
-  const key = `${mode}|${env.VERCEL_ENV ?? ""}|${env.GMAIL_SENDER ?? ""}`;
+  const key = `${mode}|${env.VERCEL_ENV ?? ""}|${env.GMAIL_SENDER ?? ""}|${env.EMAIL_SYNTHETIC_ALLOW ?? ""}|${env.NEXT_PUBLIC_SUPABASE_URL ?? ""}`;
   if (cached && cached.key === key && env === process.env) return cached.provider;
   let provider: EmailProvider | null = null;
   if (mode === "gmail") provider = createGmailProvider(env);
-  else if (mode === "synthetic" && !isProductionEnv(env)) provider = createSyntheticProvider(env);
+  else if (mode === "synthetic" && syntheticEmailAllowed(env)) provider = createSyntheticProvider(env);
   if (env === process.env) cached = { key, provider };
   return provider;
 }

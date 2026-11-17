@@ -567,6 +567,8 @@ export const BACKUP_REGISTRY: readonly RegistryEntry[] = [
   // GİRİŞ GÜVENLİĞİ F2-H (migration 20280103000800): kontrollü imha çalıştırmaları, yasal saklama, imha kaydı.
   off("auth_retention_runs", "system", "Denetim kaydı imha / anonimleştirme çalıştırmaları (güvenlik).", "none"),
   off("auth_retention_holds", "system", "Yasal saklama (imhadan muaf kişi / cihaz).", "none"),
+  off("auth_session_device_proofs", "system", "Android yönetici oturumu cihaz kanıtı nonce'ları (tek kullanımlık, güvenlik).", "none"),
+  off("auth_legacy_session_policy", "system", "Eski süresiz Android oturumları geçiş politikası (tek satır, güvenlik).", "none"),
   off("auth_retention_context", "system", "Yürüyen imha işaretçisi (işlem içi; kalıcı satır yok).", "none"),
   off("auth_retention_log", "system", "İmha / saklama işlem kaydı (değiştirilemez; kişisel veri yok).", "none"),
   // Migration 20271009100000: purge transaction'ına bağlı işaret; aynı tx'te yazılıp silinir, hiçbir role açık değil.
