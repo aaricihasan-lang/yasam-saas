@@ -480,6 +480,267 @@ REVOKE ALL ON FUNCTION public.auth_qr_decide(uuid, text, uuid, text, text) FROM 
 GRANT EXECUTE ON FUNCTION public.auth_qr_decide(uuid, text, uuid, text, text) TO service_role;
 
 
+-- ── K3 (O5) Bekleyen cihaz eşleştirmesi: 15 dakika geçerlilik (Owner kararı 17.11) ─────────────────────────────
+-- Süre dolan talep 'expired' olur (onaylanmış SAYILMAZ); satır, karar geçmişi ve güvenlik olayları korunur. Aynı anahtarla
+-- tekrar idempotenttir; süre dolunca yeni talep açılabilir (kalıcı kilit yok). Geçiş: mevcut eski 'pending_owner'
+-- satırları migration'da DEĞİŞTİRİLMEZ; ilk etkileşimde (yeni talep / durum / Owner kararı) tembel olarak kapanır.
+CREATE OR REPLACE FUNCTION public.auth_device_pending_expire(p_user_id uuid, p_device_id uuid)
+RETURNS integer
+LANGUAGE plpgsql
+VOLATILE
+SECURITY DEFINER
+SET search_path = ''
+AS $f2k$
+DECLARE
+  v_n integer := 0;
+  r   record;
+BEGIN
+  FOR r IN UPDATE public.auth_trusted_devices SET state = 'expired', revoke_reason = 'pending_ttl'
+            WHERE state = 'pending_owner' AND created_at <= now() - interval '15 minutes'
+              AND ((p_user_id IS NOT NULL AND user_id = p_user_id) OR (p_device_id IS NOT NULL AND id = p_device_id))
+            RETURNING id, user_id, display_code LOOP
+    v_n := v_n + 1;
+    INSERT INTO public.security_events (user_id, event_type, severity, message, metadata)
+    VALUES (r.user_id, 'device_enroll_expired', 'medium', 'Cihaz eşleştirme isteği 15 dakikada onaylanmadı; kapandı',
+            jsonb_build_object('device_id', r.id, 'display_code', r.display_code));
+  END LOOP;
+  RETURN v_n;
+END $f2k$;
+REVOKE ALL ON FUNCTION public.auth_device_pending_expire(uuid, uuid) FROM PUBLIC, anon, authenticated, service_role;
+
+-- Fail-closed: süresi geçmiş bekleyen talep HİÇBİR yoldan onaylanamaz.
+CREATE OR REPLACE FUNCTION public.auth_trusted_devices_pending_ttl_guard()
+RETURNS trigger
+LANGUAGE plpgsql
+SET search_path = ''
+AS $f2k$
+BEGIN
+  IF OLD.state = 'pending_owner' AND NEW.state IN ('owner_approved', 'active') AND OLD.created_at <= now() - interval '15 minutes' THEN
+    RAISE EXCEPTION 'auth_trusted_devices: eşleştirme isteğinin süresi doldu' USING ERRCODE = 'P0001';
+  END IF;
+  RETURN NEW;
+END $f2k$;
+REVOKE ALL ON FUNCTION public.auth_trusted_devices_pending_ttl_guard() FROM PUBLIC, anon, authenticated, service_role;
+DROP TRIGGER IF EXISTS trg_auth_trusted_devices_pending_ttl_guard ON public.auth_trusted_devices;
+CREATE TRIGGER trg_auth_trusted_devices_pending_ttl_guard
+  BEFORE UPDATE ON public.auth_trusted_devices
+  FOR EACH ROW EXECUTE FUNCTION public.auth_trusted_devices_pending_ttl_guard();
+
+CREATE OR REPLACE FUNCTION public.auth_device_enroll_begin(
+  p_user_id          uuid,
+  p_public_key_spki  text,
+  p_key_fingerprint  text,
+  p_display_code     text,
+  p_device_model     text,
+  p_android_api      integer,
+  p_app_version      text,
+  p_ip_hash          text,
+  p_bootstrap_hash   text,
+  p_presence_key_spki text DEFAULT NULL
+) RETURNS jsonb
+LANGUAGE plpgsql
+VOLATILE
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  v_now    timestamptz := now();
+  v_user   public.users%ROWTYPE;
+  v_active integer;
+  v_boot   public.auth_owner_bootstrap_codes%ROWTYPE;
+  v_id     uuid;
+  v_state  text := 'pending_owner';
+  v_nonce  text;
+BEGIN
+  IF p_user_id IS NULL OR p_public_key_spki IS NULL OR p_key_fingerprint IS NULL OR p_display_code IS NULL THEN
+    RETURN jsonb_build_object('ok', false, 'reason', 'bad_request');
+  END IF;
+  PERFORM pg_advisory_xact_lock(hashtextextended('device:' || p_user_id::text, 0));
+
+  SELECT * INTO v_user FROM public.users WHERE id = p_user_id;
+  IF NOT FOUND OR v_user.active IS DISTINCT FROM true
+     OR lower(btrim(coalesce(v_user.role::text, ''))) NOT IN ('admin', 'expert') THEN
+    RETURN jsonb_build_object('ok', false, 'reason', 'inactive');
+  END IF;
+
+  -- Süresi geçen aktivasyon pencereleri kapanır.
+  UPDATE public.auth_trusted_devices SET state = 'expired', activation_nonce = NULL
+   WHERE user_id = p_user_id AND state = 'owner_approved' AND activation_expires_at <= v_now;
+
+  -- F2-K (O5): Owner onayı 15 dakikada gelmeyen talep kapanır (onaylanmış SAYILMAZ; satır ve geçmiş korunur).
+  PERFORM public.auth_device_pending_expire(p_user_id, NULL);
+  -- F2-K (O5): AYNI anahtarla tekrar (ağ kesintisi / uygulama kapanması) → aynı talep döner; yeni satır / bildirim yok.
+  SELECT id INTO v_id FROM public.auth_trusted_devices
+   WHERE user_id = p_user_id AND state = 'pending_owner' AND key_fingerprint = p_key_fingerprint AND public_key_spki = p_public_key_spki;
+  IF FOUND AND p_bootstrap_hash IS NULL THEN
+    RETURN jsonb_build_object('ok', true, 'device_id', v_id, 'state', 'pending_owner', 'existing', true);
+  END IF;
+  v_id := NULL;
+  IF EXISTS (SELECT 1 FROM public.auth_trusted_devices WHERE user_id = p_user_id AND state IN ('pending_owner', 'owner_approved')) THEN
+    RETURN jsonb_build_object('ok', false, 'reason', 'pending_exists');
+  END IF;
+  IF EXISTS (SELECT 1 FROM public.auth_trusted_devices WHERE key_fingerprint = p_key_fingerprint AND state IN ('pending_owner', 'owner_approved', 'active')) THEN
+    RETURN jsonb_build_object('ok', false, 'reason', 'key_in_use');
+  END IF;
+  SELECT count(*) INTO v_active FROM public.auth_trusted_devices WHERE user_id = p_user_id AND state = 'active';
+  IF v_active >= 2 THEN
+    RETURN jsonb_build_object('ok', false, 'reason', 'device_limit');
+  END IF;
+
+  IF p_bootstrap_hash IS NOT NULL THEN
+    -- Owner İLK cihazı: SQL konsolundan üretilmiş, süreli, tek kullanımlık kod; yalnız Owner hesabına.
+    IF NOT public.auth_is_owner_admin(p_user_id) THEN
+      RETURN jsonb_build_object('ok', false, 'reason', 'bootstrap_invalid');
+    END IF;
+    SELECT * INTO v_boot FROM public.auth_owner_bootstrap_codes
+     WHERE owner_id = p_user_id AND code_hash = p_bootstrap_hash AND used_at IS NULL AND expires_at > v_now
+     ORDER BY id DESC LIMIT 1 FOR UPDATE;
+    IF NOT FOUND THEN
+      RETURN jsonb_build_object('ok', false, 'reason', 'bootstrap_invalid');
+    END IF;
+    v_state := 'owner_approved';
+    v_nonce := translate(rtrim(encode(extensions.gen_random_bytes(24), 'base64'), '='), '+/', '-_');
+  END IF;
+
+  INSERT INTO public.auth_trusted_devices (user_id, public_key_spki, presence_key_spki, key_fingerprint, display_code, device_model,
+      android_api, app_version, enroll_ip_hash, via_bootstrap, state, activation_nonce, activation_expires_at,
+      decided_at, decided_by, created_at)
+  VALUES (p_user_id, p_public_key_spki, p_presence_key_spki, p_key_fingerprint, p_display_code, left(p_device_model, 80),
+      p_android_api, left(p_app_version, 32), left(p_ip_hash, 128), p_bootstrap_hash IS NOT NULL, v_state,
+      v_nonce, CASE WHEN v_nonce IS NULL THEN NULL ELSE v_now + interval '15 minutes' END,
+      CASE WHEN v_nonce IS NULL THEN NULL ELSE v_now END, CASE WHEN v_nonce IS NULL THEN NULL ELSE p_user_id END, v_now)
+  RETURNING id INTO v_id;
+
+  IF p_bootstrap_hash IS NOT NULL THEN
+    UPDATE public.auth_owner_bootstrap_codes SET used_at = v_now, device_id = v_id WHERE id = v_boot.id;
+    INSERT INTO public.auth_device_decisions (device_id, actor_id, decision, verification_method, fingerprint_confirmed)
+    VALUES (v_id, p_user_id, 'bootstrap', 'sql_bootstrap', false);
+  ELSE
+    PERFORM public.auth_device_notify(v_id, p_user_id, NULL);
+  END IF;
+
+  INSERT INTO public.security_events (user_id, event_type, severity, message, metadata)
+  VALUES (p_user_id, 'device_enroll_requested', 'medium',
+          CASE WHEN p_bootstrap_hash IS NULL THEN 'Güvenilir cihaz eşleştirme isteği' ELSE 'Owner ilk cihaz (bootstrap) eşleştirmesi' END,
+          jsonb_build_object('device_id', v_id, 'display_code', p_display_code, 'model', left(p_device_model, 80)));
+
+  RETURN jsonb_build_object('ok', true, 'device_id', v_id, 'state', v_state);
+END $$;
+REVOKE ALL ON FUNCTION public.auth_device_enroll_begin(uuid,text,text,text,text,integer,text,text,text,text) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.auth_device_enroll_begin(uuid,text,text,text,text,integer,text,text,text,text) TO service_role;
+
+CREATE OR REPLACE FUNCTION public.auth_device_status(p_device_id uuid)
+RETURNS jsonb
+LANGUAGE plpgsql
+VOLATILE
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  v public.auth_trusted_devices%ROWTYPE;
+BEGIN
+  PERFORM public.auth_device_pending_expire(NULL, p_device_id);   -- F2-K (O5)
+  SELECT * INTO v FROM public.auth_trusted_devices WHERE id = p_device_id;
+  IF NOT FOUND THEN
+    RETURN jsonb_build_object('state', 'invalid');
+  END IF;
+  IF v.state = 'owner_approved' AND v.activation_expires_at <= now() THEN
+    UPDATE public.auth_trusted_devices SET state = 'expired', activation_nonce = NULL WHERE id = v.id AND state = 'owner_approved';
+    RETURN jsonb_build_object('state', 'expired');
+  END IF;
+  IF v.state = 'owner_approved' THEN
+    RETURN jsonb_build_object('state', v.state, 'activation_nonce', v.activation_nonce, 'activation_expires_at', v.activation_expires_at);
+  END IF;
+  RETURN jsonb_build_object('state', v.state);
+END $$;
+REVOKE ALL ON FUNCTION public.auth_device_status(uuid) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.auth_device_status(uuid) TO service_role;
+
+CREATE OR REPLACE FUNCTION public.auth_device_list(p_actor_token text, p_scope text, p_user_id uuid)
+RETURNS jsonb
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  v_actor uuid;
+  v_owner boolean;
+BEGIN
+  v_actor := public.auth_session_actor(p_actor_token, false);
+  IF v_actor IS NULL THEN
+    RETURN jsonb_build_object('ok', false, 'code', 'forbidden');
+  END IF;
+  v_owner := public.auth_is_owner_admin(v_actor);
+  IF p_scope = 'pending' THEN
+    IF NOT v_owner OR public.auth_session_actor(p_actor_token, true) IS NULL THEN
+      RETURN jsonb_build_object('ok', false, 'code', 'forbidden');
+    END IF;
+    RETURN jsonb_build_object('ok', true, 'devices', coalesce((
+      SELECT jsonb_agg(jsonb_build_object('id', d.id, 'user_id', d.user_id, 'email', u.email,
+               'name', coalesce(nullif(u.full_name, ''), u.name), 'display_code', d.display_code, 'model', d.device_model,
+               'android_api', d.android_api, 'app_version', d.app_version, 'attestation', d.attestation_level,
+               'created_at', d.created_at,
+               'replaces', (SELECT jsonb_build_object('display_code', od.display_code, 'model', od.device_model)
+                              FROM public.auth_device_replacements r JOIN public.auth_trusted_devices od ON od.id = r.old_device_id
+                             WHERE r.user_id = d.user_id AND r.state = 'waiting' AND r.expires_at > now() LIMIT 1))
+               ORDER BY d.created_at)
+        FROM public.auth_trusted_devices d JOIN public.users u ON u.id = d.user_id
+       WHERE d.state = 'pending_owner' AND d.created_at > now() - interval '15 minutes'), '[]'::jsonb));  -- F2-K (O5): süresi geçen gösterilmez
+  END IF;
+  IF p_scope = 'user' THEN
+    IF p_user_id IS NULL OR (p_user_id <> v_actor AND NOT v_owner) THEN
+      RETURN jsonb_build_object('ok', false, 'code', 'forbidden');
+    END IF;
+    RETURN jsonb_build_object('ok', true, 'devices', coalesce((
+      SELECT jsonb_agg(jsonb_build_object('id', d.id, 'display_code', d.display_code, 'model', d.device_model,
+               'state', d.state, 'created_at', d.created_at, 'activated_at', d.activated_at,
+               'last_used_at', d.last_used_at, 'revoked_at', d.revoked_at) ORDER BY d.created_at DESC)
+        FROM public.auth_trusted_devices d WHERE d.user_id = p_user_id), '[]'::jsonb));
+  END IF;
+  RETURN jsonb_build_object('ok', false, 'code', 'bad_scope');
+END $$;
+REVOKE ALL ON FUNCTION public.auth_device_list(text, text, uuid) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.auth_device_list(text, text, uuid) TO service_role;
+
+CREATE OR REPLACE FUNCTION public.auth_device_owner_decide(
+  p_actor_token text, p_device_id uuid, p_decision text, p_fingerprint_confirmed boolean, p_verification_method text, p_note text
+) RETURNS jsonb
+LANGUAGE plpgsql
+VOLATILE
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  v_actor uuid;
+  v_proof uuid;
+  r jsonb;
+BEGIN
+  -- F2-K (O5): süresi geçmiş bekleyen talep önce kapanır → geç onay 'beklemede değil' ile reddedilir.
+  PERFORM public.auth_device_pending_expire(NULL, p_device_id);
+  IF p_decision = 'approve' THEN
+    IF public.auth_owner_session_stale(p_actor_token) THEN
+      RETURN jsonb_build_object('ok', false, 'code', 'fresh_mfa_required');
+    END IF;
+    v_actor := public.auth_session_actor(p_actor_token, true);
+    IF v_actor IS NOT NULL AND public.auth_is_owner_admin(v_actor) THEN
+      v_proof := public.auth_step_up_lock(p_actor_token, 'device_approve', p_device_id);
+      IF v_proof IS NULL THEN
+        RETURN jsonb_build_object('ok', false, 'code', 'step_up_required', 'action', 'device_approve', 'target', p_device_id);
+      END IF;
+      r := public.auth_device_owner_decide_core(p_actor_token, p_device_id, p_decision, p_fingerprint_confirmed, p_verification_method, p_note);
+      IF coalesce((r->>'ok')::boolean, false) THEN
+        PERFORM public.auth_step_up_consume(v_proof);
+      END IF;
+      RETURN r;
+    END IF;
+  END IF;
+  RETURN public.auth_device_owner_decide_core(p_actor_token, p_device_id, p_decision, p_fingerprint_confirmed, p_verification_method, p_note);
+END $$;
+REVOKE ALL ON FUNCTION public.auth_device_owner_decide(text, uuid, text, boolean, text, text) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.auth_device_owner_decide(text, uuid, text, boolean, text, text) TO service_role;
+
+
 -- >>> F2 ŞEMA DÜZEYİ KAYDI (F2-J; üretici: scripts/giris-guvenligi/f2-migration-guard.mjs — elle değiştirmeyin)
 CREATE OR REPLACE FUNCTION public.auth_f2_schema_level() RETURNS integer
 LANGUAGE sql IMMUTABLE SET search_path = '' AS $f2lvl$ SELECT 1100 $f2lvl$;

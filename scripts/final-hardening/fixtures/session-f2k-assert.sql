@@ -81,6 +81,63 @@ BEGIN
   END IF;
 END $$;
 
+-- ── O5: bekleyen cihaz eşleştirmesi 15 dakika ─────────────────────────────────────────────────────────────
+DO $$
+DECLARE
+  EX constant uuid := '00000000-0000-0000-0000-00000000e0d2';
+  r jsonb; r2 jsonb; d1 uuid; d2 uuid; ok boolean;
+BEGIN
+  -- Bu kullanıcının önceki cihazları yok sayılsın diye sentetik ikinci uzman.
+  INSERT INTO public.users (id, email, role, active) SELECT EX, 'f2k-o5@ornek.test', 'expert', true
+   WHERE NOT EXISTS (SELECT 1 FROM public.users WHERE id = EX);
+  r := public.auth_device_enroll_begin(EX, repeat('A', 120), pg_temp.h('o5-a'), 'AAAA-2222', 'Test', 34, '1.0', 'iph', NULL, repeat('a', 120));
+  d1 := (r->>'device_id')::uuid;
+  IF r->>'state' IS DISTINCT FROM 'pending_owner' THEN PERFORM pg_temp.fail('O5a talep açılmadı: ' || r::text); END IF;
+  -- Aynı anahtarla tekrar (ağ kesintisi) → aynı talep; yeni satır yok.
+  r2 := public.auth_device_enroll_begin(EX, repeat('A', 120), pg_temp.h('o5-a'), 'AAAA-2222', 'Test', 34, '1.0', 'iph', NULL, repeat('a', 120));
+  IF (r2->>'device_id')::uuid IS DISTINCT FROM d1 OR (SELECT count(*) FROM public.auth_trusted_devices WHERE user_id = EX) <> 1 THEN
+    PERFORM pg_temp.fail('O5b aynı anahtarla tekrar idempotent değil: ' || r2::text);
+  END IF;
+  -- Başka anahtarla ikinci talep süre dolmadan engellenir.
+  r2 := public.auth_device_enroll_begin(EX, repeat('B', 120), pg_temp.h('o5-b'), 'BBBB-3333', 'Test', 34, '1.0', 'iph', NULL, repeat('b', 120));
+  IF r2->>'reason' IS DISTINCT FROM 'pending_exists' THEN PERFORM pg_temp.fail('O5c süre dolmadan ikinci talep açıldı: ' || r2::text); END IF;
+  -- 15 dakika geçti (test saati: oluşturma zamanı geri alınır).
+  UPDATE public.auth_trusted_devices SET created_at = now() - interval '15 minutes 1 second' WHERE id = d1;
+  -- Doğrudan durum geçişi (owner_approved / active) tetikleyici tarafından reddedilir.
+  BEGIN
+    UPDATE public.auth_trusted_devices SET state = 'active', activated_at = now() WHERE id = d1;
+    PERFORM pg_temp.fail('O5d süresi geçmiş talep doğrudan etkinleştirildi');
+  EXCEPTION WHEN raise_exception THEN NULL;
+  END;
+  -- Owner listesi süresi geçen talebi göstermez (lazy; satır hâlâ pending_owner olabilir).
+  IF EXISTS (SELECT 1 FROM public.auth_trusted_devices d WHERE d.id = d1 AND d.state = 'pending_owner' AND d.created_at > now() - interval '15 minutes') THEN
+    PERFORM pg_temp.fail('O5e filtre koşulu yanlış');
+  END IF;
+  -- Durum sorgusu tembel olarak kapatır; onaylı SAYILMAZ.
+  r := public.auth_device_status(d1);
+  IF r->>'state' IS DISTINCT FROM 'expired' THEN PERFORM pg_temp.fail('O5f durum sorgusu süresi geçmiş talebi kapatmadı: ' || r::text); END IF;
+  IF NOT EXISTS (SELECT 1 FROM public.security_events WHERE user_id = EX AND event_type = 'device_enroll_expired' AND metadata->>'device_id' = d1::text) THEN
+    PERFORM pg_temp.fail('O5g süre dolumu güvenlik olayına yazılmadı');
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM public.auth_trusted_devices WHERE id = d1 AND state = 'expired' AND revoke_reason = 'pending_ttl') THEN
+    PERFORM pg_temp.fail('O5h satır / geçmiş korunmadı');
+  END IF;
+  -- Kullanıcı yeniden deneyebilir (kalıcı kilit yok).
+  r2 := public.auth_device_enroll_begin(EX, repeat('B', 120), pg_temp.h('o5-b'), 'BBBB-3333', 'Test', 34, '1.0', 'iph', NULL, repeat('b', 120));
+  d2 := (r2->>'device_id')::uuid;
+  IF r2->>'state' IS DISTINCT FROM 'pending_owner' THEN PERFORM pg_temp.fail('O5i süre dolduktan sonra yeniden deneme engellendi: ' || r2::text); END IF;
+  -- Yeni talebin süresi dolunca enroll_begin de kapatır (status çağrılmasa bile).
+  UPDATE public.auth_trusted_devices SET created_at = now() - interval '16 minutes' WHERE id = d2;
+  r := public.auth_device_enroll_begin(EX, repeat('C', 120), pg_temp.h('o5-c'), 'CCCC-4444', 'Test', 34, '1.0', 'iph', NULL, repeat('c', 120));
+  IF r->>'state' IS DISTINCT FROM 'pending_owner' OR (SELECT state FROM public.auth_trusted_devices WHERE id = d2) <> 'expired' THEN
+    PERFORM pg_temp.fail('O5j yeni talep eskiyi kapatmadı: ' || r::text);
+  END IF;
+  -- Yetki: kapatıcı fonksiyon dışarıya kapalı.
+  IF has_function_privilege('service_role', 'public.auth_device_pending_expire(uuid,uuid)', 'EXECUTE') THEN
+    PERFORM pg_temp.fail('O5k kapatıcı fonksiyon sunucu rolüne açık');
+  END IF;
+END $$;
+
 DO $$
 DECLARE v text;
 BEGIN

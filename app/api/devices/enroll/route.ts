@@ -107,7 +107,7 @@ export async function POST(req: NextRequest) {
     if (r.ok !== true) {
       const reason = String(r.reason ?? "");
       const map: Record<string, [string, number, string]> = {
-        pending_exists: ["PENDING_EXISTS", 409, "Bekleyen bir cihaz eşleştirmeniz zaten var. Yöneticinizin onayını bekleyin."],
+        pending_exists: ["PENDING_EXISTS", 409, "Bekleyen bir cihaz eşleştirmeniz zaten var. Yöneticinizin onayını bekleyin; 15 dakika içinde onaylanmazsa kapanır ve yeniden deneyebilirsiniz."],
         key_in_use: ["KEY_IN_USE", 409, "Bu cihaz anahtarı zaten kayıtlı."],
         device_limit: ["DEVICE_LIMIT", 409, "En fazla 2 güvenilir cihaz eşleştirilebilir. Önce eski cihazı kaldırın."],
         bootstrap_invalid: ["BOOTSTRAP_INVALID", 400, "Yönetici ilk cihaz kodu geçersiz veya süresi dolmuş."],
