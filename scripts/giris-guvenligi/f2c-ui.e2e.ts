@@ -54,6 +54,8 @@ async function activate(p: Phone) {
   const ts = nowTs();
   return api("/api/devices/activate", { deviceId: p.deviceId, nonce, ts, signature: signWith(p, activateMessage(p.deviceId!, nonce, ts)) });
 }
+// F2-K (O1): 6 haneli yazılan kipte telefona seçenek gelmez → yanlış kod = son hanesi değiştirilmiş kod.
+const wrongCode = (c: string) => c.slice(0, -1) + String((Number(c.slice(-1)) + 1) % 10);
 async function phoneDecide(p: Phone, qrUrl: string, choose: (opts: string[]) => string, decision: "approve" | "deny" = "approve") {
   const m = /#c=([0-9a-f-]{36})&n=([A-Za-z0-9_-]{32})$/.exec(qrUrl);
   if (!m) return { status: 0, json: { error: "qr parse" } as J };
@@ -193,7 +195,7 @@ async function main() {
         ok(!!box && box.width <= vp.w && scrollW <= vp.w, `${label} ${vp.tag}: QR paneli ekrana sığar, yatay taşma yok (scrollWidth ${scrollW})`);
         await p2.screenshot({ path: path.join(OUT, `${label}-4-uzman-qr-${vp.tag}.png`) });
         if (vp.tag === "375") {
-          const d = await phoneDecide(expPhone, String(q.url), (o) => o.find((x) => x !== q.matchCode)!);
+          const d = await phoneDecide(expPhone, String(q.url), (o) => o.find((x) => x !== q.matchCode) ?? wrongCode(String(q.matchCode)));
           ok(d.json.result === "denied", `${label} 375: telefonda yanlış sayı → reddedildi`);
           await p2.getByTestId("mfa-final").waitFor({ timeout: 15000 });
           await p2.screenshot({ path: path.join(OUT, `${label}-5-uzman-reddedildi-375.png`) });

@@ -503,13 +503,13 @@ async function main(): Promise<void> {
     // Olumlu yol (doğrulamalı yükseltme + denetim + MFA zorunluluğu) F2 zincirinde: scripts/giris-guvenligi/f2k-yonetici.harness.ts.
     const promote = await call(userRoute.PATCH as Handler, "PATCH", F1, asOwner, { ...staleForm, role: "admin" });
     ok(promote.status !== 200 && (await row(F1)).role === "expert" && !(await audits(F1)).some((a) => a.action === "role_changed" && a.new_value?.role === "admin"),
-      "N2: Owner bile işleme özel doğrulama olmadan yönetici yapamaz (fail-closed, rol değişmez)", promote);
+      "N2: Owner bile işleme özel doğrulama olmadan yönetici yapamaz (fail-closed, rol değişmez)");
     // Yetki DÜŞÜRME (admin → expert) eskisi gibi doğrudan + role_changed denetimi.
     const DEMOTE = await makeUser({ label: "DEMOTE", role: "admin", approval: "approved", active: true });
     const dRow = await row(DEMOTE);
     const demote = await call(userRoute.PATCH as Handler, "PATCH", DEMOTE, asOwner, { action: "edit", fullName: dRow.full_name, email: dRow.email, role: "expert" });
     ok(demote.status === 200 && (await row(DEMOTE)).role === "expert" && (await audits(DEMOTE)).some((a) => a.action === "role_changed" && a.new_value?.role === "expert"),
-      "ana yönetici yetki düşürür + role_changed audit", demote);
+      "ana yönetici yetki düşürür + role_changed audit");
 
     // ── G. MODULES (MEM-005/007/008) ─────────────────────────────────────────
     console.log("\n[G] Modül izinleri — whitelist + eşzamanlılık");
