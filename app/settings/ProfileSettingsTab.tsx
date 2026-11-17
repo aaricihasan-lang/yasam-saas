@@ -9,12 +9,14 @@
  * - Doğrulama tarayıcıda da sunucuyla AYNI kurallarla yapılır (lib/profile/schema.ts); sunucu yine kendisi doğrular.
  * - Kaydedilmemiş değişiklik: sekme değişiminde (onDirtyChange → sayfa sorar) ve sayfadan ayrılırken (beforeunload) uyarı.
  * - Demo hesapta form salt okunur; kaydet düğmesi yoktur.
- * - Logo (F2) burada GÖSTERİLMEZ.
+ * - Rapor logosu (F2) ayrı bölümde ve ayrı uçta (ReportLogoSection → /api/settings/profile/logo) kaydedilir; profil ile aynı
+ *   sürümü paylaşır. Bekleyen logo seçimi de "kaydedilmemiş değişiklik" sayılır.
  */
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { AlertTriangle, Check, Loader2, Lock, RotateCcw, UserRound } from "lucide-react";
 import { useToast } from "@/components/ui/ToastProvider";
 import { fetchProfile, saveProfile, type ProfileResponse } from "@/lib/profile/client";
+import { ReportLogoSection } from "./ReportLogoSection";
 import {
   PROFILE_FLAG_FIELDS, PROFILE_LIMITS, PROFILE_TEXT_FIELDS, charCount, normalizeProfileText,
   type FieldErrors, type ProfileFields, type ProfileFlagField, type ProfileTextField,
@@ -150,7 +152,13 @@ export function ProfileSettingsTab({ readOnly: demoReadOnly, onDirtyChange }: { 
   }, [reload]);
 
   const readOnly = demoReadOnly || server?.readOnly === true;
-  const dirty = !!form && !!saved && !sameForm(form, saved);
+  const formDirty = !!form && !!saved && !sameForm(form, saved);
+  const [logoDirty, setLogoDirty] = useState(false);
+  const dirty = formDirty || logoDirty;
+  /** Logo kaydı profil sürümünü ilerletir; ebeveyn yalnız kendi bildiği sürüm `prev` ise izler (dış değişiklik varsa 409 akışı işler). */
+  const onLogoSaved = useCallback((prev: number, next: number, sel: { source: "none" | "workspace" | "custom"; assetId: string | null }) => {
+    setServer((s) => (s && s.version === prev ? { ...s, version: next, profile: { ...s.profile, logoSource: sel.source, logoAssetId: sel.assetId } } : s));
+  }, []);
 
   useEffect(() => {
     onDirtyChange?.(dirty);
@@ -290,9 +298,27 @@ export function ProfileSettingsTab({ readOnly: demoReadOnly, onDirtyChange }: { 
         <section aria-labelledby={`${idBase}-report`} className="space-y-4 rounded-2xl border border-slate-100 bg-white/70 p-4 sm:p-5">
           <div>
             <h3 id={`${idBase}-report`} className="text-base font-black text-slate-900">Rapor kimliği</h3>
-            <p className="mt-1 text-xs leading-relaxed text-slate-500" data-testid="profile-branding-status">
-              Raporlarınız şu anda değişmez. Bu tercihler, rapor markalaması kullanıma açıldığında raporlarınıza uygulanmak üzere saklanır.
-            </p>
+            <div className="mt-1 space-y-1 text-xs leading-relaxed text-slate-500" data-testid="profile-branding-status">
+              <p>
+                &quot;Raporlarımda kurumsal bilgilerimi göster&quot; açıkken seçtiğiniz bilgiler şu Word raporlarına eklenir: Danışan Yolculuğu, Numeroloji analiz,
+                Klasik Numeroloji ve Beslenme planı. Bilgiler kapakta, rapor sonundaki imza bölümünde ve sayfa altında yer alır;
+                yasal bilgilendirme metni aynen kalır.
+              </p>
+              <p>
+                Human Design raporlarında adınız otomatik yazılmaz; yalnız raporda &quot;Hazırlayan&quot; alanı doluysa unvan ve kurum
+                (profesyonel raporda ayrıca logo) eklenir, iletişim bilgisi ve dipnot eklenmez.
+              </p>
+              <p>
+                Refleksoloji, Kupa (protokol ve takvim) ve Gökyüzü Atlası (Word ve PDF) raporlarında, anahtar açıkken rapor sonuna
+                bir &quot;Hazırlayan&quot; imza bölümü eklenir; adınız otomatik yazılmaz, yalnız seçtiğiniz unvan, kurum, iletişim, logo ve
+                dipnot yer alır.
+              </p>
+              <p>
+                Hacamat raporunda (Word ve PDF) formdaki &quot;Hazırlayan&quot; adı aynen kalır, profil adınızla değiştirilmez; bu alan
+                doluysa yalnız unvan, kurum ve logo eklenir, iletişim bilgisi ve dipnot eklenmez.
+              </p>
+              <p>Ansiklopediler, ders notları, stok ve arşiv dışa aktarımları bu kapsamda değildir. Anahtar kapalıyken hiçbir rapor değişmez.</p>
+            </div>
           </div>
           <TextField
             def={{ key: "reportNote", label: "Rapor dipnotu", placeholder: "ör. Bu rapor bilgilendirme amaçlıdır; tıbbi tanı ve tedavinin yerini tutmaz.", rows: 3, wide: true, hint: "En fazla 4 satır." }}
@@ -301,7 +327,7 @@ export function ProfileSettingsTab({ readOnly: demoReadOnly, onDirtyChange }: { 
           <div className="space-y-4 border-t border-slate-100 pt-4">
             <Switch
               id={`${idBase}-brand`} label="Raporlarımda kurumsal bilgilerimi göster"
-              description="Kapalıyken raporlarınız bugünkü gibi üretilir. Açtığınızda, rapor markalaması kullanıma açıldığında aşağıda seçtiğiniz bilgiler raporlarınıza eklenir."
+              description="Kapalıyken raporlarınız bugünkü gibi üretilir. Açtığınızda aşağıda seçtiğiniz bilgiler yukarıda sayılan raporlara eklenir."
               checked={brandingOn} disabled={disabled} onChange={(v) => set("reportBrandingEnabled", v)}
             />
             <fieldset className="space-y-3 rounded-xl bg-slate-50/80 p-3 sm:p-4" disabled={disabled || !brandingOn} aria-describedby={`${idBase}-subs-hint`}>
@@ -314,6 +340,18 @@ export function ProfileSettingsTab({ readOnly: demoReadOnly, onDirtyChange }: { 
               <Switch id={`${idBase}-s-contact`} label="İletişim bilgileri" description="Telefon, iletişim e-postası ve internet sitesi." checked={form.reportShowContact} disabled={disabled || !brandingOn} onChange={(v) => set("reportShowContact", v)} />
               <Switch id={`${idBase}-s-note`} label="Rapor dipnotu" checked={form.reportShowNote} disabled={disabled || !brandingOn} onChange={(v) => set("reportShowNote", v)} />
             </fieldset>
+          </div>
+          <div className="border-t border-slate-100 pt-4">
+            <ReportLogoSection
+              readOnly={readOnly} parentVersion={server?.version ?? 0} onSaved={onLogoSaved} onDirtyChange={setLogoDirty}
+              identity={{
+                fullName: account?.fullName ?? null,
+                title: form.reportShowTitle ? form.title.trim() || null : null,
+                organization: form.reportShowOrganization ? form.organization.trim() || null : null,
+                contactLine: form.reportShowContact ? [form.phone, form.contactEmail, form.website].map((x) => x.trim()).filter(Boolean).join(" · ") || null : null,
+                brandingEnabled: brandingOn,
+              }}
+            />
           </div>
         </section>
 
@@ -332,16 +370,16 @@ export function ProfileSettingsTab({ readOnly: demoReadOnly, onDirtyChange }: { 
 
         {!readOnly && (
           <div className="flex flex-col-reverse gap-2 border-t border-slate-100 pt-4 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-xs text-slate-500" data-testid="profile-dirty-state">{dirty ? "Kaydedilmemiş değişiklikleriniz var." : "Tüm değişiklikler kaydedildi."}</p>
+            <p className="text-xs text-slate-500" data-testid="profile-dirty-state">{formDirty ? "Kaydedilmemiş değişiklikleriniz var." : logoDirty ? "Rapor logosu seçiminiz kaydedilmedi." : "Tüm değişiklikler kaydedildi."}</p>
             <div className="flex flex-col-reverse gap-2 sm:flex-row">
               <button
-                type="button" onClick={onCancel} disabled={!dirty || saving} data-testid="profile-cancel"
+                type="button" onClick={onCancel} disabled={!formDirty || saving} data-testid="profile-cancel"
                 className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-5 text-sm font-bold text-slate-700 transition hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-600 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 Vazgeç
               </button>
               <button
-                type="submit" disabled={!dirty || saving} data-testid="profile-save"
+                type="submit" disabled={!formDirty || saving} data-testid="profile-save"
                 className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 to-fuchsia-600 px-6 text-sm font-black text-white shadow-md transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-600 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0"
               >
                 {saving ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <Check className="h-4 w-4" aria-hidden />}

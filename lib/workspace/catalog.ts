@@ -119,6 +119,11 @@ export const isFreeZone = (z: string): z is FreeLogoZone => z === "page" || z ==
 export const ASSET_BUCKET = "expert-workspace";
 export const ASSET_KINDS = ["logo", "photo"] as const;
 export type AssetKind = (typeof ASSET_KINDS)[number];
+/**
+ * F2: görsel silme 409 yanıtındaki `where` listesinde rapor logosu girdisi. Sunucu (lib/workspace/assets) üretir; istemci
+ * (studio/i18n inUseMessage) bu girdinin varlığına göre uyarıyı seçer. Girdi yoksa uyarı metni F2 öncesiyle birebir aynıdır.
+ */
+export const REPORT_LOGO_REF = "rapor logosu (Ayarlar › Profilim)";
 /** Owner kararı 6: logo 2 MB, arka plan fotoğrafı 10 MB (özgün dosya). */
 export const ASSET_MAX_BYTES: Record<AssetKind, number> = { logo: 2 * 1024 * 1024, photo: 10 * 1024 * 1024 };
 /** Vercel işlev gövdesi ~4,5 MB → sunucu rotasına ≤ 3 MB'lık parçalar. */

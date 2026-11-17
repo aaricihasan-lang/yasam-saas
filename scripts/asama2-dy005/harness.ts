@@ -19,7 +19,7 @@ import Module from "node:module";
 import path from "node:path";
 import os from "node:os";
 import { execFileSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { pathToFileURL } from "node:url";
 import JSZip from "jszip";
@@ -89,10 +89,103 @@ function syntheticInputs(n: number) {
   return out;
 }
 
+/**
+ * Numeroloji Word dosyaları. Uzman rapor markalaması (F3A, Owner onaylı) bu iki dosyaya YALNIZ isteğe bağlı `branding`
+ * parametresini ekler. Bekçinin amacı (Numeroloji hesabı ve markasız Word çıktısı bozulmasın) korunarak bu iki dosya için
+ * "main'e göre dosya farkı YOK" şartı, aşağıdaki daha sıkı şartlarla değiştirildi:
+ *   (1) markasız çıktı: origin/main kurucusu ile dal kurucusu aynı girdilerde TÜM XML parçalarında BİREBİR (48 senaryo);
+ *   (2) fark satırları motor / hesap / DB yazma koduna DOKUNMAZ;
+ *   (3) rota farkı YALNIZ markalama satırlarıdır (çıkarılınca main ile metin olarak birebir).
+ * ENGINE_PATHS'in geri kalanı (motor / hesap / kayıt üretme) için "main'e göre fark YOK" şartı AYNEN sürer.
+ */
+const NUMEROLOJI_WORD_FILES = ["app/numeroloji/bilgi-bankasi/helpers/wordDocxBuild.ts", "app/api/numeroloji/word-report/route.ts"];
+const ENGINE_REFS = /hesaplaNumeroloji|numerolojiMotor|@\/lib\/numeroloji(?:\/|")|computeDevelopment|\.insert\(|\.update\(|\.upsert\(|\.delete\(|\.rpc\(/;
+
+/** docx → karşılaştırılabilir parçalar (zaman damgalı docProps hariç; ikili parçalar SHA ile). */
+async function docxParts(buf: Buffer): Promise<Record<string, string>> {
+  const zip = await JSZip.loadAsync(buf);
+  const out: Record<string, string> = {};
+  for (const f of Object.keys(zip.files).sort()) {
+    if (zip.files[f]!.dir || f.startsWith("docProps/")) continue;
+    out[f] = /\.(xml|rels)$/.test(f) ? await zip.file(f)!.async("string") : sha(await zip.file(f)!.async("base64"));
+  }
+  return out;
+}
+
+/** Rota kaynağından markalama satırlarını çıkarır (yalnız bu kalıplar; başka hiçbir satır dokunulmaz). */
+function stripRouteBranding(src: string): string {
+  return src.replace(/\r\n/g, "\n").split("\n")
+    .filter((l) => !/^import \{ resolveReportBranding \} from "@\/lib\/profile\/reportBranding";$/.test(l)
+      && !/^\s*\/\/ F3A: /.test(l)
+      && !/^\s*const branding = await resolveReportBranding\(/.test(l)
+      && !/^\s*branding,$/.test(l))
+    .map((l) => l.replace(/, \{ branding \}\)/g, ")"))
+    .join("\n");
+}
+
+async function numerologyWordGuard() {
+  const changed = execFileSync("git", ["diff", "--name-only", "origin/main", "--", ...NUMEROLOJI_WORD_FILES], { cwd: ROOT, encoding: "utf8" }).trim();
+  if (!changed) { ok(true, "Numeroloji Word dosyalarında main'e göre fark YOK"); return; }
+  // (2) Fark satırları motor / hesap / DB yazma koduna dokunmaz.
+  const patch = execFileSync("git", ["diff", "-U0", "origin/main", "--", ...NUMEROLOJI_WORD_FILES], { cwd: ROOT, encoding: "utf8" });
+  const engineTouch = patch.split("\n").filter((l) => /^[+-](?![+-])/.test(l) && ENGINE_REFS.test(l));
+  ok(engineTouch.length === 0, "Numeroloji Word farkı motor / hesap / DB yazma koduna dokunmuyor", engineTouch);
+  // (3) Rota: markalama satırları çıkarılınca main ile BİREBİR.
+  const routePath = NUMEROLOJI_WORD_FILES[1]!;
+  const mainRoute = execFileSync("git", ["show", `origin/main:${routePath}`], { cwd: ROOT, encoding: "utf8" }).replace(/\r\n/g, "\n");
+  ok(stripRouteBranding(readFileSync(path.join(ROOT, routePath), "utf8")) === mainRoute, "Numeroloji Word rotası: fark YALNIZ markalama satırları (çıkarılınca main ile birebir)");
+  // (1) Markasız çıktı: origin/main kurucusu (git archive → geçici klasör) ile dal kurucusu BİREBİR.
+  const tmp = mkdtempSync(path.join(os.tmpdir(), "num-word-main-"));
+  const tar = execFileSync("git", ["archive", "--format=tar", "origin/main", "app/numeroloji"], { cwd: ROOT, maxBuffer: 64 * 1024 * 1024 });
+  execFileSync("tar", ["-x", "-C", tmp.replace(/\\/g, "/")], { input: tar });
+  // Paket çözümü (docx vb.) için geçici kopyaya dalın node_modules'ı bağlanır (yalnız okuma).
+  symlinkSync(path.join(ROOT, "node_modules"), path.join(tmp, "node_modules"), "junction");
+  type NWMod = typeof import("../../app/numeroloji/bilgi-bankasi/helpers/wordDocxBuild");
+  const mainNW = (await import(pathToFileURL(path.join(tmp, "app/numeroloji/bilgi-bankasi/helpers/wordDocxBuild.ts")).href)) as NWMod;
+  const branchNW = await import("../../app/numeroloji/bilgi-bankasi/helpers/wordDocxBuild");
+  const { hesaplaNumeroloji } = await import("../../lib/numeroloji/numerolojiMotor");
+  const NOW = new Date("2026-11-10T09:30:00.000Z");
+  const shared = { knowledgeRows: [], entries: [], sourceLabelById: new Map(), stoneRows: [] } as never;
+  const SECTION_SETS = [
+    { summary: true, plain: true, detailed: false, zamanlama: false, tas: false },
+    { summary: false, plain: true, detailed: true, zamanlama: true, tas: true },
+    { summary: true, plain: false, detailed: false, zamanlama: true, tas: false },
+  ];
+  const inputs = syntheticInputs(6);
+  const rowsFor = (i: number) => inputs.slice(i, i + 1 + (i % 2)).map((inp, k) => ({
+    id: `r${i}-${k}`, name: inp.firstName, surname: inp.lastName, birth_date: inp.birthDate, created_at: "2026-01-01T10:00:00Z",
+    analysis_data: { version: 1, motor: hesaplaNumeroloji(inp), summary: "Sentetik kayıtlı özet." },
+  }));
+  let same = 0;
+  let total = 0;
+  const diffs: string[] = [];
+  for (let i = 0; i < 4; i++) {
+    for (const sections of SECTION_SETS) {
+      for (const futureYears of [false, true]) {
+        for (const expertName of ["Ayşe Yılmaz", null]) {
+          const rows = rowsFor(i);
+          const render = async (M: NWMod) => {
+            const { children } = M.buildNumerolojiWordChildren(rows as never, sections as never, shared, new Map(), null, NOW, futureYears);
+            return docxParts(await M.packNumerolojiDocx(children, `${rows[0]!.name} ${rows[0]!.surname}`, { expertName }));
+          };
+          const a = await render(mainNW);
+          const b = await render(branchNW);
+          total++;
+          const d = Object.keys({ ...a, ...b }).filter((k) => a[k] !== b[k]);
+          if (d.length === 0) same++;
+          else if (diffs.length < 3) diffs.push(`${i}/${JSON.stringify(sections)}/${futureYears}/${expertName}: ${d.join(",")}`);
+        }
+      }
+    }
+  }
+  ok(total === 48 && same === total, `Numeroloji Word (markasız) origin/main kurucusuyla BİREBİR (${same}/${total} senaryo; tüm XML parçaları)`, diffs);
+}
+
 async function engineUnchanged() {
   console.log("\n── 0) Numeroloji motoru DEĞİŞMEDİ (dosya + karşılaştırmalı çıktı)");
-  const diff = execFileSync("git", ["diff", "--name-only", "origin/main", "--", ...ENGINE_PATHS], { cwd: ROOT, encoding: "utf8" }).trim();
-  ok(diff === "", "motor / hesap / kayıt üretme / Numeroloji Word dosyalarında main'e göre fark YOK", diff);
+  const diff = execFileSync("git", ["diff", "--name-only", "origin/main", "--", ...ENGINE_PATHS, ...NUMEROLOJI_WORD_FILES.map((f) => `:(exclude)${f}`)], { cwd: ROOT, encoding: "utf8" }).trim();
+  ok(diff === "", "motor / hesap / kayıt üretme dosyalarında main'e göre fark YOK", diff);
+  await numerologyWordGuard();
   const tmp = mkdtempSync(path.join(os.tmpdir(), "num-main-"));
   const tar = execFileSync("git", ["archive", "--format=tar", "origin/main", "lib/numeroloji"], { cwd: ROOT, maxBuffer: 64 * 1024 * 1024 });
   execFileSync("tar", ["-x", "-C", tmp.replace(/\\/g, "/")], { input: tar });

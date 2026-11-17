@@ -5,6 +5,7 @@
  * `provider_meta` rapora HİÇ girmez (sağlayıcı adı orada tutulur) — bu yüzden kayıt tipinde yer almaz.
  */
 import type { ClassicKind } from "../input";
+import type { ExpertBranding, ExpertBrandingVariant } from "@/lib/docx/expertBranding";
 
 /** Kayıtlı analiz (repository satırı ya da uzman görünümünden `toReportRecord` ile kurulur). */
 export type ClassicReportRecord = {
@@ -61,6 +62,10 @@ export type CommonReportOptions = {
   /** Rapor tarihi (deterministik çıktı için enjekte edilir; verilmezse şimdi). */
   generatedAt?: string | Date;
   expertName?: string | null;
+  /** F3A: uzman rapor markalaması (null/yok → çıktı bugünküyle birebir). Veri kaynağı F1/F2 ile bağlanacak. */
+  branding?: ExpertBranding | null;
+  /** Yalnız örnek/test üretimi için tasarım varyantı; üretimde varsayılan. */
+  brandingVariant?: ExpertBrandingVariant;
 };
 
 // ── Karşılaştırma (yapısal arayüz; compare/align.ts `Alignment` buna atanabilir — harness derleme denetimi) ──

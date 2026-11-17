@@ -95,6 +95,11 @@ async function open(browser: Browser, mock: Mock, vp: { width: number; height: n
       const r = mock.handle(req.method(), req.postData());
       return route.fulfill({ status: r.status, json: r.json });
     }
+    // F2: Profilim'deki "Rapor logosu" bölümü (bu harness'te Kişisel Dijital Ofis erişimi kapalı → logo seçenekleri gizli).
+    if (url.pathname === "/api/settings/profile/logo" && req.method() === "GET") {
+      const st = mock.state();
+      return route.fulfill({ status: 200, json: { ok: true, logo: { source: "none", assetId: null, status: "none" }, workspace: { access: false, logoAssetId: null }, checkFailed: false, brandingEnabled: st.profile.reportBrandingEnabled, version: st.version, updatedAt: null, readOnly: false } });
+    }
     if (url.pathname.startsWith("/api/settings/workspace")) {
       return workspaceOn ? route.fulfill({ status: 200, json: { ok: true, design: null } }) : route.fulfill({ status: 404, json: { ok: false, error: "Bulunamadı." } });
     }
@@ -202,7 +207,17 @@ async function main() {
       ok("V", `${width}px: yatay taşma yok`, o.sw <= o.iw && o.bw <= o.iw, o);
       ok("V", `${width}px: salt-okunur ad soyad + e-posta görünür`, (await c.page.getByTestId("profile-full-name").textContent()) === USER.full_name && (await c.page.getByTestId("profile-email").textContent()) === USER.email);
       ok("V", `${width}px: ad/e-posta düzenlenebilir alan DEĞİL`, (await c.page.locator('[data-testid="settings-profile"] input[name="fullName"], [data-testid="settings-profile"] input[name="email"]').count()) === 0);
-      ok("V", `${width}px: dürüst durum metni`, ((await c.page.getByTestId("profile-branding-status").textContent()) ?? "").includes("Raporlarınız şu anda değişmez"));
+      ok("V", `${width}px: dürüst durum metni`, ((await c.page.getByTestId("profile-branding-status").textContent()) ?? "").includes("Anahtar kapalıyken hiçbir rapor değişmez"));
+      {
+        // F3B: Kademe B kapsamı ve kuralları metinde açıkça yazılı (Refleksoloji / Kupa / Atlas imza bölümü; Hacamat form adı korunur).
+        const st = ((await c.page.getByTestId("profile-branding-status").textContent()) ?? "").replace(/\s+/g, " ");
+        ok("V", `${width}px: Kademe B kapsamı (Refleksoloji, Kupa, Gökyüzü Atlası imza bölümü)`, st.includes("Refleksoloji, Kupa (protokol ve takvim) ve Gökyüzü Atlası (Word ve PDF) raporlarında") && st.includes("\"Hazırlayan\" imza bölümü eklenir"));
+        // Güvenli varsayılanlar (Owner, 10.11): Kademe B imza bölümünde ad otomatik yok; Hacamat'ta iletişim + dipnot yok.
+        ok("V", `${width}px: Kademe B imza bölümünde ad otomatik yazılmaz`, st.includes("adınız otomatik yazılmaz, yalnız seçtiğiniz unvan, kurum, iletişim, logo ve dipnot yer alır") && !st.includes("adınızın yer aldığı"));
+        ok("V", `${width}px: Hacamat kuralı (form adı korunur, profil adıyla değiştirilmez)`, st.includes("Hacamat raporunda (Word ve PDF) formdaki \"Hazırlayan\" adı aynen kalır, profil adınızla değiştirilmez"));
+        ok("V", `${width}px: Hacamat'ta iletişim ve dipnot eklenmez`, st.includes("yalnız unvan, kurum ve logo eklenir, iletişim bilgisi ve dipnot eklenmez") && !st.includes("seçtiyseniz iletişim ile dipnot"));
+        ok("V", `${width}px: eski "henüz bu kapsamda değildir" metni kalmadı`, !st.includes("henüz bu kapsamda değildir"));
+      }
       await c.page.screenshot({ path: join(OUT, `profilim-${width}.png`), fullPage: true });
       const tb = (await c.page.evaluate(TABBAR_JS)) as TabBar;
       ok("V", `${width}px: sekme kümesi/sırası doğru; her sekme erişilebilir, tıklanabilir, metni kırpılmıyor; çubuk taşmıyor`, tabBarOk(tb, false), tb);

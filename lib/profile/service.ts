@@ -9,7 +9,8 @@
  * Günlük: bu modül hiçbir profil içeriğini loglamaz; hata nedeni yalnız kod + sabit metinle döner (lib/http/apiError).
  *
  * F2 / F3 BAĞLANTI NOKTASI: `getProfile(db, owner)` (satır yoksa EMPTY_PROFILE, version 0) ve saf `reportIdentityOf`
- * (lib/profile/identity.ts). logo_asset_id / logo_source yalnız okunur (F1 yazmaz; F2 sahiplik doğrulamasıyla yazacak).
+ * (lib/profile/identity.ts). logo_asset_id / logo_source profil formundan (writeProfile) YAZILMAZ; yalnız F2
+ * writeLogoSelection (sahiplik doğrulamasından sonra, /api/settings/profile/logo) yazar.
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { assertServerOnly } from "@/lib/server/serverOnlyGuard";
@@ -156,6 +157,54 @@ export async function writeProfile(db: SupabaseClient, o: Owner, expectedVersion
   const upd = await db
     .from(PROFILES_TABLE)
     .update({ ...fields, version: expectedVersion + 1 })
+    .eq("tenant_id", o.tenantId)
+    .eq("user_id", o.userId)
+    .eq("version", expectedVersion)
+    .select(COLS);
+  if (upd.error) {
+    if (isCheckViolation(upd.error)) return { ok: false, kind: "invalid" };
+    return { ok: false, kind: "db", cause: cause(upd.error, "update") };
+  }
+  const rows = (upd.data ?? []) as Row[];
+  if (rows.length !== 1) {
+    const again = await readRow(db, o);
+    if (again.error) return { ok: false, kind: "db", cause: cause(again.error, "reread") };
+    return { ok: false, kind: "conflict", current: toProfileState(again.row) };
+  }
+  return { ok: true, state: toProfileState(rows[0]) };
+}
+
+/**
+ * F2 — YALNIZ rapor logosu kolonlarını (logo_source, logo_asset_id) yazar; diğer profil alanları AYNEN kalır. Aynı iyimser
+ * sürüm (version) kullanılır → profil formu ile logo seçimi birbirinin üzerine sessizce yazamaz (409).
+ * Sahiplik doğrulaması (custom → uzmanın kendi, silinmemiş, kind='logo' görseli) ÇAĞIRANDA yapılır (lib/workspace/assets.findOwnAsset).
+ * "none" / "workspace" seçiminde logo_asset_id null yazılır (eski özel seçim referansı bırakılmaz → görsel silinebilir).
+ */
+export async function writeLogoSelection(
+  db: SupabaseClient, o: Owner, expectedVersion: number, sel: { source: LogoSource; assetId: string | null },
+): Promise<WriteResult> {
+  const cur = await readRow(db, o);
+  if (cur.error) return isMissingTable(cur.error) ? { ok: false, kind: "unavailable" } : { ok: false, kind: "db", cause: cause(cur.error, "read") };
+  if ((cur.row?.version ?? 0) !== expectedVersion) return { ok: false, kind: "conflict", current: toProfileState(cur.row) };
+  const cols = { logo_source: sel.source, logo_asset_id: sel.source === "custom" ? sel.assetId : null };
+
+  if (expectedVersion === 0) {
+    const ins = await db.from(PROFILES_TABLE).insert({ tenant_id: o.tenantId, user_id: o.userId, ...cols, schema_version: PROFILE_SCHEMA_VERSION, version: 1 }).select(COLS).single();
+    if (ins.error) {
+      if (isUniqueViolation(ins.error)) {
+        const again = await readRow(db, o);
+        if (again.error) return { ok: false, kind: "db", cause: cause(again.error, "reread") };
+        return { ok: false, kind: "conflict", current: toProfileState(again.row) };
+      }
+      if (isCheckViolation(ins.error)) return { ok: false, kind: "invalid" };
+      return { ok: false, kind: "db", cause: cause(ins.error, "insert") };
+    }
+    return { ok: true, state: toProfileState(ins.data as Row) };
+  }
+
+  const upd = await db
+    .from(PROFILES_TABLE)
+    .update({ ...cols, version: expectedVersion + 1 })
     .eq("tenant_id", o.tenantId)
     .eq("user_id", o.userId)
     .eq("version", expectedVersion)

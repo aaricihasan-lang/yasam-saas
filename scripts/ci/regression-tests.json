@@ -584,6 +584,26 @@
    "timeoutSec": 60
   },
   {
+   "file": "scripts/expert-branding/expertBranding.harness.ts",
+   "tsx": true,
+   "timeoutSec": 120
+  },
+  {
+   "file": "scripts/expert-branding/kademeB/routes.harness.ts",
+   "tsx": true,
+   "timeoutSec": 300
+  },
+  {
+   "file": "scripts/expert-branding/kademeB/samples.ts",
+   "tsx": true,
+   "timeoutSec": 240
+  },
+  {
+   "file": "scripts/expert-branding/routes.harness.ts",
+   "tsx": true,
+   "timeoutSec": 240
+  },
+  {
    "file": "scripts/expert-usage-stats/logic-harness.ts",
    "tsx": true,
    "timeoutSec": 60
@@ -760,8 +780,28 @@
    "timeoutSec": 60
   },
   {
+   "file": "scripts/profile/delete-guard.harness.ts",
+   "tsx": true,
+   "timeoutSec": 240
+  },
+  {
+   "file": "scripts/profile/deleteMessage.test.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/profile/logo.harness.ts",
+   "tsx": true,
+   "timeoutSec": 180
+  },
+  {
    "file": "scripts/profile/pg/expert-profiles-tables.mjs",
    "timeoutSec": 240
+  },
+  {
+   "file": "scripts/profile/reportLogo.test.ts",
+   "tsx": true,
+   "timeoutSec": 60
   },
   {
    "file": "scripts/profile/routes.harness.ts",
