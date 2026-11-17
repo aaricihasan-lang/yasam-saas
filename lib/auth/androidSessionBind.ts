@@ -20,15 +20,31 @@ export function supportsSessionDeviceBind(): boolean {
 
 let inFlight: Promise<SessionBindOutcome> | null = null;
 
+/** Çerezle kimlik doğrulanan değişiklik isteklerinde CSRF katmanı özel başlık ister (x-user-id). */
+function storedUserId(): string {
+  try {
+    const raw = window.localStorage.getItem("yasam_user");
+    const id = raw ? (JSON.parse(raw) as { id?: unknown }).id : null;
+    return typeof id === "string" ? id : "";
+  } catch {
+    return "";
+  }
+}
+
 /** Oturumu bu telefona bağlar / kanıtı yeniler. Aynı anda tek istek. */
 export function requestSessionDeviceBind(token: string | null | undefined): Promise<SessionBindOutcome> {
-  if (!supportsSessionDeviceBind() || typeof window === "undefined" || !token) return Promise.resolve("unsupported");
+  // F2-K (A3): çerez taşımasında (ANDROID_APP_SESSION_TRANSPORT=cookie) token yoktur; istek aynı kaynak HttpOnly çerezle gider.
+  if (!supportsSessionDeviceBind() || typeof window === "undefined") return Promise.resolve("unsupported");
   if (inFlight) return inFlight;
   inFlight = (async (): Promise<SessionBindOutcome> => {
     try {
       const res = await fetch("/api/auth/session/device-bind/begin", {
         method: "POST",
-        headers: { "content-type": "application/json", "x-session-token": token },
+        headers: {
+          "content-type": "application/json",
+          ...(token ? { "x-session-token": token } : { "x-user-id": storedUserId() }),
+        },
+        credentials: "same-origin",
         body: "{}",
         cache: "no-store",
       });

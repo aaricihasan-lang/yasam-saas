@@ -57,6 +57,8 @@ const TSX = [
   "scripts/giris-guvenligi/f2j-eposta.harness.ts",
   // F2-K (N2): çalınmış Owner oturumuyla kalıcı yönetici erişimi (oluşturma / yükseltme / etkinleştirme).
   "scripts/giris-guvenligi/f2k-yonetici.harness.ts",
+  // F2-K (A3): oturum anahtarı yalnız resmî uygulamanın iki sinyalli kanalına (varsayılan); diğer bütün istemciler HttpOnly çerez.
+  "scripts/giris-guvenligi/f2k-token.harness.ts",
   "scripts/giris-guvenligi/purge-senaryolari.harness.ts",
   "scripts/giris-guvenligi/gmail-provider.check.ts",
   "scripts/giris-guvenligi/qr-encode.check.ts",

@@ -13,7 +13,6 @@ import {
   parseModulePermissions,
   type ModulePermissions,
 } from "@/lib/auth/modulePermissions";
-import { isAndroidAppUserAgent } from "@/lib/platform/outputSupport";
 import { SESSION_TRANSPORT_HTML_ATTR, parseWebSessionTransport } from "@/lib/auth/sessionTransportFlag";
 import { clearDemoUrunStok } from "@/lib/demo/demoUrunStok";
 import { handleReflexologyLogout } from "@/lib/refleksoloji/runtimeReset";
@@ -364,9 +363,14 @@ export function ensureWebCookieSession(): Promise<void> {
  * kalır. Android'de oturum YALNIZ localStorage token + x-session-token ile yürür (cookie yok).
  */
 export function isAndroidWebViewClient(): boolean {
-  if (typeof navigator === "undefined") return false;
-  return isAndroidAppUserAgent(navigator.userAgent);
+  // F2-K (A3): karar SUNUCUNUN SSR işaretinden (<html data-android-token>) okunur — sunucu yalnız resmî uygulamanın iki
+  // sinyalli kanalına (ve "header" taşımasına) token verir. Uygulama içi tarayıcılar (yalnız `; wv)`) artık çerez yolunda.
+  if (typeof document === "undefined") return false;
+  return document.documentElement?.getAttribute(ANDROID_TOKEN_HTML_ATTR) != null;
 }
+
+/** SSR: sunucu bu sayfaya token yolu (resmî Android uygulaması, header taşıması) seçti. */
+export const ANDROID_TOKEN_HTML_ATTR = "data-android-token";
 
 /**
  * HTTPONLY H5 — bu istemcinin kimlikli istek atabilecek bir oturum kimlik bilgisi var mı?
@@ -566,7 +570,7 @@ async function refreshYasamUserOutcome(user: YasamUser): Promise<YasamUserSyncOu
     let res = await fetchProfile();
     // F2-J: Android uygulamasında (2.0.0+) yönetici oturumunun 24 saatlik cihaz kanıtı bayatlamış olabilir →
     // telefonla bir kez yeniden kanıt (biyometri) ve tek tekrar. Başarısızsa normal 401 akışı (yeniden giriş).
-    if (res.status === 401 && token && supportsSessionDeviceBind()) {
+    if (res.status === 401 && supportsSessionDeviceBind()) {
       if ((await requestSessionDeviceBind(token)) === "bound") res = await fetchProfile();
     }
 

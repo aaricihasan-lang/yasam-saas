@@ -10,6 +10,7 @@ import {
   SESSION_ABSOLUTE_MS,
 } from "@/lib/auth/sessionSecurity";
 import {
+  androidAppSessionTransport,
   clearWebSessionCookie,
   getSessionCookieConfig,
   hasWebSessionCookie,
@@ -329,7 +330,7 @@ export async function POST(req: NextRequest) {
     const cookieCfg = getSessionCookieConfig();
     const webCookieSession =
       cookieCfg.mode !== "off" &&
-      result.channel !== "android_app" &&
+      (result.channel !== "android_app" || androidAppSessionTransport() === "cookie") &&
       !isAndroidAppRequest(req.headers) &&
       isSessionCookieEligible(cookieCfg, String(row.id));
     // HTTPONLY H6b: web + cookie taşımasında oturum token'ı GÖVDEDE DÖNMEZ (JS hiç görmez); istemci

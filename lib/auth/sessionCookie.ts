@@ -26,7 +26,6 @@ import type { NextRequest, NextResponse } from "next/server";
 import {
   CLIENT_CHANNEL_HEADER,
   REQUESTED_WITH_HEADER,
-  isAndroidChannelHint,
   resolveClientChannel,
 } from "@/lib/auth/clientChannel";
 
@@ -84,16 +83,29 @@ export function isSessionCookieEligible(cfg: SessionCookieConfig, userId: string
 }
 
 /**
- * Android uygulama isteği mi? Cookie mekanizmasından GENİŞ dışlama (güvenli yön): resmi
- * kanal sınıflandırması VEYA herhangi bir Android WebView UA'sı VEYA Android istemci ipucu.
- * Dışlanan istek bugünkü header yolunda kalır; yanlış pozitif yalnız cookie'yi devre dışı bırakır.
+ * GİRİŞ GÜVENLİĞİ F2-K (A3): resmî Android uygulamasının oturum TAŞIMASI.
+ *   "header" (varsayılan): bugünkü 1.9.x / 2.0.0 davranışı — oturum anahtarı yanıt gövdesiyle verilir, WebView
+ *             localStorage'da tutulur ve x-session-token başlığıyla gönderilir (JavaScript'e açıktır).
+ *   "cookie" (opt-in): resmî uygulama da web gibi HttpOnly + Secure + SameSite=Strict __Host- çerezi kullanır; oturum
+ *             anahtarı JavaScript'e HİÇ verilmez. Gerçek cihaz kabulünden sonra Owner kararıyla açılır.
  */
-export function isAndroidAppRequest(headers: Headers): boolean {
+export function androidAppSessionTransport(env: Record<string, string | undefined> = process.env): "header" | "cookie" {
+  return String(env.ANDROID_APP_SESSION_TRANSPORT ?? "").trim().toLowerCase() === "cookie" ? "cookie" : "header";
+}
+
+/**
+ * Oturum anahtarı bu isteğe TOKEN yolu (gövde / x-session-token) ile mi verilir?
+ * F2-K (A3): YALNIZ resmî uygulamanın iki sinyalli kanalı (WebView UA + uygulama paket başlığı; veya yerel UA soneki +
+ * istemci ipucu) VE taşıma "header" ise. Tek başına `; wv)` (Instagram / Facebook vb. uygulama içi tarayıcılar) veya
+ * tek başına istemci ipucu ARTIK token yolu açmaz → bu istemciler HttpOnly çerez alır. Normal tarayıcı JavaScript'i
+ * User-Agent'ı değiştiremez; resmî kanalı taklit edemez. (Kanal bir güvenlik kanıtı değildir; uzun yönetici oturumu
+ * F2-J cihaz kanıtına bağlıdır.)
+ */
+export function isAndroidAppRequest(headers: Headers, env: Record<string, string | undefined> = process.env): boolean {
   const ua = headers.get("user-agent") ?? "";
   const hint = headers.get(CLIENT_CHANNEL_HEADER);
-  if (resolveClientChannel(ua, hint, headers.get(REQUESTED_WITH_HEADER)) === "android_app") return true;
-  if (/;\s*wv\)/.test(ua)) return true;
-  return isAndroidChannelHint(hint);
+  if (resolveClientChannel(ua, hint, headers.get(REQUESTED_WITH_HEADER)) !== "android_app") return false;
+  return androidAppSessionTransport(env) === "header";
 }
 
 /** İstekteki web session cookie değeri (biçim dışı → ""). */

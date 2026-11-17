@@ -63,6 +63,8 @@ export default async function RootLayout({
       {...{ [SESSION_TRANSPORT_HTML_ATTR]: sessionTransport }}
       data-android={platform.android ? "" : undefined}
       data-android-app={platform.androidApp ? "" : undefined}
+      // F2-K (A3): istemcinin token yolu kararı SUNUCUNUN kararından gelir (User-Agent tahmini değil).
+      data-android-token={sessionTransport === "header" && isAndroidAppRequest(requestHeaders) ? "" : undefined}
       className={`${globalFontVars} h-full overflow-x-hidden antialiased`}
     >
       <body className="min-h-full flex flex-col overflow-x-hidden">

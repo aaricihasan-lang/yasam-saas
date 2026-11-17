@@ -8,6 +8,7 @@ import {
   SESSION_ABSOLUTE_MS,
 } from "@/lib/auth/sessionSecurity";
 import {
+  androidAppSessionTransport,
   clearWebSessionCookie,
   getSessionCookieConfig,
   hasWebSessionCookie,
@@ -149,7 +150,7 @@ export async function POST(req: NextRequest) {
     // Login başarı yanıtıyla AYNI taşıma kuralları (HTTPONLY H2+/H6b).
     const webCookieSession =
       cookieCfg.mode !== "off" &&
-      result.channel !== "android_app" &&
+      (result.channel !== "android_app" || androidAppSessionTransport() === "cookie") &&
       !androidApp &&
       isSessionCookieEligible(cookieCfg, String(row.id));
     const webCookieOnly = webCookieSession && readWebSessionTransport() === "cookie";

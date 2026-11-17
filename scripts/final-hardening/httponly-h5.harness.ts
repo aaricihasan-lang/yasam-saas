@@ -52,6 +52,12 @@ g.sessionStorage = g.localStorage;
 g.window = globalThis;
 let currentUa = WEB_UA;
 Object.defineProperty(globalThis, "navigator", { configurable: true, get: () => ({ userAgent: currentUa }) });
+// F2-K (A3): istemci token yolu kararını SUNUCUNUN SSR işaretinden okur. Resmî uygulama (WebView UA + paket başlığı veya
+// yerel UA soneki + ipucu) için sunucu <html data-android-token> basar; simülasyon bu kararı taklit eder.
+let androidTokenAttr = false;
+// Belge yalnız sunucu token yolunu seçtiğinde simüle edilir (aksi halde sunucu modülleri tarayıcı sanılmasın).
+Object.defineProperty(globalThis, "document", { configurable: true,
+  get: () => (androidTokenAttr ? { documentElement: { getAttribute: (n: string) => (n === "data-android-token" ? "" : null) } } : undefined) });
 type Call = { url: string; method: string; headers: Record<string, string> };
 let calls: Call[] = [];
 let nextResponse: () => Response = () => new Response(JSON.stringify({ valid: true }), { status: 200 });
@@ -64,6 +70,8 @@ function setSession(opts: { user?: boolean; token?: boolean; ua?: string }) {
   store.clear();
   calls = [];
   currentUa = opts.ua ?? WEB_UA;
+  // Resmî uygulama sayfasında sunucu token yolunu seçer (SSR işareti).
+  androidTokenAttr = currentUa === ANDROID_WV_UA || currentUa === ANDROID_NATIVE_UA;
   if (opts.user !== false) store.set("yasam_user", JSON.stringify({ id: UID, role: "expert", active: true, approval_status: "approved", email: "x@test.invalid" }));
   if (opts.token) store.set("yasam_session_token", TOKEN);
 }
@@ -75,18 +83,28 @@ async function main() {
   const { isAndroidAppRequest } = await import("../../lib/auth/sessionCookie");
 
   // ── 1) merkezi Android kararı ────────────────────────────────────────────────────────────
-  await t("isAndroidWebViewClient: web=false, `; wv)`=true, YasamSistemiAndroid/=true, Android Chrome=false", () => {
-    for (const [ua, exp] of [[WEB_UA, false], [ANDROID_WV_UA, true], [ANDROID_NATIVE_UA, true], [ANDROID_CHROME_UA, false]] as const) {
+  await t("isAndroidWebViewClient: YALNIZ sunucu SSR işareti (data-android-token) — User-Agent tek başına karar vermez", () => {
+    for (const [ua, attr] of [[WEB_UA, false], [ANDROID_WV_UA, true], [ANDROID_WV_UA, false], [ANDROID_NATIVE_UA, true], [ANDROID_CHROME_UA, false]] as const) {
       currentUa = ua;
-      assert.equal(yu.isAndroidWebViewClient(), exp, ua);
-      assert.equal(isAndroidAppUserAgent(ua), exp);
+      androidTokenAttr = attr;
+      assert.equal(yu.isAndroidWebViewClient(), attr, `${ua} işaret=${attr}`);
     }
+    androidTokenAttr = false;
+    // UI çıktı gizleme (blob / print) ayrı bir konudur ve UA'ya dayanmaya devam eder.
+    assert.equal(isAndroidAppUserAgent(ANDROID_WV_UA), true);
   });
-  await t("tutarlılık: sunucunun cookie VERMEDİĞİ her `; wv)` istemci, istemcide de Android (token yolu)", () => {
-    for (const ua of [ANDROID_WV_UA, "Mozilla/5.0 (Linux; Android 13; Pixel; wv) AppleWebKit Instagram"]) {
-      assert.equal(isAndroidAppRequest(new Headers({ "user-agent": ua })), true);
-      assert.equal(isAndroidAppUserAgent(ua), true);
-    }
+  await t("F2-K (A3) sunucu: token yolu YALNIZ resmî uygulamanın iki sinyalli kanalı + header taşıması", () => {
+    const H = (h: Record<string, string>) => new Headers(h);
+    // Resmî uygulama (WebView UA + paket başlığı) → token yolu (varsayılan, geriye uyumlu).
+    assert.equal(isAndroidAppRequest(H({ "user-agent": ANDROID_WV_UA, "x-requested-with": "com.yasamsistemi.app", "x-requested-with": "com.yasamsistemi.app" }), {}), true);
+    assert.equal(isAndroidAppRequest(H({ "user-agent": ANDROID_NATIVE_UA, "x-yasam-client": "android" }), {}), true);
+    // Uygulama içi tarayıcılar (yalnız `; wv)`), başka paket, yalnız ipucu, normal tarayıcılar → çerez yolu.
+    assert.equal(isAndroidAppRequest(H({ "user-agent": "Mozilla/5.0 (Linux; Android 13; Pixel; wv) AppleWebKit Instagram" }), {}), false);
+    assert.equal(isAndroidAppRequest(H({ "user-agent": ANDROID_WV_UA, "x-requested-with": "com.yasamsistemi.app", "x-requested-with": "com.instagram.android" }), {}), false);
+    assert.equal(isAndroidAppRequest(H({ "user-agent": ANDROID_CHROME_UA, "x-yasam-client": "android" }), {}), false);
+    assert.equal(isAndroidAppRequest(H({ "user-agent": WEB_UA, "x-yasam-client": "android", "x-requested-with": "com.yasamsistemi.app" }), {}), false);
+    // Opt-in: resmî uygulama da HttpOnly çerez kullanır (gerçek cihaz kabulünden sonra Owner kararıyla).
+    assert.equal(isAndroidAppRequest(H({ "user-agent": ANDROID_WV_UA, "x-requested-with": "com.yasamsistemi.app", "x-requested-with": "com.yasamsistemi.app" }), { ANDROID_APP_SESSION_TRANSPORT: "cookie" }), false);
   });
 
   // ── 2) oturum kimlik bilgisi ─────────────────────────────────────────────────────────────
@@ -197,6 +215,7 @@ async function main() {
   };
   const mk = (url: string, method: string, headers: Record<string, string> = {}) =>
     new NextRequest(`https://www.yasamsistemi.com${url}`, { method, headers: { "user-agent": WEB_UA, ...headers } });
+  androidTokenAttr = false; // sunucu modülleri belge olmadan yüklenir (serverOnlyGuard)
   const sessionRoute = await import("../../app/api/auth/session/route");
   const adminRoute = await import("../../app/api/auth/admin-session/route");
   const pendingRoute = await import("../../app/api/auth/session/pending/route");
@@ -216,7 +235,7 @@ async function main() {
   });
   await t("session GET primary + ANDROID + tokensuz → 400 (Android cookie okumaz)", async () => {
     setMode("primary");
-    const r = await sessionRoute.GET(mk("/api/auth/session", "GET", { "user-agent": ANDROID_WV_UA, cookie: `__Host-yasam_sid=${TOKEN}` }));
+    const r = await sessionRoute.GET(mk("/api/auth/session", "GET", { "user-agent": ANDROID_WV_UA, "x-requested-with": "com.yasamsistemi.app", cookie: `__Host-yasam_sid=${TOKEN}` }));
     assert.equal(r.status, 400);
   });
   await t("session GET `?token=` KALDIRILDI (URL'deki token yok sayılır)", async () => {
@@ -242,7 +261,7 @@ async function main() {
   });
   await t("admin-session ANDROID: Origin kontrolü uygulanmaz (bugünkü davranış)", async () => {
     setMode("primary");
-    const r = await adminRoute.DELETE(mk("/api/auth/admin-session", "DELETE", { "user-agent": ANDROID_WV_UA, origin: "https://evil.example" }));
+    const r = await adminRoute.DELETE(mk("/api/auth/admin-session", "DELETE", { "user-agent": ANDROID_WV_UA, "x-requested-with": "com.yasamsistemi.app", origin: "https://evil.example" }));
     assert.equal(r.status, 200);
   });
   await t("admin-session POST primary + web + same-origin + header/cookie yok → 401 (kimlik yok)", async () => {
