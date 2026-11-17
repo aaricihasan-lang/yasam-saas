@@ -105,6 +105,7 @@ BEGIN
   ('col', 'users.mfa_required', 100),
   ('col', 'users.mfa_required_at', 100),
   ('fn', 'admin_notification_history', 400),
+  ('fn', 'admin_purge_legal_hold_trg', 1100),
   ('fn', 'auth_admin_create_admin', 1100),
   ('fn', 'auth_admin_grant_email_target', 1100),
   ('fn', 'auth_admin_grant_finish', 1100),
@@ -228,6 +229,7 @@ BEGIN
   ('tbl', 'auth_retention_runs', 800),
   ('tbl', 'auth_session_device_proofs', 1000),
   ('tbl', 'auth_trusted_devices', 300),
+  ('trg', 'admin_purge_legal_hold', 1100),
   ('trg', 'auth_device_decisions_append_only_trg', 300),
   ('trg', 'auth_recovery_events_append_only_trg', 500),
   ('trg', 'auth_retention_log_append_only_trg', 800),
@@ -493,6 +495,7 @@ lines AS (SELECT lvl, line FROM fnl UNION ALL SELECT lvl, line FROM trl UNION AL
       ('col|users.mfa_required_at|timestamp with time zone|false'),
       ('col|users.mfa_required|boolean|true'),
       ('fn|admin_notification_history(p_actor uuid, p_q text, p_type text, p_status text, p_from timestamp with time zone, p_to timestamp with time zone, p_limit integer, p_offset integer)|8691fe62e7ac2989d4a24eb8649e171f|true|search_path=pg_catalog, public|api=false|svc=true'),
+      ('fn|admin_purge_legal_hold_trg()|9bb37060cafbea0d6405bbd698a8746c|true|search_path=""|api=false|svc=*'),
       ('fn|auth_admin_create_admin(p_actor_token text, p_payload jsonb, p_membership jsonb)|df428dd9df63a2e769788ce45635b991|true|search_path=""|api=false|svc=true'),
       ('fn|auth_admin_grant_email_target(p_email text)|d85b5f16885ab7d1a8d745ec032943ed|false|search_path=""|api=false|svc=true'),
       ('fn|auth_admin_grant_finish(p_actor uuid, p_user uuid, p_kind text)|24be08ee2d6e9ab9a44754da5e4f83b5|true|search_path=""|api=false|svc=false'),
@@ -641,6 +644,6 @@ lines AS (SELECT lvl, line FROM fnl UNION ALL SELECT lvl, line FROM trl UNION AL
     RAISE EXCEPTION 'F2 POSTFLIGHT KATALOG FAIL — kayıt=% (beklenen 1100) | beklenip bulunmayan/farklı: % | beklenmeyen: %',
       coalesce(v_reg::text, 'yok'), left(coalesce(v_missing, '-'), 3000), left(coalesce(v_extra, '-'), 3000);
   END IF;
-  RAISE NOTICE 'F2 POSTFLIGHT KATALOG PASS (% satır)', 353;
+  RAISE NOTICE 'F2 POSTFLIGHT KATALOG PASS (% satır)', 354;
 END $f2man$;
 -- <<< KATALOG MANİFESTİ

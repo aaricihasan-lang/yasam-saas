@@ -26,6 +26,7 @@ WITH obj(kind, name, lvl) AS (VALUES
   ('col', 'users.mfa_required', 100),
   ('col', 'users.mfa_required_at', 100),
   ('fn', 'admin_notification_history', 400),
+  ('fn', 'admin_purge_legal_hold_trg', 1100),
   ('fn', 'auth_admin_create_admin', 1100),
   ('fn', 'auth_admin_grant_email_target', 1100),
   ('fn', 'auth_admin_grant_finish', 1100),
@@ -149,6 +150,7 @@ WITH obj(kind, name, lvl) AS (VALUES
   ('tbl', 'auth_retention_runs', 800),
   ('tbl', 'auth_session_device_proofs', 1000),
   ('tbl', 'auth_trusted_devices', 300),
+  ('trg', 'admin_purge_legal_hold', 1100),
   ('trg', 'auth_device_decisions_append_only_trg', 300),
   ('trg', 'auth_recovery_events_append_only_trg', 500),
   ('trg', 'auth_retention_log_append_only_trg', 800),
@@ -198,7 +200,7 @@ cll AS (
     JOIN pg_catalog.pg_attribute a ON a.attrelid = c.oid AND a.attnum > 0 AND NOT a.attisdropped
          AND (o.kind = 'tbl' OR a.attname = split_part(o.name, '.', 2))),
 lines AS (SELECT lvl, line FROM fnl UNION ALL SELECT lvl, line FROM trl UNION ALL SELECT lvl, line FROM tbl UNION ALL SELECT lvl, line FROM cll),
-expected(lvl, hash) AS (VALUES (0, 'c8df9e5bf3db2c1a5670586976869092'), (100, '10a193da0f693addf4895ee64d163df9'), (300, '5faa54e46aadc4ebd290746b624fcc66'), (400, 'e34a756eb98e9efcf891ec8a7fb26feb'), (500, 'c01ff596af7235d716f1aab9cf77ac85'), (600, 'e2538a9ad08b006ef74030023aca00ce'), (700, '3bf7a7f5c63eaf0b98cbf459bdf669c8'), (800, '4cba2fb4eb68df4e0f84eb8c955181c2'), (900, '726e0d5127e8b2b01d39c9a1f0da0fb3'), (1000, 'f5aa59b54c2ab58524630ae7385b1275'), (1100, '09fd31fdab0dc010e8b33bb6f82d3560')),
+expected(lvl, hash) AS (VALUES (0, 'c8df9e5bf3db2c1a5670586976869092'), (100, '10a193da0f693addf4895ee64d163df9'), (300, '5faa54e46aadc4ebd290746b624fcc66'), (400, 'e34a756eb98e9efcf891ec8a7fb26feb'), (500, 'c01ff596af7235d716f1aab9cf77ac85'), (600, 'e2538a9ad08b006ef74030023aca00ce'), (700, '3bf7a7f5c63eaf0b98cbf459bdf669c8'), (800, '4cba2fb4eb68df4e0f84eb8c955181c2'), (900, '726e0d5127e8b2b01d39c9a1f0da0fb3'), (1000, 'f5aa59b54c2ab58524630ae7385b1275'), (1100, '5666eb720a88fe7c90cc9f88fa5c17a4')),
 fps(lvl, file, present) AS (VALUES
     (0, '20280103000000', to_regprocedure('public.auth_is_owner_admin(uuid)') IS NOT NULL),
     (100, '20280103000100', to_regclass('public.auth_mfa_challenges') IS NOT NULL),

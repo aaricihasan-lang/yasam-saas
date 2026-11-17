@@ -741,6 +741,39 @@ REVOKE ALL ON FUNCTION public.auth_device_owner_decide(text, uuid, text, boolean
 GRANT EXECUTE ON FUNCTION public.auth_device_owner_decide(text, uuid, text, boolean, text, text) TO service_role;
 
 
+-- ── K4 (C3) Kalıcı silme × yasal saklama (legal hold): FAIL-CLOSED (Owner kararı 17.11) ───────────────────────
+-- Uzmanın kendisi ('subject_user') veya cihazlarından biri ('device') için AÇIK yasal saklama varken kalıcı silme
+-- başlamaz: admin_purge_archived_expert (DEĞİŞTİRİLMEZ) silmeden ÖNCE admin_purge_context'e işaret yazar; bu BEFORE
+-- INSERT tetikleyicisi UP011 ile reddeder → aynı işlem içinde HİÇBİR satır silinmez (kısmi silme yok). Saklama kaydı
+-- otomatik KALDIRILMAZ; yalnız Owner auth_retention_hold_release ile kaldırabilir. Yasal süre bu kodda TANIMLANMAZ.
+CREATE OR REPLACE FUNCTION public.admin_purge_legal_hold_trg()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $f2k$
+BEGIN
+  IF EXISTS (SELECT 1 FROM public.auth_retention_holds h
+              WHERE h.released_at IS NULL
+                AND ((h.hold_type = 'subject_user' AND h.subject_id = NEW.user_id)
+                  OR (h.hold_type = 'device' AND h.subject_id IN (SELECT d.id FROM public.auth_trusted_devices d WHERE d.user_id = NEW.user_id)))) THEN
+    RAISE EXCEPTION 'admin_purge: yasal saklama (legal hold) acik' USING ERRCODE = 'UP011';
+  END IF;
+  RETURN NEW;
+END $f2k$;
+REVOKE ALL ON FUNCTION public.admin_purge_legal_hold_trg() FROM PUBLIC, anon, authenticated, service_role;
+DO $c3$
+BEGIN
+  -- admin_purge_context yalnız kalıcı silme altyapısı kurulu ortamlarda vardır (prod: var). Yoksa bu adım atlanır;
+  -- tablo sonradan gelirse migration yeniden çalıştırılmalıdır (postflight bunu tetikleyici varlığıyla doğrular).
+  IF to_regclass('public.admin_purge_context') IS NOT NULL THEN
+    DROP TRIGGER IF EXISTS admin_purge_legal_hold ON public.admin_purge_context;
+    CREATE TRIGGER admin_purge_legal_hold
+      BEFORE INSERT ON public.admin_purge_context
+      FOR EACH ROW EXECUTE FUNCTION public.admin_purge_legal_hold_trg();
+  END IF;
+END $c3$;
+
 -- >>> F2 ŞEMA DÜZEYİ KAYDI (F2-J; üretici: scripts/giris-guvenligi/f2-migration-guard.mjs — elle değiştirmeyin)
 CREATE OR REPLACE FUNCTION public.auth_f2_schema_level() RETURNS integer
 LANGUAGE sql IMMUTABLE SET search_path = '' AS $f2lvl$ SELECT 1100 $f2lvl$;

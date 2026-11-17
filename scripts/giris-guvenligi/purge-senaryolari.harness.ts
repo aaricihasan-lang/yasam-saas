@@ -7,6 +7,9 @@
  *   S3) HD eğitim kaydı olan uzman (ON DELETE RESTRICT FK'ler): silme REDDEDİLİR ve HİÇBİR satır değişmez (tam geri alma).
  *   S4) Aynı uzman HD eğitim kaydı yokken silinebilir; başka uzmanın tenant'ı / danışanları / HD kayıtları aynen kalır.
  *   S5) Paylaşımlı tenant'taki uzman silinemez.
+ *   S6) F2-K (C3): uzmanın kendisi veya cihazı için AÇIK yasal saklama varken silme REDDEDİLİR (UP011), HİÇBİR satır
+ *       değişmez, saklama kaydı otomatik kaldırılmaz; Owner kaldırınca silme yapılabilir, saklama geçmişi kalır.
+ *       PURGE_WITHOUT_F2K=1 → F2-K migration'ı uygulanmaz (düzeltmesiz ölçüm; S6 FAIL beklenir).
  *
  * Çalıştır: npx tsx scripts/giris-guvenligi/purge-senaryolari.harness.ts
  */
@@ -58,6 +61,9 @@ const F2_CHAIN = [
   "20280103000600_auth_purge_audit_retention_f2f.sql",
   "20280103000700_auth_owner_step_up_f2g.sql",
   "20280103000800_auth_audit_retention_disposal_f2h.sql",
+  "20280103000900_auth_security_hardening_f2i.sql",
+  "20280103001000_auth_session_device_binding_f2j.sql",
+  ...(process.env.PURGE_WITHOUT_F2K === "1" ? [] : ["20280103001100_auth_critical_privilege_device_f2k.sql"]),
 ];
 
 async function main(): Promise<void> {
@@ -90,8 +96,11 @@ async function main(): Promise<void> {
       const tenant = o.tenant ?? randomUUID();
       if (!o.tenant) await su.query(`insert into public.tenants(id, name, slug, status) values ($1,'ZZ',$2,'active')`, [tenant, `zz-${tenant.slice(0, 13)}`]);
       const email = `zz.purge.${id.slice(0, 8)}@example.test`;
+      // F2-K (N2): yönetici satırı yalnız yetkili yoldan (GUC kapısı) eklenebilir — test kurulumu aynı kapıyı kullanır.
+      await su.query(`select set_config('yasam.admin_grant','on',false), set_config('yasam.super_admin_grant','on',false)`);
       await su.query(`insert into public.users(id, full_name, email, role, active, approval_status, is_super_admin, tenant_id)
                       values ($1,$2,$3,$4,true,'approved',$5,$6)`, [id, `ZZ ${role}`, email, role, o.superAdmin ?? false, tenant]);
+      await su.query(`select set_config('yasam.admin_grant','off',false), set_config('yasam.super_admin_grant','off',false)`);
       return { id, tenant, email };
     };
     const cnt = async (sql: string, a: unknown[] = []) => Number((await su.query(sql, a)).rows[0].n);
@@ -177,6 +186,39 @@ async function main(): Promise<void> {
     const s5 = await purge(shared, owner.id);
     ok(s5.code === "UP009" || s5.code === "UP010", "S5 paylaşımlı tenant'taki uzman silinemez", s5);
     ok(await cnt(`select count(*) n from public.users where id = $1`, [shared.id]) === 1, "S5 hiçbir şey silinmedi");
+
+    // S6 — F2-K (C3): yasal saklama (legal hold).
+    const snap6 = async () => JSON.stringify((await su.query(`select
+      (select count(*) from public.users) u, (select count(*) from public.tenants) t, (select count(*) from public.user_sessions) s,
+      (select count(*) from public.auth_trusted_devices) d, (select count(*) from public.security_events) e,
+      (select count(*) from public.auth_retention_holds) h, (select count(*) from public.admin_purge_context) c`)).rows[0]);
+    const held = await mkUser("expert");
+    await su.query(`select set_config('yasam.session_create','on',false)`);
+    await su.query(`insert into public.user_sessions(user_id, session_token, expires_at) values ($1, $2, now() + interval '1 hour')`, [held.id, `zz-${randomUUID()}`]).catch(() => {});
+    await su.query(`select set_config('yasam.session_create','off',false)`);
+    await su.query(`insert into public.security_events(user_id, event_type, severity, message) values ($1, 'zz_test', 'low', 'ZZ')`, [held.id]);
+    await su.query(`select public.admin_archive_user($1, $2)`, [held.id, owner.id]);
+    const holdId = (await su.query(`insert into public.auth_retention_holds(hold_type, subject_id, reason, created_by)
+      values ('subject_user', $1, 'ZZ sentetik yasal saklama talebi', $2) returning id`, [held.id, owner.id])).rows[0].id;
+    const b6 = await snap6();
+    const s6 = await purge(held, owner.id);
+    ok(s6.r === null && s6.code === "UP011", "S6 yasal saklamadaki uzman silinemez (UP011)", s6);
+    ok(await snap6() === b6, "S6 HİÇBİR satır değişmedi (kullanıcı, tenant, oturum, cihaz, güvenlik olayı, saklama kaydı)");
+    ok(await cnt(`select count(*) n from public.auth_retention_holds where id = $1 and released_at is null`, [holdId]) === 1, "S6 saklama kaydı otomatik kaldırılmadı");
+    // Cihaz bazlı saklama da kapsar.
+    const devHeld = await mkUser("expert");
+    const devId = (await su.query(`insert into public.auth_trusted_devices(user_id, public_key_spki, key_fingerprint, display_code, state, activated_at)
+      values ($1::uuid, repeat('Z', 120), encode(sha256(convert_to($2::text, 'UTF8')), 'hex'), 'ZZZZ-ZZZZ', 'active', now()) returning id`, [devHeld.id, devHeld.id])).rows[0].id;
+    await su.query(`select public.admin_archive_user($1, $2)`, [devHeld.id, owner.id]);
+    await su.query(`insert into public.auth_retention_holds(hold_type, subject_id, reason, created_by) values ('device', $1, 'ZZ sentetik cihaz saklama talebi', $2)`, [devId, owner.id]);
+    const bd = await snap6();
+    const s6d = await purge(devHeld, owner.id);
+    ok(s6d.r === null && s6d.code === "UP011" && await snap6() === bd, "S6 cihazında yasal saklama olan uzman silinemez; hiçbir şey değişmez", s6d);
+    // Owner saklamayı kaldırır → silme yapılabilir; saklama GEÇMİŞİ kalır.
+    await su.query(`update public.auth_retention_holds set released_at = now(), released_by = $2 where id = $1`, [holdId, owner.id]);
+    const s6r = await purge(held, owner.id);
+    ok(s6r.code === "" && await cnt(`select count(*) n from public.users where id = $1`, [held.id]) === 0, "S6 saklama kaldırılınca silme yapılır", s6r);
+    ok(await cnt(`select count(*) n from public.auth_retention_holds where id = $1`, [holdId]) === 1, "S6 saklama geçmişi (kaldırılmış kayıt) korunur");
   } finally {
     await db.stop();
   }
