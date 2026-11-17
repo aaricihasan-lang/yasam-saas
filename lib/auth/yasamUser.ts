@@ -304,6 +304,21 @@ function markCookieSessionReady(token: string): void {
 let cookieSessionMigration: Promise<void> | null = null;
 
 /**
+ * HTTPONLY (Android geçişi B-1) — çerez taşımasında saklı eski token'ın çerezi bu tarayıcıda HENÜZ yazılmadı mı?
+ * true iken kimlikli istekler ne başlık ne çerez taşır (readSessionToken null) → ensureWebCookieSession beklenmeli.
+ * Android header kipi / token yok / çerez zaten yazılmış → false.
+ */
+export function isWebCookieMigrationPending(): boolean {
+  if (typeof window === "undefined" || !webUsesCookieTransport()) return false;
+  try {
+    const raw = readStoredSessionToken();
+    return !!raw && localStorage.getItem(COOKIE_SESSION_READY_KEY) !== sessionTokenFingerprint(raw);
+  } catch {
+    return false;
+  }
+}
+
+/**
  * HTTPONLY H6b — ESKİ (legacy) WEB TOKEN'ININ GÜVENLİ TEMİZLİĞİ. Cookie taşımasında localStorage'da
  * eski bir token kaldıysa (H6a ve öncesinden açık sekme / eski giriş) SIRA KESİNDİR:
  *   1. Bu token'ın cookie'si bu tarayıcıda doğrulanmadıysa → tek seferlik bootstrap
