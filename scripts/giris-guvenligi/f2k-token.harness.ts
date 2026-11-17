@@ -46,7 +46,9 @@ async function main() {
       SESSION_COOKIE_ALLOWED_ORIGINS: "https://www.yasamsistemi.com",
       RATE_LIMIT_SECRET: "f2k-a3-rate", LOGIN_IP_PEPPER: "f2k-a3-ip", REQUIRE_DB_SUPER_ADMIN_MARKER: "true",
     });
-    if (process.env.F2K_A3_WITHOUT_FIX === "1") process.env.F2K_A3_WITHOUT_FIX_ACTIVE = "1";
+    // Negatif kontrol: A3 öncesi kural test sürecine yüklenir (bkz. a3Mutation.ts); yüklenemezse süreç durur.
+    const { installA3MutationIfRequested, assertA3MutationActive } = await import("./a3Mutation");
+    if (installA3MutationIfRequested()) await assertA3MutationActive();
     const sessionRoute = await import("@/app/api/auth/session/route");
     const bindBegin = await import("@/app/api/auth/session/device-bind/begin/route");
     const q = (sql: string, a: unknown[] = []) => admin.query(sql, a);

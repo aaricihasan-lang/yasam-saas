@@ -97,9 +97,12 @@ export function androidAppSessionTransport(env: Record<string, string | undefine
  * Oturum anahtarı bu isteğe TOKEN yolu (gövde / x-session-token) ile mi verilir?
  * F2-K (A3): YALNIZ resmî uygulamanın iki sinyalli kanalı (WebView UA + uygulama paket başlığı; veya yerel UA soneki +
  * istemci ipucu) VE taşıma "header" ise. Tek başına `; wv)` (Instagram / Facebook vb. uygulama içi tarayıcılar) veya
- * tek başına istemci ipucu ARTIK token yolu açmaz → bu istemciler HttpOnly çerez alır. Normal tarayıcı JavaScript'i
- * User-Agent'ı değiştiremez; resmî kanalı taklit edemez. (Kanal bir güvenlik kanıtı değildir; uzun yönetici oturumu
- * F2-J cihaz kanıtına bağlıdır.)
+ * tek başına istemci ipucu ARTIK token yolu açmaz → bu istemciler HttpOnly çerez alır.
+ * UYARI (ölçüldü 2026-11-17): Chromium sayfa JavaScript'i User-Agent'ı DEĞİŞTİREMEZ, ancak Firefox ve WebKit (Safari
+ * motoru) fetch/XHR ile User-Agent'ı DEĞİŞTİREBİLİR; X-Requested-With her tarayıcıda serbest başlıktır. Dolayısıyla
+ * "header" taşımasında bu iki sinyal o motorlarda taklit edilebilir (XSS altında anahtar JS'e açılır). Kesin kapatma:
+ * ANDROID_APP_SESSION_TRANSPORT=cookie (token yolu hiç yok). Kanal bir güvenlik kanıtı değildir; uzun yönetici oturumu
+ * F2-J cihaz kanıtına bağlıdır.
  */
 export function isAndroidAppRequest(headers: Headers, env: Record<string, string | undefined> = process.env): boolean {
   const ua = headers.get("user-agent") ?? "";

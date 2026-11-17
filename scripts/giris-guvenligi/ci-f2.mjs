@@ -59,6 +59,10 @@ const TSX = [
   "scripts/giris-guvenligi/f2k-yonetici.harness.ts",
   // F2-K (A3): oturum anahtarı yalnız resmî uygulamanın iki sinyalli kanalına (varsayılan); diğer bütün istemciler HttpOnly çerez.
   "scripts/giris-guvenligi/f2k-token.harness.ts",
+  // HttpOnly nihai: çerez öznitelikleri, yaşam döngüsü, çakışma, CSRF, MFA öncesi red, modlar / kill-switch,
+  // ANDROID_APP_SESSION_TRANSPORT=cookie (taklit kapalı + mevcut Android oturumunun çereze yükseltilmesi).
+  // "AÇIK" satırları varsayılan header kipinde bilinen Firefox/WebKit taklit boşluğudur (PASS sayılmaz; özette görünür).
+  "scripts/giris-guvenligi/httponly-nihai.harness.ts",
   // F2-K (O1): QR onayında 6 haneli yazılan kod + telefon imzası; yanlış kodda bütün açık istekler kapanır.
   "scripts/giris-guvenligi/f2k-qr.harness.ts",
   // F2-K (L4): güvenlik bildirimi kota ayrımı + gönderilemeyen bildirim kaydı.
@@ -88,6 +92,10 @@ const steps = [
     ...["f2b", "f2c", "f2d"].map((x) => ({ label: `${x}-routes (tam zincir)`, cmd: process.execPath,
       args: [path.join("node_modules", "tsx", "dist", "cli.mjs"), `scripts/giris-guvenligi/${x}-routes.harness.ts`],
       env: { F2_TEST_DB_WITH_F2E: "1" }, passRe: /:\s*[1-9][0-9]* PASS[ ,/]+0 FAIL/ })),
+    // NEGATİF KONTROL: A3 öncesi kural yüklenince taklit testleri FAIL VERMELİ (vermiyorsa test kör demektir).
+    { label: "f2k-token NEGATİF (F2K_A3_WITHOUT_FIX=1 → FAIL beklenir)", cmd: process.execPath,
+      args: [path.join("node_modules", "tsx", "dist", "cli.mjs"), "scripts/giris-guvenligi/f2k-token.harness.ts"],
+      env: { F2K_A3_WITHOUT_FIX: "1" }, expectFail: true, passRe: /f2k-token:\s*[0-9]+ PASS, [1-9][0-9]* FAIL/ },
   ]),
 ];
 
@@ -101,7 +109,9 @@ for (const s of steps) {
   const out = `${r.stdout ?? ""}\n${r.stderr ?? ""}`;
   const summary = out.split("\n").filter((l) => s.passRe.test(l) || /RESULT:|PASS \/|PASS,|run-all:/.test(l)).slice(-2).join(" | ").trim();
   // Çıkış kodu 0 (harness / run-all FAIL varsa 1 döner) VE tanınan "geçti" özeti — ikisi birden şart.
-  const passed = r.status === 0 && !r.error && s.passRe.test(out);
+  const passed = s.expectFail
+    ? r.status === 1 && !r.error && s.passRe.test(out) && /NEGATİF KONTROL: A3 öncesi kural yüklendi/.test(out)
+    : r.status === 0 && !r.error && s.passRe.test(out);
   results.push({ label: s.label, passed, sec: Math.round((Date.now() - t0) / 1000), summary: summary || "(özet satırı yok)" });
   console.log(`${passed ? "PASS" : "FAIL"}  ${s.label}  (${Math.round((Date.now() - t0) / 1000)} sn)  ${summary || "(özet satırı yok)"}`);
   if (!passed) {
