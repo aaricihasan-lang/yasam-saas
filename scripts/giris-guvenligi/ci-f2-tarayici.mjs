@@ -28,14 +28,14 @@ fs.mkdirSync(OUT, { recursive: true });
 const ONLY = (arg("--only") ?? "").split(",").map((s) => s.trim()).filter(Boolean);
 const NEGATIF = args.includes("--negatif");
 
-// Asgari PASS: testin ilgili tarayıcıların hepsinde gerçekten koştuğunu gösteren alt sınır (CI gözlemine göre ayarlanır).
+// Asgari PASS = 17.11 tam koşuda GÖZLENEN madde sayısı: tek bir madde bile sessizce atlanırsa koşu KIRMIZI olur.
 const SUITES = [
-  { key: "f2c", file: "f2c-ui.e2e.ts", min: 30, title: "F2-C QR girişi + Owner cihaz onayı (Chrome, Edge; 320/375 px)" },
-  { key: "f2d", file: "f2d-ui.e2e.ts", min: 30, title: "F2-D e-posta kodu (Chrome, Edge, WebKit iPhone emülasyonu, Android emülasyonu)" },
-  { key: "f2e", file: "f2e-ui.e2e.ts", min: 30, title: "F2-E hesap kurtarma (Chrome, Edge, WebKit, Android emülasyonu, 320/375/390)" },
-  { key: "f2g", file: "f2g-ui.e2e.ts", min: 6, title: "F2-G Owner işleme özel doğrulama (Chrome, Edge, 375 px)" },
-  { key: "f2i", file: "f2i-mobil-ui.e2e.ts", min: 20, title: "F2-I e-posta kodu dayanıklılık (yapıştırma, süre, yenileme, geri, ağ kesintisi)" },
-  { key: "f2k", file: "f2k-ui.e2e.ts", min: 60, title: "F2-K 6 haneli yazılan QR, paralel sekme, yönetici yetkisi, cihaz talebi süresi, ekran genişlikleri" },
+  { key: "f2c", file: "f2c-ui.e2e.ts", min: 36, title: "F2-C QR girişi + Owner cihaz onayı (Chrome, Edge; 320/375 px)" },
+  { key: "f2d", file: "f2d-ui.e2e.ts", min: 48, title: "F2-D e-posta kodu (Chrome, Edge, WebKit iPhone emülasyonu, Android emülasyonu)" },
+  { key: "f2e", file: "f2e-ui.e2e.ts", min: 68, title: "F2-E hesap kurtarma (Chrome, Edge, WebKit, Android emülasyonu, 320/375/390)" },
+  { key: "f2g", file: "f2g-ui.e2e.ts", min: 16, title: "F2-G Owner işleme özel doğrulama (Chrome, Edge, 375 px)" },
+  { key: "f2i", file: "f2i-mobil-ui.e2e.ts", min: 55, title: "F2-I e-posta kodu dayanıklılık (yapıştırma, süre, yenileme, geri, ağ kesintisi)" },
+  { key: "f2k", file: "f2k-ui.e2e.ts", min: 80, title: "F2-K 6 haneli yazılan QR, paralel sekme, yönetici yetkisi, cihaz talebi süresi, ekran genişlikleri" },
 ];
 
 const results = [];
