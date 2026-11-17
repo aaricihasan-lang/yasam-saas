@@ -103,6 +103,19 @@ export const qrDecideMessage = (
   ts: number,
 ) => ["YS-QR-DECIDE-V1", challengeId, qrNonce, deviceId, decision, matchCode, String(ts)].join("\n");
 
+/**
+ * F2-J: Android yönetici oturumunu güvenilir cihaza bağlama / yeniden kanıt. Cihazın ASIL anahtarı (her kullanımda biyometri
+ * veya cihaz kilidi) imzalar; varlık anahtarı KABUL EDİLMEZ (sessiz imza → XSS'in oturum bağlatması engellenir).
+ * sessionId = user_sessions.id (oturum anahtarı DEĞİL); nonce = sunucunun verdiği 64 hex, tek kullanımlık, 120 sn.
+ */
+export const sessionBindMessage = (deviceId: string, nonce: string, sessionId: string, ts: number) =>
+  ["YS-SESSION-BIND-V1", deviceId, nonce, sessionId, String(ts)].join("\n");
+
+/** F2-J oturum bağlama nonce'u: 32 bayt hex. */
+export function isSessionBindNonce(v: unknown): v is string {
+  return typeof v === "string" && /^[0-9a-f]{64}$/.test(v);
+}
+
 /** Owner ilk cihaz kodu: kullanıcı girişi normalize (büyük harf, boşluk/tire yok) → sha256 hex. */
 export function hashBootstrapCode(raw: unknown): string | null {
   if (typeof raw !== "string") return null;

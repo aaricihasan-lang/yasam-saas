@@ -59,20 +59,41 @@ try {
   await server.start();
   const c = new pg.Client({ host: "localhost", port, user: "postgres", password: "pw", database: "postgres" });
   await c.connect();
-  const run = async (label, file) => {
+  const run = async (label, file, expectCode = null) => {
     const sql = fs.readFileSync(path.resolve(root, file), "utf8");
     try {
       await c.query(sql);
-      console.log(`OK   ${label}: ${file}`);
+      if (expectCode) {
+        failed = true;
+        console.error(`FAIL ${label}: ${file}\n     beklenen ret (${expectCode}) gelmedi — eski F2 migration'ı yeniden UYGULANDI`);
+      } else console.log(`OK   ${label}: ${file}`);
     } catch (e) {
+      // Açık BEGIN içeren dosyada hata → oturum "aborted" kalır; sonraki adımlar için geri al.
+      await c.query("ROLLBACK").catch(() => {});
+      if (expectCode && e.code === expectCode) {
+        console.log(`OK   ${label}: ${file} (F2 koruması reddetti: ${e.code})`);
+        return;
+      }
       failed = true;
       console.error(`FAIL ${label}: ${file}\n     ${e.message}${e.position ? ` (pos ${e.position})` : ""}${e.where ? `\n     ${e.where}` : ""}`);
     }
   };
+  // F2-J: F2 migration'ları (20280103xxxxxx) yeniden uygulama korumalıdır. İkinci geçişte, daha yeni bir doğrusal F2
+  // aşaması uygulanmışken eski dosya REDDEDİLMEK ZORUNDADIR (YF201); en yeni dosya ve 000200 idempotent çalışır.
+  const f2Level = (f) => {
+    const m = /(?:^|[\\/])20280103(\d{6})_[^\\/]*\.sql$/.exec(f);
+    return m && m[1] !== "000200" ? Number(m[1]) : null;
+  };
+  const f2Max = Math.max(-1, ...[...fixtures, ...migrations].map(f2Level).filter((x) => x !== null));
   await c.query(BOOT);
   for (const f of fixtures) await run("fixture", f);
   for (const m of migrations) await run("migration", m);
-  if (twice) for (const m of migrations) await run("migration(2nd)", m);
+  if (twice) {
+    for (const m of migrations) {
+      const lv = f2Level(m);
+      await run("migration(2nd)", m, lv !== null && lv < f2Max ? "YF201" : null);
+    }
+  }
   for (const a of asserts) await run("assert", a);
   await c.end();
 } finally {

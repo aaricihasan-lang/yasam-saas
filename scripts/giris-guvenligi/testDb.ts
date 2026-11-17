@@ -106,17 +106,24 @@ export const F2G_FILES = [
 export const F2I_FILES = [
   "supabase/migrations/20280103000900_auth_security_hardening_f2i.sql",
 ];
+/** F2-J eki: Android yönetici oturumu cihaz kanıtı + kanal + eski oturum geçişi. startF2cDb({ withF2j: true }). */
+export const F2J_FILES = [
+  "supabase/migrations/20280103001000_auth_session_device_binding_f2j.sql",
+];
 /** F2-H eki: denetim kayıtları kontrollü imha. startF2cDb({ withF2h: true }). */
 export const F2H_FILES = [
   "supabase/migrations/20280103000800_auth_audit_retention_disposal_f2h.sql",
 ];
-export async function startF2cDb(opts: { withF2d?: boolean; withF2e?: boolean; withF2g?: boolean; withF2h?: boolean; withF2i?: boolean } = {}): Promise<F2cDb> {
+export async function startF2cDb(opts: { withF2d?: boolean; withF2e?: boolean; withF2g?: boolean; withF2h?: boolean; withF2i?: boolean; withF2j?: boolean } = {}): Promise<F2cDb> {
   // Uyumluluk koşusu: F2_TEST_DB_WITH_F2E=1 → önceki fazların harness'ları bütün zincir (000500 dahil) üstünde koşar.
   if (process.env.F2_TEST_DB_WITH_F2E === "1") opts = { ...opts, withF2d: true, withF2e: true };
   // F2_TEST_DB_WITH_F2I=1 → bütün zincir 000900 (F2-I) dahil: önceki fazların akışları F2-I düzeltmeleriyle aynen çalışır.
   if (process.env.F2_TEST_DB_WITH_F2I === "1") opts = { ...opts, withF2d: true, withF2e: true, withF2i: true };
   // F2_TEST_DB_WITH_F2G=1 → zincir 000700'e kadar (karşılaştırma: bir farkın F2-G'den mi F2-I'den mi geldiğini ayırmak için).
   if (process.env.F2_TEST_DB_WITH_F2G === "1") opts = { ...opts, withF2d: true, withF2e: true, withF2g: true };
+  // F2_TEST_DB_WITH_F2J=1 → bütün zincir 001000 (F2-J) dahil: önceki fazların akışları F2-J ile aynen çalışır mı?
+  if (process.env.F2_TEST_DB_WITH_F2J === "1") opts = { ...opts, withF2d: true, withF2e: true, withF2i: true, withF2j: true };
+  if (opts.withF2j) opts = { ...opts, withF2i: true };
   if (opts.withF2i) opts = { ...opts, withF2h: true };
   if (opts.withF2h) opts = { ...opts, withF2g: true };
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "f2c-db-"));
@@ -134,7 +141,7 @@ export async function startF2cDb(opts: { withF2d?: boolean; withF2e?: boolean; w
   // alır; dinleyicisiz 'error' olayı süreci ÇÖKERTİR (özet satırı yazılmadan). Kapanış hatası test sonucu değildir.
   admin.on("error", () => {});
   await admin.query(BOOT);
-  for (const f of [...F2C_FILES, ...(opts.withF2d || opts.withF2e || opts.withF2g ? F2D_FILES : []), ...(opts.withF2e || opts.withF2g ? F2E_FILES : []), ...(opts.withF2g ? F2G_FILES : []), ...(opts.withF2h ? F2H_FILES : []), ...(opts.withF2i ? F2I_FILES : [])]) await admin.query(fs.readFileSync(path.join(ROOT, f), "utf8"));
+  for (const f of [...F2C_FILES, ...(opts.withF2d || opts.withF2e || opts.withF2g ? F2D_FILES : []), ...(opts.withF2e || opts.withF2g ? F2E_FILES : []), ...(opts.withF2g ? F2G_FILES : []), ...(opts.withF2h ? F2H_FILES : []), ...(opts.withF2i ? F2I_FILES : []), ...(opts.withF2j ? F2J_FILES : [])]) await admin.query(fs.readFileSync(path.join(ROOT, f), "utf8"));
   await admin.query(HARNESS_SQL);
   const pool = new pg.Pool({ host: "localhost", port, user: "postgres", password: "pw", database: "postgres", max: 8 });
   pool.on("error", () => {});

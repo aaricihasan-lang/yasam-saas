@@ -90,9 +90,11 @@ BEGIN
   IF (r->>'inserted')::boolean OR r->>'reason' <> 'admin_mobile_active' THEN
     RAISE EXCEPTION 'D4 geçerli admin android varken ikinci REDDEDİLMELİ: %', r; END IF;
   -- Admin android'e admin WEB 24 sa / 2 sa kuralı uygulanmaz (3 saat boşta, 2 gün önce açılmış).
+  -- F2-J (Owner kararı 17.11, B): bu kural YALNIZ F2-J öncesi zincirde geçerlidir. F2-J'de uzun Android yönetici süresi
+  -- cihaz kanıtına bağlıdır; kanıtsız oturum web sınırlarındadır — session-f2j-assert J2a/J2b/J3i bunu sınar.
   UPDATE public.user_sessions SET last_seen_at = now() - interval '3 hours', created_at = now() - interval '2 days'
    WHERE session_token = 'f2a-adm-and-new';
-  IF pg_temp.touch('f2a-adm-and-new') IS DISTINCT FROM OWNER THEN
+  IF to_regclass('public.auth_session_device_proofs') IS NULL AND pg_temp.touch('f2a-adm-and-new') IS DISTINCT FROM OWNER THEN
     RAISE EXCEPTION 'D5 admin android: admin web 2 sa/24 sa kuralı uygulanmamalı'; END IF;
 
   -- ── E) Admin web kuralları DEĞİŞMEDİ ──────────────────────────────────────

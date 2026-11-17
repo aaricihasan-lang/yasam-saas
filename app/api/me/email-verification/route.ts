@@ -47,7 +47,8 @@ export async function POST(req: NextRequest) {
   }
   if (body?.action === "confirm") {
     const code = typeof body.code === "string" ? body.code.replace(/\s/g, "") : "";
-    const r = await verifyOtp(guard.db, { userId: guard.userId, purpose: "verify_email", challengeId: null, code });
+    // F2-J (L1): kod, ŞU ANKİ kayıtlı adrese bağlı kapsamla doğrulanır (adres değiştiyse eski kod geçmez).
+    const r = await verifyOtp(guard.db, { userId: guard.userId, purpose: "verify_email", challengeId: null, code, email: u.email });
     if (r.ok) return jsonNoStore({ verified: true }, 200);
     const msg = r.code === "wrong" ? `Kod hatalı.${r.attemptsLeft !== undefined ? ` Kalan deneme: ${r.attemptsLeft}.` : ""}`
       : r.code === "expired" ? "Kodun süresi doldu. Yeni kod isteyin."

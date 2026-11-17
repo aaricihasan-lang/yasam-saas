@@ -46,6 +46,17 @@ async function main() {
   resetEmailProviderCache();
   ok(getEmailProvider({ EMAIL_PROVIDER: "synthetic", VERCEL_ENV: "production" }) === null, "production'da sentetik sağlayıcı REDDEDİLİR");
   ok(getEmailProvider({ EMAIL_PROVIDER: "disabled" }) === null && getEmailProvider({}) === null, "varsayılan: kapalı");
+  // F2-J (L3): sentetik sağlayıcı yalnız açık izin + yerel veritabanı + üretim/önizleme dışı.
+  const LOCAL = { EMAIL_PROVIDER: "synthetic", EMAIL_SYNTHETIC_ALLOW: "1", NEXT_PUBLIC_SUPABASE_URL: "http://127.0.0.1:54321" };
+  ok(getEmailProvider(LOCAL)?.name === "synthetic", "L3 izinli yerel test ortamı → sentetik sağlayıcı");
+  ok(getEmailProvider({ ...LOCAL, EMAIL_SYNTHETIC_ALLOW: undefined }) === null, "L3 açık izin (EMAIL_SYNTHETIC_ALLOW=1) yok → REDDEDİLİR");
+  ok(getEmailProvider({ ...LOCAL, VERCEL_ENV: "preview" }) === null, "L3 Vercel önizleme → REDDEDİLİR");
+  ok(getEmailProvider({ ...LOCAL, VERCEL_ENV: "production" }) === null, "L3 Vercel üretim (izin bayrağı olsa bile) → REDDEDİLİR");
+  ok(getEmailProvider({ ...LOCAL, NEXT_PUBLIC_SUPABASE_URL: "https://abcdefghijklmnopqrst.supabase.co" }) === null,
+    "L3 uzak (ör. üretim) veritabanına bağlı ortam → REDDEDİLİR");
+  ok(getEmailProvider({ ...LOCAL, NEXT_PUBLIC_SUPABASE_URL: "http://127.0.0.1.evil.example" }) === null, "L3 yerel adres taklidi (alt alan) → REDDEDİLİR");
+  ok(getEmailProvider({ ...LOCAL, NEXT_PUBLIC_SUPABASE_URL: undefined }) === null, "L3 veritabanı adresi yok → REDDEDİLİR");
+  ok(getEmailProvider({ ...LOCAL, NODE_ENV: "production" })?.name === "synthetic", "L3 next start (NODE_ENV=production) yerel testleri bozmaz");
   ok(getEmailProvider({ EMAIL_PROVIDER: "gmail", ...ENV })?.name === "gmail", "EMAIL_PROVIDER=gmail → Gmail sağlayıcısı");
   ok(!emailOtpConfigured({ EMAIL_PROVIDER: "gmail", ...ENV, AUTH_OTP_PEPPER: "kisa" }), "pepper < 32 karakter → yöntem kapalı");
   ok(emailOtpConfigured({ EMAIL_PROVIDER: "gmail", ...ENV, AUTH_OTP_PEPPER: "x".repeat(32) }), "sağlayıcı + pepper → yöntem açık");
