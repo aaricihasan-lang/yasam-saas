@@ -17,6 +17,7 @@
 import { spawnSync, execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
+import net from "node:net";
 
 const args = process.argv.slice(2);
 const arg = (k) => { const i = args.indexOf(k); return i >= 0 ? args[i + 1] : undefined; };
@@ -99,20 +100,48 @@ if (!env.F2D_TLS_DIR) {
 }
 
 // ── 3) Testler ───────────────────────────────────────────────────────────────────────────────────────────────
-function runSuite(s, extraEnv, outName) {
+// F2-L: testlerin kullandığı portlar. Önceki testin sunucusu portta kalırsa sonraki test ESKİ sunucuya (eski ortam ayarları,
+// eski e-posta kutusu) bağlanır ve yanlış sonuç üretir → her testten önce portlar BOŞ olmak zorunda.
+const PORTS = [3987, 3988, 3989, 54398];
+const portBusy = (port) => Promise.all(["127.0.0.1", "::1"].map((host) => new Promise((res) => {
+  const sock = net.connect({ port, host });
+  sock.once("connect", () => { sock.destroy(); res(true); });
+  sock.once("error", () => res(false));
+  sock.setTimeout(1500, () => { sock.destroy(); res(false); });
+}))).then((r) => r.some(Boolean));
+async function waitPortsFree(maxMs) {
+  const until = Date.now() + maxMs;
+  for (;;) {
+    const busy = [];
+    for (const port of PORTS) if (await portBusy(port)) busy.push(port);
+    if (!busy.length || Date.now() > until) return busy;
+    await new Promise((r) => setTimeout(r, 1000));
+  }
+}
+
+async function runSuite(s, extraEnv, outName) {
   const dir = path.join(OUT, outName);
+  const before = await waitPortsFree(20000);
+  if (before.length) {
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(path.join(dir, "gunluk.txt"), `port dolu (önceki sunucu kapanmadı): ${before.join(",")} — test KOŞTURULMADI`);
+    return { pass: 0, fail: -1, exit: 1, sec: 0, summaryFound: false, failLines: [`FAIL port dolu: ${before.join(",")}`], signal: null, portsAfter: before };
+  }
   const started = Date.now();
   const r = spawnSync(process.platform === "win32" ? "npx.cmd" : "npx", ["tsx", path.join("scripts", "giris-guvenligi", s.file), dir], {
     cwd: process.cwd(), env: { ...env, ...extraEnv }, encoding: "utf8", timeout: 20 * 60 * 1000, maxBuffer: 64 * 1024 * 1024,
     shell: process.platform === "win32",
   });
-  const text = `${r.stdout ?? ""}\n${r.stderr ?? ""}`;
+  let text = `${r.stdout ?? ""}\n${r.stderr ?? ""}`;
+  const after = await waitPortsFree(20000);
+  if (after.length) text += `\nUYARI: test bittikten 20 sn sonra port hâlâ dolu: ${after.join(",")}\n`;
   fs.mkdirSync(dir, { recursive: true });
   fs.writeFileSync(path.join(dir, "gunluk.txt"), text);
   const m = [...text.matchAll(/(\d+) PASS \/ (\d+) FAIL/g)].pop();
   const failLines = text.split("\n").filter((l) => /^\s+FAIL /.test(l)).map((l) => l.trim());
+  if (after.length) failLines.push(`FAIL test sonrası port dolu: ${after.join(",")}`);
   return { pass: m ? Number(m[1]) : 0, fail: m ? Number(m[2]) : -1, exit: r.status ?? (r.signal ? 128 : 1), sec: Math.round((Date.now() - started) / 1000),
-    summaryFound: !!m, failLines, signal: r.signal ?? null };
+    summaryFound: !!m, failLines, signal: r.signal ?? null, portsAfter: after };
 }
 
 for (const s of SUITES) {
@@ -120,7 +149,7 @@ for (const s of SUITES) {
   if (NEGATIF && s.key !== "f2k") continue;
   if (NEGATIF) {
     log(`\n── NEGATİF KONTROL: ${s.file} — F2-K migration'ı OLMADAN (FAIL beklenir) ──`);
-    const r = runSuite(s, { F2L_NEGATIF: "1", F2_TEST_DB_WITH_F2K: "" }, `${s.key}-negatif`);
+    const r = await runSuite(s, { F2L_NEGATIF: "1", F2_TEST_DB_WITH_F2K: "" }, `${s.key}-negatif`);
     const must = [/doğrulama penceresini açtı/, /MFA ZORUNLU|yönetici oluştu/, /6 haneli kod = sunucu kodu|yazma' kipini/];
     const caught = must.map((re) => r.failLines.some((l) => re.test(l)));
     const ok = r.exit !== 0 && r.fail > 0 && caught.every(Boolean);
@@ -131,8 +160,8 @@ for (const s of SUITES) {
     continue;
   }
   log(`\n── ${s.file}: ${s.title} ──`);
-  const r = runSuite(s, { F2_TEST_DB_WITH_F2K: "1" }, s.key);
-  const ok = r.exit === 0 && r.summaryFound && r.fail === 0 && r.pass >= s.min;
+  const r = await runSuite(s, { F2_TEST_DB_WITH_F2K: "1" }, s.key);
+  const ok = r.exit === 0 && r.summaryFound && r.fail === 0 && r.pass >= s.min && !r.portsAfter.length;
   log(`  ${ok ? "PASS" : "FAIL"} ${s.key}: çıkış=${r.exit}${r.signal ? ` sinyal=${r.signal}` : ""} · ${r.pass} PASS / ${r.fail} FAIL (asgari ${s.min}) · ${r.sec} sn${r.summaryFound ? "" : " · ÖZET SATIRI YOK"}`);
   for (const l of r.failLines.slice(0, 15)) log(`     ${l}`);
   if (!r.summaryFound || r.exit !== 0) {

@@ -118,7 +118,9 @@ async function main() {
     NEXT_TELEMETRY_DISABLED: "1",
   };
   const app: ChildProcess = spawn(process.platform === "win32" ? "npx.cmd" : "npx", ["next", "start", "-p", String(PORT), "-H", "localhost"],
-    { cwd: process.cwd(), shell: process.platform === "win32", env: env as NodeJS.ProcessEnv, stdio: "ignore" });
+    { cwd: process.cwd(), shell: process.platform === "win32", env: env as NodeJS.ProcessEnv, stdio: "ignore",
+      // F2-L: Linux'ta kendi süreç grubu → kapanışta npx'in altındaki next-server da sonlanır (portta eski sunucu kalmaz).
+      detached: process.platform !== "win32" });
   const browsers: Browser[] = [];
   try {
     for (let i = 0; i < 90; i++) { try { const r = await fetch(`${BASE}/m/onay`); if (r.ok) break; } catch { /* bekle */ } await sleep(1000); }
@@ -252,8 +254,14 @@ async function main() {
       ok(await sessionValid(owner), `${label}: Owner oturumu açık (taze MFA)`);
 
       /** Step-up penceresinin /api/admin/step-up begin yanıtını yakalar. */
-      const captureStepUp = () => op.waitForResponse((r) => r.url().endsWith("/api/admin/step-up") && r.request().method() === "POST"
-        && (r.request().postData() ?? "").includes('"begin"'), { timeout: 20000 });
+      // Doğrulama penceresi hiç açılmazsa (ör. negatif kontrolde yönetici doğrudan oluşur) bekleme reddi süreci düşürmesin:
+      // sonuç ilgili ok() satırlarında FAIL olarak raporlanır.
+      const captureStepUp = () => {
+        const pr = op.waitForResponse((r) => r.url().endsWith("/api/admin/step-up") && r.request().method() === "POST"
+          && (r.request().postData() ?? "").includes('"begin"'), { timeout: 20000 });
+        pr.catch(() => {});
+        return pr;
+      };
 
       // 5a) Klasik ekrandan yönetici oluşturma: Vazgeç → oluşmaz; telefon onayı → oluşur.
       const newAdminEmail = `f2l-yonetici-${label.toLowerCase()}-${randomUUID().slice(0, 6)}@test.local`;
@@ -399,12 +407,17 @@ async function main() {
     for (const vp of WIDTHS) {
       const ctx = await chrome.newContext({ viewport: { width: vp.w, height: vp.h }, locale: "tr-TR", isMobile: vp.w < 500 });
       const page = await ctx.newPage();
-      await startLogin(page, EMAIL.exp);
-      await page.getByTestId("mfa-qr-panel").waitFor({ timeout: 15000 });
-      const box = await page.getByTestId("mfa-qr-panel").boundingBox();
-      const codeBox = await page.getByTestId("mfa-match-code").boundingBox();
-      ok(!!box && box.width <= vp.w && !!codeBox && codeBox.x >= 0 && codeBox.x + codeBox.width <= vp.w && await noOverflow(page, vp.w),
-        `Chrome: QR paneli ve 6 haneli kod ${vp.w} px'e sığar`);
+      // Önceki adımların açık istekleri (ör. negatif kontrolde kapanmayan kardeşler) açık istek sınırına takılmasın.
+      await q(`UPDATE public.auth_mfa_challenges SET state = 'expired' WHERE user_id = $1 AND state IN ('pending', 'verified')`, [U.exp]);
+      let fits = false;
+      try {
+        await startLogin(page, EMAIL.exp);
+        await page.getByTestId("mfa-qr-panel").waitFor({ timeout: 15000 });
+        const box = await page.getByTestId("mfa-qr-panel").boundingBox();
+        const codeBox = await page.getByTestId("mfa-match-code").boundingBox();
+        fits = !!box && box.width <= vp.w && !!codeBox && codeBox.x >= 0 && codeBox.x + codeBox.width <= vp.w && await noOverflow(page, vp.w);
+      } catch { await diag(page, `Chrome-genislik-${vp.w}`); }
+      ok(fits, `Chrome: QR paneli ve 6 haneli kod ${vp.w} px'e sığar`);
       await page.screenshot({ path: path.join(OUT, `Chrome-9-qr-${vp.w}.png`) });
       await ctx.close();
     }
@@ -412,7 +425,7 @@ async function main() {
     for (const b of browsers) await b.close().catch(() => {});
     if (app.pid) {
       if (process.platform === "win32") spawn("taskkill", ["/pid", String(app.pid), "/T", "/F"], { stdio: "ignore" });
-      else app.kill("SIGTERM");
+      else { try { process.kill(-app.pid, "SIGKILL"); } catch { app.kill("SIGKILL"); } }
     }
     proxy.close();
     await db.close();
