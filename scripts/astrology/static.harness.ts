@@ -329,6 +329,10 @@ async function main() {
       // 2026-11-16 (Owner kararı ATL-V01, seçenek B): ortak 81 il konum verisi merkezi düzeltilir (yalnız 7 il koordinatı;
       // kimlik / ad / saat dilimi değişmez). Tüm modül etkisi atl-v01-il-merkezi.harness.ts ile denetlenir — yalnız bu tam yol.
       /^lib\/location\/tr\.ts$/,
+      // 2026-11-17 (Owner talimatı HD-TZ-00): Atlas'ın IANA 2026f tablosu, backzone katmanı, ofset çekirdeği ve saat gösterim
+      // yardımcısı modülden bağımsız ortak katmana taşındı (Atlas eski yolları yönlendirme). Yalnız bu klasör; HD dosyaları aşağıdaki
+      // ayrı denetimle değişmez kalır.
+      /^lib\/time\/tzdb\//,
       /^lib\/backup\/ownerPilotTables\.ts$/,
       /^lib\/backup\/schema\.generated\.ts$/,
       /^scripts\/final-hardening\/backup\.harness\.ts$/,
