@@ -41,6 +41,7 @@ export const F2_STAGES = [
   { level: 800, file: "20280103000800", fp: "to_regclass('public.auth_retention_holds') IS NOT NULL" },
   { level: 900, file: "20280103000900", fp: "to_regprocedure('public.user_sessions_user_id_immutable()') IS NOT NULL" },
   { level: 1000, file: "20280103001000", fp: "to_regclass('public.auth_session_device_proofs') IS NOT NULL" },
+  { level: 1100, file: "20280103001100", fp: "to_regprocedure('public.users_admin_grant_guard()') IS NOT NULL" },
 ];
 export const LOCK_FILE = "20280103000200";
 

@@ -167,7 +167,8 @@ export async function beginMfaChallenge(
       expiresAt: r.expires_at,
       // F2-C: QR nonce yalnız bu yanıtta (DB'de yalnız özeti); eşleştirme kodu yalnız başlatan tarayıcıya.
       qrNonce: typeof r.qr_nonce === "string" && /^[A-Za-z0-9_-]{32}$/.test(r.qr_nonce) ? r.qr_nonce : null,
-      matchCode: typeof r.match_code === "string" && /^[0-9]{2}$/.test(r.match_code) ? r.match_code : null,
+      // F2-K (O1): yeni istekler 6 haneli (yazılan) kod; geçiş süresince eski 2 haneli de kabul.
+      matchCode: typeof r.match_code === "string" && /^(?:[0-9]{2}|[0-9]{6})$/.test(r.match_code) ? r.match_code : null,
     };
   }
   return { ok: false, reason: typeof r.reason === "string" ? r.reason : "error" };

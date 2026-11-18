@@ -13,7 +13,6 @@ import {
   parseModulePermissions,
   type ModulePermissions,
 } from "@/lib/auth/modulePermissions";
-import { isAndroidAppUserAgent } from "@/lib/platform/outputSupport";
 import { SESSION_TRANSPORT_HTML_ATTR, parseWebSessionTransport } from "@/lib/auth/sessionTransportFlag";
 import { clearDemoUrunStok } from "@/lib/demo/demoUrunStok";
 import { handleReflexologyLogout } from "@/lib/refleksoloji/runtimeReset";
@@ -305,6 +304,21 @@ function markCookieSessionReady(token: string): void {
 let cookieSessionMigration: Promise<void> | null = null;
 
 /**
+ * HTTPONLY (Android geçişi B-1) — çerez taşımasında saklı eski token'ın çerezi bu tarayıcıda HENÜZ yazılmadı mı?
+ * true iken kimlikli istekler ne başlık ne çerez taşır (readSessionToken null) → ensureWebCookieSession beklenmeli.
+ * Android header kipi / token yok / çerez zaten yazılmış → false.
+ */
+export function isWebCookieMigrationPending(): boolean {
+  if (typeof window === "undefined" || !webUsesCookieTransport()) return false;
+  try {
+    const raw = readStoredSessionToken();
+    return !!raw && localStorage.getItem(COOKIE_SESSION_READY_KEY) !== sessionTokenFingerprint(raw);
+  } catch {
+    return false;
+  }
+}
+
+/**
  * HTTPONLY H6b — ESKİ (legacy) WEB TOKEN'ININ GÜVENLİ TEMİZLİĞİ. Cookie taşımasında localStorage'da
  * eski bir token kaldıysa (H6a ve öncesinden açık sekme / eski giriş) SIRA KESİNDİR:
  *   1. Bu token'ın cookie'si bu tarayıcıda doğrulanmadıysa → tek seferlik bootstrap
@@ -334,6 +348,15 @@ export function ensureWebCookieSession(): Promise<void> {
         cache: "no-store",
         headers: { "x-session-token": raw },
       });
+      if (boot.status === 409) {
+        // Bu tarayıcıda BAŞKA kullanıcının geçerli çerez oturumu var → saklı token bu tarayıcının kimliği değil:
+        // JS depolamasından çıkarılır (mevcut çerez oturumu korunur; token'ın kendi sunucu oturumu kendi süresiyle biter).
+        if (readStoredSessionToken() === raw) {
+          localStorage.removeItem(SESSION_TOKEN_KEY);
+          localStorage.removeItem(COOKIE_SESSION_READY_KEY);
+        }
+        return;
+      }
       if (!boot.ok) return; // cookie yazılamadı → token KALIR
       markCookieSessionReady(raw);
     }
@@ -364,9 +387,14 @@ export function ensureWebCookieSession(): Promise<void> {
  * kalır. Android'de oturum YALNIZ localStorage token + x-session-token ile yürür (cookie yok).
  */
 export function isAndroidWebViewClient(): boolean {
-  if (typeof navigator === "undefined") return false;
-  return isAndroidAppUserAgent(navigator.userAgent);
+  // F2-K (A3): karar SUNUCUNUN SSR işaretinden (<html data-android-token>) okunur — sunucu yalnız resmî uygulamanın iki
+  // sinyalli kanalına (ve "header" taşımasına) token verir. Uygulama içi tarayıcılar (yalnız `; wv)`) artık çerez yolunda.
+  if (typeof document === "undefined") return false;
+  return document.documentElement?.getAttribute(ANDROID_TOKEN_HTML_ATTR) != null;
 }
+
+/** SSR: sunucu bu sayfaya token yolu (resmî Android uygulaması, header taşıması) seçti. */
+export const ANDROID_TOKEN_HTML_ATTR = "data-android-token";
 
 /**
  * HTTPONLY H5 — bu istemcinin kimlikli istek atabilecek bir oturum kimlik bilgisi var mı?
@@ -566,7 +594,7 @@ async function refreshYasamUserOutcome(user: YasamUser): Promise<YasamUserSyncOu
     let res = await fetchProfile();
     // F2-J: Android uygulamasında (2.0.0+) yönetici oturumunun 24 saatlik cihaz kanıtı bayatlamış olabilir →
     // telefonla bir kez yeniden kanıt (biyometri) ve tek tekrar. Başarısızsa normal 401 akışı (yeniden giriş).
-    if (res.status === 401 && token && supportsSessionDeviceBind()) {
+    if (res.status === 401 && supportsSessionDeviceBind()) {
       if ((await requestSessionDeviceBind(token)) === "bound") res = await fetchProfile();
     }
 

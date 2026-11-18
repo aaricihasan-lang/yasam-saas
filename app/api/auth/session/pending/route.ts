@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerDb } from "@/lib/supabase-server";
 import {
+  androidAppSessionTransport,
   cookieMaxAgeFromExpiresAt,
   getSessionCookieConfig,
   isAndroidAppRequest,
@@ -53,7 +54,7 @@ export async function GET(req: NextRequest) {
             .maybeSingle();
           const r = row as { user_id?: unknown; client_channel?: unknown; expires_at?: unknown; is_active?: unknown } | null;
           const maxAge = cookieMaxAgeFromExpiresAt(r?.expires_at);
-          if (r && r.is_active === true && String(r.user_id) === String(res.user_id) && r.client_channel !== "android_app" && maxAge !== null) {
+          if (r && r.is_active === true && String(r.user_id) === String(res.user_id) && (r.client_channel !== "android_app" || androidAppSessionTransport() === "cookie") && maxAge !== null) {
             setWebSessionCookie(response, token, maxAge);
           }
         } catch {

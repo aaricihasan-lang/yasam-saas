@@ -5,7 +5,7 @@ import { isAndroidAppRequest } from "@/lib/auth/sessionCookie";
 import { checkSameOriginRequest } from "@/lib/security/csrf";
 import { hitDbRateLimit, rateLimitBucket } from "@/lib/security/dbRateLimit";
 import { hashMfaBinding, isMfaChallengeId, isMfaTestAccount, readMfaBinding, readMfaChallengeState, resolveUserMfaMethods } from "@/lib/auth/mfaChallenge";
-import { emailOtpConfigured, emailOtpRoleAllowed, issueAndSendOtp } from "@/lib/auth/emailOtp";
+import { emailOtpConfigured, emailOtpAllowedForUser, issueAndSendOtp } from "@/lib/auth/emailOtp";
 import { normalizeRole } from "@/lib/auth/approvalGate";
 
 export const runtime = "nodejs";
@@ -53,7 +53,7 @@ export async function POST(req: NextRequest) {
     const role = normalizeRole(row.role);
     const methods = await resolveUserMfaMethods(db, {
       userId: st.userId, role, isTestAccount: await isMfaTestAccount(db, st.userId),
-      emailConfigured: emailOtpConfigured(), emailRoleAllowed: emailOtpRoleAllowed(role),
+      emailConfigured: emailOtpConfigured(), emailRoleAllowed: await emailOtpAllowedForUser(db, st.userId, role),
     });
     if (!methods.includes("email_otp")) return json({ code: "METHOD_UNAVAILABLE", error: MESSAGES.not_configured[1] }, 403);
 

@@ -1100,7 +1100,7 @@ export default function Home() {
 
     // F2-J: Android uygulamasında (2.0.0+) yönetici oturumu güvenilir telefona bağlanır (kanıtsız: web süreleri).
     // Bloklamaz; uygulama yerel onay ekranını açar. Uzman / web / 1.9.x için hiçbir şey yapmaz.
-    if (sessionToken && isAdminUser(loggedUser) && supportsSessionDeviceBind()) void requestSessionDeviceBind(sessionToken);
+    if (isAdminUser(loggedUser) && supportsSessionDeviceBind()) void requestSessionDeviceBind(sessionToken);
 
     setUser(loggedUser);
     setProfileSynced(true);

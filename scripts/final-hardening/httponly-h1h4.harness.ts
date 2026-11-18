@@ -177,11 +177,11 @@ async function main() {
   });
 
   // ── 5) Android ─────────────────────────────────────────────────────────────
+  // F2-K (A3): token (header) yolu YALNIZ resmî uygulamanın iki sinyalli kanalı. Tek başına `; wv)` (uygulama içi
+  // tarayıcı) veya tek başına istemci ipucu artık çerez yolundadır — aşağıdaki ayrı testte sınanır.
   await t("android: her modda cookie yok sayılır (header yolu)", async () => {
     const androidHeaders: Record<string, string>[] = [
       { "user-agent": ANDROID_UA, "x-requested-with": "com.yasamsistemi.app" },
-      { "user-agent": ANDROID_UA },
-      { "user-agent": WEB_UA, "x-yasam-client": "android" },
     ];
     for (const mode of ["canary", "shadow", "primary"]) {
       for (const headers of androidHeaders) {

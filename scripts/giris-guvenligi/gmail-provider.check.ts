@@ -120,9 +120,10 @@ async function main() {
     ok(!r.ok && r.code === "provider_down" && r.retryable, "iki kez 5xx → provider_down", r);
   }
   {
-    const { f } = fakeFetch([TOKEN, "throw", "throw"]);
+    // F2-K (L5): gönderimde zaman aşımı / bağlantı kopması → ileti ulaşmış olabilir; İKİNCİ GÖNDERİM YOK.
+    const { f, calls } = fakeFetch([TOKEN, "throw", { status: 200, body: { id: "kopya" } }]);
     const r = await createGmailProvider(ENV, f)!.send(MSG);
-    ok(!r.ok && r.code === "network", "ağ hatası (2 kez) → network", r);
+    ok(!r.ok && r.code === "network" && calls.length === 2, "L5 gönderim belirsiz (zaman aşımı) → tek deneme, kopya e-posta yok", { r, calls: calls.length });
   }
   {
     const { f } = fakeFetch(["throw"]);

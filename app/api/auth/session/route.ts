@@ -10,6 +10,7 @@ import {
   SESSION_ABSOLUTE_MS,
 } from "@/lib/auth/sessionSecurity";
 import {
+  androidAppSessionTransport,
   clearWebSessionCookie,
   getSessionCookieConfig,
   hasWebSessionCookie,
@@ -43,7 +44,7 @@ import {
   resolveUserMfaMethods,
   setMfaBindingCookie,
 } from "@/lib/auth/mfaChallenge";
-import { emailOtpConfigured, emailOtpRoleAllowed, maskEmail } from "@/lib/auth/emailOtp";
+import { emailOtpConfigured, emailOtpAllowedForUser, maskEmail } from "@/lib/auth/emailOtp";
 import { qrApprovalUrl } from "@/lib/auth/deviceSignature";
 
 export const runtime = "nodejs";
@@ -230,7 +231,7 @@ export async function POST(req: NextRequest) {
         role,
         isTestAccount: await isMfaTestAccount(db, String(row.id)),
         emailConfigured: emailOtpConfigured(),
-        emailRoleAllowed: emailOtpRoleAllowed(role),
+        emailRoleAllowed: await emailOtpAllowedForUser(db, String(row.id), role),
       });
       const mfaResponse = json(
         {
@@ -329,7 +330,7 @@ export async function POST(req: NextRequest) {
     const cookieCfg = getSessionCookieConfig();
     const webCookieSession =
       cookieCfg.mode !== "off" &&
-      result.channel !== "android_app" &&
+      (result.channel !== "android_app" || androidAppSessionTransport() === "cookie") &&
       !isAndroidAppRequest(req.headers) &&
       isSessionCookieEligible(cookieCfg, String(row.id));
     // HTTPONLY H6b: web + cookie taşımasında oturum token'ı GÖVDEDE DÖNMEZ (JS hiç görmez); istemci

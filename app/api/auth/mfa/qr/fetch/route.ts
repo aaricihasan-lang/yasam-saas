@@ -34,10 +34,13 @@ export async function POST(req: NextRequest) {
     if (!dev.verifyPresence(qrFetchMessage(challengeId, qrNonce, deviceId, body?.ts as number), body?.signature)) return json({ code: "BAD_SIGNATURE" }, 400);
     const { data, error } = await db.rpc("auth_qr_fetch", { p_challenge_id: challengeId, p_qr_nonce: qrNonce, p_device_id: deviceId });
     if (error) return json({ code: "ERROR" }, 500);
-    const r = (data ?? {}) as { ok?: unknown; options?: unknown; user_agent?: unknown; created_at?: unknown; expires_at?: unknown; purpose?: unknown; action?: unknown };
-    if (r.ok !== true || !Array.isArray(r.options)) return INVALID();
+    const r = (data ?? {}) as { ok?: unknown; options?: unknown; match_mode?: unknown; user_agent?: unknown; created_at?: unknown; expires_at?: unknown; purpose?: unknown; action?: unknown };
+    // F2-K (O1): yeni istekler 'typed6' (seçenek YOK; telefonda 6 haneli kod yazılır); eski istekler 3 seçenek (geçiş).
+    const typed = r.match_mode === "typed6";
+    if (r.ok !== true || (!typed && !Array.isArray(r.options))) return INVALID();
     return json({
-      options: (r.options as unknown[]).map(String),
+      matchMode: typed ? "typed6" : "options",
+      options: typed ? [] : (r.options as unknown[]).map(String),
       browser: summarizeUserAgent(typeof r.user_agent === "string" ? r.user_agent : ""),
       city: null,
       createdAt: r.created_at,

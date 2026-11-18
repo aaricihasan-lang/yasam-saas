@@ -10,7 +10,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { ownerAdminHeaders } from "@/components/admin/notifications/ownerBellStore";
 import { encodeQr, qrToSvgPath } from "@/lib/qr/qrEncode";
 
-export type StepUpAction = "device_approve" | "mfa_disable" | "recovery_execute" | "retention_policy" | "retention_execute" | "password_reset";
+export type StepUpAction = "device_approve" | "mfa_disable" | "recovery_execute" | "retention_policy" | "retention_execute" | "password_reset" | "admin_grant";
 
 const ACTION_LABEL: Record<StepUpAction, string> = {
   device_approve: "güvenilir cihaz onayı",
@@ -19,6 +19,7 @@ const ACTION_LABEL: Record<StepUpAction, string> = {
   retention_policy: "denetim kaydı saklama kararı",
   retention_execute: "denetim kaydı imhası / anonimleştirme",
   password_reset: "kullanıcı parolasını sıfırlama",
+  admin_grant: "yönetici yetkisi verme",
 };
 
 type Begun = { challengeId: string; expiresAt: string | null; qr?: { url: string; matchCode: string }; emailHint?: string | null };
@@ -115,7 +116,7 @@ export default function OwnerStepUpDialog({
         {info && !error && <p role="status" className="mt-3 rounded-lg bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700">{info}</p>}
         {begun?.qr && (
           <div className="mt-3 text-center" data-testid="step-up-qr">
-            <p className="text-[12px] text-slate-600">Güvenilir telefonunuzla QR kodu okutun ve aşağıdaki sayıyı seçin.</p>
+            <p className="text-[12px] text-slate-600">Güvenilir telefonunuzla QR kodu okutun; telefonda işlem adını kontrol edip aşağıdaki 6 haneli kodu yazın.</p>
             <div className="mx-auto mt-2 w-[min(200px,60vw)] rounded-xl bg-white p-2 ring-1 ring-slate-200">
               {svg && (
                 <svg viewBox={svg.viewBox} role="img" aria-label="Onay QR kodu" className="block h-auto w-full text-slate-900" shapeRendering="crispEdges">

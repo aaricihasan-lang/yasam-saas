@@ -48,7 +48,8 @@ g.window = globalThis;
 let ua = WEB_UA;
 let transportAttr: string | null = "cookie";
 Object.defineProperty(globalThis, "navigator", { configurable: true, get: () => ({ userAgent: ua }) });
-g.document = { documentElement: { getAttribute: (n: string) => (n === "data-session-transport" ? transportAttr : null) } };
+// F2-K (A3): sunucu token yolunu yalnız resmî uygulamaya seçer ve <html data-android-token> ile bildirir (ANDROID senaryosu).
+g.document = { documentElement: { getAttribute: (n: string) => (n === "data-session-transport" ? transportAttr : n === "data-android-token" ? (ua === ANDROID_UA ? "" : null) : null) } };
 type Call = { url: string; method: string; headers: Record<string, string> };
 let calls: Call[] = [];
 let respond: (url: string) => Response = () => new Response(JSON.stringify({ valid: true }), { status: 200 });

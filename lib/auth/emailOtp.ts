@@ -33,6 +33,28 @@ export function emailOtpRoleAllowed(role: string, env: Env = process.env): boole
   return roles.includes(String(role).toLowerCase());
 }
 
+/**
+ * F2-K: rol + Owner kapsamı. AUTH_MFA_EMAIL_ROLES içinde "owner" → e-posta yöntemi YALNIZ Owner yönetici hesabına açılır
+ * (diğer yöneticilere açılmaz; "admin" yazmak bütün yöneticilere açar). Owner kararı yalnız DB işaretinden
+ * (auth_is_owner_admin); sorgu hatası → kapalı (fail-closed).
+ */
+export async function emailOtpAllowedForUser(
+  db: { rpc: (fn: string, args: Record<string, unknown>) => PromiseLike<{ data: unknown; error: unknown }> },
+  userId: string,
+  role: string,
+  env: Env = process.env,
+): Promise<boolean> {
+  if (emailOtpRoleAllowed(role, env)) return true;
+  const roles = String(env.AUTH_MFA_EMAIL_ROLES ?? "expert").split(",").map((s) => s.trim().toLowerCase()).filter(Boolean);
+  if (!roles.includes("owner") || String(role).toLowerCase() !== "admin") return false;
+  try {
+    const { data, error } = await db.rpc("auth_is_owner_admin", { p_user_id: userId });
+    return !error && data === true;
+  } catch {
+    return false;
+  }
+}
+
 export function generateOtpCode(): string {
   return String(randomInt(0, 1_000_000)).padStart(6, "0");
 }

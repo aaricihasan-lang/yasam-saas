@@ -298,7 +298,7 @@ export default function MfaQrPanel({
                     Bu telefonda uygulamayla onayla
                   </a>
                 )}
-                <p className="mt-3 text-[12px] font-semibold uppercase tracking-wide text-slate-500">Telefonda seçeceğiniz sayı</p>
+                <p className="mt-3 text-[12px] font-semibold uppercase tracking-wide text-slate-500">Telefona yazacağınız kod</p>
                 <p className="mt-0.5 font-mono text-4xl font-extrabold tracking-[0.2em] text-violet-800" data-testid="mfa-match-code" aria-live="polite">
                   {challenge.qr?.matchCode}
                 </p>

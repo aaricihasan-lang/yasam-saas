@@ -29,6 +29,7 @@ import {
 import { isUuid, rpcErrorStatus, validateProfileEdit } from "@/lib/admin/memberRequestValidation";
 import { isTrialAllowedModuleKey, isTrialRestrictedRow } from "@/lib/trial/trialCore";
 import { archivedTargetResponse } from "@/lib/admin/archivedGuard";
+import { grantAdminRole } from "@/lib/admin/adminGrant";
 
 export const runtime = "nodejs";
 
@@ -135,7 +136,7 @@ export async function PATCH(req: NextRequest, ctx: RouteContext) {
 
   if (body.action === "license") return patchLicense(db, adminId, id, body);
   if (body.action === "modules") return patchModules(db, adminId, id, body);
-  if (body.action === "edit") return patchProfile(db, adminId, id, body);
+  if (body.action === "edit") return patchProfile(db, adminId, id, body, guard.sessionToken);
   return bad("Geçersiz action. license | modules | edit bekleniyor.");
 }
 
@@ -381,7 +382,7 @@ async function patchModules(db: Db, adminId: string, id: string, body: Record<st
   );
 }
 
-async function patchProfile(db: Db, adminId: string, id: string, body: Record<string, unknown>) {
+async function patchProfile(db: Db, adminId: string, id: string, body: Record<string, unknown>, sessionToken?: string) {
   const v = validateProfileEdit(body);
   if (!v.ok) return bad(v.error);
   const { fullName, email, role } = v.value;
@@ -426,6 +427,11 @@ async function patchProfile(db: Db, adminId: string, id: string, body: Record<st
     if (role === "admin") {
       const main = await requireMainAdmin(db, adminId);
       if (!main.ok) return bad(main.error, main.status);
+      // GİRİŞ GÜVENLİĞİ F2-K (N2): yöneticiye yükseltme yalnız Owner'ın işleme özel kanıtıyla (QR / e-posta kodu, hedefe
+      // bağlı, tek kullanım). ÖNCE yapılır: kanıt yoksa hiçbir alan değişmez (kısmi güncelleme yok). Yükseltilen
+      // kullanıcıda MFA zorunlu olur ve açık oturumları kapanır (DB).
+      const granted = await grantAdminRole(db, sessionToken, id, "promote");
+      if (!granted.ok) return granted.response;
     } else {
       // Kilitlenme koruması: owner / son aktif admin rolü düşürülemez.
       const lock = await guardAdminLockoutById(db, id, {
@@ -440,10 +446,12 @@ async function patchProfile(db: Db, adminId: string, id: string, body: Record<st
   const updatePayload: Record<string, unknown> = {};
   if (nameChanged) updatePayload.full_name = fullName;
   if (emailChanged) updatePayload.email = email;
-  if (roleChanged) updatePayload.role = role;
+  if (roleChanged && role !== "admin") updatePayload.role = role;
 
   // BF-11F-B: e-posta normalized-unique index; çakışma 409, ham DB hatası SIZDIRILMAZ.
-  const { error } = await db.from("users").update(updatePayload).eq("id", id);
+  const { error } = Object.keys(updatePayload).length > 0
+    ? await db.from("users").update(updatePayload).eq("id", id)
+    : { error: null };
   if (error) {
     if (error.code === "23505") return bad("Bu e-posta adresi zaten kayıtlı.", 409);
     return bad("Kullanıcı güncellenemedi.", 500);

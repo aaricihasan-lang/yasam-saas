@@ -34,7 +34,7 @@ const PG = [
   "pg:session-f2i", "pg:session-f2h-on-f2i", "pg:session-f2g-on-f2i", "pg:f2-postflight", "session-f2i-hold-race",
   "pg:deploy-order-f2-pre-full", "pg:deploy-order-f2-post-full", "pg:deploy-order-f2-rollback-full", "assetlinks-araci",
   // F2-J: Android yönetici oturumu cihaz kanıtı + kanal + eski oturum geçişi; önceki sözleşmeler 001000 üstünde.
-  "pg:session-f2j", "pg:session-f2i-on-f2j", "pg:session-f2g-on-f2j", "pg:session-f2a-on-f2j",
+  "pg:session-f2j", "pg:session-f2k", "pg:session-f2j-on-f2k", "pg:session-f2i-on-f2k", "pg:session-f2g-on-f2k", "pg:session-f2i-on-f2j", "pg:session-f2g-on-f2j", "pg:session-f2a-on-f2j",
 ];
 const TSX = [
   // Varsayılan veritabanları: yeni kod, kendi fazının migration'larıyla (kod migration'dan önce yayına çıkarsa).
@@ -55,6 +55,23 @@ const TSX = [
   "scripts/giris-guvenligi/f2j-admin-parola.harness.ts",
   // F2-J (L1): adres doğrulama kodu gönderildiği adrese bağlı (adres değişikliği yarışı).
   "scripts/giris-guvenligi/f2j-eposta.harness.ts",
+  // F2-K (N2): çalınmış Owner oturumuyla kalıcı yönetici erişimi (oluşturma / yükseltme / etkinleştirme).
+  "scripts/giris-guvenligi/f2k-yonetici.harness.ts",
+  // F2-K (A3): oturum anahtarı yalnız resmî uygulamanın iki sinyalli kanalına (varsayılan); diğer bütün istemciler HttpOnly çerez.
+  "scripts/giris-guvenligi/f2k-token.harness.ts",
+  // HttpOnly nihai: çerez öznitelikleri, yaşam döngüsü, çakışma, CSRF, MFA öncesi red, modlar / kill-switch,
+  // ANDROID_APP_SESSION_TRANSPORT=cookie (taklit kapalı + mevcut Android oturumunun çereze yükseltilmesi).
+  // "AÇIK" satırları varsayılan header kipinde bilinen Firefox/WebKit taklit boşluğudur (PASS sayılmaz; özette görünür).
+  "scripts/giris-guvenligi/httponly-nihai.harness.ts",
+  // HttpOnly B-1: eski token → çerez geçiş kapısı (eşzamanlı istek, süre tavanı, ağ/sunucu hatası, değişmeyen kipler).
+  "scripts/giris-guvenligi/cookie-migration-gate.check.ts",
+  // Owner / admin MFA etkinleştirme provası (e-posta doğrulama → ilk cihaz → çevrimdışı kit → zorunluluk → e-posta / QR girişi →
+  // kurtarma kodları → step-up → kayıp cihaz → yanlış hesap; kilitlenme kuralları).
+  "scripts/giris-guvenligi/owner-mfa-prova.harness.ts",
+  // F2-K (O1): QR onayında 6 haneli yazılan kod + telefon imzası; yanlış kodda bütün açık istekler kapanır.
+  "scripts/giris-guvenligi/f2k-qr.harness.ts",
+  // F2-K (L4): güvenlik bildirimi kota ayrımı + gönderilemeyen bildirim kaydı.
+  "scripts/giris-guvenligi/f2k-bildirim.harness.ts",
   "scripts/giris-guvenligi/purge-senaryolari.harness.ts",
   "scripts/giris-guvenligi/gmail-provider.check.ts",
   "scripts/giris-guvenligi/qr-encode.check.ts",
@@ -80,6 +97,10 @@ const steps = [
     ...["f2b", "f2c", "f2d"].map((x) => ({ label: `${x}-routes (tam zincir)`, cmd: process.execPath,
       args: [path.join("node_modules", "tsx", "dist", "cli.mjs"), `scripts/giris-guvenligi/${x}-routes.harness.ts`],
       env: { F2_TEST_DB_WITH_F2E: "1" }, passRe: /:\s*[1-9][0-9]* PASS[ ,/]+0 FAIL/ })),
+    // NEGATİF KONTROL: A3 öncesi kural yüklenince taklit testleri FAIL VERMELİ (vermiyorsa test kör demektir).
+    { label: "f2k-token NEGATİF (F2K_A3_WITHOUT_FIX=1 → FAIL beklenir)", cmd: process.execPath,
+      args: [path.join("node_modules", "tsx", "dist", "cli.mjs"), "scripts/giris-guvenligi/f2k-token.harness.ts"],
+      env: { F2K_A3_WITHOUT_FIX: "1" }, expectFail: true, passRe: /f2k-token:\s*[0-9]+ PASS, [1-9][0-9]* FAIL/ },
   ]),
 ];
 
@@ -93,7 +114,9 @@ for (const s of steps) {
   const out = `${r.stdout ?? ""}\n${r.stderr ?? ""}`;
   const summary = out.split("\n").filter((l) => s.passRe.test(l) || /RESULT:|PASS \/|PASS,|run-all:/.test(l)).slice(-2).join(" | ").trim();
   // Çıkış kodu 0 (harness / run-all FAIL varsa 1 döner) VE tanınan "geçti" özeti — ikisi birden şart.
-  const passed = r.status === 0 && !r.error && s.passRe.test(out);
+  const passed = s.expectFail
+    ? r.status === 1 && !r.error && s.passRe.test(out) && /NEGATİF KONTROL: A3 öncesi kural yüklendi/.test(out)
+    : r.status === 0 && !r.error && s.passRe.test(out);
   results.push({ label: s.label, passed, sec: Math.round((Date.now() - t0) / 1000), summary: summary || "(özet satırı yok)" });
   console.log(`${passed ? "PASS" : "FAIL"}  ${s.label}  (${Math.round((Date.now() - t0) / 1000)} sn)  ${summary || "(özet satırı yok)"}`);
   if (!passed) {
