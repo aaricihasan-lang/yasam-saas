@@ -192,6 +192,7 @@ async function main() {
       while (msg[i] !== 0 && i < msg.length) { labels.push(msg.subarray(i + 1, i + 1 + msg[i]).toString()); i += msg[i] + 1; }
       const name = labels.join(".").toLowerCase();
       const qtype = msg.readUInt16BE(i + 1);
+      if (process.env.KABUL_DNS_LOG === "1") console.log(`[dns] ${name} tip=${qtype} kaynak=${rinfo.address}`);
       if (name === "yasamsistemi.com" || name === "www.yasamsistemi.com") {
         const q = msg.subarray(12, i + 5);
         const hdr = Buffer.from(msg.subarray(0, 12)); hdr.writeUInt16BE(0x8180, 2); hdr.writeUInt16BE(1, 4); hdr.writeUInt16BE(qtype === 1 ? 1 : 0, 6); hdr.writeUInt16BE(0, 8); hdr.writeUInt16BE(0, 10);

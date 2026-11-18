@@ -147,14 +147,11 @@ async function main() {
     await ctx.close();
   }
 
-  console.log("\n── (h) Çerez tarayıcı tarafından REDDEDİLİRSE (Set-Cookie düşer): yanlış başarı yok ──");
+  console.log("\n── (h) Çerez tarayıcı tarafından REDDEDİLİRSE (sunucu 200 der ama çerez saklanmaz): yanlış başarı yok ──");
   {
     const { ctx, page } = await prepareLegacy();
-    await ctx.route("**/api/auth/session/cookie", async (r) => {
-      const resp = await r.fetch();
-      const headers = { ...resp.headers() }; delete headers["set-cookie"];
-      await r.fulfill({ status: resp.status(), headers, body: await resp.body() });
-    });
+    // Çerezi saklayamayan tarayıcının gördüğü: başarılı yanıt, saklanmış çerez YOK (Set-Cookie'siz 200).
+    await ctx.route("**/api/auth/session/cookie", (r) => r.fulfill({ status: 200, contentType: "application/json", body: '{"ok":true}' }));
     await openApp(page);
     let out = false; const s0 = Date.now();
     while (!out && Date.now() - s0 < 70_000) { await sleep(1000); out = await page.locator("#login-email").isVisible().catch(() => false) || !(await page.getByRole("button", { name: "Çıkış Yap", exact: true }).first().isVisible().catch(() => false)); }
@@ -251,6 +248,32 @@ async function main() {
     rows.push({ senaryo: "m", aktifAndroidOturum: active, profil: prof });
     ok(active === 0 && prof === 401 && (await page.evaluate(() => localStorage.getItem("yasam_session_token"))) === null,
       "(m) bekleme sırasında çıkış: sunucu oturumu kapandı, korumalı uç 401, JS'te token yok", { active, prof });
+    await ctx.close();
+  }
+
+  console.log("\n── (o) Taşıma ucu UZUN SÜRE yanıt vermiyor (asılı): çıkış yok, gerçek 401 görünür, uç düzelince yeniden girişsiz tamamlanır ──");
+  {
+    const { ctx, page } = await prepareLegacy();
+    await ctx.route("**/api/auth/session/cookie", () => { /* yanıt yok — asılı */ });
+    let t0 = 0; const ev = record(ctx, () => t0); t0 = Date.now();
+    await openApp(page);
+    await sleep(20_000);
+    const still = await page.getByRole("button", { name: "Çıkış Yap", exact: true }).first().isVisible().catch(() => false);
+    const tok = await page.evaluate(() => localStorage.getItem("yasam_session_token"));
+    const data401 = ev.filter((e) => e.s === 401 && !e.p.startsWith("/api/auth/session")).length;
+    console.log(`  bilgi (beklenen sınır): uç asılıyken veri istekleri gerçek 401 aldı (${data401}); yetki gevşemedi, kullanıcı çıkışa düşmedi`);
+    ok(still && typeof tok === "string", "(o) uç asılıyken kullanıcı çıkışa DÜŞMEDİ, eski token korundu (yeniden giriş gerekmeyecek)");
+    await ctx.unroute("**/api/auth/session/cookie");
+    let sid = false;
+    for (let i = 0; i < 90 && !sid; i++) { await sleep(1000); sid = (await ctx.cookies(WWW)).some((c) => c.name === "__Host-yasam_sid" && c.httpOnly); }
+    ev.length = 0;
+    await page.reload({ waitUntil: "domcontentloaded" });
+    const inn = await logged(page);
+    await sleep(5000);
+    const after401 = ev.filter((e) => e.s === 401).length;
+    const left = await page.evaluate(() => localStorage.getItem("yasam_session_token"));
+    rows.push({ senaryo: "o", asiliyken401: data401, cikisYok: still, toparlandi: sid, sonra401: after401, tokenSilindi: left === null });
+    ok(sid && inn && after401 === 0 && left === null, `(o) uç düzelince arka plan denetimi taşımayı YENİDEN GİRİŞSİZ tamamladı (çerez, 401 = ${after401}, token silindi)`);
     await ctx.close();
   }
 
