@@ -65,6 +65,8 @@ const TSX = [
   "scripts/giris-guvenligi/httponly-nihai.harness.ts",
   // HttpOnly B-1: eski token → çerez geçiş kapısı (eşzamanlı istek, süre tavanı, ağ/sunucu hatası, değişmeyen kipler).
   "scripts/giris-guvenligi/cookie-migration-gate.check.ts",
+  // Yönetici onay bekleyen (pending) giriş kapalı: anormal pending sonucunda anahtar hiçbir kipte gövdeye çıkmaz.
+  "scripts/giris-guvenligi/pending-kapali.harness.ts",
   // Owner / admin MFA etkinleştirme provası (e-posta doğrulama → ilk cihaz → çevrimdışı kit → zorunluluk → e-posta / QR girişi →
   // kurtarma kodları → step-up → kayıp cihaz → yanlış hesap; kilitlenme kuralları).
   "scripts/giris-guvenligi/owner-mfa-prova.harness.ts",
