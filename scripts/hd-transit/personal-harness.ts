@@ -13,7 +13,7 @@ import { mkUser, type Auth, type Json } from "../hd-analysis-word-flow/env";
 import { ANON_KEY, SERVICE_KEY, startAnamnezTestEnv, type TestEnv } from "../anamnez/testEnv";
 import { engineChart, PEOPLE, type Moment } from "../hd-relations/fakeRelationRoxy";
 import { fakePlanetsResponse, fakeSkyLongitudes, fakeTransitResponse } from "./fakeRoxyTransit";
-import { resolveGeneralTransit, __resetTransitResolverCache } from "../../lib/human-design/transit/resolveTransit";
+import { resolveGeneralTransit, __resetTransitResolverCache, TRANSIT_FAILURE_BACKOFF_MS } from "../../lib/human-design/transit/resolveTransit";
 import { longitudeToGateLine } from "../../lib/human-design/engine/mandala";
 import type { PlanetName } from "../../lib/human-design/engine/types";
 import { computeGeneralTransit } from "../../lib/human-design/transit/generalTransit";
@@ -314,8 +314,15 @@ async function main() {
     const rc = await post(UA, B(1, dc, tc));
     roxy.planetsMode = "ok";
     ok(rc.status === 502 && rc.j.code === "TRANSIT_UNVERIFIED" && roxy.calls === callsC, "9c Roxy gezegen boylamı bağımsız motorla uyuşmuyor → 502, ücretli HD çağrısı YOK", { s: rc.status, c: rc.j.code });
-    const rc2 = await post(UA, B(1, dc, tc));
-    ok(rc2.status === 200 && rc2.j.reused === false, "9d uyumsuz yanıt önbelleğe girmedi (sonraki doğru yanıt yeniden doğrulandı)", { s: rc2.status, c: rc2.j.code });
+    // TR-01A: hatadan hemen sonraki deneme geri çekilme penceresinde → sağlayıcı ÇAĞRILMAZ, yine kesin sonuç yok (eskiden yeni ücretli çağrı).
+    const planetsC = roxy.planetsCalls;
+    const rcb = await post(UA, B(1, dc, tc));
+    ok(rcb.status === 502 && rcb.j.code === "TRANSIT_UNVERIFIED" && roxy.planetsCalls === planetsC && roxy.calls === callsC, "9d0 geri çekilme: hemen yeniden deneme → gezegen sağlayıcısı ÇAĞRILMADI, sonuç yine yok (502)", { s: rcb.status, c: rcb.j.code, p: roxy.planetsCalls - planetsC });
+    // Geri çekilme (TRANSIT_FAILURE_BACKOFF_MS) bitince kaynak düzelmişse hesaplanır: uyumsuz yanıt önbelleğe GİRMEMİŞTİ.
+    const realNowC = Date.now;
+    Date.now = () => realNowC() + TRANSIT_FAILURE_BACKOFF_MS + 1_000;
+    const rc2 = await post(UA, B(1, dc, tc)).finally(() => { Date.now = realNowC; });
+    ok(rc2.status === 200 && rc2.j.reused === false && roxy.planetsCalls === planetsC + 1, "9d uyumsuz yanıt önbelleğe girmedi (geri çekilme sonrası doğru yanıt yeniden doğrulandı)", { s: rc2.status, c: rc2.j.code });
     // e) gezegen konumu alınamazsa → 503 (doğrulanamayan sonuç gösterilmez), ücretli HD çağrısı YOK
     __resetRateLimitForTest();
     roxy.planetsMode = "500";
@@ -324,8 +331,13 @@ async function main() {
     const re = await post(UA, B(2, de, te));
     roxy.planetsMode = "ok";
     ok(re.status === 503 && re.j.code === "TRANSIT_REFERENCE_INCOMPLETE" && roxy.calls === callsE && !re.j.view, "9e referans eksik → 503, HD çağrısı YOK, sonuç yok", { s: re.status, c: re.j.code });
-    const re2 = await post(UA, B(2, de, te));
-    ok(re2.status === 200 && re2.j.reused === false, "9f hata önbelleğe girmedi — kaynak düzelince hesaplandı", { s: re2.status, c: re2.j.code });
+    const planetsE = roxy.planetsCalls;
+    const reb = await post(UA, B(2, de, te));
+    ok(reb.status === 503 && reb.j.code === "TRANSIT_REFERENCE_INCOMPLETE" && roxy.planetsCalls === planetsE && roxy.calls === callsE, "9f0 geri çekilme: sağlayıcı hatasından hemen sonra → gezegen sağlayıcısı ÇAĞRILMADI, 503", { s: reb.status, c: reb.j.code, p: roxy.planetsCalls - planetsE });
+    const realNowE = Date.now;
+    Date.now = () => realNowE() + TRANSIT_FAILURE_BACKOFF_MS + 1_000;
+    const re2 = await post(UA, B(2, de, te)).finally(() => { Date.now = realNowE; });
+    ok(re2.status === 200 && re2.j.reused === false && roxy.planetsCalls === planetsE + 1, "9f hata önbelleğe girmedi — geri çekilme sonrası kaynak düzelince hesaplandı", { s: re2.status, c: re2.j.code });
     // g) N-01 KALICI astronomik belirsizlik (kayıtlı GERÇEK S08-1b hassas konumu: Ay çizgi sınırına 0,56″) → ayrı kod, tekrar deneme önerilmez
     __resetTransitResolverCache();
     __resetRateLimitForTest();
