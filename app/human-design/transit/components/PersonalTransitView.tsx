@@ -27,6 +27,7 @@ const REASON: Record<NonNullable<RelationCandidate["reason"]>, string> = {
   no_auto_chart: "otomatik BodyGraph analizi yok",
   birth_data_changed: "doğum bilgisi değişti — bireysel analizi güncelleyin",
   chart_incomplete: "kayıtlı analiz eksik",
+  chart_time_stale: "saat dilimi verisi güncellendi — bireysel analizi yeniden oluşturun",
 };
 export const PERSONAL_TRANSIT_NOTE =
   "Kişisel transit, danışanın kayıtlı Human Design analizinin üzerine seçilen andaki gezegen aktivasyonlarını yerleştirir. Kayıtlı bireysel analiz değişmez. Transit etkisi geçicidir ve yalnız gösterilen an içindir.";

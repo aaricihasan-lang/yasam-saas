@@ -32,6 +32,7 @@ const REASON: Record<NonNullable<RelationCandidate["reason"]>, string> = {
   no_auto_chart: "Önce otomatik BodyGraph analizi gerekli",
   birth_data_changed: "Doğum bilgisi değişti — bireysel analizi güncelleyin",
   chart_incomplete: "Kayıtlı analiz eksik — bireysel analizi yeniden oluşturun",
+  chart_time_stale: "Saat dilimi verisi güncellendi — bireysel analizi yeniden oluşturun",
 };
 
 function dmy(iso: string | null): string {

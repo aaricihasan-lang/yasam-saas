@@ -538,7 +538,9 @@ async function main() {
       rateLimit: async () => ({ allowed: true, retryAfterSec: 0 }), chartIdSecret: "s", log: () => undefined,
     } as never);
     const b0 = sent[0] ?? {};
-    ok("7m Konum değişince hesap YENİ konumun saat dilimi ve koordinatıyla yapılır (eski Berlin kullanılmaz)", cr.status === 200 && sent.length === 1 && b0.timezone === "America/Chicago" && Math.abs(Number(b0.latitude) - 41.8781) < 1e-6 && Math.abs(Number(b0.longitude) + 87.6298) < 1e-6, JSON.stringify(b0));
+    // HD-TZ (18.11.2026): sağlayıcıya YENİ konumun saat dilimiyle çözülmüş UTC anı + "UTC" gider — 13:00 Chicago (CDT, UTC−5)
+    // → 18:00Z (eski Berlin olsaydı 11:00Z); kayıtlı analiz saat dilimi 7n'de America/Chicago.
+    ok("7m Konum değişince hesap YENİ konumun saat dilimi ve koordinatıyla yapılır (eski Berlin kullanılmaz)", cr.status === 200 && sent.length === 1 && b0.timezone === "UTC" && b0.date === "1990-07-15" && b0.time === "18:00:00" && Math.abs(Number(b0.latitude) - 41.8781) < 1e-6 && Math.abs(Number(b0.longitude) + 87.6298) < 1e-6, JSON.stringify(b0));
     const chartRow = (db.tables.human_design_charts ?? [])[0] ?? {};
     ok("7n Kayıtlı analizin yeri/saat dilimi = seçilen yeni konum", chartRow.timezone === "America/Chicago" && String(chartRow.birth_place ?? "").startsWith("Chicago"), JSON.stringify({ tz: chartRow.timezone, p: chartRow.birth_place }));
     const picker = src("app/human-design/components/HdBirthLocationPicker.tsx");

@@ -10,6 +10,7 @@
  */
 import { readFileSync } from "node:fs";
 import path from "node:path";
+import { isHdTzApprovedContent } from "../hd-tz/approvedChanges";
 import Module from "node:module";
 import { randomUUID } from "node:crypto";
 import { execSync } from "node:child_process";
@@ -518,7 +519,7 @@ async function main() {
         return base === lf(src(f));
       };
       roxyDiff = execSync("git diff --name-only origin/main -- lib/human-design/providers lib/human-design/api/roxyChartService.ts lib/human-design/engine app/human-design/kayitli-haritalar/components/HdComputedChartView.tsx app/human-design/danisanlar/components/HdAutoCalcPanel.tsx", { cwd: ROOT }).toString().trim()
-        .split(/\r?\n/).filter((f) => f && !/providers\/roxy\/systemReading\.ts$|HdComputedChartView\.tsx$/.test(f)).filter((f) => !approvedTextOnly(f)).join("\n");
+        .split(/\r?\n/).filter((f) => f && !/providers\/roxy\/systemReading\.ts$|HdComputedChartView\.tsx$/.test(f)).filter((f) => !approvedTextOnly(f) && !isHdTzApprovedContent(ROOT, f)).join("\n"); // HD-TZ: yalnız onaylı içerikle BİREBİR aynı dosya
       // 2026-10-10 owner: bilgi/sistem yorumu panellerinde YALNIZ "Enkarnasyon Haçı" başlığı →
       // HD_CROSS_SECTION_TITLE ("Enkarnasyon Teması (Yaşam Amacı)"). Başka satır değişirse yine FAIL.
       const panelDiff = ""; // 2026-10-17: paneller BodyGraph 1. API tamamlamasıyla bilinçli değişti (yukarıdaki istisna).
@@ -537,7 +538,8 @@ async function main() {
     ok(Object.keys(trJ.hd).sort().join() === Object.keys(enJ.hd).sort().join() && !!trJ.tab.humandesign && !!enJ.tab.humandesign && ["hdProfiles", "hdCharts", "hdReports"].every((k) => trJ.deletePreview.table[k] && enJ.deletePreview.table[k]), "L6 TR/EN metin anahtarları eşit");
     const clientFiles = ["lib/human-design/api/journeyClient.ts", "app/dashboard/clients/[id]/components/HumanDesignTab.tsx", "app/human-design/danisanlar/components/HdJourneyPanel.tsx", "app/human-design/danisanlar/components/HdJourneyProfileStart.tsx", "app/human-design/danisanlar/components/HdClientForm.tsx", "app/human-design/danisanlar/components/HdAnalysisHistory.tsx"].map(src).join("\n");
     ok(!clientFiles.includes("ROXY_API_KEY") && !clientFiles.includes("provider_raw") && !clientFiles.includes("SUPABASE_SERVICE_ROLE"), "L7 istemci dosyalarında anahtar / provider_raw yok");
-    ok(!/numerolog|astrolog/i.test(execSync("git diff --name-only origin/main", { cwd: ROOT }).toString()), "L8 Numeroloji/Astroloji dosyası değişmedi");
+    // HD-TZ (Owner kararı 18.11.2026): yalnız onaylı içerikle BİREBİR aynı dosya (Atlas ortak tzdb test sözleşmesi; SHA-256) istisna.
+    ok(!execSync("git diff --name-only origin/main", { cwd: ROOT }).toString().split(/\r?\n/).some((f) => /numerolog|astrolog/i.test(f) && !isHdTzApprovedContent(ROOT, f)), "L8 Numeroloji/Astroloji dosyası değişmedi");
   } finally {
     globalThis.fetch = realFetch;
     await env.stop();

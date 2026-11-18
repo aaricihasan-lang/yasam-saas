@@ -128,12 +128,17 @@ async function main() {
       { n: 10, tenant: TA, name: "Metin Testi", date: "2010-08-15", time: "19:40:00", tz: "Asia/Tokyo" },
       { n: 11, tenant: TA, name: "Tarihsel LMT", date: "1905-03-15", time: "22:57:00", tz: "Europe/Istanbul" },
     ];
+    const seedComputed = (d: string, t: string, tz: string) => {
+      const r = resolveBirthLocalTime(d, t, tz);
+      return r.kind === "ok" ? { activations: [], timing: { birthUtcIso: r.utcIso } } : { activations: [] };
+    };
     for (const s of seeds) {
       if (!s.noClient) await su.query(`insert into public.human_design_clients(id, tenant_id, name, birth_date, birth_time) values ($1,$2,$3,$4,$5)`, [cid(s.n), s.tenant, s.name, s.clientDate ?? s.date, s.time.slice(0, 5)]);
       const input = s.noInput ? { date: s.date } : { date: s.date, time: s.time, timezone: s.tz, latitude: 41, longitude: 29, nodeType: s.nodeType ?? "true", lang: "tr" };
       await su.query(
         `insert into public.human_design_charts(id, tenant_id, client_id, client_name, source, provider, input, input_hash, computed_result) values ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
-        [hid(s.n), s.tenant, s.noClient ? null : cid(s.n), s.name, s.source ?? "computed", (s.source ?? "computed") === "computed" ? "roxyapi" : null, JSON.stringify(input), `ih-${s.n}`, JSON.stringify({ activations: [] })],
+        // HD-TZ: gerçek Roxy kaydı gibi kayıtlı doğum anı (computed_result.timing.birthUtcIso) — boşluk/çakışma saatinde yok.
+        [hid(s.n), s.tenant, s.noClient ? null : cid(s.n), s.name, s.source ?? "computed", (s.source ?? "computed") === "computed" ? "roxyapi" : null, JSON.stringify(input), `ih-${s.n}`, JSON.stringify(seedComputed(s.date, s.time, s.tz))],
       );
     }
     const P = { human_design: true, hd_system_reading: true };
@@ -163,7 +168,7 @@ async function main() {
     ok(r1.status === 200 && r1.j.reused === false && roxy.calls === 1 && roxy.keyOk && r1.cache.includes("no-store"), "1a 200, yeni hesap, tek sahte çağrı, anahtar yalnız başlıkta, no-store", { s: r1.status, j: r1.text.slice(0, 300) });
     ok(arrows.map((a) => a.key).join() === "determination,environment,motivation,perspective" && arrows.every((a) => ARROW_SPECS.find((s) => s.key === a.key)!.position === a.position), "1b dört ok sabit sırada ve doğru konumda");
     const sent = roxy.bodies[0];
-    ok(JSON.stringify(Object.keys(sent).sort()) === JSON.stringify(["date", "latitude", "longitude", "nodeType", "time", "timezone"]) && sent.date === "1985-03-12" && sent.time === "06:45:00" && sent.timezone === "Europe/Istanbul" && sent.nodeType === "true", "1c sağlayıcıya YALNIZ doğum anı alanları (kayıtlı analizle birebir); ad / danışan / not YOK", sent);
+    ok(JSON.stringify(Object.keys(sent).sort()) === JSON.stringify(["date", "latitude", "longitude", "nodeType", "time", "timezone"]) && sent.date === "1985-03-12" && sent.time === "04:45:00" && sent.timezone === "UTC" && sent.nodeType === "true", "1c sağlayıcıya YALNIZ doğum anı alanları (HD-TZ: kayıtlı analizin doğrulanmış UTC anı 06:45 TR → 04:45Z + \"UTC\"); ad / danışan / not YOK", sent);
     ok(!r1.text.includes(KEY) && !r1.text.includes("Ayşe") && !r1.text.includes("1985-03-12") && !r1.text.includes("06:45"), "1d yanıtta anahtar, danışan adı, doğum tarihi / saati YOK");
     ok(d1.historicalOffset === false && arrows.every((a) => a.baseCertain === true), "1e modern doğum (saniyesiz ofset): kesinlik düşürülmez, Base kesin");
     const callsL = roxy.calls;
@@ -177,8 +182,8 @@ async function main() {
       const local = substructureOf(bandsL.find((b) => b.key === a.key)!.longitude).toneBoundaryArcsec;
       return a.confident === (prov.confident === true && local >= 0.002737909255830788 * 3600 + 56 * 0.0425 + bandsL.find((b) => b.key === a.key)!.bandArcsec);
     });
-    ok(rL.status === 200 && roxy.calls === callsL + 1 && roxy.bodies[roxy.bodies.length - 1].time === "22:57:00" && dL.historicalOffset === true && aL.every((a) => a.baseCertain === false),
-      "1f tarihsel saniyeli ofset (İstanbul 1905, +1:56:56): sağlayıcıya giden saat DEĞİŞMEZ; dört okun Base'i kesinleştirilemedi", { s: rL.status, j: rL.text.slice(0, 200) });
+    ok(rL.status === 200 && roxy.calls === callsL + 1 && roxy.bodies[roxy.bodies.length - 1].date === "1905-03-15" && roxy.bodies[roxy.bodies.length - 1].time === "21:00:04" && roxy.bodies[roxy.bodies.length - 1].timezone === "UTC" && dL.historicalOffset === true && aL.every((a) => a.baseCertain === false),
+      "1f tarihsel saniyeli ofset (İstanbul 1905, +1:56:56): sağlayıcıya saniyesiyle doğrulanmış UTC anı gider (22:57 yerel → 21:00:04Z, HD-TZ); dört okun Base'i kesinleştirilemedi", { s: rL.status, j: rL.text.slice(0, 200) });
     ok(sunDowngradeOk && aL.every((a) => a.confident === false || rawL.arrows.find((x) => x.key === a.key)!.confident === true) && dL.confident === aL.every((a) => a.confident === true),
       "1g tarihsel ofsette kesinlik yalnız DÜŞER (Güneş okları yerel Tone payı < eşik + sapma + bant ise), asla yükselmez; genel bayrak yeniden hesaplanır", aL.map((a) => [a.key, a.confident]));
 

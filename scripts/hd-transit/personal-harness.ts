@@ -142,7 +142,7 @@ async function main() {
     const v = (r1.j.view ?? {}) as Json;
     ok(r1.status === 200 && r1.j.reused === false && roxy.calls === 1 && !roxy.keyLeak, "1a 200, yeni hesap, tek sahte çağrı, anahtar yalnız başlıkta", { status: r1.status, j: r1.j, calls: roxy.calls });
     const lb = roxy.lastBody as { birthData: Json; date: string; time: string };
-    ok(lb && lb.date === "2026-10-19" && lb.time === "06:00:00" && lb.birthData.date === PEOPLE[0].date && lb.birthData.nodeType === "true" && lb.birthData.timezone === PEOPLE[0].timezone, "1b Roxy'ye natal doğum anı (kayıtlı analizden, IANA + true node) + UTC transit anı (09:00 TR → 06:00Z)", lb);
+    ok(lb && lb.date === "2026-10-19" && lb.time === "06:00:00" && lb.birthData.date === PEOPLE[0].date && lb.birthData.time === "16:00:00" && lb.birthData.nodeType === "true" && lb.birthData.timezone === "UTC" && lb.birthData.latitude === PEOPLE[0].latitude && lb.birthData.longitude === PEOPLE[0].longitude, "1b Roxy'ye natal doğum anı (kayıtlı analizden; HD-TZ: doğrulanmış UTC 19:00 TR → 16:00Z + \"UTC\", koordinat aynı, true node) + UTC transit anı (09:00 TR → 06:00Z)", lb);
     const natalGates = [...new Set(engineChart(PEOPLE[0]).activations.map((a: { gate: number }) => a.gate))].sort((x, y) => x - y);
     const local = computeGeneralTransit(new Date("2026-10-19T06:00:00Z"));
     const exp = expectedOverlay(natalGates, local.activeGates);

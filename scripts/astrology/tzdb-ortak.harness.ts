@@ -111,11 +111,19 @@ t("E: backzone seçeneği — varsayılan açık (Atlas); kapalıyken IANA ana v
   assert.deepEqual(core.localTimeCandidates(Date.parse("1951-04-13T20:36:00Z"), "Africa/Kampala", { backzone: false }), [{ utcMs: Date.parse("1951-04-13T17:36:00Z"), offsetSeconds: 10800 }]);
 });
 
-t("F: Human Design bu aşamada ortak katmana BAĞLANMAZ — HD dosyaları lib/time/tzdb ya da Atlas zaman modüllerini içe aktarmaz", () => {
+// HD-TZ (18.11.2026, Owner kararı): Human Design ortak katmana bağlandı. Sözleşme: YALNIZ çekirdek (lib/time/tzdb/core) ve YALNIZ
+// iki giriş noktasından (doğum anı çözümü + transit anı); Atlas'ın zaman politikası modülleri (earlier/later seçimi) HD'ye girmez.
+t("F: Human Design ortak katmana YALNIZ core üzerinden ve iki giriş noktasından bağlanır; Atlas zaman politikası modüllerini içe aktarmaz", () => {
   const hd = SRC.filter((p) => /^(lib\/human-design|app\/human-design|app\/api\/hd)\//.test(rel(p)));
   assert.ok(hd.length > 50, `HD dosya sayısı ${hd.length}`);
-  const bad = hd.filter((p) => /time\/tzdb|astrology\/birth\/(timeResolution|zonedFormat|tzIana)/.test(readFileSync(p, "utf8"))).map(rel);
-  assert.deepEqual(bad, []);
+  const atlasPolicy = hd.filter((p) => /astrology\/birth\/(timeResolution|zonedFormat|tzIana)/.test(readFileSync(p, "utf8"))).map(rel);
+  assert.deepEqual(atlasPolicy, []);
+  const users = hd.filter((p) => /from\s+"[^"]*time\/tzdb[^"]*"/.test(readFileSync(p, "utf8"))).map(rel).sort();
+  assert.deepEqual(users, ["lib/human-design/api/birthTimeResolution.ts", "lib/human-design/transit/transitMoment.ts"]);
+  for (const p of users) {
+    const imports = [...readFileSync(join(ROOT, p), "utf8").matchAll(/from\s+"([^"]*time\/tzdb[^"]*)"/g)].map((m) => m[1]);
+    assert.ok(imports.length > 0 && imports.every((m) => /time\/tzdb\/core$/.test(m)), `${p}: ${imports.join(", ")}`);
+  }
 });
 
 console.log(`\nortak tzdb (HD-TZ-00) harness: ${pass} PASS / ${fail} FAIL`);

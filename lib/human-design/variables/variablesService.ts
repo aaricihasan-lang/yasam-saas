@@ -21,7 +21,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { withTenant } from "../api/tenantScope";
 import { isUuid } from "../api/deterministicId";
 import { hdSafeDbError } from "../api/safeError";
-import { resolveBirthLocalTime } from "../api/birthTimeResolution";
+import { chartBirthUtcFailure, checkChartBirthUtc, toRoxyUtcMoment } from "../api/hdBirthUtc";
 import { ROXY_POLICY, ROXY_PROVIDER_ID, ROXY_RATE_LIMITS, type RoxyPolicy, type RoxyServerConfig } from "../providers/roxy/config";
 import type { RoxyCallResult } from "../providers/roxy/client";
 import { chartBirthMoment, chartMatchesClient } from "../relations/relationService";
@@ -92,7 +92,7 @@ function cacheSet(key: string, data: VariablesDto, now: number) {
   while (cache.size > VARIABLES_CACHE.maxEntries) cache.delete(cache.keys().next().value as string);
 }
 
-type ChartRow = { id: string; client_id: string | null; source: string | null; provider: string | null; input: unknown; input_hash: string | null };
+type ChartRow = { id: string; client_id: string | null; source: string | null; provider: string | null; input: unknown; input_hash: string | null; computed_result?: unknown };
 
 export async function computeChartVariables(ctx: VariablesCtx, raw: unknown, deps: VariablesDeps): Promise<VariablesResponse> {
   return (await variablesFlow(ctx, raw, deps, "compute"))!;
@@ -139,7 +139,7 @@ async function variablesFlow(ctx: VariablesCtx, raw: unknown, deps: VariablesDep
 
   // 1) Kayıtlı analiz (YALNIZ bu tenant; başka tenant = bulunamadı, varlık sızmaz)
   const { data: hRow, error: hErr } = await withTenant(
-    ctx.db.from("human_design_charts").select("id, client_id, source, provider, input, input_hash"),
+    ctx.db.from("human_design_charts").select("id, client_id, source, provider, input, input_hash, computed_result"),
     ctx.tenantId,
     "variables.chart",
   ).eq("id", chartId).maybeSingle();
@@ -162,11 +162,16 @@ async function variablesFlow(ctx: VariablesCtx, raw: unknown, deps: VariablesDep
     }
   }
 
-  // 3) Doğum anı (sunucu IANA çözümü) — belirsiz an REDDEDİLİR
-  const r = resolveBirthLocalTime(birth.date, birth.time, birth.timezone);
-  if (r.kind === "gap") return fail(422, "BIRTH_TIME_GAP", "Kayıtlı doğum saati o saat diliminde yaz saati geçişi nedeniyle hiç yaşanmamış görünüyor; Dört Ok hesaplanmadı.");
-  if (r.kind === "ambiguous") return fail(422, "BIRTH_TIME_AMBIGUOUS", "Kayıtlı doğum saati o gün iki kez yaşanmış (yaz saati geçişi); hangi anın kastedildiği kesin olmadığından Dört Ok hesaplanmadı.");
-  if (r.kind !== "ok") return fail(422, "CHART_INCOMPLETE", "Kayıtlı analizin doğum anı çözülemedi.");
+  // 3) Doğum anı (sunucu IANA 2026f çözümü) — belirsiz an REDDEDİLİR. HD-TZ: Dört Ok, BodyGraph'ın KAYITLI doğum anının
+  //    AYNISINI kullanır; kayıtlı analiz güncel çözümle aynı anı kullanmıyorsa (eski IANA verisi) Dört Ok hesaplanmaz/gösterilmez.
+  const bu = checkChartBirthUtc(birth, chart.computed_result);
+  if (bu.status !== "current") {
+    if (bu.status === "unresolved" && bu.reason === "gap") return fail(422, "BIRTH_TIME_GAP", "Kayıtlı doğum saati o saat diliminde yaz saati geçişi nedeniyle hiç yaşanmamış görünüyor; Dört Ok hesaplanmadı.");
+    if (bu.status === "unresolved" && bu.reason === "ambiguous") return fail(422, "BIRTH_TIME_AMBIGUOUS", "Kayıtlı doğum saati o gün iki kez yaşanmış (yaz saati geçişi); hangi anın kastedildiği kesin olmadığından Dört Ok hesaplanmadı.");
+    const f = chartBirthUtcFailure(bu);
+    return fail(f.status, f.code, f.error);
+  }
+  const r = bu;
   const birthUtc = new Date(r.utcIso);
   const utcOffsetSeconds = r.offsetSeconds;
 
@@ -293,8 +298,10 @@ async function variablesFlow(ctx: VariablesCtx, raw: unknown, deps: VariablesDep
       while (recentFailures.size > VARIABLES_CACHE.maxEntries) recentFailures.delete(recentFailures.keys().next().value as string);
       return x;
     };
-    // 6) Roxy — natal analizle BİREBİR aynı doğum alanları (ad / iletişim / not YOK)
-    const body: RoxyVariablesRequest = { date: birth!.date, time: birth!.time, timezone: birth!.timezone, latitude: birth!.latitude, longitude: birth!.longitude, nodeType: policy.nodeType }; // nodeType yukarıda politikaya eşitliği denetlendi
+    // 6) Roxy — natal analizle BİREBİR aynı doğum anı (ad / iletişim / not YOK). HD-TZ: doğrulanmış UTC anı + "UTC"
+    //    (sağlayıcının eski tz çevirisi yok); koordinatlar aynı.
+    const body = toRoxyUtcMoment<RoxyVariablesRequest>({ date: birth!.date, time: birth!.time, timezone: birth!.timezone, latitude: birth!.latitude, longitude: birth!.longitude, nodeType: policy.nodeType }, r.utcIso); // nodeType yukarıda politikaya eşitliği denetlendi
+    if (!body) return failed(fail(422, "CHART_INCOMPLETE", "Kayıtlı analizin doğum anı çözülemedi."));
     const call = await deps.callVariables(config, body, { lang: policy.lang, timeoutMs: policy.timeoutMs });
     if (!call.ok) {
       log("[hd-variables] call failed", { kind: call.kind, status: call.status });

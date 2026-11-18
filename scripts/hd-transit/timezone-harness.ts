@@ -94,6 +94,15 @@ async function main() {
     source: string;
     cases: Array<{ tz: string; date: string; time: string; group: string; kind: "ok" | "gap" | "ambiguous"; utc?: string; offset?: number; offsets?: number[] }>;
   };
+  // HD-TZ (18.11.2026): IANA 2026f + backzone politikasıyla beklenen DEĞİŞEN vakalar, ayrı ve bağımsız üretilmiş referanstan
+  // (tzcomp.py / zoneinfo 2026f — TS çekirdeği kullanılmadan). Vaka sayısı ve kapsam aynı; yalnız beklenen değer güncel veriden.
+  const ref2026f = JSON.parse(readFileSync(path.join(FIX, "timezone-reference-2026f-backzone.json"), "utf8")) as { source: string; cases: Array<(typeof ref.cases)[number] & { previous: unknown; reference: string }> };
+  const upd = new Map(ref2026f.cases.map((c) => [`${c.tz}|${c.date}|${c.time}`, c]));
+  ref.cases = ref.cases.map((c) => {
+    const u = upd.get(`${c.tz}|${c.date}|${c.time}`);
+    return u ? { tz: c.tz, date: c.date, time: c.time, group: c.group, kind: u.kind, utc: u.utc, offset: u.offset, offsets: u.offsets } : c;
+  });
+  ok(upd.size === 45 && ref2026f.cases.every((c) => ref.cases.some((x) => x.tz === c.tz && x.date === c.date && x.time === c.time)), `IANA 2026f + backzone güncellemesi: ${upd.size} vaka (bağımsız referans; tümü mevcut vakalar)`);
   let wrongUtc = 0, silentDst = 0, falseReject = 0, unsupported = 0, ambChoiceWrong = 0;
   const bad: unknown[] = [];
   for (const c of ref.cases) {

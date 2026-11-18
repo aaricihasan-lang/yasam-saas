@@ -18,6 +18,7 @@ import { ROXY_POLICY, ROXY_PROVIDER_ID, ROXY_RATE_LIMITS, type RoxyPolicy, type 
 import type { RoxyCallResult } from "../providers/roxy/client";
 import { ROXY_TRANSIT_ADAPTER_VERSION, type RoxyTransitRequest } from "./roxyTransitClient";
 import { chartBirthMoment, chartMatchesClient, participantChartFacts } from "../relations/relationService";
+import { chartBirthUtcFailure, checkChartBirthUtc, toRoxyUtcMoment } from "../api/hdBirthUtc";
 import { TRANSIT_UNRESOLVED_IN_PROGRESS_REASON, TRANSIT_UNRESOLVED_QUOTA_REASONS, TransitVerificationError, type ResolvedTransit } from "./resolveTransit";
 import { buildPersonalTransitView, checkTransitConsistency, validateRoxyTransit, type PersonalTransitView } from "./personalTransit";
 import { resolveTransitMoment, TRANSIT_TIME_ZONE, type TransitMoment } from "./transitMoment";
@@ -130,6 +131,15 @@ export async function computePersonalTransit(ctx: PersonalTransitCtx, raw: unkno
   if (!birth || !facts) return fail(422, "CHART_INCOMPLETE", "Kayıtlı analizin doğum / hesap bilgisi eksik. Önce bireysel analizi yeniden oluşturun.");
   if (!chartMatchesClient(birth, client)) return fail(409, "BIRTH_DATA_CHANGED", "Danışanın doğum bilgisi bu analiz hazırlandıktan sonra değişmiş. Önce güncel bilgilerle bireysel analizi oluşturun.");
   if (birth.nodeType !== policy.nodeType) return fail(422, "CHART_POLICY_MISMATCH", "Analiz farklı bir ay düğümü ayarıyla hazırlanmış. Güncel ayarla bireysel analizi yeniden oluşturun.");
+  // HD-TZ: natal analizin kayıtlı doğum anı güncel IANA 2026f çözümüyle aynı olmalı (eski veriyle hesaplanmış analiz
+  // otomatik doğru kabul edilmez; kayıt değişmez). Sağlayıcıya bu doğrulanmış UTC anı + "UTC" gider.
+  const bu = checkChartBirthUtc(birth, chart.computed_result);
+  if (bu.status !== "current") {
+    const f = chartBirthUtcFailure(bu);
+    return fail(f.status, f.code, f.error);
+  }
+  const birthUtcMoment = toRoxyUtcMoment(birth, bu.utcIso);
+  if (!birthUtcMoment) return fail(422, "CHART_INCOMPLETE", "Kayıtlı analizin doğum / hesap bilgisi eksik. Önce bireysel analizi yeniden oluşturun.");
 
   // 2) Transit anı
   const moment = m.moment;
@@ -227,7 +237,7 @@ export async function computePersonalTransit(ctx: PersonalTransitCtx, raw: unkno
     recentFailures.set(key, now());
     return r;
   };
-  const call = await deps.callTransit(config, { birthData: birth!, date: sent.date, time: sent.time }, { lang: policy.lang, timeoutMs: policy.timeoutMs });
+  const call = await deps.callTransit(config, { birthData: birthUtcMoment!, date: sent.date, time: sent.time }, { lang: policy.lang, timeoutMs: policy.timeoutMs });
   if (!call.ok) {
     log("[hd-transit] call failed", { kind: call.kind, status: call.status });
     return failed(PROVIDER_ERRORS[call.kind] ?? PROVIDER_ERRORS.server_error);
