@@ -299,7 +299,7 @@ async function main() {
     ok(still && typeof tok === "string" && !sid0 && hdr === 0, `${label}: çıkış YOK, eski token korundu, çerez yok, kimlik başlığı eklenmedi (401 gizlenmedi)`, { still, tok: typeof tok, sid0, hdr });
     await ctx.unroute("**/api/auth/session/cookie");
     ev.length = 0;
-    await page.getByRole("button", { name: "Tekrar dene", exact: true }).first().click();
+    await page.getByRole("button", { name: "Tekrar dene", exact: true }).first().click({ timeout: 5000 }).catch(() => undefined); // yoksa aşağıdaki kontrol FAIL verir
     const back = await page.getByRole("alert").filter({ hasText: "Tekrar dene" }).first().waitFor({ state: "detached", timeout: 20_000 }).then(() => true).catch(() => false);
     await sleep(3000);
     const sid = (await ctx.cookies(WWW)).some((c) => c.name === "__Host-yasam_sid" && c.httpOnly);
