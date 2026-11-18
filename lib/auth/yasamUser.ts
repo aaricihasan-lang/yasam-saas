@@ -304,6 +304,27 @@ function markCookieSessionReady(token: string): void {
 let cookieSessionMigration: Promise<void> | null = null;
 
 /**
+ * Geçiş isteklerinin (bootstrap + çerez doğrulama) üst süresi. Taşıma ucu YANIT VERMEZSE (asılı bağlantı) geçiş
+ * vaadi hiç bitmez; onu bekleyen profil senkronu da bitmez → panel kartları süresiz iskelette kalır, hata/tekrar
+ * dene ekranı hiç gelmez. Süre dolunca istek AbortController ile iptal edilir ve sonuç ağ hatasıyla AYNI işlenir:
+ * token KALIR (çıkış yok), kimlik bilgisi eklenmez, sunucunun gerçek kararı (401) aynen görünür.
+ * 10 sn: geçiş kapısının 4 sn sınırından uzun (yavaş ama başarılı taşıma tamamlanır; ör. soğuk başlangıç), kullanıcıyı
+ * sonsuz bekletmeyecek kadar kısa. Yalnız bu iki istek için; genel API isteklerine zaman aşımı EKLENMEZ.
+ */
+export const COOKIE_MIGRATION_REQUEST_TIMEOUT_MS = 10_000;
+
+/** Süre dolunca isteği gerçekten iptal eden fetch; `read` gövdeyi de aynı süre içinde okur. */
+async function fetchWithMigrationTimeout<T>(url: string, init: RequestInit, read: (res: Response) => Promise<T>): Promise<T> {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), COOKIE_MIGRATION_REQUEST_TIMEOUT_MS);
+  try {
+    return await read(await fetch(url, { ...init, signal: ctrl.signal }));
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/**
  * HTTPONLY (Android geçişi B-1) — çerez taşımasında saklı eski token'ın çerezi bu tarayıcıda HENÜZ yazılmadı mı?
  * true iken kimlikli istekler ne başlık ne çerez taşır (readSessionToken null) → ensureWebCookieSession beklenmeli.
  * Android header kipi / token yok / çerez zaten yazılmış → false.
@@ -343,11 +364,11 @@ export function ensureWebCookieSession(): Promise<void> {
       return;
     }
     if (!ready) {
-      const boot = await fetch("/api/auth/session/cookie", {
+      const boot = await fetchWithMigrationTimeout("/api/auth/session/cookie", {
         method: "POST",
         cache: "no-store",
         headers: { "x-session-token": raw },
-      });
+      }, async (r) => r);
       if (boot.status === 409) {
         // Bu tarayıcıda BAŞKA kullanıcının geçerli çerez oturumu var → saklı token bu tarayıcının kimliği değil:
         // JS depolamasından çıkarılır (mevcut çerez oturumu korunur; token'ın kendi sunucu oturumu kendi süresiyle biter).
@@ -360,10 +381,9 @@ export function ensureWebCookieSession(): Promise<void> {
       if (!boot.ok) return; // cookie yazılamadı → token KALIR
       markCookieSessionReady(raw);
     }
-    const check = await fetch("/api/auth/session", { method: "GET", cache: "no-store" });
-    if (!check.ok) return;
-    const j = (await check.json().catch(() => null)) as { valid?: unknown } | null;
-    if (j?.valid !== true) return; // cookie oturumu doğrulanmadı → token KALIR
+    const j = await fetchWithMigrationTimeout("/api/auth/session", { method: "GET", cache: "no-store" },
+      async (check) => (check.ok ? ((await check.json().catch(() => null)) as { valid?: unknown } | null) : null));
+    if (j?.valid !== true) return; // cookie oturumu doğrulanmadı (veya yanıt yok / süre doldu) → token KALIR
     // Cookie doğrulandı → eski token JS depolamasından çıkarılır (yalnız hâlâ aynı token ise).
     if (readStoredSessionToken() === raw) {
       localStorage.removeItem(SESSION_TOKEN_KEY);

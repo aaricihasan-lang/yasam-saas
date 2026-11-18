@@ -76,9 +76,6 @@ function rateLimited(retryAfterSec: number): NextResponse {
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-const ADMIN_PENDING_MESSAGE =
-  "Yönetici hesabınız başka bir cihazda açık. Bu giriş, mevcut oturumunuzdan onaylanana kadar bekliyor.";
-
 /** Admin oturum olayı audit'i (aktör = hesabın kendisi; token/IP/parola YOK). Fail-closed. */
 async function auditAdminSessionEvent(
   db: SupabaseClient,
@@ -297,32 +294,22 @@ export async function POST(req: NextRequest) {
     }
 
     if (result.state === "pending_approval") {
-      // Admin ikinci/riskli web girişi: token YALNIZ kendi durumunu sorgulayabilir; kullanıcı
-      // satırı/profil DÖNDÜRÜLMEZ. Audit fail-closed: yazılamazsa pending kapatılır → 500.
-      try {
-        await auditAdminSessionEvent(db, String(row.id), "admin_web_login_pending", {
-          outcome: "pending",
-          channel: result.channel,
-          high_risk: result.highRisk,
-          pending_ttl_minutes: 10,
-        });
-      } catch {
-        await db
-          .from("user_sessions")
-          .update({ ended_at: new Date().toISOString(), end_reason: "audit_failed" })
-          .eq("session_token", sessionToken)
-          .eq("session_state", "pending_approval");
-        return json({ code: "ERROR", error: "Oturum oluşturulamadı." }, 500);
-      }
-      return json(
-        {
-          code: "PENDING_APPROVAL",
-          pendingToken: sessionToken,
-          pendingExpiresAt: result.pendingExpiresAt,
-          error: ADMIN_PENDING_MESSAGE,
-        },
-        202,
-      );
+      // Admin onaylı (pending) giriş Owner kararıyla (2026-10-04) KAPALI: admin web her zaman doğrudan aktif oturum
+      // açar. Buraya yalnız anormal durumda düşülür (ör. rol okuması geçici hata verip istek uzman yoluna gittiğinde
+      // veritabanı admin'i görüp pending üretirse). Bekleyen satırın anahtarı onaylanınca TAM oturum anahtarı olur →
+      // hiçbir taşıma kipinde yanıt gövdesine / JavaScript'e VERİLMEZ (fail-closed): satır kapatılır, giriş yeniden denenir.
+      await db
+        .from("user_sessions")
+        .update({ ended_at: new Date().toISOString(), end_reason: "pending_disabled" })
+        .eq("session_token", sessionToken)
+        .eq("session_state", "pending_approval")
+        .then(undefined, () => undefined);
+      await auditAdminSessionEvent(db, String(row.id), "admin_web_login_pending", {
+        outcome: "rejected",
+        reason: "pending_disabled",
+        channel: result.channel,
+      }).catch(() => {});
+      return json({ code: "ERROR", error: "Giriş şu anda tamamlanamadı. Lütfen tekrar deneyin." }, 503);
     }
 
     // HTTPONLY H2+: yalnız uygun WEB oturumu → __Host-yasam_sid. Android oturumuna ASLA set edilmez.

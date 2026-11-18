@@ -62,7 +62,7 @@ const F2_CHAIN = [
 ];
 
 async function main(): Promise<void> {
-  const db = await startTestDb(54431, "f2f-purge-db");
+  const db = await startTestDb(Number(process.env.F2_PURGE_PG_PORT ?? 54431), `f2f-purge-db-${process.env.F2_PURGE_PG_PORT ?? 54431}`); // F2_PURGE_PG_PORT: sabit port başka süreçte doluysa
   const { su } = db;
   try {
     await su.query(`CREATE SCHEMA IF NOT EXISTS extensions; CREATE EXTENSION IF NOT EXISTS pgcrypto SCHEMA extensions;`);
