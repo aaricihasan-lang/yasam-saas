@@ -130,9 +130,10 @@ async function main() {
     for (let i = 0; i < 150; i++) { try { const r = await fetch(`${BASE}/`); if (r.status < 500) break; } catch { /* bekle */ } await sleep(1000); }
     await q(`UPDATE public.users SET email_verified_at = now() WHERE id IN ($1, $2, $3)`, [FREE, AND1, U.owner]);
 
-    /** Yeniden gönderim bekleme süresini YALNIZ sentetik DB'de geçmişe alır (ardışık test girişleri için; ürün kuralı değişmez). */
+    /** Ardışık test girişleri arasında ZAMAN GEÇMESİNİ taklit eder (YALNIZ sentetik DB): yeniden gönderim beklemesi + saatlik 6 kod sınırı
+     *  (CI 18.11: 7. kodda ürün kuralı doğru biçimde rate_limited verdi). Ürün kuralı DEĞİŞMEZ. */
     const ageOtps = async (email: string) => {
-      await q(`UPDATE public.auth_email_otps SET created_at = created_at - interval '2 minutes', expires_at = expires_at - interval '2 minutes'
+      await q(`UPDATE public.auth_email_otps SET created_at = created_at - interval '61 minutes', expires_at = expires_at - interval '61 minutes'
                 WHERE user_id = (SELECT id FROM public.users WHERE email = $1)`, [email]);
       await q(`UPDATE public.auth_mfa_challenges SET state = 'expired' WHERE purpose IS DISTINCT FROM 'step_up' AND state IN ('pending','verified')
                 AND user_id = (SELECT id FROM public.users WHERE email = $1)`, [email]);
@@ -195,7 +196,7 @@ async function main() {
       ok(f.inView && f.noOverflow, `${tag}: işlem onayı diyaloğu ekran içinde, taşma yok`, f);
       await page.getByTestId("step-up-email").waitFor({ timeout: 20000 });
       await page.screenshot({ path: path.join(OUT, `${tag.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}-islem-onayi.png`) });
-      await q(`UPDATE public.auth_email_otps SET created_at = created_at - interval '2 minutes', expires_at = expires_at - interval '2 minutes'
+      await q(`UPDATE public.auth_email_otps SET created_at = created_at - interval '61 minutes', expires_at = expires_at - interval '61 minutes'
                 WHERE user_id = $1 AND purpose IS DISTINCT FROM 'step_up'`, [U.owner]).catch(() => {});
       const before = sinkCount();
       await page.getByTestId("step-up-email-send").click();
