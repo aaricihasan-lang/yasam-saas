@@ -209,6 +209,53 @@ async function main() {
     ok("C8 sağlayıcı yanlış (1 sa kayık) anla hesaplarsa → 502 PROVIDER_TIME_MISMATCH, kayıt yok", r.status === 502 && r.body.ok === false && r.body.code === "PROVIDER_TIME_MISMATCH" && f.tables.human_design_charts.length === 0, r);
   }
 
+  // ── C2: önbellek güvenliği — her yeniden kullanım yolunda "bulundu ≠ güncel" (son kod güvenliği turu) ──────────────────
+  section("C2. BodyGraph yeniden kullanım güvenliği (kilit beklemesi, eşzamanlı INSERT, doğum anlı kimlik)");
+  {
+    const id1 = v1Id(20, "2026-11-10", "12:00:00", LOC.havana);
+    const row = (id: string, utc: string): Row => ({
+      id, tenant_id: T, client_id: cid(20), source: "computed", provider: "roxyapi", engine_version: "roxyapi:roxy-bodygraph-1",
+      birth_date: "2026-11-10", birth_time: "12:00:00", timezone: "America/Havana", input_hash: "eszamanli",
+      input: { date: "2026-11-10", time: "12:00:00", timezone: "America/Havana", latitude: 23.133, longitude: -82.383, nodeType: "true", lang: "tr" },
+      computed_result: { timing: { birthUtcIso: utc }, activations: [] }, created_at: "2026-11-18T00:00:00Z",
+    });
+    const OLD = "2026-11-10T17:00:00.000Z", NEW = "2026-11-10T16:00:00.000Z";
+    for (const [scope, label] of [["hd-roxy-identity-inflight", "kişi kilidi"], ["hd-roxy-inflight", "girdi kilidi"]] as const) {
+      for (const [utc, expectReuse] of [[OLD, false], [NEW, true]] as const) {
+        const f = createFakeDb({ human_design_clients: [client(20, "2026-11-10", "12:00", LOC.havana)], human_design_charts: [] });
+        const { deps, calls } = mkDeps();
+        let planted = false;
+        deps.rateLimit = async (s) => ({ allowed: s !== scope, retryAfterSec: 1 });
+        deps.sleep = async () => { if (!planted) { planted = true; f.tables.human_design_charts.push(row(id1, utc)); } };
+        const r = await computeRoxyChart(ctx(f.db), { client_id: cid(20), location_id: "client" }, deps);
+        ok(`C2 ${label} beklerken aynı kimlikte ${expectReuse ? "GÜNCEL" : "ESKİ UTC'li"} kayıt belirir → ${expectReuse ? "yeniden kullanılır" : "KULLANILMAZ (409 yeniden dene)"}; çağrı yok`,
+          calls.length === 0 && (expectReuse ? r.status === 200 && r.body.ok === true && r.body.reused === true : r.status === 409 && r.body.ok === false && r.body.code === "IN_PROGRESS"), r);
+      }
+    }
+    for (const [utc, expectReuse] of [[OLD, false], [NEW, true]] as const) {
+      const f = createFakeDb({ human_design_clients: [client(21, "2026-11-10", "12:00", LOC.havana)], human_design_charts: [] });
+      const { deps, calls } = mkDeps();
+      const inner = deps.callRoxy;
+      const idX = v1Id(21, "2026-11-10", "12:00:00", LOC.havana);
+      deps.callRoxy = async (c, b, o) => { f.tables.human_design_charts.push({ ...row(idX, utc), client_id: cid(21) }); return inner(c, b, o); };
+      const before = JSON.stringify(f.tables.human_design_charts);
+      const r = await computeRoxyChart(ctx(f.db), { client_id: cid(21), location_id: "client" }, deps);
+      ok(`C2 eşzamanlı INSERT çakışması, kazanan ${expectReuse ? "GÜNCEL" : "ESKİ UTC'li"} → ${expectReuse ? "yeniden kullanılır" : "yeni sonuç gibi DÖNMEZ (409)"}; kazanan kayıt değişmez`,
+        calls.length === 1 && f.tables.human_design_charts.length === 1 && ((f.tables.human_design_charts[0].computed_result as Row).timing as Row).birthUtcIso === utc && before === "[]" && (expectReuse ? r.status === 200 && r.body.ok === true && r.body.reused === true : r.status === 409 && r.body.ok === false && r.body.code === "IN_PROGRESS"), r);
+    }
+    {
+      // Eski kimlikte eski UTC + doğum anlı kimlikte (normalde olamaz) tutarsız kayıt → çakışma; sonuç dönmez, kayıtlar değişmez.
+      const idU = roxyKeyedChartIdFor(T, roxyKeyedInputHash({ tenantId: T, clientId: cid(22), date: "2026-11-10", time: "12:00:00", timezone: "America/Havana", latitude: 23.133, longitude: -82.383, nodeType: ROXY_POLICY.nodeType, lang: ROXY_POLICY.lang, birthUtcIso: NEW }, SECRET));
+      const charts = [{ ...row(v1Id(22, "2026-11-10", "12:00:00", LOC.havana), OLD), client_id: cid(22) }, { ...row(idU, "2026-11-10T18:00:00.000Z"), client_id: cid(22) }];
+      const f = createFakeDb({ human_design_clients: [client(22, "2026-11-10", "12:00", LOC.havana)], human_design_charts: charts });
+      const before = JSON.stringify(f.tables.human_design_charts);
+      const { deps, calls } = mkDeps();
+      const r = await computeRoxyChart(ctx(f.db), { client_id: cid(22), location_id: "client" }, deps);
+      ok("C2 doğum anlı kimlikte UTC'si uyuşmayan kayıt → 409 CHART_TIME_CONFLICT; yeniden kullanım yok, çağrı yok, kayıtlar değişmez",
+        r.status === 409 && r.body.ok === false && r.body.code === "CHART_TIME_CONFLICT" && calls.length === 0 && JSON.stringify(f.tables.human_design_charts) === before, r);
+    }
+  }
+
   // ── D / E / F ortak tohum: kayıtlı analizler ────────────────────────────────────────────────────────
   type P = { n: number; name: string; local: Moment; utc: string };
   const people: P[] = [
@@ -310,6 +357,70 @@ async function main() {
     ok("E6 kayıtlı ilişki BAŞKA kaynak analizden üretilmiş → yeniden KULLANILMAZ; yeni kimlikle yeni hesap; eski kayıt değişmez",
       diff.status === 200 && diff.body.ok === true && diff.body.id !== v1 && diff.body.reused === false && seen.conn.length === 1 &&
       JSON.stringify(f.tables.human_design_relation_analyses.filter((x) => x.id === v1)) === JSON.stringify(JSON.parse(before).filter((x: Row) => x.id === v1)), diff);
+  }
+
+  section("E2. İlişki yeniden kullanım güvenliği (doğum anlı kimlik, kilit beklemesi, eşzamanlı INSERT, katılımcısız kayıt)");
+  {
+    const pA = people[3], pB = people[0]; // İstanbul + Havana (güncel analizler)
+    const memLocal = [pA, pB].map((p) => ({ clientId: cid(p.n), moment: { ...p.local, nodeType: "true" } as RoxyBirthMoment }));
+    const v1 = relationIdFor(T, relationInputHash("connection", T, ROXY_POLICY, memLocal, SECRET));
+    const v2 = relationIdFor(T, relationInputHash("connection", T, ROXY_POLICY, [pA, pB].map((p, i) => ({ ...memLocal[i], birthUtcIso: p.utc })), SECRET));
+    const staleB = { ...staleOf(pB), id: "d0000000-0000-4000-8000-0000000000ee" }; // aynı danışanın ESKİ UTC'li ikinci analizi
+    const plant = (f: ReturnType<typeof seedRel>, id: string, srcB: string, withParts = true) => {
+      f.tables.human_design_relation_analyses.push({ id, tenant_id: T, kind: "connection", member_count: 2, result: { eski: true } });
+      if (withParts) f.tables.human_design_relation_participants.push(
+        { analysis_id: id, tenant_id: T, position: 0, client_id: cid(pA.n), source_chart_id: hid(pA.n) },
+        { analysis_id: id, tenant_id: T, position: 1, client_id: cid(pB.n), source_chart_id: srcB },
+      );
+    };
+    const seen = () => ({ conn: [] as Array<{ personA: RoxyBirthMoment; personB: RoxyBirthMoment }>, penta: [] as Array<{ members: RoxyBirthMoment[] }> });
+    {
+      const f = seedRel([chartRow(pA), chartRow(pB), staleB]);
+      plant(f, v1, staleB.id as string);
+      plant(f, v2, staleB.id as string);
+      const s = seen();
+      const r = await createRelationAnalysis(rctx(f.db), parts(pA, pB), relDeps(s));
+      ok("E7 doğum anlı kimlikteki analiz ESKİ UTC'li kaynaktan → 409 CHART_TIME_CONFLICT; yeniden kullanım yok, çağrı yok",
+        r.status === 409 && r.body.ok === false && r.body.code === "CHART_TIME_CONFLICT" && s.conn.length === 0, r);
+    }
+    {
+      // Aynı danışanın aynı UTC'li BAŞKA güncel analizinden üretilmiş kayıt → doğrulanır ve yeniden kullanılır.
+      const twin = { ...chartRow(pB), id: "d0000000-0000-4000-8000-0000000000ef" };
+      const f = seedRel([chartRow(pA), chartRow(pB), twin]);
+      plant(f, v1, twin.id as string);
+      const s = seen();
+      const r = await createRelationAnalysis(rctx(f.db), parts(pA, pB), relDeps(s));
+      ok("E7b kaynak başka ama doğum anı DOĞRULANMIŞ aynı UTC'li analiz → yeniden kullanılır, çağrı yok", r.body.ok === true && r.body.id === v1 && r.body.reused === true && s.conn.length === 0, r);
+    }
+    for (const [srcOk, label] of [[false, "ESKİ UTC'li kaynaktan"], [true, "doğrulanmış kaynaktan"]] as const) {
+      const f = seedRel([chartRow(pA), chartRow(pB), staleB]);
+      const s = seen();
+      let planted = false;
+      const d = relDeps(s);
+      d.rateLimit = async (scope) => ({ allowed: scope !== "hd-roxy-relation-inflight", retryAfterSec: 1 });
+      d.sleep = async () => { if (!planted) { planted = true; plant(f, v1, srcOk ? hid(pB.n) : (staleB.id as string)); } };
+      const r = await createRelationAnalysis(rctx(f.db), parts(pA, pB), d);
+      ok(`E8 kilit beklerken aynı kimlikte ${label} analiz belirir → ${srcOk ? "yeniden kullanılır" : "KULLANILMAZ (409)"}; çağrı yok`,
+        s.conn.length === 0 && (srcOk ? r.body.ok === true && r.body.reused === true : r.status === 409 && r.body.ok === false), r);
+    }
+    for (const [srcOk, label] of [[false, "ESKİ UTC'li kaynaktan"], [true, "doğrulanmış kaynaktan"]] as const) {
+      const f = seedRel([chartRow(pA), chartRow(pB), staleB]);
+      const s = seen();
+      const d = relDeps(s);
+      const inner = d.callConnection;
+      d.callConnection = async (c, b, o) => { plant(f, v1, srcOk ? hid(pB.n) : (staleB.id as string)); return inner(c, b, o); };
+      const r = await createRelationAnalysis(rctx(f.db), parts(pA, pB), d);
+      ok(`E9 eşzamanlı INSERT çakışması, kazanan ${label} → ${srcOk ? "yeniden kullanılır" : "yeni sonuç gibi DÖNMEZ (409)"}`,
+        s.conn.length === 1 && f.tables.human_design_relation_analyses.length === 1 && (srcOk ? r.body.ok === true && r.body.reused === true : r.status === 409 && r.body.ok === false), r);
+    }
+    {
+      const f = seedRel([chartRow(pA), chartRow(pB)]);
+      plant(f, v1, hid(pB.n), false);
+      const s = seen();
+      const r = await createRelationAnalysis(rctx(f.db), parts(pA, pB), relDeps(s));
+      ok("E10 katılımcı satırı olmayan eski kayıt → kalıcı kilitlenme yok; doğum anlı kimlikle yeni hesap, eski kayıt durur",
+        r.status === 200 && r.body.ok === true && r.body.id === v2 && r.body.reused === false && s.conn.length === 1 && f.tables.human_design_relation_analyses.some((x) => x.id === v1), r);
+    }
   }
 
   section("F. Kişisel transit — bayat natal analiz");

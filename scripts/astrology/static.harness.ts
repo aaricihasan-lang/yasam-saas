@@ -17,6 +17,7 @@ import assert from "node:assert/strict";
 import { execSync } from "node:child_process";
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
+import { isHdTzApprovedContent } from "../hd-tz/approvedChanges";
 import { isAstrologyShellOwner } from "@/lib/astrology/access/ownerGate";
 import { createFakeClient, createStore } from "./fakeSupabase";
 
@@ -396,9 +397,12 @@ async function main() {
       /^app\/life-analysis\/_components\/moduleArtwork\.tsx$/,
       /^public\/premium\/analiz-merkezi\/kart-(numeroloji|human-design|kozmik-ajanda|gokyuzu-atlasi)\.webp$/,
     ];
-    const outside = all.filter((p) => !allowed.some((r) => r.test(p)));
+    // HD-TZ (Owner kararı 18.11.2026): Owner onaylı HD doğruluk değişikliğinin dosyaları YALNIZ onaylı içerikle BİREBİR aynıysa
+    // (SHA-256 manifestosu scripts/hd-tz/approvedChanges.ts) kapsam içidir; başka her HD / kapsam dışı fark yine FAIL.
+    const hdTzOk = (p: string) => p === "scripts/hd-tz/approvedChanges.ts" || isHdTzApprovedContent(ROOT, p);
+    const outside = all.filter((p) => !allowed.some((r) => r.test(p)) && !hdTzOk(p));
     assert.deepEqual(outside, [], `kapsam dışı değişiklik: ${outside.join(", ")}`);
-    assert.ok(!all.some((p) => /^lib\/human-design\/|^app\/api\/hd\/|^app\/human-design\//.test(p)), "HD dosyası değişti");
+    assert.ok(!all.some((p) => /^lib\/human-design\/|^app\/api\/hd\/|^app\/human-design\//.test(p) && !hdTzOk(p)), "HD dosyası değişti");
   });
 
   await t("2026-10-15 menü taşıma: app/page.tsx farkı YALNIZ Atlas kartının kaldırılması + merkez kartının ek yetkisi (başka kart değişmez)", () => {

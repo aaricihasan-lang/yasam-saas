@@ -376,6 +376,17 @@ export async function computeRoxyChart(
     return { hash: h, id: idSecret ? roxyKeyedChartIdFor(ctx.tenantId, h) : roxyChartIdFor(ctx.tenantId, h) };
   };
   let { hash: inputHash, id } = keyFor(identity);
+  let utcKeyed = false;
+  // HD-TZ: BULUNAN kayıt yalnız kayıtlı doğum anı beklenen UTC ile AYNIYSA yeniden kullanılır (her yolda: ikinci arama, kilit
+  // beklemeleri, eşzamanlı INSERT çakışması). Aynı kimlikte eski UTC'li kayıt belirirse (ör. kademeli yayında eski sürüm örneği):
+  // eski kimlikte → yeniden dene (sonraki istek doğum anlı ayrı kimliğe gider); doğum anlı kimlikte → çakışma, sonuç dönmez.
+  const reuseOrStale = (f: { found: boolean; current: boolean }): RoxyServiceResponse | null => {
+    if (!f.found) return null;
+    if (f.current) return { status: 200, body: { ok: true, id, reused: true } };
+    return utcKeyed
+      ? fail(409, "CHART_TIME_CONFLICT", "Bu doğum bilgisi için kayıtlı analizin doğum anı beklenen anla uyuşmuyor. Sonuç gösterilmedi; lütfen yöneticiye bildirin.")
+      : fail(409, "IN_PROGRESS", "Bu hesaplama şu anda sürüyor. Birkaç saniye sonra tekrar deneyin.", { retryAfterSec: 2 });
+  };
 
   // 8) Kayıtlı sonuç → Roxy ÇAĞRILMAZ (önce kimlikle, sonra kayıtlı girdi alanlarıyla) — YALNIZ kayıtlı doğum anı güncel
   //    IANA 2026f çözümüyle aynıysa. HD-TZ: aynı kimlikte eski IANA verisiyle hesaplanmış (bayat) analiz varsa o kayıt
@@ -385,9 +396,11 @@ export async function computeRoxyChart(
   if (existing.found && existing.current) return { status: 200, body: { ok: true, id, reused: true } };
   if (existing.found) {
     ({ hash: inputHash, id } = keyFor({ ...identity, birthUtcIso: t.utcIso }));
+    utcKeyed = true;
     const fresh = await findExisting(ctx.db, ctx.tenantId, id, t.utcIso);
     if (fresh.error) return fresh.error;
-    if (fresh.found) return { status: 200, body: { ok: true, id, reused: true } };
+    const r = reuseOrStale(fresh);
+    if (r) return r;
   }
   const equivalent = await findEquivalentChart(ctx.db, ctx.tenantId, identity, t.utcIso);
   if (equivalent.error) return equivalent.error;
@@ -447,7 +460,8 @@ export async function computeRoxyChart(
       if (i > 0) await sleep(1500);
       const own = await findExisting(ctx.db, ctx.tenantId, id, t.utcIso);
       if (own.error) return own.error;
-      if (own.found) return { status: 200, body: { ok: true, id, reused: true } };
+      const r = reuseOrStale(own);
+      if (r) return r;
       const again = await findCrossProfileRoxyDuplicates(
         ctx.db,
         ctx.tenantId,
@@ -484,7 +498,8 @@ export async function computeRoxyChart(
       await sleep(1500);
       const again = await findExisting(ctx.db, ctx.tenantId, id, t.utcIso);
       if (again.error) return again.error;
-      if (again.found) return { status: 200, body: { ok: true, id, reused: true } };
+      const r = reuseOrStale(again);
+      if (r) return r;
     }
     return fail(409, "IN_PROGRESS", "Bu hesaplama şu anda sürüyor. Birkaç saniye sonra tekrar deneyin.", {
       retryAfterSec: claim.retryAfterSec || 10,
@@ -596,7 +611,12 @@ export async function computeRoxyChart(
   });
   const { error: insErr } = await ctx.db.from(TABLE).insert(payload).select("id").single();
   if (insErr) {
-    if (isUniqueViolation(insErr)) return { status: 200, body: { ok: true, id, reused: true } };
+    if (isUniqueViolation(insErr)) {
+      // Eşzamanlı INSERT: kazanan kayıt da doğrulanır (bulundu ≠ güncel).
+      const won = await findExisting(ctx.db, ctx.tenantId, id, t.utcIso);
+      if (won.error) return won.error;
+      return reuseOrStale(won) ?? fail(409, "IN_PROGRESS", "Bu hesaplama şu anda sürüyor. Birkaç saniye sonra tekrar deneyin.", { retryAfterSec: 2 });
+    }
     if (isMissingColumn(insErr)) return MIGRATION_PENDING;
     return fail(500, "DB_INSERT_FAILED", hdSafeDbError("roxy.insert", insErr));
   }
