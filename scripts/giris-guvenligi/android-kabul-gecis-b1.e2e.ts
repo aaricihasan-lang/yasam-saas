@@ -365,6 +365,35 @@ async function main() {
     await ctx.close();
   }
 
+  console.log("\n── (t) Geçiş BEKLERKEN aynı profilde BAŞKA kullanıcı giriş yapmış: kimlikler karışmaz ──");
+  {
+    const { ctx, page } = await prepareLegacy(); // A: free@test.local eski token'ı JS deposunda
+    // Statik dosya: uygulama JS'i / geçiş kapısı çalışmaz → B girişi A'nın geçişi başlamadan yapılır.
+    await page.goto(`${WWW}/next.svg`, { waitUntil: "domcontentloaded" }).catch(() => undefined);
+    const aId = await uid(page);
+    // B girişi tarayıcının KENDİ ağ yığınıyla (alan adı eşlemesi geçerli; Playwright API istemcisi kullanılmaz → canlıya gidemez).
+    const bLogin = await page.evaluate(async () => {
+      const r = await fetch("/api/auth/session", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email: "admin@test.local", password: "parola-admin" }) });
+      const j = (await r.json().catch(() => ({}))) as { user?: { id?: string }; sessionToken?: unknown };
+      return { s: r.status, id: j.user?.id ?? "", tokenInBody: "sessionToken" in j };
+    });
+    const bSid0 = (await ctx.cookies(WWW)).find((c) => c.name === "__Host-yasam_sid")?.value ?? "";
+    const prof: { s: number; uid: string }[] = [];
+    ctx.on("response", (r) => { if (new URL(r.url()).pathname === "/api/auth/profile") prof.push({ s: r.status(), uid: r.request().headers()["x-user-id"] ?? "" }); });
+    let t0 = 0; const ev = record(ctx, () => t0); t0 = Date.now();
+    await openApp(page);
+    await sleep(9000);
+    const boot = ev.find((e) => e.p === "/api/auth/session/cookie");
+    const tokA = await page.evaluate(() => localStorage.getItem("yasam_session_token"));
+    const bSid1 = (await ctx.cookies(WWW)).find((c) => c.name === "__Host-yasam_sid")?.value ?? "";
+    const aOk = prof.filter((p) => p.s === 200 && p.uid === aId).length;
+    rows.push({ senaryo: "t", bGiris: bLogin.s, bootstrap: boot?.s, aTokenSilindi: tokA === null, bCerezKorundu: bSid0 !== "" && bSid1 === bSid0, aKimligiyle200: aOk });
+    ok(bLogin.s === 200 && !bLogin.tokenInBody && bSid0 !== "" && !!aId && aId !== bLogin.id, "hazırlık: B çerezle giriş yaptı (gövdede anahtar yok), A ile B farklı", { b: bLogin.s, a: !!aId });
+    ok(boot?.s === 409 && tokA === null, `(t) A'nın eski token'ı B'nin çerezini EZMEDİ (bootstrap ${boot?.s}) ve JS deposundan silindi`);
+    ok(bSid1 === bSid0 && aOk === 0, `(t) B'nin çerezi aynen korundu; A kimliğiyle başarılı profil yanıtı YOK (${aOk})`, prof.slice(0, 6).map((p) => `${p.s}:${p.uid === aId ? "A" : p.uid === bLogin.id ? "B" : "?"}`));
+    await ctx.close();
+  }
+
   console.log("\n── (n) Uygulama AÇIKKEN bayrak açılır: arka plan denetimi yenilemesiz taşır (H2 ipucu yolu) ──");
   {
     await ctrl("/iptal?kanal=android_app", "POST");
