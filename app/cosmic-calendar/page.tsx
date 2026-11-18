@@ -35,7 +35,7 @@ import { TR_LOCATIONS } from "@/lib/location/tr";
 import { WORLD_LOCATIONS } from "@/lib/location/world";
 import { searchLocations, normalizeLocationQuery, type Location } from "@/lib/location";
 import { getUserLocationPref, saveUserLocationPref } from "@/lib/location/userLocationPref";
-import { formatInTimeZone, formatDateTimeInTimeZone, getTimeZoneOffsetMinutes, getZonedDayRange, zonedWallTimeToUtc } from "@/lib/location/tz";
+import { formatInTimeZone, formatDateTimeInTimeZone, getTimeZoneOffsetMinutes, getZonedDayRange, zonedWallTimeToUtc, zonedWallTimeKind } from "@/lib/location/tz";
 import { getCurrentVoidMoon, getUpcomingVoidMoonPeriods, getVoidMoonPeriods, type VoidMoonPeriod } from "@/lib/cosmic/voidMoon";
 import {
   getLunarDistanceSnapshot, getUpcomingLunarApsisEvents, getSupermoonEvents, getMicromoonEvents,
@@ -1224,9 +1224,14 @@ export default function CosmicCalendarPage() {
       selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate(),
       Number.isFinite(hh) ? hh : 12, Number.isFinite(mm) ? mm : 0, eclipseTz,
     );
+    // KZM-TZ-01: saat geçişinde (ileri / geri alma) seçilen yerel saat hiç yaşanmamış ya da iki kez yaşanmış olabilir → sessiz geçilmez.
+    const kind = zonedWallTimeKind(
+      selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate(),
+      Number.isFinite(hh) ? hh : 12, Number.isFinite(mm) ? mm : 0, eclipseTz,
+    );
     const offset = getTimeZoneOffsetMinutes(target, eclipseTz);
     const result = getPlanetaryHour(target, selEclipseLoc?.lat, selEclipseLoc?.lon, offset);
-    return { target, result };
+    return { target, result, kind };
   }, [phEffectiveMode, phTime, selectedDate, eclipseTz, selEclipseLoc]);
 
   // Combobox sunum yardımcıları (a11y). Popup: açık + (sonuç var VEYA sorgu var → durum satırı).
@@ -2168,6 +2173,13 @@ export default function CosmicCalendarPage() {
                       </div>
                     </div>
                     <p className="mt-1 text-[10px] font-semibold text-slate-400 tabular-nums">Seçili an: {miladiDate} · {phTime} ({eclipseTz})</p>
+                    {phTarget.kind !== "ok" && (
+                      <p className="mt-1 text-[10px] leading-relaxed text-amber-600" data-ph-wall-kind={phTarget.kind}>
+                        {phTarget.kind === "gap"
+                          ? `Bu yerel saat bu tarihte saat ileri alındığı için yaşanmadı; geçiş sonrası ${formatInTimeZone(phTarget.target, eclipseTz)} anı kullanıldı.`
+                          : `Bu yerel saat bu tarihte saat geri alındığı için iki kez yaşandı; ilk an (${formatInTimeZone(phTarget.target, eclipseTz)}, geçiş öncesi) kullanıldı.`}
+                      </p>
+                    )}
                     {phTarget.result.isFallback && (
                       <p className="mt-1 text-[10px] leading-relaxed text-amber-600">
                         Bu enlemde bu tarihte gün doğumu/batımı oluşmadığı için gezegen saati yaklaşık gösterilir.
