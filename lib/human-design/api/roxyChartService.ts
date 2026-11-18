@@ -25,6 +25,7 @@ import { deterministicUuid, isUniqueViolation, isUuid } from "./deterministicId"
 import { hdSafeDbError } from "./safeError";
 import { birthLocalTimeIssue, isValidIanaTimeZone, resolveBirthLocalTime, toHms } from "./birthTimeResolution";
 import { resolveHdBirthLocation, type HdBirthLocation } from "./hdBirthLocation";
+import { storedBirthUtcMatches, toRoxyUtcMoment } from "./hdBirthUtc";
 import {
   ROXY_ADAPTER_VERSION,
   ROXY_BODYGRAPH_ENDPOINT,
@@ -98,6 +99,11 @@ export type RoxyInputIdentity = {
   longitude: number;
   nodeType: string;
   lang: string;
+  /**
+   * HD-TZ: YALNIZ aynı girdinin kimliğinde eski IANA verisiyle hesaplanmış (bayat) kayıt varken verilir; yeni hesap doğum
+   * anını (UTC) içeren AYRI kimliğe yazılır. Verilmezse anahtar eskisiyle BİREBİR aynıdır (mevcut kimlikler korunur).
+   */
+  birthUtcIso?: string;
 };
 
 /** Idempotency anahtarı: girdi + sağlayıcı politikası + adaptör sürümü (sabit sıralı). */
@@ -115,6 +121,7 @@ export function roxyInputHash(i: RoxyInputIdentity): string {
     i.longitude.toFixed(6),
     i.nodeType,
     i.lang,
+    ...(i.birthUtcIso ? ["utc", new Date(Date.parse(i.birthUtcIso)).toISOString()] : []),
   ]);
   return createHash("sha256").update(canonical, "utf8").digest("hex");
 }
@@ -145,34 +152,41 @@ export function readChartIdSecret(env: NodeJS.ProcessEnv = process.env): string 
 
 type ClientRow = { id: string; name: string; birth_date: string | null; birth_time: string | null };
 
+/**
+ * Kimlikle kayıtlı analiz. `current`: kayıtlı doğum anı (computed_result.timing.birthUtcIso) güncel IANA çözümüyle (utcIso)
+ * aynı mı — HD-TZ: eski IANA verisiyle hesaplanmış (bayat) analiz yeni sonuç gibi YENİDEN KULLANILMAZ.
+ */
 async function findExisting(
   db: SupabaseClient,
   tenantId: string,
   id: string,
-): Promise<{ found: boolean; error: RoxyServiceResponse | null }> {
-  const { data, error } = await withTenant(db.from(TABLE).select("id, provider, input_hash"), tenantId, "roxy.findExisting")
+  utcIso: string,
+): Promise<{ found: boolean; current: boolean; error: RoxyServiceResponse | null }> {
+  const { data, error } = await withTenant(db.from(TABLE).select("id, provider, input_hash, computed_result"), tenantId, "roxy.findExisting")
     .eq("id", id)
     .maybeSingle();
   if (error) {
-    if (isMissingColumn(error)) return { found: false, error: MIGRATION_PENDING };
-    return { found: false, error: fail(500, "DB_ERROR", hdSafeDbError("roxy.findExisting", error)) };
+    if (isMissingColumn(error)) return { found: false, current: false, error: MIGRATION_PENDING };
+    return { found: false, current: false, error: fail(500, "DB_ERROR", hdSafeDbError("roxy.findExisting", error)) };
   }
-  return { found: !!data, error: null };
+  const row = data as { computed_result?: unknown } | null;
+  return { found: !!row, current: !!row && storedBirthUtcMatches(row.computed_result, utcIso), error: null };
 }
 
 /**
  * Aynı danışan + AYNI hesap girdisiyle (tarih, saat, tz, koordinat, düğüm, dil, adaptör sürümü)
  * daha önce kaydedilmiş Roxy haritası var mı? Hash'ten BAĞIMSIZ (kayıtlı girdi alanları) →
  * eski tuzsuz-kimlikli kayıtlar ve ileride sır değişse bile yeniden kullanılır; mükerrer ücretli
- * çağrı yapılmaz.
+ * çağrı yapılmaz. HD-TZ: yalnız kayıtlı doğum anı güncel çözümle (utcIso) AYNI olan kayıt.
  */
 async function findEquivalentChart(
   db: SupabaseClient,
   tenantId: string,
   i: RoxyInputIdentity,
+  utcIso: string,
 ): Promise<{ id: string | null; error: RoxyServiceResponse | null }> {
   const { data, error } = await withTenant(
-    db.from(TABLE).select("id, input, engine_version, created_at"),
+    db.from(TABLE).select("id, input, engine_version, computed_result, created_at"),
     tenantId,
     "roxy.findEquivalent",
   )
@@ -188,10 +202,11 @@ async function findEquivalentChart(
     return { id: null, error: fail(500, "DB_ERROR", hdSafeDbError("roxy.findEquivalent", error)) };
   }
   const same = (a: unknown, b: number) => typeof a === "number" && a.toFixed(6) === b.toFixed(6);
-  for (const r of (data ?? []) as { id: string; input: Record<string, unknown> | null; engine_version: string | null }[]) {
+  for (const r of (data ?? []) as { id: string; input: Record<string, unknown> | null; engine_version: string | null; computed_result?: unknown }[]) {
     const inp = r.input ?? {};
     if (
       r.engine_version === ROXY_ENGINE_VERSION &&
+      storedBirthUtcMatches(r.computed_result, utcIso) &&
       same(inp.latitude, i.latitude) &&
       same(inp.longitude, i.longitude) &&
       inp.nodeType === i.nodeType &&
@@ -356,14 +371,25 @@ export async function computeRoxyChart(
   };
   // GUV-07: yeni kayıtların kimliği/hash'i sunucu sırrıyla anahtarlanır (sır yoksa eski biçim).
   const idSecret = deps.chartIdSecret !== undefined ? deps.chartIdSecret : readChartIdSecret();
-  const inputHash = idSecret ? roxyKeyedInputHash(identity, idSecret) : roxyInputHash(identity);
-  const id = idSecret ? roxyKeyedChartIdFor(ctx.tenantId, inputHash) : roxyChartIdFor(ctx.tenantId, inputHash);
+  const keyFor = (i: RoxyInputIdentity) => {
+    const h = idSecret ? roxyKeyedInputHash(i, idSecret) : roxyInputHash(i);
+    return { hash: h, id: idSecret ? roxyKeyedChartIdFor(ctx.tenantId, h) : roxyChartIdFor(ctx.tenantId, h) };
+  };
+  let { hash: inputHash, id } = keyFor(identity);
 
-  // 8) Kayıtlı sonuç → Roxy ÇAĞRILMAZ (önce kimlikle, sonra kayıtlı girdi alanlarıyla).
-  const existing = await findExisting(ctx.db, ctx.tenantId, id);
+  // 8) Kayıtlı sonuç → Roxy ÇAĞRILMAZ (önce kimlikle, sonra kayıtlı girdi alanlarıyla) — YALNIZ kayıtlı doğum anı güncel
+  //    IANA 2026f çözümüyle aynıysa. HD-TZ: aynı kimlikte eski IANA verisiyle hesaplanmış (bayat) analiz varsa o kayıt
+  //    DEĞİŞMEZ/SİLİNMEZ; yeni hesap doğum anını içeren ayrı kimliğe yazılır (değişmeyen bölgelerde kimlikler aynen kalır).
+  const existing = await findExisting(ctx.db, ctx.tenantId, id, t.utcIso);
   if (existing.error) return existing.error;
-  if (existing.found) return { status: 200, body: { ok: true, id, reused: true } };
-  const equivalent = await findEquivalentChart(ctx.db, ctx.tenantId, identity);
+  if (existing.found && existing.current) return { status: 200, body: { ok: true, id, reused: true } };
+  if (existing.found) {
+    ({ hash: inputHash, id } = keyFor({ ...identity, birthUtcIso: t.utcIso }));
+    const fresh = await findExisting(ctx.db, ctx.tenantId, id, t.utcIso);
+    if (fresh.error) return fresh.error;
+    if (fresh.found) return { status: 200, body: { ok: true, id, reused: true } };
+  }
+  const equivalent = await findEquivalentChart(ctx.db, ctx.tenantId, identity, t.utcIso);
   if (equivalent.error) return equivalent.error;
   if (equivalent.id) return { status: 200, body: { ok: true, id: equivalent.id, reused: true } };
 
@@ -419,7 +445,7 @@ export async function computeRoxyChart(
     let cleared = false;
     for (let i = 0; i < 9 && !cleared; i++) {
       if (i > 0) await sleep(1500);
-      const own = await findExisting(ctx.db, ctx.tenantId, id);
+      const own = await findExisting(ctx.db, ctx.tenantId, id, t.utcIso);
       if (own.error) return own.error;
       if (own.found) return { status: 200, body: { ok: true, id, reused: true } };
       const again = await findCrossProfileRoxyDuplicates(
@@ -456,7 +482,7 @@ export async function computeRoxyChart(
   if (!claim.allowed) {
     for (let i = 0; i < 8; i++) {
       await sleep(1500);
-      const again = await findExisting(ctx.db, ctx.tenantId, id);
+      const again = await findExisting(ctx.db, ctx.tenantId, id, t.utcIso);
       if (again.error) return again.error;
       if (again.found) return { status: 200, body: { ok: true, id, reused: true } };
     }
@@ -479,15 +505,20 @@ export async function computeRoxyChart(
     });
   }
 
-  // 12) Roxy → doğrulama → normalizasyon.
-  const request: RoxyBodygraphRequest = {
-    date,
-    time: hms,
-    timezone: location.timezone,
-    latitude: location.latitude,
-    longitude: location.longitude,
-    nodeType: policy.nodeType,
-  };
+  // 12) Roxy → doğrulama → normalizasyon. HD-TZ: sağlayıcıya sunucunun IANA 2026f ile çözdüğü UTC anı + "UTC" gider
+  //     (Roxy'nin kendi eski tz çevirisi devre dışı); koordinatlar aynı. Kayıt/arayüz yerel doğum bilgisini korur.
+  const request = toRoxyUtcMoment<RoxyBodygraphRequest>(
+    {
+      date,
+      time: hms,
+      timezone: location.timezone,
+      latitude: location.latitude,
+      longitude: location.longitude,
+      nodeType: policy.nodeType,
+    },
+    t.utcIso,
+  );
+  if (!request) return fail(422, "INVALID_BIRTH_DATA", "Doğum tarihi/saati geçersiz.");
   const call = await deps.callRoxy(deps.config, request, { lang: policy.lang, timeoutMs: policy.timeoutMs });
   if (!call.ok) {
     log("[hd-roxy] provider call failed", { kind: call.kind, status: call.status });

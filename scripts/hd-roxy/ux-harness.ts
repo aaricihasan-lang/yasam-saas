@@ -117,7 +117,8 @@ async function main() {
     const ctx = { db: f.db, tenantId: T_A, userId: U_A, isDemo: false };
     const first = await computeRoxyChart(ctx, { client_id: C_A, location_id: ref }, deps(calls));
     ok("S1 ilçe (imzalı ref) ile hesap", first.body.ok && first.body.reused === false && calls.length === 1);
-    ok("S2 Roxy'ye giden tz/koordinat imzadan", JSON.stringify(calls[0]) === JSON.stringify({ date: "2018-07-20", time: "19:00:00", timezone: "Europe/Istanbul", latitude: 37.8842, longitude: 32.4922, nodeType: "true" }));
+    // HD-TZ (18.11.2026): imzalı ref'in saat dilimiyle (Europe/Istanbul, UTC+3) çözülmüş UTC anı + "UTC"; koordinat imzadan.
+    ok("S2 Roxy'ye giden tz/koordinat imzadan", JSON.stringify(calls[0]) === JSON.stringify({ date: "2018-07-20", time: "16:00:00", timezone: "UTC", latitude: 37.8842, longitude: 32.4922, nodeType: "true" }));
     const row = f.tables.human_design_charts[0];
     ok("S3 kayıt: location_id kararlı, birth_place etiket", row.location_id === "rx-tr-konya-selcuklu" && row.birth_place === "Selcuklu, Konya, Türkiye");
     const id = first.body.ok ? first.body.id : "";
