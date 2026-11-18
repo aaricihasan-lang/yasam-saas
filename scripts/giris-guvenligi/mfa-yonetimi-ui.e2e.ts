@@ -50,6 +50,29 @@ function ok(cond: boolean, label: string, extra?: unknown): void {
 }
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+/**
+ * YALNIZ bu test: en küçük F2 test şeması (session-model fikstürü) Üye Detayı ekranının okuduğu üyelik / ödeme alanlarını
+ * içermez → ekran "Kullanıcı bulunamadı" der (CI'da ölçüldü, 18.11). Production şemasındaki karşılıkları boş değerle eklenir
+ * (tipler repo migration'larından; temel şemadan gelenler tarih / tutar / metin). Güvenlik kuralına DOKUNMAZ; veri eklemez.
+ */
+const UYE_DETAY_SEMA = `
+ALTER TABLE public.users
+  ADD COLUMN IF NOT EXISTS approved_at timestamptz,
+  ADD COLUMN IF NOT EXISTS created_at timestamptz NOT NULL DEFAULT now(),
+  ADD COLUMN IF NOT EXISTS payment_status text,
+  ADD COLUMN IF NOT EXISTS last_payment_date date,
+  ADD COLUMN IF NOT EXISTS next_payment_date date,
+  ADD COLUMN IF NOT EXISTS paid_amount numeric(12,2),
+  ADD COLUMN IF NOT EXISTS payment_note text,
+  ADD COLUMN IF NOT EXISTS agreed_fee numeric(12,2),
+  ADD COLUMN IF NOT EXISTS billing_period text,
+  ADD COLUMN IF NOT EXISTS license_note text,
+  ADD COLUMN IF NOT EXISTS archived_at timestamptz;
+CREATE TABLE IF NOT EXISTS public.user_payment_history (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(), user_id uuid NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+  amount numeric(12,2), payment_date date, note text, created_at timestamptz NOT NULL DEFAULT now());
+GRANT SELECT ON public.user_payment_history TO service_role;`;
+
 async function main() {
   if (!OUT) throw new Error("kanıt klasörü verin");
   fs.mkdirSync(OUT, { recursive: true });
@@ -61,6 +84,7 @@ async function main() {
   type Locator = import("playwright").Locator;
   const { startF2cDb, U, EMAIL, pw } = await import("./testDb");
   const db = await startF2cDb({ withF2d: true, withF2e: true, withF2g: true, withF2h: true, withF2i: true, withF2j: true, withF2k: true });
+  await db.admin.query(UYE_DETAY_SEMA);
   const FREE = U.free;
   const AND1 = U.and1;
   const ADM2 = "admin2@test.local";
