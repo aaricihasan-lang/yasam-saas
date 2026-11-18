@@ -3,7 +3,7 @@ import { verifyAdminRequest } from "@/lib/auth/adminGuard";
 import { writeAdminAudit } from "@/lib/admin/adminAudit";
 import { resolveActorIsMainAdmin } from "@/lib/admin/accountSessionControls";
 import { isUuid } from "@/lib/admin/memberRequestValidation";
-import { ADMIN_WEB_SESSION_CAP } from "@/lib/auth/sessionSecurity";
+import { ADMIN_WEB_PENDING_APPROVAL_ENABLED, ADMIN_WEB_SESSION_CAP } from "@/lib/auth/sessionSecurity";
 import { jsonNoStore } from "@/lib/auth/sessionModel";
 
 export const runtime = "nodejs";
@@ -28,6 +28,11 @@ export async function POST(req: NextRequest, ctx: RouteContext) {
   const body = (await req.json().catch(() => null)) as { decision?: unknown } | null;
   const decision = body?.decision === "approve" ? "approve" : body?.decision === "deny" ? "deny" : null;
   if (!decision) return jsonNoStore({ ok: false, error: "Geçersiz karar." }, 400);
+  // Onaylı giriş akışı kapalı (ADMIN_WEB_PENDING_APPROVAL_ENABLED): bekleyen satır onayla AKTİFLEŞTİRİLMEZ (RPC çağrılmaz).
+  // Reddetme serbest — kalan bekleyen satırı kapatır.
+  if (decision === "approve" && !ADMIN_WEB_PENDING_APPROVAL_ENABLED) {
+    return jsonNoStore({ ok: false, code: "approval_disabled", error: "Bekleyen girişleri onaylama kapalıdır. Bu girişi reddedebilir, gerekirse yeniden giriş yapabilirsiniz." }, 410);
+  }
 
   // HTTPONLY H1–H4: guard'ın doğruladığı token (off modda = x-session-token, bugünkü gibi).
   const actorToken = guard.sessionToken ?? req.headers.get("x-session-token")?.trim() ?? "";
