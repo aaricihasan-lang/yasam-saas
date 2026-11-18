@@ -18,7 +18,9 @@ type Call = { path: string; at: number; hdr: string | null };
 /** Her senaryo için TAZE modül örneği (kapı sayfa başına bir kez kurulur → ayrı süreç benzetimi). */
 async function scenario(opts: {
   transport: "cookie" | "header"; androidToken?: boolean; token: string | null; bootstrap: "ok" | "fail" | "hang" | "net" | "conflict"; revoked?: boolean;
+  check?: "ok" | "hang";
 }) {
+  const ctl = { bootstrap: opts.bootstrap, check: opts.check ?? "ok", aborted: [] as string[] };
   const store = new Map<string, string>();
   if (opts.token) store.set("yasam_session_token", opts.token);
   store.set("yasam_user", JSON.stringify({ id: "00000000-0000-0000-0000-00000000e001", role: "expert", email: "free@test.local" }));
@@ -34,20 +36,25 @@ async function scenario(opts: {
     removeItem: (k: string) => void store.delete(k),
   };
   g.document = { documentElement: { getAttribute: (k: string) => (k in attrs ? attrs[k] : null), hasAttribute: (k: string) => k in attrs } };
+  // Asılı uç: yanıt HİÇ gelmez; yalnız istemci isteği iptal ederse (AbortSignal) gerçek fetch gibi AbortError ile reddedilir.
+  const hang = (path: string, init?: RequestInit) => new Promise<Response>((_, reject) => {
+    init?.signal?.addEventListener("abort", () => { ctl.aborted.push(path); reject(new DOMException("aborted", "AbortError")); });
+  });
   const baseFetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
     const u = new URL(typeof input === "string" ? input : input instanceof URL ? input.href : input.url, "https://www.yasamsistemi.com");
     const hdr = new Headers(init?.headers).get("x-session-token");
     calls.push({ path: u.pathname, at: Date.now() - t0, hdr });
     if (u.pathname === "/api/auth/session/cookie") {
-      if (opts.bootstrap === "hang") return new Promise<Response>(() => {});
-      if (opts.bootstrap === "net") throw new TypeError("ağ yok");
-      if (opts.bootstrap === "fail") return new Response("{}", { status: 503 });
-      if (opts.bootstrap === "conflict") return new Response("{}", { status: 409 });
+      if (ctl.bootstrap === "hang") return hang(u.pathname, init);
+      if (ctl.bootstrap === "net") throw new TypeError("ağ yok");
+      if (ctl.bootstrap === "fail") return new Response("{}", { status: 503 });
+      if (ctl.bootstrap === "conflict") return new Response("{}", { status: 409 });
       await sleep(300);
       cookieWritten = true;
       return new Response("{}", { status: 200 });
     }
     if (u.pathname === "/api/auth/session") {
+      if (ctl.check === "hang" && init?.method === "GET" && !hdr) return hang(u.pathname, init);
       // Sunucu taklidi: çerez varsa onunla; yoksa başlıktaki token ile karar (iptal edilmişse geçersiz)
       const valid = cookieWritten || (!!hdr && hdr === opts.token && !opts.revoked);
       return new Response(JSON.stringify({ valid, ...(valid ? {} : { reason: "revoked" }) }), { status: 200 });
@@ -61,7 +68,7 @@ async function scenario(opts: {
   const gateMod = await import(`@/lib/auth/cookieMigrationGate?s=${Math.random()}`).catch(() => import("@/lib/auth/cookieMigrationGate"));
   gateMod.installCookieMigrationFetchGate();
   const f = (g.window as { fetch: typeof fetch }).fetch;
-  return { f, calls, store, gateMod, t0, isCookie: () => cookieWritten };
+  return { f, calls, store, gateMod, t0, ctl, isCookie: () => cookieWritten };
 }
 
 async function main() {
@@ -163,7 +170,50 @@ async function main() {
     ok(yu.isWebCookieMigrationPending() === false, "çerez zaten yazılmış (parmak izi eşleşiyor) → geçiş beklemiyor");
   }
 
+  console.log("\n── 6) Taşıma ucu ASILI (yanıt yok): geçiş ve profil senkronu SÜRESİZ beklemez, istek gerçekten iptal edilir ──");
+  {
+    const s = await scenario({ transport: "cookie", token: "abababab-1111-4111-8111-abababababab", bootstrap: "hang" });
+    const yu = await import("@/lib/auth/yasamUser");
+    const LIMIT = (yu as { COOKIE_MIGRATION_REQUEST_TIMEOUT_MS?: number }).COOKIE_MIGRATION_REQUEST_TIMEOUT_MS ?? 10_000;
+    // Üst sınır = taşıma süresi + geçiş kapısının kendi denemesi (≤4 sn) + pay.
+    const bound = <T,>(p: Promise<T>) => Promise.race([p.then((v) => ({ done: true as const, v })), sleep(LIMIT + 8000).then(() => ({ done: false as const }))]);
+    const t = Date.now();
+    const sync = await bound(yu.syncYasamUserFromDbOutcome(undefined, { force: true }));
+    const took = Date.now() - t;
+    ok(sync.done, `profil senkronu sınırlı sürede sonuçlandı (${took} ms) — kartlar hata / tekrar dene ekranına geçebilir`);
+    ok(sync.done && sync.v.kind !== "fresh", "sonuç 'fresh' DEĞİL (çerez yok → sunucunun gerçek 401 kararı; erişim verilmedi)", sync.done ? sync.v : null);
+    ok(took >= LIMIT - 100, `süre dolmadan vazgeçilmedi (yavaş ama başarılı taşımaya ${LIMIT} ms tanındı; ${took} ms)`);
+    ok(s.ctl.aborted.includes("/api/auth/session/cookie"), "asılı bootstrap isteği AbortController ile GERÇEKTEN iptal edildi", s.ctl.aborted);
+    ok(typeof s.store.get("yasam_session_token") === "string", "geçici sorun: eski token KORUNDU (çıkış yok)");
+    ok(s.calls.filter((c) => c.path !== "/api/auth/session/cookie").every((c) => c.hdr === null), "iptal sonrası hiçbir istek token başlığı TAŞIMADI (kimlik bilgisi genişlemedi)");
+    // Uç düzelir → kullanıcı "Tekrar dene" (yeniden senkron): geçiş YENİDEN GİRİŞSİZ tamamlanır.
+    s.ctl.bootstrap = "ok";
+    const bootsBefore = s.calls.filter((c) => c.path === "/api/auth/session/cookie").length;
+    const again = await bound(yu.syncYasamUserFromDbOutcome(undefined, { force: true }));
+    ok(again.done && s.isCookie() && s.store.get("yasam_session_token") === undefined,
+      "uç düzelince tekrar deneme: çerez yazıldı, eski token silindi (yeniden giriş yok)", { cerez: s.isCookie(), token: s.store.get("yasam_session_token") ?? null });
+    ok(s.calls.filter((c) => c.path === "/api/auth/session/cookie").length - bootsBefore === 1, "tekrar deneme sınırlı: kullanıcı eylemi başına tek bootstrap (döngü yok)");
+  }
+
+  console.log("\n── 7) Çerez DOĞRULAMA ucu asılı (bootstrap başarılı): süresiz bekleme yok, token yanlışlıkla silinmez ──");
+  {
+    const TOK = "cdcdcdcd-1111-4111-8111-cdcdcdcdcdcd";
+    const s = await scenario({ transport: "cookie", token: TOK, bootstrap: "ok", check: "hang" });
+    const yu = await import("@/lib/auth/yasamUser");
+    const LIMIT = (yu as { COOKIE_MIGRATION_REQUEST_TIMEOUT_MS?: number }).COOKIE_MIGRATION_REQUEST_TIMEOUT_MS ?? 10_000;
+    const r = await Promise.race([yu.ensureWebCookieSession().then(() => true), sleep(LIMIT + 3000).then(() => false)]);
+    ok(r, "doğrulama yanıtsızken geçiş sınırlı sürede bitti");
+    ok(s.ctl.aborted.includes("/api/auth/session"), "asılı doğrulama isteği iptal edildi", s.ctl.aborted);
+    ok(s.store.get("yasam_session_token") === TOK, "doğrulanmamış çerez varken eski token SİLİNMEDİ (yalnız valid:true siler)");
+    s.ctl.check = "ok";
+    // Sınırlı bekleme: süresiz asılı vaatte Node olay döngüsü boşalıp özet yazılmadan 0 ile çıkabilir (sahte PASS) — önlenir.
+    const r2 = await Promise.race([yu.ensureWebCookieSession().then(() => true), sleep(LIMIT + 3000).then(() => false)]);
+    ok(r2 && s.store.get("yasam_session_token") === undefined, "doğrulama ucu düzelince token silindi (çerez oturumu doğrulandı)");
+  }
+
   console.log(`\ncookie-migration-gate: ${pass} PASS, ${fail} FAIL`);
   process.exit(fail ? 1 : 0);
 }
+// Özet yazılmadan süreç biterse (asılı vaat → boş olay döngüsü) başarı sayılmaz.
+process.on("beforeExit", () => { console.error("cookie-migration-gate: özet yazılmadan bitti (asılı vaat) → FAIL"); process.exit(1); });
 main().catch((e) => { console.error(e); process.exit(1); });

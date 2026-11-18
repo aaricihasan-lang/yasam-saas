@@ -16,6 +16,7 @@ import type { BrowserContext, Page } from "playwright";
 const CTRL = process.env.KABUL_CTRL ?? "http://127.0.0.1:3999";
 const APEX = "https://yasamsistemi.com";
 const WWW = "https://www.yasamsistemi.com";
+const HTTPS_MAP = process.env.KABUL_HTTPS_PORT && process.env.KABUL_HTTPS_PORT !== "443" ? `:${process.env.KABUL_HTTPS_PORT}` : "";
 const APP_UA = "Mozilla/5.0 (Linux; Android 10; Pixel 3 Build/QQ3A; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/120.0 Mobile Safari/537.36";
 const WEB_UA = "Mozilla/5.0 (Linux; Android 10; Pixel 3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Mobile Safari/537.36";
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -33,7 +34,8 @@ async function main() {
   const launch = (app: boolean, dir?: string) => chromium.launchPersistentContext(dir ?? fs.mkdtempSync(path.join(os.tmpdir(), "b1-")), {
     ignoreHTTPSErrors: true, userAgent: app ? APP_UA : WEB_UA, locale: "tr-TR", viewport: { width: 412, height: 860 }, isMobile: true, hasTouch: true,
     ...(app ? { extraHTTPHeaders: { "X-Requested-With": "com.yasamsistemi.app" } } : {}),
-    args: ["--host-resolver-rules=MAP www.yasamsistemi.com 127.0.0.1, MAP yasamsistemi.com 127.0.0.1"],
+    // KABUL_HTTPS_PORT: ortam 443 dışında dinliyorsa (paralel test) aynı alan adları o porta yönlendirilir.
+    args: [`--host-resolver-rules=MAP www.yasamsistemi.com 127.0.0.1${HTTPS_MAP}, MAP yasamsistemi.com 127.0.0.1${HTTPS_MAP}`],
   });
   const logged = (p: Page, ms = 25000) => p.getByRole("button", { name: "Çıkış Yap", exact: true }).first().waitFor({ timeout: ms }).then(() => true).catch(() => false);
   const login = async (p: Page) => {
@@ -215,7 +217,7 @@ async function main() {
     await ctrl("/kip?android=header&killswitch=off", "POST");
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "b1-restart-"));
     const mk = () => chromium.launchPersistentContext(dir, { ignoreHTTPSErrors: true, userAgent: APP_UA, extraHTTPHeaders: { "X-Requested-With": "com.yasamsistemi.app" }, locale: "tr-TR",
-      viewport: { width: 412, height: 860 }, isMobile: true, hasTouch: true, args: ["--host-resolver-rules=MAP www.yasamsistemi.com 127.0.0.1, MAP yasamsistemi.com 127.0.0.1"] });
+      viewport: { width: 412, height: 860 }, isMobile: true, hasTouch: true, args: [`--host-resolver-rules=MAP www.yasamsistemi.com 127.0.0.1${HTTPS_MAP}, MAP yasamsistemi.com 127.0.0.1${HTTPS_MAP}`] });
     let ctx = await mk(); let page = ctx.pages()[0] ?? await ctx.newPage();
     await login(page);
     await ctrl("/kip?android=cookie&killswitch=off", "POST");
@@ -274,6 +276,121 @@ async function main() {
     const left = await page.evaluate(() => localStorage.getItem("yasam_session_token"));
     rows.push({ senaryo: "o", asiliyken401: data401, cikisYok: still, toparlandi: sid, sonra401: after401, tokenSilindi: left === null });
     ok(sid && inn && after401 === 0 && left === null, `(o) uç düzelince arka plan denetimi taşımayı YENİDEN GİRİŞSİZ tamamladı (çerez, 401 = ${after401}, token silindi)`);
+    await ctx.close();
+  }
+
+  // (p)–(s): taşıma ucu ASILI kalırsa kullanıcı süresiz iskelette beklemez (geçiş istekleri 10 sn'de iptal edilir).
+  const alertVisible = (p: Page) => p.getByRole("alert").filter({ has: p.getByRole("button", { name: "Tekrar dene", exact: true }) }).first().isVisible().catch(() => false);
+  const hungThenRecover = async (label: string, app: boolean, prep: () => Promise<{ ctx: BrowserContext; page: Page }>) => {
+    console.log(`\n── ${label} ──`);
+    const { ctx, page } = await prep();
+    await ctx.route("**/api/auth/session/cookie", () => { /* yanıt yok — asılı */ });
+    let t0 = 0; const ev = record(ctx, () => t0); t0 = Date.now();
+    await openApp(page);
+    let shown = false; const s0 = Date.now();
+    while (!shown && Date.now() - s0 < 30_000) { await sleep(500); shown = await alertVisible(page); }
+    const sn = Math.round((Date.now() - s0) / 1000);
+    const still = await page.getByRole("button", { name: "Çıkış Yap", exact: true }).first().isVisible().catch(() => false);
+    const tok = await page.evaluate(() => localStorage.getItem("yasam_session_token"));
+    const sid0 = (await ctx.cookies(WWW)).some((c) => c.name === "__Host-yasam_sid");
+    const hdr = ev.filter((e) => e.hdr && e.p !== "/api/auth/session/cookie" && e.p !== "/api/auth/session").length;
+    if (app) await page.screenshot({ path: path.join(OUT, "b1-p-asili-hata.png") });
+    ok(shown && sn <= 20, `${label}: iskelet yerine hata + "Tekrar dene" ekranı (${sn} sn ≤ 20)`);
+    ok(still && typeof tok === "string" && !sid0 && hdr === 0, `${label}: çıkış YOK, eski token korundu, çerez yok, kimlik başlığı eklenmedi (401 gizlenmedi)`, { still, tok: typeof tok, sid0, hdr });
+    await ctx.unroute("**/api/auth/session/cookie");
+    ev.length = 0;
+    await page.getByRole("button", { name: "Tekrar dene", exact: true }).first().click({ timeout: 5000 }).catch(() => undefined); // yoksa aşağıdaki kontrol FAIL verir
+    const back = await page.getByRole("alert").filter({ hasText: "Tekrar dene" }).first().waitFor({ state: "detached", timeout: 20_000 }).then(() => true).catch(() => false);
+    await sleep(3000);
+    const sid = (await ctx.cookies(WWW)).some((c) => c.name === "__Host-yasam_sid" && c.httpOnly);
+    const left = await page.evaluate(() => localStorage.getItem("yasam_session_token"));
+    const boots = ev.filter((e) => e.p === "/api/auth/session/cookie").length;
+    rows.push({ senaryo: label.slice(1, 2), hataEkraniSn: sn, cikisYok: still, toparlandi: back, cerez: sid, tokenSilindi: left === null, tekrarBootstrap: boots });
+    ok(back && sid && left === null && boots <= 2, `${label}: uç düzelince "Tekrar dene" → kartlar yüklendi, çerez yazıldı, token silindi, yeniden giriş yok (bootstrap ${boots})`);
+    await ctx.close();
+  };
+  await hungThenRecover("(p) Taşıma ucu ASILI — Android WebView emülasyonu", true, prepareLegacy);
+  await hungThenRecover("(q) Taşıma ucu ASILI — masaüstü web, eski web token'ı", false, async () => {
+    // Web eski token: kill-switch açıkken (header taşıması) giriş → token JS deposunda → kill-switch kapanır → yeniden açılış.
+    await ctrl("/kip?android=header&killswitch=on", "POST");
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "b1-"));
+    const c0 = await launch(false, dir); const p0 = c0.pages()[0] ?? await c0.newPage();
+    await login(p0);
+    await sleep(1500); await c0.close();
+    await ctrl("/kip?android=header&killswitch=off", "POST");
+    const ctx = await launch(false, dir);
+    // Kill-switch girişi çerezi de yazar; H5 öncesi eski web token'ı (çerezsiz) durumu için çerez temizlenir.
+    await ctx.clearCookies();
+    return { ctx, page: ctx.pages()[0] ?? await ctx.newPage() };
+  });
+
+  console.log("\n── (r) GECİKMİŞ yanıt: iptal edilen taşıma isteği sonradan sunucuya ulaşırsa çerez yazılmaz, kimlik karışmaz ──");
+  {
+    const { ctx, page } = await prepareLegacy();
+    let late = "yok";
+    await ctx.route("**/api/auth/session/cookie", async (r) => { await sleep(15_000); try { await r.continue(); late = "iletildi"; } catch { late = "istek iptal edilmişti"; } });
+    await openApp(page);
+    await sleep(25_000);
+    const sid = (await ctx.cookies(WWW)).some((c) => c.name === "__Host-yasam_sid");
+    const tok = await page.evaluate(() => localStorage.getItem("yasam_session_token"));
+    const shown = await alertVisible(page);
+    rows.push({ senaryo: "r", gecikmisIstek: late, cerez: sid, tokenKorundu: typeof tok === "string", hataEkrani: shown });
+    ok(!sid && typeof tok === "string" && shown, `(r) 15 sn gecikmeli istek (${late}): çerez yazılmadı, token korundu, hata ekranı görünür`, { sid, shown });
+    await ctx.unroute("**/api/auth/session/cookie");
+    await page.getByRole("button", { name: "Tekrar dene", exact: true }).first().click().catch(() => undefined);
+    let ok2 = false; for (let i = 0; i < 20 && !ok2; i++) { await sleep(1000); ok2 = (await ctx.cookies(WWW)).some((c) => c.name === "__Host-yasam_sid" && c.httpOnly); }
+    const me = await page.evaluate(async () => { const r = await fetch("/api/auth/session"); return r.ok ? ((await r.json()) as { valid?: boolean }).valid === true : false; });
+    ok(ok2 && me, "(r) sonra normal tekrar: çerez AYNI kullanıcının oturumu olarak doğrulandı");
+    await ctx.close();
+  }
+
+  console.log("\n── (s) Taşıma asılıyken kullanıcı ÇIKIŞ yapar: çıkış tamamlanır, sonradan çerez / oturum dönmez ──");
+  {
+    const { ctx, page } = await prepareLegacy();
+    await ctx.route("**/api/auth/session/cookie", () => { /* asılı */ });
+    await openApp(page);
+    await sleep(3000);
+    await page.getByRole("button", { name: "Çıkış Yap", exact: true }).first().click().catch(() => undefined);
+    await sleep(1500);
+    // Onay penceresi varsa (çıkış onayı) onayla
+    await page.getByRole("button", { name: /^(Çıkış Yap|Evet|Onayla)$/ }).last().click({ timeout: 2000 }).catch(() => undefined);
+    await ctx.unroute("**/api/auth/session/cookie");
+    let out = false; for (let i = 0; i < 20 && !out; i++) { await sleep(1000); out = await page.locator("#login-email").isVisible().catch(() => false) || !(await page.getByRole("button", { name: "Çıkış Yap", exact: true }).first().isVisible().catch(() => false)); }
+    await sleep(12_000);
+    const tok = await page.evaluate(() => localStorage.getItem("yasam_session_token"));
+    const sid = (await ctx.cookies(WWW)).some((c) => c.name === "__Host-yasam_sid");
+    const srv = await ctrl("/oturumlar").catch(() => null) as { aktif?: number } | null;
+    rows.push({ senaryo: "s", cikis: out, token: tok !== null, cerez: sid, sunucu: srv });
+    ok(out && tok === null && !sid, "(s) asılı taşıma sırasında çıkış: giriş ekranı, token silindi, çerez yok (iptal edilen geçiş oturumu geri getirmedi)", { out, tok: tok !== null, sid });
+    await ctx.close();
+  }
+
+  console.log("\n── (t) Geçiş BEKLERKEN aynı profilde BAŞKA kullanıcı giriş yapmış: kimlikler karışmaz ──");
+  {
+    const { ctx, page } = await prepareLegacy(); // A: free@test.local eski token'ı JS deposunda
+    // Statik dosya: uygulama JS'i / geçiş kapısı çalışmaz → B girişi A'nın geçişi başlamadan yapılır.
+    await page.goto(`${WWW}/next.svg`, { waitUntil: "domcontentloaded" }).catch(() => undefined);
+    const aId = await uid(page);
+    // B girişi tarayıcının KENDİ ağ yığınıyla (alan adı eşlemesi geçerli; Playwright API istemcisi kullanılmaz → canlıya gidemez).
+    const bLogin = await page.evaluate(async () => {
+      const r = await fetch("/api/auth/session", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email: "admin@test.local", password: "parola-admin" }) });
+      const j = (await r.json().catch(() => ({}))) as { user?: { id?: string }; sessionToken?: unknown };
+      return { s: r.status, id: j.user?.id ?? "", tokenInBody: "sessionToken" in j };
+    });
+    const bSid0 = (await ctx.cookies(WWW)).find((c) => c.name === "__Host-yasam_sid")?.value ?? "";
+    const prof: { s: number; uid: string }[] = [];
+    ctx.on("response", (r) => { if (new URL(r.url()).pathname === "/api/auth/profile") prof.push({ s: r.status(), uid: r.request().headers()["x-user-id"] ?? "" }); });
+    let t0 = 0; const ev = record(ctx, () => t0); t0 = Date.now();
+    await openApp(page);
+    await sleep(9000);
+    const boot = ev.find((e) => e.p === "/api/auth/session/cookie");
+    const tokA = await page.evaluate(() => localStorage.getItem("yasam_session_token"));
+    const bSid1 = (await ctx.cookies(WWW)).find((c) => c.name === "__Host-yasam_sid")?.value ?? "";
+    const aOk = prof.filter((p) => p.s === 200 && p.uid === aId).length;
+    rows.push({ senaryo: "t", bGiris: bLogin.s, bootstrap: boot?.s, aTokenSilindi: tokA === null, bCerezKorundu: bSid0 !== "" && bSid1 === bSid0, aKimligiyle200: aOk });
+    ok(bLogin.s === 200 && !bLogin.tokenInBody && bSid0 !== "" && !!aId && aId !== bLogin.id, "hazırlık: B çerezle giriş yaptı (gövdede anahtar yok), A ile B farklı", { b: bLogin.s, a: !!aId });
+    ok(boot?.s === 409 && tokA === null, `(t) A'nın eski token'ı B'nin çerezini EZMEDİ (bootstrap ${boot?.s}) ve JS deposundan silindi`);
+    ok(bSid1 === bSid0 && aOk === 0, `(t) B'nin çerezi aynen korundu; A kimliğiyle başarılı profil yanıtı YOK (${aOk})`, prof.slice(0, 6).map((p) => `${p.s}:${p.uid === aId ? "A" : p.uid === bLogin.id ? "B" : "?"}`));
     await ctx.close();
   }
 
