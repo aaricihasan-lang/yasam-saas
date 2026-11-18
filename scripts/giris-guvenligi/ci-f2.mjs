@@ -70,6 +70,8 @@ const TSX = [
   // Owner / admin MFA etkinleştirme provası (e-posta doğrulama → ilk cihaz → çevrimdışı kit → zorunluluk → e-posta / QR girişi →
   // kurtarma kodları → step-up → kayıp cihaz → yanlış hesap; kilitlenme kuralları).
   "scripts/giris-guvenligi/owner-mfa-prova.harness.ts",
+  // Owner MFA yalnız e-posta (telefonsuz): kurtarma kodu üretim sırası, kâğıt kitle tam kurtarma, ortam ayarı kilitlenme ölçümü.
+  "scripts/giris-guvenligi/owner-mfa-eposta.harness.ts",
   // F2-K (O1): QR onayında 6 haneli yazılan kod + telefon imzası; yanlış kodda bütün açık istekler kapanır.
   "scripts/giris-guvenligi/f2k-qr.harness.ts",
   // F2-K (L4): güvenlik bildirimi kota ayrımı + gönderilemeyen bildirim kaydı.
