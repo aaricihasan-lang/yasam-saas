@@ -196,7 +196,15 @@ async function main() {
       const sec = (await q(`SELECT coalesce(string_agg(t::text, ' '), '') AS s FROM public.security_events t`)).rows[0] as J;
       ok(!String(audit.s).includes(tok4) && !String(sec.s).includes(tok4), "anahtar denetim / güvenlik kayıtlarında YOK");
       ok(!seen.some((x) => x.includes(tok4)), `bu bölümdeki ${seen.length} yanıt gövdesi / Set-Cookie başlığının HİÇBİRİ anahtarı içermiyor`);
-      console.log(`  bilgi: onaydan sonra satır durumu → aktif=${String(row5?.is_active)} (anahtar hiçbir istemcide yok; MFA zorunlu hesapta bu adım veritabanında reddedilir — bkz. 7)`);
+      // Onaylı giriş akışı kapalı: onay ucu kalan bekleyen satırı AKTİFLEŞTİRMEZ (kapatma güncellemesi başarısız olmuş olsa bile).
+      ok(d5.status === 410 && d5.json.code === "approval_disabled" && row5?.is_active === false && row5?.session_state === "pending_approval",
+        `onay ucu bekleyen satırı aktifleştirmedi (${d5.status} ${String(d5.json.code)}; aktif=${String(row5?.is_active)})`, { s: d5.status, code: d5.json.code, aktif: row5?.is_active });
+      const deny5 = await call((r) => decideRoute.POST(r, { params: Promise.resolve({ id: String(item.id) }) }), `/api/admin/me/session-approvals/${String(item.id)}`, "POST", { decision: "deny" }, aCookie).then(track);
+      const row5b = await rowOf(tok4);
+      ok(deny5.status === 200 && row5b?.ended_at != null && row5b?.is_active === false && row5b?.end_reason === "owner_denied",
+        "reddetme çalışır: kalan bekleyen satır kapatıldı (owner_denied)", { s: deny5.status, neden: row5b?.end_reason });
+      const after = await listAs(aCookie);
+      ok(after.status === 200 && !((after.json.pending as J[] | undefined) ?? []).some((x) => x.id === item.id), "reddedilen satır onay listesinden çıktı");
     } else {
       ok(false, "bekleyen satır onay listesinde görünmedi (senaryo yürütülemedi)", { s: list5.status, n: (list5.json.pending as unknown[] | undefined)?.length });
     }
@@ -247,7 +255,12 @@ async function main() {
       const row7 = p7 ? await rowOf(String(p7.session_token)) : undefined;
       console.log(`  bilgi: onay denemesi → ${d7?.status ?? "liste dışı"} ${String(d7?.json.error ?? "")}`);
       ok(!!p7 && mfaOn && !!item7 && d7 !== null && d7.status !== 200 && row7?.is_active === false,
-        "MFA zorunlu hesapta bekleyen satır yönetici onayıyla MFA'sız AKTİFLEŞEMEDİ (veritabanı koruması)", { p7: !!p7, mfaOn, listede: !!item7, onay: d7?.status, aktif: row7?.is_active });
+        "MFA zorunlu hesapta bekleyen satır yönetici onay ucuyla AKTİFLEŞEMEDİ", { p7: !!p7, mfaOn, listede: !!item7, onay: d7?.status, aktif: row7?.is_active });
+      // İkinci savunma hattı: rota korumasından bağımsız olarak onay RPC'si doğrudan çağrılsa da veritabanı MFA koruması reddeder.
+      let dbWhy = "";
+      try { await q(`SELECT public.admin_decide_pending_session($1, $2::uuid, 'approve', 2)`, [sid(a.set), String(p7?.id)]); } catch (e) { dbWhy = (e as Error).message; }
+      const row7b = p7 ? await rowOf(String(p7.session_token)) : undefined;
+      ok(dbWhy !== "" && row7b?.is_active === false, `veritabanı: onay RPC'si doğrudan çağrılsa da MFA'sız aktifleşme REDDEDİLDİ (${dbWhy.slice(0, 80)})`, { aktif: row7b?.is_active });
       await q(`BEGIN; SET LOCAL session_replication_role = replica; UPDATE public.users SET mfa_required = false WHERE id = '${U.owner}'; COMMIT;`);
     }
     await endAll();
