@@ -73,7 +73,7 @@ async function main() {
     const profile = (headers: Record<string, string>) => call(profileRoute.GET, "/api/auth/profile", "GET", null, { "x-user-id": U.owner, ...headers });
     const endAll = () => q(`UPDATE public.user_sessions SET is_active = false, ended_at = now(), end_reason = 'logout' WHERE user_id = $1 AND (is_active OR ended_at IS NULL)`, [U.owner]);
     const pendingRows = async () => (await q(
-      `SELECT session_token, is_active, ended_at, end_reason FROM public.user_sessions WHERE user_id = $1 AND session_state = 'pending_approval' ORDER BY created_at`, [U.owner])).rows as J[];
+      `SELECT id, session_token, is_active, ended_at, end_reason FROM public.user_sessions WHERE user_id = $1 AND session_state = 'pending_approval' ORDER BY created_at`, [U.owner])).rows as J[];
 
     // Canlıdaki gibi yönetici denetim kaydı yazılabilir olmalı: yazılamazsa eski kod da "audit fail-closed" dalına düşer
     // ve test pending yolunu ÖLÇEMEZ (sahte PASS). Sentetik DB'de servis rolüne canlıdaki ekleme yetkisi verilir.
@@ -136,6 +136,120 @@ async function main() {
     ok((await profile({ "user-agent": UA.chrome, cookie: `__Host-yasam_sid=${sid(a.set)}` })).status === 200, "önceki admin oturumu (A) hâlâ geçerli");
     const c = await login({ "user-agent": UA.safari });
     ok(c.status === 200 && sid(c.set) !== "" && !("pendingToken" in c.json), "yeniden giriş 200 + çerez, anahtar gövdede yok", { s: c.status });
+
+    // ── 4–7: kapatma / denetim kaydı başarısız olursa ve kalan bekleyen satır başka uçtan etkinleştirilmeye çalışılırsa ──
+    const listRoute = await import("@/app/api/admin/me/session-approvals/route");
+    const decideRoute = await import("@/app/api/admin/me/session-approvals/[id]/route");
+    const seen: string[] = []; // bu bölümdeki bütün yanıt gövdeleri + Set-Cookie başlıkları (anahtar taraması)
+    const track = <T extends { text: string; set: string[] }>(r: T) => { seen.push(r.text, ...r.set); return r; };
+    const aCookie = { "user-agent": UA.chrome, cookie: `__Host-yasam_sid=${sid(a.set)}`, "x-admin-id": U.owner };
+    const listAs = (h: Record<string, string>) => call(listRoute.GET, "/api/admin/me/session-approvals", "GET", null, h).then(track);
+    const decideAs = (id: string, h: Record<string, string>) =>
+      call((r) => decideRoute.POST(r, { params: Promise.resolve({ id }) }), `/api/admin/me/session-approvals/${id}`, "POST", { decision: "approve" }, h).then(track);
+    const sessionStatus = (tok: string) => call(sessionRoute.GET, "/api/auth/session", "GET", null, { "user-agent": UA.chrome, "x-session-token": tok }).then(track);
+    const injectRoleFault = async (on: boolean) => {
+      await q(on ? `ALTER TABLE public.users RENAME COLUMN security_mode TO security_mode__test_gecici` : `ALTER TABLE public.users RENAME COLUMN security_mode__test_gecici TO security_mode`);
+      renamed = on;
+    };
+    const onlyA = () => q(`UPDATE public.user_sessions SET is_active = false, ended_at = now(), end_reason = 'logout'
+      WHERE user_id = $1 AND (is_active OR ended_at IS NULL) AND session_token <> $2`, [U.owner, sid(a.set)]);
+    const rowOf = async (tok: string) => (await q(`SELECT id, is_active, ended_at, end_reason, session_state FROM public.user_sessions WHERE session_token = $1`, [tok])).rows[0] as J | undefined;
+
+    console.log("\n── 4) Bekleyen satırı KAPATMA güncellemesi başarısız olursa: yine fail-closed ──");
+    await onlyA();
+    await q(`CREATE OR REPLACE FUNCTION public.zz_test_kapatma_hatasi() RETURNS trigger LANGUAGE plpgsql AS $f$
+      BEGIN IF NEW.end_reason = 'pending_disabled' THEN RAISE EXCEPTION 'test: kapatma hatası'; END IF; RETURN NEW; END $f$`);
+    await q(`CREATE TRIGGER zz_test_kapatma_hatasi BEFORE UPDATE ON public.user_sessions FOR EACH ROW EXECUTE FUNCTION public.zz_test_kapatma_hatasi()`);
+    await injectRoleFault(true);
+    const before4 = (await pendingRows()).length;
+    const r4 = track(await login({ "user-agent": UA.safari }));
+    await injectRoleFault(false);
+    await q(`DROP TRIGGER zz_test_kapatma_hatasi ON public.user_sessions; DROP FUNCTION public.zz_test_kapatma_hatasi()`);
+    const p4 = (await pendingRows()).slice(before4)[0];
+    const tok4 = String(p4?.session_token ?? "");
+    ok(!!tok4, "enjeksiyon geçerli: bekleyen satır oluştu", { s: r4.status });
+    ok(r4.status === 503 && sid(r4.set) === "" && !("pendingToken" in r4.json) && !r4.text.includes(tok4), "kapatma başarısız olsa da yanıt 503, çerez yok, gövdede anahtar yok", { s: r4.status, k: Object.keys(r4.json) });
+    const row4 = tok4 ? await rowOf(tok4) : undefined;
+    ok(row4?.is_active === false && row4?.ended_at == null && row4?.session_state === "pending_approval", "kapatılamayan satır AKTİF DEĞİL (bekleyen; süresi 10 dk ile sınırlı)", row4);
+    if (tok4) {
+      const pc = await profile({ "user-agent": UA.chrome, cookie: `__Host-yasam_sid=${tok4}` });
+      const ph = await profile({ "user-agent": UA.appWebView, "x-requested-with": "com.yasamsistemi.app", "x-session-token": tok4 });
+      const st = await sessionStatus(tok4);
+      const adm = await listAs({ "user-agent": UA.chrome, cookie: `__Host-yasam_sid=${tok4}`, "x-admin-id": U.owner });
+      const admH = await listAs({ "user-agent": UA.chrome, "x-session-token": tok4, "x-admin-id": U.owner });
+      ok(pc.status === 401 && ph.status === 401 && st.json.valid !== true && (adm.status === 401 || adm.status === 403) && (admH.status === 401 || admH.status === 403),
+        "bekleyen anahtar: korumalı uç 401, oturum durumu geçersiz, yönetici ucu (x-admin-id ile, çerez ve başlık) reddedildi", { pc: pc.status, ph: ph.status, valid: st.json.valid, adm: adm.status, admH: admH.status });
+      const ctl = await listAs(aCookie);
+      ok(ctl.status === 200, "kontrol: aynı yönetici ucu geçerli A oturumuyla 200 (ret, eksik başlıktan DEĞİL)", ctl.status);
+    }
+
+    console.log("\n── 5) Kalan bekleyen satır başka uçtan etkinleştirilmeye çalışılırsa (yönetici onay ucu) ──");
+    const list5 = await listAs(aCookie);
+    const item = ((list5.json.pending as J[] | undefined) ?? []).find((p) => p.id === row4?.id);
+    ok(list5.status === 200 && !list5.text.includes(tok4), "bekleyen girişler listesi anahtarı İÇERMİYOR", { s: list5.status });
+    if (item && tok4) {
+      const d5 = await decideAs(String(item.id), aCookie);
+      const row5 = await rowOf(tok4);
+      ok(!d5.text.includes(tok4) && d5.set.every((x) => !x.includes(tok4)), `onay yanıtı anahtarı / çerezi İÇERMİYOR (${d5.status})`);
+      // Onay verilse bile anahtar sunucu dışına hiç çıkmadı: hiçbir istemci bu oturumu kullanamaz.
+      const audit = (await q(`SELECT coalesce(string_agg(t::text, ' '), '') AS s FROM public.admin_audit_log t`)).rows[0] as J;
+      const sec = (await q(`SELECT coalesce(string_agg(t::text, ' '), '') AS s FROM public.security_events t`)).rows[0] as J;
+      ok(!String(audit.s).includes(tok4) && !String(sec.s).includes(tok4), "anahtar denetim / güvenlik kayıtlarında YOK");
+      ok(!seen.some((x) => x.includes(tok4)), `bu bölümdeki ${seen.length} yanıt gövdesi / Set-Cookie başlığının HİÇBİRİ anahtarı içermiyor`);
+      console.log(`  bilgi: onaydan sonra satır durumu → aktif=${String(row5?.is_active)} (anahtar hiçbir istemcide yok; MFA zorunlu hesapta bu adım veritabanında reddedilir — bkz. 7)`);
+    } else {
+      ok(false, "bekleyen satır onay listesinde görünmedi (senaryo yürütülemedi)", { s: list5.status, n: (list5.json.pending as unknown[] | undefined)?.length });
+    }
+
+    console.log("\n── 6) Denetim kaydı yazılamazsa: satır yine kapatılır, anahtar yok ──");
+    await onlyA();
+    await q(`REVOKE INSERT ON public.admin_audit_log FROM service_role`);
+    await injectRoleFault(true);
+    const before6 = (await pendingRows()).length;
+    const r6 = await login({ "user-agent": UA.firefox });
+    await injectRoleFault(false);
+    await q(`GRANT SELECT, INSERT ON public.admin_audit_log TO service_role`);
+    const p6 = (await pendingRows()).slice(before6)[0];
+    ok(!!p6 && r6.status === 503 && !("pendingToken" in r6.json) && !r6.text.includes(String(p6.session_token)) && sid(r6.set) === "",
+      "denetim kaydı başarısız: 503, anahtar / çerez yok", { s: r6.status });
+    ok(p6?.ended_at != null && p6?.is_active === false && p6?.end_reason === "pending_disabled", "denetim kaydı başarısız olsa da bekleyen satır kapatıldı", p6 ? { neden: p6.end_reason } : null);
+
+    console.log("\n── 7) Rol okuma hatası uzmana yetki vermez; MFA zorunlu hesapta bekleyen satır MFA'sız aktifleşemez ──");
+    await injectRoleFault(true);
+    const ex = await call(sessionRoute.POST, "/api/auth/session", "POST", { email: EMAIL.free, password: pw(EMAIL.free) }, { "user-agent": UA.chrome });
+    await injectRoleFault(false);
+    const exSid = sid(ex.set);
+    const exRow = exSid ? (await q(`SELECT u.role FROM public.user_sessions s JOIN public.users u ON u.id = s.user_id WHERE s.session_token = $1 AND s.is_active`, [exSid])).rows[0] as J | undefined : undefined;
+    const exAdm = await listAs({ "user-agent": UA.chrome, cookie: `__Host-yasam_sid=${exSid}`, "x-admin-id": U.free });
+    const exAdm2 = await listAs({ "user-agent": UA.chrome, cookie: `__Host-yasam_sid=${exSid}`, "x-admin-id": U.owner });
+    ok(ex.status === 200 && exRow?.role === "expert" && (exAdm.status === 401 || exAdm.status === 403) && (exAdm2.status === 401 || exAdm2.status === 403) && !("sessionToken" in ex.json),
+      "rol okuma hatasında uzman girişi normal uzman oturumu; yönetici ucu (kendi ve Owner kimliğiyle) reddedildi", { s: ex.status, rol: exRow?.role, adm: exAdm.status, adm2: exAdm2.status });
+    {
+      // Yeni bekleyen satır (kapatma engelli) → hesap MFA zorunlu yapılır → satır doğrudan aktifleştirilmeye çalışılır.
+      await onlyA();
+      await q(`CREATE OR REPLACE FUNCTION public.zz_test_kapatma_hatasi() RETURNS trigger LANGUAGE plpgsql AS $f$
+        BEGIN IF NEW.end_reason = 'pending_disabled' THEN RAISE EXCEPTION 'test'; END IF; RETURN NEW; END $f$`);
+      await q(`CREATE TRIGGER zz_test_kapatma_hatasi BEFORE UPDATE ON public.user_sessions FOR EACH ROW EXECUTE FUNCTION public.zz_test_kapatma_hatasi()`);
+      await injectRoleFault(true);
+      const b7 = (await pendingRows()).length;
+      await login({ "user-agent": UA.safari });
+      await injectRoleFault(false);
+      await q(`DROP TRIGGER zz_test_kapatma_hatasi ON public.user_sessions; DROP FUNCTION public.zz_test_kapatma_hatasi()`);
+      const p7 = (await pendingRows()).slice(b7)[0];
+      // Sentetik kurulum kısayolu: MFA zorunluluğu resmî yolla (auth_mfa_set_required) açılınca Owner'ın MFA'sız A oturumu
+      // da kapanır (K2) ve onay ucunu çağıracak aktör kalmaz. Bu yüzden YALNIZ users satırı tetikleyicisiz güncellenir;
+      // user_sessions üzerindeki MFA koruması (asıl denetlenen) devrede kalır.
+      await q(`BEGIN; SET LOCAL session_replication_role = replica; UPDATE public.users SET mfa_required = true WHERE id = '${U.owner}'; COMMIT;`);
+      const mfaOn = ((await q(`SELECT mfa_required FROM public.users WHERE id = $1`, [U.owner])).rows[0] as J).mfa_required === true;
+      const list7 = await listAs(aCookie);
+      const item7 = ((list7.json.pending as J[] | undefined) ?? []).find((x) => x.id === p7?.id);
+      const d7 = item7 ? await decideAs(String(item7.id), aCookie) : null;
+      const row7 = p7 ? await rowOf(String(p7.session_token)) : undefined;
+      console.log(`  bilgi: onay denemesi → ${d7?.status ?? "liste dışı"} ${String(d7?.json.error ?? "")}`);
+      ok(!!p7 && mfaOn && !!item7 && d7 !== null && d7.status !== 200 && row7?.is_active === false,
+        "MFA zorunlu hesapta bekleyen satır yönetici onayıyla MFA'sız AKTİFLEŞEMEDİ (veritabanı koruması)", { p7: !!p7, mfaOn, listede: !!item7, onay: d7?.status, aktif: row7?.is_active });
+      await q(`BEGIN; SET LOCAL session_replication_role = replica; UPDATE public.users SET mfa_required = false WHERE id = '${U.owner}'; COMMIT;`);
+    }
     await endAll();
   } finally {
     if (renamed) await q(`ALTER TABLE public.users RENAME COLUMN security_mode__test_gecici TO security_mode`).catch(() => undefined);
