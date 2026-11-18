@@ -110,6 +110,18 @@ async function main() {
     ok(!r.ok && r.code === "quota", "403 dailyLimitExceeded → quota", r);
   }
   {
+    // Yenilenmiş token da 401 alırsa (ör. yetki geri alındı): ikinci yenileme / sonsuz döngü YOK → oauth_error.
+    const { f, calls } = fakeFetch([TOKEN, { status: 401, body: {} }, TOKEN, { status: 401, body: {} }]);
+    const r = await createGmailProvider(ENV, f)!.send(MSG);
+    ok(!r.ok && r.code === "oauth_error" && !r.retryable && calls.length === 4, "iki kez 401 → oauth_error, tek yenileme (döngü yok)", { r, n: calls.length });
+  }
+  {
+    // Kota dışı 403 (ör. gönderici izni / politika): tekrar YOK → oauth_error (Owner yapılandırmayı düzeltir).
+    const { f, calls } = fakeFetch([TOKEN, { status: 403, body: { error: { errors: [{ reason: "insufficientPermissions" }] } } }]);
+    const r = await createGmailProvider(ENV, f)!.send(MSG);
+    ok(!r.ok && r.code === "oauth_error" && !r.retryable && calls.length === 2, "403 insufficientPermissions → oauth_error, tekrar YOK", { r, n: calls.length });
+  }
+  {
     const { f, calls } = fakeFetch([TOKEN, { status: 503, body: {} }, { status: 200, body: { id: "m" } }]);
     const r = await createGmailProvider(ENV, f)!.send(MSG);
     ok(r.ok && calls.length === 3, "5xx → 1 tekrar → ok");

@@ -241,6 +241,20 @@ async function main() {
       const qa = await qrApprove(phone, lq);
       const cq = await complete(qa.ch, lq.bind);
       ok(qa.hasQr && qa.d.status === 200 && cq.status === 200, "yeni telefonla QR girişi çalışıyor (hesap kurtarıldı)", { d: qa.d.status, c: cq.status });
+      {
+        // E-posta gönderilemezse (Gmail kesintisi): MFA atlanmaz, AYNI giriş isteği QR ile tamamlanabilir.
+        await clearOpen();
+        process.env.EMAIL_SYNTHETIC_FAIL = "provider_down";
+        const lf = await login(EMAIL.owner);
+        const sf = await call(sendRoute.POST, "/api/auth/mfa/email/send", "POST", { challengeId: lf.json.challengeId }, { cookie: `__Host-yasam_mfa=${lf.bind}` });
+        delete process.env.EMAIL_SYNTHETIC_FAIL;
+        const early = await complete(String(lf.json.challengeId), lf.bind);
+        ok(sf.status === 503 && early.status !== 200 && early.sid === "", `e-posta gönderilemedi (${sf.status}) → oturum AÇILMADI (MFA atlanmadı)`, { s: sf.status, c: early.status });
+        const qf = await qrApprove(phone, lf);
+        const cf = await complete(qf.ch, lf.bind);
+        const mf = cf.sid ? (await q(`SELECT mfa_method FROM public.user_sessions WHERE session_token = $1`, [cf.sid])).rows[0]?.mfa_method : null;
+        ok(qf.d.status === 200 && cf.status === 200 && cf.sid !== "" && mf === "qr_device", `aynı giriş isteği QR ile tamamlandı (yedek yöntem; ${String(mf)})`, { d: qf.d.status, c: cf.status });
+      }
       await clearOpen();
       const l2 = await login(EMAIL.owner);
       const reuse = await call(recoveryVerify.POST, "/api/auth/mfa/recovery/verify", "POST", { challengeId: l2.json.challengeId, code: kit[0] }, { cookie: `__Host-yasam_mfa=${l2.bind}` });
