@@ -1,0 +1,14 @@
+[
+  {
+    "relation": [
+      "delegate_permission/common.handle_all_urls"
+    ],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.yasamsistemi.app",
+      "sha256_cert_fingerprints": [
+        "98:9C:0E:19:EC:C1:42:21:AC:57:04:AF:C7:20:2B:79:E8:B1:E1:3E:C4:CF:E9:34:AF:42:1D:5D:72:4C:51:A5"
+      ]
+    }
+  }
+]
