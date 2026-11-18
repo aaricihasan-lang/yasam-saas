@@ -100,7 +100,9 @@ async function main() {
   };
   delete env.VERCEL_ENV;
   const app: ChildProcess = spawn(process.platform === "win32" ? "npx.cmd" : "npx", ["next", "start", "-p", String(PORT)],
-    { cwd: process.cwd(), shell: process.platform === "win32", env: env as NodeJS.ProcessEnv, stdio: "ignore" });
+    { cwd: process.cwd(), shell: process.platform === "win32", env: env as NodeJS.ProcessEnv, stdio: "ignore",
+      // F2-L: Linux'ta kendi süreç grubu → kapanışta npx'in altındaki next-server da sonlanır (portta eski sunucu kalmaz).
+      detached: process.platform !== "win32" });
   const browsers: Browser[] = [];
   try {
     for (let i = 0; i < 90; i++) { try { const r = await fetch(`${BASE}/m/onay`); if (r.ok) break; } catch { /* bekle */ } await sleep(1000); }
@@ -135,7 +137,8 @@ async function main() {
         await input.click();
         await page.keyboard.insertText(`    ${code.slice(0, 3)} ${code.slice(3)} `);
         const val = await input.inputValue();
-        ok(val === code, `${r.label}: boşluklu yapıştırma → alan "${val}" (beklenen 6 hane)`, { val, code });
+        // F2-L: kod hiç gelmezse ("" === "") sahte PASS olmasın — 6 haneli kod ŞART.
+        ok(/^[0-9]{6}$/.test(code) && val === code, `${r.label}: boşluklu yapıştırma → alan "${val}" (beklenen 6 hane)`, { val, code });
         await page.getByTestId("mfa-email-verify").click();
         await page.waitForFunction(() => !document.querySelector('[data-testid="mfa-email-panel"]'), undefined, { timeout: 20000 }).catch(() => {});
         await sleep(1000);
@@ -219,7 +222,7 @@ async function main() {
     for (const b of browsers) await b.close().catch(() => {});
     if (app.pid) {
       if (process.platform === "win32") spawn("taskkill", ["/pid", String(app.pid), "/T", "/F"], { stdio: "ignore" });
-      else app.kill("SIGTERM");
+      else { try { process.kill(-app.pid, "SIGKILL"); } catch { app.kill("SIGKILL"); } }
     }
     proxy.close();
     tlsProxy?.close();
