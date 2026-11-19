@@ -4,6 +4,7 @@
  */
 import { assertServerOnly } from "@/lib/server/serverOnlyGuard";
 import { runWesternHorary } from "@/lib/astrology/horary/westernRun";
+import { formatZoned } from "@/lib/time/tzdb/format";
 import type { ResultBlock } from "../types";
 import { F, deg, done, istanbulToday, onlyKeys, parseDate, parsePlace, parseTime, trPlanet, trSign, type FieldErrors, type Place, type VisitorRunner } from "./shared";
 
@@ -66,7 +67,8 @@ export const atlasLilly: VisitorRunner<LillyIn> = {
       planetaryHour: { dayRuler: string; hourRuler: string; hourNumber: number; isDayHour: boolean };
       partOfFortune: { sign: string; house: number };
     };
-    const fmtUtc = (iso: string | null) => (iso ? new Date(iso).toLocaleString("tr-TR", { timeZone: v.place.timezone, day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" }) : "—");
+    // LILLY-TZ-01: ofset çalışma ortamının Intl verisinden DEĞİL, hesapla aynı IANA 2026f çekirdeğinden (Word raporu da bununla).
+    const fmtUtc = (iso: string | null) => (iso ? formatZoned("tr-TR", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" }, Date.parse(iso), v.place.timezone) : "—");
     const blocks: ResultBlock[] = [
       {
         type: "kv",
