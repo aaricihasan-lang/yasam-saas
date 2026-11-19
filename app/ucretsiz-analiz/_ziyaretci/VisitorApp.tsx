@@ -54,10 +54,22 @@ export default function VisitorApp({ initial }: { initial: VisitorCampaignState 
     }
   }, []);
 
+  // Teknik seçilince formun ilk alanına odak (klavye / erişilebilirlik). Odak YALNIZ hâlâ seçimi yapan öğede ya da sayfada (body)
+  // ise taşınır: kullanıcı gecikmeli çerçeve gelene kadar başka bir alana geçtiyse odağa dokunulmaz (WebKit'te çerçeve yüzlerce ms
+  // gecikip yazılan yer alanının odağını ve öneri listesini çalıyordu). Yeni seçimde bekleyen eski istek iptal edilir.
+  const pickFrame = useRef<number | null>(null);
+  useEffect(() => () => {
+    if (pickFrame.current !== null) cancelAnimationFrame(pickFrame.current);
+  }, []);
   function pick(key: string) {
     setSelected(key);
-    requestAnimationFrame(() => {
+    const trigger = document.activeElement;
+    if (pickFrame.current !== null) cancelAnimationFrame(pickFrame.current);
+    pickFrame.current = requestAnimationFrame(() => {
+      pickFrame.current = null;
       formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      const now = document.activeElement;
+      if (now && now !== document.body && now !== trigger) return;
       formRef.current?.querySelector<HTMLElement>("input, select, textarea, [role=tab]")?.focus({ preventScroll: true });
     });
   }
