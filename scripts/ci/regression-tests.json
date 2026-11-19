@@ -415,6 +415,12 @@
    "timeoutSec": 180
   },
   {
+   "file": "scripts/campaign/kozmik-date.test.ts",
+   "tsx": true,
+   "tsconfig": "scripts/campaign/tsconfig.json",
+   "timeoutSec": 180
+  },
+  {
    "file": "scripts/location/tz-iana-2026f.harness.ts",
    "tsx": true,
    "tsconfig": "scripts/campaign/tsconfig.json",
