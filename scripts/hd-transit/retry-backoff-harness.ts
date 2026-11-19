@@ -30,8 +30,9 @@ function world(o: { store?: "ok" | "missing" | "writeFail"; userQuota?: number }
   const clock = { t: Date.UTC(2026, 10, 19, 3, 0) };
   const counters = new Map<string, { start: number; n: number }>();
   const store = new Map<string, Lon>(), shared = new Map<string, Lon>();
-  const st = { calls: 0, mode: "ok" as Mode, userQuota: o.userQuota };
+  const st = { calls: 0, mode: "ok" as Mode, userQuota: o.userQuota, trace: [] as string[] };
   const rateLimit = async (scope: string, value: string, limit: number, win: number) => {
+    st.trace.push(scope);
     const lim = scope === "hd-transit-planets-user" && st.userQuota !== undefined ? st.userQuota : limit;
     const k = `${scope}|${value}`; let c = counters.get(k);
     if (!c || clock.t - c.start >= win * 1000) { c = { start: clock.t, n: 0 }; counters.set(k, c); }
@@ -45,6 +46,7 @@ function world(o: { store?: "ok" | "missing" | "writeFail"; userQuota?: number }
   const sharedCache = async <T,>(key: string, fn: () => Promise<T>): Promise<T> => { if (shared.has(key)) return shared.get(key) as T; const v = await fn(); shared.set(key, v as Lon); return v; };
   const callPlanets = async (_c: unknown, body: { date: string; time: string }) => {
     st.calls++;
+    st.trace.push("PROVIDER");
     const t = computeGeneralTransit(new Date(`${body.date}T${body.time}Z`));
     const RN: Record<string, string> = { NorthNode: "North Node", SouthNode: "South Node" };
     const planets = t.activations.filter((a) => a.body !== "Earth").map((a) => ({ name: RN[a.body] ?? a.body, longitude: a.longitude }));
@@ -148,6 +150,42 @@ async function main() {
     const local = computeGeneralTransit(new Date(unc[8]));
     const tr = (rs[0] as unknown as { transit: { activations: { body: string; gate: number; line: number }[] } }).transit;
     ok(local.activations.filter((a) => a.certain).every((a) => { const r = tr.activations.find((x) => x.body === a.body)!; return r.gate === a.gate && r.line === a.line; }), "yerelin kesin bulduğu aktivasyonlar aynen korunur");
+  }
+
+  console.log(`[8] Kota ve kilit HİÇBİR ücretli çağrıda atlanmaz; başarısız yanıt hiçbir katmana yazılmaz (TR-01A son kabul)`);
+  {
+    // Her sağlayıcı çağrısından önce (bir önceki çağrıdan bu yana) kilit + kullanıcı kotası + tenant kotası SIRAYLA sorulmuş olmalı.
+    const guarded = (trace: string[]) => {
+      let since: string[] = [];
+      for (const e of trace) {
+        if (e !== "PROVIDER") { since.push(e); continue; }
+        const i = since.lastIndexOf("hd-transit-planets-inflight"), u = since.lastIndexOf("hd-transit-planets-user"), t = since.lastIndexOf("hd-transit-planets-tenant");
+        if (!(i >= 0 && u > i && t > u)) return false;
+        since = [];
+      }
+      return true;
+    };
+    for (const mode of ["500", "429", "timeout", "schema", "offband"] as const) {
+      for (const store of ["ok", "missing", "writeFail"] as const) {
+        const w = world({ store }); const ms = await Promise.all([1, 2, 3].map(() => instance()));
+        w.st.mode = mode;
+        for (let i = 0; i < 12; i++) { await res(ms[i % 3], unc[9], w.deps(`u${i % 2}`, `t${i % 2}`)); w.clock.t += 7_000; } // 84 sn: geri çekilme + kilit pencereleri geçer
+        const failCalls = w.st.calls;
+        w.st.mode = "ok"; w.clock.t += 61_000;
+        for (let i = 0; i < 6; i++) { await res(ms[i % 3], unc[9], w.deps(`u${i}`, "t1")); w.clock.t += 1_000; }
+        const ok1 = guarded(w.st.trace);
+        const okNoWrite = w.store.size <= 1 && w.shared.size <= 1 && [...w.store.values(), ...w.shared.values()].every((lon) => Object.keys(lon).length === 13);
+        ok(ok1 && failCalls >= 1 && failCalls <= 6 && okNoWrite && w.st.calls === failCalls + 1,
+          `${mode} / L2 ${store}: her ücretli çağrıdan önce kilit+kullanıcı+tenant kotası; 12 hatalı deneme / 84 sn → ${failCalls} çağrı; hata yanıtı hiçbir katmana yazılmadı; düzelince tek çağrı`,
+          { failCalls, calls: w.st.calls, store: w.store.size, shared: w.shared.size, guarded: ok1 });
+      }
+    }
+    // Kota dolu → sağlayıcı ASLA çağrılmaz (her örnekte, geri çekilmeden bağımsız)
+    const wq = world({ userQuota: 0 });
+    const qr: { resolution: string; reason?: string }[] = [];
+    for (let i = 0; i < 6; i++) { qr.push((await res(await instance(), unc[10], wq.deps("u1"))) as never); wq.clock.t += 25_000; }
+    ok(wq.st.calls === 0 && qr.every((r) => r.resolution === "unresolved" && r.reason === "rate_limited_user") && wq.st.trace.filter((e) => e === "hd-transit-planets-user").length === 6,
+      "kullanıcı kotası dolu: 6 istek (6 örnek, kilit pencereleri ayrık) → 6 kota sorgusu, 6 × rate_limited_user, 0 sağlayıcı çağrısı", { calls: wq.st.calls, qr });
   }
 
   console.log(`\nHD TRANSİT TEKRAR + ÖNBELLEK GÜVENLİĞİ (TR-01A): ${pass} PASS / ${fail} FAIL`);
