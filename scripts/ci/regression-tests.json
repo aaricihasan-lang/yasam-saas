@@ -391,6 +391,12 @@
    "timeoutSec": 180
   },
   {
+   "file": "scripts/campaign/lilly-tz.test.ts",
+   "tsx": true,
+   "tsconfig": "scripts/campaign/tsconfig.json",
+   "timeoutSec": 300
+  },
+  {
    "file": "scripts/campaign/visitor-hd-relation.test.ts",
    "tsx": true,
    "tsconfig": "scripts/campaign/tsconfig.json",
@@ -410,6 +416,12 @@
   },
   {
    "file": "scripts/campaign/visitor-reports.test.ts",
+   "tsx": true,
+   "tsconfig": "scripts/campaign/tsconfig.json",
+   "timeoutSec": 180
+  },
+  {
+   "file": "scripts/campaign/kozmik-date.test.ts",
    "tsx": true,
    "tsconfig": "scripts/campaign/tsconfig.json",
    "timeoutSec": 180
