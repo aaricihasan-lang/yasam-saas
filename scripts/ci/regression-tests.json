@@ -391,6 +391,12 @@
    "timeoutSec": 180
   },
   {
+   "file": "scripts/campaign/lilly-tz.test.ts",
+   "tsx": true,
+   "tsconfig": "scripts/campaign/tsconfig.json",
+   "timeoutSec": 300
+  },
+  {
    "file": "scripts/campaign/visitor-hd-relation.test.ts",
    "tsx": true,
    "tsconfig": "scripts/campaign/tsconfig.json",
@@ -413,12 +419,6 @@
    "tsx": true,
    "tsconfig": "scripts/campaign/tsconfig.json",
    "timeoutSec": 180
-  },
-  {
-   "file": "scripts/campaign/lilly-tz.test.ts",
-   "tsx": true,
-   "tsconfig": "scripts/campaign/tsconfig.json",
-   "timeoutSec": 300
   },
   {
    "file": "scripts/location/tz-iana-2026f.harness.ts",
