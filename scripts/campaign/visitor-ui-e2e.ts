@@ -506,16 +506,26 @@ async function main() {
         };
       }, RAF_DELAY_MS);
       const pending = (page: Page) => page.evaluate(() => (window as unknown as RafW).__rafBekleyen);
+      // Uygulamanın scrollIntoView çağrılarını say (Playwright'ın kendi fill kaydırması protokol üzerinden; sayaca girmez).
+      const countScrolls = (page: Page) => page.addInitScript(() => {
+        const w = window as unknown as { __kaydirma: number };
+        w.__kaydirma = 0;
+        const orig = Element.prototype.scrollIntoView;
+        Element.prototype.scrollIntoView = function (this: Element, arg?: boolean | ScrollIntoViewOptions) { w.__kaydirma++; return orig.call(this, arg); };
+      });
+      const scrolls = (page: Page) => page.evaluate(() => (window as unknown as { __kaydirma: number }).__kaydirma);
       const framesSettled = (page: Page) => page.waitForFunction(() => { const w = window as unknown as RafW; return w.__rafBekleyen === 0 && w.__rafCalisan > 0; }, undefined, { timeout: 10_000 });
       const active = (page: Page) => page.evaluate(() => document.activeElement?.id || document.activeElement?.tagName || "");
       for (const vp of [{ n: "1440", o: { viewport: { width: 1440, height: 900 } } }, { n: "Android", o: { device: devices["Pixel 7"] } }]) {
         // A) Normal akış: kullanıcı forma dokunmazsa seçimden sonra ilk alan otomatik odaklanır (erişilebilirlik korunur).
         {
           const { ctx, page } = await ctxFor(vp.o);
+          await countScrolls(page);
           await page.goto(PAGE, { waitUntil: "networkidle" });
           await page.locator('[data-technique="atlas:horary.lilly"]').click();
           await page.waitForFunction(() => document.activeElement?.id === "vf-question", undefined, { timeout: 5_000 }).catch(() => undefined);
-          ok((await active(page)) === "vf-question", `${vp.n} A: teknik seçimi → ilk alana (vf-question) otomatik odak`, await active(page));
+          const sA = await scrolls(page);
+          ok((await active(page)) === "vf-question" && sA >= 1, `${vp.n} A: teknik seçimi → forma kaydırma + ilk alana (vf-question) otomatik odak`, { active: await active(page), kaydirma: sA });
           await ctx.close();
         }
         // B) Yarış: seçimden hemen sonra (odak çerçevesi BEKLERKEN) kullanıcı yer alanına yazar; çerçeve çalıştıktan sonra
@@ -523,6 +533,7 @@ async function main() {
         for (const [tech, field, text, rx] of [["atlas:horary.lilly", "vf-place", "İstanbul", /İstanbul/], ["hd:bodygraph", "vf-birthPlace", "Kadıköy", /Kadıköy/]] as const) {
           const { ctx, page } = await ctxFor(vp.o);
           await slowFrames(page);
+          await countScrolls(page);
           await page.goto(PAGE, { waitUntil: "networkidle" });
           await page.locator(`[data-technique="${tech}"]`).click();
           await page.locator(`#${field}`).fill(text);
@@ -531,19 +542,23 @@ async function main() {
           const opt = page.locator(`#${field}-list [role=option]`, { hasText: rx }).first();
           const shown = await opt.waitFor({ timeout: 5_000 }).then(() => true, () => false);
           const now = await active(page);
-          ok(waiting > 0 && now === field && shown, `${vp.n} B ${tech}: çerçeve beklerken ${field} yazıldı → çerçeve sonrası odak ÇALINMADI, öneri görünür`, { waiting, now, shown });
+          const sB = await scrolls(page);
+          ok(waiting > 0 && now === field && shown && sB === 0, `${vp.n} B ${tech}: çerçeve beklerken ${field} yazıldı → çerçeve sonrası odak ÇALINMADI, sayfa KAYDIRILMADI, öneri görünür`, { waiting, now, shown, kaydirma: sB });
           await ctx.close();
         }
         // C) Hızlı teknik değişimi: eski seçimin bekleyen işlemi iptal edilir; yalnız yeni formun ilk alanı odaklanır.
         {
           const { ctx, page } = await ctxFor(vp.o);
           await slowFrames(page);
+          await countScrolls(page);
           await page.goto(PAGE, { waitUntil: "networkidle" });
-          await page.locator('[data-technique="atlas:horary.lilly"]').click();
-          await page.locator('[data-technique="hd:bodygraph"]').click();
+          // İki seçim AYNI görevde (ilk seçimin çerçevesi kesinlikle hâlâ beklerken) → yalnız son seçimin çerçevesi kalmalı.
+          await page.evaluate(() => { for (const k of ["atlas:horary.lilly", "hd:bodygraph"]) (document.querySelector(`[data-technique="${k}"]`) as HTMLElement).click(); });
+          const waitingC = await pending(page);
           await framesSettled(page);
           const now = await active(page);
-          ok(now === "vf-birthDate" && (await page.locator("#vf-question").count()) === 0, `${vp.n} C: hızlı teknik değişimi → yalnız yeni formun ilk alanı (vf-birthDate) odaklanır`, now);
+          const sC = await scrolls(page);
+          ok(waitingC === 1 && now === "vf-birthDate" && (await page.locator("#vf-question").count()) === 0 && sC === 1, `${vp.n} C: hızlı teknik değişimi → eski işlem iptal (tek bekleyen çerçeve), tek kaydırma + yalnız yeni formun ilk alanı (vf-birthDate) odaklanır`, { waitingC, now, kaydirma: sC });
           await ctx.close();
         }
       }

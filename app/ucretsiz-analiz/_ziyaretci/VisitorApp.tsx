@@ -67,9 +67,10 @@ export default function VisitorApp({ initial }: { initial: VisitorCampaignState 
     if (pickFrame.current !== null) cancelAnimationFrame(pickFrame.current);
     pickFrame.current = requestAnimationFrame(() => {
       pickFrame.current = null;
-      formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      // Kullanıcı bu arada başka bir alana geçtiyse ne odağa ne kaydırmaya dokunulur (yazdığı alan yerinden oynamaz).
       const now = document.activeElement;
       if (now && now !== document.body && now !== trigger) return;
+      formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
       formRef.current?.querySelector<HTMLElement>("input, select, textarea, [role=tab]")?.focus({ preventScroll: true });
     });
   }
