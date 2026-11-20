@@ -120,7 +120,6 @@ function CompositePanel({ a, r }: { a: RelationAnalysisView; r: HdConnectionResu
   const state = useMemo(() => (build.ok ? cbgStateFromModel(build.model) : cbgStateFromResult(r)), [build, r]);
   const prims = useMemo(() => buildConnectionBodygraphScene(state), [state]);
   const [sel, setSel] = useState<string | null>(null);
-  const [wide, setWide] = useState(false);
   const nameA = a.participants[0]?.name ?? "A";
   const nameB = a.participants[1]?.name ?? "B";
   const st = sel ? state.channels[sel] : null;
@@ -135,16 +134,10 @@ function CompositePanel({ a, r }: { a: RelationAnalysisView; r: HdConnectionResu
           Kaynak bireysel analiz verisi artık mevcut olmadığından grafikte yalnız kayıtlı sonuçtaki birlikte tamamlanan kanallar gösteriliyor; yarım kanallar çizilemiyor.
         </p>
       ) : null}
-      <div className="mb-1 flex justify-end sm:hidden">
-        <button type="button" onClick={() => setWide((w) => !w)} className="min-h-[36px] rounded-lg border border-indigo-200 px-2.5 text-[11px] font-bold text-indigo-700" data-hd-composite-zoom aria-pressed={wide}>
-          {wide ? "Haritayı küçült" : "Haritayı büyüt"}
-        </button>
-      </div>
-      {/* Telefonda büyütme: grafik sabit genişlikte çizilir, kap yatay kaydırır (sayfa taşmaz). */}
-      <div className={wide ? "-mx-2 overflow-x-auto overscroll-x-contain" : ""} data-hd-composite-scroll>
+      {/* Telefonda büyütme: tarayıcının iki parmakla yakınlaştırması (ayrı büyüt düğmesi yok — owner kararı 2026-10-18). */}
+      <div data-hd-composite-scroll>
         <ConnectionBodygraph
           prims={prims}
-          wide={wide}
           logoSrc={HD_CHART_LOGO_SRC}
           label={`Birleşik İlişki BodyGraph'ı: ${nameA} ve ${nameB}`}
           selected={sel}

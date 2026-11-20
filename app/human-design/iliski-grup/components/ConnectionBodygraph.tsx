@@ -4,8 +4,9 @@
 // (lib/human-design/relations/connectionBodygraphScene → cbgElements). Kanal geometrisi mühürlü V9; veri yalnız
 // kayıtlı sonuç. Kanal seçimi: fare üzerine gelme (yalnız gerçek fare), dokunma / tıklama ve klavye (Tab + Enter/
 // Boşluk, Esc). Seçili kanal vurgulanır, diğer kanalların renkleri soluklaşır; bilgi grafiğin altındaki panelde.
+// Fare grafikten çıkınca üzerine gelme seçimi bırakılır (kalıcı seçim yalnız tıklama / dokunma / klavye).
 
-import { createElement, Fragment, type ReactNode } from "react";
+import { createElement, Fragment, useRef, type ReactNode } from "react";
 import {
   CBG_CHANNEL_IDS,
   CBG_DEFS,
@@ -67,6 +68,17 @@ export function ConnectionBodygraph({
   sizeClass?: string;
 }) {
   const interactive = !!onSelect;
+  // Fareyle üzerine gelme GEÇİCİ seçimdir: fare grafikten çıkınca son kalıcı seçime (tıklama / dokunma / klavye)
+  // ya da seçimsiz duruma dönülür → kanallar soluk kalmaz.
+  const pinned = useRef<string | null>(null);
+  const hovering = useRef(false);
+  // Son basış dokunma / kalem ise tarayıcının düzen değişince ürettiği sanal fare olayları seçim yapmaz.
+  const touchMode = useRef(false);
+  const pin = (id: string | null) => {
+    pinned.current = id;
+    hovering.current = false;
+    onSelect?.(id);
+  };
   const dim = (chs: string[]) => (selected && !chs.includes(selected) ? 0.3 : 1);
   const selRoute = selected ? HIT_ROUTES.find((r) => r.id === selected) : null;
   return (
@@ -74,6 +86,22 @@ export function ConnectionBodygraph({
       viewBox={CBG_VIEWBOX}
       role="img"
       aria-label={label}
+      onPointerDown={
+        interactive
+          ? (e) => {
+              touchMode.current = e.pointerType !== "mouse";
+            }
+          : undefined
+      }
+      onPointerLeave={
+        interactive
+          ? (e) => {
+              if (e.pointerType !== "mouse" || !hovering.current) return;
+              hovering.current = false;
+              onSelect?.(pinned.current);
+            }
+          : undefined
+      }
       className={`mx-auto block select-none ${sizeClass ?? (wide ? "h-auto w-[860px] max-w-none" : "h-auto w-full max-w-[640px]")}`}
       data-hd-cbg=""
       data-hd-cbg-selected={selected ?? ""}
@@ -111,15 +139,18 @@ export function ConnectionBodygraph({
                   // Üzerine gelme yalnız gerçek farede: dokunmadan sonra tarayıcının ürettiği sanal fare olayı
                   // (sayfa kayınca parmağın altına gelen başka kanal) seçimi değiştirmesin.
                   onPointerEnter={(e) => {
-                    if (e.pointerType === "mouse") onSelect(r.id);
+                    // Dokunmatik cihazda düzen değişince tarayıcının ürettiği sanal fare olayı da seçim yapmasın.
+                    if (e.pointerType !== "mouse" || touchMode.current || !window.matchMedia?.("(hover: hover)").matches) return;
+                    hovering.current = true;
+                    onSelect(r.id);
                   }}
-                  onFocus={() => onSelect(r.id)}
-                  onClick={() => onSelect(r.id)}
+                  onFocus={() => pin(r.id)}
+                  onClick={() => pin(r.id)}
                   onKeyDown={(e) => {
                     if (e.key === "Enter" || e.key === " ") {
                       e.preventDefault();
-                      onSelect(r.id);
-                    } else if (e.key === "Escape") onSelect(null);
+                      pin(r.id);
+                    } else if (e.key === "Escape") pin(null);
                   }}
                 />
               ))}
