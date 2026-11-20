@@ -93,6 +93,17 @@ export function computeSessionExpiresAt(role: unknown, nowMs: number = Date.now(
   return new Date(nowMs + (isAdmin ? SESSION_ABSOLUTE_MS.admin : SESSION_ABSOLUTE_MS.expert)).toISOString();
 }
 
+/**
+ * F2-A (D-01): resmî Android kanalındaki YENİ oturumların mutlak bitişi (rol fark etmez).
+ * Önceden android_app oturumu süresizdi (expires_at NULL). Boşta kalma sınırı uzman idle süresidir
+ * (touch_active_session). Mevcut süresiz Android oturumlarına DOKUNULMAZ (habersiz çıkış yok).
+ */
+export const ANDROID_SESSION_ABSOLUTE_MS = 30 * 24 * 60 * 60 * 1000;
+
+export function computeAndroidSessionExpiresAt(nowMs: number = Date.now()): string {
+  return new Date(nowMs + ANDROID_SESSION_ABSOLUTE_MS).toISOString();
+}
+
 // ─── Tipler ──────────────────────────────────────────────────────────────────
 
 export type SecurityRiskLevel = "low" | "suspicious" | "high_risk";
@@ -127,18 +138,6 @@ function normalizeStr(s: string | null | undefined): string {
 
 function msElapsed(isoDate: string): number {
   return Date.now() - new Date(isoDate).getTime();
-}
-
-/**
- * last_seen_at yazımı throttle kararı. Değer yoksa/parse edilemezse güvenli tarafta
- * kalıp yazar (mevcut "her zaman yaz" davranışı korunur); aksi halde yalnız kayıt
- * LAST_SEEN_THROTTLE_MS'den eskiyse yazar.
- */
-function shouldRefreshLastSeen(lastSeenAt: unknown): boolean {
-  if (typeof lastSeenAt !== "string" || !lastSeenAt) return true;
-  const t = Date.parse(lastSeenAt);
-  if (Number.isNaN(t)) return true;
-  return Date.now() - t >= LAST_SEEN_THROTTLE_MS;
 }
 
 function isFreshWith(session: ActiveSession, thresholdMs: number): boolean {
@@ -315,7 +314,7 @@ export async function createUserSession(
     p_platform: platform,
     p_client_channel: clientChannel,
     p_replace_token: replaceToken,
-    p_expires_at: clientChannel === "android_app" ? null : computeSessionExpiresAt(lr?.role),
+    p_expires_at: clientChannel === "android_app" ? computeAndroidSessionExpiresAt() : computeSessionExpiresAt(lr?.role),
     p_high_risk: role === "admin" && risk.level === "high_risk",
     p_enforce: policy.enforce,
     p_expert_idle_seconds: policy.expertIdleSeconds,
@@ -490,9 +489,7 @@ export function effectiveAllowedLocations(raw: unknown): number {
  * (throttled, ~90 sn) touch ve YALNIZ enforce açıkken mutlak/idle süre zorlaması. Yazma
  * AWAIT edilir (eski `void db.update(...)` tembel PostgREST builder'ını HİÇ çalıştırmıyordu).
  *
- * Geçiş/yedek yol (yalnız enforce KAPALIYKEN): RPC yoksa/hata verirse eski select + AWAIT'li
- * throttled update. Enforce AÇIKKEN RPC hatası → null (fail-closed; süresi dolmuş oturum
- * yedek yoldan geçemez).
+ * F2-A: yedek yol YOK — RPC yoksa/hata verirse her durumda null (fail-closed).
  */
 export async function touchActiveSession(
   db: SupabaseClient,
@@ -541,38 +538,10 @@ export async function resolveActiveSession(
     /* aşağıdaki karar */
   }
 
-  if (policy.enforce) return { status: "unavailable" }; // fail-closed — ama "bitti" DEĞİL
-  const legacy = await legacyTouchActiveSession(db, token);
-  return legacy ? { status: "active", userId: legacy } : { status: "inactive" };
-}
-
-async function legacyTouchActiveSession(
-  db: SupabaseClient,
-  sessionToken: string,
-): Promise<string | null> {
-  const { data } = await db
-    .from("user_sessions")
-    .select("user_id, last_seen_at")
-    .eq("session_token", sessionToken)
-    .eq("is_active", true)
-    .maybeSingle();
-
-  if (!data || data.user_id == null) return null;
-
-  if (shouldRefreshLastSeen(data.last_seen_at)) {
-    // AWAIT: PostgREST builder tembeldir; await edilmeyen update İSTEK GÖNDERMEZ.
-    // Touch hatası doğrulamayı düşürmez (best-effort), ama istek gerçekten gider.
-    try {
-      await db
-        .from("user_sessions")
-        .update({ last_seen_at: new Date().toISOString() })
-        .eq("session_token", sessionToken)
-        .eq("is_active", true);
-    } catch {
-      /* best-effort */
-    }
-  }
-  return String(data.user_id);
+  // F2-A (D-03): RPC hatası enforce açık/kapalı fark etmeksizin fail-closed — ama "bitti" DEĞİL.
+  // Eski select tabanlı yedek yol (yalnız is_active; session_state/süre/kullanıcı durumu bakmadan)
+  // kaldırıldı: kill-switch yalnız RPC'ye p_enforce=false geçirir, doğrulamayı atlatmaz.
+  return { status: "unavailable" };
 }
 
 export async function validateSessionToken(
