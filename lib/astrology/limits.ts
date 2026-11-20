@@ -84,3 +84,21 @@ export async function enforceAstroWrite(ctx: EngineCtx, kind: AstroWriteKind, op
   }
   return null;
 }
+
+/**
+ * YENİ-P3-03 — Word/PDF rapor oran sınırı (tekli + toplu rapor rotaları). Önceden bellek içi sayaçtı
+ * (`lib/rateLimit.checkRateLimit`): çok örnekli sunucusuz ortamda sınır ÖRNEK BAŞINA işliyordu. Artık motor ve
+ * yazma kotalarıyla aynı global DB sayacı (hitDbRateLimit / auth_rate_limit_hit — atomik, instance'lar arası
+ * paylaşılan). Eşik ve pencere AYNI: uzman başına dakikada 20 rapor. RPC yoksa/hata verirse hitDbRateLimit kendi
+ * bellek yedeğine düşer (eski davranış). Yanıt gövdesi ve kodu değişmez (429 RATE_LIMITED + Retry-After).
+ */
+export const ASTRO_REPORT_LIMIT = Object.freeze({ limit: 20, windowSeconds: 60 });
+
+export async function enforceAstroReport(ctx: Pick<EngineCtx, "db" | "tenantId" | "userId">): Promise<NextResponse | null> {
+  const r = await hitDbRateLimit(ctx.db, rateLimitBucket("astro-report", `${ctx.tenantId}:${ctx.userId}`), ASTRO_REPORT_LIMIT.limit, ASTRO_REPORT_LIMIT.windowSeconds);
+  if (r.allowed) return null;
+  return NextResponse.json(
+    { ok: false, code: "RATE_LIMITED", error: "Çok fazla rapor isteği. Lütfen biraz sonra tekrar deneyin." },
+    { status: 429, headers: { ...ASTRO_NO_STORE, "Retry-After": String(Math.max(1, r.retryAfterSec)) } },
+  );
+}

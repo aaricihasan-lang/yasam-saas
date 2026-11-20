@@ -3,7 +3,7 @@ import { ASTRO_NO_STORE, requireAstrologyAccess } from "@/lib/astrology/access/o
 import { parseOwnerPreviewHideInterp } from "@/lib/astrology/access/entitlements";
 import { astroReportBrandingLoader } from "@/lib/astrology/report/branding";
 import { buildCombinedAnalysisReport, type ReportFormat } from "@/lib/astrology/report/service";
-import { checkRateLimit } from "@/lib/rateLimit";
+import { enforceAstroReport } from "@/lib/astrology/limits";
 
 export const runtime = "nodejs";
 // GA-P2-06: en çok COMBINED_REPORT_MAX (30) analiz tek Word/PDF — süre sınırı açık (platform varsayılanına bırakılmaz).
@@ -26,13 +26,9 @@ export async function GET(req: NextRequest): Promise<Response> {
   if (fmt !== "docx" && fmt !== "pdf") {
     return NextResponse.json({ ok: false, code: "INVALID_FORMAT", error: "Rapor biçimi docx veya pdf olmalı." }, { status: 400, headers: ASTRO_NO_STORE });
   }
-  const rl = checkRateLimit(`astro-report:${gate.ctx.tenantId}:${gate.ctx.userId}`, 20, 60_000);
-  if (!rl.allowed) {
-    return NextResponse.json(
-      { ok: false, code: "RATE_LIMITED", error: "Çok fazla rapor isteği. Lütfen biraz sonra tekrar deneyin." },
-      { status: 429, headers: { ...ASTRO_NO_STORE, "Retry-After": String(rl.retryAfterSeconds) } },
-    );
-  }
+  // YENİ-P3-03: global DB sayacı (dakikada 20 rapor, uzman başına; instance başına DEĞİL).
+  const limited = await enforceAstroReport(gate.ctx);
+  if (limited) return limited;
   const all = sp.get("all") === "1";
   const ids = all ? undefined : (sp.get("ids") ?? "").split(",").map((x) => x.trim()).filter(Boolean);
   // F3B: uzman markalaması — sahip yalnız kapıdan (gate.ctx); toplu raporda TEK çözüm; kapalı / yok → birebir.
