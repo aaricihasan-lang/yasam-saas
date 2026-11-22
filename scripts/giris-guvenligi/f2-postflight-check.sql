@@ -75,9 +75,9 @@ BEGIN
 END $$;
 
 -- >>> KATALOG MANİFESTİ (üretici: scripts/giris-guvenligi/f2-katalog.mjs --uret — elle değiştirmeyin)
--- Son aşamanın (001100) TAM katalog satırları: fonksiyon imzası + gövde özeti + SECURITY DEFINER + search_path +
+-- Son aşamanın (001200) TAM katalog satırları: fonksiyon imzası + gövde özeti + SECURITY DEFINER + search_path +
 -- API/service_role yetkisi, tetikleyiciler, F2 tabloları (RLS/yetki) ve kolonlar. Eksik, fazla (ör. eski overload) veya farklı her
--- satır FAIL'dir. Ayrıca kayıt düzeyi = 1100.
+-- satır FAIL'dir. Ayrıca kayıt düzeyi = 1200.
 DO $f2man$
 DECLARE
   v_missing text;
@@ -139,6 +139,7 @@ BEGIN
   ('fn', 'auth_email_otp_step_up_guard', 900),
   ('fn', 'auth_email_otp_verify', 400),
   ('fn', 'auth_email_owner_test_reserve', 400),
+  ('fn', 'auth_email_provider_allowed', 1200),
   ('fn', 'auth_email_status', 400),
   ('fn', 'auth_f2_schema_level', 0),
   ('fn', 'auth_finalize_login', 100),
@@ -520,19 +521,20 @@ lines AS (SELECT lvl, line FROM fnl UNION ALL SELECT lvl, line FROM trl UNION AL
       ('fn|auth_device_revoke_internal(p_device_id uuid, p_actor_id uuid, p_reason text, p_note text)|ae4f5cf2cb03594f8584b06c4ca71b5b|true|search_path=""|api=false|svc=false'),
       ('fn|auth_device_status(p_device_id uuid)|1bee3f005493d83fc2043e182c5bcfb3|true|search_path=""|api=false|svc=true'),
       ('fn|auth_email_alerts_ack(p_actor_token text)|69dff027ba0d36e74f344b2efb3cc2da|true|search_path=""|api=false|svc=true'),
-      ('fn|auth_email_change_begin(p_actor_token text, p_new_email text, p_code_hash text, p_to_hash text, p_provider text, p_daily_limit integer, p_warn_at integer)|f95180072aa9db44ce56b0a011e18245|true|search_path=""|api=false|svc=true'),
+      ('fn|auth_email_change_begin(p_actor_token text, p_new_email text, p_code_hash text, p_to_hash text, p_provider text, p_daily_limit integer, p_warn_at integer)|e4764b024993ef69162eb67f34026d56|true|search_path=""|api=false|svc=true'),
       ('fn|auth_email_change_confirm(p_actor_token text, p_request_id uuid, p_code_hash text)|f274662b261f73b400f4e92c7affcaf0|true|search_path=""|api=false|svc=true'),
-      ('fn|auth_email_delivery_result(p_delivery_id bigint, p_ok boolean, p_error_code text, p_provider_message_id text)|cb1d6af074d72f45f607a8f0b3ccad3f|true|search_path=""|api=false|svc=true'),
-      ('fn|auth_email_notice_reserve(p_user_id uuid, p_to_hash text, p_provider text)|068a8cb75051ebf8bf45e6cb41cf4ec4|true|search_path=""|api=false|svc=true'),
+      ('fn|auth_email_delivery_result(p_delivery_id bigint, p_ok boolean, p_error_code text, p_provider_message_id text)|eb3022318f9442738018fb3c53f7fbbc|true|search_path=""|api=false|svc=true'),
+      ('fn|auth_email_notice_reserve(p_user_id uuid, p_to_hash text, p_provider text)|dab269afd98b97600a7a349d82623db0|true|search_path=""|api=false|svc=true'),
       ('fn|auth_email_notice_reserve_quota(p_user_id uuid, p_to_hash text, p_provider text, p_daily_limit integer)|bdc0cd0db36534c1cf2458cbbf4847ac|true|search_path=""|api=false|svc=true'),
       ('fn|auth_email_notice_undelivered(p_user_id uuid, p_kind text, p_reason text)|0cbfae2024dbc0dfcd2d85f5cf23825a|true|search_path=""|api=false|svc=true'),
       ('fn|auth_email_notify(p_reason text, p_detail jsonb)|900c149f0a84e57266ba9df2836594e2|true|search_path=""|api=false|svc=false'),
-      ('fn|auth_email_otp_issue(p_user_id uuid, p_purpose text, p_challenge_id uuid, p_code_hash text, p_to_hash text, p_provider text, p_daily_limit integer, p_warn_at integer)|6fffad2bb7d4e01a5dd5a1f746508c70|true|search_path=""|api=false|svc=true'),
+      ('fn|auth_email_otp_issue(p_user_id uuid, p_purpose text, p_challenge_id uuid, p_code_hash text, p_to_hash text, p_provider text, p_daily_limit integer, p_warn_at integer)|82007a3c349ac373e73fa57628a255ab|true|search_path=""|api=false|svc=true'),
       ('fn|auth_email_otp_step_up_guard()|c4e1f70ae64a997aaf6be5fbd7bc968f|true|search_path=""|api=false|svc=*'),
       ('fn|auth_email_otp_verify(p_user_id uuid, p_purpose text, p_challenge_id uuid, p_code_hash text)|f7d4ed581471a614cb2ff000626b5f57|true|search_path=""|api=false|svc=true'),
       ('fn|auth_email_owner_test_reserve(p_actor_token text, p_to_hash text, p_provider text)|b4d5c771ab2b4b1d79ca0665c3e9c0c3|true|search_path=""|api=false|svc=true'),
+      ('fn|auth_email_provider_allowed(p_provider text)|e1a73f9b91b950a06c0ff999ead51c0e|false|search_path=""|api=false|svc=true'),
       ('fn|auth_email_status(p_actor_token text)|b5dafd0002a44d41a726b875f018709d|true|search_path=""|api=false|svc=true'),
-      ('fn|auth_f2_schema_level()|cd02dd6c7fdef8fb2ccf0572e0533eb0|false|search_path=""|api=false|svc=false'),
+      ('fn|auth_f2_schema_level()|2c7f388fda085461a84c9ac0f949f82c|false|search_path=""|api=false|svc=false'),
       ('fn|auth_finalize_login(p_challenge_id uuid, p_browser_secret_hash text, p_session_token text, p_ip text, p_country text, p_city text, p_user_agent text, p_platform text, p_client_channel text, p_replace_token text, p_expires_at timestamp with time zone, p_high_risk boolean, p_enforce boolean, p_expert_idle_seconds integer, p_admin_idle_seconds integer, p_admin_absolute_seconds integer, p_expert_stale_seconds integer, p_admin_web_cap integer, p_pending_ttl_seconds integer)|6d8e3e4390ec7625ffeb2e1c1bcf82a8|true|search_path=""|api=false|svc=true'),
       ('fn|auth_is_owner_admin(p_user_id uuid)|a03ff002c1f3c1802b081a9a70615fba|true|search_path=""|api=false|svc=true'),
       ('fn|auth_legacy_session_policy_set(p_actor_token text, p_mode text, p_deadline timestamp with time zone)|d2bfc9cfd712f3b6a3fc39919e6454c8|true|search_path=""|api=false|svc=true'),
@@ -644,10 +646,10 @@ lines AS (SELECT lvl, line FROM fnl UNION ALL SELECT lvl, line FROM trl UNION AL
     INTO v_missing, v_extra;
   SELECT max(substring(p.prosrc FROM '([0-9]+)')::int) INTO v_reg FROM pg_catalog.pg_proc p
     JOIN pg_catalog.pg_namespace n ON n.oid = p.pronamespace WHERE n.nspname = 'public' AND p.proname = 'auth_f2_schema_level';
-  IF v_missing IS NOT NULL OR v_extra IS NOT NULL OR v_reg IS DISTINCT FROM 1100 THEN
-    RAISE EXCEPTION 'F2 POSTFLIGHT KATALOG FAIL — kayıt=% (beklenen 1100) | beklenip bulunmayan/farklı: % | beklenmeyen: %',
+  IF v_missing IS NOT NULL OR v_extra IS NOT NULL OR v_reg IS DISTINCT FROM 1200 THEN
+    RAISE EXCEPTION 'F2 POSTFLIGHT KATALOG FAIL — kayıt=% (beklenen 1200) | beklenip bulunmayan/farklı: % | beklenmeyen: %',
       coalesce(v_reg::text, 'yok'), left(coalesce(v_missing, '-'), 3000), left(coalesce(v_extra, '-'), 3000);
   END IF;
-  RAISE NOTICE 'F2 POSTFLIGHT KATALOG PASS (% satır)', 356;
+  RAISE NOTICE 'F2 POSTFLIGHT KATALOG PASS (% satır)', 357;
 END $f2man$;
 -- <<< KATALOG MANİFESTİ
