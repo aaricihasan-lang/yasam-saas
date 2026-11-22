@@ -114,11 +114,15 @@ export const F2J_FILES = [
 export const F2K_FILES = [
   "supabase/migrations/20280103001100_auth_critical_privilege_device_f2k.sql",
 ];
+/** F2-M eki: e-posta sağlayıcı listesine 'smtp' (Turhost SMTP). startF2cDb({ withF2m: true }). */
+export const F2M_FILES = [
+  "supabase/migrations/20280103001200_auth_email_smtp_provider_f2m.sql",
+];
 /** F2-H eki: denetim kayıtları kontrollü imha. startF2cDb({ withF2h: true }). */
 export const F2H_FILES = [
   "supabase/migrations/20280103000800_auth_audit_retention_disposal_f2h.sql",
 ];
-export async function startF2cDb(opts: { withF2d?: boolean; withF2e?: boolean; withF2g?: boolean; withF2h?: boolean; withF2i?: boolean; withF2j?: boolean; withF2k?: boolean } = {}): Promise<F2cDb> {
+export async function startF2cDb(opts: { withF2d?: boolean; withF2e?: boolean; withF2g?: boolean; withF2h?: boolean; withF2i?: boolean; withF2j?: boolean; withF2k?: boolean; withF2m?: boolean } = {}): Promise<F2cDb> {
   // Uyumluluk koşusu: F2_TEST_DB_WITH_F2E=1 → önceki fazların harness'ları bütün zincir (000500 dahil) üstünde koşar.
   if (process.env.F2_TEST_DB_WITH_F2E === "1") opts = { ...opts, withF2d: true, withF2e: true };
   // F2_TEST_DB_WITH_F2I=1 → bütün zincir 000900 (F2-I) dahil: önceki fazların akışları F2-I düzeltmeleriyle aynen çalışır.
@@ -129,6 +133,9 @@ export async function startF2cDb(opts: { withF2d?: boolean; withF2e?: boolean; w
   if (process.env.F2_TEST_DB_WITH_F2J === "1") opts = { ...opts, withF2d: true, withF2e: true, withF2i: true, withF2j: true };
   // F2_TEST_DB_WITH_F2K=1 → bütün zincir 001100 (F2-K) dahil.
   if (process.env.F2_TEST_DB_WITH_F2K === "1") opts = { ...opts, withF2d: true, withF2e: true, withF2i: true, withF2j: true, withF2k: true };
+  // F2_TEST_DB_WITH_F2M=1 → bütün zincir 001200 (F2-M) dahil.
+  if (process.env.F2_TEST_DB_WITH_F2M === "1") opts = { ...opts, withF2d: true, withF2e: true, withF2i: true, withF2j: true, withF2k: true, withF2m: true };
+  if (opts.withF2m) opts = { ...opts, withF2k: true };
   if (opts.withF2k) opts = { ...opts, withF2j: true };
   if (opts.withF2j) opts = { ...opts, withF2i: true };
   if (opts.withF2i) opts = { ...opts, withF2h: true };
@@ -148,7 +155,7 @@ export async function startF2cDb(opts: { withF2d?: boolean; withF2e?: boolean; w
   // alır; dinleyicisiz 'error' olayı süreci ÇÖKERTİR (özet satırı yazılmadan). Kapanış hatası test sonucu değildir.
   admin.on("error", () => {});
   await admin.query(BOOT);
-  for (const f of [...F2C_FILES, ...(opts.withF2d || opts.withF2e || opts.withF2g ? F2D_FILES : []), ...(opts.withF2e || opts.withF2g ? F2E_FILES : []), ...(opts.withF2g ? F2G_FILES : []), ...(opts.withF2h ? F2H_FILES : []), ...(opts.withF2i ? F2I_FILES : []), ...(opts.withF2j ? F2J_FILES : []), ...(opts.withF2k ? F2K_FILES : [])]) await admin.query(fs.readFileSync(path.join(ROOT, f), "utf8"));
+  for (const f of [...F2C_FILES, ...(opts.withF2d || opts.withF2e || opts.withF2g ? F2D_FILES : []), ...(opts.withF2e || opts.withF2g ? F2E_FILES : []), ...(opts.withF2g ? F2G_FILES : []), ...(opts.withF2h ? F2H_FILES : []), ...(opts.withF2i ? F2I_FILES : []), ...(opts.withF2j ? F2J_FILES : []), ...(opts.withF2k ? F2K_FILES : []), ...(opts.withF2m ? F2M_FILES : [])]) await admin.query(fs.readFileSync(path.join(ROOT, f), "utf8"));
   await admin.query(HARNESS_SQL);
   const pool = new pg.Pool({ host: "localhost", port, user: "postgres", password: "pw", database: "postgres", max: 8 });
   pool.on("error", () => {});
@@ -163,4 +170,37 @@ export async function startF2cDb(opts: { withF2d?: boolean; withF2e?: boolean; w
       try { fs.rmSync(dir, { recursive: true, force: true }); } catch { /* Windows EPERM */ }
     },
   };
+}
+
+/**
+ * F2-K: yönetici oluşturma / etkinleştirme yollarının bu test veritabanında olmayan GERÇEK fonksiyonları için sade karşılıklar
+ * (hash_password, admin_create_user_with_modules, admin_set_user_active) + production'daki gibi denetim kaydı yetkisi.
+ * Güvenlik kararı karşılıklarda DEĞİL: yetki tetikleyicisi ve kanıtlı fonksiyonlar (001100) gerçek migration'dan gelir.
+ */
+export async function installAdminStandIns(admin: pg.Client): Promise<void> {
+  await admin.query(`CREATE OR REPLACE FUNCTION public.hash_password(p_plain text) RETURNS text LANGUAGE sql SECURITY DEFINER
+           SET search_path = public, extensions AS $f$ SELECT crypt(p_plain, gen_salt('bf', 4)) $f$;
+           GRANT EXECUTE ON FUNCTION public.hash_password(text) TO service_role;`);
+  await admin.query(`CREATE OR REPLACE FUNCTION public.admin_create_user_with_modules(p_payload jsonb, p_membership jsonb, p_modules jsonb, p_remove_keys text[])
+    RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_catalog AS $f$
+    DECLARE v uuid := gen_random_uuid(); r text := p_payload->>'role';
+    BEGIN
+      IF EXISTS (SELECT 1 FROM public.users WHERE lower(email) = lower(p_payload->>'email')) THEN
+        RETURN jsonb_build_object('outcome', 'already_exists');
+      END IF;
+      INSERT INTO public.users (id, email, role, tenant_id, active, approval_status, password_hash)
+      VALUES (v, lower(p_payload->>'email'), r, (SELECT tenant_id FROM public.users WHERE id = '${U.owner}'), r = 'admin', 'approved', p_payload->>'password_hash');
+      RETURN jsonb_build_object('outcome', 'provisioned', 'user_id', v);
+    END $f$;
+    GRANT EXECUTE ON FUNCTION public.admin_create_user_with_modules(jsonb, jsonb, jsonb, text[]) TO service_role;`);
+  await admin.query(`CREATE OR REPLACE FUNCTION public.admin_set_user_active(p_user_id uuid, p_actor_admin_id uuid, p_active boolean, p_expected_active boolean DEFAULT NULL)
+    RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_catalog AS $f$
+    BEGIN
+      UPDATE public.users SET active = p_active WHERE id = p_user_id AND (p_expected_active IS NULL OR active IS NOT DISTINCT FROM p_expected_active);
+      IF NOT FOUND THEN RAISE EXCEPTION 'durum' USING ERRCODE = 'UY001'; END IF;
+      RETURN jsonb_build_object('ok', true, 'revoked_session_count', 0);
+    END $f$;
+    GRANT EXECUTE ON FUNCTION public.admin_set_user_active(uuid, uuid, boolean, boolean) TO service_role;`);
+  await admin.query(`GRANT SELECT, INSERT ON public.admin_audit_log TO service_role`);
+
 }

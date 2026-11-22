@@ -6,7 +6,7 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { getEmailProvider, type EmailProvider } from "@/lib/email/provider";
-import { EMAIL_DAILY_LIMIT_DEFAULT, hashRecipient, otpPepper } from "@/lib/auth/emailOtp";
+import { emailLimits, hashRecipient, otpPepper } from "@/lib/auth/emailOtp";
 import { renderSecurityNotice, type SecurityNoticeKind } from "@/lib/email/templates/securityNoticeEmail";
 
 type Env = Record<string, string | undefined>;
@@ -39,7 +39,7 @@ export async function sendSecurityNotice(
       return false;
     }
     // F2-K (L4): bildirimler kotanın en çok %80'ini kullanır; kalan pay giriş / işlem kodlarına ayrılır.
-    const dailyLimit = Number(env.EMAIL_DAILY_LIMIT ?? EMAIL_DAILY_LIMIT_DEFAULT) || EMAIL_DAILY_LIMIT_DEFAULT;
+    const { dailyLimit } = emailLimits(env);
     const toHash = hashRecipient(to, pepper);
     let { data, error } = await db.rpc("auth_email_notice_reserve_quota", {
       p_user_id: args.userId,

@@ -177,6 +177,14 @@ export function detectPlatform(userAgent: string): string {
 export const ADMIN_WEB_SESSION_CAP = 2;
 /** Admin ikinci/riskli web girişi onay bekleme süresi (saniye). */
 export const PENDING_APPROVAL_TTL_SECONDS = 10 * 60;
+
+/**
+ * Yönetici web girişinin "başka oturumdan onay" (pending_approval) akışı — Owner acil kararı (2026-10-04) ile KAPALI.
+ * Kapalıyken: giriş route'u beklenmeyen pending sonucunu kapatıp 503 döner (anahtar istemciye verilmez) ve onay ucu
+ * ("approve") bekleyen satırı ASLA aktifleştirmez — kapatma güncellemesi başarısız olup satır açık kalsa bile.
+ * "deny" (kalan satırı kapatma) serbesttir. QR cihaz onayı bu akıştan bağımsızdır. Yeniden açmak Owner kararı ister.
+ */
+export const ADMIN_WEB_PENDING_APPROVAL_ENABLED = false as boolean;
 /** Uzman WEB oturumu stale eşiği — yalnız yeni giriş sırasında (normal 15 dk / flexible 60 dk). */
 export function expertStaleSeconds(securityMode: string): number {
   return (securityMode === "flexible" ? FLEXIBLE_THRESHOLD_MS : FRESH_THRESHOLD_MS) / 1000;

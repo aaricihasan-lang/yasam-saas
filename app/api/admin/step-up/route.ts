@@ -3,7 +3,7 @@ import { verifyAdminRequest } from "@/lib/auth/adminGuard";
 import { qrApprovalUrl } from "@/lib/auth/deviceSignature";
 import { isMfaChallengeId } from "@/lib/auth/mfaChallenge";
 import {
-  EMAIL_DAILY_LIMIT_DEFAULT, EMAIL_WARN_AT_DEFAULT, emailOtpConfigured, generateOtpCode, hashOtp, hashRecipient, maskEmail, otpPepper, verifyOtp,
+  emailLimits, emailOtpConfigured, generateOtpCode, hashOtp, hashRecipient, maskEmail, otpPepper, verifyOtp,
 } from "@/lib/auth/emailOtp";
 import { getEmailProvider } from "@/lib/email/provider";
 import { renderOtpEmail } from "@/lib/email/templates/otpEmail";
@@ -12,7 +12,8 @@ export const runtime = "nodejs";
 
 const NO_STORE = { "Cache-Control": "no-store" } as const;
 const json = (body: Record<string, unknown>, status: number) => NextResponse.json(body, { status, headers: NO_STORE });
-const ACTIONS = ["device_approve", "mfa_disable", "recovery_execute", "retention_policy", "retention_execute", "password_reset"] as const;
+// F2-K (N2) "admin_grant": yönetici yetkisi verme (DB tarafı 001100; arayüz penceresi bu route ile başlatır — F2-L e2e yakaladı).
+const ACTIONS = ["device_approve", "mfa_disable", "recovery_execute", "retention_policy", "retention_execute", "password_reset", "admin_grant"] as const;
 const INVALID = "Onay isteği geçersiz veya süresi dolmuş. İşlemi yeniden başlatın.";
 
 /**
@@ -80,8 +81,8 @@ export async function POST(req: NextRequest) {
     const { data, error } = await guard.db.rpc("auth_email_otp_issue", {
       p_user_id: guard.adminId, p_purpose: "login", p_challenge_id: challengeId,
       p_code_hash: hashOtp(`login:${challengeId}`, code, pepper), p_to_hash: hashRecipient(user.email, pepper), p_provider: provider.name,
-      p_daily_limit: Number(process.env.EMAIL_DAILY_LIMIT ?? EMAIL_DAILY_LIMIT_DEFAULT) || EMAIL_DAILY_LIMIT_DEFAULT,
-      p_warn_at: Number(process.env.EMAIL_WARN_AT ?? EMAIL_WARN_AT_DEFAULT) || EMAIL_WARN_AT_DEFAULT,
+      p_daily_limit: emailLimits().dailyLimit,
+      p_warn_at: emailLimits().warnAt,
     });
     if (error) return json({ error: "Kod gönderilemedi." }, 500);
     const r = (data ?? {}) as { ok?: unknown; reason?: unknown; delivery_id?: unknown; retry_after?: unknown };

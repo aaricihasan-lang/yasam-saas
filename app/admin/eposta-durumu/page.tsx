@@ -14,6 +14,7 @@ import { ownerAdminHeaders } from "@/components/admin/notifications/ownerBellSto
 type Status = {
   configured: boolean;
   provider: string | null;
+  configIssue?: string | null;
   pepperConfigured: boolean;
   limits: { dailyLimit: number; warnAt: number };
   last24h: { sent: number; failed: number; reserved: number } | null;
@@ -24,17 +25,30 @@ type Status = {
 };
 
 const ERROR_LABEL: Record<string, string> = {
-  quota: "Google gönderim kotası doldu",
+  quota: "Sağlayıcının gönderim sınırına ulaşıldı",
   kota_doldu: "Günlük gönderim sınırına ulaşıldı",
   kota_esigi: "Günlük gönderim sınırına yaklaşıldı",
   oauth_invalid_grant: "Google yetkisi geçersiz (yeniden yetkilendirme gerekir)",
+  smtp_auth_failed: "SMTP kullanıcı adı / parola reddedildi",
+  smtp_tls_error: "SMTP güvenli bağlantı (TLS) kurulamadı",
   oauth_error: "Google yetki yenilemesi başarısız",
-  provider_down: "Google hizmetine ulaşılamadı",
+  provider_down: "E-posta sağlayıcısına ulaşılamadı",
   not_configured: "Sağlayıcı yapılandırılmamış",
   rejected: "İleti reddedildi",
   invalid_recipient: "Geçersiz alıcı adresi",
   timeout: "Zaman aşımı",
   network: "Ağ hatası",
+};
+
+/** F2-M: SMTP yapılandırma sorunu (yalnız kod; değerler sunucudan hiç gelmez). */
+const SMTP_ISSUE_LABEL: Record<string, string> = {
+  smtp_host_missing: "sunucu adı (SMTP_HOST) yok",
+  smtp_host_invalid: "sunucu adı geçersiz (IP / şema / port yazılmamalı)",
+  smtp_port_invalid: "port yalnız 465 (TLS) veya 587 (STARTTLS) olabilir",
+  smtp_user_missing: "kullanıcı adı (SMTP_USER) yok",
+  smtp_password_missing: "parola (SMTP_PASSWORD) yok",
+  smtp_sender_invalid: "gönderen adresi (SMTP_SENDER) geçersiz",
+  smtp_sender_mismatch: "gönderen adresi kullanıcı adıyla aynı olmalı",
 };
 
 const fmt = (iso: string | null | undefined) => {
@@ -115,9 +129,14 @@ export default function EpostaDurumuPage() {
                 {st.configured ? "Hazır" : "Yapılandırılmamış"}
               </p>
               <p className="mt-1 text-xs text-slate-500">
-                Sağlayıcı: {st.provider === "gmail" ? "Google Workspace (Gmail API)" : st.provider === "synthetic" ? "Sentetik (yalnız test)" : "yok"} ·
+                Sağlayıcı: {st.provider === "gmail" ? "Google Workspace (Gmail API)" : st.provider === "smtp" ? "Kurumsal posta (SMTP)" : st.provider === "synthetic" ? "Sentetik (yalnız test)" : "yok"} ·
                 Kod anahtarı: {st.pepperConfigured ? "var" : "yok"}
               </p>
+              {st.configIssue && (
+                <p className="mt-1 text-xs font-semibold text-amber-700" data-testid="email-config-issue">
+                  SMTP ayarı eksik / geçersiz: {SMTP_ISSUE_LABEL[st.configIssue] ?? st.configIssue}
+                </p>
+              )}
             </div>
             <div className="rounded-xl border border-slate-200 bg-white p-4">
               <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Son 24 saat</p>

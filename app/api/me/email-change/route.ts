@@ -3,7 +3,7 @@ import { jsonNoStore, verifySelfSessionRequest } from "@/lib/auth/sessionModel";
 import { demoReadOnlyResponse } from "@/lib/auth/demoReadOnly";
 import { isMfaChallengeId } from "@/lib/auth/mfaChallenge";
 import {
-  EMAIL_DAILY_LIMIT_DEFAULT, EMAIL_WARN_AT_DEFAULT, emailOtpConfigured, generateOtpCode, hashOtp, hashRecipient, maskEmail, otpPepper,
+  emailLimits, emailOtpConfigured, generateOtpCode, hashOtp, hashRecipient, maskEmail, otpPepper,
 } from "@/lib/auth/emailOtp";
 import { getEmailProvider } from "@/lib/email/provider";
 import { renderOtpEmail } from "@/lib/email/templates/otpEmail";
@@ -49,8 +49,8 @@ export async function POST(req: NextRequest) {
       p_code_hash: hashOtp(scope, code, pepper),
       p_to_hash: hashRecipient(newEmail, pepper),
       p_provider: provider.name,
-      p_daily_limit: Number(process.env.EMAIL_DAILY_LIMIT ?? EMAIL_DAILY_LIMIT_DEFAULT) || EMAIL_DAILY_LIMIT_DEFAULT,
-      p_warn_at: Number(process.env.EMAIL_WARN_AT ?? EMAIL_WARN_AT_DEFAULT) || EMAIL_WARN_AT_DEFAULT,
+      p_daily_limit: emailLimits().dailyLimit,
+      p_warn_at: emailLimits().warnAt,
     });
     if (error) return jsonNoStore({ error: "İstek başlatılamadı." }, 500);
     const r = (data ?? {}) as { ok?: unknown; code?: unknown; request_id?: unknown; delivery_id?: unknown; expires_at?: unknown; retry_after?: unknown };
