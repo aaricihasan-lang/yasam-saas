@@ -164,3 +164,36 @@ export async function startF2cDb(opts: { withF2d?: boolean; withF2e?: boolean; w
     },
   };
 }
+
+/**
+ * F2-K: yönetici oluşturma / etkinleştirme yollarının bu test veritabanında olmayan GERÇEK fonksiyonları için sade karşılıklar
+ * (hash_password, admin_create_user_with_modules, admin_set_user_active) + production'daki gibi denetim kaydı yetkisi.
+ * Güvenlik kararı karşılıklarda DEĞİL: yetki tetikleyicisi ve kanıtlı fonksiyonlar (001100) gerçek migration'dan gelir.
+ */
+export async function installAdminStandIns(admin: pg.Client): Promise<void> {
+  await admin.query(`CREATE OR REPLACE FUNCTION public.hash_password(p_plain text) RETURNS text LANGUAGE sql SECURITY DEFINER
+           SET search_path = public, extensions AS $f$ SELECT crypt(p_plain, gen_salt('bf', 4)) $f$;
+           GRANT EXECUTE ON FUNCTION public.hash_password(text) TO service_role;`);
+  await admin.query(`CREATE OR REPLACE FUNCTION public.admin_create_user_with_modules(p_payload jsonb, p_membership jsonb, p_modules jsonb, p_remove_keys text[])
+    RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_catalog AS $f$
+    DECLARE v uuid := gen_random_uuid(); r text := p_payload->>'role';
+    BEGIN
+      IF EXISTS (SELECT 1 FROM public.users WHERE lower(email) = lower(p_payload->>'email')) THEN
+        RETURN jsonb_build_object('outcome', 'already_exists');
+      END IF;
+      INSERT INTO public.users (id, email, role, tenant_id, active, approval_status, password_hash)
+      VALUES (v, lower(p_payload->>'email'), r, (SELECT tenant_id FROM public.users WHERE id = '${U.owner}'), r = 'admin', 'approved', p_payload->>'password_hash');
+      RETURN jsonb_build_object('outcome', 'provisioned', 'user_id', v);
+    END $f$;
+    GRANT EXECUTE ON FUNCTION public.admin_create_user_with_modules(jsonb, jsonb, jsonb, text[]) TO service_role;`);
+  await admin.query(`CREATE OR REPLACE FUNCTION public.admin_set_user_active(p_user_id uuid, p_actor_admin_id uuid, p_active boolean, p_expected_active boolean DEFAULT NULL)
+    RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_catalog AS $f$
+    BEGIN
+      UPDATE public.users SET active = p_active WHERE id = p_user_id AND (p_expected_active IS NULL OR active IS NOT DISTINCT FROM p_expected_active);
+      IF NOT FOUND THEN RAISE EXCEPTION 'durum' USING ERRCODE = 'UY001'; END IF;
+      RETURN jsonb_build_object('ok', true, 'revoked_session_count', 0);
+    END $f$;
+    GRANT EXECUTE ON FUNCTION public.admin_set_user_active(uuid, uuid, boolean, boolean) TO service_role;`);
+  await admin.query(`GRANT SELECT, INSERT ON public.admin_audit_log TO service_role`);
+
+}
