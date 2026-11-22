@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyUserRequest } from "@/lib/auth/userGuard";
 import { HD_FILE_PART_BYTES, listHdBackupFiles, readHdBackupFilePart } from "@/lib/backup/hdFiles";
+import { SIFA_V2_FILES_BUCKET, listSifaV2BackupFiles, readSifaV2BackupFilePart } from "@/lib/backup/sifaV2Files";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -27,10 +28,17 @@ export async function GET(req: NextRequest) {
     if (!path) {
       const list = await listHdBackupFiles(guard.db, guard.tenantId);
       if (list.error) return NextResponse.json({ ok: false, error: "Dosya listesi okunamadı." }, { status: 500, headers: NO_STORE });
-      return NextResponse.json({ ok: true, part_bytes: HD_FILE_PART_BYTES, files: list.files }, { status: 200, headers: NO_STORE });
+      // Şifa Rehberi V2 (12. aşama): yalnız OTURUMDAKİ uzmanın kişisel görsel dosyaları (gerçek içerik).
+      const v2 = await listSifaV2BackupFiles(guard.db, guard.tenantId, guard.userId);
+      if (v2.error) return NextResponse.json({ ok: false, error: "Dosya listesi okunamadı." }, { status: 500, headers: NO_STORE });
+      return NextResponse.json({ ok: true, part_bytes: HD_FILE_PART_BYTES, files: [...list.files, ...v2.files] }, { status: 200, headers: NO_STORE });
     }
     const part = Number(params.get("part") ?? "0");
-    const res = await readHdBackupFilePart(guard.db, guard.tenantId, path, part);
+    // bucket yoksa HD (eski istemci / eski yedek davranışı aynen).
+    const res =
+      params.get("bucket") === SIFA_V2_FILES_BUCKET
+        ? await readSifaV2BackupFilePart(guard.db, guard.tenantId, guard.userId, path, part)
+        : await readHdBackupFilePart(guard.db, guard.tenantId, path, part);
     if (!res.ok) return NextResponse.json({ ok: false, error: res.error }, { status: res.status, headers: NO_STORE });
     return NextResponse.json(res, { status: 200, headers: NO_STORE });
   } catch (err) {

@@ -29,6 +29,8 @@ import {
 /** RPC fonksiyon adları (statik; migration ile birebir). v2: modül filtresi SQL'de LIMIT'ten ÖNCE. */
 const RETRIEVAL_RPC = "yh_search_candidates" as const;
 const RETRIEVAL_RPC_V2 = "yh_search_candidates_v2" as const;
+/** v3: v2 + uzman sahipliği (owner_user_id IS NULL OR = p_session_user). v1/v2 sahipli satırı ASLA döndürmez. */
+const RETRIEVAL_RPC_V3 = "yh_search_candidates_v3" as const;
 /** Kullanıcı-bazlı taş gizleme tablosu (statik). */
 const STONE_EXCLUSIONS_TABLE = "stone_exclusions" as const;
 
@@ -65,6 +67,21 @@ function serverRetrievalDb(): RetrievalDbClient {
  */
 export function createSupabaseRetrievalRpcPort(db: RetrievalDbClient): RetrievalRpcPort {
   return async (params) => {
+    // Oturum kullanıcısı varsa önce v3 (uzman sahipli satırlar yalnız sahibine). Kullanıcısız çağrı → v3
+    // DENENMEZ; bugünkü v2 → v1 zinciri AYNEN (v2/v1 sahipli satırı hiç döndürmez → fail-closed).
+    if (typeof params.sessionUserId === "string" && params.sessionUserId.length > 0) {
+      const v3 = await db.rpc(RETRIEVAL_RPC_V3, {
+        p_tsquery: params.tsquery,
+        p_session_tenant: params.sessionTenantId,
+        p_session_user: params.sessionUserId,
+        p_weights: params.weights,
+        p_limit: params.limit,
+        p_modules: params.modules === null ? null : [...params.modules],
+      });
+      if (!v3.error) return { ok: true, rows: Array.isArray(v3.data) ? v3.data : [] };
+      // v3 henüz uygulanmamış DB (PGRST202) → v2 (kişisel notlar görünmez = fail-closed); diğer hata → fail-closed.
+      if (v3.error.code !== "PGRST202") return { ok: false, code: "retrieval-execution-failed" };
+    }
     const v2 = await db.rpc(RETRIEVAL_RPC_V2, {
       p_tsquery: params.tsquery,
       p_session_tenant: params.sessionTenantId,

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { trialWriteDenied, verifyUserRequest } from "@/lib/auth/userGuard";
 import { restoreContextFrom } from "@/lib/backup/guardContext";
 import { commitHdRestoreFile, planHdFileRestore, storeHdRestorePart } from "@/lib/backup/hdFiles";
+import { SIFA_V2_FILES_BUCKET, commitSifaV2RestoreFile, planSifaV2FileRestore, storeSifaV2RestorePart } from "@/lib/backup/sifaV2Files";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -37,17 +38,24 @@ export async function POST(req: NextRequest) {
   }
   const ctx = restoreContextFrom(guard);
   try {
+    // Şifa Rehberi V2 (12. aşama): kova 'sifa-arastirma' → V2 hattı; kova yoksa/başkaysa HD (eski davranış aynen).
+    const isV2 = (b: unknown) => b === SIFA_V2_FILES_BUCKET;
     if (body.mode === "plan") {
       const files = Array.isArray(body.files) ? (body.files as Record<string, unknown>[]) : [];
-      const decisions = await planHdFileRestore(guard.db, ctx, files);
+      const v2Files = files.filter((f) => isV2(f?.bucket));
+      const hdFiles = files.filter((f) => !isV2(f?.bucket));
+      const decisions = [
+        ...(hdFiles.length ? await planHdFileRestore(guard.db, ctx, hdFiles) : []),
+        ...(v2Files.length ? await planSifaV2FileRestore(guard.db, ctx, v2Files) : []),
+      ];
       return NextResponse.json({ ok: true, decisions }, { status: 200, headers: NO_STORE });
     }
     if (body.mode === "part") {
-      const r = await storeHdRestorePart(guard.db, ctx, body);
+      const r = isV2(body.bucket) ? await storeSifaV2RestorePart(guard.db, ctx, body) : await storeHdRestorePart(guard.db, ctx, body);
       return NextResponse.json({ ok: r.ok, error: r.error }, { status: r.status, headers: NO_STORE });
     }
     if (body.mode === "commit") {
-      const r = await commitHdRestoreFile(guard.db, ctx, body);
+      const r = isV2(body.bucket) ? await commitSifaV2RestoreFile(guard.db, ctx, body) : await commitHdRestoreFile(guard.db, ctx, body);
       return NextResponse.json({ ok: r.ok, result: r.result, error: r.error }, { status: r.status, headers: NO_STORE });
     }
     return NextResponse.json({ ok: false, error: "Geçersiz mod." }, { status: 400 });

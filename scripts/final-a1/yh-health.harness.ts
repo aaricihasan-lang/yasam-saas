@@ -38,6 +38,8 @@ function fakeDb(answer: (q: Q) => { count: number | null; error: unknown }, log:
         select: () => chain,
         eq: (c: string, v: unknown) => { q.filters.push(["eq", c, v]); return chain; },
         in: (c: string, v: unknown) => { q.filters.push(["in", c, v]); return chain; },
+        // 10. aşama (Şifa V2): sayaç uzman sahipli satırları yalnız sahibine sayar → .or(owner IS NULL | = oturum)
+        or: (expr: string) => { q.filters.push(["or", "owner_user_id", expr]); return chain; },
         then: (res: (v: unknown) => unknown) => { log.push(q); return Promise.resolve(answer(q)).then(res); },
       };
       return chain;

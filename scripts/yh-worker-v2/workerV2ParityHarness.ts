@@ -201,7 +201,7 @@ async function run(): Promise<void> {
   // DEFERRED_SHARED_WORKER_V2 artık BOŞ (5 kaynak READY'ye taşındı).
   add("D-deferred-worker-v2-empty", sourceKeysByClass("DEFERRED_SHARED_WORKER_V2").length === 0, sourceKeysByClass("DEFERRED_SHARED_WORKER_V2").join(","));
   // Matris total DEĞİŞMEDİ (reclassification; entry sayısı sabit).
-  add("D-matrix-total-36", YH_ACTIVATION_MATRIX.length === 45, String(YH_ACTIVATION_MATRIX.length));
+  add("D-matrix-total-36", YH_ACTIVATION_MATRIX.length === 46, String(YH_ACTIVATION_MATRIX.length)); // 10. aşama: +1 sifa_rehberi_v2:notes (Şifa V2 kişisel notlar, uzman sahipli, CONTROLLED)
 }
 
 // ═══ E) MIGRATION STATIC CONTRACT (20261210000000) ════════════════════════════

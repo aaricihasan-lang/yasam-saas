@@ -168,7 +168,7 @@ async function backupHdFiles(
     for (let part = 0; part < 32; part++) {
       let res: JsonResponse;
       try {
-        res = await fetcher(`/api/settings/backup/files?path=${encodeURIComponent(f.path)}&part=${part}`);
+        res = await fetcher(`/api/settings/backup/files?path=${encodeURIComponent(f.path)}&part=${part}&bucket=${encodeURIComponent(f.bucket)}`);
       } catch {
         failed = true;
         break;
@@ -352,7 +352,7 @@ async function restoreHdFiles(files: BackupStoredFile[], fetcher: JsonFetcher): 
       try {
         const r = await fetcher("/api/settings/restore/files", {
           method: "POST",
-          body: { mode: "part", path: f.path, upload_id: uploadId, index: i, data_base64: chunk },
+          body: { mode: "part", bucket: f.bucket, path: f.path, upload_id: uploadId, index: i, data_base64: chunk },
         });
         ok = r.ok;
       } catch {
@@ -364,7 +364,7 @@ async function restoreHdFiles(files: BackupStoredFile[], fetcher: JsonFetcher): 
       try {
         const r = await fetcher("/api/settings/restore/files", {
           method: "POST",
-          body: { mode: "commit", path: f.path, upload_id: uploadId, parts, size: f.size, sha256: f.sha256 },
+          body: { mode: "commit", bucket: f.bucket, path: f.path, upload_id: uploadId, parts, size: f.size, sha256: f.sha256 },
         });
         ok = r.ok;
         result = (r.json as { result?: string } | null)?.result;

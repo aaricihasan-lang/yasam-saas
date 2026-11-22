@@ -141,6 +141,16 @@ export const YH_ACTIVATION_MATRIX = [
   controlled("sifa_rehberi:guides", "Şifa Rehberi", "healing_guides", "column", "source-classification"),
   // guide-sections unit=section → Worker-v2 'section-unit' + 'parent-derived-scope' capability ile READY.
   controlledV2("sifa_rehberi:guide-sections", "Şifa Rehberi", "healing_guide_sections", "join", "source-classification"),
+  // Şifa Rehberi V2 KİŞİSEL notları (uzman sahipli; owner_user_id). Satır kapısı scope='kisisel' + çöp kapısı.
+  // CDC: supabase/migrations/20280110000100_yh_owner_scope_sifa_v2.sql (yh_cdc_enqueue_sifa_v2, WHEN scope='kisisel'); default OFF.
+  {
+    ...controlled("sifa_rehberi_v2:notes", "Şifa Rehberi", "sifa_topic_blocks", "column", "status-eligibility"),
+    activationPrerequisite:
+      "AYRI production kapıları: (1) V2 çekirdek + YH sahiplik migration'ı (owner_user_id, yh_search_candidates_v3, V2 CDC tetikleyicileri; enqueue AKTİVASYON-KAPILI), (2) yh_source_activation_set('sifa_rehberi_v2:notes', true). Kaynak default OFF; kör backfill YOK (tarihsel kayıt yh_sifa_v2_replay_enqueue ile exact yoldan).",
+    activationCohort: "sifa-v2-owner-scoped",
+    recommendation:
+      "FUTURE_ONLY_READY (controlled, OWNER-SCOPED): kişisel not yalnız sahibine aranır (v3 + post-fetch owner kapısı; v1/v2 sahipli satırı döndürmez). Kurum ortak kayıtları V1 kaynağından aranır (mükerrer yok). Aktivasyon ayrı production onayı.",
+  },
   controlled("biyoenerji:subconscious-causes", "Biyoenerji", "bioenergy_subconscious_causes", "column", "source-classification"),
   controlled("biyoenerji:symbols", "Biyoenerji", "bioenergy_symbols", "column", "source-classification"),
   controlled("biyoenerji:chakras", "Biyoenerji", "bioenergy_chakras", "column", "source-classification"),

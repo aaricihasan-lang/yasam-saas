@@ -160,6 +160,13 @@ export interface SourceConfig {
   readonly derivedColumns?: readonly string[];
   /** Zenginleştirme için ek GERÇEK kolonlar (select'e eklenir; dokümana kendi başına girmez). */
   readonly extraSelectColumns?: readonly string[];
+  /**
+   * UZMAN SAHİPLİĞİ (Şifa Rehberi V2 kişisel notları): satırın sahibi olan users.id kolonu.
+   * Tanımlıysa indeks satırına `owner_user_id` yazılır ve arama YALNIZ o uzmana döner
+   * (yh_search_candidates_v3; v1/v2 sahipli satırı HİÇ döndürmez). Değer geçerli UUID değilse veya
+   * tenant kimliğine eşitse birim ÜRETİLMEZ (fail-closed). Tanımsız → bugünkü tenant geneli davranış.
+   */
+  readonly ownerColumn?: string;
   /** Kaynak indekslemeye açık mı. */
   readonly enabled: boolean;
 }
@@ -280,6 +287,32 @@ export const YH_INDEX_SOURCES = [
     activeColumn: null,
     // Worker-v2: unit=section desteği + parent (healing_guides) türevi scope + parent-side capture.
     workerCapabilities: ["section-unit", "parent-derived-scope"],
+    enabled: true,
+  },
+  {
+    // Şifa Rehberi V2 — uzmanın KİŞİSEL notları (içerik kutuları). Kurum ortak kayıtları (scope 'kurum')
+    // V1 healing_guides'ın türevidir → İNDEKSLENMEZ (mükerrer yok; V1 kaynakları yukarıda). Satır
+    // kapısı: scope = 'kisisel' + kutu ve TÜM üst konuları çöpte değil (okuyucu: supabaseIndexAdapters
+    // SIFA_V2_SOURCE_KEY). Sahiplik owner_key → indeks owner_user_id → arama yalnız sahibine.
+    // CONTROLLED: kod enabled:true; DB yh_source_activation is_active=true olmadan olay işlenmez.
+    sourceKey: "sifa_rehberi_v2:notes",
+    classification: "safe-non-pii", // uzmanın kendi bilgi notu; danışan kimliği taşımaz
+    sourceFamily: "sifa_rehberi",
+    tableName: "sifa_topic_blocks",
+    primaryKey: "id",
+    unit: "record",
+    tenant: { mode: "column", column: "tenant_id" },
+    titleColumns: ["title"],
+    searchTextColumns: ["title", "content_text"],
+    snippetColumns: ["content_text"],
+    topicTagsColumns: ["classification"],
+    relationColumns: [],
+    updatedAtColumn: "updated_at",
+    activeColumn: null,
+    statusColumn: "scope",
+    eligibleStatuses: ["kisisel"],
+    ownerColumn: "owner_key",
+    extraSelectColumns: ["topic_id", "deleted_at"],
     enabled: true,
   },
 
