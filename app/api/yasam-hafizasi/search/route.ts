@@ -94,7 +94,8 @@ export async function POST(req: NextRequest): Promise<Response> {
   if (q.length === 0) return empty(q, { emptyReason: "no-query" });
 
   const allowShared = resolveAllowShared(flags.yh_shared, requestedShared);
-  const { descriptor } = buildRetrievalDescriptor({ rawQuery: q, sessionTenantId: tenantId, allowShared });
+  // Oturum kullanıcısı (body'den ASLA): uzman sahipli kayıtlar (Şifa V2 kişisel notları) yalnız sahibine.
+  const { descriptor } = buildRetrievalDescriptor({ rawQuery: q, sessionTenantId: tenantId, allowShared, sessionUserId: guard.userId });
   if (descriptor.kind === "noop") return empty(q, { emptyReason: "no-results" });
 
   // ÜYE YÖNETİMİ FAZ 2: aktif kapsam = uzmanın GÜNCEL module_permissions'ı (tek kaynak). Kapsam +
