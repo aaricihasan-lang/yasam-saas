@@ -16,6 +16,24 @@ type Env = Record<string, string | undefined>;
 /** Gmail Workspace kullanıcı başına kayan 24 sa ≈2000 ileti; güvenlik payıyla blok/uyarı eşikleri. */
 export const EMAIL_DAILY_LIMIT_DEFAULT = 1800;
 export const EMAIL_WARN_AT_DEFAULT = 1500;
+/**
+ * F2-M: SMTP (Turhost kurumsal posta) varsayılanı — sağlayıcının saatlik sınırı (ilan edilen 250/saat; paket sözleşmesi
+ * Owner tarafından yazılı teyit edilecek) kayan 24 saatlik sayaçla HİÇBİR dağılımda aşılamasın diye günlük toplam 200.
+ * Kesin sınır öğrenilince EMAIL_DAILY_LIMIT / EMAIL_WARN_AT ile değiştirilir.
+ */
+export const EMAIL_DAILY_LIMIT_SMTP_DEFAULT = 200;
+export const EMAIL_WARN_AT_SMTP_DEFAULT = 150;
+
+/** Günlük gönderim sınırı ve uyarı eşiği (env > sağlayıcıya göre varsayılan). Bütün gönderim yolları bunu kullanır. */
+export function emailLimits(env: Env = process.env): { dailyLimit: number; warnAt: number } {
+  const smtp = String(env.EMAIL_PROVIDER ?? "").trim().toLowerCase() === "smtp";
+  const dDef = smtp ? EMAIL_DAILY_LIMIT_SMTP_DEFAULT : EMAIL_DAILY_LIMIT_DEFAULT;
+  const wDef = smtp ? EMAIL_WARN_AT_SMTP_DEFAULT : EMAIL_WARN_AT_DEFAULT;
+  return {
+    dailyLimit: Number(env.EMAIL_DAILY_LIMIT ?? dDef) || dDef,
+    warnAt: Number(env.EMAIL_WARN_AT ?? wDef) || wDef,
+  };
+}
 
 export function otpPepper(env: Env = process.env): string | null {
   const p = String(env.AUTH_OTP_PEPPER ?? "");
@@ -103,8 +121,7 @@ export async function issueAndSendOtp(
   const code = generateOtpCode();
   const scope = otpScope(args.purpose, args.userId, args.challengeId, args.email);
   if (!scope) return { ok: false, code: "invalid" };
-  const dailyLimit = Number(env.EMAIL_DAILY_LIMIT ?? EMAIL_DAILY_LIMIT_DEFAULT) || EMAIL_DAILY_LIMIT_DEFAULT;
-  const warnAt = Number(env.EMAIL_WARN_AT ?? EMAIL_WARN_AT_DEFAULT) || EMAIL_WARN_AT_DEFAULT;
+  const { dailyLimit, warnAt } = emailLimits(env);
   const { data, error } = await db.rpc("auth_email_otp_issue", {
     p_user_id: args.userId,
     p_purpose: args.purpose,

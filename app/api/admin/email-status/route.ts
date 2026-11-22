@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyAdminRequest } from "@/lib/auth/adminGuard";
 import { getEmailProvider } from "@/lib/email/provider";
+import { smtpConfigIssue } from "@/lib/email/smtpProvider";
 import { renderOtpEmail } from "@/lib/email/templates/otpEmail";
-import { EMAIL_DAILY_LIMIT_DEFAULT, EMAIL_WARN_AT_DEFAULT, emailOtpConfigured, hashRecipient, otpPepper } from "@/lib/auth/emailOtp";
+import { emailLimits, emailOtpConfigured, hashRecipient, otpPepper } from "@/lib/auth/emailOtp";
 
 export const runtime = "nodejs";
 
@@ -30,11 +31,10 @@ export async function GET(req: NextRequest) {
   return json({
     configured: emailOtpConfigured(),
     provider: provider?.name ?? null,
+    // F2-M: EMAIL_PROVIDER=smtp iken eksik / geçersiz ayarın KODU (değer, adres, parola DÖNMEZ).
+    configIssue: smtpConfigIssue(),
     pepperConfigured: !!otpPepper(),
-    limits: {
-      dailyLimit: Number(process.env.EMAIL_DAILY_LIMIT ?? EMAIL_DAILY_LIMIT_DEFAULT) || EMAIL_DAILY_LIMIT_DEFAULT,
-      warnAt: Number(process.env.EMAIL_WARN_AT ?? EMAIL_WARN_AT_DEFAULT) || EMAIL_WARN_AT_DEFAULT,
-    },
+    limits: emailLimits(),
     last24h: r.last_24h ?? null,
     lastFailure: r.last_failure ?? null,
     lastSuccessAt: r.last_success_at ?? null,
