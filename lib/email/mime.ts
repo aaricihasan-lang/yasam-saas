@@ -43,11 +43,14 @@ export function buildMimeMessage(input: {
   text: string;
   html: string;
   date?: Date;
+  /** F2-M: "<yerel@alan>" biçiminde Message-ID (SMTP sunucusu eklemeyebilir; Gmail API kendisi ekler). */
+  messageId?: string;
 }): string {
   for (const v of [input.fromName, input.fromAddress, input.to, input.subject]) {
     if (HEADER_UNSAFE.test(v)) throw new Error("mime: başlıkta satır sonu");
   }
   if (!isSafeEmailAddress(input.fromAddress) || !isSafeEmailAddress(input.to)) throw new Error("mime: geçersiz adres");
+  if (input.messageId !== undefined && !/^<[^<>\s@]+@[^<>\s@]+>$/.test(input.messageId)) throw new Error("mime: geçersiz Message-ID");
   const boundary = `ys_${randomBytes(12).toString("hex")}`;
   const date = (input.date ?? new Date()).toUTCString().replace("GMT", "+0000");
   return [
@@ -55,6 +58,7 @@ export function buildMimeMessage(input: {
     `To: <${input.to}>`,
     `Subject: ${encodeHeaderWord(input.subject)}`,
     `Date: ${date}`,
+    ...(input.messageId ? [`Message-ID: ${input.messageId}`] : []),
     "MIME-Version: 1.0",
     "Auto-Submitted: auto-generated",
     `Content-Type: multipart/alternative; boundary="${boundary}"`,
