@@ -59,7 +59,10 @@ import NatalWheel from "./_components/NatalWheel";
 import { SynastryWheelCaption, TransitWheelCaption, roxyChartFor, transitWheelGap } from "./_components/RoxyWheels";
 import type { TransitTechnical } from "@/lib/astrology/model/westernTiming";
 import NatalTechnicalPanel from "./_components/NatalTechnicalPanel";
-import NatalChartControls, { natalWheelDisplay, useNatalWheelPrefs } from "./_components/NatalChartControls";
+import NatalChartControls, { natalWheelDisplay, useNatalWheelLayouts, useNatalWheelPrefs } from "./_components/NatalChartControls";
+import { NatalGroupDetails, NatalLabelSheet } from "./_components/NatalLabelDetails";
+import type { NatalLabelPick } from "./_components/NatalWheelLabeled";
+import { MOON_UNKNOWN_TEXT } from "@/lib/astrology/view/natalLabelLayout";
 import NatalSymbolGuide from "./_components/NatalSymbolGuide";
 import type { NatalTechnical } from "@/lib/astrology/model/western";
 import { localSpaceCenter } from "@/lib/astrology/localSpaceCenter";
@@ -328,6 +331,9 @@ export default function AstrologyWorkspacePage() {
   const [deskTab, setDeskTab] = useState("harita");
   // Natal çark görünümü (Temel / Profesyonel + noktalar): yalnız çizim; hesap / istek / kayıt değişmez.
   const [natalPrefs, setNatalPrefs] = useNatalWheelPrefs();
+  // G2: çarkta dokunulan etiket / grup (ayrıntı paneli; yalnız görünüm).
+  const [natalPick, setNatalPick] = useState<NatalLabelPick | null>(null);
+  const [natalLayout, reportNatalLayout] = useNatalWheelLayouts();
   const [workRefresh, setWorkRefresh] = useState(0);
   /**
    * Görünüm ↔ adres çubuğu (#yeni-analiz vb.): tarayıcı geri/ileri ve sayfa yenileme aynı ekrana döner.
@@ -1878,10 +1884,15 @@ export default function AstrologyWorkspacePage() {
                       </button>
                     ) : undefined
                   }
-                  toolbar={natalTech ? <NatalChartControls technical={natalTech} prefs={natalPrefs} onChange={setNatalPrefs} /> : undefined}
+                  toolbar={natalTech ? <NatalChartControls technical={natalTech} prefs={natalPrefs} onChange={setNatalPrefs} timeUnknown={item.view.timeUnknownMasked} /> : undefined}
                   chartNotes={
-                    roxyChart || otherWheel || wheelGap ? (
+                    roxyChart || otherWheel || wheelGap || (natalTech && item.view.timeUnknownMasked) ? (
                       <>
+                        {natalTech && item.view.timeUnknownMasked && (
+                          <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-1.5 text-[12.5px] leading-snug text-amber-900" data-testid="natal-time-unknown-note">
+                            <strong className="font-semibold">Doğum saati bilinmiyor.</strong> Ay çarkta çizilmez: {MOON_UNKNOWN_TEXT} Diğer konumlar “≈” ile yerel 12:00 varsayımıdır, kesin değildir; açı çizgileri çizilmez.
+                          </p>
+                        )}
                         {roxyChart && item.technique === "western.transit" && <TransitWheelCaption technical={item.view.technical as TransitTechnical} natalName={shownDetail.label} />}
                         {roxyChart && item.technique === "western.synastry" && <SynastryWheelCaption names={[shownDetail.label, partnerLabelOf(item.view)]} />}
                         {otherWheel && <DirectedWheelCaption technique={item.technique} technical={item.view.technical} natalName={shownDetail.label} />}
@@ -1923,7 +1934,7 @@ export default function AstrologyWorkspacePage() {
                   calmCursor={item.technique === "western.natal"}
                   chart={
                     natalTech
-                      ? (cls: string) => <NatalWheel technical={natalTech} sizeClassName={cls} tinted display={natalWheelDisplay(natalTech, natalPrefs)} />
+                      ? (cls: string) => <NatalWheel technical={natalTech} sizeClassName={cls} tinted display={natalWheelDisplay(natalTech, natalPrefs, { timeUnknown: item.view.timeUnknownMasked, onPick: setNatalPick, onLayout: reportNatalLayout })} />
                       : otherWheel
                         ? (cls: string) => <NatalWheel technical={otherWheel.wheel} label={otherWheel.label} sizeClassName={cls} tinted />
                         : roxyChart
@@ -1969,6 +1980,19 @@ export default function AstrologyWorkspacePage() {
                 >
                   {item && (
                     <div key={item.key}>
+                      {natalTech && <NatalGroupDetails technical={natalTech} display={natalWheelDisplay(natalTech, natalPrefs, { timeUnknown: item.view.timeUnknownMasked })} layout={natalLayout} collapsed={tab !== "harita"} />}
+                      {natalTech && (
+                        <NatalLabelSheet
+                          technical={natalTech}
+                          pick={natalPick}
+                          timeUnknown={item.view.timeUnknownMasked}
+                          onClose={() => setNatalPick(null)}
+                          onShowAll={() => {
+                            setNatalPick(null);
+                            setDeskTab("gezegenler");
+                          }}
+                        />
+                      )}
                       {tab === "harita" && natalTech && <NatalTechnicalPanel technical={natalTech} timeUnknown={item.view.timeUnknownMasked} part="overview" />}
                       {(tab === "gezegenler" || tab === "evler" || tab === "acilar") && natalTech && (
                         <NatalTechnicalPanel technical={natalTech} timeUnknown={item.view.timeUnknownMasked} part={tab === "gezegenler" ? "planets" : tab === "evler" ? "houses" : "aspects"} />

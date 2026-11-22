@@ -34,6 +34,8 @@ import {
   type DistMethod,
 } from "@/lib/astrology/view/natalDistribution";
 import { fitGridCell, fitGridStyle } from "./atlas/fitGrid";
+import { MOON_UNKNOWN_ROW, MOON_UNKNOWN_TEXT, NOON_ASSUMPTION } from "@/lib/astrology/view/natalLabelLayout";
+import { aspectBalanceOf, listedNatalAspects, patternInvolvesMoon, timeUnknownDistribution } from "@/lib/astrology/view/natalTimeUnknown";
 
 const th = "px-2 py-1.5 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500";
 const td = "px-2 py-1.5 text-sm text-slate-800";
@@ -47,12 +49,66 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
   );
 }
 
-function SignCell({ sign, degree }: { sign: keyof typeof SIGN_LABELS; degree: number }) {
+function SignCell({ sign, degree, assumed = false }: { sign: keyof typeof SIGN_LABELS; degree: number; assumed?: boolean }) {
   return (
     <span className="whitespace-nowrap">
       <span className="mr-1">{SIGN_GLYPHS[sign]}</span>
+      {assumed ? "≈ " : ""}
       {SIGN_LABELS[sign]} {formatDegree(degree)}
+      {assumed && <AssumedChip />}
     </span>
+  );
+}
+
+/** G2 (saat bilinmiyor): yerel 12:00 varsayımı etiketi — değer kesin doğrulanmış sonuç gibi sunulmaz. */
+function AssumedChip() {
+  return (
+    <span className="ml-1.5 inline-flex rounded-full border border-amber-300 bg-amber-50 px-1.5 text-[10.5px] font-semibold text-amber-900" data-assumed="1">
+      {NOON_ASSUMPTION}
+    </span>
+  );
+}
+
+/**
+ * G2 (saat bilinmiyor, Owner kararı): dağılımda Ay'ın 12:00 burcu kesin konum sayılmaz → Ay HARİÇ 9 gezegen (≈ 12:00 varsayımı);
+ * 15 puanlık analiz Yükselen/MC olmadan üretilemez. Paylaşılan dağılım modülü ve rapor DEĞİŞMEZ.
+ */
+function TimeUnknownDistributionSummary({ technical }: { technical: NatalTechnical }) {
+  const d = timeUnknownDistribution(technical);
+  const cols = d.available
+    ? [
+        { title: "Element", order: ELEMENT_ORDER as readonly string[], labels: ELEMENT_LABELS as Record<string, string>, values: d.elements as Record<string, number>, tops: d.topElements as readonly string[] },
+        { title: "Nitelik", order: MODALITY_ORDER as readonly string[], labels: MODALITY_LABELS as Record<string, string>, values: d.modalities as Record<string, number>, tops: d.topModalities as readonly string[] },
+      ]
+    : [];
+  return (
+    <div className="px-3 py-2 text-sm" data-testid="natal-distribution" data-method="time-unknown">
+      <p className="mb-2 rounded-md bg-amber-50 px-2 py-1.5 text-xs leading-5 text-amber-900" data-testid="natal-dist-time-unknown">
+        Doğum saati bilinmiyor: {MOON_UNKNOWN_TEXT} Bu nedenle dağılım Ay hariç 9 gezegenle (her biri 1 puan, toplam 9) gösterilir; gezegen burçları
+        yerel 12:00 varsayımıdır (≈), kesin değildir. 15 puanlık analiz Yükselen ve MC olmadan hesaplanamaz.
+      </p>
+      {!d.available ? (
+        <p className="rounded-md bg-slate-50 px-2 py-1.5 text-xs leading-5 text-slate-600" data-testid="natal-dist-unavailable">
+          Bu kayıtta dağılım için gerekli veri yok.
+        </p>
+      ) : (
+        <div className="grid gap-3 sm:grid-cols-2">
+          {cols.map((c) => (
+            <div key={c.title}>
+              <div className="mb-1 font-medium text-slate-600">
+                {c.title} · ≈ {c.tops.map((k) => c.labels[k]).join(" · ")}
+              </div>
+              {c.order.map((k) => (
+                <div key={k} className={`flex justify-between ${c.tops.includes(k) ? "font-semibold text-slate-900" : ""}`}>
+                  <span>{c.labels[k]}</span>
+                  <span className="tabular-nums">{c.values[k]}</span>
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -175,12 +231,18 @@ const NATURE_CHIP: Record<string, string> = {
 export default function NatalTechnicalPanel({ technical, timeUnknown, part = "all" }: { technical: NatalTechnical; timeUnknown: boolean; part?: "all" | "overview" | "planets" | "houses" | "aspects" }) {
   const t = technical;
   const show = (p: "overview" | "planets" | "houses" | "aspects") => part === "all" || part === p;
+  // G2 (saat bilinmiyor): Ay'a bağlı açılar / kalıplar kesin listede gösterilmez (ham veri silinmez).
+  const aspects = listedNatalAspects(t.aspects, timeUnknown);
+  const hiddenMoonAspects = t.aspects.length - aspects.length;
+  const patterns = timeUnknown ? t.patterns.filter((p) => !patternInvolvesMoon(p)) : t.patterns;
+  const balance = aspectBalanceOf(aspects);
   return (
     <div className="flex flex-col gap-3">
-      {timeUnknown && part !== "aspects" && part !== "planets" && (
-        <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
-          Doğum saati bilinmiyor: evler, Yükselen/MC, ev yerleşimleri, Şans Noktası ve Vertex gösterilmez. Ay konumu gün
-          içinde ~13° değişebileceğinden Ay açıları yaklaşık kabul edilmelidir (hesap yerel 12:00 için yapılmıştır).
+      {timeUnknown && (
+        <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800" data-testid="natal-time-unknown-banner">
+          Doğum saati bilinmiyor: evler, Yükselen/MC, ev yerleşimleri, Şans Noktası ve Vertex gösterilmez. {MOON_UNKNOWN_TEXT} Diğer konumlar ve
+          açılar yerel 12:00 varsayımıyla hesaplanmıştır (≈); kesin değildir.
+          {show("aspects") && hiddenMoonAspects > 0 && ` Ay'a bağlı ${hiddenMoonAspects} açı bu nedenle listelenmez.`}
         </p>
       )}
 
@@ -198,7 +260,18 @@ export default function NatalTechnicalPanel({ technical, timeUnknown, part = "al
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {t.bodies.map((b) => (
+            {t.bodies.map((b) =>
+              timeUnknown && b.id === "moon" ? (
+                <tr key={b.id} data-moon-unknown="1">
+                  <td className={td}>
+                    <span className="mr-1.5 text-base">{BODY_GLYPHS[b.id]}</span>
+                    {BODY_LABELS[b.id]}
+                  </td>
+                  <td className={`${td} italic text-amber-800`} colSpan={3}>
+                    {MOON_UNKNOWN_ROW}
+                  </td>
+                </tr>
+              ) : (
               <tr key={b.id}>
                 <td className={td}>
                   <span className="mr-1.5 text-base">{BODY_GLYPHS[b.id]}</span>
@@ -210,13 +283,14 @@ export default function NatalTechnicalPanel({ technical, timeUnknown, part = "al
                   {b.retrograde && <span className="ml-1 font-semibold text-rose-600" title="Retro">℞</span>}
                 </td>
                 <td className={td}>
-                  <SignCell sign={b.sign} degree={b.degreeInSign} />
+                  <SignCell sign={b.sign} degree={b.degreeInSign} assumed={timeUnknown} />
                 </td>
                 {!timeUnknown && <td className={td}>{b.house ?? "—"}</td>}
                 <td className={`${td} tabular-nums`}>{b.speed.toFixed(4)}</td>
                 <td className={td}>{b.dignity ? DIGNITY_LABELS[b.dignity] : "—"}</td>
               </tr>
-            ))}
+              ),
+            )}
           </tbody>
         </table>
         </div>
@@ -278,7 +352,7 @@ export default function NatalTechnicalPanel({ technical, timeUnknown, part = "al
       )}
 
       {show("aspects") && (
-      <Section title={`Açılar (${t.aspects.length})`}>
+      <Section title={`Açılar (${aspects.length})${timeUnknown ? " · ≈ 12:00 varsayımı" : ""}`}>
         {/* 2026-10-12 (UAT 2. tur, madde I): uzun ad sütunu satıra geçer (tablo gereksiz genişlemez); kalan yatay
             kaydırma + dikey kaydırma AYNI kapta, başlık yapışkan → yatay kaydırma çubuğu 41 satırın sonunda kalmaz,
             ekranda görünür kalır. 2026-11-06 (V4-002): kutu, bilgi panelinin üstündeki yatay kaydırma şeridi (~2rem) kadar
@@ -296,7 +370,7 @@ export default function NatalTechnicalPanel({ technical, timeUnknown, part = "al
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {t.aspects.map((a, i) => (
+            {aspects.map((a, i) => (
               <tr key={`${a.a}-${a.b}-${a.type}-${i}`}>
                 <td className={`${td} min-w-[9.5rem]`}>
                   <span className="whitespace-nowrap">
@@ -309,7 +383,10 @@ export default function NatalTechnicalPanel({ technical, timeUnknown, part = "al
                 <td className={td}>
                   <span className={`inline-flex rounded-md px-1.5 py-0.5 text-xs font-medium ring-1 ${NATURE_CHIP[a.nature ?? "neutral"] ?? NATURE_CHIP.neutral}`}>{ASPECT_LABELS[a.type]}</span>
                 </td>
-                <td className={`${td} tabular-nums`}>{formatDegree(a.orb)}</td>
+                <td className={`${td} tabular-nums`}>
+                  {timeUnknown ? "≈ " : ""}
+                  {formatDegree(a.orb)}
+                </td>
                 <td className={td}>{a.applying ? "Yaklaşan" : "Ayrılan"}</td>
                 <td className={`${td} tabular-nums`}>%{Math.round(a.strength)}</td>
                 <td className={td}>{a.nature ? NATURE_LABELS[a.nature] : "—"}</td>
@@ -321,10 +398,10 @@ export default function NatalTechnicalPanel({ technical, timeUnknown, part = "al
       </Section>
       )}
 
-      {show("aspects") && t.patterns.length > 0 && (
-        <Section title="Açı kalıpları">
+      {show("aspects") && patterns.length > 0 && (
+        <Section title={`Açı kalıpları${timeUnknown ? " · ≈ 12:00 varsayımı" : ""}`}>
           <ul className="divide-y divide-slate-100">
-            {t.patterns.map((p, i) => (
+            {patterns.map((p, i) => (
               <li key={`${p.kind}-${i}`} className="px-3 py-2 text-sm text-slate-800">
                 <span className="font-semibold">{PATTERN_LABELS[p.kind]}</span>
                 <span className="ml-2">{p.bodies.map((b) => BODY_GLYPHS[b]).join(" ")}</span>
@@ -344,11 +421,19 @@ export default function NatalTechnicalPanel({ technical, timeUnknown, part = "al
 
       {(part === "all" || part === "overview") && (
       <Section title="Dağılım özeti">
-        <DistributionSummary technical={t} />
+        {timeUnknown ? <TimeUnknownDistributionSummary technical={t} /> : <DistributionSummary technical={t} />}
         <div className="grid gap-3 px-3 pb-2 text-sm">
           <div className="sm:col-span-2 text-slate-600">
-            Açı dengesi: {t.summary.aspectBalance.harmonious ?? "—"} uyumlu · {t.summary.aspectBalance.challenging ?? "—"} zorlayıcı ·{" "}
-            {t.summary.aspectBalance.neutral ?? "—"} nötr
+            {timeUnknown ? (
+              <span data-testid="natal-aspect-balance-time-unknown">
+                Açı dengesi (Ay hariç, ≈ 12:00 varsayımı): {balance.harmonious} uyumlu · {balance.challenging} zorlayıcı · {balance.neutral} nötr
+              </span>
+            ) : (
+              <>
+                Açı dengesi: {t.summary.aspectBalance.harmonious ?? "—"} uyumlu · {t.summary.aspectBalance.challenging ?? "—"} zorlayıcı ·{" "}
+                {t.summary.aspectBalance.neutral ?? "—"} nötr
+              </>
+            )}
             {t.summary.retrograde.length > 0 && <> · Retro: {t.summary.retrograde.map((b) => BODY_LABELS[b]).join(", ")}</>}
           </div>
         </div>

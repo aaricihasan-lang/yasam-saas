@@ -17,7 +17,10 @@ import ProviderInterpretationPanel, { interpretationTitle, type InterpretationLa
 import { SynastryWheelCaption, TransitWheelCaption, roxyChartFor, transitWheelGap } from "./RoxyWheels";
 import type { TransitTechnical } from "@/lib/astrology/model/westernTiming";
 import ResultDesk, { DeskChip, deskGhostLight, type DeskTab } from "./atlas/ResultDesk";
-import NatalChartControls, { natalWheelDisplay, useNatalWheelPrefs } from "./NatalChartControls";
+import NatalChartControls, { natalWheelDisplay, useNatalWheelLayouts, useNatalWheelPrefs } from "./NatalChartControls";
+import { NatalGroupDetails, NatalLabelSheet } from "./NatalLabelDetails";
+import type { NatalLabelPick } from "./NatalWheelLabeled";
+import { MOON_UNKNOWN_TEXT } from "@/lib/astrology/view/natalLabelLayout";
 import NatalSymbolGuide from "./NatalSymbolGuide";
 import NatalWheel from "./NatalWheel";
 import NatalTechnicalPanel from "./NatalTechnicalPanel";
@@ -305,6 +308,9 @@ export function SavedAnalysisView({
   const [deskTab, setDeskTab] = useState("harita");
   // Natal çark görünümü (yalnız çizim; kayıtlı analiz, Word/PDF ve sağlayıcı ile ilgisi yok).
   const [natalPrefs, setNatalPrefs] = useNatalWheelPrefs();
+  // G2: çarkta dokunulan etiket / grup (ayrıntı paneli; yalnız görünüm).
+  const [natalPick, setNatalPick] = useState<NatalLabelPick | null>(null);
+  const [natalLayout, reportNatalLayout] = useNatalWheelLayouts();
   // 2026-10-12 (UAT madde 11): kayıtlı sistem yorumu yalnız GÖRÜNÜMDE gizlenir (veri silinmez, kayıt değişmez);
   // gizliyken Word/PDF de yorumsuz üretilir. Tercih bu tarayıcıda hatırlanır.
   const [interpHidden, setInterpHidden] = useState(() => {
@@ -496,15 +502,21 @@ export function SavedAnalysisView({
         calmCursor={a.technique === "western.natal"}
         chart={
           natal
-            ? (cls: string) => <NatalWheel technical={natal} sizeClassName={cls} tinted display={natalWheelDisplay(natal, natalPrefs)} />
+            ? (cls: string) => <NatalWheel technical={natal} sizeClassName={cls} tinted display={natalWheelDisplay(natal, natalPrefs, { timeUnknown: a.method.timeUnknownMasked, onPick: setNatalPick, onLayout: reportNatalLayout })} />
             : otherWheel
               ? (cls: string) => <NatalWheel technical={otherWheel.wheel} label={otherWheel.label} sizeClassName={cls} tinted />
               : roxyChart
         }
         stage={natal ? null : technicalView(!!otherWheel || !!roxyChart)}
-        toolbar={natal ? <NatalChartControls technical={natal} prefs={natalPrefs} onChange={setNatalPrefs} /> : undefined}
+        toolbar={natal ? <NatalChartControls technical={natal} prefs={natalPrefs} onChange={setNatalPrefs} timeUnknown={a.method.timeUnknownMasked} /> : undefined}
         chartNotes={
-          natal ? undefined : wheelGap ? (
+          natal ? (
+            a.method.timeUnknownMasked ? (
+              <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-1.5 text-[12.5px] leading-snug text-amber-900" data-testid="natal-time-unknown-note">
+              <strong className="font-semibold">Doğum saati bilinmiyor.</strong> Ay çarkta çizilmez: {MOON_UNKNOWN_TEXT} Diğer konumlar “≈” ile yerel 12:00 varsayımıdır, kesin değildir; açı çizgileri çizilmez.
+            </p>
+            ) : undefined
+          ) : wheelGap ? (
             <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-sky-200 bg-sky-50 px-3 py-1.5 text-[12.5px] text-sky-900" data-testid="astro-wheel-gap">
               <span className="min-w-0 flex-1">{wheelGap}</span>
               {onComputeNatal && !a.method.timeUnknownMasked && (
@@ -536,6 +548,19 @@ export function SavedAnalysisView({
           ) : undefined
         }
       >
+        {natal && <NatalGroupDetails technical={natal} display={natalWheelDisplay(natal, natalPrefs, { timeUnknown: a.method.timeUnknownMasked })} layout={natalLayout} collapsed={tab !== "harita"} />}
+        {natal && (
+          <NatalLabelSheet
+            technical={natal}
+            pick={natalPick}
+            timeUnknown={a.method.timeUnknownMasked}
+            onClose={() => setNatalPick(null)}
+            onShowAll={() => {
+              setNatalPick(null);
+              setDeskTab("gezegenler");
+            }}
+          />
+        )}
         {tab === "teknik" && (otherWheel || roxyChart) && technicalView(true)}
         {tab === "harita" && natal && <NatalTechnicalPanel technical={natal} timeUnknown={a.method.timeUnknownMasked} part="overview" />}
         {tab === "semboller" && natal && <NatalSymbolGuide technical={natal} />}
