@@ -53,12 +53,12 @@ function bulletX(text: string): Paragraph {
   if (!hasSymbolChars(text)) return bulletItem(text);
   return new Paragraph({ bullet: { level: 0 }, children: runs(text.trim(), { size: 22, color: C_MID }), spacing: { after: 60 } });
 }
-function kvX(rows: [string, string][]): Table {
-  if (!rows.some(([k, v]) => hasSymbolChars(k) || hasSymbolChars(v))) return twoColTable(rows);
+function kvX(rows: [string, string][], keepNext = false): Table {
+  if (!rows.some(([k, v]) => hasSymbolChars(k) || hasSymbolChars(v))) return keepNext ? twoColTable(rows, { keepNext: true }) : twoColTable(rows);
   const cell = (text: string, dxa: number, label: boolean) =>
     new TableCell({
       width: { size: dxa, type: WidthType.DXA },
-      children: [new Paragraph({ children: runs(text, label ? { bold: true, size: 22, color: C_DARK } : { size: 22, color: C_MID }), spacing: { before: 100, after: 100 }, indent: { left: 120 }, keepNext: false })],
+      children: [new Paragraph({ children: runs(text, label ? { bold: true, size: 22, color: C_DARK } : { size: 22, color: C_MID }), spacing: { before: 100, after: 100 }, indent: { left: 120 }, keepNext })],
     });
   return new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, rows: rows.map(([k, v]) => new TableRow({ cantSplit: true, children: [cell(k, 3000, true), cell(v, 6000, false)] })) });
 }
@@ -73,7 +73,7 @@ const t = (v: string) => sanitizeXmlText(v);
 const CONTENT_DXA = 11906 - 2 * 1134;
 
 /** Çok satırlı metin: boş satır → yeni paragraf; tek satır sonu korunur. */
-function paragraphs(text: string, tone?: "muted" | "warn"): Paragraph[] {
+function paragraphs(text: string, tone?: "muted" | "warn", keepNext = false): Paragraph[] {
   return t(text)
     .split(/\n\s*\n/)
     .map((p) => p.trim())
@@ -86,6 +86,8 @@ function paragraphs(text: string, tone?: "muted" | "warn"): Paragraph[] {
           shading: { fill: "fffbeb" },
           spacing: { before: 60, after: 160 },
           indent: { left: 360 },
+          // G3-GK1: Natal kayıt bölümünde (keepRecordTail) kapanışla birlikte tutulur; diğerlerinde önceki gibi.
+          ...(keepNext ? { keepNext: true } : {}),
         });
       }
       const lines = p.split("\n");
@@ -107,11 +109,13 @@ const NO_BORDER = { style: BorderStyle.NONE, size: 0, color: "FFFFFF" } as const
  * Başlık + harita görseli + alt yazı: kenarlıksız, bölünmeyen (cantSplit) tek hücre. Sığmazsa üçü birlikte sonraki
  * sayfaya geçer — başlık sayfa sonunda yalnız kalmaz. Görsel üretilemezse aynı açık not (görsel uydurulmaz).
  */
-function figureBlock(heading: Paragraph, png: Buffer | null, caption: string, wide = false): Table {
+/** G3: Natal derece cetveli görseli üretilemezse (PDF ile aynı not). */
+const NATAL_RULER_MISSING = "Derece cetveli görseli bu raporda oluşturulamadı; noktaların gerçek dereceleri aşağıdaki tablodadır.";
+function figureBlock(heading: Paragraph, png: Buffer | null, caption: string, wide = false, natalPx?: number): Table {
   // Kare harita 430 px (~11,4 cm); geniş figür (Dasha / Shadbala / dünya haritası) içerik genişliği ~640 px (en çok 640 px yükseklik, sayfaya sığar) — oran korunur.
   const children: Paragraph[] = png
-    ? [heading, wide ? embedImageParagraph(png, 640, 640) : embedImageParagraph(png, 430, 430), new Paragraph({ alignment: AlignmentType.CENTER, children: runs(caption, { italics: true, size: 18, color: C_LIGHT }) })]
-    : [heading, mutedX("Harita görseli bu raporda oluşturulamadı; teknik tablolar aşağıdadır.")];
+    ? [heading, natalPx ? embedImageParagraph(png, natalPx, natalPx) : wide ? embedImageParagraph(png, 640, 640) : embedImageParagraph(png, 430, 430), new Paragraph({ alignment: AlignmentType.CENTER, children: runs(caption, { italics: true, size: 18, color: C_LIGHT }) })]
+    : [heading, mutedX(natalPx ? NATAL_RULER_MISSING : "Harita görseli bu raporda oluşturulamadı; teknik tablolar aşağıdadır.")];
   const borders = { top: NO_BORDER, bottom: NO_BORDER, left: NO_BORDER, right: NO_BORDER, insideHorizontal: NO_BORDER, insideVertical: NO_BORDER };
   return new Table({
     width: { size: CONTENT_DXA, type: WidthType.DXA },
@@ -176,6 +180,10 @@ export function buildAstroReportDocument(r: AstroReport, chartPng: Buffer | null
   const charts = Array.isArray(chartPng) ? chartPng : [chartPng];
   let chartIdx = 0;
   let breakNext = false;
+  // G3-GK1 (2026-11-23): YALNIZ Natal (keepRecordTail) — son ana bölüm ("Kayıt bilgisi") ve kapanış notları "sonrakiyle birlikte
+  // tut" zinciriyle tek parça: bölüm sayfaya sığmazsa kapanış metniyle birlikte sonraki sayfaya geçer; kapanış tek başına kalmaz.
+  let tailFrom = -1;
+  if (r.keepRecordTail) r.blocks.forEach((b, i) => { if (b.kind === "heading" && b.level === 1) tailFrom = i; });
   const cover: ReportChild[] = buildPremiumCover({
     title1: "YAŞAM SİSTEMİ",
     title2: "ASTROLOJİ ANALİZ RAPORU",
@@ -205,7 +213,8 @@ export function buildAstroReportDocument(r: AstroReport, chartPng: Buffer | null
         // her görüntüleyicide (LibreOffice) yetmedi → "Harita" sayfa sonunda yalnız kalıyordu. Batı çarkı aynen.
         if (next && next.kind === "chart" && "figure" in next) {
           const png = charts[chartIdx++] ?? null;
-          body.push(figureBlock(hx(b.level, t(b.text), breakNext), png, t(next.caption), isWideFigure(next.figure)));
+          // G3 (2026-11-23): Natal derece cetveli Natal çarkıyla aynı genişlikte (629 px ≈ 166 mm).
+          body.push(figureBlock(hx(b.level, t(b.text), breakNext), png, t(next.caption), isWideFigure(next.figure), next.figure.type === "natalDegreeRuler" ? 629 : undefined));
           breakNext = false;
           i++;
           break;
@@ -218,10 +227,11 @@ export function buildAstroReportDocument(r: AstroReport, chartPng: Buffer | null
         breakNext = true;
         break;
       case "para":
-        body.push(...paragraphs(b.text, b.tone));
+        body.push(...paragraphs(b.text, b.tone, tailFrom >= 0 && i > tailFrom));
         break;
       case "kv":
-        body.push(kvX(b.rows.map(([k, v]) => [t(k), t(v)])), new Paragraph({ spacing: { after: 120 } }));
+        if (tailFrom >= 0 && i > tailFrom) body.push(kvX(b.rows.map(([k, v]) => [t(k), t(v)]), true), new Paragraph({ spacing: { after: 120 }, keepNext: true }));
+        else body.push(kvX(b.rows.map(([k, v]) => [t(k), t(v)])), new Paragraph({ spacing: { after: 120 } }));
         break;
       case "table":
         if (b.caption) body.push(mutedX(t(b.caption)));
@@ -233,8 +243,10 @@ export function buildAstroReportDocument(r: AstroReport, chartPng: Buffer | null
       case "chart": {
         const png = charts[chartIdx++] ?? null;
         if (png) {
-          // Kare çark: genişlik 430 px (~11,4 cm) — oran korunur, sayfaya sığar.
-          body.push(embedImageParagraph(png, 430, 430), new Paragraph({ alignment: AlignmentType.CENTER, children: runs(t(b.caption), { italics: true, size: 18, color: C_LIGHT }) }));
+          // Kare çark: genişlik 430 px (~11,4 cm) — oran korunur, sayfaya sığar. G3: Natal çarkı 629 px ≈ 166 mm (Word görsel sınırı
+          // 6 000 000 EMU içinde; R4 baskı profili, yazılar ≥ 7 pt).
+          const natal = "chart" in b && !!b.chart.natal;
+          body.push(natal ? embedImageParagraph(png, 629, 629) : embedImageParagraph(png, 430, 430), new Paragraph({ alignment: AlignmentType.CENTER, children: runs(t(b.caption), { italics: true, size: 18, color: C_LIGHT }) }));
         } else {
           body.push(mutedX("Harita görseli bu raporda oluşturulamadı; teknik tablolar aşağıdadır."));
         }

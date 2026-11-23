@@ -21,6 +21,8 @@ import { SOUTH_CELLS, kpChartItems } from "@/app/admin/astroloji/_lib/kpChart";
 // 22.10.2026 Vedik harita: Bhav Chalit merkez etiketi + Bhava Bala çubukları (ayrı satır).
 import { applyCentreText } from "@/app/admin/astroloji/_lib/chalitKundli";
 import type { BhavaBalaBarsFigure } from "./vedicHaritaFigures";
+// G3 (2026-11-23): Natal yoğun burç derece cetveli — YALNIZ Batı Natal raporu üretir (natalWheelReport.ts).
+import type { NatalDegreeRulerFigure } from "./natalWheelReport";
 
 /** Rapor modelindeki Vedik/KP harita tanımı (SAF veri; çizim sunucuda). */
 export type ReportFigure =
@@ -65,7 +67,8 @@ export type ReportFigure =
   /** 2026-10-15: Astrocartography / Local Space dünya haritası (ekrandaki WorldMap ile aynı altlık ve hatlar; mapFigures.ts). */
   | AcgMapFigure
   | LocalSpaceMapFigure
-  | BhavaBalaBarsFigure;
+  | BhavaBalaBarsFigure
+  | NatalDegreeRulerFigure;
 
 /** Geniş (yatay) figür: Word/PDF'te kare harita boyutu yerine sayfa genişliğinde yerleşir. */
 export function isWideFigure(fig: ReportFigure): boolean {

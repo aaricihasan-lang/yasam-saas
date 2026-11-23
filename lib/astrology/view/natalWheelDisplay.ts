@@ -53,12 +53,22 @@ export function isDefaultAspectFilter(f: NatalAspectFilter): boolean {
   return f.focus === null && FILTER_FLAGS.every((k) => f[k]);
 }
 
-export type NatalWheelPrefs = { mode: NatalWheelMode; points: Record<NatalWheelMode, NatalPointSelection>; filter: NatalAspectFilter };
+/**
+ * G2 (2026-11-22, R4-S2): çark etiketi tercihi — "Moda göre" (varsayılan; Temel → sade, Profesyonel → ayrıntılı dört satır),
+ * "Sade", "Ayrıntılı". Her iki modda da seçilebilir; yalnız çizim (bkz. natalLabelLayout).
+ */
+export const NATAL_LABEL_PREFS = ["auto", "simple", "detailed"] as const;
+export type NatalLabelPref = (typeof NATAL_LABEL_PREFS)[number];
+export const NATAL_LABEL_PREF_LABELS: Record<NatalLabelPref, string> = { auto: "Moda göre", simple: "Sade", detailed: "Ayrıntılı" };
+export const DEFAULT_LABEL_PREF: NatalLabelPref = "auto";
+
+export type NatalWheelPrefs = { mode: NatalWheelMode; points: Record<NatalWheelMode, NatalPointSelection>; filter: NatalAspectFilter; labels: NatalLabelPref };
 
 export const DEFAULT_PREFS: NatalWheelPrefs = {
   mode: DEFAULT_MODE,
   points: { basic: { ...DEFAULT_POINTS.basic }, pro: { ...DEFAULT_POINTS.pro } },
   filter: { ...DEFAULT_ASPECT_FILTER },
+  labels: DEFAULT_LABEL_PREF,
 };
 
 /** Temel görünümde çizilen başlıca (Ptolemaik) açılar. */
@@ -150,12 +160,13 @@ export function parsePrefs(raw: string | null | undefined): NatalWheelPrefs {
       for (const k of FILTER_FLAGS) if (typeof fsrc[k] === "boolean") filter[k] = fsrc[k] as boolean;
       if (typeof fsrc.focus === "string" && (BODY_IDS as readonly string[]).includes(fsrc.focus)) filter.focus = fsrc.focus as BodyId;
     }
-    return { mode, points: { basic: pick("basic"), pro: pick("pro") }, filter };
+    const labels: NatalLabelPref = v && (NATAL_LABEL_PREFS as readonly string[]).includes(v.labels as string) ? (v.labels as NatalLabelPref) : DEFAULT_LABEL_PREF;
+    return { mode, points: { basic: pick("basic"), pro: pick("pro") }, filter, labels };
   } catch {
     return clonePrefs(DEFAULT_PREFS);
   }
 }
 
 function clonePrefs(p: NatalWheelPrefs): NatalWheelPrefs {
-  return { mode: p.mode, points: { basic: { ...p.points.basic }, pro: { ...p.points.pro } }, filter: { ...p.filter } };
+  return { mode: p.mode, points: { basic: { ...p.points.basic }, pro: { ...p.points.pro } }, filter: { ...p.filter }, labels: p.labels };
 }

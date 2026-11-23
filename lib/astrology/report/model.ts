@@ -14,6 +14,11 @@ import { LOCAL_NATAL_HOUSE_CALC_LABEL, LOCAL_NATAL_HOUSE_CALC_VALUE } from "../m
 import { GRAHA_LABELS, KARANA_LABELS, NAKSHATRA_LABELS, VEDIC_YOGA_NAMES } from "../topics/vedic";
 import { KP_NODE_SIG_METHODS, KP_NODE_SIG_SOURCE, KP_RULING_METHOD_NOTE, KP_RULING_SIG_NOTE, type KpNodeSigMethodId } from "../model/kp";
 import { WHEEL_LEGEND } from "./wheelSvg";
+// G3 (2026-11-22): Batı Natal raporu — G2 ekran kuralları (burç / derece / dakika etiketleri, saat bilinmiyor) Word / PDF'e.
+import { MOON_UNKNOWN_ROW, MOON_UNKNOWN_TEXT, NOON_ASSUMPTION, TIME_UNKNOWN_ASSUMED_NOTE } from "../view/natalLabelLayout";
+import { positionRow } from "../view/natalPositionView";
+import { aspectBalanceOf, listedNatalAspects, patternInvolvesMoon, timeUnknownDistribution } from "../view/natalTimeUnknown";
+import { natalDegreeRulerFigures } from "./natalWheelReport";
 import { bayerBoth, FIXED_STAR_CATALOG, FIXED_STAR_FAR_LAT, fixedStarName, fixedStarNatureLabel, starKeywordTr } from "../labels/fixedStars";
 import { FIXED_STAR_ORB_QUERY, fixedStarOrbOf } from "../model/westernFixedStars";
 import { PROFECTIONS_INTERP_MISSING, PROFECTIONS_INTERP_NOTE } from "../model/westernProfections";
@@ -97,7 +102,14 @@ import {
 
 // ─── Blok modeli ─────────────────────────────────────────────────────────────
 
-export type ReportTable = { columns: string[]; rows: string[][]; /** göreli sütun genişlikleri */ widths?: number[]; compact?: boolean };
+export type ReportTable = {
+  columns: string[];
+  rows: string[][];
+  /** göreli sütun genişlikleri */ widths?: number[];
+  compact?: boolean;
+  /** G3: PDF'te en küçük punto (verilmezse sütun sayısına göre önceki kural aynen). */
+  minPt?: number;
+};
 export type ReportBlock =
   | { kind: "heading"; level: 1 | 2 | 3; text: string }
   | { kind: "para"; text: string; tone?: "muted" | "warn" }
@@ -127,6 +139,14 @@ export type WheelInput = {
    * inner = iç halka gövdesi. Natal ASC/MC hedefli transit açıları çizilmez (uygulamayla aynı; tabloda kalır).
    */
   crossAspects?: { outer: string; inner: string; type: string; nature: string | null }[];
+  /**
+   * G3 (2026-11-22): YALNIZ Batı Natal raporu — burç / derece / dakika etiket katmanı (natalWheelReport.ts; onaylı tasarım
+   * G1-R4-S2 A4 profili). Verilmezse çark wheelSvg ile önceki gibi çizilir (diğer teknikler etkilenmez).
+   */
+  natal?: {
+    timeUnknown: boolean;
+    points: { id: "fortune" | "vertex"; glyph: string; label: string; longitude: number; sign: SignId; degreeInSign: number }[];
+  } | null;
 };
 
 export type AstroReport = {
@@ -138,6 +158,11 @@ export type AstroReport = {
   fileBase: string;
   hasInterpretation: boolean;
   hasChart: boolean;
+  /**
+   * G3-GK1 (2026-11-23): YALNIZ Batı Natal — son "Kayıt bilgisi" bölümü kapanış notlarıyla birlikte tutulur (kısa kapanış metni
+   * tek başına yeni sayfaya düşmez; Word "sonrakiyle birlikte tut", PDF iki geçiş). Verilmezse rapor önceki gibi.
+   */
+  keepRecordTail?: boolean;
 };
 
 // ─── Güvenli biçimleme ───────────────────────────────────────────────────────
@@ -258,12 +283,13 @@ class B {
     const r = rows.filter(([, v]) => v !== DASH);
     if (r.length) this.blocks.push({ kind: "kv", rows: r });
   }
-  table(columns: string[], rows: string[][], opts: { widths?: number[]; caption?: string; compact?: boolean; empty?: string } = {}) {
+  table(columns: string[], rows: string[][], opts: { widths?: number[]; caption?: string; compact?: boolean; empty?: string; minPt?: number } = {}) {
     if (!rows.length) {
       if (opts.empty) this.p(opts.empty, "muted");
       return;
     }
-    this.blocks.push({ kind: "table", table: { columns, rows, widths: opts.widths, compact: opts.compact }, caption: opts.caption });
+    // minPt yalnız verildiğinde eklenir (diğer tabloların blok nesnesi önceki gibi).
+    this.blocks.push({ kind: "table", table: { columns, rows, widths: opts.widths, compact: opts.compact, ...(opts.minPt !== undefined ? { minPt: opts.minPt } : {}) }, caption: opts.caption });
   }
   bullets(items: string[]) {
     const i = items.filter((x) => x.trim());
@@ -440,29 +466,185 @@ function wheelCaption(technique: string, techLabel: string, people: { a: string;
   return `${techLabel} çarkı — kayıtlı analiz verisinden çizilmiştir.`;
 }
 
-function westernNatal(b: B, t: O) {
+// ─── G3 (2026-11-22): Natal raporu — burç / derece / dakika tabloları ve saat bilinmiyor kuralı (G2 ekranıyla AYNI kurallar) ───
+
+const NATAL_WHEEL_CAPTION =
+  "Natal çark — her gezegen ve nokta: sembol · derece (℞ geri hareket) · burç · dakika. Kısa koyu çentik GERÇEK konumdur; etiket kendi burç diliminde kalır. Ev başlangıçları çemberin dışında, ASC / DSC / MC / IC levhada. Kayıtlı analiz verisinden çizilmiştir.";
+const NATAL_WHEEL_LEGEND =
+  "Semboller: ☉ Güneş · ☽ Ay · ☿ Merkür · ♀ Venüs · ♂ Mars · ♃ Jüpiter · ♄ Satürn · ♅ Uranüs · ♆ Neptün · ♇ Plüton · ☊ Kuzey Ay Düğümü · ☋ Güney Ay Düğümü · ⚷ Kiron · ⚸ Kara Ay Lilith · ⊗ Şans Noktası · Vx Vertex · ℞ geri hareket. Burçlar: ♈ Koç · ♉ Boğa · ♊ İkizler · ♋ Yengeç · ♌ Aslan · ♍ Başak · ♎ Terazi · ♏ Akrep · ♐ Yay · ♑ Oğlak · ♒ Kova · ♓ Balık. Aynı burçta tek tek sığmayan noktalar grup etiketiyle gösterilir; her noktanın burcu, derecesi ve dakikası “Gezegen yerleşimleri” tablosundadır. Açı çizgileri: mavi uyumlu, kırmızı zorlayıcı, gri nötr; kesikli çizgi minör açı.";
+const NATAL_WHEEL_LEGEND_TU = `${NATAL_WHEEL_LEGEND.replace(" Açı çizgileri: mavi uyumlu, kırmızı zorlayıcı, gri nötr; kesikli çizgi minör açı.", "")} Doğum saati bilinmediği için Ay çizilmez, açı çizgisi, ev ve eksen gösterilmez; “≈” değerler yerel ${NOON_ASSUMPTION}dır.`;
+
+// G3-GK1 (2026-11-23): kayıtta açı LİSTESİ yokken sağlayıcının kayıtlı açı dengesi özeti (summary.aspectBalance) bulunabilir
+// (ör. eski / kırpılmış kayıt). Doğrulama: listesi olan 20 sağlayıcı vakasında özet sayıları listenin nitelik sayımıyla birebir
+// aynı → iki alan AYNI açı kümesidir. Liste yokken "Kayıtta açı yok." çelişkili okunur; bu durum açıkça etiketlenir (veri değişmez).
+const NATAL_ASPECT_LIST_MISSING =
+  "Bu kayıtta açı listesi (açı çiftleri, orb, nitelik) bulunmuyor; bu nedenle açı tablosu ve çarktaki açı çizgileri gösterilemez. “Özet” bölümündeki açı dengesi, aynı analizde sağlayıcının kaydettiği özet sayımıdır (açı çiftleri kayıtta yok).";
+const NATAL_ASPECT_LINES_SENTENCE = " Açı çizgileri: mavi uyumlu, kırmızı zorlayıcı, gri nötr; kesikli çizgi minör açı.";
+/** Açı listesi boş, sağlayıcı özetinde açı sayısı var mı (yalnız etiketleme için). */
+function natalAspectListMissing(t: O): boolean {
+  if (arr(t.aspects).length) return false;
+  const ab = isObj(t.summary) && isObj(t.summary.aspectBalance) ? t.summary.aspectBalance : null;
+  return !!ab && ["harmonious", "challenging", "neutral"].some((k) => (num(ab[k]) ?? 0) > 0);
+}
+
+/** Saat bilinmiyor uyarısı (Owner metni dahil) — her teknik bölümün başında tekrarlanır (sayfa tek başına okunabilsin). */
+function natalTimeUnknownNote(): string {
+  return `Doğum saati bilinmiyor. ${MOON_UNKNOWN_TEXT} ${TIME_UNKNOWN_ASSUMED_NOTE} Ev başlangıçları, Yükselen / Alçalan / MC / IC, Şans Noktası ve Vertex hesaplanamaz; Ay'a bağlı açılar listelenmez ve dağılıma katılmaz.`;
+}
+
+// G3 (2026-11-23, Owner Karar 2): yoğun burç derece cetveli — yalnız çarkta grup oluşan burçlar; noktalar GERÇEK derecesinde.
+const NATAL_RULER_CAPTION =
+  "Derece cetveli — çarkta grup etiketiyle gösterilen burçlardaki her nokta, burç içindeki GERÇEK derecesinde (0°–30°; kısa çentik 1°, uzun çentik 10°). Konumlar eşit aralıklı dağıtılmaz: eksendeki nokta ve kısa çizgi gerçek dereceyi gösterir; yakın noktaların etiketleri cetvelin üstünde ve altında ayrı yazılır.";
+const NATAL_RULER_LEGEND_NOTE = " Grup etiketli burçlardaki noktaların gerçek dereceleri çarkın ardından gelen “Derece cetveli — yoğun burçlar” bölümünde gösterilir.";
+
+/** Yoğun burç derece cetveli bölümü; grup yoksa HİÇBİR blok eklenmez (boş bölüm / gereksiz görsel yok). */
+function natalRulerSection(b: B, nc: WheelInput) {
+  if (!nc.natal) return;
+  const figs = natalDegreeRulerFigures({ ...nc, natal: nc.natal });
+  if (!figs.length) return;
+  const tu = nc.natal.timeUnknown;
+  figs.forEach((figure, i) => {
+    b.h(3, `Derece cetveli — yoğun burçlar${figs.length > 1 ? ` (${i + 1}/${figs.length})` : ""}`);
+    b.blocks.push({ kind: "chart", figure, caption: NATAL_RULER_CAPTION });
+  });
+  if (tu) b.p(natalTimeUnknownNote(), "warn");
+  const rows = figs.flatMap((f) =>
+    f.signs.flatMap((sg) => sg.points.map((p) => [signL(sg.sign), p.kind === "body" ? bodyL(p.key) : `${p.glyph} ${p.name}`, `${tu ? "≈ " : ""}${formatDegree(p.deg)}`, p.retro ? "℞ Retro" : ""])),
+  );
+  b.table(["Burç", "Gezegen / nokta", "Burç içi derece", "Retro"], rows, { widths: [2, 2.6, 1.6, 1.2], caption: "Cetveldeki noktalar — “Gezegen yerleşimleri” tablosuyla aynı kayıtlı değerler." });
+}
+
+/** Kayıtlı teknik veriden özel noktalar (Şans Noktası / Vertex; V4: ikisi de varsayılan açık). Yeni hesap YOK. */
+function natalPointsOf(t: O): NonNullable<WheelInput["natal"]>["points"] {
+  const p = isObj(t.points) ? t.points : null;
+  const out: NonNullable<WheelInput["natal"]>["points"] = [];
+  const add = (id: "fortune" | "vertex", glyph: string, label: string, v: unknown) => {
+    if (isObj(v) && typeof v.sign === "string" && num(v.longitude) !== null && num(v.degreeInSign) !== null) out.push({ id, glyph, label, longitude: v.longitude as number, sign: v.sign as SignId, degreeInSign: v.degreeInSign as number });
+  };
+  if (p) {
+    add("fortune", "⊗", "Şans Noktası", p.partOfFortune);
+    add("vertex", "Vx", "Vertex", p.vertex);
+  }
+  return out;
+}
+
+const NATAL_POS_COLUMNS = ["Gezegen / nokta", "Burç", "Derece", "Ev", "Retro", "Asalet"];
+const NATAL_POS_WIDTHS = [2.2, 2.4, 2, 0.9, 0.9, 1.5];
+
+/** A. Gezegenler ve özel noktalar — burç (sembol) / derece° dakika′ / ev / retro / asalet; saat bilinmiyorsa G2 kuralı. */
+function natalPositionTable(b: B, t: O, tu: boolean) {
+  const tech = { bodies: arr(t.bodies) as unknown as NatalTechnical["bodies"], points: (isObj(t.points) ? t.points : { partOfFortune: null, vertex: null }) as NatalTechnical["points"] };
+  const rows: string[][] = [];
+  for (const x of arr(t.bodies)) {
+    if (typeof x.id !== "string") continue;
+    const r = positionRow(tech, x.id, tu);
+    if (!r) continue;
+    if (r.status === "unknown") {
+      rows.push([bodyL(x.id), MOON_UNKNOWN_ROW, DASH, DASH, DASH, DASH]);
+      continue;
+    }
+    const assumed = r.status === "assumed";
+    rows.push([
+      bodyL(x.id),
+      `${assumed ? "≈ " : ""}${signL(r.sign)}`,
+      `${assumed ? "≈ " : ""}${r.full}${assumed ? ` (${NOON_ASSUMPTION})` : ""}`,
+      tu ? DASH : houseL(x.house),
+      x.retrograde === true ? "℞ Retro" : "",
+      typeof x.dignity === "string" ? ((DIGNITY_LABELS as Record<string, string>)[x.dignity] ?? x.dignity) : "",
+    ]);
+  }
+  const pts = isObj(t.points) ? t.points : null;
+  for (const [key, label, glyph] of [["partOfFortune", "Şans Noktası", "⊗"], ["vertex", "Vertex", "Vx"]] as const) {
+    const v = pts && isObj(pts[key]) ? (pts[key] as O) : null;
+    if (tu) {
+      rows.push([`${glyph} ${label}`, "Hesaplanamaz — doğum saati bilinmiyor", DASH, DASH, "", ""]);
+      continue;
+    }
+    if (!v || typeof v.sign !== "string" || num(v.degreeInSign) === null) continue;
+    rows.push([`${glyph} ${label}`, signL(v.sign), formatDegree(num(v.degreeInSign)!), houseL(v.house), "", key === "partOfFortune" && typeof v.sect === "string" ? (v.sect === "day" ? "gündüz haritası" : "gece haritası") : ""]);
+  }
+  // Başlık önceki raporla aynı ("Gezegen yerleşimleri"); G3: Şans Noktası / Vertex aynı tabloda.
+  b.h(3, "Gezegen yerleşimleri");
+  if (tu) b.p(natalTimeUnknownNote(), "warn");
+  b.table(NATAL_POS_COLUMNS, rows, { widths: NATAL_POS_WIDTHS, empty: "Kayıtta gezegen verisi yok." });
+}
+
+/** C. Ana eksenler — gerçek ASC / DSC / MC / IC (DSC = ASC + 180°, IC = MC + 180°; yalnız biçim). Tam Burç / Eşit Ev farkı yazılır. */
+function natalAxesTable(b: B, t: O, tu: boolean) {
+  const a = isObj(t.angles) ? t.angles : null;
+  const asc = a && isObj(a.ascendant) ? num(a.ascendant.longitude) : null;
+  const mc = a && isObj(a.midheaven) ? num(a.midheaven.longitude) : null;
+  // Saat bilinmiyorsa eksenler hiç yazılmaz (önceki rapor kuralı; uyarı metni "hesaplanamaz" der).
+  if (tu || asc === null || mc === null) return;
+  b.h(3, "Ana eksenler");
+  const houses = arr(t.houses);
+  const cuspOf = (n: number) => houses.find((h) => num(h.number) === n);
+  const row = (name: string, lon: number, cuspN: number) => {
+    const l = ((lon % 360) + 360) % 360;
+    const sign = SIGN_IDS[Math.floor(l / 30) % 12];
+    const c = cuspOf(cuspN);
+    const cl = c ? num(c.longitude) : null;
+    const diff = cl !== null ? Math.min(Math.abs(cl - l) % 360, 360 - (Math.abs(cl - l) % 360)) : null;
+    const note = cl === null ? DASH : diff! < 0.02 ? `${cuspN}. ev başlangıcıyla aynı` : `${cuspN}. ev başlangıcından ayrı (${cuspN}. ev: ${pos(c!.sign, c!.degreeInSign)})`;
+    return [name, signL(sign), formatDegree(l % 30), note];
+  };
+  b.table(
+    ["Eksen", "Burç", "Derece", "Not"],
+    [row("Yükselen (ASC)", asc, 1), row("Alçalan (DSC)", asc + 180, 7), row("Tepe Noktası (MC)", mc, 10), row("Dip Noktası (IC)", mc + 180, 4)],
+    { widths: [2, 2, 1.6, 3] },
+  );
+}
+
+/** B. On iki ev başlangıcı — ev / burç (sembol) / derece° dakika′ (kayıtlı houses[]). */
+function natalHouseTable(b: B, t: O, tu: boolean) {
+  const rows = arr(t.houses)
+    .filter((h) => num(h.number) !== null && typeof h.sign === "string" && num(h.degreeInSign) !== null)
+    .sort((x, y) => (num(x.number) ?? 0) - (num(y.number) ?? 0))
+    .map((h) => [houseL(h.number), signL(h.sign), formatDegree(num(h.degreeInSign)!)]);
+  // Saat bilinmiyorsa (maskeli kayıt) ev başlangıçları yazılmaz — önceki rapor kuralı.
+  if (tu || !rows.length) return;
+  b.h(3, "Ev başlangıçları (cusp)");
+  b.table(["Ev", "Burç", "Derece"], rows, { widths: [1, 2, 1.6] });
+}
+
+function westernNatal(b: B, t: O, tu = false) {
+  if (tu) b.p(natalTimeUnknownNote(), "warn");
   b.kv([
     ["Zodyak", "Tropikal"],
     ["Ev sistemi", hsL(t.houseSystem)],
     ["Ay düğümü", typeof t.nodeType === "string" ? ((NODE_TYPE_LABELS as Record<string, string>)[t.nodeType] ?? t.nodeType) : DASH],
   ]);
-  anglesKv(b, t.angles, t.points);
-  bodyTable(b, "Gezegen yerleşimleri", t.bodies, { dignity: true });
-  houseTable(b, t.houses);
-  aspectTable(b, t.aspects);
+  natalPositionTable(b, t, tu);
+  natalAxesTable(b, t, tu);
+  natalHouseTable(b, t, tu);
+  // D. Açılar — kayıtlı liste (yeni orb / açı hesabı YOK). Saat bilinmiyorsa Ay'a bağlı açılar listelenmez (G2 kuralı); kalanlar ≈.
+  const allAspects = arr(t.aspects);
+  const aspects = listedNatalAspects(allAspects as unknown as { a: BodyId; b: BodyId }[], tu) as unknown as O[];
+  if (tu) {
+    b.h(3, "Açılar · ≈ 12:00 varsayımı");
+    b.p(`${natalTimeUnknownNote()}${allAspects.length - aspects.length > 0 ? ` Ay'a bağlı ${allAspects.length - aspects.length} açı bu nedenle listelenmez.` : ""}`, "warn");
+    const rows = aspects.map((a) => [bodyL(a.a), aspectL(a.type), bodyL(a.b), `≈ ${deg(a.orb)}`, natureL(a.nature), a.applying === true ? "Yaklaşan" : a.applying === false ? "Ayrılan" : ""]);
+    b.table(["Gezegen", "Açı", "Gezegen", "Orb", "Nitelik", "Durum"], rows, { empty: "Kayıtta açı yok." });
+  } else if (natalAspectListMissing(t)) {
+    b.h(3, "Açılar");
+    b.p(NATAL_ASPECT_LIST_MISSING, "muted");
+  } else aspectTable(b, t.aspects);
   // AŞAMA 2 (2026-10-21): ekrandaki nitelik (modality), sıkılık ve burç dışı bilgisi rapora da aktarılır (kayıtta zaten vardı).
-  const pats = arr(t.patterns).map((p) => [
-    typeof p.kind === "string" ? ((PATTERN_LABELS as Record<string, string>)[p.kind] ?? p.kind) : DASH,
-    list(p.bodies, bodyL),
-    p.apex ? bodyL(p.apex) : "",
-    typeof p.element === "string" ? ((ELEMENT_LABELS as Record<string, string>)[p.element] ?? p.element) : "",
-    typeof p.modality === "string" ? ((MODALITY_LABELS as Record<string, string>)[p.modality] ?? p.modality) : "",
-    num(p.tightness) !== null ? `%${Math.round(num(p.tightness)!)}` : DASH,
-    p.outOfSign === true ? "Evet" : p.outOfSign === false ? "Hayır" : DASH,
-  ]);
+  // G3: sütunlar önceki gibi (7); PDF'te en küçük punto 7,4 (önceden 6,6). Saat bilinmiyorsa Ay'lı kalıplar yok.
+  const pats = arr(t.patterns)
+    .filter((p) => !(tu && patternInvolvesMoon({ bodies: arr<unknown>(p.bodies).filter((x): x is BodyId => typeof x === "string") as BodyId[], apex: (typeof p.apex === "string" ? p.apex : null) as BodyId | null })))
+    .map((p) => [
+      typeof p.kind === "string" ? ((PATTERN_LABELS as Record<string, string>)[p.kind] ?? p.kind) : DASH,
+      list(p.bodies, bodyL),
+      p.apex ? bodyL(p.apex) : "",
+      typeof p.element === "string" ? ((ELEMENT_LABELS as Record<string, string>)[p.element] ?? p.element) : "",
+      typeof p.modality === "string" ? ((MODALITY_LABELS as Record<string, string>)[p.modality] ?? p.modality) : "",
+      num(p.tightness) !== null ? `${tu ? "≈ " : ""}%${Math.round(num(p.tightness)!)}` : DASH,
+      p.outOfSign === true ? "Evet" : p.outOfSign === false ? "Hayır" : DASH,
+    ]);
   if (pats.length) {
-    b.h(3, "Açı kalıpları");
-    b.table(["Kalıp", "Gezegenler", "Tepe", "Element", "Nitelik", "Sıkılık", "Burç dışı"], pats, { widths: [1.8, 3.6, 1.3, 1.2, 1.2, 1, 1] });
+    b.h(3, `Açı kalıpları${tu ? " · ≈ 12:00 varsayımı" : ""}`);
+    b.table(["Kalıp", "Gezegenler", "Tepe", "Element", "Nitelik", "Sıkılık", "Burç dışı"], pats, { widths: [1.8, 3.6, 1.3, 1.2, 1.2, 1, 1], minPt: 7.4 });
     if (pats.some((r) => r[6] === "Evet")) b.p("Burç dışı: kalıbı oluşturan açılardan en az biri orb içinde ama burç sınırını aşıyor (ör. burçları kare olmayan bir kare).", "muted");
   }
   const sm = isObj(t.summary) ? t.summary : null;
@@ -471,13 +653,35 @@ function westernNatal(b: B, t: O) {
     const md = isObj(sm.modalityDistribution) ? sm.modalityDistribution : null;
     const ab = isObj(sm.aspectBalance) ? sm.aspectBalance : null;
     b.h(3, "Özet");
+    if (tu) {
+      // G2 kuralı: Ay'ın 12:00 burcu kesin sayılmaz → Ay hariç 9 gezegen (≈); 15 puanlık analiz Yükselen / MC olmadan yok.
+      b.p(natalTimeUnknownNote(), "warn");
+      const d = timeUnknownDistribution({ bodies: arr(t.bodies) as unknown as NatalTechnical["bodies"] });
+      const EL = ELEMENT_LABELS as Record<string, string>;
+      const MO = MODALITY_LABELS as Record<string, string>;
+      const bal = aspectBalanceOf(aspects as unknown as { nature: "harmonious" | "challenging" | "neutral" | null }[]);
+      b.kv([
+        ["Dağılım yöntemi", "Ay hariç 9 gezegen (her biri 1 puan, toplam 9); gezegen burçları yerel 12:00 varsayımıdır (≈). 15 puanlık analiz Yükselen ve MC olmadan hesaplanamaz."],
+        ...(d.available
+          ? ([
+              ["Element (≈, Ay hariç)", ELEMENT_ORDER.map((k) => `${EL[k]} ${d.elements[k]}`).join(" · ")],
+              ["Baskın element (≈)", d.topElements.length > 1 ? tieSentence(d.topElements.map((k) => EL[k]), d.elements[d.topElements[0]], "gezegen") : (EL[d.topElements[0]] ?? DASH)],
+              ["Nitelik (≈, Ay hariç)", MODALITY_ORDER.map((k) => `${MO[k]} ${d.modalities[k]}`).join(" · ")],
+              ["Baskın nitelik (≈)", d.topModalities.length > 1 ? tieSentence(d.topModalities.map((k) => MO[k]), d.modalities[d.topModalities[0]], "gezegen") : (MO[d.topModalities[0]] ?? DASH)],
+            ] as [string, string][])
+          : ([["Dağılım", "Bu kayıtta dağılım için gerekli veri yok."]] as [string, string][])),
+        ["Retro gezegenler", arr(sm.retrograde).length ? list(sm.retrograde, bodyL) : DASH],
+        ["Açı dengesi (Ay hariç, ≈)", `Uyumlu ${bal.harmonious} · Zorlayıcı ${bal.challenging} · Nötr ${bal.neutral}`],
+      ]);
+      return;
+    }
     // 2026-11-07: iki yöntem (10 gezegen = kayıtlı sağlayıcı sayımı aynen; 15 puan = kayıtlı teknik veriden yerel) ve eşitlik
     // açıkça yazılır — eşitlikte tek grup "baskın" ilan edilmez (sağlayıcının eşitlik kuralı yalnız ikincil bilgi).
     const dist = distributionRows(t, ed, md);
     b.kv([
       ...dist,
       ["Retro gezegenler", arr(sm.retrograde).length ? list(sm.retrograde, bodyL) : DASH],
-      ["Açı dengesi", ab ? `Uyumlu ${s(ab.harmonious)} · Zorlayıcı ${s(ab.challenging)} · Nötr ${s(ab.neutral)}` : DASH],
+      [natalAspectListMissing(t) ? "Açı dengesi (sağlayıcı özeti; açı listesi kayıtta yok)" : "Açı dengesi", ab ? `Uyumlu ${s(ab.harmonious)} · Zorlayıcı ${s(ab.challenging)} · Nötr ${s(ab.neutral)}` : DASH],
     ]);
   }
 }
@@ -2056,7 +2260,21 @@ export function buildAstroReport(a: ReportAnalysisInput): AstroReport {
     else if (technique === "western.transit") chart = transitWheel(tech);
     else if (technique === "western.synastry") chart = synastryWheel(tech);
   }
-  if (chart) {
+  const natalTimeUnknown = method.timeUnknownMasked === true;
+  if (chart && technique === "western.natal" && tech) {
+    // G3: Natal çarkı — dört satırlı burç / derece / dakika etiketleri (A4, 170 mm); yoğun burçlar ayrı derece cetvelinde.
+    const natal = { timeUnknown: natalTimeUnknown, points: natalPointsOf(tech) };
+    const nc: WheelInput = { ...chart, natal };
+    b.h(1, "Harita");
+    b.blocks.push({ kind: "chart", chart: nc, caption: NATAL_WHEEL_CAPTION });
+    // Uyarı çarkın hemen altında (başlık çarkla aynı sayfada kalır; uyarı çark sayfasında okunur).
+    if (natalTimeUnknown) b.p(natalTimeUnknownNote(), "warn");
+    const ruler = natalDegreeRulerFigures({ ...nc, natal }).length > 0;
+    // G3-GK1: açı listesi kayıtta yoksa açıklama açı çizgisi renklerini anlatmaz; nedeni yazar.
+    const legend = !natalTimeUnknown && natalAspectListMissing(tech) ? `${NATAL_WHEEL_LEGEND.replace(NATAL_ASPECT_LINES_SENTENCE, "")} Bu kayıtta açı listesi olmadığı için açı çizgisi çizilmez.` : natalTimeUnknown ? NATAL_WHEEL_LEGEND_TU : NATAL_WHEEL_LEGEND;
+    b.p(`${legend}${ruler ? NATAL_RULER_LEGEND_NOTE : ""}`, "muted");
+    natalRulerSection(b, nc);
+  } else if (chart) {
     b.h(1, "Harita");
     b.blocks.push({ kind: "chart", chart, caption: wheelCaption(technique, techLabel, people, !!chart.outer) });
     b.p(WHEEL_LEGEND, "muted");
@@ -2091,7 +2309,7 @@ export function buildAstroReport(a: ReportAnalysisInput): AstroReport {
   }
   if (!tech) {
     b.p(warnings.length ? "Bu analizde saat-bağımlı teknik sonuçlar gösterilmez (yukarıdaki uyarıya bakın)." : "Bu kayıtta teknik sonuç bulunmuyor.", "muted");
-  } else if (technique === "western.natal") westernNatal(b, tech);
+  } else if (technique === "western.natal") westernNatal(b, tech, method.timeUnknownMasked === true);
   else if (["western.transit", "western.forecast", "western.progression", "western.solar_arc", "western.solar_return", "western.lunar_return", "western.synastry", "western.composite"].includes(technique)) {
     const rv = profile && isObj(profile.revision) ? profile.revision : null;
     westernTiming(b, technique, tech, people, { birthTz: rv && typeof rv.timezone === "string" ? rv.timezone : null, relocated: typeof opts.returnLocationId === "string" && opts.returnLocationId !== "" }, opts);
@@ -2203,6 +2421,7 @@ export function buildAstroReport(a: ReportAnalysisInput): AstroReport {
     fileBase: `Astroloji-${asciiSlug(clientName, 40)}-${asciiSlug(techLabel, 40)}-${instantDayKeyTr(a.analysisAt) ?? "tarihsiz"}`,
     hasInterpretation: interpVisible,
     hasChart: !!chart || (!!fig && !("missing" in fig)),
+    ...(technique === "western.natal" ? { keepRecordTail: true } : {}),
   };
 }
 

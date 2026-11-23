@@ -21,6 +21,7 @@ import type { AspectNature, AspectType, BodyId, NatalHouse, SignId } from "@/lib
 import { SIGN_IDS } from "@/lib/astrology/model/western";
 import { BODY_GLYPHS, BODY_LABELS, formatDegree, SIGN_ELEMENT, SIGN_GLYPHS, SIGN_LABELS } from "@/lib/astrology/labels/tr";
 import { isAspectDrawn, type NatalAspectFilter, type NatalWheelMode, type WheelExtraPoint } from "@/lib/astrology/view/natalWheelDisplay";
+import NatalWheelLabeled, { type NatalLabelPick, type NatalWheelLayoutInfo } from "./NatalWheelLabeled";
 
 const SIZE = 604;
 const C = SIZE / 2;
@@ -103,6 +104,20 @@ export type NatalWheelDisplay = {
   extraPoints: readonly WheelExtraPoint[];
   /** Açı çizgisi filtresi (grup / nitelik / odak gövde). Verilmezse mod + nokta seçimine göre tüm açılar çizilir. */
   aspectFilter?: NatalAspectFilter;
+  /**
+   * G2 (2026-11-22): burç-derece-dakika ETİKET KATMANI (onaylı tasarım G1-R4-S2; bkz. NatalWheelLabeled). Yalnız Natal ekranı
+   * verir; verilmezse bu dosyadaki çizim (görünüm katmanlı ya da katmansız) AYNEN kalır.
+   */
+  labels?: {
+    /** Ayrıntılı dört satır (gezegen / derece / burç / dakika) mı, sade mi (etiket tercihi + mod). */
+    detailed: boolean;
+    /** Doğum saati bilinmiyor: Ay çizilmez, açı çizgisi yok, diğer değerler "≈ 12:00 varsayımı". */
+    timeUnknown: boolean;
+    /** Etikete / gruba dokunma (ayrıntı paneli). */
+    onPick?: (pick: NatalLabelPick) => void;
+    /** Çarkın o anki düzeni (profil, K, gruplar) — yan grup alanı çarkla aynı kalsın; çizim örneği kaldırılınca null. */
+    onLayout?: (instance: string, layout: NatalWheelLayoutInfo | null) => void;
+  };
 };
 
 /** Sembol yazı tipi: self-host "Yasam Natal Sembol" (DejaVu alt kümesi; @font-face natalWheel.module.css) yalnız cihazlarda sık
@@ -132,6 +147,7 @@ export default function NatalWheel({
   /** Yalnız Natal ekranı: derece cetveli + Temel/Profesyonel + nokta seçimi. Verilmezse önceki çizim aynen. */
   display?: NatalWheelDisplay;
 }) {
+  if (display?.labels) return <NatalWheelLabeled technical={technical} label={label} sizeClassName={sizeClassName} display={{ ...display, labels: display.labels }} />;
   const D = display ?? null;
   const fs = tinted ? { sign: 22, glyph: 22, deg: 11, min: 8.5, house: 12, angle: 10.5 } : { sign: 19, glyph: 20, deg: 9.5, min: 7.5, house: 11, angle: 9.5 };
   const ascLon = technical.angles?.ascendant.longitude ?? 0;
