@@ -121,6 +121,10 @@ export const F2K_FILES = [
 export const F2M_FILES = [
   "supabase/migrations/20280103001200_auth_email_smtp_provider_f2m.sql",
 ];
+/** F2-N eki: Owner MFA zorunluluğu için veritabanı düzeyinde kit şartı. startF2cDb({ withF2n: true }). */
+export const F2N_FILES = [
+  "supabase/migrations/20280103001300_auth_owner_mfa_kit_guard_f2n.sql",
+];
 /** F2-H eki: denetim kayıtları kontrollü imha. startF2cDb({ withF2h: true }). */
 export const F2H_FILES = [
   "supabase/migrations/20280103000800_auth_audit_retention_disposal_f2h.sql",
@@ -138,7 +142,7 @@ export async function readF2Level(client: pg.Client): Promise<F2DbLevel> {
   return { registry: reg === null || reg === undefined ? null : Number(reg), catalog, latest: F2_STAGES[F2_STAGES.length - 1].level };
 }
 
-export async function startF2cDb(opts: { withF2d?: boolean; withF2e?: boolean; withF2g?: boolean; withF2h?: boolean; withF2i?: boolean; withF2j?: boolean; withF2k?: boolean; withF2m?: boolean } = {}): Promise<F2cDb> {
+export async function startF2cDb(opts: { withF2d?: boolean; withF2e?: boolean; withF2g?: boolean; withF2h?: boolean; withF2i?: boolean; withF2j?: boolean; withF2k?: boolean; withF2m?: boolean; withF2n?: boolean; ownerKit?: boolean } = {}): Promise<F2cDb> {
   // Uyumluluk koşusu: F2_TEST_DB_WITH_F2E=1 → önceki fazların harness'ları bütün zincir (000500 dahil) üstünde koşar.
   if (process.env.F2_TEST_DB_WITH_F2E === "1") opts = { ...opts, withF2d: true, withF2e: true };
   // F2_TEST_DB_WITH_F2I=1 → bütün zincir 000900 (F2-I) dahil: önceki fazların akışları F2-I düzeltmeleriyle aynen çalışır.
@@ -151,12 +155,13 @@ export async function startF2cDb(opts: { withF2d?: boolean; withF2e?: boolean; w
   if (process.env.F2_TEST_DB_WITH_F2K === "1") opts = { ...opts, withF2d: true, withF2e: true, withF2i: true, withF2j: true, withF2k: true };
   // F2_TEST_DB_WITH_F2M=1 → bütün zincir 001200 (F2-M) dahil.
   if (process.env.F2_TEST_DB_WITH_F2M === "1") opts = { ...opts, withF2d: true, withF2e: true, withF2i: true, withF2j: true, withF2k: true, withF2m: true };
-  // F2_TEST_DB_LATEST=1 → EN GÜNCEL F2 zinciri (bugün 001200). Yeni aşama eklenince bu satır da güncellenmeli; unutulursa
+  // F2_TEST_DB_LATEST=1 → EN GÜNCEL F2 zinciri (bugün 001300). Yeni aşama eklenince bu satır da güncellenmeli; unutulursa
   // aşağıdaki düzey denetimi testi BAŞLATMADAN durdurur (f2-test-db-duzey.mjs). Negatif kontrolle (F2L_NEGATIF=1) birlikte
   // verilemez: negatif kontrol bilerek eski düzeyde kurulur, en güncel zincir onu sessizce "düzeltirdi".
   const latestMode = process.env.F2_TEST_DB_LATEST === "1";
   if (latestMode && process.env.F2L_NEGATIF === "1") throw new Error("F2_TEST_DB_LATEST=1 ve F2L_NEGATIF=1 birlikte verilemez (negatif kontrol izolasyonu)");
-  if (latestMode) opts = { ...opts, withF2m: true };
+  if (latestMode) opts = { ...opts, withF2n: true };
+  if (opts.withF2n) opts = { ...opts, withF2m: true };
   if (opts.withF2m) opts = { ...opts, withF2k: true };
   if (opts.withF2k) opts = { ...opts, withF2j: true };
   if (opts.withF2j) opts = { ...opts, withF2i: true };
@@ -177,8 +182,12 @@ export async function startF2cDb(opts: { withF2d?: boolean; withF2e?: boolean; w
   // alır; dinleyicisiz 'error' olayı süreci ÇÖKERTİR (özet satırı yazılmadan). Kapanış hatası test sonucu değildir.
   admin.on("error", () => {});
   await admin.query(BOOT);
-  for (const f of [...F2C_FILES, ...(opts.withF2d || opts.withF2e || opts.withF2g ? F2D_FILES : []), ...(opts.withF2e || opts.withF2g ? F2E_FILES : []), ...(opts.withF2g ? F2G_FILES : []), ...(opts.withF2h ? F2H_FILES : []), ...(opts.withF2i ? F2I_FILES : []), ...(opts.withF2j ? F2J_FILES : []), ...(opts.withF2k ? F2K_FILES : []), ...(opts.withF2m ? F2M_FILES : [])]) await admin.query(fs.readFileSync(path.join(ROOT, f), "utf8"));
+  for (const f of [...F2C_FILES, ...(opts.withF2d || opts.withF2e || opts.withF2g ? F2D_FILES : []), ...(opts.withF2e || opts.withF2g ? F2E_FILES : []), ...(opts.withF2g ? F2G_FILES : []), ...(opts.withF2h ? F2H_FILES : []), ...(opts.withF2i ? F2I_FILES : []), ...(opts.withF2j ? F2J_FILES : []), ...(opts.withF2k ? F2K_FILES : []), ...(opts.withF2m ? F2M_FILES : []), ...(opts.withF2n ? F2N_FILES : [])]) await admin.query(fs.readFileSync(path.join(ROOT, f), "utf8"));
   await admin.query(HARNESS_SQL);
+  // F2-N (001300) ön koşulu: Owner'ın zorunluluğu ancak geçerli çevrimdışı kitle açılabilir (DB kuralı). 1300 zincirinde Owner için
+  // SENTETİK kit hazırlanır (gerçek hayattaki "önce kit, sonra zorunluluk" sırası; kodlar okunmaz / saklanmaz). Kitsiz durumu sınayan
+  // testler { ownerKit: false } verir. Kural gevşetilmez: kit yoksa DB yine reddeder.
+  if (opts.withF2n && opts.ownerKit !== false) await admin.query(`SELECT count(*) FROM public.auth_owner_offline_kit_issue()`);
   const level = await readF2Level(admin);
   if (latestMode || process.env.F2_TEST_DB_LEVEL_LOG === "1") {
     console.log(`[f2-test-db] düzey kayıt=${level.registry ?? "yok"} katalog=${level.catalog} en-güncel=${level.latest}`);

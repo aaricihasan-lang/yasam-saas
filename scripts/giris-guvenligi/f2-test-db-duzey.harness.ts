@@ -38,19 +38,23 @@ async function main() {
   ok(stageBefore(1100).level === 1000, "negatif kontrol düzeyi = F2-K'dan önceki aşama (1000)");
 
   section("B) Mutasyon: koruma sessiz eski düzeyi yakalar");
-  const fake = "20280103001300_auth_sahte_yeni_asama.sql";
+  // Sahte "bir sonraki" aşama en güncel aşamadan türetilir (sabit sürüm yazılmaz; yeni aşama eklendikçe test bayatlamaz).
+  const nextFile = String(Number(latest.file) + 100);
+  const fake = `${nextFile}_auth_sahte_yeni_asama.sql`;
   const m1 = checkCoverage({ ...repo, dirFiles: [...repo.dirFiles, fake] });
-  ok(m1.some((p) => /F2_STAGES güncel değil/.test(p)) && m1.some((p) => /20280103001300/.test(p)),
+  ok(m1.some((p) => /F2_STAGES güncel değil/.test(p)) && m1.some((p) => p.includes(nextFile)),
     "yeni migration dosyası + F2_STAGES/testDb güncellenmedi → FAIL", m1);
   const m2 = checkCoverage({ ...repo, dirFiles: [...repo.dirFiles, fake],
-    stages: [...F2_STAGES, { level: 1300, file: "20280103001300", fp: "true" }] });
-  ok(m2.length === 1 && /testDb\.ts bu F2 migration'larını UYGULAMIYOR: 20280103001300/.test(m2[0]),
+    stages: [...F2_STAGES, { level: latest.level + 100, file: nextFile, fp: "true" }] });
+  ok(m2.some((p) => p.includes(`UYGULAMIYOR: ${nextFile}`)) && m2.every((p) => !/F2_STAGES güncel değil/.test(p)),
     "F2_STAGES güncellendi ama testDb.ts uygulamıyor → FAIL", m2);
-  const m3 = checkCoverage({ ...repo, testDbSource: repo.testDbSource.replace(/"supabase\/migrations\/20280103001200_[^"]+",?/g, "") });
-  ok(m3.some((p) => /UYGULAMIYOR: 20280103001200/.test(p)), "testDb.ts 001200'ü bırakırsa → FAIL", m3);
+  const m3 = checkCoverage({ ...repo, testDbSource: repo.testDbSource.split(`"supabase/migrations/${latest.file}_`).join(`"supabase/migrations/KALDIRILDI_`) });
+  ok(m3.some((p) => p.includes(`UYGULAMIYOR: ${latest.file}`)), `testDb.ts en güncel aşamayı (${latest.file}) bırakırsa → FAIL`, m3);
   const m4 = checkCoverage({ ...repo, testDbSource: repo.testDbSource.replace(/process\.env\.F2_TEST_DB_LATEST === "1"/g, "false") });
   ok(m4.some((p) => /F2_TEST_DB_LATEST=1/.test(p)), "en güncel zincir eşlemesi silinirse → FAIL", m4);
-  const m5 = checkCoverage({ ...repo, dirFiles: repo.dirFiles.filter((f) => !f.startsWith("20280103001200")) });
+  const m6 = checkCoverage({ ...repo, runAllSource: (repo.runAllSource ?? "").split(`"${latest.file}_`).join(`"KALDIRILDI_`) });
+  ok(m6.some((p) => p.includes("run-all.mjs") && p.includes(latest.file)), "run-all.mjs (deploy-order / postflight) en son aşamayı içermezse → FAIL", m6);
+  const m5 = checkCoverage({ ...repo, dirFiles: repo.dirFiles.filter((f) => !f.startsWith(latest.file)) });
   ok(m5.some((p) => /F2_STAGES güncel değil/.test(p)), "F2_STAGES klasörden ileride (dosya yok) → FAIL", m5);
 
   section("C) Dinamik: gerçek PostgreSQL düzeyi");
@@ -75,6 +79,8 @@ async function main() {
         ok(/^\d+\.\d+/.test(ver), `PostgreSQL sürümü okundu (${ver})`);
         const smtp = (await db.admin.query(`SELECT public.auth_email_provider_allowed('smtp') AS x`)).rows[0].x;
         ok(smtp === true, "001200 nesnesi gerçekten kurulu: 'smtp' sağlayıcısı izinli");
+        const fpOk = (await db.admin.query(`SELECT (${latest.fp}) AS x`)).rows[0].x;
+        ok(fpOk === true, `en güncel aşamanın (${latest.level}) parmak izi nesnesi kurulu`);
       } finally { await db.close(); }
     })();
     ok(parseLevelLines(logs.join("\n")).some((l) => l.registry === latest.level && l.catalog === latest.level),
