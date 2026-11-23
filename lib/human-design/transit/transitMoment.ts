@@ -1,12 +1,14 @@
 // Human Design transit anı — yerel tarih + saat + IANA saat dilimi ↔ UTC. SAF (sunucu ve tarayıcıda aynı kod).
 //
-// Dönüşüm mevcut tek kaynaktan: resolveBirthLocalTime (Intl / IANA tzdata; tarihsel yaz/kış saati ve yerel ortalama
-// saat dahil). Boşluk (hiç yaşanmamış yerel saat) REDDEDİLİR; çakışma (iki kez yaşanmış saat) SESSİZCE seçilmez —
+// Dönüşüm mevcut tek kaynaktan: resolveBirthLocalTime (HD-TZ: ortak IANA 2026f çekirdeği lib/time/tzdb + backzone; tarihsel
+// yaz/kış saati ve yerel ortalama saat dahil; çalışma ortamının eski Intl tz verisi kullanılmaz). UTC → yerel gösterim de aynı
+// çekirdekten (localParts). Boşluk (hiç yaşanmamış yerel saat) REDDEDİLİR; çakışma (iki kez yaşanmış saat) SESSİZCE seçilmez —
 // kullanıcı iki olası UTC ofsetinden birini AÇIKÇA seçerse (chosenOffsetSeconds) o an kullanılır.
 // Varsayılan saat dilimi Europe/Istanbul: saat dilimi verilmeyen her eski çağrı birebir eski davranışı korur.
 // Astronomik motor değişmez: şehir / saat dilimi yalnız UTC anını belirler.
 
 import { isValidIanaTimeZone, resolveBirthLocalTime } from "../api/birthTimeResolution";
+import { wallClockAt } from "../../time/tzdb/core";
 
 export const TRANSIT_TIME_ZONE = "Europe/Istanbul";
 /** Desteklenen tarih aralığı (efemeris ve saat dilimi verisinin güvenilir olduğu aralık). */
@@ -91,19 +93,14 @@ export function resolveTransitMoment(localDate: string, localTime: string, timeZ
   return { ok: true, moment: { localDate, localTime, timeZone, utcIso: r.utcIso, offsetSeconds: r.offsetSeconds } };
 }
 
-/** Verilen UTC anının seçilen saat dilimindeki yerel tarih/saati (dakikaya yuvarlanmadan, kesilerek). */
+/**
+ * Verilen UTC anının seçilen saat dilimindeki yerel tarih/saati (dakikaya yuvarlanmadan, kesilerek). HD-TZ: ofset ortak IANA
+ * 2026f çekirdeğinden (resolveTransitMoment ile AYNI kaynak; tarayıcının eski tz verisi kullanılmaz). Geçersiz bölge → RangeError.
+ */
 export function localParts(at: Date, timeZone: string = TRANSIT_TIME_ZONE): { localDate: string; localTime: string } {
-  const parts = new Intl.DateTimeFormat("en-GB", {
-    timeZone,
-    hourCycle: "h23",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).formatToParts(at);
-  const get = (t: Intl.DateTimeFormatPartTypes) => parts.find((p) => p.type === t)?.value ?? "00";
-  return { localDate: `${get("year")}-${get("month")}-${get("day")}`, localTime: `${get("hour")}:${get("minute")}` };
+  const w = wallClockAt(at.getTime(), timeZone, { backzone: true });
+  if (!w) throw new RangeError(`Invalid time zone specified: ${timeZone}`);
+  return { localDate: w.date, localTime: w.time.slice(0, 5) };
 }
 
 /** Verilen UTC anının Türkiye yerel tarih/saati (geriye uyumlu ad). */

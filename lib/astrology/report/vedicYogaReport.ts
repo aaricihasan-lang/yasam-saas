@@ -43,7 +43,7 @@ export function vedicYogaReport(b: ReportBuilderLike, technical: unknown) {
   if (notable.length) {
     b.h(3, "Oluşan / bastırılan yogalar — denetim ayrıntısı");
     b.table(
-      ["Yoga", "Durum", "Bağımsız denetim ayrıntısı", "Kanıt"],
+      ["Yoga", "Durum", "Bağımsız denetim ayrıntısı", "Kanıt (hizmetin özgün İngilizce metni)"],
       notable.map((r) => [r.sanskrit, VEDIC_YOGA_STATUS_LABELS[r.status], `${VEDIC_YOGA_CONSISTENCY_LABELS[r.consistency]}: ${r.check.detail}`, r.evidence ?? DASH]),
       { widths: [1.2, 1.1, 3, 3.4], compact: true },
     );

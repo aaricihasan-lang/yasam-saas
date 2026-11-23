@@ -30,6 +30,7 @@ import {
   WidthType,
 } from "docx";
 import { C_DARK, C_LIGHT, C_MID, REPORT_FONT, getImgDimensions, sanitizeXmlText, type ReportChild } from "@/lib/docx/reportHelpers";
+import { expertCoverBlock, expertSignatureBlock, type ExpertBranding, type ExpertBrandingVariant } from "@/lib/docx/expertBranding";
 
 export const BPAGE = {
   size: { width: 11906, height: 16838 },
@@ -63,6 +64,11 @@ export type BCoverInput = {
   planTitle: string;
   range: string;
   meta: [string, string][];
+  /** F3A: uzman markalaması (null/yok → kapak birebir). */
+  branding?: ExpertBranding | null;
+  brandingVariant?: ExpertBrandingVariant;
+  /** Markalama bloğu varsa "Uzman" künye satırı yerine blokta gösterilecek ad. */
+  expertName?: string | null;
 };
 
 function rule(color: string, size: number, after: number): Paragraph {
@@ -115,8 +121,11 @@ export function bCover(c: BCoverInput): ReportChild[] {
     children: [new TextRun({ text: safe(c.range), size: 26, font: REPORT_FONT, color: BG.deep })],
   }));
   out.push(rule(BG.mint, 6, 320));
+  // F3A: markalama bloğu varsa uzman kimliği blokta yer alır → "Uzman" künye satırı tekrar edilmez.
+  const expertBlock = expertCoverBlock(c.branding, { variant: c.brandingVariant, accent: BG.green, ruleColor: BG.mint, fallbackName: c.expertName, before: 160 });
   for (const [label, value] of c.meta) {
     if (!value?.trim()) continue;
+    if (expertBlock.length && label === "Uzman") continue;
     out.push(new Paragraph({
       alignment: AlignmentType.CENTER,
       spacing: { after: 100 },
@@ -126,6 +135,7 @@ export function bCover(c: BCoverInput): ReportChild[] {
       ],
     }));
   }
+  out.push(...expertBlock);
   out.push(new Paragraph({ spacing: { before: 360, after: 0 }, border: { bottom: { style: BorderStyle.SINGLE, size: 4, color: BG.mint } } }));
   out.push(new Paragraph({
     alignment: AlignmentType.CENTER,
@@ -297,8 +307,28 @@ export function bStripTable(items: { label: string; value: string }[], opts: { h
 }
 
 /** Bilgilendirme + Hazırlayan — bölünmeyen tek blok (sona tek başına düşmez). */
-export function bWellness(note: string, expertName?: string | null): Paragraph[] {
+export function bWellness(note: string, expertName?: string | null, brand: { branding?: ExpertBranding | null; brandingVariant?: ExpertBrandingVariant } = {}): ReportChild[] {
   const name = expertName?.trim();
+  // F3A: markalama açıksa "Hazırlayan" satırı genişletilmiş imza bloğuyla değişir (bilgilendirme metni AYNEN).
+  const signature = expertSignatureBlock(brand.branding, { variant: brand.brandingVariant, accent: BG.green, fallbackName: name, contentWidth: BCONTENT_W, fill: "f0fdf4" });
+  if (signature.length) {
+    return [
+      new Paragraph({
+        keepNext: true,
+        keepLines: true,
+        spacing: { before: 360, after: 60 },
+        children: [new TextRun({ text: "Bilgilendirme", bold: true, size: 18, font: REPORT_FONT, color: C_MID })],
+      }),
+      new Paragraph({
+        // Sayfa düzeni (10.11): imza kartı bilgilendirmeyle ZORLA birlikte tutulmaz (kart kendi içinde bölünmez).
+        keepNext: false,
+        keepLines: true,
+        spacing: { after: 80 },
+        children: [new TextRun({ text: note, italics: true, size: 16, font: REPORT_FONT, color: C_LIGHT })],
+      }),
+      ...signature,
+    ];
+  }
   return [
     new Paragraph({
       keepNext: true,

@@ -13,6 +13,7 @@ import { createHash } from "node:crypto";
 import { assertServerOnly } from "@/lib/server/serverOnlyGuard";
 import { resolveHdBirthLocation } from "@/lib/human-design/api/hdBirthLocation";
 import { birthLocalTimeIssue, resolveBirthLocalTime, toHms } from "@/lib/human-design/api/birthTimeResolution";
+import { toRoxyUtcMoment } from "@/lib/human-design/api/hdBirthUtc";
 import { ROXY_POLICY, ROXY_RATE_LIMITS, type RoxyServerConfig } from "@/lib/human-design/providers/roxy/config";
 import type { RoxyBodygraphRequest, RoxyCallResult } from "@/lib/human-design/providers/roxy/client";
 import { validateRoxyBodygraph } from "@/lib/human-design/providers/roxy/schema";
@@ -43,10 +44,15 @@ export type FictionalComputeFail = { ok: false; status: number; code: string; er
 
 const fail = (status: number, code: string, error: string, extra: { retryAfterSec?: number } = {}): FictionalComputeFail => ({ ok: false, status, code, error, ...extra });
 
-/** Kurgusal girdi kimliği: eğitmen + tenant + hesap girdisi (gerçek kişi kimliği YOK). */
-export function fictionalInputHash(x: { trainerId: string; tenantId: string; date: string; time: string; timezone: string; latitude: number; longitude: number; nodeType: string; lang: string }): string {
+/**
+ * Kurgusal girdi kimliği: eğitmen + tenant + hesap girdisi (gerçek kişi kimliği YOK).
+ * HD-TZ: doğrulanmış doğum anı (UTC, IANA 2026f) da kimliktedir — eski IANA verisiyle hesaplanmış kayıt, kayıtlı doğum anı
+ * okunamadığından (yalnız kimlik dönen arama) aynı girdinin doğru sonucu gibi YENİDEN KULLANILMAZ; eski kayıt değişmez.
+ */
+export function fictionalInputHash(x: { trainerId: string; tenantId: string; date: string; time: string; timezone: string; latitude: number; longitude: number; nodeType: string; lang: string; birthUtcIso?: string }): string {
   return createHash("sha256").update(JSON.stringify(["hd-edu-kurgusal-1", x.tenantId, x.trainerId, x.date, x.time, x.timezone,
-    x.latitude.toFixed(6), x.longitude.toFixed(6), x.nodeType, x.lang])).digest("hex");
+    x.latitude.toFixed(6), x.longitude.toFixed(6), x.nodeType, x.lang,
+    ...(x.birthUtcIso ? ["utc", new Date(Date.parse(x.birthUtcIso)).toISOString()] : [])])).digest("hex");
 }
 
 export async function computeFictionalChart(inp: FictionalComputeInput, deps: FictionalComputeDeps): Promise<FictionalComputeOk | FictionalComputeFail> {
@@ -72,7 +78,7 @@ export async function computeFictionalChart(inp: FictionalComputeInput, deps: Fi
   if (t.kind === "invalid") return fail(422, "INVALID_BIRTH_DATA", "Doğum tarihi/saati geçersiz.");
   // 5) Kayıtlı sonuç → Roxy ÇAĞRILMAZ.
   const inputHash = fictionalInputHash({ trainerId: inp.trainerId, tenantId: inp.tenantId, date, time: hms, timezone: location.timezone,
-    latitude: location.latitude, longitude: location.longitude, nodeType: policy.nodeType, lang: policy.lang });
+    latitude: location.latitude, longitude: location.longitude, nodeType: policy.nodeType, lang: policy.lang, birthUtcIso: t.utcIso });
   const existing = await deps.findExisting(inputHash);
   if (existing) return { ok: true, existingItemId: existing, inputHash, input: null, chart: null, raw: null };
   // 6) Yapılandırma.
@@ -84,8 +90,9 @@ export async function computeFictionalChart(inp: FictionalComputeInput, deps: Fi
   if (!userRl.allowed) return fail(429, "RATE_LIMITED", "Kısa sürede çok fazla otomatik hesaplama yapıldı. Lütfen daha sonra tekrar deneyin.", { retryAfterSec: userRl.retryAfterSec });
   const tenantRl = await deps.rateLimit("hd-roxy-tenant", inp.tenantId, ROXY_RATE_LIMITS.perTenant.limit, ROXY_RATE_LIMITS.perTenant.windowSeconds);
   if (!tenantRl.allowed) return fail(429, "RATE_LIMITED", "Hesabınızın günlük otomatik hesaplama sınırına ulaşıldı. Lütfen daha sonra tekrar deneyin.", { retryAfterSec: tenantRl.retryAfterSec });
-  // 8) Roxy → doğrulama → normalizasyon (normal analizle AYNI zincir).
-  const request: RoxyBodygraphRequest = { date, time: hms, timezone: location.timezone, latitude: location.latitude, longitude: location.longitude, nodeType: policy.nodeType };
+  // 8) Roxy → doğrulama → normalizasyon (normal analizle AYNI zincir). HD-TZ: doğrulanmış UTC anı + "UTC"; koordinatlar aynı.
+  const request = toRoxyUtcMoment<RoxyBodygraphRequest>({ date, time: hms, timezone: location.timezone, latitude: location.latitude, longitude: location.longitude, nodeType: policy.nodeType }, t.utcIso);
+  if (!request) return fail(422, "INVALID_BIRTH_DATA", "Doğum tarihi/saati geçersiz.");
   const call = await deps.callRoxy(deps.config, request, { lang: policy.lang, timeoutMs: policy.timeoutMs });
   if (!call.ok) {
     log("[hd-edu-kurgusal] provider call failed", { kind: call.kind, status: call.status });

@@ -38,6 +38,7 @@ import { createRelationReport, getRelationReportSnapshot } from "../../lib/human
 import { callRoxyConnection, callRoxyPenta } from "../../lib/human-design/providers/roxy/relationClient";
 import type { RoxyCallResult } from "../../lib/human-design/providers/roxy/client";
 import { readFileSync } from "node:fs";
+import { isHdTzApprovedContent } from "../hd-tz/approvedChanges";
 
 let pass = 0;
 let fail = 0;
@@ -396,6 +397,8 @@ async function main() {
     const lf = (s: string) => s.replace(/\r\n/g, "\n");
     const unapproved = names === "GIT_ERROR" ? ["GIT_ERROR"] : names.split("\n").filter(Boolean).filter((line) => {
       const [status, file] = line.split("\t");
+      // HD-TZ (Owner kararı 18.11.2026): yalnız onaylı içerikle BİREBİR aynı dosya (SHA-256; başka her fark FAIL).
+      if (status === "M" && isHdTzApprovedContent(process.cwd(), file)) return false;
       const pairs = APPROVED_TEXT[file];
       if (status !== "M" || !pairs) return true;
       let base: string;

@@ -391,6 +391,12 @@
    "timeoutSec": 180
   },
   {
+   "file": "scripts/campaign/lilly-tz.test.ts",
+   "tsx": true,
+   "tsconfig": "scripts/campaign/tsconfig.json",
+   "timeoutSec": 300
+  },
+  {
    "file": "scripts/campaign/visitor-hd-relation.test.ts",
    "tsx": true,
    "tsconfig": "scripts/campaign/tsconfig.json",
@@ -413,6 +419,18 @@
    "tsx": true,
    "tsconfig": "scripts/campaign/tsconfig.json",
    "timeoutSec": 180
+  },
+  {
+   "file": "scripts/campaign/kozmik-date.test.ts",
+   "tsx": true,
+   "tsconfig": "scripts/campaign/tsconfig.json",
+   "timeoutSec": 180
+  },
+  {
+   "file": "scripts/location/tz-iana-2026f.harness.ts",
+   "tsx": true,
+   "tsconfig": "scripts/campaign/tsconfig.json",
+   "timeoutSec": 300
   },
   {
    "file": "scripts/ci/ci-paralel.harness.mjs",
@@ -582,6 +600,26 @@
    "file": "scripts/dya07-perf-photo-harness.ts",
    "tsx": true,
    "timeoutSec": 60
+  },
+  {
+   "file": "scripts/expert-branding/expertBranding.harness.ts",
+   "tsx": true,
+   "timeoutSec": 120
+  },
+  {
+   "file": "scripts/expert-branding/kademeB/routes.harness.ts",
+   "tsx": true,
+   "timeoutSec": 300
+  },
+  {
+   "file": "scripts/expert-branding/kademeB/samples.ts",
+   "tsx": true,
+   "timeoutSec": 240
+  },
+  {
+   "file": "scripts/expert-branding/routes.harness.ts",
+   "tsx": true,
+   "timeoutSec": 240
   },
   {
    "file": "scripts/expert-usage-stats/logic-harness.ts",
@@ -756,6 +794,40 @@
   },
   {
    "file": "scripts/pre-sale-a2b/system-health-counts.harness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/profile/delete-guard.harness.ts",
+   "tsx": true,
+   "timeoutSec": 240
+  },
+  {
+   "file": "scripts/profile/deleteMessage.test.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/profile/logo.harness.ts",
+   "tsx": true,
+   "timeoutSec": 180
+  },
+  {
+   "file": "scripts/profile/pg/expert-profiles-tables.mjs",
+   "timeoutSec": 240
+  },
+  {
+   "file": "scripts/profile/reportLogo.test.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/profile/routes.harness.ts",
+   "tsx": true,
+   "timeoutSec": 180
+  },
+  {
+   "file": "scripts/profile/schema.test.ts",
    "tsx": true,
    "timeoutSec": 60
   },
@@ -1516,6 +1588,30 @@
   },
   {
    "file": "scripts/deneme-hesap-durumu/hesap-durumu.harness.ts",
+   "tsx": true,
+   "timeoutSec": 240
+  },
+  {
+   "file": "scripts/uye-arsiv-salt-okunur/salt-okunur.harness.ts",
+   "tsx": true,
+   "timeoutSec": 120
+  },
+  {
+   "file": "scripts/uye-yonetimi-faz2/testDb-izolasyon.harness.ts",
+   "tsx": true,
+   "timeoutSec": 240
+  },
+  {
+   "file": "scripts/uye-yonetimi-faz2/uiKosu.harness.mjs",
+   "timeoutSec": 120
+  },
+  {
+   "file": "scripts/uye-yonetimi-faz1/unit.harness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/uye-yonetimi-faz2/phase2-integration.harness.ts",
    "tsx": true,
    "timeoutSec": 240
   }

@@ -431,7 +431,10 @@ async function main(): Promise<void> {
     ok("N6 ham Roxy yanıtı sunucuda ayrı kolonda korunur", JSON.stringify(stored.provider_raw).includes("typeDescription"));
     ok("N7 saklanan computed_result açıklama metni içermez", !JSON.stringify(stored.computed_result).includes("typeDescription"));
     ok("N8 skaler kolonlar uygulama kodları", stored.type_code === "generator" && stored.profile_code === "2_4" && stored.definition_code === "split" && stored.source === "computed" && stored.provider === "roxyapi");
-    ok("N9 Roxy'ye giden istek: tz/koordinat sunucudan, nodeType politikadan", JSON.stringify(calls[0]) === JSON.stringify({ date: "2018-07-20", time: "19:00:00", timezone: "Europe/Istanbul", latitude: konya!.latitude, longitude: konya!.longitude, nodeType: "true" }));
+    // HD-TZ (18.11.2026): Roxy'ye sunucunun IANA 2026f ile çözdüğü UTC anı + "UTC" gider (Konya 19:00 UTC+3 → 16:00Z);
+    // koordinatlar sunucudan, aynen. Kayıt yerel doğum bilgisini korur (N9b).
+    ok("N9 Roxy'ye giden istek: doğrulanmış UTC anı + \"UTC\", koordinat sunucudan, nodeType politikadan", JSON.stringify(calls[0]) === JSON.stringify({ date: "2018-07-20", time: "16:00:00", timezone: "UTC", latitude: konya!.latitude, longitude: konya!.longitude, nodeType: "true" }));
+    ok("N9b kayıtta yerel doğum bilgisi + IANA korunur; UTC computed_result.timing'de", stored.birth_time === "19:00:00" && stored.timezone === "Europe/Istanbul" && (stored.input as { time?: string; timezone?: string }).time === "19:00:00" && (stored.input as { timezone?: string }).timezone === "Europe/Istanbul" && (stored.computed_result as { timing?: { birthUtcIso?: string } }).timing?.birthUtcIso === "2018-07-20T16:00:00.000Z");
     // Doğum saati değişince yeni hesap
     f.tables.human_design_clients[0].birth_time = "19:30";
     // HD-15: gerçek Roxy değişen doğum anına göre YENİ Design anı döndürür; sahte sağlayıcı da öyle

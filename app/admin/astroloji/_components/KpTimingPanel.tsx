@@ -12,6 +12,7 @@ import { KP_NUMBER_LOCAL_NOTE, KP_PROVIDER_CORRECTION_NOTE, KP_SPLIT_CORRECTION_
 import { SIGN_GLYPHS, SIGN_LABELS, formatDegree } from "@/lib/astrology/labels/tr";
 import { GRAHA_LABELS } from "@/lib/astrology/topics/vedic";
 import { kpSplitFromLabel } from "@/lib/astrology/verify/kpSub";
+import { formatZonedParts, isDisplayZone } from "@/lib/astrology/birth/zonedFormat";
 
 const th = "px-2 py-1.5 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500";
 const td = "px-2 py-1.5 text-sm text-slate-800";
@@ -22,13 +23,7 @@ const short = (id: string) => (GRAHA_LABELS[id as keyof typeof GRAHA_LABELS] ?? 
 const dmy = (d: string) => `${d.slice(8, 10)}.${d.slice(5, 7)}.${d.slice(0, 4)}`;
 
 function validZone(tz: unknown): tz is string {
-  if (typeof tz !== "string" || !tz) return false;
-  try {
-    new Intl.DateTimeFormat("en-US", { timeZone: tz });
-    return true;
-  } catch {
-    return false;
-  }
+  return isDisplayZone(tz);
 }
 /** UTC anı → "GG.AA.YYYY SS:DD GMT+3" (seçilen bölge). */
 export function kpAt(utcIso: string, tz: string): string {
@@ -36,9 +31,7 @@ export function kpAt(utcIso: string, tz: string): string {
   if (!Number.isFinite(ms)) return utcIso;
   if (tz === "UTC") return `${dmy(utcIso)} ${utcIso.slice(11, 16)} UTC`;
   const p = Object.fromEntries(
-    new Intl.DateTimeFormat("en-GB", { timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23", timeZoneName: "shortOffset" })
-      .formatToParts(new Date(ms))
-      .map((x) => [x.type, x.value]),
+    formatZonedParts("en-GB", { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23", timeZoneName: "shortOffset" }, ms, tz).map((x) => [x.type, x.value]),
   );
   return `${p.day}.${p.month}.${p.year} ${p.hour}:${p.minute} ${p.timeZoneName}`;
 }

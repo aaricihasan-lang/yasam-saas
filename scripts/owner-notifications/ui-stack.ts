@@ -5,14 +5,18 @@
  * PostgREST shim + yalnız localhost'a açık küçük bir kontrol ucu (DB geçici hatası benzetimi / yeni olay ekleme).
  *   NEXT_PUBLIC_SUPABASE_URL=<shim adresi> SUPABASE_SERVICE_ROLE_KEY=zz-onui npx next dev --webpack -p 3951
  * Ardından: node scripts/owner-notifications/ui-check.mjs
+ * YALITIM: test DB her koşuda kendine özgü geçici dizin + boş port kullanır (testDbRun.ts); başka koşuların klasörleri
+ * silinmez. Yapılandırma koşu dizinine yazılır; tek canlı yığını ui-check kendisi bulur, birden çoksa
+ * ONUI_CFG=<yol> ile seçilir;
+ * Postgres portu ONUI_PG_PORT ile sabitlenebilir. Kapatma: Ctrl+C (ya da TESTDB_STDIN_KAPAT=1 iken stdin'i kapatmak)
+ * → shim + test DB kapanır, yalnız bu koşunun dizini silinir.
  */
 import { randomUUID } from "node:crypto";
-import { writeFileSync } from "node:fs";
 import http from "node:http";
-import os from "node:os";
-import path from "node:path";
 import { startPgrestShim } from "../uye-yonetimi-faz1/pgrestShim";
 import { startTestDb } from "../uye-yonetimi-faz2/testDb";
+import { freePort, installStackShutdown } from "../uye-yonetimi-faz2/testDbRun";
+import { writeStackConfig } from "../uye-yonetimi-faz2/uiKosu.mjs";
 import { readMig } from "../uye-yonetimi-360/migrationChain";
 
 const OWNER = "00000000-0000-4000-8000-0000000017a1";
@@ -25,7 +29,7 @@ const ALL_MODS = {
 };
 
 async function main(): Promise<void> {
-  const db = await startTestDb(54596, "owner-notifications-ui");
+  const db = await startTestDb(Number(process.env.ONUI_PG_PORT ?? (await freePort())), "owner-notifications-ui");
   const { su } = db;
   for (const f of [
     "20271230000000_astrology_technique_grants.sql",
@@ -112,9 +116,10 @@ async function main(): Promise<void> {
     expert: { token: TOK.expert, user: u(EXPERT, "ZZ_ONUI Uzman", "expert") },
     ids: { legacy, pending, trials: trialIds },
   };
-  const cfgPath = path.join(os.tmpdir(), "owner-notifications-ui.json");
-  writeFileSync(cfgPath, JSON.stringify(cfg));
+  // Koşuya özgü yapılandırma (kendi koşu dizininde; sabit ortak dosyaya yazılmaz) — uiKosu.mjs.
+  const cfgPath = writeStackConfig({ runDir: db.runDir, shimUrl: shim.url, cfg, envPath: process.env.ONUI_CFG });
   console.log(`UI STACK HAZIR · shim ${shim.url} · cfg ${cfgPath}`);
+  installStackShutdown([() => new Promise<void>((r) => ctl.close(() => r())), () => shim.close(), () => db.stop()]);
   setInterval(() => { /* açık kal */ }, 1 << 30);
 }
 main().catch((e) => {

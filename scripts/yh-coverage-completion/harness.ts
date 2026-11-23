@@ -175,7 +175,7 @@ function run(): void {
     // backfill: FUTURE_ONLY_READY backfill-eligible DEĞİL → allowed false (backfillAllowed true olsa bile)
     add(`no-backfill-${k}`, evaluateBackfillGate(d, { isActive: true, backfillAllowed: true }).allowed === false, "");
   }
-  add("matrix-total-42", YH_ACTIVATION_MATRIX.length === 45, String(YH_ACTIVATION_MATRIX.length));
+  add("matrix-total-42", YH_ACTIVATION_MATRIX.length === 46, String(YH_ACTIVATION_MATRIX.length)); // 10. aşama: +1 sifa_rehberi_v2:notes (Şifa V2 kişisel notlar, uzman sahipli, CONTROLLED)
 
   // ═══ 7) MIGRATION STATİK ════════════════════════════════════════════════════
   const read = (p: string): string => readFileSync(join(process.cwd(), p), "utf8");

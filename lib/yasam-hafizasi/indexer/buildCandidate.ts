@@ -59,7 +59,14 @@ export interface BuiltIndexUnit {
   readonly evidenceFields: EvidenceField[];
   readonly sourceUpdatedAt: string | null;
   readonly contentHash: string;
+  /**
+   * Uzman sahipliği (yalnız `config.ownerColumn` tanımlı kaynakta; ör. Şifa V2 kişisel notları).
+   * Yoksa alan HİÇ bulunmaz → indeks satırı bugünkü gibi tenant geneli (owner_user_id NULL).
+   */
+  readonly ownerUserId?: string;
 }
+
+const OWNER_UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 // ─── Tip guard'ı (coercion YOK) ──────────────────────────────────────────────
 
@@ -192,6 +199,16 @@ export function buildIndexUnit(
   const sourceId = row[config.primaryKey];
   if (!isNonEmptyString(sourceId)) return null;
 
+  // 2b) Uzman sahipliği (yalnız ownerColumn tanımlı kaynak): geçerli UUID + tenant'tan FARKLI olmalı
+  //     (tenant kimliği = kurum kaydı; kişisel olarak işaretlenemez). Aksi → birim üretilmez (fail-closed).
+  let ownerUserId: string | undefined;
+  if (typeof config.ownerColumn === "string" && config.ownerColumn.length > 0) {
+    const owner = row[config.ownerColumn];
+    if (typeof owner !== "string" || !OWNER_UUID_RE.test(owner)) return null;
+    if (tenant.tenantId === null || owner.toLowerCase() === tenant.tenantId.toLowerCase()) return null;
+    ownerUserId = owner;
+  }
+
   // 3) group_key: güvenilir kimlik yoksa üretme.
   const groupId = resolveGroupId(config, row);
   if (groupId === null) return null;
@@ -238,5 +255,6 @@ export function buildIndexUnit(
     evidenceFields: evidenceOut,
     sourceUpdatedAt: pickSourceUpdatedAt(config, row),
     contentHash,
+    ...(ownerUserId !== undefined ? { ownerUserId } : {}),
   };
 }

@@ -8,11 +8,10 @@
  * Ardından: node scripts/uye-detay-v2/ui-check.mjs
  */
 import { randomUUID } from "node:crypto";
-import { writeFileSync } from "node:fs";
-import os from "node:os";
-import path from "node:path";
 import { startPgrestShim } from "../uye-yonetimi-faz1/pgrestShim";
 import { startTestDb } from "../uye-yonetimi-faz2/testDb";
+import { freePort, installStackShutdown } from "../uye-yonetimi-faz2/testDbRun";
+import { writeStackConfig } from "../uye-yonetimi-faz2/uiKosu.mjs";
 import { readMig } from "../uye-yonetimi-360/migrationChain";
 
 const OWNER = "00000000-0000-4000-8000-00000000d2a1";
@@ -25,7 +24,7 @@ const D = 86_400_000;
 const day = (ms: number) => new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Istanbul" }).format(new Date(ms));
 
 async function main(): Promise<void> {
-  const port = Number(process.env.UD2_PG_PORT ?? 54797);
+  const port = Number(process.env.UD2_PG_PORT ?? (await freePort())); // boş port (paralel koşular çakışmaz)
   const db = await startTestDb(port, `uye-arsiv-4a-ui-${port}`);
   const { su } = db;
   for (const f of [
@@ -124,9 +123,10 @@ async function main(): Promise<void> {
     ids,
     pg: { port },
   };
-  const cfgPath = path.join(os.tmpdir(), "uye-detay-v2-ui.json");
-  writeFileSync(cfgPath, JSON.stringify(cfg));
+  // Koşuya özgü yapılandırma (kendi koşu dizininde; sabit ortak dosyaya yazılmaz) — uiKosu.mjs.
+  const cfgPath = writeStackConfig({ runDir: db.runDir, shimUrl: shim.url, cfg, envPath: process.env.UD2_CFG });
   console.log(`UI STACK HAZIR · shim ${shim.url} · cfg ${cfgPath}`);
+  installStackShutdown([() => shim.close(), () => db.stop()]);
   setInterval(() => { /* açık kal */ }, 1 << 30);
 }
 main().catch((e) => {

@@ -17,6 +17,7 @@ import assert from "node:assert/strict";
 import { execSync } from "node:child_process";
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
+import { isHdTzApprovedContent } from "../hd-tz/approvedChanges";
 import { isAstrologyShellOwner } from "@/lib/astrology/access/ownerGate";
 import { createFakeClient, createStore } from "./fakeSupabase";
 
@@ -326,6 +327,13 @@ async function main() {
       /^public\/fonts\/YasamAstroSymbolsB-OFL\.txt$/,
       // next.config.ts: yalnız astroloji rapor route'larının font izleme satırları ("8" testi satır satır denetler).
       /^next\.config\.ts$/,
+      // 2026-11-16 (Owner kararı ATL-V01, seçenek B): ortak 81 il konum verisi merkezi düzeltilir (yalnız 7 il koordinatı;
+      // kimlik / ad / saat dilimi değişmez). Tüm modül etkisi atl-v01-il-merkezi.harness.ts ile denetlenir — yalnız bu tam yol.
+      /^lib\/location\/tr\.ts$/,
+      // 2026-11-17 (Owner talimatı HD-TZ-00): Atlas'ın IANA 2026f tablosu, backzone katmanı, ofset çekirdeği ve saat gösterim
+      // yardımcısı modülden bağımsız ortak katmana taşındı (Atlas eski yolları yönlendirme). Yalnız bu klasör; HD dosyaları aşağıdaki
+      // ayrı denetimle değişmez kalır.
+      /^lib\/time\/tzdb\//,
       /^lib\/backup\/ownerPilotTables\.ts$/,
       /^lib\/backup\/schema\.generated\.ts$/,
       /^scripts\/final-hardening\/backup\.harness\.ts$/,
@@ -389,9 +397,12 @@ async function main() {
       /^app\/life-analysis\/_components\/moduleArtwork\.tsx$/,
       /^public\/premium\/analiz-merkezi\/kart-(numeroloji|human-design|kozmik-ajanda|gokyuzu-atlasi)\.webp$/,
     ];
-    const outside = all.filter((p) => !allowed.some((r) => r.test(p)));
+    // HD-TZ (Owner kararı 18.11.2026): Owner onaylı HD doğruluk değişikliğinin dosyaları YALNIZ onaylı içerikle BİREBİR aynıysa
+    // (SHA-256 manifestosu scripts/hd-tz/approvedChanges.ts) kapsam içidir; başka her HD / kapsam dışı fark yine FAIL.
+    const hdTzOk = (p: string) => p === "scripts/hd-tz/approvedChanges.ts" || isHdTzApprovedContent(ROOT, p);
+    const outside = all.filter((p) => !allowed.some((r) => r.test(p)) && !hdTzOk(p));
     assert.deepEqual(outside, [], `kapsam dışı değişiklik: ${outside.join(", ")}`);
-    assert.ok(!all.some((p) => /^lib\/human-design\/|^app\/api\/hd\/|^app\/human-design\//.test(p)), "HD dosyası değişti");
+    assert.ok(!all.some((p) => /^lib\/human-design\/|^app\/api\/hd\/|^app\/human-design\//.test(p) && !hdTzOk(p)), "HD dosyası değişti");
   });
 
   await t("2026-10-15 menü taşıma: app/page.tsx farkı YALNIZ Atlas kartının kaldırılması + merkez kartının ek yetkisi (başka kart değişmez)", () => {

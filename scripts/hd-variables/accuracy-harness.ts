@@ -122,8 +122,16 @@ section("E. 1 000 çağrı bütçeli gerçek doğrulama (529 sentetik doğum) �
   let shownCertain = 0, shownFalseTone = 0, shownBase = 0, shownFalseBase = 0, crossOk = 0, crossWrongReject = 0, lmtCases = 0;
   const bad: unknown[] = [];
   const comboSeen = new Set<string>();
+  // HD-TZ (18.11.2026): IANA 2026f + 1970 öncesi backzone (Owner kararı) bu iki doğumun UTC'sini değiştirdi; beklenen değerler
+  // bağımsız tzcomp.py (IANA 2026f kaynak metni ana veri + backzone) derlemesinden. Kayıtlı Roxy yanıtları ESKİ ana aittir →
+  // yanıt karşılaştırmaları o anla (fikstürdeki utc) sürer; yeni UTC ayrıca doğrulanır.
+  const BACKZONE_2026F = new Map([["S3-046", "1957-01-27T04:20:43Z"], ["S3-252", "1945-05-28T11:57:12Z"]]);
+  let bzOk = 0;
   for (const [id, utc, date, time, tz, rox, , cog, ref] of live.cases) {
-    const r = resolveBirthLocalTime(date, time, tz);
+    const r0 = resolveBirthLocalTime(date, time, tz);
+    const bzExp = BACKZONE_2026F.get(id);
+    if (bzExp && r0.kind === "ok" && r0.utcIso.replace(".000Z", "Z") === bzExp) bzOk++;
+    const r = bzExp && r0.kind === "ok" ? { ...r0, utcIso: new Date(utc).toISOString(), offsetSeconds: (Date.parse(`${date}T${time}Z`) - Date.parse(utc)) / 1000 } : r0;
     if (r.kind !== "ok") { bad.push({ id, r: r.kind }); continue; }
     if (r.utcIso.replace(".000Z", "Z") === utc) utcOk++;
     const lmt = r.offsetSeconds % 60 !== 0;
@@ -152,6 +160,7 @@ section("E. 1 000 çağrı bütçeli gerçek doğrulama (529 sentetik doğum) �
     });
   }
   const n = live.cases.length;
+  ok(bzOk === BACKZONE_2026F.size, `IANA 2026f + backzone: ${bzOk}/${BACKZONE_2026F.size} tarihsel doğumun yeni UTC'si bağımsız referansla aynı (Reykjavik 1957, Oslo 1945)`);
   ok(n >= 500 && utcOk === n && live.placementAllMatch, `${n} gerçek yanıt: ürün UTC'si = referans UTC ${utcOk}/${n}; konum / taraf / gezegen hepsinde sözleşmeyle aynı`, bad.slice(0, 3));
   ok(modernArrows >= 1800 && modernExact === modernArrows, `saniyesiz (modern) ofset: ${modernExact}/${modernArrows} ok Color/Tone/Base Swiss Ephemeris ile BİREBİR`, bad.slice(0, 5));
   ok(lmtCases >= 40 && lmtExplained === lmtArrows, `tarihsel saniyeli ofset (${lmtCases} doğum, ${lmtArrows} ok): her fark ≤ 2,6″ referans payında (sağlayıcının ofset saniyesi kesmesi; Güneş ≤ 59 sn × 0,0425″)`, bad.slice(0, 5));

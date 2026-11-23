@@ -3,6 +3,7 @@ import { ASTRO_NO_STORE, requireAstrologyAccess, astrologyTechniqueDenied } from
 import { ASTRO_GRANT_HORARY_LILLY } from "@/lib/astrology/access/techniqueGrants";
 import { resolveAstroLocation } from "@/lib/astrology/birth/location";
 import { renderHoraryReport } from "@/lib/astrology/horary/westernReportService";
+import { astroReportBrandingLoader } from "@/lib/astrology/report/branding";
 import { parseWesternHoraryBody, runWesternHorary } from "@/lib/astrology/horary/westernRun";
 import { readJsonBody } from "@/lib/astrology/http";
 import { checkRateLimit } from "@/lib/rateLimit";
@@ -43,7 +44,9 @@ export async function POST(req: NextRequest): Promise<Response> {
   if (!place) return NextResponse.json({ ok: false, code: "INVALID_INPUT", field: "place", error: "Konum bulunamadı. Listeden yeniden seçin." }, { status: 400, headers: ASTRO_NO_STORE });
   const r = runWesternHorary({ date: parsed.value.date, time: parsed.value.time, place, quesitedHouse: parsed.value.quesitedHouse, dst: parsed.value.dst });
   if (!r.ok) return NextResponse.json({ ok: false, ...r.error }, { status: 422, headers: ASTRO_NO_STORE });
-  const out = await renderHoraryReport(r.result, fmt, { question: question || null, demo: raw.demo === true, generatedAt: new Date().toISOString() });
+  // F3B: uzman markalaması — sahip yalnız kapıdan (gate.ctx); kapalı / yok → birebir.
+  const branding = await astroReportBrandingLoader(gate.ctx)();
+  const out = await renderHoraryReport(r.result, fmt, { question: question || null, demo: raw.demo === true, generatedAt: new Date().toISOString(), branding });
   const asciiName = out.filename.replace(/[^\x20-\x7E]/g, "_");
   return new NextResponse(Buffer.from(out.bytes), {
     status: 200,

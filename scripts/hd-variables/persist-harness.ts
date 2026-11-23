@@ -117,12 +117,17 @@ async function main() {
       { n: 8, tenant: TA, name: "Silinecek", date: "1988-08-08", time: "08:08:00", tz: "Europe/Istanbul" },
       { n: 9, tenant: TB, name: "Başka Tenant", date: "1979-12-01", time: "08:15:00", tz: "America/New_York" },
     ];
+    const seedComputed = (d: string, t: string, tz: string) => {
+      const r = resolveBirthLocalTime(d, t, tz);
+      return r.kind === "ok" ? { activations: [], timing: { birthUtcIso: r.utcIso } } : { activations: [] };
+    };
     for (const s of seeds) {
       await su.query(`insert into public.human_design_clients(id, tenant_id, name, birth_date, birth_time) values ($1,$2,$3,$4,$5)`, [cid(s.n), s.tenant, s.name, s.date, s.time.slice(0, 5)]);
       const input = { date: s.date, time: s.time, timezone: s.tz, latitude: 41, longitude: 29, nodeType: "true", lang: "tr" };
       await su.query(
         `insert into public.human_design_charts(id, tenant_id, client_id, client_name, source, provider, input, input_hash, computed_result) values ($1,$2,$3,$4,'computed','roxyapi',$5,$6,$7)`,
-        [hid(s.n), s.tenant, cid(s.n), s.name, JSON.stringify(input), `ih-${s.n}`, JSON.stringify({ activations: [] })],
+        // HD-TZ: gerçek Roxy kaydı gibi kayıtlı doğum anı (computed_result.timing.birthUtcIso).
+        [hid(s.n), s.tenant, cid(s.n), s.name, JSON.stringify(input), `ih-${s.n}`, JSON.stringify(seedComputed(s.date, s.time, s.tz))],
       );
     }
     const P = { human_design: true, hd_system_reading: true };
@@ -250,7 +255,8 @@ async function main() {
     const r5 = await post(UA, { chart_id: hid(2) });
     const oldKey = String((await rows(hid(2)))[0]?.cache_key);
     // Analizin kaydı yeniden oluşturulmuş gibi: doğum saati + girdi kimliği değişir (danışan da güncel → 409 değil)
-    await su.query(`update public.human_design_charts set input = jsonb_set(input, '{time}', '"11:30:00"'), input_hash='ih-2b' where id=$1`, [hid(2)]);
+    // (HD-TZ: yeniden oluşturulmuş analiz gibi kayıtlı doğum anı da yeni saate göre)
+    await su.query(`update public.human_design_charts set input = jsonb_set(input, '{time}', '"11:30:00"'), computed_result = $2::jsonb, input_hash='ih-2b' where id=$1`, [hid(2), JSON.stringify(seedComputed("1990-01-01", "11:30:00", "Europe/Istanbul"))]);
     await su.query(`update public.human_design_clients set birth_time='11:30' where id=$1`, [cid(2)]);
     restart();
     const c5 = roxy.calls;
@@ -467,10 +473,11 @@ async function main() {
     const before9 = (await rows(hid(8))).length;
     await su.query(`delete from public.human_design_charts where id=$1`, [hid(8)]);
     ok(before9 === 1 && (await rows(hid(8))).length === 0 && (await su.query(`select count(*)::int n from public.human_design_clients where id=$1`, [cid(8)])).rows[0].n === 1, "9b analiz silinince Dört Ok sonucu da silinir (CASCADE); danışan profili korunur");
-    await su.query(`insert into public.human_design_charts(id, tenant_id, client_id, client_name, source, provider, input, input_hash, computed_result) select $1, $2, $3, 'Silinecek', 'computed', 'roxyapi', $4, 'ih-8', $5`, [hid(8), TA, cid(8), JSON.stringify({ date: "1988-08-08", time: "08:08:00", timezone: "Europe/Istanbul", latitude: 41, longitude: 29, nodeType: "true", lang: "tr" }), JSON.stringify({ activations: [] })]);
+    await su.query(`insert into public.human_design_charts(id, tenant_id, client_id, client_name, source, provider, input, input_hash, computed_result) select $1, $2, $3, 'Silinecek', 'computed', 'roxyapi', $4, 'ih-8', $5`, [hid(8), TA, cid(8), JSON.stringify({ date: "1988-08-08", time: "08:08:00", timezone: "Europe/Istanbul", latitude: 41, longitude: 29, nodeType: "true", lang: "tr" }), JSON.stringify(seedComputed("1988-08-08", "08:08:00", "Europe/Istanbul"))]);
     // 5a'da değiştirilen analiz/danışan hariç natal kayıtlar birebir aynı; computed_result hiçbir analizde değişmedi
-    const cr = (await su.query(`select count(*)::int n from public.human_design_charts where computed_result::text <> '{"activations": []}'`)).rows[0].n;
-    await su.query(`update public.human_design_charts set input = jsonb_set(input, '{time}', '"10:00:00"'), input_hash='ih-2' where id=$1`, [hid(2)]);
+    // (HD-TZ: tohumdaki kayıtlı doğum anı "timing" dışında computed_result tohumla aynı — Variables yazılmamış)
+    const cr = (await su.query(`select count(*)::int n from public.human_design_charts where (computed_result - 'timing')::text <> '{"activations": []}'`)).rows[0].n;
+    await su.query(`update public.human_design_charts set input = jsonb_set(input, '{time}', '"10:00:00"'), computed_result = $2::jsonb, input_hash='ih-2' where id=$1`, [hid(2), JSON.stringify(seedComputed("1990-01-01", "10:00:00", "Europe/Istanbul"))]);
     await su.query(`update public.human_design_clients set birth_time='10:00' where id=$1`, [cid(2)]);
     ok(cr === 0 && (await chartsMd5()) === charts0 && (await md5("human_design_clients")) === clients0, "9c natal analizler / danışanlar servis tarafından DEĞİŞTİRİLMEDİ (computed_result'a Variables yazılmaz)");
     ok(roxy.external.length === 0, "9d dış ağ çağrısı yok (yalnız sahte sağlayıcı)", roxy.external);

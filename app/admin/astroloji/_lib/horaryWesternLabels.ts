@@ -2,6 +2,7 @@
 // ürettiği kaydın adını Türkçeleştirir. Ev konuları seçim kolaylığı içindir (klasik ev anlamları), yorum değildir.
 import { BODY_GLYPHS, BODY_LABELS, SIGN_GLYPHS, SIGN_LABELS } from "@/lib/astrology/labels/tr";
 import type { BodyId, SignId } from "@/lib/astrology/model/western";
+import { formatZoned } from "@/lib/astrology/birth/zonedFormat";
 
 export const HOUSE_TOPICS: Readonly<Record<number, string>> = {
   2: "Para, mal, kayıp eşya",
@@ -127,7 +128,7 @@ export function offsetLabel(sec: number): string {
 /** UTC ISO → sorunun yerel saatinde kısa tarih-saat (Intl; tarayıcı saat dilimi kullanılmaz). */
 export function localAt(iso: string, tz: string): string {
   try {
-    return new Intl.DateTimeFormat("tr-TR", { timeZone: tz, day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }).format(new Date(iso));
+    return formatZoned("tr-TR", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }, Date.parse(iso), tz);
   } catch {
     return iso;
   }

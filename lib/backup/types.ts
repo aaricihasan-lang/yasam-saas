@@ -93,6 +93,11 @@ export type RegistryEntry = {
   generatedColumns?: readonly string[];
   /** Keyset sayfa boyutu (≤500). Büyük satırlı (base64 foto) tablolar için küçük tutulur. */
   pageSize?: number;
+  /**
+   * true → tablo bu ortamda henüz YOKSA (PostgREST PGRST205 / PostgreSQL 42P01) dışa aktarım boş + tamam,
+   * geri yükleme "atlandı" sayılır (ör. migration'ı henüz uygulanmamış yeni modül tabloları). Diğer hatalar aynen hatadır.
+   */
+  absentTolerant?: boolean;
   label: string;
 };
 

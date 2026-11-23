@@ -189,6 +189,14 @@ function errText(err: DbError): string {
   return [err.code, err.message].filter(Boolean).join(": ") || "bilinmeyen hata";
 }
 
+/** PostgREST "tablo şema önbelleğinde yok" (PGRST205) / PostgreSQL "ilişki yok" (42P01). */
+const MISSING_RELATION_CODES = new Set(["PGRST205", "42P01"]);
+
+/** Yalnız registry'de absentTolerant işaretli tablo için: tablo bu ortamda henüz kurulmamış mı? */
+function absentTable(e: RegistryEntry, err: DbError): boolean {
+  return e.absentTolerant === true && !!err && MISSING_RELATION_CODES.has(String(err.code ?? ""));
+}
+
 function nutritionBlocked(e: RegistryEntry, tenantId: string): boolean {
   return e.module === "beslenme" && tenantId === SYSTEM_NUTRITION_TENANT_ID;
 }
@@ -226,7 +234,7 @@ export async function countTableRows(
     if (owner && "column" in owner) q = q.eq(owner.column, owner.value);
     q = applyRowFilters(q, opts.filters);
     const res = (await q) as QueryResult;
-    if (res.error) return { count: null, error: errText(res.error) };
+    if (res.error) return absentTable(e, res.error) ? { count: 0, error: null } : { count: null, error: errText(res.error) };
     return { count: typeof res.count === "number" ? res.count : null, error: null };
   }
   if (ps) {
@@ -320,7 +328,7 @@ export async function fetchTablePage(
     const q = applyKeyset(sel as unknown as KeysetQuery, e, cursor ? cursor.k : null);
     if (q === "invalid") return invalidCursor();
     const res = await q.limit(pageSize);
-    if (res.error) return finish([], null, errText(res.error));
+    if (res.error) return absentTable(e, res.error) ? finish([], null, null) : finish([], null, errText(res.error));
     const rows = (res.data as Row[] | null) ?? [];
     if (rows.length === 0) return finish([], null, null);
     const t = trimToBudget(e, rows);
@@ -546,6 +554,16 @@ export async function restoreChunk(
     return report;
   }
   const entry = e!;
+  if (entry.absentTolerant) {
+    // Yeni modül tablosu bu ortamda henüz kurulmamış → satırlar YAZILMAZ, "atlandı" raporlanır (hata değil).
+    const probe = (await db.from(entry.table).select(entry.pk[0] ?? "id").limit(0)) as QueryResult;
+    if (probe.error && absentTable(entry, probe.error)) {
+      report.expected = 0;
+      report.warnings.push(`table_absent: ${entry.table} bu ortamda henüz kurulmamış; ${rawRows.length} satır yazılmadı.`);
+      report.status = "SKIPPED";
+      return report;
+    }
+  }
   const policy = columnPolicyFor(entry);
   const tenantCol = hasTenantColumn(entry);
   const pkCols = entry.pk.filter((c) => c !== "tenant_id");

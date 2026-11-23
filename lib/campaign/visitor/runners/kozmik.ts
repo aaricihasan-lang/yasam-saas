@@ -94,7 +94,8 @@ export const kozmikPaket: VisitorRunner<KozmikIn> = {
       const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(input.date));
       if (!m) errors.date = "Tarihi seçin.";
       else { year = Number(m[1]); month = Number(m[2]); day = Number(m[3]); }
-      if (m && !isCalendarDaySupported(year, month - 1, day)) errors.date = `Desteklenen aralık: ${SUPPORT_RANGE_LABEL}.`;
+      // KZM-DATE-01: isCalendarDaySupported ayı 1–12 bekler (isMonthSupported'tan farklı olarak 0–11 DEĞİL).
+      if (m && !isCalendarDaySupported(year, month, day)) errors.date = `Desteklenen aralık: ${SUPPORT_RANGE_LABEL}.`;
     }
     let place: Place | null = null;
     if (feature === "hours" && input.place) place = parsePlace(input, "place", errors);

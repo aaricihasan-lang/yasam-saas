@@ -1,0 +1,654 @@
+{
+ "source": "HD-TZ (18.11.2026) — timezone-reference.json (Python zoneinfo, tzdata 2026c, backzone YOK) vakalarından, IANA 2026f + 1970 öncesi backzone politikasıyla (Owner kararı; backzone yalnız lib/time/tzdb/backzone.generated.ts katmanındaki bölgelerde) BEKLENENİ DEĞİŞENLER. Bağımsız üretim: ≤2039 scripts/astrology/tz/tzcomp.py ile IANA 2026f kaynak metninin derlemesi (katmandaki bölgede ana veri + backzone, diğerlerinde ana veri); >2039 Python zoneinfo + tzdata 2026f geçiş listesi. TS çekirdeği (lib/time/tzdb) KULLANILMADI.",
+ "tzdataSourceBackzoneSha256": "8cce95d550862a443806fcf7ec1baf799d69a21a74af714291cba7ee4b7d2346",
+ "cases": [
+  {
+   "tz": "Africa/Conakry",
+   "date": "1909-09-20",
+   "time": "04:07",
+   "previous": {
+    "kind": "ok",
+    "utc": "1909-09-20T04:23:08.000Z",
+    "offset": -968
+   },
+   "kind": "ok",
+   "utc": "1909-09-20T05:01:52.000Z",
+   "offset": -3292,
+   "reference": "tzcomp-2026f+backzone"
+  },
+  {
+   "tz": "Africa/Nouakchott",
+   "date": "1948-08-02",
+   "time": "09:56",
+   "previous": {
+    "kind": "ok",
+    "utc": "1948-08-02T09:56:00.000Z",
+    "offset": 0
+   },
+   "kind": "ok",
+   "utc": "1948-08-02T10:56:00.000Z",
+   "offset": -3600,
+   "reference": "tzcomp-2026f+backzone"
+  },
+  {
+   "tz": "Atlantic/Reykjavik",
+   "date": "1901-11-18",
+   "time": "09:36",
+   "previous": {
+    "kind": "ok",
+    "utc": "1901-11-18T09:52:08.000Z",
+    "offset": -968
+   },
+   "kind": "ok",
+   "utc": "1901-11-18T11:04:00.000Z",
+   "offset": -5280,
+   "reference": "tzcomp-2026f+backzone"
+  },
+  {
+   "tz": "Atlantic/Reykjavik",
+   "date": "1906-09-17",
+   "time": "09:03",
+   "previous": {
+    "kind": "ok",
+    "utc": "1906-09-17T09:19:08.000Z",
+    "offset": -968
+   },
+   "kind": "ok",
+   "utc": "1906-09-17T10:31:00.000Z",
+   "offset": -5280,
+   "reference": "tzcomp-2026f+backzone"
+  },
+  {
+   "tz": "Atlantic/Reykjavik",
+   "date": "1909-09-04",
+   "time": "13:25",
+   "previous": {
+    "kind": "ok",
+    "utc": "1909-09-04T13:41:08.000Z",
+    "offset": -968
+   },
+   "kind": "ok",
+   "utc": "1909-09-04T14:25:00.000Z",
+   "offset": -3600,
+   "reference": "tzcomp-2026f+backzone"
+  },
+  {
+   "tz": "Africa/Djibouti",
+   "date": "1917-12-14",
+   "time": "20:11",
+   "previous": {
+    "kind": "ok",
+    "utc": "1917-12-14T17:41:00.000Z",
+    "offset": 9000
+   },
+   "kind": "ok",
+   "utc": "1917-12-14T17:11:00.000Z",
+   "offset": 10800,
+   "reference": "tzcomp-2026f+backzone"
+  },
+  {
+   "tz": "America/Inuvik",
+   "date": "2090-02-12",
+   "time": "10:10",
+   "previous": {
+    "kind": "ok",
+    "utc": "2090-02-12T17:10:00.000Z",
+    "offset": -25200
+   },
+   "kind": "ok",
+   "utc": "2090-02-12T16:10:00.000Z",
+   "offset": -21600,
+   "reference": "zoneinfo-2026f"
+  },
+  {
+   "tz": "America/St_Thomas",
+   "date": "1901-12-14",
+   "time": "20:19",
+   "previous": {
+    "kind": "ok",
+    "utc": "1901-12-15T00:19:00.000Z",
+    "offset": -14400
+   },
+   "kind": "ok",
+   "utc": "1901-12-15T00:38:44.000Z",
+   "offset": -15584,
+   "reference": "tzcomp-2026f+backzone"
+  },
+  {
+   "tz": "America/St_Thomas",
+   "date": "1910-01-23",
+   "time": "16:42",
+   "previous": {
+    "kind": "ok",
+    "utc": "1910-01-23T20:42:00.000Z",
+    "offset": -14400
+   },
+   "kind": "ok",
+   "utc": "1910-01-23T21:01:44.000Z",
+   "offset": -15584,
+   "reference": "tzcomp-2026f+backzone"
+  },
+  {
+   "tz": "Africa/Ouagadougou",
+   "date": "1901-11-15",
+   "time": "21:51",
+   "previous": {
+    "kind": "ok",
+    "utc": "1901-11-15T22:07:08.000Z",
+    "offset": -968
+   },
+   "kind": "ok",
+   "utc": "1901-11-15T21:57:04.000Z",
+   "offset": -364,
+   "reference": "tzcomp-2026f+backzone"
+  },
+  {
+   "tz": "Africa/Porto-Novo",
+   "date": "1927-08-25",
+   "time": "04:18",
+   "previous": {
+    "kind": "ok",
+    "utc": "1927-08-25T03:18:00.000Z",
+    "offset": 3600
+   },
+   "kind": "ok",
+   "utc": "1927-08-25T04:18:00.000Z",
+   "offset": 0,
+   "reference": "tzcomp-2026f+backzone"
+  },
+  {
+   "tz": "Africa/Porto-Novo",
+   "date": "1919-06-17",
+   "time": "20:23",
+   "previous": {
+    "kind": "ok",
+    "utc": "1919-06-17T19:53:00.000Z",
+    "offset": 1800
+   },
+   "kind": "ok",
+   "utc": "1919-06-17T20:23:00.000Z",
+   "offset": 0,
+   "reference": "tzcomp-2026f+backzone"
+  },
+  {
+   "tz": "Africa/Porto-Novo",
+   "date": "1907-09-16",
+   "time": "09:22",
+   "previous": {
+    "kind": "ok",
+    "utc": "1907-09-16T09:22:00.000Z",
+    "offset": 0
+   },
+   "kind": "ok",
+   "utc": "1907-09-16T09:11:32.000Z",
+   "offset": 628,
+   "reference": "tzcomp-2026f+backzone"
+  },
+  {
+   "tz": "Indian/Kerguelen",
+   "date": "1919-06-10",
+   "time": "22:02",
+   "previous": {
+    "kind": "ok",
+    "utc": "1919-06-10T17:08:00.000Z",
+    "offset": 17640
+   },
+   "kind": "ok",
+   "utc": "1919-06-10T22:02:00.000Z",
+   "offset": 0,
+   "reference": "tzcomp-2026f+backzone"
+  },
+  {
+   "tz": "Indian/Kerguelen",
+   "date": "1931-07-27",
+   "time": "02:41",
+   "previous": {
+    "kind": "ok",
+    "utc": "1931-07-26T21:47:00.000Z",
+    "offset": 17640
+   },
+   "kind": "ok",
+   "utc": "1931-07-27T02:41:00.000Z",
+   "offset": 0,
+   "reference": "tzcomp-2026f+backzone"
+  },
+  {
+   "tz": "America/St_Barthelemy",
+   "date": "1911-07-06",
+   "time": "22:47",
+   "previous": {
+    "kind": "ok",
+    "utc": "1911-07-07T02:47:00.000Z",
+    "offset": -14400
+   },
+   "kind": "ok",
+   "utc": "1911-07-07T02:53:04.000Z",
+   "offset": -14764,
+   "reference": "tzcomp-2026f+backzone"
+  },
+  {
+   "tz": "America/Cayman",
+   "date": "1906-11-17",
+   "time": "19:29",
+   "previous": {
+    "kind": "ok",
+    "utc": "1906-11-18T00:48:36.000Z",
+    "offset": -19176
+   },
+   "kind": "ok",
+   "utc": "1906-11-18T00:36:10.000Z",
+   "offset": -18430,
+   "reference": "tzcomp-2026f+backzone"
+  },
+  {
+   "tz": "Africa/Banjul",
+   "date": "1917-12-24",
+   "time": "09:53",
+   "previous": {
+    "kind": "ok",
+    "utc": "1917-12-24T09:53:00.000Z",
+    "offset": 0
+   },
+   "kind": "ok",
+   "utc": "1917-12-24T10:59:36.000Z",
+   "offset": -3996,
+   "reference": "tzcomp-2026f+backzone"
+  },
+  {
+   "tz": "Africa/Libreville",
+   "date": "1907-10-08",
+   "time": "13:52",
+   "previous": {
+    "kind": "ok",
+    "utc": "1907-10-08T13:52:00.000Z",
+    "offset": 0
+   },
+   "kind": "ok",
+   "utc": "1907-10-08T13:14:12.000Z",
+   "offset": 2268,
+   "reference": "tzcomp-2026f+backzone"
+  },
+  {
+   "tz": "Asia/Brunei",
+   "date": "1943-11-09",
+   "time": "06:02",
+   "previous": {
+    "kind": "ok",
+    "utc": "1943-11-08T21:02:00.000Z",
+    "offset": 32400
+   },
+   "kind": "ok",
+   "utc": "1943-11-08T22:02:00.000Z",
+   "offset": 28800,
+   "reference": "tzcomp-2026f+backzone"
+  },
+  {
+   "tz": "Indian/Cocos",
+   "date": "1909-12-02",
+   "time": "07:04",
+   "previous": {
+    "kind": "ok",
+    "utc": "1909-12-02T00:39:13.000Z",
+    "offset": 23087
+   },
+   "kind": "ok",
+   "utc": "1909-12-02T00:34:00.000Z",
+   "offset": 23400,
+   "reference": "tzcomp-2026f+backzone"
+  },
+  {
+   "tz": "Indian/Cocos",
+   "date": "1906-02-03",
+   "time": "22:59",
+   "previous": {
+    "kind": "ok",
+    "utc": "1906-02-03T16:34:13.000Z",
+    "offset": 23087
+   },
+   "kind": "ok",
+   "utc": "1906-02-03T16:29:00.000Z",
+   "offset": 23400,
+   "reference": "tzcomp-2026f+backzone"
+  },
+  {
+   "tz": "America/Havana",
+   "date": "2026-11-01",
+   "time": "00:00",
+   "previous": {
+    "kind": "ambiguous",
+    "offsets": [
+     -18000,
+     -14400
+    ]
+   },
+   "kind": "ok",
+   "utc": "2026-11-01T04:00:00.000Z",
+   "offset": -14400,
+   "reference": "tzcomp-2026f"
+  },
+  {
+   "tz": "America/Havana",
+   "date": "2026-11-01",
+   "time": "00:30",
+   "previous": {
+    "kind": "ambiguous",
+    "offsets": [
+     -18000,
+     -14400
+    ]
+   },
+   "kind": "ok",
+   "utc": "2026-11-01T04:30:00.000Z",
+   "offset": -14400,
+   "reference": "tzcomp-2026f"
+  },
+  {
+   "tz": "America/Havana",
+   "date": "2026-11-01",
+   "time": "00:59",
+   "previous": {
+    "kind": "ambiguous",
+    "offsets": [
+     -18000,
+     -14400
+    ]
+   },
+   "kind": "ok",
+   "utc": "2026-11-01T04:59:00.000Z",
+   "offset": -14400,
+   "reference": "tzcomp-2026f"
+  },
+  {
+   "tz": "America/Havana",
+   "date": "2026-11-01",
+   "time": "01:00",
+   "previous": {
+    "kind": "ok",
+    "utc": "2026-11-01T06:00:00.000Z",
+    "offset": -18000
+   },
+   "kind": "ok",
+   "utc": "2026-11-01T05:00:00.000Z",
+   "offset": -14400,
+   "reference": "tzcomp-2026f"
+  },
+  {
+   "tz": "America/Havana",
+   "date": "2026-11-01",
+   "time": "01:01",
+   "previous": {
+    "kind": "ok",
+    "utc": "2026-11-01T06:01:00.000Z",
+    "offset": -18000
+   },
+   "kind": "ok",
+   "utc": "2026-11-01T05:01:00.000Z",
+   "offset": -14400,
+   "reference": "tzcomp-2026f"
+  },
+  {
+   "tz": "America/Inuvik",
+   "date": "2026-11-01",
+   "time": "01:00",
+   "previous": {
+    "kind": "ambiguous",
+    "offsets": [
+     -25200,
+     -21600
+    ]
+   },
+   "kind": "ok",
+   "utc": "2026-11-01T07:00:00.000Z",
+   "offset": -21600,
+   "reference": "tzcomp-2026f"
+  },
+  {
+   "tz": "America/Inuvik",
+   "date": "2026-11-01",
+   "time": "01:30",
+   "previous": {
+    "kind": "ambiguous",
+    "offsets": [
+     -25200,
+     -21600
+    ]
+   },
+   "kind": "ok",
+   "utc": "2026-11-01T07:30:00.000Z",
+   "offset": -21600,
+   "reference": "tzcomp-2026f"
+  },
+  {
+   "tz": "America/Inuvik",
+   "date": "2026-11-01",
+   "time": "01:59",
+   "previous": {
+    "kind": "ambiguous",
+    "offsets": [
+     -25200,
+     -21600
+    ]
+   },
+   "kind": "ok",
+   "utc": "2026-11-01T07:59:00.000Z",
+   "offset": -21600,
+   "reference": "tzcomp-2026f"
+  },
+  {
+   "tz": "America/Inuvik",
+   "date": "2026-11-01",
+   "time": "02:00",
+   "previous": {
+    "kind": "ok",
+    "utc": "2026-11-01T09:00:00.000Z",
+    "offset": -25200
+   },
+   "kind": "ok",
+   "utc": "2026-11-01T08:00:00.000Z",
+   "offset": -21600,
+   "reference": "tzcomp-2026f"
+  },
+  {
+   "tz": "America/Inuvik",
+   "date": "2026-11-01",
+   "time": "02:01",
+   "previous": {
+    "kind": "ok",
+    "utc": "2026-11-01T09:01:00.000Z",
+    "offset": -25200
+   },
+   "kind": "ok",
+   "utc": "2026-11-01T08:01:00.000Z",
+   "offset": -21600,
+   "reference": "tzcomp-2026f"
+  },
+  {
+   "tz": "America/Inuvik",
+   "date": "2084-03-12",
+   "time": "01:59",
+   "previous": {
+    "kind": "ok",
+    "utc": "2084-03-12T08:59:00.000Z",
+    "offset": -25200
+   },
+   "kind": "ok",
+   "utc": "2084-03-12T07:59:00.000Z",
+   "offset": -21600,
+   "reference": "zoneinfo-2026f"
+  },
+  {
+   "tz": "America/Inuvik",
+   "date": "2084-03-12",
+   "time": "02:00",
+   "previous": {
+    "kind": "gap"
+   },
+   "kind": "ok",
+   "utc": "2084-03-12T08:00:00.000Z",
+   "offset": -21600,
+   "reference": "zoneinfo-2026f"
+  },
+  {
+   "tz": "America/Inuvik",
+   "date": "2084-03-12",
+   "time": "02:30",
+   "previous": {
+    "kind": "gap"
+   },
+   "kind": "ok",
+   "utc": "2084-03-12T08:30:00.000Z",
+   "offset": -21600,
+   "reference": "zoneinfo-2026f"
+  },
+  {
+   "tz": "America/Inuvik",
+   "date": "2084-03-12",
+   "time": "02:59",
+   "previous": {
+    "kind": "gap"
+   },
+   "kind": "ok",
+   "utc": "2084-03-12T08:59:00.000Z",
+   "offset": -21600,
+   "reference": "zoneinfo-2026f"
+  },
+  {
+   "tz": "America/Inuvik",
+   "date": "2084-11-05",
+   "time": "01:00",
+   "previous": {
+    "kind": "ambiguous",
+    "offsets": [
+     -25200,
+     -21600
+    ]
+   },
+   "kind": "ok",
+   "utc": "2084-11-05T07:00:00.000Z",
+   "offset": -21600,
+   "reference": "zoneinfo-2026f"
+  },
+  {
+   "tz": "America/Inuvik",
+   "date": "2084-11-05",
+   "time": "01:30",
+   "previous": {
+    "kind": "ambiguous",
+    "offsets": [
+     -25200,
+     -21600
+    ]
+   },
+   "kind": "ok",
+   "utc": "2084-11-05T07:30:00.000Z",
+   "offset": -21600,
+   "reference": "zoneinfo-2026f"
+  },
+  {
+   "tz": "America/Inuvik",
+   "date": "2084-11-05",
+   "time": "01:59",
+   "previous": {
+    "kind": "ambiguous",
+    "offsets": [
+     -25200,
+     -21600
+    ]
+   },
+   "kind": "ok",
+   "utc": "2084-11-05T07:59:00.000Z",
+   "offset": -21600,
+   "reference": "zoneinfo-2026f"
+  },
+  {
+   "tz": "America/Inuvik",
+   "date": "2084-11-05",
+   "time": "02:00",
+   "previous": {
+    "kind": "ok",
+    "utc": "2084-11-05T09:00:00.000Z",
+    "offset": -25200
+   },
+   "kind": "ok",
+   "utc": "2084-11-05T08:00:00.000Z",
+   "offset": -21600,
+   "reference": "zoneinfo-2026f"
+  },
+  {
+   "tz": "America/Inuvik",
+   "date": "2084-11-05",
+   "time": "02:01",
+   "previous": {
+    "kind": "ok",
+    "utc": "2084-11-05T09:01:00.000Z",
+    "offset": -25200
+   },
+   "kind": "ok",
+   "utc": "2084-11-05T08:01:00.000Z",
+   "offset": -21600,
+   "reference": "zoneinfo-2026f"
+  },
+  {
+   "tz": "Europe/Dublin",
+   "date": "1925-10-04",
+   "time": "01:59",
+   "previous": {
+    "kind": "ok",
+    "utc": "1925-10-04T00:59:00.000Z",
+    "offset": 3600
+   },
+   "kind": "ok",
+   "utc": "1925-10-04T01:59:00.000Z",
+   "offset": 0,
+   "reference": "tzcomp-2026f"
+  },
+  {
+   "tz": "Europe/Dublin",
+   "date": "1925-10-04",
+   "time": "02:00",
+   "previous": {
+    "kind": "ambiguous",
+    "offsets": [
+     0,
+     3600
+    ]
+   },
+   "kind": "ok",
+   "utc": "1925-10-04T02:00:00.000Z",
+   "offset": 0,
+   "reference": "tzcomp-2026f"
+  },
+  {
+   "tz": "Europe/Dublin",
+   "date": "1925-10-04",
+   "time": "02:30",
+   "previous": {
+    "kind": "ambiguous",
+    "offsets": [
+     0,
+     3600
+    ]
+   },
+   "kind": "ok",
+   "utc": "1925-10-04T02:30:00.000Z",
+   "offset": 0,
+   "reference": "tzcomp-2026f"
+  },
+  {
+   "tz": "Europe/Dublin",
+   "date": "1925-10-04",
+   "time": "02:59",
+   "previous": {
+    "kind": "ambiguous",
+    "offsets": [
+     0,
+     3600
+    ]
+   },
+   "kind": "ok",
+   "utc": "1925-10-04T02:59:00.000Z",
+   "offset": 0,
+   "reference": "tzcomp-2026f"
+  }
+ ]
+}

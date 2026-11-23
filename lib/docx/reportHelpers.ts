@@ -658,7 +658,7 @@ export function buildTOCPage(): ReportChild[] {
 
 // ─── Footer ───────────────────────────────────────────────────────────────────
 
-export function buildFooter(reportName: string, opts?: { note?: WellnessNoteKind }): Footer {
+export function buildFooter(reportName: string, opts?: { note?: WellnessNoteKind; brandLine?: Paragraph | null }): Footer {
   const children: Paragraph[] = [];
   if (opts?.note) {
     children.push(new Paragraph({
@@ -669,6 +669,8 @@ export function buildFooter(reportName: string, opts?: { note?: WellnessNoteKind
       ],
     }));
   }
+  // F3A: uzman markalaması açıksa küçük kurum satırı (expertFooterParagraph); yoksa öğe YOK.
+  if (opts?.brandLine) children.push(opts.brandLine);
   children.push(new Paragraph({
     alignment: AlignmentType.CENTER,
     children: [

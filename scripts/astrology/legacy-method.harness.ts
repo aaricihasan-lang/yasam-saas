@@ -3,8 +3,8 @@
  *
  *   A) legacyMethodNotes: kompozit -1 (ATL-P2-06), bütün-burç kompozit (ws-3 öncesi), bütün-burç natal/dönüş sect (ATL-P2-05)
  *      kuralları; güncel sürümlerde ve diğer ev sistemlerinde not YOK.
- *   B) staleTimezoneOffset: tarihsel saat dilimi tablosundaki bölgede saklı ofset güncel çözümden farklıysa işaretlenir;
- *      tablo dışı bölge (İstanbul), saat bilinmiyor, eşit ofset → işaret YOK.
+ *   B) staleTimezoneOffset: saklı ofset güncel çözümden farklıysa işaretlenir; saat bilinmiyor, eşit ofset → işaret yok.
+ *      ATL-TZ-2026F (Owner kararı A, 17.11.2026): kapsam tüm bölgeler (önce yalnız backzone tablosu; İstanbul "tablo dışı" idi).
  *   C) getAnalysis + Word/PDF modeli: eski kayıtta not ekranda (legacyNotes) ve raporda; DB snapshot DEĞİŞMEZ.
  *   D) Profil detayı: saklı ofseti eski revizyon staleTimezone ile işaretlenir; güncel revizyonda işaret yok.
  * Gerçek Roxy / gerçek DB YOK.
@@ -69,7 +69,7 @@ async function main() {
     assert.deepEqual(n("vedic.d1", "astro-roxy-vedic-d1-1", "whole-sign"), []);
   });
 
-  await t("B: saklı ofset tarihsel tablodan farklı → işaret; tablo dışı / saat yok / eşit → işaret yok", () => {
+  await t("B: saklı ofset güncel kuraldan farklı → işaret (tüm bölgeler, ATL-TZ-2026F); saat yok / eşit → işaret yok", () => {
     const cur = resolveAstroBirthTime("1950-06-15", "12:00", "Atlantic/Reykjavik");
     assert.equal(cur.kind, "ok");
     const off = cur.kind === "ok" ? cur.offsetSeconds : 0;
@@ -77,7 +77,9 @@ async function main() {
     assert.deepEqual(staleTimezoneOffset(rev(off - 3600)), { stored: off - 3600, current: off });
     assert.equal(staleTimezoneOffset(rev(off)), null);
     assert.equal(staleTimezoneOffset(rev(off - 3600, { timeKnown: false })), null);
-    assert.equal(staleTimezoneOffset({ birthDate: "1950-06-15", birthTime: "12:00:00", timeKnown: true, timezone: "Europe/Istanbul", dstChoice: "auto", utcOffsetSeconds: 0 }), null, "tablo dışı bölge");
+    // ATL-TZ-2026F (Owner kararı A): önce "tablo dışı bölge → işaret yok" idi; artık İstanbul da denetlenir — yanlış saklı ofset işaretli, doğru ofset işaretsiz.
+    assert.deepEqual(staleTimezoneOffset({ birthDate: "1950-06-15", birthTime: "12:00:00", timeKnown: true, timezone: "Europe/Istanbul", dstChoice: "auto", utcOffsetSeconds: 0 }), { stored: 0, current: 10800 }, "İstanbul yanlış ofset (1950 yaz saati +3; zoneinfo 2026f)");
+    assert.equal(staleTimezoneOffset({ birthDate: "1950-06-15", birthTime: "12:00:00", timeKnown: true, timezone: "Europe/Istanbul", dstChoice: "auto", utcOffsetSeconds: 10800 }), null, "İstanbul doğru ofset");
     const notes = legacyMethodNotes({ technique: "western.natal", adapterVersion: "astro-roxy-natal-1", houseSystem: "placidus", revisions: [{ who: "danışanın", revision: rev(off - 3600) }, { who: "karşı tarafın", revision: null }] });
     assert.equal(notes.length, 1);
     assert.equal(notes[0].code, "historical_timezone");
@@ -235,7 +237,7 @@ async function main() {
     assert.match(p2.selections[0].blocked.error, /danışanın doğum profili/);
   });
 
-  await t("J: yanlış pozitif YOK — güncel ofsetli tarihsel revizyon, belirsiz (iki kez yaşanan) saatin seçilmiş yorumu, saati bilinmeyen, tablo dışı bölge engellenmez", async () => {
+  await t("J: yanlış pozitif YOK — güncel ofsetli tarihsel revizyon, belirsiz (iki kez yaşanan) saatin seçilmiş yorumu, saati bilinmeyen, doğru ofsetli İstanbul engellenmez; seçimsiz belirsiz saat ve yanlış ofsetli İstanbul engellenir (ATL-TZ-2026F)", async () => {
     const ok = await mkProfile("Sentetik Reykjavik J", RVK, "1950-06-15", "15:00");
     const p0 = await planOf(ok.pid, [NATAL]);
     assert.equal(p0.selections[0].blocked, null, "güncel ofsetle açılmış tarihsel revizyon");
@@ -245,7 +247,8 @@ async function main() {
       assert.equal(r.kind, "ok");
       assert.equal(staleTimezoneOffset({ birthDate: "1959-09-20", birthTime: "02:30:00", timeKnown: true, timezone: "Europe/Oslo", dstChoice: choice, utcOffsetSeconds: r.kind === "ok" ? r.offsetSeconds : 0 }), null, choice);
     }
-    assert.equal(staleTimezoneOffset({ birthDate: "1959-09-20", birthTime: "02:30:00", timeKnown: true, timezone: "Europe/Oslo", dstChoice: "auto", utcOffsetSeconds: 3600 }), null, "belirsiz çözüm → engel yok");
+    // ATL-TZ-2026F (Owner kararı A, madde 12): önce "belirsiz çözüm → engel yok" idi; seçimsiz iki kez yaşanan saatte sessiz varsayım yapılmaz.
+    assert.deepEqual(staleTimezoneOffset({ birthDate: "1959-09-20", birthTime: "02:30:00", timeKnown: true, timezone: "Europe/Oslo", dstChoice: "auto", utcOffsetSeconds: 3600 }), { stored: 3600, current: null, unresolved: "ambiguous" }, "seçimsiz belirsiz saat → engel");
     const unk = await mkProfile("Sentetik Reykjavik J2", RVK, "1950-06-16", "12:00", { timeKnown: false, timeAccuracy: "unknown", birthTime: undefined });
     unk.row.utc_offset_seconds -= 3600;
     const p1 = await planOf(unk.pid, [NATAL]);
@@ -253,7 +256,11 @@ async function main() {
     const ist = await mkProfile("Sentetik İstanbul J", IST, "1955-03-01", "10:00");
     ist.row.utc_offset_seconds -= 600;
     const p2 = await planOf(ist.pid, [NATAL]);
-    assert.equal(p2.selections[0].blocked, null, "tablo dışı bölge (İstanbul) bu kurala girmez");
+    // ATL-TZ-2026F (Owner kararı A): önce "tablo dışı bölge (İstanbul) bu kurala girmez" idi; yanlış saklı ofsetli İstanbul revizyonu artık engellenir.
+    assert.equal(p2.selections[0].blocked?.code, STALE_TIMEZONE_BLOCK_CODE, "yanlış ofsetli İstanbul revizyonu");
+    ist.row.utc_offset_seconds += 600;
+    const p3 = await planOf(ist.pid, [NATAL]);
+    assert.equal(p3.selections[0].blocked, null, "doğru ofsetli İstanbul revizyonu engellenmez");
   });
 
   await t("K: yetkisiz erişim — başka tenant ve aynı tenant'ta başka uzman tutarsız profili planlayamaz (tek tip 404; engel metni / ofset sızmaz)", async () => {

@@ -6,13 +6,18 @@
  */
 import { chromium } from "playwright";
 import pg from "pg";
-import { mkdirSync, readFileSync } from "node:fs";
+import { mkdirSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { claimShotsDir, resolveUiConfig } from "../uye-yonetimi-faz2/uiKosu.mjs";
 
 const BASE = process.env.UD2_BASE ?? "http://localhost:3974";
-const SHOTS = process.env.UD2_SHOTS ?? path.join(os.tmpdir(), "uye-arsiv-4a-shots");
-const cfg = JSON.parse(readFileSync(path.join(os.tmpdir(), "uye-detay-v2-ui.json"), "utf8"));
+// Koşuya özgü: dizin canlı başka bir koşuya aitse `kosu-*` alt dizini (uiKosu.mjs).
+const SHOTS = claimShotsDir(process.env.UD2_SHOTS ?? path.join(os.tmpdir(), "uye-arsiv-4a-shots"));
+// Yapılandırma: UD2_CFG ya da tek canlı yığın (birden çoksa durur; yanlış yığına bağlanmaz).
+const UI_CFG = await resolveUiConfig({ envVar: "UD2_CFG", prefixes: ["uye-detay-v2-ui-", "uye-arsiv-4a-ui-"] });
+const cfg = UI_CFG.cfg;
+console.log(`yapılandırma: ${UI_CFG.path} (${UI_CFG.source}) · görüntüler: ${SHOTS}`);
 mkdirSync(SHOTS, { recursive: true });
 const db = new pg.Client({ host: "127.0.0.1", port: cfg.pg.port, user: "postgres", password: "testpw", database: "postgres" });
 await db.connect();

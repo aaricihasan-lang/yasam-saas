@@ -149,7 +149,8 @@
       "campaign_observe_header",
       "campaign_record_event",
       "campaign_purge_event_subjects",
-      "campaign_event_unique_counts"
+      "campaign_event_unique_counts",
+      "expert_profile_row_guard"
     ],
     "optional": [
       "aromatherapy_delete_source_with_audit",
@@ -214,7 +215,8 @@
       "campaign_observe_header",
       "campaign_record_event",
       "campaign_purge_event_subjects",
-      "campaign_event_unique_counts"
+      "campaign_event_unique_counts",
+      "expert_profile_row_guard"
     ],
     "note": "Kodda .rpc() ile çağrılan tüm RPC'ler + FAZ1 yeni RPC'ler: anon/authenticated EXECUTE=false (service_role-only). optional: prod'da henüz yoksa UYARI (FAIL değil)."
   },
@@ -272,7 +274,8 @@
       "campaign_provider_state",
       "campaign_audit_log",
       "campaign_event_daily",
-      "campaign_event_uniques"
+      "campaign_event_uniques",
+      "expert_profiles"
     ],
     "optional": [
       "_bak_hacamat_rules_20260926",
@@ -307,7 +310,8 @@
       "campaign_provider_state",
       "campaign_audit_log",
       "campaign_event_daily",
-      "campaign_event_uniques"
+      "campaign_event_uniques",
+      "expert_profiles"
     ],
     "note": "anon/authenticated SELECT/INSERT/UPDATE/DELETE=false. optional: prod'da yoksa UYARI."
   },
@@ -364,7 +368,8 @@
       "campaign_provider_state",
       "campaign_audit_log",
       "campaign_event_daily",
-      "campaign_event_uniques"
+      "campaign_event_uniques",
+      "expert_profiles"
     ],
     "optional": [
       "_bak_hacamat_rules_20260926",
@@ -398,7 +403,8 @@
       "campaign_provider_state",
       "campaign_audit_log",
       "campaign_event_daily",
-      "campaign_event_uniques"
+      "campaign_event_uniques",
+      "expert_profiles"
     ],
     "note": "relrowsecurity=true (view hariç)."
   },

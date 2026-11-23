@@ -2094,8 +2094,14 @@ function run(): void {
     ok(/\/\^\\d\{1,2\}\$\/\.test\(raw\)[\s\S]{0,120}cuppingError\(\s*400/.test(wr),
       "faz6-ay[m3]: month yalnız 1–2 haneli tam sayı (boş/işaret/ondalık/metin → 400)");
     ok(/n < 1 \|\| n > 12[\s\S]{0,80}cuppingError\(\s*400/.test(wr), "faz6-ay[m4]: 1–12 aralık dışı → 400");
-    ok(/buildCalendarPlanWordBuffer\(\{ plan, days, template, month \}\)/.test(wr) && /calendarWordFilename\(plan, month\)/.test(wr),
-      "faz6-ay[m5]: month builder + dosya adına geçirilir");
+    // F3B: çağrıya isteğe bağlı `branding` alanı eklendi; kontrolün amacı (month'un builder'a ve dosya adına geçmesi) aynen:
+    // builder TEK nesne argümanıyla çağrılır ve nesnede plan, days, template, month alanları bulunur.
+    {
+      const call = /buildCalendarPlanWordBuffer\(\{([^}]*)\}\)/.exec(wr);
+      const fields = call ? call[1]!.split(",").map((f) => f.trim()).filter(Boolean) : [];
+      ok(!!call && ["plan", "days", "template", "month"].every((f) => fields.includes(f)) && fields.every((f) => /^[a-zA-Z]+$/.test(f)) && /calendarWordFilename\(plan, month\)/.test(wr),
+        "faz6-ay[m5]: month builder + dosya adına geçirilir");
+    }
     ok(!/searchParams[\s\S]{0,40}year|body[\s\S]{0,40}year/.test(wr),
       "faz6-ay[m6]: yıl client'tan alınmaz (plan.year server-side)");
     ok(/requireModuleAccess\(\s*req,\s*"cupping"\)/.test(wr) && !/\.insert\(|\.update\(|\.delete\(|\.upsert\(/.test(wr),

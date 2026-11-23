@@ -1,5 +1,9 @@
-// Astroloji — yerel doğum zamanı → UTC (SAF; Intl/IANA tzdata). Human Design'dan BAĞIMSIZ
+// Astroloji — yerel doğum zamanı → UTC (SAF; sürümü sabitlenmiş IANA tzdata tablosu). Human Design'dan BAĞIMSIZ
 // uygulama (aynı ilke: sessiz tahmin YOK).
+//
+//   Ofset kaynağı (ATL-TZ-2026F): IANA 2026f tablosu (çalışma ortamının ICU/Intl sürümünden bağımsız — Node/Vercel/tarayıcı
+//   aynı sonucu verir) + 1970 öncesi backzone tablosu. Tabloda olmayan ad → Intl (eski yol). HD-TZ-00: tablo ve ofset çekirdeği
+//   modülden bağımsız ortak katmanda (lib/time/tzdb/core.ts); burada YALNIZ Atlas politikası (auto / earlier / later) vardır.
 //
 //   • gap       — yerel saat o gün hiç yaşanmamış (ileri alma) → hesap YOK (kullanıcı saati düzeltmeli).
 //   • ambiguous — yerel saat iki kez yaşanmış (geri alma):
@@ -8,7 +12,10 @@
 //                   dst_choice=later   → ikinci yaşanan an (daha küçük ofset; genelde kış saati).
 //   • ok        — tek geçerli an (saniye hassasiyeti; LMT dahil tarihsel ofsetler korunur).
 
-import { TZ_BACKZONE_OVERLAY } from "./tzBackzoneOverlay.generated";
+import { isValidIanaTimeZone, localTimeCandidates } from "../../time/tzdb/core";
+
+// HD-TZ-00: ortak çekirdekten aynen dışa aktarılır (Atlas çağrı yerleri ve testleri değişmez).
+export { isValidIanaTimeZone, utcOffsetSecondsAt, wallClockAt } from "../../time/tzdb/core";
 
 export type DstChoice = "auto" | "earlier" | "later";
 
@@ -20,16 +27,6 @@ export type AstroTimeResolution =
 
 const DATE_RE = /^(\d{4})-(\d{2})-(\d{2})$/;
 const TIME_RE = /^(\d{2}):(\d{2})(?::(\d{2}))?$/;
-
-export function isValidIanaTimeZone(tz: string): boolean {
-  if (!tz || tz.length > 64 || !/^[A-Za-z_]+(?:\/[A-Za-z0-9_+\-]+)+$|^UTC$/.test(tz)) return false;
-  try {
-    new Intl.DateTimeFormat("en-US", { timeZone: tz });
-    return true;
-  } catch {
-    return false;
-  }
-}
 
 /** HH:mm veya HH:mm:ss → HH:mm:ss. Geçersizse null. */
 export function normalizeTime(time: string): string | null {
@@ -50,62 +47,6 @@ export function isValidIsoDate(date: string): boolean {
   return d.getUTCFullYear() === Number(m[1]) && d.getUTCMonth() === Number(m[2]) - 1 && d.getUTCDate() === Number(m[3]);
 }
 
-/**
- * ATL-P1-01 / TZ-01: ICU/Intl IANA "backzone" verisini kullanmaz → 1970 öncesi bazı bölgelerde tarihsel ofset yanlış
- * (ör. Kampala 1951 +3 yerine +2:45, Reykjavik 1955 0 yerine −1). Tablodaki bölgede ve cutoff ÖNCESİNDE ofset, resmî IANA
- * backzone derlemesinden (tzBackzoneOverlay.generated.ts) alınır; cutoff sonrası ve tablo dışı bölgeler Intl yoluyla aynen.
- */
-function backzoneOffsetMs(utcMs: number, timeZone: string): number | null {
-  const z = TZ_BACKZONE_OVERLAY[timeZone];
-  if (!z || utcMs >= z.cutoff * 1000) return null;
-  const t = z.t;
-  let lo = 0;
-  let hi = t.length - 1;
-  while (lo < hi) {
-    const mid = (lo + hi + 1) >> 1;
-    const at = t[mid][0];
-    if (at === null || at * 1000 <= utcMs) lo = mid;
-    else hi = mid - 1;
-  }
-  return t[lo][1] * 1000;
-}
-
-/** Bir UTC anında tz'deki duvar saatinin "naif UTC" ms karşılığı. */
-function wallClockMs(utcMs: number, timeZone: string): number {
-  const bz = backzoneOffsetMs(utcMs, timeZone);
-  if (bz !== null) return utcMs + bz;
-  const dtf = new Intl.DateTimeFormat("en-US", {
-    timeZone,
-    hourCycle: "h23",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    era: "short",
-  });
-  const parts = dtf.formatToParts(new Date(utcMs));
-  const get = (t: Intl.DateTimeFormatPartTypes) => Number(parts.find((p) => p.type === t)?.value ?? "0");
-  const era = parts.find((p) => p.type === "era")?.value ?? "AD";
-  const y = era === "BC" ? 1 - get("year") : get("year");
-  const d = new Date(0);
-  d.setUTCFullYear(y, get("month") - 1, get("day"));
-  d.setUTCHours(get("hour"), get("minute"), get("second"), 0);
-  return d.getTime();
-}
-
-/**
- * Bir UTC anında tz'deki YEREL duvar saati ("YYYY-MM-DD", "HH:MM:SS") — resolveAstroBirthTime ile AYNI ofset kaynağı (tablodaki
- * bölgede cutoff öncesi backzone, aksi hâlde Intl). Geçersiz bölge → null. (14.11.2026, ATL-B03: UTC → yerel çevirisi Intl'den
- * alınınca backzone bölgelerinde geri doğrulama tutmuyordu; ör. Europe/Oslo 1965.)
- */
-export function wallClockAt(utcMs: number, timeZone: string): { date: string; time: string } | null {
-  if (!isValidIanaTimeZone(timeZone) || !Number.isFinite(utcMs)) return null;
-  const iso = new Date(wallClockMs(utcMs, timeZone)).toISOString();
-  return { date: iso.slice(0, 10), time: iso.slice(11, 19) };
-}
-
 export function resolveAstroBirthTime(date: string, time: string, timeZone: string, choice: DstChoice = "auto"): AstroTimeResolution {
   if (!isValidIsoDate(date)) return { kind: "invalid", reason: "date" };
   const hms = normalizeTime(time);
@@ -119,36 +60,24 @@ export function resolveAstroBirthTime(date: string, time: string, timeZone: stri
   naive.setUTCHours(h, mi, s, 0);
   const naiveMs = naive.getTime();
 
-  // Aday ofsetler: ±36 saat içindeki tüm farklı ofsetler (bir geçişin iki yanı).
-  const offsets = new Set<number>();
-  for (const probe of [-36, -12, 0, 12, 36]) {
-    const t = naiveMs + probe * 3_600_000;
-    offsets.add(wallClockMs(t, timeZone) - t);
-  }
-  const valid: { utcMs: number; offset: number }[] = [];
-  for (const off of offsets) {
-    const utcMs = naiveMs - off;
-    if (wallClockMs(utcMs, timeZone) === naiveMs && !valid.some((v) => v.utcMs === utcMs)) {
-      valid.push({ utcMs, offset: off });
-    }
-  }
+  // Adaylar ortak çekirdekten (UTC'ye göre artan; ±36 saat yoklama). Politika (auto / earlier / later) Atlas'a aittir.
+  const valid = localTimeCandidates(naiveMs, timeZone);
   if (valid.length === 0) return { kind: "gap" };
   if (valid.length === 1) {
-    return { kind: "ok", utcIso: new Date(valid[0].utcMs).toISOString(), offsetSeconds: valid[0].offset / 1000, ambiguousResolved: false };
+    return { kind: "ok", utcIso: new Date(valid[0].utcMs).toISOString(), offsetSeconds: valid[0].offsetSeconds, ambiguousResolved: false };
   }
   // Belirsiz: daha erken UTC anı = ilk yaşanan (daha büyük ofset).
-  valid.sort((a, b) => a.utcMs - b.utcMs);
   const earlier = valid[0];
   const later = valid[valid.length - 1];
   if (choice === "earlier" || choice === "later") {
     const pick = choice === "earlier" ? earlier : later;
-    return { kind: "ok", utcIso: new Date(pick.utcMs).toISOString(), offsetSeconds: pick.offset / 1000, ambiguousResolved: true };
+    return { kind: "ok", utcIso: new Date(pick.utcMs).toISOString(), offsetSeconds: pick.offsetSeconds, ambiguousResolved: true };
   }
   return {
     kind: "ambiguous",
     options: [
-      { choice: "earlier", utcIso: new Date(earlier.utcMs).toISOString(), offsetSeconds: earlier.offset / 1000 },
-      { choice: "later", utcIso: new Date(later.utcMs).toISOString(), offsetSeconds: later.offset / 1000 },
+      { choice: "earlier", utcIso: new Date(earlier.utcMs).toISOString(), offsetSeconds: earlier.offsetSeconds },
+      { choice: "later", utcIso: new Date(later.utcMs).toISOString(), offsetSeconds: later.offsetSeconds },
     ],
   };
 }

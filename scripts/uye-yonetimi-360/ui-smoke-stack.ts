@@ -10,13 +10,13 @@
  * Danışan tablosuna SENTINEL özel içerik yazılır — admin ekranlarında/ağda ASLA görünmemeli.
  */
 import { randomUUID } from "node:crypto";
-import { writeFileSync } from "node:fs";
-import path from "node:path";
-import os from "node:os";
 import { startPgrestShim } from "../usage360/pgrestShim";
 import { startTestDb360 } from "./testDb360";
+import { freePort, installStackShutdown } from "../uye-yonetimi-faz2/testDbRun";
+import { writeStackConfig } from "../uye-yonetimi-faz2/uiKosu.mjs";
 
-const SHIM_PORT = 54397;
+// Yerel build bu adrese gömülür → varsayılan sabit (M360_SHIM_PORT ile değişir). Aynı portta ikinci koşu güvenle hata verir.
+const SHIM_PORT = Number(process.env.M360_SHIM_PORT ?? 54397);
 const ADMIN = "00000000-0000-4000-8000-0000000ce1a1";
 const ADMIN_TOKEN = "zz-m360ui-admin-token-000001";
 
@@ -29,7 +29,7 @@ function addDays(iso: string, n: number): string {
 }
 
 async function main(): Promise<void> {
-  const db = await startTestDb360(54396, "uye-yonetimi-360-ui");
+  const db = await startTestDb360(Number(process.env.M360_PG_PORT ?? (await freePort())), "uye-yonetimi-360-ui");
   const { su } = db;
   const TODAY = istanbulToday();
   const tenant = async () => {
@@ -104,8 +104,10 @@ async function main(): Promise<void> {
   const shim = await startPgrestShim(db.pool, SHIM_PORT);
   const user = { id: ADMIN, email: "zz.m360ui.admin@example.test", name: "ZZ_M360UI Yönetici", full_name: "ZZ_M360UI Yönetici", role: "admin", status: "active", active: true, approval_status: "approved" };
   const cfg = { adminId: ADMIN, token: ADMIN_TOKEN, user, firstExpertId: first.id, firstExpertName: first.name };
-  writeFileSync(path.join(os.tmpdir(), "uye-yonetimi-360-ui.json"), JSON.stringify(cfg));
-  console.log(`UI STACK HAZIR · shim ${shim.url} · cfg ${path.join(os.tmpdir(), "uye-yonetimi-360-ui.json")}`);
+  // Koşuya özgü yapılandırma (kendi koşu dizininde; sabit ortak dosyaya yazılmaz) — uiKosu.mjs.
+  const cfgPath = writeStackConfig({ runDir: db.runDir, shimUrl: shim.url, cfg, envPath: process.env.M360_CFG });
+  console.log(`UI STACK HAZIR · shim ${shim.url} · cfg ${cfgPath}`);
+  installStackShutdown([() => shim.close(), () => db.stop()]);
   setInterval(() => { /* açık kal */ }, 1 << 30);
 }
 main().catch((e) => { console.error("STACK HATASI:", e); process.exit(1); });

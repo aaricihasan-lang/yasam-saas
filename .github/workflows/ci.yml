@@ -225,11 +225,34 @@ jobs:
       - name: Gökyüzü Atlası regresyon zinciri (test:astrology, ağsız)
         run: npm run test:astrology:ci
 
+  # TR-01A (Owner kararı 19.11.2026): HD genel transit sağlayıcı tekrar / önbellek güvenliği testi AYRI zorunlu işte koşar.
+  # HD korunan alanı regresyon koşucusunda çalıştırılmaz (run-regression.mjs KORUNAN_YOL_RE, 29.10.2026 kararı — DEĞİŞMEDİ).
+  # Test ağsızdır (sahte sağlayıcı / kilit / L2 / önbellek); ağ koruması yüklü, tek dış bağlantı denemesi ya da FAIL → iş FAIL.
+  hd-transit-tekrar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ./.github/actions/kurulum
+
+      - name: HD genel transit tekrar + önbellek güvenliği (TR-01A, ağsız)
+        env:
+          CI_NET_LOG: ${{ runner.temp }}/hd-transit-net.log
+          NODE_OPTIONS: --import=./scripts/ci/net-guard.mjs
+        run: |
+          set -o pipefail
+          npm run test:hd-transit:retry 2>&1 | tee "$RUNNER_TEMP/hd-transit-tekrar.log"
+          grep -E "\(TR-01A\): [0-9]+ PASS / 0 FAIL$" "$RUNNER_TEMP/hd-transit-tekrar.log"
+          if [ -s "$CI_NET_LOG" ]; then echo "Dış ağ denemesi engellendi:"; cat "$CI_NET_LOG"; exit 1; fi
+
   # CI KAPISI — tek karar noktası. Her koşulda çalışır; zorunlu işlerden biri failure / cancelled / skipped ise ya da
   # regresyon parçaları listeyi tam bir kez ve PASS olarak kapsamıyorsa FAIL verir (scripts/ci/ci-gate.mjs).
   ci-kapisi:
     if: always()
-    needs: [typescript, build, guvenlik, regresyon, astro-pro, horary-western, astro-regresyon]
+    needs: [typescript, build, guvenlik, regresyon, astro-pro, horary-western, astro-regresyon, hd-transit-tekrar]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -288,7 +311,7 @@ jobs:
 
   golge-rapor:
     if: always()
-    needs: [golge-analiz, typescript, build, guvenlik, regresyon, astro-pro, horary-western]
+    needs: [golge-analiz, typescript, build, guvenlik, regresyon, astro-pro, horary-western, hd-transit-tekrar]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:

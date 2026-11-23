@@ -68,6 +68,16 @@ import { isPreBirth, preBirthActiveYearText, preBirthEvreText, preBirthNote } fr
 import { formatDateLoose, formatInstantDateTime, reportGeneratedLabel } from "@/lib/time/reportTime";
 import { wellnessNote } from "@/lib/docx/reportDisclaimer";
 import { buildWellnessNoteSection } from "@/lib/docx/reportHelpers";
+import {
+  expertCoverBlock,
+  expertFooterParagraph,
+  expertSignatureBlock,
+  type ExpertBranding,
+  type ExpertBrandingVariant,
+} from "@/lib/docx/expertBranding";
+
+/** F3A: uzman rapor markalaması (null/yok → çıktı bugünküyle birebir). Veri kaynağı F1/F2 ile bağlanacak. */
+export type NumerolojiBrandingOptions = { branding?: ExpertBranding | null; brandingVariant?: ExpertBrandingVariant };
 
 type Block = Paragraph | Table;
 
@@ -161,7 +171,7 @@ function personInfoCard(adSoyad: string, birth: string, analiz: string, created:
   });
 }
 
-function coverPage(reportType: string, selectedLabels: string[], adSoyad: string, birth: string, analiz: string, created: string, pageBreakBefore: boolean): Block[] {
+function coverPage(reportType: string, selectedLabels: string[], adSoyad: string, birth: string, analiz: string, created: string, pageBreakBefore: boolean, brand: NumerolojiBrandingOptions = {}): Block[] {
   const out: Block[] = [];
   // Üst mor bant
   out.push(new Paragraph({ pageBreakBefore, spacing: { after: 0 }, shading: { type: ShadingType.CLEAR, fill: MOR, color: "auto" }, alignment: AlignmentType.CENTER, children: [tr("YAŞAM SİSTEMİ", { bold: true, color: WHITE, size: S_H3 })] }));
@@ -175,7 +185,11 @@ function coverPage(reportType: string, selectedLabels: string[], adSoyad: string
     out.push(new Paragraph({ spacing: { after: 300 }, children: [] }));
   }
   out.push(personInfoCard(adSoyad, birth, analiz, created));
-  out.push(new Paragraph({ spacing: { before: 900, after: 20 }, alignment: AlignmentType.CENTER, children: [tr("Yaşam Sistemi", { bold: true, color: MOR, size: S_SMALL })] }));
+  // F3A: uzman kimlik bloğu (markalama yoksa öğe YOK → kapak birebir). Blok varsa alt marka satırı
+  // boşluğu daraltılır → kapak tek sayfada kalır.
+  const expertBlock = expertCoverBlock(brand.branding, { variant: brand.brandingVariant, accent: MOR, ruleColor: "EDE9FE", before: 360 });
+  out.push(...expertBlock);
+  out.push(new Paragraph({ spacing: { before: expertBlock.length ? 500 : 900, after: 20 }, alignment: AlignmentType.CENTER, children: [tr("Yaşam Sistemi", { bold: true, color: MOR, size: S_SMALL })] }));
   out.push(new Paragraph({ spacing: { after: 0 }, alignment: AlignmentType.CENTER, children: [tr("Bütünsel farkındalık, kişisel dönüşüm", { color: SECONDARY, size: 16 })] }));
   return out;
 }
@@ -588,6 +602,7 @@ export function buildPersonSections(
   now: Date = new Date(),
   /** SUNUCUDA doğrulanmış "Gelecek Yılları Göster" yetkisi (route; istemci değeri DEĞİL). Varsayılan KAPALI. */
   futureYears: boolean = false,
+  brand: NumerolojiBrandingOptions = {},
 ): { children: Block[]; emptyTabs: WordTabKey[] } {
   const children: Block[] = [];
   const emptyTabs: WordTabKey[] = [];
@@ -612,7 +627,7 @@ export function buildPersonSections(
   const birthLabel = formatDateLoose(row.birth_date, { fallback: row.birth_date || "—" });
 
   // Kapak (kişi başına bir kez)
-  children.push(...coverPage(reportType, selectedLabels, adSoyad, birthLabel, analiz, created, personIndex > 0));
+  children.push(...coverPage(reportType, selectedLabels, adSoyad, birthLabel, analiz, created, personIndex > 0, brand));
   if (resolved.legacy) children.push(p(LEGACY_METHOD_NOTE, { color: SECONDARY, size: S_SMALL, after: 120 }));
 
   const matched: KnowledgeNote[] = [];
@@ -703,6 +718,7 @@ export function buildNumerolojiWordChildren(
   now: Date = new Date(),
   /** SUNUCUDA doğrulanmış "Gelecek Yılları Göster" yetkisi. Varsayılan KAPALI (fail-closed). */
   futureYears: boolean = false,
+  brand: NumerolojiBrandingOptions = {},
 ): { children: Block[]; emptyTabs: WordTabKey[]; anyContent: boolean } {
   const selected = WORD_TAB_ORDER.filter((k) => sections[k]);
   const reportType = selected.length === 1 ? WORD_TAB_LABELS[selected[0]!] : "Seçili Bölümler";
@@ -712,7 +728,7 @@ export function buildNumerolojiWordChildren(
   let anyContent = false;
 
   rows.forEach((row, i) => {
-    const { children, emptyTabs } = buildPersonSections(row, sections, shared, reportType, selectedLabels, i, stockIndex, refCalendar, now, futureYears === true);
+    const { children, emptyTabs } = buildPersonSections(row, sections, shared, reportType, selectedLabels, i, stockIndex, refCalendar, now, futureYears === true, brand);
     for (const t of emptyTabs) emptyTabSet.add(t);
     // Bu kişi en az bir seçili sekmede içerik ürettiyse belge içerik taşıyor.
     if (selected.some((k) => !emptyTabs.includes(k))) anyContent = true;
@@ -725,10 +741,13 @@ export function buildNumerolojiWordChildren(
 function runningHeader(adSoyad: string): Header {
   return new Header({ children: [new Paragraph({ alignment: AlignmentType.CENTER, border: { bottom: { style: BorderStyle.SINGLE, size: 4, color: "EDE9FE" } }, children: [tr(`Yaşam Sistemi  ·  Numeroloji Analiz Raporu  ·  ${adSoyad}`, { color: SECONDARY, size: 16 })] })] });
 }
-function footer(): Footer {
+function footer(brand: NumerolojiBrandingOptions = {}): Footer {
+  // F3A: markalama açıksa küçük kurum satırı; yoksa öğe YOK (footer birebir).
+  const brandLine = expertFooterParagraph(brand.branding, { variant: brand.brandingVariant, color: SECONDARY });
   return new Footer({ children: [
     // FA-16: kısa bilgilendirme notu (sade, küçük punto; uyarı kutusu değil).
     new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 20 }, children: [new TextRun({ text: wellnessNote("numeroloji").short, font: FONT, size: 14, italics: true, color: SECONDARY })] }),
+    ...(brandLine ? [brandLine] : []),
     new Paragraph({ alignment: AlignmentType.CENTER, children: [tr("Yaşam Sistemi  ·  Sayfa ", { color: SECONDARY, size: 16 }), new TextRun({ children: [PageNumber.CURRENT], font: FONT, size: 16, color: SECONDARY }), tr(" / ", { color: SECONDARY, size: 16 }), new TextRun({ children: [PageNumber.TOTAL_PAGES], font: FONT, size: 16, color: SECONDARY })] })] });
 }
 
@@ -736,14 +755,18 @@ function footer(): Footer {
  * docx child listesini gerçek .docx buffer'ına paketler (A4, ~1.9cm kenar, üst/alt bilgi).
  * FA-16: belge sonuna sade "Bilgilendirme" notu (+ varsa "Hazırlayan: <uzman>") eklenir.
  */
-export async function packNumerolojiDocx(children: Block[], adSoyad = "", opts?: { expertName?: string | null }): Promise<Buffer> {
-  children = [...children, ...buildWellnessNoteSection("numeroloji", opts?.expertName)];
+export async function packNumerolojiDocx(children: Block[], adSoyad = "", opts?: { expertName?: string | null } & NumerolojiBrandingOptions): Promise<Buffer> {
+  // F3A: markalama açıksa "Hazırlayan" satırı genişletilmiş imza bloğuyla değişir (bilgilendirme metni AYNEN).
+  const signature = expertSignatureBlock(opts?.branding, { variant: opts?.brandingVariant, accent: MOR, fallbackName: opts?.expertName, contentWidth: 11906 - 2 * 1080, fill: LILA });
+  children = signature.length
+    ? [...children, ...buildWellnessNoteSection("numeroloji", null), ...signature]
+    : [...children, ...buildWellnessNoteSection("numeroloji", opts?.expertName)];
   const doc = new Document({
     styles: { default: { document: { run: { font: FONT, size: S_BODY, color: BODY } } } },
     sections: [{
       properties: { page: { margin: { top: 1080, bottom: 1080, left: 1080, right: 1080 }, size: { width: 11906, height: 16838 } } },
       headers: { default: runningHeader(adSoyad) },
-      footers: { default: footer() },
+      footers: { default: footer(opts) },
       children,
     }],
   });

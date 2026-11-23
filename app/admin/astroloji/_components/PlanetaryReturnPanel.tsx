@@ -13,6 +13,7 @@ import { PLANETARY_RETURN_CYCLE_NOTE, PLANETARY_RETURN_LABELS, PLANETARY_RETURN_
 import { ASPECT_GLYPHS, ASPECT_LABELS, BODY_GLYPHS, BODY_LABELS, HOUSE_SYSTEM_LABELS, NATURE_LABELS, SIGN_GLYPHS, SIGN_LABELS, formatDegree } from "@/lib/astrology/labels/tr";
 import NatalWheel, { type WheelChart } from "./NatalWheel";
 import { fitGridCell, fitGridStyle } from "./atlas/fitGrid";
+import { formatZoned } from "@/lib/astrology/birth/zonedFormat";
 
 export type PlanetaryReturnPlace = { locationId: string | null; label: string; latitude: number; longitude: number; timezone: string | null };
 
@@ -35,7 +36,7 @@ export function planetaryReturnWheel(t: PlanetaryReturnTechnical): WheelChart {
 function localIn(utcIso: string, timeZone: string | null): string | null {
   if (!timeZone) return null;
   try {
-    return new Intl.DateTimeFormat("tr-TR", { timeZone, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false, timeZoneName: "short" }).format(new Date(utcIso));
+    return formatZoned("tr-TR", { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false, timeZoneName: "short" }, Date.parse(utcIso), timeZone);
   } catch {
     return null;
   }

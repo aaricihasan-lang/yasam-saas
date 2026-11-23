@@ -57,10 +57,17 @@ export async function GET(req: NextRequest): Promise<Response> {
 
   // head:true → yalnızca sayım; hiçbir satır içeriği dönmez. YALNIZ session tenant'ı
   // (tenant request'ten ASLA gelmez). Global/başka-tenant sayacı DÖNDÜRÜLMEZ.
-  const tenantQ = await db
+  // Uzman sahipli satırlar (Şifa V2 kişisel notları) YALNIZ sahibinin sayacına girer: başka uzmanın kişisel
+  // not ADEDİ de sızmasın. owner_user_id kolonu henüz yoksa (sahiplik migration'ı uygulanmamış) → o ortamda
+  // sahipli satır da yoktur; bugünkü sorguya düşülür.
+  let tenantQ = await db
     .from(table)
     .select("*", { count: "exact", head: true })
-    .eq("tenant_id", tenantId);
+    .eq("tenant_id", tenantId)
+    .or(`owner_user_id.is.null,owner_user_id.eq.${guard.userId}`);
+  if (tenantQ.error && (tenantQ.error.code === "42703" || tenantQ.error.code === "PGRST204" || tenantQ.error.code === "PGRST100")) {
+    tenantQ = await db.from(table).select("*", { count: "exact", head: true }).eq("tenant_id", tenantId);
+  }
 
   const accessible = !tenantQ.error;
   const flags = await getTenantFlags(tenantId, db);
