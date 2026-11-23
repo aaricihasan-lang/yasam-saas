@@ -97,17 +97,23 @@ function evidenceFrom(v: unknown): { kind: string; text: string }[] {
 }
 
 /** Professional index satırını görünürlük kurallarıyla server-side okur. */
-async function readProfessionalCandidate(
+/** Salt-okunur aday çözümleyici (harness'lar sahiplik kapısını gerçek DB'de doğrulamak için dışa aktarılır). */
+export async function readProfessionalCandidate(
   ctx: SnapshotContext,
   indexId: string,
 ): Promise<IndexCandidate | null> {
-  const { data, error } = await ctx.db
-    .from(PRO_INDEX)
-    .select("id, tenant_id, source_module, source_table, source_id, section_ref, unit_type, title, snippet, evidence_fields, source_updated_at")
-    .eq("id", indexId)
-    .maybeSingle();
+  const base = "id, tenant_id, source_module, source_table, source_id, section_ref, unit_type, title, snippet, evidence_fields, source_updated_at";
+  let { data, error } = await ctx.db.from(PRO_INDEX).select(`${base}, owner_user_id`).eq("id", indexId).maybeSingle();
+  // owner_user_id kolonu henüz yok (YH sahiplik migration'ı uygulanmamış) → o ortamda sahipli satır da
+  // olamaz; bugünkü seçimle devam (davranış aynen).
+  if (error && (error.code === "42703" || error.code === "PGRST204")) {
+    ({ data, error } = await ctx.db.from(PRO_INDEX).select(base).eq("id", indexId).maybeSingle());
+  }
   if (error || !data) return null;
   const row = data as Record<string, unknown>;
+  // Uzman sahipli satır (Şifa V2 kişisel notu) danışan anlık görüntüsüne ASLA kopyalanmaz: anlık görüntü
+  // tenant'ın danışan kaydıdır (diğer uzmanlar görebilir) → kişisel not oraya sızmasın (fail-closed).
+  if (row.owner_user_id !== undefined && row.owner_user_id !== null) return null;
   const rowTenant = row.tenant_id == null ? null : String(row.tenant_id);
   const visible = rowTenant === ctx.tenantId || (rowTenant === null && ctx.allowShared);
   if (!visible) return null;

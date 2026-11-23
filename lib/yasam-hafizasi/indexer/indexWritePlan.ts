@@ -105,6 +105,8 @@ export interface DbIndexRow {
   readonly expert_relations: ExpertRelation[];
   readonly source_updated_at: string | null;
   readonly content_hash: string;
+  /** Yalnız sahipli kaynakta (Şifa V2 kişisel notları) GÖNDERİLİR; diğer kaynakların yükü değişmez. */
+  readonly owner_user_id?: string;
 }
 
 /** Bir `BuiltIndexUnit`'i DB satırına eşler (search_text dahil; mutation yok). */
@@ -127,6 +129,7 @@ export function toDbIndexRow(unit: BuiltIndexUnit): DbIndexRow {
     expert_relations: unit.expertRelations.slice(),
     source_updated_at: unit.sourceUpdatedAt,
     content_hash: unit.contentHash,
+    ...(unit.ownerUserId !== undefined ? { owner_user_id: unit.ownerUserId } : {}),
   };
 }
 

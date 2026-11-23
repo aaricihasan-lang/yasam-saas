@@ -143,7 +143,7 @@ async function run(): Promise<void> {
     "beslenme:foods", "beslenme:topics", "beslenme:templates",
   ];
   const futurePro = sourceKeysByClass("FUTURE_ONLY_READY").filter((k) => entryOf(k)?.scope === "professional").sort();
-  add("A-matrix-future-pro-equals-25", JSON.stringify(futurePro) === JSON.stringify([...READY_KEYS, ...DEFERRED_KEYS, ...PROFESSIONAL_COHORT_KEYS, ...COVERAGE_COMPLETION_KEYS].sort()), futurePro.join(","));
+  add("A-matrix-future-pro-equals-25", JSON.stringify(futurePro) === JSON.stringify([...READY_KEYS, ...DEFERRED_KEYS, ...PROFESSIONAL_COHORT_KEYS, ...COVERAGE_COMPLETION_KEYS, "sifa_rehberi_v2:notes"].sort()), futurePro.join(",")); // 10. aşama: +1 sifa_rehberi_v2:notes (Şifa V2 kişisel notlar, uzman sahipli, CONTROLLED)
 }
 
 // ═══ A2) WORKER-V2 GRADUATION (5 kaynak; DEFERRED_SHARED_WORKER_V2 → FUTURE_ONLY_READY) ══════════
@@ -233,22 +233,22 @@ async function run(): Promise<void> {
 
 // ═══ C) SOURCE COUNT ARİTMETİĞİ (exact) ══════════════════════════════════════
 {
-  add("C-professional-registry-30", YH_INDEX_SOURCES.length === 39, String(YH_INDEX_SOURCES.length));
+  add("C-professional-registry-30", YH_INDEX_SOURCES.length === 40, String(YH_INDEX_SOURCES.length)); // 10. aşama: +1 sifa_rehberi_v2:notes (Şifa V2 kişisel notlar, uzman sahipli, CONTROLLED)
   // Professional Cohort: live 19 + 3 aroma = 22 (numeroloji enabled:false KORUNDU); dormant 2 numeroloji + 6 yebs = 8.
-  add("C-live-professional-22", YH_INDEX_SOURCES.filter((s) => s.enabled === true).length === 31, String(YH_INDEX_SOURCES.filter((s) => s.enabled === true).length));
+  add("C-live-professional-22", YH_INDEX_SOURCES.filter((s) => s.enabled === true).length === 32, String(YH_INDEX_SOURCES.filter((s) => s.enabled === true).length)); // 10. aşama: +1 sifa_rehberi_v2:notes (Şifa V2 kişisel notlar, uzman sahipli, CONTROLLED)
   add("C-dormant-professional-8", YH_INDEX_SOURCES.filter((s) => s.enabled === false).length === 8);
   add("C-keep-live-1-professional-stones", sourceKeysByClass("KEEP_LIVE").filter((k) => k === "dogaltas:stones").length === 1);
   // KEEP_LIVE class = 2 (stones + refleksoloji:notes pii no-op); professional-live-catalog = 1 (stones).
   add("C-keep-live-class-2", sourceKeysByClass("KEEP_LIVE").length === 2, sourceKeysByClass("KEEP_LIVE").join(","));
   // FUTURE_ONLY_READY professional = 19 (11 worker-v1 Cohort A + 5 worker-v2 graduate + 3 Professional Cohort aroma).
-  add("C-future-only-controlled-19-pro", sourceKeysByClass("FUTURE_ONLY_READY").filter((k) => entryOf(k)?.scope === "professional").length === 28, String(sourceKeysByClass("FUTURE_ONLY_READY").filter((k) => entryOf(k)?.scope === "professional").length));
+  add("C-future-only-controlled-19-pro", sourceKeysByClass("FUTURE_ONLY_READY").filter((k) => entryOf(k)?.scope === "professional").length === 29, String(sourceKeysByClass("FUTURE_ONLY_READY").filter((k) => entryOf(k)?.scope === "professional").length)); // 10. aşama: +1 sifa_rehberi_v2:notes (Şifa V2 kişisel notlar, uzman sahipli, CONTROLLED)
   // FUTURE_ONLY_READY total = 19 professional + 6 client = 25.
-  add("C-future-only-total-25", sourceKeysByClass("FUTURE_ONLY_READY").length === 34, String(sourceKeysByClass("FUTURE_ONLY_READY").length));
+  add("C-future-only-total-25", sourceKeysByClass("FUTURE_ONLY_READY").length === 35, String(sourceKeysByClass("FUTURE_ONLY_READY").length)); // 10. aşama: +1 sifa_rehberi_v2:notes (Şifa V2 kişisel notlar, uzman sahipli, CONTROLLED)
   add("C-deferred-worker-v2-0", sourceKeysByClass("DEFERRED_SHARED_WORKER_V2").length === 0, sourceKeysByClass("DEFERRED_SHARED_WORKER_V2").join(","));
   add("C-row-gated-1-archive", sourceKeysByClass("ROW_GATED_CONTROLLED").length === 1 && sourceKeysByClass("ROW_GATED_CONTROLLED")[0] === "kisisel_arsiv:archives");
-  add("C-matrix-total-36", YH_ACTIVATION_MATRIX.length === 45, String(YH_ACTIVATION_MATRIX.length));
+  add("C-matrix-total-36", YH_ACTIVATION_MATRIX.length === 46, String(YH_ACTIVATION_MATRIX.length)); // 10. aşama: +1 sifa_rehberi_v2:notes (Şifa V2 kişisel notlar, uzman sahipli, CONTROLLED)
   // Kohort dispozisyonu: COHORT_1_READY = 19 professional ready (16 + 3 Professional Cohort aroma) + 1 archive = 20; DEFERRED cohort = 0.
-  add("C-cohort1-ready-20", sourceKeysByCohort("COHORT_1_READY").length === 29, sourceKeysByCohort("COHORT_1_READY").join(","));
+  add("C-cohort1-ready-20", sourceKeysByCohort("COHORT_1_READY").length === 30, sourceKeysByCohort("COHORT_1_READY").join(",")); // 10. aşama: +1 sifa_rehberi_v2:notes (Şifa V2 kişisel notlar, uzman sahipli, CONTROLLED)
   add("C-deferred-cohort-0", sourceKeysByCohort("DEFERRED_SHARED_WORKER_V2").length === 0);
 }
 

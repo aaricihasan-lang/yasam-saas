@@ -30,6 +30,9 @@ const PATTERNS: readonly RegExp[] = [
   /^\/api\/refleksoloji\/(?:atlas-report|protocol-report)$/,
   /^\/api\/sifa-rehberi\/word-report$/,
   /^\/api\/sifa-rehberi\/photos\/signed-urls$/,
+  // Şifa Rehberi V2: yalnız kayıtlı veriden Word + görsel okuma bağlantısı (yazma/yükleme/kopya DIŞARIDA).
+  /^\/api\/sifa-rehberi-v2\/word$/,
+  /^\/api\/sifa-rehberi-v2\/assets\/signed-urls$/,
   /^\/api\/urun-stok\/stock-report$/,
   new RegExp(`^/api/beslenme/plans/${SEG}/word$`),
   /^\/api\/hd\/reports\/professional\/download$/,

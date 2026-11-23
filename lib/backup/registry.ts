@@ -39,6 +39,7 @@ function entry(table: string, module: ModuleGateKey | null, cls: BackupClass, la
     generatedColumns: o.generatedColumns ?? [],
     pageSize: o.pageSize,
     ownerScope: o.ownerScope,
+    ...(o.absentTolerant ? { absentTolerant: true } : {}),
     label,
   };
 }
@@ -60,6 +61,8 @@ const ASTRO_OWNER: OwnerScope = { column: "owner_user_id" };
  * çok kullanıcı varsa yalnız oturumdaki kullanıcının satırları dışa aktarılır / geri yüklenir (okuma yolu ile aynı kural).
  */
 const USER_OWNER: OwnerScope = { column: "user_id" };
+/** Şifa Rehberi V2: kişisel kayıt sahibi owner_key (= users.id). Kurum kayıtları (owner_key = tenant_id) bu süzgece girmez. */
+const SIFA_V2_OWNER: OwnerScope = { column: "owner_key" };
 
 export const BACKUP_REGISTRY: readonly RegistryEntry[] = [
   // ── Danışan Yolculuğu (clients) ───────────────────────────────────────────
@@ -348,6 +351,47 @@ export const BACKUP_REGISTRY: readonly RegistryEntry[] = [
     storageRefs: [st("images", "healing_tenant")],
     userColumns: [],
   }),
+  // ── Şifa Rehberi V2 (sınırsız konu ağacı) ─────────────────────────────────
+  // Uzman bazlı izolasyon (SIFA_V2_OWNER): yalnız oturumdaki uzmanın KİŞİSEL kayıtları (owner_key = users.id)
+  // dışa aktarılır / geri yüklenir; geri yüklemede owner_key oturumdaki uzmana zorlanır. KURUM ortak kayıtları
+  // (owner_key = tenant_id) yedeğe GİRMEZ ve dosyadan sahte "kurum" satırı yazılamaz (owner zorlaması + DB CHECK
+  // scope/owner). Owner kararı 22.11.2026: V1 → V2 aktarımı İPTAL → V2'de kurum kaydı oluşturma yolu yok.
+  // Bileşik (id, tenant_id, owner_key) FK'ler DB'de zorlanır. Görseller: satırda storage_path; GERÇEK dosya
+  // içerikleri lib/backup/sifaV2Files.ts ile yedeğin `files` bölümüne girer (SHA-256; geri yükleme upsert:false).
+  // absentTolerant: V2 migration'ı kurulmamış ortamda tablo yok → boş + tamam (mevcut yedek bozulmaz).
+  entry("sifa_topics", "sifa_rehberi", "backup", "Şifa Rehberi V2 Konuları", {
+    ownerScope: SIFA_V2_OWNER,
+    selfRef: "parent_id",
+    fkParents: [fk("parent_id", "sifa_topics")],
+    userColumns: [],
+    absentTolerant: true,
+  }),
+  entry("sifa_topic_blocks", "sifa_rehberi", "backup", "Şifa Rehberi V2 İçerik Kutuları", {
+    ownerScope: SIFA_V2_OWNER,
+    fkParents: [fk("topic_id", "sifa_topics")],
+    userColumns: [],
+    absentTolerant: true,
+  }),
+  entry("sifa_block_sources", "sifa_rehberi", "backup", "Şifa Rehberi V2 Kaynakları", {
+    ownerScope: SIFA_V2_OWNER,
+    fkParents: [fk("block_id", "sifa_topic_blocks")],
+    userColumns: [],
+    absentTolerant: true,
+  }),
+  entry("sifa_topic_links", "sifa_rehberi", "backup", "Şifa Rehberi V2 Konu Bağlantıları", {
+    ownerScope: SIFA_V2_OWNER,
+    fkParents: [fk("from_topic_id", "sifa_topics"), fk("to_topic_id", "sifa_topics")],
+    userColumns: [],
+    absentTolerant: true,
+  }),
+  entry("sifa_block_assets", "sifa_rehberi", "backup", "Şifa Rehberi V2 Görsel Kayıtları", {
+    ownerScope: SIFA_V2_OWNER,
+    // ON DELETE SET NULL (block_id): taslak görsel kutusuz olabilir.
+    fkParents: [fk("block_id", "sifa_topic_blocks", true)],
+    storageRefs: [st("storage_path", "tenant")],
+    userColumns: [],
+    absentTolerant: true,
+  }),
 
   // ── Kupa & Hacamat (cupping) ──────────────────────────────────────────────
   entry("cupping_points", "cupping", "backup", "Noktalar"),
@@ -602,6 +646,7 @@ export const BACKUP_REGISTRY: readonly RegistryEntry[] = [
   off("video_transcription_jobs", "transient", "Video çeviri iş kayıtları (geçici)."),
   off("expert_workspace_uploads", "transient", "Kişisel Ofis parçalı görsel yükleme oturumu (15 dk, geçici; ham parçalar staging bucket'ta)."),
   off("healing_guide_create_idempotency", "transient", "Şifa Rehberi oluşturma idempotency anahtarları."),
+  off("sifa_legacy_import_map", "derived", "Şifa Rehberi V2 — V1 aktarım haritası (kurum kayıtlarıyla birlikte V1'den yeniden üretilir)."),
   off("demo_numerology_ip_usage", "transient", "Demo kullanım sayacı.", "none"),
   // Owner purge (20271009100000): aynı transaction'da yazılıp fonksiyon sonunda silinen işaret; hiçbir role açık değil.
   off("admin_purge_context", "transient", "Owner purge transaction işareti (aynı işlemde yazılır ve silinir).", "none"),
