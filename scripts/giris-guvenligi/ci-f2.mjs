@@ -94,6 +94,8 @@ const TSX = [
   "scripts/giris-guvenligi/f2n-owner-kit-db.harness.ts",
   // SMTP (Turhost) saatlik kota: 50/saat, kayan pencere, örnekler arası (DB), fail-closed; kota dolunca bağlantı yok.
   "scripts/giris-guvenligi/smtp-saatlik-kota.check.ts",
+  // Yayın ön kontrolü (salt-okunur): kitsiz zorunlu Owner / Owner sayısı → GO / NO-GO (F2 öncesi production dahil).
+  "scripts/giris-guvenligi/f2-owner-kit-onkontrol.harness.ts",
 ];
 
 // F2-J: migration yeniden / sırasız uygulama koruması (statik blok denetimi, üretilmiş katalog dosyalarının güncelliği,
