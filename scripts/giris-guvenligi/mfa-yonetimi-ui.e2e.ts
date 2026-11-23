@@ -267,7 +267,9 @@ async function main() {
             `${tag}: kit yokken Owner'ın kendi "Zorunluluğu aç" düğmesi KAPALI, sebep gösterilir; kit ve kurtarma kodu ayrı kartlarda`);
           await own.screenshot({ path: path.join(OUT, `chrome-375-owner-kit-yok.png`) });
           await q(`SELECT count(*) FROM public.auth_owner_offline_kit_issue()`);   // SQL konsolu (sentetik DB); kodlar okunmaz
-          await openMember(page, U.owner);
+          // Aynı adrese (yalnız #hesap) goto sayfayı YENİLEMEZ → panel durumu yeniden okumaz; gerçek yenileme şart.
+          await page.reload({ waitUntil: "domcontentloaded" });
+          await page.getByRole("heading", { name: "Hesap durumu ve erişim özeti" }).waitFor({ timeout: 30000 });
           await page.locator("[data-recovery=owner-kit][data-owner-kit='5']").waitFor({ timeout: 20000 });
           ok(await page.locator("[data-mfa-action=enable]").isEnabled(), `${tag}: kit oluşunca (5 kod) düğme açılır`);
           await page.locator("[data-mfa-action=enable]").click();
