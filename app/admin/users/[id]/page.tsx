@@ -115,6 +115,7 @@ import { DEFAULT_MEMBER_DETAIL_TAB, memberDetailTabFromHash, type MemberDetailTa
 import detailCss from "@/components/admin/members/detail/MemberDetailV2.module.css";
 import { TrialCreditPanel, TrialStatePanel, useTrialManagement } from "@/components/admin/members/detail/TrialManagementPanel";
 import { MemberUnarchiveDialog } from "@/components/admin/members/detail/MemberUnarchiveDialog";
+import { MemberMfaPanel } from "@/components/admin/members/detail/MemberMfaPanel";
 import OwnerStepUpDialog from "@/components/admin/OwnerStepUpDialog";
 
 const panelClass =
@@ -3260,6 +3261,8 @@ export default function AdminUserDetailPage() {
                 </button>
               </p>
             </section>
+            {/* ── 1b. İki Aşamalı Giriş Yönetimi (YALNIZ Owner; yetki sunucuda + DB'de) ── */}
+            <MemberMfaPanel userId={user.id} />
             {/* ── 2. Aktif Cihazlar & Güvenlik Özeti ─────────────────────── */}
             <section className={`${panelClass} border-sky-200/80 bg-gradient-to-br from-sky-50/90 via-white to-cyan-50/60`}>
               <button

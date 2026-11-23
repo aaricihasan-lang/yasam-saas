@@ -72,6 +72,9 @@ const TSX = [
   "scripts/giris-guvenligi/owner-mfa-prova.harness.ts",
   // Owner MFA yalnız e-posta (telefonsuz): kurtarma kodu üretim sırası, kâğıt kitle tam kurtarma, ortam ayarı kilitlenme ölçümü.
   "scripts/giris-guvenligi/owner-mfa-eposta.harness.ts",
+  // Owner İki Aşamalı Giriş Yönetimi (Üye Detayı): yalnız Owner; giriş akışıyla aynı yöntem hesabı (Gmail / kapsam / rol
+  // kapalıyken açılmaz — negatif kontrol dahil); kaldırma taze MFA + üyeye bağlı tek kullanımlık kanıt; Owner ilk kurulum.
+  "scripts/giris-guvenligi/mfa-yonetimi-routes.harness.ts",
   // F2-K (O1): QR onayında 6 haneli yazılan kod + telefon imzası; yanlış kodda bütün açık istekler kapanır.
   "scripts/giris-guvenligi/f2k-qr.harness.ts",
   // F2-K (L4): güvenlik bildirimi kota ayrımı + gönderilemeyen bildirim kaydı.
