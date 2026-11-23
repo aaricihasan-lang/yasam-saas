@@ -92,6 +92,8 @@ const TSX = [
   // F2-N (001300): Owner MFA zorunluluğu için DB düzeyinde kit şartı — RPC / doğrudan UPDATE / service_role / yükseltme / INSERT,
   // son kit iptali, eşzamanlılık (iki sıra), API atlanmışken savunma derinliği, geri alma + yeniden uygulama, ön kontrol.
   "scripts/giris-guvenligi/f2n-owner-kit-db.harness.ts",
+  // SMTP (Turhost) saatlik kota: 50/saat, kayan pencere, örnekler arası (DB), fail-closed; kota dolunca bağlantı yok.
+  "scripts/giris-guvenligi/smtp-saatlik-kota.check.ts",
 ];
 
 // F2-J: migration yeniden / sırasız uygulama koruması (statik blok denetimi, üretilmiş katalog dosyalarının güncelliği,
@@ -125,6 +127,11 @@ const steps = [
       env: { F2_TEST_DB_LATEST: "1", F2E_NEGATIF_72S: "1" }, expectFail: true,
       passRe: /f2e-routes harness: [0-9]+ PASS \/ [1-9][0-9]* FAIL/,
       mustRe: /NEGATİF KONTROL: 72 saat denetimi[^\n]*[\s\S]*FAIL 72 saat dolmadan yürütme yok[\s\S]*FAIL TAM ZİNCİR: geçerli step-up kanıtına rağmen 72 saat/ },
+    // NEGATİF KONTROL (SMTP kota): kapı kaldırılınca kota aşılır → FAIL VERMELİ.
+    { label: "smtp-saatlik-kota NEGATİF (SMTP_KOTA_KORUMASIZ=1 → FAIL beklenir)", cmd: process.execPath,
+      args: [path.join("node_modules", "tsx", "dist", "cli.mjs"), "scripts/giris-guvenligi/smtp-saatlik-kota.check.ts"],
+      env: { SMTP_KOTA_KORUMASIZ: "1" }, expectFail: true, passRe: /smtp-saatlik-kota: [0-9]+ PASS \/ [1-9][0-9]* FAIL/,
+      mustRe: /\(SMTP_KOTA_KORUMASIZ=1\)[\s\S]*FAIL sınır 5 iken 5 ileti gitti[\s\S]*FAIL production fabrikası/ },
     // NEGATİF KONTROL (F2-N): 001300 OLMADAN kitsiz Owner zorunluluğu DB'den geçer → FAIL VERMELİ.
     { label: "f2n-owner-kit-db NEGATİF (F2N_NEGATIF=1, 001300 yok → FAIL beklenir)", cmd: process.execPath,
       args: [path.join("node_modules", "tsx", "dist", "cli.mjs"), "scripts/giris-guvenligi/f2n-owner-kit-db.harness.ts"],

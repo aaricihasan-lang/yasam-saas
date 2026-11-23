@@ -24,6 +24,7 @@ import { randomBytes } from "node:crypto";
 import nodemailer from "nodemailer";
 import { buildMimeMessage, isSafeEmailAddress } from "@/lib/email/mime";
 import type { EmailErrorCode, EmailMessage, EmailProvider, EmailSendResult } from "@/lib/email/provider";
+import type { SmtpGate } from "@/lib/email/smtpQuota";
 
 type Env = Record<string, string | undefined>;
 
@@ -130,7 +131,11 @@ function messageId(sender: string): string {
   return `<ys.${Date.now().toString(36)}.${randomBytes(9).toString("hex")}@${domain}>`;
 }
 
-export function createSmtpProvider(env: Env = process.env, hooks: SmtpTestHooks = {}): EmailProvider | null {
+/**
+ * gate: saatlik kota kapısı (lib/email/smtpQuota). Production yolu (getEmailProvider) HER ZAMAN verir; kapı izin vermezse
+ * bağlantı AÇILMADAN "quota" döner (Owner'a mevcut bildirim akışıyla iletilir). Yalnız birim testleri kapısız oluşturur.
+ */
+export function createSmtpProvider(env: Env = process.env, hooks: SmtpTestHooks = {}, gate?: SmtpGate): EmailProvider | null {
   const cfg = readConfig(env);
   if (!cfg.ok) return null;
   const { host, port, user, sender, fromName } = cfg.config;
@@ -142,6 +147,10 @@ export function createSmtpProvider(env: Env = process.env, hooks: SmtpTestHooks 
     name: "smtp",
     async send(msg: EmailMessage): Promise<EmailSendResult> {
       if (!isSafeEmailAddress(msg.to)) return { ok: false, code: "rejected", retryable: false };
+      if (gate) {
+        const g = await gate().catch(() => ({ allowed: false, retryAfterSec: 60 }));
+        if (!g.allowed) return { ok: false, code: "quota", retryable: true };
+      }
       const mid = messageId(sender);
       let raw: string;
       try {
