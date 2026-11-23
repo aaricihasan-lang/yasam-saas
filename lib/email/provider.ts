@@ -12,6 +12,8 @@
 import { createHash } from "node:crypto";
 import { createGmailProvider } from "@/lib/email/gmailProvider";
 import { createSmtpProvider } from "@/lib/email/smtpProvider";
+import { createSmtpHourlyGate } from "@/lib/email/smtpQuota";
+import { getServerDb } from "@/lib/supabase-server";
 import { createSyntheticProvider, syntheticEmailAllowed } from "@/lib/email/syntheticProvider";
 
 export type EmailMessage = {
@@ -64,7 +66,8 @@ export function getEmailProvider(env: Env = process.env): EmailProvider | null {
   if (cached && cached.key === key && env === process.env) return cached.provider;
   let provider: EmailProvider | null = null;
   if (mode === "gmail") provider = createGmailProvider(env);
-  else if (mode === "smtp") provider = createSmtpProvider(env);
+  // SMTP: saatlik kota kapısı (örnekler arası, veritabanında; fail-closed) HER ZAMAN takılı.
+  else if (mode === "smtp") provider = createSmtpProvider(env, {}, createSmtpHourlyGate(() => getServerDb(), env));
   else if (mode === "synthetic" && syntheticEmailAllowed(env)) provider = createSyntheticProvider(env);
   if (env === process.env) cached = { key, provider };
   return provider;
