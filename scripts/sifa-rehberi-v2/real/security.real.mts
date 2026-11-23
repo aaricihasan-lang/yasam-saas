@@ -99,7 +99,8 @@ ok(!ins.ok && ((await ins.json().catch(() => ({}))) as { code?: string }).code =
     const sd = await c.query(`select count(*) filter (where prosecdef)::int secdef, count(*) filter (where prosecdef and coalesce(array_to_string(proconfig, ','), '') not like '%search_path=""%')::int bad,
       count(*) filter (where prosecdef and pg_get_userbyid(proowner) <> 'postgres')::int other_owner
       from pg_proc where pronamespace = 'public'::regnamespace and proname like 'sifa_v2%'`);
-    ok(sd.rows[0].secdef === 8 && sd.rows[0].bad === 0 && sd.rows[0].other_owner === 0, "SECURITY DEFINER denetimi: 8 dış fonksiyon, hepsi search_path='' + sahip postgres", sd.rows[0]);
+    // 20280124000000 (görsel yaşam döngüsü) bilinçli olarak 4 SECURITY DEFINER fonksiyon ekler: 8 → 12.
+    ok(sd.rows[0].secdef === 12 && sd.rows[0].bad === 0 && sd.rows[0].other_owner === 0, "SECURITY DEFINER denetimi: 12 dış fonksiyon (8 + yaşam döngüsü 4), hepsi search_path='' + sahip postgres", sd.rows[0]);
   } finally {
     await c.end();
   }

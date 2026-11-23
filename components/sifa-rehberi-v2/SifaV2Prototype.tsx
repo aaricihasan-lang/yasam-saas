@@ -831,45 +831,47 @@ export default function SifaV2Prototype({ mode = "prototip" }: { mode?: "prototi
         {selected && openRoot ? (
           /* ── Konu ekranı: tek yapışkan çubuk (geri · başlıklar · görünüm · çöp) + etkin arama şeridi ── */
           <div className="sticky top-0 z-30 -mx-4 px-4 pt-1 lg:-mx-6 lg:px-6" data-testid="toolbar">
-            <div className="flex flex-wrap items-center gap-2 rounded-[22px] border border-white/80 bg-white/94 p-2 shadow-[0_12px_32px_rgba(15,23,42,0.08)] ring-1 ring-white/90 backdrop-blur max-lg:rounded-2xl">
+            <div className="flex items-center gap-2 rounded-[22px] border border-white/80 bg-white/94 p-2 shadow-[0_12px_32px_rgba(15,23,42,0.08)] ring-1 ring-white/90 backdrop-blur max-lg:rounded-2xl max-sm:gap-1.5 max-sm:p-1.5">
               <button
                 type="button"
                 onClick={() => select(null)}
-                className="inline-flex min-h-[42px] items-center gap-1.5 rounded-xl border border-emerald-200 bg-white px-3 text-[13px] font-black text-emerald-800 shadow-sm transition hover:bg-emerald-50"
+                className="inline-flex min-h-[42px] shrink-0 items-center gap-1.5 rounded-xl border border-emerald-200 bg-white px-3 text-[13px] font-black text-emerald-800 shadow-sm transition hover:bg-emerald-50 max-sm:px-2.5"
                 data-testid="all-topics"
               >
                 ← <span className="max-sm:hidden">Araştırma </span>Kütüphanem
               </button>
-              <button type="button" className={`${btnGhost} lg:hidden`} onClick={() => setDrawer(true)} data-testid="open-drawer" aria-label="Bu konunun başlıklar menüsünü aç">
-                ☰ Başlıklar
+              <button type="button" className={`${btnGhost} shrink-0 lg:hidden max-sm:px-3`} onClick={() => setDrawer(true)} data-testid="open-drawer" aria-label="Bu konunun başlıklar menüsünü aç">
+                ☰<span className="max-sm:hidden"> Başlıklar</span>
               </button>
-              <span className="min-w-0 flex-1 truncate px-1 text-[12px] font-black uppercase tracking-[0.14em] text-slate-500 max-sm:basis-full max-sm:order-last" data-testid="open-root-title">
+              <span className="min-w-0 flex-1 truncate px-1 text-[12px] font-black uppercase tracking-[0.14em] text-slate-500 max-sm:sr-only" data-testid="open-root-title">
                 {openRoot.title}
               </span>
-              <div className="ml-auto flex items-center gap-2">
+              <div className="ml-auto flex shrink-0 items-center gap-2 max-sm:gap-1.5">
                 <ViewSwitch view={view} onChange={changeView} />
-                <button type="button" className={btnGhost} onClick={() => setDialog({ kind: "trash" })} data-testid="open-trash" aria-label={`Çöp Kutusu${trashCount ? ` (${trashCount})` : ""}`}>
+                <button type="button" className={`${btnGhost} max-sm:px-3`} onClick={() => setDialog({ kind: "trash" })} data-testid="open-trash" aria-label={`Çöp Kutusu${trashCount ? ` (${trashCount})` : ""}`}>
                   🗑<span className="max-sm:hidden"> Çöp Kutusu</span>{trashCount ? ` (${trashCount})` : ""}
                 </button>
               </div>
             </div>
             {hl ? (
-              <div className="mt-2 flex flex-wrap items-center gap-2 rounded-2xl border border-yellow-200 bg-yellow-50/95 px-3 py-1.5 text-[13px] font-bold text-yellow-950 shadow-sm backdrop-blur" role="status" aria-live="polite" data-testid="search-strip">
+              <div className="mt-2 flex items-center gap-2 rounded-2xl border border-yellow-200 bg-yellow-50/95 px-3 py-1.5 text-[13px] font-bold text-yellow-950 shadow-sm backdrop-blur max-sm:mt-1.5 max-sm:gap-1.5 max-sm:px-2 max-sm:py-1" role="status" aria-live="polite" data-testid="search-strip">
                 <span className="min-w-0 truncate">
                   🔎 “<span className="font-black">{activeQ.trim()}</span>”
                 </span>
-                <span className="text-yellow-900/80" data-testid="hit-count">
-                  {hitCount ? `${hitCount} eşleşme bu ekranda` : "bu ekranda eşleşme yok"}
+                <span className="shrink-0 whitespace-nowrap text-yellow-900/80" data-testid="hit-count">
+                  {hitCount ? `${hitCount} eşleşme` : "eşleşme yok"}
+                  <span className="max-sm:hidden"> bu ekranda</span>
                 </span>
-                <span className="ml-auto flex items-center gap-1">
+                <span className="ml-auto flex shrink-0 items-center gap-1">
                   <button type="button" onClick={() => stepHit(-1)} disabled={!hitCount} className="flex h-9 w-9 items-center justify-center rounded-lg border border-yellow-300 bg-white text-[14px] disabled:opacity-40" aria-label="Önceki eşleşme" data-testid="hit-prev">
                     ↑
                   </button>
                   <button type="button" onClick={() => stepHit(1)} disabled={!hitCount} className="flex h-9 w-9 items-center justify-center rounded-lg border border-yellow-300 bg-white text-[14px] disabled:opacity-40" aria-label="Sonraki eşleşme" data-testid="hit-next">
                     ↓
                   </button>
-                  <button type="button" onClick={clearSearch} className="min-h-[36px] rounded-lg border border-yellow-300 bg-white px-2.5 text-[12.5px] font-black" data-testid="search-clear-topic">
-                    Aramayı temizle
+                  <button type="button" onClick={clearSearch} className="min-h-[36px] min-w-9 rounded-lg border border-yellow-300 bg-white px-2.5 text-[12.5px] font-black" aria-label="Aramayı temizle" data-testid="search-clear-topic">
+                    <span className="max-sm:hidden">Aramayı temizle</span>
+                    <span className="sm:hidden" aria-hidden>✕</span>
                   </button>
                 </span>
               </div>

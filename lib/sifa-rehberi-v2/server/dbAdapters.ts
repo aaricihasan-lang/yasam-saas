@@ -29,6 +29,8 @@ const SIGNATURES: Record<string, [string, string][]> = {
   sifa_v2_visible_assets: [["p_tenant", "uuid"], ["p_user", "uuid"], ["p_ids", "uuid[]"]],
   sifa_v2_trash_candidates: [["p_cutoff", "timestamptz"]],
   sifa_v2_trash_purge: [["p_cutoff", "timestamptz"], ["p_removed_assets", "uuid[]"]],
+  sifa_v2_gc_candidates: [["p_cutoff", "timestamptz"], ["p_upload_cutoff", "timestamptz"], ["p_tenant", "uuid"], ["p_limit", "integer"]],
+  sifa_v2_gc_purge: [["p_cutoff", "timestamptz"], ["p_tenant", "uuid"], ["p_removed_assets", "uuid[]"]],
 };
 
 export function pgDb(client: PgQueryable): SifaV2Db {

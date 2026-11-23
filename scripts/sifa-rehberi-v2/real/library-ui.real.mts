@@ -231,7 +231,7 @@ try {
   ids.bitkisel = child(ids.oksuruk, "Bitkisel Destek");
   ids.cay = child(ids.bitkisel, "Zencefil Çayı");
   const longParas = Array.from({ length: 45 }, (_, i) => para(`${i + 1}. ${FILLER}`));
-  ids.legacyBlock = box(ids.oksuruk, "Eski görselli not", doc({ type: "figure", attrs: { src: `data:image/png;base64,${PNG_1PX}`, alt: "eski", caption: "Eski base64 görsel" } }, para("Eski editörle kaydedilmiş not.")), "Eski editörle kaydedilmiş not.");
+  ids.legacyBlock = box(ids.oksuruk, "Eski görselli not", doc(para("Eski editörle kaydedilmiş not.")), "Eski editörle kaydedilmiş not.");
   ids.longBlock = box(ids.cay, "Uzun not", doc(...longParas, para("Taze ZENCEFİL rendelenir; zencefil ılık suyla demlenir."), ...longParas.slice(0, 10), para("Son paragrafta yine zencefil geçer.")), [...longParas.map(() => FILLER), "Taze ZENCEFİL rendelenir; zencefil ılık suyla demlenir.", "Son paragrafta yine zencefil geçer."].join("\n"));
   ids.zkok = root("Zencefil Kökü");
   ids.mide = root("Mide");
@@ -250,6 +250,8 @@ try {
   for (let i = 1; i <= 60; i++) root(`ZZ Dolgu Konusu ${String(i).padStart(3, "0")}`);
   ids.uzun = root("Çok uzun başlıklı araştırma konusu: kronik yorgunluk sendromu, uyku bozuklukları ve beslenme ilişkisi üzerine kapsamlı notlar");
   const sA = await saveDiff(A1, baseA, wsA);
+  // Eski editörün kaydı (base64 görsel): yeni sürüm YENİ base64 kabul etmediği için DB'ye eski kayıt olarak yazılır (sentetik).
+  await su.query("update public.sifa_topic_blocks set content_json = $2::jsonb where id = $1", [ids.legacyBlock, JSON.stringify(doc({ type: "figure", attrs: { src: `data:image/png;base64,${PNG_1PX}`, alt: "eski", caption: "Eski base64 görsel" } }, para("Eski editörle kaydedilmiş not.")))]);
   ok(sA.status === 200, "A1 tohum kaydı (73 ana konu, 3 seviyeli alt başlık, uzun not, eski base64 görsel) → 200", sA.status);
 
   // A2 (aynı tenant, başka uzman) ve B1 (başka tenant): aynı anahtar kelime
@@ -644,11 +646,11 @@ try {
   const xb = wx0.blocks.find((b) => b.id === ids.odemBlock)!;
   const evil = doc(
     { type: "paragraph", content: [{ type: "text", text: "<img src=x onerror=window.__xss=1>", marks: [{ type: "link", attrs: { href: "javascript:window.__xss=2" } }] }] },
-    { type: "figure", attrs: { src: "javascript:window.__xss=3", alt: "x", caption: "x" } },
-    { type: "figure", attrs: { src: "data:text/html;base64,PHNjcmlwdD53aW5kb3cuX194c3M9NDwvc2NyaXB0Pg==", alt: "x", caption: "x" } },
     { type: "script", content: [{ type: "text", text: "window.__xss=5" }] },
     ...(xb.contentJson?.content ?? []),
   );
+  const evilFig = doc({ type: "figure", attrs: { src: "javascript:window.__xss=3", alt: "x", caption: "x" } }, { type: "figure", attrs: { src: "data:text/html;base64,PHNjcmlwdD53aW5kb3cuX194c3M9NDwvc2NyaXB0Pg==", alt: "x", caption: "x" } }, ...(xb.contentJson?.content ?? []));
+  ok((await saveDiff(A1, wx0, setContent(wx0, ids.odemBlock, evilFig, "xss"))).status === 422, "XSS: javascript:/data:text/html görsel kaynağı → 422 (kayıt yok)");
   const xs = await saveDiff(A1, wx0, setContent(wx0, ids.odemBlock, evil, "xss denemesi"));
   const xdb = (await su.query("select content_json::text j from public.sifa_topic_blocks where id=$1", [ids.odemBlock])).rows[0].j as string;
   ok(xs.status === 200 && !xdb.includes("javascript:") && !xdb.includes("data:text/html") && !xdb.includes('"script"'), "XSS: sunucu javascript:/data:text/html/script düğümlerini kayıttan ÖNCE ayıkladı");
@@ -693,6 +695,13 @@ try {
   ok(mv.ok, "mobil: ilk eşleşme görünür, üst çubuk ve alt Kaydet çubuğu arasında", mv);
   ok((await pm.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)) <= 0, "mobil konu ekranı yatay taşma yok");
   await shot(pm, "10c-mobil-vurgu");
+  await pm.mouse.wheel(0, 1200);
+  await pm.waitForTimeout(400);
+  const mst = await pm.evaluate(() => {
+    const r = document.querySelector("[data-testid=toolbar]")!.getBoundingClientRect();
+    return { y: Math.round(window.scrollY), top: Math.round(r.top), h: Math.round(r.height) };
+  });
+  ok(mst.y > 500 && mst.top >= -1 && mst.top <= 8 && mst.h < 150, "mobil: üst çubuk + arama şeridi kaydırmada sabit ve ekranı kaplamıyor", mst);
   await pm.tap("[data-testid=all-topics]");
   await pm.waitForSelector("[data-testid=library-list]");
   ok((await pm.$$eval("[data-testid=library-item]", (els) => els.map((e) => e.getAttribute("data-reviewed")))).join() === "0,1,0", "mobil: incelendi işareti");
@@ -739,6 +748,154 @@ try {
     labels: Array.from(document.querySelectorAll("[data-testid=library-item]")).every((e) => (e.getAttribute("aria-label") ?? e.textContent ?? "").trim().length > 0),
   }));
   ok(a11y.tablist === 2 && a11y.search === 1 && a11y.live === "polite" && a11y.labels, "ekran okuyucu: tablist/tab, arama etiketi, canlı durum bölgesi, satır adları", a11y);
+
+  // ══════════════════════════════════════════════════════════════════════════
+  section("10) Son kapanış — yapışkan üst çubuk (yalnız Şifa) + diğer modüller");
+  await openHome(page);
+  await search(page, "rendelenir");
+  await page.click(`[data-testid=library-item][data-node-id="${ids.oksuruk}"]`);
+  await page.waitForFunction(() => document.querySelector("[data-testid=content] mark.is-current"), null, { timeout: 15_000 });
+  await page.waitForTimeout(500);
+  const stick = async (p: Page) =>
+    p.evaluate(() => {
+      const bar = document.querySelector("[data-testid=toolbar]")!.getBoundingClientRect();
+      const strip = document.querySelector("[data-testid=search-strip]")?.getBoundingClientRect();
+      return { y: Math.round(window.scrollY), barTop: Math.round(bar.top), barBottom: Math.round(bar.bottom), stripVisible: !!strip && strip.top >= 0 && strip.bottom <= window.innerHeight, bodyOverflowX: getComputedStyle(document.body).overflowX };
+    });
+  const st1 = await stick(page);
+  ok(st1.y > 1500 && st1.barTop >= -1 && st1.barTop <= 8 && st1.stripVisible, "uzun içerikte (aşağıda) geri düğmesi + arama şeridi ekranın üstünde sabit", st1);
+  ok(st1.bodyOverflowX === "clip", "Şifa sayfasında body overflow-x: clip (yalnız :has(.sifa-v2) kapsamı)", st1.bodyOverflowX);
+  const fh = await firstHitVisible(page);
+  ok(fh.ok && (fh.top ?? 0) >= (fh.barBottom ?? 0), "ilk eşleşme sabit çubuğun ALTINDA (örtülmüyor)", fh);
+  await page.click("[data-testid=hit-next]");
+  await page.waitForTimeout(800);
+  const cur = await page.evaluate(() => {
+    const m = document.querySelector<HTMLElement>("[data-testid=content] mark.is-current")!.getBoundingClientRect();
+    const bar = document.querySelector("[data-testid=toolbar]")!.getBoundingClientRect();
+    return { top: Math.round(m.top), barBottom: Math.round(bar.bottom) };
+  });
+  ok(cur.top >= cur.barBottom, "↓ ile gidilen eşleşme de çubuğun altında görünür", cur);
+  await shot(page, "11-yapiskan-cubuk-asagida");
+  await page.click("[data-testid=all-topics]");
+  await page.waitForSelector("[data-testid=library-list]");
+  ok(true, "aşağıdayken sabit ← Kütüphanem düğmesi tıklanabilir ve kütüphaneye döner");
+  // Düzenleme: editör araç çubuğu üst çubuğun altında kalır (çakışma yok)
+  await page.click("[data-testid=library-search-clear]");
+  await page.click(`[data-testid=library-item][data-node-id="${ids.oksuruk}"]`);
+  await page.waitForSelector("[data-testid=node-view]");
+  for (const id of [ids.oksuruk, ids.bitkisel]) {
+    const t = page.locator(`[data-testid=tree-aside] [data-testid=tree-toggle-${id}]`);
+    if ((await t.count()) && (await t.getAttribute("aria-label"))?.includes("aç")) await t.click();
+  }
+  await page.click(`[data-testid=tree-aside] [data-testid=tree-node][data-node-id="${ids.cay}"]`);
+  await page.locator(`[data-testid=block-card][data-block-id="${ids.longBlock}"] [data-testid=block-edit]`).click();
+  await page.waitForSelector("[data-testid=rich-editor-wrap] [role=toolbar]");
+  await page.mouse.wheel(0, 2500);
+  await page.waitForTimeout(500);
+  const ed = await page.evaluate(() => {
+    const tb = document.querySelector("[data-testid=rich-editor-wrap] [role=toolbar]")!.getBoundingClientRect();
+    const bar = document.querySelector("[data-testid=toolbar]")!.getBoundingClientRect();
+    return { tbTop: Math.round(tb.top), barBottom: Math.round(bar.bottom), y: Math.round(window.scrollY) };
+  });
+  ok(ed.y > 1000 && ed.tbTop >= ed.barBottom - 2, "düzenlerken editör araç çubuğu sabit üst çubuğun altında (üst üste binmiyor)", ed);
+  await shot(page, "11b-editor-arac-cubugu");
+  await page.locator(`[data-testid=block-card][data-block-id="${ids.longBlock}"] [data-testid=block-edit]`).click();
+  // Diğer modüller: tam yüklemede body davranışı DEĞİŞMEDİ
+  for (const route of ["/danisan-yolculugu", "/dogaltas", "/numeroloji", "/human-design", "/gokyuzu-atlasi", "/refleksoloji"]) {
+    const r = await page.goto(`${BASE}${route}`, { waitUntil: "domcontentloaded", timeout: 240_000 }).catch(() => null);
+    await page.waitForTimeout(1500);
+    const o = await page.evaluate(() => ({ x: getComputedStyle(document.body).overflowX, html: getComputedStyle(document.documentElement).overflowX, hasSifa: !!document.querySelector(".sifa-v2"), sw: document.documentElement.scrollWidth - window.innerWidth }));
+    ok(o.x === "hidden" && o.html === "hidden" && !o.hasSifa && o.sw <= 0, `${route}: body/html overflow-x hidden (değişmedi), yatay taşma yok`, { status: r?.status(), ...o });
+  }
+  // Uygulama içi geçiş: Şifa CSS'i yüklü kalsa da Şifa dışında etkisiz
+  await openHome(page);
+  const ovBefore = await page.evaluate(() => getComputedStyle(document.body).overflowX);
+  await page.evaluate(() => {
+    const root = document.querySelector(".sifa-v2");
+    root?.classList.remove("sifa-v2");
+  });
+  const ovGone = await page.evaluate(() => getComputedStyle(document.body).overflowX);
+  ok(ovBefore === "clip" && ovGone === "hidden", "Şifa kökü sayfadan kalkınca body anında yeniden hidden (:has kapsamı; yüklü CSS başka sayfayı etkilemez)", { ovBefore, ovGone });
+
+  section("11) Base64 / içerik bütçesi (sunucu)");
+  const wsG = await loadWs(A1);
+  const nb = must(addBlock(wsG, { nodeId: ids.uyku, title: "Yeni base64 denemesi" }, ctx));
+  const b64 = setContent(nb.ws, nb.block.id, doc({ type: "figure", attrs: { src: `data:image/png;base64,${"A".repeat(300_000)}`, alt: "", caption: "" } }), "");
+  const before64 = (await su.query("select (select count(*) from public.sifa_topic_blocks where tenant_id=$1) n", [TEN_A])).rows[0];
+  const r64 = await saveDiff(A1, wsG, b64);
+  ok(r64.status === 422 && r64.json?.code === "SIFA_V2_INLINE_IMAGE", "YENİ kutuda base64 görsel → 422 (Storage hattı atlanamaz)", r64.status);
+  const ext = setContent(nb.ws, nb.block.id, doc({ type: "figure", attrs: { src: "https://kotu.example/izleme.png", alt: "", caption: "" } }), "");
+  ok((await saveDiff(A1, wsG, ext)).status === 422, "YENİ harici (https) görsel → 422");
+  const wsL = await loadWs(A1);
+  const legacy = wsL.blocks.find((b) => b.id === ids.legacyBlock)!;
+  const keepLegacy = setContent(wsL, ids.legacyBlock, doc(...(legacy.contentJson?.content ?? []), para("Eski nota yeni satır eklendi.")), legacy.contentText + "\nEski nota yeni satır eklendi.");
+  const rKeep = await saveDiff(A1, wsL, keepLegacy);
+  const legacyAfter = (await su.query("select content_json::text j from public.sifa_topic_blocks where id=$1", [ids.legacyBlock])).rows[0].j as string;
+  ok(rKeep.status === 200 && legacyAfter.includes(`data:image/png;base64,${PNG_1PX}`) && legacyAfter.includes("yeni satır"), "ESKİ base64 görselli kutu düzenlenip kaydedilebiliyor; eski görsel korunuyor", rKeep.status);
+  const wsL2 = await loadWs(A1);
+  const leg2 = wsL2.blocks.find((b) => b.id === ids.legacyBlock)!;
+  const copyTo = must(addBlock(wsL2, { nodeId: ids.uyku, title: "Kopya" }, ctx));
+  const copied = setContent(copyTo.ws, copyTo.block.id, leg2.contentJson, leg2.contentText);
+  ok((await saveDiff(A1, wsL2, copied)).status === 422, "eski base64 görseli BAŞKA kutuya kopyalamak → 422 (yeni gömme sayılır)");
+  const tooBig = setContent(nb.ws, nb.block.id, doc(...Array.from({ length: 40 }, () => para("x".repeat(40_000)))), "kısa");
+  const rBig = await saveDiff(A1, wsG, tooBig);
+  ok(rBig.status === 413 && rBig.json?.code === "SIFA_V2_BLOCK_TOO_LARGE", "1,6 milyon karakterlik kutu içeriği → 413 (content_text küçük gösterilse bile)", rBig.status);
+  const after64 = (await su.query("select (select count(*) from public.sifa_topic_blocks where tenant_id=$1) n", [TEN_A])).rows[0];
+  ok(after64.n === before64.n, "reddedilen isteklerde DB'ye hiçbir kutu yazılmadı", { before: before64.n, after: after64.n });
+  ok((await su.query("select count(*)::int n from public.sifa_topic_blocks where tenant_id=$1 and strpos(content_json::text, 'AAAAAAAAAAAAAAAAAAAA') > 0", [TEN_A])).rows[0].n === 0, "300 KB'lık base64 DB'ye ulaşmadı");
+
+  section("12) Demo hesap (salt-okunur politika korunuyor)");
+  const DEMO = await mkUser(TEN_A, "DEMO");
+  {
+    const d0 = await loadWs(DEMO);
+    const dn = must(addNode(d0, { parentId: null, title: "Demo Vitrin Konusu" }, ctx));
+    const db1 = must(addBlock(dn.ws, { nodeId: dn.node.id, title: "Not" }, ctx));
+    const pr = await api(DEMO, "POST", "assets/prepare", { mimeType: "image/png", size: png.length });
+    const put = await fetch(String(pr.json?.signedUrl), { method: "PUT", headers: { "content-type": "image/png" }, body: png });
+    const fz = await api(DEMO, "POST", "assets/finalize", { assetId: pr.json?.assetId, path: pr.json?.path });
+    const dws = setContent(db1.ws, db1.block.id, doc(para("demo içerik"), { type: "figure", attrs: { src: String(fz.json?.src), alt: "", caption: "Demo görsel" } }), "demo içerik");
+    const sv0 = await saveDiff(DEMO, d0, dws);
+    ok(pr.status === 200 && put.ok && fz.status === 200 && sv0.status === 200, "kurulum: demo vitrin içeriği (görselli) NORMAL hesapken hazırlandı", [pr.status, put.status, fz.status, sv0.status]);
+    ids.demoRoot = dn.node.id;
+    ids.demoBlock = db1.block.id;
+    ids.demoAsset = String(fz.json?.assetId);
+  }
+  await su.query("update public.users set is_demo_account=true where id=$1", [DEMO.id]);
+  const demoSnap = async () => (await su.query("select (select count(*) from public.sifa_topics where owner_key=$1) t, (select count(*) from public.sifa_topic_blocks where owner_key=$1) b, (select count(*) from public.sifa_block_assets where owner_key=$1) a, (select count(*) from storage.objects where bucket_id='sifa-arastirma' and name like $2) o, (select max(version) from public.sifa_topic_blocks where owner_key=$1) v", [DEMO.id, `${TEN_A}/${DEMO.id}/%`])).rows[0];
+  const ds0 = await demoSnap();
+  ok((await api(DEMO, "GET", "workspace")).status === 200, "demo: çalışma alanı OKUMA → 200");
+  const dUrls = await api(DEMO, "POST", "assets/signed-urls", { ids: [ids.demoAsset] });
+  ok(dUrls.status === 200 && Object.keys((dUrls.json?.urls as object) ?? {}).length === 1, "demo: kendi görselinin imzalı OKUMA bağlantısı → 200");
+  ok(Object.keys(((await api(DEMO, "POST", "assets/signed-urls", { ids: [assetIds[0]] })).json?.urls as object) ?? {}).length === 0, "demo: aynı tenant'taki başka uzmanın görselini ALAMAZ");
+  const dp = await api(DEMO, "POST", "assets/prepare", { mimeType: "image/png", size: 100 });
+  const dfz = await api(DEMO, "POST", "assets/finalize", { assetId: ids.demoAsset, path: `${TEN_A}/${DEMO.id}/${ids.demoAsset}.png` });
+  const ddc = await api(DEMO, "POST", "assets/discard", { assetId: randomUUID(), path: `${TEN_A}/${DEMO.id}/${randomUUID()}.png` });
+  const dws1 = await loadWs(DEMO);
+  const dsv = await saveDiff(DEMO, dws1, setContent(dws1, ids.demoBlock, doc(para("değiştirildi")), "değiştirildi"));
+  const dcp = await api(DEMO, "POST", "copy", { rootId: ids.demoRoot });
+  const dwd = await api(DEMO, "POST", "word", { rootId: ids.demoRoot });
+  ok([dp, dfz, ddc, dsv, dcp].every((r) => r.status === 403 && r.json?.code === "DEMO_READONLY"), "demo: yükleme hazırlama / finalize / discard / kaydet / kopya → 403 DEMO_READONLY", [dp.status, dfz.status, ddc.status, dsv.status, dcp.status]);
+  ok(dwd.status === 403, "demo: Word → 403 (mevcut V2 politikası korunuyor)", dwd.status);
+  const cD = await newCtx(browser, DEMO);
+  const pD = await cD.newPage();
+  await openHome(pD);
+  await pD.click(`[data-testid=library-item][data-node-id="${ids.demoRoot}"]`);
+  await pD.waitForFunction((id) => {
+    const im = document.querySelector<HTMLImageElement>(`[data-testid=block-card][data-block-id="${id}"] img[data-sifa-asset]`);
+    return !!im && im.complete && im.naturalWidth > 1;
+  }, ids.demoBlock, { timeout: 30_000 }).catch(() => {});
+  ok(await pD.$eval(`[data-testid=block-card][data-block-id="${ids.demoBlock}"] img[data-sifa-asset]`, (e) => (e as HTMLImageElement).naturalWidth > 1).catch(() => false), "demo (tarayıcı): görsel GÖRÜNTÜLENİYOR");
+  const dCard = pD.locator(`[data-testid=block-card][data-block-id="${ids.demoBlock}"]`);
+  await dCard.locator("[data-testid=block-edit]").click();
+  await dCard.locator("[data-testid=tb-image-input]").setInputFiles({ name: "demo.png", mimeType: "image/png", buffer: png });
+  await pD.getByRole("button", { name: "Görseli ekle" }).click();
+  await pD.waitForSelector("[data-testid=image-error]", { timeout: 20_000 }).catch(() => {});
+  const dErr = (await pD.textContent("[data-testid=image-error]").catch(() => "")) ?? "";
+  ok(/Demo hesabı salt okunurdur/.test(dErr), "demo (tarayıcı): görsel yükleme açık mesajla reddedildi", dErr.slice(0, 90));
+  await shot(pD, "12-demo-salt-okunur");
+  await cD.close();
+  const ds1 = await demoSnap();
+  ok(JSON.stringify(ds0) === JSON.stringify(ds1), "demo: DB ve Storage'da HİÇBİR değişiklik yok", { ds0, ds1 });
   await cA.close();
 } catch (e) {
   fail++;

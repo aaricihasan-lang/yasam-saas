@@ -16,6 +16,7 @@ import {
   IMAGE_MIME_EXT, isOwnUploadPath, MAX_IMAGE_BYTES, SIFA_BUCKET, SIGNED_URL_TTL_SEC, sniffImageMime, type SifaV2Storage,
 } from "@/lib/sifa-rehberi-v2/server/storage";
 import { buildTopicWord } from "@/lib/sifa-rehberi-v2/word";
+import { checkContentBudget, incomingBlocks, needsStoredContent } from "@/lib/sifa-rehberi-v2/server/contentGuard";
 import type { Workspace } from "@/lib/sifa-rehberi-v2/types";
 
 const NO_STORE = { "Cache-Control": "no-store" };
@@ -54,6 +55,16 @@ export async function handleSave(db: SifaV2Db, scope: Scope, req: NextRequest): 
   } catch {
     return fail(400, "Geçersiz kayıt isteği. Hiçbir değişiklik yazılmadı.", { code: "SIFA_V2_BAD_JSON" });
   }
+  // İçerik bütçesi: yeni base64/harici görsel yok; eski kayıttaki aynı görsel korunur (bkz. contentGuard.ts).
+  const incoming = incomingBlocks(body);
+  let stored = new Map<string, unknown>();
+  if (needsStoredContent(incoming)) {
+    const cur = await loadWorkspace(db, scope, scope.userId);
+    if (!cur.ok) return fail(cur.status, cur.error, { code: cur.code });
+    stored = new Map(cur.value.blocks.filter((b) => b.scope !== "kurum").map((b) => [b.id, b.contentJson]));
+  }
+  const issue = checkContentBudget(incoming, stored);
+  if (issue) return fail(issue.status, issue.error, { code: issue.code });
   const r = await saveChangeset(db, scope, body);
   if (!r.ok) return fail(r.status, r.error, { code: r.code, ...(r.conflicts ? { conflicts: r.conflicts } : {}) });
   return NextResponse.json({ ok: true, result: r.value }, { headers: NO_STORE });

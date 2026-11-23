@@ -160,3 +160,13 @@ mark.sifa-v2-hit.is-current {
   background: #fff1f2;
   outline: 1px dashed #fda4af;
 }
+
+/*
+ * Yapışkan üst çubuk (YALNIZ Şifa Rehberi V2 açıkken): app/layout.tsx'te html + body birlikte
+ * overflow-x:hidden → body kaydırma kabı olur ve tüm `position: sticky` öğeleri etkisizleşir.
+ * `clip` yatay taşmayı aynı şekilde kırpar ama kaydırma kabı OLUŞTURMAZ. :has() kapsamı sayesinde başka
+ * modül sayfalarında hiçbir şey değişmez; :has/clip desteklemeyen eski tarayıcı bugünkü davranışta kalır.
+ */
+body:has(.sifa-v2) {
+  overflow-x: clip;
+}
