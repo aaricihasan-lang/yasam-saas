@@ -41,7 +41,8 @@ jobs:
       - name: TypeScript
         run: npx tsc --noEmit -p tsconfig.json
         env:
-          NODE_OPTIONS: --max-old-space-size=4096
+          # 6144: main + HttpOnly F2 birleşik ağacında 4096 MB'ta yığın taşması (23.11 prova #836); build işiyle aynı değer.
+          NODE_OPTIONS: --max-old-space-size=6144
 
   # Üretim derlemesi (Turbopack, varsayılan `next build`). Sır/ortam değişkeni gerektirmez.
   build:
