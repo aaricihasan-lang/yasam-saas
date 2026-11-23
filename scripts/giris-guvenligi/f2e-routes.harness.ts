@@ -10,7 +10,12 @@
  * (MFA'lı Owner, 72 saat, kullanıcı iptali, parola + teyit, bilet tek kullanım) · F) Owner çevrimdışı kiti
  * (diğer oturumlar kapanır, eşleştirme kodu bir kez) · G) sızıntı taraması (DB, outbox, yanıtlar).
  *
- * Çalıştır: npx tsx scripts/giris-guvenligi/f2e-routes.harness.ts
+ * Zincir: varsayılan izole koşu 000600'e kadardır (F2-E/F sözleşmesi, değişmedi). F2_TEST_DB_LATEST=1 ile EN GÜNCEL zincirde
+ * koşar: F2-G step-up (yürütme ek doğrulama ister) ve F2-I (MFA zorunluluğu MFA'sız oturumu kapatır) kurallarına uyar ve
+ * 72 saat kuralını geçerli step-up kanıtıyla AYRICA kanıtlar. F2E_NEGATIF_72S=1: 72 saat denetimi geçici test DB'sinden
+ * kaldırılır → FAIL VERMEK ZORUNDA (negatif kontrol).
+ *
+ * Çalıştır: npx tsx scripts/giris-guvenligi/f2e-routes.harness.ts   (tam zincir: F2_TEST_DB_LATEST=1 npx tsx ...)
  */
 import Module from "node:module";
 import path from "node:path";
@@ -48,6 +53,24 @@ async function main() {
   const { startF2cDb, U, EMAIL, pw } = await import("./testDb");
   const db = await startF2cDb({ withF2e: true });
   const { admin } = db;
+  // Zincir düzeyi (testDb iki bağımsız kaynaktan ölçer). İzole koşu: 600 (F2-E/F) — davranış ve beklentiler DEĞİŞMEDİ.
+  // Tam zincir (F2_TEST_DB_LATEST=1 / F2_TEST_DB_WITH_F2x=1) sonraki fazların DAHA SIKI kurallarını içerir; test bunları
+  // gevşetmez, akışı onlara uydurur ve ayrıca kanıtlar:
+  //   ≥700 (F2-G): Owner'ın kurtarma YÜRÜTMESİ işleme özel ek doğrulama (step-up) ister.
+  //   ≥900 (F2-I): MFA zorunluluğu açılınca kullanıcının MFA'sız oturumları kapanır (Owner'ın ilk normal oturumu dahil).
+  const LV = db.level.catalog;
+  const STEP_UP = LV >= 700;
+  const MFA_ENDS_PLAIN = LV >= 900;
+  if (process.env.F2E_NEGATIF_72S === "1") {
+    // NEGATİF KONTROL (YALNIZ bu geçici test DB'sinde; repo migration'ı değişmez): 72 saat denetimi yürütme çekirdeğinden
+    // çıkarılır → "72 saat dolmadan yürütme yok" maddeleri FAIL VERMEK ZORUNDA (vermiyorsa test kördür).
+    const def = String((await admin.query(`SELECT pg_get_functiondef('public.auth_recovery_case_execute_core(text,uuid,text,boolean)'::regprocedure) AS d`)).rows[0].d);
+    const mut = def.replace("IF v_now < v.not_before THEN", "IF false THEN");
+    if (mut === def) throw new Error("negatif kontrol: 72 saat denetimi fonksiyon gövdesinde bulunamadı");
+    await admin.query(mut);
+    console.log("NEGATİF KONTROL: 72 saat denetimi test DB'sinden kaldırıldı (FAIL beklenir)");
+  }
+  console.log(`f2e-routes: test DB F2 düzeyi ${LV} (kayıt ${db.level.registry ?? "yok"}) · Owner step-up ${STEP_UP ? "VAR" : "yok"} · MFA zorunluluğu MFA'sız oturumu kapatır: ${MFA_ENDS_PLAIN ? "EVET" : "hayır"}`);
   const VE = { id: "00000000-0000-0000-0000-00000000e0d1", email: "f2d-ve@test.local" };
   const VE2 = { id: "00000000-0000-0000-0000-00000000e0d2", email: "f2d-ve2@test.local" };
   const ADM2 = { id: "00000000-0000-0000-0000-00000000a002", email: "admin2@test.local" };
@@ -84,6 +107,7 @@ async function main() {
     const adminDevices = await import("@/app/api/admin/devices/route");
     const adminCases = await import("@/app/api/admin/recovery-cases/route");
     const adminCase = await import("@/app/api/admin/recovery-cases/[id]/route");
+    const stepUpRoute = await import("@/app/api/admin/step-up/route");
 
     let ipSeq = 10;
     const nextIp = () => `198.51.100.${ipSeq++ % 250}`;
@@ -136,6 +160,17 @@ async function main() {
       const c = await complete(ch, l.bind);
       return { l, v, c, sid: c.sid, ch };
     };
+    /** F2-G (yalnız tam zincir): Owner'ın işleme özel e-posta kanıtı — begin → kod YALNIZ Owner'ın kutusuna → doğrula. */
+    const ownerStepUp = async (sid: string, action: string, targetId: string) => {
+      await admin.query(`UPDATE public.auth_email_otps SET created_at = created_at - interval '2 minutes', expires_at = expires_at - interval '2 minutes' WHERE user_id = $1`, [U.owner]);
+      const su = (body: unknown) => call(stepUpRoute.POST as unknown as Handler, `${L}/api/admin/step-up`, "POST", body, adminH(U.owner, sid));
+      const b = await su({ op: "begin", action, targetId });
+      const ch = String(b.json.challengeId ?? "");
+      const s = await su({ op: "email_send", challengeId: ch });
+      const v = await su({ op: "email_verify", challengeId: ch, code: lastCode(EMAIL.owner) });
+      return { ch, ok: b.res.status === 200 && s.res.status === 200 && v.res.status === 200, detail: { begin: b.res.status, send: s.json, verify: v.json } };
+    };
+    const challengeState = async (id: string) => String((await admin.query(`SELECT state FROM public.auth_mfa_challenges WHERE id = $1`, [id])).rows[0]?.state ?? "");
     const verifyEmailFor = async (user: { id: string; email: string }) => {
       const s = await webLogin(user.email);
       await ageOtps(user.id);
@@ -326,14 +361,38 @@ async function main() {
       const noOwner = await call(adminCases.GET as unknown as Handler, `${L}/api/admin/recovery-cases`, "GET", undefined, adminH(ADM2.id, adm2.sid));
       ok(noOwner.res.status === 403, "Owner olmayan yönetici talepleri göremez", noOwner.json);
       const plain = await call(adminCases.POST as unknown as Handler, `${L}/api/admin/recovery-cases`, "POST", { email: VE2.email, verificationMethod: "telefon", note: "kayıtlı numaradan arandı" }, adminH(U.owner, ownerPlain.sid));
-      ok(plain.res.status === 403, "Owner'ın MFA'sız oturumu talep açamaz", plain.json);
+      if (!MFA_ENDS_PLAIN) ok(plain.res.status === 403, "Owner'ın MFA'sız oturumu talep açamaz", plain.json);
+      else {
+        // F2-I: zorunluluk açılınca bu oturum KAPATILDI → istek kimliksiz (401); talep AÇILMADI.
+        const endRow = (await admin.query(`SELECT is_active, end_reason FROM public.user_sessions WHERE session_token = $1`, [ownerPlain.sid])).rows[0] as J | undefined;
+        ok(plain.res.status === 401 && endRow?.is_active === false && endRow?.end_reason === "mfa_enforced",
+          "Owner'ın MFA'sız oturumu talep açamaz (F2-I: oturum MFA zorunluluğuyla kapatıldı → 401)", { status: plain.res.status, json: plain.json, endRow });
+        ok(await count(`SELECT count(*)::int n FROM public.auth_recovery_cases WHERE user_id = $1`, [VE2.id]) === 0, "kapatılmış MFA'sız oturumla hiçbir talep oluşmadı");
+      }
       const outBefore = syntheticOutbox().length;
       const o = await call(adminCases.POST as unknown as Handler, `${L}/api/admin/recovery-cases`, "POST", { email: VE2.email.toUpperCase(), verificationMethod: "telefon", note: "kayıtlı numaradan arandı, kimlik teyit" }, adminH(U.owner, ownerSid));
       ok(o.res.status === 200 && typeof o.json.caseId === "string", "talep açıldı", o.json);
       const cid = String(o.json.caseId);
       ok(!!syntheticOutbox().slice(outBefore).find((m) => m.to === VE2.email && /kurtarma talebi açıldı/i.test(m.subject)), "kullanıcıya bildirim");
-      const early = await call(adminCase.POST as unknown as Handler, `${L}/api/admin/recovery-cases/${cid}`, "POST", { action: "execute", identityReconfirmed: true, password: pw(EMAIL.owner) }, adminH(U.owner, ownerSid), { params: Promise.resolve({ id: cid }) });
+      const execCase = (id: string) => call(adminCase.POST as unknown as Handler, `${L}/api/admin/recovery-cases/${id}`, "POST", { action: "execute", identityReconfirmed: true, password: pw(EMAIL.owner) }, adminH(U.owner, ownerSid), { params: Promise.resolve({ id }) });
+      let earlyProof = "";
+      if (STEP_UP) {
+        // F2-G: ek doğrulama olmadan yürütme kapısı 72 saat denetiminden ÖNCE durur — 72 saat kuralını kanıtlamak için
+        // geçerli step-up kanıtı alınır; ret yine TOO_EARLY olmalı (step-up 72 saati KISALTMAZ).
+        const noProof = await execCase(cid);
+        ok(noProof.res.status === 403 && noProof.json.code === "STEP_UP_REQUIRED", "ek doğrulama (step-up) olmadan yürütme yok", noProof.json);
+        const su = await ownerStepUp(ownerSid, "recovery_execute", cid);
+        earlyProof = su.ch;
+        ok(su.ok && await challengeState(su.ch) === "verified", "Owner e-posta step-up kanıtı alındı (talep 1)", su.detail);
+      }
+      const early = await execCase(cid);
       ok(early.res.status === 409 && early.json.code === "TOO_EARLY", "72 saat dolmadan yürütme yok", early.json);
+      if (STEP_UP) {
+        ok(typeof early.json.notBefore === "string" && !("ticket" in early.json), "TAM ZİNCİR: geçerli step-up kanıtına rağmen 72 saat dolmadan RED (bilet yok, bekleme zamanı döner)", early.json);
+        ok(await count(`SELECT count(*)::int n FROM public.auth_recovery_cases WHERE id = $1 AND state = 'waiting' AND not_before > now() AND not_before >= opened_at + interval '72 hours'`, [cid]) === 1,
+          "TAM ZİNCİR: talep beklemede; 72 saat sınırı DB'de değişmedi");
+        ok(await challengeState(earlyProof) === "verified", "TAM ZİNCİR: reddedilen yürütme step-up kanıtını TÜKETMEDİ");
+      }
       // Kullanıcı (hâlâ erişimi var) kendi talebini iptal eder.
       await expireOpen(VE2.id);
       const v2Sid = await loginEmailOtp(VE2);
@@ -350,6 +409,13 @@ async function main() {
       ok(noConf.res.status === 400 && noConf.json.code === "VERIFICATION_REQUIRED", "yeniden kimlik teyidi şart", noConf.json);
       const badPw = await call(adminCase.POST as unknown as Handler, `${L}/api/admin/recovery-cases/${cid2}`, "POST", { action: "execute", identityReconfirmed: true, password: "yanlis" }, adminH(U.owner, ownerSid), { params: Promise.resolve({ id: cid2 }) });
       ok(badPw.res.status === 400 && badPw.json.code === "PASSWORD_WRONG", "Owner parolası şart", badPw.json);
+      if (STEP_UP) {
+        // F2-G hedef bağlılığı: talep 1'in (hâlâ geçerli) kanıtı talep 2'de GEÇMEZ.
+        const cross = await execCase(cid2);
+        ok(cross.res.status === 403 && cross.json.code === "STEP_UP_REQUIRED", "talep 1'in step-up kanıtı talep 2'yi yürütemez", cross.json);
+        const su2 = await ownerStepUp(ownerSid, "recovery_execute", cid2);
+        ok(su2.ok, "Owner e-posta step-up kanıtı alındı (talep 2)", su2.detail);
+      }
       const ex = await call(adminCase.POST as unknown as Handler, `${L}/api/admin/recovery-cases/${cid2}`, "POST", { action: "execute", identityReconfirmed: true, password: pw(EMAIL.owner) }, adminH(U.owner, ownerSid), { params: Promise.resolve({ id: cid2 }) });
       ticket = String(ex.json.ticket ?? "");
       secrets.push(ticket);
@@ -380,6 +446,12 @@ async function main() {
       ok(kit.length === 5, "SQL konsolu: 5 kod");
       const svc = await admin.query(`SELECT has_function_privilege('service_role', 'public.auth_owner_offline_kit_issue()', 'EXECUTE') AS x`);
       ok(svc.rows[0].x === false, "kit üretimi service_role'e (uygulama) KAPALI");
+      if (MFA_ENDS_PLAIN) {
+        // F2-I: Owner'ın ilk (MFA'sız) oturumu zorunlulukla kapandı → "diğer oturumlar kapanır" kanıtı için ikinci
+        // GEÇERLİ (MFA'lı) oturum açılır; aksi hâlde kapatılacak "diğer" oturum kalmaz ve kontrol anlamsızlaşır.
+        ok(await count(`SELECT count(*)::int n FROM public.user_sessions WHERE session_token = $1 AND is_active`, [ownerPlain.sid]) === 0, "Owner'ın MFA'sız ilk oturumu kapalı (F2-I)");
+        ok(!!(await loginEmailOtp({ id: U.owner, email: EMAIL.owner })), "Owner ikinci MFA'lı oturum");
+      }
       const openBefore = await count(`SELECT count(*)::int n FROM public.user_sessions WHERE user_id = $1 AND is_active`, [U.owner]);
       ok(openBefore >= 2, `Owner'ın açık oturumları (${openBefore})`);
       await expireOpen(U.owner);

@@ -82,6 +82,8 @@ const TSX = [
   "scripts/giris-guvenligi/smtp-provider.check.ts",
   "scripts/giris-guvenligi/smtp-otp.harness.ts",
   "scripts/giris-guvenligi/qr-encode.check.ts",
+  // Test DB düzey koruması: en son F2 migration'ı = F2_STAGES = testDb.ts; gerçek PG düzeyi; tarayıcı koşucusu yargısı.
+  "scripts/giris-guvenligi/f2-test-db-duzey.harness.ts",
 ];
 
 // F2-J: migration yeniden / sırasız uygulama koruması (statik blok denetimi, üretilmiş katalog dosyalarının güncelliği,
@@ -104,6 +106,17 @@ const steps = [
     ...["f2b", "f2c", "f2d"].map((x) => ({ label: `${x}-routes (tam zincir)`, cmd: process.execPath,
       args: [path.join("node_modules", "tsx", "dist", "cli.mjs"), `scripts/giris-guvenligi/${x}-routes.harness.ts`],
       env: { F2_TEST_DB_WITH_F2E: "1" }, passRe: /:\s*[1-9][0-9]* PASS[ ,/]+0 FAIL/ })),
+    // F2-E sözleşmeleri EN GÜNCEL zincirde (F2-G step-up, F2-I MFA'sız oturum kapatma dahil) + 72 saat kuralının ayrı kanıtı.
+    { label: "f2e-routes (en güncel zincir)", cmd: process.execPath,
+      args: [path.join("node_modules", "tsx", "dist", "cli.mjs"), "scripts/giris-guvenligi/f2e-routes.harness.ts"],
+      env: { F2_TEST_DB_LATEST: "1" }, passRe: /f2e-routes harness: [1-9][0-9]* PASS \/ 0 FAIL/,
+      mustRe: /\[f2-test-db\] düzey kayıt=(\d+) katalog=\1 en-güncel=\1\b/ },
+    // NEGATİF KONTROL: 72 saat denetimi geçici test DB'sinden kaldırılınca f2e-routes FAIL VERMELİ (test kör değil).
+    { label: "f2e-routes NEGATİF (72 saat denetimi kaldırılmış test DB → FAIL beklenir)", cmd: process.execPath,
+      args: [path.join("node_modules", "tsx", "dist", "cli.mjs"), "scripts/giris-guvenligi/f2e-routes.harness.ts"],
+      env: { F2_TEST_DB_LATEST: "1", F2E_NEGATIF_72S: "1" }, expectFail: true,
+      passRe: /f2e-routes harness: [0-9]+ PASS \/ [1-9][0-9]* FAIL/,
+      mustRe: /NEGATİF KONTROL: 72 saat denetimi[^\n]*[\s\S]*FAIL 72 saat dolmadan yürütme yok[\s\S]*FAIL TAM ZİNCİR: geçerli step-up kanıtına rağmen 72 saat/ },
     // NEGATİF KONTROL: A3 öncesi kural yüklenince taklit testleri FAIL VERMELİ (vermiyorsa test kör demektir).
     { label: "f2k-token NEGATİF (F2K_A3_WITHOUT_FIX=1 → FAIL beklenir)", cmd: process.execPath,
       args: [path.join("node_modules", "tsx", "dist", "cli.mjs"), "scripts/giris-guvenligi/f2k-token.harness.ts"],
@@ -122,8 +135,8 @@ for (const s of steps) {
   const summary = out.split("\n").filter((l) => s.passRe.test(l) || /RESULT:|PASS \/|PASS,|run-all:/.test(l)).slice(-2).join(" | ").trim();
   // Çıkış kodu 0 (harness / run-all FAIL varsa 1 döner) VE tanınan "geçti" özeti — ikisi birden şart.
   const passed = s.expectFail
-    ? r.status === 1 && !r.error && s.passRe.test(out) && /NEGATİF KONTROL: A3 öncesi kural yüklendi/.test(out)
-    : r.status === 0 && !r.error && s.passRe.test(out);
+    ? r.status === 1 && !r.error && s.passRe.test(out) && (s.mustRe ?? /NEGATİF KONTROL: A3 öncesi kural yüklendi/).test(out)
+    : r.status === 0 && !r.error && s.passRe.test(out) && (!s.mustRe || s.mustRe.test(out));
   results.push({ label: s.label, passed, sec: Math.round((Date.now() - t0) / 1000), summary: summary || "(özet satırı yok)" });
   console.log(`${passed ? "PASS" : "FAIL"}  ${s.label}  (${Math.round((Date.now() - t0) / 1000)} sn)  ${summary || "(özet satırı yok)"}`);
   if (!passed) {

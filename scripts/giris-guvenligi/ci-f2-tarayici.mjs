@@ -9,15 +9,21 @@
  *   - Önce GERÇEK tarayıcı ikilileri yoklanır: Chrome (channel chrome), Microsoft Edge (channel msedge), WebKit. Her biri
  *     için çalıştırılabilir dosya yolu + sürüm kanıta yazılır. Edge açılamazsa Chromium "Edge" diye RAPORLANMAZ → FAIL.
  *   - Her test sırayla (bellek) çalışır; PASS ancak: çıkış kodu 0 VE "N PASS / 0 FAIL" özeti VE N ≥ beklenen asgari sayı.
- *   - Test DB: F2_TEST_DB_WITH_F2K=1 → güncel kodla GÜNCEL şema (F2-A…F2-K zinciri).
- *   - --negatif: f2k-ui F2-K migration'ı OLMADAN (F2L_NEGATIF=1) çalıştırılır ve FAIL VERMEK ZORUNDADIR; ayrıca kritik
- *     kuralların (işleme özel doğrulama, 6 haneli yazılan kod) FAIL listesinde görünmesi şarttır.
+ *   - Test DB: F2_TEST_DB_LATEST=1 → güncel kodla EN GÜNCEL F2 şeması (F2_STAGES son aşaması; 23.11'de 001200 / F2-M).
+ *     Düzey SABİT YAZILMAZ: önceden sabit F2-K bayrağı vardı ve 001200 eklenince CI 001100'de sessizce yeşil kaldı.
+ *   - Düzey koruması (f2-test-db-duzey.mjs): (a) testlerden ÖNCE statik denetim — en son F2 migration dosyası = F2_STAGES
+ *     son aşaması ve testDb.ts hepsini uyguluyor; (b) her testin günlüğünde testDb'nin yazdığı "[f2-test-db] düzey" satırı
+ *     ARANIR: kayıt (auth_f2_schema_level) = katalog parmak izi = beklenen düzey olmazsa test FAIL. Düzey özete yazılır.
+ *   - --negatif: f2k-ui F2-K migration'ı OLMADAN (F2L_NEGATIF=1, en güncel zincir bayrağı KAPALI) çalıştırılır ve FAIL
+ *     VERMEK ZORUNDADIR; DB düzeyi F2-K'dan hemen önceki aşama (1000) olmak zorundadır; ayrıca kritik kuralların (işleme
+ *     özel doğrulama, 6 haneli yazılan kod) FAIL listesinde görünmesi şarttır.
  * Çıktı: <out>/ozet.md + ozet.json (+ GITHUB_STEP_SUMMARY), test başına günlük + ekran görüntüleri.
  */
 import { spawnSync, execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import net from "node:net";
+import { checkCoverage, readRepo, latestStage, stageBefore, judgeLevels } from "./f2-test-db-duzey.mjs";
 
 const args = process.argv.slice(2);
 const arg = (k) => { const i = args.indexOf(k); return i >= 0 ? args[i + 1] : undefined; };
@@ -40,6 +46,19 @@ const SUITES = [
 
 const results = [];
 const log = (s) => { console.log(s); };
+
+// ── 0) Test DB düzey koruması (statik) ───────────────────────────────────────────────────────────────────────────
+const LATEST = latestStage();
+const NEGATIF_LEVEL = stageBefore(1100).level;   // F2-K kuralları YOK
+const EXPECTED_LEVEL = NEGATIF ? NEGATIF_LEVEL : LATEST.level;
+{
+  const problems = checkCoverage(readRepo(process.cwd()));
+  log(`── Test DB düzey koruması: en güncel F2 aşaması ${LATEST.level} (${LATEST.file}); bu koşuda beklenen DB düzeyi ${EXPECTED_LEVEL}${NEGATIF ? " (negatif: F2-K öncesi)" : ""} ──`);
+  for (const p of problems) log(`  FAIL ${p}`);
+  if (!problems.length) log("  PASS migration klasörü = F2_STAGES = testDb.ts (en güncel zincir eşlemesi var)");
+  results.push({ key: "duzey-koruma", title: `Test DB düzey koruması (en son migration ${LATEST.file} = F2_STAGES = testDb.ts)`,
+    pass: problems.length ? 0 : 1, fail: problems.length, exit: problems.length ? 1 : 0, ok: !problems.length, detail: { latest: LATEST, problems } });
+}
 
 // ── 1) Tarayıcı ikilisi yoklaması ───────────────────────────────────────────────────────────────────────────────
 const probeSrc = `
@@ -128,8 +147,10 @@ async function runSuite(s, extraEnv, outName) {
     return { pass: 0, fail: -1, exit: 1, sec: 0, summaryFound: false, failLines: [`FAIL port dolu: ${before.join(",")}`], signal: null, portsAfter: before };
   }
   const started = Date.now();
+  // Dış ortamdan sızan F2 test DB bayrakları temizlenir: düzeyi YALNIZ bu koşucu belirler (negatif kontrol izolasyonu).
+  const baseEnv = Object.fromEntries(Object.entries(env).filter(([k]) => !/^F2_TEST_DB_|^F2L_NEGATIF$/.test(k)));
   const r = spawnSync(process.platform === "win32" ? "npx.cmd" : "npx", ["tsx", path.join("scripts", "giris-guvenligi", s.file), dir], {
-    cwd: process.cwd(), env: { ...env, ...extraEnv }, encoding: "utf8", timeout: 20 * 60 * 1000, maxBuffer: 64 * 1024 * 1024,
+    cwd: process.cwd(), env: { ...baseEnv, F2_TEST_DB_LEVEL_LOG: "1", ...extraEnv }, encoding: "utf8", timeout: 20 * 60 * 1000, maxBuffer: 64 * 1024 * 1024,
     shell: process.platform === "win32",
   });
   let text = `${r.stdout ?? ""}\n${r.stderr ?? ""}`;
@@ -140,8 +161,11 @@ async function runSuite(s, extraEnv, outName) {
   const m = [...text.matchAll(/(\d+) PASS \/ (\d+) FAIL/g)].pop();
   const failLines = text.split("\n").filter((l) => /^\s+FAIL /.test(l)).map((l) => l.trim());
   if (after.length) failLines.push(`FAIL test sonrası port dolu: ${after.join(",")}`);
+  const lv = judgeLevels(text, EXPECTED_LEVEL);
+  if (!lv.ok) failLines.push(`FAIL DB düzeyi: ${lv.reason}`);
+  const dbLevel = lv.levels.length ? [...new Set(lv.levels.map((l) => `${l.registry ?? "yok"}/${l.catalog}`))].join(", ") : "—";
   return { pass: m ? Number(m[1]) : 0, fail: m ? Number(m[2]) : -1, exit: r.status ?? (r.signal ? 128 : 1), sec: Math.round((Date.now() - started) / 1000),
-    summaryFound: !!m, failLines, signal: r.signal ?? null, portsAfter: after };
+    summaryFound: !!m, failLines, signal: r.signal ?? null, portsAfter: after, levelOk: lv.ok, dbLevel, dbLevelCount: lv.levels.length };
 }
 
 for (const s of SUITES) {
@@ -149,20 +173,20 @@ for (const s of SUITES) {
   if (NEGATIF && s.key !== "f2k") continue;
   if (NEGATIF) {
     log(`\n── NEGATİF KONTROL: ${s.file} — F2-K migration'ı OLMADAN (FAIL beklenir) ──`);
-    const r = await runSuite(s, { F2L_NEGATIF: "1", F2_TEST_DB_WITH_F2K: "" }, `${s.key}-negatif`);
+    const r = await runSuite(s, { F2L_NEGATIF: "1" }, `${s.key}-negatif`);
     const must = [/doğrulama penceresini açtı/, /MFA ZORUNLU|yönetici oluştu/, /6 haneli kod = sunucu kodu|yazma' kipini/];
     const caught = must.map((re) => r.failLines.some((l) => re.test(l)));
-    const ok = r.exit !== 0 && r.fail > 0 && caught.every(Boolean);
-    log(`  ${ok ? "PASS" : "FAIL"} negatif kontrol: çıkış=${r.exit} · ${r.pass} PASS / ${r.fail} FAIL · kritik kurallar yakalandı=${JSON.stringify(caught)}`);
+    const ok = r.exit !== 0 && r.fail > 0 && caught.every(Boolean) && r.levelOk;
+    log(`  ${ok ? "PASS" : "FAIL"} negatif kontrol: çıkış=${r.exit} · ${r.pass} PASS / ${r.fail} FAIL · DB düzeyi (kayıt/katalog) ${r.dbLevel} (beklenen ${EXPECTED_LEVEL}) · kritik kurallar yakalandı=${JSON.stringify(caught)}`);
     for (const l of r.failLines.slice(0, 15)) log(`     ${l}`);
     results.push({ key: `${s.key}-negatif`, title: `NEGATİF KONTROL — ${s.title} (F2-K kuralları kaldırılmış)`, pass: r.pass, fail: r.fail, exit: r.exit, sec: r.sec, ok,
-      detail: { caught, failLines: r.failLines.slice(0, 30) } });
+      dbLevel: r.dbLevel, dbLevelCount: r.dbLevelCount, levelOk: r.levelOk, detail: { caught, failLines: r.failLines.slice(0, 30) } });
     continue;
   }
   log(`\n── ${s.file}: ${s.title} ──`);
-  const r = await runSuite(s, { F2_TEST_DB_WITH_F2K: "1" }, s.key);
-  const ok = r.exit === 0 && r.summaryFound && r.fail === 0 && r.pass >= s.min && !r.portsAfter.length;
-  log(`  ${ok ? "PASS" : "FAIL"} ${s.key}: çıkış=${r.exit}${r.signal ? ` sinyal=${r.signal}` : ""} · ${r.pass} PASS / ${r.fail} FAIL (asgari ${s.min}) · ${r.sec} sn${r.summaryFound ? "" : " · ÖZET SATIRI YOK"}`);
+  const r = await runSuite(s, { F2_TEST_DB_LATEST: "1" }, s.key);
+  const ok = r.exit === 0 && r.summaryFound && r.fail === 0 && r.pass >= s.min && !r.portsAfter.length && r.levelOk;
+  log(`  ${ok ? "PASS" : "FAIL"} ${s.key}: çıkış=${r.exit}${r.signal ? ` sinyal=${r.signal}` : ""} · ${r.pass} PASS / ${r.fail} FAIL (asgari ${s.min}) · DB düzeyi (kayıt/katalog) ${r.dbLevel} (beklenen ${EXPECTED_LEVEL}) · ${r.sec} sn${r.summaryFound ? "" : " · ÖZET SATIRI YOK"}`);
   for (const l of r.failLines.slice(0, 15)) log(`     ${l}`);
   if (!r.summaryFound || r.exit !== 0) {
     const tail = fs.readFileSync(path.join(OUT, s.key, "gunluk.txt"), "utf8").split("\n").slice(-25).join("\n");
@@ -172,20 +196,22 @@ for (const s of SUITES) {
 }
 
 // ── 4) Özet ──────────────────────────────────────────────────────────────────────────────────────────────────
-const allOk = results.length > 1 && results.every((r) => r.ok);
+const allOk = results.length > 2 && results.every((r) => r.ok);
 const md = [
   `## F2 tarayıcı uçtan uca — ${NEGATIF ? "NEGATİF KONTROL" : "kabul"} ${allOk ? "✅" : "❌"}`,
   "",
-  "| Test | Sonuç | PASS | FAIL | Süre |",
-  "|---|---|---|---|---|",
-  ...results.map((r) => `| ${r.title} | ${r.ok ? "PASS" : "**FAIL**"} | ${r.pass} | ${r.fail} | ${r.sec ?? "-"} sn |`),
+  `Test DB: beklenen F2 düzeyi **${EXPECTED_LEVEL}**${NEGATIF ? " (negatif kontrol: F2-K öncesi)" : ` (en güncel aşama ${LATEST.file})`}. "DB düzeyi" sütunu testin kendi günlüğünden okunur: kayıt (auth_f2_schema_level) / katalog parmak izi.`,
+  "",
+  "| Test | Sonuç | PASS | FAIL | DB düzeyi (kayıt/katalog) | Süre |",
+  "|---|---|---|---|---|---|",
+  ...results.map((r) => `| ${r.title} | ${r.ok ? "PASS" : "**FAIL**"} | ${r.pass} | ${r.fail} | ${r.dbLevel ?? "-"} | ${r.sec ?? "-"} sn |`),
   "",
   `Tarayıcılar: ${Object.entries(browsers).map(([k, v]) => `${k} ${v.ok ? v.version : "AÇILAMADI"}${k === "msedge" ? ` (gerçek Edge=${v.gercekEdge})` : ""}`).join(" · ")}`,
   "",
   "WebKit = Safari motoru emülasyonu (GERÇEK iPhone Safari DEĞİL). Telefon = Node P-256 anahtarı (Android Keystore DEĞİL). E-posta = sentetik sağlayıcı (gerçek Gmail YOK).",
 ].join("\n");
 fs.writeFileSync(path.join(OUT, "ozet.md"), md);
-fs.writeFileSync(path.join(OUT, "ozet.json"), JSON.stringify({ negatif: NEGATIF, ok: allOk, browsers, results }, null, 2));
+fs.writeFileSync(path.join(OUT, "ozet.json"), JSON.stringify({ negatif: NEGATIF, ok: allOk, expectedDbLevel: EXPECTED_LEVEL, latestStage: LATEST, browsers, results }, null, 2));
 if (process.env.GITHUB_STEP_SUMMARY) fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, md + "\n");
 log(`\n${md}`);
 process.exit(allOk ? 0 : 1);
