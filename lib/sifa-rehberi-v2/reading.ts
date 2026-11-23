@@ -47,7 +47,8 @@ export function rootOf(ws: Workspace, nodeId: string): TopicNode | null {
   return pathOf(ws, nodeId)[0] ?? null;
 }
 
-export function buildReading(ws: Workspace, rootId: string, opts: { includeEmpty?: boolean } = {}): Reading | null {
+/** `keep`: boş olsa da gösterilecek başlık (ör. adı etkin aramayla eşleşen başlık gizlenmesin). */
+export function buildReading(ws: Workspace, rootId: string, opts: { includeEmpty?: boolean; keep?: (n: TopicNode) => boolean } = {}): Reading | null {
   const root = nodeById(ws, rootId);
   if (!root) return null;
   const includeEmpty = Boolean(opts.includeEmpty);
@@ -64,7 +65,7 @@ export function buildReading(ws: Workspace, rootId: string, opts: { includeEmpty
       const number = `${prefix}${out.length + 1}`;
       const children = walk(n.id, `${number}.`, depth + 1);
       const hasContent = blocks.length > 0 || children.length > 0 || Boolean(related?.length) || links.length > 0;
-      if (!hasContent && !includeEmpty) {
+      if (!hasContent && !includeEmpty && !opts.keep?.(n)) {
         hiddenEmpty += 1; // altındakiler özyinelemede zaten sayıldı
         continue;
       }

@@ -1,7 +1,10 @@
 "use client";
 
 /**
- * Şifa Rehberi V2 — İLK ÇALIŞAN PROTOTİP (yalnız sentetik veri; tarayıcı belleğinde saklanır).
+ * Şifa Rehberi V2 — ana ekran (mode="canli": gerçek sayfa · mode="prototip": yerel/izole test).
+ *
+ * Giriş (Owner kararı 23.11): YALNIZ iki modül — 📚 Araştırma Kütüphanem (alfabetik başlık listesi +
+ * kapsamlı arama, sarı vurgulama, geçici "İncelendi") ve ✍️ Yeni Konu Girişi. Tek Kaydet çubuğu.
  *
  * Felsefe: "Başlamak için bir konu adı yeterli; derinleşmek için sınır yok."
  *  - Kategori/organ/klasör seçimi ZORUNLU DEĞİL.
@@ -10,7 +13,7 @@
  *  - Silme = Çöp Kutusu (geri yüklenebilir).
  * Mevcut Şifa Rehberi düzeni korunur: sol konu menüsü + sağ geniş içerik + aynı kart/renk dili.
  */
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
 import { useToast } from "@/components/ui/ToastProvider";
 import { useUnsavedGuard } from "@/hooks/useUnsavedGuard";
@@ -31,14 +34,18 @@ import { PROTO_OWNERS, seedWorkspace } from "@/lib/sifa-rehberi-v2/seed";
 import { readSessionToken, readYasamUser } from "@/lib/auth/yasamUser";
 import type { Conflict } from "@/lib/sifa-rehberi-v2/changeset";
 import { ConflictDialog, rebaseOnto, SharedBadge, SharedBanner, UNMATCHED_KEY } from "@/components/sifa-rehberi-v2/scopeUi";
+import { LibraryPanel, ModuleSwitch, NewTopicPanel, type HomeModule } from "@/components/sifa-rehberi-v2/Library";
+import { Hl, HighlightProvider, hitsIn, useScrollToFirstHit } from "@/components/sifa-rehberi-v2/highlight";
+import { buildSearchIndex, isSearchable, libraryRoots, nodeHasMatch, normalizeQuery, searchRoots } from "@/lib/sifa-rehberi-v2/search";
+import { configureAssetClient } from "@/lib/sifa-rehberi-v2/assetClient";
 import { sanitizeContent } from "@/lib/sifa-rehberi-v2/contentSafety";
 import { applySaveResult, buildChangeset, isEmptyChangeset } from "@/lib/sifa-rehberi-v2/changeset";
 import {
   addBlock, addLink, addNode, blocksOf, childrenOf, linksFrom, linksTo, moveNode, nodeById, pathOf,
-  removeLink, renameNode, reorderBlock, reorderNode, restoreBatch, searchWorkspace, softDeleteBlock,
+  removeLink, renameNode, reorderBlock, reorderNode, restoreBatch, softDeleteBlock,
   softDeleteNode, subtreeIds, summarizeChanges, trashEntries, TEMPLATE_LOCKED, type BlockPatch, type Ctx,
 } from "@/lib/sifa-rehberi-v2/tree";
-import type { OpResult, TopicNode, Workspace } from "@/lib/sifa-rehberi-v2/types";
+import type { OpResult, Workspace } from "@/lib/sifa-rehberi-v2/types";
 
 const LAST_OWNER_KEY = "sifa-v2-prototip:son-kullanici";
 /** Görünüm yalnız EKRAN tercihidir (kişisel kolaylık); veri/taslak/kayıt ile hiçbir ilgisi yoktur. */
@@ -123,9 +130,19 @@ export default function SifaV2Prototype({ mode = "prototip" }: { mode?: "prototi
   const [editing, setEditing] = useState<Set<string>>(new Set());
   const [dialog, setDialog] = useState<DialogState>(null);
   const [drawer, setDrawer] = useState(false);
-  const [q, setQ] = useState("");
-  const [searchOpen, setSearchOpen] = useState(false);
-  const [quickTitle, setQuickTitle] = useState("");
+  // ── Ana ekran: iki modül + kütüphane araması (YALNIZ bellekte; URL/DB/localStorage'a yazılmaz) ──
+  const [homeModule, setHomeModule] = useState<HomeModule>("kutuphane");
+  const [libInput, setLibInput] = useState("");
+  /** Etkin arama (yazım bitince). Değişince "İncelendi" işaretleri sıfırlanır (yeni arama). */
+  const [activeQ, setActiveQ] = useState("");
+  const [reviewed, setReviewed] = useState<ReadonlySet<string>>(new Set());
+  const [newTitle, setNewTitle] = useState("");
+  const [newWithTemplate, setNewWithTemplate] = useState(false);
+  /** "Aramadan aç" eylemi başına benzersiz → ilk eşleşmeye bir kez kaydırılır. */
+  const [scrollToken, setScrollToken] = useState<string | null>(null);
+  const [hitCount, setHitCount] = useState(0);
+  const contentRef = useRef<HTMLElement | null>(null);
+  const libScrollRef = useRef(0);
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
   // Varsayılan: Basit Görünüm. Görünüm değişimi draft/saved/editing'e DOKUNMAZ (tek veri sistemi).
   const [view, setView] = useState<ViewMode>("basit");
@@ -208,7 +225,6 @@ export default function SifaV2Prototype({ mode = "prototip" }: { mode?: "prototi
     setSelectedId(id);
     setTab(t);
     setDrawer(false);
-    setSearchOpen(false);
     if (id) {
       const ids = pathOf(ws, id).map((n) => n.id);
       setExpanded((prev) => new Set([...prev, ...ids]));
@@ -262,6 +278,34 @@ export default function SifaV2Prototype({ mode = "prototip" }: { mode?: "prototi
     }, 0);
     return () => window.clearTimeout(t);
   }, [loadOwner, showSelection, live]);
+
+  // Görseller: canlıda özel Storage hattı (prepare → yükleme → finalize; gösterim kısa ömürlü imzalı bağlantı).
+  useEffect(() => {
+    if (!live) return;
+    configureAssetClient({ base: apiBase, headers: liveAuthHeaders });
+    return () => configureAssetClient(null);
+  }, [live, apiBase]);
+
+  // Kütüphane araması: yazım durunca etkinleşir; ANLAMCA yeni sorgu → "İncelendi" işaretleri sıfırlanır.
+  const activeNormRef = useRef("");
+  useEffect(() => {
+    const t = window.setTimeout(() => {
+      const n = normalizeQuery(libInput);
+      if (n !== activeNormRef.current) {
+        activeNormRef.current = n;
+        setReviewed(new Set());
+      }
+      setActiveQ(libInput);
+    }, 220);
+    return () => window.clearTimeout(t);
+  }, [libInput]);
+  const clearSearch = useCallback(() => {
+    activeNormRef.current = "";
+    setLibInput("");
+    setActiveQ("");
+    setReviewed(new Set());
+    setScrollToken(null);
+  }, []);
 
   const changes = useMemo(() => (saved && draft ? summarizeChanges(saved, draft) : { total: 0, nodes: 0, blocks: 0, links: 0 }), [saved, draft]);
   const dirty = changes.total > 0;
@@ -627,6 +671,70 @@ export default function SifaV2Prototype({ mode = "prototip" }: { mode?: "prototi
     [confirm, run, ctx, select, showToast],
   );
 
+  // ── Arama dizini + vurgulama (yalnız ekran) ────────────────────────────────
+  const hl = isSearchable(activeQ) ? activeQ : "";
+  const deferredDraft = useDeferredValue(draft);
+  const searchIndex = useMemo(() => (hl && deferredDraft ? buildSearchIndex(deferredDraft) : null), [hl, deferredDraft]);
+  const libRoots = useMemo(() => (draft ? libraryRoots(draft) : []), [draft]);
+  const results = useMemo(() => (hl && searchIndex && deferredDraft ? searchRoots(deferredDraft, searchIndex, hl) : null), [hl, searchIndex, deferredDraft]);
+  const matchIds = useMemo(() => {
+    if (!hl || !searchIndex || !draft) return undefined;
+    const out = new Set<string>();
+    for (const n of draft.nodes) if (!n.deletedAt && nodeHasMatch(searchIndex, n.id, hl)) out.add(n.id);
+    return out;
+  }, [hl, searchIndex, draft]);
+  const getContent = useCallback(() => contentRef.current, []);
+  useScrollToFirstHit(getContent, scrollToken, setHitCount);
+  // Ekrandaki eşleşme sayısı (içerik değişince yeniden sayılır).
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setHitCount(hl ? hitsIn(contentRef.current).length : 0));
+    return () => cancelAnimationFrame(id);
+  });
+  // Kütüphaneye dönüşte liste konumu korunur (arama sonuçları arasında gezinme).
+  useEffect(() => {
+    if (selectedId || homeModule !== "kutuphane" || !libScrollRef.current) return;
+    const y = libScrollRef.current;
+    const id = requestAnimationFrame(() => window.scrollTo({ top: y, behavior: "instant" as ScrollBehavior }));
+    return () => cancelAnimationFrame(id);
+  }, [selectedId, homeModule]);
+
+  /** Kütüphaneden konu açar. Etkin aramada: "İncelendi" + Bütüncül Okuma + ilk eşleşmeye kaydırma. */
+  const openFromLibrary = useCallback(
+    (id: string) => {
+      libScrollRef.current = window.scrollY;
+      window.scrollTo({ top: 0, behavior: "instant" as ScrollBehavior });
+      if (hl) {
+        setReviewed((prev) => (prev.has(id) ? prev : new Set([...prev, id])));
+        go(id, { tab: "okuma" });
+        // Sol ağaçta eşleşen başlıklar görünsün: üst başlıkları açılır (yalnız ekran durumu).
+        const ws = draftRef.current;
+        if (ws && searchIndex) {
+          const open = new Set<string>();
+          for (const n of ws.nodes) {
+            if (n.deletedAt || !nodeHasMatch(searchIndex, n.id, hl)) continue;
+            const path = pathOf(ws, n.id);
+            if (path[0]?.id !== id) continue;
+            for (const p of path.slice(0, -1)) open.add(p.id);
+          }
+          if (open.size) setExpanded((prev) => new Set([...prev, ...open]));
+        }
+        setScrollToken(`${id}|${normalizeQuery(hl)}|${Date.now()}`);
+        return;
+      }
+      go(id, { tab: "notlar" });
+    },
+    [hl, go, searchIndex],
+  );
+  const stepHit = useCallback((dir: 1 | -1) => {
+    const list = hitsIn(contentRef.current).filter((m) => m.getClientRects().length > 0);
+    if (!list.length) return;
+    const cur = list.findIndex((m) => m.classList.contains("is-current"));
+    list.forEach((m) => m.classList.remove("is-current"));
+    const next = list[(cur + dir + list.length) % list.length];
+    next.classList.add("is-current");
+    next.scrollIntoView({ block: "center", behavior: "smooth" });
+  }, []);
+
   if (!draft || !saved || !ownerId) {
     return (
       <div className="min-h-screen bg-[linear-gradient(135deg,#eef8ff_0%,#f8f4ff_45%,#f6fffb_100%)] p-6" data-testid="sifa-v2-loading">
@@ -643,16 +751,10 @@ export default function SifaV2Prototype({ mode = "prototip" }: { mode?: "prototi
     );
   }
 
-  const liveUser = live ? readYasamUser() : null;
-  const owner = live ? { id: ownerId, name: liveUser?.full_name || liveUser?.name || "" } : PROTO_OWNERS.find((o) => o.id === ownerId)!;
   const selected = nodeById(draft, selectedId);
   // Açık ana konu: seçili başlığın KÖKÜ (üst-alt ilişkisi; başlık metnine bakılmaz).
   const openRoot = selected ? rootOf(draft, selected.id) : null;
-  const roots = childrenOf(draft, null);
-  const liveNodeCount = draft.nodes.filter((n) => !n.deletedAt).length;
-  const liveBlockCount = draft.blocks.filter((b) => !b.deletedAt && nodeById(draft, b.nodeId)).length;
   const trashCount = trashEntries(draft).length;
-  const hits = searchOpen && q.trim() ? searchWorkspace(draft, q) : [];
 
   /** Şablonu (production hazır başlıkları) bir konuya ekler — idempotent, mevcut içeriğe dokunmaz. */
   const addTemplate = (nodeId: string, announce = true) => {
@@ -669,265 +771,239 @@ export default function SifaV2Prototype({ mode = "prototip" }: { mode?: "prototi
     }
   };
 
+  /** Yeni Konu Girişi: konu + ilk not kutusu (yazmaya hazır) → doğrudan düzenleme ekranı. */
   const createRoot = (title: string, withTemplate = false) => {
     const r = run((ws) => addNode(ws, { parentId: null, title }, ctx), (v) => v.ws);
     if (!r) return null;
     if (withTemplate) addTemplate(r.node.id, false);
-    select(r.node.id, "notlar"); // yeni konu yazmak için Notlarım'da açılır
+    const b = run((ws) => addBlock(ws, { nodeId: r.node.id, title: "Notlar" }, ctx), (v) => v.ws);
+    if (b) setEditing((prev) => new Set([...prev, b.block.id]));
+    libScrollRef.current = 0;
+    select(r.node.id, "notlar");
+    showToast({ message: "Konu oluşturuldu. Kalıcı olması için Kaydet'e basın.", type: "info" });
     return r;
   };
 
+  const showSaveBar = dirty || saving || Boolean(selected);
+
   return (
+    <HighlightProvider query={hl}>
     <main
-      className={`sifa-v2 min-h-screen bg-[linear-gradient(135deg,#eef8ff_0%,#f8f4ff_45%,#f6fffb_100%)] pb-28 text-slate-950 ${simple ? "" : "lg:pb-10"}`}
+      className="sifa-v2 min-h-screen bg-[linear-gradient(135deg,#eef8ff_0%,#f8f4ff_45%,#f6fffb_100%)] pb-28 text-slate-950"
       data-view={view}
       data-store={store}
       data-testid="sifa-v2-root"
     >
       <div className="mx-auto max-w-[1500px] px-4 pt-4 lg:px-6">
-        {/* ── Üst kart (mevcut Şifa Rehberi başlık kartı düzeni) ── */}
-        <section className="rounded-[28px] border border-white/80 bg-white/86 p-5 shadow-[0_18px_55px_rgba(15,23,42,0.05)] ring-1 ring-white/90 lg:p-6">
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div className="min-w-0">
-              {live ? null : (
-                <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-[11px] font-black uppercase tracking-[0.16em] text-emerald-800">
-                  ★ Şifa Rehberi · V2 Prototip
-                </span>
-              )}
-              <h1 className="mt-2 text-[34px] font-black leading-none tracking-tight text-slate-950 sm:text-[44px]">Şifa Rehberi</h1>
-              <p className="mt-2 text-[15px] font-medium text-slate-600">Başlamak için bir konu adı yeterli; derinleşmek için sınır yok.</p>
-              <ViewSwitch view={view} onChange={changeView} />
-            </div>
-            <div className="grid grid-cols-3 gap-2" aria-label="Özet">
-              {[
-                { n: roots.length, l: "Ana konu" },
-                { n: liveNodeCount, l: "Başlık" },
-                { n: liveBlockCount, l: "Kutu" },
-              ].map((x) => (
-                <div key={x.l} className="min-w-[78px] rounded-2xl border border-emerald-100 bg-white px-3 py-2 text-center shadow-sm">
-                  <div className="text-[22px] font-black leading-7">{x.n}</div>
-                  <div className="text-[11px] font-bold text-slate-500">{x.l}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-          {live ? null : (
-          <>
-          <div className="mt-4 flex flex-wrap items-center gap-2 rounded-2xl border border-amber-200 bg-amber-50/80 px-3 py-2 text-[12px] font-semibold text-amber-900" role="note">
-            <span className="font-black">PROTOTİP</span>
+        {live ? null : (
+          <section className="mb-3 rounded-[22px] border border-amber-200 bg-amber-50/80 p-3 text-[12px] font-semibold text-amber-900" role="note">
+            <span className="font-black">PROTOTİP</span>{" "}
             {store === "db" ? (
               <span data-testid="store-badge">🗄 Kalıcı kayıt · İZOLE TEST VERİTABANI (yerel geçici PostgreSQL) · yalnız sentetik veri · canlı sisteme bağlı değildir.</span>
             ) : (
               <span>Yalnız sentetik veri · tarayıcınızda saklanır · canlı sisteme ve gerçek kayıtlara bağlı değildir.</span>
             )}
-          </div>
-          <div className="mt-3 flex flex-wrap items-center gap-2">
-            <span className="text-[11px] font-black uppercase tracking-[0.14em] text-slate-500">Sentetik kullanıcı:</span>
-            {PROTO_OWNERS.map((o) => (
-              <button
-                key={o.id}
-                type="button"
-                onClick={() => void switchOwner(o.id)}
-                aria-pressed={o.id === ownerId}
-                data-testid={`owner-${o.id}`}
-                className={`min-h-[40px] rounded-2xl border px-3 text-[13px] font-bold transition ${
-                  o.id === ownerId ? "border-slate-900 bg-slate-900 text-white" : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
-                }`}
-              >
-                {o.kind === "basit" ? "👩" : "🧑‍⚕️"} {o.name} <span className="font-semibold opacity-70">({o.kind})</span>
-              </button>
-            ))}
-            {store === "yerel" ? (
-              <button type="button" onClick={() => void resetSynthetic()} className="ml-auto text-[12px] font-bold text-slate-500 underline">
-                Sentetik veriyi sıfırla
-              </button>
-            ) : null}
-          </div>
-          </>
-          )}
-        </section>
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <span className="text-[11px] font-black uppercase tracking-[0.14em] text-slate-500">Sentetik kullanıcı:</span>
+              {PROTO_OWNERS.map((o) => (
+                <button
+                  key={o.id}
+                  type="button"
+                  onClick={() => void switchOwner(o.id)}
+                  aria-pressed={o.id === ownerId}
+                  data-testid={`owner-${o.id}`}
+                  className={`min-h-[40px] rounded-2xl border px-3 text-[13px] font-bold transition ${
+                    o.id === ownerId ? "border-slate-900 bg-slate-900 text-white" : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                  }`}
+                >
+                  {o.kind === "basit" ? "👩" : "🧑‍⚕️"} {o.name} <span className="font-semibold opacity-70">({o.kind})</span>
+                </button>
+              ))}
+              {store === "yerel" ? (
+                <button type="button" onClick={() => void resetSynthetic()} className="ml-auto text-[12px] font-bold text-slate-500 underline">
+                  Sentetik veriyi sıfırla
+                </button>
+              ) : null}
+            </div>
+          </section>
+        )}
 
-        {/* ── Yapışkan araç çubuğu: arama + yeni konu + çöp + Kaydet ── */}
-        <div className="sticky top-0 z-30 -mx-4 mt-3 px-4 lg:-mx-6 lg:px-6" data-testid="toolbar">
-          <div className="flex flex-wrap items-center gap-2 rounded-[22px] border border-white/80 bg-white/92 p-2.5 shadow-[0_12px_32px_rgba(15,23,42,0.08)] ring-1 ring-white/90 backdrop-blur max-lg:rounded-2xl">
-            {selected ? (
+        {selected && openRoot ? (
+          /* ── Konu ekranı: tek yapışkan çubuk (geri · başlıklar · görünüm · çöp) + etkin arama şeridi ── */
+          <div className="sticky top-0 z-30 -mx-4 px-4 pt-1 lg:-mx-6 lg:px-6" data-testid="toolbar">
+            <div className="flex flex-wrap items-center gap-2 rounded-[22px] border border-white/80 bg-white/94 p-2 shadow-[0_12px_32px_rgba(15,23,42,0.08)] ring-1 ring-white/90 backdrop-blur max-lg:rounded-2xl">
+              <button
+                type="button"
+                onClick={() => select(null)}
+                className="inline-flex min-h-[42px] items-center gap-1.5 rounded-xl border border-emerald-200 bg-white px-3 text-[13px] font-black text-emerald-800 shadow-sm transition hover:bg-emerald-50"
+                data-testid="all-topics"
+              >
+                ← <span className="max-sm:hidden">Araştırma </span>Kütüphanem
+              </button>
               <button type="button" className={`${btnGhost} lg:hidden`} onClick={() => setDrawer(true)} data-testid="open-drawer" aria-label="Bu konunun başlıklar menüsünü aç">
                 ☰ Başlıklar
               </button>
-            ) : null}
-            <div className="relative min-w-[180px] flex-1">
-              <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400">⌕</span>
-              <input
-                type="search"
-                value={q}
-                onChange={(e) => {
-                  setQ(e.target.value);
-                  setSearchOpen(true);
-                }}
-                onFocus={() => setSearchOpen(true)}
-                placeholder="Konu, başlık veya içerikte ara…"
-                className="h-11 w-full rounded-2xl border border-emerald-100 bg-white pl-9 pr-3 text-[14px] font-semibold outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-200"
-                data-testid="search-input"
-                aria-label="Ara"
-              />
-              {searchOpen && q.trim() ? (
-                <div className="absolute left-0 right-0 top-[calc(100%+6px)] z-40 max-h-[60vh] overflow-y-auto rounded-2xl border border-slate-100 bg-white p-2 shadow-[0_24px_60px_rgba(15,23,42,0.18)]" data-testid="search-results">
-                  {hits.length ? (
-                    hits.map((h) => (
-                      <button
-                        key={h.nodeId}
-                        type="button"
-                        onClick={() => {
-                          select(h.nodeId);
-                          setQ("");
-                        }}
-                        className="block w-full rounded-xl px-3 py-2.5 text-left hover:bg-emerald-50"
-                        data-testid="search-hit"
-                        data-node-id={h.nodeId}
-                      >
-                        <span className="block text-[14px] font-black text-slate-900">{h.path[h.path.length - 1]}{draft && pathOf(draft, h.nodeId)[0]?.scope === "kurum" ? <span className="ml-1.5 align-middle"><SharedBadge compact /></span> : null}</span>
-                        <span className="block truncate text-[11px] font-semibold text-slate-500">
-                          {h.path.length > 1 ? h.path.slice(0, -1).join(" › ") + " · " : ""}
-                          {h.where === "başlık" ? "başlıkta" : h.where === "kutu adı" ? `kutu: ${h.blockTitle}` : `içerik: ${h.blockTitle}`}
-                        </span>
-                        {h.snippet ? <span className="mt-0.5 block line-clamp-2 text-[12px] text-slate-600">{h.snippet}</span> : null}
-                      </button>
-                    ))
-                  ) : (
-                    <p className="p-3 text-[13px] font-semibold text-slate-500">“{q}” için sonuç yok.</p>
-                  )}
-                </div>
-              ) : null}
-            </div>
-            <button type="button" className={btnPrimary} onClick={() => setDialog({ kind: "newRoot" })} data-testid="new-topic">
-              + Yeni Konu Ekle
-            </button>
-            <button type="button" className={btnGhost} onClick={() => setDialog({ kind: "trash" })} data-testid="open-trash">
-              🗑 Çöp Kutusu{trashCount ? ` (${trashCount})` : ""}
-            </button>
-            <div className="flex items-center gap-2 max-lg:hidden">
-              <SaveStatus dirty={dirty} total={changes.total} lastSavedAt={lastSavedAt} />
-              {dirty ? (
-                <button type="button" className={btnGhost} onClick={() => void askDiscard()} data-testid="discard">
-                  Vazgeç
+              <span className="min-w-0 flex-1 truncate px-1 text-[12px] font-black uppercase tracking-[0.14em] text-slate-500 max-sm:basis-full max-sm:order-last" data-testid="open-root-title">
+                {openRoot.title}
+              </span>
+              <div className="ml-auto flex items-center gap-2">
+                <ViewSwitch view={view} onChange={changeView} />
+                <button type="button" className={btnGhost} onClick={() => setDialog({ kind: "trash" })} data-testid="open-trash" aria-label={`Çöp Kutusu${trashCount ? ` (${trashCount})` : ""}`}>
+                  🗑<span className="max-sm:hidden"> Çöp Kutusu</span>{trashCount ? ` (${trashCount})` : ""}
                 </button>
-              ) : null}
-              <button type="button" className={`${btnPrimary} min-w-[120px]`} onClick={() => void save()} disabled={!dirty || saving} data-testid="save">
-                💾 {saving ? "Kaydediliyor…" : "Kaydet"}
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* ── Ana alan: sol konu menüsü + sağ içerik ── */}
-        <div className={`mt-3 grid gap-4 ${selected && openRoot ? "lg:grid-cols-[300px_minmax(0,1fr)]" : ""}`} data-screen={selected ? "konu" : "ana-konular"} data-testid="screen">
-          {selected && openRoot ? (
-            <aside className="max-lg:hidden" data-testid="tree-aside">
-              <div className="sticky top-[84px] max-h-[calc(100vh-100px)] overflow-y-auto rounded-[26px] border border-white/80 bg-white/86 p-3 shadow-[0_18px_55px_rgba(15,23,42,0.05)] ring-1 ring-white/90">
-                <TreePanel ws={draft} rootId={openRoot.id} simple={simple} selectedId={selectedId} expanded={expanded} onToggle={toggle} onSelect={select} onAllTopics={() => select(null)} />
               </div>
-            </aside>
-          ) : null}
-
-          <section className="min-w-0 rounded-[26px] border border-white/80 bg-white/86 p-4 shadow-[0_18px_55px_rgba(15,23,42,0.05)] ring-1 ring-white/90 sm:p-6 max-md:rounded-2xl max-md:p-3" data-testid="content">
-            {selected && openRoot ? (
-              <div className="mb-3 flex min-w-0 flex-wrap items-center gap-2" data-testid="topic-header">
-                <button
-                  type="button"
-                  onClick={() => select(null)}
-                  className="inline-flex min-h-[40px] items-center gap-1.5 rounded-xl border border-emerald-200 bg-white px-3 text-[13px] font-black text-emerald-800 shadow-sm transition hover:bg-emerald-50"
-                  data-testid="all-topics"
-                >
-                  ← Tüm Konularım
-                </button>
-                <span className="min-w-0 truncate text-[12px] font-black uppercase tracking-[0.14em] text-slate-500" data-testid="open-root-title">
-                  {openRoot.title}
+            </div>
+            {hl ? (
+              <div className="mt-2 flex flex-wrap items-center gap-2 rounded-2xl border border-yellow-200 bg-yellow-50/95 px-3 py-1.5 text-[13px] font-bold text-yellow-950 shadow-sm backdrop-blur" role="status" aria-live="polite" data-testid="search-strip">
+                <span className="min-w-0 truncate">
+                  🔎 “<span className="font-black">{activeQ.trim()}</span>”
+                </span>
+                <span className="text-yellow-900/80" data-testid="hit-count">
+                  {hitCount ? `${hitCount} eşleşme bu ekranda` : "bu ekranda eşleşme yok"}
+                </span>
+                <span className="ml-auto flex items-center gap-1">
+                  <button type="button" onClick={() => stepHit(-1)} disabled={!hitCount} className="flex h-9 w-9 items-center justify-center rounded-lg border border-yellow-300 bg-white text-[14px] disabled:opacity-40" aria-label="Önceki eşleşme" data-testid="hit-prev">
+                    ↑
+                  </button>
+                  <button type="button" onClick={() => stepHit(1)} disabled={!hitCount} className="flex h-9 w-9 items-center justify-center rounded-lg border border-yellow-300 bg-white text-[14px] disabled:opacity-40" aria-label="Sonraki eşleşme" data-testid="hit-next">
+                    ↓
+                  </button>
+                  <button type="button" onClick={clearSearch} className="min-h-[36px] rounded-lg border border-yellow-300 bg-white px-2.5 text-[12.5px] font-black" data-testid="search-clear-topic">
+                    Aramayı temizle
+                  </button>
                 </span>
               </div>
             ) : null}
-            {selected ? <ContentTabs tab={tab} onChange={changeTab} rootTitle={openRoot?.title ?? selected.title} /> : null}
-            {selected && tab === "okuma" ? (
-              <ReadingView
-                ws={draft}
-                rootId={rootOf(draft, selected.id)?.id ?? selected.id}
-                focusId={selected.parentId ? selected.id : null}
-                dirty={dirty}
-                onOpenNode={(id) => select(id, "notlar")}
-                onBackToNotes={() => changeTab("notlar")}
-                onWord={store === "db" ? (rootId) => void downloadWord(rootId) : undefined}
-              />
-            ) : selected ? (
-              <NodeView
-                simple={simple}
-                ws={draft}
-                nodeId={selected.id}
-                editing={editing}
-                onSelect={select}
-                onHome={() => select(null)}
-                onNewChild={() => setDialog({ kind: "newChild", parentId: selected.id })}
-                onRename={() => setDialog({ kind: "rename", nodeId: selected.id })}
-                onMoveDialog={() => setDialog({ kind: "move", nodeId: selected.id })}
-                onReorder={(dir) => runWs((ws) => reorderNode(ws, selected.id, dir, ctx))}
-                onDelete={() => void deleteNode(selected.id)}
-                onApplyTemplate={() => addTemplate(selected.id)}
-                onNewBlock={() => setDialog({ kind: "newBlock", nodeId: selected.id })}
-                onQuickNote={() => {
-                  const r = run((ws) => addBlock(ws, { nodeId: selected.id, title: "Notlar" }, ctx), (v) => v.ws);
-                  if (r) setEditing((prev) => new Set([...prev, r.block.id]));
-                }}
-                onLinkDialog={() => setDialog({ kind: "link", nodeId: selected.id })}
-                onAddRelatedSection={() => {
-                  const r = run((ws) => addRelatedSection(ws, selected.id, ctx), (v) => v.ws);
-                  if (r) {
-                    setExpanded((prev) => new Set([...prev, selected.id]));
-                    select(r.sectionId);
-                    showToast({ message: `“${RELATED_SECTION_TITLE}” bölümü eklendi. Kalıcı olması için Kaydet'e basın.`, type: "info" });
+          </div>
+        ) : (
+          <>
+            <header className="mb-3 px-1 pt-1" data-testid="home-header">
+              <h1 className="text-[30px] font-black leading-none tracking-tight text-slate-950 sm:text-[38px]">Şifa Rehberi</h1>
+              <p className="mt-1.5 text-[14px] font-medium text-slate-600">Kişisel araştırma kütüphaneniz.</p>
+            </header>
+            <ModuleSwitch module={homeModule} onChange={setHomeModule} topicCount={libRoots.length} />
+            {homeModule === "yeni" ? (
+              <NewTopicPanel
+                title={newTitle}
+                setTitle={setNewTitle}
+                withTemplate={newWithTemplate}
+                setWithTemplate={setNewWithTemplate}
+                roots={libRoots}
+                onCreate={() => {
+                  if (createRoot(newTitle, newWithTemplate)) {
+                    setNewTitle("");
+                    setNewWithTemplate(false);
+                    setHomeModule("kutuphane");
                   }
                 }}
-                onLinkRelated={() => setDialog({ kind: "linkRelated", sectionId: selected.id })}
-                onCopy={store === "db" ? (rootId) => void copyToPersonal(rootId) : undefined}
-                onUnlink={(linkId) => runWs((ws) => removeLink(ws, linkId))}
-                blockProps={{ simple, onToggleEdit, onPatch, onMove: onMoveBlock, onDelete: (id) => void onDeleteBlock(id), newId: ctx.newId }}
+                onOpenExisting={(id) => {
+                  setHomeModule("kutuphane");
+                  openFromLibrary(id);
+                }}
               />
             ) : (
-              <HomeView
-                ws={draft}
-                ownerName={owner.name}
-                quickTitle={quickTitle}
-                setQuickTitle={setQuickTitle}
-                onQuickCreate={(withTemplate) => {
-                  if (createRoot(quickTitle, withTemplate)) setQuickTitle("");
-                }}
-                onOpen={select}
+              <LibraryPanel
+                roots={libRoots}
+                results={results}
+                input={libInput}
+                onInput={setLibInput}
+                onClear={clearSearch}
+                activeQuery={activeQ}
+                reviewed={reviewed}
+                onOpen={openFromLibrary}
+                onGoNew={() => setHomeModule("yeni")}
+                trashCount={trashCount}
+                onOpenTrash={() => setDialog({ kind: "trash" })}
+                extra={live ? <LegacyGuides /> : null}
               />
             )}
-            {live && !selected ? <LegacyGuides /> : null}
-            <p className="mt-6 border-t border-slate-100 pt-3 text-[11.5px] font-semibold leading-5 text-slate-500" data-testid="disclaimer">
-              Bu alandaki içerikler uzmanın kişisel araştırma notlarıdır; tıbbi tanı veya tedavi önerisi değildir. Sınıf etiketleri (Bilimsel / Geleneksel / Dinî / Uzman Notu) yalnızca düzen içindir, kanıt düzeyi belirtmez.
-            </p>
-          </section>
-        </div>
+          </>
+        )}
+
+        {selected && openRoot ? (
+          <div className="mt-3 grid gap-4 lg:grid-cols-[300px_minmax(0,1fr)]" data-screen="konu" data-testid="screen">
+            <aside className="max-lg:hidden" data-testid="tree-aside">
+              <div className={`sticky max-h-[calc(100vh-110px)] overflow-y-auto rounded-[26px] border border-white/80 bg-white/86 p-3 shadow-[0_18px_55px_rgba(15,23,42,0.05)] ring-1 ring-white/90 ${hl ? "top-[132px]" : "top-[84px]"}`}>
+                <TreePanel ws={draft} rootId={openRoot.id} simple={simple} selectedId={selectedId} expanded={expanded} onToggle={toggle} onSelect={select} matchIds={matchIds} />
+              </div>
+            </aside>
+
+            <section
+              ref={contentRef}
+              className="min-w-0 rounded-[26px] border border-white/80 bg-white/86 p-4 shadow-[0_18px_55px_rgba(15,23,42,0.05)] ring-1 ring-white/90 sm:p-6 max-md:rounded-2xl max-md:p-3"
+              data-testid="content"
+            >
+              <ContentTabs tab={tab} onChange={changeTab} rootTitle={openRoot.title} />
+              {tab === "okuma" ? (
+                <ReadingView
+                  ws={draft}
+                  rootId={openRoot.id}
+                  focusId={selected.parentId ? selected.id : null}
+                  dirty={dirty}
+                  onOpenNode={(id) => select(id, "notlar")}
+                  onBackToNotes={() => changeTab("notlar")}
+                  onWord={store === "db" ? (rootId) => void downloadWord(rootId) : undefined}
+                />
+              ) : (
+                <NodeView
+                  simple={simple}
+                  ws={draft}
+                  nodeId={selected.id}
+                  editing={editing}
+                  onSelect={select}
+                  onHome={() => select(null)}
+                  onNewChild={() => setDialog({ kind: "newChild", parentId: selected.id })}
+                  onRename={() => setDialog({ kind: "rename", nodeId: selected.id })}
+                  onMoveDialog={() => setDialog({ kind: "move", nodeId: selected.id })}
+                  onReorder={(dir) => runWs((ws) => reorderNode(ws, selected.id, dir, ctx))}
+                  onDelete={() => void deleteNode(selected.id)}
+                  onApplyTemplate={() => addTemplate(selected.id)}
+                  onNewBlock={() => setDialog({ kind: "newBlock", nodeId: selected.id })}
+                  onQuickNote={() => {
+                    const r = run((ws) => addBlock(ws, { nodeId: selected.id, title: "Notlar" }, ctx), (v) => v.ws);
+                    if (r) setEditing((prev) => new Set([...prev, r.block.id]));
+                  }}
+                  onLinkDialog={() => setDialog({ kind: "link", nodeId: selected.id })}
+                  onAddRelatedSection={() => {
+                    const r = run((ws) => addRelatedSection(ws, selected.id, ctx), (v) => v.ws);
+                    if (r) {
+                      setExpanded((prev) => new Set([...prev, selected.id]));
+                      select(r.sectionId);
+                      showToast({ message: `“${RELATED_SECTION_TITLE}” bölümü eklendi. Kalıcı olması için Kaydet'e basın.`, type: "info" });
+                    }
+                  }}
+                  onLinkRelated={() => setDialog({ kind: "linkRelated", sectionId: selected.id })}
+                  onCopy={store === "db" ? (rootId) => void copyToPersonal(rootId) : undefined}
+                  onUnlink={(linkId) => runWs((ws) => removeLink(ws, linkId))}
+                  blockProps={{ simple, onToggleEdit, onPatch, onMove: onMoveBlock, onDelete: (id) => void onDeleteBlock(id), newId: ctx.newId }}
+                />
+              )}
+              <Disclaimer />
+            </section>
+          </div>
+        ) : (
+          <Disclaimer />
+        )}
       </div>
 
-      {/* ── Mobil: alt yapışkan Kaydet çubuğu ── */}
-      <div
-        className={`fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 px-3 py-2.5 shadow-[0_-10px_30px_rgba(15,23,42,0.08)] backdrop-blur ${simple ? "" : "lg:hidden"}`}
-        data-testid="mobile-savebar"
-      >
-        <div className="mx-auto flex max-w-[640px] items-center gap-2">
-          <div className="min-w-0 flex-1">
-            <SaveStatus dirty={dirty} total={changes.total} lastSavedAt={lastSavedAt} compact />
-          </div>
-          {dirty ? (
-            <button type="button" className={btnGhost} onClick={() => void askDiscard()}>
-              Vazgeç
+      {/* ── TEK Kaydet çubuğu (masaüstü + mobil): konu ekranında veya kaydedilmemiş değişiklik varken ── */}
+      {showSaveBar ? (
+        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 px-3 py-2.5 shadow-[0_-10px_30px_rgba(15,23,42,0.08)] backdrop-blur" data-testid="savebar">
+          <div className="mx-auto flex max-w-[900px] items-center gap-2">
+            <div className="min-w-0 flex-1">
+              <SaveStatus dirty={dirty} total={changes.total} lastSavedAt={lastSavedAt} compact />
+            </div>
+            {dirty ? (
+              <button type="button" className={btnGhost} onClick={() => void askDiscard()} data-testid="discard">
+                Vazgeç
+              </button>
+            ) : null}
+            <button type="button" className={`${btnPrimary} min-w-[130px] lg:min-w-[170px] lg:text-[15px]`} onClick={() => void save()} disabled={!dirty || saving} data-testid="save">
+              💾 {saving ? "Kaydediliyor…" : "Kaydet"}
             </button>
-          ) : null}
-          <button type="button" className={`${btnPrimary} min-w-[110px] ${simple ? "lg:min-w-[180px] lg:text-[15px]" : ""}`} onClick={() => void save()} disabled={!dirty || saving} data-testid="save-mobile">
-            💾 {simple && dirty ? "Notlarımı Kaydet" : "Kaydet"}
-          </button>
+          </div>
         </div>
-      </div>
+      ) : null}
 
       {/* ── Mobil: konu ağacı çekmecesi ── */}
       {drawer && selected && openRoot ? (
@@ -941,7 +1017,7 @@ export default function SifaV2Prototype({ mode = "prototip" }: { mode?: "prototi
               </button>
             </div>
             <div className="min-h-0 flex-1 overflow-y-auto p-3 pb-24">
-              <TreePanel ws={draft} rootId={openRoot.id} simple={simple} selectedId={selectedId} expanded={expanded} onToggle={toggle} onSelect={select} onAllTopics={() => select(null)} />
+              <TreePanel ws={draft} rootId={openRoot.id} simple={simple} selectedId={selectedId} expanded={expanded} onToggle={toggle} onSelect={select} matchIds={matchIds} />
             </div>
           </div>
         </div>
@@ -1069,6 +1145,15 @@ export default function SifaV2Prototype({ mode = "prototip" }: { mode?: "prototi
         />
       ) : null}
     </main>
+    </HighlightProvider>
+  );
+}
+
+function Disclaimer() {
+  return (
+    <p className="mt-6 border-t border-slate-100 pt-3 text-[11.5px] font-semibold leading-5 text-slate-500" data-testid="disclaimer">
+      Bu alandaki içerikler uzmanın kişisel araştırma notlarıdır; tıbbi tanı veya tedavi önerisi değildir. Sınıf etiketleri (Bilimsel / Geleneksel / Dinî / Uzman Notu) yalnızca düzen içindir, kanıt düzeyi belirtmez.
+    </p>
   );
 }
 
@@ -1098,141 +1183,14 @@ function TreePanel(props: {
   expanded: ReadonlySet<string>;
   onToggle: (id: string) => void;
   onSelect: (id: string) => void;
-  onAllTopics: () => void;
+  matchIds?: ReadonlySet<string>;
 }) {
   return (
     <>
-      <button
-        type="button"
-        onClick={props.onAllTopics}
-        className="mb-2 flex min-h-[40px] w-full items-center gap-1.5 rounded-xl border border-emerald-200 bg-white px-3 text-[12.5px] font-black text-emerald-800 hover:bg-emerald-50"
-        data-testid="tree-home"
-      >
-        ← Tüm Konularım
-      </button>
       <p className="mb-1.5 px-1 text-[11px] font-black uppercase tracking-[0.16em] text-slate-500">Bu konunun başlıkları</p>
-      <TopicTree ws={props.ws} rootId={props.rootId} simple={props.simple} selectedId={props.selectedId} expanded={props.expanded} onToggle={props.onToggle} onSelect={props.onSelect} />
+      <TopicTree ws={props.ws} rootId={props.rootId} simple={props.simple} selectedId={props.selectedId} expanded={props.expanded} onToggle={props.onToggle} onSelect={props.onSelect} matchIds={props.matchIds} />
     </>
   );
-}
-
-function HomeView({
-  ws,
-  ownerName,
-  quickTitle,
-  setQuickTitle,
-  onQuickCreate,
-  onOpen,
-}: {
-  ws: Workspace;
-  ownerName: string;
-  quickTitle: string;
-  setQuickTitle: (v: string) => void;
-  onQuickCreate: (withTemplate: boolean) => void;
-  onOpen: (id: string) => void;
-}) {
-  const roots = childrenOf(ws, null);
-  return (
-    <div data-testid="home-view">
-      <div className="rounded-[22px] border border-emerald-100 bg-gradient-to-br from-white via-emerald-50/50 to-cyan-50/40 p-5 sm:p-6">
-        <p className="text-[11px] font-black uppercase tracking-[0.16em] text-emerald-700">Hoş geldiniz, {ownerName}</p>
-        <h2 className="mt-1 text-[24px] font-black leading-tight sm:text-[28px]">Yeni bir konu başlatın</h2>
-        <p className="mt-1 text-[14px] font-medium text-slate-600">Konunun adını yazmanız yeterli. İsterseniz Şifa Rehberi&apos;nin hazır başlıklarıyla (şablon) başlayabilirsiniz; zorunlu değildir.</p>
-        <form
-          className="mt-4 flex flex-col gap-2 sm:flex-row"
-          onSubmit={(e) => {
-            e.preventDefault();
-            onQuickCreate(false);
-          }}
-        >
-          <input
-            value={quickTitle}
-            onChange={(e) => setQuickTitle(e.target.value)}
-            placeholder="Ör. Şiddetli Öksürük"
-            maxLength={200}
-            className="h-12 flex-1 rounded-2xl border border-emerald-200 bg-white px-4 text-[16px] font-semibold outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-200"
-            aria-label="Konu adı"
-            data-testid="quick-title"
-          />
-          <button type="submit" className={`${btnPrimary} h-12 px-6 text-[14px]`} disabled={!quickTitle.trim()} data-testid="quick-create">
-            Boş Konu Oluştur
-          </button>
-          <button
-            type="button"
-            className={`${btnGhost} h-12 border-emerald-200 px-4 text-emerald-800`}
-            disabled={!quickTitle.trim()}
-            onClick={() => onQuickCreate(true)}
-            data-testid="quick-create-template"
-          >
-            📋 Şablonla Başla
-          </button>
-        </form>
-      </div>
-
-      <h2 className="mb-1 mt-7 text-[22px] font-black tracking-tight text-slate-950" data-testid="root-list-title">
-        Ana Konularım <span className="text-slate-400">({roots.length})</span>
-      </h2>
-      <p className="mb-3 text-[13px] font-medium text-slate-500">Her ana konu kendi ekranında, yalnız kendi başlıklarıyla açılır.</p>
-      {roots.length ? (
-        <RootGroups ws={ws} roots={roots} onOpen={onOpen} />
-      ) : (
-        <p className="rounded-2xl border border-dashed border-slate-200 bg-white/70 p-5 text-[14px] font-semibold text-slate-500">Henüz konunuz yok. Yukarıya bir ad yazıp başlayın.</p>
-      )}
-    </div>
-  );
-}
-
-/** Kurum kaydı yoksa liste tek parça (önceki görünüm); varsa "Kişisel" ve "Kurum Ortak" ayrı bölümler. */
-function RootGroups({ ws, roots, onOpen }: { ws: Workspace; roots: TopicNode[]; onOpen: (id: string) => void }) {
-  const shared = roots.filter((n) => n.scope === "kurum");
-  const personal = roots.filter((n) => n.scope !== "kurum");
-  const grid = (list: TopicNode[]) => (
-    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-      {list.map((n) => (
-        <RootCard key={n.id} ws={ws} n={n} onOpen={onOpen} />
-      ))}
-    </div>
-  );
-  if (!shared.length) return grid(personal);
-  return (
-    <div className="space-y-6">
-      <section data-testid="personal-roots">
-        <h3 className="mb-2 text-[12px] font-black uppercase tracking-[0.14em] text-emerald-800">👤 Kişisel Konularım ({personal.length})</h3>
-        <p className="mb-2 text-[12.5px] font-medium text-slate-500">Yalnız siz görürsünüz.</p>
-        {personal.length ? grid(personal) : <p className="rounded-2xl border border-dashed border-slate-200 bg-white/70 p-4 text-[13px] font-semibold text-slate-500">Henüz kişisel konunuz yok.</p>}
-      </section>
-      <section data-testid="shared-roots">
-        <h3 className="mb-2 text-[12px] font-black uppercase tracking-[0.14em] text-indigo-800">🏛 Kurum Ortak Kayıtları ({shared.length})</h3>
-        <p className="mb-2 text-[12.5px] font-medium text-slate-500">Eski Şifa Rehberi&apos;nden aktarıldı · kurumunuzdaki uzmanlar okur · salt-okunur.</p>
-        {grid(shared)}
-      </section>
-    </div>
-  );
-}
-
-function RootCard({ ws, n, onOpen }: { ws: Workspace; n: TopicNode; onOpen: (id: string) => void }) {
-            const sub = subtreeIds(ws, n.id).size - 1;
-            const boxes = ws.blocks.filter((b) => !b.deletedAt && subtreeIds(ws, n.id).has(b.nodeId)).length;
-            return (
-              <button
-                key={n.id}
-                type="button"
-                onClick={() => onOpen(n.id)}
-                className="group rounded-[22px] border border-white/80 bg-white p-4 text-left shadow-[0_12px_32px_rgba(15,23,42,0.06)] ring-1 ring-slate-100 transition hover:-translate-y-0.5 hover:ring-emerald-200"
-                data-testid="root-card"
-                data-node-id={n.id}
-                data-scope={n.scope ?? "kisisel"}
-              >
-                <span className="flex flex-wrap items-center gap-1.5">
-                  <span className="inline-block rounded-full bg-gradient-to-r from-emerald-600 to-teal-500 px-2.5 py-0.5 text-[11px] font-black text-white">
-                    {sub} alt başlık · {boxes} kutu
-                  </span>
-                  {n.scope === "kurum" ? <SharedBadge compact /> : null}
-                </span>
-                <span className="mt-2 block break-words text-[18px] font-black uppercase leading-6 text-slate-950">{n.title}</span>
-                <span className="mt-3 block text-[13px] font-black text-emerald-700 group-hover:underline">Aç →</span>
-              </button>
-            );
 }
 
 type BlockHandlers = {
@@ -1316,16 +1274,16 @@ function NodeView({
     <div data-testid="node-view" data-node-id={nodeId}>
       <nav aria-label="Konum" className="-mx-1 flex items-center gap-1 overflow-x-auto pb-1 text-[12px] font-bold text-slate-500" data-testid="breadcrumb">
         <button type="button" onClick={onHome} className="shrink-0 rounded-lg px-1.5 py-1 hover:bg-emerald-50 hover:text-emerald-800">
-          Konularım
+          Kütüphanem
         </button>
         {path.map((p, i) => (
           <span key={p.id} className="flex shrink-0 items-center gap-1">
             <span aria-hidden>›</span>
             {i === path.length - 1 ? (
-              <span className="rounded-lg px-1.5 py-1 text-slate-900" aria-current="page">{p.title}</span>
+              <span className="rounded-lg px-1.5 py-1 text-slate-900" aria-current="page"><Hl text={p.title} /></span>
             ) : (
               <button type="button" onClick={() => onSelect(p.id)} className="rounded-lg px-1.5 py-1 hover:bg-emerald-50 hover:text-emerald-800">
-                {p.title}
+                <Hl text={p.title} />
               </button>
             )}
           </span>
@@ -1352,7 +1310,7 @@ function NodeView({
           ) : null}
           <h2 className="mt-1.5 break-words text-[28px] font-black leading-tight tracking-tight text-slate-950 sm:text-[34px]" data-testid="node-title">
             {tpl ? <span className="mr-2" aria-hidden data-testid="node-title-icon">{tpl.icon}</span> : null}
-            <span data-testid="node-title-text">{node.title}</span>
+            <span data-testid="node-title-text"><Hl text={node.title} /></span>
           </h2>
         </div>
       </div>
@@ -1466,7 +1424,7 @@ function NodeView({
                   {templateEntry(k.templateKey)?.icon ?? (isRelatedSection(k) ? "🩺" : k.templateKey === UNMATCHED_KEY ? "⚠️" : kk ? "📂" : "📄")}
                 </span>
                 <span className="min-w-0 flex-1">
-                  <span className="block break-words text-[14px] font-black leading-5 text-slate-900" data-testid="child-title">{k.title}</span>
+                  <span className="block break-words text-[14px] font-black leading-5 text-slate-900" data-testid="child-title"><Hl text={k.title} /></span>
                   <span className="block text-[11px] font-semibold text-slate-500">
                     {simple ? (
                       <>{kb ? "📝 not var" : "henüz not yok"}{kk ? ` · ${kk} bölüm` : ""}</>
@@ -1579,12 +1537,12 @@ function NodeView({
 
 /** Görünüm seçici — yalnız ekranı değiştirir; kayıtları silmez, taşımaz, çoğaltmaz. */
 function ViewSwitch({ view, onChange }: { view: ViewMode; onChange: (v: ViewMode) => void }) {
-  const opts: { id: ViewMode; label: string; hint: string }[] = [
-    { id: "basit", label: "🌿 Basit Görünüm", hint: "Sade not yazma" },
-    { id: "gelismis", label: "📚 Gelişmiş Görünüm", hint: "Tüm araştırma araçları" },
+  const opts: { id: ViewMode; label: string; short: string; hint: string }[] = [
+    { id: "basit", label: "🌿 Basit", short: "🌿", hint: "Sade not yazma" },
+    { id: "gelismis", label: "📚 Gelişmiş", short: "📚", hint: "Tüm araştırma araçları" },
   ];
   return (
-    <div className="mt-3 grid grid-cols-2 gap-1 rounded-2xl border border-emerald-100 bg-white p-1 shadow-sm sm:inline-grid" role="radiogroup" aria-label="Görünüm" data-testid="view-switch">
+    <div className="inline-grid grid-cols-2 gap-0.5 rounded-xl border border-emerald-100 bg-white p-0.5" role="radiogroup" aria-label="Görünüm" data-testid="view-switch">
       {opts.map((o) => {
         const active = o.id === view;
         return (
@@ -1593,14 +1551,16 @@ function ViewSwitch({ view, onChange }: { view: ViewMode; onChange: (v: ViewMode
             type="button"
             role="radio"
             aria-checked={active}
+            aria-label={`${o.label.slice(3)} görünüm — ${o.hint}`}
+            title={o.hint}
             onClick={() => onChange(o.id)}
             data-testid={`view-${o.id}`}
-            className={`flex min-h-[44px] flex-col items-start justify-center rounded-xl px-3.5 py-1 text-left transition [forced-color-adjust:none] ${
-              active ? "bg-gradient-to-r from-emerald-600 to-teal-500 text-white shadow-[0_8px_20px_rgba(16,185,129,0.3)]" : "text-slate-700 hover:bg-emerald-50"
+            className={`min-h-[38px] whitespace-nowrap rounded-lg px-2.5 text-[12.5px] font-black transition [forced-color-adjust:none] ${
+              active ? "bg-gradient-to-r from-emerald-600 to-teal-500 text-white shadow-sm" : "text-slate-700 hover:bg-emerald-50"
             }`}
           >
-            <span className="text-[13.5px] font-black leading-5">{o.label}</span>
-            <span className={`text-[10.5px] font-semibold leading-4 ${active ? "text-white/85" : "text-slate-500"}`}>{o.hint}</span>
+            <span className="max-sm:hidden">{o.label}</span>
+            <span className="sm:hidden">{o.short}</span>
           </button>
         );
       })}

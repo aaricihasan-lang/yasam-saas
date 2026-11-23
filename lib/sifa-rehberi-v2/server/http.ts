@@ -107,6 +107,25 @@ export async function handleUploadFinalize(db: SifaV2Db, storage: SifaV2Storage,
   return NextResponse.json({ ok: true, assetId, src: `sifa-asset:${assetId}` }, { headers: NO_STORE });
 }
 
+/**
+ * Yarım kalan yükleme: finalize EDİLMEMİŞ (DB kaydı olmayan) KENDİ nesnesini siler. Yol yalnız
+ * '<tenant>/<uzman>/<assetId>.<uzantı>' biçiminde ve çağıranın kapsamında kabul edilir. Kayıtlı görsel
+ * (içerikte kullanılıyor olabilir) SİLİNMEZ → 409. Yeni yıkıcı davranış yok: yalnız sahipsiz yükleme.
+ */
+export async function handleUploadDiscard(db: SifaV2Db, storage: SifaV2Storage, scope: Scope, req: NextRequest): Promise<NextResponse> {
+  const b = await jsonBody(req);
+  const assetId = String(b?.assetId ?? "");
+  const path = String(b?.path ?? "");
+  if (!UUID.test(assetId) || !isOwnUploadPath(path, scope.tenantId, scope.userId) || !path.includes(`/${assetId}.`)) {
+    return fail(403, "Bu yükleme size ait değil.");
+  }
+  const v = await visibleAssets(db, scope, [assetId]);
+  if (!v.ok) return fail(v.status, v.error, { code: v.code });
+  if (v.value.length) return fail(409, "Kayıtlı görsel bu yolla silinemez.");
+  await storage.remove(SIFA_BUCKET, [path]);
+  return NextResponse.json({ ok: true }, { headers: NO_STORE });
+}
+
 /** Görsel okuma: YALNIZ görebileceği görseller için kısa ömürlü imzalı bağlantı (diğerleri sessizce yok). */
 export async function handleAssetUrls(db: SifaV2Db, storage: SifaV2Storage, scope: Scope, req: NextRequest): Promise<NextResponse> {
   const b = await jsonBody(req);

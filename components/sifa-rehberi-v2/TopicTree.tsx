@@ -10,6 +10,7 @@ import { blocksOf, childrenOf, nodeById } from "@/lib/sifa-rehberi-v2/tree";
 import type { TopicNode, Workspace } from "@/lib/sifa-rehberi-v2/types";
 import { templateEntry } from "@/lib/sifa-rehberi-v2/template";
 import { isRelatedSection } from "@/lib/sifa-rehberi-v2/related";
+import { Hl } from "@/components/sifa-rehberi-v2/highlight";
 
 const INDENT_PX = 14;
 const MAX_VISUAL_INDENT = 6;
@@ -24,9 +25,11 @@ type Props = {
   expanded: ReadonlySet<string>;
   onToggle: (id: string) => void;
   onSelect: (id: string) => void;
+  /** Etkin aramada KENDİ içeriğinde eşleşme olan başlıklar (sarı nokta). */
+  matchIds?: ReadonlySet<string>;
 };
 
-function Row({ ws, node, depth, selectedId, expanded, onToggle, onSelect, simple }: Props & { node: TopicNode; depth: number }) {
+function Row({ ws, node, depth, selectedId, expanded, onToggle, onSelect, simple, matchIds }: Props & { node: TopicNode; depth: number }) {
   const kids = childrenOf(ws, node.id);
   const isOpen = expanded.has(node.id);
   const active = node.id === selectedId;
@@ -72,7 +75,10 @@ function Row({ ws, node, depth, selectedId, expanded, onToggle, onSelect, simple
           {node.scope === "kurum" && !node.parentId ? (
             <span className="mr-1.5 shrink-0" aria-label="Kurum ortak kaydı" title="Kurum ortak kaydı (salt-okunur)">🏛</span>
           ) : null}
-          <span className="line-clamp-2 break-words">{node.title}</span>
+          <span className="line-clamp-2 break-words"><Hl text={node.title} /></span>
+          {matchIds?.has(node.id) ? (
+            <span className="ml-1.5 h-2.5 w-2.5 shrink-0 rounded-full bg-yellow-400 ring-2 ring-yellow-100" title="Bu başlıkta aranan kelime geçiyor" aria-label="aranan kelime geçiyor" data-testid="tree-match-dot" />
+          ) : null}
         </button>
         {depth >= MAX_VISUAL_INDENT && !simple ? (
           <span className={`shrink-0 rounded-full px-1.5 text-[10px] font-black ${active ? "bg-white/25" : "bg-slate-100 text-slate-500"}`} title="Seviye">
@@ -91,7 +97,7 @@ function Row({ ws, node, depth, selectedId, expanded, onToggle, onSelect, simple
       {kids.length && isOpen ? (
         <ul role="group" className="mt-1 space-y-1">
           {kids.map((k) => (
-            <Row key={k.id} ws={ws} node={k} depth={depth + 1} selectedId={selectedId} expanded={expanded} onToggle={onToggle} onSelect={onSelect} simple={simple} />
+            <Row key={k.id} ws={ws} node={k} depth={depth + 1} selectedId={selectedId} expanded={expanded} onToggle={onToggle} onSelect={onSelect} simple={simple} matchIds={matchIds} />
           ))}
         </ul>
       ) : null}
