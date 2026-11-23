@@ -1,0 +1,110 @@
+# Owner İki Aşamalı Giriş Yönetimi — GERÇEK TARAYICI mobil kabulü (Chrome + Edge; 320 / 375 / 390 / 1280 px).
+# Ayrı ve yol filtreli iş akışı: yalnız bu ekranın / API'sinin / testinin dosyaları değişince (ve elle) çalışır; ana CI'ı yavaşlatmaz.
+# Sır KULLANMAZ. Production'a / Supabase'e / Vercel'e / gerçek Gmail'e istek ATMAZ:
+#   - geçici embedded-postgres + PostgREST shim (yalnız 127.0.0.1), bütün F2 migration zinciri (F2-A…F2-K)
+#   - e-posta = sentetik sağlayıcı (koşucu üzerinde yerel dosya); sentetik hesaplar
+#   - build yalnız yerel test önüne işaret eden SAHTE değerlerle (zz-…-not-a-secret)
+# Sonuç ayrımı: test FAIL → iş KIRMIZI; gerçek Edge ikilisi yoksa → "NOT TESTED (altyapı)" uyarısı + iş KIRMIZI (sessiz geçiş yok).
+# Boş / eksik paket PASS VEREMEZ (MFA_UI_MIN_PASS).
+name: MFA yönetimi tarayıcı testleri
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - "components/admin/members/detail/MemberMfaPanel.tsx"
+      - "components/admin/OwnerStepUpDialog.tsx"
+      - "app/api/admin/users/**"
+      - "app/admin/users/**"
+      - "lib/auth/mfaAdminStatus.ts"
+      - "lib/auth/mfaChallenge.ts"
+      - "lib/auth/emailOtp.ts"
+      - "scripts/giris-guvenligi/mfa-yonetimi-*"
+      - ".github/workflows/mfa-yonetimi-tarayici.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mfa-yonetimi-tarayici-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  mfa-yonetimi-tarayici:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+
+      - name: Bağımlılıklar
+        run: npm ci --no-audit --no-fund
+
+      - name: Playwright Chromium bağımlılıkları
+        run: npx playwright install --with-deps chromium
+
+      # Runner imajında Chrome / Edge hazır gelir; yoksa Playwright'ın kurucusu GERÇEK markalı ikiliyi kurar.
+      - name: Google Chrome + Microsoft Edge (gerçek ikililer)
+        run: |
+          [ -x /opt/google/chrome/chrome ] || npx playwright install chrome
+          [ -x /opt/microsoft/msedge/msedge ] || npx playwright install msedge || echo "::warning title=Edge::Microsoft Edge kurulamadı (test NOT TESTED raporlayacak)"
+          /opt/google/chrome/chrome --version
+          /opt/microsoft/msedge/msedge --version || true
+
+      # Tip denetimi zorunlu ana CI'da (ci.yml "typescript") yapılır; yalnız bu runner'ın geçici checkout'unda atlanır (bellek).
+      - name: Test build'i için tip denetimini atla (yalnız bu runner)
+        run: |
+          node scripts/campaign/ci-e2e-build-config.cjs
+          grep -n "ignoreBuildErrors" next.config.ts
+
+      - name: Yerel test önüne işaret eden build (webpack; sahte değerler)
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:54458
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: zz-ds-anon-not-a-secret
+          SUPABASE_SERVICE_ROLE_KEY: zz-test-service-role-not-a-secret
+          NODE_OPTIONS: --max-old-space-size=6144
+        run: npx next build --webpack || (echo "::warning title=build::ilk build başarısız; bir kez yeniden deneniyor" && npx next build --webpack)
+
+      - name: Mobil kabul (Chrome + Edge; 320 / 375 / 390 / 1280)
+        env:
+          MFA_UI_REQUIRE_EDGE: "1"
+          MFA_UI_MIN_PASS: "65"
+        run: |
+          mkdir -p "$RUNNER_TEMP/mfa-ui"
+          set +e
+          npx tsx scripts/giris-guvenligi/mfa-yonetimi-ui.e2e.ts "$RUNNER_TEMP/mfa-ui" 2>&1 | tee "$RUNNER_TEMP/mfa-ui/gunluk.txt"
+          code=${PIPESTATUS[0]}
+          set -e
+          if [ "$code" = "3" ]; then echo "::error title=MFA mobil kabul::NOT TESTED (altyapı) — gerçek Edge ikilisi yok; gerçek FAIL DEĞİL"; fi
+          if [ "$code" = "1" ]; then echo "::error title=MFA mobil kabul::FAIL — ayrıntı günlükte"; fi
+          {
+            echo "## MFA yönetimi — mobil kabul"
+            echo ""
+            echo '```'
+            grep -E "^(══|mfa-yonetimi-ui:|FAIL|NOT TESTED)|^\s+FAIL" "$RUNNER_TEMP/mfa-ui/gunluk.txt" || true
+            echo '```'
+          } | tee "$RUNNER_TEMP/mfa-ui/ozet.md" >> "$GITHUB_STEP_SUMMARY"
+          exit $code
+
+      - name: Bellek / disk
+        if: always()
+        run: free -m && df -h . | tail -1
+
+      - name: Kanıtlar (ekran görüntüleri + günlük + özet; sentetik veri)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mfa-yonetimi-tarayici-kanit
+          path: |
+            ${{ runner.temp }}/mfa-ui/*.png
+            ${{ runner.temp }}/mfa-ui/gunluk.txt
+            ${{ runner.temp }}/mfa-ui/ozet.md
+          retention-days: 14
+          if-no-files-found: error

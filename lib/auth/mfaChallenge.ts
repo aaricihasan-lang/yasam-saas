@@ -59,6 +59,15 @@ export function resolveOfferedMfaMethods(
  * F2-D: kullanıcıya göre sunulan yöntemler. Bayraklarla açık olsa bile:
  *   qr_device → kullanıcının AKTİF güvenilir cihazı varsa; email_otp → e-posta DOĞRULANMIŞ + sağlayıcı ve
  *   pepper yapılandırılmış + rol izinli (AUTH_MFA_EMAIL_ROLES). Boş liste = giriş YOK (parolaya düşülmez).
+ *
+ * Owner kilitlenme düzeltmesi (23.11): kurtarma kodu ortam bayraklarına (AUTH_MFA_METHODS / AUTH_MFA_METHOD_SCOPE)
+ * BAĞLI DEĞİLDİR. Önceden bayraklar boş / kapsam dışıyken liste erkenden boş dönüyor ve kullanıcının (Owner dahil)
+ * elindeki GEÇERLİ kurtarma kodu / çevrimdışı kit kodu da arayüzden kayboluyordu — oysa doğrulama ucu
+ * (/api/auth/mfa/recovery/verify) kodu bu listeye bakmadan DB'de doğrular. Artık kurtarma kodu YALNIZ DB'deki gerçek
+ * kayda göre sunulur: bu kullanıcıya ait, kullanılmamış, süresi geçmemiş kod / bilet sayısı > 0 (auth_mfa_user_methods;
+ * Owner çevrimdışı kiti yalnız Owner'da sayılır). Yanlış ortam ayarı hiçbir ASIL yöntemi açmaz ve MFA'yı atlatmaz:
+ * kod yine tek kullanımlık, kullanıcıya bağlı özetle ve deneme sınırıyla DB'de doğrulanır. DB okunamazsa kurtarma
+ * sunulmaz (fail-closed).
  */
 export async function resolveUserMfaMethods(
   db: SupabaseClient,
@@ -66,18 +75,18 @@ export async function resolveUserMfaMethods(
   env: Record<string, string | undefined> = process.env,
 ): Promise<string[]> {
   const flags = resolveOfferedMfaMethods(args.isTestAccount, env);
-  if (flags.length === 0) return [];
   const { data, error } = await db.rpc("auth_mfa_user_methods", { p_user_id: args.userId });
   // 000400 henüz uygulanmamışsa (veya okuma hatası) F2-C davranışı: yalnız QR (cihaz imzası yine şart;
   // e-posta asla bu yoldan sunulmaz). Kod migration'dan önce yayına çıksa da zorunlu kullanıcı kilitlenmez.
+  // Kurtarma kodu bu yolda SUNULMAZ (kayıt okunamadı → fail-closed).
   if (error || !data || typeof data !== "object") return flags.filter((f) => f === "qr_device");
   const m = data as { has_device?: unknown; email_verified?: unknown; recovery_codes?: unknown };
   const methods = flags.filter((f) =>
     f === "qr_device" ? m.has_device === true
       : f === "email_otp" ? m.email_verified === true && args.emailConfigured && args.emailRoleAllowed
         : false);
-  // F2-E: kurtarma kodu ayrı bir env bayrağı İSTEMEZ (asıl yöntemler kaybolduğunda da çalışmalı); yalnız
-  // kapsam izin veriyorsa (flags boş değil) ve kullanılmamış kod / kurtarma bileti varsa sunulur.
+  // F2-E: kurtarma kodu ayrı bir env bayrağı İSTEMEZ ve kapsam / yöntem bayraklarına bağlı DEĞİLDİR (asıl yöntemler
+  // veya ortam ayarı kaybolduğunda da çalışmalı): yalnız bu kullanıcının kullanılmamış kodu / bileti varsa sunulur.
   // 000500 öncesi DB'de alan yoktur → sunulmaz.
   if (Number(m.recovery_codes) > 0) methods.push("recovery_code");
   return methods;
