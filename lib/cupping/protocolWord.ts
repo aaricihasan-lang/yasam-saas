@@ -31,6 +31,7 @@ import {
   TextRun,
   WidthType,
 } from "docx";
+import { expertSignatureBlock, type ExpertBranding, type ExpertBrandingVariant } from "@/lib/docx/expertBranding";
 
 export const WORD_CONTENT_TYPE =
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
@@ -76,6 +77,14 @@ export type ProtocolWordInput = {
   safety: NamedRef[];
   entries: ProtocolWordEntry[];
   sources: ProtocolWordSource[];
+  /**
+   * F3B: uzman rapor markalaması. Protokol belgesi bugün uzman adı GÖSTERMEZ; yalnız uzmanın rapor kimliği anahtarı AÇIKKEN
+   * (route `resolveReportBranding(..., { purpose: "signature" })`) belge sonuna "Hazırlayan" imza kartı (+ uzman dipnotu)
+   * eklenir. Başlık, alt bilgi ve kullanım notu DEĞİŞMEZ. null / yok → belge bugünküyle birebir.
+   */
+  branding?: ExpertBranding | null;
+  /** Yalnız örnek/test üretimi için tasarım varyantı. */
+  brandingVariant?: ExpertBrandingVariant;
 };
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -338,6 +347,11 @@ export async function buildProtocolWordBuffer(input: ProtocolWordInput): Promise
     children.push(sectionHeading("Kaynaklar"));
     (children as (Paragraph | Table)[]).push(sourcesTable(sources));
   }
+
+  // 12) F3B: "Hazırlayan" imza kartı — yalnız markalama açıkken (A4 − 2 × 900 kenar = 10106 twip içerik genişliği).
+  (children as (Paragraph | Table)[]).push(
+    ...(expertSignatureBlock(input.branding, { variant: input.brandingVariant, accent: C_BRAND, contentWidth: 11906 - 2 * 900, fill: C_CELL_FILL, font: FONT }) as (Paragraph | Table)[]),
+  );
 
   const doc = new Document({
     creator: "Yaşam Sistemi",

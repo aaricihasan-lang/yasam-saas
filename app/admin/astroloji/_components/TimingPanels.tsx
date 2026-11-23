@@ -57,7 +57,8 @@ import type {
   VedicVargaTechnical,
 } from "@/lib/astrology/model/vedic";
 import { KpChartPanel, KpHoraryPanel, KpRulingPanel, KpTransitPanel } from "./KpPanels";
-import { horaryDisplayZone } from "@/lib/astrology/transitDetail";
+import { horaryDisplayZone, horaryPlaceZone } from "@/lib/astrology/transitDetail";
+import { formatZoned } from "@/lib/astrology/birth/zonedFormat";
 import { PROGRESSED_CHART_HOUSE_SHORT_LABEL, progressedWholeSignCusps, progressionHouseColumns } from "@/lib/astrology/progressionHouses";
 import { KP_TIMING_TECHNICAL_SCHEMA, type KpChartTechnical, type KpHoraryTechnical, type KpRulingTechnical, type KpTimingTechnical, type KpTransitTechnical } from "@/lib/astrology/model/kp";
 import { KpTimingPanel } from "./KpTimingPanel";
@@ -100,6 +101,26 @@ import { LEGACY_MEAN_NODE_WARNING, LEGACY_POLAR_NATAL_HOUSE_WARNING, MEAN_NODE_L
 
 const th = "px-2 py-1.5 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500";
 const td = "px-2 py-1.5 text-sm text-slate-800";
+/**
+ * K4 (15.11.2026): `th` büyük harf (CSS uppercase) + sayfa dili Türkçe → İngilizce / Latince ev sistemi adındaki "i" de "İ" oluyordu
+ * ("WHOLE SİGN", "PLACİDUS"). Bu adlar lang="en" ile sarılır → "WHOLE SIGN"; Türkçe kısım ("İlerletilmiş") Türkçe kuralla kalır.
+ */
+const LATIN_TERMS = /(Whole Sign|Placidus|Regiomontanus|Campanus|Alcabitius|Porphyry|Koch)/;
+function CapsSafe({ text }: { text: string }) {
+  return (
+    <>
+      {text.split(LATIN_TERMS).map((part, i) =>
+        i % 2 === 1 ? (
+          <span key={i} lang="en">
+            {part}
+          </span>
+        ) : (
+          part
+        ),
+      )}
+    </>
+  );
+}
 const MAJOR = new Set<AspectType>(["conjunction", "opposition", "trine", "square", "sextile"]);
 
 function Section({ title, right, children }: { title: string; right?: ReactNode; children: ReactNode }) {
@@ -389,7 +410,7 @@ export function ProgressionPanel({ t, timeUnknownMasked = false }: { t: Progress
               <th className={th}>İlerletilmiş</th>
               {hc.natal && (
                 <th className={th} title={hc.natal.method} data-testid="astro-progression-natal-house-head">
-                  {hc.natal.label}
+                  <CapsSafe text={hc.natal.label} />
                 </th>
               )}
               {hc.progressed && (
@@ -398,7 +419,9 @@ export function ProgressionPanel({ t, timeUnknownMasked = false }: { t: Progress
                   <span className="sm:hidden" data-testid="astro-progression-chart-house-head-short">
                     {PROGRESSED_CHART_HOUSE_SHORT_LABEL}
                   </span>
-                  <span className="hidden sm:inline">{hc.progressed.label}</span>
+                  <span className="hidden sm:inline">
+                    <CapsSafe text={hc.progressed.label} />
+                  </span>
                 </th>
               )}
               {f && <th className={th}>Natal</th>}
@@ -463,9 +486,11 @@ export function SolarArcPanel({ t }: { t: SolarArcTechnical; /** Arayüz uyumu (
         <table className="min-w-full" data-testid="astro-solar-arc-positions">
           <thead>
             <tr>
+              {/* Y4 (15.11.2026): asıl değer (Solar Arc) noktanın hemen yanında; natal başlangıç son sütunda — 390 px'te Solar Arc
+                  sütunu yatay kaydırma olmadan görünür. Word/PDF sütun sırası değişmez. */}
               <th className={th}>Nokta</th>
-              <th className={th}>Natal</th>
               <th className={th}>Solar Arc</th>
+              <th className={th}>Natal</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
@@ -474,10 +499,10 @@ export function SolarArcPanel({ t }: { t: SolarArcTechnical; /** Arayüz uyumu (
                 <td className={td}>
                   <Point id={d.id} />
                 </td>
-                <td className={`${td} text-slate-500`}>{lonCell(d.natalLongitude)}</td>
                 <td className={td}>
                   <SignCell sign={d.sign} degree={d.degreeInSign} />
                 </td>
+                <td className={`${td} text-slate-500`}>{lonCell(d.natalLongitude)}</td>
               </tr>
             ))}
           </tbody>
@@ -535,7 +560,7 @@ export function returnUtcIso(t: Pick<ReturnTechnical, "returnLocal" | "returnOff
 export function localTimeIn(utcIso: string, timeZone: string | null): string | null {
   if (!timeZone) return null;
   try {
-    return new Intl.DateTimeFormat("tr-TR", { timeZone, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false, timeZoneName: "short" }).format(new Date(utcIso));
+    return formatZoned("tr-TR", { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false, timeZoneName: "short" }, Date.parse(utcIso), timeZone);
   } catch {
     return null;
   }
@@ -925,7 +950,7 @@ export function TechniqueTechnical({
         if ((technical as { schema?: string }).schema === KP_TIMING_TECHNICAL_SCHEMA) return <KpTimingPanel t={technical as KpTimingTechnical} options={options} />;
         return <KpTransitPanel t={technical as KpTransitTechnical} kbLookup={kbLookup} />;
       case "kp.horary":
-        return <KpHoraryPanel t={technical as KpHoraryTechnical} kbLookup={kbLookup} placeLabel={(options.place as { label?: string } | undefined)?.label ?? null} displayTz={horaryDisplayZone(options)} />;
+        return <KpHoraryPanel t={technical as KpHoraryTechnical} kbLookup={kbLookup} placeLabel={(options.place as { label?: string } | undefined)?.label ?? null} displayTz={horaryDisplayZone(options)} placeTz={horaryPlaceZone(options)} />;
       case "vedic.dasha":
         return <VedicDashaPanel t={technical as VedicDashaTechnical} kbLookup={kbLookup} drill={dashaDrill} onOpenLevel={onDashaLevel} />;
       case "western.fixed_stars":

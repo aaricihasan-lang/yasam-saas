@@ -6,7 +6,7 @@
  * (/profiles?view=archive; uzman sahipliği + tenant RPC içinde). Bu bileşen hiçbir şey silmez: silme talebini
  * ArchiveDeleteFlow'a iletir (çok katmanlı onay + sunucu doğrulaması).
  */
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { ArrowDownUp, CalendarDays, ChevronRight, Clock, FolderOpen, MapPin, Search, Trash2 } from "lucide-react";
 import { AtlasEmpty, ap } from "./premium/AtlasPremium";
 import { astroFetch } from "../../_lib/api";
@@ -35,6 +35,8 @@ const SORTS: [string, string][] = [
   ["birth_asc", "Doğum tarihi: en eski"],
 ];
 const PAGE = 30;
+/** Y1: tablo düzeni için listenin en az genişliği (px). */
+const ARCHIVE_TABLE_MIN_W = 860;
 
 const day = (v: string | null | undefined) => {
   if (!v) return "—";
@@ -144,11 +146,34 @@ export default function ArchiveList({
   }, [items, meta, filtered]);
   useEffect(() => () => onSummaryRef.current?.(null), []);
 
+  // Y1 (15.11.2026): tablo / kart düzeni GÖRÜNÜM genişliğine (md) değil listenin KENDİ genişliğine bağlı — 768 px'te yan menüyle
+  // kalan ~480 px'e 8 sütunlu tablo sığmıyor, danışan adı ~25 px'e düşüyordu. Sabit sütunlar (~550 px) + ad ve yer için en az
+  // ~300 px → tablo ≥ 860 px'te; daha darda mobil kart özeti. (Tailwind 3.4'te kap sorgusu yok → ResizeObserver + data-wide.)
+  const rootRef = useRef<HTMLElement | null>(null);
+  const [width, setWidth] = useState(0);
+  useLayoutEffect(() => {
+    const el = rootRef.current;
+    if (!el) return;
+    setWidth(el.getBoundingClientRect().width);
+    if (typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver((es) => setWidth(es[0]?.contentRect.width ?? 0));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  const wide = width >= ARCHIVE_TABLE_MIN_W;
+
   return (
-    <section className={`${ap.surface} flex min-w-0 flex-col overflow-hidden`} aria-label="Analiz Arşivi" data-testid="astro-archive-list">
+    <section
+      ref={rootRef}
+      className={`${ap.surface} group/archive flex min-w-0 flex-col overflow-hidden`}
+      aria-label="Analiz Arşivi"
+      data-testid="astro-archive-list"
+      data-wide={wide ? "" : undefined}
+      data-xwide={width >= ARCHIVE_TABLE_MIN_W + 160 ? "" : undefined}
+    >
       {/* Araç çubuğu: arama · sıralama · toplu işlemler */}
       <div className={ap.toolbar}>
-        <label className={`${ap.field} min-w-[220px] flex-1`}>
+        <label className={`${ap.field} flex-[1_1_220px]`}>
           <Search className={`h-4 w-4 shrink-0 ${ap.muted}`} aria-hidden="true" />
           <input type="search" value={q} onChange={(e) => setQ(e.target.value)} maxLength={100} placeholder="Ad, soyad veya profil adı ara" aria-label="Arşivde ara" className={ap.fieldInput} />
         </label>
@@ -213,7 +238,7 @@ export default function ArchiveList({
             )}
           </div>
           {/* Masaüstü / tablet: tablo başlığı */}
-          <div className={`${ap.tableHead} hidden grid-cols-[2.5rem_2rem_minmax(0,2.2fr)_7rem_minmax(0,1.6fr)_7.5rem_5rem_auto] items-center gap-3 px-4 py-2.5 md:grid`}>
+          <div className={`${ap.tableHead} hidden grid-cols-[2.5rem_2rem_minmax(10rem,2.2fr)_7rem_minmax(7rem,1.6fr)_7.5rem_5rem_auto] items-center gap-3 px-4 py-2.5 group-data-[wide]/archive:grid`}>
             <span>#</span>
             <input type="checkbox" checked={allShownPicked} onChange={() => setPicked(allShownPicked ? new Set() : new Set(shownIds))} aria-label="Gösterilen tüm satırları seç" className={`h-4 w-4 ${ap.check}`} data-testid="astro-archive-pick-all" />
             <span>Danışan</span>
@@ -227,28 +252,28 @@ export default function ArchiveList({
             {items.map((p) => {
               const on = picked.has(p.id);
               return (
-                <li key={p.id} className={`${ap.row} ${on ? ap.rowPicked : ""} grid grid-cols-[2rem_minmax(0,1fr)_auto] items-start gap-x-3 gap-y-1 px-4 py-3 text-sm md:grid-cols-[2.5rem_2rem_minmax(0,2.2fr)_7rem_minmax(0,1.6fr)_7.5rem_5rem_auto] md:items-center`} data-archive-row={p.id}>
-                  <span className={`hidden text-xs tabular-nums ${ap.faint} md:block`}>{p.index}</span>
-                  <input type="checkbox" className={`mt-1 h-4 w-4 ${ap.check} md:mt-0`} checked={on} onChange={() => toggle(p.id)} aria-label={`${p.label} seç`} data-archive-pick={p.id} />
+                <li key={p.id} className={`${ap.row} ${on ? ap.rowPicked : ""} grid grid-cols-[2rem_minmax(0,1fr)_auto] items-start gap-x-3 gap-y-1 px-4 py-3 text-sm group-data-[wide]/archive:grid-cols-[2.5rem_2rem_minmax(10rem,2.2fr)_7rem_minmax(7rem,1.6fr)_7.5rem_5rem_auto] group-data-[wide]/archive:items-center`} data-archive-row={p.id}>
+                  <span className={`hidden text-xs tabular-nums ${ap.faint} group-data-[wide]/archive:block`}>{p.index}</span>
+                  <input type="checkbox" className={`mt-1 h-4 w-4 ${ap.check} group-data-[wide]/archive:mt-0`} checked={on} onChange={() => toggle(p.id)} aria-label={`${p.label} seç`} data-archive-pick={p.id} />
                   <button type="button" onClick={() => onOpen(p.id)} className="flex min-w-0 items-center gap-3 text-left" title="Danışan dosyasını aç">
                     <span className={`${ap.avatar} hidden h-10 w-10 text-sm sm:flex`} aria-hidden="true">
                       {p.label.trim().charAt(0).toLocaleUpperCase("tr-TR") || "✦"}
                     </span>
                     <span className="min-w-0">
                       <span className={`block break-words font-semibold ${ap.ink} hover:underline`}>
-                        <span className={`mr-1 text-xs tabular-nums ${ap.faint} md:hidden`}>{p.index}.</span>
+                        <span className={`mr-1 text-xs tabular-nums ${ap.faint} group-data-[wide]/archive:hidden`}>{p.index}.</span>
                         {p.label}
                         {p.archivedAt && <span className={`${ap.chip} ml-1.5 align-middle !text-[10px] !font-normal`}>arşivli profil</span>}
                       </span>
                       {p.clientName && <span className="block text-[11px] text-emerald-700">Danışan Yolculuğu: {p.clientName}</span>}
                       {/* mobil özet */}
-                      <span className={`mt-0.5 block text-xs ${ap.muted} md:hidden`}>
+                      <span className={`mt-0.5 block text-xs ${ap.muted} group-data-[wide]/archive:hidden`}>
                         {day(p.current?.birthDate)} · {p.current?.locationLabel ?? "—"} · son analiz {day(p.lastAnalysisAt)} · {p.analysisCount} analiz
                       </span>
                     </span>
                   </button>
-                  <span className={`hidden tabular-nums ${ap.text} md:block`}>{day(p.current?.birthDate)}</span>
-                  <span className="hidden min-w-0 md:block">
+                  <span className={`hidden tabular-nums ${ap.text} group-data-[wide]/archive:block`}>{day(p.current?.birthDate)}</span>
+                  <span className="hidden min-w-0 group-data-[wide]/archive:block">
                     <span className={`flex min-w-0 items-center gap-1.5 ${ap.text}`} title={p.current?.locationLabel}>
                       <MapPin className={`h-3.5 w-3.5 shrink-0 ${ap.iconLav}`} aria-hidden="true" />
                       <span className="truncate">{p.current?.locationLabel ?? "—"}</span>
@@ -258,21 +283,21 @@ export default function ArchiveList({
                       {p.current?.timeKnown ? `saat ${p.current.birthTime?.slice(0, 5)}` : "saat bilinmiyor"}
                     </span>
                   </span>
-                  <span className={`hidden items-center gap-1.5 tabular-nums ${ap.text} md:flex`}>
+                  <span className={`hidden items-center gap-1.5 tabular-nums ${ap.text} group-data-[wide]/archive:flex`}>
                     <CalendarDays className={`h-3.5 w-3.5 shrink-0 ${ap.iconLav}`} aria-hidden="true" />
                     {day(p.lastAnalysisAt)}
                   </span>
-                  <span className="hidden justify-end md:flex">
+                  <span className="hidden justify-end group-data-[wide]/archive:flex">
                     <span className={ap.count}>{p.analysisCount}</span>
                   </span>
-                  <span className="col-start-3 row-start-1 flex items-center justify-end gap-1.5 md:col-start-auto md:row-start-auto">
+                  <span className="col-start-3 row-start-1 flex items-center justify-end gap-1.5 group-data-[wide]/archive:col-start-auto group-data-[wide]/archive:row-start-auto">
                     <button type="button" onClick={() => onOpen(p.id)} aria-label={`${p.label} dosyasını aç`} title="Dosyayı aç" className={ap.iconBtn} data-archive-open={p.id}>
                       <FolderOpen className="h-4 w-4" />
                     </button>
                     <button type="button" onClick={() => onDelete({ scope: "single", ids: [p.id] })} aria-label={`${p.label} sil`} title="Sil" className={ap.iconBtnDanger} data-archive-delete={p.id}>
                       <Trash2 className="h-4 w-4" />
                     </button>
-                    <ChevronRight className={`hidden h-4 w-4 ${ap.faint} lg:block`} aria-hidden="true" />
+                    <ChevronRight className={`hidden h-4 w-4 ${ap.faint} group-data-[xwide]/archive:block`} aria-hidden="true" />
                   </span>
                 </li>
               );

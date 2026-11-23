@@ -14,24 +14,22 @@
  *
  * Çalıştır: npx tsx scripts/uye-yonetimi-faz1/route-integration.harness.ts
  */
-import EmbeddedPostgres from "embedded-postgres";
 import pg from "pg";
-import { readFileSync, rmSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import path from "node:path";
-import os from "node:os";
 import { randomUUID } from "node:crypto";
 import { NextRequest } from "next/server";
 import { startPgrestShim } from "./pgrestShim";
 import { applyMember360Chain } from "../uye-yonetimi-360/migrationChain";
+import { startOwnedEmbeddedPg } from "../uye-yonetimi-faz2/testDbRun";
 
 process.env.LC_ALL = "C";
 process.env.LANG = "C";
 // PostgREST `date` kolonlarını "YYYY-MM-DD" metni olarak döner; shim (node-pg) da aynısını yapsın.
 pg.types.setTypeParser(1082, (v: string) => v);
 
-const DATA_DIR = path.join(os.tmpdir(), "uye-yonetimi-faz1-pgdata");
-try { rmSync(DATA_DIR, { recursive: true, force: true }); } catch { /* temiz başlangıç */ }
-const PORT = 54341;
+// YALITIM (testDbRun.startOwnedEmbeddedPg): koşuya özgü TEMP dizini + boş port; sabit "uye-yonetimi-faz1-pgdata"
+// klasörü artık koşulsuz SİLİNMEZ (paralel koşunun veri dizinini silebiliyordu) ve yalnız kendi postgres'imiz kapatılır.
 const PW = "testpw";
 const ROOT = process.cwd();
 const readMig = (f: string) => readFileSync(path.join(ROOT, "supabase/migrations", f), "utf8");
@@ -108,12 +106,8 @@ const TOK = { owner: "zz-tok-owner-0001", admin2: "zz-tok-admin2-0001" };
 type Client = pg.Client;
 
 async function main(): Promise<void> {
-  const epg = new EmbeddedPostgres({
-    databaseDir: DATA_DIR, user: "postgres", password: PW, port: PORT, persistent: false,
-    initdbFlags: ["--locale=C", "--encoding=UTF8"],
-  });
-  await epg.initialise();
-  await epg.start();
+  const db = await startOwnedEmbeddedPg("uye-yonetimi-faz1-pgdata", { password: PW });
+  const PORT = db.port;
   const su: Client = new pg.Client({ host: "127.0.0.1", port: PORT, user: "postgres", password: PW, database: "postgres" });
   await su.connect();
   const pool = new pg.Pool({ host: "127.0.0.1", port: PORT, user: "postgres", password: PW, database: "postgres", max: 24 });
@@ -908,7 +902,7 @@ async function main(): Promise<void> {
     if (shim) await shim.close();
     await pool.end().catch(() => undefined);
     await su.end().catch(() => undefined);
-    await epg.stop().catch((e: Error) => console.log("(teardown uyarısı)", e.message));
+    await db.stop().catch((e: Error) => console.log("(teardown uyarısı)", e.message));
   }
 
   console.log(`\n──────────\nROUTE ENTEGRASYON: PASS ${pass} · FAIL ${fail}`);

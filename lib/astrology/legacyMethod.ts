@@ -19,28 +19,52 @@ function fmtOffset(sec: number): string {
   return a % 60 === 0 ? hm : `${hm}:${String(a % 60).padStart(2, "0")}`;
 }
 
-/** Revizyonun saklı ofseti, güncel tarihsel saat dilimi tablosuyla (ATL-P1-01 / #471) çözülen ofsetten farklı mı? */
-export function staleTimezoneOffset(r: RevisionLike): { stored: number; current: number } | null {
-  if (!r || r.timeKnown !== true || typeof r.timezone !== "string" || !TZ_BACKZONE_OVERLAY[r.timezone]) return null;
+/**
+ * Saklı ofset ile güncel kural arasındaki kesin çelişki. current: güncel kuralla çözülen ofset; null → saklı yerel saat güncel kurala
+ * göre TEK bir ana çözülemiyor (unresolved: "gap" hiç yaşanmamış / "ambiguous" iki kez yaşanmış ve seçim saklı değil).
+ */
+export type StaleTimezone = { stored: number; current: number | null; unresolved?: "gap" | "ambiguous" };
+
+/**
+ * Revizyonun saklı ofseti, güncel saat dilimi kuralıyla çelişiyor mu? Güncel kural = resolveAstroBirthTime (backzone tablosu +
+ * sürümü sabitlenmiş IANA 2026f tablosu). ATL-P1-01 / #471: önce yalnız backzone bölgeleri denetleniyordu. ATL-TZ-2026F (Owner kararı A,
+ * 17.11.2026): TÜM bölgeler — 2026f'nin değiştirdiği kurallarla (Havana, Winnipeg, Vancouver, Edmonton, Casablanca, …) eski Intl
+ * verisiyle kaydedilmiş revizyonlar da kapsanır; saklı yerel saat güncel kurala göre hiç yaşanmamış ya da seçimsiz iki kez yaşanmışsa
+ * sessiz varsayım yapılmaz (unresolved). Saati bilinmeyen ve eşit ofsetli revizyon → null.
+ */
+export function staleTimezoneOffset(r: RevisionLike): StaleTimezone | null {
+  if (!r || r.timeKnown !== true || typeof r.timezone !== "string") return null;
   if (typeof r.birthDate !== "string" || typeof r.birthTime !== "string" || typeof r.utcOffsetSeconds !== "number") return null;
   const choice = r.dstChoice === "earlier" || r.dstChoice === "later" ? (r.dstChoice as DstChoice) : "auto";
   const res = resolveAstroBirthTime(r.birthDate, r.birthTime, r.timezone, choice);
+  if (res.kind === "gap" || res.kind === "ambiguous") return { stored: r.utcOffsetSeconds, current: null, unresolved: res.kind };
   if (res.kind !== "ok") return null;
   return res.offsetSeconds !== r.utcOffsetSeconds ? { stored: r.utcOffsetSeconds, current: res.offsetSeconds } : null;
 }
 
+/** Güncel kurala göre durum cümlesi (ofset ya da çözülemeyen yerel saat). */
+function currentRuleText(tz: StaleTimezone): string {
+  if (tz.current !== null) return `güncel tabloya göre ${fmtOffset(tz.current)}`;
+  return tz.unresolved === "gap"
+    ? "güncel kurala göre bu yerel saat o gün hiç yaşanmamış (saat değişimi)"
+    : "güncel kurala göre bu yerel saat iki kez yaşanmış ve hangi anın kastedildiği kayıtlı değil";
+}
+
 /** Yeni analiz ekranı (güncel revizyon) uyarı metni. */
-export function staleTimezoneText(tz: { stored: number; current: number }): string {
-  return `Tarihsel saat dilimi tablosu güncellendi: bu doğum için kayıtlı ofset ${fmtOffset(tz.stored)}, güncel tabloya göre ${fmtOffset(tz.current)}. Yanlış sonuç üretilmemesi için bu revizyonla yeni hesaplama yapılmaz; doğum bilgilerini doğrulayıp yeniden kaydedin (yeni revizyon). Kayıtlı eski analizler değişmez.`;
+export function staleTimezoneText(tz: StaleTimezone): string {
+  return `Tarihsel saat dilimi tablosu güncellendi: bu doğum için kayıtlı ofset ${fmtOffset(tz.stored)}, ${currentRuleText(tz)}. Yanlış sonuç üretilmemesi için bu revizyonla yeni hesaplama yapılmaz; doğum bilgilerini doğrulayıp yeniden kaydedin (yeni revizyon). Kayıtlı eski analizler değişmez.`;
 }
 
 /**
  * Owner kararı (2026-10-21): saklı ofseti güncel tarihsel saat dilimi kuralıyla KESİN çelişen revizyonla yeni hesaplama
- * başlatılmaz (planlama aşamasında; önbellek sorgusu ve sağlayıcı çağrısından ÖNCE). Belirsiz (gap/ambiguous), saati bilinmeyen,
- * tablo dışı ve eşit ofsetli revizyonlar ENGELLENMEZ (staleTimezoneOffset null döner).
+ * başlatılmaz (planlama aşamasında; önbellek sorgusu ve sağlayıcı çağrısından ÖNCE). Saati bilinmeyen ve eşit ofsetli revizyonlar
+ * ENGELLENMEZ (staleTimezoneOffset null döner). ATL-TZ-2026F (Owner kararı A, 17.11.2026): kapsam tüm bölgeler; güncel kurala göre
+ * çözülemeyen (hiç yaşanmamış / seçimsiz iki kez yaşanmış) saklı yerel saat de engellenir (sessiz varsayım yok).
  */
 export const STALE_TIMEZONE_BLOCK_CODE = "TIMEZONE_REVISION_STALE";
-export function staleTimezoneBlockText(techniqueLabel: string, who: "danışanın" | "karşı tarafın", revisionNo: number, tz: { stored: number; current: number }): string {
+export function staleTimezoneBlockText(techniqueLabel: string, who: "danışanın" | "karşı tarafın", revisionNo: number, tz: StaleTimezone): string {
+  if (tz.current === null)
+    return `${techniqueLabel}: ${who} doğum profili revizyonu (rev ${revisionNo}) kayıtlı ofset ${fmtOffset(tz.stored)} ile kaydedilmiş; ${currentRuleText(tz)}. Yanlış sonuç üretilmemesi için hesaplama başlatılmadı. Doğum saatini doğrulayıp profili yeniden kaydedin (yeni revizyon); kayıtlı eski analizler değişmez.`;
   return `${techniqueLabel}: ${who} doğum profili revizyonu (rev ${revisionNo}) güncel tarihsel saat dilimi kuralına göre yanlış ofsetle kaydedilmiş (kayıtlı ${fmtOffset(tz.stored)}, doğrusu ${fmtOffset(tz.current)}). Yanlış sonuç üretilmemesi için hesaplama başlatılmadı. Doğum bilgilerini doğrulayıp profili yeniden kaydedin (yeni revizyon); kayıtlı eski analizler değişmez.`;
 }
 
@@ -72,8 +96,10 @@ export function legacyMethodNotes(input: { technique: string; adapterVersion: un
     if (t?.natalHouseStatus?.status === "legacy_polar_provider") out.push({ code: "progression_polar_houses", text: LEGACY_POLAR_NATAL_HOUSE_WARNING });
   }
   for (const { who, revision } of input.revisions) {
-    const tz = staleTimezoneOffset(revision);
-    if (tz)
+    // ATL-TZ-2026F: kayıtlı analiz notu (ekran + Word/PDF) BİLİNÇLİ olarak eski kapsamda — yalnız backzone bölgesi ve sayısal ofset
+    // farkı. 2026f bölgelerindeki eski analizlerin görünümü ve raporu değişmez (Owner kararı A, madde 3); engel yalnız yeni hesapta.
+    const tz = revision && typeof revision.timezone === "string" && TZ_BACKZONE_OVERLAY[revision.timezone] ? staleTimezoneOffset(revision) : null;
+    if (tz && tz.current !== null)
       out.push({
         code: "historical_timezone",
         text: `Tarihsel saat dilimi tablosu bu kayıttan sonra güncellendi: ${who} doğum anı için kayıttaki ofset ${fmtOffset(tz.stored)}, güncel tabloya göre ${fmtOffset(tz.current)}. Güncel ofsetle hesap için doğum bilgileri yeniden kaydedilmelidir (yeni revizyon).`,

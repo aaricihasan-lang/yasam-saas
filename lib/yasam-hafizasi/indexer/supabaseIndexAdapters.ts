@@ -145,6 +145,7 @@ export function sourceSelectColumns(config: SourceConfig): string[] {
   for (const c of config.relationColumns) cols.add(c);
   if (config.updatedAtColumn !== null) cols.add(config.updatedAtColumn);
   if (config.activeColumn !== null) cols.add(config.activeColumn);
+  if (typeof config.ownerColumn === "string" && config.ownerColumn.length > 0) cols.add(config.ownerColumn);
   for (const c of config.extraSelectColumns ?? []) cols.add(c);
   // Türetilmiş anahtarlar DB kolonu DEĞİLDİR → select'e girmez (enrichSourceRows doldurur).
   for (const c of config.derivedColumns ?? []) cols.delete(c);
@@ -428,6 +429,55 @@ async function readBeslenmeExact(
   return { rows: [] };
 }
 
+// ─── Şifa Rehberi V2 kişisel notlar: çöp kapısı (IO) ──────────────────────────
+/** sources.ts "sifa_rehberi_v2:notes" ile birebir (statik). */
+export const SIFA_V2_SOURCE_KEY = "sifa_rehberi_v2:notes";
+const SIFA_V2_TOPICS_TABLE = "sifa_topics";
+/** Ağaç derinlik tavanı (V2 tetikleyicisi 20 seviye zorlar; savunma için biraz üstü). */
+const SIFA_V2_MAX_DEPTH = 25;
+
+/**
+ * Kutu çöpteyse (deleted_at) veya konusu / üst konularından BİRİ çöpteyse ya da zincir çözülemiyorsa
+ * satır DÜŞÜRÜLÜR → indekslenmez (exact yolda "kaynak yok" → defensive deindex). Konular yalnız aynı
+ * tenant + aynı sahip (owner_key) kapsamında okunur; başka uzmanın konusu zincire giremez (fail-closed).
+ */
+async function filterSifaV2Live(db: IndexDbClient, rows: Record<string, unknown>[]): Promise<Record<string, unknown>[]> {
+  const live = rows.filter((r) => r["deleted_at"] === null || r["deleted_at"] === undefined);
+  const scopes = new Map<string, { tenant: string; owner: string }>();
+  for (const r of live) {
+    const t = r["tenant_id"];
+    const o = r["owner_key"];
+    if (typeof t === "string" && typeof o === "string") scopes.set(`${t}|${o}`, { tenant: t, owner: o });
+  }
+  const topics = new Map<string, { parent: string | null; deleted: boolean; scope: string }>();
+  for (const [key, s] of scopes) {
+    const { data, error } = await db
+      .from(SIFA_V2_TOPICS_TABLE)
+      .select("id,parent_id,deleted_at")
+      .eq("tenant_id", s.tenant)
+      .eq("owner_key", s.owner);
+    if (error) throw new Error("source-read-failed"); // ham mesaj taşınmaz
+    for (const t of data ?? []) {
+      const id = t["id"];
+      if (typeof id !== "string") continue;
+      const parent = t["parent_id"];
+      topics.set(`${key}|${id}`, { parent: typeof parent === "string" ? parent : null, deleted: t["deleted_at"] !== null && t["deleted_at"] !== undefined, scope: key });
+    }
+  }
+  return live.filter((r) => {
+    const key = `${String(r["tenant_id"])}|${String(r["owner_key"])}`;
+    let cur: string | null = typeof r["topic_id"] === "string" ? (r["topic_id"] as string) : null;
+    if (cur === null) return false;
+    for (let depth = 0; cur !== null; depth++) {
+      if (depth > SIFA_V2_MAX_DEPTH) return false;
+      const t = topics.get(`${key}|${cur}`);
+      if (!t || t.deleted) return false; // bulunamayan / başka kapsam / çöpte → düşür
+      cur = t.parent;
+    }
+    return true;
+  });
+}
+
 // ─── SourceReader (gerçek) ────────────────────────────────────────────────────
 export function createSupabaseSourceReader(db: IndexDbClient): SourceReader {
   return {
@@ -437,6 +487,9 @@ export function createSupabaseSourceReader(db: IndexDbClient): SourceReader {
       if (config.sourceKey === METHOD_SOURCE_KEY) return { rows: [] };
       // Beslenme aggregate: sayfa/backfill YOK (tarihsel kayıtlar outbox replay ile exact yoldan gelir).
       if (BESLENME_SOURCE_KEYS.includes(config.sourceKey)) return { rows: [] };
+      // Şifa V2 kişisel notları: sayfa/backfill YOK (çöp kapısı satır düşürür → kısa sayfa "bitti" sanılmasın).
+      // Tarihsel kayıtlar yh_sifa_v2_replay_enqueue ile outbox'a girer ve exact yoldan indekslenir.
+      if (config.sourceKey === SIFA_V2_SOURCE_KEY) return { rows: [] };
       const columns = sourceSelectColumns(config).join(",");
       let q = db
         .from(config.tableName)
@@ -473,7 +526,8 @@ export function createSupabaseSourceReader(db: IndexDbClient): SourceReader {
 
       const { data, error } = await q;
       if (error) throw new Error("source-read-failed"); // ham mesaj taşınmaz
-      const rows = (data ?? []).map((r) => ({ ...r })); // shallow clone → saf çekirdek
+      let rows = (data ?? []).map((r) => ({ ...r })); // shallow clone → saf çekirdek
+      if (config.sourceKey === SIFA_V2_SOURCE_KEY) rows = await filterSifaV2Live(db, rows);
       return { rows: await enrichSourceRows(db, config, rows) };
     },
   };

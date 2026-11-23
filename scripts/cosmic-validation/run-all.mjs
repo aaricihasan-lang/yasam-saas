@@ -137,10 +137,12 @@ const HARNESSES = [
     name: "FAZ 5 P5e-1 — Timezone Render Smoke",
     dir: join(HERE, "global"),
     engine: "lib/location/tz.ts (Intl render helpers)",
-    // py→prod→compare DEĞİL: tek node scripti (SWE'siz, saf Intl). ref adımı yok →
+    // py→prod→compare DEĞİL: tek script (SWE'siz, saf Intl). ref adımı yok →
     // hem full hem --engine-only'de çalışır. Script fail'de exit 1 → stepFail yakalar.
+    // KZM-TZ-01: lib/location/tz.ts artık ortak IANA çekirdeğini (lib/time/tzdb, uzantısız TS içe aktarımları) kullanır →
+    // saf `node` bunu çözemez; tsx ile çalışır (betik ve beklentileri değişmedi).
     steps: [
-      { kind: "node", file: "tz_render_smoke.mjs", capture: true },
+      { kind: "tsx", file: "tz_render_smoke.mjs", capture: true },
     ],
     extract: (t) => ({
       smoke:       g1(t, /SONUÇ:\s*\S+\s+(PASS|FAIL)/),

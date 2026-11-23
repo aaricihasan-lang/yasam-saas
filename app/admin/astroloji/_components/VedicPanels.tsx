@@ -25,6 +25,7 @@ export { toKundliData, toVargaChartData, kundliTitles, localizeKundliDom } from 
 import { toKundliData, toVargaChartData, kundliTitles } from "../_lib/kundliData";
 import { applyCentreText } from "../_lib/chalitKundli";
 import { VedicYogaTable } from "./VedicYogaTable";
+import { VEDIC_YOGA_INFO, isVedicYogaDetectId } from "@/lib/astrology/model/vedicYoga";
 
 const th = "px-2 py-1.5 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500";
 const td = "px-2 py-1.5 text-sm text-slate-800";
@@ -164,11 +165,12 @@ export function VedicD1Panel({ t, kbLookup }: { t: VedicD1Technical; kbLookup?: 
           ))}
         </div>
       </div>
-      <div className="grid min-w-0 gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-        <div className="vedic-kundli-frame mx-auto w-full max-w-[520px]">
+      {/* Y5 (15.11.2026): harita + ayrıntı yan yana yalnız kap genişliği yetiyorsa (harita en az 22rem) — dar sol panelde etiketler küçülüyordu. */}
+      <div className="flex min-w-0 flex-wrap items-start gap-3">
+        <div className="vedic-kundli-frame mx-auto w-full min-w-0 max-w-[520px] flex-[1_1_22rem]">
           <RoxyKundli data={data} style={style} titles={titles} />
         </div>
-        <section className="min-w-0 rounded-xl border border-amber-200 bg-amber-50/40 p-3" aria-label="Seçili graha ayrıntısı" data-testid="astro-vedic-detail">
+        <section className="min-w-0 flex-[1_1_16rem] rounded-xl border border-amber-200 bg-amber-50/40 p-3" aria-label="Seçili graha ayrıntısı" data-testid="astro-vedic-detail">
           <h4 className="mb-1 text-sm font-semibold text-amber-900">{selected ? GRAHA_LABELS[selected.id] : "Lagna"}</h4>
           <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm">
             <dt className="text-slate-500">Rashi</dt>
@@ -356,7 +358,17 @@ export function VedicD1Panel({ t, kbLookup }: { t: VedicD1Technical; kbLookup?: 
                   {y.family}
                   {y.quality ? ` · sınıf: ${y.quality === "positive" ? "olumlu" : y.quality === "negative" ? "olumsuz" : "karma"}` : ""}
                 </span>
-                {y.evidence && <div className="text-xs text-slate-600">Oluşum: {y.evidence}</div>}
+                {/* K2 (15.11.2026): oluşum kuralı Türkçe kural tablosundan; hizmetin İngilizce kanıt cümlesi yalnız açılır ayrıntıda,
+                    "özgün İngilizce metin" diye işaretli (çeviri uydurulmaz). */}
+                {isVedicYogaDetectId(y.id) && <div className="text-xs text-slate-600" data-testid="astro-vedic-yoga-formation">Oluşum kuralı: {VEDIC_YOGA_INFO[y.id].formation}</div>}
+                {y.evidence && (
+                  <details className="text-xs text-slate-500" data-testid="astro-vedic-yoga-evidence">
+                    <summary className="cursor-pointer select-none">Hesaplama hizmetinin kanıt notu (özgün İngilizce metin)</summary>
+                    <div className="mt-0.5 break-words" lang="en">
+                      {y.evidence}
+                    </div>
+                  </details>
+                )}
               </li>
             ))}
           </ul>
@@ -504,11 +516,12 @@ export function VedicVargaPanel({ t, kbLookup }: { t: VedicVargaTechnical; kbLoo
         <StyleTabs style={style} setStyle={setStyle} />
       </div>
       <VargaVerification t={t} />
-      <div className="grid min-w-0 gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-        <div className="mx-auto w-full max-w-[520px]">
+      {/* Y5 (15.11.2026): harita + ayrıntı yan yana yalnız kap genişliği yetiyorsa (harita en az 22rem) — dar sol panelde etiketler küçülüyordu. */}
+      <div className="flex min-w-0 flex-wrap items-start gap-3">
+        <div className="mx-auto w-full min-w-0 max-w-[520px] flex-[1_1_22rem]">
           <RoxyKundli data={data} style={style} kind="divisional" titles={titles} />
         </div>
-        <section className="min-w-0 rounded-xl border border-amber-200 bg-amber-50/40 p-3" aria-label="Seçili nokta ayrıntısı" data-testid="astro-vedic-varga-detail">
+        <section className="min-w-0 flex-[1_1_16rem] rounded-xl border border-amber-200 bg-amber-50/40 p-3" aria-label="Seçili nokta ayrıntısı" data-testid="astro-vedic-varga-detail">
           <h4 className="mb-1 text-sm font-semibold text-amber-900">
             {label(sel)} · {dl}
           </h4>

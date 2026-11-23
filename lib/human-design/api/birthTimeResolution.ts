@@ -1,11 +1,18 @@
 // HD — Yerel doğum zamanı → UTC çözümü, DST belirsizlik/boşluk TESPİTİ ile (SAF).
 //
-// Dahili motorun localDateTimeToUtc'si (değiştirilmedi) DST boşluğu/çakışmasında sessizce
-// bir değer seçer. Otomatik hesap hattında bu KABUL EDİLMEZ:
+// Dahili motorun localDateTimeToUtc'si DST boşluğu/çakışmasında sessizce bir değer seçiyordu. Otomatik hesap hattında bu
+// KABUL EDİLMEZ:
 //   • "gap"       — yerel saat o gün hiç yaşanmamış (ileri alma).        → hesap YOK.
 //   • "ambiguous" — yerel saat iki kez yaşanmış (geri alma).             → hesap YOK.
 //   • "ok"        — tek geçerli UTC anı (saniye hassasiyetli; LMT dahil).
-// Intl (IANA tzdata) kullanılır; yaklaşık/dakika yuvarlaması yapılmaz.
+// HD-TZ (18.11.2026): ofset ortak IANA 2026f çekirdeğinden (lib/time/tzdb; Gökyüzü Atlası ile AYNI tablo + 1970 öncesi
+// backzone katmanı). Çalışma ortamının Intl/ICU tz verisi (ör. Node 24 = 2026a) KULLANILMAZ — sunucu ve tarayıcı aynı sonucu
+// verir. Yaklaşık/dakika yuvarlaması yapılmaz. Boşluk/çakışma politikası (güvenli ret) değişmedi.
+
+import { isValidIanaTimeZone as tzdbIsValidIanaTimeZone, localTimeCandidates, wallClockMs as tzdbWallClockMs } from "../../time/tzdb/core";
+
+/** HD doğum anı politikası: IANA tablosu + backzone (Gökyüzü Atlası ile aynı tarihsel ofsetler). */
+const HD_TZDB_OPTIONS = { backzone: true } as const;
 
 export type BirthTimeResolution =
   | { kind: "ok"; utcIso: string; offsetSeconds: number }
@@ -16,27 +23,9 @@ export type BirthTimeResolution =
 const DATE_RE = /^(\d{4})-(\d{2})-(\d{2})$/;
 const TIME_RE = /^(\d{2}):(\d{2})(?::(\d{2}))?$/;
 
-/** Bir UTC anında, tz'deki duvar saatinin UTC epoch karşılığı (ms) — ofseti verir. */
+/** Bir UTC anında, tz'deki duvar saatinin "naif UTC" ms karşılığı — ofseti verir (IANA 2026f + backzone). */
 function wallClockMs(utcMs: number, timeZone: string): number {
-  const dtf = new Intl.DateTimeFormat("en-US", {
-    timeZone,
-    hourCycle: "h23",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    era: "short",
-  });
-  const parts = dtf.formatToParts(new Date(utcMs));
-  const get = (t: Intl.DateTimeFormatPartTypes) => Number(parts.find((p) => p.type === t)?.value ?? "0");
-  const era = parts.find((p) => p.type === "era")?.value ?? "AD";
-  const y = era === "BC" ? 1 - get("year") : get("year");
-  const d = new Date(0);
-  d.setUTCFullYear(y, get("month") - 1, get("day"));
-  d.setUTCHours(get("hour"), get("minute"), get("second"), 0);
-  return d.getTime();
+  return tzdbWallClockMs(utcMs, timeZone, HD_TZDB_OPTIONS);
 }
 
 /** HH:mm veya HH:mm:ss → HH:mm:ss (Roxy biçimi). Geçersizse null. */
@@ -50,14 +39,9 @@ export function toHms(time: string): string | null {
   return `${m[1]}:${m[2]}:${String(s).padStart(2, "0")}`;
 }
 
+/** IANA bölge adı denetimi — ortak çekirdek (sabit IANA tablosundaki ad, eski Intl tanımasa da geçerlidir). */
 export function isValidIanaTimeZone(tz: string): boolean {
-  if (!tz || !/^[A-Za-z_]+(?:\/[A-Za-z0-9_+\-]+)+$|^UTC$/.test(tz)) return false;
-  try {
-    new Intl.DateTimeFormat("en-US", { timeZone: tz });
-    return true;
-  } catch {
-    return false;
-  }
+  return tzdbIsValidIanaTimeZone(tz);
 }
 
 export function resolveBirthLocalTime(date: string, time: string, timeZone: string): BirthTimeResolution {
@@ -77,24 +61,13 @@ export function resolveBirthLocalTime(date: string, time: string, timeZone: stri
   }
   const naiveMs = naive.getTime();
 
-  // Aday ofsetler: ±1 gün içindeki tüm farklı ofsetler (bir geçişin iki yanı).
-  const offsets = new Set<number>();
-  for (const probe of [-36, -12, 0, 12, 36]) {
-    const t = naiveMs + probe * 3_600_000;
-    offsets.add(wallClockMs(t, timeZone) - t);
-  }
-  const valid: { utcMs: number; offset: number }[] = [];
-  for (const off of offsets) {
-    const utcMs = naiveMs - off;
-    if (wallClockMs(utcMs, timeZone) === naiveMs && !valid.some((v) => v.utcMs === utcMs)) {
-      valid.push({ utcMs, offset: off });
-    }
-  }
+  // Tüm geçerli UTC anları (ortak çekirdek): [] = boşluk · 1 = tek an · 2+ = çakışma.
+  const valid = localTimeCandidates(naiveMs, timeZone, HD_TZDB_OPTIONS);
   if (valid.length === 0) return { kind: "gap" };
   if (valid.length > 1) {
-    return { kind: "ambiguous", offsetsSeconds: valid.map((v) => v.offset / 1000).sort((a, b) => a - b) };
+    return { kind: "ambiguous", offsetsSeconds: valid.map((v) => v.offsetSeconds).sort((a, b) => a - b) };
   }
-  return { kind: "ok", utcIso: new Date(valid[0].utcMs).toISOString(), offsetSeconds: valid[0].offset / 1000 };
+  return { kind: "ok", utcIso: new Date(valid[0].utcMs).toISOString(), offsetSeconds: valid[0].offsetSeconds };
 }
 
 // ── HD-14 / HD-29: yaz saati boşluğu ve çakışması — TEK kaynak mesaj + tespit ──────────────────

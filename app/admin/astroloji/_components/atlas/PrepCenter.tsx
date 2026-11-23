@@ -43,7 +43,7 @@ export type PrepRevision = {
   timezone: string;
   utcOffsetSeconds: number;
   /** YENİ-P2-03: saklı ofset güncel tarihsel saat dilimi tablosundan farklı (sunucu okuma anında işaretler). */
-  staleTimezone?: { storedOffsetSeconds: number; currentOffsetSeconds: number; text: string };
+  staleTimezone?: { storedOffsetSeconds: number; currentOffsetSeconds: number | null; text: string };
   /** ATL-P2-07: saklı ofset temsilci şehrin yerel ortalama saati; doğum yeri boylamından farklı (yalnız uyarı). */
   lmtNotice?: { storedOffsetSeconds: number; localMeanOffsetSeconds: number; text: string };
 };

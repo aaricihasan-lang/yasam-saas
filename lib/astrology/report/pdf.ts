@@ -7,6 +7,8 @@
 // oranı korunur ve sayfaya sığdırılır. Boş sayfa açılmaz (yeni sayfa yalnız yazılacak içerik varken).
 
 import { jsPDF } from "jspdf";
+import type { ExpertBranding } from "@/lib/docx/expertBranding";
+import { drawExpertSignaturePdf, WORD_CARD_PDF_SPACING } from "@/lib/pdf/expertBrandingPdf";
 import type { AstroReport, ReportBlock, ReportTable } from "./model";
 import { isWideFigure } from "./figures";
 import { fontRuns, hasSymbolChars, type FontKey } from "./symbolFonts";
@@ -260,11 +262,51 @@ function cover(w: W, r: AstroReport) {
 
 type ChartImg = { png: Buffer; width: number; height: number };
 
+/** Markalama seçenekleri. `balancedSignature` yalnız Horary PDF'te açıktır (görsel kabul 11.11); diğer PDF'ler değişmez. */
+export type AstroPdfBrand = {
+  branding?: ExpertBranding | null;
+  /**
+   * Horary PDF (görsel kabul 11.11): imza kartı Word kartının ölçüleriyle (punto aynı) çizilir; kart + uzman notu son sayfaya
+   * sığmayıp yeni sayfaya TEK BAŞINA düşüyorsa son ana bölüm (başlığıyla) kartla birlikte yeni sayfada başlar — içerik
+   * sırası / metni aynen. Markalama yoksa etkisizdir (PDF bugünküyle birebir).
+   */
+  balancedSignature?: boolean;
+};
+
 /**
  * `chartIn`: tekli raporda tek görsel; toplu raporda (UAT 2. tur, madde L) "chart" bloklarıyla AYNI sırada görsel dizisi.
  * Toplu raporda her analiz yeni sayfada başlar ve PDF yer imi (bookmark) olarak eklenir.
  */
-export function buildAstroReportPdf(r: AstroReport, chartIn: ChartImg | null | (ChartImg | null)[], fontBase64: string, symbolFonts: SymbolFontsB64 = null): Uint8Array {
+export function buildAstroReportPdf(
+  r: AstroReport,
+  chartIn: ChartImg | null | (ChartImg | null)[],
+  fontBase64: string,
+  symbolFonts: SymbolFontsB64 = null,
+  /** F3B: Word ile AYNI markalama verisi (yalnız anahtar açıkken; null / yok → PDF bugünküyle birebir). */
+  brand: AstroPdfBrand = {},
+): Uint8Array {
+  const first = renderAstroPdf(r, chartIn, fontBase64, symbolFonts, brand, -1);
+  if (!brand.balancedSignature || !first.signatureAlone) return first.bytes;
+  // Dengeli akış: kart (+ dipnot) yeni sayfada tek başına kaldıysa son ana bölüm kartla birlikte yeni sayfada başlar.
+  // Yalnız kart artık tek başına değilse, sayfa sayısı artmıyorsa ve bölümün ayrıldığı sayfa en az yarı doluysa uygulanır.
+  let last = -1;
+  r.blocks.forEach((b, i) => { if (b.kind === "heading" && b.level === 1) last = i; });
+  if (last < 0) return first.bytes;
+  const second = renderAstroPdf(r, chartIn, fontBase64, symbolFonts, brand, last);
+  const ok = !second.signatureAlone && second.pages <= first.pages && second.breakY >= TOP + (PAGE_H - TOP - BOTTOM) / 2;
+  return ok ? second.bytes : first.bytes;
+}
+
+function renderAstroPdf(
+  r: AstroReport,
+  chartIn: ChartImg | null | (ChartImg | null)[],
+  fontBase64: string,
+  symbolFonts: SymbolFontsB64,
+  brand: AstroPdfBrand,
+  /** Bu blok yeni sayfada başlar (-1: yok). Yalnız dengeli imza akışının ikinci geçişi kullanır. */
+  breakAt: number,
+): { bytes: Uint8Array; pages: number; signatureAlone: boolean; breakY: number } {
+  let breakY = 0;
   const charts = Array.isArray(chartIn) ? chartIn : [chartIn];
   let chartIdx = 0;
   let sectionStart = false;
@@ -274,6 +316,10 @@ export function buildAstroReportPdf(r: AstroReport, chartIn: ChartImg | null | (
   w.newPage();
   w.para(r.title, 15, INK, MX, CW, 4);
   r.blocks.forEach((b, i) => {
+    if (i === breakAt && w.y > TOP) {
+      breakY = w.y;
+      w.newPage();
+    }
     switch (b.kind) {
       case "heading":
         if (sectionStart && b.level === 1) {
@@ -337,6 +383,20 @@ export function buildAstroReportPdf(r: AstroReport, chartIn: ChartImg | null | (
     }
   });
   w.para("Rapor Yaşam Sistemi Astroloji modülünde, kayıtlı analizden oluşturulmuştur.", 7.8, LIGHT);
+  // F3B: "Hazırlayan" imza kartı — ortak PDF yardımcısı; Word'deki kartla aynı alanlar.
+  // Horary (balancedSignature): kartın ilk yerleşiminde yeni sayfa açıldıysa kart (+ dipnot) o sayfada tek başınadır.
+  let firstEnsure = true;
+  let signatureAlone = false;
+  drawExpertSignaturePdf(w.doc, brand.branding, {
+    get y() { return w.y; },
+    set y(v: number) { w.y = v; },
+    ensure: (h: number) => {
+      const p = w.doc.getNumberOfPages();
+      w.ensure(h);
+      if (firstEnsure) signatureAlone = w.doc.getNumberOfPages() > p;
+      firstEnsure = false;
+    },
+  }, { font: "Geist", x: MX, width: CW, accent: ACCENT, ink: INK, mid: MID, light: LIGHT, fill: [248, 250, 252], ...(brand.balancedSignature ? WORD_CARD_PDF_SPACING : {}) });
 
   const total = w.doc.getNumberOfPages();
   for (let p = 1; p <= total; p++) {
@@ -347,5 +407,5 @@ export function buildAstroReportPdf(r: AstroReport, chartIn: ChartImg | null | (
     if (p > 1) w.doc.text("Yaşam Sistemi · Astroloji", PAGE_W - MX, 10, { align: "right" });
     w.doc.text(`Sayfa ${p} / ${total}`, PAGE_W / 2, PAGE_H - 9, { align: "center" });
   }
-  return new Uint8Array(w.doc.output("arraybuffer"));
+  return { bytes: new Uint8Array(w.doc.output("arraybuffer")), pages: total, signatureAlone, breakY };
 }

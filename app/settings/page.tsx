@@ -40,10 +40,11 @@ import { MembershipSettingsTab, MEMBERSHIP_TAB_ICON } from "./MembershipSettings
 import MySessionsPanel from "@/components/settings/MySessionsPanel";
 import MyLoginMethodsPanel from "@/components/settings/MyLoginMethodsPanel";
 import { WorkspaceSettingsTab, useWorkspaceAccess } from "./WorkspaceSettingsTab";
+import { PROFILE_LEAVE_MESSAGE, PROFILE_TAB_ICON, ProfileSettingsTab } from "./ProfileSettingsTab";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type Tab = "security" | "location" | "contact" | "export" | "backup" | "restore" | "workspace" | "membership";
+type Tab = "security" | "profile" | "location" | "contact" | "export" | "backup" | "restore" | "workspace" | "membership";
 
 type SupportMessage = {
   id: string;
@@ -60,6 +61,7 @@ type SupportMessage = {
 
 const TABS: { id: Tab; label: string; icon: React.ElementType }[] = [
   { id: "security",  label: "Hesap Güvenliği",    icon: KeyRound      },
+  { id: "profile",   label: "Profilim",           icon: PROFILE_TAB_ICON },
   { id: "location",  label: "Konum",               icon: MapPin        },
   { id: "contact",   label: "Admin ile İrtibat",   icon: MessageSquare },
   { id: "export",    label: "Dışa Aktarım",        icon: FileText      },
@@ -640,7 +642,13 @@ export default function SettingsPage() {
   // storedUserRaw değişince yeniden ayrıştır (readYasamUser şema doğrulamasını yapar).
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const user = useMemo<YasamUser | null>(() => (checked ? readYasamUser() : null), [checked, storedUserRaw]);
-  const [tab,     setTab]     = useState<Tab>("security");
+  const [tab,     setTabState] = useState<Tab>("security");
+  // Profilim: kaydedilmemiş değişiklik varken sekme değişimi onay ister.
+  const [profileDirty, setProfileDirty] = useState(false);
+  const setTab = (id: Tab) => {
+    if (tab === "profile" && id !== "profile" && profileDirty && !window.confirm(PROFILE_LEAVE_MESSAGE)) return;
+    setTabState(id);
+  };
   const workspaceAccess = useWorkspaceAccess(!!user);
   const tabs = workspaceAccess.status === "on" ? [...TABS, WORKSPACE_TAB] : TABS;
 
@@ -731,6 +739,7 @@ export default function SettingsPage() {
           ) : (
             <>
               {tab === "security"  && <SecurityTabWithSessions user={user} />}
+              {tab === "profile"   && <ProfileSettingsTab readOnly={isDemo} onDirtyChange={setProfileDirty} />}
               {tab === "location"  && <LocationTab user={user} />}
               {tab === "contact"   && <ContactTab  user={user} />}
               {tab === "export"    && <ExportTab   user={user} />}

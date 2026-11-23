@@ -8,6 +8,7 @@
 import "server-only";
 import { assertServerOnly } from "@/lib/server/serverOnlyGuard";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import type { ExpertBranding } from "@/lib/docx/expertBranding";
 import { isUuid, validateDraftRef, type ClassicDraftRefInput, type Validation } from "../input";
 import {
   buildBusinessReport,
@@ -95,7 +96,11 @@ export function validateReportRequest(body: unknown): Validation<ClassicReportRe
   return { ok: true, value: { kind, analysisId: a.value, draft, legacyId: l.value, noteId: n.value, variant, include } };
 }
 
-export type ReportCtx = { db: SupabaseClient; tenantId: string; viewerId: string; expertName: string | null; futureYears?: boolean; canSeeStock?: boolean; now?: () => Date };
+export type ReportCtx = {
+  db: SupabaseClient; tenantId: string; viewerId: string; expertName: string | null; futureYears?: boolean; canSeeStock?: boolean; now?: () => Date;
+  /** F3A: render-hazır uzman markalaması (null/yok → çıktı birebir; veri kaynağı F1/F2). */
+  branding?: ExpertBranding | null;
+};
 
 export type ReportOutcome =
   | { ok: true; buffer: Buffer; filename: string; resourceId: string }
@@ -118,7 +123,7 @@ export async function buildClassicReport(
   draftRowOverride: ClassicAnalysisRow | null = null,
 ): Promise<ReportOutcome> {
   const at = (ctx.now ?? (() => new Date()))();
-  const common = { generatedAt: at, expertName: ctx.expertName };
+  const common = { generatedAt: at, expertName: ctx.expertName, branding: ctx.branding ?? null };
 
   if (req.kind === "comparison") {
     let pair: ComparePairRequest = { legacyId: req.legacyId, classicId: req.analysisId };

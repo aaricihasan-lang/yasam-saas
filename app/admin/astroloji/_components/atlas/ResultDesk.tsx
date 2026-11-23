@@ -705,7 +705,8 @@ function NightDesk({
  *     ayrıntı), uyarılar, birincil işlem (Kaydet) ve kısa işlemler; "⋯" ikincil işlemler (kayıtlı analizi aç, dosyaya / teknik
  *     seçimine dönüş, Atlas ana sayfası). Altında solda dikey BÖLÜM RAYI (her bölüm tek tıkla), sağda bölüm içeriği (kendi
  *     içinde kayar). Sürekli görünen "Kaydedildi" etiketi, geri oku ve üst yorum düğmesi kaldırıldı (işlevler korunur).
- *   • Harita | bilgi ayırıcısı sürüklenebilir (varsayılan %62 / %38; kullanıcı başına hatırlanır).
+ *   • Harita | bilgi ayırıcısı sürüklenebilir (varsayılan OTOMATİK: en çok %62 harita, bilgi paneli en az ~480 px; kullanıcı
+ *     başına hatırlanır).
  *   • Tablet / telefon (<1024 px): iki kolon zorlanmaz → kimlik + işlemler, harita (araç satırıyla), bölüm seçici + içerik.
  * Yıldız, parlama, yörünge, 3D süs YOK. Gece kabuğu yalnız bu masa açıkken ana alanda açık zemine döner.
  */
@@ -714,6 +715,11 @@ const SPLIT_DEFAULT = 0.62;
 const SPLIT_DIVIDER = 14; // görünür çizgi ince, yakalama alanı 14px
 const SPLIT_MIN_CHART = 320;
 const SPLIT_MIN_PANEL = 340; // sağ bilgi kolonu (kimlik + bölüm rayı + içerik) bundan daralmaz; tablolar panelin İÇİNDE kayar
+/** Y3 (15.11.2026): varsayılan (otomatik) düzende bilgi panelinin hedef genişliği. Sabit %62 / %38, 1366 px'te yan menü açıkken
+ *  paneli ~329 px'e (390 px telefondan dar) düşürüyor, progresyon / Solar Arc tablolarının sütunları ilk bakışta gizleniyordu.
+ *  Otomatik oran = min(%62, 1 − hedef / kullanılabilir genişlik); harita yine SPLIT_MIN_CHART altına inmez. Kullanıcının
+ *  sürükleyerek seçtiği oran korunur; Enter / çift tık otomatik düzene döndürür. */
+const SPLIT_AUTO_PANEL = 480;
 /** İki kolonlu masa için gereken en küçük masa genişliği (harita ≥ ~500 px + bilgi ≥ 340 px). */
 const DESK_MIN_W = 860;
 /** Tercih: yalnız bu tarayıcı + bu kullanıcı (başka uzmanın ayarını etkilemez). Okunamazsa varsayılan. */
@@ -724,6 +730,13 @@ function readSplit(): number | null {
     return Number.isFinite(v) && v > 0.05 && v < 0.95 ? v : null;
   } catch {
     return null;
+  }
+}
+function clearSplit() {
+  try {
+    window.localStorage.removeItem(splitKey());
+  } catch {
+    /* depolama kapalı olabilir */
   }
 }
 function writeSplit(v: number) {
@@ -997,7 +1010,8 @@ function LightDesk({ backLabel, onBack, eyebrow, title, subtitle, details, meta,
   const deskRef = useRef<HTMLDivElement | null>(null);
   const [box, setBox] = useState<{ w: number; h: number } | null>(null);
   const [overlay, setOverlay] = useState(false);
-  const [split, setSplit] = useState<number>(() => (typeof window === "undefined" ? SPLIT_DEFAULT : (readSplit() ?? SPLIT_DEFAULT)));
+  // null = otomatik (masa genişliğine göre); sayı = kullanıcının sürükleyerek seçtiği oran.
+  const [split, setSplit] = useState<number | null>(() => (typeof window === "undefined" ? null : readSplit()));
   const [dragging, setDragging] = useState(false);
   const drag = useRef<{ x: number; colW: number } | null>(null);
   const panelRef = useRef<HTMLDivElement | null>(null);
@@ -1125,13 +1139,18 @@ function LightDesk({ backLabel, onBack, eyebrow, title, subtitle, details, meta,
   const minR = Math.min(0.5, SPLIT_MIN_CHART / usable);
   const maxR = Math.max(0.5, 1 - SPLIT_MIN_PANEL / usable);
   const clampSplit = (r: number) => Math.min(maxR, Math.max(minR, r));
-  const ratio = clampSplit(split);
+  const autoRatio = clampSplit(Math.min(SPLIT_DEFAULT, 1 - SPLIT_AUTO_PANEL / usable));
+  const ratio = split === null ? autoRatio : clampSplit(split);
   const chartColW = Math.floor(usable * ratio);
   const infoColW = usable - chartColW;
   const commitSplit = (r: number) => {
     const v = clampSplit(r);
     setSplit(v);
     writeSplit(v);
+  };
+  const resetSplit = () => {
+    setSplit(null);
+    clearSplit();
   };
   const onDividerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     if (e.pointerType === "mouse" && e.button !== 0) return;
@@ -1165,7 +1184,7 @@ function LightDesk({ backLabel, onBack, eyebrow, title, subtitle, details, meta,
     else if (e.key === "ArrowRight") commitSplit(ratio + step);
     else if (e.key === "Home") commitSplit(minR);
     else if (e.key === "End") commitSplit(maxR);
-    else if (e.key === "Enter") commitSplit(SPLIT_DEFAULT);
+    else if (e.key === "Enter") resetSplit();
     else return;
     e.preventDefault();
   };
@@ -1425,19 +1444,19 @@ function LightDesk({ backLabel, onBack, eyebrow, title, subtitle, details, meta,
             role="separator"
             aria-orientation="vertical"
             aria-controls="atlas-result-panel"
-            aria-label="Harita ile bilgi paneli arasındaki ayırıcı. Sağ ve sol ok tuşlarıyla genişliği ayarlayın (Shift ile hızlı), Enter ile yüzde 62 / 38 başlangıç düzenine dönün."
+            aria-label="Harita ile bilgi paneli arasındaki ayırıcı. Sağ ve sol ok tuşlarıyla genişliği ayarlayın (Shift ile hızlı), Enter ile otomatik başlangıç düzenine dönün."
             aria-valuemin={Math.round(minR * 100)}
             aria-valuemax={Math.round(maxR * 100)}
             aria-valuenow={pctChart}
             aria-valuetext={`Harita yüzde ${pctChart}, bilgi paneli yüzde ${100 - pctChart}`}
             tabIndex={0}
-            title="Sürükleyerek genişliği ayarlayın · çift tık: %62 / %38"
+            title="Sürükleyerek genişliği ayarlayın · çift tık: otomatik düzen"
             onPointerDown={onDividerDown}
             onPointerMove={onDividerMove}
             onPointerUp={endDrag}
             onPointerCancel={endDrag}
             onLostPointerCapture={endDrag}
-            onDoubleClick={() => commitSplit(SPLIT_DEFAULT)}
+            onDoubleClick={resetSplit}
             onKeyDown={onDividerKey}
             className="group relative flex cursor-col-resize touch-none select-none justify-center outline-none"
             data-testid="atlas-desk-divider"

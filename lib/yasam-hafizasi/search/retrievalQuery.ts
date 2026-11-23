@@ -128,7 +128,7 @@ export function buildRetrievalQuery(
   if (rawVis === null || typeof rawVis !== "object") {
     return noop("invalid-visibility-context");
   }
-  const v = rawVis as { sessionTenantId?: unknown; allowShared?: unknown };
+  const v = rawVis as { sessionTenantId?: unknown; allowShared?: unknown; sessionUserId?: unknown };
   const sessionTenantId =
     typeof v.sessionTenantId === "string" ? v.sessionTenantId.trim() : "";
   if (sessionTenantId.length === 0) return noop("invalid-visibility-context");
@@ -154,9 +154,13 @@ export function buildRetrievalQuery(
   // Visibility: S2.13 sözleşmesi TAŞINIR (yeniden hesaplanmaz). Taze frozen kopya → çağıranın
   // referansı sızmaz, girdi mutasyona uğramaz. sessionTenantId, S2.13'ün uyguladığı sınır
   // trim'i ile kanonikleştirilir (karar değil, sınır normalizasyonu).
+  // Oturum kullanıcısı (uzman sahipli satırlar için) — yalnız boş olmayan string taşınır; yoksa alan
+  // HİÇ eklenmez (sahipli satır görünmez; tenant geneli davranış aynen).
+  const sessionUserId = typeof v.sessionUserId === "string" ? v.sessionUserId.trim() : "";
   const carriedVisibility: VisibilityContext = Object.freeze({
     sessionTenantId,
     allowShared: v.allowShared,
+    ...(sessionUserId.length > 0 ? { sessionUserId } : {}),
   });
 
   const descriptor: RetrievalQueryDescriptorQuery = Object.freeze({

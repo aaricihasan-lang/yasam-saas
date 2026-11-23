@@ -17,6 +17,7 @@ import { callRoxyConnection } from "@/lib/human-design/providers/roxy/relationCl
 import { ROXY_POLICY, readRoxyServerConfig } from "@/lib/human-design/providers/roxy/config";
 import { checkConnectionConsistency, expectedConnection, validateRoxyConnection } from "@/lib/human-design/relations/connection";
 import { chartBirthMoment, participantChartFacts } from "@/lib/human-design/relations/relationService";
+import { storedBirthUtcIso, toRoxyUtcMoment } from "@/lib/human-design/api/hdBirthUtc";
 import { connectionExplanations } from "@/lib/human-design/relations/explanations";
 import { DYNAMIC_DEFINITION, DYNAMIC_LABEL, DYNAMIC_ORDER, circuitLabel, combinedDefinitionLabel, relationChannelLabel } from "@/lib/human-design/relations/labels";
 import { hdCenterLabelFromCode } from "@/lib/human-design/codeHelpers";
@@ -90,7 +91,10 @@ export const hdConnection: VisitorRunner<ConnIn> = {
         }
         return providerFail();
       }
-      const moment = chartBirthMoment(r.input);
+      // HD-TZ: ilişki çağrısına her kişinin bireysel hesapta doğrulanmış UTC anı + "UTC" gider (koordinatlar aynı).
+      const local = chartBirthMoment(r.input);
+      const birthUtc = storedBirthUtcIso(r.chart);
+      const moment = local && birthUtc ? toRoxyUtcMoment(local, birthUtc) : null;
       const facts = participantChartFacts(r.chart);
       if (!moment || !facts) return { ok: false, code: "saglayici", message: "Hesaplama sonucu doğrulanamadı; sonuç gösterilmedi." };
       members.push({ moment, facts });

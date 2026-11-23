@@ -118,7 +118,7 @@ async function main(): Promise<void> {
   {
     // Professional Cohort: 24 canlı (19 + 3 aroma + 2 numeroloji kod-enabled) + 6 dormant (yebs) = 30 kaynak.
     // Satış öncesi (2026-10): +3 Beslenme aggregate kaynağı (foods/topics/templates) → 39.
-    check("10 registry tam 39 kaynak (36 + 3 Beslenme aggregate)", YH_INDEX_SOURCES.length === 39);
+    check("10 registry tam 40 kaynak (36 + 3 Beslenme aggregate + 1 Şifa V2 kişisel not)", YH_INDEX_SOURCES.length === 40); // 10. aşama: +1 sifa_rehberi_v2:notes (Şifa V2 kişisel notlar, uzman sahipli, CONTROLLED)
     const VALID: readonly SourceClassification[] = ["safe-non-pii", "pii", "unclassified", "deferred"];
     check(
       "11 her kaynak geçerli classification taşır",
@@ -126,7 +126,7 @@ async function main(): Promise<void> {
     );
     const count = (c: SourceClassification) =>
       YH_INDEX_SOURCES.filter((s) => s.classification === c).length;
-    check("12 safe-non-pii sayısı 38 (35 + 3 Beslenme; 39 kaynak − 1 pii)", count("safe-non-pii") === 38);
+    check("12 safe-non-pii sayısı 39 (35 + 3 Beslenme + 1 Şifa V2; 40 kaynak − 1 pii)", count("safe-non-pii") === 39); // 10. aşama: +1 sifa_rehberi_v2:notes (Şifa V2 kişisel notlar, uzman sahipli, CONTROLLED)
     check("13 pii sayısı 1", count("pii") === 1);
     check("14 unclassified sayısı 0 (kisisel_arsiv ROW-GATED CONTROLLED'a graduate)", count("unclassified") === 0);
     check("15 deferred sayısı 0", count("deferred") === 0);

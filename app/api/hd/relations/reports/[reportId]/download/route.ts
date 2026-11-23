@@ -1,3 +1,4 @@
+import { resolveReportBranding } from "@/lib/profile/reportBranding";
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { hitDbRateLimit, rateLimitBucket } from "@/lib/security/dbRateLimit";
@@ -40,7 +41,12 @@ export async function POST(req: NextRequest, ctx: RouteContext): Promise<Respons
   const image = s.image.status !== "ok" ? null : s.image.png ? Buffer.from(s.image.png, "base64") : renderRelationImage(s.analysis, 1100, logo)?.png ?? null;
   let buffer: Buffer;
   try {
-    buffer = await renderRelationReportBuffer(s, { image, logo });
+    // F3A: YALNIZ "Raporu Hazırlayan" (preparedBy) doluysa kapak künyesine Unvan/Kurum (logo/iletişim/dipnot yok;
+    // purpose "hd-relation"). Ad daima preparedBy. Hata → null (markasız).
+    const branding = s.preparedBy?.trim()
+      ? await resolveReportBranding(guard.db, { tenantId: guard.tenantId, userId: guard.userId }, { fullName: null }, { purpose: "hd-relation" })
+      : null;
+    buffer = await renderRelationReportBuffer(s, { image, logo, branding });
   } catch {
     return NextResponse.json({ ok: false, error: "Rapor belgesi oluşturulamadı." }, { status: 500, headers: { "Cache-Control": "no-store" } });
   }

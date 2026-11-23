@@ -7,7 +7,7 @@
 #
 # Kullanım (repo kökünden):
 #   TZDATA_SRC=<tzdata-2026e açılmış klasör> python scripts/astrology/tz/gen-backzone-overlay.py [ref-fixture-çıktısı.json]
-# Çıktı: lib/astrology/birth/tzBackzoneOverlay.generated.ts (+ isteğe bağlı harness referans fikstürü).
+# Çıktı: lib/time/tzdb/backzone.generated.ts (HD-TZ-00 ortak katman) (+ isteğe bağlı harness referans fikstürü).
 import hashlib, json, os, re, sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -18,7 +18,7 @@ if not SRC or not os.path.isfile(os.path.join(SRC, "backzone")):
     raise SystemExit("TZDATA_SRC: IANA tzdata klasörü (backzone dosyası içeren) gerekli")
 HI = 1767225600  # 2026-01-01T00:00:00Z — karşılaştırma üst sınırı
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
-OUT = os.path.join(ROOT, "lib", "astrology", "birth", "tzBackzoneOverlay.generated.ts")
+OUT = os.path.join(ROOT, "lib", "time", "tzdb", "backzone.generated.ts")  # HD-TZ-00: ortak katman
 
 
 def sha256(p):

@@ -135,8 +135,8 @@ add("numeroloji-deny-name-dob", (dom("numeroloji_client_id")?.deny ?? []).some((
   add("existing-archive-source-row-gated", byKey.get("kisisel_arsiv:archives")?.classification === "safe-non-pii" && byKey.get("kisisel_arsiv:archives")?.requiresRowEligibilityGate === true, byKey.get("kisisel_arsiv:archives")?.classification ?? "missing");
   // Professional Cohort: 22 canlı (19 + 3 aroma; numeroloji enabled:false KORUNDU) + 8 dormant (2 numeroloji + 6 yebs) = 30 kaynak.
   // Satış öncesi (2026-10): +3 Beslenme aggregate kaynağı → registry 39 / live 31 / matris 45 / aile 10.
-  add("registry-count-30", YH_INDEX_SOURCES.length === 39, String(YH_INDEX_SOURCES.length));
-  add("live-count-22", YH_INDEX_SOURCES.filter((s) => s.enabled === true).length === 31);
+  add("registry-count-30", YH_INDEX_SOURCES.length === 40, String(YH_INDEX_SOURCES.length)); // 10. aşama: +1 sifa_rehberi_v2:notes (Şifa V2 kişisel notlar, uzman sahipli, CONTROLLED)
+  add("live-count-22", YH_INDEX_SOURCES.filter((s) => s.enabled === true).length === 32); // 10. aşama: +1 sifa_rehberi_v2:notes (Şifa V2 kişisel notlar, uzman sahipli, CONTROLLED)
   // WIRED_DORMANT closure key'leri GERÇEKTEN registry'de ve HEPSİ enabled:false.
   const wired = wiredDormantRegistryKeys();
   add("closure-wired-keys-in-registry", wired.length === 6 && wired.every((k) => byKey.has(k)), wired.join(","));

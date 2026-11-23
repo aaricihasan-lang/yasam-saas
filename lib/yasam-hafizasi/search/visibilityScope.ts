@@ -44,6 +44,8 @@ export interface VisibilityCandidate {
   readonly sourceModule: YhSourceModule;
   /** Stone exclusion kontrolü için stabil kaynak kimliği (source_id). */
   readonly sourceId: string;
+  /** Uzman sahipliği (indeks owner_user_id). null/yok → tenant geneli (bugünkü davranış). */
+  readonly ownerUserId?: string | null;
 }
 
 /** Güvenilir server-side session'dan çözülmüş görünürlük bağlamı. */
@@ -52,6 +54,11 @@ export interface VisibilityContext {
   readonly sessionTenantId: string;
   /** `true` ise shared (tenant_id IS NULL) referanslar da görünür. */
   readonly allowShared: boolean;
+  /**
+   * Oturumdan çözülmüş kullanıcı kimliği (ASLA body/query'den). Uzman sahipli (owner_user_id) satırlar
+   * YALNIZ bu kullanıcıya görünür; yoksa sahipli satır hiç görünmez (fail-closed).
+   */
+  readonly sessionUserId?: string;
 }
 
 /**
@@ -77,7 +84,8 @@ export type VisibilityReasonCode =
   | "hidden-demo"
   | "hidden-stone-id-missing"
   | "hidden-stone-exclusion"
-  | "hidden-exclusion-error";
+  | "hidden-exclusion-error"
+  | "hidden-owner";
 
 /** Görünürlük kararı — minimal ve test edilebilir. */
 export interface VisibilityDecision {
@@ -150,6 +158,16 @@ export async function evaluateVisibility(
   } else {
     // Farklı tenant → tenant kararı burada verilir; exclusion port ÇAĞRILMAZ.
     return hidden("hidden-tenant");
+  }
+
+  // 5b) Uzman sahipliği (Şifa V2 kişisel notları): sahipli satır YALNIZ sahibine ve yalnız kendi tenant'ında.
+  //     Biçimi bozuk sahip / oturum kullanıcısı yok / farklı kullanıcı → fail-closed.
+  if (candidate.ownerUserId !== undefined && candidate.ownerUserId !== null) {
+    const owner = normalizedId(candidate.ownerUserId);
+    const me = normalizedId(context.sessionUserId);
+    if (grantedBy !== "tenant" || owner === null || me === null || owner.toLowerCase() !== me.toLowerCase()) {
+      return hidden("hidden-owner");
+    }
   }
 
   // 6) Doğal taş exclusion — YALNIZ taş adayları; port YALNIZ buraya ulaşan adayda çağrılır.

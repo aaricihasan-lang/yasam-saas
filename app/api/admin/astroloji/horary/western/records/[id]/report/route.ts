@@ -3,6 +3,7 @@ import { ASTRO_NO_STORE, requireAstrologyAccess, astrologyTechniqueDenied } from
 import { ASTRO_GRANT_HORARY_LILLY } from "@/lib/astrology/access/techniqueGrants";
 import { loadHoraryForReport } from "@/lib/astrology/horary/westernRecords";
 import { renderHoraryReport } from "@/lib/astrology/horary/westernReportService";
+import { astroReportBrandingLoader } from "@/lib/astrology/report/branding";
 import { checkRateLimit } from "@/lib/rateLimit";
 
 export const runtime = "nodejs";
@@ -27,11 +28,14 @@ export async function GET(req: NextRequest, ctx: RouteContext): Promise<Response
   const rec = await loadHoraryForReport({ db: gate.ctx.db, tenantId: gate.ctx.tenantId, userId: gate.ctx.userId }, id);
   if (!rec.ok) return NextResponse.json(rec.res.body, { status: rec.res.status, headers: ASTRO_NO_STORE });
   const withQ = req.nextUrl.searchParams.get("question") === "1";
+  // F3B: uzman markalaması — sahip yalnız kapıdan (gate.ctx); kapalı / yok → birebir.
+  const branding = await astroReportBrandingLoader(gate.ctx)();
   const out = await renderHoraryReport(rec.result, fmt, {
     question: withQ ? rec.questionText : null,
     demo: rec.demo,
     generatedAt: new Date().toISOString(),
     saved: { title: rec.title, clientLabel: rec.clientLabel, methodologyVersion: rec.methodologyVersion, savedAt: rec.savedAt },
+    branding,
   });
   const asciiName = out.filename.replace(/[^\x20-\x7E]/g, "_");
   return new NextResponse(Buffer.from(out.bytes), {

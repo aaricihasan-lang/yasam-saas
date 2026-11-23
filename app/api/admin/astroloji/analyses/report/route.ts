@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ASTRO_NO_STORE, requireAstrologyAccess } from "@/lib/astrology/access/ownerGate";
 import { parseOwnerPreviewHideInterp } from "@/lib/astrology/access/entitlements";
+import { astroReportBrandingLoader } from "@/lib/astrology/report/branding";
 import { buildCombinedAnalysisReport, type ReportFormat } from "@/lib/astrology/report/service";
 import { checkRateLimit } from "@/lib/rateLimit";
 
@@ -34,7 +35,8 @@ export async function GET(req: NextRequest): Promise<Response> {
   }
   const all = sp.get("all") === "1";
   const ids = all ? undefined : (sp.get("ids") ?? "").split(",").map((x) => x.trim()).filter(Boolean);
-  const r = await buildCombinedAnalysisReport(gate.ctx, { profileId: sp.get("profileId"), ids, all }, fmt as ReportFormat, parseOwnerPreviewHideInterp(sp.get("previewNoInterp")));
+  // F3B: uzman markalaması — sahip yalnız kapıdan (gate.ctx); toplu raporda TEK çözüm; kapalı / yok → birebir.
+  const r = await buildCombinedAnalysisReport(gate.ctx, { profileId: sp.get("profileId"), ids, all }, fmt as ReportFormat, parseOwnerPreviewHideInterp(sp.get("previewNoInterp")), { loadBranding: astroReportBrandingLoader(gate.ctx) });
   if (!r.ok) return NextResponse.json(r.body, { status: r.status, headers: ASTRO_NO_STORE });
   const asciiName = r.filename.replace(/[^\x20-\x7E]/g, "_");
   return new NextResponse(Buffer.from(r.bytes), {

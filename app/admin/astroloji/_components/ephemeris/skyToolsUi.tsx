@@ -7,6 +7,7 @@
  */
 import { useMemo, type ReactNode } from "react";
 import s from "./skyTools.module.css";
+import { formatZoned } from "@/lib/astrology/birth/zonedFormat";
 
 export { s as st };
 
@@ -24,7 +25,7 @@ export function useTimeZone(): { tz: string; label: string } {
 
 export function fmtLocal(ms: number, tz: string): string {
   try {
-    return new Intl.DateTimeFormat("tr-TR", { timeZone: tz, day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }).format(new Date(ms));
+    return formatZoned("tr-TR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }, ms, tz);
   } catch {
     return new Date(ms).toISOString().slice(0, 16).replace("T", " ");
   }

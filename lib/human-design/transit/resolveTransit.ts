@@ -10,6 +10,9 @@
 //      aktivasyonda Roxy kapı/çizgisi birebir aynı olmalı. Aksi → TransitVerificationError (fail-closed; gösterilmez).
 //   4. Kapı/çizgi/kanal/merkez Roxy boylamlarından mevcut mandala + 36 kanal tablosuyla (belirsizlik payı: Ay 0,7″, diğer 0,15″).
 //   5. Roxy erişilemezse → yerel sonuç "çözülemedi" durumuyla döner (belirsizler kesin gösterilmez; başarı sayılmaz).
+//   6. TR-01A: sağlayıcı / doğrulama hatasından sonra aynı an bu süreçte kısa süre (geri çekilme) YENİDEN ÇAĞRILMAZ — kilit ve kota
+//      da harcanmaz; DB eşzamanlılık kilidi HİÇBİR durumda atlanmaz. L2'ye yazılamayan doğrulanmış sonuç paylaşılan önbelleğe de
+//      konur; kilidi alamayan istekler L2'nin yanında paylaşılan önbelleği de yoklar (eksik sonuç yerine liderin sonucu).
 
 import { ROXY_POLICY, type RoxyServerConfig } from "../providers/roxy/config";
 import type { RoxyCallResult } from "../providers/roxy/client";
@@ -44,7 +47,8 @@ export const TRANSIT_UNRESOLVED_IN_PROGRESS_REASON = "in_progress";
 /** Ölçüm olayları (test / gözlem; kişisel veri İÇERMEZ). */
 export type TransitResolveMetric =
   | "l1_hit" | "l2_hit" | "l2_repaired_hit" | "l2_miss" | "l2_unavailable" | "lock_acquired" | "lock_denied"
-  | "wait_hit" | "wait_timeout" | "provider_call" | "provider_error" | "quota_denied" | "store_written" | "store_exists" | "store_write_failed";
+  | "wait_hit" | "wait_timeout" | "provider_call" | "provider_error" | "quota_denied" | "store_written" | "store_exists" | "store_write_failed"
+  | "backoff_hit" | "shared_hit" | "shared_written";
 
 export class TransitVerificationError extends Error {
   constructor(public readonly details: Array<{ body: PlanetName; roxyLon: number; localLon: number; diffArcsec: number; allowedArcsec: number }>) {
@@ -66,6 +70,8 @@ export type ResolveDeps = {
   waitBudgetMs?: number;
   metrics?: (m: TransitResolveMetric) => void;
   sleep?: (ms: number) => Promise<void>;
+  /** Saat (yalnız testler; varsayılan Date.now). Geri çekilme süresi bununla ölçülür. */
+  now?: () => number;
   log?: (msg: string, detail?: unknown) => void;
 };
 
@@ -88,19 +94,106 @@ export const TRANSIT_PLANETS_LIMITS = Object.freeze({
 const MEM_MAX = 2000;
 const mem = new Map<string, Record<PlanetName, number>>();
 const pending = new Map<string, Promise<Record<PlanetName, number>>>();
-/** Bu süreçte az önce başarısız olan anahtar: yeniden deneme bitmemiş DB kilidine takılmaz (kota yine uygulanır). */
-const recentFailures = new Map<string, number>();
-const RECENT_FAILURE_MS = 30_000;
+/**
+ * TR-01A — sağlayıcı / doğrulama hatası sonrası anahtar başına GERİ ÇEKİLME (bu süreç). Pencere içinde aynı an için sağlayıcı
+ * çağrılmaz, kilit ve kota harcanmaz; aynı (kesin olmayan) sonuç hemen döner. Eski davranış tam tersiydi: hata sonrası 30 sn
+ * boyunca DB kilidi ATLANIYOR, her yeniden deneme yeni ücretli çağrı oluyordu (aynı örnekte 10 deneme = 10 çağrı) ve başka
+ * örneklerle eşzamanlı çift çağrıya kapı açıyordu. Örnekler arası üst sınır: DB kilidi (inFlight penceresi başına ≤1 çağrı).
+ * Kota / "başka istek hesaplıyor" / yapılandırma gibi sağlayıcıya ulaşılmayan nedenler geri çekilme BAŞLATMAZ.
+ */
+export const TRANSIT_FAILURE_BACKOFF_MS = 30_000;
+/** Sağlayıcı 429 (hız sınırı): daha uzun geri çekilme. */
+export const TRANSIT_FAILURE_BACKOFF_RATE_LIMITED_MS = 60_000;
+const failures = new Map<string, { until: number; error: unknown }>();
 export function __resetTransitResolverCache() {
   mem.clear();
   pending.clear();
-  recentFailures.clear();
+  failures.clear();
 }
 
 class ProviderUnavailable extends Error {
   constructor(public readonly reason: string, public readonly retryAfterSec?: number) {
     super(reason);
   }
+}
+
+const NO_BACKOFF_REASONS: ReadonlySet<string> = new Set(["not_configured", TRANSIT_UNRESOLVED_IN_PROGRESS_REASON, ...TRANSIT_UNRESOLVED_QUOTA_REASONS]);
+const nowOf = (deps: ResolveDeps) => (deps.now ?? Date.now)();
+
+function rememberFailure(key: string, e: unknown, deps: ResolveDeps): void {
+  if (e instanceof ProviderUnavailable && NO_BACKOFF_REASONS.has(e.reason)) return;
+  // Pencere içindeki istekler zaten sağlayıcıya ulaşmadan geri çekilme yanıtı aldı → pencere UZATILMAZ (sürekli deneyen toparlanır).
+  const cur = failures.get(key);
+  if (cur && cur.until > nowOf(deps)) return;
+  const ms = e instanceof ProviderUnavailable && e.reason === "provider_rate_limited" ? TRANSIT_FAILURE_BACKOFF_RATE_LIMITED_MS : TRANSIT_FAILURE_BACKOFF_MS;
+  failures.delete(key);
+  failures.set(key, { until: nowOf(deps) + ms, error: e });
+  while (failures.size > MEM_MAX) failures.delete(failures.keys().next().value as string);
+}
+
+/** Geri çekilme penceresindeyse aynı hatayı (sağlayıcı çağrısı, kilit, kota OLMADAN) yeniden fırlatır. */
+function throwIfBackingOff(key: string, deps: ResolveDeps): void {
+  const f = failures.get(key);
+  if (!f) return;
+  const left = f.until - nowOf(deps);
+  if (left <= 0) {
+    failures.delete(key);
+    return;
+  }
+  deps.metrics?.("backoff_hit");
+  if (f.error instanceof ProviderUnavailable) throw new ProviderUnavailable(f.error.reason, Math.max(1, Math.ceil(left / 1000)));
+  throw f.error;
+}
+
+/** Paylaşılan önbellekte (Next Data Cache) VAR OLAN kaydı okur; yoksa null. Asla sağlayıcı çağırmaz, asla yazmaz
+ *  (fn hata fırlatır → unstable_cache saklamaz). Okunan kayıt yine bağımsız yerel denetimden geçmek zorundadır. */
+class SharedMiss extends Error {}
+async function peekShared(key: string, deps: ResolveDeps, accept: (lon: Record<PlanetName, number>) => boolean): Promise<Record<PlanetName, number> | null> {
+  if (!deps.sharedCache) return null;
+  try {
+    const lon = await deps.sharedCache<Record<PlanetName, number>>(key, async () => {
+      throw new SharedMiss("miss");
+    });
+    return lon && accept(lon) ? lon : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Kilidi alamayan istek: liderin sonucunu L2 ve/veya paylaşılan önbellekte SINIRLI süre yoklar; yoksa kontrollü "in_progress". */
+async function waitForLeader(
+  key: string,
+  deps: ResolveDeps,
+  readStore: (() => Promise<Record<PlanetName, number> | "unavailable" | null>) | null,
+  accept: (lon: Record<PlanetName, number>) => boolean,
+): Promise<Record<PlanetName, number>> {
+  const metric = deps.metrics ?? (() => undefined);
+  const sleep = deps.sleep ?? ((ms: number) => new Promise((r) => setTimeout(r, ms)));
+  if (readStore === null && !deps.sharedCache) {
+    // Yoklanacak paylaşılan katman yok → eski davranış (kısa bekleme, kontrollü in_progress).
+    await sleep(1500);
+    throw new ProviderUnavailable(TRANSIT_UNRESOLVED_IN_PROGRESS_REASON);
+  }
+  const deadline = Date.now() + (deps.waitBudgetMs ?? TRANSIT_PLANETS_WAIT_BUDGET_MS);
+  let storeOk = readStore !== null;
+  for (let i = 0; Date.now() < deadline; i++) {
+    await sleep(Math.max(0, Math.min(WAIT_STEPS_MS[Math.min(i, WAIT_STEPS_MS.length - 1)], deadline - Date.now())));
+    if (storeOk) {
+      const r = await readStore!();
+      if (r === "unavailable") storeOk = false;
+      else if (r) {
+        metric("wait_hit");
+        return r;
+      }
+    }
+    const sh = await peekShared(key, deps, accept);
+    if (sh) {
+      metric("wait_hit");
+      return sh;
+    }
+  }
+  metric("wait_timeout");
+  throw new ProviderUnavailable(TRANSIT_UNRESOLVED_IN_PROGRESS_REASON, 5);
 }
 
 const angDiffArcsec = (a: number, b: number) => Math.abs((((a - b) % 360) + 540) % 360 - 180) * 3600;
@@ -146,26 +239,26 @@ async function fetchViaPlanetStore(utcIso: string, key: string, local: GeneralTr
     return first.lon;
   }
   metric("l2_miss");
+  // L2'ye yazılamamış ama doğrulanmış sonuç paylaşılan önbellekte olabilir (TR-01A) — ücretli çağrı yapılmaz.
+  const sh = await peekShared(key, deps, accept);
+  if (sh) {
+    metric("shared_hit");
+    return sh;
+  }
   if (!deps.config) throw new ProviderUnavailable("not_configured");
-  const failedAt = recentFailures.get(key);
-  const claim = failedAt !== undefined && Date.now() - failedAt < RECENT_FAILURE_MS
-    ? { allowed: true, retryAfterSec: 0 }
-    : await deps.rateLimit("hd-transit-planets-inflight", key, TRANSIT_PLANETS_LIMITS.inFlight.limit, TRANSIT_PLANETS_LIMITS.inFlight.windowSeconds);
+  throwIfBackingOff(key, deps);
+  const claim = await deps.rateLimit("hd-transit-planets-inflight", key, TRANSIT_PLANETS_LIMITS.inFlight.limit, TRANSIT_PLANETS_LIMITS.inFlight.windowSeconds);
   if (!claim.allowed) {
     metric("lock_denied");
-    const sleep = deps.sleep ?? ((ms: number) => new Promise((r) => setTimeout(r, ms)));
-    const deadline = Date.now() + (deps.waitBudgetMs ?? TRANSIT_PLANETS_WAIT_BUDGET_MS);
-    for (let i = 0; Date.now() < deadline; i++) {
-      await sleep(Math.max(0, Math.min(WAIT_STEPS_MS[Math.min(i, WAIT_STEPS_MS.length - 1)], deadline - Date.now())));
-      const r = await store.read(utcIso, nodeType, accept);
-      if (r.status === "hit") {
-        metric("wait_hit");
-        return r.lon;
-      }
-      if (r.status === "unavailable") break;
-    }
-    metric("wait_timeout");
-    throw new ProviderUnavailable(TRANSIT_UNRESOLVED_IN_PROGRESS_REASON, 5);
+    return waitForLeader(
+      key,
+      deps,
+      async () => {
+        const r = await store.read(utcIso, nodeType, accept);
+        return r.status === "hit" ? r.lon : r.status === "unavailable" ? "unavailable" : null;
+      },
+      accept,
+    );
   }
   metric("lock_acquired");
   // Çift kontrol: kilit alınana kadar başka bir örnek yazmış olabilir (ücretli çağrı yapılmaz).
@@ -199,6 +292,15 @@ async function fetchViaPlanetStore(utcIso: string, key: string, local: GeneralTr
   verifyAgainstLocal(p.longitudes, local, year); // uyumsuz → TransitVerificationError; HİÇBİR katmana yazılmaz
   const w = await store.write(writeKey, utcIso, nodeType, p.longitudes);
   metric(w === "stored" ? "store_written" : w === "exists" ? "store_exists" : "store_write_failed");
+  if (w === "failed" && deps.sharedCache) {
+    // L2'ye yazılamadı → doğrulanmış sonuç paylaşılan önbelleğe (diğer örnekler yeniden ÜCRETLİ çağrı yapmasın). Hata sonucu engellemez.
+    try {
+      await deps.sharedCache(key, async () => p.longitudes);
+      metric("shared_written");
+    } catch {
+      /* önbellek altyapısı hatası: sonuç yine döner */
+    }
+  }
   return p.longitudes;
 }
 
@@ -212,16 +314,23 @@ async function fetchPlanetLongitudes(utcIso: string, local: GeneralTransit, deps
   const inProcess = pending.get(key);
   if (inProcess) return inProcess;
   const run = (async () => {
+    const year = new Date(utcIso).getUTCFullYear();
+    const accept = (lon: Record<PlanetName, number>) => {
+      try {
+        verifyAgainstLocal(lon, local, year);
+        return true;
+      } catch {
+        return false;
+      }
+    };
     const load = async () => {
       if (!deps.config) throw new ProviderUnavailable("not_configured");
-      const failedAt = recentFailures.get(key);
-      const claim = failedAt !== undefined && Date.now() - failedAt < RECENT_FAILURE_MS
-        ? { allowed: true, retryAfterSec: 0 }
-        : await deps.rateLimit("hd-transit-planets-inflight", key, TRANSIT_PLANETS_LIMITS.inFlight.limit, TRANSIT_PLANETS_LIMITS.inFlight.windowSeconds);
+      throwIfBackingOff(key, deps);
+      const claim = await deps.rateLimit("hd-transit-planets-inflight", key, TRANSIT_PLANETS_LIMITS.inFlight.limit, TRANSIT_PLANETS_LIMITS.inFlight.windowSeconds);
       if (!claim.allowed) {
-        // Başka örnek aynı anı çekiyor → kısa bekleme; paylaşılan önbellek bir sonraki istekte dolu olur.
-        await (deps.sleep ?? ((ms: number) => new Promise((r) => setTimeout(r, ms))))(1500);
-        throw new ProviderUnavailable("in_progress");
+        // Başka örnek aynı anı çekiyor → liderin sonucunu paylaşılan önbellekte SINIRLI süre yokla (TR-01A; eskiden 1,5 sn sonra eksik sonuç).
+        deps.metrics?.("lock_denied");
+        return waitForLeader(key, deps, null, accept);
       }
       const u = await deps.rateLimit("hd-transit-planets-user", deps.userId, TRANSIT_PLANETS_LIMITS.perUser.limit, TRANSIT_PLANETS_LIMITS.perUser.windowSeconds);
       if (!u.allowed) throw new ProviderUnavailable("rate_limited_user", u.retryAfterSec);
@@ -240,11 +349,11 @@ async function fetchPlanetLongitudes(utcIso: string, local: GeneralTransit, deps
       try {
         viaStore = await fetchViaPlanetStore(utcIso, key, local, deps);
       } catch (e) {
-        recentFailures.set(key, Date.now());
+        rememberFailure(key, e, deps);
         throw e;
       }
       if (viaStore) {
-        recentFailures.delete(key);
+        failures.delete(key);
         mem.set(key, viaStore);
         while (mem.size > MEM_MAX) mem.delete(mem.keys().next().value as string);
         return viaStore;
@@ -255,12 +364,12 @@ async function fetchPlanetLongitudes(utcIso: string, local: GeneralTransit, deps
     try {
       lon = deps.sharedCache ? await deps.sharedCache(key, load) : await load();
     } catch (e) {
-      recentFailures.set(key, Date.now());
+      rememberFailure(key, e, deps);
       throw e;
     }
     // Paylaşılan önbellekten gelen kayıt da (eski sürüm vb.) yeniden denetlenir.
-    verifyAgainstLocal(lon, local, new Date(utcIso).getUTCFullYear());
-    recentFailures.delete(key);
+    verifyAgainstLocal(lon, local, year);
+    failures.delete(key);
     mem.set(key, lon);
     while (mem.size > MEM_MAX) mem.delete(mem.keys().next().value as string);
     return lon;

@@ -41,6 +41,8 @@ export type RetrievalErrorCode = "retrieval-execution-failed";
 export interface RetrievalRpcParams {
   readonly tsquery: string;
   readonly sessionTenantId: string;
+  /** Oturum kullanıcısı (uzman sahipli satırlar için; yoksa null → sahipli satır dönmez). */
+  readonly sessionUserId?: string | null;
   readonly allowShared: boolean;
   /** [A, B, C, D] — YH_TSV_WEIGHTS doğal sırası; PG {D,C,B,A} dönüşümü RPC içinde. */
   readonly weights: readonly [number, number, number, number];
@@ -217,6 +219,11 @@ export function buildVisibilityCandidate(row: unknown): VisibilityCandidate | nu
     isDemoSource: false,
     sourceModule: row.source_module,
     sourceId,
+    // Uzman sahipliği (v3 döndürür; v1/v2 sahipli satırı hiç döndürmez). Bozuk değer → sahipli say
+    // (evaluateVisibility geçersiz sahibi gizler; fail-closed).
+    ...("owner_user_id" in row && row.owner_user_id !== null && row.owner_user_id !== undefined
+      ? { ownerUserId: typeof row.owner_user_id === "string" ? row.owner_user_id : "" }
+      : {}),
   };
 }
 
@@ -240,6 +247,8 @@ export async function executeRetrieval(
   const params: RetrievalRpcParams = {
     tsquery: descriptor.tsquery,
     sessionTenantId: descriptor.visibility.sessionTenantId,
+    // Yalnız oturum kullanıcısı varsa taşınır (yoksa alan YOK → bugünkü parametre sözleşmesi aynen).
+    ...(descriptor.visibility.sessionUserId ? { sessionUserId: descriptor.visibility.sessionUserId } : {}),
     allowShared: descriptor.visibility.allowShared,
     weights: [
       descriptor.ranking.weights.A,

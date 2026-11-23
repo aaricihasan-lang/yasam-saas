@@ -31,6 +31,8 @@ export interface BuildDescriptorInput {
   sessionTenantId: string;
   /** yh_shared flag'i ve istek birlikte true ise true. */
   allowShared: boolean;
+  /** Yalnız server'da session'dan çözülen kullanıcı (uzman sahipli kayıtlar için; yoksa görünmezler). */
+  sessionUserId?: string;
 }
 
 export interface BuildDescriptorResult {
@@ -51,6 +53,7 @@ export function buildRetrievalDescriptor(input: BuildDescriptorInput): BuildDesc
   const descriptor = buildRetrievalQuery(plan, {
     sessionTenantId: input.sessionTenantId,
     allowShared: input.allowShared,
+    ...(input.sessionUserId ? { sessionUserId: input.sessionUserId } : {}),
   });
   return { descriptor, concepts, normalizedText: normalized.normalizedText };
 }

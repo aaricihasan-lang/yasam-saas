@@ -1,21 +1,26 @@
 /**
  * lib/location/tz.ts — IANA saat dilimi tabanlı güvenli tarih/saat gösterim helper'ları (FAZ 5 / P5a).
  *
- * Saf, yan-etkisiz yardımcılar. `Intl.DateTimeFormat` kullanır → DST (yaz/kış saati)
- * otomatik doğru uygulanır. Global şehir desteği için astronomik motorların ürettiği
- * UTC anlarını, seçili konumun IANA saat dilimine göre yerel saate çevirir.
+ * Saf, yan-etkisiz yardımcılar. Global şehir desteği için astronomik motorların ürettiği UTC anlarını, seçili
+ * konumun IANA saat dilimine göre yerel saate çevirir (ve tersini yapar).
  *
- * Bu dosya bir MOTOR DEĞİLDİR ve hiçbir motoru/UI'ı/DB'yi okumaz/etkilemez. Astronomik
- * hesap değişmez; yalnızca gösterim katmanı yardımcısıdır.
+ * KZM-TZ-01 (18.11.2026): ofset ve duvar saati artık çalışma ortamının Intl/ICU verisinden DEĞİL, ortak sürümü
+ * sabitlenmiş IANA çekirdeğinden (lib/time/tzdb/core — Atlas #811, HD #818 ile aynı kaynak; 1970 öncesi ortak
+ * backzone politikası) gelir. Sunucu (Node 24.15 = tz 2026a) ve eski tarayıcılar Havana / Winnipeg / Vancouver /
+ * Edmonton / Casablanca / El Aaiún'da 1 saat yanlış ofset veriyordu → seçili saatin gezegen saati yanlış UTC anından
+ * hesaplanıyor, gün pencereleri ve gösterilen saatler kayıyordu. Tabloda olmayan ad → Intl (eski yol, aynen).
  *
- * Türkiye regresyonu: `Europe/Istanbul` 2016'dan beri sabit UTC+3 (DST yok) olduğundan
- * bu helper'lar, mevcut UTC+3-sabit gösterimle (lib/cosmic/eclipses.ts `isoTR`) birebir
- * aynı "HH:mm" / tarih sonucunu verir.
+ * Bu dosya bir MOTOR DEĞİLDİR ve hiçbir motoru/UI'ı/DB'yi okumaz/etkilemez. Astronomik hesap değişmez.
+ *
+ * Türkiye regresyonu: `Europe/Istanbul` 2016'dan beri sabit UTC+3 (DST yok) → sonuçlar eskisiyle birebir aynı.
  */
 
-/** Bir IANA saat dilimi kimliğinin geçerli olup olmadığını döndürür. */
+import { isTableZone, localTimeCandidates, wallClockMs } from "../time/tzdb/core";
+
+/** Bir IANA saat dilimi kimliğinin geçerli olup olmadığını döndürür (sabit IANA tablosundaki ad ya da Intl'in tanıdığı ad). */
 export function isValidTimeZone(timeZone: string): boolean {
   if (typeof timeZone !== "string" || timeZone.length === 0) return false;
+  if (isTableZone(timeZone)) return true;
   try {
     new Intl.DateTimeFormat("en-US", { timeZone });
     return true;
@@ -29,37 +34,21 @@ function safeZone(timeZone: string): string {
   return isValidTimeZone(timeZone) ? timeZone : "UTC";
 }
 
-/** Bir tarihin verilen saat diliminde takvim parçaları (locale-bağımsız, h23). */
-// PERFORMANS (sonucu DEĞİŞTİRMEZ): Intl.DateTimeFormat kurulumu pahalıdır; saat dilimi başına bir kez
-// oluşturulup yeniden kullanılır (planlayıcı ve uzun dönem doğrulama binlerce gün × çağrı yapar).
-const PARTS_FMT_CACHE = new Map<string, Intl.DateTimeFormat>();
-function partsFormatter(tz: string): Intl.DateTimeFormat {
-  let f = PARTS_FMT_CACHE.get(tz);
-  if (!f) {
-    f = new Intl.DateTimeFormat("en-CA", {
-      timeZone: tz,
-      hourCycle: "h23",
-      year: "numeric", month: "2-digit", day: "2-digit",
-      hour: "2-digit", minute: "2-digit", second: "2-digit",
-    });
-    PARTS_FMT_CACHE.set(tz, f);
-  }
-  return f;
+/** UTC anında tz'deki duvar saati, "yerel saat UTC gibi okunmuş" ms olarak (saniyeye kesilir; Intl yolu gibi). */
+function wallMs(utcMs: number, timeZone: string): number {
+  if (!Number.isFinite(utcMs)) throw new RangeError("Invalid time value"); // eski Intl.formatToParts davranışı
+  return wallClockMs(utcMs, safeZone(timeZone));
 }
 
+/** Bir tarihin verilen saat diliminde takvim parçaları (locale-bağımsız, h23). */
 function zonedParts(date: Date, timeZone: string): {
   year: string; month: string; day: string; hour: string; minute: string; second: string;
 } {
-  const dtf = partsFormatter(safeZone(timeZone));
-  const m: Record<string, string> = {};
-  for (const p of dtf.formatToParts(date)) {
-    if (p.type !== "literal") m[p.type] = p.value;
-  }
-  // Bazı ortamlarda gece yarısı "24" dönebilir → normalize et.
-  if (m.hour === "24") m.hour = "00";
+  const d = new Date(wallMs(date.getTime(), timeZone));
+  const p2 = (n: number) => String(n).padStart(2, "0");
   return {
-    year: m.year ?? "1970", month: m.month ?? "01", day: m.day ?? "01",
-    hour: m.hour ?? "00", minute: m.minute ?? "00", second: m.second ?? "00",
+    year: String(d.getUTCFullYear()).padStart(4, "0"), month: p2(d.getUTCMonth() + 1), day: p2(d.getUTCDate()),
+    hour: p2(d.getUTCHours()), minute: p2(d.getUTCMinutes()), second: p2(d.getUTCSeconds()),
   };
 }
 
@@ -82,60 +71,79 @@ export function formatDateTimeInTimeZone(date: Date, timeZone: string): string {
  *      America/New_York kış → -300, yaz → -240; Asia/Tokyo → +540.
  */
 export function getTimeZoneOffsetMinutes(date: Date, timeZone: string): number {
-  const p = zonedParts(date, timeZone);
-  // Yerel duvar-saatini UTC epoch'u gibi yorumla, gerçek UTC ile farkını al.
-  const wallAsUtc = Date.UTC(
-    Number(p.year), Number(p.month) - 1, Number(p.day),
-    Number(p.hour), Number(p.minute), Number(p.second),
-  );
-  return Math.round((wallAsUtc - date.getTime()) / 60000);
+  const t = date.getTime();
+  const sec = Math.floor(t / 1000) * 1000; // duvar saati saniyeye kesildiği için fark da saniye tabanında alınır
+  return Math.round((wallMs(t, timeZone) - sec) / 60000);
 }
 
 /**
- * Bir yerel duvar-saatini (verilen tz'de Y/M/D + saat) o an geçerli UTC anına çevirir.
- * DST-güvenli iki geçiş: ilk ofsetle tahmin, sınırda ofset değiştiyse ikinci geçişle düzelt.
- * Gece yarısı (00:00) test edilen tüm zamanlarda tekil/geçerli olduğundan sağlamdır;
- * (İstanbul/Berlin/New York geçişleri 02:00–03:00 yereldedir, gece yarısında değil.)
+ * Yerel duvar saati (naif ms) → UTC ms. Tek anlamlı saatte o an. DST/geçiş durumlarında sessiz ve yöne bağlı seçim
+ * YAPILMAZ (eski iki geçişli çözüm boşlukta batı bölgelerinde 1 saat geri, doğu bölgelerinde 1 saat ileri gidiyor; çakışmada
+ * batıda ilk, doğuda — Berlin, Londra, Kahire, Beyrut, Gazze — ikinci anı seçiyordu):
+ *   - çakışma (saat iki kez yaşandı): ilk (erken) an;
+ *   - boşluk (saat hiç yaşanmadı): geçişten ÖNCEKİ ofsetle yorumlanır (RFC 5545 §3.3.5; Temporal "compatible") →
+ *     boşluğun uzunluğu kadar ileri (ör. New York 02:30 → 03:30 EDT).
  */
-function zonedWallToUtcMs(
-  year: number, month0: number, day: number,
-  hour: number, minute: number, second: number, timeZone: string,
-): number {
-  const wallAsUtc = Date.UTC(year, month0, day, hour, minute, second);
-  const off1 = getTimeZoneOffsetMinutes(new Date(wallAsUtc), timeZone);
-  let utc = wallAsUtc - off1 * 60000;
-  const off2 = getTimeZoneOffsetMinutes(new Date(utc), timeZone);
-  if (off2 !== off1) utc = wallAsUtc - off2 * 60000;
-  return utc;
+function zonedWallToUtcMs(naiveMs: number, timeZone: string): number {
+  const c = localTimeCandidates(naiveMs, timeZone);
+  if (c.length) return c[0].utcMs;
+  const before = wallClockMs(naiveMs - 36 * 3_600_000, timeZone) - (naiveMs - 36 * 3_600_000); // geçiş öncesi ofset (ms)
+  return naiveMs - before;
+}
+
+/**
+ * Yerel takvim gününün (naif 00:00) İLK anı: gece yarısı yaşandıysa ilk gerçekleşmesi; gece yarısı bir boşluğa
+ * düşüyorsa (Havana, Santiago, Kahire, Beyrut… geçişleri 00:00/24:00'da) yerel saatin o güne geçtiği
+ * geçiş anı. Eski çözüm bu günlerde pencereyi önceki günün son saatinden başlatıyordu (1 saat erken).
+ */
+function zonedDayStartMs(naiveMidnightMs: number, timeZone: string): number {
+  const c = localTimeCandidates(naiveMidnightMs, timeZone);
+  if (c.length) return c[0].utcMs;
+  // Boşluk: duvar saati < gece yarısı olan son an ile ≥ gece yarısı olan ilk an arasındaki geçiş (saniye çözünürlüğü).
+  let lo = naiveMidnightMs - 36 * 3_600_000; // duvar < gece yarısı
+  let hi = naiveMidnightMs + 36 * 3_600_000; // duvar ≥ gece yarısı
+  while (hi - lo > 1000) {
+    const mid = lo + Math.floor((hi - lo) / 2000) * 1000;
+    if (wallClockMs(mid, timeZone) >= naiveMidnightMs) hi = mid;
+    else lo = mid;
+  }
+  return hi;
 }
 
 /**
  * Bir IANA saat dilimindeki DUVAR SAATİNİ (y, m0 0-11, d, hh, mm) mutlak ana (Date, UTC) çevirir.
- * DST-doğru (iki geçişli offset çözümü). Tarayıcı saat dilimi hesaba GİRMEZ (Kozmik G2).
+ * Tarayıcı saat dilimi hesaba GİRMEZ (Kozmik G2). Çakışma → ilk an; boşluk → geçiş öncesi ofsetle (yukarıya bkz.).
+ * Durumu göstermek isteyen çağıran `zonedWallTimeKind` kullanır.
  */
 export function zonedWallTimeToUtc(
   year: number, month0: number, day: number, hour: number, minute: number, timeZone: string,
 ): Date {
-  return new Date(zonedWallToUtcMs(year, month0, day, hour, minute, 0, safeZone(timeZone)));
+  return new Date(zonedWallToUtcMs(Date.UTC(year, month0, day, hour, minute, 0), safeZone(timeZone)));
+}
+
+/** Yerel duvar saatinin durumu: "ok" (tek an) · "overlap" (iki kez yaşandı; ilk an kullanılır) · "gap" (hiç yaşanmadı). */
+export function zonedWallTimeKind(
+  year: number, month0: number, day: number, hour: number, minute: number, timeZone: string,
+): "ok" | "overlap" | "gap" {
+  const n = localTimeCandidates(Date.UTC(year, month0, day, hour, minute, 0), safeZone(timeZone)).length;
+  return n === 0 ? "gap" : n > 1 ? "overlap" : "ok";
 }
 
 /**
- * Bir takvim gününün (Y/M/D), verilen IANA saat diliminde [00:00, ertesi gün 00:00)
- * yarı-açık UTC aralığı. Astronomik motor UTC/instant'ta çalışır; bu yalnız "hangi
- * yerel güne ait" penceresini üretir. Global selectedDate semantiği DEĞİŞMEZ —
- * çağıran yalnız Y/M/D geçirir; tarayıcı saat dilimi sonucu etkilemez.
+ * Bir takvim gününün (Y/M/D), verilen IANA saat diliminde [gün başı, ertesi gün başı) yarı-açık UTC aralığı.
+ * Astronomik motor UTC/instant'ta çalışır; bu yalnız "hangi yerel güne ait" penceresini üretir. Global selectedDate
+ * semantiği DEĞİŞMEZ — çağıran yalnız Y/M/D geçirir; tarayıcı saat dilimi sonucu etkilemez.
  *
- * DST doğruluğu: her sınır kendi ofsetiyle bağımsız çözüldüğünden yerel gün
- * 23s (ilkbahar) / 24s / 25s (sonbahar) olabilir ve pencere buna uyar.
- * Ardışık günlerin pencereleri örtüşmez/boşluk bırakmaz (bir günün end'i = ertesinin start'ı).
+ * DST doğruluğu: her sınır kendi ofsetiyle bağımsız çözüldüğünden yerel gün 23s (ilkbahar) / 24s / 25s (sonbahar)
+ * olabilir ve pencere buna uyar. Gece yarısı boşluğa düşen günde gün başı = geçiş anı. Ardışık günlerin pencereleri
+ * örtüşmez/boşluk bırakmaz (bir günün end'i = ertesinin start'ı).
  */
 export function getZonedDayRange(
   year: number, month0: number, day: number, timeZone: string,
 ): { start: Date; end: Date } {
   const tz = safeZone(timeZone);
-  const startMs = zonedWallToUtcMs(year, month0, day, 0, 0, 0, tz);
+  const startMs = zonedDayStartMs(Date.UTC(year, month0, day), tz);
   // Ertesi takvim günü — ay/yıl taşmasında güvenli (Date.UTC normalize eder).
-  const nx = new Date(Date.UTC(year, month0, day + 1));
-  const endMs = zonedWallToUtcMs(nx.getUTCFullYear(), nx.getUTCMonth(), nx.getUTCDate(), 0, 0, 0, tz);
+  const endMs = zonedDayStartMs(Date.UTC(year, month0, day + 1), tz);
   return { start: new Date(startMs), end: new Date(endMs) };
 }

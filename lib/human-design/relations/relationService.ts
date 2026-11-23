@@ -17,6 +17,7 @@ import { deterministicUuid, isUniqueViolation, isUuid } from "../api/determinist
 import { hdSafeDbError } from "../api/safeError";
 import { isValidIanaTimeZone, toHms } from "../api/birthTimeResolution";
 import { normalizeHdPersonName } from "../api/hdIdentity";
+import { chartBirthUtcFailure, checkChartBirthUtc, toRoxyUtcMoment } from "../api/hdBirthUtc";
 import { readChartIdSecret } from "../api/roxyChartService";
 import {
   ROXY_CONNECTION_ADAPTER_VERSION,
@@ -148,11 +149,16 @@ export function relationInputHash(
   kind: RelationKind,
   tenantId: string,
   policy: { nodeType: string; lang: string },
-  parts: ReadonlyArray<{ clientId: string; moment: RoxyBirthMoment }>,
+  parts: ReadonlyArray<{ clientId: string; moment: RoxyBirthMoment; birthUtcIso?: string }>,
   secret: string | null,
 ): string {
+  // HD-TZ: birthUtcIso YALNIZ aynı girdili eski analiz başka kaynak analizlerden üretilmişken verilir (ayrı kimlik);
+  // verilmezse anahtar eskisiyle BİREBİR aynıdır.
   const members = [...parts]
-    .map((p) => [p.clientId, p.moment.date, p.moment.time, p.moment.timezone, p.moment.latitude.toFixed(6), p.moment.longitude.toFixed(6), p.moment.nodeType])
+    .map((p) => [
+      p.clientId, p.moment.date, p.moment.time, p.moment.timezone, p.moment.latitude.toFixed(6), p.moment.longitude.toFixed(6), p.moment.nodeType,
+      ...(p.birthUtcIso ? [new Date(Date.parse(p.birthUtcIso)).toISOString()] : []),
+    ])
     .sort((a, b) => a[0].localeCompare(b[0]));
   const canonical = JSON.stringify([
     ROXY_PROVIDER_ID,
@@ -175,6 +181,39 @@ async function findExisting(ctx: RelationCtx, id: string): Promise<{ found: bool
   const { data, error } = await withTenant(ctx.db.from(RELATION_ANALYSES).select("id, kind"), ctx.tenantId, "relation.find").eq("id", id).maybeSingle();
   if (error) return { found: false, error: isRelationTableMissing(error) ? RELATIONS_UNAVAILABLE : fail(500, "DB_ERROR", hdSafeDbError("relation.find", error)) };
   return data ? { found: true, kind: (data as { kind: RelationKind }).kind } : { found: false };
+}
+
+/**
+ * HD-TZ: kayıtlı ilişki/grup analizi yeniden kullanılabilir mi? Her katılımcının KAYNAK analizi ya şimdi seçilen (doğum anı
+ * doğrulanmış) analizdir ya da aynı danışanın, kayıtlı doğum anı beklenen UTC ile AYNI olan analizidir. Eski IANA verisiyle
+ * hesaplanmış kaynak → "mismatch" (yeniden KULLANILMAZ). Katılımcı satırları henüz yazılmamışsa (eşzamanlı yazım) → "pending".
+ */
+async function relationReuse(
+  ctx: RelationCtx,
+  id: string,
+  members: ReadonlyArray<{ clientId: string; chartId: string; birthUtcIso: string }>,
+): Promise<{ state: "ok" | "pending" | "mismatch"; error?: RelationServiceResponse }> {
+  const dbErr = (e: { code?: string; message?: string }, where: string) => ({ state: "mismatch" as const, error: isRelationTableMissing(e) ? RELATIONS_UNAVAILABLE : fail(500, "DB_ERROR", hdSafeDbError(where, e)) });
+  const { data, error } = await withTenant(ctx.db.from(RELATION_PARTICIPANTS).select("analysis_id, client_id, source_chart_id"), ctx.tenantId, "relation.sources").eq("analysis_id", id);
+  if (error) return dbErr(error, "relation.sources");
+  const rows = (data ?? []) as Array<{ client_id: string | null; source_chart_id: string | null }>;
+  if (rows.length === 0) return { state: "pending" };
+  const want = new Map(members.map((m) => [m.clientId.toLowerCase(), m]));
+  if (rows.length !== want.size || rows.some((r) => !r.client_id || !r.source_chart_id || !want.has(r.client_id.toLowerCase()))) return { state: "mismatch" };
+  const other = rows.filter((r) => want.get(r.client_id!.toLowerCase())!.chartId.toLowerCase() !== r.source_chart_id!.toLowerCase());
+  if (other.length === 0) return { state: "ok" };
+  const { data: hRows, error: hErr } = await withTenant(ctx.db.from("human_design_charts").select("id, client_id, input, computed_result"), ctx.tenantId, "relation.sourceCharts")
+    .in("id", other.map((r) => r.source_chart_id!));
+  if (hErr) return dbErr(hErr, "relation.sourceCharts");
+  const byId = new Map(((hRows ?? []) as ChartRow[]).map((h) => [h.id.toLowerCase(), h]));
+  for (const r of other) {
+    const m = want.get(r.client_id!.toLowerCase())!;
+    const h = byId.get(r.source_chart_id!.toLowerCase());
+    const mo = h && (h.client_id ?? "").toLowerCase() === m.clientId.toLowerCase() ? chartBirthMoment(h.input) : null;
+    const c = mo ? checkChartBirthUtc(mo, h!.computed_result) : null;
+    if (!c || c.status !== "current" || Date.parse(c.utcIso) !== Date.parse(m.birthUtcIso)) return { state: "mismatch" };
+  }
+  return { state: "ok" };
 }
 
 /** Yeni ilişki/grup analizi (ya da kayıtlı sonucun yeniden kullanımı). */
@@ -224,7 +263,7 @@ export async function createRelationAnalysis(ctx: RelationCtx, rawBody: unknown,
   if (hErr) return fail(500, "DB_ERROR", hdSafeDbError("relation.charts", hErr));
   const charts = new Map(((hRows ?? []) as ChartRow[]).map((c) => [c.id.toLowerCase(), c]));
 
-  const members: Array<{ clientId: string; chartId: string; name: string; moment: RoxyBirthMoment; chartInputHash: string | null; facts: { gates: number[]; defined: HdCenterCode[] } }> = [];
+  const members: Array<{ clientId: string; chartId: string; name: string; moment: RoxyBirthMoment; birthUtcIso: string; chartInputHash: string | null; facts: { gates: number[]; defined: HdCenterCode[] } }> = [];
   for (const p of parts) {
     const c = clients.get(p.clientId)!;
     const ch = charts.get(p.chartId);
@@ -245,7 +284,14 @@ export async function createRelationAnalysis(ctx: RelationCtx, rawBody: unknown,
     if (moment.nodeType !== policy.nodeType) {
       return fail(422, "CHART_POLICY_MISMATCH", `${c.name}: analiz farklı bir ay düğümü ayarıyla hazırlanmış. Güncel ayarla bireysel analizi yeniden oluşturun.`, { participant: c.name });
     }
-    members.push({ clientId: p.clientId, chartId: p.chartId, name: c.name, moment, chartInputHash: ch.input_hash, facts });
+    // HD-TZ: her katılımcının doğum anı BAĞIMSIZ doğrulanır — kayıtlı analiz güncel IANA 2026f çözümüyle aynı anı
+    // kullanmıyorsa (eski veriyle hesaplanmış) ondan ilişki hesabı yapılmaz; kayıt değişmez.
+    const bu = checkChartBirthUtc(moment, ch.computed_result);
+    if (bu.status !== "current") {
+      const f = chartBirthUtcFailure(bu, c.name);
+      return fail(f.status, f.code, f.error, { participant: c.name });
+    }
+    members.push({ clientId: p.clientId, chartId: p.chartId, name: c.name, moment, birthUtcIso: bu.utcIso, chartInputHash: ch.input_hash, facts });
   }
   // Aynı kişi (farklı profil, aynı ad + aynı doğum anı) iki kez seçilemez.
   const personKeys = members.map((m) => JSON.stringify([normalizeHdPersonName(m.name), m.moment.date, m.moment.time, m.moment.timezone]));
@@ -255,11 +301,41 @@ export async function createRelationAnalysis(ctx: RelationCtx, rawBody: unknown,
 
   // 3) Idempotency — kayıtlı sonuç varsa Roxy ÇAĞRILMAZ.
   const secret = deps.idSecret !== undefined ? deps.idSecret : readChartIdSecret();
-  const inputHash = relationInputHash(kind, ctx.tenantId, policy, members, secret);
-  const id = relationIdFor(ctx.tenantId, inputHash);
-  const existing = await findExisting(ctx, id);
-  if (existing.error) return existing.error;
-  if (existing.found) return { status: 200, body: { ok: true, id, reused: true, kind } };
+  let inputHash = relationInputHash(kind, ctx.tenantId, policy, members.map((m) => ({ clientId: m.clientId, moment: m.moment })), secret);
+  let id = relationIdFor(ctx.tenantId, inputHash);
+  let utcKeyed = false;
+  // HD-TZ: BULUNAN analiz yalnız kaynakları doğrulanırsa yeniden kullanılır (her yolda). Doğrulanamayan kayıt: eski kimlikte →
+  // doğum anlı ayrı kimliğe geçilir / yeniden denenir; doğum anlı kimlikte → çakışma, sonuç dönmez. Eski analiz DEĞİŞMEZ.
+  const reuseOrNot = async (): Promise<{ res: RelationServiceResponse | null; error?: RelationServiceResponse; pending?: boolean }> => {
+    const f = await findExisting(ctx, id);
+    if (f.error) return { res: null, error: f.error };
+    if (!f.found) return { res: null };
+    const v = await relationReuse(ctx, id, members);
+    if (v.error) return { res: null, error: v.error };
+    if (v.state === "ok") return { res: { status: 200, body: { ok: true, id, reused: true, kind } } };
+    if (v.state === "pending") return { res: null, pending: true };
+    return {
+      res: utcKeyed
+        ? fail(409, "CHART_TIME_CONFLICT", "Bu katılımcılar için kayıtlı analiz doğrulanmış kaynak analizlerle eşleşmiyor. Sonuç gösterilmedi; lütfen yöneticiye bildirin.")
+        : fail(409, "IN_PROGRESS", "Bu analiz şu anda hazırlanıyor. Birkaç saniye sonra tekrar deneyin.", { retryAfterSec: 2 }),
+    };
+  };
+  const first = await findExisting(ctx, id);
+  if (first.error) return first.error;
+  if (first.found) {
+    const v = await relationReuse(ctx, id, members);
+    if (v.error) return v.error;
+    if (v.state === "ok") return { status: 200, body: { ok: true, id, reused: true, kind } };
+    // Kaynağı doğrulanamayan (ya da katılımcı satırı olmayan) eski analiz DEĞİŞMEZ; yeni hesap doğum anlarını içeren ayrı
+    // kimliğe yazılır (kalıcı "hazırlanıyor" kilitlenmesi olmaz).
+    inputHash = relationInputHash(kind, ctx.tenantId, policy, members.map((m) => ({ clientId: m.clientId, moment: m.moment, birthUtcIso: m.birthUtcIso })), secret);
+    id = relationIdFor(ctx.tenantId, inputHash);
+    utcKeyed = true;
+    const fresh = await reuseOrNot();
+    if (fresh.error) return fresh.error;
+    if (fresh.res) return fresh.res;
+    if (fresh.pending) return fail(409, "IN_PROGRESS", "Bu analiz şu anda hazırlanıyor. Birkaç saniye sonra tekrar deneyin.", { retryAfterSec: 2 });
+  }
 
   if (!deps.config) return fail(503, "AUTO_CALC_NOT_CONFIGURED", "Otomatik hesaplama şu anda yapılandırılmamış.");
 
@@ -268,9 +344,9 @@ export async function createRelationAnalysis(ctx: RelationCtx, rawBody: unknown,
   if (!claim.allowed) {
     for (let i = 0; i < 8; i++) {
       await sleep(1500);
-      const again = await findExisting(ctx, id);
+      const again = await reuseOrNot();
       if (again.error) return again.error;
-      if (again.found) return { status: 200, body: { ok: true, id, reused: true, kind } };
+      if (again.res) return again.res;
     }
     return fail(409, "IN_PROGRESS", "Bu analiz şu anda hazırlanıyor. Birkaç saniye sonra tekrar deneyin.", { retryAfterSec: claim.retryAfterSec || 10 });
   }
@@ -281,12 +357,19 @@ export async function createRelationAnalysis(ctx: RelationCtx, rawBody: unknown,
   const tenantRl = await deps.rateLimit("hd-roxy-tenant", ctx.tenantId, ROXY_RATE_LIMITS.perTenant.limit, ROXY_RATE_LIMITS.perTenant.windowSeconds);
   if (!tenantRl.allowed) return fail(429, "RATE_LIMITED", "Hesabınızın günlük otomatik hesaplama sınırına ulaşıldı. Lütfen daha sonra tekrar deneyin.", { retryAfterSec: tenantRl.retryAfterSec });
 
-  // 6) Roxy → şema → kayıtlı haritalarla tutarlılık.
+  // 6) Roxy → şema → kayıtlı haritalarla tutarlılık. HD-TZ: her kişi sunucunun doğruladığı UTC anı + "UTC" ile gider
+  //    (sağlayıcının eski tz çevirisi yok; koordinatlar aynı). Sıra katılımcı sırasıdır.
   const opts = { lang: policy.lang, timeoutMs: policy.timeoutMs };
+  const utcMoments: RoxyBirthMoment[] = [];
+  for (const m of members) {
+    const u = toRoxyUtcMoment(m.moment, m.birthUtcIso);
+    if (!u) return fail(422, "CHART_INCOMPLETE", `${m.name}: kayıtlı analizin doğum anı doğrulanamadı. Önce bireysel analizi yeniden oluşturun.`, { participant: m.name });
+    utcMoments.push(u);
+  }
   let result: HdConnectionResult | HdPentaResult;
   let raw: unknown;
   if (kind === "connection") {
-    const call = await deps.callConnection(deps.config, { personA: members[0].moment, personB: members[1].moment }, opts);
+    const call = await deps.callConnection(deps.config, { personA: utcMoments[0], personB: utcMoments[1] }, opts);
     if (!call.ok) {
       log("[hd-relation] connection call failed", { kind: call.kind, status: call.status });
       return PROVIDER_ERRORS[call.kind] ?? PROVIDER_ERRORS.server_error;
@@ -304,7 +387,7 @@ export async function createRelationAnalysis(ctx: RelationCtx, rawBody: unknown,
     result = v.value;
     raw = call.raw;
   } else {
-    const call = await deps.callPenta(deps.config, { members: members.map((m) => m.moment) }, opts);
+    const call = await deps.callPenta(deps.config, { members: utcMoments }, opts);
     if (!call.ok) {
       log("[hd-relation] penta call failed", { kind: call.kind, status: call.status });
       return PROVIDER_ERRORS[call.kind] ?? PROVIDER_ERRORS.server_error;
@@ -342,7 +425,12 @@ export async function createRelationAnalysis(ctx: RelationCtx, rawBody: unknown,
     }),
   ).select("id").single();
   if (insErr) {
-    if (isUniqueViolation(insErr)) return { status: 200, body: { ok: true, id, reused: true, kind } };
+    if (isUniqueViolation(insErr)) {
+      // Eşzamanlı INSERT: kazanan analiz de doğrulanır (bulundu ≠ doğru kaynak).
+      const won = await reuseOrNot();
+      if (won.error) return won.error;
+      return won.res ?? fail(409, "IN_PROGRESS", "Bu analiz şu anda hazırlanıyor. Birkaç saniye sonra tekrar deneyin.", { retryAfterSec: 2 });
+    }
     if (isRelationTableMissing(insErr)) return RELATIONS_UNAVAILABLE;
     return fail(500, "DB_INSERT_FAILED", hdSafeDbError("relation.insert", insErr));
   }
@@ -549,7 +637,8 @@ export type RelationCandidate = {
   birthTime: string | null;
   /** Uygun (otomatik, tam, güncel) BodyGraph analizi; yoksa null + neden. */
   chart: { id: string; birthPlace: string | null; createdAt: string | null } | null;
-  reason: null | "no_auto_chart" | "birth_data_changed" | "chart_incomplete";
+  /** chart_time_stale (HD-TZ): analiz güncel saat dilimi verisinden farklı bir doğum anıyla hesaplanmış. */
+  reason: null | "no_auto_chart" | "birth_data_changed" | "chart_incomplete" | "chart_time_stale";
 };
 
 /** Bu tenant'ın HD danışanları + her biri için kullanılabilir en güncel Roxy analizi (Roxy çağrısı YOK). */
@@ -572,7 +661,7 @@ export async function listRelationCandidates(ctx: RelationCtx, policy: RoxyPolic
     byClient.set(k, [...(byClient.get(k) ?? []), h]);
   }
   const hhmm = (t: string | null) => (t ? (toHms(t) ?? "").slice(0, 5) || null : null);
-  const picked = new Map<string, Pick<ChartRow, "id" | "birth_place" | "created_at">>();
+  const picked = new Map<string, Pick<ChartRow, "id" | "input" | "birth_place" | "created_at">>();
   const reasons = new Map<string, RelationCandidate["reason"]>();
   for (const c of clients) {
     const list = byClient.get(c.id.toLowerCase()) ?? [];
@@ -587,10 +676,18 @@ export async function listRelationCandidates(ctx: RelationCtx, policy: RoxyPolic
   // 2. geçiş: yalnız seçilen analizlerin tam 26 aktivasyonu doğrulanır.
   const ids = [...picked.values()].map((h) => h.id);
   const complete = new Set<string>();
+  const staleTime = new Set<string>();
+  const inputOf = new Map([...picked.values()].map((h) => [h.id, h.input] as const));
   for (let i = 0; i < ids.length; i += 200) {
     const { data, error } = await withTenant(ctx.db.from("human_design_charts").select("id, computed_result"), ctx.tenantId, "relation.cand.facts").in("id", ids.slice(i, i + 200));
     if (error) return { ok: false, status: 500, code: "DB_ERROR", error: hdSafeDbError("relation.cand.facts", error) };
-    for (const r of (data ?? []) as Array<{ id: string; computed_result: unknown }>) if (participantChartFacts(r.computed_result)) complete.add(r.id);
+    for (const r of (data ?? []) as Array<{ id: string; computed_result: unknown }>) {
+      if (!participantChartFacts(r.computed_result)) continue;
+      // HD-TZ: doğum anı güncel IANA çözümüyle aynı olmayan analiz seçilemez (kayıt değişmez).
+      const m = chartBirthMoment(inputOf.get(r.id));
+      if (!m || checkChartBirthUtc(m, r.computed_result).status !== "current") staleTime.add(r.id);
+      else complete.add(r.id);
+    }
   }
   return {
     ok: true,
@@ -603,7 +700,7 @@ export async function listRelationCandidates(ctx: RelationCtx, policy: RoxyPolic
         birthDate: c.birth_date ? c.birth_date.slice(0, 10) : null,
         birthTime: hhmm(c.birth_time),
         chart: usable ? { id: h!.id, birthPlace: h!.birth_place, createdAt: h!.created_at } : null,
-        reason: usable ? null : h ? "chart_incomplete" : reasons.get(c.id) ?? "no_auto_chart",
+        reason: usable ? null : h ? (staleTime.has(h.id) ? "chart_time_stale" : "chart_incomplete") : reasons.get(c.id) ?? "no_auto_chart",
       };
     }),
   };

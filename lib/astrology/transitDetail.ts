@@ -8,6 +8,7 @@
 //   • Zaman: sağlayıcı anları UTC'dir; gösterim seçilen IANA saat dilimine Intl ile çevrilir (yaz/kış saati dahil).
 
 import { isValidIsoDate, normalizeTime, resolveAstroBirthTime } from "./birth/timeResolution";
+import { formatZonedParts, isDisplayZone } from "./birth/zonedFormat";
 import type { AspectType, BodyId, NatalHouse } from "./model/western";
 import type { ForecastEvent, ForecastTechnical, PointId, TransitAspect, TransitCalendarExact, TransitTechnical } from "./model/westernTiming";
 
@@ -88,13 +89,7 @@ export function transitNatalHouses(t: Pick<TransitTechnical, "bodies" | "natalFr
 // ─── Zaman gösterimi ─────────────────────────────────────────────────────────
 
 export function isIanaZone(tz: unknown): tz is string {
-  if (typeof tz !== "string" || tz.length === 0 || tz.length > 64) return false;
-  try {
-    new Intl.DateTimeFormat("en-US", { timeZone: tz });
-    return true;
-  } catch {
-    return false;
-  }
+  return isDisplayZone(tz); // ATL-TZ-2026F: sabit IANA tablosundaki ad ya da Intl'in tanıdığı ad
 }
 
 /** UTC anı ("YYYY-MM-DDTHH:MM[:SS][Z]") → seçilen saat diliminde "GG.AA.YYYY SS:DD" + kısaltma (ör. GMT+3). */
@@ -102,9 +97,7 @@ export function formatInZone(utcIso: string, tz: string): { text: string; zone: 
   const ms = Date.parse(/Z$/.test(utcIso) ? utcIso : `${utcIso.length === 16 ? `${utcIso}:00` : utcIso.slice(0, 19)}Z`);
   if (!Number.isFinite(ms) || !isIanaZone(tz)) return null;
   const p = Object.fromEntries(
-    new Intl.DateTimeFormat("en-GB", { timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23", timeZoneName: "shortOffset" })
-      .formatToParts(new Date(ms))
-      .map((x) => [x.type, x.value]),
+    formatZonedParts("en-GB", { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23", timeZoneName: "shortOffset" }, ms, tz).map((x) => [x.type, x.value]),
   );
   return { text: `${p.day}.${p.month}.${p.year} ${p.hour}:${p.minute}`, zone: String(p.timeZoneName ?? tz) };
 }
@@ -113,7 +106,7 @@ export function formatInZone(utcIso: string, tz: string): { text: string; zone: 
 export function dayKeyInZone(utcIso: string, tz: string): string | null {
   const ms = Date.parse(/Z$/.test(utcIso) ? utcIso : `${utcIso.slice(0, 19)}Z`);
   if (!Number.isFinite(ms) || !isIanaZone(tz)) return null;
-  const p = Object.fromEntries(new Intl.DateTimeFormat("en-GB", { timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(new Date(ms)).map((x) => [x.type, x.value]));
+  const p = Object.fromEntries(formatZonedParts("en-GB", { year: "numeric", month: "2-digit", day: "2-digit" }, ms, tz).map((x) => [x.type, x.value]));
   return `${p.year}-${p.month}-${p.day}`;
 }
 
@@ -155,6 +148,28 @@ export function questionMomentLabel(utcIso: string, tz: string | null | undefine
   const name = TURKEY_ZONES.has(tz) ? "Türkiye saati" : tz;
   const utc = z.text.slice(0, 10) === utcDate ? `${utcTime} UTC` : `${utcDate} ${utcTime} UTC`;
   return `${z.text} — ${name}, ${z.zone} (${utc})`;
+}
+
+/** Değerlendirme yerinin sunucuda çözülmüş saat dilimi (`place.timezone`); yoksa / geçersizse null. Yalnız gösterim. */
+export function horaryPlaceZone(o: Record<string, unknown> | null | undefined): string | null {
+  const pt = (o?.place as { timezone?: unknown } | null | undefined)?.timezone;
+  return isIanaZone(pt) ? pt : null;
+}
+
+/**
+ * K5 (15.11.2026): soru anı başka bir dilimde (ör. UTC) girildiyse değerlendirme yerinin YEREL saati de yazılır —
+ * "değerlendirme yerinde 19.10.2026 07:00 — Pacific/Apia, GMT+13". Gösterim dilimi zaten yerin dilimiyse (ya da iki dilim
+ * o anda aynı saati gösteriyorsa) veya yer dilimi bilinmiyorsa null. Hesap / istek gövdesi / önbellek anahtarı DEĞİŞMEZ.
+ */
+export function questionMomentPlaceNote(utcIso: string, displayTz: string | null | undefined, placeTz: string | null | undefined): string | null {
+  if (!placeTz || !isIanaZone(placeTz) || placeTz === displayTz) return null;
+  const p = formatInZone(utcIso, placeTz);
+  if (!p) return null;
+  const d = displayTz && displayTz !== "UTC" && displayTz !== "Etc/UTC" ? formatInZone(utcIso, displayTz) : null;
+  const utcText = `${utcIso.slice(8, 10)}.${utcIso.slice(5, 7)}.${utcIso.slice(0, 4)} ${utcIso.slice(11, 16)}`;
+  if ((d ? d.text : displayTz ? utcText : null) === p.text) return null;
+  const name = TURKEY_ZONES.has(placeTz) ? "Türkiye saati" : placeTz;
+  return `değerlendirme yerinde ${p.text} — ${name}, ${p.zone}`;
 }
 
 /** İki an arasındaki işaretli fark — "3 gün 4 sa sonra" / "2 sa önce" / "aynı an". */

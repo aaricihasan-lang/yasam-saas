@@ -22,6 +22,8 @@ export const MODULE_ROUTE_PREFIXES: { prefix: string; key: ModuleGateKey }[] = [
   { prefix: "app/api/belge-ceviri", key: "belge_ceviri" },
   { prefix: "app/api/urun-stok", key: "stok" },
   { prefix: "app/api/sifa-rehberi", key: "sifa_rehberi" },
+  // Şifa Rehberi V2 (sürüm bayrağı SIFA_REHBERI_V2_ENABLED): her route requireModuleAccess("sifa_rehberi").
+  { prefix: "app/api/sifa-rehberi-v2", key: "sifa_rehberi" },
   { prefix: "app/api/kisisel-arsiv", key: "personal_archive" },
   { prefix: "app/api/ders-notu", key: "ders_notu" },
   { prefix: "app/api/appointments", key: "appointments" },

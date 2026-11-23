@@ -35,6 +35,7 @@ import {
   sanitizeXmlText,
   type ReportChild,
 } from "@/lib/docx/reportHelpers";
+import { expertCoverBlock, type ExpertBranding, type ExpertBrandingVariant } from "@/lib/docx/expertBranding";
 
 // ─── Sayfa ───────────────────────────────────────────────────────────────────
 
@@ -91,6 +92,9 @@ export type DyCoverInput = {
   expertName?: string | null;
   /** Ek künye satırları (ör. tarih aralığı). Boş değerli satırlar gösterilmez. */
   meta?: [string, string][];
+  /** F3A: uzman markalaması (null/boş → kapak bugünküyle birebir). */
+  branding?: ExpertBranding | null;
+  brandingVariant?: ExpertBrandingVariant;
 };
 
 function rule(color: string, size = 6, after = 0): Paragraph {
@@ -149,10 +153,12 @@ export function dyCover(c: DyCoverInput): ReportChild[] {
     children: [new TextRun({ text: safe(c.clientName), bold: true, size: 56, font: REPORT_FONT, color: C_DARK })],
   }));
   out.push(rule(DY_ACCENT, 4, 360));
+  // F3A: markalama bloğu varsa uzman kimliği (ad dahil) blokta yer alır → "Uzman" künye satırı tekrar edilmez.
+  const expertBlock = expertCoverBlock(c.branding, { variant: c.brandingVariant, accent: DY_NAVY, ruleColor: DY_ACCENT, fallbackName: c.expertName, before: 160 });
   const meta: [string, string][] = [
     ["Rapor Tarihi", c.dateLabel],
     ...(c.meta ?? []),
-    ...(c.expertName?.trim() ? [["Uzman", c.expertName.trim()] as [string, string]] : []),
+    ...(c.expertName?.trim() && !expertBlock.length ? [["Uzman", c.expertName.trim()] as [string, string]] : []),
   ].filter(([, v]) => !!v?.trim()) as [string, string][];
   for (const [label, value] of meta) {
     out.push(new Paragraph({
@@ -164,6 +170,7 @@ export function dyCover(c: DyCoverInput): ReportChild[] {
       ],
     }));
   }
+  out.push(...expertBlock);
   out.push(new Paragraph({ spacing: { before: 360, after: 0 }, border: { bottom: { style: BorderStyle.SINGLE, size: 4, color: DY_ACCENT } } }));
   out.push(new Paragraph({
     alignment: AlignmentType.CENTER,

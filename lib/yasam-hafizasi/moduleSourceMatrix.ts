@@ -259,9 +259,11 @@ export const YH_MODULE_SOURCE_MATRIX = [
     moduleKey: "sifa_rehberi",
     label: "Şifa Rehberi",
     classification: "PROFESSIONAL_ONLY",
-    professionalSourceKeys: ["sifa_rehberi:guides", "sifa_rehberi:guide-sections"],
+    // sifa_rehberi_v2:notes — V2 KİŞİSEL notlar (uzman sahipli; yalnız sahibine aranır). Kurum ortak V2 kayıtları
+    // V1 türevi → indekslenmez (V1 kaynakları zaten burada; mükerrer yok).
+    professionalSourceKeys: ["sifa_rehberi:guides", "sifa_rehberi:guide-sections", "sifa_rehberi_v2:notes"],
     clientSourceKeys: [],
-    allow: ["rehber/section başlığı", "içerik katmanı", "provenans", "kategori"],
+    allow: ["rehber/section başlığı", "içerik katmanı", "provenans", "kategori", "V2 kişisel not (yalnız sahibine)"],
     deny: ["BF-14 P2 report snapshot metinleri (recursive source YASAK)", "danışana özel teslim eki içeriği"],
     rationale:
       "healing_guides / healing_guide_sections tenant/shared/canonical professional bilgi; CANLI. " +

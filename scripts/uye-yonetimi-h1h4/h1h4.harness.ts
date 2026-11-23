@@ -19,6 +19,7 @@ import { randomUUID } from "node:crypto";
 import { NextRequest } from "next/server";
 import { startPgrestShim } from "../uye-yonetimi-faz1/pgrestShim";
 import { startTestDb } from "../uye-yonetimi-faz2/testDb";
+import { freePort } from "../uye-yonetimi-faz2/testDbRun";
 import { readMig } from "../uye-yonetimi-360/migrationChain";
 
 process.env.RATE_LIMIT_SECRET = "zz-h1h4-rate-limit-secret";
@@ -43,7 +44,7 @@ const TOK = { owner: "zz-h1h4-owner-token-0001", admin2: "zz-h1h4-admin2-token-0
 const ALL_TECH = { mode: "all" };
 
 async function main(): Promise<void> {
-  const port = 55000 + Math.floor(Math.random() * 3000);
+  const port = await freePort(); // işletim sisteminden boş port (paralel koşular çakışmaz)
   const db = await startTestDb(port, `uye-yonetimi-h1h4-${port}`);
   const { su } = db;
   let shim: Awaited<ReturnType<typeof startPgrestShim>> | null = null;

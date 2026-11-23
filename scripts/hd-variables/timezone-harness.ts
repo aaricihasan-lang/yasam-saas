@@ -28,6 +28,15 @@ section("A. Çözücü × bağımsız Python zoneinfo referansı");
 const ref = JSON.parse(readFileSync(path.resolve(__dirname, "../hd-transit/fixtures/timezone-reference.json"), "utf8")) as {
   source: string; cases: Array<{ tz: string; date: string; time: string; kind: "ok" | "gap" | "ambiguous"; utc?: string; offset?: number; offsets?: number[] }>;
 };
+// HD-TZ (18.11.2026): IANA 2026f + backzone politikasıyla beklenen DEĞİŞEN vakalar, ayrı ve bağımsız üretilmiş referanstan
+// (tzcomp.py / zoneinfo 2026f — TS çekirdeği kullanılmadan). Vaka sayısı ve kapsam aynı; yalnız beklenen değer güncel veriden.
+const ref2026f = JSON.parse(readFileSync(path.resolve(__dirname, "../hd-transit/fixtures/timezone-reference-2026f-backzone.json"), "utf8")) as { cases: Array<(typeof ref.cases)[number]> };
+const upd = new Map(ref2026f.cases.map((c) => [`${c.tz}|${c.date}|${c.time}`, c]));
+ref.cases = ref.cases.map((c) => {
+  const u = upd.get(`${c.tz}|${c.date}|${c.time}`);
+  return u ? { tz: c.tz, date: c.date, time: c.time, kind: u.kind, utc: u.utc, offset: u.offset, offsets: u.offsets } : c;
+});
+ok(upd.size === 45, `IANA 2026f + backzone güncellemesi: ${upd.size} vaka (bağımsız referans)`);
 let wrong = 0, silent = 0;
 const bad: unknown[] = [];
 for (const c of ref.cases) {
