@@ -450,10 +450,19 @@ function main() {
       const s = readFileSync(join(ROOT, f), "utf8");
       assert.ok(!/fetch\(|\/api\/|roxy|supabase|saveAnalysis|localStorage/i.test(s), f);
     }
-    for (const f of ["lib/astrology/report/wheelSvg.ts", "lib/astrology/report/model.ts"]) {
-      const s = readFileSync(join(ROOT, f), "utf8");
-      assert.ok(!/natalLabelLayout|natalPositionView|natalTimeUnknown|NatalWheelLabeled/.test(s), f);
-    }
+    // Ortak rapor çizicisi (diğer tekniklerin çarkı) G2 görünüm katmanını HİÇ kullanmaz.
+    const ws = readFileSync(join(ROOT, "lib/astrology/report/wheelSvg.ts"), "utf8");
+    assert.ok(!/natalLabelLayout|natalPositionView|natalTimeUnknown|NatalWheelLabeled|natalWheelReport/.test(ws), "wheelSvg.ts");
+    // G3 (2026-11-22, Owner onayı: "G2'nin ortak gösterim kurallarını yeniden kullan"): rapor modeli YALNIZ saf kural modüllerini
+    // (React bileşeni değil) içe aktarır ve bunları yalnız Natal bölümünde kullanır (natal-g3-report harness'ı davranışı doğrular).
+    const model = readFileSync(join(ROOT, "lib/astrology/report/model.ts"), "utf8");
+    assert.ok(!/NatalWheelLabeled|_components\//.test(model), "model.ts React bileşeni içe aktarmamalı");
+    // G3 (2026-11-23): yoğun burç derece cetveli (natalDegreeRulerFigures) da aynı sınırda — yalnız Natal bölümü / Natal çark kurulumu.
+    const uses = [...model.matchAll(/\b(positionRow|listedNatalAspects|patternInvolvesMoon|aspectBalanceOf|timeUnknownDistribution|natalReportLayout|natalDegreeRulerFigures)\(/g)].map((m) => m.index!);
+    const natalStart = model.indexOf("// ─── G3 (2026-11-22): Natal raporu");
+    const natalEnd = model.indexOf("/** Natal dağılım satırları (Word/PDF)");
+    const assembly = model.indexOf('if (chart && technique === "western.natal" && tech)');
+    assert.ok(uses.length > 0 && uses.every((i) => (i > natalStart && i < natalEnd) || (i > assembly && i < assembly + 900)), "G2 kuralları rapor modelinde yalnız Natal bölümünde");
     for (const f of ["TimingPanels.tsx", "PlanetaryReturnPanel.tsx", "LocationPanels.tsx", "horary/WesternHoraryDesk.tsx"])
       assert.ok(!/natalWheelDisplay\(|NatalWheelLabeled|natalLabelLayout/.test(readFileSync(join(ROOT, "app/admin/astroloji/_components", f), "utf8")), f);
   });

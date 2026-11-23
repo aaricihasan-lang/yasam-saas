@@ -41,7 +41,8 @@ export const signIndexOf = (lon: number) => Math.floor(norm(lon) / 30) % 12;
 /** Çark ölçüleri (NatalWheel ile aynı; ürün geometrisi KORUNUR). */
 export const WHEEL = { SIZE: 604, C: 302, R_OUT: 272, R_SIGN_IN: 238, RULER_W: 11, R_HOUSE_NUM: 136, R_ASPECT: 122 } as const;
 
-export type LabelProfile = "screen" | "compact";
+/** screen / compact: ekran (G2). report: Word / PDF A4 baskı (G3; R4 A4 değerleri — 170 mm genişlikte yazılar ≥ 7 pt). */
+export type LabelProfile = "screen" | "compact" | "report";
 export type LabelGeo = {
   pad: number;
   minSep: number;
@@ -54,6 +55,7 @@ export type LabelGeo = {
 export const LABEL_GEO: Record<LabelProfile, LabelGeo> = {
   screen: { pad: 60, minSep: 9.5, tier: { g: 212, d: 195, s: 181, m: 168 }, f: { g: 21, v: 15, d: 10.5, s: 14, m: 8.5, cusp: 9.5, cuspSign: 12, plateT: 10.5, plateV: 9.5 } },
   compact: { pad: 60, minSep: 13.5, tier: { g: 210, d: 178, s: 178, m: 178 }, f: { g: 21, v: 15, d: 10.5, s: 14, m: 8.5, cusp: 9.5, cuspSign: 12, plateT: 10.5, plateV: 9.5 } },
+  report: { pad: 60, minSep: 10.5, tier: { g: 212, d: 193, s: 178, m: 163 }, f: { g: 21, v: 15, d: 11, s: 14, m: 11, cusp: 11, cuspSign: 13, plateT: 11.5, plateV: 11 } },
 };
 
 export const LABEL_VIEWBOX = WHEEL.SIZE + 2 * LABEL_GEO.screen.pad;

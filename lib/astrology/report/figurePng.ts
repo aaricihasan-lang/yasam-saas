@@ -12,6 +12,7 @@ import { dashaTimelineSvg, kpReportSvg, kundliReportSvg, litToString, shadbalaBa
 import { WHEEL_FONT_STACK } from "./wheelSvg";
 import { acgMapSvg, localSpaceMapSvg } from "./mapFigures";
 import { bhavaBalaBarsSvg } from "./vedicHaritaFigures";
+import { natalDegreeRulerSvg } from "./natalWheelReport";
 
 assertServerOnly("lib/astrology/report/figurePng");
 
@@ -43,6 +44,7 @@ export async function renderFigureSvg(fig: ReportFigure): Promise<string> {
   if (fig.type === "acgMap") return acgMapSvg(fig, WHEEL_FONT_STACK);
   if (fig.type === "localSpaceMap") return localSpaceMapSvg(fig, WHEEL_FONT_STACK);
   if (fig.type === "bhavaBalaBars") return bhavaBalaBarsSvg(fig, WHEEL_FONT_STACK);
+  if (fig.type === "natalDegreeRuler") return natalDegreeRulerSvg(fig, WHEEL_FONT_STACK);
   return kundliReportSvg(await kundliMarkup(fig), fig, WHEEL_FONT_STACK);
 }
 

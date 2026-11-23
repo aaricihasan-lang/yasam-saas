@@ -9,6 +9,7 @@ import { Resvg } from "@resvg/resvg-js";
 import { assertServerOnly } from "@/lib/server/serverOnlyGuard";
 import type { WheelInput } from "./model";
 import { buildWheelSvg, WHEEL_FONT_STACK } from "./wheelSvg";
+import { buildNatalReportSvg } from "./natalWheelReport";
 import { SYMBOL_FONT_FILES } from "./symbolFonts";
 
 assertServerOnly("lib/astrology/report/chartPng");
@@ -17,10 +18,15 @@ export const REPORT_FONT_PATH = path.join(process.cwd(), "public", "fonts", "Gei
 /** Sembol yedek yazı tipleri (2026-10-14): çarkta gerçek astroloji glifleri. next.config outputFileTracingIncludes listesinde. */
 export const SYMBOL_FONT_PATHS = [SYMBOL_FONT_FILES.A, SYMBOL_FONT_FILES.B].map((f) => path.join(process.cwd(), "public", "fonts", f));
 
-/** Kare çark PNG'si (oran 1:1 korunur). Hata → null (rapor görselsiz devam eder). */
+/**
+ * Kare çark PNG'si (oran 1:1 korunur). Hata → null (rapor görselsiz devam eder). G3: `chart.natal` verilmişse (yalnız Batı Natal
+ * raporu) burç / derece / dakika etiketli Natal çarkı çizilir; verilmezse wheelSvg AYNEN.
+ */
 export function renderWheelPng(chart: WheelInput, widthPx = 1200): { png: Buffer; width: number; height: number } | null {
   try {
-    const r = new Resvg(buildWheelSvg(chart, WHEEL_FONT_STACK), {
+    const natal = chart.natal ? { ...chart, natal: chart.natal } : null;
+    const svg = natal ? buildNatalReportSvg(natal, WHEEL_FONT_STACK) : buildWheelSvg(chart, WHEEL_FONT_STACK);
+    const r = new Resvg(svg, {
       background: "white",
       fitTo: { mode: "width", value: widthPx },
       font: { loadSystemFonts: false, fontFiles: [REPORT_FONT_PATH, ...SYMBOL_FONT_PATHS], defaultFontFamily: "Geist" },
