@@ -2,7 +2,9 @@
 
 /**
  * İçerik kutusu editörü (Tiptap 3, MIT). OTOMATİK KAYIT YOK: her değişiklik yalnız sayfa
- * taslağına yazılır; kalıcı kayıt üstteki "Kaydet" ile yapılır.
+ * taslağına yazılır; kalıcı kayıt "Kaydet" ile yapılır.
+ * Görsel: canlı sayfada özel Storage'a yüklenir, içerikte yalnız `sifa-asset:<uuid>` durur
+ * (lib/sifa-rehberi-v2/assetClient.ts). Yükleme hattı yoksa (yerel prototip) eski yerel önizleme.
  */
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { EditorContent, useEditor, type Editor } from "@tiptap/react";
@@ -11,6 +13,7 @@ import { NodeSelection } from "@tiptap/pm/state";
 import { buildExtensions, TEXT_COLORS } from "@/components/sifa-rehberi-v2/editorExtensions";
 import { PromptDialog } from "@/components/sifa-rehberi-v2/Modal";
 import { isSafeHref } from "@/lib/sifa-rehberi-v2/contentSafety";
+import { AssetUploadError, assetUploadAvailable, uploadSifaImage } from "@/lib/sifa-rehberi-v2/assetClient";
 
 const MAX_IMAGE_EDGE = 1400;
 
@@ -84,7 +87,7 @@ function readState(ed: Editor) {
   };
 }
 
-type Dialog = null | { kind: "link"; initial: string } | { kind: "caption"; initial: string } | { kind: "newImage"; src: string; alt: string };
+type Dialog = null | { kind: "link"; initial: string } | { kind: "caption"; initial: string } | { kind: "newImage"; file: File | null; src: string; alt: string };
 
 export function RichEditor({
   initial,
@@ -104,6 +107,8 @@ export function RichEditor({
   });
   const [dialog, setDialog] = useState<Dialog>(null);
   const [colorOpen, setColorOpen] = useState(false);
+  const [imgBusy, setImgBusy] = useState(false);
+  const [imgError, setImgError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const editor = useEditor({
@@ -133,9 +138,41 @@ export function RichEditor({
 
   const onPickImage = async (file: File | undefined) => {
     if (!file) return;
-    if (!/^image\/(png|jpeg|webp|gif)$/.test(file.type)) return;
+    setImgError(null);
+    const alt = file.name.replace(/\.[a-z0-9]+$/i, "").slice(0, 300);
+    if (assetUploadAvailable()) {
+      // Android WebView'de tür boş ya da octet-stream gelebilir → gerçek doğrulama yüklemede
+      // (tarayıcıda görsel çözümü + sunucuda bayt imzası).
+      if (file.type && !/^image\//.test(file.type) && file.type !== "application/octet-stream") {
+        setImgError("Yalnız görsel dosyası (PNG, JPEG, WebP, GIF) eklenebilir.");
+        return;
+      }
+      setDialog({ kind: "newImage", file, src: "", alt });
+      return;
+    }
+    if (!/^image\/(png|jpeg|webp|gif)$/.test(file.type)) {
+      setImgError("Yalnız görsel dosyası (PNG, JPEG, WebP, GIF) eklenebilir.");
+      return;
+    }
     const src = await fileToDataUrl(file);
-    setDialog({ kind: "newImage", src, alt: file.name.replace(/\.[a-z0-9]+$/i, "") });
+    setDialog({ kind: "newImage", file: null, src, alt });
+  };
+
+  /** Görseli (canlıda Storage'a yükleyip) içeriğe ekler. Hata → editörde açık mesaj; içerik değişmez. */
+  const insertImage = async (d: { file: File | null; src: string; alt: string }, caption: string) => {
+    if (!d.file) {
+      chain().insertContent({ type: "figure", attrs: { src: d.src, alt: d.alt, caption } }).run();
+      return;
+    }
+    setImgBusy(true);
+    try {
+      const { src } = await uploadSifaImage(d.file, caption);
+      ed.chain().focus().insertContent({ type: "figure", attrs: { src, alt: d.alt, caption } }).run();
+    } catch (e) {
+      setImgError(e instanceof AssetUploadError ? e.message : "Görsel yüklenemedi. Lütfen tekrar deneyin.");
+    } finally {
+      setImgBusy(false);
+    }
   };
 
   return (
@@ -183,8 +220,8 @@ export function RichEditor({
         <TBtn label="Tablo ekle" onClick={() => chain().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()} testId="tb-table">
           {simple ? "▦ Tablo" : "▦"}
         </TBtn>
-        <TBtn label="Görsel ekle" onClick={() => fileRef.current?.click()} testId="tb-image">
-          {simple ? "🖼 Görsel" : "🖼"}
+        <TBtn label={imgBusy ? "Görsel yükleniyor" : "Görsel ekle"} onClick={() => fileRef.current?.click()} disabled={imgBusy} testId="tb-image">
+          {imgBusy ? "⏳ Yükleniyor…" : simple ? "🖼 Görsel" : "🖼"}
         </TBtn>
         {s.figure ? (
           <TBtn
@@ -214,7 +251,7 @@ export function RichEditor({
         <input
           ref={fileRef}
           type="file"
-          accept="image/png,image/jpeg,image/webp,image/gif"
+          accept="image/png,image/jpeg,image/webp,image/gif,image/*"
           className="hidden"
           data-testid="tb-image-input"
           onChange={(e) => {
@@ -223,6 +260,17 @@ export function RichEditor({
           }}
         />
       </div>
+      {imgBusy ? (
+        <p className="border-b border-emerald-50 bg-emerald-50/60 px-3 py-2 text-[12.5px] font-bold text-emerald-900" role="status" data-testid="image-uploading">
+          Görsel güvenli depoya yükleniyor…
+        </p>
+      ) : null}
+      {imgError ? (
+        <p className="flex items-start gap-2 border-b border-rose-100 bg-rose-50 px-3 py-2 text-[12.5px] font-bold text-rose-800" role="alert" data-testid="image-error">
+          <span className="min-w-0 flex-1">{imgError}</span>
+          <button type="button" className="shrink-0 underline" onClick={() => setImgError(null)}>Kapat</button>
+        </p>
+      ) : null}
       {colorOpen ? (
         <div className="flex flex-wrap items-center gap-1.5 border-b border-emerald-50 bg-emerald-50/40 px-3 py-2" data-testid="color-palette">
           {TEXT_COLORS.map((c) => (
@@ -303,14 +351,15 @@ export function RichEditor({
           title="Görsel ekle"
           subtitle="Görselin altında görünecek açıklamayı yazın (isteğe bağlı)."
           label="Görsel açıklaması"
-          placeholder="Ör. Şekil 1 — sentetik örnek görsel"
+          placeholder="Ör. Şekil 1 — zencefil kökü"
           allowEmpty
           confirmText="Görseli ekle"
           testId="image-caption-dialog"
           onCancel={() => setDialog(null)}
           onSubmit={(v) => {
-            chain().insertContent({ type: "figure", attrs: { src: dialog.src, alt: dialog.alt, caption: v.trim() } }).run();
+            const d = dialog;
             setDialog(null);
+            void insertImage(d, v.trim());
             return null;
           }}
         />

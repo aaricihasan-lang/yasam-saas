@@ -124,3 +124,49 @@
   height: 0;
   pointer-events: none;
 }
+
+/* Arama vurgusu — YALNIZ ekranda (kayıtlı içeriğe yazılmaz). Yapışkan üst çubuk eşleşmeyi örtmesin. */
+mark.sifa-v2-hit {
+  background: #fde047;
+  color: inherit;
+  border-radius: 3px;
+  padding: 0 1px;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+  scroll-margin-top: 170px;
+  scroll-margin-bottom: 110px;
+}
+mark.sifa-v2-hit.is-current {
+  background: #facc15;
+  outline: 2px solid #f59e0b;
+  outline-offset: 1px;
+}
+@media (forced-colors: active) {
+  mark.sifa-v2-hit {
+    forced-color-adjust: none;
+    background: Mark;
+    color: MarkText;
+  }
+}
+/* Özel depodaki görsel: imzalı bağlantı gelene kadar yer tutucu; verilmezse (yetki yok/silinmiş) bilgi zemini. */
+.sifa-v2-rich img[data-asset-state="yukleniyor"],
+.sifa-v2-rich img[data-asset-state="yok"] {
+  min-height: 120px;
+  width: 100%;
+  max-width: 360px;
+  background: repeating-linear-gradient(135deg, #f1f5f9 0 12px, #e2e8f0 12px 24px);
+}
+.sifa-v2-rich img[data-asset-state="yok"] {
+  background: #fff1f2;
+  outline: 1px dashed #fda4af;
+}
+
+/*
+ * Yapışkan üst çubuk (YALNIZ Şifa Rehberi V2 açıkken): app/layout.tsx'te html + body birlikte
+ * overflow-x:hidden → body kaydırma kabı olur ve tüm `position: sticky` öğeleri etkisizleşir.
+ * `clip` yatay taşmayı aynı şekilde kırpar ama kaydırma kabı OLUŞTURMAZ. :has() kapsamı sayesinde başka
+ * modül sayfalarında hiçbir şey değişmez; :has/clip desteklemeyen eski tarayıcı bugünkü davranışta kalır.
+ */
+body:has(.sifa-v2) {
+  overflow-x: clip;
+}

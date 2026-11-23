@@ -331,7 +331,7 @@ export function TrashDialog({ ws, onCancel, onRestore }: { ws: Workspace; onCanc
   return (
     <Modal
       title="Çöp Kutusu"
-      subtitle={`Silinen konular ve kutular burada ${TRASH_RETENTION_DAYS} gün saklanır (tasarım değeri; prototipte kalıcı temizlik yok). Geri yüklenen kayıt eski yerine döner; eski yer yoksa en üst seviyeye gelir.`}
+      subtitle={`Silinen konular ve içerik kutuları ${TRASH_RETENTION_DAYS} gün boyunca burada görünür ve geri yüklenebilir. Geri yüklenen kayıt eski yerine döner; eski yer yoksa en üst seviyeye gelir.`}
       onClose={onCancel}
       wide
       testId="trash-dialog"

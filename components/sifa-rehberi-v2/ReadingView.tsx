@@ -11,6 +11,8 @@ import { RichView } from "@/components/sifa-rehberi-v2/RichView";
 import { CLASS_ICON, CLASS_STYLE } from "@/components/sifa-rehberi-v2/BlockCard";
 import { sourceKindLabel } from "@/components/sifa-rehberi-v2/Dialogs";
 import { btnPrimary } from "@/components/sifa-rehberi-v2/Modal";
+import { Hl, useHighlightQuery } from "@/components/sifa-rehberi-v2/highlight";
+import { foldSearch } from "@/lib/sifa-rehberi-v2/search";
 import { buildReading, type ReadingSection } from "@/lib/sifa-rehberi-v2/reading";
 import type { RelatedEntry } from "@/lib/sifa-rehberi-v2/related";
 import { BLOCK_CLASSES, type Block, type Workspace } from "@/lib/sifa-rehberi-v2/types";
@@ -39,7 +41,12 @@ type Props = {
 
 export const ReadingView = memo(function ReadingView({ ws, rootId, focusId, dirty, onOpenNode, onBackToNotes, onWord }: Props) {
   const [showEmpty, setShowEmpty] = useState(false);
-  const reading = useMemo(() => buildReading(ws, rootId, { includeEmpty: showEmpty }), [ws, rootId, showEmpty]);
+  const fq = useHighlightQuery();
+  // Etkin aramada adı eşleşen boş başlık da görünür (eşleşme gizli kalmasın).
+  const reading = useMemo(
+    () => buildReading(ws, rootId, { includeEmpty: showEmpty, keep: fq ? (n) => foldSearch(n.title).includes(fq) : undefined }),
+    [ws, rootId, showEmpty, fq],
+  );
   useEffect(() => {
     if (!focusId) return;
     // Seçimdeki "sayfa başına kaydır" bittikten sonra bölüme in.
@@ -55,7 +62,7 @@ export const ReadingView = memo(function ReadingView({ ws, rootId, focusId, dirt
       <header className="rounded-[22px] border border-emerald-100 bg-gradient-to-br from-white via-emerald-50/50 to-cyan-50/40 p-4 sm:p-6">
         <p className="text-[11px] font-black uppercase tracking-[0.16em] text-emerald-700">📖 Bütüncül Okuma · salt-okunur</p>
         <h2 className="mt-1 break-words text-[26px] font-black leading-tight tracking-tight text-slate-950 sm:text-[34px]" data-testid="reading-title">
-          <span className="uppercase">{root.title}</span>
+          <span className="uppercase"><Hl text={root.title} /></span>
           <span className="text-slate-400"> — </span>
           <span className="text-emerald-800">Bütüncül Okuma</span>
         </h2>
@@ -172,7 +179,7 @@ function Section({ s, onOpenNode }: { s: ReadingSection; onOpenNode: (id: string
           {s.number}
         </span>
         <span className={`min-w-0 break-words font-black leading-tight text-slate-950 group-hover:text-emerald-800 ${size}`} data-testid="reading-heading-text">
-          {s.node.title}
+          <Hl text={s.node.title} />
         </span>
         <span className="ml-auto shrink-0 text-[11.5px] font-bold text-emerald-700 opacity-60 group-hover:opacity-100">✎ Düzenle</span>
       </button>
@@ -257,7 +264,7 @@ function ReadingBlock({ block }: { block: Block }) {
             </span>
           ) : null}
           <h4 className="break-words text-[16.5px] font-black leading-6 text-slate-950" data-testid="reading-block-title">
-            {block.title}
+            <Hl text={block.title} />
           </h4>
         </div>
       </header>
@@ -271,9 +278,9 @@ function ReadingBlock({ block }: { block: Block }) {
             {block.sources.map((s) => (
               <li key={s.id} data-testid="reading-source">
                 <span className="mr-1 rounded bg-slate-100 px-1.5 text-[10px] font-bold text-slate-500">{sourceKindLabel(s.kind)}</span>
-                {s.authors ? `${s.authors} ` : ""}
+                {s.authors ? <><Hl text={s.authors} />{" "}</> : null}
                 {s.year ? `(${s.year}). ` : ""}
-                <span className="font-semibold">{s.title}</span>
+                <span className="font-semibold"><Hl text={s.title} /></span>
                 {s.doi ? (
                   <>
                     {" · "}

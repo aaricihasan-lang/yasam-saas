@@ -9,6 +9,7 @@ import type { JSONContent } from "@tiptap/core";
 import { RichEditor } from "@/components/sifa-rehberi-v2/RichEditor";
 import { RichView } from "@/components/sifa-rehberi-v2/RichView";
 import { PromptDialog } from "@/components/sifa-rehberi-v2/Modal";
+import { Hl } from "@/components/sifa-rehberi-v2/highlight";
 import { SourceDialog, sourceKindLabel } from "@/components/sifa-rehberi-v2/Dialogs";
 import type { BlockPatch } from "@/lib/sifa-rehberi-v2/tree";
 import { BLOCK_CLASSES, type Block, type BlockClass, type SourceRef } from "@/lib/sifa-rehberi-v2/types";
@@ -85,7 +86,7 @@ export const BlockCard = memo(function BlockCard({ simple, block, index, count, 
             </span>
           ) : null}
           <h4 className="break-words text-[17px] font-black leading-6 text-slate-950" data-testid="block-title">
-            {block.title}
+            <Hl text={block.title} />
           </h4>
           <span className="mt-1.5 block h-[3px] w-16 rounded-full bg-gradient-to-r from-emerald-500 to-cyan-400" aria-hidden />
         </div>
@@ -167,9 +168,9 @@ export const BlockCard = memo(function BlockCard({ simple, block, index, count, 
               {block.sources.map((s: SourceRef) => (
                 <li key={s.id} data-testid="source-item">
                   <span className="mr-1 rounded bg-slate-100 px-1.5 text-[10px] font-bold text-slate-500">{sourceKindLabel(s.kind)}</span>
-                  {s.authors ? `${s.authors} ` : ""}
+                  {s.authors ? <><Hl text={s.authors} />{" "}</> : null}
                   {s.year ? `(${s.year}). ` : ""}
-                  <span className="font-semibold">{s.title}</span>
+                  <span className="font-semibold"><Hl text={s.title} /></span>
                   {s.doi ? (
                     <>
                       {" · "}
