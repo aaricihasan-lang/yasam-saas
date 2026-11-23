@@ -1,6 +1,6 @@
 // G2-04 — Danışan Yolculuğu › Analizler: Normal Çakra / Çakra-Gezegen penceresi açıkken sol menü analiz içeriğini örtmez.
-// Geniş / dar / daraltılmış menü masaüstü, mobil tarayıcı, Android uygulama (WebView UA). Kök pencereler (onay, bildirim)
-// yine üstte; Kaydet ve Kapat / Word Al / Tümünü Temizle; kapanınca sayfa katmanı ve menü eski hâlinde; +/− renkleri aynen.
+// Geniş / dar masaüstü (modülde menü otomatik daraltılmış), elle genişletilmiş menü masaüstü, mobil tarayıcı,
+// Android uygulama (WebView UA). Kök pencereler (onay, bildirim) yine üstte; Kaydet ve Kapat / Word Al / Tümünü Temizle; kapanınca sayfa katmanı ve menü eski hâlinde; +/− renkleri aynen.
 // Playwright, yerel sunucu, ağ-mock (prod'a SIFIR temas). Çalıştırma: UI_BASE=http://127.0.0.1:PORT node scripts/grup2/ui-g2-04-menu.mjs
 import { chromium } from "playwright";
 
@@ -73,7 +73,7 @@ async function run(vp) {
     await page.goto(`${BASE}/dashboard/clients/${CLIENT}?tab=analizler`, { waitUntil: "load" });
     await page.getByRole("button", { name: "Analizi Aç" }).first().waitFor({ timeout: 90000 });
     await sleep(800);
-    if (vp.collapse) { await page.locator("[data-side-toggle]").first().click(); await sleep(600); }
+    if (vp.expand) { await page.locator("[data-side-toggle]").first().click(); await sleep(600); }
     const z0 = await mainZ(page);
     for (const [i, name] of [[0, "Çakra"], [1, "Çakra-Gezegen"]]) {
       await page.getByRole("button", { name: "Analizi Aç" }).nth(i).click();
@@ -147,7 +147,7 @@ async function run(vp) {
 for (const vp of [
   { width: 1920, height: 1080, tag: "genis-masaustu" },
   { width: 1280, height: 800, tag: "dar-masaustu" },
-  { width: 1280, height: 800, tag: "menu-daraltilmis", collapse: true },
+  { width: 1280, height: 800, tag: "menu-genisletilmis", expand: true },
   { width: 390, height: 844, tag: "mobil-tarayici" },
   { width: 390, height: 844, tag: "android-uygulama", ua: APP_UA },
 ]) await run(vp);

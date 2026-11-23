@@ -14,41 +14,113 @@
  * Bildirim zili (mevcut NotificationBell) menünün alt bölümünde — ana sayfa ve iç sayfalarda tek zil.
  */
 import Link from "next/link";
-import { useId, useRef, type KeyboardEvent as ReactKeyboardEvent, type ReactNode, type Ref } from "react";
+import { usePathname } from "next/navigation";
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useRef,
+  useSyncExternalStore,
+  type KeyboardEvent as ReactKeyboardEvent,
+  type ReactNode,
+  type Ref,
+} from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { ArrowRight, ChevronDown, ChevronsLeft, LayoutGrid, Loader2, Settings, Shield, UserRound } from "lucide-react";
 import { premiumFontVars } from "@/app/_premium/fonts";
 import type { HomeNavGroup } from "@/app/_premium/home/homeModuleNav";
 import styles from "./sideMenu.module.css";
 
-/** Daraltma tercihi: ana sayfa ve iç sayfalar AYNI tercihi paylaşır (tek menü). Anahtar ana sayfanın mevcut anahtarıdır. */
-export const SIDE_MENU_COLLAPSE_KEY = "ys-home-side-collapsed";
+/**
+ * Daraltma durumu (2026-11-23 owner kararı): ana sayfa ve iç sayfalar aynı durumu paylaşır, ancak durum bulunulan ANA
+ * MODÜLE bağlıdır ve yalnız bu sekmede (sessionStorage) tutulur:
+ *   - ana sayfaya gelişte genişletilmiş, bir modüle (ya da başka bir ana modüle) gelişte daraltılmış başlar;
+ *   - aynı modülün alt sayfalarında ve sayfa yenilemesinde uzmanın elle seçtiği durum korunur.
+ * Varsayılan yalnız okumadan türetilir (yazmadan), bu yüzden geçişte ara çizimde açılıp kapanma olmaz.
+ */
+export const SIDE_MENU_COLLAPSE_KEY = "ys-side-menu-state";
 export const SIDE_MENU_COLLAPSE_EVENT = "ys-home-side-collapsed-change";
+export const SIDE_MENU_HOME_SCOPE = "home";
 
-export function readSideMenuCollapsed(): boolean {
+/** Aynı ana modüle ait olup farklı adres önekiyle açılan sayfalar (menü grupları / merkez bağlantılarıyla aynı). */
+const SIDE_MENU_SCOPE_ALIASES: ReadonlyArray<readonly [string, string]> = [
+  ["/dashboard/clients", "danisan-yolculugu"],
+  ["/dashboard/ajanda", "danisan-yolculugu"],
+  ["/dashboard/refleksoloji", "refleksoloji"],
+  ["/admin/astroloji", "astroloji"],
+  ["/numeroloji-merkezi", "numeroloji"],
+  ["/numeroloji-klasik", "numeroloji"],
+  ["/numeroloji-karsilastirma", "numeroloji"],
+  ["/sifa-rehberi-v2", "sifa-rehberi"],
+];
+
+/** Adresin ana modülü: ana sayfa "home"; diğerleri ilk adres parçası (/dashboard/<x> için iki parça). */
+export function sideMenuScope(path: string): string {
+  if (path === "/") return SIDE_MENU_HOME_SCOPE;
+  for (const [prefix, scope] of SIDE_MENU_SCOPE_ALIASES) {
+    if (path === prefix || path.startsWith(`${prefix}/`)) return scope;
+  }
+  const [first = "", second] = path.split("/").filter(Boolean);
+  return first === "dashboard" && second ? `dashboard/${second}` : first;
+}
+
+const defaultCollapsed = (scope: string): boolean => scope !== SIDE_MENU_HOME_SCOPE;
+
+function readSideMenuState(): { scope: string; collapsed: boolean } | null {
   try {
-    return window.localStorage.getItem(SIDE_MENU_COLLAPSE_KEY) === "1";
+    const raw = window.sessionStorage.getItem(SIDE_MENU_COLLAPSE_KEY);
+    if (!raw) return null;
+    const parsed: unknown = JSON.parse(raw);
+    if (parsed && typeof parsed === "object") {
+      const { scope, collapsed } = parsed as { scope?: unknown; collapsed?: unknown };
+      if (typeof scope === "string" && typeof collapsed === "boolean") return { scope, collapsed };
+    }
   } catch {
-    return false; /* depolama yoksa varsayılan: açık */
+    /* depolama yoksa / bozuksa varsayılan */
+  }
+  return null;
+}
+
+function storeSideMenuState(scope: string, collapsed: boolean): void {
+  try {
+    window.sessionStorage.setItem(SIDE_MENU_COLLAPSE_KEY, JSON.stringify({ scope, collapsed }));
+  } catch {
+    /* depolama yoksa durum yalnız bu çizimde */
   }
 }
 
-export function writeSideMenuCollapsed(value: boolean): void {
-  try {
-    window.localStorage.setItem(SIDE_MENU_COLLAPSE_KEY, value ? "1" : "0");
-  } catch {
-    /* depolama yoksa daraltma kalıcı olmaz */
-  }
+export function readSideMenuCollapsed(scope: string): boolean {
+  const state = readSideMenuState();
+  return state && state.scope === scope ? state.collapsed : defaultCollapsed(scope);
+}
+
+export function writeSideMenuCollapsed(scope: string, value: boolean): void {
+  storeSideMenuState(scope, value);
   window.dispatchEvent(new Event(SIDE_MENU_COLLAPSE_EVENT));
 }
 
 export function subscribeSideMenuCollapsed(onChange: () => void) {
-  window.addEventListener("storage", onChange);
   window.addEventListener(SIDE_MENU_COLLAPSE_EVENT, onChange);
-  return () => {
-    window.removeEventListener("storage", onChange);
-    window.removeEventListener(SIDE_MENU_COLLAPSE_EVENT, onChange);
-  };
+  return () => window.removeEventListener(SIDE_MENU_COLLAPSE_EVENT, onChange);
+}
+
+/**
+ * Ana sayfa (HomeShell) ve iç sayfalar (QuickNavShell) için tek daraltma kaynağı. Sunucu çizimi de modülün
+ * varsayılanını kullanır (modül sayfası yenilenince önce açık çizilip sonra daralmaz).
+ */
+export function useSideMenuCollapsed(): readonly [boolean, (value: boolean) => void] {
+  const scope = sideMenuScope(usePathname() ?? "/");
+  const collapsed = useSyncExternalStore(
+    subscribeSideMenuCollapsed,
+    () => readSideMenuCollapsed(scope),
+    () => defaultCollapsed(scope),
+  );
+  // Yeni ana modüle gelindi: varsayılan sabitlenir (görünen değer zaten bu; olay gerekmez). Aynı modülde dokunulmaz.
+  useEffect(() => {
+    if (readSideMenuState()?.scope !== scope) storeSideMenuState(scope, defaultCollapsed(scope));
+  }, [scope]);
+  const setCollapsed = useCallback((value: boolean) => writeSideMenuCollapsed(scope, value), [scope]);
+  return [collapsed, setCollapsed] as const;
 }
 
 /** Bulunulan sayfa (yalnız gösterim): grup başlığı / alt modül / Danışanlar / Ayarlar vurgusu. */
