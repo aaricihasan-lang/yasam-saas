@@ -3,7 +3,6 @@ import { getActiveSessionUserId } from "@/lib/auth/sessionSecurity";
 import {
   parseGuardedLoginResponse,
   type GuardedLoginOutcome,
-  type GuardedLoginRow,
 } from "@/lib/auth/loginThrottle";
 
 /**
@@ -94,8 +93,8 @@ export async function verifyLoginCredentials(
  * Normalizasyon mevcut login ile BİREBİR: e-posta lower(trim), şifre JS `.trim()`
  * (RPC şifreyi olduğu gibi crypt'e verir — eski login_user ile aynı).
  *
- * Geçiş güvenliği: RPC henüz yoksa (migration apply edilmeden deploy) login_user'a düşer
- * (throttle'sız ama hash-only doğrulama aynı). Diğer RPC hataları → "error" (fail-closed).
+ * F2-A (D-05): RPC yoksa/hata verirse "error" (fail-closed). Throttle'sız login_user yedeğine
+ * DÜŞÜLMEZ — aksi halde migration/deploy boşluğunda kısıtlamasız parola denemesi mümkün olurdu.
  */
 export async function verifyLoginCredentialsGuarded(
   db: SupabaseClient,
@@ -113,29 +112,8 @@ export async function verifyLoginCredentialsGuarded(
     p_ip_hash: ipHash,
   });
 
-  if (error) {
-    if (!isMissingRpcError(error, "auth_login_guarded")) return { status: "error" };
-    // Geçiş: throttle RPC'si yok → eski login_user (service_role) ile doğrula.
-    const legacy = await db.rpc("login_user", { p_email: normEmail, p_password: normPassword });
-    if (legacy.error) return { status: "error" };
-    const row = normalizeRpcRows(legacy.data)[0];
-    if (!row || row.id == null || String(row.id).length === 0) return { status: "invalid" };
-    return { status: "ok", row: toGuardedRow(row) };
-  }
+  if (error) return { status: "error" };
   return parseGuardedLoginResponse(data);
-}
-
-function toGuardedRow(row: LoginUserRow): GuardedLoginRow {
-  return {
-    id: String(row.id),
-    email: row.email != null ? String(row.email) : null,
-    name: row.name != null ? String(row.name) : null,
-    role: row.role != null ? String(row.role) : null,
-    status: row.status != null ? String(row.status) : null,
-    tenant_id: row.tenant_id != null ? String(row.tenant_id) : null,
-    active: row.active === true ? true : row.active === false ? false : null,
-    approval_status: row.approval_status != null ? String(row.approval_status) : null,
-  };
 }
 
 /** PostgREST "fonksiyon bulunamadı" (PGRST202) / Postgres 42883 → RPC henüz deploy edilmemiş. */

@@ -61,7 +61,7 @@ jobs:
   # Güvenlik ve migration doğrulamaları (önceki `checks` işindeki sıra ve komutlar aynen).
   guvenlik:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 45
     env:
       NEXT_TELEMETRY_DISABLED: "1"
     steps:
@@ -92,6 +92,18 @@ jobs:
         run: npm run test:backup
         env:
           BACKUP_PROD_TABLES_OPTIONAL: "1"
+
+      # Giriş güvenliği F2-A…F2-F: gerçek PostgreSQL (embedded) + migration zinciri + gerçek route'lar. MFA'sız oturum
+      # engeli, eski oturum yolları, QR / cihaz imzası, OTP sınırları, kurtarma kodu, 72 saat, Owner taze MFA, paralel
+      # istekler, kalıcı silme × denetim saklama, yayın sırası (000200 en sonda). Atlanan / özetsiz adım FAIL'dir.
+      # QR kodlayıcısı BAĞIMSIZ bir çözücüyle (OpenCV) doğrulanır; sürümler sabit (tekrarlanabilir).
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: QR doğrulayıcı (OpenCV)
+        run: python -m pip install --disable-pip-version-check "opencv-python-headless==4.10.0.84" "numpy==2.1.3"
+      - name: Giriş güvenliği F2 (PostgreSQL + route)
+        run: npm run test:giris-guvenligi
 
   # Bağımsız regresyon testleri: listenin TAMAMI her çalıştırmada koşar (seçim / kapsam bildirimi / etiket kuralı yok).
   # Liste scripts/ci/regression-shard.mjs ile 3 parçaya bölünür (ölçülmüş sürelerle dengeli, deterministik; her test tam bir

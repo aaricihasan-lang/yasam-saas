@@ -3,6 +3,7 @@ import { NextIntlClientProvider } from "next-intl";
 import { getLocale } from "next-intl/server";
 import { headers } from "next/headers";
 import ModuleRouteGuard from "@/components/auth/ModuleRouteGuard";
+import CookieMigrationGate from "@/components/auth/CookieMigrationGate";
 import { ConfirmProvider } from "@/components/ui/ConfirmProvider";
 import { ToastProvider } from "@/components/ui/ToastProvider";
 import GoogleAnalytics from "@/components/GoogleAnalytics";
@@ -63,6 +64,8 @@ export default async function RootLayout({
       {...{ [SESSION_TRANSPORT_HTML_ATTR]: sessionTransport }}
       data-android={platform.android ? "" : undefined}
       data-android-app={platform.androidApp ? "" : undefined}
+      // F2-K (A3): istemcinin token yolu kararı SUNUCUNUN kararından gelir (User-Agent tahmini değil).
+      data-android-token={sessionTransport === "header" && isAndroidAppRequest(requestHeaders) ? "" : undefined}
       className={`${globalFontVars} h-full overflow-x-hidden antialiased`}
     >
       <body className="min-h-full flex flex-col overflow-x-hidden">
@@ -70,6 +73,8 @@ export default async function RootLayout({
             (i18n/request.ts) otomatik devralır — çıkarılan namespace'ler istemci
             bileşenlerinde de kullanılabilir. TR source olduğundan çıkarılmamış
             metinler aynen render olur (regresyon-güvenli). */}
+        {/* HTTPONLY: eski token → çerez geçişi bitmeden kimlikli istek gitmez (Android geçişi B-1). */}
+        <CookieMigrationGate />
         <NextIntlClientProvider>
           {/* GA yalnız herkese açık sayfa + oturumsuz ziyaretçi + AÇIK RIZA (consent) ile
               (bileşen içinde kapılı); Vercel Analytics/Speed Insights URL'leri maskelenir. */}

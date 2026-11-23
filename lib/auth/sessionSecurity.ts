@@ -93,6 +93,17 @@ export function computeSessionExpiresAt(role: unknown, nowMs: number = Date.now(
   return new Date(nowMs + (isAdmin ? SESSION_ABSOLUTE_MS.admin : SESSION_ABSOLUTE_MS.expert)).toISOString();
 }
 
+/**
+ * F2-A (D-01): resmî Android kanalındaki YENİ oturumların mutlak bitişi (rol fark etmez).
+ * Önceden android_app oturumu süresizdi (expires_at NULL). Boşta kalma sınırı uzman idle süresidir
+ * (touch_active_session). Mevcut süresiz Android oturumlarına DOKUNULMAZ (habersiz çıkış yok).
+ */
+export const ANDROID_SESSION_ABSOLUTE_MS = 30 * 24 * 60 * 60 * 1000;
+
+export function computeAndroidSessionExpiresAt(nowMs: number = Date.now()): string {
+  return new Date(nowMs + ANDROID_SESSION_ABSOLUTE_MS).toISOString();
+}
+
 // ─── Tipler ──────────────────────────────────────────────────────────────────
 
 export type SecurityRiskLevel = "low" | "suspicious" | "high_risk";
@@ -127,18 +138,6 @@ function normalizeStr(s: string | null | undefined): string {
 
 function msElapsed(isoDate: string): number {
   return Date.now() - new Date(isoDate).getTime();
-}
-
-/**
- * last_seen_at yazımı throttle kararı. Değer yoksa/parse edilemezse güvenli tarafta
- * kalıp yazar (mevcut "her zaman yaz" davranışı korunur); aksi halde yalnız kayıt
- * LAST_SEEN_THROTTLE_MS'den eskiyse yazar.
- */
-function shouldRefreshLastSeen(lastSeenAt: unknown): boolean {
-  if (typeof lastSeenAt !== "string" || !lastSeenAt) return true;
-  const t = Date.parse(lastSeenAt);
-  if (Number.isNaN(t)) return true;
-  return Date.now() - t >= LAST_SEEN_THROTTLE_MS;
 }
 
 function isFreshWith(session: ActiveSession, thresholdMs: number): boolean {
@@ -178,6 +177,14 @@ export function detectPlatform(userAgent: string): string {
 export const ADMIN_WEB_SESSION_CAP = 2;
 /** Admin ikinci/riskli web girişi onay bekleme süresi (saniye). */
 export const PENDING_APPROVAL_TTL_SECONDS = 10 * 60;
+
+/**
+ * Yönetici web girişinin "başka oturumdan onay" (pending_approval) akışı — Owner acil kararı (2026-10-04) ile KAPALI.
+ * Kapalıyken: giriş route'u beklenmeyen pending sonucunu kapatıp 503 döner (anahtar istemciye verilmez) ve onay ucu
+ * ("approve") bekleyen satırı ASLA aktifleştirmez — kapatma güncellemesi başarısız olup satır açık kalsa bile.
+ * "deny" (kalan satırı kapatma) serbesttir. QR cihaz onayı bu akıştan bağımsızdır. Yeniden açmak Owner kararı ister.
+ */
+export const ADMIN_WEB_PENDING_APPROVAL_ENABLED = false as boolean;
 /** Uzman WEB oturumu stale eşiği — yalnız yeni giriş sırasında (normal 15 dk / flexible 60 dk). */
 export function expertStaleSeconds(securityMode: string): number {
   return (securityMode === "flexible" ? FLEXIBLE_THRESHOLD_MS : FRESH_THRESHOLD_MS) / 1000;
@@ -209,11 +216,18 @@ export type CreateSessionResult =
       highRisk: boolean;
       exceptionUsed: boolean;
     }
-  | { ok: false; reason: LimitReason; deviceType: string; role: "admin" | "expert" | null };
+  | { ok: false; reason: LimitReason; deviceType: string; role: "admin" | "expert" | null }
+  /** F2-B: MFA challenge reddi (geçersiz/doğrulanmamış/süresi dolmuş/kullanılmış) — oturum AÇILMADI. */
+  | { ok: false; mfaRejected: true; reason: string; role: "admin" | "expert" | null };
 
 export type CreateSessionOptions = {
   /** Aynı cihazdaki ÖNCEKİ token (localStorage/pending) — aynı kullanıcıya aitse kapatılır. */
   replaceToken?: string | null;
+  /**
+   * F2-B: MFA'lı tamamlama. Verilirse oturum YALNIZ auth_finalize_login ile (challenge tüketimi +
+   * tarayıcı bağlama kontrolü aynı işlemde) açılır; create_session_v2 / admin RPC doğrudan çağrılmaz.
+   */
+  mfa?: { challengeId: string; bindingHash: string } | null;
 };
 
 export async function createUserSession(
@@ -256,34 +270,73 @@ export async function createUserSession(
   // dışındaki her kanal) doğrudan AKTİF oturum açar; başka oturumlara dokunulmaz. Parola, rol,
   // active/approval, throttle, audit ve süre (2 sa / 24 sa) kuralları AYNEN geçerli. Uzman yolu ve
   // resmî Android (android_app) yolu DEĞİŞMEZ (create_session_v2).
-  if (role === "admin" && clientChannel !== "android_app") {
-    if (replaceToken && replaceToken !== sessionToken) {
-      // Aynı cihazdaki eski token (yalnız bu kullanıcıya aitse) kapanır — mevcut davranışla aynı.
-      await db
-        .from("user_sessions")
-        .update({ is_active: false, ended_at: new Date().toISOString(), end_reason: "replaced_same_device" })
-        .eq("session_token", replaceToken)
-        .eq("user_id", userId)
-        .eq("is_active", true);
+  // F2-B (D-04): admin web oturumu artık doğrudan INSERT ile DEĞİL, create_session_admin_web RPC'si
+  // (aynı davranış: eski aynı-cihaz token'ı kapanır, yeni oturum doğrudan aktif) ile açılır.
+  // MFA'lı tamamlamada (options.mfa) her iki yol da auth_finalize_login içinden yürür.
+  const isAdminWeb = role === "admin" && clientChannel !== "android_app";
+  const v2Args = {
+    p_session_token: sessionToken,
+    p_ip: location.ip,
+    p_country: location.country,
+    p_city: location.city,
+    p_user_agent: location.userAgent,
+    p_platform: platform,
+    p_client_channel: clientChannel,
+    p_replace_token: replaceToken,
+    p_expires_at: clientChannel === "android_app" ? computeAndroidSessionExpiresAt() : computeSessionExpiresAt(lr?.role),
+    p_high_risk: role === "admin" && risk.level === "high_risk",
+    p_enforce: policy.enforce,
+    p_expert_idle_seconds: policy.expertIdleSeconds,
+    p_admin_idle_seconds: policy.adminIdleSeconds,
+    p_admin_absolute_seconds: policy.adminAbsoluteSeconds,
+    p_expert_stale_seconds: expertStaleSeconds(secMode),
+    p_admin_web_cap: ADMIN_WEB_SESSION_CAP,
+    p_pending_ttl_seconds: PENDING_APPROVAL_TTL_SECONDS,
+  };
+  const mfa = options.mfa ?? null;
+  const { data: rpcData, error: rpcError } = mfa
+    ? await db.rpc("auth_finalize_login", { p_challenge_id: mfa.challengeId, p_browser_secret_hash: mfa.bindingHash, ...v2Args })
+    : isAdminWeb
+      ? await db.rpc("create_session_admin_web", {
+          p_user_id: userId,
+          p_session_token: sessionToken,
+          p_ip: location.ip,
+          p_country: location.country,
+          p_city: location.city,
+          p_user_agent: location.userAgent,
+          p_platform: platform,
+          p_client_channel: clientChannel,
+          p_replace_token: replaceToken,
+          p_expires_at: computeSessionExpiresAt(lr?.role), // admin web: android_app değil
+        })
+      : await db.rpc("create_session_v2", { p_user_id: userId, ...v2Args });
+  if (rpcError) {
+    throw new Error(`Oturum oluşturulamadı: ${rpcError.message}`);
+  }
+
+  const result = (rpcData ?? {}) as {
+    ok?: boolean;
+    inserted?: boolean;
+    reason?: string;
+    state?: string;
+    session_id?: string | null;
+    pending_expires_at?: string | null;
+    exception_used?: boolean;
+    user_id?: string;
+  };
+
+  if (mfa) {
+    // auth_finalize_login: ok=false → challenge reddi (oturum yok). user_id challenge'ın sahibidir;
+    // çağıranın userId'si ile uyuşmazsa (savunma) reddedilir.
+    if (result.ok !== true) {
+      return { ok: false, mfaRejected: true, reason: String(result.reason ?? "invalid"), role };
     }
-    const nowIso = new Date().toISOString();
-    const { error: insErr } = await db.from("user_sessions").insert({
-      user_id: userId,
-      ip_address: location.ip,
-      country: location.country,
-      city: location.city,
-      user_agent: location.userAgent,
-      platform,
-      client_channel: clientChannel,
-      session_token: sessionToken,
-      is_active: true,
-      created_at: nowIso,
-      last_seen_at: nowIso,
-      expires_at: computeSessionExpiresAt(lr?.role),
-      session_role: "admin",
-      session_state: "active",
-    });
-    if (insErr) throw new Error(`Oturum oluşturulamadı: ${insErr.message}`);
+    if (result.inserted === true && String(result.user_id ?? "") !== userId) {
+      throw new Error("Oturum oluşturulamadı: kullanıcı uyuşmazlığı");
+    }
+  }
+
+  if (isAdminWeb && result.inserted === true) {
     if (risk.level !== "low") {
       await logSecurityEvent(db, userId, location, {
         event_type: risk.level === "high_risk" ? "high_risk_login" : "suspicious_login",
@@ -295,7 +348,7 @@ export async function createUserSession(
     return {
       ok: true,
       state: "active",
-      sessionId: null,
+      sessionId: typeof result.session_id === "string" ? result.session_id : null,
       pendingExpiresAt: null,
       channel: clientChannel,
       role: "admin",
@@ -304,39 +357,6 @@ export async function createUserSession(
       exceptionUsed: false,
     };
   }
-
-  const { data: rpcData, error: rpcError } = await db.rpc("create_session_v2", {
-    p_user_id: userId,
-    p_session_token: sessionToken,
-    p_ip: location.ip,
-    p_country: location.country,
-    p_city: location.city,
-    p_user_agent: location.userAgent,
-    p_platform: platform,
-    p_client_channel: clientChannel,
-    p_replace_token: replaceToken,
-    p_expires_at: clientChannel === "android_app" ? null : computeSessionExpiresAt(lr?.role),
-    p_high_risk: role === "admin" && risk.level === "high_risk",
-    p_enforce: policy.enforce,
-    p_expert_idle_seconds: policy.expertIdleSeconds,
-    p_admin_idle_seconds: policy.adminIdleSeconds,
-    p_admin_absolute_seconds: policy.adminAbsoluteSeconds,
-    p_expert_stale_seconds: expertStaleSeconds(secMode),
-    p_admin_web_cap: ADMIN_WEB_SESSION_CAP,
-    p_pending_ttl_seconds: PENDING_APPROVAL_TTL_SECONDS,
-  });
-  if (rpcError) {
-    throw new Error(`Oturum oluşturulamadı: ${rpcError.message}`);
-  }
-
-  const result = (rpcData ?? {}) as {
-    inserted?: boolean;
-    reason?: string;
-    state?: string;
-    session_id?: string | null;
-    pending_expires_at?: string | null;
-    exception_used?: boolean;
-  };
 
   if (!result.inserted) {
     const reason = String(result.reason ?? "total_limit");
@@ -490,9 +510,7 @@ export function effectiveAllowedLocations(raw: unknown): number {
  * (throttled, ~90 sn) touch ve YALNIZ enforce açıkken mutlak/idle süre zorlaması. Yazma
  * AWAIT edilir (eski `void db.update(...)` tembel PostgREST builder'ını HİÇ çalıştırmıyordu).
  *
- * Geçiş/yedek yol (yalnız enforce KAPALIYKEN): RPC yoksa/hata verirse eski select + AWAIT'li
- * throttled update. Enforce AÇIKKEN RPC hatası → null (fail-closed; süresi dolmuş oturum
- * yedek yoldan geçemez).
+ * F2-A: yedek yol YOK — RPC yoksa/hata verirse her durumda null (fail-closed).
  */
 export async function touchActiveSession(
   db: SupabaseClient,
@@ -541,38 +559,10 @@ export async function resolveActiveSession(
     /* aşağıdaki karar */
   }
 
-  if (policy.enforce) return { status: "unavailable" }; // fail-closed — ama "bitti" DEĞİL
-  const legacy = await legacyTouchActiveSession(db, token);
-  return legacy ? { status: "active", userId: legacy } : { status: "inactive" };
-}
-
-async function legacyTouchActiveSession(
-  db: SupabaseClient,
-  sessionToken: string,
-): Promise<string | null> {
-  const { data } = await db
-    .from("user_sessions")
-    .select("user_id, last_seen_at")
-    .eq("session_token", sessionToken)
-    .eq("is_active", true)
-    .maybeSingle();
-
-  if (!data || data.user_id == null) return null;
-
-  if (shouldRefreshLastSeen(data.last_seen_at)) {
-    // AWAIT: PostgREST builder tembeldir; await edilmeyen update İSTEK GÖNDERMEZ.
-    // Touch hatası doğrulamayı düşürmez (best-effort), ama istek gerçekten gider.
-    try {
-      await db
-        .from("user_sessions")
-        .update({ last_seen_at: new Date().toISOString() })
-        .eq("session_token", sessionToken)
-        .eq("is_active", true);
-    } catch {
-      /* best-effort */
-    }
-  }
-  return String(data.user_id);
+  // F2-A (D-03): RPC hatası enforce açık/kapalı fark etmeksizin fail-closed — ama "bitti" DEĞİL.
+  // Eski select tabanlı yedek yol (yalnız is_active; session_state/süre/kullanıcı durumu bakmadan)
+  // kaldırıldı: kill-switch yalnız RPC'ye p_enforce=false geçirir, doğrulamayı atlatmaz.
+  return { status: "unavailable" };
 }
 
 export async function validateSessionToken(

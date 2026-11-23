@@ -120,6 +120,7 @@ async function main(): Promise<void> {
   ok(purgeEmailMatches(" A@B.Test ", "a@b.test") && !purgeEmailMatches("a@b.tes", "a@b.test") && !purgeEmailMatches("", ""), "e-posta eşleşmesi");
   ok(purgeRpcError({ code: "UP003" }).status === 403, "UP003 → 403");
   ok(purgeRpcError({ code: "UP006" }).status === 409 && purgeRpcError({ code: "UP004" }).status === 404, "UP006 → 409, UP004 → 404");
+  ok(purgeRpcError({ code: "UP011" }).status === 409 && purgeRpcError({ code: "UP011" }).error.includes("yasal saklama"), "UP011 (F2-K yasal saklama) → 409");
   ok(purgeRpcError({ code: "UP023", message: "SQL detay" }).error.includes("HİÇBİR veri silinmedi") &&
      !purgeRpcError({ code: "XX000", message: "relation secret" }).error.includes("relation"), "ham SQL hatası sızmaz");
   const tid = "11111111-2222-4333-8444-555555555555";

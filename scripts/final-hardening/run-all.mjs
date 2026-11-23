@@ -32,6 +32,22 @@ const pg = (fixtures, migrations, asserts) => [
   ],
 ];
 
+// GİRİŞ GÜVENLİĞİ F2 zinciri: ortak fixture tabanı ve migration sırası (F2-E kontrolleri).
+const F2_BASE_FIXTURES = [F("session-model-fixture.sql"), F("session-f2a-fixture.sql"), F("session-f2b-fixture.sql"),
+  F("session-f2c-fixture.sql"), F("session-f2d-fixture.sql"),
+  M("20270129000200_user_sessions_expiry_touch.sql"), M("20271003200000_session_model_v2.sql"), M("20271003200100_admin_audit_session_actions.sql")];
+const F2_ALL_MIGRATIONS = ["20280103000000_auth_session_hardening_f2a.sql", "20280103000100_auth_mfa_core_f2b.sql",
+  "20280103000200_auth_session_insert_lock_f2b.sql", "20280103000300_auth_trusted_devices_qr_f2c.sql",
+  "20280103000400_auth_email_otp_f2d.sql", "20280103000500_auth_account_recovery_f2e.sql"];
+const F2F_MIGRATION = "20280103000600_auth_purge_audit_retention_f2f.sql";
+const F2G_MIGRATION = "20280103000700_auth_owner_step_up_f2g.sql";
+const F2H_MIGRATION = "20280103000800_auth_audit_retention_disposal_f2h.sql";
+const F2I_MIGRATION = "20280103000900_auth_security_hardening_f2i.sql";
+const F2J_MIGRATION = "20280103001000_auth_session_device_binding_f2j.sql";
+const F2K_MIGRATION = "20280103001100_auth_critical_privilege_device_f2k.sql";
+const F2M_MIGRATION = "20280103001200_auth_email_smtp_provider_f2m.sql";
+const F2N_MIGRATION = "20280103001300_auth_owner_mfa_kit_guard_f2n.sql";
+
 const TZ_SENSITIVE = new Set(["foundation", "word-tz", "dy", "backup", "hday"]);
 
 const STEPS = [
@@ -129,6 +145,120 @@ const STEPS = [
     ["20270129000200_user_sessions_expiry_touch.sql", "20271003200000_session_model_v2.sql", "20271003200100_admin_audit_session_actions.sql"],
     ["session-model-assert.sql"])],
   ["session-model-concurrency", "node", ["scripts/session-model/pg-concurrency.mjs"]],
+  // GİRİŞ GÜVENLİĞİ F2-A: süreli yeni android oturumu (eski süresiz korunur) / pasif kullanıcı / token_hash / Owner işareti.
+  //   Eski zincir fixture olarak (bir kez) → eski RPC ile süresiz android tohumu → F2-A migration (iki kez).
+  ["pg:session-f2a", ...pg([F("session-model-fixture.sql"), F("session-f2a-fixture.sql"),
+    M("20270129000200_user_sessions_expiry_touch.sql"), M("20271003200000_session_model_v2.sql"),
+    M("20271003200100_admin_audit_session_actions.sql"), F("session-f2a-legacy-seed.sql")],
+    ["20280103000000_auth_session_hardening_f2a.sql"],
+    ["session-f2a-assert.sql"])],
+  // GİRİŞ GÜVENLİĞİ F2-B: ortak MFA (challenge → finalize_login), DB seviyesinde atlatma engeli, INSERT kilidi.
+  ["pg:session-f2b", ...pg([F("session-model-fixture.sql"), F("session-f2a-fixture.sql"), F("session-f2b-fixture.sql"),
+    M("20270129000200_user_sessions_expiry_touch.sql"), M("20271003200000_session_model_v2.sql"),
+    M("20271003200100_admin_audit_session_actions.sql"), M("20280103000000_auth_session_hardening_f2a.sql")],
+    ["20280103000100_auth_mfa_core_f2b.sql", "20280103000200_auth_session_insert_lock_f2b.sql"],
+    ["session-f2b-assert.sql"])],
+  ["session-f2b-concurrency", "node", ["scripts/session-model/f2b-finalize-concurrency.mjs"]],
+  ["session-f2e-concurrency", "node", ["scripts/session-model/f2e-recovery-concurrency.mjs"]],
+  ["session-f2g-concurrency", "node", ["scripts/session-model/f2g-step-up-concurrency.mjs"]],
+  ["session-f2h-concurrency", "node", ["scripts/session-model/f2h-retention-concurrency.mjs"]],
+  ["session-f2i-hold-race", "node", ["scripts/session-model/f2i-hold-race.mjs"]],
+  ["assetlinks-araci", "node", ["scripts/giris-guvenligi/assetlinks.mjs", "--kendini-sina"]],
+  // GİRİŞ GÜVENLİĞİ F2-C: güvenilir Android cihazı (Owner onayı + cihaz imzası) + QR onay durum makinesi.
+  ["pg:session-f2c", ...pg([F("session-model-fixture.sql"), F("session-f2a-fixture.sql"), F("session-f2b-fixture.sql"), F("session-f2c-fixture.sql"),
+    M("20270129000200_user_sessions_expiry_touch.sql"), M("20271003200000_session_model_v2.sql"),
+    M("20271003200100_admin_audit_session_actions.sql"), M("20280103000000_auth_session_hardening_f2a.sql"),
+    M("20280103000100_auth_mfa_core_f2b.sql"), M("20280103000200_auth_session_insert_lock_f2b.sql")],
+    ["20280103000300_auth_trusted_devices_qr_f2c.sql"],
+    ["session-f2c-assert.sql"])],
+  // GİRİŞ GÜVENLİĞİ F2-D: e-posta OTP (kod özeti, sınırlar, kilit, kota, Owner uyarısı, yalıtım, yetkiler).
+  ["pg:session-f2d", ...pg([F("session-model-fixture.sql"), F("session-f2a-fixture.sql"), F("session-f2b-fixture.sql"), F("session-f2c-fixture.sql"),
+    F("session-f2d-fixture.sql"),
+    M("20270129000200_user_sessions_expiry_touch.sql"), M("20271003200000_session_model_v2.sql"),
+    M("20271003200100_admin_audit_session_actions.sql"), M("20280103000000_auth_session_hardening_f2a.sql"),
+    M("20280103000100_auth_mfa_core_f2b.sql"), M("20280103000200_auth_session_insert_lock_f2b.sql"),
+    M("20280103000300_auth_trusted_devices_qr_f2c.sql")],
+    ["20280103000400_auth_email_otp_f2d.sql"],
+    ["session-f2d-assert.sql"])],
+  // GİRİŞ GÜVENLİĞİ F2-E: hesap kurtarma (kodlar, kilit/sınır, Owner kiti, e-posta/telefon değişimi, 72 saat,
+  // atomiklik, yalıtım, yetkiler) + F2-D sözleşmesi 000500 üstünde aynen (f2d assert'i yeniden koşar).
+  ["pg:session-f2e", ...pg([F("session-model-fixture.sql"), F("session-f2a-fixture.sql"), F("session-f2b-fixture.sql"), F("session-f2c-fixture.sql"),
+    F("session-f2d-fixture.sql"),
+    M("20270129000200_user_sessions_expiry_touch.sql"), M("20271003200000_session_model_v2.sql"),
+    M("20271003200100_admin_audit_session_actions.sql"), M("20280103000000_auth_session_hardening_f2a.sql"),
+    M("20280103000100_auth_mfa_core_f2b.sql"), M("20280103000200_auth_session_insert_lock_f2b.sql"),
+    M("20280103000300_auth_trusted_devices_qr_f2c.sql"), M("20280103000400_auth_email_otp_f2d.sql")],
+    ["20280103000500_auth_account_recovery_f2e.sql"],
+    ["session-f2e-assert.sql"])],
+  ["pg:session-f2d-on-f2e", ...pg([F("session-model-fixture.sql"), F("session-f2a-fixture.sql"), F("session-f2b-fixture.sql"), F("session-f2c-fixture.sql"),
+    F("session-f2d-fixture.sql"),
+    M("20270129000200_user_sessions_expiry_touch.sql"), M("20271003200000_session_model_v2.sql"),
+    M("20271003200100_admin_audit_session_actions.sql"), M("20280103000000_auth_session_hardening_f2a.sql"),
+    M("20280103000100_auth_mfa_core_f2b.sql"), M("20280103000200_auth_session_insert_lock_f2b.sql"),
+    M("20280103000300_auth_trusted_devices_qr_f2c.sql")],
+    ["20280103000400_auth_email_otp_f2d.sql", "20280103000500_auth_account_recovery_f2e.sql"],
+    ["session-f2d-assert.sql"])],
+  // F2-A/B/C sözleşmeleri de bütün zincir (000500 dahil) üstünde aynen geçer.
+  ...["f2a", "f2b", "f2c"].map((x) => [`pg:session-${x}-on-f2e`, ...pg([...F2_BASE_FIXTURES, ...(x === "f2a" ? [F("session-f2a-legacy-seed.sql")] : [])],
+    F2_ALL_MIGRATIONS, [`session-${x}-assert.sql`])]),
+  // YAYIN SIRASI: 000200 (service_role INSERT kilidi) EN SONDA. Ara durumda eski kod çalışır + MFA atlatılamaz;
+  // 000200 sonrası yeni kodun bütün oturum yolları çalışır, doğrudan INSERT kapanır.
+  // F2-F (000600): 000500 bu dosyadan sonra yeniden çalıştırılamaz (eski kolon adı) → önceki zincir FİXTURE (bir kez),
+  // 000600 migration (iki kez). Ara durum: 000200 YOK; son durum: 000200 EN SONDA (000600'dan da sonra).
+  ["pg:deploy-order-f2-pre", ...pg([...F2_BASE_FIXTURES, ...F2_ALL_MIGRATIONS.filter((m) => !m.startsWith("20280103000200")).map(M)],
+    [F2F_MIGRATION], ["deploy-order-f2-pre-assert.sql"])],
+  ["pg:deploy-order-f2-post", ...pg([...F2_BASE_FIXTURES, ...F2_ALL_MIGRATIONS.filter((m) => !m.startsWith("20280103000200")).map(M), M(F2F_MIGRATION)],
+    ["20280103000200_auth_session_insert_lock_f2b.sql"], ["deploy-order-f2-post-assert.sql"])],
+  // GİRİŞ GÜVENLİĞİ F2-F: silme × denetim saklama + Owner taze MFA; önceki satırların taşınması (seed) dahil.
+  ["pg:session-f2f", ...pg([...F2_BASE_FIXTURES, ...F2_ALL_MIGRATIONS.map(M), F("session-f2f-seed.sql")], [F2F_MIGRATION], ["session-f2f-assert.sql"])],
+  // F2-A…F2-D sözleşmeleri 000600 üstünde aynen (Owner taze-MFA sarmalayıcıları eski ret kodlarını korur).
+  ...["f2a", "f2b", "f2c", "f2d"].map((x) => [`pg:session-${x}-on-f2f`, ...pg(
+    [...F2_BASE_FIXTURES, ...(x === "f2a" ? [F("session-f2a-legacy-seed.sql")] : []), ...F2_ALL_MIGRATIONS.map(M)],
+    [F2F_MIGRATION], [`session-${x}-assert.sql`])]),
+  // GERİ DÖNÜŞ: bütün zincir + 000200 en sonda; ardından eski koda dönüş taklidi (erişim kaybı / MFA atlatma / oturumlar).
+  ["pg:deploy-order-f2-rollback", ...pg([...F2_BASE_FIXTURES, ...F2_ALL_MIGRATIONS.filter((m) => !m.startsWith("20280103000200")).map(M), M(F2F_MIGRATION)],
+    [F2G_MIGRATION, "20280103000200_auth_session_insert_lock_f2b.sql"], ["deploy-order-f2-rollback-assert.sql"])],
+  // GİRİŞ GÜVENLİĞİ F2-G: Owner işleme özel yeniden doğrulama (çalınmış taze oturum saldırısı) + saklama politikası kaydı.
+  ["pg:session-f2g", ...pg([...F2_BASE_FIXTURES, ...F2_ALL_MIGRATIONS.map(M), M(F2F_MIGRATION)], [F2G_MIGRATION], ["session-f2g-assert.sql"])],
+  // Owner kritik işlemlerine DOKUNMAYAN önceki sözleşmeler 000700 üstünde aynen (F2-C / F2-E / F2-F'nin Owner onay
+  // senaryoları bilinçli olarak değişti — kanıt şartı; bunlar session-f2g'de yeniden sınanır).
+  ...["f2a", "f2b", "f2d"].map((x) => [`pg:session-${x}-on-f2g`, ...pg(
+    [...F2_BASE_FIXTURES, ...(x === "f2a" ? [F("session-f2a-legacy-seed.sql")] : []), ...F2_ALL_MIGRATIONS.map(M), M(F2F_MIGRATION)],
+    [F2G_MIGRATION], [`session-${x}-assert.sql`])]),
+  // GİRİŞ GÜVENLİĞİ F2-H: denetim kayıtları kontrollü imha / anonimleştirme (sentetik süre / gerekçe).
+  ["pg:session-f2h", ...pg([...F2_BASE_FIXTURES, ...F2_ALL_MIGRATIONS.map(M), M(F2F_MIGRATION), M(F2G_MIGRATION)], [F2H_MIGRATION], ["session-f2h-assert.sql"])],
+  // F2-G sözleşmesi (Owner kanıtı, saklama politikası kaydı) 000800 üstünde aynen. (F2-F'nin Owner senaryoları
+  // 000700'de bilinçli olarak değişti → session-f2f yalnız kendi zincirinde koşar.)
+  ["pg:session-f2g-on-f2h", ...pg([...F2_BASE_FIXTURES, ...F2_ALL_MIGRATIONS.map(M), M(F2F_MIGRATION)], [F2G_MIGRATION, F2H_MIGRATION], ["session-f2g-assert.sql"])],
+  // GİRİŞ GÜVENLİĞİ F2-I: 17.11 bağımsız denetim bulguları (e-posta kanıtı, kurtarma kodu, MFA zorunluluğu, yasal saklama, ...).
+  ["pg:session-f2i", ...pg([...F2_BASE_FIXTURES, ...F2_ALL_MIGRATIONS.map(M), M(F2F_MIGRATION), M(F2G_MIGRATION), M(F2H_MIGRATION)], [F2I_MIGRATION], ["session-f2i-assert.sql"])],
+  // Önceki sözleşmeler 000900 üstünde aynen (F2-H imha, F2-G Owner kanıtı).
+  ["pg:session-f2h-on-f2i", ...pg([...F2_BASE_FIXTURES, ...F2_ALL_MIGRATIONS.map(M), M(F2F_MIGRATION), M(F2G_MIGRATION)], [F2H_MIGRATION, F2I_MIGRATION], ["session-f2h-assert.sql"])],
+  // Yayın sonrası salt-okunur doğrulama betiği (production'da da çalıştırılır) tam F2 zincirinde PASS.
+  // YAYIN SIRASI — bugünkü TAM zincir (000000…000900; 000200 en sonda): eski kod migration'lardan sonra çalışır, 000200
+  // sonrası yeni yol, eski koda geri dönüşte MFA atlatma yok (17.11 yeniden doğrulama).
+  ["pg:deploy-order-f2-pre-full", ...pg([...F2_BASE_FIXTURES, ...F2_ALL_MIGRATIONS.filter((m) => !m.startsWith("20280103000200")).map(M)],
+    [F2F_MIGRATION, F2G_MIGRATION, F2H_MIGRATION, F2I_MIGRATION, F2J_MIGRATION, F2K_MIGRATION, F2M_MIGRATION, F2N_MIGRATION], ["deploy-order-f2-pre-assert.sql"])],
+  ["pg:deploy-order-f2-post-full", ...pg([...F2_BASE_FIXTURES, ...F2_ALL_MIGRATIONS.filter((m) => !m.startsWith("20280103000200")).map(M),
+    M(F2F_MIGRATION), M(F2G_MIGRATION), M(F2H_MIGRATION), M(F2I_MIGRATION), M(F2J_MIGRATION), M(F2K_MIGRATION), M(F2M_MIGRATION), M(F2N_MIGRATION)], ["20280103000200_auth_session_insert_lock_f2b.sql"], ["deploy-order-f2-post-assert.sql"])],
+  ["pg:deploy-order-f2-rollback-full", ...pg([...F2_BASE_FIXTURES, ...F2_ALL_MIGRATIONS.filter((m) => !m.startsWith("20280103000200")).map(M), M(F2F_MIGRATION)],
+    [F2G_MIGRATION, F2H_MIGRATION, F2I_MIGRATION, F2J_MIGRATION, F2K_MIGRATION, F2M_MIGRATION, F2N_MIGRATION, "20280103000200_auth_session_insert_lock_f2b.sql"], ["deploy-order-f2-rollback-assert.sql"])],
+  ["pg:f2-postflight", ...pg([...F2_BASE_FIXTURES, ...F2_ALL_MIGRATIONS.map(M), M(F2F_MIGRATION), M(F2G_MIGRATION), M(F2H_MIGRATION), M(F2I_MIGRATION), M(F2J_MIGRATION), M(F2K_MIGRATION)], [F2M_MIGRATION, F2N_MIGRATION], ["../../giris-guvenligi/f2-postflight-check.sql"])],
+  // F2-J: Android yönetici oturumu cihaz kanıtı, kanal tutarlılığı, eski süresiz oturum geçişi + önceki sözleşmeler 001000 üstünde.
+  ["pg:session-f2j", ...pg([...F2_BASE_FIXTURES, ...F2_ALL_MIGRATIONS.map(M), M(F2F_MIGRATION), M(F2G_MIGRATION), M(F2H_MIGRATION), M(F2I_MIGRATION)], [F2J_MIGRATION], ["session-f2j-assert.sql"])],
+  // F2-K: önceki sözleşmeler 001100 üstünde (yönetici yetkisi tetikleyicisi + kanıtlı fonksiyonlar).
+  ["pg:session-f2k", ...pg([...F2_BASE_FIXTURES, ...F2_ALL_MIGRATIONS.map(M), M(F2F_MIGRATION), M(F2G_MIGRATION), M(F2H_MIGRATION), M(F2I_MIGRATION), M(F2J_MIGRATION)], [F2K_MIGRATION], ["session-f2k-assert.sql"])],
+  // F2-M: F2-K sözleşmesi 001200 (e-posta sağlayıcı listesine smtp) üstünde aynen.
+  ["pg:session-f2k-on-f2m", ...pg([...F2_BASE_FIXTURES, ...F2_ALL_MIGRATIONS.map(M), M(F2F_MIGRATION), M(F2G_MIGRATION), M(F2H_MIGRATION), M(F2I_MIGRATION), M(F2J_MIGRATION)], [F2K_MIGRATION, F2M_MIGRATION], ["session-f2k-assert.sql"])],
+  ["pg:session-f2j-on-f2k", ...pg([...F2_BASE_FIXTURES, ...F2_ALL_MIGRATIONS.map(M), M(F2F_MIGRATION), M(F2G_MIGRATION), M(F2H_MIGRATION), M(F2I_MIGRATION)], [F2J_MIGRATION, F2K_MIGRATION], ["session-f2j-assert.sql"])],
+  ["pg:session-f2i-on-f2k", ...pg([...F2_BASE_FIXTURES, ...F2_ALL_MIGRATIONS.map(M), M(F2F_MIGRATION), M(F2G_MIGRATION), M(F2H_MIGRATION)], [F2I_MIGRATION, F2J_MIGRATION, F2K_MIGRATION], ["session-f2i-assert.sql"])],
+  ["pg:session-f2g-on-f2k", ...pg([...F2_BASE_FIXTURES, ...F2_ALL_MIGRATIONS.map(M), M(F2F_MIGRATION)], [F2G_MIGRATION, F2H_MIGRATION, F2I_MIGRATION, F2J_MIGRATION, F2K_MIGRATION], ["session-f2g-assert.sql"])],
+  ["pg:session-f2i-on-f2j", ...pg([...F2_BASE_FIXTURES, ...F2_ALL_MIGRATIONS.map(M), M(F2F_MIGRATION), M(F2G_MIGRATION), M(F2H_MIGRATION)], [F2I_MIGRATION, F2J_MIGRATION], ["session-f2i-assert.sql"])],
+  ["pg:session-f2g-on-f2j", ...pg([...F2_BASE_FIXTURES, ...F2_ALL_MIGRATIONS.map(M), M(F2F_MIGRATION)], [F2G_MIGRATION, F2H_MIGRATION, F2I_MIGRATION, F2J_MIGRATION], ["session-f2g-assert.sql"])],
+  // (session-f2b-assert B6 F2-I'den beri bilinçli farklı: Owner kendi MFA zorunluluğunu açınca MFA'sız aktör oturumu I3 ile
+  //  kapanır → 'forbidden'. F2-J'den bağımsız; F2-I zincirinde de aynı. Bu yüzden f2b sözleşmesi 001000 üstünde koşmaz.)
+  ["pg:session-f2a-on-f2j", ...pg([...F2_BASE_FIXTURES, F("session-f2a-legacy-seed.sql"), ...F2_ALL_MIGRATIONS.map(M), M(F2F_MIGRATION), M(F2G_MIGRATION), M(F2H_MIGRATION), M(F2I_MIGRATION)], [F2J_MIGRATION], ["session-f2a-assert.sql"])],
+  ["pg:session-f2g-on-f2i", ...pg([...F2_BASE_FIXTURES, ...F2_ALL_MIGRATIONS.map(M), M(F2F_MIGRATION)], [F2G_MIGRATION, F2H_MIGRATION, F2I_MIGRATION], ["session-f2g-assert.sql"])],
 ];
 
 const only = process.argv.includes("--only") ? process.argv[process.argv.indexOf("--only") + 1] : null;

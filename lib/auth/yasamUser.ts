@@ -1,6 +1,7 @@
 /** Oturum — Supabase `login_user` RPC / users tablosundan gelen rol ile */
 
 import { runLogoutCleanups } from "@/lib/auth/logoutCleanup";
+import { requestSessionDeviceBind, supportsSessionDeviceBind } from "@/lib/auth/androidSessionBind";
 import { hasExpertMembershipAccess } from "@/lib/auth/membership";
 import {
   isExpertReady,
@@ -12,7 +13,6 @@ import {
   parseModulePermissions,
   type ModulePermissions,
 } from "@/lib/auth/modulePermissions";
-import { isAndroidAppUserAgent } from "@/lib/platform/outputSupport";
 import { SESSION_TRANSPORT_HTML_ATTR, parseWebSessionTransport } from "@/lib/auth/sessionTransportFlag";
 import { clearDemoUrunStok } from "@/lib/demo/demoUrunStok";
 import { handleReflexologyLogout } from "@/lib/refleksoloji/runtimeReset";
@@ -304,6 +304,42 @@ function markCookieSessionReady(token: string): void {
 let cookieSessionMigration: Promise<void> | null = null;
 
 /**
+ * Geçiş isteklerinin (bootstrap + çerez doğrulama) üst süresi. Taşıma ucu YANIT VERMEZSE (asılı bağlantı) geçiş
+ * vaadi hiç bitmez; onu bekleyen profil senkronu da bitmez → panel kartları süresiz iskelette kalır, hata/tekrar
+ * dene ekranı hiç gelmez. Süre dolunca istek AbortController ile iptal edilir ve sonuç ağ hatasıyla AYNI işlenir:
+ * token KALIR (çıkış yok), kimlik bilgisi eklenmez, sunucunun gerçek kararı (401) aynen görünür.
+ * 10 sn: geçiş kapısının 4 sn sınırından uzun (yavaş ama başarılı taşıma tamamlanır; ör. soğuk başlangıç), kullanıcıyı
+ * sonsuz bekletmeyecek kadar kısa. Yalnız bu iki istek için; genel API isteklerine zaman aşımı EKLENMEZ.
+ */
+export const COOKIE_MIGRATION_REQUEST_TIMEOUT_MS = 10_000;
+
+/** Süre dolunca isteği gerçekten iptal eden fetch; `read` gövdeyi de aynı süre içinde okur. */
+async function fetchWithMigrationTimeout<T>(url: string, init: RequestInit, read: (res: Response) => Promise<T>): Promise<T> {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), COOKIE_MIGRATION_REQUEST_TIMEOUT_MS);
+  try {
+    return await read(await fetch(url, { ...init, signal: ctrl.signal }));
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/**
+ * HTTPONLY (Android geçişi B-1) — çerez taşımasında saklı eski token'ın çerezi bu tarayıcıda HENÜZ yazılmadı mı?
+ * true iken kimlikli istekler ne başlık ne çerez taşır (readSessionToken null) → ensureWebCookieSession beklenmeli.
+ * Android header kipi / token yok / çerez zaten yazılmış → false.
+ */
+export function isWebCookieMigrationPending(): boolean {
+  if (typeof window === "undefined" || !webUsesCookieTransport()) return false;
+  try {
+    const raw = readStoredSessionToken();
+    return !!raw && localStorage.getItem(COOKIE_SESSION_READY_KEY) !== sessionTokenFingerprint(raw);
+  } catch {
+    return false;
+  }
+}
+
+/**
  * HTTPONLY H6b — ESKİ (legacy) WEB TOKEN'ININ GÜVENLİ TEMİZLİĞİ. Cookie taşımasında localStorage'da
  * eski bir token kaldıysa (H6a ve öncesinden açık sekme / eski giriş) SIRA KESİNDİR:
  *   1. Bu token'ın cookie'si bu tarayıcıda doğrulanmadıysa → tek seferlik bootstrap
@@ -328,18 +364,26 @@ export function ensureWebCookieSession(): Promise<void> {
       return;
     }
     if (!ready) {
-      const boot = await fetch("/api/auth/session/cookie", {
+      const boot = await fetchWithMigrationTimeout("/api/auth/session/cookie", {
         method: "POST",
         cache: "no-store",
         headers: { "x-session-token": raw },
-      });
+      }, async (r) => r);
+      if (boot.status === 409) {
+        // Bu tarayıcıda BAŞKA kullanıcının geçerli çerez oturumu var → saklı token bu tarayıcının kimliği değil:
+        // JS depolamasından çıkarılır (mevcut çerez oturumu korunur; token'ın kendi sunucu oturumu kendi süresiyle biter).
+        if (readStoredSessionToken() === raw) {
+          localStorage.removeItem(SESSION_TOKEN_KEY);
+          localStorage.removeItem(COOKIE_SESSION_READY_KEY);
+        }
+        return;
+      }
       if (!boot.ok) return; // cookie yazılamadı → token KALIR
       markCookieSessionReady(raw);
     }
-    const check = await fetch("/api/auth/session", { method: "GET", cache: "no-store" });
-    if (!check.ok) return;
-    const j = (await check.json().catch(() => null)) as { valid?: unknown } | null;
-    if (j?.valid !== true) return; // cookie oturumu doğrulanmadı → token KALIR
+    const j = await fetchWithMigrationTimeout("/api/auth/session", { method: "GET", cache: "no-store" },
+      async (check) => (check.ok ? ((await check.json().catch(() => null)) as { valid?: unknown } | null) : null));
+    if (j?.valid !== true) return; // cookie oturumu doğrulanmadı (veya yanıt yok / süre doldu) → token KALIR
     // Cookie doğrulandı → eski token JS depolamasından çıkarılır (yalnız hâlâ aynı token ise).
     if (readStoredSessionToken() === raw) {
       localStorage.removeItem(SESSION_TOKEN_KEY);
@@ -363,9 +407,14 @@ export function ensureWebCookieSession(): Promise<void> {
  * kalır. Android'de oturum YALNIZ localStorage token + x-session-token ile yürür (cookie yok).
  */
 export function isAndroidWebViewClient(): boolean {
-  if (typeof navigator === "undefined") return false;
-  return isAndroidAppUserAgent(navigator.userAgent);
+  // F2-K (A3): karar SUNUCUNUN SSR işaretinden (<html data-android-token>) okunur — sunucu yalnız resmî uygulamanın iki
+  // sinyalli kanalına (ve "header" taşımasına) token verir. Uygulama içi tarayıcılar (yalnız `; wv)`) artık çerez yolunda.
+  if (typeof document === "undefined") return false;
+  return document.documentElement?.getAttribute(ANDROID_TOKEN_HTML_ATTR) != null;
 }
+
+/** SSR: sunucu bu sayfaya token yolu (resmî Android uygulaması, header taşıması) seçti. */
+export const ANDROID_TOKEN_HTML_ATTR = "data-android-token";
 
 /**
  * HTTPONLY H5 — bu istemcinin kimlikli istek atabilecek bir oturum kimlik bilgisi var mı?
@@ -558,10 +607,16 @@ async function refreshYasamUserOutcome(user: YasamUser): Promise<YasamUserSyncOu
   await ensureWebCookieSession();
 
   try {
-    const res = await fetch("/api/auth/profile", {
+    const fetchProfile = () => fetch("/api/auth/profile", {
       headers: { "x-user-id": user.id, ...sessionTokenHeader(token) },
       cache: "no-store",
     });
+    let res = await fetchProfile();
+    // F2-J: Android uygulamasında (2.0.0+) yönetici oturumunun 24 saatlik cihaz kanıtı bayatlamış olabilir →
+    // telefonla bir kez yeniden kanıt (biyometri) ve tek tekrar. Başarısızsa normal 401 akışı (yeniden giriş).
+    if (res.status === 401 && supportsSessionDeviceBind()) {
+      if ((await requestSessionDeviceBind(token)) === "bound") res = await fetchProfile();
+    }
 
     if (!res.ok) {
       console.error("Kullanıcı kaydı yenilenemedi:", res.status);

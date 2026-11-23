@@ -77,7 +77,7 @@ for (const w of Object.keys(U) as Who[]) store.sessions.set(tok(w), U[w]);
 let roxyHits = 0;
 const restore = installFetchShim({ store, supabaseUrl: SUPA, roxyBase: ROXY_BASE, roxy: () => { roxyHits += 1; return new Response("{}", { status: 500 }); } });
 
-type Opt = { surface?: "expert" | "admin"; method?: string; body?: unknown; cookie?: Who | null; header?: Who | null; origin?: "same" | "evil" | null; ua?: string; as?: Who };
+type Opt = { surface?: "expert" | "admin"; method?: string; body?: unknown; cookie?: Who | null; header?: Who | null; origin?: "same" | "evil" | null; ua?: string; as?: Who; pkg?: string };
 function req(path: string, who: Who, o: Opt = {}): NextRequest {
   const surface = o.surface ?? "expert";
   const base = surface === "admin" ? "/api/admin/astroloji" : "/api/astroloji";
@@ -88,6 +88,7 @@ function req(path: string, who: Who, o: Opt = {}): NextRequest {
   if (o.origin === "same") h["sec-fetch-site"] = "same-origin";
   if (o.origin === "evil") h.origin = "https://evil.example";
   if (o.ua) h["user-agent"] = o.ua;
+  if (o.pkg) h["x-requested-with"] = o.pkg;
   if (o.body !== undefined) h["content-type"] = "application/json";
   return new NextRequest(`http://localhost${base}${path}`, { method: o.method ?? "GET", headers: h, body: o.body === undefined ? undefined : JSON.stringify(o.body) });
 }
@@ -189,10 +190,14 @@ async function main() {
     assert.equal(roxyHits, 0);
   });
 
-  await t("primary: Android uygulama WebView'inde çerez KULLANILMAZ (yalnız token) — çerezle 404, token başlığıyla 200", async () => {
+  await t("primary: Android uygulama WebView'inde (UA + resmî paket) çerez KULLANILMAZ (yalnız token); yalnız UA → web çerezi (F2-K A3)", async () => {
     const UA = "Mozilla/5.0 (Linux; Android 14; wv) AppleWebKit/537.36 Version/4.0 Chrome/129.0 Mobile Safari/537.36 YasamSistemiAndroid/1.0";
-    assert.equal((await call(X.access.GET(req("/access", "exA", { ua: UA })))).status, 404);
-    assert.equal((await call(X.access.GET(req("/access", "exA", { ua: UA, cookie: null, header: "exA" })))).status, 200);
+    // F2-K (A3): resmî uygulama İKİ sinyalle tanınır (WebView UA + resmî paket başlığı).
+    const PKG = "com.yasamsistemi.app";
+    assert.equal((await call(X.access.GET(req("/access", "exA", { ua: UA, pkg: PKG })))).status, 404);
+    assert.equal((await call(X.access.GET(req("/access", "exA", { ua: UA, pkg: PKG, cookie: null, header: "exA" })))).status, 200);
+    // Yalnız UA (uygulama içi tarayıcı / sahte ipucu) → web: HttpOnly çerez geçerli (anahtar sayfaya verilmez).
+    assert.equal((await call(X.access.GET(req("/access", "exA", { ua: UA })))).status, 200);
   });
 
   await t("off modu (bugünkü davranış): çerez yok sayılır, token başlığı gerekir — eski istemci yolu bozulmadı", async () => {
