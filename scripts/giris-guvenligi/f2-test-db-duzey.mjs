@@ -47,7 +47,7 @@ export function testDbVersions(testDbSource) {
 }
 
 /** Statik kapsam denetimi. Dönen dizi boşsa PASS; her öğe bir FAIL gerekçesidir. */
-export function checkCoverage({ stages = F2_STAGES, dirFiles, testDbSource }) {
+export function checkCoverage({ stages = F2_STAGES, dirFiles, testDbSource, runAllSource }) {
   const problems = [];
   const dir = linearVersions(dirFiles);
   const tdb = testDbVersions(testDbSource);
@@ -61,6 +61,11 @@ export function checkCoverage({ stages = F2_STAGES, dirFiles, testDbSource }) {
   const missing = dir.filter((v) => !tdb.includes(v));
   if (missing.length) problems.push(`testDb.ts bu F2 migration'larını UYGULAMIYOR: ${missing.join(", ")} (test DB eski düzeyde kalır)`);
   if (!/process\.env\.F2_TEST_DB_LATEST === "1"/.test(testDbSource)) problems.push("testDb.ts'de F2_TEST_DB_LATEST=1 (en güncel zincir) eşlemesi yok");
+  // İkinci elle tutulan zincir: final-hardening/run-all.mjs (deploy-order *-full + f2-postflight). 23.11 F2-N'de bu liste 001200'de
+  // kaldı ve postflight 1300 beklediği için FAIL verdi; deploy-order testleri ise sessizce eski zincirle geçiyordu.
+  if (typeof runAllSource === "string" && lastDir && !runAllSource.includes(`"${lastDir}_`)) {
+    problems.push(`final-hardening/run-all.mjs en son F2 migration'ını (${lastDir}) içermiyor (deploy-order / postflight zinciri eski kalır)`);
+  }
   return problems;
 }
 
@@ -70,6 +75,7 @@ export function readRepo(root) {
     stages: F2_STAGES,
     dirFiles: fs.readdirSync(path.join(root, "supabase", "migrations")),
     testDbSource: fs.readFileSync(path.join(root, "scripts", "giris-guvenligi", "testDb.ts"), "utf8"),
+    runAllSource: fs.readFileSync(path.join(root, "scripts", "final-hardening", "run-all.mjs"), "utf8"),
   };
 }
 

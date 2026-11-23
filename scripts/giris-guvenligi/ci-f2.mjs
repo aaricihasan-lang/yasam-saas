@@ -89,6 +89,9 @@ const TSX = [
   "scripts/giris-guvenligi/f2-test-db-duzey.harness.ts",
   // Owner kilitlenme güvenliği: yanlış MFA ayarında kurtarma yolu kaybolmaz (MFA atlanmaz); Owner kendi zorunluluğu için kit şartı.
   "scripts/giris-guvenligi/owner-kilitlenme.harness.ts",
+  // F2-N (001300): Owner MFA zorunluluğu için DB düzeyinde kit şartı — RPC / doğrudan UPDATE / service_role / yükseltme / INSERT,
+  // son kit iptali, eşzamanlılık (iki sıra), API atlanmışken savunma derinliği, geri alma + yeniden uygulama, ön kontrol.
+  "scripts/giris-guvenligi/f2n-owner-kit-db.harness.ts",
 ];
 
 // F2-J: migration yeniden / sırasız uygulama koruması (statik blok denetimi, üretilmiş katalog dosyalarının güncelliği,
@@ -122,6 +125,11 @@ const steps = [
       env: { F2_TEST_DB_LATEST: "1", F2E_NEGATIF_72S: "1" }, expectFail: true,
       passRe: /f2e-routes harness: [0-9]+ PASS \/ [1-9][0-9]* FAIL/,
       mustRe: /NEGATİF KONTROL: 72 saat denetimi[^\n]*[\s\S]*FAIL 72 saat dolmadan yürütme yok[\s\S]*FAIL TAM ZİNCİR: geçerli step-up kanıtına rağmen 72 saat/ },
+    // NEGATİF KONTROL (F2-N): 001300 OLMADAN kitsiz Owner zorunluluğu DB'den geçer → FAIL VERMELİ.
+    { label: "f2n-owner-kit-db NEGATİF (F2N_NEGATIF=1, 001300 yok → FAIL beklenir)", cmd: process.execPath,
+      args: [path.join("node_modules", "tsx", "dist", "cli.mjs"), "scripts/giris-guvenligi/f2n-owner-kit-db.harness.ts"],
+      env: { F2N_NEGATIF: "1" }, expectFail: true, passRe: /f2n-owner-kit-db: [0-9]+ PASS \/ [1-9][0-9]* FAIL/,
+      mustRe: /NEGATİF: 001300 YOK[\s\S]*FAIL doğrudan RPC \(auth_mfa_set_required\) → YF401[\s\S]*FAIL doğrudan UPDATE \(service_role/ },
     // NEGATİF KONTROLLER (Owner kilitlenme): düzeltme kaldırılınca ilgili maddeler FAIL VERMELİ.
     ...[
       ["OWNER_KILIT_ESKI_COZUMLEME", /\(OWNER_KILIT_ESKI_COZUMLEME=1\)[\s\S]*FAIL kapsam tanımsız[^\n]*YALNIZ kurtarma kodu sunulur[\s\S]*FAIL yöntem listesi boş/],

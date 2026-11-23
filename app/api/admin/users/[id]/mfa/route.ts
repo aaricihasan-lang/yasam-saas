@@ -116,6 +116,10 @@ export async function POST(req: NextRequest, ctx: RouteContext) {
       p_required: action === "enable",
       p_reason: reason,
     });
+    // F2-N (001300): API denetimi bir yarışta / atlanmış yolda geçilse bile DB Owner'ın kitsiz zorunluluğunu reddeder (YF401).
+    if (error && (error as { code?: string }).code === "YF401") {
+      return json({ code: "OWNER_RECOVERY_REQUIRED", error: MFA_REASON_TEXT.owner_kit_missing }, 409);
+    }
     if (error) return json({ error: "İşlem kaydedilemedi." }, 500);
     const r = (data ?? {}) as { ok?: unknown; code?: unknown; changed?: unknown };
     if (r.ok !== true) {
