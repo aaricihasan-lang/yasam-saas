@@ -21,11 +21,7 @@ import { useTranslations } from "next-intl";
 import { Menu } from "lucide-react";
 import NotificationBell from "@/components/notifications/NotificationBell";
 import OwnerBell from "@/components/admin/notifications/OwnerBell";
-import SideMenu, {
-  readSideMenuCollapsed,
-  subscribeSideMenuCollapsed,
-  writeSideMenuCollapsed,
-} from "@/components/layout/side-menu/SideMenu";
+import SideMenu, { useSideMenuCollapsed } from "@/components/layout/side-menu/SideMenu";
 import styles from "./home.module.css";
 import type { HomeNavGroup } from "./homeModuleNav";
 
@@ -76,7 +72,7 @@ export default function HomeShell({
   sideSlot,
 }: HomeShellProps) {
   const t = useTranslations("home.premium");
-  const collapsed = useSyncExternalStore(subscribeSideMenuCollapsed, readSideMenuCollapsed, () => false);
+  const [collapsed, writeSideMenuCollapsed] = useSideMenuCollapsed();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const narrow = useSyncExternalStore(subscribeNarrow, readNarrow, () => false);
   const [modulesOpen, setModulesOpen] = useState(false);

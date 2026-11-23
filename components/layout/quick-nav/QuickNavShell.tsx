@@ -43,11 +43,7 @@ import NotificationBell from "@/components/notifications/NotificationBell";
 import OwnerBell from "@/components/admin/notifications/OwnerBell";
 import { buildCenterNavHubs, isExpertMembershipExpired } from "@/app/_premium/home/homeCenters";
 import { buildModuleNavGroups, useModuleNavProbes, type HomeNavGroup } from "@/app/_premium/home/homeModuleNav";
-import SideMenu, {
-  readSideMenuCollapsed,
-  subscribeSideMenuCollapsed,
-  writeSideMenuCollapsed,
-} from "@/components/layout/side-menu/SideMenu";
+import SideMenu, { useSideMenuCollapsed } from "@/components/layout/side-menu/SideMenu";
 import {
   QUICK_NAV_CLIENTS_ROUTES,
   QUICK_NAV_MODULES_KEY,
@@ -167,8 +163,8 @@ export default function QuickNavShell({ children }: { children: ReactNode }) {
   const cachedUser = useMemo(() => parseUser(userRaw), [userRaw]);
   /** Sunucuyla doğrulanmış kullanıcı (ana sayfadaki profileSynced ile aynı ilke; admin beklemez). */
   const [synced, setSynced] = useState<YasamUser | null>(null);
-  /** Daraltma tercihi ana sayfayla ORTAK (tek menü). */
-  const collapsedPref = useSyncExternalStore(subscribeSideMenuCollapsed, readSideMenuCollapsed, () => false);
+  /** Daraltma durumu ana sayfayla ORTAK (tek menü); ana modül değişince varsayılana döner (SideMenu). */
+  const [collapsedPref, writeSideMenuCollapsed] = useSideMenuCollapsed();
   const narrow = useSyncExternalStore(subscribeNarrow, readNarrow, () => false);
   /** "Tüm Modüller" listesi; null → oturum tercihi (varsayılan açık). */
   const [modulesState, setModulesState] = useState<boolean | null>(null);
