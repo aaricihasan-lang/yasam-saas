@@ -58,7 +58,7 @@ import ResultDesk, { AtlasHomeContext, DeskChip, deskGhostLight, deskMenuItem, d
 import NatalWheel from "./_components/NatalWheel";
 import { SynastryWheelCaption, TransitWheelCaption, roxyChartFor, transitWheelGap } from "./_components/RoxyWheels";
 import type { TransitTechnical } from "@/lib/astrology/model/westernTiming";
-import NatalTechnicalPanel from "./_components/NatalTechnicalPanel";
+import NatalTechnicalPanel, { NatalKeyPlacementCards } from "./_components/NatalTechnicalPanel";
 import NatalChartControls, { natalWheelDisplay, useNatalWheelLayouts, useNatalWheelPrefs } from "./_components/NatalChartControls";
 import { NatalGroupDetails, NatalLabelSheet } from "./_components/NatalLabelDetails";
 import type { NatalLabelPick } from "./_components/NatalWheelLabeled";
@@ -1980,6 +1980,8 @@ export default function AstrologyWorkspacePage() {
                 >
                   {item && (
                     <div key={item.key}>
+                      {/* G4: Özet'in en üstünde Güneş / Ay / Yükselen kartları (grup alanından önce). */}
+                      {tab === "harita" && natalTech && <NatalKeyPlacementCards technical={natalTech} timeUnknown={item.view.timeUnknownMasked} />}
                       {natalTech && <NatalGroupDetails technical={natalTech} display={natalWheelDisplay(natalTech, natalPrefs, { timeUnknown: item.view.timeUnknownMasked })} layout={natalLayout} collapsed={tab !== "harita"} />}
                       {natalTech && (
                         <NatalLabelSheet

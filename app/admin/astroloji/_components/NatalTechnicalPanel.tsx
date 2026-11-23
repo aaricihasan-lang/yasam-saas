@@ -36,6 +36,7 @@ import {
 import { fitGridCell, fitGridStyle } from "./atlas/fitGrid";
 import { MOON_UNKNOWN_ROW, MOON_UNKNOWN_TEXT, NOON_ASSUMPTION } from "@/lib/astrology/view/natalLabelLayout";
 import { aspectBalanceOf, listedNatalAspects, patternInvolvesMoon, timeUnknownDistribution } from "@/lib/astrology/view/natalTimeUnknown";
+import { natalKeyPlacements } from "@/lib/astrology/view/natalKeyPlacements";
 
 const th = "px-2 py-1.5 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500";
 const td = "px-2 py-1.5 text-sm text-slate-800";
@@ -213,6 +214,58 @@ function DistColumn<K extends string>({
           <span className="tabular-nums">{values[k]}</span>
         </div>
       ))}
+    </div>
+  );
+}
+
+/**
+ * G4 (2026-11-23): Özet sekmesinin EN ÜSTÜNDE (grup alanı ve teknik bölümlerden önce; çağıran yerleştirir — kayıtlı analiz ve canlı
+ * sonuç) Güneş / Ay / Yükselen kartları — kayıtlı teknik veriden (yeni hesap yok). Özet bir yan panelde
+ * de açılır (1440 px'te ~370 px) → yerleşim EKRANA değil KABA göre ve yalnız iki durum: kap ≥ 19rem ise üç kart aynı satırda, daha
+ * darsa üçü tam genişlikte alt alta (2 + 1 dağılım oluşmaz; saf CSS, flex-basis = (eşik − %100) × 999). Saat bilinmiyorken G2 kuralı:
+ * Güneş ≈ 12:00 varsayımı, Ay belirsiz (burç / derece yazılmaz), Yükselen bilinmiyor; Owner'ın tam metni kart ipucunda ve
+ * Özet'teki saat uyarısında.
+ */
+const KEY_CARD_ROW_MIN = "19rem";
+export function NatalKeyPlacementCards({ technical, timeUnknown }: { technical: NatalTechnical; timeUnknown: boolean }) {
+  return (
+    <div className="mb-3 flex flex-wrap gap-2" data-testid="natal-key-placements">
+      {natalKeyPlacements(technical, timeUnknown).map((k) => {
+        const known = k.status === "exact" || k.status === "assumed";
+        return (
+          <div
+            key={k.key}
+            className="min-w-0 grow rounded-xl border border-slate-200 bg-white px-3 py-2"
+            style={{ flexBasis: `calc((${KEY_CARD_ROW_MIN} - 100%) * 999)` }}
+            data-key={k.key}
+            data-status={k.status}
+            data-sign={k.sign ?? ""}
+            data-degree={k.degree ?? ""}
+            title={k.detail ?? undefined}
+          >
+            <div className="flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+              <span className={k.key === "asc" ? "text-[10px] font-bold" : "text-sm normal-case text-slate-600"}>{k.glyph}</span>
+              {k.title}
+            </div>
+            {known ? (
+              <>
+                <div className="mt-0.5 flex items-baseline gap-1 whitespace-nowrap text-slate-900">
+                  <span className="text-lg leading-none">{k.signGlyph}</span>
+                  <span className="text-[15px] font-semibold">{k.signName}</span>
+                </div>
+                {/* ≈ derece satırında: dar kartta (360 px) burç adı bölünmez. */}
+                <div className="text-sm tabular-nums text-slate-700">
+                  {k.status === "assumed" ? "≈ " : ""}
+                  {k.degree}
+                </div>
+              </>
+            ) : (
+              <div className="mt-0.5 text-[15px] font-semibold italic text-amber-800">{k.status === "unknown" ? (k.key === "asc" ? "Bilinmiyor" : "Belirsiz") : "—"}</div>
+            )}
+            {k.note && <p className="mt-0.5 text-[11px] leading-4 text-amber-800">{k.note}</p>}
+          </div>
+        );
+      })}
     </div>
   );
 }

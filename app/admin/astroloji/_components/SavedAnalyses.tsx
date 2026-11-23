@@ -23,7 +23,7 @@ import type { NatalLabelPick } from "./NatalWheelLabeled";
 import { MOON_UNKNOWN_TEXT } from "@/lib/astrology/view/natalLabelLayout";
 import NatalSymbolGuide from "./NatalSymbolGuide";
 import NatalWheel from "./NatalWheel";
-import NatalTechnicalPanel from "./NatalTechnicalPanel";
+import NatalTechnicalPanel, { NatalKeyPlacementCards } from "./NatalTechnicalPanel";
 import { NO_PROVIDER_INTERPRETATION_NOTE, hasNoProviderInterpretation } from "@/lib/astrology/noProviderInterp";
 import type { NatalTechnical } from "@/lib/astrology/model/western";
 import { localSpaceCenter } from "@/lib/astrology/localSpaceCenter";
@@ -548,6 +548,8 @@ export function SavedAnalysisView({
           ) : undefined
         }
       >
+        {/* G4: Özet'in en üstünde Güneş / Ay / Yükselen kartları (grup alanından önce). */}
+        {tab === "harita" && natal && <NatalKeyPlacementCards technical={natal} timeUnknown={a.method.timeUnknownMasked} />}
         {natal && <NatalGroupDetails technical={natal} display={natalWheelDisplay(natal, natalPrefs, { timeUnknown: a.method.timeUnknownMasked })} layout={natalLayout} collapsed={tab !== "harita"} />}
         {natal && (
           <NatalLabelSheet
