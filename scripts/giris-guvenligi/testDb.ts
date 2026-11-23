@@ -9,6 +9,7 @@ import path from "node:path";
 import { generateKeyPairSync, sign as cryptoSign, type KeyObject } from "node:crypto";
 import pg from "pg";
 import { startEmbedShim } from "../dogal-destek-p2/beslenme/pgrestEmbedShim";
+import { F2_STAGES } from "./f2-migration-guard.mjs";
 
 const ROOT = process.cwd();
 export const F2C_FILES = [
@@ -96,7 +97,9 @@ export function newPhone(): Phone {
 export const signWith = (p: Phone, msg: string) =>
   cryptoSign("sha256", Buffer.from(msg, "utf8"), { key: p.priv, dsaEncoding: "der" }).toString("base64");
 
-export type F2cDb = { admin: pg.Client; pool: pg.Pool; shimUrl: string; close: () => Promise<void> };
+/** Kurulan test DB'sinin F2 düzeyi: kayıt (auth_f2_schema_level; F2-J öncesinde yok) + katalog parmak izi (bağımsız). */
+export type F2DbLevel = { registry: number | null; catalog: number; latest: number };
+export type F2cDb = { admin: pg.Client; pool: pg.Pool; shimUrl: string; level: F2DbLevel; close: () => Promise<void> };
 
 /** F2-G eki: Owner işleme özel yeniden doğrulama + saklama politikası kaydı. startF2cDb({ withF2g: true }). */
 export const F2G_FILES = [
@@ -122,6 +125,19 @@ export const F2M_FILES = [
 export const F2H_FILES = [
   "supabase/migrations/20280103000800_auth_audit_retention_disposal_f2h.sql",
 ];
+/**
+ * Kurulan DB'nin F2 düzeyi iki BAĞIMSIZ kaynaktan: kayıt fonksiyonu (F2-J ile gelir; öncesinde null) ve her aşamanın
+ * katalog parmak izi (F2_STAGES; f2-migration-guard ile aynı ifade) — en yüksek sağlanan aşama.
+ */
+export async function readF2Level(client: pg.Client): Promise<F2DbLevel> {
+  // Ayrı sorgu: fonksiyon yokken çağrı ayrıştırma aşamasında hata verir (CASE içinde bile).
+  const hasReg = (await client.query(`SELECT to_regprocedure('public.auth_f2_schema_level()') IS NOT NULL AS x`)).rows[0].x === true;
+  const reg = hasReg ? (await client.query(`SELECT public.auth_f2_schema_level() AS l`)).rows[0].l : null;
+  let catalog = -1;
+  for (const s of F2_STAGES) if ((await client.query(`SELECT (${s.fp}) AS x`)).rows[0].x === true) catalog = s.level;
+  return { registry: reg === null || reg === undefined ? null : Number(reg), catalog, latest: F2_STAGES[F2_STAGES.length - 1].level };
+}
+
 export async function startF2cDb(opts: { withF2d?: boolean; withF2e?: boolean; withF2g?: boolean; withF2h?: boolean; withF2i?: boolean; withF2j?: boolean; withF2k?: boolean; withF2m?: boolean } = {}): Promise<F2cDb> {
   // Uyumluluk koşusu: F2_TEST_DB_WITH_F2E=1 → önceki fazların harness'ları bütün zincir (000500 dahil) üstünde koşar.
   if (process.env.F2_TEST_DB_WITH_F2E === "1") opts = { ...opts, withF2d: true, withF2e: true };
@@ -135,6 +151,12 @@ export async function startF2cDb(opts: { withF2d?: boolean; withF2e?: boolean; w
   if (process.env.F2_TEST_DB_WITH_F2K === "1") opts = { ...opts, withF2d: true, withF2e: true, withF2i: true, withF2j: true, withF2k: true };
   // F2_TEST_DB_WITH_F2M=1 → bütün zincir 001200 (F2-M) dahil.
   if (process.env.F2_TEST_DB_WITH_F2M === "1") opts = { ...opts, withF2d: true, withF2e: true, withF2i: true, withF2j: true, withF2k: true, withF2m: true };
+  // F2_TEST_DB_LATEST=1 → EN GÜNCEL F2 zinciri (bugün 001200). Yeni aşama eklenince bu satır da güncellenmeli; unutulursa
+  // aşağıdaki düzey denetimi testi BAŞLATMADAN durdurur (f2-test-db-duzey.mjs). Negatif kontrolle (F2L_NEGATIF=1) birlikte
+  // verilemez: negatif kontrol bilerek eski düzeyde kurulur, en güncel zincir onu sessizce "düzeltirdi".
+  const latestMode = process.env.F2_TEST_DB_LATEST === "1";
+  if (latestMode && process.env.F2L_NEGATIF === "1") throw new Error("F2_TEST_DB_LATEST=1 ve F2L_NEGATIF=1 birlikte verilemez (negatif kontrol izolasyonu)");
+  if (latestMode) opts = { ...opts, withF2m: true };
   if (opts.withF2m) opts = { ...opts, withF2k: true };
   if (opts.withF2k) opts = { ...opts, withF2j: true };
   if (opts.withF2j) opts = { ...opts, withF2i: true };
@@ -157,11 +179,20 @@ export async function startF2cDb(opts: { withF2d?: boolean; withF2e?: boolean; w
   await admin.query(BOOT);
   for (const f of [...F2C_FILES, ...(opts.withF2d || opts.withF2e || opts.withF2g ? F2D_FILES : []), ...(opts.withF2e || opts.withF2g ? F2E_FILES : []), ...(opts.withF2g ? F2G_FILES : []), ...(opts.withF2h ? F2H_FILES : []), ...(opts.withF2i ? F2I_FILES : []), ...(opts.withF2j ? F2J_FILES : []), ...(opts.withF2k ? F2K_FILES : []), ...(opts.withF2m ? F2M_FILES : [])]) await admin.query(fs.readFileSync(path.join(ROOT, f), "utf8"));
   await admin.query(HARNESS_SQL);
+  const level = await readF2Level(admin);
+  if (latestMode || process.env.F2_TEST_DB_LEVEL_LOG === "1") {
+    console.log(`[f2-test-db] düzey kayıt=${level.registry ?? "yok"} katalog=${level.catalog} en-güncel=${level.latest}`);
+  }
+  if (latestMode && (level.registry !== level.latest || level.catalog !== level.latest)) {
+    await admin.end().catch(() => {});
+    await server.stop().catch(() => {});
+    throw new Error(`F2_TEST_DB_LATEST=1 ama test DB düzeyi kayıt=${level.registry ?? "yok"} katalog=${level.catalog}, en güncel ${level.latest} — testDb.ts yeni F2 aşamasını uygulamıyor`);
+  }
   const pool = new pg.Pool({ host: "localhost", port, user: "postgres", password: "pw", database: "postgres", max: 8 });
   pool.on("error", () => {});
   const shim = await startEmbedShim(pool);
   return {
-    admin, pool, shimUrl: shim.url,
+    admin, pool, shimUrl: shim.url, level,
     close: async () => {
       await admin.end().catch(() => {});
       await shim.close().catch(() => {});

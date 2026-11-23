@@ -1,12 +1,13 @@
 # Giriş Güvenliği F2 — GERÇEK TARAYICI uçtan uca testleri (F2-L). Ayrı ve yol filtreli iş akışı: yalnız F2 giriş güvenliği
 # dosyaları değişince (ve elle) çalışır; ana CI'ı (ci.yml) yavaşlatmaz.
 # Sır KULLANMAZ. Production'a / Supabase'e / Vercel'e / gerçek Gmail'e istek ATMAZ:
-#   - geçici embedded-postgres + PostgREST shim (yalnız 127.0.0.1), F2 migration zinciri F2-A…F2-K (F2_TEST_DB_WITH_F2K=1)
+#   - geçici embedded-postgres + PostgREST shim (yalnız 127.0.0.1), EN GÜNCEL F2 migration zinciri (F2_TEST_DB_LATEST=1;
+#     düzey F2_STAGES'ten; koşucu her testin gerçek DB düzeyini doğrular ve özete yazar — sabit düzey YOK)
 #   - "telefon" = Node P-256 anahtarı (Android Keystore DEĞİL); e-posta = sentetik sağlayıcı (yerel dosya)
 #   - build yalnız yerel test önüne işaret eden SAHTE değerlerle (zz-…-not-a-secret)
 # Tarayıcılar: Google Chrome + Microsoft Edge (GERÇEK markalı ikililer; yoksa kurulur, Chromium "Edge" diye sayılmaz) +
 # WebKit (Safari MOTORU emülasyonu — gerçek iPhone Safari DEĞİL). Boş paket / atlanan test PASS VEREMEZ (koşucu asgari PASS ister).
-# Negatif kontrol: F2-K kuralları kaldırılmış şemada f2k testi FAIL VERMEK ZORUNDADIR (testin gerçekten yakaladığının kanıtı).
+# Negatif kontrol: F2-K kuralları kaldırılmış şemada (düzey 1000) f2k testi FAIL VERMEK ZORUNDADIR (testin gerçekten yakaladığının kanıtı).
 name: F2 tarayıcı testleri
 
 on:

@@ -5,11 +5,11 @@
  * 320 / 375 / 390 / 768 px + masaüstü taşma denetimi.
  *
  * GERÇEK: Next.js production build (`next start`), gerçek route'lar, gerçek PostgreSQL (embedded) + F2 migration zinciri
- * (F2_TEST_DB_WITH_F2K=1 → 001100 dahil), gerçek ECDSA P-256 imzaları. "Telefon" = Node'daki P-256 anahtarı (Android
+ * (tarayıcı CI'ında F2_TEST_DB_LATEST=1 → en güncel düzey, bugün 001200; 001100 dahil), gerçek ECDSA P-256 imzaları. "Telefon" = Node'daki P-256 anahtarı (Android
  * Keystore / biyometri DEĞİL — SENTETİK). Yönetici oluşturmanın bu test DB'sinde olmayan yan fonksiyonları sade
  * karşılıklardır (testDb.installAdminStandIns); yetki kararı gerçek migration'dan gelir. Production'a SIFIR temas.
  *
- * Negatif kontrol: F2L_NEGATIF=1 (001100 YOK; F2_TEST_DB_WITH_F2K verilmeden) ile çalıştırıldığında F2-K kuralları olmadığı için FAIL vermelidir.
+ * Negatif kontrol: F2L_NEGATIF=1 (001100 YOK → düzey 1000; en güncel zincir bayrağı VERİLMEDEN — testDb ikisini birlikte reddeder) ile çalıştırıldığında F2-K kuralları olmadığı için FAIL vermelidir.
  *
  * Ön koşul: f2c-ui.e2e.ts başlığındaki sahte env ile `next build --webpack`.
  * Çalıştır: npx tsx scripts/giris-guvenligi/f2k-ui.e2e.ts <yeni-boş-kanıt-klasörü>
