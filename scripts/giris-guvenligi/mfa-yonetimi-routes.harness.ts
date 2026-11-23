@@ -213,6 +213,14 @@ async function main() {
     const ownerSelf0 = await getStatus(U.owner, owner0.sid, U.owner);
     ok((ownerSelf0.json.status as J)?.ready === false && ownerSelf0.json.isSelf === true, "Owner'ın kendi e-postası doğrulanmadan hazır değil", ownerSelf0.json.status);
     await q(`UPDATE public.users SET email_verified_at = now() WHERE id = $1`, [U.owner]);   // Ayarlar → Giriş Yöntemlerim ile doğrulandı (F2-D akışı ayrıca sınanır)
+    // Owner kilitlenme koruması (23.11): kendi zorunluluğu için kullanılmamış çevrimdışı kit şart; kit ile normal kod ayrı.
+    const noKit = await setMfa(U.owner, owner0.sid, U.owner, ENABLE("Owner MFA etkinleştirme"));
+    ok(noKit.res.status === 409 && noKit.json.code === "OWNER_RECOVERY_REQUIRED" && (await required(U.owner)).mfa_required === false && (await sessionActive(owner0.sid)),
+      "kit yokken Owner kendi zorunluluğunu AÇAMAZ (409); oturum açık kalır", noKit.json);
+    const kitN = (await q(`SELECT count(*)::int n FROM public.auth_owner_offline_kit_issue() k`)).rows[0] as { n: number };   // SQL konsolu (sentetik DB); kodlar okunmaz
+    const ownerKit = await getStatus(U.owner, owner0.sid, U.owner);
+    ok(kitN.n === 5 && (ownerKit.json.status as J)?.ownerOfflineKitLeft === 5 && (ownerKit.json.status as J)?.recoveryCodesLeft === 0 && (ownerKit.json.status as J)?.ownerSelfRecoveryReady === true,
+      "kit 5 · normal kurtarma kodu 0 — AYRI gösterilir; Owner hazır", ownerKit.json.status);
     const e1 = await setMfa(U.owner, owner0.sid, U.owner, ENABLE("Owner MFA etkinleştirme"));
     ok(e1.res.status === 200 && e1.json.changed === true && e1.json.reloginRequired === true && (await required(U.owner)).mfa_required === true, "Owner kendi zorunluluğunu açtı (yeniden giriş istenir)", e1.json);
     ok(!(await sessionActive(owner0.sid)), "Owner'ın MFA'sız oturumu aynı işlemde KAPANDI");

@@ -44,6 +44,7 @@ function withReasonText(status: Awaited<ReturnType<typeof loadMfaAdminStatus>>) 
       qr_device: { ...s.methods.qr_device, reasonText: text(s.methods.qr_device.reasons) },
     },
     readyReasonText: text(s.readyReasons),
+    configIssueText: text(s.configIssues),
   };
 }
 
@@ -56,9 +57,10 @@ export async function GET(req: NextRequest, ctx: RouteContext) {
   const { id } = await ctx.params;
   if (!isMfaChallengeId(id)) return json({ error: "Geçersiz üye." }, 400);
   try {
-    const st = await loadMfaAdminStatus(o.guard.db, id);
+    const isSelf = id === o.guard.adminId;
+    const st = await loadMfaAdminStatus(o.guard.db, id, process.env, { actorToken: o.guard.sessionToken, isSelf });
     if (!st.ok) return st.code === "not_found" ? json({ error: "Üye bulunamadı." }, 404) : json({ code: "UNAVAILABLE", error: MFA_REASON_TEXT.db_unavailable }, 503);
-    return json({ ok: true, isSelf: id === o.guard.adminId, status: withReasonText(st) }, 200);
+    return json({ ok: true, isSelf, status: withReasonText(st) }, 200);
   } catch {
     return json({ code: "UNAVAILABLE", error: MFA_REASON_TEXT.db_unavailable }, 503);
   }
@@ -68,8 +70,11 @@ export async function GET(req: NextRequest, ctx: RouteContext) {
  * POST /api/admin/users/[id]/mfa — Owner: zorunluluğu aç / kaldır.
  * Body: { action: "enable" | "disable", reason: string, confirm: true }
  *   enable  → giriş akışıyla AYNI yöntem hesabı (ortam + kapsam + sağlayıcı + rol + DB) en az bir ASIL yöntem
- *             göstermiyorsa REDDEDİLİR (409); sonra DB: Owner + gerekçe + auth_mfa_user_has_method + satır kilidi;
- *             aynı işlemde MFA'sız açık oturumlar kapanır (F2-I tetikleyicisi).
+ *             göstermiyorsa REDDEDİLİR (409); MFA ortam ayarında biçim hatası varsa REDDEDİLİR (409 CONFIG_INVALID);
+ *             Owner KENDİ zorunluluğunu açıyorsa en az OWNER_SELF_ENABLE_MIN_KIT kullanılmamış çevrimdışı kit kodu
+ *             şarttır, okunamazsa da REDDEDİLİR (409 OWNER_RECOVERY_REQUIRED); sonra DB: Owner + gerekçe +
+ *             auth_mfa_user_has_method + satır kilidi; aynı işlemde MFA'sız açık oturumlar kapanır (F2-I tetikleyicisi).
+ *             NOT: bu denetimler API katmanındadır; SQL konsolundan doğrudan auth_mfa_set_required çağrısı bunları atlar.
  *   disable → DB (F2-G): başkası için son 30 dk MFA'lı Owner oturumu + işleme / hedefe bağlı tek kullanımlık
  *             `mfa_disable` kanıtı (aynı işlemde tüketilir); Owner kendi zorunluluğunu kaldıramaz. API bu
  *             adımları ATLAYAMAZ — yalnız DB sonucunu iletir.
@@ -89,10 +94,20 @@ export async function POST(req: NextRequest, ctx: RouteContext) {
   if (action === "disable" && isSelf) return json({ code: "self_disable_forbidden", error: SET_ERRORS.self_disable_forbidden[1] }, 403);
   try {
     if (action === "enable") {
-      const st = await loadMfaAdminStatus(o.guard.db, id);
+      const st = await loadMfaAdminStatus(o.guard.db, id, process.env, { actorToken: o.guard.sessionToken, isSelf });
       if (!st.ok) return st.code === "not_found" ? json({ error: "Üye bulunamadı." }, 404) : json({ code: "UNAVAILABLE", error: MFA_REASON_TEXT.db_unavailable }, 503);
-      if (!st.status.mfaRequired && !st.status.ready) {
-        return json({ code: "NO_USABLE_METHOD", error: MFA_REASON_TEXT.no_usable_method, status: withReasonText(st) }, 409);
+      if (!st.status.mfaRequired) {
+        if (st.status.configIssues.length) {
+          return json({ code: "CONFIG_INVALID", error: MFA_REASON_TEXT[st.status.configIssues[0]], status: withReasonText(st) }, 409);
+        }
+        if (!st.status.ready) {
+          return json({ code: "NO_USABLE_METHOD", error: MFA_REASON_TEXT.no_usable_method, status: withReasonText(st) }, 409);
+        }
+        // Owner hesabı (yalnız kendisi olabilir): kurtarma kiti yoksa / okunamazsa açılmaz.
+        if (st.status.isOwnerAccount && st.status.ownerSelfRecoveryReady !== true) {
+          const reason = isSelf && st.status.ownerOfflineKitLeft !== null ? "owner_kit_missing" : "owner_recovery_unreadable";
+          return json({ code: "OWNER_RECOVERY_REQUIRED", error: MFA_REASON_TEXT[reason], status: withReasonText(st) }, 409);
+        }
       }
     }
     const { data, error } = await o.guard.db.rpc("auth_mfa_set_required", {
@@ -109,7 +124,7 @@ export async function POST(req: NextRequest, ctx: RouteContext) {
       return json({ code: code === "step_up_required" ? "STEP_UP_REQUIRED" : code, error: e[1], ...(code === "step_up_required" ? { action: "mfa_disable", targetId: id } : {}) }, e[0]);
     }
     // Kendi zorunluluğunu açan Owner'ın MFA'sız oturumu aynı işlemde kapanmış olabilir → durum okunamazsa da sonuç kesindir.
-    const after = await loadMfaAdminStatus(o.guard.db, id).catch(() => null);
+    const after = await loadMfaAdminStatus(o.guard.db, id, process.env, { actorToken: o.guard.sessionToken, isSelf }).catch(() => null);
     return json({
       ok: true,
       changed: r.changed === true,

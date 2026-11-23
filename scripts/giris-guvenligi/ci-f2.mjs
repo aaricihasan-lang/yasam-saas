@@ -87,6 +87,8 @@ const TSX = [
   "scripts/giris-guvenligi/qr-encode.check.ts",
   // Test DB düzey koruması: en son F2 migration'ı = F2_STAGES = testDb.ts; gerçek PG düzeyi; tarayıcı koşucusu yargısı.
   "scripts/giris-guvenligi/f2-test-db-duzey.harness.ts",
+  // Owner kilitlenme güvenliği: yanlış MFA ayarında kurtarma yolu kaybolmaz (MFA atlanmaz); Owner kendi zorunluluğu için kit şartı.
+  "scripts/giris-guvenligi/owner-kilitlenme.harness.ts",
 ];
 
 // F2-J: migration yeniden / sırasız uygulama koruması (statik blok denetimi, üretilmiş katalog dosyalarının güncelliği,
@@ -120,6 +122,14 @@ const steps = [
       env: { F2_TEST_DB_LATEST: "1", F2E_NEGATIF_72S: "1" }, expectFail: true,
       passRe: /f2e-routes harness: [0-9]+ PASS \/ [1-9][0-9]* FAIL/,
       mustRe: /NEGATİF KONTROL: 72 saat denetimi[^\n]*[\s\S]*FAIL 72 saat dolmadan yürütme yok[\s\S]*FAIL TAM ZİNCİR: geçerli step-up kanıtına rağmen 72 saat/ },
+    // NEGATİF KONTROLLER (Owner kilitlenme): düzeltme kaldırılınca ilgili maddeler FAIL VERMELİ.
+    ...[
+      ["OWNER_KILIT_ESKI_COZUMLEME", /\(OWNER_KILIT_ESKI_COZUMLEME=1\)[\s\S]*FAIL kapsam tanımsız[^\n]*YALNIZ kurtarma kodu sunulur[\s\S]*FAIL yöntem listesi boş/],
+      ["OWNER_KIT_KORUMASIZ", /\(OWNER_KIT_KORUMASIZ=1\)[\s\S]*FAIL kit yokken Owner kendi zorunluluğunu AÇAMAZ/],
+      ["OWNER_AYAR_KORUMASIZ", /\(OWNER_AYAR_KORUMASIZ=1\)[\s\S]*FAIL ayar hatası: tanınmayan yöntem adı/],
+    ].map(([v, mustRe]) => ({ label: `owner-kilitlenme NEGATİF (${v}=1 → FAIL beklenir)`, cmd: process.execPath,
+      args: [path.join("node_modules", "tsx", "dist", "cli.mjs"), "scripts/giris-guvenligi/owner-kilitlenme.harness.ts"],
+      env: { [v]: "1" }, expectFail: true, passRe: /owner-kilitlenme: [0-9]+ PASS \/ [1-9][0-9]* FAIL/, mustRe })),
     // NEGATİF KONTROL: A3 öncesi kural yüklenince taklit testleri FAIL VERMELİ (vermiyorsa test kör demektir).
     { label: "f2k-token NEGATİF (F2K_A3_WITHOUT_FIX=1 → FAIL beklenir)", cmd: process.execPath,
       args: [path.join("node_modules", "tsx", "dist", "cli.mjs"), "scripts/giris-guvenligi/f2k-token.harness.ts"],

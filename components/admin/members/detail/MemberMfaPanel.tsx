@@ -21,6 +21,10 @@ type Status = {
   emailVerifiedAt: string | null;
   hasActiveDevice: boolean;
   recoveryCodesLeft: number;
+  ownerOfflineKitLeft: number | null;
+  configIssues: string[];
+  configIssueText: string[];
+  ownerSelfRecoveryReady: boolean | null;
   loginMethods: string[];
   methods: { email_otp: MethodState; qr_device: MethodState };
   ready: boolean;
@@ -109,7 +113,9 @@ export function MemberMfaPanel({ userId }: { userId: string }) {
   if (!visible) return null;
 
   const s = status;
-  const canEnable = !!s && !s.mfaRequired && s.ready;
+  // Sunucu aynı kuralları ayrıca uygular (API 409); düğme yalnız kolaylık.
+  const ownerBlocked = !!s && s.isOwnerAccount && s.ownerSelfRecoveryReady !== true;
+  const canEnable = !!s && !s.mfaRequired && s.ready && s.configIssues.length === 0 && !ownerBlocked;
   const canDisable = !!s && s.mfaRequired && !isSelf;
   const reasonOk = reason.trim().length >= 3;
 
@@ -144,15 +150,27 @@ export function MemberMfaPanel({ userId }: { userId: string }) {
               <span>Aktif cihaz: {s.hasActiveDevice ? "var" : "yok"}</span>
               {s.methods.qr_device.reasonText.map((t) => <span key={t} className="break-words">{t}</span>)}
             </div>
-            <div className={detailCss.infoCard}>
-              <b>Kurtarma yöntemi</b>
+            <div className={detailCss.infoCard} data-recovery="codes">
+              <b>Kurtarma kodları</b>
               <span><Pill ok={s.recoveryCodesLeft > 0} yes="Hazır" no="Yok" /></span>
-              <span>{s.recoveryCodesLeft > 0 ? `${s.recoveryCodesLeft} kullanılmamış kurtarma kodu` : "Üye zorunluluk açıldıktan sonra Ayarlar'dan kurtarma kodu oluşturabilir."}</span>
+              <span>{s.recoveryCodesLeft > 0 ? `${s.recoveryCodesLeft} kullanılmamış kurtarma kodu` : "Zorunluluk açıldıktan sonra Ayarlar'dan kurtarma kodu oluşturulabilir."}</span>
             </div>
+            {s.isOwnerAccount ? (
+              <div className={detailCss.infoCard} data-recovery="owner-kit" data-owner-kit={s.ownerOfflineKitLeft === null ? "unknown" : String(s.ownerOfflineKitLeft)}>
+                <b>Çevrimdışı kurtarma kiti</b>
+                <span><Pill ok={s.ownerSelfRecoveryReady === true} yes="Hazır" no={s.ownerOfflineKitLeft === null ? "Okunamadı" : "Yok"} /></span>
+                <span className="break-words">{s.ownerOfflineKitLeft === null
+                  ? "Kit durumu yalnız kendi oturumunuzla okunabilir."
+                  : s.ownerOfflineKitLeft > 0
+                    ? `${s.ownerOfflineKitLeft} kullanılmamış kit kodu (kâğıtta saklayın).`
+                    : "Kit kodu yok. Kendi zorunluluğunuzu açmadan önce kit oluşturulmalı."}</span>
+              </div>
+            ) : null}
             <div className={detailCss.infoCard} data-mfa-ready={s.ready ? "yes" : "no"}>
               <b>Etkinleştirmeye hazır mı?</b>
               <span><Pill ok={s.ready} yes="Hazır" no="Hazır değil" /></span>
               {s.readyReasonText.map((t) => <span key={t} className="break-words">{t}</span>)}
+              {s.configIssueText.map((t) => <span key={t} className="break-words" data-mfa-config-issue>{t}</span>)}
             </div>
           </div>
 
@@ -178,6 +196,7 @@ export function MemberMfaPanel({ userId }: { userId: string }) {
               ) : null}
               {s.mfaRequired && isSelf ? <p className="text-sm font-semibold text-slate-600">Kendi zorunluluğunuz bu ekrandan kaldırılamaz.</p> : null}
               {!s.mfaRequired && !s.ready ? <p className="text-sm font-semibold text-slate-600">Önce üyenin çalışan bir doğrulama yöntemi olmalı; aksi hâlde giriş yapamaz.</p> : null}
+              {!s.mfaRequired && s.ready && ownerBlocked ? <p className="text-sm font-semibold text-slate-600" data-mfa-owner-blocked>Kendi zorunluluğunuzu açmadan önce kullanılmamış çevrimdışı kurtarma kiti kodunuz olmalı.</p> : null}
             </div>
           ) : (
             <div className="mt-5 grid min-w-0 gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4" data-mfa-form={mode}>

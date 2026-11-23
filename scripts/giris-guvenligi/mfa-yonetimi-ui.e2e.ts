@@ -260,6 +260,16 @@ async function main() {
           await openMember(page, U.owner);
           const own = page.locator("[data-mfa-panel]");
           await page.locator("[data-mfa-ready=yes]").waitFor({ timeout: 20000 });
+          // Owner kilitlenme koruması (23.11): kit yokken düğme kapalı + sebep; kit ve normal kod ayrı kartlarda.
+          await page.locator("[data-recovery=owner-kit][data-owner-kit='0']").waitFor({ timeout: 20000 });
+          ok(await page.locator("[data-mfa-action=enable]").isDisabled() && (await page.locator("[data-mfa-owner-blocked]").count()) === 1
+            && (await page.locator("[data-recovery=codes]").count()) === 1,
+            `${tag}: kit yokken Owner'ın kendi "Zorunluluğu aç" düğmesi KAPALI, sebep gösterilir; kit ve kurtarma kodu ayrı kartlarda`);
+          await own.screenshot({ path: path.join(OUT, `chrome-375-owner-kit-yok.png`) });
+          await q(`SELECT count(*) FROM public.auth_owner_offline_kit_issue()`);   // SQL konsolu (sentetik DB); kodlar okunmaz
+          await openMember(page, U.owner);
+          await page.locator("[data-recovery=owner-kit][data-owner-kit='5']").waitFor({ timeout: 20000 });
+          ok(await page.locator("[data-mfa-action=enable]").isEnabled(), `${tag}: kit oluşunca (5 kod) düğme açılır`);
           await page.locator("[data-mfa-action=enable]").click();
           ok(/oturumlarınız \(bu oturum dahil\) hemen kapanır/.test(await page.locator("[data-mfa-form=enable]").innerText()), `${tag}: Owner'ın kendi açma formu oturum kapanışını önceden söyler`);
           await page.locator("[data-mfa-reason]").fill("Owner MFA etkinleştirme");
