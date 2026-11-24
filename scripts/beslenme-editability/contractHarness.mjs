@@ -193,7 +193,10 @@ ok("Modal kartında iç scroll (max-h + overflow-y-auto) YOK → tek doğal scro
 ok("Modal üst kırpma önlemi (min-h-full sarmalayıcı) + arka plan kaydırma kilidi", /min-h-full/.test(modalBody) && /document\.body\.style\.overflow = "hidden"/.test(modalBody));
 const tools = src("app/beslenme/planlar/_components/PlanTools.tsx");
 ok("Analiz geniş (sm:max-w-6xl) + mobil tam ekran", /maxWidthClass="sm:max-w-6xl"/.test(tools) && /fullScreenOnMobile/.test(tools));
-ok("Analiz API'nin günlük dökümünü + haftalık makro/hedef farkını gösterir", /Günlük Döküm/.test(tools) && /w\.avgMacros/.test(tools) && /w\.delta/.test(tools));
+// I18N (gece 25.11): "Günlük Döküm" başlığı katalogdan gelir (beslenme.tools.an.daily). Niyet aynı: bölüm başlığı
+// ekranda render ediliyor + TR metni katalogda birebir; haftalık makro/hedef farkı gösteriliyor.
+const besTr = JSON.parse(src("messages/tr/beslenme.json"));
+ok("Analiz API'nin günlük dökümünü + haftalık makro/hedef farkını gösterir", /\{t\("daily"\)\}/.test(tools) && besTr.beslenme.tools.an.daily === "Günlük Döküm" &&/w\.avgMacros/.test(tools) && /w\.delta/.test(tools));
 ok("QuickAdd dialog da portal (modal içinden açıldığında kaymaz)", /createPortal\(/.test(src("app/beslenme/_components/QuickAddFoodDialog.tsx")));
 
 console.log("\n[9] Word eksik enerji (gerçek DOCX)");

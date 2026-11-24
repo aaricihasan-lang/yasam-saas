@@ -189,6 +189,153 @@
         "bindOptional": "+ Danışana bağla (opsiyonel)",
         "bindFailedStandalone": "Plan oluşturuldu ancak danışana bağlanamadı; plan bağsız kaydedildi."
       }
+    },
+    "fmt": {
+      "status": {
+        "draft": "Taslak",
+        "active": "Aktif",
+        "archived": "Kilitli"
+      },
+      "monthShort": {
+        "1": "Oca",
+        "2": "Şub",
+        "3": "Mar",
+        "4": "Nis",
+        "5": "May",
+        "6": "Haz",
+        "7": "Tem",
+        "8": "Ağu",
+        "9": "Eyl",
+        "10": "Eki",
+        "11": "Kas",
+        "12": "Ara"
+      },
+      "weekdayShort": {
+        "0": "Paz",
+        "1": "Pzt",
+        "2": "Sal",
+        "3": "Çar",
+        "4": "Per",
+        "5": "Cum",
+        "6": "Cmt"
+      },
+      "nutrient": {
+        "energy": "Enerji",
+        "protein": "Protein",
+        "carbohydrate": "Karbonhidrat",
+        "total_fat": "Yağ",
+        "saturated_fat": "Doymuş Yağ",
+        "fiber": "Lif",
+        "sugar": "Şeker",
+        "sodium": "Sodyum",
+        "potassium": "Potasyum"
+      },
+      "templateType": {
+        "meal": "Öğün Şablonu",
+        "day": "Gün Şablonu"
+      },
+      "errors": {
+        "archived": "Bu plan düzenlemeye kapalı. Düzenlemek için planı kopyalayın.",
+        "notDraft": "Besin değerleri yalnızca taslak planlarda güncellenebilir.",
+        "refreshStale": "Plan bu arada değişti. Güncel farkları görmek için önizlemeyi yenileyin.",
+        "nothingToClear": "Bu günde silinecek öğün yok.",
+        "deleteUnavailable": "Plan silme şu anda kullanılamıyor (sistem güncellemesi bekleniyor). Plan silinmedi; lütfen daha sonra tekrar deneyin.",
+        "rangeHasContent": "Yeni tarih aralığının dışında öğün bulunan günler var. Önce bu günleri temizleyin veya planı kopyalayın.",
+        "targetNotEmpty": "Hedef gün boş değil.",
+        "rangeOutOfBounds": "Seçilen aralık plan sınırları dışında.",
+        "planStale": "Bu plan başka bir sekmede veya cihazda güncellendi. Değişiklikleriniz kaydedilmedi; güncel veriyi yükleyip tekrar deneyin.",
+        "versionRequired": "Plan sürümü doğrulanamadı. Sayfayı yenileyip tekrar deneyin.",
+        "demoReadonly": "Demo hesabında değişiklik yapılamaz.",
+        "membershipInactive": "Üyeliğiniz aktif değil. Beslenme planlarına erişmek için yöneticinizle iletişime geçin.",
+        "network": "Bağlantı kurulamadı. İnternet bağlantınızı kontrol edip tekrar deneyin.",
+        "forbidden": "Bu işlem için yetkiniz bulunmuyor.",
+        "notFound": "Kayıt bulunamadı. Sayfayı yenilemeyi deneyin.",
+        "conflict": "Bu kayıt başka yerde değişmiş olabilir. Sayfayı yenileyin.",
+        "invalid": "Girilen bilgiler geçerli değil. Lütfen kontrol edip tekrar deneyin.",
+        "generic": "İşlem başarısız."
+      }
+    },
+    "tools": {
+      "analysis": "Analiz",
+      "wordDownload": "Word İndir",
+      "saveDayTemplate": "Günü Şablona Kaydet",
+      "applyTemplate": "Şablon Uygula",
+      "refreshValues": "Besin Değerlerini Güncelle",
+      "wordRateLimited": "Çok sık indirme. Lütfen biraz bekleyin.",
+      "wordTooLarge": "Plan çok büyük — Word oluşturulamadı.",
+      "wordIncomplete": "Plan verileri eksiksiz okunamadığı için Word oluşturulmadı. Lütfen biraz sonra tekrar deneyin.",
+      "wordFailed": "Word indirme başarısız.",
+      "refreshDone": "{n} besin kaleminin değerleri güncellendi.",
+      "refreshNone": "Güncellenecek kalem yoktu.",
+      "daySaved": "Gün şablon olarak kaydedildi.",
+      "dayTemplateApplied": "Gün şablonu uygulandı.",
+      "mealAdded": "Öğün eklendi.",
+      "an": {
+        "loadFailed": "Analiz yüklenemedi.",
+        "title": "Plan Analizi",
+        "subtitle": "Plan kalemlerinin kaydedildiği andaki besin değerlerine göre profesyonel özet",
+        "computing": "Analiz hesaplanıyor…",
+        "summary": "Genel Özet",
+        "planDays": "Plan günü",
+        "contentDays": "İçerikli gün",
+        "avgEnergy": "Ort. enerji / içerikli gün",
+        "targetAvg": "Hedef ort.",
+        "delta": "Fark (ort. − hedef)",
+        "minMax": "Min – Maks (gün)",
+        "avgNutrients": "Günlük Ortalama Besin Öğeleri (içerikli gün)",
+        "weekly": "Haftalık Özet",
+        "week": "Hafta",
+        "date": "Tarih",
+        "contentEmpty": "İçerikli / Boş",
+        "avgEnergyShort": "Ort. enerji",
+        "deltaShort": "Fark",
+        "weekN": "{n}. hafta",
+        "weekCounts": "{content} içerikli / {empty} boş",
+        "targetLine": "Hedef {target} · Fark {delta}",
+        "daily": "Günlük Döküm",
+        "onlyContentDays": "Yalnız içerikli günler",
+        "noDays": "Gösterilecek gün yok.",
+        "day": "Gün",
+        "items": "Kalem",
+        "energy": "Enerji",
+        "target": "Hedef",
+        "emptyDay": "Boş gün",
+        "dayLine": "Hedef {target} · Fark {delta} · {count} kalem",
+        "showLess": "Daha az göster",
+        "showAll": "Tümünü göster ({count} gün)",
+        "footnote": "Ortalamalar yalnızca içerikli günler (≥1 besin) üzerinden hesaplanır; boş günler ortalamayı düşürmez. Değerler, besinlerin plana eklendiği andaki kayıtlı değerleridir; besin kütüphanesinde sonradan yapılan değişiklikler taslak planda \"Besin Değerlerini Güncelle\" ile uygulanabilir."
+      },
+      "rf": {
+        "subtitle": "Yalnız bu taslak plan",
+        "computing": "Farklar hesaplanıyor…",
+        "draftOnly": "Besin değerleri yalnızca taslak planlarda güncellenebilir.",
+        "intro": "Plan kalemleri, besinlerin plana eklendiği andaki değerleri saklar. Besin kütüphanenizde sonradan yaptığınız değişiklikler bu planda <b>kendiliğinden değişmez</b>. Aşağıdaki kalemlerin değerlerini güncel besin değerleriyle yenilemek istiyorsanız onaylayın. Gramajlar ve porsiyonlar değişmez.",
+        "upToDate": "Bu plandaki tüm kalemler güncel besin değerleriyle aynı. Güncellenecek bir şey yok.",
+        "willUpdate": "{count} kalem güncellenecek (plandaki {total} kalemden)",
+        "dayMeal": "Gün / Öğün",
+        "food": "Besin",
+        "energy100": "100 g enerji",
+        "previousName": "önceki ad: {name}",
+        "unavailable": "{count} kalemin besini çalışma alanınızda artık bulunmuyor; bu kalemler olduğu gibi korunur.",
+        "cancel": "Vazgeç",
+        "updateN": "{count} Kalemi Güncelle"
+      },
+      "sd": {
+        "saveFailed": "Şablon kaydedilemedi.",
+        "title": "Günü Şablon Olarak Kaydet",
+        "placeholder": "Örn: 2000 kcal Standart Gün",
+        "cancel": "Vazgeç",
+        "save": "Kaydet"
+      },
+      "ap": {
+        "notEmpty": "Bu gün dolu — gün şablonu yalnızca boş güne uygulanır. Öğün şablonu ekleyebilirsiniz.",
+        "failed": "Uygulama başarısız.",
+        "subtitle": "Öğün şablonu eklenir; gün şablonu boş güne uygulanır",
+        "emptyTitle": "Şablon yok",
+        "emptyDesc": "Önce bir öğün veya günü şablon olarak kaydedin.",
+        "applyDay": "Günü Uygula",
+        "addMeal": "Öğün Ekle"
+      }
     }
   }
 }

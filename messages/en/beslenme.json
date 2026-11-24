@@ -189,6 +189,153 @@
         "bindOptional": "+ Bind to client (optional)",
         "bindFailedStandalone": "Plan created but could not be bound to the client; saved as standalone."
       }
+    },
+    "fmt": {
+      "status": {
+        "draft": "Draft",
+        "active": "Active",
+        "archived": "Locked"
+      },
+      "monthShort": {
+        "1": "Jan",
+        "2": "Feb",
+        "3": "Mar",
+        "4": "Apr",
+        "5": "May",
+        "6": "Jun",
+        "7": "Jul",
+        "8": "Aug",
+        "9": "Sep",
+        "10": "Oct",
+        "11": "Nov",
+        "12": "Dec"
+      },
+      "weekdayShort": {
+        "0": "Sun",
+        "1": "Mon",
+        "2": "Tue",
+        "3": "Wed",
+        "4": "Thu",
+        "5": "Fri",
+        "6": "Sat"
+      },
+      "nutrient": {
+        "energy": "Energy",
+        "protein": "Protein",
+        "carbohydrate": "Carbohydrate",
+        "total_fat": "Fat",
+        "saturated_fat": "Saturated Fat",
+        "fiber": "Fibre",
+        "sugar": "Sugar",
+        "sodium": "Sodium",
+        "potassium": "Potassium"
+      },
+      "templateType": {
+        "meal": "Meal Template",
+        "day": "Day Template"
+      },
+      "errors": {
+        "archived": "This plan is closed for editing. Copy the plan to edit it.",
+        "notDraft": "Nutrient values can only be updated in draft plans.",
+        "refreshStale": "The plan changed in the meantime. Refresh the preview to see the current differences.",
+        "nothingToClear": "There are no meals to delete on this day.",
+        "deleteUnavailable": "Plan deletion is currently unavailable (a system update is pending). The plan was not deleted; please try again later.",
+        "rangeHasContent": "Some days outside the new date range contain meals. Clear those days first or copy the plan.",
+        "targetNotEmpty": "The target day is not empty.",
+        "rangeOutOfBounds": "The selected range is outside the plan limits.",
+        "planStale": "This plan was updated in another tab or on another device. Your changes were not saved; load the latest data and try again.",
+        "versionRequired": "The plan version could not be verified. Refresh the page and try again.",
+        "demoReadonly": "Changes cannot be made on a demo account.",
+        "membershipInactive": "Your membership is not active. Contact your administrator to access nutrition plans.",
+        "network": "Could not connect. Check your internet connection and try again.",
+        "forbidden": "You do not have permission for this action.",
+        "notFound": "Record not found. Try refreshing the page.",
+        "conflict": "This record may have been changed elsewhere. Refresh the page.",
+        "invalid": "The information entered is not valid. Please check it and try again.",
+        "generic": "The action failed."
+      }
+    },
+    "tools": {
+      "analysis": "Analysis",
+      "wordDownload": "Download Word",
+      "saveDayTemplate": "Save Day as Template",
+      "applyTemplate": "Apply Template",
+      "refreshValues": "Update Nutrient Values",
+      "wordRateLimited": "Too many downloads. Please wait a moment.",
+      "wordTooLarge": "The plan is too large — the Word document could not be created.",
+      "wordIncomplete": "The Word document was not created because the plan data could not be read in full. Please try again shortly.",
+      "wordFailed": "Word download failed.",
+      "refreshDone": "{n, plural, one {Values of # food item were updated.} other {Values of # food items were updated.}}",
+      "refreshNone": "There were no items to update.",
+      "daySaved": "The day was saved as a template.",
+      "dayTemplateApplied": "Day template applied.",
+      "mealAdded": "Meal added.",
+      "an": {
+        "loadFailed": "The analysis could not be loaded.",
+        "title": "Plan Analysis",
+        "subtitle": "Professional summary based on the nutrient values at the time the plan items were saved",
+        "computing": "Calculating analysis…",
+        "summary": "Overall Summary",
+        "planDays": "Plan days",
+        "contentDays": "Days with content",
+        "avgEnergy": "Avg. energy / day with content",
+        "targetAvg": "Target avg.",
+        "delta": "Difference (avg. − target)",
+        "minMax": "Min – Max (day)",
+        "avgNutrients": "Daily Average Nutrients (days with content)",
+        "weekly": "Weekly Summary",
+        "week": "Week",
+        "date": "Date",
+        "contentEmpty": "With content / Empty",
+        "avgEnergyShort": "Avg. energy",
+        "deltaShort": "Difference",
+        "weekN": "Week {n}",
+        "weekCounts": "{content} with content / {empty} empty",
+        "targetLine": "Target {target} · Difference {delta}",
+        "daily": "Daily Breakdown",
+        "onlyContentDays": "Only days with content",
+        "noDays": "No days to show.",
+        "day": "Day",
+        "items": "Items",
+        "energy": "Energy",
+        "target": "Target",
+        "emptyDay": "Empty day",
+        "dayLine": "Target {target} · Difference {delta} · {count, plural, one {# item} other {# items}}",
+        "showLess": "Show less",
+        "showAll": "Show all ({count} days)",
+        "footnote": "Averages are calculated only over days with content (≥1 food); empty days do not lower the average. Values are those recorded when the foods were added to the plan; later changes in the food library can be applied to a draft plan with \"Update Nutrient Values\"."
+      },
+      "rf": {
+        "subtitle": "This draft plan only",
+        "computing": "Calculating differences…",
+        "draftOnly": "Nutrient values can only be updated in draft plans.",
+        "intro": "Plan items keep the values the foods had when they were added to the plan. Changes you make later in your food library <b>do not change automatically</b> in this plan. Confirm if you want to refresh the values of the items below with the current nutrient values. Gram amounts and portions do not change.",
+        "upToDate": "All items in this plan match the current nutrient values. There is nothing to update.",
+        "willUpdate": "{count} items will be updated (out of {total} in the plan)",
+        "dayMeal": "Day / Meal",
+        "food": "Food",
+        "energy100": "Energy per 100 g",
+        "previousName": "previous name: {name}",
+        "unavailable": "The foods of {count} items are no longer in your workspace; these items are kept as they are.",
+        "cancel": "Cancel",
+        "updateN": "Update {count} Items"
+      },
+      "sd": {
+        "saveFailed": "The template could not be saved.",
+        "title": "Save Day as Template",
+        "placeholder": "E.g. 2000 kcal Standard Day",
+        "cancel": "Cancel",
+        "save": "Save"
+      },
+      "ap": {
+        "notEmpty": "This day is not empty — a day template can only be applied to an empty day. You can add a meal template.",
+        "failed": "Applying failed.",
+        "subtitle": "A meal template is added; a day template is applied to an empty day",
+        "emptyTitle": "No templates",
+        "emptyDesc": "First save a meal or a day as a template.",
+        "applyDay": "Apply Day",
+        "addMeal": "Add Meal"
+      }
     }
   }
 }
