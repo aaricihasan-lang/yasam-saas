@@ -1,4 +1,5 @@
 
+import { useTranslations } from "next-intl";
 import BiyoenerjiFolderCards from "./components/BiyoenerjiFolderCards";
 import BiyoenerjiGlobalSearch from "./components/BiyoenerjiGlobalSearch";
 import { BiyoenerjiDisclaimer } from "./components/BiyoenerjiDisclaimer";
@@ -8,6 +9,7 @@ import styles from "@/app/_premium/biyoenerji/biyoenerji.module.css";
 // 2026-10-18 premium görünüm (owner onaylı prototip eae69b6). Yalnız görsel: metinler, geri bağlantısı, modül içi
 // arama ve sağlık bilgilendirmesi canlıdaki gibi korunur.
 export default function BiyoenerjiFolderPage() {
+  const t = useTranslations("bioenergy.hub");
   return (
     <main className={`${styles.page} ${energyFontVars}`}>
       <div className={styles.scene} aria-hidden>
@@ -22,12 +24,12 @@ export default function BiyoenerjiFolderPage() {
         <header className={styles.hero}>
           {/* Başlık hiyerarşisi canlıdaki gibi: h1 = "Yaşam Enerjisi Sistemi", alt başlık = "Biyoenerji" (görünüm premium). */}
           <h1 className={styles.eyebrow}>
-            <span>Yaşam Enerjisi Sistemi</span>
+            <span>{t("eyebrow")}</span>
           </h1>
           <p className={styles.heroTitle}>
-            <span>Biyoenerji</span>
+            <span>{t("title")}</span>
           </p>
-          <p className={styles.heroSub}>Enerji anatomisinden tekniklere — tüm çalışma alanları tek merkezde.</p>
+          <p className={styles.heroSub}>{t("subtitle")}</p>
         </header>
 
         <div className={styles.search}>

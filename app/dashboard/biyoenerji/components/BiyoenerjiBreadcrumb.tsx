@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ChevronRight } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 export type BiyoenerjiCrumb = {
   label: string;
@@ -17,10 +18,11 @@ export default function BiyoenerjiBreadcrumb({
 }: {
   items: BiyoenerjiCrumb[];
 }) {
+  const t = useTranslations("bioenergy.common");
   if (items.length === 0) return null;
 
   return (
-    <nav aria-label="Konum" className="min-w-0">
+    <nav aria-label={t("crumbAria")} className="min-w-0">
       <ol className="flex flex-wrap items-center gap-x-1 gap-y-0.5 text-[12px] font-semibold text-slate-500">
         {items.map((item, i) => {
           const isLast = i === items.length - 1;

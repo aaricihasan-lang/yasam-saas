@@ -1,0 +1,134 @@
+{
+  "bioenergy": {
+    "sections": {
+      "seanslar": {
+        "title": "Biyoenerji Seansları",
+        "desc": "Enerji analizleri, seans kayıtları ve çalışma notları",
+        "badge": "Seans"
+      },
+      "enerji-bedenleri": {
+        "title": "Enerji Bedenleri",
+        "desc": "Aura, eterik, astral ve enerji katman bilgileri",
+        "badge": "Katman"
+      },
+      "bilincalti-sebepleri": {
+        "title": "Bilinçaltı Sebepleri",
+        "desc": "Kök nedenler, içsel bloklar ve dönüşüm notları",
+        "badge": "Bilinçaltı"
+      },
+      "imajinasyonlar": {
+        "title": "İmajinasyonlar",
+        "desc": "Görselleştirme, rehberli çalışmalar ve seans imgeleri",
+        "badge": "İmge"
+      },
+      "sembol-dili": {
+        "title": "Sembol Dili",
+        "desc": "Semboller, anlamlar ve enerji dili sözlüğü",
+        "badge": "Sembol"
+      },
+      "cakralar": {
+        "title": "Çakralar",
+        "desc": "Enerji merkezleri, denge alanları ve çakra notları",
+        "badge": "Çakra"
+      }
+    },
+    "groups": {
+      "anatomi": {
+        "title": "Enerji Anatomisi",
+        "desc": "Enerji merkezleri ve katmanların yapısı"
+      },
+      "nedenler": {
+        "title": "Nedenler & Blokajlar",
+        "desc": "Kök nedenler, içsel bloklar ve dönüşüm"
+      },
+      "teknikler": {
+        "title": "Teknikler & Uygulamalar",
+        "desc": "Çalışma örnekleri, protokoller ve teknikler"
+      },
+      "zihinsel-sembolik": {
+        "title": "Zihinsel & Sembolik Çalışmalar",
+        "desc": "Görselleştirme, imgeler ve sembol dili"
+      }
+    },
+    "common": {
+      "disclaimer": "Biyoenerji ve bu bölümdeki tamamlayıcı/wellness içerikleri kişisel farkındalık ve destek amaçlıdır; tıbbi tanı veya tedavinin yerine geçmez.",
+      "brand": "Biyoenerji",
+      "brandCaps": "BİYOENERJİ",
+      "sectionsAria": "Biyoenerji bölümleri",
+      "section": "Bölüm",
+      "sections": "Bölümler",
+      "close": "Kapat",
+      "detail": "Detay",
+      "crumbAria": "Konum"
+    },
+    "pages": {
+      "seanslar": {
+        "badge": "BİYOENERJİ · SEANS",
+        "titleHead": "Biyoenerji Seansları",
+        "subtitle": "Enerji analizleri, seans kayıtları ve çalışma notları"
+      },
+      "enerji-bedenleri": {
+        "badge": "BİYOENERJİ · KATMAN",
+        "title": "Enerji Bedenleri",
+        "subtitle": "Aura, eterik, astral ve enerji katman bilgileri — kayıt seçin, detayları okuyun ve düzenleyin"
+      },
+      "bilincalti-sebepleri": {
+        "badge": "BİYOENERJİ · BİLİNÇALTI KÜTÜPHANESİ",
+        "titleHead": "Bilinçaltı Sebepleri ",
+        "titleAccent": "Kütüphanesi",
+        "subtitle": "Arama yapın, karttan detayı açın — kök nedenler ve dönüşüm notları",
+        "detail": {
+          "badge": "BİYOENERJİ · BİLİNÇALTI KÜTÜPHANESİ",
+          "title": "Bilinçaltı Sebepleri",
+          "subtitle": "Kayıt detayı — içerik ve notlar",
+          "detailCrumb": "Kayıt detayı"
+        }
+      },
+      "imajinasyonlar": {
+        "badge": "BİYOENERJİ · İMAJİNASYON KÜTÜPHANESİ",
+        "titleHead": "İmajinasyon ",
+        "titleAccent": "Kütüphanesi",
+        "subtitle": "Görselleştirme, rehberli çalışmalar ve seans imgeleri",
+        "detail": {
+          "badge": "BİYOENERJİ · İMAJİNASYON KÜTÜPHANESİ",
+          "title": "İmajinasyonlar",
+          "subtitle": "Kayıt detayı — metin, not ve kaynak",
+          "detailCrumb": "Kayıt detayı"
+        }
+      },
+      "sembol-dili": {
+        "badge": "BİYOENERJİ · SEMBOL DİLİ KÜTÜPHANESİ",
+        "titleHead": "Sembol Dili ",
+        "titleAccent": "Kütüphanesi",
+        "subtitle": "Semboller, anlamlar ve bilinçaltı mesajları",
+        "detail": {
+          "badge": "BİYOENERJİ · SEMBOL DİLİ KÜTÜPHANESİ",
+          "title": "Sembol Dili",
+          "subtitle": "Kayıt detayı — anlam ve bilinçaltı mesajı",
+          "detailCrumb": "Kayıt detayı"
+        }
+      },
+      "cakralar": {
+        "badge": "BİYOENERJİ · ÇAKRA KÜTÜPHANESİ",
+        "title": "Çakra Kütüphanesi",
+        "subtitle": "Çakralara ait temel bilgiler ve uzman içerikleri",
+        "loadingSubtitle": "Enerji merkezleri, organlar, renkler ve çakra notları",
+        "detail": {
+          "badge": "BİYOENERJİ · ÇAKRA KÜTÜPHANESİ",
+          "title": "Çakralar",
+          "subtitle": "Kayıt detayı — organ, renk, taş ve enerji notları"
+        },
+        "edit": {
+          "badge": "BİYOENERJİ · ÇAKRA İÇERİK EDİTÖRÜ",
+          "title": "Çakrayı Düzenle",
+          "subtitle": "Temel bilgiler + 8 bölüm gerçek içerik editörü"
+        }
+      }
+    },
+    "hub": {
+      "eyebrow": "Yaşam Enerjisi Sistemi",
+      "title": "Biyoenerji",
+      "subtitle": "Enerji anatomisinden tekniklere — tüm çalışma alanları tek merkezde."
+    }
+  }
+}

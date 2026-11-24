@@ -1,3 +1,5 @@
+import { useTranslations } from "next-intl";
+
 /**
  * BIO-006 — Sağlık/wellness bilgilendirme notu.
  *
@@ -7,12 +9,13 @@
  * eden büyük uyarı OLUŞTURMAZ.
  */
 export function BiyoenerjiDisclaimer({ className = "" }: { className?: string }) {
+  // useTranslations hem sunucu (hub page.tsx) hem istemci kabuğunda çalışır (next-intl 4).
+  const t = useTranslations("bioenergy.common");
   return (
     <p
       className={`px-1 text-[12px] font-medium leading-relaxed text-slate-500 ${className}`}
     >
-      Biyoenerji ve bu bölümdeki tamamlayıcı/wellness içerikleri kişisel farkındalık ve
-      destek amaçlıdır; tıbbi tanı veya tedavinin yerine geçmez.
+      {t("disclaimer")}
     </p>
   );
 }

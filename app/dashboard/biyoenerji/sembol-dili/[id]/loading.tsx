@@ -1,11 +1,13 @@
+import { useTranslations } from "next-intl";
 import { BiyoenerjiDetailLoading } from "../../components/BiyoenerjiSkeleton";
 
 export default function Loading() {
+  const t = useTranslations("bioenergy.pages");
   return (
     <BiyoenerjiDetailLoading
-      badge="BİYOENERJİ · SEMBOL DİLİ KÜTÜPHANESİ"
-      title="Sembol Dili"
-      subtitle="Kayıt detayı — anlam ve bilinçaltı mesajı"
+      badge={t("sembol-dili.detail.badge")}
+      title={t("sembol-dili.detail.title")}
+      subtitle={t("sembol-dili.detail.subtitle")}
     />
   );
 }

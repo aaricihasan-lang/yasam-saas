@@ -1,0 +1,134 @@
+{
+  "bioenergy": {
+    "sections": {
+      "seanslar": {
+        "title": "Bioenergy Sessions",
+        "desc": "Energy analyses, session records and working notes",
+        "badge": "Session"
+      },
+      "enerji-bedenleri": {
+        "title": "Energy Bodies",
+        "desc": "Information on the aura, etheric, astral and energy layers",
+        "badge": "Layer"
+      },
+      "bilincalti-sebepleri": {
+        "title": "Subconscious Causes",
+        "desc": "Root causes, inner blocks and transformation notes",
+        "badge": "Subconscious"
+      },
+      "imajinasyonlar": {
+        "title": "Imagery Work",
+        "desc": "Visualisation, guided work and session imagery",
+        "badge": "Imagery"
+      },
+      "sembol-dili": {
+        "title": "Symbol Language",
+        "desc": "Symbols, meanings and a glossary of energy language",
+        "badge": "Symbol"
+      },
+      "cakralar": {
+        "title": "Chakras",
+        "desc": "Energy centres, areas of balance and chakra notes",
+        "badge": "Chakra"
+      }
+    },
+    "groups": {
+      "anatomi": {
+        "title": "Energy Anatomy",
+        "desc": "The structure of energy centres and layers"
+      },
+      "nedenler": {
+        "title": "Causes & Blockages",
+        "desc": "Root causes, inner blocks and transformation"
+      },
+      "teknikler": {
+        "title": "Techniques & Practices",
+        "desc": "Working examples, protocols and techniques"
+      },
+      "zihinsel-sembolik": {
+        "title": "Mental & Symbolic Work",
+        "desc": "Visualisation, imagery and symbol language"
+      }
+    },
+    "common": {
+      "disclaimer": "Bioenergy and the complementary/wellness content in this section are intended for personal awareness and support; they do not replace medical diagnosis or treatment.",
+      "brand": "Bioenergy",
+      "brandCaps": "BIOENERGY",
+      "sectionsAria": "Bioenergy sections",
+      "section": "Section",
+      "sections": "Sections",
+      "close": "Close",
+      "detail": "Detail",
+      "crumbAria": "Location"
+    },
+    "pages": {
+      "seanslar": {
+        "badge": "BIOENERGY · SESSION",
+        "titleHead": "Bioenergy Sessions",
+        "subtitle": "Energy analyses, session records and working notes"
+      },
+      "enerji-bedenleri": {
+        "badge": "BIOENERGY · LAYER",
+        "title": "Energy Bodies",
+        "subtitle": "Information on the aura, etheric, astral and energy layers — select a record, read the details and edit"
+      },
+      "bilincalti-sebepleri": {
+        "badge": "BIOENERGY · SUBCONSCIOUS LIBRARY",
+        "titleHead": "Subconscious Causes ",
+        "titleAccent": "Library",
+        "subtitle": "Search and open the details from a card — root causes and transformation notes",
+        "detail": {
+          "badge": "BIOENERGY · SUBCONSCIOUS LIBRARY",
+          "title": "Subconscious Causes",
+          "subtitle": "Record detail — content and notes",
+          "detailCrumb": "Record detail"
+        }
+      },
+      "imajinasyonlar": {
+        "badge": "BIOENERGY · IMAGERY LIBRARY",
+        "titleHead": "Imagery ",
+        "titleAccent": "Library",
+        "subtitle": "Visualisation, guided work and session imagery",
+        "detail": {
+          "badge": "BIOENERGY · IMAGERY LIBRARY",
+          "title": "Imagery Work",
+          "subtitle": "Record detail — text, note and source",
+          "detailCrumb": "Record detail"
+        }
+      },
+      "sembol-dili": {
+        "badge": "BIOENERGY · SYMBOL LANGUAGE LIBRARY",
+        "titleHead": "Symbol Language ",
+        "titleAccent": "Library",
+        "subtitle": "Symbols, meanings and subconscious messages",
+        "detail": {
+          "badge": "BIOENERGY · SYMBOL LANGUAGE LIBRARY",
+          "title": "Symbol Language",
+          "subtitle": "Record detail — meaning and subconscious message",
+          "detailCrumb": "Record detail"
+        }
+      },
+      "cakralar": {
+        "badge": "BIOENERGY · CHAKRA LIBRARY",
+        "title": "Chakra Library",
+        "subtitle": "Core information on the chakras and practitioner content",
+        "loadingSubtitle": "Energy centres, organs, colours and chakra notes",
+        "detail": {
+          "badge": "BIOENERGY · CHAKRA LIBRARY",
+          "title": "Chakras",
+          "subtitle": "Record detail — organ, colour, stone and energy notes"
+        },
+        "edit": {
+          "badge": "BIOENERGY · CHAKRA CONTENT EDITOR",
+          "title": "Edit Chakra",
+          "subtitle": "Core information + content editor for 8 sections"
+        }
+      }
+    },
+    "hub": {
+      "eyebrow": "Life Energy System",
+      "title": "Bioenergy",
+      "subtitle": "From energy anatomy to techniques — all workspaces in one place."
+    }
+  }
+}

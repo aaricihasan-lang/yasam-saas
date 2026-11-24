@@ -1,9 +1,12 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { useTranslations } from "next-intl";
+import { useBiyoenerjiLabels } from "../useBiyoenerjiLabels";
 import {
   BIOENERJI_FOLDER_BASE,
   findBiyoenerjiSection,
+  type BiyoenerjiGroupId,
   type BiyoenerjiSectionKey,
 } from "../biyoenerjiFolderConfig";
 import BiyoenerjiBreadcrumb, { type BiyoenerjiCrumb } from "./BiyoenerjiBreadcrumb";
@@ -33,23 +36,31 @@ type BiyoenerjiSectionShellProps = {
 };
 
 /** activeSection'dan breadcrumb zinciri kurar. */
+type CrumbText = {
+  brand: string;
+  detail: string;
+  cardTitle: (key: BiyoenerjiSectionKey) => string;
+  groupTitle: (id: BiyoenerjiGroupId) => string;
+};
+
 function buildCrumbs(
   activeSection: BiyoenerjiSectionKey,
   variant: "list" | "detail",
+  text: CrumbText,
   detailCrumb?: string,
 ): BiyoenerjiCrumb[] {
   const found = findBiyoenerjiSection(activeSection);
-  if (!found) return [{ label: "Biyoenerji", href: BIOENERJI_FOLDER_BASE }];
+  if (!found) return [{ label: text.brand, href: BIOENERJI_FOLDER_BASE }];
   const { card, group } = found;
   const crumbs: BiyoenerjiCrumb[] = [
-    { label: "Biyoenerji", href: BIOENERJI_FOLDER_BASE },
-    { label: group.title },
+    { label: text.brand, href: BIOENERJI_FOLDER_BASE },
+    { label: text.groupTitle(group.id) },
   ];
   if (variant === "detail") {
-    crumbs.push({ label: card.title, href: card.href });
-    crumbs.push({ label: detailCrumb?.trim() || "Detay" });
+    crumbs.push({ label: text.cardTitle(card.key), href: card.href });
+    crumbs.push({ label: detailCrumb?.trim() || text.detail });
   } else {
-    crumbs.push({ label: card.title });
+    crumbs.push({ label: text.cardTitle(card.key) });
   }
   return crumbs;
 }
@@ -65,12 +76,15 @@ export default function BiyoenerjiSectionShell({
   hideModuleNav = false,
 }: BiyoenerjiSectionShellProps) {
   const premium = headerVariant === "premium";
+  const t = useTranslations("bioenergy.common");
+  const L = useBiyoenerjiLabels();
+  const crumbText: CrumbText = { brand: t("brand"), detail: t("detail"), cardTitle: L.cardTitle, groupTitle: L.groupTitle };
   const detail = headerVariant === "detail";
 
   const nav = activeSection && !hideModuleNav ? (
     <div className="flex flex-col gap-2.5">
       <BiyoenerjiBreadcrumb
-        items={buildCrumbs(activeSection, detail ? "detail" : "list", detailCrumb)}
+        items={buildCrumbs(activeSection, detail ? "detail" : "list", crumbText, detailCrumb)}
       />
       <BiyoenerjiSectionNav activeSection={activeSection} />
     </div>
