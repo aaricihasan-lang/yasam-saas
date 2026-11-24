@@ -8,10 +8,10 @@
     },
     "steps": {
       "aria": "Processing steps",
-      "upload": "The video is uploaded",
-      "transcribe": "Speech is transcribed",
-      "translate": "It is translated into Turkish",
-      "export": "Word and PDF are created"
+      "upload": "Video uploaded",
+      "transcribe": "Speech transcribed",
+      "translate": "Translated into Turkish",
+      "export": "Word and PDF created"
     },
     "status": {
       "completed": "Completed",
@@ -78,7 +78,7 @@
       "title": "Recently Translated",
       "viewAll": "View All Translated Records",
       "empty": "No processing records yet. Start by uploading your first video.",
-      "more": "+ {count} more records →"
+      "more": "{count, plural, one {+ # more record →} other {+ # more records →}}"
     },
     "panel": {
       "title": "Translated Records",

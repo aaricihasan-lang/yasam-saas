@@ -112,7 +112,7 @@
       "statusCompleted": "Completed",
       "statusFailed": "Failed",
       "statusProcessing": "Processing…",
-      "pages": " · {count} pages",
+      "pages": "{count, plural, one { · # page} other { · # pages}}",
       "linkExpired": "The download link has expired. Refresh the page and try again."
     },
     "toast": {

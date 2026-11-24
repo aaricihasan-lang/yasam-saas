@@ -25,8 +25,8 @@
         "retry": "Try again"
       },
       "results": {
-        "count": "<b>{count}</b> results",
-        "countFiltered": "<b>{count}</b> results (filtered)"
+        "count": "{count, plural, one {<b>#</b> result} other {<b>#</b> results}}",
+        "countFiltered": "{count, plural, one {<b>#</b> result (filtered)} other {<b>#</b> results (filtered)}}"
       },
       "filters": {
         "modules": "Modules",

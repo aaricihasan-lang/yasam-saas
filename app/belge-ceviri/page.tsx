@@ -1058,7 +1058,7 @@ export default function BelgeCeviriPage() {
                             </p>
                             <p className="mt-0.5 text-xs font-medium text-slate-400">
                               {jobLabel} · {dateStr}
-                              {job.total_pages > 0 && t("history.pages", { count: String(job.total_pages) })}
+                              {job.total_pages > 0 && t("history.pages", { count: job.total_pages })}
                             </p>
                           </div>
                           <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-[11px] font-bold ${statusStyle}`}>

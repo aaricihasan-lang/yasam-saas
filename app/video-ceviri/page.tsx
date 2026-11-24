@@ -638,7 +638,7 @@ export default function VideoCeviriPage() {
                       <button type="button"
                         onClick={() => setPanelOpen(true)}
                         className="text-sm font-bold text-violet-600 hover:text-violet-800">
-                        {t("recent.more", { count: String(jobs.length - 3) })}
+                        {t("recent.more", { count: jobs.length - 3 })}
                       </button>
                     </div>
                   )}

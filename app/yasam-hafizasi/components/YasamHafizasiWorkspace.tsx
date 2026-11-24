@@ -186,7 +186,7 @@ function ProfessionalMemoryPanel() {
             />
             <p className="mb-2 text-sm text-slate-500">
               {t.rich(selectedModules.length > 0 ? "results.countFiltered" : "results.count", {
-                count: String(displayed.length),
+                count: displayed.length,
                 b: (chunks) => <span className="font-bold text-slate-700">{chunks}</span>,
               })}
             </p>
