@@ -205,7 +205,8 @@
       "statVisibleCap": "Visible Results",
       "statVisibleShort": "Visible",
       "searchSummaryQuoted": "\"{query}\" · {count, plural, one {{count} match} other {{count} matches}}",
-      "all": "All"
+      "all": "All",
+      "searchSummaryCurly": "“{query}” · {count, plural, one {{count} match} other {{count} matches}}"
     },
     "subconscious": {
       "demoTitle": "Demo Mode — Subconscious Causes",
@@ -490,6 +491,49 @@
         "symbol": "Symbol",
         "meaning": "Meaning"
       }
+    },
+    "energyBodies": {
+      "demoTitle": "Demo Mode — Energy Bodies",
+      "searchLabel": "Search in definition, function, disturbance, stones and note",
+      "searchPlaceholder": "e.g. etheric, aura, function, disturbance…",
+      "fields": {
+        "definition": "General Definition",
+        "function": "Function",
+        "disturbance": "Signs of Disturbance",
+        "stones": "Stones",
+        "suggestedStones": "Suggested Stones",
+        "note": "Note",
+        "name": "Energy Body / Layer",
+        "namePlaceholder": "e.g. etheric, emotional, mental, spiritual"
+      },
+      "statBody": "Energy Body",
+      "fieldEmpty": "No information has been entered yet.",
+      "editFieldAria": "Edit {title}",
+      "readFailed": "Energy bodies could not be read: {detail}",
+      "selectToUpdate": "Select a record from the list to update.",
+      "nameRequiredExample": "The energy body / layer is required (e.g. etheric).",
+      "created": "Energy body record created.",
+      "nameRequired": "The energy body / layer is required.",
+      "selectToDelete": "Select a record from the list to delete.",
+      "deleted": "Record deleted.",
+      "demoBody": "This page is for demonstration. Energy body contents are blurred for demo security. Creating, editing, deleting and exporting records are disabled in demo mode.",
+      "listTitle": "Records ({count})",
+      "emptyTitle": "The list is empty",
+      "emptySearchBody": "Change the search term or add an energy body with New Record.",
+      "emptyBody": "No records yet. You can create your first record with New Record.",
+      "filteredEmpty": "Update the search or add an energy body with New Record.",
+      "selectedPill": "SELECTED RECORD",
+      "demoGate": "This energy body content is shown in limited form on the demo account. All descriptions, function and stone information are available in the full version.",
+      "wordPreparing": "⏳ Preparing...",
+      "wordReport": "📄 Word Report",
+      "pickTitle": "Select a record on the left",
+      "pickBodyDemo": "Select an energy body record from the list on the left to see its details and review the content.",
+      "pickBody": "Select an energy body record from the list on the left to see or edit its details, or add a new energy body.",
+      "formCreate": "New energy body",
+      "formEdit": "Edit energy body",
+      "formSubtitle": "After you save, the panel closes and the list refreshes.",
+      "deleteConfirm": "Are you sure you want to delete this energy body record?",
+      "resourceLabel": "Energy Bodies"
     }
   }
 }

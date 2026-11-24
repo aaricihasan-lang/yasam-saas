@@ -205,7 +205,8 @@
       "statVisibleCap": "Görünen Sonuç",
       "statVisibleShort": "Görünen",
       "searchSummaryQuoted": "\"{query}\" · {count} eşleşme",
-      "all": "Tümü"
+      "all": "Tümü",
+      "searchSummaryCurly": "“{query}” · {count} eşleşme"
     },
     "subconscious": {
       "demoTitle": "Demo Modu — Bilinçaltı Sebepleri",
@@ -490,6 +491,49 @@
         "symbol": "Sembol",
         "meaning": "Anlam"
       }
+    },
+    "energyBodies": {
+      "demoTitle": "Demo Modu — Enerji Bedenleri",
+      "searchLabel": "Tanım, görev, bozulma, taşlar, not içinde ara",
+      "searchPlaceholder": "Örn. eterik, aura, görev, bozulma…",
+      "fields": {
+        "definition": "Genel Tanım",
+        "function": "Görevi",
+        "disturbance": "Bozulma Belirtileri",
+        "stones": "Taşlar",
+        "suggestedStones": "Önerilen Taşlar",
+        "note": "Not",
+        "name": "Enerji Bedeni / Katman",
+        "namePlaceholder": "ör. eterik, duygusal, zihinsel, ruhsal"
+      },
+      "statBody": "Enerji Bedeni",
+      "fieldEmpty": "Henüz bilgi girilmedi.",
+      "editFieldAria": "{title} düzenle",
+      "readFailed": "Enerji bedenleri okunamadı: {detail}",
+      "selectToUpdate": "Güncellemek için listeden bir kayıt seçin.",
+      "nameRequiredExample": "Enerji bedeni / katman zorunludur (ör. eterik).",
+      "created": "Enerji bedeni kaydı oluşturuldu.",
+      "nameRequired": "Enerji bedeni / katman zorunludur.",
+      "selectToDelete": "Silmek için listeden bir kayıt seçin.",
+      "deleted": "Kayıt silindi.",
+      "demoBody": "Bu sayfa demo amaçlıdır. Enerji bedenlerine ait içerikler demo güvenliği nedeniyle flu gösterilmektedir. Yeni kayıt, düzenleme, silme ve dışa aktarma işlemleri demo modunda devre dışıdır.",
+      "listTitle": "Kayıtlar ({count})",
+      "emptyTitle": "Liste boş",
+      "emptySearchBody": "Arama terimini değiştirin veya Yeni Kayıt ile enerji bedeni ekleyin.",
+      "emptyBody": "Henüz kayıt yok. Yeni Kayıt ile ilk kaydınızı oluşturabilirsiniz.",
+      "filteredEmpty": "Aramayı güncelleyin veya Yeni Kayıt ile enerji bedeni ekleyin.",
+      "selectedPill": "SEÇİLİ KAYIT",
+      "demoGate": "Bu enerji bedeni içeriği demo hesabında sınırlı gösterilir. Tam sürümde tüm açıklamalar, görev ve taş bilgileri açık olarak kullanılabilir.",
+      "wordPreparing": "⏳ Hazırlanıyor...",
+      "wordReport": "📄 Word Raporu",
+      "pickTitle": "Soldan bir kayıt seçin",
+      "pickBodyDemo": "Detayları görmek için soldaki listeden bir enerji bedeni kaydı seçin ve içeriği inceleyin.",
+      "pickBody": "Detayları görmek veya düzenlemek için soldaki listeden bir enerji bedeni kaydı seçin ya da yeni enerji bedeni ekleyin.",
+      "formCreate": "Yeni enerji bedeni",
+      "formEdit": "Enerji bedenini düzenle",
+      "formSubtitle": "Kaydettikten sonra panel kapanır ve liste yenilenir.",
+      "deleteConfirm": "Bu enerji bedeni kaydını silmek istediğinizden emin misiniz?",
+      "resourceLabel": "Enerji Bedenleri"
     }
   }
 }
