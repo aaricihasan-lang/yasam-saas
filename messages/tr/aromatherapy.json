@@ -63,6 +63,298 @@
       "word": "Aromaterapi Kataloğunu Word'e Aktar",
       "oilCount": "{count} yağ",
       "footer": "Aromaterapi Merkezi — yağ kütüphanesi, karışım oluşturucu ve kaynak temelli bilgi sistemi. Bölümler hazırlandıkça bu merkezden açılır."
+    },
+    "oilFields": {
+      "name": {
+        "label": "Yağ Adı",
+        "placeholder": "Örn. Lavanta"
+      },
+      "latin_name": {
+        "label": "Latince Adı",
+        "placeholder": "Örn. Lavandula angustifolia"
+      },
+      "english_name": {
+        "label": "İngilizce Adı",
+        "placeholder": "Örn. Lavender"
+      },
+      "oil_type": {
+        "label": "Yağ Tipi"
+      },
+      "category": {
+        "label": "Kategori",
+        "placeholder": "Örn. Çiçek, Narenciye, Ağaç…"
+      },
+      "origin": {
+        "label": "Menşei / Ülke",
+        "placeholder": "Örn. Fransa, Türkiye…"
+      },
+      "extraction_method": {
+        "label": "Çıkarma Yöntemi",
+        "placeholder": "Örn. Buhar damıtma, Soğuk pres…"
+      },
+      "plant_part": {
+        "label": "Kullanılan Bitki Bölümü",
+        "placeholder": "Örn. Çiçek, Yaprak, Meyve kabuğu…"
+      },
+      "shelf_life": {
+        "label": "Raf Ömrü",
+        "placeholder": "Örn. 12–18 ay"
+      },
+      "aroma_profile": {
+        "label": "Koku Profili",
+        "placeholder": "Örn. Çiçeksi, tatlı, odunsu…"
+      },
+      "aroma_note": {
+        "label": "Koku Notası",
+        "placeholder": "Örn. Üst nota, Orta nota, Alt nota"
+      },
+      "color": {
+        "label": "Renk",
+        "placeholder": "Örn. Renksiz, Sarı, Soluk sarı…"
+      },
+      "consistency": {
+        "label": "Kıvam / Yoğunluk",
+        "placeholder": "Örn. İnce, Orta, Koyu…"
+      },
+      "is_photosensitive": {
+        "label": "Fotosensitif mi?"
+      },
+      "main_components": {
+        "label": "Ana Kimyasal Bileşenler",
+        "placeholder": "Örn. Linalool %51, Linalyl asetat %38…"
+      },
+      "therapeutic_properties_raw": {
+        "label": "Terapötik Özellikler",
+        "placeholder": "Virgülle ayırın: antibakteriyel, antifungal, antiseptik…"
+      },
+      "emotional_benefits": {
+        "label": "Duygusal Etkiler",
+        "placeholder": "Rahatlatıcı, stres azaltıcı, sakinleştirici…"
+      },
+      "spiritual_benefits": {
+        "label": "Ruhsal Etkiler",
+        "placeholder": "Meditasyonu derinleştirir, sezgiyi açar…"
+      },
+      "physical_benefits": {
+        "label": "Fiziksel Faydalar",
+        "placeholder": "Ağrı kesici, kas gevşetici, bağışıklık destekleyici…"
+      },
+      "skin_benefits": {
+        "label": "Cilt Faydaları",
+        "placeholder": "Nemlendirici, yenileyici, sivilce karşıtı…"
+      },
+      "benefits": {
+        "label": "Genel Faydalar",
+        "placeholder": "Diğer genel faydalar…"
+      },
+      "diffuser_usage": {
+        "label": "Brülör & Buharlaştırıcı",
+        "placeholder": "Difüzyon yöntemi, damlalık sayısı ve dozaj bilgisi…"
+      },
+      "massage_usage": {
+        "label": "Masaj Kullanımı",
+        "placeholder": "Masaj için uygulama yöntemi, karışım oranı…"
+      },
+      "usage_methods": {
+        "label": "Genel Kullanım Yöntemleri",
+        "placeholder": "İnhalasyon, banyo, kompres, difüzyon…"
+      },
+      "dilution_ratio": {
+        "label": "Seyreltme Oranı",
+        "placeholder": "Örn. %1-3 (taşıyıcı yağda)"
+      },
+      "blends_well_with_raw": {
+        "label": "İyi Karıştığı Yağlar",
+        "placeholder": "Virgülle ayırın: bergamot, sandal ağacı, gül…"
+      },
+      "target_systems_raw": {
+        "label": "Hedef Sistemler",
+        "placeholder": "Virgülle ayırın: sinir sistemi, bağışıklık sistemi…"
+      },
+      "chakra_connection": {
+        "label": "Çakra Bağlantısı",
+        "placeholder": "Örn. Kalp çakrası, Taç çakrası…"
+      },
+      "element_connection": {
+        "label": "Element Bağlantısı",
+        "placeholder": "Örn. Hava, Ateş, Su, Toprak, Eter…"
+      },
+      "safety_notes": {
+        "label": "Güvenlik Notları",
+        "placeholder": "Hamilelerde, çocuklarda dikkat; güneşe çıkmadan önce…"
+      },
+      "contraindications": {
+        "label": "Kontrendikasyonlar",
+        "placeholder": "Kimler kullanmamalı…"
+      },
+      "images_raw": {
+        "label": "Görseller (URL)",
+        "placeholder": "Her satıra bir URL girin…\nhttps://example.com/gorsel.jpg"
+      },
+      "notes": {
+        "label": "Ek Notlar",
+        "placeholder": "Ek notlar…"
+      },
+      "source": {
+        "label": "Kaynak",
+        "placeholder": "Kitap, eğitim, kaynak adı…"
+      }
+    },
+    "oilTabs": {
+      "kimlik": {
+        "label": "Kimlik",
+        "desc": "Ad, Latince/İngilizce ad, yağ tipi ve kategori."
+      },
+      "botanik": {
+        "label": "Botanik & Kaynak",
+        "desc": "Menşei, çıkarma yöntemi, kullanılan bitki bölümü ve raf ömrü."
+      },
+      "yag-ozellikleri": {
+        "label": "Yağ Özellikleri",
+        "desc": "Koku profili, nota, renk, kıvam ve fotosensitiflik."
+      },
+      "kimyasal": {
+        "label": "Kimyasal İçerik",
+        "desc": "Ana kimyasal bileşenler ve terapötik özellikler."
+      },
+      "ruhsal-duygusal": {
+        "label": "Ruhsal & Duygusal",
+        "desc": "Duygusal, ruhsal, fiziksel ve cilt faydaları."
+      },
+      "kullanim": {
+        "label": "Kullanım Şekilleri",
+        "desc": "Difüzyon, masaj, genel kullanım ve seyreltme oranı."
+      },
+      "uyumlu": {
+        "label": "Uyumlu Yağlar",
+        "desc": "İyi karıştığı yağlar, hedef sistemler, çakra ve element bağlantısı."
+      },
+      "onlemler": {
+        "label": "Önlemler & Güvenlik",
+        "desc": "Güvenlik notları ve kontrendikasyonlar."
+      },
+      "notlar": {
+        "label": "Notlar",
+        "desc": "Görseller (URL), ek notlar ve kaynak."
+      }
+    },
+    "oilTypes": {
+      "all": "Tümü",
+      "essential": "Uçucu Yağ",
+      "carrier": "Sabit Yağ",
+      "maceration": "Maserasyon Yağı",
+      "hydrosol": "Hidrosol",
+      "resin": "Reçine",
+      "absolute": "Mutlak / Ekstrakt"
+    },
+    "readErrors": {
+      "generic": "İçerik yüklenemedi. Lütfen tekrar deneyin.",
+      "AROMA_INVALID_UUID": "Geçersiz kayıt bağlantısı.",
+      "AROMA_INVALID_PAGE": "Geçersiz sayfa değeri.",
+      "AROMA_INVALID_LIMIT": "Geçersiz sayfa boyutu.",
+      "AROMA_INVALID_SORT": "Geçersiz sıralama.",
+      "AROMA_INVALID_FILTER": "Geçersiz filtre değeri.",
+      "AROMA_QUERY_TOO_LONG": "Arama metni çok uzun.",
+      "AROMA_NOT_FOUND": "Kayıt bulunamadı.",
+      "AROMA_READ_FAILED": "İçerik yüklenemedi. Lütfen tekrar deneyin."
+    },
+    "oils": {
+      "pages": {
+        "all": {
+          "title": "Yağlar Kütüphanesi",
+          "subtitle": "AROMATERAPİ — TÜM YAĞLAR",
+          "description": "Uçucu yağ, sabit yağ, maserasyon yağı, hidrosol ve reçine kayıtları"
+        },
+        "essential": {
+          "title": "Uçucu Yağlar",
+          "subtitle": "AROMATERAPİ — UÇUCU YAĞLAR",
+          "description": "Aromatik ve terapötik özelliklere sahip distile uçucu yağ kütüphanesi"
+        },
+        "carrier": {
+          "title": "Sabit Yağlar",
+          "subtitle": "AROMATERAPİ — SABİT YAĞLAR",
+          "description": "Taşıyıcı ve sabit bitkisel yağlar — masaj, seyreltme ve cilt bakımı uygulamaları"
+        },
+        "maceration": {
+          "title": "Maserasyon Yağları",
+          "subtitle": "AROMATERAPİ — MASERASYON YAĞLARI",
+          "description": "Bitkisel maserasyon ve infüzyon yağları — bitkilerin sabit yağa demlenmesiyle elde edilir"
+        }
+      },
+      "form": {
+        "nameRequired": "Yağ adı zorunludur.",
+        "addFailed": "Kayıt eklenemedi.",
+        "addFailedDetail": "Kayıt eklenemedi: {detail}",
+        "successTitle": "Başarılı",
+        "created": "Yağ kaydı oluşturuldu.",
+        "backToList": "Listeye Dön",
+        "back": "Geri",
+        "newEyebrow": "Yeni Kayıt",
+        "newTitle": "Yeni yağ kaydı",
+        "sections": "Bölümler",
+        "photoYes": "Evet — Fotosensitif",
+        "photoNo": "Hayır — Fotosensitif Değil",
+        "photoWarning": "Güneş ışığına maruz kalmadan önce uyarı verilmesi gerekir.",
+        "imagesHint": "Her satıra bir görsel URL’si girin (galeriye dosya yükleme bu ekranda desteklenmez).",
+        "saving": "Kaydediliyor...",
+        "save": "Kaydet",
+        "cancel": "İptal",
+        "apply": "Uygula",
+        "leaveTitle": "Kaydedilmemiş kayıt",
+        "leaveBody": "Bu yağ kaydını henüz kaydetmediniz. Çıkarsanız girdiğiniz bilgiler kaybolur.",
+        "leaveConfirm": "Kaydetmeden Çık",
+        "leaveCancel": "Düzenlemeye Dön"
+      },
+      "list": {
+        "wordReadyTitle": "Word hazırlandı",
+        "wordReadyBody": "Rapor indiriliyor.",
+        "wordFailedTitle": "Word oluşturulamadı",
+        "wordFailedBody": "Rapor oluşturulamadı.",
+        "deleteTitle": "Seçili yağları sil",
+        "deleteMessage": "{count} yağ kaydını silmek istediğinizden emin misiniz?",
+        "deleteSecond": "Bu işlem geri alınamaz. Seçili kayıtlar kalıcı olarak silinecek.",
+        "unnamed": "(adsız yağ)",
+        "noun": "yağ kaydı",
+        "deleteFailed": "Seçili kayıtlar silinemedi.",
+        "deleteFailedDetail": "Seçili kayıtlar silinemedi: {detail}",
+        "deleteNone": "Silme işlemi gerçekleşmedi. Lütfen sayfayı yenileyip tekrar deneyin.",
+        "successTitle": "Başarılı",
+        "deleted": "{count} yağ kaydı başarıyla silindi.",
+        "demoBanner": "Yağ kütüphanesi demo hesabı için temsili verilerle gösterilmektedir. Yağ adı, kategori ve tip görünürdür; klinik detaylar korunur. Yeni kayıt ve düzenleme işlemleri demo hesabında çalışmaz.",
+        "homeChip": "Aromaterapi Ana",
+        "homeShort": "Ana",
+        "newOil": "+ Yeni Yağ",
+        "searchPlaceholder": "Yağ adı, özellik, etki veya menşei ara…",
+        "searchAria": "Yağ ara (ad, özellik, etki veya menşei)",
+        "viewCard": "Kart",
+        "viewList": "Liste",
+        "refresh": "Listeyi yenile",
+        "resultCount": "{count} sonuç",
+        "oilCount": "{count} yağ (A–Z)",
+        "loading": "Yükleniyor...",
+        "selectPage": "Bu Sayfadaki Kayıtlarımı Seç",
+        "exportOne": "Seçili Kaydı Word'e Aktar",
+        "exportMany": "Seçili Kayıtları Word'e Aktar",
+        "oilsLoading": "Yağlar yükleniyor...",
+        "noResults": "Sonuç bulunamadı",
+        "empty": "Henüz yağ kaydı yok",
+        "noResultsHint": "Aramayı değiştirin veya filtreyi kaldırın.",
+        "emptyHint": "Yeni yağ ekle butonuyla ilk kaydınızı oluşturun.",
+        "addOil": "+ Yeni Yağ Ekle",
+        "selectAria": "{name} seç",
+        "contentMatchTitle": "Arama, adında değil içerik alanlarında (fayda, kullanım vb.) eşleşti.",
+        "contentMatchShortTitle": "Arama içerik alanlarında eşleşti.",
+        "contentMatch": "İçerikte geçiyor",
+        "photosensitive": "☀️ Fotosensitif",
+        "openDetail": "Detayı Aç →",
+        "colName": "Yağ Adı",
+        "colType": "Tip",
+        "colCategory": "Kategori",
+        "colPreview": "Önizleme",
+        "colAction": "İşlem",
+        "open": "Aç",
+        "fallbackLoading": "Yükleniyor…"
+      }
     }
   }
 }

@@ -7,6 +7,7 @@
  */
 import { useTranslations } from "next-intl";
 import type { AromaterapiModule } from "./aromaterapiModules";
+import { oilTypeLabel } from "./aromatherapyData";
 
 const FACET_KEY: Record<string, string> = {
   "/aromaterapi/ucucu-yaglar?view=list": "ucucu",
@@ -24,5 +25,26 @@ export function useAromaterapiModuleText() {
       const k = FACET_KEY[f.href];
       return k ? t(`facets.${k}`) : f.label;
     },
+  };
+}
+
+/** oil_type (kanonik İngilizce kimlik: essential/carrier/…) → ekran etiketi; bilinmeyen tip TR etiket/ham değerle. */
+export function useOilTypeLabel(): (oilType: string) => string {
+  const t = useTranslations("aromatherapy.oilTypes");
+  return (v) => (t.has(v) ? t(v) : oilTypeLabel(v));
+}
+
+/** Okuma API hata kodu → ekran metni (TR = lib/aromaterapi/readClient ERROR_MESSAGES birebir). */
+export function useAromaReadError(): (code: string | null) => string {
+  const t = useTranslations("aromatherapy.readErrors");
+  return (code) => (code && t.has(code) ? t(code) : t("generic"));
+}
+
+/** Yağ formu alan etiketi / yer tutucusu (aromatherapy.oilFields.<alan>); katalogda yoksa alan anahtarı değil boş metin. */
+export function useOilFieldText() {
+  const t = useTranslations("aromatherapy.oilFields");
+  return {
+    label: (k: string) => (t.has(`${k}.label`) ? t(`${k}.label`) : ""),
+    placeholder: (k: string) => (t.has(`${k}.placeholder`) ? t(`${k}.placeholder`) : undefined),
   };
 }

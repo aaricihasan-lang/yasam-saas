@@ -63,6 +63,298 @@
       "word": "Export Aromatherapy Catalogue to Word",
       "oilCount": "{count, plural, one {# oil} other {# oils}}",
       "footer": "Aromatherapy Centre — oil library, blend builder and source-based knowledge system. Sections open from this centre as they become ready."
+    },
+    "oilFields": {
+      "name": {
+        "label": "Oil Name",
+        "placeholder": "e.g. Lavender"
+      },
+      "latin_name": {
+        "label": "Latin Name",
+        "placeholder": "e.g. Lavandula angustifolia"
+      },
+      "english_name": {
+        "label": "English Name",
+        "placeholder": "e.g. Lavender"
+      },
+      "oil_type": {
+        "label": "Oil Type"
+      },
+      "category": {
+        "label": "Category",
+        "placeholder": "e.g. Floral, Citrus, Wood…"
+      },
+      "origin": {
+        "label": "Origin / Country",
+        "placeholder": "e.g. France, Türkiye…"
+      },
+      "extraction_method": {
+        "label": "Extraction Method",
+        "placeholder": "e.g. Steam distillation, Cold pressing…"
+      },
+      "plant_part": {
+        "label": "Plant Part Used",
+        "placeholder": "e.g. Flower, Leaf, Fruit peel…"
+      },
+      "shelf_life": {
+        "label": "Shelf Life",
+        "placeholder": "e.g. 12–18 months"
+      },
+      "aroma_profile": {
+        "label": "Aroma Profile",
+        "placeholder": "e.g. Floral, sweet, woody…"
+      },
+      "aroma_note": {
+        "label": "Aroma Note",
+        "placeholder": "e.g. Top note, Middle note, Base note"
+      },
+      "color": {
+        "label": "Colour",
+        "placeholder": "e.g. Colourless, Yellow, Pale yellow…"
+      },
+      "consistency": {
+        "label": "Consistency / Viscosity",
+        "placeholder": "e.g. Thin, Medium, Thick…"
+      },
+      "is_photosensitive": {
+        "label": "Photosensitive?"
+      },
+      "main_components": {
+        "label": "Main Chemical Constituents",
+        "placeholder": "e.g. Linalool 51%, Linalyl acetate 38%…"
+      },
+      "therapeutic_properties_raw": {
+        "label": "Therapeutic Properties",
+        "placeholder": "Separate with commas: antibacterial, antifungal, antiseptic…"
+      },
+      "emotional_benefits": {
+        "label": "Emotional Effects",
+        "placeholder": "Relaxing, stress-reducing, calming…"
+      },
+      "spiritual_benefits": {
+        "label": "Spiritual Effects",
+        "placeholder": "Deepens meditation, opens intuition…"
+      },
+      "physical_benefits": {
+        "label": "Physical Benefits",
+        "placeholder": "Pain-relieving, muscle-relaxing, immune-supporting…"
+      },
+      "skin_benefits": {
+        "label": "Skin Benefits",
+        "placeholder": "Moisturising, renewing, anti-blemish…"
+      },
+      "benefits": {
+        "label": "General Benefits",
+        "placeholder": "Other general benefits…"
+      },
+      "diffuser_usage": {
+        "label": "Burner & Diffuser",
+        "placeholder": "Diffusion method, number of drops and dosage information…"
+      },
+      "massage_usage": {
+        "label": "Massage Use",
+        "placeholder": "Application method for massage, blend ratio…"
+      },
+      "usage_methods": {
+        "label": "General Methods of Use",
+        "placeholder": "Inhalation, bath, compress, diffusion…"
+      },
+      "dilution_ratio": {
+        "label": "Dilution Ratio",
+        "placeholder": "e.g. 1-3% (in a carrier oil)"
+      },
+      "blends_well_with_raw": {
+        "label": "Blends Well With",
+        "placeholder": "Separate with commas: bergamot, sandalwood, rose…"
+      },
+      "target_systems_raw": {
+        "label": "Target Systems",
+        "placeholder": "Separate with commas: nervous system, immune system…"
+      },
+      "chakra_connection": {
+        "label": "Chakra Connection",
+        "placeholder": "e.g. Heart chakra, Crown chakra…"
+      },
+      "element_connection": {
+        "label": "Element Connection",
+        "placeholder": "e.g. Air, Fire, Water, Earth, Ether…"
+      },
+      "safety_notes": {
+        "label": "Safety Notes",
+        "placeholder": "Caution in pregnancy and with children; before sun exposure…"
+      },
+      "contraindications": {
+        "label": "Contraindications",
+        "placeholder": "Who should not use it…"
+      },
+      "images_raw": {
+        "label": "Images (URL)",
+        "placeholder": "Enter one URL per line…\nhttps://example.com/image.jpg"
+      },
+      "notes": {
+        "label": "Additional Notes",
+        "placeholder": "Additional notes…"
+      },
+      "source": {
+        "label": "Source",
+        "placeholder": "Book, training, source name…"
+      }
+    },
+    "oilTabs": {
+      "kimlik": {
+        "label": "Identity",
+        "desc": "Name, Latin/English name, oil type and category."
+      },
+      "botanik": {
+        "label": "Botany & Origin",
+        "desc": "Origin, extraction method, plant part used and shelf life."
+      },
+      "yag-ozellikleri": {
+        "label": "Oil Properties",
+        "desc": "Aroma profile, note, colour, consistency and photosensitivity."
+      },
+      "kimyasal": {
+        "label": "Chemical Composition",
+        "desc": "Main chemical constituents and therapeutic properties."
+      },
+      "ruhsal-duygusal": {
+        "label": "Spiritual & Emotional",
+        "desc": "Emotional, spiritual, physical and skin benefits."
+      },
+      "kullanim": {
+        "label": "Methods of Use",
+        "desc": "Diffusion, massage, general use and dilution ratio."
+      },
+      "uyumlu": {
+        "label": "Compatible Oils",
+        "desc": "Oils it blends well with, target systems, chakra and element connection."
+      },
+      "onlemler": {
+        "label": "Precautions & Safety",
+        "desc": "Safety notes and contraindications."
+      },
+      "notlar": {
+        "label": "Notes",
+        "desc": "Images (URL), additional notes and source."
+      }
+    },
+    "oilTypes": {
+      "all": "All",
+      "essential": "Essential Oil",
+      "carrier": "Carrier Oil",
+      "maceration": "Macerated Oil",
+      "hydrosol": "Hydrosol",
+      "resin": "Resin",
+      "absolute": "Absolute / Extract"
+    },
+    "readErrors": {
+      "generic": "The content could not be loaded. Please try again.",
+      "AROMA_INVALID_UUID": "Invalid record link.",
+      "AROMA_INVALID_PAGE": "Invalid page value.",
+      "AROMA_INVALID_LIMIT": "Invalid page size.",
+      "AROMA_INVALID_SORT": "Invalid sort order.",
+      "AROMA_INVALID_FILTER": "Invalid filter value.",
+      "AROMA_QUERY_TOO_LONG": "The search text is too long.",
+      "AROMA_NOT_FOUND": "Record not found.",
+      "AROMA_READ_FAILED": "The content could not be loaded. Please try again."
+    },
+    "oils": {
+      "pages": {
+        "all": {
+          "title": "Oil Library",
+          "subtitle": "AROMATHERAPY — ALL OILS",
+          "description": "Essential oil, carrier oil, macerated oil, hydrosol and resin records"
+        },
+        "essential": {
+          "title": "Essential Oils",
+          "subtitle": "AROMATHERAPY — ESSENTIAL OILS",
+          "description": "Library of distilled essential oils with aromatic and therapeutic properties"
+        },
+        "carrier": {
+          "title": "Carrier Oils",
+          "subtitle": "AROMATHERAPY — CARRIER OILS",
+          "description": "Carrier and fixed plant oils — massage, dilution and skin care applications"
+        },
+        "maceration": {
+          "title": "Macerated Oils",
+          "subtitle": "AROMATHERAPY — MACERATED OILS",
+          "description": "Plant maceration and infused oils — obtained by steeping plants in a fixed oil"
+        }
+      },
+      "form": {
+        "nameRequired": "The oil name is required.",
+        "addFailed": "The record could not be added.",
+        "addFailedDetail": "The record could not be added: {detail}",
+        "successTitle": "Done",
+        "created": "The oil record has been created.",
+        "backToList": "Back to List",
+        "back": "Back",
+        "newEyebrow": "New Record",
+        "newTitle": "New oil record",
+        "sections": "Sections",
+        "photoYes": "Yes — Photosensitive",
+        "photoNo": "No — Not Photosensitive",
+        "photoWarning": "A warning should be given before exposure to sunlight.",
+        "imagesHint": "Enter one image URL per line (uploading files to the gallery is not supported on this screen).",
+        "saving": "Saving...",
+        "save": "Save",
+        "cancel": "Cancel",
+        "apply": "Apply",
+        "leaveTitle": "Unsaved record",
+        "leaveBody": "You have not saved this oil record yet. If you leave, the information you entered will be lost.",
+        "leaveConfirm": "Leave Without Saving",
+        "leaveCancel": "Back to Editing"
+      },
+      "list": {
+        "wordReadyTitle": "Word ready",
+        "wordReadyBody": "The report is downloading.",
+        "wordFailedTitle": "Word could not be created",
+        "wordFailedBody": "The report could not be created.",
+        "deleteTitle": "Delete selected oils",
+        "deleteMessage": "Are you sure you want to delete {count, plural, one {# oil record} other {# oil records}}?",
+        "deleteSecond": "This cannot be undone. The selected records will be permanently deleted.",
+        "unnamed": "(unnamed oil)",
+        "noun": "oil record",
+        "deleteFailed": "The selected records could not be deleted.",
+        "deleteFailedDetail": "The selected records could not be deleted: {detail}",
+        "deleteNone": "Nothing was deleted. Please refresh the page and try again.",
+        "successTitle": "Done",
+        "deleted": "{count, plural, one {# oil record was} other {# oil records were}} deleted.",
+        "demoBanner": "The oil library is shown with representative data for the demo account. Oil name, category and type are visible; clinical details are protected. Creating and editing records do not work on the demo account.",
+        "homeChip": "Aromatherapy Home",
+        "homeShort": "Home",
+        "newOil": "+ New Oil",
+        "searchPlaceholder": "Search oil name, property, effect or origin…",
+        "searchAria": "Search oils (name, property, effect or origin)",
+        "viewCard": "Cards",
+        "viewList": "List",
+        "refresh": "Refresh list",
+        "resultCount": "{count, plural, one {# result} other {# results}}",
+        "oilCount": "{count, plural, one {# oil (A–Z)} other {# oils (A–Z)}}",
+        "loading": "Loading...",
+        "selectPage": "Select My Records on This Page",
+        "exportOne": "Export Selected Record to Word",
+        "exportMany": "Export Selected Records to Word",
+        "oilsLoading": "Loading oils...",
+        "noResults": "No results found",
+        "empty": "No oil records yet",
+        "noResultsHint": "Change your search or remove the filter.",
+        "emptyHint": "Create your first record with the add new oil button.",
+        "addOil": "+ Add New Oil",
+        "selectAria": "Select {name}",
+        "contentMatchTitle": "The search matched content fields (benefits, use, etc.), not the name.",
+        "contentMatchShortTitle": "The search matched content fields.",
+        "contentMatch": "Found in content",
+        "photosensitive": "☀️ Photosensitive",
+        "openDetail": "Open Details →",
+        "colName": "Oil Name",
+        "colType": "Type",
+        "colCategory": "Category",
+        "colPreview": "Preview",
+        "colAction": "Action",
+        "open": "Open",
+        "fallbackLoading": "Loading…"
+      }
     }
   }
 }

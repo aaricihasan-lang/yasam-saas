@@ -84,9 +84,14 @@ check("OilsPage NewOilForm gerçek dirty (pristine karşılaştırma) + guard + 
   /useAromaterapiDirtyGuard\(isDirty\)/.test(OILS) && /function requestBack/.test(OILS));
 check("OilsPage back düğmeleri requestBack (onBack körlemesine değil)",
   /onClick=\{requestBack\}/.test(OILS) && !/onClick=\{onBack\}/.test(OILS));
+// I18N (2026-11-25): rozet ve aria-label metinleri aromatherapy.oils.list.* katalog anahtarlarına taşındı;
+// niyet aynı — anahtar kullanımı + TR katalog değeri birebir doğrulanır.
+const AROMA_TR = JSON.parse(read("messages/tr/aromatherapy.json")).aromatherapy.oils.list;
 check("OilsPage 'İçerikte geçiyor' rozeti matchedOnlyInContent(appliedQuery=s.q)",
-  /const appliedQuery = s\.q/.test(OILS) && /matchedOnlyInContent\(row, appliedQuery\)/.test(OILS) && /İçerikte geçiyor/.test(OILS));
-check("OilsPage search + refresh aria-label", /aria-label="Yağ ara/.test(OILS) && /aria-label="Listeyi yenile"/.test(OILS));
+  /const appliedQuery = s\.q/.test(OILS) && /matchedOnlyInContent\(row, appliedQuery\)/.test(OILS) && /tl\("contentMatch"\)/.test(OILS) && AROMA_TR.contentMatch === "İçerikte geçiyor");
+check("OilsPage search + refresh aria-label",
+  /aria-label=\{tl\("searchAria"\)\}/.test(OILS) && /aria-label=\{tl\("refresh"\)\}/.test(OILS) &&
+  AROMA_TR.searchAria.startsWith("Yağ ara") && AROMA_TR.refresh === "Listeyi yenile");
 
 // --- yaglar/[id]: confirm dialog + real dirty ---------------------------------
 const DETAIL = read("app/aromaterapi/yaglar/[id]/page.tsx");
