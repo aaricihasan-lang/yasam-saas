@@ -534,6 +534,36 @@
       "formSubtitle": "Kaydettikten sonra panel kapanır ve liste yenilenir.",
       "deleteConfirm": "Bu enerji bedeni kaydını silmek istediğinizden emin misiniz?",
       "resourceLabel": "Enerji Bedenleri"
+    },
+    "sessions": {
+      "demoTitle": "Demo Modu — Biyoenerji Seansları",
+      "searchLabel": "Başlık, metin, kategori, kaynak ve not içinde ara",
+      "searchPlaceholder": "Örn. analiz, enerji, blokaj…",
+      "fields": {
+        "category": "Kategori",
+        "title": "Seans Başlığı",
+        "text": "Seans Metni",
+        "source": "Kaynak",
+        "note": "Not"
+      },
+      "readFailed": "Kayıtlar yüklenemedi: {detail}",
+      "noUser": "Kullanıcı kimliği bulunamadı. Lütfen tekrar giriş yapın.",
+      "reportDownloaded": "Seans raporu indirildi.",
+      "titleRequired": "Seans başlığı zorunludur.",
+      "created": "Seans kaydı oluşturuldu.",
+      "demoBody": "Bu sayfa demo amaçlıdır. Seans içerikleri demo güvenliği nedeniyle flu gösterilmektedir. Yeni kayıt, düzenleme, silme ve dışa aktarma işlemleri devre dışıdır.",
+      "emptySearchBody": "Arama kriterlerinizi değiştirin veya Yeni Kayıt ile seans ekleyin.",
+      "emptyBody": "Henüz kayıt yok. Yeni Kayıt ile ilk seansınızı oluşturabilirsiniz.",
+      "sourcePrefix": "Kaynak:",
+      "textEmpty": "Seans metni henüz girilmemiş.",
+      "pickDemo": "Soldan bir kayıt seçerek özetini görün.",
+      "pick": "Soldan bir kayıt seçerek özetini görün veya yeni kayıt ekleyin.",
+      "formCreate": "Yeni seans kaydı",
+      "formEdit": "Seans kaydını düzenle",
+      "formSubtitleEdit": "Değişiklikleri kaydettikten sonra panel kapanır ve liste yenilenir.",
+      "formSubtitleCreate": "Zorunlu alanları doldurup kaydedin; panel kapanır ve liste yenilenir.",
+      "deleteConfirm": "Bu seans kaydını silmek istediğinizden emin misiniz?",
+      "resourceLabel": "Biyoenerji Seansları"
     }
   }
 }

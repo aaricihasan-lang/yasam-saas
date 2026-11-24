@@ -534,6 +534,36 @@
       "formSubtitle": "After you save, the panel closes and the list refreshes.",
       "deleteConfirm": "Are you sure you want to delete this energy body record?",
       "resourceLabel": "Energy Bodies"
+    },
+    "sessions": {
+      "demoTitle": "Demo Mode — Bioenergy Sessions",
+      "searchLabel": "Search in title, text, category, source and note",
+      "searchPlaceholder": "e.g. analysis, energy, blockage…",
+      "fields": {
+        "category": "Category",
+        "title": "Session Title",
+        "text": "Session Text",
+        "source": "Source",
+        "note": "Note"
+      },
+      "readFailed": "Records could not be loaded: {detail}",
+      "noUser": "User ID not found. Please sign in again.",
+      "reportDownloaded": "Session report downloaded.",
+      "titleRequired": "The session title is required.",
+      "created": "Session record created.",
+      "demoBody": "This page is for demonstration. Session contents are blurred for demo security. Creating, editing, deleting and exporting records are disabled.",
+      "emptySearchBody": "Change your search criteria or add a session with New Record.",
+      "emptyBody": "No records yet. You can create your first session with New Record.",
+      "sourcePrefix": "Source:",
+      "textEmpty": "No session text has been entered yet.",
+      "pickDemo": "Select a record on the left to see its summary.",
+      "pick": "Select a record on the left to see its summary, or add a new record.",
+      "formCreate": "New session record",
+      "formEdit": "Edit session record",
+      "formSubtitleEdit": "After you save the changes, the panel closes and the list refreshes.",
+      "formSubtitleCreate": "Fill in the required fields and save; the panel closes and the list refreshes.",
+      "deleteConfirm": "Are you sure you want to delete this session record?",
+      "resourceLabel": "Bioenergy Sessions"
     }
   }
 }
