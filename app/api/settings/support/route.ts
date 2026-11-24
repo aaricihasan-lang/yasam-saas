@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requestTranslator } from "@/lib/i18n/serverMessages";
 import { verifyUserRequest } from "@/lib/auth/userGuard";
 import { demoReadOnlyResponse } from "@/lib/auth/demoReadOnly";
 import { hitDbRateLimit, rateLimitBucket } from "@/lib/security/dbRateLimit";
@@ -15,6 +16,7 @@ const SUPPORT_USER_WINDOW_SEC = 60 * 60;
  * Header: x-user-id
  */
 export async function GET(req: NextRequest) {
+  const te = requestTranslator(req, "settings.api");
   const guard = await verifyUserRequest(req);
   if (!guard.ok) return guard.response;
   const { userId, db } = guard;
@@ -28,12 +30,13 @@ export async function GET(req: NextRequest) {
 
   if (error) {
     console.error("[settings/support] list", error);
-    return NextResponse.json({ error: "Mesajlar yüklenemedi." }, { status: 500 });
+    return NextResponse.json({ error: te("supportLoadFailed") }, { status: 500 });
   }
   return NextResponse.json({ messages: data ?? [] });
 }
 
 export async function POST(req: NextRequest) {
+  const te = requestTranslator(req, "settings.api");
   const guard = await verifyUserRequest(req);
   if (!guard.ok) return guard.response;
   const { userId, tenantId, db } = guard;
@@ -46,22 +49,22 @@ export async function POST(req: NextRequest) {
     if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) throw new Error("shape");
     body = parsed as typeof body;
   } catch {
-    return NextResponse.json({ error: "Geçersiz istek." }, { status: 400 });
+    return NextResponse.json({ error: te("invalidRequest") }, { status: 400 });
   }
 
   const subject  = String(body.subject ?? "").trim();
   const message  = String(body.message ?? "").trim();
   const priority = body.priority === "urgent" ? "urgent" : "normal";
 
-  if (!subject) return NextResponse.json({ error: "Konu gerekli." }, { status: 400 });
-  if (!message) return NextResponse.json({ error: "Mesaj gerekli." }, { status: 400 });
-  if (subject.length > 200) return NextResponse.json({ error: "Konu en fazla 200 karakter." }, { status: 400 });
-  if (message.length > 5000) return NextResponse.json({ error: "Mesaj en fazla 5000 karakter." }, { status: 400 });
+  if (!subject) return NextResponse.json({ error: te("subjectRequired") }, { status: 400 });
+  if (!message) return NextResponse.json({ error: te("messageRequired") }, { status: 400 });
+  if (subject.length > 200) return NextResponse.json({ error: te("subjectTooLong") }, { status: 400 });
+  if (message.length > 5000) return NextResponse.json({ error: te("messageTooLong") }, { status: 400 });
 
   const hit = await hitDbRateLimit(db, rateLimitBucket("support-user", userId), SUPPORT_USER_LIMIT, SUPPORT_USER_WINDOW_SEC);
   if (!hit.allowed) {
     return NextResponse.json(
-      { code: "RATE_LIMITED", error: "Çok fazla destek mesajı gönderildi. Lütfen daha sonra tekrar deneyin." },
+      { code: "RATE_LIMITED", error: te("supportRateLimited") },
       { status: 429, headers: { "Retry-After": String(Math.max(1, hit.retryAfterSec)) } },
     );
   }
@@ -74,7 +77,7 @@ export async function POST(req: NextRequest) {
 
   if (error || !data) {
     console.error("[settings/support] insert", error);
-    return NextResponse.json({ error: "Mesaj gönderilemedi; lütfen tekrar deneyin." }, { status: 500 });
+    return NextResponse.json({ error: te("supportSendFailed") }, { status: 500 });
   }
   return NextResponse.json({ ok: true, id: data.id });
 }

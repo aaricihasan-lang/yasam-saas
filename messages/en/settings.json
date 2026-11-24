@@ -116,6 +116,26 @@
       "demoNote": "On the demo account personalisation can only be viewed; changes cannot be saved.",
       "edit": "Edit My Workspace",
       "footer": "Personalisation changes only your own home screen look; your module permissions, client records and inner module screens are not affected."
+    },
+    "api": {
+      "supportLoadFailed": "Messages could not be loaded.",
+      "invalidRequest": "Invalid request.",
+      "subjectRequired": "A subject is required.",
+      "messageRequired": "A message is required.",
+      "subjectTooLong": "The subject can be at most 200 characters.",
+      "messageTooLong": "The message can be at most 5000 characters.",
+      "supportRateLimited": "Too many support messages have been sent. Please try again later.",
+      "supportSendFailed": "The message could not be sent; please try again.",
+      "locationReadFailed": "The location could not be read.",
+      "locationDemo": "The default location cannot be saved on the demo account.",
+      "locationIdRequired": "A location ID is required.",
+      "cityRequired": "A city name is required.",
+      "countryCode": "The country code must be 2 letters.",
+      "tzRequired": "A time zone is required.",
+      "latRange": "Latitude must be between -90 and 90.",
+      "lonRange": "Longitude must be between -180 and 180.",
+      "elevNumber": "Elevation must be numeric.",
+      "locationSaveFailed": "The location could not be saved."
     }
   }
 }

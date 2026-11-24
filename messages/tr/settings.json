@@ -116,6 +116,26 @@
       "demoNote": "Demo hesapta kişiselleştirme yalnız görüntülenebilir; değişiklik kaydedilemez.",
       "edit": "Çalışma Alanımı Düzenle",
       "footer": "Kişiselleştirme yalnız sizin ana ekran görünümünüzü değiştirir; modül yetkileriniz, danışan kayıtlarınız ve iç modül ekranları etkilenmez."
+    },
+    "api": {
+      "supportLoadFailed": "Mesajlar yüklenemedi.",
+      "invalidRequest": "Geçersiz istek.",
+      "subjectRequired": "Konu gerekli.",
+      "messageRequired": "Mesaj gerekli.",
+      "subjectTooLong": "Konu en fazla 200 karakter.",
+      "messageTooLong": "Mesaj en fazla 5000 karakter.",
+      "supportRateLimited": "Çok fazla destek mesajı gönderildi. Lütfen daha sonra tekrar deneyin.",
+      "supportSendFailed": "Mesaj gönderilemedi; lütfen tekrar deneyin.",
+      "locationReadFailed": "Konum okunamadı.",
+      "locationDemo": "Demo hesapta varsayılan konum kaydedilemez.",
+      "locationIdRequired": "Konum kimliği gerekli.",
+      "cityRequired": "Şehir adı gerekli.",
+      "countryCode": "Ülke kodu 2 harf olmalı.",
+      "tzRequired": "Saat dilimi gerekli.",
+      "latRange": "Enlem -90 ile 90 arasında olmalı.",
+      "lonRange": "Boylam -180 ile 180 arasında olmalı.",
+      "elevNumber": "Rakım sayısal olmalı.",
+      "locationSaveFailed": "Konum kaydedilemedi."
     }
   }
 }
