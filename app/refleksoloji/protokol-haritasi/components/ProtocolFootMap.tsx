@@ -1,5 +1,7 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+
 import Link from "next/link";
 import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import { ATLAS_IMAGE_SRC } from "@/app/refleksoloji/bolge-haritasi/utils/atlasBackground";
@@ -9,7 +11,6 @@ import { pointDiameterPx, pointRingPx, THICK_LINE_RENDER_STROKE_PX } from "@/app
 import { REGION_FREE_STROKE_WIDTH } from "@/app/refleksoloji/bolge-haritasi/utils/regionStyles";
 import {
   ALL_ATLAS_GROUPS,
-  ATLAS_GROUP_LABEL,
   type AtlasBackgroundGroup,
   type RenderRegion,
 } from "@/lib/refleksoloji/atlasRegionsCore";
@@ -40,6 +41,8 @@ export function ProtocolFootMap({
   embedded = false,
   showMissingNotice = true,
 }: ProtocolFootMapProps) {
+  const t = useTranslations("reflexology.protocolMap.footMap");
+  const tViews = useTranslations("reflexology.common.views");
   const canvasRef = useRef<HTMLDivElement>(null);
   const [containerSize, setContainerSize] = useState({ w: 0, h: 0 });
   const [naturalSize, setNaturalSize] = useState({ w: 0, h: 0 });
@@ -49,7 +52,7 @@ export function ProtocolFootMap({
   // organsız `resolveAtlasBackgroundKey(view, null)` → yan_dis fallback'i YOK; böylece
   // yan_ic (mesane/rahim/prostat) bölgeleri asla yan_dis üzerine sızmaz.
   const imageSrc = ATLAS_IMAGE_SRC[footView];
-  const imageLabel = ATLAS_GROUP_LABEL[footView];
+  const imageLabel = tViews(`${footView}.short`);
   // Gösterilecek görünüm düğmeleri: anlamlı olanlar; hiç yoksa üç AYAK grubu (önceki
   // görünüm aynen; el yüzeyleri yalnız bölgesi varsa düğme olarak çıkar).
   const viewButtons = availableViews.length > 0 ? availableViews : ALL_ATLAS_GROUPS.slice(0, 3);
@@ -98,7 +101,7 @@ export function ProtocolFootMap({
             ) : (
               <>
                 <p className="text-[10px] font-black uppercase tracking-[0.18em] text-violet-800">
-                  {isHandView(footView) ? "El Haritası Önizleme" : "Ayak Haritası Önizleme"}
+                  {isHandView(footView) ? t("handPreview") : t("footPreview")}
                 </p>
                 <p className="text-xs font-semibold text-slate-600">{imageLabel}</p>
               </>
@@ -127,7 +130,7 @@ export function ProtocolFootMap({
                         }`
                   }
                 >
-                  {ATLAS_GROUP_LABEL[view]}
+                  {tViews(`${view}.short`)}
                 </button>
               );
             })}
@@ -138,14 +141,14 @@ export function ProtocolFootMap({
       {showMissingNotice && missingOrgans.length > 0 ? (
         <div className="shrink-0 border-b border-amber-200/80 bg-amber-50/95 px-3 py-2">
           <p className="text-xs font-bold text-amber-950">
-            Atlas bulunamayan organlar: {missingOrgans.join(", ")}
+            {t("missingOrgans", { organs: missingOrgans.join(", ") })}
           </p>
           <p className="mt-0.5 text-xs font-medium text-amber-900/90">
-            Bu organ için atlas bölgesi kayıtlı değil. Önce{" "}
+            {t("missingLead")}{" "}
             <Link href="/refleksoloji/bolge-haritasi" className="font-bold underline hover:text-amber-950">
-              Bölge Haritası
+              {t("zoneMap")}
             </Link>
-            &apos;ndan organ bölgesi ekleyin.
+            {t("missingTail")}
           </p>
         </div>
       ) : null}
@@ -169,7 +172,7 @@ export function ProtocolFootMap({
           <div className="absolute z-10" style={overlayStyle}>
             {regions.length === 0 ? (
               <p className="pointer-events-none absolute inset-0 flex items-center justify-center px-4 text-center text-base font-medium text-slate-500">
-                Organ ekleyin; kayıtlı atlas bölgeleri burada renkli gösterilir.
+                {t("empty")}
               </p>
             ) : (
               <>

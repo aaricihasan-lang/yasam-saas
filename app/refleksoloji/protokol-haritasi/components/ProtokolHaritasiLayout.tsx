@@ -1,5 +1,8 @@
 "use client";
 
+import { useLocale, useTranslations } from "next-intl";
+import { DEFAULT_LOCALE } from "@/lib/i18n/locales";
+
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { DemoModuleBanner } from "@/components/demo/DemoModuleBanner";
@@ -57,12 +60,17 @@ export function ProtokolHaritasiLayout() {
   const editParam = searchParams.get("id");
   const { hydrated, protocols, saveProtocol, syncErrorMessage, clearSyncError } =
     useProtocolRegistry();
+  const t = useTranslations("reflexology.protocolMap");
+  const isSourceLocale = useLocale() === DEFAULT_LOCALE;
+  /** Kayıt hatası: TR'de yardımcının Türkçe metni aynen; diğer dillerde hata türüne göre çevrilmiş metin. */
+  const saveErrorText = (r: { kind: "validation" | "storage" | "conflict" | "network"; error: string; deleted?: boolean }) =>
+    isSourceLocale ? r.error : t(r.deleted ? "errors.deleted" : `errors.${r.kind}`);
 
   useEffect(() => {
     if (!syncErrorMessage) return;
-    showToast({ type: "warning", title: "Bulut eşitleme", message: syncErrorMessage });
+    showToast({ type: "warning", title: t("toast.cloudSyncTitle"), message: isSourceLocale ? syncErrorMessage : t("errors.network") });
     clearSyncError();
-  }, [syncErrorMessage, clearSyncError, showToast]);
+  }, [syncErrorMessage, clearSyncError, showToast, t, isSourceLocale]);
   const [draft, setDraft] = useState<ProtocolFormDraft>(EMPTY_PROTOCOL_DRAFT);
   const [footView, setFootView] = useState<AtlasBackgroundGroup>("taban");
   const [validationMessage, setValidationMessage] = useState<string | null>(null);
@@ -202,7 +210,7 @@ export function ProtokolHaritasiLayout() {
   const handleSave = () =>
     void runSave(async () => {
       if (editState === "loading") {
-        setValidationMessage("Protokol yükleniyor, lütfen bekleyin.");
+        setValidationMessage(t("validation.loading"));
         return;
       }
       // REF-005: DÜZENLEME NİYETİYLE (?id) gelinip hedef BULUNAMADIYSA sessizce YENİ
@@ -210,18 +218,15 @@ export function ProtokolHaritasiLayout() {
       // ve kullanıcıyı açıkça bilgilendir; yeni kayıt yalnız açık niyetle (aşağıdaki
       // "Yeni protokol oluştur" düğmesi id'yi temizler) yapılır.
       if (editParam && editState === "notfound") {
-        setValidationMessage(
-          "Düzenlenecek protokol bulunamadı. Otomatik yeni kayıt OLUŞTURULMAZ. " +
-            "Yeni bir protokol oluşturmak istiyorsanız «Yeni protokol oluştur»u kullanın.",
-        );
+        setValidationMessage(t("validation.editNotFound"));
         return;
       }
       if (!draft.title.trim()) {
-        setValidationMessage("Hedef / sorun adı zorunludur.");
+        setValidationMessage(t("validation.titleRequired"));
         return;
       }
       if (draft.organs.length === 0) {
-        setValidationMessage("En az bir organ ekleyin.");
+        setValidationMessage(t("validation.organRequired"));
         return;
       }
 
@@ -233,7 +238,7 @@ export function ProtokolHaritasiLayout() {
       });
       if (!result.ok) {
         // FA-42: gerçek hata görünür; form KORUNUR (erken başarı / yönlendirme yok).
-        setValidationMessage(result.error);
+        setValidationMessage(saveErrorText(result));
         if (result.deleted) {
           // RF-09: sunucuda silinmiş → bu düzenleme oturumu kapanır (tekrar kayıt = diriltme olurdu).
           setEditDeletedElsewhere(true);
@@ -242,8 +247,8 @@ export function ProtokolHaritasiLayout() {
         if (result.kind !== "validation") {
           showToast({
             type: result.kind === "conflict" ? "warning" : "error",
-            title: result.kind === "conflict" ? "Eşzamanlı değişiklik" : "Kaydedilemedi",
-            message: result.error,
+            title: result.kind === "conflict" ? t("toast.conflictTitle") : t("toast.saveFailedTitle"),
+            message: saveErrorText(result),
           });
         }
         return;
@@ -253,8 +258,8 @@ export function ProtokolHaritasiLayout() {
       if (editId) {
         showToast({
           type: "success",
-          title: "Protokol güncellendi",
-          message: `«${result.saved.title}» güncellendi.`,
+          title: t("toast.updatedTitle"),
+          message: t("toast.updatedMsg", { title: result.saved.title }),
         });
         // Düzenleme tamamlandı → Kayıtlı Protokoller'e dön (güncel hâli orada görünür).
         router.push("/refleksoloji/kayitli-protokoller");
@@ -263,13 +268,13 @@ export function ProtokolHaritasiLayout() {
 
       showToast({
         type: "success",
-        title: "Protokol kaydedildi",
-        message: `«${result.saved.title}» başarıyla kaydedildi.`,
+        title: t("toast.savedTitle"),
+        message: t("toast.savedMsg", { title: result.saved.title }),
       });
       resetForm();
     }).catch((err: unknown) => {
       // SubmitTimeoutError vb. → görünür hata (kilit finally ile açıldı).
-      setValidationMessage(err instanceof Error ? err.message : "Kayıt tamamlanamadı. Lütfen tekrar deneyin.");
+      setValidationMessage(err instanceof Error ? err.message : t("validation.saveIncomplete"));
     });
 
   const handleClear = () => {
@@ -304,22 +309,20 @@ export function ProtokolHaritasiLayout() {
         {isDemo && (
           <DemoModuleBanner
             className="shrink-0"
-            message="Oluşturduğunuz protokoller sadece cihazınızda saklanır ve Kayıtlı Protokoller sayfasında görünür. Çıkışta silinir."
+            message={t("demoBanner")}
           />
         )}
         <header className="flex shrink-0 items-center gap-3 pb-2">
           <div className="min-w-0 flex-1">
             <p className="text-[10px] font-black uppercase tracking-[0.22em] text-violet-700/90">
-              Refleksoloji &middot; Protokol Kaydı
+              {t("eyebrow")}
             </p>
             <h1 className="truncate text-lg font-black leading-tight tracking-tight text-slate-900 sm:text-xl">
-              {editId ? "Protokolü Düzenle" : "Protokol Haritası"}
+              {editId ? t("titleEdit") : t("titleNew")}
             </h1>
           </div>
           <p className="hidden shrink-0 text-xs font-medium text-slate-500 xl:block">
-            {editId
-              ? "Mevcut protokolü düzenliyorsunuz; kaydettiğinizde güncellenir."
-              : "Yeni protokol oluşturun; kayıtlılar için Kayıtlı Protokoller sayfasını kullanın."}
+            {editId ? t("hintEdit") : t("hintNew")}
           </p>
         </header>
 
@@ -327,20 +330,17 @@ export function ProtokolHaritasiLayout() {
           <aside className={`${panelClass} p-4 xl:h-full`}>
             {editState === "loading" ? (
               <p className="mb-2 shrink-0 rounded-xl border border-violet-200/80 bg-violet-50 px-3 py-2 text-xs font-semibold text-violet-900">
-                Düzenlenecek protokol yükleniyor…
+                {t("editLoading")}
               </p>
             ) : editState === "notfound" ? (
               <div className="mb-2 shrink-0 rounded-xl border border-amber-300/80 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-950">
                 {editDeletedElsewhere ? (
                   <p>
-                    Bu protokol başka bir cihazda <strong>silinmiş</strong>. Değişiklik
-                    kaydedilmedi ve protokol yeniden <strong>oluşturulmadı</strong>. İçeriği
-                    yeni bir protokol olarak kaydetmek isterseniz aşağıdaki düğmeyi kullanın.
+                    {t.rich("deletedElsewhere", { b: (c) => <strong>{c}</strong> })}
                   </p>
                 ) : (
                   <p>
-                    Düzenlenecek protokol bulunamadı (silinmiş veya başka bir hesaba ait
-                    olabilir). Güvenlik için otomatik yeni kayıt <strong>oluşturulmaz</strong>.
+                    {t.rich("notFound", { b: (c) => <strong>{c}</strong> })}
                   </p>
                 )}
                 <button
@@ -348,7 +348,7 @@ export function ProtokolHaritasiLayout() {
                   onClick={startFreshProtocol}
                   className="mt-2 rounded-lg border border-amber-400/80 bg-amber-100 px-2.5 py-1 text-[11px] font-bold text-amber-950 hover:bg-amber-200/90"
                 >
-                  Yeni protokol oluştur
+                  {t("createNew")}
                 </button>
               </div>
             ) : null}
@@ -364,7 +364,7 @@ export function ProtokolHaritasiLayout() {
           </aside>
 
           <section className={`${panelClass} p-4 xl:h-full`}>
-            <h2 className="mb-3 shrink-0 text-base font-bold text-violet-900">Protokol Özeti</h2>
+            <h2 className="mb-3 shrink-0 text-base font-bold text-violet-900">{t("summaryHeading")}</h2>
             <ProtocolSummaryPanel draft={draft} organs={resolved.organs} footView={effectiveFootView} />
           </section>
 
