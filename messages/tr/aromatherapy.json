@@ -767,6 +767,57 @@
         "notesTitle": "Uzman Notları",
         "footer": "Bu belge bir ilaç/tedavi reçetesi değildir ve tıbbi tavsiye yerine geçmez. Aromaterapi uygulaması uzman gözetiminde yapılır. Yağlar uzman tarafından seçilmiştir; sistem yağ önermez. Güvenlik bilgileri veri-temelli olup kesin tıbbi hüküm içermez; uygulamadan önce uzman değerlendirmesi esastır."
       }
+    },
+    "glossary": {
+      "pageTitle": "Sözlük",
+      "pageSubtitle": "Aromaterapi terimleri ve tanımları — tenant kütüphanenizdeki sözlük kayıtları.",
+      "successTitle": "Başarılı",
+      "added": "Terim eklendi.",
+      "updated": "Terim güncellendi.",
+      "deletedTitle": "Silindi",
+      "deleted": "Terim silindi.",
+      "errorTitle": "Hata",
+      "emptyTitle": "Henüz sözlük terimi yok",
+      "emptyMessage": "Kendi aromaterapi terimlerinizi eklemek için “+ Yeni Terim”e dokunun.",
+      "newTerm": "+ Yeni Terim",
+      "searchPlaceholder": "Terim veya tanım ara…",
+      "statusLabel": "Durum",
+      "sortLabel": "Sırala",
+      "sortAlpha": "Terime göre (A–Z)",
+      "sortUpdated": "Son güncelleme",
+      "deleteTitle": "Bu sözlük terimini silmek istiyor musunuz?",
+      "deleteBody": "Bu işlem geri alınamaz. <strong>{name}</strong> terimi kalıcı olarak silinecek.",
+      "deleting": "Siliniyor…",
+      "deleteConfirm": "Evet, Sil",
+      "deleteCancel": "Vazgeç",
+      "hidePro": "Profesyonel tanımı gizle",
+      "showPro": "Profesyonel tanımı göster",
+      "edit": "Düzenle",
+      "delete": "Sil",
+      "form": {
+        "termRequired": "Terim (TR) zorunludur.",
+        "defRequired": "Kısa tanım zorunludur.",
+        "createTitle": "Yeni Sözlük Terimi",
+        "editTitle": "Terimi Düzenle",
+        "description": "Aromaterapi terimlerinizi kendi kütüphanenize ekleyin; yalnız size görünür.",
+        "section": "Terim",
+        "termTr": "Terim (TR)",
+        "termEn": "Terim (EN)",
+        "optional": "İsteğe bağlı.",
+        "shortDef": "Kısa Tanım",
+        "proDef": "Profesyonel Tanım",
+        "proDefHint": "İsteğe bağlı — ayrıntılı editöryal tanım.",
+        "status": "Durum",
+        "statusDefault": "Taslak"
+      },
+      "errors": {
+        "AROMA_UNIQUE_VIOLATION": "Aynı terim zaten sözlüğünüzde mevcut.",
+        "AROMA_WRITE_INVALID_BODY": "Girdiğiniz bilgiler geçersiz. Zorunlu alanları kontrol edin.",
+        "AROMA_WRITE_PAYLOAD_TOO_LARGE": "İçerik çok büyük; lütfen kısaltın.",
+        "AROMA_NOT_FOUND": "Kayıt bulunamadı veya erişim izniniz yok.",
+        "AROMA_INVALID_UUID": "Geçersiz kayıt bağlantısı.",
+        "generic": "İşlem tamamlanamadı. Lütfen tekrar deneyin."
+      }
     }
   }
 }
