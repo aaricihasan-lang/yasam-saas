@@ -29,6 +29,29 @@ const KNOWN_DUPLICATE_PREFIXES = new Set([
   "20261217000000", "20261228000000", "20261228000100", "20270101000000", "20270111000000",
   "20270123000000",
 ]);
+/**
+ * Sıra kuralı istisnası (Owner kararı 23.11.2026): HttpOnly F2 giriş güvenliği zinciri 2028-01-03 önekleriyle main'den PARALEL
+ * geliştirildi ve production'a HİÇ uygulanmadı; main bu sürede daha büyük önekler aldı. Yeniden adlandırma F2 migration korumasını
+ * (F2_STAGES sürüm eşlemesi), ön / son kontrol geçmiş eşleşmesini ve testleri bozardı. F2'nin kendi uygulama sırası migration
+ * korumasıyla (YF201 / YF202) ve f2-preflight.sql ile zorlanır (000200 en son). İstisna YALNIZ aşağıdaki 14 TAM dosya adı içindir:
+ * başka hiçbir dosya (yeni bir F2 dosyası dahil) bu listeden yararlanamaz; ad biçimi ve önek çakışması kuralları aynen geçerlidir.
+ */
+const KNOWN_OUT_OF_ORDER = new Set([
+  "20280103000000_auth_session_hardening_f2a.sql",
+  "20280103000100_auth_mfa_core_f2b.sql",
+  "20280103000200_auth_session_insert_lock_f2b.sql",
+  "20280103000300_auth_trusted_devices_qr_f2c.sql",
+  "20280103000400_auth_email_otp_f2d.sql",
+  "20280103000500_auth_account_recovery_f2e.sql",
+  "20280103000600_auth_purge_audit_retention_f2f.sql",
+  "20280103000700_auth_owner_step_up_f2g.sql",
+  "20280103000800_auth_audit_retention_disposal_f2h.sql",
+  "20280103000900_auth_security_hardening_f2i.sql",
+  "20280103001000_auth_session_device_binding_f2j.sql",
+  "20280103001100_auth_critical_privilege_device_f2k.sql",
+  "20280103001200_auth_email_smtp_provider_f2m.sql",
+  "20280103001300_auth_owner_mfa_kit_guard_f2n.sql"
+]);
 const NAME_RE = /^(\d{14})_[a-z0-9_]+(\.POSTDEPLOY)?\.sql$/;
 
 const files = fs.readdirSync(dir).filter((f) => f.endsWith(".sql")).sort();
@@ -59,7 +82,7 @@ if (baseRef) {
   const maxBase = baseFiles.map((f) => (NAME_RE.exec(f) ?? [])[1]).filter(Boolean).sort().at(-1) ?? "";
   for (const f of added) {
     const p = (NAME_RE.exec(f) ?? [])[1] ?? "";
-    if (p && p <= maxBase) errors.push(`Sıra: yeni migration ${f} öneki base'deki en büyük önekten (${maxBase}) büyük olmalı`);
+    if (p && p <= maxBase && !KNOWN_OUT_OF_ORDER.has(f)) errors.push(`Sıra: yeni migration ${f} öneki base'deki en büyük önekten (${maxBase}) büyük olmalı`);
   }
   console.log(`Base ${baseRef}: ${baseFiles.length} migration, eklenen ${added.length}${added.length ? ": " + added.join(", ") : ""}`);
 }

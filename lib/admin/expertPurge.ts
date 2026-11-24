@@ -87,6 +87,12 @@ export function purgeRpcError(error: unknown): { status: number; error: string }
     case "UP009":
     case "UP010":
       return { status: 409, error: "Bu uzmanın çalışma alanı paylaşımlı/sistem alanı olduğu için kalıcı silme yapılamaz." };
+    case "UP011":
+      // F2-K (C3): uzman veya cihazı için açık yasal saklama (legal hold) — kaldırma yalnız Owner'ın bilinçli kararıdır.
+      return {
+        status: 409,
+        error: "Bu uzman için yasal saklama kaydı açık; kalıcı silme yapılamaz. HİÇBİR veri silinmedi. Saklama kaydı yalnız sistem sahibince kaldırılabilir.",
+      };
     case "UP020":
       return {
         status: 409,

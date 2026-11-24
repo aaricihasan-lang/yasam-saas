@@ -12,7 +12,14 @@
  *   - markSessionEnded / consumeSessionEnded: modül/admin sayfasından ana sayfaya dönüşte
  *     nedenin taşınması (sessionStorage; kişisel veri YOK, yalnız neden kodu).
  */
-import { ensureWebCookieSession, hasSessionCredential, readSessionToken, sessionTokenHeader } from "@/lib/auth/yasamUser";
+import {
+  ensureWebCookieSession,
+  hasSessionCredential,
+  isWebCookieMigrationPending,
+  readSessionToken,
+  readStoredSessionToken,
+  sessionTokenHeader,
+} from "@/lib/auth/yasamUser";
 
 export type SessionEndReason = "expired" | "revoked";
 
@@ -45,7 +52,13 @@ export async function checkSessionStatus(token: string | null = readSessionToken
   if (!hasSessionCredential(token)) return null;
   try {
     // HTTPONLY H6a: cookie taşımasında saklı token'ın cookie'si henüz yoksa bir kez yazdırılır.
-    if (!token) await ensureWebCookieSession();
+    if (!token) {
+      await ensureWebCookieSession();
+      // Geçiş BAŞARISIZ kaldıysa (ağ / 503) tarayıcıda henüz çerez yoktur: kimlik bilgisiz soru "oturum yok" döner ve
+      // geçerli kullanıcı yanlışlıkla çıkışa düşerdi. Karar, JS deposunda ZATEN duran eski token'ın kendisine sorulur
+      // (yeni açılım yok); gerçekten iptal edilmişse yine "geçersiz" döner.
+      if (isWebCookieMigrationPending()) token = readStoredSessionToken();
+    }
     const res = await fetch("/api/auth/session", {
       method: "GET",
       cache: "no-store",

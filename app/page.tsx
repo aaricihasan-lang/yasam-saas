@@ -1,5 +1,6 @@
 "use client";
 
+import { requestSessionDeviceBind, supportsSessionDeviceBind } from "@/lib/auth/androidSessionBind";
 import {
   PENDING_LOGIN_STORAGE_KEY,
   cancelPendingLogin,
@@ -7,7 +8,9 @@ import {
   clearPendingLoginToken,
   loginWithCredentials,
   readPendingLogin,
+  type MfaChallengeInfo,
 } from "@/lib/auth/loginUser";
+import MfaQrPanel from "@/components/auth/MfaQrPanel";
 import PasswordInput from "@/components/ui/PasswordInput";
 import BfcacheRefreshHandler from "@/components/BfcacheRefreshHandler";
 import {
@@ -527,6 +530,8 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   // OTURUM MODELİ v2: admin ikinci/riskli web girişi onay bekliyor (token yalnız durum sorgusu içindir).
   const [pendingLogin, setPendingLogin] = useState<{ token: string; expiresAt: string | null } | null>(null);
+  // GİRİŞ GÜVENLİĞİ F2-C: parola doğru, MFA zorunlu → QR onay paneli (oturum henüz YOK).
+  const [mfaChallenge, setMfaChallenge] = useState<MfaChallengeInfo | null>(null);
   const [loginModalOpen, setLoginModalOpen] = useState(false);
   const [authModalView, setAuthModalView] = useState<
     "login" | "support" | "membership" | "membershipOptions"
@@ -1093,6 +1098,10 @@ export default function Home() {
       return;
     }
 
+    // F2-J: Android uygulamasında (2.0.0+) yönetici oturumu güvenilir telefona bağlanır (kanıtsız: web süreleri).
+    // Bloklamaz; uygulama yerel onay ekranını açar. Uzman / web / 1.9.x için hiçbir şey yapmaz.
+    if (isAdminUser(loggedUser) && supportsSessionDeviceBind()) void requestSessionDeviceBind(sessionToken);
+
     setUser(loggedUser);
     setProfileSynced(true);
     setProfileError(false);
@@ -1156,6 +1165,12 @@ export default function Home() {
         setLoading(false);
         return;
       }
+      if (attempt.code === "MFA_REQUIRED" && attempt.mfa) {
+        setMfaChallenge(attempt.mfa);
+        setMessage("");
+        setLoading(false);
+        return;
+      }
       if (attempt.code === "INVALID_CREDENTIALS") {
         setMessage(t("auth.emailPasswordWrong"));
       } else if (attempt.code === "ADMIN_MOBILE_ACTIVE") {
@@ -1168,6 +1183,7 @@ export default function Home() {
         setMessage(t("auth.noValidRole"));
       } else if (
         attempt.code === "LOCKED" ||
+        attempt.code === "MFA_TOO_MANY_OPEN" ||
         attempt.code === "INACTIVE" ||
         attempt.code === "PENDING"
       ) {
@@ -2830,7 +2846,20 @@ export default function Home() {
               />
             ) : (
               <>
-            {!pendingLogin && (
+            {mfaChallenge && (
+              <MfaQrPanel
+                challenge={mfaChallenge}
+                onDone={async (r) => {
+                  setMfaChallenge(null);
+                  await completeLogin(r.row, r.sessionToken, r.suspiciousLogin);
+                }}
+                onCancel={() => {
+                  setMfaChallenge(null);
+                  setMessage("");
+                }}
+              />
+            )}
+            {!pendingLogin && !mfaChallenge && (
             <>
             <div className="relative z-10 mt-5 space-y-3.5">
               <div>

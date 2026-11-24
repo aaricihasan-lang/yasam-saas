@@ -10,6 +10,7 @@ import {
   SESSION_ABSOLUTE_MS,
 } from "@/lib/auth/sessionSecurity";
 import {
+  androidAppSessionTransport,
   clearWebSessionCookie,
   getSessionCookieConfig,
   hasWebSessionCookie,
@@ -33,6 +34,18 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { writeAdminAudit } from "@/lib/admin/adminAudit";
 import { activateTrialOnLogin } from "@/lib/trial/trialServer";
 import { resolveActorIsMainAdmin } from "@/lib/admin/accountSessionControls";
+import {
+  beginMfaChallenge,
+  hashMfaBinding,
+  isMfaTestAccount,
+  MFA_CHALLENGE_TTL_SECONDS,
+  newMfaBindingSecret,
+  readMfaRequirement,
+  resolveUserMfaMethods,
+  setMfaBindingCookie,
+} from "@/lib/auth/mfaChallenge";
+import { emailOtpConfigured, emailOtpAllowedForUser, maskEmail } from "@/lib/auth/emailOtp";
+import { qrApprovalUrl } from "@/lib/auth/deviceSignature";
 
 export const runtime = "nodejs";
 
@@ -62,9 +75,6 @@ function rateLimited(retryAfterSec: number): NextResponse {
 }
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-const ADMIN_PENDING_MESSAGE =
-  "Yönetici hesabınız başka bir cihazda açık. Bu giriş, mevcut oturumunuzdan onaylanana kadar bekliyor.";
 
 /** Admin oturum olayı audit'i (aktör = hesabın kendisi; token/IP/parola YOK). Fail-closed. */
 async function auditAdminSessionEvent(
@@ -176,12 +186,83 @@ export async function POST(req: NextRequest) {
     }
 
     const location     = extractLocationFromHeaders(req.headers);
+
+    // GİRİŞ GÜVENLİĞİ F2-B: MFA zorunlu kullanıcıda parola tek başına oturum AÇMAZ. Yalnız kısa
+    // ömürlü, bu istemciye bağlı bir challenge oluşur; token/kullanıcı satırı/deneme başlangıcı YOK.
+    // Zorunluluk okunamazsa fail-closed (500). Yöntem sunulamıyorsa da parolaya DÜŞÜLMEZ.
+    const mfaRequirement = await readMfaRequirement(db, String(row.id));
+    if (mfaRequirement.status === "error") {
+      return json({ code: "ERROR", error: "Giriş şu anda yapılamıyor. Lütfen tekrar deneyin." }, 500);
+    }
+    if (mfaRequirement.status === "required") {
+      const androidApp = isAndroidAppRequest(req.headers);
+      const bindingSecret = newMfaBindingSecret();
+      const begun = await beginMfaChallenge(db, {
+        userId: String(row.id),
+        bindingHash: hashMfaBinding(bindingSecret),
+        clientChannel: location.channel ?? "unknown",
+        ipHash,
+        userAgent: location.userAgent,
+      });
+      if (!begun.ok) {
+        if (begun.reason === "too_many_open") {
+          // Parola DOĞRU; sorun açık (tamamlanmamış) doğrulama istekleri — "başarısız giriş" denmez.
+          const retryAfter = MFA_CHALLENGE_TTL_SECONDS;
+          return json(
+            {
+              code: "MFA_TOO_MANY_OPEN",
+              error: "Bu hesap için tamamlanmamış çok sayıda doğrulama isteği var. Lütfen açık kalan giriş ekranlarındaki isteği tamamlayın veya 5 dakika sonra tekrar deneyin.",
+              retryAfter,
+            },
+            429,
+            { "Retry-After": String(retryAfter) },
+          );
+        }
+        if (begun.reason === "inactive") {
+          return json({ code: "INACTIVE", error: "Hesabınız pasif durumda. Lütfen sistem yöneticisiyle iletişime geçin." }, 403);
+        }
+        return json({ code: "ERROR", error: "Giriş şu anda yapılamıyor. Lütfen tekrar deneyin." }, 500);
+      }
+      const methods = await resolveUserMfaMethods(db, {
+        userId: String(row.id),
+        role,
+        isTestAccount: await isMfaTestAccount(db, String(row.id)),
+        emailConfigured: emailOtpConfigured(),
+        emailRoleAllowed: await emailOtpAllowedForUser(db, String(row.id), role),
+      });
+      const mfaResponse = json(
+        {
+          code: "MFA_REQUIRED",
+          challengeId: begun.challengeId,
+          expiresAt: begun.expiresAt,
+          methods,
+          // F2-C: QR (App Link) + eşleştirme kodu YALNIZ başlatan istemciye; challenge_id tek başına yetmez.
+          ...(methods.includes("qr_device") && begun.qrNonce && begun.matchCode
+            ? { qr: { url: qrApprovalUrl(begun.challengeId, begun.qrNonce), matchCode: begun.matchCode } }
+            : {}),
+          // F2-D: e-posta yöntemi — tam adres DEĞİL, maske (kod istenince gönderilir; burada gönderim YOK).
+          ...(methods.includes("email_otp") && typeof row.email === "string" ? { emailHint: maskEmail(row.email) } : {}),
+          ...(androidApp ? { mfaBinding: bindingSecret } : {}),
+          error: methods.length > 0
+            ? "Girişi tamamlamak için ikinci doğrulama gerekiyor."
+            : "Hesabınız için ikinci doğrulama zorunlu; şu anda kullanılabilir doğrulama yöntemi yok. Lütfen sistem yöneticisiyle iletişime geçin.",
+        },
+        202,
+      );
+      if (!androidApp) setMfaBindingCookie(mfaResponse, bindingSecret);
+      return mfaResponse;
+    }
+
     const sessionToken = randomUUID();
 
     const result = await createUserSession(db, row.id, location, sessionToken, {
       replaceToken: replaceSessionToken,
     });
 
+    // Bu yol MFA tamamlaması kullanmaz; MFA reddi burada beklenmez (savunma: oturum yok → 500).
+    if (!result.ok && "mfaRejected" in result) {
+      return json({ code: "ERROR", error: "Oturum oluşturulamadı." }, 500);
+    }
     // P3 reject-new: limit aşımında yeni oturum OLUŞTURULMAZ (mevcut oturumlar korunur).
     if (!result.ok) {
       if (result.reason === "admin_mobile_active" || result.reason === "admin_web_limit") {
@@ -213,32 +294,22 @@ export async function POST(req: NextRequest) {
     }
 
     if (result.state === "pending_approval") {
-      // Admin ikinci/riskli web girişi: token YALNIZ kendi durumunu sorgulayabilir; kullanıcı
-      // satırı/profil DÖNDÜRÜLMEZ. Audit fail-closed: yazılamazsa pending kapatılır → 500.
-      try {
-        await auditAdminSessionEvent(db, String(row.id), "admin_web_login_pending", {
-          outcome: "pending",
-          channel: result.channel,
-          high_risk: result.highRisk,
-          pending_ttl_minutes: 10,
-        });
-      } catch {
-        await db
-          .from("user_sessions")
-          .update({ ended_at: new Date().toISOString(), end_reason: "audit_failed" })
-          .eq("session_token", sessionToken)
-          .eq("session_state", "pending_approval");
-        return json({ code: "ERROR", error: "Oturum oluşturulamadı." }, 500);
-      }
-      return json(
-        {
-          code: "PENDING_APPROVAL",
-          pendingToken: sessionToken,
-          pendingExpiresAt: result.pendingExpiresAt,
-          error: ADMIN_PENDING_MESSAGE,
-        },
-        202,
-      );
+      // Admin onaylı (pending) giriş Owner kararıyla (2026-10-04) KAPALI: admin web her zaman doğrudan aktif oturum
+      // açar. Buraya yalnız anormal durumda düşülür (ör. rol okuması geçici hata verip istek uzman yoluna gittiğinde
+      // veritabanı admin'i görüp pending üretirse). Bekleyen satırın anahtarı onaylanınca TAM oturum anahtarı olur →
+      // hiçbir taşıma kipinde yanıt gövdesine / JavaScript'e VERİLMEZ (fail-closed): satır kapatılır, giriş yeniden denenir.
+      await db
+        .from("user_sessions")
+        .update({ ended_at: new Date().toISOString(), end_reason: "pending_disabled" })
+        .eq("session_token", sessionToken)
+        .eq("session_state", "pending_approval")
+        .then(undefined, () => undefined);
+      await auditAdminSessionEvent(db, String(row.id), "admin_web_login_pending", {
+        outcome: "rejected",
+        reason: "pending_disabled",
+        channel: result.channel,
+      }).catch(() => {});
+      return json({ code: "ERROR", error: "Giriş şu anda tamamlanamadı. Lütfen tekrar deneyin." }, 503);
     }
 
     // HTTPONLY H2+: yalnız uygun WEB oturumu → __Host-yasam_sid. Android oturumuna ASLA set edilmez.
@@ -246,7 +317,7 @@ export async function POST(req: NextRequest) {
     const cookieCfg = getSessionCookieConfig();
     const webCookieSession =
       cookieCfg.mode !== "off" &&
-      result.channel !== "android_app" &&
+      (result.channel !== "android_app" || androidAppSessionTransport() === "cookie") &&
       !isAndroidAppRequest(req.headers) &&
       isSessionCookieEligible(cookieCfg, String(row.id));
     // HTTPONLY H6b: web + cookie taşımasında oturum token'ı GÖVDEDE DÖNMEZ (JS hiç görmez); istemci

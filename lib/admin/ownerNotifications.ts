@@ -16,7 +16,10 @@ export type OwnerNotificationType =
   | "eski_kayit"
   | "odeme"
   | "deneme_basladi"
-  | "deneme_bitti";
+  | "deneme_bitti"
+  | "cihaz_eslesme"
+  | "eposta_uyari"
+  | "hesap_kurtarma";
 
 export type OwnerNotificationItem = {
   id: number;
@@ -49,6 +52,9 @@ export const OWNER_NOTIFICATION_TYPES: readonly OwnerNotificationType[] = [
   "odeme",
   "deneme_basladi",
   "deneme_bitti",
+  "cihaz_eslesme",
+  "eposta_uyari",
+  "hesap_kurtarma",
 ];
 
 /** Bildirim başlığı (ad okuma anında eklenir). */
@@ -60,6 +66,9 @@ export const OWNER_NOTIFICATION_TITLE: Record<OwnerNotificationType, string> = {
   odeme: "ödeme “Gecikti” olarak işaretli",
   deneme_basladi: "7 günlük denemeye başladı",
   deneme_bitti: "deneme süresi doldu — kayıtları korunuyor",
+  cihaz_eslesme: "güvenilir telefon eşleştirme isteği",
+  eposta_uyari: "doğrulama e-postası gönderim uyarısı",
+  hesap_kurtarma: "hesap kurtarma talebi — 72 saat bekleme",
 };
 
 /** Karar satırının alt açıklaması ve düğme metni. */
@@ -69,6 +78,9 @@ export const OWNER_ACTION_HINT: Partial<Record<OwnerNotificationType, { sub: str
   inceleme: { sub: "Risk işareti olan deneme hesabı", go: "İncele" },
   eski_kayit: { sub: "Modüllere erişemiyor; owner kararı gerekir", go: "İncele" },
   odeme: { sub: "Ödeme kaydını kontrol edin", go: "Kontrol et" },
+  cihaz_eslesme: { sub: "Uzmanı kayıtlı numarasından arayın; kodu O okusun", go: "Doğrula" },
+  eposta_uyari: { sub: "Kota veya Google bağlantı sorunu; QR yöntemi etkilenmez", go: "Durumu gör" },
+  hesap_kurtarma: { sub: "Bekleme dolunca kimliği yeniden teyit edip yürütün veya reddedin", go: "Talebi aç" },
 };
 
 export const OWNER_NOTIFICATION_TYPE_LABEL: Record<OwnerNotificationType, string> = {
@@ -79,6 +91,9 @@ export const OWNER_NOTIFICATION_TYPE_LABEL: Record<OwnerNotificationType, string
   odeme: "Ödeme",
   deneme_basladi: "Deneme başladı",
   deneme_bitti: "Deneme bitti",
+  cihaz_eslesme: "Cihaz eşleştirme",
+  eposta_uyari: "E-posta gönderimi",
+  hesap_kurtarma: "Hesap kurtarma",
 };
 
 export const OWNER_NOTIFICATION_RESOLUTION_LABEL: Record<string, string> = {
@@ -93,6 +108,12 @@ export const OWNER_NOTIFICATION_RESOLUTION_LABEL: Record<string, string> = {
   odeme_durumu_guncellendi: "ödeme durumu güncellendi",
   kayit_silindi: "kayıt silindi",
   kapandi: "kapandı",
+  cihaz_onaylandi: "cihaz onaylandı",
+  cihaz_reddedildi: "cihaz reddedildi",
+  cihaz_iptal: "cihaz iptal edildi",
+  kurtarma_tamamlandi: "kurtarma tamamlandı",
+  kurtarma_iptal: "kurtarma iptal edildi",
+  kurtarma_reddedildi: "kurtarma reddedildi",
 };
 
 export const OWNER_HISTORY_STATUSES = ["all", "open", "resolved", "unread", "read"] as const;

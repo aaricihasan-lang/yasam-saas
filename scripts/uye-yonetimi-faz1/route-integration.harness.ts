@@ -492,9 +492,18 @@ async function main(): Promise<void> {
     ok((await call(userRoute.PATCH as Handler, "PATCH", F1, asOwner, { ...staleForm, email: (await row(P1)).email.toUpperCase() })).status === 409, "çakışan e-posta → 409 (ham DB hatası sızmaz)");
     ok((await call(userRoute.PATCH as Handler, "PATCH", F1, asAdmin2, { ...staleForm, role: "admin" })).status === 403, "normal admin rol yükseltemez → 403");
     ok((await call(userRoute.PATCH as Handler, "PATCH", ADMIN2, asAdmin2, { action: "edit", fullName: "x", email: "zz.member.phase1.admin2@example.test", role: "admin" })).status === 403, "normal admin başka/kendi admin kaydını düzenleyemez (admin-hedef) → 403");
+    // F2-K (N2): yönetici yetkisi yalnız Owner + taze MFA + işleme özel doğrulama ile (auth_admin_role_grant; 001100).
+    // Bu fixture'da F2 zinciri yok → yükseltme FAIL-CLOSED: başarı yok, rol DEĞİŞMEZ, role_changed denetimi YOK.
+    // Olumlu yol (doğrulamalı yükseltme + denetim + MFA zorunluluğu) F2 zincirinde: scripts/giris-guvenligi/f2k-yonetici.harness.ts.
     const promote = await call(userRoute.PATCH as Handler, "PATCH", F1, asOwner, { ...staleForm, role: "admin" });
-    ok(promote.status === 200 && (await audits(F1)).some((a) => a.action === "role_changed" && a.new_value.role === "admin"), "ana yönetici rol değiştirir + role_changed audit");
-    await call(userRoute.PATCH as Handler, "PATCH", F1, asOwner, { ...staleForm, role: "expert" });
+    ok(promote.status !== 200 && (await row(F1)).role === "expert" && !(await audits(F1)).some((a) => a.action === "role_changed" && a.new_value?.role === "admin"),
+      "N2: Owner bile işleme özel doğrulama olmadan yönetici yapamaz (fail-closed, rol değişmez)");
+    // Yetki DÜŞÜRME (admin → expert) eskisi gibi doğrudan + role_changed denetimi.
+    const DEMOTE = await makeUser({ label: "DEMOTE", role: "admin", approval: "approved", active: true });
+    const dRow = await row(DEMOTE);
+    const demote = await call(userRoute.PATCH as Handler, "PATCH", DEMOTE, asOwner, { action: "edit", fullName: dRow.full_name, email: dRow.email, role: "expert" });
+    ok(demote.status === 200 && (await row(DEMOTE)).role === "expert" && (await audits(DEMOTE)).some((a) => a.action === "role_changed" && a.new_value?.role === "expert"),
+      "ana yönetici yetki düşürür + role_changed audit");
 
     // ── G. MODULES (MEM-005/007/008) ─────────────────────────────────────────
     console.log("\n[G] Modül izinleri — whitelist + eşzamanlılık");
@@ -645,6 +654,15 @@ async function main(): Promise<void> {
     ok((await userGuardStatus(K1, kTok)) === 200, "reddedilen sıfırlama oturumu kapatmadı");
     ok((await audits(K1)).every((a) => a.action !== "password_changed_by_admin"), "reddedilen sıfırlama audit yazmadı");
     ok((await call(passwordRoute.POST as Handler, "POST", "not-a-uuid", asOwner, pw)).status === 400, "şifre route: bozuk UUID → 400");
+    // GİRİŞ GÜVENLİĞİ F2-I: rota Owner'ın işleme özel kanıtını DB'ye sorar (auth_owner_step_up_take, migration 000900).
+    // (1) Bu test DB'si F2 öncesi şemadır: fonksiyon YOKKEN sıfırlama YAPILMAZ (kapalı kalır; yayında migration'lar koddan önce).
+    const pwNoFn = await call(passwordRoute.POST as Handler, "POST", K1, asOwner, pw);
+    ok(pwNoFn.status === 500 && (await row(K1)).password_hash === "zz-orig-hash", "F2-I: kanıt fonksiyonu yokken (migration eksik) sıfırlama YAPILMAZ, hash DEĞİŞMEDİ");
+    // (2) Gerçek fonksiyonun MFA KULLANMAYAN Owner için yanıtı {ok:true, step_up:false}'tır (bu test DB'sinin Owner'ı MFA'sız).
+    //     MFA kullanan Owner'ın kanıt zorunluluğu gerçek fonksiyonla scripts/giris-guvenligi/f2i-routes.harness.ts'te sınanır.
+    await su.query(`CREATE FUNCTION public.auth_owner_step_up_take(p_actor_token text, p_action text, p_target uuid) RETURNS jsonb
+                    LANGUAGE sql AS $f$ SELECT '{"ok": true, "step_up": false}'::jsonb $f$;
+                    GRANT EXECUTE ON FUNCTION public.auth_owner_step_up_take(text, text, uuid) TO service_role;`);
     const pwOwner = await call(passwordRoute.POST as Handler, "POST", K1, asOwner, pw);
     const k1AfterPw = await row(K1);
     ok(pwOwner.status === 200 && k1AfterPw.password_hash !== "zz-orig-hash" && String(k1AfterPw.password_hash).startsWith("zz-test-hash:"), "ana yönetici → şifre sıfırlama 200, hash değişti");

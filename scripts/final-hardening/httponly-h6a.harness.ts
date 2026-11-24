@@ -48,7 +48,8 @@ g.window = globalThis;
 let ua = WEB_UA;
 let transportAttr: string | null = "cookie";
 Object.defineProperty(globalThis, "navigator", { configurable: true, get: () => ({ userAgent: ua }) });
-g.document = { documentElement: { getAttribute: (n: string) => (n === "data-session-transport" ? transportAttr : null) } };
+// F2-K (A3): sunucu token yolunu yalnız resmî uygulamaya seçer ve <html data-android-token> ile bildirir (ANDROID senaryosu).
+g.document = { documentElement: { getAttribute: (n: string) => (n === "data-session-transport" ? transportAttr : n === "data-android-token" ? (ua === ANDROID_UA ? "" : null) : null) } };
 type Call = { url: string; method: string; headers: Record<string, string> };
 let calls: Call[] = [];
 let respond: (url: string) => Response = () => new Response(JSON.stringify({ valid: true }), { status: 200 });
@@ -248,8 +249,9 @@ async function main() {
     for (const f of ["lib/auth/yasamUser.ts", "lib/auth/sessionExpiry.ts"]) assert.ok(!/lib\/auth\/sessionCookie/.test(read(f)), f);
     assert.ok(!/import/.test(read("lib/auth/sessionTransportFlag.ts")));
   });
-  await t("Android oturum politikası değişmedi (no-expiry satırı)", () => {
-    assert.ok(read("lib/auth/sessionSecurity.ts").includes('p_expires_at: clientChannel === "android_app" ? null : computeSessionExpiresAt(lr?.role),'));
+  await t("Android oturum politikası yalnız onaylı F2-A satırı (30 gün)", () => {
+    // Owner 2026-11-15 F2-A: yeni android_app oturumları süreli (önceden no-expiry satırı).
+    assert.ok(read("lib/auth/sessionSecurity.ts").includes('p_expires_at: clientChannel === "android_app" ? computeAndroidSessionExpiresAt() : computeSessionExpiresAt(lr?.role),'));
   });
 
   console.log(`httponly-h6a harness: ${pass} PASS / ${fail} FAIL`);

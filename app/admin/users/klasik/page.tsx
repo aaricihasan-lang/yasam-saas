@@ -73,6 +73,7 @@ import { AstrologyTechniquePicker, grantsSummary, selectionOf } from "@/componen
 import type { AstroTechniqueGrants } from "@/lib/astrology/access/techniqueGrants";
 import { isAdminUser, readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
 import { useConfirmedLogout } from "@/hooks/useConfirmedLogout";
+import OwnerStepUpDialog from "@/components/admin/OwnerStepUpDialog";
 
 // ── Filtre seçenekleri (MEM-018: ham enum gösterilmez) ─────────────────────────
 const APPROVAL_OPTIONS: { key: MemberListQuery["approval"]; label: string }[] = [
@@ -674,6 +675,8 @@ function AdminUsersContent() {
   const [formOpen, setFormOpen] = useState(() => searchParams.get("yeni") === "1");
   const [reactivatingId, setReactivatingId] = useState<string>("");
   const [purgeTarget, setPurgeTarget] = useState<PurgeTarget | null>(null);
+  // GİRİŞ GÜVENLİĞİ F2-K (N2): yönetici oluşturma / pasif yöneticiyi etkinleştirme işleme özel doğrulama ister.
+  const [adminGrantStepUp, setAdminGrantStepUp] = useState<{ target: string; retry: () => void } | null>(null);
 
   // Geçmiş davranışı: filtre / sayfa / sayfa boyutu / sekme / temizle → router.push (tarayıcı
   // Geri/İleri her adımı geri getirir). Arama yazımı: bir yazma oturumunun İLK değişikliği push,
@@ -821,8 +824,14 @@ function AdminUsersContent() {
       headers: adminHeaders(currentUserId, true),
       body: JSON.stringify({ action: "toggle_active", currentActive: false }),
     }).catch(() => null);
-    const json = res ? ((await res.json().catch(() => ({}))) as { ok?: boolean; error?: string }) : {};
+    const json = res
+      ? ((await res.json().catch(() => ({}))) as { ok?: boolean; error?: string; code?: string; action?: string; target?: string })
+      : {};
     setReactivatingId("");
+    if (res && !res.ok && json.code === "STEP_UP_REQUIRED" && json.action === "admin_grant" && typeof json.target === "string") {
+      setAdminGrantStepUp({ target: json.target, retry: () => void reactivateUser(target) });
+      return;
+    }
     if (!res || !res.ok || !json.ok) {
       showToast({ title: "İşlem başarısız", message: json.error ?? "Yeniden aktifleştirilemedi.", type: "error" });
       return;
@@ -895,9 +904,16 @@ function AdminUsersContent() {
       }),
     }).catch(() => null);
     const json = res
-      ? ((await res.json().catch(() => ({}))) as { ok?: boolean; error?: string; moduleCount?: number })
+      ? ((await res.json().catch(() => ({}))) as {
+          ok?: boolean; error?: string; moduleCount?: number; code?: string; action?: string; target?: string;
+        })
       : {};
     setCreating(false);
+    if (res && !res.ok && json.code === "STEP_UP_REQUIRED" && json.action === "admin_grant" && typeof json.target === "string") {
+      const ev = e;
+      setAdminGrantStepUp({ target: json.target, retry: () => void handleCreate(ev) });
+      return;
+    }
     if (!res || !res.ok || !json.ok) {
       showToast({
         title: "Kayıt oluşturulamadı",
@@ -918,7 +934,7 @@ function AdminUsersContent() {
               .filter((k) => ADMIN_MODULE_KIND[k] === "module")
               .map((k) => ADMIN_MODULE_UI_LABELS[k])
               .join(", ")}.`
-          : "Yönetici hesabı oluşturuldu.",
+          : "Yönetici hesabı oluşturuldu. İkinci doğrulama zorunludur: yönetici telefonunu eşleştirip siz onaylayana kadar giriş yapamaz.",
       type: "success",
     });
     setReloadTick((n) => n + 1);
@@ -1340,6 +1356,14 @@ function AdminUsersContent() {
           </>
         )}
       </div>
+      {adminGrantStepUp ? (
+        <OwnerStepUpDialog
+          action="admin_grant"
+          targetId={adminGrantStepUp.target}
+          onVerified={() => { const r = adminGrantStepUp.retry; setAdminGrantStepUp(null); r(); }}
+          onCancel={() => setAdminGrantStepUp(null)}
+        />
+      ) : null}
       <ExpertPurgeDialog
         target={purgeTarget}
         headers={() => adminHeaders(currentUserId)}

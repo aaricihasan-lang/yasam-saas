@@ -120,6 +120,28 @@ export const TABLE_POLICY_OVERRIDES: Readonly<Record<string, RestorePolicy>> = {
   // Session/token & rebuild edilebilir → DO_NOT_RESTORE (yalnız metadata/count)
   user_sessions: "DO_NOT_RESTORE",
   demo_numerology_ip_usage: "DO_NOT_RESTORE",
+  // GİRİŞ GÜVENLİĞİ F2-B: MFA challenge / test izni geri yüklenirse MFA atlatılabilir → asla restore edilmez.
+  auth_mfa_challenges: "DO_NOT_RESTORE",
+  auth_mfa_test_accounts: "DO_NOT_RESTORE",
+  // GİRİŞ GÜVENLİĞİ F2-C: güvenilir cihaz / karar / Owner ilk cihaz kodu → asla restore edilmez.
+  auth_trusted_devices: "DO_NOT_RESTORE",
+  auth_device_decisions: "DO_NOT_RESTORE",
+  auth_owner_bootstrap_codes: "DO_NOT_RESTORE",
+  // GİRİŞ GÜVENLİĞİ F2-D: e-posta kodu / gönderim kaydı → asla restore edilmez.
+  auth_email_otps: "DO_NOT_RESTORE",
+  auth_email_deliveries: "DO_NOT_RESTORE",
+  // GİRİŞ GÜVENLİĞİ F2-E: kurtarma kodları / talepler / denetim → asla restore edilmez.
+  auth_recovery_codes: "DO_NOT_RESTORE",
+  auth_recovery_attempts: "DO_NOT_RESTORE",
+  auth_recovery_events: "DO_NOT_RESTORE",
+  auth_recovery_cases: "DO_NOT_RESTORE",
+  auth_email_change_requests: "DO_NOT_RESTORE",
+  auth_device_replacements: "DO_NOT_RESTORE",
+  auth_audit_retention_policy: "DO_NOT_RESTORE",
+  auth_retention_runs: "DO_NOT_RESTORE",
+  auth_retention_holds: "DO_NOT_RESTORE",
+  auth_retention_context: "DO_NOT_RESTORE",
+  auth_retention_log: "DO_NOT_RESTORE",
 };
 
 /**

@@ -127,12 +127,151 @@ export type LoginAttemptResult =
       code: string;
       /** PENDING_APPROVAL: yalnız durum sorgusu için token (normal oturum DEĞİL). */
       pendingToken?: string | null;
+      /** F2-B/F2-C MFA_REQUIRED: ikinci doğrulama bilgisi (oturum DEĞİL; bağlama HttpOnly çerezde). */
+      mfa?: MfaChallengeInfo | null;
       pendingExpiresAt?: string | null;
       /** Sunucunun kullanıcıya gösterilebilir (genel) mesajı; yoksa null. */
       message: string | null;
       retryAfterSeconds: number | null;
       normalizedEmail: string;
     };
+
+/** GİRİŞ GÜVENLİĞİ F2-C: parola sonrası ikinci doğrulama isteği (QR). Token İÇERMEZ. */
+export type MfaChallengeInfo = {
+  challengeId: string;
+  expiresAt: string;
+  methods: string[];
+  qr: { url: string; matchCode: string } | null;
+  /** F2-D: e-posta kodu sunuluyorsa maskeli adres ("f***@a***.com"); tam adres istemciye gelmez. */
+  emailHint: string | null;
+  /** Yalnız resmî Android (çerezsiz) — web'de null; bağlama HttpOnly `__Host-yasam_mfa` çerezinde. */
+  binding: string | null;
+  message: string | null;
+};
+
+export function parseMfaChallenge(j: Record<string, unknown>): MfaChallengeInfo | null {
+  if (j.code !== "MFA_REQUIRED" || typeof j.challengeId !== "string" || typeof j.expiresAt !== "string") return null;
+  const qr = j.qr && typeof j.qr === "object" ? (j.qr as Record<string, unknown>) : null;
+  return {
+    challengeId: j.challengeId,
+    expiresAt: j.expiresAt,
+    methods: Array.isArray(j.methods) ? j.methods.filter((m): m is string => typeof m === "string") : [],
+    qr: qr && typeof qr.url === "string" && typeof qr.matchCode === "string" ? { url: qr.url, matchCode: qr.matchCode } : null,
+    emailHint: typeof j.emailHint === "string" ? j.emailHint : null,
+    binding: typeof j.mfaBinding === "string" ? j.mfaBinding : null,
+    message: typeof j.error === "string" ? j.error : null,
+  };
+}
+
+export type MfaPollState = "pending" | "verified" | "consumed" | "expired" | "denied" | "invalid" | "error";
+
+/** Bekleyen MFA challenge durumu (yalnız bu tarayıcı — bağlama çerezi). Ağ hatası → "error" (karar yok). */
+export async function pollMfaChallenge(info: MfaChallengeInfo, fetchImpl: typeof fetch = fetch): Promise<MfaPollState> {
+  try {
+    const res = await fetchImpl(`/api/auth/mfa/status?challenge=${encodeURIComponent(info.challengeId)}`, {
+      method: "GET",
+      cache: "no-store",
+      credentials: "same-origin",
+      headers: info.binding ? { "x-yasam-mfa-binding": info.binding } : {},
+    });
+    const j = (await res.json().catch(() => ({}))) as { state?: unknown };
+    const s = String(j.state ?? "");
+    const known: readonly string[] = ["pending", "verified", "consumed", "expired", "denied", "invalid"];
+    return known.includes(s) ? (s as MfaPollState) : "error";
+  } catch {
+    return "error";
+  }
+}
+
+/** Doğrulanmış challenge'ı bu tarayıcıda oturuma çevirir (yanıt sözleşmesi POST /api/auth/session ile aynı). */
+export async function completeMfaLogin(
+  info: MfaChallengeInfo,
+  fetchImpl: typeof fetch = fetch,
+): Promise<{ ok: true; row: Record<string, unknown>; sessionToken: string | null; suspiciousLogin: boolean } | { ok: false; code: string; message: string | null }> {
+  let res: Response;
+  try {
+    res = await fetchImpl("/api/auth/mfa/complete", {
+      method: "POST",
+      cache: "no-store",
+      credentials: "same-origin",
+      headers: { "Content-Type": "application/json", ...(info.binding ? { "x-yasam-mfa-binding": info.binding } : {}), ...officialAppHeaders() },
+      body: JSON.stringify({ challengeId: info.challengeId }),
+    });
+  } catch {
+    return { ok: false, code: "NETWORK", message: null };
+  }
+  const j = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+  const row = rpcLoginRowsToArray(j.user)[0];
+  const bodyToken = typeof j.sessionToken === "string" && j.sessionToken ? j.sessionToken : null;
+  if (res.ok && row && (bodyToken || j.sessionCookie === true)) {
+    markTrialNoticePending();
+    return { ok: true, row, sessionToken: bodyToken, suspiciousLogin: j.suspiciousLogin === true || j.highRisk === true };
+  }
+  return { ok: false, code: typeof j.code === "string" ? j.code : `HTTP_${res.status}`, message: typeof j.error === "string" ? j.error : null };
+}
+
+export type MfaEmailResult = { ok: true; expiresAt?: string } | { ok: false; code: string; message: string | null; attemptsLeft?: number; retryAfter?: number };
+
+/** F2-D: bekleyen challenge için e-posta kodu iste / doğrula (yalnız bu tarayıcı — bağlama çerezi). */
+export async function mfaEmailRequest(
+  info: MfaChallengeInfo,
+  action: "send" | "verify",
+  code?: string,
+  fetchImpl: typeof fetch = fetch,
+): Promise<MfaEmailResult> {
+  let res: Response;
+  try {
+    res = await fetchImpl(`/api/auth/mfa/email/${action}`, {
+      method: "POST",
+      cache: "no-store",
+      credentials: "same-origin",
+      headers: { "Content-Type": "application/json", ...(info.binding ? { "x-yasam-mfa-binding": info.binding } : {}), ...officialAppHeaders() },
+      body: JSON.stringify(action === "send" ? { challengeId: info.challengeId } : { challengeId: info.challengeId, code }),
+    });
+  } catch {
+    return { ok: false, code: "NETWORK", message: "Bağlantı kurulamadı. İnternetinizi kontrol edip tekrar deneyin." };
+  }
+  const j = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+  if (res.ok) return { ok: true, ...(typeof j.expiresAt === "string" ? { expiresAt: j.expiresAt } : {}) };
+  return {
+    ok: false,
+    code: typeof j.code === "string" ? j.code : `HTTP_${res.status}`,
+    message: typeof j.error === "string" ? j.error : null,
+    ...(typeof j.attemptsLeft === "number" ? { attemptsLeft: j.attemptsLeft } : {}),
+    ...(typeof j.retryAfter === "number" ? { retryAfter: j.retryAfter } : {}),
+  };
+}
+
+export type MfaRecoveryResult =
+  | { ok: true; remaining: number; kind: "code" | "ticket" | "owner_offline" }
+  | { ok: false; code: string; message: string | null; attemptsLeft?: number };
+
+/** F2-E: bekleyen challenge'ı kurtarma koduyla doğrula (yalnız bu tarayıcı — bağlama çerezi). Kod saklanmaz. */
+export async function mfaRecoveryVerify(info: MfaChallengeInfo, code: string, fetchImpl: typeof fetch = fetch): Promise<MfaRecoveryResult> {
+  let res: Response;
+  try {
+    res = await fetchImpl("/api/auth/mfa/recovery/verify", {
+      method: "POST",
+      cache: "no-store",
+      credentials: "same-origin",
+      headers: { "Content-Type": "application/json", ...(info.binding ? { "x-yasam-mfa-binding": info.binding } : {}), ...officialAppHeaders() },
+      body: JSON.stringify({ challengeId: info.challengeId, code }),
+    });
+  } catch {
+    return { ok: false, code: "NETWORK", message: "Bağlantı kurulamadı. İnternetinizi kontrol edip tekrar deneyin." };
+  }
+  const j = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+  if (res.ok && j.result === "verified") {
+    const kind = j.kind === "ticket" || j.kind === "owner_offline" ? j.kind : "code";
+    return { ok: true, remaining: typeof j.remaining === "number" ? j.remaining : 0, kind };
+  }
+  return {
+    ok: false,
+    code: typeof j.code === "string" ? j.code : `HTTP_${res.status}`,
+    message: typeof j.error === "string" ? j.error : null,
+    ...(typeof j.attemptsLeft === "number" ? { attemptsLeft: j.attemptsLeft } : {}),
+  };
+}
 
 export function normalizeLoginEmail(email: string): string {
   return email.trim().toLowerCase();
@@ -230,6 +369,19 @@ export async function loginWithCredentials(
       normalizedEmail,
       pendingToken: json.pendingToken,
       pendingExpiresAt: typeof json.pendingExpiresAt === "string" ? json.pendingExpiresAt : null,
+    };
+  }
+
+  if (res.status === 202 && json.code === "MFA_REQUIRED") {
+    const mfa = parseMfaChallenge(json as Record<string, unknown>);
+    return {
+      ok: false,
+      status: 202,
+      code: "MFA_REQUIRED",
+      message: typeof json.error === "string" ? json.error : null,
+      retryAfterSeconds: null,
+      normalizedEmail,
+      mfa,
     };
   }
 
