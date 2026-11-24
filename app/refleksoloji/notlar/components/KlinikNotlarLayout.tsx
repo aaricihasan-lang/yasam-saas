@@ -1,6 +1,7 @@
 ﻿"use client";
 
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { useCallback, useRef, useState } from "react";
 import { DemoModuleBanner } from "@/components/demo/DemoModuleBanner";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
@@ -29,6 +30,7 @@ import type { DeleteNoteOutcome } from "../lib/notesSync";
 export function KlinikNotlarLayout() {
   const isDemo = readYasamUser()?.is_demo_account === true;
   const { confirm } = useConfirm();
+  const tc = useTranslations("reflexology.common");
   const { showToast } = useToast();
   const {
     notes,
@@ -340,7 +342,7 @@ export function KlinikNotlarLayout() {
           <LegacyQuarantineBanner
             className="mt-4"
             count={quarantineCount}
-            noun="not"
+            noun={tc("quarantine.nounNote")}
             onImport={() => {
               const r = importQuarantine();
               showToast(
