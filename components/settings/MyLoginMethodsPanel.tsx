@@ -41,7 +41,7 @@ function fmt(iso: string | null): string {
 }
 
 export default function MyLoginMethodsPanel({ userId }: { userId: string }) {
-  const [emailInfo, setEmailInfo] = useState<{ email: string | null; verified: boolean; available: boolean } | null>(null);
+  const [emailInfo, setEmailInfo] = useState<{ email: string | null; verified: boolean; available: boolean; changeAvailable: boolean } | null>(null);
   const [devices, setDevices] = useState<Device[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -61,9 +61,9 @@ export default function MyLoginMethodsPanel({ userId }: { userId: string }) {
         fetch("/api/me/email-verification", { cache: "no-store", headers: headers() }),
         fetch("/api/me/devices", { cache: "no-store", headers: headers() }),
       ]);
-      const ej = (await e.json().catch(() => ({}))) as { email?: string | null; verified?: boolean; available?: boolean; error?: string };
+      const ej = (await e.json().catch(() => ({}))) as { email?: string | null; verified?: boolean; available?: boolean; changeAvailable?: boolean; error?: string };
       const dj = (await d.json().catch(() => ({}))) as { devices?: Device[]; error?: string };
-      if (e.ok) setEmailInfo({ email: ej.email ?? null, verified: ej.verified === true, available: ej.available === true });
+      if (e.ok) setEmailInfo({ email: ej.email ?? null, verified: ej.verified === true, available: ej.available === true, changeAvailable: ej.changeAvailable === true });
       if (d.ok) setDevices(Array.isArray(dj.devices) ? dj.devices : []);
       if (!e.ok || !d.ok) setError(ej.error ?? dj.error ?? "Giriş yöntemleri okunamadı.");
       else setError(null);
@@ -263,7 +263,7 @@ export default function MyLoginMethodsPanel({ userId }: { userId: string }) {
       </div>
 
       {/* F2-E: hesap kurtarma (kurtarma kodları, e-posta / telefon değişimi, açık kurtarma talebi) */}
-      <AccountRecoverySection userId={userId} devices={liveDevices} onChanged={() => void load()} />
+      <AccountRecoverySection userId={userId} devices={liveDevices} onChanged={() => void load()} emailChangeAvailable={emailInfo ? emailInfo.changeAvailable : null} />
     </section>
   );
 }
