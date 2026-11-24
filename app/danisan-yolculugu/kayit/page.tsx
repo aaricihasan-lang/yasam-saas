@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { formatDate } from "@/lib/i18n/format";
-import { resolveLocale, type ActiveLocale } from "@/lib/i18n/locales";
+import { DEFAULT_LOCALE, resolveLocale, type ActiveLocale } from "@/lib/i18n/locales";
 import { useRouter } from "next/navigation";
 import { useBfcacheRefresh } from "@/hooks/useBfcacheRefresh";
 import Link from "next/link";
@@ -330,6 +330,8 @@ function Field({ label, required = false, children }: { label: string; required?
 export default function DanisanKayitPage() {
   const t = useTranslations("clients.form");
   const tList = useTranslations("clients.list");
+  // Sunucu doğrulama metni Türkçedir: kaynak dilde (tr) aynen, diğer dillerde genel çevrilmiş metin (karışık dil yok).
+  const isSourceLocale = useLocale() === DEFAULT_LOCALE;
   const tj = useTranslations("journey.form");
   const router = useRouter();
   useBfcacheRefresh();
@@ -496,7 +498,7 @@ export default function DanisanKayitPage() {
       if (insRes.status === 400) {
         try { serverMsg = ((await insRes.json()) as { error?: string }).error ?? null; } catch { serverMsg = null; }
       }
-      showToast({ title: t("toast.failTitle"), message: serverMsg ?? t("toast.saveError"), type: "error" });
+      showToast({ title: t("toast.failTitle"), message: (isSourceLocale ? serverMsg : null) ?? t("toast.saveError"), type: "error" });
       setSaving(false);
       return;
     }

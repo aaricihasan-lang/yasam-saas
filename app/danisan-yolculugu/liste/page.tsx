@@ -1,7 +1,8 @@
 "use client";
 
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import { DEFAULT_LOCALE } from "@/lib/i18n/locales";
 import { KAN_VALUES } from "@/lib/danisan/clientValidation";
 import { useRouter } from "next/navigation";
 import { useBfcacheRefresh } from "@/hooks/useBfcacheRefresh";
@@ -324,6 +325,7 @@ export default function DanisanListePage() {
   const { showToast } = useToast();
   const deleteConfirm = useDeleteConfirm();
   const tDel = useTranslations("common.deleteConfirm");
+  const isSourceLocale = useLocale() === DEFAULT_LOCALE;
 
   const [sessionUser, setSessionUser] = useState<YasamUser | null>(null);
   const [sessionChecked, setSessionChecked] = useState(false);
@@ -825,7 +827,8 @@ export default function DanisanListePage() {
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        throw new Error((err as { error?: string }).error || t("toast.exportError"));
+        // Sunucu metni Türkçedir: yalnız kaynak dilde (tr) aynen gösterilir; diğer dillerde çevrilmiş genel metin.
+        throw new Error((isSourceLocale ? (err as { error?: string }).error : undefined) || t("toast.exportError"));
       }
       // Dosya adı sunucudan (Content-Disposition); yoksa yerel-gün (İstanbul) yedeği.
       const count = Number(res.headers.get("X-Report-Client-Count")) || scope.count;
