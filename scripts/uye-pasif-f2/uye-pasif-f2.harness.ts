@@ -27,6 +27,7 @@ import { readFileSync } from "node:fs";
 import { createServer } from "node:net";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
+import pg from "pg";
 import { startTestDb, type TestDb } from "../uye-yonetimi-faz2/testDb";
 import { readMig } from "../uye-yonetimi-360/migrationChain";
 
@@ -180,8 +181,26 @@ async function main(): Promise<void> {
       ok(/4a arsiv alani/.test(e2), "ön koşul: users.archived_at yoksa migration fail-closed", { e2 });
     }
 
-    await su.query(readMig(MIG));
-    await su.query(readMig(MIG));
+    // PSF2_EXECUTOR=limited → Supabase benzeri yürütücü (db-privileges-drift-check D4 emsali): süper kullanıcı DEĞİL,
+    // `postgres` üyesi. Migration bu rolle uygulanır; aşağıdaki TÜM testler o koşulda doğrulanır. Varsayılan: süper kullanıcı.
+    if (process.env.PSF2_EXECUTOR === "limited") {
+      await su.query(`create role mig_limited login password 'pw' nosuperuser; grant postgres to mig_limited;`);
+      const lim = new pg.Client({ host: "127.0.0.1", port, user: "mig_limited", password: "pw", database: "postgres" });
+      await lim.connect();
+      try {
+        const who = (await lim.query(`select current_user u, (select rolsuper from pg_roles where rolname = current_user) s`)).rows[0];
+        await lim.query(readMig(MIG));
+        await lim.query(readMig(MIG));
+        const own = (await su.query(`select pg_get_userbyid(proowner) o from pg_proc where proname = 'admin_set_member_access_restriction'`)).rows[0].o;
+        ok(who.u === "mig_limited" && who.s === false && own === "mig_limited",
+          "[X] Supabase benzeri yürütücü (süper kullanıcı DEĞİL, postgres üyesi): migration 2× hatasız; fonksiyon sahibi yürütücü", { who, own });
+      } finally {
+        await lim.end();
+      }
+    } else {
+      await su.query(readMig(MIG));
+      await su.query(readMig(MIG));
+    }
     const s1 = await snap();
     ok(JSON.stringify(s0) === JSON.stringify(s1), "migration 2× uygulandı; users (yeni kolon hariç) / audit / oturum / ödeme / danışan DEĞİŞMEDİ", { s0, s1 });
     const nonNull = (await su.query(`select count(*)::int n from public.users where access_restricted_at is not null`)).rows[0].n;
