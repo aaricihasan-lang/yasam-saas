@@ -818,6 +818,70 @@
         "AROMA_INVALID_UUID": "Invalid record link.",
         "generic": "The action could not be completed. Please try again."
       }
+    },
+    "knowledge": {
+      "page": {
+        "title": "Knowledge Records",
+        "subtitle": "Source-based knowledge records carrying evidence and provenance. Safety topics are handled here as filters and context."
+      },
+      "list": {
+        "prepFilter": "Showing knowledge records linked to a single preparation.",
+        "clearFilter": "Clear filter",
+        "emptyTitle": "No knowledge records yet",
+        "emptyMessage": "There are no source-based knowledge records in this library.",
+        "newRecord": "New Knowledge Record",
+        "searchPlaceholder": "Search conclusion, rationale or context…",
+        "filterType": "Record type",
+        "filterEvidence": "Evidence layer",
+        "filterRationale": "Rationale",
+        "filterStatus": "Status",
+        "sort": "Sort",
+        "sortUpdated": "Last updated",
+        "sortCreated": "Created",
+        "sortType": "Record type",
+        "safetyTopic": "Safety topic",
+        "safetyTopicPlaceholder": "e.g. pregnancy"
+      },
+      "detail": {
+        "titleTyped": "{type} Record",
+        "titleDefault": "Knowledge Record",
+        "crumb": "Knowledge Record",
+        "back": "Back to Knowledge Records",
+        "noun": "knowledge record",
+        "edit": "✏️ Edit",
+        "secConclusion": "Conclusion and Rationale",
+        "conclusion": "Conclusion",
+        "conclusionSource": "Conclusion Source",
+        "recordType": "Record Type",
+        "rationaleStatus": "Rationale Status",
+        "outcomeType": "Outcome Type (Safety)",
+        "safetyTopic": "Safety Topic",
+        "status": "Status",
+        "rationale": "Rationale",
+        "secPreparation": "Preparation and Context",
+        "noPreparation": "No linked preparation found.",
+        "route": "Route of Application",
+        "prepContext": "Preparation Context",
+        "secEvidence": "Evidence and Sources",
+        "evidenceLayer": "Evidence Layer",
+        "noSources": "No linked sources.",
+        "secPassages": "Passages",
+        "noPassages": "No linked passages.",
+        "secRoutes": "Routes and Populations",
+        "routes": "Routes",
+        "populations": "Populations",
+        "noPopulations": "No populations.",
+        "secRelations": "Relations",
+        "noRelations": "No relations are defined for this record.",
+        "openRelated": "Open related record →",
+        "secHistory": "Change History",
+        "historyHint": "Creation and update steps of this record (read-only).",
+        "historyLoading": "Loading history…",
+        "noHistory": "There is no change history for this record.",
+        "reasonPrefix": "Rationale: ",
+        "loading": "Loading…",
+        "more": "Load more"
+      }
     }
   }
 }

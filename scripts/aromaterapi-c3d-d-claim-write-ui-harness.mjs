@@ -41,7 +41,9 @@ check("R02 yeni route create mode", /mode="create"/.test(read(CREATE_PAGE)));
 check("R03 duzenle route var", has(EDIT_PAGE));
 check("R04 duzenle route edit mode", /mode="edit"/.test(read(EDIT_PAGE)));
 check("R05 yeni loading + duzenle loading", has("app/aromaterapi/bilgi-kayitlari/yeni/loading.tsx") && has("app/aromaterapi/bilgi-kayitlari/[id]/duzenle/loading.tsx"));
-check("R06 listede Yeni Bilgi Kaydı aksiyonu", /bilgi-kayitlari\/yeni/.test(read(VIEW)) && /Yeni Bilgi Kaydı/.test(read(VIEW)));
+// I18N (2026-11-25): aksiyon metni aromatherapy.knowledge.list.newRecord anahtarına taşındı; anahtar + TR değer birebir.
+check("R06 listede Yeni Bilgi Kaydı aksiyonu", /bilgi-kayitlari\/yeni/.test(read(VIEW)) && /t\("newRecord"\)/.test(read(VIEW)) &&
+  JSON.parse(read("messages/tr/aromatherapy.json")).aromatherapy.knowledge.list.newRecord === "Yeni Bilgi Kaydı");
 check("R07 detayda Düzenle aksiyonu", /\/duzenle/.test(read(DETAIL)) && /Düzenle/.test(read(DETAIL)));
 check("R08 detayda Sil/DELETE aksiyonu YOK",
   !/Sil<\/|onDelete|handleDelete|deleteKnowledge|deleteClaim|bulk.?delete/i.test(read(DETAIL)));

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEnumLabel, useEnumOptions } from "@/lib/aromaterapi/useEnumLabel";
+import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { useId } from "react";
 import { useAromaterapiListQuery } from "@/app/aromaterapi/_components/read/useAromaterapiListQuery";
@@ -42,6 +43,7 @@ const FILTER_KEYS = [
 export function BilgiKayitlariView() {
   // I18N: seçenek etiketi ekran dilinde (kanonik değer sırası readLabels sözlüğündeki gibi).
   const enumOptionsI18n = useEnumOptions();
+  const t = useTranslations("aromatherapy.knowledge.list");
   const opts = (map: Record<string, string>) => enumOptionsI18n(Object.keys(map), map);
   const s = useAromaterapiListQuery<KnowledgeRecordListItem>({
     fetcher: fetchKnowledgeRecordList,
@@ -57,14 +59,14 @@ export function BilgiKayitlariView() {
       {prepFilter ? (
         <div className="flex flex-wrap items-center gap-2 rounded-xl border border-emerald-100 bg-emerald-50/60 px-3.5 py-2.5">
           <span className="text-[12.5px] font-bold text-emerald-800">
-            Tek preparata bağlı bilgi kayıtları gösteriliyor.
+            {t("prepFilter")}
           </span>
           <button
             type="button"
             onClick={() => s.setFilter("preparation_id", "")}
             className="ml-auto inline-flex min-h-[36px] items-center rounded-lg border border-emerald-200 bg-white px-3 text-[12px] font-black text-emerald-700 shadow-sm transition hover:bg-emerald-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/60"
           >
-            Filtreyi temizle
+            {t("clearFilter")}
           </button>
         </div>
       ) : null}
@@ -80,8 +82,8 @@ export function BilgiKayitlariView() {
         hasActiveQuery={hasActive}
         onPage={s.goToPage}
         onRetry={s.retry}
-        emptyTitle="Henüz bilgi kaydı yok"
-        emptyMessage="Bu tenant kütüphanesinde kaynağa dayalı bilgi kaydı bulunmuyor."
+        emptyTitle={t("emptyTitle")}
+        emptyMessage={t("emptyMessage")}
         gridClassName="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3"
         action={
           <Link
@@ -89,20 +91,20 @@ export function BilgiKayitlariView() {
             className="inline-flex min-h-[44px] items-center gap-1.5 rounded-xl bg-emerald-600 px-4 text-[13px] font-black text-white shadow-sm transition hover:bg-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/60"
           >
             <span aria-hidden>＋</span>
-            Yeni Bilgi Kaydı
+            {t("newRecord")}
           </Link>
         }
         search={
           <ReadSearchBar
             value={s.qInput}
             onChange={s.setQInput}
-            placeholder="Sonuç, gerekçe veya bağlam ara…"
+            placeholder={t("searchPlaceholder")}
           />
         }
         filters={
           <>
             <ReadFilterSelect
-              label="Kayıt türü"
+              label={t("filterType")}
               value={s.filters.claim_type ?? ""}
               options={opts(CLAIM_TYPE_TR)}
               // safety_topic kontrolü yalnız claim_type=safety iken görünür; başka
@@ -112,19 +114,19 @@ export function BilgiKayitlariView() {
               }
             />
             <ReadFilterSelect
-              label="Kanıt katmanı"
+              label={t("filterEvidence")}
               value={s.filters.evidence_layer ?? ""}
               options={opts(EVIDENCE_LAYER_TR)}
               onChange={(v) => s.setFilter("evidence_layer", v)}
             />
             <ReadFilterSelect
-              label="Gerekçe"
+              label={t("filterRationale")}
               value={s.filters.rationale_status ?? ""}
               options={opts(RATIONALE_STATUS_TR)}
               onChange={(v) => s.setFilter("rationale_status", v)}
             />
             <ReadFilterSelect
-              label="Durum"
+              label={t("filterStatus")}
               value={s.filters.status ?? ""}
               options={opts(CLAIM_STATUS_TR)}
               onChange={(v) => s.setFilter("status", v)}
@@ -136,12 +138,12 @@ export function BilgiKayitlariView() {
               />
             ) : null}
             <ReadFilterSelect
-              label="Sırala"
+              label={t("sort")}
               value={s.sort}
-              allLabel="Son güncelleme"
+              allLabel={t("sortUpdated")}
               options={[
-                { value: "created", label: "Oluşturulma" },
-                { value: "type", label: "Kayıt türü" },
+                { value: "created", label: t("sortCreated") },
+                { value: "type", label: t("sortType") },
               ]}
               onChange={s.setSort}
             />
@@ -156,10 +158,11 @@ export function BilgiKayitlariView() {
 /** Güvenlik konusu — dinamik allowlist (^[a-z][a-z0-9_]*$); yalnız geçerliyse uygulanır. */
 function SafetyTopicFilter({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   const id = useId();
+  const t = useTranslations("aromatherapy.knowledge.list");
   return (
     <div className="flex min-w-[160px] flex-col gap-1">
       <label htmlFor={id} className="text-[11px] font-black uppercase tracking-wide text-slate-400">
-        Güvenlik konusu
+        {t("safetyTopic")}
       </label>
       <input
         id={id}
@@ -169,7 +172,7 @@ function SafetyTopicFilter({ value, onChange }: { value: string; onChange: (v: s
           const v = e.target.value.trim();
           if (v === "" || /^[a-z][a-z0-9_]*$/.test(v)) onChange(v);
         }}
-        placeholder="örn. pregnancy"
+        placeholder={t("safetyTopicPlaceholder")}
         className="min-h-[44px] rounded-xl border border-slate-200 bg-white/90 px-3 text-[13px] font-bold text-slate-700 shadow-sm outline-none transition focus-visible:border-emerald-300 focus-visible:ring-2 focus-visible:ring-emerald-300/50"
       />
     </div>

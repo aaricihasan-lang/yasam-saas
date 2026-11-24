@@ -220,7 +220,10 @@ check("U sadık çeviri editoryalle fallback ETMEZ (boşsa dürüst not)",
 
 // Bilgi Kaydı detay "Değişiklik Geçmişi".
 const BK_DETAIL = read("app/aromaterapi/bilgi-kayitlari/[id]/page.tsx");
-check("U bilgi kaydı detayında Değişiklik Geçmişi var", /Değişiklik Geçmişi/.test(BK_DETAIL));
+// I18N (2026-11-25): bölüm başlığı aromatherapy.knowledge.detail.secHistory anahtarına taşındı; anahtar + TR değer birebir.
+check("U bilgi kaydı detayında Değişiklik Geçmişi var",
+  /t\("secHistory"\)/.test(BK_DETAIL) &&
+  JSON.parse(read("messages/tr/aromatherapy.json")).aromatherapy.knowledge.detail.secHistory === "Değişiklik Geçmişi");
 check("U detay create/update/delete butonu yok (C3D)",
   !/Yeni Bilgi Kaydı|Düzenle|Sil<\/button>|onDelete|handleDelete/.test(BK_DETAIL));
 

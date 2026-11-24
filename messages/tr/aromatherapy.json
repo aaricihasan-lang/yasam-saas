@@ -818,6 +818,70 @@
         "AROMA_INVALID_UUID": "Geçersiz kayıt bağlantısı.",
         "generic": "İşlem tamamlanamadı. Lütfen tekrar deneyin."
       }
+    },
+    "knowledge": {
+      "page": {
+        "title": "Bilgi Kayıtları",
+        "subtitle": "Kaynağa dayalı, kanıt ve provenans taşıyan bilgi kayıtları. Güvenlik konuları burada filtre ve bağlam olarak ele alınır."
+      },
+      "list": {
+        "prepFilter": "Tek preparata bağlı bilgi kayıtları gösteriliyor.",
+        "clearFilter": "Filtreyi temizle",
+        "emptyTitle": "Henüz bilgi kaydı yok",
+        "emptyMessage": "Bu tenant kütüphanesinde kaynağa dayalı bilgi kaydı bulunmuyor.",
+        "newRecord": "Yeni Bilgi Kaydı",
+        "searchPlaceholder": "Sonuç, gerekçe veya bağlam ara…",
+        "filterType": "Kayıt türü",
+        "filterEvidence": "Kanıt katmanı",
+        "filterRationale": "Gerekçe",
+        "filterStatus": "Durum",
+        "sort": "Sırala",
+        "sortUpdated": "Son güncelleme",
+        "sortCreated": "Oluşturulma",
+        "sortType": "Kayıt türü",
+        "safetyTopic": "Güvenlik konusu",
+        "safetyTopicPlaceholder": "örn. pregnancy"
+      },
+      "detail": {
+        "titleTyped": "{type} Kaydı",
+        "titleDefault": "Bilgi Kaydı",
+        "crumb": "Bilgi Kaydı",
+        "back": "Bilgi Kayıtlarına dön",
+        "noun": "bilgi kaydı",
+        "edit": "✏️ Düzenle",
+        "secConclusion": "Sonuç ve Gerekçe",
+        "conclusion": "Sonuç",
+        "conclusionSource": "Sonuç Kaynağı",
+        "recordType": "Kayıt Türü",
+        "rationaleStatus": "Gerekçe Durumu",
+        "outcomeType": "Sonuç Tipi (Güvenlik)",
+        "safetyTopic": "Güvenlik Konusu",
+        "status": "Durum",
+        "rationale": "Gerekçe",
+        "secPreparation": "Preparat ve Bağlam",
+        "noPreparation": "Bağlı preparat bulunamadı.",
+        "route": "Uygulama Yolu",
+        "prepContext": "Preparat Bağlamı",
+        "secEvidence": "Kanıt ve Kaynaklar",
+        "evidenceLayer": "Kanıt Katmanı",
+        "noSources": "Bağlı kaynak yok.",
+        "secPassages": "Pasajlar",
+        "noPassages": "Bağlı pasaj yok.",
+        "secRoutes": "Rotalar ve Popülasyonlar",
+        "routes": "Rotalar",
+        "populations": "Popülasyonlar",
+        "noPopulations": "Popülasyon yok.",
+        "secRelations": "İlişkiler",
+        "noRelations": "Bu kayıt için ilişki tanımlı değil.",
+        "openRelated": "İlişkili kaydı aç →",
+        "secHistory": "Değişiklik Geçmişi",
+        "historyHint": "Bu kaydın oluşturma ve güncelleme adımları (salt-okunur).",
+        "historyLoading": "Geçmiş yükleniyor…",
+        "noHistory": "Bu kayıt için değişiklik geçmişi bulunmuyor.",
+        "reasonPrefix": "Gerekçe: ",
+        "loading": "Yükleniyor…",
+        "more": "Daha fazla"
+      }
     }
   }
 }
