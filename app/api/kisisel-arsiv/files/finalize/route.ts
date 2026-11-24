@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requestTranslator } from "@/lib/i18n/serverMessages";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { trackUsage } from "@/lib/usage/trackUsage";
@@ -45,6 +46,7 @@ async function archiveInTenant(
 }
 
 export async function POST(req: NextRequest): Promise<Response> {
+  const te = requestTranslator(req, "archive.personal.api");
   const guard = await requireModuleAccess(req, "personal_archive");
   if (!guard.ok) return guard.response;
   const { db, tenantId, is_demo_account } = guard;
@@ -55,23 +57,23 @@ export async function POST(req: NextRequest): Promise<Response> {
   try {
     body = (await req.json()) as Record<string, unknown>;
   } catch {
-    return NextResponse.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 });
+    return NextResponse.json({ ok: false, error: te("invalidBody") }, { status: 400 });
   }
 
   const archiveId = String(body.archiveId ?? "").trim();
   const path = String(body.path ?? "").trim();
   if (!archiveId || !path) {
-    return NextResponse.json({ ok: false, error: "archiveId ve path gerekli." }, { status: 400 });
+    return NextResponse.json({ ok: false, error: te("archiveIdPathRequired") }, { status: 400 });
   }
 
   // IDOR: archive bu tenant'a ait olmalı.
   if (!(await archiveInTenant(db, archiveId, tenantId))) {
-    return NextResponse.json({ ok: false, error: "Arşiv bu hesaba ait değil." }, { status: 403 });
+    return NextResponse.json({ ok: false, error: te("notOwned") }, { status: 403 });
   }
 
   // Path yalnız bu tenant + archive öneki altında olabilir (client arbitrary path enjekte edemez).
   if (!isOwnedPersonalArchivePath(path, tenantId, archiveId)) {
-    return NextResponse.json({ ok: false, error: "Geçersiz dosya yolu." }, { status: 400 });
+    return NextResponse.json({ ok: false, error: te("invalidPath") }, { status: 400 });
   }
 
   // Güçlü bağlama: obje gerçekten yüklenmiş olmalı — yoksa metadata yazma.
@@ -81,11 +83,11 @@ export async function POST(req: NextRequest): Promise<Response> {
   if (existsError) {
     logArchiveServerError("kisisel-arsiv/files/finalize", "POST:exists", tenantId, existsError);
     await trackUsage(guard, req, { module: "personal_archive", action: "action_failed", failedAction: "file_uploaded", subEntity: "file", errorClass: "server" });
-    return NextResponse.json({ ok: false, error: "Dosya doğrulanamadı." }, { status: 500 });
+    return NextResponse.json({ ok: false, error: te("verifyFailed") }, { status: 500 });
   }
   if (!objectExists) {
     await trackUsage(guard, req, { module: "personal_archive", action: "action_failed", failedAction: "file_uploaded", subEntity: "file", errorClass: "conflict" });
-    return NextResponse.json({ ok: false, error: "Yüklenen dosya bulunamadı." }, { status: 409 });
+    return NextResponse.json({ ok: false, error: te("uploadedMissing") }, { status: 409 });
   }
 
   const fileName = typeof body.fileName === "string" && body.fileName ? body.fileName : "dosya";
@@ -107,9 +109,9 @@ export async function POST(req: NextRequest): Promise<Response> {
     .single();
 
   if (metaError || !row) {
-    logArchiveServerError("kisisel-arsiv/files/finalize", "POST:metadata-insert", tenantId, metaError ?? "satır yok");
+    logArchiveServerError("kisisel-arsiv/files/finalize", "POST:metadata-insert", tenantId, metaError ?? "satır yok"); // i18n-ignore: yalnız sunucu günlüğü
     await trackUsage(guard, req, { module: "personal_archive", action: "action_failed", failedAction: "file_uploaded", subEntity: "file", errorClass: "server" });
-    return NextResponse.json({ ok: false, error: "Dosya kaydedilemedi." }, { status: 500 });
+    return NextResponse.json({ ok: false, error: te("fileSaveFailed") }, { status: 500 });
   }
 
   // USAGE360: yalnız dosya satırının id'si (idempotency); ad/boyut/tür telemetriye GİRMEZ.

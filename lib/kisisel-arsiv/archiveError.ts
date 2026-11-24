@@ -11,6 +11,7 @@
 import { NextResponse } from "next/server";
 import { logServerError } from "@/lib/http/apiError";
 
+// I18N: rotalar istek dilindeki metni (archive.personal.api.serverError) geçirir; bu sabit yalnız geri dönüş (kaynak dil).
 export const ARCHIVE_SERVER_ERROR_MESSAGE = "İşlem tamamlanamadı. Lütfen yeniden deneyin.";
 
 /** Hatayı yalnız sunucuda kontrollü loglar; yanıtta kullanılacak opak ref döner. */
@@ -18,8 +19,8 @@ export function logArchiveServerError(route: string, action: string, tenantId: s
   return logServerError({ route, action, tenantId, cause });
 }
 
-/** Beklenmeyen iç hata → kontrollü log + güvenli Türkçe 500 yanıtı. */
-export function archiveServerErrorResponse(route: string, action: string, tenantId: string, cause: unknown): NextResponse {
+/** Beklenmeyen iç hata → kontrollü log + güvenli 500 yanıtı (metin: istek dilinde, yoksa kaynak dil). */
+export function archiveServerErrorResponse(route: string, action: string, tenantId: string, cause: unknown, message: string = ARCHIVE_SERVER_ERROR_MESSAGE): NextResponse {
   const ref = logArchiveServerError(route, action, tenantId, cause);
-  return NextResponse.json({ ok: false, error: ARCHIVE_SERVER_ERROR_MESSAGE, ref }, { status: 500 });
+  return NextResponse.json({ ok: false, error: message, ref }, { status: 500 });
 }

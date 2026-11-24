@@ -164,7 +164,10 @@ ok(
 // KRİTİK: storage remove hata verirse metadata delete YAPILMAZ → 500 döner (retryable).
 // rmError-guarded 500 dönüşü, metadata delete bloğundan ÖNCE gelmeli (whitespace-insensitive).
 {
-  const idxAbort = filesRoute.indexOf("Dosyalar silinemedi");
+  // I18N (gece 2026-11-25): hata metni archive.personal.api.filesDeleteFailed anahtarına taşındı (TR katalogda birebir).
+  const idxAbort = filesRoute.indexOf('te("filesDeleteFailed")');
+  const archiveTr = JSON.parse(read("messages/tr/archive.personal.json")) as { archive: { personal: { api: Record<string, string> } } };
+  if (!archiveTr.archive.personal.api.filesDeleteFailed.startsWith("Dosyalar silinemedi")) throw new Error("TR katalog metni değişmiş");
   const idxMetaDeleteComment = filesRoute.indexOf("Storage objeleri güvenle kaldırıldı");
   const abortsBeforeMetaDelete =
     idxAbort > -1 && idxMetaDeleteComment > -1 && idxAbort < idxMetaDeleteComment;

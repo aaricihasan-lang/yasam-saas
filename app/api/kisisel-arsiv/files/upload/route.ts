@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requestTranslator } from "@/lib/i18n/serverMessages";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
@@ -53,6 +54,7 @@ async function archiveInTenant(
 }
 
 export async function POST(req: NextRequest): Promise<Response> {
+  const te = requestTranslator(req, "archive.personal.api");
   const guard = await requireModuleAccess(req, "personal_archive");
   if (!guard.ok) return guard.response;
   const { db, tenantId, is_demo_account } = guard;
@@ -64,12 +66,12 @@ export async function POST(req: NextRequest): Promise<Response> {
   try {
     body = (await req.json()) as Record<string, unknown>;
   } catch {
-    return NextResponse.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 });
+    return NextResponse.json({ ok: false, error: te("invalidBody") }, { status: 400 });
   }
 
   const archiveId = String(body.archiveId ?? "").trim();
   if (!archiveId) {
-    return NextResponse.json({ ok: false, error: "archiveId gerekli." }, { status: 400 });
+    return NextResponse.json({ ok: false, error: te("archiveIdRequired") }, { status: 400 });
   }
 
   const rawName = typeof body.fileName === "string" && body.fileName.trim() ? body.fileName : "dosya";
@@ -79,14 +81,14 @@ export async function POST(req: NextRequest): Promise<Response> {
   // URL ile yapıldığından byte'lar sunucudan geçmez, ancak kendi tenant namespace'i).
   if (fileSize != null && Number.isFinite(fileSize) && fileSize > PERSONAL_ARCHIVE_MAX_BYTES) {
     return NextResponse.json(
-      { ok: false, error: "Dosya boyutu 50 MB sınırını aşıyor." },
+      { ok: false, error: te("tooLarge") },
       { status: 413 },
     );
   }
 
   // IDOR: archive bu tenant'a ait olmalı — client'tan tenant/path GÜVENİLMEZ.
   if (!(await archiveInTenant(db, archiveId, tenantId))) {
-    return NextResponse.json({ ok: false, error: "Arşiv bu hesaba ait değil." }, { status: 403 });
+    return NextResponse.json({ ok: false, error: te("notOwned") }, { status: 403 });
   }
 
   // Obje yolu SUNUCUDA üretilir. Yalnız dosya adı client kaynaklı → sanitize edilir.
@@ -100,7 +102,7 @@ export async function POST(req: NextRequest): Promise<Response> {
 
   if (signError || !signed?.token) {
     logArchiveServerError("kisisel-arsiv/files/upload", "POST:createSignedUploadUrl", tenantId, signError ?? "token yok");
-    return NextResponse.json({ ok: false, error: "Yükleme hazırlanamadı." }, { status: 500 });
+    return NextResponse.json({ ok: false, error: te("prepareFailed") }, { status: 500 });
   }
 
   return NextResponse.json({ ok: true, path: signed.path, token: signed.token });
