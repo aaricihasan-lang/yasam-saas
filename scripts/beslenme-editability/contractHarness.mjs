@@ -161,7 +161,8 @@ for (const [n, f] of [["plan Sil (liste)", "app/beslenme/planlar/page.tsx"], ["p
     /<DestructiveChallengeDialog/.test(pd) && /requestPlanDeleteChallenge\(/.test(pd) && /deletePlan\(plan\.id, challengeId, code\)/.test(pd));
 }
 ok("Tek besin + tüm besinler reset → 3 aşamalı dialog", (src("app/beslenme/_components/BesinYonetimiScreen.tsx").match(/<DestructiveChallengeDialog/g) || []).length === 2);
-ok("Sil ≠ Sistem değerine dön (ayrı buton/ayrı akış)", /Sistem Değerine Dön/.test(src("app/beslenme/_components/BesinYonetimiScreen.tsx")) && /deleteFood\(effectiveId\)/.test(src("app/beslenme/_components/BesinYonetimiScreen.tsx")));
+// I18N (gece 25.11): buton metni katalogdan (beslenme.foods.resetOne; TR "Sistem Değerine Dön" birebir). Niyet aynı: ayrı buton.
+ok("Sil ≠ Sistem değerine dön (ayrı buton/ayrı akış)", /\{tb\("resetOne"\)\}/.test(src("app/beslenme/_components/BesinYonetimiScreen.tsx")) && JSON.parse(src("messages/tr/beslenme.json")).beslenme.foods.resetOne === "Sistem Değerine Dön" &&/deleteFood\(effectiveId\)/.test(src("app/beslenme/_components/BesinYonetimiScreen.tsx")));
 
 console.log("\n[6] teknik sahiplik etiketi yok + sistem besini düzenlenebilir");
 const ownerLabelFiles = ["app/beslenme/_components/BesinYonetimiScreen.tsx", "app/beslenme/planlar/_components/FoodPickerDialog.tsx", "app/beslenme/_components/FoodNutrition.tsx"];
