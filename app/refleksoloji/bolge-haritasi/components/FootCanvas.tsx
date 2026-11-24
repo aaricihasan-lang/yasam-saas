@@ -1,5 +1,7 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { FootView, PointSize, Region, RegionDrawShape, RegionToolMode } from "../types";
 import { normalizeThickLineRegion, THICK_LINE_RENDER_STROKE_PX } from "../types";
@@ -8,7 +10,6 @@ import { normalizeThickLineRegion, THICK_LINE_RENDER_STROKE_PX } from "../types"
 const THICK_LINE_WIDTH = 0.003;
 
 import {
-  atlasBackgroundLabel,
   ATLAS_IMAGE_SRC,
   resolveAtlasBackgroundKey,
 } from "../utils/atlasBackground";
@@ -169,9 +170,7 @@ function lockDocumentSelection(lock: boolean) {
 }
 
 // Görselde iki taraf birlikte göründüğünden rozet yalnız görünüm adını taşır (taraf görsel üzerindeki etiketten okunur).
-function buildCanvasBadge(backgroundKey: ReturnType<typeof resolveAtlasBackgroundKey>) {
-  return atlasBackgroundLabel(backgroundKey);
-}
+// I18N: TR metni atlasBackgroundLabel ile birebir (reflexology.common.views.<key>.surface).
 
 export function FootCanvas({
   activeOrgan,
@@ -188,6 +187,8 @@ export function FootCanvas({
   editingAllowed,
   unsavedRegionIds,
 }: FootCanvasProps) {
+  const t = useTranslations("reflexology.zoneMap.canvas");
+  const tViews = useTranslations("reflexology.common.views");
   const canvasRef = useRef<HTMLDivElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
   const imgRef = useRef<HTMLImageElement>(null);
@@ -224,8 +225,8 @@ export function FootCanvas({
   );
 
   const currentImageSrc = ATLAS_IMAGE_SRC[atlasBackgroundKey];
-  const imageAlt = atlasBackgroundLabel(atlasBackgroundKey);
-  const canvasBadge = buildCanvasBadge(atlasBackgroundKey);
+  const imageAlt = tViews(`${atlasBackgroundKey}.surface`);
+  const canvasBadge = imageAlt;
 
   // ÜRÜN KURALI: düzenleme yalnız geniş ekranda. Etkin add/move modları
   // editingAllowed'a bağlanır → tüm handler'lar (draw/move/resize/rotate/line),
@@ -915,7 +916,7 @@ export function FootCanvas({
   return (
     <section
       className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-3xl border border-[#e5e0f7] bg-gradient-to-b from-white to-[#fbf9ff] shadow-[0_16px_36px_-20px_rgba(76,61,140,0.28)]"
-      aria-label="Ayak haritası çalışma alanı"
+      aria-label={t("aria")}
     >
       <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 px-3 pb-2 pt-3 sm:px-4">
         <span className="inline-flex min-h-9 items-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 to-violet-500 px-3.5 text-[13.5px] font-bold text-white shadow-[0_10px_22px_-12px_rgba(109,40,217,0.7)]">
@@ -927,11 +928,11 @@ export function FootCanvas({
         </span>
         <p className="inline-flex min-h-8 items-center gap-2 rounded-xl border border-[#ece8f8] bg-[#f7f5fd] px-3 text-[13px] font-semibold text-[#2a2546]">
           <span className="h-2 w-2 rounded-full bg-emerald-500" aria-hidden />
-          {activeOrgan ? activeOrgan : "Aktif organ yok"} · {visibleRegions.length} bölge
-          {selectedOrgans.length > 1 ? ` · ${selectedOrgans.length} organ overlay` : ""}
-          {isAddMode ? " · Çizim modu" : isMoveMode ? " · Düzenleme modu" : null}
+          {activeOrgan ? activeOrgan : t("noActiveOrgan")} · {t("regionCount", { count: visibleRegions.length })}
+          {selectedOrgans.length > 1 ? t("overlay", { count: selectedOrgans.length }) : ""}
+          {isAddMode ? t("drawMode") : isMoveMode ? t("editMode") : null}
           {unsavedRegionIds && unsavedRegionIds.size > 0 ? (
-            <span className="text-red-700"> · {unsavedRegionIds.size} kaydedilmemiş</span>
+            <span className="text-red-700">{t("unsaved", { count: unsavedRegionIds.size })}</span>
           ) : null}
         </p>
         {/* W11: çizim talimatı ve W10 uyarısı harita görselinin DIŞINDA (başlık şeridinde) → görseldeki
@@ -942,12 +943,14 @@ export function FootCanvas({
             className="pointer-events-none order-last w-full rounded-full border border-violet-300/70 bg-white/92 px-3 py-1 text-center text-xs font-semibold text-violet-900 shadow-sm sm:text-sm"
           >
             {drawShape === "free_draw"
-              ? `«${activeOrgan}» için basılı tutup çizin`
+              ? t("drawFree", { organ: activeOrgan })
               : drawShape === "point"
-                ? `«${activeOrgan}» için dokunarak nokta koyun`
+                ? t("drawPoint", { organ: activeOrgan })
                 : drawShape === "thick_line"
-                  ? `«${activeOrgan}» için sürükleyerek kalın çizgi çizin`
-                  : `«${activeOrgan}» için sürükleyerek ${drawShape === "rect" ? "kare" : "oval"} çizin`}
+                  ? t("drawThick", { organ: activeOrgan })
+                  : drawShape === "rect"
+                    ? t("drawRect", { organ: activeOrgan })
+                    : t("drawOval", { organ: activeOrgan })}
           </p>
         ) : showToolRequired ? (
           <p
@@ -955,7 +958,7 @@ export function FootCanvas({
             data-testid="tool-required"
             className="pointer-events-none order-last w-full rounded-full border border-amber-300/80 bg-amber-50/95 px-3 py-1 text-center text-xs font-bold text-amber-950 shadow-sm sm:text-sm"
           >
-            Önce alttan çizim modelini seçin
+            {t("toolRequired")}
           </p>
         ) : null}
       </div>
@@ -984,7 +987,7 @@ export function FootCanvas({
             />
           ) : (
             <p className="absolute inset-0 z-0 flex items-center justify-center px-6 text-center text-sm font-semibold text-amber-900">
-              Atlas görseli yüklenemedi.
+              {t("imageFailed")}
             </p>
           )}
 
@@ -998,7 +1001,7 @@ export function FootCanvas({
               role="status"
               aria-live="polite"
             >
-              Ayak görseli yükleniyor…
+              {t("imageLoading")}
             </p>
           ) : null}
 
@@ -1035,21 +1038,21 @@ export function FootCanvas({
             >
               {showOrganRequired ? (
                 <p className="pointer-events-none absolute left-1/2 top-2 z-40 -translate-x-1/2 whitespace-nowrap rounded-full border border-amber-300/80 bg-amber-50/95 px-3 py-1.5 text-sm font-bold text-amber-950 shadow-sm">
-                  Önce soldan bir organ seçiniz.
+                  {t("selectOrganFirst")}
                 </p>
               ) : null}
 
               {isMoveMode ? (
                 <p className="pointer-events-none absolute top-2 right-2 z-40 rounded-full border border-sky-300/70 bg-sky-50/95 px-2.5 py-1 text-xs font-semibold text-sky-950 shadow-sm">
-                  Seç · sürükle · boyutlandır · döndür
+                  {t("editHint")}
                 </p>
               ) : null}
 
               {visibleRegions.length === 0 && !isAddMode ? (
                 <p className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center px-4 text-center text-sm font-medium text-slate-500">
                   {editingAllowed
-                    ? "Bu görünümde henüz çizilmiş bölge yok. Alttan bir çizim modeli seçerek çizmeye başlayın."
-                    : "Bu görünümde çizili bölge yok. Bölge ekleme bilgisayardan yapılır."}
+                    ? t("emptyEditable")
+                    : t("emptyReadonly")}
                 </p>
               ) : null}
 

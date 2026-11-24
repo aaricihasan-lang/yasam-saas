@@ -1,5 +1,7 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+
 import { useSyncExternalStore } from "react";
 import {
   getReflexologySyncStatus,
@@ -39,6 +41,7 @@ const DOT: Record<ReflexologySyncState, string> = {
 };
 
 export function SyncStatusBadge({ className = "" }: { className?: string }) {
+  const tc = useTranslations("reflexology.common");
   const status = useReflexologySyncStatus();
   if (status.state === "idle") return null;
 
@@ -60,7 +63,7 @@ export function SyncStatusBadge({ className = "" }: { className?: string }) {
           onClick={() => status.retry?.()}
           className="ml-1 rounded-md px-1.5 py-0.5 text-[11px] font-bold underline underline-offset-2 hover:opacity-80"
         >
-          Yeniden dene
+          {tc("retry")}
         </button>
       ) : null}
     </span>

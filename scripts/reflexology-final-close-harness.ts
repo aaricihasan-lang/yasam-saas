@@ -478,7 +478,9 @@ async function main() {
     ok("T9 canDraw imageReady gerektirir", /const canDraw = isAddMode && activeOrgan && imageReady/.test(src));
     ok("T9 pointerdown imageReady olmadan çizmez", /!activeOrgan \|\| !imageReady\) return;/.test(src));
     ok("T9 overlay (bölgeler + çizim katmanı) görsel hazır olmadan render edilmez", /\{imageReady && imageRect\.width > 0 \? \(/.test(src));
-    ok("T9 yükleniyor durumu gösterilir", /Ayak görseli yükleniyor…/.test(src));
+    // I18N (gece, Ajan K2): metin katalogda (reflexology.zoneMap.canvas.imageLoading; TR "Ayak görseli yükleniyor…" birebir).
+    const zoneTr = JSON.parse(readFileSync("messages/tr/reflexology.zoneMap.json", "utf8")).reflexology.zoneMap;
+    ok("T9 yükleniyor durumu gösterilir", /\{t\("imageLoading"\)\}/.test(src) && zoneTr.canvas.imageLoading === "Ayak görseli yükleniyor…");
     ok("T9 önbellekten yüklenmiş görsel yarışı ele alınır (img.complete)", /img\.complete && img\.naturalWidth > 0/.test(src));
     const { computeObjectContainRect } = await import("@/app/refleksoloji/bolge-haritasi/utils/imageContainRect");
     const full = computeObjectContainRect(930, 753, 0, 0);
