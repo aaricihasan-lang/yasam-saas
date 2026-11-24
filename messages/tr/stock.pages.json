@@ -1,0 +1,80 @@
+{
+  "stock": {
+    "pages": {
+      "oil": {
+        "eyebrow": "Yağ Ürünleri",
+        "title": "Yağ Ürün / Stok",
+        "subtitle": "Uçucu, sabit, karışım ve maserasyon yağları — litre/kg girişi otomatik ml/gram birim maliyetine çevrilir.",
+        "oilType": "Yağ türü",
+        "oilTypePh": "Örn. Hidrosol",
+        "bottleVolume": "Şişe hacmi",
+        "customVolume": "Özel hacim",
+        "packageType": "Paket tipi",
+        "packagePh": "Örn. amber cam şişe",
+        "colType": "Tür",
+        "colBottle": "Şişe",
+        "colPackage": "Paket",
+        "tabStock": "Yağ Stok",
+        "newRecord": "Yeni Yağ Ürünü"
+      },
+      "soapCream": {
+        "eyebrow": "Sabun & Krem",
+        "title": "Sabun / Krem Ürünleri",
+        "subtitle": "Doğal sabun, krem ve bakım ürünleri — gram/kg ve ml/litre otomatik dönüşür; birim maliyet satış miktarına göre hesaplanır.",
+        "groupPh": "Örn. Dudak balmı",
+        "packagingType": "Ambalaj tipi",
+        "packagingPh": "Örn. teneke kutu",
+        "netQty": "Net miktar",
+        "netQtyPh": "örn. 100 gram, 50 ml, 1 adet",
+        "expiry": "Son kullanma (opsiyonel)",
+        "lot": "Parti / lot no (opsiyonel)",
+        "colNet": "Net",
+        "colPackaging": "Ambalaj",
+        "colExpiry": "SKT",
+        "colLot": "Lot"
+      },
+      "other": {
+        "title": "Diğer Ürünler",
+        "subtitle": "Kategoriye sığmayan tüm ürünler — esnek grup, varyasyon ve ölçü — adet, gram/kg ve ml/litre — birim maliyet otomatik hesaplanır.",
+        "variantHint": "Beden, renk, model gibi varyasyonlar için ayrı stok satırı açabilirsiniz.",
+        "groupPh": "Örn. Kırtasiye",
+        "subCategory": "Alt kategori / ürün tipi",
+        "subCategoryPh": "Örn. Tişört, Mum, Workshop",
+        "variantType": "Varyasyon türü",
+        "variantValue": "Varyasyon değeri",
+        "variantPh": "M, Kırmızı, Set-A...",
+        "colSubCategory": "Alt Kategori",
+        "colVariant": "Varyasyon"
+      },
+      "accessory": {
+        "eyebrow": "Tespih & Takı",
+        "title": "Tespih / Takı / Aksesuar",
+        "subtitle": "Renk, ölçü ve model varyasyonları ayrı stok satırı olarak tutulur; satış adet bazlı, maliyet ve kar otomatik hesaplanır.",
+        "variantHint": "Aynı ürünün farklı renk / ölçü / modeli için ayrı satır açın (ör. Kaplan Gözü Bileklik | 18 cm | Kahverengi).",
+        "groupPh": "Örn. Halhal",
+        "model": "Ürün tipi / model",
+        "material": "Malzeme",
+        "materialPh": "Örn. pirinç",
+        "colour": "Renk",
+        "colourPh": "Kahverengi, Gümüş...",
+        "sizeType": "Ölçü / beden türü",
+        "sizeValue": "Ölçü değeri",
+        "sizePh": "18 cm, 45 cm, 33 tane...",
+        "stockCount": "Stok adedi",
+        "unitHint": "Alış maliyeti ve stok adedi girildiğinde hesaplanır.",
+        "colModel": "Model",
+        "colMaterial": "Malzeme",
+        "colColour": "Renk",
+        "colSize": "Ölçü",
+        "colCount": "Adet",
+        "saleLabelPh": "Satış etiketi",
+        "savedUnitPrice": "Kayıtlı birim fiyat",
+        "qtyToSell": "Satılacak adet",
+        "saveBtn": "Kaydediliyor…",
+        "unitQty": "{qty} adet",
+        "deduct": "Stok düşümü: {qty} adet",
+        "soldSummary": "Satılan Ürün: {count} adet"
+      }
+    }
+  }
+}

@@ -1,5 +1,7 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+
 import { runInEffect } from "@/lib/runInEffect";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -145,6 +147,7 @@ function PhotoGalleryModal({
   photos: string[];
   onClose: () => void;
 }) {
+  const tS = useTranslations("stock.common");
   const [idx, setIdx] = useState(0);
   const safe = photos.length ? photos : [];
 
@@ -156,7 +159,7 @@ function PhotoGalleryModal({
           onClick={onClose}
           className="absolute right-4 top-4 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-black"
         >
-          Kapat
+          {tS("close")}
         </button>
         <h3 className="mb-4 text-xl font-black text-slate-900">Fotoğraf Galerisi</h3>
         {safe.length === 0 ? (
@@ -193,6 +196,7 @@ function PhotoGalleryModal({
 }
 
 function SalesDetailModal({ record, onClose }: { record: SaleRecord; onClose: () => void }) {
+  const tS = useTranslations("stock.common");
   const [gallery, setGallery] = useState<string[] | null>(null);
   const photos = record.photos || [];
 
@@ -243,7 +247,7 @@ function SalesDetailModal({ record, onClose }: { record: SaleRecord; onClose: ()
           </div>
           <div className="border-t border-slate-100 p-4 text-right">
             <button type="button" onClick={onClose} className={btnSecondary}>
-              Kapat
+              {tS("close")}
             </button>
           </div>
         </div>
@@ -262,6 +266,7 @@ type RecipeRow = {
 };
 
 export default function DogaltasUrunStokPage() {
+  const tS = useTranslations("stock.common");
   useBfcacheRefresh();
   const deleteConfirm = useDeleteConfirm();
   const committingRef = useRef(false);
@@ -372,7 +377,7 @@ export default function DogaltasUrunStokPage() {
     // Çift gönderim kilidi (senkron, ilk ifade): ikinci tık yok sayılır.
     return saveLock
       .run(() => addStockNow())
-      .catch((e: unknown) => setStockMsg(e instanceof Error ? e.message : "Kayıt tamamlanamadı."));
+      .catch((e: unknown) => setStockMsg(e instanceof Error ? e.message : tS("msg.saveIncomplete")));
   }
 
   async function addStockNow() {
@@ -423,7 +428,7 @@ export default function DogaltasUrunStokPage() {
       setInventory(items);
       if (!saved) {
         setStockMsg(
-          "⚠ Tarayıcı depolama alanı doldu. Fotoğraf boyutlarını küçültün veya bazı kayıtları silin.",
+          tS("msg.storageFull"),
         );
         return;
       }
@@ -441,14 +446,14 @@ export default function DogaltasUrunStokPage() {
           retryRef.current = null;
           await reloadInventory();
           setStockMsg(
-            "Stok bu arada başka bir işlemle (ör. satış) değişti; kayıt yazılmadı. Güncel stok yüklendi — formu kontrol edip yeniden kaydedin.",
+            tS("msg.conflict"),
           );
           return;
         }
         if (!res.ok) {
           retryRef.current = { signature, targetId: targetKey, isNew: false, baseStock };
           setStockMsg(
-            `Kayıt cihazınıza eklendi ancak buluta yazılamadı: ${res.error}. İnternet bağlantınızı kontrol edip kaydı yeniden ekleyin.`,
+            tS("msg.cloudAddFailed", { error: String(res.error ?? "") }),
           );
           return; // Alanları temizleme — kullanıcı tekrar deneyebilsin.
         }
@@ -457,8 +462,8 @@ export default function DogaltasUrunStokPage() {
         await reloadInventory();
         setStockMsg(
           res.created
-            ? "Kayıt eklendi ve buluta kaydedildi (tüm cihazlarda görünür)."
-            : "Kayıt güncellendi ve buluta kaydedildi.",
+            ? tS("msg.cloudAdded")
+            : tS("msg.cloudUpdated"),
         );
       }
     }
@@ -487,11 +492,11 @@ export default function DogaltasUrunStokPage() {
     try {
       const removedKeys = new Set(removed.map((it) => itemKeyFrom(it)));
       const ok = await deleteConfirm({
-        title: "Stok kaydı silinecek",
-        message: `Seçili ${removed.length} stok kaydı kalıcı olarak silinecek. Bu işlem geri alınamaz.`,
+        title: tS("msg.deleteTitle"),
+        message: tS("msg.deleteMessage", { count: String(removed.length) }),
         names: removed.map((it) => [it.name, it.type].filter(Boolean).join(" — ") || "(adsız taş)"),
         count: removed.length,
-        noun: "stok kaydı",
+        noun: tS("msg.noun"),
       });
       if (!ok) return;
       const count = removed.length;
@@ -505,14 +510,14 @@ export default function DogaltasUrunStokPage() {
           return;
         }
         setSelectedKeys(new Set());
-        setStockMsg(`${count} kayıt silindi.`);
+        setStockMsg(tS("msg.recordsDeleted", { count }));
         return;
       }
       const next = inventory.filter((it) => !removedKeys.has(itemKeyFrom(it)));
       saveInventory(next);
       setInventory(next);
       setSelectedKeys(new Set());
-      setStockMsg(`${count} kayıt silindi.`);
+      setStockMsg(tS("msg.recordsDeleted", { count }));
     } finally {
       deleteBusyRef.current = false;
       setDeleteBusy(false);
@@ -718,7 +723,7 @@ export default function DogaltasUrunStokPage() {
         void reloadSales();
         setBasket([]);
         resetProductForm();
-        setPricingMsg("Demo: satış önizlendi (kalıcı kayıt yapılmaz).");
+        setPricingMsg(tS("msg.demoPreview"));
         return;
       }
 
@@ -735,7 +740,7 @@ export default function DogaltasUrunStokPage() {
       const { res, attempt } = await submitCategorySale({ category: "dogaltas", lines, current: saleAttemptRef.current });
       saleAttemptRef.current = attempt;
       if (!res.ok) {
-        setPricingMsg(res.error ?? "Satış kaydedilemedi.");
+        setPricingMsg(res.error ?? tS("msg.saleFailed"));
         await reloadInventory(); // gerçek stok yenilensin
         return;
       }
@@ -743,9 +748,9 @@ export default function DogaltasUrunStokPage() {
       resetProductForm();
       await reloadInventory(); // stok DB'den (canonical) yeniden yüklenir
       await reloadSales(); // geçmiş DB'den (yeni satış görünür)
-      setPricingMsg(res.duplicate ? DUPLICATE_SALE_MESSAGE : "Satış kaydedildi, stok düşüldü.");
+      setPricingMsg(res.duplicate ? DUPLICATE_SALE_MESSAGE : tS("msg.saleSaved"));
     } catch {
-      setPricingMsg("Satış sırasında ağ hatası. Lütfen tekrar deneyin.");
+      setPricingMsg(tS("msg.networkError"));
       await reloadInventory();
     } finally {
       committingRef.current = false;
@@ -786,7 +791,7 @@ export default function DogaltasUrunStokPage() {
       saveSales(next);
       setSales(next);
       setStockMsg(missing.length > 0
-        ? `İptal edildi. Uyarı: ${[...new Set(missing)].join(", ")} stoğu bulunamadı.`
+        ? tS("msg.cancelledMissing", { list: [...new Set(missing)].join(", ") })
         : `${toCancel.length} satış iptal edildi, ${restoredCount} stok kalemi güncellendi (demo).`);
       return;
     }
@@ -809,7 +814,7 @@ export default function DogaltasUrunStokPage() {
       const next = sales.filter((r) => !recs.includes(r));
       saveSales(next);
       setSales(next);
-      setStockMsg(`${recs.length} satış listeden kaldırıldı (demo; stok değişmedi).`);
+      setStockMsg(tS("msg.hiddenDemo", { count: String(recs.length) }));
       return;
     }
     const ids = recs.map((r) => r.saleId).filter((x): x is string => Boolean(x));
@@ -822,7 +827,7 @@ export default function DogaltasUrunStokPage() {
     return (
       <main className={pageBg}>
         <div className="flex min-h-screen items-center justify-center text-lg font-semibold text-slate-600">
-          Yükleniyor…
+          {tS("loading")}
         </div>
       </main>
     );
@@ -1048,7 +1053,7 @@ export default function DogaltasUrunStokPage() {
                     else setPendingPhotos((prev) => [...prev, ...urls]);
                   }}
                 >
-                  📷 Çek
+                  {tS("capture")}
                 </CameraCaptureButton>
                 <button type="button" className={btnPrimary} onClick={() => void handleAddStock()} disabled={saveLock.pending} aria-busy={saveLock.pending}>
                   Ekle
@@ -1076,8 +1081,8 @@ export default function DogaltasUrunStokPage() {
                   <option>Taş Adı (A→Z)</option>
                   <option>Taş Adı (Z→A)</option>
                   <option>Tür (A→Z)</option>
-                  <option>Stok (Az→Çok)</option>
-                  <option>Stok (Çok→Az)</option>
+                  <option value={SORT_STOCK_ASC}>{tS("sort.stockAsc")}</option>
+                  <option value={SORT_STOCK_DESC}>{tS("sort.stockDesc")}</option>
                 </select>
                 <input
                   className={inputClass}
@@ -1246,7 +1251,7 @@ export default function DogaltasUrunStokPage() {
                   else setProductPhotos((prev) => [...prev, ...urls]);
                 }}
               >
-                📷 Çek
+                {tS("capture")}
               </CameraCaptureButton>
 
               <div className="rounded-xl border-2 border-sky-200/90 bg-gradient-to-br from-sky-50 via-white to-violet-50/80 p-3">
@@ -1323,7 +1328,7 @@ export default function DogaltasUrunStokPage() {
                             className="text-sm font-black text-red-600"
                             onClick={() => setRecipeRows((rows) => rows.filter((_, j) => j !== i))}
                           >
-                            Sil
+                            {tS("delete")}
                           </button>
                         </td>
                       </tr>
@@ -1377,7 +1382,7 @@ export default function DogaltasUrunStokPage() {
                 </div>
               ) : (
                 <button type="button" className={`${btnPrimary} w-full`} onClick={addToBasket}>
-                  Sepete Ekle
+                  {tS("addToBasket")}
                 </button>
               )}
               {pricingMsg ? (
@@ -1388,7 +1393,7 @@ export default function DogaltasUrunStokPage() {
             </section>
 
             <section className={`${panelClass} w-full`}>
-              <h2 className="mb-4 text-xl font-black">Sepet</h2>
+              <h2 className="mb-4 text-xl font-black">{tS("basket")}</h2>
               <div className="space-y-3">
                 {basket.length === 0 ? (
                   <p className="py-6 text-center text-sm font-semibold text-slate-500">
@@ -1425,7 +1430,7 @@ export default function DogaltasUrunStokPage() {
                             className="text-sm font-black text-violet-700 hover:text-violet-900"
                             onClick={() => startEditBasketItem(item)}
                           >
-                            Düzenle
+                            {tS("edit")}
                           </button>
                           <button
                             type="button"
@@ -1437,7 +1442,7 @@ export default function DogaltasUrunStokPage() {
                               setPricingMsg("Ürün sepetten çıkarıldı.");
                             }}
                           >
-                            Sil
+                            {tS("delete")}
                           </button>
                         </div>
                       </div>
@@ -1476,7 +1481,7 @@ export default function DogaltasUrunStokPage() {
                   onClick={clearBasket}
                   disabled={!basket.length}
                 >
-                  Sepeti Temizle
+                  {tS("clearBasket")}
                 </button>
                 <button
                   type="button"
@@ -1484,7 +1489,7 @@ export default function DogaltasUrunStokPage() {
                   onClick={() => void commitSale()}
                   disabled={!basket.length || isCommitting}
                 >
-                  {isCommitting ? "Kaydediliyor…" : "Satışı Kaydet"}
+                  {isCommitting ? tS("saving") : tS("commitSale")}
                 </button>
               </div>
             </section>
