@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requestTranslator } from "@/lib/i18n/serverMessages";
+import { resolveOutputLocale } from "@/lib/i18n/output";
 import { getServerDb } from "@/lib/supabase-server";
 import { extractClientIp } from "@/lib/auth/sessionSecurity";
 import { isAndroidAppRequest } from "@/lib/auth/sessionCookie";
@@ -12,7 +14,7 @@ export const runtime = "nodejs";
 
 const NO_STORE = { "Cache-Control": "no-store" } as const;
 const json = (body: Record<string, unknown>, status: number) => NextResponse.json(body, { status, headers: NO_STORE });
-const INVALID = "Giriş isteği geçersiz veya süresi dolmuş. Lütfen yeniden giriş yapın.";
+const INVALID = "common.invalidOrExpiredRelogin"; // auth.server katalog anahtarı (I18N-F1-R1)
 
 /**
  * POST /api/auth/mfa/recovery/verify — GİRİŞ GÜVENLİĞİ F2-E: kurtarma kodu (veya Owner çevrimdışı kodu /
@@ -25,21 +27,22 @@ const INVALID = "Giriş isteği geçersiz veya süresi dolmuş. Lütfen yeniden 
  * başına (parolasız) hiçbir şey açamaz. Kod yanıtta / logda yer almaz.
  */
 export async function POST(req: NextRequest) {
+  const te = requestTranslator(req, "auth.server");
   const androidApp = isAndroidAppRequest(req.headers);
   try {
-    if (!androidApp && !checkSameOriginRequest(req.headers).ok) return json({ code: "FORBIDDEN", error: "İstek kaynağı doğrulanamadı." }, 403);
+    if (!androidApp && !checkSameOriginRequest(req.headers).ok) return json({ code: "FORBIDDEN", error: te("common.forbiddenOrigin") }, 403);
     const body = (await req.json().catch(() => null)) as { challengeId?: unknown; code?: unknown } | null;
     const challengeId = typeof body?.challengeId === "string" ? body.challengeId.trim() : "";
     const binding = readMfaBinding(req, androidApp);
-    if (!isMfaChallengeId(challengeId) || !binding) return json({ code: "MFA_INVALID", error: INVALID }, 401);
+    if (!isMfaChallengeId(challengeId) || !binding) return json({ code: "MFA_INVALID", error: te(INVALID) }, 401);
 
     const db = getServerDb();
     const hit = await hitDbRateLimit(db, rateLimitBucket("mfa-recovery-verify-ip", extractClientIp(req.headers)), 20, 15 * 60);
-    if (!hit.allowed) return json({ code: "RATE_LIMITED", error: "Çok fazla deneme. Lütfen biraz sonra tekrar deneyin.", retryAfter: hit.retryAfterSec }, 429);
+    if (!hit.allowed) return json({ code: "RATE_LIMITED", error: te("common.tooManyAttempts"), retryAfter: hit.retryAfterSec }, 429);
 
     const bindingHash = hashMfaBinding(binding);
     const st = await readMfaChallengeState(db, challengeId, bindingHash);
-    if (!st || st.state !== "pending" || !st.userId) return json({ code: "MFA_INVALID", error: INVALID }, 401);
+    if (!st || st.state !== "pending" || !st.userId) return json({ code: "MFA_INVALID", error: te(INVALID) }, 401);
 
     const code = normalizeRecoveryCode(body?.code);
     // Biçim dışı giriş de bir YANLIŞ denemedir (sayaç DB'de); geçersiz biçimli bir özet DB'ye gider ve
@@ -50,7 +53,7 @@ export async function POST(req: NextRequest) {
       p_browser_secret_hash: bindingHash,
       p_code_hash: codeHash,
     });
-    if (error) return json({ code: "ERROR", error: "Kod doğrulanamadı." }, 500);
+    if (error) return json({ code: "ERROR", error: te("common.codeVerifyFailed") }, 500);
     const r = (data ?? {}) as { ok?: unknown; reason?: unknown; attempts_left?: unknown; kind?: unknown; remaining?: unknown; retry_after?: unknown };
     if (r.ok === true) {
       const { data: u } = await db.from("users").select("email, name, full_name").eq("id", st.userId).maybeSingle();
@@ -60,22 +63,23 @@ export async function POST(req: NextRequest) {
         to: typeof user.email === "string" ? user.email : null,
         name: (typeof user.full_name === "string" && user.full_name) || (typeof user.name === "string" ? user.name : null),
         kind: r.kind === "owner_offline" ? "owner_offline_login" : "recovery_login",
+        locale: resolveOutputLocale(req).locale,
       });
       return json({ result: "verified", remaining: Number(r.remaining) || 0, kind: r.kind === "case_ticket" ? "ticket" : r.kind === "owner_offline" ? "owner_offline" : "code" }, 200);
     }
     switch (r.reason) {
       case "wrong": {
         const left = Number(r.attempts_left);
-        return json({ code: "RECOVERY_WRONG", error: `Kurtarma kodu geçersiz veya daha önce kullanılmış.${Number.isFinite(left) ? ` Kalan deneme: ${left}.` : ""}`, attemptsLeft: Number.isFinite(left) ? left : null }, 401);
+        return json({ code: "RECOVERY_WRONG", error: `${te("recovery.wrong")}${Number.isFinite(left) ? te("common.attemptsLeft", { count: String(left) }) : ""}`, attemptsLeft: Number.isFinite(left) ? left : null }, 401);
       }
       case "locked":
-        return json({ code: "RECOVERY_LOCKED", error: "Kurtarma kodu 5 kez hatalı girildi. Güvenliğiniz için bu giriş isteği kapatıldı; lütfen yeniden giriş yapın." }, 401);
+        return json({ code: "RECOVERY_LOCKED", error: te("recovery.locked") }, 401);
       case "rate_limited":
-        return json({ code: "RATE_LIMITED", error: "Son 24 saatte çok fazla hatalı kurtarma kodu girildi. Lütfen daha sonra tekrar deneyin veya sistem yöneticinize başvurun.", retryAfter: Number(r.retry_after) || 3600 }, 429);
+        return json({ code: "RATE_LIMITED", error: te("recovery.rateLimited24h"), retryAfter: Number(r.retry_after) || 3600 }, 429);
       default:
-        return json({ code: "MFA_INVALID", error: INVALID }, 401);
+        return json({ code: "MFA_INVALID", error: te(INVALID) }, 401);
     }
   } catch {
-    return json({ code: "ERROR", error: "Kod doğrulanamadı." }, 500);
+    return json({ code: "ERROR", error: te("common.codeVerifyFailed") }, 500);
   }
 }

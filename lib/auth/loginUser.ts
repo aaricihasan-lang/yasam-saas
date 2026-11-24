@@ -1,6 +1,18 @@
 import { markTrialNoticePending } from "@/lib/trial/trialNoticeStore";
 import { clearYasamUser, readStoredSessionToken } from "@/lib/auth/yasamUser";
 import { ANDROID_APP_UA_SUFFIX, CLIENT_CHANNEL_HEADER } from "@/lib/auth/clientChannel";
+// Yalnız tek anahtarlık küçük istemci sözlüğü (auth.server kataloğunun tamamı istemci paketine GİRMEZ — F1-R2).
+import trAuthClient from "@/messages/tr/auth.client.json";
+import enAuthClient from "@/messages/en/auth.client.json";
+
+/**
+ * I18N-F1-R1: tarayıcı modülü — sunucu çevirmenini kullanamaz. Ağ hatası metni katalogdan (auth.client.network)
+ * sayfanın etkin diline (<html lang>, sunucunun yayın kapısı dahil çözdüğü dil) göre seçilir. Türkçe metin birebir aynı.
+ */
+function networkMessage(): string {
+  const lang = typeof document !== "undefined" ? document.documentElement.lang : "";
+  return (lang === "en" ? enAuthClient : trAuthClient).auth.client.network;
+}
 
 /**
  * Onay bekleyen admin web girişinin token'ı — YALNIZ durum sorgusu / iptal içindir; normal oturum
@@ -229,7 +241,7 @@ export async function mfaEmailRequest(
       body: JSON.stringify(action === "send" ? { challengeId: info.challengeId } : { challengeId: info.challengeId, code }),
     });
   } catch {
-    return { ok: false, code: "NETWORK", message: "Bağlantı kurulamadı. İnternetinizi kontrol edip tekrar deneyin." };
+    return { ok: false, code: "NETWORK", message: networkMessage() };
   }
   const j = (await res.json().catch(() => ({}))) as Record<string, unknown>;
   if (res.ok) return { ok: true, ...(typeof j.expiresAt === "string" ? { expiresAt: j.expiresAt } : {}) };
@@ -258,7 +270,7 @@ export async function mfaRecoveryVerify(info: MfaChallengeInfo, code: string, fe
       body: JSON.stringify({ challengeId: info.challengeId, code }),
     });
   } catch {
-    return { ok: false, code: "NETWORK", message: "Bağlantı kurulamadı. İnternetinizi kontrol edip tekrar deneyin." };
+    return { ok: false, code: "NETWORK", message: networkMessage() };
   }
   const j = (await res.json().catch(() => ({}))) as Record<string, unknown>;
   if (res.ok && j.result === "verified") {

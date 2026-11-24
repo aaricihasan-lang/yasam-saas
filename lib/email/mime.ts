@@ -47,10 +47,10 @@ export function buildMimeMessage(input: {
   messageId?: string;
 }): string {
   for (const v of [input.fromName, input.fromAddress, input.to, input.subject]) {
-    if (HEADER_UNSAFE.test(v)) throw new Error("mime: başlıkta satır sonu");
+    if (HEADER_UNSAFE.test(v)) throw new Error("mime: başlıkta satır sonu"); // i18n-ignore: teknik iç hata (sağlayıcı/günlük); kullanıcıya gösterilmez
   }
-  if (!isSafeEmailAddress(input.fromAddress) || !isSafeEmailAddress(input.to)) throw new Error("mime: geçersiz adres");
-  if (input.messageId !== undefined && !/^<[^<>\s@]+@[^<>\s@]+>$/.test(input.messageId)) throw new Error("mime: geçersiz Message-ID");
+  if (!isSafeEmailAddress(input.fromAddress) || !isSafeEmailAddress(input.to)) throw new Error("mime: geçersiz adres"); // i18n-ignore: teknik iç hata (sağlayıcı/günlük); kullanıcıya gösterilmez
+  if (input.messageId !== undefined && !/^<[^<>\s@]+@[^<>\s@]+>$/.test(input.messageId)) throw new Error("mime: geçersiz Message-ID"); // i18n-ignore: teknik iç hata (sağlayıcı/günlük); kullanıcıya gösterilmez
   const boundary = `ys_${randomBytes(12).toString("hex")}`;
   const date = (input.date ?? new Date()).toUTCString().replace("GMT", "+0000");
   return [

@@ -8,6 +8,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { getEmailProvider, type EmailProvider } from "@/lib/email/provider";
 import { emailLimits, hashRecipient, otpPepper } from "@/lib/auth/emailOtp";
 import { renderSecurityNotice, type SecurityNoticeKind } from "@/lib/email/templates/securityNoticeEmail";
+import type { ActiveLocale } from "@/lib/i18n/locales";
 
 type Env = Record<string, string | undefined>;
 
@@ -22,7 +23,7 @@ async function recordUndelivered(db: SupabaseClient, userId: string, kind: Secur
 
 export async function sendSecurityNotice(
   db: SupabaseClient,
-  args: { userId: string; to: string | null | undefined; name?: string | null; kind: SecurityNoticeKind },
+  args: { userId: string; to: string | null | undefined; name?: string | null; kind: SecurityNoticeKind; locale?: ActiveLocale },
   env: Env = process.env,
   providerOverride?: EmailProvider | null,
 ): Promise<boolean> {
@@ -58,7 +59,7 @@ export async function sendSecurityNotice(
       await recordUndelivered(db, args.userId, args.kind, code);
       return false;
     }
-    const mail = renderSecurityNotice(args.kind, args.name ?? null);
+    const mail = renderSecurityNotice(args.kind, args.name ?? null, args.locale);
     const sent = await provider.send({ to, subject: mail.subject, text: mail.text, html: mail.html, category: "security_notice" });
     await db.rpc("auth_email_delivery_result", {
       p_delivery_id: Number(r.delivery_id),

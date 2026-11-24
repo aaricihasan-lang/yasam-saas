@@ -1,6 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useLocale, useTranslations } from "next-intl";
+import { formatDateTime } from "@/lib/i18n/format";
+import type { ActiveLocale } from "@/lib/i18n/locales";
 import { KeyRound, Loader2, Mail, RefreshCw, ShieldCheck, Smartphone, Trash2 } from "lucide-react";
 import { readSessionToken, hasSessionCredential, sessionTokenHeader } from "@/lib/auth/yasamUser";
 import AccountRecoverySection from "@/components/settings/AccountRecoverySection";
@@ -22,25 +25,31 @@ type Device = {
   revoked_at: string | null;
 };
 
-const DEVICE_STATE: Record<string, [string, string]> = {
-  active: ["Etkin", "bg-emerald-50 text-emerald-700"],
-  owner_approved: ["Onaylandı · telefonda etkinleştirin", "bg-sky-50 text-sky-700"],
-  pending_owner: ["Yönetici onayı bekliyor", "bg-amber-50 text-amber-700"],
-  revoked: ["İptal edildi", "bg-slate-100 text-slate-500"],
-  rejected: ["Reddedildi", "bg-slate-100 text-slate-500"],
-  expired: ["Süresi doldu", "bg-slate-100 text-slate-500"],
+// I18N-F1-R1: durum KİMLİĞİ → rozet rengi; görünen etiket auth.ui.loginMethods.state.<kimlik>.
+const DEVICE_STATE_CLASS: Record<string, string> = {
+  active: "bg-emerald-50 text-emerald-700",
+  owner_approved: "bg-sky-50 text-sky-700",
+  pending_owner: "bg-amber-50 text-amber-700",
+  revoked: "bg-slate-100 text-slate-500",
+  rejected: "bg-slate-100 text-slate-500",
+  expired: "bg-slate-100 text-slate-500",
 };
 
-function fmt(iso: string | null): string {
+function fmt(iso: string | null, locale: ActiveLocale): string {
   if (!iso) return "—";
   try {
-    return new Date(iso).toLocaleString("tr-TR", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
+    // I18N-F1-R1: ekran diline göre (tr → "tr-TR" ile bugünkü çıktı birebir aynı).
+    return formatDateTime(iso, { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }, locale);
   } catch {
     return "—";
   }
 }
 
 export default function MyLoginMethodsPanel({ userId }: { userId: string }) {
+  const t = useTranslations("auth.ui.loginMethods");
+  const locale = useLocale() as ActiveLocale;
+  // Bilinmeyen durum kodu (sunucu yeni durum eklerse) ham kodla gösterilir — bugünkü davranış.
+  const stateLabel = (state: string) => (Object.hasOwn(DEVICE_STATE_CLASS, state) ? t(`state.${state}`) : state);
   const [emailInfo, setEmailInfo] = useState<{ email: string | null; verified: boolean; available: boolean } | null>(null);
   const [devices, setDevices] = useState<Device[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -65,12 +74,12 @@ export default function MyLoginMethodsPanel({ userId }: { userId: string }) {
       const dj = (await d.json().catch(() => ({}))) as { devices?: Device[]; error?: string };
       if (e.ok) setEmailInfo({ email: ej.email ?? null, verified: ej.verified === true, available: ej.available === true });
       if (d.ok) setDevices(Array.isArray(dj.devices) ? dj.devices : []);
-      if (!e.ok || !d.ok) setError(ej.error ?? dj.error ?? "Giriş yöntemleri okunamadı.");
+      if (!e.ok || !d.ok) setError(ej.error ?? dj.error ?? t("loadFailed"));
       else setError(null);
     } catch {
-      setError("Giriş yöntemleri okunamadı. Bağlantınızı kontrol edin.");
+      setError(t("loadFailedNetwork"));
     }
-  }, [headers]);
+  }, [headers, t]);
 
   useEffect(() => {
     const id = window.setTimeout(() => void load(), 0);
@@ -90,21 +99,21 @@ export default function MyLoginMethodsPanel({ userId }: { userId: string }) {
       });
       const j = (await res.json().catch(() => ({}))) as { error?: string; sent?: boolean; verified?: boolean };
       if (!res.ok) {
-        setError(j.error ?? "İşlem tamamlanamadı.");
+        setError(j.error ?? t("actionFailed"));
         if (action === "confirm") setCode("");
         return;
       }
       if (j.verified) {
-        setNotice("E-posta adresiniz doğrulandı.");
+        setNotice(t("emailVerified"));
         setCodeSent(false);
         setCode("");
         void load();
       } else if (j.sent) {
         setCodeSent(true);
-        setNotice("Doğrulama kodu e-posta adresinize gönderildi. Kod 3 dakika geçerlidir.");
+        setNotice(t("codeSent"));
       }
     } catch {
-      setError("İşlem tamamlanamadı. Bağlantınızı kontrol edin.");
+      setError(t("actionFailedNetwork"));
     } finally {
       setBusy(null);
     }
@@ -113,7 +122,7 @@ export default function MyLoginMethodsPanel({ userId }: { userId: string }) {
   async function revokeDevice(dev: Device) {
     if (busy) return;
     const ok = window.confirm(
-      `"${dev.model ?? "Android cihaz"}" cihazını iptal etmek istiyor musunuz? Bu cihaz bir daha giriş onaylayamaz ve onunla açılmış oturumlar kapanır.`,
+      t("revokeConfirm", { model: dev.model ?? t("androidDevice") }),
     );
     if (!ok) return;
     setBusy(`dev:${dev.id}`);
@@ -121,13 +130,13 @@ export default function MyLoginMethodsPanel({ userId }: { userId: string }) {
       const res = await fetch(`/api/me/devices/${dev.id}`, {
         method: "DELETE",
         headers: { ...headers(), "Content-Type": "application/json" },
-        body: JSON.stringify({ reason: "Kullanıcı iptali" }),
+        body: JSON.stringify({ reason: "Kullanıcı iptali" }), // i18n-ignore: denetim kaydına yazılan kanonik iptal gerekçesi (ekran metni değil)
       });
       const j = (await res.json().catch(() => ({}))) as { error?: string };
-      if (!res.ok) setError(j.error ?? "Cihaz iptal edilemedi.");
-      else setNotice("Cihaz iptal edildi.");
+      if (!res.ok) setError(j.error ?? t("revokeFailed"));
+      else setNotice(t("revoked"));
     } catch {
-      setError("Cihaz iptal edilemedi. Bağlantınızı kontrol edin.");
+      setError(t("revokeFailedNetwork"));
     } finally {
       setBusy(null);
       void load();
@@ -142,15 +151,14 @@ export default function MyLoginMethodsPanel({ userId }: { userId: string }) {
       <div className="flex items-center justify-between gap-3">
         <h3 className="flex items-center gap-2 text-sm font-black text-slate-900">
           <KeyRound className="h-4 w-4 text-violet-600" aria-hidden />
-          Giriş Yöntemlerim
+          {t("title")}
         </h3>
         <button type="button" onClick={() => void load()} className="flex items-center gap-1 text-xs font-bold text-violet-700 hover:underline">
-          <RefreshCw className="h-3.5 w-3.5" aria-hidden /> Yenile
+          <RefreshCw className="h-3.5 w-3.5" aria-hidden /> {t("refresh")}
         </button>
       </div>
       <p className="mt-1 text-xs text-slate-500">
-        Parolanızdan sonra ikinci doğrulama için kullanılabilecek yöntemler. Android telefonunuz varsa QR ile, yoksa
-        e-posta kodu ile giriş onaylanır.
+        {t("intro")}
       </p>
 
       {error && <p role="alert" className="mt-3 rounded-lg bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700">{error}</p>}
@@ -160,16 +168,16 @@ export default function MyLoginMethodsPanel({ userId }: { userId: string }) {
       <div className="mt-3 rounded-xl border border-slate-200 px-3 py-3">
         <p className="flex flex-wrap items-center gap-1.5 text-sm font-bold text-slate-900">
           <Mail className="h-4 w-4 text-slate-500" aria-hidden />
-          E-posta ile kod
+          {t("emailTitle")}
           {emailInfo?.verified ? (
-            <span data-testid="email-verified-badge" className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700">Doğrulandı</span>
+            <span data-testid="email-verified-badge" className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700">{t("verified")}</span>
           ) : emailInfo ? (
-            <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-700">Doğrulanmadı</span>
+            <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-700">{t("notVerified")}</span>
           ) : null}
         </p>
         <p className="mt-0.5 break-all text-[11px] text-slate-500">{emailInfo?.email ?? "—"}</p>
         {emailInfo && !emailInfo.verified && !emailInfo.available && (
-          <p className="mt-2 text-[11px] text-slate-500">E-posta ile doğrulama bu hesapta şu anda kullanılamıyor.</p>
+          <p className="mt-2 text-[11px] text-slate-500">{t("emailUnavailable")}</p>
         )}
         {emailInfo && !emailInfo.verified && emailInfo.available && (
           <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -180,8 +188,8 @@ export default function MyLoginMethodsPanel({ userId }: { userId: string }) {
                 onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
                 inputMode="numeric"
                 autoComplete="one-time-code"
-                aria-label="Doğrulama kodu"
-                placeholder="6 haneli kod"
+                aria-label={t("codeAria")}
+                placeholder={t("codePlaceholder")}
                 className="h-9 w-32 rounded-lg border border-slate-300 px-2 text-center font-mono text-base tracking-[0.3em]"
               />
             )}
@@ -194,7 +202,7 @@ export default function MyLoginMethodsPanel({ userId }: { userId: string }) {
                 className="flex h-9 items-center gap-1 rounded-lg bg-violet-600 px-3 text-xs font-bold text-white disabled:opacity-60"
               >
                 {busy === "confirm" ? <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden /> : <ShieldCheck className="h-3.5 w-3.5" aria-hidden />}
-                Doğrula
+                {t("verify")}
               </button>
             )}
             <button
@@ -205,7 +213,7 @@ export default function MyLoginMethodsPanel({ userId }: { userId: string }) {
               className="flex h-9 items-center gap-1 rounded-lg border border-violet-200 bg-violet-50 px-3 text-xs font-bold text-violet-700 disabled:opacity-60"
             >
               {busy === "send" && <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />}
-              {codeSent ? "Yeni kod gönder" : "Doğrulama kodu gönder"}
+              {codeSent ? t("resend") : t("sendCode")}
             </button>
           </div>
         )}
@@ -215,25 +223,26 @@ export default function MyLoginMethodsPanel({ userId }: { userId: string }) {
       <div className="mt-2 rounded-xl border border-slate-200 px-3 py-3">
         <p className="flex items-center gap-1.5 text-sm font-bold text-slate-900">
           <Smartphone className="h-4 w-4 text-emerald-600" aria-hidden />
-          Güvenilir Android cihazlarım
+          {t("devicesTitle")}
         </p>
         {devices !== null && liveDevices.length === 0 && (
           <p className="mt-1 text-[11px] text-slate-500">
-            Kayıtlı cihaz yok. Android uygulamasından cihaz kaydı başlatabilirsiniz; ilk cihaz yönetici onayıyla etkinleşir.
+            {t("noDevices")}
           </p>
         )}
         <ul className="mt-2 space-y-2">
           {liveDevices.map((d) => {
-            const [label, cls] = DEVICE_STATE[d.state] ?? [d.state, "bg-slate-100 text-slate-500"];
+            const label = stateLabel(d.state);
+            const cls = DEVICE_STATE_CLASS[d.state] ?? "bg-slate-100 text-slate-500";
             return (
               <li key={d.id} data-testid="my-device-row" className="flex flex-wrap items-start justify-between gap-2 rounded-lg bg-slate-50 px-3 py-2">
                 <div className="min-w-0">
                   <p className="flex flex-wrap items-center gap-1.5 text-xs font-bold text-slate-900">
-                    <span className="break-words">{d.model ?? "Android cihaz"}</span>
+                    <span className="break-words">{d.model ?? t("androidDevice")}</span>
                     {d.display_code && <span className="font-mono text-[10px] text-slate-500">{d.display_code}</span>}
                     <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${cls}`}>{label}</span>
                   </p>
-                  <p className="mt-0.5 text-[11px] text-slate-500">Kayıt {fmt(d.created_at)} · Son kullanım {fmt(d.last_used_at)}</p>
+                  <p className="mt-0.5 text-[11px] text-slate-500">{t("deviceDates", { created: fmt(d.created_at, locale), lastUsed: fmt(d.last_used_at, locale) })}</p>
                 </div>
                 <button
                   type="button"
@@ -242,7 +251,7 @@ export default function MyLoginMethodsPanel({ userId }: { userId: string }) {
                   className="flex h-8 shrink-0 items-center gap-1 rounded-lg border border-rose-200 bg-rose-50 px-2.5 text-xs font-bold text-rose-700 transition hover:bg-rose-100 disabled:opacity-60"
                 >
                   {busy === `dev:${d.id}` ? <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden /> : <Trash2 className="h-3.5 w-3.5" aria-hidden />}
-                  İptal et
+                  {t("revoke")}
                 </button>
               </li>
             );
@@ -250,11 +259,11 @@ export default function MyLoginMethodsPanel({ userId }: { userId: string }) {
         </ul>
         {pastDevices.length > 0 && (
           <details className="mt-2">
-            <summary className="cursor-pointer text-xs font-bold text-slate-600">Eski cihazlar ({pastDevices.length})</summary>
+            <summary className="cursor-pointer text-xs font-bold text-slate-600">{t("pastDevices", { count: String(pastDevices.length) })}</summary>
             <ul className="mt-1.5 space-y-1">
               {pastDevices.map((d) => (
                 <li key={d.id} className="text-[11px] text-slate-500">
-                  {d.model ?? "Android cihaz"} · {(DEVICE_STATE[d.state] ?? [d.state])[0]} · {fmt(d.revoked_at ?? d.created_at)}
+                  {d.model ?? t("androidDevice")} · {stateLabel(d.state)} · {fmt(d.revoked_at ?? d.created_at, locale)}
                 </li>
               ))}
             </ul>
