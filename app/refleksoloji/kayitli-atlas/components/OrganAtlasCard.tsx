@@ -1,6 +1,8 @@
 ﻿"use client";
 
+import { useTranslations } from "next-intl";
 import type { OrganSummary } from "../lib/organSummary";
+import { useAtlasLabels } from "../lib/useAtlasLabels";
 import { formatInstantDateTime } from "@/lib/time/reportTime";
 import premium from "@/app/_premium/refleksoloji/kayitliAtlas.module.css";
 
@@ -25,6 +27,10 @@ export function OrganAtlasCard({
   selected = false,
   onToggleSelect,
 }: OrganAtlasCardProps) {
+  const t = useTranslations("reflexology.savedAtlas.card");
+  const tc = useTranslations("reflexology.common");
+  const labels = useAtlasLabels();
+  const handLabel = labels.handLabel(summary);
   return (
     <article
       className={`${premium.card}${selected ? " outline outline-2 outline-violet-400" : ""}`}
@@ -38,34 +44,34 @@ export function OrganAtlasCard({
               checked={selected}
               onChange={onToggleSelect}
               className="h-5 w-5 cursor-pointer accent-violet-600"
-              aria-label={`${summary.name} kaydını seç`}
+              aria-label={t("selectAria", { name: summary.name })}
             />
           </label>
         ) : null}
         <h2 className={`${premium.organ} min-w-0 flex-1`}>{summary.name}</h2>
         <span className={premium.count}>
-          {summary.regionCount} bölge
+          {t("regionCount", { count: summary.regionCount })}
         </span>
       </div>
 
       <dl className={premium.meta}>
         <div>
-          <dt>Görünüm</dt>
-          <dd>{summary.viewLabel}</dd>
+          <dt>{t("view")}</dt>
+          <dd>{labels.viewLabel(summary)}</dd>
         </div>
         <div>
-          <dt>Ayak</dt>
-          <dd>{summary.footLabel}</dd>
+          <dt>{t("foot")}</dt>
+          <dd>{labels.footLabel(summary)}</dd>
         </div>
-        {summary.handLabel ? (
+        {handLabel ? (
           <div>
-            <dt>El</dt>
-            <dd>{summary.handLabel}</dd>
+            <dt>{t("hand")}</dt>
+            <dd>{handLabel}</dd>
           </div>
         ) : null}
         {updatedAt ? (
           <div>
-            <dt>Son güncelleme</dt>
+            <dt>{t("updated")}</dt>
             <dd>
               {formatInstantDateTime(updatedAt, { fallback: "—" })}
             </dd>
@@ -79,21 +85,21 @@ export function OrganAtlasCard({
           onClick={onView}
           className={`${premium.btn} ${premium.bView}`}
         >
-          Görüntüle
+          {t("open")}
         </button>
         <button
           type="button"
           onClick={onEdit}
           className={`${premium.btn} ${premium.bEdit}`}
         >
-          Düzenle
+          {t("edit")}
         </button>
         <button
           type="button"
           onClick={onDelete}
           className={`${premium.btn} ${premium.bDel}`}
         >
-          Sil
+          {tc("delete")}
         </button>
       </div>
     </article>

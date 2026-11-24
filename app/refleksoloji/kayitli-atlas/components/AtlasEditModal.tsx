@@ -1,17 +1,15 @@
 "use client";
 
+import { useLocale, useTranslations } from "next-intl";
+import { DEFAULT_LOCALE } from "@/lib/i18n/locales";
+import { useAtlasLabels } from "../lib/useAtlasLabels";
+
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
 import { getRegionsForOrgan, loadAtlas } from "@/lib/atlasStorage";
 import type { Region } from "@/app/refleksoloji/bolge-haritasi/types";
-import {
-  footSideLabel,
-  regionCoordSummary,
-  shapeLabel,
-  viewLabel,
-} from "../lib/organSummary";
 
 type AtlasEditModalProps = {
   open: boolean;
@@ -28,6 +26,10 @@ export function AtlasEditModal({
   onRename,
   onDeleteRegion,
 }: AtlasEditModalProps) {
+  const t = useTranslations("reflexology.savedAtlas.edit");
+  const tc = useTranslations("reflexology.common");
+  const labels = useAtlasLabels();
+  const isSourceLocale = useLocale() === DEFAULT_LOCALE;
   const { confirm } = useConfirm();
   const [mounted, setMounted] = useState(false);
   const [nameDraft, setNameDraft] = useState(organName);
@@ -118,7 +120,8 @@ export function AtlasEditModal({
   const handleSaveName = () => {
     const result = onRename(organName, nameDraft);
     if (!result.ok) {
-      setSaveError(result.error ?? "Kaydedilemedi.");
+      // atlasManage hata metni Türkçedir: kaynak dilde aynen, diğer dillerde çevrilmiş genel metin.
+      setSaveError((isSourceLocale ? result.error : null) ?? t("saveFailed"));
       return;
     }
     setSaveError(null);
@@ -127,9 +130,9 @@ export function AtlasEditModal({
 
   const handleDeleteRegion = async (regionId: string) => {
     const ok = await confirm({
-      message: "Bu bölge silinsin mi? Bu işlem geri alınamaz.",
-      confirmText: "Bölgeyi Sil",
-      cancelText: "Vazgeç",
+      message: t("deleteRegionMsg"),
+      confirmText: t("deleteRegionConfirm"),
+      cancelText: tc("cancel"),
       tone: "danger",
     });
     if (!ok) return;
@@ -160,14 +163,13 @@ export function AtlasEditModal({
         <header className="mb-5 flex shrink-0 flex-wrap items-start justify-between gap-4 border-b border-slate-100 pb-5">
           <div>
             <p className="text-sm font-black uppercase tracking-[0.18em] text-violet-700">
-              Atlas Düzenle
+              {t("title")}
             </p>
             <h2 id="atlas-edit-title" className="mt-1 text-2xl font-black text-slate-900">
               {organName}
             </h2>
             <p className="mt-1 text-base font-medium text-slate-500">
-              Organ adını güncelleyin veya kayıtlı bölgeleri silin. Koordinat düzenleme Bölge
-              Haritası&apos;nda yapılır.
+              {t("subtitle")}
             </p>
           </div>
           <button
@@ -175,7 +177,7 @@ export function AtlasEditModal({
             onClick={onClose}
             className="rounded-2xl bg-slate-100 px-5 py-3 text-sm font-black text-slate-700 transition hover:bg-slate-200"
           >
-            Kapat
+            {tc("close")}
           </button>
         </header>
 
@@ -185,7 +187,7 @@ export function AtlasEditModal({
               htmlFor="atlas-organ-name"
               className="mb-2 block text-sm font-bold uppercase tracking-wide text-violet-900"
             >
-              Organ Adı
+              {t("organName")}
             </label>
             <input
               id="atlas-organ-name"
@@ -198,19 +200,19 @@ export function AtlasEditModal({
 
           {noRegionsWarning ? (
             <p className="rounded-xl border border-amber-300/80 bg-amber-50 px-4 py-3 text-base font-semibold text-amber-950">
-              Bu organın kayıtlı bölgesi kalmadı.
+              {t("noZonesLeft")}
             </p>
           ) : null}
 
           <div>
-            <h3 className="text-lg font-bold text-violet-900">Kayıtlı Bölgeler</h3>
+            <h3 className="text-lg font-bold text-violet-900">{t("savedZones")}</h3>
             {regions.length === 0 ? (
               <p className="mt-2 text-base font-medium text-slate-500">
-                Kayıtlı bölge yok. Yeni bölge eklemek için{" "}
+                {t("noZonesLead")}{" "}
                 <Link href="/refleksoloji/bolge-haritasi" className="font-bold text-violet-700 underline">
-                  Bölge Haritası
+                  {t("zoneMap")}
                 </Link>
-                &apos;nı kullanın.
+                {t("noZonesTail")}
               </p>
             ) : (
               <ul className="mt-3 flex flex-col gap-3">
@@ -222,11 +224,11 @@ export function AtlasEditModal({
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <div className="min-w-0">
                         <p className="text-base font-bold text-slate-900">
-                          {shapeLabel(region.shape)} · {viewLabel(region.view)} ·{" "}
-                          {footSideLabel(region.footSide, region.view)}
+                          {labels.shapeLabel(region.shape)} · {labels.regionViewLabel(region.view)} ·{" "}
+                          {labels.sideLabel(region.footSide, region.view)}
                         </p>
                         <p className="mt-1 font-mono text-sm font-medium text-slate-600">
-                          {regionCoordSummary(region)}
+                          {labels.coordSummary(region)}
                         </p>
                       </div>
                       <button
@@ -234,7 +236,7 @@ export function AtlasEditModal({
                         onClick={() => void handleDeleteRegion(region.id)}
                         className="shrink-0 rounded-xl bg-red-50 px-4 py-2 text-sm font-bold text-red-600 transition hover:bg-red-100"
                       >
-                        Bölge Sil
+                        {t("deleteZone")}
                       </button>
                     </div>
                   </li>
@@ -255,14 +257,14 @@ export function AtlasEditModal({
             href="/refleksoloji/bolge-haritasi"
             className="rounded-2xl border border-violet-200 bg-violet-50 px-5 py-3 text-sm font-black text-violet-900 transition hover:bg-violet-100"
           >
-            Bölge Haritasına Git
+            {t("goZoneMap")}
           </Link>
           <button
             type="button"
             onClick={handleSaveName}
             className="rounded-2xl bg-emerald-600 px-6 py-3 text-sm font-black text-white shadow-md transition hover:bg-emerald-700"
           >
-            Organ Adını Kaydet
+            {t("saveName")}
           </button>
         </footer>
       </div>
