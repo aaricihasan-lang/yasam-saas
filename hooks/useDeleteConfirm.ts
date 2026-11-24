@@ -1,10 +1,35 @@
 "use client";
+import { useMemo } from "react";
+import { useTranslations } from "next-intl";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
 import { useIsMobileOrPwa } from "@/hooks/useIsMobileOrPwa";
-import { buildNameListLines } from "@/lib/ui/deleteConfirmMessage";
-import { requiresBulkDeleteGuard, runBulkDeleteConfirm } from "@/lib/ui/bulkDeleteGuard";
+import { buildNameListLines, TR_MORE_RECORDS } from "@/lib/ui/deleteConfirmMessage";
+import { requiresBulkDeleteGuard, runBulkDeleteConfirm, type BulkDeleteTexts } from "@/lib/ui/bulkDeleteGuard";
 
 export const IRREVERSIBLE_NOTICE = "Bu işlem geri alınamaz.";
+
+/**
+ * I18N-F1 — tekli silme onayının ekran metinleri. Varsayılan Türkçe metinler bugünküyle BİREBİR aynıdır;
+ * hook ekran dilinin metinlerini katalogdan (common.deleteConfirm) verir.
+ */
+export type DeleteConfirmTexts = {
+  irreversibleNotice: string;
+  /** "Mesaj zaten geri alınamaz uyarısı içeriyor mu?" kontrolü — ekran dili + Türkçe (eski mesajlar). */
+  irreversibleMarkers: readonly string[];
+  moreRecords: (n: number) => string;
+};
+
+export const TR_DELETE_CONFIRM_TEXTS: DeleteConfirmTexts = {
+  irreversibleNotice: IRREVERSIBLE_NOTICE,
+  irreversibleMarkers: ["geri alınamaz"],
+  moreRecords: TR_MORE_RECORDS,
+};
+
+function containsMarker(message: string, marker: string): boolean {
+  const words = marker.trim().split(/\s+/).filter(Boolean).map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+  if (words.length === 0) return false;
+  return new RegExp(words.join("\\s+"), "i").test(message);
+}
 
 export type DeleteConfirmOptions = {
   /** İlk dialog başlığı */
@@ -51,15 +76,23 @@ export function resolveDeleteCount(opts: Pick<DeleteConfirmOptions, "count" | "n
   return 1;
 }
 
-/** Mesaja ad listesini ve (gerekirse) geri alınamaz satırını ekler — saf, test edilebilir. */
-export function composeDeleteMessage(opts: Pick<DeleteConfirmOptions, "message" | "names" | "irreversible">): string {
+/**
+ * Mesaja ad listesini ve (gerekirse) geri alınamaz satırını ekler — saf, test edilebilir.
+ * I18N-F1: "uyarı zaten var mı" kararı tek bir dile bağlı değildir; ekran dilinin işaretleri + Türkçe
+ * işaret birlikte aranır (İngilizce mesaja Türkçe satır eklenmez, eski Türkçe mesajda tekrar oluşmaz).
+ */
+export function composeDeleteMessage(
+  opts: Pick<DeleteConfirmOptions, "message" | "names" | "irreversible">,
+  texts: DeleteConfirmTexts = TR_DELETE_CONFIRM_TEXTS,
+): string {
   const parts: string[] = [opts.message.trim()];
   if (opts.names && opts.names.length > 0) {
-    parts.push(buildNameListLines(opts.names).join("\n"));
+    parts.push(buildNameListLines(opts.names, undefined, texts.moreRecords).join("\n"));
   }
   const irreversible = opts.irreversible ?? true;
-  if (irreversible && !/geri\s+alınamaz/i.test(opts.message)) {
-    parts.push(IRREVERSIBLE_NOTICE);
+  const markers = [...texts.irreversibleMarkers, ...TR_DELETE_CONFIRM_TEXTS.irreversibleMarkers];
+  if (irreversible && !markers.some((m) => containsMarker(opts.message, m))) {
+    parts.push(texts.irreversibleNotice);
   }
   return parts.join("\n\n");
 }
@@ -76,6 +109,40 @@ export function composeDeleteMessage(opts: Pick<DeleteConfirmOptions, "message" 
 export function useDeleteConfirm() {
   const { confirm } = useConfirm();
   const isMobile = useIsMobileOrPwa();
+  const t = useTranslations("common.deleteConfirm");
+
+  // Ekran dili metinleri (Türkçe katalog değerleri bugünkü sabitlerle birebir aynıdır — tr-freeze + birim testi).
+  const texts = useMemo(() => {
+    const single: DeleteConfirmTexts = {
+      irreversibleNotice: t("irreversibleNotice"),
+      irreversibleMarkers: [t("irreversibleMarker")],
+      moreRecords: (n) => t("moreRecords", { count: n }),
+    };
+    const bulk: BulkDeleteTexts = {
+      phrase: (count) => t("bulk.phrase", { count }),
+      deleteAllPhrase: t("bulk.deleteAllPhrase"),
+      defaultNoun: t("bulk.defaultNoun"),
+      scope: (count, noun, deleteAll) => (deleteAll ? t("bulk.scopeAll", { count, noun }) : t("bulk.scope", { count, noun })),
+      verbDelete: t("bulk.verbDelete"),
+      verbRemove: t("bulk.verbRemove"),
+      warnIrreversible: t("bulk.warnIrreversible"),
+      warnScope: t("bulk.warnScope"),
+      stage1TitleAll: t("bulk.stage1TitleAll"),
+      stage1Title: t("bulk.stage1Title"),
+      continueText: t("bulk.continue"),
+      stage2Title: t("bulk.stage2Title"),
+      stage2Message: (phrase) => t("bulk.stage2Message", { phrase }),
+      requireLabel: (phrase) => t("bulk.requireLabel", { phrase }),
+      stage3TitleIrreversible: t("bulk.stage3TitleIrreversible"),
+      stage3Title: t("bulk.stage3Title"),
+      stage3MessageIrreversible: (scope) => t("bulk.stage3MessageIrreversible", { scope }),
+      stage3Message: (scope) => t("bulk.stage3Message", { scope }),
+      confirmIrreversible: (count) => t("bulk.confirmIrreversible", { count }),
+      confirm: (count) => t("bulk.confirm", { count }),
+      cancelText: t("cancel"),
+    };
+    return { single, bulk };
+  }, [t]);
 
   return async function deleteConfirm(opts: DeleteConfirmOptions): Promise<boolean> {
     const count = resolveDeleteCount(opts);
@@ -86,9 +153,10 @@ export function useDeleteConfirm() {
         noun: opts.noun,
         irreversible: opts.irreversible,
         cancelText: opts.cancelText,
+        texts: texts.bulk,
         detail: [
           opts.message.trim(),
-          opts.names && opts.names.length > 0 ? buildNameListLines(opts.names, count).join("\n") : "",
+          opts.names && opts.names.length > 0 ? buildNameListLines(opts.names, count, texts.single.moreRecords).join("\n") : "",
         ]
           .filter(Boolean)
           .join("\n\n"),
@@ -97,11 +165,11 @@ export function useDeleteConfirm() {
 
     // Adım 1: İlk onay
     const ok1 = await confirm({
-      title: opts.title ?? "Silmek istediğinizden emin misiniz?",
-      message: composeDeleteMessage(opts),
+      title: opts.title ?? t("title"),
+      message: composeDeleteMessage(opts, texts.single),
       tone: "danger",
-      confirmText: opts.confirmText ?? "Evet",
-      cancelText: opts.cancelText ?? "Vazgeç",
+      confirmText: opts.confirmText ?? t("yes"),
+      cancelText: opts.cancelText ?? t("cancel"),
       requireText: opts.requireText,
       requireTextLabel: opts.requireTextLabel,
     });
@@ -110,15 +178,13 @@ export function useDeleteConfirm() {
     // Adım 2: Yalnızca mobil/PWA'da ikinci onay (yazarak onay verilmişse gerek yok)
     if (isMobile && !opts.requireText) {
       const ok2 = await confirm({
-        title: "Son onay",
+        title: t("secondTitle"),
         message:
           opts.secondMessage ??
-          (opts.irreversible === false
-            ? "İşlemi onaylıyor musunuz?"
-            : "Bu işlem kalıcıdır. Yanlışlıkla silmediğinizden emin olun."),
+          (opts.irreversible === false ? t("secondMessage") : t("secondMessageIrreversible")),
         tone: "danger",
-        confirmText: opts.secondConfirmText ?? (opts.irreversible === false ? "Onayla" : "Kalıcı Olarak Sil"),
-        cancelText: opts.cancelText ?? "Vazgeç",
+        confirmText: opts.secondConfirmText ?? (opts.irreversible === false ? t("secondConfirm") : t("secondConfirmIrreversible")),
+        cancelText: opts.cancelText ?? t("cancel"),
       });
       if (!ok2) return false;
     }

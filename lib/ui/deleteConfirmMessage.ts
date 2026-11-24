@@ -12,17 +12,21 @@ function clean(name: string): string {
   return name.replace(/\s+/g, " ").trim();
 }
 
+/** Türkçe "ve N kayıt daha" satırı (varsayılan; I18N-F1: ekran dili için çağıran kendi metnini verir). */
+export const TR_MORE_RECORDS = (n: number): string => `ve ${n} kayıt daha`;
+
 /**
  * "• Ad" satırları + gerekirse "• ve N kayıt daha".
  * @param total Toplam silinecek kayıt (bazı adlar çözülemese de doğru sayı için).
+ * @param moreLine Kalan kayıt satırı metni (dil bağımsızlık; verilmezse Türkçe).
  */
-export function buildNameListLines(names: readonly string[], total?: number): string[] {
+export function buildNameListLines(names: readonly string[], total?: number, moreLine: (n: number) => string = TR_MORE_RECORDS): string[] {
   const list = names.map(clean).filter((n) => n.length > 0);
   const count = Math.max(total ?? list.length, list.length);
   const shown = list.slice(0, MAX_CONFIRM_NAMES);
   const lines = shown.map((n) => `• ${n}`);
   const remaining = count - shown.length;
-  if (remaining > 0) lines.push(`• ve ${remaining} kayıt daha`);
+  if (remaining > 0) lines.push(`• ${moreLine(remaining)}`);
   return lines;
 }
 

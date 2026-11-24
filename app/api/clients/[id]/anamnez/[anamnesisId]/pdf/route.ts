@@ -7,6 +7,7 @@ import { buildFilledAnamnesisPdf } from "@/lib/danisan/anamnez/filledFormPdf";
 import { anamnezPdfFontBase64 } from "@/lib/danisan/anamnez/pdfFont";
 import { asciiSlug, clientDisplayFromSnapshot } from "@/lib/danisan/anamnez/format";
 import { isKnownTemplateVersion, normalizeLocale } from "@/lib/danisan/anamnez/schema";
+import { effectiveLocale } from "@/lib/i18n/gate";
 import { validateFormCustom } from "@/lib/danisan/anamnez/validate";
 import {
   ANAMNEZ_FULL_COLUMNS,
@@ -68,7 +69,9 @@ export async function GET(req: NextRequest, { params }: RouteCtx): Promise<Respo
     return serverErrorResponse({ route: "clients/[id]/anamnez/[anamnesisId]/pdf", action: "form_custom", tenantId, cause: new Error("invalid form_custom") });
   }
 
-  const locale = normalizeLocale(req.nextUrl.searchParams.get("locale") ?? req.cookies.get("NEXT_LOCALE")?.value);
+  // I18N-F1: yayın kapısı kapalıyken (production) eski NEXT_LOCALE=en çerezi yok sayılır. Açık ?locale=
+  // parametresi bilinçli API isteğidir (arayüz kapı kapalıyken zaten "tr" gönderir).
+  const locale = normalizeLocale(req.nextUrl.searchParams.get("locale") ?? effectiveLocale(req.cookies.get("NEXT_LOCALE")?.value));
   let bytes: Uint8Array;
   try {
     bytes = buildFilledAnamnesisPdf({ locale, record: { ...row, form_custom: fc.value }, fontBase64: anamnezPdfFontBase64() });

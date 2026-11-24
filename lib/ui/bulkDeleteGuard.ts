@@ -18,6 +18,35 @@ export const BULK_DELETE_THRESHOLD = 3;
 
 export const BULK_DELETE_ALL_PHRASE = "TÜMÜNÜ SİL";
 
+/**
+ * I18N-F1 — 3 aşamalı akışın ekran metinleri. Kontrol akışı (aşama sayısı, eşik, doğrulama kuralı) bu
+ * metinlerden BAĞIMSIZDIR; yalnız görünen metin ve yazılacak ifade dile göre değişir. Varsayılan Türkçe
+ * metinler (TR_BULK_DELETE_TEXTS) bugünkü ifadelerle BİREBİR aynıdır.
+ */
+export type BulkDeleteTexts = {
+  phrase: (count: number) => string;
+  deleteAllPhrase: string;
+  defaultNoun: string;
+  scope: (count: number, noun: string, deleteAll: boolean) => string;
+  verbDelete: string;
+  verbRemove: string;
+  warnIrreversible: string;
+  warnScope: string;
+  stage1TitleAll: string;
+  stage1Title: string;
+  continueText: string;
+  stage2Title: string;
+  stage2Message: (phrase: string) => string;
+  requireLabel: (phrase: string) => string;
+  stage3TitleIrreversible: string;
+  stage3Title: string;
+  stage3MessageIrreversible: (scope: string) => string;
+  stage3Message: (scope: string) => string;
+  confirmIrreversible: (count: number) => string;
+  confirm: (count: number) => string;
+  cancelText: string;
+};
+
 /** Bu silme 3 aşamalı güvenlik akışı gerektiriyor mu? */
 export function requiresBulkDeleteGuard(count: number, deleteAll = false): boolean {
   if (deleteAll) return true;
@@ -25,8 +54,8 @@ export function requiresBulkDeleteGuard(count: number, deleteAll = false): boole
 }
 
 /** Aşama 2'de kullanıcının birebir yazması gereken ifade. */
-export function bulkDeletePhrase(count: number, deleteAll = false): string {
-  return deleteAll ? BULK_DELETE_ALL_PHRASE : `${count} KAYDI SİL`;
+export function bulkDeletePhrase(count: number, deleteAll = false, texts: BulkDeleteTexts = TR_BULK_DELETE_TEXTS): string {
+  return deleteAll ? texts.deleteAllPhrase : texts.phrase(count);
 }
 
 /**
@@ -52,6 +81,31 @@ export function bulkPhraseMatches(typed: string, expected: string): boolean {
 
 export const BULK_PHRASE_HINT = "Büyük/küçük harf ve ı/i farkı önemsizdir; sayı ve kelimeler aynen yazılmalıdır.";
 
+/** Bugünkü Türkçe metinler (varsayılan; davranış ve metin birebir korunur). */
+export const TR_BULK_DELETE_TEXTS: BulkDeleteTexts = {
+  phrase: (count) => `${count} KAYDI SİL`,
+  deleteAllPhrase: BULK_DELETE_ALL_PHRASE,
+  defaultNoun: "kayıt",
+  scope: (count, noun, deleteAll) => (deleteAll ? `TÜM ${count} ${noun}` : `${count} ${noun}`),
+  verbDelete: "kalıcı olarak silinecek",
+  verbRemove: "kaldırılacak",
+  warnIrreversible: "Bu işlem geri alınamaz.",
+  warnScope: "Lütfen kapsamı kontrol edin.",
+  stage1TitleAll: "Tümünü Sil — Adım 1/3",
+  stage1Title: "Toplu Silme — Adım 1/3",
+  continueText: "Devam Et",
+  stage2Title: "Doğrulama — Adım 2/3",
+  stage2Message: (phrase) => `Yanlışlıkla toplu silmeyi önlemek için aşağıdaki ifadeyi yazın:\n\n${phrase}`,
+  requireLabel: (phrase) => `“${phrase}” yazın. ${BULK_PHRASE_HINT}`,
+  stage3TitleIrreversible: "Son Onay — Bu işlem geri alınamaz.",
+  stage3Title: "Son Onay",
+  stage3MessageIrreversible: (scope) => `${scope} kalıcı olarak silinecek.\n\nSilinen kayıtlar geri getirilemez. Onaylıyor musunuz?`,
+  stage3Message: (scope) => `${scope} kaldırılacak. Onaylıyor musunuz?`,
+  confirmIrreversible: (count) => `Kalıcı Olarak Sil (${count})`,
+  confirm: (count) => `Onayla (${count})`,
+  cancelText: "Vazgeç",
+};
+
 /** ConfirmProvider ile uyumlu minimal onay sözleşmesi (test edilebilirlik için soyut). */
 export type BulkConfirmFn = (options: {
   title?: string;
@@ -76,38 +130,39 @@ export type BulkDeleteFlowOptions = {
   /** Kayıt türü — "kayıt" varsayılan (ör. "danışan", "taş"). */
   noun?: string;
   cancelText?: string;
+  /** Ekran dili metinleri (I18N-F1). Verilmezse Türkçe. */
+  texts?: BulkDeleteTexts;
 };
 
 /** Aşama metinleri — saf; UI ve testler aynı kaynağı kullanır. */
 export function buildBulkDeleteStages(opts: BulkDeleteFlowOptions) {
-  const noun = opts.noun?.trim() || "kayıt";
+  const tx = opts.texts ?? TR_BULK_DELETE_TEXTS;
+  const noun = opts.noun?.trim() || tx.defaultNoun;
   const irreversible = opts.irreversible ?? true;
-  const phrase = bulkDeletePhrase(opts.count, opts.deleteAll);
-  const scope = opts.deleteAll ? `TÜM ${opts.count} ${noun}` : `${opts.count} ${noun}`;
-  const verb = irreversible ? "kalıcı olarak silinecek" : "kaldırılacak";
-  const warn = irreversible ? "Bu işlem geri alınamaz." : "Lütfen kapsamı kontrol edin.";
+  const phrase = bulkDeletePhrase(opts.count, opts.deleteAll, tx);
+  const scope = tx.scope(opts.count, noun, opts.deleteAll === true);
+  const verb = irreversible ? tx.verbDelete : tx.verbRemove;
+  const warn = irreversible ? tx.warnIrreversible : tx.warnScope;
   const head = `${scope} ${verb}. ${warn}`;
   const detail = opts.detail?.trim();
   return {
     phrase,
     stage1: {
-      title: opts.deleteAll ? "Tümünü Sil — Adım 1/3" : "Toplu Silme — Adım 1/3",
+      title: opts.deleteAll ? tx.stage1TitleAll : tx.stage1Title,
       message: detail ? `${head}\n\n${detail}` : head,
-      confirmText: "Devam Et",
+      confirmText: tx.continueText,
     },
     stage2: {
-      title: "Doğrulama — Adım 2/3",
-      message: `Yanlışlıkla toplu silmeyi önlemek için aşağıdaki ifadeyi yazın:\n\n${phrase}`,
+      title: tx.stage2Title,
+      message: tx.stage2Message(phrase),
       requireText: phrase,
-      requireTextLabel: `“${phrase}” yazın. ${BULK_PHRASE_HINT}`,
-      confirmText: "Devam Et",
+      requireTextLabel: tx.requireLabel(phrase),
+      confirmText: tx.continueText,
     },
     stage3: {
-      title: irreversible ? "Son Onay — Bu işlem geri alınamaz." : "Son Onay",
-      message: irreversible
-        ? `${scope} kalıcı olarak silinecek.\n\nSilinen kayıtlar geri getirilemez. Onaylıyor musunuz?`
-        : `${scope} kaldırılacak. Onaylıyor musunuz?`,
-      confirmText: irreversible ? `Kalıcı Olarak Sil (${opts.count})` : `Onayla (${opts.count})`,
+      title: irreversible ? tx.stage3TitleIrreversible : tx.stage3Title,
+      message: irreversible ? tx.stage3MessageIrreversible(scope) : tx.stage3Message(scope),
+      confirmText: irreversible ? tx.confirmIrreversible(opts.count) : tx.confirm(opts.count),
     },
   };
 }
@@ -119,7 +174,7 @@ export function buildBulkDeleteStages(opts: BulkDeleteFlowOptions) {
  */
 export async function runBulkDeleteConfirm(confirm: BulkConfirmFn, opts: BulkDeleteFlowOptions): Promise<boolean> {
   const s = buildBulkDeleteStages(opts);
-  const cancelText = opts.cancelText ?? "Vazgeç";
+  const cancelText = opts.cancelText ?? (opts.texts ?? TR_BULK_DELETE_TEXTS).cancelText;
   const ok1 = await confirm({ ...s.stage1, tone: "danger", cancelText });
   if (!ok1) return false;
   const ok2 = await confirm({

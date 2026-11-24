@@ -203,6 +203,7 @@ function ClientDetailPageInner() {
   const t = useTranslations("clients.detail");
   // D1 (DY-040): danışan silme onayının "Vazgeç" metni ortak çeviriden (EN arayüzde İngilizce).
   const tConfirm = useTranslations("common.confirmDialog");
+  const tDel = useTranslations("common.deleteConfirm");
   // Canonical değer → yerelleştirilmiş görünen etiket (data DEĞİŞMEZ).
   // Bilinmeyen/eşleşmeyen değer ham (canonical) döner → veri sızmaz, kırılmaz.
   const localize = (group: string, v: string | null | undefined): string | undefined => {
@@ -852,7 +853,7 @@ function ClientDetailPageInner() {
         message: buildDeletePreviewMessage(clientName, preview),
         confirmText: t("delete.confirm"),
         cancelText: tConfirm("cancel"),
-        requireText: clientName || "SİL",
+        requireText: clientName || tDel("confirmWord"),
         requireTextLabel: clientName
           ? t("delete.requireLabel", { name: clientName })
           : t("delete.requireLabelFallback"),
@@ -1534,7 +1535,7 @@ function AppointmentsTab({
       } else {
         showToast({
           title: t("toast.warningTitle"),
-          message: t.has("appt.notFound") ? t("appt.notFound") : "Randevu bulunamadı.",
+          message: t("appt.notFound"),
           type: "warning",
         });
       }

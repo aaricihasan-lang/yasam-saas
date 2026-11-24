@@ -2,17 +2,15 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 import { readSessionToken, readYasamUser } from "@/lib/auth/yasamUser";
 import { useSubmitLock } from "@/hooks/useSubmitLock";
 import { formatInstantDateTime } from "@/lib/time/reportTime";
 import {
   CONSENT_METHODS,
-  CONSENT_METHOD_LABELS,
   CONSENT_NOTE_MAX,
   CONSENT_STATUSES,
-  CONSENT_STATUS_LABELS,
   CONSENT_TYPES,
-  CONSENT_TYPE_LABELS,
   type ConsentMethod,
   type ConsentRecord,
   type ConsentStatus,
@@ -76,8 +74,8 @@ type ConsentsResponse = {
   summary?: ConsentSummary;
 };
 
-/** GET /api/clients/[id]/consents → panel durumu (saf; setState yok). */
-async function fetchConsentState(clientId: string): Promise<LoadState> {
+/** GET /api/clients/[id]/consents → panel durumu (saf; setState yok). Yedek metinler ekran dilinde verilir. */
+async function fetchConsentState(clientId: string, fallback: { notReady: string; load: string }): Promise<LoadState> {
   try {
     const res = await fetch(`/api/clients/${encodeURIComponent(clientId)}/consents`, {
       headers: authHeaders(),
@@ -85,10 +83,10 @@ async function fetchConsentState(clientId: string): Promise<LoadState> {
     });
     const json = (await res.json().catch(() => ({}))) as ConsentsResponse;
     if (res.status === 503 && json.code === "CONSENTS_NOT_READY") {
-      return { kind: "not_ready", forClientId: clientId, message: json.error ?? "KVKK onam kaydı henüz etkin değil." };
+      return { kind: "not_ready", forClientId: clientId, message: json.error ?? fallback.notReady };
     }
     if (!res.ok || !json.ok || !json.summary) {
-      return { kind: "error", forClientId: clientId, message: json.error ?? "Onam kayıtları yüklenemedi." };
+      return { kind: "error", forClientId: clientId, message: json.error ?? fallback.load };
     }
     return {
       kind: "ready",
@@ -99,7 +97,7 @@ async function fetchConsentState(clientId: string): Promise<LoadState> {
       demo: json.demo === true,
     };
   } catch {
-    return { kind: "error", forClientId: clientId, message: "Onam kayıtları yüklenemedi." };
+    return { kind: "error", forClientId: clientId, message: fallback.load };
   }
 }
 
@@ -125,6 +123,8 @@ export default function ClientConsentPanel({
   className = "",
   collapsible = false,
 }: Props) {
+  const t = useTranslations("clients.consent");
+  const fallback = { notReady: t("errorNotReady"), load: t("errorLoad") };
   const [open, setOpen] = useState(false);
   const bodyId = `kvkk-body-${useId().replace(/:/g, "")}`;
   const [rawState, setState] = useState<LoadState>({ kind: "loading", forClientId: clientId });
@@ -143,21 +143,23 @@ export default function ClientConsentPanel({
   /** Tek yükleme: sonucu durum olarak döndürür (setState çağıranın sorumluluğunda). */
   const reload = useCallback(async (): Promise<ConsentSummary | null> => {
     const seq = ++loadSeq.current;
-    const next = await fetchConsentState(clientId);
+    const next = await fetchConsentState(clientId, fallback);
     if (seq !== loadSeq.current) return null; // geç gelen yanıt
     setState(next);
     return next.kind === "ready" ? next.summary : null;
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- yedek metinler dile bağlı sabitlerdir; yeniden yükleme yalnız danışan değişince
   }, [clientId]);
 
   useEffect(() => {
     const seq = ++loadSeq.current;
     let cancelled = false;
-    void fetchConsentState(clientId).then((next) => {
+    void fetchConsentState(clientId, fallback).then((next) => {
       if (!cancelled && seq === loadSeq.current) setState(next);
     });
     return () => {
       cancelled = true;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- yükleme yalnız danışan değişince
   }, [clientId]);
 
   const submit = () =>
@@ -178,7 +180,7 @@ export default function ClientConsentPanel({
       }).catch(() => null);
       const json = res ? ((await res.json().catch(() => ({}))) as { ok?: boolean; error?: string }) : {};
       if (!res || !res.ok || !json.ok) {
-        setFormError(json.error ?? "Kayıt eklenemedi. Lütfen tekrar deneyin.");
+        setFormError(json.error ?? t("errorSave"));
         return;
       }
       setNote("");
@@ -186,6 +188,19 @@ export default function ClientConsentPanel({
       const summary = await reload();
       if (summary) onChange?.(summary);
     });
+
+  /** Özet rozeti — kanonik bayraklardan (empty / informed / explicitConsent) ekran dilinde. */
+  const badgeText = (sm: ConsentSummary): string => {
+    if (sm.empty) return t("badgeNone");
+    if (sm.informed && sm.explicitConsent) return t("badgeOk");
+    const missing: string[] = [];
+    if (!sm.informed) missing.push(t("missingInformed"));
+    if (!sm.explicitConsent) missing.push(t("missingExplicit"));
+    return t("badgeMissing", { missing: missing.join(", ") });
+  };
+  const typeLabel = (ct: string) => (t.has(`type.${ct}.label`) ? t(`type.${ct}.label`) : ct);
+  const statusLabel = (st: string) => (t.has(`status.${st}`) ? t(`status.${st}`) : st);
+  const methodLabel = (m: string) => (t.has(`method.${m}`) ? t(`method.${m}`) : m);
 
   // ─── Rozet görünümü ────────────────────────────────────────────────────────
   if (variant === "badge") {
@@ -196,16 +211,16 @@ export default function ClientConsentPanel({
           className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[11px] font-semibold ${TONE_CLASS.none} ${className}`}
           title={state.message}
         >
-          KVKK durumu alınamadı
+          {t("badgeUnavailable")}
         </span>
       );
     }
     return (
       <span
         className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[11px] font-semibold ${TONE_CLASS[state.summary.tone]} ${className}`}
-        title="KVKK aydınlatma / açık rıza kaydı durumu"
+        title={t("badgeTitle")}
       >
-        {state.summary.badge}
+        {badgeText(state.summary)}
       </span>
     );
   }
@@ -214,7 +229,7 @@ export default function ClientConsentPanel({
   return (
     <section
       className={`rounded-2xl border border-slate-200 bg-white/90 p-4 shadow-sm ${className}`}
-      aria-label="KVKK aydınlatma ve onam kayıtları"
+      aria-label={t("sectionAria")}
     >
       {collapsible ? (
         <h3 className="m-0">
@@ -228,7 +243,7 @@ export default function ClientConsentPanel({
           >
             <span className="flex items-center gap-2">
               <span aria-hidden>⚠</span>
-              KVKK Aydınlatma ve Onam
+              {t("title")}
             </span>
             <svg
               aria-hidden
@@ -244,15 +259,12 @@ export default function ClientConsentPanel({
       <div id={bodyId} hidden={collapsible && !open} data-testid="kvkk-body">
       <header className={`flex flex-wrap items-start justify-between gap-2 ${collapsible ? "mt-3" : ""}`}>
         <div>
-          {collapsible ? null : <h3 className="text-sm font-black text-slate-900">KVKK Aydınlatma ve Onam</h3>}
-          <p className="mt-0.5 text-[11px] text-slate-500">
-            Danışanınıza yaptığınız aydınlatmayı ve aldığınız izinleri kayıt altına alın. Kayıtlar
-            değiştirilemez; geri çekme yeni bir kayıt olarak eklenir.
-          </p>
+          {collapsible ? null : <h3 className="text-sm font-black text-slate-900">{t("title")}</h3>}
+          <p className="mt-0.5 text-[11px] text-slate-500">{t("intro")}</p>
         </div>
       </header>
 
-      {state.kind === "loading" && <p className="mt-4 text-xs text-slate-500">Yükleniyor…</p>}
+      {state.kind === "loading" && <p className="mt-4 text-xs text-slate-500">{t("loading")}</p>}
 
       {(state.kind === "error" || state.kind === "not_ready") && (
         <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900" role="alert">
@@ -262,7 +274,7 @@ export default function ClientConsentPanel({
                 setState({ kind: "loading", forClientId: clientId });
                 void reload();
               }}>
-              Yeniden dene
+              {t("retry")}
             </button>
           )}
         </div>
@@ -271,24 +283,24 @@ export default function ClientConsentPanel({
       {state.kind === "ready" && (
         <>
           <ul className="mt-4 grid gap-2 sm:grid-cols-2">
-            {CONSENT_TYPES.map((t) => {
-              const rec = state.current[t];
+            {CONSENT_TYPES.map((ct) => {
+              const rec = state.current[ct];
               return (
-                <li key={t} className="rounded-xl border border-slate-100 bg-slate-50/70 p-2.5">
+                <li key={ct} className="rounded-xl border border-slate-100 bg-slate-50/70 p-2.5">
                   <div className="flex items-center justify-between gap-2">
-                    <span className="text-xs font-bold text-slate-800">{CONSENT_TYPE_LABELS[t].label}</span>
+                    <span className="text-xs font-bold text-slate-800">{typeLabel(ct)}</span>
                     <span
                       className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
                         rec ? STATUS_CLASS[rec.status] : "bg-slate-100 text-slate-500"
                       }`}
                     >
-                      {rec ? CONSENT_STATUS_LABELS[rec.status] : "Kayıt yok"}
+                      {rec ? statusLabel(rec.status) : t("noRecord")}
                     </span>
                   </div>
-                  <p className="mt-1 text-[11px] leading-snug text-slate-500">{CONSENT_TYPE_LABELS[t].help}</p>
+                  <p className="mt-1 text-[11px] leading-snug text-slate-500">{t(`type.${ct}.help`)}</p>
                   {rec && (
                     <p className="mt-1 text-[10px] text-slate-400">
-                      {formatInstantDateTime(rec.recorded_at)} · {CONSENT_METHOD_LABELS[rec.method]}
+                      {formatInstantDateTime(rec.recorded_at)} · {methodLabel(rec.method)}
                     </p>
                   )}
                 </li>
@@ -297,7 +309,7 @@ export default function ClientConsentPanel({
           </ul>
 
           {state.demo ? (
-            <p className="mt-4 text-xs text-slate-500">Demo hesabında onam kaydı eklenemez.</p>
+            <p className="mt-4 text-xs text-slate-500">{t("demoNotice")}</p>
           ) : (
             <form
               className="mt-4 grid gap-3 rounded-xl border border-slate-100 p-3 sm:grid-cols-3"
@@ -307,22 +319,22 @@ export default function ClientConsentPanel({
               }}
             >
               <label className="text-[11px] font-semibold text-slate-600">
-                Kayıt türü
+                {t("fieldType")}
                 <select
                   className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-xs"
                   value={consentType}
                   onChange={(e) => setConsentType(e.target.value as ConsentType)}
                   disabled={pending}
                 >
-                  {CONSENT_TYPES.map((t) => (
-                    <option key={t} value={t}>
-                      {CONSENT_TYPE_LABELS[t].label}
+                  {CONSENT_TYPES.map((ct) => (
+                    <option key={ct} value={ct}>
+                      {typeLabel(ct)}
                     </option>
                   ))}
                 </select>
               </label>
               <label className="text-[11px] font-semibold text-slate-600">
-                Durum
+                {t("fieldStatus")}
                 <select
                   className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-xs"
                   value={status}
@@ -331,13 +343,13 @@ export default function ClientConsentPanel({
                 >
                   {CONSENT_STATUSES.map((s) => (
                     <option key={s} value={s}>
-                      {CONSENT_STATUS_LABELS[s]}
+                      {statusLabel(s)}
                     </option>
                   ))}
                 </select>
               </label>
               <label className="text-[11px] font-semibold text-slate-600">
-                Alınma yöntemi
+                {t("fieldMethod")}
                 <select
                   className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-xs"
                   value={method}
@@ -346,13 +358,13 @@ export default function ClientConsentPanel({
                 >
                   {CONSENT_METHODS.map((m) => (
                     <option key={m} value={m}>
-                      {CONSENT_METHOD_LABELS[m]}
+                      {methodLabel(m)}
                     </option>
                   ))}
                 </select>
               </label>
               <label className="text-[11px] font-semibold text-slate-600 sm:col-span-3">
-                Not (isteğe bağlı — sağlık bilgisi yazmayın)
+                {t("fieldNote")}
                 <textarea
                   className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-xs"
                   rows={2}
@@ -364,11 +376,11 @@ export default function ClientConsentPanel({
               </label>
               <div className="flex flex-wrap items-center gap-2 sm:col-span-3">
                 <button type="submit" className="btn-primary text-xs" disabled={pending}>
-                  {pending ? "Kaydediliyor…" : "Kaydı ekle"}
+                  {pending ? t("saving") : t("submit")}
                 </button>
                 {onDefer && (
                   <button type="button" className="btn-secondary text-xs" onClick={onDefer} disabled={pending}>
-                    Sonra tamamla
+                    {t("defer")}
                   </button>
                 )}
                 <Link
@@ -376,9 +388,9 @@ export default function ClientConsentPanel({
                   target="_blank"
                   className="text-[11px] font-semibold text-violet-700 underline"
                 >
-                  Örnek aydınlatma metni
+                  {t("sampleNotice")}
                 </Link>
-                {saved && !formError && <span className="text-[11px] font-semibold text-emerald-700">Kaydedildi.</span>}
+                {saved && !formError && <span className="text-[11px] font-semibold text-emerald-700">{t("saved")}</span>}
                 {formError && (
                   <span className="text-[11px] font-semibold text-rose-700" role="alert">
                     {formError}
@@ -390,19 +402,19 @@ export default function ClientConsentPanel({
 
           <details className="mt-3">
             <summary className="cursor-pointer text-[11px] font-semibold text-slate-600">
-              Kayıt geçmişi ({state.history.length})
+              {t("history", { count: state.history.length })}
             </summary>
             {state.history.length === 0 ? (
-              <p className="mt-2 text-[11px] text-slate-500">Henüz kayıt yok.</p>
+              <p className="mt-2 text-[11px] text-slate-500">{t("historyEmpty")}</p>
             ) : (
               <ol className="mt-2 space-y-1.5">
                 {state.history.map((h) => (
                   <li key={h.id} className="rounded-lg bg-slate-50 px-2 py-1.5 text-[11px] text-slate-700">
-                    <span className="font-semibold">{CONSENT_TYPE_LABELS[h.consent_type]?.label ?? h.consent_type}</span>
+                    <span className="font-semibold">{typeLabel(h.consent_type)}</span>
                     {" — "}
-                    {CONSENT_STATUS_LABELS[h.status] ?? h.status}
+                    {statusLabel(h.status)}
                     {" · "}
-                    {CONSENT_METHOD_LABELS[h.method] ?? h.method}
+                    {methodLabel(h.method)}
                     {" · "}
                     {formatInstantDateTime(h.recorded_at)}
                     {h.note ? <span className="block text-slate-500">{h.note}</span> : null}
@@ -416,7 +428,7 @@ export default function ClientConsentPanel({
 
       {onDefer && state.kind !== "ready" && (
         <button type="button" className="btn-secondary mt-3 text-xs" onClick={onDefer}>
-          Sonra tamamla
+          {t("defer")}
         </button>
       )}
       </div>
