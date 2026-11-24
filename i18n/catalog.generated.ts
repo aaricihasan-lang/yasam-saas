@@ -29,6 +29,9 @@ import tr_commonLanguagePreference from "@/messages/tr/common.languagePreference
 import tr_home from "@/messages/tr/home.json";
 import tr_memoryPicker from "@/messages/tr/memoryPicker.json";
 import tr_navigation from "@/messages/tr/navigation.json";
+import tr_settings from "@/messages/tr/settings.json";
+import tr_settingsMembership from "@/messages/tr/settings.membership.json";
+import tr_settingsProfile from "@/messages/tr/settings.profile.json";
 import tr_stonesCombinations from "@/messages/tr/stones.combinations.json";
 import tr_stonesHub from "@/messages/tr/stones.hub.json";
 import tr_stones from "@/messages/tr/stones.json";
@@ -37,6 +40,7 @@ import tr_stonesList from "@/messages/tr/stones.list.json";
 import tr_stonesMinerals from "@/messages/tr/stones.minerals.json";
 import tr_stonesRecords from "@/messages/tr/stones.records.json";
 import tr_terms from "@/messages/tr/terms.json";
+import tr_trial from "@/messages/tr/trial.json";
 import en_authClient from "@/messages/en/auth.client.json";
 import en_authEmail from "@/messages/en/auth.email.json";
 import en_authServer from "@/messages/en/auth.server.json";
@@ -63,6 +67,9 @@ import en_commonLanguagePreference from "@/messages/en/common.languagePreference
 import en_home from "@/messages/en/home.json";
 import en_memoryPicker from "@/messages/en/memoryPicker.json";
 import en_navigation from "@/messages/en/navigation.json";
+import en_settings from "@/messages/en/settings.json";
+import en_settingsMembership from "@/messages/en/settings.membership.json";
+import en_settingsProfile from "@/messages/en/settings.profile.json";
 import en_stonesCombinations from "@/messages/en/stones.combinations.json";
 import en_stonesHub from "@/messages/en/stones.hub.json";
 import en_stones from "@/messages/en/stones.json";
@@ -71,10 +78,11 @@ import en_stonesList from "@/messages/en/stones.list.json";
 import en_stonesMinerals from "@/messages/en/stones.minerals.json";
 import en_stonesRecords from "@/messages/en/stones.records.json";
 import en_terms from "@/messages/en/terms.json";
+import en_trial from "@/messages/en/trial.json";
 
 export const CATALOG_FILES = {
-  tr: ["auth.client.json", "auth.email.json", "auth.server.json", "auth.ui.json", "beslenme.json", "clients.analizler.json", "clients.anamnez.json", "clients.charges.json", "clients.combinations.json", "clients.consent.json", "clients.detail.json", "clients.homework.json", "clients.json", "clients.list.json", "clients.memory.json", "clients.notes.json", "clients.sessions.json", "clients.stones.json", "clients.yolculuk.json", "common.apiErrors.json", "common.deleteConfirm.json", "common.json", "common.languagePreference.json", "home.json", "memoryPicker.json", "navigation.json", "stones.combinations.json", "stones.hub.json", "stones.json", "stones.knowledge.json", "stones.list.json", "stones.minerals.json", "stones.records.json", "terms.json"],
-  en: ["auth.client.json", "auth.email.json", "auth.server.json", "auth.ui.json", "beslenme.json", "clients.analizler.json", "clients.anamnez.json", "clients.charges.json", "clients.combinations.json", "clients.consent.json", "clients.detail.json", "clients.homework.json", "clients.json", "clients.list.json", "clients.memory.json", "clients.notes.json", "clients.sessions.json", "clients.stones.json", "clients.yolculuk.json", "common.apiErrors.json", "common.deleteConfirm.json", "common.json", "common.languagePreference.json", "home.json", "memoryPicker.json", "navigation.json", "stones.combinations.json", "stones.hub.json", "stones.json", "stones.knowledge.json", "stones.list.json", "stones.minerals.json", "stones.records.json", "terms.json"],
+  tr: ["auth.client.json", "auth.email.json", "auth.server.json", "auth.ui.json", "beslenme.json", "clients.analizler.json", "clients.anamnez.json", "clients.charges.json", "clients.combinations.json", "clients.consent.json", "clients.detail.json", "clients.homework.json", "clients.json", "clients.list.json", "clients.memory.json", "clients.notes.json", "clients.sessions.json", "clients.stones.json", "clients.yolculuk.json", "common.apiErrors.json", "common.deleteConfirm.json", "common.json", "common.languagePreference.json", "home.json", "memoryPicker.json", "navigation.json", "settings.json", "settings.membership.json", "settings.profile.json", "stones.combinations.json", "stones.hub.json", "stones.json", "stones.knowledge.json", "stones.list.json", "stones.minerals.json", "stones.records.json", "terms.json", "trial.json"],
+  en: ["auth.client.json", "auth.email.json", "auth.server.json", "auth.ui.json", "beslenme.json", "clients.analizler.json", "clients.anamnez.json", "clients.charges.json", "clients.combinations.json", "clients.consent.json", "clients.detail.json", "clients.homework.json", "clients.json", "clients.list.json", "clients.memory.json", "clients.notes.json", "clients.sessions.json", "clients.stones.json", "clients.yolculuk.json", "common.apiErrors.json", "common.deleteConfirm.json", "common.json", "common.languagePreference.json", "home.json", "memoryPicker.json", "navigation.json", "settings.json", "settings.membership.json", "settings.profile.json", "stones.combinations.json", "stones.hub.json", "stones.json", "stones.knowledge.json", "stones.list.json", "stones.minerals.json", "stones.records.json", "terms.json", "trial.json"],
 } as const;
 
 export const CATALOG_PARTS: Record<"tr" | "en", Record<string, unknown>[]> = {
@@ -105,6 +113,9 @@ export const CATALOG_PARTS: Record<"tr" | "en", Record<string, unknown>[]> = {
     tr_home,
     tr_memoryPicker,
     tr_navigation,
+    tr_settings,
+    tr_settingsMembership,
+    tr_settingsProfile,
     tr_stonesCombinations,
     tr_stonesHub,
     tr_stones,
@@ -113,6 +124,7 @@ export const CATALOG_PARTS: Record<"tr" | "en", Record<string, unknown>[]> = {
     tr_stonesMinerals,
     tr_stonesRecords,
     tr_terms,
+    tr_trial,
   ],
   en: [
     en_authClient,
@@ -141,6 +153,9 @@ export const CATALOG_PARTS: Record<"tr" | "en", Record<string, unknown>[]> = {
     en_home,
     en_memoryPicker,
     en_navigation,
+    en_settings,
+    en_settingsMembership,
+    en_settingsProfile,
     en_stonesCombinations,
     en_stonesHub,
     en_stones,
@@ -149,5 +164,6 @@ export const CATALOG_PARTS: Record<"tr" | "en", Record<string, unknown>[]> = {
     en_stonesMinerals,
     en_stonesRecords,
     en_terms,
+    en_trial,
   ],
 };
