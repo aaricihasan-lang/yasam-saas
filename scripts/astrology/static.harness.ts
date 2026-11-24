@@ -303,6 +303,9 @@ async function main() {
       /^supabase\/migrations\/20280125000000_astro_sky_monthly_ephemeris\.sql$/,
       /^lib\/backup\/registry\.ts$/,
       /^lib\/backup\/schema\.generated\.ts$/,
+      // Aynı gerekçe: gerçek DB yedek/geri yükleme + uzman yalıtımı testi (CI `guvenlik`) her yedeklenen astro_ tablosunu dolaşır →
+      // yeni kayıt tablosunun migration'ı + sentetik tohumu bu testte olmalı (Horary eklenirken de aynı dosya genişletildi).
+      /^scripts\/settings-export\/atlas-hdrel-pg\.harness\.mjs$/,
       // 2026-10-29 (Owner talimatı): CI'da bağımsız `horary-western` işi (#591). RKS-3 main'den kaldırıldı (#610) →
       // scripts/rks/** artık yok; yalnız bu CI dosyası.
       /^\.github\/workflows\/ci\.yml$/,
