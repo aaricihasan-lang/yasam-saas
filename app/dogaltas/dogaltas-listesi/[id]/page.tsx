@@ -2,6 +2,7 @@
 
 import { runInEffect } from "@/lib/runInEffect";
 import { useTranslations } from "next-intl";
+import { useDogaltasServerError } from "@/lib/dogaltas/useServerErrorText";
 import Link from "next/link";
 import {
   ChangeEvent,
@@ -288,7 +289,7 @@ function toSafeStone(data: Record<string, unknown> | null | undefined): StoneRec
   return {
     id: String(data.id),
     tenant_id: stringField(data.tenant_id),
-    stone_name: stringField(data.stone_name) || "İsimsiz Taş",
+    stone_name: stringField(data.stone_name) || "İsimsiz Taş", // i18n-ignore: veri modeli yedeği (stone_name alanına girer, düzenlenip kaydedilebilir)
     short_description: stringField(data.short_description),
     general_info: stringField(data.general_info),
     source_note: stringField(data.source_note),
@@ -619,6 +620,7 @@ function TextBlock({
 
 function StoneDetailPage() {
   const t = useTranslations("stones.detail");
+  const se = useDogaltasServerError();
   const tl = useTranslations("stones.longText");
   const tre = useTranslations("stones.reportErrors");
   const { showToast } = useToast();
@@ -903,7 +905,7 @@ function StoneDetailPage() {
       setSourceNames((prev) => (prev.includes(sourceName) ? prev : [...prev, sourceName]));
     }
     setEntryBusy(false);
-    if (!r.ok) setEntryError(r.error ?? t("entryAddFailed"));
+    if (!r.ok) setEntryError(se.text(r.error, t("entryAddFailed"), r.code));
     return r.ok;
   }
 
@@ -919,7 +921,7 @@ function StoneDetailPage() {
       await refreshAfterEntryWrite(stone.id);
     }
     setEntryBusy(false);
-    if (!r.ok) setEntryError(r.error ?? t("entrySaveFailed"));
+    if (!r.ok) setEntryError(se.text(r.error, t("entrySaveFailed"), r.code));
     return r.ok;
   }
 
@@ -940,7 +942,7 @@ function StoneDetailPage() {
       await refreshAfterEntryWrite(stone.id);
     }
     setEntryBusy(false);
-    if (!r.ok) setEntryError(r.error ?? t("entryDeleteFailed"));
+    if (!r.ok) setEntryError(se.text(r.error, t("entryDeleteFailed"), r.code));
   }
 
   async function loadSources(stoneId: string) {
@@ -1135,7 +1137,7 @@ function StoneDetailPage() {
       const r = await updateStoneSource(stone.id, activeExtra.id, patch);
       setSaving(false);
       if (!r.ok) {
-        setErrorMessage(t("editor.updateFailed", { error: r.error ?? t("editor.updateFailedFallback") }));
+        setErrorMessage(t("editor.updateFailed", { error: se.detail(r.error, t("editor.updateFailedFallback")) }));
         return;
       }
       if (r.row) {

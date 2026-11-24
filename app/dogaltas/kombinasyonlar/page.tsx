@@ -6,6 +6,7 @@ import Link from "next/link";
 import AdminTransferBadge from "@/components/provenance/AdminTransferBadge";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
+import { useDogaltasServerError } from "@/lib/dogaltas/useServerErrorText";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
 import { requiresBulkDeleteGuard, runBulkDeleteConfirm } from "@/lib/ui/bulkDeleteGuard";
 import { buildNameListLines } from "@/lib/ui/deleteConfirmMessage";
@@ -231,6 +232,7 @@ export default function KombinasyonlarPage() {
   const { confirm } = useConfirm();
   const { showToast } = useToast();
   const t = useTranslations("stones.combinations.list");
+  const se = useDogaltasServerError();
   const tc = useTranslations("stones.common");
   const [rows, setRows] = useState<CombinationRecord[]>([]);
   const [loading, setLoading] = useState(true);
@@ -344,14 +346,14 @@ export default function KombinasyonlarPage() {
   // eski veri kırılmaz (issue tüm satırlarda var).
   const categories = useMemo(() => {
     const set = new Set<string>();
-    for (const row of rows) set.add(row.issue?.trim() || "İsimsiz");
+    for (const row of rows) set.add(row.issue?.trim() || "İsimsiz"); // i18n-ignore: kanonik grup anahtarı/sentinel; gösterim t("untitled")
     return Array.from(set).sort((a, b) => a.localeCompare(b, "tr-TR"));
   }, [rows]);
 
   const filteredRows = useMemo(() => {
     const category = categoryFilter.trim();
     return rows.filter((row) => {
-      if (category && (row.issue?.trim() || "İsimsiz") !== category) return false;
+      if (category && (row.issue?.trim() || "İsimsiz") !== category) return false; // i18n-ignore: kanonik grup anahtarı/sentinel; gösterim t("untitled")
       return rowMatchesSearch(row, isSearchActive ? searchTerm : "");
     });
   }, [rows, searchTerm, isSearchActive, categoryFilter]);
@@ -359,7 +361,7 @@ export default function KombinasyonlarPage() {
   const groups = useMemo(() => {
     const map = new Map<string, CombinationRecord[]>();
     for (const row of filteredRows) {
-      const key = row.issue?.trim() || "İsimsiz";
+      const key = row.issue?.trim() || "İsimsiz"; // i18n-ignore: kanonik grup anahtarı/sentinel; gösterim t("untitled")
       const list = map.get(key);
       if (list) list.push(row);
       else map.set(key, [row]);
@@ -374,7 +376,7 @@ export default function KombinasyonlarPage() {
 
   const uniqueIssues = useMemo(() => {
     const set = new Set<string>();
-    rows.forEach((r) => set.add(r.issue?.trim() || "İsimsiz"));
+    rows.forEach((r) => set.add(r.issue?.trim() || "İsimsiz")); // i18n-ignore: kanonik grup anahtarı/sentinel; gösterim t("untitled")
     return set.size;
   }, [rows]);
 
@@ -383,7 +385,7 @@ export default function KombinasyonlarPage() {
   const rowsByIssue = useMemo(() => {
     const map = new Map<string, CombinationRecord[]>();
     for (const row of rows) {
-      const key = row.issue?.trim() || "İsimsiz";
+      const key = row.issue?.trim() || "İsimsiz"; // i18n-ignore: kanonik grup anahtarı/sentinel; gösterim t("untitled")
       const list = map.get(key);
       if (list) list.push(row);
       else map.set(key, [row]);
@@ -510,7 +512,7 @@ export default function KombinasyonlarPage() {
     setDeleteLoading(false);
 
     if (!result.ok) {
-      setErrorMessage(t("deleteSelectedError", { error: result.error ?? "" }));
+      setErrorMessage(t("deleteSelectedError", { error: se.detail(result.error) }));
       return;
     }
 
@@ -612,7 +614,7 @@ export default function KombinasyonlarPage() {
     setDeleteLoading(false);
 
     if (!result.ok) {
-      setErrorMessage(t("deleteGroupError", { error: result.error ?? "" }));
+      setErrorMessage(t("deleteGroupError", { error: se.detail(result.error) }));
       return;
     }
 
@@ -623,7 +625,7 @@ export default function KombinasyonlarPage() {
       return next;
     });
     void loadCombinations();
-  }, [confirm, resolveIdsForIssues, showToast, t, tc]);
+  }, [confirm, resolveIdsForIssues, showToast, t, tc, se]);
 
   return (
     <DogaltasPremiumShell
@@ -744,7 +746,7 @@ export default function KombinasyonlarPage() {
             {errorMessage.startsWith("@@loadError:")
               ? errorMessage.slice("@@loadError:".length) === STONES_WORKSPACE_UNAVAILABLE
                 ? tc("workspaceUnavailable")
-                : t("loadError", { error: errorMessage.slice("@@loadError:".length) })
+                : t("loadError", { error: se.detail(errorMessage.slice("@@loadError:".length)) })
               : errorMessage}
           </div>
         )}
@@ -798,7 +800,7 @@ export default function KombinasyonlarPage() {
                     <span className={`${dp.chip} ${dp.chipViolet}`}>{t("variantBadge", { n: count })}</span>
                     {category && (
                       <span className={dp.chip}>
-                        {category === "İsimsiz"
+                        {category === "İsimsiz" // i18n-ignore: kanonik sentinel karşılaştırması
                           ? t("untitled")
                           : isSearchActive ? renderHighlightedText(category, activeSearch) : category}
                       </span>

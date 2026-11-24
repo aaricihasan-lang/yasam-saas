@@ -12,6 +12,7 @@ import {
 } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
+import { useDogaltasServerError } from "@/lib/dogaltas/useServerErrorText";
 import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
 import { fetchCombinationsViaApi } from "@/lib/dogaltas/combinationsApi";
@@ -864,6 +865,7 @@ function VariantCard({
   onSaved?: (newIssue: string) => void;
 }) {
   const t = useTranslations("stones.combinations.detail");
+  const se = useDogaltasServerError();
   const tc = useTranslations("stones.common");
   const calcOpen = isCalcOpen;
 
@@ -941,12 +943,12 @@ function VariantCard({
     }, expected);
     setEditSaving(false);
     if (res.conflict) {
-      setEditError(res.error || t("updateError"));
+      setEditError(se.text(res.error || undefined, t("updateError")));
       onSaved?.(res.issue ?? issue); // üst listeyi/kaydı tazele (güncel updated_at)
       return;
     }
     if (!res.ok) {
-      setEditError(res.error || t("updateError"));
+      setEditError(se.text(res.error || undefined, t("updateError")));
       return;
     }
     setIsEditing(false);
@@ -1270,6 +1272,7 @@ function KombinasyonDetayPageContent() {
   const { isDemo } = useDemoGuard();
   const router = useRouter();
   const t = useTranslations("stones.combinations.detail");
+  const se = useDogaltasServerError();
   const tc = useTranslations("stones.common");
   const tre = useTranslations("stones.reportErrors");
   const { showToast } = useToast();
@@ -1306,7 +1309,7 @@ function KombinasyonDetayPageContent() {
       });
       const json = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string };
       if (!res.ok || !json.ok) {
-        setErrorMessage(tl("deleteGroupError", { error: json.error ?? `HTTP ${res.status}` }));
+        setErrorMessage(tl("deleteGroupError", { error: se.detail(json.error, `HTTP ${res.status}`) }));
         return;
       }
       showToast({ type: "success", message: tl("deletedGroupToast", { issue: decodedIssue }) });
@@ -1316,7 +1319,7 @@ function KombinasyonDetayPageContent() {
     } finally {
       setDeleteBusy(false);
     }
-  }, [allRowIds, rows.length, decodedIssue, deleteBusy, t, tl, tc, confirm, showToast, router]);
+  }, [allRowIds, rows.length, decodedIssue, deleteBusy, t, tl, tc, confirm, showToast, router, se]);
 
   const downloadWord = useCallback(async () => {
     if (!decodedIssue) return;
@@ -1384,7 +1387,7 @@ function KombinasyonDetayPageContent() {
       setErrorMessage(
         result.error === STONES_WORKSPACE_UNAVAILABLE
           ? tc("workspaceUnavailable")
-          : t("loadError", { error: result.error ?? "" }),
+          : t("loadError", { error: se.detail(result.error) }),
       );
       setRows([]);
       setAllRowIds([]);
@@ -1404,7 +1407,7 @@ function KombinasyonDetayPageContent() {
       console.group(`[Kombinasyon] "${decodedIssue}" — ${raw.length} ham → ${unique.length} unique (${droppedCount} duplicate temizlendi)`);
       for (const [k, count] of freq) {
         if (count > 1) {
-          const preview = k.split("\x00")[0]?.slice(0, 60) ?? "(boş)";
+          const preview = k.split("\x00")[0]?.slice(0, 60) ?? "(boş)"; // i18n-ignore: yalnız console.log hata ayıklama
           console.log(`  ${count}× — kaynak: "${preview}"`);
         }
       }
@@ -1415,7 +1418,7 @@ function KombinasyonDetayPageContent() {
 
     setAllRowIds(raw.map((r) => r.id));
     setRows(unique);
-  }, [decodedIssue, t, tc]);
+  }, [decodedIssue, t, tc, se]);
 
   const loadStockNames = useCallback(async () => {
     setStockLoading(true);

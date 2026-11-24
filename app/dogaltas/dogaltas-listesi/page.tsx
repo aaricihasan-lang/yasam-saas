@@ -2,6 +2,7 @@
 
 import { runInEffect } from "@/lib/runInEffect";
 import { useTranslations } from "next-intl";
+import { useDogaltasServerError } from "@/lib/dogaltas/useServerErrorText";
 import Link from "next/link";
 import BfcacheRefreshHandler from "@/components/BfcacheRefreshHandler";
 import AdminTransferBadge from "@/components/provenance/AdminTransferBadge";
@@ -87,7 +88,7 @@ const SEARCH_DEBOUNCE_MS = 300;
 const SEARCH_MIN_LENGTH = 2;
 
 const CHAKRA_CHIPS = [
-  "Kök", "Sakral", "Solar Pleksus", "Kalp", "Boğaz", "Alın", "Taç",
+  "Kök", "Sakral", "Solar Pleksus", "Kalp", "Boğaz", "Alın", "Taç", // i18n-ignore: kanonik çakra filtre değeri; gösterim facet()
 ] as const;
 
 type DetailFilters = {
@@ -416,6 +417,7 @@ const StoneCard = memo(function StoneCard({
 
 function DogaltasListesiPageContent() {
   const t = useTranslations("stones.list");
+  const se = useDogaltasServerError();
   // Facet chip display: filtre value KANONİK Türkçe (detailFilters.chakra + containsTr eşleşme);
   // yalnız etiket localize. Anahtar yoksa canonical'a düşer.
   const tf = useTranslations("stones");
@@ -537,7 +539,7 @@ function DogaltasListesiPageContent() {
       setLoadingMore(false);
 
       if (pageRes.error) {
-        setErrorMessage(t("error.fetchFailed", { error: pageRes.error }));
+        setErrorMessage(t("error.fetchFailed", { error: se.detail(pageRes.error) }));
         // stale cache gösterildiyse listeyi boşaltma; yalnız hiç veri yoksa boşalt.
         if (opts.reset && !shownFromCache) setStones([]);
         return;
@@ -545,7 +547,7 @@ function DogaltasListesiPageContent() {
 
       applyResult(pageRes.rows, opts.reset ? pageRes.count : undefined);
     },
-    [debouncedSearch, searchMode, queryTenantId, t, tc],
+    [debouncedSearch, searchMode, queryTenantId, t, tc, se],
   );
 
   const resolveTenant = useCallback(async () => {

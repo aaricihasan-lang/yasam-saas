@@ -114,7 +114,8 @@
       "noMatch": "No matching clients.",
       "noClients": "No clients found.",
       "selectedSummary": "Selected: \"{combo}\" ({count, plural, one {# stone} other {# stones}}) will be saved to {name}.",
-      "saveToClientBtn": "💾 Save to Client"
+      "saveToClientBtn": "💾 Save to Client",
+      "unnamedClient": "Unnamed client"
     },
     "detailDrawer": {
       "detailAria": "{name} details",
@@ -149,7 +150,9 @@
       "stockTitle": "Inventory Status",
       "stockBadge": "INVENTORY",
       "inStockYes": "✓ This stone is in stock.",
-      "inStockNo": "This stone does not appear to be in stock right now."
+      "inStockNo": "This stone does not appear to be in stock right now.",
+      "stockBadgeYes": "In stock",
+      "stockBadgeNo": "Out of stock"
     },
     "reader": {
       "demoProtected": "🔒 This content is protected in the demo account"

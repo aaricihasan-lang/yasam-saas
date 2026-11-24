@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import { useTranslations } from "next-intl";
+import { useDogaltasServerError } from "@/lib/dogaltas/useServerErrorText";
 import BfcacheRefreshHandler from "@/components/BfcacheRefreshHandler";
 import { DuplicateWarningModal } from "@/app/dogaltas/components/DuplicateWarningModal";
 import { useDemoGuard } from "@/hooks/useDemoGuard";
@@ -104,7 +105,9 @@ export default function KombinasyonOlusturPage() {
   const { isDemo } = useDemoGuard();
   const { showToast } = useToast();
   const t = useTranslations("stones.combinations.builder");
+  const se = useDogaltasServerError();
   const tc = useTranslations("stones.common");
+  const tsc = useTranslations("stones.saveCombo");
   // Arama tipi görünen label/placeholder localize; SEARCH_TYPE_META KANONİK kalır
   // (type key query alanı + describeCondition/notesText'i besler). Helper'lar çeviriciyi
   // kapatır; aşağıdaki .map((t)=>...) shadow'undan etkilenmez.
@@ -372,7 +375,7 @@ export default function KombinasyonOlusturPage() {
       if (match) mergeKnown([match]);
     }
     if (match) {
-      addToCart({ id: match.id, name: match.stone_name || "İsimsiz taş", inStock: stockMatcher(match.stone_name) });
+      addToCart({ id: match.id, name: match.stone_name || "İsimsiz taş", inStock: stockMatcher(match.stone_name) }); // i18n-ignore: sepet/kayıt verisine giden ad yedeği (kombinasyonla kaydedilir)
     } else {
       addToCart({ id: newId(), name, inStock: stockMatcher(name) });
     }
@@ -464,7 +467,7 @@ export default function KombinasyonOlusturPage() {
     const nonMatchingStones = activeConditions.length
       ? fullStones
           .filter((s) => !activeConditions.every((cond) => evaluateOne(s, cond).satisfied))
-          .map((s) => s.stone_name || "İsimsiz taş")
+          .map((s) => s.stone_name || "İsimsiz taş") // i18n-ignore: sepet/kayıt verisine giden ad yedeği (kombinasyonla kaydedilir)
       : [];
 
     // Taş bazlı uyarılar (warning_text + warning_tags). TAS-03: sunucu ek kaynak / bilgi kaydı
@@ -473,7 +476,7 @@ export default function KombinasyonOlusturPage() {
       const text = (s as { search_warning_text?: string | null }).search_warning_text ?? s.warning_text;
       return {
         id: s.id,
-        name: s.stone_name || "İsimsiz taş",
+        name: s.stone_name || "İsimsiz taş", // i18n-ignore: sepet/kayıt verisine giden ad yedeği (kombinasyonla kaydedilir)
         text: (text ?? "").trim(),
         tags: Array.isArray(s.warning_tags) ? s.warning_tags.filter(Boolean) : [],
         has: stoneHasWarning(text, s.warning_tags),
@@ -491,11 +494,11 @@ export default function KombinasyonOlusturPage() {
     const lines = [
       summary,
       "",
-      "Karşılanan: " +
+      "Karşılanan: " + // i18n-ignore: kalıcı kombinasyon notu (notesText, DB'ye yazılır) — 2E kanonik kararı
         (cartAnalysis.metMinerals.map((m) => m.label).join(", ") || "—"),
-      "Eksik: " + (cartAnalysis.missingMinerals.map((m) => m.label).join(", ") || "—"),
+      "Eksik: " + (cartAnalysis.missingMinerals.map((m) => m.label).join(", ") || "—"), // i18n-ignore: kalıcı kombinasyon notu (notesText)
       ...(cartAnalysis.nonMatchingStones.length
-        ? ["Koşulları karşılamayan taşlar: " + cartAnalysis.nonMatchingStones.join(", ")]
+        ? ["Koşulları karşılamayan taşlar: " + cartAnalysis.nonMatchingStones.join(", ")] // i18n-ignore: kalıcı kombinasyon notu (notesText)
         : []),
     ];
     return lines.join("\n");
@@ -505,7 +508,7 @@ export default function KombinasyonOlusturPage() {
     const inStockCount = cart.filter((c) => c.inStock).length;
     const warned = cartAnalysis.warnings.filter((w) => w.has).map((w) => w.name);
     return [
-      `Stok: ${inStockCount}/${cart.length} stokta`,
+      `Stok: ${inStockCount}/${cart.length} stokta`, // i18n-ignore: kalıcı kombinasyon notu (notesText2); sonraki satır da aynı
       warned.length ? `Uyarılı taşlar: ${warned.join(", ")}` : "Belirgin uyarı yok",
     ].join("\n");
   }
@@ -581,7 +584,7 @@ export default function KombinasyonOlusturPage() {
       if (!res.ok || !json.ok) {
         showToast({
           title: t("toastSaveFailTitle"),
-          message: json.error ?? t("toastSaveFailMessage"),
+          message: se.text(json.error, t("toastSaveFailMessage")),
           type: "error",
         });
         setSaving(false);
@@ -644,7 +647,7 @@ export default function KombinasyonOlusturPage() {
     if (!res.ok) {
       showToast({
         title: t("toastSaveFailTitle"),
-        message: res.error ?? t("toastSaveClientFail"),
+        message: se.text(res.error, t("toastSaveClientFail")),
         type: "error",
       });
       return;
@@ -655,7 +658,7 @@ export default function KombinasyonOlusturPage() {
       title: t("toastSavedTitle"),
       message: res.demo
         ? t("toastDemoMessage")
-        : t("toastSavedClient", { name, client: clientFullName(client) }),
+        : t("toastSavedClient", { name, client: clientFullName(client, tsc("unnamedClient")) }),
       type: "success",
     });
     setSavedInfo({ name });
@@ -999,7 +1002,7 @@ export default function KombinasyonOlusturPage() {
                               ? removeFromCart(stone.id)
                               : addToCart({
                                   id: stone.id,
-                                  name: stone.stone_name || "İsimsiz taş",
+                                  name: stone.stone_name || "İsimsiz taş", // i18n-ignore: sepet/kayıt verisine giden ad yedeği (kombinasyonla kaydedilir)
                                   inStock,
                                 })
                           }
@@ -1311,7 +1314,7 @@ export default function KombinasyonOlusturPage() {
                   {saving || savingClient
                     ? tc("saving")
                     : preselectedClient
-                      ? t("saveToClientButton", { name: clientFullName(preselectedClient) })
+                      ? t("saveToClientButton", { name: clientFullName(preselectedClient, tsc("unnamedClient")) })
                       : t("saveButton")}
                 </button>
               </div>
@@ -1334,7 +1337,7 @@ export default function KombinasyonOlusturPage() {
           } else {
             addToCart({
               id: detail.stone.id,
-              name: detail.stone.stone_name || "İsimsiz taş",
+              name: detail.stone.stone_name || "İsimsiz taş", // i18n-ignore: sepet/kayıt verisine giden ad yedeği (kombinasyonla kaydedilir)
               inStock: detail.inStock,
             });
           }

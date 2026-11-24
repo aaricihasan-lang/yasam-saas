@@ -13,6 +13,7 @@ import {
 } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
+import { useDogaltasServerError } from "@/lib/dogaltas/useServerErrorText";
 import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
 import { DogaltasFontSizeControl } from "@/app/dogaltas/components/DogaltasFontSizeControl";
@@ -370,6 +371,7 @@ function ListSectionCard({
 
 function MineralDetailPageContent() {
   const t = useTranslations("stones.minerals.detail");
+  const se = useDogaltasServerError();
   const tEdit = useTranslations("stones.minerals.edit");
   const tRoot = useTranslations("stones.minerals");
   const tc = useTranslations("stones.common");
@@ -428,7 +430,7 @@ function MineralDetailPageContent() {
     const r = await bulkDeleteMinerals([mineral.id]);
     setDeleteBusy(false);
     if (!r.ok || (r.deleted ?? 0) < 1) {
-      showToast({ type: "error", message: t("deleteFailed", { error: r.error ?? "" }) });
+      showToast({ type: "error", message: t("deleteFailed", { error: se.detail(r.error) }) });
       return;
     }
     showToast({ type: "success", message: t("deletedToast", { name }) });
@@ -469,12 +471,12 @@ function MineralDetailPageContent() {
     const res = await updateMineral(mineral.id, payload, expected);
     setEditSaving(false);
     if (res.conflict) {
-      setEditError(res.error || t("updateFailed"));
+      setEditError(se.text(res.error || undefined, t("updateFailed")));
       await loadMineral(); // en güncel kaydı getir (form açık kalır)
       return;
     }
     if (!res.ok) {
-      setEditError(res.error || t("updateFailed"));
+      setEditError(se.text(res.error || undefined, t("updateFailed")));
       return;
     }
     setIsEditing(false);
