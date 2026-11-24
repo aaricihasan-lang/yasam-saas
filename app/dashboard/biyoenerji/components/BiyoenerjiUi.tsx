@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, type TextareaHTMLAttributes } from "react";
+import { useTranslations } from "next-intl";
 import type { LucideIcon } from "lucide-react";
 
 export type BiyoenerjiTone = "violet" | "cyan" | "fuchsia" | "amber" | "emerald" | "orange";
@@ -61,10 +62,11 @@ export function ModuleStats({
   /** K-2: sayım henüz gelmediyse 0 yerine "…" göster. */
   loading?: boolean;
 }) {
+  const tm = useTranslations("bioenergy.modal");
   const items = [
-    { k: "Toplam kayıt", v: loading ? "…" : String(total) },
+    { k: tm("statTotal"), v: loading ? "…" : String(total) },
     { k: midLabel, v: loading ? "…" : String(midCount) },
-    { k: "Son kayıt", v: lastDate },
+    { k: tm("statLast"), v: lastDate },
   ];
   return (
     <div className="grid grid-cols-3 gap-2">

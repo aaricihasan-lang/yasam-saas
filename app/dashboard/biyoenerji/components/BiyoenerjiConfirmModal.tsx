@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef } from "react";
+import { useTranslations } from "next-intl";
 import { createPortal } from "react-dom";
 import { useModalFocusTrap } from "@/lib/biyoenerji/useModalFocusTrap";
 import { useModalLayer } from "@/lib/biyoenerji/modalLayer";
@@ -24,14 +25,18 @@ type BiyoenerjiConfirmModalProps = {
 export function BiyoenerjiConfirmModal({
   open,
   title,
-  message = "Bu işlem geri alınamaz. Kayıt listeden kaldırılır.",
-  confirmLabel = "Evet, sil",
-  busyLabel = "Siliniyor…",
+  message: messageProp,
+  confirmLabel: confirmLabelProp,
+  busyLabel: busyLabelProp,
   busy = false,
   onClose,
   onConfirm,
   titleId = "bio-confirm-modal-title",
 }: BiyoenerjiConfirmModalProps) {
+  const tm = useTranslations("bioenergy.modal");
+  const message = messageProp ?? tm("confirmMessage");
+  const confirmLabel = confirmLabelProp ?? tm("confirmYes");
+  const busyLabel = busyLabelProp ?? tm("confirmBusy");
   const dialogRef = useRef<HTMLDivElement>(null);
   const cancelRef = useRef<HTMLButtonElement>(null);
   // P3 a11y — açılış odağı "Vazgeç" (yıkıcı butona kazara Enter basılmaz) + Tab modal içinde.
@@ -77,7 +82,7 @@ export function BiyoenerjiConfirmModal({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-2 inline-flex rounded-full bg-rose-50 px-2.5 py-1 text-[9px] font-black tracking-[0.14em] text-rose-700 ring-1 ring-rose-100">
-          SİLME ONAYI
+          {tm("confirmBadge")}
         </div>
         <h3 id={titleId} className="mt-2 text-[17px] font-black leading-snug text-slate-950">
           {title}
@@ -91,7 +96,7 @@ export function BiyoenerjiConfirmModal({
             onClick={onClose}
             className="min-h-[44px] rounded-xl border border-slate-200/90 bg-white px-4 py-2.5 text-[12px] font-black text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-50"
           >
-            Vazgeç
+            {tm("cancel")}
           </button>
           <button
             type="button"

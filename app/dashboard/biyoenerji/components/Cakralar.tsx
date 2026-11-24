@@ -591,7 +591,9 @@ export default function Cakralar() {
               const theme = getChakraCardTheme(index);
               // Premium quick-fact chip'leri (yalnız non-null); canonical color UI için doldurulmaz.
               const quickFacts = chakraQuickFactChips(row);
-              const displayTitle = chakraDisplayName(row);
+              const rawTitle = chakraDisplayName(row);
+              // i18n-ignore: chakraDisplayName() kaynak-dil yedek adıyla eşitlik (yalnız gösterim eşlemesi)
+              const displayTitle = rawTitle === "İsimsiz çakra" ? t("untitled") : rawTitle;
               const isExportSelected = selectedForExport.has(row.id);
 
               if (!detailHref) return null;

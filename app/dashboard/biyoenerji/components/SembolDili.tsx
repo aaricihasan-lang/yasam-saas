@@ -597,7 +597,9 @@ export default function SembolDili() {
               const detailHref = symbolLanguageDetailHref(row.id);
               const preview = previewSymbolLanguageText(row.meaning, row.source);
               const hasCategory = Boolean(row.category?.trim());
-              const displayTitle = symbolDisplayName(row);
+              const rawTitle = symbolDisplayName(row);
+              // i18n-ignore: symbolDisplayName() kaynak-dil yedek adıyla eşitlik (yalnız gösterim eşlemesi)
+              const displayTitle = rawTitle === "İsimsiz sembol" ? t("untitled") : rawTitle;
               const isExportSelected = selectedForExport.has(row.id);
 
               if (!detailHref) return null;
@@ -752,7 +754,11 @@ export default function SembolDili() {
         scope={{ filterActive: Boolean(debouncedSearch.trim() || categoryFilter), visibleCount: searchResultCount }}
         mode={danger.mode}
         count={danger.mode === "all" ? totalInDb : selectedVisibleRows.length}
-        names={danger.mode === "all" ? undefined : selectedVisibleRows.map((r) => symbolDisplayName(r))}
+        names={danger.mode === "all" ? undefined : selectedVisibleRows.map((r) => {
+          const n = symbolDisplayName(r);
+          // i18n-ignore: symbolDisplayName() kaynak-dil yedek adıyla eşitlik (yalnız gösterim eşlemesi)
+          return n === "İsimsiz sembol" ? t("untitled") : n;
+        })}
         resourceLabel={t("resourceLabel")}
         isDeleting={isBulkDeleting}
         onClose={() => !isBulkDeleting && setDanger((d) => ({ ...d, open: false }))}

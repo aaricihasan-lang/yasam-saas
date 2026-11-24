@@ -150,7 +150,8 @@
       "nameRequired": "Çakra adı zorunludur.",
       "created": "Çakra kaydı oluşturuldu.",
       "emptyBody": "Yeni Kayıt ile ilk çakra kaydını ekleyebilirsiniz.",
-      "formTitle": "Yeni çakra kaydı"
+      "formTitle": "Yeni çakra kaydı",
+      "untitled": "İsimsiz çakra"
     },
     "list": {
       "serverError": "Sunucu hatası.",
@@ -213,7 +214,9 @@
       "titleRequired": "Başlık zorunludur.",
       "created": "Kayıt oluşturuldu.",
       "emptyBody": "Yeni Kayıt ile ilk bilinçaltı sebebini ekleyebilirsiniz.",
-      "formTitle": "Yeni bilinçaltı kaydı"
+      "formTitle": "Yeni bilinçaltı kaydı",
+      "editTitle": "Bilinçaltı kaydını düzenle",
+      "deleteConfirm": "Bu kaydı silmek istediğinizden emin misiniz?"
     },
     "imagery": {
       "demoTitle": "Demo Modu — İmajinasyonlar",
@@ -224,14 +227,17 @@
         "categoryPlaceholder": "Örn. gevşeme, şifa…",
         "text": "Metin",
         "notes": "Notlar",
-        "source": "Kaynak"
+        "source": "Kaynak",
+        "note": "Not"
       },
       "resourceLabel": "İmajinasyonlar",
       "readFailed": "İmajinasyonlar okunamadı: {detail}",
       "titleRequired": "İmajinasyon başlığı zorunludur.",
       "created": "İmajinasyon kaydı oluşturuldu.",
       "emptyBody": "Yeni Kayıt ile ilk imajinasyonu ekleyebilirsiniz.",
-      "formTitle": "Yeni imajinasyon"
+      "formTitle": "Yeni imajinasyon",
+      "editTitle": "İmajinasyonu düzenle",
+      "deleteConfirm": "Bu imajinasyon kaydını silmek istediğinizden emin misiniz?"
     },
     "symbols": {
       "demoTitle": "Demo Modu — Sembol Dili",
@@ -241,14 +247,90 @@
         "category": "Kategori",
         "categoryPlaceholder": "Örn. hayvan, doğa…",
         "meaning": "Anlam",
-        "source": "Kaynak"
+        "source": "Kaynak",
+        "content": "İçerik"
       },
       "resourceLabel": "Sembol Dili",
       "readFailed": "Sembol kayıtları okunamadı: {detail}",
       "nameRequired": "Sembol adı zorunludur.",
       "created": "Sembol kaydı oluşturuldu.",
       "emptyBody": "Yeni Kayıt ile ilk sembol kaydını ekleyebilirsiniz.",
-      "formTitle": "Yeni sembol kaydı"
+      "formTitle": "Yeni sembol kaydı",
+      "emptyMeaning": "Bu kayıt için henüz anlam veya kaynak girilmemiş.",
+      "editTitle": "Sembol kaydını düzenle",
+      "deleteConfirm": "Bu sembol kaydını silmek istediğinizden emin misiniz?",
+      "untitled": "İsimsiz sembol"
+    },
+    "detail": {
+      "invalidLink": "Geçersiz kayıt bağlantısı.",
+      "readFailed": "Kayıt okunamadı: {detail}",
+      "notFound": "Kayıt bulunamadı veya bu hesaba ait değil.",
+      "noChanges": "Değişiklik yok.",
+      "updateFailed": "Güncellenemedi: {detail}",
+      "updated": "Kayıt güncellendi.",
+      "loading": "Kayıt yükleniyor…",
+      "edit": "Düzenle",
+      "delete": "Sil",
+      "preparing": "Hazırlanıyor…",
+      "demoGate": "Bu kayıt içeriği demo hesabında sınırlı gösterilir. Tam sürümde tüm bilgilere erişilebilir.",
+      "demoContent": "Demo içerik alanı.",
+      "formSubtitle": "Kaydettikten sonra detay yenilenir.",
+      "reset": "Sıfırla",
+      "updating": "Güncelleniyor…",
+      "update": "Güncelle",
+      "irreversible": "Bu işlem geri alınamaz."
+    },
+    "danger": {
+      "blocksCounting": "İçerik blokları hesaplanıyor…",
+      "blocksCascade": "Bu işlem ayrıca toplam <b>{total}</b> içerik/kaynak bloğunu (<b>{visible}</b> görünür + <b>{evidence}</b> kaynak bilgisi) kalıcı olarak silecektir.",
+      "blocksNone": "Bu kayıt(lar)a bağlı içerik bloğu yok.",
+      "scopeAll": "Silinecek: <b>{label}</b> modülündeki <b>TÜM {count} kayıt</b>.",
+      "scopeNarrowed": "Ekranda arama/filtre nedeniyle yalnız <b>{visible}</b> kayıt görünüyor; filtre yalnızca görünümü daraltır, silme kapsamını DARALTMAZ. Yalnız belirli kayıtları silmek için kayıtları seçip \"Seçilileri Sil\"i kullanın.",
+      "scopeNoFilter": "Arama veya kategori filtresi bu işlemi etkilemez.",
+      "titleAll": "{label} — Tüm Kayıtları Sil",
+      "titleSelected": "Seçili {count} Kaydı Sil",
+      "guardStage1Title": "{count} kayıt kalıcı olarak silinecek. Bu işlem geri alınamaz.",
+      "selectedRemovedFrom": "Seçtiğiniz kayıtlar <b>{label}</b> listesinden kalıcı olarak silinir.",
+      "cancel": "Vazgeç",
+      "continue": "Devam Et",
+      "phraseTitle": "Doğrulama — ifadeyi yazın",
+      "phraseBody": "Devam etmek için aşağıdaki ifadeyi kutuya yazın.",
+      "phraseAria": "Doğrulama ifadesi",
+      "finalTitle": "Son Onay — Bu işlem geri alınamaz.",
+      "finalBody": "<b>{count} kayıt</b> <b>{label}</b> listesinden kalıcı olarak silinecek. Silinen kayıtlar geri getirilemez.",
+      "deleting": "⏳ Siliniyor…",
+      "deletePermanently": "🗑 Kalıcı Olarak Sil ({count})",
+      "selectedConfirmTitle": "Seçili {count} kaydı silmek istediğinizden emin misiniz?",
+      "selectedConfirmBody": "Bu işlem geri alınamaz. Seçtiğiniz kayıtlar <b>{label}</b> listesinden kalıcı olarak silinir.",
+      "yesDelete": "🗑 Evet, {count} kaydı sil",
+      "allStage1Title": "{label} modülündeki TÜM kayıtları ({count}) silmek istediğinizden emin misiniz?",
+      "irreversible": "Bu işlem geri alınamaz.",
+      "allStage2Body": "Bu modüldeki <b>tüm kayıtlar ({count})</b> kalıcı olarak silinecek. Silinen veriler geri getirilemez. Devam etmeden önce yedek aldığınızdan emin olun.",
+      "understoodContinue": "Anladım, Devam Et",
+      "codeTitle": "Silmeyi onaylamak için kodu yazın",
+      "codeBody": "Aşağıdaki kodu kutuya <b>aynen</b> yazın. Bu, yanlışlıkla toplu silmeyi önler.",
+      "codePlaceholder": "Kodu buraya yazın",
+      "badgeAll": "TÜMÜNÜ SİL",
+      "badgeBulk": "TOPLU SİLME",
+      "step": "Adım {stage}/3"
+    },
+    "modal": {
+      "close": "Kapat",
+      "unsavedTitle": "Kaydedilmemiş değişiklikler",
+      "unsavedBody": "Kaydedilmemiş değişiklikleriniz var. Çıkarsanız yaptığınız değişiklikler kaybolacak.",
+      "keepEditing": "Düzenlemeye Devam Et",
+      "discardExit": "Değişiklikleri Sil ve Çık",
+      "cancel": "Vazgeç",
+      "saveClose": "Kaydet ve Kapat",
+      "editAria": "{title} — düzenlemek için tıklayın",
+      "confirmBadge": "SİLME ONAYI",
+      "confirmMessage": "Bu işlem geri alınamaz. Kayıt listeden kaldırılır.",
+      "confirmYes": "Evet, sil",
+      "confirmBusy": "Siliniyor…",
+      "statTotal": "Toplam kayıt",
+      "statLast": "Son kayıt",
+      "backToResults": "Arama sonuçlarına dön",
+      "matchesMarked": "{count} eşleşme sarı ile işaretlendi"
     }
   }
 }

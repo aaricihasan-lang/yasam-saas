@@ -150,7 +150,8 @@
       "nameRequired": "The chakra name is required.",
       "created": "Chakra record created.",
       "emptyBody": "You can add the first chakra record with New Record.",
-      "formTitle": "New chakra record"
+      "formTitle": "New chakra record",
+      "untitled": "Untitled chakra"
     },
     "list": {
       "serverError": "Server error.",
@@ -213,7 +214,9 @@
       "titleRequired": "A title is required.",
       "created": "Record created.",
       "emptyBody": "You can add the first subconscious cause with New Record.",
-      "formTitle": "New subconscious record"
+      "formTitle": "New subconscious record",
+      "editTitle": "Edit subconscious record",
+      "deleteConfirm": "Are you sure you want to delete this record?"
     },
     "imagery": {
       "demoTitle": "Demo Mode — Imaginations",
@@ -224,14 +227,17 @@
         "categoryPlaceholder": "e.g. relaxation, healing…",
         "text": "Text",
         "notes": "Notes",
-        "source": "Source"
+        "source": "Source",
+        "note": "Note"
       },
       "resourceLabel": "Imaginations",
       "readFailed": "Imagination records could not be read: {detail}",
       "titleRequired": "The imagination title is required.",
       "created": "Imagination record created.",
       "emptyBody": "You can add the first imagination record with New Record.",
-      "formTitle": "New imagination record"
+      "formTitle": "New imagination record",
+      "editTitle": "Edit imagination",
+      "deleteConfirm": "Are you sure you want to delete this imagination record?"
     },
     "symbols": {
       "demoTitle": "Demo Mode — Symbol Language",
@@ -241,14 +247,90 @@
         "category": "Category",
         "categoryPlaceholder": "e.g. animal, nature…",
         "meaning": "Meaning",
-        "source": "Source"
+        "source": "Source",
+        "content": "Content"
       },
       "resourceLabel": "Symbol Language",
       "readFailed": "Symbol records could not be read: {detail}",
       "nameRequired": "The symbol name is required.",
       "created": "Symbol record created.",
       "emptyBody": "You can add the first symbol record with New Record.",
-      "formTitle": "New symbol record"
+      "formTitle": "New symbol record",
+      "emptyMeaning": "No meaning or source has been entered for this record yet.",
+      "editTitle": "Edit symbol record",
+      "deleteConfirm": "Are you sure you want to delete this symbol record?",
+      "untitled": "Untitled symbol"
+    },
+    "detail": {
+      "invalidLink": "Invalid record link.",
+      "readFailed": "The record could not be read: {detail}",
+      "notFound": "The record was not found or does not belong to this account.",
+      "noChanges": "No changes.",
+      "updateFailed": "Could not be updated: {detail}",
+      "updated": "Record updated.",
+      "loading": "Loading record…",
+      "edit": "Edit",
+      "delete": "Delete",
+      "preparing": "Preparing…",
+      "demoGate": "This record's content is shown in limited form on the demo account. All information is available in the full version.",
+      "demoContent": "Demo content area.",
+      "formSubtitle": "The details refresh after you save.",
+      "reset": "Reset",
+      "updating": "Updating…",
+      "update": "Update",
+      "irreversible": "This action cannot be undone."
+    },
+    "danger": {
+      "blocksCounting": "Calculating content blocks…",
+      "blocksCascade": "This action will also permanently delete a total of <b>{total}</b> content/source blocks (<b>{visible}</b> visible + <b>{evidence}</b> source information).",
+      "blocksNone": "There are no content blocks linked to these record(s).",
+      "scopeAll": "To be deleted: <b>ALL {count} records</b> in the <b>{label}</b> module.",
+      "scopeNarrowed": "Because of the search/filter only <b>{visible}</b> records are shown; the filter only narrows the view, it does NOT narrow what is deleted. To delete specific records only, select them and use \"Delete Selected\".",
+      "scopeNoFilter": "The search or category filter does not affect this action.",
+      "titleAll": "{label} — Delete All Records",
+      "titleSelected": "Delete {count} Selected Records",
+      "guardStage1Title": "{count} records will be deleted permanently. This action cannot be undone.",
+      "selectedRemovedFrom": "The records you selected are permanently deleted from the <b>{label}</b> list.",
+      "cancel": "Cancel",
+      "continue": "Continue",
+      "phraseTitle": "Verification — type the phrase",
+      "phraseBody": "To continue, type the phrase below into the box.",
+      "phraseAria": "Verification phrase",
+      "finalTitle": "Final Confirmation — This action cannot be undone.",
+      "finalBody": "<b>{count} records</b> will be permanently deleted from the <b>{label}</b> list. Deleted records cannot be restored.",
+      "deleting": "⏳ Deleting…",
+      "deletePermanently": "🗑 Delete Permanently ({count})",
+      "selectedConfirmTitle": "{count, plural, one {Are you sure you want to delete the {count} selected record?} other {Are you sure you want to delete the {count} selected records?}}",
+      "selectedConfirmBody": "This action cannot be undone. The records you selected are permanently deleted from the <b>{label}</b> list.",
+      "yesDelete": "{count, plural, one {🗑 Yes, delete {count} record} other {🗑 Yes, delete {count} records}}",
+      "allStage1Title": "Are you sure you want to delete ALL records ({count}) in the {label} module?",
+      "irreversible": "This action cannot be undone.",
+      "allStage2Body": "<b>All records ({count})</b> in this module will be deleted permanently. Deleted data cannot be restored. Make sure you have a backup before continuing.",
+      "understoodContinue": "I Understand, Continue",
+      "codeTitle": "Type the code to confirm deletion",
+      "codeBody": "Type the code below into the box <b>exactly</b>. This prevents accidental bulk deletion.",
+      "codePlaceholder": "Type the code here",
+      "badgeAll": "DELETE ALL",
+      "badgeBulk": "BULK DELETE",
+      "step": "Step {stage}/3"
+    },
+    "modal": {
+      "close": "Close",
+      "unsavedTitle": "Unsaved changes",
+      "unsavedBody": "You have unsaved changes. If you leave, the changes you made will be lost.",
+      "keepEditing": "Keep Editing",
+      "discardExit": "Discard Changes and Leave",
+      "cancel": "Cancel",
+      "saveClose": "Save and Close",
+      "editAria": "{title} — click to edit",
+      "confirmBadge": "DELETE CONFIRMATION",
+      "confirmMessage": "This action cannot be undone. The record is removed from the list.",
+      "confirmYes": "Yes, delete",
+      "confirmBusy": "Deleting…",
+      "statTotal": "Total records",
+      "statLast": "Latest record",
+      "backToResults": "Back to search results",
+      "matchesMarked": "{count, plural, one {{count} match highlighted in yellow} other {{count} matches highlighted in yellow}}"
     }
   }
 }
