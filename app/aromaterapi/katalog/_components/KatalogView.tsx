@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useEnumLabel, useEnumOptions } from "@/lib/aromaterapi/useEnumLabel";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -31,11 +32,8 @@ import {
 const TAXA_FILTER_KEYS = ["status"] as const;
 const PREP_FILTER_KEYS = ["preparation_type", "status"] as const;
 
-const CATALOG_STATUS_OPTIONS = [
-  { value: "draft", label: "Taslak" },
-  { value: "verified", label: "Doğrulanmış" },
-  { value: "approved", label: "Onaylanmış" },
-];
+// I18N: kanonik durum değerleri; etiket bileşende useEnumOptions(CATALOG_STATUS_TR) ile.
+const CATALOG_STATUS_VALUES = ["draft", "verified", "approved"];
 
 // I18N: seçenek etiketleri bileşende useEnumOptions ile (kanonik değer listesi burada).
 const PREP_TYPE_VALUES = Object.keys(PREPARATION_TYPE_TR);
@@ -62,6 +60,7 @@ export function KatalogView() {
 }
 
 function SegmentedTabs({ tab, onChange }: { tab: Tab; onChange: (t: Tab) => void }) {
+  const tc = useTranslations("aromatherapy.catalog");
   const base =
     "inline-flex min-h-[44px] flex-1 items-center justify-center rounded-xl px-4 text-[13px] font-black transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-300/60 sm:flex-none";
   const active = "bg-teal-600 text-white shadow-sm";
@@ -69,7 +68,7 @@ function SegmentedTabs({ tab, onChange }: { tab: Tab; onChange: (t: Tab) => void
   return (
     <div
       role="tablist"
-      aria-label="Katalog görünümü"
+      aria-label={tc("tabsAria")}
       className="flex w-full gap-2 rounded-2xl border border-teal-100/70 bg-white/70 p-1.5 shadow-sm sm:w-fit"
     >
       <button
@@ -79,7 +78,7 @@ function SegmentedTabs({ tab, onChange }: { tab: Tab; onChange: (t: Tab) => void
         onClick={() => onChange("bitkiler")}
         className={`${base} ${tab === "bitkiler" ? active : idle}`}
       >
-        🌱 Bitkiler
+        {tc("tabPlants")}
       </button>
       <button
         type="button"
@@ -88,7 +87,7 @@ function SegmentedTabs({ tab, onChange }: { tab: Tab; onChange: (t: Tab) => void
         onClick={() => onChange("preparatlar")}
         className={`${base} ${tab === "preparatlar" ? active : idle}`}
       >
-        ⚗️ Preparatlar
+        {tc("tabPreparations")}
       </button>
     </div>
   );
@@ -97,6 +96,8 @@ function SegmentedTabs({ tab, onChange }: { tab: Tab; onChange: (t: Tab) => void
 // ---------------- Bitkiler (takson) ----------------
 
 function PlantTaxaSection() {
+  const tc = useTranslations("aromatherapy.catalog");
+  const enumOptionsI18n = useEnumOptions();
   const s = useAromaterapiListQuery<PlantTaxonListItem>({
     fetcher: fetchPlantTaxaList,
     filterKeys: TAXA_FILTER_KEYS,
@@ -117,38 +118,38 @@ function PlantTaxaSection() {
       hasActiveQuery={hasActive}
       onPage={s.goToPage}
       onRetry={s.retry}
-      emptyTitle="Henüz bitki kaydı yok"
-      emptyMessage="Bu tenant kütüphanesinde kanonik bitki (takson) kaydı bulunmuyor."
+      emptyTitle={tc("plantsEmptyTitle")}
+      emptyMessage={tc("plantsEmptyMessage")}
       action={
         <Link
           href="/aromaterapi/katalog/bitkiler/yeni"
           className="inline-flex min-h-[44px] items-center gap-1.5 rounded-xl bg-teal-600 px-4 text-[13px] font-black text-white shadow-sm transition hover:bg-teal-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-300/60"
         >
-          <span aria-hidden>＋</span> Yeni Bitki
+          <span aria-hidden>＋</span> {tc("newPlant")}
         </Link>
       }
       search={
         <ReadSearchBar
           value={s.qInput}
           onChange={s.setQInput}
-          placeholder="Bilimsel ad, cins, familya ara…"
+          placeholder={tc("plantsSearch")}
         />
       }
       filters={
         <>
           <ReadFilterSelect
-            label="Durum"
+            label={tc("status")}
             value={s.filters.status ?? ""}
-            options={CATALOG_STATUS_OPTIONS}
+            options={enumOptionsI18n(CATALOG_STATUS_VALUES, CATALOG_STATUS_TR)}
             onChange={(v) => s.setFilter("status", v)}
           />
           <ReadFilterSelect
-            label="Sırala"
+            label={tc("sort")}
             value={s.sort}
-            allLabel="Ada göre (A–Z)"
+            allLabel={tc("sortName")}
             options={[
-              { value: "updated", label: "Son güncelleme" },
-              { value: "family", label: "Familya" },
+              { value: "updated", label: tc("sortUpdated") },
+              { value: "family", label: tc("sortFamily") },
             ]}
             onChange={s.setSort}
           />
@@ -161,6 +162,7 @@ function PlantTaxaSection() {
 
 function PlantTaxonRow({ row }: { row: PlantTaxonListItem }) {
   const enumLabel = useEnumLabel();
+  const tc = useTranslations("aromatherapy.catalog");
   return (
     <article className="group flex h-full flex-col rounded-2xl border border-teal-100/70 bg-white/90 p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-teal-300 hover:shadow-md">
       <Link
@@ -175,7 +177,7 @@ function PlantTaxonRow({ row }: { row: PlantTaxonListItem }) {
         </p>
         <div className="mt-2 flex flex-wrap items-center gap-1.5">
           <MetaChip tone="teal">{enumLabel(TAXON_RANK_TR, row.taxon_rank)}</MetaChip>
-          {row.is_hybrid ? <MetaChip tone="violet">Hibrit</MetaChip> : null}
+          {row.is_hybrid ? <MetaChip tone="violet">{tc("hybrid")}</MetaChip> : null}
           <MetaChip tone="slate">{enumLabel(CATALOG_STATUS_TR, row.status)}</MetaChip>
         </div>
       </Link>
@@ -184,7 +186,7 @@ function PlantTaxonRow({ row }: { row: PlantTaxonListItem }) {
           href={`/aromaterapi/katalog/bitkiler/${row.id}/duzenle`}
           className="inline-flex min-h-[40px] items-center gap-1 rounded-lg px-2.5 text-[12px] font-black text-emerald-700 transition hover:bg-emerald-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/60"
         >
-          ✏️ Düzenle
+          {tc("edit")}
         </Link>
       </div>
     </article>
@@ -195,6 +197,7 @@ function PlantTaxonRow({ row }: { row: PlantTaxonListItem }) {
 
 function PreparationSection() {
   const enumOptionsI18n = useEnumOptions();
+  const tc = useTranslations("aromatherapy.catalog");
   const { showToast } = useToast();
   const s = useAromaterapiListQuery<PreparationListItem>({
     fetcher: fetchPreparationList,
@@ -215,42 +218,42 @@ function PreparationSection() {
       hasActiveQuery={hasActive}
       onPage={s.goToPage}
       onRetry={s.retry}
-      emptyTitle="Henüz preparat kaydı yok"
-      emptyMessage="Bu tenant kütüphanesinde preparat kaydı bulunmuyor."
+      emptyTitle={tc("prepsEmptyTitle")}
+      emptyMessage={tc("prepsEmptyMessage")}
       action={
         <Link
           href="/aromaterapi/katalog/preparatlar/yeni"
           className="inline-flex min-h-[44px] items-center gap-1.5 rounded-xl bg-teal-600 px-4 text-[13px] font-black text-white shadow-sm transition hover:bg-teal-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-300/60"
         >
-          <span aria-hidden>＋</span> Yeni Preparat
+          <span aria-hidden>＋</span> {tc("newPreparation")}
         </Link>
       }
       search={
         <ReadSearchBar
           value={s.qInput}
           onChange={s.setQInput}
-          placeholder="Preparat türü, bitki kısmı, kemotip ara…"
+          placeholder={tc("prepsSearch")}
         />
       }
       filters={
         <>
           <ReadFilterSelect
-            label="Preparat türü"
+            label={tc("prepType")}
             value={s.filters.preparation_type ?? ""}
             options={enumOptionsI18n(PREP_TYPE_VALUES, PREPARATION_TYPE_TR)}
             onChange={(v) => s.setFilter("preparation_type", v)}
           />
           <ReadFilterSelect
-            label="Durum"
+            label={tc("status")}
             value={s.filters.status ?? ""}
-            options={CATALOG_STATUS_OPTIONS}
+            options={enumOptionsI18n(CATALOG_STATUS_VALUES, CATALOG_STATUS_TR)}
             onChange={(v) => s.setFilter("status", v)}
           />
           <ReadFilterSelect
-            label="Sırala"
+            label={tc("sort")}
             value={s.sort}
-            allLabel="Son güncelleme"
-            options={[{ value: "type", label: "Preparat türü" }]}
+            allLabel={tc("sortUpdated")}
+            options={[{ value: "type", label: tc("sortType") }]}
             onChange={s.setSort}
           />
         </>
@@ -262,6 +265,7 @@ function PreparationSection() {
 
 function PreparationRow({ row }: { row: PreparationListItem }) {
   const enumLabel = useEnumLabel();
+  const tc = useTranslations("aromatherapy.catalog");
   return (
     <article className="group flex h-full flex-col rounded-2xl border border-teal-100/70 bg-white/90 p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-teal-300 hover:shadow-md">
       <Link
@@ -278,7 +282,7 @@ function PreparationRow({ row }: { row: PreparationListItem }) {
         ) : null}
         <div className="mt-2 flex flex-wrap items-center gap-1.5">
           <MetaChip tone="teal">{row.plant_part}</MetaChip>
-          {row.chemotype ? <MetaChip tone="amber">CT: {row.chemotype}</MetaChip> : null}
+          {row.chemotype ? <MetaChip tone="amber">{tc("chemotype", { value: row.chemotype })}</MetaChip> : null}
           <MetaChip tone="slate">{enumLabel(CATALOG_STATUS_TR, row.status)}</MetaChip>
         </div>
       </Link>
@@ -287,7 +291,7 @@ function PreparationRow({ row }: { row: PreparationListItem }) {
           href={`/aromaterapi/katalog/preparatlar/${row.id}/duzenle`}
           className="inline-flex min-h-[40px] items-center gap-1 rounded-lg px-2.5 text-[12px] font-black text-emerald-700 transition hover:bg-emerald-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/60"
         >
-          ✏️ Düzenle
+          {tc("edit")}
         </Link>
       </div>
     </article>

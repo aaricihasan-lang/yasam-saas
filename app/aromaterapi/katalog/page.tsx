@@ -1,6 +1,7 @@
 "use client";
 
 import { Suspense } from "react";
+import { useTranslations } from "next-intl";
 import { AromaterapiSectionShell } from "@/app/aromaterapi/_components/AromaterapiSectionShell";
 import { AromaterapiListSkeleton } from "@/app/aromaterapi/_components/AromaterapiSkeleton";
 import { KatalogView } from "@/app/aromaterapi/katalog/_components/KatalogView";
@@ -13,10 +14,11 @@ import { KatalogView } from "@/app/aromaterapi/katalog/_components/KatalogView";
  * Bu sayfa doğrudan veri erişimi içermez.
  */
 export default function KatalogPage() {
+  const t = useTranslations("aromatherapy.catalog");
   return (
     <AromaterapiSectionShell
-      title="Bitki & Preparat Kataloğu"
-      subtitle="Bitki (takson) ve preparat kanonik kayıtları — bilgi kaydının bağlandığı omurga."
+      title={t("pageTitle")}
+      subtitle={t("pageSubtitle")}
       icon="🌱"
     >
       <Suspense fallback={<AromaterapiListSkeleton />}>
