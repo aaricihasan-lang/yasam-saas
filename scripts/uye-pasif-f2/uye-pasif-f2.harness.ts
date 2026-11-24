@@ -197,6 +197,41 @@ async function main(): Promise<void> {
       } finally {
         await lim.end();
       }
+    } else if (process.env.PSF2_EXECUTOR === "supabase") {
+      // Supabase rol düzenine en yakın yerel taklit: `postgres` rolünün öznitelikleri (NOSUPERUSER CREATEDB CREATEROLE
+      // BYPASSRLS REPLICATION); public nesnelerin SAHİBİ bu rol; süper kullanıcıya ÜYE DEĞİL. (Gerçek supabase/postgres
+      // imajı DEĞİLDİR — o doğrulama Docker / CI gerektirir.)
+      await su.query(`create role supa_postgres login password 'pw' nosuperuser createdb createrole bypassrls replication;
+        grant usage, create on schema public to supa_postgres;
+        do $own$ declare r record; begin
+          for r in select c.oid::regclass t from pg_class c join pg_namespace n on n.oid = c.relnamespace
+                    where n.nspname = 'public' and c.relkind in ('r','p','v','m','f') loop
+            execute format('alter table %s owner to supa_postgres', r.t);
+          end loop;
+          -- Tabloya bağlı (serial / identity) diziler tablo sahibiyle birlikte taşınır; yalnız BAĞIMSIZ diziler ayrıca.
+          for r in select c.oid::regclass t from pg_class c join pg_namespace n on n.oid = c.relnamespace
+                    where n.nspname = 'public' and c.relkind = 'S'
+                      and not exists (select 1 from pg_depend d where d.objid = c.oid and d.deptype in ('a','i')) loop
+            execute format('alter sequence %s owner to supa_postgres', r.t);
+          end loop;
+          for r in select p.oid::regprocedure f from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+                    where n.nspname = 'public' and p.prokind in ('f','p') loop
+            execute format('alter routine %s owner to supa_postgres', r.f);
+          end loop;
+        end $own$;`);
+      const sb = new pg.Client({ host: "127.0.0.1", port, user: "supa_postgres", password: "pw", database: "postgres" });
+      await sb.connect();
+      try {
+        const who = (await sb.query(`select current_user u, r.rolsuper s, r.rolcreaterole cr, r.rolbypassrls b,
+            pg_has_role(current_user, 'postgres', 'MEMBER') m from pg_roles r where r.rolname = current_user`)).rows[0];
+        await sb.query(readMig(MIG));
+        await sb.query(readMig(MIG));
+        const own = (await su.query(`select pg_get_userbyid(proowner) o from pg_proc where proname = 'admin_set_member_access_restriction'`)).rows[0].o;
+        ok(who.u === "supa_postgres" && who.s === false && who.m === false && who.cr === true && who.b === true && own === "supa_postgres",
+          "[X] Supabase rol düzeni taklidi (NOSUPERUSER + CREATEROLE + BYPASSRLS, nesne sahibi, süper kullanıcı üyeliği YOK): migration 2× hatasız", { who, own });
+      } finally {
+        await sb.end();
+      }
     } else {
       await su.query(readMig(MIG));
       await su.query(readMig(MIG));
