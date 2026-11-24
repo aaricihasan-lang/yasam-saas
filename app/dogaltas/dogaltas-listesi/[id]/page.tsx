@@ -97,15 +97,16 @@ const CHAKRA_OPTIONS: readonly string[] = STONE_CHAKRA_OPTIONS;
 
 const WARNING_OPTIONS: readonly string[] = STONE_WARNING_OPTIONS;
 
+// Kanonik atama bölümü anahtarları (assignments JSON nesne anahtarı, DB'ye yazılır); gösterim asgLabel() ile.
 const ASSIGNMENT_SECTIONS = [
-  "Elementler",
-  "Mineraller",
-  "Etkili Organlar",
-  "Astrolojik Atama",
-  "Çakra Atama",
-  "Burçlar",
-  "Mizaçlar",
-  "Kan Grupları",
+  "Elementler", // i18n-ignore: kanonik DB anahtarı
+  "Mineraller", // i18n-ignore: kanonik DB anahtarı
+  "Etkili Organlar", // i18n-ignore: kanonik DB anahtarı
+  "Astrolojik Atama", // i18n-ignore: kanonik DB anahtarı
+  "Çakra Atama", // i18n-ignore: kanonik DB anahtarı
+  "Burçlar", // i18n-ignore: kanonik DB anahtarı
+  "Mizaçlar", // i18n-ignore: kanonik DB anahtarı
+  "Kan Grupları", // i18n-ignore: kanonik DB anahtarı
 ];
 
 type StoneRecord = {
@@ -315,20 +316,21 @@ function toSafeStone(data: Record<string, unknown> | null | undefined): StoneRec
   };
 }
 
+// Dosya adı için Türkçe harf → ASCII dönüşümü; harfler gösterim metni değildir.
 function safeFileName(fileName: string) {
   return fileName
-    .replaceAll("ı", "i")
-    .replaceAll("İ", "I")
-    .replaceAll("ğ", "g")
-    .replaceAll("Ğ", "G")
-    .replaceAll("ü", "u")
-    .replaceAll("Ü", "U")
-    .replaceAll("ş", "s")
-    .replaceAll("Ş", "S")
-    .replaceAll("ö", "o")
-    .replaceAll("Ö", "O")
-    .replaceAll("ç", "c")
-    .replaceAll("Ç", "C")
+    .replaceAll("ı", "i") // i18n-ignore: dosya adı harf dönüşümü
+    .replaceAll("İ", "I") // i18n-ignore: dosya adı harf dönüşümü
+    .replaceAll("ğ", "g") // i18n-ignore: dosya adı harf dönüşümü
+    .replaceAll("Ğ", "G") // i18n-ignore: dosya adı harf dönüşümü
+    .replaceAll("ü", "u") // i18n-ignore: dosya adı harf dönüşümü
+    .replaceAll("Ü", "U") // i18n-ignore: dosya adı harf dönüşümü
+    .replaceAll("ş", "s") // i18n-ignore: dosya adı harf dönüşümü
+    .replaceAll("Ş", "S") // i18n-ignore: dosya adı harf dönüşümü
+    .replaceAll("ö", "o") // i18n-ignore: dosya adı harf dönüşümü
+    .replaceAll("Ö", "O") // i18n-ignore: dosya adı harf dönüşümü
+    .replaceAll("ç", "c") // i18n-ignore: dosya adı harf dönüşümü
+    .replaceAll("Ç", "C") // i18n-ignore: dosya adı harf dönüşümü
     .replace(/[^a-zA-Z0-9._-]/g, "-");
 }
 
@@ -501,12 +503,12 @@ function TextBlock({
           <h2 className="text-sm font-black text-slate-950">{title}</h2>
           {showMatchBadge ? <SearchMatchBadge /> : null}
           {sourceBlocks.entries.length > 1 ? (
-            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-black text-slate-500">{sourceBlocks.entries.length} kayıt</span>
+            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-black text-slate-500">{t("entryCount", { count: sourceBlocks.entries.length })}</span>
           ) : null}
         </div>
         {editEnabled ? (
           <span className="shrink-0 rounded-lg border border-emerald-200 bg-white px-2 py-0.5 text-[10px] font-black text-emerald-700 shadow-sm">
-            Kayıtlar · Ekle
+            {t("entriesAdd")}
           </span>
         ) : null}
       </div>
@@ -901,7 +903,7 @@ function StoneDetailPage() {
       setSourceNames((prev) => (prev.includes(sourceName) ? prev : [...prev, sourceName]));
     }
     setEntryBusy(false);
-    if (!r.ok) setEntryError(r.error ?? "Bilgi eklenemedi.");
+    if (!r.ok) setEntryError(r.error ?? t("entryAddFailed"));
     return r.ok;
   }
 
@@ -917,16 +919,16 @@ function StoneDetailPage() {
       await refreshAfterEntryWrite(stone.id);
     }
     setEntryBusy(false);
-    if (!r.ok) setEntryError(r.error ?? "Bilgi kaydedilemedi.");
+    if (!r.ok) setEntryError(r.error ?? t("entrySaveFailed"));
     return r.ok;
   }
 
   async function handleDeleteEntry(entry: StoneEntryView): Promise<void> {
     if (!stone) return;
     const confirmed = await deleteConfirm({
-      title: "Bilgi kaydını sil",
-      message: `"${shortPreview(entry.content, 90)}" bilgisi (Kaynak: ${sourceDisplayName(entry.sourceName)}) silinecek. Bu alandaki diğer kayıtlar korunur.`,
-      secondMessage: "Bu işlem geri alınamaz. Emin misiniz?",
+      title: t("entryDelete.title"),
+      message: t("entryDelete.message", { preview: shortPreview(entry.content, 90), source: sourceDisplayName(entry.sourceName, t("sourceUnspecified")) }),
+      secondMessage: t("entryDelete.second"),
     });
     if (!confirmed) return;
     setEntryBusy(true);
@@ -938,7 +940,7 @@ function StoneDetailPage() {
       await refreshAfterEntryWrite(stone.id);
     }
     setEntryBusy(false);
-    if (!r.ok) setEntryError(r.error ?? "Bilgi silinemedi.");
+    if (!r.ok) setEntryError(r.error ?? t("entryDeleteFailed"));
   }
 
   async function loadSources(stoneId: string) {
@@ -994,7 +996,7 @@ function StoneDetailPage() {
     openEditor({
       mode: "text",
       field,
-      title: field !== "stone_name" && multiSource ? `${title} · ${sourceDisplayName(sourceById(sourceId)?.name)}` : title,
+      title: field !== "stone_name" && multiSource ? `${title} · ${sourceDisplayName(sourceById(sourceId)?.name, t("sourceUnspecified"))}` : title,
       badge,
       value: String(value || ""),
       multiline,
@@ -1026,7 +1028,7 @@ function StoneDetailPage() {
     openEditor({
       mode: "checkbox",
       field,
-      title: field === "chakras" && multiSource ? `${title} · ${sourceDisplayName(sourceById(sourceId)?.name)}` : title,
+      title: field === "chakras" && multiSource ? `${title} · ${sourceDisplayName(sourceById(sourceId)?.name, t("sourceUnspecified"))}` : title,
       badge,
       selected,
       options,
@@ -1124,7 +1126,7 @@ function StoneDetailPage() {
     const activeExtra = editorSourceId ? extraSources.find((s) => s.id === editorSourceId) ?? null : null;
     if (editorSourceId && !activeExtra) {
       setSaving(false);
-      setErrorMessage(t("editor.updateFailed", { error: "Kaynak bulunamadı; sayfayı yenileyin." }));
+      setErrorMessage(t("editor.updateFailed", { error: t("sourceNotFound") }));
       return;
     }
     if (activeExtra && sourceKeys.length > 0) {
@@ -2252,7 +2254,7 @@ function StoneDetailPage() {
                           {usageHasMatch ? <SearchMatchBadge /> : null}
                         </div>
                         {editEnabled ? (
-                          <span className="rounded-md bg-emerald-50 px-1.5 py-0.5 text-[9px] font-black text-emerald-700 ring-1 ring-emerald-100">Kayıtlar · Ekle</span>
+                          <span className="rounded-md bg-emerald-50 px-1.5 py-0.5 text-[9px] font-black text-emerald-700 ring-1 ring-emerald-100">{t("entriesAdd")}</span>
                         ) : null}
                       </div>
                     );

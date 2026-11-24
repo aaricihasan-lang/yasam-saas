@@ -222,6 +222,36 @@
       "empty": "Seçilen bölümlerde rapora eklenecek kayıt bulunamadı.",
       "invalid": "Rapor seçimi geçersiz. Listeyi yenileyip tekrar deneyin.",
       "generic": "Word raporu oluşturulamadı. Lütfen tekrar deneyin."
+    },
+    "entries": {
+      "sourceLabel": "Kaynak:",
+      "sourceUnspecified": "Kaynak belirtilmemiş",
+      "dialogAria": "{title} — bilgi kayıtları",
+      "intro": "Her bilgi ayrı kayıttır ve kendi kaynağını taşır. Bir kaydı değiştirmek diğerlerini etkilemez.",
+      "close": "Kapat",
+      "existingTitle": "Mevcut Kayıtlar ({count})",
+      "empty": "Bu alanda henüz bilgi kaydı yok.",
+      "infoField": "Bilgi",
+      "sourceField": "Kaynak",
+      "giveUp": "Vazgeç",
+      "saving": "Kaydediliyor…",
+      "save": "Kaydet",
+      "edit": "Düzenle",
+      "delete": "Sil",
+      "newTitle": "Yeni Bilgi",
+      "contentPlaceholder": "Ör. Akciğerlere giden kan akışını iyileştirir.",
+      "sourcePlaceholder": "Ör. Ahmet Hoca, Kristal Şifa Kitabı",
+      "add": "+ Bilgiyi Ekle",
+      "errEmpty": "Bilgi metni boş olamaz.",
+      "errSourceRequired": "Kaynak zorunludur. Bu bilgiyi kimden/nereden aldığınızı yazın.",
+      "errSourceTooLong": "Kaynak en fazla {max} karakter olabilir.",
+      "unsaved": "Kaydedilmemiş bilgi var. Kapatırsanız kaybolur.",
+      "backToEdit": "Düzenlemeye dön",
+      "closeWithoutSaving": "Kaydetmeden kapat",
+      "sourcesAria": "Bu taşta kullanılan kaynaklar",
+      "sourcesTitle": "Kullanılan Kaynaklar ({count})",
+      "entryCountTitle": "{count} bilgi kaydı",
+      "sourceHint": "Kaynak her <b>bilgi kaydının</b> altında ayrı yazılır. Görseller, mineral/burç/organ atamaları ve uyarı etiketleri taşa aittir."
     }
   }
 }

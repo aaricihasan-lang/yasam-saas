@@ -2,6 +2,7 @@
 
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
+import { useTranslations } from "next-intl";
 import {
   SEARCH_MATCH_BADGE_COMPACT_CLASS,
   renderHighlightedText,
@@ -17,11 +18,12 @@ import { useIsAndroidApp } from "@/hooks/useIsAndroidApp";
  */
 
 function SourceLine({ name }: { name: string | null }) {
+  const t = useTranslations("stones.entries");
   return (
     <p data-testid="stone-entry-source" data-no-search-highlight className="mt-1 flex min-w-0 items-center gap-1 text-[11px] font-bold text-cyan-800">
       <span aria-hidden>📖</span>
-      <span className="font-black">Kaynak:</span>
-      <span className={`min-w-0 break-words ${name ? "" : "italic text-slate-500"}`}>{sourceDisplayName(name)}</span>
+      <span className="font-black">{t("sourceLabel")}</span>
+      <span className={`min-w-0 break-words ${name ? "" : "italic text-slate-500"}`}>{sourceDisplayName(name, t("sourceUnspecified"))}</span>
     </p>
   );
 }
@@ -102,6 +104,7 @@ const inputCls =
  * kendi daha önce kullandığı kaynaklar öneri olarak gelir.
  */
 export function StoneEntriesEditor({ title, badge, entries, suggestions, busy, error, onAdd, onUpdate, onDelete, onClose }: EditorProps) {
+  const t = useTranslations("stones.entries");
   const listId = useId();
   // G1-01 (Owner): resmî Android uygulamasında (WebView, UA ile tespit) yerel <datalist> açılır kutusu
   // klavyenin üstüne binip yazmayı engelliyor → orada Kaynak alanları listeye bağlanmaz.
@@ -145,10 +148,10 @@ export function StoneEntriesEditor({ title, badge, entries, suggestions, busy, e
   });
 
   function check(content: string, source: string): string | null {
-    if (!content.trim()) return "Bilgi metni boş olamaz.";
+    if (!content.trim()) return t("errEmpty");
     const s = normalizeSourceName(source);
-    if (!s) return "Kaynak zorunludur. Bu bilgiyi kimden/nereden aldığınızı yazın.";
-    if (s.length > SOURCE_NAME_MAX) return `Kaynak en fazla ${SOURCE_NAME_MAX} karakter olabilir.`;
+    if (!s) return t("errSourceRequired");
+    if (s.length > SOURCE_NAME_MAX) return t("errSourceTooLong", { max: SOURCE_NAME_MAX });
     return null;
   }
 
@@ -188,7 +191,7 @@ export function StoneEntriesEditor({ title, badge, entries, suggestions, busy, e
       <div
         role="dialog"
         aria-modal="true"
-        aria-label={`${title} — bilgi kayıtları`}
+        aria-label={t("dialogAria", { title })}
         data-testid="stone-entries-editor"
         className="flex max-h-[92dvh] w-full max-w-2xl flex-col overflow-hidden rounded-t-3xl bg-white shadow-2xl ring-1 ring-slate-200 sm:rounded-2xl"
       >
@@ -196,16 +199,16 @@ export function StoneEntriesEditor({ title, badge, entries, suggestions, busy, e
           <div className="min-w-0">
             <span className="inline-flex rounded-full border border-cyan-200 bg-cyan-50 px-2 py-0.5 text-[10px] font-black tracking-wide text-cyan-700">{badge}</span>
             <h2 className="mt-1 text-[16px] font-black text-slate-950">{title}</h2>
-            <p className="text-[11.5px] font-medium text-slate-500">Her bilgi ayrı kayıttır ve kendi kaynağını taşır. Bir kaydı değiştirmek diğerlerini etkilemez.</p>
+            <p className="text-[11.5px] font-medium text-slate-500">{t("intro")}</p>
           </div>
-          <button type="button" onClick={requestClose} aria-label="Kapat" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-100 text-xl font-black text-slate-600 hover:bg-slate-200">×</button>
+          <button type="button" onClick={requestClose} aria-label={t("close")} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-100 text-xl font-black text-slate-600 hover:bg-slate-200">×</button>
         </header>
 
         <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-4 py-3">
           <section>
-            <h3 className="text-[11px] font-black uppercase tracking-[0.12em] text-slate-500">Mevcut Kayıtlar ({entries.length})</h3>
+            <h3 className="text-[11px] font-black uppercase tracking-[0.12em] text-slate-500">{t("existingTitle", { count: entries.length })}</h3>
             {entries.length === 0 ? (
-              <p className="mt-2 rounded-xl border border-dashed border-slate-200 px-3 py-3 text-sm italic text-slate-400">Bu alanda henüz bilgi kaydı yok.</p>
+              <p className="mt-2 rounded-xl border border-dashed border-slate-200 px-3 py-3 text-sm italic text-slate-400">{t("empty")}</p>
             ) : (
               <ol data-testid="stone-entries-editor-list" className="mt-2 space-y-2">
                 {entries.map((e, i) => (
@@ -213,7 +216,7 @@ export function StoneEntriesEditor({ title, badge, entries, suggestions, busy, e
                     {editingId === e.id ? (
                       <div className="space-y-2">
                         <label className="block text-[11px] font-black text-slate-600">
-                          Bilgi
+                          {t("infoField")}
                           <textarea
                             data-testid="stone-entry-edit-content"
                             value={editContent}
@@ -223,7 +226,7 @@ export function StoneEntriesEditor({ title, badge, entries, suggestions, busy, e
                           />
                         </label>
                         <label className="block text-[11px] font-black text-slate-600">
-                          Kaynak
+                          {t("sourceField")}
                           <input
                             data-testid="stone-entry-edit-source"
                             value={editSource}
@@ -234,9 +237,9 @@ export function StoneEntriesEditor({ title, badge, entries, suggestions, busy, e
                           />
                         </label>
                         <div className="flex flex-wrap justify-end gap-2">
-                          <button type="button" className="btn-soft" disabled={busy} onClick={() => { setEditingId(null); setLocalError(""); }}>Vazgeç</button>
+                          <button type="button" className="btn-soft" disabled={busy} onClick={() => { setEditingId(null); setLocalError(""); }}>{t("giveUp")}</button>
                           <button type="button" data-testid="stone-entry-edit-save" className="btn-primary" disabled={busy} onClick={() => void submitEdit()}>
-                            {busy ? "Kaydediliyor…" : "Kaydet"}
+                            {busy ? t("saving") : t("save")}
                           </button>
                         </div>
                       </div>
@@ -250,11 +253,11 @@ export function StoneEntriesEditor({ title, badge, entries, suggestions, busy, e
                         <div className="flex shrink-0 gap-1.5 self-end sm:self-start">
                           <button type="button" data-testid="stone-entry-edit" disabled={busy || editingId !== null} onClick={() => startEdit(e)}
                             className="inline-flex min-h-[36px] items-center rounded-lg border border-emerald-200 bg-white px-3 text-[12px] font-black text-emerald-700 hover:bg-emerald-50 disabled:opacity-50">
-                            Düzenle
+                            {t("edit")}
                           </button>
                           <button type="button" data-testid="stone-entry-delete" disabled={busy || editingId !== null} onClick={() => void onDelete(e)}
                             className="inline-flex min-h-[36px] items-center rounded-lg border border-red-200 bg-white px-3 text-[12px] font-black text-red-700 hover:bg-red-50 disabled:opacity-50">
-                            Sil
+                            {t("delete")}
                           </button>
                         </div>
                       </div>
@@ -266,21 +269,21 @@ export function StoneEntriesEditor({ title, badge, entries, suggestions, busy, e
           </section>
 
           <section data-testid="stone-entry-new" className="rounded-2xl border border-cyan-200 bg-cyan-50/50 p-3">
-            <h3 className="text-[11px] font-black uppercase tracking-[0.12em] text-cyan-800">Yeni Bilgi</h3>
+            <h3 className="text-[11px] font-black uppercase tracking-[0.12em] text-cyan-800">{t("newTitle")}</h3>
             <label className="mt-2 block text-[11px] font-black text-slate-600">
-              Bilgi
+              {t("infoField")}
               <textarea
                 ref={newRef}
                 data-testid="stone-entry-new-content"
                 value={newContent}
                 onChange={(e) => setNewContent(e.target.value)}
                 rows={3}
-                placeholder="Ör. Akciğerlere giden kan akışını iyileştirir."
+                placeholder={t("contentPlaceholder")}
                 className={`${inputCls} mt-1 py-2 leading-6`}
               />
             </label>
             <label className="mt-2 block text-[11px] font-black text-slate-600">
-              Kaynak
+              {t("sourceField")}
               <input
                 data-testid="stone-entry-new-source"
                 value={newSource}
@@ -293,7 +296,7 @@ export function StoneEntriesEditor({ title, badge, entries, suggestions, busy, e
                   if (carriedTapsRef.current++ === 0) e.currentTarget.select();
                   else setSourceCarried(false);
                 }}
-                placeholder="Ör. Ahmet Hoca, Kristal Şifa Kitabı"
+                placeholder={t("sourcePlaceholder")}
                 className={`${inputCls} mt-1 h-11`}
               />
             </label>
@@ -302,7 +305,7 @@ export function StoneEntriesEditor({ title, badge, entries, suggestions, busy, e
             </datalist>
             <div className="mt-3 flex justify-end">
               <button type="button" data-testid="stone-entry-add" className="btn-primary w-full sm:w-auto" disabled={busy || editingId !== null} onClick={() => void submitNew()}>
-                {busy ? "Kaydediliyor…" : "+ Bilgiyi Ekle"}
+                {busy ? t("saving") : t("add")}
               </button>
             </div>
           </section>
@@ -310,10 +313,10 @@ export function StoneEntriesEditor({ title, badge, entries, suggestions, busy, e
           {shownError ? <p role="alert" data-testid="stone-entry-error" className="rounded-xl bg-red-50 px-3 py-2 text-[12.5px] font-bold text-red-700">{shownError}</p> : null}
           {confirmClose ? (
             <div role="alert" className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-amber-50 px-3 py-2 text-[12.5px] font-bold text-amber-800">
-              <span>Kaydedilmemiş bilgi var. Kapatırsanız kaybolur.</span>
+              <span>{t("unsaved")}</span>
               <span className="flex gap-2">
-                <button type="button" className="btn-soft" onClick={() => setConfirmClose(false)}>Düzenlemeye dön</button>
-                <button type="button" className="btn-danger" onClick={onClose}>Kaydetmeden kapat</button>
+                <button type="button" className="btn-soft" onClick={() => setConfirmClose(false)}>{t("backToEdit")}</button>
+                <button type="button" className="btn-danger" onClick={onClose}>{t("closeWithoutSaving")}</button>
               </span>
             </div>
           ) : null}
@@ -332,18 +335,19 @@ export function StoneEntrySourcesSummary({
   sources: readonly { name: string | null; count: number; hits?: number }[];
   matchCounts?: boolean;
 }) {
+  const t = useTranslations("stones.entries");
   if (sources.length === 0) return null;
   return (
-    <section data-testid="stone-sources-bar" aria-label="Bu taşta kullanılan kaynaklar" className="rounded-xl border border-cyan-200 bg-white/90 px-3 py-2.5 shadow-sm">
+    <section data-testid="stone-sources-bar" aria-label={t("sourcesAria")} className="rounded-xl border border-cyan-200 bg-white/90 px-3 py-2.5 shadow-sm">
       <div className="flex flex-wrap items-center gap-2">
-        <span className="text-[10px] font-black uppercase tracking-[0.14em] text-cyan-700">Kullanılan Kaynaklar ({sources.length})</span>
+        <span className="text-[10px] font-black uppercase tracking-[0.14em] text-cyan-700">{t("sourcesTitle", { count: sources.length })}</span>
         <ul className="flex min-w-0 flex-wrap gap-1.5">
           {sources.map((s, i) => (
             <li key={`${s.name ?? ""}-${i}`} data-testid="stone-source-chip"
               className="inline-flex min-h-[32px] max-w-full items-center gap-1 rounded-full border border-cyan-200 bg-cyan-50/70 px-3 py-1 text-[12px] font-black text-cyan-900">
               <span aria-hidden>📖</span>
-              <span className={`break-words ${s.name ? "" : "italic"}`}>{sourceDisplayName(s.name)}</span>
-              <span className="rounded-full bg-white px-1.5 text-[10px] font-black text-slate-500 ring-1 ring-slate-200" title={`${s.count} bilgi kaydı`}>{s.count}</span>
+              <span className={`break-words ${s.name ? "" : "italic"}`}>{sourceDisplayName(s.name, t("sourceUnspecified"))}</span>
+              <span className="rounded-full bg-white px-1.5 text-[10px] font-black text-slate-500 ring-1 ring-slate-200" title={t("entryCountTitle", { count: s.count })}>{s.count}</span>
               {matchCounts && (s.hits ?? 0) > 0 ? (
                 <span data-testid="stone-source-hits" className="rounded-full bg-yellow-100 px-1.5 py-0.5 text-[10px] font-black text-yellow-900">🔍 {s.hits}</span>
               ) : null}
@@ -352,7 +356,7 @@ export function StoneEntrySourcesSummary({
         </ul>
       </div>
       <p data-testid="stone-source-hint" className="mt-1.5 text-[11.5px] font-medium leading-snug text-slate-600">
-        Kaynak her <b className="font-black text-slate-900">bilgi kaydının</b> altında ayrı yazılır. Görseller, mineral/burç/organ atamaları ve uyarı etiketleri taşa aittir.
+        {t.rich("sourceHint", { b: (chunks) => <b className="font-black text-slate-900">{chunks}</b> })}
       </p>
     </section>
   );
