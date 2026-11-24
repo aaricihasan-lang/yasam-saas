@@ -1,5 +1,6 @@
 "use client";
 
+import { useEnumOptions } from "@/lib/aromaterapi/useEnumLabel";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import {
@@ -8,7 +9,7 @@ import {
   AromaterapiMutationNotice,
   AromaterapiReasonField,
 } from "@/app/aromaterapi/_components/write/AromaterapiFormShell";
-import { EnumSelect, TextField, enumOptions } from "@/app/aromaterapi/_components/write/KnowledgeRecordFields";
+import { EnumSelect, TextField } from "@/app/aromaterapi/_components/write/KnowledgeRecordFields";
 import { EntitySearchPicker, type PickerItem } from "@/app/aromaterapi/_components/write/EntitySearchPicker";
 import { useAromaterapiDirtyGuard } from "@/app/aromaterapi/_components/write/useAromaterapiDirtyGuard";
 import { createPreparation, updatePreparation, writeMessageForCode } from "@/lib/aromaterapi/catalogWrite";
@@ -26,7 +27,7 @@ import type { PlantTaxonListItem, PreparationDetail } from "@/lib/aromaterapi/re
  * C3C read API'sini tüketir.
  */
 
-const PREP_TYPE_OPTIONS = enumOptions(Object.keys(PREPARATION_TYPE_TR), PREPARATION_TYPE_TR);
+const PREP_TYPE_VALUES = Object.keys(PREPARATION_TYPE_TR);
 
 type CoreState = {
   taxon_id: string;
@@ -46,14 +47,14 @@ function fromInitial(initial?: PreparationDetail): CoreState {
   };
 }
 
-function statusOptions(current: string) {
+function statusValues(current: string): string[] {
   const allowed =
     current === "draft"
       ? ["draft", "verified"]
       : current === "verified"
         ? ["verified", "approved"]
         : ["approved"];
-  return enumOptions(allowed, CATALOG_STATUS_TR);
+  return allowed;
 }
 
 export function PreparationForm({
@@ -65,6 +66,7 @@ export function PreparationForm({
   initial?: PreparationDetail;
   isDemo: boolean;
 }) {
+  const enumOptionsI18n = useEnumOptions();
   const router = useRouter();
   const [core, setCore] = useState<CoreState>(() => fromInitial(initial));
   const [taxonItem, setTaxonItem] = useState<PickerItem | null>(
@@ -266,7 +268,7 @@ export function PreparationForm({
           <p role="alert" className="text-[12px] font-bold text-rose-600">{err("taxon_id")}</p>
         ) : null}
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <EnumSelect label="Preparat Türü" value={core.preparation_type} onChange={(v) => set("preparation_type", v)} options={PREP_TYPE_OPTIONS} required error={err("preparation_type")} disabled={isDemo || identityLocked} />
+          <EnumSelect label="Preparat Türü" value={core.preparation_type} onChange={(v) => set("preparation_type", v)} options={enumOptionsI18n(PREP_TYPE_VALUES, PREPARATION_TYPE_TR)} required error={err("preparation_type")} disabled={isDemo || identityLocked} />
           <TextField label="Bitki Kısmı" value={core.plant_part} onChange={(v) => set("plant_part", v)} required error={err("plant_part")} disabled={isDemo || identityLocked} maxLength={120} placeholder="ör. çiçekli dal uçları" />
           <TextField label="Kemotip (CT)" value={core.chemotype} onChange={(v) => set("chemotype", v)} disabled={isDemo || identityLocked} maxLength={120} hint="Kemotip ayrımı varsa (opsiyonel)." />
         </div>
@@ -274,7 +276,7 @@ export function PreparationForm({
 
       {mode === "edit" ? (
         <AromaterapiFormSection title="Durum" hint="Durum yalnız izinli sırayla ilerler: Taslak → Doğrulanmış → Onaylanmış.">
-          <EnumSelect label="Kayıt Durumu" value={core.status} onChange={(v) => set("status", v)} options={statusOptions(initialState.status)} required disabled={isDemo} allLabel="Seçin…" />
+          <EnumSelect label="Kayıt Durumu" value={core.status} onChange={(v) => set("status", v)} options={enumOptionsI18n(statusValues(initialState.status), CATALOG_STATUS_TR)} required disabled={isDemo} allLabel="Seçin…" />
         </AromaterapiFormSection>
       ) : null}
     </AromaterapiFormShell>

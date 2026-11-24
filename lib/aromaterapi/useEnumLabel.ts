@@ -6,6 +6,7 @@
  * (TR değerleri readLabels.ts ile birebir). Kod boşsa "—"; katalogda olmayan (bilinmeyen) kod HAM KOD olarak
  * gösterilir — ham katalog anahtarı ASLA (readLabels `tr.label` dürüst yedek sözleşmesiyle aynı).
  */
+import { useCallback } from "react";
 import { useTranslations } from "next-intl";
 import * as READ_LABELS from "./readLabels";
 
@@ -20,16 +21,20 @@ export type EnumLabelFn = (map: Readonly<Record<string, string>>, code: string |
 
 export function useEnumLabel(): EnumLabelFn {
   const t = useTranslations("aromatherapy.enums");
-  return (map, code) => {
+  // Kararlı referans (useCallback bağımlılıklarında güvenle kullanılabilir).
+  return useCallback<EnumLabelFn>((map, code) => {
     if (!code) return "—";
     const name = MAP_NAME.get(map);
     if (name && t.has(`${name}.${code}`)) return t(`${name}.${code}`);
     return code;
-  };
+  }, [t]);
 }
 
 /** Seçenek listesi (değer sırası korunur): [{ value, label }] — etiket ekran dilinde. */
 export function useEnumOptions(): (values: readonly string[], map: Readonly<Record<string, string>>) => { value: string; label: string }[] {
   const label = useEnumLabel();
-  return (values, map) => values.map((value) => ({ value, label: label(map, value) }));
+  return useCallback(
+    (values: readonly string[], map: Readonly<Record<string, string>>) => values.map((value) => ({ value, label: label(map, value) })),
+    [label],
+  );
 }

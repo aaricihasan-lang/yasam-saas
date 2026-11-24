@@ -1,11 +1,12 @@
 "use client";
 
+import { useEnumLabel } from "@/lib/aromaterapi/useEnumLabel";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { MetaChip } from "@/app/aromaterapi/_components/read/ReadPrimitives";
 import { fetchMethodSeriesList } from "@/lib/aromaterapi/methodData";
 import { messageForCode } from "@/lib/aromaterapi/readClient";
-import { METHOD_KIND_TR, METHOD_STATUS_TR, tr } from "@/lib/aromaterapi/readLabels";
+import { METHOD_KIND_TR, METHOD_STATUS_TR } from "@/lib/aromaterapi/readLabels";
 import type { MethodSeriesListItem } from "@/lib/aromaterapi/readTypes";
 
 /**
@@ -26,6 +27,7 @@ export function PreparationMethodList({
   preparationId: string;
   isDemo: boolean;
 }) {
+  const enumLabel = useEnumLabel();
   // loading TÜRETİLİR (effect içinde senkron setState YOK → lint/cascading render yok).
   const [state, setState] = useState<{
     series: MethodSeriesListItem[] | null;
@@ -83,10 +85,10 @@ export function PreparationMethodList({
               >
                 <span className="min-w-0">
                   <span className="block text-[14px] font-black text-slate-800">
-                    {tr.label(METHOD_KIND_TR, s.method_kind)}
+                    {enumLabel(METHOD_KIND_TR, s.method_kind)}
                   </span>
                   <span className="mt-1 flex flex-wrap items-center gap-1.5">
-                    <MetaChip tone={statusTone(s.latest_status)}>{tr.label(METHOD_STATUS_TR, s.latest_status)}</MetaChip>
+                    <MetaChip tone={statusTone(s.latest_status)}>{enumLabel(METHOD_STATUS_TR, s.latest_status)}</MetaChip>
                     <MetaChip tone="slate">{s.revision_count.toLocaleString("tr-TR")} revizyon</MetaChip>
                     {s.verified_revision !== null ? <MetaChip tone="emerald">Doğrulanmış: {s.verified_revision}. rev</MetaChip> : null}
                     {s.source_title ? <MetaChip tone="teal">{s.source_title}</MetaChip> : null}

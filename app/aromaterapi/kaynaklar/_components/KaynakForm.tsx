@@ -1,12 +1,13 @@
 "use client";
 
+import { useEnumOptions } from "@/lib/aromaterapi/useEnumLabel";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import {
   AromaterapiFormShell,
   AromaterapiFormSection,
   AromaterapiReasonField,
 } from "@/app/aromaterapi/_components/write/AromaterapiFormShell";
-import { TextField, EnumSelect, NumberField, enumOptions } from "@/app/aromaterapi/_components/write/KnowledgeRecordFields";
+import { TextField, EnumSelect, NumberField } from "@/app/aromaterapi/_components/write/KnowledgeRecordFields";
 import { useAromaterapiDirtyGuard } from "@/app/aromaterapi/_components/write/useAromaterapiDirtyGuard";
 import { SOURCE_TYPE_TR, SOURCE_STATUS_TR } from "@/lib/aromaterapi/readLabels";
 import { fetchSource } from "@/lib/aromaterapi/sourceData";
@@ -72,6 +73,7 @@ export function KaynakForm({
   onSaved: (id: string) => void;
   onCancel: () => void;
 }) {
+  const enumOptionsI18n = useEnumOptions();
   const [f, setF] = useState<FormState>(EMPTY_STATE);
   const [initialState, setInitialState] = useState<FormState>(EMPTY_STATE);
   const [expectedUpdatedAt, setExpectedUpdatedAt] = useState<string | null>(null);
@@ -232,7 +234,7 @@ export function KaynakForm({
           label="Kaynak Türü"
           value={f.source_type}
           onChange={(v) => set("source_type", v)}
-          options={enumOptions(SOURCE_TYPE_VALUES, SOURCE_TYPE_TR)}
+          options={enumOptionsI18n(SOURCE_TYPE_VALUES, SOURCE_TYPE_TR)}
           required
           disabled={isDemo}
           error={typeError}
@@ -267,7 +269,7 @@ export function KaynakForm({
             label="Durum"
             value={f.status}
             onChange={(v) => set("status", v || "draft")}
-            options={enumOptions(SOURCE_STATUS_VALUES, SOURCE_STATUS_TR)}
+            options={enumOptionsI18n(SOURCE_STATUS_VALUES, SOURCE_STATUS_TR)}
             disabled={isDemo}
             allLabel="Taslak"
           />

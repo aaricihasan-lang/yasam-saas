@@ -1,5 +1,6 @@
 "use client";
 
+import { useEnumLabel, useEnumOptions } from "@/lib/aromaterapi/useEnumLabel";
 import Link from "next/link";
 import { useId } from "react";
 import { useAromaterapiListQuery } from "@/app/aromaterapi/_components/read/useAromaterapiListQuery";
@@ -18,8 +19,7 @@ import {
   CLAIM_TYPE_TR,
   EVIDENCE_LAYER_TR,
   RATIONALE_STATUS_TR,
-  tr,
-} from "@/lib/aromaterapi/readLabels";
+  } from "@/lib/aromaterapi/readLabels";
 import { formatDateTr, truncate } from "@/lib/aromaterapi/readFormat";
 
 /**
@@ -39,10 +39,10 @@ const FILTER_KEYS = [
   "preparation_id",
 ] as const;
 
-const opts = (map: Record<string, string>) =>
-  Object.entries(map).map(([value, label]) => ({ value, label }));
-
 export function BilgiKayitlariView() {
+  // I18N: seçenek etiketi ekran dilinde (kanonik değer sırası readLabels sözlüğündeki gibi).
+  const enumOptionsI18n = useEnumOptions();
+  const opts = (map: Record<string, string>) => enumOptionsI18n(Object.keys(map), map);
   const s = useAromaterapiListQuery<KnowledgeRecordListItem>({
     fetcher: fetchKnowledgeRecordList,
     filterKeys: FILTER_KEYS,
@@ -177,6 +177,7 @@ function SafetyTopicFilter({ value, onChange }: { value: string; onChange: (v: s
 }
 
 function RecordRow({ row }: { row: KnowledgeRecordListItem }) {
+  const enumLabel = useEnumLabel();
   const prep = [row.taxon_canonical_name, row.preparation_type]
     .filter(Boolean)
     .join(" · ");
@@ -187,9 +188,9 @@ function RecordRow({ row }: { row: KnowledgeRecordListItem }) {
     >
       <div className="mb-2 flex flex-wrap items-center gap-1.5">
         <MetaChip tone={row.claim_type === "safety" ? "rose" : "emerald"}>
-          {tr.label(CLAIM_TYPE_TR, row.claim_type)}
+          {enumLabel(CLAIM_TYPE_TR, row.claim_type)}
         </MetaChip>
-        <MetaChip tone="sky">{tr.label(EVIDENCE_LAYER_TR, row.evidence_layer)}</MetaChip>
+        <MetaChip tone="sky">{enumLabel(EVIDENCE_LAYER_TR, row.evidence_layer)}</MetaChip>
       </div>
       <p className="text-[14px] font-bold leading-snug text-slate-800 [overflow-wrap:anywhere] group-hover:text-emerald-900">
         {truncate(row.conclusion, 180)}
@@ -201,7 +202,7 @@ function RecordRow({ row }: { row: KnowledgeRecordListItem }) {
       ) : null}
       <div className="mt-auto flex flex-wrap items-center gap-1.5 pt-3">
         {row.safety_topic ? <MetaChip tone="amber">{row.safety_topic}</MetaChip> : null}
-        <MetaChip tone="slate">{tr.label(CLAIM_STATUS_TR, row.status)}</MetaChip>
+        <MetaChip tone="slate">{enumLabel(CLAIM_STATUS_TR, row.status)}</MetaChip>
         <span className="ml-auto text-[11px] font-bold text-slate-400">
           {formatDateTr(row.updated_at)}
         </span>

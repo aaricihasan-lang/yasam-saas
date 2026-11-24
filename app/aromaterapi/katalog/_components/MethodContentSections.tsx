@@ -1,7 +1,8 @@
 "use client";
 
+import { useEnumOptions } from "@/lib/aromaterapi/useEnumLabel";
 import { AromaterapiFormSection } from "@/app/aromaterapi/_components/write/AromaterapiFormShell";
-import { EnumSelect, TextField, enumOptions } from "@/app/aromaterapi/_components/write/KnowledgeRecordFields";
+import { EnumSelect, TextField } from "@/app/aromaterapi/_components/write/KnowledgeRecordFields";
 import { MATERIAL_STATE_TR } from "@/lib/aromaterapi/readLabels";
 import {
   MethodStepsEditor,
@@ -15,7 +16,7 @@ import {
  * mantıklı bölümlerde gruplanır. Masaüstünde 2 kolon, mobilde tek kolon.
  */
 
-const MATERIAL_STATE_OPTIONS = enumOptions(["fresh", "dried", "other"], MATERIAL_STATE_TR);
+const MATERIAL_STATE_VALUES = ["fresh", "dried", "other"];
 
 export function MethodContentSections({
   content,
@@ -32,12 +33,13 @@ export function MethodContentSections({
   disabled?: boolean;
   methodTextError?: string | null;
 }) {
+  const enumOptionsI18n = useEnumOptions();
   return (
     <>
       <AromaterapiFormSection title="Yöntem Özeti" hint="Ne, hangi durumdaki materyalden, nasıl elde ediliyor.">
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <TextField label="Kullanılan Bitki Kısmı" value={content.plant_part_used} onChange={(v) => setField("plant_part_used", v)} disabled={disabled} maxLength={160} placeholder="ör. taze çiçekli dal uçları" />
-          <EnumSelect label="Malzemenin Durumu" value={content.material_state} onChange={(v) => setField("material_state", v)} options={MATERIAL_STATE_OPTIONS} disabled={disabled} allLabel="Belirtilmedi" />
+          <EnumSelect label="Malzemenin Durumu" value={content.material_state} onChange={(v) => setField("material_state", v)} options={enumOptionsI18n(MATERIAL_STATE_VALUES, MATERIAL_STATE_TR)} disabled={disabled} allLabel="Belirtilmedi" />
         </div>
         <TextField label="Ana Yöntem Metni" value={content.method_text} onChange={(v) => setField("method_text", v)} required error={methodTextError} disabled={disabled} multiline rows={5} maxLength={8000} hint="Yöntemin serbest metin anlatımı (zorunlu)." />
       </AromaterapiFormSection>

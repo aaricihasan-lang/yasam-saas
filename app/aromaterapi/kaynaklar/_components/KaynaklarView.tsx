@@ -1,5 +1,6 @@
 "use client";
 
+import { useEnumLabel, useEnumOptions } from "@/lib/aromaterapi/useEnumLabel";
 import Link from "next/link";
 import { useId, useState } from "react";
 import { useAromaterapiListQuery } from "@/app/aromaterapi/_components/read/useAromaterapiListQuery";
@@ -15,7 +16,7 @@ import { AromaterapiConfirmDialog } from "@/app/aromaterapi/_components/write/Ar
 import { fetchSourceList, fetchSource } from "@/lib/aromaterapi/sourceData";
 import { updateSource, sourceMessageForCode } from "@/lib/aromaterapi/sourceWrite";
 import type { SourceListItem } from "@/lib/aromaterapi/readTypes";
-import { SOURCE_STATUS_TR, SOURCE_TYPE_TR, tr } from "@/lib/aromaterapi/readLabels";
+import { SOURCE_STATUS_TR, SOURCE_TYPE_TR } from "@/lib/aromaterapi/readLabels";
 import { readYasamUser } from "@/lib/auth/yasamUser";
 import { KaynakForm } from "@/app/aromaterapi/kaynaklar/_components/KaynakForm";
 
@@ -28,12 +29,14 @@ import { KaynakForm } from "@/app/aromaterapi/kaynaklar/_components/KaynakForm";
 
 const SOURCE_FILTER_KEYS = ["source_type", "status", "year"] as const;
 
-const SOURCE_TYPE_OPTIONS = Object.entries(SOURCE_TYPE_TR).map(([value, label]) => ({ value, label }));
-const SOURCE_STATUS_OPTIONS = Object.entries(SOURCE_STATUS_TR).map(([value, label]) => ({ value, label }));
+// I18N: seçenek etiketleri bileşende useEnumOptions ile (kanonik değer listesi burada).
+const SOURCE_TYPE_VALUES = Object.keys(SOURCE_TYPE_TR);
+const SOURCE_STATUS_VALUES = Object.keys(SOURCE_STATUS_TR);
 
 type EditorState = { mode: "create" } | { mode: "edit"; id: string } | null;
 
 export function KaynaklarView() {
+  const enumOptionsI18n = useEnumOptions();
   const s = useAromaterapiListQuery<SourceListItem>({
     fetcher: fetchSourceList,
     filterKeys: SOURCE_FILTER_KEYS,
@@ -148,13 +151,13 @@ export function KaynaklarView() {
             <ReadFilterSelect
               label="Kaynak türü"
               value={s.filters.source_type ?? ""}
-              options={SOURCE_TYPE_OPTIONS}
+              options={enumOptionsI18n(SOURCE_TYPE_VALUES, SOURCE_TYPE_TR)}
               onChange={(v) => s.setFilter("source_type", v)}
             />
             <ReadFilterSelect
               label="Durum"
               value={s.filters.status ?? ""}
-              options={SOURCE_STATUS_OPTIONS}
+              options={enumOptionsI18n(SOURCE_STATUS_VALUES, SOURCE_STATUS_TR)}
               onChange={(v) => s.setFilter("status", v)}
             />
             <YearFilter value={s.filters.year ?? ""} onChange={(v) => s.setFilter("year", v)} />
@@ -249,6 +252,7 @@ function SourceRow({
   onEdit: () => void;
   onArchive: () => void;
 }) {
+  const enumLabel = useEnumLabel();
   const meta = [row.authors, row.organization, row.publication_year ? String(row.publication_year) : null]
     .filter(Boolean)
     .join(" · ");
@@ -267,9 +271,9 @@ function SourceRow({
         ) : null}
       </Link>
       <div className="mt-2 flex flex-wrap items-center gap-1.5">
-        <MetaChip tone="violet">{tr.label(SOURCE_TYPE_TR, row.source_type)}</MetaChip>
+        <MetaChip tone="violet">{enumLabel(SOURCE_TYPE_TR, row.source_type)}</MetaChip>
         <MetaChip tone="slate">{row.passage_count.toLocaleString("tr-TR")} pasaj</MetaChip>
-        <MetaChip tone="amber">{tr.label(SOURCE_STATUS_TR, row.status)}</MetaChip>
+        <MetaChip tone="amber">{enumLabel(SOURCE_STATUS_TR, row.status)}</MetaChip>
       </div>
       {!isDemo ? (
         <div className="mt-auto flex flex-wrap items-center gap-2 pt-3">

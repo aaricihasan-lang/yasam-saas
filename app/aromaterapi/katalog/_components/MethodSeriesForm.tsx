@@ -1,5 +1,6 @@
 "use client";
 
+import { useEnumOptions } from "@/lib/aromaterapi/useEnumLabel";
 import { useRouter } from "next/navigation";
 import { useCallback, useMemo, useState, type FormEvent } from "react";
 import {
@@ -8,7 +9,7 @@ import {
   AromaterapiMutationNotice,
   AromaterapiReasonField,
 } from "@/app/aromaterapi/_components/write/AromaterapiFormShell";
-import { EnumSelect, enumOptions } from "@/app/aromaterapi/_components/write/KnowledgeRecordFields";
+import { EnumSelect } from "@/app/aromaterapi/_components/write/KnowledgeRecordFields";
 import { EntitySearchPicker, type PickerItem } from "@/app/aromaterapi/_components/write/EntitySearchPicker";
 import { useAromaterapiDirtyGuard } from "@/app/aromaterapi/_components/write/useAromaterapiDirtyGuard";
 import {
@@ -36,7 +37,7 @@ import type { PassageListItem, SourceListItem } from "@/lib/aromaterapi/readType
  * Uzman yönteminde kaynak/pasaj gösterilmez.
  */
 
-const KIND_OPTIONS = enumOptions(["faithful_source", "editorial", "expert"], METHOD_KIND_TR);
+const KIND_VALUES = ["faithful_source", "editorial", "expert"];
 const LANG_OPTIONS = [
   { value: "tr", label: "Türkçe" },
   { value: "en", label: "İngilizce" },
@@ -54,6 +55,7 @@ export function MethodSeriesForm({
   preparationId: string;
   isDemo: boolean;
 }) {
+  const enumOptionsI18n = useEnumOptions();
   const router = useRouter();
   const [methodKind, setMethodKind] = useState("");
   const [methodLang, setMethodLang] = useState("tr");
@@ -184,7 +186,7 @@ export function MethodSeriesForm({
     >
       <AromaterapiFormSection title="Yöntem Türü ve Bağlam" hint="Bu seçimler seri kimliğidir ve sonradan değiştirilemez.">
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <EnumSelect label="Yöntem Türü" value={methodKind} onChange={onKindChange} options={KIND_OPTIONS} required error={methodKindError} disabled={isDemo} />
+          <EnumSelect label="Yöntem Türü" value={methodKind} onChange={onKindChange} options={enumOptionsI18n(KIND_VALUES, METHOD_KIND_TR)} required error={methodKindError} disabled={isDemo} />
           <EnumSelect label="Yöntem Dili" value={methodLang} onChange={setMethodLang} options={LANG_OPTIONS} required disabled={isDemo} allLabel="Seçin…" />
         </div>
         {isFaithful ? (

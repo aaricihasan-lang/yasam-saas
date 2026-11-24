@@ -1,5 +1,6 @@
 "use client";
 
+import { useEnumOptions } from "@/lib/aromaterapi/useEnumLabel";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, type FormEvent } from "react";
 import {
@@ -8,7 +9,7 @@ import {
   AromaterapiMutationNotice,
   AromaterapiReasonField,
 } from "@/app/aromaterapi/_components/write/AromaterapiFormShell";
-import { EnumSelect, TextField, enumOptions } from "@/app/aromaterapi/_components/write/KnowledgeRecordFields";
+import { EnumSelect, TextField } from "@/app/aromaterapi/_components/write/KnowledgeRecordFields";
 import { useAromaterapiDirtyGuard } from "@/app/aromaterapi/_components/write/useAromaterapiDirtyGuard";
 import { createPlantTaxon, updatePlantTaxon, writeMessageForCode } from "@/lib/aromaterapi/catalogWrite";
 import { CATALOG_STATUS_TR, TAXON_RANK_TR } from "@/lib/aromaterapi/readLabels";
@@ -51,14 +52,14 @@ function fromInitial(initial?: PlantTaxonDetail): CoreState {
 }
 
 /** Duruma göre izinli sonraki durumlar (RPC matrisi: draft→verified→approved). */
-function statusOptions(current: string) {
+function statusValues(current: string): string[] {
   const allowed =
     current === "draft"
       ? ["draft", "verified"]
       : current === "verified"
         ? ["verified", "approved"]
         : ["approved"];
-  return enumOptions(allowed, CATALOG_STATUS_TR);
+  return allowed;
 }
 
 export function PlantTaxonForm({
@@ -70,6 +71,7 @@ export function PlantTaxonForm({
   initial?: PlantTaxonDetail;
   isDemo: boolean;
 }) {
+  const enumOptionsI18n = useEnumOptions();
   const router = useRouter();
   const [core, setCore] = useState<CoreState>(() => fromInitial(initial));
   const [reason, setReason] = useState("");
@@ -228,7 +230,7 @@ export function PlantTaxonForm({
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <TextField label="Cins (Genus)" value={core.genus} onChange={(v) => set("genus", v)} required error={err("genus")} disabled={isDemo} maxLength={120} placeholder="ör. Lavandula" />
           <TextField label="Tür (Species)" value={core.species} onChange={(v) => set("species", v)} required error={err("species")} disabled={isDemo} maxLength={120} placeholder="ör. angustifolia" />
-          <EnumSelect label="Takson Düzeyi" value={core.taxon_rank} onChange={(v) => set("taxon_rank", v)} options={enumOptions(RANK_VALUES, TAXON_RANK_TR)} required error={err("taxon_rank")} disabled={isDemo} />
+          <EnumSelect label="Takson Düzeyi" value={core.taxon_rank} onChange={(v) => set("taxon_rank", v)} options={enumOptionsI18n(RANK_VALUES, TAXON_RANK_TR)} required error={err("taxon_rank")} disabled={isDemo} />
           <TextField label="Alt Takson Adı" value={core.infraspecific_epithet} onChange={(v) => set("infraspecific_epithet", v)} disabled={isDemo} maxLength={120} hint="Alt tür / varyete / forma adı (varsa)." />
           <TextField label="Familya" value={core.family} onChange={(v) => set("family", v)} required error={err("family")} disabled={isDemo} maxLength={120} placeholder="ör. Lamiaceae" />
           <TextField label="Türkçe Yaygın Ad" value={core.primary_common_name_tr} onChange={(v) => set("primary_common_name_tr", v)} disabled={isDemo} maxLength={160} placeholder="ör. Lavanta" />
@@ -254,7 +256,7 @@ export function PlantTaxonForm({
 
       {mode === "edit" ? (
         <AromaterapiFormSection title="Durum" hint="Durum yalnız izinli sırayla ilerler: Taslak → Doğrulanmış → Onaylanmış.">
-          <EnumSelect label="Kayıt Durumu" value={core.status} onChange={(v) => set("status", v)} options={statusOptions(initialState.status)} required disabled={isDemo} allLabel="Seçin…" />
+          <EnumSelect label="Kayıt Durumu" value={core.status} onChange={(v) => set("status", v)} options={enumOptionsI18n(statusValues(initialState.status), CATALOG_STATUS_TR)} required disabled={isDemo} allLabel="Seçin…" />
         </AromaterapiFormSection>
       ) : null}
     </AromaterapiFormShell>

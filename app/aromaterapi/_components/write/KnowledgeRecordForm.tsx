@@ -1,5 +1,6 @@
 "use client";
 
+import { useEnumLabel, useEnumOptions } from "@/lib/aromaterapi/useEnumLabel";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
@@ -10,7 +11,7 @@ import {
   AromaterapiReasonField,
 } from "@/app/aromaterapi/_components/write/AromaterapiFormShell";
 import { useAromaterapiDirtyGuard } from "@/app/aromaterapi/_components/write/useAromaterapiDirtyGuard";
-import { EnumSelect, TextField, enumOptions } from "@/app/aromaterapi/_components/write/KnowledgeRecordFields";
+import { EnumSelect, TextField } from "@/app/aromaterapi/_components/write/KnowledgeRecordFields";
 import { PreparationPicker } from "@/app/aromaterapi/_components/write/KnowledgeRecordPickers";
 import { KnowledgeRecordChildEditors } from "@/app/aromaterapi/_components/write/KnowledgeRecordChildEditors";
 import { useKnowledgeRecordForm, type FormMode } from "@/app/aromaterapi/_components/write/useKnowledgeRecordForm";
@@ -34,8 +35,7 @@ import {
   OUTCOME_TYPE_TR,
   CLAIM_STATUS_TR,
   PREPARATION_TYPE_TR,
-  tr,
-} from "@/lib/aromaterapi/readLabels";
+  } from "@/lib/aromaterapi/readLabels";
 
 /**
  * Aromaterapi V2 — C3D-D Bilgi Kaydı oluşturma/düzenleme formu.
@@ -51,6 +51,8 @@ export function KnowledgeRecordForm({
   initial?: KnowledgeRecordDetail | null;
   isDemo: boolean;
 }) {
+  const enumLabel = useEnumLabel();
+  const enumOptionsI18n = useEnumOptions();
   const router = useRouter();
   const [successId, setSuccessId] = useState<string | null>(null);
   const [successWarnings, setSuccessWarnings] = useState<unknown[]>([]);
@@ -133,7 +135,7 @@ export function KnowledgeRecordForm({
           <div>
             <span className="block text-[12px] font-black uppercase tracking-wide text-slate-500">Preparat</span>
             <p className="mt-1 rounded-xl border border-slate-100 bg-slate-50/70 px-3 py-2.5 text-[14px] font-bold text-slate-700">
-              {initial?.preparation ? tr.label(PREPARATION_TYPE_TR, initial.preparation.preparation_type) : "—"}
+              {initial?.preparation ? enumLabel(PREPARATION_TYPE_TR, initial.preparation.preparation_type) : "—"}
               {initial?.preparation?.taxon_canonical_name ? (
                 <span className="ml-1 text-[12px] font-semibold italic text-slate-400">
                   · {initial.preparation.taxon_canonical_name}
@@ -153,7 +155,7 @@ export function KnowledgeRecordForm({
           disabled={isDemo}
           value={form.core.claim_type}
           error={showErr("claim_type")}
-          options={enumOptions(CLAIM_TYPES, CLAIM_TYPE_TR)}
+          options={enumOptionsI18n(CLAIM_TYPES, CLAIM_TYPE_TR)}
           onChange={(v) => form.setCoreField("claim_type", v)}
         />
         <TextField
@@ -172,7 +174,7 @@ export function KnowledgeRecordForm({
             disabled={isDemo}
             value={form.core.conclusion_provenance}
             error={showErr("conclusion_provenance")}
-            options={enumOptions(CONCLUSION_PROVENANCES, CONCLUSION_PROVENANCE_TR)}
+            options={enumOptionsI18n(CONCLUSION_PROVENANCES, CONCLUSION_PROVENANCE_TR)}
             onChange={(v) => form.setCoreField("conclusion_provenance", v)}
           />
           <EnumSelect
@@ -181,7 +183,7 @@ export function KnowledgeRecordForm({
             disabled={isDemo}
             value={form.core.evidence_layer}
             error={showErr("evidence_layer")}
-            options={enumOptions(EVIDENCE_LAYERS, EVIDENCE_LAYER_TR)}
+            options={enumOptionsI18n(EVIDENCE_LAYERS, EVIDENCE_LAYER_TR)}
             onChange={(v) => form.setCoreField("evidence_layer", v)}
           />
         </div>
@@ -191,7 +193,7 @@ export function KnowledgeRecordForm({
           disabled={isDemo}
           value={form.core.rationale_status}
           error={showErr("rationale_status")}
-          options={enumOptions(RATIONALE_STATUSES, RATIONALE_STATUS_TR)}
+          options={enumOptionsI18n(RATIONALE_STATUSES, RATIONALE_STATUS_TR)}
           onChange={(v) => form.setCoreField("rationale_status", v)}
         />
         {rationaleRequired(form.core.rationale_status) ? (
@@ -224,7 +226,7 @@ export function KnowledgeRecordForm({
               disabled={isDemo}
               value={form.core.outcome_type}
               error={showErr("outcome_type")}
-              options={enumOptions(OUTCOME_TYPES, OUTCOME_TYPE_TR)}
+              options={enumOptionsI18n(OUTCOME_TYPES, OUTCOME_TYPE_TR)}
               onChange={(v) => form.setCoreField("outcome_type", v)}
             />
           </div>
@@ -245,7 +247,7 @@ export function KnowledgeRecordForm({
             disabled={isDemo}
             value={form.core.status}
             allLabel="—"
-            options={enumOptions(CLAIM_STATUSES, CLAIM_STATUS_TR)}
+            options={enumOptionsI18n(CLAIM_STATUSES, CLAIM_STATUS_TR)}
             onChange={(v) => form.setCoreField("status", v)}
           />
         ) : null}

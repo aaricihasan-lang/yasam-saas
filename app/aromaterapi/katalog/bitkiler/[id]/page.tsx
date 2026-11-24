@@ -1,5 +1,6 @@
 "use client";
 
+import { useEnumLabel } from "@/lib/aromaterapi/useEnumLabel";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useCallback } from "react";
@@ -17,11 +18,11 @@ import {
   CATALOG_STATUS_TR,
   PREPARATION_TYPE_TR,
   TAXON_RANK_TR,
-  tr,
-} from "@/lib/aromaterapi/readLabels";
+  } from "@/lib/aromaterapi/readLabels";
 
 /** Bitki (takson) detay — künye + bu taksona bağlı preparat özeti. */
 export default function BitkiDetayPage() {
+  const enumLabel = useEnumLabel();
   const params = useParams<{ id: string }>();
   const id = typeof params?.id === "string" ? params.id : "";
   const isDemo = readYasamUser()?.is_demo_account === true;
@@ -81,7 +82,7 @@ export default function BitkiDetayPage() {
               <DetailField label="Familya" value={taxon.family} />
               <DetailField label="Cins" value={<span className="italic">{taxon.genus}</span>} />
               <DetailField label="Tür" value={<span className="italic">{taxon.species}</span>} />
-              <DetailField label="Rank" value={tr.label(TAXON_RANK_TR, taxon.taxon_rank)} />
+              <DetailField label="Rank" value={enumLabel(TAXON_RANK_TR, taxon.taxon_rank)} />
               {taxon.infraspecific_epithet ? (
                 <DetailField label="Alt-tür Epiteti" value={taxon.infraspecific_epithet} />
               ) : null}
@@ -90,7 +91,7 @@ export default function BitkiDetayPage() {
               ) : null}
               <DetailField
                 label="Durum"
-                value={<MetaChip tone="teal">{tr.label(CATALOG_STATUS_TR, taxon.status)}</MetaChip>}
+                value={<MetaChip tone="teal">{enumLabel(CATALOG_STATUS_TR, taxon.status)}</MetaChip>}
               />
             </dl>
           </DetailSection>
@@ -113,7 +114,7 @@ export default function BitkiDetayPage() {
                     >
                       <span className="min-w-0">
                         <span className="block text-[13.5px] font-black text-slate-800">
-                          {tr.label(PREPARATION_TYPE_TR, prep.preparation_type)}
+                          {enumLabel(PREPARATION_TYPE_TR, prep.preparation_type)}
                         </span>
                         <span className="block text-[11.5px] font-semibold text-slate-400">
                           {prep.plant_part}

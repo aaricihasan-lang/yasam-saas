@@ -1,5 +1,6 @@
 "use client";
 
+import { useEnumLabel } from "@/lib/aromaterapi/useEnumLabel";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { AromaterapiDetailSkeleton } from "@/app/aromaterapi/_components/AromaterapiSkeleton";
@@ -17,8 +18,7 @@ import {
   MATERIAL_STATE_TR,
   METHOD_KIND_TR,
   METHOD_STATUS_TR,
-  tr,
-} from "@/lib/aromaterapi/readLabels";
+  } from "@/lib/aromaterapi/readLabels";
 import type { MethodRevisionDetail, MethodSeriesDetail } from "@/lib/aromaterapi/readTypes";
 
 /**
@@ -48,6 +48,7 @@ export function MethodSeriesDetail({
   seriesId: string;
   isDemo: boolean;
 }) {
+  const enumLabel = useEnumLabel();
   // loading TÜRETİLİR (effect içinde senkron setState YOK → cascading render yok).
   const [state, setState] = useState<{
     series: MethodSeriesDetail | null;
@@ -123,7 +124,7 @@ export function MethodSeriesDetail({
     <div className="space-y-4">
       <DetailSection title="Yöntem Kimliği" hint="Bu bilgiler seri oluşturulduktan sonra değiştirilemez.">
         <dl className="grid grid-cols-1 gap-x-6 sm:grid-cols-2">
-          <DetailField label="Yöntem Türü" value={tr.label(METHOD_KIND_TR, series.method_kind)} />
+          <DetailField label="Yöntem Türü" value={enumLabel(METHOD_KIND_TR, series.method_kind)} />
           <DetailField label="Yöntem Dili" value={series.method_lang} />
           {series.source_id ? (
             <DetailField label="Kaynak" value={series.source_title ?? "—"} />
@@ -151,7 +152,7 @@ export function MethodSeriesDetail({
       >
         <div className="mb-3 flex flex-wrap items-center gap-2">
           <MetaChip tone={statusTone(series.latest_status)}>
-            {tr.label(METHOD_STATUS_TR, series.latest_status)}
+            {enumLabel(METHOD_STATUS_TR, series.latest_status)}
           </MetaChip>
           <span className="text-[11.5px] font-semibold text-slate-400">
             Güncelleme: {fmtDate(series.latest_updated_at)}
@@ -163,7 +164,7 @@ export function MethodSeriesDetail({
             <RevField label="Ana Yöntem Metni" value={latest.method_text} pre />
             <dl className="grid grid-cols-1 gap-x-6 sm:grid-cols-2">
               {latest.plant_part_used ? <DetailField label="Kullanılan Bitki Kısmı" value={latest.plant_part_used} /> : null}
-              {latest.material_state ? <DetailField label="Malzemenin Durumu" value={tr.label(MATERIAL_STATE_TR, latest.material_state)} /> : null}
+              {latest.material_state ? <DetailField label="Malzemenin Durumu" value={enumLabel(MATERIAL_STATE_TR, latest.material_state)} /> : null}
               {latest.equipment ? <DetailField label="Ekipman" value={latest.equipment} /> : null}
               {latest.amount_ratio ? <DetailField label="Miktar / Oran" value={latest.amount_ratio} /> : null}
               {latest.solvent_carrier ? <DetailField label="Çözücü / Taşıyıcı" value={latest.solvent_carrier} /> : null}
@@ -224,7 +225,7 @@ export function MethodSeriesDetail({
             >
               <span className="flex items-center gap-2">
                 <span className="text-[14px] font-black text-slate-800">{r.revision}. revizyon</span>
-                <MetaChip tone={statusTone(r.status)}>{tr.label(METHOD_STATUS_TR, r.status)}</MetaChip>
+                <MetaChip tone={statusTone(r.status)}>{enumLabel(METHOD_STATUS_TR, r.status)}</MetaChip>
               </span>
               <span className="text-[11.5px] font-semibold text-slate-400">{fmtDate(r.updated_at)}</span>
             </li>

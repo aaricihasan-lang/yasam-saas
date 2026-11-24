@@ -1,5 +1,6 @@
 "use client";
 
+import { useEnumLabel } from "@/lib/aromaterapi/useEnumLabel";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -30,14 +31,14 @@ import {
   ROUTE_CODE_TR,
   SOURCE_ROLE_TR,
   VERIFICATION_STATUS_TR,
-  tr,
-} from "@/lib/aromaterapi/readLabels";
+  } from "@/lib/aromaterapi/readLabels";
 import { formatDateTimeTr } from "@/lib/aromaterapi/readFormat";
 
 const AUDIT_PAGE = 20;
 
 /** Bilgi Kaydı detay — sonuç/gerekçe, preparat, kanıt/kaynak, pasaj, rota/popülasyon, ilişki, geçmiş. */
 export default function BilgiKaydiDetayPage() {
+  const enumLabel = useEnumLabel();
   const params = useParams<{ id: string }>();
   const id = typeof params?.id === "string" ? params.id : "";
   const fetcher = useCallback((signal: AbortSignal) => fetchKnowledgeRecord(id, signal), [id]);
@@ -47,7 +48,7 @@ export default function BilgiKaydiDetayPage() {
 
   return (
     <DetailScreen
-      title={data ? tr.label(CLAIM_TYPE_TR, data.claim_type) + " Kaydı" : "Bilgi Kaydı"}
+      title={data ? enumLabel(CLAIM_TYPE_TR, data.claim_type) + " Kaydı" : "Bilgi Kaydı"}
       subtitle={data?.preparation?.taxon_canonical_name ?? undefined}
       icon="📑"
       breadcrumbLeaf="Bilgi Kaydı"
@@ -96,24 +97,24 @@ export default function BilgiKaydiDetayPage() {
             <dl className="mt-2 grid grid-cols-1 gap-x-6 sm:grid-cols-2">
               <DetailField
                 label="Sonuç Kaynağı"
-                value={tr.label(CONCLUSION_PROVENANCE_TR, data.conclusion_provenance)}
+                value={enumLabel(CONCLUSION_PROVENANCE_TR, data.conclusion_provenance)}
               />
               <DetailField
                 label="Kayıt Türü"
                 value={
                   <MetaChip tone={data.claim_type === "safety" ? "rose" : "emerald"}>
-                    {tr.label(CLAIM_TYPE_TR, data.claim_type)}
+                    {enumLabel(CLAIM_TYPE_TR, data.claim_type)}
                   </MetaChip>
                 }
               />
               <DetailField
                 label="Gerekçe Durumu"
-                value={tr.label(RATIONALE_STATUS_TR, data.rationale_status)}
+                value={enumLabel(RATIONALE_STATUS_TR, data.rationale_status)}
               />
               {data.outcome_type ? (
                 <DetailField
                   label="Sonuç Tipi (Güvenlik)"
-                  value={tr.label(OUTCOME_TYPE_TR, data.outcome_type)}
+                  value={enumLabel(OUTCOME_TYPE_TR, data.outcome_type)}
                 />
               ) : null}
               {data.safety_topic ? (
@@ -124,7 +125,7 @@ export default function BilgiKaydiDetayPage() {
               ) : null}
               <DetailField
                 label="Durum"
-                value={<MetaChip tone="slate">{tr.label(CLAIM_STATUS_TR, data.status)}</MetaChip>}
+                value={<MetaChip tone="slate">{enumLabel(CLAIM_STATUS_TR, data.status)}</MetaChip>}
               />
             </dl>
             {data.rationale ? (
@@ -145,7 +146,7 @@ export default function BilgiKaydiDetayPage() {
               >
                 <span className="min-w-0">
                   <span className="block text-[14px] font-black text-slate-800">
-                    {tr.label(PREPARATION_TYPE_TR, data.preparation.preparation_type)}
+                    {enumLabel(PREPARATION_TYPE_TR, data.preparation.preparation_type)}
                   </span>
                   {data.preparation.taxon_canonical_name ? (
                     <span className="block text-[12px] font-semibold italic text-slate-400 [overflow-wrap:anywhere]">
@@ -160,7 +161,7 @@ export default function BilgiKaydiDetayPage() {
             )}
             <dl className="mt-2 grid grid-cols-1 gap-x-6 sm:grid-cols-2">
               {data.route ? (
-                <DetailField label="Uygulama Yolu" value={tr.label(ROUTE_CODE_TR, data.route)} />
+                <DetailField label="Uygulama Yolu" value={enumLabel(ROUTE_CODE_TR, data.route)} />
               ) : null}
               {data.preparation_context ? (
                 <DetailField label="Preparat Bağlamı" value={data.preparation_context} />
@@ -171,7 +172,7 @@ export default function BilgiKaydiDetayPage() {
           <DetailSection title="Kanıt ve Kaynaklar">
             <DetailField
               label="Kanıt Katmanı"
-              value={<MetaChip tone="sky">{tr.label(EVIDENCE_LAYER_TR, data.evidence_layer)}</MetaChip>}
+              value={<MetaChip tone="sky">{enumLabel(EVIDENCE_LAYER_TR, data.evidence_layer)}</MetaChip>}
             />
             <div className="mt-2 space-y-2">
               {data.sources.length === 0 ? (
@@ -183,9 +184,9 @@ export default function BilgiKaydiDetayPage() {
                       <span className="text-[13.5px] font-black text-slate-800 [overflow-wrap:anywhere]">
                         {src.source_title ?? "Kaynak"}
                       </span>
-                      <MetaChip tone="violet">{tr.label(SOURCE_ROLE_TR, src.source_role)}</MetaChip>
+                      <MetaChip tone="violet">{enumLabel(SOURCE_ROLE_TR, src.source_role)}</MetaChip>
                       <MetaChip tone={src.verification_status === "verified" ? "emerald" : "slate"}>
-                        {tr.label(VERIFICATION_STATUS_TR, src.verification_status)}
+                        {enumLabel(VERIFICATION_STATUS_TR, src.verification_status)}
                       </MetaChip>
                     </div>
                     {src.locator_text ? (
@@ -220,9 +221,9 @@ export default function BilgiKaydiDetayPage() {
                     <span className="text-[13px] font-black text-slate-800 [overflow-wrap:anywhere]">
                       {p.passage_locator_label ?? "Pasaj"}
                     </span>
-                    <MetaChip tone="emerald">{tr.label(EVIDENCE_RELATION_TR, p.evidence_relation)}</MetaChip>
+                    <MetaChip tone="emerald">{enumLabel(EVIDENCE_RELATION_TR, p.evidence_relation)}</MetaChip>
                     <MetaChip tone={p.verification_status === "verified" ? "emerald" : "slate"}>
-                      {tr.label(VERIFICATION_STATUS_TR, p.verification_status)}
+                      {enumLabel(VERIFICATION_STATUS_TR, p.verification_status)}
                     </MetaChip>
                   </li>
                 ))}
@@ -240,7 +241,7 @@ export default function BilgiKaydiDetayPage() {
                   <div className="flex flex-wrap gap-1.5">
                     {data.routes.map((r) => (
                       <MetaChip key={r.id} tone="sky">
-                        {tr.label(ROUTE_CODE_TR, r.route_code)}
+                        {enumLabel(ROUTE_CODE_TR, r.route_code)}
                       </MetaChip>
                     ))}
                   </div>
@@ -256,7 +257,7 @@ export default function BilgiKaydiDetayPage() {
                   <div className="flex flex-wrap gap-1.5">
                     {data.populations.map((pop) => (
                       <MetaChip key={pop.id} tone="amber">
-                        {tr.label(POPULATION_CODE_TR, pop.population_code)}
+                        {enumLabel(POPULATION_CODE_TR, pop.population_code)}
                         {pop.age_min !== null || pop.age_max !== null
                           ? ` (${pop.age_min ?? "?"}–${pop.age_max ?? "?"})`
                           : ""}
@@ -278,7 +279,7 @@ export default function BilgiKaydiDetayPage() {
                   return (
                     <li key={rel.id} className="rounded-xl border border-slate-100 bg-white/90 p-3 shadow-sm">
                       <div className="flex flex-wrap items-center gap-1.5">
-                        <MetaChip tone="violet">{tr.label(RELATION_TYPE_TR, rel.relation_type)}</MetaChip>
+                        <MetaChip tone="violet">{enumLabel(RELATION_TYPE_TR, rel.relation_type)}</MetaChip>
                         <Link
                           href={`/aromaterapi/bilgi-kayitlari/${otherId}`}
                           className="text-[12px] font-black text-emerald-700 underline hover:text-emerald-900"
@@ -309,6 +310,7 @@ export default function BilgiKaydiDetayPage() {
 }
 
 function AuditPanel({ claimId }: { claimId: string }) {
+  const enumLabel = useEnumLabel();
   const [rows, setRows] = useState<KnowledgeAuditEvent[]>([]);
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
@@ -366,7 +368,7 @@ function AuditPanel({ claimId }: { claimId: string }) {
           <li key={e.id} className="rounded-xl border border-slate-100 bg-white/90 p-3.5 shadow-sm">
             <div className="flex flex-wrap items-center gap-2">
               <MetaChip tone={e.operation === "create" ? "emerald" : "sky"}>
-                {tr.label(AUDIT_OPERATION_TR, e.operation)}
+                {enumLabel(AUDIT_OPERATION_TR, e.operation)}
               </MetaChip>
               <span className="text-[12px] font-bold text-slate-500">{formatDateTimeTr(e.occurred_at)}</span>
               <span className="ml-auto text-[12px] font-black text-slate-600 [overflow-wrap:anywhere]">

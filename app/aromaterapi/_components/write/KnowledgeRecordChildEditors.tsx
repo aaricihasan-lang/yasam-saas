@@ -1,5 +1,6 @@
 "use client";
 
+import { useEnumOptions } from "@/lib/aromaterapi/useEnumLabel";
 import type { PickerItem } from "@/app/aromaterapi/_components/write/EntitySearchPicker";
 import {
   ChildGroupShell,
@@ -7,8 +8,7 @@ import {
   NumberField,
   RowShell,
   TextField,
-  enumOptions,
-} from "@/app/aromaterapi/_components/write/KnowledgeRecordFields";
+  } from "@/app/aromaterapi/_components/write/KnowledgeRecordFields";
 import {
   PassagePicker,
   RelatedRecordPicker,
@@ -58,6 +58,7 @@ type Form = {
 };
 
 export function KnowledgeRecordChildEditors({ form, disabled }: { form: Form; disabled: boolean }) {
+  const enumOptionsI18n = useEnumOptions();
   const err = (k: string) => (form.triedSubmit ? form.fieldErrors[k] : undefined);
 
   return (
@@ -88,7 +89,7 @@ export function KnowledgeRecordChildEditors({ form, disabled }: { form: Form; di
               label="Uygulama Yolu"
               value={row.route_code}
               disabled={disabled}
-              options={enumOptions(ROUTE_CODES, ROUTE_CODE_TR)}
+              options={enumOptionsI18n(ROUTE_CODES, ROUTE_CODE_TR)}
               onChange={(v) => {
                 form.setRoutes((r) => r.map((x) => (x._key === row._key ? { ...x, route_code: v } : x)));
                 form.markTouched("routes");
@@ -124,7 +125,7 @@ export function KnowledgeRecordChildEditors({ form, disabled }: { form: Form; di
               label="Popülasyon"
               value={row.population_code}
               disabled={disabled}
-              options={enumOptions(POPULATION_CODES, POPULATION_CODE_TR)}
+              options={enumOptionsI18n(POPULATION_CODES, POPULATION_CODE_TR)}
               onChange={(v) => {
                 form.setPopulations((r) => r.map((x) => (x._key === row._key ? { ...x, population_code: v } : x)));
                 form.markTouched("populations");
@@ -200,7 +201,7 @@ export function KnowledgeRecordChildEditors({ form, disabled }: { form: Form; di
                 label="Kaynak Rolü"
                 value={row.source_role}
                 disabled={disabled}
-                options={enumOptions(SOURCE_ROLES, SOURCE_ROLE_TR)}
+                options={enumOptionsI18n(SOURCE_ROLES, SOURCE_ROLE_TR)}
                 onChange={(v) => {
                   form.setSources((r) => r.map((x) => (x._key === row._key ? { ...x, source_role: v } : x)));
                   form.markTouched("sources");
@@ -211,7 +212,7 @@ export function KnowledgeRecordChildEditors({ form, disabled }: { form: Form; di
                 value={row.verification_status}
                 disabled={disabled}
                 allLabel="Belirtilmedi"
-                options={enumOptions(VERIFICATION_STATUSES, VERIFICATION_STATUS_TR)}
+                options={enumOptionsI18n(VERIFICATION_STATUSES, VERIFICATION_STATUS_TR)}
                 onChange={(v) => {
                   form.setSources((r) => r.map((x) => (x._key === row._key ? { ...x, verification_status: v } : x)));
                   form.markTouched("sources");
@@ -310,7 +311,7 @@ export function KnowledgeRecordChildEditors({ form, disabled }: { form: Form; di
               label="Kanıt İlişkisi"
               value={row.evidence_relation}
               disabled={disabled}
-              options={enumOptions(EVIDENCE_RELATIONS, EVIDENCE_RELATION_TR)}
+              options={enumOptionsI18n(EVIDENCE_RELATIONS, EVIDENCE_RELATION_TR)}
               onChange={(v) => {
                 form.setPassages((r) => r.map((x) => (x._key === row._key ? { ...x, evidence_relation: v } : x)));
                 form.markTouched("passages");
@@ -321,7 +322,7 @@ export function KnowledgeRecordChildEditors({ form, disabled }: { form: Form; di
               value={row.verification_status}
               disabled={disabled}
               allLabel="Belirtilmedi"
-              options={enumOptions(VERIFICATION_STATUSES, VERIFICATION_STATUS_TR)}
+              options={enumOptionsI18n(VERIFICATION_STATUSES, VERIFICATION_STATUS_TR)}
               onChange={(v) => {
                 form.setPassages((r) => r.map((x) => (x._key === row._key ? { ...x, verification_status: v } : x)));
                 form.markTouched("passages");
@@ -369,7 +370,7 @@ export function KnowledgeRecordChildEditors({ form, disabled }: { form: Form; di
               label="İlişki Türü"
               value={row.relation_type}
               disabled={disabled}
-              options={enumOptions(RELATION_TYPES, RELATION_TYPE_TR)}
+              options={enumOptionsI18n(RELATION_TYPES, RELATION_TYPE_TR)}
               onChange={(v) => {
                 form.setRelations((r) => r.map((x) => (x._key === row._key ? { ...x, relation_type: v } : x)));
                 form.markTouched("relations");

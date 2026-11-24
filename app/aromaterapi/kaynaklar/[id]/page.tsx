@@ -1,5 +1,6 @@
 "use client";
 
+import { useEnumLabel } from "@/lib/aromaterapi/useEnumLabel";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { DetailScreen } from "@/app/aromaterapi/_components/read/DetailScreen";
@@ -13,7 +14,7 @@ import { useAromaterapiDetail } from "@/app/aromaterapi/_components/read/useArom
 import { fetchSource, fetchSourcePassageList } from "@/lib/aromaterapi/sourceData";
 import { messageForCode } from "@/lib/aromaterapi/readClient";
 import type { PassageListItem, SourceDetail } from "@/lib/aromaterapi/readTypes";
-import { SOURCE_STATUS_TR, SOURCE_TYPE_TR, tr } from "@/lib/aromaterapi/readLabels";
+import { SOURCE_STATUS_TR, SOURCE_TYPE_TR } from "@/lib/aromaterapi/readLabels";
 import { readYasamUser } from "@/lib/auth/yasamUser";
 import { KaynakDetailActions } from "@/app/aromaterapi/kaynaklar/_components/KaynakDetailActions";
 
@@ -21,6 +22,7 @@ const PASSAGE_PAGE = 25;
 
 /** Kaynak detay — künye + pasajlar (katman açılımı) + bağlı bilgi kaydı özeti + Düzenle/Arşivle/Sil. */
 export default function KaynakDetayPage() {
+  const enumLabel = useEnumLabel();
   const params = useParams<{ id: string }>();
   const id = typeof params?.id === "string" ? params.id : "";
   const fetcher = useCallback((signal: AbortSignal) => fetchSource(id, signal), [id]);
@@ -33,7 +35,7 @@ export default function KaynakDetayPage() {
   return (
     <DetailScreen
       title={data?.title ?? "Kaynak Detayı"}
-      subtitle={data ? tr.label(SOURCE_TYPE_TR, data.source_type) : undefined}
+      subtitle={data ? enumLabel(SOURCE_TYPE_TR, data.source_type) : undefined}
       icon="📜"
       breadcrumbLeaf="Kaynak Detayı"
       backHref="/aromaterapi/kaynaklar"
@@ -50,7 +52,7 @@ export default function KaynakDetayPage() {
           <DetailSection title="Künye">
             <dl className="grid grid-cols-1 gap-x-6 sm:grid-cols-2">
               <DetailField label="Başlık" value={data.title} />
-              <DetailField label="Tür" value={tr.label(SOURCE_TYPE_TR, data.source_type)} />
+              <DetailField label="Tür" value={enumLabel(SOURCE_TYPE_TR, data.source_type)} />
               {data.authors ? <DetailField label="Yazar(lar)" value={data.authors} /> : null}
               {data.organization ? <DetailField label="Kurum" value={data.organization} /> : null}
               {data.publication_year ? (
@@ -77,7 +79,7 @@ export default function KaynakDetayPage() {
               ) : null}
               <DetailField
                 label="Durum"
-                value={<MetaChip tone="amber">{tr.label(SOURCE_STATUS_TR, data.status)}</MetaChip>}
+                value={<MetaChip tone="amber">{enumLabel(SOURCE_STATUS_TR, data.status)}</MetaChip>}
               />
             </dl>
             {data.notes ? (

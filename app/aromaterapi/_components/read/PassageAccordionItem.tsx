@@ -1,5 +1,6 @@
 "use client";
 
+import { useEnumLabel } from "@/lib/aromaterapi/useEnumLabel";
 import { useEffect, useState } from "react";
 import {
   LayerCard,
@@ -17,8 +18,7 @@ import {
   FIDELITY_TR,
   PASSAGE_KIND_TR,
   RIGHTS_STATUS_TR,
-  tr,
-} from "@/lib/aromaterapi/readLabels";
+  } from "@/lib/aromaterapi/readLabels";
 
 /**
  * Kaynak detayında bir pasaj satırı. Açılınca pasaj katmanlarını (özgün metin /
@@ -27,6 +27,7 @@ import {
  * boşsa dürüst "yok" notu gösterilir, başka katmanla doldurulmaz.
  */
 export function PassageAccordionItem({ passage }: { passage: PassageListItem }) {
+  const enumLabel = useEnumLabel();
   const [open, setOpen] = useState(false);
   const [detail, setDetail] = useState<PassageDetail | null>(null);
   const [errorCode, setErrorCode] = useState<string | null>(null);
@@ -66,9 +67,9 @@ export function PassageAccordionItem({ passage }: { passage: PassageListItem }) 
             {passage.locator_label}
           </span>
           <span className="mt-1 flex flex-wrap items-center gap-1.5">
-            <MetaChip tone="violet">{tr.label(PASSAGE_KIND_TR, passage.passage_kind)}</MetaChip>
+            <MetaChip tone="violet">{enumLabel(PASSAGE_KIND_TR, passage.passage_kind)}</MetaChip>
             <MetaChip tone="slate">{passage.original_lang}</MetaChip>
-            <MetaChip tone="amber">{tr.label(RIGHTS_STATUS_TR, passage.rights_status)}</MetaChip>
+            <MetaChip tone="amber">{enumLabel(RIGHTS_STATUS_TR, passage.rights_status)}</MetaChip>
           </span>
         </span>
         <span aria-hidden className={`shrink-0 text-violet-400 transition ${open ? "rotate-180" : ""}`}>
@@ -96,6 +97,7 @@ export function PassageAccordionItem({ passage }: { passage: PassageListItem }) 
 }
 
 function PassageLayers({ detail }: { detail: PassageDetail }) {
+  const enumLabel = useEnumLabel();
   return (
     <div className="space-y-3">
       {/* 1) Özgün Kaynak Metni */}
@@ -120,7 +122,7 @@ function PassageLayers({ detail }: { detail: PassageDetail }) {
               title={`${t.source_lang} → ${t.target_lang}`}
               meta={
                 <>
-                  <MetaChip tone="emerald">{tr.label(FIDELITY_TR, t.fidelity)}</MetaChip>
+                  <MetaChip tone="emerald">{enumLabel(FIDELITY_TR, t.fidelity)}</MetaChip>
                   <MetaChip tone="slate">rev. {t.revision}</MetaChip>
                 </>
               }
@@ -159,6 +161,7 @@ function EditorialList({
   tone: "violet" | "sky";
   emptyText: string;
 }) {
+  const enumLabel = useEnumLabel();
   if (layers.length === 0) return <ShallowEmpty text={emptyText} />;
   return (
     <>
@@ -166,7 +169,7 @@ function EditorialList({
         <LayerCard
           key={n.id}
           tone={tone}
-          title={tr.label(EDITORIAL_NOTE_TYPE_TR, n.note_type)}
+          title={enumLabel(EDITORIAL_NOTE_TYPE_TR, n.note_type)}
           meta={
             <>
               <MetaChip tone="slate">{n.note_lang}</MetaChip>

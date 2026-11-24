@@ -1,5 +1,6 @@
 "use client";
 
+import { useEnumLabel, useEnumOptions } from "@/lib/aromaterapi/useEnumLabel";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useAromaterapiListQuery } from "@/app/aromaterapi/_components/read/useAromaterapiListQuery";
@@ -17,8 +18,7 @@ import {
   CATALOG_STATUS_TR,
   PREPARATION_TYPE_TR,
   TAXON_RANK_TR,
-  tr,
-} from "@/lib/aromaterapi/readLabels";
+  } from "@/lib/aromaterapi/readLabels";
 
 /**
  * Bitki & Preparat Kataloğu — gerçek tenant-scoped read ekranı.
@@ -37,10 +37,8 @@ const CATALOG_STATUS_OPTIONS = [
   { value: "approved", label: "Onaylanmış" },
 ];
 
-const PREP_TYPE_OPTIONS = Object.entries(PREPARATION_TYPE_TR).map(([value, label]) => ({
-  value,
-  label,
-}));
+// I18N: seçenek etiketleri bileşende useEnumOptions ile (kanonik değer listesi burada).
+const PREP_TYPE_VALUES = Object.keys(PREPARATION_TYPE_TR);
 
 type Tab = "bitkiler" | "preparatlar";
 
@@ -162,6 +160,7 @@ function PlantTaxaSection() {
 }
 
 function PlantTaxonRow({ row }: { row: PlantTaxonListItem }) {
+  const enumLabel = useEnumLabel();
   return (
     <article className="group flex h-full flex-col rounded-2xl border border-teal-100/70 bg-white/90 p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-teal-300 hover:shadow-md">
       <Link
@@ -175,9 +174,9 @@ function PlantTaxonRow({ row }: { row: PlantTaxonListItem }) {
           {row.family}
         </p>
         <div className="mt-2 flex flex-wrap items-center gap-1.5">
-          <MetaChip tone="teal">{tr.label(TAXON_RANK_TR, row.taxon_rank)}</MetaChip>
+          <MetaChip tone="teal">{enumLabel(TAXON_RANK_TR, row.taxon_rank)}</MetaChip>
           {row.is_hybrid ? <MetaChip tone="violet">Hibrit</MetaChip> : null}
-          <MetaChip tone="slate">{tr.label(CATALOG_STATUS_TR, row.status)}</MetaChip>
+          <MetaChip tone="slate">{enumLabel(CATALOG_STATUS_TR, row.status)}</MetaChip>
         </div>
       </Link>
       <div className="mt-auto flex justify-end border-t border-teal-50 pt-2.5">
@@ -195,6 +194,7 @@ function PlantTaxonRow({ row }: { row: PlantTaxonListItem }) {
 // ---------------- Preparatlar ----------------
 
 function PreparationSection() {
+  const enumOptionsI18n = useEnumOptions();
   const { showToast } = useToast();
   const s = useAromaterapiListQuery<PreparationListItem>({
     fetcher: fetchPreparationList,
@@ -237,7 +237,7 @@ function PreparationSection() {
           <ReadFilterSelect
             label="Preparat türü"
             value={s.filters.preparation_type ?? ""}
-            options={PREP_TYPE_OPTIONS}
+            options={enumOptionsI18n(PREP_TYPE_VALUES, PREPARATION_TYPE_TR)}
             onChange={(v) => s.setFilter("preparation_type", v)}
           />
           <ReadFilterSelect
@@ -261,6 +261,7 @@ function PreparationSection() {
 }
 
 function PreparationRow({ row }: { row: PreparationListItem }) {
+  const enumLabel = useEnumLabel();
   return (
     <article className="group flex h-full flex-col rounded-2xl border border-teal-100/70 bg-white/90 p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-teal-300 hover:shadow-md">
       <Link
@@ -268,7 +269,7 @@ function PreparationRow({ row }: { row: PreparationListItem }) {
         className="flex flex-col rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-teal-300/60"
       >
         <h3 className="text-[15px] font-black leading-snug text-slate-900 group-hover:text-teal-800">
-          {tr.label(PREPARATION_TYPE_TR, row.preparation_type)}
+          {enumLabel(PREPARATION_TYPE_TR, row.preparation_type)}
         </h3>
         {row.taxon_canonical_name ? (
           <p className="mt-1 text-[12px] font-semibold italic text-slate-500 [overflow-wrap:anywhere]">
@@ -278,7 +279,7 @@ function PreparationRow({ row }: { row: PreparationListItem }) {
         <div className="mt-2 flex flex-wrap items-center gap-1.5">
           <MetaChip tone="teal">{row.plant_part}</MetaChip>
           {row.chemotype ? <MetaChip tone="amber">CT: {row.chemotype}</MetaChip> : null}
-          <MetaChip tone="slate">{tr.label(CATALOG_STATUS_TR, row.status)}</MetaChip>
+          <MetaChip tone="slate">{enumLabel(CATALOG_STATUS_TR, row.status)}</MetaChip>
         </div>
       </Link>
       <div className="mt-auto flex justify-end border-t border-teal-50 pt-2.5">

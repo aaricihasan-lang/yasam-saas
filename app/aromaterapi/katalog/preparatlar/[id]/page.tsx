@@ -1,5 +1,6 @@
 "use client";
 
+import { useEnumLabel } from "@/lib/aromaterapi/useEnumLabel";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useCallback } from "react";
@@ -15,7 +16,7 @@ import { PreparationMethodList } from "@/app/aromaterapi/katalog/_components/Pre
 import { fetchPreparation } from "@/lib/aromaterapi/catalogData";
 import { readYasamUser } from "@/lib/auth/yasamUser";
 import type { PreparationDetail } from "@/lib/aromaterapi/readTypes";
-import { CATALOG_STATUS_TR, PREPARATION_TYPE_TR, tr } from "@/lib/aromaterapi/readLabels";
+import { CATALOG_STATUS_TR, PREPARATION_TYPE_TR } from "@/lib/aromaterapi/readLabels";
 
 /**
  * Preparat detay — künye + bağlı bitki + üretim/elde ediliş yöntemleri (C3D-B2B) +
@@ -23,6 +24,7 @@ import { CATALOG_STATUS_TR, PREPARATION_TYPE_TR, tr } from "@/lib/aromaterapi/re
  * (method series/revision); düzenleme ve "Yeni Üretim Yöntemi" akışları bağlanır.
  */
 export default function PreparatDetayPage() {
+  const enumLabel = useEnumLabel();
   const params = useParams<{ id: string }>();
   const id = typeof params?.id === "string" ? params.id : "";
   const isDemo = readYasamUser()?.is_demo_account === true;
@@ -32,7 +34,7 @@ export default function PreparatDetayPage() {
     id,
   );
 
-  const typeLabel = data ? tr.label(PREPARATION_TYPE_TR, data.preparation_type) : "Preparat Detayı";
+  const typeLabel = data ? enumLabel(PREPARATION_TYPE_TR, data.preparation_type) : "Preparat Detayı";
 
   return (
     <DetailScreen
@@ -87,7 +89,7 @@ export default function PreparatDetayPage() {
               <DetailField label="Kemotip (CT)" value={data.chemotype ?? "—"} />
               <DetailField
                 label="Durum"
-                value={<MetaChip tone="teal">{tr.label(CATALOG_STATUS_TR, data.status)}</MetaChip>}
+                value={<MetaChip tone="teal">{enumLabel(CATALOG_STATUS_TR, data.status)}</MetaChip>}
               />
             </dl>
           </DetailSection>
