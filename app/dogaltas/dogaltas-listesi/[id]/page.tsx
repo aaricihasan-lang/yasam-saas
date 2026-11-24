@@ -852,7 +852,7 @@ function StoneDetailPage() {
 
       if (!ok) {
         setStone(null);
-        setLoadError({ kind: "loadFailed", detail: error ?? "" });
+        setLoadError({ kind: "loadFailed", detail: se.detail(error) });
         return;
       }
 
@@ -926,7 +926,7 @@ function StoneDetailPage() {
       setSourceNames((prev) => (prev.includes(sourceName) ? prev : [...prev, sourceName]));
     }
     setEntryBusy(false);
-    if (!r.ok) setEntryError(se.text(r.error, t("entryAddFailed"), r.code));
+    if (!r.ok) setEntryError(se.text(r.error, t("entryAddFailed")));
     return r.ok;
   }
 
@@ -942,7 +942,7 @@ function StoneDetailPage() {
       await refreshAfterEntryWrite(stone.id);
     }
     setEntryBusy(false);
-    if (!r.ok) setEntryError(se.text(r.error, t("entrySaveFailed"), r.code));
+    if (!r.ok) setEntryError(se.text(r.error, t("entrySaveFailed")));
     return r.ok;
   }
 
@@ -963,7 +963,7 @@ function StoneDetailPage() {
       await refreshAfterEntryWrite(stone.id);
     }
     setEntryBusy(false);
-    if (!r.ok) setEntryError(se.text(r.error, t("entryDeleteFailed"), r.code));
+    if (!r.ok) setEntryError(se.text(r.error, t("entryDeleteFailed")));
   }
 
   async function loadSources(stoneId: string) {
@@ -1180,14 +1180,14 @@ function StoneDetailPage() {
     setSaving(false);
 
     if (conflict) {
-      setErrorMessage(error ?? t("editor.updateFailedFallback"));
+      setErrorMessage(se.text(error, t("editor.updateFailedFallback")));
       const fresh = await getStone(stone.id);
       if (fresh.ok && fresh.row) commitStoneRecord(fresh.row as Record<string, unknown>);
       return;
     }
 
     if (!ok || !data) {
-      setErrorMessage(t("editor.updateFailed", { error: error ?? t("editor.updateFailedFallback") }));
+      setErrorMessage(t("editor.updateFailed", { error: se.detail(error, t("editor.updateFailedFallback")) }));
       return;
     }
 
@@ -1259,7 +1259,7 @@ function StoneDetailPage() {
     setDeleteLoading(false);
 
     if (!ok) {
-      setErrorMessage(t("error.deleteFailed", { error: error ?? t("error.tryAgain") }));
+      setErrorMessage(t("error.deleteFailed", { error: se.detail(error, t("error.tryAgain")) }));
       return;
     }
 
@@ -1392,12 +1392,12 @@ function StoneDetailPage() {
         // Kayda bağlanamayan yeni dosyalar temizlenir (referanssız oldukları sunucuda doğrulanır).
         await cleanupPhotoFiles(additions.map((a) => a.file_path));
         if (conflict) {
-          setErrorMessage(error ?? t("editor.updateFailedFallback"));
+          setErrorMessage(se.text(error, t("editor.updateFailedFallback")));
           const fresh = await getStone(currentStone.id);
           if (fresh.ok && fresh.row) commitStoneRecord(fresh.row as Record<string, unknown>);
           return;
         }
-        setErrorMessage(t("editor.updateFailed", { error: error ?? t("editor.updateFailedFallback") }));
+        setErrorMessage(t("editor.updateFailed", { error: se.detail(error, t("editor.updateFailedFallback")) }));
         return;
       }
 
@@ -1444,14 +1444,14 @@ function StoneDetailPage() {
 
       if (conflict) {
         // Başka sekme/oturum kaydı değiştirmiş → hiçbir dosya silinmez; güncel kayıt yüklenir.
-        setErrorMessage(error ?? t("editor.updateFailedFallback"));
+        setErrorMessage(se.text(error, t("editor.updateFailedFallback")));
         const fresh = await getStone(currentStone.id);
         if (fresh.ok && fresh.row) commitStoneRecord(fresh.row as Record<string, unknown>);
         return;
       }
 
       if (!ok || !data) {
-        setErrorMessage(t("editor.updateFailed", { error: error ?? t("editor.updateFailedFallback") }));
+        setErrorMessage(t("editor.updateFailed", { error: se.detail(error, t("editor.updateFailedFallback")) }));
         return;
       }
 
