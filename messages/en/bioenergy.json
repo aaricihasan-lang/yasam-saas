@@ -151,7 +151,19 @@
       "created": "Chakra record created.",
       "emptyBody": "You can add the first chakra record with New Record.",
       "formTitle": "New chakra record",
-      "untitled": "Untitled chakra"
+      "untitled": "Untitled chakra",
+      "extraStonesTitle": "Additional stones found in Natural Stones",
+      "extraStonesBody": "Stones assigned to this chakra in Natural Stones that are not in the manual list.",
+      "openStone": "Open the Natural Stone record",
+      "stonesMatched": "{count, plural, one {{count} stone matches Natural Stones} other {{count} stones match Natural Stones}}",
+      "editChakra": "Edit Chakra",
+      "noContent": "No content has been entered for this record yet.",
+      "editTitle": "Edit chakra record",
+      "deleteConfirm": "Are you sure you want to delete this chakra record?",
+      "deleteCounting": "Calculating the content count… This action cannot be undone.",
+      "deleteCascade": "This chakra and the {total} content/source blocks linked to it ({visible} visible + {evidence} source information) will be PERMANENTLY deleted. This action cannot be undone.",
+      "deleteSimple": "This chakra will be deleted permanently. This action cannot be undone.",
+      "stoneBadge": "Natural Stones"
     },
     "list": {
       "serverError": "Server error.",
@@ -331,6 +343,105 @@
       "statLast": "Latest record",
       "backToResults": "Back to search results",
       "matchesMarked": "{count, plural, one {{count} match highlighted in yellow} other {{count} matches highlighted in yellow}}"
+    },
+    "chakraLabels": {
+      "sections": {
+        "genel-bakis": "Overview",
+        "enerji-anatomisi": "Energy Anatomy & Balance",
+        "nedenler-blokajlar": "Causes & Blockages",
+        "beden-sistem": "Body & System Relationships",
+        "duygusal-zihinsel": "Emotional & Mental Relationships",
+        "uygulamalar": "Practices",
+        "taslar-destekleyiciler": "Stones & Supports",
+        "notlar-kaynaklar": "Notes & Sources"
+      },
+      "blocks": {
+        "color": "Colour",
+        "causes": "Causes of Blockage",
+        "physical": "Physical Effects",
+        "organs": "Organs",
+        "glands": "Glands",
+        "mental": "Mental Effects"
+      },
+      "quick": {
+        "sanskritName": "Sanskrit Name",
+        "element": "Element",
+        "location": "Location",
+        "bijaMantra": "Bija Mantra",
+        "sanskrit": "Sanskrit",
+        "mantra": "Mantra"
+      }
+    },
+    "chakraNav": {
+      "section": "Section",
+      "aria": "Chakra sections"
+    },
+    "richBlock": {
+      "translation": "Translation:",
+      "commentary": "Commentary:",
+      "expertNote": "Practitioner note:",
+      "bibliography": "Bibliography"
+    },
+    "chakraEditor": {
+      "sections": {
+        "genel-bakis": "Overview",
+        "enerji-anatomisi": "Energy Anatomy & Balance",
+        "nedenler-blokajlar": "Causes & Blockages",
+        "beden-sistem": "Body & System",
+        "duygusal-zihinsel": "Emotional & Mental",
+        "uygulamalar": "Practices",
+        "taslar-destekleyiciler": "Stones & Supports",
+        "notlar-kaynaklar": "Notes & Sources"
+      },
+      "blockTypes": {
+        "overview": "General content",
+        "state": "State",
+        "variation-summary": "Variations",
+        "claim-summary": "Source Summary",
+        "application": "Application",
+        "supporter-note": "Supporting"
+      },
+      "invalidLink": "Invalid record link.",
+      "noSession": "Session not found.",
+      "readFailed": "The record could not be read: {detail}",
+      "notFound": "Record not found.",
+      "demoNoSave": "Records cannot be saved on the demo account.",
+      "basicUpdated": "Chakra information updated.",
+      "contentRequired": "Content cannot be empty.",
+      "blockUpdated": "Block updated.",
+      "blockDeleted": "Block deleted.",
+      "reorderFailed": "The order could not be saved: {detail}",
+      "blockAdded": "New block added.",
+      "backToDetail": "Back to details",
+      "dirty": "There are unsaved changes",
+      "basicTitle": "Core Information",
+      "fields": {
+        "name": "Chakra Name *",
+        "sanskrit_name": "Sanskrit Name",
+        "element": "Element",
+        "bija_mantra": "Bija Mantra",
+        "location": "Location",
+        "color": "Colour",
+        "organs": "Organs",
+        "glands": "Glands",
+        "stones": "Stones",
+        "causes": "Causes",
+        "physical": "Physical",
+        "mental": "Mental",
+        "notes": "Notes"
+      },
+      "extraTitle": "Additional Information",
+      "saveBasic": "Save Information",
+      "contentTitle": "Content",
+      "blockTitlePlaceholder": "Block title (optional)",
+      "moveUp": "Move up",
+      "moveDown": "Move down",
+      "delete": "Delete",
+      "blockBodyPlaceholder": "Block content…",
+      "addBlock": "Add Block",
+      "newBlock": "New Information Block",
+      "deleteConfirm": "Are you sure you want to delete this content block?",
+      "deleteMessage": "The block \"{title}\" will be deleted permanently. Source information records are not touched."
     }
   }
 }

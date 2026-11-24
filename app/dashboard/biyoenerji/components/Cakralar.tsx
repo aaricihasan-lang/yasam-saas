@@ -10,6 +10,7 @@ import { ArrowRight, Flower2 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { useBioErrorText } from "../useBioErrorText";
+import { useChakraLabels } from "../useChakraLabels";
 import { BulkExportBar } from "@/components/common/BulkExportBar";
 import { backgroundSyncYasamUserFromDb, readYasamUser } from "@/lib/auth/yasamUser";
 import { useDemoGuard } from "@/hooks/useDemoGuard";
@@ -146,6 +147,7 @@ export default function Cakralar() {
   const t = useTranslations("bioenergy.chakras");
   const { isDemo } = useDemoGuard();
   const tl = useTranslations("bioenergy.list");
+  const CL = useChakraLabels();
   const errText = useBioErrorText();
   const lastGoodRowsRef = useRef<ChakraListItem[]>([]);
   const [queryTenantId, setQueryTenantId] = useState<string | null>(null);
@@ -637,7 +639,7 @@ export default function Cakralar() {
                           key={f.key}
                           className="inline-flex max-w-full items-center gap-1 rounded-md bg-white/70 px-2 py-0.5 text-[11px] font-semibold text-slate-700 ring-1 ring-slate-200/80"
                         >
-                          <span className="text-slate-400">{f.label}</span>
+                          <span className="text-slate-400">{CL.quickLabel(f.key, f.label)}</span>
                           <span className="min-w-0 truncate text-slate-800">{f.value}</span>
                         </span>
                       ))}

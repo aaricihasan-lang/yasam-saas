@@ -5,6 +5,9 @@ import Link from "next/link";
 import { ArrowUpRight, FileText, Flower2, Gem, Link2, Pencil, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useTranslations } from "next-intl";
+import { useChakraLabels } from "../useChakraLabels";
+import { useBioErrorText } from "../useBioErrorText";
 import { DogaltasFontSizeControl } from "@/app/dogaltas/components/DogaltasFontSizeControl";
 import { formatStoneContent } from "@/lib/dogaltas/formatStoneContent";
 import { getSessionTenantId, getSyncedTenantId, MISSING_SESSION_TENANT_MESSAGE } from "@/lib/auth/sessionTenant";
@@ -139,6 +142,7 @@ function ManualStonesBody({
   items: ManualStoneItem[];
   typography: ChakrasTypography;
 }) {
+  const ts = useTranslations("bioenergy.chakras");
   return (
     <>
       {items.length === 0 ? (
@@ -152,13 +156,13 @@ function ManualStonesBody({
               <Link
                 key={`${it.key}-${i}`}
                 href={`/dogaltas/dogaltas-listesi/${it.match.id}`}
-                title="Doğaltaş kaydını aç"
+                title={ts("openStone")}
                 className="group inline-flex max-w-full items-center gap-1.5 rounded-full border border-emerald-200/80 bg-emerald-50 px-3 py-1 text-[13px] font-semibold text-emerald-800 shadow-sm transition hover:-translate-y-0.5 hover:bg-emerald-100"
               >
                 <span className="min-w-0 break-words">{it.display}</span>
                 <span className="inline-flex shrink-0 items-center gap-0.5 rounded-full bg-white/70 px-1.5 py-0.5 text-[10px] font-bold text-emerald-700 ring-1 ring-emerald-200/70">
                   <Link2 className="h-3 w-3" aria-hidden />
-                  Doğaltaş
+                  {ts("stoneBadge")}
                 </span>
               </Link>
             ) : (
@@ -187,6 +191,7 @@ function ContentBlocks({
   blocks: ChakraSectionBlock[];
   typography: ChakrasTypography;
 }) {
+  const CL = useChakraLabels();
   return (
     <div className="flex flex-col gap-5">
       {blocks.map((b, i) => (
@@ -196,7 +201,7 @@ function ContentBlocks({
         >
           {b.title ? (
             <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
-              {b.title}
+              {CL.blockTitle(b.title)}
             </h3>
           ) : null}
           <div className="min-w-0 max-w-3xl" style={typography.bodyStyle}>
@@ -242,8 +247,14 @@ function recordToForm(record: ChakraDetailItem): ChakraForm {
 }
 
 export default function CakralarDetail({ id }: { id: string }) {
+  const t = useTranslations("bioenergy.chakras");
+  const td = useTranslations("bioenergy.detail");
+  const tl = useTranslations("bioenergy.list");
+  const errText = useBioErrorText();
   const router = useRouter();
   const { isDemo } = useDemoGuard();
+  const tb = useTranslations("bioenergy");
+  const CLm = useChakraLabels();
   const lastGoodRecordRef = useRef<ChakraDetailItem | null>(null);
   const isMobile = useMobileViewport();
   const {
@@ -352,7 +363,7 @@ export default function CakralarDetail({ id }: { id: string }) {
     const recordId = id.trim();
     if (!recordId) {
       setLoading(false);
-      setErrorMessage("Geçersiz kayıt bağlantısı.");
+      setErrorMessage(td("invalidLink"));
       setRecord(null);
       return;
     }
@@ -384,7 +395,7 @@ export default function CakralarDetail({ id }: { id: string }) {
       setLoading(false);
 
       if (result.error) {
-        setErrorMessage(`Kayıt okunamadı: ${result.error}`);
+        setErrorMessage(td("readFailed", { detail: errText(result.error, tl("serverError")) }));
         // BIO-02 — yalnız geçici ağ hatasında son iyi kayıt korunur; erişim hatasında bayat kayıt gösterilmez.
         const transient = result.error === BIO_NETWORK_ERROR || result.error === BIO_TIMEOUT_ERROR;
         if (transient && lastGoodRecordRef.current) setRecord(lastGoodRecordRef.current);
@@ -394,7 +405,7 @@ export default function CakralarDetail({ id }: { id: string }) {
 
       if (!result.data) {
         // BIO-02 — 404: silinmiş / bu hesaba ait değil → bayat kayıt ekranda tutulmaz.
-        setErrorMessage("Kayıt bulunamadı veya bu hesaba ait değil.");
+        setErrorMessage(td("notFound"));
         lastGoodRecordRef.current = null;
         setRecord(null);
         return;
@@ -411,17 +422,19 @@ export default function CakralarDetail({ id }: { id: string }) {
       setErrorMessage(`Beklenmeyen hata: ${message}`);
       if (lastGoodRecordRef.current) setRecord(lastGoodRecordRef.current);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- çeviri işlevleri dil değişiminde yeniden kayıt okumaz
   }, [id]);
 
   useEffect(() => {
     if (!id.trim()) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setLoading(false);
-      setErrorMessage("Geçersiz kayıt bağlantısı.");
+      setErrorMessage(td("invalidLink"));
       setRecord(null);
       return;
     }
     void loadRecord();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- çeviri işlevleri dil değişiminde yeniden kayıt okumaz
   }, [loadRecord, id]);
 
   // FAZ 3.3E — rich blokları çek (salt-okuma). Hata/boş → graceful boş liste;
@@ -523,7 +536,7 @@ export default function CakralarDetail({ id }: { id: string }) {
 
           const nameTrim = form.name.trim();
           if (!nameTrim) {
-            showSoft("err", "Çakra adı zorunludur.");
+            showSoft("err", t("nameRequired"));
             return;
           }
 
@@ -543,18 +556,18 @@ export default function CakralarDetail({ id }: { id: string }) {
           setSaving(false);
 
           if (error) {
-            showSoft("err", `Güncellenemedi: ${error}`);
+            showSoft("err", td("updateFailed", { detail: errText(error, tl("serverError")) }));
             return;
           }
 
           setFormModalOpen(false);
           await loadRecord();
-          showSoft("ok", "Kayıt güncellendi.");
+          showSoft("ok", td("updated"));
         } finally {
           setSaving(false);
         }
       })
-      .catch((e: unknown) => showSoft("err", e instanceof Error ? e.message : "İşlem tamamlanamadı."));
+      .catch((e: unknown) => showSoft("err", errText(e, tl("opFailed"))));
   }
 
   // FAZ 2 — silme onayını açmadan önce child block sayısını çek (cascade uyarısı).
@@ -581,7 +594,7 @@ export default function CakralarDetail({ id }: { id: string }) {
     setDeleteConfirmOpen(false);
 
     if (error) {
-      showSoft("err", `Silinemedi: ${error}`);
+      showSoft("err", tl("deleteFailed", { detail: errText(error, tl("serverError")) }));
       return;
     }
 
@@ -591,7 +604,7 @@ export default function CakralarDetail({ id }: { id: string }) {
   if (loading) {
     return (
       <div className="flex min-h-[320px] items-center justify-center rounded-3xl border-2 border-fuchsia-200/60 bg-fuchsia-50/80">
-        <p className="text-lg font-semibold text-slate-600">Kayıt yükleniyor…</p>
+        <p className="text-lg font-semibold text-slate-600">{td("loading")}</p>
       </div>
     );
   }
@@ -639,12 +652,12 @@ export default function CakralarDetail({ id }: { id: string }) {
   const chakraNav = findBiyoenerjiSection("cakralar");
   const crumbs: BiyoenerjiCrumb[] = chakraNav
     ? [
-        { label: "Biyoenerji", href: BIOENERJI_FOLDER_BASE },
-        { label: chakraNav.group.title },
-        { label: chakraNav.card.title, href: chakraNav.card.href },
+        { label: tb("common.brand"), href: BIOENERJI_FOLDER_BASE },
+        { label: tb(`groups.${chakraNav.group.id}.title`) },
+        { label: tb(`sections.${chakraNav.card.key}.title`), href: chakraNav.card.href },
         { label: displayTitle },
       ]
-    : [{ label: "Biyoenerji", href: BIOENERJI_FOLDER_BASE }];
+    : [{ label: tb("common.brand"), href: BIOENERJI_FOLDER_BASE }];
 
   const stoneMatchVisible =
     !stonesLoading && !stonesError && stoneView.matchedCount > 0;
@@ -670,9 +683,9 @@ export default function CakralarDetail({ id }: { id: string }) {
               <Gem className="h-4 w-4" strokeWidth={2} aria-hidden />
             </span>
             <div className="min-w-0">
-              <h3 className="text-sm font-black tracking-tight text-slate-900">Doğaltaşta bulunan ek taşlar</h3>
+              <h3 className="text-sm font-black tracking-tight text-slate-900">{t("extraStonesTitle")}</h3>
               <p className="text-[12px] font-medium leading-snug text-slate-500">
-                Bu çakraya Doğaltaş&rsquo;ta atanmış olup manuel listede olmayan taşlar.
+                {t("extraStonesBody")}
               </p>
             </div>
           </div>
@@ -681,7 +694,7 @@ export default function CakralarDetail({ id }: { id: string }) {
               <Link
                 key={s.id}
                 href={`/dogaltas/dogaltas-listesi/${s.id}`}
-                title="Doğaltaş kaydını aç"
+                title={t("openStone")}
                 className="group inline-flex max-w-full items-center gap-1.5 rounded-full border border-violet-200/70 bg-violet-50/80 px-3 py-1.5 text-[12px] font-bold text-violet-900 shadow-sm transition hover:-translate-y-0.5 hover:bg-violet-100/80 hover:shadow"
               >
                 <span className="h-2 w-2 shrink-0 rounded-full bg-violet-500" aria-hidden />
@@ -705,7 +718,7 @@ export default function CakralarDetail({ id }: { id: string }) {
         <div className="flex flex-wrap gap-2">
           {quickRows.map((r) => (
             <div key={`qf-${r.key}`} className="min-w-[104px] rounded-xl border border-slate-200/70 bg-white/70 px-3 py-2 shadow-[0_1px_2px_rgba(15,23,42,0.03)]">
-              <div className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">{r.label}</div>
+              <div className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">{CLm.quickLabel(r.key, r.label)}</div>
               <div className="mt-0.5 text-[14px] font-bold text-slate-800">{r.value}</div>
             </div>
           ))}
@@ -715,10 +728,11 @@ export default function CakralarDetail({ id }: { id: string }) {
         <div key={`gb-${i}`} className="flex flex-wrap items-center gap-x-3 gap-y-1">
           {b.title ? (
             <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
-              {b.title}
+              {CL.blockTitle(b.title)}
             </span>
           ) : null}
           <span className="inline-flex items-center gap-2 text-[15px] font-semibold text-slate-800">
+            {/* i18n-ignore: chakraSections.ts kanonik blok başlığıyla karşılaştırma (kontrol akışı) */}
             {b.title === "Renk" ? (
               <span
                 className="h-3.5 w-3.5 shrink-0 rounded-full ring-1 ring-slate-200"
@@ -837,7 +851,7 @@ export default function CakralarDetail({ id }: { id: string }) {
                 <span className="h-1 w-1 shrink-0 rounded-full bg-slate-300" aria-hidden />
                 <span className="inline-flex items-center gap-1.5 font-semibold text-emerald-700">
                   <Link2 className="h-3.5 w-3.5 shrink-0" aria-hidden />
-                  {stoneView.matchedCount} taş Doğaltaş ile eşleşiyor
+                  {t("stonesMatched", { count: String(stoneView.matchedCount) })}
                 </span>
               </>
             ) : null}
@@ -863,16 +877,16 @@ export default function CakralarDetail({ id }: { id: string }) {
               <div className="hidden h-6 w-px bg-slate-200 sm:block" aria-hidden />
               <button type="button" onClick={() => router.push(`${CHAKRAS_LIST_PATH}/${record.id}/duzenle`)} className={tbBtnPrimary}>
                 <Pencil className="h-4 w-4" strokeWidth={2} aria-hidden />
-                Çakrayı Düzenle
+                {t("editChakra")}
               </button>
               <button type="button" disabled={saving} onClick={() => void openDeleteConfirm()} className={tbBtnDanger}>
                 <Trash2 className="h-4 w-4" strokeWidth={2} aria-hidden />
-                Sil
+                {td("delete")}
               </button>
               {record && (
                 <button type="button" onClick={() => void downloadWord()} disabled={wordBusy} className={tbBtn}>
                   <FileText className="h-4 w-4" strokeWidth={2} aria-hidden />
-                  {wordBusy ? "Hazırlanıyor…" : "Word"}
+                  {wordBusy ? td("preparing") : "Word"}
                 </button>
               )}
             </>
@@ -883,7 +897,7 @@ export default function CakralarDetail({ id }: { id: string }) {
       {/* FAZ 3.1 — ikinci-seviye editorial section nav (tek-section workspace) */}
       <div className="mt-4">
         <ChakraSectionNav
-          sections={workspace.map((s) => ({ hash: s.hash, title: s.title }))}
+          sections={workspace.map((s) => ({ hash: s.hash, title: CLm.sectionTitle(s.id, s.title) }))}
           activeHash={activeWs?.hash ?? ""}
           onSelect={selectSection}
         />
@@ -891,7 +905,7 @@ export default function CakralarDetail({ id }: { id: string }) {
 
       <DemoGate
         isProtected={isDemo}
-        message="Bu kayıt içeriği demo hesabında sınırlı gösterilir. Tam sürümde tüm bilgilere erişilebilir."
+        message={td("demoGate")}
       >
         {activeWs ? (
           // Editorial içerik yüzeyi — koca beyaz kart YOK; metin ana odak.
@@ -900,7 +914,7 @@ export default function CakralarDetail({ id }: { id: string }) {
           <section className="pt-5 sm:pt-6">
             <h2 className="mb-4 flex items-center gap-2.5 text-xl font-black tracking-tight text-slate-900">
               <span className="h-5 w-1 shrink-0 rounded-full bg-gradient-to-b from-violet-400 to-cyan-400" aria-hidden />
-              <span className="min-w-0 break-words">{activeWs.title}</span>
+              <span className="min-w-0 break-words">{CLm.sectionTitle(activeWs.id, activeWs.title)}</span>
             </h2>
 
             {sectionContext ? (
@@ -915,7 +929,7 @@ export default function CakralarDetail({ id }: { id: string }) {
           </section>
         ) : (
           <div className="pt-6 text-sm font-medium text-slate-500">
-            Bu kayıt için henüz içerik girilmemiş.
+            {t("noContent")}
           </div>
         )}
 
@@ -927,8 +941,8 @@ export default function CakralarDetail({ id }: { id: string }) {
         open={formModalOpen}
         onClose={() => setFormModalOpen(false)}
         isDirty={formIsDirty}
-        title="Çakra kaydını düzenle"
-        subtitle="Kaydettikten sonra detay yenilenir."
+        title={t("editTitle")}
+        subtitle={td("formSubtitle")}
         titleId="chakra-edit-modal-title"
         accentRingClass="ring-fuchsia-100/50"
         footer={
@@ -939,7 +953,7 @@ export default function CakralarDetail({ id }: { id: string }) {
               onClick={() => setFormModalOpen(false)}
               className="rounded-xl border border-slate-200/85 bg-white/90 px-4 py-2.5 text-[12px] font-black text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-50"
             >
-              Vazgeç
+              {tl("cancel")}
             </button>
             <button
               type="button"
@@ -947,7 +961,7 @@ export default function CakralarDetail({ id }: { id: string }) {
               onClick={() => record && setForm(recordToForm(record))}
               className="rounded-xl border border-slate-200/80 bg-white/90 px-4 py-2.5 text-[12px] font-black text-slate-600 shadow-sm transition hover:bg-slate-50 disabled:opacity-50"
             >
-              Sıfırla
+              {td("reset")}
             </button>
             <button
               type="button"
@@ -955,14 +969,14 @@ export default function CakralarDetail({ id }: { id: string }) {
               onClick={() => void handleGuncelle()}
               className="rounded-xl border border-fuchsia-200/70 bg-fuchsia-50/90 px-4 py-2.5 text-[12px] font-black text-fuchsia-950 shadow-sm transition hover:bg-fuchsia-100/90 disabled:opacity-55"
             >
-              {saving ? "Güncelleniyor…" : "Güncelle"}
+              {saving ? td("updating") : td("update")}
             </button>
           </>
         }
       >
         <div className="space-y-5">
           <label className="block">
-            <span className="mb-2 block text-[12px] font-black text-slate-800">Çakra Adı *</span>
+            <span className="mb-2 block text-[12px] font-black text-slate-800">{t("fields.nameLabel")}</span>
             <input
               value={form.name}
               onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
@@ -970,7 +984,7 @@ export default function CakralarDetail({ id }: { id: string }) {
             />
           </label>
           <label className="block">
-            <span className="mb-2 block text-[12px] font-black text-slate-800">Renk</span>
+            <span className="mb-2 block text-[12px] font-black text-slate-800">{t("fields.color")}</span>
             <input
               value={form.color}
               onChange={(e) => setForm((f) => ({ ...f, color: e.target.value }))}
@@ -978,8 +992,8 @@ export default function CakralarDetail({ id }: { id: string }) {
             />
           </label>
           <LongTextareaField
-            label={<span className="mb-2 block text-[12px] font-black text-slate-800">Organlar</span>}
-            modalTitle="Organlar"
+            label={<span className="mb-2 block text-[12px] font-black text-slate-800">{t("fields.organs")}</span>}
+            modalTitle={t("fields.organs")}
             value={form.organs}
             onChange={(v) => setForm((f) => ({ ...f, organs: v }))}
             minRows={3}
@@ -987,8 +1001,8 @@ export default function CakralarDetail({ id }: { id: string }) {
             disabled={saving}
           />
           <LongTextareaField
-            label={<span className="mb-2 block text-[12px] font-black text-slate-800">Bezler</span>}
-            modalTitle="Bezler"
+            label={<span className="mb-2 block text-[12px] font-black text-slate-800">{t("fields.glands")}</span>}
+            modalTitle={t("fields.glands")}
             value={form.glands}
             onChange={(v) => setForm((f) => ({ ...f, glands: v }))}
             minRows={2}
@@ -996,8 +1010,8 @@ export default function CakralarDetail({ id }: { id: string }) {
             disabled={saving}
           />
           <LongTextareaField
-            label={<span className="mb-2 block text-[12px] font-black text-slate-800">Taşlar</span>}
-            modalTitle="Taşlar"
+            label={<span className="mb-2 block text-[12px] font-black text-slate-800">{t("fields.stones")}</span>}
+            modalTitle={t("fields.stones")}
             value={form.stones}
             onChange={(v) => setForm((f) => ({ ...f, stones: v }))}
             minRows={2}
@@ -1005,8 +1019,8 @@ export default function CakralarDetail({ id }: { id: string }) {
             disabled={saving}
           />
           <LongTextareaField
-            label={<span className="mb-2 block text-[12px] font-black text-slate-800">Nedenler</span>}
-            modalTitle="Nedenler"
+            label={<span className="mb-2 block text-[12px] font-black text-slate-800">{t("fields.causes")}</span>}
+            modalTitle={t("fields.causes")}
             value={form.causes}
             onChange={(v) => setForm((f) => ({ ...f, causes: v }))}
             minRows={4}
@@ -1014,8 +1028,8 @@ export default function CakralarDetail({ id }: { id: string }) {
             disabled={saving}
           />
           <LongTextareaField
-            label={<span className="mb-2 block text-[12px] font-black text-slate-800">Fiziksel</span>}
-            modalTitle="Fiziksel"
+            label={<span className="mb-2 block text-[12px] font-black text-slate-800">{t("fields.physical")}</span>}
+            modalTitle={t("fields.physical")}
             value={form.physical}
             onChange={(v) => setForm((f) => ({ ...f, physical: v }))}
             minRows={4}
@@ -1023,8 +1037,8 @@ export default function CakralarDetail({ id }: { id: string }) {
             disabled={saving}
           />
           <LongTextareaField
-            label={<span className="mb-2 block text-[12px] font-black text-slate-800">Zihinsel</span>}
-            modalTitle="Zihinsel"
+            label={<span className="mb-2 block text-[12px] font-black text-slate-800">{t("fields.mental")}</span>}
+            modalTitle={t("fields.mental")}
             value={form.mental}
             onChange={(v) => setForm((f) => ({ ...f, mental: v }))}
             minRows={4}
@@ -1032,8 +1046,8 @@ export default function CakralarDetail({ id }: { id: string }) {
             disabled={saving}
           />
           <LongTextareaField
-            label={<span className="mb-2 block text-[12px] font-black text-slate-800">Notlar</span>}
-            modalTitle="Notlar"
+            label={<span className="mb-2 block text-[12px] font-black text-slate-800">{t("fields.notes")}</span>}
+            modalTitle={t("fields.notes")}
             value={form.notes}
             onChange={(v) => setForm((f) => ({ ...f, notes: v }))}
             minRows={3}
@@ -1045,13 +1059,13 @@ export default function CakralarDetail({ id }: { id: string }) {
 
       <BiyoenerjiConfirmModal
         open={deleteConfirmOpen}
-        title="Bu çakra kaydını silmek istediğinizden emin misiniz?"
+        title={t("deleteConfirm")}
         message={
           deleteCounts === null
-            ? "İçerik sayısı hesaplanıyor… Bu işlem geri alınamaz."
+            ? t("deleteCounting")
             : deleteCounts.total > 0
-              ? `Bu çakra ve ona bağlı ${deleteCounts.total} içerik/kaynak bloğu (${deleteCounts.visible} görünür + ${deleteCounts.evidence} kaynak bilgisi) KALICI olarak silinecek. Bu işlem geri alınamaz.`
-              : "Bu çakra kalıcı olarak silinecek. Bu işlem geri alınamaz."
+              ? t("deleteCascade", { total: String(deleteCounts.total), visible: String(deleteCounts.visible), evidence: String(deleteCounts.evidence) })
+              : t("deleteSimple")
         }
         busy={saving}
         onClose={() => setDeleteConfirmOpen(false)}

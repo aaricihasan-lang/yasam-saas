@@ -151,7 +151,19 @@
       "created": "Çakra kaydı oluşturuldu.",
       "emptyBody": "Yeni Kayıt ile ilk çakra kaydını ekleyebilirsiniz.",
       "formTitle": "Yeni çakra kaydı",
-      "untitled": "İsimsiz çakra"
+      "untitled": "İsimsiz çakra",
+      "extraStonesTitle": "Doğaltaşta bulunan ek taşlar",
+      "extraStonesBody": "Bu çakraya Doğaltaş’ta atanmış olup manuel listede olmayan taşlar.",
+      "openStone": "Doğaltaş kaydını aç",
+      "stonesMatched": "{count} taş Doğaltaş ile eşleşiyor",
+      "editChakra": "Çakrayı Düzenle",
+      "noContent": "Bu kayıt için henüz içerik girilmemiş.",
+      "editTitle": "Çakra kaydını düzenle",
+      "deleteConfirm": "Bu çakra kaydını silmek istediğinizden emin misiniz?",
+      "deleteCounting": "İçerik sayısı hesaplanıyor… Bu işlem geri alınamaz.",
+      "deleteCascade": "Bu çakra ve ona bağlı {total} içerik/kaynak bloğu ({visible} görünür + {evidence} kaynak bilgisi) KALICI olarak silinecek. Bu işlem geri alınamaz.",
+      "deleteSimple": "Bu çakra kalıcı olarak silinecek. Bu işlem geri alınamaz.",
+      "stoneBadge": "Doğaltaş"
     },
     "list": {
       "serverError": "Sunucu hatası.",
@@ -331,6 +343,105 @@
       "statLast": "Son kayıt",
       "backToResults": "Arama sonuçlarına dön",
       "matchesMarked": "{count} eşleşme sarı ile işaretlendi"
+    },
+    "chakraLabels": {
+      "sections": {
+        "genel-bakis": "Genel Bakış",
+        "enerji-anatomisi": "Enerji Anatomisi & Denge",
+        "nedenler-blokajlar": "Nedenler & Blokajlar",
+        "beden-sistem": "Beden & Sistem İlişkileri",
+        "duygusal-zihinsel": "Duygusal & Zihinsel İlişkiler",
+        "uygulamalar": "Uygulamalar",
+        "taslar-destekleyiciler": "Taşlar & Destekleyiciler",
+        "notlar-kaynaklar": "Notlar & Kaynaklar"
+      },
+      "blocks": {
+        "color": "Renk",
+        "causes": "Blokajlı Olmasının Nedenleri",
+        "physical": "Fiziksel Etkiler",
+        "organs": "Organlar",
+        "glands": "Bezler",
+        "mental": "Zihinsel Etkiler"
+      },
+      "quick": {
+        "sanskritName": "Sanskritçe Ad",
+        "element": "Element",
+        "location": "Konum",
+        "bijaMantra": "Bija Mantra",
+        "sanskrit": "Sanskritçe",
+        "mantra": "Mantra"
+      }
+    },
+    "chakraNav": {
+      "section": "Bölüm",
+      "aria": "Çakra bölümleri"
+    },
+    "richBlock": {
+      "translation": "Çeviri:",
+      "commentary": "Yorum:",
+      "expertNote": "Uzman notu:",
+      "bibliography": "Kaynakça"
+    },
+    "chakraEditor": {
+      "sections": {
+        "genel-bakis": "Genel Bakış",
+        "enerji-anatomisi": "Enerji Anatomisi & Denge",
+        "nedenler-blokajlar": "Nedenler & Blokajlar",
+        "beden-sistem": "Beden & Sistem",
+        "duygusal-zihinsel": "Duygusal & Zihinsel",
+        "uygulamalar": "Uygulamalar",
+        "taslar-destekleyiciler": "Taşlar & Destekleyiciler",
+        "notlar-kaynaklar": "Notlar & Kaynaklar"
+      },
+      "blockTypes": {
+        "overview": "Genel içerik",
+        "state": "Durum",
+        "variation-summary": "Farklılıklar",
+        "claim-summary": "Kaynak Özeti",
+        "application": "Uygulama",
+        "supporter-note": "Destekleyici"
+      },
+      "invalidLink": "Geçersiz kayıt bağlantısı.",
+      "noSession": "Oturum bulunamadı.",
+      "readFailed": "Kayıt okunamadı: {detail}",
+      "notFound": "Kayıt bulunamadı.",
+      "demoNoSave": "Demo hesabında kayıt yapılamaz.",
+      "basicUpdated": "Çakra bilgileri güncellendi.",
+      "contentRequired": "İçerik boş olamaz.",
+      "blockUpdated": "Blok güncellendi.",
+      "blockDeleted": "Blok silindi.",
+      "reorderFailed": "Sıralama kaydedilemedi: {detail}",
+      "blockAdded": "Yeni blok eklendi.",
+      "backToDetail": "Detaya dön",
+      "dirty": "Kaydedilmemiş değişiklikler var",
+      "basicTitle": "Temel Bilgiler",
+      "fields": {
+        "name": "Çakra Adı *",
+        "sanskrit_name": "Sanskritçe Ad",
+        "element": "Element",
+        "bija_mantra": "Bija Mantra",
+        "location": "Konum",
+        "color": "Renk",
+        "organs": "Organlar",
+        "glands": "Bezler",
+        "stones": "Taşlar",
+        "causes": "Nedenler",
+        "physical": "Fiziksel",
+        "mental": "Zihinsel",
+        "notes": "Notlar"
+      },
+      "extraTitle": "Ek Bilgiler",
+      "saveBasic": "Bilgileri Kaydet",
+      "contentTitle": "İçerik",
+      "blockTitlePlaceholder": "Blok başlığı (opsiyonel)",
+      "moveUp": "Yukarı taşı",
+      "moveDown": "Aşağı taşı",
+      "delete": "Sil",
+      "blockBodyPlaceholder": "Blok içeriği…",
+      "addBlock": "Bloğu Ekle",
+      "newBlock": "Yeni Bilgi Bloğu",
+      "deleteConfirm": "Bu içerik bloğunu silmek istediğinizden emin misiniz?",
+      "deleteMessage": "\"{title}\" bloğu kalıcı olarak silinecek. Kaynak bilgisi kayıtlarına dokunulmaz."
     }
   }
 }

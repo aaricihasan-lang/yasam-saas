@@ -274,6 +274,7 @@ export default function SembolDiliDetail({ id }: { id: string }) {
         setRecord(lastGoodRecordRef.current);
       }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- çeviri işlevleri dil değişiminde yeniden kayıt okumaz
   }, [id]);
 
   /** BIO-11 — düzenleme formu her açılışta güncel kayıttan doldurulur. */
@@ -300,6 +301,7 @@ export default function SembolDiliDetail({ id }: { id: string }) {
       return;
     }
     void loadRecord();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- çeviri işlevleri dil değişiminde yeniden kayıt okumaz
   }, [loadRecord, id]);
 
   async function handleGuncelle() {

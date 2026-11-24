@@ -274,6 +274,7 @@ export default function BilincaltiSebepleriDetail({ id }: { id: string }) {
     }
 
     setRecord(data as BioenergySubconsciousRecord);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- çeviri işlevleri dil değişiminde yeniden kayıt okumaz
   }, [id]);
 
   /** BIO-11 — düzenleme formu her açılışta güncel kayıttan doldurulur (eski taslak taşınmaz). */
@@ -299,6 +300,7 @@ export default function BilincaltiSebepleriDetail({ id }: { id: string }) {
       return;
     }
     void loadRecord();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- çeviri işlevleri dil değişiminde yeniden kayıt okumaz
   }, [loadRecord, id]);
 
   async function handleGuncelle() {
