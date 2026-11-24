@@ -122,7 +122,8 @@ async function main() {
     const yeni = read("app/kupa/protokoller/yeni/page.tsx");
     ok(/useUnsavedChangesGuard\(dirty, confirmLeave\)/.test(yeni) && />\s*\{saving \? "Kaydediliyor…" : "Kaydet"\}/.test(yeni) && /savingRef\.current/.test(yeni) && /"Kaydedildi\."/.test(yeni), "Yeni Protokol: görünür 'Kaydet' + çift-tık kilidi + 'Kaydedildi.' + çıkış koruması");
     const dirty = read("app/kupa/protokoller/hooks/protocolDirty.tsx");
-    ok(/Kaydedilmemiş değişiklikleriniz var\.\\nKaydetmeden çıkmak istiyor musunuz\?/.test(dirty) && /confirmText: "Kaydetmeden Çık"/.test(dirty) && /cancelText: "Vazgeç"/.test(dirty), "çıkış onayı metni + seçenekler (Vazgeç / Kaydetmeden Çık)");
+    // I18N 2026-11-25: metin katalogdan çözülür → satır sonu kaynakta "\n" kaçışı ya da gerçek satır sonu olabilir.
+    ok(/Kaydedilmemiş değişiklikleriniz var\.(\\n|\n)Kaydetmeden çıkmak istiyor musunuz\?/.test(dirty) && /confirmText: "Kaydetmeden Çık"/.test(dirty) && /cancelText: "Vazgeç"/.test(dirty), "çıkış onayı metni + seçenekler (Vazgeç / Kaydetmeden Çık)");
     const srcSec = strip(read("app/kupa/protokoller/components/SourcesSection.tsx"));
     ok(!/<select/.test(srcSec) && !/<datalist/.test(srcSec) && /<SourceNameField/.test(srcSec), "Kaynak: hazır katalog select/datalist YOK; serbest + kendi geçmişi önerisi");
     const ent = strip(read("app/kupa/protokoller/components/EntriesSection.tsx"));

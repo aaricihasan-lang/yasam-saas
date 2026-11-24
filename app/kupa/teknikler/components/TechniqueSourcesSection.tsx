@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { kupaBtnGhost } from "../../components/KupaShell";
 import { CuppingCitationManager } from "../../components/CitationManager";
 
@@ -11,12 +12,14 @@ import { CuppingCitationManager } from "../../components/CitationManager";
  */
 export function TechniqueSourcesSection({ techniqueId }: { techniqueId: string }) {
   const [open, setOpen] = useState(false);
+  const t = useTranslations("cupping.techniques.sources");
+  const tc = useTranslations("cupping.common");
   return (
     <section>
       <div className="flex items-center justify-between gap-2">
-        <h3 className="text-sm font-black uppercase tracking-wide text-slate-500">Kaynaklar</h3>
+        <h3 className="text-sm font-black uppercase tracking-wide text-slate-500">{t("title")}</h3>
         <button type="button" className={kupaBtnGhost} onClick={() => setOpen((v) => !v)} aria-expanded={open}>
-          {open ? "Kapat" : "Kaynakları Yönet"}
+          {open ? tc("close") : t("manage")}
         </button>
       </div>
       {open ? (
@@ -25,7 +28,7 @@ export function TechniqueSourcesSection({ techniqueId }: { techniqueId: string }
         </div>
       ) : (
         <p className="mt-2 text-[13px] leading-relaxed text-slate-500">
-          Bu tekniğe ilişkin kaynak künyelerini eklemek/görüntülemek için “Kaynakları Yönet”.
+          {t("hint")}
         </p>
       )}
     </section>

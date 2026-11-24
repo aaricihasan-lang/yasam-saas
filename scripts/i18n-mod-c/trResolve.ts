@@ -54,6 +54,12 @@ export function resolveTrSource(src: string): string {
   let out = src;
   for (const [v, ns] of vars) {
     const esc = v.replace(/\$/g, "\\$");
+    // JSX özniteliği: attr={t("k")} → attr="Değer" (eski `closeLabel="Kapat"` kalıpları birebir eşleşsin).
+    const attr = new RegExp(String.raw`=\{\s*${esc}\(\s*["']([^"'${"`"}]+)["']\s*\)\s*\}`, "g");
+    out = out.replace(attr, (whole, key: string) => {
+      const val = trValue(`${ns}.${key}`);
+      return val === undefined ? whole : `="${val}"`;
+    });
     const call = new RegExp(String.raw`(?<![\w$.])${esc}\(\s*["']([^"'${"`"}]+)["']\s*(?:,[^()]*(?:\([^()]*\)[^()]*)*)?\)`, "g");
     out = out.replace(call, (whole, key: string) => {
       const val = trValue(`${ns}.${key}`);

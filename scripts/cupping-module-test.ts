@@ -1004,7 +1004,9 @@ function run(): void {
     "faz4b-nav: liste satırları /kupa/teknikler/[id] deep-link");
 
   // Normal UI ham enum kodu GÖSTERMEZ (label helper üzerinden).
-  ok(/techniqueTypeLabel/.test(tList) && /techniqueTypeLabel/.test(tRead),
+  // I18N 2026-11-25: label helper'ın ekran-dili karşılığı useCuppingVocab (TR = labels.ts, birebir).
+  const typeLabelled = (s: string) => /techniqueTypeLabel/.test(s) || /vocab\.techniqueType\(/.test(s);
+  ok(typeLabelled(tList) && typeLabelled(tRead),
     "faz4b-labels: tür TR etiketle gösterilir (ham dry/wet değil)");
   ok(/dry: "Kuru Kupa"/.test(tLabels) && /wet: "Yaş Kupa \/ Hacamat"/.test(tLabels) &&
      /stationary: "Sabit"/.test(tLabels) && /gliding: "Kaydırmalı"/.test(tLabels) && /flash: "Flaş"/.test(tLabels),

@@ -241,6 +241,17 @@
         "contraLabel": "Kontrendikasyon Sınıfı",
         "contraAria": "Kontrendikasyon sınıfı",
         "createAndAdd": "Oluştur ve Ekle"
+      },
+      "new": {
+        "title": "Yeni Protokol",
+        "subtitle": "Kısa bir başlangıç yapın; bölgeleri, akışı ve bilgileri protokol dosyasında geliştireceksiniz.",
+        "crumb": "Yeni",
+        "titlePlaceholder": "Örn. Migren",
+        "summaryPlaceholder": "Bu protokol hakkında kısa bir açıklama…"
+      },
+      "card": {
+        "updated": "Güncellendi: {date}",
+        "open": "Aç →"
       }
     }
   }

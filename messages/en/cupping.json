@@ -93,6 +93,73 @@
       },
       "unspecified": "Not specified",
       "all": "All"
+    },
+    "unsaved": {
+      "title": "Unsaved Changes",
+      "message": "You have unsaved changes.\nDo you want to leave without saving?",
+      "confirm": "Leave Without Saving",
+      "cancel": "Cancel"
+    },
+    "crud": {
+      "loadError": "Loading error.",
+      "required": "{label} is required.",
+      "deleteNoop": "The record could not be deleted (no change was made on this account).",
+      "deleteFailed": "Could not be deleted.",
+      "impactFailed": "The impact of deletion could not be calculated; nothing was deleted. Please try again.",
+      "impactFailedShort": "Error",
+      "records": "Records",
+      "searchPlaceholder": "Search…",
+      "searchAria": "Search records",
+      "filterAll": "{label}: All",
+      "results": "{count} results",
+      "clear": "Clear",
+      "noMatch": "No records match your search.",
+      "selectHint": "Select a record on the left to edit, or add a new one.",
+      "add": "Add",
+      "checking": "Checking…",
+      "deleteBlockedTitle": "Record cannot be deleted",
+      "deleteTitle": "Delete record",
+      "deleteConfirm": "Are you sure you want to delete “{name}”? This action cannot be undone.",
+      "thisRecord": "This record"
+    },
+    "bigNote": {
+      "unsaved": "Unsaved change",
+      "hint": "{count} characters · Press <strong>Save</strong> in the form to save permanently",
+      "apply": "Apply"
+    },
+    "usage": {
+      "loadError": "Usage information could not be loaded.",
+      "title": "Protocols Using This",
+      "unused": "This record is not used in any protocol yet. (It can be deleted.)",
+      "usedIn": "This record is used in {count} protocol(s); remove it from these protocols before deleting."
+    },
+    "citation": {
+      "evidence": {
+        "traditional": "Traditional",
+        "historical": "Historical",
+        "modern_clinical": "Modern Clinical",
+        "systematic_review": "Systematic Review",
+        "safety_guidance": "Safety Guidance",
+        "expert_educational": "Expert / Educational"
+      },
+      "unknownSource": "(source)",
+      "loadError": "Sources could not be loaded.",
+      "nameRequired": "Enter the source name (e.g. Teacher Ahmet's training note).",
+      "removeNoop": "The link could not be removed (no change was made on this account).",
+      "removeFailed": "Could not be removed.",
+      "title": "Sources",
+      "empty": "No sources linked yet.",
+      "remove": "Remove",
+      "sourceLabel": "Source (who / where I learned it from)",
+      "sourcePlaceholder": "e.g. Teacher Ahmet's training note, my own training notes, Book X…",
+      "evidenceAria": "Evidence class",
+      "evidenceEmpty": "— evidence class —",
+      "locator": "Page / section (locator)",
+      "note": "Citation note (optional)",
+      "update": "Update Source",
+      "link": "Link Source",
+      "removeTitle": "Remove source",
+      "removeConfirm": "The link between “{name}” and this record will be removed. The source remains in your source catalogue (it is not deleted entirely)."
     }
   }
 }

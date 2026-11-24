@@ -2,15 +2,12 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
+import { useKupaErrorText } from "@/app/kupa/lib/errorText";
+import { useCuppingVocab } from "@/app/kupa/lib/useCuppingVocab";
 import { kupaBtnPrimary, kupaInput } from "../../components/KupaShell";
 import { listTechniques, type CuppingTechnique } from "../../lib/api";
-import {
-  MOVEMENT_FILTER_OPTIONS,
-  TYPE_FILTER_OPTIONS,
-  hasMovement,
-  movementStyleLabel,
-  techniqueTypeLabel,
-} from "../lib/labels";
+import { MOVEMENT_FILTER_OPTIONS, TYPE_FILTER_OPTIONS, hasMovement } from "../lib/labels";
 
 /**
  * Sol panel — teknik listesi (arama + tür/uygulama-biçimi filtresi). Satırlar
@@ -24,6 +21,13 @@ function normalize(v: string): string {
 
 export function TechniqueList({ selectedId, version = 0 }: { selectedId: string | null; version?: number }) {
   const [items, setItems] = useState<CuppingTechnique[] | null>(null);
+  const tl = useTranslations("cupping.techniques.list");
+  const tc = useTranslations("cupping.common");
+  const errText = useKupaErrorText();
+  const vocab = useCuppingVocab();
+  // Filtre seçenek DEĞERLERİ kanonik (labels.ts); görünen etiket ekran dilinde.
+  const optLabel = (group: "type" | "move", v: string) =>
+    v === "all" ? vocab.all : group === "type" ? vocab.techniqueType(v) : vocab.movementStyle(v);
   const [error, setError] = useState<string | null>(null);
   const [q, setQ] = useState("");
   const [typeFilter, setTypeFilter] = useState<string>("all");
@@ -34,10 +38,11 @@ export function TechniqueList({ selectedId, version = 0 }: { selectedId: string 
     let alive = true;
     listTechniques()
       .then((data) => alive && setItems(data))
-      .catch((e) => alive && setError(e instanceof Error ? e.message : "Liste yüklenemedi."));
+      .catch((e) => alive && setError(errText(e, tl("loadError"))));
     return () => {
       alive = false;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- yalnız version değişiminde yeniden yükle
   }, [version]);
 
   const filtered = useMemo(() => {
@@ -63,9 +68,9 @@ export function TechniqueList({ selectedId, version = 0 }: { selectedId: string 
   return (
     <div className="flex h-full flex-col gap-3">
       <div className="flex items-center justify-between gap-2">
-        <h2 className="text-sm font-black uppercase tracking-wide text-slate-500">Kupa Teknikleri</h2>
+        <h2 className="text-sm font-black uppercase tracking-wide text-slate-500">{tl("title")}</h2>
         <Link href="/kupa/teknikler/yeni" className={kupaBtnPrimary}>
-          + Yeni Teknik
+          {tl("new")}
         </Link>
       </div>
 
@@ -73,33 +78,33 @@ export function TechniqueList({ selectedId, version = 0 }: { selectedId: string 
         className={kupaInput}
         value={q}
         onChange={(e) => setQ(e.target.value)}
-        placeholder="Teknik ara…"
-        aria-label="Teknik ara"
+        placeholder={tl("searchPlaceholder")}
+        aria-label={tl("searchAria")}
       />
 
       <div className="flex flex-wrap gap-2">
-        <label className="sr-only" htmlFor="tech-type-filter">Tür filtresi</label>
+        <label className="sr-only" htmlFor="tech-type-filter">{tl("typeFilter")}</label>
         <select
           id="tech-type-filter"
           className={`${kupaInput} w-auto flex-1`}
           value={typeFilter}
           onChange={(e) => setTypeFilter(e.target.value)}
-          aria-label="Tür filtresi"
+          aria-label={tl("typeFilter")}
         >
           {TYPE_FILTER_OPTIONS.map((o) => (
-            <option key={o.value} value={o.value}>{o.label}</option>
+            <option key={o.value} value={o.value}>{optLabel("type", o.value)}</option>
           ))}
         </select>
-        <label className="sr-only" htmlFor="tech-move-filter">Uygulama biçimi filtresi</label>
+        <label className="sr-only" htmlFor="tech-move-filter">{tl("moveFilter")}</label>
         <select
           id="tech-move-filter"
           className={`${kupaInput} w-auto flex-1`}
           value={movementFilter}
           onChange={(e) => setMovementFilter(e.target.value)}
-          aria-label="Uygulama biçimi filtresi"
+          aria-label={tl("moveFilter")}
         >
           {MOVEMENT_FILTER_OPTIONS.map((o) => (
-            <option key={o.value} value={o.value}>{o.label}</option>
+            <option key={o.value} value={o.value}>{optLabel("move", o.value)}</option>
           ))}
         </select>
       </div>
@@ -108,16 +113,16 @@ export function TechniqueList({ selectedId, version = 0 }: { selectedId: string 
         {error ? (
           <p className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-[13px] text-rose-700">{error}</p>
         ) : items === null ? (
-          <p className="p-3 text-[13px] text-slate-400">Yükleniyor…</p>
+          <p className="p-3 text-[13px] text-slate-400">{tc("loading")}</p>
         ) : items.length === 0 ? (
           <div className="rounded-xl border border-slate-200 bg-white/70 p-4 text-center">
-            <p className="text-[13px] text-slate-500">Henüz teknik yok.</p>
+            <p className="text-[13px] text-slate-500">{tl("empty")}</p>
             <Link href="/kupa/teknikler/yeni" className="mt-2 inline-block text-sm font-semibold text-amber-700">
-              İlk tekniği oluştur →
+              {tl("createFirst")}
             </Link>
           </div>
         ) : filtered.length === 0 ? (
-          <p className="p-3 text-[13px] text-slate-400">Aramanızla eşleşen teknik yok.</p>
+          <p className="p-3 text-[13px] text-slate-400">{tl("noMatch")}</p>
         ) : (
           <ul className="flex flex-col gap-1.5">
             {filtered.map((t) => {
@@ -136,15 +141,15 @@ export function TechniqueList({ selectedId, version = 0 }: { selectedId: string 
                     <span className="block truncate text-[15px] font-bold text-slate-900">{t.name}</span>
                     <span className="mt-1 flex flex-wrap items-center gap-1.5">
                       <span className="rounded-md bg-amber-100/70 px-1.5 py-0.5 text-[11px] font-semibold text-amber-800">
-                        {techniqueTypeLabel(t.technique_type)}
+                        {vocab.techniqueType(t.technique_type)}
                       </span>
                       {hasMovement(t.movement_style) ? (
                         <span className="rounded-md bg-slate-100 px-1.5 py-0.5 text-[11px] font-medium text-slate-600">
-                          {movementStyleLabel(t.movement_style)}
+                          {vocab.movementStyle(t.movement_style)}
                         </span>
                       ) : null}
                       {t.is_active === false ? (
-                        <span className="rounded-md bg-slate-100 px-1.5 py-0.5 text-[10.5px] font-medium text-slate-400">Pasif</span>
+                        <span className="rounded-md bg-slate-100 px-1.5 py-0.5 text-[10.5px] font-medium text-slate-400">{tc("passive")}</span>
                       ) : null}
                     </span>
                   </Link>

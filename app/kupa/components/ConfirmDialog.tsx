@@ -2,6 +2,7 @@
 
 import { useEffect, useId, useRef, type ReactNode } from "react";
 import { createPortal } from "react-dom";
+import { useTranslations } from "next-intl";
 import { kupaBtnGhost, kupaBtnPrimary } from "./KupaShell";
 
 /**
@@ -22,8 +23,8 @@ export function KupaConfirmDialog({
   description,
   confirmLabel,
   onConfirm,
-  cancelLabel = "Vazgeç",
-  closeLabel = "Kapat",
+  cancelLabel: cancelLabelProp,
+  closeLabel: closeLabelProp,
   busy = false,
   onClose,
   children,
@@ -40,6 +41,9 @@ export function KupaConfirmDialog({
   onClose: () => void;
   children?: ReactNode;
 }) {
+  const tc = useTranslations("cupping.common");
+  const cancelLabel = cancelLabelProp ?? tc("cancel");
+  const closeLabel = closeLabelProp ?? tc("close");
   const titleId = useId();
   const descId = useId();
   const panelRef = useRef<HTMLDivElement>(null);

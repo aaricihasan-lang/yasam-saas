@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
+import { useKupaErrorText } from "@/app/kupa/lib/errorText";
 import {
   createCitation,
   createSource,
@@ -32,17 +34,17 @@ import { openFormDirty } from "@/app/kupa/lib/formDirty";
  * yeni kaynak oluşturulur; veri modeli (source_id) DEĞİŞMEZ. Kaydedilmemiş form sayfa koruması bildirir.
  */
 
-const EVIDENCE_OPTIONS: { value: string; label: string }[] = [
-  { value: "traditional", label: "Geleneksel" },
-  { value: "historical", label: "Tarihsel" },
-  { value: "modern_clinical", label: "Modern Klinik" },
-  { value: "systematic_review", label: "Sistematik Derleme" },
-  { value: "safety_guidance", label: "Güvenlik Rehberi" },
-  { value: "expert_educational", label: "Uzman / Eğitim" },
-];
-const EVIDENCE_LABEL: Record<string, string> = Object.fromEntries(
-  EVIDENCE_OPTIONS.map((o) => [o.value, o.label]),
-);
+// Kanıt sınıfı KODLARI kanoniktir (DB, lib/cupping/vocab CUPPING_EVIDENCE_CLASSES); görünen etiket
+// messages/<dil>/cupping.json → cupping.citation.evidence.<kod>.
+const EVIDENCE_OPTIONS = [
+  "traditional",
+  "historical",
+  "modern_clinical",
+  "systematic_review",
+  "safety_guidance",
+  "expert_educational",
+] as const;
+const isEvidence = (v: string): v is (typeof EVIDENCE_OPTIONS)[number] => (EVIDENCE_OPTIONS as readonly string[]).includes(v);
 
 type FormState = { source_text: string; locator: string; evidence_class: string; note: string };
 const EMPTY: FormState = { source_text: "", locator: "", evidence_class: "", note: "" };
@@ -67,10 +69,13 @@ export function CuppingCitationManager({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [removeTarget, setRemoveTarget] = useState<CuppingCitation | null>(null);
+  const t = useTranslations("cupping.citation");
+  const tc = useTranslations("cupping.common");
+  const errText = useKupaErrorText();
 
   const sourceName = useCallback(
-    (id: string) => sources.find((s) => s.id === id)?.source_name ?? "(kaynak)",
-    [sources],
+    (id: string) => sources.find((s) => s.id === id)?.source_name ?? t("unknownSource"),
+    [sources, t],
   );
 
   useEffect(() => {
@@ -84,7 +89,7 @@ export function CuppingCitationManager({
         setSources(srcs);
         setCitations(cits);
       } catch (e) {
-        if (!cancelled) setError(e instanceof Error ? e.message : "Kaynaklar yüklenemedi.");
+        if (!cancelled) setError(errText(e, t("loadError")));
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -92,6 +97,7 @@ export function CuppingCitationManager({
     return () => {
       cancelled = true;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- yalnız kayıt değişiminde yeniden yükle (dil değişimi tetiklemez)
   }, [entity, entityId]);
 
   const reset = () => {
@@ -120,7 +126,7 @@ export function CuppingCitationManager({
     setError(null);
     const sourceText = form.source_text.trim();
     if (!editingId && !sourceText) {
-      setError("Kaynak adını yazın (ör. Ahmet Hoca Eğitim Notu).");
+      setError(t("nameRequired"));
       return;
     }
     setBusy(true);
@@ -135,7 +141,7 @@ export function CuppingCitationManager({
       } else {
         const sourceId = await resolveSourceId(sourceText);
         if (!sourceId) {
-          setError("Demo hesabında kayıt oluşturulmaz.");
+          setError(tc("demoNoCreate"));
           return;
         }
         const created = await createCitation(entity, {
@@ -149,7 +155,7 @@ export function CuppingCitationManager({
       }
       reset();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Kaydedilemedi.");
+      setError(errText(e, tc("saveFailed")));
     } finally {
       setBusy(false);
     }
@@ -184,7 +190,7 @@ export function CuppingCitationManager({
       } else {
         // Server hiçbir satır silmedi (kayıt yok / bu hesaba ait değil / demo no-op).
         setRemoveTarget(null);
-        setError("Bağlantı kaldırılamadı (bu hesapta değişiklik yapılmadı).");
+        setError(t("removeNoop"));
         try {
           const cits = await listCitations(entity, entityId);
           setCitations(cits);
@@ -194,7 +200,7 @@ export function CuppingCitationManager({
       }
     } catch (e) {
       setRemoveTarget(null);
-      setError(e instanceof Error ? e.message : "Kaldırılamadı.");
+      setError(errText(e, t("removeFailed")));
     } finally {
       setBusy(false);
     }
@@ -203,7 +209,7 @@ export function CuppingCitationManager({
   return (
     <div className="mt-5 border-t border-slate-100 pt-4">
       <h4 className="mb-2 text-[11px] font-bold uppercase tracking-wide text-slate-500">
-        Kaynaklar
+        {t("title")}
       </h4>
 
       {error ? (
@@ -215,9 +221,9 @@ export function CuppingCitationManager({
       {/* Bağlı kaynaklar listesi */}
       <div className="mb-3 space-y-1.5">
         {loading ? (
-          <p className="text-[11px] text-slate-400">Yükleniyor…</p>
+          <p className="text-[11px] text-slate-400">{tc("loading")}</p>
         ) : citations.length === 0 ? (
-          <p className="text-[11px] text-slate-400">Henüz kaynak bağlanmadı.</p>
+          <p className="text-[11px] text-slate-400">{t("empty")}</p>
         ) : (
           citations.map((c) => (
             <div
@@ -230,7 +236,7 @@ export function CuppingCitationManager({
                   {c.locator ? <span className="font-normal text-slate-500"> · {String(c.locator)}</span> : null}
                 </p>
                 <p className="text-[10px] text-slate-400">
-                  {c.evidence_class ? EVIDENCE_LABEL[String(c.evidence_class)] ?? String(c.evidence_class) : "—"}
+                  {c.evidence_class ? (isEvidence(String(c.evidence_class)) ? t(`evidence.${String(c.evidence_class)}`) : String(c.evidence_class)) : "—"}
                   {c.note ? ` · ${String(c.note)}` : ""}
                 </p>
               </div>
@@ -240,7 +246,7 @@ export function CuppingCitationManager({
                   onClick={() => void handleEdit(c)}
                   className={kupaRowAction}
                 >
-                  Düzenle
+                  {tc("edit")}
                 </button>
                 <button
                   type="button"
@@ -248,7 +254,7 @@ export function CuppingCitationManager({
                   disabled={busy}
                   className={kupaRowActionDanger}
                 >
-                  Kaldır
+                  {t("remove")}
                 </button>
               </div>
             </div>
@@ -262,8 +268,8 @@ export function CuppingCitationManager({
             kaynak değişmez (yalnız sayfa/kanıt/not) → alan kilitli. */}
         <div className="sm:col-span-2">
           <SourceNameField
-            label="Kaynak (kimden / nereden öğrendim)"
-            placeholder="Örn. Ahmet Hoca Eğitim Notu, kendi eğitim notlarım, X Kitabı…"
+            label={t("sourceLabel")}
+            placeholder={t("sourcePlaceholder")}
             value={form.source_text}
             onChange={(v) => setForm((f) => ({ ...f, source_text: v }))}
             sources={sources}
@@ -274,50 +280,47 @@ export function CuppingCitationManager({
         <select
           value={form.evidence_class}
           onChange={(e) => setForm((f) => ({ ...f, evidence_class: e.target.value }))}
-          aria-label="Kanıt sınıfı"
+          aria-label={t("evidenceAria")}
           className={kupaInput}
         >
-          <option value="">— kanıt sınıfı —</option>
-          {EVIDENCE_OPTIONS.map((o) => (
-            <option key={o.value} value={o.value}>
-              {o.label}
+          <option value="">{t("evidenceEmpty")}</option>
+          {EVIDENCE_OPTIONS.map((v) => (
+            <option key={v} value={v}>
+              {t(`evidence.${v}`)}
             </option>
           ))}
         </select>
         <input
           value={form.locator}
           onChange={(e) => setForm((f) => ({ ...f, locator: e.target.value }))}
-          placeholder="Sayfa / bölüm (locator)"
-          aria-label="Sayfa / bölüm (locator)"
+          placeholder={t("locator")}
+          aria-label={t("locator")}
           className={kupaInput}
         />
         <input
           value={form.note}
           onChange={(e) => setForm((f) => ({ ...f, note: e.target.value }))}
-          placeholder="Atıf notu (opsiyonel)"
-          aria-label="Atıf notu (opsiyonel)"
+          placeholder={t("note")}
+          aria-label={t("note")}
           className={kupaInput}
         />
       </div>
       <div className="mt-2 flex flex-wrap items-center gap-2">
         <button type="button" onClick={handleSave} disabled={busy} className={kupaBtnPrimary}>
-          {editingId ? "Kaynağı Güncelle" : "Kaynak Bağla"}
+          {editingId ? t("update") : t("link")}
         </button>
         {editingId || dirty ? (
           <button type="button" onClick={() => void cancelEdit()} className={kupaBtnGhost}>
-            Vazgeç
+            {tc("cancel")}
           </button>
         ) : null}
       </div>
 
       <KupaConfirmDialog
         open={removeTarget !== null}
-        title="Kaynağı kaldır"
-        description={
-          `“${removeTarget ? sourceName(removeTarget.source_id) : ""}” kaynağının bu kayıtla ` +
-          `bağlantısı kaldırılacak. Kaynak, kaynak kataloğunuzda kalır (tamamen silinmez).`
-        }
-        confirmLabel="Kaldır"
+        title={t("removeTitle")}
+        description={t("removeConfirm", { name: removeTarget ? sourceName(removeTarget.source_id) : "" })}
+        confirmLabel={t("remove")}
         busy={busy}
         onConfirm={performRemove}
         onClose={() => {

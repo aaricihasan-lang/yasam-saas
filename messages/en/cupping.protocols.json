@@ -241,6 +241,17 @@
         "contraLabel": "Contraindication Class",
         "contraAria": "Contraindication class",
         "createAndAdd": "Create and Add"
+      },
+      "new": {
+        "title": "New Protocol",
+        "subtitle": "Make a short start; you will develop the areas, flow and information in the protocol file.",
+        "crumb": "New",
+        "titlePlaceholder": "e.g. Migraine",
+        "summaryPlaceholder": "A short description of this protocol…"
+      },
+      "card": {
+        "updated": "Updated: {date}",
+        "open": "Open →"
       }
     }
   }

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { KupaShell, kupaEdgeCard } from "../../components/KupaShell";
 import { TechniqueEditor } from "../components/TechniqueEditor";
 import { listTechniques } from "../../lib/api";
@@ -16,6 +17,7 @@ import { KupaUnsavedGuardScope } from "../../lib/UnsavedGuardScope";
  */
 export default function YeniTeknikPage() {
   const router = useRouter();
+  const t = useTranslations("cupping.techniques");
   const [existing, setExisting] = useState<{ id: string; label: string }[]>([]);
 
   useEffect(() => {
@@ -32,10 +34,10 @@ export default function YeniTeknikPage() {
 
   return (
     <KupaShell
-      title="Yeni Teknik"
+      title={t("page.newTitle")}
       breadcrumb={[
-        { label: "Kupa Teknikleri", href: "/kupa/teknikler" },
-        { label: "Yeni Teknik" },
+        { label: t("list.title"), href: "/kupa/teknikler" },
+        { label: t("page.newTitle") },
       ]}
     >
       {/* FINAL-A1: kaydedilmemiş form → link / geri / yenileme önce onay ister. */}

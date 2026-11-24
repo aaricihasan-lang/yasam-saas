@@ -93,6 +93,73 @@
       },
       "unspecified": "Belirtilmemiş",
       "all": "Tümü"
+    },
+    "unsaved": {
+      "title": "Kaydedilmemiş Değişiklikler",
+      "message": "Kaydedilmemiş değişiklikleriniz var.\nKaydetmeden çıkmak istiyor musunuz?",
+      "confirm": "Kaydetmeden Çık",
+      "cancel": "Vazgeç"
+    },
+    "crud": {
+      "loadError": "Yükleme hatası.",
+      "required": "{label} gerekli.",
+      "deleteNoop": "Kayıt silinemedi (bu hesapta değişiklik yapılmadı).",
+      "deleteFailed": "Silinemedi.",
+      "impactFailed": "Silme etkisi hesaplanamadı; silme yapılmadı. Tekrar deneyin.",
+      "impactFailedShort": "Hata",
+      "records": "Kayıtlar",
+      "searchPlaceholder": "Ara…",
+      "searchAria": "Kayıtlarda ara",
+      "filterAll": "{label}: Tümü",
+      "results": "{count} sonuç",
+      "clear": "Temizle",
+      "noMatch": "Aramanıza uygun kayıt bulunamadı.",
+      "selectHint": "Düzenlemek için soldan bir kayıt seçin veya yeni ekleyin.",
+      "add": "Ekle",
+      "checking": "Kontrol ediliyor…",
+      "deleteBlockedTitle": "Kayıt silinemiyor",
+      "deleteTitle": "Kaydı sil",
+      "deleteConfirm": "“{name}” kaydını silmek istediğinize emin misiniz? Bu işlem geri alınamaz.",
+      "thisRecord": "Bu kayıt"
+    },
+    "bigNote": {
+      "unsaved": "Kaydedilmemiş değişiklik",
+      "hint": "{count} karakter · Kalıcı kayıt için formdaki <strong>Kaydet</strong>'e basın",
+      "apply": "Uygula"
+    },
+    "usage": {
+      "loadError": "Kullanım bilgisi yüklenemedi.",
+      "title": "Kullanıldığı Protokoller",
+      "unused": "Bu kayıt henüz bir protokolde kullanılmıyor. (Silinebilir.)",
+      "usedIn": "Bu kayıt {count} protokolde kullanılıyor; silmeden önce bu protokollerden çıkarın."
+    },
+    "citation": {
+      "evidence": {
+        "traditional": "Geleneksel",
+        "historical": "Tarihsel",
+        "modern_clinical": "Modern Klinik",
+        "systematic_review": "Sistematik Derleme",
+        "safety_guidance": "Güvenlik Rehberi",
+        "expert_educational": "Uzman / Eğitim"
+      },
+      "unknownSource": "(kaynak)",
+      "loadError": "Kaynaklar yüklenemedi.",
+      "nameRequired": "Kaynak adını yazın (ör. Ahmet Hoca Eğitim Notu).",
+      "removeNoop": "Bağlantı kaldırılamadı (bu hesapta değişiklik yapılmadı).",
+      "removeFailed": "Kaldırılamadı.",
+      "title": "Kaynaklar",
+      "empty": "Henüz kaynak bağlanmadı.",
+      "remove": "Kaldır",
+      "sourceLabel": "Kaynak (kimden / nereden öğrendim)",
+      "sourcePlaceholder": "Örn. Ahmet Hoca Eğitim Notu, kendi eğitim notlarım, X Kitabı…",
+      "evidenceAria": "Kanıt sınıfı",
+      "evidenceEmpty": "— kanıt sınıfı —",
+      "locator": "Sayfa / bölüm (locator)",
+      "note": "Atıf notu (opsiyonel)",
+      "update": "Kaynağı Güncelle",
+      "link": "Kaynak Bağla",
+      "removeTitle": "Kaynağı kaldır",
+      "removeConfirm": "“{name}” kaynağının bu kayıtla bağlantısı kaldırılacak. Kaynak, kaynak kataloğunuzda kalır (tamamen silinmez)."
     }
   }
 }
