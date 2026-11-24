@@ -29,6 +29,9 @@ import tr_common from "@/messages/tr/common.json";
 import tr_commonLanguagePreference from "@/messages/tr/common.languagePreference.json";
 import tr_home from "@/messages/tr/home.json";
 import tr_journey from "@/messages/tr/journey.json";
+import tr_memoryArchive from "@/messages/tr/memory.archive.json";
+import tr_memoryModules from "@/messages/tr/memory.modules.json";
+import tr_memoryWorkspace from "@/messages/tr/memory.workspace.json";
 import tr_memoryPicker from "@/messages/tr/memoryPicker.json";
 import tr_navigation from "@/messages/tr/navigation.json";
 import tr_stonesCombinations from "@/messages/tr/stones.combinations.json";
@@ -65,6 +68,9 @@ import en_common from "@/messages/en/common.json";
 import en_commonLanguagePreference from "@/messages/en/common.languagePreference.json";
 import en_home from "@/messages/en/home.json";
 import en_journey from "@/messages/en/journey.json";
+import en_memoryArchive from "@/messages/en/memory.archive.json";
+import en_memoryModules from "@/messages/en/memory.modules.json";
+import en_memoryWorkspace from "@/messages/en/memory.workspace.json";
 import en_memoryPicker from "@/messages/en/memoryPicker.json";
 import en_navigation from "@/messages/en/navigation.json";
 import en_stonesCombinations from "@/messages/en/stones.combinations.json";
@@ -77,8 +83,8 @@ import en_stonesRecords from "@/messages/en/stones.records.json";
 import en_terms from "@/messages/en/terms.json";
 
 export const CATALOG_FILES = {
-  tr: ["agenda.json", "auth.client.json", "auth.email.json", "auth.server.json", "auth.ui.json", "beslenme.json", "clients.analizler.json", "clients.anamnez.json", "clients.charges.json", "clients.combinations.json", "clients.consent.json", "clients.detail.json", "clients.homework.json", "clients.json", "clients.list.json", "clients.memory.json", "clients.notes.json", "clients.sessions.json", "clients.stones.json", "clients.yolculuk.json", "common.apiErrors.json", "common.deleteConfirm.json", "common.json", "common.languagePreference.json", "home.json", "journey.json", "memoryPicker.json", "navigation.json", "stones.combinations.json", "stones.hub.json", "stones.json", "stones.knowledge.json", "stones.list.json", "stones.minerals.json", "stones.records.json", "terms.json"],
-  en: ["agenda.json", "auth.client.json", "auth.email.json", "auth.server.json", "auth.ui.json", "beslenme.json", "clients.analizler.json", "clients.anamnez.json", "clients.charges.json", "clients.combinations.json", "clients.consent.json", "clients.detail.json", "clients.homework.json", "clients.json", "clients.list.json", "clients.memory.json", "clients.notes.json", "clients.sessions.json", "clients.stones.json", "clients.yolculuk.json", "common.apiErrors.json", "common.deleteConfirm.json", "common.json", "common.languagePreference.json", "home.json", "journey.json", "memoryPicker.json", "navigation.json", "stones.combinations.json", "stones.hub.json", "stones.json", "stones.knowledge.json", "stones.list.json", "stones.minerals.json", "stones.records.json", "terms.json"],
+  tr: ["agenda.json", "auth.client.json", "auth.email.json", "auth.server.json", "auth.ui.json", "beslenme.json", "clients.analizler.json", "clients.anamnez.json", "clients.charges.json", "clients.combinations.json", "clients.consent.json", "clients.detail.json", "clients.homework.json", "clients.json", "clients.list.json", "clients.memory.json", "clients.notes.json", "clients.sessions.json", "clients.stones.json", "clients.yolculuk.json", "common.apiErrors.json", "common.deleteConfirm.json", "common.json", "common.languagePreference.json", "home.json", "journey.json", "memory.archive.json", "memory.modules.json", "memory.workspace.json", "memoryPicker.json", "navigation.json", "stones.combinations.json", "stones.hub.json", "stones.json", "stones.knowledge.json", "stones.list.json", "stones.minerals.json", "stones.records.json", "terms.json"],
+  en: ["agenda.json", "auth.client.json", "auth.email.json", "auth.server.json", "auth.ui.json", "beslenme.json", "clients.analizler.json", "clients.anamnez.json", "clients.charges.json", "clients.combinations.json", "clients.consent.json", "clients.detail.json", "clients.homework.json", "clients.json", "clients.list.json", "clients.memory.json", "clients.notes.json", "clients.sessions.json", "clients.stones.json", "clients.yolculuk.json", "common.apiErrors.json", "common.deleteConfirm.json", "common.json", "common.languagePreference.json", "home.json", "journey.json", "memory.archive.json", "memory.modules.json", "memory.workspace.json", "memoryPicker.json", "navigation.json", "stones.combinations.json", "stones.hub.json", "stones.json", "stones.knowledge.json", "stones.list.json", "stones.minerals.json", "stones.records.json", "terms.json"],
 } as const;
 
 export const CATALOG_PARTS: Record<"tr" | "en", Record<string, unknown>[]> = {
@@ -109,6 +115,9 @@ export const CATALOG_PARTS: Record<"tr" | "en", Record<string, unknown>[]> = {
     tr_commonLanguagePreference,
     tr_home,
     tr_journey,
+    tr_memoryArchive,
+    tr_memoryModules,
+    tr_memoryWorkspace,
     tr_memoryPicker,
     tr_navigation,
     tr_stonesCombinations,
@@ -147,6 +156,9 @@ export const CATALOG_PARTS: Record<"tr" | "en", Record<string, unknown>[]> = {
     en_commonLanguagePreference,
     en_home,
     en_journey,
+    en_memoryArchive,
+    en_memoryModules,
+    en_memoryWorkspace,
     en_memoryPicker,
     en_navigation,
     en_stonesCombinations,

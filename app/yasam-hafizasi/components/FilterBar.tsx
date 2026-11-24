@@ -1,6 +1,8 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import type { YhSourceModule } from "@/lib/yasam-hafizasi/config";
+import { useYhModuleLabel } from "./useYhLabels";
 import type { YhFacet } from "@/lib/yasam-hafizasi/ui/searchResult";
 
 /**
@@ -19,10 +21,12 @@ export function FilterBar({
   onToggleModule: (m: YhSourceModule) => void;
   onClear: () => void;
 }) {
+  const t = useTranslations("memory.workspace.filters");
+  const label = useYhModuleLabel();
   return (
     <div className="mb-4 rounded-2xl border border-white/80 bg-white/70 p-3 shadow-sm backdrop-blur-sm">
       <div className="flex flex-wrap items-center gap-2">
-        <span className="text-[11px] font-black uppercase tracking-wider text-slate-500">Modüller</span>
+        <span className="text-[11px] font-black uppercase tracking-wider text-slate-500">{t("modules")}</span>
         <div className="-mx-1 flex flex-1 gap-2 overflow-x-auto px-1 py-0.5">
           {facets.map((f) => {
             const active = selected.includes(f.module);
@@ -38,7 +42,7 @@ export function FilterBar({
                     : "border-slate-200 bg-white text-slate-700 hover:border-violet-300"
                 }`}
               >
-                {f.moduleLabel}
+                {label.professional(f.module, f.moduleLabel)}
                 <span className={`rounded-full px-1.5 text-xs ${active ? "bg-white/25" : "bg-slate-100 text-slate-500"}`}>
                   {f.count}
                 </span>
@@ -48,7 +52,7 @@ export function FilterBar({
         </div>
         {selected.length > 0 ? (
           <button type="button" onClick={onClear} className="text-xs font-semibold text-slate-500 hover:text-violet-700">
-            Temizle
+            {t("clear")}
           </button>
         ) : null}
       </div>

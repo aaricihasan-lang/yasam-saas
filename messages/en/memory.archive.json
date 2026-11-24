@@ -1,0 +1,23 @@
+{
+  "memory": {
+    "archive": {
+      "label": "Life Memory",
+      "state": {
+        "included": "This record is searchable in your Professional Memory.",
+        "needsReview": "This record was removed from Memory because it changed. Confirm to include it again.",
+        "excluded": "This record is not included in your Professional Memory."
+      },
+      "scopeNote": "Only the title, note, category and tags are searched. File contents are not searched.",
+      "remove": "Remove from Memory",
+      "noContent": "Add a title or note to the record to include it in Memory.",
+      "confirmCheckbox": "This record contains no client identity or private information (name, phone, address, health history, etc.).",
+      "confirmInclude": "Confirm and include",
+      "cancel": "Cancel",
+      "include": "Include in Life Memory",
+      "errors": {
+        "noIndexableContent": "This record has no searchable title/note.",
+        "generic": "The action could not be completed. Please try again."
+      }
+    }
+  }
+}
