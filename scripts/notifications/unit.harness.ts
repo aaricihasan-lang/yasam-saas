@@ -208,7 +208,9 @@ console.log("\n[5] Statik: route güvenliği + bileşen sözleşmesi");
   const stripComments = (src: string) => src.replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, "");
   ok(!/\balert\(/.test(stripComments(bell + store)), "alert() YOK");
   // Final-A2: etiket okunmamış sayısını da taşır ("Bildirimler, N okunmamış"); aria-haspopup (menü anlamı) kaldırıldı.
-  ok(/aria-label=\{unread > 0 \? `Bildirimler, \$\{unread\} okunmamış` : "Bildirimler"\}/.test(bell) && /aria-expanded=\{open\}/.test(bell) && !/aria-haspopup/.test(bell), "zil: aria-label (okunmamış sayısıyla) + aria-expanded");
+  // I18N (gece 2026-11-25): aria-label metni notifications.bell.{ariaUnread,title} anahtarlarına taşındı; TR katalogda birebir.
+  const bellTr = (JSON.parse(read("messages/tr/notifications.json")) as { notifications: { bell: Record<string, string> } }).notifications.bell;
+  ok(/aria-label=\{unread > 0 \? t\("ariaUnread", \{ count: String\(unread\) \}\) : t\("title"\)\}/.test(bell) && bellTr.ariaUnread === "Bildirimler, {count} okunmamış" && bellTr.title === "Bildirimler" && /aria-expanded=\{open\}/.test(bell) && !/aria-haspopup/.test(bell), "zil: aria-label (okunmamış sayısıyla) + aria-expanded");
   ok(/role="dialog"/.test(bell) && /aria-labelledby=\{panelTitleId\}/.test(bell) && /focus\(\{ preventScroll: true \}\)/.test(bell) && /aria-live="polite"/.test(bell), "zil paneli: dialog + başlık + odak + canlı bölge");
   ok(/createPortal\(/.test(bell) && /document\.body,/.test(bell) && /computeBellPanelBox\(/.test(bell) && /maxHeight: box\.maxHeight/.test(bell) && /min-h-0 flex-1 overflow-y-auto/.test(bell), "panel: body portalı + viewport içine sıkıştırılmış + kendi içinde kayar (WT8)");
   ok(/panelRef\.current\?\.contains\(e\.target\)/.test(bell), "panel: portal içi dokunuş 'dışarı' sayılmaz (WT8)");
