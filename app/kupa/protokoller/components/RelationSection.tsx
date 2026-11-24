@@ -146,7 +146,7 @@ export function RelationSection({ kind, protocolId, doc }: { kind: Kind; protoco
       try { await reload(); } catch { /* liste yenilenemedi; kayıt sonucu aşağıda bildirilir */ }
       setPending(failed);
       if (failed.length === 0) showToast({ message: tc("saved"), type: "success" });
-      else showToast({ message: t("partialSaveFailed", { count: failed.length, detail: errText(lastErr, t("errorShort")) }), type: "error" });
+      else showToast({ message: t("partialSaveFailed", { count: String(failed.length), detail: errText(lastErr, t("errorShort")) }), type: "error" });
     } finally {
       busyRef.current = false;
       setBusy(false);

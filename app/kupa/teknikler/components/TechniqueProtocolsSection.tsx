@@ -44,7 +44,7 @@ export function TechniqueProtocolsSection({ techniqueId }: { techniqueId: string
         ) : (
           <>
             <p className="text-[13px] font-semibold text-slate-600">
-              {t("usedIn", { count: rows.length })}
+              {t("usedIn", { count: String(rows.length) })}
             </p>
             <ul className="mt-2 flex flex-col gap-1.5">
               {rows.map((p) => (

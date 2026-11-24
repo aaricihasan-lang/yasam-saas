@@ -50,8 +50,7 @@
       "home": "Kupa & Hacamat girişi"
     },
     "errors": {
-      "network": "Sunucuya ulaşılamadı. İnternet bağlantınızı kontrol edip tekrar deneyin.",
-      "generic": "İşlem başarısız."
+      "network": "Sunucuya ulaşılamadı. İnternet bağlantınızı kontrol edip tekrar deneyin."
     },
     "common": {
       "save": "Kaydet",
@@ -61,7 +60,6 @@
       "cancel": "Vazgeç",
       "edit": "Düzenle",
       "delete": "Sil",
-      "open": "Aç",
       "close": "Kapat",
       "retry": "Tekrar dene",
       "loading": "Yükleniyor…",

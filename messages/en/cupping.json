@@ -50,8 +50,7 @@
       "home": "Cupping & Hijama home"
     },
     "errors": {
-      "network": "Could not reach the server. Please check your internet connection and try again.",
-      "generic": "The operation failed."
+      "network": "Could not reach the server. Please check your internet connection and try again."
     },
     "common": {
       "save": "Save",
@@ -61,7 +60,6 @@
       "cancel": "Cancel",
       "edit": "Edit",
       "delete": "Delete",
-      "open": "Open",
       "close": "Close",
       "retry": "Try again",
       "loading": "Loading…",
@@ -111,7 +109,7 @@
       "searchPlaceholder": "Search…",
       "searchAria": "Search records",
       "filterAll": "{label}: All",
-      "results": "{count} results",
+      "results": "{count, plural, one {{count} result} other {{count} results}}",
       "clear": "Clear",
       "noMatch": "No records match your search.",
       "selectHint": "Select a record on the left to edit, or add a new one.",
@@ -131,7 +129,7 @@
       "loadError": "Usage information could not be loaded.",
       "title": "Protocols Using This",
       "unused": "This record is not used in any protocol yet. (It can be deleted.)",
-      "usedIn": "This record is used in {count} protocol(s); remove it from these protocols before deleting."
+      "usedIn": "This record is used in {count, plural, one {{count} protocol} other {{count} protocols}}; remove it from these protocols before deleting."
     },
     "citation": {
       "evidence": {

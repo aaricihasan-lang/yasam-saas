@@ -63,7 +63,7 @@
         },
         "technique": {
           "title": "Technique / Method",
-          "description": "Technique(s) applied in this protocol and their protocol-specific descriptions.",
+          "description": "Techniques applied in this protocol and their protocol-specific descriptions.",
           "addLabel": "+ Add Technique",
           "pickerTitle": "Add Technique",
           "empty": "No application technique has been selected for this protocol yet.",
@@ -80,7 +80,7 @@
           "noteLabel": "Note specific to this protocol"
         },
         "alreadyListed": "This record is already in the list.",
-        "partialSaveFailed": "{count} record(s) could not be saved; they remain in the list. ({detail})",
+        "partialSaveFailed": "{count, plural, one {{count} record could not be saved; it remains} other {{count} records could not be saved; they remain}} in the list. ({detail})",
         "errorShort": "Error",
         "detach": {
           "title": "Remove",
@@ -183,7 +183,7 @@
       "prep": {
         "title": "Preparation / Aftercare / Follow-up",
         "preparation": "Pre-application Preparation",
-        "aftercare": "After Application",
+        "aftercare": "Aftercare",
         "followUp": "Follow-up / Next Session"
       },
       "basic": {

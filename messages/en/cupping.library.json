@@ -89,19 +89,19 @@
       },
       "sources": {
         "impact": {
-          "protocolSources": "{count} protocol source(s)",
-          "protocolEntries": "{count} protocol information record(s)",
+          "protocolSources": "{count, plural, one {{count} protocol source} other {{count} protocol sources}}",
+          "protocolEntries": "{count, plural, one {{count} protocol information record} other {{count} protocol information records}}",
           "and": " and ",
           "blocked": "The source “{name}” is used by {parts}, so it cannot be deleted. Remove this source from the related protocols first.",
           "none": "There are no citations linked to this source.",
-          "cascade": "This source is used in {count} citation(s) ({detail}). If the source is deleted, all of these citations will also be removed permanently.",
-          "entity": {
-            "point": "point",
-            "topic": "purpose/complaint",
-            "pointTopic": "point–topic relationship",
-            "technique": "technique",
-            "knowledge": "information record",
-            "safety": "safety item"
+          "cascade": "This source is used in {count, plural, one {{count} citation} other {{count} citations}} ({detail}). If the source is deleted, all of these citations will also be removed permanently.",
+          "entityCount": {
+            "point": "{count, plural, one {{count} point} other {{count} points}}",
+            "topic": "{count, plural, one {{count} purpose/complaint} other {{count} purposes/complaints}}",
+            "pointTopic": "{count, plural, one {{count} point–topic relationship} other {{count} point–topic relationships}}",
+            "technique": "{count, plural, one {{count} technique} other {{count} techniques}}",
+            "knowledge": "{count, plural, one {{count} information record} other {{count} information records}}",
+            "safety": "{count, plural, one {{count} safety item} other {{count} safety items}}"
           }
         },
         "title": "Source Catalogue",

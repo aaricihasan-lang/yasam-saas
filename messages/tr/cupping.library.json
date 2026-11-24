@@ -95,13 +95,13 @@
           "blocked": "“{name}” kaynağı {parts} tarafından kullanılıyor; bu nedenle silinemez. Önce ilgili protokollerden bu kaynağı çıkarın.",
           "none": "Bu kaynağa bağlı atıf yok.",
           "cascade": "Bu kaynak {count} atıfta kullanılıyor ({detail}). Kaynak silinirse bu atıfların tamamı da kalıcı olarak kaldırılacaktır.",
-          "entity": {
-            "point": "nokta",
-            "topic": "amaç/rahatsızlık",
-            "pointTopic": "nokta–konu ilişkisi",
-            "technique": "teknik",
-            "knowledge": "bilgi kaydı",
-            "safety": "güvenlik maddesi"
+          "entityCount": {
+            "point": "{count} nokta",
+            "topic": "{count} amaç/rahatsızlık",
+            "pointTopic": "{count} nokta–konu ilişkisi",
+            "technique": "{count} teknik",
+            "knowledge": "{count} bilgi kaydı",
+            "safety": "{count} güvenlik maddesi"
           }
         },
         "title": "Kaynak Kataloğu",

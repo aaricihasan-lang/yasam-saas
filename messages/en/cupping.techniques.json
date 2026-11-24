@@ -15,7 +15,7 @@
         "emptyNote": "No personal note has been added yet.",
         "blockedTitle": "Technique cannot be deleted",
         "blockedBody": "This technique is used in one or more protocols.\nYou need to remove the technique from the related protocols before deleting it.",
-        "usedInProtocols": "Protocols using it",
+        "usedInProtocols": "Protocols Using This",
         "openProtocol": "Open Protocol →",
         "deleteTitle": "Delete technique?",
         "deleteBody": "This technique will be deleted permanently. This action cannot be undone.",
@@ -42,7 +42,7 @@
         "title": "Protocols Using This",
         "loadError": "Protocol usage could not be loaded.",
         "unused": "This technique is not used in any protocol yet.",
-        "usedIn": "Used in {count} protocol(s)"
+        "usedIn": "Used in {count, plural, one {{count} protocol} other {{count} protocols}}"
       },
       "sources": {
         "title": "Sources",

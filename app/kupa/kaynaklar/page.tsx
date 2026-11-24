@@ -72,8 +72,8 @@ const makeSourceDeleteImpact = (t: Tr) => async function sourceDeleteImpact(rec:
   const protocolUse = u.protocolSources + u.protocolEntries;
   if (protocolUse > 0) {
     const parts = [
-      u.protocolSources > 0 ? t("impact.protocolSources", { count: u.protocolSources }) : "",
-      u.protocolEntries > 0 ? t("impact.protocolEntries", { count: u.protocolEntries }) : "",
+      u.protocolSources > 0 ? t("impact.protocolSources", { count: String(u.protocolSources) }) : "",
+      u.protocolEntries > 0 ? t("impact.protocolEntries", { count: String(u.protocolEntries) }) : "",
     ].filter(Boolean);
     return {
       blocked: true,
@@ -83,10 +83,11 @@ const makeSourceDeleteImpact = (t: Tr) => async function sourceDeleteImpact(rec:
   if (u.citationTotal === 0) return { message: t("impact.none") };
   const detail = (Object.keys(u.citations) as CuppingCitationEntity[])
     .filter((k) => u.citations[k] > 0)
-    .map((k) => `${u.citations[k]} ${t(`impact.entity.${CITATION_LABEL_KEYS[k]}`)}`)
+    // Bilinmeyen entity (tip dışı sunucu yanıtı) → ham anahtar yolu yerine ham kod gösterilir (QA C-12).
+    .map((k) => (CITATION_LABEL_KEYS[k] ? t(`impact.entityCount.${CITATION_LABEL_KEYS[k]}`, { count: String(u.citations[k]) }) : `${u.citations[k]} ${k}`))
     .join(", ");
   return {
-    message: t("impact.cascade", { count: u.citationTotal, detail }),
+    message: t("impact.cascade", { count: String(u.citationTotal), detail }),
   };
 };
 

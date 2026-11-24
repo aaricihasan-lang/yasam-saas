@@ -79,7 +79,7 @@ export function CuppingProtocolUsage({
             ))}
           </ul>
           <p className="mt-1.5 text-[10px] text-amber-700">
-            {t("usedIn", { count: protocols.length })}
+            {t("usedIn", { count: String(protocols.length) })}
           </p>
         </>
       )}
