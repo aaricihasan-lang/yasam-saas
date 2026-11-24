@@ -8,6 +8,8 @@
  * Alt sayfaların ortak BeslenmeShell'i değişmedi; hub kendi premium başlık panelini çizer.
  */
 import { useEffect, useState, type ReactNode } from "react";
+import { useTranslations } from "next-intl";
+import { useBeslenmeLabels } from "./_components/useBeslenmeLabels";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -28,7 +30,6 @@ import {
 import { fetchCounts, fetchBeslenmeCapabilities } from "@/lib/beslenme/beslenmeClient";
 import ClientPicker from "@/components/danisan/ClientPicker";
 import { BeslenmeGate, useBeslenmeModuleGuard } from "./_components/BeslenmeShell";
-import { friendlyError } from "./_components/constants";
 import hubStyles from "@/app/_premium/beslenme/beslenmeHub.module.css";
 
 type Counts = { foods: number; guides: number; mizac: number; bloodType: number; sources: number };
@@ -51,41 +52,29 @@ type ArtKey = keyof typeof ART;
 const MODULES = [
   {
     href: "/beslenme/besinler",
-    label: "Besinler",
-    description: "Besin kütüphanesi: isim, grup, hazırlık durumu, açıklama ve kaynaklar.",
     icon: Package,
     countKey: "foods" as const,
-    unit: "besin",
     art: "besinler" as const,
     tone: "mint" as const,
   },
   {
     href: "/beslenme/rehber",
-    label: "Beslenme Rehberi",
-    description: "Beslenme yaklaşımları: bölümler, ilişkili besinler ve kaynaklı içerik.",
     icon: BookOpen,
     countKey: "guides" as const,
-    unit: "rehber",
     art: "rehber" as const,
     tone: "sky" as const,
   },
   {
     href: "/beslenme/mizac",
-    label: "Mizaca Göre",
-    description: "Dört mizaç (Dem, Safra, Sovdavi, Balgam) için beslenme profilleri.",
     icon: Compass,
     countKey: "mizac" as const,
-    unit: "profil",
     art: "mizac" as const,
     tone: "cream" as const,
   },
   {
     href: "/beslenme/kan-grubu",
-    label: "Kan Grubuna Göre",
-    description: "0, A, B ve AB kan grupları için beslenme profilleri.",
     icon: HeartPulse,
     countKey: "bloodType" as const,
-    unit: "profil",
     art: "kan" as const,
     tone: "rose" as const,
   },
@@ -133,6 +122,9 @@ function HubCardInner({
 export default function BeslenmeHubPage() {
   const guard = useBeslenmeModuleGuard();
   const router = useRouter();
+  // Kart başlık/açıklama/rozet metinleri beslenme.hub.modules.<art> (art kanonik kart anahtarı).
+  const th = useTranslations("beslenme.hub");
+  const bl = useBeslenmeLabels();
   const [counts, setCounts] = useState<Counts | null>(null);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
@@ -152,21 +144,21 @@ export default function BeslenmeHubPage() {
       setLoading(false);
       setHasClients(caps.clients);
       if (r.ok && r.data?.counts) setCounts(r.data.counts);
-      else setErr(friendlyError(r.code, r.status));
+      else setErr(bl.error(r.code, r.status));
     })();
     return () => {
       alive = false;
     };
-  }, [guard]);
+  }, [guard, bl]);
 
   if (guard !== "ok") return <BeslenmeGate state={guard} />;
 
   const stats = [
-    { label: "Besin", value: counts?.foods, tone: "green", Icon: Package },
-    { label: "Rehber", value: counts?.guides, tone: "blue", Icon: BookOpen },
-    { label: "Mizaç", value: counts?.mizac, tone: "amber", Icon: Leaf },
-    { label: "Kan Grubu", value: counts?.bloodType, tone: "red", Icon: Droplet },
-    { label: "Kaynak", value: counts?.sources, tone: "violet", Icon: Database },
+    { label: th("statFoods"), value: counts?.foods, tone: "green", Icon: Package },
+    { label: th("statGuides"), value: counts?.guides, tone: "blue", Icon: BookOpen },
+    { label: th("statMizac"), value: counts?.mizac, tone: "amber", Icon: Leaf },
+    { label: th("statBlood"), value: counts?.bloodType, tone: "red", Icon: Droplet },
+    { label: th("statSources"), value: counts?.sources, tone: "violet", Icon: Database },
   ];
 
   // Üst sıra: Planlar + Şablonlar (+ Danışan Planları) + Besinler → 4 kart (Danışan gizliyse 3; ızgara dengeli kalır).
@@ -175,7 +167,7 @@ export default function BeslenmeHubPage() {
 
   function moduleBadge(m: (typeof MODULES)[number]): string | null {
     const value = counts?.[m.countKey];
-    return !loading && typeof value === "number" ? `${value} ${m.unit}` : null;
+    return !loading && typeof value === "number" ? th(`modules.${m.art}.badge`, { count: value }) : null;
   }
 
   return (
@@ -185,16 +177,15 @@ export default function BeslenmeHubPage() {
           <div className={hubStyles.heroText}>
             <p className={hubStyles.heroBadge}>
               <span className={hubStyles.dot} aria-hidden />
-              Beslenme &amp; Metabolik Yaşam
+              {th("heroBadge")}
             </p>
-            <h1 className={hubStyles.heroTitle}>Beslenme</h1>
+            <h1 className={hubStyles.heroTitle}>{th("heroTitle")}</h1>
             <p className={hubStyles.heroSub}>
-              Besin kütüphanesi, beslenme rehberleri ve mizaç/kan grubu profilleri. Kaynak temelli profesyonel referans
-              ve çalışma merkezi.
+              {th("heroSub")}
             </p>
           </div>
           <div className={hubStyles.heroStats}>
-            <ul className={hubStyles.stats} aria-label="Beslenme sayaçları">
+            <ul className={hubStyles.stats} aria-label={th("statsAria")}>
               {stats.map((s) => (
                 <li key={s.label} className={hubStyles.stat} data-tone={s.tone}>
                   <span className={hubStyles.statIcon} aria-hidden>
@@ -213,23 +204,23 @@ export default function BeslenmeHubPage() {
         {err ? <div className={hubStyles.error}>{err}</div> : null}
 
         {/* Hızlı aksiyonlar */}
-        <div className={hubStyles.actions} role="group" aria-label="Hızlı işlemler">
+        <div className={hubStyles.actions} role="group" aria-label={th("actionsAria")}>
           <Link href="/beslenme/besinler" className={`${hubStyles.action} ${hubStyles.actionPrimary}`}>
-            <Plus className="h-4 w-4" strokeWidth={2.4} aria-hidden /> Besin
+            <Plus className="h-4 w-4" strokeWidth={2.4} aria-hidden /> {th("actionFood")}
           </Link>
           <Link href="/beslenme/rehber" className={hubStyles.action}>
-            <Plus className="h-4 w-4" strokeWidth={2.4} aria-hidden /> Beslenme Kaydı
+            <Plus className="h-4 w-4" strokeWidth={2.4} aria-hidden /> {th("actionRecord")}
           </Link>
         </div>
 
-        <section className={hubStyles.cards} aria-label="Beslenme çalışma alanları">
+        <section className={hubStyles.cards} aria-label={th("cardsAria")}>
           {/* Beslenme Planları — sayaçsız (kart planlara doğrudan yönlendirir) */}
           <Link href="/beslenme/planlar" className={topCls} data-card="planlar" data-tone="mint">
             <HubCardInner
               art="planlar"
               icon={<CalendarDays className="h-[22px] w-[22px]" strokeWidth={1.8} />}
-              title="Beslenme Planları"
-              description="Günlük, haftalık ve aylık beslenme planları oluşturun; kalori ve besin değerlerini otomatik hesaplayın."
+              title={th("plansTitle")}
+              description={th("plansDesc")}
             />
           </Link>
 
@@ -238,8 +229,8 @@ export default function BeslenmeHubPage() {
             <HubCardInner
               art="sablonlar"
               icon={<LayoutTemplate className="h-[22px] w-[22px]" strokeWidth={1.8} />}
-              title="Şablonlar"
-              description="Sık kullandığınız öğünleri ve günleri şablon olarak saklayın; planlara hızlıca uygulayın."
+              title={th("templatesTitle")}
+              description={th("templatesDesc")}
             />
           </Link>
 
@@ -256,8 +247,8 @@ export default function BeslenmeHubPage() {
               <HubCardInner
                 art="danisan"
                 icon={<Users className="h-[22px] w-[22px]" strokeWidth={1.8} />}
-                title="Danışan Planları"
-                description="Bir danışan seçin; beslenme profili, ölçümleri ve planlarına ulaşın."
+                title={th("clientPlansTitle")}
+                description={th("clientPlansDesc")}
               />
             </button>
           ) : null}
@@ -266,8 +257,8 @@ export default function BeslenmeHubPage() {
             <HubCardInner
               art={foodsModule.art}
               icon={<foodsModule.icon className="h-[22px] w-[22px]" strokeWidth={1.8} />}
-              title={foodsModule.label}
-              description={foodsModule.description}
+              title={th(`modules.${foodsModule.art}.title`)}
+              description={th(`modules.${foodsModule.art}.description`)}
               badge={moduleBadge(foodsModule)}
             />
           </Link>
@@ -286,8 +277,8 @@ export default function BeslenmeHubPage() {
                 <HubCardInner
                   art={m.art}
                   icon={<Icon className="h-[22px] w-[22px]" strokeWidth={1.8} />}
-                  title={m.label}
-                  description={m.description}
+                  title={th(`modules.${m.art}.title`)}
+                  description={th(`modules.${m.art}.description`)}
                   badge={moduleBadge(m)}
                 />
               </Link>
@@ -298,7 +289,7 @@ export default function BeslenmeHubPage() {
         <footer className={hubStyles.footNote}>
           <Sprout className="h-[18px] w-[18px]" strokeWidth={1.8} aria-hidden />
           <span>
-            Beslenme Merkezi — besin kütüphanesi, kaynak temelli beslenme rehberleri ve geleneksel profil sistemleri.
+            {th("footNote")}
           </span>
         </footer>
       </div>
@@ -307,8 +298,8 @@ export default function BeslenmeHubPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4" onClick={() => setClientPickerOpen(false)}>
           <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
             <div className="mb-3 flex items-center justify-between">
-              <h3 className="text-base font-semibold text-emerald-900">Danışan Seç</h3>
-              <button className="text-sm text-slate-400 hover:text-slate-600" onClick={() => setClientPickerOpen(false)}>Kapat</button>
+              <h3 className="text-base font-semibold text-emerald-900">{th("pickClient")}</h3>
+              <button className="text-sm text-slate-400 hover:text-slate-600" onClick={() => setClientPickerOpen(false)}>{th("close")}</button>
             </div>
             <ClientPicker
               autoFocus

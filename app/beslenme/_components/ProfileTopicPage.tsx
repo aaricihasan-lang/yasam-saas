@@ -9,13 +9,14 @@
  * Mevcut profil topic'leri listTopics ile alınır ve başlığa göre eşleştirilir.
  */
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useTranslations } from "next-intl";
+import { useBeslenmeLabels } from "./useBeslenmeLabels";
 import { runInEffect } from "@/lib/runInEffect";
 import type { ReactNode } from "react";
 import { ArrowLeft, Plus, Sparkles } from "lucide-react";
 import type { Topic } from "@/lib/beslenme/beslenmeClient";
 import { createTopic, fetchReference, listTopics } from "@/lib/beslenme/beslenmeClient";
 import { BeslenmeShell } from "./BeslenmeShell";
-import { friendlyError } from "./constants";
 import { TopicDetailEditor } from "./TopicDetailEditor";
 import {
   Card,
@@ -48,6 +49,8 @@ export function ProfileTopicPage({
   subtitle: string;
   icon?: ReactNode;
 }) {
+  const tp = useTranslations("beslenme.profiles");
+  const bl = useBeslenmeLabels();
   const [frameworkId, setFrameworkId] = useState<string | null>(null);
   const [topics, setTopics] = useState<Topic[]>([]);
   const [loading, setLoading] = useState(true);
@@ -61,21 +64,21 @@ export function ProfileTopicPage({
     const ref = await fetchReference();
     if (!ref.ok || !ref.data) {
       setLoading(false);
-      setErr(friendlyError(ref.code, ref.status));
+      setErr(bl.error(ref.code, ref.status));
       return;
     }
     const fw = (ref.data.frameworks ?? []).find((f) => f.code === frameworkCode);
     if (!fw) {
       setLoading(false);
-      setErr("Bu bölüm için gerekli çerçeve tanımı bulunamadı. Lütfen yöneticinizle iletişime geçin.");
+      setErr(tp("noFramework"));
       return;
     }
     setFrameworkId(fw.id);
     const list = await listTopics({ type: "traditional_profile", framework_id: fw.id });
     setLoading(false);
     if (list.ok && list.data) setTopics(list.data.topics ?? []);
-    else setErr(friendlyError(list.code, list.status));
-  }, [frameworkCode]);
+    else setErr(bl.error(list.code, list.status));
+  }, [frameworkCode, tp, bl]);
 
   useEffect(() => {
     runInEffect(() => {
@@ -107,7 +110,7 @@ export function ProfileTopicPage({
       await load();
       setSelectedKey(profile.matchTitle);
     } else {
-      setErr(friendlyError(r.code, r.status));
+      setErr(bl.error(r.code, r.status));
     }
   }
 
@@ -125,7 +128,7 @@ export function ProfileTopicPage({
           <Card className="flex flex-col overflow-hidden">
             <div className="max-h-[70vh] overflow-y-auto p-2">
               {loading ? (
-                <InlineSpinner label="Profiller yükleniyor…" />
+                <InlineSpinner label={tp("loading")} />
               ) : (
                 <ul className="flex flex-col gap-1.5">
                   {profiles.map((p) => {
@@ -153,7 +156,7 @@ export function ProfileTopicPage({
                                 : "bg-slate-100 text-slate-400"
                             }`}
                           >
-                            {exists ? "Hazır" : "Boş"}
+                            {exists ? tp("ready") : tp("empty")}
                           </span>
                         </button>
                       </li>
@@ -169,8 +172,8 @@ export function ProfileTopicPage({
             <Card className="hidden p-8 lg:block">
               <EmptyState
                 icon={icon ?? <Sparkles className="h-8 w-8" />}
-                title="Bir profil seçin"
-                description="İçeriğini görüntülemek veya düzenlemek için soldan bir profil seçin."
+                title={tp("pickTitle")}
+                description={tp("pickDesc")}
               />
             </Card>
           ) : (
@@ -189,15 +192,15 @@ export function ProfileTopicPage({
                 <Card className="p-6">
                   <EmptyState
                     icon={icon ?? <Sparkles className="h-8 w-8" />}
-                    title={`${selected.label} — henüz içerik yok`}
-                    description="Bu profil için beslenme içeriği (bölümler, ilişkili besinler, kaynaklar) henüz oluşturulmadı. Oluşturarak düzenlemeye başlayabilirsiniz."
+                    title={tp("noContentTitle", { label: selected.label })}
+                    description={tp("noContentDesc")}
                     action={
                       <PrimaryButton
                         icon={<Plus className="h-4 w-4" />}
                         loading={creatingKey === selected.matchTitle}
                         onClick={() => void createFor(selected)}
                       >
-                        Profili Oluştur
+                        {tp("create")}
                       </PrimaryButton>
                     }
                   />
@@ -212,6 +215,7 @@ export function ProfileTopicPage({
 }
 
 function MobileBack({ onBack }: { onBack: () => void }) {
+  const tp = useTranslations("beslenme.profiles");
   return (
     <button
       type="button"
@@ -219,7 +223,7 @@ function MobileBack({ onBack }: { onBack: () => void }) {
       className="mb-3 inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[12px] font-bold text-slate-600 shadow-sm transition hover:bg-slate-50 lg:hidden"
     >
       <ArrowLeft className="h-3.5 w-3.5" aria-hidden />
-      Profillere Dön
+      {tp("back")}
     </button>
   );
 }
