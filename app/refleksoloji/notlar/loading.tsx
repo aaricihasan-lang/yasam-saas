@@ -1,5 +1,7 @@
+import { useTranslations } from "next-intl";
 import { RefleksolojiListLoading } from "../components/RefleksolojiSkeleton";
 
 export default function Loading() {
-  return <RefleksolojiListLoading badge="REFLEKSOLOJİ · KLİNİK NOTLAR" title="Klinik Notlar" />;
+  const t = useTranslations("system.loading.refleksoloji");
+  return <RefleksolojiListLoading badge={t("clinicalNotesBadge")} title={t("clinicalNotes")} />;
 }
