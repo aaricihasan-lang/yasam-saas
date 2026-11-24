@@ -22,8 +22,8 @@
           "badge": "Video"
         },
         "ders_notu": {
-          "title": "Lesson Notes Centre",
-          "desc": "Clean up a raw transcript and turn it into lesson notes. Human Design–compatible AI output.",
+          "title": "Lecture Notes Centre",
+          "desc": "Clean up a raw transcript and turn it into lecture notes. Human Design–compatible AI output.",
           "badge": "Notes"
         }
       }

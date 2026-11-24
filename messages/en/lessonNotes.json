@@ -3,8 +3,8 @@
     "header": {
       "badge": "Transcript Editing",
       "titleLead": "Cleaned",
-      "titleAccent": "Lesson Notes Centre",
-      "desc": "Paste the raw transcript or upload it as a TXT file. The system removes unnecessary talk and turns it into lesson notes."
+      "titleAccent": "Lecture Notes Centre",
+      "desc": "Paste the raw transcript or upload it as a TXT file. The system removes unnecessary talk and turns it into lecture notes."
     },
     "input": {
       "title": "Raw Transcript",
@@ -13,21 +13,21 @@
       "placeholder": "Paste the raw transcript here...",
       "charCount": "{count} / {max} characters",
       "clear": "Clear",
-      "overLimit": "The text exceeds the 40,000-character limit ({over} characters over). Please shorten it.",
+      "overLimit": "The text exceeds the 40,000-character limit (excess: {over}). Please shorten it.",
       "longWarning": "Long transcript — processing may take a few minutes. Do not close the page.",
       "cleaning": "Cleaning...",
-      "submit": "Clean Lesson Notes"
+      "submit": "Clean Lecture Notes"
     },
     "about": {
       "title": "What is this module?",
-      "item1": "The raw transcript is cleaned and converted into lesson-note format",
+      "item1": "The raw transcript is cleaned and converted into lecture-note format",
       "item2": "The instructor’s content is left untouched — only unnecessary talk is removed",
       "item3": "Human Design channel and gate numbers are corrected automatically",
       "item4": "Question-and-answer sections are preserved and formatted"
     },
     "result": {
-      "title": "Cleaned Lesson Notes",
-      "chars": "{count} characters",
+      "title": "Cleaned Lecture Notes",
+      "chars": "Characters: {count}",
       "copy": "Copy",
       "downloadTxt": "Download TXT",
       "downloadWord": "Download Word",
@@ -54,7 +54,7 @@
       "serverError": "Server error (HTTP {status})",
       "emptyOutput": "The output was empty.",
       "doneTitle": "Completed",
-      "doneMsg": "The lesson notes were cleaned successfully.",
+      "doneMsg": "The lecture notes were cleaned successfully.",
       "copiedTitle": "Copied",
       "textCopied": "Text copied to the clipboard."
     },
