@@ -1,6 +1,7 @@
 "use client";
 
 import { useId } from "react";
+import { useTranslations } from "next-intl";
 import { OTHER_TEXT_MAX, isOtherOption } from "@/lib/urun-stok/selectOther";
 
 /**
@@ -20,7 +21,7 @@ export function SelectWithOther({
   selectClassName,
   inputClassName,
   labelClassName = "mb-1 block text-sm font-black",
-  placeholder = "Yazınız",
+  placeholder: placeholderProp,
   transform,
   hint,
 }: {
@@ -40,6 +41,9 @@ export function SelectWithOther({
   /** Diğer seçiliyken gösterilen kısa ipucu. */
   hint?: string;
 }) {
+  const tOther = useTranslations("stock.hub.selectOther");
+  // otherLabel KANONİK (isOtherOption karşılaştırması) — çevrilmez; yalnız yer tutucu ve aria metni dile göre.
+  const placeholder = placeholderProp ?? tOther("placeholder");
   const id = useId();
   const other = isOtherOption(value, otherLabel);
   // Kayıtlı değer listede yoksa (eski veri) seçim kutusu boş görünmesin.
@@ -63,7 +67,7 @@ export function SelectWithOther({
             className={`${inputClassName ?? selectClassName} mt-2 min-h-[42px]`}
             value={custom}
             maxLength={OTHER_TEXT_MAX}
-            aria-label={`${label} — ${otherLabel} (yazınız)`}
+            aria-label={tOther("aria", { label, other: otherLabel })}
             aria-describedby={hint ? `${id}-hint` : undefined}
             placeholder={placeholder}
             onChange={(e) => onCustom(transform ? transform(e.target.value) : e.target.value)}

@@ -1,0 +1,54 @@
+{
+  "stock": {
+    "hub": {
+      "titleA": "Ürün",
+      "titleB": "Stok",
+      "titleC": "Merkezi",
+      "subtitle": "Tüm ürünlerinizi, stoklarınızı, satış ve fiyatlandırma süreçlerinizi tek merkezden yönetin.",
+      "modulesAria": "Ürün & Stok modülleri",
+      "cards": {
+        "tum-urunler": {
+          "title": "Tüm Ürünler",
+          "desc": "Doğaltaş, yağ, sabun, krem, tespih ve diğer tüm ürünleri tek listede görüntüleyin."
+        },
+        "dogaltas": {
+          "title": "Doğaltaş Ürün/Stok",
+          "desc": "Bileklik, dizi, kolye ve ham taş stokları; maliyet ve satış fiyatı."
+        },
+        "yag": {
+          "title": "Yağ Ürün/Stok",
+          "desc": "Uçucu yağ, sabit yağ ve karışım yağ ürünleri."
+        },
+        "sabun-krem": {
+          "title": "Sabun / Krem Ürünleri",
+          "desc": "Doğal sabun, krem ve bakım ürünleri stok yönetimi."
+        },
+        "tespih-taki": {
+          "title": "Tespih / Takı / Aksesuar",
+          "desc": "Tespih, bileklik, kolye ve aksesuar ürün stokları."
+        },
+        "satis-fiyat": {
+          "title": "Satış & Fiyatlandırma",
+          "desc": "Sepet, kur, maliyet, kâr hesabı ve satış kaydı."
+        },
+        "satis-gecmisi": {
+          "title": "Satış Geçmişi",
+          "desc": "Satış raporları, kâr analizi ve satın alma karar destek merkezi."
+        },
+        "diger-urunler": {
+          "title": "Diğer Ürünler",
+          "desc": "Kategoriye sığmayan tüm özel ürünler, farklı satış kalemleri ve serbest ürün stokları."
+        }
+      },
+      "critical": {
+        "none": "✓ Kritik stok yok",
+        "some": "🔴 {count} kritik ürün — listeye git →"
+      },
+      "selectOther": {
+        "other": "Diğer",
+        "placeholder": "Yazınız",
+        "aria": "{label} — {other} (yazınız)"
+      }
+    }
+  }
+}
