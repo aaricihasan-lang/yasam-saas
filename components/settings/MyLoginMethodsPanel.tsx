@@ -157,7 +157,7 @@ export default function MyLoginMethodsPanel({ userId }: { userId: string }) {
       {notice && <p role="status" className="mt-3 rounded-lg bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700">{notice}</p>}
 
       {/* E-posta */}
-      <div className="mt-3 rounded-xl border border-slate-200 px-3 py-3">
+      <div className="mt-3 rounded-xl border border-slate-200 px-3 py-3" data-testid="email-method-card">
         <p className="flex flex-wrap items-center gap-1.5 text-sm font-bold text-slate-900">
           <Mail className="h-4 w-4 text-slate-500" aria-hidden />
           E-posta ile kod
@@ -169,7 +169,7 @@ export default function MyLoginMethodsPanel({ userId }: { userId: string }) {
         </p>
         <p className="mt-0.5 break-all text-[11px] text-slate-500">{emailInfo?.email ?? "—"}</p>
         {emailInfo && !emailInfo.verified && !emailInfo.available && (
-          <p className="mt-2 text-[11px] text-slate-500">E-posta ile doğrulama bu hesapta şu anda kullanılamıyor.</p>
+          <p data-testid="email-verify-unavailable" className="mt-2 text-[11px] text-slate-500">E-posta ile doğrulama bu hesapta şu anda kullanılamıyor.</p>
         )}
         {emailInfo && !emailInfo.verified && emailInfo.available && (
           <div className="mt-2 flex flex-wrap items-center gap-2">
