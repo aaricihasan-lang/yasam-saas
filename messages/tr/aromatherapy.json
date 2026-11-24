@@ -1,0 +1,68 @@
+{
+  "aromatherapy": {
+    "shell": {
+      "home": "Aromaterapi",
+      "homeChip": "Aromaterapi Ana",
+      "crumbAria": "Sayfa konumu",
+      "homePage": "Ana Sayfa",
+      "soon": "Yakında"
+    },
+    "modules": {
+      "ana-ekran": {
+        "label": "Ana Ekran",
+        "description": "Aromaterapi çalışma merkezi ve bölümlere hızlı erişim."
+      },
+      "yaglar": {
+        "label": "Yağlar",
+        "description": "Uçucu, sabit ve maserasyon yağı kütüphanesi — arama, kayıt ve detay."
+      },
+      "karisimlar": {
+        "label": "Karışımlar",
+        "description": "Damla hesaplayıcı, güvenlik uyarıları ve reçete — karışım oluşturucu."
+      },
+      "bilgi-kayitlari": {
+        "label": "Bilgi Kayıtları",
+        "description": "Kaynağa dayalı, kanıt ve provenans taşıyan bilgi kayıtları; güvenlik filtresi."
+      },
+      "kaynaklar": {
+        "label": "Kaynaklar",
+        "description": "Kaynak → pasaj → sadık çeviri → editoryal açıklama/yorum provenans zinciri."
+      },
+      "katalog": {
+        "label": "Bitki & Preparat Kataloğu",
+        "description": "Bitki (takson) ve preparat kanonik omurgası — bilgi kaydının dayanağı."
+      },
+      "bilgi-bankasi": {
+        "label": "Bilgi Bankası & Sözlük",
+        "description": "Uzman referans içerikleri ve terim sözlüğü."
+      }
+    },
+    "facets": {
+      "ucucu": "Uçucu",
+      "sabit": "Sabit",
+      "maserasyon": "Maserasyon"
+    },
+    "hub": {
+      "sessionRequired": "Oturum açmanız gerekiyor. Lütfen sayfayı yenileyin.",
+      "statsFailed": "İstatistikler yüklenemedi.",
+      "wordReadyTitle": "Word hazırlandı",
+      "wordReadyBody": "Aromaterapi genel katalog raporu indiriliyor.",
+      "wordFailedTitle": "Word oluşturulamadı",
+      "wordFailedBody": "Rapor oluşturulamadı.",
+      "statTotal": "Toplam",
+      "statEssential": "Uçucu",
+      "statCarrier": "Sabit",
+      "statMaceration": "Maserasyon",
+      "statOther": "Diğer",
+      "eyebrow": "Terapötik Yağ Kütüphanesi",
+      "title": "Aromaterapi Merkezi",
+      "subtitle": "Uçucu, sabit ve maserasyon yağı kütüphaneleri, karışım oluşturucu, kaynaklar ve bilgi kayıtları. Profesyonel referans ve çalışma merkezi.",
+      "demoBanner": "Aromaterapi modülü demo hesabı için temsili verilerle gösterilmektedir. İçerikler görüntülenebilir; düzenleme ve yeni kayıt işlemleri demo hesabında çalışmaz.",
+      "wordTitle": "Tüm Aromaterapi kaynaklarını tek profesyonel Word dosyasında indir",
+      "wordBusy": "Hazırlanıyor…",
+      "word": "Aromaterapi Kataloğunu Word'e Aktar",
+      "oilCount": "{count} yağ",
+      "footer": "Aromaterapi Merkezi — yağ kütüphanesi, karışım oluşturucu ve kaynak temelli bilgi sistemi. Bölümler hazırlandıkça bu merkezden açılır."
+    }
+  }
+}

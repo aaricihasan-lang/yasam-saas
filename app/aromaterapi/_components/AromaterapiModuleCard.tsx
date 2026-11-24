@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { AROMATERAPI_ACCENT } from "@/lib/aromaterapi/aromaterapiAccent";
 import type { AromaterapiModule } from "@/lib/aromaterapi/aromaterapiModules";
+import { useTranslations } from "next-intl";
+import { useAromaterapiModuleText } from "@/lib/aromaterapi/useAromaterapiModuleText";
 
 export type AromaterapiModuleCardProps = {
   module: AromaterapiModule;
@@ -17,6 +19,8 @@ export type AromaterapiModuleCardProps = {
 export function AromaterapiModuleCard({ module, badge }: AromaterapiModuleCardProps) {
   const accent = AROMATERAPI_ACCENT[module.accent];
   const preparing = module.status === "preparing";
+  const t = useTranslations("aromatherapy.shell");
+  const mt = useAromaterapiModuleText();
 
   return (
     <Link
@@ -41,7 +45,7 @@ export function AromaterapiModuleCard({ module, badge }: AromaterapiModuleCardPr
             ) : null}
             {preparing ? (
               <span className="rounded-full border border-slate-200 bg-white/85 px-2.5 py-0.5 text-[9px] font-black uppercase tracking-wide text-slate-400 shadow-sm">
-                Yakında
+                {t("soon")}
               </span>
             ) : null}
           </div>
@@ -49,10 +53,10 @@ export function AromaterapiModuleCard({ module, badge }: AromaterapiModuleCardPr
 
         <div className="mt-3 min-w-0 flex-1 lg:mt-2">
           <h2 className="text-lg font-black leading-tight tracking-tight text-slate-950">
-            {module.label}
+            {mt.label(module)}
           </h2>
           <p className="mt-1.5 text-xs font-medium leading-snug text-slate-600 lg:mt-1">
-            {module.description}
+            {mt.description(module)}
           </p>
 
           {module.facets && module.facets.length > 0 ? (
@@ -62,7 +66,7 @@ export function AromaterapiModuleCard({ module, badge }: AromaterapiModuleCardPr
                   key={facet.href}
                   className={`rounded-full border bg-white/80 px-2.5 py-0.5 text-[10px] font-bold ${accent.chip}`}
                 >
-                  {facet.label}
+                  {mt.facet(facet)}
                 </span>
               ))}
             </div>
@@ -72,7 +76,7 @@ export function AromaterapiModuleCard({ module, badge }: AromaterapiModuleCardPr
         <span
           className={`mt-4 block w-full rounded-xl bg-gradient-to-r py-2 text-center lg:mt-2 text-[13px] font-black text-white shadow-md transition group-hover:brightness-105 ${accent.cta}`}
         >
-          {module.label} →
+          {mt.label(module)} →
         </span>
       </div>
     </Link>

@@ -1,5 +1,7 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+import { useAromaterapiModuleText } from "@/lib/aromaterapi/useAromaterapiModuleText";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import { AromaterapiBreadcrumb } from "@/app/aromaterapi/_components/AromaterapiBreadcrumb";
@@ -52,7 +54,9 @@ export function AromaterapiSectionShell({
   const pathname = usePathname() ?? "";
   const current = findAromaterapiModuleByPath(pathname);
   const accent = AROMATERAPI_ACCENT[current?.accent ?? "amber"];
-  const eyebrowText = eyebrow ?? current?.label ?? "Aromaterapi";
+  const tShell = useTranslations("aromatherapy.shell");
+  const mt = useAromaterapiModuleText();
+  const eyebrowText = eyebrow ?? (current ? mt.label(current) : tShell("home"));
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-[radial-gradient(ellipse_at_top_left,#fffaf3_0%,#fef6ee_46%,#f6faf8_100%)] text-slate-950">

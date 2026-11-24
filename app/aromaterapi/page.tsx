@@ -14,6 +14,7 @@ import { AromaterapiSectionShell } from "@/app/aromaterapi/_components/Aromatera
 import { AromaterapiModuleCard } from "@/app/aromaterapi/_components/AromaterapiModuleCard";
 import { AROMATERAPI_HUB_MODULES } from "@/lib/aromaterapi/aromaterapiModules";
 import hub from "./aromaterapiHub.module.css";
+import { useTranslations } from "next-intl";
 
 type OilStats = {
   total: number;
@@ -27,6 +28,7 @@ const statCard =
   "rounded-xl border border-amber-100/80 bg-white/90 px-3 py-2 text-center shadow-sm";
 
 export default function AromaTerapiHubPage() {
+  const t = useTranslations("aromatherapy.hub");
   const isDemo = readYasamUser()?.is_demo_account === true;
   const [stats, setStats] = useState<OilStats>(() =>
     isDemo
@@ -45,7 +47,7 @@ export default function AromaTerapiHubPage() {
         const tenantId = await getSyncedTenantId();
         if (!tenantId) {
           setLoading(false);
-          setErrorMsg("Oturum açmanız gerekiyor. Lütfen sayfayı yenileyin.");
+          setErrorMsg(t("sessionRequired"));
           return;
         }
 
@@ -56,7 +58,7 @@ export default function AromaTerapiHubPage() {
         setLoading(false);
 
         if (error || !counts) {
-          setErrorMsg("İstatistikler yüklenemedi.");
+          setErrorMsg(t("statsFailed"));
           return;
         }
 
@@ -67,7 +69,7 @@ export default function AromaTerapiHubPage() {
         setStats({ ...counts, other });
       })();
     });
-  }, [isDemo]);
+  }, [isDemo, t]);
 
   useBfcacheRefresh();
 
@@ -78,30 +80,30 @@ export default function AromaTerapiHubPage() {
     setExportingGeneral(true);
     const { ok, error } = await downloadWord("/api/aromaterapi/word-report", {});
     setExportingGeneral(false);
-    if (ok) showToast({ title: "Word hazırlandı", message: "Aromaterapi genel katalog raporu indiriliyor.", type: "success" });
-    else showToast({ title: "Word oluşturulamadı", message: error ?? "Rapor oluşturulamadı.", type: "error" });
+    if (ok) showToast({ title: t("wordReadyTitle"), message: t("wordReadyBody"), type: "success" });
+    else showToast({ title: t("wordFailedTitle"), message: error ?? t("wordFailedBody"), type: "error" });
   }
 
   const statTiles = [
-    { label: "Toplam", value: stats.total, cls: "text-slate-950" },
-    { label: "Uçucu", value: stats.essential, cls: "text-amber-700" },
-    { label: "Sabit", value: stats.carrier, cls: "text-emerald-700" },
-    { label: "Maserasyon", value: stats.maceration, cls: "text-rose-700" },
-    { label: "Diğer", value: stats.other, cls: "text-violet-700" },
+    { label: t("statTotal"), value: stats.total, cls: "text-slate-950" },
+    { label: t("statEssential"), value: stats.essential, cls: "text-amber-700" },
+    { label: t("statCarrier"), value: stats.carrier, cls: "text-emerald-700" },
+    { label: t("statMaceration"), value: stats.maceration, cls: "text-rose-700" },
+    { label: t("statOther"), value: stats.other, cls: "text-violet-700" },
   ];
 
   return (
     // Yalnız giriş sayfası: masaüstünde kompakt başlık kartı (aromaterapiHub.module.css; ortak kabuk değişmez).
     <div className={hub.hub}>
     <AromaterapiSectionShell
-      eyebrow="Terapötik Yağ Kütüphanesi"
+      eyebrow={t("eyebrow")}
       contentClassName="mt-4 lg:mt-3"
-      title="Aromaterapi Merkezi"
-      subtitle="Uçucu, sabit ve maserasyon yağı kütüphaneleri, karışım oluşturucu, kaynaklar ve bilgi kayıtları. Profesyonel referans ve çalışma merkezi."
+      title={t("title")}
+      subtitle={t("subtitle")}
       icon="🌸"
       banner={
         isDemo ? (
-          <DemoModuleBanner message="Aromaterapi modülü demo hesabı için temsili verilerle gösterilmektedir. İçerikler görüntülenebilir; düzenleme ve yeni kayıt işlemleri demo hesabında çalışmaz." />
+          <DemoModuleBanner message={t("demoBanner")} />
         ) : undefined
       }
       actions={
@@ -112,10 +114,10 @@ export default function AromaTerapiHubPage() {
               onClick={() => void exportGeneralWord()}
               disabled={exportingGeneral}
               className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 px-3.5 text-[12px] font-black text-white shadow-sm ring-1 ring-white/25 transition hover:brightness-105 disabled:opacity-60"
-              title="Tüm Aromaterapi kaynaklarını tek profesyonel Word dosyasında indir"
+              title={t("wordTitle")}
             >
               <span aria-hidden>📄</span>
-              {exportingGeneral ? "Hazırlanıyor…" : "Aromaterapi Kataloğunu Word'e Aktar"}
+              {exportingGeneral ? t("wordBusy") : t("word")}
             </button>
           )}
           <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
@@ -146,7 +148,7 @@ export default function AromaTerapiHubPage() {
             key={module.id}
             module={module}
             badge={
-              module.id === "yaglar" && !loading ? `${stats.total} yağ` : undefined
+              module.id === "yaglar" && !loading ? t("oilCount", { count: stats.total }) : undefined
             }
           />
         ))}
@@ -157,8 +159,7 @@ export default function AromaTerapiHubPage() {
           🌿
         </span>
         <p className="text-xs font-medium text-slate-500">
-          Aromaterapi Merkezi — yağ kütüphanesi, karışım oluşturucu ve kaynak
-          temelli bilgi sistemi. Bölümler hazırlandıkça bu merkezden açılır.
+          {t("footer")}
         </p>
       </footer>
     </AromaterapiSectionShell>

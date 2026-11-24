@@ -1,0 +1,68 @@
+{
+  "aromatherapy": {
+    "shell": {
+      "home": "Aromatherapy",
+      "homeChip": "Aromatherapy Home",
+      "crumbAria": "Page location",
+      "homePage": "Home",
+      "soon": "Coming soon"
+    },
+    "modules": {
+      "ana-ekran": {
+        "label": "Home",
+        "description": "Aromatherapy workspace and quick access to its sections."
+      },
+      "yaglar": {
+        "label": "Oils",
+        "description": "Essential, carrier and macerated oil library — search, records and details."
+      },
+      "karisimlar": {
+        "label": "Blends",
+        "description": "Drop calculator, safety warnings and recipe — blend builder."
+      },
+      "bilgi-kayitlari": {
+        "label": "Knowledge Records",
+        "description": "Source-based knowledge records carrying evidence and provenance; safety filter."
+      },
+      "kaynaklar": {
+        "label": "Sources",
+        "description": "Provenance chain: source → passage → faithful translation → editorial note/commentary."
+      },
+      "katalog": {
+        "label": "Plant & Preparation Catalogue",
+        "description": "Canonical backbone of plants (taxa) and preparations — the basis of knowledge records."
+      },
+      "bilgi-bankasi": {
+        "label": "Knowledge Base & Glossary",
+        "description": "Expert reference content and glossary of terms."
+      }
+    },
+    "facets": {
+      "ucucu": "Essential",
+      "sabit": "Carrier",
+      "maserasyon": "Macerated"
+    },
+    "hub": {
+      "sessionRequired": "You need to sign in. Please refresh the page.",
+      "statsFailed": "Statistics could not be loaded.",
+      "wordReadyTitle": "Word ready",
+      "wordReadyBody": "The general Aromatherapy catalogue report is downloading.",
+      "wordFailedTitle": "Word could not be created",
+      "wordFailedBody": "The report could not be created.",
+      "statTotal": "Total",
+      "statEssential": "Essential",
+      "statCarrier": "Carrier",
+      "statMaceration": "Macerated",
+      "statOther": "Other",
+      "eyebrow": "Therapeutic Oil Library",
+      "title": "Aromatherapy Centre",
+      "subtitle": "Essential, carrier and macerated oil libraries, blend builder, sources and knowledge records. A professional reference and workspace.",
+      "demoBanner": "The Aromatherapy module is shown with representative data for the demo account. Content can be viewed; editing and creating new records do not work on the demo account.",
+      "wordTitle": "Download all Aromatherapy sources in a single professional Word file",
+      "wordBusy": "Preparing…",
+      "word": "Export Aromatherapy Catalogue to Word",
+      "oilCount": "{count, plural, one {# oil} other {# oils}}",
+      "footer": "Aromatherapy Centre — oil library, blend builder and source-based knowledge system. Sections open from this centre as they become ready."
+    }
+  }
+}
