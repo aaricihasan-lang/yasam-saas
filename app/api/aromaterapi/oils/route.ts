@@ -138,10 +138,10 @@ export async function POST(req: NextRequest): Promise<Response> {
 
   let body: unknown;
   try { body = await req.json(); }
-  catch { return NextResponse.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 }); }
+  catch { return NextResponse.json({ ok: false, code: "AROMA_INVALID_BODY", error: "Geçersiz istek gövdesi." }, { status: 400 }); }
 
   const fields = pickWritableOilFields(body);
-  if (!fields.name) return NextResponse.json({ ok: false, error: "Yağ adı zorunludur." }, { status: 400 });
+  if (!fields.name) return NextResponse.json({ ok: false, code: "AROMA_OIL_NAME_REQUIRED", error: "Yağ adı zorunludur." }, { status: 400 });
 
   if (is_demo_account) return demoReadOnlyResponse();
 
@@ -165,15 +165,15 @@ export async function DELETE(req: NextRequest): Promise<Response> {
 
   let body: unknown;
   try { body = await req.json(); }
-  catch { return NextResponse.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 }); }
+  catch { return NextResponse.json({ ok: false, code: "AROMA_INVALID_BODY", error: "Geçersiz istek gövdesi." }, { status: 400 }); }
 
   const rawIds = (body as { ids?: unknown }).ids;
   const ids = Array.isArray(rawIds)
     ? rawIds.filter((x): x is string => typeof x === "string" && x.trim().length > 0)
     : [];
   if (ids.length === 0)
-    return NextResponse.json({ ok: false, error: "Silinecek kayıt seçilmedi." }, { status: 400 });
-  if (exceedsBulkDeleteLimit(ids)) return NextResponse.json({ ok: false, error: BULK_DELETE_LIMIT_ERROR }, { status: 400 });
+    return NextResponse.json({ ok: false, code: "AROMA_NO_SELECTION", error: "Silinecek kayıt seçilmedi." }, { status: 400 });
+  if (exceedsBulkDeleteLimit(ids)) return NextResponse.json({ ok: false, code: "AROMA_BULK_DELETE_LIMIT", error: BULK_DELETE_LIMIT_ERROR }, { status: 400 });
 
   if (is_demo_account) return demoReadOnlyResponse();
 
