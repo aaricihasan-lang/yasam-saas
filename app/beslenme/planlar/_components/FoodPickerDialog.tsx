@@ -6,6 +6,7 @@
  */
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Check, Loader2, Plus, Search } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { QuickAddFoodDialog } from "../../_components/QuickAddFoodDialog";
 import {
   getFood,
@@ -19,7 +20,7 @@ import { sumNutrients } from "@/lib/beslenme/planContracts";
 import { formatAmount } from "@/lib/beslenme/calc/nutrients";
 import { Field, GhostButton, PrimaryButton, StatusMessage, TextInput } from "../../_components/primitives";
 import { Modal, MacroChips, EnergyTargetLine } from "./planUi";
-import { friendlyPlanError } from "./planFormat";
+import { usePlanFormat } from "./usePlanFormat";
 
 export type FoodPickPayload = {
   food_id: string;
@@ -41,13 +42,15 @@ export function FoodPickerDialog({
   open,
   onClose,
   onPick,
-  title = "Besin Ekle",
+  title,
 }: {
   open: boolean;
   onClose: () => void;
   onPick: (payload: FoodPickPayload) => void | Promise<void>;
   title?: string;
 }) {
+  const tk = useTranslations("beslenme.picker");
+  const pf = usePlanFormat();
   const [q, setQ] = useState("");
   const [quickAdd, setQuickAdd] = useState(false);
   // Uzman besin ARAR/SEÇER (food READ: clients|beslenme). CUSTOM besin OLUŞTURMA ("Besin Ekle")
@@ -89,7 +92,7 @@ export function FoodPickerDialog({
     loadedCount,
     loadMore,
   } = useFoodPagination({ q, enabled: !selected });
-  const listErr = listHasError ? friendlyPlanError(errorCode, errorStatus) : "";
+  const listErr = listHasError ? pf.error(errorCode, errorStatus) : "";
 
   async function pickFood(food: Food) {
     setSelected(food);
@@ -111,7 +114,7 @@ export function FoodPickerDialog({
         setGrams("100");
       }
     } else {
-      setErr(friendlyPlanError(r.code, r.status));
+      setErr(pf.error(r.code, r.status));
     }
   }
 
@@ -154,7 +157,7 @@ export function FoodPickerDialog({
     if (mode === "gram") {
       const g = parsePositive(grams);
       if (g == null) {
-        setErr("Geçerli bir gram değeri girin.");
+        setErr(tk("gramsInvalid"));
         return;
       }
       setSubmitting(true);
@@ -163,7 +166,7 @@ export function FoodPickerDialog({
     } else {
       const qn = parsePositive(quantity);
       if (qn == null || !activePortion) {
-        setErr("Geçerli bir porsiyon ve miktar seçin.");
+        setErr(tk("portionInvalid"));
         return;
       }
       setSubmitting(true);
@@ -176,8 +179,8 @@ export function FoodPickerDialog({
     <Modal
       open={open}
       onClose={onClose}
-      title={title}
-      subtitle={selected ? selected.name_tr : "Aramak için yazın"}
+      title={title ?? tk("title")}
+      subtitle={selected ? selected.name_tr : tk("typeToSearch")}
       maxWidthClass="max-w-xl"
     >
       {!selected ? (
@@ -188,13 +191,13 @@ export function FoodPickerDialog({
               <TextInput
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
-                placeholder="Besin ara…"
+                placeholder={tk("searchPlaceholder")}
                 className="pl-9"
                 autoFocus
               />
             </div>
             {canQuickAdd ? (
-              <GhostButton icon={<Plus className="h-4 w-4" />} onClick={() => setQuickAdd(true)}>Besin Ekle</GhostButton>
+              <GhostButton icon={<Plus className="h-4 w-4" />} onClick={() => setQuickAdd(true)}>{tk("addFood")}</GhostButton>
             ) : null}
           </div>
 
@@ -202,23 +205,23 @@ export function FoodPickerDialog({
 
           {!searching && !listErr && total > 0 ? (
             <p className="px-1 text-[11px] font-bold text-slate-400">
-              {loadedCount < total ? `${loadedCount} / ${total} besin` : `${total} besin`}
+              {loadedCount < total ? tk("countPartial", { loaded: loadedCount, total }) : tk("countTotal", { total })}
             </p>
           ) : null}
 
           <div className="max-h-[52vh] overflow-y-auto rounded-xl border border-slate-100">
             {searching ? (
               <div className="flex items-center justify-center gap-2 py-8 text-[13px] font-bold text-slate-400">
-                <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> Aranıyor…
+                <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> {tk("searching")}
               </div>
             ) : results.length === 0 ? (
               <div className="flex flex-col items-center gap-3 py-8 text-center">
                 <span className="text-[13px] font-bold text-slate-400">
-                  {q.trim() ? "Aradığınız besin bulunamadı." : "Besin aramaya başlayın."}
+                  {q.trim() ? tk("notFound") : tk("startSearch")}
                 </span>
                 {q.trim() && canQuickAdd ? (
                   <PrimaryButton icon={<Plus className="h-4 w-4" />} onClick={() => setQuickAdd(true)}>
-                    Yeni besin ekleyin
+                    {tk("addNew")}
                   </PrimaryButton>
                 ) : null}
               </div>
@@ -244,17 +247,17 @@ export function FoodPickerDialog({
                 </ul>
                 {loadingMore ? (
                   <div className="flex items-center justify-center gap-2 py-3 text-[12px] font-bold text-slate-400">
-                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> Daha fazla yükleniyor…
+                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> {tk("loadingMore")}
                   </div>
                 ) : moreError ? (
                   <div className="p-3">
-                    <StatusMessage type="error">{friendlyPlanError(moreErrorCode, moreErrorStatus)}</StatusMessage>
+                    <StatusMessage type="error">{pf.error(moreErrorCode, moreErrorStatus)}</StatusMessage>
                     <button
                       type="button"
                       onClick={() => loadMore()}
                       className="mt-2 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-[12px] font-bold text-slate-600 shadow-sm transition hover:bg-slate-50"
                     >
-                      Tekrar Dene
+                      {tk("retry")}
                     </button>
                   </div>
                 ) : hasMore ? (
@@ -264,7 +267,7 @@ export function FoodPickerDialog({
                       onClick={() => loadMore()}
                       className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-[12px] font-bold text-slate-600 shadow-sm transition hover:bg-emerald-50 hover:text-emerald-700"
                     >
-                      Daha fazla yükle
+                      {tk("loadMore")}
                     </button>
                   </div>
                 ) : null}
@@ -279,36 +282,36 @@ export function FoodPickerDialog({
             onClick={() => setSelected(null)}
             className="inline-flex w-fit items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[12px] font-bold text-slate-600 shadow-sm transition hover:bg-slate-50"
           >
-            ← Başka besin seç
+            {tk("pickAnother")}
           </button>
 
           {detailLoading ? (
             <div className="flex items-center justify-center gap-2 py-6 text-[13px] font-bold text-slate-400">
-              <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> Yükleniyor…
+              <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> {tk("loading")}
             </div>
           ) : (
             <>
               {/* Miktar modu seçimi */}
               <div className="inline-flex w-fit gap-1 rounded-xl bg-slate-50 p-1 ring-1 ring-slate-200">
                 <ModeBtn active={mode === "gram"} onClick={() => setMode("gram")}>
-                  Gram
+                  {tk("modeGram")}
                 </ModeBtn>
                 <ModeBtn
                   active={mode === "portion"}
                   disabled={portions.length === 0}
                   onClick={() => portions.length > 0 && setMode("portion")}
                 >
-                  Porsiyon
+                  {tk("modePortion")}
                 </ModeBtn>
               </div>
 
               {mode === "gram" ? (
-                <Field label="Miktar (gram)">
+                <Field label={tk("gramsLabel")}>
                   <TextInput
                     inputMode="decimal"
                     value={grams}
                     onChange={(e) => setGrams(e.target.value)}
-                    placeholder="Örn: 150"
+                    placeholder={tk("gramsPlaceholder")}
                   />
                   <div className="mt-2 flex flex-wrap gap-1.5">
                     {["50", "100", "150", "200"].map((g) => (
@@ -325,7 +328,7 @@ export function FoodPickerDialog({
                 </Field>
               ) : (
                 <div className="flex flex-col gap-3">
-                  <Field label="Porsiyon">
+                  <Field label={tk("portionLabel")}>
                     <div className="flex flex-col gap-1.5">
                       {portions.map((p) => (
                         <button
@@ -346,12 +349,12 @@ export function FoodPickerDialog({
                       ))}
                     </div>
                   </Field>
-                  <Field label="Adet">
+                  <Field label={tk("quantityLabel")}>
                     <TextInput
                       inputMode="decimal"
                       value={quantity}
                       onChange={(e) => setQuantity(e.target.value)}
-                      placeholder="Örn: 1"
+                      placeholder={tk("quantityPlaceholder")}
                     />
                   </Field>
                 </div>
@@ -360,7 +363,7 @@ export function FoodPickerDialog({
               {/* Canlı önizleme */}
               <div className="rounded-2xl border border-emerald-100 bg-emerald-50/50 px-4 py-3">
                 <div className="flex items-center justify-between gap-2">
-                  <span className="text-[11px] font-black uppercase tracking-wide text-emerald-700">Önizleme</span>
+                  <span className="text-[11px] font-black uppercase tracking-wide text-emerald-700">{tk("preview")}</span>
                   <span className="text-[11px] font-bold text-slate-500">
                     {effectiveGrams != null ? `${formatAmount(effectiveGrams, "g")} g` : "—"}
                   </span>
@@ -376,9 +379,9 @@ export function FoodPickerDialog({
               {err ? <StatusMessage type="error">{err}</StatusMessage> : null}
 
               <div className="flex items-center justify-end gap-2">
-                <GhostButton onClick={onClose}>Vazgeç</GhostButton>
+                <GhostButton onClick={onClose}>{tk("cancel")}</GhostButton>
                 <PrimaryButton icon={<Check className="h-4 w-4" />} loading={submitting} onClick={() => void confirm()}>
-                  Ekle
+                  {tk("add")}
                 </PrimaryButton>
               </div>
             </>

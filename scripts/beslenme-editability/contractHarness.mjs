@@ -146,7 +146,8 @@ ok("TopicDetailEditor: 3 ayrı silme yolunda onay (rehber + bölüm + besin bağ
 const dlg = src("app/beslenme/_components/DestructiveChallengeDialog.tsx");
 ok("3 aşama: Kapsam → Uyarı → Kod (ayrı adımlar)", /stage === 1/.test(dlg) && /stage === 2/.test(dlg) && /stage === 3/.test(dlg) && /setStage\(2\)/.test(dlg) && /setStage\(3\)/.test(dlg));
 ok("son buton kod birebir eşleşmeden PASİF", /disabled=\{!codeMatches\}/.test(dlg) && /typed === info\.code/.test(dlg));
-ok("ikinci uyarı 'geri alınamaz' metni", /Bu işlem geri alınamaz/.test(dlg));
+// I18N (gece 25.11): uyarı metni katalogdan (beslenme.challenge.irreversible). Niyet aynı: 2. aşamada render edilir + TR metni birebir.
+ok("ikinci uyarı 'geri alınamaz' metni", /\{t\("irreversible"\)\}/.test(dlg) && JSON.parse(src("messages/tr/beslenme.json")).beslenme.challenge.irreversible === "Emin misiniz? Bu işlem geri alınamaz.");
 ok("Günü Temizle → 3 aşamalı dialog + sunucu kodu", /DestructiveChallengeDialog/.test(src("app/beslenme/planlar/_components/DayEditor.tsx")) && /requestClearDayChallenge/.test(src("app/beslenme/planlar/_components/DayEditor.tsx")));
 // DD-P2 BES-2: plan Sil artık tek onay DEĞİL; "Günü Temizle" ile aynı 3 aşamalı dialog + sunucu kodu.
 // (Önceki "plan Sil (liste/detay): useDeleteConfirm" beklentisi bilinçli olarak bununla değiştirildi.)

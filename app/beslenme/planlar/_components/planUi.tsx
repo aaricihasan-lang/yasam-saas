@@ -7,9 +7,10 @@
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { MoreVertical, X } from "lucide-react";
+import { useTranslations } from "next-intl";
+import { usePlanFormat } from "./usePlanFormat";
 import { formatAmount } from "@/lib/beslenme/calc/nutrients";
-import { NUTRIENT_LABELS, type NutrientTotal } from "@/lib/beslenme/planContracts";
-import { formatEnergy } from "./planFormat";
+import { type NutrientTotal } from "@/lib/beslenme/planContracts";
 import { ACTION_MENU_WIDTH, computeActionMenuPlacement, type ActionMenuPlacement } from "./actionMenuPlacement";
 
 /**
@@ -44,6 +45,7 @@ export function Modal({
   maxWidthClass?: string;
   fullScreenOnMobile?: boolean;
 }) {
+  const tu = useTranslations("beslenme.ui");
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
@@ -104,7 +106,7 @@ export function Modal({
               type="button"
               onClick={onClose}
               className="shrink-0 rounded-xl border border-slate-200 bg-white p-1.5 text-slate-500 shadow-sm transition hover:bg-slate-50"
-              aria-label="Kapat"
+              aria-label={tu("close")}
             >
               <X className="h-4 w-4" aria-hidden />
             </button>
@@ -134,7 +136,9 @@ export type MenuItem = {
  *   - Yerleşim SAF `computeActionMenuPlacement` ile tetik tıklamasında hesaplanır → efekt-içi setState YOK.
  *   - Kapatma: dışarı tıklama, Escape, scroll ve resize. Tüm seçenekler/davranışlar korunur.
  */
-export function ActionMenu({ items, label = "İşlemler" }: { items: MenuItem[]; label?: string }) {
+export function ActionMenu({ items, label: labelProp }: { items: MenuItem[]; label?: string }) {
+  const tu = useTranslations("beslenme.ui");
+  const label = labelProp ?? tu("actions");
   const [open, setOpen] = useState(false);
   const [coords, setCoords] = useState<ActionMenuPlacement | null>(null);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
@@ -252,8 +256,9 @@ export function energyValue(totals: NutrientTotal[]): number {
 
 /** Küçük makro rozeti (protein/karb/yağ/lif). */
 function MacroChip({ totals, code }: { totals: NutrientTotal[]; code: string }) {
+  const pf = usePlanFormat();
   const t = findTotal(totals, code);
-  const label = NUTRIENT_LABELS[code] ?? code;
+  const label = pf.nutrient(code);
   const text = t ? formatAmount(t.amount, t.unit_code) : "0";
   const unit = t?.unit_code ?? "g";
   return (
@@ -286,13 +291,14 @@ export function MacroChips({ totals, compact = false }: { totals: NutrientTotal[
  * Sayı (kaç besin) title'da; kısa görsel işaret satırda.
  */
 export function MissingEnergyBadge({ count }: { count: number }) {
+  const tu = useTranslations("beslenme.ui");
   if (count <= 0) return null;
   return (
     <span
       className="inline-flex items-center gap-1 rounded-md border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-[0.7em] font-black uppercase tracking-wide text-amber-700 align-middle"
-      title={`${count} besinin kalori bilgisi girilmemiş. Toplam bu değerleri İÇERMEZ; gösterilen "en az" toplamdır.`}
+      title={tu("missingTitle", { count })}
     >
-      + eksik veri
+      {tu("missingBadge")}
     </span>
   );
 }
@@ -316,6 +322,8 @@ export function EnergyTargetLine({
   missingCount?: number;
   className?: string;
 }) {
+  const pf = usePlanFormat();
+  const formatEnergy = pf.energy;
   const kcal = Math.round(energyRaw);
   const incomplete = missingCount > 0;
   const prefix = incomplete ? "≥ " : "";

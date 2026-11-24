@@ -7,14 +7,10 @@
 import { useMemo } from "react";
 import { CalendarDays } from "lucide-react";
 import { type Plan, type PlanDaySummary } from "@/lib/beslenme/planClient";
-import { formatEnergy } from "./planFormat";
+import { useTranslations } from "next-intl";
+import { usePlanFormat } from "./usePlanFormat";
 import { BES_CARD_BLEED } from "@/app/beslenme/_components/mobileBleed";
 
-const TR_MONTHS = [
-  "Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran",
-  "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık",
-];
-const WEEKDAYS = ["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"];
 
 type MonthGroup = { key: string; year: number; month: number; days: PlanDaySummary[] };
 
@@ -49,12 +45,14 @@ export function MonthView({
   days: PlanDaySummary[];
   onOpenDay: (dayId: string) => void;
 }) {
+  const tv = useTranslations("beslenme.views");
+  const pf = usePlanFormat();
   const groups = useMemo(() => groupByMonth(days), [days]);
 
   if (groups.length === 0) {
     return (
       <div className={`rounded-2xl border border-dashed border-slate-200 bg-white/60 px-6 py-10 text-center text-[13px] font-bold text-slate-400 ${BES_CARD_BLEED}`}>
-        Görüntülenecek gün yok.
+        {tv("noDays")}
       </div>
     );
   }
@@ -77,14 +75,14 @@ export function MonthView({
             <div className="mb-2 flex items-center gap-1.5 px-1">
               <CalendarDays className="h-4 w-4 text-emerald-500" aria-hidden />
               <span className="text-[13px] font-black text-slate-700">
-                {TR_MONTHS[g.month]} {g.year}
+                {pf.monthLong(g.month + 1)} {g.year}
               </span>
             </div>
 
             <div className="overflow-x-auto">
               <div className="min-w-[560px]">
                 <div className="mb-1 grid grid-cols-7 gap-1.5">
-                  {WEEKDAYS.map((w) => (
+                  {pf.weekdaysMonFirst().map((w) => (
                     <div key={w} className="py-1 text-center text-[10px] font-black uppercase tracking-wide text-slate-400">
                       {w}
                     </div>
@@ -111,11 +109,11 @@ export function MonthView({
                         <span className="text-[11px] font-black text-slate-700">{n}</span>
                         {d.meal_count > 0 ? (
                           <span className="mt-auto flex flex-col">
-                            <span className="text-[11px] font-black text-emerald-700">{formatEnergy(d.energy_total)}</span>
-                            <span className="text-[9px] font-bold text-slate-400">{d.meal_count} öğün</span>
+                            <span className="text-[11px] font-black text-emerald-700">{pf.energy(d.energy_total)}</span>
+                            <span className="text-[9px] font-bold text-slate-400">{tv("mealsCount", { count: d.meal_count })}</span>
                           </span>
                         ) : (
-                          <span className="mt-auto text-[9px] font-bold text-slate-300">boş</span>
+                          <span className="mt-auto text-[9px] font-bold text-slate-300">{tv("empty")}</span>
                         )}
                       </button>
                     );
@@ -129,8 +127,8 @@ export function MonthView({
 
       <p className="px-1 text-[11px] font-medium text-slate-400">
         {plan.daily_energy_target
-          ? `Plan günlük hedefi: ${formatEnergy(plan.daily_energy_target)} kcal.`
-          : "Plan için günlük hedef tanımlanmamış."}
+          ? tv("planTarget", { kcal: pf.energy(plan.daily_energy_target) })
+          : tv("noPlanTarget")}
       </p>
     </div>
   );
