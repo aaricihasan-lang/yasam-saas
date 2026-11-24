@@ -106,6 +106,11 @@ ok(localizeApiError(enErr, "en", { code: "SOMETHING_NEW", error: "Danışan bu h
 ok(localizeApiError(trErr, "tr", { code: "SOMETHING_NEW", error: "Danışan bu hesaba ait değil." }) === "Danışan bu hesaba ait değil.", "TR: sunucu metni bugünkü gibi (regresyon yok)");
 ok(withServerDetail(enErr, "en", "Could not save", { error: "Danışan bu hesaba ait değil." }) === "Could not save", "EN önek + Türkçe ayrıntı eklenmez");
 ok(withServerDetail(trErr, "tr", "Kaydedilemedi", { error: "Danışan bu hesaba ait değil." }) === "Kaydedilemedi: Danışan bu hesaba ait değil.", "TR: bugünkü 'önek: ayrıntı' biçimi");
+// I18N gece QA B-01: kaynak dilde eşlenmiş kod bile sunucu metnini DEĞİŞTİRMEZ (katalog metni farklı olabilir).
+ok(localizeApiError(trErr, "tr", { code: "NOT_FOUND", error: "Taş bulunamadı (özel sunucu metni)." }) === "Taş bulunamadı (özel sunucu metni).", "TR + eşlenmiş kod → sunucu metni birebir");
+ok(localizeApiError(trErr, "tr", { code: "NOT_FOUND" }) === trErr("codes.NOT_FOUND"), "TR + eşlenmiş kod + sunucu metni yok → katalog metni");
+ok(withServerDetail(trErr, "tr", "Kaydedilemedi", { code: "NOT_FOUND", error: "Özel ayrıntı." }) === "Kaydedilemedi: Özel ayrıntı.", "TR önek + eşlenmiş kod → sunucu ayrıntısı birebir");
+ok(withServerDetail(enErr, "en", "Could not save", { code: "NOT_FOUND", error: "Kayıt bulunamadı." }) === "Could not save: Record not found.", "EN önek + eşlenmiş kod → ekran dilinde ayrıntı");
 ok(apiErrorCode({ code: "drop table" }) === null && apiErrorCode({ code: 5 }) === null, "kod biçimi doğrulanır");
 
 // ── 7. Silme onayı: TR birebir + EN dil-bağımsız ─────────────────────────────
