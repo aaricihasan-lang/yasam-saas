@@ -187,6 +187,18 @@ async function seed() {
       });
     }
   }
+  // G2 (22.11.2026, YALNIZ FAKE_NATAL_G2_SEED=1 — mevcut testlerin sayımları değişmez; SENTETİK): Ayşe danışanına bağlı, doğum
+  // saati BİLİNMEYEN bir profil + kayıtlı natal (sahte sağlayıcı; görünüm maskeli) → saat bilinmiyor çark / tablo testleri.
+  if (process.env.FAKE_NATAL_G2_SEED === "1") {
+    const tu = await createAstroProfile(
+      ctx,
+      { label: "G2 Saat bilinmiyor — natal", clientId: "22222222-2222-4222-8222-222222222222", birthDate: "1990-07-15", timeKnown: false, locationId: "tr-34-istanbul" },
+      resolveAstroLocation,
+    );
+    const tuId = (tu.body as { profile: { id: string } }).profile.id;
+    await runAstrology(ctx, { profileId: tuId, selections: [{ technique: "western.natal", options: { houseSystem: "placidus", nodeType: "true" } }] }, deps, { ownerPreviewHideInterp: false });
+    await saveAnalysis(ctx, { profileId: tuId, revision: 1, technique: "western.natal", options: { houseSystem: "placidus", nodeType: "true" }, includeProviderInterp: false, saveRequestId: "7b7b7b7b-0000-4000-8000-000000000092", title: "G2 saat bilinmiyor natal" }, false);
+  }
   // F1/F2 (14.11.2026, YALNIZ FAKE_F1F2_SEED=1 — mevcut testlerin sayımları değişmez): gerçek progresyon yanıtlarından mean / kutup
   // kayıtları + -1 dönemi taklidi (f1f2Seed.ts; hepsi SENTETİK "TEST" kişileri).
   if (process.env.FAKE_F1F2_SEED === "1") console.log(`F1F2 tohum ${JSON.stringify(await seedF1F2(ctx, store))}`);

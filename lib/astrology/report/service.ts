@@ -34,9 +34,10 @@ type ChartImg = { png: Buffer; width: number; height: number };
  * harita yerinde açık not gösterir (başka analizin görseli ASLA kullanılmaz) ve hata sunucu günlüğüne yazılır
  * (yalnız teknik + kısa neden; kişisel veri yok).
  */
-async function renderChartBlock(block: Extract<ReportBlock, { kind: "chart" }>, widthPx: number, technique: string): Promise<ChartImg | null> {
+async function renderChartBlock(block: Extract<ReportBlock, { kind: "chart" }>, widthPx: number, technique: string, natalWidthPx = widthPx): Promise<ChartImg | null> {
   if ("chart" in block) {
-    const png = renderWheelPng(block.chart, widthPx);
+    // G3: Natal çarkı 170 mm'de basılır → baskı çözünürlüğü için daha geniş PNG (tekli 2000 px ≈ 300 dpi).
+    const png = renderWheelPng(block.chart, block.chart.natal ? natalWidthPx : widthPx);
     if (!png) console.error(`[astro-report] harita görseli üretilemedi (${technique}, çark)`);
     return png;
   }
@@ -69,13 +70,18 @@ export async function buildAnalysisReport(ctx: EngineCtx, id: string, format: Re
   const analysis = (r.body as { analysis: ReportAnalysisInput }).analysis;
   const report = buildAstroReport(analysis);
   const chartBlock = report.blocks.find((b) => b.kind === "chart");
-  const chart = chartBlock && chartBlock.kind === "chart" ? await renderChartBlock(chartBlock, 1200, analysis.technique) : null;
+  // G3: Natal çarkı 2000 px (170 mm ≈ 300 dpi); diğer çarklar önceki gibi 1200 px.
+  const chart = chartBlock && chartBlock.kind === "chart" ? await renderChartBlock(chartBlock, 1200, analysis.technique, 2000) : null;
+  // G3 (2026-11-23): YALNIZ Batı Natal — yoğun burç derece cetveli ayrı "chart" (figür) blok(lar)ı; çarktan SONRA aynı sırada
+  // çizilir (170 mm ≈ 300 dpi için 2000 px). Diğer teknikler önceki gibi tek görsel.
+  const rest = analysis.technique === "western.natal" ? report.blocks.filter((b): b is Extract<ReportBlock, { kind: "chart" }> => b.kind === "chart").slice(1) : [];
+  const charts = rest.length ? [chart, ...(await Promise.all(rest.map((b) => renderChartBlock(b, 2000, analysis.technique))))] : null;
   const branding = await loadBrandingSafe(opts);
   if (format === "docx") {
-    const buf = await renderAstroReportDocx(report, chart?.png ?? null, symbolFontBuffers(), { branding });
+    const buf = await renderAstroReportDocx(report, charts ? charts.map((c) => c?.png ?? null) : (chart?.png ?? null), symbolFontBuffers(), { branding });
     return { ok: true, bytes: new Uint8Array(buf), filename: `${report.fileBase}.docx`, contentType: DOCX_MIME, hasInterpretation: report.hasInterpretation, hasChart: !!chart };
   }
-  const bytes = buildAstroReportPdf(report, chart, anamnezPdfFontBase64(), symbolFontsBase64(), { branding });
+  const bytes = buildAstroReportPdf(report, charts ?? chart, anamnezPdfFontBase64(), symbolFontsBase64(), { branding });
   return { ok: true, bytes, filename: `${report.fileBase}.pdf`, contentType: PDF_MIME, hasInterpretation: report.hasInterpretation, hasChart: !!chart };
 }
 
@@ -103,7 +109,8 @@ export function combinedReportTooLarge(byteLength: number, analysisCount: number
 /** Toplu rapor: "chart" bloklarıyla AYNI sırada görseller (her blok kendi analizinin kayıtlı verisinden). */
 async function chartImages(report: AstroReport, widthPx: number): Promise<(ChartImg | null)[]> {
   const out: (ChartImg | null)[] = [];
-  for (const b of report.blocks) if (b.kind === "chart") out.push(await renderChartBlock(b, widthPx, "toplu rapor"));
+  // G3: toplu raporda Natal çarkı 1200 px (170 mm ≈ 180 dpi) — dosya boyutu sınırı (4,2 MB) için tekli rapordaki 2000 px yerine.
+  for (const b of report.blocks) if (b.kind === "chart") out.push(await renderChartBlock(b, widthPx, "toplu rapor", 1200));
   return out;
 }
 

@@ -435,12 +435,23 @@ async function main() {
   });
 
   await t("harita görseli: natal/return/composite/relocation/progression/sinastri (+ natal çerçeveli transit) + Vedik D1/Varga + KP Word'de PNG gömülü + PDF'te görsel; haritasız Vedik/KP teknikleri görselsiz", async () => {
-    for (const tech of ["western.natal", "western.solar_return", "western.composite", "western.relocation", "western.progression", "western.synastry", "vedic.d1", "vedic.varga", "kp.chart", "kp.horary", "kp.transit", "vedic.dasha", "kp.dasha", "vedic.shadbala", "vedic.transit", "western.astrocartography", "western.local_space"]) assert.equal(docs.get(tech)!.docx.media.length, 1, tech);
+    for (const tech of ["western.solar_return", "western.composite", "western.relocation", "western.progression", "western.synastry", "vedic.d1", "vedic.varga", "kp.chart", "kp.horary", "kp.transit", "vedic.dasha", "kp.dasha", "vedic.shadbala", "vedic.transit", "western.astrocartography", "western.local_space"]) assert.equal(docs.get(tech)!.docx.media.length, 1, tech);
+    // G3 (2026-11-23, Owner Karar 2 — YALNIZ Natal istisnası): çarkta grup etiketiyle birleşen yoğun burçlar için ayrı "derece
+    // cetveli" figürü eklenir (golden haritada Yengeç'te 3 nokta → 1 cetvel). Natal görsel sayısı = 1 çark + model'deki cetvel
+    // figürü sayısı; çark yine TEK. Diğer tekniklerin "tek görsel" sözleşmesi yukarıda AYNEN.
+    const natalModel = buildAstroReport(await full(saved.get("western.natal")!));
+    const natalRulers = natalModel.blocks.filter((b) => b.kind === "chart" && "figure" in b && b.figure.type === "natalDegreeRuler").length;
+    assert.equal(natalModel.blocks.filter((b) => b.kind === "chart" && "chart" in b).length, 1, "western.natal: tek çark");
+    assert.equal(natalModel.blocks.filter((b) => b.kind === "chart").length, 1 + natalRulers, "western.natal: çark dışındaki görseller yalnız derece cetveli");
+    assert.ok(natalRulers >= 1, "golden natal (Yengeç 3 nokta) derece cetveli içermeli");
+    assert.equal(docs.get("western.natal")!.docx.media.length, 1 + natalRulers, "western.natal (çark + derece cetveli)");
     for (const tech of ["kp.ruling", "vedic.panchanga", "vedic.drishti", "vedic.ashtakavarga"]) assert.equal(docs.get(tech)!.docx.media.length, 0, tech);
     const trFrame = !!((await full(saved.get("western.transit")!)).technical as J | null)?.natalFrame;
     assert.equal(docs.get("western.transit")!.docx.media.length, trFrame ? 1 : 0, "western.transit (natal çerçeve → çift halka)");
-    const png = await (await JSZip.loadAsync((await get("expert", saved.get("western.natal")!, "exAI", "docx")).buf)).file(docs.get("western.natal")!.docx.media[0])!.async("nodebuffer");
-    assert.equal(png.readUInt32BE(16), png.readUInt32BE(20), "çark PNG kare olmalı (oran korunur)");
+    const natalZip = await JSZip.loadAsync((await get("expert", saved.get("western.natal")!, "exAI", "docx")).buf);
+    const natalPngs = await Promise.all(docs.get("western.natal")!.docx.media.map((m) => natalZip.file(m)!.async("nodebuffer")));
+    // G3: çark kare; derece cetveli yatay (kare değil) → tam olarak bir kare görsel.
+    assert.equal(natalPngs.filter((png) => png.readUInt32BE(16) === png.readUInt32BE(20)).length, 1, "çark PNG kare olmalı (oran korunur)");
     const ext = /<wp:extent cx="(\d+)" cy="(\d+)"/.exec(docs.get("western.natal")!.docx.xml)!;
     assert.equal(ext[1], ext[2], "Word'deki çark oranı 1:1");
     const pdf = (await get("expert", saved.get("western.natal")!, "exAI", "pdf")).buf.toString("latin1");

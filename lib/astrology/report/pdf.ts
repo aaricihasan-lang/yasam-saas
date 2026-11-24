@@ -32,6 +32,8 @@ const ACCENT: Rgb = [91, 33, 182];
 const WARN_INK: Rgb = [146, 64, 14];
 const WARN_FILL: Rgb = [255, 251, 235];
 const LH = 0.42; // satır yüksekliği = punto × LH (mm)
+/** G3: Natal rapor çarkı genişliği (mm). */
+const NATAL_CHART_MM = 170;
 
 class W {
   doc: jsPDF;
@@ -132,7 +134,10 @@ class W {
 
 /** Görselin sayfadaki boyutu (mm): oran korunur; genişliğe ve sayfa yüksekliğine sığdırılır. Başlık + görsel yerleşimi aynı hesabı kullanır. */
 function chartBox(chart: { width: number; height: number }, b: ReportBlock): { iw: number; ih: number } {
-  const maxW = b.kind === "chart" && "figure" in b && isWideFigure(b.figure) ? CW : Math.min(CW, 125);
+  // G3: Natal çarkı A4'te 170 mm genişlikte (R4 baskı profili; yazılar ≥ 7 pt). Diğer çarklar önceki gibi 125 mm.
+  // G3 (2026-11-23): Natal yoğun burç derece cetveli de 170 mm (yazılar ≥ 8 pt).
+  const natal = b.kind === "chart" && (("chart" in b && !!b.chart.natal) || ("figure" in b && b.figure.type === "natalDegreeRuler"));
+  const maxW = b.kind === "chart" && "figure" in b && isWideFigure(b.figure) ? CW : natal ? Math.min(CW, NATAL_CHART_MM) : Math.min(CW, 125);
   const ratio = chart.height / chart.width;
   let iw = maxW;
   let ih = iw * ratio;
@@ -170,7 +175,7 @@ function heading(w: W, level: 1 | 2 | 3, text: string, next: ReportBlock | undef
 
 function table(w: W, tb: ReportTable) {
   const n = tb.columns.length;
-  const size = tb.compact || n >= 7 ? 6.6 : n >= 5 ? 7.6 : 8.6;
+  const size = Math.max(tb.compact || n >= 7 ? 6.6 : n >= 5 ? 7.6 : 8.6, tb.minPt ?? 0);
   const lh = size * LH;
   const pad = 1.2;
   const ws = tb.widths && tb.widths.length === n ? tb.widths : Array(n).fill(1);
@@ -286,6 +291,18 @@ export function buildAstroReportPdf(
   brand: AstroPdfBrand = {},
 ): Uint8Array {
   const first = renderAstroPdf(r, chartIn, fontBase64, symbolFonts, brand, -1);
+  // G3-GK1 (2026-11-23): YALNIZ Natal (keepRecordTail) — "Kayıt bilgisi" bölümü sayfaya sığdı ama kapanış notları yeni sayfaya
+  // taştıysa bölüm kapanışla birlikte yeni sayfada başlar (Word'deki "sonrakiyle birlikte tut" ile aynı kural). Sayfa sayısı
+  // artarsa ya da bölüm yine bölünürse ilk yerleşim aynen kalır. Diğer raporlar bu yola girmez.
+  if (r.keepRecordTail && first.tailSplit) {
+    let last = -1;
+    r.blocks.forEach((b, i) => { if (b.kind === "heading" && b.level === 1) last = i; });
+    if (last >= 0) {
+      const second = renderAstroPdf(r, chartIn, fontBase64, symbolFonts, brand, last);
+      if (!second.tailSplit && second.pages <= first.pages) return second.bytes;
+    }
+    return first.bytes;
+  }
   if (!brand.balancedSignature || !first.signatureAlone) return first.bytes;
   // Dengeli akış: kart (+ dipnot) yeni sayfada tek başına kaldıysa son ana bölüm kartla birlikte yeni sayfada başlar.
   // Yalnız kart artık tek başına değilse, sayfa sayısı artmıyorsa ve bölümün ayrıldığı sayfa en az yarı doluysa uygulanır.
@@ -305,8 +322,10 @@ function renderAstroPdf(
   brand: AstroPdfBrand,
   /** Bu blok yeni sayfada başlar (-1: yok). Yalnız dengeli imza akışının ikinci geçişi kullanır. */
   breakAt: number,
-): { bytes: Uint8Array; pages: number; signatureAlone: boolean; breakY: number } {
+): { bytes: Uint8Array; pages: number; signatureAlone: boolean; breakY: number; tailSplit: boolean } {
   let breakY = 0;
+  // G3-GK1: son ana bölümün (Kayıt bilgisi) başladığı sayfa — kapanış notu başka sayfaya düşerse tailSplit.
+  let tailPage = 0;
   const charts = Array.isArray(chartIn) ? chartIn : [chartIn];
   let chartIdx = 0;
   let sectionStart = false;
@@ -330,6 +349,7 @@ function renderAstroPdf(
           const nx = r.blocks[i + 1];
           const nc = nx && nx.kind === "chart" ? (charts[chartIdx] ?? null) : null;
           heading(w, b.level, b.text, nx, nc && nx ? chartBox(nc, nx).ih : undefined);
+          if (b.level === 1) tailPage = w.doc.getNumberOfPages();
         }
         break;
       case "pagebreak":
@@ -369,7 +389,9 @@ function renderAstroPdf(
       case "chart": {
         const chart = charts[chartIdx++] ?? null;
         if (!chart) {
-          w.para("Harita görseli bu raporda oluşturulamadı; teknik tablolar aşağıdadır.", 8, LIGHT);
+          // G3: Natal derece cetveli görseli için kendi notu (Word ile aynı).
+          const ruler = "figure" in b && b.figure.type === "natalDegreeRuler";
+          w.para(ruler ? "Derece cetveli görseli bu raporda oluşturulamadı; noktaların gerçek dereceleri aşağıdaki tablodadır." : "Harita görseli bu raporda oluşturulamadı; teknik tablolar aşağıdadır.", 8, LIGHT);
           break;
         }
         // Oran korunur: genişliğe ve kalan sayfa yüksekliğine sığdırılır (kare çark ~120 mm; yatay grafik / dünya haritası tam genişlik).
@@ -383,6 +405,7 @@ function renderAstroPdf(
     }
   });
   w.para("Rapor Yaşam Sistemi Astroloji modülünde, kayıtlı analizden oluşturulmuştur.", 7.8, LIGHT);
+  const tailSplit = tailPage > 0 && w.doc.getNumberOfPages() > tailPage;
   // F3B: "Hazırlayan" imza kartı — ortak PDF yardımcısı; Word'deki kartla aynı alanlar.
   // Horary (balancedSignature): kartın ilk yerleşiminde yeni sayfa açıldıysa kart (+ dipnot) o sayfada tek başınadır.
   let firstEnsure = true;
@@ -407,5 +430,5 @@ function renderAstroPdf(
     if (p > 1) w.doc.text("Yaşam Sistemi · Astroloji", PAGE_W - MX, 10, { align: "right" });
     w.doc.text(`Sayfa ${p} / ${total}`, PAGE_W / 2, PAGE_H - 9, { align: "center" });
   }
-  return { bytes: new Uint8Array(w.doc.output("arraybuffer")), pages: total, signatureAlone, breakY };
+  return { bytes: new Uint8Array(w.doc.output("arraybuffer")), pages: total, signatureAlone, breakY, tailSplit };
 }

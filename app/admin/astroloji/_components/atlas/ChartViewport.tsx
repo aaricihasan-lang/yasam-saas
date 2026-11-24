@@ -13,7 +13,7 @@
  * alanının dışına kaçamaz (sınırlı). Dokunmatik: iki parmak = yakınlaştır, tek parmak = (yakınken) sürükle; ölçek 1'de
  * tek parmak dikey sayfa kaydırmasına bırakılır (touch-action: pan-y). Klavye: + / − / 0 ve ok tuşları.
  */
-import { useCallback, useEffect, useImperativeHandle, useRef, useState, type ReactNode, type Ref } from "react";
+import { createContext, useCallback, useEffect, useImperativeHandle, useRef, useState, type ReactNode, type Ref } from "react";
 import { Maximize, Minus, Plus } from "lucide-react";
 
 const MIN = 1;
@@ -24,6 +24,11 @@ const FIT: View = { s: 1, x: 0, y: 0 };
 export type ChartViewportApi = { zoomIn: () => void; zoomOut: () => void; fit: () => void };
 export const CHART_VIEWPORT_MIN = MIN;
 export const CHART_VIEWPORT_MAX = MAX;
+/**
+ * G2 (2026-11-22): o anki görüntüleme ölçeği (1 = sığdır). Yalnız okuyan çocuk kullanır (Natal çarkın anlamsal yakınlaştırması:
+ * yazı ekranda sabit kalır, gruplar yer açıldıkça tekil etiketlere ayrılır). Sağlayıcı DOM eklemez; okumayan haritalar AYNEN çizilir.
+ */
+export const ChartViewportScaleContext = createContext(1);
 
 export default function ChartViewport({
   children,
@@ -212,7 +217,7 @@ export default function ChartViewport({
         style={{ touchAction: zoomed ? "none" : "pan-y" }}
       >
         <div className="absolute inset-0 flex items-center justify-center" style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.s})`, transformOrigin: "0 0" }}>
-          {children}
+          <ChartViewportScaleContext.Provider value={view.s}>{children}</ChartViewportScaleContext.Provider>
         </div>
       </div>
       {/* Kontroller: sağ üst köşe (dairesel haritada boş alan); harita noktalarını örtmez. */}

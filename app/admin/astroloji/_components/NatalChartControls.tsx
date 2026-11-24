@@ -27,18 +27,24 @@ import {
   extraPointsFor,
   hiddenBodiesFor,
   isDefaultAspectFilter,
+  NATAL_LABEL_PREF_LABELS,
+  NATAL_LABEL_PREFS,
   NATAL_OPTIONAL_POINT_LABELS,
   NATAL_OPTIONAL_POINTS,
   NATAL_WHEEL_MODE_LABELS,
   NATAL_WHEEL_MODES,
   parsePrefs,
   type NatalAspectFilter,
+  type NatalLabelPref,
   type NatalOptionalPoint,
   type NatalPointSelection,
   type NatalWheelMode,
   type NatalWheelPrefs,
 } from "@/lib/astrology/view/natalWheelDisplay";
+import { labelsDetailed } from "@/lib/astrology/view/natalLabelLayout";
+import { listedNatalAspects } from "@/lib/astrology/view/natalTimeUnknown";
 import type { NatalWheelDisplay } from "./NatalWheel";
+import type { NatalLabelPick, NatalWheelLayoutInfo } from "./NatalWheelLabeled";
 import DeskPopover from "./atlas/DeskPopover";
 import styles from "./natalWheel.module.css";
 
@@ -55,25 +61,29 @@ const initialSelection = (): Pick<NatalWheelPrefs, "points" | "filter"> => ({
  *  Nokta ve açı seçimi bu sayfa oturumunun belleğinde (ilk açılışta tümü seçili). Sunucu ve ilk çizim varsayılanı kullanır. */
 const listeners = new Set<() => void>();
 let memoryMode: NatalWheelMode | null = null;
+/** G2: etiket tercihi de görünüm gibi bu tarayıcıda hatırlanır (varsayılan "Moda göre"). */
+let memoryLabels: NatalLabelPref | null = null;
 let selection = initialSelection();
-let snapshot: { mode: NatalWheelMode; sel: typeof selection; value: NatalWheelPrefs } | null = null;
+let snapshot: { mode: NatalWheelMode; labels: NatalLabelPref; sel: typeof selection; value: NatalWheelPrefs } | null = null;
 
-function readMode(): NatalWheelMode {
-  if (memoryMode) return memoryMode;
+function readStored(): Pick<NatalWheelPrefs, "mode" | "labels"> {
+  if (memoryMode && memoryLabels) return { mode: memoryMode, labels: memoryLabels };
   try {
-    return parsePrefs(window.localStorage.getItem(PREFS_KEY)).mode;
+    const p = parsePrefs(window.localStorage.getItem(PREFS_KEY));
+    return { mode: memoryMode ?? p.mode, labels: memoryLabels ?? p.labels };
   } catch {
-    return parsePrefs(null).mode;
+    const p = parsePrefs(null);
+    return { mode: memoryMode ?? p.mode, labels: memoryLabels ?? p.labels };
   }
 }
 
 function readPrefs(): NatalWheelPrefs {
-  const mode = readMode();
-  if (!snapshot || snapshot.mode !== mode || snapshot.sel !== selection) snapshot = { mode, sel: selection, value: { mode, ...selection } };
+  const { mode, labels } = readStored();
+  if (!snapshot || snapshot.mode !== mode || snapshot.labels !== labels || snapshot.sel !== selection) snapshot = { mode, labels, sel: selection, value: { mode, labels, ...selection } };
   return snapshot.value;
 }
 
-const SERVER_PREFS: NatalWheelPrefs = { mode: parsePrefs(null).mode, ...initialSelection() };
+const SERVER_PREFS: NatalWheelPrefs = { mode: parsePrefs(null).mode, labels: parsePrefs(null).labels, ...initialSelection() };
 
 function subscribe(cb: () => void) {
   listeners.add(cb);
@@ -92,8 +102,9 @@ export function useNatalWheelPrefs(): [NatalWheelPrefs, (next: NatalWheelPrefs) 
   const update = useCallback((next: NatalWheelPrefs) => {
     selection = { points: next.points, filter: next.filter };
     memoryMode = next.mode;
+    memoryLabels = next.labels;
     try {
-      window.localStorage.setItem(PREFS_KEY, JSON.stringify({ mode: next.mode }));
+      window.localStorage.setItem(PREFS_KEY, JSON.stringify({ mode: next.mode, labels: next.labels }));
     } catch {
       /* depolama yok: bellekteki görünüm kullanılır */
     }
@@ -102,10 +113,39 @@ export function useNatalWheelPrefs(): [NatalWheelPrefs, (next: NatalWheelPrefs) 
   return [prefs, update];
 }
 
-/** Çarka verilecek görünüm katmanı (saf türetim; teknik veri değişmez). */
-export function natalWheelDisplay(technical: NatalTechnical, prefs: NatalWheelPrefs): NatalWheelDisplay {
+/**
+ * Çarka verilecek görünüm katmanı (saf türetim; teknik veri değişmez). G2: `labels` verilirse burç-derece-dakika etiket katmanı
+ * (R4-S2) açılır — saat bilinmiyor kuralı ve dokunma ayrıntısı dahil.
+ */
+export function natalWheelDisplay(
+  technical: NatalTechnical,
+  prefs: NatalWheelPrefs,
+  labels?: { timeUnknown: boolean; onPick?: (pick: NatalLabelPick) => void; onLayout?: (instance: string, layout: NatalWheelLayoutInfo | null) => void },
+): NatalWheelDisplay {
   const points = prefs.points[prefs.mode];
-  return { mode: prefs.mode, hiddenBodies: hiddenBodiesFor(points), extraPoints: extraPointsFor(technical, points), aspectFilter: prefs.filter };
+  const base: NatalWheelDisplay = { mode: prefs.mode, hiddenBodies: hiddenBodiesFor(points), extraPoints: extraPointsFor(technical, points), aspectFilter: prefs.filter };
+  return labels ? { ...base, labels: { detailed: labelsDetailed(prefs.labels, prefs.mode), timeUnknown: labels.timeUnknown, onPick: labels.onPick, onLayout: labels.onLayout } } : base;
+}
+
+/**
+ * Çizilen çark örneklerinin düzen kaydı (sayfa durumu): yan grup alanı İLK kaydolan çarkı (çalışma masası) izler; odak modu gibi
+ * sonradan açılan örnek kapanınca kaydı silinir.
+ */
+export function useNatalWheelLayouts(): [NatalWheelLayoutInfo | null, (instance: string, layout: NatalWheelLayoutInfo | null) => void] {
+  const [map, setMap] = useState<Record<string, NatalWheelLayoutInfo>>({});
+  const report = useCallback((instance: string, layout: NatalWheelLayoutInfo | null) => {
+    setMap((m) => {
+      if (layout === null) {
+        if (!(instance in m)) return m;
+        const next = { ...m };
+        delete next[instance];
+        return next;
+      }
+      return { ...m, [instance]: layout };
+    });
+  }, []);
+  const first = Object.keys(map)[0];
+  return [first ? map[first] : null, report];
 }
 
 const NATURES = ["harmonious", "challenging", "neutral"] as const satisfies readonly AspectNature[];
@@ -114,17 +154,23 @@ export default function NatalChartControls({
   technical,
   prefs,
   onChange,
+  timeUnknown = false,
 }: {
   technical: NatalTechnical;
   prefs: NatalWheelPrefs;
   onChange: (next: NatalWheelPrefs) => void;
+  /** G2: doğum saati bilinmiyor → çarkta açı çizgisi yok; liste sayısı Ay'a bağlı açılar hariç. */
+  timeUnknown?: boolean;
 }) {
   const mode = prefs.mode;
   const points = prefs.points[mode];
   const available = useMemo(() => availablePoints(technical), [technical]);
   const hidden = useMemo(() => hiddenBodiesFor(points), [points]);
   const filter = prefs.filter;
-  const counts = useMemo(() => aspectCounts(technical.aspects, mode, hidden, filter), [technical.aspects, mode, hidden, filter]);
+  const counts = useMemo(() => {
+    if (!timeUnknown) return aspectCounts(technical.aspects, mode, hidden, filter);
+    return { total: listedNatalAspects(technical.aspects, true).length, drawn: 0 };
+  }, [technical.aspects, mode, hidden, filter, timeUnknown]);
   // Odak seçeneği: çarkta görünen ve en az bir açısı olan gövdeler (gizli gövde odaklanamaz → seçim yok sayılır).
   const focusable = useMemo(
     () => technical.bodies.filter((b) => !hidden.has(b.id) && technical.aspects.some((a) => a.a === b.id || a.b === b.id)).map((b) => b.id),
@@ -186,7 +232,7 @@ export default function NatalChartControls({
         open={menuOpen === "points"}
         onToggle={() => setMenuOpen((m) => (m === "points" ? null : "points"))}
         btnRef={pointsRef}
-        title={`Haritada gösterilecek ek noktalar: ${onCount}/${availableKeys.length} seçili${missing ? ` (${missing} nokta bu haritada yok)` : ""}`}
+        title={`Haritada gösterilecek ek noktalar: ${onCount}/${availableKeys.length} seçili${missing ? ` (${missing} nokta bu haritada yok)` : ""} · Çark etiketleri: ${NATAL_LABEL_PREF_LABELS[prefs.labels]}`}
         testId="natal-points-toggle"
       />
       <DeskPopover open={menuOpen === "points"} onClose={closeMenu} triggerRef={pointsRef} width={292} label="Ek noktalar" testId="natal-points-panel">
@@ -217,6 +263,31 @@ export default function NatalChartControls({
             );
           })}
         </ul>
+        {/* G2-K: etiket tercihi araç satırında ayrı kontrol değil (V4 tek satır kararı; 1440 px'te yer yok) → bu menüde. */}
+        <div className="border-t border-slate-100 px-1.5 py-1" role="radiogroup" aria-label="Çark etiketleri" data-testid="natal-labels-group">
+          <p className="px-2 pb-0.5 pt-1 text-[10.5px] font-semibold uppercase tracking-[0.1em] text-slate-400">Çark etiketleri</p>
+          {NATAL_LABEL_PREFS.map((k) => (
+            <label
+              key={k}
+              className="flex min-h-[40px] cursor-pointer items-center gap-2.5 rounded-lg px-2 py-1.5 text-[13.5px] text-slate-800 hover:bg-slate-50 max-sm:min-h-[46px]"
+            >
+              <input
+                type="radio"
+                name="natal-wheel-labels"
+                checked={prefs.labels === k}
+                onChange={() => onChange({ ...prefs, labels: k as NatalLabelPref })}
+                className="h-4 w-4 shrink-0 cursor-pointer accent-[#0B1430]"
+                data-testid={`natal-labels-${k}`}
+              />
+              <span className="flex min-w-0 flex-1 flex-col">
+                <span>{NATAL_LABEL_PREF_LABELS[k]}</span>
+                <span className="text-[11px] leading-snug text-slate-400">
+                  {k === "auto" ? `Temel: sade · Profesyonel: ayrıntılı (şu an ${mode === "pro" ? "ayrıntılı" : "sade"})` : k === "simple" ? "Gezegen · derece · dakika" : "Gezegen · derece · burç · dakika; ev başlangıçları"}
+                </span>
+              </span>
+            </label>
+          ))}
+        </div>
         <MenuFoot>Yalnız çizim değişir; hesap ve kayıt değişmez.</MenuFoot>
       </DeskPopover>
 
