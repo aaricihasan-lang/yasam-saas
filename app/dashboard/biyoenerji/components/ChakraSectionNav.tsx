@@ -20,10 +20,10 @@ export default function ChakraSectionNav({
   onSelect: (hash: string) => void;
 }) {
   const detailsRef = useRef<HTMLDetailsElement>(null);
+  const t = useTranslations("bioenergy.chakraNav");
   if (sections.length === 0) return null;
 
   const active = sections.find((s) => s.hash === activeHash) ?? sections[0]!;
-  const t = useTranslations("bioenergy.chakraNav");
 
   const pickMobile = (hash: string) => {
     onSelect(hash);
