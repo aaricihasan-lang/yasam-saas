@@ -375,7 +375,8 @@ export default function KombinasyonOlusturPage() {
       if (match) mergeKnown([match]);
     }
     if (match) {
-      addToCart({ id: match.id, name: match.stone_name || "İsimsiz taş", inStock: stockMatcher(match.stone_name) }); // i18n-ignore: sepet/kayıt verisine giden ad yedeği (kombinasyonla kaydedilir)
+      // i18n-ignore: sepet/kayıt verisine giden ad yedeği (kombinasyonla kaydedilir)
+      addToCart({ id: match.id, name: match.stone_name || "İsimsiz taş", inStock: stockMatcher(match.stone_name) });
     } else {
       addToCart({ id: newId(), name, inStock: stockMatcher(name) });
     }
@@ -467,7 +468,8 @@ export default function KombinasyonOlusturPage() {
     const nonMatchingStones = activeConditions.length
       ? fullStones
           .filter((s) => !activeConditions.every((cond) => evaluateOne(s, cond).satisfied))
-          .map((s) => s.stone_name || "İsimsiz taş") // i18n-ignore: sepet/kayıt verisine giden ad yedeği (kombinasyonla kaydedilir)
+          // i18n-ignore: sepet/kayıt verisine giden ad yedeği (kombinasyonla kaydedilir)
+          .map((s) => s.stone_name || "İsimsiz taş")
       : [];
 
     // Taş bazlı uyarılar (warning_text + warning_tags). TAS-03: sunucu ek kaynak / bilgi kaydı
@@ -476,7 +478,8 @@ export default function KombinasyonOlusturPage() {
       const text = (s as { search_warning_text?: string | null }).search_warning_text ?? s.warning_text;
       return {
         id: s.id,
-        name: s.stone_name || "İsimsiz taş", // i18n-ignore: sepet/kayıt verisine giden ad yedeği (kombinasyonla kaydedilir)
+        // i18n-ignore: sepet/kayıt verisine giden ad yedeği (kombinasyonla kaydedilir)
+        name: s.stone_name || "İsimsiz taş",
         text: (text ?? "").trim(),
         tags: Array.isArray(s.warning_tags) ? s.warning_tags.filter(Boolean) : [],
         has: stoneHasWarning(text, s.warning_tags),
@@ -494,11 +497,14 @@ export default function KombinasyonOlusturPage() {
     const lines = [
       summary,
       "",
-      "Karşılanan: " + // i18n-ignore: kalıcı kombinasyon notu (notesText, DB'ye yazılır) — 2E kanonik kararı
+      // i18n-ignore: kalıcı kombinasyon notu (notesText, DB'ye yazılır) — 2E kanonik kararı
+      "Karşılanan: " +
         (cartAnalysis.metMinerals.map((m) => m.label).join(", ") || "—"),
-      "Eksik: " + (cartAnalysis.missingMinerals.map((m) => m.label).join(", ") || "—"), // i18n-ignore: kalıcı kombinasyon notu (notesText)
+      // i18n-ignore: kalıcı kombinasyon notu (notesText)
+      "Eksik: " + (cartAnalysis.missingMinerals.map((m) => m.label).join(", ") || "—"),
       ...(cartAnalysis.nonMatchingStones.length
-        ? ["Koşulları karşılamayan taşlar: " + cartAnalysis.nonMatchingStones.join(", ")] // i18n-ignore: kalıcı kombinasyon notu (notesText)
+        // i18n-ignore: kalıcı kombinasyon notu (notesText)
+        ? ["Koşulları karşılamayan taşlar: " + cartAnalysis.nonMatchingStones.join(", ")]
         : []),
     ];
     return lines.join("\n");
@@ -508,7 +514,9 @@ export default function KombinasyonOlusturPage() {
     const inStockCount = cart.filter((c) => c.inStock).length;
     const warned = cartAnalysis.warnings.filter((w) => w.has).map((w) => w.name);
     return [
-      `Stok: ${inStockCount}/${cart.length} stokta`, // i18n-ignore: kalıcı kombinasyon notu (notesText2); sonraki satır da aynı
+      // i18n-ignore: kalıcı kombinasyon notu (notesText2); sonraki satır da aynı
+      `Stok: ${inStockCount}/${cart.length} stokta`,
+      // i18n-ignore: kalıcı kombinasyon notu (notesText2)
       warned.length ? `Uyarılı taşlar: ${warned.join(", ")}` : "Belirgin uyarı yok",
     ].join("\n");
   }
@@ -1002,7 +1010,8 @@ export default function KombinasyonOlusturPage() {
                               ? removeFromCart(stone.id)
                               : addToCart({
                                   id: stone.id,
-                                  name: stone.stone_name || "İsimsiz taş", // i18n-ignore: sepet/kayıt verisine giden ad yedeği (kombinasyonla kaydedilir)
+                                  // i18n-ignore: sepet/kayıt verisine giden ad yedeği (kombinasyonla kaydedilir)
+                                  name: stone.stone_name || "İsimsiz taş",
                                   inStock,
                                 })
                           }
@@ -1337,7 +1346,8 @@ export default function KombinasyonOlusturPage() {
           } else {
             addToCart({
               id: detail.stone.id,
-              name: detail.stone.stone_name || "İsimsiz taş", // i18n-ignore: sepet/kayıt verisine giden ad yedeği (kombinasyonla kaydedilir)
+              // i18n-ignore: sepet/kayıt verisine giden ad yedeği (kombinasyonla kaydedilir)
+              name: detail.stone.stone_name || "İsimsiz taş",
               inStock: detail.inStock,
             });
           }

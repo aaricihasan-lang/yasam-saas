@@ -100,14 +100,22 @@ const WARNING_OPTIONS: readonly string[] = STONE_WARNING_OPTIONS;
 
 // Kanonik atama bölümü anahtarları (assignments JSON nesne anahtarı, DB'ye yazılır); gösterim asgLabel() ile.
 const ASSIGNMENT_SECTIONS = [
-  "Elementler", // i18n-ignore: kanonik DB anahtarı
-  "Mineraller", // i18n-ignore: kanonik DB anahtarı
-  "Etkili Organlar", // i18n-ignore: kanonik DB anahtarı
-  "Astrolojik Atama", // i18n-ignore: kanonik DB anahtarı
-  "Çakra Atama", // i18n-ignore: kanonik DB anahtarı
-  "Burçlar", // i18n-ignore: kanonik DB anahtarı
-  "Mizaçlar", // i18n-ignore: kanonik DB anahtarı
-  "Kan Grupları", // i18n-ignore: kanonik DB anahtarı
+  // i18n-ignore: kanonik DB anahtarı
+  "Elementler",
+  // i18n-ignore: kanonik DB anahtarı
+  "Mineraller",
+  // i18n-ignore: kanonik DB anahtarı
+  "Etkili Organlar",
+  // i18n-ignore: kanonik DB anahtarı
+  "Astrolojik Atama",
+  // i18n-ignore: kanonik DB anahtarı
+  "Çakra Atama",
+  // i18n-ignore: kanonik DB anahtarı
+  "Burçlar",
+  // i18n-ignore: kanonik DB anahtarı
+  "Mizaçlar",
+  // i18n-ignore: kanonik DB anahtarı
+  "Kan Grupları",
 ];
 
 type StoneRecord = {
@@ -289,7 +297,8 @@ function toSafeStone(data: Record<string, unknown> | null | undefined): StoneRec
   return {
     id: String(data.id),
     tenant_id: stringField(data.tenant_id),
-    stone_name: stringField(data.stone_name) || "İsimsiz Taş", // i18n-ignore: veri modeli yedeği (stone_name alanına girer, düzenlenip kaydedilebilir)
+    // i18n-ignore: veri modeli yedeği (stone_name alanına girer, düzenlenip kaydedilebilir)
+    stone_name: stringField(data.stone_name) || "İsimsiz Taş",
     short_description: stringField(data.short_description),
     general_info: stringField(data.general_info),
     source_note: stringField(data.source_note),
@@ -320,18 +329,30 @@ function toSafeStone(data: Record<string, unknown> | null | undefined): StoneRec
 // Dosya adı için Türkçe harf → ASCII dönüşümü; harfler gösterim metni değildir.
 function safeFileName(fileName: string) {
   return fileName
-    .replaceAll("ı", "i") // i18n-ignore: dosya adı harf dönüşümü
-    .replaceAll("İ", "I") // i18n-ignore: dosya adı harf dönüşümü
-    .replaceAll("ğ", "g") // i18n-ignore: dosya adı harf dönüşümü
-    .replaceAll("Ğ", "G") // i18n-ignore: dosya adı harf dönüşümü
-    .replaceAll("ü", "u") // i18n-ignore: dosya adı harf dönüşümü
-    .replaceAll("Ü", "U") // i18n-ignore: dosya adı harf dönüşümü
-    .replaceAll("ş", "s") // i18n-ignore: dosya adı harf dönüşümü
-    .replaceAll("Ş", "S") // i18n-ignore: dosya adı harf dönüşümü
-    .replaceAll("ö", "o") // i18n-ignore: dosya adı harf dönüşümü
-    .replaceAll("Ö", "O") // i18n-ignore: dosya adı harf dönüşümü
-    .replaceAll("ç", "c") // i18n-ignore: dosya adı harf dönüşümü
-    .replaceAll("Ç", "C") // i18n-ignore: dosya adı harf dönüşümü
+    // i18n-ignore: dosya adı harf dönüşümü
+    .replaceAll("ı", "i")
+    // i18n-ignore: dosya adı harf dönüşümü
+    .replaceAll("İ", "I")
+    // i18n-ignore: dosya adı harf dönüşümü
+    .replaceAll("ğ", "g")
+    // i18n-ignore: dosya adı harf dönüşümü
+    .replaceAll("Ğ", "G")
+    // i18n-ignore: dosya adı harf dönüşümü
+    .replaceAll("ü", "u")
+    // i18n-ignore: dosya adı harf dönüşümü
+    .replaceAll("Ü", "U")
+    // i18n-ignore: dosya adı harf dönüşümü
+    .replaceAll("ş", "s")
+    // i18n-ignore: dosya adı harf dönüşümü
+    .replaceAll("Ş", "S")
+    // i18n-ignore: dosya adı harf dönüşümü
+    .replaceAll("ö", "o")
+    // i18n-ignore: dosya adı harf dönüşümü
+    .replaceAll("Ö", "O")
+    // i18n-ignore: dosya adı harf dönüşümü
+    .replaceAll("ç", "c")
+    // i18n-ignore: dosya adı harf dönüşümü
+    .replaceAll("Ç", "C")
     .replace(/[^a-zA-Z0-9._-]/g, "-");
 }
 

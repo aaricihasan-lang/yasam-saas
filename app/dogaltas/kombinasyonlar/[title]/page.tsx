@@ -1407,7 +1407,8 @@ function KombinasyonDetayPageContent() {
       console.group(`[Kombinasyon] "${decodedIssue}" — ${raw.length} ham → ${unique.length} unique (${droppedCount} duplicate temizlendi)`);
       for (const [k, count] of freq) {
         if (count > 1) {
-          const preview = k.split("\x00")[0]?.slice(0, 60) ?? "(boş)"; // i18n-ignore: yalnız console.log hata ayıklama
+          // i18n-ignore: yalnız console.log hata ayıklama
+          const preview = k.split("\x00")[0]?.slice(0, 60) ?? "(boş)";
           console.log(`  ${count}× — kaynak: "${preview}"`);
         }
       }

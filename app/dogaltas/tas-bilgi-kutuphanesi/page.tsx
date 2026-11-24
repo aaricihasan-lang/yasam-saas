@@ -103,17 +103,24 @@ const COLOR_MAP: Record<string, { hex: string; bg: string; border: string }> = {
 };
 
 const COLOR_OPTIONS = [
-  { value: "emerald", label: "Yeşil" }, // i18n-ignore: TR yedek; gösterim stones.knowledge.colorOptions
+  // i18n-ignore: TR yedek; gösterim stones.knowledge.colorOptions
+  { value: "emerald", label: "Yeşil" },
   { value: "blue",    label: "Mavi" },
-  { value: "violet",  label: "Mor" }, // i18n-ignore: TR yedek; gösterim stones.knowledge.colorOptions
+  // i18n-ignore: TR yedek; gösterim stones.knowledge.colorOptions
+  { value: "violet",  label: "Mor" },
   { value: "amber",   label: "Amber" },
-  { value: "slate",   label: "Gri" }, // i18n-ignore: TR yedek; gösterim stones.knowledge.colorOptions
+  // i18n-ignore: TR yedek; gösterim stones.knowledge.colorOptions
+  { value: "slate",   label: "Gri" },
   { value: "rose",    label: "Pembe" },
-  { value: "cyan",    label: "Açık Mavi" }, // i18n-ignore: TR yedek; gösterim stones.knowledge.colorOptions
+  // i18n-ignore: TR yedek; gösterim stones.knowledge.colorOptions
+  { value: "cyan",    label: "Açık Mavi" },
   { value: "orange",  label: "Turuncu" },
-  { value: "green",   label: "Açık Yeşil" }, // i18n-ignore: TR yedek; gösterim stones.knowledge.colorOptions
+  // i18n-ignore: TR yedek; gösterim stones.knowledge.colorOptions
+  { value: "green",   label: "Açık Yeşil" },
+  // i18n-ignore: TR yedek; gösterim stones.knowledge.colorOptions
   { value: "indigo",  label: "İndigo" },
-  { value: "teal",    label: "Teal" }, // i18n-ignore: TR yedek; gösterim stones.knowledge.colorOptions
+  // i18n-ignore: TR yedek; gösterim stones.knowledge.colorOptions
+  { value: "teal",    label: "Teal" },
 ];
 
 // ─── Arama motoru ──────────────────────────────────────────────────────────────
@@ -291,7 +298,8 @@ export default function TasBilgiKutuphanesiPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [rawSearch, setRawSearch] = useState("");
   const [search, setSearch] = useState("");
-  const [activeKat, setActiveKat] = useState("Tümü"); // i18n-ignore: kanonik 'tüm kategoriler' sentinel'i; gösterim t("allCategory")
+  // i18n-ignore: kanonik 'tüm kategoriler' sentinel'i; gösterim t("allCategory")
+  const [activeKat, setActiveKat] = useState("Tümü");
   const [mobileView, setMobileView] = useState<"list" | "detail">("list");
   const [viewed, setViewed] = useState<Set<string>>(new Set());
   // Makale formu
@@ -475,7 +483,8 @@ export default function TasBilgiKutuphanesiPage() {
     const extra = [...new Set(articles.map((r) => r.category).filter(Boolean))]
       .filter((n) => !fromDb.includes(n))
       .sort(trSort);
-    return ["Tümü", ...fromDb, ...extra]; // i18n-ignore: kanonik 'tüm kategoriler' sentinel'i; gösterim t("allCategory")
+    // i18n-ignore: kanonik 'tüm kategoriler' sentinel'i; gösterim t("allCategory")
+    return ["Tümü", ...fromDb, ...extra];
   }, [categoryList, articles]);
 
   // Form dropdown için: DB kategorileri (ikonlu) + makale tabanlı fallback (ikonsuz)
@@ -496,7 +505,8 @@ export default function TasBilgiKutuphanesiPage() {
 
   const filtered = useMemo(() => {
     return articles.filter((r) => {
-      if (activeKat !== "Tümü" && r.category !== activeKat) return false; // i18n-ignore: kanonik 'tüm kategoriler' sentinel'i; gösterim t("allCategory")
+      // i18n-ignore: kanonik 'tüm kategoriler' sentinel'i; gösterim t("allCategory")
+      if (activeKat !== "Tümü" && r.category !== activeKat) return false;
       if (!recordMatchesAll(r, searchTerms)) return false;
       return true;
     });
@@ -1230,7 +1240,8 @@ export default function TasBilgiKutuphanesiPage() {
             <div className={dp.catChips}>
               {categories.map((kat) => {
                 const isActive = activeKat === kat;
-                const cfg = kat === "Tümü" ? null : katConfig(kat); // i18n-ignore: kanonik 'tüm kategoriler' sentinel'i; gösterim t("allCategory")
+                // i18n-ignore: kanonik 'tüm kategoriler' sentinel'i; gösterim t("allCategory")
+                const cfg = kat === "Tümü" ? null : katConfig(kat);
                 return (
                   <button key={kat} type="button" onClick={() => setActiveKat(kat)}
                     aria-pressed={isActive}
@@ -1620,7 +1631,8 @@ export default function TasBilgiKutuphanesiPage() {
                   className="w-full rounded-xl border border-indigo-200 bg-white px-3 py-2 text-sm font-medium outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
                 >
                   <option value="">{t("form.categorySelectPlaceholder")}</option>
-                  {categories.filter((c) => c !== "Tümü").map((c) => ( // i18n-ignore: kanonik 'tüm kategoriler' sentinel'i; gösterim t("allCategory")
+                  {/* i18n-ignore: kanonik 'tüm kategoriler' sentinel'i; gösterim t("allCategory") */}
+                  {categories.filter((c) => c !== "Tümü").map((c) => (
                     <option key={c} value={c}>{catLabel(c)}</option>
                   ))}
                 </select>

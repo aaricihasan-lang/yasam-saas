@@ -63,25 +63,29 @@ const warningTypes = STONE_WARNING_OPTIONS;
 const assignmentSections = [
   {
     title: "Mineraller",
-    desc: "Mineral adı ve oran yüzdesi ekleyin.", // i18n-ignore: kullanılmayan TR yedek alanı; gösterim asgDesc() → stones.assignmentDesc
+    // i18n-ignore: kullanılmayan TR yedek alanı; gösterim asgDesc() → stones.assignmentDesc
+    desc: "Mineral adı ve oran yüzdesi ekleyin.",
     icon: "🧪",
     fields: ["Mineral", "Oran %"],
   },
   {
     title: "Etkili Organlar",
-    desc: "Etkili organ veya kısa not ekleyin.", // i18n-ignore: kullanılmayan TR yedek alanı; gösterim asgDesc() → stones.assignmentDesc
+    // i18n-ignore: kullanılmayan TR yedek alanı; gösterim asgDesc() → stones.assignmentDesc
+    desc: "Etkili organ veya kısa not ekleyin.",
     icon: "🫀",
     fields: ["Etkili Organ / Not"],
   },
   {
     title: "Astrolojik Atama",
-    desc: "Burç, gezegen veya astrolojik eşleşme ekleyin.", // i18n-ignore: kullanılmayan TR yedek alanı; gösterim asgDesc() → stones.assignmentDesc
+    // i18n-ignore: kullanılmayan TR yedek alanı; gösterim asgDesc() → stones.assignmentDesc
+    desc: "Burç, gezegen veya astrolojik eşleşme ekleyin.",
     icon: "✨",
     fields: ["Astrolojik Atama"],
   },
   {
     title: "Elementler",
-    desc: "Ateş, su, hava, toprak gibi elementleri ekleyin.", // i18n-ignore: kullanılmayan TR yedek alanı; gösterim asgDesc() → stones.assignmentDesc
+    // i18n-ignore: kullanılmayan TR yedek alanı; gösterim asgDesc() → stones.assignmentDesc
+    desc: "Ateş, su, hava, toprak gibi elementleri ekleyin.",
     icon: "🌿",
     fields: ["Element"],
   },

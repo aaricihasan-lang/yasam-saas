@@ -88,7 +88,8 @@ const SEARCH_DEBOUNCE_MS = 300;
 const SEARCH_MIN_LENGTH = 2;
 
 const CHAKRA_CHIPS = [
-  "Kök", "Sakral", "Solar Pleksus", "Kalp", "Boğaz", "Alın", "Taç", // i18n-ignore: kanonik çakra filtre değeri; gösterim facet()
+  // i18n-ignore: kanonik çakra filtre değeri; gösterim facet()
+  "Kök", "Sakral", "Solar Pleksus", "Kalp", "Boğaz", "Alın", "Taç",
 ] as const;
 
 type DetailFilters = {

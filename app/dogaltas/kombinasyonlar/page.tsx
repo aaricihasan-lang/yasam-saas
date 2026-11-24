@@ -346,14 +346,16 @@ export default function KombinasyonlarPage() {
   // eski veri kırılmaz (issue tüm satırlarda var).
   const categories = useMemo(() => {
     const set = new Set<string>();
-    for (const row of rows) set.add(row.issue?.trim() || "İsimsiz"); // i18n-ignore: kanonik grup anahtarı/sentinel; gösterim t("untitled")
+    // i18n-ignore: kanonik grup anahtarı/sentinel; gösterim t("untitled")
+    for (const row of rows) set.add(row.issue?.trim() || "İsimsiz");
     return Array.from(set).sort((a, b) => a.localeCompare(b, "tr-TR"));
   }, [rows]);
 
   const filteredRows = useMemo(() => {
     const category = categoryFilter.trim();
     return rows.filter((row) => {
-      if (category && (row.issue?.trim() || "İsimsiz") !== category) return false; // i18n-ignore: kanonik grup anahtarı/sentinel; gösterim t("untitled")
+      // i18n-ignore: kanonik grup anahtarı/sentinel; gösterim t("untitled")
+      if (category && (row.issue?.trim() || "İsimsiz") !== category) return false;
       return rowMatchesSearch(row, isSearchActive ? searchTerm : "");
     });
   }, [rows, searchTerm, isSearchActive, categoryFilter]);
@@ -361,7 +363,8 @@ export default function KombinasyonlarPage() {
   const groups = useMemo(() => {
     const map = new Map<string, CombinationRecord[]>();
     for (const row of filteredRows) {
-      const key = row.issue?.trim() || "İsimsiz"; // i18n-ignore: kanonik grup anahtarı/sentinel; gösterim t("untitled")
+      // i18n-ignore: kanonik grup anahtarı/sentinel; gösterim t("untitled")
+      const key = row.issue?.trim() || "İsimsiz";
       const list = map.get(key);
       if (list) list.push(row);
       else map.set(key, [row]);
@@ -376,7 +379,8 @@ export default function KombinasyonlarPage() {
 
   const uniqueIssues = useMemo(() => {
     const set = new Set<string>();
-    rows.forEach((r) => set.add(r.issue?.trim() || "İsimsiz")); // i18n-ignore: kanonik grup anahtarı/sentinel; gösterim t("untitled")
+    // i18n-ignore: kanonik grup anahtarı/sentinel; gösterim t("untitled")
+    rows.forEach((r) => set.add(r.issue?.trim() || "İsimsiz"));
     return set.size;
   }, [rows]);
 
@@ -385,7 +389,8 @@ export default function KombinasyonlarPage() {
   const rowsByIssue = useMemo(() => {
     const map = new Map<string, CombinationRecord[]>();
     for (const row of rows) {
-      const key = row.issue?.trim() || "İsimsiz"; // i18n-ignore: kanonik grup anahtarı/sentinel; gösterim t("untitled")
+      // i18n-ignore: kanonik grup anahtarı/sentinel; gösterim t("untitled")
+      const key = row.issue?.trim() || "İsimsiz";
       const list = map.get(key);
       if (list) list.push(row);
       else map.set(key, [row]);
@@ -800,7 +805,8 @@ export default function KombinasyonlarPage() {
                     <span className={`${dp.chip} ${dp.chipViolet}`}>{t("variantBadge", { n: count })}</span>
                     {category && (
                       <span className={dp.chip}>
-                        {category === "İsimsiz" // i18n-ignore: kanonik sentinel karşılaştırması
+                        {/* i18n-ignore: kanonik sentinel karşılaştırması */}
+                        {category === "İsimsiz"
                           ? t("untitled")
                           : isSearchActive ? renderHighlightedText(category, activeSearch) : category}
                       </span>
