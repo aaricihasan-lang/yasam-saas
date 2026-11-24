@@ -739,6 +739,9 @@ function OilsPageContent({ fixedOilType, basePath, pageTitle, pageSubtitle, page
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [bulkError, setBulkError] = useState("");
   const [exporting, setExporting] = useState(false);
+  // I18N: wordExport Türkçe/sunucu hata metni yalnız kaynak dilde (tr) birebir; diğer dilde çevrilmiş genel metin.
+  const wordLocale = useLocale();
+  const wordErrorText = (e: string | null, fallback: string) => (wordLocale === "tr" ? e ?? fallback : fallback);
 
   // FAZ Word — .docx export (seçili / tümü / typed). Çift-tık kilidi (exporting).
   async function runOilExport(body: Record<string, unknown>) {
@@ -747,7 +750,7 @@ function OilsPageContent({ fixedOilType, basePath, pageTitle, pageSubtitle, page
     const { ok, error } = await downloadWord("/api/aromaterapi/oils/word-report", body);
     setExporting(false);
     if (ok) showToast({ title: tl("wordReadyTitle"), message: tl("wordReadyBody"), type: "success" });
-    else showToast({ title: tl("wordFailedTitle"), message: error ?? tl("wordFailedBody"), type: "error" });
+    else showToast({ title: tl("wordFailedTitle"), message: wordErrorText(error, tl("wordFailedBody")), type: "error" });
   }
   const exportAllBody = () => (fixedOilType ? { mode: "all", oilType: fixedOilType } : { mode: "all" });
   const pageView = useMemo(() => viewFromParam(searchParams.get("view")), [searchParams]);

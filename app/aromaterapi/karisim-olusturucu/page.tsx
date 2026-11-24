@@ -163,13 +163,16 @@ export default function KarisimOlusturucuPage() {
   // Android uygulama WebView'inde window.print çalışmaz → Yazdır CTA'ları gizli (plan §4.6).
   const isAndroidApp = useIsAndroidApp();
   const [blendExporting, setBlendExporting] = useState(false);
+  // I18N: wordExport Türkçe/sunucu hata metni yalnız kaynak dilde (tr) birebir; diğer dilde çevrilmiş genel metin.
+  const wordLocale = useLocale();
+  const wordErrorText = (e: string | null, fallback: string) => (wordLocale === "tr" ? e ?? fallback : fallback);
   async function exportBlendWord(url: string, body?: unknown) {
     if (blendExporting) return;
     setBlendExporting(true);
     const { ok, error } = await downloadWord(url, body);
     setBlendExporting(false);
     if (ok) showToast({ title: tp("wordReadyTitle"), message: tp("wordReadyBody"), type: "success" });
-    else showToast({ title: tp("wordFailedTitle"), message: error ?? tp("wordFailedBody"), type: "error" });
+    else showToast({ title: tp("wordFailedTitle"), message: wordErrorText(error, tp("wordFailedBody")), type: "error" });
   }
 
   // printBlend hazır olunca render sonrası yazdır; kullanıcı "PDF olarak kaydet" der.

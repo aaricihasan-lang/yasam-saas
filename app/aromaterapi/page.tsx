@@ -14,7 +14,7 @@ import { AromaterapiSectionShell } from "@/app/aromaterapi/_components/Aromatera
 import { AromaterapiModuleCard } from "@/app/aromaterapi/_components/AromaterapiModuleCard";
 import { AROMATERAPI_HUB_MODULES } from "@/lib/aromaterapi/aromaterapiModules";
 import hub from "./aromaterapiHub.module.css";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 
 type OilStats = {
   total: number;
@@ -74,6 +74,9 @@ export default function AromaTerapiHubPage() {
   useBfcacheRefresh();
 
   const { showToast } = useToast();
+  // I18N: wordExport Türkçe/sunucu hata metni yalnız kaynak dilde (tr) birebir; diğer dilde çevrilmiş genel metin.
+  const wordLocale = useLocale();
+  const wordErrorText = (e: string | null, fallback: string) => (wordLocale === "tr" ? e ?? fallback : fallback);
   const [exportingGeneral, setExportingGeneral] = useState(false);
   async function exportGeneralWord() {
     if (exportingGeneral) return;
@@ -81,7 +84,7 @@ export default function AromaTerapiHubPage() {
     const { ok, error } = await downloadWord("/api/aromaterapi/word-report", {});
     setExportingGeneral(false);
     if (ok) showToast({ title: t("wordReadyTitle"), message: t("wordReadyBody"), type: "success" });
-    else showToast({ title: t("wordFailedTitle"), message: error ?? t("wordFailedBody"), type: "error" });
+    else showToast({ title: t("wordFailedTitle"), message: wordErrorText(error, t("wordFailedBody")), type: "error" });
   }
 
   const statTiles = [

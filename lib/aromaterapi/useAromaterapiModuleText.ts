@@ -40,11 +40,11 @@ export function useAromaReadError(): (code: string | null) => string {
   return (code) => (code && t.has(code) ? t(code) : t("generic"));
 }
 
-/** Yağ formu alan etiketi / yer tutucusu (aromatherapy.oilFields.<alan>); katalogda yoksa alan anahtarı değil boş metin. */
+/** Yağ formu alan etiketi / yer tutucusu (aromatherapy.oilFields.<alan>); katalogda yoksa okunur alan adı (ham katalog anahtarı asla). */
 export function useOilFieldText() {
   const t = useTranslations("aromatherapy.oilFields");
   return {
-    label: (k: string) => (t.has(`${k}.label`) ? t(`${k}.label`) : ""),
+    label: (k: string) => (t.has(`${k}.label`) ? t(`${k}.label`) : k.replace(/_raw$/, "").replace(/_/g, " ")),
     placeholder: (k: string) => (t.has(`${k}.placeholder`) ? t(`${k}.placeholder`) : undefined),
   };
 }

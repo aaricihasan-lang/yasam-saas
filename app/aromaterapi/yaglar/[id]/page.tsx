@@ -299,6 +299,9 @@ export default function OilDetailPage() {
   const [staleConflict, setStaleConflict] = useState(false);
   const [blendMap, setBlendMap] = useState<Map<string, string> | null>(null);
   const [exportingWord, setExportingWord] = useState(false);
+  // I18N: wordExport Türkçe/sunucu hata metni yalnız kaynak dilde (tr) birebir; diğer dilde çevrilmiş genel metin.
+  const wordLocale = useLocale();
+  const wordErrorText = (e: string | null, fallback: string) => (wordLocale === "tr" ? e ?? fallback : fallback);
 
   // FAZ Word — tek yağ monografisi export (.docx). Çift-tık kilidi.
   async function exportOilWord() {
@@ -307,7 +310,7 @@ export default function OilDetailPage() {
     const { ok, error } = await downloadWord(`/api/aromaterapi/oils/${id}/word-report`);
     setExportingWord(false);
     if (ok) showToast({ title: td("wordReadyTitle"), message: td("wordReadyBody"), type: "success" });
-    else showToast({ title: td("wordFailedTitle"), message: error ?? td("wordFailedBody"), type: "error" });
+    else showToast({ title: td("wordFailedTitle"), message: wordErrorText(error, td("wordFailedBody")), type: "error" });
   }
 
   const activeTab = useMemo(() => DETAIL_TABS.find((t) => t.id === tab) ?? DETAIL_TABS[0], [tab]);

@@ -113,7 +113,7 @@
         "placeholder": "e.g. Colourless, Yellow, Pale yellow…"
       },
       "consistency": {
-        "label": "Consistency / Viscosity",
+        "label": "Consistency / Density",
         "placeholder": "e.g. Thin, Medium, Thick…"
       },
       "is_photosensitive": {
@@ -294,7 +294,7 @@
         "sections": "Sections",
         "photoYes": "Yes — Photosensitive",
         "photoNo": "No — Not Photosensitive",
-        "photoWarning": "A warning should be given before exposure to sunlight.",
+        "photoWarning": "A warning must be given before exposure to sunlight.",
         "imagesHint": "Enter one image URL per line (uploading files to the gallery is not supported on this screen).",
         "saving": "Saving...",
         "save": "Save",
@@ -404,12 +404,12 @@
       "demoGate": "The content of this tab is protected on the demo account. In the full version all clinical details are available.",
       "emptyTab": "There is no recorded information in this section",
       "photoYes": "Yes — Photosensitive / phototoxic",
-      "photoNo": "No — Not",
+      "photoNo": "No — Not photosensitive",
       "photoUnknown": "Unknown",
       "photoUnknownHint": "\"Unknown\" = not yet assessed (missing data); it does not mean safe.",
       "imagesPlaceholder": "Enter one URL per line…\nhttps://example.com/image.jpg",
       "imagesHint": "Enter one URL per line.",
-      "photoViewYes": "Photosensitive / phototoxic — a warning should be given before exposure to sunlight.",
+      "photoViewYes": "Photosensitive / phototoxic — a warning must be given before exposure to sunlight.",
       "photoViewNo": "Not photosensitive",
       "photoViewUnknown": "Unknown (not assessed)",
       "imageAlt": "Image {index}",
@@ -611,7 +611,7 @@
         "kinds": {
           "photosensitive": {
             "label": "Photosensitivity / phototoxicity information present",
-            "detail": "Caution is needed in applications with sun exposure; expert assessment is required."
+            "detail": "Caution is required in applications with sun exposure; expert assessment is required."
           },
           "photosensitive_unknown": {
             "label": "Photosensitivity information not entered (unknown)",
