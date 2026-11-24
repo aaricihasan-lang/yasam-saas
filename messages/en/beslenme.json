@@ -336,6 +336,25 @@
         "applyDay": "Apply Day",
         "addMeal": "Add Meal"
       }
+    },
+    "plans": {
+      "clientFallback": "Client",
+      "title": "Nutrition Plans",
+      "subtitle": "Daily, weekly and monthly nutrition plans. Calories and nutrient values are calculated automatically from the foods you select.",
+      "newPlan": "New Plan",
+      "loading": "Loading plans…",
+      "retry": "Try Again",
+      "emptyTitle": "No plans yet.",
+      "emptyDesc": "Start by creating your first nutrition plan.",
+      "energyPerDay": "{kcal} kcal/day",
+      "noTarget": "No target",
+      "lastUpdated": "Last updated: {date}",
+      "lockedHint": "Closed for editing — copy it to edit",
+      "open": "Open",
+      "copy": "Copy Plan",
+      "revise": "New Revision",
+      "delete": "Delete",
+      "deleted": "\"{title}\" was deleted."
     }
   }
 }

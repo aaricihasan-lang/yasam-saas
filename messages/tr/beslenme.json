@@ -336,6 +336,25 @@
         "applyDay": "Günü Uygula",
         "addMeal": "Öğün Ekle"
       }
+    },
+    "plans": {
+      "clientFallback": "Danışan",
+      "title": "Beslenme Planları",
+      "subtitle": "Günlük, haftalık ve aylık beslenme planları. Kalori ve besin değerleri seçtiğiniz besinlerden otomatik hesaplanır.",
+      "newPlan": "Yeni Plan",
+      "loading": "Planlar yükleniyor…",
+      "retry": "Tekrar Dene",
+      "emptyTitle": "Henüz plan yok.",
+      "emptyDesc": "İlk beslenme planınızı oluşturarak başlayın.",
+      "energyPerDay": "{kcal} kcal/gün",
+      "noTarget": "Hedef yok",
+      "lastUpdated": "Son güncelleme: {date}",
+      "lockedHint": "Düzenlemeye kapalı — düzenlemek için kopyalayın",
+      "open": "Aç",
+      "copy": "Planı Kopyala",
+      "revise": "Yeni Revizyon",
+      "delete": "Sil",
+      "deleted": "\"{title}\" silindi."
     }
   }
 }
