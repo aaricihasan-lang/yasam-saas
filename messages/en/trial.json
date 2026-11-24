@@ -14,10 +14,10 @@
       "suspendedTitle": "Your Trial Access Has Been Suspended",
       "reviewTitle": "Your Membership Is Under Review",
       "requestFailed": "The request could not be sent. Please try again.",
-      "goPro": "Move to Pro Membership",
+      "goPro": "Go Pro",
       "close": "Close",
       "credit": "Your Roxy credit today: {left} / {limit}",
-      "proRequested": "Your Pro Request Has Been Received",
+      "proRequested": "Pro Request Received",
       "whatsapp": "Contact Us on WhatsApp",
       "ok": "OK"
     },
