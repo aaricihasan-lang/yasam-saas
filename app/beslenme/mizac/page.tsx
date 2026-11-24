@@ -12,15 +12,16 @@ import {
 } from "../_components/BeslenmeShell";
 import { ProfileTopicPage, type CanonicalProfile } from "../_components/ProfileTopicPage";
 
-const PROFILES: CanonicalProfile[] = MIZAC_PROFILES.map((p) => ({
-  matchTitle: p.title,
-  label: p.title,
-  sub: p.quality,
-}));
 
 export default function MizacPage() {
   const guard = useBeslenmeModuleGuard();
   const ts = useTranslations("beslenme.shell");
+  // Mizaç adları (Dem, Safra, Sovdavi, Balgam) Owner kararına kadar çevrilmez; matchTitle kanonik. Yalnız nitelik etiketi.
+  const PROFILES: CanonicalProfile[] = MIZAC_PROFILES.map((p) => ({
+    matchTitle: p.title,
+    label: p.title,
+    sub: ts(`mizacQuality.${p.code}`),
+  }));
   if (guard !== "ok") return <BeslenmeGate state={guard} />;
 
   return (

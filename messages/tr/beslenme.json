@@ -866,7 +866,13 @@
       "bloodZero": "0 (Sıfır)",
       "bloodSub": "Kan Grubu",
       "mizacTitle": "Mizaca Göre Beslenme",
-      "mizacSubtitle": "Geleneksel dört mizaç (Dem, Safra, Sovdavi, Balgam) için beslenme profilleri. Her profil bölümler, ilişkili besinler ve kaynaklarla yapılandırılır."
+      "mizacSubtitle": "Geleneksel dört mizaç (Dem, Safra, Sovdavi, Balgam) için beslenme profilleri. Her profil bölümler, ilişkili besinler ve kaynaklarla yapılandırılır.",
+      "mizacQuality": {
+        "dem": "Sıcak-Yaş",
+        "safra": "Sıcak-Kuru",
+        "sovdavi": "Soğuk-Kuru",
+        "balgam": "Soğuk-Yaş"
+      }
     }
   }
 }

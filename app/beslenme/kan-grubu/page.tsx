@@ -14,15 +14,16 @@ import {
 } from "../_components/BeslenmeShell";
 import { ProfileTopicPage, type CanonicalProfile } from "../_components/ProfileTopicPage";
 
-const PROFILES: CanonicalProfile[] = BLOOD_TYPE_PROFILES.map((b) => ({
-  matchTitle: b,
-  label: b === "0" ? "0 (Sıfır)" : b,
-  sub: "Kan Grubu",
-}));
 
 export default function KanGrubuPage() {
   const guard = useBeslenmeModuleGuard();
   const ts = useTranslations("beslenme.shell");
+  // matchTitle kanonik ("0","A","B","AB"; DB eşleşmesi) DEĞİŞMEZ; yalnız gösterim etiketi çevrilir (EN "0" → "O").
+  const PROFILES: CanonicalProfile[] = BLOOD_TYPE_PROFILES.map((b) => ({
+    matchTitle: b,
+    label: b === "0" ? ts("bloodZero") : b,
+    sub: ts("bloodSub"),
+  }));
   if (guard !== "ok") return <BeslenmeGate state={guard} />;
 
   return (

@@ -383,7 +383,7 @@
       "stepCode": "Verification code",
       "computing": "Calculating scope…",
       "affected": "Records affected",
-      "more": "… and {count} more records",
+      "more": "{count, plural, one {… and # more record} other {… and # more records}}",
       "cancel": "Cancel",
       "continue": "Continue",
       "irreversible": "Are you sure? This action cannot be undone.",
@@ -696,7 +696,7 @@
       "dha": "DHA"
     },
     "nutrientGroup": {
-      "main": "Core Values",
+      "main": "Energy & Macronutrients",
       "minerals": "Minerals",
       "vitamins": "Vitamins",
       "fatty_acids": "Fatty Acids"
@@ -863,10 +863,16 @@
       "loading": "Loading…",
       "bloodTitle": "Nutrition by Blood Type",
       "bloodSubtitle": "Nutrition profiles for blood types 0, A, B and AB. Each profile is structured with sections, related foods and sources.",
-      "bloodZero": "0 (Zero)",
+      "bloodZero": "O",
       "bloodSub": "Blood Type",
       "mizacTitle": "Nutrition by Temperament",
-      "mizacSubtitle": "Nutrition profiles for the four traditional temperaments (Dem, Safra, Sovdavi, Balgam). Each profile is structured with sections, related foods and sources."
+      "mizacSubtitle": "Nutrition profiles for the four traditional temperaments (Dem, Safra, Sovdavi, Balgam). Each profile is structured with sections, related foods and sources.",
+      "mizacQuality": {
+        "dem": "Hot–Moist",
+        "safra": "Hot–Dry",
+        "sovdavi": "Cold–Dry",
+        "balgam": "Cold–Moist"
+      }
     }
   }
 }
