@@ -230,12 +230,21 @@ GRANT EXECUTE ON FUNCTION public.auth_rate_limit_hit(text, integer, integer) TO 
       ok(wrong.status >= 400, "yanlış kod reddedildi", wrong.status);
       const other = await call(verifyRoute.POST, "/api/auth/mfa/email/verify", "POST", { challengeId: ch, code }, { cookie: "__Host-yasam_mfa=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" });
       ok(other.status >= 400, "doğru kod başka tarayıcı bağlamasıyla (çerez) kullanılamaz", other.status);
-      const v = await call(verifyRoute.POST, "/api/auth/mfa/email/verify", "POST", { challengeId: ch, code }, web(bind));
+      // Başka bir giriş isteği (ikinci tarayıcı): bu isteğin kodu ilk isteğe bağlı değildir → ilk isteğin kodu burada geçmez.
+      const other2 = await login(EMAIL.owner);
+      const cross = await call(verifyRoute.POST, "/api/auth/mfa/email/verify", "POST", { challengeId: other2.json.challengeId, code }, web(other2.bind));
+      ok(cross.status >= 400, "bir giriş isteğinin kodu BAŞKA giriş isteğinde kabul edilmez (kapsam: challenge)", cross.status);
+      // Aynı doğru kodla paralel iki doğrulama → yalnız biri başarılı.
+      const [v, v2] = await Promise.all([
+        call(verifyRoute.POST, "/api/auth/mfa/email/verify", "POST", { challengeId: ch, code }, web(bind)),
+        call(verifyRoute.POST, "/api/auth/mfa/email/verify", "POST", { challengeId: ch, code }, web(bind)),
+      ]);
+      ok([v, v2].filter((x) => x.status === 200).length === 1, "aynı doğru kodla PARALEL iki doğrulama: yalnız BİRİ başarılı", { a: v.status, b: v2.status });
       const c = await call(completeRoute.POST, "/api/auth/mfa/complete", "POST", { challengeId: ch }, web(bind));
       const sid = cookieVal(c.set, "__Host-yasam_sid");
       sidMfa = sid;
       const cookieLine = c.set.find((x) => x.startsWith("__Host-yasam_sid=")) ?? "";
-      ok(v.status === 200 && c.status === 200 && !!sid && !("sessionToken" in c.json), "doğru kod → oturum açıldı (gövdede anahtar YOK)", { v: v.status, c: c.status });
+      ok(c.status === 200 && !!sid && !("sessionToken" in c.json), "doğru kod → oturum açıldı (gövdede anahtar YOK)", { c: c.status });
       ok(/HttpOnly/i.test(cookieLine) && /Secure/i.test(cookieLine) && /SameSite=strict/i.test(cookieLine) && /Path=\//i.test(cookieLine) && !/Domain=/i.test(cookieLine), "çerez: HttpOnly + Secure + SameSite=Strict + Path=/ + Domain yok");
       const m = (await q(`SELECT mfa_method FROM public.user_sessions WHERE session_token = $1`, [sid])).rows[0]?.mfa_method;
       ok(m === "email_otp", `oturumun MFA kanıtı: ${m}`);
@@ -283,6 +292,10 @@ GRANT EXECUTE ON FUNCTION public.auth_rate_limit_hit(text, integer, integer) TO 
       await swap({ secure: true, tlsPair: C.srv });
 
       // Sağlayıcı tamamen kapatılırsa (EMAIL_PROVIDER silindi): e-posta yöntemi sunulmaz, kurtarma kodu kalır, parola yetmez.
+      // Fikstür (zaman geçişi taklidi): önceki girişlerin oran sayaçları (SMTP kotası HARİÇ) ve bekleyen istekler temizlenir;
+      // aksi hâlde hesap bazlı giriş sınırı (beklenen koruma) 429 verir.
+      await q(`DELETE FROM public.auth_rate_limit_events WHERE bucket <> $1`, [SMTP_HOURLY_BUCKET]);
+      await q(`UPDATE public.auth_mfa_challenges SET state = 'expired' WHERE user_id = $1 AND state IN ('pending','verified')`, [U.owner]);
       const saved = process.env.EMAIL_PROVIDER;
       delete process.env.EMAIL_PROVIDER;
       resetEmailProviderCache();
