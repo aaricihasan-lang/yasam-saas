@@ -271,9 +271,40 @@ export async function POST(req: NextRequest, ctx: RouteContext) {
     });
   }
 
+  // ── ÜYE PASİFLEŞTİRME F4: PASİF YAP / KISITI KALDIR (bağımsız erişim kısıtı) ─────────────────────
+  // "Pasif" = giriş açık, tüm modüller kilitli (sunucu kapısı: lib/auth/accessRestriction + verifyUserRequest).
+  // active'e, oturumlara, pakete, denemeye, modüllere ve kayıtlara DOKUNULMAZ. Atomik RPC + zorunlu audit + bayat ekran
+  // (expectedRestricted) koruması. Yalnız uzman hedef (RPC UY002); arşivdeki hesap UY005. Yukarıdaki kendi hesabı /
+  // yönetici hedefi korumaları burada da geçerli.
+  if (body.action === "set_access") {
+    if (typeof body.restricted !== "boolean" || typeof body.expectedRestricted !== "boolean") {
+      return bad("Geçerli istenen durum (restricted) ve mevcut durum (expectedRestricted) gerekli.");
+    }
+    const { data, error } = await db.rpc("admin_set_member_access_restriction", {
+      p_user_id: id,
+      p_actor_admin_id: adminId,
+      p_restricted: body.restricted,
+      p_expected_restricted: body.expectedRestricted,
+    });
+    if (error) {
+      const code = (error as { code?: string }).code;
+      if (code === "UY001") return bad("Uzmanın erişim durumu bu sırada değişmiş; sayfayı yenileyip tekrar deneyin.", 409);
+      if (code === "UY005") return bad("Hesap arşivde. Önce ana yönetici arşivden çıkarmalıdır.", 409);
+      if (code === "UY002") {
+        return bad("Bu işlem yalnız girişi açık, onaylı uzman hesabına uygulanabilir (yönetici hesapları için “Pasif Yap” mevcut davranışı kullanır).", 409);
+      }
+      if (code === "42501") return bad("Yetki yok.", 403);
+      if (code === "UY003") return bad("Kullanıcı bulunamadı.", 404);
+      // Migration öncesi (fonksiyon yok) veya beklenmeyen hata: ayrıntı sızdırılmaz.
+      return bad("Erişim durumu değiştirilemedi.", 500);
+    }
+    const result = (data ?? {}) as { restricted?: boolean; changed?: boolean };
+    return jsonNoStore({ ok: true, restricted: result.restricted === true, changed: result.changed === true });
+  }
+
   // ── PASİFE AL / AKTİFLEŞTİR (atomik + oturum iptali) ───────────────────────
   if (body.action !== "toggle_active") {
-    return bad("Geçersiz action. approve | approve_trial | repair_legacy_pro | reject | toggle_active bekleniyor.");
+    return bad("Geçersiz action. approve | approve_trial | repair_legacy_pro | reject | set_access | toggle_active bekleniyor.");
   }
 
   // İstemcinin gördüğü mevcut durum ZORUNLU (optimistic-concurrency).

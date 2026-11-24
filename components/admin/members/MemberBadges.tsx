@@ -50,10 +50,23 @@ export function ApprovalBadge({ status }: { status: ApprovalStatusUi }) {
   return <span className={`${pill} ${tone}`}>{APPROVAL_LABELS[status]}</span>;
 }
 
-/** AŞAMA 4a: `archived` verilirse (yönetim arşivi) "Arşivde" gösterilir; verilmezse eski davranış aynen. */
-export function AccountBadge({ active, archived = false }: { active: boolean; archived?: boolean }) {
+/**
+ * AŞAMA 4a: `archived` verilirse (yönetim arşivi) "Arşivde" gösterilir; verilmezse eski davranış aynen.
+ * ÜYE PASİFLEŞTİRME F4: `restricted` verilirse (yalnız bağımsız erişim kısıtını bilen ekranlar):
+ *   active + restricted → "Pasif" (giriş açık, modüller kilitli) · !active → "Giriş kapalı" (eski "Pasif Yap" sonucu).
+ * `restricted` verilmezse eski davranış AYNEN (ör. klasik liste).
+ */
+export function AccountBadge({ active, archived = false, restricted }: { active: boolean; archived?: boolean; restricted?: boolean }) {
   if (archived) {
     return <span className={`${pill} bg-stone-200 text-stone-800 ring-stone-300`}>Arşivde</span>;
+  }
+  if (restricted !== undefined) {
+    if (active && restricted) {
+      return <span className={`${pill} bg-amber-100 text-amber-950 ring-amber-300`}>{ACCOUNT_LABELS.passive}</span>;
+    }
+    if (!active) {
+      return <span className={`${pill} bg-slate-200 text-slate-700 ring-slate-300`}>Giriş kapalı</span>;
+    }
   }
   return (
     <span
