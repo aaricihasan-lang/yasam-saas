@@ -1,0 +1,15 @@
+{
+  "common": {
+    "languagePreference": {
+      "tabLabel": "Dil",
+      "title": "Arayüz dili",
+      "description": "Seçtiğiniz dil hesabınıza kaydedilir; başka bir tarayıcıdan veya cihazdan giriş yaptığınızda da uygulanır. Danışan kayıtlarınız ve notlarınız çevrilmez.",
+      "accountSaved": "Hesabınızda kayıtlı dil: {label}",
+      "accountUnset": "Hesabınızda kayıtlı bir dil tercihi yok; varsayılan dil Türkçe.",
+      "accountUnavailable": "Dil tercihi şu anda hesabınıza kaydedilemiyor; seçiminiz yalnız bu cihazda geçerli olur.",
+      "savedAccount": "Dil tercihiniz hesabınıza kaydedildi.",
+      "savedDevice": "Dil bu cihaz için değiştirildi; hesabınıza kaydedilemedi.",
+      "saveError": "Dil değiştirilemedi. Lütfen yeniden deneyin."
+    }
+  }
+}

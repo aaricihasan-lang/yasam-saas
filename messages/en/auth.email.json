@@ -1,0 +1,81 @@
+{
+  "auth": {
+    "email": {
+      "brand": "Yaşam Sistemi",
+      "hello": "Hello {name},",
+      "helloAnon": "Hello,",
+      "footer": "This message was sent automatically; please do not reply.",
+      "otp": {
+        "ownerTestSubject": "Yaşam Sistemi — email delivery test",
+        "ownerTestText": "This message is a delivery test started from the Yaşam Sistemi administration panel. No action is required.",
+        "ownerTestHtml": "This message is a <strong>delivery test</strong> started from the Yaşam Sistemi administration panel. No action is required.",
+        "actionLogin": "signing in to Yaşam Sistemi",
+        "actionChangeEmail": "changing your Yaşam Sistemi account email address to this address",
+        "actionStepUp": "approving a critical action in the Yaşam Sistemi administration panel",
+        "actionVerifyEmail": "verifying your Yaşam Sistemi email address",
+        "subject": "{code} — your Yaşam Sistemi verification code",
+        "intro": "Your verification code for {action} is:",
+        "validityText": "The code is valid for {minutes} minutes and can only be used once.",
+        "validityHtml": "The code is valid for <strong>{minutes} minutes</strong> and can only be used once.",
+        "noShareText": "Do not share this code with anyone. Yaşam Sistemi staff will never ask you for this code.",
+        "noShareHtml": "<strong>Do not share this code with anyone.</strong> Yaşam Sistemi staff will never ask you for this code.",
+        "notYou": "If you did not start this action, please ignore this message and change your password."
+      },
+      "notice": {
+        "header": "Yaşam Sistemi — security notification",
+        "recovery_login": {
+          "subject": "Yaşam Sistemi — someone signed in to your account with a recovery code",
+          "lines": [
+            "Someone signed in to your account using a recovery code. The code that was used is no longer valid.",
+            "If you have lost your phone, revoke the lost device under Settings › My Sign-in Methods and create new recovery codes.",
+            "If this sign-in was not you, change your password immediately and inform your system administrator."
+          ]
+        },
+        "owner_offline_login": {
+          "subject": "Yaşam Sistemi — an Owner offline recovery code was used",
+          "lines": [
+            "Someone signed in to the Owner account with a code from the offline recovery kit. All other sessions of the account have been closed.",
+            "If this was not you, the kit has been compromised: generate a new kit from the SQL console and change your password."
+          ]
+        },
+        "recovery_codes_generated": {
+          "subject": "Yaşam Sistemi — your recovery codes have been renewed",
+          "lines": [
+            "New recovery codes have been created for your account. Your previous codes are no longer valid.",
+            "The codes are not included in this message; they were shown only once, on the screen where they were created.",
+            "If this was not you, change your password immediately and inform your system administrator."
+          ]
+        },
+        "email_changed_old": {
+          "subject": "Yaşam Sistemi — your account email address has been changed",
+          "lines": [
+            "The sign-in email address of your account has been changed. This address is no longer linked to your account.",
+            "If you did not make this change, contact your system administrator immediately."
+          ]
+        },
+        "email_changed_new": {
+          "subject": "Yaşam Sistemi — your email address has been verified",
+          "lines": [
+            "This address has been verified as the sign-in email address of your Yaşam Sistemi account."
+          ]
+        },
+        "recovery_case_opened": {
+          "subject": "Yaşam Sistemi — an account recovery request has been opened for you",
+          "lines": [
+            "Your system administrator has opened an account recovery request, reporting that access to your account was lost.",
+            "For your security, the request can be processed no earlier than 72 hours from now.",
+            "If you did not ask for this, sign in to your account and cancel the request under Settings › My Sign-in Methods."
+          ]
+        },
+        "recovery_case_executed": {
+          "subject": "Yaşam Sistemi — account recovery completed",
+          "lines": [
+            "The recovery of your account has been completed: registered devices have been revoked and open sessions have been closed.",
+            "When signing in, use the single-use recovery ticket your system administrator gave you.",
+            "If you did not ask for this, contact your system administrator immediately."
+          ]
+        }
+      }
+    }
+  }
+}

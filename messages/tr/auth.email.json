@@ -1,0 +1,81 @@
+{
+  "auth": {
+    "email": {
+      "brand": "Yaşam Sistemi",
+      "hello": "Merhaba {name},",
+      "helloAnon": "Merhaba,",
+      "footer": "Bu ileti otomatik gönderilmiştir; lütfen yanıtlamayın.",
+      "otp": {
+        "ownerTestSubject": "Yaşam Sistemi — e-posta gönderim testi",
+        "ownerTestText": "Bu ileti Yaşam Sistemi yönetim panelinden başlatılan bir gönderim testidir. Herhangi bir işlem yapmanız gerekmez.",
+        "ownerTestHtml": "Bu ileti Yaşam Sistemi yönetim panelinden başlatılan bir <strong>gönderim testidir</strong>. Herhangi bir işlem yapmanız gerekmez.",
+        "actionLogin": "Yaşam Sistemi'ne giriş",
+        "actionChangeEmail": "Yaşam Sistemi hesabınızın e-posta adresini bu adresle değiştirme",
+        "actionStepUp": "Yaşam Sistemi yönetim panelindeki kritik bir işlemi onaylama",
+        "actionVerifyEmail": "Yaşam Sistemi e-posta adresinizi doğrulama",
+        "subject": "{code} — Yaşam Sistemi doğrulama kodunuz",
+        "intro": "{action} işleminiz için doğrulama kodunuz:",
+        "validityText": "Kod {minutes} dakika geçerlidir ve yalnızca bir kez kullanılabilir.",
+        "validityHtml": "Kod <strong>{minutes} dakika</strong> geçerlidir ve yalnızca bir kez kullanılabilir.",
+        "noShareText": "Bu kodu kimseyle paylaşmayın. Yaşam Sistemi çalışanları bu kodu sizden asla istemez.",
+        "noShareHtml": "Bu kodu <strong>kimseyle paylaşmayın</strong>. Yaşam Sistemi çalışanları bu kodu sizden asla istemez.",
+        "notYou": "Bu işlemi siz başlatmadıysanız bu iletiyi dikkate almayın ve parolanızı değiştirin."
+      },
+      "notice": {
+        "header": "Yaşam Sistemi — güvenlik bildirimi",
+        "recovery_login": {
+          "subject": "Yaşam Sistemi — hesabınıza kurtarma koduyla giriş yapıldı",
+          "lines": [
+            "Hesabınıza bir kurtarma kodu kullanılarak giriş yapıldı. Kullanılan kod artık geçersizdir.",
+            "Telefonunuzu kaybettiyseniz Ayarlar › Giriş Yöntemlerim bölümünden kayıp cihazı iptal edin ve yeni kurtarma kodları oluşturun.",
+            "Bu girişi siz yapmadıysanız hemen parolanızı değiştirin ve sistem yöneticinize bildirin."
+          ]
+        },
+        "owner_offline_login": {
+          "subject": "Yaşam Sistemi — Owner çevrimdışı kurtarma kodu kullanıldı",
+          "lines": [
+            "Owner hesabına çevrimdışı kurtarma kitindeki bir kodla giriş yapıldı. Hesabın diğer bütün oturumları kapatıldı.",
+            "Bu işlemi siz yapmadıysanız kitin güvenliği bozulmuştur: SQL konsolundan yeni kit üretin ve parolanızı değiştirin."
+          ]
+        },
+        "recovery_codes_generated": {
+          "subject": "Yaşam Sistemi — kurtarma kodlarınız yenilendi",
+          "lines": [
+            "Hesabınız için yeni kurtarma kodları oluşturuldu. Önceki kodlarınız artık geçersizdir.",
+            "Kodlar bu iletide yer almaz; yalnız oluşturulduğu ekranda bir kez gösterilmiştir.",
+            "Bu işlemi siz yapmadıysanız hemen parolanızı değiştirin ve sistem yöneticinize bildirin."
+          ]
+        },
+        "email_changed_old": {
+          "subject": "Yaşam Sistemi — hesabınızın e-posta adresi değiştirildi",
+          "lines": [
+            "Hesabınızın giriş e-posta adresi değiştirildi. Bu adres artık hesabınızla ilişkili değildir.",
+            "Bu değişikliği siz yapmadıysanız hemen sistem yöneticinizle iletişime geçin."
+          ]
+        },
+        "email_changed_new": {
+          "subject": "Yaşam Sistemi — e-posta adresiniz doğrulandı",
+          "lines": [
+            "Bu adres Yaşam Sistemi hesabınızın giriş e-posta adresi olarak doğrulandı."
+          ]
+        },
+        "recovery_case_opened": {
+          "subject": "Yaşam Sistemi — hesabınız için kurtarma talebi açıldı",
+          "lines": [
+            "Sistem yöneticisi, hesabınıza erişimin kaybedildiği bildirimiyle bir hesap kurtarma talebi açtı.",
+            "Güvenliğiniz için talep en erken 72 saat sonra işleme alınabilir.",
+            "Bu talebi siz istemediyseniz hesabınıza giriş yapın ve Ayarlar › Giriş Yöntemlerim bölümünden talebi iptal edin."
+          ]
+        },
+        "recovery_case_executed": {
+          "subject": "Yaşam Sistemi — hesap kurtarma tamamlandı",
+          "lines": [
+            "Hesabınız için kurtarma işlemi tamamlandı: kayıtlı cihazlar iptal edildi ve açık oturumlar kapatıldı.",
+            "Girişte, sistem yöneticisinin size ilettiği tek kullanımlık kurtarma biletini kullanın.",
+            "Bu işlemi siz istemediyseniz hemen sistem yöneticinizle iletişime geçin."
+          ]
+        }
+      }
+    }
+  }
+}

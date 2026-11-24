@@ -1,160 +1,41 @@
 import { getRequestConfig } from "next-intl/server";
 import { cookies } from "next/headers";
-import { DEFAULT_LOCALE, LOCALE_COOKIE, resolveLocale, type ActiveLocale } from "@/lib/i18n/locales";
+import { LOCALE_COOKIE, type ActiveLocale } from "@/lib/i18n/locales";
+import { effectiveLocale } from "@/lib/i18n/gate";
+import { defaultCatalogOptions, getCatalogMessages } from "@/lib/i18n/catalog";
 
-import trCommon from "@/messages/tr/common.json";
-import trNavigation from "@/messages/tr/navigation.json";
-import trHome from "@/messages/tr/home.json";
-import trClients from "@/messages/tr/clients.json";
-import trClientsList from "@/messages/tr/clients.list.json";
-import trClientsNotes from "@/messages/tr/clients.notes.json";
-import trClientsSessions from "@/messages/tr/clients.sessions.json";
-import trClientsCharges from "@/messages/tr/clients.charges.json";
-import trClientsHomework from "@/messages/tr/clients.homework.json";
-import trClientsMemory from "@/messages/tr/clients.memory.json";
-import trClientsCombinations from "@/messages/tr/clients.combinations.json";
-import trClientsStones from "@/messages/tr/clients.stones.json";
-import trClientsYolculuk from "@/messages/tr/clients.yolculuk.json";
-import trClientsDetail from "@/messages/tr/clients.detail.json";
-import trClientsAnalizler from "@/messages/tr/clients.analizler.json";
-import trClientsAnamnez from "@/messages/tr/clients.anamnez.json";
-import trMemoryPicker from "@/messages/tr/memoryPicker.json";
-import trStones from "@/messages/tr/stones.json";
-import trStonesHub from "@/messages/tr/stones.hub.json";
-import trStonesRecords from "@/messages/tr/stones.records.json";
-import trStonesList from "@/messages/tr/stones.list.json";
-import trStonesMinerals from "@/messages/tr/stones.minerals.json";
-import trStonesCombinations from "@/messages/tr/stones.combinations.json";
-import trStonesKnowledge from "@/messages/tr/stones.knowledge.json";
-import trBeslenme from "@/messages/tr/beslenme.json";
+// Kataloglar i18n/catalog.generated.ts'ten gelir (npm run i18n:catalog). Yeni namespace dosyası
+// eklemek bu dosyada değişiklik GEREKTİRMEZ.
 
-import enCommon from "@/messages/en/common.json";
-import enNavigation from "@/messages/en/navigation.json";
-import enHome from "@/messages/en/home.json";
-import enClients from "@/messages/en/clients.json";
-import enClientsList from "@/messages/en/clients.list.json";
-import enClientsNotes from "@/messages/en/clients.notes.json";
-import enClientsSessions from "@/messages/en/clients.sessions.json";
-import enClientsCharges from "@/messages/en/clients.charges.json";
-import enClientsHomework from "@/messages/en/clients.homework.json";
-import enClientsMemory from "@/messages/en/clients.memory.json";
-import enClientsCombinations from "@/messages/en/clients.combinations.json";
-import enClientsStones from "@/messages/en/clients.stones.json";
-import enClientsYolculuk from "@/messages/en/clients.yolculuk.json";
-import enClientsDetail from "@/messages/en/clients.detail.json";
-import enClientsAnalizler from "@/messages/en/clients.analizler.json";
-import enClientsAnamnez from "@/messages/en/clients.anamnez.json";
-import enMemoryPicker from "@/messages/en/memoryPicker.json";
-import enStones from "@/messages/en/stones.json";
-import enStonesHub from "@/messages/en/stones.hub.json";
-import enStonesRecords from "@/messages/en/stones.records.json";
-import enStonesList from "@/messages/en/stones.list.json";
-import enStonesMinerals from "@/messages/en/stones.minerals.json";
-import enStonesCombinations from "@/messages/en/stones.combinations.json";
-import enStonesKnowledge from "@/messages/en/stones.knowledge.json";
-import enBeslenme from "@/messages/en/beslenme.json";
-
-type Messages = Record<string, unknown>;
-
-function isPlainObject(value: unknown): value is Messages {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-/** Namespace dosyalarını (aynı kök altında) derinlemesine birleştirir. */
-function deepMerge(target: Messages, source: Messages): Messages {
-  const out: Messages = { ...target };
-  for (const key of Object.keys(source)) {
-    const nextValue = source[key];
-    const prevValue = out[key];
-    out[key] =
-      isPlainObject(nextValue) && isPlainObject(prevValue)
-        ? deepMerge(prevValue, nextValue)
-        : nextValue;
-  }
-  return out;
-}
-
-function buildMessages(parts: Messages[]): Messages {
-  return parts.reduce<Messages>((acc, part) => deepMerge(acc, part), {});
-}
-
-const MESSAGES_BY_LOCALE: Record<ActiveLocale, Messages> = {
-  tr: buildMessages([
-    trCommon,
-    trNavigation,
-    trHome,
-    trClients,
-    trClientsList,
-    trClientsNotes,
-    trClientsSessions,
-    trClientsCharges,
-    trClientsHomework,
-    trClientsMemory,
-    trClientsCombinations,
-    trClientsStones,
-    trClientsYolculuk,
-    trClientsDetail,
-    trClientsAnalizler,
-    trClientsAnamnez,
-    trMemoryPicker,
-    trStones,
-    trStonesHub,
-    trStonesRecords,
-    trStonesList,
-    trStonesMinerals,
-    trStonesCombinations,
-    trStonesKnowledge,
-    trBeslenme,
-  ]),
-  en: buildMessages([
-    enCommon,
-    enNavigation,
-    enHome,
-    enClients,
-    enClientsList,
-    enClientsNotes,
-    enClientsSessions,
-    enClientsCharges,
-    enClientsHomework,
-    enClientsMemory,
-    enClientsCombinations,
-    enClientsStones,
-    enClientsYolculuk,
-    enClientsDetail,
-    enClientsAnalizler,
-    enClientsAnamnez,
-    enMemoryPicker,
-    enStones,
-    enStonesHub,
-    enStonesRecords,
-    enStonesList,
-    enStonesMinerals,
-    enStonesCombinations,
-    enStonesKnowledge,
-    enBeslenme,
-  ]),
-};
+// Production'da eksik anahtar için tek seferlik sunucu günlüğü (yalnız anahtar yolu; kullanıcı verisi yok).
+const reportedMissing = new Set<string>();
 
 export default getRequestConfig(async () => {
-  // FAZ 1 / AŞAMA 3 — TR + EN AKTİF. Locale NEXT_LOCALE cookie'sinden çözülür.
-  // resolveLocale yalnız AKTİF bir locale kabul eder (aksi → source tr).
-  // NOT: cookie okuması bu route'ları dynamic render'a çeker (locale
-  // seçimi per-request'tir) — beklenen davranış (URL-prefix'siz i18n).
+  // Locale NEXT_LOCALE cookie'sinden çözülür; yayın kapısı (lib/i18n/gate.ts) kapalıysa çerez
+  // yok sayılır ve kaynak dil (tr) kullanılır. resolveLocale yalnız AKTİF bir locale kabul eder.
+  // NOT: cookie okuması bu route'ları dynamic render'a çeker (URL-prefix'siz i18n — beklenen).
   const cookieStore = await cookies();
-  const cookieLocale = cookieStore.get(LOCALE_COOKIE)?.value;
-  const locale: ActiveLocale = resolveLocale(cookieLocale);
+  const locale: ActiveLocale = effectiveLocale(cookieStore.get(LOCALE_COOKIE)?.value);
+  const options = defaultCatalogOptions();
 
   return {
     locale,
-    messages: MESSAGES_BY_LOCALE[locale] ?? MESSAGES_BY_LOCALE[DEFAULT_LOCALE],
-    // Eksik anahtar / format hatası: DEV'de görünür logla, PROD'da sessiz.
+    messages: getCatalogMessages(locale, options),
+    // Saat dilimi sabit: sunucu (UTC) ile tarayıcı arasında next-intl biçimlendirme farkı oluşmaz.
+    timeZone: "Europe/Istanbul",
     onError(error) {
       if (process.env.NODE_ENV === "development") {
         console.error("[i18n]", error.message);
+        return;
+      }
+      const key = `${error.code}:${error.message}`;
+      if (!reportedMissing.has(key) && reportedMissing.size < 200) {
+        reportedMissing.add(key);
+        console.error("[i18n]", error.code, error.message);
       }
     },
     // DEV: eksik anahtar açıkça tespit edilebilsin. PROD: ham anahtar (ör.
-    // "clients.detail.someMissingKey") KULLANICIYA GÖSTERİLMEZ.
+    // "clients.detail.someMissingKey") KULLANICIYA GÖSTERİLMEZ (kaynak dil yedeği catalog.ts'te).
     getMessageFallback({ namespace, key }) {
       const path = [namespace, key].filter(Boolean).join(".");
       return process.env.NODE_ENV === "development" ? `⟦${path}⟧` : "";

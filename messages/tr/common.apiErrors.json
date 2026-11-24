@@ -1,0 +1,33 @@
+{
+  "common": {
+    "apiErrors": {
+      "generic": "İşlem tamamlanamadı. Lütfen yeniden deneyin.",
+      "network": "Bağlantı kurulamadı. İnternet bağlantınızı kontrol edip yeniden deneyin.",
+      "codes": {
+        "NOT_FOUND": "Kayıt bulunamadı.",
+        "BAD_ID": "Geçersiz kayıt kimliği.",
+        "INVALID_ID": "Geçersiz kayıt kimliği.",
+        "BAD_JSON": "Geçersiz istek gövdesi.",
+        "MALFORMED_JSON": "Geçersiz istek gövdesi.",
+        "INVALID_BODY": "Geçersiz istek gövdesi.",
+        "INVALID_INPUT": "Girilen bilgiler geçersiz.",
+        "UNKNOWN_FIELD": "İstekte tanınmayan bir alan var.",
+        "PAYLOAD_TOO_LARGE": "İstek çok büyük.",
+        "BODY_TOO_LARGE": "İstek çok büyük.",
+        "RATE_LIMITED": "Kısa sürede çok fazla istek gönderildi. Lütfen biraz bekleyip yeniden deneyin.",
+        "DEMO_READONLY": "Bu bir test hesabıdır; değişiklik kaydedilmez.",
+        "DB_ERROR": "Veriler şu anda kaydedilemedi. Lütfen daha sonra yeniden deneyin.",
+        "SERVER_ERROR": "Beklenmeyen bir hata oluştu. Lütfen daha sonra yeniden deneyin.",
+        "READ_FAILED": "Veriler okunamadı. Lütfen yeniden deneyin.",
+        "CREATE_FAILED": "Kayıt oluşturulamadı.",
+        "UPDATE_FAILED": "Kayıt güncellenemedi.",
+        "DELETE_FAILED": "Kayıt silinemedi.",
+        "CONFLICT": "Kayıt başka bir yerde değişti. Sayfayı yenileyip yeniden deneyin.",
+        "VERSION_CONFLICT": "Kayıt başka bir sekmede değişti. Güncel hâli yüklendi; değişikliğinizi yeniden deneyin.",
+        "CLIENT_NOT_FOUND": "Danışan bulunamadı.",
+        "INVALID_LOCALE": "Seçilen dil desteklenmiyor.",
+        "LOCALE_SWITCHING_DISABLED": "Dil seçimi şu anda kullanılamıyor."
+      }
+    }
+  }
+}

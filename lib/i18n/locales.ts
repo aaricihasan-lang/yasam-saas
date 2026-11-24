@@ -1,31 +1,32 @@
 /**
  * Yaşam Sistemi — i18n locale registry.
  *
- * FAZ 1 / AŞAMA 2A: Yalnızca Türkçe (tr) AKTİF/source locale'dir.
  * URL-prefix YOKTUR (mevcut rotalar korunur: /danisan-yolculugu, /dashboard/... vb.).
  *
- * Gelecekteki diller (en/de/fr) burada TANIMLI ama SELECTABLE DEĞİL. Yeni dil
- * eklemek için `ACTIVE_LOCALES`'a eklemek + ilgili `messages/<locale>/` dosyalarını
- * yazmak yeterlidir; başka kod değişikliği gerekmez.
+ * Yeni dil eklemek: `messages/<locale>/` katalogları + `npm run i18n:catalog` (katalog kaydı
+ * otomatik üretilir) + aşağıda `ACTIVE_LOCALES`/`LOCALE_LABELS`/biçim etiketi. Kullanıcıya
+ * görünmesi ayrıca yayın kapısına bağlıdır (lib/i18n/gate.ts).
  */
 
 export const DEFAULT_LOCALE = "tr" as const;
 
-/** Kullanıcının gerçekten seçebileceği (aktif) diller. FAZ 1/AŞAMA 3: TR + EN. */
+/** Kodda çalışabilen (katalogu olan) diller. Production'da görünürlük lib/i18n/gate.ts'tedir. */
 export const ACTIVE_LOCALES = ["tr", "en"] as const;
 
-/** İleride hedeflenen dil sırası (TR → EN → DE → FR). Henüz selectable DEĞİL. */
-export const PLANNED_LOCALES = ["tr", "en", "de", "fr"] as const;
+/**
+ * Owner kararı (I18N-F1, 2026-11-24): önce İngilizce eksiksiz, ardından Almanca. Fransızca,
+ * Hollandaca ve İspanyolca için ayrıca Owner kararı alınacak — henüz plana alınmadı.
+ */
+export const PLANNED_LOCALES = ["tr", "en", "de"] as const;
 
 export type ActiveLocale = (typeof ACTIVE_LOCALES)[number];
 export type PlannedLocale = (typeof PLANNED_LOCALES)[number];
 
-/** Dil seçici / <html lang> için insan-okunur etiketler. */
+/** Dil seçici / <html lang> için insan-okunur etiketler (her dil kendi adıyla). */
 export const LOCALE_LABELS: Record<PlannedLocale, string> = {
   tr: "Türkçe",
   en: "English",
   de: "Deutsch",
-  fr: "Français",
 };
 
 /** Locale tercihini taşıyan cookie adı (next-intl standardı). */

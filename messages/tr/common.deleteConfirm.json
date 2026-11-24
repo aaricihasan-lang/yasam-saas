@@ -1,0 +1,41 @@
+{
+  "common": {
+    "deleteConfirm": {
+      "title": "Silmek istediğinizden emin misiniz?",
+      "yes": "Evet",
+      "cancel": "Vazgeç",
+      "irreversibleNotice": "Bu işlem geri alınamaz.",
+      "irreversibleMarker": "geri alınamaz",
+      "secondTitle": "Son onay",
+      "secondMessageIrreversible": "Bu işlem kalıcıdır. Yanlışlıkla silmediğinizden emin olun.",
+      "secondMessage": "İşlemi onaylıyor musunuz?",
+      "secondConfirmIrreversible": "Kalıcı Olarak Sil",
+      "secondConfirm": "Onayla",
+      "confirmWord": "SİL",
+      "moreRecords": "ve {count} kayıt daha",
+      "bulk": {
+        "phrase": "{count} KAYDI SİL",
+        "deleteAllPhrase": "TÜMÜNÜ SİL",
+        "defaultNoun": "kayıt",
+        "scope": "{count} {noun}",
+        "scopeAll": "TÜM {count} {noun}",
+        "verbDelete": "kalıcı olarak silinecek",
+        "verbRemove": "kaldırılacak",
+        "warnIrreversible": "Bu işlem geri alınamaz.",
+        "warnScope": "Lütfen kapsamı kontrol edin.",
+        "stage1TitleAll": "Tümünü Sil — Adım 1/3",
+        "stage1Title": "Toplu Silme — Adım 1/3",
+        "continue": "Devam Et",
+        "stage2Title": "Doğrulama — Adım 2/3",
+        "stage2Message": "Yanlışlıkla toplu silmeyi önlemek için aşağıdaki ifadeyi yazın:\n\n{phrase}",
+        "requireLabel": "“{phrase}” yazın. Büyük/küçük harf ve ı/i farkı önemsizdir; sayı ve kelimeler aynen yazılmalıdır.",
+        "stage3TitleIrreversible": "Son Onay — Bu işlem geri alınamaz.",
+        "stage3Title": "Son Onay",
+        "stage3MessageIrreversible": "{scope} kalıcı olarak silinecek.\n\nSilinen kayıtlar geri getirilemez. Onaylıyor musunuz?",
+        "stage3Message": "{scope} kaldırılacak. Onaylıyor musunuz?",
+        "confirmIrreversible": "Kalıcı Olarak Sil ({count})",
+        "confirm": "Onayla ({count})"
+      }
+    }
+  }
+}

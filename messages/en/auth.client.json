@@ -1,0 +1,7 @@
+{
+  "auth": {
+    "client": {
+      "network": "Could not connect. Please check your internet connection and try again."
+    }
+  }
+}

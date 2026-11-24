@@ -3,13 +3,16 @@
 /**
  * Yaşam Sistemi — Dil Seçici (temel bileşen).
  *
- * FAZ 1 / AŞAMA 2A: Yalnız Türkçe AKTİF. `ACTIVE_LOCALES` tek eleman olduğunda
- * seçici erişilebilir bir statik göstergedir. İkinci dil eklendiğinde (yalnız
- * `lib/i18n/locales.ts` düzenlenerek) bileşen KOD DEĞİŞMEDEN gerçek bir
- * açılır menüye dönüşür.
+ * I18N-F1 (Owner kararı A1/A7):
+ *   - Yayın kapısı (lib/i18n/gate.ts) kapalıysa — production varsayılanı — bileşen HİÇBİR ŞEY
+ *     render etmez; yabancı dil seçimi kullanıcıya görünmez.
+ *   - Kapı açıkken seçim hem cihaz çerezine (setLocale) hem uzmanın HESABINA (/api/me/locale)
+ *     yazılır; bileşen oturum açıkken hesap tercihini okuyup bu cihazdaki çerezi eşitler
+ *     (öncelik sırası: lib/i18n/localePreference.ts). Böylece çıkış/giriş, tarayıcı veya cihaz
+ *     değişiminde hesap tercihi uygulanır ve ortak bilgisayarda uzmanların dili karışmaz.
+ *   - `ACTIVE_LOCALES` tek eleman olduğunda seçici erişilebilir bir statik göstergedir.
  *
- * Premium/sade, responsive, mobil dokunma hedefi ≥44px, klavye + aria uyumlu.
- * Bu turda hiçbir sayfaya MOUNT EDİLMEZ (Ana Sayfa ayrı batch). Kullanım:
+ * Premium/sade, responsive, mobil dokunma hedefi ≥44px, klavye + aria uyumlu. Kullanım:
  *   import LanguageSelector from "@/components/i18n/LanguageSelector";
  *   <LanguageSelector />
  *
@@ -26,6 +29,9 @@ import {
   type ActiveLocale,
 } from "@/lib/i18n/locales";
 import { setLocale } from "@/lib/i18n/setLocale";
+import { isLocaleSwitchingEnabled } from "@/lib/i18n/gate";
+import { syncDecision } from "@/lib/i18n/localePreference";
+import { fetchAccountLocale, hasClientSession, saveAccountLocale } from "@/lib/i18n/localePreferenceClient";
 
 export default function LanguageSelector({
   className = "",
@@ -42,6 +48,25 @@ export default function LanguageSelector({
   const containerRef = useRef<HTMLDivElement>(null);
 
   const multi = ACTIVE_LOCALES.length > 1;
+  const switchingEnabled = isLocaleSwitchingEnabled();
+
+  // Hesap tercihi → bu cihazdaki çerez (yalnız kapı açık ve oturum varken; bir kez).
+  useEffect(() => {
+    if (!switchingEnabled || !hasClientSession()) return;
+    const ctrl = new AbortController();
+    void fetchAccountLocale(ctrl.signal).then((pref) => {
+      if (ctrl.signal.aborted) return;
+      const decision = syncDecision(true, current, pref);
+      if (decision.action !== "apply") return;
+      startTransition(async () => {
+        const result = await setLocale(decision.locale);
+        if (result.ok) router.refresh();
+      });
+    });
+    return () => ctrl.abort();
+    // current bilinçli olarak bağımlılık değil: senkron bileşen ömründe bir kez yapılır.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [switchingEnabled]);
 
   useEffect(() => {
     if (!open) return;
@@ -69,9 +94,14 @@ export default function LanguageSelector({
     if (locale === current) return;
     startTransition(async () => {
       const result = await setLocale(locale);
-      if (result.ok) router.refresh();
+      if (!result.ok) return;
+      // Hesaba kalıcı kayıt (oturum yoksa / demo / migration yoksa sessizce yalnız çerez kalır).
+      if (hasClientSession()) await saveAccountLocale(locale);
+      router.refresh();
     });
   }
+
+  if (!switchingEnabled) return null;
 
   const label = LOCALE_LABELS[current] ?? current;
   // compact: dar ekranda kısaltma (TR/EN), sm+ tam ad. Ekran okuyucu aria-label'ı okur.

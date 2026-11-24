@@ -13,16 +13,20 @@
  * İleride EN/DE/FR açıldığında yalnız `BCP47` tablosu genişletilecek; çağrı
  * yerleri değişmeyecek.
  */
-import { DEFAULT_LOCALE, type ActiveLocale } from "./locales";
+import { DEFAULT_LOCALE, type ActiveLocale, type PlannedLocale } from "./locales";
 
-const BCP47: Record<ActiveLocale, string> = {
+/**
+ * Owner kararı A8 (I18N-F1): Türkçe tr-TR · İngilizce en-GB · Almanca de-DE; saat 24 saat.
+ * en → en-GB: gün/ay/yıl sırası TR'ye yakın ve ay konumu belirsiz değil
+ * (en-US MM/DD/YYYY karışıklığından kaçınmak için).
+ */
+const BCP47: Record<PlannedLocale, string> = {
   tr: "tr-TR",
-  // en → en-GB: gün/ay/yıl sırası TR'ye yakın ve ay konumu belirsiz değil
-  // (en-US MM/DD/YYYY karışıklığından kaçınmak için).
   en: "en-GB",
+  de: "de-DE",
 };
 
-export function localeTag(locale: ActiveLocale = DEFAULT_LOCALE): string {
+export function localeTag(locale: ActiveLocale | PlannedLocale = DEFAULT_LOCALE): string {
   return BCP47[locale] ?? BCP47[DEFAULT_LOCALE];
 }
 
@@ -85,4 +89,56 @@ export function formatDateTimeAbsolute(value: DateInput): string {
   const hh = String(d.getHours()).padStart(2, "0");
   const min = String(d.getMinutes()).padStart(2, "0");
   return `${formatDateAbsolute(d)} ${hh}:${min}`;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// I18N-F1 — SAYI / PARA / SAAT (merkezî; çağrı yerleri modül fazlarında buraya taşınır).
+// Yukarıdaki mevcut fonksiyonlar DEĞİŞMEDİ (TR çıktıları byte-aynı).
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Ürünün para birimi. Dil değişimi tutarı ve para birimini DEĞİŞTİRMEZ; yalnız gösterim biçimi değişir. */
+export const PRODUCT_CURRENCY = "TRY" as const;
+
+/** Sayı gösterimi (ayraçlar locale'e göre: tr 1.234,5 · en 1,234.5 · de 1.234,5). */
+export function formatNumber(
+  value: number | null | undefined,
+  options?: Intl.NumberFormatOptions,
+  locale: ActiveLocale | PlannedLocale = DEFAULT_LOCALE,
+): string {
+  if (value == null || !Number.isFinite(value)) return "";
+  return new Intl.NumberFormat(localeTag(locale), options).format(value);
+}
+
+/**
+ * Para gösterimi. Para birimi kayıtlı veriden gelir (varsayılan TRY) ve ASLA locale'den türetilmez;
+ * kur dönüşümü YOKTUR. Örn. 1250 TRY → tr "₺1.250,00", en "TRY 1,250.00" / "₺1,250.00" (Intl'e göre).
+ */
+export function formatCurrency(
+  amount: number | null | undefined,
+  locale: ActiveLocale | PlannedLocale = DEFAULT_LOCALE,
+  currency: string = PRODUCT_CURRENCY,
+  options?: Omit<Intl.NumberFormatOptions, "style" | "currency">,
+): string {
+  if (amount == null || !Number.isFinite(amount)) return "";
+  return new Intl.NumberFormat(localeTag(locale), { style: "currency", currency, ...options }).format(amount);
+}
+
+/** 24 saat biçiminde saat (HH:mm), tüm dillerde. timeZone verilirse o bölgeye göre (sunucu render'ı için). */
+export function formatTime24(value: DateInput, locale: ActiveLocale | PlannedLocale = DEFAULT_LOCALE, timeZone?: string): string {
+  const d = toDate(value);
+  if (!d) return "";
+  return new Intl.DateTimeFormat(localeTag(locale), { hour: "2-digit", minute: "2-digit", hourCycle: "h23", ...(timeZone ? { timeZone } : {}) }).format(d);
+}
+
+/**
+ * MUTLAK TARİH — belirli bir saat diliminde (sunucu render'ı / rapor üretimi için). formatDateAbsolute çalışma
+ * ortamının yerel saat dilimini kullanır; sunucu UTC iken gün kayabilir. Bu sürüm `DD.MM.YYYY` sözleşmesini
+ * korur ve bileşenleri verilen saat diliminden okur (varsayılan Europe/Istanbul).
+ */
+export function formatDateAbsoluteInZone(value: DateInput, timeZone = "Europe/Istanbul"): string {
+  const d = toDate(value);
+  if (!d) return "";
+  const parts = new Intl.DateTimeFormat("en-GB", { timeZone, year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(d);
+  const get = (type: string) => parts.find((p) => p.type === type)?.value ?? "";
+  return `${get("day")}.${get("month")}.${get("year")}`;
 }

@@ -543,6 +543,8 @@ export const BACKUP_REGISTRY: readonly RegistryEntry[] = [
     reason: "Admin ile yazışma kaydı — yalnız dışa aktarılır, geri yüklenmez.",
   }),
   entry("user_location_prefs", null, "backup", "Varsayılan Konum Tercihi", { naturalKey: "user_id", ownerScope: USER_OWNER }),
+  // I18N-F1: uzmanın kalıcı arayüz dili (uzman başına tek satır). Geri yükleme yalnız EKSİK satırı ekler (naturalKey user_id).
+  entry("user_locale_prefs", null, "backup", "Arayüz Dili Tercihi", { naturalKey: "user_id", ownerScope: USER_OWNER }),
   // Kişisel Dijital Ofis (uzman başına tek satır). Geri yükleme yalnız EKSİK satırı ekler (naturalKey user_id):
   // mevcut tasarım/tercih EZİLMEZ; geçmiş satırın içinde (jsonb) aynen taşınır; tenant_id / user_id sunucuda zorlanır.
   // Okuma yolu her tasarımı sunucu şemasından geçirir (lib/workspace/schema.ts) → yedekten gelen geçersiz içerik gösterilmez.

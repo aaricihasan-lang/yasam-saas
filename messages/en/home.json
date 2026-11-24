@@ -93,10 +93,10 @@
       "stok": { "title": "Products & Inventory", "desc": "Manage your products, stock, sales and pricing in one place", "badge": "Module", "stat": "{n, plural, one {# product} other {# products}}" },
       "energy_body": { "title": "Body & Energy Practices", "desc": "Bioenergy, Reflexology and Cupping & Hijama workspaces", "badge": "Module" },
       "sifa_rehberi": { "title": "Natural Support & Guide", "desc": "Natural stones, natural support methods, nutrition and professional reference resources", "badge": "Module" },
-      "digital_content": { "title": "Digital Content Center", "desc": "Manage your personal archive and digital content in one place", "badge": "Center", "stat": "{n, plural, one {# item} other {# items}}" },
-      "numerology": { "title": "Life Analysis Center", "desc": "Numerology, Human Design and Cosmic Agenda analysis tools", "badge": "Center", "stat": "{n, plural, one {# analysis} other {# analyses}}" },
+      "digital_content": { "title": "Digital Content Centre", "desc": "Manage your personal archive and digital content in one place", "badge": "Centre", "stat": "{n, plural, one {# item} other {# items}}" },
+      "numerology": { "title": "Life Analysis Centre", "desc": "Numerology, Human Design and Cosmic Agenda analysis tools", "badge": "Centre", "stat": "{n, plural, one {# analysis} other {# analyses}}" },
       "cosmic_calendar": { "title": "Life Calendar / Cosmic Agenda", "desc": "Hijri calendar, cupping days and the daily cosmic flow", "badge": "Center" },
-      "astrology": { "title": "Gökyüzü Atlası", "desc": "The language of the sky, the depth of your analyses.", "badge": "Astrology" }
+      "astrology": { "title": "Celestial Atlas", "desc": "The language of the sky, the depth of your analyses.", "badge": "Astrology" }
     },
     "moduleCard": {
       "loading": "Loading",
@@ -212,7 +212,7 @@
       "titlePart1": "Manage your clients, analyses and sessions",
       "titleHighlight": "in one place",
       "titlePart2": "",
-      "subtitle": "Bring your whole practice together — client management, numerology, stones, bioenergy, reflexology, the Healing Guide and document tools — all in one workspace.",
+      "subtitle": "Bring your whole practice together — client management, numerology, stones, bioenergy, reflexology, the Natural Wellness Guide and document tools — all in one workspace.",
       "discoverModules": "Explore Modules ↓"
     },
     "mockup": {
@@ -270,7 +270,7 @@
     },
     "landing": {
       "gokyuzuAtlasi": {
-        "title": "Sky Atlas",
+        "title": "Celestial Atlas",
         "desc": "The language of the sky, the depth of your analyses. Choose a birth profile, pick Western · Vedic · KP techniques and calculate the chart; your saved analyses and your own source notes live in the same workspace."
       },
       "sampleAnalysisBadge": "Sample Analysis",
@@ -292,15 +292,15 @@
       },
       "kisiselArsiv": {
         "title": "Personal Archive",
-        "desc": "Keep your audio, video, documents, images and personal notes organized in one secure archive."
+        "desc": "Keep your audio, video, documents, images and personal notes organised in one secure archive."
       },
       "danisanYonetimi": {
         "title": "Client Management",
         "desc": "Manage client records, profiles, appointments and follow-up workflows in one place."
       },
       "sifaRehberi": {
-        "title": "Healing Guide",
-        "desc": "Organize condition references, symptoms, application methods, stones, aromatherapy and supportive guidance in one workspace."
+        "title": "Natural Wellness Guide",
+        "desc": "Organise condition references, symptoms, application methods, stones, aromatherapy and supportive guidance in one workspace."
       },
       "refleksoloji": {
         "title": "Reflexology",
@@ -311,8 +311,8 @@
         "desc": "Manage essential oils, carrier oils and blends in one dedicated workspace."
       },
       "urunStok": {
-        "title": "Product & Stock Center",
-        "desc": "Manage stock, pricing and sales records for your natural stones, soaps, creams, prayer beads, jewelry and other products in one place."
+        "title": "Product & Stock Centre",
+        "desc": "Manage stock, pricing and sales records for your natural stones, soaps, creams, prayer beads, jewellery and other products in one place."
       },
       "kupaHacamat": {
         "title": "Cupping & Hijama",
@@ -328,7 +328,7 @@
       },
       "humanDesign": {
         "title": "Human Design",
-        "desc": "Use your Human Design knowledge base to create personalized professional reports and interpretations for your clients."
+        "desc": "Use your Human Design knowledge base to create personalised professional reports and interpretations for your clients."
       }
     },
     "feats": {
@@ -336,9 +336,9 @@
       "biyoenerji": ["Bioenergy Sessions", "Energy Bodies", "Subconscious Causes", "Imagination Library", "Symbol Language", "Chakra Library"],
       "kisiselArsiv": ["Audio & Video", "Documents & Images", "Personal Notes", "Search System", "File Tracking", "Secure Archive"],
       "danisanYonetimi": ["Client Records", "Client Profiles", "Appointment Tracking", "Schedule Management", "Meeting History", "Follow-up Workflow"],
-      "sifaRehberi": ["Condition References", "Saved Healing Guide", "Symptoms & Causes", "Applications & Methods", "Stones & Minerals", "Aromatherapy"],
+      "sifaRehberi": ["Condition References", "Saved Natural Wellness Guides", "Symptoms & Causes", "Applications & Methods", "Stones & Minerals", "Aromatherapy"],
       "refleksoloji": ["Zone Map", "Saved Atlas", "Protocol Map", "Saved Protocols", "Practitioner Notes", "Hand Map"],
-      "urunStok": ["All Products List", "Natural Stone Products/Stock", "Soap / Cream Products", "Prayer Beads / Jewelry / Accessories", "Sales & Pricing", "Sales History"],
+      "urunStok": ["All Products List", "Natural Stone Products/Stock", "Soap / Cream Products", "Prayer Beads / Jewellery / Accessories", "Sales & Pricing", "Sales History"],
       "kupaHacamat": ["Hijama Protocols", "Hijama Calendar", "Hijama Points", "Cupping Techniques", "Safety & Contraindications", "Word Protocol Export"],
       "beslenme": ["Food Library", "Nutrition Guide", "Nutrition by Temperament", "Nutrition by Blood Type", "Nutrition Plans", "Plan Templates"],
       "kozmikAjanda": ["Cosmic Calendar", "Moon Phases", "Retrograde Calendar", "Planetary Hours", "Hijama Calendar", "Hijri Calendar"],
@@ -400,7 +400,7 @@
     },
     "gallery": {
       "danisanYonetimi": { "0": "Client Journey", "1": "New Client Record", "2": "Client List", "3": "Schedule & Appointments", "4": "Create New Appointment" },
-      "sifaRehberi": { "0": "Healing Guide Intro", "1": "Main Menu", "2": "New Condition Record", "3": "Supportive Guidance", "4": "Saved Guide List", "5": "Detail View" },
+      "sifaRehberi": { "0": "Natural Wellness Guide Intro", "1": "Main Menu", "2": "New Condition Record", "3": "Supportive Guidance", "4": "Saved Guide List", "5": "Detail View" },
       "refleksoloji": { "0": "Collage View", "1": "Main Menu", "2": "Zone Map", "3": "Saved Atlas", "4": "Protocol Map", "5": "Saved Protocols", "6": "Practitioner Notes" },
       "biyoenerji": { "0": "Bioenergy Intro", "1": "Bioenergy Home", "2": "Bioenergy Sessions", "3": "Energy Bodies", "4": "Subconscious Causes", "5": "Imagination Library", "6": "Symbol Language Library", "7": "Chakra Library" }
     },
@@ -428,7 +428,7 @@
         "subtitle": "Keep your audio, video, documents, images and notes safe in one secure archive.",
         "alt": "Personal Archive Preview",
         "panelTitle": "A Secure Workspace for Your Personal Archive",
-        "panelDesc": "Store, search and organize your personal files by category."
+        "panelDesc": "Store, search and organise your personal files by category."
       },
       "danisanYonetimi": {
         "aria": "Client Management module preview",
@@ -442,12 +442,12 @@
         "panelDesc": "Manage client records, profiles, appointments and follow-up workflows in one workspace."
       },
       "sifaRehberi": {
-        "aria": "Healing Guide module preview",
-        "badge": "Healing Guide Module",
-        "title": "Healing Guide — Real Product Screens",
+        "aria": "Natural Wellness Guide module preview",
+        "badge": "Natural Wellness Guide Module",
+        "title": "Natural Wellness Guide — Real Product Screens",
         "subtitle": "Manage condition references, symptoms, applications and supportive guidance in one workspace.",
-        "altPrefix": "Healing Guide — ",
-        "panelTitle": "A Comprehensive Healing Guide Workspace",
+        "altPrefix": "Natural Wellness Guide — ",
+        "panelTitle": "A Comprehensive Natural Wellness Guide Workspace",
         "panelDesc": "Manage condition references, symptoms, applications, stones, aromatherapy and supportive guidance in one workspace."
       },
       "refleksoloji": {
@@ -472,7 +472,7 @@
     "login": {
       "badge": "Practitioner Panel",
       "title": "Sign In",
-      "subtitle": "Sign in with your authorized account to reach your workspace.",
+      "subtitle": "Sign in with your authorised account to reach your workspace.",
       "emailLabel": "Email",
       "emailPlaceholder": "expert@test.com",
       "passwordLabel": "Password",
@@ -569,7 +569,7 @@
         "Sessions",
         "Notes",
         "Personal Archive",
-        "Natural Stones",
+        "Natural Stone",
         "Numerology"
       ],
       "modulesEyebrow": "Modules",
@@ -607,28 +607,28 @@
         "menuModulesHint": "All modules you can access",
         "dyKayit": "New Client",
         "dyListe": "Client List",
-        "dyAjanda": "Agenda & Appointment Center",
+        "dyAjanda": "Agenda & Appointment Centre",
         "energyBody": "Bioenergy",
         "reflexology": "Reflexology",
         "cupping": "Cupping & Hijama Therapy",
-        "stones": "Natural Stones",
+        "stones": "Natural Stone",
         "stoneLibrary": "Natural Stone Library",
         "aromatherapy": "Aromatherapy",
-        "sifa": "Healing Guide",
+        "sifa": "Natural Wellness Guide",
         "beslenme": "Nutrition",
         "personalArchive": "Personal Archive",
-        "belgeCeviri": "Document Translation Center",
+        "belgeCeviri": "Document Translation Centre",
         "videoCeviri": "Video → Turkish Word/PDF",
-        "dersNotu": "Lecture Notes Center",
+        "dersNotu": "Lecture Notes Centre",
         "numeroloji": "Numerology",
         "humanDesign": "Human Design",
         "cosmic": "Life Calendar / Cosmic Agenda",
-        "atlas": "Sky Atlas",
+        "atlas": "Celestial Atlas",
         "stokAll": "All Products",
         "stokStones": "Natural Stone Products",
         "stokOil": "Oil Products",
         "stokSoap": "Soap / Cream Products",
-        "stokAccessory": "Prayer Beads / Jewelry / Accessories",
+        "stokAccessory": "Prayer Beads / Jewellery / Accessories",
         "stokPricing": "Sales & Pricing",
         "stokSales": "Sales History",
         "stokOther": "Other Products"
