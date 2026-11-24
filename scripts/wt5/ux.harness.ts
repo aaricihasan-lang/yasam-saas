@@ -223,7 +223,7 @@ async function main() {
     const ctr2 = JSON.parse(read("messages/tr/clients.json"));
     const cen2 = JSON.parse(read("messages/en/clients.json"));
     const tk = (j: Record<string, unknown>) => JSON.stringify(j).match(/"takip":\{"title":"([^"]+)"/)?.[1];
-    ok(tk(ctr2) === "Ajanda & Randevu Merkezi" && tk(cen2) === "Agenda & Appointment Center", "'Danışan Takip' → 'Ajanda & Randevu Merkezi'");
+    ok(tk(ctr2) === "Ajanda & Randevu Merkezi" && tk(cen2) === "Agenda & Appointment Centre" /* I18N F1: Owner en-GB kararı */, "'Danışan Takip' → 'Ajanda & Randevu Merkezi'");
     ok(!/"Danışan Takip"/.test(read("messages/tr/clients.json")), "eski ad kullanıcı metinlerinde kalmadı");
     ok(/href: "\/danisan-yolculugu\/takip"/.test(read("app/danisan-yolculugu/page.tsx")), "rota/iç isimler DEĞİŞMEDİ");
     {

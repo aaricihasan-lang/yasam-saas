@@ -400,7 +400,7 @@ async function main(): Promise<void> {
     ok(/beslenme planları \(tüm revizyonları/.test(String(pick(tr, "delete.previewFailed"))) && /nutrition plans linked to the client \(with all revisions/.test(String(pick(en, "delete.previewFailed"))),
       "sayım alınamazsa sabit uyarı da planların (tüm revizyonlarıyla) silindiğini söyler (tr/en)");
     const page = src("app/dashboard/clients/[id]/page.tsx");
-    ok(/t\.has\(`deletePreview\.table\.\$\{c\.key\}`\)/.test(page) && /t\("delete\.previewFailed"\)/.test(page) && /requireText: clientName \|\| "SİL"/.test(page),
+    ok(/t\.has\(`deletePreview\.table\.\$\{c\.key\}`\)/.test(page) && /t\("delete\.previewFailed"\)/.test(page) && /requireText: clientName \|\| tDel\("confirmWord"\)/.test(page) && (JSON.parse(src("messages/tr/common.deleteConfirm.json")) as Json & { common: { deleteConfirm: { confirmWord: string } } }).common.deleteConfirm.confirmWord === "SİL",
       "dialog önizleme etiketlerini anahtarla okur; sayım yoksa previewFailed; yazılı ad onayı KORUNDU");
 
     // ═════════════════════════════════════════════════════════════════════════

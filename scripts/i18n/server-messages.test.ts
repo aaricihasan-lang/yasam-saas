@@ -30,6 +30,13 @@ ok(typeof icu === "string" && icu.length > 0, "fazla argüman istisna üretmez")
 const lines = localeTranslator("en", "auth.email").raw("notice.recovery_codes_generated.lines");
 ok(Array.isArray(lines) || lines === undefined, "raw: dizi ya da undefined (istisna yok)", typeof lines);
 ok(localeTranslator("en", "auth.email").raw("yok.anahtar") === undefined, "raw: eksik anahtar → undefined (ham yol değil)");
+// F1-R2 CI dersi: sarmalayıcı next-intl çeviricisinin TÜM yöntemlerini taşımalı (e-posta şablonu t.markup kullanıyor).
+const em = localeTranslator("tr", "auth.email");
+ok(typeof em.markup === "function" && typeof em.raw === "function" && typeof em.has === "function", "sarmalayıcı markup / raw / has yöntemlerini taşır");
+const strong = (c: string) => `<strong>${c}</strong>`;
+const mk = em.markup("otp.noShareHtml", { strong });
+ok(typeof mk === "string" && mk.length > 0 && !mk.includes("auth.email"), "markup: gerçek metin döner", mk);
+ok(em.has("otp.noShareHtml") === true && em.has("yok.anahtar") === false, "has: doğru sonuç");
 delete process.env.NEXT_PUBLIC_I18N_LOCALE_SWITCHING;
 console.log(`\n=== sunucu çevirici güvenlik testi: ${pass} PASS / ${fail} FAIL ===`);
 process.exit(fail === 0 ? 0 : 1);

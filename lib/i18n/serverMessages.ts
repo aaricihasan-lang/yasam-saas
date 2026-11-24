@@ -17,11 +17,20 @@ import { getCatalogMessages } from "./catalog";
 import { getOutputTranslator, resolveOutputLocale } from "./output";
 import { DEFAULT_LOCALE, type ActiveLocale } from "./locales";
 
+type MarkupValues = Record<string, string | number | ((chunks: string) => string)>;
 export type ServerTranslator = ((key: string, values?: Record<string, string | number>) => string) & {
   /** Ham katalog değeri (ör. e-posta satır dizileri); bulunamazsa / hata olursa kaynak dil, o da yoksa undefined. */
   raw: (key: string) => unknown;
+  /** Etiketli metin (e-posta HTML'i; next-intl markup). Aynı güvenli geri dönüş zinciri. */
+  markup: (key: string, values?: MarkupValues) => string;
+  /** Anahtar hedef ya da kaynak dilde var mı. */
+  has: (key: string) => boolean;
 };
-type RawTranslator = ((key: string, values?: Record<string, string | number>) => string) & { raw?: (key: string) => unknown };
+type RawTranslator = ((key: string, values?: Record<string, string | number>) => string) & {
+  raw?: (key: string) => unknown;
+  markup?: (key: string, values?: MarkupValues) => string;
+  has?: (key: string) => boolean;
+};
 
 /** Son çare metni: katalogdan düz nesne erişimi (ICU biçimleme yok → istisna üretmez). */
 function genericText(locale: ActiveLocale): string {
@@ -60,6 +69,27 @@ function safeTranslator(primary: RawTranslator | null, source: RawTranslator | n
   const fn = ((key: string, values?: Record<string, string | number>) =>
     attempt(primary, key, values) ?? attempt(source, key, values) ?? genericText(locale)) as ServerTranslator;
   fn.raw = (key: string) => attemptRaw(primary, key) ?? attemptRaw(source, key);
+  const attemptMarkup = (tr: RawTranslator | null, key: string, values?: MarkupValues): string | null => {
+    if (!tr || typeof tr.markup !== "function") return null;
+    try {
+      const out = tr.markup(key, values);
+      return typeof out === "string" && out !== "" && out !== rawKey(key) && out !== key ? out : null;
+    } catch {
+      return null;
+    }
+  };
+  fn.markup = (key: string, values?: MarkupValues) =>
+    attemptMarkup(primary, key, values) ?? attemptMarkup(source, key, values) ?? genericText(locale);
+  fn.has = (key: string) => {
+    for (const tr of [primary, source]) {
+      try {
+        if (tr && typeof tr.has === "function" && tr.has(key)) return true;
+      } catch {
+        /* yok say */
+      }
+    }
+    return false;
+  };
   return fn;
 }
 
