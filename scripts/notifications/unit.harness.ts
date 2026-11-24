@@ -231,7 +231,9 @@ console.log("\n[5] Statik: route güvenliği + bileşen sözleşmesi");
 
   const ajanda = read("app/dashboard/ajanda/page.tsx");
   ok(/useSearchParams\(\)/.test(ajanda) && /searchParams\.get\("randevu"\)/.test(ajanda) && /<Suspense fallback=/.test(ajanda), "ajanda: ?randevu + Suspense");
-  ok(/router\.replace\("\/dashboard\/ajanda"/.test(ajanda) && /Randevu bulunamadı/.test(ajanda) && /setSelectedAppointment\(target\)/.test(ajanda), "ajanda: bulunca modal, yoksa toast, param temizlenir");
+  // I18N (gece 2026-11-25): toast metni agenda.toast.notFoundTitle anahtarına taşındı; TR metin katalogda birebir.
+  const agendaTr = JSON.parse(read("messages/tr/agenda.json")) as { agenda: { toast: { notFoundTitle: string } } };
+  ok(/router\.replace\("\/dashboard\/ajanda"/.test(ajanda) && /t\("toast\.notFoundTitle"\)/.test(ajanda) && agendaTr.agenda.toast.notFoundTitle === "Randevu bulunamadı" && /setSelectedAppointment\(target\)/.test(ajanda), "ajanda: bulunca modal, yoksa toast, param temizlenir");
   ok(/aria-labelledby="ajanda-appt-modal-title"[\s\S]{0,400}max-h-\[calc\(100dvh-1\.5rem\)\][\s\S]{0,3000}min-h-0 flex-1 [^"]*overflow-y-auto/.test(ajanda), "ajanda: randevu detay modalı max-h + scroll (4.10)");
   const clientPage = read("app/dashboard/clients/[id]/page.tsx");
   ok(/initialAppointmentId=\{deepLinkAppointmentId\}/.test(clientPage) && /searchParams\.get\("randevu"\)/.test(clientPage), "danışan kartı: ?randevu → AppointmentsTab initialAppointmentId");
