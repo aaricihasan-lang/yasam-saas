@@ -861,7 +861,7 @@ export default function SabunKremUrunStokPage() {
                   custom={packagingTypeCustom}
                   onSelect={setPackagingType}
                   onCustom={setPackagingTypeCustom}
-                  otherLabel={tS("form.other")}
+                  otherLabel="diğer"
                   selectClassName={inputClass}
                   labelClassName="mb-1 block text-xs font-black"
                   placeholder={tP("packagingPh")}

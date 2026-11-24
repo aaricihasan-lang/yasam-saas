@@ -794,7 +794,7 @@ export default function AksesuarUrunStokPage() {
                   custom={materialCustom}
                   onSelect={setMaterial}
                   onCustom={setMaterialCustom}
-                  otherLabel={tS("form.other")}
+                  otherLabel="diğer"
                   selectClassName={inputClass}
                   labelClassName="mb-1 block text-xs font-black"
                   placeholder={tP("materialPh")}

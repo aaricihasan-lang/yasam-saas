@@ -884,7 +884,7 @@ export default function YagUrunStokPage() {
                   custom={packageTypeCustom}
                   onSelect={setPackageType}
                   onCustom={setPackageTypeCustom}
-                  otherLabel={tS("form.other")}
+                  otherLabel="diğer"
                   selectClassName={inputClass}
                   placeholder={tP("packagePh")}
                 />
