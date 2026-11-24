@@ -169,8 +169,11 @@ async function main() {
             ok((await input.getAttribute("aria-label")) === "Doğrulama kodu" && (await input.getAttribute("autocomplete")) === "one-time-code", `${tag}: kod alanı etiketli (aria-label, one-time-code)`);
             await input.fill(code === "000000" ? "111111" : "000000");
             await page.getByTestId("email-verify-confirm").click();
-            await page.locator('[role="alert"]').first().waitFor({ timeout: 15000 });
-            ok(/Kod hatalı/.test(await page.locator('[role="alert"]').first().innerText()), `${tag}: yanlış kod hatası görünür (role=alert)`);
+            // Next.js sayfa geçiş duyurucusu da role="alert" taşır (boş) → hata öğesi metniyle seçilir.
+            const alert = page.locator('[role="alert"]', { hasText: /Kod hatalı/ });
+            const shown = await alert.first().waitFor({ timeout: 15000 }).then(() => true).catch(() => false);
+            ok(shown && await alert.first().isVisible(), `${tag}: yanlış kod hatası görünür (role=alert)`,
+              await page.locator('[role="alert"]').allInnerTexts().catch(() => []));
             await card.screenshot({ path: path.join(OUT, `${slug}-owner-yanlis-kod.png`) });
             await input.fill(code);
             await page.getByTestId("email-verify-confirm").click();
