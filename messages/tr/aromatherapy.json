@@ -882,6 +882,88 @@
         "loading": "Yükleniyor…",
         "more": "Daha fazla"
       }
+    },
+    "shared": {
+      "filteredEmptyTitle": "Sonuç bulunamadı",
+      "filteredEmptyMessage": "Arama veya filtreleri değiştirmeyi deneyin.",
+      "selectPage": "Bu Sayfayı Seç",
+      "exportOne": "Seçili Kaydı Word'e Aktar",
+      "exportMany": "Seçili Kayıtları Word'e Aktar",
+      "selectAria": "Kaydı Word export için seç",
+      "search": "Ara…",
+      "all": "Tümü",
+      "loading": "Yükleniyor…",
+      "resultCount": "{n, plural, other {{count} sonuç}}",
+      "retry": "Yeniden dene",
+      "paginationAria": "Sayfalama",
+      "prev": "← Önceki",
+      "next": "Sonraki →",
+      "wordReadyTitle": "Word hazırlandı",
+      "wordReadyBody": "Rapor indiriliyor.",
+      "wordFailedTitle": "Word oluşturulamadı",
+      "wordFailedBody": "Rapor oluşturulamadı.",
+      "wordTitle": "Bu kaydı Word'e aktar",
+      "wordBusy": "Hazırlanıyor…",
+      "word": "Word'e Aktar",
+      "notFoundTitle": "Kayıt bulunamadı",
+      "notFoundBody": "Bu kayıt bulunamadı veya bu hesabın kütüphanesinde değil.",
+      "form": {
+        "save": "Kaydet",
+        "saveChanges": "Değişiklikleri kaydet",
+        "demo": "Demo hesabında kayıt oluşturma ve düzenleme yapılamaz; alanları inceleyebilirsiniz.",
+        "conflict": "Bu kayıt siz düzenlerken başkası tarafından güncellendi. Değişikliklerinizi kaybetmemek için yeniden yükleyip tekrar deneyin.",
+        "cancel": "Vazgeç",
+        "saving": "Kaydediliyor…",
+        "reason": "Gerekçe",
+        "optional": "(opsiyonel)",
+        "reasonRequiredPlaceholder": "Bu değişikliğin nedenini kısaca yazın…",
+        "reasonOptionalPlaceholder": "İsteğe bağlı not…"
+      },
+      "delete": {
+        "deletedTitle": "Silindi",
+        "deleted": "Kayıt kalıcı olarak silindi.",
+        "failedTitle": "Silinemedi",
+        "button": "Sil",
+        "confirmTitle": "Bu {noun} kalıcı olarak silinsin mi?",
+        "confirmBody": "<strong>{name}</strong> kalıcı olarak silinecek. Bu işlem geri alınamaz; silme kaydı denetim günlüğünde tutulur.",
+        "deleting": "Siliniyor…",
+        "confirm": "Evet, Kalıcı Sil",
+        "cancel": "Vazgeç",
+        "reason": "Gerekçe",
+        "reasonPlaceholder": "Silme nedenini kısaca yazın…",
+        "inUseTitle": "Bu {noun} silinemez",
+        "inUseGeneric": "Bu kayıt başka kayıtlar tarafından kullanılıyor; önce bağlı kayıtları silin.",
+        "ok": "Tamam",
+        "close": "Kapat",
+        "staleTitle": "Kayıt güncellendi",
+        "reload": "Son hâlini yükle",
+        "errors": {
+          "AROMA_STALE": "Kayıt siz bakarken başka bir yerde güncellendi. Sayfayı yenileyip son hâlini görerek tekrar deneyin.",
+          "AROMA_TAXON_NOT_FOUND": "Bitki bulunamadı veya bu hesaba ait değil.",
+          "AROMA_PREPARATION_NOT_FOUND": "Preparat bulunamadı veya bu hesaba ait değil.",
+          "AROMA_CLAIM_NOT_FOUND": "Bilgi kaydı bulunamadı veya bu hesaba ait değil.",
+          "AROMA_DELETE_UNAVAILABLE": "Silme özelliği şu anda kullanılamıyor. Lütfen daha sonra tekrar deneyin.",
+          "AROMA_WRITE_DEMO_FORBIDDEN": "Demo hesabında kayıt silinemez.",
+          "AROMA_WRITE_REASON_INVALID": "Gerekçe zorunludur ve 1–2000 karakter olmalıdır.",
+          "AROMA_REASON_INVALID": "Gerekçe zorunludur ve 1–2000 karakter olmalıdır.",
+          "AROMA_WRITE_INVALID_TIMESTAMP": "Kayıt sürümü geçersiz. Lütfen sayfayı yenileyin.",
+          "AROMA_NETWORK_ERROR": "Sunucuya ulaşılamadı. Bağlantınızı kontrol edip tekrar deneyin.",
+          "generic": "Silme işlemi tamamlanamadı. Lütfen tekrar deneyin."
+        }
+      },
+      "confirm": {
+        "confirm": "Onayla",
+        "cancel": "Vazgeç"
+      },
+      "picker": {
+        "change": "Değiştir",
+        "searching": "Aranıyor…",
+        "noResults": "Sonuç bulunamadı.",
+        "minChars": "Aramak için en az {count} karakter girin."
+      },
+      "skeleton": {
+        "preparing": "Hazırlanıyor"
+      }
     }
   }
 }

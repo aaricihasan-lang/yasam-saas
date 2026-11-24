@@ -882,6 +882,88 @@
         "loading": "Loading…",
         "more": "Load more"
       }
+    },
+    "shared": {
+      "filteredEmptyTitle": "No results found",
+      "filteredEmptyMessage": "Try changing the search or filters.",
+      "selectPage": "Select This Page",
+      "exportOne": "Export Selected Record to Word",
+      "exportMany": "Export Selected Records to Word",
+      "selectAria": "Select record for Word export",
+      "search": "Search…",
+      "all": "All",
+      "loading": "Loading…",
+      "resultCount": "{n, plural, one {{count} result} other {{count} results}}",
+      "retry": "Try again",
+      "paginationAria": "Pagination",
+      "prev": "← Previous",
+      "next": "Next →",
+      "wordReadyTitle": "Word ready",
+      "wordReadyBody": "The report is downloading.",
+      "wordFailedTitle": "Word could not be created",
+      "wordFailedBody": "The report could not be created.",
+      "wordTitle": "Export this record to Word",
+      "wordBusy": "Preparing…",
+      "word": "Export to Word",
+      "notFoundTitle": "Record not found",
+      "notFoundBody": "This record could not be found or is not in this account's library.",
+      "form": {
+        "save": "Save",
+        "saveChanges": "Save changes",
+        "demo": "Records cannot be created or edited on the demo account; you can review the fields.",
+        "conflict": "This record was updated by someone else while you were editing. To avoid losing your changes, reload and try again.",
+        "cancel": "Cancel",
+        "saving": "Saving…",
+        "reason": "Rationale",
+        "optional": "(optional)",
+        "reasonRequiredPlaceholder": "Briefly describe the reason for this change…",
+        "reasonOptionalPlaceholder": "Optional note…"
+      },
+      "delete": {
+        "deletedTitle": "Deleted",
+        "deleted": "The record has been permanently deleted.",
+        "failedTitle": "Could not be deleted",
+        "button": "Delete",
+        "confirmTitle": "Permanently delete this {noun}?",
+        "confirmBody": "<strong>{name}</strong> will be permanently deleted. This cannot be undone; the deletion is kept in the audit log.",
+        "deleting": "Deleting…",
+        "confirm": "Yes, Delete Permanently",
+        "cancel": "Cancel",
+        "reason": "Reason",
+        "reasonPlaceholder": "Briefly describe the reason for deletion…",
+        "inUseTitle": "This {noun} cannot be deleted",
+        "inUseGeneric": "This record is used by other records; delete the linked records first.",
+        "ok": "OK",
+        "close": "Close",
+        "staleTitle": "Record updated",
+        "reload": "Load latest version",
+        "errors": {
+          "AROMA_STALE": "The record was updated elsewhere while you were viewing it. Refresh the page to see the latest version and try again.",
+          "AROMA_TAXON_NOT_FOUND": "Plant not found or it does not belong to this account.",
+          "AROMA_PREPARATION_NOT_FOUND": "Preparation not found or it does not belong to this account.",
+          "AROMA_CLAIM_NOT_FOUND": "Knowledge record not found or it does not belong to this account.",
+          "AROMA_DELETE_UNAVAILABLE": "Deletion is not available right now. Please try again later.",
+          "AROMA_WRITE_DEMO_FORBIDDEN": "Records cannot be deleted on the demo account.",
+          "AROMA_WRITE_REASON_INVALID": "A reason is required and must be 1–2000 characters.",
+          "AROMA_REASON_INVALID": "A reason is required and must be 1–2000 characters.",
+          "AROMA_WRITE_INVALID_TIMESTAMP": "The record version is invalid. Please refresh the page.",
+          "AROMA_NETWORK_ERROR": "The server could not be reached. Check your connection and try again.",
+          "generic": "The deletion could not be completed. Please try again."
+        }
+      },
+      "confirm": {
+        "confirm": "Confirm",
+        "cancel": "Cancel"
+      },
+      "picker": {
+        "change": "Change",
+        "searching": "Searching…",
+        "noResults": "No results found.",
+        "minChars": "Enter at least {count} characters to search."
+      },
+      "skeleton": {
+        "preparing": "Preparing"
+      }
     }
   }
 }

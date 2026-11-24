@@ -1,5 +1,6 @@
 "use client";
 
+import { useLocale, useTranslations } from "next-intl";
 import { useState } from "react";
 import { downloadWord } from "@/lib/aromaterapi/wordExport";
 
@@ -25,6 +26,8 @@ export function useReadListSelection(opts: {
   showToast: (t: { title: string; message: string; type: "success" | "error" | "info" }) => void;
 }): ReadListSelection {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
+  const t = useTranslations("aromatherapy.shared");
+  const locale = useLocale();
   const [exporting, setExporting] = useState(false);
   const [prevKey, setPrevKey] = useState(opts.resetKey);
   if (opts.resetKey !== prevKey) { setPrevKey(opts.resetKey); setSelectedIds(new Set()); } // filtre değişince seçim temizlenir
@@ -40,8 +43,8 @@ export function useReadListSelection(opts: {
     setExporting(true);
     const { ok, error } = await downloadWord(opts.exportUrl, body);
     setExporting(false);
-    if (ok) opts.showToast({ title: "Word hazırlandı", message: "Rapor indiriliyor.", type: "success" });
-    else opts.showToast({ title: "Word oluşturulamadı", message: error ?? "Rapor oluşturulamadı.", type: "error" });
+    if (ok) opts.showToast({ title: t("wordReadyTitle"), message: t("wordReadyBody"), type: "success" });
+    else opts.showToast({ title: t("wordFailedTitle"), message: locale === "tr" ? error ?? t("wordFailedBody") : t("wordFailedBody"), type: "error" });
   }
 
   return {

@@ -1,8 +1,9 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+import { useAromaReadError } from "@/lib/aromaterapi/useAromaterapiModuleText";
 import type { ReactNode } from "react";
 import { AromaterapiEmptyState } from "@/app/aromaterapi/_components/AromaterapiEmptyState";
-import { messageForCode } from "@/lib/aromaterapi/readClient";
 import { BulkExportBar } from "@/components/common/BulkExportBar";
 import type { ReadListSelection } from "@/app/aromaterapi/_components/read/useReadListSelection";
 import {
@@ -36,8 +37,8 @@ export function ReadListScreen<T extends { id: string }>({
   renderItem,
   emptyTitle,
   emptyMessage,
-  filteredEmptyTitle = "Sonuç bulunamadı",
-  filteredEmptyMessage = "Arama veya filtreleri değiştirmeyi deneyin.",
+  filteredEmptyTitle,
+  filteredEmptyMessage,
   gridClassName = "grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3",
   selection,
 }: {
@@ -65,6 +66,8 @@ export function ReadListScreen<T extends { id: string }>({
   selection?: ReadListSelection;
 }) {
   const pageIds = rows.map((r) => r.id);
+  const t = useTranslations("aromatherapy.shared");
+  const readError = useAromaReadError();
   return (
     <div className="space-y-4">
       <ReadToolbar
@@ -80,12 +83,12 @@ export function ReadListScreen<T extends { id: string }>({
           selectedCount={selection.selectedIds.size}
           totalCount={total}
           filteredCount={total}
-          selectAllLabel="Bu Sayfayı Seç"
+          selectAllLabel={t("selectPage")}
           selectAllCount={pageIds.length}
           onSelectAll={() => selection.selectAllPage(pageIds)}
           onClearSelection={selection.clear}
           isExporting={selection.isExporting}
-          exportSelectedLabel={selection.selectedIds.size === 1 ? "Seçili Kaydı Word'e Aktar" : "Seçili Kayıtları Word'e Aktar"}
+          exportSelectedLabel={selection.selectedIds.size === 1 ? t("exportOne") : t("exportMany")}
           onExportSelected={selection.selectedIds.size > 0 ? selection.onExportSelected : undefined}
           onExportAll={selection.onExportAll}
         />
@@ -94,13 +97,13 @@ export function ReadListScreen<T extends { id: string }>({
       {loading ? (
         <ReadLoading />
       ) : errorCode ? (
-        <ReadError message={messageForCode(errorCode)} onRetry={onRetry} />
+        <ReadError message={readError(errorCode)} onRetry={onRetry} />
       ) : rows.length === 0 ? (
         hasActiveQuery ? (
           <AromaterapiEmptyState
             variant="filtered"
-            title={filteredEmptyTitle}
-            message={filteredEmptyMessage}
+            title={filteredEmptyTitle ?? t("filteredEmptyTitle")}
+            message={filteredEmptyMessage ?? t("filteredEmptyMessage")}
           />
         ) : (
           <AromaterapiEmptyState variant="empty" title={emptyTitle} message={emptyMessage} />
@@ -115,7 +118,7 @@ export function ReadListScreen<T extends { id: string }>({
                     type="checkbox"
                     checked={selection.selectedIds.has(row.id)}
                     onChange={() => selection.toggle(row.id)}
-                    aria-label="Kaydı Word export için seç"
+                    aria-label={t("selectAria")}
                     className="absolute right-2.5 top-2.5 z-10 h-4 w-4 rounded accent-amber-600"
                   />
                   {renderItem(row)}
