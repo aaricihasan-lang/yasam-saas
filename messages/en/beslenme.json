@@ -245,7 +245,7 @@
         "rangeOutOfBounds": "The selected range is outside the plan limits.",
         "planStale": "This plan was updated in another tab or on another device. Your changes were not saved; load the latest data and try again.",
         "versionRequired": "The plan version could not be verified. Refresh the page and try again.",
-        "demoReadonly": "Changes cannot be made on a demo account.",
+        "demoReadonly": "Changes are not allowed in the demo account.",
         "membershipInactive": "Your membership is not active. Contact your administrator to access nutrition plans.",
         "network": "Could not connect. Check your internet connection and try again.",
         "forbidden": "You do not have permission for this action.",
@@ -311,14 +311,14 @@
         "draftOnly": "Nutrient values can only be updated in draft plans.",
         "intro": "Plan items keep the values the foods had when they were added to the plan. Changes you make later in your food library <b>do not change automatically</b> in this plan. Confirm if you want to refresh the values of the items below with the current nutrient values. Gram amounts and portions do not change.",
         "upToDate": "All items in this plan match the current nutrient values. There is nothing to update.",
-        "willUpdate": "{count} items will be updated (out of {total} in the plan)",
+        "willUpdate": "{count, plural, one {# item will be updated} other {# items will be updated}} (out of {total} in the plan)",
         "dayMeal": "Day / Meal",
         "food": "Food",
         "energy100": "Energy per 100 g",
         "previousName": "previous name: {name}",
-        "unavailable": "The foods of {count} items are no longer in your workspace; these items are kept as they are.",
+        "unavailable": "{count, plural, one {The food of # item is no longer in your workspace; this item is kept as it is.} other {The foods of # items are no longer in your workspace; these items are kept as they are.}}",
         "cancel": "Cancel",
-        "updateN": "Update {count} Items"
+        "updateN": "{count, plural, one {Update # Item} other {Update # Items}}"
       },
       "sd": {
         "saveFailed": "The template could not be saved.",
@@ -329,7 +329,7 @@
       },
       "ap": {
         "notEmpty": "This day is not empty — a day template can only be applied to an empty day. You can add a meal template.",
-        "failed": "Applying failed.",
+        "failed": "Could not apply the template.",
         "subtitle": "A meal template is added; a day template is applied to an empty day",
         "emptyTitle": "No templates",
         "emptyDesc": "First save a meal or a day as a template.",
