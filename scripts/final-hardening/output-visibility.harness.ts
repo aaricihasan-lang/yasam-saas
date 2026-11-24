@@ -197,12 +197,15 @@ for (const f of HD_WORD_FILES) {
 // ── E. Android uygulaması çıktıları ──────────────────────────────────────────
 section("E. Uygulama: blob indirmeleri görünür; print + blob-open gizli");
 const BLOB_DOWNLOAD_VISIBLE: Array<[string, RegExp]> = [
-  ["app/belge-ceviri/page.tsx", /TXT İndir/],
-  ["app/ders-notu/page.tsx", /TXT İndir/],
+  // I18N (gece, Ajan K): CTA metinleri katalogda (TR "TXT İndir" / "Orijinal PDF" birebir: messages/tr/
+  // docTranslate.json, lessonNotes.json, videoTranslate.json). Niyet aynı: blob indirme CTA'sı kaynakta var ve
+  // uygulamada gizlenmiyor → işaretçi artık CTA'nın çeviri anahtarı.
+  ["app/belge-ceviri/page.tsx", /t\("ocr\.downloadTxt"\)/],
+  ["app/ders-notu/page.tsx", /t\("result\.downloadTxt"\)/],
   ["app/numeroloji/components/NumerolojiGorselRaporKontrolPaneli.tsx", /PNG İndir/],
   ["app/numeroloji/components/NumerolojiKayitDetayPanel.tsx", /PNG İndir/],
   ["app/settings/BackupSections.tsx", /Sistem Yedeği İndir/],
-  ["app/video-ceviri/page.tsx", /Orijinal PDF/],
+  ["app/video-ceviri/page.tsx", /t\("download\.pdfOriginal"\)/],
 ];
 for (const [f, marker] of BLOB_DOWNLOAD_VISIBLE) {
   const src = read(f);

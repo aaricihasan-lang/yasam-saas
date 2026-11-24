@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
     // Demo hesap: başlık üretimi engellenir.
     if (is_demo_account) {
       return NextResponse.json(
-        { ok: false, error: "Demo hesabında bu işlem kullanılamaz." },
+        { ok: false, code: "DEMO_READONLY", error: "Demo hesabında bu işlem kullanılamaz." },
         { status: 403 },
       );
     }
@@ -37,21 +37,21 @@ export async function POST(request: NextRequest) {
       body = (await request.json()) as Record<string, unknown>;
     } catch {
       return NextResponse.json(
-        { ok: false, error: "Geçersiz istek gövdesi." },
+        { ok: false, code: "INVALID_BODY", error: "Geçersiz istek gövdesi." },
         { status: 400 },
       );
     }
     const jobId = String(body.jobId ?? "").trim();
     if (!jobId) {
       return NextResponse.json(
-        { ok: false, error: "jobId gerekli." },
+        { ok: false, code: "JOB_ID_REQUIRED", error: "jobId gerekli." },
         { status: 400 },
       );
     }
 
     if (!process.env.OPENAI_API_KEY) {
       return NextResponse.json(
-        { ok: false, error: "OpenAI API anahtarı yapılandırılmamış." },
+        { ok: false, code: "AI_NOT_CONFIGURED", error: "OpenAI API anahtarı yapılandırılmamış." },
         { status: 500 },
       );
     }
@@ -66,7 +66,7 @@ export async function POST(request: NextRequest) {
 
     if (jobErr || !jobData) {
       return NextResponse.json(
-        { ok: false, error: "İş kaydı bulunamadı." },
+        { ok: false, code: "JOB_NOT_FOUND", error: "İş kaydı bulunamadı." },
         { status: 404 },
       );
     }
@@ -80,7 +80,7 @@ export async function POST(request: NextRequest) {
 
     if (!job.transcript_tr?.trim()) {
       return NextResponse.json(
-        { ok: false, error: "Başlıklar için önce Türkçe çeviri oluşturulmalı." },
+        { ok: false, code: "TRANSLATION_REQUIRED", error: "Başlıklar için önce Türkçe çeviri oluşturulmalı." },
         { status: 422 },
       );
     }
@@ -110,6 +110,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: true, jobId });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    return NextResponse.json({ ok: false, error: message }, { status: 500 });
+    return NextResponse.json({ ok: false, code: "PROCESSING_FAILED", error: message }, { status: 500 });
   }
 }

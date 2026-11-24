@@ -27,8 +27,11 @@ import tr_commonApiErrors from "@/messages/tr/common.apiErrors.json";
 import tr_commonDeleteConfirm from "@/messages/tr/common.deleteConfirm.json";
 import tr_common from "@/messages/tr/common.json";
 import tr_commonLanguagePreference from "@/messages/tr/common.languagePreference.json";
+import tr_digitalContent from "@/messages/tr/digitalContent.json";
+import tr_docTranslate from "@/messages/tr/docTranslate.json";
 import tr_home from "@/messages/tr/home.json";
 import tr_journey from "@/messages/tr/journey.json";
+import tr_lessonNotes from "@/messages/tr/lessonNotes.json";
 import tr_memoryArchive from "@/messages/tr/memory.archive.json";
 import tr_memoryModules from "@/messages/tr/memory.modules.json";
 import tr_memoryWorkspace from "@/messages/tr/memory.workspace.json";
@@ -42,6 +45,7 @@ import tr_stonesList from "@/messages/tr/stones.list.json";
 import tr_stonesMinerals from "@/messages/tr/stones.minerals.json";
 import tr_stonesRecords from "@/messages/tr/stones.records.json";
 import tr_terms from "@/messages/tr/terms.json";
+import tr_videoTranslate from "@/messages/tr/videoTranslate.json";
 import en_agenda from "@/messages/en/agenda.json";
 import en_authClient from "@/messages/en/auth.client.json";
 import en_authEmail from "@/messages/en/auth.email.json";
@@ -66,8 +70,11 @@ import en_commonApiErrors from "@/messages/en/common.apiErrors.json";
 import en_commonDeleteConfirm from "@/messages/en/common.deleteConfirm.json";
 import en_common from "@/messages/en/common.json";
 import en_commonLanguagePreference from "@/messages/en/common.languagePreference.json";
+import en_digitalContent from "@/messages/en/digitalContent.json";
+import en_docTranslate from "@/messages/en/docTranslate.json";
 import en_home from "@/messages/en/home.json";
 import en_journey from "@/messages/en/journey.json";
+import en_lessonNotes from "@/messages/en/lessonNotes.json";
 import en_memoryArchive from "@/messages/en/memory.archive.json";
 import en_memoryModules from "@/messages/en/memory.modules.json";
 import en_memoryWorkspace from "@/messages/en/memory.workspace.json";
@@ -81,10 +88,11 @@ import en_stonesList from "@/messages/en/stones.list.json";
 import en_stonesMinerals from "@/messages/en/stones.minerals.json";
 import en_stonesRecords from "@/messages/en/stones.records.json";
 import en_terms from "@/messages/en/terms.json";
+import en_videoTranslate from "@/messages/en/videoTranslate.json";
 
 export const CATALOG_FILES = {
-  tr: ["agenda.json", "auth.client.json", "auth.email.json", "auth.server.json", "auth.ui.json", "beslenme.json", "clients.analizler.json", "clients.anamnez.json", "clients.charges.json", "clients.combinations.json", "clients.consent.json", "clients.detail.json", "clients.homework.json", "clients.json", "clients.list.json", "clients.memory.json", "clients.notes.json", "clients.sessions.json", "clients.stones.json", "clients.yolculuk.json", "common.apiErrors.json", "common.deleteConfirm.json", "common.json", "common.languagePreference.json", "home.json", "journey.json", "memory.archive.json", "memory.modules.json", "memory.workspace.json", "memoryPicker.json", "navigation.json", "stones.combinations.json", "stones.hub.json", "stones.json", "stones.knowledge.json", "stones.list.json", "stones.minerals.json", "stones.records.json", "terms.json"],
-  en: ["agenda.json", "auth.client.json", "auth.email.json", "auth.server.json", "auth.ui.json", "beslenme.json", "clients.analizler.json", "clients.anamnez.json", "clients.charges.json", "clients.combinations.json", "clients.consent.json", "clients.detail.json", "clients.homework.json", "clients.json", "clients.list.json", "clients.memory.json", "clients.notes.json", "clients.sessions.json", "clients.stones.json", "clients.yolculuk.json", "common.apiErrors.json", "common.deleteConfirm.json", "common.json", "common.languagePreference.json", "home.json", "journey.json", "memory.archive.json", "memory.modules.json", "memory.workspace.json", "memoryPicker.json", "navigation.json", "stones.combinations.json", "stones.hub.json", "stones.json", "stones.knowledge.json", "stones.list.json", "stones.minerals.json", "stones.records.json", "terms.json"],
+  tr: ["agenda.json", "auth.client.json", "auth.email.json", "auth.server.json", "auth.ui.json", "beslenme.json", "clients.analizler.json", "clients.anamnez.json", "clients.charges.json", "clients.combinations.json", "clients.consent.json", "clients.detail.json", "clients.homework.json", "clients.json", "clients.list.json", "clients.memory.json", "clients.notes.json", "clients.sessions.json", "clients.stones.json", "clients.yolculuk.json", "common.apiErrors.json", "common.deleteConfirm.json", "common.json", "common.languagePreference.json", "digitalContent.json", "docTranslate.json", "home.json", "journey.json", "lessonNotes.json", "memory.archive.json", "memory.modules.json", "memory.workspace.json", "memoryPicker.json", "navigation.json", "stones.combinations.json", "stones.hub.json", "stones.json", "stones.knowledge.json", "stones.list.json", "stones.minerals.json", "stones.records.json", "terms.json", "videoTranslate.json"],
+  en: ["agenda.json", "auth.client.json", "auth.email.json", "auth.server.json", "auth.ui.json", "beslenme.json", "clients.analizler.json", "clients.anamnez.json", "clients.charges.json", "clients.combinations.json", "clients.consent.json", "clients.detail.json", "clients.homework.json", "clients.json", "clients.list.json", "clients.memory.json", "clients.notes.json", "clients.sessions.json", "clients.stones.json", "clients.yolculuk.json", "common.apiErrors.json", "common.deleteConfirm.json", "common.json", "common.languagePreference.json", "digitalContent.json", "docTranslate.json", "home.json", "journey.json", "lessonNotes.json", "memory.archive.json", "memory.modules.json", "memory.workspace.json", "memoryPicker.json", "navigation.json", "stones.combinations.json", "stones.hub.json", "stones.json", "stones.knowledge.json", "stones.list.json", "stones.minerals.json", "stones.records.json", "terms.json", "videoTranslate.json"],
 } as const;
 
 export const CATALOG_PARTS: Record<"tr" | "en", Record<string, unknown>[]> = {
@@ -113,8 +121,11 @@ export const CATALOG_PARTS: Record<"tr" | "en", Record<string, unknown>[]> = {
     tr_commonDeleteConfirm,
     tr_common,
     tr_commonLanguagePreference,
+    tr_digitalContent,
+    tr_docTranslate,
     tr_home,
     tr_journey,
+    tr_lessonNotes,
     tr_memoryArchive,
     tr_memoryModules,
     tr_memoryWorkspace,
@@ -128,6 +139,7 @@ export const CATALOG_PARTS: Record<"tr" | "en", Record<string, unknown>[]> = {
     tr_stonesMinerals,
     tr_stonesRecords,
     tr_terms,
+    tr_videoTranslate,
   ],
   en: [
     en_agenda,
@@ -154,8 +166,11 @@ export const CATALOG_PARTS: Record<"tr" | "en", Record<string, unknown>[]> = {
     en_commonDeleteConfirm,
     en_common,
     en_commonLanguagePreference,
+    en_digitalContent,
+    en_docTranslate,
     en_home,
     en_journey,
+    en_lessonNotes,
     en_memoryArchive,
     en_memoryModules,
     en_memoryWorkspace,
@@ -169,5 +184,6 @@ export const CATALOG_PARTS: Record<"tr" | "en", Record<string, unknown>[]> = {
     en_stonesMinerals,
     en_stonesRecords,
     en_terms,
+    en_videoTranslate,
   ],
 };

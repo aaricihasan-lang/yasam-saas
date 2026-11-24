@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   ArrowRight,
   BookOpen,
@@ -27,57 +28,43 @@ import {
  * İzinler canlı DB'den kesinleşmeden (syncYasamUserFromDb) kart render EDİLMEZ → sonradan
  * açılan izin kartı gösterir, kapatılan izin kartı gizler; yetkisiz kart hiç flash etmez.
  */
+// I18N: başlık / açıklama / rozet digitalContent.hub.cards.<id>.{title,desc,badge} (TR birebir).
 const subModules: {
   id: HubChildId;
-  title: string;
-  desc: string;
   href: string;
   Icon: typeof FolderArchive;
-  badge: string;
   iconGradient: string;
   cardGradient: string;
   border: string;
 }[] = [
   {
     id: "personal_archive",
-    title: "Kişisel Arşiv",
-    desc: "Ses, video, belge ve kişisel kayıt sistemi. Tüm dosyalarınızı tek merkezde saklayın.",
     href: "/dashboard/kisisel-arsiv",
     Icon: FolderArchive,
-    badge: "Arşiv",
     iconGradient: "from-orange-500 to-amber-500",
     cardGradient: "from-orange-100/90 via-amber-50/95 to-white",
     border: "border-orange-200/70",
   },
   {
     id: "belge_ceviri",
-    title: "Belge Çeviri Merkezi",
-    desc: "PDF belgelerini düzenlenebilir Word dosyasına dönüştür ve yönet.",
     href: "/belge-ceviri",
     Icon: BookOpen,
-    badge: "Belge",
     iconGradient: "from-sky-500 to-cyan-600",
     cardGradient: "from-sky-100/90 via-cyan-50/95 to-white",
     border: "border-sky-200/70",
   },
   {
     id: "video_ceviri",
-    title: "Video → Türkçe Word/PDF",
-    desc: "Videolardan Türkçe transkript, çeviri ve eğitim dokümanı üretme merkezi.",
     href: "/video-ceviri",
     Icon: Video,
-    badge: "Video",
     iconGradient: "from-rose-500 to-pink-600",
     cardGradient: "from-rose-100/90 via-pink-50/95 to-white",
     border: "border-rose-200/70",
   },
   {
     id: "ders_notu",
-    title: "Ders Notu Merkezi",
-    desc: "Ham transkripti temizle, ders notuna dönüştür. Human Design uyumlu AI çıktısı.",
     href: "/ders-notu",
     Icon: ClipboardList,
-    badge: "Notlar",
     iconGradient: "from-teal-600 to-emerald-700",
     cardGradient: "from-teal-50/90 via-emerald-50/95 to-white",
     border: "border-teal-200/70",
@@ -87,6 +74,7 @@ const subModules: {
 const CHILD_BY_ID = new Map(DIGITAL_CONTENT_HUB_CHILDREN.map((child) => [child.id, child]));
 
 export default function DigitalContentModuleGrid() {
+  const t = useTranslations("digitalContent.hub");
   const [user, setUser] = useState<YasamUser | null>(null);
   const [resolved, setResolved] = useState(false);
 
@@ -125,7 +113,7 @@ export default function DigitalContentModuleGrid() {
         data-digital-content-empty
         className="rounded-[18px] border border-slate-200 bg-white/70 px-5 py-8 text-center text-sm font-medium text-slate-600"
       >
-        Bu merkezde hesabınız için açık bir modül bulunmuyor.
+        {t("empty")}
       </div>
     );
   }
@@ -148,20 +136,20 @@ export default function DigitalContentModuleGrid() {
                 <Icon className="h-5 w-5" strokeWidth={2.25} />
               </div>
               <span className="rounded-full border border-white/80 bg-white/90 px-2 py-0.5 text-xs font-bold text-slate-600 shadow-sm">
-                {mod.badge}
+                {t(`cards.${mod.id}.badge`)}
               </span>
             </div>
 
             <h2 className="mt-2 text-sm font-black text-slate-900 sm:text-base">
-              {mod.title}
+              {t(`cards.${mod.id}.title`)}
             </h2>
             <p className="mt-0.5 flex-1 text-xs leading-5 text-slate-600">
-              {mod.desc}
+              {t(`cards.${mod.id}.desc`)}
             </p>
 
             <div className="mt-3 flex items-center justify-between gap-2">
               <span className="inline-flex rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-bold text-emerald-800 ring-1 ring-emerald-200/80">
-                Aktif
+                {t("active")}
               </span>
               <span
                 className="flex h-7 w-7 items-center justify-center rounded-full bg-slate-900 text-white shadow-sm transition group-hover:scale-105"

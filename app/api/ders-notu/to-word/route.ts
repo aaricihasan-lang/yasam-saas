@@ -84,7 +84,7 @@ export async function POST(request: NextRequest) {
 
     if (!text || typeof text !== "string" || !text.trim()) {
       return new Response(
-        JSON.stringify({ success: false, message: "Metin bulunamadı." }),
+        JSON.stringify({ success: false, code: "TEXT_MISSING", message: "Metin bulunamadı." }),
         { status: 400, headers: { "Content-Type": "application/json" } },
       );
     }
@@ -110,7 +110,7 @@ export async function POST(request: NextRequest) {
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     return new Response(
-      JSON.stringify({ success: false, message: `İşlem hatası: ${message}` }),
+      JSON.stringify({ success: false, code: "PROCESSING_FAILED", message: `İşlem hatası: ${message}` }),
       { status: 500, headers: { "Content-Type": "application/json" } },
     );
   }

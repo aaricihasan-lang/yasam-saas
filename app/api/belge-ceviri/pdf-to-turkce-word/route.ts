@@ -53,14 +53,14 @@ export async function POST(request: NextRequest) {
     // ── Validasyon ─────────────────────────────────────────────────────────────
     if (!file || !(file instanceof File)) {
       return NextResponse.json(
-        { success: false, message: "Dosya bulunamadı. 'file' alanı gerekli." },
+        { success: false, code: "FILE_MISSING", message: "Dosya bulunamadı. 'file' alanı gerekli." },
         { status: 400 },
       );
     }
 
     if (getExt(file.name) !== ".pdf") {
       return NextResponse.json(
-        { success: false, message: "Yalnızca PDF dosyaları kabul edilir." },
+        { success: false, code: "PDF_ONLY", message: "Yalnızca PDF dosyaları kabul edilir." },
         { status: 400 },
       );
     }
@@ -68,7 +68,7 @@ export async function POST(request: NextRequest) {
     const mimeOk = !file.type || file.type === "" || ALLOWED_MIME_TYPES.has(file.type);
     if (!mimeOk) {
       return NextResponse.json(
-        { success: false, message: `Geçersiz dosya tipi (${file.type}).` },
+        { success: false, code: "INVALID_FILE_TYPE", message: `Geçersiz dosya tipi (${file.type}).` },
         { status: 400 },
       );
     }
@@ -77,6 +77,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           success: false,
+          code: "FILE_TOO_LARGE",
+          maxMb: 50,
           message: `Dosya çok büyük (${(file.size / 1024 / 1024).toFixed(1)} MB). Maksimum 50 MB.`,
         },
         { status: 400 },
@@ -99,6 +101,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           success: false,
+          code: "PAGE_LIMIT",
+          totalPages,
           message: `Bu belge ${totalPages} sayfa içeriyor. 200 sayfa üstü belgeler için Büyük Dosya Modu hazırlanıyor.`,
         },
         { status: 422 },
@@ -120,7 +124,7 @@ export async function POST(request: NextRequest) {
     if (uploadError) {
       console.error("[pdf-to-turkce-word] Storage upload hatası:", uploadError);
       return NextResponse.json(
-        { success: false, message: `Dosya yükleme hatası: ${uploadError.message}` },
+        { success: false, code: "UPLOAD_FAILED", message: `Dosya yükleme hatası: ${uploadError.message}` },
         { status: 500 },
       );
     }
@@ -147,7 +151,7 @@ export async function POST(request: NextRequest) {
       await db.storage.from(STORAGE_BUCKET).remove([sourcePath]);
       console.error("[pdf-to-turkce-word] DB insert hatası:", dbError);
       return NextResponse.json(
-        { success: false, message: `Job kaydı oluşturulamadı: ${dbError.message}` },
+        { success: false, code: "JOB_CREATE_FAILED", message: `Job kaydı oluşturulamadı: ${dbError.message}` },
         { status: 500 },
       );
     }
@@ -167,7 +171,7 @@ export async function POST(request: NextRequest) {
     console.error("[pdf-to-turkce-word] hata:", err);
     const message = err instanceof Error ? err.message : String(err);
     return NextResponse.json(
-      { success: false, message: `İşlem hatası: ${message}` },
+      { success: false, code: "PROCESSING_FAILED", message: `İşlem hatası: ${message}` },
       { status: 500 },
     );
   }

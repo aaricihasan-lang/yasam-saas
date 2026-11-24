@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
     // Demo hesap gerçek upload token alamaz.
     if (is_demo_account) {
       return NextResponse.json(
-        { ok: false, error: "Demo hesabında bu işlem kullanılamaz." },
+        { ok: false, code: "DEMO_READONLY", error: "Demo hesabında bu işlem kullanılamaz." },
         { status: 403 },
       );
     }
@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
     const body = (await request.json().catch(() => ({}))) as { jobId?: unknown };
     const jobId = String(body?.jobId ?? "").trim();
     if (!jobId || jobId.includes("/")) {
-      return NextResponse.json({ ok: false, error: "jobId gerekli." }, { status: 400 });
+      return NextResponse.json({ ok: false, code: "JOB_ID_REQUIRED", error: "jobId gerekli." }, { status: 400 });
     }
 
     // İş kaydının bu oturuma (tenant + user) ait olduğunu doğrula.
@@ -52,13 +52,13 @@ export async function POST(request: NextRequest) {
 
     if (jobErr || !job) {
       return NextResponse.json(
-        { ok: false, error: "İş kaydı doğrulanamadı." },
+        { ok: false, code: "JOB_NOT_FOUND", error: "İş kaydı doğrulanamadı." },
         { status: 403 },
       );
     }
     if (job.status !== "uploaded") {
       return NextResponse.json(
-        { ok: false, error: "Bu iş için yükleme artık yapılamaz." },
+        { ok: false, code: "UPLOAD_NOT_ALLOWED", error: "Bu iş için yükleme artık yapılamaz." },
         { status: 409 },
       );
     }
@@ -69,7 +69,7 @@ export async function POST(request: NextRequest) {
       String(job.original_filename ?? "video"),
     );
     if (!isVideoTempPathOwned(storagePath, tenantId, jobId)) {
-      return NextResponse.json({ ok: false, error: "Geçersiz depolama yolu." }, { status: 403 });
+      return NextResponse.json({ ok: false, code: "INVALID_STORAGE_PATH", error: "Geçersiz depolama yolu." }, { status: 403 });
     }
 
     // Kısa ömürlü signed upload token üret
@@ -80,7 +80,7 @@ export async function POST(request: NextRequest) {
     if (signErr || !signedData?.token) {
       console.error("[video-ceviri/get-upload-url] sign failed");
       return NextResponse.json(
-        { ok: false, error: "Yükleme bağlantısı üretilemedi." },
+        { ok: false, code: "UPLOAD_URL_FAILED", error: "Yükleme bağlantısı üretilemedi." },
         { status: 500 },
       );
     }
@@ -94,13 +94,13 @@ export async function POST(request: NextRequest) {
       .eq("user_id", userId);
     if (updErr) {
       return NextResponse.json(
-        { ok: false, error: "İş kaydı güncellenemedi." },
+        { ok: false, code: "JOB_UPDATE_FAILED", error: "İş kaydı güncellenemedi." },
         { status: 500 },
       );
     }
 
     return NextResponse.json({ ok: true, token: signedData.token, path: storagePath });
   } catch {
-    return NextResponse.json({ ok: false, error: "Yükleme başlatılamadı." }, { status: 500 });
+    return NextResponse.json({ ok: false, code: "UPLOAD_START_FAILED", error: "Yükleme başlatılamadı." }, { status: 500 });
   }
 }
