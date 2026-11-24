@@ -122,14 +122,14 @@
     },
     "bigNote": {
       "unsaved": "Unsaved change",
-      "hint": "{count} characters · Press <strong>Save</strong> in the form to save permanently",
+      "hint": "{count, plural, one {{count} character} other {{count} characters}} · Press <strong>Save</strong> in the form to save permanently",
       "apply": "Apply"
     },
     "usage": {
       "loadError": "Usage information could not be loaded.",
       "title": "Protocols Using This",
       "unused": "This record is not used in any protocol yet. (It can be deleted.)",
-      "usedIn": "This record is used in {count, plural, one {{count} protocol} other {{count} protocols}}; remove it from these protocols before deleting."
+      "usedIn": "{count, plural, one {This record is used in {count} protocol; remove it from this protocol before deleting.} other {This record is used in {count} protocols; remove it from these protocols before deleting.}}"
     },
     "citation": {
       "evidence": {

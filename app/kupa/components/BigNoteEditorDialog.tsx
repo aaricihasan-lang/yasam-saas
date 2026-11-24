@@ -123,7 +123,7 @@ export function BigNoteEditorDialog({
 
         <div className="flex items-center justify-between gap-3 border-t border-slate-100 px-5 py-3.5">
           <span className="text-[11px] text-slate-400">
-            {t.rich("hint", { count: draft.trim().length, strong: (chunks) => <strong>{chunks}</strong> })}
+            {t.rich("hint", { count: String(draft.trim().length), strong: (chunks) => <strong>{chunks}</strong> })}
           </span>
           <div className="flex items-center gap-2">
             <button type="button" onClick={onCancel} className={kupaBtnGhost}>
