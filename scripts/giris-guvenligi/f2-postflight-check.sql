@@ -78,6 +78,8 @@ END $$;
 -- Son aşamanın (001300) TAM katalog satırları: fonksiyon imzası + gövde özeti + SECURITY DEFINER + search_path +
 -- API/service_role yetkisi, tetikleyiciler, F2 tabloları (RLS/yetki) ve kolonlar. Eksik, fazla (ör. eski overload) veya farklı her
 -- satır FAIL'dir. Ayrıca kayıt düzeyi = 1300.
+-- Tek koşullu satır: public.admin_purge_context VARSA 001100'ün admin_purge_legal_hold tetikleyicisi (TAM satır) ZORUNLU;
+-- tablo yoksa bu satır beklenmez (varsa "beklenmeyen" FAIL). Başka istisna yoktur.
 DO $f2man$
 DECLARE
   v_missing text;
@@ -289,7 +291,7 @@ cll AS (
     JOIN pg_catalog.pg_attribute a ON a.attrelid = c.oid AND a.attnum > 0 AND NOT a.attisdropped
          AND (o.kind = 'tbl' OR a.attname = split_part(o.name, '.', 2))),
 lines AS (SELECT lvl, line FROM fnl UNION ALL SELECT lvl, line FROM trl UNION ALL SELECT lvl, line FROM tbl UNION ALL SELECT lvl, line FROM cll),
-  exp(line) AS (VALUES
+  exp0(line) AS (VALUES
       ('col|auth_audit_retention_policy.data_class|text|true'),
       ('col|auth_audit_retention_policy.decided_at|timestamp with time zone|false'),
       ('col|auth_audit_retention_policy.decided_by|uuid|false'),
@@ -654,7 +656,9 @@ lines AS (SELECT lvl, line FROM fnl UNION ALL SELECT lvl, line FROM trl UNION AL
       ('trg|users.users_email_changed_after_trg|users_email_changed_after|O|38969aed79fd7c25cf50596923d6d1cc'),
       ('trg|users.users_mfa_policy_guard_trg|users_mfa_policy_guard|O|71e7671d0a1db7d3b0bc85a85e21fd51'),
       ('trg|users.users_owner_mfa_kit_guard_trg|users_owner_mfa_kit_guard|O|366609cfac452b8022176ae8cc8092bd')
-  )
+  ),
+  exp(line) AS (SELECT line FROM exp0
+      UNION ALL SELECT 'trg|admin_purge_context.admin_purge_legal_hold|admin_purge_legal_hold_trg|O|71d02c75df4de10c2cd8d4f602b97971' WHERE to_regclass('public.admin_purge_context') IS NOT NULL)
   SELECT (SELECT string_agg(e.line, ' ; ' ORDER BY e.line) FROM (SELECT line FROM exp EXCEPT SELECT line FROM lines) e),
          (SELECT string_agg(a.line, ' ; ' ORDER BY a.line) FROM (SELECT line FROM lines EXCEPT SELECT line FROM exp) a)
     INTO v_missing, v_extra;

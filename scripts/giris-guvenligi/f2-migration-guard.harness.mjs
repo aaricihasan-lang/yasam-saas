@@ -15,6 +15,7 @@ import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { F2_STAGES, LOCK_FILE } from "./f2-migration-guard.mjs";
+import { PURGE_CTX_SQL } from "./f2-katalog.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
 const nm = path.join(root, "node_modules");
@@ -250,8 +251,8 @@ try {
   }
   // ── 10–13) Katalog sapmaları: postflight + preflight yakalamalı ─────────────────
   const sig = async (c, name) => (await c.query("SELECT p.oid::regprocedure::text AS s FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace WHERE n.nspname='public' AND p.proname=$1", [name])).rows[0].s;
-  const drift = async (label, sql) => {
-    const h = await fresh("tamzincir");
+  const drift = async (label, sql, tpl = "tamzincir") => {
+    const h = await fresh(tpl);
     for (const s of [].concat(sql)) await h.c.query(typeof s === "function" ? await s(h.c) : s);
     const p = await postflight(h.c);
     ok(p.startsWith("FAIL"), `${label}: postflight FAIL verdi`, p);
@@ -307,6 +308,36 @@ try {
     ok(pf[LOCK_FILE]?.startsWith("SIRA HATASI"), "S15b preflight: zincir tamamlanmadan 000200 SIRA HATASI", pf[LOCK_FILE]);
     await drop(h2);
   }
+  // ── 16) Kalıcı silme bağlam tablosu (admin_purge_context) VAR — prod ortamı ─────────────────────────────────
+  // 001100 bu tabloda admin_purge_legal_hold tetikleyicisini kurar; katalog YALNIZ bu tam satırı fazladan kabul eder.
+  {
+    await admin("CREATE DATABASE base0ctx TEMPLATE base0");
+    { const c = await conn("base0ctx"); await c.query(PURGE_CTX_SQL); await c.end(); }
+    const h = await fresh("base0ctx");
+    let allOk = true;
+    for (const v of LINEAR) {
+      const pf = await preflight(h.c);
+      if (!pf[v]?.startsWith("UYGULANABİLİR") || !String(pf.durum).includes("katalog_ozeti=")) { allOk = false; console.log(`     ${v} öncesi preflight: ${pf[v]} ${pf.durum}`); }
+      const r = await apply(h.c, v); if (!r.ok) { allOk = false; console.log(`     ${v}: ${r.msg}`); break; }
+      await ledger(h.c, v);
+      const after = await preflight(h.c);
+      if (!String(after.durum).includes("katalog_ozeti=true")) { allOk = false; console.log(`     ${v} sonrası: ${after.durum}`); }
+    }
+    ok(allOk, "S16a tablo VAR: her adımda preflight UYGULANABİLİR ve sonrasında katalog_ozeti=true");
+    const trg = (await h.c.query("SELECT count(*)::int n FROM pg_trigger WHERE tgname='admin_purge_legal_hold' AND tgrelid='public.admin_purge_context'::regclass")).rows[0].n;
+    ok(trg === 1, "S16a tablo VAR: 001100 admin_purge_legal_hold tetikleyicisini kurdu", String(trg));
+    ok((await postflight(h.c)) === "PASS", "S16a tablo VAR: postflight PASS");
+    await h.c.end();
+    await admin(`ALTER DATABASE ${h.name} RENAME TO tamzincirctx`);
+  }
+  await drift("S16b tablo VAR, koşullu tetikleyici kaldırıldı", "DROP TRIGGER admin_purge_legal_hold ON public.admin_purge_context", "tamzincirctx");
+  await drift("S16c tablo VAR, koşullu tetikleyici devre dışı", "ALTER TABLE public.admin_purge_context DISABLE TRIGGER admin_purge_legal_hold", "tamzincirctx");
+  await drift("S16d tablo VAR, koşullu tetikleyici tanımı değişti (INSERT OR UPDATE)", [
+    "DROP TRIGGER admin_purge_legal_hold ON public.admin_purge_context",
+    "CREATE TRIGGER admin_purge_legal_hold BEFORE INSERT OR UPDATE ON public.admin_purge_context FOR EACH ROW EXECUTE FUNCTION public.admin_purge_legal_hold_trg()",
+  ], "tamzincirctx");
+  await drift("S16e tablo VAR, ilgisiz sapma yine yakalanır (genel istisna yok)", "GRANT SELECT ON public.auth_recovery_codes TO authenticated", "tamzincirctx");
+  await drift("S16f tablo YOK ortamına sonradan tablo eklendi, tetikleyici yok", PURGE_CTX_SQL, "tamzincir");
 } catch (e) {
   fail++;
   console.log(`FAIL beklenmeyen hata: ${e.stack ?? e}`);

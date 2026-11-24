@@ -112,7 +112,56 @@ lines AS (SELECT lvl, line FROM fnl UNION ALL SELECT lvl, line FROM trl UNION AL
 const objValues = (objs) => objs.map((o) => `('${o.kind}', '${o.name}', ${o.lvl})`).join(",\n  ");
 const md5 = (s) => crypto.createHash("md5").update(s).digest("hex");
 
+/**
+ * Kalıcı silme altyapısının bağlam tablosu (20271009100000_admin_purge_archived_expert.sql ile birebir aynı tanım).
+ * 001100 `admin_purge_legal_hold` tetikleyicisini YALNIZ bu tablo varsa kurar (prod: var; test tabanı: yok).
+ * Katalog iki ortam için de üretilir; preflight/postflight tablonun varlığına göre doğru beklentiyi seçer.
+ */
+export const PURGE_CTX_SQL = `CREATE TABLE IF NOT EXISTS public.admin_purge_context (
+  txid       bigint      NOT NULL,
+  user_id    uuid        NOT NULL,
+  tenant_id  uuid,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (txid, user_id)
+);
+REVOKE ALL ON TABLE public.admin_purge_context FROM PUBLIC, anon, authenticated, service_role;`;
+/** İki ortam arasındaki TEK izinli fark: 001100'ün koşullu tetikleyicisi (tanım özeti dahil tam satır). */
+export const LEGAL_HOLD_PREFIX = "trg|admin_purge_context.admin_purge_legal_hold|admin_purge_legal_hold_trg|O|";
+export const LEGAL_HOLD_LEVEL = 1100;
+
+/**
+ * Tablo olan ve olmayan katalogları karşılaştırır: LEGAL_HOLD_LEVEL öncesi aşamalar birebir aynı, sonrası yalnız TEK
+ * fazla satırla (tam koşullu tetikleyici satırı) ayrışmalıdır. Başka her fark üreticiyi durdurur.
+ */
+export function purgeCtxDelta(plain, withCtx) {
+  if (plain.length !== withCtx.length) throw new Error("katalog: aşama sayısı ortamlar arasında farklı");
+  let line = null;
+  plain.forEach((a, i) => {
+    const b = withCtx[i];
+    if (a.lvl !== b.lvl) throw new Error("katalog: aşama sırası ortamlar arasında farklı");
+    const A = new Set(a.lines), B = new Set(b.lines);
+    const onlyA = a.lines.filter((l) => !B.has(l)), onlyB = b.lines.filter((l) => !A.has(l));
+    if (onlyA.length) throw new Error(`katalog: tablo ortamında eksik satır (${a.lvl}): ${onlyA.join(" ; ")}`);
+    if (a.lvl < LEGAL_HOLD_LEVEL) { if (onlyB.length) throw new Error(`katalog: ${a.lvl} aşamasında beklenmeyen fark: ${onlyB.join(" ; ")}`); return; }
+    if (onlyB.length !== 1 || !onlyB[0].startsWith(LEGAL_HOLD_PREFIX) || !/^[0-9a-f]{32}$/.test(onlyB[0].slice(LEGAL_HOLD_PREFIX.length))) {
+      throw new Error(`katalog: ${a.lvl} aşamasında izinli tek tetikleyici farkı dışında fark: ${onlyB.join(" ; ") || "(fark yok)"}`);
+    }
+    if (line !== null && line !== onlyB[0]) throw new Error("katalog: koşullu tetikleyici satırı aşamalar arasında değişti");
+    line = onlyB[0];
+  });
+  if (line === null) throw new Error("katalog: koşullu tetikleyici hiçbir aşamada üretilmedi");
+  return line;
+}
+
 async function generate() {
+  const plain = await generateVariant(false);
+  const withCtx = await generateVariant(true);
+  const legalHoldLine = purgeCtxDelta(plain.stages, withCtx.stages);
+  plain.stages.forEach((st, i) => { st.hashCtx = withCtx.stages[i].hash; });
+  return { objs: plain.objs, stages: plain.stages, legalHoldLine };
+}
+
+async function generateVariant(withPurgeCtx) {
   const { default: EP } = await import(pathToFileURL(path.join(nm, "embedded-postgres", "dist", "index.js")).href);
   const pg = (await import(pathToFileURL(path.join(nm, "pg", "lib", "index.js")).href)).default;
   const objs = objectList();
@@ -132,6 +181,7 @@ async function generate() {
     c.on("notice", () => {});
     await c.query(BOOT);
     for (const f of BASE) await c.query(fs.readFileSync(path.join(root, f), "utf8"));
+    if (withPurgeCtx) await c.query(PURGE_CTX_SQL);
     const base = (await c.query(q)).rows;
     for (const f of linear) {
       await c.query(fs.readFileSync(path.join(MIGDIR, f), "utf8"));
@@ -151,7 +201,7 @@ async function generate() {
 
 function renderPreflight({ objs, stages }) {
   const finalLvl = stages[stages.length - 1].lvl;
-  const hashes = stages.map((st) => `(${st.lvl}, '${st.hash}')`).join(", ");
+  const hashes = stages.map((st) => `(${st.lvl}, '${st.hash}', '${st.hashCtx}')`).join(", ");
   const fps = F2_STAGES.filter((x) => stages.some((st) => st.lvl === x.level))
     .map((x) => `(${x.level}, '${x.file}', ${x.fp})`).join(",\n    ");
   const baseFns = (stages.base ?? []).map((l) => `('${l.replace(/'/g, "''")}')`).join(",\n    ") || "(NULL)";
@@ -162,10 +212,12 @@ function renderPreflight({ objs, stages }) {
 --   UYGULANABİLİR · ZATEN UYGULANMIŞ · YENİDEN UYGULAMA YASAK · SIRA HATASI · ŞEMA SAPMASI · İNSAN İNCELEMESİ GEREKLİ
 -- Kaynaklar: kayıt (auth_f2_schema_level gövdesi), katalog parmak izleri, aşama bazında katalog özeti (fonksiyon imza+gövde+
 -- SECURITY DEFINER+search_path+yetki, tetikleyici, tablo RLS/yetki, kolon), migration geçmişi (supabase_migrations).
+-- Aşama özeti iki ortam için üretilir: public.admin_purge_context YOK (hash) / VAR (hash_ctx — yalnız 001100'ün koşullu
+-- admin_purge_legal_hold tetikleyicisinin TAM satırı fazladan). Tablo varsa hash_ctx ZORUNLU; başka fark kabul edilmez.
 WITH obj(kind, name, lvl) AS (VALUES
   ${objValues(objs)}
 ),${LINES_SQL},
-expected(lvl, hash) AS (VALUES ${hashes}),
+expected(lvl, hash, hash_ctx) AS (VALUES ${hashes}),
 fps(lvl, file, present) AS (VALUES
     ${fps}
 ),
@@ -187,7 +239,8 @@ state AS (
          CASE WHEN c.fp < 0 THEN (SELECT count(*) FROM lines l WHERE l.line LIKE 'fn|%' AND l.line NOT IN (SELECT line FROM basefn)
                                      AND split_part(split_part(l.line, '|', 2), '(', 1) IN (SELECT name FROM obj WHERE kind = 'fn' AND lvl = 0)) = 0
                                   AND NOT EXISTS (SELECT 1 FROM lines l WHERE l.line NOT LIKE 'fn|%')
-              ELSE (SELECT a.hash = e.hash FROM actual a JOIN expected e USING (lvl) WHERE a.lvl = c.fp) END AS catalog_ok,
+              ELSE (SELECT a.hash = CASE WHEN to_regclass('public.admin_purge_context') IS NULL THEN e.hash ELSE e.hash_ctx END
+                      FROM actual a JOIN expected e USING (lvl) WHERE a.lvl = c.fp) END AS catalog_ok,
          (to_regclass('supabase_migrations.schema_migrations') IS NOT NULL) AS has_ledger,
          has_table_privilege('service_role', 'public.user_sessions', 'INSERT') AS svc_insert
     FROM cur c),
@@ -236,13 +289,16 @@ ORDER BY 1;
 `;
 }
 
-function renderPostflightSection({ objs, stages }) {
+function renderPostflightSection({ objs, stages, legalHoldLine }) {
   const fin = stages[stages.length - 1];
   const exp = fin.lines.map((l) => `('${l.replace(/'/g, "''")}')`).join(",\n      ");
+  const hold = legalHoldLine.replace(/'/g, "''");
   return `${MAN_BEGIN}
 -- Son aşamanın (${String(fin.lvl).padStart(6, "0")}) TAM katalog satırları: fonksiyon imzası + gövde özeti + SECURITY DEFINER + search_path +
 -- API/service_role yetkisi, tetikleyiciler, F2 tabloları (RLS/yetki) ve kolonlar. Eksik, fazla (ör. eski overload) veya farklı her
 -- satır FAIL'dir. Ayrıca kayıt düzeyi = ${fin.lvl}.
+-- Tek koşullu satır: public.admin_purge_context VARSA 001100'ün admin_purge_legal_hold tetikleyicisi (TAM satır) ZORUNLU;
+-- tablo yoksa bu satır beklenmez (varsa "beklenmeyen" FAIL). Başka istisna yoktur.
 DO $f2man$
 DECLARE
   v_missing text;
@@ -252,9 +308,11 @@ BEGIN
   WITH obj(kind, name, lvl) AS (VALUES
   ${objValues(objs)}
   ),${LINES_SQL},
-  exp(line) AS (VALUES
+  exp0(line) AS (VALUES
       ${exp}
-  )
+  ),
+  exp(line) AS (SELECT line FROM exp0
+      UNION ALL SELECT '${hold}' WHERE to_regclass('public.admin_purge_context') IS NOT NULL)
   SELECT (SELECT string_agg(e.line, ' ; ' ORDER BY e.line) FROM (SELECT line FROM exp EXCEPT SELECT line FROM lines) e),
          (SELECT string_agg(a.line, ' ; ' ORDER BY a.line) FROM (SELECT line FROM lines EXCEPT SELECT line FROM exp) a)
     INTO v_missing, v_extra;

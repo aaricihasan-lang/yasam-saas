@@ -5,6 +5,8 @@
 --   UYGULANABİLİR · ZATEN UYGULANMIŞ · YENİDEN UYGULAMA YASAK · SIRA HATASI · ŞEMA SAPMASI · İNSAN İNCELEMESİ GEREKLİ
 -- Kaynaklar: kayıt (auth_f2_schema_level gövdesi), katalog parmak izleri, aşama bazında katalog özeti (fonksiyon imza+gövde+
 -- SECURITY DEFINER+search_path+yetki, tetikleyici, tablo RLS/yetki, kolon), migration geçmişi (supabase_migrations).
+-- Aşama özeti iki ortam için üretilir: public.admin_purge_context YOK (hash) / VAR (hash_ctx — yalnız 001100'ün koşullu
+-- admin_purge_legal_hold tetikleyicisinin TAM satırı fazladan). Tablo varsa hash_ctx ZORUNLU; başka fark kabul edilmez.
 WITH obj(kind, name, lvl) AS (VALUES
   ('col', 'auth_mfa_challenges.approved_device_id', 300),
   ('col', 'auth_mfa_challenges.denied_reason', 300),
@@ -210,7 +212,7 @@ cll AS (
     JOIN pg_catalog.pg_attribute a ON a.attrelid = c.oid AND a.attnum > 0 AND NOT a.attisdropped
          AND (o.kind = 'tbl' OR a.attname = split_part(o.name, '.', 2))),
 lines AS (SELECT lvl, line FROM fnl UNION ALL SELECT lvl, line FROM trl UNION ALL SELECT lvl, line FROM tbl UNION ALL SELECT lvl, line FROM cll),
-expected(lvl, hash) AS (VALUES (0, 'c8df9e5bf3db2c1a5670586976869092'), (100, '10a193da0f693addf4895ee64d163df9'), (300, '5faa54e46aadc4ebd290746b624fcc66'), (400, 'e34a756eb98e9efcf891ec8a7fb26feb'), (500, 'c01ff596af7235d716f1aab9cf77ac85'), (600, 'e2538a9ad08b006ef74030023aca00ce'), (700, '3bf7a7f5c63eaf0b98cbf459bdf669c8'), (800, '4cba2fb4eb68df4e0f84eb8c955181c2'), (900, '726e0d5127e8b2b01d39c9a1f0da0fb3'), (1000, 'f5aa59b54c2ab58524630ae7385b1275'), (1100, '0c3268644dd1e1f8a1a0d1256b538015'), (1200, '60dd97670de8818fce2e3878169db6d2'), (1300, 'b1d658289402dd0349f74458238641c7')),
+expected(lvl, hash, hash_ctx) AS (VALUES (0, 'c8df9e5bf3db2c1a5670586976869092', 'c8df9e5bf3db2c1a5670586976869092'), (100, '10a193da0f693addf4895ee64d163df9', '10a193da0f693addf4895ee64d163df9'), (300, '5faa54e46aadc4ebd290746b624fcc66', '5faa54e46aadc4ebd290746b624fcc66'), (400, 'e34a756eb98e9efcf891ec8a7fb26feb', 'e34a756eb98e9efcf891ec8a7fb26feb'), (500, 'c01ff596af7235d716f1aab9cf77ac85', 'c01ff596af7235d716f1aab9cf77ac85'), (600, 'e2538a9ad08b006ef74030023aca00ce', 'e2538a9ad08b006ef74030023aca00ce'), (700, '3bf7a7f5c63eaf0b98cbf459bdf669c8', '3bf7a7f5c63eaf0b98cbf459bdf669c8'), (800, '4cba2fb4eb68df4e0f84eb8c955181c2', '4cba2fb4eb68df4e0f84eb8c955181c2'), (900, '726e0d5127e8b2b01d39c9a1f0da0fb3', '726e0d5127e8b2b01d39c9a1f0da0fb3'), (1000, 'f5aa59b54c2ab58524630ae7385b1275', 'f5aa59b54c2ab58524630ae7385b1275'), (1100, '0c3268644dd1e1f8a1a0d1256b538015', 'd3cec10ca753b97a29eb4180c477e4e5'), (1200, '60dd97670de8818fce2e3878169db6d2', 'f2ca3be07b916df431c96d138747bd59'), (1300, 'b1d658289402dd0349f74458238641c7', 'c3d63031620eb620086d011a4fb21363')),
 fps(lvl, file, present) AS (VALUES
     (0, '20280103000000', to_regprocedure('public.auth_is_owner_admin(uuid)') IS NOT NULL),
     (100, '20280103000100', to_regclass('public.auth_mfa_challenges') IS NOT NULL),
@@ -246,7 +248,8 @@ state AS (
          CASE WHEN c.fp < 0 THEN (SELECT count(*) FROM lines l WHERE l.line LIKE 'fn|%' AND l.line NOT IN (SELECT line FROM basefn)
                                      AND split_part(split_part(l.line, '|', 2), '(', 1) IN (SELECT name FROM obj WHERE kind = 'fn' AND lvl = 0)) = 0
                                   AND NOT EXISTS (SELECT 1 FROM lines l WHERE l.line NOT LIKE 'fn|%')
-              ELSE (SELECT a.hash = e.hash FROM actual a JOIN expected e USING (lvl) WHERE a.lvl = c.fp) END AS catalog_ok,
+              ELSE (SELECT a.hash = CASE WHEN to_regclass('public.admin_purge_context') IS NULL THEN e.hash ELSE e.hash_ctx END
+                      FROM actual a JOIN expected e USING (lvl) WHERE a.lvl = c.fp) END AS catalog_ok,
          (to_regclass('supabase_migrations.schema_migrations') IS NOT NULL) AS has_ledger,
          has_table_privilege('service_role', 'public.user_sessions', 'INSERT') AS svc_insert
     FROM cur c),
