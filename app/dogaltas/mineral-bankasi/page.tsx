@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
+import { useDogaltasServerError } from "@/lib/dogaltas/useServerErrorText";
 import BfcacheRefreshHandler from "@/components/BfcacheRefreshHandler";
 import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import { createMineral, checkDuplicate } from "@/lib/dogaltas/dogaltasApi";
@@ -90,6 +91,7 @@ export default function MineralBankasiPage() {
   const t = useTranslations("stones.minerals.bank");
   const tRoot = useTranslations("stones.minerals");
   const tc = useTranslations("stones.common");
+  const se = useDogaltasServerError();
   const sectionLabel = (key: MineralSectionKey) => t(`sections.${key}.label`);
   const sectionPlaceholder = (key: MineralSectionKey) => t(`sections.${key}.placeholder`);
   const [form, setForm] = useState<MineralForm>(emptyForm);
@@ -230,7 +232,7 @@ export default function MineralBankasiPage() {
 
     if (!ok) {
       // Teknik ayrıntı inline kalır; kalıcı ve belirgin uyarı toast ile gösterilir.
-      setErrorMessage(t("saveFailedPrefix", { error: error ?? tRoot("unknownError") }));
+      setErrorMessage(t("saveFailedPrefix", { error: se.detail(error, tRoot("unknownError")) }));
       showToast({
         type: "error",
         title: t("toastSaveFailedTitle"),

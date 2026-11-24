@@ -523,7 +523,7 @@ function MineralDetailPageContent() {
     setLoading(false);
 
     if (!ok) {
-      setErrorMessage(t("loadError", { error: error ?? "" }));
+      setErrorMessage(t("loadError", { error: se.detail(error) }));
       setMineral(null);
       return;
     }
@@ -535,7 +535,7 @@ function MineralDetailPageContent() {
     }
 
     setMineral(normalizeMineral(data as MineralRow));
-  }, [id, highlightQuery, refMineralIdFromQuery, t, tc]);
+  }, [id, highlightQuery, refMineralIdFromQuery, t, tc, se]);
 
   useEffect(() => {
     runInEffect(() => {

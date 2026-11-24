@@ -378,7 +378,7 @@ function MineralListesiPageContent() {
       const { ok, error, deleted, demo } = await bulkDeleteMinerals(ids);
 
       if (!ok) {
-        showToast({ type: "error", message: t("deleteFailed", { error: error ?? tRoot("unknownError") }) });
+        showToast({ type: "error", message: t("deleteFailed", { error: se.detail(error, tRoot("unknownError")) }) });
         return;
       }
 

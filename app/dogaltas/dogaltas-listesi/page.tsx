@@ -620,7 +620,7 @@ function DogaltasListesiPageContent() {
       setDeleteLoading(false);
 
       if (!ok) {
-        setErrorMessage(t("error.deleteFailed", { error: error ?? t("error.tryAgain") }));
+        setErrorMessage(t("error.deleteFailed", { error: se.detail(error, t("error.tryAgain")) }));
         return;
       }
 
@@ -637,7 +637,7 @@ function DogaltasListesiPageContent() {
       next.delete(stoneId);
       return next;
     });
-  }, [deleteConfirm, isDemo, queryTenantId, showToast, t, tc, tf]);
+  }, [deleteConfirm, isDemo, queryTenantId, showToast, t, tc, tf, se]);
 
   const selectedCount = selectedIds.size;
 
@@ -1052,7 +1052,7 @@ function DogaltasListesiPageContent() {
         removedIds.forEach((id) => next.delete(id));
         return next;
       });
-      setErrorMessage(t("error.someRemoveFailed", { error: ownError ?? libError ?? "" }));
+      setErrorMessage(t("error.someRemoveFailed", { error: se.detail(ownError ?? libError) }));
       if (removedIds.size > 0 && ownIds.length > 0) await fetchList({ reset: true });
       return;
     }
@@ -1061,7 +1061,7 @@ function DogaltasListesiPageContent() {
     setSelectedIds(new Set());
     setScopeRows(new Map());
     if (ownIds.length > 0) await fetchList({ reset: true });
-  }, [deleteConfirm, deleteLoading, excludedStoneIds, fetchList, queryTenantId, selectedIds, showToast, stoneRowOf, isDemo, t, tc, tf]);
+  }, [deleteConfirm, deleteLoading, excludedStoneIds, fetchList, queryTenantId, selectedIds, showToast, stoneRowOf, isDemo, t, tc, tf, se]);
 
   const loadedImages = useMemo(
     () =>
