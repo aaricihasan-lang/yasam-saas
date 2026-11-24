@@ -193,8 +193,10 @@ async function main(): Promise<void> {
   ok(/resolveCarrierSelection\(\s*carrierGateRef\.current/.test(pick), "pickCarrier istek-sırası kapısını kullanıyor");
   ok(/setCarrierContra\(""\)[\s\S]*resolveCarrierSelection/.test(pick), "pickCarrier: önceki taşıyıcı verisi istekten ÖNCE temizlenir");
   ok(!/await fetchOilDetail\(tenantId, cid\)/.test(pick), "eski korumasız 'await fetchOilDetail(tenantId, cid)' kalıbı yok");
-  ok(/carrierSaveBlockReason\(/.test(fnBody(blend, "handleSave")), "handleSave taşıyıcı kapısını uygular");
-  ok(/carrierSaveBlockReason\(/.test(fnBody(blend, "printActiveBlend")), "printActiveBlend taşıyıcı kapısını uygular");
+  // I18N (2026-11-25): ekran metni dil-bağımsız koddan üretildiği için sayfa aynı kapının kod sürümünü
+  // (carrierSaveBlockCode — carrierSaveBlockReason ile AYNI karar) çağırır. Niyet aynı: kapı uygulanır.
+  ok(/carrierSaveBlock(Reason|Code)\(/.test(fnBody(blend, "handleSave")), "handleSave taşıyıcı kapısını uygular");
+  ok(/carrierSaveBlock(Reason|Code)\(/.test(fnBody(blend, "printActiveBlend")), "printActiveBlend taşıyıcı kapısını uygular");
   ok(/disabled=\{saving \|\| carrierLoading\}/.test(blend), "Kaydet düğmesi taşıyıcı yüklenirken pasif");
   ok(/carrierGateRef\.current\.invalidate\(\)/.test(fnBody(blend, "resetForm")) && /carrierGateRef\.current\.invalidate\(\)/.test(fnBody(blend, "loadBlend")), "resetForm + loadBlend bekleyen yanıtı geçersiz kılar");
 

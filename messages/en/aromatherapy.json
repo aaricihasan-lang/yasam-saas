@@ -424,6 +424,349 @@
       "deleting": "Deleting…",
       "deleteConfirm": "Yes, Delete",
       "deleteCancel": "Cancel"
+    },
+    "enums": {
+      "PREPARATION_TYPE": {
+        "essential_oil": "Essential Oil",
+        "hydrosol": "Hydrosol",
+        "dried_plant_material": "Dried Plant Material",
+        "tincture": "Tincture",
+        "infusion": "Infusion",
+        "decoction": "Decoction",
+        "extract": "Extract",
+        "infused_oil": "Macerated (Infused) Oil",
+        "absolute": "Absolute",
+        "concrete": "Concrete",
+        "resinoid": "Resinoid",
+        "oleoresin": "Oleoresin",
+        "fixed_oil": "Fixed Oil",
+        "powder": "Powder",
+        "other": "Other"
+      },
+      "TAXON_RANK": {
+        "species": "Species",
+        "subspecies": "Subspecies",
+        "variety": "Variety",
+        "forma": "Form"
+      },
+      "CATALOG_STATUS": {
+        "draft": "Draft",
+        "verified": "Verified",
+        "approved": "Approved"
+      },
+      "SOURCE_TYPE": {
+        "book": "Book",
+        "journal_article": "Journal Article",
+        "regulatory_document": "Regulatory Document",
+        "monograph": "Monograph",
+        "standard": "Standard",
+        "database_record": "Database Record",
+        "website": "Website",
+        "other": "Other"
+      },
+      "SOURCE_STATUS": {
+        "draft": "Draft",
+        "verified": "Verified",
+        "archived": "Archived"
+      },
+      "GLOSSARY_STATUS": {
+        "draft": "Draft",
+        "verified": "Verified",
+        "archived": "Archived"
+      },
+      "PASSAGE_KIND": {
+        "excerpt": "Excerpt",
+        "full_text": "Full Text",
+        "reference_only": "Reference Only"
+      },
+      "RIGHTS_STATUS": {
+        "public_domain": "Public Domain",
+        "licensed": "Licensed",
+        "permission_granted": "Permission Granted",
+        "restricted": "Restricted",
+        "pending_review": "Pending Review",
+        "unknown": "Unknown"
+      },
+      "FIDELITY": {
+        "literal": "Literal",
+        "faithful": "Faithful"
+      },
+      "EDITORIAL_NOTE_TYPE": {
+        "summary": "Summary",
+        "context": "Context",
+        "terminology": "Terminology",
+        "cultural": "Cultural Note",
+        "plain_language": "Plain-Language Explanation",
+        "expert_commentary": "Expert Note"
+      },
+      "CLAIM_TYPE": {
+        "safety": "Safety",
+        "use": "Use",
+        "identity": "Identity",
+        "chemistry": "Chemistry"
+      },
+      "CLAIM_STATUS": {
+        "draft": "Draft",
+        "under_review": "Under Review",
+        "needs_verification": "Verification Required"
+      },
+      "EVIDENCE_LAYER": {
+        "regulatory": "Regulatory",
+        "scientific_review": "Scientific Review",
+        "clinical": "Clinical",
+        "experimental": "Experimental",
+        "traditional": "Traditional",
+        "experiential": "Experiential",
+        "energetic": "Energetic"
+      },
+      "RATIONALE_STATUS": {
+        "from_source": "Rationale from Source",
+        "source_gives_no_rationale": "Source Gives No Rationale"
+      },
+      "CONCLUSION_PROVENANCE": {
+        "source_original": "Original Source Text",
+        "faithful_translation": "Faithful Translation",
+        "editorial_explanation": "Editorial Explanation",
+        "editorial_interpretation": "Editorial Interpretation"
+      },
+      "OUTCOME_TYPE": {
+        "harm_shown": "Harm Shown",
+        "risk_suspected": "Risk Suspected",
+        "insufficient_data": "Insufficient Data",
+        "no_study_done": "No Study Done",
+        "no_dose_found": "No Dose Found",
+        "source_does_not_recommend": "Source Does Not Recommend",
+        "source_contraindicates": "Source Contraindicates",
+        "context_specific_non_recommendation": "No Recommendation for This Context",
+        "conflicting": "Conflicting",
+        "unknown": "Unknown",
+        "not_classified_as_risk_in_reviewed_source": "Not Classified as a Risk in the Reviewed Source"
+      },
+      "ROUTE_CODE": {
+        "oral": "Oral",
+        "topical": "Topical (Skin)",
+        "inhalation": "Inhalation",
+        "other": "Other",
+        "unknown": "Unknown"
+      },
+      "POPULATION_CODE": {
+        "infant": "Infant",
+        "child": "Child",
+        "adolescent": "Adolescent",
+        "adult": "Adult",
+        "older_adult": "Older Adult",
+        "pregnancy": "Pregnancy",
+        "lactation": "Breastfeeding"
+      },
+      "SOURCE_ROLE": {
+        "primary_support": "Primary Support",
+        "secondary_support": "Secondary Support",
+        "contradiction": "Contradiction",
+        "context": "Context"
+      },
+      "EVIDENCE_RELATION": {
+        "supports": "Supports",
+        "partially_supports": "Partially Supports",
+        "qualifies": "Qualifies",
+        "limits": "Limits",
+        "contradicts": "Contradicts",
+        "contextualizes": "Contextualises"
+      },
+      "RELATION_TYPE": {
+        "complementary": "Complementary",
+        "alternative": "Alternative",
+        "partially_overlapping": "Partially Overlapping",
+        "conflicting": "Conflicting",
+        "context_specific": "Context-Specific"
+      },
+      "VERIFICATION_STATUS": {
+        "unverified": "Unverified",
+        "verified": "Verified"
+      },
+      "METHOD_KIND": {
+        "faithful_source": "Source-Faithful Method",
+        "editorial": "Editorial Method",
+        "expert": "Expert Method"
+      },
+      "MATERIAL_STATE": {
+        "fresh": "Fresh",
+        "dried": "Dried",
+        "other": "Other"
+      },
+      "METHOD_STATUS": {
+        "draft": "Draft",
+        "verified": "Verified",
+        "archived": "Archived"
+      },
+      "AUDIT_OPERATION": {
+        "create": "Creation",
+        "update": "Update"
+      }
+    },
+    "blend": {
+      "safety": {
+        "summaryWarnings": "Information requiring attention was found for the selected oils — expert assessment is required.",
+        "summaryNone": "No known warnings were found. This does not mean it is safe; expert assessment is essential.",
+        "carrierName": "Carrier: {name}",
+        "kinds": {
+          "photosensitive": {
+            "label": "Photosensitivity / phototoxicity information present",
+            "detail": "Caution is needed in applications with sun exposure; expert assessment is required."
+          },
+          "photosensitive_unknown": {
+            "label": "Photosensitivity information not entered (unknown)",
+            "detail": "Photosensitivity has not been assessed for this oil; this does not mean it is safe."
+          },
+          "contraindication": {
+            "label": "Contraindication information present"
+          },
+          "safety_note": {
+            "label": "Safety note present"
+          }
+        }
+      },
+      "validation": {
+        "nameRequired": "The blend name is required.",
+        "bottleInvalid": "The bottle volume must be greater than 0.",
+        "dilutionInvalid": "The dilution ratio must be greater than 0.",
+        "itemsRequired": "You must add at least one essential oil.",
+        "copyNameEmpty": "Enter a name for the new record.",
+        "copyNameTaken": "A record with this name already exists. Enter a different name.",
+        "carrierLoading": "The carrier oil's safety information is loading. Please try again in a few seconds.",
+        "carrierMismatch": "The carrier oil's safety information does not match the selected oil. Select the carrier again and try again."
+      },
+      "page": {
+        "wordReadyTitle": "Word ready",
+        "wordReadyBody": "The blend report is downloading.",
+        "wordFailedTitle": "Word could not be created",
+        "wordFailedBody": "The report could not be created.",
+        "emptyTitle": "Empty blend",
+        "emptyBody": "Add at least one oil for the recipe.",
+        "carrierTitle": "Carrier oil",
+        "unnamed": "(Unnamed blend)",
+        "alreadyAddedTitle": "Already added",
+        "alreadyAddedBody": "{name} is already in the blend.",
+        "addFailedTitle": "Oil could not be added",
+        "addFailedBody": "The oil details could not be loaded; safety information may be missing. Please try again.",
+        "discardTitle": "Unsaved changes",
+        "discardMessage": "The blend you are working on has not been saved.",
+        "discardSecond": "If you continue, these changes will be lost.",
+        "loadedTitle": "Loaded",
+        "loadedBody": "Editing “{name}”.",
+        "demoTitle": "Demo",
+        "demoBody": "Records are not saved on the demo account.",
+        "copyFailedTitle": "Could not be copied",
+        "unknownError": "Unknown error",
+        "copiedTitle": "Copied",
+        "copiedBody": "“{name}” has been created.",
+        "missingTitle": "Missing information",
+        "noVersionTitle": "Version not found",
+        "noVersionBody": "The blend version could not be determined. Please refresh the page and open editing again.",
+        "conflictTitle": "Conflict",
+        "stale": "This blend was changed elsewhere. Refresh the page and apply your changes again.",
+        "updateFailedTitle": "Could not be updated",
+        "saveFailedTitle": "Could not be saved",
+        "updatedTitle": "Updated",
+        "savedTitle": "Saved",
+        "updatedBody": "“{name}” has been updated.",
+        "savedBody": "“{name}” has been saved.",
+        "deleteTitle": "Delete blend",
+        "deleteMessage": "Are you sure you want to delete the blend “{name}”?",
+        "deleteSecond": "This cannot be undone.",
+        "deleteFailedTitle": "Could not be deleted",
+        "deletedTitle": "Deleted",
+        "deletedBody": "The blend has been deleted.",
+        "statusExact": "Matches target ✓",
+        "statusOver": "{count, plural, one {# drop over target} other {# drops over target}}",
+        "statusUnder": "{count, plural, one {# drop short} other {# drops short}}",
+        "statusEmpty": "Add oils",
+        "eyebrow": "⚗️ Blend Builder",
+        "title": "Blend Builder",
+        "subtitle": "You choose the oils; the system only calculates drops and shows known warnings. It is not intended as a recommendation or treatment.",
+        "editBanner": "✏️ Edit mode — saving will update the existing blend.",
+        "cancel": "Cancel",
+        "step1": "1 · Blend Settings",
+        "nameLabel": "Blend name",
+        "namePlaceholder": "e.g. Calming Massage Oil",
+        "carrierLabel": "Carrier (fixed) oil",
+        "carrierPlaceholder": "e.g. Jojoba",
+        "bottleLabel": "Bottle volume (ml)",
+        "bottleChip": "{value} ml",
+        "bottlePlaceholder": "Custom ml",
+        "dilutionLabel": "Dilution ratio (%)",
+        "dilutionChip": "{value}%",
+        "dilutionPlaceholder": "Custom ratio",
+        "notesLabel": "Notes",
+        "notesPlaceholder": "Optional",
+        "targetPrefix": "Target:",
+        "dropsUnit": "drops",
+        "dropsAssumption": "(assuming 1 ml ≈ {drops} drops)",
+        "step2": "2 · Add Essential Oil",
+        "searchPlaceholder": "Search oil name, property, effect…",
+        "noResults": "No results",
+        "added": "Added",
+        "add": "+ Add",
+        "step3": "3 · Blend Basket",
+        "totalPrefix": "Total:",
+        "totalSuffix": "/ target {target} drops",
+        "equalize": "Distribute evenly",
+        "emptyBasket": "Add oils from the middle panel",
+        "dropsAria": "{name} drop count",
+        "removeAria": "Remove {name} from blend",
+        "remove": "Remove",
+        "safetyTitle": "Safety information",
+        "saving": "Saving…",
+        "carrierLoadingBtn": "Loading carrier information…",
+        "saveChanges": "Save Changes",
+        "save": "Save Blend",
+        "print": "🖨 Recipe / Print",
+        "savedListTitle": "Saved Blends ({count})",
+        "exportAllTitle": "Export all blends to Word",
+        "exportAll": "Export All to Word",
+        "savedLoadFailed": "Saved blends could not be loaded.",
+        "retry": "Try again",
+        "savedEmpty": "No saved blends yet.",
+        "deleteAria": "Delete blend {name}",
+        "delete": "Delete",
+        "savedMeta": "{ml} ml · {dilution}% · Target {target} · Oil total {sum} drops · {count, plural, one {# oil} other {# oils}}",
+        "savedCarrier": "Carrier: {name}",
+        "dropsShort": "{drops} dr",
+        "edit": "Edit",
+        "copy": "Copy",
+        "printShort": "🖨 Print",
+        "wordOneTitle": "Export this blend to Word",
+        "wordOne": "📄 Word",
+        "copyTitle": "Copy blend",
+        "copyBody": "A copy of the blend “{name}” will be created. Set the name of the new blend; the original does not change.",
+        "copyNameLabel": "Name of the new blend",
+        "copyCancel": "Cancel",
+        "copying": "Copying…"
+      },
+      "print": {
+        "title": "Yaşam Sistemi · Aromatherapy Recipe",
+        "expert": "Expert:",
+        "date": "Date:",
+        "carrier": "Carrier (fixed) oil",
+        "bottle": "Bottle volume",
+        "bottleValue": "{ml} ml",
+        "dilution": "Dilution ratio",
+        "dilutionValue": "{value}%",
+        "target": "Target drops",
+        "dropsValue": "{count, plural, one {# drop} other {# drops}}",
+        "oilsSum": "Total of oils",
+        "missing": "{count, plural, one {# drop short} other {# drops short}}",
+        "excess": "{count, plural, one {# drop over} other {# drops over}}",
+        "dropsNote": "1 ml ≈ 20 drops (approximate; drop size may vary by oil).",
+        "oilsTitle": "Essential Oils",
+        "colName": "Oil Name",
+        "colLatin": "Latin Name",
+        "colDrops": "Drops",
+        "photosensitive": "☀️ photosensitive",
+        "safetyTitle": "Safety Information",
+        "snapshot": "The safety information reflects the date the blend was saved{date}. Check the current oil information.",
+        "notesTitle": "Expert Notes",
+        "footer": "This document is not a medicine/treatment prescription and does not replace medical advice. Aromatherapy is applied under expert supervision. The oils have been selected by the expert; the system does not recommend oils. The safety information is data-based and contains no definitive medical judgement; expert assessment before application is essential."
+      }
     }
   }
 }

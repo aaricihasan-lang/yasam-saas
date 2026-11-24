@@ -112,10 +112,14 @@ check("Blend Builder dirty guard (pristine/boş → guard yok; baseline kıyasl�
   /isBlendFormDirty\(currentSnapshot, baseline\)/.test(BLEND) &&
   /useState<BlendFormSnapshot>\(\(\) => emptyBlendSnapshot\(/.test(BLEND) &&
   /export function isBlendFormDirty/.test(BLEND_STATE));
+// I18N (2026-11-25): aria-label metinleri aromatherapy.blend.page.* anahtarlarına taşındı; anahtar + TR değer kilitli.
+const BLEND_PAGE_TR = JSON.parse(read("messages/tr/aromatherapy.json")).aromatherapy.blend.page;
 check("Blend Builder drops input + remove ✕ aria-label",
-  /aria-label=\{`\$\{it\.oil_name\} damla sayısı`\}/.test(BLEND) &&
-  /aria-label=\{`\$\{it\.oil_name\} karışımdan çıkar`\}/.test(BLEND) &&
-  /aria-label=\{`\$\{b\.name\} karışımını sil`\}/.test(BLEND));
+  /aria-label=\{tp\("dropsAria", \{ name: it\.oil_name \}\)\}/.test(BLEND) &&
+  /aria-label=\{tp\("removeAria", \{ name: it\.oil_name \}\)\}/.test(BLEND) &&
+  /aria-label=\{tp\("deleteAria", \{ name: b\.name \}\)\}/.test(BLEND) &&
+  BLEND_PAGE_TR.dropsAria === "{name} damla sayısı" && BLEND_PAGE_TR.removeAria === "{name} karışımdan çıkar" &&
+  BLEND_PAGE_TR.deleteAria === "{name} karışımını sil");
 
 // --- badge helper contract ----------------------------------------------------
 const DATA = read("lib/aromaterapi/aromatherapyData.ts");
