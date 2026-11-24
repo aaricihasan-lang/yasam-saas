@@ -118,7 +118,7 @@
     "list": {
       "title": "All Appointments",
       "subtitle": "All appointments in the system are listed here.",
-      "count": "Showing {count} records",
+      "count": "{count, plural, one {Showing # record} other {Showing # records}}",
       "defaultTitle": "Meeting",
       "client": "Client",
       "general": "General Appointment",

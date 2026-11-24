@@ -111,7 +111,7 @@
       "draftHistory": "Saved draft / history",
       "draftSaved": "Saved draft available",
       "noDraft": "No draft",
-      "historyCount": "{count} previous designs",
+      "historyCount": "{count, plural, one {# previous design} other {# previous designs}}",
       "intro": "Personalise your home screen with your own logo, photo and brand colours; hide modules and arrange your My Favourites list. The personalisation centre opens on the home screen and shows changes live before you apply them. You can also change the view mode (Day, Night, Reading, Focus) from the top bar of the home screen.",
       "demoNote": "On the demo account personalisation can only be viewed; changes cannot be saved.",
       "edit": "Edit My Workspace",

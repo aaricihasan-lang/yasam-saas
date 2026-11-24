@@ -172,7 +172,9 @@ export function trialCountdownTitle(
 }
 
 function trTrialNoticeTx(key: "lastDay" | "daysLeft", values?: Record<string, string>): string {
-  const text = trTrialMessages.trial.notice[key];
+  // Anahtar bulunamazsa HAM ANAHTAR ASLA gösterilmez → boş metin (güvenli yedek).
+  const raw: unknown = (trTrialMessages.trial.notice as Record<string, unknown>)[key];
+  const text = typeof raw === "string" ? raw : "";
   return values ? text.replace(/\{(\w+)\}/g, (m, k: string) => (k in values ? values[k] : m)) : text;
 }
 

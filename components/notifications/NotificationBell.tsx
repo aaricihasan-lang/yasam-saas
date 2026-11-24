@@ -152,7 +152,7 @@ export default function NotificationBell({ className, compact = false }: Notific
         message:
           views.length === 1
             ? t("reminderMessageOne", { heading: first.heading, when: first.whenLabel })
-            : t("reminderMessageMany", { heading: first.heading, when: first.whenLabel, rest: String(views.length - 1) }),
+            : t("reminderMessageMany", { heading: first.heading, when: first.whenLabel, rest: views.length - 1 }),
       });
     });
   }, [active, showToast, t, tView]);
@@ -302,7 +302,7 @@ export default function NotificationBell({ className, compact = false }: Notific
       </button>
       {/* Ekran okuyucu: okunmamış sayısı değişince kibarca duyurulur (rozet görsel; aria-hidden). */}
       <span className="sr-only" aria-live="polite" data-testid="notification-live">
-        {unread > 0 ? t("liveUnread", { count: String(unread) }) : ""}
+        {unread > 0 ? t("liveUnread", { count: unread }) : ""}
       </span>
 
       {open && box && typeof document !== "undefined" && createPortal(

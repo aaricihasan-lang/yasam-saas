@@ -85,7 +85,7 @@
       "showContact": "Contact details",
       "showContactDescription": "Phone, contact email and website.",
       "showNote": "Report footnote",
-      "errorSummary": "There are errors in {count} fields.",
+      "errorSummary": "{count, plural, one {There is an error in # field.} other {There are errors in # fields.}}",
       "dirty": "You have unsaved changes.",
       "logoDirty": "Your report logo selection has not been saved.",
       "clean": "All changes saved.",

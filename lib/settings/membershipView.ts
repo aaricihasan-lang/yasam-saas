@@ -35,11 +35,14 @@ export type MembershipTx = (key: string, values?: Record<string, string>) => str
 
 const TR_SOURCE: Record<string, unknown> = { ...trSettingsMembership, ...trTrial };
 
-/** Kaynak dil (tr) çeviricisi — yalnız düz `{ad}` yer tutucuları (bu katalogda ICU çoğul / seçim yok). */
+/**
+ * Kaynak dil (tr) çeviricisi — yalnız düz `{ad}` yer tutucuları (bu katalogda ICU çoğul / seçim yok).
+ * Anahtar bulunamazsa HAM ANAHTAR ASLA gösterilmez → boş metin (güvenli yedek; bugün tüm anahtarlar mevcut, testle kilitli).
+ */
 export const trMembershipTx: MembershipTx = (key, values) => {
   let node: unknown = TR_SOURCE;
   for (const part of key.split(".")) node = node && typeof node === "object" ? (node as Record<string, unknown>)[part] : undefined;
-  const text = typeof node === "string" ? node : key;
+  const text = typeof node === "string" ? node : "";
   return values ? text.replace(/\{(\w+)\}/g, (m, k: string) => (k in values ? values[k] : m)) : text;
 };
 

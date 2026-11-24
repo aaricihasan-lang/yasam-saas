@@ -39,7 +39,7 @@ export function WorkspaceSettingsTab({ access, readOnly }: { access: WorkspaceAc
   const rows: [React.ElementType, string, string][] = [
     [LayoutTemplate, t("appliedDesign"), applied ? (LAYOUT_IDS.has(applied.layout) ? t(`layouts.${applied.layout}`) : applied.layout) : t("defaultDesign")],
     [ImageIcon, t("logoAndBackground"), applied ? [applied.logo.assetId ? t("personalLogo") : null, applied.bg.mode === "photo" ? t("ownPhoto") : applied.bg.mode === "theme" ? t("presetTheme") : null].filter(Boolean).join(" · ") || t("default") : t("default")],
-    [History, t("draftHistory"), `${d?.draft ? t("draftSaved") : t("noDraft")} · ${t("historyCount", { count: String(d?.history.length ?? 0) })}`],
+    [History, t("draftHistory"), `${d?.draft ? t("draftSaved") : t("noDraft")} · ${t("historyCount", { count: d?.history.length ?? 0 })}`],
   ];
   return (
     <div className="space-y-5" data-testid="settings-workspace">

@@ -122,7 +122,7 @@ type ArchiveT = ReturnType<typeof useTranslations>;
 /** Başarısız dosya yüklemelerinin kullanıcı bildirimi (kayıt kendisi kaydedildi). */
 function uploadFailureText(t: ArchiveT, prefix: string, failures: UploadFailure[]): string {
   const reasons = Array.from(new Set(failures.flatMap((f) => (f.kind === "server" ? [f.text] : [])))).join(" ");
-  return t("upload.partial", { prefix, count: String(failures.length), reasons: reasons ? ` ${reasons}` : "" });
+  return t("upload.partial", { prefix, count: failures.length, reasons: reasons ? ` ${reasons}` : "" });
 }
 import { DemoModuleBanner } from "@/components/demo/DemoModuleBanner";
 import {
@@ -1326,7 +1326,7 @@ export default function KisiselArsivPage() {
                   <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs font-semibold tracking-wide text-slate-500">
                     <time dateTime={row.created_at}>{formatTrDate(row.created_at, locale)}</time>
                     <span className="rounded-full bg-slate-100/95 px-2.5 py-0.5 text-xs font-semibold text-slate-700">
-                      {t("list.fileCount", { count: String(fileCount(row)) })}
+                      {t("list.fileCount", { count: fileCount(row) })}
                     </span>
                   </div>
                   <div className="mt-3 flex flex-wrap gap-2">
@@ -1523,7 +1523,7 @@ export default function KisiselArsivPage() {
                       <p className="mt-3 text-[12px] font-bold text-slate-600">
                         {selectedFiles.length === 0
                           ? t("create.noFiles")
-                          : t("create.filesSelected", { count: String(selectedFiles.length) })}
+                          : t("create.filesSelected", { count: selectedFiles.length })}
                       </p>
                     </div>
                   </div>
@@ -1808,7 +1808,7 @@ export default function KisiselArsivPage() {
                     <p className="mt-3 text-[12px] font-bold text-slate-600">
                       {detailExtraFiles.length === 0
                         ? t("detail.noNewFiles")
-                        : t("detail.newFilesCount", { count: String(detailExtraFiles.length) })}
+                        : t("detail.newFilesCount", { count: detailExtraFiles.length })}
                     </p>
                     {detailExtraFiles.length > 0 ? (
                       <ul className="mx-auto mt-2 max-h-28 max-w-md list-inside list-disc overflow-y-auto text-left text-[12px] font-semibold text-slate-700">

@@ -17,7 +17,7 @@
       },
       "upload": {
         "failed": "The file could not be uploaded.",
-        "partial": "{prefix}, but {count} file(s) could not be uploaded.{reasons} Please try uploading the files again.",
+        "partial": "{prefix}, but {count, plural, one {# file} other {# files}} could not be uploaded.{reasons} Please try uploading the files again.",
         "prefixUpdated": "Record updated",
         "prefixAdded": "Record added"
       },
@@ -75,7 +75,7 @@
         "noMatchTitle": "No records match your search",
         "noMatchBody": "Try a different word or clear the search.",
         "tags": "Tags: {tags}",
-        "fileCount": "{count} file(s)",
+        "fileCount": "{count, plural, one {# file} other {# files}}",
         "detail": "Details",
         "deleting": "Deleting…",
         "delete": "Delete"
@@ -95,7 +95,7 @@
         "filesHint": "You can add more than one file.",
         "chooseFiles": "Choose files",
         "noFiles": "No files selected yet.",
-        "filesSelected": "{count} file(s) selected",
+        "filesSelected": "{count, plural, one {# file selected} other {# files selected}}",
         "cancel": "Cancel",
         "saving": "Saving...",
         "save": "Save"
@@ -123,7 +123,7 @@
         "addFiles": "Add new files",
         "chooseFile": "Choose file",
         "noNewFiles": "No new files selected yet.",
-        "newFilesCount": "{count} new file(s) will be added",
+        "newFilesCount": "{count, plural, one {# new file will be added} other {# new files will be added}}",
         "edit": "Edit",
         "cancel": "Cancel",
         "saving": "Saving…",

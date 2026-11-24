@@ -31,7 +31,8 @@ import trNotifications from "@/messages/tr/notifications.json";
 export type NotificationViewTx = (key: string, values?: Record<string, string>) => string;
 const TR_VIEW = trNotifications.notifications.view as Record<string, string>;
 export const trNotificationViewTx: NotificationViewTx = (key, values) => {
-  const text = TR_VIEW[key] ?? key;
+  // Anahtar bulunamazsa HAM ANAHTAR ASLA gösterilmez → boş metin (güvenli yedek).
+  const text = typeof TR_VIEW[key] === "string" ? TR_VIEW[key] : "";
   return values ? text.replace(/\{(\w+)\}/g, (m, k: string) => (k in values ? values[k] : m)) : text;
 };
 

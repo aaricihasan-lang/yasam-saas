@@ -1013,7 +1013,7 @@ function AjandaPageInner() {
                 {t("list.subtitle")}
               </p>
               <p className="mt-0.5 text-xs font-semibold text-indigo-600">
-                {t("list.count", { count: String(filteredAppointments.length) })}
+                {t("list.count", { count: filteredAppointments.length })}
               </p>
             </div>
 

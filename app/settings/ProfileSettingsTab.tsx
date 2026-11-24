@@ -375,7 +375,7 @@ export function ProfileSettingsTab({ readOnly: demoReadOnly, onDirtyChange }: { 
         </section>
 
         <div aria-live="polite" className="min-h-0">
-          {errorCount > 0 && <span id={`${idBase}-summary`} className="sr-only">{t("errorSummary", { count: String(errorCount) })}</span>}
+          {errorCount > 0 && <span id={`${idBase}-summary`} className="sr-only">{t("errorSummary", { count: errorCount })}</span>}
           {notice && (
             <p
               role={notice.tone === "error" ? "alert" : "status"} data-testid="profile-notice" data-tone={notice.tone}

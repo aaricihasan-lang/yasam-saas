@@ -21,6 +21,7 @@ import {
   buildStateIndex,
   buildWhenLabel,
   clientDisplayName,
+  trNotificationViewTx,
   istanbulTodayWindow,
   isNotifiable,
   isUuid,
@@ -149,6 +150,8 @@ console.log("\n[3] buildNotificationView — başlık / bağlantı / zaman etike
   ok(buildWhenLabel(ist("2026-10-01T15:35:00").toISOString(), now) === "Bugün 15:35 · 1 sa 30 dk sonra", "whenLabel saat+dk");
   ok(buildWhenLabel(ist("2026-10-01T16:05:00").toISOString(), now) === "Bugün 16:05 · 2 sa sonra", "whenLabel tam saat");
   ok(buildWhenLabel(ist("2026-10-01T13:55:00").toISOString(), now) === "Bugün 13:55 · 10 dk önce başladı", "whenLabel başlamış randevu");
+  // I18N QA A-05: kaynak-dil çeviricisi eksik anahtarda HAM ANAHTAR döndürmez.
+  ok(trNotificationViewTx("yokBoyleBirAnahtar") === "" && trNotificationViewTx("now") === "Şimdi", "kaynak-dil çevirici: eksik anahtar → ham anahtar yok");
 }
 
 // ─── 4) İstanbul günü penceresi ───────────────────────────────────────────────
