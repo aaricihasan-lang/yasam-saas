@@ -1,6 +1,8 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { useTranslations } from "next-intl";
+import { useKupaErrorText } from "@/app/kupa/lib/errorText";
 import { SourceNameField } from "./SourceNameField";
 import { useConfirmLeave, useReportDirty } from "../hooks/protocolDirty";
 import { useToast } from "@/components/ui/ToastProvider";
@@ -23,6 +25,9 @@ const EMPTY: Draft = { title: "", content: "", source_id: "", source_label: "", 
 export function EntriesSection({ protocolId, doc }: { protocolId: string; doc: ProtocolDocument }) {
   const { showToast } = useToast();
   const { confirm } = useConfirm();
+  const t = useTranslations("cupping.protocols.entries");
+  const tc = useTranslations("cupping.common");
+  const errText = useKupaErrorText();
   const [formOpen, setFormOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draft, setDraft] = useState<Draft>(EMPTY);
@@ -67,7 +72,7 @@ export function EntriesSection({ protocolId, doc }: { protocolId: string; doc: P
   async function save() {
     if (busyRef.current) return; // çift tık → tek kayıt
     if (!draft.content.trim()) {
-      showToast({ message: "Bilgi içeriği gerekli.", type: "warning" });
+      showToast({ message: t("contentRequired"), type: "warning" });
       return;
     }
     busyRef.current = true;
@@ -93,14 +98,14 @@ export function EntriesSection({ protocolId, doc }: { protocolId: string; doc: P
       setFormOpen(false);
       try {
         await doc.reload.entries(); // server canonical (point_ids dahil)
-        showToast({ message: "Kaydedildi.", type: "success" });
+        showToast({ message: tc("saved"), type: "success" });
       } catch {
         // Kayıt BAŞARILI; yalnız liste tazelenemedi → "kaydedilemedi" denmez (mükerrer kayıt riski).
-        showToast({ message: "Bilgi kaydedildi ancak liste yenilenemedi. Güncel hali görmek için sayfayı yenileyin.", type: "warning" });
+        showToast({ message: t("savedNoRefresh"), type: "warning" });
       }
     } catch (e) {
       // Atomik hata → mevcut veri DEĞİŞMEZ (server rollback). UI state'i de değiştirmedik.
-      showToast({ message: e instanceof Error ? e.message : "Kaydedilemedi.", type: "error" });
+      showToast({ message: errText(e, tc("saveFailed")), type: "error" });
     } finally {
       busyRef.current = false;
       setBusy(false);
@@ -108,29 +113,29 @@ export function EntriesSection({ protocolId, doc }: { protocolId: string; doc: P
   }
 
   async function remove(e: CuppingProtocolEntry) {
-    const ok = await confirm({ title: "Bilgiyi Sil", message: "Bu bilgi kaydı silinsin mi?", confirmText: "Sil", cancelText: "Vazgeç", tone: "danger" });
+    const ok = await confirm({ title: t("delete.title"), message: t("delete.message"), confirmText: tc("delete"), cancelText: tc("cancel"), tone: "danger" });
     if (!ok) return;
     try {
       await deleteProtocolEntry(e.id);
       await doc.reload.entries();
-      showToast({ message: "Bilgi silindi.", type: "success" });
+      showToast({ message: t("delete.done"), type: "success" });
     } catch (err) {
-      showToast({ message: err instanceof Error ? err.message : "Silinemedi.", type: "error" });
+      showToast({ message: errText(err, t("delete.failed")), type: "error" });
     }
   }
 
   return (
     <ProtocolSectionShell
-      title="Bilgiler"
-      description="Bu protokole ait tüm bilgiler tek akışta — kaynaklı ya da kaynaksız, aynı biçimde."
+      title={t("title")}
+      description={t("description")}
       action={
         <button type="button" onClick={openNew} className={kupaBtnPrimary}>
-          + Yeni Bilgi
+          {t("add")}
         </button>
       }
     >
       {entries.length === 0 && !formOpen ? (
-        <ProtocolEmpty message="Bu protokole ait bilgi kaydı henüz yok." />
+        <ProtocolEmpty message={t("empty")} />
       ) : (
         <ul className="space-y-2">
           {entries.map((e) => (
@@ -142,10 +147,10 @@ export function EntriesSection({ protocolId, doc }: { protocolId: string; doc: P
                 </div>
                 <div className={kupaRowActions}>
                   <button type="button" className={kupaRowAction} onClick={() => openEdit(e)}>
-                    Düzenle
+                    {tc("edit")}
                   </button>
                   <button type="button" className={kupaRowActionDanger} onClick={() => remove(e)}>
-                    Sil
+                    {tc("delete")}
                   </button>
                 </div>
               </div>
@@ -157,7 +162,7 @@ export function EntriesSection({ protocolId, doc }: { protocolId: string; doc: P
                 </div>
               ) : null}
               {e.source_id ? (
-                <p className="mt-2 text-[11px] text-slate-400">Kaynak: {doc.sourceName(e.source_id)}{e.locator ? ` · ${e.locator}` : ""}</p>
+                <p className="mt-2 text-[11px] text-slate-400">{t("sourcePrefix")} {doc.sourceName(e.source_id)}{e.locator ? ` · ${e.locator}` : ""}</p>
               ) : e.source_label ? (
                 <p className="mt-2 text-[11px] text-slate-400">{e.source_label}{e.locator ? ` · ${e.locator}` : ""}</p>
               ) : null}
@@ -169,14 +174,14 @@ export function EntriesSection({ protocolId, doc }: { protocolId: string; doc: P
       {formOpen ? (
         <div className="mt-3 rounded-xl border border-amber-100 bg-amber-50/40 p-3">
           <div className="space-y-2">
-            <input className={kupaInput} placeholder="Başlık (opsiyonel)" value={draft.title} onChange={(e) => setDraft({ ...draft, title: e.target.value })} aria-label="Başlık" />
-            <InlineLongText label="İçerik *" value={draft.content} onChange={(v) => setDraft({ ...draft, content: v })} rows={4} placeholder="Bu protokolle ilgili bilgi…" />
+            <input className={kupaInput} placeholder={t("form.titlePlaceholder")} value={draft.title} onChange={(e) => setDraft({ ...draft, title: e.target.value })} aria-label={t("form.titleAria")} />
+            <InlineLongText label={t("form.contentLabel")} value={draft.content} onChange={(v) => setDraft({ ...draft, content: v })} rows={4} placeholder={t("form.contentPlaceholder")} />
             {/* İlgili bölgeler */}
             <div className="rounded-xl border border-slate-200 bg-white p-2.5">
               <div className="flex items-center justify-between">
-                <span className="text-[11px] font-semibold text-slate-500">İlgili Bölgeler</span>
+                <span className="text-[11px] font-semibold text-slate-500">{t("form.points")}</span>
                 <button type="button" className={kupaRowAction} onClick={() => setPointPickerOpen(true)}>
-                  + Bölge
+                  {t("form.addPoint")}
                 </button>
               </div>
               {draft.point_ids.length > 0 ? (
@@ -184,14 +189,14 @@ export function EntriesSection({ protocolId, doc }: { protocolId: string; doc: P
                   {draft.point_ids.map((pid) => (
                     <span key={pid} className="inline-flex items-center gap-1 rounded-md bg-amber-50 py-0.5 pl-2 text-[11px] text-amber-700">
                       {doc.pointName(pid)}
-                      <button type="button" aria-label={`${doc.pointName(pid)} bölgesini kaldır`} className="inline-flex h-10 w-10 items-center justify-center rounded-md text-base text-amber-500 hover:bg-rose-50 hover:text-rose-600 lg:h-8 lg:w-8" onClick={() => setDraft({ ...draft, point_ids: draft.point_ids.filter((x) => x !== pid) })}>
+                      <button type="button" aria-label={t("form.removePointAria", { name: doc.pointName(pid) })} className="inline-flex h-10 w-10 items-center justify-center rounded-md text-base text-amber-500 hover:bg-rose-50 hover:text-rose-600 lg:h-8 lg:w-8" onClick={() => setDraft({ ...draft, point_ids: draft.point_ids.filter((x) => x !== pid) })}>
                         ×
                       </button>
                     </span>
                   ))}
                 </div>
               ) : (
-                <p className="mt-1 text-[11px] text-slate-400">Opsiyonel.</p>
+                <p className="mt-1 text-[11px] text-slate-400">{t("form.optional")}</p>
               )}
             </div>
             {/* Kaynak (opsiyonel) — SADE serbest metin. Ayrı katalog picker/modal YOK.
@@ -199,29 +204,29 @@ export function EntriesSection({ protocolId, doc }: { protocolId: string; doc: P
                 "Kaldır" ile serbest metne geçilir. Yeni entry'de yalnız serbest metin + öneri. */}
             {draft.source_id ? (
               <div className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-white p-2.5">
-                <span className="text-[11px] font-semibold text-slate-500">Kaynak:</span>
+                <span className="text-[11px] font-semibold text-slate-500">{t("sourcePrefix")}</span>
                 <span className="text-[13px] font-medium text-slate-700">{doc.sourceName(draft.source_id)}</span>
                 <button type="button" className={kupaRowActionDanger} onClick={() => setDraft({ ...draft, source_id: "" })}>
-                  Kaldır
+                  {t("form.removeSource")}
                 </button>
               </div>
             ) : (
               <SourceNameField
-                label="Kaynak / kimden öğrendim (opsiyonel)"
-                placeholder="Örn. Ahmet Hoca Eğitim Notu, kendi eğitim notlarım, X Kitabı…"
+                label={t("form.sourceLabel")}
+                placeholder={t("form.sourcePlaceholder")}
                 value={draft.source_label}
                 onChange={(v) => setDraft((d) => ({ ...d, source_label: v }))}
                 sources={doc.masterSources}
                 testId="kupa-entry-source"
               />
             )}
-            <input className={kupaInput} placeholder="Sayfa / bölüm (opsiyonel)" value={draft.locator} onChange={(e) => setDraft({ ...draft, locator: e.target.value })} aria-label="Sayfa / bölüm" />
+            <input className={kupaInput} placeholder={t("form.locatorPlaceholder")} value={draft.locator} onChange={(e) => setDraft({ ...draft, locator: e.target.value })} aria-label={t("form.locatorAria")} />
             <div className="flex items-center gap-2">
               <button type="button" disabled={busy} className={kupaBtnSuccess} onClick={save}>
-                {busy ? "Kaydediliyor…" : "Kaydet"}
+                {busy ? tc("saving") : tc("save")}
               </button>
               <button type="button" className={kupaBtnGhost} onClick={() => void cancelForm()}>
-                Vazgeç
+                {tc("cancel")}
               </button>
             </div>
           </div>
@@ -230,10 +235,10 @@ export function EntriesSection({ protocolId, doc }: { protocolId: string; doc: P
 
       <MasterPickerDialog
         open={pointPickerOpen}
-        title="İlgili Bölge Ekle"
+        title={t("pickerTitle")}
         items={doc.masterPoints.map((p) => ({ id: p.id, label: p.name, meta: p.anatomical_region ?? undefined }))}
         selectedIds={draft.point_ids}
-        emptyMessage="Henüz bölge (nokta) kaydı bulunmuyor."
+        emptyMessage={t("pickerEmpty")}
         onPick={(pid) => setDraft((d) => (d.point_ids.includes(pid) ? d : { ...d, point_ids: [...d.point_ids, pid] }))}
         onClose={() => setPointPickerOpen(false)}
       />

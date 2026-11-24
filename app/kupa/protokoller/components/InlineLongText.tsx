@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { kupaInput } from "@/app/kupa/components/KupaShell";
 import { BigNoteEditorDialog } from "@/app/kupa/components/BigNoteEditorDialog";
 
@@ -22,6 +23,7 @@ export function InlineLongText({
   onChange: (v: string) => void;
 }) {
   const [editorOpen, setEditorOpen] = useState(false);
+  const t = useTranslations("cupping.protocols.longText");
   const preview = value.trim();
 
   return (
@@ -34,7 +36,7 @@ export function InlineLongText({
       >
         <span className="block text-[11px] font-semibold text-slate-500">{label}</span>
         <span className={`mt-1 block text-sm ${preview ? "text-slate-700" : "text-slate-400"} line-clamp-3 whitespace-pre-wrap`}>
-          {preview || (placeholder ?? "Eklemek için dokunun")}
+          {preview || (placeholder ?? t("tapToAdd"))}
         </span>
       </button>
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { useId, useMemo, useState } from "react";
+import { useTranslations } from "next-intl";
 import { kupaInput } from "@/app/kupa/components/KupaShell";
 import { ownSourceSuggestions, type SourceLike } from "@/lib/cupping/ownSources";
 
@@ -29,6 +30,7 @@ export function SourceNameField({
 }) {
   const id = useId();
   const [focused, setFocused] = useState(false);
+  const t = useTranslations("cupping.protocols.sourceName");
   const suggestions = useMemo(() => ownSourceSuggestions(sources, value), [sources, value]);
   const show = focused && !disabled && suggestions.length > 0;
 
@@ -60,7 +62,7 @@ export function SourceNameField({
           className="absolute left-0 right-0 z-20 mt-1 max-h-56 overflow-y-auto rounded-xl border border-slate-200 bg-white py-1 shadow-lg"
         >
           <li className="px-3 pb-1 pt-1.5 text-[10px] font-bold uppercase tracking-wide text-slate-400" aria-hidden>
-            Daha önce yazdığınız kaynaklar
+            {t("suggestionsHeading")}
           </li>
           {suggestions.map((s) => (
             <li key={s} role="option" aria-selected={false}>

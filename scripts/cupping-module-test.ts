@@ -7,6 +7,7 @@
  * harita registry; modül gate kaydı; admin→uzman transfer additive kayıt (drift).
  */
 import { readFileSync, readdirSync, statSync } from "node:fs";
+import { resolveTrSource, trValue } from "./i18n-mod-c/trResolve";
 import { CUPPING_BODY_MAPS, getCuppingMap, isKnownCuppingMap } from "../lib/cupping/maps";
 import {
   POINT_WRITABLE,
@@ -76,7 +77,9 @@ function ok(cond: boolean, name: string): void {
     console.log("  ✗ FAIL:", name);
   }
 }
-const read = (p: string) => readFileSync(p, "utf8");
+// I18N gece 2026-11-25: ekran metinleri messages/tr/cupping*.json'a taşındı → kaynak okunurken t("…") çağrıları
+// TR katalog değeriyle çözülür (testlerin "metin ekranda var/yok/sırada" niyeti korunur; bkz. scripts/i18n-mod-c/trResolve.ts).
+const read = (p: string) => resolveTrSource(readFileSync(p, "utf8"));
 
 function listRoutes(dir: string): string[] {
   const out: string[] = [];
@@ -741,9 +744,15 @@ function run(): void {
   // D) TR enum eşlemeleri + kod GÖSTERİLMEZ (enum sadece value; UI label Türkçe).
   ok(/dry/.test(pQuick) && /wet/.test(pQuick) && /stationary/.test(pQuick) && /gliding/.test(pQuick) && /flash/.test(pQuick),
     "faz3a-enum: technique_type/movement_style enum value'ları mevcut");
-  ok(/Kuru Kupa/.test(pQuick) && /Yaş Kupa/.test(pQuick) && /Sabit/.test(pQuick) && /Kaydırmalı/.test(pQuick),
+  // I18N 2026-11-25: etiketler kod yerine useCuppingVocab (messages/<dil>/cupping.json → cupping.vocab) ile üretilir;
+  // TR katalog değerleri eski sabit etiketlerle BİREBİR olmalı (niyet: UI kod değil Türkçe etiket gösterir).
+  const vocabTr = (k: string) => trValue(`cupping.vocab.${k}`);
+  ok(/useCuppingVocab/.test(pQuick) && /vocab\.techniqueType\(/.test(pQuick) && /vocab\.movementStyle\(/.test(pQuick) &&
+     vocabTr("techniqueType.dry") === "Kuru Kupa" && vocabTr("techniqueType.wet") === "Yaş Kupa / Hacamat" &&
+     vocabTr("movementStyle.stationary") === "Sabit" && vocabTr("movementStyle.gliding") === "Kaydırmalı",
     "faz3a-enum: technique UI Türkçe etiketler (kod değil)");
-  ok(/"info"/.test(pQuick) && /"warning"/.test(pQuick) && /"contraindication"/.test(pQuick) && /Bilgi/.test(pQuick) && /Uyarı/.test(pQuick) && /Kontrendikasyon/.test(pQuick),
+  ok(/"info"/.test(pQuick) && /"warning"/.test(pQuick) && /"contraindication"/.test(pQuick) && /vocab\.severity\(/.test(pQuick) &&
+     vocabTr("severity.info") === "Bilgi" && vocabTr("severity.warning") === "Uyarı" && vocabTr("severity.contraindication") === "Kontrendikasyon",
     "faz3a-enum: safety severity enum + Türkçe etiketler");
   // severity !== contraindication → contraindication_class DAİMA null.
   ok(/severity === "contraindication" \? contraClass \|\| null : null/.test(pQuick),
@@ -1125,7 +1134,8 @@ function run(): void {
     "faz4c-protocol-note: PATCH yalnız protocol_note/sort_order (relation-specific)");
 
   // Tür/stil propagasyonu: RelationSection master listfrom join → dinamik TR etiket (ham kod YOK).
-  ok(/techniqueTypeLabel/.test(rSec) && /movementStyleLabel/.test(rSec),
+  // I18N 2026-11-25: etiket artık ekran dilinde useCuppingVocab üzerinden (TR = labels.ts haritası, birebir).
+  ok((/techniqueTypeLabel/.test(rSec) || /vocab\.techniqueType\(/.test(rSec)) && (/movementStyleLabel/.test(rSec) || /vocab\.movementStyle\(/.test(rSec)),
     "faz4c-labels: protokol picker TR etiket (techniqueTypeLabel/movementStyleLabel)");
   ok(!/\[t\.technique_type, t\.movement_style\]\.filter/.test(rSec),
     "faz4c-labels: ham technique_type/movement_style kod join'i KALDIRILDI");

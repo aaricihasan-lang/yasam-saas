@@ -1,6 +1,8 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { useTranslations } from "next-intl";
+import { useKupaErrorText } from "@/app/kupa/lib/errorText";
 import { useConfirmLeave, useReportDirty } from "../hooks/protocolDirty";
 import { useToast } from "@/components/ui/ToastProvider";
 import { kupaBtnGhost, kupaBtnSuccess, kupaRowAction } from "@/app/kupa/components/KupaShell";
@@ -12,6 +14,9 @@ import { InlineLongText } from "./InlineLongText";
 /** Hazırlık / Sonrası / Takip — protokol root kolonları (section-level edit). */
 export function PrepSection({ doc }: { doc: ProtocolDocument }) {
   const { showToast } = useToast();
+  const t = useTranslations("cupping.protocols.prep");
+  const tc = useTranslations("cupping.common");
+  const errText = useKupaErrorText();
   const p = doc.protocol;
   const [editing, setEditing] = useState(false);
   const [prep, setPrep] = useState("");
@@ -48,9 +53,9 @@ export function PrepSection({ doc }: { doc: ProtocolDocument }) {
       });
       await doc.reload.protocol();
       setEditing(false);
-      showToast({ message: "Kaydedildi.", type: "success" });
+      showToast({ message: tc("saved"), type: "success" });
     } catch (e) {
-      showToast({ message: e instanceof Error ? e.message : "Kaydedilemedi.", type: "error" });
+      showToast({ message: errText(e, tc("saveFailed")), type: "error" });
     } finally {
       busyRef.current = false;
       setBusy(false);
@@ -70,30 +75,30 @@ export function PrepSection({ doc }: { doc: ProtocolDocument }) {
 
   return (
     <ProtocolSectionShell
-      title="Hazırlık / Sonrası / Takip"
+      title={t("title")}
       action={
         !editing ? (
           <button type="button" onClick={open} className={kupaRowAction}>
-            Düzenle
+            {tc("edit")}
           </button>
         ) : undefined
       }
     >
       {editing ? (
         <div className="space-y-3">
-          <InlineLongText label="Uygulama Öncesi Hazırlık" value={prep} onChange={setPrep} rows={3} />
-          <InlineLongText label="Uygulama Sonrası" value={after} onChange={setAfter} rows={3} />
-          <InlineLongText label="Takip / Sonraki Seans" value={follow} onChange={setFollow} rows={3} />
+          <InlineLongText label={t("preparation")} value={prep} onChange={setPrep} rows={3} />
+          <InlineLongText label={t("aftercare")} value={after} onChange={setAfter} rows={3} />
+          <InlineLongText label={t("followUp")} value={follow} onChange={setFollow} rows={3} />
           <div className="flex items-center gap-2">
-            <button type="button" disabled={busy} className={kupaBtnSuccess} onClick={save} data-testid="kupa-prep-save">{busy ? "Kaydediliyor…" : "Kaydet"}</button>
-            <button type="button" className={kupaBtnGhost} onClick={() => void cancel()}>Vazgeç</button>
+            <button type="button" disabled={busy} className={kupaBtnSuccess} onClick={save} data-testid="kupa-prep-save">{busy ? tc("saving") : tc("save")}</button>
+            <button type="button" className={kupaBtnGhost} onClick={() => void cancel()}>{tc("cancel")}</button>
           </div>
         </div>
       ) : (
         <div className="space-y-3">
-          {block("Uygulama Öncesi Hazırlık", p?.preparation_note)}
-          {block("Uygulama Sonrası", p?.aftercare_note)}
-          {block("Takip / Sonraki Seans", p?.follow_up_note)}
+          {block(t("preparation"), p?.preparation_note)}
+          {block(t("aftercare"), p?.aftercare_note)}
+          {block(t("followUp"), p?.follow_up_note)}
         </div>
       )}
     </ProtocolSectionShell>

@@ -5,9 +5,11 @@
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import { resolveTrSource } from "../i18n-mod-c/trResolve";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
-const read = (p: string) => readFileSync(join(ROOT, p), "utf8").replace(/\r\n/g, "\n");
+// I18N 2026-11-25: t("…") çağrıları TR katalog değeriyle çözülür (scripts/i18n-mod-c/trResolve.ts) — kaynak-metin niyeti korunur.
+const read = (p: string) => resolveTrSource(readFileSync(join(ROOT, p), "utf8").replace(/\r\n/g, "\n"));
 const strip = (s: string) => s.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
 let pass = 0;
 let fail = 0;
@@ -74,7 +76,10 @@ async function main() {
     ok(JSON.stringify(t.parseTagsInput("baş ağrısı, migren,, kupa ,  ense ,Migren")) === JSON.stringify(["baş ağrısı", "migren", "kupa", "ense"]), "virgüllü giriş → temiz dizi");
     for (const f of ["app/kupa/protokoller/yeni/page.tsx", "app/kupa/protokoller/components/BasicInfoEditor.tsx"]) {
       const src = read(f);
-      ok(/\{TAGS_LABEL\}/.test(src) && /\{TAGS_HELP\}/.test(src) && !/Etiketler \(virgülle\)/.test(src), `${f.split("/").pop()}: yeni başlık + açıklama (eski "Etiketler (virgülle)" YOK)`);
+      // I18N 2026-11-25: ekran metni katalogdan (messages/tr/cupping.protocols.json) gelir; read() t("…") çağrısını
+      // TR değeriyle çözer → lib sabitiyle BİREBİR aynı metin ekranda olmalı (niyet korunur).
+      const shows = (v: string) => src.includes(`"${v}"`);
+      ok((/\{TAGS_LABEL\}/.test(src) || shows(t.TAGS_LABEL)) && (/\{TAGS_HELP\}/.test(src) || shows(t.TAGS_HELP)) && (/TAGS_PLACEHOLDER/.test(src) || shows(t.TAGS_PLACEHOLDER)) && !/Etiketler \(virgülle\)/.test(src), `${f.split("/").pop()}: yeni başlık + açıklama (eski "Etiketler (virgülle)" YOK)`);
     }
   }
 
