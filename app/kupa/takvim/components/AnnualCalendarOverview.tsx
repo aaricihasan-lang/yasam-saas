@@ -1,10 +1,12 @@
 "use client";
 
 import { useMemo } from "react";
+import { useTranslations } from "next-intl";
+import { useCalendarNames } from "../lib/useCalendarNames";
 import { annualHijriCells } from "@/lib/cupping/hijri";
 import { getCuppingCellState, type CuppingCellKind, CUPPING_DAY_COLORS } from "../lib/cellState";
 import { isoWeekday } from "../lib/bulk";
-import { MONTHS_TR, type CuppingDayStyleView } from "./MonthCalendar";
+import type { CuppingDayStyleView } from "./MonthCalendar";
 
 /**
  * FAZ 5 / AŞAMA 3 — YILLIK ÖZET (profesyonel 12-ay planı).
@@ -55,13 +57,17 @@ export function AnnualCalendarOverview({
 }) {
   const months = useMemo(() => annualHijriCells(year), [year]);
   const hasSelection = selected.size > 0;
+  const t = useTranslations("cupping.calendar");
+  const names = useCalendarNames();
+  // tr: sabit 2 harfli baş harfler birebir; diğer dillerde Intl kısa gün adının ilk 2 harfi.
+  const wdInitials: readonly string[] = names.isTr ? WD_INITIALS : names.weekdays.map((w) => w.short.slice(0, 2));
 
   return (
     <div className="flex flex-col gap-4">
       {/* Başlık + sade legend */}
       <div className="flex flex-col gap-3 border-b border-amber-100 pb-3">
         <div>
-          <h2 className="text-lg font-black text-slate-900 sm:text-xl">{year} Hacamat Takvimi</h2>
+          <h2 className="text-lg font-black text-slate-900 sm:text-xl">{t("annual.title", { year: String(year) })}</h2>
           {description ? <p className="mt-0.5 text-sm text-slate-500">{description}</p> : (
             <p className="mt-0.5 text-sm text-slate-500">{title}</p>
           )}
@@ -69,7 +75,7 @@ export function AnnualCalendarOverview({
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[11px] text-slate-500">
           <span className="inline-flex items-center gap-1.5">
             <span className="h-3 w-3 rounded bg-indigo-100 ring-1 ring-indigo-300" aria-hidden />
-            Seçili Gün
+            {t("annual.legendSelected")}
           </span>
         </div>
       </div>
@@ -77,8 +83,7 @@ export function AnnualCalendarOverview({
       {/* Hiç gün seçilmemişse sakin boş-durum notu (12 ay yine gösterilir). */}
       {!hasSelection ? (
         <p className="rounded-xl border border-slate-200 bg-slate-50/70 px-4 py-3 text-sm text-slate-500">
-          Bu yıl için henüz uygulama günü işaretlenmedi. Günleri işaretlemek için <strong>Bu Ayı Düzenle</strong>
-          veya <strong>+ Takvim Oluştur / Aç</strong> (yıl/ay) kullanın.
+          {t.rich("annual.empty", { strong: (c) => <strong>{c}</strong> })}
         </p>
       ) : null}
 
@@ -97,17 +102,17 @@ export function AnnualCalendarOverview({
               <button
                 type="button"
                 onClick={() => onMonthClick(month)}
-                aria-label={`${MONTHS_TR[i]} ${year} — aylık görünümde aç`}
+                aria-label={t("annual.openMonthAria", { month: names.months[i], year: String(year) })}
                 className="group flex items-center justify-between rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-amber-400/60"
               >
-                <span className="text-sm font-black text-slate-800">{MONTHS_TR[i]}</span>
+                <span className="text-sm font-black text-slate-800">{names.months[i]}</span>
                 <span className="text-[10px] font-semibold text-amber-600 opacity-70 transition group-hover:opacity-100" aria-hidden>
-                  Ayı görüntüle →
+                  {t("annual.viewMonth")}
                 </span>
               </button>
               {/* Haftagünü başlıkları */}
               <div className="grid grid-cols-7 gap-px">
-                {WD_INITIALS.map((w, wi) => (
+                {wdInitials.map((w, wi) => (
                   <span key={wi} className="text-center text-[8px] font-bold uppercase text-slate-300" aria-hidden>
                     {w}
                   </span>
@@ -134,18 +139,18 @@ export function AnnualCalendarOverview({
                   const colorDef = showColor ? CUPPING_DAY_COLORS[colorKey] : null;
                   const fill = colorDef ? colorDef.mini : MINI_FILL[state.kind];
                   const dashed = colorDef && state.kind === "selected_pending_add" ? "border border-dashed" : "";
-                  const fullHijri = `${cell.hijri.day} ${cell.hijri.monthName} ${cell.hijri.year}`;
+                  const fullHijri = `${cell.hijri.day} ${names.hijriMonth(cell.hijri.month)} ${cell.hijri.year}`;
                   const statusWord =
                     state.kind === "selected_saved"
-                      ? " — seçili gün"
+                      ? t("month.statusSaved")
                       : state.kind === "selected_pending_add"
-                        ? " — seçili gün (kaydedilecek)"
+                        ? t("month.statusPendingAdd")
                         : state.kind === "pending_remove"
-                          ? " — kaldırılacak"
+                          ? t("month.statusPendingRemove")
                           : "";
-                  const colorWord = colorDef ? ` — ${colorDef.labelTr} renk` : "";
+                  const colorWord = colorDef && colorKey ? t("month.colorWord", { color: names.colorLabel(colorKey) }) : "";
                   const labelWord = isSel && dayStyle?.label ? ` — ${dayStyle.label}` : "";
-                  const cellTitle = `${gDay} ${MONTHS_TR[i]} ${year} — Hicrî ${fullHijri}${statusWord}${colorWord}${labelWord}`;
+                  const cellTitle = t("month.aria", { greg: `${gDay} ${names.months[i]} ${year}`, hijri: fullHijri }) + `${statusWord}${colorWord}${labelWord}`;
                   const cellCls = [
                     "relative flex aspect-square items-center justify-center rounded text-[9px] leading-none sm:text-[10px]",
                     fill,
@@ -159,7 +164,7 @@ export function AnnualCalendarOverview({
                       data-kupa-annual-day={ymd}
                       onClick={() => onDayClick(ymd)}
                       title={cellTitle}
-                      aria-label={`${cellTitle} — bilgiyi göster`}
+                      aria-label={`${cellTitle}${t("month.showInfo")}`}
                       className={`${cellCls} outline-none focus-visible:ring-2 focus-visible:ring-amber-400/70`}
                     >
                       {gDay}
@@ -177,9 +182,7 @@ export function AnnualCalendarOverview({
       </div>
 
       <p className="text-xs leading-relaxed text-slate-400">
-        Bu yıllık görünüm kayıtlı takviminizi gösterir ve salt okunurdur: bir güne dokunduğunuzda
-        yalnız o günün bilgisi açılır. Günleri değiştirmek için <strong>Bu Ayı Düzenle</strong> veya
-        <strong> + Takvim Oluştur / Aç</strong> (yıl/ay) kullanın.
+        {t.rich("annual.footer", { strong: (c) => <strong>{c}</strong> })}
       </p>
     </div>
   );

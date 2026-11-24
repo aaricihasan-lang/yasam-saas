@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useTranslations } from "next-intl";
+import { useKupaErrorText } from "@/app/kupa/lib/errorText";
 import { useToast } from "@/components/ui/ToastProvider";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
 import { kupaBtnGhost, kupaBtnSuccess, kupaInput, kupaRowActionDanger } from "@/app/kupa/components/KupaShell";
@@ -79,6 +81,9 @@ export function OutputAdviceSection({
 }) {
   const { showToast } = useToast();
   const { confirm } = useConfirm();
+  const ta = useTranslations("cupping.calendar.advice");
+  const tc = useTranslations("cupping.common");
+  const errText = useKupaErrorText();
   const [form, setForm] = useState<FormState | null>(null);
   const [baseline, setBaseline] = useState<FormState | null>(null);
   const [busy, setBusy] = useState(false);
@@ -98,10 +103,10 @@ export function OutputAdviceSection({
 
   const confirmDiscardForm = () =>
     confirm({
-      title: "Kaydedilmemiş Değişiklikler",
-      message: "Şablon formunda kaydedilmemiş değişiklikleriniz var.\nKaydetmeden devam etmek istiyor musunuz?",
-      confirmText: "Kaydetmeden Devam Et",
-      cancelText: "Vazgeç",
+      title: ta("discardTitle"),
+      message: ta("discardMessage"),
+      confirmText: ta("discardConfirm"),
+      cancelText: tc("cancel"),
       tone: "danger",
     });
 
@@ -122,7 +127,7 @@ export function OutputAdviceSection({
   async function save() {
     if (!form) return;
     if (!form.title.trim()) {
-      showToast({ message: "Şablon adı gerekli.", type: "warning" });
+      showToast({ message: ta("nameRequired"), type: "warning" });
       return;
     }
     setBusy(true);
@@ -147,9 +152,9 @@ export function OutputAdviceSection({
       await onTemplatesChanged();
       setForm(null);
       setBaseline(null);
-      showToast({ message: "Şablon kaydedildi.", type: "success" });
+      showToast({ message: ta("saved"), type: "success" });
     } catch (e) {
-      showToast({ message: e instanceof Error ? e.message : "Kaydedilemedi.", type: "error" });
+      showToast({ message: errText(e, tc("saveFailed")), type: "error" });
     } finally {
       setBusy(false);
     }
@@ -159,18 +164,18 @@ export function OutputAdviceSection({
     try {
       await updateAdviceTemplate(t.id, { is_default: true });
       await onTemplatesChanged();
-      showToast({ message: "Varsayılan bilgilendirme şablonu güncellendi.", type: "success" });
+      showToast({ message: ta("defaultUpdated"), type: "success" });
     } catch (e) {
-      showToast({ message: e instanceof Error ? e.message : "İşlem başarısız.", type: "error" });
+      showToast({ message: errText(e, ta("failed")), type: "error" });
     }
   }
 
   async function remove(t: CuppingAdviceTemplate) {
     const ok = await confirm({
-      title: "Şablonu Sil",
-      message: `"${t.title}" bilgilendirme şablonunu silmek istiyor musunuz?\n\nBu şablona bağlı takvimler etkilenmez; yalnızca bağlantı kaldırılır.`,
-      confirmText: "Şablonu Sil",
-      cancelText: "Vazgeç",
+      title: ta("deleteTitle"),
+      message: ta("deleteMessage", { title: t.title }),
+      confirmText: ta("deleteTitle"),
+      cancelText: tc("cancel"),
       tone: "danger",
     });
     if (!ok) return;
@@ -180,9 +185,9 @@ export function OutputAdviceSection({
       // Bağlı şablon silindiyse plan.advice_template_id sunucuda NULL olur (FK SET NULL) → yalnız
       //   yerel durum aynalanır; ek PATCH/yazma YOK.
       onTemplateDeleted(t.id);
-      showToast({ message: "Şablon silindi.", type: "success" });
+      showToast({ message: ta("deleted"), type: "success" });
     } catch (e) {
-      showToast({ message: e instanceof Error ? e.message : "Silinemedi.", type: "error" });
+      showToast({ message: errText(e, ta("deleteFailed")), type: "error" });
     }
   }
 
@@ -190,20 +195,18 @@ export function OutputAdviceSection({
     <section className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <h2 className="text-base font-black text-slate-900">Çıktı Bilgilendirme Notları</h2>
-          <p className="mt-0.5 text-xs text-slate-500">
-            Danışanlarınıza verdiğiniz bilgilendirme metinlerini burada yönetin. Metni siz yazarsınız.
-          </p>
+          <h2 className="text-base font-black text-slate-900">{ta("title")}</h2>
+          <p className="mt-0.5 text-xs text-slate-500">{ta("intro")}</p>
         </div>
         <button type="button" className={`${kupaBtnGhost} min-h-[40px]`} onClick={startNew}>
-          + Yeni Şablon
+          {ta("new")}
         </button>
       </div>
 
       {/* Bu takvime bağlı şablon seçimi */}
       <div className="flex flex-col gap-1.5">
         <label htmlFor="advice-attach" className="text-xs font-bold uppercase tracking-wide text-slate-500">
-          Bu Takvimin Bilgilendirme Şablonu
+          {ta("attachLabel")}
         </label>
         <select
           id="advice-attach"
@@ -215,21 +218,21 @@ export function OutputAdviceSection({
           }}
           disabled={readOnly}
         >
-          <option value="">— Şablon seçilmedi —</option>
+          <option value="">{ta("attachNone")}</option>
           {activeTemplates.map((t) => (
             <option key={t.id} value={t.id}>
               {t.title}
-              {t.is_default ? " (varsayılan)" : ""}
+              {t.is_default ? ta("defaultSuffix") : ""}
             </option>
           ))}
         </select>
         {readOnly ? (
           <p className="text-[11px] text-slate-400" data-testid="kupa-advice-attach-hint">
-            Değiştirmek için <strong>Bu Ayı Düzenle</strong>&apos;ye basın.
+            {ta.rich("readOnlyHint", { strong: (c) => <strong>{c}</strong> })}
           </p>
         ) : templatePending ? (
           <p className="text-[11px] font-medium text-amber-700" data-testid="kupa-advice-attach-hint">
-            Kaydedilmedi — kalıcı olması için <strong>Değişiklikleri Kaydet</strong>&apos;e basın.
+            {ta.rich("pendingHint", { strong: (c) => <strong>{c}</strong> })}
           </p>
         ) : null}
       </div>
@@ -241,14 +244,14 @@ export function OutputAdviceSection({
             <h3 className="text-sm font-bold text-slate-900">{attached.title}</h3>
             <div className="flex gap-1.5">
               <button type="button" className={`${kupaBtnGhost} min-h-[40px] px-3 py-1 text-xs lg:min-h-[32px]`} onClick={() => startEdit(attached)}>
-                Düzenle
+                {tc("edit")}
               </button>
               {!attached.is_default ? (
                 <button type="button" className={`${kupaBtnGhost} min-h-[40px] px-3 py-1 text-xs lg:min-h-[32px]`} onClick={() => setDefault(attached)}>
-                  Varsayılan yap
+                  {ta("makeDefaultBtn")}
                 </button>
               ) : (
-                <span className="inline-flex items-center rounded-lg bg-amber-100 px-2 py-1 text-xs font-semibold text-amber-800">Varsayılan</span>
+                <span className="inline-flex items-center rounded-lg bg-amber-100 px-2 py-1 text-xs font-semibold text-amber-800">{ta("defaultBadge")}</span>
               )}
             </div>
           </div>
@@ -256,27 +259,27 @@ export function OutputAdviceSection({
         </article>
       ) : (
         <p className="rounded-xl border border-dashed border-slate-200 bg-white/60 px-4 py-6 text-center text-sm text-slate-400">
-          Bu takvime henüz bir bilgilendirme şablonu bağlanmadı.
+          {ta("noneAttached")}
         </p>
       )}
 
       {/* Diğer şablonlar (yönetim) */}
       {activeTemplates.length > 0 ? (
         <div className="flex flex-col gap-1.5">
-          <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Tüm Şablonlar</p>
+          <p className="text-xs font-bold uppercase tracking-wide text-slate-500">{ta("all")}</p>
           <ul className="divide-y divide-slate-100 overflow-hidden rounded-xl border border-slate-200 bg-white">
             {activeTemplates.map((t) => (
               <li key={t.id} className="flex items-center justify-between gap-2 px-3 py-2">
                 <span className="min-w-0 truncate text-sm text-slate-700">
                   {t.title}
-                  {t.is_default ? <span className="ml-1.5 text-xs text-amber-700">• varsayılan</span> : null}
+                  {t.is_default ? <span className="ml-1.5 text-xs text-amber-700">{ta("defaultBullet")}</span> : null}
                 </span>
                 <span className="flex shrink-0 gap-1.5">
                   <button type="button" className={`${kupaBtnGhost} min-h-[40px] px-3 py-1 text-xs lg:min-h-[32px]`} onClick={() => startEdit(t)}>
-                    Düzenle
+                    {tc("edit")}
                   </button>
                   <button type="button" className={kupaRowActionDanger} onClick={() => remove(t)}>
-                    Sil
+                    {tc("delete")}
                   </button>
                 </span>
               </li>
@@ -288,30 +291,30 @@ export function OutputAdviceSection({
       {/* Şablon oluştur/düzenle formu */}
       {form ? (
         <div className="rounded-xl border border-slate-200 bg-white p-4">
-          <h3 className="mb-3 text-sm font-black text-slate-900">{form.id ? "Şablonu Düzenle" : "Yeni Şablon"}</h3>
+          <h3 className="mb-3 text-sm font-black text-slate-900">{form.id ? ta("editTitle") : ta("newTitle")}</h3>
           <div className="flex flex-col gap-3">
-            <Field label="Şablon adı">
-              <input className={kupaInput} value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="Ör. Standart Hacamat Bilgilendirmesi" />
+            <Field label={ta("fieldName")}>
+              <input className={kupaInput} value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder={ta("fieldNamePlaceholder")} />
             </Field>
-            <Field label="Hacamat Öncesi Bilgilendirme">
+            <Field label={ta("fieldBefore")}>
               <textarea className={`${kupaInput} min-h-[80px]`} value={form.before_text} onChange={(e) => setForm({ ...form, before_text: e.target.value })} />
             </Field>
-            <Field label="Hacamat Sonrası Bilgilendirme">
+            <Field label={ta("fieldAfter")}>
               <textarea className={`${kupaInput} min-h-[80px]`} value={form.after_text} onChange={(e) => setForm({ ...form, after_text: e.target.value })} />
             </Field>
-            <Field label="Genel / Ek Not">
+            <Field label={ta("general")}>
               <textarea className={`${kupaInput} min-h-[60px]`} value={form.general_note} onChange={(e) => setForm({ ...form, general_note: e.target.value })} />
             </Field>
             <label className="flex items-center gap-2 text-sm text-slate-600">
               <input type="checkbox" checked={form.makeDefault} onChange={(e) => setForm({ ...form, makeDefault: e.target.checked })} />
-              Varsayılan şablon yap
+              {ta("makeDefault")}
             </label>
             <div className="flex justify-end gap-2">
               <button type="button" className={`${kupaBtnGhost} min-h-[40px]`} onClick={() => void replaceForm(null)} disabled={busy}>
-                Vazgeç
+                {tc("cancel")}
               </button>
               <button type="button" className={`${kupaBtnSuccess} min-h-[40px]`} onClick={save} disabled={busy}>
-                {busy ? "Kaydediliyor…" : "Kaydet"}
+                {busy ? tc("saving") : tc("save")}
               </button>
             </div>
           </div>
@@ -322,10 +325,11 @@ export function OutputAdviceSection({
 }
 
 function AdvicePreview({ t }: { t: { before_text?: string | null; after_text?: string | null; general_note?: string | null } }) {
+  const ta = useTranslations("cupping.calendar.advice");
   const rows: { label: string; value: string }[] = [
-    { label: "Hacamat Öncesi", value: (t.before_text ?? "").trim() },
-    { label: "Hacamat Sonrası", value: (t.after_text ?? "").trim() },
-    { label: "Genel / Ek Not", value: (t.general_note ?? "").trim() },
+    { label: ta("before"), value: (t.before_text ?? "").trim() },
+    { label: ta("after"), value: (t.after_text ?? "").trim() },
+    { label: ta("general"), value: (t.general_note ?? "").trim() },
   ];
   return (
     <dl className="flex flex-col gap-2">

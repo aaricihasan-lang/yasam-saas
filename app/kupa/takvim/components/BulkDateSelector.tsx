@@ -1,11 +1,12 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useTranslations } from "next-intl";
+import { useCalendarNames } from "../lib/useCalendarNames";
 import { kupaBtnGhost, kupaBtnPrimary, kupaInput, kupaPill, kupaPillActive } from "@/app/kupa/components/KupaShell";
-import { computeBulkDates, hasAnyCriteria, WEEKDAYS_TR, type BulkCriteria } from "../lib/bulk";
+import { computeBulkDates, hasAnyCriteria, type BulkCriteria } from "../lib/bulk";
 import type { CuppingDayColorKey } from "@/lib/cupping/calendarTypes";
 import { CUPPING_DAY_COLORS, CUPPING_DAY_COLOR_ORDER } from "../lib/cellState";
-import { MONTHS_TR } from "./MonthCalendar";
 
 /**
  * FAZ 5 / AŞAMA 3 + 5 — NÖTR Toplu Gün Seçimi (opsiyonel yardımcı; sayfayı BASKILAMAZ).
@@ -26,6 +27,9 @@ export function BulkDateSelector({
   onAddDates: (dates: string[], colorKey: CuppingDayColorKey) => void;
 }) {
   const [open, setOpen] = useState(false);
+  const t = useTranslations("cupping.calendar.bulk");
+  const tc = useTranslations("cupping.calendar");
+  const names = useCalendarNames();
   const [useRange, setUseRange] = useState(false);
   const [rangeStart, setRangeStart] = useState("");
   const [rangeEnd, setRangeEnd] = useState("");
@@ -90,8 +94,8 @@ export function BulkDateSelector({
       >
         <span className="flex items-center gap-2">
           <span aria-hidden>🗓️</span>
-          <span className="text-sm font-bold text-slate-800">Toplu Gün Seçimi</span>
-          <span className="text-xs text-slate-400">(kendi ölçütünüzle)</span>
+          <span className="text-sm font-bold text-slate-800">{t("title")}</span>
+          <span className="text-xs text-slate-400">{t("titleHint")}</span>
         </span>
         <span aria-hidden className="text-slate-400">{open ? "−" : "+"}</span>
       </button>
@@ -99,13 +103,12 @@ export function BulkDateSelector({
       {open ? (
         <div className="flex flex-col gap-4 border-t border-slate-100 px-4 py-4">
           <p className="text-xs leading-relaxed text-slate-500">
-            Kendi yaklaşımınıza göre ölçüt seçin ve bir renk belirleyin; eşleşen yeni günler o renkle
-            taslak seçiminize eklenir. Ölçütler ve renk kaydedilmez, yalnızca sonuç günleri saklanabilir.
+            {t("intro")}
           </p>
 
           {/* A) Hicrî gün numaraları (1–30) — ön-seçili DEĞİL */}
           <div>
-            <p className="mb-1.5 text-xs font-bold uppercase tracking-wide text-slate-500">Hicrî Gün Numarası</p>
+            <p className="mb-1.5 text-xs font-bold uppercase tracking-wide text-slate-500">{t("hijriDay")}</p>
             <div className="grid grid-cols-6 gap-1 min-[400px]:grid-cols-8 sm:grid-cols-10">
               {Array.from({ length: 30 }, (_, i) => i + 1).map((n) => (
                 <button
@@ -123,9 +126,9 @@ export function BulkDateSelector({
 
           {/* B) Haftagünleri — ön-seçili DEĞİL, yasak DEĞİL */}
           <div>
-            <p className="mb-1.5 text-xs font-bold uppercase tracking-wide text-slate-500">Haftagünü</p>
+            <p className="mb-1.5 text-xs font-bold uppercase tracking-wide text-slate-500">{t("weekday")}</p>
             <div className="flex flex-wrap gap-1">
-              {WEEKDAYS_TR.map((w) => (
+              {names.weekdays.map((w) => (
                 <button
                   key={w.iso}
                   type="button"
@@ -144,19 +147,19 @@ export function BulkDateSelector({
                 yalnız bu aylarda kalır (diğer ölçütlerle AND). Boşsa ay filtresi yok. */}
           <div>
             <div className="mb-1.5 flex items-center justify-between">
-              <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Aylar</p>
+              <p className="text-xs font-bold uppercase tracking-wide text-slate-500">{t("months")}</p>
               {months.length > 0 ? (
                 <button
                   type="button"
                   onClick={() => setMonths([])}
                   className="text-[11px] font-semibold text-amber-700 hover:text-amber-800"
                 >
-                  Tüm ayları temizle
+                  {t("clearMonths")}
                 </button>
               ) : null}
             </div>
             <div className="grid grid-cols-4 gap-1 sm:grid-cols-6">
-              {MONTHS_TR.map((label, i) => {
+              {names.months.map((label, i) => {
                 const m = i + 1;
                 const active = months.includes(m);
                 return (
@@ -179,7 +182,7 @@ export function BulkDateSelector({
           <div>
             <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-slate-500">
               <input type="checkbox" checked={useRange} onChange={(e) => setUseRange(e.target.checked)} />
-              Tarih Aralığı ({year})
+              {t("range", { year: String(year) })}
             </label>
             {useRange ? (
               <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
@@ -190,7 +193,7 @@ export function BulkDateSelector({
                   min={yearMin}
                   max={yearMax}
                   onChange={(e) => setRangeStart(e.target.value)}
-                  aria-label="Başlangıç tarihi"
+                  aria-label={t("rangeStart")}
                 />
                 <input
                   type="date"
@@ -199,7 +202,7 @@ export function BulkDateSelector({
                   min={yearMin}
                   max={yearMax}
                   onChange={(e) => setRangeEnd(e.target.value)}
-                  aria-label="Bitiş tarihi"
+                  aria-label={t("rangeEnd")}
                 />
               </div>
             ) : null}
@@ -207,7 +210,7 @@ export function BulkDateSelector({
 
           {/* E) Toplu RENK — ZORUNLU; ön-seçili DEĞİL. Yalnız bu işlemle EKLENEN yeni günlere uygulanır. */}
           <div>
-            <p className="mb-1.5 text-xs font-bold uppercase tracking-wide text-slate-500">Renk (zorunlu)</p>
+            <p className="mb-1.5 text-xs font-bold uppercase tracking-wide text-slate-500">{tc("dayEdit.colorLabel")}</p>
             <div className="flex flex-wrap gap-2">
               {CUPPING_DAY_COLOR_ORDER.map((key) => {
                 const def = CUPPING_DAY_COLORS[key];
@@ -218,8 +221,8 @@ export function BulkDateSelector({
                     type="button"
                     onClick={() => setColorKey(key)}
                     aria-pressed={active}
-                    aria-label={def.labelTr}
-                    title={def.labelTr}
+                    aria-label={names.colorLabel(key)}
+                    title={names.colorLabel(key)}
                     className={[
                       "h-8 w-8 rounded-full border-2 outline-none transition focus-visible:ring-2 focus-visible:ring-amber-400/70",
                       def.swatch,
@@ -230,8 +233,7 @@ export function BulkDateSelector({
               })}
             </div>
             <p className="mt-1.5 text-[11px] leading-relaxed text-slate-400">
-              Seçtiğiniz renk yalnızca bu toplu işlemle <span className="font-semibold">yeni eklenen</span> günlere
-              uygulanır; mevcut günlerin rengini değiştirmez.
+              {t.rich("colorHint", { b: (c) => <span className="font-semibold">{c}</span> })}
             </p>
           </div>
 
@@ -239,14 +241,14 @@ export function BulkDateSelector({
           <div className="flex flex-col gap-2 border-t border-slate-100 pt-3 sm:flex-row sm:items-center sm:justify-between">
             <span className="text-sm font-semibold text-slate-600" aria-live="polite">
               {!hasAnyCriteria(criteria)
-                ? "Ölçüt seçilmedi"
+                ? t("noCriteria")
                 : colorKey === null
-                  ? `${preview.length} gün eşleşti — renk seçin`
-                  : `${preview.length} gün eşleşti`}
+                  ? t("matchedNeedColor", { count: String(preview.length) })
+                  : t("matched", { count: String(preview.length) })}
             </span>
             <div className="flex gap-2">
               <button type="button" className={`${kupaBtnGhost} min-h-[40px]`} onClick={reset}>
-                Temizle
+                {t("clear")}
               </button>
               <button
                 type="button"
@@ -254,7 +256,7 @@ export function BulkDateSelector({
                 onClick={apply}
                 disabled={!canApply}
               >
-                Seçime Ekle
+                {t("add")}
               </button>
             </div>
           </div>

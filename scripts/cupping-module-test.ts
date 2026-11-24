@@ -1496,7 +1496,8 @@ function run(): void {
     // ── Gregoryen + Hicrî HER GÜN, TAM ay adı (korunur) ──────────────────────────
     ok(/from "@\/lib\/cupping\/hijri"/.test(mcSrc) && /monthHijriCells/.test(mcSrc),
       "faz5-a3: takvim ızgarası lib/cupping/hijri.ts kullanır (Hicrî türetilir)");
-    ok(/hijri\.day/.test(mcSrc) && /hijri\.monthName/.test(mcSrc) && /hijri\.year/.test(mcSrc),
+    // I18N 2026-11-25: Hicrî ay ADI artık ekran dilinde names.hijriMonth(hijri.month) ile (tr = HIJRI_MONTHS_TR birebir; hesap aynı).
+    ok(/hijri\.day/.test(mcSrc) && (/hijri\.monthName/.test(mcSrc) || /names\.hijriMonth\(cell\.hijri\.month\)/.test(mcSrc)) && /hijri\.year/.test(mcSrc),
       "faz5-a3: her gün Gregoryen + TAM Hicrî (gün + ay adı + yıl) gösterir");
     ok(!/shortHijriMonth/.test(mcSrc) && !/\.slice\(0,\s*3\)/.test(mcSrc),
       "faz5-a3: Hicrî ay adı KISALTILMAZ (görünür tam ad)");
@@ -1599,7 +1600,8 @@ function run(): void {
       "faz5-cell: cellState.ts'de sunnah/golden durumu YOK (kaldırıldı)");
     ok(!/>\s*Seçili\s*</.test(mcSrc) && /Kaydedilecek/.test(mcSrc) && /Kaldırılacak/.test(mcSrc),
       "faz5/5-cell: KAYDEDİLMİŞ günde görünür 'Seçili' YAZISI YOK (Kaydedilecek/Kaldırılacak korunur)");
-    ok(/sr-only/.test(mcSrc) && /cuppingCellBadge/.test(mcSrc),
+    // I18N 2026-11-25: rozet names.badge() üzerinden (tr = cuppingCellBadge birebir).
+    ok(/sr-only/.test(mcSrc) && (/cuppingCellBadge/.test(mcSrc) || /names\.badge\(state\.kind\)/.test(mcSrc)),
       "faz5/5-cell: seçim durumu ekran-okuyucu için sr-only rozetle korunur (renk TEK sinyal değil)");
     ok(/getCuppingCellState/.test(mcSrc) && /getCuppingCellState/.test(annualSrc),
       "faz5-cell: Aylık + Yıllık durumu paylaşılan getCuppingCellState'ten türetir (tek doğruluk)");
@@ -1735,7 +1737,8 @@ function run(): void {
     ok(JSON.stringify(h1) === JSON.stringify(sortedUniq), "faz5-bulk: sonuç artan + tekil");
 
     // ── FULL HICRI NAME + preservation regression shield ─────────────────────────
-    ok(/hijri\.day/.test(mcSrc) && /hijri\.monthName/.test(mcSrc) && /hijri\.year/.test(mcSrc),
+    // I18N 2026-11-25: Hicrî ay ADI artık ekran dilinde names.hijriMonth(hijri.month) ile (tr = HIJRI_MONTHS_TR birebir; hesap aynı).
+    ok(/hijri\.day/.test(mcSrc) && (/hijri\.monthName/.test(mcSrc) || /names\.hijriMonth\(cell\.hijri\.month\)/.test(mcSrc)) && /hijri\.year/.test(mcSrc),
       "faz5-final: TAM Hicrî ad korunur (aylık hücre)");
     ok(!/shortHijriMonth/.test(mcSrc) && !/\.slice\(0,\s*3\)/.test(mcSrc),
       "faz5-final: Hicrî ay adı KISALTILMAZ");

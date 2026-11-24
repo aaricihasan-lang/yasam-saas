@@ -8,7 +8,7 @@
  *   - metin katalogda yoksa / anahtar yanlışsa test yine FAIL eder (gevşetme yok),
  *   - TR değeri kaynak metinle birebir olduğundan eski regex'ler aynen geçerlidir.
  * Çözülen çağrılar: `const X = useTranslations("ns")` / `await getTranslations("ns")` ile tanımlanan X için
- * `X("düz.anahtar")` ve `X("düz.anahtar", {...})` (yer tutucu adları `{ad}` olarak kalır). Şablon anahtarlar
+ * `X("düz.anahtar")`, `X("düz.anahtar", {...})` ve `X.rich(…)` (yer tutucu adları `{ad}`, etiketler `<b>…</b>` olarak kalır). Şablon anahtarlar
  * (`X(\`a.${b}\`)`) çözülmez.
  */
 import { readFileSync, readdirSync } from "node:fs";
@@ -60,7 +60,7 @@ export function resolveTrSource(src: string): string {
       const val = trValue(`${ns}.${key}`);
       return val === undefined ? whole : `="${val}"`;
     });
-    const call = new RegExp(String.raw`(?<![\w$.])${esc}\(\s*["']([^"'${"`"}]+)["']\s*(?:,[^()]*(?:\([^()]*\)[^()]*)*)?\)`, "g");
+    const call = new RegExp(String.raw`(?<![\w$.])${esc}(?:\.rich)?\(\s*["']([^"'${"`"}]+)["']\s*(?:,[^()]*(?:\([^()]*\)[^()]*)*)?\)`, "g");
     out = out.replace(call, (whole, key: string) => {
       const val = trValue(`${ns}.${key}`);
       // Değer çift tırnak içinde döner (ham, kaçışsız): eski `title="X"` / `"X"` kalıpları da eşleşir.
