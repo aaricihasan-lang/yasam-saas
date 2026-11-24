@@ -852,6 +852,21 @@
       "resetOneDone": "\"{name}\" sistem değerlerine döndürüldü.",
       "resetBlocked": "Sistem değerine döndürülebilecek besin yok. Şu besinler rehberlerde kullanıldığı için önce rehberden kaldırılmalı: {list}.",
       "backToList": "Listeye Dön"
+    },
+    "shell": {
+      "redirecting": "Yönlendiriliyorsunuz…",
+      "unverified": "Erişim şu an doğrulanamadı. Oturumunuz açık; lütfen tekrar deneyin.",
+      "retry": "Tekrar Dene",
+      "verifying": "Erişim doğrulanıyor…",
+      "eyebrow": "Beslenme & Metabolik Yaşam",
+      "backLabel": "Beslenme Merkezi",
+      "loading": "Yükleniyor…",
+      "bloodTitle": "Kan Grubuna Göre Beslenme",
+      "bloodSubtitle": "0, A, B ve AB kan grupları için beslenme profilleri. Her profil bölümler, ilişkili besinler ve kaynaklarla yapılandırılır.",
+      "bloodZero": "0 (Sıfır)",
+      "bloodSub": "Kan Grubu",
+      "mizacTitle": "Mizaca Göre Beslenme",
+      "mizacSubtitle": "Geleneksel dört mizaç (Dem, Safra, Sovdavi, Balgam) için beslenme profilleri. Her profil bölümler, ilişkili besinler ve kaynaklarla yapılandırılır."
     }
   }
 }

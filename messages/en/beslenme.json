@@ -852,6 +852,21 @@
       "resetOneDone": "\"{name}\" was reverted to system values.",
       "resetBlocked": "There are no foods that can be reverted to system values. These foods are used in guides and must first be removed from them: {list}.",
       "backToList": "Back to List"
+    },
+    "shell": {
+      "redirecting": "Redirecting…",
+      "unverified": "Access could not be verified right now. You are still signed in; please try again.",
+      "retry": "Try Again",
+      "verifying": "Verifying access…",
+      "eyebrow": "Nutrition & Metabolic Living",
+      "backLabel": "Nutrition Centre",
+      "loading": "Loading…",
+      "bloodTitle": "Nutrition by Blood Type",
+      "bloodSubtitle": "Nutrition profiles for blood types 0, A, B and AB. Each profile is structured with sections, related foods and sources.",
+      "bloodZero": "0 (Zero)",
+      "bloodSub": "Blood Type",
+      "mizacTitle": "Nutrition by Temperament",
+      "mizacSubtitle": "Nutrition profiles for the four traditional temperaments (Dem, Safra, Sovdavi, Balgam). Each profile is structured with sections, related foods and sources."
     }
   }
 }

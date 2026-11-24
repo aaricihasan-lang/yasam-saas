@@ -4,6 +4,7 @@
  * Canonical 4 mizaç (MIZAC_PROFILES) ORTAK ProfileTopicPage ile gösterilir.
  */
 import { Compass } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { MIZAC_PROFILES } from "@/lib/beslenme/contracts";
 import {
   BeslenmeGate,
@@ -19,14 +20,15 @@ const PROFILES: CanonicalProfile[] = MIZAC_PROFILES.map((p) => ({
 
 export default function MizacPage() {
   const guard = useBeslenmeModuleGuard();
+  const ts = useTranslations("beslenme.shell");
   if (guard !== "ok") return <BeslenmeGate state={guard} />;
 
   return (
     <ProfileTopicPage
       frameworkCode="mizac"
       profiles={PROFILES}
-      title="Mizaca Göre Beslenme"
-      subtitle="Geleneksel dört mizaç (Dem, Safra, Sovdavi, Balgam) için beslenme profilleri. Her profil bölümler, ilişkili besinler ve kaynaklarla yapılandırılır."
+      title={ts("mizacTitle")}
+      subtitle={ts("mizacSubtitle")}
       icon={<Compass className="h-32 w-32" strokeWidth={1} />}
     />
   );
