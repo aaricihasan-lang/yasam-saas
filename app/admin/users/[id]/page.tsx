@@ -115,6 +115,8 @@ import { DEFAULT_MEMBER_DETAIL_TAB, memberDetailTabFromHash, type MemberDetailTa
 import detailCss from "@/components/admin/members/detail/MemberDetailV2.module.css";
 import { TrialCreditPanel, TrialStatePanel, useTrialManagement } from "@/components/admin/members/detail/TrialManagementPanel";
 import { MemberUnarchiveDialog } from "@/components/admin/members/detail/MemberUnarchiveDialog";
+import { MemberMfaPanel } from "@/components/admin/members/detail/MemberMfaPanel";
+import OwnerStepUpDialog from "@/components/admin/OwnerStepUpDialog";
 
 const panelClass =
   "rounded-[28px] border-2 border-white/80 bg-white/90 p-6 shadow-[0_18px_50px_rgba(15,23,42,0.08)] backdrop-blur-xl sm:p-8";
@@ -698,6 +700,10 @@ export default function AdminUserDetailPage() {
   const [actionUserId, setActionUserId] = useState<string | null>(null);
   const [savingEdit, setSavingEdit] = useState(false);
   const [savingPassword, setSavingPassword] = useState(false);
+  // F2-I: parola sıfırlama için Owner'ın işleme özel doğrulaması (telefon QR / e-posta kodu).
+  const [passwordStepUp, setPasswordStepUp] = useState<string | null>(null);
+  // GİRİŞ GÜVENLİĞİ F2-K (N2): yönetici yetkisi verme (uzman → yönetici, pasif yönetici → etkin) işleme özel doğrulama ister.
+  const [adminGrantStepUp, setAdminGrantStepUp] = useState<{ target: string; retry: "edit" | "activate" } | null>(null);
   // MEM-007: anahtar bazlı kayıt — aynı anda yalnız ilgili anahtar kilitlenir.
   const [modulePendingKeys, setModulePendingKeys] = useState<Set<AdminModuleUiKey>>(() => new Set());
   // Gökyüzü Atlası teknik izinleri: Astroloji anahtarı AÇILIRKEN modül hemen kaydedilmez; sağdan panel açılır (sayaç = açma isteği).
@@ -1173,8 +1179,13 @@ export default function AdminUserDetailPage() {
         role: editForm.role,
       }),
     });
-    const json = (await res.json().catch(() => ({}))) as { ok?: boolean; changed?: boolean; error?: string };
+    const json = (await res.json().catch(() => ({}))) as { ok?: boolean; changed?: boolean; error?: string; code?: string; action?: string; target?: string };
     setSavingEdit(false);
+
+    if (!res.ok && json.code === "STEP_UP_REQUIRED" && json.action === "admin_grant" && typeof json.target === "string") {
+      setAdminGrantStepUp({ target: json.target, retry: "edit" });
+      return;
+    }
 
     if (!res.ok || !json.ok) {
       showToast({ title: "İşlem başarısız", message: json.error ?? "Güncelleme başarısız.", type: "error" });
@@ -1243,10 +1254,16 @@ export default function AdminUserDetailPage() {
     const json = (await res.json().catch(() => ({}))) as {
       ok?: boolean;
       error?: string;
+      code?: string;
+      target?: string;
       revokedSessionCount?: number;
     };
     setSavingPassword(false);
 
+    if (!res.ok && json.code === "STEP_UP_REQUIRED" && typeof json.target === "string") {
+      setPasswordStepUp(json.target);
+      return;
+    }
     if (!res.ok || !json.ok) {
       showToast({ title: "İşlem başarısız", message: json.error ?? "Parola güncellenemedi.", type: "error" });
       return;
@@ -1276,6 +1293,10 @@ export default function AdminUserDetailPage() {
       error?: string;
     };
     setActionUserId(null);
+    if (!res.ok && json.code === "STEP_UP_REQUIRED" && json.action === "admin_grant" && typeof json.target === "string") {
+      setAdminGrantStepUp({ target: json.target, retry: "activate" });
+      return null;
+    }
     if (!res.ok || !json.ok) {
       showToast({ title: "İşlem başarısız", message: json.error ?? "İşlem başarısız.", type: "error" });
       if (res.status === 409) await loadUser(currentAdminId);
@@ -3268,6 +3289,8 @@ export default function AdminUserDetailPage() {
                 </button>
               </p>
             </section>
+            {/* ── 1b. İki Aşamalı Giriş Yönetimi (YALNIZ Owner; yetki sunucuda + DB'de) ── */}
+            <MemberMfaPanel userId={user.id} />
             {/* ── 2. Aktif Cihazlar & Güvenlik Özeti ─────────────────────── */}
             <section className={`${panelClass} border-sky-200/80 bg-gradient-to-br from-sky-50/90 via-white to-cyan-50/60`}>
               <button
@@ -4221,6 +4244,29 @@ export default function AdminUserDetailPage() {
             </div>
           </div>
         </div>
+      ) : null}
+
+      {adminGrantStepUp ? (
+        <OwnerStepUpDialog
+          action="admin_grant"
+          targetId={adminGrantStepUp.target}
+          onVerified={() => {
+            const retry = adminGrantStepUp.retry;
+            setAdminGrantStepUp(null);
+            if (retry === "edit") void saveEdit();
+            else void doToggleActive();
+          }}
+          onCancel={() => setAdminGrantStepUp(null)}
+        />
+      ) : null}
+
+      {passwordStepUp ? (
+        <OwnerStepUpDialog
+          action="password_reset"
+          targetId={passwordStepUp}
+          onVerified={() => { setPasswordStepUp(null); void savePassword(); }}
+          onCancel={() => setPasswordStepUp(null)}
+        />
       ) : null}
 
       {/* ── AŞAMA 4a: arşivden çıkar (ayrı bileşen; hesap pasif kalır) ───────────── */}

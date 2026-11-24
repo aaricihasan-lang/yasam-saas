@@ -594,6 +594,38 @@ export const BACKUP_REGISTRY: readonly RegistryEntry[] = [
   // AUTH-01 (migration 20271120001000): e-posta özeti + IP güven kaydı; tenant_id YOK, yalnız auth_login_guarded
   // yazar. Tenant yedeğinden geri yüklenmesi e-posta kilidini atlatacak "güvenilen IP" enjeksiyonu olurdu.
   off("auth_login_trusted", "system", "Giriş güven kaydı (e-posta özeti + IP; güvenlik).", "none"),
+  // GİRİŞ GÜVENLİĞİ F2-B (migration 20280103000100): MFA challenge'ları (bağlama sırrı özeti) ve Owner'ın
+  // test hesabı izin listesi; tenant_id YOK, yalnız SECURITY DEFINER RPC'ler yazar. Geri yükleme bir
+  // challenge'ı/izni yeniden canlandırıp MFA'yı atlatma yolu olurdu → yedeğe GİRMEZ.
+  off("auth_mfa_challenges", "system", "MFA giriş challenge'ları (güvenlik; kısa ömürlü).", "none"),
+  off("auth_mfa_test_accounts", "system", "MFA kontrollü test hesabı izin listesi (Owner; güvenlik).", "none"),
+  // GİRİŞ GÜVENLİĞİ F2-C (migration 20280103000300): güvenilir cihaz açık anahtarları, Owner kararları ve
+  // Owner ilk cihaz kodları — geri yükleme iptal edilmiş bir cihazı/kodu canlandırıp MFA'yı atlatabilirdi.
+  off("auth_trusted_devices", "system", "Güvenilir Android cihazı kayıtları (güvenlik).", "none"),
+  off("auth_device_decisions", "system", "Cihaz eşleştirme karar kaydı (güvenlik; değiştirilemez).", "none"),
+  off("auth_owner_bootstrap_codes", "system", "Owner ilk cihaz kodları (güvenlik; tek kullanımlık).", "none"),
+  // GİRİŞ GÜVENLİĞİ F2-D (migration 20280103000400): e-posta kodu özetleri (HMAC) ve gönderim kaydı (alıcı
+  // özeti). Geri yükleme kullanılmış/kilitli bir kodu canlandırabilir veya kota sayacını sıfırlayabilirdi.
+  off("auth_email_otps", "system", "E-posta doğrulama kodu özetleri (güvenlik; kısa ömürlü).", "none"),
+  off("auth_email_deliveries", "system", "Doğrulama e-postası gönderim kaydı (kota/denetim; adres yok).", "none"),
+  // GİRİŞ GÜVENLİĞİ F2-E (migration 20280103000500): kurtarma kodu özetleri, deneme sayaçları, değiştirilemez
+  // kurtarma denetim kaydı, Owner kurtarma talepleri, e-posta değişikliği ve telefon değişimi istekleri.
+  // Geri yükleme kullanılmış/iptal edilmiş bir kodu canlandırabilir veya 72 saat beklemeyi atlatabilirdi.
+  off("auth_recovery_codes", "system", "Kurtarma kodu özetleri (güvenlik; düz kod yok).", "none"),
+  off("auth_recovery_attempts", "system", "Kurtarma kodu deneme sayacı (güvenlik).", "none"),
+  off("auth_recovery_events", "system", "Hesap kurtarma denetim kaydı (güvenlik; değiştirilemez).", "none"),
+  off("auth_recovery_cases", "system", "Owner aracılı hesap kurtarma talepleri (güvenlik).", "none"),
+  off("auth_email_change_requests", "system", "E-posta adresi değişikliği istekleri (güvenlik; kısa ömürlü).", "none"),
+  off("auth_device_replacements", "system", "Telefon değişimi işaretleri (güvenlik; kısa ömürlü).", "none"),
+  // GİRİŞ GÜVENLİĞİ F2-G (migration 20280103000700): denetim kayıtları saklama politikası (hukuki karar kaydı).
+  off("auth_audit_retention_policy", "system", "Denetim kayıtları saklama politikası (Owner / hukuk kararı).", "none"),
+  // GİRİŞ GÜVENLİĞİ F2-H (migration 20280103000800): kontrollü imha çalıştırmaları, yasal saklama, imha kaydı.
+  off("auth_retention_runs", "system", "Denetim kaydı imha / anonimleştirme çalıştırmaları (güvenlik).", "none"),
+  off("auth_retention_holds", "system", "Yasal saklama (imhadan muaf kişi / cihaz).", "none"),
+  off("auth_session_device_proofs", "system", "Android yönetici oturumu cihaz kanıtı nonce'ları (tek kullanımlık, güvenlik).", "none"),
+  off("auth_legacy_session_policy", "system", "Eski süresiz Android oturumları geçiş politikası (tek satır, güvenlik).", "none"),
+  off("auth_retention_context", "system", "Yürüyen imha işaretçisi (işlem içi; kalıcı satır yok).", "none"),
+  off("auth_retention_log", "system", "İmha / saklama işlem kaydı (değiştirilemez; kişisel veri yok).", "none"),
   // Migration 20271009100000: purge transaction'ına bağlı işaret; aynı tx'te yazılıp silinir, hiçbir role açık değil.
   off("session_limit_exceptions", "system", "Geçici test hesabı oturum-limiti istisnası (TEMPORARY — satış sonrası kaldırılacak).", "none"),
   off("auth_rate_limit_events", "system", "Global DB tabanlı istek hız sınırı olayları (güvenlik).", "none"),

@@ -49,7 +49,8 @@ g.window = globalThis;
 let ua = WEB_UA;
 let transportAttr: string | null = "cookie";
 Object.defineProperty(globalThis, "navigator", { configurable: true, get: () => ({ userAgent: ua }) });
-g.document = { documentElement: { getAttribute: (n: string) => (n === "data-session-transport" ? transportAttr : null) } };
+// F2-K (A3): sunucu token yolunu yalnız resmî uygulamaya seçer ve <html data-android-token> ile bildirir (ANDROID senaryosu).
+g.document = { documentElement: { getAttribute: (n: string) => (n === "data-session-transport" ? transportAttr : n === "data-android-token" ? (ua === ANDROID_UA ? "" : null) : null) } };
 type Call = { url: string; method: string; headers: Record<string, string>; tokenStoredAtCall: boolean };
 let calls: Call[] = [];
 let respond: (url: string, method: string) => Response | Promise<Response> = () => new Response("{}", { status: 200 });
@@ -200,7 +201,8 @@ async function main() {
     const r = read("app/api/auth/session/route.ts");
     assert.ok(/\.\.\.\(webCookieOnly \? \{ sessionCookie: true \} : \{ sessionToken \}\)/.test(r));
     assert.ok(/const webCookieOnly = webCookieSession && readWebSessionTransport\(\) === "cookie";/.test(r));
-    assert.ok(/result\.channel !== "android_app" &&\s*!isAndroidAppRequest\(req\.headers\)/.test(r));
+    // F2-K (A3): android_app kanalı yalnız ANDROID_APP_SESSION_TRANSPORT=cookie (opt-in) iken çerez alır.
+    assert.ok(/\(result\.channel !== "android_app" \|\| androidAppSessionTransport\(\) === "cookie"\) &&\s*!isAndroidAppRequest\(req\.headers\)/.test(r));
   });
   await t("URL/query token geri gelmedi (session GET başlık/cookie)", () => {
     assert.ok(!/searchParams\.get\("token"\)/.test(read("app/api/auth/session/route.ts")));
@@ -208,8 +210,9 @@ async function main() {
   await t("completeLogin token yoksa saveSessionToken çağırmaz", () => {
     assert.ok(/if \(sessionToken\) saveSessionToken\(sessionToken\);/.test(read("app/page.tsx")));
   });
-  await t("Android oturum politikası değişmedi (no-expiry satırı)", () => {
-    assert.ok(read("lib/auth/sessionSecurity.ts").includes('p_expires_at: clientChannel === "android_app" ? null : computeSessionExpiresAt(lr?.role),'));
+  await t("Android oturum politikası yalnız onaylı F2-A satırı (30 gün)", () => {
+    // Owner 2026-11-15 F2-A: yeni android_app oturumları süreli (önceden no-expiry satırı).
+    assert.ok(read("lib/auth/sessionSecurity.ts").includes('p_expires_at: clientChannel === "android_app" ? computeAndroidSessionExpiresAt() : computeSessionExpiresAt(lr?.role),'));
   });
 
   console.log(`httponly-h6b harness: ${pass} PASS / ${fail} FAIL`);

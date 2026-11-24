@@ -241,9 +241,13 @@ async function main(): Promise<void> {
     ok(mapDbUser(nu).membershipDisplay.packageLabel === "Premium", "gösterge: Premium");
     ok((await create({ fullName: "ZZ Tekrar", email: "ZZ.P2.NEW1@example.test", password: "abcd123456", role: "expert", modules: ["clients"] })).status === 409, "yinelenen e-posta (büyük harf) → 409");
     ok((await create({ fullName: "ZZ Admin", email: "zz.p2.adm@example.test", password: "abcd123456", role: "admin" }, asAdmin2)).status === 403, "normal admin yönetici oluşturamaz → 403");
+    // GİRİŞ GÜVENLİĞİ F2-K (N2): YÖNETİCİ oluşturma yalnız Owner'ın işleme özel kanıtıyla (QR / e-posta kodu; DB fonksiyonu
+    // auth_admin_create_admin kanıtı tüketir). Kanıtsız istek — çalınmış Owner oturumu senaryosu — YÖNETİCİ OLUŞTURAMAZ.
+    // Kanıtlı olumlu yol (201, yeni yöneticide MFA zorunlu, kanıt tek kullanım) scripts/giris-guvenligi/f2k-yonetici.harness.ts'te
+    // gerçek F2 zinciriyle sınanır; bu test DB'si F2 şemasını içermez → kanıtsız istek güvenli tarafta reddedilir.
     const ca = await create({ fullName: "ZZ Yeni Yönetici", email: "zz.p2.adm@example.test", password: "abcd123456", role: "admin" });
-    const na = await row(String(ca.json.userId ?? ""));
-    ok(ca.status === 201 && na.role === "admin" && na.active === true && na.approved_at !== null && na.trial_ends_at === null, "ana yönetici yönetici oluşturur: approved_at dolu, trial yok");
+    const adminRows = (await su.query(`select count(*)::int n from public.users where lower(email)='zz.p2.adm@example.test'`)).rows[0].n;
+    ok(ca.status !== 201 && !ca.json.userId && adminRows === 0, `ana yönetici KANITSIZ yönetici oluşturamaz (F2-K step-up): ${ca.status}, hesap oluşmadı`);
     // Atomiklik: onay adımı patlarsa kullanıcı/tenant da geri alınır.
     await su.query(`create function public._boom2() returns trigger language plpgsql as $$ begin if new.action = 'user_approved' then raise exception 'boom'; end if; return new; end $$;
                     create trigger _boom2_t before insert on public.admin_audit_log for each row execute function public._boom2();`);

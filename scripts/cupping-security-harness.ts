@@ -261,12 +261,12 @@ async function run() {
     ],
   });
   // P1-3: süre zorlaması varsayılan AÇIK → touch_active_session RPC'si olmayan sahte DB'de
-  // doğrulama fail-closed (null). Aşağıdaki select tabanlı yedek yol YALNIZ kill-switch
-  // (SESSION_EXPIRY_ENFORCE=0) ile kullanılır; o yolun kontratı burada korunur.
+  // doğrulama fail-closed (null). F2-A (D-03): select tabanlı yedek yol KALDIRILDI — kill-switch
+  // (SESSION_EXPIRY_ENFORCE=0) iken de RPC yoksa null (yedek yoldan doğrulama YOK).
   ok("getActiveSessionUserId: varsayılan (enforce açık) + RPC yok → null (fail-closed)", (await getActiveSessionUserId(sessDb, "tok-ok")) === null);
   const prevEnforce = process.env.SESSION_EXPIRY_ENFORCE;
   process.env.SESSION_EXPIRY_ENFORCE = "0";
-  ok("getActiveSessionUserId (kill-switch yedek yolu): geçerli aktif token → userId", (await getActiveSessionUserId(sessDb, "tok-ok")) === "u1");
+  ok("getActiveSessionUserId (kill-switch): RPC yok → null (F2-A: yedek yol YOK)", (await getActiveSessionUserId(sessDb, "tok-ok")) === null);
   ok("getActiveSessionUserId: revoke edilmiş (is_active=false) → null", (await getActiveSessionUserId(sessDb, "tok-revoked")) === null);
   ok("getActiveSessionUserId: bilinmeyen token → null", (await getActiveSessionUserId(sessDb, "yok")) === null);
   ok("getActiveSessionUserId: boş token → null", (await getActiveSessionUserId(sessDb, "")) === null);

@@ -42,6 +42,7 @@ import { requireDigitalContentUser } from "@/lib/auth/requireUser";
 import {
   getActiveSessionUserId,
   touchActiveSession,
+  resolveActiveSession,
   resolveSessionExpiryPolicy,
   isSessionExpiryEnforced,
   effectiveAllowedLocations,
@@ -194,6 +195,19 @@ function fakeCreateSessionV2(args: Row): unknown {
   return { inserted: true, state: "active", session_id: `s-${tables.user_sessions.length}`, exception_used: false };
 }
 
+/** F2-B (D-04): admin web oturumu artık create_session_admin_web RPC'siyle açılır — önceki doğrudan
+ *  INSERT davranışının birebir sahte karşılığı (aynı cihaz eski token'ı kapanır, yeni oturum aktif). */
+function fakeCreateSessionAdminWeb(args: Row): unknown {
+  if (args.p_replace_token && args.p_replace_token !== args.p_session_token) {
+    for (const s of tables.user_sessions) {
+      if (s.session_token === args.p_replace_token && s.user_id === args.p_user_id && s.is_active === true) {
+        s.is_active = false; s.ended_at = new Date(nowMs).toISOString(); s.end_reason = "replaced_same_device";
+      }
+    }
+  }
+  return fakeCreateSessionV2(args);
+}
+
 const missingRpc = new Set<string>();
 
 function parseFilters(url: URL): ((r: Row) => boolean)[] {
@@ -237,6 +251,7 @@ globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
     if (name === "touch_active_session") return jsonRes(fakeTouch(body));
     if (name === "create_session_within_limits") return jsonRes(fakeCreateSession(body));
     if (name === "create_session_v2") return jsonRes(fakeCreateSessionV2(body));
+    if (name === "create_session_admin_web") return jsonRes(fakeCreateSessionAdminWeb(body));
     if (name === "login_user") {
       const r = fakeAuthLoginGuarded({ ...body, p_ip_hash: "" }) as Row;
       return jsonRes(r.status === "ok" ? [r.user] : []);
@@ -296,6 +311,25 @@ async function run() {
     ok(res.headers.get("cache-control") === "no-store", "login yanıtı no-store");
   }
   {
+    // F2-A (D-01): resmî Android kanalındaki YENİ oturum artık süreli (≈ +30 gün; önceden NULL/süresiz).
+    const req = new NextRequest("http://localhost/api/auth/session", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json", "x-real-ip": "203.0.113.70",
+        "user-agent": "Mozilla/5.0 (Linux; Android 14; Pixel 8 Build/AP1A; wv) AppleWebKit/537.36 Chrome/130.0 Mobile Safari/537.36",
+        "x-requested-with": "com.yasamsistemi.app",
+      },
+      body: JSON.stringify({ email: "uzman@test.com", password: "dogru-parola-1" }),
+    });
+    const res = await sessionPOST(req);
+    const json = (await res.json()) as Record<string, unknown>;
+    const sess = tables.user_sessions.find((s) => s.session_token === json.sessionToken);
+    ok(res.status === 200 && !!sess && sess.client_channel === "android_app", "F2-A: resmî Android girişi android_app kanalında oturum açar");
+    const exp = Date.parse(String(sess?.expires_at ?? ""));
+    ok(Number.isFinite(exp) && exp > nowMs + 29 * 86400_000 && exp < nowMs + 31 * 86400_000,
+      "F2-A: yeni android_app oturumu expires_at ≈ +30 gün (süresiz DEĞİL)");
+  }
+  {
     const wrong = await login("uzman@test.com", "yanlis-1", "198.51.100.1");
     const ghost = await login("hic-yok@test.com", "yanlis-1", "198.51.100.1");
     ok(wrong.res.status === 401 && ghost.res.status === 401, "yanlış şifre ve var olmayan e-posta → 401");
@@ -346,9 +380,15 @@ async function run() {
     ok(!tables.user_sessions.some((s) => s.user_id === U.pending || s.user_id === U.inactive), "gating reddinde oturum satırı oluşmadı");
   }
   {
+    // F2-A (D-05): throttle RPC'si yoksa throttle'sız login_user yedeğine DÜŞÜLMEZ (fail-closed).
     missingRpc.add("auth_login_guarded");
+    const sessionsBefore = tables.user_sessions.length;
+    const loginUserCallsBefore = rpcCalls.filter((c) => c.name === "login_user").length;
     const legacy = await login("pro@test.com", "pro-parola-12");
-    ok(legacy.res.status === 200, "geçiş: auth_login_guarded yoksa login_user (service_role) yedeği çalışır");
+    ok(legacy.res.status === 500 && legacy.json.code === "ERROR" && !legacy.json.sessionToken && !legacy.json.sessionCookie,
+      "F2-A: auth_login_guarded yoksa 500 ERROR, token YOK (login_user yedeği YOK)");
+    ok(rpcCalls.filter((c) => c.name === "login_user").length === loginUserCallsBefore, "F2-A: login_user RPC'si çağrılmadı");
+    ok(tables.user_sessions.length === sessionsBefore, "F2-A: yedeksiz hata yolunda oturum satırı oluşmadı");
     missingRpc.delete("auth_login_guarded");
     ok(isMissingRpcError({ code: "PGRST202", message: "" }, "x") && !isMissingRpcError({ code: "42501", message: "permission denied" }, "x"), "isMissingRpcError yalnız 'fonksiyon yok' için true");
     ok(parseGuardedLoginResponse({ status: "weird" }).status === "error" && parseGuardedLoginResponse(null).status === "error", "bilinmeyen RPC yanıtı → error (fail-closed)");
@@ -381,14 +421,14 @@ async function run() {
       } as unknown as SupabaseClient;
     }
     const old = new Date(Date.now() - 10 * 60_000).toISOString();
-    // Yedek (legacy) yol YALNIZ kill-switch ile (enforce kapalı) kullanılır.
+    // F2-A (D-03): eski select tabanlı yedek yol KALDIRILDI — kill-switch (enforce kapalı) iken de
+    // RPC hatası → null; tabloya doğrudan select/update GİDİLMEZ (session_state/süre atlatılamaz).
     process.env.SESSION_EXPIRY_ENFORCE = "0";
     const uid = await getActiveSessionUserId(lazyDb(old), "tok");
-    ok(uid === "u-lazy", "yedek yol (kill-switch): aktif token → userId");
-    ok(executed.includes("user_sessions:update"), "yedek yol: last_seen_at UPDATE GERÇEKTEN çalıştı (await; `void` regresyonu yok)");
-    executed.length = 0;
-    await getActiveSessionUserId(lazyDb(new Date().toISOString()), "tok");
-    ok(!executed.includes("user_sessions:update"), "throttle: taze last_seen_at → UPDATE yok");
+    ok(uid === null, "F2-A: kill-switch + RPC hatası → null (yedek yol YOK)");
+    ok(!executed.includes("user_sessions:select") && !executed.includes("user_sessions:update"), "F2-A: kill-switch'te de user_sessions'a doğrudan select/update yok");
+    const killSwitchState = await resolveActiveSession(lazyDb(old), "tok");
+    ok(killSwitchState.status === "unavailable", "F2-A: kill-switch + RPC hatası → 'unavailable' (istemci çıkış yaptırılmaz)");
     delete process.env.SESSION_EXPIRY_ENFORCE;
     executed.length = 0;
     ok((await getActiveSessionUserId(lazyDb(old), "tok")) === null && !executed.includes("user_sessions:select"), "VARSAYILAN (enforce açık): RPC hatası → null, yedek yola DÜŞMEZ");

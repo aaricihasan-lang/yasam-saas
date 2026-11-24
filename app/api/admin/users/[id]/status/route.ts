@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { grantAdminRole } from "@/lib/admin/adminGrant";
 import { verifyAdminRequest } from "@/lib/auth/adminGuard";
 import { guardAdminLockoutById, requireMainAdmin, requireMainAdminForAdminTarget } from "@/lib/admin/adminGuards";
 import { jsonNoStore, readLimitedJsonBody } from "@/lib/admin/accountSessionControls";
@@ -286,6 +287,18 @@ export async function POST(req: NextRequest, ctx: RouteContext) {
   if (!willBeActive) {
     const lock = await guardAdminLockoutById(db, id, { willBeActive: false });
     if (!lock.ok) return bad(lock.error, lock.status);
+  }
+
+  // GİRİŞ GÜVENLİĞİ F2-K (N2): pasif YÖNETİCİYİ etkinleştirmek yönetici erişimini geri verir → Owner'ın işleme özel
+  // kanıtı (QR / e-posta kodu) ile, kanıt tüketen DB fonksiyonu üzerinden. Pasifleştirme ve uzman işlemleri değişmez.
+  if (willBeActive) {
+    const { data: tgt } = await db.from("users").select("role").eq("id", id).maybeSingle();
+    if (String((tgt as { role?: unknown } | null)?.role ?? "").trim().toLowerCase() === "admin") {
+      const granted = await grantAdminRole(db, guard.sessionToken, id, "activate", expectedActive);
+      if (!granted.ok) return granted.response;
+      const g = granted.data as { revoked_session_count?: number };
+      return jsonNoStore({ ok: true, active: true, revokedSessionCount: g.revoked_session_count ?? 0 });
+    }
   }
 
   const { data, error } = await db.rpc("admin_set_user_active", {

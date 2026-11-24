@@ -157,7 +157,11 @@ export default function AdminNotificationsPage() {
         ) : (
           <ul>
             {state.rows.map((r) => {
-              const name = r.full_name || r.email || "Silinmiş üye";
+              const name = r.type === "eposta_uyari" ? "Sistem" : r.full_name || r.email || "Silinmiş üye";
+              const href = r.type === "eposta_uyari" ? "/admin/eposta-durumu"
+                : r.type === "cihaz_eslesme" ? "/admin/cihaz-onaylari"
+                  : r.type === "hesap_kurtarma" ? "/admin/hesap-kurtarma"
+                  : r.target_user_id ? `/admin/users/${encodeURIComponent(r.target_user_id)}` : null;
               const st =
                 r.kind === "info"
                   ? r.read ? "Bilgi · okundu" : "Bilgi · yeni"
@@ -180,8 +184,8 @@ export default function AdminNotificationsPage() {
               const cls = "grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1 border-b border-slate-100 px-3 py-2.5 sm:grid-cols-[auto_minmax(0,1fr)_auto] [&>span:last-child]:col-start-2 sm:[&>span:last-child]:col-start-auto";
               return (
                 <li key={r.id} data-owner-history-row data-kind={r.kind}>
-                  {r.target_user_id ? (
-                    <Link href={`/admin/users/${encodeURIComponent(r.target_user_id)}`} className={`${cls} hover:bg-slate-50`}>{body}</Link>
+                  {href ? (
+                    <Link href={href} className={`${cls} hover:bg-slate-50`}>{body}</Link>
                   ) : (
                     <div className={cls}>{body}</div>
                   )}
