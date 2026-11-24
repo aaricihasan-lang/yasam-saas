@@ -26,6 +26,7 @@ import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { createServer } from "node:net";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 import { startTestDb, type TestDb } from "../uye-yonetimi-faz2/testDb";
 import { readMig } from "../uye-yonetimi-360/migrationChain";
 
@@ -200,6 +201,34 @@ async function main(): Promise<void> {
         (select proconfig::text from pg_proc where proname='admin_set_member_access_restriction') cfg`)).rows[0];
     ok(!priv.a1 && !priv.a2 && priv.a3 && !priv.b1 && !priv.b2 && !priv.t1 && priv.sd && /search_path=public, pg_catalog/.test(priv.cfg),
       "EXECUTE yalnız service_role; RPC SECURITY DEFINER + sabit search_path", priv);
+    // Supabase güvenlik manifesti: gerçek drift aracı (manifest.sql → compare.mjs) sentetik DB'de.
+    {
+      await su.query(`create table if not exists storage.buckets (id text primary key, name text, public boolean,
+        file_size_limit bigint, allowed_mime_types text[])`);
+      const manifestSql = readFileSync(path.join(process.cwd(), "scripts/final-hardening/drift/manifest.sql"), "utf8");
+      const { compareManifest } = (await import(pathToFileURL(path.join(process.cwd(), "scripts/final-hardening/drift/compare.mjs")).href)) as
+        { compareManifest: (a: unknown, e: unknown) => { fails: string[]; warnings: string[] } };
+      const full = JSON.parse(readFileSync(path.join(process.cwd(), "supabase/expected-manifest.json"), "utf8"));
+      const NEW_FNS = ["admin_set_member_access_restriction", "member_account_state", "member_access_restriction_archived_guard_trg"];
+      ok(NEW_FNS.every((n) => full.functions_no_client_execute.names.includes(n) && full.functions_no_client_execute.optional.includes(n)),
+        "expected-manifest: 3 yeni fonksiyon functions_no_client_execute (names + optional) listesinde");
+      const expected = { functions_no_client_execute: { names: NEW_FNS, optional: [] } };
+      const actual = (await su.query(manifestSql)).rows;
+      const r = compareManifest(actual, expected);
+      ok(r.fails.length === 0, "drift compare (gerçek manifest.sql çıktısı): yeni fonksiyonlarda anon/authenticated EXECUTE YOK", r.fails);
+      const c = await pool.connect();
+      let neg: { fails: string[] } = { fails: [] };
+      try {
+        await c.query("begin");
+        await c.query(`grant execute on function public.admin_set_member_access_restriction(uuid,uuid,boolean,boolean) to anon`);
+        neg = compareManifest((await c.query(manifestSql)).rows, expected);
+      } finally {
+        await c.query("rollback").catch(() => undefined);
+        c.release();
+      }
+      ok(neg.fails.some((f) => f.includes("admin_set_member_access_restriction") && f.includes("anon")),
+        "drift compare negatif kontrol: anon EXECUTE verilirse FAIL üretir (işlem geri alındı)", neg.fails);
+    }
     const chk = (await su.query(`select pg_get_constraintdef(oid) d from pg_constraint where conname='admin_audit_action_chk'`)).rows[0].d as string;
     const acts = [...chk.matchAll(/'([a-z_]+)'/g)].map((m) => m[1]);
     ok(acts.length === 35 && acts.includes("user_access_restricted") && acts.includes("user_access_unrestricted") && acts.includes("user_unarchived"),
