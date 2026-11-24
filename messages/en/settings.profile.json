@@ -3,13 +3,38 @@
     "profile": {
       "leaveConfirm": "There are unsaved changes on the My Profile tab. If you leave without saving, these changes will be lost. Continue?",
       "fields": {
-        "title": { "label": "Title", "placeholder": "e.g. Specialist Psychological Counsellor" },
-        "organization": { "label": "Organisation / business", "placeholder": "e.g. Yaşam Counselling Centre" },
-        "phone": { "label": "Phone", "placeholder": "e.g. +90 532 123 45 67", "hint": "Digits, spaces and + - ( ) may be used." },
-        "contactEmail": { "label": "Contact email", "placeholder": "e.g. contact@yourdomain.com", "hint": "The address your clients will use to reach you; it may differ from your sign-in email." },
-        "website": { "label": "Website", "placeholder": "https://www.yourdomain.com", "hint": "Only addresses starting with https://." },
-        "bio": { "label": "Short biography", "placeholder": "Describe your areas of expertise and your approach in a few sentences." },
-        "reportNote": { "label": "Report footnote", "placeholder": "e.g. This report is for information purposes; it does not replace medical diagnosis or treatment.", "hint": "Up to 4 lines." }
+        "title": {
+          "label": "Title",
+          "placeholder": "e.g. Specialist Psychological Counsellor"
+        },
+        "organization": {
+          "label": "Organisation / business",
+          "placeholder": "e.g. Yaşam Counselling Centre"
+        },
+        "phone": {
+          "label": "Phone",
+          "placeholder": "e.g. +90 532 123 45 67",
+          "hint": "Digits, spaces and + - ( ) may be used."
+        },
+        "contactEmail": {
+          "label": "Contact email",
+          "placeholder": "e.g. contact@yourdomain.com",
+          "hint": "The address your clients will use to reach you; it may differ from your sign-in email."
+        },
+        "website": {
+          "label": "Website",
+          "placeholder": "https://www.yourdomain.com",
+          "hint": "Only addresses starting with https://."
+        },
+        "bio": {
+          "label": "Short biography",
+          "placeholder": "Describe your areas of expertise and your approach in a few sentences."
+        },
+        "reportNote": {
+          "label": "Report footnote",
+          "placeholder": "e.g. This report is for information purposes; it does not replace medical diagnosis or treatment.",
+          "hint": "Up to 4 lines."
+        }
       },
       "fieldErrors": {
         "notText": "Must be text.",
@@ -115,7 +140,19 @@
           "coverAria": "Cover preview",
           "signatureAria": "Signature card preview",
           "expertLogoAlt": "Expert logo"
+        },
+        "preflight": {
+          "empty": "The file appears to be empty. Choose another image.",
+          "heic": "HEIC format is not supported. Share the photo as JPEG from your phone or choose the \"Most Compatible\" format in your camera settings; then upload a JPEG, PNG or WebP file.",
+          "type": "Only JPEG, PNG or WebP images can be uploaded.",
+          "size": "The image is too large. The logo can be at most {max} MB."
         }
+      },
+      "apiCodes": {
+        "PROFILE_UNAVAILABLE": "The profile is not available right now. Please try again later.",
+        "LOGO_ASSET_INVALID": "The logo could not be found or is not available. Select it again from the list.",
+        "LOGO_ACCESS_OFF": "Logo selection uses the Personal Digital Office image area; it is not currently enabled on your account.",
+        "LOGO_ACCESS_ERROR": "Access could not be verified. Please try again later."
       }
     }
   }

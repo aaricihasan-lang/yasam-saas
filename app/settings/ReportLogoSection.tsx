@@ -14,11 +14,13 @@
  *   sonunda uzman logolu imza kartı, alt bilgide kurum. Uzman logosu her zaman İKİNCİLDİR (Yaşam Sistemi logosu korunur).
  */
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { AlertTriangle, Check, ImageIcon, Loader2, RotateCcw, Upload } from "lucide-react";
 import { fetchLogo, saveLogo, type LogoView } from "@/lib/profile/client";
 import type { LogoSourceValue } from "@/lib/profile/logoSchema";
 import { fetchAssetBlobUrl, listAssets, preflightFile, uploadAsset, type AssetView } from "@/lib/workspace/client";
+import { ASSET_MAX_BYTES } from "@/lib/workspace/catalog";
+import { useProfileErrorText } from "./ProfileSettingsTab";
 
 export type ReportPreviewIdentity = {
   fullName: string | null;
@@ -63,6 +65,8 @@ export function ReportLogoSection({
   onDirtyChange?: (dirty: boolean) => void;
 }) {
   const t = useTranslations("settings.profile.logo");
+  const locale = useLocale();
+  const errorText = useProfileErrorText();
   const idBase = useId().replace(/:/g, "");
   const [load, setLoad] = useState<{ status: "loading" } | { status: "error"; message: string } | { status: "ready" }>({ status: "loading" });
   const [view, setView] = useState<LogoView | null>(null);
@@ -144,7 +148,7 @@ export function ReportLogoSection({
         setNotice({ tone: "error", text: t("demo") });
       } else {
         if (r.code === "LOGO_ASSET_INVALID") setAssets({ status: "idle", items: [] });
-        setNotice({ tone: "error", text: r.error });
+        setNotice({ tone: "error", text: errorText(r) });
       }
     } finally {
       setSaving(false);
@@ -156,7 +160,11 @@ export function ReportLogoSection({
     e.target.value = "";
     if (!file) return;
     const pre = preflightFile(file, "logo");
-    if (!pre.ok) { setUpload({ busy: false, pct: 0, error: pre.message }); return; }
+    if (!pre.ok) {
+      const msg = locale === "tr" ? pre.message : t(`preflight.${pre.reason}`, { max: String(Math.round(ASSET_MAX_BYTES.logo / (1024 * 1024))) });
+      setUpload({ busy: false, pct: 0, error: msg });
+      return;
+    }
     setUpload({ busy: true, pct: 0, error: null });
     setNotice(null);
     try {
@@ -167,7 +175,7 @@ export function ReportLogoSection({
         setUpload({ busy: false, pct: 0, error: null });
         setNotice({ tone: "warn", text: t("uploadedSelected") });
       } else {
-        setUpload({ busy: false, pct: 0, error: r.kind === "off" ? t("uploadOff") : r.error });
+        setUpload({ busy: false, pct: 0, error: r.kind === "off" ? t("uploadOff") : locale === "tr" ? r.error : r.kind === "error" && r.status === 0 ? errorText(r) : t("uploadFailed") });
       }
     } catch {
       setUpload({ busy: false, pct: 0, error: t("uploadFailed") });

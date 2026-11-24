@@ -3,13 +3,38 @@
     "profile": {
       "leaveConfirm": "Profilim sekmesinde kaydedilmemiş değişiklikler var. Kaydetmeden ayrılırsanız bu değişiklikler kaybolur. Devam edilsin mi?",
       "fields": {
-        "title": { "label": "Unvan", "placeholder": "ör. Uzman Psikolojik Danışman" },
-        "organization": { "label": "Kurum / işletme", "placeholder": "ör. Yaşam Danışmanlık Merkezi" },
-        "phone": { "label": "Telefon", "placeholder": "ör. +90 532 123 45 67", "hint": "Rakam, boşluk ve + - ( ) kullanılabilir." },
-        "contactEmail": { "label": "İletişim e-postası", "placeholder": "ör. iletisim@alanadi.com", "hint": "Danışanlarınızın size ulaşacağı adres; giriş e-postanızdan farklı olabilir." },
-        "website": { "label": "İnternet sitesi", "placeholder": "https://www.alanadi.com", "hint": "Yalnız https:// ile başlayan adresler." },
-        "bio": { "label": "Kısa biyografi", "placeholder": "Uzmanlık alanlarınızı ve yaklaşımınızı birkaç cümleyle anlatın." },
-        "reportNote": { "label": "Rapor dipnotu", "placeholder": "ör. Bu rapor bilgilendirme amaçlıdır; tıbbi tanı ve tedavinin yerini tutmaz.", "hint": "En fazla 4 satır." }
+        "title": {
+          "label": "Unvan",
+          "placeholder": "ör. Uzman Psikolojik Danışman"
+        },
+        "organization": {
+          "label": "Kurum / işletme",
+          "placeholder": "ör. Yaşam Danışmanlık Merkezi"
+        },
+        "phone": {
+          "label": "Telefon",
+          "placeholder": "ör. +90 532 123 45 67",
+          "hint": "Rakam, boşluk ve + - ( ) kullanılabilir."
+        },
+        "contactEmail": {
+          "label": "İletişim e-postası",
+          "placeholder": "ör. iletisim@alanadi.com",
+          "hint": "Danışanlarınızın size ulaşacağı adres; giriş e-postanızdan farklı olabilir."
+        },
+        "website": {
+          "label": "İnternet sitesi",
+          "placeholder": "https://www.alanadi.com",
+          "hint": "Yalnız https:// ile başlayan adresler."
+        },
+        "bio": {
+          "label": "Kısa biyografi",
+          "placeholder": "Uzmanlık alanlarınızı ve yaklaşımınızı birkaç cümleyle anlatın."
+        },
+        "reportNote": {
+          "label": "Rapor dipnotu",
+          "placeholder": "ör. Bu rapor bilgilendirme amaçlıdır; tıbbi tanı ve tedavinin yerini tutmaz.",
+          "hint": "En fazla 4 satır."
+        }
       },
       "fieldErrors": {
         "notText": "Metin olmalı.",
@@ -115,7 +140,19 @@
           "coverAria": "Kapak önizlemesi",
           "signatureAria": "İmza kartı önizlemesi",
           "expertLogoAlt": "Uzman logosu"
+        },
+        "preflight": {
+          "empty": "Dosya boş görünüyor. Başka bir görsel seçin.",
+          "heic": "HEIC biçimi desteklenmiyor. Telefonunuzda fotoğrafı JPEG olarak paylaşın veya kamera ayarından \"En uyumlu\" biçimi seçin; ardından JPEG, PNG veya WebP dosyasını yükleyin.",
+          "type": "Yalnız JPEG, PNG veya WebP görseller yüklenebilir.",
+          "size": "Görsel çok büyük. Logo en fazla {max} MB olabilir."
         }
+      },
+      "apiCodes": {
+        "PROFILE_UNAVAILABLE": "Profil şu anda kullanılamıyor. Lütfen daha sonra yeniden deneyin.",
+        "LOGO_ASSET_INVALID": "Logo bulunamadı veya kullanılamıyor. Listeden yeniden seçin.",
+        "LOGO_ACCESS_OFF": "Logo seçimi Kişisel Dijital Ofis görsel alanını kullanır; hesabınızda şu an açık değil.",
+        "LOGO_ACCESS_ERROR": "Erişim doğrulanamadı. Lütfen daha sonra yeniden deneyin."
       }
     }
   }

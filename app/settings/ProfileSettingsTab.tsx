@@ -13,7 +13,7 @@
  *   sürümü paylaşır. Bekleyen logo seçimi de "kaydedilmemiş değişiklik" sayılır.
  */
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { AlertTriangle, Check, Loader2, Lock, RotateCcw, UserRound } from "lucide-react";
 import { useToast } from "@/components/ui/ToastProvider";
 import { fetchProfile, saveProfile, type ProfileResponse } from "@/lib/profile/client";
@@ -27,6 +27,22 @@ type Form = { [K in ProfileTextField]: string } & { [K in ProfileFlagField]: boo
 
 /** Ayarlar sekme çubuğu simgesi (sayfanın simge içe aktarım listesine dokunmamak için buradan verilir). */
 export const PROFILE_TAB_ICON = UserRound;
+
+/**
+ * I18N: sunucu / istemci kütüphanesi hata metni. Kaynak dilde (tr) metin bugünkü gibi BİREBİR gösterilir; diğer dillerde
+ * Türkçe metin ASLA gösterilmez → ağ hatası (status 0) common.apiErrors.network, eşlenen kod settings.profile.apiCodes.<KOD>,
+ * aksi halde genel metin (karışık dil yok).
+ */
+export function useProfileErrorText(): (r: { status?: number; code?: string; error: string }) => string {
+  const locale = useLocale();
+  const t = useTranslations("settings.profile");
+  const tApi = useTranslations("common.apiErrors");
+  return (r) => {
+    if (locale === "tr") return r.error;
+    if (r.status === 0) return tApi("network");
+    return r.code && t.has(`apiCodes.${r.code}`) ? t(`apiCodes.${r.code}`) : tApi("generic");
+  };
+}
 
 // I18N: sekme değişimi onay metni settings.profile.leaveConfirm (app/settings/page.tsx kullanır).
 
@@ -141,6 +157,7 @@ function Switch({ id, label, description, checked, disabled, onChange }: { id: s
 export function ProfileSettingsTab({ readOnly: demoReadOnly, onDirtyChange }: { readOnly: boolean; onDirtyChange?: (dirty: boolean) => void }) {
   const { showToast } = useToast();
   const t = useTranslations("settings.profile");
+  const errorText = useProfileErrorText();
   const idBase = useId().replace(/:/g, "");
   const [state, setState] = useState<{ status: "loading" } | { status: "error"; message: string } | { status: "ready" }>({ status: "loading" });
   const [server, setServer] = useState<ProfileResponse | null>(null);
@@ -224,12 +241,12 @@ export function ProfileSettingsTab({ readOnly: demoReadOnly, onDirtyChange }: { 
         setNotice({ tone: "warn", text: t("conflict") });
       } else if (r.kind === "invalid") {
         setErrors(r.fields);
-        setNotice({ tone: "error", text: Object.keys(r.fields).length ? t("invalidFields") : r.error });
+        setNotice({ tone: "error", text: Object.keys(r.fields).length ? t("invalidFields") : errorText({ status: 400, error: r.error }) });
         focusFirstError(r.fields);
       } else if (r.kind === "demo") {
         setNotice({ tone: "error", text: t("demoSave") });
       } else {
-        setNotice({ tone: "error", text: r.code === "PROFILE_UNAVAILABLE" ? t("saveUnavailable") : r.error });
+        setNotice({ tone: "error", text: r.code === "PROFILE_UNAVAILABLE" ? t("saveUnavailable") : errorText(r) });
       }
     } finally {
       setSaving(false);
