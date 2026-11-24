@@ -60,8 +60,13 @@ enList.card.readOnDetail === "View Details →"
 enList.stat.image === "Photos"
   ? ok("2.11 list stat.image = 'Photos'") : err(`2.11 list stat.image beklenmedik: "${enList.stat.image}"`);
 // 2.12 combination metric labels
-enComb.detail.statCombination === "Combinations" && enComb.detail.statStockStone === "In Stock" && enComb.detail.statMissing === "Missing"
-  ? ok("2.12 combination metric labels (Combinations/In Stock/Missing)") : err("2.12 combination metric labels yanlış");
+// I18N-F1 (2026-11-24): 2026-10-08 WT5 UX turu (7bf58195e, owner onaylı "Kombinasyon detay" düzenlemesi) TR etiketleri
+// "Stokta Olan Taş" / "Stokta Olmayan" ile hizalayıp EN'i bilinçli olarak "Stones in Stock" / "Out of Stock" yaptı.
+// Bağlam: statStockStone, kombinasyon detayındaki sayaç çipinin etiketi (değer = stokta bulunan farklı taş sayısı,
+// kombinasyonlar/[title]/page.tsx:758) → çoğul "Stones in Stock" doğru. statMissing bugün hiçbir ekranda render
+// edilmiyor; "Out of Stock" = stokta yok (tükenmiş) anlamını taşır. Eski beklenti ("In Stock"/"Missing") WT5 öncesine aitti.
+enComb.detail.statCombination === "Combinations" && enComb.detail.statStockStone === "Stones in Stock" && enComb.detail.statMissing === "Out of Stock"
+  ? ok("2.12 combination metric labels (Combinations/Stones in Stock/Out of Stock — WT5)") : err("2.12 combination metric labels yanlış");
 // 2.13 scan → find matching
 enComb.builder.scan === "Find Matching Stones"
   ? ok("2.13 builder.scan = 'Find Matching Stones'") : err(`2.13 builder.scan beklenmedik: "${enComb.builder.scan}"`);

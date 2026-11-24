@@ -122,6 +122,19 @@ for (const rel of SRC_FILES) {
 if (fail === 0) ok(`${checked} statik t() anahtarı doğrulandı (${dynamic} dinamik/template anahtar elle kontrol edilecek)`);
 else console.log(`  (${checked} statik anahtar tarandı, ${dynamic} dinamik anahtar atlandı)`);
 
+// I18N-F1 (2026-11-24): 2026-10-02 cfbeb94f ("taxonomy" P1/P2 kapanışı) çakra/uyarı kanonik listelerini
+// lib/dogaltas/stoneTaxonomy.ts'e TAŞIDI; sayfa onları import ediyor. Kanonik değer korunuyor mu sorusu artık:
+// "literal sayfada VEYA (merkezî taksonomide VE sayfa taksonomiyi import ediyor)". Beklenti gevşetilmedi: literal
+// hiçbir yerde yoksa ya da sayfa merkezî listeyi kullanmıyorsa yine FAIL.
+const TAXONOMY_REL = "lib/dogaltas/stoneTaxonomy.ts";
+const TAXONOMY_IMPORT = "@/lib/dogaltas/stoneTaxonomy";
+function canonPresent(src, lit) {
+  const raw = (s) => s.includes(`"${lit}"`) || s.includes(`'${lit}'`);
+  if (raw(src)) return true;
+  if (!src.includes(TAXONOMY_IMPORT)) return false;
+  return raw(readFileSync(join(ROOT, TAXONOMY_REL), "utf8"));
+}
+
 // ---- GATE 3: CANONICAL / query-coupled literals still hardcoded ----
 console.log("\n[GATE 3] Query-coupled canonical literaller kaynak kodda ham string olarak duruyor mu");
 const CANON = [
@@ -135,7 +148,7 @@ for (const [rel, lits] of CANON) {
   let src;
   try { src = readFileSync(join(ROOT, rel), "utf8"); } catch { err(`${rel}: okunamadı`); continue; }
   for (const lit of lits) {
-    if (src.includes(`"${lit}"`) || src.includes(`'${lit}'`) || src.includes(`>${lit}<`)) ok(`${rel}: "${lit}" ham literal korunmuş`);
+    if (canonPresent(src, lit) || src.includes(`>${lit}<`)) ok(`${rel}: "${lit}" ham literal korunmuş`);
     else err(`${rel}: "${lit}" ham literal BULUNAMADI (query-coupled değer yanlışlıkla değişmiş olabilir)`);
   }
 }

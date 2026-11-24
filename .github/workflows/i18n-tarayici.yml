@@ -1,0 +1,132 @@
+# I18N — tarayıcı testleri (Owner onayı 2026-11-25, F1-R2). Ana CI'ya (ci.yml) yük BİNDİRMEZ: ayrı iş akışı, yalnız i18n ile ilgili
+# dosyalar değişince ya da elle tetiklenir. Sır KULLANMAZ; production'a / Supabase'e / ücretli API'ye (Roxy) istek ATMAZ.
+# Build'ler yerel test önüne (127.0.0.1) işaret eden SAHTE değerlerle yapılır; veriler sentetiktir (embedded PostgreSQL + şim).
+#   acik-kapi : yayın kapısı AÇIK build → dil seçimi / hesap kalıcılığı / hesaplar arası izolasyon / demo / geçersiz girdi /
+#               İngilizce silme onayı / mobil (ui-e2e) + e-posta OTP girişi × dil, çıkış, Ayarlar › Dil, migration'sız ortam
+#               (ui-e2e-mfa) + sözde-yerelleştirme (ui-pseudo, next dev).
+#   kapali-kapi-gorsel : yayın kapısı KAPALI build (production davranışı) → eski İngilizce çerez yok sayılır (ui-e2e off) +
+#               Türkçe GÖRSEL REGRESYON: aynı ekranlar hedef dal (base) build'iyle piksel karşılaştırması
+#               (kabul edilen farklar: scripts/i18n/baseline/visual-accepted.json).
+# Ağır işler her iş içinde SIRALIDIR (tek build → testler); iki iş ayrı runner'dadır.
+name: I18N tarayıcı testleri
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - "messages/**"
+      - "i18n/**"
+      - "lib/i18n/**"
+      - "components/i18n/**"
+      - "components/settings/**"
+      - "components/auth/**"
+      - "components/kvkk/**"
+      - "app/settings/**"
+      - "app/api/auth/**"
+      - "app/api/me/**"
+      - "app/m/**"
+      - "hooks/useDeleteConfirm.ts"
+      - "lib/ui/**"
+      - "scripts/i18n/**"
+      - "supabase/migrations/20280126000000_user_locale_prefs.sql"
+      - ".github/workflows/i18n-tarayici.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: i18n-tarayici-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NEXT_TELEMETRY_DISABLED: "1"
+  NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:54398
+  NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: zz-ds-anon-not-a-secret
+  SUPABASE_SERVICE_ROLE_KEY: zz-test-service-role-not-a-secret
+  I18N_E2E_SUPA_PORT: "54398"
+
+jobs:
+  acik-kapi:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+      - name: Bağımlılıklar
+        run: npm ci --no-audit --no-fund
+      - name: Playwright chromium
+        run: npx playwright install --with-deps chromium
+      # Tip denetimi zorunlu ana CI'da (ci.yml "TypeScript"); bu test build'inde tekrarlanmaz. YALNIZ runner'ın geçici checkout'unda.
+      - name: Test build'i için tip denetimini atla (yalnız bu runner)
+        run: node scripts/campaign/ci-e2e-build-config.cjs
+      - name: Build (yayın kapısı AÇIK; sahte yerel değerler)
+        run: npx next build
+        env:
+          NEXT_PUBLIC_I18N_LOCALE_SWITCHING: "on"
+          NODE_OPTIONS: --max-old-space-size=6144
+      - name: Dil tercihi / hesap izolasyonu / TR-EN arayüz (ui-e2e on)
+        run: npx tsx scripts/i18n/ui-e2e.ts --mode on --out "$RUNNER_TEMP/i18n/e2e-on"
+      - name: Giriş güvenliği × dil (ui-e2e-mfa)
+        run: npx tsx scripts/i18n/ui-e2e-mfa.ts "$RUNNER_TEMP/i18n/e2e-mfa"
+      - name: Sözde-yerelleştirme (next dev)
+        run: npx tsx scripts/i18n/ui-pseudo.mts "$RUNNER_TEMP/i18n/pseudo"
+      - name: Kanıtlar (ekran görüntüleri + raporlar; sentetik veri)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: i18n-acik-kapi
+          path: ${{ runner.temp }}/i18n
+          if-no-files-found: warn
+          retention-days: 14
+
+  kapali-kapi-gorsel:
+    runs-on: ubuntu-latest
+    timeout-minutes: 70
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+      - name: Bağımlılıklar
+        run: npm ci --no-audit --no-fund
+      - name: Playwright chromium
+        run: npx playwright install --with-deps chromium
+      - name: Test build'i için tip denetimini atla (yalnız bu runner)
+        run: node scripts/campaign/ci-e2e-build-config.cjs
+      - name: Build (yayın kapısı KAPALI = production davranışı)
+        run: npx next build
+        env:
+          NODE_OPTIONS: --max-old-space-size=6144
+      - name: Kapı kapalı (ui-e2e off)
+        run: npx tsx scripts/i18n/ui-e2e.ts --mode off --out "$RUNNER_TEMP/i18n/e2e-off"
+      - name: Türkçe ekranlar (bu dal)
+        run: npx tsx scripts/i18n/visual-regression.mts capture "$RUNNER_TEMP/i18n/gorsel-pr" --locales tr
+      - name: Hedef dal (base) worktree + build
+        run: |
+          BASE_SHA="${{ github.event.pull_request.base.sha }}"
+          if [ -z "$BASE_SHA" ]; then BASE_SHA="$(git rev-parse origin/main)"; fi
+          git worktree add --detach "$RUNNER_TEMP/base" "$BASE_SHA"
+          cd "$RUNNER_TEMP/base"
+          npm ci --no-audit --no-fund
+          GITHUB_ACTIONS=true node "$GITHUB_WORKSPACE/scripts/campaign/ci-e2e-build-config.cjs"
+          NODE_OPTIONS=--max-old-space-size=6144 npx next build
+      - name: Türkçe ekranlar (base)
+        working-directory: ${{ runner.temp }}/base
+        run: npx tsx "$GITHUB_WORKSPACE/scripts/i18n/visual-regression.mts" capture "$RUNNER_TEMP/i18n/gorsel-base" --locales tr
+      - name: Türkçe görsel regresyon (base ↔ bu dal)
+        run: npx tsx scripts/i18n/visual-regression.mts compare "$RUNNER_TEMP/i18n/gorsel-base" "$RUNNER_TEMP/i18n/gorsel-pr"
+      - name: Kanıtlar
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: i18n-kapali-kapi-gorsel
+          path: ${{ runner.temp }}/i18n
+          if-no-files-found: warn
+          retention-days: 14

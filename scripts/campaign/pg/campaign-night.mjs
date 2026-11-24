@@ -258,7 +258,14 @@ try {
   } catch {
     /* yoksay */
   }
-  fs.rmSync(dataDir, { recursive: true, force: true });
+  // I18N-F1-R2: Windows'ta server.stop() sonrasında PostgreSQL alt süreçleri dosya tutamaçlarını kısa süre bırakmaz →
+  // tek seferlik rmSync EPERM fırlatıp özet satırı yazılmadan süreci çökertiyordu (test sonucu ölçülemiyordu).
+  // Yalnız geçici veri klasörü temizliği: sınırlı yeniden deneme + temizlenemezse uyarı (test sonucu DEĞİŞMEZ).
+  try {
+    fs.rmSync(dataDir, { recursive: true, force: true, maxRetries: 10, retryDelay: 300 });
+  } catch (e) {
+    console.log(`uyarı: geçici PG klasörü temizlenemedi (${e && e.code ? e.code : e}) — ${dataDir}`);
+  }
 }
 console.log(`\ncampaign-night: ${pass} PASS / ${fail} FAIL`);
 process.exit(fail ? 1 : 0);

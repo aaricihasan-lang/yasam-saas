@@ -51,16 +51,39 @@ noInfoYetUses >= 4
 !/:\s*shortPreview\([^)]*\)\s*}/.test(detSrc)
   ? ok("çıplak ': shortPreview(...)' empty-branch kalmadı (t('noInfoYet')'e çevrildi)") : err("hâlâ ': shortPreview(...)' empty-branch (Türkçe/boş dönebilir)");
 
+// I18N-F1 (2026-11-24): eski regex /toSafeStone[\s\S]{0,600}t\(/ dosyadaki İLK "toSafeStone" geçişinden sonraki
+// 600 karakterde herhangi bir "…t(" (ör. fieldEntriesText( ) bulunca yanlış FAIL veriyordu. Artık gerçek fonksiyon
+// gövdesi süslü parantez eşleşmesiyle çıkarılır ve içinde çeviri çağrısı (t/tf/tl/tc/td) aranır. Beklenti aynı.
+function functionBody(source, name) {
+  const start = source.indexOf(`function ${name}(`);
+  if (start < 0) return null;
+  let i = source.indexOf("{", source.indexOf(")", start));
+  let depth = 0;
+  for (let j = i; j < source.length; j++) {
+    if (source[j] === "{") depth++;
+    else if (source[j] === "}" && --depth === 0) return source.slice(i, j + 1);
+  }
+  return null;
+}
+const toSafeStoneBody = functionBody(detSrc, "toSafeStone");
+const toSafeStoneHasT = toSafeStoneBody === null || /(^|[^\w.])(t|tf|tl|tc|td)\(/.test(toSafeStoneBody);
+// I18N-F1 (2026-11-24): "Kök Çakra"/"Sakral Çakra" kanonik çakra listesi 2026-10-02 cfbeb94f ile
+// lib/dogaltas/stoneTaxonomy.ts'e taşındı (sayfa STONE_CHAKRA_OPTIONS'ı import ediyor). Literal ya sayfada ya da
+// (merkezî taksonomide + sayfa taksonomiyi import ediyor) olmalı; ikisi de yoksa FAIL.
+const taxonomySrc = src("lib/dogaltas/stoneTaxonomy.ts");
+const canonInDetail = (c) => detSrc.includes(`"${c}"`)
+  || (detSrc.includes("@/lib/dogaltas/stoneTaxonomy") && taxonomySrc.includes(`"${c}"`));
+
 // ── GATE C: canonical / user / catalog content DOKUNULMADI ──────────────────
 console.log("\n[GATE C] canonical / user / catalog preserved");
 // canonical facet/assignment değerleri hâlâ orada (query-coupled)
-["Kök Çakra", "Sakral Çakra", "Çakra Atama", "Kan Grupları"].every((c) => detSrc.includes(`"${c}"`))
+["Kök Çakra", "Sakral Çakra", "Çakra Atama", "Kan Grupları"].every(canonInDetail)
   ? ok("canonical chakra/assignment değerleri korunmuş") : err("canonical facet/assignment değeri kaybolmuş");
 // data-normalization fallback (İsimsiz Taş) veri katmanında DEĞİŞMEDEN duruyor
 detSrc.includes('|| "İsimsiz Taş"')
   ? ok("toSafeStone 'İsimsiz Taş' data fallback dokunulmadı (veri katmanı)") : err("toSafeStone data fallback DEĞİŞMİŞ");
 // stone_name/content çevirisi eklenmedi (sadece display fallback wiring değişti)
-!/toSafeStone[\s\S]{0,600}t\(/.test(detSrc)
+!toSafeStoneHasT
   ? ok("toSafeStone içinde t() yok — data mapping'e dokunulmadı") : err("toSafeStone data mapping'e t() sızmış");
 
 // ── GATE D: 2E crash-fix KORUNDU ────────────────────────────────────────────

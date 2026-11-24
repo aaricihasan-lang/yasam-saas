@@ -95,9 +95,16 @@ const combLib = src("lib/dogaltas/combinationsApi.ts");
   : err("combinationsApi.ts hâlâ Türkçe sabiti dönüyor");
 // dogaltas/page: arama throw kodu + catch sınırında localize
 const hub = src("app/dogaltas/page.tsx");
-(hub.includes("throw new Error(STONES_WORKSPACE_UNAVAILABLE)")
+// I18N-F1 (2026-11-24): 2026-09-26 8a4c01387 (Doğaltaş arama sağlamlaştırma) arama akışını throw/catch yerine
+// sonuç nesnesine geçirdi: `res.error === STONES_WORKSPACE_UNAVAILABLE ? tc("workspaceUnavailable") : …`.
+// Kural aynı: kontrol akışı locale-BAĞIMSIZ sentinel ile karar verir, metin yalnız sınırda t() ile üretilir.
+// İki biçimden biri kabul edilir; Türkçe metinle karşılaştırma yine FAIL'dir.
+((hub.includes("throw new Error(STONES_WORKSPACE_UNAVAILABLE)")
   && hub.includes("err.message === STONES_WORKSPACE_UNAVAILABLE")
   && hub.includes('setSearchError(tc("workspaceUnavailable"))'))
+  || (/res\.error === STONES_WORKSPACE_UNAVAILABLE\s*\?\s*tc\("workspaceUnavailable"\)/.test(hub)
+  && hub.includes("setSearchError(")))
+  && !/===\s*"[^"]*(çalışma alanı|oturum)[^"]*"/i.test(hub)
   ? ok("dogaltas/page: arama akışı sentinel throw + catch sınırında localize")
   : err("dogaltas/page arama sentinel/catch mimarisi eksik");
 // kombinasyonlar iki sayfa: sentinel'i tc ile eşliyor

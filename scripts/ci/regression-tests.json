@@ -763,6 +763,19 @@
    "timeoutSec": 60
   },
   {
+   "file": "scripts/i18n/calc-invariance.harness.ts",
+   "tsx": true,
+   "timeoutSec": 240
+  },
+  {
+   "file": "scripts/i18n/ci-gates.mjs",
+   "timeoutSec": 300
+  },
+  {
+   "file": "scripts/i18n/pg/user-locale-prefs.check.mjs",
+   "timeoutSec": 120
+  },
+  {
    "file": "scripts/kup02-word-safety/routes.harness.ts",
    "tsx": true,
    "timeoutSec": 72

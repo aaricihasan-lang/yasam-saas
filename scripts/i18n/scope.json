@@ -1,0 +1,27 @@
+{
+  "aciklama": "I18N-F1 sabit metin dedektörü kapsamı. Owner kararı A2 (2026-11-24): yalnız Owner'ın kullandığı yönetim ekranları Türkçe kalır; dosya yolu admin altında olsa bile uzmanın kullandığı ekranlar çeviri kapsamındadır. ownerOnly listesi kapsam DIŞIDIR (dedektör saymaz); expertFacingUnderAdmin listesi admin altında olup kapsamda kalan yollardır.",
+  "roots": ["app", "components", "hooks", "lib"],
+  "ownerOnly": [
+    "app/admin/",
+    "app/api/admin/",
+    "components/admin/",
+    "lib/admin/",
+    "lib/auth/mfaAdminStatus.ts",
+    "lib/auth/adminPasswordGuard.ts"
+  ],
+  "ownerOnlyReasons": {
+    "lib/auth/mfaAdminStatus.ts": "I18N-F1-R1: yalnız app/api/admin/users/[id]/mfa/route.ts içe aktarır (Owner üye MFA yönetimi; components/admin/members/detail/MemberMfaPanel). Uzmana gösterilmez.",
+    "lib/auth/adminPasswordGuard.ts": "I18N-F1-R1: yalnız app/api/admin/users/[id]/{delete,purge,unarchive}/route.ts içe aktarır (Owner kritik işlem parolası). Uzmana gösterilmez."
+  },
+  "expertFacingUnderAdmin": [
+    "app/admin/astroloji/",
+    "app/admin/human-design/",
+    "app/admin/hd-egitim-haritalari/",
+    "app/api/admin/astroloji/",
+    "app/api/admin/hd/"
+  ],
+  "excludeFiles": [
+    "i18n/catalog.generated.ts"
+  ],
+  "brandAllowlist": ["Yaşam Sistemi", "YAŞAM SİSTEMİ", "Human Design"]
+}
