@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { useEffect } from "react";
-import { useTranslations } from "next-intl";
 import { KupaShell, kupaBtnGhost, kupaBtnPrimary } from "./components/KupaShell";
 
 /**
@@ -17,24 +16,23 @@ export default function KupaError({
   error: Error & { digest?: string };
   unstable_retry: () => void;
 }) {
-  const t = useTranslations("system.error.kupa");
   useEffect(() => {
     console.error("[kupa] beklenmeyen hata", error);
   }, [error]);
 
   return (
-    <KupaShell title={t("title")} breadcrumb={[{ label: t("breadcrumb") }]}>
+    <KupaShell title="Bir sorun oluştu" breadcrumb={[{ label: "Hata" }]}>
       <div role="alert" className="rounded-2xl border border-rose-200 bg-rose-50 p-5 text-sm text-rose-800">
-        <p className="font-semibold">{t("lead")}</p>
+        <p className="font-semibold">Bu ekran beklenmedik bir hata nedeniyle gösterilemedi.</p>
         <p className="mt-1 text-rose-700">
-          {t("body")}
+          Kayıtlı verileriniz etkilenmedi. Ekranı yeniden deneyebilir veya Kupa &amp; Hacamat girişine dönebilirsiniz.
         </p>
         <div className="mt-4 flex flex-wrap gap-2">
           <button type="button" className={`${kupaBtnPrimary} min-h-[44px]`} onClick={() => unstable_retry()}>
-            {t("retry")}
+            Tekrar dene
           </button>
           <Link href="/kupa" className={`${kupaBtnGhost} min-h-[44px] no-underline`}>
-            {t("home")}
+            Kupa &amp; Hacamat girişi
           </Link>
         </div>
       </div>

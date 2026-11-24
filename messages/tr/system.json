@@ -1,14 +1,6 @@
 {
   "system": {
     "error": {
-      "kupa": {
-        "title": "Bir sorun oluştu",
-        "breadcrumb": "Hata",
-        "lead": "Bu ekran beklenmedik bir hata nedeniyle gösterilemedi.",
-        "body": "Kayıtlı verileriniz etkilenmedi. Ekranı yeniden deneyebilir veya Kupa & Hacamat girişine dönebilirsiniz.",
-        "retry": "Tekrar dene",
-        "home": "Kupa & Hacamat girişi"
-      },
       "aromaterapi": {
         "title": "Beklenmeyen bir sorun oluştu",
         "body": "Aromaterapi bölümü yüklenirken bir hata oluştu. Bilgileriniz güvende; çoğu durumda tekrar denemek yeterlidir.",
