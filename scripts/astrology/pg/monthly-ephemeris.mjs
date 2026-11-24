@@ -3,7 +3,8 @@
 // veritabanı dizini silinir.
 // Kapsam: idempotency (2×), RLS + rol yetkileri (iki tablo), kolon düzeyi UPDATE, değişmezlik tetikleyicisi, tür ↔ zodyak ↔ ayanamsa
 // CHECK'i (tropikal / sideral karışmaz), dönem / zaman / boyut CHECK'leri, save_request_id tekilliği, önbellek anahtarı biçimi ve
-// tekilliği, 3000 tavanı (40 eşzamanlı bağlantı), başka uzman, hesap temizleme keşfi (tenant_id uuid) + tenant silme provası.
+// tekilliği, 3000 tavanı (40 eşzamanlı bağlantı), başka uzman, hesap temizleme keşfi (tenant_id uuid) + tenant silme provası,
+// BAŞARISIZ migration (ön koşul yok / uyumsuz aynı adlı tablo) → tam geri alma, mevcut veri aynen.
 // Çalıştırma: node scripts/astrology/pg/monthly-ephemeris.mjs
 import fs from "node:fs";
 import net from "node:net";
@@ -231,6 +232,61 @@ try {
   await admin.query("ROLLBACK");
   check("M23 tenant silme döngüsü: A tenant'ında kayıt kalmaz, B etkilenmez (sentetik, geri alındı)", leftA === 0 && otherAfter === otherBefore && otherBefore >= 1, `A kalan ${leftA}, B önce ${otherBefore} sonra ${otherAfter}`);
   await admin.end();
+
+  // ── BAŞARISIZ MIGRATION senaryoları (ayrı, boş veritabanları): dosya tek BEGIN…COMMIT → yarıda kalırsa HİÇBİR nesne kalmaz;
+  //    mevcut kullanıcı tabloları ve satırları etkilenmez.
+  const fresh = async (name) => {
+    await (async () => {
+      const a = client();
+      await a.connect();
+      await a.query(`CREATE DATABASE ${name}`);
+      await a.end();
+    })();
+    const c = new pg.Client({ host: "localhost", port, user: "postgres", password: "pw", database: name });
+    c.on("error", () => {});
+    opened.add(c);
+    await c.connect();
+    await c.query(BOOT);
+    return c;
+  };
+  const leftovers = async (c) =>
+    (await c.query(`SELECT count(*)::int n FROM pg_class WHERE relname LIKE 'astro_sky_monthly%' OR relname LIKE 'astro_sm%_idx'`)).rows[0].n +
+    (await c.query(`SELECT count(*)::int n FROM pg_proc WHERE proname = 'astro_sky_monthly_ephemeris_guard'`)).rows[0].n;
+  // (a) Ön koşul eksik: astroloji temel migration'ları (tavan fonksiyonu astro_enforce_record_cap) uygulanmamış → tetikleyici kurulamaz.
+  {
+    const c = await fresh("mig_fail_a");
+    await c.query("CREATE TABLE public.kullanici_verisi (id int PRIMARY KEY, ad text); INSERT INTO public.kullanici_verisi VALUES (1,'sentetik-ğüşİ')");
+    let err = "";
+    try {
+      await c.query(sql);
+    } catch (e) {
+      err = `${e.code} ${String(e.message).slice(0, 80)}`;
+      await c.query("ROLLBACK").catch(() => {});
+    }
+    const left = await leftovers(c);
+    const user = (await c.query("SELECT ad FROM public.kullanici_verisi WHERE id = 1")).rows[0]?.ad;
+    await c.end();
+    opened.delete(c);
+    check("M24 başarısız migration (ön koşul fonksiyonu yok) → hata + TAM geri alma: yeni tablo/indeks/fonksiyon kalmaz; mevcut kullanıcı verisi aynen", !!err && left === 0 && user === "sentetik-ğüşİ", `${err} | kalan nesne ${left}`);
+  }
+  // (b) Aynı adlı UYUMSUZ tablo önceden var (CREATE TABLE IF NOT EXISTS atlanır) → sonraki adım hata verir; eski tablo ve satırı korunur.
+  {
+    const c = await fresh("mig_fail_b");
+    for (const f of BASE) await c.query(fs.readFileSync(f, "utf8"));
+    await c.query("CREATE TABLE public.astro_sky_monthly_cache (cache_key text PRIMARY KEY, x int); INSERT INTO public.astro_sky_monthly_cache VALUES ('eski', 7)");
+    let err = "";
+    try {
+      await c.query(sql);
+    } catch (e) {
+      err = `${e.code} ${String(e.message).slice(0, 80)}`;
+      await c.query("ROLLBACK").catch(() => {});
+    }
+    const kept = (await c.query("SELECT x FROM public.astro_sky_monthly_cache WHERE cache_key = 'eski'")).rows[0]?.x;
+    const eph = (await c.query("SELECT to_regclass('public.astro_sky_monthly_ephemeris') r")).rows[0].r;
+    await c.end();
+    opened.delete(c);
+    check("M25 başarısız migration (uyumsuz aynı adlı tablo) → hata; kayıt tablosu oluşmaz; mevcut tablo + satır değişmeden kalır", !!err && kept === 7 && eph === null, `${err} | eski x=${kept}, kayıt tablosu ${eph}`);
+  }
 } catch (e) {
   fail++;
   console.log(`FAIL monthly-ephemeris: beklenmeyen hata — ${String(e?.message ?? e).slice(0, 300)}`);

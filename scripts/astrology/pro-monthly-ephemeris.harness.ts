@@ -338,11 +338,11 @@ async function main() {
     assert.ok(again.ok && again.cache === "db" && again.providerCalls === 0);
     assert.equal(c.n, 1);
   });
-  await t("E3 eşzamanlı 6 istek (aynı ay) → sağlayıcıya TEK çağrı (tek uçuş)", async () => {
+  await t("E3 eşzamanlı 10 istek (aynı ay) → sağlayıcıya TEK çağrı (tek uçuş)", async () => {
     __resetMonthlyMemoryForTests();
     const c = { n: 0 };
     const deps: MonthlyDeps = { db: fakeDb().client, callProvider: providerFake(responder, c, { delayMs: 40 }) };
-    const rs = await Promise.all(Array.from({ length: 6 }, () => getMonthlyEphemeris(req("vedic", 2027, 1), deps, { allowProvider: true })));
+    const rs = await Promise.all(Array.from({ length: 10 }, () => getMonthlyEphemeris(req("vedic", 2027, 1), deps, { allowProvider: true })));
     assert.ok(rs.every((r) => r.ok));
     assert.equal(c.n, 1);
     assert.equal(rs.reduce((s, r) => s + r.providerCalls, 0), 1);
@@ -438,6 +438,35 @@ async function main() {
     const keys = Object.keys(row).filter((k) => !["id", "created_at", "updated_at"].includes(k)).sort();
     assert.deepEqual(keys, ["adapter_version", "cache_key", "endpoint", "kind", "month", "provider", "provider_api_version", "raw_response", "request", "technical", "year"]);
   });
+
+  await t("E12 YARIŞ: kalıcı önbellek okuması yavaşken aynı ayın isteği tamamlanırsa ikinci istek bellekten döner (ikinci ücretli çağrı YOK)", async () => {
+    __resetMonthlyMemoryForTests();
+    const c = { n: 0 };
+    const db = fakeDb();
+    const slowDb = { ...db.client, from: (tb: string) => (tb === "astro_sky_monthly_cache" ? { ...db.client.from(tb), select: () => ({ eq: () => ({ maybeSingle: () => new Promise((res) => setTimeout(() => res({ data: null, error: null }), 120)) }) }) } : db.client.from(tb)) } as unknown as typeof db.client;
+    const fastDeps: MonthlyDeps = { db: db.client, callProvider: providerFake(responder, c, { delayMs: 10 }) };
+    const slowDeps: MonthlyDeps = { db: slowDb, callProvider: providerFake(responder, c, { delayMs: 10 }) };
+    const [a, b] = await Promise.all([getMonthlyEphemeris(req("western", 2031, 7), fastDeps, { allowProvider: true }), getMonthlyEphemeris(req("western", 2031, 7), slowDeps, { allowProvider: true })]);
+    assert.ok(a.ok && b.ok);
+    assert.equal(c.n, 1, `sağlayıcı çağrısı ${c.n}`);
+  });
+  for (const [label, outcome] of [
+    ["zaman aşımı", { ok: false, kind: "timeout", status: null, attempts: 1 }],
+    ["kota bitti (429)", { ok: false, kind: "rate_limited", status: 429, attempts: 1 }],
+    ["anahtar/plan (401)", { ok: false, kind: "unauthorized", status: 401, attempts: 1 }],
+    ["bozuk JSON", { ok: false, kind: "malformed_json", status: 200, attempts: 1 }],
+  ] as const) {
+    await t(`E13 sağlayıcı ${label} → PROVIDER_FAILED, önbelleğe YAZILMAZ, yeniden deneme YOK (1 çağrı)`, async () => {
+      __resetMonthlyMemoryForTests();
+      const db = fakeDb();
+      let n = 0;
+      const r = await getMonthlyEphemeris(req("vedic", 2032, 2), { db: db.client, callProvider: async () => (n++, outcome as RoxyCallResult) }, { allowProvider: true });
+      assert.ok(!r.ok && r.error.code === "PROVIDER_FAILED");
+      assert.equal(n, 1);
+      assert.equal(db.tables.astro_sky_monthly_cache?.length ?? 0, 0);
+      assert.ok(!JSON.stringify(r).match(/local-fake|apiKey|X-API-Key/i), "hata yanıtı gizli bilgi taşımaz");
+    });
+  }
 
   // ─── F) Kayıt + tenant / uzman izolasyonu ────────────────────────────────────────────────────────────────────
   const TA = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
@@ -631,6 +660,31 @@ async function main() {
     const c = src.indexOf("return astrologyTechniqueDenied(ctx, ASTRO_GRANT_SKY_EPHEMERIS);");
     assert.ok(b > 0 && b < c, "bayrak → teknik izni sırası");
     assert.match(src, /callRoxy\(config, endpoint, body, \{ maxRetries: 0, lang: MONTHLY_PROVIDER_LANG \}\)/);
+  });
+  await t("H5 maliyet koruması: yeni ay hesabından ÖNCE kullanıcı-saat 30 → kullanıcı-gün 150 → sistem-saat 200 → sistem-gün 1000 tavanları sırayla", async () => {
+    const kit = await import("@/lib/astrology/pro/monthly/routeKit");
+    assert.deepEqual(kit.MONTHLY_PROVIDER_CAPS.map((c) => [c.perUser, c.limit, c.windowSeconds]), [[true, 30, 3600], [true, 150, 86400], [false, 200, 3600], [false, 1000, 86400]]);
+    const calls: { limit: number; window: number }[] = [];
+    let deny = -1;
+    const db = { rpc: async (_: string, a: { p_limit: number; p_window_seconds: number }) => (calls.push({ limit: a.p_limit, window: a.p_window_seconds }), { data: { allowed: calls.length - 1 !== deny, retry_after: 60 }, error: null }) };
+    const deps = kit.monthlyDeps({ db, tenantId: "t", userId: "u" } as never, false);
+    assert.deepEqual(await deps.beforeProviderCall!(), { ok: true });
+    assert.equal(calls.length, 4);
+    calls.length = 0;
+    deny = 2; // sistem-saat tavanı dolu
+    assert.deepEqual(await deps.beforeProviderCall!(), { ok: false, retryAfterSec: 60 });
+    assert.equal(calls.length, 3, "dolu tavandan sonra kalan sayaçlar sorgulanmaz");
+  });
+  await t("H6 ΔT açıklaması: ölçülmüş dönemde (1600–2060) YOK; 2100+ öngörü döneminde Ay belirsizliği açıkça yazılır (2600: Ay ±39′); yöntem metninde ve rapor notlarında görünür", async () => {
+    const f = await import("@/lib/astrology/pro/monthly/format");
+    for (const [y, m] of [[1600, 1], [1900, 2], [2026, 11], [2060, 1]] as const) assert.equal(f.deltaTNote(y, m, "western"), null, `${y}-${m}`);
+    const far = f.deltaTNote(2600, 12, "western")!;
+    assert.match(far, /Ay ±39′/);
+    assert.match(far, /Ay düğümü ±4′/);
+    assert.ok(!/Ay düğümü/.test(f.deltaTNote(2600, 12, "vedic")!), "Vedik ortalama düğüm ΔT'den etkilenmez");
+    assert.match(f.deltaTNote(2100, 2)!, /Ay ±59″/);
+    const lines = f.methodLines({ kind: "vedic", year: 2600, month: 12, ayanamsa: "lahiri", nodeMethod: "mean", missingBodies: [], crossCheck: { status: "unavailable", compared: 0, maxAbsArcsec: 0, maxAt: null, retroMismatches: 0, retroStationSkipped: 0, checkedBodies: [], uncheckedBodies: [], method: "" } } as never);
+    assert.ok(lines.some((l) => l.startsWith("Zaman belirsizliği (ΔT)")));
   });
   await t("H4 kullanıcıya görünen bileşen/rapor metinlerinde sağlayıcı adı yok", () => {
     for (const p of ["app/admin/astroloji/_components/ephemeris/MonthlyEphemerisDesk.tsx", "lib/astrology/pro/monthly/format.ts", "lib/astrology/pro/monthly/reportModel.ts"]) {

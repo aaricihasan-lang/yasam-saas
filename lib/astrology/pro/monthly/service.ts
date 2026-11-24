@@ -157,6 +157,10 @@ export async function getMonthlyEphemeris(req: MonthlyRequest, deps: MonthlyDeps
     MEMORY.set(key, fresh);
     return { ok: true, result: fresh, cache: "db", providerCalls: 0 };
   }
+  // Kalıcı önbellek okuması beklerken aynı ayın sağlayıcı isteği bu süreçte TAMAMLANMIŞ olabilir (tek uçuş kaydı silinmiştir) →
+  // belleğe yeniden bakılır; aksi hâlde aynı ay için ikinci ücretli istek giderdi.
+  const late = MEMORY.get(key);
+  if (late) return { ok: true, result: late, cache: "memory", providerCalls: 0 };
   if (!opts.allowProvider) return { ok: false, providerCalls: 0, error: { code: "NOT_CACHED", error: "Bu ayın tablosu henüz hesaplanmamış. Önce tabloyu hesaplayın." } };
   const pending = IN_FLIGHT.get(key);
   if (pending) {

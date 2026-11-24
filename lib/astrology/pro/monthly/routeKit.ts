@@ -21,6 +21,18 @@ assertServerOnly("lib/astrology/pro/monthly/routeKit");
 export const isMonthlyProviderEnabled = (env: NodeJS.ProcessEnv = process.env) => env.ATLAS_MONTHLY_EPHEMERIS_PROVIDER !== "0";
 /** Kullanıcı başına: tablo isteği (önbellek dahil) saatte 240; YENİ ay hesabı (sağlayıcı isteği) saatte 30. */
 export const MONTHLY_RATE = { any: { limit: 240, windowSeconds: 3600 }, provider: { limit: 30, windowSeconds: 3600 } } as const;
+/**
+ * Maliyet koruması (2026-11-25 gece denetimi): YENİ ay hesabı (önbellek ıskası = 1 ücretli istek) yalnız kullanıcı-saat sınırıyla
+ * korunuyordu → çok sayıda farklı ay isteyen istemci ortak aylık kotayı (HD / Numeroloji ile paylaşılan) aşındırabilirdi. Ek tavanlar:
+ * kullanıcı başına günlük ve SİSTEM GENELİ saatlik + günlük. Önbellekteki aylar bu sayaçlara GİRMEZ (yalnız sağlayıcı isteğinden hemen
+ * önce sayılır). Tüm farklı aylar en çok 2 × 1001 × 12 = 24 024 anahtardır ve her biri kalıcı önbelleğe bir kez yazılır.
+ */
+export const MONTHLY_PROVIDER_CAPS = [
+  { scope: "astro-ephemeris-monthly-provider", perUser: true, limit: MONTHLY_RATE.provider.limit, windowSeconds: MONTHLY_RATE.provider.windowSeconds },
+  { scope: "astro-ephemeris-monthly-provider-day", perUser: true, limit: 150, windowSeconds: 86_400 },
+  { scope: "astro-ephemeris-monthly-provider-global", perUser: false, limit: 200, windowSeconds: 3600 },
+  { scope: "astro-ephemeris-monthly-provider-global-day", perUser: false, limit: 1000, windowSeconds: 86_400 },
+] as const;
 
 type Gate = Extract<Awaited<ReturnType<typeof requireAstrologyAccess>>, { ok: true }>;
 export type GateCtx = Gate["ctx"];
@@ -41,8 +53,15 @@ export function monthlyDeps(ctx: GateCtx, allowProvider: boolean): MonthlyDeps {
     // Ücretli çağrı: yeniden deneme YOK. Dil "en": sağlayıcı cisim/burç adları her dilde İngilizce (yerelleştirilmiş alanlar alınmaz).
     callProvider: config ? (endpoint, body) => callRoxy(config, endpoint, body, { maxRetries: 0, lang: MONTHLY_PROVIDER_LANG }) : null,
     beforeProviderCall: async () => {
-      const r = await hitDbRateLimit(ctx.db, rateLimitBucket("astro-ephemeris-monthly-provider", `${ctx.tenantId}:${ctx.userId}`), MONTHLY_RATE.provider.limit, MONTHLY_RATE.provider.windowSeconds);
-      return r.allowed ? { ok: true } : { ok: false, retryAfterSec: r.retryAfterSec };
+      // Sırayla: dar (kullanıcı-saat) → geniş (sistem-gün). İlk dolu tavanda istek ATILMAZ.
+      for (const c of MONTHLY_PROVIDER_CAPS) {
+        const r = await hitDbRateLimit(ctx.db, rateLimitBucket(c.scope, c.perUser ? `${ctx.tenantId}:${ctx.userId}` : "global"), c.limit, c.windowSeconds);
+        if (!r.allowed) {
+          if (!c.perUser) console.error("[astro-monthly] sistem geneli yeni ay hesap tavanı doldu", { scope: c.scope, limit: c.limit });
+          return { ok: false, retryAfterSec: r.retryAfterSec };
+        }
+      }
+      return { ok: true };
     },
   };
 }

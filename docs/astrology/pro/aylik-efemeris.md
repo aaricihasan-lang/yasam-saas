@@ -61,6 +61,20 @@ Kiron ve Kara Ay Lilith'in çalışma anında yerel bağımsız motoru yoktur. D
 - Art arda iki günde farklı burç = geçiş bu iki örnek arasında; kesin geçiş / retro başlama saati **türetilmez ve gösterilmez**.
 - Derece ve dakika aşağı yuvarlanır (kesilir); saklanan değer 0,0001° tam boylamdır ("Tam boylam" görünümü).
 - Gezegen gizle/göster ve gösterim biçimi yalnız görünüm filtresidir (istek yok).
+- ΔT notu (`format.ts` → `deltaTNote`): ΔT öngörüsünün Ay'da ≥ 30″ kayma yaratabildiği dönemlerde (≈ 2070 sonrası) yöntem
+  metninde ve rapor notlarında olası en büyük kayma açıkça yazılır (ör. 2600-12: Ay ±39′). Tablo değerleri değişmez.
+- Erişilebilirlik: tablo kabı odaklanabilir adlandırılmış bölgedir (ok tuşlarıyla kayar) + görünmez `caption`; dokunmatik
+  cihazlarda düğme/çip yüksekliği ≥ 40 px. Ekran matrisi: `scripts/astrology/monthly-ephemeris-ui-matrix.e2e.cjs`
+  (1366/1440/1920 masaüstü, 320–412 telefon, 768 tablet — Playwright öykünmesi; fiziksel cihaz kabulü canlı yayın sonrasıdır).
+
+## 4b. Maliyet koruması
+
+- Bir ay = en çok 1 ücretli istek (ayın tamamı); süreç belleği → kalıcı önbellek → sağlayıcı; aynı ay için eşzamanlı istekler tek
+  uçuşta birleşir; kalıcı önbellek okuması sırasında tamamlanan istek belleğe yeniden bakılarak ikinci kez ödenmez. Yeniden deneme yok.
+- Filtre, gösterim biçimi, kayıt, arşivden açma ve Word/PDF sağlayıcıyı ÇAĞIRAMAZ (`allowProvider: false` / kayıtlı anlık görüntü).
+- Yeni ay hesabından hemen önce sırayla: kullanıcı 30/saat → kullanıcı 150/gün → sistem geneli 200/saat → sistem geneli 1000/gün
+  (`routeKit.ts` → `MONTHLY_PROVIDER_CAPS`). Önbellekteki aylar sayılmaz. Tüm olası farklı aylar 2 × 1001 × 12 = 24 024'tür; her biri
+  kalıcı önbelleğe bir kez yazılır. Ayrıca tüm istekler kullanıcı 240/saat; uzman aynası deneme üyelik sayacından geçer.
 
 ## 5. Yayına geçiş sırası
 

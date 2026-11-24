@@ -377,8 +377,12 @@ export default function MonthlyEphemerisDesk({ active = true }: { active?: boole
               </div>
             </div>
 
-            <div className={m.scroll} data-testid="me-scroll">
+            {/* Klavye erişimi: kap odaklanabilir (ok tuşlarıyla yatay/dikey kaydırma); ekran okuyucu için bölge adı + tablo başlığı. */}
+            <div className={m.scroll} data-testid="me-scroll" tabIndex={0} role="region" aria-label={`${periodLabel(res.year, res.month)} ${kindLabel(res.kind)} efemeris tablosu — kaydırılabilir`}>
               <table className={m.table} data-testid="me-table">
+                <caption className={m.srOnly}>
+                  {periodLabel(res.year, res.month)} · {kindLabel(res.kind)} · günlük konumlar 12.00 UTC · {shown.length} gök cismi
+                </caption>
                 <thead>
                   <tr>
                     <th scope="col">Gün</th>
