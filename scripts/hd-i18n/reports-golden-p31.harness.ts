@@ -259,8 +259,10 @@ async function main() {
       for (const [k, x] of Object.entries(tr.xml)) if (/^word\/(document|header\d*|footer\d*)\.xml$/.test(k)) trTexts.push(...textNodes(x));
       const enJoined = enTexts.join("\n");
       const allowed = (f.snapshot as Record<string, unknown>) && allowedProviderTr(f);
-      const leaks = enTexts.map(strip).filter((t) => TR_CHARS.test(t) && !allowed.some((a) => t.includes(a)));
-      const asciiLeaks = enTexts.map(strip).filter((t) => ASCII_TR.test(t) && !allowed.some((a) => t.includes(a)));
+      // İzinli marka metni düğümden ÇIKARILIR (düğümün geri kalanı yine denetlenir).
+      const clean = (x: string) => allowed.reduce((acc, a) => acc.split(a).join(""), strip(x));
+      const leaks = enTexts.map(clean).filter((x) => TR_CHARS.test(x));
+      const asciiLeaks = enTexts.map(clean).filter((x) => ASCII_TR.test(x));
       ok(`${f.name}: EN Türkçe harfli sistem metni 0`, leaks.length === 0, leaks.slice(0, 6).join(" ‖ "));
       ok(`${f.name}: EN ASCII-katlanmış Türkçe sistem sözcüğü 0`, asciiLeaks.length === 0, asciiLeaks.slice(0, 6).join(" ‖ "));
       const sentTr = trTexts.join("\n").match(/⟦[^⟧]*⟧/g) ?? [];
@@ -290,12 +292,12 @@ async function main() {
 }
 
 /**
- * EN çıktıda Türkçe kalabilecek SAĞLAYICI anlatısı (KISMİ — sağlayıcı anlatısı TR kayıttan gelir; ROXY: EN içerik
- * yok). Fikstürdeki Roxy yanıtı İngilizcedir; bu liste boş kalır → Sistem Yorumu bölümündeki her Türkçe harf
- * ürünün kendi sistem metnidir ve FAIL sayılır.
+ * EN çıktıda izinli Türkçe harfli metin: YALNIZ marka "Yaşam Sistemi" (TERMINOLOJI: çevrilmez, Owner standardı).
+ * Fikstürdeki Roxy yanıtı İngilizcedir → Sistem Yorumu bölümündeki her Türkçe harf ürünün kendi sistem metnidir ve
+ * FAIL sayılır. (Gerçek kayıtlarda sağlayıcı anlatısı TR'dir — KISMİ; rapor bunu EN notuyla açıkça söyler.)
  */
 function allowedProviderTr(_f: Fixture): string[] {
-  return [];
+  return ["Yaşam Sistemi", "YAŞAM SİSTEMİ"];
 }
 
 main().catch((e) => {

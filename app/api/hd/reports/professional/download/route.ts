@@ -15,6 +15,7 @@ import { applyDownloadPermissions, HD_REPORT_REDACTED_HEADER, isHdReportSnapshot
 import { renderHdReportV2Buffer } from "@/lib/human-design/reporting/wordReportV2";
 import { loadHdReportLogo } from "@/lib/human-design/reporting/reportBrandAssets";
 import { reportFileDate, zonedDayKey } from "@/lib/time/reportTime";
+import { resolveOutputLocale } from "@/lib/i18n/output";
 
 export const runtime = "nodejs";
 
@@ -80,6 +81,9 @@ export async function POST(req: NextRequest): Promise<Response> {
     return NextResponse.json({ ok: false, error: read.error }, { status: read.status, headers: { "Cache-Control": "no-store" } });
   }
   const { snapshot, clientId } = read.data;
+  // Çıktı dili = ekran dili (çerez + yayın kapısı; kapı kapalı → tr = bugünkü çıktı). Snapshot dile göre DEĞİŞMEZ.
+  // #855 birleşince: `const output = await resolveReportLocale(req, { db: guard.db, tenantId: guard.tenantId, userId: guard.userId });`
+  const output = resolveOutputLocale(req);
 
   // ── Ownership-safe BodyGraph görseli (opsiyonel; §36). Keyfi URL fetch YOK. ──
   let chartImage: Buffer | null = null;
@@ -114,9 +118,10 @@ export async function POST(req: NextRequest): Promise<Response> {
         expertName: null,
         systemReadingRedacted: redacted,
         branding: hdBranding,
+        output,
       });
     } else {
-      buffer = await renderHdReportBuffer(snapshot, { chartImage, expertName: null });
+      buffer = await renderHdReportBuffer(snapshot, { chartImage, expertName: null, output });
     }
   } catch {
     await trackUsage(guard, req, { module: "human_design", action: "action_failed", failedAction: "report_generated", subEntity: "report", errorClass: "server" });
@@ -129,7 +134,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   await trackUsage(guard, req, { module: "human_design", action: "report_generated", subEntity: "report", resourceId: reportId });
 
   const dateSlug = zonedDayKey(snapshot.generatedAt) || reportFileDate();
-  const filename = hdReportFilename(snapshot.client.name, dateSlug);
+  const filename = hdReportFilename(snapshot.client.name, dateSlug, output);
 
   return new Response(new Uint8Array(buffer), {
     headers: {
