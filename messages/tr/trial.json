@@ -16,7 +16,7 @@
       "requestFailed": "Talep gönderilemedi. Lütfen tekrar deneyin.",
       "goPro": "Pro Üyeliğe Geç",
       "close": "Kapat",
-      "credit": "Bugünkü Roxy krediniz: {left} / {limit}",
+      "credit": "Bugün Kalan Hesaplama Kredisi: {left} / {limit}",
       "proRequested": "Pro Talebiniz Alındı",
       "whatsapp": "WhatsApp ile İletişime Geçin",
       "ok": "Tamam"
@@ -36,8 +36,8 @@
         "TRIAL_SUSPENDED": "Deneme erişiminiz yönetici tarafından durduruldu. Kayıtlarınızı görüntüleyebilir ve dışa aktarabilirsiniz.",
         "TRIAL_REVIEW": "Üyeliğiniz güvenlik incelemesinde. İnceleme tamamlanınca deneme modülleriniz açılacaktır.",
         "TRIAL_NOT_STARTED": "Deneme süreniz henüz başlamadı. Lütfen çıkış yapıp yeniden giriş yapın.",
-        "TRIAL_CREDIT_LIMIT": "Bugünkü Roxy hesaplama krediniz doldu. Kayıtlı sonuçlarınızı görüntüleyebilirsiniz; krediniz Türkiye saatiyle 00.00'da yenilenir.",
-        "TRIAL_CREDIT_MODULE_LIMIT": "Bu modül için bugünkü Roxy hesaplama sınırına ulaştınız. Krediniz Türkiye saatiyle 00.00'da yenilenir.",
+        "TRIAL_CREDIT_LIMIT": "Bugünkü hesaplama krediniz doldu. Kayıtlı sonuçlarınızı görüntüleyebilirsiniz; krediniz Türkiye saatiyle 00.00'da yenilenir.",
+        "TRIAL_CREDIT_MODULE_LIMIT": "Bu modül için bugünkü hesaplama kredisi sınırına ulaştınız. Krediniz Türkiye saatiyle 00.00'da yenilenir.",
         "TRIAL_CREDIT_UNAVAILABLE": "Kredi durumu doğrulanamadı. Lütfen biraz sonra tekrar deneyin.",
         "MODULE_NOT_IN_TRIAL": "Bu modül ücretsiz deneme paketine dahil değildir. Pro üyelikle kullanılabilir."
       }

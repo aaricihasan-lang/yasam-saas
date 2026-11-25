@@ -72,6 +72,13 @@ const nextConfig: NextConfig = {
     "/api/admin/astroloji/efemeris/derece": ["./data/ephemeris/de440.bsp"],
     "/api/astroloji/efemeris": ["./data/ephemeris/de440.bsp"],
     "/api/astroloji/efemeris/derece": ["./data/ephemeris/de440.bsp"],
+    // Aylık efemeris (2026-11-24): hesaplama ucu sağlayıcı tablosunu DE440 ile bağımsız kontrol eder; rapor uçları PDF fontu + sembol fontları.
+    "/api/admin/astroloji/efemeris/aylik": ["./data/ephemeris/de440.bsp"],
+    "/api/astroloji/efemeris/aylik": ["./data/ephemeris/de440.bsp"],
+    "/api/admin/astroloji/efemeris/aylik/rapor": ["./public/fonts/Geist-Regular.ttf", "./public/fonts/YasamAstroSymbolsA.ttf", "./public/fonts/YasamAstroSymbolsB.ttf"],
+    "/api/astroloji/efemeris/aylik/rapor": ["./public/fonts/Geist-Regular.ttf", "./public/fonts/YasamAstroSymbolsA.ttf", "./public/fonts/YasamAstroSymbolsB.ttf"],
+    "/api/admin/astroloji/efemeris/aylik/kayitlar/[id]/rapor": ["./public/fonts/Geist-Regular.ttf", "./public/fonts/YasamAstroSymbolsA.ttf", "./public/fonts/YasamAstroSymbolsB.ttf"],
+    "/api/astroloji/efemeris/aylik/kayitlar/[id]/rapor": ["./public/fonts/Geist-Regular.ttf", "./public/fonts/YasamAstroSymbolsA.ttf", "./public/fonts/YasamAstroSymbolsB.ttf"],
     "/api/refleksoloji/protocol-report": [
       "./public/refleksoloji/klinik_*.png",
       "./public/refleksoloji/el_avuc_sag_sol.png",

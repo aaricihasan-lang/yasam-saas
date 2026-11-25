@@ -63,7 +63,7 @@ async function main() {
       AUTH_MFA_METHODS: "qr_device,email_otp",
       AUTH_MFA_METHOD_SCOPE: "all",
       AUTH_MFA_EMAIL_ROLES: "expert",
-      EMAIL_PROVIDER: "synthetic", EMAIL_SYNTHETIC_ALLOW: "1",
+      EMAIL_PROVIDER: "synthetic", AUTH_EMAIL_SELF_SERVICE_ROLES: "owner,admin,expert" /* F3: önceki aşamaların uzman e-posta akışları — kapsam açık */, EMAIL_SYNTHETIC_ALLOW: "1",
       AUTH_OTP_PEPPER: PEPPER,
     });
     delete process.env.SESSION_EXPIRY_ENFORCE;

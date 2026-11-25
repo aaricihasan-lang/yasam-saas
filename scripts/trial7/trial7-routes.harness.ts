@@ -508,7 +508,7 @@ async function run() {
   limits.set(U.active, { daily: 10, mods: { human_design: 2 } });
   res = await hd(U.active, "e");
   const x7 = (await res.json()) as Row;
-  ok(res.status === 429 && x7.error === "Bu modül için bugünkü Roxy hesaplama sınırına ulaştınız. Krediniz Türkiye saatiyle 00.00'da yenilenir.", "X7 modül limiti mesajı");
+  ok(res.status === 429 && x7.error === "Bu modül için bugünkü hesaplama kredisi sınırına ulaştınız. Krediniz Türkiye saatiyle 00.00'da yenilenir.", "X7 modül limiti mesajı");
   ok(x7.code === "TRIAL_CREDIT_LIMIT" && x7.trialCode === "TRIAL_CREDIT_MODULE_LIMIT", "X7b modül limiti: code aynen + trialCode TRIAL_CREDIT_MODULE_LIMIT (I18N-F1-R3)", x7);
   const premBefore = calledRpc("trial_credit_reserve").length;
   roxy.calls = 0;
