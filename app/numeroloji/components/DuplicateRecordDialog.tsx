@@ -15,13 +15,16 @@
 
 import { useEffect, useId, useRef } from "react";
 import { createPortal } from "react-dom";
+import { useLocale, useTranslations } from "next-intl";
+import { localeTag } from "@/lib/i18n/format";
+import { isActiveLocale } from "@/lib/i18n/locales";
 import { recordDetailHref, type DuplicateCandidate } from "../helpers/duplicateRecord";
 
-function fmtCreated(v: string | null | undefined): string {
+function fmtCreated(v: string | null | undefined, tag: string): string {
   if (!v) return "";
   const d = new Date(v);
   if (Number.isNaN(d.getTime())) return "";
-  return d.toLocaleString("tr-TR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+  return d.toLocaleString(tag, { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
 }
 
 export type DuplicateDialogMode = "duplicate" | "checkFailed";
@@ -58,6 +61,9 @@ export function DuplicateRecordDialogView(props: DialogProps) {
   const checking = props.checking === true;
   const busy = saving || checking;
   const titleId = useId();
+  const t = useTranslations("numerology.app.duplicate");
+  const locale = useLocale();
+  const tag = localeTag(isActiveLocale(locale) ? locale : undefined);
   const firstRef = useRef<HTMLAnchorElement | HTMLButtonElement | null>(null);
 
   useEffect(() => {
@@ -91,30 +97,30 @@ export function DuplicateRecordDialogView(props: DialogProps) {
       <div role="dialog" aria-modal="true" aria-labelledby={titleId} className="flex max-h-[90dvh] w-full max-w-md flex-col overflow-hidden rounded-3xl border border-white/40 bg-white shadow-2xl">
         <div className={`${failed ? "bg-gradient-to-r from-amber-600 to-orange-600" : "bg-gradient-to-r from-violet-600 to-indigo-700"} px-5 py-4 text-white sm:px-6 sm:py-5`}>
           <div id={titleId} className="text-base font-black sm:text-lg">
-            {failed ? "Önceki kayıtlar kontrol edilemedi" : "Bu kişi için kayıtlı analiz var"}
+            {failed ? t("titleFailed") : t("titleDuplicate")}
           </div>
         </div>
         <div className="min-h-0 overflow-y-auto px-5 py-4 sm:px-6 sm:py-5">
           {failed ? (
             <>
               <p className="text-[15px] font-semibold leading-relaxed text-slate-700">
-                Bu isim, soyisim ve doğum tarihiyle daha önce kayıt yapılıp yapılmadığı şu anda kontrol edilemedi. Tekrar deneyebilir ya da kontrol etmeden kaydedebilirsiniz.
+                {t("failedBody")}
               </p>
-              <p className="mt-2 text-xs font-semibold text-slate-500">Henüz hiçbir şey kaydedilmedi; bu sayfadaki çalışmanız korunur.</p>
+              <p className="mt-2 text-xs font-semibold text-slate-500">{t("failedNote")}</p>
             </>
           ) : (
             <>
               <p className="text-[15px] font-semibold leading-relaxed text-slate-700">
-                Bu isim, soyisim ve doğum tarihiyle daha önce kaydedilmiş {single ? "bir analiziniz" : `${matches.length} analiziniz`} bulunuyor. Mevcut kaydı açmak mı, yoksa yeni bir analiz kaydetmek mi istersiniz?
+                {single ? t("bodySingle") : t("bodyMany", { countText: String(matches.length) })}
               </p>
-              <p className="mt-2 text-xs font-semibold text-slate-500">Mevcut kayıt yeni sekmede açılır; bu sayfadaki çalışmanız kaybolmaz. Eski kayıt değiştirilmez.</p>
+              <p className="mt-2 text-xs font-semibold text-slate-500">{t("note")}</p>
               {!single ? (
-                <ul className="mt-4 flex flex-col gap-2" aria-label="Eşleşen kayıtlar">
+                <ul className="mt-4 flex flex-col gap-2" aria-label={t("matchesAria")}>
                   {matches.map((m, i) => (
                     <li key={m.id} className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-violet-100 bg-violet-50/60 px-3 py-2">
                       <span className="min-w-0 text-sm font-bold text-slate-800">
                         <span className="block break-words">{m.name} {m.surname}</span>
-                        <span className="block text-xs font-semibold text-slate-500">Doğum {m.birth_date}{fmtCreated(m.created_at) ? ` · Kayıt ${fmtCreated(m.created_at)}` : ""}</span>
+                        <span className="block text-xs font-semibold text-slate-500">{t("birth", { date: m.birth_date ?? "" })}{fmtCreated(m.created_at, tag) ? t("createdSuffix", { date: fmtCreated(m.created_at, tag) }) : ""}</span>
                       </span>
                       <a
                         ref={i === 0 ? (el) => { firstRef.current = el; } : undefined}
@@ -125,14 +131,14 @@ export function DuplicateRecordDialogView(props: DialogProps) {
                         className="shrink-0 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 px-3 py-1.5 text-xs font-black text-white"
                         data-testid="num-duplicate-open"
                       >
-                        Bu Kaydı Aç
+                        {t("openThis")}
                       </a>
                     </li>
                   ))}
                 </ul>
               ) : (
                 <p className="mt-3 text-xs font-semibold text-slate-500">
-                  Kayıt: {matches[0].name} {matches[0].surname} · Doğum {matches[0].birth_date}{fmtCreated(matches[0].created_at) ? ` · ${fmtCreated(matches[0].created_at)}` : ""}
+                  {t("singleRecord", { name: matches[0].name ?? "", surname: matches[0].surname ?? "", birth: matches[0].birth_date ?? "" })}{fmtCreated(matches[0].created_at, tag) ? ` · ${fmtCreated(matches[0].created_at, tag)}` : ""}
                 </p>
               )}
             </>
@@ -147,7 +153,7 @@ export function DuplicateRecordDialogView(props: DialogProps) {
                 className={primary}
                 data-testid="num-duplicate-retry"
               >
-                {checking ? "Kontrol ediliyor…" : "Tekrar Dene"}
+                {checking ? t("checking") : t("retry")}
               </button>
             ) : single ? (
               <a
@@ -159,14 +165,14 @@ export function DuplicateRecordDialogView(props: DialogProps) {
                 className={primary}
                 data-testid="num-duplicate-open"
               >
-                Mevcut Kaydı Aç
+                {t("openExisting")}
               </a>
             ) : null}
             <button type="button" onClick={onSaveAnyway} disabled={busy} className={`${btn} border border-violet-200 bg-white text-violet-800`} data-testid="num-duplicate-save">
-              {saving ? "Kaydediliyor…" : failed ? "Yine de Kaydet" : "Yine de Yeni Kaydet"}
+              {saving ? t("saving") : failed ? t("saveAnyway") : t("saveNewAnyway")}
             </button>
             <button type="button" onClick={onCancel} disabled={busy} className={`${btn} border border-slate-200 bg-slate-100 text-slate-700 hover:bg-slate-200`} data-testid="num-duplicate-cancel">
-              Vazgeç
+              {t("cancel")}
             </button>
           </div>
         </div>
