@@ -16,6 +16,7 @@
 //     kör ikinci ücretli istek yerine kısa aralıkla sonucu sorar (tamamlanan hesap yeniden kullanılır).
 
 import { useCallback, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 import { computeRoxyChartSettled } from "@/lib/human-design/api/chartsClient";
 import { useRouter } from "next/navigation";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
@@ -47,6 +48,7 @@ export function HdClientForm({ onAnalyzed }: { onAnalyzed: (r: HdAnalyzedResult)
   const router = useRouter();
   const { showToast } = useToast();
   const { confirm } = useConfirm();
+  const t = useTranslations("hd.clients.form");
   const [form, setForm] = useState(empty);
   const [birthLoc, setBirthLoc] = useState<HdPickedLocation | null>(null);
   const [saving, setSaving] = useState(false);
@@ -65,13 +67,13 @@ export function HdClientForm({ onAnalyzed }: { onAnalyzed: (r: HdAnalyzedResult)
   const confirmLeave = useCallback(
     () =>
       confirm({
-        title: "Kaydedilmemiş danışan",
-        message: "Girdiğiniz danışan bilgileri henüz kaydedilmedi. Sayfadan ayrılmak istiyor musunuz?",
-        confirmText: "Bilgileri At ve Çık",
-        cancelText: "Sayfada Kal",
+        title: t("leaveTitle"),
+        message: t("leaveMessage"),
+        confirmText: t("leaveConfirm"),
+        cancelText: t("leaveCancel"),
         tone: "danger",
       }),
-    [confirm],
+    [confirm, t],
   );
   useHdLeaveGuard(dirty && !saving, confirmLeave);
 
@@ -96,7 +98,7 @@ export function HdClientForm({ onAnalyzed }: { onAnalyzed: (r: HdAnalyzedResult)
     setDupCharts(null);
     if (!r.ok) {
       setCreated(target);
-      setComputeError(`Danışan kaydedildi ancak Human Design analizi oluşturulamadı: ${r.error}`);
+      setComputeError(t("computeFailed", { error: r.error }));
       return;
     }
     setCreated(null);
@@ -122,18 +124,18 @@ export function HdClientForm({ onAnalyzed }: { onAnalyzed: (r: HdAnalyzedResult)
     if (created) return retryAnalyze();
     if (busyRef.current) return;
     if (readYasamUser()?.is_demo_account === true) {
-      showToast({ message: "Demo hesabında danışan eklenemez.", type: "info" });
+      showToast({ message: t("demoNoAdd"), type: "info" });
       return;
     }
     const missing = [
-      !form.ad.trim() && "Ad",
-      !form.soyad.trim() && "Soyad",
-      !form.dogum && "Doğum Tarihi (GG.AA.YYYY)",
-      !form.birth_time && "Doğum Saati (SS:DD)",
-      !birthLoc && "Doğum Yeri (listeden seçin)",
+      !form.ad.trim() && t("reqFirstName"),
+      !form.soyad.trim() && t("reqLastName"),
+      !form.dogum && t("reqBirthDate"),
+      !form.birth_time && t("reqBirthTime"),
+      !birthLoc && t("reqBirthPlace"),
     ].filter(Boolean);
     if (missing.length > 0) {
-      showToast({ message: `Zorunlu alanlar: ${missing.join(", ")}.`, type: "warning" });
+      showToast({ message: t("requiredFields", { fields: missing.join(", ") }), type: "warning" });
       return;
     }
     if (!requestIdRef.current) requestIdRef.current = newRequestId();
@@ -166,7 +168,7 @@ export function HdClientForm({ onAnalyzed }: { onAnalyzed: (r: HdAnalyzedResult)
     setDup(null);
     if (!r.ok || !r.hdClientId) {
       setPhase("idle");
-      showToast({ message: r.ok ? "Danışan oluşturulamadı." : r.error, type: "error" });
+      showToast({ message: r.ok ? t("createFailed") : r.error, type: "error" });
       return;
     }
     await analyze({ hdClientId: r.hdClientId, name: `${form.ad.trim()} ${form.soyad.trim()}` });
@@ -225,7 +227,7 @@ export function HdClientForm({ onAnalyzed }: { onAnalyzed: (r: HdAnalyzedResult)
         setDup(r.candidates);
         return;
       }
-      showToast({ message: r.ok ? "Human Design profili oluşturulamadı." : r.error, type: "error" });
+      showToast({ message: r.ok ? t("profileFailed") : r.error, type: "error" });
     }
   }
 
@@ -235,33 +237,33 @@ export function HdClientForm({ onAnalyzed }: { onAnalyzed: (r: HdAnalyzedResult)
     <div data-hd-new-client-form>
       <div className={s.fGrid}>
         <div className={s.fRow}>
-          <label htmlFor="hd-new-ad" className={s.fLbl}>Ad *</label>
+          <label htmlFor="hd-new-ad" className={s.fLbl}>{t("firstNameLabel")}</label>
           <span className={s.inWrap}>
-            <input id="hd-new-ad" type="text" autoComplete="off" disabled={!!created || saving} value={form.ad} onChange={set("ad")} placeholder="Ali Kaan" className={s.input} />
+            <input id="hd-new-ad" type="text" autoComplete="off" disabled={!!created || saving} value={form.ad} onChange={set("ad")} placeholder={t("firstNamePlaceholder")} className={s.input} />
           </span>
         </div>
         <div className={s.fRow}>
-          <label htmlFor="hd-new-soyad" className={s.fLbl}>Soyad *</label>
+          <label htmlFor="hd-new-soyad" className={s.fLbl}>{t("lastNameLabel")}</label>
           <span className={s.inWrap}>
-            <input id="hd-new-soyad" type="text" autoComplete="off" disabled={!!created || saving} value={form.soyad} onChange={set("soyad")} placeholder="Arıcı" className={s.input} />
+            <input id="hd-new-soyad" type="text" autoComplete="off" disabled={!!created || saving} value={form.soyad} onChange={set("soyad")} placeholder={t("lastNamePlaceholder")} className={s.input} />
           </span>
         </div>
         <div className={`${s.fRow} ${s.fRowTop}`}>
-          <label htmlFor="hd-new-dogum" className={s.fLbl}>Doğum Tarihi *</label>
+          <label htmlFor="hd-new-dogum" className={s.fLbl}>{t("birthDateLabel")}</label>
           <span className={s.inWrap}>
             <HdBirthDateInput id="hd-new-dogum" disabled={!!created || saving} value={form.dogum} onChange={(v) => { requestIdRef.current = ""; setForm((p) => ({ ...p, dogum: v })); }} className={s.input} />
             <CalendarDays className={s.inIcon} strokeWidth={2} aria-hidden />
           </span>
         </div>
         <div className={`${s.fRow} ${s.fRowTop}`}>
-          <label htmlFor="hd-new-saat" className={s.fLbl}>Doğum Saati *</label>
+          <label htmlFor="hd-new-saat" className={s.fLbl}>{t("birthTimeLabel")}</label>
           <span className={s.inWrap}>
             <HdBirthTimeInput id="hd-new-saat" disabled={!!created || saving} value={form.birth_time} onChange={(v) => { requestIdRef.current = ""; setForm((p) => ({ ...p, birth_time: v })); }} className={s.input} />
             <Clock3 className={s.inIcon} strokeWidth={2} aria-hidden />
           </span>
         </div>
         <div className={`${s.fRow} ${s.fRowTop}`}>
-          <label htmlFor="hd-new-client-birth-place" className={s.fLbl}>Doğum Yeri *</label>
+          <label htmlFor="hd-new-client-birth-place" className={s.fLbl}>{t("birthPlaceLabel")}</label>
           <div className={s.inWrap}>
             <HdBirthLocationPicker
               id="hd-new-client-birth-place"
@@ -273,16 +275,16 @@ export function HdClientForm({ onAnalyzed }: { onAnalyzed: (r: HdAnalyzedResult)
               }}
             />
             <MapPin className={s.inIcon} strokeWidth={2} aria-hidden />
-            <p className={s.hint}>İl, ilçe veya şehir yazıp listeden seçin.</p>
+            <p className={s.hint}>{t("placeHint")}</p>
           </div>
         </div>
       </div>
       <p className={s.note}>
-        Danışan, Danışan Yolculuğu&apos;nda da oluşturulur; Human Design analizleri bu danışanın geçmişinde görünür.
+        {t("journeyNote")}
       </p>
       {phase === "computing" ? (
         <p role="status" className="m-0 mt-3 rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-2 text-xs font-semibold text-indigo-800" data-hd-new-computing>
-          Human Design haritası hesaplanıyor… Lütfen bekleyin; sayfayı kapatmayın.
+          {t("computingNote")}
         </p>
       ) : null}
       {computeError ? (
@@ -290,7 +292,7 @@ export function HdClientForm({ onAnalyzed }: { onAnalyzed: (r: HdAnalyzedResult)
           <p className="m-0">{computeError}</p>
           {created ? (
             <p className="m-0 mt-1 font-normal text-rose-700/90">
-              Bilgiler kaydedildi. “Analizi Tekrar Dene” yalnız hesaplamayı yeniden ister; danışan tekrar oluşturulmaz.
+              {t("retryNote")}
             </p>
           ) : null}
         </div>
@@ -305,15 +307,15 @@ export function HdClientForm({ onAnalyzed }: { onAnalyzed: (r: HdAnalyzedResult)
           className={s.start}
         >
           {phase === "creating"
-            ? "Danışan oluşturuluyor…"
+            ? t("creating")
             : phase === "computing"
-              ? "Harita hesaplanıyor…"
+              ? t("computing")
               : created
-                ? "Analizi Tekrar Dene"
-                : "Danışanı Oluştur ve Analiz Et"}
+                ? t("retry")
+                : t("createAndAnalyze")}
           {phase === "idle" ? <ArrowRight className="h-[18px] w-[18px]" strokeWidth={2.2} aria-hidden /> : null}
         </button>
-        <p className={s.fNote}>Kayıtlı bir danışan için Danışan Listesi&apos;nden <b>Yeni Analiz</b> seçin.</p>
+        <p className={s.fNote}>{t.rich("existingClientNote", { b: (chunks) => <b>{chunks}</b> })}</p>
       </div>
       {dup ? (
         <HdDuplicateDialog
@@ -342,7 +344,7 @@ export function HdClientForm({ onAnalyzed }: { onAnalyzed: (r: HdAnalyzedResult)
           }}
           onCancel={() => {
             setDupCharts(null);
-            setComputeError("Danışan kaydedildi; analiz başlatılmadı. İsterseniz “Analizi Tekrar Dene” ile devam edebilirsiniz.");
+            setComputeError(t("analysisNotStarted"));
           }}
         />
       ) : null}

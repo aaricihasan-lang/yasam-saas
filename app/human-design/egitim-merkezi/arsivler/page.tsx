@@ -6,6 +6,7 @@
  */
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import base from "@/app/_premium/hd-education/egitimYonetim.module.css";
 import oz from "@/app/_premium/hd-education/ozelArsiv.module.css";
 import kat from "@/app/_premium/hd-education/egitimKatalog.module.css";
@@ -17,6 +18,7 @@ function Row({ t }: { t: string }) {
 }
 
 export default function ArchivesComparePage() {
+  const t = useTranslations("hd.education");
   const access = useAccess("trainer", "/api/hd/education/private/access");
   const [central, setCentral] = useState<"loading" | "ok" | "no">("loading");
   useEffect(() => {
@@ -29,35 +31,35 @@ export default function ArchivesComparePage() {
   if (access !== "ok" || central !== "ok") return <NotFoundView />;
   return (
     <Shell>
-      <Link className={kat.back} href="/human-design/egitim-merkezi">← Eğitim Merkezi</Link>
+      <Link className={kat.back} href="/human-design/egitim-merkezi">{t("common.backToCenter")}</Link>
       <header className={base.hero}>
-        <p className={base.eyebrow}>HUMAN DESIGN EĞİTİM MERKEZİ</p>
-        <h1 className={base.title}>İki ayrı arşiv</h1>
-        <p className={base.sub}>Hazır örnekler ortaktır; özel arşiviniz yalnız size aittir</p>
+        <p className={base.eyebrow}>{t("common.eyebrowCenter")}</p>
+        <h1 className={base.title}>{t("archives.title")}</h1>
+        <p className={base.sub}>{t("archives.sub")}</p>
       </header>
       <section className={oz.cmp} data-edu-compare>
         <article className={base.panel}>
-          <div className={oz.cmpHead}><h2>Hazır Eğitim Haritaları</h2><span className={`${base.tag} ${base.tInfo} ${base.big}`}>Salt-okunur</span></div>
+          <div className={oz.cmpHead}><h2>{t("hub.centralTitle")}</h2><span className={`${base.tag} ${base.tInfo} ${base.big}`}>{t("archives.readOnly")}</span></div>
           <ul className={oz.ticks}>
-            <Row t="Sistem yönetimi hazırlar, doğrular ve yayımlar" />
-            <Row t="Kaynaklı doğum saati (kaynak düzeyi etikette) ve doğrulanmış UTC" />
-            <Row t="Eğitmen değiştiremez, silemez, ekleyemez" />
-            <Row t="Yalnız ayrıca yetki verilmiş eğitmenler görür" />
+            <Row t={t("archives.central1")} />
+            <Row t={t("archives.central2")} />
+            <Row t={t("archives.central3")} />
+            <Row t={t("archives.central4")} />
           </ul>
-          <div className={base.actions}><Link className={`${base.btn} ${base.ghost} ${oz.touch}`} href="/human-design/egitim-haritalari">Hazır haritaları aç</Link></div>
+          <div className={base.actions}><Link className={`${base.btn} ${base.ghost} ${oz.touch}`} href="/human-design/egitim-haritalari">{t("archives.openCentral")}</Link></div>
         </article>
         <article className={`${base.panel} ${oz.own}`}>
-          <div className={oz.cmpHead}><h2>Bana Özel Eğitim Haritaları</h2><span className={`${base.tag} ${base.tOk} ${base.big}`}>Yalnız siz + sistem sahibi</span></div>
+          <div className={oz.cmpHead}><h2>{t("hub.privateTitle")}</h2><span className={`${base.tag} ${base.tOk} ${base.big}`}>{t("archives.privateTag")}</span></div>
           <ul className={oz.ticks}>
-            <Row t="Kendi danışanınızın kayıtlı haritası (yeni hesap yok, kopya yok)" />
-            <Row t="Danışanın belgeli izni zorunlu; varsayılan takma ad" />
-            <Row t="Başka eğitmenler kaydın varlığını bile göremez" />
-            <Row t="İzin geri çekilirse kayıt anında kapanır" />
+            <Row t={t("archives.private1")} />
+            <Row t={t("archives.private2")} />
+            <Row t={t("archives.private3")} />
+            <Row t={t("archives.private4")} />
           </ul>
-          <div className={base.actions}><Link className={`${base.btn} ${base.save} ${oz.touch}`} href="/human-design/egitim-merkezi/ozel">Özel arşivimi aç</Link></div>
+          <div className={base.actions}><Link className={`${base.btn} ${base.save} ${oz.touch}`} href="/human-design/egitim-merkezi/ozel">{t("archives.openPrivate")}</Link></div>
         </article>
       </section>
-      <p className={base.note}>Özel kayıtlar hiçbir koşulda merkezî katalogda yayımlanmaz; bir eğitmene verilen özel arşiv yetkisi başka eğitmenlere erişim sağlamaz.</p>
+      <p className={base.note}>{t("archives.note")}</p>
     </Shell>
   );
 }

@@ -2,6 +2,7 @@
 
 import { useRef, useState, useEffect, useCallback } from "react";
 import { useToast } from "@/components/ui/ToastProvider";
+import { useTranslations } from "next-intl";
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
 import { readYasamUser, readSessionToken, hasWebSession } from "@/lib/auth/yasamUser";
 import { runInEffect } from "@/lib/runInEffect";
@@ -97,6 +98,7 @@ function hasSession(): boolean {
 }
 
 export function HdChartImageUpload({ clientId, onChanged, readOnly = false }: Props) {
+  const t = useTranslations("hd.clients.image");
   const { showToast } = useToast();
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
@@ -144,7 +146,7 @@ export function HdChartImageUpload({ clientId, onChanged, readOnly = false }: Pr
     if (!file) return;
 
     if (!hasSession()) {
-      showToast({ message: "Oturum bulunamadı, tekrar giriş yapın.", type: "error" });
+      showToast({ message: t("noSession"), type: "error" });
       if (inputRef.current) inputRef.current.value = "";
       return;
     }
@@ -188,7 +190,7 @@ export function HdChartImageUpload({ clientId, onChanged, readOnly = false }: Pr
         const message =
           res.status === 413
             ? HD_CHART_IMAGE_TOO_LARGE_MESSAGE
-            : json.error ?? `Yükleme başarısız (HTTP ${res.status}). Lütfen tekrar deneyin.`;
+            : json.error ?? t("uploadFailedHttp", { status: res.status });
         showToast({ message, type: "error" });
         return;
       }
@@ -196,12 +198,12 @@ export function HdChartImageUpload({ clientId, onChanged, readOnly = false }: Pr
       setDisplayUrl(json.signedUrl ?? null);
       setStatus(json.signedUrl ? "ready" : "empty");
       showToast({
-        message: upload !== file ? "Harita görseli küçültülerek yüklendi." : "Harita görseli yüklendi.",
+        message: upload !== file ? t("uploadedShrunk") : t("uploaded"),
         type: "success",
       });
       onChanged?.();
     } catch {
-      showToast({ message: "Yükleme sırasında hata oluştu.", type: "error" });
+      showToast({ message: t("uploadError"), type: "error" });
     } finally {
       setUploading(false);
       if (inputRef.current) inputRef.current.value = "";
@@ -212,13 +214,13 @@ export function HdChartImageUpload({ clientId, onChanged, readOnly = false }: Pr
     if (status !== "ready" || uploading || deleting) return;
 
     if (!hasSession()) {
-      showToast({ message: "Oturum bulunamadı, tekrar giriş yapın.", type: "error" });
+      showToast({ message: t("noSession"), type: "error" });
       return;
     }
 
     const ok = await deleteConfirm({
-      title: "Harita görselini sil",
-      message: "Bu danışanın Human Design harita görseli kalıcı olarak silinecek.",
+      title: t("deleteTitle"),
+      message: t("deleteMessage"),
     });
     if (!ok) return;
 
@@ -232,16 +234,16 @@ export function HdChartImageUpload({ clientId, onChanged, readOnly = false }: Pr
       const json = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string };
 
       if (!res.ok || !json.ok) {
-        showToast({ message: json.error ?? "Silme başarısız.", type: "error" });
+        showToast({ message: json.error ?? t("deleteFailed"), type: "error" });
         return;
       }
 
       setDisplayUrl(null);
       setStatus("empty");
-      showToast({ message: "Harita görseli silindi.", type: "success" });
+      showToast({ message: t("deleted"), type: "success" });
       onChanged?.();
     } catch {
-      showToast({ message: "Silme sırasında hata oluştu.", type: "error" });
+      showToast({ message: t("deleteError"), type: "error" });
     } finally {
       setDeleting(false);
     }
@@ -256,11 +258,11 @@ export function HdChartImageUpload({ clientId, onChanged, readOnly = false }: Pr
       return (
         <div className="overflow-hidden rounded-xl border border-slate-200 bg-slate-50/50">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={displayUrl} alt="Eski Human Design harita görseli" className="w-full object-contain" style={{ maxHeight: 320 }} />
+          <img src={displayUrl} alt={t("legacyAlt")} className="w-full object-contain" style={{ maxHeight: 320 }} />
         </div>
       );
     }
-    if (status === "legacy") return <p className="text-xs text-slate-500">Eski harita görseli güvenli biçimde görüntülenemiyor.</p>;
+    if (status === "legacy") return <p className="text-xs text-slate-500">{t("legacyUnsafe")}</p>;
     return null;
   }
 
@@ -268,14 +270,14 @@ export function HdChartImageUpload({ clientId, onChanged, readOnly = false }: Pr
     <div className="space-y-2">
       {status === "loading" ? (
         <div className="flex h-20 w-full items-center justify-center rounded-xl border border-indigo-100/80 bg-indigo-50/20 text-sm text-slate-500">
-          Görsel yükleniyor...
+          {t("imageLoading")}
         </div>
       ) : status === "ready" && displayUrl ? (
         <div className="overflow-hidden rounded-xl border border-violet-200/80 bg-violet-50/30">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={displayUrl}
-            alt="Human Design Harita Görseli"
+            alt={t("alt")}
             className="w-full object-contain"
             style={{ maxHeight: 320 }}
           />
@@ -286,7 +288,7 @@ export function HdChartImageUpload({ clientId, onChanged, readOnly = false }: Pr
               disabled={busy}
               className="h-7 rounded-lg border border-indigo-200 bg-white px-3 text-xs font-bold text-indigo-700 transition hover:bg-indigo-50 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {uploading ? "Yükleniyor..." : "Değiştir"}
+              {uploading ? t("loading") : t("change")}
             </button>
             <button
               type="button"
@@ -294,18 +296,17 @@ export function HdChartImageUpload({ clientId, onChanged, readOnly = false }: Pr
               disabled={busy}
               className="h-7 rounded-lg border border-red-200 bg-white px-3 text-xs font-bold text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {deleting ? "Siliniyor..." : "Sil"}
+              {deleting ? t("deleting") : t("delete")}
             </button>
           </div>
         </div>
       ) : status === "legacy" ? (
         <div className="space-y-2 rounded-xl border border-amber-200/80 bg-amber-50/50 p-4">
           <p className="text-sm font-semibold text-amber-800">
-            Eski görsel formatı algılandı; yeniden yükleyin.
+            {t("legacyFormat")}
           </p>
           <p className="text-xs text-amber-700/90">
-            Bu danışanın görseli eski bir bağlantı biçiminde kayıtlı ve güvenli
-            biçimde görüntülenemiyor. Görseli yeniden yükleyerek güncelleyin.
+            {t("legacyFormatBody")}
           </p>
           <button
             type="button"
@@ -313,7 +314,7 @@ export function HdChartImageUpload({ clientId, onChanged, readOnly = false }: Pr
             disabled={busy}
             className="h-9 rounded-lg border border-amber-300 bg-white px-4 text-xs font-bold text-amber-800 transition hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {uploading ? "Yükleniyor..." : "Yeniden Yükle"}
+            {uploading ? t("loading") : t("reupload")}
           </button>
         </div>
       ) : (
@@ -323,11 +324,11 @@ export function HdChartImageUpload({ clientId, onChanged, readOnly = false }: Pr
           disabled={busy}
           className="flex h-20 w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-indigo-200/80 bg-indigo-50/30 text-sm font-semibold text-indigo-500 transition hover:border-indigo-400 hover:bg-indigo-50 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          {uploading ? "Yükleniyor..." : "PNG / JPG seç — Harita Görseli"}
+          {uploading ? t("loading") : t("pick")}
         </button>
       )}
       <p className="text-[11px] text-slate-500">
-        JPG, PNG veya WebP · en fazla {HD_CHART_IMAGE_MAX_LABEL} (daha büyük fotoğraflar otomatik küçültülür)
+        {t("limits", { max: HD_CHART_IMAGE_MAX_LABEL })}
       </p>
       <input
         ref={inputRef}

@@ -53,9 +53,15 @@ const STYLE_PROPS = [
   "paint-order",
 ] as const;
 
+/**
+ * Yakalama hata KODU (I18N-F1-R5 HD-B, P33): istemci kodu ekran dilinde gösterir (`hd.records.report.capture.<kod>`);
+ * `error` TR metni geriye dönük uyumluluk / kod yoksa yedek içindir (TR ekranda aynı metin).
+ */
+export type BodygraphCaptureErrorCode = "NO_BROWSER" | "RENDERER_LOAD" | "NOT_DRAWN" | "MISMATCH" | "VIEWBOX" | "RASTER";
+
 export type BodygraphCaptureResult =
   | { ok: true; dataUrl: string; width: number; height: number; bytes: number }
-  | { ok: false; error: string };
+  | { ok: false; error: string; code?: BodygraphCaptureErrorCode };
 
 type RoxyElement = HTMLElement & { data?: unknown; updateComplete?: Promise<unknown> };
 
@@ -148,12 +154,14 @@ export async function captureRoxyBodygraphPng(
   loadRenderer: () => Promise<void>,
   /** HD-25: görselin bağlanacağı analiz (kayıtlı harita) kimliği. */
   chartId: string,
+  /** Resmî bileşen dili (ekran dili; HdRoxyBodygraph ile aynı). Verilmezse "tr" = bugünkü davranış. */
+  lang: string = "tr",
 ): Promise<BodygraphCaptureResult> {
-  if (typeof window === "undefined" || typeof document === "undefined") return { ok: false, error: "Tarayıcı ortamı gerekli." };
+  if (typeof window === "undefined" || typeof document === "undefined") return { ok: false, code: "NO_BROWSER", error: "Tarayıcı ortamı gerekli." };
   try {
     await loadRenderer();
   } catch {
-    return { ok: false, error: "BodyGraph çizim bileşeni yüklenemedi." };
+    return { ok: false, code: "RENDERER_LOAD", error: "BodyGraph çizim bileşeni yüklenemedi." };
   }
 
   const host = document.createElement("div");
@@ -165,7 +173,7 @@ export async function captureRoxyBodygraphPng(
   el.className = "hd-fit";
   el.setAttribute("hide-readings", "");
   el.setAttribute("hide-sections", "header,details,legend,themes,facts");
-  el.setAttribute("lang", "tr");
+  el.setAttribute("lang", lang);
   host.appendChild(el);
   document.body.appendChild(host);
 
@@ -180,15 +188,15 @@ export async function captureRoxyBodygraphPng(
       if (svg && svg.querySelector(".bg-center")) break;
       await new Promise((r) => setTimeout(r, 50));
     }
-    if (!svg) return { ok: false, error: "BodyGraph çizilemedi." };
+    if (!svg) return { ok: false, code: "NOT_DRAWN", error: "BodyGraph çizilemedi." };
 
     // Çizim ↔ kayıtlı veri doğrulaması (eksik/yanlış çizim rapora girmez).
     if (!drawingMatches(svg, data)) {
-      return { ok: false, error: "BodyGraph çizimi kayıtlı harita verisiyle doğrulanamadı." };
+      return { ok: false, code: "MISMATCH", error: "BodyGraph çizimi kayıtlı harita verisiyle doğrulanamadı." };
     }
 
     const vb = svg.viewBox?.baseVal;
-    if (!vb || !(vb.width > 0) || !(vb.height > 0)) return { ok: false, error: "BodyGraph ölçüsü okunamadı." };
+    if (!vb || !(vb.width > 0) || !(vb.height > 0)) return { ok: false, code: "VIEWBOX", error: "BodyGraph ölçüsü okunamadı." };
 
     const clone = svg.cloneNode(true) as SVGSVGElement;
     inlineComputedStyles(svg, clone);
@@ -206,9 +214,9 @@ export async function captureRoxyBodygraphPng(
       if (bound.length > MAX_PNG_BYTES) continue;
       return { ok: true, dataUrl: bytesToPngDataUrl(bound), width: out.width, height: out.height, bytes: bound.length };
     }
-    return { ok: false, error: "BodyGraph görseli üretilemedi." };
+    return { ok: false, code: "RASTER", error: "BodyGraph görseli üretilemedi." };
   } catch {
-    return { ok: false, error: "BodyGraph görseli üretilemedi." };
+    return { ok: false, code: "RASTER", error: "BodyGraph görseli üretilemedi." };
   } finally {
     host.remove();
   }

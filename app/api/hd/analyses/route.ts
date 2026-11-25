@@ -1,3 +1,4 @@
+import { hdApiText } from "../_lib/hdApiText";
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { listHdAnalysisGroups } from "@/lib/human-design/api/hdAnalysisList";
@@ -24,7 +25,7 @@ export async function GET(req: NextRequest): Promise<Response> {
   };
   const r = await listHdAnalysisGroups(guard.db, guard.tenantId, { q: sp.get("q") ?? "", offset: num("offset"), limit: num("limit") });
   if (!r.ok) {
-    return NextResponse.json({ ok: false, code: "LIST_FAILED", error: "Human Design analizleri yüklenemedi. Sayfayı yenileyin." }, { status: 500, headers: NO_STORE });
+    return NextResponse.json({ ok: false, code: "LIST_FAILED", error: hdApiText(req, "analysesLoadFailed") }, { status: 500, headers: NO_STORE });
   }
   return NextResponse.json(
     { ok: true, rows: r.rows, total: r.total, offset: r.offset, limit: r.limit },

@@ -1,3 +1,4 @@
+import { hdApiText } from "../../_lib/hdApiText";
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { trackUsage } from "@/lib/usage/trackUsage";
@@ -53,13 +54,13 @@ export async function GET(req: NextRequest): Promise<Response> {
   const guard = await requireModuleAccess(req, "human_design");
   if (!guard.ok) return guard.response;
   const id = (new URL(req.url).searchParams.get("journey_client_id") ?? "").trim();
-  if (!isUuid(id)) return NextResponse.json({ ok: false, code: "INVALID_ID", error: "Geçersiz danışan." }, { status: 400, headers: NO_STORE });
+  if (!isUuid(id)) return NextResponse.json({ ok: false, code: "INVALID_ID", error: hdApiText(req, "invalidClient") }, { status: 400, headers: NO_STORE });
   const { db, tenantId } = guard;
   const { data: cli, error: cliErr } = await db.from("clients").select("id").eq("id", id).eq("tenant_id", tenantId).maybeSingle();
-  if (cliErr) return NextResponse.json({ ok: false, code: "DB_ERROR", error: "Danışan doğrulanamadı." }, { status: 500, headers: NO_STORE });
-  if (!cli) return NextResponse.json({ ok: false, code: "NOT_FOUND", error: "Danışan bulunamadı." }, { status: 404, headers: NO_STORE });
+  if (cliErr) return NextResponse.json({ ok: false, code: "DB_ERROR", error: hdApiText(req, "clientNotVerified") }, { status: 500, headers: NO_STORE });
+  if (!cli) return NextResponse.json({ ok: false, code: "NOT_FOUND", error: hdApiText(req, "clientNotFound") }, { status: 404, headers: NO_STORE });
   const r = await getJourneyHdSummary(db, tenantId, id);
-  if (r.error) return NextResponse.json({ ok: false, code: "DB_ERROR", error: "Human Design kayıtları yüklenemedi." }, { status: 500, headers: NO_STORE });
+  if (r.error) return NextResponse.json({ ok: false, code: "DB_ERROR", error: hdApiText(req, "hdRecordsLoadFailed") }, { status: 500, headers: NO_STORE });
   return NextResponse.json({ ok: true, profile: r.profile, analyses: r.analyses }, { status: 200, headers: NO_STORE });
 }
 
@@ -68,7 +69,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   if (!guard.ok) return guard.response;
   if (guard.is_demo_account) {
     return NextResponse.json(
-      { ok: false, code: "DEMO_READONLY", error: "Demo hesabında danışan işlemleri yapılamaz." },
+      { ok: false, code: "DEMO_READONLY", error: hdApiText(req, "demoNoClientOps") },
       { status: 403, headers: NO_STORE },
     );
   }
@@ -76,10 +77,10 @@ export async function POST(req: NextRequest): Promise<Response> {
   try {
     raw = await req.json();
   } catch {
-    return NextResponse.json({ ok: false, code: "MALFORMED_JSON", error: "Geçerli JSON gövdesi gerekli." }, { status: 400, headers: NO_STORE });
+    return NextResponse.json({ ok: false, code: "MALFORMED_JSON", error: hdApiText(req, "malformedJson") }, { status: 400, headers: NO_STORE });
   }
   if (!isObj(raw)) {
-    return NextResponse.json({ ok: false, code: "MALFORMED_JSON", error: "İstek gövdesi nesne olmalı." }, { status: 400, headers: NO_STORE });
+    return NextResponse.json({ ok: false, code: "MALFORMED_JSON", error: hdApiText(req, "bodyNotObject") }, { status: 400, headers: NO_STORE });
   }
   const { db, tenantId, userId } = guard;
   const action = str(raw.action);
@@ -120,6 +121,6 @@ export async function POST(req: NextRequest): Promise<Response> {
       return NextResponse.json({ ok: true, birth_date: r.birthDate }, { status: 200, headers: NO_STORE });
     }
     default:
-      return NextResponse.json({ ok: false, code: "UNKNOWN_ACTION", error: "Geçersiz işlem." }, { status: 400, headers: NO_STORE });
+      return NextResponse.json({ ok: false, code: "UNKNOWN_ACTION", error: hdApiText(req, "invalidAction") }, { status: 400, headers: NO_STORE });
   }
 }

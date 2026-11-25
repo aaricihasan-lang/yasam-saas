@@ -4,6 +4,7 @@
 // chartsClient.ts'i yansıtır. Fonksiyon imzaları DEĞİŞMEDİ → Bilgi Bankası
 // bileşenleri/UI dokunulmadan çalışır. HD engine/BodyGraph'a dokunmaz.
 
+import { KB_NETWORK_ERROR } from "./kbNetworkError";
 import { readSessionToken, readYasamUser } from "@/lib/auth/yasamUser";
 import type {
   HumanDesignKnowledgeRecord,
@@ -30,7 +31,7 @@ export async function listHdKnowledgeRecords(): Promise<{
   try {
     res = await fetch("/api/hd/knowledge", { method: "GET", headers: authHeaders() });
   } catch {
-    return { rows: [], error: "Ağ hatası. Bağlantını kontrol et." };
+    return { rows: [], error: KB_NETWORK_ERROR };
   }
   const j = (await res.json().catch(() => ({}))) as Record<string, unknown>;
   if (res.ok && j.ok === true && Array.isArray(j.rows)) {
@@ -49,7 +50,7 @@ export async function getHdKnowledgeRecord(
       headers: authHeaders(),
     });
   } catch {
-    return { row: null, error: "Ağ hatası. Bağlantını kontrol et." };
+    return { row: null, error: KB_NETWORK_ERROR };
   }
   const j = (await res.json().catch(() => ({}))) as Record<string, unknown>;
   if (res.ok && j.ok === true && j.row && typeof j.row === "object") {
@@ -67,7 +68,7 @@ export async function listHdKnowledgeNames(): Promise<{
   try {
     res = await fetch("/api/hd/knowledge?names=1", { method: "GET", headers: authHeaders(), cache: "no-store" });
   } catch {
-    return { rows: [], error: "Ağ hatası. Bağlantını kontrol et." };
+    return { rows: [], error: KB_NETWORK_ERROR };
   }
   const j = (await res.json().catch(() => ({}))) as Record<string, unknown>;
   if (res.ok && j.ok === true && Array.isArray(j.rows)) {
@@ -88,7 +89,7 @@ export async function insertHdKnowledgeRecord(
       body: JSON.stringify(input),
     });
   } catch {
-    return { id: null, error: "Ağ hatası. Bağlantını kontrol et." };
+    return { id: null, error: KB_NETWORK_ERROR };
   }
   const j = (await res.json().catch(() => ({}))) as Record<string, unknown>;
   if (res.ok && j.ok === true && typeof j.id === "string") {
@@ -115,7 +116,7 @@ export async function updateHdKnowledgeRecord(
       body: JSON.stringify(expectedUpdatedAt ? { ...input, id, expected_updated_at: expectedUpdatedAt } : { ...input, id }),
     });
   } catch {
-    return { error: "Ağ hatası. Bağlantını kontrol et." };
+    return { error: KB_NETWORK_ERROR };
   }
   const j = (await res.json().catch(() => ({}))) as Record<string, unknown>;
   if (res.ok && j.ok === true) return { error: null, updatedAt: typeof j.updated_at === "string" ? j.updated_at : null };
@@ -132,7 +133,7 @@ export async function deleteHdKnowledgeRecord(
       headers: authHeaders(),
     });
   } catch {
-    return { error: "Ağ hatası. Bağlantını kontrol et." };
+    return { error: KB_NETWORK_ERROR };
   }
   const j = (await res.json().catch(() => ({}))) as Record<string, unknown>;
   if (res.ok && j.ok === true) return { error: null };
@@ -150,7 +151,7 @@ export async function deleteHdKnowledgeRecords(
       headers: authHeaders(),
     });
   } catch {
-    return { error: "Ağ hatası. Bağlantını kontrol et." };
+    return { error: KB_NETWORK_ERROR };
   }
   const j = (await res.json().catch(() => ({}))) as Record<string, unknown>;
   if (res.ok && j.ok === true) return { error: null };

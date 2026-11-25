@@ -6,7 +6,9 @@
 //   • "Görünen Ad" serbesttir; yalnız bu hesabın ekranlarında ve yeni Word raporlarında görünür.
 //     Hazır sözlük değişmez; boş bırakılırsa hazır ada dönülür.
 
+import { useLocale, useTranslations } from "next-intl";
 import { HUMAN_DESIGN_CHANNELS, HUMAN_DESIGN_GATES } from "@/lib/human-design/constants";
+import { useHdTerms } from "../../_i18n/useHdTerms";
 import {
   composeHdChannelTitle,
   composeHdGateTitle,
@@ -50,12 +52,18 @@ type Props = {
 
 export function HdGateChannelNameField({ category, structuredValue, name, onPick, onName, fieldBase, labelCls, lockIdentity }: Props) {
   const isGate = category === HD_GATE_CATEGORY;
+  const t = useTranslations("hd.knowledge");
+  const terms = useHdTerms();
+  const isTr = useLocale() === "tr";
+  // Seçenek METNİ yalnız gösterim; value (kapı no / kanal çifti) ve kaydedilen başlık değişmez.
+  const optLabel = (o: { value: string; label: string }) =>
+    isTr ? o.label : isGate ? t("gateOption", { n: o.value }) : terms.label("channel", o.value.replace(/_/g, "-"));
   const options = isGate
     ? HUMAN_DESIGN_GATES.map((g) => ({ value: String(g.code), label: g.label }))
     : HUMAN_DESIGN_CHANNELS.map((c) => ({ value: (c.code as string).replace(/-/g, "_"), label: c.label as string }));
   const defaultName = hdDefaultNameFor(category, structuredValue);
   const isCustom = !!structuredValue && name.trim() !== "" && name.trim() !== defaultName;
-  const idLabel = isGate ? "Kapı numarası" : "Kanal (kapı çifti)";
+  const idLabel = isGate ? t("nameField.gateNumber") : t("nameField.channelPair");
   const prefix = structuredValue ? (isGate ? `${structuredValue}.` : structuredValue.replace(/_/g, "–")) : "";
 
   return (
@@ -69,14 +77,14 @@ export function HdGateChannelNameField({ category, structuredValue, name, onPick
           className={`h-9 ${fieldBase} ${lockIdentity ? "cursor-not-allowed bg-slate-50/80 text-slate-500" : ""}`}
           data-hd-kb-identity
         >
-          <option value="">— Seçin —</option>
+          <option value="">{t("form.chooseDash")}</option>
           {options.map((o) => (
-            <option key={o.value} value={o.value}>{o.label}</option>
+            <option key={o.value} value={o.value}>{optLabel(o)}</option>
           ))}
         </select>
       </div>
       <div>
-        <label className={labelCls}>Görünen Ad</label>
+        <label className={labelCls}>{t("nameField.displayName")}</label>
         <div className="flex items-stretch gap-2">
           {prefix ? (
             <span className="inline-flex h-9 shrink-0 items-center rounded-xl bg-slate-100 px-2.5 text-sm font-black tabular-nums text-slate-600 ring-1 ring-slate-200">
@@ -88,7 +96,7 @@ export function HdGateChannelNameField({ category, structuredValue, name, onPick
             value={name}
             disabled={!structuredValue}
             onChange={(e) => onName(e.target.value)}
-            placeholder={defaultName || "Önce seçim yapın"}
+            placeholder={defaultName || t("nameField.pickFirst")}
             maxLength={120}
             className={`h-9 min-w-0 flex-1 ${fieldBase}`}
             data-hd-kb-display-name
@@ -100,16 +108,15 @@ export function HdGateChannelNameField({ category, structuredValue, name, onPick
               className="h-9 shrink-0 rounded-xl border border-indigo-200 bg-white px-3 text-xs font-bold text-indigo-700 hover:bg-indigo-50"
               data-hd-kb-name-reset
             >
-              Varsayılana dön
+              {t("nameField.reset")}
             </button>
           ) : null}
         </div>
       </div>
       <div className="sm:col-span-2 rounded-xl border border-sky-200/80 bg-sky-50/60 px-3 py-2.5 text-xs leading-relaxed text-sky-800">
-        <span className="font-bold">{isGate ? "Kapı numarası" : "Kanalın kapı çifti"} sabittir</span> ve rapor eşleşmesi bu numaradan yapılır.
-        Görünen adı kendi eğitiminize göre değiştirebilirsiniz; değişiklik yalnız sizin hesabınızda ve yeni Word raporlarında görünür.
-        Yalnız adı değiştirmek için açıklama yazmanız gerekmez.
-        {lockIdentity ? " Numara değiştirilemez; farklı bir kapı/kanal için yeni kayıt ekleyin." : ""}
+        <span className="font-bold">{isGate ? t("nameField.gateFixed") : t("nameField.channelFixed")}</span>{" "}
+        {t("nameField.help")}
+        {lockIdentity ? ` ${t("nameField.locked")}` : ""}
       </div>
     </>
   );

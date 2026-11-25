@@ -1,3 +1,4 @@
+import { hdApiText } from "../../_lib/hdApiText";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { EDU_NO_STORE, requireEducationViewer } from "@/lib/human-design/education/educationAccess";
@@ -14,7 +15,7 @@ export async function GET(req: NextRequest): Promise<Response> {
   const gate = await requireEducationViewer(req);
   if (!gate.ok) return gate.response;
   return NextResponse.json(
-    { ok: true, visible: true, card: { title: "Hazır Eğitim Haritaları", desc: "Belgeli doğum verisiyle hazırlanmış eğitim örnekleri" } },
+    { ok: true, visible: true, card: { title: hdApiText(req, "eduAccessTitle"), desc: hdApiText(req, "eduAccessDescription") } },
     { headers: EDU_NO_STORE },
   );
 }

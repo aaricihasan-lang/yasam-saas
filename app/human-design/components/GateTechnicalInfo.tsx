@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { GATE_TECHNICAL_DATA, resolveUniqueGates } from "@/lib/human-design/gateTechnicalData";
 
 type Props = {
@@ -8,6 +9,7 @@ type Props = {
 };
 
 export function GateTechnicalInfo({ gates, channels }: Props) {
+  const t = useTranslations("hd.forms.gateTech");
   const allGates = resolveUniqueGates(gates, channels);
   if (allGates.length === 0) return null;
 
@@ -20,19 +22,19 @@ export function GateTechnicalInfo({ gates, channels }: Props) {
   return (
     <div className="rounded-xl border border-indigo-200/80 bg-white/70 overflow-hidden">
       <div className="bg-indigo-50/80 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-indigo-700">
-        Kapı Teknik Bilgileri
+        {t("title")}
       </div>
       <div className="overflow-x-auto">
         <table className="min-w-full text-xs">
           <thead>
             <tr className="border-b border-indigo-100/80 bg-indigo-50/40">
-              <th className="px-3 py-1.5 text-left font-bold text-slate-600 whitespace-nowrap">Kapı</th>
-              <th className="px-3 py-1.5 text-left font-bold text-slate-600 whitespace-nowrap">Merkez</th>
-              <th className="px-3 py-1.5 text-left font-bold text-slate-600 whitespace-nowrap">Merkez Tipi</th>
-              <th className="px-3 py-1.5 text-left font-bold text-slate-600 whitespace-nowrap">Kısa Bilgi</th>
-              <th className="px-3 py-1.5 text-left font-bold text-slate-600 whitespace-nowrap">Burç</th>
-              <th className="px-3 py-1.5 text-left font-bold text-slate-600 whitespace-nowrap">Derece</th>
-              <th className="px-3 py-1.5 text-left font-bold text-slate-600 whitespace-nowrap">Antisya</th>
+              <th className="px-3 py-1.5 text-left font-bold text-slate-600 whitespace-nowrap">{t("gate")}</th>
+              <th className="px-3 py-1.5 text-left font-bold text-slate-600 whitespace-nowrap">{t("center")}</th>
+              <th className="px-3 py-1.5 text-left font-bold text-slate-600 whitespace-nowrap">{t("centerType")}</th>
+              <th className="px-3 py-1.5 text-left font-bold text-slate-600 whitespace-nowrap">{t("summary")}</th>
+              <th className="px-3 py-1.5 text-left font-bold text-slate-600 whitespace-nowrap">{t("sign")}</th>
+              <th className="px-3 py-1.5 text-left font-bold text-slate-600 whitespace-nowrap">{t("degree")}</th>
+              <th className="px-3 py-1.5 text-left font-bold text-slate-600 whitespace-nowrap">{t("antiscia")}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-indigo-50/80">

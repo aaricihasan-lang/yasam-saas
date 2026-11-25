@@ -547,7 +547,9 @@ async function main() {
     const detail = src("app/human-design/danisanlar/[id]/HdDanisanDetayContent.tsx");
     ok("7f Seçici ham metni üst forma bildirir (onTextChange)", /onTextChange\?\.\(e\.target\.value\)/.test(picker));
     ok("7g Detay formu: yazılan metin formu değiştirir + önceki seçimi düşürür", /onTextChange=\{\(text\) => \{\s*setPickedLocation\(null\);\s*setForm\(\(p\) => \(p \? \{ \.\.\.p, birth_place: text \} : p\)\);/.test(detail));
-    ok("7h Detay formu: seçilmemiş yer için kayıt öncesi uyarı (istek gönderilmez)", detail.includes("Doğum yeri listeden seçilmedi") && detail.indexOf("Doğum yeri listeden seçilmedi") < detail.indexOf("await updateHdClient("));
+    // I18N (R5): uyarı metni katalogda (hd.clients.detail.placeNotPicked; TR değeri kaynak metinle bayt-eşit) — niyet aynı.
+    const placeNotPickedTr = JSON.parse(src("messages/tr/hd.clients.json")).hd.clients.detail.placeNotPicked as string;
+    ok("7h Detay formu: seçilmemiş yer için kayıt öncesi uyarı (istek gönderilmez)", placeNotPickedTr.startsWith("Doğum yeri listeden seçilmedi") && detail.includes('t("placeNotPicked")') && detail.indexOf('t("placeNotPicked")') < detail.indexOf("await updateHdClient("));
     ok("7i Roxy konum araması yedeği KORUNDU (yerel sonuç yoksa otomatik ilçe araması)", /merged\.length === 0 && q\.length >= 4/.test(picker) && picker.includes("/api/hd/location/search"));
     const lsRoute = src("app/api/hd/location/search/route.ts");
     ok("7i2 Sunucu Roxy konum arama ucu duruyor (owner kararı: yerel sonuç yoksa Roxy kullanılmaya devam)", /export async function GET/.test(lsRoute) && /roxy/i.test(lsRoute));
@@ -728,7 +730,7 @@ async function main() {
     const g2 = await CPS.getComputedChart(db2 as never, T1, chartId);
     ok("24b Ad yalnız aynı tenant'tan okunur (başka tenant adı sızmaz)", g2.row !== null && !("current_client_name" in (g2.row ?? {})));
     const modal = src("app/human-design/kayitli-haritalar/components/HdComputedChartModal.tsx");
-    ok("24c Analiz penceresi başlığı güncel adı gösterir + ad değiştiyse açıklama", /const displayName = row\?\.current_client_name \|\| row\?\.client_name/.test(modal) && modal.includes("Yeni Word güncel adı kullanır; daha önce oluşturulmuş Word eski adı içerir."));
+    ok("24c Analiz penceresi başlığı güncel adı gösterir + ad değiştiyse açıklama", /const displayName = row\?\.current_client_name \|\| row\?\.client_name/.test(modal) && modal.includes('t("renamed"') && JSON.parse(readFileSync(join(ROOT, "messages/tr/hd.records.json"), "utf8")).hd.records.modal.renamed.includes("Yeni Word güncel adı kullanır; daha önce oluşturulmuş Word eski adı içerir.")); // I18N R5: metin katalogda
     ok("24d Yeni Word adı güncel danışan kaydından (tek kaynak)", /chart\.client\?\.name \|\| chart\.client_name/.test(src("lib/human-design/reporting/reportSnapshotV2Service.ts")));
   }
 

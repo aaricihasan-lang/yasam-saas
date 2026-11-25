@@ -17,6 +17,7 @@
 // (hd_system_reading) altında ayrı sekme; ücretli hesap yalnız panel içindeki açık eylemle (sekme açmak çağrı yapmaz).
 // Yetki kapalıyken sekme çubuğu yine hiç yok (eski görünüm birebir).
 
+import { useTranslations } from "next-intl";
 import { useState, type ReactNode } from "react";
 import { isAdminUser, readYasamUser } from "@/lib/auth/yasamUser";
 import { hasModulePermission } from "@/lib/auth/modulePermissions";
@@ -58,6 +59,7 @@ export function HdChartKnowledgeTabs({
   adminSources?: { expert: ReactNode; central: ReactNode };
 }) {
   const [tab, setTab] = useState<Tab>("expert");
+  const t = useTranslations("hd.records.tabs");
   const [systemMounted, setSystemMounted] = useState(false);
   const [variablesMounted, setVariablesMounted] = useState(false);
   const [admin] = useState(isHdAdminSourceView);
@@ -91,10 +93,10 @@ export function HdChartKnowledgeTabs({
   return (
     <div className="space-y-5" data-hd-knowledge-tabs data-hd-admin-sources={split ? "1" : undefined}>
       <div className="mx-auto max-w-[1552px]">
-        <div role="tablist" aria-label="Harita bilgileri" className="flex w-full flex-wrap gap-1 rounded-xl bg-slate-100 p-1 sm:w-auto sm:inline-flex">
-          {tabBtn("expert", "Uzman Bilgilerim")}
-          {split ? tabBtn("central", HD_ADMIN_SOURCE_LABELS.central) : null}
-          {allowed ? tabBtn("system", split ? HD_ADMIN_SOURCE_LABELS.system : "Sistem Yorumu") : null}
+        <div role="tablist" aria-label={t("ariaLabel")} className="flex w-full flex-wrap gap-1 rounded-xl bg-slate-100 p-1 sm:w-auto sm:inline-flex">
+          {tabBtn("expert", t("expert"))}
+          {split ? tabBtn("central", t("central")) : null}
+          {allowed ? tabBtn("system", t("system")) : null}
           {allowed && HD_VARIABLES_ENABLED ? tabBtn("variables", VARIABLES_TITLE) : null}
         </div>
       </div>
@@ -116,7 +118,7 @@ export function HdChartKnowledgeTabs({
         >
           {split ? (
             <p className="mb-3 text-[11px] leading-relaxed text-slate-500" data-hd-roxy-note>
-              Bu haritanın hesaplanması sırasında hesaplama altyapımızdan alınıp kaydedilmiş yorumdur. Görüntülemek yeni bir hesaplama isteği oluşturmaz; kayıtlı yorum yoksa gösterilmez.
+              {t("roxyNote")}
             </p>
           ) : null}
           <HdSystemReadingPanel chartId={chartId} />

@@ -12,7 +12,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { createElement } from "react";
-import { renderToStaticMarkup } from "react-dom/server";
+import { renderToStaticMarkup } from "../hd-i18n/intlRender";
 import { Resvg } from "@resvg/resvg-js";
 import { validateRoxyBodygraph } from "../../lib/human-design/providers/roxy/schema";
 import { normalizeRoxyBodygraph } from "../../lib/human-design/providers/roxy/normalize";

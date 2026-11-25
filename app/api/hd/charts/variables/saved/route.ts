@@ -1,3 +1,4 @@
+import { hdApiText } from "../../../_lib/hdApiText";
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { hasModulePermissionForProfile } from "@/lib/auth/modulePermissions";
@@ -21,13 +22,13 @@ export async function POST(req: NextRequest): Promise<Response> {
   const guard = await requireModuleAccess(req, "human_design");
   if (!guard.ok) return guard.response;
   if (!hasModulePermissionForProfile(guard.profile, "hd_system_reading")) {
-    return NextResponse.json({ ok: false, code: "VARIABLES_DENIED", error: "Dört Ok ve PHS analizi bu hesap için açık değil." }, { status: 403, headers: NO_STORE });
+    return NextResponse.json({ ok: false, code: "VARIABLES_DENIED", error: hdApiText(req, "variablesDisabled") }, { status: 403, headers: NO_STORE });
   }
   let raw: unknown;
   try {
     raw = await req.json();
   } catch {
-    return NextResponse.json({ ok: false, code: "MALFORMED_JSON", error: "Geçerli JSON gövdesi gerekli." }, { status: 400, headers: NO_STORE });
+    return NextResponse.json({ ok: false, code: "MALFORMED_JSON", error: hdApiText(req, "malformedJson") }, { status: 400, headers: NO_STORE });
   }
   const r = await readSavedChartVariables(
     { db: guard.db, tenantId: guard.tenantId, userId: guard.userId, isDemo: guard.is_demo_account },

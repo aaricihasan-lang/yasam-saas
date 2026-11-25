@@ -8,7 +8,7 @@
 // Çalıştırma:  npx tsx scripts/hd-validation/bodygraph/render_validation.mjs
 
 import { createElement } from "react";
-import { renderToStaticMarkup } from "react-dom/server";
+import { renderToStaticMarkup } from "../../hd-i18n/intlRender";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";

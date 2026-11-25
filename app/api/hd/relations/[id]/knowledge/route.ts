@@ -1,8 +1,10 @@
+import { hdApiText } from "../../../_lib/hdApiText";
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { getRelationAnalysis } from "@/lib/human-design/relations/relationService";
 import { relationCentralKnowledge, relationKnowledge } from "@/lib/human-design/relations/relationExtras";
-import { connectionExplanations, pentaExplanations } from "@/lib/human-design/relations/explanations";
+import { connectionExplanations, pentaExplanations, type ExplanationLang } from "@/lib/human-design/relations/explanations";
+import { resolveOutputLocale } from "@/lib/i18n/output";
 import type { HdConnectionResult } from "@/lib/human-design/relations/connection";
 import type { HdPentaResult } from "@/lib/human-design/relations/penta";
 
@@ -27,9 +29,16 @@ export async function GET(req: NextRequest, ctx: RouteContext): Promise<Response
   if (!g.body.ok) return NextResponse.json(g.body, { status: g.status, headers: NO_STORE });
   const a = g.body.analysis;
   const names = a.participants.map((p) => p.name);
-  const analysis = a.kind === "connection" ? connectionExplanations(a.result as HdConnectionResult, names[0], names[1]) : pentaExplanations(a.result as HdPentaResult, names);
+  // Açıklama dili = ekran dili (çerez + yayın kapısı; kapı kapalıyken daima "tr" → bugünkü Türkçe metin birebir). Kayıt/hesap değişmez.
+  let lang: ExplanationLang = "tr";
+  try {
+    lang = resolveOutputLocale(req).locale === "en" ? "en" : "tr";
+  } catch {
+    lang = "tr";
+  }
+  const analysis = a.kind === "connection" ? connectionExplanations(a.result as HdConnectionResult, names[0], names[1], lang) : pentaExplanations(a.result as HdPentaResult, names, lang);
   const k = await relationKnowledge(rctx, a, { forReport: false });
-  if (!k.ok) return NextResponse.json({ ok: false, code: "KNOWLEDGE_READ_FAILED", error: "Bilgi Bankası okunamadı." }, { status: 500, headers: NO_STORE });
+  if (!k.ok) return NextResponse.json({ ok: false, code: "KNOWLEDGE_READ_FAILED", error: hdApiText(req, "knowledgeReadFailed") }, { status: 500, headers: NO_STORE });
   const isAdmin = String(guard.profile?.role ?? "").trim().toLowerCase() === "admin";
   const central = isAdmin ? await relationCentralKnowledge(rctx, a) : null;
   return NextResponse.json(

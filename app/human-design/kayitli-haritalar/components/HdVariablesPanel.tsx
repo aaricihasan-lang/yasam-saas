@@ -14,36 +14,21 @@
 //   • Base yalnız bilgilendirici (anlam yorumlanmaz); tarihsel saniyeli ofsette "?" + kesinleştirilemedi. Metinler düz metin.
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useTranslations } from "next-intl";
 import { readYasamUser } from "@/lib/auth/yasamUser";
 import { fetchChartVariables, fetchSavedChartVariables } from "@/lib/human-design/variables/variablesClient";
 import type { VariablesArrowDto, VariablesDto } from "@/lib/human-design/variables/variablesContract";
-import {
-  ARROW_PLACE_TR,
-  ARROW_TITLE_TR,
-  COGNITION_TITLE,
-  DIRECTION_TR,
-  VARIABLES_ALL_UNCERTAIN_NOTE,
-  VARIABLES_BASE_NOTE,
-  VARIABLES_BASE_UNCERTAIN,
-  VARIABLES_CERTAINTY_EXPLAINER,
-  VARIABLES_HEALTH_NOTE,
-  VARIABLES_HISTORICAL_OFFSET_NOTE,
-  VARIABLES_INTRO,
-  VARIABLES_PRECISION_NOTE,
-  VARIABLES_SOURCE_NOTE,
-  VARIABLES_SUBTITLE,
-  VARIABLES_TITLE,
-  VARIABLES_UNCERTAIN_ADVICE,
-  VARIABLES_UNCERTAIN_NOTE,
-} from "@/lib/human-design/variables/variablesLabels";
+// I18N (HD-B): sabit notlar / terimler `hd.variables` katalogundan; TR değerleri lib/human-design/variables/variablesLabels
+// sabitleriyle BAYT-BAYT aynı (scripts/hd-i18n/ui-b-en-smoke.ts doğrular). Sağlayıcı metinleri (a.text.*) aynen gösterilir.
 
 /** Sekme ömrü boyunca aynı kullanıcı + aynı analiz için oturum belleği (yalnız başarılı + eşleşen sonuç). */
 const sessionMemo = new Map<string, VariablesDto>();
 const memoKey = (chartId: string) => `${readYasamUser()?.id ?? ""}|${chartId.toLowerCase()}`;
 
 function Arrow({ dir, uncertain }: { dir: "left" | "right"; uncertain: boolean }) {
+  const t = useTranslations("hd.variables");
   return (
-    <svg viewBox="0 0 48 24" width="44" height="22" role="img" aria-label={uncertain ? `Olası ${DIRECTION_TR[dir].toLocaleLowerCase("tr")} yönlü ok (kesin değil)` : `${DIRECTION_TR[dir]} yönlü ok`} className="shrink-0">
+    <svg viewBox="0 0 48 24" width="44" height="22" role="img" aria-label={uncertain ? t("arrowAriaUncertain", { dirLower: t(`directionLower.${dir}`) }) : t("arrowAria", { dir: t(`direction.${dir}`) })} className="shrink-0">
       <g transform={dir === "left" ? "" : "translate(48 0) scale(-1 1)"} fill="none" stroke={uncertain ? "#b45309" : "#4338ca"} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" strokeDasharray={uncertain ? "4 3" : undefined}>
         <path d="M44 12H6" />
         <path d="M14 4 6 12l8 8" />
@@ -87,10 +72,13 @@ function ValueCell({ sure, title, children }: { sure: boolean; title?: string; c
 }
 
 function ArrowCard({ a }: { a: VariablesArrowDto }) {
+  const t = useTranslations("hd.variables");
   const sure = a.confident;
   // Base, Tone'un alt bölümüdür: Color / Tone kesin değilse Base de kesin olamaz (yalnız gösterim; veri değişmez).
   const baseSure = sure && a.baseCertain;
-  const dir = DIRECTION_TR[a.direction];
+  const dir = t(`direction.${a.direction}`);
+  const dirLower = t(`directionLower.${a.direction}`);
+  const title = t(`arrowTitle.${a.key}`);
   const num = sure ? "font-mono text-base font-black text-slate-900" : "font-mono text-base font-black text-amber-800";
   return (
     <section
@@ -100,21 +88,21 @@ function ArrowCard({ a }: { a: VariablesArrowDto }) {
       data-hd-var-values={`${a.color}.${a.tone}.${a.base}:${a.direction}`}
       aria-label={
         sure
-          ? `${ARROW_TITLE_TR[a.key]}: ${dir} yön, Color ${a.color}, Tone ${a.tone}`
-          : `${ARROW_TITLE_TR[a.key]}: kesinleştirilemedi — olası ${dir.toLocaleLowerCase("tr")} yön, olası Color ${a.color}, olası Tone ${a.tone}`
+          ? t("cardAria", { title, dir, color: a.color, tone: a.tone })
+          : t("cardAriaUncertain", { title, dirLower, color: a.color, tone: a.tone })
       }
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <h3 className="break-words text-sm font-black text-slate-900">{ARROW_TITLE_TR[a.key]}</h3>
-          <p className="mt-0.5 text-[11px] text-slate-500">{ARROW_PLACE_TR[a.key]}</p>
+          <h3 className="break-words text-sm font-black text-slate-900">{title}</h3>
+          <p className="mt-0.5 text-[11px] text-slate-500">{t(`arrowPlace.${a.key}`)}</p>
           <p className="mt-0.5 text-[11px] text-slate-400">{a.text.name} · {a.text.layer}</p>
         </div>
         <Arrow dir={a.direction} uncertain={!sure} />
       </div>
       <div className="mt-2 flex flex-wrap items-center gap-1.5">
         <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${sure ? "bg-emerald-50 text-emerald-800 ring-1 ring-emerald-200" : "bg-amber-100 text-amber-900 ring-1 ring-amber-300"}`} data-hd-var-badge>
-          {sure ? "Kesin" : "Kesinleştirilemedi"}
+          {sure ? t("badgeCertain") : t("badgeUncertain")}
         </span>
         {sure ? (
           <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-[11px] font-bold text-indigo-800" data-hd-var-direction={a.direction}>
@@ -122,7 +110,7 @@ function ArrowCard({ a }: { a: VariablesArrowDto }) {
           </span>
         ) : (
           <span className="rounded-full border border-dashed border-amber-400 bg-white px-2 py-0.5 text-[11px] font-bold text-amber-900" data-hd-var-direction={a.direction} data-hd-var-direction-possible>
-            Olası yön: {dir}? · {a.text.directionLabel}
+            {t("possibleDirection", { dir, label: a.text.directionLabel })}
           </span>
         )}
       </div>
@@ -130,44 +118,44 @@ function ArrowCard({ a }: { a: VariablesArrowDto }) {
         <ValueCell sure={sure}>
           <dt className="text-[10px] font-bold uppercase tracking-wide text-slate-500">Color</dt>
           <dd className={num}>{a.color}{sure ? "" : "?"}</dd>
-          <dd className={`break-words text-[10px] ${sure ? "text-slate-600" : "text-amber-900"}`}>{sure ? a.text.colorLabel : `olası · ${a.text.colorLabel}`}</dd>
+          <dd className={`break-words text-[10px] ${sure ? "text-slate-600" : "text-amber-900"}`}>{sure ? a.text.colorLabel : t("possibleValue", { label: a.text.colorLabel })}</dd>
         </ValueCell>
         <ValueCell sure={sure}>
           <dt className="text-[10px] font-bold uppercase tracking-wide text-slate-500">Tone</dt>
           <dd className={num}>{a.tone}{sure ? "" : "?"}</dd>
-          <dd className={`text-[10px] ${sure ? "text-slate-600" : "text-amber-900"}`}>{sure ? (a.tone <= 3 ? "1–3 → sol" : "4–6 → sağ") : `olası · ${a.tone <= 3 ? "1–3 → sol" : "4–6 → sağ"}`}</dd>
+          <dd className={`text-[10px] ${sure ? "text-slate-600" : "text-amber-900"}`}>{sure ? (a.tone <= 3 ? t("toneLeft") : t("toneRight")) : t("possibleValue", { label: a.tone <= 3 ? t("toneLeft") : t("toneRight") })}</dd>
         </ValueCell>
-        <div className="rounded-lg bg-slate-50 px-1 py-1.5" title={VARIABLES_BASE_NOTE}>
+        <div className="rounded-lg bg-slate-50 px-1 py-1.5" title={t("baseNote")}>
           <dt className="text-[10px] font-bold uppercase tracking-wide text-slate-500">Base</dt>
           <dd className="font-mono text-base font-black text-slate-500" data-hd-var-base-certain={baseSure ? "1" : "0"}>{a.base}{baseSure ? "" : "?"}</dd>
-          <dd className="break-words text-[10px] text-slate-500">{a.text.baseName} · {baseSure ? "bilgilendirici" : VARIABLES_BASE_UNCERTAIN}</dd>
+          <dd className="break-words text-[10px] text-slate-500">{a.text.baseName} · {baseSure ? t("baseInformative") : t("baseUncertain")}</dd>
         </div>
       </dl>
       {sure ? null : (
         <p role="note" className="mt-2 rounded-lg bg-amber-50 px-2.5 py-1.5 text-[11px] leading-relaxed text-amber-900" data-hd-var-uncertain-note>
-          {VARIABLES_UNCERTAIN_NOTE}
+          {t("uncertainNote")}
         </p>
       )}
       {a.cognition ? (
         sure ? (
           <div className="mt-3 rounded-xl bg-violet-50/70 px-3 py-2" data-hd-var-cognition={a.cognition.label}>
-            <p className="text-[11px] font-black tracking-wide text-violet-800">{COGNITION_TITLE}: {a.cognition.labelText}</p>
+            <p className="text-[11px] font-black tracking-wide text-violet-800">{t("cognitionTitle")}: {a.cognition.labelText}</p>
             <p className="mt-1 break-words text-xs leading-relaxed text-slate-700">{a.cognition.description}</p>
           </div>
         ) : (
-          <p className="mt-2 text-[11px] text-amber-900" data-hd-var-cognition-hidden>{COGNITION_TITLE}: Tone kesinleştirilemediği için gösterilmez (olası Tone başka bir Bilişsel Algıya karşılık gelebilir).</p>
+          <p className="mt-2 text-[11px] text-amber-900" data-hd-var-cognition-hidden>{t("cognitionTitle")}: {t("cognitionHidden")}</p>
         )
       ) : null}
       <div className="mt-3 space-y-2">
-        <Fold summary="Bu ok neyi anlatır?">
-          <Para label="Ok" text={a.text.description} />
-          <Para label="Katman" text={a.text.layerDescription} />
+        <Fold summary={t("foldWhat")}>
+          <Para label={t("paraArrow")} text={a.text.description} />
+          <Para label={t("paraLayer")} text={a.text.layerDescription} />
         </Fold>
         {sure ? (
-          <Fold summary={`Color, Tone ve yön anlamları (${a.text.colorLabel} · ${a.text.directionLabel})`}>
+          <Fold summary={t("foldMeanings", { color: a.text.colorLabel, direction: a.text.directionLabel })}>
             <Para label={`Color ${a.color} — ${a.text.colorLabel}`} text={a.text.colorMeaning} />
             <Para label={`Tone ${a.tone}`} text={a.text.toneMeaning} />
-            <Para label={`Yön — ${DIRECTION_TR[a.direction]} (${a.text.directionLabel})`} text={a.text.directionMeaning} />
+            <Para label={t("paraDirection", { dir, label: a.text.directionLabel })} text={a.text.directionMeaning} />
           </Fold>
         ) : null}
       </div>
@@ -176,6 +164,7 @@ function ArrowCard({ a }: { a: VariablesArrowDto }) {
 }
 
 export function HdVariablesPanel({ chartId }: { chartId: string }) {
+  const t = useTranslations("hd.variables");
   const [data, setData] = useState<VariablesDto | null>(() => sessionMemo.get(memoKey(chartId)) ?? null);
   // Oturum belleğinde yoksa sekme açılışında KAYITLI sonuç sorgulanır (salt-okunur uç; hesaplama / ücretli çağrı YOK).
   const [checking, setChecking] = useState(() => !sessionMemo.has(memoKey(chartId)));
@@ -229,7 +218,7 @@ export function HdVariablesPanel({ chartId }: { chartId: string }) {
       return;
     }
     if (r.chartId.toLowerCase() !== chartId.toLowerCase()) {
-      setError({ text: "Sunucu yanıtı bu analizle eşleşmedi; sonuç gösterilmedi. Lütfen tekrar deneyin." });
+      setError({ text: t("mismatch") });
       return;
     }
     sessionMemo.set(memoKey(chartId), r.data);
@@ -243,14 +232,14 @@ export function HdVariablesPanel({ chartId }: { chartId: string }) {
   return (
     <div className="space-y-4" data-hd-variables={chartId}>
       <header className="rounded-2xl border border-indigo-100 bg-gradient-to-br from-white to-indigo-50/60 px-4 py-4">
-        <p className="text-[11px] font-black tracking-wide text-indigo-600">{VARIABLES_SUBTITLE}</p>
-        <h2 className="text-lg font-black text-slate-900">{VARIABLES_TITLE}</h2>
-        <p className="mt-1 text-xs leading-relaxed text-slate-600">{VARIABLES_INTRO}</p>
-        <p className="mt-1.5 text-[11px] leading-relaxed text-amber-900" data-hd-var-precision>{VARIABLES_PRECISION_NOTE}</p>
+        <p className="text-[11px] font-black tracking-wide text-indigo-600">{t("subtitle")}</p>
+        <h2 className="text-lg font-black text-slate-900">{t("title")}</h2>
+        <p className="mt-1 text-xs leading-relaxed text-slate-600">{t("intro")}</p>
+        <p className="mt-1.5 text-[11px] leading-relaxed text-amber-900" data-hd-var-precision>{t("precisionNote")}</p>
         {data ? null : checking ? (
           <p role="status" aria-live="polite" className="mt-3 flex min-h-[40px] items-center gap-2 text-xs font-semibold text-indigo-700" data-hd-var-checking>
             <span aria-hidden className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-indigo-200 border-t-indigo-600" />
-            Kayıtlı analiz kontrol ediliyor…
+            {t("checking")}
           </p>
         ) : (
           <button
@@ -260,7 +249,7 @@ export function HdVariablesPanel({ chartId }: { chartId: string }) {
             className="mt-3 min-h-[40px] rounded-xl bg-indigo-600 px-4 text-sm font-black text-white disabled:opacity-60"
             data-hd-var-run
           >
-            {busy ? "Hesaplanıyor…" : "Dört Ok Analizini Hesapla"}
+            {busy ? t("calculating") : t("run")}
           </button>
         )}
         {error ? (
@@ -274,41 +263,41 @@ export function HdVariablesPanel({ chartId }: { chartId: string }) {
         <>
           {data.confident ? (
             <p className="rounded-xl bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-900 ring-1 ring-emerald-200" data-hd-var-overall="1">
-              Dört okun tamamı kesin (her ok Color / Tone sınırından yeterince uzak).
+              {t("allCertain")}
             </p>
           ) : (
             <div role="status" className="rounded-xl bg-amber-50 px-3 py-2 text-amber-900 ring-1 ring-amber-200" data-hd-var-overall="0">
-              <p className="text-xs font-semibold">{VARIABLES_ALL_UNCERTAIN_NOTE} ({uncertainCount}/4 ok)</p>
+              <p className="text-xs font-semibold">{t("allUncertainNote")} {t("uncertainCount", { count: uncertainCount })}</p>
               <dl className="mt-1.5 space-y-1 text-[11px] leading-relaxed" data-hd-var-certainty-explainer>
-                {VARIABLES_CERTAINTY_EXPLAINER.map((e) => (
-                  <div key={e.term} className="min-w-0">
-                    <dt className="inline font-black">{e.term}: </dt>
-                    <dd className="inline break-words">{e.text}</dd>
+                {(["certain", "possible"] as const).map((k) => (
+                  <div key={k} className="min-w-0">
+                    <dt className="inline font-black">{t(`certainty.${k}.term`)}: </dt>
+                    <dd className="inline break-words">{t(`certainty.${k}.text`)}</dd>
                   </div>
                 ))}
               </dl>
-              <p className="mt-1.5 text-[11px] leading-relaxed">{VARIABLES_UNCERTAIN_ADVICE}</p>
+              <p className="mt-1.5 text-[11px] leading-relaxed">{t("uncertainAdvice")}</p>
             </div>
           )}
           {data.historicalOffset ? (
             <p role="note" className="rounded-xl bg-amber-50 px-3 py-2 text-[11px] leading-relaxed text-amber-900 ring-1 ring-amber-200" data-hd-var-historical-offset>
-              {VARIABLES_HISTORICAL_OFFSET_NOTE}
+              {t("historicalOffsetNote")}
             </p>
           ) : null}
           <div className="grid gap-3 sm:grid-cols-2" data-hd-var-grid>
             <div className="space-y-3" data-hd-var-column="left">
-              <p className="text-[11px] font-black tracking-wide text-slate-500">Sol oklar · Tasarım (Design) · Birincil Sağlık Sistemi</p>
+              <p className="text-[11px] font-black tracking-wide text-slate-500">{t("leftColumn")}</p>
               {left.map((a) => <ArrowCard key={a.key} a={a} />)}
             </div>
             <div className="space-y-3" data-hd-var-column="right">
-              <p className="text-[11px] font-black tracking-wide text-slate-500">Sağ oklar · Kişilik (Personality) · Rave Psikolojisi</p>
+              <p className="text-[11px] font-black tracking-wide text-slate-500">{t("rightColumn")}</p>
               {right.map((a) => <ArrowCard key={a.key} a={a} />)}
             </div>
           </div>
           <div className="space-y-1.5 rounded-xl bg-slate-50 px-3 py-2.5 text-[11px] leading-relaxed text-slate-600">
-            <p data-hd-var-base-note>{VARIABLES_BASE_NOTE} {data.baseDescription}</p>
-            <p data-hd-var-health>{VARIABLES_HEALTH_NOTE}</p>
-            <p data-hd-var-source>{VARIABLES_SOURCE_NOTE}</p>
+            <p data-hd-var-base-note>{t("baseNote")} {data.baseDescription}</p>
+            <p data-hd-var-health>{t("healthNote")}</p>
+            <p data-hd-var-source>{t("sourceNote")}</p>
           </div>
         </>
       ) : null}

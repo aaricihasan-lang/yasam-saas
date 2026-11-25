@@ -301,7 +301,7 @@ async function main() {
   // ══ TEST 10 ══════════════════════════════════════════════════════════════════
   section("TEST 10 — Admin üç kaynak ayrı; normal uzmanın akışı değişmez");
   const React = await import("react");
-  const { renderToStaticMarkup } = await import("react-dom/server");
+  const { renderToStaticMarkup } = await import("../hd-i18n/intlRender");
   const { HdChartKnowledgeTabs } = await import("../../app/human-design/kayitli-haritalar/components/HdChartKnowledgeTabs");
   const expertEl = React.createElement("div", { "data-expert": "1" }, "UZMAN-ICERIK");
   const centralEl = React.createElement("div", { "data-central": "1" }, "MERKEZI-ICERIK");
@@ -326,10 +326,13 @@ async function main() {
   const sysRoute = src("app/api/hd/charts/system-reading/route.ts");
   ok("10f Roxy yorumu kayıtlı veriden okunur; RoxyAPI çağrılmaz", /RoxyAPI ÇAĞRILMAZ/.test(sysRoute));
   const page = src("app/human-design/bilgi-bankasi/page.tsx");
-  ok("10g Admin Bilgi Bankası: Roxy kaynağı düzenlenebilir kütüphane DEĞİL (haritaya yönlendirir)", /adminSource === "system"[\s\S]{0,900}(kayitli-haritalar|\/human-design\/danisanlar)/.test(page) && /Düzenlenebilir bir kütüphane değildir/.test(page));
+  ok("10g Admin Bilgi Bankası: Roxy kaynağı düzenlenebilir kütüphane DEĞİL (haritaya yönlendirir)", /adminSource === "system"[\s\S]{0,900}(kayitli-haritalar|\/human-design\/danisanlar)/.test(page) &&
+    // I18N-F1-R5: metin katalogda (TR bayt-eşit); sistem bloğu katalog anahtarını gösterir.
+    /adminSource === "system"[\s\S]{0,600}t\("page\.systemNote"\)/.test(page) &&
+    /Düzenlenebilir bir kütüphane değildir/.test(JSON.parse(src("messages/tr/hd.knowledge.json")).hd.knowledge.page.systemNote));
   ok("10h Uzman Bilgi Bankası sayfası değişmedi (!isAdmin → HdKnowledgeWorkspace)", /\{!isAdmin \? \(\s*<HdKnowledgeWorkspace isDemo=\{isDemo\} \/>/.test(page));
   const wordBtn = src("app/human-design/kayitli-haritalar/components/HdProfessionalReportButton.tsx");
-  ok("10i Word seçimi aynı: içerik varsayılan KAPALI; admin yalnız etiket görür; merkezî içerik Word'e eklenmez notu", /useState\(false\);\s*\n\s*const \[addSystem/.test(wordBtn) && /bu Word raporuna eklenmez/.test(wordBtn) && !/isAdminUser\(/.test(wordBtn));
+  ok("10i Word seçimi aynı: içerik varsayılan KAPALI; admin yalnız etiket görür; merkezî içerik Word'e eklenmez notu", /useState\(false\);\s*\n\s*const \[addSystem/.test(wordBtn) && /t\("centralNotIncluded"/.test(wordBtn) && /bu Word raporuna eklenmez/.test(JSON.parse(src("messages/tr/hd.records.json")).hd.records.report.centralNotIncluded) /* I18N R5: metin katalogda */ && !/isAdminUser\(/.test(wordBtn));
 
   // ══ TEST 11 ══════════════════════════════════════════════════════════════════
   section("TEST 11 — Merkezî kayıtlar adminin kişisel kayıtlarıyla karışmaz");

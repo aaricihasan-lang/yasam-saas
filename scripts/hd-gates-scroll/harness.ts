@@ -78,7 +78,7 @@ async function main() {
   // ══ 4. Sunum ════════════════════════════════════════════════════════════════
   section("4 — Panel: Kapılar bölümü + mevcut bölümler korunur");
   const React = await import("react");
-  const { renderToStaticMarkup } = await import("react-dom/server");
+  const { renderToStaticMarkup } = await import("../hd-i18n/intlRender");
   const { HdSystemReadingView } = await import("../../app/human-design/kayitli-haritalar/components/HdSystemReadingPanel");
   const html = renderToStaticMarkup(React.createElement(HdSystemReadingView, { data: dto }));
   ok("4a 'Kapılar (21)' bölümü var", html.includes("Kapılar (21)"));
@@ -105,7 +105,23 @@ async function main() {
   // genişletildi; doğruluğu hd:bodygraph-complete harness'i ayrıca test eder. Uç, snapshot, motor, yetki hâlâ korunur.
   // reportSnapshotV2.ts: 2026-10-17 terim seti ("tr-en") — yalnız yeni snapshot'larda; eski snapshot'lar aynen.
   const BODYGRAPH_COMPLETE = /providers\/roxy\/systemReading\.ts$|reporting\/wordReportV2\.ts$|reporting\/reportSnapshotV2\.ts$/;
-  const gateScope = all.filter((f) => /providers\/roxy\/systemReading\.ts$|app\/api\/hd\/charts\/system-reading\/|reportSnapshot|wordReport|\/engine\/|modulePermissions|userGuard/.test(f) && !BODYGRAPH_COMPLETE.test(f)
+  // I18N-F1-R5 (HD API hata metinleri): sistem yorumu ucunda YALNIZ kullanıcıya görünen Türkçe hata metni istek diline
+  // bağlandı (hdApiText; TR katalog değeri eski metinle birebir). Koruma sürer: origin/main sürümüne yalnız bu onaylı
+  // dönüşüm uygulanınca dosya BİREBİR aynı olmalı; başka her fark FAIL.
+  const lfx = (s: string) => s.replace(/\r\n/g, "\n");
+  const i18nOnlyRoute = (f: string): boolean => {
+    if (f !== "app/api/hd/charts/system-reading/route.ts") return false;
+    try {
+      let base = lfx(execSync(`git show origin/main:${f}`, { cwd: ROOT, encoding: "utf8" }));
+      base = base.split('"Sistem Yorumu bu hesap için açık değil."').join('hdApiText(req, "systemReadingDisabled")');
+      const m = /^import /m.exec(base);
+      if (m) base = base.slice(0, m.index) + 'import { hdApiText } from "../../_lib/hdApiText";\n' + base.slice(m.index);
+      return base === lfx(readFileSync(join(ROOT, f), "utf8"));
+    } catch {
+      return false;
+    }
+  };
+  const gateScope = all.filter((f) => /providers\/roxy\/systemReading\.ts$|app\/api\/hd\/charts\/system-reading\/|reportSnapshot|wordReport|\/engine\/|modulePermissions|userGuard/.test(f) && !BODYGRAPH_COMPLETE.test(f) && !i18nOnlyRoute(f)
     // HD-TZ (Owner kararı 18.11.2026): engine/time.ts yalnız onaylı içerikle BİREBİR aynıysa (SHA-256; başka her fark FAIL).
     && !isHdTzApprovedContent(ROOT, f));
   ok("5a Sistem yorumu DTO/ucu, Word/snapshot, motor ve yetki dosyaları değişmedi", gateScope.length === 0, gateScope.join(", "));

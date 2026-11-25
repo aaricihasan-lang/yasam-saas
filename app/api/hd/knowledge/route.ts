@@ -1,3 +1,4 @@
+import { hdApiText } from "../_lib/hdApiText";
 import { NextRequest, NextResponse } from "next/server";
 import { BULK_DELETE_LIMIT_ERROR, exceedsBulkDeleteLimit } from "@/lib/api/bulkDeleteLimits";
 import { readExpectedVersion } from "@/lib/human-design/api/optimistic";
@@ -50,7 +51,7 @@ export async function GET(req: NextRequest): Promise<Response> {
     }
     const { row, error } = await getKnowledgeById(guard.db, guard.tenantId, id);
     if (error || !row) {
-      return NextResponse.json({ ok: false, error: error ?? "Kayıt bulunamadı." }, { status: 404, headers: NO_STORE });
+      return NextResponse.json({ ok: false, error: error ?? hdApiText(req, "recordNotFound") }, { status: 404, headers: NO_STORE });
     }
     return NextResponse.json({ ok: true, row }, { status: 200, headers: NO_STORE });
   }
@@ -81,7 +82,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   if (!guard.ok) return guard.response;
   if (guard.is_demo_account) {
     return NextResponse.json(
-      { ok: false, code: "DEMO_READONLY", error: "Demo hesabında kayıt eklenemez." },
+      { ok: false, code: "DEMO_READONLY", error: hdApiText(req, "demoNoRecordCreate") },
       { status: 403, headers: NO_STORE },
     );
   }
@@ -91,13 +92,13 @@ export async function POST(req: NextRequest): Promise<Response> {
     raw = await req.json();
   } catch {
     return NextResponse.json(
-      { ok: false, error: "Geçerli JSON gövdesi gerekli." },
+      { ok: false, error: hdApiText(req, "malformedJson") },
       { status: 400, headers: NO_STORE },
     );
   }
   if (!isObj(raw)) {
     return NextResponse.json(
-      { ok: false, error: "İstek gövdesi nesne olmalı." },
+      { ok: false, error: hdApiText(req, "bodyNotObject") },
       { status: 400, headers: NO_STORE },
     );
   }
@@ -112,7 +113,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   }
   if (error || !id) {
     return NextResponse.json(
-      { ok: false, error: error ?? "Kayıt oluşturulamadı." },
+      { ok: false, error: error ?? hdApiText(req, "createFailed") },
       { status: 400, headers: NO_STORE },
     );
   }
@@ -125,7 +126,7 @@ export async function PATCH(req: NextRequest): Promise<Response> {
   if (!guard.ok) return guard.response;
   if (guard.is_demo_account) {
     return NextResponse.json(
-      { ok: false, code: "DEMO_READONLY", error: "Demo hesabında güncelleme yapılamaz." },
+      { ok: false, code: "DEMO_READONLY", error: hdApiText(req, "demoNoUpdate") },
       { status: 403, headers: NO_STORE },
     );
   }
@@ -135,13 +136,13 @@ export async function PATCH(req: NextRequest): Promise<Response> {
     raw = await req.json();
   } catch {
     return NextResponse.json(
-      { ok: false, error: "Geçerli JSON gövdesi gerekli." },
+      { ok: false, error: hdApiText(req, "malformedJson") },
       { status: 400, headers: NO_STORE },
     );
   }
   if (!isObj(raw)) {
     return NextResponse.json(
-      { ok: false, error: "İstek gövdesi nesne olmalı." },
+      { ok: false, error: hdApiText(req, "bodyNotObject") },
       { status: 400, headers: NO_STORE },
     );
   }
@@ -149,7 +150,7 @@ export async function PATCH(req: NextRequest): Promise<Response> {
   const id = String(raw.id ?? "").trim();
   if (!id) {
     return NextResponse.json(
-      { ok: false, error: "Güncellenecek kaydın id'si gerekli." },
+      { ok: false, error: hdApiText(req, "recordIdRequired") },
       { status: 400, headers: NO_STORE },
     );
   }
@@ -161,7 +162,7 @@ export async function PATCH(req: NextRequest): Promise<Response> {
   if (!ok) {
     const status = upStatus === 409 || upStatus === 404 ? upStatus : 400;
     return NextResponse.json(
-      { ok: false, code, error: error ?? "Güncellenemedi." },
+      { ok: false, code, error: error ?? hdApiText(req, "updateFailed") },
       { status, headers: NO_STORE },
     );
   }
@@ -174,7 +175,7 @@ export async function DELETE(req: NextRequest): Promise<Response> {
   if (!guard.ok) return guard.response;
   if (guard.is_demo_account) {
     return NextResponse.json(
-      { ok: false, code: "DEMO_READONLY", error: "Demo hesabında silme yapılamaz." },
+      { ok: false, code: "DEMO_READONLY", error: hdApiText(req, "demoNoDelete") },
       { status: 403, headers: NO_STORE },
     );
   }
@@ -199,7 +200,7 @@ export async function DELETE(req: NextRequest): Promise<Response> {
   const id = url.searchParams.get("id");
   if (!id) {
     return NextResponse.json(
-      { ok: false, error: "Silinecek kaydın id'si (id) veya id listesi (ids) gerekli." },
+      { ok: false, error: hdApiText(req, "deleteIdsRequired") },
       { status: 400, headers: NO_STORE },
     );
   }

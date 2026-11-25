@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { useTranslations } from "next-intl";
+import { useKbLabels } from "../helpers/useKbLabels";
 import { useToast } from "@/components/ui/ToastProvider";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
 import type { HdSourceRightsStatus, HdSourceType } from "@/lib/human-design/types";
@@ -17,36 +19,40 @@ const fieldBase =
 const labelCls = "mb-1.5 block text-xs font-bold text-slate-700";
 const sectionCls = "mb-2 mt-4 text-xs font-black uppercase tracking-widest text-indigo-700";
 
-const SOURCE_TYPES: { code: HdSourceType; label: string }[] = [
-  { code: "book", label: "Kitap" },
-  { code: "article", label: "Makale" },
-  { code: "website", label: "Web sitesi" },
-  { code: "video", label: "Video" },
-  { code: "teaching_note", label: "Öğretim notu" },
-  { code: "regulatory_document", label: "Resmî belge" },
-  { code: "oral_source", label: "Sözlü kaynak" },
-  { code: "other", label: "Diğer" },
+// Kaynak türü kodları (veri/API'de İngilizce enum). Görünen ad: hd.knowledge.source.types.<kod>.
+const SOURCE_TYPES: { code: HdSourceType }[] = [
+  { code: "book" },
+  { code: "article" },
+  { code: "website" },
+  { code: "video" },
+  { code: "teaching_note" },
+  { code: "regulatory_document" },
+  { code: "oral_source" },
+  { code: "other" },
 ];
 
-// Telif/hak durumu için kullanıcıya görünen TEK kaynak etiket haritası.
-// Hem bu editördeki dropdown hem de kayıt editöründeki kaynak listesi rozeti
-// bu haritayı kullanır — enum değerleri veri/API'de İngilizce kalır.
-export const RIGHTS_STATUSES: { code: HdSourceRightsStatus; label: string }[] = [
-  { code: "unknown", label: "Belirsiz" },
-  { code: "public_domain", label: "Kamu malı" },
-  { code: "licensed", label: "Lisanslı" },
-  { code: "permission_granted", label: "İzin verildi" },
-  { code: "permission_pending", label: "İzin bekliyor" },
-  { code: "restricted", label: "Kısıtlı" },
+// Telif/hak durumu kodları (enum değerleri veri/API'de İngilizce kalır). Kullanıcıya görünen TEK etiket kaynağı
+// hd.knowledge.source.rights.<kod> (TR değerleri önceki Türkçe etiketlerle bayt-bayt aynı); hem bu editördeki dropdown
+// hem kayıt editöründeki kaynak listesi rozeti useRightsStatusLabel kullanır.
+export const RIGHTS_STATUSES: { code: HdSourceRightsStatus }[] = [
+  { code: "unknown" },
+  { code: "public_domain" },
+  { code: "licensed" },
+  { code: "permission_granted" },
+  { code: "permission_pending" },
+  { code: "restricted" },
 ];
 
-// Ham enum değeri yerine kullanıcıya Türkçe etiket döndürür.
-// Bilinmeyen/eksik kod güvenli biçimde "Belirsiz" olarak gösterilir.
-export function rightsStatusLabel(
-  code: HdSourceRightsStatus | string | null | undefined,
-): string {
-  return RIGHTS_STATUSES.find((r) => r.code === code)?.label ?? "Belirsiz";
+/** Ekran dilinde telif durumu etiketi (kod değişmez; bilinmeyen/eksik kod güvenli biçimde "unknown" = "Belirsiz"). */
+export function useRightsStatusLabel(): (code: HdSourceRightsStatus | string | null | undefined) => string {
+  const t = useTranslations("hd.knowledge.source");
+  return (code) => {
+    const known = RIGHTS_STATUSES.find((r) => r.code === code)?.code ?? "unknown";
+    return t(`rights.${known}`);
+  };
 }
+
+const URL_PLACEHOLDER = "https://...";
 
 // Telifi belirsiz / kısıtlı / izin bekleyen kaynaklar private-only olur:
 // rapor ve uzman dağıtımına kapatılır (Ürün Kuralı 14).
@@ -149,6 +155,9 @@ export function HdKaynakEditor({
 }: Props & { onDirtyChange?: (dirty: boolean) => void }) {
   const { showToast } = useToast();
   const { confirm } = useConfirm();
+  const t = useTranslations("hd.knowledge.source");
+  const tk = useTranslations("hd.knowledge");
+  const labels = useKbLabels();
   // Aktif kaynak değişince bileşen `key` ile remount edilir (çağıran editör) →
   // form doğrudan initializer'dan yüklenir; effect içinde setState gerekmez.
   const [form, setForm] = useState<FormState>(() => rowToForm(source));
@@ -193,7 +202,7 @@ export function HdKaynakEditor({
 
   async function handleSave() {
     if (!form.source_name.trim()) {
-      showToast({ message: "Kaynak adı gerekli.", type: "warning" });
+      showToast({ message: t("nameRequired"), type: "warning" });
       return;
     }
     setSaving(true);
@@ -224,23 +233,23 @@ export function HdKaynakEditor({
       const { id, error } = await insertHdSource(recordId ?? source.record_id, payload);
       setSaving(false);
       if (error || !id) {
-        showToast({ message: `Kaynak oluşturulamadı: ${error ?? ""}`, type: "error" });
+        showToast({ message: t("createFailed", { error: labels.err(error) }), type: "error" });
         return;
       }
-      showToast({ message: "Kaynak oluşturuldu.", type: "success" });
+      showToast({ message: t("created"), type: "success" });
       onCreated?.({ ...source, ...payload, id } as HdSourceRow);
       return;
     }
     const { error, conflict, updatedAt } = await updateHdSource(source.id, payload, version);
     setSaving(false);
     if (error) {
-      showToast({ message: conflict ? error : `Hata: ${error}`, type: "error" });
+      showToast({ message: conflict ? error : tk("form.error", { error: labels.err(error) }), type: "error" });
       return;
     }
     setBaseline(JSON.stringify(form));
     setVersion(updatedAt ?? version);
     onDirtyRef.current?.(false);
-    showToast({ message: "Kaynak kaydedildi.", type: "success" });
+    showToast({ message: t("saved"), type: "success" });
     onSaved({ ...source, ...payload, updated_at: updatedAt ?? source.updated_at } as HdSourceRow);
   }
 
@@ -251,77 +260,76 @@ export function HdKaynakEditor({
       return;
     }
     const ok = await confirm({
-      title: "Kaynağı sil",
-      message: "Bu kaynak kalıcı olarak silinecek. Emin misiniz?",
+      title: t("deleteTitle"),
+      message: t("deleteMessage"),
       tone: "danger",
-      confirmText: "Sil",
+      confirmText: tk("list.delete"),
     });
     if (!ok) return;
     const { error } = await deleteHdSource(source.id);
     if (error) {
-      showToast({ message: `Hata: ${error}`, type: "error" });
+      showToast({ message: tk("form.error", { error: labels.err(error) }), type: "error" });
       return;
     }
-    showToast({ message: "Kaynak silindi.", type: "success" });
+    showToast({ message: t("deleted"), type: "success" });
     onDeleted(source.id);
   }
 
   return (
     <div className="space-y-1">
       {/* ---------- HIZLI KAYNAK KAYDI ---------- */}
-      <p className={`${sectionCls} mt-0`}>Hızlı Kaynak Kaydı</p>
+      <p className={`${sectionCls} mt-0`}>{t("quickTitle")}</p>
       <p className="mb-3 text-[11px] leading-snug text-slate-500">
-        Kaynağı tanımlamak için temel bilgileri girin. Özgün metin, çeviri ve kullanım
-        hakları gerektiğinde detaylı bölümü açabilirsiniz.
+        {t("quickHelp")}
       </p>
       <div className="grid gap-4 sm:grid-cols-2">
         <div>
-          <label className={labelCls}>Kaynak Adı *</label>
+          <label className={labelCls}>{t("name")}</label>
           <input
             type="text"
             value={form.source_name}
             onChange={(e) => setForm((p) => ({ ...p, source_name: e.target.value }))}
-            placeholder="örn: Pera Akademi"
+            placeholder={t("namePh")}
             className={`h-9 ${fieldBase}`}
           />
         </div>
         <div>
-          <label className={labelCls}>Yazar / Kurum</label>
+          <label className={labelCls}>{t("author")}</label>
           <input
             type="text"
             value={form.author_or_organization}
             onChange={(e) => setForm((p) => ({ ...p, author_or_organization: e.target.value }))}
-            placeholder="örn: Elif Hoca"
+            placeholder={t("authorPh")}
             className={`h-9 ${fieldBase}`}
           />
         </div>
         <div>
-          <label className={labelCls}>Eser / Eğitim Adı</label>
+          <label className={labelCls}>{t("work")}</label>
           <input
             type="text"
             value={form.title}
             onChange={(e) => setForm((p) => ({ ...p, title: e.target.value }))}
-            placeholder="örn: Human Design Eğitimi"
+            placeholder={t("workPh")}
             className={`h-9 ${fieldBase}`}
           />
         </div>
         <div>
-          <label className={labelCls}>Sayfa / Bölüm</label>
+          <label className={labelCls}>{t("page")}</label>
           <input
             type="text"
             value={form.page_or_section}
             onChange={(e) => setForm((p) => ({ ...p, page_or_section: e.target.value }))}
-            placeholder="örn: 3. Ders"
+            placeholder={t("pagePh")}
             className={`h-9 ${fieldBase}`}
           />
         </div>
         <div className="sm:col-span-2">
-          <label className={labelCls}>Kaynak URL</label>
+          <label className={labelCls}>{t("url")}</label>
           <input
             type="text"
             value={form.source_url}
             onChange={(e) => setForm((p) => ({ ...p, source_url: e.target.value }))}
-            placeholder="https://..."
+            placeholder={URL_PLACEHOLDER}
             className={`h-9 ${fieldBase}`}
           />
         </div>
@@ -337,8 +345,8 @@ export function HdKaynakEditor({
         >
           <span className="text-xs font-black uppercase tracking-widest text-indigo-700">
             {showDetails
-              ? "Detaylı kaynak bilgilerini gizle"
-              : "Detaylı kaynak bilgilerini göster"}
+              ? t("hideDetails")
+              : t("showDetails")}
           </span>
           <span className="shrink-0 text-slate-400">{showDetails ? "▾" : "▸"}</span>
         </button>
@@ -346,26 +354,25 @@ export function HdKaynakEditor({
         {showDetails && (
           <div className="mt-2">
             <p className="mb-3 text-[11px] leading-snug text-slate-500">
-              Özgün metin, sadık çeviri, erişim bilgileri ve kullanım hakları gerektiğinde
-              bu bölümü kullanın.
+              {t("detailsHelp")}
             </p>
 
             {/* Künye detayları */}
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
-                <label className={labelCls}>Kaynak Türü</label>
+                <label className={labelCls}>{t("type")}</label>
                 <select
                   value={form.source_type}
                   onChange={(e) => setForm((p) => ({ ...p, source_type: e.target.value as HdSourceType }))}
                   className={`h-9 ${fieldBase}`}
                 >
-                  {SOURCE_TYPES.map((t) => (
-                    <option key={t.code} value={t.code}>{t.label}</option>
+                  {SOURCE_TYPES.map((st) => (
+                    <option key={st.code} value={st.code}>{t(`types.${st.code}`)}</option>
                   ))}
                 </select>
               </div>
               <div>
-                <label className={labelCls}>Erişim Tarihi</label>
+                <label className={labelCls}>{t("accessed")}</label>
                 <input
                   type="date"
                   value={form.accessed_on}
@@ -374,45 +381,45 @@ export function HdKaynakEditor({
                 />
               </div>
               <div className="sm:col-span-2">
-                <label className={labelCls}>Özgün Dil (etiket)</label>
+                <label className={labelCls}>{t("origLang")}</label>
                 <input
                   type="text"
                   value={form.original_language_tag}
                   onChange={(e) => setForm((p) => ({ ...p, original_language_tag: e.target.value }))}
-                  placeholder="örn: en, de, tr"
+                  placeholder={t("origLangPh")}
                   className={`h-9 ${fieldBase}`}
                 />
               </div>
             </div>
 
             {/* Metin katmanları */}
-            <p className={sectionCls}>Özgün Metin & Sadık Çeviri</p>
+            <p className={sectionCls}>{t("textLayers")}</p>
             <div className="space-y-3">
               <div>
-                <label className={labelCls}>Özgün Metin</label>
+                <label className={labelCls}>{t("origText")}</label>
                 <textarea
                   value={form.original_text}
                   onChange={(e) => setForm((p) => ({ ...p, original_text: e.target.value }))}
                   rows={4}
-                  placeholder="Kaynağın özgün dilindeki metni"
+                  placeholder={t("origTextPh")}
                   className={`${fieldBase} resize-y leading-relaxed`}
                 />
               </div>
               <div>
-                <label className={labelCls}>Sadık Türkçe Çeviri</label>
+                <label className={labelCls}>{t("faithful")}</label>
                 <div className="mb-1.5 rounded-lg border border-amber-200/80 bg-amber-50/70 px-2.5 py-1.5 text-[11px] font-semibold leading-snug text-amber-800">
-                  Birebir çeviri: yorum, sadeleştirme, ekleme, çıkarma veya AI açıklaması içermez.
+                  {t("faithfulHelp")}
                 </div>
                 <textarea
                   value={form.faithful_translation_tr}
                   onChange={(e) => setForm((p) => ({ ...p, faithful_translation_tr: e.target.value }))}
                   rows={4}
-                  placeholder="Özgün metnin birebir Türkçesi"
+                  placeholder={t("faithfulPh")}
                   className={`${fieldBase} resize-y leading-relaxed`}
                 />
               </div>
               <div>
-                <label className={labelCls}>Kaynağa Özel Not</label>
+                <label className={labelCls}>{t("note")}</label>
                 <textarea
                   value={form.source_specific_note}
                   onChange={(e) => setForm((p) => ({ ...p, source_specific_note: e.target.value }))}
@@ -423,43 +430,44 @@ export function HdKaynakEditor({
             </div>
 
             {/* Hak / kullanım */}
-            <p className={sectionCls}>Hak & Kullanım</p>
+            <p className={sectionCls}>{t("rightsTitle")}</p>
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
-                <label className={labelCls}>Telif Durumu</label>
+                <label className={labelCls}>{t("rightsStatus")}</label>
                 <select
                   value={form.rights_status}
                   onChange={(e) => setRights(e.target.value as HdSourceRightsStatus)}
                   className={`h-9 ${fieldBase}`}
                 >
                   {RIGHTS_STATUSES.map((r) => (
-                    <option key={r.code} value={r.code}>{r.label}</option>
+                    <option key={r.code} value={r.code}>{t(`rights.${r.code}`)}</option>
                   ))}
                 </select>
               </div>
               <div>
-                <label className={labelCls}>İzin Referansı</label>
+                <label className={labelCls}>{t("permRef")}</label>
                 <input
                   type="text"
                   value={form.permission_reference}
                   onChange={(e) => setForm((p) => ({ ...p, permission_reference: e.target.value }))}
-                  placeholder="izin no / e-posta / sözleşme"
+                  placeholder={t("permRefPh")}
                   className={`h-9 ${fieldBase}`}
                 />
               </div>
             </div>
             {locked && (
               <p className="mt-2 rounded-lg border border-rose-200/80 bg-rose-50/70 px-2.5 py-1.5 text-[11px] font-semibold text-rose-700">
-                Telif belirsiz/kısıtlı/izin bekliyor → yalnız özel kullanım. Rapor ve uzman dağıtımı kapalı.
+                {t("lockedNote")}
               </p>
             )}
             <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
               {([
-                ["private_use_allowed", "Özel kullanım (private)", false],
-                ["client_report_allowed", "Danışan raporunda kullanım", true],
-                ["expert_distribution_allowed", "Uzman dağıtımı", true],
-                ["commercial_use_allowed", "Ticari kullanım", true],
-              ] as const).map(([key, label, gated]) => {
+                ["private_use_allowed", false],
+                ["client_report_allowed", true],
+                ["expert_distribution_allowed", true],
+                ["commercial_use_allowed", true],
+              ] as const).map(([key, gated]) => {
+                const label = t(`flags.${key}`);
                 const disabled = gated && locked;
                 const checked = disabled ? false : form[key];
                 return (
@@ -492,7 +500,7 @@ export function HdKaynakEditor({
           onClick={handleDelete}
           className="h-9 rounded-xl border border-rose-200 bg-white px-4 text-sm font-black uppercase tracking-wide text-rose-600 shadow-sm transition hover:border-rose-300 hover:bg-rose-50"
         >
-          {isDraft ? "Taslağı İptal Et" : "Kaynağı Sil"}
+          {isDraft ? t("cancelDraft") : t("deleteSource")}
         </button>
         <button
           type="button"
@@ -500,7 +508,7 @@ export function HdKaynakEditor({
           disabled={saving}
           className="h-9 rounded-xl border border-indigo-300/80 bg-gradient-to-r from-indigo-600 to-violet-600 px-6 text-sm font-black uppercase tracking-wide text-white shadow-[0_4px_16px_-4px_rgba(79,70,229,0.4)] transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
         >
-          {saving ? "Kaydediliyor..." : "Kaynağı Kaydet"}
+          {saving ? tk("editor.saving") : t("save")}
         </button>
       </div>
     </div>
