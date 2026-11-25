@@ -1,3 +1,4 @@
+import { getTranslations } from "next-intl/server";
 import { EnergyFoldersClient, type EnergyFolder } from "./EnergyFoldersClient";
 import { energyFontVars } from "@/app/_premium/enerji-beden/fonts";
 import styles from "@/app/_premium/enerji-beden/enerjiBeden.module.css";
@@ -7,6 +8,7 @@ import styles from "@/app/_premium/enerji-beden/enerjiBeden.module.css";
 const energyFolders: readonly EnergyFolder[] = [
   {
     title: "Biyoenerji",
+    i18nKey: "bioenergy",
     desc: "Aura, çakra, imajinasyon ve enerji çalışmaları",
     href: "/dashboard/biyoenerji",
     badge: "Enerji",
@@ -15,6 +17,7 @@ const energyFolders: readonly EnergyFolder[] = [
   },
   {
     title: "Refleksoloji",
+    i18nKey: "reflexology",
     desc: "Bölge haritası, atlas ve uygulama sistemi",
     href: "/refleksoloji",
     badge: "Beden",
@@ -23,6 +26,7 @@ const energyFolders: readonly EnergyFolder[] = [
   },
   {
     title: "Kupa & Hacamat Terapisi",
+    i18nKey: "cupping",
     desc: "Vücut nokta atlası, amaç rehberi, kupa teknikleri ve güvenlik sistemi",
     href: "/kupa",
     badge: "Kupa",
@@ -31,7 +35,8 @@ const energyFolders: readonly EnergyFolder[] = [
   },
 ];
 
-export default function EnerjiBedenPage() {
+export default async function EnerjiBedenPage() {
+  const t = await getTranslations("bodyEnergyHub");
   return (
     <main className={`${styles.page} ${energyFontVars}`}>
       <div className={styles.scene} aria-hidden>
@@ -49,10 +54,10 @@ export default function EnerjiBedenPage() {
           </p>
           {/* Onaylı tipografi: "Beden" yeşil, "&" altın, "Enerji" lila (kart renkleriyle aynı anlam). */}
           <h1 className={styles.heroTitle}>
-            <span className={styles.tGreen}>Beden</span> <span className={styles.tGold}>&amp;</span>{" "}
-            <span className={styles.tViolet}>Enerji Uygulamaları</span>
+            <span className={styles.tGreen}>{t("titleA")}</span> <span className={styles.tGold}>&amp;</span>{" "}
+            <span className={styles.tViolet}>{t("titleB")}</span>
           </h1>
-          <p className={styles.heroSub}>Beden üzerinde çalışan uygulama ve terapi araçları</p>
+          <p className={styles.heroSub}>{t("subtitle")}</p>
         </header>
 
         <EnergyFoldersClient folders={energyFolders} />
