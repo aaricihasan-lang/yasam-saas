@@ -243,15 +243,26 @@ export const HOUSE_REFERENCE_RE = new RegExp(
 );
 
 /**
- * I18N A7 / DA-1: İngilizce sağlayıcı yanıtı için ev atfı tespiti (savunma derinliği; KASITLI GENİŞ — "house"/"houses"
- * sözcüğünün her geçişi ev atfı sayılır, ör. "the house of partnership", "your 9th-house Sun"). Öğe yalnız çıkarılır, metin
- * yeniden yazılmaz → yanlış pozitifin bedeli yalnız bir açı/desen cümlesinin gösterilmemesidir.
+ * I18N A7 / DA-1: İngilizce sağlayıcı yanıtı için ev atfı tespiti — TR ifadesinin (HOUSE_REFERENCE_RE) İngilizce karşılığı:
+ * sıra sayısı/rakam + "house" ("ninth house", "10th-house"), "house 9", açısal/ardıl/düşen ev, ev bağlamında rakamlı sıra
+ * ("in the 2nd and the 12th" ↔ "2. ve 12. evde"), panaphara/apoklima. Çıplak "house" sözcüğü SAYILMAZ (R5 ROXY gerçek EN
+ * yanıtı: "household", "dream house", "Solar return charts" yanlış pozitifti). Gerçek TR/EN Natal yanıtlarında (3 kişi,
+ * 131 açı/desen/özet öğesi) süzgeç kararları birebir aynı — atlas-provider-lang-a7.harness.ts [G].
  */
 export const HOUSE_REFERENCE_RE_EN = new RegExp(
   [
     String.raw`\b(first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|eleventh|twelfth|\d{1,2}(st|nd|rd|th))[\s-]+house`,
-    String.raw`\bhouses?\b`,
-    String.raw`\b(angular|succedent|cadent)\b`,
+    String.raw`\bhouse\s+\d{1,2}\b`,
+    String.raw`\b(angular|succedent|cadent)\s+houses?\b`,
+    String.raw`\b(the|and|or)\s+\d{1,2}(st|nd|rd|th)\b`,
+    String.raw`\b(panaphara|panarapa|apoklima)s?\b`,
+    // QA-ATLAS-R5 P2-1 (gerçek EN yanıt kalıpları; TR karşılıkları TR ifadesine takılıyordu → EN az süzüyordu = güvensiz taraf):
+    //   "lives in the seventh" / "rests in the fourth" ↔ "yedinci evinizde"; "career house" ↔ "Kariyer evinizi";
+    //   "house position" ↔ "ev konumuna"; "six odd / even houses" ↔ "tek / çift sayılı ev".
+    String.raw`\bin\s+(the|your)\s+(first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|eleventh|twelfth|\d{1,2}(st|nd|rd|th))\b(?![\s-]+[a-z])`,
+    String.raw`\b(career|home|family|money|wealth|partnership|relationship|marriage|friendship|health|work|travel|children|love|values|communication|siblings|service|spirituality)\s+house\b`,
+    String.raw`\bhouse\s+(positions?|placements?)\b`,
+    String.raw`\b(odd|even)(-numbered)?\s+houses?\b`,
   ].join("|"),
   "i",
 );

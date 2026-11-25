@@ -670,7 +670,8 @@ export default function ProviderInterpretationPanel({
   displayTz?: string | null;
 }) {
   const title = interpretationTitle(interpretation);
-  const ls = interpretation.visible ? withLocalSpaceCenter(stripSystemKeys(interpretation.content), localSpace, interpretation.lang) : null;
+  // QA-ATLAS-R5 P3-3: dil yoksa kaynak dil "tr" (report/model.ts ile aynı savunma).
+  const ls = interpretation.visible ? withLocalSpaceCenter(stripSystemKeys(interpretation.content), localSpace, typeof interpretation.lang === "string" && interpretation.lang ? interpretation.lang : "tr") : null;
   return (
     <section className="rounded-xl border border-slate-200/90 bg-white p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04)] max-sm:-mx-3 max-sm:rounded-none max-sm:border-x-0 max-sm:px-3" aria-label={title}>
       <div className="mb-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-b border-slate-100 pb-2.5">

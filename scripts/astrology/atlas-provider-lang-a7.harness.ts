@@ -25,6 +25,7 @@ import { calcInputHash } from "@/lib/astrology/engine/inputHash";
 import * as Config from "@/lib/astrology/config";
 import { ASPECT_NATURE_BY_TYPE, mapNature, mapNatureFor } from "@/lib/astrology/providers/roxy/shared";
 import * as T from "@/lib/astrology/providers/roxy/timing";
+import * as V from "@/lib/astrology/providers/roxy/vedic";
 import { projectRoxyNatal } from "@/lib/astrology/providers/roxy/natal";
 import {
   HOUSE_REFERENCE_RE,
@@ -364,14 +365,19 @@ const EN_HOUSE = [
   "This aspect lights up your 4th-house matters.",
   "HOUSE 9 themes return.",
   "IN THE FIRST HOUSE, identity leads.",
-  "An angular planet speaks loudly.",
   "Planets in cadent houses work behind the scenes.",
+  "Support sits in the 2nd and the 12th from the Moon.",
 ];
 const EN_PLAIN = [
   "Movement sets your selfhood alight, and you know who you are best when already halfway out the door.",
   "Your heart works through words, and a feeling only settles once you have found a way to express it.",
   "Tension between duty and desire asks for patience.",
   "A grand trine brings ease that can turn into complacency.",
+  // R5 ROXY gerçek EN yanıtındaki eski yanlış pozitifler (çıplak "house" sözcüğü ev atfı değildir):
+  "Psychology and the history of your household absorb you.",
+  "A dream house sketched in a notebook, room by room, holds your hopes.",
+  "Introducing it without burning the house down.",
+  "An angular planet speaks loudly.",
 ];
 t("EN (sentetik): ev atfı tespit edilir (büyük harf dahil); ev atfı olmayan cümleler korunur", () => {
   const en = houseReferenceDetector("en");
@@ -445,6 +451,164 @@ t("EN (sentetik kalıp): yer atfı seçilen merkeze bağlanır; doğum yerindeys
   // TR kalıbı EN yanıtta uygulanmaz; EN kalıbı TR yanıtta uygulanmaz.
   assert.equal(localSpaceText("Güneş hattınız, doğum yerinizden güneybatı yönünü gösterir.", centers[3], "en"), "Güneş hattınız, doğum yerinizden güneybatı yönünü gösterir.");
   assert.equal(localSpaceText(s, centers[3], "tr"), s);
+});
+
+// ─── [G] Gerçek TR / EN sağlayıcı yanıtları (R5 ROXY ajanı, 25.11.2026; sentetik kişiler; yeniden ücret YOK) ─────────────
+console.log("\n[G] gerçek TR/EN yanıtları: kanonik teknik katman TR = EN; Natal yerel ev süzgeci kararları TR = EN");
+const RG = join(FIX, "i18n", "roxy-tr-en-2026-11-25");
+const rawOf = (f: string) => JSON.parse(readFileSync(join(RG, f), "utf8")) as { lang: string; body: J; response: unknown };
+type NatalOk = { ok: true; value: { technical: unknown; interpretation: NatalInterpretation; unmappedFields: string[]; droppedValues: string[] } };
+const natalPairs = ["p1", "p2", "p3"].map((p) => {
+  const a = rawOf(`natal-${p}-tr.json`);
+  const b = rawOf(`natal-${p}-en.json`);
+  const o = { houseSystem: a.body.houseSystem, nodeType: a.body.nodeType } as never;
+  return { p, lang: [a.lang, b.lang], tr: projectRoxyNatal(structuredClone(a.response), o) as NatalOk, en: projectRoxyNatal(structuredClone(b.response), o) as NatalOk };
+});
+t("Natal (3 kişi): yanıt dilleri gerçekten tr/en; kanonik teknik katman (gezegen, ev, ASC/MC, açı, orb, nitelik, düğüm) TR = EN", () => {
+  for (const x of natalPairs) {
+    assert.deepEqual(x.lang, ["tr", "en"], x.p);
+    assert.equal(x.tr.ok && x.en.ok, true, x.p);
+    assert.deepEqual(x.en.value.technical, x.tr.value.technical, `${x.p} technical`);
+    assert.deepEqual(x.en.value.droppedValues, x.tr.value.droppedValues, `${x.p} dropped`);
+    assert.deepEqual(x.en.value.unmappedFields, x.tr.value.unmappedFields, `${x.p} unmapped`);
+  }
+});
+t("Natal yerel ev süzgeci (açı / desen / genel özet öğeleri): TR ve EN yanıtta öğe öğe AYNI karar; bedenler her iki dilde koşulsuz çıkar", () => {
+  let items = 0;
+  for (const x of natalPairs) {
+    const T = x.tr.value.interpretation;
+    const E = x.en.value.interpretation;
+    const dt = houseReferenceDetector("tr")!;
+    const de = houseReferenceDetector("en")!;
+    const units = (i: NatalInterpretation, d: (s: string | null | undefined) => boolean) => [
+      ...i.aspects.map((a) => d(a.summary) || a.keywords.some((k) => d(k))),
+      ...i.patterns.map((p) => d(p.text)),
+      d(i.overall?.aspectSummary),
+    ];
+    const a = units(T, dt);
+    const b = units(E, de);
+    assert.equal(b.length, a.length, x.p);
+    assert.deepEqual(b, a, `${x.p} öğe kararları`);
+    items += a.length;
+    const st = sanitizeNatalInterpretationForLocalHouses(T, "tr");
+    const se = sanitizeNatalInterpretationForLocalHouses(E, "en");
+    assert.deepEqual(se.removed, st.removed, `${x.p} çıkarılan sayıları`);
+  }
+  assert.ok(items >= 120, `öğe ${items}`);
+});
+t("Transit (gerçek): TR yanıtın yerelleştirilmiş niteliği ('uyumlu'…) ve EN yanıtın kanonik niteliği aynı kanonik teknik katmanı verir", () => {
+  const a = rawOf("transit-p1-tr.json");
+  const b = rawOf("transit-p1-en.json");
+  const o = { nodeType: "true", atUtc: String(a.body.transitDate ?? "") } as never;
+  const x = T.projectRoxyTransit(structuredClone(a.response), o) as { ok: boolean; technical: unknown };
+  const y = T.projectRoxyTransit(structuredClone(b.response), o) as { ok: boolean; technical: unknown };
+  assert.equal(x.ok && y.ok, true);
+  assert.deepEqual(y.technical, x.technical);
+  const trNatures = JSON.stringify(a.response).match(/"nature":"(uyumlu|zorlayıcı|nötr)"/g) ?? [];
+  assert.ok(trNatures.length > 10, "TR yanıtta yerelleştirilmiş nitelik bekleniyordu");
+});
+t("Local Space (gerçek): EN kalıbı 'from your birthplace' TR 'doğum yerinizden' ile aynı sayıda ve aynı yolda bağlanır", () => {
+  const texts = (r: unknown) => {
+    const out: [string, string][] = [];
+    (function walk(x: unknown, p: string) {
+      if (typeof x === "string") return void out.push([p, x]);
+      if (Array.isArray(x)) return x.forEach((v, i) => walk(v, `${p}[${i}]`));
+      if (x && typeof x === "object") for (const [k, v] of Object.entries(x as J)) walk(v, `${p}.${k}`);
+    })(r, "");
+    return out;
+  };
+  const center: LocalSpaceCenter = { label: "Berlin", latitude: 52.52, longitude: 13.405, isBirthPlace: false };
+  const a = texts(rawOf("local-space-p1-tr.json").response);
+  const b = new Map(texts(rawOf("local-space-p1-en.json").response));
+  let changed = 0;
+  for (const [p, s] of a) {
+    const e = b.get(p);
+    if (e === undefined) continue;
+    const ct = localSpaceText(s, center, "tr") !== s;
+    const ce = localSpaceText(e, center, "en") !== e;
+    assert.equal(ce, ct, p);
+    if (ct) {
+      changed += 1;
+      assert.ok(!/birthplace/i.test(localSpaceText(e, center, "en")), p);
+    }
+  }
+  assert.equal(changed, 13);
+});
+
+t("ROXY B1: Panchanga tithi.rulingPlanet — gerçek TR 'Satürn' artık düşmüyor; TR = EN kanonik; bilinmeyen değer yine düşer", () => {
+  const a = rawOf("panchang-basic-p1-tr.json");
+  const b = rawOf("panchang-basic-p1-en.json");
+  const x = V.projectRoxyVedicPanchanga(structuredClone(a.response)) as { ok: true; technical: { tithi: { rulingPlanet: string | null } }; droppedValues: string[] };
+  const y = V.projectRoxyVedicPanchanga(structuredClone(b.response)) as typeof x;
+  assert.equal(x.ok && y.ok, true);
+  assert.equal(x.technical.tithi.rulingPlanet, "saturn");
+  assert.ok(!x.droppedValues.includes("tithi.rulingPlanet"));
+  // BULGU (R5): panchanga teknik katmanı sağlayıcının YERELLEŞTİRİLMİŞ üç gösterim metnini saklar (tithi.element,
+  // nakshatra.deity, nakshatra.symbol) — hesap değil, açıklama. Bunlar dışındaki tüm alanlar TR = EN; bu üç alan kilitli.
+  const strip = (t: unknown) => {
+    const c = structuredClone(t) as { tithi: J; nakshatra: J };
+    delete c.tithi.element;
+    delete c.nakshatra.deity;
+    delete c.nakshatra.symbol;
+    return c;
+  };
+  assert.deepEqual(strip(y.technical), strip(x.technical), "panchanga teknik katman (3 yerelleştirilmiş metin hariç) TR = EN");
+  const xt = x.technical as unknown as { tithi: J; nakshatra: J };
+  const yt = y.technical as unknown as { tithi: J; nakshatra: J };
+  assert.deepEqual([xt.tithi.element, yt.tithi.element], ["Toprak", "Earth"]);
+  assert.notEqual(xt.nakshatra.deity, yt.nakshatra.deity);
+  const g = (JSON.parse(readFileSync(join(FIX, "golden", "vedic-panchang.json"), "utf8")) as { response: J }).response;
+  const names: [string, string | null][] = [["Güneş", "sun"], ["Ay", "moon"], ["Mars", "mars"], ["Merkür", "mercury"], ["Jüpiter", "jupiter"], ["Venüs", "venus"], ["Satürn", "saturn"], ["Rahu", "rahu"], ["Ketu", "ketu"], ["SATÜRN", "saturn"], ["saturn", "saturn"], ["Pluto", null]];
+  for (const [v, want] of names) {
+    const r = structuredClone(g) as J;
+    (r.tithi as J).rulingPlanet = v;
+    const p = V.projectRoxyVedicPanchanga(r) as { ok: true; technical: { tithi: { rulingPlanet: string | null } }; droppedValues: string[] };
+    assert.equal(p.technical.tithi.rulingPlanet, want, v);
+    assert.equal(p.droppedValues.includes("tithi.rulingPlanet"), want === null, v);
+  }
+  // Mevcut golden (EN adlı "Rahu") çıktısı değişmedi.
+  const base = V.projectRoxyVedicPanchanga(structuredClone(g)) as { technical: { tithi: { rulingPlanet: string | null } } };
+  assert.equal(base.technical.tithi.rulingPlanet, "rahu");
+});
+
+t("QA-ATLAS-R5 P2-1: EN ev atfı ifadesi gerçek EN kalıplarını yakalar (TR karşılıkları TR ifadesine takılıyordu); yanlış pozitif yok", () => {
+  // Kaynak: ROXY ajanının gerçek EN yanıtları (roxy/ham/atlas, 25.11.2026) — natal career, lunar return purpose, Vedik yoga.
+  const hits = [
+    "Collaboration lifts you: the Moon, which commands your vocation, lives in the seventh, so shared projects and work done in pairs fit you well",
+    "The Sun, head of your career house, rests in the fourth, so your public work stays rooted in a private base, and you build your standing from the ground up",
+    "Pay attention to the Moon house position and aspects to other planets for emotional tone and priorities",
+    "Chakra Yoga, the wheel, places every graha in the six odd houses from the Lagna",
+    "All planets occupy six even houses.",
+  ];
+  for (const s of hits) assert.equal(textHasHouseReference(s, "en"), true, s);
+  // Aynı yanıtlardaki ev atfı OLMAYAN cümleler süzülmez (natal açı özeti; çıplak "house" / sıra sayısı + isim).
+  const clean = [
+    "Like the friend who still shows up in the third hard week, you care steadily, Saturn giving the Moon emotional staying power.",
+    "Solar return charts are used for annual forecasting.",
+    "You keep a warm household and a dream house in mind.",
+    "In the first place, you value loyalty.",
+  ];
+  for (const s of clean) assert.equal(textHasHouseReference(s, "en"), false, s);
+  // TR davranışı birebir (ifade değişmedi): aynı cümlelerin gerçek TR karşılıkları TR ifadesinde.
+  assert.equal(textHasHouseReference("Kariyer evinizi yöneten Güneş dördüncü evinizde", "tr"), true);
+});
+
+t("QA-ATLAS-R5 P1-1: ROXY B1 — ayrıntılı panchanga golden'ındaki GERÇEK 'Satürn' tithi bloğu temel projektörde 'saturn' (eski mapGraha: null + düşen alan)", () => {
+  // vedic-panchang-detailed.json gerçek kayıt (lang=tr) tithi bloğu; temel golden'da bu değer "Rahu" olduğu için hata görünmüyordu.
+  const det = (JSON.parse(readFileSync(join(FIX, "golden", "vedic-panchang-detailed.json"), "utf8")) as { response: J }).response;
+  assert.equal((det.tithi as J).rulingPlanet, "Satürn", "fixture gerçek TR değeri");
+  const basic = (JSON.parse(readFileSync(join(FIX, "golden", "vedic-panchang.json"), "utf8")) as { response: J }).response;
+  const r = structuredClone(basic) as J;
+  (r.tithi as J).rulingPlanet = (det.tithi as J).rulingPlanet; // yalnız gerçek değer (diğer alanlar temel yanıtla tutarlı kalsın)
+  const p = V.projectRoxyVedicPanchanga(r) as { ok: boolean; technical: { tithi: { rulingPlanet: string | null } }; droppedValues: string[] };
+  assert.equal(p.ok, true);
+  assert.equal(p.technical.tithi.rulingPlanet, "saturn");
+  assert.ok(!p.droppedValues.includes("tithi.rulingPlanet"));
+  // Eski eşleyici (B1 öncesi) bu değeri tanımıyordu → mutasyonla kanıt: mapGrahaAnyLang yerine mapGraha konunca bu test FAIL verir.
+  assert.equal(V.mapGrahaAnyLang("Satürn"), "saturn");
+  // Sürüm kararı (QA P1-1): projeksiyon sürümü AYNI kalır — önbellek kimliği (inputHash) sürümü içermez, saklı satırlar yeniden
+  // projekte edilmez; artırım eski satırları düzeltmez, yalnız etiketlerdi (korunan demo fixture + panchanga-detail kilidi).
+  assert.equal(V.ROXY_VEDIC_PANCHANGA.projection, "vedic-panchanga-proj-1");
 });
 
 console.log(`\natlas-provider-lang-a7: ${pass} PASS / ${fail} FAIL`);

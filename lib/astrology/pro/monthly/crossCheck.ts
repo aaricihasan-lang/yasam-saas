@@ -22,6 +22,7 @@ import { de440Status } from "../ephemeris/de440/source";
 import { proEphemerisEngine } from "../ephemeris/flags";
 import { localPosition, STATION_THRESHOLD_DEG_PER_DAY } from "../ephemeris/local";
 import type { EphemerisBody, Zodiac } from "../ephemeris/types";
+import { checkMethodSource, checkReasonSource } from "./text";
 import type { MonthlyBody, MonthlyCrossCheck, MonthlyDay, MonthlyKind } from "./types";
 
 assertServerOnly("lib/astrology/pro/monthly/crossCheck");
@@ -34,11 +35,11 @@ const LOCAL_OF: Readonly<Record<MonthlyKind, Partial<Record<MonthlyBody, Ephemer
 };
 const DERIVED: Readonly<Record<MonthlyKind, MonthlyBody[]>> = { western: ["south_node"], vedic: ["ketu"] };
 
+// I18N-F1-R5 (ATLAS-E): yöntem ve neden metinleri sonuçla birlikte önbelleğe / kayda yazılır → HER ZAMAN kaynak dilde (tr; katalogdan,
+// çeviri öncesiyle bayt-bayt aynı). Ekran ve rapor gösterirken text.checkMethodText / checkReasonText ile seçili dile çevirir.
 export const CROSSCHECK_METHOD: Readonly<Record<MonthlyKind, string>> = {
-  western:
-    "Yaşam Sistemi yerel JPL DE440 motoru, aynı 12:00 UTC anı; görünür geosantrik boylam, gerçek ekliptik ve ekinoks; Kuzey Ay Düğümü = gerçek (oskülasyon) düğüm. Tolerans 1,0″ + ΔT belirsizliği payı.",
-  vedic:
-    "Yaşam Sistemi yerel JPL DE440 motoru, aynı 12:00 UTC anı; sideral boylam = görünür tropikal boylam − gerçek Lahiri ayanamsası (ICRC 1956 tanımı + IAU 2006 presesyon + nütasyon); Rahu = ortalama düğüm. Tolerans 1,5″ + ΔT belirsizliği payı.",
+  western: checkMethodSource("western"),
+  vedic: checkMethodSource("vedic"),
 };
 
 const sepArcsec = (a: number, b: number) => (((((a - b) % 360) + 540) % 360) - 180) * 3600;
@@ -53,9 +54,9 @@ export function toleranceArcsec(kind: MonthlyKind, body: EphemerisBody, ms: numb
  * Sağlayıcı çağrısından ÖNCE sorulur → kontrol yapılamayacaksa ücretli istek hiç atılmaz.
  */
 export function independentCheckReady(): { ok: true } | { ok: false; reason: string } {
-  if (proEphemerisEngine() !== "de440") return { ok: false, reason: "Yerel bağımsız motor DE440 değil; kontrol yapılamaz." };
+  if (proEphemerisEngine() !== "de440") return { ok: false, reason: checkReasonSource("reasonNotDe440") };
   const st = de440Status();
-  return st.ok ? { ok: true } : { ok: false, reason: "Yerel bağımsız efemeris verisi bu sunucuda kullanılamıyor; kontrol yapılamadı." };
+  return st.ok ? { ok: true } : { ok: false, reason: checkReasonSource("reasonNoData") };
 }
 
 export function crossCheckMonthly(kind: MonthlyKind, days: MonthlyDay[]): MonthlyCrossCheck {
@@ -78,7 +79,7 @@ export function crossCheckMonthly(kind: MonthlyKind, days: MonthlyDay[]): Monthl
         const loc = localPosition(lb, ms, zodiac);
         const diff = sepArcsec(p.lon, loc.lon);
         // Sayısal olmayan sonuç (NaN/∞) karşılaştırmada sessizce "tolerans içinde" görünürdü → kontrol YAPILAMADI sayılır.
-        if (!Number.isFinite(diff) || !Number.isFinite(loc.speed) || !Number.isFinite(ms)) return { ...base, reason: "Yerel bağımsız hesap bu tarih için geçerli sonuç vermedi; kontrol yapılamadı." };
+        if (!Number.isFinite(diff) || !Number.isFinite(loc.speed) || !Number.isFinite(ms)) return { ...base, reason: checkReasonSource("reasonInvalid") };
         out.compared += 1;
         if (Math.abs(diff) > out.maxAbsArcsec) {
           out.maxAbsArcsec = Math.abs(diff);
@@ -93,11 +94,11 @@ export function crossCheckMonthly(kind: MonthlyKind, days: MonthlyDay[]): Monthl
       }
     }
   } catch {
-    return { ...base, reason: "Yerel bağımsız hesap bu tarih için yapılamadı; kontrol yapılamadı." };
+    return { ...base, reason: checkReasonSource("reasonError") };
   }
   // Her gün × her denetlenen cisim karşılaştırılmış olmalı; hiç değer yoksa ya da eksikse PASS verilmez.
   const expected = days.reduce((n, d) => n + d.positions.filter((p) => map[p.body]).length, 0);
-  if (out.compared === 0 || out.compared !== expected || out.compared !== days.length * checkedBodies.length) return { ...base, reason: "Karşılaştırılacak değerler eksik; kontrol yapılamadı." };
+  if (out.compared === 0 || out.compared !== expected || out.compared !== days.length * checkedBodies.length) return { ...base, reason: checkReasonSource("reasonIncomplete") };
   out.maxAbsArcsec = Math.round(out.maxAbsArcsec * 100) / 100;
   out.status = fail ? "fail" : "pass";
   return out;

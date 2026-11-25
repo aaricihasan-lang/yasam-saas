@@ -7,7 +7,8 @@
  */
 
 import { useState, type ReactNode } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import { dmyOf, dmyText } from "../_lib/atlasDate";
 import { hasViewWarning } from "@/lib/astrology/viewWarnings";
 import type { AspectType, BodyId, NatalAspect, NatalHouse, NatalTechnical, SignId } from "@/lib/astrology/model/western";
 import { SIGN_IDS } from "@/lib/astrology/model/western";
@@ -23,10 +24,7 @@ import type {
 } from "@/lib/astrology/model/westernTiming";
 import {
   ASPECT_GLYPHS,
-  ASPECT_LABELS,
   BODY_GLYPHS,
-  BODY_LABELS,
-  HOUSE_SYSTEM_LABELS,
   NATAL_HOUSE_SYSTEM_LABELS,
   NATURE_LABELS,
   SIGN_GLYPHS,
@@ -272,7 +270,6 @@ function Cusps({ houses }: { houses: NatalHouse[] }) {
   );
 }
 
-const fmtDay = (iso: string) => `${iso.slice(8, 10)}.${iso.slice(5, 7)}.${iso.slice(0, 4)}`;
 
 // ─── Transit + Transit Takvimi: TRANSİT-01 profesyonel görünümleri ./TransitPanels.tsx içinde ──────────────
 export { TransitPanel, ForecastPanel, type CalendarTransitApi } from "./TransitPanels";
@@ -355,6 +352,7 @@ function useHouseSystemLabel() {
 
 export function ProgressionPanel({ t, timeUnknownMasked = false }: { t: ProgressionTechnical; timeUnknownMasked?: boolean }) {
   const tp = useTranslations("atlas.timing.progression");
+  const loc = useLocale();
   const tc = useTranslations("atlas.timing");
   const tt = useTranslations("terms");
   const hsLabel = useHouseSystemLabel();
@@ -377,11 +375,11 @@ export function ProgressionPanel({ t, timeUnknownMasked = false }: { t: Progress
   return (
     <div className="flex flex-col gap-3" data-testid="astro-progression-panel">
       <p className="text-sm text-slate-600" data-testid="astro-progression-period">
-        {tp.rich("calcDate", { date: fmtDay(t.targetDate), strong: (c) => <strong>{c}</strong> })}
+        {tp.rich("calcDate", { date: dmyOf(t.targetDate, loc), strong: (c) => <strong>{c}</strong> })}
         {t.progressedDate && (
           <>
             {" "}
-            {tp.rich("progressedDay", { date: fmtDay(t.progressedDate), strong: (c) => <strong>{c}</strong> })}
+            {tp.rich("progressedDay", { date: dmyOf(t.progressedDate, loc), strong: (c) => <strong>{c}</strong> })}
           </>
         )}
         {t.elapsedYears !== null && ` ${tp("elapsed", { years: t.elapsedYears.toFixed(2) })}`}
@@ -506,6 +504,7 @@ export function ProgressionPanel({ t, timeUnknownMasked = false }: { t: Progress
 // yaklaşan/ayrılan eklendi). Natal çerçeve yalnız çift halka için.
 export function SolarArcPanel({ t }: { t: SolarArcTechnical; /** Arayüz uyumu (ProgressionPanel ile aynı imza). */ timeUnknownMasked?: boolean }) {
   const ts = useTranslations("atlas.timing.solarArc");
+  const loc = useLocale();
   const tc = useTranslations("atlas.timing");
   const hsLabel = useHouseSystemLabel();
   const aspects: DirectionRow[] = solarArcAspectsWithMotion(t).map((a) => ({ moving: a.directed, natal: a.natal, type: a.type, orb: a.orb, motion: a.motion, nature: a.nature }));
@@ -513,7 +512,7 @@ export function SolarArcPanel({ t }: { t: SolarArcTechnical; /** Arayüz uyumu (
   return (
     <div className="flex flex-col gap-3" data-testid="astro-solar-arc-panel">
       <p className="text-sm text-slate-600" data-testid="astro-solar-arc-period">
-        {ts.rich("period", { date: fmtDay(t.targetDate), arc: formatDegree(t.arc), arcDec: t.arc.toFixed(3), strong: (c) => <strong>{c}</strong> })}
+        {ts.rich("period", { date: dmyOf(t.targetDate, loc), arc: formatDegree(t.arc), arcDec: t.arc.toFixed(3), strong: (c) => <strong>{c}</strong> })}
       </p>
       <MethodBox testId="astro-solar-arc-method">{ts("methodNote")}</MethodBox>
       <Section title={ts("positionsTitle")}>
@@ -569,13 +568,19 @@ export function directedWheelGap(technique: string, technical: unknown, timeUnkn
 
 /** Çift halka künyesi (Türkçe; "Transit" etiketi YOK). */
 export function DirectedWheelCaption({ technique, technical, natalName }: { technique: string; technical: unknown; natalName: string }) {
+  const tm = useTranslations("atlas.timingMore");
+  const hsLabel = useHouseSystemLabel();
   const f = (technical as { natalFrame?: ProgressionTechnical["natalFrame"] } | null)?.natalFrame;
   if (!f || (technique !== "western.progression" && technique !== "western.solar_arc")) return null;
-  const outer = technique === "western.progression" ? "ilerletilmiş (secondary progression) gezegenler" : "Solar Arc noktaları";
-  const angles = technique === "western.progression" ? "İlerletilmiş Yükselen/MC" : "Solar Arc Yükselen/MC";
+  const prog = technique === "western.progression";
   return (
     <p className="text-center text-[11px] leading-snug text-slate-500 max-sm:px-3" data-testid="astro-directed-caption">
-      İç halka: {natalName} natal ({HOUSE_SYSTEM_LABELS[f.houseSystem]} evler) · Dış halka (mor): {outer} · ortadaki çizgiler dış halka → natal majör açılar (orb ≤ 1°) · {angles} ve onlarla açılar tabloda
+      {tm("directedCaption", {
+        name: natalName,
+        hs: hsLabel(f.houseSystem),
+        outer: tm(prog ? "outerProgression" : "outerSolarArc"),
+        angles: tm(prog ? "anglesProgression" : "anglesSolarArc"),
+      })}
     </p>
   );
 }
@@ -689,15 +694,20 @@ export function wheelForTechnique(technique: string, technical: unknown): { whee
 const isAnglePoint = (p: PointId) => p === "ascendant" || p === "midheaven";
 
 export function ReturnPanel({ t, place = null, showWheel = true }: { t: ReturnTechnical; place?: ReturnPlace | null; /** D3.1: çark harita istasyonundaysa burada tekrar çizilmez. */ showWheel?: boolean }) {
+  // I18N-F1-R5: metin katalogdan (atlas.timingMore + terms); metin düğümü yapısı korunur (TR HTML taban ile bayt-bayt aynı).
+  const tm = useTranslations("atlas.timingMore");
+  const loc = useLocale();
+  const tt = useTranslations("terms");
+  const hsLabel = useHouseSystemLabel();
   const c = t.chart;
   const wheel = returnWheel(t);
   const off = t.returnOffsetHours;
   return (
     <div className="flex flex-col gap-3">
       <p className="text-sm text-slate-600">
-        Dönüş anı: <strong>{t.returnLocal.replace("T", " ").slice(0, 16)}</strong> (UTC{off >= 0 ? "+" : "−"}
-        {Math.abs(off)}) · natal {t.kind === "solar" ? "Güneş" : "Ay"} <SignCell sign={t.natalPoint.sign} degree={t.natalPoint.degreeInSign} /> ·{" "}
-        {HOUSE_SYSTEM_LABELS[c.houseSystem]}
+        {tm("returnMoment")}<strong>{t.returnLocal.replace("T", " ").slice(0, 16)}</strong> (UTC{off >= 0 ? "+" : "−"}
+        {Math.abs(off)}) · natal {tt(t.kind === "solar" ? "body.sun" : "body.moon")} <SignCell sign={t.natalPoint.sign} degree={t.natalPoint.degreeInSign} /> ·{" "}
+        {hsLabel(c.houseSystem)}
       </p>
       {(() => {
         const utc = returnUtcIso(t);
@@ -706,31 +716,39 @@ export function ReturnPanel({ t, place = null, showWheel = true }: { t: ReturnTe
         return (
           <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700" data-testid="astro-return-place">
             <div>
-              <strong>Hesaplama konumu:</strong>{" "}
-              {place ? `${place.label} (${Math.abs(t.location.latitude).toFixed(2)}° ${t.location.latitude >= 0 ? "K" : "G"}, ${Math.abs(t.location.longitude).toFixed(2)}° ${t.location.longitude >= 0 ? "D" : "B"})` : "doğum yeri"}
-              {relocated ? " · farklı konum (relocated return)" : " · doğum yeri"}
+              <strong>{tm("calcPlace")}</strong>{" "}
+              {place
+                ? tm("coord", {
+                    label: place.label,
+                    lat: Math.abs(t.location.latitude).toFixed(2),
+                    ns: tm(t.location.latitude >= 0 ? "dir.N" : "dir.S"),
+                    lon: Math.abs(t.location.longitude).toFixed(2),
+                    ew: tm(t.location.longitude >= 0 ? "dir.E" : "dir.W"),
+                  })
+                : tm("birthPlace")}
+              {relocated ? tm("relocated") : tm("notRelocated")}
             </div>
             <div className="text-xs text-slate-600">
-              Kesin dönüş anı: <strong>{utc ? `${utc.slice(0, 16).replace("T", " ")} UTC` : "—"}</strong>
-              {local ? ` · ${place?.label?.split(",")[0] ?? "konum"} yerel saati: ${local}` : " · konumun yerel saati gösterilmiyor (saat dilimi doğrulanamadı)"}
+              {tm("exactMoment")}<strong>{utc ? `${utc.slice(0, 16).replace("T", " ")} UTC` : "—"}</strong>
+              {local ? tm("localTime", { place: place?.label?.split(",")[0] ?? tm("placeFallback"), time: dmyText(local, loc) }) : tm("noLocalTime")}
             </div>
-            <div className="text-[11px] text-slate-500">Dönüş anı konumdan bağımsızdır (doğum anı aynı); konum yalnız Yükselen/MC ve evleri değiştirir.</div>
+            <div className="text-[11px] text-slate-500">{tm("placeIndependent")}</div>
           </div>
         );
       })()}
       {t.kind === "lunar" && (
         <p className="text-xs text-slate-500" data-testid="astro-lunar-sequence">
           {t.requested.sequence
-            ? `Ayın ${t.requested.sequence}. lunar return'ü (beklenen ~${(t.requested.expectedUtc ?? "").replace("T", " ")} UTC; sağlayıcı anı bununla doğrulandı)`
-            : "Ayın ilk lunar return'ü (eski kayıt — dönüş sırası saklanmamış)"}
+            ? tm("lunarSeq", { n: String(t.requested.sequence), at: (t.requested.expectedUtc ?? "").replace("T", " ") })
+            : tm("lunarSeqLegacy")}
         </p>
       )}
-      {showWheel && <NatalWheel technical={wheel} label={t.kind === "solar" ? "Solar return çarkı" : "Lunar return çarkı"} />}
+      {showWheel && <NatalWheel technical={wheel} label={tm(t.kind === "solar" ? "solarWheel" : "lunarWheel")} />}
       {c.angles && (c.angles.ascendant || c.angles.midheaven) && (
         <p className="text-sm text-slate-700">
           {c.angles.ascendant && (
             <>
-              Yükselen <SignCell sign={c.angles.ascendant.sign} degree={c.angles.ascendant.degreeInSign} />
+              {tm("ascLead")}<SignCell sign={c.angles.ascendant.sign} degree={c.angles.ascendant.degreeInSign} />
             </>
           )}
           {c.angles.midheaven && (
@@ -741,7 +759,7 @@ export function ReturnPanel({ t, place = null, showWheel = true }: { t: ReturnTe
           )}
         </p>
       )}
-      <Section title="Dönüş haritası gök cisimleri">
+      <Section title={tm("returnBodies")}>
         <BodiesTable bodies={c.bodies} showHouse />
       </Section>
       <Cusps houses={c.houses} />
@@ -752,6 +770,8 @@ export function ReturnPanel({ t, place = null, showWheel = true }: { t: ReturnTe
 
 // ─── Synastry ───────────────────────────────────────────────────────────────
 export function SynastryPanel({ t, names }: { t: SynastryTechnical; names: [string, string] }) {
+  const tm = useTranslations("atlas.timingMore");
+  const tt = useTranslations("terms");
   const [only, setOnly] = useState(true);
   const list = [...t.aspects].filter((a) => !only || MAJOR.has(a.type)).sort((a, b) => a.orb - b.orb);
   const person = (idx: 0 | 1) => {
@@ -760,19 +780,19 @@ export function SynastryPanel({ t, names }: { t: SynastryTechnical; names: [stri
     const anyHouse = p.bodies.some((b) => b.house !== null);
     const anyOver = p.bodies.some((b) => b.houseInOther !== null);
     return (
-      <Section title={`${idx + 1}. kişi — ${names[idx]}`}>
+      <Section title={tm("personTitle", { n: String(idx + 1), name: names[idx] })}>
         {p.ascendant && (
           <p className="px-3 pt-2 text-sm text-slate-700">
-            Yükselen <SignCell sign={p.ascendant.sign} degree={p.ascendant.degreeInSign} />
+            {tm("ascLead")}<SignCell sign={p.ascendant.sign} degree={p.ascendant.degreeInSign} />
           </p>
         )}
         <table className="min-w-full">
           <thead>
             <tr>
-              <th className={th}>Gök cismi</th>
-              <th className={th}>Burç / derece</th>
-              {anyHouse && <th className={th}>Kendi evi</th>}
-              {anyOver && <th className={th}>{other} evinde</th>}
+              <th className={th}>{tm("colBody")}</th>
+              <th className={th}>{tm("colSignDegree")}</th>
+              {anyHouse && <th className={th}>{tm("colOwnHouse")}</th>}
+              {anyOver && <th className={th}>{other}{tm("inOtherHouse")}</th>}
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
@@ -780,7 +800,7 @@ export function SynastryPanel({ t, names }: { t: SynastryTechnical; names: [stri
               <tr key={b.id}>
                 <td className={td}>
                   <span className="mr-1.5">{BODY_GLYPHS[b.id]}</span>
-                  {BODY_LABELS[b.id]}
+                  {tt(`body.${b.id}`)}
                   {b.retrograde && <span className="ml-1 font-semibold text-rose-600">℞</span>}
                 </td>
                 <td className={td}>
@@ -799,24 +819,24 @@ export function SynastryPanel({ t, names }: { t: SynastryTechnical; names: [stri
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center gap-3 text-sm text-slate-700">
         {t.compatibilityScore !== null && (
-          <span className="rounded-full bg-slate-900 px-3 py-1 text-xs font-semibold text-white">Sağlayıcı uyum skoru: {t.compatibilityScore.toFixed(1)}</span>
+          <span className="rounded-full bg-slate-900 px-3 py-1 text-xs font-semibold text-white">{tm("scoreLabel")}{t.compatibilityScore.toFixed(1)}</span>
         )}
         {t.summary.total !== null && (
           <span className="text-xs text-slate-500">
-            {t.summary.total} açı · uyumlu {t.summary.harmonious ?? "—"} · zorlayıcı {t.summary.challenging ?? "—"} · nötr {t.summary.neutral ?? "—"}
+            {t.summary.total}{tm("sumAspects")}{t.summary.harmonious ?? "—"}{tm("sumChallenging")}{t.summary.challenging ?? "—"}{tm("sumNeutral")}{t.summary.neutral ?? "—"}
           </span>
         )}
       </div>
-      <Section title={`Kişiler arası açılar (${list.length}/${t.aspects.length})`} right={<MajorToggle only={only} set={setOnly} />}>
+      <Section title={tm("interAspects", { shown: String(list.length), total: String(t.aspects.length) })} right={<MajorToggle only={only} set={setOnly} />}>
         <table className="min-w-full">
           <thead>
             <tr>
               <th className={th}>{names[0]}</th>
-              <th className={th}>Açı</th>
+              <th className={th}>{tm("colAspect")}</th>
               <th className={th}>{names[1]}</th>
-              <th className={th}>Orb</th>
-              <th className={th}>Nitelik</th>
-              <th className={th}>Seyir</th>
+              <th className={th}>{tm("colOrb")}</th>
+              <th className={th}>{tm("colNature")}</th>
+              <th className={th}>{tm("colCourse")}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
@@ -826,7 +846,7 @@ export function SynastryPanel({ t, names }: { t: SynastryTechnical; names: [stri
                   <Point id={a.a} />
                 </td>
                 <td className={td}>
-                  {ASPECT_GLYPHS[a.type]} {ASPECT_LABELS[a.type]}
+                  {ASPECT_GLYPHS[a.type]} {tt(`aspect.${a.type}`)}
                 </td>
                 <td className={td}>
                   <Point id={a.b} />
@@ -836,7 +856,7 @@ export function SynastryPanel({ t, names }: { t: SynastryTechnical; names: [stri
                   <NatureBadge n={a.nature} />
                 </td>
                 {/* AŞAMA 2: eski kayıtta (synastry-proj-1) alan yok → "—" (uydurulmaz). */}
-                <td className={`${td} text-xs`}>{a.applying === true ? "yaklaşıyor" : a.applying === false ? "ayrılıyor" : "—"}</td>
+                <td className={`${td} text-xs`}>{a.applying === true ? tm("applying") : a.applying === false ? tm("separating") : "—"}</td>
               </tr>
             ))}
           </tbody>
@@ -852,17 +872,19 @@ export function SynastryPanel({ t, names }: { t: SynastryTechnical; names: [stri
 
 // ─── Composite ──────────────────────────────────────────────────────────────
 export function CompositePanel({ t, showWheel = true }: { t: CompositeTechnical; showWheel?: boolean }) {
+  const tm = useTranslations("atlas.timingMore");
+  const hsLabel = useHouseSystemLabel();
   return (
     <div className="flex flex-col gap-3">
-      <p className="text-sm text-slate-600">Yöntem: orta nokta (midpoint) · {HOUSE_SYSTEM_LABELS[t.houseSystem]}</p>
-      {showWheel && <NatalWheel technical={t} label="Composite çarkı" />}
+      <p className="text-sm text-slate-600">{tm("compositeMethod")}{hsLabel(t.houseSystem)}</p>
+      {showWheel && <NatalWheel technical={t} label={tm("compositeWheel")} />}
       {t.angles && (
         <p className="text-sm text-slate-700">
-          Yükselen <SignCell sign={t.angles.ascendant.sign} degree={t.angles.ascendant.degreeInSign} /> · MC{" "}
+          {tm("ascLead")}<SignCell sign={t.angles.ascendant.sign} degree={t.angles.ascendant.degreeInSign} /> · MC{" "}
           <SignCell sign={t.angles.midheaven.sign} degree={t.angles.midheaven.degreeInSign} />
         </p>
       )}
-      <Section title="Composite gök cisimleri">
+      <Section title={tm("compositeBodies")}>
         <BodiesTable bodies={t.bodies} showHouse={t.bodies.some((b) => b.house !== null)} />
       </Section>
       <Cusps houses={t.houses} />
@@ -919,10 +941,11 @@ export function TechniqueTechnical({
   /** ΔT bilgi notu (24.10.2026): bu alanda gösterilecek doğum tarihleri (kayıtlı analizde 2. kişi; 1. kişi hazırlık alanında). */
   deltaTBirths?: { who: string | null; birthDate: unknown }[];
 }) {
+  const tm = useTranslations("atlas.timingMore");
   const deltaT = [...deltaTBirths.flatMap((x) => deltaTBirthNotes(x.birthDate, x.who)), ...deltaTTargetNotes(options)];
   const placeLabel = (k: "target" | "reference") => (options[k] as { label?: string } | undefined)?.label ?? null;
   const body = (() => {
-    if (technical === null || technical === undefined) return <p className="text-sm text-slate-500">Teknik veri gösterilmiyor.</p>;
+    if (technical === null || technical === undefined) return <p className="text-sm text-slate-500">{tm("noTechnical")}</p>;
     switch (technique) {
       case "western.natal": {
         const n = technical as NatalTechnical;
@@ -1021,7 +1044,7 @@ export function TechniqueTechnical({
       case "vedic.monthly":
         return <VedicMonthlyPanel t={technical as VedicMonthlyTechnical} options={options} kbLookup={kbLookup} />;
       default:
-        return <p className="text-sm text-slate-500">Bu teknik için görünüm yok.</p>;
+        return <p className="text-sm text-slate-500">{tm("noView")}</p>;
     }
   })();
   const polarNotice = technical !== null && technical !== undefined ? balaPolarNotice(technique, birthMoment) : null;

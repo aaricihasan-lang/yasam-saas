@@ -313,6 +313,8 @@ t("EN: metin + öznitelik Türkçe harfsiz; ham anahtar yok", () => {
     assert.ok(!TR_LETTERS.test(visibleText(h)), `${c.name}: ${visibleText(h).match(/\S*[çğıöşüÇĞİÖŞÜ]\S*/)?.[0]}`);
     assert.ok(!TR_LETTERS.test(attrText(h)), `${c.name} öznitelik`);
     assert.ok(!/atlas\.forecast\./.test(h), `${c.name}: ham anahtar`);
+    // Owner A8: EN tarih gün/ay/yıl "/" ayırıcısıyla (TR GG.AA.YYYY değişmez — yukarıdaki TR taban testi).
+    assert.ok(!/\b\d{2}\.\d{2}\.\d{4}\b/.test(visibleText(h)), `${c.name}: EN'de GG.AA.YYYY tarih`);
   }
 });
 t("olay cümlesi: TR'de lib eventText ile birebir (tüm golden olayları + sentetik tutulma/istasyon/evre varyantları)", () => {

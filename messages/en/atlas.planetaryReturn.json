@@ -1,0 +1,65 @@
+{
+  "atlas": {
+    "planetaryReturn": {
+      "title": {
+        "saturn": "Saturn return",
+        "jupiter": "Jupiter return",
+        "mars": "Mars return",
+        "venus": "Venus return",
+        "mercury": "Mercury return"
+      },
+      "planet": {
+        "saturn": "Saturn",
+        "jupiter": "Jupiter",
+        "mars": "Mars",
+        "venus": "Venus",
+        "mercury": "Mercury"
+      },
+      "interval": {
+        "saturn": "about 29.5 years",
+        "jupiter": "about 11.9 years",
+        "mars": "about 1.9–2.2 years",
+        "venus": "about 1 year (varies with the 8-year cycle)",
+        "mercury": "about 1 year"
+      },
+      "motion": {
+        "direct": "direct motion",
+        "retrograde": "retrograde motion"
+      },
+      "methodText": "Method: planetary return — the chart of the moment the transiting planet returns to (conjoins) its natal longitude; tropical zodiac, apparent geocentric longitude. The return moment is calculated from the birth moment and the birthplace offset; the selected location changes only the Ascendant, the MC and the houses. In a retrograde cycle the planet may cross its natal degree 2–3 times: all crossings in the return cluster closest to the target date are listed and only the selected crossing is calculated (no automatic selection). Consistency check: if the longitude at the return moment is not within 0.05° of the natal longitude, the result is not saved.",
+      "cycleNote": "Because Mercury and Venus move close to the Sun, their geocentric returns occur roughly once a year (the heliocentric orbital periods of 88 / 225 days are not the return interval).",
+      "crossingLabel": "Selected crossing",
+      "crossingValue": "crossing {crossing} of {of}{retro} · {motion} · target date {date}",
+      "retroCycle": " (retrograde cycle)",
+      "utcLabel": "Exact return moment (UTC)",
+      "localRelocated": "Local time at the return location",
+      "localBirth": "Local time at the birthplace",
+      "localUnknown": "not shown (time zone could not be verified)",
+      "providerLocalLabel": "Calculation time (birth offset)",
+      "natalLabel": "Natal {planet}",
+      "returnLabel": "{planet} at the return moment",
+      "deltaLabel": "Consistency check",
+      "deltaValue": "|return − natal| = {delta}″ · threshold 0.05° · verified",
+      "placeLabel": "Calculation location",
+      "birthPlace": "birthplace",
+      "relocatedSuffix": " · different location",
+      "birthSuffix": " · birthplace",
+      "intervalLabel": "Typical return interval",
+      "wheelLabel": "{title} wheel",
+      "asc": "Ascendant",
+      "fortune": "Part of Fortune",
+      "inHouse": " (house {n})",
+      "bodiesTitle": "Return chart bodies",
+      "colBody": "Body",
+      "colSign": "Sign / degree",
+      "colHouse": "House",
+      "cuspsTitle": "House cusps",
+      "houseN": "House {n}",
+      "aspectsTitle": "Aspects ({shown}/{total})",
+      "majorOnly": "major aspects only",
+      "colAspect": "Aspect",
+      "colOrb": "Orb",
+      "colNature": "Nature"
+    }
+  }
+}

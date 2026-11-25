@@ -1,0 +1,47 @@
+{
+ "endpoint": "/vedic-astrology/panchang/basic",
+ "lang": "tr",
+ "query": null,
+ "body": {
+  "date": "1990-04-01",
+  "time": "14:30:00",
+  "latitude": 41.0082,
+  "longitude": 28.9784,
+  "timezone": 3
+ },
+ "response": {
+  "tithi": {
+   "number": 7,
+   "name": "Saptamī",
+   "paksha": "Shukla",
+   "percent": 47.89762737234611,
+   "deity": "Indra",
+   "rulingPlanet": "Satürn",
+   "element": "Toprak"
+  },
+  "nakshatra": {
+   "number": 5,
+   "name": "Mrigashira",
+   "lord": "Mars",
+   "pada": 4,
+   "deity": "Soma (Ay tanrısı)",
+   "symbol": "Geyik Kafası",
+   "characteristics": "Bu doğumlular meraklı, hazırcevap ve keşif susuzluğuna sahiptir. Öğrenmeyi ve yeni deneyimlere uyum sağlamayı seven doğal arayıcılardır."
+  },
+  "yoga": {
+   "number": 4,
+   "name": "Saubhagya",
+   "percent": 99.43530494213304,
+   "characteristics": "İyi Servet (fırsatlarla dolu, memnun bir hayat sürer, mutlu)"
+  },
+  "karana": {
+   "number": 5,
+   "name": "Gar",
+   "percent": 95.79525474469222,
+   "type": "char",
+   "characteristics": "Astrolojiye göre Gar Karana insanları titizdir. Şansa değil yeteneklerine güvenirler. Arzu ettikleri hedefe sıkı çalışma ve çabayla ulaşırlar."
+  },
+  "sunLongitude": 347.75516268713477,
+  "moonLongitude": 65.50287797181632
+ }
+}

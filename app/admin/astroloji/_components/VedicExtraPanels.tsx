@@ -8,6 +8,7 @@
 
 import { useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
+import { dmyOf } from "../_lib/atlasDate";
 import {
   SHADBALA_COMPONENTS,
   type KakshaLord,
@@ -142,17 +143,18 @@ export function VedicDrishtiPanel({ t, kbLookup }: { t: VedicDrishtiTechnical; k
 // ─── 5.1A Gochara (Vedik transit) ───────────────────────────────────────────
 export function VedicTransitPanel({ t, kbLookup }: { t: VedicTransitTechnical; kbLookup?: KbLookup | null }) {
   const { t: tx, graha, sign, lbl } = useExtraText();
+  const loc = useLocale();
   const KAKSHA_LORD_LABEL = (l: KakshaLord) => lbl(l);
   const drishtiLabel = (n: number) => (n === 1 ? tx("transit.sameRashi") : `${n}.`);
   const [sel, setSel] = useState<VedicGrahaId>(t.slow[0] ?? t.transits[0]?.id ?? "sun");
   const x = t.transits.find((y) => y.id === sel) ?? t.transits[0];
   const kb = x && kbLookup ? kbLookup([`gochara_graha_in_rashi:${x.id}:${x.rashi}`, `gochara_from_moon:${x.id}:${x.houseFromMoon}`, `gochara_in_bhava:${x.id}:${x.natalHouse}`, ...x.drishti.map((d) => `gochara_drishti:${x.id}:${d.to}`)]) : null;
-  const local = `${t.at.local.slice(8, 10)}.${t.at.local.slice(5, 7)}.${t.at.local.slice(0, 4)} ${t.at.local.slice(11, 16)}`;
+  const local = `${dmyOf(t.at.local, loc)} ${t.at.local.slice(11, 16)}`;
   const off = `${t.at.utcOffsetHours >= 0 ? "+" : "−"}${Math.abs(t.at.utcOffsetHours)}`;
   return (
     <div className="flex min-w-0 flex-col gap-3" data-testid="astro-vedic-transit-panel">
       <p className="text-sm text-slate-700">
-        <strong>{tx("transit.title")}</strong> · {t.at.utc.slice(8, 10)}.{t.at.utc.slice(5, 7)}.{t.at.utc.slice(0, 4)} {t.at.utc.slice(11, 16)}
+        <strong>{tx("transit.title")}</strong> · {dmyOf(t.at.utc, loc)} {t.at.utc.slice(11, 16)}
         {tx("transit.utcBirthOffset")}
         {local}
         {tx("transit.utcSep")}
@@ -521,10 +523,15 @@ function Limb({ title, name, sub, percent, testId }: { title: string; name: stri
 }
 export function VedicPanchangaPanel({ t, kbLookup }: { t: VedicPanchangaTechnical; kbLookup?: KbLookup | null }) {
   const { t: tx, graha, sign } = useExtraText();
+  const { locale } = useExtraText();
   const elementTr = (v: string) => {
-    const k = ELEMENT_KEY[v.trim().toLowerCase()];
+    const k = ELEMENT_KEY[v.trim().toLowerCase()] ?? ELEMENT_KEY_TR[v.trim().toLocaleLowerCase("tr-TR")];
     return k ? tx(`element.${k}`) : v;
   };
+  // ATLAS-B (I18N-F1-R5): sağlayıcının yerelleştirilmiş nakshatra devata / sembol metni teknik katmanda SAKLI kalır (değişmez).
+  // TR ekran saklı metni aynen gösterir (bayt-eşit); diğer dillerde nakshatra kimliğinden klasik devata / sembol (katalog).
+  const deityOf = (v: string) => (locale === "tr" ? v : tx(`nakshatraDeity.${t.nakshatra.id}`));
+  const symbolOf = (v: string) => (locale === "tr" ? v : tx(`nakshatraSymbol.${t.nakshatra.id}`));
   const kb = kbLookup ? kbLookup([`panchanga_tithi:${t.tithi.number}`, `panchanga_nitya_yoga:${t.nityaYoga.number}`, `panchanga_karana:${t.karana.id}`]) : null;
   return (
     <div className="flex min-w-0 flex-col gap-3" data-testid="astro-vedic-panchanga-panel">
@@ -554,7 +561,7 @@ export function VedicPanchangaPanel({ t, kbLookup }: { t: VedicPanchangaTechnica
           testId="astro-vedic-panchanga-nakshatra"
           title={tx("pa.nakshatra")}
           name={`${t.nakshatra.index + 1}. ${NAKSHATRA_LABELS[t.nakshatra.id]}`}
-          sub={[tx("limb.pada", { n: String(t.nakshatra.pada) }), tx("limb.lord", { v: graha(t.nakshatra.lord) }), t.nakshatra.deity ? tx("limb.deity", { v: t.nakshatra.deity }) : "", t.nakshatra.symbol ? tx("limb.symbol", { v: t.nakshatra.symbol }) : ""].filter(Boolean).join(" · ")}
+          sub={[tx("limb.pada", { n: String(t.nakshatra.pada) }), tx("limb.lord", { v: graha(t.nakshatra.lord) }), t.nakshatra.deity ? tx("limb.deity", { v: deityOf(t.nakshatra.deity) }) : "", t.nakshatra.symbol ? tx("limb.symbol", { v: symbolOf(t.nakshatra.symbol) }) : ""].filter(Boolean).join(" · ")}
           percent={null}
         />
         <Limb testId="astro-vedic-panchanga-yoga" title={tx("pa.nityaYoga")} name={`${t.nityaYoga.number}. ${NITYA_YOGA_LABELS[t.nityaYoga.number - 1]}`} sub={tx("pa.nityaSub")} percent={t.nityaYoga.percent} />
@@ -571,35 +578,42 @@ export function VedicPanchangaPanel({ t, kbLookup }: { t: VedicPanchangaTechnica
 
 /** Sağlayıcı element adı (küçük harf) → katalog anahtarı (atlas.vedicExtra.element.*; bilinmeyen değer aynen gösterilir). */
 const ELEMENT_KEY: Record<string, "fire" | "earth" | "air" | "water" | "ether"> = { fire: "fire", earth: "earth", air: "air", water: "water", ether: "ether", akasha: "ether", space: "ether" };
+/**
+ * ATLAS-B (I18N-F1-R5): sağlayıcının TR yanıtındaki element adı (gerçek kayıt: "Toprak") → aynı katalog anahtarı. TR ekranda
+ * katalog TR değeri sağlayıcı metniyle aynı (Ateş / Toprak / Hava / Su) → TR görünüm bayt-eşit; EN ekranda İngilizce.
+ * Akasha'nın TR yanıt biçimi doğrulanmadığı için eklenmedi (bilinmeyen değer aynen gösterilir).
+ */
+const ELEMENT_KEY_TR: Record<string, "fire" | "earth" | "air" | "water"> = { "ateş": "fire", toprak: "earth", hava: "air", su: "water" };
 const VARA_IDS = new Set(["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"]);
 const hm = (s: string | null) => (s ? s.slice(11, 16) : "—");
-const dmy = (s: string) => `${s.slice(8, 10)}.${s.slice(5, 7)}.${s.slice(0, 4)}`;
-const winTxt = (w: { start: string; end: string } | null, none: string) => (w ? `${hm(w.start)} – ${w.end.slice(0, 10) === w.start.slice(0, 10) ? hm(w.end) : `${dmy(w.end)} ${hm(w.end)}`}` : none);
+const dmy = (s: string, loc = "tr") => dmyOf(s, loc);
+const winTxt = (w: { start: string; end: string } | null, none: string, loc = "tr") => (w ? `${hm(w.start)} – ${w.end.slice(0, 10) === w.start.slice(0, 10) ? hm(w.end) : `${dmy(w.end, loc)} ${hm(w.end)}`}` : none);
 
 /** 2026-10-21: Ayrıntılı Panchanga (seçilen gün + yer) — gün doğumu/batımı, vara, muhurta pencereleri. Hesap YOK; yalnız düzen. */
 function PanchangaDetailView({ d }: { d: NonNullable<VedicPanchangaTechnical["detail"]> }) {
   const { t: tx, graha } = useExtraText();
+  const loc = useLocale();
   const none = tx("pd.noneToday");
   const day18 = tx("pd.rule.dayEighth");
   const ghati = tx("pd.rule.ghati");
   const off = d.place.utcOffsetHours;
   const offLabel = `UTC${off >= 0 ? "+" : "−"}${String(Math.floor(Math.abs(off))).padStart(2, "0")}:${String(Math.round((Math.abs(off) % 1) * 60)).padStart(2, "0")}`;
   const rows: [string, string, string][] = [
-    ["Rahu Kaal", winTxt(d.rahuKaal, none), day18],
-    ["Yamaganda", winTxt(d.yamaganda, none), day18],
-    ["Gulika", winTxt(d.gulika, none), day18],
-    ["Abhijit muhurta", winTxt(d.abhijit, none), tx("pd.rule.abhijit")],
-    ["Vijaya muhurta", winTxt(d.vijaya, none), tx("pd.rule.vijaya")],
-    ["Brahma muhurta", winTxt(d.brahma, none), tx("pd.rule.brahma")],
-    ...d.durMuhurta.map((w): [string, string, string] => ["Dur muhurta", winTxt(w, none), tx("pd.rule.weekday")]),
-    ...d.varjyam.map((w): [string, string, string] => ["Varjyam", winTxt(w, none), ghati]),
-    ...d.amritKalam.map((w): [string, string, string] => ["Amrit Kalam", winTxt(w, none), ghati]),
+    ["Rahu Kaal", winTxt(d.rahuKaal, none, loc), day18],
+    ["Yamaganda", winTxt(d.yamaganda, none, loc), day18],
+    ["Gulika", winTxt(d.gulika, none, loc), day18],
+    ["Abhijit muhurta", winTxt(d.abhijit, none, loc), tx("pd.rule.abhijit")],
+    ["Vijaya muhurta", winTxt(d.vijaya, none, loc), tx("pd.rule.vijaya")],
+    ["Brahma muhurta", winTxt(d.brahma, none, loc), tx("pd.rule.brahma")],
+    ...d.durMuhurta.map((w): [string, string, string] => ["Dur muhurta", winTxt(w, none, loc), tx("pd.rule.weekday")]),
+    ...d.varjyam.map((w): [string, string, string] => ["Varjyam", winTxt(w, none, loc), ghati]),
+    ...d.amritKalam.map((w): [string, string, string] => ["Amrit Kalam", winTxt(w, none, loc), ghati]),
   ];
   return (
     <section className={`${card} p-3`} aria-label={tx("pd.title")} data-testid="astro-vedic-panchanga-detail">
       <h4 className="text-sm font-semibold text-slate-900">
         {tx("pd.titleSep")}
-        {dmy(d.date)}
+        {dmy(d.date, loc)}
       </h4>
       <p className="text-xs text-slate-600">
         {d.place.label ? `${d.place.label} · ` : ""}
@@ -618,7 +632,7 @@ function PanchangaDetailView({ d }: { d: NonNullable<VedicPanchangaTechnical["de
         </dd>
         <dt className="text-slate-500">{tx("pd.moonRiseSet")}</dt>
         <dd>
-          {d.moonrise ? (d.moonrise.slice(0, 10) === d.date ? hm(d.moonrise) : `${dmy(d.moonrise)} ${hm(d.moonrise)}`) : none} / {d.moonset ? (d.moonset.slice(0, 10) === d.date ? hm(d.moonset) : `${dmy(d.moonset)} ${hm(d.moonset)}`) : none}
+          {d.moonrise ? (d.moonrise.slice(0, 10) === d.date ? hm(d.moonrise) : `${dmy(d.moonrise, loc)} ${hm(d.moonrise)}`) : none} / {d.moonset ? (d.moonset.slice(0, 10) === d.date ? hm(d.moonset) : `${dmy(d.moonset, loc)} ${hm(d.moonset)}`) : none}
         </dd>
         {d.atSunrise && (
           <>

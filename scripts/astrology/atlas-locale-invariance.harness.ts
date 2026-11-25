@@ -108,6 +108,35 @@ async function worker() {
   // 3) Yerel motorlar
   const cases = readJson("pro-natal-houses", "roxy-natal-technical-2026-10-31.json").cases as { id: string; technical: J }[];
   const localHouses = cases.map((c) => PRO_HOUSE_SYSTEMS.map((s) => deriveLocalNatalHouses(c.technical as never, s)));
+  // QA-ATLAS-R5 P2-4: A7 ev atfı tespiti (TR: tr-TR küçük harf) + yerel ev süzgeci + Local Space yer atfı süreç yerel ayarından
+  // bağımsız olmalı. Büyük harfli TR örnekler (İ/I) en-GB süreçte varsayılan küçük harfle "i̇" olur → tespit kaçar; bu bölüm yakalar.
+  // Bölüm `sections` DIŞINDA tutulur (mevcut tüm-bölüm sha'sı değişmesin); A ve B ayrıca karşılaştırılır.
+  const houseRefs = await (async () => {
+    const NL = await import("@/lib/astrology/houses/natalLocal");
+    const LS = await import("@/lib/astrology/localSpaceCenter");
+    const up = (x: string) => x.toLocaleUpperCase("tr-TR");
+    const samples = ["İkinci evde", "Dokuzuncu Ev evindeki", "on ikinci evde bulunan", "evin yöneticisi", "Güneş ikinci evinizde", "9. ev", "sayılı ev", "kariyer evinizi yöneten Güneş dördüncü evinizde", "ev konumuna", "FIRST HOUSE", "lives in the seventh"];
+    const detect = samples.flatMap((x) => [x, up(x)]).map((x) => [x, NL.textHasHouseReference(x, "tr"), NL.textHasHouseReference(x, "en")]);
+    const rawNatal = (n: string) => readJson("i18n", "roxy-tr-en-2026-11-25", n) as { response?: unknown };
+    const natal = (n: string, lang: string) => {
+      const p = projectRoxyNatal(structuredClone((rawNatal(n).response ?? rawNatal(n)) as never), { houseSystem: "placidus", nodeType: "true" } as never) as { ok: boolean; value?: { interpretation: J } };
+      if (!p.ok || !p.value) return null;
+      const it = p.value.interpretation as { aspects?: { summary?: string }[]; patterns?: { text?: string }[]; overall?: { aspectSummary?: string } };
+      // Aynı metnin büyük harfli kopyası da süzgeçten geçer (sağlayıcı büyük harf / başlık biçimi).
+      const loud = { ...it, aspects: (it.aspects ?? []).map((a) => ({ ...a, summary: typeof a.summary === "string" ? up(a.summary) : a.summary })), patterns: (it.patterns ?? []).map((q) => ({ ...q, text: typeof q.text === "string" ? up(q.text) : q.text })) };
+      return [NL.sanitizeNatalInterpretationForLocalHouses(it as never, lang), NL.sanitizeNatalInterpretationForLocalHouses(loud as never, lang)];
+    };
+    const sanitized = [natal("natal-p1-tr.json", "tr"), natal("natal-p2-tr.json", "tr"), natal("natal-p3-tr.json", "tr"), natal("natal-p1-en.json", "en")];
+    const center = { label: "Berlin", latitude: 52.52, longitude: 13.405, isBirthPlace: false };
+    const lsTexts: string[] = [];
+    (function walk(x: unknown) {
+      if (typeof x === "string") lsTexts.push(x);
+      else if (Array.isArray(x)) x.forEach(walk);
+      else if (x && typeof x === "object") Object.values(x as J).forEach(walk);
+    })((rawNatal("local-space-p1-tr.json") as { response?: unknown }).response);
+    const localSpace = lsTexts.flatMap((x) => [LS.localSpaceText(x, center as never, "tr"), LS.localSpaceText(up(x), center as never, "tr")]);
+    return { detect, sanitized, localSpace };
+  })();
   const distribution = cases.map((c) => [safe(() => natalDistribution(c.technical as never, "planets10")), safe(() => natalDistribution(c.technical as never, "weighted15"))]);
   const horary = [
     { questionUtc: "2026-03-14T09:30:00Z", latitude: 41.0082, longitude: 28.9784 },
@@ -154,7 +183,7 @@ async function worker() {
   const threw = (v: unknown): number => (v && typeof v === "object" ? ("threw" in (v as J) ? 1 : Object.values(v as J).reduce<number>((n, x) => n + threw(x), 0)) : 0);
   const unavailable = { ephemeris: threw(ephemeris), events: threw(events), eclipses: threw(eclipses), horary: threw(horary), distribution: threw(distribution) };
   const okCount = Object.fromEntries(Object.entries(providers).map(([k, v]) => [k, (v as { ok?: unknown })?.ok === true]));
-  process.stdout.write(JSON.stringify({ sections: { tz, providers, localHouses, distribution, horary, ephemeris, events, eclipses, view, viewSansCodes: JSON.parse(JSON.stringify(view, (k, v) => (k === "warningCodes" ? undefined : v))), viewCodes: Array.isArray(view) ? view.map((x) => (x && typeof x === "object" && "technique" in x ? deriveViewWarningCodes(x as Parameters<typeof deriveViewWarningCodes>[0]) : null)) : null }, okCount, unavailable, intl, probes }));
+  process.stdout.write(JSON.stringify({ houseRefs, sections: { tz, providers, localHouses, distribution, horary, ephemeris, events, eclipses, view, viewSansCodes: JSON.parse(JSON.stringify(view, (k, v) => (k === "warningCodes" ? undefined : v))), viewCodes: Array.isArray(view) ? view.map((x) => (x && typeof x === "object" && "technique" in x ? deriveViewWarningCodes(x as Parameters<typeof deriveViewWarningCodes>[0]) : null)) : null }, okCount, unavailable, intl, probes }));
 }
 
 const sha = (v: unknown) => crypto.createHash("sha256").update(JSON.stringify(v)).digest("hex");
@@ -211,7 +240,7 @@ async function main() {
       env: { ...process.env, TZ: "UTC", ...env, NODE_OPTIONS: `${process.env.NODE_OPTIONS ?? ""} --import ${shim}`.trim() },
     });
     if (r.status !== 0) throw new Error(`worker çıkışı ${r.status}: ${r.stderr.slice(0, 1500)}`);
-    return JSON.parse(r.stdout) as { sections: Record<string, unknown>; okCount: Record<string, boolean>; unavailable: Record<string, number>; intl: string; probes: { upper: string; number: string } };
+    return JSON.parse(r.stdout) as { houseRefs: { detect: [string, boolean, boolean][]; sanitized: unknown; localSpace: string[] }; sections: Record<string, unknown>; okCount: Record<string, boolean>; unavailable: Record<string, number>; intl: string; probes: { upper: string; number: string } };
   };
   const A = run({ NEXT_PUBLIC_I18N_LOCALE_SWITCHING: "on", NEXT_LOCALE: "en", LANG: "en_GB.UTF-8", LC_ALL: "en_GB.UTF-8", I18N_TEST_DEFAULT_LOCALE: "en-GB" });
   const B = run({ NEXT_PUBLIC_I18N_LOCALE_SWITCHING: "off", NEXT_LOCALE: "tr", LANG: "tr_TR.UTF-8", LC_ALL: "tr_TR.UTF-8", I18N_TEST_DEFAULT_LOCALE: "tr-TR" });
@@ -237,6 +266,9 @@ async function main() {
     ok(a === b, `${k}: TR = EN (sha ${b.slice(0, 16)})`);
   }
   const all = sha(B.sections);
+  // QA-ATLAS-R5 P2-4 (sections dışı): ev atfı tespiti / yerel ev süzgeci / Local Space — TR = EN süreç ve beklenen isabetler.
+  ok(sha(A.houseRefs) === sha(B.houseRefs), `houseRefs: TR = EN (sha ${sha(B.houseRefs).slice(0, 16)}; ${B.houseRefs.detect.length} örnek, ${B.houseRefs.localSpace.length} Local Space metni)`);
+  ok(B.houseRefs.detect.filter(([x]) => !/seventh|first house/i.test(x)).every(([, tr]) => tr === true), "houseRefs: büyük/küçük harfli TR ev atfı örneklerinin hepsi TR ifadesinde isabet", B.houseRefs.detect);
   console.log(`  bilgi: tüm bölümler sha256 ${all}`);
   const outFile = process.argv.indexOf("--json") > 0 ? process.argv[process.argv.indexOf("--json") + 1] : null;
   if (outFile) fs.writeFileSync(outFile, JSON.stringify({ all, sections: out, okCount: B.okCount, unavailable: B.unavailable, intl: [A.intl, B.intl], probes: [A.probes, B.probes], staticFiles: s.files }, null, 2));

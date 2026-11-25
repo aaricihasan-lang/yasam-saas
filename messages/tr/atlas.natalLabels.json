@@ -1,0 +1,65 @@
+{
+  "atlas": {
+    "natalLabels": {
+      "point": {
+        "fortune": "Şans Noktası",
+        "vertex": "Vertex"
+      },
+      "uncertain": "belirsiz",
+      "retroTitle": "Geri hareket",
+      "noonAssumption": "12:00 varsayımı",
+      "colPoint": "Nokta",
+      "colSign": "Burç",
+      "colDegree": "Derece",
+      "colHouse": "Ev",
+      "colMinute": "Dakika",
+      "colMotion": "Hareket",
+      "houseN": "{n}. ev",
+      "stripAria": "{sign} burcu 0–30° ayrıntı cetveli",
+      "stripNote": "≈ 12:00 varsayımı, kesin değil",
+      "moonLead": "☽︎ Ay — belirsiz.",
+      "moonUnknownText": "Ay'ın kesin burcu ve derecesi, doğum saati bilinmediği için doğrulanamıyor.",
+      "moonTail": "Çarkta, gruplarda ve cetvellerde yer almaz.",
+      "groupSummary": "Grup ayrıntıları",
+      "groupCount": " · {n} grup",
+      "timeUnknownNote": "Doğum saati bilinmiyor: “≈” değerler yerel 12:00 varsayımıdır, kesin değildir.",
+      "compactNote": "Harita alanı dar: çarkta gezegen ve burç sembolü gösterilir. Bütün noktaların burç, derece ve dakikası aşağıda; yakınlaştırınca çarkta da yazılır.",
+      "noGroups": "Bu görünümde gruplanmış nokta yok: bütün gezegenler çarkta tek tek etiketli.",
+      "groupsIntro": "Çarkta burç dilimine tek tek sığmayan kümeler. Burç, derece ve dakika burada her zaman okunur; yakınlaştırınca çarkta da tek tek ayrılır.",
+      "groupHead": "{sign} · {n} nokta",
+      "angle": {
+        "ASC": "Yükselen (ASC)",
+        "DSC": "Alçalan (DSC)",
+        "MC": "Tepe Noktası (MC)",
+        "IC": "Dip Noktası (IC)"
+      },
+      "angleShort": {
+        "ASC": "Yükselen",
+        "DSC": "Alçalan",
+        "MC": "Tepe Noktası (MC)",
+        "IC": "Dip Noktası (IC)"
+      },
+      "groupTitle": "{sign} burcundaki noktalar",
+      "groupedWhy": "Bu burç dilimine okunur boyutta tek tek sığmadıkları için gruplandı.",
+      "stripExact": "Cetvelde her nokta gerçek derecesinde; değerler kayıtlı teknik veriden.",
+      "retroMotion": "℞ geri hareket",
+      "direct": "düz",
+      "houseUnknown": "hesaplanamaz (saat bilinmiyor)",
+      "houseMissing": "teknik veride yok",
+      "cuspTitle": "{n}. ev başlangıcı ({hs})",
+      "axisNote": "Gerçek {axis} derecesi; {hs} sisteminde {n}. ev başlangıcından ayrıdır ({n}. ev: {sign} {deg}).",
+      "close": "Kapat",
+      "storedNote": "Değer kayıtlı teknik veriden okunur; yeniden hesaplanmaz.",
+      "showAll": "Tüm konumlar (Gezegenler ve Evler bölümleri)",
+      "svgTimeUnknown": " — doğum saati bilinmiyor; Ay çizilmedi (konumu doğrulanamıyor); diğer konumlar 12:00 varsayımı, kesin değil",
+      "cuspAria": "{n}. ev başlangıcı",
+      "cuspTitleFull": "{n}. ev başlangıcı — {sign} {deg}",
+      "groupAria": "{sign} burcunda {n} nokta: {names}{assumed}. Ayrıntılar grup alanında; dokunarak da açılır.",
+      "groupAssumed": " (12:00 varsayımı)",
+      "retroSuffix": " ℞ (geri hareket)",
+      "assumedSuffix": " · ≈ 12:00 varsayımı, kesin değil",
+      "centerTimeUnknown": "Saat bilinmiyor",
+      "centerNoAspects": "açı çizgisi yok"
+    }
+  }
+}
