@@ -111,10 +111,9 @@ const PRIVACY_CORE_FILES = [
   "app/numeroloji/utils/chronoCutoff.ts",
   "app/numeroloji/utils/futureYearsRedaction.ts",
   "app/numeroloji/utils/numerolojiPlainMetin.ts",
-  "app/numeroloji/analiz/page.tsx",
-  // i18n sunum katmanı (yalnız ekran metni → katalog; hesap/kayıt kodu yok):
-  "app/numeroloji/bilgi-bankasi/page.tsx",
-  "app/numeroloji/bilgi-bankasi/components",
+  // QA-N3-02 (R5): "app/numeroloji/analiz/page.tsx", "app/numeroloji/bilgi-bankasi/page.tsx" ve
+  // "app/numeroloji/bilgi-bankasi/components" artık burada DEĞİL (koşulsuz dışlama kaldırıldı) → I18N_PRESENTATION_FILES
+  // altında (a) şartına bağlı: fark satırları motor / hesap / DB / HTTP yazma desenine dokunamaz.
 ];
 /**
  * I18N-F1-R5 (25.11.2026) — ekran dili sunum katmanı: yalnız metin → katalog (TR çıktı birebir) ve API yanıtlarına
@@ -132,8 +131,17 @@ const I18N_PRESENTATION_FILES = [
   "app/numeroloji/helpers/conceptHelp.ts",
   "app/numeroloji/helpers/numApiClient.ts",
   "app/api/numeroloji/analyses/route.ts",
+  // QA-N3-02 (R5): eskiden PRIVACY_CORE_FILES içinde koşulsuz dışlanan ekran / Bilgi Bankası yolları (klasör = pathspec):
+  "app/numeroloji/analiz/page.tsx",
+  "app/numeroloji/bilgi-bankasi/page.tsx",
+  "app/numeroloji/bilgi-bankasi/components",
 ];
-const ENGINE_REFS = /hesaplaNumeroloji|numerolojiMotor|@\/lib\/numeroloji(?:\/|")|computeDevelopment|\.insert\(|\.update\(|\.upsert\(|\.delete\(|\.rpc\(/;
+/**
+ * Motor / hesap / DB yazma deseni + (QA-N3-04, R5) HTTP yazma çağrıları: `fetch(…, { method: "DELETE" | "POST" | "PUT" |
+ * "PATCH" })`, axios/istemci tarzı `.post(` / `.put(` / `.patch(`, `navigator.sendBeacon(`, Supabase `.storage.` erişimi.
+ * Not: `Map.delete(` de `.delete(` ile yakalanır (bilinçli sıkı; yanlış pozitif kabul).
+ */
+const ENGINE_REFS = /hesaplaNumeroloji|numerolojiMotor|@\/lib\/numeroloji(?:\/|")|computeDevelopment|\.insert\(|\.update\(|\.upsert\(|\.delete\(|\.rpc\(|\bmethod\s*:\s*["'`](?:DELETE|POST|PUT|PATCH|delete|post|put|patch)["'`]|\.(?:post|put|patch)\(|\bsendBeacon\(|\.storage\./;
 
 /** docx → karşılaştırılabilir parçalar (zaman damgalı docProps hariç; ikili parçalar SHA ile). */
 async function docxParts(buf: Buffer): Promise<Record<string, string>> {

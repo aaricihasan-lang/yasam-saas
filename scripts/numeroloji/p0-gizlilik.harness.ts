@@ -13,6 +13,9 @@
  * Golden: aynı TR girdilerde taban (F1 c616c371c) kodu ile ekran düz metni, API kopyası ve ekran bileşenleri
  * BAYT-EŞİT (Türkçe çıktı birebir).
  *
+ * F (R5, QA-N3-03): YENİ (kaydedilmemiş) hesap ekranları ham motorla, sunucu kopyası OLMADAN, açıkça EN ve TR katalogla çizilir;
+ * motor gerçeğinden kurulan yasaklı yaş/yıl kümesi EN desenleriyle de taranır (EN'e özgü istemci gizleme hatası yakalanır).
+ *
  * Yalnız SENTETİK kişi/tarih kullanılır. Ağ, DB, Roxy yok. Çalıştır:
  *   npx tsx scripts/numeroloji/p0-gizlilik.harness.ts [--out <klasör>]
  */
@@ -24,7 +27,9 @@ import { createElement, type ComponentType } from "react";
 import { renderToStaticMarkup } from "./intlRender"; // I18N R5: TR katalog sağlayıcısıyla çizim (beklentiler değişmedi; taban kopyası da aynı sağlayıcıda)
 import JSZip from "jszip";
 import { Document, Packer } from "docx";
-import { hesaplaNumeroloji, calcDegisimByYearOnly } from "@/lib/numeroloji";
+import { hesaplaNumeroloji, calcDegisimByYearOnly, calcDegisimByFullDate, mucadeleDonemleri } from "@/lib/numeroloji";
+import { createTranslator } from "next-intl";
+import { getCatalogMessages } from "@/lib/i18n/catalog";
 import { currentIstanbulYear } from "@/lib/numeroloji/currentYear";
 import { NUMEROLOJI_METHODOLOGY_VERSION } from "@/lib/numeroloji/methodology";
 import { redactAnalysisDataForFutureYears } from "@/app/numeroloji/utils/futureYearsRedaction";
@@ -482,6 +487,8 @@ async function main() {
     ok(ana && !ana.read.ok && (ana.read as { reason?: string }).reason === "future_hidden" && !/"display":"-1"/.test(shown), "E8 karşılaştırma: gizli ana mücadele «future_hidden» (\"-1\" gösterilmez)");
   }
 
+  await newCalcEnPrivacy();
+
   cleanupBase();
   if (CRASHES.length) console.log(`\nÇöken çıktı yolları (veri göstermedi; bozuk kayıt dayanıklılığı bulgusu): ${CRASHES.length}\n  ` + Array.from(new Set(CRASHES)).join("\n  "));
   console.log(`\nNUMEROLOJİ P0 GİZLİLİK HARNESS: ${pass} PASS / ${fail} FAIL`);
@@ -489,6 +496,170 @@ async function main() {
     writeFileSync(path.join(OUT, "negatif-tablo.md"), ["| Senaryo | Açıklama | Kişi | Sonuç | Durum |", "|---|---|---|---|---|", ...rows].join("\n") + "\n");
   }
   process.exit(fail ? 1 : 0);
+}
+
+// ── F) YENİ (kaydedilmemiş) HESAP ekranları — EN (+TR) istemci gizlemesi (QA-N3-03, R5) ─────────────────────────────
+// Kaydedilmiş kayıtta sunucu kopyası gizli dönemleri yer tutucuya çevirir ve istemci hatasını MASKELER (B senaryoları EN'e özgü
+// istemci gizleme hatasını yakalamaz). Yeni hesapta sunucu kopyası YOK: ham motor istemcide süzülür. Bu bölüm ham motoru
+// 4 ekranda (Hesap Özetsiz · Sayısal · Sonuç Özeti · Görsel Rapor) AÇIKÇA "en" ve "tr" kataloglarıyla çizer ve MOTOR GERÇEĞİNDEN
+// (gerçek doğum tarihi) kurulan yasaklı yaş / yıl kümesiyle tarar. EN desenleri: age(s) N, ages N–M, after N, until (age) N,
+// transition boundary N, N years old, aged N ve liste yaşları ("33 · 42 · 51"), her öğe ayrı. Yöntem: QA-N3 bağımsız testi.
+type NPerson = { tag: string; fn: string; ln: string; d: number; m: number; y: number };
+type Truth = { FY: Set<number>; VY: Set<number>; FA: Set<number>; VA: Set<number>; hiddenAny: boolean };
+const nTr = (p: NPerson) => `${String(p.d).padStart(2, "0")}.${String(p.m).padStart(2, "0")}.${p.y}`;
+const nIso = (p: NPerson) => `${p.y}-${String(p.m).padStart(2, "0")}-${String(p.d).padStart(2, "0")}`;
+const nMotor = (p: NPerson) => clone(hesaplaNumeroloji({ firstName: p.fn, lastName: p.ln, birthDate: nTr(p) })) as Record<string, unknown>;
+
+function truthFor(birth: { d: number; m: number; y: number }, mo: Record<string, unknown>): Truth {
+  const HY = new Set<number>(), VY = new Set<number>(), HA = new Set<number>(), VA = new Set<number>();
+  const y = birth.y;
+  for (const r of [...calcDegisimByYearOnly(y, birth.m, 5), ...calcDegisimByFullDate(birth.d, birth.m, y, 5)]) {
+    const tgt = r.effectStartYear > CY ? HY : VY;
+    tgt.add(r.effectStartYear); tgt.add(r.changeYear); tgt.add(r.effectEndYear);
+  }
+  for (const s of (mo.harflerinYankilanisi as { yearStart: number; yearEnd: number; ageStart: number; ageEnd: number }[] | undefined) ?? []) {
+    const hidden = s.yearStart > CY;
+    (hidden ? HY : VY).add(s.yearStart); (hidden ? HY : VY).add(s.yearEnd);
+    (hidden ? HA : VA).add(s.ageStart); (hidden ? HA : VA).add(s.ageEnd);
+  }
+  for (const pk of (mo.zirveYillari as { peaks?: Record<string, unknown>[] } | undefined)?.peaks ?? []) {
+    for (const k of ["yasMetot1", "yasMetot2", "age"]) {
+      const a = pk[k];
+      if (typeof a !== "number") continue;
+      const hidden = y + a > CY;
+      (hidden ? HA : VA).add(a); (hidden ? HY : VY).add(y + a);
+    }
+  }
+  const md = mucadeleDonemleri(mo.mucadeleYillari);
+  if (md && md.format === "kitap2") {
+    for (const q of md.periods) {
+      const hidden = y + q.startAge > CY;
+      (hidden ? HA : VA).add(q.startAge); (hidden ? HA : VA).add(q.cutoffAge);
+      (hidden ? HY : VY).add(y + q.startAge); (hidden ? HY : VY).add(y + q.cutoffAge);
+    }
+    if (md.ana) { const hidden = y + md.ana.startAge > CY; (hidden ? HA : VA).add(md.ana.startAge); (hidden ? HY : VY).add(y + md.ana.startAge); }
+  }
+  for (let a = 0; a <= Math.max(CY - y, 0); a++) VA.add(a);
+  const FY = new Set([...HY].filter((v) => v > CY && !VY.has(v)));
+  const FA = new Set([...HA].filter((v) => !VA.has(v)));
+  return { FY, VY, FA, VA, hiddenAny: FY.size > 0 || FA.size > 0 };
+}
+
+const YEAR_RE = /(?<![\d.])(1[89]\d\d|2[01]\d\d)(?![\d])/g;
+const AGE_RES = [
+  /(?<![\d.])(?<!çakra\s)(?<!Çakra\s)(\d{1,3})\s*(?:yaş|yaşına|yaşından|yaşında)/g, /(?:yaş|Yaş|YAŞ|age|Age)\s*[:\-]?\s*(\d{1,3})(?![\d.])/g,
+  /yaş\s*\d{1,3}\s*[–-]\s*(\d{1,3})/g, /geçiş sınırı\s*(\d{1,3})/g, /(?<![\d.])(\d{1,3})\s*sonrası/g,
+  // EN: "age {age}", "ages {start}–{end}", "after {age}", "until (age) {age}", "transition boundary {age}", "N years old", "aged N"
+  /\bages?\s+(\d{1,3})(?![\d.])/gi, /\bages?\s+\d{1,3}\s*[–-]\s*(\d{1,3})/gi, /\bafter\s+(?:age\s+)?(\d{1,3})(?![\d.])/gi,
+  /transition boundary\s*(\d{1,3})/gi, /\buntil\s+(?:age\s+)?(\d{1,3})(?![\d.])/gi, /(\d{1,3})\s*(?:years?[ -]old)/gi, /\baged\s+(\d{1,3})/gi,
+];
+// Liste yaşları ("33 · 42 · 51 yaş" / "age(s) 33 · 42 · 51"): her öğe ayrı denetlenir.
+const AGE_LIST_RES = [/((?:\d{1,3}\s*·\s*)+\d{1,3})\s*yaş/g, /\bages?\s+((?:\d{1,3}\s*·\s*)+\d{1,3})/gi];
+const PH_RE = /(?<![\d.,])(999|9999)(?![\d])|(?<![\w\d.−-])-1(?![\d])/g;
+const near = (text: string, i: number) => text.slice(Math.max(0, i - 50), i + 30).replace(/\s+/g, " ");
+function leaksIn(text: string, t: Truth): string[] {
+  const out: string[] = [];
+  for (const m of text.matchAll(YEAR_RE)) {
+    const y = Number(m[1]);
+    if (t.FY.has(y)) out.push(`gizli yıl ${y} ‹${near(text, m.index ?? 0)}›`);
+    else if (y > CY && !t.VY.has(y)) out.push(`açıklanamayan gelecek yıl ${y} ‹${near(text, m.index ?? 0)}›`);
+  }
+  for (const re of AGE_RES) for (const m of text.matchAll(re)) { const a = Number(m[1]); if (t.FA.has(a)) out.push(`gizli yaş ${a} ‹${near(text, m.index ?? 0)}›`); }
+  for (const re of AGE_LIST_RES) for (const m of text.matchAll(re)) for (const part of (m[1] ?? "").split("·")) { const a = Number(part.trim()); if (t.FA.has(a)) out.push(`gizli yaş (liste) ${a} ‹${near(text, m.index ?? 0)}›`); }
+  for (const m of text.matchAll(PH_RE)) out.push(`yer tutucu ‹${near(text, m.index ?? 0)}›`);
+  return [...new Set(out)];
+}
+
+/** Sınır kişisini MOTORDAN ara (gizli dönemin başlangıcı tam CY+1 vb.). */
+function findPerson(tag: string, pred: (mo: Record<string, unknown>, y: number, mth: number) => boolean, d = 1, mth = 3): NPerson {
+  for (const mm of [mth, 1, 6, 9, 12]) for (let y = 1930; y <= CY - 1; y++) {
+    const p: NPerson = { tag, fn: "Sınır", ln: `Örnek${tag}`, d, m: mm, y };
+    if (pred(nMotor(p), y, mm)) return p;
+  }
+  throw new Error("sınır kişisi bulunamadı: " + tag);
+}
+function newCalcPeople(): NPerson[] {
+  const degNear = (() => {
+    for (const k of [1, 2, 3]) {
+      try {
+        return findPerson("DEG", (_mo, y, mth) => calcDegisimByYearOnly(y, mth, 5).some((r) => r.effectStartYear === CY + k) && calcDegisimByYearOnly(y, mth, 5).some((r) => r.effectStartYear <= CY));
+      } catch { /* sonraki k */ }
+    }
+    throw new Error("sınır kişisi bulunamadı: DEG");
+  })();
+  return [
+    { tag: "ARTIK", fn: "Şubat Gülçin", ln: "Artıkyıl", d: 29, m: 2, y: 1996 },
+    { tag: "YILSONU", fn: "Aralık", ln: "Sonyılcı", d: 31, m: 12, y: 1999 },
+    { tag: "YILBASI", fn: "Ocak İlkay", ln: "Başoğlu", d: 1, m: 1, y: 2001 },
+    { tag: "COKESKI", fn: "Eski Zühre", ln: "Asırlık", d: 15, m: 8, y: 1931 },
+    { tag: "COKGENC", fn: "Bebek", ln: "Yenidoğan", d: 15, m: 6, y: CY - 1 },
+    { tag: "BUYIL", fn: "Bu Yıl", ln: "Doğan", d: 2, m: 1, y: CY },
+    degNear,
+    findPerson("DEG0", (_mo, y, mth) => calcDegisimByYearOnly(y, mth, 5).some((r) => r.effectStartYear === CY)),
+    findPerson("HARF", (mo) => ((mo.harflerinYankilanisi as { yearStart: number }[] | undefined) ?? []).some((s) => s.yearStart === CY + 1)),
+    findPerson("ZIRVE", (mo, y) => ((mo.zirveYillari as { peaks?: { yasMetot1: number; yasMetot2: number }[] }).peaks ?? []).some((pk) => y + pk.yasMetot1 === CY + 1 || y + pk.yasMetot2 === CY + 1)),
+    findPerson("MUC", (mo, y) => {
+      const d = mucadeleDonemleri(mo.mucadeleYillari);
+      return !!d && d.format === "kitap2" && (d.periods.some((q) => y + q.startAge === CY + 1) || (!!d.ana && y + d.ana.startAge === CY + 1));
+    }),
+  ];
+}
+
+async function newCalcEnPrivacy() {
+  section("F) YENİ HESAP (kaydedilmemiş) ekranları — ham motor, sunucu kopyası YOK; EN ve TR istemci gizlemesi (QA-N3-03)");
+  const people = newCalcPeople();
+  ok(people.filter((p) => truthFor(p, nMotor(p)).hiddenAny).length >= 8, `F0 kişilerin çoğunda gizlenecek gelecek yaş/yıl VAR (test anlamlı; ${people.length} kişi)`);
+  for (const locale of ["en", "tr"] as const) {
+    for (const p of people) {
+      const mo = nMotor(p);
+      const t = truthFor(p, mo);
+      const motor = extractMotorFromAnalysisJson({ version: 1, motor: clone(mo) }, p.fn, p.ln);
+      // Yeni hesap: kayıt yok (analysisData null) → sınır yalnız istemci yetkisinden (SSR'da KAPALI) + doğum tarihinden.
+      const draw = (C: ComponentType<never>, props: Record<string, unknown>) =>
+        htmlLines(renderToStaticMarkup(createElement(ChronoRecordProvider, { birthDate: nIso(p), analysisData: null, children: createElement(C, props as never) }), locale)).join("\n");
+      const screens: [string, () => string][] = motor
+        ? [
+            ["Hesap Özetsiz", () => draw(TabPlainAnaliz as never, { out: motor })],
+            ["Sayısal", () => draw(TabAnalizOzetli as never, { out: motor, layout: "detay" })],
+            ["Sonuç Özeti", () => draw(TabSonucOzeti as never, { out: motor, isimGoster: "Sentetik", dogumGoster: "—", layout: "premium" })],
+            ["Görsel Rapor", () => draw(GorselRaporInfografik as never, { out: motor, firstName: p.fn, lastName: p.ln, ...GORSEL_PROPS })],
+          ]
+        : [];
+      const found: string[] = motor ? [] : ["motor çıkarılamadı"];
+      let gorsel = "";
+      for (const [name, f] of screens) {
+        let txt = "";
+        try { txt = f(); } catch (e) { found.push(`${name}: ÇÖKTÜ ${String(e).slice(0, 120)}`); continue; }
+        if (!txt) found.push(`${name}: BOŞ`);
+        if (name === "Görsel Rapor") gorsel = txt;
+        for (const l of leaksIn(txt, t)) found.push(`${name}: ${l}`);
+      }
+      ok(found.length === 0, `F ${locale.toUpperCase()} yeni hesap ${p.tag} ${nTr(p)}: 4 ekranda gizli yaş/yıl/yer tutucu YOK`, found.slice(0, 6));
+      if (locale === "en" && p === people[0]) ok(/Pinnacle|Challenge/.test(gorsel), "F EN Görsel Rapor gerçekten EN şablonla çiziliyor (Pinnacle/Challenge)");
+    }
+  }
+  // Dedektör pozitif kontrolü: gerçek EN katalog şablonlarıyla üretilen gizli yaş/yıl içeren satırlar YAKALANMALI.
+  const en = getCatalogMessages("en");
+  type Tv = (k: string, v?: Record<string, string>) => string;
+  const tv = createTranslator({ locale: "en", messages: en as never, namespace: "numerology.tabs.visual" as never }) as unknown as Tv;
+  const trs = createTranslator({ locale: "en", messages: en as never, namespace: "numerology.result.tabs" as never }) as unknown as Tv;
+  const T: Truth = { FY: new Set([CY + 7]), VY: new Set(), FA: new Set([51]), VA: new Set([0, 9, 33]), hiddenAny: true };
+  const samples: [string, string][] = [
+    ["peakLine", tv("peakLine", { i: "3", age: "51", topic: "4" })],
+    ["ages(liste)", tv("ages", { ages: "33 · 42 · 51" })],
+    ["challengeFirst", tv("challengeFirst", { age: "51", topic: "2" })],
+    ["challengeNext", tv("challengeNext", { i: "2", age: "51", topic: "2" })],
+    ["challengeMain", tv("challengeMain", { age: "51", topic: "2" })],
+    ["challengePrev", tv("challengePrev", { i: "2", age: "51", topic: "2" })],
+    ["changeLine(yıl)", tv("changeLine", { i: "2", year: String(CY + 7), chakra: "3", start: String(CY + 6), end: String(CY + 7) })],
+    ["ageSingle", trs("ageSingle", { age: "51" })],
+    ["ageRange", trs("ageRange", { start: "42", end: "51" })],
+    ["harfLine", trs("harfLine", { i: "2", letter: "A", chakra: "1", start: "42", end: "51" })],
+    ["years old (serbest)", "Main challenge: 51 years old"],
+    ["aged (serbest)", "Phase opens aged 51"],
+  ];
+  for (const [k, s] of samples) ok(leaksIn(s, T).length > 0, `F EN dedektör pozitif: «${s}» (${k}) gizli belirteci yakalanıyor`);
+  ok(leaksIn(tv("peakLine", { i: "1", age: "33", topic: "4" }), T).length === 0, "F EN dedektör negatif: görünür yaş (33) yanlış pozitif DEĞİL");
 }
 
 main().catch((e) => { console.error(e); cleanupBase(); process.exit(1); });
