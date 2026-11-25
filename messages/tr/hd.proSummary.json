@@ -1,0 +1,35 @@
+{
+  "hd": {
+    "proSummary": {
+      "eyebrow": "Profesyonel Rapor Özeti",
+      "loading": "Yükleniyor…",
+      "createdAt": "Oluşturma: {date}",
+      "close": "Kapat",
+      "summaryLoading": "Özet yükleniyor…",
+      "loadFailed": "Özet yüklenemedi (HTTP {status}).",
+      "network": "Ağ hatası. Bağlantını kontrol et.",
+      "row": {
+        "client": "Danışan",
+        "birthDate": "Doğum tarihi",
+        "birthTime": "Doğum saati",
+        "birthPlace": "Doğum yeri",
+        "type": "Tip",
+        "authority": "Otorite",
+        "profile": "Profil",
+        "definition": "Tanım",
+        "bodygraph": "BodyGraph görseli"
+      },
+      "hasImage": "Raporda var",
+      "noImage": "Yok",
+      "list": {
+        "definedCenters": "Tanımlı merkezler",
+        "channels": "Kanal bölümleri",
+        "gates": "Kapı bölümleri",
+        "hangingGates": "Asılı kapılar"
+      },
+      "omitted": "{count} bölüm, içeriği henüz yayımlanmadığı için rapora alınmadı.",
+      "androidNote": "Bu raporun tam yorum metni Word belgesindedir. Word dosyası bu cihazda indirilemez; bilgisayardan Kayıtlı Raporlar ekranında “Word İndir” ile alabilirsiniz.",
+      "desktopNote": "Bu raporun tam yorum metni Word belgesindedir; “Word İndir” ile indirebilirsiniz."
+    }
+  }
+}

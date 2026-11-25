@@ -9,6 +9,12 @@ import { centerStateMap, classifyChartRowCenters } from "@/lib/human-design/char
 // server route'ları (/api/hd/charts, /api/hd/knowledge, /api/hd/reports — service_role)
 // üzerinden. Tarayıcıdaki anon Supabase erişimi KALDIRILDI. Rapor içerik üretimi
 // (buildCodesFromChart / buildReportText) saf fonksiyon; dokunulmadı.
+/**
+ * Ağ hatası yedek metni (TR kaynak). I18N (HD-B): ekran (HdRaporContent) bu değeri tanır ve ekran dilindeki
+ * `hd.reportBuilder.toast.network` metniyle gösterir; sunucunun döndürdüğü `error` metinleri aynen geçer.
+ */
+export const HD_RAPOR_NETWORK_ERROR = "Ağ hatası. Bağlantını kontrol et.";
+
 function authHeaders(): Record<string, string> {
   const u = readYasamUser();
   const t = readSessionToken();
@@ -34,7 +40,7 @@ export async function loadChartForReport(clientId: string): Promise<{
       { method: "GET", headers: authHeaders() },
     );
   } catch {
-    return { row: null, error: "Ağ hatası. Bağlantını kontrol et." };
+    return { row: null, error: HD_RAPOR_NETWORK_ERROR };
   }
   const j = (await res.json().catch(() => ({}))) as Record<string, unknown>;
   if (res.ok && j.ok === true) {
@@ -113,7 +119,7 @@ export async function loadKnowledgeForCodes(codes: string[]): Promise<{
       { method: "GET", headers: authHeaders() },
     );
   } catch {
-    return { groups: [], matchedCodes: [], error: "Ağ hatası. Bağlantını kontrol et." };
+    return { groups: [], matchedCodes: [], error: HD_RAPOR_NETWORK_ERROR };
   }
   const j = (await res.json().catch(() => ({}))) as Record<string, unknown>;
   if (!res.ok || j.ok !== true || !Array.isArray(j.rows)) {
@@ -185,7 +191,7 @@ export async function saveReport(
       body: JSON.stringify(input),
     });
   } catch {
-    return { id: null, error: "Ağ hatası. Bağlantını kontrol et." };
+    return { id: null, error: HD_RAPOR_NETWORK_ERROR };
   }
   const j = (await res.json().catch(() => ({}))) as Record<string, unknown>;
   if (res.ok && j.ok === true && typeof j.id === "string") {
@@ -204,7 +210,7 @@ export async function getClientReportCount(
       { method: "GET", headers: authHeaders() },
     );
   } catch {
-    return { count: 0, error: "Ağ hatası. Bağlantını kontrol et." };
+    return { count: 0, error: HD_RAPOR_NETWORK_ERROR };
   }
   const j = (await res.json().catch(() => ({}))) as Record<string, unknown>;
   if (res.ok && j.ok === true && typeof j.count === "number") {
@@ -232,7 +238,7 @@ export async function updateReport(
       body: JSON.stringify(expectedUpdatedAt ? { ...rest, expected_updated_at: expectedUpdatedAt } : rest),
     });
   } catch {
-    return { error: "Ağ hatası. Bağlantını kontrol et." };
+    return { error: HD_RAPOR_NETWORK_ERROR };
   }
   const j = (await res.json().catch(() => ({}))) as Record<string, unknown>;
   if (res.ok && j.ok === true) return { error: null, updatedAt: typeof j.updated_at === "string" ? j.updated_at : null };

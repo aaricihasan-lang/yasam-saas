@@ -1,0 +1,35 @@
+{
+  "hd": {
+    "proSummary": {
+      "eyebrow": "Professional Report Summary",
+      "loading": "Loading…",
+      "createdAt": "Created: {date}",
+      "close": "Close",
+      "summaryLoading": "Loading summary…",
+      "loadFailed": "The summary could not be loaded (HTTP {status}).",
+      "network": "Network error. Check your connection.",
+      "row": {
+        "client": "Client",
+        "birthDate": "Date of birth",
+        "birthTime": "Time of birth",
+        "birthPlace": "Place of birth",
+        "type": "Type",
+        "authority": "Authority",
+        "profile": "Profile",
+        "definition": "Definition",
+        "bodygraph": "BodyGraph image"
+      },
+      "hasImage": "Included in the report",
+      "noImage": "None",
+      "list": {
+        "definedCenters": "Defined centers",
+        "channels": "Channel sections",
+        "gates": "Gate sections",
+        "hangingGates": "Hanging gates"
+      },
+      "omitted": "{count, plural, one {# section was} other {# sections were}} not included in the report because the content has not been published yet.",
+      "androidNote": "The full interpretation of this report is in the Word document. The Word file cannot be downloaded on this device; you can get it from a computer with “Download Word” on the Saved Reports screen.",
+      "desktopNote": "The full interpretation of this report is in the Word document; you can download it with “Download Word”."
+    }
+  }
+}

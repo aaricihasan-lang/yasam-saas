@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { useLocale, useTranslations } from "next-intl";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useIsAndroid } from "@/hooks/useIsAndroid";
 import { useToast } from "@/components/ui/ToastProvider";
@@ -12,7 +13,10 @@ import {
   hdDefinitionLabelFromCode,
 } from "@/lib/human-design/codeHelpers";
 import { listHdClients, type HdClientRow } from "../../danisanlar/helpers/hdClients";
+import { useHdTerms } from "../../_i18n/useHdTerms";
+import { useKbLabels } from "../../bilgi-bankasi/helpers/useKbLabels";
 import {
+  HD_RAPOR_NETWORK_ERROR,
   loadChartForReport,
   buildCodesFromChart,
   loadKnowledgeForCodes,
@@ -48,6 +52,14 @@ type UnsavedPrompt = {
 };
 
 export function HdRaporContent() {
+  // I18N (HD-B): sistem metinleri `hd.reportBuilder` (TR bayt-eşit). Kanonik kodlar / DB kategori değerleri / rapor
+  // metni (Bilgi Bankası içeriği, kullanıcı düzenlemesi) DEĞİŞMEZ; yalnız görünen etiket dile göre seçilir.
+  const t = useTranslations("hd.reportBuilder");
+  const locale = useLocale();
+  const isTr = locale === "tr";
+  const terms = useHdTerms();
+  const kb = useKbLabels();
+  const errText = useCallback((e: string) => (e === HD_RAPOR_NETWORK_ERROR ? t("toast.network") : e), [t]);
   const { showToast } = useToast();
   const { confirm } = useConfirm();
   const router = useRouter();
@@ -126,14 +138,14 @@ export function HdRaporContent() {
   const confirmLeave = useCallback(
     () =>
       askUnsaved({
-        title: "Kaydedilmemiş rapor değişiklikleri",
-        message: "Sayfadan ayrılırsanız rapordaki kaydedilmemiş değişiklikler kaybolacaktır.",
+        title: t("unsaved.leaveTitle"),
+        message: t("unsaved.leaveMessage"),
         actions: [
-          { key: "cancel", label: "Sayfada Kal", tone: "safe" },
-          { key: "discard", label: "Değişiklikleri At ve Çık", tone: "danger" },
+          { key: "cancel", label: t("unsaved.stay"), tone: "safe" },
+          { key: "discard", label: t("unsaved.discardLeave"), tone: "danger" },
         ],
       }).then((k) => k === "discard"),
-    [askUnsaved],
+    [askUnsaved, t],
   );
   useHdLeaveGuard(dirty, confirmLeave);
 
@@ -163,8 +175,8 @@ export function HdRaporContent() {
         if (chartErr || !chartRow) {
           showToast({
             message: chartErr
-              ? `Harita yüklenemedi: ${chartErr}`
-              : "Bu danışana ait harita kaydı bulunamadı. Önce Harita Kaydı ekranında değerleri girin.",
+              ? t("toast.chartLoadFailed", { error: errText(chartErr) })
+              : t("toast.noChart"),
             type: "warning",
           });
           return false; // mevcut state KORUNUR
@@ -172,14 +184,14 @@ export function HdRaporContent() {
         const codes = buildCodesFromChart(chartRow);
         const { groups: g, matchedCodes: mc, error: kErr } = await loadKnowledgeForCodes(codes);
         if (kErr) {
-          showToast({ message: `Bilgi Bankası yüklenemedi: ${kErr}`, type: "error" });
+          showToast({ message: t("toast.knowledgeLoadFailed", { error: errText(kErr) }), type: "error" });
           return false; // mevcut state KORUNUR
         }
 
         // Tüm adımlar başarılı → state'e atomik uygula.
         const text = buildReportText(g);
         const client = clients.find((c) => c.id === id);
-        const newTitle = `${client?.name ?? "Danışan"} — Human Design Raporu`;
+        const newTitle = t("defaults.titleWithClient", { client: client?.name ?? t("defaults.client") });
 
         if (opts?.applyClientId) {
           // Danışan değişimi: yeni danışan = yeni, kaydedilmemiş rapor. Eski danışanın rapor
@@ -206,14 +218,14 @@ export function HdRaporContent() {
         }
         return true;
       } catch {
-        showToast({ message: "Rapor oluşturulurken hata oluştu.", type: "error" });
+        showToast({ message: t("toast.buildFailed"), type: "error" });
         return false; // mevcut state KORUNUR
       } finally {
         setLoading(false);
         buildGuard.current = false;
       }
     },
-    [showToast, clients],
+    [showToast, clients, t, errText],
   );
 
   // ── Edit modu: kayıtlı raporu yükle (baseline snapshot kurar) ──
@@ -224,7 +236,7 @@ export function HdRaporContent() {
       try {
         const { row, error } = await getReportById(id);
         if (error || !row) {
-          showToast({ message: error ?? "Rapor bulunamadı.", type: "error" });
+          showToast({ message: error ? errText(error) : t("toast.reportNotFound"), type: "error" });
           return; // mevcut state KORUNUR
         }
         const content = row.edited_content ?? row.generated_content ?? "";
@@ -254,7 +266,7 @@ export function HdRaporContent() {
         setLoading(false);
       }
     },
-    [showToast],
+    [showToast, t, errText],
   );
 
   // Mount: edit → kayıtlı raporu yükle; yeni → url clientId için ilk build (bir kez).
@@ -282,20 +294,19 @@ export function HdRaporContent() {
       return;
     }
     const choice = await askUnsaved({
-      title: "Kaydedilmemiş değişiklikler var",
-      message:
-        "Rapor metninde henüz kaydedilmemiş değişiklikler bulunuyor. Bilgileri yeniden oluşturmak istediğinizden emin misiniz?",
+      title: t("unsaved.refreshTitle"),
+      message: t("unsaved.refreshMessage"),
       actions: [
-        { key: "cancel", label: "Vazgeç", tone: "safe" },
-        { key: "keep", label: "Mevcut Metni Koru", tone: "primary" },
-        { key: "discard", label: "Değişiklikleri At ve Yeniden Oluştur", tone: "danger" },
+        { key: "cancel", label: t("unsaved.cancel"), tone: "safe" },
+        { key: "keep", label: t("unsaved.keep"), tone: "primary" },
+        { key: "discard", label: t("unsaved.discardRebuild"), tone: "danger" },
       ],
     });
     if (choice === "cancel") return;
     if (choice === "keep") {
       const ok = await runBuild(clientId, "keepEdited");
       if (ok) {
-        showToast({ message: "Mevcut metniniz korundu; referans bilgiler güncellendi.", type: "info" });
+        showToast({ message: t("toast.kept"), type: "info" });
       }
       return;
     }
@@ -327,12 +338,11 @@ export function HdRaporContent() {
     }
 
     const choice = await askUnsaved({
-      title: "Kaydedilmemiş rapor değişiklikleri",
-      message:
-        "Başka bir danışana geçerseniz mevcut rapordaki kaydedilmemiş değişiklikler kaybolacaktır.",
+      title: t("unsaved.leaveTitle"),
+      message: t("unsaved.clientMessage"),
       actions: [
-        { key: "cancel", label: "Vazgeç", tone: "safe" },
-        { key: "discard", label: "Değişiklikleri At ve Danışanı Değiştir", tone: "danger" },
+        { key: "cancel", label: t("unsaved.cancel"), tone: "safe" },
+        { key: "discard", label: t("unsaved.discardClient"), tone: "danger" },
       ],
     });
     // Vazgeç → select kontrollü olduğundan eski danışanda kalır; metin korunur.
@@ -363,7 +373,7 @@ export function HdRaporContent() {
     // saveGuard.current=true'dan ÖNCEdir → erken dönüşte guard sızıntısı olmaz.
     if (saveGuard.current || buildGuard.current) return;
     if (!editedText.trim()) {
-      showToast({ message: "Rapor içeriği boş.", type: "warning" });
+      showToast({ message: t("toast.emptyContent"), type: "warning" });
       return;
     }
     saveGuard.current = true;
@@ -375,29 +385,29 @@ export function HdRaporContent() {
       if (currentReportId) {
         const { error, conflict, updatedAt } = await updateReport({
           id: currentReportId,
-          title: reportTitle || "Human Design Raporu",
+          title: reportTitle || t("defaults.reportTitle"),
           editedContent: editedText,
           expectedUpdatedAt: reportVersionRef.current,
         });
         if (error) {
           showToast({
-            message: conflict ? error : "Rapor güncellenemedi. Lütfen tekrar deneyin.",
+            message: conflict ? error : t("toast.updateFailed"),
             type: "error",
           });
           return; // kimlik + baseline + metin/başlık KORUNUR, dirty kalır
         }
         reportVersionRef.current = updatedAt ?? reportVersionRef.current;
         // active id DEĞİŞMEZ; yalnız baseline yenilenir.
-        setSavedSnapshot({ title: reportTitle || "Human Design Raporu", editedText, reportId: currentReportId });
+        setSavedSnapshot({ title: reportTitle || t("defaults.reportTitle"), editedText, reportId: currentReportId });
         setHasUnsavedDraft(false);
-        showToast({ message: "Rapor güncellendi.", type: "success" });
+        showToast({ message: t("toast.updated"), type: "success" });
         router.push("/human-design/kayitli-raporlar");
         return;
       }
 
       // Aktif kimlik YOKSA → gerçek yeni INSERT yolu.
       if (!clientId) {
-        showToast({ message: "Danışan seçin.", type: "warning" });
+        showToast({ message: t("toast.selectClient"), type: "warning" });
         return;
       }
 
@@ -405,13 +415,13 @@ export function HdRaporContent() {
       const { count } = await getClientReportCount(clientId);
       if (count > 0) {
         const ok = await confirm({
-          title: "Bu danışanın raporu var",
+          title: t("duplicate.title"),
           message:
             count === 1
-              ? "Bu danışanın 1 kayıtlı raporu bulunuyor. Devam ederseniz ayrı bir rapor oluşturulacak. Kayıtlı Raporlar ekranından mevcut raporu düzenleyebilirsiniz."
-              : `Bu danışanın ${count} kayıtlı raporu bulunuyor. Devam ederseniz ayrı bir rapor oluşturulacak. Kayıtlı Raporlar ekranından mevcut raporları düzenleyebilirsiniz.`,
-          confirmText: "Yine de Oluştur",
-          cancelText: "Vazgeç",
+              ? t("duplicate.one")
+              : t("duplicate.many", { count }),
+          confirmText: t("duplicate.confirm"),
+          cancelText: t("duplicate.cancel"),
           tone: "warning",
         });
         if (!ok) return;
@@ -420,25 +430,25 @@ export function HdRaporContent() {
       const { id, error } = await saveReport({
         clientId,
         chartId: chart?.id ?? null,
-        title: reportTitle || "Human Design Raporu",
+        title: reportTitle || t("defaults.reportTitle"),
         selectedCodes: matchedCodes,
         generatedContent: generatedText,
         editedContent: editedText,
       });
       if (error || !id) {
-        showToast({ message: "Rapor kaydedilemedi. Lütfen tekrar deneyin.", type: "error" });
+        showToast({ message: t("toast.saveFailed"), type: "error" });
         return; // kimlik null kalır, metin/başlık KORUNUR, dirty kalır
       }
       // Başarılı INSERT: router.push'tan ÖNCE aktif kimliği SENKRON ref'e yaz — aynı ekranda
       // tetiklenebilecek ikinci Kaydet artık UPDATE yoluna girer (duplicate INSERT engellenir).
       activeReportIdRef.current = id;
       setActiveReportId(id);
-      setSavedSnapshot({ title: reportTitle || "Human Design Raporu", editedText, reportId: id });
+      setSavedSnapshot({ title: reportTitle || t("defaults.reportTitle"), editedText, reportId: id });
       setHasUnsavedDraft(false);
-      showToast({ message: "Rapor kaydedildi.", type: "success" });
+      showToast({ message: t("toast.saved"), type: "success" });
       router.push("/human-design/kayitli-raporlar");
     } catch {
-      showToast({ message: "Kayıt sırasında hata oluştu.", type: "error" });
+      showToast({ message: t("toast.saveError"), type: "error" });
     } finally {
       setSaving(false);
       saveGuard.current = false;
@@ -449,26 +459,27 @@ export function HdRaporContent() {
 
   async function handleWordExport() {
     if (!editedText.trim()) {
-      showToast({ message: "Rapor içeriği boş, önce rapor oluşturun.", type: "warning" });
+      showToast({ message: t("toast.emptyExport"), type: "warning" });
       return;
     }
     setExporting(true);
     try {
       const clientName = isEditMode
-        ? (editingClientName ?? "Danışan")
-        : (selectedClient?.name ?? "Danışan");
+        ? (editingClientName ?? t("defaults.client"))
+        : (selectedClient?.name ?? t("defaults.client"));
       await exportHdReportDocx({
-        reportTitle: reportTitle || "Human Design Raporu",
+        reportTitle: reportTitle || t("defaults.reportTitle"),
         clientName,
         reportText: editedText,
+        locale: isTr ? "tr" : "en",
       });
       // USAGE360: tarayıcıda üretilen Word başarıyla indirildi (yalnız enum; içerik/ad YOK).
       reportUsageExport("human_design", "report");
-      showToast({ message: "Word raporu indirildi.", type: "success" });
+      showToast({ message: t("toast.exported"), type: "success" });
     } catch (err) {
       console.error("[WordExport]", err);
       reportUsageClientFailure("human_design", "client_export", "report_exported", "report");
-      showToast({ message: "Word dosyası oluşturulamadı.", type: "error" });
+      showToast({ message: t("toast.exportFailed"), type: "error" });
     } finally {
       setExporting(false);
     }
@@ -486,12 +497,11 @@ export function HdRaporContent() {
     }
     // Dirty → HD-1A veri kaybı koruması: iki seçenekli onay.
     const choice = await askUnsaved({
-      title: "Kaydedilmemiş rapor değişiklikleri",
-      message:
-        "Eksik harita bilgilerini tamamlamak için bu ekrandan ayrılırsanız kaydedilmemiş değişiklikler kaybolacaktır.",
+      title: t("unsaved.leaveTitle"),
+      message: t("unsaved.completeMessage"),
       actions: [
-        { key: "cancel", label: "Vazgeç", tone: "safe" },
-        { key: "discard", label: "Değişiklikleri At ve Eksikleri Tamamla", tone: "danger" },
+        { key: "cancel", label: t("unsaved.cancel"), tone: "safe" },
+        { key: "discard", label: t("unsaved.discardComplete"), tone: "danger" },
       ],
     });
     // Vazgeç/Escape/backdrop → sayfada kal; title/metin/id/baseline DEĞİŞMEZ.
@@ -514,22 +524,22 @@ export function HdRaporContent() {
       {isEditMode ? (
         <div className="rounded-2xl border border-amber-200/80 bg-amber-50/60 px-5 py-4 ring-1 ring-amber-100/60">
           <p className="text-[10px] font-black uppercase tracking-widest text-amber-600">
-            Kayıtlı Rapor Düzenleniyor
+            {t("edit.eyebrow")}
           </p>
           <p className="mt-1 text-sm font-semibold text-slate-800">
-            {editingClientName ?? (loading ? "Yükleniyor..." : "—")}
+            {editingClientName ?? (loading ? t("edit.loading") : "—")}
           </p>
         </div>
       ) : (
         <div className="rounded-2xl border border-indigo-200/80 bg-white/95 p-4 shadow-sm ring-1 ring-indigo-100/60">
-          <label className={labelCls}>Danışan Seç *</label>
+          <label className={labelCls}>{t("select.label")}</label>
           <select
             value={clientId}
             onChange={(e) => handleClientChange(e.target.value)}
             disabled={loading || saving}
             className={`h-10 ${fieldBase} disabled:opacity-60`}
           >
-            <option value="">— Danışan seçin —</option>
+            <option value="">{t("select.placeholder")}</option>
             {clients.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.name}
@@ -544,13 +554,13 @@ export function HdRaporContent() {
       {/* Harita Özeti */}
       {chart && (
         <div className="rounded-2xl border border-violet-200/80 bg-violet-50/60 px-5 py-4 ring-1 ring-violet-100/60">
-          <p className={sectionCls}>Harita Özeti</p>
+          <p className={sectionCls}>{t("summary.title")}</p>
           <div className="flex flex-wrap gap-2">
             {[
-              { label: "Tip", val: hdTypeLabelFromCode(chart.type_code) },
-              { label: "Otorite", val: hdAuthorityLabelFromCode(chart.authority_code) },
-              { label: "Profil", val: hdProfileLabelFromCode(chart.profile_code) },
-              { label: "Tanım", val: hdDefinitionLabelFromCode(chart.definition_code) },
+              { label: t("summary.type"), val: isTr ? hdTypeLabelFromCode(chart.type_code) : terms.label("type", chart.type_code) },
+              { label: t("summary.authority"), val: isTr ? hdAuthorityLabelFromCode(chart.authority_code) : terms.label("authority", chart.authority_code) },
+              { label: t("summary.profile"), val: isTr ? hdProfileLabelFromCode(chart.profile_code) : terms.label("profile", chart.profile_code) },
+              { label: t("summary.definition"), val: isTr ? hdDefinitionLabelFromCode(chart.definition_code) : terms.label("definition", chart.definition_code) },
             ].map(({ label, val }) => (
               <div key={label} className="flex items-center gap-1.5 rounded-xl border border-violet-200/80 bg-white px-3 py-1.5">
                 <span className="text-[10px] font-black uppercase tracking-wide text-violet-500">{label}</span>
@@ -558,28 +568,27 @@ export function HdRaporContent() {
               </div>
             ))}
             <div className="flex items-center gap-1.5 rounded-xl border border-violet-200/80 bg-white px-3 py-1.5">
-              <span className="text-[10px] font-black uppercase tracking-wide text-violet-500">Kapılar</span>
+              <span className="text-[10px] font-black uppercase tracking-wide text-violet-500">{t("summary.gates")}</span>
               <span className="text-xs font-semibold text-slate-800">{chart.gates?.length ?? 0}</span>
             </div>
             <div className="flex items-center gap-1.5 rounded-xl border border-violet-200/80 bg-white px-3 py-1.5">
-              <span className="text-[10px] font-black uppercase tracking-wide text-violet-500">Kanallar</span>
+              <span className="text-[10px] font-black uppercase tracking-wide text-violet-500">{t("summary.channels")}</span>
               <span className="text-xs font-semibold text-slate-800">{chart.channels?.length ?? 0}</span>
             </div>
           </div>
           {loading && (
             <p className="mt-2 text-xs text-violet-600">
-              {isEditMode ? "Rapor yükleniyor..." : "Bilgi Bankası eşleştiriliyor..."}
+              {isEditMode ? t("summary.loadingReport") : t("summary.matching")}
             </p>
           )}
           {!loading && !isEditMode && groups.length > 0 && (
             <p className="mt-2 text-xs text-violet-700">
-              {matchedCodes.length} yorum eşleşti — {groups.length} kategori
+              {t("summary.matched", { matched: matchedCodes.length, groups: groups.length })}
             </p>
           )}
           {!loading && !isEditMode && groups.length === 0 && chart && (
             <p className="mt-2 text-xs text-amber-600">
-              Bu harita için Bilgi Bankası&apos;nda eşleşen kayıt bulunamadı.
-              Önce Bilgi Bankası ekranından yorum ekleyin.
+              {t("summary.noMatch")}
             </p>
           )}
         </div>
@@ -588,11 +597,11 @@ export function HdRaporContent() {
       {/* Kapı Teknik Bilgileri */}
       {chart && (
         <div className="rounded-2xl border border-indigo-200/80 bg-white/95 p-4 ring-1 ring-indigo-100/60">
-          <p className={sectionCls}>Kapı Teknik Bilgileri</p>
+          <p className={sectionCls}>{t("gateInfo.title")}</p>
           {(chart.gates?.length ?? 0) > 0 || (chart.channels?.length ?? 0) > 0 ? (
             <GateTechnicalInfo gates={chart.gates ?? []} channels={chart.channels ?? []} />
           ) : (
-            <p className="text-xs text-slate-400">Kapı kaydı yok.</p>
+            <p className="text-xs text-slate-400">{t("gateInfo.empty")}</p>
           )}
         </div>
       )}
@@ -600,14 +609,14 @@ export function HdRaporContent() {
       {/* Eşleşen Kategoriler — yalnızca yeni rapor modunda */}
       {!isEditMode && !loading && groups.length > 0 && (
         <div className="rounded-2xl border border-indigo-200/80 bg-white/95 p-4 ring-1 ring-indigo-100/60">
-          <p className={sectionCls}>Eşleşen Kategoriler</p>
+          <p className={sectionCls}>{t("categories.title")}</p>
           <div className="flex flex-wrap gap-2">
             {groups.map(({ category, records }) => (
               <span
                 key={category}
                 className="rounded-full border border-indigo-200/80 bg-indigo-50 px-3 py-0.5 text-xs font-semibold text-indigo-800"
               >
-                {category} ({records.length})
+                {kb.category(category)} ({records.length})
               </span>
             ))}
           </div>
@@ -628,16 +637,16 @@ export function HdRaporContent() {
         <div className="overflow-hidden rounded-2xl border border-indigo-200/80 bg-white/95 shadow-sm ring-1 ring-indigo-100/60">
           <div className="border-b border-indigo-100/80 bg-white/75 px-4 py-3">
             <p className={sectionCls}>
-              {isEditMode ? "Kayıtlı Rapor Düzenleyici" : "Rapor Düzenleyici"}
+              {isEditMode ? t("editor.titleEdit") : t("editor.title")}
             </p>
             <div className="flex flex-wrap items-center gap-3">
               <div className="flex-1">
-                <label className="mb-1 block text-[10px] font-bold text-slate-500">RAPOR BAŞLIĞI</label>
+                <label className="mb-1 block text-[10px] font-bold text-slate-500">{t("editor.reportTitleLabel")}</label>
                 <input
                   type="text"
                   value={reportTitle}
                   onChange={(e) => setReportTitle(e.target.value)}
-                  placeholder="Rapor başlığı..."
+                  placeholder={t("editor.reportTitlePlaceholder")}
                   className="h-8 w-full rounded-lg border border-indigo-200/90 bg-white px-3 text-sm font-medium text-slate-900 outline-none ring-1 ring-indigo-100/60 transition focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200/50"
                 />
               </div>
@@ -649,7 +658,7 @@ export function HdRaporContent() {
                   disabled={!clientId || loading || saving}
                   className="mt-5 h-8 rounded-lg border border-indigo-200 bg-white px-3 text-xs font-bold text-indigo-700 transition hover:border-indigo-400 hover:bg-indigo-50 disabled:opacity-50"
                 >
-                  Yenile
+                  {t("editor.refresh")}
                 </button>
               )}
             </div>
@@ -660,16 +669,15 @@ export function HdRaporContent() {
                 uzman raporu elle yazabilir (önceden düzenleyici kayboluyordu). */}
             {!generatedText.trim() && !isEditMode && (
               <p className="mb-2 rounded-lg border border-dashed border-indigo-200/80 bg-indigo-50/40 px-3 py-2 text-xs text-slate-600">
-                Bu haritayla eşleşen aktif Bilgi Bankası kaydı bulunamadı. Raporu aşağıya elle yazabilir
-                veya Bilgi Bankası&apos;na kayıt ekleyip Yenile&apos;ye basabilirsiniz.
+                {t("editor.noMatchHint")}
               </p>
             )}
             <textarea
               value={editedText}
               onChange={(e) => setEditedText(e.target.value)}
               rows={32}
-              aria-label="Rapor metni"
-              placeholder="Rapor metnini buraya yazın..."
+              aria-label={t("editor.textAria")}
+              placeholder={t("editor.textPlaceholder")}
               className="w-full rounded-xl border border-indigo-200/90 bg-white/70 px-4 py-3 font-mono text-sm leading-relaxed text-slate-800 shadow-sm outline-none ring-1 ring-indigo-100/60 transition placeholder:text-slate-400 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200/50"
             />
           </div>
@@ -680,16 +688,16 @@ export function HdRaporContent() {
               {dirty ? (
                 <span className="inline-flex items-center gap-1.5 text-xs font-bold text-amber-600">
                   <span className="inline-block h-2 w-2 rounded-full bg-amber-500" />
-                  Kaydedilmemiş değişiklikler var
+                  {t("editor.dirty")}
                 </span>
               ) : savedSnapshot ? (
                 <span className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-600">
                   <span className="inline-block h-2 w-2 rounded-full bg-emerald-500" />
-                  Değişiklikler kaydedildi
+                  {t("editor.saved")}
                 </span>
               ) : null}
               {autoTextEdited && (
-                <span className="text-[11px] text-slate-400">Otomatik metin düzenlendi</span>
+                <span className="text-[11px] text-slate-400">{t("editor.autoEdited")}</span>
               )}
             </div>
             <div className="flex items-center gap-2">
@@ -701,7 +709,7 @@ export function HdRaporContent() {
                   disabled={exporting || !editedText.trim()}
                   className="no-android h-9 rounded-xl border border-emerald-300/80 bg-white px-5 text-sm font-black uppercase tracking-wide text-emerald-700 shadow-sm transition hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  {exporting ? "İndiriliyor..." : "Word İndir"}
+                  {exporting ? t("editor.downloading") : t("editor.download")}
                 </button>
               )}
               <button
@@ -711,8 +719,8 @@ export function HdRaporContent() {
                 className="h-9 rounded-xl border border-indigo-300/80 bg-gradient-to-r from-indigo-600 to-violet-600 px-7 text-sm font-black uppercase tracking-wide text-white shadow-[0_4px_16px_-4px_rgba(79,70,229,0.4)] transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {saving
-                  ? isUpdateTarget ? "Güncelleniyor..." : "Kaydediliyor..."
-                  : isUpdateTarget ? "Güncelle" : "Raporu Kaydet"}
+                  ? isUpdateTarget ? t("editor.updating") : t("editor.saving")
+                  : isUpdateTarget ? t("editor.update") : t("editor.save")}
               </button>
             </div>
           </div>
@@ -722,7 +730,7 @@ export function HdRaporContent() {
       {/* Boş durum — yalnızca yeni rapor modunda, danışan seçilmemiş */}
       {!isEditMode && !clientId && !loading && (
         <div className="flex items-center justify-center rounded-2xl border border-dashed border-indigo-200/80 bg-indigo-50/30 py-16 text-sm text-slate-500">
-          Yukarıdan bir danışan seçin.
+          {t("empty")}
         </div>
       )}
 

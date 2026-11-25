@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useLocale, useTranslations } from "next-intl";
 import { useHdModalA11y } from "../../components/useHdModalA11y";
 import { readSessionToken, readYasamUser } from "@/lib/auth/yasamUser";
 import type { HdProfessionalReportSummary } from "@/lib/human-design/reporting/reportSummary";
@@ -8,14 +9,16 @@ import type { HdProfessionalReportSummary } from "@/lib/human-design/reporting/r
 /**
  * P2-3 — Profesyonel rapor ÖZET görünümü (tüm platformlar; Android'de Word yerine).
  * Yalnız danışan/harita özeti + bölüm başlıkları gösterilir; yorum metni Word dosyasındadır.
+ * I18N (HD-B): sistem metinleri `hd.proSummary` (TR bayt-eşit). Özetteki tip/otorite/merkez/kanal/kapı değerleri
+ * sunucunun DONMUŞ rapor snapshot'ından gelir (rapor oluşturulduğu andaki TR etiket) → aynen gösterilir.
  */
 type Props = { reportId: string; isAndroid: boolean; onClose: () => void };
 
-function formatDate(val: string | null | undefined, withTime = false): string {
+function formatDate(val: string | null | undefined, withTime = false, dateLocale = "tr-TR"): string {
   if (!val) return "—";
   const d = new Date(val);
   if (Number.isNaN(d.getTime())) return val;
-  return d.toLocaleDateString("tr-TR", { day: "2-digit", month: "long", year: "numeric", ...(withTime ? { hour: "2-digit", minute: "2-digit" } : {}) });
+  return d.toLocaleDateString(dateLocale, { day: "2-digit", month: "long", year: "numeric", ...(withTime ? { hour: "2-digit", minute: "2-digit" } : {}) });
 }
 
 function Row({ label, value }: { label: string; value: string | null | undefined }) {
@@ -46,6 +49,8 @@ function ListBlock({ label, items }: { label: string; items: string[] }) {
 }
 
 export function HdProfessionalSummaryModal({ reportId, isAndroid, onClose }: Props) {
+  const ts = useTranslations("hd.proSummary");
+  const dateLocale = useLocale() === "tr" ? "tr-TR" : "en-GB";
   const dialogRef = useRef<HTMLDivElement>(null);
   useHdModalA11y(dialogRef, onClose);
   const [summary, setSummary] = useState<HdProfessionalReportSummary | null>(null);
@@ -63,17 +68,17 @@ export function HdProfessionalSummaryModal({ reportId, isAndroid, onClose }: Pro
         const j = (await res.json().catch(() => ({}))) as { ok?: boolean; summary?: HdProfessionalReportSummary; error?: string };
         if (!alive) return;
         if (res.ok && j.ok && j.summary) setSummary(j.summary);
-        else setError(j.error ?? `Özet yüklenemedi (HTTP ${res.status}).`);
+        else setError(j.error ?? ts("loadFailed", { status: res.status }));
       })
-      .catch(() => alive && setError("Ağ hatası. Bağlantını kontrol et."));
+      .catch(() => alive && setError(ts("network")));
     return () => {
       alive = false;
     };
-  }, [reportId]);
+  }, [reportId, ts]);
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto px-3 py-4 sm:px-4 sm:py-6">
-      <button type="button" aria-label="Kapat" onClick={onClose} className="absolute inset-0 bg-slate-900/50 backdrop-blur-md" />
+      <button type="button" aria-label={ts("close")} onClick={onClose} className="absolute inset-0 bg-slate-900/50 backdrop-blur-md" />
       <div
         ref={dialogRef}
         role="dialog"
@@ -84,16 +89,16 @@ export function HdProfessionalSummaryModal({ reportId, isAndroid, onClose }: Pro
       >
         <div className="flex items-start justify-between gap-3 rounded-t-[26px] border-b border-emerald-100/80 bg-gradient-to-r from-emerald-50 to-teal-50/60 px-5 py-4 sm:px-6">
           <div className="min-w-0">
-            <p className="text-xs font-black uppercase tracking-widest text-emerald-600">Profesyonel Rapor Özeti</p>
+            <p className="text-xs font-black uppercase tracking-widest text-emerald-600">{ts("eyebrow")}</p>
             <h2 id="hd-pro-ozet-title" className="mt-0.5 text-base font-black text-slate-900 [overflow-wrap:anywhere] sm:text-lg">
-              {summary?.title ?? "Yükleniyor…"}
+              {summary?.title ?? ts("loading")}
             </h2>
-            {summary && <p className="text-xs text-slate-500">Oluşturma: {formatDate(summary.generatedAt, true)}</p>}
+            {summary && <p className="text-xs text-slate-500">{ts("createdAt", { date: formatDate(summary.generatedAt, true, dateLocale) })}</p>}
           </div>
           <button
             type="button"
             onClick={onClose}
-            aria-label="Kapat"
+            aria-label={ts("close")}
             className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 transition hover:bg-slate-50"
           >
             <span aria-hidden>✕</span>
@@ -104,33 +109,31 @@ export function HdProfessionalSummaryModal({ reportId, isAndroid, onClose }: Pro
           {error ? (
             <p role="alert" className="text-sm font-semibold text-rose-600">{error}</p>
           ) : !summary ? (
-            <p className="text-sm text-slate-500">Özet yükleniyor…</p>
+            <p className="text-sm text-slate-500">{ts("summaryLoading")}</p>
           ) : (
             <>
               <dl className="space-y-2">
-                <Row label="Danışan" value={summary.client.name} />
-                <Row label="Doğum tarihi" value={summary.client.birthDate ? formatDate(summary.client.birthDate) : null} />
-                <Row label="Doğum saati" value={summary.client.birthTime} />
-                <Row label="Doğum yeri" value={summary.client.birthPlace} />
-                <Row label="Tip" value={summary.type} />
-                <Row label="Otorite" value={summary.authority} />
-                <Row label="Profil" value={summary.chart.profile} />
-                <Row label="Tanım" value={summary.chart.definition} />
-                <Row label="BodyGraph görseli" value={summary.hasChartImage ? "Raporda var" : "Yok"} />
+                <Row label={ts("row.client")} value={summary.client.name} />
+                <Row label={ts("row.birthDate")} value={summary.client.birthDate ? formatDate(summary.client.birthDate, false, dateLocale) : null} />
+                <Row label={ts("row.birthTime")} value={summary.client.birthTime} />
+                <Row label={ts("row.birthPlace")} value={summary.client.birthPlace} />
+                <Row label={ts("row.type")} value={summary.type} />
+                <Row label={ts("row.authority")} value={summary.authority} />
+                <Row label={ts("row.profile")} value={summary.chart.profile} />
+                <Row label={ts("row.definition")} value={summary.chart.definition} />
+                <Row label={ts("row.bodygraph")} value={summary.hasChartImage ? ts("hasImage") : ts("noImage")} />
               </dl>
-              <ListBlock label="Tanımlı merkezler" items={summary.chart.definedCenters} />
-              <ListBlock label="Kanal bölümleri" items={summary.channels} />
-              <ListBlock label="Kapı bölümleri" items={summary.gates} />
-              <ListBlock label="Asılı kapılar" items={summary.hangingGates} />
+              <ListBlock label={ts("list.definedCenters")} items={summary.chart.definedCenters} />
+              <ListBlock label={ts("list.channels")} items={summary.channels} />
+              <ListBlock label={ts("list.gates")} items={summary.gates} />
+              <ListBlock label={ts("list.hangingGates")} items={summary.hangingGates} />
               {summary.omittedCount > 0 && (
                 <p className="text-xs text-amber-700">
-                  {summary.omittedCount} bölüm, içeriği henüz yayımlanmadığı için rapora alınmadı.
+                  {ts("omitted", { count: summary.omittedCount })}
                 </p>
               )}
               <p className="rounded-xl bg-slate-50 px-3 py-2 text-xs leading-5 text-slate-600 ring-1 ring-slate-100">
-                {isAndroid
-                  ? "Bu raporun tam yorum metni Word belgesindedir. Word dosyası bu cihazda indirilemez; bilgisayardan Kayıtlı Raporlar ekranında “Word İndir” ile alabilirsiniz."
-                  : "Bu raporun tam yorum metni Word belgesindedir; “Word İndir” ile indirebilirsiniz."}
+                {isAndroid ? ts("androidNote") : ts("desktopNote")}
               </p>
             </>
           )}
@@ -142,7 +145,7 @@ export function HdProfessionalSummaryModal({ reportId, isAndroid, onClose }: Pro
             onClick={onClose}
             className="h-10 rounded-xl border border-slate-200 bg-white px-5 text-sm font-black uppercase tracking-wide text-slate-700 shadow-sm transition hover:bg-slate-50"
           >
-            Kapat
+            {ts("close")}
           </button>
         </div>
       </div>

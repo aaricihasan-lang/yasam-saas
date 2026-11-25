@@ -1,0 +1,131 @@
+{
+  "hd": {
+    "reportBuilder": {
+      "page": {
+        "demoBanner": "Demo hesabında rapor oluşturma ve kaydetme işlemi yapılamaz. Modülün arayüzünü önizleyebilirsiniz.",
+        "title": "Human Design — Rapor Oluştur",
+        "subtitle": "Danışanın harita değerleriyle Bilgi Bankası'ndaki yorumları eşleştir, raporu düzenle ve kaydet.",
+        "loading": "Yükleniyor..."
+      },
+      "unsaved": {
+        "leaveTitle": "Kaydedilmemiş rapor değişiklikleri",
+        "leaveMessage": "Sayfadan ayrılırsanız rapordaki kaydedilmemiş değişiklikler kaybolacaktır.",
+        "stay": "Sayfada Kal",
+        "discardLeave": "Değişiklikleri At ve Çık",
+        "refreshTitle": "Kaydedilmemiş değişiklikler var",
+        "refreshMessage": "Rapor metninde henüz kaydedilmemiş değişiklikler bulunuyor. Bilgileri yeniden oluşturmak istediğinizden emin misiniz?",
+        "cancel": "Vazgeç",
+        "keep": "Mevcut Metni Koru",
+        "discardRebuild": "Değişiklikleri At ve Yeniden Oluştur",
+        "clientMessage": "Başka bir danışana geçerseniz mevcut rapordaki kaydedilmemiş değişiklikler kaybolacaktır.",
+        "discardClient": "Değişiklikleri At ve Danışanı Değiştir",
+        "completeMessage": "Eksik harita bilgilerini tamamlamak için bu ekrandan ayrılırsanız kaydedilmemiş değişiklikler kaybolacaktır.",
+        "discardComplete": "Değişiklikleri At ve Eksikleri Tamamla"
+      },
+      "toast": {
+        "chartLoadFailed": "Harita yüklenemedi: {error}",
+        "noChart": "Bu danışana ait harita kaydı bulunamadı. Önce Harita Kaydı ekranında değerleri girin.",
+        "knowledgeLoadFailed": "Bilgi Bankası yüklenemedi: {error}",
+        "buildFailed": "Rapor oluşturulurken hata oluştu.",
+        "reportNotFound": "Rapor bulunamadı.",
+        "kept": "Mevcut metniniz korundu; referans bilgiler güncellendi.",
+        "emptyContent": "Rapor içeriği boş.",
+        "updateFailed": "Rapor güncellenemedi. Lütfen tekrar deneyin.",
+        "updated": "Rapor güncellendi.",
+        "selectClient": "Danışan seçin.",
+        "saveFailed": "Rapor kaydedilemedi. Lütfen tekrar deneyin.",
+        "saved": "Rapor kaydedildi.",
+        "saveError": "Kayıt sırasında hata oluştu.",
+        "emptyExport": "Rapor içeriği boş, önce rapor oluşturun.",
+        "exported": "Word raporu indirildi.",
+        "exportFailed": "Word dosyası oluşturulamadı.",
+        "network": "Ağ hatası. Bağlantını kontrol et."
+      },
+      "duplicate": {
+        "title": "Bu danışanın raporu var",
+        "one": "Bu danışanın 1 kayıtlı raporu bulunuyor. Devam ederseniz ayrı bir rapor oluşturulacak. Kayıtlı Raporlar ekranından mevcut raporu düzenleyebilirsiniz.",
+        "many": "Bu danışanın {count} kayıtlı raporu bulunuyor. Devam ederseniz ayrı bir rapor oluşturulacak. Kayıtlı Raporlar ekranından mevcut raporları düzenleyebilirsiniz.",
+        "confirm": "Yine de Oluştur",
+        "cancel": "Vazgeç"
+      },
+      "defaults": {
+        "client": "Danışan",
+        "reportTitle": "Human Design Raporu",
+        "titleWithClient": "{client} — Human Design Raporu"
+      },
+      "edit": {
+        "eyebrow": "Kayıtlı Rapor Düzenleniyor",
+        "loading": "Yükleniyor..."
+      },
+      "select": {
+        "label": "Danışan Seç *",
+        "placeholder": "— Danışan seçin —"
+      },
+      "summary": {
+        "title": "Harita Özeti",
+        "type": "Tip",
+        "authority": "Otorite",
+        "profile": "Profil",
+        "definition": "Tanım",
+        "gates": "Kapılar",
+        "channels": "Kanallar",
+        "loadingReport": "Rapor yükleniyor...",
+        "matching": "Bilgi Bankası eşleştiriliyor...",
+        "matched": "{matched} yorum eşleşti — {groups} kategori",
+        "noMatch": "Bu harita için Bilgi Bankası'nda eşleşen kayıt bulunamadı. Önce Bilgi Bankası ekranından yorum ekleyin."
+      },
+      "gateInfo": {
+        "title": "Kapı Teknik Bilgileri",
+        "empty": "Kapı kaydı yok."
+      },
+      "categories": {
+        "title": "Eşleşen Kategoriler"
+      },
+      "editor": {
+        "titleEdit": "Kayıtlı Rapor Düzenleyici",
+        "title": "Rapor Düzenleyici",
+        "reportTitleLabel": "RAPOR BAŞLIĞI",
+        "reportTitlePlaceholder": "Rapor başlığı...",
+        "refresh": "Yenile",
+        "noMatchHint": "Bu haritayla eşleşen aktif Bilgi Bankası kaydı bulunamadı. Raporu aşağıya elle yazabilir veya Bilgi Bankası'na kayıt ekleyip Yenile'ye basabilirsiniz.",
+        "textAria": "Rapor metni",
+        "textPlaceholder": "Rapor metnini buraya yazın...",
+        "dirty": "Kaydedilmemiş değişiklikler var",
+        "saved": "Değişiklikler kaydedildi",
+        "autoEdited": "Otomatik metin düzenlendi",
+        "downloading": "İndiriliyor...",
+        "download": "Word İndir",
+        "updating": "Güncelleniyor...",
+        "saving": "Kaydediliyor...",
+        "update": "Güncelle",
+        "save": "Raporu Kaydet"
+      },
+      "empty": "Yukarıdan bir danışan seçin.",
+      "missing": {
+        "title": "Harita bilgilerinde eksikler var",
+        "description": "Rapor mevcut bilgiler kullanılarak oluşturuldu. Daha kapsamlı bir rapor için eksik alanları tamamlayabilirsiniz.",
+        "field": {
+          "type": "Tip",
+          "authority": "Otorite",
+          "profile": "Profil",
+          "definition": "Tanım",
+          "centers": "Merkezler",
+          "channels": "Kanallar",
+          "gates": "Kapılar"
+        },
+        "strategyNote": "Strateji, Tip bilgisine göre belirlenir.",
+        "complete": "Eksikleri Tamamla",
+        "continue": "Mevcut Bilgilerle Devam Et"
+      },
+      "docx": {
+        "title": "Human Design Raporu",
+        "client": "Danışan: {name}",
+        "createdAt": "Oluşturma Tarihi: {date}",
+        "information": "Bilgilendirme",
+        "wellnessFull": "Bu içerik kişisel farkındalık ve gelişim amaçlıdır; tıbbi, psikolojik, hukuki veya finansal tavsiye niteliği taşımaz.",
+        "fileStem": "Human-Design-Raporu",
+        "clientFallback": "Danisan"
+      }
+    }
+  }
+}

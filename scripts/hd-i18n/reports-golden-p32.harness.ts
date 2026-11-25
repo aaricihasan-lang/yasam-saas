@@ -149,7 +149,9 @@ async function main() {
     const { xml } = await docxParts(e.bytes);
     const doc = xml["word/document.xml"] ?? "";
     const nodes = textNodes(doc);
-    const sys = nodes.map(stripUser).filter((s) => s.trim());
+    // Nöbetçi markdown ile birden çok run'a bölünebilir → düğümler birleştirilip nöbetçiler bütün olarak çıkarılır.
+    const SEP = String.fromCharCode(1);
+    const sys = stripUser(nodes.join(SEP)).split(SEP).filter((s) => s.trim());
     const trHits = sys.filter((s) => TR_LETTERS.test(s) || TR_ASCII.test(s));
     ok(trHits.length === 0, `EN ${name}: sistem metninde Türkçe 0 (harf + ASCII-katlanmış)`, trHits);
     const joined = nodes.join("");

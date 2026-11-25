@@ -27,6 +27,9 @@ const C = read("app/human-design/rapor-olustur/components/HdRaporContent.tsx");
 const Ccode = stripJs(C);
 const D = read("app/human-design/rapor-olustur/components/HdUnsavedChangesDialog.tsx");
 const H = read("app/human-design/rapor-olustur/hooks/useUnsavedGuard.ts");
+// I18N-F1-R5 (HD-B): ekran metinleri `hd.reportBuilder` katalogunda (TR değeri eski kaynak metinle bayt-eşit).
+// Metin kilitleri niyet korunarak: bileşen anahtarı kullanıyor VE TR katalog değeri eski metin.
+const RB = JSON.parse(read("messages/tr/hd.reportBuilder.json")).hd.reportBuilder;
 
 // handleSave gövdesini izole et (INSERT/UPDATE karar sırasını konumsal doğrulamak için).
 const saveBody = (Ccode.match(/async function handleSave\(\)[\s\S]*?\n  \}/) || [""])[0];
@@ -95,7 +98,8 @@ console.log("── SAVE SONUÇ DAVRANIŞI ──");
 check("19. Başarılı INSERT sonrası dirty=false (setHasUnsavedDraft(false) + baseline=güncel)",
   /activeReportIdRef\.current = id;[\s\S]*?setSavedSnapshot\(\{ title:[\s\S]*?reportId: id \}\);\s*setHasUnsavedDraft\(false\);/.test(saveBody));
 check("20. Başarısız INSERT sonrası dirty=true (error → return, baseline/kimlik/işaret DEĞİŞMEZ)",
-  /kaydedilemedi[\s\S]{0,120}return; \/\/ kimlik null kalır/.test(saveBody));
+  /t\("toast\.saveFailed"\)[\s\S]{0,120}return; \/\/ kimlik null kalır/.test(saveBody) &&
+  RB.toast.saveFailed === "Rapor kaydedilemedi. Lütfen tekrar deneyin.");
 // UPDATE dalı bölgesi: `if (currentReportId)` ile INSERT çağrısı `saveReport(` arası.
 const updateRegion = saveBody.slice(saveBody.indexOf("if (currentReportId)"), saveBody.indexOf("saveReport("));
 check("21. Başarılı UPDATE sonrası dirty=false (baseline=güncel + hasUnsavedDraft=false, active id korunur)",
@@ -103,7 +107,8 @@ check("21. Başarılı UPDATE sonrası dirty=false (baseline=güncel + hasUnsave
   // UPDATE dalında activeReportIdRef'e yeniden ATAMA YOK → aktif kimlik korunur.
   !/activeReportIdRef\.current =/.test(updateRegion));
 check("22. Başarısız UPDATE sonrası dirty=true (error → return, baseline/kimlik DEĞİŞMEZ)",
-  /güncellenemedi[\s\S]{0,120}return; \/\/ kimlik \+ baseline/.test(saveBody));
+  /t\("toast\.updateFailed"\)[\s\S]{0,120}return; \/\/ kimlik \+ baseline/.test(saveBody) &&
+  RB.toast.updateFailed === "Rapor güncellenemedi. Lütfen tekrar deneyin.");
 
 console.log("── KAYITLI RAPOR YENİLE (kimlik korunur) ──");
 check("23. Kayıtlı rapor Yenile sonrası activeReportId korunur (replace applyClientId'siz kimliğe dokunmaz)",
@@ -115,12 +120,13 @@ check("24. Yenilenen kayıtlı raporun sonraki save'i UPDATE yapar (kimlik varke
 
 console.log("── YENİLE (üç seçenek) + DANIŞAN (iki seçenek) korundu ──");
 check("25. Yenile üç seçenek korunur; keepEdited editedText'e dokunmaz",
-  /Mevcut Metni Koru/.test(C) && /Değişiklikleri At ve Yeniden Oluştur/.test(C) &&
+  /t\("unsaved\.keep"\)/.test(C) && /t\("unsaved\.discardRebuild"\)/.test(C) &&
+  RB.unsaved.keep === "Mevcut Metni Koru" && RB.unsaved.discardRebuild === "Değişiklikleri At ve Yeniden Oluştur" &&
   /choice === "keep"[\s\S]{0,140}runBuild\(clientId, "keepEdited"\)/.test(Ccode) &&
   /mode === "replace"\)\s*\{\s*setEditedText/.test(Ccode));
 check("26. Danışan değişimi iki seçenek; 'Mevcut Metni Koru' BULUNMAZ",
-  /Değişiklikleri At ve Danışanı Değiştir/.test(C) &&
-  !/handleClientChange[\s\S]*?Mevcut Metni Koru/.test(Ccode));
+  /t\("unsaved\.discardClient"\)/.test(C) && RB.unsaved.discardClient === "Değişiklikleri At ve Danışanı Değiştir" &&
+  !/handleClientChange[\s\S]*?unsaved\.keep/.test(Ccode));
 
 console.log("── EŞZAMANLILIK / BEFOREUNLOAD ──");
 check("27. save yeniden-giriş guard (saveGuard ref) finally'de temizlenir",

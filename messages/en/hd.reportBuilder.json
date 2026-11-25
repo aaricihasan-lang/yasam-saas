@@ -1,0 +1,131 @@
+{
+  "hd": {
+    "reportBuilder": {
+      "page": {
+        "demoBanner": "Reports cannot be created or saved in the demo account. You can preview the module's interface.",
+        "title": "Human Design — Create Report",
+        "subtitle": "Match the client's chart values with the interpretations in the Knowledge Base, then edit and save the report.",
+        "loading": "Loading..."
+      },
+      "unsaved": {
+        "leaveTitle": "Unsaved report changes",
+        "leaveMessage": "If you leave the page, the unsaved changes in the report will be lost.",
+        "stay": "Stay on Page",
+        "discardLeave": "Discard Changes and Leave",
+        "refreshTitle": "There are unsaved changes",
+        "refreshMessage": "The report text has changes that have not been saved yet. Are you sure you want to rebuild the information?",
+        "cancel": "Cancel",
+        "keep": "Keep Current Text",
+        "discardRebuild": "Discard Changes and Rebuild",
+        "clientMessage": "If you switch to another client, the unsaved changes in the current report will be lost.",
+        "discardClient": "Discard Changes and Switch Client",
+        "completeMessage": "If you leave this screen to complete the missing chart information, the unsaved changes will be lost.",
+        "discardComplete": "Discard Changes and Complete Missing Fields"
+      },
+      "toast": {
+        "chartLoadFailed": "The chart could not be loaded: {error}",
+        "noChart": "No chart record was found for this client. First enter the values on the Chart Entry screen.",
+        "knowledgeLoadFailed": "The Knowledge Base could not be loaded: {error}",
+        "buildFailed": "An error occurred while creating the report.",
+        "reportNotFound": "Report not found.",
+        "kept": "Your current text was kept; the reference information was updated.",
+        "emptyContent": "The report content is empty.",
+        "updateFailed": "The report could not be updated. Please try again.",
+        "updated": "Report updated.",
+        "selectClient": "Select a client.",
+        "saveFailed": "The report could not be saved. Please try again.",
+        "saved": "Report saved.",
+        "saveError": "An error occurred while saving.",
+        "emptyExport": "The report content is empty; create a report first.",
+        "exported": "Word report downloaded.",
+        "exportFailed": "The Word file could not be created.",
+        "network": "Network error. Check your connection."
+      },
+      "duplicate": {
+        "title": "This client already has a report",
+        "one": "This client has 1 saved report. If you continue, a separate report will be created. You can edit the existing report on the Saved Reports screen.",
+        "many": "This client has {count} saved reports. If you continue, a separate report will be created. You can edit the existing reports on the Saved Reports screen.",
+        "confirm": "Create Anyway",
+        "cancel": "Cancel"
+      },
+      "defaults": {
+        "client": "Client",
+        "reportTitle": "Human Design Report",
+        "titleWithClient": "{client} — Human Design Report"
+      },
+      "edit": {
+        "eyebrow": "Editing Saved Report",
+        "loading": "Loading..."
+      },
+      "select": {
+        "label": "Select Client *",
+        "placeholder": "— Select a client —"
+      },
+      "summary": {
+        "title": "Chart Summary",
+        "type": "Type",
+        "authority": "Authority",
+        "profile": "Profile",
+        "definition": "Definition",
+        "gates": "Gates",
+        "channels": "Channels",
+        "loadingReport": "Loading report...",
+        "matching": "Matching the Knowledge Base...",
+        "matched": "{matched, plural, one {# interpretation matched} other {# interpretations matched}} — {groups, plural, one {# category} other {# categories}}",
+        "noMatch": "No matching record was found in the Knowledge Base for this chart. First add an interpretation on the Knowledge Base screen."
+      },
+      "gateInfo": {
+        "title": "Gate Technical Information",
+        "empty": "No gate record."
+      },
+      "categories": {
+        "title": "Matched Categories"
+      },
+      "editor": {
+        "titleEdit": "Saved Report Editor",
+        "title": "Report Editor",
+        "reportTitleLabel": "REPORT TITLE",
+        "reportTitlePlaceholder": "Report title...",
+        "refresh": "Refresh",
+        "noMatchHint": "No active Knowledge Base record matches this chart. You can write the report below by hand, or add a record to the Knowledge Base and press Refresh.",
+        "textAria": "Report text",
+        "textPlaceholder": "Write the report text here...",
+        "dirty": "There are unsaved changes",
+        "saved": "Changes saved",
+        "autoEdited": "Automatic text edited",
+        "downloading": "Downloading...",
+        "download": "Download Word",
+        "updating": "Updating...",
+        "saving": "Saving...",
+        "update": "Update",
+        "save": "Save Report"
+      },
+      "empty": "Select a client above.",
+      "missing": {
+        "title": "The chart information is incomplete",
+        "description": "The report was created with the available information. For a more complete report, you can fill in the missing fields.",
+        "field": {
+          "type": "Type",
+          "authority": "Authority",
+          "profile": "Profile",
+          "definition": "Definition",
+          "centers": "Centers",
+          "channels": "Channels",
+          "gates": "Gates"
+        },
+        "strategyNote": "Strategy is determined by the Type.",
+        "complete": "Complete Missing Fields",
+        "continue": "Continue with Current Information"
+      },
+      "docx": {
+        "title": "Human Design Report",
+        "client": "Client: {name}",
+        "createdAt": "Date Generated: {date}",
+        "information": "Information",
+        "wellnessFull": "This content is intended for personal awareness and development; it does not constitute medical, psychological, legal or financial advice.",
+        "fileStem": "Human-Design-Report",
+        "clientFallback": "Client"
+      }
+    }
+  }
+}

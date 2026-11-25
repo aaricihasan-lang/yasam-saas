@@ -648,7 +648,8 @@ const later = (iso: string, ms = 5) => new Date(Date.parse(iso) + ms).toISOStrin
   });
   await t("P2-8: rapor metin alanı her zaman görünür (eşleşme yok / metin silindi)", () => {
     const r = src("app/human-design/rapor-olustur/components/HdRaporContent.tsx");
-    assert(!/\{editedText \? \(\s*<textarea/.test(r) && /aria-label="Rapor metni"/.test(r), "koşullu metin alanı");
+    // I18N-F1-R5 (HD-B): erişilebilir ad katalogda (hd.reportBuilder.editor.textAria; TR bayt-eşit) — niyet aynı.
+    assert(!/\{editedText \? \(\s*<textarea/.test(r) && /aria-label=\{t\("editor\.textAria"\)\}/.test(r) && JSON.parse(src("messages/tr/hd.reportBuilder.json")).hd.reportBuilder.editor.textAria === "Rapor metni", "koşullu metin alanı");
     assert(/editedText\.trim\(\) !== generatedText\.trim\(\)/.test(r), "elle yazılan taslak dirty sayılmıyor");
   });
   await t("P1-4: uzman Bilgi Bankası = kişisel çalışma alanı; boş durum yalnız 0 kayıtta", () => {
