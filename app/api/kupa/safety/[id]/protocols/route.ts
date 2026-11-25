@@ -9,6 +9,7 @@ const handlers = makeProtocolUsageRoute({
   junctionTable: CUPPING_TABLES.protocolSafety,
   fkColumn: "safety_id",
   notFound: "Güvenlik kaydı bu hesaba ait değil veya bulunamadı.",
+  notFoundCode: "CUP_SAFETY_NOT_FOUND",
   idRequired: "Güvenlik kaydı id gerekli.",
 });
 

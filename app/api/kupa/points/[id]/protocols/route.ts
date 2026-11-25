@@ -9,6 +9,7 @@ const handlers = makeProtocolUsageRoute({
   junctionTable: CUPPING_TABLES.protocolPoints,
   fkColumn: "point_id",
   notFound: "Nokta bu hesaba ait değil veya bulunamadı.",
+  notFoundCode: "CUP_POINT_NOT_FOUND",
   idRequired: "Nokta id gerekli.",
 });
 

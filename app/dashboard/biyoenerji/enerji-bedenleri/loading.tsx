@@ -1,3 +1,4 @@
+import { useTranslations } from "next-intl";
 import EnerjiBedenleriShell from "@/app/_premium/biyoenerji/enerji-bedenleri/EnerjiBedenleriShell";
 
 function Line({ className = "" }: { className?: string }) {
@@ -6,11 +7,12 @@ function Line({ className = "" }: { className?: string }) {
 
 // Premium kabukla aynı yerleşimde hafif iskelet (rota geçişinde düzen sıçraması olmaz).
 export default function Loading() {
+  const t = useTranslations("bioenergy.pages");
   return (
     <EnerjiBedenleriShell
-      badge="BİYOENERJİ · KATMAN"
-      title="Enerji Bedenleri"
-      subtitle="Aura, eterik, astral ve enerji katman bilgileri — kayıt seçin, detayları okuyun ve düzenleyin"
+      badge={t("enerji-bedenleri.badge")}
+      title={t("enerji-bedenleri.title")}
+      subtitle={t("enerji-bedenleri.subtitle")}
     >
       <div className="grid gap-3 lg:grid-cols-[minmax(300px,440px)_minmax(0,1fr)] lg:gap-4">
         <Line className="h-[84px]" />

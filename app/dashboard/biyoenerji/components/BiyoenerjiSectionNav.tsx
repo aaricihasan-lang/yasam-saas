@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
+import { useBiyoenerjiLabels } from "../useBiyoenerjiLabels";
 import {
   BIOENERJI_SECTIONS_IN_ORDER,
   findBiyoenerjiSection,
@@ -23,6 +25,8 @@ export default function BiyoenerjiSectionNav({
   activeSection: BiyoenerjiSectionKey;
 }) {
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const t = useTranslations("bioenergy.common");
+  const L = useBiyoenerjiLabels();
   const active = findBiyoenerjiSection(activeSection);
 
   useEffect(() => {
@@ -55,7 +59,7 @@ export default function BiyoenerjiSectionNav({
     <div className="min-w-0">
       {/* Masaüstü: yatay bölüm şeridi */}
       <nav
-        aria-label="Biyoenerji bölümleri"
+        aria-label={t("sectionsAria")}
         className="hidden flex-wrap items-center gap-1.5 lg:flex"
       >
         {BIOENERJI_SECTIONS_IN_ORDER.map((card) => {
@@ -69,7 +73,7 @@ export default function BiyoenerjiSectionNav({
               className={`${pillBase} ${isActive ? pillActive : pillIdle}`}
             >
               <Icon className="h-3.5 w-3.5 shrink-0" strokeWidth={2} aria-hidden />
-              <span className="truncate">{card.title}</span>
+              <span className="truncate">{L.cardTitle(card.key)}</span>
             </Link>
           );
         })}
@@ -85,10 +89,10 @@ export default function BiyoenerjiSectionNav({
                 strokeWidth={2}
                 aria-hidden
               />
-              <span className="truncate">{active.card.title}</span>
+              <span className="truncate">{L.cardTitle(active.card.key)}</span>
             </>
           ) : (
-            <span className="truncate">Bölüm</span>
+            <span className="truncate">{t("section")}</span>
           )}
         </span>
         <button
@@ -103,7 +107,7 @@ export default function BiyoenerjiSectionNav({
             <span className="h-0.5 w-4 rounded-full bg-violet-700/80" />
             <span className="h-0.5 w-3 rounded-full bg-violet-700/60" />
           </span>
-          Bölümler
+          {t("sections")}
         </button>
       </div>
 
@@ -128,14 +132,14 @@ export default function BiyoenerjiSectionNav({
         >
           <div className="mb-4 flex items-center justify-between gap-3">
             <span className="inline-flex items-center rounded-full bg-gradient-to-r from-violet-100 via-fuchsia-50 to-cyan-50 px-3 py-1 text-[9px] font-black tracking-[0.18em] text-violet-800 shadow-inner">
-              BİYOENERJİ
+              {t("brandCaps")}
             </span>
             <button
               type="button"
               onClick={() => setDrawerOpen(false)}
               className="inline-flex min-h-[44px] items-center rounded-xl border border-slate-200/80 bg-white/90 px-3 text-[12px] font-black text-slate-600 shadow-sm transition hover:bg-slate-50"
             >
-              Kapat
+              {t("close")}
             </button>
           </div>
 
@@ -143,7 +147,7 @@ export default function BiyoenerjiSectionNav({
             {getBiyoenerjiGroups().map((group) => (
               <div key={group.id}>
                 <p className="mb-1.5 px-1 text-[10px] font-black uppercase tracking-[0.16em] text-violet-700/80">
-                  {group.title}
+                  {L.groupTitle(group.id)}
                 </p>
                 <ul className="space-y-1.5">
                   {group.cards.map((card) => {
@@ -169,7 +173,7 @@ export default function BiyoenerjiSectionNav({
                           >
                             <Icon className="h-4 w-4" strokeWidth={2} />
                           </span>
-                          <span className="min-w-0 truncate">{card.title}</span>
+                          <span className="min-w-0 truncate">{L.cardTitle(card.key)}</span>
                         </Link>
                       </li>
                     );

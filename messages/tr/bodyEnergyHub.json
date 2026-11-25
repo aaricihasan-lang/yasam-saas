@@ -1,0 +1,13 @@
+{
+  "bodyEnergyHub": {
+    "titleA": "Beden",
+    "titleB": "Enerji Uygulamaları",
+    "subtitle": "Beden üzerinde çalışan uygulama ve terapi araçları",
+    "cardsAria": "Beden & Enerji klasörleri",
+    "cards": {
+      "bioenergy": { "title": "Biyoenerji", "desc": "Aura, çakra, imajinasyon ve enerji çalışmaları", "badge": "Enerji" },
+      "reflexology": { "title": "Refleksoloji", "desc": "Bölge haritası, atlas ve uygulama sistemi", "badge": "Beden" },
+      "cupping": { "title": "Kupa & Hacamat Terapisi", "desc": "Vücut nokta atlası, amaç rehberi, kupa teknikleri ve güvenlik sistemi", "badge": "Kupa" }
+    }
+  }
+}

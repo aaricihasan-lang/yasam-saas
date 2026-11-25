@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { getTranslations } from "next-intl/server";
 import { ArrowRight, BookOpen, CalendarDays, ChevronRight, FolderOpen } from "lucide-react";
 import { energyFontVars } from "@/app/_premium/enerji-beden/fonts";
 import styles from "@/app/_premium/kupa/kupaAnaSayfa.module.css";
@@ -16,18 +17,18 @@ import styles from "@/app/_premium/kupa/kupaAnaSayfa.module.css";
  * Görseller sayfaya ait sabit dekordur (gezinme kartı; kayıt değil).
  */
 
-type Area = { title: string; desc: string; art: string; href: string };
+type Area = { key: "points" | "techniques" | "safety"; art: string; href: string };
 
-type MainCardProps = { href: string; title: string; desc: string; cta: string; art: string; Icon: typeof FolderOpen };
+type MainCardProps = { href: string; eyebrow: string; title: string; desc: string; cta: string; art: string; Icon: typeof FolderOpen };
 
-function MainCard({ href, title, desc, cta, art, Icon }: MainCardProps) {
+function MainCard({ href, eyebrow, title, desc, cta, art, Icon }: MainCardProps) {
   return (
     <Link href={href} className={styles.mCard}>
       <span className={styles.mIcon} aria-hidden>
         <Icon className={styles.ico} width={30} height={30} strokeWidth={1.8} />
       </span>
       <span className={styles.mText}>
-        <span className={styles.mEyebrow}>Çalışma Alanı</span>
+        <span className={styles.mEyebrow}>{eyebrow}</span>
         <span className={styles.mTitle}>{title}</span>
         <span className={styles.mDesc}>{desc}</span>
       </span>
@@ -42,69 +43,56 @@ function MainCard({ href, title, desc, cta, art, Icon }: MainCardProps) {
 }
 
 // Destek kütüphaneleri — protokollerde kullanılan temel kayıtlar (sade kullanıcı dili).
+// Metinler: messages/<dil>/cupping.json → cupping.home.support.<key>.
 const SUPPORT: Area[] = [
-  {
-    title: "Hacamat Noktaları",
-    desc: "Hacamat bölgelerini ve kayıtlı açıklamalarını görüntüleyin.",
-    art: "destek-noktalar",
-    href: "/kupa/noktalar",
-  },
-  {
-    title: "Kupa Teknikleri",
-    desc: "Kuru, yaş ve farklı uygulama tekniklerini yönetin.",
-    art: "destek-teknikler",
-    href: "/kupa/teknikler",
-  },
-  {
-    title: "Güvenlik & Kontrendikasyonlar",
-    desc: "Kendi güvenlik / dikkat maddelerinizi oluşturun, düzenleyin ve protokollere bağlayın.",
-    art: "destek-guvenlik",
-    href: "/kupa/guvenlik",
-  },
+  { key: "points", art: "destek-noktalar", href: "/kupa/noktalar" },
+  { key: "techniques", art: "destek-teknikler", href: "/kupa/teknikler" },
+  { key: "safety", art: "destek-guvenlik", href: "/kupa/guvenlik" },
 ];
 
-export default function KupaLandingPage() {
+export default async function KupaLandingPage() {
+  const t = await getTranslations("cupping.home");
+  const ts = await getTranslations("cupping.shell");
   return (
     <main className={`${styles.page} ${energyFontVars}`}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img className={styles.heroArt} src="/premium/kupa/hero-spa.webp" width={1784} height={452} alt="" aria-hidden decoding="async" draggable={false} />
       <div className={styles.inner}>
-        <nav className={styles.crumbs} aria-label="Konum">
-          <Link href="/">Ana Sayfa</Link>
+        <nav className={styles.crumbs} aria-label={ts("crumbAria")}>
+          <Link href="/">{ts("crumbHome")}</Link>
           <span className={styles.sep} aria-hidden>/</span>
-          <Link href="/enerji-beden">Beden &amp; Enerji Uygulamaları</Link>
+          <Link href="/enerji-beden">{ts("crumbEnergyBody")}</Link>
           <span className={styles.sep} aria-hidden>/</span>
-          <span className={styles.cur} aria-current="page">Kupa &amp; Hacamat</span>
+          <span className={styles.cur} aria-current="page">{ts("moduleName")}</span>
         </nav>
 
         <header className={styles.hero}>
           <p className={styles.eyebrow}>
             <i aria-hidden />
-            Profesyonel Çalışma Alanı
+            {t("eyebrow")}
           </p>
-          <h1 className={styles.title}>Kupa &amp; Hacamat Terapisi</h1>
-          <p className={styles.desc}>
-            Hacamat protokollerinizi oluşturun; bölgeleri, teknikleri, uygulama akışını, güvenlik notlarını, bilgileri ve
-            kaynakları tek çalışma alanında yönetin.
-          </p>
+          <h1 className={styles.title}>{t("title")}</h1>
+          <p className={styles.desc}>{t("desc")}</p>
         </header>
 
-        <section className={styles.mainCards} aria-label="Çalışma alanı">
+        <section className={styles.mainCards} aria-label={t("mainCardsAria")}>
           {/* 1) PRIMARY — Hacamat Protokolleri (dominant) */}
           <MainCard
             href="/kupa/protokoller"
-            title="Hacamat Protokolleri"
-            desc="Rahatsızlık veya çalışma amacına göre bölgeleri, teknikleri, uygulama akışını, güvenliği, bilgileri ve kaynakları tek yerde yönetin."
-            cta="Protokolleri Aç"
+            eyebrow={t("mainEyebrow")}
+            title={t("protocols.title")}
+            desc={t("protocols.desc")}
+            cta={t("protocols.cta")}
             art="kart-protokoller"
             Icon={FolderOpen}
           />
           {/* 2) İKİNCİ ÇALIŞMA ALANI — Hacamat Takvimi */}
           <MainCard
             href="/kupa/takvim"
-            title="Hacamat Takvimi"
-            desc="Kendi yıllık hacamat çalışma takviminizi oluşturun; Gregoryen ve Hicrî tarihleri birlikte görün, uygulama günlerinizi kendiniz belirleyin."
-            cta="Takvimi Aç"
+            eyebrow={t("mainEyebrow")}
+            title={t("calendar.title")}
+            desc={t("calendar.desc")}
+            cta={t("calendar.cta")}
             art="kart-takvim"
             Icon={CalendarDays}
           />
@@ -113,20 +101,20 @@ export default function KupaLandingPage() {
         <div className={styles.secHead}>
           <h2 className={styles.secTitle}>
             <BookOpen className={styles.ico} width={20} height={20} strokeWidth={2} aria-hidden />
-            Destek Kütüphaneleri
+            {t("supportTitle")}
           </h2>
           <span className={styles.secLine} aria-hidden />
         </div>
-        <section className={styles.support} aria-label="Destek kütüphaneleri">
+        <section className={styles.support} aria-label={t("supportAria")}>
           {SUPPORT.map((a) => (
             <Link key={a.href} href={a.href} className={styles.sCard}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img className={styles.sArt} src={`/premium/kupa/${a.art}.webp`} width={294} height={276} alt="" aria-hidden decoding="async" draggable={false} />
               <span className={styles.sText}>
-                <span className={styles.sTitle}>{a.title}</span>
-                <span className={styles.sDesc}>{a.desc}</span>
+                <span className={styles.sTitle}>{t(`support.${a.key}.title`)}</span>
+                <span className={styles.sDesc}>{t(`support.${a.key}.desc`)}</span>
                 <span className={styles.sCta}>
-                  Aç
+                  {t("supportCta")}
                   <ArrowRight className={styles.ico} width={16} height={16} strokeWidth={2.2} aria-hidden />
                 </span>
               </span>
@@ -138,10 +126,7 @@ export default function KupaLandingPage() {
         </section>
 
         {/* Sakin editoryal not (medical claim YOK). */}
-        <p className={styles.note}>
-          Not: Bu modül geleneksel kullanım / kaynaklandırılmış ilişki bilgisini düzenler; hiçbir konu otomatik olarak
-          &quot;tedavi eder&quot; anlamı taşımaz.
-        </p>
+        <p className={styles.note}>{t("note")}</p>
       </div>
     </main>
   );

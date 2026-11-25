@@ -61,7 +61,7 @@ export async function POST(req: NextRequest): Promise<Response> {
 
   // map_key doğrulama (bilinen harita registry'si)
   if (!isKnownCuppingMap(fields.map_key)) {
-    return NextResponse.json({ ok: false, error: "Geçersiz harita." }, { status: 400 });
+    return NextResponse.json({ ok: false, code: "CUP_MAP_INVALID", error: "Geçersiz harita." }, { status: 400 });
   }
   // shape doğrulama
   const shape = fields.shape === "rect" ? "rect" : "oval";
@@ -70,7 +70,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   for (const key of ["cx", "cy", "rx", "ry"] as const) {
     const n = finiteNum(fields[key]);
     if (n === null) {
-      return NextResponse.json({ ok: false, error: "Geçersiz konum bilgisi." }, { status: 400 });
+      return NextResponse.json({ ok: false, code: "CUP_POSITION_INVALID", error: "Geçersiz konum bilgisi." }, { status: 400 });
     }
     fields[key] = n;
   }
@@ -79,7 +79,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   // FK sahiplik: point_id AYNI tenant'ın gerçek noktası olmalı.
   const owned = await assertOwnedRef(db, CUPPING_TABLES.points, tenantId, fields.point_id);
   if (!owned) {
-    return NextResponse.json({ ok: false, error: "Nokta bu hesaba ait değil." }, { status: 400 });
+    return NextResponse.json({ ok: false, code: "CUP_POINT_NOT_OWNED", error: "Nokta bu hesaba ait değil." }, { status: 400 });
   }
 
   const res = await insertEntity(db, CUPPING_TABLES.placements, tenantId, fields);

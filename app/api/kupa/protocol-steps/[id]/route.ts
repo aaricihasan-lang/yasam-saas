@@ -34,7 +34,7 @@ export async function PATCH(
   const guard = await requireModuleAccess(req, "cupping");
   if (!guard.ok) return guard.response;
   const { id } = await params;
-  if (!id) return cuppingError(400, "Adım id gerekli.");
+  if (!id) return cuppingError(400, "Adım id gerekli.", "CUP_ID_REQUIRED");
   const { db, tenantId, is_demo_account } = guard;
   if (is_demo_account) return demoReadOnlyResponse();
 
@@ -42,9 +42,9 @@ export async function PATCH(
   if (!parsed.ok) return parsed.response;
 
   const fields = pickWritable(parsed.data, PROTOCOL_STEP_META_WRITABLE);
-  if (Object.keys(fields).length === 0) return cuppingError(400, "Güncellenecek alan yok.");
+  if (Object.keys(fields).length === 0) return cuppingError(400, "Güncellenecek alan yok.", "CUP_NO_FIELDS");
   if (Object.prototype.hasOwnProperty.call(fields, "body") && !String(fields.body ?? "").trim()) {
-    return cuppingError(400, "Adım metni boş olamaz.");
+    return cuppingError(400, "Adım metni boş olamaz.", "CUP_STEP_TEXT_REQUIRED");
   }
 
   // ref doğrulaması için adımın mevcut protocol_id'sini al (aynı zamanda sahiplik/IDOR kontrolü).
@@ -56,14 +56,14 @@ export async function PATCH(
     const refPoint = normRef(fields.ref_point_id);
     fields.ref_point_id = refPoint;
     if (refPoint && !(await assertCompositeRef(db, CUPPING_TABLES.protocolPoints, { tenant_id: tenantId, protocol_id: protocolId, point_id: refPoint }))) {
-      return cuppingError(400, "Adımın referans verdiği bölge, protokolün uygulama bölgeleri arasında değil.");
+      return cuppingError(400, "Adımın referans verdiği bölge, protokolün uygulama bölgeleri arasında değil.", "CUP_STEP_POINT_NOT_IN_PROTOCOL");
     }
   }
   if (Object.prototype.hasOwnProperty.call(fields, "ref_technique_id")) {
     const refTech = normRef(fields.ref_technique_id);
     fields.ref_technique_id = refTech;
     if (refTech && !(await assertCompositeRef(db, CUPPING_TABLES.protocolTechniques, { tenant_id: tenantId, protocol_id: protocolId, technique_id: refTech }))) {
-      return cuppingError(400, "Adımın referans verdiği teknik, protokolün teknikleri arasında değil.");
+      return cuppingError(400, "Adımın referans verdiği teknik, protokolün teknikleri arasında değil.", "CUP_STEP_TECHNIQUE_NOT_IN_PROTOCOL");
     }
   }
 
@@ -84,7 +84,7 @@ export async function DELETE(
   const guard = await requireModuleAccess(req, "cupping");
   if (!guard.ok) return guard.response;
   const { id } = await params;
-  if (!id) return cuppingError(400, "Adım id gerekli.");
+  if (!id) return cuppingError(400, "Adım id gerekli.", "CUP_ID_REQUIRED");
   const { db, tenantId, is_demo_account } = guard;
   if (is_demo_account) return demoReadOnlyResponse();
   const res = await deleteEntity(db, CUPPING_TABLES.protocolSteps, tenantId, id);

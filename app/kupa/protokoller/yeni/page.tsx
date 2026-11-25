@@ -2,13 +2,15 @@
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
+import { useKupaErrorText } from "@/app/kupa/lib/errorText";
 import { useToast } from "@/components/ui/ToastProvider";
 import { KupaShell, kupaEdgeCard, kupaBtnSuccess, kupaBtnGhost, kupaInput } from "@/app/kupa/components/KupaShell";
 import { createProtocol } from "@/app/kupa/lib/api";
 import { InlineLongText } from "../components/InlineLongText";
 import { useUnsavedChangesGuard } from "@/app/kupa/lib/useUnsavedChangesGuard";
 import { useConfirmLeave } from "../hooks/protocolDirty";
-import { TAGS_LABEL, TAGS_HELP, TAGS_PLACEHOLDER, parseTagsInput } from "@/lib/cupping/protocolTags";
+import { parseTagsInput } from "@/lib/cupping/protocolTags";
 
 /**
  * YENİ PROTOKOL — sade başlangıç (dev form YOK). Kaydettikten sonra protokol detay
@@ -21,6 +23,9 @@ import { TAGS_LABEL, TAGS_HELP, TAGS_PLACEHOLDER, parseTagsInput } from "@/lib/c
 export default function YeniProtokolPage() {
   const router = useRouter();
   const { showToast } = useToast();
+  const t = useTranslations("cupping.protocols");
+  const tc = useTranslations("cupping.common");
+  const errText = useKupaErrorText();
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState("");
   const [summary, setSummary] = useState("");
@@ -42,7 +47,7 @@ export default function YeniProtokolPage() {
     if (savingRef.current) return; // double-submit guard (senkron; state güncellenmeden gelen 2. tık)
     if (!title.trim()) {
       setTitleError(true);
-      showToast({ message: "Protokol başlığı gerekli.", type: "warning" });
+      showToast({ message: t("basic.titleRequired"), type: "warning" });
       return;
     }
     savingRef.current = true;
@@ -55,11 +60,11 @@ export default function YeniProtokolPage() {
         tags: parseTagsInput(tags),
       });
       setSaved(true);
-      showToast({ message: "Kaydedildi.", type: "success" });
+      showToast({ message: tc("saved"), type: "success" });
       router.replace(`/kupa/protokoller/${p.id}`);
     } catch (e) {
       // Başarısız kayıt kaydedilmiş gibi GÖSTERİLMEZ; form ve değerler korunur.
-      showToast({ message: e instanceof Error ? e.message : "Kaydedilemedi.", type: "error" });
+      showToast({ message: errText(e, tc("saveFailed")), type: "error" });
       savingRef.current = false;
       setSaving(false);
     }
@@ -67,15 +72,15 @@ export default function YeniProtokolPage() {
 
   return (
     <KupaShell
-      title="Yeni Protokol"
-      subtitle="Kısa bir başlangıç yapın; bölgeleri, akışı ve bilgileri protokol dosyasında geliştireceksiniz."
-      breadcrumb={[{ label: "Protokoller", href: "/kupa/protokoller" }, { label: "Yeni" }]}
+      title={t("new.title")}
+      subtitle={t("new.subtitle")}
+      breadcrumb={[{ label: t("list.crumb"), href: "/kupa/protokoller" }, { label: t("new.crumb") }]}
       fullBleedBelowLg
     >
       <div className={kupaEdgeCard}>
         <div className="space-y-3">
           <div>
-            <label className="text-[11px] font-semibold text-slate-500" htmlFor="np-title">Protokol Adı *</label>
+            <label className="text-[11px] font-semibold text-slate-500" htmlFor="np-title">{t("basic.titleLabel")}</label>
             <input
               id="np-title"
               autoFocus
@@ -85,28 +90,28 @@ export default function YeniProtokolPage() {
                 setTitle(e.target.value);
                 if (titleError) setTitleError(false);
               }}
-              placeholder="Örn. Migren"
+              placeholder={t("new.titlePlaceholder")}
             />
           </div>
           <div>
-            <label className="text-[11px] font-semibold text-slate-500" htmlFor="np-cat">Kategori</label>
-            <input id="np-cat" className={kupaInput} value={category} onChange={(e) => setCategory(e.target.value)} placeholder="Örn. Baş & Boyun" />
+            <label className="text-[11px] font-semibold text-slate-500" htmlFor="np-cat">{t("basic.categoryLabel")}</label>
+            <input id="np-cat" className={kupaInput} value={category} onChange={(e) => setCategory(e.target.value)} placeholder={t("basic.categoryPlaceholder")} />
           </div>
           <div>
-            <label className="text-[11px] font-semibold text-slate-500">Kısa Açıklama</label>
-            <InlineLongText label="Kısa Açıklama" value={summary} onChange={setSummary} rows={3} placeholder="Bu protokol hakkında kısa bir açıklama…" />
+            <label className="text-[11px] font-semibold text-slate-500">{t("basic.summaryLabel")}</label>
+            <InlineLongText label={t("basic.summaryLabel")} value={summary} onChange={setSummary} rows={3} placeholder={t("new.summaryPlaceholder")} />
           </div>
           <div>
-            <label className="text-[11px] font-semibold text-slate-500" htmlFor="np-tags">{TAGS_LABEL}</label>
-            <p id="np-tags-help" className="mb-1 text-[11px] leading-snug text-slate-400">{TAGS_HELP}</p>
-            <input id="np-tags" aria-describedby="np-tags-help" className={kupaInput} value={tags} onChange={(e) => setTags(e.target.value)} placeholder={TAGS_PLACEHOLDER} />
+            <label className="text-[11px] font-semibold text-slate-500" htmlFor="np-tags">{t("basic.tagsLabel")}</label>
+            <p id="np-tags-help" className="mb-1 text-[11px] leading-snug text-slate-400">{t("basic.tagsHelp")}</p>
+            <input id="np-tags" aria-describedby="np-tags-help" className={kupaInput} value={tags} onChange={(e) => setTags(e.target.value)} placeholder={t("basic.tagsPlaceholder")} />
           </div>
           <div className="flex items-center gap-2 pt-1">
             <button type="button" disabled={saving} className={kupaBtnSuccess} onClick={submit} data-testid="kupa-new-protocol-save">
-              {saving ? "Kaydediliyor…" : "Kaydet"}
+              {saving ? tc("saving") : tc("save")}
             </button>
             <button type="button" className={kupaBtnGhost} onClick={() => void cancel()} disabled={saving}>
-              Vazgeç
+              {tc("cancel")}
             </button>
           </div>
         </div>

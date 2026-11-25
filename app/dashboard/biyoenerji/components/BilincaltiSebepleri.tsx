@@ -9,6 +9,10 @@ import Link from "next/link";
 import { ArrowRight, Brain, ChevronDown, Clock3, Eye, Layers, Search } from "lucide-react";
 import styles from "@/app/_premium/biyoenerji/kutuphane/bioKutuphane.module.css";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
+import { useBioErrorText } from "../useBioErrorText";
+import { useBioDateTime } from "../useBioDateTime";
+import { hasPreviewText } from "../previewText";
 import { backgroundSyncYasamUserFromDb, readYasamUser } from "@/lib/auth/yasamUser";
 import {
   getSessionTenantId,
@@ -106,23 +110,13 @@ function slugifySourceUid(value: string) {
   return slug || String(Date.now());
 }
 
-function formatDate(iso: string | null) {
-  if (!iso) return "—";
-  try {
-    return new Intl.DateTimeFormat("tr-TR", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    }).format(new Date(iso));
-  } catch {
-    return "—";
-  }
-}
 
 export default function BilincaltiSebepleri() {
   const { isDemo } = useDemoGuard();
+  const t = useTranslations("bioenergy.subconscious");
+  const tl = useTranslations("bioenergy.list");
+  const errText = useBioErrorText();
+  const formatDate = useBioDateTime();
   const [queryTenantId, setQueryTenantId] = useState<string | null>(null);
   const [rows, setRows] = useState<SubconsciousCauseListItem[]>([]);
   const [listLoading, setListLoading] = useState(true);
@@ -235,7 +229,7 @@ export default function BilincaltiSebepleri() {
       setLoadingMore(false);
 
       if (pageRes.error) {
-        setLoadErrorMessage(`Bilinçaltı sebepleri okunamadı: ${pageRes.error}`);
+        setLoadErrorMessage(t("readFailed", { detail: errText(pageRes.error, tl("serverError")) }));
         if (opts.reset && !bioListGet(cacheKey)) setRows([]);
         return;
       }
@@ -259,7 +253,7 @@ export default function BilincaltiSebepleri() {
           if (!listGate.isCurrent(ticket)) return; // A7/A8 — sayım/cache yazılmaz
           let total = totalInDbRef.current;
           if (totalRes.error) {
-            setLoadErrorMessage(`Kayıt sayısı alınamadı: ${totalRes.error}`);
+            setLoadErrorMessage(tl("countFailed", { detail: errText(totalRes.error, tl("serverError")) }));
           } else {
             total = totalRes.count;
             setTotalInDb(total);
@@ -286,6 +280,7 @@ export default function BilincaltiSebepleri() {
         })();
       }
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- çeviri işlevleri dil değişiminde yeniden liste çekmez
     [categoryFilter, debouncedSearch, queryTenantId, listGate],
   );
 
@@ -333,7 +328,7 @@ export default function BilincaltiSebepleri() {
 
           const titleTrim = form.title.trim();
           if (!titleTrim) {
-            showSoft("err", "Başlık zorunludur.");
+            showSoft("err", t("titleRequired"));
             return;
           }
 
@@ -349,7 +344,7 @@ export default function BilincaltiSebepleri() {
           setSaving(false);
 
           if (error) {
-            showSoft("err", `Kayıt eklenemedi: ${error}`);
+            showSoft("err", tl("addFailed", { detail: errText(error, tl("serverError")) }));
             return;
           }
 
@@ -357,12 +352,12 @@ export default function BilincaltiSebepleri() {
           setForm({ ...emptyForm });
           await fetchList({ reset: true });
           void refreshCategories();
-          showSoft("ok", "Kayıt oluşturuldu.");
+          showSoft("ok", t("created"));
         } finally {
           setSaving(false);
         }
       })
-      .catch((e: unknown) => showSoft("err", e instanceof Error ? e.message : "İşlem tamamlanamadı."));
+      .catch((e: unknown) => showSoft("err", errText(e, tl("opFailed"))));
   }
 
   // Toplu seçim güvenliği: arama/filtre ile liste değişince seçim görünür kayıtlarla
@@ -383,13 +378,13 @@ export default function BilincaltiSebepleri() {
     setIsBulkDeleting(false);
     setDanger((d) => ({ ...d, open: false }));
     if (error) {
-      showSoft("err", `Silinemedi: ${error}`);
+      showSoft("err", tl("deleteFailed", { detail: errText(error, tl("serverError")) }));
       return;
     }
     setSelectedForExport(new Set());
     await fetchList({ reset: true });
     void refreshCategories();
-    showSoft("ok", `${ids.length} kayıt silindi.`);
+    showSoft("ok", tl("deletedCount", { count: String(ids.length) }));
   }
 
   async function handleDeleteAll() {
@@ -398,14 +393,14 @@ export default function BilincaltiSebepleri() {
     setIsBulkDeleting(false);
     setDanger((d) => ({ ...d, open: false }));
     if (error) {
-      showSoft("err", `Silinemedi: ${error}`);
+      showSoft("err", tl("deleteFailed", { detail: errText(error, tl("serverError")) }));
       return;
     }
     setSelectedForExport(new Set());
     setCategoryFilter("");
     await fetchList({ reset: true });
     void refreshCategories();
-    showSoft("ok", "Tüm kayıtlar silindi.");
+    showSoft("ok", tl("deletedAll"));
   }
 
   return (
@@ -415,10 +410,9 @@ export default function BilincaltiSebepleri() {
           <div className="flex items-start gap-3">
             <span className="mt-0.5 text-lg leading-none" aria-hidden>🔎</span>
             <div>
-              <p className="text-sm font-black text-blue-900">Demo Modu — Bilinçaltı Sebepleri</p>
+              <p className="text-sm font-black text-blue-900">{t("demoTitle")}</p>
               <p className="mt-0.5 text-[13px] leading-relaxed text-blue-800">
-                Bu sayfa demo amaçlıdır. Kayıt içerikleri demo güvenliği nedeniyle flu gösterilmektedir.
-                Yeni kayıt, düzenleme, silme ve dışa aktarma işlemleri devre dışıdır.
+                {tl("demoBody")}
               </p>
             </div>
           </div>
@@ -428,35 +422,35 @@ export default function BilincaltiSebepleri() {
           Veri, arama, sayaç, seçim, Word, silme ve detay sayfasına geçiş davranışı DEĞİŞMEDİ. */}
       <div className={`${styles.toolbar} ${categories.length > 0 ? "" : styles.toolbarNoCat}`}>
         <label className="block min-w-0">
-          <span className={styles.fLabel}>Başlık, kategori, içerik ve not içinde ara</span>
+          <span className={styles.fLabel}>{t("searchLabel")}</span>
           <span className={styles.inputWrap}>
             <Search className={styles.inIcon} strokeWidth={2} aria-hidden />
             <input
               type="search"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Örn. travma, duygusal, hastalık, sebep…"
+              placeholder={t("searchPlaceholder")}
               className={`${styles.input} ${styles.inputSearch}`}
             />
           </span>
           {listBusy ? (
-            <p className={styles.hint}>Aranıyor…</p>
+            <p className={styles.hint}>{tl("searching")}</p>
           ) : isSearchActive ? (
             <p className={styles.hint}>
-              &quot;{debouncedSearch}&quot; · {searchResultCount} eşleşme
+              {tl("searchSummaryQuoted", { query: debouncedSearch, count: String(searchResultCount) })}
             </p>
           ) : null}
         </label>
         {categories.length > 0 && (
           <label className="block min-w-0">
-            <span className={styles.fLabel}>Kategori</span>
+            <span className={styles.fLabel}>{t("fields.category")}</span>
             <span className={styles.inputWrap}>
               <select
                 value={categoryFilter}
                 onChange={(e) => setCategoryFilter(e.target.value)}
                 className={`${styles.input} ${styles.select}`}
               >
-                <option value="">Tümü</option>
+                <option value="">{tl("all")}</option>
                 {categories.map((c) => (
                   <option key={c} value={c}>{c}</option>
                 ))}
@@ -467,7 +461,7 @@ export default function BilincaltiSebepleri() {
         )}
         {!isDemo && (
           <button type="button" onClick={() => { setForm({ ...emptyForm }); setFormModalOpen(true); }} className={styles.newBtn}>
-            + Yeni Kayıt
+            {tl("newRecord")}
           </button>
         )}
       </div>
@@ -476,21 +470,21 @@ export default function BilincaltiSebepleri() {
         <div className={`${styles.stat} ${styles.sViolet}`}>
           <span className={styles.statIcon} aria-hidden><Layers className="h-6 w-6" strokeWidth={2} /></span>
           <div className={styles.statText}>
-            <p className={styles.statLabel}>Toplam Kayıt</p>
+            <p className={styles.statLabel}>{tl("statTotalCap")}</p>
             <p className={styles.statValue}>{statsReady ? totalInDb : "…"}</p>
           </div>
         </div>
         <div className={`${styles.stat} ${styles.sBlue}`}>
           <span className={styles.statIcon} aria-hidden><Eye className="h-6 w-6" strokeWidth={2} /></span>
           <div className={styles.statText}>
-            <p className={styles.statLabel}>{isSearchActive ? "Arama sonucu" : "Görünen"}</p>
+            <p className={styles.statLabel}>{isSearchActive ? tl("statSearch") : tl("statVisibleShort")}</p>
             <p className={styles.statValue}>{statsReady ? searchResultCount : "…"}</p>
           </div>
         </div>
         <div className={`${styles.stat} ${styles.sTeal}`}>
           <span className={styles.statIcon} aria-hidden><Clock3 className="h-6 w-6" strokeWidth={2} /></span>
           <div className={styles.statText}>
-            <p className={styles.statLabel}>Son Kayıt</p>
+            <p className={styles.statLabel}>{tl("statLastCap")}</p>
             <p className={`${styles.statValue} ${styles.statSmall}`}>{formatDate(lastCreatedAt)}</p>
           </div>
         </div>
@@ -518,15 +512,15 @@ export default function BilincaltiSebepleri() {
       )}
 
       {listLoading && rows.length === 0 ? (
-        <p className={styles.listEmpty}>Yükleniyor…</p>
+        <p className={styles.listEmpty}>{tl("loading")}</p>
       ) : rows.length === 0 ? (
         <CrudEmptyState
           Icon={Brain}
-          title={isSearchActive ? "Sonuç bulunamadı" : "Kütüphane boş"}
+          title={isSearchActive ? tl("emptySearchTitle") : tl("emptyTitle")}
           subtitle={
             isSearchActive
-              ? "Arama terimini değiştirin veya yeni kayıt ekleyin."
-              : "Yeni Kayıt ile ilk bilinçaltı sebebini ekleyebilirsiniz."
+              ? tl("emptySearchBody")
+              : t("emptyBody")
           }
           tone="fuchsia"
         />
@@ -536,12 +530,12 @@ export default function BilincaltiSebepleri() {
             <BulkExportBar
               selectedCount={selectedForExport.size}
               totalCount={totalInDb}
-              selectAllLabel="Görünenleri Seç"
+              selectAllLabel={tl("selectVisible")}
               selectAllCount={rows.length}
               onSelectAll={() => setSelectedForExport(new Set(rows.map((r) => r.id)))}
               onClearSelection={() => setSelectedForExport(new Set())}
-              onExportSelected={() => void exportSubconsciousWord(queryTenantId ?? "", readYasamUser()?.id ?? "", "selected", selectedVisibleIds, setWordBusy, () => showSoft("ok", "Rapor indirildi."), () => showSoft("err", "Rapor oluşturulamadı."))}
-              onExportAll={() => void exportSubconsciousWord(queryTenantId ?? "", readYasamUser()?.id ?? "", "all", selectedForExport, setWordBusy, () => showSoft("ok", "Rapor indirildi."), () => showSoft("err", "Rapor oluşturulamadı."))}
+              onExportSelected={() => void exportSubconsciousWord(queryTenantId ?? "", readYasamUser()?.id ?? "", "selected", selectedVisibleIds, setWordBusy, () => showSoft("ok", tl("reportDownloaded")), () => showSoft("err", tl("reportFailed")))}
+              onExportAll={() => void exportSubconsciousWord(queryTenantId ?? "", readYasamUser()?.id ?? "", "all", selectedForExport, setWordBusy, () => showSoft("ok", tl("reportDownloaded")), () => showSoft("err", tl("reportFailed")))}
               isExporting={wordBusy}
               onDeleteSelected={() => setDanger({ open: true, mode: "selected" })}
               isDeleting={isBulkDeleting}
@@ -551,7 +545,8 @@ export default function BilincaltiSebepleri() {
           <div className={`${styles.grid} ${styles.grid4}`}>
             {rows.map((row) => {
               const detailHref = subconsciousCauseDetailHref(row.id);
-              const preview = previewSubconsciousText(row.content, row.note_text);
+              // I18N-F1-R3: tüm parçalar boşsa lib'in "Önizleme yok." yedeği yerine ekran dilinde aynı metin (TR birebir).
+              const preview = hasPreviewText(row.content, row.note_text) ? previewSubconsciousText(row.content, row.note_text) : tl("noPreview");
               const hasCategory = Boolean(row.category?.trim());
               const isExportSelected = selectedForExport.has(row.id);
 
@@ -563,7 +558,7 @@ export default function BilincaltiSebepleri() {
                     <label className={styles.rCheck} onClick={(e) => e.stopPropagation()}>
                       <input
                         type="checkbox"
-                        aria-label="Bu kaydı seç"
+                        aria-label={tl("selectRecord")}
                         checked={isExportSelected}
                         onChange={() => setSelectedForExport((prev) => {
                           const next = new Set(prev);
@@ -580,11 +575,12 @@ export default function BilincaltiSebepleri() {
                     {hasCategory ? (
                       <span className={styles.pill}>{row.category}</span>
                     ) : (
-                      <span className={`${styles.pill} ${styles.pillMuted}`}>Kategorisiz</span>
+                      <span className={`${styles.pill} ${styles.pillMuted}`}>{t("uncategorised")}</span>
                     )}
 
-                    <h2 className={`${styles.rTitle} ${styles.rTitleUpper}`} lang="tr">
-                      {row.title?.trim() || "İsimsiz kayıt"}
+                    {/* lang="tr" yalnız kullanıcı içeriğinde (Türkçe büyük harf kuralı); yedek metin sayfa dilini izler (QA C3-06). */}
+                    <h2 className={`${styles.rTitle} ${styles.rTitleUpper}`} lang={row.title?.trim() ? "tr" : undefined}>
+                      {row.title?.trim() || tl("untitled")}
                     </h2>
                     <AdminTransferBadge originType={row.origin_type} className="mt-1" />
 
@@ -593,7 +589,7 @@ export default function BilincaltiSebepleri() {
                     </DemoBlur>
 
                     <span className={`${styles.rBtn} ${styles.rBtnDark}`}>
-                      Detayı Aç
+                      {tl("openDetail")}
                       <ArrowRight className="h-4 w-4" strokeWidth={2.25} aria-hidden />
                     </span>
                   </Link>
@@ -611,8 +607,8 @@ export default function BilincaltiSebepleri() {
                 className={styles.moreBtn}
               >
                 {loadingMore
-                  ? "Yükleniyor…"
-                  : `Daha Fazla Göster (${rows.length} / ${searchResultCount})`}
+                  ? tl("loading")
+                  : tl("loadMore", { shown: String(rows.length), total: String(searchResultCount) })}
               </button>
             </div>
           ) : null}
@@ -623,8 +619,8 @@ export default function BilincaltiSebepleri() {
         open={formModalOpen}
         onClose={() => setFormModalOpen(false)}
         isDirty={formIsDirty}
-        title="Yeni bilinçaltı kaydı"
-        subtitle="Kaydettikten sonra kütüphanede görünür."
+        title={t("formTitle")}
+        subtitle={tl("formSubtitle")}
         titleId="subconscious-form-modal-title"
         accentRingClass="ring-fuchsia-100/50"
         footer={({ requestClose }) => (
@@ -635,7 +631,7 @@ export default function BilincaltiSebepleri() {
               onClick={requestClose}
               className="rounded-xl border border-slate-200/85 bg-white/90 px-4 py-2.5 text-[12px] font-black text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-50"
             >
-              Vazgeç
+              {tl("cancel")}
             </button>
             <button
               type="button"
@@ -643,7 +639,7 @@ export default function BilincaltiSebepleri() {
               onClick={() => setForm({ ...emptyForm })}
               className="rounded-xl border border-slate-200/80 bg-white/90 px-4 py-2.5 text-[12px] font-black text-slate-600 shadow-sm transition hover:bg-slate-50 disabled:opacity-50"
             >
-              Temizle
+              {tl("clear")}
             </button>
             <button
               type="button"
@@ -651,23 +647,23 @@ export default function BilincaltiSebepleri() {
               onClick={() => void handleKaydet()}
               className={bioSaveBtnClass}
             >
-              {saving ? "Kaydediliyor…" : "Kaydet"}
+              {saving ? tl("saving") : tl("save")}
             </button>
           </>
         )}
       >
         <div className="space-y-5">
           <label className="block">
-            <span className="mb-2 block text-[12px] font-black text-slate-800">Referans Kodu (isteğe bağlı)</span>
+            <span className="mb-2 block text-[12px] font-black text-slate-800">{t("fields.refCode")}</span>
             <input
               value={form.source_uid}
               onChange={(e) => setForm((f) => ({ ...f, source_uid: e.target.value }))}
-              placeholder="Boş bırakılırsa başlıktan otomatik oluşturulur (isteğe bağlı)"
+              placeholder={t("fields.refCodePlaceholder")}
               className="h-12 w-full rounded-xl border border-violet-100/80 bg-white/90 px-3.5 text-[13px] font-semibold text-slate-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] outline-none transition focus:border-violet-200/90 focus:ring-2 focus:ring-violet-100/55"
             />
           </label>
           <label className="block">
-            <span className="mb-2 block text-[12px] font-black text-slate-800">Başlık *</span>
+            <span className="mb-2 block text-[12px] font-black text-slate-800">{t("fields.titleLabel")}</span>
             <input
               value={form.title}
               onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
@@ -675,19 +671,19 @@ export default function BilincaltiSebepleri() {
             />
           </label>
           <label className="block">
-            <span className="mb-2 block text-[12px] font-black text-slate-800">Kategori</span>
+            <span className="mb-2 block text-[12px] font-black text-slate-800">{t("fields.category")}</span>
             <div className={badgeFieldWrapClass("fuchsia")}>
               <input
                 value={form.category}
                 onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}
                 className="w-full min-w-0 border-0 bg-transparent px-1 py-0.5 text-[13px] font-semibold text-slate-900 outline-none placeholder:text-slate-400"
-                placeholder="Örn. duygusal, travma…"
+                placeholder={t("fields.categoryPlaceholder")}
               />
             </div>
           </label>
           <LongTextareaField
-            label={<span className="mb-2 block text-[12px] font-black text-slate-800">İçerik</span>}
-            modalTitle="İçerik"
+            label={<span className="mb-2 block text-[12px] font-black text-slate-800">{t("fields.content")}</span>}
+            modalTitle={t("fields.content")}
             value={form.content}
             onChange={(v) => setForm((f) => ({ ...f, content: v }))}
             minRows={5}
@@ -695,8 +691,8 @@ export default function BilincaltiSebepleri() {
             disabled={saving}
           />
           <LongTextareaField
-            label={<span className="mb-2 block text-[12px] font-black text-slate-800">Not</span>}
-            modalTitle="Not"
+            label={<span className="mb-2 block text-[12px] font-black text-slate-800">{t("fields.note")}</span>}
+            modalTitle={t("fields.note")}
             value={form.note_text}
             onChange={(v) => setForm((f) => ({ ...f, note_text: v }))}
             minRows={3}
@@ -711,8 +707,8 @@ export default function BilincaltiSebepleri() {
         scope={{ filterActive: Boolean(debouncedSearch.trim() || categoryFilter), visibleCount: searchResultCount }}
         mode={danger.mode}
         count={danger.mode === "all" ? totalInDb : selectedVisibleRows.length}
-        names={danger.mode === "all" ? undefined : selectedVisibleRows.map((r) => (r.title?.trim() || "İsimsiz kayıt"))}
-        resourceLabel="Bilinçaltı Sebepleri"
+        names={danger.mode === "all" ? undefined : selectedVisibleRows.map((r) => (r.title?.trim() || tl("untitled")))}
+        resourceLabel={t("resourceLabel")}
         isDeleting={isBulkDeleting}
         onClose={() => !isBulkDeleting && setDanger((d) => ({ ...d, open: false }))}
         onConfirm={() => void (danger.mode === "all" ? handleDeleteAll() : handleBulkDeleteSelected())}

@@ -7,6 +7,7 @@ import {
   CUPPING_NULLABLE_ENUMS,
 } from "@/lib/cupping/fields";
 import { withSafeSortOrder } from "@/lib/cupping/normalize";
+import type { CuppingErrorCode } from "@/lib/cupping/errorCodes";
 
 /**
  * KUPA & HACAMAT — server CRUD yardımcıları.
@@ -22,8 +23,12 @@ import { withSafeSortOrder } from "@/lib/cupping/normalize";
 const DB_FAIL = "İşlem tamamlanamadı. Lütfen tekrar deneyin.";
 const NOT_FOUND = "Kayıt bu hesaba ait değil veya bulunamadı.";
 
-export function cuppingError(status: number, message: string): NextResponse {
-  return NextResponse.json({ ok: false, error: message }, { status });
+/**
+ * Güvenli hata yanıtı. I18N-F1-R3: `code` dil-bağımsızdır (istemci `cupping.errors.codes.<KOD>`);
+ * Türkçe `error` metni AYNEN kalır (kaynak dilde istemci onu birebir gösterir).
+ */
+export function cuppingError(status: number, message: string, code: CuppingErrorCode): NextResponse {
+  return NextResponse.json({ ok: false, code, error: message }, { status });
 }
 
 /**
@@ -69,14 +74,15 @@ export function isFkDeleteViolation(code: string | undefined | null): boolean {
 
 function dbErrorResponse(error: unknown, ctx: "insert" | "update" | "delete"): NextResponse {
   const code = (error as { code?: string } | null)?.code;
-  if (code === "23505") return cuppingError(409, "Bu kayıt zaten ekli.");
+  if (code === "23505") return cuppingError(409, "Bu kayıt zaten ekli.", "CUP_DUPLICATE");
   if (isFkDeleteViolation(code) && ctx === "delete") {
     return cuppingError(
       409,
       "Bu kayıt kullanımda olduğu için silinemiyor. Önce bağlı kayıtlardan çıkarın.",
+      "CUP_IN_USE",
     );
   }
-  return cuppingError(500, DB_FAIL);
+  return cuppingError(500, DB_FAIL, "CUP_DB_FAIL");
 }
 
 /**
@@ -123,23 +129,23 @@ export function validateWritable(
     const rule = rules[key];
     if (!rule) continue;
     if (rule.t === "str") {
-      if (typeof value !== "string") return cuppingError(400, `Geçersiz alan biçimi: ${key}.`);
+      if (typeof value !== "string") return cuppingError(400, `Geçersiz alan biçimi: ${key}.`, "CUP_FIELD_INVALID");
       if (value.length > rule.max) {
-        return cuppingError(400, `“${key}” çok uzun (en fazla ${rule.max} karakter).`);
+        return cuppingError(400, `“${key}” çok uzun (en fazla ${rule.max} karakter).`, "CUP_FIELD_TOO_LONG");
       }
     } else if (rule.t === "enum") {
       if (typeof value !== "string" || !rule.values.includes(value)) {
-        return cuppingError(400, `Geçersiz değer: ${key}.`);
+        return cuppingError(400, `Geçersiz değer: ${key}.`, "CUP_FIELD_INVALID");
       }
     } else if (rule.t === "arr") {
-      if (!Array.isArray(value)) return cuppingError(400, `Geçersiz liste biçimi: ${key}.`);
+      if (!Array.isArray(value)) return cuppingError(400, `Geçersiz liste biçimi: ${key}.`, "CUP_FIELD_INVALID");
       if (value.length > CUPPING_ARRAY_MAX_ITEMS) {
-        return cuppingError(400, `“${key}” listesi çok uzun (en fazla ${CUPPING_ARRAY_MAX_ITEMS} öğe).`);
+        return cuppingError(400, `“${key}” listesi çok uzun (en fazla ${CUPPING_ARRAY_MAX_ITEMS} öğe).`, "CUP_LIST_TOO_LONG");
       }
       for (const item of value) {
-        if (typeof item !== "string") return cuppingError(400, `Geçersiz liste öğesi: ${key}.`);
+        if (typeof item !== "string") return cuppingError(400, `Geçersiz liste öğesi: ${key}.`, "CUP_FIELD_INVALID");
         if (item.length > CUPPING_ARRAY_ITEM_MAX) {
-          return cuppingError(400, `“${key}” liste öğesi çok uzun (en fazla ${CUPPING_ARRAY_ITEM_MAX} karakter).`);
+          return cuppingError(400, `“${key}” liste öğesi çok uzun (en fazla ${CUPPING_ARRAY_ITEM_MAX} karakter).`, "CUP_FIELD_TOO_LONG");
         }
       }
     }
@@ -151,11 +157,11 @@ export async function parseJsonBody(req: Request): Promise<Ok<Record<string, unk
   try {
     const body = (await req.json()) as Record<string, unknown>;
     if (!body || typeof body !== "object") {
-      return { ok: false, response: cuppingError(400, "Geçersiz istek gövdesi.") };
+      return { ok: false, response: cuppingError(400, "Geçersiz istek gövdesi.", "CUP_INVALID_BODY") };
     }
     return { ok: true, data: body };
   } catch {
-    return { ok: false, response: cuppingError(400, "Geçersiz istek gövdesi.") };
+    return { ok: false, response: cuppingError(400, "Geçersiz istek gövdesi.", "CUP_INVALID_BODY") };
   }
 }
 
@@ -180,7 +186,7 @@ export async function listEntity(
   if (opts?.orderBy) q = q.order(opts.orderBy, { ascending: opts.ascending ?? true });
   for (const col of opts?.thenBy ?? []) q = q.order(col, { ascending: true });
   const { data, error } = await q;
-  if (error) return { ok: false, response: cuppingError(500, DB_FAIL) };
+  if (error) return { ok: false, response: cuppingError(500, DB_FAIL, "CUP_DB_FAIL") };
   return { ok: true, data: (data ?? []) as Record<string, unknown>[] };
 }
 
@@ -196,8 +202,8 @@ export async function getEntity(
     .eq("id", id)
     .eq("tenant_id", tenantId)
     .maybeSingle();
-  if (error) return { ok: false, response: cuppingError(500, DB_FAIL) };
-  if (!data) return { ok: false, response: cuppingError(404, NOT_FOUND) };
+  if (error) return { ok: false, response: cuppingError(500, DB_FAIL, "CUP_DB_FAIL") };
+  if (!data) return { ok: false, response: cuppingError(404, NOT_FOUND, "CUP_NOT_FOUND") };
   return { ok: true, data: data as Record<string, unknown> };
 }
 
@@ -223,6 +229,47 @@ export async function insertEntity(
   return { ok: true, data: data as Record<string, unknown> };
 }
 
+/**
+ * I18N A8 — PostgREST/PG "kolon yok" hatası mı? (migration henüz uygulanmamış ortam)
+ *   PGRST204: "Could not find the '<kolon>' column of '<tablo>' in the schema cache"
+ *   42703   : undefined_column
+ * Yalnız ADI VERİLEN kolonlardan biri hata metninde geçiyorsa true (başka hatalar yutulmaz).
+ */
+export function isMissingColumnError(error: unknown, columns: readonly string[]): boolean {
+  const e = (error ?? {}) as { code?: unknown; message?: unknown; details?: unknown; hint?: unknown };
+  const code = typeof e.code === "string" ? e.code : "";
+  if (code !== "PGRST204" && code !== "42703") return false;
+  const text = [e.message, e.details, e.hint].filter((x): x is string => typeof x === "string").join(" ");
+  return columns.some((c) => text.includes(c));
+}
+
+/**
+ * I18N A8 — `optional` alanlarıyla eklemeyi dener; bu alanların KOLONU YOKSA (migration uygulanmamış)
+ * aynı kaydı onlarsız ekler (bugünkü davranış). İlk deneme kolon hatasıyla düştüğünde DB'ye hiçbir satır
+ * yazılmamıştır → çift kayıt riski yok. Başka her hata bugünkü güvenli hata yanıtıyla döner.
+ * Doğrulama/normalizasyon insertEntity ile aynıdır (aynı fonksiyon çağrılır).
+ */
+export async function insertEntityWithOptionalColumns(
+  db: SupabaseClient,
+  table: string,
+  tenantId: string,
+  fields: Record<string, unknown>,
+  optional: Record<string, unknown>,
+): Promise<Ok<Record<string, unknown>> | Fail> {
+  const normalized = normalizeNullableEnums(fields);
+  const invalid = validateWritable(table, normalized);
+  if (invalid) return { ok: false, response: invalid };
+  const safe = withSafeSortOrder(normalized);
+  const { data, error } = await db
+    .from(table)
+    .insert({ ...safe, ...optional, tenant_id: tenantId })
+    .select()
+    .single();
+  if (!error) return { ok: true, data: data as Record<string, unknown> };
+  if (isMissingColumnError(error, Object.keys(optional))) return insertEntity(db, table, tenantId, fields);
+  return { ok: false, response: dbErrorResponse(error, "insert") };
+}
+
 export async function updateEntity(
   db: SupabaseClient,
   table: string,
@@ -244,7 +291,7 @@ export async function updateEntity(
     .select()
     .maybeSingle();
   if (error) return { ok: false, response: dbErrorResponse(error, "update") };
-  if (!data) return { ok: false, response: cuppingError(404, NOT_FOUND) };
+  if (!data) return { ok: false, response: cuppingError(404, NOT_FOUND, "CUP_NOT_FOUND") };
   return { ok: true, data: data as Record<string, unknown> };
 }
 

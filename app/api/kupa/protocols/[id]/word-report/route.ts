@@ -93,7 +93,7 @@ export async function GET(
   const guard = await requireModuleAccess(req, "cupping");
   if (!guard.ok) return guard.response;
   const { id } = await params;
-  if (!id) return cuppingError(400, "Protokol id gerekli.");
+  if (!id) return cuppingError(400, "Protokol id gerekli.", "CUP_ID_REQUIRED");
   const { db, tenantId } = guard;
 
   // 1) Protokol — tenant-scoped (başka tenant → 404).
@@ -110,7 +110,7 @@ export async function GET(
   ]);
   if (!pj || !tj || !sj || !srcj) {
     await trackUsage(guard, req, { module: "cupping", action: "action_failed", failedAction: "report_generated", subEntity: "protocol", errorClass: "server" });
-    return cuppingError(500, "Protokol verileri alınamadı. Lütfen tekrar deneyin.");
+    return cuppingError(500, "Protokol verileri alınamadı. Lütfen tekrar deneyin.", "CUP_READ_FAILED");
   }
 
   // 3) Adımlar + Bilgiler (protocol-owned; join YOK).
@@ -192,7 +192,7 @@ export async function GET(
     buffer = await buildProtocolWordBuffer({ protocol, points, techniques, steps, safety, entries, sources, branding });
   } catch {
     await trackUsage(guard, req, { module: "cupping", action: "action_failed", failedAction: "report_generated", subEntity: "protocol", errorClass: "server" });
-    return cuppingError(500, "Word raporu oluşturulamadı. Lütfen tekrar deneyin.");
+    return cuppingError(500, "Word raporu oluşturulamadı. Lütfen tekrar deneyin.", "CUP_WORD_FAILED");
   }
   // .docx BAŞARIYLA üretildi → tek report_generated (DB yazımı yok; yalnız telemetri).
   await trackUsage(guard, req, { module: "cupping", action: "report_generated", subEntity: "protocol", resourceId: id });

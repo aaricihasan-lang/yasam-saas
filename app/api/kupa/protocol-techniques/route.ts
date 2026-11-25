@@ -46,14 +46,14 @@ export async function POST(req: NextRequest): Promise<Response> {
   const techniqueId = typeof fields.technique_id === "string" ? fields.technique_id : "";
 
   if (!(await assertOwnedRef(db, CUPPING_TABLES.protocols, tenantId, protocolId))) {
-    return cuppingError(400, "Protokol bu hesaba ait değil veya bulunamadı.");
+    return cuppingError(400, "Protokol bu hesaba ait değil veya bulunamadı.", "CUP_PROTOCOL_NOT_OWNED");
   }
   if (!(await assertOwnedRef(db, CUPPING_TABLES.techniques, tenantId, techniqueId))) {
-    return cuppingError(400, "Seçilen teknik bu hesaba ait değil.");
+    return cuppingError(400, "Seçilen teknik bu hesaba ait değil.", "CUP_TECHNIQUE_NOT_OWNED");
   }
   if (await assertCompositeRef(db, CUPPING_TABLES.protocolTechniques, { tenant_id: tenantId, protocol_id: protocolId, technique_id: techniqueId })) {
     await trackUsage(guard, req, { module: "cupping", action: "action_failed", failedAction: "record_updated", subEntity: "protocol", errorClass: "conflict" });
-    return cuppingError(409, "Bu teknik protokole zaten eklenmiş.");
+    return cuppingError(409, "Bu teknik protokole zaten eklenmiş.", "CUP_TECHNIQUE_ALREADY_ADDED");
   }
 
   const ins = await insertEntity(db, CUPPING_TABLES.protocolTechniques, tenantId, fields);

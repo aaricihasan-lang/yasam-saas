@@ -1,6 +1,8 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { useTranslations } from "next-intl";
+import { useKupaErrorText } from "@/app/kupa/lib/errorText";
 import { useConfirmLeave, useReportDirty } from "../hooks/protocolDirty";
 import { useToast } from "@/components/ui/ToastProvider";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
@@ -18,7 +20,8 @@ import {
   createTechnique,
   createSafety,
 } from "@/app/kupa/lib/api";
-import { hasMovement, movementStyleLabel, techniqueTypeLabel } from "../../teknikler/lib/labels";
+import { hasMovement } from "../../teknikler/lib/labels";
+import { useCuppingVocab } from "@/app/kupa/lib/useCuppingVocab";
 import type { ProtocolDocument } from "../hooks/useProtocolDocument";
 import { ProtocolSectionShell, ProtocolEmpty } from "./ProtocolSectionShell";
 import { MasterPickerDialog, type PickerItem } from "./MasterPickerDialog";
@@ -29,50 +32,28 @@ type Kind = "point" | "technique" | "safety";
 
 type RelRow = { id: string; protocol_note?: string | null; sort_order?: number } & Record<string, unknown>;
 
-const CONFIG: Record<Kind, {
-  title: string;
-  description: string;
-  addLabel: string;
-  pickerTitle: string;
-  empty: string;
-  pickerEmpty: string;
-  fk: string;
-  noteLabel: string;
-}> = {
-  point: {
-    title: "Uygulama Bölgeleri",
-    description: "Bu protokolde kullanılan bölgeler ve protokole özel açıklamaları.",
-    addLabel: "+ Bölge Ekle",
-    pickerTitle: "Bölge Ekle",
-    empty: "Bu protokolde kullanılacak bölgeler henüz eklenmedi.",
-    pickerEmpty: "Henüz bölge (nokta) kaydı bulunmuyor.",
-    fk: "point_id",
-    noteLabel: "Bu protokolde kullanım açıklaması",
-  },
-  technique: {
-    title: "Teknik / Metot",
-    description: "Bu protokolde uygulanan teknik(ler) ve protokole özel açıklamaları.",
-    addLabel: "+ Teknik Ekle",
-    pickerTitle: "Teknik Ekle",
-    empty: "Bu protokol için henüz bir uygulama tekniği seçilmedi.",
-    pickerEmpty: "Henüz teknik kaydı bulunmuyor.",
-    fk: "technique_id",
-    noteLabel: "Bu protokolde uygulama açıklaması",
-  },
-  safety: {
-    title: "Güvenlik / Dikkat",
-    description: "Bu protokole özel dikkat ve güvenlik maddeleri.",
-    addLabel: "+ Güvenlik Ekle",
-    pickerTitle: "Güvenlik Maddesi Ekle",
-    empty: "Bu protokole özel dikkat/güvenlik maddesi henüz eklenmedi.",
-    pickerEmpty: "Henüz güvenlik kaydı bulunmuyor.",
-    fk: "safety_id",
-    noteLabel: "Bu protokole özel not",
-  },
+// Görünen metinler: messages/<dil>/cupping.protocols.json → cupping.protocols.relation.<kind>.*
+const CONFIG: Record<Kind, { fk: string }> = {
+  point: { fk: "point_id" },
+  technique: { fk: "technique_id" },
+  safety: { fk: "safety_id" },
 };
 
 export function RelationSection({ kind, protocolId, doc }: { kind: Kind; protocolId: string; doc: ProtocolDocument }) {
-  const cfg = CONFIG[kind];
+  const t = useTranslations("cupping.protocols.relation");
+  const tc = useTranslations("cupping.common");
+  const errText = useKupaErrorText();
+  const vocab = useCuppingVocab();
+  const cfg = {
+    ...CONFIG[kind],
+    title: t(`${kind}.title`),
+    description: t(`${kind}.description`),
+    addLabel: t(`${kind}.addLabel`),
+    pickerTitle: t(`${kind}.pickerTitle`),
+    empty: t(`${kind}.empty`),
+    pickerEmpty: t(`${kind}.pickerEmpty`),
+    noteLabel: t(`${kind}.noteLabel`),
+  };
   const { showToast } = useToast();
   const { confirm } = useConfirm();
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -107,19 +88,20 @@ export function RelationSection({ kind, protocolId, doc }: { kind: Kind; protoco
   const items: PickerItem[] = pickerMaster.map((m) => {
     if (kind === "point") return { id: m.id, label: (m as { name: string }).name, meta: (m as { anatomical_region?: string | null }).anatomical_region ?? undefined };
     if (kind === "technique") {
-      const t = m as { name: string; technique_type?: string | null; movement_style?: string | null };
+      const tm = m as { name: string; technique_type?: string | null; movement_style?: string | null };
       // Kullanıcı-facing TR etiket (ham dry/wet/stationary kodu GÖSTERİLMEZ). Uygulama biçimi
       // yalnız gerçek bir değer taşıyorsa eklenir (paylaşılan teknik label yardımcıları).
       const meta = [
-        techniqueTypeLabel(t.technique_type),
-        hasMovement(t.movement_style) ? movementStyleLabel(t.movement_style) : null,
+        vocab.techniqueType(tm.technique_type),
+        hasMovement(tm.movement_style) ? vocab.movementStyle(tm.movement_style) : null,
       ]
         .filter(Boolean)
         .join(" · ") || undefined;
-      return { id: m.id, label: t.name, meta };
+      return { id: m.id, label: tm.name, meta };
     }
     const s = m as { title: string; severity?: string | null };
-    return { id: m.id, label: s.title, meta: s.severity ?? undefined };
+    // I18N-0126: ham kod ("warning") yerine sözlük etiketi (TR: Uyarı …); değer/seçim mantığı değişmez.
+    return { id: m.id, label: s.title, meta: s.severity ? vocab.severity(s.severity) : undefined };
   });
 
   const selectedIds = [...relations.map((r) => String(r[cfg.fk])), ...pending];
@@ -131,7 +113,7 @@ export function RelationSection({ kind, protocolId, doc }: { kind: Kind; protoco
   /** Seçimi "eklenecek" listesine alır (YAZMA YOK). */
   function queueAdd(masterId: string) {
     if (relations.some((x) => String(x[cfg.fk]) === masterId) || pending.includes(masterId)) {
-      showToast({ message: "Bu kayıt zaten listede.", type: "info" });
+      showToast({ message: t("alreadyListed"), type: "info" });
       return;
     }
     setPending((p) => [...p, masterId]);
@@ -164,8 +146,8 @@ export function RelationSection({ kind, protocolId, doc }: { kind: Kind; protoco
       }
       try { await reload(); } catch { /* liste yenilenemedi; kayıt sonucu aşağıda bildirilir */ }
       setPending(failed);
-      if (failed.length === 0) showToast({ message: "Kaydedildi.", type: "success" });
-      else showToast({ message: `${failed.length} kayıt kaydedilemedi; listede duruyor. (${lastErr instanceof Error ? lastErr.message : "Hata"})`, type: "error" });
+      if (failed.length === 0) showToast({ message: tc("saved"), type: "success" });
+      else showToast({ message: t("partialSaveFailed", { count: String(failed.length), detail: errText(lastErr, t("errorShort")) }), type: "error" });
     } finally {
       busyRef.current = false;
       setBusy(false);
@@ -183,9 +165,9 @@ export function RelationSection({ kind, protocolId, doc }: { kind: Kind; protoco
       else await updateProtocolSafety(id, patch);
       await reload();
       setEditingId(null);
-      showToast({ message: "Kaydedildi.", type: "success" });
+      showToast({ message: tc("saved"), type: "success" });
     } catch (e) {
-      showToast({ message: e instanceof Error ? e.message : "Kaydedilemedi.", type: "error" });
+      showToast({ message: errText(e, tc("saveFailed")), type: "error" });
     } finally {
       busyRef.current = false;
       setBusy(false);
@@ -199,10 +181,10 @@ export function RelationSection({ kind, protocolId, doc }: { kind: Kind; protoco
 
   async function handleDetach(r: RelRow) {
     const ok = await confirm({
-      title: "Çıkar",
-      message: `"${nameOf(r)}" bu protokolden çıkarılsın mı? Ana kütüphane kaydı silinmez.`,
-      confirmText: "Çıkar",
-      cancelText: "Vazgeç",
+      title: t("detach.title"),
+      message: t("detach.message", { name: nameOf(r) }),
+      confirmText: t("detach.confirm"),
+      cancelText: tc("cancel"),
       tone: "danger",
     });
     if (!ok) return;
@@ -211,10 +193,10 @@ export function RelationSection({ kind, protocolId, doc }: { kind: Kind; protoco
       else if (kind === "technique") await deleteProtocolTechnique(r.id);
       else await deleteProtocolSafety(r.id);
       await reload();
-      showToast({ message: "Çıkarıldı.", type: "success" });
+      showToast({ message: t("detach.done"), type: "success" });
     } catch (e) {
       // Detach 409 → route zaten anlaşılır mesaj döndürür (step referansı vb.).
-      showToast({ message: e instanceof Error ? e.message : "Çıkarılamadı.", type: "error" });
+      showToast({ message: errText(e, t("detach.failed")), type: "error" });
     }
   }
 
@@ -236,13 +218,13 @@ export function RelationSection({ kind, protocolId, doc }: { kind: Kind; protoco
               description: v.description,
             });
             if (!created || !created.id) {
-              showToast({ message: "Demo hesabında kayıt oluşturulmaz.", type: "info" });
+              showToast({ message: tc("demoNoCreate"), type: "info" });
               return;
             }
             await doc.reload.masterTechniques();
             setPending((p) => (p.includes(created.id) ? p : [...p, created.id]));
             setPickerOpen(false);
-            showToast({ message: "Teknik oluşturuldu. Protokole bağlamak için Kaydet'e basın.", type: "info" });
+            showToast({ message: t("techniqueCreated"), type: "info" });
           },
         }
       : kind === "safety"
@@ -258,13 +240,13 @@ export function RelationSection({ kind, protocolId, doc }: { kind: Kind; protoco
                 contraindication_class: v.contraindication_class,
               });
               if (!created || !created.id) {
-                showToast({ message: "Demo hesabında kayıt oluşturulmaz.", type: "info" });
+                showToast({ message: tc("demoNoCreate"), type: "info" });
                 return;
               }
               await doc.reload.masterSafety();
               setPending((p) => (p.includes(created.id) ? p : [...p, created.id]));
               setPickerOpen(false);
-              showToast({ message: "Güvenlik maddesi oluşturuldu. Protokole bağlamak için Kaydet'e basın.", type: "info" });
+              showToast({ message: t("safetyCreated"), type: "info" });
             },
           }
         : undefined;
@@ -281,14 +263,14 @@ export function RelationSection({ kind, protocolId, doc }: { kind: Kind; protoco
     >
       {pending.length > 0 ? (
         <div data-testid={`kupa-pending-${kind}`} className="mb-3 rounded-xl border border-dashed border-amber-300 bg-amber-50/60 p-3">
-          <p className="text-[11px] font-bold uppercase tracking-wide text-amber-800">Eklenecek — henüz kaydedilmedi</p>
+          <p className="text-[11px] font-bold uppercase tracking-wide text-amber-800">{t("pendingTitle")}</p>
           <div className="mt-1.5 flex flex-wrap gap-1.5">
             {pending.map((mid) => (
               <span key={mid} className="inline-flex items-center gap-1 rounded-md bg-white py-0.5 pl-2 text-[12px] font-semibold text-amber-900 ring-1 ring-amber-200">
                 {masterLabel(mid)}
                 <button
                   type="button"
-                  aria-label={`${masterLabel(mid)} listeden çıkar`}
+                  aria-label={t("pendingRemoveAria", { name: masterLabel(mid) })}
                   className="inline-flex h-9 w-9 items-center justify-center rounded-md text-base text-amber-600 hover:bg-rose-50 hover:text-rose-600 lg:h-7 lg:w-7"
                   onClick={() => setPending((p) => p.filter((x) => x !== mid))}
                   disabled={busy}
@@ -300,10 +282,10 @@ export function RelationSection({ kind, protocolId, doc }: { kind: Kind; protoco
           </div>
           <div className="mt-2 flex items-center gap-2">
             <button type="button" disabled={busy} className={kupaBtnSuccess} onClick={() => void savePending()} data-testid={`kupa-pending-save-${kind}`}>
-              {busy ? "Kaydediliyor…" : "Kaydet"}
+              {busy ? tc("saving") : tc("save")}
             </button>
             <button type="button" disabled={busy} className={kupaBtnGhost} onClick={() => void discardPending()}>
-              Vazgeç
+              {tc("cancel")}
             </button>
           </div>
         </div>
@@ -325,10 +307,10 @@ export function RelationSection({ kind, protocolId, doc }: { kind: Kind; protoco
                       setNoteDraft(String(r.protocol_note ?? ""));
                     }}
                   >
-                    Düzenle
+                    {tc("edit")}
                   </button>
                   <button type="button" className={kupaRowActionDanger} onClick={() => handleDetach(r)}>
-                    Çıkar
+                    {t("detach.confirm")}
                   </button>
                 </div>
               </div>
@@ -337,10 +319,10 @@ export function RelationSection({ kind, protocolId, doc }: { kind: Kind; protoco
                   <InlineLongText label={cfg.noteLabel} value={noteDraft} onChange={setNoteDraft} rows={3} />
                   <div className="flex items-center gap-2">
                     <button type="button" disabled={busy} className={kupaBtnSuccess} onClick={() => saveNote(r.id)}>
-                      {busy ? "Kaydediliyor…" : "Kaydet"}
+                      {busy ? tc("saving") : tc("save")}
                     </button>
                     <button type="button" className={kupaBtnGhost} onClick={() => void cancelNote()}>
-                      Vazgeç
+                      {tc("cancel")}
                     </button>
                   </div>
                 </div>

@@ -3,10 +3,13 @@ import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { trackUsage, usageErrorClassForStatus } from "@/lib/usage/trackUsage";
 import { CUPPING_TABLES, CALENDAR_PLAN_WRITABLE } from "@/lib/cupping/fields";
 import { CUPPING_PLAN_YEAR_MIN, CUPPING_PLAN_YEAR_MAX } from "@/lib/cupping/calendarTypes";
+// Saf modül (React/Next yok): DB'ye yazılan kanonik TR varsayılan ad (Word çıktısı aynen).
+import { defaultPlanNameForSave } from "@/app/kupa/takvim/lib/systemNames";
 import {
   assertOwnedRef,
   cuppingError,
   insertEntity,
+  insertEntityWithOptionalColumns,
   listEntity,
   parseJsonBody,
   pickWritable,
@@ -40,7 +43,7 @@ export async function GET(req: NextRequest): Promise<Response> {
   const yearParam = req.nextUrl.searchParams.get("year");
   const eqFilters: Record<string, string> = {};
   if (yearParam !== null && yearParam.trim() !== "") {
-    if (validYear(yearParam) === null) return cuppingError(400, "Geçersiz yıl.");
+    if (validYear(yearParam) === null) return cuppingError(400, "Geçersiz yıl.", "CUP_YEAR_INVALID");
     eqFilters.year = yearParam.trim();
   }
 
@@ -63,16 +66,22 @@ export async function POST(req: NextRequest): Promise<Response> {
   if (!parsed.ok) return parsed.response;
 
   const fields = pickWritable(parsed.data, CALENDAR_PLAN_WRITABLE);
-  if (!String(fields.name ?? "").trim()) return cuppingError(400, "Plan adı gerekli.");
+  // I18N A8 (Owner §16): "Yeni Takvim → yıl/ay" varsayılan planı. use_default_name:true → ad SUNUCUDA kanonik TR
+  //   üretilir (istemcinin gönderdiği ad yok sayılır) ve name_is_default=true YALNIZ kolon varsa yazılır.
+  //   Kolon yoksa (migration uygulanmamış) kayıt bugünküyle BİREBİR: aynı ad, bayraksız (gösterimde desen kuralı).
+  //   Bayrak göndermeyen (eski) istemci → bugünkü yol AYNEN (ad zorunlu, bayrak yazılmaz).
+  const useDefaultName = (parsed.data as Record<string, unknown> | null)?.use_default_name === true;
+  if (!useDefaultName && !String(fields.name ?? "").trim()) return cuppingError(400, "Plan adı gerekli.", "CUP_NAME_REQUIRED");
 
   const year = validYear(fields.year);
-  if (year === null) return cuppingError(400, `Yıl ${CUPPING_PLAN_YEAR_MIN}–${CUPPING_PLAN_YEAR_MAX} aralığında olmalı.`);
+  if (year === null) return cuppingError(400, `Yıl ${CUPPING_PLAN_YEAR_MIN}–${CUPPING_PLAN_YEAR_MAX} aralığında olmalı.`, "CUP_YEAR_OUT_OF_RANGE");
   fields.year = year;
+  if (useDefaultName) fields.name = defaultPlanNameForSave(year);
 
   // advice_template_id opsiyonel; verilirse AYNI tenant şablonu olmalı (cross-tenant FK backstop).
   if (fields.advice_template_id != null && String(fields.advice_template_id).trim() !== "") {
     const owned = await assertOwnedRef(db, CUPPING_TABLES.adviceTemplates, tenantId, fields.advice_template_id);
-    if (!owned) return cuppingError(400, "Seçilen şablon bu hesaba ait değil.");
+    if (!owned) return cuppingError(400, "Seçilen şablon bu hesaba ait değil.", "CUP_TEMPLATE_NOT_OWNED");
   } else {
     delete fields.advice_template_id;
   }
@@ -88,7 +97,7 @@ export async function POST(req: NextRequest): Promise<Response> {
       .eq("year", year)
       .order("created_at", { ascending: false })
       .limit(1);
-    if (exErr) return cuppingError(500, "İşlem tamamlanamadı.");
+    if (exErr) return cuppingError(500, "İşlem tamamlanamadı.", "CUP_DB_FAIL");
     if (Array.isArray(existing) && existing.length > 0) {
       return NextResponse.json({ ok: true, plan: existing[0], reused: true });
     }
@@ -96,7 +105,9 @@ export async function POST(req: NextRequest): Promise<Response> {
 
   // YENİ plan YALNIZ metadata oluşturur — SIFIR seçili gün. Otomatik tohumlama YOK; hazır
   // Sünnet/Altın günü YOK. Uzman her uygulama gününü kendisi /days ucundan ekler.
-  const ins = await insertEntity(db, CUPPING_TABLES.calendarPlans, tenantId, fields);
+  const ins = useDefaultName
+    ? await insertEntityWithOptionalColumns(db, CUPPING_TABLES.calendarPlans, tenantId, fields, { name_is_default: true })
+    : await insertEntity(db, CUPPING_TABLES.calendarPlans, tenantId, fields);
   if (!ins.ok) {
     const errorClass = usageErrorClassForStatus(ins.response.status);
     if (errorClass) await trackUsage(guard, req, { module: "cupping", action: "action_failed", failedAction: "record_created", subEntity: "calendar_plan", errorClass });

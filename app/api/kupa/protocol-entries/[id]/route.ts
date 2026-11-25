@@ -32,7 +32,7 @@ export async function PATCH(
   const guard = await requireModuleAccess(req, "cupping");
   if (!guard.ok) return guard.response;
   const { id } = await params;
-  if (!id) return cuppingError(400, "Bilgi id gerekli.");
+  if (!id) return cuppingError(400, "Bilgi id gerekli.", "CUP_ID_REQUIRED");
   const { db, tenantId, is_demo_account } = guard;
   if (is_demo_account) return demoReadOnlyResponse();
 
@@ -43,15 +43,15 @@ export async function PATCH(
   // point_ids YALNIZ gerçek bir dizi gönderildiğinde ilişkiler replace edilir. null / eksik /
   //   dizi-olmayan değer = "bağlara DOKUNMA" (RPC sözleşmesi: p_point_ids NULL → değişmez).
   const hasPoints = Array.isArray(parsed.data.point_ids);
-  if (Object.keys(fields).length === 0 && !hasPoints) return cuppingError(400, "Güncellenecek alan yok.");
+  if (Object.keys(fields).length === 0 && !hasPoints) return cuppingError(400, "Güncellenecek alan yok.", "CUP_NO_FIELDS");
   if (Object.prototype.hasOwnProperty.call(fields, "content") && !String(fields.content ?? "").trim()) {
-    return cuppingError(400, "Bilgi içeriği boş olamaz.");
+    return cuppingError(400, "Bilgi içeriği boş olamaz.", "CUP_CONTENT_REQUIRED");
   }
   // HAC-UX-2/3 — RPC bypass yolunda string uzunluk denetimi (genel api.ts chokepoint devrede değil).
   const invalid = validateWritable(CUPPING_TABLES.protocolEntries, fields);
   if (invalid) return invalid;
   const pointIds = hasPoints ? parsePointIds(parsed.data.point_ids) : null;
-  if (pointIds && pointIds.length > MAX_POINTS) return cuppingError(400, "Çok fazla bölge seçildi.");
+  if (pointIds && pointIds.length > MAX_POINTS) return cuppingError(400, "Çok fazla bölge seçildi.", "CUP_TOO_MANY_POINTS");
 
   const { data, error } = await db.rpc("cupping_protocol_entry_update_atomic", {
     p_tenant_id: tenantId,
@@ -62,13 +62,13 @@ export async function PATCH(
 
   if (error) {
     const code = (error as { code?: string }).code ?? "";
-    if (code === "45001") return cuppingError(404, "Kayıt bu hesaba ait değil veya bulunamadı.");
-    if (code === "45002") return cuppingError(400, "Bilgi içeriği boş olamaz.");
-    if (code === "45003") return cuppingError(400, "Seçilen bölge bu hesaba ait değil.");
-    if (code === "45004") return cuppingError(400, "Çok fazla bölge seçildi.");
-    if (code === "45005") return cuppingError(400, "Seçilen kaynak bu hesaba ait değil.");
+    if (code === "45001") return cuppingError(404, "Kayıt bu hesaba ait değil veya bulunamadı.", "CUP_NOT_FOUND");
+    if (code === "45002") return cuppingError(400, "Bilgi içeriği boş olamaz.", "CUP_CONTENT_REQUIRED");
+    if (code === "45003") return cuppingError(400, "Seçilen bölge bu hesaba ait değil.", "CUP_POINT_NOT_OWNED");
+    if (code === "45004") return cuppingError(400, "Çok fazla bölge seçildi.", "CUP_TOO_MANY_POINTS");
+    if (code === "45005") return cuppingError(400, "Seçilen kaynak bu hesaba ait değil.", "CUP_SOURCE_NOT_OWNED");
     await trackUsage(guard, req, { module: "cupping", action: "action_failed", failedAction: "record_updated", subEntity: "protocol", errorClass: "server" });
-    return cuppingError(500, "İşlem tamamlanamadı. Lütfen tekrar deneyin.");
+    return cuppingError(500, "İşlem tamamlanamadı. Lütfen tekrar deneyin.", "CUP_DB_FAIL");
   }
 
   await trackUsage(guard, req, { module: "cupping", action: "record_updated", subEntity: "protocol", resourceId: id });
@@ -82,7 +82,7 @@ export async function DELETE(
   const guard = await requireModuleAccess(req, "cupping");
   if (!guard.ok) return guard.response;
   const { id } = await params;
-  if (!id) return cuppingError(400, "Bilgi id gerekli.");
+  if (!id) return cuppingError(400, "Bilgi id gerekli.", "CUP_ID_REQUIRED");
   const { db, tenantId, is_demo_account } = guard;
   if (is_demo_account) return demoReadOnlyResponse();
   // entry_points FK ON DELETE CASCADE ile birlikte silinir.

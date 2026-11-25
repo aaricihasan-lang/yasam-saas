@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef } from "react";
+import { useTranslations } from "next-intl";
 import { ChevronDown } from "lucide-react";
 
 /**
@@ -19,6 +20,7 @@ export default function ChakraSectionNav({
   onSelect: (hash: string) => void;
 }) {
   const detailsRef = useRef<HTMLDetailsElement>(null);
+  const t = useTranslations("bioenergy.chakraNav");
   if (sections.length === 0) return null;
 
   const active = sections.find((s) => s.hash === activeHash) ?? sections[0]!;
@@ -34,7 +36,7 @@ export default function ChakraSectionNav({
       <details ref={detailsRef} className="relative lg:hidden">
         <summary className="flex min-h-[44px] cursor-pointer list-none items-center justify-between gap-2 rounded-xl border border-violet-100 bg-white/85 px-3 shadow-sm">
           <span className="inline-flex min-w-0 items-center gap-2">
-            <span className="text-[10px] font-black uppercase tracking-[0.16em] text-violet-700/80">Bölüm</span>
+            <span className="text-[10px] font-black uppercase tracking-[0.16em] text-violet-700/80">{t("section")}</span>
             <span className="truncate text-[13px] font-black text-slate-800">{active.title}</span>
           </span>
           <ChevronDown className="h-4 w-4 shrink-0 text-slate-400" aria-hidden />
@@ -60,7 +62,7 @@ export default function ChakraSectionNav({
 
       {/* Masaüstü: dengeli segmented grid (4×2). GÖRÜNÜR yatay scrollbar YOK;
           tesadüfi wrap değil, bilinçli 4+4 düzen. */}
-      <nav aria-label="Çakra bölümleri" className="hidden lg:block">
+      <nav aria-label={t("aria")} className="hidden lg:block">
         <ul className="grid grid-cols-4 gap-1.5">
           {sections.map((s) => {
             const isActive = s.hash === active.hash;

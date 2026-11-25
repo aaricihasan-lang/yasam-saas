@@ -1,13 +1,15 @@
+import { useTranslations } from "next-intl";
 import EnerjiBedenleri from "../components/EnerjiBedenleri";
 import EnerjiBedenleriShell from "@/app/_premium/biyoenerji/enerji-bedenleri/EnerjiBedenleriShell";
 import BfcacheRefreshHandler from "@/components/BfcacheRefreshHandler";
 
 export default function EnerjiBedenleriPage() {
+  const t = useTranslations("bioenergy.pages");
   return (
     <EnerjiBedenleriShell
-      badge="BİYOENERJİ · KATMAN"
-      title="Enerji Bedenleri"
-      subtitle="Aura, eterik, astral ve enerji katman bilgileri — kayıt seçin, detayları okuyun ve düzenleyin"
+      badge={t("enerji-bedenleri.badge")}
+      title={t("enerji-bedenleri.title")}
+      subtitle={t("enerji-bedenleri.subtitle")}
     >
       <BfcacheRefreshHandler />
       <EnerjiBedenleri />

@@ -5,7 +5,9 @@ import { createPortal } from "react-dom";
 import { kupaBtnGhost, kupaBtnPrimary, kupaInput } from "@/app/kupa/components/KupaShell";
 import { calendarYearOptions, defaultMonthFor, pickPlanForYear } from "@/lib/cupping/calendarPlanResolve";
 import type { CuppingCalendarPlan } from "@/app/kupa/lib/api";
-import { MONTHS_TR } from "./MonthCalendar";
+import { useTranslations } from "next-intl";
+import { useCalendarNames } from "../lib/useCalendarNames";
+import { useSystemNames } from "../lib/useSystemNames";
 
 /**
  * WT6 — "Yeni Takvim": YIL + AY seçimi → doğrudan o ayın DÜZENLEME ekranı.
@@ -30,6 +32,10 @@ export function NewCalendarDialog({
   onConfirm: (year: number, month: number) => void;
 }) {
   const now = useMemo(() => new Date(), []);
+  const t = useTranslations("cupping.calendar");
+  const tc = useTranslations("cupping.common");
+  const sysNames = useSystemNames();
+  const names = useCalendarNames();
   const years = useMemo(() => calendarYearOptions(plans, now.getFullYear()), [plans, now]);
   const active = plans.find((p) => p.id === activePlanId) ?? null;
   const [year, setYear] = useState<number>(active?.year ?? now.getFullYear());
@@ -64,15 +70,12 @@ export function NewCalendarDialog({
         className="flex w-full flex-col gap-4 rounded-t-2xl border border-amber-100 bg-white p-4 pb-[calc(1rem_+_env(safe-area-inset-bottom))] shadow-xl sm:max-w-md sm:rounded-2xl sm:p-5"
       >
         <div>
-          <h3 id="kupa-new-cal-title" className="text-base font-black text-slate-900">Takvim Oluştur / Aç</h3>
-          <p className="mt-0.5 text-xs text-slate-500">
-            Yılı ve ayı seçin. O yıl için takviminiz varsa mevcut takvim açılır (yenisi oluşturulmaz); yoksa
-            oluşturulur. Ardından o ayın düzenleme ekranı açılır.
-          </p>
+          <h3 id="kupa-new-cal-title" className="text-base font-black text-slate-900">{t("newDialog.title")}</h3>
+          <p className="mt-0.5 text-xs text-slate-500">{t("newDialog.intro")}</p>
         </div>
         <div className="grid grid-cols-2 gap-3">
           <label className="flex flex-col gap-1">
-            <span className="text-xs font-bold uppercase tracking-wide text-slate-500">Yıl</span>
+            <span className="text-xs font-bold uppercase tracking-wide text-slate-500">{t("plan.year")}</span>
             <select
               className={kupaInput}
               value={year}
@@ -86,7 +89,7 @@ export function NewCalendarDialog({
             </select>
           </label>
           <label className="flex flex-col gap-1">
-            <span className="text-xs font-bold uppercase tracking-wide text-slate-500">Ay</span>
+            <span className="text-xs font-bold uppercase tracking-wide text-slate-500">{t("newDialog.month")}</span>
             <select
               className={kupaInput}
               value={month}
@@ -94,8 +97,8 @@ export function NewCalendarDialog({
               onChange={(e) => setMonth(Number(e.target.value))}
               disabled={busy}
             >
-              {MONTHS_TR.map((m, i) => (
-                <option key={m} value={i + 1}>{m}</option>
+              {names.months.map((m, i) => (
+                <option key={i + 1} value={i + 1}>{m}</option>
               ))}
             </select>
           </label>
@@ -105,15 +108,15 @@ export function NewCalendarDialog({
           className="rounded-xl border border-amber-100 bg-amber-50/60 px-3 py-2 text-xs leading-relaxed text-amber-900"
         >
           {existing
-            ? `${year} için takviminiz zaten var (“${existing.name}”). Yeni takvim oluşturulmaz; ${MONTHS_TR[month - 1]} ${year} ayı mevcut işaretli günleri, renkleri ve notlarıyla açılır.`
-            : `${year} için henüz takviminiz yok. ${MONTHS_TR[month - 1]} ${year} boş olarak açılır; günleri kendiniz işaretlersiniz.`}
+            ? t("newDialog.existing", { year: String(year), name: sysNames.planName(existing), month: names.months[month - 1] })
+            : t("newDialog.missing", { year: String(year), month: names.months[month - 1] })}
         </p>
         <div className="flex justify-end gap-2">
           <button type="button" className={`${kupaBtnGhost} min-h-[44px]`} onClick={onCancel} disabled={busy}>
-            Vazgeç
+            {tc("cancel")}
           </button>
           <button type="submit" className={`${kupaBtnPrimary} min-h-[44px]`} disabled={busy}>
-            {busy ? "Açılıyor…" : `${existing ? "" : "Oluştur · "}${MONTHS_TR[month - 1]} ${year} Ayını Düzenle`}
+            {busy ? t("newDialog.opening") : `${existing ? "" : t("newDialog.createPrefix")}${t("newDialog.editMonth", { month: names.months[month - 1], year: String(year) })}`}
           </button>
         </div>
       </form>

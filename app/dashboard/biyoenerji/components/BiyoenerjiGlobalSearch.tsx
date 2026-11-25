@@ -1,10 +1,13 @@
 "use client";
 
 import Link from "next/link";
+import { useTranslations } from "next-intl";
+import { isBiyoenerjiSectionKey, useBiyoenerjiLabels } from "../useBiyoenerjiLabels";
+import { useBioErrorText } from "../useBioErrorText";
 import { useRouter } from "next/navigation";
 import { Search, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { authHeaders, bioFetch } from "@/lib/biyoenerji/secureApi";
+import { authHeaders, bioFetch, rememberBioErrorCode } from "@/lib/biyoenerji/secureApi";
 import { BIO_GLOBAL_SEARCH_MIN, type BioGlobalHit } from "@/lib/biyoenerji/globalSearch";
 import { normalizeTr } from "@/lib/text/turkishSearch";
 import { useDemoGuard } from "@/hooks/useDemoGuard";
@@ -57,6 +60,14 @@ function readUrlQuery(): string {
  *     kapanır ve seçilen sayfaya gidilir. Sonuç kartları (aynı arama bağlamı) soru SORMAZ.
  */
 export default function BiyoenerjiGlobalSearch() {
+  const t = useTranslations("bioenergy.search");
+  const L = useBiyoenerjiLabels();
+  const errText = useBioErrorText();
+  // Sunucu (lib/biyoenerji/globalSearch.ts) TR bölüm/alan etiketleri döndürür; gösterim anahtarla eşlenir,
+  // bilinmeyen alan → sunucunun etiketi aynen.
+  const fieldLabel = (field: string, fallback: string) => (t.has(`fields.${field}`) ? t(`fields.${field}`) : fallback);
+  // i18n-ignore: lib/biyoenerji/globalSearch.ts başlıksız kayıt yedek adı (yalnız gösterim eşlemesi)
+  const UNTITLED_TR = "(adsız kayıt)";
   const [q, setQ] = useState("");
   const [state, setState] = useState<State>({ kind: "idle" });
   const [checked, setChecked] = useState<Set<string>>(() => new Set());
@@ -117,16 +128,18 @@ export default function BiyoenerjiGlobalSearch() {
         cache: "no-store",
       });
       const json = (await res.json().catch(() => ({}))) as {
-        ok?: boolean; error?: string; query?: string; total?: number; sections?: BioSearchSection[];
+        ok?: boolean; error?: string; code?: string; query?: string; total?: number; sections?: BioSearchSection[];
       };
       if (seq !== reqSeq.current) return; // eski yanıt yeni aramayı ezmez
       if (!res.ok || json.ok !== true) {
-        setState({ kind: "error", message: json.error ?? "Arama yapılamadı. Lütfen tekrar deneyin." });
+        rememberBioErrorCode(json.error, json.code); // I18N-F1-R3: EN gösterim için kod (TR metin aynen)
+        setState({ kind: "error", message: errText(json.error, t("failed")) });
         return;
       }
       setState({ kind: "done", query: term, total: json.total ?? 0, sections: json.sections ?? [] });
     }, DEBOUNCE_MS);
     return () => window.clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- çeviri işlevleri dil değişiminde aramayı yeniden çalıştırmaz
   }, [q]);
 
   const doneQuery = state.kind === "done" ? state.query : "";
@@ -268,7 +281,7 @@ export default function BiyoenerjiGlobalSearch() {
   return (
     <section
       ref={sectionRef}
-      aria-label="Biyoenerji içinde ara"
+      aria-label={t("aria")}
       className="mb-4 rounded-2xl border border-white/80 bg-white/85 p-3 shadow-md sm:p-4"
     >
       <div className="relative">
@@ -278,15 +291,15 @@ export default function BiyoenerjiGlobalSearch() {
           data-testid="bio-global-search"
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          placeholder="Biyoenerji içinde ara… (ör. mide, kalp, korku)"
-          aria-label="Biyoenerji içinde ara"
+          placeholder={t("placeholder")}
+          aria-label={t("aria")}
           className="min-h-[46px] w-full rounded-xl border border-violet-200/80 bg-white pl-9 pr-10 text-[14px] font-semibold text-slate-900 outline-none transition focus:border-violet-300 focus:ring-4 focus:ring-violet-100"
         />
         {q ? (
           <button
             type="button"
             onClick={clearSearch}
-            aria-label="Aramayı temizle"
+            aria-label={t("clear")}
             className="absolute right-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700"
           >
             <X className="h-4 w-4" aria-hidden />
@@ -294,32 +307,33 @@ export default function BiyoenerjiGlobalSearch() {
         ) : null}
       </div>
       <p className="mt-1.5 text-[11px] font-medium text-slate-500">
-        Çakralar, Enerji Bedenleri, Bilinçaltı Sebepleri, Seanslar, İmajinasyonlar ve Sembol Dili kayıtlarınızda arar.
+        {t("scope")}
       </p>
 
       <div aria-live="polite" className="mt-2">
         {state.kind === "loading" ? (
-          <p className="text-[12px] font-semibold text-slate-500">Aranıyor…</p>
+          <p className="text-[12px] font-semibold text-slate-500">{t("searching")}</p>
         ) : state.kind === "error" ? (
           <p role="alert" className="rounded-lg bg-rose-50 px-3 py-2 text-[12px] font-bold text-rose-700 ring-1 ring-rose-100">{state.message}</p>
         ) : state.kind === "done" ? (
           state.total === 0 ? (
             <p data-testid="bio-global-empty" className="rounded-lg bg-slate-50 px-3 py-2 text-[12.5px] font-semibold text-slate-600 ring-1 ring-slate-100">
-              “{state.query}” için Biyoenerji kayıtlarında sonuç bulunamadı.
+              {t("empty", { query: state.query })}
             </p>
           ) : (
             <div data-testid="bio-global-results" className="space-y-3">
               <p className="text-[12px] font-bold text-slate-600">
-                “{state.query}” · {state.total} sonuç · {state.sections.length} bölüm
-                {checked.size > 0 ? <span className="ml-1 text-emerald-700">· {checked.size} kontrol edildi</span> : null}
+                {t("summary", { query: state.query, total: String(state.total), sections: String(state.sections.length) })}
+                {checked.size > 0 ? <span className="ml-1 text-emerald-700">· {t("checkedCount", { count: String(checked.size) })}</span> : null}
               </p>
               {state.sections.map((s) => (
                 <div key={s.key}>
                   <h3 className="mb-1.5 flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.12em] text-violet-700">
-                    {s.label}
+                    {/* Bilinmeyen anahtar (eski önbellek) → sunucunun etiketi aynen (i18n öncesi davranış). */}
+                    {isBiyoenerjiSectionKey(s.key) ? L.cardTitle(s.key) : s.label}
                     <span className="rounded-full bg-violet-100 px-1.5 py-0.5 text-[10px] font-black text-violet-800">{s.total}</span>
                     {s.total > s.hits.length ? (
-                      <span className="text-[10px] font-semibold normal-case tracking-normal text-slate-400">ilk {s.hits.length} gösteriliyor</span>
+                      <span className="text-[10px] font-semibold normal-case tracking-normal text-slate-400">{t("firstShown", { count: String(s.hits.length) })}</span>
                     ) : null}
                   </h3>
                   <ul className="grid gap-1.5 sm:grid-cols-2 xl:grid-cols-3">
@@ -336,13 +350,13 @@ export default function BiyoenerjiGlobalSearch() {
                             }`}
                           >
                             <span className="flex flex-wrap items-center gap-1.5">
-                              <span className="min-w-0 truncate text-[13.5px] font-black text-slate-900">{h.title}</span>
-                              <span className="shrink-0 rounded-full bg-cyan-50 px-2 py-0.5 text-[10px] font-bold text-cyan-800 ring-1 ring-cyan-100">{h.sectionLabel}</span>
-                              {isChecked ? <SearchCheckedBadge label="Kontrol edildi" /> : null}
+                              <span className="min-w-0 truncate text-[13.5px] font-black text-slate-900">{h.title === UNTITLED_TR ? t("untitled") : h.title}</span>
+                              <span className="shrink-0 rounded-full bg-cyan-50 px-2 py-0.5 text-[10px] font-bold text-cyan-800 ring-1 ring-cyan-100">{L.cardTitle(h.section)}</span>
+                              {isChecked ? <SearchCheckedBadge label={t("checked")} /> : null}
                             </span>
                             {h.snippet && !isDemo ? (
                               <span className="mt-0.5 block text-[11.5px] leading-snug text-slate-500">
-                                <span className="font-bold text-slate-400">{h.matchedFieldLabel}: </span>
+                                <span className="font-bold text-slate-400">{fieldLabel(h.matchedField, h.matchedFieldLabel)}: </span>
                                 {h.snippet}
                               </span>
                             ) : null}
@@ -370,18 +384,18 @@ export default function BiyoenerjiGlobalSearch() {
             data-testid="bio-search-exit-dialog"
             className="w-full max-w-sm rounded-2xl bg-white p-4 shadow-2xl ring-1 ring-slate-200 pb-[max(1rem,env(safe-area-inset-bottom))]"
           >
-            <h2 id="bio-exit-title" className="text-[15px] font-black text-slate-950">Arama sonuçlarından çıkmak istiyor musunuz?</h2>
+            <h2 id="bio-exit-title" className="text-[15px] font-black text-slate-950">{t("exitTitle")}</h2>
             <p className="mt-1 text-[12.5px] font-medium text-slate-500">
               {exitTarget !== null
-                ? `“${exitAsk}” araması kapanır ve seçtiğiniz sayfaya gidilir.`
-                : `“${exitAsk}” araması kapanır ve Biyoenerji ana ekranına dönülür.`}
+                ? t("exitToTarget", { query: exitAsk })
+                : t("exitToHome", { query: exitAsk })}
             </p>
             <div className="mt-3 grid grid-cols-2 gap-2">
               <button type="button" autoFocus onClick={stayInSearch} className="btn-primary w-full">
-                Aramada Kal
+                {t("stay")}
               </button>
               <button type="button" onClick={exitSearch} className="btn-soft w-full">
-                Çık
+                {t("exit")}
               </button>
             </div>
           </div>

@@ -7,6 +7,8 @@
  * created_at ASLA client-yazılabilir DEĞİLDİR.
  */
 
+import type { CuppingErrorCode } from "@/lib/cupping/errorCodes";
+
 /** Yapısal plan yıl aralığı (DB CHECK ile birebir). Tıbbi/gün doğrulaması YOK. */
 export const CUPPING_PLAN_YEAR_MIN = 1900;
 export const CUPPING_PLAN_YEAR_MAX = 2200;
@@ -69,7 +71,7 @@ export type CuppingDayStyleFields = {
 
 export type CuppingDayStyleResult =
   | { ok: true; fields: CuppingDayStyleFields }
-  | { ok: false; error: string };
+  | { ok: false; code: CuppingErrorCode; error: string };
 
 /**
  * FAZ 5 / AŞAMA 5 — GÜN STİLİ (renk + kısa açıklama + detay notu) DOĞRULAMA (saf; DB'siz).
@@ -96,7 +98,7 @@ export function normalizeCuppingDayStyle(
     const v = input.color_key;
     if (v === null) fields.color_key = null;
     else if (isCuppingDayColorKey(v)) fields.color_key = v;
-    else return { ok: false, error: "Geçersiz renk seçimi." };
+    else return { ok: false, code: "CUP_DAY_COLOR_INVALID", error: "Geçersiz renk seçimi." };
   }
 
   if (has("user_label")) {
@@ -106,9 +108,9 @@ export function normalizeCuppingDayStyle(
       const t = v.trim();
       if (t === "") fields.user_label = null;
       else if (codePointLength(t) > CUPPING_DAY_LABEL_MAX)
-        return { ok: false, error: `Kısa açıklama en fazla ${CUPPING_DAY_LABEL_MAX} karakter olabilir.` };
+        return { ok: false, code: "CUP_DAY_LABEL_TOO_LONG", error: `Kısa açıklama en fazla ${CUPPING_DAY_LABEL_MAX} karakter olabilir.` };
       else fields.user_label = t;
-    } else return { ok: false, error: "Kısa açıklama geçersiz." };
+    } else return { ok: false, code: "CUP_DAY_LABEL_INVALID", error: "Kısa açıklama geçersiz." };
   }
 
   if (has("note")) {
@@ -118,21 +120,21 @@ export function normalizeCuppingDayStyle(
       const t = v.trim();
       if (t === "") fields.note = null;
       else if (codePointLength(t) > CUPPING_DAY_NOTE_MAX)
-        return { ok: false, error: `Detay notu en fazla ${CUPPING_DAY_NOTE_MAX} karakter olabilir.` };
+        return { ok: false, code: "CUP_DAY_NOTE_TOO_LONG", error: `Detay notu en fazla ${CUPPING_DAY_NOTE_MAX} karakter olabilir.` };
       else fields.note = t;
-    } else return { ok: false, error: "Detay notu geçersiz." };
+    } else return { ok: false, code: "CUP_DAY_NOTE_INVALID", error: "Detay notu geçersiz." };
   }
 
   // Renk kaldırma yasağı (mevcut gün): color_key AÇIKÇA null → hata.
   if (opts?.rejectNullColor && Object.prototype.hasOwnProperty.call(fields, "color_key") && fields.color_key === null) {
-    return { ok: false, error: "Renk kaldırılamaz; farklı bir renk seçin." };
+    return { ok: false, code: "CUP_DAY_COLOR_REMOVE", error: "Renk kaldırılamaz; farklı bir renk seçin." };
   }
   // Renk zorunluluğu (yeni gün): geçerli non-null color_key GEREKLİ.
   if (opts?.requireColorPresent && (!Object.prototype.hasOwnProperty.call(fields, "color_key") || fields.color_key == null)) {
-    return { ok: false, error: "Renk seçimi zorunludur." };
+    return { ok: false, code: "CUP_DAY_COLOR_REQUIRED", error: "Renk seçimi zorunludur." };
   }
   if (opts?.requireAtLeastOne && Object.keys(fields).length === 0) {
-    return { ok: false, error: "Güncellenecek alan yok." };
+    return { ok: false, code: "CUP_NO_FIELDS", error: "Güncellenecek alan yok." };
   }
   return { ok: true, fields };
 }
@@ -187,6 +189,14 @@ export type CuppingCalendarPlan = {
   description: string | null;
   advice_template_id: string | null;
   is_active: boolean;
+  /**
+   * I18N A8 (Owner §16) — üç durumlu "sistem varsayılan adı" bayrağı (migration TASLAĞI; prod'da YOK):
+   *   true  = sistem varsayılanı (kayıt "<yıl> Hacamat Takvimi"; gösterimde ekran dilinde üretilir)
+   *   false = kullanıcı adı (aynen gösterilir; desen UYGULANMAZ)
+   *   null / alan yok = eski kayıt ya da kolon henüz yok → bugünkü desen kuralı AYNEN.
+   * Sunucu-sahipli: CALENDAR_PLAN_WRITABLE'a EKLENMEZ (istemci yazamaz).
+   */
+  name_is_default?: boolean | null;
   created_at: string;
   updated_at: string;
 };

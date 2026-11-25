@@ -1,16 +1,17 @@
 "use client";
 
 import { useMemo } from "react";
+import { useTranslations } from "next-intl";
+import { useCalendarNames } from "../lib/useCalendarNames";
 import { monthHijriCells } from "@/lib/cupping/hijri";
 import type { CuppingDayColorKey } from "@/lib/cupping/calendarTypes";
 import {
   getCuppingCellState,
   CUPPING_CELL_PALETTE,
   CUPPING_DAY_COLORS,
-  cuppingCellBadge,
   type CuppingCellKind,
 } from "../lib/cellState";
-import { WEEKDAYS_TR, isoWeekday } from "../lib/bulk";
+import { isoWeekday } from "../lib/bulk";
 
 /**
  * FAZ 5 / AŞAMA 3 + 5 — Aylık takvim (Gregoryen + Hicrî HER GÜN, TAM ay adı; PASTEL durumlar
@@ -80,6 +81,8 @@ export function MonthCalendar({
   readOnly?: boolean;
 }) {
   const cells = useMemo(() => monthHijriCells(year, month), [year, month]);
+  const t = useTranslations("cupping.calendar.month");
+  const names = useCalendarNames();
   // Ayın ilk günü hangi ISO haftagününe düşüyor → ızgarada baştaki boş hücre sayısı (Pzt-başlangıç).
   const leading = cells.length > 0 ? isoWeekday(cells[0].gregorian) - 1 : 0;
 
@@ -102,16 +105,17 @@ export function MonthCalendar({
         const palette = CUPPING_CELL_PALETTE[state.kind];
 
         const label = isSel ? dayStyle?.label ?? null : null;
-        const fullHijri = `${cell.hijri.day} ${cell.hijri.monthName} ${cell.hijri.year}`;
+        const hijriMonthName = names.hijriMonth(cell.hijri.month);
+        const fullHijri = `${cell.hijri.day} ${hijriMonthName} ${cell.hijri.year}`;
         const statusWord =
           state.kind === "selected_saved"
-            ? " — seçili gün"
+            ? t("statusSaved")
             : state.kind === "selected_pending_add"
-              ? " — seçili gün (kaydedilecek)"
+              ? t("statusPendingAdd")
               : state.kind === "pending_remove"
-                ? " — kaldırılacak"
+                ? t("statusPendingRemove")
                 : "";
-        const colorWord = colorDef ? ` — ${colorDef.labelTr} renk` : "";
+        const colorWord = colorDef && colorKey ? t("colorWord", { color: names.colorLabel(colorKey) }) : "";
         const labelWord = label ? ` — ${label}` : "";
 
         return {
@@ -120,21 +124,21 @@ export function MonthCalendar({
           isToday,
           state,
           gDay,
-          weekdayLong: WEEKDAYS_TR[isoWeekday(ymd) - 1]?.long ?? "",
+          weekdayLong: names.weekdays[isoWeekday(ymd) - 1]?.long ?? "",
           hijriDay: cell.hijri.day,
-          hijriMonthName: cell.hijri.monthName,
+          hijriMonthName,
           hijriYear: cell.hijri.year,
           label,
-          badge: cuppingCellBadge(state.kind),
+          badge: names.badge(state.kind),
           colored,
           cellCls: colorDef ? colorDef.cell : palette.cell,
           gregCls: colorDef ? colorDef.greg : palette.greg,
           hijriCls: colorDef ? colorDef.hijri : palette.hijri,
           dashed: state.kind === "selected_pending_add",
-          aria: `${gDay} ${MONTHS_TR[month - 1]} ${year} — Hicrî ${fullHijri}${statusWord}${colorWord}${labelWord}${readOnly ? " — bilgiyi göster" : ""}`,
+          aria: t("aria", { greg: `${gDay} ${names.months[month - 1]} ${year}`, hijri: fullHijri }) + `${statusWord}${colorWord}${labelWord}${readOnly ? t("showInfo") : ""}`,
         };
       }),
-    [cells, selected, saved, today, styleOf, month, year, readOnly],
+    [cells, selected, saved, today, styleOf, month, year, readOnly, names, t],
   );
 
   return (
@@ -143,7 +147,7 @@ export function MonthCalendar({
       <div className="hidden lg:block">
         {/* Haftagünü başlıkları (Pzt→Paz) */}
         <div className="grid grid-cols-7 gap-1.5" role="row">
-          {WEEKDAYS_TR.map((w) => (
+          {names.weekdays.map((w) => (
             <div
               key={w.iso}
               className="pb-1 text-center text-xs font-bold uppercase tracking-wide text-slate-400"
@@ -183,11 +187,11 @@ export function MonthCalendar({
                 </span>
                 {d.state.kind === "selected_pending_add" ? (
                   <span className="rounded border border-dashed border-indigo-400 px-1 text-[8px] font-bold uppercase leading-tight text-indigo-600" aria-hidden>
-                    Kaydedilecek
+                    {t("pendingAdd")}
                   </span>
                 ) : d.state.kind === "pending_remove" ? (
                   <span className="text-[8px] font-medium leading-none text-slate-400" aria-hidden>
-                    Kaldırılacak
+                    {t("pendingRemove")}
                   </span>
                 ) : null}
                 {d.label ? (
@@ -206,8 +210,8 @@ export function MonthCalendar({
                     e.stopPropagation();
                     onEditDay(d.ymd);
                   }}
-                  aria-label={`${d.gDay} ${MONTHS_TR[month - 1]} — günü düzenle (renk ve açıklama)`}
-                  title="Günü düzenle"
+                  aria-label={t("editDayAria", { day: `${d.gDay} ${names.months[month - 1]}` })}
+                  title={t("editDay")}
                   className="absolute right-0.5 top-0.5 z-10 flex h-5 w-5 items-center justify-center rounded-md border border-slate-200 bg-white/90 text-[10px] leading-none text-slate-500 shadow-sm outline-none transition hover:border-amber-300 hover:bg-amber-50 hover:text-amber-700 focus-visible:ring-2 focus-visible:ring-amber-400/70"
                 >
                   <span aria-hidden>✎</span>
@@ -247,7 +251,7 @@ export function MonthCalendar({
               </span>
             </span>
             <span className={["text-sm font-black leading-tight", d.gregCls].join(" ")}>
-              {d.gDay} {MONTHS_TR[month - 1]} {year}
+              {d.gDay} {names.months[month - 1]} {year}
             </span>
             {/* TAM Hicrî tarih — kelime sınırında sarar, HARF HARF bölünmez. */}
             <span className={["text-xs leading-snug break-words", d.hijriCls].join(" ")}>
@@ -255,11 +259,11 @@ export function MonthCalendar({
             </span>
             {d.state.kind === "selected_pending_add" ? (
               <span className="mt-0.5 rounded border border-dashed border-indigo-400 px-1.5 py-0.5 text-[10px] font-bold uppercase leading-tight text-indigo-600" aria-hidden>
-                Kaydedilecek
+                {t("pendingAdd")}
               </span>
             ) : d.state.kind === "pending_remove" ? (
               <span className="mt-0.5 text-[10px] font-semibold leading-none text-slate-400" aria-hidden>
-                Kaldırılacak
+                {t("pendingRemove")}
               </span>
             ) : null}
             {d.label ? (

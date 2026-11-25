@@ -7,6 +7,9 @@ import AdminTransferBadge from "@/components/provenance/AdminTransferBadge";
 import { runInEffect } from "@/lib/runInEffect";
 import { ChevronRight, Clock3, Layers, Pencil, Search, SlidersHorizontal, Sprout } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
+import { useBioErrorText } from "../useBioErrorText";
+import { useBioDateTime } from "../useBioDateTime";
 import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import { readYasamUser } from "@/lib/auth/yasamUser";
 import {
@@ -116,19 +119,6 @@ function trimOrEmpty(v: string) {
   return v.trim();
 }
 
-function formatDate(iso: string) {
-  try {
-    return new Intl.DateTimeFormat("tr-TR", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    }).format(new Date(iso));
-  } catch {
-    return "—";
-  }
-}
 
 function EnergyBodyStats({
   total,
@@ -142,10 +132,12 @@ function EnergyBodyStats({
   /** K-2: sayım gelene kadar 0 yerine "…" göster. */
   loading?: boolean;
 }) {
+  const tl = useTranslations("bioenergy.list");
+  const t = useTranslations("bioenergy.energyBodies");
   const items = [
-    { label: "Toplam Kayıt", value: loading ? "…" : String(total), Icon: Layers, tone: styles.statViolet },
-    { label: "Enerji Bedeni", value: loading ? "…" : String(uidCount), Icon: Sprout, tone: styles.statGreen },
-    { label: "Son Kayıt", value: lastDate, Icon: Clock3, tone: styles.statAmber, small: true },
+    { label: tl("statTotalCap"), value: loading ? "…" : String(total), Icon: Layers, tone: styles.statViolet },
+    { label: t("statBody"), value: loading ? "…" : String(uidCount), Icon: Sprout, tone: styles.statGreen },
+    { label: tl("statLastCap"), value: lastDate, Icon: Clock3, tone: styles.statAmber, small: true },
   ];
 
   return (
@@ -181,6 +173,7 @@ function DetailFieldCard({
   /** Mevcut "Güncelle" penceresini açar (yeni işlev değil); demo modda verilmez. */
   onEdit?: () => void;
 }) {
+  const t = useTranslations("bioenergy.energyBodies");
   const display = text?.trim() || "";
 
   return (
@@ -195,11 +188,11 @@ function DetailFieldCard({
             {display ? (
               formatStoneContent(display, { fontSizePx: typography.fontSizePx })
             ) : (
-              <p className={styles.fieldEmpty}>Henüz bilgi girilmedi.</p>
+              <p className={styles.fieldEmpty}>{t("fieldEmpty")}</p>
             )}
           </div>
           {onEdit ? (
-            <button type="button" className={styles.fieldEdit} onClick={onEdit} aria-label={`${title} düzenle`}>
+            <button type="button" className={styles.fieldEdit} onClick={onEdit} aria-label={t("editFieldAria", { title })}>
               <Pencil className="h-4 w-4" strokeWidth={2} aria-hidden />
             </button>
           ) : null}
@@ -210,6 +203,11 @@ function DetailFieldCard({
 }
 
 export default function EnerjiBedenleri() {
+  const t = useTranslations("bioenergy.energyBodies");
+  const tl = useTranslations("bioenergy.list");
+  const td = useTranslations("bioenergy.detail");
+  const errText = useBioErrorText();
+  const formatDate = useBioDateTime();
   const {
     fontSizePx,
     typography: detailTypography,
@@ -337,7 +335,7 @@ export default function EnerjiBedenleri() {
       setLoadingMore(false);
 
       if (pageRes.error) {
-        setLoadErrorMessage(`Enerji bedenleri okunamadı: ${pageRes.error}`);
+        setLoadErrorMessage(t("readFailed", { detail: errText(pageRes.error, tl("serverError")) }));
         if (opts.reset && !bioListGet(cacheKey)) setRows([]);
         return;
       }
@@ -376,6 +374,7 @@ export default function EnerjiBedenleri() {
         })();
       }
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- çeviri işlevleri dil değişiminde yeniden liste çekmez
     [tenantId, debouncedSearch, listGate],
   );
 
@@ -474,7 +473,7 @@ export default function EnerjiBedenleri() {
 
   function openEditModal() {
     if (!selectedRow) {
-      showSoft("err", "Güncellemek için listeden bir kayıt seçin.");
+      showSoft("err", t("selectToUpdate"));
       return;
     }
     setFormModalMode("edit");
@@ -500,7 +499,7 @@ export default function EnerjiBedenleri() {
 
           const uidTrim = form.source_uid.trim();
           if (!uidTrim) {
-            showSoft("err", "Enerji bedeni / katman zorunludur (ör. eterik).");
+            showSoft("err", t("nameRequiredExample"));
             return;
           }
 
@@ -518,18 +517,18 @@ export default function EnerjiBedenleri() {
           setSaving(false);
 
           if (error) {
-            showSoft("err", `Kayıt eklenemedi: ${error}`);
+            showSoft("err", tl("addFailed", { detail: errText(error, tl("serverError")) }));
             return;
           }
 
           setFormModalOpen(false);
           await loadRecords({ reset: true });
-          showSoft("ok", "Enerji bedeni kaydı oluşturuldu.");
+          showSoft("ok", t("created"));
         } finally {
           setSaving(false);
         }
       })
-      .catch((e: unknown) => showSoft("err", e instanceof Error ? e.message : "İşlem tamamlanamadı."));
+      .catch((e: unknown) => showSoft("err", errText(e, tl("opFailed"))));
   }
 
   async function handleGuncelle() {
@@ -538,12 +537,12 @@ export default function EnerjiBedenleri() {
       .run(async () => {
         try {
           if (!selectedId) {
-            showSoft("err", "Güncellemek için listeden bir kayıt seçin.");
+            showSoft("err", t("selectToUpdate"));
             return;
           }
           const uidTrim = form.source_uid.trim();
           if (!uidTrim) {
-            showSoft("err", "Enerji bedeni / katman zorunludur.");
+            showSoft("err", t("nameRequired"));
             return;
           }
 
@@ -559,7 +558,7 @@ export default function EnerjiBedenleri() {
           const changes = changedFields(payloadOf(form), editOriginalRef.current ? payloadOf(editOriginalRef.current) : null);
           if (Object.keys(changes).length === 0) {
             setFormModalOpen(false);
-            showSoft("ok", "Değişiklik yok.");
+            showSoft("ok", td("noChanges"));
             return;
           }
           setSaving(true);
@@ -569,23 +568,23 @@ export default function EnerjiBedenleri() {
           setSaving(false);
 
           if (error) {
-            showSoft("err", `Güncellenemedi: ${error}`);
+            showSoft("err", td("updateFailed", { detail: errText(error, tl("serverError")) }));
             return;
           }
 
           setFormModalOpen(false);
           await loadRecords({ reset: true });
-          showSoft("ok", "Kayıt güncellendi.");
+          showSoft("ok", td("updated"));
         } finally {
           setSaving(false);
         }
       })
-      .catch((e: unknown) => showSoft("err", e instanceof Error ? e.message : "İşlem tamamlanamadı."));
+      .catch((e: unknown) => showSoft("err", errText(e, tl("opFailed"))));
   }
 
   function openDeleteConfirm() {
     if (!selectedId) {
-      showSoft("err", "Silmek için listeden bir kayıt seçin.");
+      showSoft("err", t("selectToDelete"));
       return;
     }
     setDeleteConfirmOpen(true);
@@ -603,7 +602,7 @@ export default function EnerjiBedenleri() {
     setDeleteConfirmOpen(false);
 
     if (error) {
-      showSoft("err", `Silinemedi: ${error}`);
+      showSoft("err", tl("deleteFailed", { detail: errText(error, tl("serverError")) }));
       return;
     }
 
@@ -615,7 +614,7 @@ export default function EnerjiBedenleri() {
     });
     await loadRecords({ reset: true });
     resetFormSelection();
-    showSoft("ok", "Kayıt silindi.");
+    showSoft("ok", t("deleted"));
   }
 
   // Toplu seçim güvenliği: arama/filtre ile liste değişince seçim görünür kayıtlarla
@@ -636,14 +635,14 @@ export default function EnerjiBedenleri() {
     setIsBulkDeleting(false);
     setDanger((d) => ({ ...d, open: false }));
     if (error) {
-      showSoft("err", `Silinemedi: ${error}`);
+      showSoft("err", tl("deleteFailed", { detail: errText(error, tl("serverError")) }));
       return;
     }
     const deletedSet = new Set(ids);
     if (selectedId && deletedSet.has(selectedId)) resetFormSelection();
     setSelectedForExport(new Set());
     await loadRecords({ reset: true });
-    showSoft("ok", `${ids.length} kayıt silindi.`);
+    showSoft("ok", tl("deletedCount", { count: String(ids.length) }));
   }
 
   async function handleDeleteAll() {
@@ -652,13 +651,13 @@ export default function EnerjiBedenleri() {
     setIsBulkDeleting(false);
     setDanger((d) => ({ ...d, open: false }));
     if (error) {
-      showSoft("err", `Silinemedi: ${error}`);
+      showSoft("err", tl("deleteFailed", { detail: errText(error, tl("serverError")) }));
       return;
     }
     setSelectedForExport(new Set());
     resetFormSelection();
     await loadRecords({ reset: true });
-    showSoft("ok", "Tüm kayıtlar silindi.");
+    showSoft("ok", tl("deletedAll"));
   }
 
   return (
@@ -670,10 +669,9 @@ export default function EnerjiBedenleri() {
           <div className="flex items-start gap-3">
             <span className="mt-0.5 text-lg leading-none" aria-hidden>🔎</span>
             <div>
-              <p className="text-sm font-black text-blue-900">Demo Modu — Enerji Bedenleri</p>
+              <p className="text-sm font-black text-blue-900">{t("demoTitle")}</p>
               <p className="mt-0.5 text-[13px] leading-relaxed text-blue-800">
-                Bu sayfa demo amaçlıdır. Enerji bedenlerine ait içerikler demo güvenliği nedeniyle flu gösterilmektedir.
-                Yeni kayıt, düzenleme, silme ve dışa aktarma işlemleri demo modunda devre dışıdır.
+                {t("demoBody")}
               </p>
             </div>
           </div>
@@ -683,14 +681,14 @@ export default function EnerjiBedenleri() {
       <div className={styles.toolbar}>
         <div className={`${styles.card} ${styles.searchCard}`}>
           <label className="block">
-            <span className={styles.searchLabel}>Tanım, görev, bozulma, taşlar, not içinde ara</span>
+            <span className={styles.searchLabel}>{t("searchLabel")}</span>
             <span className={styles.searchField}>
               <Search className={styles.searchIcon} strokeWidth={2} aria-hidden />
               <input
                 type="search"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Örn. eterik, aura, görev, bozulma…"
+                placeholder={t("searchPlaceholder")}
                 className={styles.searchInput}
               />
               {/* Owner onaylı tasarımdaki filtre simgesi — yalnız görsel (canlıda ayrı filtre işlevi yok). */}
@@ -698,7 +696,7 @@ export default function EnerjiBedenleri() {
             </span>
             {isSearchActive ? (
               <p className={styles.searchHint}>
-                “{debouncedSearch}” · {searchResultCount} eşleşme
+                {tl("searchSummaryCurly", { query: debouncedSearch, count: String(searchResultCount) })}
               </p>
             ) : null}
           </label>
@@ -743,13 +741,13 @@ export default function EnerjiBedenleri() {
       <div className={styles.workspace}>
         <div className={`${styles.card} ${styles.listPanel}`}>
           <div className={styles.listHead}>
-            <h2 className={styles.listTitle}>Kayıtlar ({filteredRows.length})</h2>
+            <h2 className={styles.listTitle}>{t("listTitle", { count: String(filteredRows.length) })}</h2>
             <div className="flex items-center gap-2">
-              {loading ? <span className={styles.loadingNote}>Yükleniyor…</span> : null}
+              {loading ? <span className={styles.loadingNote}>{tl("loading")}</span> : null}
               {/* Demo modda yeni kayıt butonu gizli */}
               {!isDemo && (
                 <button type="button" onClick={openCreateModal} className={styles.newBtn}>
-                  + Yeni Kayıt
+                  {tl("newRecord")}
                 </button>
               )}
             </div>
@@ -761,12 +759,12 @@ export default function EnerjiBedenleri() {
               <BulkExportBar
                 selectedCount={selectedForExport.size}
                 totalCount={totalInDb}
-                selectAllLabel="Görünenleri Seç"
+                selectAllLabel={tl("selectVisible")}
                 selectAllCount={baseRows.length}
                 onSelectAll={() => setSelectedForExport(new Set(baseRows.map((r) => r.id)))}
                 onClearSelection={() => setSelectedForExport(new Set())}
-                onExportSelected={() => void exportEnergyBodiesWord(tenantId ?? "", readYasamUser()?.id ?? "", "selected", selectedVisibleIds, setWordBusy, () => showSoft("ok", "Rapor indirildi."), () => showSoft("err", "Rapor oluşturulamadı."))}
-                onExportAll={() => void exportEnergyBodiesWord(tenantId ?? "", readYasamUser()?.id ?? "", "all", selectedForExport, setWordBusy, () => showSoft("ok", "Rapor indirildi."), () => showSoft("err", "Rapor oluşturulamadı."))}
+                onExportSelected={() => void exportEnergyBodiesWord(tenantId ?? "", readYasamUser()?.id ?? "", "selected", selectedVisibleIds, setWordBusy, () => showSoft("ok", tl("reportDownloaded")), () => showSoft("err", tl("reportFailed")))}
+                onExportAll={() => void exportEnergyBodiesWord(tenantId ?? "", readYasamUser()?.id ?? "", "all", selectedForExport, setWordBusy, () => showSoft("ok", tl("reportDownloaded")), () => showSoft("err", tl("reportFailed")))}
                 isExporting={wordBusy}
                 onDeleteSelected={() => setDanger({ open: true, mode: "selected" })}
                 isDeleting={isBulkDeleting}
@@ -777,21 +775,21 @@ export default function EnerjiBedenleri() {
 
           <div className={styles.rows}>
             {loading ? (
-              <p className={styles.listEmpty}>Yükleniyor…</p>
+              <p className={styles.listEmpty}>{tl("loading")}</p>
             ) : loadErrorMessage ? null : baseRows.length === 0 ? (
               <CrudEmptyState
                 Icon={Layers}
-                title={isSearchActive ? "Sonuç bulunamadı" : "Liste boş"}
+                title={isSearchActive ? tl("emptySearchTitle") : t("emptyTitle")}
                 subtitle={
                   isSearchActive
-                    ? "Arama terimini değiştirin veya Yeni Kayıt ile enerji bedeni ekleyin."
-                    : "Henüz kayıt yok. Yeni Kayıt ile ilk kaydınızı oluşturabilirsiniz."
+                    ? t("emptySearchBody")
+                    : t("emptyBody")
                 }
                 tone="cyan"
               />
             ) : filteredRows.length === 0 ? (
               <p className={styles.listEmpty}>
-                Aramayı güncelleyin veya Yeni Kayıt ile enerji bedeni ekleyin.
+                {t("filteredEmpty")}
               </p>
             ) : (
               filteredRows.map((row) => {
@@ -806,7 +804,7 @@ export default function EnerjiBedenleri() {
                       <label className={styles.rowCheck} onClick={(e) => e.stopPropagation()}>
                         <input
                           type="checkbox"
-                          aria-label="Bu kaydı seç"
+                          aria-label={tl("selectRecord")}
                           checked={isExportSelected}
                           onChange={() => setSelectedForExport((prev) => {
                             const next = new Set(prev);
@@ -844,7 +842,7 @@ export default function EnerjiBedenleri() {
                 onClick={() => void loadRecords({ reset: false, append: true, offset: rows.length })}
                 className={styles.moreBtn}
               >
-                {loadingMore ? "Yükleniyor…" : `Daha Fazla Göster (${rows.length} / ${searchResultCount})`}
+                {loadingMore ? tl("loading") : tl("loadMore", { shown: String(rows.length), total: String(searchResultCount) })}
               </button>
             </div>
           ) : null}
@@ -858,7 +856,7 @@ export default function EnerjiBedenleri() {
               <div className={styles.detailHead}>
                 <div className={styles.detailIdentity}>
                   <div className="min-w-0">
-                    <div className={styles.selectedPill}>SEÇİLİ KAYIT</div>
+                    <div className={styles.selectedPill}>{t("selectedPill")}</div>
                     <h3 className={styles.detailTitle}>{selectedRow.source_uid?.trim() || "—"}</h3>
                   </div>
                 </div>
@@ -878,30 +876,30 @@ export default function EnerjiBedenleri() {
               {/* Demo modda içerik alanları DemoGate ile korunur */}
               <DemoGate
                 isProtected={isDemo}
-                message="Bu enerji bedeni içeriği demo hesabında sınırlı gösterilir. Tam sürümde tüm açıklamalar, görev ve taş bilgileri açık olarak kullanılabilir."
+                message={t("demoGate")}
                 className="mt-4"
               >
                 <div className={styles.fields}>
                   <DetailFieldCard
-                    title="Genel Tanım"
+                    title={t("fields.definition")}
                     text={selectedRow.genel_tanim}
                     typography={detailTypography}
                     dot={styles.dotEmerald} onEdit={isDemo ? undefined : openEditModal}
                   />
-                  <DetailFieldCard title="Görevi" text={selectedRow.gorevi} typography={detailTypography} dot={styles.dotViolet} onEdit={isDemo ? undefined : openEditModal} />
+                  <DetailFieldCard title={t("fields.function")} text={selectedRow.gorevi} typography={detailTypography} dot={styles.dotViolet} onEdit={isDemo ? undefined : openEditModal} />
                   <DetailFieldCard
-                    title="Bozulma Belirtileri"
+                    title={t("fields.disturbance")}
                     text={selectedRow.bozulma}
                     typography={detailTypography}
                     dot={styles.dotRose} onEdit={isDemo ? undefined : openEditModal}
                   />
                   <DetailFieldCard
-                    title="Taşlar"
+                    title={t("fields.stones")}
                     text={selectedRow.onerilen_taslar}
                     typography={detailTypography}
                     dot={styles.dotAmber} onEdit={isDemo ? undefined : openEditModal}
                   />
-                  <DetailFieldCard title="Not" text={selectedRow.not_text} typography={detailTypography} dot={styles.dotTeal} onEdit={isDemo ? undefined : openEditModal} />
+                  <DetailFieldCard title={t("fields.note")} text={selectedRow.not_text} typography={detailTypography} dot={styles.dotTeal} onEdit={isDemo ? undefined : openEditModal} />
                 </div>
               </DemoGate>
 
@@ -913,7 +911,7 @@ export default function EnerjiBedenleri() {
                     onClick={openEditModal}
                     className={`${styles.actionBtn} ${styles.actionPrimary}`}
                   >
-                    Güncelle
+                    {td("update")}
                   </button>
                   <button
                     type="button"
@@ -921,15 +919,15 @@ export default function EnerjiBedenleri() {
                     onClick={openDeleteConfirm}
                     className={`${styles.actionBtn} ${styles.actionDanger}`}
                   >
-                    Sil
+                    {td("delete")}
                   </button>
                   <button
                     type="button"
                     disabled={wordBusy}
-                    onClick={() => void exportEnergyBodiesWord(tenantId ?? "", readYasamUser()?.id ?? "", "single", selectedRow.id, setWordBusy, () => showSoft("ok", "Rapor indirildi."), () => showSoft("err", "Rapor oluşturulamadı."))}
+                    onClick={() => void exportEnergyBodiesWord(tenantId ?? "", readYasamUser()?.id ?? "", "single", selectedRow.id, setWordBusy, () => showSoft("ok", tl("reportDownloaded")), () => showSoft("err", tl("reportFailed")))}
                     className={`${styles.actionBtn} ${styles.actionWord}`}
                   >
-                    {wordBusy ? "⏳ Hazırlanıyor..." : "📄 Word Raporu"}
+                    {wordBusy ? t("wordPreparing") : t("wordReport")}
                   </button>
                 </div>
               )}
@@ -947,11 +945,11 @@ export default function EnerjiBedenleri() {
                 decoding="async"
                 draggable={false}
               />
-              <p className={styles.emptyTitle}>Soldan bir kayıt seçin</p>
+              <p className={styles.emptyTitle}>{t("pickTitle")}</p>
               <p className={styles.emptySub}>
                 {isDemo
-                  ? "Detayları görmek için soldaki listeden bir enerji bedeni kaydı seçin ve içeriği inceleyin."
-                  : "Detayları görmek veya düzenlemek için soldaki listeden bir enerji bedeni kaydı seçin ya da yeni enerji bedeni ekleyin."}
+                  ? t("pickBodyDemo")
+                  : t("pickBody")}
               </p>
               {/* Kısayol: gerçek listedeki ilk kayıtlar (yalnız seçim yapar; yeni veri yok). */}
               {!loading && baseRows.length > 0 ? (
@@ -981,8 +979,8 @@ export default function EnerjiBedenleri() {
         open={formModalOpen}
         onClose={closeFormModal}
         isDirty={formIsDirty}
-        title={formModalMode === "create" ? "Yeni enerji bedeni" : "Enerji bedenini düzenle"}
-        subtitle="Kaydettikten sonra panel kapanır ve liste yenilenir."
+        title={formModalMode === "create" ? t("formCreate") : t("formEdit")}
+        subtitle={t("formSubtitle")}
         titleId="energy-body-form-modal-title"
         accentRingClass="ring-cyan-100/50"
         footer={({ requestClose }) => (
@@ -993,7 +991,7 @@ export default function EnerjiBedenleri() {
               onClick={requestClose}
               className="rounded-xl border border-slate-200/85 bg-white/90 px-4 py-2.5 text-[12px] font-black text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-50"
             >
-              Vazgeç
+              {tl("cancel")}
             </button>
             <button
               type="button"
@@ -1001,7 +999,7 @@ export default function EnerjiBedenleri() {
               onClick={modalTemizle}
               className="rounded-xl border border-slate-200/80 bg-white/90 px-4 py-2.5 text-[12px] font-black text-slate-600 shadow-sm transition hover:bg-slate-50 disabled:opacity-50"
             >
-              Temizle
+              {tl("clear")}
             </button>
             {formModalMode === "create" ? (
               <button
@@ -1010,7 +1008,7 @@ export default function EnerjiBedenleri() {
                 onClick={() => void handleKaydet()}
                 className={bioSaveBtnClass}
               >
-                {saving ? "Kaydediliyor…" : "Kaydet"}
+                {saving ? tl("saving") : tl("save")}
               </button>
             ) : (
               <button
@@ -1019,7 +1017,7 @@ export default function EnerjiBedenleri() {
                 onClick={() => void handleGuncelle()}
                 className="rounded-xl border border-cyan-200/70 bg-cyan-50/90 px-4 py-2.5 text-[12px] font-black text-cyan-950 shadow-sm transition hover:bg-cyan-100/90 disabled:opacity-55"
               >
-                {saving ? "Güncelleniyor…" : "Güncelle"}
+                {saving ? td("updating") : td("update")}
               </button>
             )}
           </>
@@ -1029,12 +1027,12 @@ export default function EnerjiBedenleri() {
           <label className="block">
             <span className="mb-2 flex items-center gap-2 text-[12px] font-black text-slate-800">
               <span className="h-1.5 w-1.5 rounded-full bg-cyan-500/90" />
-              Enerji Bedeni / Katman
+              {t("fields.name")}
             </span>
             <input
               value={form.source_uid}
               onChange={(e) => setForm((f) => ({ ...f, source_uid: e.target.value }))}
-              placeholder="ör. eterik, duygusal, zihinsel, ruhsal"
+              placeholder={t("fields.namePlaceholder")}
               className="h-12 w-full rounded-xl border border-cyan-100/80 bg-white/90 px-3.5 text-[13px] font-semibold text-slate-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] outline-none transition focus:border-cyan-200/90 focus:ring-2 focus:ring-cyan-100/60"
             />
           </label>
@@ -1042,10 +1040,10 @@ export default function EnerjiBedenleri() {
             label={
               <span className="mb-2 flex items-center gap-2 text-[12px] font-black text-slate-800">
                 <span className="h-1.5 w-1.5 rounded-full bg-emerald-500/90" />
-                Genel Tanım
+                {t("fields.definition")}
               </span>
             }
-            modalTitle="Genel Tanım"
+            modalTitle={t("fields.definition")}
             value={form.genel_tanim}
             onChange={(v) => setForm((f) => ({ ...f, genel_tanim: v }))}
             minRows={4}
@@ -1056,10 +1054,10 @@ export default function EnerjiBedenleri() {
             label={
               <span className="mb-2 flex items-center gap-2 text-[12px] font-black text-slate-800">
                 <span className="h-1.5 w-1.5 rounded-full bg-violet-500/90" />
-                Görevi
+                {t("fields.function")}
               </span>
             }
-            modalTitle="Görevi"
+            modalTitle={t("fields.function")}
             value={form.gorevi}
             onChange={(v) => setForm((f) => ({ ...f, gorevi: v }))}
             minRows={3}
@@ -1070,10 +1068,10 @@ export default function EnerjiBedenleri() {
             label={
               <span className="mb-2 flex items-center gap-2 text-[12px] font-black text-slate-800">
                 <span className="h-1.5 w-1.5 rounded-full bg-rose-500/80" />
-                Bozulma Belirtileri
+                {t("fields.disturbance")}
               </span>
             }
-            modalTitle="Bozulma Belirtileri"
+            modalTitle={t("fields.disturbance")}
             value={form.bozulma}
             onChange={(v) => setForm((f) => ({ ...f, bozulma: v }))}
             minRows={3}
@@ -1084,10 +1082,10 @@ export default function EnerjiBedenleri() {
             label={
               <span className="mb-2 flex items-center gap-2 text-[12px] font-black text-slate-800">
                 <span className="h-1.5 w-1.5 rounded-full bg-amber-500/90" />
-                Önerilen Taşlar
+                {t("fields.suggestedStones")}
               </span>
             }
-            modalTitle="Önerilen Taşlar"
+            modalTitle={t("fields.suggestedStones")}
             value={form.onerilen_taslar}
             onChange={(v) => setForm((f) => ({ ...f, onerilen_taslar: v }))}
             minRows={2}
@@ -1098,10 +1096,10 @@ export default function EnerjiBedenleri() {
             label={
               <span className="mb-2 flex items-center gap-2 text-[12px] font-black text-slate-800">
                 <span className="h-1.5 w-1.5 rounded-full bg-teal-500/80" />
-                Not
+                {t("fields.note")}
               </span>
             }
-            modalTitle="Not"
+            modalTitle={t("fields.note")}
             value={form.not_text}
             onChange={(v) => setForm((f) => ({ ...f, not_text: v }))}
             minRows={3}
@@ -1113,7 +1111,7 @@ export default function EnerjiBedenleri() {
 
       <BiyoenerjiConfirmModal
         open={deleteConfirmOpen}
-        title="Bu enerji bedeni kaydını silmek istediğinizden emin misiniz?"
+        title={t("deleteConfirm")}
         busy={saving}
         onClose={() => setDeleteConfirmOpen(false)}
         onConfirm={() => void executeDelete()}
@@ -1124,8 +1122,8 @@ export default function EnerjiBedenleri() {
         scope={{ filterActive: Boolean(debouncedSearch.trim()), visibleCount: searchResultCount }}
         mode={danger.mode}
         count={danger.mode === "all" ? totalInDb : selectedVisibleRows.length}
-        names={danger.mode === "all" ? undefined : selectedVisibleRows.map((r) => (r.source_uid?.trim() || "İsimsiz kayıt"))}
-        resourceLabel="Enerji Bedenleri"
+        names={danger.mode === "all" ? undefined : selectedVisibleRows.map((r) => (r.source_uid?.trim() || tl("untitled")))}
+        resourceLabel={t("resourceLabel")}
         isDeleting={isBulkDeleting}
         onClose={() => !isBulkDeleting && setDanger((d) => ({ ...d, open: false }))}
         onConfirm={() => void (danger.mode === "all" ? handleDeleteAll() : handleBulkDeleteSelected())}

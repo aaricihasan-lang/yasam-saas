@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { useEffect, useRef } from "react";
+import { useTranslations } from "next-intl";
+import { useBiyoenerjiLabels } from "@/app/dashboard/biyoenerji/useBiyoenerjiLabels";
 import { BIOENERJI_SECTIONS_IN_ORDER, type BiyoenerjiSectionKey } from "@/app/dashboard/biyoenerji/biyoenerjiFolderConfig";
 import styles from "./enerjiBedenleri.module.css";
 
@@ -11,6 +13,8 @@ import styles from "./enerjiBedenleri.module.css";
  */
 export default function EnerjiBedenleriTabs({ activeSection }: { activeSection: BiyoenerjiSectionKey }) {
   const scrollerRef = useRef<HTMLDivElement>(null);
+  const t = useTranslations("bioenergy.common");
+  const L = useBiyoenerjiLabels();
   const activeRef = useRef<HTMLAnchorElement>(null);
 
   useEffect(() => {
@@ -24,7 +28,7 @@ export default function EnerjiBedenleriTabs({ activeSection }: { activeSection: 
   }, [activeSection]);
 
   return (
-    <nav aria-label="Biyoenerji bölümleri" className={styles.tabsWrap}>
+    <nav aria-label={t("sectionsAria")} className={styles.tabsWrap}>
       <div ref={scrollerRef} className={styles.tabs}>
         {BIOENERJI_SECTIONS_IN_ORDER.map((card) => {
           const { Icon } = card;
@@ -38,7 +42,7 @@ export default function EnerjiBedenleriTabs({ activeSection }: { activeSection: 
               className={`${styles.tab} ${isActive ? styles.tabActive : ""}`}
             >
               <Icon className="h-[18px] w-[18px] shrink-0" strokeWidth={1.9} aria-hidden />
-              <span>{card.title}</span>
+              <span>{L.cardTitle(card.key)}</span>
             </Link>
           );
         })}

@@ -61,7 +61,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   ]);
   if (!pointOwned || !topicOwned) {
     return NextResponse.json(
-      { ok: false, error: "Nokta veya konu bu hesaba ait değil." },
+      { ok: false, code: "CUP_POINT_OR_TOPIC_NOT_OWNED", error: "Nokta veya konu bu hesaba ait değil." },
       { status: 400 },
     );
   }

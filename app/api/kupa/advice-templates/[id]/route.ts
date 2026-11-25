@@ -23,7 +23,7 @@ export async function GET(
   const guard = await requireModuleAccess(req, "cupping");
   if (!guard.ok) return guard.response;
   const { id } = await params;
-  if (!id) return cuppingError(400, "Şablon id gerekli.");
+  if (!id) return cuppingError(400, "Şablon id gerekli.", "CUP_ID_REQUIRED");
   const res = await getEntity(guard.db, CUPPING_TABLES.adviceTemplates, guard.tenantId, id);
   if (!res.ok) return res.response;
   return NextResponse.json({ ok: true, template: res.data });
@@ -36,7 +36,7 @@ export async function PATCH(
   const guard = await requireModuleAccess(req, "cupping");
   if (!guard.ok) return guard.response;
   const { id } = await params;
-  if (!id) return cuppingError(400, "Şablon id gerekli.");
+  if (!id) return cuppingError(400, "Şablon id gerekli.", "CUP_ID_REQUIRED");
   const { db, tenantId, is_demo_account } = guard;
   if (is_demo_account) return demoReadOnlyResponse();
 
@@ -45,7 +45,7 @@ export async function PATCH(
 
   const fields = pickWritable(parsed.data, ADVICE_TEMPLATE_WRITABLE);
   if (Object.prototype.hasOwnProperty.call(fields, "title") && !String(fields.title ?? "").trim()) {
-    return cuppingError(400, "Şablon başlığı boş olamaz.");
+    return cuppingError(400, "Şablon başlığı boş olamaz.", "CUP_TITLE_REQUIRED");
   }
 
   // is_default niyeti allowlist DIŞINDA — server-side türetilir (mass-assignment yok).
@@ -72,7 +72,7 @@ export async function PATCH(
     if (!own.ok) return own.response;
     template = own.data;
   } else {
-    return cuppingError(400, "Güncellenecek alan yok.");
+    return cuppingError(400, "Güncellenecek alan yok.", "CUP_NO_FIELDS");
   }
 
   // Varsayılan YAP (true) yalnız atomik RPC ile — arşivleme ile birlikte GEÇERSİZ.
@@ -83,9 +83,9 @@ export async function PATCH(
     });
     if (error) {
       const code = (error as { code?: string }).code ?? "";
-      if (code === "45001") return cuppingError(404, "Kayıt bu hesaba ait değil veya bulunamadı.");
+      if (code === "45001") return cuppingError(404, "Kayıt bu hesaba ait değil veya bulunamadı.", "CUP_NOT_FOUND");
       await trackUsage(guard, req, { module: "cupping", action: "action_failed", failedAction: "record_updated", subEntity: "advice_template", errorClass: "server" });
-      return cuppingError(500, "İşlem tamamlanamadı. Lütfen tekrar deneyin.");
+      return cuppingError(500, "İşlem tamamlanamadı. Lütfen tekrar deneyin.", "CUP_DB_FAIL");
     }
     template = data as Record<string, unknown>;
   }
@@ -102,7 +102,7 @@ export async function DELETE(
   const guard = await requireModuleAccess(req, "cupping");
   if (!guard.ok) return guard.response;
   const { id } = await params;
-  if (!id) return cuppingError(400, "Şablon id gerekli.");
+  if (!id) return cuppingError(400, "Şablon id gerekli.", "CUP_ID_REQUIRED");
   const { db, tenantId, is_demo_account } = guard;
   if (is_demo_account) return demoReadOnlyResponse();
   // Şablon silinince: bağlı planlar advice_template_id=NULL; danışan snapshot'ları

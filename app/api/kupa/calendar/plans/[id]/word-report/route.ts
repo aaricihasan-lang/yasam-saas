@@ -49,18 +49,18 @@ export async function GET(
   const guard = await requireModuleAccess(req, "cupping");
   if (!guard.ok) return guard.response;
   const { id } = await params;
-  if (!id) return cuppingError(400, "Plan id gerekli.");
+  if (!id) return cuppingError(400, "Plan id gerekli.", "CUP_ID_REQUIRED");
 
   // Rapor kapsamı — month YOKSA yıllık; varsa KATI 1–12 tam sayı (SQL'e sokulmaz; yalnız gösterim filtresi).
   const monthParams = new URL(req.url).searchParams.getAll("month");
   let month: number | null = null;
-  if (monthParams.length > 1) return cuppingError(400, "Ay parametresi yalnız bir kez verilebilir.");
+  if (monthParams.length > 1) return cuppingError(400, "Ay parametresi yalnız bir kez verilebilir.", "CUP_MONTH_DUPLICATE");
   if (monthParams.length === 1) {
     const raw = monthParams[0];
     // Yalnız 1–2 haneli tam sayı; boş/işaret/ondalık/boşluk/metin reddedilir.
-    if (!/^\d{1,2}$/.test(raw)) return cuppingError(400, "Geçersiz ay. 1–12 arası tam sayı olmalı.");
+    if (!/^\d{1,2}$/.test(raw)) return cuppingError(400, "Geçersiz ay. 1–12 arası tam sayı olmalı.", "CUP_MONTH_INVALID");
     const n = Number(raw);
-    if (!Number.isInteger(n) || n < 1 || n > 12) return cuppingError(400, "Geçersiz ay. 1–12 arası tam sayı olmalı.");
+    if (!Number.isInteger(n) || n < 1 || n > 12) return cuppingError(400, "Geçersiz ay. 1–12 arası tam sayı olmalı.", "CUP_MONTH_INVALID");
     month = n;
   }
 
@@ -96,11 +96,12 @@ export async function GET(
       return cuppingError(
         409,
         "Takvime bağlı bilgilendirme şablonu bulunamadı. Şablonu yeniden bağlayın veya bağlantısını kaldırın.",
+        "CUP_ADVICE_TEMPLATE_MISSING",
       );
     } else {
       // Durum C-2: gerçek DB/erişim hatası. Ham Supabase mesajı gösterilmez.
       await trackUsage(guard, req, { module: "cupping", action: "action_failed", failedAction: "report_generated", subEntity: "calendar_plan", errorClass: "server" });
-      return cuppingError(502, "Takvime bağlı bilgilendirme notları alınamadı. Lütfen tekrar deneyin.");
+      return cuppingError(502, "Takvime bağlı bilgilendirme notları alınamadı. Lütfen tekrar deneyin.", "CUP_READ_FAILED");
     }
   }
 
@@ -112,7 +113,7 @@ export async function GET(
     buffer = await buildCalendarPlanWordBuffer({ plan, days, template, month, branding });
   } catch {
     await trackUsage(guard, req, { module: "cupping", action: "action_failed", failedAction: "report_generated", subEntity: "calendar_plan", errorClass: "server" });
-    return cuppingError(500, "Word raporu oluşturulamadı. Lütfen tekrar deneyin.");
+    return cuppingError(500, "Word raporu oluşturulamadı. Lütfen tekrar deneyin.", "CUP_WORD_FAILED");
   }
   // .docx BAŞARIYLA üretildi → tek report_generated (DB yazımı yok; yalnız telemetri).
   await trackUsage(guard, req, { module: "cupping", action: "report_generated", subEntity: "calendar_plan", resourceId: id });

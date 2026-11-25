@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
+import { useKupaErrorText } from "@/app/kupa/lib/errorText";
 import { useToast } from "@/components/ui/ToastProvider";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
 import { KupaShell, kupaBtnGhost, kupaBtnDanger, kupaBtnPrimary } from "@/app/kupa/components/KupaShell";
@@ -41,6 +43,8 @@ function ProtocolDocumentInner({ id }: { id: string }) {
   const { showToast } = useToast();
   const { confirm } = useConfirm();
   const doc = useProtocolDocument(id);
+  const t = useTranslations("cupping.protocols");
+  const errText = useKupaErrorText();
   const [editingBasic, setEditingBasic] = useState(false);
   const [wordBusy, setWordBusy] = useState(false);
 
@@ -65,9 +69,9 @@ function ProtocolDocumentInner({ id }: { id: string }) {
         a.remove();
         setTimeout(() => URL.revokeObjectURL(url), 60_000);
       }
-      showToast({ message: "Word indirme başlatıldı.", type: "success" });
+      showToast({ message: t("doc.wordStarted"), type: "success" });
     } catch (e) {
-      showToast({ message: e instanceof Error ? e.message : "Word oluşturulamadı.", type: "error" });
+      showToast({ message: errText(e, t("doc.wordFailed")), type: "error" });
     } finally {
       setWordBusy(false);
     }
@@ -77,25 +81,25 @@ function ProtocolDocumentInner({ id }: { id: string }) {
     const p = doc.protocol;
     if (!p) return;
     const ok = await confirm({
-      title: "Protokolü Sil",
-      message: `"${p.title}" protokolünü silmek istediğinizden emin misiniz?\n\nBu protokole ait bölgeler, uygulama adımları, bilgiler ve kaynak bağlantıları silinir. Ana kütüphane kayıtları silinmez.`,
-      confirmText: "Protokolü Sil",
-      cancelText: "Vazgeç",
+      title: t("list.delete.title"),
+      message: t("list.delete.message", { title: p.title }),
+      confirmText: t("list.delete.confirm"),
+      cancelText: t("list.delete.cancel"),
       tone: "danger",
     });
     if (!ok) return;
     try {
       await deleteProtocol(p.id);
-      showToast({ message: "Protokol silindi.", type: "success" });
+      showToast({ message: t("list.delete.done"), type: "success" });
       router.push("/kupa/protokoller");
     } catch (e) {
-      showToast({ message: e instanceof Error ? e.message : "Silinemedi.", type: "error" });
+      showToast({ message: errText(e, t("list.delete.failed")), type: "error" });
     }
   }
 
   if (doc.loading) {
     return (
-      <KupaShell title="Yükleniyor…" breadcrumb={[{ label: "Protokoller", href: "/kupa/protokoller" }]} fullBleedBelowLg>
+      <KupaShell title={t("doc.loading")} breadcrumb={[{ label: t("list.crumb"), href: "/kupa/protokoller" }]} fullBleedBelowLg>
         <div className="space-y-2">
           <div className="h-24 animate-pulse rounded-2xl bg-white/70" />
           <div className="h-24 animate-pulse rounded-2xl bg-white/60" />
@@ -106,8 +110,8 @@ function ProtocolDocumentInner({ id }: { id: string }) {
 
   if (doc.notFound) {
     return (
-      <KupaShell title="Protokol bulunamadı" breadcrumb={[{ label: "Protokoller", href: "/kupa/protokoller" }]} fullBleedBelowLg>
-        <p className="text-sm text-slate-600">Bu protokol kaydı bulunamadı veya bu hesaba ait değil.</p>
+      <KupaShell title={t("doc.notFoundTitle")} breadcrumb={[{ label: t("list.crumb"), href: "/kupa/protokoller" }]} fullBleedBelowLg>
+        <p className="text-sm text-slate-600">{t("doc.notFoundBody")}</p>
       </KupaShell>
     );
   }
@@ -115,9 +119,9 @@ function ProtocolDocumentInner({ id }: { id: string }) {
   const p = doc.protocol;
   if (!p) {
     return (
-      <KupaShell title="Bir sorun oluştu" breadcrumb={[{ label: "Protokoller", href: "/kupa/protokoller" }]} fullBleedBelowLg>
-        <p className="text-sm text-rose-600">{doc.error ?? "Protokol yüklenemedi."}</p>
-        <button type="button" className={`mt-3 ${kupaBtnGhost}`} onClick={() => void doc.reload.all()}>Tekrar dene</button>
+      <KupaShell title={t("doc.errorTitle")} breadcrumb={[{ label: t("list.crumb"), href: "/kupa/protokoller" }]} fullBleedBelowLg>
+        <p className="text-sm text-rose-600">{doc.error ? errText(doc.error, t("doc.loadError")) : t("doc.loadError")}</p>
+        <button type="button" className={`mt-3 ${kupaBtnGhost}`} onClick={() => void doc.reload.all()}>{t("list.retry")}</button>
       </KupaShell>
     );
   }
@@ -127,36 +131,36 @@ function ProtocolDocumentInner({ id }: { id: string }) {
       title={p.title}
       badge={p.category ?? undefined}
       subtitle={p.summary ?? undefined}
-      breadcrumb={[{ label: "Protokoller", href: "/kupa/protokoller" }, { label: p.title }]}
+      breadcrumb={[{ label: t("list.crumb"), href: "/kupa/protokoller" }, { label: p.title }]}
       fullBleedBelowLg
       actions={
         <>
           <button type="button" className={kupaBtnPrimary} onClick={handleWordDownload} disabled={wordBusy}>
-            {wordBusy ? "Hazırlanıyor…" : "Word İndir"}
+            {wordBusy ? t("doc.wordPreparing") : t("doc.wordDownload")}
           </button>
           <button type="button" className={kupaBtnGhost} onClick={() => setEditingBasic(true)}>
-            Temel Bilgiyi Düzenle
+            {t("doc.editBasic")}
           </button>
           <button type="button" className={kupaBtnDanger} onClick={handleDelete}>
-            Protokolü Sil
+            {t("list.delete.title")}
           </button>
         </>
       }
     >
       {!p.is_active ? (
-        <p className="mb-2 inline-flex rounded-md bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-500">Pasif</p>
+        <p className="mb-2 inline-flex rounded-md bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-500">{t("list.statusPassive")}</p>
       ) : null}
 
       {doc.error ? (
         // Bölümlerden biri yüklenemedi: bölümleri BOŞ gibi gösterme (uzman verisi silindi sanıp
         //   yeniden ekleyerek mükerrer kayıt üretmesin). Açık uyarı + tekrar dene.
         <div role="alert" className="mb-3 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">
-          <p className="font-semibold">Protokolün bazı bölümleri yüklenemedi.</p>
+          <p className="font-semibold">{t("doc.partialTitle")}</p>
           <p className="mt-1 text-rose-700">
-            Kayıtlarınız silinmedi; yalnızca şu an gösterilemiyor. Bağlantınızı kontrol edip tekrar deneyin. ({doc.error})
+            {t("doc.partialBody")} ({errText(doc.error, t("doc.loadError"))})
           </p>
           <button type="button" className={`mt-3 ${kupaBtnGhost} min-h-[44px]`} onClick={() => void doc.reload.all()}>
-            Tekrar dene
+            {t("list.retry")}
           </button>
         </div>
       ) : null}

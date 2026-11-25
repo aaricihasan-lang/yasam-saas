@@ -25,7 +25,7 @@ export async function PATCH(
   const guard = await requireModuleAccess(req, "cupping");
   if (!guard.ok) return guard.response;
   const { id } = await params;
-  if (!id) return cuppingError(400, "Gün id gerekli.");
+  if (!id) return cuppingError(400, "Gün id gerekli.", "CUP_ID_REQUIRED");
   const { db, tenantId, is_demo_account } = guard;
   if (is_demo_account) return demoReadOnlyResponse();
 
@@ -37,7 +37,7 @@ export async function PATCH(
   // renksiz bırakılmaz; yalnız başka renkle değiştirilir). Eski renksiz kayıt PATCH ile renk
   // ALIR (non-null); color_key gönderilmezse mevcut değer korunur (etiket-only düzenleme serbest).
   const norm = normalizeCuppingDayStyle(parsed.data, { requireAtLeastOne: true, rejectNullColor: true });
-  if (!norm.ok) return cuppingError(400, norm.error);
+  if (!norm.ok) return cuppingError(400, norm.error, norm.code);
 
   // Tenant-safe UPDATE (updateEntity id + tenant_id ile bağlar → cross-tenant IDOR engeli).
   const res = await updateEntity(db, CUPPING_TABLES.calendarPlanDays, tenantId, id, norm.fields);
@@ -57,7 +57,7 @@ export async function DELETE(
   const guard = await requireModuleAccess(req, "cupping");
   if (!guard.ok) return guard.response;
   const { id } = await params;
-  if (!id) return cuppingError(400, "Gün id gerekli.");
+  if (!id) return cuppingError(400, "Gün id gerekli.", "CUP_ID_REQUIRED");
   const { db, tenantId, is_demo_account } = guard;
   if (is_demo_account) return demoReadOnlyResponse();
   const res = await deleteEntity(db, CUPPING_TABLES.calendarPlanDays, tenantId, id);

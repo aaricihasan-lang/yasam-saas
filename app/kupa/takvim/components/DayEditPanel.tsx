@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { useTranslations } from "next-intl";
+import { useCalendarNames } from "../lib/useCalendarNames";
 import { kupaBtnDanger, kupaBtnGhost, kupaBtnSuccess, kupaInput } from "@/app/kupa/components/KupaShell";
 import {
   CUPPING_DAY_LABEL_MAX,
@@ -75,6 +77,9 @@ export function DayEditPanel({
   const [error, setError] = useState<string | null>(null);
   const labelRef = useRef<HTMLInputElement>(null);
   const { confirm } = useConfirm();
+  const t = useTranslations("cupping.calendar");
+  const tc = useTranslations("cupping.common");
+  const names = useCalendarNames();
   const dirty = dayStyleDirty({ colorKey, label, note }, initial);
 
   // Kapatma isteği: gerçek değişiklik varsa açık onay (Vazgeç → panelde kal). Onay açıkken
@@ -87,10 +92,10 @@ export function DayEditPanel({
       let ok = false;
       try {
         ok = await confirm({
-          title: "Kaydedilmemiş Değişiklikler",
-          message: "Bu günde yaptığınız değişiklikler taslağa uygulanmadı.\nUygulamadan kapatmak istiyor musunuz?",
-          confirmText: "Uygulamadan Kapat",
-          cancelText: "Vazgeç",
+          title: t("dayEdit.unsavedTitle"),
+          message: t("dayEdit.unsavedMessage"),
+          confirmText: t("dayEdit.unsavedConfirm"),
+          cancelText: tc("cancel"),
           tone: "danger",
         });
       } finally {
@@ -125,16 +130,16 @@ export function DayEditPanel({
   function save() {
     // RENK ZORUNLU — seçilmeden uygulanamaz (yeni gün + eski renksiz kayıt düzenlemesi).
     if (colorMissing) {
-      setError("Devam etmek için bir renk seçin.");
+      setError(t("dayEdit.colorRequired"));
       return;
     }
     // SESSİZ KIRPMA YOK — sınır aşımında açık doğrulama; kaydetme engellenir.
     if (labelOver) {
-      setError(`Kısa açıklama en fazla ${CUPPING_DAY_LABEL_MAX} karakter olabilir.`);
+      setError(t("dayEdit.labelTooLong", { max: String(CUPPING_DAY_LABEL_MAX) }));
       return;
     }
     if (noteOver) {
-      setError(`Detay notu en fazla ${CUPPING_DAY_NOTE_MAX} karakter olabilir.`);
+      setError(t("dayEdit.noteTooLong", { max: String(CUPPING_DAY_NOTE_MAX) }));
       return;
     }
     onApply({ colorKey, label: label.trim(), note: note.trim() });
@@ -153,7 +158,7 @@ export function DayEditPanel({
       <div
         role="dialog"
         aria-modal="true"
-        aria-label={isSelected ? "Günü Düzenle" : "Gün Ekle"}
+        aria-label={isSelected ? t("dayEdit.editTitle") : t("dayEdit.addTitle")}
         onClick={(e) => e.stopPropagation()}
         /* max-h dvh: sanal klavye açılınca panel küçülür ve içerik kaydırılır → alt aksiyonlar
            kaybolmaz. Alt güvenli-alan payı (home indicator / klavye). */
@@ -162,14 +167,14 @@ export function DayEditPanel({
         {/* Başlık + tarih bilgisi */}
         <div className="mb-3 flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <h3 className="text-base font-black text-slate-900">{isSelected ? "Günü Düzenle" : "Gün Ekle"}</h3>
+            <h3 className="text-base font-black text-slate-900">{isSelected ? t("dayEdit.editTitle") : t("dayEdit.addTitle")}</h3>
             <p className="mt-0.5 text-sm font-semibold text-slate-700">{gregText}</p>
-            <p className="text-xs text-slate-500">Hicrî {hijriText}</p>
+            <p className="text-xs text-slate-500">{t("hijriPrefix")} {hijriText}</p>
           </div>
           <button
             type="button"
             onClick={() => void requestClose()}
-            aria-label="Kapat"
+            aria-label={tc("close")}
             className="shrink-0 rounded-lg p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
           >
             <span aria-hidden className="text-lg leading-none">×</span>
@@ -178,7 +183,7 @@ export function DayEditPanel({
 
         {/* Renk seçici — kontrollü palet; RENK ZORUNLU (varsayılan/ön-seçili YOK) */}
         <div className="mb-4">
-          <p className="mb-1.5 text-xs font-bold uppercase tracking-wide text-slate-500">Renk (zorunlu)</p>
+          <p className="mb-1.5 text-xs font-bold uppercase tracking-wide text-slate-500">{t("dayEdit.colorLabel")}</p>
           <div className="flex flex-wrap gap-2">
             {CUPPING_DAY_COLOR_ORDER.map((key) => {
               const def = CUPPING_DAY_COLORS[key];
@@ -192,8 +197,8 @@ export function DayEditPanel({
                     if (error) setError(null);
                   }}
                   aria-pressed={active}
-                  aria-label={def.labelTr}
-                  title={def.labelTr}
+                  aria-label={names.colorLabel(key)}
+                  title={names.colorLabel(key)}
                   className={[
                     "h-9 w-9 rounded-full border-2 outline-none transition focus-visible:ring-2 focus-visible:ring-amber-400/70",
                     def.swatch,
@@ -205,11 +210,11 @@ export function DayEditPanel({
           </div>
           {colorMissing ? (
             <p className="mt-1.5 text-[11px] font-medium text-amber-700">
-              Devam etmek için bir renk seçin.
+              {t("dayEdit.colorRequired")}
             </p>
           ) : (
             <p className="mt-1.5 text-[11px] text-slate-400">
-              Rengi değiştirmek için başka bir renge dokunun.
+              {t("dayEdit.colorChangeHint")}
             </p>
           )}
         </div>
@@ -218,7 +223,7 @@ export function DayEditPanel({
         <div className="mb-4">
           <div className="mb-1.5 flex items-center justify-between">
             <label htmlFor="cupping-day-label" className="text-xs font-bold uppercase tracking-wide text-slate-500">
-              Kısa Açıklama (opsiyonel)
+              {t("dayEdit.labelLabel")}
             </label>
             <span className={`text-[11px] font-semibold ${labelOver ? "text-rose-600" : "text-slate-400"}`}>
               {labelLen}/{CUPPING_DAY_LABEL_MAX}
@@ -233,7 +238,7 @@ export function DayEditPanel({
               setLabel(e.target.value);
               if (error) setError(null);
             }}
-            placeholder="Örn. kendi kısa notunuz"
+            placeholder={t("dayEdit.labelPlaceholder")}
             className={`${kupaInput} ${labelOver ? "border-rose-300 focus:border-rose-400 focus:ring-rose-200" : ""}`}
           />
         </div>
@@ -241,7 +246,7 @@ export function DayEditPanel({
         {/* Detay notu — mevcut note alanı (hücrede gösterilmez; burada erişilir) */}
         <div className="mb-3">
           <label htmlFor="cupping-day-note" className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-slate-500">
-            Detay Notu (opsiyonel)
+            {t("dayEdit.noteLabel")}
           </label>
           <textarea
             id="cupping-day-note"
@@ -251,7 +256,7 @@ export function DayEditPanel({
               if (error) setError(null);
             }}
             rows={3}
-            placeholder="Yalnız bu gün için ek notunuz"
+            placeholder={t("dayEdit.notePlaceholder")}
             className={`${kupaInput} resize-y ${noteOver ? "border-rose-300 focus:border-rose-400 focus:ring-rose-200" : ""}`}
           />
         </div>
@@ -265,21 +270,21 @@ export function DayEditPanel({
         {/* KAYIT NETLİĞİ: bu panel yalnız çalışma TASLAĞINI günceller; kalıcı DB kaydı ana
             "Değişiklikleri Kaydet" ile olur (tek kalıcılık yolu). */}
         <p className="mb-2 rounded-lg border border-amber-100 bg-amber-50/60 px-3 py-2 text-[11px] leading-relaxed text-amber-800">
-          Kalıcı olarak kaydetmek için takvimde <span className="font-bold">Değişiklikleri Kaydet</span>&apos;e basın.
+          {t.rich("dayEdit.persistHint", { b: (c) => <span className="font-bold">{c}</span> })}
         </p>
 
         {/* Aksiyonlar — "Gün Seçimini Kaldır" (günü + stilini bırakır) YALNIZ seçili günde; Vazgeç / Taslağa Uygula */}
         <div className="mt-1 flex flex-col gap-2 border-t border-slate-100 pt-3 sm:flex-row sm:items-center sm:justify-between">
           {isSelected ? (
             <button type="button" className={kupaBtnDanger} onClick={onDeselect}>
-              Gün Seçimini Kaldır
+              {t("dayEdit.deselect")}
             </button>
           ) : (
             <span aria-hidden />
           )}
           <div className="flex justify-end gap-2">
             <button type="button" className={`${kupaBtnGhost} min-h-[40px]`} onClick={() => void requestClose()}>
-              Vazgeç
+              {tc("cancel")}
             </button>
             <button
               type="button"
@@ -287,7 +292,7 @@ export function DayEditPanel({
               onClick={save}
               disabled={!canApply}
             >
-              Taslağa Uygula
+              {t("dayEdit.apply")}
             </button>
           </div>
         </div>

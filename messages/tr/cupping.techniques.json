@@ -1,0 +1,88 @@
+{
+  "cupping": {
+    "techniques": {
+      "read": {
+        "usageCheckFailed": "Kullanım kontrolü yapılamadı.",
+        "deleteFailed": "Silinemedi.",
+        "notFound": "Teknik bulunamadı.",
+        "back": "← Kupa Teknikleri",
+        "loadError": "Yüklenemedi.",
+        "checking": "Kontrol ediliyor…",
+        "emptySummary": "Henüz açıklama eklenmemiş.",
+        "emptyApproach": "Henüz uygulama bilgisi eklenmemiş.",
+        "safetyTitle": "Güvenlik ve Dikkat",
+        "emptySafety": "Henüz güvenlik/dikkat notu eklenmemiş.",
+        "emptyNote": "Henüz kişisel not eklenmemiş.",
+        "blockedTitle": "Teknik silinemiyor",
+        "blockedBody": "Bu teknik bir veya daha fazla protokolde kullanılıyor.\nSilmeden önce ilgili protokollerden tekniği çıkarmanız gerekir.",
+        "usedInProtocols": "Kullanıldığı protokoller",
+        "openProtocol": "Protokolü Aç →",
+        "deleteTitle": "Tekniği sil?",
+        "deleteBody": "Bu teknik kalıcı olarak silinecek. Bu işlem geri alınamaz.",
+        "deleteConfirm": "Tekniği Sil"
+      },
+      "fields": {
+        "summary": "Teknik Özeti",
+        "approach": "Genel Uygulama Yaklaşımı",
+        "practitionerNote": "Uzman Notum"
+      },
+      "list": {
+        "loadError": "Liste yüklenemedi.",
+        "title": "Kupa Teknikleri",
+        "new": "+ Yeni Teknik",
+        "searchPlaceholder": "Teknik ara…",
+        "searchAria": "Teknik ara",
+        "typeFilter": "Tür filtresi",
+        "moveFilter": "Uygulama biçimi filtresi",
+        "empty": "Henüz teknik yok.",
+        "createFirst": "İlk tekniği oluştur →",
+        "noMatch": "Aramanızla eşleşen teknik yok."
+      },
+      "usage": {
+        "title": "Kullanıldığı Protokoller",
+        "loadError": "Protokol kullanımı yüklenemedi.",
+        "unused": "Bu teknik henüz bir protokolde kullanılmıyor.",
+        "usedIn": "{count} protokolde kullanılıyor"
+      },
+      "sources": {
+        "title": "Kaynaklar",
+        "manage": "Kaynakları Yönet",
+        "hint": "Bu tekniğe ilişkin kaynak künyelerini eklemek/görüntülemek için “Kaynakları Yönet”."
+      },
+      "page": {
+        "subtitle": "Tekniklerinizi tek çalışma alanında okuyun, düzenleyin; güvenlik ve kaynaklarını bağlayın.",
+        "selectHint": "Okumak veya düzenlemek için soldan bir teknik seçin.",
+        "newTitle": "Yeni Teknik",
+        "detailCrumb": "Teknik"
+      },
+      "editor": {
+        "nameRequired": "Teknik adı gerekli.",
+        "editTitle": "Tekniği Düzenle",
+        "nameLabel": "Teknik Adı *",
+        "namePlaceholder": "Örn. Sabit kuru kupa",
+        "nameAria": "Teknik adı",
+        "duplicatePrefix": "Benzer teknik zaten var:",
+        "duplicateHint": "Mevcut tekniği açabilir ya da yine de yeni bir kayıt oluşturabilirsiniz.",
+        "typeLabel": "Tür",
+        "movementLabel": "Uygulama Biçimi (opsiyonel)",
+        "movementAria": "Uygulama biçimi",
+        "summaryPlaceholder": "Bu teknik nedir? Kısa, okunabilir genel açıklama.",
+        "summaryAria": "Teknik özeti",
+        "approachPlaceholder": "Tekniğin genel uygulama yaklaşımı. Belirli bir protokole özel notları ilgili protokolde tutun.",
+        "approachAria": "Genel uygulama yaklaşımı",
+        "safetyLabel": "Güvenlik / Dikkat",
+        "safetyPlaceholder": "Tekniğe özel kısa dikkat notu (opsiyonel).",
+        "safetyAria": "Güvenlik dikkat notu",
+        "noteHint": "Kişisel mesleki notunuz (formal kaynak değildir).",
+        "noteEdit": "Uzman Notunu Düzenle",
+        "noteAdd": "Uzman Notu Ekle",
+        "create": "Oluştur",
+        "notePlaceholder": "Kişisel mesleki notunuz…",
+        "discardTitle": "Değişikliklerden vazgeç?",
+        "discardBody": "Kaydedilmemiş değişiklikleriniz var. Vazgeçerseniz bu değişiklikler kaybolacak.",
+        "discardConfirm": "Değişikliklerden Vazgeç",
+        "discardCancel": "Vazgeçme"
+      }
+    }
+  }
+}

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { CUPPING_TABLES } from "@/lib/cupping/fields";
 import { assertOwnedRef, cuppingError } from "@/lib/cupping/api";
+import type { CuppingErrorCode } from "@/lib/cupping/errorCodes";
 
 export const runtime = "nodejs";
 
@@ -28,6 +29,8 @@ type UsageSpec = {
   fkColumn: string;
   /** Sahiplik doğrulanamazsa 404 mesajı. */
   notFound: string;
+  /** I18N — 404 için dil-bağımsız kod (istemci `cupping.errors.codes.<KOD>`). */
+  notFoundCode: CuppingErrorCode;
   /** id path param eksikse 400 mesajı. */
   idRequired: string;
 };
@@ -40,12 +43,12 @@ export function makeProtocolUsageRoute(spec: UsageSpec) {
     const guard = await requireModuleAccess(req, "cupping");
     if (!guard.ok) return guard.response;
     const { id } = await params;
-    if (!id) return cuppingError(400, spec.idRequired);
+    if (!id) return cuppingError(400, spec.idRequired, "CUP_ID_REQUIRED");
     const { db, tenantId } = guard;
 
     // Master bu tenant'a ait GERÇEK bir kayıt mı? (cross-tenant enumerasyonu engeller)
     if (!(await assertOwnedRef(db, spec.entityTable, tenantId, id))) {
-      return cuppingError(404, spec.notFound);
+      return cuppingError(404, spec.notFound, spec.notFoundCode);
     }
 
     // (1) Bu master'ı içeren ilişki satırları (yalnız protocol_id).
@@ -54,7 +57,7 @@ export function makeProtocolUsageRoute(spec: UsageSpec) {
       .select("protocol_id")
       .eq("tenant_id", tenantId)
       .eq(spec.fkColumn, id);
-    if (relRes.error) return cuppingError(500, DB_FAIL);
+    if (relRes.error) return cuppingError(500, DB_FAIL, "CUP_DB_FAIL");
 
     const protocolIds = Array.from(
       new Set(
@@ -73,7 +76,7 @@ export function makeProtocolUsageRoute(spec: UsageSpec) {
       .in("id", protocolIds)
       .order("sort_order", { ascending: true })
       .order("title", { ascending: true });
-    if (protoRes.error) return cuppingError(500, DB_FAIL);
+    if (protoRes.error) return cuppingError(500, DB_FAIL, "CUP_DB_FAIL");
 
     return NextResponse.json({ ok: true, protocols: protoRes.data ?? [] });
   }

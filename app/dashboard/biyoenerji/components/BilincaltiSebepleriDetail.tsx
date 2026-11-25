@@ -5,6 +5,10 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Brain, FileText, Pencil, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState, useRef } from "react";
+import { useTranslations } from "next-intl";
+import { useBioErrorText } from "../useBioErrorText";
+import { useBioDateTime } from "../useBioDateTime";
+import { useBioReportError } from "../useBioReportError";
 import { DogaltasFontSizeControl } from "@/app/dogaltas/components/DogaltasFontSizeControl";
 import { formatStoneContent } from "@/lib/dogaltas/formatStoneContent";
 import { getSyncedTenantId, MISSING_SESSION_TENANT_MESSAGE } from "@/lib/auth/sessionTenant";
@@ -30,7 +34,6 @@ import {
   BIO_TIMEOUT_ERROR,
 } from "@/lib/biyoenerji/secureApi";
 import { changedFields } from "@/lib/biyoenerji/changedFields";
-import { BIO_REPORT_NETWORK_ERROR, bioReportErrorMessage } from "@/lib/biyoenerji/reportDownloadError";
 import { badgeFieldWrapClass } from "./BiyoenerjiUi";
 import { useDemoGuard } from "@/hooks/useDemoGuard";
 import { DemoGate } from "@/components/demo/DemoGate";
@@ -80,20 +83,6 @@ function slugifySourceUid(value: string) {
   return slug || String(Date.now());
 }
 
-function formatDate(iso: string | null | undefined) {
-  if (!iso) return "—";
-  try {
-    return new Intl.DateTimeFormat("tr-TR", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    }).format(new Date(iso));
-  } catch {
-    return "—";
-  }
-}
 
 function useMobileViewport() {
   const [isMobile, setIsMobile] = useState(false);
@@ -129,6 +118,12 @@ function DetailSection({
 }
 
 export default function BilincaltiSebepleriDetail({ id }: { id: string }) {
+  const t = useTranslations("bioenergy.subconscious");
+  const td = useTranslations("bioenergy.detail");
+  const tl = useTranslations("bioenergy.list");
+  const errText = useBioErrorText();
+  const formatDate = useBioDateTime();
+  const reportErr = useBioReportError();
   const router = useRouter();
   const isMobile = useMobileViewport();
   const { isDemo } = useDemoGuard();
@@ -198,16 +193,16 @@ export default function BilincaltiSebepleriDetail({ id }: { id: string }) {
         body: JSON.stringify({ tenantId, exportMode: "single", id: record.id }),
       });
       if (!res.ok) {
-        setInfoError(await bioReportErrorMessage(res));
+        setInfoError(await reportErr.fromResponse(res));
         return;
       }
       await downloadFileResponse(res, `bilincalti-sebep-${record.id.slice(0, 8)}-${reportFileDate()}.docx`);
     } catch {
-      setInfoError(BIO_REPORT_NETWORK_ERROR);
+      setInfoError(reportErr.network());
     } finally {
       setWordBusy(false);
     }
-  }, [record, wordBusy]);
+  }, [record, wordBusy, reportErr]);
 
   useEffect(() => {
     if (!infoSuccess && !infoError) return;
@@ -222,7 +217,7 @@ export default function BilincaltiSebepleriDetail({ id }: { id: string }) {
     const recordId = id.trim();
     if (!recordId) {
       setLoading(false);
-      setErrorMessage("Geçersiz kayıt bağlantısı.");
+      setErrorMessage(td("invalidLink"));
       setRecord(null);
       return;
     }
@@ -253,7 +248,7 @@ export default function BilincaltiSebepleriDetail({ id }: { id: string }) {
     setLoading(false);
 
     if (error) {
-      setErrorMessage(`Kayıt okunamadı: ${error}`);
+      setErrorMessage(td("readFailed", { detail: errText(error, tl("serverError")) }));
       // BIO-02 — yalnız geçici ağ hatasında (aynı hesabın) seed'lenmiş içerik korunur;
       // yetki/erişim hatalarında eski kayıt ekranda TUTULMAZ.
       if (error !== BIO_NETWORK_ERROR && error !== BIO_TIMEOUT_ERROR) setRecord(null);
@@ -262,12 +257,13 @@ export default function BilincaltiSebepleriDetail({ id }: { id: string }) {
 
     if (!data) {
       // BIO-02 — 404 (silinmiş / bu hesaba ait değil): bayat kayıt gösterilmez.
-      setErrorMessage("Kayıt bulunamadı veya bu hesaba ait değil.");
+      setErrorMessage(td("notFound"));
       setRecord(null);
       return;
     }
 
     setRecord(data as BioenergySubconsciousRecord);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- çeviri işlevleri dil değişiminde yeniden kayıt okumaz
   }, [id]);
 
   /** BIO-11 — düzenleme formu her açılışta güncel kayıttan doldurulur (eski taslak taşınmaz). */
@@ -288,11 +284,12 @@ export default function BilincaltiSebepleriDetail({ id }: { id: string }) {
   useEffect(() => {
     if (!id.trim()) {
       setLoading(false);
-      setErrorMessage("Geçersiz kayıt bağlantısı.");
+      setErrorMessage(td("invalidLink"));
       setRecord(null);
       return;
     }
     void loadRecord();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- çeviri işlevleri dil değişiminde yeniden kayıt okumaz
   }, [loadRecord, id]);
 
   async function handleGuncelle() {
@@ -305,7 +302,7 @@ export default function BilincaltiSebepleriDetail({ id }: { id: string }) {
 
           const titleTrim = form.title.trim();
           if (!titleTrim) {
-            showSoft("err", "Başlık zorunludur.");
+            showSoft("err", t("titleRequired"));
             return;
           }
 
@@ -320,7 +317,7 @@ export default function BilincaltiSebepleriDetail({ id }: { id: string }) {
           const changes = changedFields(payloadOf(form), editOriginalRef.current ? payloadOf(editOriginalRef.current) : null);
           if (Object.keys(changes).length === 0) {
             setFormModalOpen(false);
-            showSoft("ok", "Değişiklik yok.");
+            showSoft("ok", td("noChanges"));
             return;
           }
           setSaving(true);
@@ -329,18 +326,18 @@ export default function BilincaltiSebepleriDetail({ id }: { id: string }) {
           setSaving(false);
 
           if (error) {
-            showSoft("err", `Güncellenemedi: ${error}`);
+            showSoft("err", td("updateFailed", { detail: errText(error, tl("serverError")) }));
             return;
           }
 
           setFormModalOpen(false);
           await loadRecord();
-          showSoft("ok", "Kayıt güncellendi.");
+          showSoft("ok", td("updated"));
         } finally {
           setSaving(false);
         }
       })
-      .catch((e: unknown) => showSoft("err", e instanceof Error ? e.message : "İşlem tamamlanamadı."));
+      .catch((e: unknown) => showSoft("err", errText(e, tl("opFailed"))));
   }
 
   async function executeDelete() {
@@ -358,7 +355,7 @@ export default function BilincaltiSebepleriDetail({ id }: { id: string }) {
     setDeleteConfirmOpen(false);
 
     if (error) {
-      showSoft("err", `Silinemedi: ${error}`);
+      showSoft("err", tl("deleteFailed", { detail: errText(error, tl("serverError")) }));
       return;
     }
 
@@ -368,7 +365,7 @@ export default function BilincaltiSebepleriDetail({ id }: { id: string }) {
   if (loading) {
     return (
       <div className="flex min-h-[180px] items-center justify-center rounded-xl border border-violet-200/50 bg-violet-50/60">
-        <p className="text-lg font-semibold text-slate-600">Kayıt yükleniyor…</p>
+        <p className="text-lg font-semibold text-slate-600">{td("loading")}</p>
       </div>
     );
   }
@@ -412,7 +409,7 @@ export default function BilincaltiSebepleriDetail({ id }: { id: string }) {
           ) : null}
           <h1 className="flex items-center gap-2.5 text-3xl font-black tracking-tight text-slate-900">
             <Brain className="h-7 w-7 shrink-0 text-amber-500" strokeWidth={2} aria-hidden />
-            <span className="min-w-0 break-words">{record.title?.trim() || "İsimsiz kayıt"}</span>
+            <span className="min-w-0 break-words">{record.title?.trim() || tl("untitled")}</span>
           </h1>
           <p className="mt-2 text-xs text-slate-500">
             {formatDate(record.created_at)}
@@ -437,15 +434,15 @@ export default function BilincaltiSebepleriDetail({ id }: { id: string }) {
               <div className="hidden h-7 w-px bg-slate-200 sm:block" aria-hidden />
               <button type="button" onClick={openEdit} className={tbBtn}>
                 <Pencil className="h-4 w-4" strokeWidth={2} aria-hidden />
-                Düzenle
+                {td("edit")}
               </button>
               <button type="button" disabled={saving} onClick={() => setDeleteConfirmOpen(true)} className={tbBtnDanger}>
                 <Trash2 className="h-4 w-4" strokeWidth={2} aria-hidden />
-                Sil
+                {td("delete")}
               </button>
               <button type="button" disabled={wordBusy} onClick={() => void downloadWord()} className={tbBtn}>
                 <FileText className="h-4 w-4" strokeWidth={2} aria-hidden />
-                {wordBusy ? "Hazırlanıyor…" : "Word"}
+                {wordBusy ? td("preparing") : "Word"}
               </button>
             </>
           )}
@@ -455,13 +452,13 @@ export default function BilincaltiSebepleriDetail({ id }: { id: string }) {
       {/* Document sections */}
       <DemoGate
         isProtected={isDemo}
-        message="Bu kayıt içeriği demo hesabında sınırlı gösterilir. Tam sürümde tüm bilgilere erişilebilir."
+        message={td("demoGate")}
       >
         <div>
-          {contentText ? <DetailSection title="İçerik" text={contentText} typography={contentTypography} /> : null}
-          {noteText ? <DetailSection title="Not" text={noteText} typography={contentTypography} /> : null}
+          {contentText ? <DetailSection title={t("fields.content")} text={contentText} typography={contentTypography} /> : null}
+          {noteText ? <DetailSection title={t("fields.note")} text={noteText} typography={contentTypography} /> : null}
           {isDemo && !contentText && !noteText ? (
-            <DetailSection title="İçerik" text="Demo içerik alanı." typography={contentTypography} />
+            <DetailSection title={t("fields.content")} text={td("demoContent")} typography={contentTypography} />
           ) : null}
         </div>
       </DemoGate>
@@ -470,8 +467,8 @@ export default function BilincaltiSebepleriDetail({ id }: { id: string }) {
         open={formModalOpen}
         onClose={() => setFormModalOpen(false)}
         isDirty={formIsDirty}
-        title="Bilinçaltı kaydını düzenle"
-        subtitle="Kaydettikten sonra detay yenilenir."
+        title={t("editTitle")}
+        subtitle={td("formSubtitle")}
         titleId="subconscious-edit-modal-title"
         accentRingClass="ring-fuchsia-100/50"
         footer={({ requestClose }) => (
@@ -482,7 +479,7 @@ export default function BilincaltiSebepleriDetail({ id }: { id: string }) {
               onClick={requestClose}
               className="rounded-xl border border-slate-200/85 bg-white/90 px-4 py-2.5 text-[12px] font-black text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-50"
             >
-              Vazgeç
+              {tl("cancel")}
             </button>
             <button
               type="button"
@@ -498,7 +495,7 @@ export default function BilincaltiSebepleriDetail({ id }: { id: string }) {
               }
               className="rounded-xl border border-slate-200/80 bg-white/90 px-4 py-2.5 text-[12px] font-black text-slate-600 shadow-sm transition hover:bg-slate-50 disabled:opacity-50"
             >
-              Sıfırla
+              {td("reset")}
             </button>
             <button
               type="button"
@@ -506,14 +503,14 @@ export default function BilincaltiSebepleriDetail({ id }: { id: string }) {
               onClick={() => void handleGuncelle()}
               className="rounded-xl border border-fuchsia-200/70 bg-fuchsia-50/90 px-4 py-2.5 text-[12px] font-black text-fuchsia-950 shadow-sm transition hover:bg-fuchsia-100/90 disabled:opacity-55"
             >
-              {saving ? "Güncelleniyor…" : "Güncelle"}
+              {saving ? td("updating") : td("update")}
             </button>
           </>
         )}
       >
         <div className="space-y-5">
           <label className="block">
-            <span className="mb-2 block text-[12px] font-black text-slate-800">Referans Kodu (isteğe bağlı)</span>
+            <span className="mb-2 block text-[12px] font-black text-slate-800">{t("fields.refCode")}</span>
             <input
               value={form.source_uid}
               onChange={(e) => setForm((f) => ({ ...f, source_uid: e.target.value }))}
@@ -521,7 +518,7 @@ export default function BilincaltiSebepleriDetail({ id }: { id: string }) {
             />
           </label>
           <label className="block">
-            <span className="mb-2 block text-[12px] font-black text-slate-800">Başlık *</span>
+            <span className="mb-2 block text-[12px] font-black text-slate-800">{t("fields.titleLabel")}</span>
             <input
               value={form.title}
               onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
@@ -529,7 +526,7 @@ export default function BilincaltiSebepleriDetail({ id }: { id: string }) {
             />
           </label>
           <label className="block">
-            <span className="mb-2 block text-[12px] font-black text-slate-800">Kategori</span>
+            <span className="mb-2 block text-[12px] font-black text-slate-800">{t("fields.category")}</span>
             <div className={badgeFieldWrapClass("fuchsia")}>
               <input
                 value={form.category}
@@ -539,8 +536,8 @@ export default function BilincaltiSebepleriDetail({ id }: { id: string }) {
             </div>
           </label>
           <LongTextareaField
-            label={<span className="mb-2 block text-[12px] font-black text-slate-800">İçerik</span>}
-            modalTitle="İçerik"
+            label={<span className="mb-2 block text-[12px] font-black text-slate-800">{t("fields.content")}</span>}
+            modalTitle={t("fields.content")}
             value={form.content}
             onChange={(v) => setForm((f) => ({ ...f, content: v }))}
             minRows={5}
@@ -548,8 +545,8 @@ export default function BilincaltiSebepleriDetail({ id }: { id: string }) {
             disabled={saving}
           />
           <LongTextareaField
-            label={<span className="mb-2 block text-[12px] font-black text-slate-800">Not</span>}
-            modalTitle="Not"
+            label={<span className="mb-2 block text-[12px] font-black text-slate-800">{t("fields.note")}</span>}
+            modalTitle={t("fields.note")}
             value={form.note_text}
             onChange={(v) => setForm((f) => ({ ...f, note_text: v }))}
             minRows={3}
@@ -561,8 +558,8 @@ export default function BilincaltiSebepleriDetail({ id }: { id: string }) {
 
       <BiyoenerjiConfirmModal
         open={deleteConfirmOpen}
-        title="Bu kaydı silmek istediğinizden emin misiniz?"
-        message="Bu işlem geri alınamaz."
+        title={t("deleteConfirm")}
+        message={td("irreversible")}
         busy={saving}
         onClose={() => setDeleteConfirmOpen(false)}
         onConfirm={() => void executeDelete()}
