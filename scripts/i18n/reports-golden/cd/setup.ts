@@ -36,6 +36,7 @@ const FIXED_MS = Date.parse(FIXED_NOW_ISO);
     "@/lib/auth/userGuard": path.join(AB, "userGuard.cjs"),
     "@/lib/usage/trackUsage": path.join(AB, "trackUsage.cjs"),
     "@/lib/dogaltas/reportAuth": path.join(CD, "dogaltasReportAuth.cjs"),
+    "@/lib/auth/requireUser": path.join(CD, "requireUser.cjs"),
     "server-only": path.join(ROOT, "scripts", "final-hardening", "hday-stubs", "empty.cjs"),
   };
   M._resolveFilename = function (req: string, parent: { filename?: string } | null, ...rest: unknown[]) {

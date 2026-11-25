@@ -286,6 +286,93 @@ function aroFixture(name: string, route: string, body: unknown, params?: Record<
   };
 }
 
+
+// ═══ P11–P15 — Doğaltaş / Mineral / Kombinasyon / Bilgi Kütüphanesi Word (route üzerinden) ═════════════
+// Taş/mineral/makale içeriği uzmanın kayıtları + sistem kütüphanesinden aktarılmış katalog içeriğidir (DB'de yalnız TR).
+const MINERALS: Row[] = [
+  {
+    id: uid(1300), tenant_id: TENANT, name: K("mineral: Magnezyum"), aciklama: K("açıklama: Kas ve sinir"), kategori: K("Makro"), source_id: K("kaynak-1"),
+    fiziksel: [K("kas gevşemesi")], zihinsel: [K("sakinlik")], fizyoloji: [K("enzim")], eksiklik_belirtileri: [K("kramp")], fazlalik_belirtileri: [K("ishal")],
+    doz_asimi: [K("bulantı")], iceren_taslar: [K("Ametist"), K("Dolomit"), K("Kalsit"), K("Serpantin"), K("Talk")], organ_etkileri: [K("kalp")], cakralar: [K("Kalp Çakrası")],
+    created_at: "2026-10-01T08:00:00Z",
+  },
+  { id: uid(1301), tenant_id: TENANT, name: "", aciklama: null, kategori: null, source_id: null, fiziksel: null, zihinsel: null, fizyoloji: null, eksiklik_belirtileri: null, fazlalik_belirtileri: null, doz_asimi: null, iceren_taslar: null, organ_etkileri: null, cakralar: null, created_at: null },
+];
+const manyMinerals = (n: number): Row[] => Array.from({ length: n }, (_, i) => ({ ...MINERALS[0]!, id: uid(1310 + i), name: K(`mineral ${String(i + 1).padStart(2, "0")}`) }));
+const COMBINATIONS: Row[] = [
+  { id: uid(1400), tenant_id: TENANT, source_id: "s1", issue: K("konu: Uykusuzluk"), description: K("açıklama"), variant_index: 0, source: K("kaynak"), stones_text: K("Ametist, Lepidolit"), notes_text: U("not 1"), notes_text_2: U("not 2"), notes_text_3: U("not 3"), created_at: "2026-10-02T08:00:00Z" },
+  { id: uid(1401), tenant_id: TENANT, source_id: "s1", issue: K("konu: Uykusuzluk"), description: null, variant_index: 1, source: null, stones_text: K("Kuvars"), notes_text: null, notes_text_2: null, notes_text_3: null, created_at: "2026-10-02T08:00:00Z" },
+  { id: uid(1402), tenant_id: TENANT, source_id: "s2", issue: K("konu: Odak"), description: K("açıklama 2"), variant_index: 0, source: null, stones_text: null, notes_text: null, notes_text_2: null, notes_text_3: null, created_at: "2026-10-03T08:00:00Z" },
+];
+const ARTICLES: Row[] = [
+  { id: uid(1500), tenant_id: TENANT, is_active: true, title: K("makale: Taş Temizliği"), content: K("içerik paragrafı"), category: K("Bakım"), sub_category: K("Temizlik"), source: K("kaynak"), source_section: K("bölüm 2"), notes: U("not"), tags: [K("su"), K("tuz")], related_stones: [K("Ametist")], related_minerals: [K("Silika")], created_at: "2026-10-04T08:00:00Z" },
+  { id: uid(1501), tenant_id: TENANT, is_active: true, title: K("makale: Çakra Uyumu"), content: null, category: K("Enerji"), sub_category: null, source: null, source_section: null, notes: null, tags: null, related_stones: null, related_minerals: null, created_at: null },
+];
+const STONE = (id: number, name: string, over: Row = {}): Row => ({
+  id: uid(id), tenant_id: TENANT, stone_name: name, primary_source_name: K("kaynak: Kitap A"),
+  short_description: K("kısa tanım"), general_info: K("genel bilgi"), source_note: K("kaynak notu"),
+  physical_effects: K("fiziksel etki"), spiritual_effects: K("ruhsal etki"), other_effects: K("diğer etki"),
+  warning_text: K("uyarı metni"), warning_tags: [K("suya dayanıksız")], feng_shui: K("feng shui"), meditation: K("meditasyon"),
+  care: K("bakım"), application: K("uygulama"), chakras: [K("Taç"), K("Üçüncü Göz")],
+  assignments: { [K("Burç")]: [[K("Koç"), K("Aslan")]], [K("Gezegen")]: [[K("Mars")]] }, images: null,
+  created_at: "2026-09-01T08:00:00Z", updated_at: "2026-10-01T08:00:00Z", ...over,
+});
+const STONES: Row[] = [
+  STONE(1200, U("taş: Ametist (uzman adı)")),
+  STONE(1201, U("taş: Az Bilgili Taş"), { primary_source_name: null, short_description: null, general_info: null, source_note: null, physical_effects: null, spiritual_effects: null, other_effects: null, warning_text: null, warning_tags: null, feng_shui: null, meditation: null, care: null, application: null, chakras: null, assignments: null }),
+];
+const STONE_SOURCES: Row[] = [
+  { id: uid(1250), tenant_id: TENANT, stone_id: uid(1200), source_name: K("kaynak: Kitap B"), short_description: K("B kısa"), general_info: K("B genel"), physical_effects: K("B fiziksel"), chakras: [K("Kalp")], sort_order: 1, created_at: "2026-09-02T08:00:00Z" },
+];
+function stonesTables(): Record<string, Row[]> {
+  return { stones: STONES, stone_sources: STONE_SOURCES, stone_entries: [], minerals: MINERALS, combinations: COMBINATIONS, combination_stones: [], stone_knowledge_articles: ARTICLES, user_locale_prefs: [], expert_profiles: [] };
+}
+function stonesFixture(name: string, producer: string, route: string, body: unknown, params?: Record<string, string>, tables?: () => Record<string, Row[]>): Fixture {
+  return {
+    name, producer, kind: "docx",
+    run: (mode) =>
+      withLocale(mode, async (cookie) => {
+        setGuard((tables ?? stonesTables)());
+        const mod = await import(`@/app/api/dogaltas/${route}/route`);
+        return callRoute(mod as RouteMod, `/api/dogaltas/${route}`, body, cookie, params);
+      }),
+  };
+}
+
+// ═══ P39 — Ders notu Word (route; içerik %100 kullanıcı/AI metni) · P40 — Video çeviri Word (route) ══════
+function dersNotuFixture(): Fixture {
+  return {
+    name: "P39-ders-notu", producer: "P39", kind: "docx",
+    run: (mode) =>
+      withLocale(mode, async (cookie) => {
+        setGuard({ user_locale_prefs: [] });
+        const mod = (await import("@/app/api/ders-notu/to-word/route")) as unknown as { POST: (r: NextRequest) => Promise<Response> };
+        const fd = new FormData();
+        fd.set("text", [`# ${U("başlık: Ders 1")}`, `## ${U("alt başlık")}`, "Soru:", U("soru metni"), "Cevap:", U("cevap metni"), "", "Örnek:", U("örnek satırı"), "", `Not: ${U("not satırı")}`, U("düz paragraf")].join("\n"));
+        const headers: Record<string, string> = {};
+        if (cookie) headers.cookie = cookie;
+        const res = await mod.POST(new NextRequest("http://localhost/api/ders-notu/to-word", { method: "POST", headers, body: fd }));
+        if (res.status !== 200) throw new Error(`ders-notu → ${res.status} ${await res.text()}`);
+        const m = /filename="([^"]*)"/.exec(res.headers.get("content-disposition") ?? "");
+        return { buffer: Buffer.from(await res.arrayBuffer()), filename: m ? m[1]! : null };
+      }),
+  };
+}
+function videoFixture(name: string, exportMode: "original" | "turkish" | "comparison"): Fixture {
+  return {
+    name, producer: "P40", kind: "docx",
+    run: (mode) =>
+      withLocale(mode, async (cookie) => {
+        setGuard({
+          user_locale_prefs: [],
+          video_transcription_jobs: [{ id: uid(4000), tenant_id: TENANT, user_id: USER_ID, original_filename: "ders-kaydi_1.mp4", transcript_original: `${U("orijinal satır 1")}\n${U("orijinal satır 2")}`, transcript_tr: `${U("çeviri satır 1")}\n${U("çeviri satır 2")}` }],
+        });
+        const mod = await import("@/app/api/video-ceviri/export-word/route");
+        return callRoute(mod as unknown as RouteMod, `/api/video-ceviri/export-word?jobId=${uid(4000)}&mode=${exportMode}`, null, cookie, undefined, "GET");
+      }),
+  };
+}
+
 export function allFixtures(): Fixture[] {
   return [
     beslenmeFixture("P16-plan-tam", "full"),
@@ -309,5 +396,25 @@ export function allFixtures(): Fixture[] {
     aroFixture("P19-kaynaklar", "sources/word-report", { mode: "selected", ids: [uid(1980), uid(1982)] }),
     aroFixture("P19-kaynak-tek", "sources/[id]/word-report", {}, { id: uid(1980) }),
     aroFixture("P19-sozluk", "glossary/word-report", { mode: "all" }),
+    stonesFixture("P11-ansiklopedi-tum", "P11", "word-report", { sections: { stones: true, minerals: true, combinations: true, knowledge: true }, includeImages: false }),
+    stonesFixture("P11-ansiklopedi-tas-secili", "P11", "word-report", { sections: { stones: true }, selectedStoneIds: [uid(1200)], includeImages: false }),
+    stonesFixture("P12-tas-detay", "P12", "stones/[id]/word-report", {}, { id: uid(1200) }),
+    stonesFixture("P12-tas-detay-bos", "P12", "stones/[id]/word-report", {}, { id: uid(1201) }),
+    stonesFixture("P13-mineral-kompakt", "P13", "mineral-report", { exportMode: "all" }),
+    stonesFixture("P13-mineral-secili", "P13", "mineral-report", { exportMode: "selected", mineralIds: [uid(1300)] }),
+    stonesFixture("P13-mineral-katalog", "P13", "mineral-report", { exportMode: "all" }, undefined, () => ({ ...stonesTables(), minerals: manyMinerals(8) })),
+    stonesFixture("P13-mineral-buyuk", "P13", "mineral-report", { exportMode: "viewed", mineralIds: manyMinerals(26).map((m) => m.id as string) }, undefined, () => ({ ...stonesTables(), minerals: manyMinerals(26) })),
+    stonesFixture("P13-mineral-detay", "P13", "minerals/[id]/word-report", {}, { id: uid(1300) }),
+    stonesFixture("P13-mineral-detay-bos", "P13", "minerals/[id]/word-report", {}, { id: uid(1301) }),
+    stonesFixture("P14-kombinasyon-tum", "P14", "combinations/word-report", { exportMode: "all" }),
+    stonesFixture("P14-kombinasyon-tek", "P14", "combinations/word-report", { exportMode: "single", combinationTitle: COMBINATIONS[0]!.issue }),
+    stonesFixture("P14-kombinasyon-secili", "P14", "combinations/word-report", { exportMode: "selected", issues: [COMBINATIONS[2]!.issue] }),
+    stonesFixture("P15-bilgi-tum", "P15", "knowledge-report", { exportMode: "all" }),
+    stonesFixture("P15-bilgi-kategori", "P15", "knowledge-report", { exportMode: "category", categoryName: ARTICLES[0]!.category }),
+    stonesFixture("P15-bilgi-goruntulenen", "P15", "knowledge-report", { exportMode: "viewed", articleIds: [uid(1501)] }),
+    dersNotuFixture(),
+    videoFixture("P40-video-orijinal", "original"),
+    videoFixture("P40-video-ceviri", "turkish"),
+    videoFixture("P40-video-karsilastirma", "comparison"),
   ];
 }
