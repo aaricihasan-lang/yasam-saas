@@ -271,7 +271,6 @@ const ROUTES: RouteDef[] = [
   { id: "numeroloji-bilgi-bankasi", group: "Numeroloji", path: "/numeroloji/bilgi-bankasi" },
   { id: "hd-danisanlar", group: "Human Design", path: "/human-design/danisanlar" },
   { id: "hd-kayitli-haritalar", group: "Human Design", path: "/human-design/kayitli-haritalar" },
-  { id: "hd-harita-detay", group: "Human Design", path: "/human-design/kayitli-haritalar/{hdChart}" },
   { id: "hd-kayitli-raporlar", group: "Human Design", path: "/human-design/kayitli-raporlar" },
   { id: "hd-bilgi-bankasi", group: "Human Design", path: "/human-design/bilgi-bankasi" },
   { id: "hd-transit", group: "Human Design", path: "/human-design/transit" },
@@ -1604,7 +1603,7 @@ async function scenarioHdCreate(browser: Browser, env: TestEnv, fx: Fixture, lan
       const page = await ctx.newPage();
       await page.goto(`${APP}${S6_STATIC}`, { waitUntil: "load" });
       const input = { date: "1991-04-12", time: "14:30", timezone: "Europe/Istanbul" };
-      const c = await pageFetch(page, "POST", "/api/hd/compute", { input });
+      const c = await pageFetch(page, "POST", "/api/hd/compute", input);
       const s = await pageFetch(page, "POST", "/api/hd/charts", { input, client_name: "ZZ HD Danisan", birth_place: "Adana" });
       let id: string | null = null;
       try { const j = JSON.parse(s.text) as { id?: string; chart?: { id?: string }; data?: { id?: string } }; id = j.id ?? j.chart?.id ?? j.data?.id ?? null; } catch { id = null; }
@@ -1675,11 +1674,14 @@ async function scenarioModuleFunctional(browser: Browser, env: TestEnv, fx: Fixt
     const ctx = await newCtx(browser, fx, lang, 1280);
     try {
       const page = await ctx.newPage();
-      await page.goto(`${APP}/human-design/kayitli-haritalar/${fx.hdChart}`, { waitUntil: "domcontentloaded" });
+      // Hesaplanmış (computed) harita arşivden API ile açılır (GET /api/hd/charts?id=; kayitli-haritalar/[id] yalnız eski
+      // manuel kayıtları listeler — scope=manual). Ekran görüntüsü Danışanlar çalışma alanından alınır.
+      await page.goto(`${APP}/human-design/danisanlar`, { waitUntil: "domcontentloaded" });
       await settle(page);
       const shot = `senaryo-H2-hd-arsiv-${lang}.png`;
       await page.screenshot({ path: path.join(OUT, shot) });
-      const opened = (await page.getByText("ZZ HD Danisan", { exact: false }).count()) > 0;
+      const og = await pageFetch(page, "GET", `/api/hd/charts?id=${fx.hdChart}`);
+      const opened = og.status === 200 && og.text.includes(fx.hdChart);
       const mk = await pageFetch(page, "POST", "/api/hd/reports/professional", { chartId: fx.hdChart, requestId: randomUUID(), allowMissingBodygraph: true });
       let reportId: string | null = null;
       try { const j = JSON.parse(mk.text) as { id?: string; reportId?: string; report?: { id?: string } }; reportId = j.reportId ?? j.id ?? j.report?.id ?? null; } catch { reportId = null; }
@@ -1744,7 +1746,8 @@ async function scenarioModuleDenied(browser: Browser, env: TestEnv, fx: Fixture,
       for (const p of ["/numeroloji", "/human-design", "/astroloji"]) {
         await page.goto(`${APP}${p}`, { waitUntil: "domcontentloaded" });
         await settle(page);
-        const denied = await page.getByText(/Yetkiniz Bulunmuyor|Access (?:denied|restricted)|You do(?: not|n't) have (?:access|permission)/i).first().isVisible().catch(() => false);
+        const deniedTitles = [Mq(lang, "auth.ui", "moduleAccess.permission.title"), Mq(lang, "auth.ui", "moduleAccess.eyebrow"), "Yetkiniz Bulunmuyor", "Erişim kısıtlı"].filter((x): x is string => !!x);
+        const denied = await page.getByText(new RegExp(deniedTitles.map(escRe).join("|"), "i")).first().isVisible().catch(() => false);
         const notFound = /404|could not be found|bulunamadı/i.test(await page.evaluate(() => document.body?.innerText ?? "").catch(() => ""));
         const ov = await measureOverflow(page, 390);
         const tr = lang === "en" ? await scanTurkish(page, []) : { count: 0, samples: [] as TrHit[] };
