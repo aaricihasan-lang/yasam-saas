@@ -1,0 +1,45 @@
+{
+  "home": {
+    "personal": {
+      "viewMode": "Görünüm modu",
+      "view_auto": "Otomatik",
+      "view_day": "Gündüz",
+      "view_night": "Gece",
+      "view_focus": "Odak",
+      "viewDesc_auto": "Cihazın açık/koyu tercihine uyar",
+      "viewDesc_day": "Ferah, aydınlık",
+      "viewDesc_night": "Premium koyu, dengeli kontrast",
+      "viewDesc_focus": "Sade; Favorilerim ve çalıştığınız içerik öne çıkar",
+      "autoNow": "şu an",
+      "editWorkspace": "Çalışma Alanımı Düzenle",
+      "editDisabledDemo": "Demo hesapta düzenleme kapalı",
+      "favorites": "Favorilerim",
+      "logoLabel": "Firma logosu",
+      "logoEditLabel": "Firma logosu — tutup sürükleyerek serbestçe taşıyın, ok tuşlarıyla kaydırın, + / − ile boyutlandırın, Esc ile bitirin",
+      "logoFreeEditLabel": "Firma logosu — tutup sayfada veya sol menünün altındaki boş alanda istediğiniz yere sürükleyin; köşelerden boyutlandırın; ok tuşları kaydırır (Shift ile büyük adım), + / − boyutlandırır, Esc bitirir",
+      "logoKept": "Logo bu ekran genişliğinde istenen konuma sığmıyor; son geçerli konumunda gösteriliyor.",
+      "logoNoFit": "Logo bu ekran genişliğinde kayıtlı konumuna sığmıyor ve yakınında boş alan yok. Logoyu boş bir alana sürükleyin veya küçültün.",
+      "logoRejected": "Bu değişiklikle logo sığmıyor; son geçerli konum korundu.",
+      "logoDropInvalid": "Logo buraya bırakılamaz: Yaşam Sistemi alanını, karşılama metnini, düğmeleri veya kartları örter ya da sayfa dışına taşar. Logo son geçerli konumunda kaldı.",
+      "logoDropOk": "Buraya bırakabilirsiniz",
+      "logoDropNo": "Buraya bırakılamaz",
+      "logoFrameMissing": "Bu alan şu an ekranda görünmüyor (ör. sol menü daraltılmış veya mobil çekmece kapalı)."
+    },
+    "personalNotices": {
+      "conflict": "Tasarım başka bir sekmede değişti. Güncel hâli yüklendi.",
+      "draftSaved": "Taslak kaydedildi.",
+      "applied": "Tasarım uygulandı.",
+      "historyLoaded": "Önceki tasarım taslağa yüklendi.",
+      "restored": "Önceki tasarıma dönüldü.",
+      "resetDone": "Varsayılan Yaşam Sistemi görünümüne dönüldü. Gizlenen modüller ve Favorilerim korundu.",
+      "factoryResetDone": "İlk günkü Yaşam Sistemi ana ekranına dönüldü. Tasarım geçmişiniz ve yüklediğiniz görseller korundu.",
+      "prefsResetFailed": "Kişisel tasarım kaldırıldı; ancak görünüm tercihleri (gizlenen modüller, Favorilerim, görünüm modu) sıfırlanamadı. Lütfen yeniden deneyin."
+    },
+    "personalReadability": {
+      "pass": "Fotoğraf üzerinde okunabilirlik: {ratio} (WCAG AA)",
+      "fixed": "Otomatik katman uygulandı: {ratio}",
+      "insufficient": "Okunabilirlik yetersiz — farklı odak/ton seçin",
+      "unmeasured": "Ölçülemedi — fotoğraf yüklenince ölçülür"
+    }
+  }
+}

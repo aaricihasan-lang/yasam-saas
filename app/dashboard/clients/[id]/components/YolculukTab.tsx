@@ -1,7 +1,9 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import { formatNumber } from "@/lib/i18n/format";
+import { resolveLocale } from "@/lib/i18n/locales";
 import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
 // H-10: Numeroloji motoru burada ÇAĞRILMAZ — özet sunucudan, yetkiyle okunur.
 import { fetchNumerologySummary } from "./useNumerologySummary";
@@ -598,6 +600,7 @@ function SeansStat({
 // ─── SeansCard ───────────────────────────────────────────────────────────────
 function SeansCard({ process }: { process: SessionProcess }) {
   const t = useTranslations("clients.yolculuk");
+  const locale = resolveLocale(useLocale());
   const meta = DURUM_META[process.durum];
 
   return (
@@ -661,7 +664,7 @@ function SeansCard({ process }: { process: SessionProcess }) {
             />
             <SeansStat
               label={t("seansCard.totalFee")}
-              value={process.totalFee != null ? `${process.totalFee.toLocaleString("tr-TR")} ₺` : "—"}
+              value={process.totalFee != null ? `${formatNumber(process.totalFee, undefined, locale)} ₺` : "—"}
               color={process.totalFee != null ? "#0891b2" : "#94a3b8"}
               accent={process.totalFee != null ? "#e0f2fe" : "#f8fafc"}
             />

@@ -22,7 +22,7 @@ export async function GET(
 
   const { id: clientId } = await params;
   if (!clientId) {
-    return NextResponse.json({ ok: false, error: "client_id gerekli." }, { status: 400 });
+    return NextResponse.json({ ok: false, code: "CLIENT_ID_REQUIRED", error: "client_id gerekli." }, { status: 400 });
   }
 
   const { db, tenantId } = guard;
@@ -37,7 +37,7 @@ export async function GET(
     return serverErrorResponse({ route: "clients/[id]/delete-preview", action: "ownership", tenantId, cause: cliErr });
   }
   if (!cli) {
-    return NextResponse.json({ ok: false, error: "Danışan bu hesaba ait değil." }, { status: 403 });
+    return NextResponse.json({ ok: false, code: "CLIENT_NOT_OWNED", error: "Danışan bu hesaba ait değil." }, { status: 403 });
   }
 
   const preview = await collectDeletePreview(db, tenantId, clientId);

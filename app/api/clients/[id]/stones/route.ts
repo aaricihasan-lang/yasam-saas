@@ -51,12 +51,12 @@ export async function GET(
 
   const { id: clientId } = await params;
   if (!clientId) {
-    return NextResponse.json({ ok: false, error: "client_id gerekli." }, { status: 400 });
+    return NextResponse.json({ ok: false, code: "CLIENT_ID_REQUIRED", error: "client_id gerekli." }, { status: 400 });
   }
 
   const { db, tenantId } = guard;
   if (!(await clientBelongsToTenant(db, clientId, tenantId))) {
-    return NextResponse.json({ ok: false, error: "Danışan bu hesaba ait değil." }, { status: 403 });
+    return NextResponse.json({ ok: false, code: "CLIENT_NOT_OWNED", error: "Danışan bu hesaba ait değil." }, { status: 403 });
   }
 
   const { data, error } = await db
@@ -81,20 +81,20 @@ export async function POST(
 
   const { id: clientId } = await params;
   if (!clientId) {
-    return NextResponse.json({ ok: false, error: "client_id gerekli." }, { status: 400 });
+    return NextResponse.json({ ok: false, code: "CLIENT_ID_REQUIRED", error: "client_id gerekli." }, { status: 400 });
   }
 
   const { db, tenantId, is_demo_account } = guard;
   if (is_demo_account) return demoReadOnlyResponse();
   if (!(await clientBelongsToTenant(db, clientId, tenantId))) {
-    return NextResponse.json({ ok: false, error: "Danışan bu hesaba ait değil." }, { status: 403 });
+    return NextResponse.json({ ok: false, code: "CLIENT_NOT_OWNED", error: "Danışan bu hesaba ait değil." }, { status: 403 });
   }
 
   let body: Record<string, unknown>;
   try {
     body = (await req.json()) as Record<string, unknown>;
   } catch {
-    return NextResponse.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 });
+    return NextResponse.json({ ok: false, code: "INVALID_BODY", error: "Geçersiz istek gövdesi." }, { status: 400 });
   }
 
   const verdict = validateStoneWrite(body, "create");
@@ -140,25 +140,25 @@ export async function PATCH(
 
   const { id: clientId } = await params;
   if (!clientId) {
-    return NextResponse.json({ ok: false, error: "client_id gerekli." }, { status: 400 });
+    return NextResponse.json({ ok: false, code: "CLIENT_ID_REQUIRED", error: "client_id gerekli." }, { status: 400 });
   }
 
   const { db, tenantId, is_demo_account } = guard;
   if (is_demo_account) return demoReadOnlyResponse();
   if (!(await clientBelongsToTenant(db, clientId, tenantId))) {
-    return NextResponse.json({ ok: false, error: "Danışan bu hesaba ait değil." }, { status: 403 });
+    return NextResponse.json({ ok: false, code: "CLIENT_NOT_OWNED", error: "Danışan bu hesaba ait değil." }, { status: 403 });
   }
 
   let body: Record<string, unknown>;
   try {
     body = (await req.json()) as Record<string, unknown>;
   } catch {
-    return NextResponse.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 });
+    return NextResponse.json({ ok: false, code: "INVALID_BODY", error: "Geçersiz istek gövdesi." }, { status: 400 });
   }
 
   const rowId = body.id != null ? String(body.id) : "";
   if (!rowId) {
-    return NextResponse.json({ ok: false, error: "Kayıt id gerekli." }, { status: 400 });
+    return NextResponse.json({ ok: false, code: "RECORD_ID_REQUIRED", error: "Kayıt id gerekli." }, { status: 400 });
   }
 
   const verdict = validateStoneWrite(body, "patch");
@@ -191,7 +191,7 @@ export async function PATCH(
     return NextResponse.json(r.body, { status: r.status });
   }
   if (cas.kind === "not_found") {
-    return NextResponse.json({ ok: false, error: "Kayıt bulunamadı." }, { status: 404 });
+    return NextResponse.json({ ok: false, code: "RECORD_NOT_FOUND", error: "Kayıt bulunamadı." }, { status: 404 });
   }
   if (cas.kind === "conflict") {
     await trackUsage(guard, req, { module: "clients", action: "action_failed", failedAction: "record_updated", subEntity: "stone", errorClass: "conflict" });
@@ -217,13 +217,13 @@ export async function DELETE(
 
   const { id: clientId } = await params;
   if (!clientId) {
-    return NextResponse.json({ ok: false, error: "client_id gerekli." }, { status: 400 });
+    return NextResponse.json({ ok: false, code: "CLIENT_ID_REQUIRED", error: "client_id gerekli." }, { status: 400 });
   }
 
   const { db, tenantId, is_demo_account } = guard;
   if (is_demo_account) return demoReadOnlyResponse();
   if (!(await clientBelongsToTenant(db, clientId, tenantId))) {
-    return NextResponse.json({ ok: false, error: "Danışan bu hesaba ait değil." }, { status: 403 });
+    return NextResponse.json({ ok: false, code: "CLIENT_NOT_OWNED", error: "Danışan bu hesaba ait değil." }, { status: 403 });
   }
 
   let rowId = new URL(req.url).searchParams.get("id")?.trim() || "";
@@ -239,7 +239,7 @@ export async function DELETE(
   // id zorunlu: id olmadan silme YOK (implicit toplu silme kaldırıldı).
   if (!rowId) {
     return NextResponse.json(
-      { ok: false, error: "Silinecek kayıt id gerekli." },
+      { ok: false, code: "DELETE_ID_REQUIRED", error: "Silinecek kayıt id gerekli." },
       { status: 400 },
     );
   }
@@ -270,7 +270,7 @@ export async function DELETE(
   }
   // D1 (DY-04): taş bulunamadı (yabancı/silinmiş/yanlış id) → 404; fotoğraflara dokunulmadı.
   if (result.stoneDeleted === 0) {
-    return NextResponse.json({ ok: false, error: "Kayıt bulunamadı." }, { status: 404 });
+    return NextResponse.json({ ok: false, code: "RECORD_NOT_FOUND", error: "Kayıt bulunamadı." }, { status: 404 });
   }
   // Tek kullanıcı eylemi (taş + fotoğrafları) = tek olay.
   await trackUsage(guard, req, { module: "clients", action: "record_deleted", subEntity: "stone", resourceId: rowId });

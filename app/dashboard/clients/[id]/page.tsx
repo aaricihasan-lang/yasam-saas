@@ -1,8 +1,9 @@
 "use client";
 
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useTranslations } from "next-intl";
-import { formatDateTimeAbsolute } from "@/lib/i18n/format";
+import { useLocale, useTranslations } from "next-intl";
+import { formatCurrency, formatDateTimeAbsolute } from "@/lib/i18n/format";
+import { resolveLocale } from "@/lib/i18n/locales";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { groupClientDetailTabs, resolveClientDetailTab, visibleClientDetailTabs } from "@/lib/danisan/clientDetailTabs";
 import { hasModulePermission } from "@/lib/auth/modulePermissions";
@@ -21,6 +22,8 @@ import { readYasamUser, readSessionToken, syncYasamUserFromDb, type YasamUser } 
 import { invalidateDanisanListCache, removeClientFromDanisanListCache } from "@/lib/danisan/listCache";
 import { computeBurc } from "@/lib/danisan/burc";
 import { summarizeUnpaid } from "@/lib/danisan/chargePayment";
+import { useClientsApiError } from "@/lib/danisan/clientApiErrors";
+import type { ApiErrorPayload } from "@/lib/i18n/apiError";
 import NotesTab from "./components/NotesTab";
 import WordReportDialog, { type WordReportRequest } from "./components/WordReportDialog";
 import { BirthDateInput } from "@/components/ui/BirthDateInput";
@@ -190,8 +193,9 @@ const wordBtnCls = dyp.wordBtn;
 
 // Soyad her zaman Türkçe locale ile BÜYÜK harf normalize edilir (i→İ, ı→I).
 // Kayıt anında savunmacı: trim + büyük harf. Yazım sırasında boşluk korunur.
-function formatTry(value: number) {
-  return new Intl.NumberFormat("tr-TR", { style: "currency", currency: "TRY", maximumFractionDigits: 2 }).format(value);
+// F0 #15: merkezî biçim — tr çıktısı eski Intl("tr-TR") ile birebir; para birimi TRY sabit.
+function formatTry(value: number, locale: string) {
+  return formatCurrency(value, resolveLocale(locale), "TRY", { maximumFractionDigits: 2 });
 }
 
 function normalizeSurname(value: string) {
@@ -204,6 +208,10 @@ function ClientDetailPageInner() {
   // D1 (DY-040): danışan silme onayının "Vazgeç" metni ortak çeviriden (EN arayüzde İngilizce).
   const tConfirm = useTranslations("common.confirmDialog");
   const tDel = useTranslations("common.deleteConfirm");
+  const apiErr = useClientsApiError();
+  // F0 #15: para gösterimi ekran diline göre (TRY sabit; tr çıktısı birebir). resolveLocale formatTry içinde
+  // (bileşen gövdesinde çağrı React Compiler memo korumasını bozuyordu — eslint preserve-manual-memoization).
+  const uiLocale = useLocale();
   // Canonical değer → yerelleştirilmiş görünen etiket (data DEĞİŞMEZ).
   // Bilinmeyen/eşleşmeyen değer ham (canonical) döner → veri sızmaz, kırılmaz.
   const localize = (group: string, v: string | null | undefined): string | undefined => {
@@ -568,12 +576,13 @@ function ClientDetailPageInner() {
     }
 
     if (!clientRes.ok) {
-      // Sunucu doğrulaması (400) alan bazlı Türkçe mesaj döner → aynen göster.
-      let serverMsg: string | null = null;
+      // Sunucu doğrulaması (400) alan bazlı Türkçe mesaj + dil-bağımsız code/field döner → tr: aynen; diğer dillerde
+      // clients.errors.codes (alan bazlı) — kod eşlenemezse çevrilmiş genel metin.
+      let serverPayload: ApiErrorPayload = null;
       if (clientRes.status === 400) {
-        try { serverMsg = ((await clientRes.json()) as { error?: string }).error ?? null; } catch { serverMsg = null; }
+        try { serverPayload = (await clientRes.json()) as ApiErrorPayload; } catch { serverPayload = null; }
       }
-      showToast({ title: t("toast.failTitle"), message: serverMsg ?? t("toast.saveClientFailed"), type: "error" });
+      showToast({ title: t("toast.failTitle"), message: apiErr.message(serverPayload, t("toast.saveClientFailed")), type: "error" });
       setSavingAll(false);
       return;
     }
@@ -614,7 +623,7 @@ function ClientDetailPageInner() {
     }
 
     if (!notesRes.ok || !notesJson.ok) {
-      showToast({ title: t("toast.failTitle"), message: t("toast.notesSaveFailed") + ": " + (notesJson.error ?? ""), type: "error" });
+      showToast({ title: t("toast.failTitle"), message: apiErr.detail(t("toast.notesSaveFailed"), notesJson as ApiErrorPayload), type: "error" });
       setSavingAll(false);
       return;
     }
@@ -699,7 +708,7 @@ function ClientDetailPageInner() {
     }
 
     if (!res.ok || !json.ok) {
-      showToast({ title: t("toast.failTitle"), message: t("toast.noteSaveError") + ": " + (json.error ?? ""), type: "error" });
+      showToast({ title: t("toast.failTitle"), message: apiErr.detail(t("toast.noteSaveError"), json as ApiErrorPayload), type: "error" });
       setSavingClientNotes(false);
       return false;
     }
@@ -728,7 +737,7 @@ function ClientDetailPageInner() {
         },
         body: JSON.stringify({ ...choice, ...(yhSelectionGroupId ? { selectionGroupId: yhSelectionGroupId } : {}) }),
       });
-      if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error((err as { error?: string }).error || t("error.reportFailed")); }
+      if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(apiErr.message(err as ApiErrorPayload, t("error.reportFailed"))); }
       // Dosya adı sunucudan (Content-Disposition, yerel tarih); yoksa yerel-gün yedeği.
       const nameSlug = nameSlugTR(`${client.ad ?? ""} ${client.soyad ?? ""}`.trim());
       await downloadFileResponse(res, `danisan-raporu-${nameSlug}-${reportFileDate()}.docx`);
@@ -756,7 +765,7 @@ function ClientDetailPageInner() {
         },
         body: JSON.stringify({ exportMode: "date-range", dateRange: { start: drStart, end: drEnd }, includeCharges: drCharges }),
       });
-      if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error((err as { error?: string }).error || t("error.reportFailed")); }
+      if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(apiErr.message(err as ApiErrorPayload, t("error.reportFailed"))); }
       const nameSlug = nameSlugTR(`${client.ad ?? ""} ${client.soyad ?? ""}`.trim());
       await downloadFileResponse(res, `danisan-tarih-araligi-${nameSlug}-${drStart}-${drEnd}.docx`);
       showToast({ title: t("toast.successTitle"), message: t("toast.dateRangeReportStarted"), type: "success" });
@@ -780,7 +789,7 @@ function ClientDetailPageInner() {
         },
         body: JSON.stringify({ exportMode: "tab", tabName: tab }),
       });
-      if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error((err as { error?: string }).error || t("error.reportFailed")); }
+      if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(apiErr.message(err as ApiErrorPayload, t("error.reportFailed"))); }
       const nameSlug = nameSlugTR(`${client.ad ?? ""} ${client.soyad ?? ""}`.trim());
       await downloadFileResponse(res, `danisan-${tab}-${nameSlug}-${reportFileDate()}.docx`);
       showToast({ title: t("toast.successTitle"), message: t("toast.reportStarted"), type: "success" });
@@ -995,13 +1004,13 @@ function ClientDetailPageInner() {
                 type="button"
                 data-testid="client-unpaid-warning"
                 onClick={() => { if (canSeeTab("ucretlendirme")) setActiveTab("ucretlendirme"); }}
-                title={t("hero.unpaidDetail", { count: unpaidCharges.count, total: formatTry(unpaidCharges.total) })}
+                title={t("hero.unpaidDetail", { count: unpaidCharges.count, total: formatTry(unpaidCharges.total, uiLocale) })}
                 className="inline-flex items-center gap-1 rounded-full border border-red-200 bg-red-50 px-2.5 py-1 text-[11px] font-black text-red-700"
               >
                 <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-red-500" />
                 {t("hero.unpaid")}
                 <span className="font-bold text-red-600">
-                  · {t("hero.unpaidDetail", { count: unpaidCharges.count, total: formatTry(unpaidCharges.total) })}
+                  · {t("hero.unpaidDetail", { count: unpaidCharges.count, total: formatTry(unpaidCharges.total, uiLocale) })}
                 </span>
               </button>
             ) : null}
@@ -1475,6 +1484,7 @@ function AppointmentsTab({
   onInitialAppointmentHandled?: () => void;
 }) {
   const t = useTranslations("clients.detail");
+  const apiErr = useClientsApiError();
   const deleteConfirm = useDeleteConfirm();
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(false);
@@ -1659,11 +1669,12 @@ function AppointmentsTab({
         body: JSON.stringify({ title: title || t("appt.defaultTitle"), notes: notes || null, appointment_date: new Date(date).toISOString() }),
       });
       if (!res.ok) {
-        let serverMsg: string | null = null;
+        // tr: sunucu metni birebir; diğer dillerde randevu kodu (clients.errors.codes) — yoksa çevrilmiş genel metin.
+        let serverPayload: ApiErrorPayload = null;
         if (res.status === 409 || res.status === 400) {
-          try { serverMsg = ((await res.json()) as { error?: string }).error ?? null; } catch { serverMsg = null; }
+          try { serverPayload = (await res.json()) as ApiErrorPayload; } catch { serverPayload = null; }
         }
-        showToast({ title: t("toast.failTitle"), message: serverMsg ?? t("appt.updateFailed"), type: "error" });
+        showToast({ title: t("toast.failTitle"), message: apiErr.message(serverPayload, t("appt.updateFailed")), type: "error" });
         setSaving(false);
         return;
       }

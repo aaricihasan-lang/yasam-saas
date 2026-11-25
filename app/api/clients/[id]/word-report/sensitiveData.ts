@@ -37,23 +37,23 @@ export async function loadAnamnezOptions(db: SupabaseClient, tenantId: string, c
 
 export type AnamnezLoad =
   | { ok: true; row: AnamnezReportRow }
-  | { ok: false; status: number; error: string };
+  | { ok: false; status: number; code: string; error: string };
 
 /** Rapor için anamnez: açık rıza ŞART; id verilmezse en yeni tamamlanmış form. */
 export async function loadAnamnezForReport(db: SupabaseClient, tenantId: string, clientId: string, anamnesisId: string | null): Promise<AnamnezLoad> {
   const consent = await fetchExplicitConsent(db, tenantId, clientId);
   if (consent !== true)
-    return { ok: false, status: 409, error: "Anamnez rapora eklenemez: danışanın açık rıza kaydı bulunmuyor." };
+    return { ok: false, status: 409, code: "ANAMNESIS_CONSENT_MISSING", error: "Anamnez rapora eklenemez: danışanın açık rıza kaydı bulunmuyor." };
   let q = db.from("client_anamneses").select(ANAMNEZ_REPORT_COLUMNS)
     .eq("tenant_id", tenantId).eq("client_id", clientId).eq("status", "completed");
   if (anamnesisId) q = q.eq("id", anamnesisId);
   const { data, error } = await q.order("completed_at", { ascending: false }).limit(1);
   if (error) {
-    if (isMissingRelation(error)) return { ok: false, status: 404, error: "Tamamlanmış anamnez bulunamadı." };
+    if (isMissingRelation(error)) return { ok: false, status: 404, code: "ANAMNESIS_NOT_FOUND", error: "Tamamlanmış anamnez bulunamadı." };
     throw Object.assign(new Error("anamnez_read"), { cause: error });
   }
   const row = ((data ?? []) as AnamnezReportRow[])[0];
-  if (!row) return { ok: false, status: 404, error: "Tamamlanmış anamnez bulunamadı." };
+  if (!row) return { ok: false, status: 404, code: "ANAMNESIS_NOT_FOUND", error: "Tamamlanmış anamnez bulunamadı." };
   return { ok: true, row };
 }
 

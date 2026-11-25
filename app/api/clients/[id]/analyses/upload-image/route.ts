@@ -48,7 +48,7 @@ export async function POST(
 
   const { id: clientId } = await params;
   if (!clientId) {
-    return NextResponse.json({ ok: false, error: "client_id gerekli." }, { status: 400 });
+    return NextResponse.json({ ok: false, code: "CLIENT_ID_REQUIRED", error: "client_id gerekli." }, { status: 400 });
   }
 
   const { db, tenantId, is_demo_account } = guard;
@@ -61,7 +61,7 @@ export async function POST(
   try {
     formData = await req.formData();
   } catch {
-    return NextResponse.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 });
+    return NextResponse.json({ ok: false, code: "INVALID_BODY", error: "Geçersiz istek gövdesi." }, { status: 400 });
   }
 
   const file = formData.get("file") as File | null;
@@ -69,7 +69,7 @@ export async function POST(
 
   if (!file || !analysisId) {
     return NextResponse.json(
-      { ok: false, error: "file ve analysisId gerekli." },
+      { ok: false, code: "UPLOAD_FIELDS_REQUIRED", error: "file ve analysisId gerekli." },
       { status: 400 },
     );
   }
@@ -77,13 +77,13 @@ export async function POST(
   // 4) Dosya validasyonu — storage'a dokunmadan ÖNCE.
   if (file.size > MAX_SIZE) {
     return NextResponse.json(
-      { ok: false, error: "Dosya boyutu 10 MB'ı geçemez." },
+      { ok: false, code: "FILE_TOO_LARGE", error: "Dosya boyutu 10 MB'ı geçemez." },
       { status: 400 },
     );
   }
   if (file.type && !ALLOWED_MIME.has(file.type)) {
     return NextResponse.json(
-      { ok: false, error: "Yalnız PNG veya JPEG görseller yüklenebilir." },
+      { ok: false, code: "IMAGE_TYPE_NOT_ALLOWED", error: "Yalnız PNG veya JPEG görseller yüklenebilir." },
       { status: 400 },
     );
   }
@@ -91,7 +91,7 @@ export async function POST(
   // 5) Sahiplik zinciri: client → canonical tenant, sonra analysis → client + tenant.
   if (!(await clientBelongsToTenant(db, clientId, tenantId))) {
     return NextResponse.json(
-      { ok: false, error: "Danışan bu hesaba ait değil." },
+      { ok: false, code: "CLIENT_NOT_OWNED", error: "Danışan bu hesaba ait değil." },
       { status: 403 },
     );
   }
@@ -106,7 +106,7 @@ export async function POST(
 
   if (analysisErr || !analysis) {
     return NextResponse.json(
-      { ok: false, error: "Analiz kaydı doğrulanamadı." },
+      { ok: false, code: "ANALYSIS_VERIFY_FAILED", error: "Analiz kaydı doğrulanamadı." },
       { status: 403 },
     );
   }
@@ -126,7 +126,7 @@ export async function POST(
   if (uploadError) {
     console.error("[analyses/upload-image] upload:", uploadError.message);
     return NextResponse.json(
-      { ok: false, error: "Görsel yüklenemedi." },
+      { ok: false, code: "IMAGE_UPLOAD_FAILED", error: "Görsel yüklenemedi." },
       { status: 500 },
     );
   }
@@ -142,7 +142,7 @@ export async function POST(
   if (updateErr) {
     console.error("[analyses/upload-image] db update:", updateErr.message);
     return NextResponse.json(
-      { ok: false, error: "Görsel kaydı güncellenemedi." },
+      { ok: false, code: "IMAGE_RECORD_UPDATE_FAILED", error: "Görsel kaydı güncellenemedi." },
       { status: 500 },
     );
   }
