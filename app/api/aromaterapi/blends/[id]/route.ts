@@ -107,7 +107,7 @@ export async function PATCH(
       : null;
   if (!expectedUpdatedAt) {
     return NextResponse.json(
-      { ok: false, error: "AROMA_MISSING_VERSION" },
+      { ok: false, code: "AROMA_MISSING_VERSION", error: "AROMA_MISSING_VERSION" },
       { status: 400, headers: { "Cache-Control": "no-store" } },
     );
   }
@@ -137,7 +137,7 @@ export async function PATCH(
     if (existing) {
       await trackUsage(guard, req, { module: "aromatherapy", action: "action_failed", failedAction: "record_updated", subEntity: "blend", errorClass: "conflict" });
       return NextResponse.json(
-        { ok: false, error: "AROMA_STALE_BLEND", stale: true },
+        { ok: false, code: "AROMA_STALE_BLEND", error: "AROMA_STALE_BLEND", stale: true },
         { status: 409, headers: { "Cache-Control": "no-store" } },
       );
     }

@@ -76,13 +76,13 @@ export async function PATCH(
     typeof rawExpected === "string" && rawExpected.trim() ? rawExpected.trim() : null;
   if (!expectedUpdatedAt) {
     return NextResponse.json(
-      { ok: false, error: "AROMA_MISSING_VERSION" },
+      { ok: false, code: "AROMA_MISSING_VERSION", error: "AROMA_MISSING_VERSION" },
       { status: 400, headers: { "Cache-Control": "no-store" } },
     );
   }
   if (!isValidExpectedUpdatedAt(expectedUpdatedAt)) {
     return NextResponse.json(
-      { ok: false, error: "AROMA_INVALID_VERSION" },
+      { ok: false, code: "AROMA_INVALID_VERSION", error: "AROMA_INVALID_VERSION" },
       { status: 400, headers: { "Cache-Control": "no-store" } },
     );
   }
@@ -111,7 +111,7 @@ export async function PATCH(
     if (existing) {
       await trackUsage(guard, req, { module: "aromatherapy", action: "action_failed", failedAction: "record_updated", subEntity: "oil", errorClass: "conflict" });
       return NextResponse.json(
-        { ok: false, error: "AROMA_STALE_OIL", stale: true },
+        { ok: false, code: "AROMA_STALE_OIL", error: "AROMA_STALE_OIL", stale: true },
         { status: 409, headers: { "Cache-Control": "no-store" } },
       );
     }

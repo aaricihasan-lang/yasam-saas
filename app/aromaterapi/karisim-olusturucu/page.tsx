@@ -6,6 +6,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { formatDate } from "@/lib/i18n/format";
 import type { ActiveLocale } from "@/lib/i18n/locales";
 import { useBlendSafetyText } from "@/lib/aromaterapi/useBlendSafetyText";
+import { useAromaApiError } from "@/lib/aromaterapi/useAromaterapiModuleText";
 import { getSyncedTenantId, MISSING_SESSION_TENANT_MESSAGE } from "@/lib/auth/sessionTenant";
 import { readYasamUser, getYasamUserDisplayName } from "@/lib/auth/yasamUser";
 import { BlendRecetePrint, type PrintableBlend } from "./_components/BlendRecetePrint";
@@ -92,8 +93,9 @@ export default function KarisimOlusturucuPage() {
   const tv = useTranslations("aromatherapy.blend.validation");
   const safetyText = useBlendSafetyText();
   const locale = useLocale() as ActiveLocale;
-  // Kütüphane / sunucu hata ayrıntısı yalnız kaynak dilde (tr) birebir; diğer dilde çevrilmiş genel metin.
-  const libError = (error: string | null | undefined) => (locale === "tr" ? error ?? tp("unknownError") : tp("unknownError"));
+  // Kütüphane / sunucu hata ayrıntısı tr'de birebir; diğer dilde dil-bağımsız koddan çeviri (yoksa genel metin).
+  const apiError = useAromaApiError();
+  const libError = (error: string | null | undefined, code?: string | null) => apiError.text(error, code, tp("unknownError"));
 
   const [tenantId, setTenantId] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState("");
@@ -131,6 +133,7 @@ export default function KarisimOlusturucuPage() {
   // Kaydedilenler
   const [saved, setSaved] = useState<Blend[]>([]);
   const [savedError, setSavedError] = useState<string | null>(null); // ARO-017
+  const [savedErrorCode, setSavedErrorCode] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [copyingId, setCopyingId] = useState<string | null>(null); // ARO-007 çift-tık kilidi
   // WT5: kopyalamadan önce yeni ad sorulur (otomatik "(Kopya)" eki YOK).
@@ -163,16 +166,14 @@ export default function KarisimOlusturucuPage() {
   // Android uygulama WebView'inde window.print çalışmaz → Yazdır CTA'ları gizli (plan §4.6).
   const isAndroidApp = useIsAndroidApp();
   const [blendExporting, setBlendExporting] = useState(false);
-  // I18N: wordExport Türkçe/sunucu hata metni yalnız kaynak dilde (tr) birebir; diğer dilde çevrilmiş genel metin.
-  const wordLocale = useLocale();
-  const wordErrorText = (e: string | null, fallback: string) => (wordLocale === "tr" ? e ?? fallback : fallback);
+  // I18N: wordExport Türkçe/sunucu hata metni tr'de birebir; diğer dilde dil-bağımsız koddan çeviri (yoksa genel metin).
   async function exportBlendWord(url: string, body?: unknown) {
     if (blendExporting) return;
     setBlendExporting(true);
-    const { ok, error } = await downloadWord(url, body);
+    const { ok, error, errorCode } = await downloadWord(url, body);
     setBlendExporting(false);
     if (ok) showToast({ title: tp("wordReadyTitle"), message: tp("wordReadyBody"), type: "success" });
-    else showToast({ title: tp("wordFailedTitle"), message: wordErrorText(error, tp("wordFailedBody")), type: "error" });
+    else showToast({ title: tp("wordFailedTitle"), message: apiError.text(error, errorCode, tp("wordFailedBody")), type: "error" });
   }
 
   // printBlend hazır olunca render sonrası yazdır; kullanıcı "PDF olarak kaydet" der.
@@ -252,10 +253,11 @@ export default function KarisimOlusturucuPage() {
   );
 
   const loadSaved = useCallback(async () => {
-    const { blends, error } = await fetchBlends();
+    const { blends, error, errorCode } = await fetchBlends();
     // ARO-017 — hatayı yutma; mevcut listeyi koru, hata durumunu göster.
-    if (error) { setSavedError(error); return; }
+    if (error) { setSavedError(error); setSavedErrorCode(errorCode ?? null); return; }
     setSavedError(null);
+    setSavedErrorCode(null);
     setSaved(blends);
   }, []);
 
@@ -465,11 +467,11 @@ export default function KarisimOlusturucuPage() {
     if (nameError && nameErrorCode) { setCopyNameError(tv(nameErrorCode)); return; }
     setCopyingId(blend.id);
     const input = { ...blendToInput(blend), name: copyName.trim() };
-    const { blend: created, error, demo } = await saveBlend(input);
+    const { blend: created, error, demo, errorCode: copyCode } = await saveBlend(input);
     setCopyingId(null);
     setCopyTarget(null);
     if (demo) { showToast({ title: tp("demoTitle"), message: tp("demoBody"), type: "info" }); return; }
-    if (error || !created) { showToast({ title: tp("copyFailedTitle"), message: libError(error), type: "error" }); return; }
+    if (error || !created) { showToast({ title: tp("copyFailedTitle"), message: libError(error, copyCode), type: "error" }); return; }
     showToast({ title: tp("copiedTitle"), message: tp("copiedBody", { name: created.name }), type: "success" });
     await loadSaved();
   }
@@ -506,7 +508,7 @@ export default function KarisimOlusturucuPage() {
       ? await updateBlend(editingId, input)
       : await saveBlend(input);
     setSaving(false);
-    const { blend, error, demo } = result;
+    const { blend, error, demo, errorCode: saveCode } = result;
     if (demo) { showToast({ title: tp("demoTitle"), message: tp("demoBody"), type: "info" }); return; }
     // ARO-008 — çakışma: formu SIFIRLAMA, kullanıcı düzenlemeleri korunur.
     if ("stale" in result && result.stale) {
@@ -514,7 +516,7 @@ export default function KarisimOlusturucuPage() {
       showToast({ title: tp("conflictTitle"), message: tp("stale"), type: "error" });
       return;
     }
-    if (error || !blend) { showToast({ title: editingId ? tp("updateFailedTitle") : tp("saveFailedTitle"), message: libError(error), type: "error" }); return; }
+    if (error || !blend) { showToast({ title: editingId ? tp("updateFailedTitle") : tp("saveFailedTitle"), message: libError(error, saveCode), type: "error" }); return; }
     showToast({ title: editingId ? tp("updatedTitle") : tp("savedTitle"), message: editingId ? tp("updatedBody", { name: blend.name }) : tp("savedBody", { name: blend.name }), type: "success" });
     setStaleConflict(false);
     setEditingId(null);
@@ -530,8 +532,8 @@ export default function KarisimOlusturucuPage() {
       secondMessage: tp("deleteSecond"),
     });
     if (!ok) return;
-    const { error } = await deleteBlend(blend.id);
-    if (error) { showToast({ title: tp("deleteFailedTitle"), message: libError(error), type: "error" }); return; }
+    const { error, errorCode: deleteCode } = await deleteBlend(blend.id);
+    if (error) { showToast({ title: tp("deleteFailedTitle"), message: libError(error, deleteCode), type: "error" }); return; }
     showToast({ title: tp("deletedTitle"), message: tp("deletedBody"), type: "success" });
     setSaved((prev) => prev.filter((b) => b.id !== blend.id));
     if (editingId === blend.id) { setEditingId(null); resetForm(); }
@@ -742,7 +744,7 @@ export default function KarisimOlusturucuPage() {
           {savedError && saved.length === 0 ? (
             <div className="flex flex-col items-center gap-2 py-6 text-center">
               <p className="text-xs font-black text-rose-600">{tp("savedLoadFailed")}</p>
-              {locale === "tr" ? <p className="text-[11px] font-medium text-slate-500">{savedError}</p> : null}
+              {apiError.detail(savedError, savedErrorCode) ? <p className="text-[11px] font-medium text-slate-500">{apiError.detail(savedError, savedErrorCode)}</p> : null}
               <button type="button" onClick={() => void loadSaved()} className="rounded-lg border border-amber-300 bg-white px-3 py-1 text-[11px] font-black text-amber-700 transition hover:bg-amber-50">{tp("retry")}</button>
             </div>
           ) : saved.length === 0 ? (

@@ -186,6 +186,18 @@ type SafeFetchResult =
   | { ok: true; res: Response; j: Record<string, unknown> }
   | { ok: false; error: string };
 
+/**
+ * I18N: dil-bağımsız hata kodu (aromatherapy.errors.codes.<KOD> ile eşlenir). Türkçe `error` metni AYNEN kalır;
+ * `errorCode` yalnız EK alandır. Sunucu `code` alanı; eski yanıtlarda `error` değerinin kendisi kod
+ * (AROMA_MISSING_VERSION, AROMA_STALE_OIL …) ise o. Bilinmeyen → null (ekran genel metni gösterir).
+ */
+export const OIL_NETWORK_ERROR_CODE = "AROMA_NETWORK";
+export function aromaErrorCodeOf(j: Record<string, unknown>): string | null {
+  if (typeof j.code === "string" && j.code) return j.code;
+  if (typeof j.error === "string" && /^AROMA_[A-Z_]+$/.test(j.error)) return j.error;
+  return null;
+}
+
 /** fetch + JSON okuma; ağ hatası/throw DIŞARI SIZMAZ (AROMA-2) → {ok:false, error}. */
 async function safeFetch(url: string, init: RequestInit): Promise<SafeFetchResult> {
   let res: Response;
@@ -273,18 +285,18 @@ export async function fetchOilSearch(
 export async function fetchOilDetail(
   _tenantId: string,
   id: string,
-): Promise<{ oil: AromatherapyOil | null; error: string | null; notFound: boolean }> {
+): Promise<{ oil: AromatherapyOil | null; error: string | null; notFound: boolean; errorCode?: string | null }> {
   let res: Response;
   try {
     res = await fetch(`/api/aromaterapi/oils/${id}`, { headers: authHeaders() });
   } catch (e) {
     // Ağ hatası — detay YÜKLENEMEDİ (boş güvenlik alanı DEĞİL).
-    return { oil: null, error: e instanceof Error ? e.message : "Ağ hatası", notFound: false };
+    return { oil: null, error: e instanceof Error ? e.message : "Ağ hatası", notFound: false, errorCode: OIL_NETWORK_ERROR_CODE };
   }
   const j = await readJson(res);
   if (res.status === 404) return { oil: null, error: null, notFound: true };
   if (!res.ok || j.ok !== true)
-    return { oil: null, error: String(j.error ?? `HTTP ${res.status}`), notFound: false };
+    return { oil: null, error: String(j.error ?? `HTTP ${res.status}`), notFound: false, errorCode: aromaErrorCodeOf(j) };
   const raw = (j.oil as AromatherapyOil) ?? null;
   const oil = raw
     ? { ...raw, photosensitivity_status: derivePhotosensitivity(raw) } // ARO-004 normalize
@@ -337,15 +349,15 @@ export async function fetchOilNameMap(): Promise<{
 
 export async function createOil(
   fields: Record<string, unknown>,
-): Promise<{ id: string | null; error: string | null }> {
+): Promise<{ id: string | null; error: string | null; errorCode?: string | null }> {
   const sent = await safeFetch(`/api/aromaterapi/oils`, {
     method: "POST",
     headers: authHeaders(),
     body: JSON.stringify(fields),
   });
-  if (!sent.ok) return { id: null, error: sent.error };
+  if (!sent.ok) return { id: null, error: sent.error, errorCode: OIL_NETWORK_ERROR_CODE };
   const { res, j } = sent;
-  if (!res.ok || j.ok !== true) return { id: null, error: String(j.error ?? `HTTP ${res.status}`) };
+  if (!res.ok || j.ok !== true) return { id: null, error: String(j.error ?? `HTTP ${res.status}`), errorCode: aromaErrorCodeOf(j) };
   return { id: (j.id as string) ?? null, error: null };
 }
 
@@ -358,36 +370,36 @@ export async function updateOil(
   id: string,
   fields: Record<string, unknown>,
   expectedUpdatedAt: string | null,
-): Promise<{ error: string | null; stale: boolean; updatedAt: string | null }> {
+): Promise<{ error: string | null; stale: boolean; updatedAt: string | null; errorCode?: string | null }> {
   if (!expectedUpdatedAt) {
     // Sürümsüz güncelleme GÖNDERİLMEZ (sunucu zaten 400 döner).
-    return { error: OIL_MISSING_VERSION_MESSAGE, stale: false, updatedAt: null };
+    return { error: OIL_MISSING_VERSION_MESSAGE, stale: false, updatedAt: null, errorCode: "AROMA_MISSING_VERSION" };
   }
   const sent = await safeFetch(`/api/aromaterapi/oils/${id}`, {
     method: "PATCH",
     headers: authHeaders(),
     body: JSON.stringify({ ...fields, expected_updated_at: expectedUpdatedAt }),
   });
-  if (!sent.ok) return { error: sent.error, stale: false, updatedAt: null };
+  if (!sent.ok) return { error: sent.error, stale: false, updatedAt: null, errorCode: OIL_NETWORK_ERROR_CODE };
   const { res, j } = sent;
   if (res.status === 409 || j.stale === true) {
-    return { error: OIL_STALE_MESSAGE, stale: true, updatedAt: null };
+    return { error: OIL_STALE_MESSAGE, stale: true, updatedAt: null, errorCode: "AROMA_STALE_OIL" };
   }
-  if (!res.ok || j.ok !== true) return { error: String(j.error ?? `HTTP ${res.status}`), stale: false, updatedAt: null };
+  if (!res.ok || j.ok !== true) return { error: String(j.error ?? `HTTP ${res.status}`), stale: false, updatedAt: null, errorCode: aromaErrorCodeOf(j) };
   return { error: null, stale: false, updatedAt: typeof j.updated_at === "string" ? j.updated_at : null };
 }
 
-export async function deleteOil(id: string): Promise<{ error: string | null }> {
+export async function deleteOil(id: string): Promise<{ error: string | null; errorCode?: string | null }> {
   const sent = await safeFetch(`/api/aromaterapi/oils/${id}`, { method: "DELETE", headers: authHeaders() });
-  if (!sent.ok) return { error: sent.error };
+  if (!sent.ok) return { error: sent.error, errorCode: OIL_NETWORK_ERROR_CODE };
   const { res, j } = sent;
-  if (!res.ok || j.ok !== true) return { error: String(j.error ?? `HTTP ${res.status}`) };
+  if (!res.ok || j.ok !== true) return { error: String(j.error ?? `HTTP ${res.status}`), errorCode: aromaErrorCodeOf(j) };
   return { error: null };
 }
 
 export async function deleteOils(
   ids: string[],
-): Promise<{ deletedIds: string[]; error: string | null }> {
+): Promise<{ deletedIds: string[]; error: string | null; errorCode?: string | null }> {
   const clean = ids.filter((x) => typeof x === "string" && x.trim().length > 0);
   if (clean.length === 0) return { deletedIds: [], error: null };
   const sent = await safeFetch(`/api/aromaterapi/oils`, {
@@ -395,9 +407,9 @@ export async function deleteOils(
     headers: authHeaders(),
     body: JSON.stringify({ ids: clean }),
   });
-  if (!sent.ok) return { deletedIds: [], error: sent.error };
+  if (!sent.ok) return { deletedIds: [], error: sent.error, errorCode: OIL_NETWORK_ERROR_CODE };
   const { res, j } = sent;
-  if (!res.ok || j.ok !== true) return { deletedIds: [], error: String(j.error ?? `HTTP ${res.status}`) };
+  if (!res.ok || j.ok !== true) return { deletedIds: [], error: String(j.error ?? `HTTP ${res.status}`), errorCode: aromaErrorCodeOf(j) };
   return { deletedIds: (j.deletedIds as string[]) ?? [], error: null };
 }
 

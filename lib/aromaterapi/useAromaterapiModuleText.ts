@@ -5,7 +5,9 @@
  * ekranda gösterim `aromatherapy.modules.<id>` ve `aromatherapy.facets.<anahtar>` katalog anahtarlarından gelir.
  * Kimliği katalogda olmayan (yeni eklenmiş) bölüm Türkçe kayıt defteri metniyle gösterilir (ham anahtar asla).
  */
+import { useCallback } from "react";
 import { useLocale, useTranslations } from "next-intl";
+import { MAX_BULK_DELETE_IDS } from "@/lib/api/bulkDeleteLimits";
 import { writeMessageForCode as catalogWriteMessageForCode } from "./catalogWrite";
 import { sourceMessageForCode } from "./sourceWrite";
 import { writeMessageForCode as claimWriteMessageForCode } from "./claimWrite";
@@ -87,4 +89,31 @@ export function useClaimWriteError(): (code: string | null) => string {
   const locale = useLocale();
   return (code) =>
     locale === "tr" ? claimWriteMessageForCode(code) : code && t.has(code) ? t(code) : t("generic");
+}
+
+/**
+ * Yağ/karışım/Word API hatası → ekran metni (gece eklenen dil-bağımsız AROMA_* kodları).
+ * - tr: kütüphane/sunucu Türkçe metni BİREBİR (`error`; yoksa `fallback`) — eski davranış.
+ * - diğer dil: `aromatherapy.errors.codes.<KOD>`; kod yoksa/eşlenmemişse `fallback` (Türkçe sızıntı yok).
+ * `detail` biçimi: ayrıntı şablonlu çağrılar için tr'de sunucu metni, diğer dilde çevrilmiş kod metni (yoksa null).
+ */
+export function useAromaApiError() {
+  const t = useTranslations("aromatherapy.errors.codes");
+  const locale = useLocale();
+  const codeText = useCallback(
+    (code: string | null | undefined): string | null =>
+      code && t.has(code) ? t(code, { max: MAX_BULK_DELETE_IDS }) : null,
+    [t],
+  );
+  const text = useCallback(
+    (error: string | null | undefined, code: string | null | undefined, fallback: string): string =>
+      locale === "tr" ? (error ?? fallback) : (codeText(code) ?? fallback),
+    [locale, codeText],
+  );
+  const detail = useCallback(
+    (error: string | null | undefined, code: string | null | undefined): string | null =>
+      locale === "tr" ? (error ?? null) : codeText(code),
+    [locale, codeText],
+  );
+  return { text, detail, isSourceLocale: locale === "tr" };
 }

@@ -28,8 +28,8 @@ import { isDemoFixtureOil, getDemoOilDetail, DEMO_SEED_OILS_FULL } from "@/lib/d
 import { AromaterapiConfirmDialog } from "@/app/aromaterapi/_components/write/AromaterapiConfirmDialog";
 import { useAromaterapiDirtyGuard } from "@/app/aromaterapi/_components/write/useAromaterapiDirtyGuard";
 import { downloadWord } from "@/lib/aromaterapi/wordExport";
-import { useLocale, useTranslations } from "next-intl";
-import { useOilFieldText, useOilTypeLabel } from "@/lib/aromaterapi/useAromaterapiModuleText";
+import { useTranslations } from "next-intl";
+import { useAromaApiError, useOilFieldText, useOilTypeLabel } from "@/lib/aromaterapi/useAromaterapiModuleText";
 
 // -------------------------------------------------------
 // Sekme tanımları
@@ -274,11 +274,14 @@ export default function OilDetailPage() {
   const tTabs = useTranslations("aromatherapy.oilTabs");
   const fieldText = useOilFieldText();
   const typeLabel = useOilTypeLabel();
-  const locale = useLocale();
   const fieldLabel = (k: string) => (td.has(`fieldLabelOverrides.${k}`) ? td(`fieldLabelOverrides.${k}`) : fieldText.label(k));
   const tabDesc = (id: string) => (td.has(`tabDescOverrides.${id}`) ? td(`tabDescOverrides.${id}`) : tTabs(`${id}.desc`));
-  // Kütüphane / sunucu ayrıntısı yalnız kaynak dilde (tr) birebir eklenir; diğer dilde Türkçe metin gösterilmez.
-  const withDetail = (key: string, detail: string) => (locale === "tr" ? td(`${key}Detail`, { detail }) : td(key));
+  // Kütüphane / sunucu ayrıntısı tr'de birebir eklenir; diğer dilde dil-bağımsız koddan çeviri (yoksa ayrıntısız) — Türkçe sızıntı yok.
+  const apiError = useAromaApiError();
+  const withDetail = (key: string, detail: string, code?: string | null) => {
+    const d = apiError.detail(detail, code);
+    return d ? td(`${key}Detail`, { detail: d }) : td(key);
+  };
   const rawId = params?.id;
   const id = typeof rawId === "string" ? rawId : Array.isArray(rawId) ? (rawId[0] ?? "") : "";
 
@@ -299,18 +302,16 @@ export default function OilDetailPage() {
   const [staleConflict, setStaleConflict] = useState(false);
   const [blendMap, setBlendMap] = useState<Map<string, string> | null>(null);
   const [exportingWord, setExportingWord] = useState(false);
-  // I18N: wordExport Türkçe/sunucu hata metni yalnız kaynak dilde (tr) birebir; diğer dilde çevrilmiş genel metin.
-  const wordLocale = useLocale();
-  const wordErrorText = (e: string | null, fallback: string) => (wordLocale === "tr" ? e ?? fallback : fallback);
+  // I18N: wordExport Türkçe/sunucu hata metni tr'de birebir; diğer dilde dil-bağımsız koddan çeviri (yoksa genel metin).
 
   // FAZ Word — tek yağ monografisi export (.docx). Çift-tık kilidi.
   async function exportOilWord() {
     if (exportingWord || !id) return;
     setExportingWord(true);
-    const { ok, error } = await downloadWord(`/api/aromaterapi/oils/${id}/word-report`);
+    const { ok, error, errorCode } = await downloadWord(`/api/aromaterapi/oils/${id}/word-report`);
     setExportingWord(false);
     if (ok) showToast({ title: td("wordReadyTitle"), message: td("wordReadyBody"), type: "success" });
-    else showToast({ title: td("wordFailedTitle"), message: wordErrorText(error, td("wordFailedBody")), type: "error" });
+    else showToast({ title: td("wordFailedTitle"), message: apiError.text(error, errorCode, td("wordFailedBody")), type: "error" });
   }
 
   const activeTab = useMemo(() => DETAIL_TABS.find((t) => t.id === tab) ?? DETAIL_TABS[0], [tab]);
@@ -356,7 +357,7 @@ export default function OilDetailPage() {
     ]);
 
     setLoading(false);
-    if (oilResult.error) { setErrorMessage(withDetail("loadFailed", oilResult.error)); return; }
+    if (oilResult.error) { setErrorMessage(withDetail("loadFailed", oilResult.error, oilResult.errorCode)); return; }
     if (oilResult.notFound || !oilResult.oil) { setNotFound(true); return; }
     setOil(oilResult.oil);
     setDraft(oilToFormData(oilResult.oil));
@@ -428,14 +429,14 @@ export default function OilDetailPage() {
     } finally {
       setSaving(false);
     }
-    const { error, stale, updatedAt } = result;
+    const { error, stale, updatedAt, errorCode } = result;
     if (stale) {
       // Çakışma: formu SIFIRLAMA, otomatik ezme YOK — kullanıcı son hâli bilerek yükler.
       setStaleConflict(true);
       setErrorMessage(td("stale"));
       return;
     }
-    if (error) { setErrorMessage(withDetail("updateFailed", error)); return; }
+    if (error) { setErrorMessage(withDetail("updateFailed", error, errorCode)); return; }
     // Yeni token hemen işlenir (yeniden yükleme başarısız olsa da aynı sekme devam edebilir).
     if (updatedAt) setOil((prev) => (prev ? { ...prev, updated_at: updatedAt } : prev));
     setEditEnabled(false);
@@ -447,12 +448,13 @@ export default function OilDetailPage() {
     if (!id || !tenantId || deleting) return;
     setDeleting(true); setErrorMessage("");
     let error: string | null;
+    let errorCode: string | null | undefined = null;
     try {
-      ({ error } = await deleteOil(id));
+      ({ error, errorCode } = await deleteOil(id));
     } finally {
       setDeleting(false); // AROMA-2 — ağ hatasında da buton kilitli kalmaz
     }
-    if (error) { setErrorMessage(withDetail("deleteFailed", error)); setDeleteConfirmOpen(false); return; }
+    if (error) { setErrorMessage(withDetail("deleteFailed", error, errorCode)); setDeleteConfirmOpen(false); return; }
     setDeleteConfirmOpen(false); router.push("/aromaterapi/yaglar?view=list");
   }
 

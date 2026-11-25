@@ -17,7 +17,9 @@ export function legacyDbErrorResponse(
   error: unknown,
   message = "İşlem tamamlanamadı. Lütfen tekrar deneyin.",
   status = 500,
+  code = "AROMA_DB_FAILED",
 ): NextResponse {
   console.error(`[aromaterapi:${scope}]`, error);
-  return NextResponse.json({ ok: false, error: message }, { status });
+  // I18N: dil-bağımsız `code` EK alan; Türkçe `error` metni AYNEN (legacy UI sözleşmesi korunur).
+  return NextResponse.json({ ok: false, code, error: message }, { status });
 }

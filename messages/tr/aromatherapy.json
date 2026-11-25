@@ -1097,7 +1097,8 @@
         "choose": "Seçin…",
         "noRecords": "Kayıt yok.",
         "removeRow": "Satırı kaldır"
-      }
+      },
+      "preparing": "Hazırlanıyor"
     },
     "catalog": {
       "pageTitle": "Bitki & Preparat Kataloğu",
@@ -1575,6 +1576,99 @@
       "AROMA_CLAIM_NOT_FOUND": "Kayıt bulunamadı.",
       "AROMA_CLAIM_WRITE_FAILED": "Kayıt işlemi tamamlanamadı. Lütfen tekrar deneyin.",
       "generic": "Kayıt işlemi tamamlanamadı. Lütfen tekrar deneyin."
+    },
+    "knowledgeBase": {
+      "goGlossary": "Sözlük'e git →",
+      "demoBanner": "Bilgi bankası içerikleri demo hesabında korunur. Sekme başlıkları görünür; makale içerikleri tam sürümde açılır.",
+      "eyebrow": "Aromaterapi — Bilgi Bankası",
+      "title": "Bilgi Bankası",
+      "subtitle": "Uzman referans içerikleri ve notları",
+      "loadFailed": "Veriler yüklenemedi.",
+      "loadFailedDetail": "Veriler yüklenemedi: {detail}",
+      "loading": "Yükleniyor…",
+      "emptyTitle": "Hazır referans içeriği yok",
+      "emptyBody": "Bu alan hazır referans tabloları içindir. Kendi notlarınızı yukarıdaki “Kendi Bilgi Notlarım” bölümünden şimdi ekleyebilirsiniz.",
+      "demoGate": "Bilgi bankası makaleleri demo hesabında korunur. Tam sürümde tüm içerikler açık olarak kullanılabilir."
+    },
+    "articles": {
+      "title": "Kendi Bilgi Notlarım",
+      "subtitle": "Kendi referans notlarınız — yalnız size görünür.",
+      "newNote": "+ Yeni Not",
+      "searchPlaceholder": "Notlarımda ara…",
+      "loading": "Yükleniyor…",
+      "noMatch": "Aramanıza uygun not bulunamadı.",
+      "empty": "Henüz kendi notunuz yok. “+ Yeni Not” ile ekleyin.",
+      "successTitle": "Başarılı",
+      "added": "Not eklendi.",
+      "updated": "Not güncellendi.",
+      "deletedTitle": "Silindi",
+      "deleted": "Not silindi.",
+      "errorTitle": "Hata",
+      "deleteTitle": "Bu notu silmek istiyor musunuz?",
+      "deleteBody": "Bu işlem geri alınamaz. <strong>{name}</strong> notu kalıcı olarak silinecek.",
+      "deleting": "Siliniyor…",
+      "deleteConfirm": "Evet, Sil",
+      "deleteCancel": "Vazgeç",
+      "edit": "Düzenle",
+      "delete": "Sil",
+      "categories": {
+        "genel": "Genel",
+        "kimyasal-bilesimler": "Kimyasal Bileşimler",
+        "elde-etme": "Elde Etme",
+        "etki-mekanizmasi": "Etki Mekanizması",
+        "klinik-uygulama": "Klinik Uygulama"
+      },
+      "form": {
+        "titleRequired": "Başlık zorunludur.",
+        "createTitle": "Yeni Bilgi Notu",
+        "editTitle": "Notu Düzenle",
+        "description": "Kendi referans notunuzu oluşturun; yalnız size görünür.",
+        "section": "Not",
+        "titleLabel": "Başlık",
+        "category": "Kategori",
+        "summary": "Özet",
+        "summaryHint": "Kart önizlemesinde görünür.",
+        "content": "İçerik",
+        "source": "Kaynak",
+        "sourceHint": "İsteğe bağlı — referans/atıf."
+      },
+      "errors": {
+        "AROMA_WRITE_INVALID_BODY": "Girdiğiniz bilgiler geçersiz. Başlık zorunludur.",
+        "AROMA_WRITE_PAYLOAD_TOO_LARGE": "İçerik çok büyük; lütfen kısaltın.",
+        "AROMA_NOT_FOUND": "Kayıt bulunamadı veya erişim izniniz yok.",
+        "AROMA_WRITE_FAILED": "İşlem tamamlanamadı. Lütfen tekrar deneyin.",
+        "generic": "İşlem tamamlanamadı. Lütfen tekrar deneyin."
+      }
+    },
+    "errors": {
+      "codes": {
+        "AROMA_INVALID_BODY": "Geçersiz istek gövdesi.",
+        "AROMA_OIL_NAME_REQUIRED": "Yağ adı zorunludur.",
+        "AROMA_NO_SELECTION": "Silinecek kayıt seçilmedi.",
+        "AROMA_BULK_DELETE_LIMIT": "Tek seferde en fazla {max} kayıt silinebilir. Lütfen seçimi daraltın.",
+        "AROMA_ID_REQUIRED": "id zorunludur.",
+        "AROMA_NOT_FOUND": "Kayıt bulunamadı.",
+        "AROMA_NOT_OWNED": "Kayıt bulunamadı veya bu hesaba ait değil.",
+        "AROMA_BLEND_NAME_REQUIRED": "Karışım adı zorunludur.",
+        "AROMA_BOTTLE_INVALID": "Şişe hacmi 0'dan büyük olmalıdır.",
+        "AROMA_DILUTION_INVALID": "Seyreltme oranı 0'dan büyük olmalıdır.",
+        "AROMA_ITEMS_REQUIRED": "En az bir uçucu yağ eklemelisiniz.",
+        "AROMA_BLEND_NOT_OWNED": "Karışım bulunamadı veya bu hesaba ait değil.",
+        "AROMA_MISSING_VERSION": "Kayıt sürümü belirlenemedi. Lütfen sayfayı yenileyip tekrar deneyin.",
+        "AROMA_INVALID_VERSION": "Kayıt sürümü geçersiz. Lütfen sayfayı yenileyip tekrar deneyin.",
+        "AROMA_STALE_OIL": "Kayıt siz düzenlerken başka bir yerde güncellendi. Son değişiklikleri yükleyip tekrar deneyin.",
+        "AROMA_STALE_BLEND": "Bu karışım başka bir yerde değiştirildi. Sayfayı yenileyip değişikliklerinizi tekrar uygulayın.",
+        "AROMA_NETWORK": "Sunucuya ulaşılamadı. Bağlantınızı kontrol edip tekrar deneyin.",
+        "AROMA_SESSION_MISSING": "Oturum bulunamadı. Lütfen tekrar giriş yapın.",
+        "AROMA_REPORT_RATE_LIMITED": "Çok fazla rapor isteği. Lütfen biraz sonra tekrar deneyin.",
+        "AROMA_REPORT_BODY_TOO_LARGE": "İstek gövdesi çok büyük.",
+        "AROMA_REPORT_INVALID_BODY": "Geçersiz istek gövdesi.",
+        "AROMA_REPORT_INVALID_REQUEST": "Geçersiz rapor isteği.",
+        "AROMA_REPORT_INVALID_ID": "Geçersiz kayıt kimliği.",
+        "AROMA_REPORT_NOT_FOUND": "Export edilecek kayıt bulunamadı.",
+        "AROMA_REPORT_TOO_MANY": "Kayıt sayısı çok yüksek. Lütfen seçili kayıtları dışa aktarın.",
+        "AROMA_REPORT_FAILED": "Rapor oluşturulamadı."
+      }
     }
   }
 }

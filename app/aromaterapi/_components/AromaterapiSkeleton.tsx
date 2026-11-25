@@ -7,6 +7,8 @@
  * yükseklikli yer tutucular kullanır.
  */
 
+import { useTranslations } from "next-intl";
+
 function Line({ className = "" }: { className?: string }) {
   return (
     <div
@@ -88,12 +90,13 @@ export function AromaterapiSectionSkeletonCard({
   title: string;
   hint: string;
 }) {
+  const t = useTranslations("aromatherapy.shared");
   return (
     <section className="rounded-[20px] border border-amber-100/70 bg-white/80 p-5 shadow-sm">
       <div className="flex items-center justify-between gap-3 border-b border-amber-100/60 pb-3">
         <h3 className="text-[13px] font-black tracking-tight text-slate-800">{title}</h3>
         <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-0.5 text-[9px] font-black uppercase tracking-wide text-slate-400">
-          Hazırlanıyor
+          {t("preparing")}
         </span>
       </div>
       <p className="mt-3 text-[12px] font-medium leading-relaxed text-slate-500">{hint}</p>

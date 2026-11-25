@@ -1,12 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
+import { useLocale, useTranslations } from "next-intl";
 import { useToast } from "@/components/ui/ToastProvider";
 import {
   AromaterapiFormShell,
   AromaterapiFormSection,
 } from "@/app/aromaterapi/_components/write/AromaterapiFormShell";
-import { TextField, EnumSelect, enumOptions } from "@/app/aromaterapi/_components/write/KnowledgeRecordFields";
+import { TextField, EnumSelect } from "@/app/aromaterapi/_components/write/KnowledgeRecordFields";
 import { useAromaterapiDirtyGuard } from "@/app/aromaterapi/_components/write/useAromaterapiDirtyGuard";
 import { AromaterapiConfirmDialog } from "@/app/aromaterapi/_components/write/AromaterapiConfirmDialog";
 import { fetchArticleList, type ArticleItem } from "@/lib/aromaterapi/articleData";
@@ -24,18 +25,33 @@ import { ARTICLE_CATEGORIES } from "@/lib/aromaterapi/articleFields";
  * Additive: mevcut referans-sheet görünümünü değiştirmez; bu panel kendi verisini yönetir.
  */
 
-const ARTICLE_CATEGORY_TR: Record<string, string> = {
-  genel: "Genel",
-  "kimyasal-bilesimler": "Kimyasal Bileşimler",
-  "elde-etme": "Elde Etme",
-  "etki-mekanizmasi": "Etki Mekanizması",
-  "klinik-uygulama": "Klinik Uygulama",
-};
+/**
+ * I18N: kategori değerleri (ARTICLE_CATEGORIES: genel, kimyasal-bilesimler, …) kanonik — DB'ye yazılır, değişmez.
+ * Yalnız GÖSTERİM aromatherapy.articles.categories.<kod>'dan gelir; katalogda olmayan (serbest metin) kategori ham gösterilir.
+ * Hata kodu → metin: tr'de articleMessageForCode birebir; diğer dilde aromatherapy.articles.errors.<kod> (yoksa genel metin).
+ */
+const CATEGORY_KEYS: ReadonlySet<string> = new Set<string>(ARTICLE_CATEGORIES);
+
+function useArticleText() {
+  const t = useTranslations("aromatherapy.articles");
+  const locale = useLocale();
+  const categoryLabel = useCallback(
+    (code: string) => (CATEGORY_KEYS.has(code) ? t(`categories.${code}`) : code),
+    [t],
+  );
+  const errorText = useCallback(
+    (code: string | null) =>
+      locale === "tr" ? articleMessageForCode(code) : code && t.has(`errors.${code}`) ? t(`errors.${code}`) : t("errors.generic"),
+    [t, locale],
+  );
+  return { t, categoryLabel, errorText };
+}
 
 type EditorState = { mode: "create" } | { mode: "edit"; item: ArticleItem } | null;
 
 export function ArticlesPanel({ isDemo = false }: { isDemo?: boolean }) {
   const { showToast } = useToast();
+  const { t, categoryLabel, errorText } = useArticleText();
   const [rows, setRows] = useState<ArticleItem[]>([]);
   const [fetchedKey, setFetchedKey] = useState<string | null>(null);
   const [errorCode, setErrorCode] = useState<string | null>(null);
@@ -74,10 +90,10 @@ export function ArticlesPanel({ isDemo = false }: { isDemo?: boolean }) {
     setDeleting(false);
     if (res.ok) {
       setDeleteTarget(null);
-      showToast({ title: "Silindi", message: "Not silindi.", type: "success" });
+      showToast({ title: t("deletedTitle"), message: t("deleted"), type: "success" });
       refresh();
     } else {
-      showToast({ title: "Hata", message: articleMessageForCode(res.errorCode), type: "error" });
+      showToast({ title: t("errorTitle"), message: errorText(res.errorCode), type: "error" });
     }
   }
 
@@ -90,7 +106,7 @@ export function ArticlesPanel({ isDemo = false }: { isDemo?: boolean }) {
           isDemo={isDemo}
           onSaved={(created) => {
             setEditor(null);
-            showToast({ title: "Başarılı", message: created ? "Not eklendi." : "Not güncellendi.", type: "success" });
+            showToast({ title: t("successTitle"), message: created ? t("added") : t("updated"), type: "success" });
             refresh();
           }}
           onCancel={() => setEditor(null)}
@@ -103,9 +119,9 @@ export function ArticlesPanel({ isDemo = false }: { isDemo?: boolean }) {
     <section className="rounded-[20px] border border-amber-100/70 bg-white/85 p-5 shadow-sm sm:p-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
-          <h2 className="text-[16px] font-black tracking-tight text-slate-900">Kendi Bilgi Notlarım</h2>
+          <h2 className="text-[16px] font-black tracking-tight text-slate-900">{t("title")}</h2>
           <p className="mt-0.5 text-[12px] font-medium text-slate-500">
-            Kendi referans notlarınız — yalnız size görünür.
+            {t("subtitle")}
           </p>
         </div>
         {!isDemo ? (
@@ -114,7 +130,7 @@ export function ArticlesPanel({ isDemo = false }: { isDemo?: boolean }) {
             onClick={() => setEditor({ mode: "create" })}
             className="inline-flex min-h-[40px] shrink-0 items-center justify-center rounded-xl bg-gradient-to-r from-amber-500 to-rose-500 px-4 text-[12.5px] font-black text-white shadow-md transition hover:brightness-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/60"
           >
-            + Yeni Not
+            {t("newNote")}
           </button>
         ) : null}
       </div>
@@ -124,19 +140,19 @@ export function ArticlesPanel({ isDemo = false }: { isDemo?: boolean }) {
           type="search"
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          placeholder="Notlarımda ara…"
+          placeholder={t("searchPlaceholder")}
           className="min-h-[42px] w-full rounded-xl border border-slate-200 bg-white/90 px-3 text-[13px] font-medium text-slate-800 shadow-sm outline-none transition focus-visible:border-amber-300 focus-visible:ring-2 focus-visible:ring-amber-300/50"
         />
       </div>
 
       <div className="mt-4">
         {loading ? (
-          <p className="py-6 text-center text-[13px] font-medium text-slate-500">Yükleniyor…</p>
+          <p className="py-6 text-center text-[13px] font-medium text-slate-500">{t("loading")}</p>
         ) : errorCode ? (
-          <p className="py-6 text-center text-[13px] font-bold text-rose-600">{articleMessageForCode(errorCode)}</p>
+          <p className="py-6 text-center text-[13px] font-bold text-rose-600">{errorText(errorCode)}</p>
         ) : rows.length === 0 ? (
           <p className="rounded-xl border border-dashed border-amber-200 bg-amber-50/40 px-4 py-6 text-center text-[13px] font-medium text-slate-500">
-            {q.trim() ? "Aramanıza uygun not bulunamadı." : "Henüz kendi notunuz yok. “+ Yeni Not” ile ekleyin."}
+            {q.trim() ? t("noMatch") : t("empty")}
           </p>
         ) : (
           <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
@@ -147,7 +163,7 @@ export function ArticlesPanel({ isDemo = false }: { isDemo?: boolean }) {
                 isDemo={isDemo}
                 onEdit={() => setEditor({ mode: "edit", item })}
                 onDelete={() => setDeleteTarget(item)}
-                categoryLabel={ARTICLE_CATEGORY_TR[item.category] ?? item.category}
+                categoryLabel={categoryLabel(item.category)}
               />
             ))}
           </div>
@@ -157,14 +173,14 @@ export function ArticlesPanel({ isDemo = false }: { isDemo?: boolean }) {
       <AromaterapiConfirmDialog
         open={deleteTarget !== null}
         tone="danger"
-        title="Bu notu silmek istiyor musunuz?"
+        title={t("deleteTitle")}
         description={
           <>
-            Bu işlem geri alınamaz. <strong>{deleteTarget?.title}</strong> notu kalıcı olarak silinecek.
+            {t.rich("deleteBody", { name: deleteTarget?.title ?? "", strong: (c) => <strong>{c}</strong> })}
           </>
         }
-        confirmLabel={deleting ? "Siliniyor…" : "Evet, Sil"}
-        cancelLabel="Vazgeç"
+        confirmLabel={deleting ? t("deleting") : t("deleteConfirm")}
+        cancelLabel={t("deleteCancel")}
         confirmDisabled={deleting}
         onConfirm={() => void handleDelete()}
         onCancel={() => setDeleteTarget(null)}
@@ -186,6 +202,7 @@ function ArticleCard({
   onDelete: () => void;
   categoryLabel: string;
 }) {
+  const t = useTranslations("aromatherapy.articles");
   return (
     <article className="flex h-full flex-col rounded-2xl border border-amber-100/70 bg-white/90 p-4 shadow-sm">
       <div className="flex flex-wrap items-baseline gap-2">
@@ -206,14 +223,14 @@ function ArticleCard({
             onClick={onEdit}
             className="inline-flex min-h-[36px] items-center rounded-lg border border-slate-200 bg-white px-3 text-[12px] font-black text-slate-600 shadow-sm transition hover:border-slate-300"
           >
-            Düzenle
+            {t("edit")}
           </button>
           <button
             type="button"
             onClick={onDelete}
             className="inline-flex min-h-[36px] items-center rounded-lg border border-rose-200 bg-white px-3 text-[12px] font-black text-rose-600 shadow-sm transition hover:bg-rose-50"
           >
-            Sil
+            {t("delete")}
           </button>
         </div>
       ) : null}
@@ -247,6 +264,8 @@ function ArticleForm({
     [initial],
   );
   const [f, setF] = useState<FormState>(initialState);
+  const { categoryLabel, errorText } = useArticleText();
+  const tf = useTranslations("aromatherapy.articles.form");
   const [submitting, setSubmitting] = useState(false);
   const [errorCode, setErrorCode] = useState<string | null>(null);
   const [triedSubmit, setTriedSubmit] = useState(false);
@@ -262,7 +281,7 @@ function ArticleForm({
   );
   useAromaterapiDirtyGuard(dirty && !isDemo);
 
-  const titleError = triedSubmit && f.title.trim() === "" ? "Başlık zorunludur." : null;
+  const titleError = triedSubmit && f.title.trim() === "" ? tf("titleRequired") : null;
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -293,28 +312,28 @@ function ArticleForm({
   return (
     <AromaterapiFormShell
       mode={mode}
-      title={mode === "create" ? "Yeni Bilgi Notu" : "Notu Düzenle"}
-      description="Kendi referans notunuzu oluşturun; yalnız size görünür."
+      title={mode === "create" ? tf("createTitle") : tf("editTitle")}
+      description={tf("description")}
       onSubmit={onSubmit}
       onCancel={onCancel}
       submitting={submitting}
       isDemo={isDemo}
       dirty={dirty}
-      errorMessage={errorCode ? articleMessageForCode(errorCode) : null}
+      errorMessage={errorCode ? errorText(errorCode) : null}
     >
-      <AromaterapiFormSection title="Not">
-        <TextField label="Başlık" value={f.title} onChange={(v) => set("title", v)} required disabled={isDemo} error={titleError} />
+      <AromaterapiFormSection title={tf("section")}>
+        <TextField label={tf("titleLabel")} value={f.title} onChange={(v) => set("title", v)} required disabled={isDemo} error={titleError} />
         <EnumSelect
-          label="Kategori"
+          label={tf("category")}
           value={f.category}
           onChange={(v) => set("category", v || "genel")}
-          options={enumOptions(ARTICLE_CATEGORIES, ARTICLE_CATEGORY_TR)}
+          options={ARTICLE_CATEGORIES.map((v) => ({ value: v, label: categoryLabel(v) }))}
           disabled={isDemo}
-          allLabel="Genel"
+          allLabel={categoryLabel("genel")}
         />
-        <TextField label="Özet" value={f.summary} onChange={(v) => set("summary", v)} disabled={isDemo} multiline rows={2} hint="Kart önizlemesinde görünür." />
-        <TextField label="İçerik" value={f.content} onChange={(v) => set("content", v)} disabled={isDemo} multiline rows={8} />
-        <TextField label="Kaynak" value={f.source} onChange={(v) => set("source", v)} disabled={isDemo} hint="İsteğe bağlı — referans/atıf." />
+        <TextField label={tf("summary")} value={f.summary} onChange={(v) => set("summary", v)} disabled={isDemo} multiline rows={2} hint={tf("summaryHint")} />
+        <TextField label={tf("content")} value={f.content} onChange={(v) => set("content", v)} disabled={isDemo} multiline rows={8} />
+        <TextField label={tf("source")} value={f.source} onChange={(v) => set("source", v)} disabled={isDemo} hint={tf("sourceHint")} />
       </AromaterapiFormSection>
     </AromaterapiFormShell>
   );
