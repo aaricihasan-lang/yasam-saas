@@ -24,6 +24,8 @@ const steps = [
   ["i18n birim testleri", [tsx, "scripts/i18n/unit.test.ts"]],
   ["sunucu çevirici güvenliği", [tsx, "scripts/i18n/server-messages.test.ts"]],
   ["kapı negatif testleri", ["scripts/i18n/gates.negative.test.mjs"]],
+  // Çıktı dili sözleşmesi: TR rapor golden'ı (bayt-bayt) + EN dil/nöbetçi/sayı kontrolleri (Kupa pilotu + ortak motorlar).
+  ["rapor golden (TR birebir + EN)", [tsx, "scripts/i18n/reports-golden.harness.ts"]],
   ...["2a", "2c", "2d", "2e", "2f", "2g", "2h", "2i", "2j"].map((h) => [`Doğaltaş ${h}`, [`scripts/stones-i18n-${h}-harness.mjs`]]),
 ];
 
