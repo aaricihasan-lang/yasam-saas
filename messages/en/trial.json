@@ -16,7 +16,7 @@
       "requestFailed": "The request could not be sent. Please try again.",
       "goPro": "Go Pro",
       "close": "Close",
-      "credit": "Your Roxy credit today: {left} / {limit}",
+      "credit": "Remaining calculation credits today: {left} / {limit}",
       "proRequested": "Pro Request Received",
       "whatsapp": "Contact Us on WhatsApp",
       "ok": "OK"
