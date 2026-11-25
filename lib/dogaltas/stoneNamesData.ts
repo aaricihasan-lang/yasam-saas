@@ -21,7 +21,7 @@ export type StandardStoneNameEntry = {
 };
 
 export const STANDARD_STONE_NAMES: readonly StandardStoneNameEntry[] = [
-  { id: "abalone", en: "Abalone", enAliases: ["Paua","Mother-of-pearl","Paua Shell"], tr: ["Abalone (Paua Kabuğu)"] }, // i18n-ignore: kanonik taş adı verisi
+  { id: "abalone", en: "Abalone", enAliases: ["Paua","Paua Shell"], tr: ["Abalone (Paua Kabuğu)"] }, // i18n-ignore: kanonik taş adı verisi
   { id: "adamin", en: "Adamite", enAliases: [], tr: ["Adamin"] }, // i18n-ignore: kanonik taş adı verisi
   { id: "adular", en: "Adularia", enAliases: [], tr: ["Adular"] }, // i18n-ignore: kanonik taş adı verisi
   { id: "agirin", en: "Aegirine", enAliases: ["Acmite"], tr: ["Ağirin"] }, // i18n-ignore: kanonik taş adı verisi
@@ -215,7 +215,7 @@ export const STANDARD_STONE_NAMES: readonly StandardStoneNameEntry[] = [
   { id: "spektrolit", en: "Spectrolite", enAliases: [], tr: ["Spektrolit"] }, // i18n-ignore: kanonik taş adı verisi
   { id: "spinel", en: "Spinel", enAliases: [], tr: ["Spinel","SPİNELL"] }, // i18n-ignore: kanonik taş adı verisi
   { id: "staurolit", en: "Staurolite", enAliases: ["Fairy cross"], tr: ["Staurolit"] }, // i18n-ignore: kanonik taş adı verisi
-  { id: "steatit", en: "Steatite", enAliases: ["Soapstone","Talc","Soapstone"], tr: ["Steatit (Talk)","STEATİT (TALK, SPECKSTEİN)"] }, // i18n-ignore: kanonik taş adı verisi
+  { id: "steatit", en: "Steatite", enAliases: ["Soapstone","Talc"], tr: ["Steatit (Talk)","STEATİT (TALK, SPECKSTEİN)"] }, // i18n-ignore: kanonik taş adı verisi
   { id: "stihtit", en: "Stichtite", enAliases: [], tr: ["Stihtit","STİCHTİT"] }, // i18n-ignore: kanonik taş adı verisi
   { id: "stronsiyanit", en: "Strontianite", enAliases: [], tr: ["Stronsiyanit","STRONTİANİT"] }, // i18n-ignore: kanonik taş adı verisi
   { id: "sugilit", en: "Sugilite", enAliases: [], tr: ["Sugilit"] }, // i18n-ignore: kanonik taş adı verisi

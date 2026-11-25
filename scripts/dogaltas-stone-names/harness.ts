@@ -143,6 +143,15 @@ function ok(name: string, cond: boolean) {
   ok("GÜVENLİK: yazımdaki | ve . literal (köşeli parantez)", vals.every((v) => v.includes("g[|]h[.][*]")));
 }
 
+// ── Sözlük takma ad temizliği (QA D4-02 / D4-03, QTM-DG-11) ─────────────────────
+{
+  const dup = STANDARD_STONE_NAMES.filter((e) => new Set(e.enAliases.map((a) => a.toLowerCase())).size !== e.enAliases.length).map((e) => e.id);
+  ok("SÖZLÜK: hiçbir kayıtta yinelenen EN takma ad yok (Steatit 'Soapstone' tekil)", dup.length === 0);
+  const abalone = STANDARD_STONE_NAMES.find((e) => e.id === "abalone");
+  ok("SÖZLÜK: Abalone takma adlarında 'Mother-of-pearl' yok (sedef eşanlamlı değil)", Boolean(abalone) && !abalone!.enAliases.some((a) => /mother.of.pearl/i.test(a)));
+  ok("SÖZLÜK: kayıt sayısı değişmedi (227)", STANDARD_STONE_NAMES.length === 227);
+}
+
 console.log(`\nDoğaltaş taş adı gösterim harness: ${pass} PASS / ${fail} FAIL (toplam ${pass + fail})`);
 if (fail > 0) {
   console.log("Başarısız:\n - " + failures.join("\n - "));
