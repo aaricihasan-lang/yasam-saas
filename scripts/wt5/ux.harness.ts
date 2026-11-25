@@ -236,7 +236,16 @@ async function main() {
       try {
         diff = (await import("node:child_process")).execSync("git diff origin/main -- app components lib messages", { cwd: ROOT, encoding: "utf8", maxBuffer: 64 * 1024 * 1024 });
       } catch { diff = "__git_error__"; }
-      const ihlal = diff === "__git_error__" ? ["__git_error__"] : elementlerDiffIhlalleri(diff);
+      // I18N (#857): Numeroloji Merkezi kapısındaki chip metni koddan TR mesaj dosyasına taşındı.
+      // Dar, satır-birebir istisna: yalnız aşağıdaki silinen satır ve YALNIZ TR mesaj değeri hâlâ birebir
+      // "Elementler" ise ve bileşen hâlâ o anahtarı kullanıyorsa serbesttir (ad değişmedi, yalnız yer değişti).
+      const gateTr = (JSON.parse(read("messages/tr/numerology.app.json")) as { numerology?: { app?: { gate?: { a?: { chips?: Record<string, string> } } } } }).numerology?.app?.gate?.a?.chips;
+      const gateSrc = read("app/numeroloji-merkezi/GateClient.tsx");
+      const gateTasimaKanitli = gateTr?.elementler === "Elementler" && /CHIPS_A = \[[^\]]*"elementler"/.test(gateSrc) && gateSrc.includes("t(`a.chips.${c}`)");
+      const I18N_TASINAN = gateTasimaKanitli
+        ? new Set([`a/app/numeroloji-merkezi/GateClient.tsx b/app/numeroloji-merkezi/GateClient.tsx: {["PİN", "Ana Kulvar", "Yan Kulvar", "Çakra Omurgası", "Elementler", "Hayat Yolu"].map((c) => <span key={c} className="nk-chip">{c}</span>)}`])
+        : new Set<string>();
+      const ihlal = diff === "__git_error__" ? ["__git_error__"] : elementlerDiffIhlalleri(diff).filter((x) => !I18N_TASINAN.has(x));
       ok(ihlal.length === 0, "'Elementler' adı değişmedi (var olan satır silinmedi/değişmedi)", ihlal.slice(0, 5).join(" | "));
       // Saf denetimin sözleşmesi (sentetik farklar; git'e bağlı değil).
       const h = (dosya: string, govde: string) => `diff --git a/${dosya} b/${dosya}\n--- a/${dosya}\n+++ b/${dosya}\n@@ -1,3 +1,3 @@\n${govde}\n`;

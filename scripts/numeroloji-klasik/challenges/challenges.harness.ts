@@ -122,7 +122,7 @@ if (lp6) {
   };
   const trDir = path.join(ROOT, "messages", "tr");
   for (const f of readdirSync(trDir).filter((x) => x.endsWith(".json")).sort()) deepMerge(trMessages, JSON.parse(readFileSync(path.join(trDir, f), "utf8")) as Record<string, unknown>);
-  const inTr = (el: ReturnType<typeof createElement>) => createElement(NextIntlClientProvider, { locale: "tr", timeZone: "Europe/Istanbul", messages: trMessages as never }, el);
+  const inTr = (el: ReturnType<typeof createElement>) => createElement(NextIntlClientProvider, { locale: "tr", timeZone: "Europe/Istanbul", messages: trMessages as never, children: el });
   const ch = lp6.challenges as Period[];
   ok(ch.map((p) => `${p.position}:${p.number}`).join(",") === "1:4,2:1,3:3,4:5", "24.02.1960: sağlayıcı sayıları 4/1/3/5 (değiştirilmedi)", ch);
   ok(currentPeriodicChallenge(ch, 66)?.number === 5 && currentPeriodicChallenge(ch, 66)?.position === 4, "24.02.1960 · 66 yaş → dönemsel 4. zorluk 5");

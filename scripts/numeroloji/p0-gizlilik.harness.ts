@@ -93,7 +93,7 @@ const SHARED = { knowledgeRows: [], entries: [], sourceLabelById: new Map(), sto
 const GORSEL_PROPS = { isimGoster: "Sentetik", dogumGoster: "—", temaId: "kozmikMor", uzmanAdi: "", gorselTaslariGoster: false, tasBileklik: "", tasKolye: "", tasKutle: "" };
 
 function ssr(C: ComponentType<never>, props: Record<string, unknown>, birthDate: string | null, analysisData: unknown): string[] {
-  return htmlLines(renderToStaticMarkup(createElement(ChronoRecordProvider, { birthDate, analysisData }, createElement(C, props as never))));
+  return htmlLines(renderToStaticMarkup(createElement(ChronoRecordProvider, { birthDate, analysisData, children: createElement(C, props as never) })));
 }
 
 /** Çıktı yolunda çökme olursa o yol "çıktı üretmedi" sayılır (veri göstermez) ve CRASHES'e yazılır. */
@@ -321,7 +321,7 @@ async function main() {
       ["Görsel Rapor", GorselRaporInfografik as never, base.gorsel.GorselRaporInfografik as never, { out: vm, firstName: r.name, lastName: r.surname, ...GORSEL_PROPS }],
     ];
     for (const [name, Cur, Old, props] of pairs) {
-      const a = renderToStaticMarkup(createElement(ChronoRecordProvider, { birthDate: r.birth_date, analysisData: red }, createElement(Cur, props as never)));
+      const a = renderToStaticMarkup(createElement(ChronoRecordProvider, { birthDate: r.birth_date, analysisData: red, children: createElement(Cur, props as never) }));
       const b = renderToStaticMarkup(createElement(Old, props as never));
       ok(a === b, `A ${p.birthDate} ekran «${name}» (yetkisiz, sunucu kopyası) taban ile birebir HTML`);
     }
