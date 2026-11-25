@@ -7,6 +7,7 @@
  */
 
 import { useState, type ReactNode } from "react";
+import { useTranslations } from "next-intl";
 import { hasViewWarning } from "@/lib/astrology/viewWarnings";
 import type { AspectType, BodyId, NatalAspect, NatalHouse, NatalTechnical, SignId } from "@/lib/astrology/model/western";
 import { SIGN_IDS } from "@/lib/astrology/model/western";
@@ -26,16 +27,13 @@ import {
   BODY_GLYPHS,
   BODY_LABELS,
   HOUSE_SYSTEM_LABELS,
+  NATAL_HOUSE_SYSTEM_LABELS,
   NATURE_LABELS,
   SIGN_GLYPHS,
-  SIGN_LABELS,
   formatDegree,
 } from "@/lib/astrology/labels/tr";
 import NatalWheel, { type WheelChart } from "./NatalWheel";
 import {
-  MOTION_LABEL,
-  PROGRESSION_ASPECT_RULE,
-  PROGRESSION_METHOD_NOTE,
   SOLAR_ARC_ASPECT_RULE,
   SOLAR_ARC_METHOD_NOTE,
   progressedToNatalAspects,
@@ -60,7 +58,7 @@ import type {
 import { KpChartPanel, KpHoraryPanel, KpRulingPanel, KpTransitPanel } from "./KpPanels";
 import { horaryDisplayZone, horaryPlaceZone } from "@/lib/astrology/transitDetail";
 import { formatZoned } from "@/lib/astrology/birth/zonedFormat";
-import { PROGRESSED_CHART_HOUSE_SHORT_LABEL, progressedWholeSignCusps, progressionHouseColumns } from "@/lib/astrology/progressionHouses";
+import { progressedWholeSignCusps, progressionHouseColumns } from "@/lib/astrology/progressionHouses";
 import { KP_TIMING_TECHNICAL_SCHEMA, type KpChartTechnical, type KpHoraryTechnical, type KpRulingTechnical, type KpTimingTechnical, type KpTransitTechnical } from "@/lib/astrology/model/kp";
 import { KpTimingPanel } from "./KpTimingPanel";
 import { KpRulingIntervalPanel } from "./KpRulingIntervalPanel";
@@ -98,7 +96,6 @@ import { DeclinationParallelsPanel } from "./DeclinationParallelsPanel";
 import type { DeclinationParallelsTechnical } from "@/lib/astrology/model/westernDeclination";
 import { deltaTBirthNotes, deltaTTargetNotes } from "@/lib/astrology/deltaTNotice";
 import { fitGridCell, fitGridStyle } from "./atlas/fitGrid";
-import { LEGACY_MEAN_NODE_WARNING, LEGACY_POLAR_NATAL_HOUSE_WARNING, MEAN_NODE_LOCAL_NOTE, polarNatalHouseNote } from "@/lib/astrology/progressionNodesText";
 
 const th = "px-2 py-1.5 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500";
 const td = "px-2 py-1.5 text-sm text-slate-800";
@@ -137,18 +134,25 @@ function Section({ title, right, children }: { title: string; right?: ReactNode;
 }
 
 function SignCell({ sign, degree }: { sign: SignId; degree: number }) {
+  const tt = useTranslations("terms");
   return (
     <span className="whitespace-nowrap">
       <span className="mr-1">{SIGN_GLYPHS[sign]}</span>
-      {SIGN_LABELS[sign]} {formatDegree(degree)}
+      {tt(`zodiac.${sign}`)} {formatDegree(degree)}
     </span>
   );
 }
 
-const pointLabel = (p: PointId) => (p === "ascendant" ? "Yükselen" : p === "midheaven" ? "MC" : BODY_LABELS[p as BodyId]);
+/** I18N mod-g: ortak tablo / nokta etiketleri katalogdan (atlas.timing + terms; TR değerleri önceki metinle birebir). */
+function usePointLabel() {
+  const tt = useTranslations("terms");
+  const t = useTranslations("atlas.timing");
+  return (p: PointId) => (p === "ascendant" ? tt("angle.ascendant") : p === "midheaven" ? t("pointMc") : tt(`body.${p as BodyId}`));
+}
 const pointGlyph = (p: PointId) => (p === "ascendant" ? "ASC" : p === "midheaven" ? "MC" : BODY_GLYPHS[p as BodyId]);
 
 function Point({ id, prefix }: { id: PointId; prefix?: string }) {
+  const pointLabel = usePointLabel();
   return (
     <span className="whitespace-nowrap">
       {prefix && <span className="mr-1 text-[11px] text-slate-500">{prefix}</span>}
@@ -159,9 +163,10 @@ function Point({ id, prefix }: { id: PointId; prefix?: string }) {
 }
 
 function NatureBadge({ n }: { n: keyof typeof NATURE_LABELS | null }) {
+  const tt = useTranslations("terms");
   if (!n) return <span className="text-slate-400">—</span>;
   const c = n === "harmonious" ? "bg-sky-50 text-sky-800" : n === "challenging" ? "bg-rose-50 text-rose-800" : "bg-slate-100 text-slate-700";
-  return <span className={`rounded-full px-2 py-0.5 text-[11px] ${c}`}>{NATURE_LABELS[n]}</span>;
+  return <span className={`rounded-full px-2 py-0.5 text-[11px] ${c}`}>{tt(`aspectNature.${n}`)}</span>;
 }
 
 function Warnings({ warnings }: { warnings: string[] }) {
@@ -176,25 +181,28 @@ function Warnings({ warnings }: { warnings: string[] }) {
 }
 
 function MajorToggle({ only, set }: { only: boolean; set: (v: boolean) => void }) {
+  const t = useTranslations("atlas.timing");
   return (
     <label className="flex items-center gap-1 text-xs text-slate-600">
-      <input type="checkbox" checked={only} onChange={(e) => set(e.target.checked)} /> yalnız majör açılar
+      <input type="checkbox" checked={only} onChange={(e) => set(e.target.checked)} /> {t("majorOnly")}
     </label>
   );
 }
 
 /** Tek harita içi açı tablosu (return / composite). */
 function ChartAspects({ aspects }: { aspects: NatalAspect[] }) {
+  const t = useTranslations("atlas.timing");
+  const tt = useTranslations("terms");
   const [only, setOnly] = useState(true);
   const list = [...aspects].filter((a) => !only || MAJOR.has(a.type)).sort((a, b) => a.orb - b.orb);
   return (
-    <Section title={`Açılar (${list.length}/${aspects.length})`} right={<MajorToggle only={only} set={setOnly} />}>
+    <Section title={t("aspectsCount", { shown: list.length, total: aspects.length })} right={<MajorToggle only={only} set={setOnly} />}>
       <table className="min-w-full">
         <thead>
           <tr>
-            <th className={th}>Açı</th>
-            <th className={th}>Orb</th>
-            <th className={th}>Nitelik</th>
+            <th className={th}>{t("aspectCol")}</th>
+            <th className={th}>{t("orbCol")}</th>
+            <th className={th}>{t("natureCol")}</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-100">
@@ -203,7 +211,7 @@ function ChartAspects({ aspects }: { aspects: NatalAspect[] }) {
               <td className={td}>
                 {BODY_GLYPHS[a.a]} {ASPECT_GLYPHS[a.type]} {BODY_GLYPHS[a.b]}{" "}
                 <span className="text-xs text-slate-500">
-                  {BODY_LABELS[a.a]} {ASPECT_GLYPHS[a.type]} {ASPECT_LABELS[a.type]} {BODY_LABELS[a.b]}
+                  {tt(`body.${a.a}`)} {ASPECT_GLYPHS[a.type]} {tt(`aspect.${a.type}`)} {tt(`body.${a.b}`)}
                 </span>
               </td>
               <td className={`${td} tabular-nums`}>{formatDegree(a.orb)}</td>
@@ -219,13 +227,15 @@ function ChartAspects({ aspects }: { aspects: NatalAspect[] }) {
 }
 
 function BodiesTable({ bodies, showHouse }: { bodies: { id: BodyId; sign: SignId; degreeInSign: number; house: number | null; retrograde: boolean }[]; showHouse: boolean }) {
+  const t = useTranslations("atlas.timing");
+  const tt = useTranslations("terms");
   return (
     <table className="min-w-full">
       <thead>
         <tr>
-          <th className={th}>Gök cismi</th>
-          <th className={th}>Burç / derece</th>
-          {showHouse && <th className={th}>Ev</th>}
+          <th className={th}>{t("bodyCol")}</th>
+          <th className={th}>{t("signDegreeCol")}</th>
+          {showHouse && <th className={th}>{t("houseCol")}</th>}
         </tr>
       </thead>
       <tbody className="divide-y divide-slate-100">
@@ -233,7 +243,7 @@ function BodiesTable({ bodies, showHouse }: { bodies: { id: BodyId; sign: SignId
           <tr key={b.id}>
             <td className={td}>
               <span className="mr-1.5">{BODY_GLYPHS[b.id]}</span>
-              {BODY_LABELS[b.id]}
+              {tt(`body.${b.id}`)}
               {b.retrograde && <span className="ml-1 font-semibold text-rose-600">℞</span>}
             </td>
             <td className={td}>
@@ -248,13 +258,14 @@ function BodiesTable({ bodies, showHouse }: { bodies: { id: BodyId; sign: SignId
 }
 
 function Cusps({ houses }: { houses: NatalHouse[] }) {
+  const t = useTranslations("atlas.timing");
   if (houses.length === 0) return null;
   return (
-    <Section title="Ev başlangıçları (cusp)">
+    <Section title={t("cuspsTitle")}>
       <div className="grid gap-y-1 px-3 py-2 text-sm" style={fitGridStyle()} data-fit-grid="cusps">
         {houses.map((h) => (
           <div key={h.number} className={fitGridCell}>
-            <span className="font-medium text-slate-600">{h.number}. ev</span>
+            <span className="font-medium text-slate-600">{t("houseN", { n: h.number })}</span>
             <SignCell sign={h.sign} degree={h.degreeInSign} />
           </div>
         ))}
@@ -285,17 +296,20 @@ function MethodBox({ children, testId }: { children: ReactNode; testId: string }
 }
 
 function MotionCell({ m }: { m: AspectMotion | null }) {
+  const t = useTranslations("atlas.timing");
   if (!m) return <span className="text-slate-400">—</span>;
-  return <span className={m === "applying" ? "font-medium text-emerald-700" : "text-slate-600"}>{MOTION_LABEL[m]}</span>;
+  return <span className={m === "applying" ? "font-medium text-emerald-700" : "text-slate-600"}>{t(`motion.${m}`)}</span>;
 }
 
 type DirectionRow = { moving: PointId; natal: PointId; type: AspectType; orb: number; motion: AspectMotion | null; nature: "harmonious" | "challenging" | "neutral" };
 
 function DirectionAspectTable({ rows, movingPrefix, testId }: { rows: DirectionRow[]; movingPrefix: string; testId: string }) {
+  const t = useTranslations("atlas.timing");
+  const tt = useTranslations("terms");
   if (rows.length === 0)
     return (
       <p className="px-3 py-3 text-sm text-slate-500" data-testid={`${testId}-empty`}>
-        1° orb içinde majör açı yok.
+        {t("noMajorWithinOrb")}
       </p>
     );
   return (
@@ -303,10 +317,10 @@ function DirectionAspectTable({ rows, movingPrefix, testId }: { rows: DirectionR
       <thead>
         <tr>
           <th className={th}>{movingPrefix}</th>
-          <th className={th}>Açı</th>
-          <th className={th}>Natal</th>
-          <th className={th}>Orb</th>
-          <th className={th}>Durum</th>
+          <th className={th}>{t("aspectCol")}</th>
+          <th className={th}>{t("natalCol")}</th>
+          <th className={th}>{t("orbCol")}</th>
+          <th className={th}>{t("statusCol")}</th>
         </tr>
       </thead>
       <tbody className="divide-y divide-slate-100">
@@ -317,7 +331,7 @@ function DirectionAspectTable({ rows, movingPrefix, testId }: { rows: DirectionR
             </td>
             <td className={td}>
               <span className="whitespace-nowrap">
-                {ASPECT_GLYPHS[a.type]} {ASPECT_LABELS[a.type]}
+                {ASPECT_GLYPHS[a.type]} {tt(`aspect.${a.type}`)}
               </span>{" "}
               <NatureBadge n={a.nature} />
             </td>
@@ -335,58 +349,76 @@ function DirectionAspectTable({ rows, movingPrefix, testId }: { rows: DirectionR
   );
 }
 
-const NATAL_FRAME_MISSING =
-  "Natal karşılaştırma (çift halka ve natal açılar) için uyumlu Natal analizi gerekiyor (aynı doğum bilgisi revizyonu ve aynı düğüm türü). Natal kendiliğinden hesaplanmaz; yeni ücretli istek gerekiyorsa önce plan gösterilir.";
+/** Ev sistemi kimliği → katalog etiketi (tanınmayan kimlik ham gösterilir; lib/astrology/progressionHouses.ts ile aynı geri dönüş). */
+function useHouseSystemLabel() {
+  const tt = useTranslations("terms");
+  return (hs: string) => (Object.prototype.hasOwnProperty.call(NATAL_HOUSE_SYSTEM_LABELS, hs) ? tt(`houseSystem.${hs}`) : String(hs));
+}
 
 export function ProgressionPanel({ t, timeUnknownMasked = false }: { t: ProgressionTechnical; timeUnknownMasked?: boolean }) {
+  const tp = useTranslations("atlas.timing.progression");
+  const tc = useTranslations("atlas.timing");
+  const tt = useTranslations("terms");
+  const hsLabel = useHouseSystemLabel();
   const f = t.natalFrame ?? null;
   const natalById = new Map((f?.bodies ?? []).map((b) => [b.id, b]));
   const aspects = progressedToNatalAspects(t);
   // ATL-B04: iki ev çerçevesi ayrı ve doğru etiketli sütunlarda (natal ev / ilerletilmiş harita evi) — progressionHouses.ts.
   const hc = progressionHouseColumns(t);
+  // I18N mod-g: sütun başlığı / açıklaması kanonik dallardan (progressionHouseColumns ile aynı sıra) katalogdan seçilir; lib metni
+  // (Word/PDF) değişmez. Kare çerçeve → kayıtlı natal ev sistemi; sağlayıcı değeri → eski kutup kaydı ya da Placidus.
+  const frameHs = t.natalFrame && Array.isArray(t.natalFrame.houses) && t.natalFrame.houses.length === 12 ? hsLabel(t.natalFrame.houseSystem) : null;
+  const natalHead = !hc.natal
+    ? null
+    : hc.natal.source === "natal_frame" && frameHs !== null
+      ? { label: tp("natalHouseFrame", { hs: frameHs }), method: tp("natalHouseFrameMethod", { hs: frameHs }) }
+      : t.natalHouseStatus?.status === "legacy_polar_provider"
+        ? { label: tp("natalHouseLegacyPolar"), method: tp("legacyPolarWarning") }
+        : { label: tp("natalHouseProvider"), method: tp("natalHouseProviderMethod") };
+  const polarLat = t.natalHouseStatus?.status === "polar_undefined" ? t.natalHouseStatus.latitude : null;
   return (
     <div className="flex flex-col gap-3" data-testid="astro-progression-panel">
       <p className="text-sm text-slate-600" data-testid="astro-progression-period">
-        Hesap tarihi <strong>{fmtDay(t.targetDate)}</strong>
+        {tp.rich("calcDate", { date: fmtDay(t.targetDate), strong: (c) => <strong>{c}</strong> })}
         {t.progressedDate && (
           <>
             {" "}
-            · ilerletilmiş gün <strong>{fmtDay(t.progressedDate)}</strong>
+            {tp.rich("progressedDay", { date: fmtDay(t.progressedDate), strong: (c) => <strong>{c}</strong> })}
           </>
         )}
-        {t.elapsedYears !== null && <> · doğumdan bu yana {t.elapsedYears.toFixed(2)} yıl</>}
+        {t.elapsedYears !== null && ` ${tp("elapsed", { years: t.elapsedYears.toFixed(2) })}`}
       </p>
-      <MethodBox testId="astro-progression-method">{PROGRESSION_METHOD_NOTE}</MethodBox>
+      <MethodBox testId="astro-progression-method">{tp("methodNote")}</MethodBox>
       {/* F1/F2 (14.11.2026): düğüm kaynağı ve kutup natal evleri — açık yöntem notu / eski kayıt uyarısı (progressionNodesText.ts). */}
-      {t.nodeComputation && <MethodBox testId="astro-progression-mean-node-note">{MEAN_NODE_LOCAL_NOTE}</MethodBox>}
+      {t.nodeComputation && <MethodBox testId="astro-progression-mean-node-note">{tp("meanNodeNote")}</MethodBox>}
       {t.nodeType === "mean" && !t.nodeComputation && (
         <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-900" data-testid="astro-progression-legacy-mean">
-          {LEGACY_MEAN_NODE_WARNING}
+          {tp("legacyMeanNode")}
         </p>
       )}
       {t.natalHouseStatus?.status === "polar_undefined" && !f && (
         <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-900" data-testid="astro-progression-polar-note">
-          {polarNatalHouseNote(t.natalHouseStatus.latitude)}
+          {polarLat === null ? tp("polarNote") : tp("polarNoteLat", { lat: polarLat.toFixed(1) })}
         </p>
       )}
       {t.natalHouseStatus?.status === "legacy_polar_provider" && !f && (
         <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-900" data-testid="astro-progression-legacy-polar">
-          {LEGACY_POLAR_NATAL_HOUSE_WARNING}
+          {tp("legacyPolarWarning")}
         </p>
       )}
       {t.angles && (
-        <Section title="İlerletilmiş açısal noktalar">
+        <Section title={tp("anglesTitle")}>
           <table className="min-w-full">
             <thead>
               <tr>
-                <th className={th}>Nokta</th>
-                <th className={th}>İlerletilmiş</th>
-                {f && <th className={th}>Natal</th>}
+                <th className={th}>{tc("pointCol")}</th>
+                <th className={th}>{tp("progressedCol")}</th>
+                {f && <th className={th}>{tc("natalCol")}</th>}
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               <tr>
-                <td className={td}>Yükselen</td>
+                <td className={td}>{tp("ascendant")}</td>
                 <td className={td}>
                   <SignCell sign={t.angles.ascendant.sign} degree={t.angles.ascendant.degreeInSign} />
                 </td>
@@ -403,29 +435,29 @@ export function ProgressionPanel({ t, timeUnknownMasked = false }: { t: Progress
           </table>
         </Section>
       )}
-      <Section title="İlerletilmiş gezegen konumları">
+      <Section title={tp("positionsTitle")}>
         <table className="min-w-full" data-testid="astro-progression-positions">
           <thead>
             <tr>
-              <th className={th}>Gök cismi</th>
-              <th className={th}>İlerletilmiş</th>
-              {hc.natal && (
-                <th className={th} title={hc.natal.method} data-testid="astro-progression-natal-house-head">
-                  <CapsSafe text={hc.natal.label} />
+              <th className={th}>{tc("bodyCol")}</th>
+              <th className={th}>{tp("progressedCol")}</th>
+              {hc.natal && natalHead && (
+                <th className={th} title={natalHead.method} data-testid="astro-progression-natal-house-head">
+                  <CapsSafe text={natalHead.label} />
                 </th>
               )}
               {hc.progressed && (
-                <th className={th} title={hc.progressed.method} data-testid="astro-progression-chart-house-head">
+                <th className={th} title={tp("chartHouseMethod")} data-testid="astro-progression-chart-house-head">
                   {/* 390 px'te tam etiket tablo kutusunu taşırıyordu (owner kararı 14.11.2026: dar ekranda kısa etiket). */}
                   <span className="sm:hidden" data-testid="astro-progression-chart-house-head-short">
-                    {PROGRESSED_CHART_HOUSE_SHORT_LABEL}
+                    {tp("chartHouseShort")}
                   </span>
                   <span className="hidden sm:inline">
-                    <CapsSafe text={hc.progressed.label} />
+                    <CapsSafe text={tp("chartHouse")} />
                   </span>
                 </th>
               )}
-              {f && <th className={th}>Natal</th>}
+              {f && <th className={th}>{tc("natalCol")}</th>}
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
@@ -435,7 +467,7 @@ export function ProgressionPanel({ t, timeUnknownMasked = false }: { t: Progress
                 <tr key={b.id}>
                   <td className={td}>
                     <span className="mr-1.5">{BODY_GLYPHS[b.id]}</span>
-                    {BODY_LABELS[b.id]}
+                    {tt(`body.${b.id}`)}
                     {b.retrograde && <span className="ml-1 font-semibold text-rose-600">℞</span>}
                   </td>
                   <td className={td}>
@@ -450,21 +482,21 @@ export function ProgressionPanel({ t, timeUnknownMasked = false }: { t: Progress
           </tbody>
         </table>
       </Section>
-      <Section title={`İlerletilmiş → natal açılar${aspects ? ` (${aspects.length})` : ""}`}>
+      <Section title={`${tp("aspectsTitle")}${aspects ? ` (${aspects.length})` : ""}`}>
         <p className="px-3 pt-2 text-xs text-slate-500" data-testid="astro-progression-orb-rule">
-          {PROGRESSION_ASPECT_RULE}
+          {tp("aspectRule")}
         </p>
         {aspects ? (
-          <DirectionAspectTable rows={aspects} movingPrefix="İlerletilmiş" testId="astro-progression-aspects" />
+          <DirectionAspectTable rows={aspects} movingPrefix={tp("progressedCol")} testId="astro-progression-aspects" />
         ) : (
           <p className="px-3 py-3 text-sm text-sky-900" data-testid="astro-progression-no-frame">
-            {timeUnknownMasked ? "Doğum saati bilinmediği için natal evler/Yükselen yok; natal karşılaştırma yapılmaz." : NATAL_FRAME_MISSING}
+            {timeUnknownMasked ? tp("noFrameTimeUnknown") : tp("natalFrameMissing")}
           </p>
         )}
       </Section>
       {f && (
         <p className="text-[11px] text-slate-500" data-testid="astro-progression-natal-source">
-          Natal konumlar: aynı doğum bilgisinin kayıtlı Natal analizinden ({HOUSE_SYSTEM_LABELS[f.houseSystem]} evler) — yeni hesap yapılmadı.
+          {tp("natalSource", { hs: hsLabel(f.houseSystem) })}
         </p>
       )}
     </div>

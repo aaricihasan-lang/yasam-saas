@@ -1,0 +1,62 @@
+{
+  "atlas": {
+    "timing": {
+      "bodyCol": "Body",
+      "signDegreeCol": "Sign / degree",
+      "houseCol": "House",
+      "aspectCol": "Aspect",
+      "orbCol": "Orb",
+      "natureCol": "Nature",
+      "natalCol": "Natal",
+      "statusCol": "Status",
+      "pointCol": "Point",
+      "pointMc": "MC",
+      "majorOnly": "major aspects only",
+      "aspectsCount": "Aspects ({shown}/{total})",
+      "cuspsTitle": "House cusps",
+      "houseN": "House {n}",
+      "noMajorWithinOrb": "No major aspect within a 1° orb.",
+      "motion": {
+        "applying": "Applying",
+        "separating": "Separating"
+      },
+      "progression": {
+        "calcDate": "Calculation date <strong>{date}</strong>",
+        "progressedDay": "· progressed day <strong>{date}</strong>",
+        "elapsed": "· {years} years since birth",
+        "methodNote": "Method: secondary progression (each day after birth = one year of life). Progressed planets and the progressed Ascendant/MC come ready-made from the calculation service; the MC is found with the Naibod arc in right ascension (birth RAMC + elapsed years × 0.98564733°), and the Ascendant from the same RAMC at the birth latitude. Houses are shown in two separate frames: natal house — where the progressed planet falls relative to the natal house cusps (the standard frame for reading progressions); progressed chart house — the whole-sign house counted from the sign of the progressed Ascendant (the progressed chart wheel is drawn with these houses).",
+        "meanNodeNote": "Mean node: for this technique the calculation service returns the true node instead of the mean node, so the North/South Node was calculated locally at the progressed moment (Meeus 47.7 mean node polynomial + nutation in longitude (IAU 2000B); true equinox of date). Independent check: at 500 progressed moments between 1940 and 2026, at most 0.3″ difference from the Swiss Ephemeris mean node. Because the service does not provide the natal house number of the nodes, the nodes stay empty in the natal house column when there is no compatible natal analysis.",
+        "legacyMeanNode": "This record requested the mean node, but the North/South Node values stored in it are the TRUE node returned by the calculation service; they can differ from the mean node by up to about 1.7° (0.3°–1.6° in the 10 responses measured). Aspects and houses that depend on the nodes are also based on this true node value. The values are as they were when saved and have not been changed; recalculate for the mean node and create a new record.",
+        "polarNoteLat": "The birthplace is beyond the polar circle (latitude {lat}°): natal Placidus house cusps are undefined at this latitude, so the natal house column is not shown. For natal houses, save a Natal analysis with the Whole Sign or Equal House system; progressed planet positions and the progressed chart house (whole sign) are not affected.",
+        "polarNote": "The birthplace is beyond the polar circle: natal Placidus house cusps are undefined at this latitude, so the natal house column is not shown. For natal houses, save a Natal analysis with the Whole Sign or Equal House system; progressed planet positions and the progressed chart house (whole sign) are not affected.",
+        "legacyPolarWarning": "The natal house column in this record is NOT Placidus: the birthplace is beyond the polar circle, where Placidus is undefined; in this case the calculation service silently switches to whole-sign houses (14/14 whole sign in 2/2 responses measured). The values are as they were when saved and have not been changed.",
+        "anglesTitle": "Progressed angles",
+        "progressedCol": "Progressed",
+        "ascendant": "Ascendant",
+        "positionsTitle": "Progressed planet positions",
+        "natalHouseFrame": "Natal house ({hs})",
+        "natalHouseFrameMethod": "The progressed planet's house in the natal chart — based on the {hs} house cusps of the saved natal analysis (the natal houses on the bi-wheel)",
+        "natalHouseProvider": "Natal house (Placidus)",
+        "natalHouseProviderMethod": "The progressed planet's house in the natal chart — the value given by the calculation service based on the natal Placidus house cusps",
+        "natalHouseLegacyPolar": "Natal house (service value — not Placidus)",
+        "chartHouse": "Progressed chart house (whole sign)",
+        "chartHouseShort": "Prog. house (whole sign)",
+        "chartHouseMethod": "Whole-sign houses counted from the sign of the progressed Ascendant (the progressed chart wheel is drawn with these houses)",
+        "aspectsTitle": "Progressed → natal aspects",
+        "aspectRule": "Aspect rule: major aspects only (conjunction, sextile, square, trine, opposition), orb ≤ 1°. Calculated from the difference in longitude between progressed and natal positions. A point's own natal position and the opposite end of the nodal axis are not listed. Applying/separating: according to the direction of motion of the progressed point (a retrograde planet moves backwards).",
+        "noFrameTimeUnknown": "Because the birth time is unknown, there are no natal houses/Ascendant; no natal comparison is made.",
+        "natalFrameMissing": "A natal comparison (bi-wheel and natal aspects) needs a compatible Natal analysis (same birth data revision and same node type). The Natal chart is not calculated automatically; if a new paid request is needed, the plan is shown first.",
+        "natalSource": "Natal positions: from the saved Natal analysis of the same birth data ({hs} houses) — no new calculation was made."
+      },
+      "solarArc": {
+        "period": "Calculation date <strong>{date}</strong> · Solar arc <strong>{arc}</strong> ({arcDec}°)",
+        "methodNote": "Method: true solar arc (in longitude) — arc = progressed Sun − natal Sun; the same arc is added to all natal points (including the Ascendant/MC). Positions come ready-made from the calculation service.",
+        "positionsTitle": "Solar arc positions",
+        "col": "Solar Arc",
+        "aspectsTitle": "Solar arc → natal aspects ({n})",
+        "aspectRule": "Aspect rule: major aspects only (conjunction, sextile, square, trine, opposition), orb ≤ 1°. Calculated from the difference in longitude between solar arc points and natal positions. A point's own natal position is not listed. Applying/separating: the solar arc always moves forward over time.",
+        "natalSource": "Inner ring of the bi-wheel: the saved Natal analysis of the same birth data ({hs} houses) — no new calculation was made."
+      }
+    }
+  }
+}
