@@ -99,6 +99,20 @@ function syntheticInputs(n: number) {
  * ENGINE_PATHS'in geri kalanı (motor / hesap / kayıt üretme) için "main'e göre fark YOK" şartı AYNEN sürer.
  */
 const NUMEROLOJI_WORD_FILES = ["app/numeroloji/bilgi-bankasi/helpers/wordDocxBuild.ts", "app/api/numeroloji/word-report/route.ts"];
+/**
+ * I18N-0003 / I18N-0007 (gizlilik P0): gelecek yılları gizleme kararının dilden bağımsız, yapısal ve
+ * fail-closed hale getirildiği SUNUM/GİZLİLİK dosyaları. Hesap / motor / kayıt üretme kodu DEĞİLDİR
+ * (motor çağırmaz, formül yok). "Main'e göre fark YOK" şartından yalnız bunlar ayrılır; davranışları
+ * aşağıdaki daha sıkı kontrollerle kilitlidir: motor 400/400 birebir, Numeroloji Word 48/48 XML birebir,
+ * ayrıca scripts/numeroloji/p0-gizlilik.harness.ts (TR golden + negatif senaryolar).
+ */
+const PRIVACY_CORE_FILES = [
+  "app/numeroloji/utils/chronoBirth.ts",
+  "app/numeroloji/utils/chronoCutoff.ts",
+  "app/numeroloji/utils/futureYearsRedaction.ts",
+  "app/numeroloji/utils/numerolojiPlainMetin.ts",
+  "app/numeroloji/analiz/page.tsx",
+];
 const ENGINE_REFS = /hesaplaNumeroloji|numerolojiMotor|@\/lib\/numeroloji(?:\/|")|computeDevelopment|\.insert\(|\.update\(|\.upsert\(|\.delete\(|\.rpc\(/;
 
 /** docx → karşılaştırılabilir parçalar (zaman damgalı docProps hariç; ikili parçalar SHA ile). */
@@ -133,7 +147,9 @@ async function numerologyWordGuard() {
   // (3) Rota: markalama satırları çıkarılınca main ile BİREBİR.
   const routePath = NUMEROLOJI_WORD_FILES[1]!;
   const mainRoute = execFileSync("git", ["show", `origin/main:${routePath}`], { cwd: ROOT, encoding: "utf8" }).replace(/\r\n/g, "\n");
-  ok(stripRouteBranding(readFileSync(path.join(ROOT, routePath), "utf8")) === mainRoute, "Numeroloji Word rotası: fark YALNIZ markalama satırları (çıkarılınca main ile birebir)");
+  // Rota main ile ZATEN birebirse (markalama main'e girmiş) şart daha güçlü biçimde sağlanır.
+  const curRoute = readFileSync(path.join(ROOT, routePath), "utf8").replace(/\r\n/g, "\n");
+  ok(curRoute === mainRoute || stripRouteBranding(curRoute) === mainRoute, "Numeroloji Word rotası: fark YALNIZ markalama satırları (çıkarılınca main ile birebir)");
   // (1) Markasız çıktı: origin/main kurucusu (git archive → geçici klasör) ile dal kurucusu BİREBİR.
   const tmp = mkdtempSync(path.join(os.tmpdir(), "num-word-main-"));
   const tar = execFileSync("git", ["archive", "--format=tar", "origin/main", "app/numeroloji"], { cwd: ROOT, maxBuffer: 64 * 1024 * 1024 });
@@ -183,7 +199,7 @@ async function numerologyWordGuard() {
 
 async function engineUnchanged() {
   console.log("\n── 0) Numeroloji motoru DEĞİŞMEDİ (dosya + karşılaştırmalı çıktı)");
-  const diff = execFileSync("git", ["diff", "--name-only", "origin/main", "--", ...ENGINE_PATHS, ...NUMEROLOJI_WORD_FILES.map((f) => `:(exclude)${f}`)], { cwd: ROOT, encoding: "utf8" }).trim();
+  const diff = execFileSync("git", ["diff", "--name-only", "origin/main", "--", ...ENGINE_PATHS, ...[...NUMEROLOJI_WORD_FILES, ...PRIVACY_CORE_FILES].map((f) => `:(exclude)${f}`)], { cwd: ROOT, encoding: "utf8" }).trim();
   ok(diff === "", "motor / hesap / kayıt üretme dosyalarında main'e göre fark YOK", diff);
   await numerologyWordGuard();
   const tmp = mkdtempSync(path.join(os.tmpdir(), "num-main-"));
@@ -318,8 +334,10 @@ async function routeTests(analysis: unknown) {
     const ca = await seedRichClient(su, A.tenant, 1);
     const ca2 = await seedRichClient(su, A.tenant, 2);
     const cb = await seedRichClient(su, Bu.tenant, 3);
+    // I18N-0003: kayıt `birth_date` alanı snapshot'ın hesaplandığı tarihle (15.03.1975) AYNI olmalı; çelişen
+    // kayıt artık belirsiz sayılır ve kronolojik bölümler fail-closed gizlenir (önceki fikstür 1990 idi).
     const ins = async (tenant: string, name: string, surname: string) => (await q(
-      `insert into public.numerology_records(tenant_id, name, surname, birth_date, analysis_data) values ($1,$2,$3,'15.03.1990',$4) returning id`,
+      `insert into public.numerology_records(tenant_id, name, surname, birth_date, analysis_data) values ($1,$2,$3,'15.03.1975',$4) returning id`,
       [tenant, name, surname, JSON.stringify(analysis)]))[0].id as string;
     // recA ve recSame danışan ca ile AYNI ad/soyada sahip — otomatik eşleşme OLMAMALI.
     const recA = await ins(A.tenant, "ZZ_Ayşe1", "Çiğdem-Işık1");
