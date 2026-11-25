@@ -118,7 +118,12 @@ async function mount(page: Page, seen: Seen, mode: { hdFails: boolean }) {
 
 async function openExport(page: Page) {
   await page.goto(`${APP}/settings`, { waitUntil: "domcontentloaded", timeout: 180_000 });
-  await page.getByRole("button", { name: /Dışa Aktarım/ }).first().click({ timeout: 120_000 });
+  // 12.11 Owner kararı (c46310386, Alternatif B) sonrası Dışa Aktarım "Yedek & Aktarım" menüsünde; mobilde ızgara.
+  const direct = page.getByRole("button", { name: /^Dışa Aktarım/ }).first();
+  const group = page.getByRole("button", { name: /Yedek & Aktarım/ }).first();
+  await Promise.race([direct.waitFor({ timeout: 120_000 }), group.waitFor({ timeout: 120_000 })]);
+  if (!(await direct.isVisible())) await group.click();
+  await page.getByRole("button", { name: /^Dışa Aktarım/ }).first().click({ timeout: 30_000 });
   await page.getByTestId("archive-export").waitFor({ timeout: 60_000 });
 }
 
