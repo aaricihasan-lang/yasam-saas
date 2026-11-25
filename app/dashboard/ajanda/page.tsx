@@ -13,7 +13,7 @@ import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "rea
 import { useRouter, useSearchParams } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { formatDate as fmtDate, formatDateTime as fmtDateTime, formatTime as fmtTime } from "@/lib/i18n/format";
-import type { ActiveLocale } from "@/lib/i18n/locales";
+import type { ActiveLocale } from "@/lib/i18n/locales";
 import { localizeTrialError } from "@/lib/trial/trialErrors";
 import { useModalBehavior } from "@/hooks/useModalBehavior";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
