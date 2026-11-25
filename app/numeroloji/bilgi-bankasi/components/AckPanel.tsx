@@ -5,9 +5,12 @@
  * kullanıcı "Tamam" düğmesine basana kadar ekranda kalır. Başarı ve hata varyantı vardır.
  */
 
+import { useTranslations } from "next-intl";
+
 export type AckState = { type: "success" | "error"; message: string } | null;
 
 export function AckPanel({ panel, onClose }: { panel: AckState; onClose: () => void }) {
+  const t = useTranslations("numerology.knowledge.ack");
   if (!panel) return null;
   const isSuccess = panel.type === "success";
   return (
@@ -35,7 +38,7 @@ export function AckPanel({ panel, onClose }: { panel: AckState; onClose: () => v
           isSuccess ? "bg-emerald-600" : "bg-rose-600"
         }`}
       >
-        Tamam
+        {t("ok")}
       </button>
     </div>
   );

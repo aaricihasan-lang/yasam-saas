@@ -112,6 +112,9 @@ const PRIVACY_CORE_FILES = [
   "app/numeroloji/utils/futureYearsRedaction.ts",
   "app/numeroloji/utils/numerolojiPlainMetin.ts",
   "app/numeroloji/analiz/page.tsx",
+  // i18n sunum katmanı (yalnız ekran metni → katalog; hesap/kayıt kodu yok):
+  "app/numeroloji/bilgi-bankasi/page.tsx",
+  "app/numeroloji/bilgi-bankasi/components",
 ];
 const ENGINE_REFS = /hesaplaNumeroloji|numerolojiMotor|@\/lib\/numeroloji(?:\/|")|computeDevelopment|\.insert\(|\.update\(|\.upsert\(|\.delete\(|\.rpc\(/;
 
