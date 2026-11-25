@@ -64,7 +64,7 @@ F1 şu dosyalara DOKUNMAZ: `lib/auth/**`, `app/api/auth/**`, `app/layout.tsx`, `
 | Türkçe ad | Bugünkü EN | Öneri | Önerinin Türkçe karşılığı | Gerekçe | Alternatifler |
 |---|---|---|---|---|---|
 | Gökyüzü Atlası | *(çevrilmemiş)* | **Celestial Atlas** | Göksel Atlas | "Gökyüzü atlası" metaforunu korur; profesyonel ve doğal | Astrology Atlas (Astroloji Atlası) · Sky Atlas (Gökyüzü Atlası — kelimesi kelimesine) |
-| Yaşam Takvimi / Kozmik Ajanda | Life Calendar / Cosmic Agenda | **Cosmic Calendar** | Kozmik Takvim | İngilizcede "agenda" toplantı gündemi demektir; takvim anlamı "calendar" | Cosmic Planner (Kozmik Planlayıcı) · Life Calendar (Yaşam Takvimi) |
+| Yaşam Takvimi / Kozmik Ajanda | Life Calendar / Cosmic Calendar (R5 §24 uygulandı; önceki: Cosmic Agenda) | **Cosmic Calendar** | Kozmik Takvim | İngilizcede "agenda" toplantı gündemi demektir; takvim anlamı "calendar" | Cosmic Planner (Kozmik Planlayıcı) · Life Calendar (Yaşam Takvimi) |
 | Doğal Destek & Rehber (Şifa Rehberi) | Natural Support & Guide | **Natural Wellness Guide** | Doğal İyi Yaşam Rehberi | "Healing" (şifa) İngilizce pazarlarda tıbbi iddia gibi okunur; "wellness" güvenli ve doğal | Holistic Care Guide (Bütüncül Bakım Rehberi) · Natural Support Guide |
 | Kupa / Hacamat | *(çevrilmemiş)* | **Cupping & Hijama** | Kupa ve Hacamat | Hacamatın uluslararası karşılığı "hijama" | Cupping Therapy (Kupa Terapisi) |
 | Yaşam Hafızası | Life Memory | **Life Memory** (marka terimi olarak koru) | Yaşam Hafızası | Kısa, ayırt edici; açıklayıcı alt başlıkla desteklenebilir | Life Archive (Yaşam Arşivi) · Life Records (Yaşam Kayıtları) |
