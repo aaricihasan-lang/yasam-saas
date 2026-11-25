@@ -21,8 +21,10 @@ import { ArticlesPanel } from "@/app/aromaterapi/bilgi-bankasi/_components/Artic
 // Tasarım token'ları
 // -------------------------------------------------------
 
+// overflow-x-clip: sağdaki dekoratif blur lekesi (-right-20 = 80 px dışarı taşar) yatay kaydırma üretmesin.
+// (Kardeş OilsPage aynı pageBg + overflow-hidden kullanır; clip sticky/scroll-container davranışını değiştirmez.)
 const pageBg =
-  "relative min-h-screen bg-[radial-gradient(ellipse_at_top_left,#fdf4ff_0%,#fff7ed_50%,#f8fafc_100%)] text-slate-950";
+  "relative min-h-screen overflow-x-clip bg-[radial-gradient(ellipse_at_top_left,#fdf4ff_0%,#fff7ed_50%,#f8fafc_100%)] text-slate-950";
 
 // -------------------------------------------------------
 // Tab metadata
