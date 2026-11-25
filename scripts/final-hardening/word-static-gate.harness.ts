@@ -143,7 +143,8 @@ const mustUse: [string, RegExp][] = [
   ["app/numeroloji/bilgi-bankasi/helpers/wordDocxBuild.ts", /formatInstantDateTime/],
   ["app/api/sifa-rehberi/word-report/route.ts", /reportFileDate/],
   ["lib/sifa-rehberi/wordDocument.ts", /formatInstantDate/],
-  ["app/api/urun-stok/stock-report/route.ts", /reportFileDate/],
+  // I18N RAPOR-AB: Ürün/Stok belge kurucusu route'tan lib'e taşındı (route yalnız okuma + dil çözümü).
+  ["lib/urun-stok/stockReportWord.ts", /reportFileDate/],
   ["lib/aromaterapi/report/theme.ts", /zonedDayKey/],
   ["lib/yasam-hafizasi/client/snapshotReport.ts", /formatDateLoose/],
   ["app/api/hacamat/word-report/route.ts", /todayInZone/],

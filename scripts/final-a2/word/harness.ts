@@ -478,7 +478,7 @@ async function main() {
       const files = [
         "app/api/ajanda/word-report/buildAjandaReport.ts", "app/api/biyoenerji/symbol-report/route.ts", "app/api/biyoenerji/subconscious-report/route.ts",
         "app/api/biyoenerji/imagination-report/route.ts", "app/api/biyoenerji/energy-body-report/route.ts", "app/api/biyoenerji/chakra-report/route.ts",
-        "app/api/biyoenerji/session-report/buildSessionReport.ts", "app/api/urun-stok/stock-report/route.ts", "app/api/numeroloji/knowledge-report/route.ts",
+        "app/api/biyoenerji/session-report/buildSessionReport.ts", "lib/urun-stok/stockReportWord.ts" /* I18N RAPOR-AB: kurucu route'tan taşındı */, "app/api/numeroloji/knowledge-report/route.ts",
         "app/api/dogaltas/word-report/route.ts", "app/api/dogaltas/stones/[id]/word-report/buildStoneReport.ts", "app/api/dogaltas/knowledge-report/route.ts",
       ];
       for (const f of files) {
