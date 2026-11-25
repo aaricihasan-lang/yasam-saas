@@ -1,0 +1,83 @@
+{
+  "stock": {
+    "reports": {
+      "noData": "Veri yok",
+      "loading": "Yükleniyor…",
+      "cards": {
+        "today": "Bugünkü satış",
+        "week": "Haftalık satış",
+        "month": "Aylık satış",
+        "year": "Yıllık satış",
+        "revenue": "Toplam ciro",
+        "cost": "Toplam maliyet",
+        "profit": "Toplam kar",
+        "loss": "Toplam zarar",
+        "units": "Satılan ürün adedi",
+        "avgMargin": "Ortalama kar oranı"
+      },
+      "eyebrow": "Rapor & analiz",
+      "title": "Satış Raporları & Karar Destek",
+      "subtitle": "Salt okunur rapor ekranı. Tüm modül satış geçmişleri tekilleştirilerek gösterilir.",
+      "incomplete": "Satış verisi eksik yüklendi",
+      "retry": "Tekrar dene",
+      "filters": "Filtreler",
+      "searchProduct": "Ürün ara",
+      "searchPh": "Örn. Ametist, Lavanta Yağı...",
+      "category": "Kategori",
+      "all": "Tümü",
+      "period": {
+        "today": "Bugün",
+        "week": "Bu hafta",
+        "month": "Bu ay",
+        "year": "Bu yıl",
+        "all": "Tüm zamanlar",
+        "custom": "Özel tarih"
+      },
+      "start": "Başlangıç",
+      "end": "Bitiş",
+      "usdRate": "Doğaltaş USD kuru (TL)",
+      "usdRatePh": "Canlı stok maliyeti",
+      "insightTitle": "Satın alma karar desteği — {product}",
+      "insight": {
+        "yearSales": "Bu yıl satış",
+        "monthSales": "Bu ay satış",
+        "last30": "Son 30 gün",
+        "liveStock": "Canlı stok",
+        "revenue": "Toplam ciro",
+        "profit": "Toplam kar",
+        "avgPrice": "Ort. satış fiyatı",
+        "avgCost": "Ort. maliyet",
+        "footer": "Son satış: {date} · En çok satılan tip: {type}"
+      },
+      "alerts": "Akıllı uyarılar",
+      "analytics": "Satış analizleri",
+      "rankHidden": "Sıralamalar eksik veriye dayanacağı için gösterilmiyor.",
+      "rank": {
+        "topSelling": "En çok satan",
+        "leastSelling": "En az satan",
+        "topProfit": "En çok kar bırakan",
+        "leastProfit": "En az kar bırakan",
+        "loss": "Zarar ettiren",
+        "stockOut": "Stoktan en çok çıkan",
+        "highStockLowSales": "Çok stok, az satış",
+        "lowStockHighSales": "Az stok, çok satış"
+      },
+      "tableTitle": "Satış tablosu",
+      "partial": "Kısmi liste — satış geçmişinin tamamı yüklenemedi.",
+      "noRows": "Seçilen filtrelere uygun satış kaydı bulunamadı.",
+      "col": {
+        "date": "Tarih",
+        "category": "Kategori",
+        "product": "Ürün",
+        "qty": "Miktar",
+        "unit": "Birim",
+        "cost": "Maliyet",
+        "sale": "Satış",
+        "profit": "Kâr",
+        "profitPct": "Kâr %",
+        "source": "Kaynak"
+      },
+      "hiddenNote": "Satış Geçmişi listesinden silindi (iptal değil; toplamlarda yer alır)"
+    }
+  }
+}

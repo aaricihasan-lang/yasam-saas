@@ -1,0 +1,83 @@
+{
+  "stock": {
+    "reports": {
+      "noData": "No data",
+      "loading": "Loading…",
+      "cards": {
+        "today": "Today's sales",
+        "week": "Weekly sales",
+        "month": "Monthly sales",
+        "year": "Annual sales",
+        "revenue": "Total revenue",
+        "cost": "Total cost",
+        "profit": "Total profit",
+        "loss": "Total loss",
+        "units": "Units sold",
+        "avgMargin": "Average markup (on cost)"
+      },
+      "eyebrow": "Reports & analysis",
+      "title": "Sales Reports & Decision Support",
+      "subtitle": "Read-only report screen. Sales histories from all modules are shown de-duplicated.",
+      "incomplete": "Sales data loaded incompletely",
+      "retry": "Try again",
+      "filters": "Filters",
+      "searchProduct": "Search product",
+      "searchPh": "E.g. Amethyst, Lavender Oil...",
+      "category": "Category",
+      "all": "All",
+      "period": {
+        "today": "Today",
+        "week": "This week",
+        "month": "This month",
+        "year": "This year",
+        "all": "All time",
+        "custom": "Custom date"
+      },
+      "start": "Start",
+      "end": "End",
+      "usdRate": "Natural stone USD rate (TRY)",
+      "usdRatePh": "Live stock cost",
+      "insightTitle": "Purchasing decision support — {product}",
+      "insight": {
+        "yearSales": "Sales this year",
+        "monthSales": "Sales this month",
+        "last30": "Last 30 days",
+        "liveStock": "Live stock",
+        "revenue": "Total revenue",
+        "profit": "Total profit",
+        "avgPrice": "Avg. sale price",
+        "avgCost": "Avg. cost",
+        "footer": "Last sale: {date} · Best-selling type: {type}"
+      },
+      "alerts": "Smart alerts",
+      "analytics": "Sales analytics",
+      "rankHidden": "Rankings are not shown because they would be based on incomplete data.",
+      "rank": {
+        "topSelling": "Best selling",
+        "leastSelling": "Least selling",
+        "topProfit": "Most profitable",
+        "leastProfit": "Least profitable",
+        "loss": "Loss-making",
+        "stockOut": "Most stock out",
+        "highStockLowSales": "High stock, low sales",
+        "lowStockHighSales": "Low stock, high sales"
+      },
+      "tableTitle": "Sales table",
+      "partial": "Partial list — the full sales history could not be loaded.",
+      "noRows": "No sales records match the selected filters.",
+      "col": {
+        "date": "Date",
+        "category": "Category",
+        "product": "Product",
+        "qty": "Quantity",
+        "unit": "Unit",
+        "cost": "Cost",
+        "sale": "Sale",
+        "profit": "Profit",
+        "profitPct": "Markup %",
+        "source": "Source"
+      },
+      "hiddenNote": "Removed from the Sales History list (not cancelled; included in totals)"
+    }
+  }
+}
