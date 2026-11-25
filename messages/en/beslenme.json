@@ -704,6 +704,8 @@
     "nutrition": {
       "invalidValue": "{label}: enter a valid number (cannot be negative).",
       "saved": "Nutrient values saved.",
+      "portionsSaved": "Portions saved.",
+      "traditionalSaved": "Traditional quality saved.",
       "per100": "Per 100 g",
       "edit": "Edit",
       "save": "Save",

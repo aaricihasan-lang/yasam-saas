@@ -242,7 +242,7 @@ export function PortionsPanel({
     setBusy(false);
     if (r.ok) {
       setEditing(false);
-      setMsg({ type: "success", text: "Porsiyonlar kaydedildi." });
+      setMsg({ type: "success", text: tn("portionsSaved") });
       onChanged(r.data?.food_id);
     } else setMsg({ type: "error", text: bl.error(r.code, r.status) });
   }
@@ -375,7 +375,7 @@ export function TraditionalPanel({
     setBusy(false);
     if (r.ok) {
       setEditing(false);
-      setMsg({ type: "success", text: "Geleneksel nitelik kaydedildi." });
+      setMsg({ type: "success", text: tn("traditionalSaved") });
       onChanged(r.data?.food_id);
     } else setMsg({ type: "error", text: bl.error(r.code, r.status) });
   }

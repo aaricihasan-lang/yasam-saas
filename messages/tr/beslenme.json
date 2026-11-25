@@ -704,6 +704,8 @@
     "nutrition": {
       "invalidValue": "{label}: geçerli bir sayı girin (negatif olamaz).",
       "saved": "Besin değerleri kaydedildi.",
+      "portionsSaved": "Porsiyonlar kaydedildi.",
+      "traditionalSaved": "Geleneksel nitelik kaydedildi.",
       "per100": "100 g için",
       "edit": "Düzenle",
       "save": "Kaydet",
