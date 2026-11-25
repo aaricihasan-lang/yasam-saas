@@ -51,8 +51,14 @@ for (const { file, scope } of removedSurfaces) {
 
 // POPUP-SCOPE-08 — Sinerji disclosure label sadeleşti ("· Nasıl hesaplandı?" YOK).
 const iliski = read("NumerolojiIliskiAnaliziTab.tsx");
-assert(iliski.includes("Hane karşılaştırmasını göster"), "POPUP-SCOPE-08a Sinerji disclosure KORUNUR");
-assert(!iliski.includes("Hane karşılaştırmasını göster · Nasıl hesaplandı?"), "POPUP-SCOPE-08b disclosure label'ında 'Nasıl hesaplandı?' YOK");
+// I18N-F1-R5: etiket metni bileşenden TR mesaj dosyasına taşındı (TR değeri birebir). Kural aynı: ya kaynakta literal,
+// ya da bileşen tam o anahtarı kullanıyor VE TR değeri birebir "Hane karşılaştırmasını göster".
+const iliskiTr = (JSON.parse(readFileSync(join(HERE, "../../messages/tr/numerology.tabs.json"), "utf8")) as {
+  numerology?: { tabs?: { relationship?: { showCompare?: string } } };
+}).numerology?.tabs?.relationship?.showCompare;
+const disclosureLabel = iliski.includes('{t("showCompare")}') ? iliskiTr : iliski.includes("Hane karşılaştırmasını göster") ? "Hane karşılaştırmasını göster" : undefined;
+assert(disclosureLabel === "Hane karşılaştırmasını göster", "POPUP-SCOPE-08a Sinerji disclosure KORUNUR");
+assert(!iliski.includes("Hane karşılaştırmasını göster · Nasıl hesaplandı?") && !(disclosureLabel ?? "").includes("Nasıl hesaplandı?"), "POPUP-SCOPE-08b disclosure label'ında 'Nasıl hesaplandı?' YOK");
 
 // POPUP-SCOPE-02/09 — Analiz (Hesap Özetli) inline hesap dökümü + Bilgi Bankası korunur.
 const tabs = read("NumerolojiAnalizSonucTabs.tsx");

@@ -116,6 +116,23 @@ const PRIVACY_CORE_FILES = [
   "app/numeroloji/bilgi-bankasi/page.tsx",
   "app/numeroloji/bilgi-bankasi/components",
 ];
+/**
+ * I18N-F1-R5 (25.11.2026) — ekran dili sunum katmanı: yalnız metin → katalog (TR çıktı birebir) ve API yanıtlarına
+ * dil-bağımsız `code` alanı. Hesap / motor / kayıt üretme kodu değişmez. Koşulsuz dışlama YOK (QA-N-07 dersi): bu
+ * dosyalar "main'e fark YOK" listesinden yalnız şu daha sıkı şartlarla ayrılır:
+ *   (a) fark satırlarının HİÇBİRİ motor / hesap / DB yazma desenine (ENGINE_REFS) dokunmaz;
+ *   (b) analyses rotası: `, code: "…"` eklemeleri çıkarılınca main ile metin olarak BİREBİR;
+ *   (c) davranış ayrıca: teach-harness (67) + final-methodology (personalDayExplain golden) + prebirth + place-input.
+ */
+const I18N_PRESENTATION_FILES = [
+  "app/numeroloji/utils/teachingExplain.ts",
+  "app/numeroloji/utils/preBirth.ts",
+  "app/numeroloji/utils/placeInput.ts",
+  "app/numeroloji/utils/deleteConfirmMessage.ts",
+  "app/numeroloji/helpers/conceptHelp.ts",
+  "app/numeroloji/helpers/numApiClient.ts",
+  "app/api/numeroloji/analyses/route.ts",
+];
 const ENGINE_REFS = /hesaplaNumeroloji|numerolojiMotor|@\/lib\/numeroloji(?:\/|")|computeDevelopment|\.insert\(|\.update\(|\.upsert\(|\.delete\(|\.rpc\(/;
 
 /** docx → karşılaştırılabilir parçalar (zaman damgalı docProps hariç; ikili parçalar SHA ile). */
@@ -200,11 +217,22 @@ async function numerologyWordGuard() {
   ok(total === 48 && same === total, `Numeroloji Word (markasız) origin/main kurucusuyla BİREBİR (${same}/${total} senaryo; tüm XML parçaları)`, diffs);
 }
 
+function i18nPresentationGuard() {
+  const patch = execFileSync("git", ["diff", "-U0", "origin/main", "--", ...I18N_PRESENTATION_FILES], { cwd: ROOT, encoding: "utf8" });
+  const engineTouch = patch.split("\n").filter((l) => /^[+-](?![+-])/.test(l) && ENGINE_REFS.test(l));
+  ok(engineTouch.length === 0, "i18n sunum farkı motor / hesap / DB yazma koduna dokunmuyor", engineTouch);
+  const route = "app/api/numeroloji/analyses/route.ts";
+  const mainRoute = execFileSync("git", ["show", `origin/main:${route}`], { cwd: ROOT, encoding: "utf8" }).replace(/\r\n/g, "\n");
+  const curRoute = readFileSync(path.join(ROOT, route), "utf8").replace(/\r\n/g, "\n");
+  ok(curRoute.replace(/, code: "[A-Z_]+"/g, "") === mainRoute, "analyses rotası: fark YALNIZ dil-bağımsız `code` alanı (çıkarılınca main ile birebir)");
+}
+
 async function engineUnchanged() {
   console.log("\n── 0) Numeroloji motoru DEĞİŞMEDİ (dosya + karşılaştırmalı çıktı)");
-  const diff = execFileSync("git", ["diff", "--name-only", "origin/main", "--", ...ENGINE_PATHS, ...[...NUMEROLOJI_WORD_FILES, ...PRIVACY_CORE_FILES].map((f) => `:(exclude)${f}`)], { cwd: ROOT, encoding: "utf8" }).trim();
+  const diff = execFileSync("git", ["diff", "--name-only", "origin/main", "--", ...ENGINE_PATHS, ...[...NUMEROLOJI_WORD_FILES, ...PRIVACY_CORE_FILES, ...I18N_PRESENTATION_FILES].map((f) => `:(exclude)${f}`)], { cwd: ROOT, encoding: "utf8" }).trim();
   ok(diff === "", "motor / hesap / kayıt üretme dosyalarında main'e göre fark YOK", diff);
   await numerologyWordGuard();
+  i18nPresentationGuard();
   const tmp = mkdtempSync(path.join(os.tmpdir(), "num-main-"));
   const tar = execFileSync("git", ["archive", "--format=tar", "origin/main", "lib/numeroloji"], { cwd: ROOT, maxBuffer: 64 * 1024 * 1024 });
   execFileSync("tar", ["-x", "-C", tmp.replace(/\\/g, "/")], { input: tar });

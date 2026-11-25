@@ -21,7 +21,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { createElement, type ComponentType } from "react";
-import { renderToStaticMarkup } from "react-dom/server";
+import { renderToStaticMarkup } from "./intlRender"; // I18N R5: TR katalog sağlayıcısıyla çizim (beklentiler değişmedi; taban kopyası da aynı sağlayıcıda)
 import JSZip from "jszip";
 import { Document, Packer } from "docx";
 import { hesaplaNumeroloji, calcDegisimByYearOnly } from "@/lib/numeroloji";
