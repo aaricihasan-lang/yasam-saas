@@ -189,6 +189,14 @@ export type CuppingCalendarPlan = {
   description: string | null;
   advice_template_id: string | null;
   is_active: boolean;
+  /**
+   * I18N A8 (Owner §16) — üç durumlu "sistem varsayılan adı" bayrağı (migration TASLAĞI; prod'da YOK):
+   *   true  = sistem varsayılanı (kayıt "<yıl> Hacamat Takvimi"; gösterimde ekran dilinde üretilir)
+   *   false = kullanıcı adı (aynen gösterilir; desen UYGULANMAZ)
+   *   null / alan yok = eski kayıt ya da kolon henüz yok → bugünkü desen kuralı AYNEN.
+   * Sunucu-sahipli: CALENDAR_PLAN_WRITABLE'a EKLENMEZ (istemci yazamaz).
+   */
+  name_is_default?: boolean | null;
   created_at: string;
   updated_at: string;
 };

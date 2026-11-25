@@ -229,6 +229,47 @@ export async function insertEntity(
   return { ok: true, data: data as Record<string, unknown> };
 }
 
+/**
+ * I18N A8 — PostgREST/PG "kolon yok" hatası mı? (migration henüz uygulanmamış ortam)
+ *   PGRST204: "Could not find the '<kolon>' column of '<tablo>' in the schema cache"
+ *   42703   : undefined_column
+ * Yalnız ADI VERİLEN kolonlardan biri hata metninde geçiyorsa true (başka hatalar yutulmaz).
+ */
+export function isMissingColumnError(error: unknown, columns: readonly string[]): boolean {
+  const e = (error ?? {}) as { code?: unknown; message?: unknown; details?: unknown; hint?: unknown };
+  const code = typeof e.code === "string" ? e.code : "";
+  if (code !== "PGRST204" && code !== "42703") return false;
+  const text = [e.message, e.details, e.hint].filter((x): x is string => typeof x === "string").join(" ");
+  return columns.some((c) => text.includes(c));
+}
+
+/**
+ * I18N A8 — `optional` alanlarıyla eklemeyi dener; bu alanların KOLONU YOKSA (migration uygulanmamış)
+ * aynı kaydı onlarsız ekler (bugünkü davranış). İlk deneme kolon hatasıyla düştüğünde DB'ye hiçbir satır
+ * yazılmamıştır → çift kayıt riski yok. Başka her hata bugünkü güvenli hata yanıtıyla döner.
+ * Doğrulama/normalizasyon insertEntity ile aynıdır (aynı fonksiyon çağrılır).
+ */
+export async function insertEntityWithOptionalColumns(
+  db: SupabaseClient,
+  table: string,
+  tenantId: string,
+  fields: Record<string, unknown>,
+  optional: Record<string, unknown>,
+): Promise<Ok<Record<string, unknown>> | Fail> {
+  const normalized = normalizeNullableEnums(fields);
+  const invalid = validateWritable(table, normalized);
+  if (invalid) return { ok: false, response: invalid };
+  const safe = withSafeSortOrder(normalized);
+  const { data, error } = await db
+    .from(table)
+    .insert({ ...safe, ...optional, tenant_id: tenantId })
+    .select()
+    .single();
+  if (!error) return { ok: true, data: data as Record<string, unknown> };
+  if (isMissingColumnError(error, Object.keys(optional))) return insertEntity(db, table, tenantId, fields);
+  return { ok: false, response: dbErrorResponse(error, "insert") };
+}
+
 export async function updateEntity(
   db: SupabaseClient,
   table: string,

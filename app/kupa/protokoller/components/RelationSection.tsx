@@ -100,7 +100,8 @@ export function RelationSection({ kind, protocolId, doc }: { kind: Kind; protoco
       return { id: m.id, label: tm.name, meta };
     }
     const s = m as { title: string; severity?: string | null };
-    return { id: m.id, label: s.title, meta: s.severity ?? undefined };
+    // I18N-0126: ham kod ("warning") yerine sözlük etiketi (TR: Uyarı …); değer/seçim mantığı değişmez.
+    return { id: m.id, label: s.title, meta: s.severity ? vocab.severity(s.severity) : undefined };
   });
 
   const selectedIds = [...relations.map((r) => String(r[cfg.fk])), ...pending];

@@ -12,7 +12,7 @@ export function useSystemNames() {
   const t = useTranslations("cupping.calendar");
   return useMemo(
     () => ({
-      planName: (plan: { name: string; year: number }) =>
+      planName: (plan: { name: string; year: number; name_is_default?: boolean | null }) =>
         displayPlanName(plan, (year) => t("ws.defaultPlanName", { year })),
       adviceTitle: (title: string) => displayClientAdviceTitle(title, () => t("clientAdvice.defaultTitle")),
     }),

@@ -70,7 +70,8 @@ export function PlanPicker({
 
   function openEdit() {
     if (!active) return;
-    setName(active.name);
+    // I18N A8: alan EKRANDA GÖRÜNEN adla dolar (EN ekranda sistem adı "2027 Hijama Calendar"; ham TR değil).
+    setName(sysNames.planName(active));
     setYear(active.year);
     setDescription(active.description ?? "");
     setMode("edit");
@@ -88,11 +89,14 @@ export function PlanPicker({
     setBusy(true);
     try {
       if (mode === "edit" && active) {
-        // Yıl yalnız gün yoksa gönderilir (invariant); ad/açıklama her zaman.
+        // Yıl yalnız gün yoksa gönderilir (invariant); açıklama her zaman.
+        // I18N A8: ad YALNIZ kullanıcı görünen adı DEĞİŞTİRDİYSE gönderilir. Değişmediyse kayıtlı ad zaten aynıdır
+        //   (bugünkü gönderimle DB sonucu birebir); böylece EN ekranda çevrilmiş sistem adı DB'ye yazılmaz ve
+        //   name_is_default (kolon varsa) korunur. Ad gönderilirse taslak DB tetiği bayrağı FALSE yapar.
         const body: Parameters<typeof updateCalendarPlan>[1] = {
-          name: name.trim(),
           description: description.trim() || null,
         };
+        if (name.trim() !== sysNames.planName(active)) body.name = name.trim();
         if (!yearLocked && year !== active.year) body.year = year;
         const updated = await updateCalendarPlan(active.id, body);
         onPlanUpdated(updated);

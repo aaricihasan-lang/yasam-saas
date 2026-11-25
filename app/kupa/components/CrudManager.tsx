@@ -45,6 +45,8 @@ type Rec = { id: string } & Record<string, unknown>;
 type CrudManagerProps<T extends Rec> = {
   titleKey: keyof T & string;
   subtitleKey?: keyof T & string;
+  /** I18N-0126: alt satırdaki kod değerinin GÖRÜNEN etiketi (ör. severity → sözlük etiketi). Verilmezse ham değer (bugünkü). */
+  subtitleFormat?: (value: unknown) => string;
   fields: FieldDef[];
   load: () => Promise<T[]>;
   create: (body: Partial<T>) => Promise<T>;
@@ -117,6 +119,7 @@ export function CrudManager<T extends Rec>(props: CrudManagerProps<T>) {
 function CrudManagerInner<T extends Rec>({
   titleKey,
   subtitleKey,
+  subtitleFormat,
   fields,
   load,
   create,
@@ -428,7 +431,7 @@ function CrudManagerInner<T extends Rec>({
                   </span>
                   {subtitleKey && item[subtitleKey] ? (
                     <span className="block truncate text-[11px] text-slate-400">
-                      {String(item[subtitleKey])}
+                      {subtitleFormat ? subtitleFormat(item[subtitleKey]) : String(item[subtitleKey])}
                     </span>
                   ) : null}
                 </button>

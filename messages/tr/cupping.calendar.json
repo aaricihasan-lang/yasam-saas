@@ -44,7 +44,7 @@
       "annual": {
         "title": "{year} Hacamat Takvimi",
         "legendSelected": "Seçili Gün",
-        "empty": "Bu yıl için henüz uygulama günü işaretlenmedi. Günleri işaretlemek için <strong>Bu Ayı Düzenle</strong>veya <strong>+ Takvim Oluştur / Aç</strong> (yıl/ay) kullanın.",
+        "empty": "Bu yıl için henüz uygulama günü işaretlenmedi. Günleri işaretlemek için <strong>Bu Ayı Düzenle</strong> veya <strong>+ Takvim Oluştur / Aç</strong> (yıl/ay) kullanın.",
         "openMonthAria": "{month} {year} — aylık görünümde aç",
         "viewMonth": "Ayı görüntüle →",
         "footer": "Bu yıllık görünüm kayıtlı takviminizi gösterir ve salt okunurdur: bir güne dokunduğunuzda yalnız o günün bilgisi açılır. Günleri değiştirmek için <strong>Bu Ayı Düzenle</strong> veya<strong> + Takvim Oluştur / Aç</strong> (yıl/ay) kullanın."
