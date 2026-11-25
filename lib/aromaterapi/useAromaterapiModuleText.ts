@@ -8,6 +8,7 @@
 import { useLocale, useTranslations } from "next-intl";
 import { writeMessageForCode as catalogWriteMessageForCode } from "./catalogWrite";
 import { sourceMessageForCode } from "./sourceWrite";
+import { writeMessageForCode as claimWriteMessageForCode } from "./claimWrite";
 import type { AromaterapiModule } from "./aromaterapiModules";
 import { oilTypeLabel } from "./aromatherapyData";
 
@@ -75,4 +76,15 @@ export function useSourceWriteError(): (code: string | null) => string {
     if (code && ts.has(code)) return ts(code);
     return code && tw.has(code) ? tw(code) : tw("generic");
   };
+}
+
+/**
+ * Bilgi kaydı (claim) yazma hata kodu → ekran metni. tr'de claimWrite.writeMessageForCode birebir;
+ * diğer dilde aromatherapy.claimWriteErrors.<kod> (eşlenmeyen → genel metin).
+ */
+export function useClaimWriteError(): (code: string | null) => string {
+  const t = useTranslations("aromatherapy.claimWriteErrors");
+  const locale = useLocale();
+  return (code) =>
+    locale === "tr" ? claimWriteMessageForCode(code) : code && t.has(code) ? t(code) : t("generic");
 }

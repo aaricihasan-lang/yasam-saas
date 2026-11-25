@@ -74,14 +74,16 @@ console.log("\n[C3D-D-3] Update contract + concurrency");
 // ============================================================
 check("U01 PATCH /api/aromaterapi/claims/[id]", /fetch\(`\/api\/aromaterapi\/claims\/\$\{id\}`/.test(W) && /method:\s*"PATCH"/.test(W));
 check("U02 GET ile hydrate (edit)", /fetchKnowledgeRecord/.test(read(EDIT_PAGE)) && /useAromaterapiDetail/.test(read(EDIT_PAGE)));
-check("U03 out-of-tenant/eksik 404 ekranı", /notFound/.test(read(EDIT_PAGE)) && /bulunamadı/i.test(read(EDIT_PAGE)));
-check("U04 update reason ZORUNLU", /mode === "edit"[\s\S]{0,120}reason/.test(H) && /Gerekçe zorunludur/.test(H));
+// I18N (2026-11-25): kullanıcı metinleri aromatherapy.knowledge.form.* anahtarlarına taşındı; anahtar + TR değer birebir (amaç korunur).
+const KF_TR = JSON.parse(read("messages/tr/aromatherapy.json")).aromatherapy.knowledge.form;
+check("U03 out-of-tenant/eksik 404 ekranı", /notFound/.test(read(EDIT_PAGE)) && /t\("notFound"\)/.test(read(EDIT_PAGE)) && /bulunamadı/i.test(KF_TR.pages.notFound));
+check("U04 update reason ZORUNLU", /mode === "edit"[\s\S]{0,120}reason/.test(H) && /tv\("reasonRequired"\)/.test(H) && /Gerekçe zorunludur/.test(KF_TR.validation.reasonRequired));
 check("U05 expected_updated_at gönderilir", /expected_updated_at:\s*initial\?\.updated_at/.test(H));
 check("U06 scalar patch changed-only", /scalarPatch/.test(H) && /initialCore/.test(H));
 check("U07 no-op submit engeli", /AROMA_NOOP/.test(H) && /hasChanges/.test(H));
 check("U08 409 STALE conflict UX (sessiz overwrite yok)",
   /stale/.test(W) && /AROMA_STALE_CLAIM/.test(W) && /conflict=\{form\.result\?\.stale/.test(read(FORM)));
-check("U09 preparation edit'te değişmez (salt-okunur)", /değiştirilemez/.test(read(FORM)));
+check("U09 preparation edit'te değişmez (salt-okunur)", /t\("immutable"\)/.test(read(FORM)) && /değiştirilemez/.test(KF_TR.immutable));
 
 // ============================================================
 console.log("\n[C3D-D-4] Child preserve/clear/replace semantiği");

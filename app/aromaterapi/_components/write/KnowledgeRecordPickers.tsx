@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useEnumLabel } from "@/lib/aromaterapi/useEnumLabel";
 import { useCallback } from "react";
 import { EntitySearchPicker, type PickerItem } from "@/app/aromaterapi/_components/write/EntitySearchPicker";
@@ -24,6 +25,7 @@ export function PreparationPicker(props: {
   disabled?: boolean;
   required?: boolean;
 }) {
+  const tp = useTranslations("aromatherapy.knowledge.form.pickers");
   const enumLabel = useEnumLabel();
   const toItem = useCallback((r: PreparationListItem): PickerItem => ({
     id: r.id,
@@ -32,8 +34,8 @@ export function PreparationPicker(props: {
   }), [enumLabel]);
   return (
     <EntitySearchPicker<PreparationListItem>
-      label="Preparat"
-      placeholder="Preparat türü, bitki kısmı ara…"
+      label={tp("preparation")}
+      placeholder={tp("preparationPh")}
       selected={props.selected}
       onSelect={props.onSelect}
       onClear={props.onClear}
@@ -51,6 +53,7 @@ export function SourcePicker(props: {
   onClear: () => void;
   disabled?: boolean;
 }) {
+  const tp = useTranslations("aromatherapy.knowledge.form.pickers");
   const enumLabel = useEnumLabel();
   const toItem = useCallback((r: SourceListItem): PickerItem => ({
     id: r.id,
@@ -61,8 +64,8 @@ export function SourcePicker(props: {
   }), [enumLabel]);
   return (
     <EntitySearchPicker<SourceListItem>
-      label="Kaynak"
-      placeholder="Kaynak başlığı, yazar ara…"
+      label={tp("source")}
+      placeholder={tp("sourcePh")}
       selected={props.selected}
       onSelect={props.onSelect}
       onClear={props.onClear}
@@ -81,6 +84,7 @@ export function PassagePicker(props: {
   onClear: () => void;
   disabled?: boolean;
 }) {
+  const tp = useTranslations("aromatherapy.knowledge.form.pickers");
   const enumLabel = useEnumLabel();
   const { sourceId } = props;
   const search = useCallback(
@@ -95,8 +99,8 @@ export function PassagePicker(props: {
   }), [enumLabel]);
   return (
     <EntitySearchPicker<PassageListItem>
-      label="Pasaj"
-      placeholder="Pasaj konumu ara…"
+      label={tp("passage")}
+      placeholder={tp("passagePh")}
       selected={props.selected}
       onSelect={props.onSelect}
       onClear={props.onClear}
@@ -114,6 +118,7 @@ export function RelatedRecordPicker(props: {
   onClear: () => void;
   disabled?: boolean;
 }) {
+  const tp = useTranslations("aromatherapy.knowledge.form.pickers");
   const toItem = useCallback((r: KnowledgeRecordListItem): PickerItem => ({
     id: r.id,
     label: truncate(r.conclusion, 90),
@@ -121,8 +126,8 @@ export function RelatedRecordPicker(props: {
   }), []);
   return (
     <EntitySearchPicker<KnowledgeRecordListItem>
-      label="İlişkili Bilgi Kaydı"
-      placeholder="Sonuç metni ara…"
+      label={tp("related")}
+      placeholder={tp("relatedPh")}
       selected={props.selected}
       onSelect={props.onSelect}
       onClear={props.onClear}
