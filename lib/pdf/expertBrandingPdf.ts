@@ -13,6 +13,7 @@
  */
 import type { jsPDF } from "jspdf";
 import { EXPERT_SIGNATURE_CARD_TWIPS, fitLogo, hasExpertBranding, expertBrandingFields, type ExpertBranding } from "@/lib/docx/expertBranding";
+import type { ReportCommonStrings } from "@/lib/i18n/reportCommon";
 
 export type Rgb = [number, number, number];
 
@@ -37,6 +38,12 @@ export type ExpertSignaturePdfOptions = {
   omitName?: boolean;
   /** Etiket (varsayılan "Hazırlayan"). */
   label?: string;
+  /**
+   * I18N çıktı dili (isteğe bağlı): "Hazırlayan" / "İmza" / "Uzman Notu" katalogdan ve büyük harf dönüşümü bu dilin
+   * kuralıyla (`intlTag`). Verilmezse bugünkü Türkçe sabitler + "tr-TR" (PDF birebir).
+   */
+  common?: Pick<ReportCommonStrings, "preparedBy" | "signature" | "expertNote">;
+  intlTag?: string;
   /** Kart öncesi boşluk (mm). */
   before?: number;
   /**
@@ -153,7 +160,7 @@ export function drawExpertSignaturePdf(doc: jsPDF, branding: ExpertBranding | nu
     const logoColW = f.logoPng ? 30 : 0;
     const textX = o.x + logoColW + pad;
     const textW = Math.max(30, o.width - logoColW - pad * 2);
-    const label = pdfSafeText(o.label ?? "Hazırlayan").toLocaleUpperCase("tr-TR");
+    const label = pdfSafeText(o.label ?? o.common?.preparedBy ?? "Hazırlayan").toLocaleUpperCase(o.intlTag ?? "tr-TR");
     const lines = cardLines(doc, f, o, textW);
     const labelH = SZ.label * LH + (o.spacing?.labelGap ?? 1.6);
     // İmza alanı: boşluk + "İmza" etiketi (çizginin üzerinde, solda) + çizgi — Word kartıyla aynı.
@@ -199,7 +206,7 @@ export function drawExpertSignaturePdf(doc: jsPDF, branding: ExpertBranding | nu
     ty += SIGN_GAP;
     doc.setFontSize(SZ.sig);
     doc.setTextColor(...light);
-    doc.text("İmza", textX, ty + SZ.sig * LH * 0.8);
+    doc.text(o.common?.signature ?? "İmza", textX, ty + SZ.sig * LH * 0.8);
     ty += SZ.sig * LH + 0.8;
     doc.setDrawColor(203, 213, 225);
     doc.setLineWidth(0.25);
@@ -214,7 +221,7 @@ export function drawExpertSignaturePdf(doc: jsPDF, branding: ExpertBranding | nu
     cursor.ensure(SZ.noteHead * LH + 1.5 + lh * Math.min(2, noteLines.length));
     doc.setFontSize(SZ.noteHead);
     doc.setTextColor(...mid);
-    doc.text("Uzman Notu", o.x, cursor.y + SZ.noteHead * LH * 0.8);
+    doc.text(o.common?.expertNote ?? "Uzman Notu", o.x, cursor.y + SZ.noteHead * LH * 0.8);
     cursor.y += SZ.noteHead * LH + 1.5;
     for (const l of noteLines) {
       cursor.ensure(lh);

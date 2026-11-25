@@ -37,6 +37,7 @@ import {
   WidthType,
 } from "docx";
 import { C_DARK, C_LIGHT, C_MID, h1Colored, h2, REPORT_FONT, type HeadingOptions } from "./reportHelpers";
+import type { ReportCommonStrings } from "@/lib/i18n/reportCommon";
 /** A4 içerik genişliği (11906 − 2×1440 kenar boşluğu) ≈ 9026 twip. */
 const CONTENT_WIDTH = 9026;
 
@@ -87,7 +88,7 @@ function plainTitle(text: string, pageBreakBefore = false): Paragraph {
  * `pageBreakBefore` ile kapaktan sonra yeni sayfanın başında yer alır; ardından İçindekiler aynı
  * sayfada akar.
  */
-export function buildCompactSummary(rows: [string, string][], opts: { pageBreakBefore?: boolean } = {}): (Paragraph | Table)[] {
+export function buildCompactSummary(rows: [string, string][], opts: { pageBreakBefore?: boolean; common?: ReportCommonStrings } = {}): (Paragraph | Table)[] {
   const pairs: [string, string][][] = [];
   for (let i = 0; i < rows.length; i += 2) pairs.push(rows.slice(i, i + 2));
   const cell = (text: string, label: boolean, w: number) =>
@@ -113,18 +114,18 @@ export function buildCompactSummary(rows: [string, string][], opts: { pageBreakB
       }),
     ),
   });
-  return [plainTitle("Rapor Özeti", opts.pageBreakBefore ?? false), table];
+  return [plainTitle(opts.common?.summaryTitle ?? "Rapor Özeti", opts.pageBreakBefore ?? false), table];
 }
 
 /**
  * STATİK + TIKLANABİLİR + PAGEREF sayfa numaralı İçindekiler. Her zaman dolu.
  */
-export function buildStaticToc(entries: TocEntry[], opts: { title?: string } = {}): Paragraph[] {
+export function buildStaticToc(entries: TocEntry[], opts: { title?: string; common?: ReportCommonStrings } = {}): Paragraph[] {
   const out: Paragraph[] = [
-    plainTitle(opts.title ?? "İçindekiler"),
+    plainTitle(opts.title ?? opts.common?.staticTocTitle ?? "İçindekiler"),
     new Paragraph({
       children: [new TextRun({
-        text: "Başlığa tıklayarak ilgili bölüme gidebilirsiniz. Sayfa numaralarını Word, belge açılırken günceller.",
+        text: opts.common?.staticTocHint ?? "Başlığa tıklayarak ilgili bölüme gidebilirsiniz. Sayfa numaralarını Word, belge açılırken günceller.",
         italics: true, size: 16, font: REPORT_FONT, color: C_LIGHT,
       })],
       spacing: { after: 120 },
@@ -161,12 +162,12 @@ function tocEntryParagraph(e: TocEntry): Paragraph {
  * alt not) — ama boş Word TOC alanı yerine STATİK + TIKLANABİLİR + PAGEREF girişler.
  * Giriş yoksa HİÇBİR ŞEY döndürmez (anlamsız boş İçindekiler sayfası + sayfa sonu üretilmez).
  */
-export function buildStaticTocPage(entries: TocEntry[]): Paragraph[] {
+export function buildStaticTocPage(entries: TocEntry[], common?: ReportCommonStrings): Paragraph[] {
   if (!entries.length) return [];
   return [
     new Paragraph({
       alignment: AlignmentType.CENTER,
-      children: [new TextRun({ text: "İÇİNDEKİLER", bold: true, size: 40, font: REPORT_FONT, color: C_DARK })],
+      children: [new TextRun({ text: common?.tocHeading ?? "İÇİNDEKİLER", bold: true, size: 40, font: REPORT_FONT, color: C_DARK })],
       pageBreakBefore: true,
       spacing: { before: 800, after: 600 },
     }),
@@ -174,7 +175,7 @@ export function buildStaticTocPage(entries: TocEntry[]): Paragraph[] {
     new Paragraph({
       alignment: AlignmentType.CENTER,
       children: [new TextRun({
-        text: "Başlığa tıklayarak ilgili bölüme gidebilirsiniz. Sayfa numaralarını Word, belge açılırken günceller.",
+        text: common?.staticTocHint ?? "Başlığa tıklayarak ilgili bölüme gidebilirsiniz. Sayfa numaralarını Word, belge açılırken günceller.",
         size: 18, font: REPORT_FONT, color: C_LIGHT, italics: true,
       })],
       spacing: { before: 320, after: 0 },

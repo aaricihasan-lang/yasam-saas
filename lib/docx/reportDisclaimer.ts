@@ -9,6 +9,8 @@
  * Bu dosya saf metin kaynağıdır (docx bağımlılığı yok) → UI ve Word aynı metni kullanır.
  */
 
+import type { ReportCommonStrings } from "@/lib/i18n/reportCommon";
+
 export type WellnessNoteKind =
   | "general"
   | "danisan"
@@ -71,7 +73,13 @@ export const WELLNESS_NOTES: Record<WellnessNoteKind, NoteText> = {
   },
 };
 
-export function wellnessNote(kind: WellnessNoteKind = "general"): NoteText {
+/**
+ * `common` (I18N çıktı dili, isteğe bağlı): rapor çıktısında katalog metinleri (messages/<dil>/reports.common.json →
+ * `wellness`). Verilmezse bugünkü Türkçe sabitler (UI ve TR raporlar birebir).
+ */
+export function wellnessNote(kind: WellnessNoteKind = "general", common?: Pick<ReportCommonStrings, "wellness">): NoteText {
+  const localized = common?.wellness?.[kind] ?? common?.wellness?.general;
+  if (localized && localized.short && localized.full) return localized;
   return WELLNESS_NOTES[kind] ?? WELLNESS_NOTES.general;
 }
 
