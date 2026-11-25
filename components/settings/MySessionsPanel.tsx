@@ -2,7 +2,11 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Loader2, LogOut, MonitorSmartphone, RefreshCw, Smartphone } from "lucide-react";
+import { useLocale, useTranslations } from "next-intl";
 import { readSessionToken, hasSessionCredential, sessionTokenHeader } from "@/lib/auth/yasamUser";
+import { localeTag } from "@/lib/i18n/format";
+import { localizeApiError, type ApiErrorPayload } from "@/lib/i18n/apiError";
+import type { ActiveLocale } from "@/lib/i18n/locales";
 
 /**
  * OTURUM MODELİ v2 — "Oturumlarım": kullanıcının KENDİ oturumları (admin + uzman).
@@ -26,26 +30,35 @@ type SessionRow = {
   current: boolean;
 };
 
-const END_REASON_LABELS: Record<string, string> = {
-  user_logout: "Çıkış yapıldı",
-  owner_self_revoked: "Bu ekrandan kapatıldı",
-  expired_idle: "Süre doldu (kullanılmadı)",
-  expired_absolute: "Süre doldu",
-  expired_policy_cleanup: "Süre doldu",
-  stale: "Yeni girişte kapandı",
-  replaced_same_device: "Aynı cihazda yeniden giriş",
-  owner_denied: "Onay verilmedi",
-  pending_expired: "Onay süresi doldu",
-  password_changed: "Parola değişti",
-  admin_terminated: "Yönetici kapattı",
-  admin_logout_all: "Yönetici kapattı",
-  admin_password_reset: "Parola sıfırlandı",
+/** Kapanış nedeni (sunucu kodu) → katalog anahtarı `auth.ui.sessions.endReason.<anahtar>`. Kod listesi değişmedi. */
+const END_REASON_KEYS = [
+  "user_logout",
+  "owner_self_revoked",
+  "expired_idle",
+  "expired_absolute",
+  "expired_policy_cleanup",
+  "stale",
+  "replaced_same_device",
+  "owner_denied",
+  "pending_expired",
+  "password_changed",
+  "admin_terminated",
+  "admin_logout_all",
+  "admin_password_reset",
+] as const;
+const END_REASON_SET: ReadonlySet<string> = new Set(END_REASON_KEYS);
+
+/** Hata durumu dil-bağımsız saklanır; metin render'da ekran dilinde üretilir (kontrol akışı metne bağlı değil). */
+type PanelError = {
+  key: "loadFailed" | "loadFailedNetwork" | "revokeFailed" | "revokeFailedNetwork";
+  payload?: ApiErrorPayload;
 };
 
-function fmt(iso: string | null): string {
+// Gösterim yalnız: tr → bugünkü `toLocaleString("tr-TR", …)` ile birebir; en → en-GB (24 saat). Saklanan ISO değeri değişmez.
+function fmt(iso: string | null, locale: ActiveLocale): string {
   if (!iso) return "—";
   try {
-    return new Date(iso).toLocaleString("tr-TR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
+    return new Date(iso).toLocaleString(localeTag(locale), { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
   } catch {
     return "—";
   }
@@ -53,8 +66,11 @@ function fmt(iso: string | null): string {
 
 export default function MySessionsPanel({ userId }: { userId: string }) {
   const [rows, setRows] = useState<SessionRow[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<PanelError | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const t = useTranslations("auth.ui.sessions");
+  const tErr = useTranslations("common.apiErrors");
+  const locale = useLocale() as ActiveLocale;
 
   const load = useCallback(async () => {
     const token = readSessionToken();
@@ -66,13 +82,13 @@ export default function MySessionsPanel({ userId }: { userId: string }) {
       });
       const j = (await res.json().catch(() => ({}))) as { sessions?: SessionRow[]; error?: string };
       if (!res.ok) {
-        setError(j.error ?? "Oturumlar okunamadı.");
+        setError({ key: "loadFailed", payload: j });
         return;
       }
       setError(null);
       setRows(Array.isArray(j.sessions) ? j.sessions : []);
     } catch {
-      setError("Oturumlar okunamadı. Bağlantınızı kontrol edin.");
+      setError({ key: "loadFailedNetwork" });
     }
   }, [userId]);
 
@@ -85,9 +101,7 @@ export default function MySessionsPanel({ userId }: { userId: string }) {
     const token = readSessionToken();
     if (!hasSessionCredential(token) || busyId) return;
     const ok = window.confirm(
-      row.current
-        ? "Bu cihazdaki oturumu kapatmak istiyor musunuz? Çıkış yapılacak."
-        : `"${row.device}" oturumunu kapatmak istiyor musunuz?`,
+      row.current ? t("confirmCurrent") : t("confirmOther", { device: row.device ?? "" }),
     );
     if (!ok) return;
     setBusyId(row.id);
@@ -97,19 +111,25 @@ export default function MySessionsPanel({ userId }: { userId: string }) {
         headers: { "x-user-id": userId, ...sessionTokenHeader(token) },
       });
       const j = (await res.json().catch(() => ({}))) as { error?: string; wasCurrent?: boolean };
-      if (!res.ok) setError(j.error ?? "Oturum kapatılamadı.");
+      if (!res.ok) setError({ key: "revokeFailed", payload: j });
       if (res.ok && j.wasCurrent) {
         window.location.replace("/");
         return;
       }
     } catch {
-      setError("Oturum kapatılamadı. Bağlantınızı kontrol edin.");
+      setError({ key: "revokeFailedNetwork" });
     } finally {
       setBusyId(null);
       void load();
     }
   }
 
+  // TR: sunucu metni bugünkü gibi (`j.error ?? varsayılan`); diğer dillerde eşlenmemiş Türkçe sunucu metni gösterilmez.
+  const errorText = error
+    ? error.payload
+      ? localizeApiError(tErr, locale, error.payload, t(error.key))
+      : t(error.key)
+    : null;
   const open = (rows ?? []).filter((r) => r.state !== "ended");
   const ended = (rows ?? []).filter((r) => r.state === "ended");
 
@@ -118,25 +138,24 @@ export default function MySessionsPanel({ userId }: { userId: string }) {
       <div className="flex items-center justify-between gap-3">
         <h3 className="flex items-center gap-2 text-sm font-black text-slate-900">
           <MonitorSmartphone className="h-4 w-4 text-violet-600" aria-hidden />
-          Oturumlarım
+          {t("title")}
         </h3>
         <button
           type="button"
           onClick={() => void load()}
           className="flex items-center gap-1 text-xs font-bold text-violet-700 hover:underline"
         >
-          <RefreshCw className="h-3.5 w-3.5" aria-hidden /> Yenile
+          <RefreshCw className="h-3.5 w-3.5" aria-hidden /> {t("refresh")}
         </button>
       </div>
       <p className="mt-1 text-xs text-slate-500">
-        Kaybolan bir cihaz varsa buradan oturumunu kapatabilirsiniz. Android uygulama oturumu, siz çıkış
-        yapana veya kapatana kadar açık kalır.
+        {t("intro")}
       </p>
 
-      {error && <p className="mt-3 rounded-lg bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700">{error}</p>}
+      {errorText && <p className="mt-3 rounded-lg bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700">{errorText}</p>}
       {rows === null && !error && (
         <p className="mt-3 flex items-center gap-2 text-xs text-slate-500">
-          <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden /> Yükleniyor…
+          <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden /> {t("loading")}
         </p>
       )}
 
@@ -154,18 +173,18 @@ export default function MySessionsPanel({ userId }: { userId: string }) {
                   <span className="break-words">{r.device}</span>
                   {r.persistent && (
                     <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700">
-                      Android uygulama (kalıcı)
+                      {t("androidPersistent")}
                     </span>
                   )}
                   {r.state === "pending" && (
-                    <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-700">Onay bekliyor</span>
+                    <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-700">{t("pending")}</span>
                   )}
                   {r.current && (
-                    <span className="rounded-full bg-violet-50 px-2 py-0.5 text-[10px] font-bold text-violet-700">Bu cihaz</span>
+                    <span className="rounded-full bg-violet-50 px-2 py-0.5 text-[10px] font-bold text-violet-700">{t("thisDevice")}</span>
                   )}
                 </p>
                 <p className="mt-0.5 text-[11px] text-slate-500">
-                  {r.kind === "android_app" ? "Android uygulama" : "Web"} · Açılış {fmt(r.createdAt)} · Son görülme {fmt(r.lastSeenAt)}
+                  {r.kind === "android_app" ? t("kindAndroid") : t("kindWeb")} · {t("openedAt", { date: fmt(r.createdAt, locale) })} · {t("lastSeenAt", { date: fmt(r.lastSeenAt, locale) })}
                   {r.city || r.country ? ` · ${[r.city, r.country].filter(Boolean).join(", ")}` : ""}
                   {r.ipMasked ? ` · ${r.ipMasked}` : ""}
                 </p>
@@ -177,7 +196,7 @@ export default function MySessionsPanel({ userId }: { userId: string }) {
                 className="flex h-8 shrink-0 items-center gap-1 rounded-lg border border-rose-200 bg-rose-50 px-2.5 text-xs font-bold text-rose-700 transition hover:bg-rose-100 disabled:opacity-60"
               >
                 {busyId === r.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden /> : <LogOut className="h-3.5 w-3.5" aria-hidden />}
-                Bu oturumu kapat
+                {t("revoke")}
               </button>
             </div>
           </li>
@@ -186,11 +205,12 @@ export default function MySessionsPanel({ userId }: { userId: string }) {
 
       {ended.length > 0 && (
         <details className="mt-3">
-          <summary className="cursor-pointer text-xs font-bold text-slate-600">Son kapanan oturumlar ({ended.length})</summary>
+          <summary className="cursor-pointer text-xs font-bold text-slate-600">{t("endedSummary", { count: ended.length })}</summary>
           <ul className="mt-2 space-y-1.5">
             {ended.map((r) => (
               <li key={r.id} className="text-[11px] text-slate-500">
-                {r.device} · {fmt(r.createdAt)} → {fmt(r.endedAt)} · {END_REASON_LABELS[r.endReason ?? ""] ?? "Kapandı"}
+                {r.device} · {fmt(r.createdAt, locale)} → {fmt(r.endedAt, locale)} ·{" "}
+                {r.endReason && END_REASON_SET.has(r.endReason) ? t(`endReason.${r.endReason}`) : t("endReasonDefault")}
               </li>
             ))}
           </ul>
