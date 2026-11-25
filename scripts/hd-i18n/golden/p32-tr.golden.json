@@ -1,0 +1,78 @@
+{
+  "producer": "P32 exportHdReportDocx",
+  "fixedNow": "2026-11-25T21:30:00.000Z",
+  "fixtures": {
+    "tam": {
+      "digest": "7227e420a8523fbf9c140204180e8d2866feb8445caba105166b9a823b5dd2de",
+      "parts": {
+        "[Content_Types].xml": "685dca5eb0e6688c9f4218f6810f21fdf6e86a4b8bf1d7bf74c9eb667ebc2c09",
+        "_rels/.rels": "641d22a23aa9eb550103a7a01471eaeda5e84c69413e6e03e7fd290b4811a756",
+        "docProps/app.xml": "579eba9a8d602575736c3880cf5b529aabbadee0e8cc0e4df8573db0ceadbd4b",
+        "docProps/core.xml": "5412f6db674ca73ede10ad64e4b7dc1d92611b84e3065bae0a460f425ac263aa",
+        "docProps/custom.xml": "8ec73cc7ce297e42cc652a1d1884d4ffb18ffa0ba7a6502a36f8da90d1be61a1",
+        "word/_rels/comments.xml.rels": "bf64631f0bc7bd46712fef822bcfb22e069fa5779e133980ca0c9d81f00efc09",
+        "word/_rels/document.xml.rels": "df7e89495fb46d367e614a8dbb369fc166cd752e188481edac80fd553272f68e",
+        "word/_rels/endnotes.xml.rels": "bf64631f0bc7bd46712fef822bcfb22e069fa5779e133980ca0c9d81f00efc09",
+        "word/_rels/fontTable.xml.rels": "bf64631f0bc7bd46712fef822bcfb22e069fa5779e133980ca0c9d81f00efc09",
+        "word/_rels/footnotes.xml.rels": "bf64631f0bc7bd46712fef822bcfb22e069fa5779e133980ca0c9d81f00efc09",
+        "word/comments.xml": "dd2d62f68c6fd01fc4d7d44081587af54ea3e135b9486cc44fa3c62d087adfec",
+        "word/document.xml": "39b1c429fcb050bccf357a4ceceb172f833e5ffa59f08d546f43f0a22d3b032a",
+        "word/endnotes.xml": "52f6c33e62c233e0d9f9c41ec259ffd943ea9cdc413293d43e6ffb213682a5cf",
+        "word/fontTable.xml": "a746dbb577ec5d68983d659707c0750ca89d40b9d3316e31af331d5e1c736bad",
+        "word/footnotes.xml": "774ce254f01cde1079d43e81a0db30ac82b3b2bae875b07c4fe28403ba30b6a9",
+        "word/numbering.xml": "aae067c32dd80d876358a0cc5ecef7f7442662e3648c0ecd9f1888677ddb4a6e",
+        "word/settings.xml": "36b68f012adfd6d2f8faaebc8d101632d3529e9d9fd57d6ef92198841e96f09e",
+        "word/styles.xml": "afa039a904677e09ceebd82646b4245cf773c6a09d50324e304a016703632538"
+      },
+      "filename": "Human-Design-Raporu-Ayse-Gul-Sahin-Ornek-2026-11-26.docx"
+    },
+    "kisa": {
+      "digest": "ce21eb44f0b313e9eb93c69853d3acd0676351d42a3c0ca906244b1c78f6238e",
+      "parts": {
+        "[Content_Types].xml": "685dca5eb0e6688c9f4218f6810f21fdf6e86a4b8bf1d7bf74c9eb667ebc2c09",
+        "_rels/.rels": "641d22a23aa9eb550103a7a01471eaeda5e84c69413e6e03e7fd290b4811a756",
+        "docProps/app.xml": "579eba9a8d602575736c3880cf5b529aabbadee0e8cc0e4df8573db0ceadbd4b",
+        "docProps/core.xml": "5412f6db674ca73ede10ad64e4b7dc1d92611b84e3065bae0a460f425ac263aa",
+        "docProps/custom.xml": "8ec73cc7ce297e42cc652a1d1884d4ffb18ffa0ba7a6502a36f8da90d1be61a1",
+        "word/_rels/comments.xml.rels": "bf64631f0bc7bd46712fef822bcfb22e069fa5779e133980ca0c9d81f00efc09",
+        "word/_rels/document.xml.rels": "df7e89495fb46d367e614a8dbb369fc166cd752e188481edac80fd553272f68e",
+        "word/_rels/endnotes.xml.rels": "bf64631f0bc7bd46712fef822bcfb22e069fa5779e133980ca0c9d81f00efc09",
+        "word/_rels/fontTable.xml.rels": "bf64631f0bc7bd46712fef822bcfb22e069fa5779e133980ca0c9d81f00efc09",
+        "word/_rels/footnotes.xml.rels": "bf64631f0bc7bd46712fef822bcfb22e069fa5779e133980ca0c9d81f00efc09",
+        "word/comments.xml": "dd2d62f68c6fd01fc4d7d44081587af54ea3e135b9486cc44fa3c62d087adfec",
+        "word/document.xml": "eeb9b45c5c353ddcb066a3a6311ad3a3605f2d08224a4ff670c0ea3d58e0befc",
+        "word/endnotes.xml": "52f6c33e62c233e0d9f9c41ec259ffd943ea9cdc413293d43e6ffb213682a5cf",
+        "word/fontTable.xml": "a746dbb577ec5d68983d659707c0750ca89d40b9d3316e31af331d5e1c736bad",
+        "word/footnotes.xml": "774ce254f01cde1079d43e81a0db30ac82b3b2bae875b07c4fe28403ba30b6a9",
+        "word/numbering.xml": "aae067c32dd80d876358a0cc5ecef7f7442662e3648c0ecd9f1888677ddb4a6e",
+        "word/settings.xml": "36b68f012adfd6d2f8faaebc8d101632d3529e9d9fd57d6ef92198841e96f09e",
+        "word/styles.xml": "afa039a904677e09ceebd82646b4245cf773c6a09d50324e304a016703632538"
+      },
+      "filename": "Human-Design-Raporu-Cagri-Ince-2026-11-26.docx"
+    },
+    "bosAd": {
+      "digest": "dbfd27791fadcddd4f049b58054ff1d1de269dd344f20132cb2ff3634b39f2b2",
+      "parts": {
+        "[Content_Types].xml": "685dca5eb0e6688c9f4218f6810f21fdf6e86a4b8bf1d7bf74c9eb667ebc2c09",
+        "_rels/.rels": "641d22a23aa9eb550103a7a01471eaeda5e84c69413e6e03e7fd290b4811a756",
+        "docProps/app.xml": "579eba9a8d602575736c3880cf5b529aabbadee0e8cc0e4df8573db0ceadbd4b",
+        "docProps/core.xml": "5412f6db674ca73ede10ad64e4b7dc1d92611b84e3065bae0a460f425ac263aa",
+        "docProps/custom.xml": "8ec73cc7ce297e42cc652a1d1884d4ffb18ffa0ba7a6502a36f8da90d1be61a1",
+        "word/_rels/comments.xml.rels": "bf64631f0bc7bd46712fef822bcfb22e069fa5779e133980ca0c9d81f00efc09",
+        "word/_rels/document.xml.rels": "df7e89495fb46d367e614a8dbb369fc166cd752e188481edac80fd553272f68e",
+        "word/_rels/endnotes.xml.rels": "bf64631f0bc7bd46712fef822bcfb22e069fa5779e133980ca0c9d81f00efc09",
+        "word/_rels/fontTable.xml.rels": "bf64631f0bc7bd46712fef822bcfb22e069fa5779e133980ca0c9d81f00efc09",
+        "word/_rels/footnotes.xml.rels": "bf64631f0bc7bd46712fef822bcfb22e069fa5779e133980ca0c9d81f00efc09",
+        "word/comments.xml": "dd2d62f68c6fd01fc4d7d44081587af54ea3e135b9486cc44fa3c62d087adfec",
+        "word/document.xml": "13b60697cd2d59cf96803a15eb879106261a7639de543da17170919870f29a4d",
+        "word/endnotes.xml": "52f6c33e62c233e0d9f9c41ec259ffd943ea9cdc413293d43e6ffb213682a5cf",
+        "word/fontTable.xml": "a746dbb577ec5d68983d659707c0750ca89d40b9d3316e31af331d5e1c736bad",
+        "word/footnotes.xml": "774ce254f01cde1079d43e81a0db30ac82b3b2bae875b07c4fe28403ba30b6a9",
+        "word/numbering.xml": "aae067c32dd80d876358a0cc5ecef7f7442662e3648c0ecd9f1888677ddb4a6e",
+        "word/settings.xml": "36b68f012adfd6d2f8faaebc8d101632d3529e9d9fd57d6ef92198841e96f09e",
+        "word/styles.xml": "afa039a904677e09ceebd82646b4245cf773c6a09d50324e304a016703632538"
+      },
+      "filename": "Human-Design-Raporu-Danisan-2026-11-26.docx"
+    }
+  }
+}
