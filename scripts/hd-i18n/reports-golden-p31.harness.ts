@@ -280,6 +280,18 @@ async function main() {
         writeFileSync(path.join(OUT, `${f.name}-en.docx`), await render(f, EN));
       }
     }
+    console.log("\n—— C. Profesyonel Rapor Özeti (özet penceresi): TR aynen, EN etiketleri koddan");
+    const { buildProfessionalReportSummary } = await import("../../lib/human-design/reporting/reportSummary");
+    const { localizeReportSummary } = await import("../../lib/human-design/reporting/reportText");
+    for (const f of list) {
+      const title = W1.hdReportTitle((f.snapshot as { client: { name: string } }).client.name);
+      const base = buildProfessionalReportSummary(title, f.snapshot as never);
+      ok(`${f.name}: özet TR aynen (aynı nesne)`, localizeReportSummary(base, f.snapshot as never, TR) === base && localizeReportSummary(base, f.snapshot as never, null) === base);
+      const en = localizeReportSummary(base, f.snapshot as never, EN);
+      const flat = JSON.stringify({ ...en, client: null }).replace(/⟦[^⟧]*⟧/g, "");
+      ok(`${f.name}: özet EN'de Türkçe sistem metni 0`, !/[çğıöşüÇĞİÖŞÜ]/.test(flat) && !/Kapı|Kanal|Merkez/.test(flat), flat.slice(0, 300));
+      ok(`${f.name}: özet EN sayılar aynı (kanal/kapı adedi)`, en.channels.length === base.channels.length && en.gates.length === base.gates.length);
+    }
     const fnEn = (W1 as unknown as { hdReportFilename: (n: string, d: string, o?: unknown) => string }).hdReportFilename("", "2026-10-09", EN);
     ok("EN dosya adı (ad boş) İngilizce", fnEn === "Human-Design-Client-2026-10-09.docx", fnEn);
     ok("EN dosya adı (ad dolu) aynı slug", (W1 as unknown as { hdReportFilename: (n: string, d: string, o?: unknown) => string }).hdReportFilename("Şule Çağ", "2026-10-09", EN) === "Human-Design-Sule-Cag-2026-10-09.docx");

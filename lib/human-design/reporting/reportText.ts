@@ -33,6 +33,8 @@ import { hdGateDefaultName } from "@/lib/human-design/knowledge/hdNames";
 import type { SystemReadingDto, SystemReadingDetail } from "@/lib/human-design/providers/roxy/systemReading";
 import type { HdCenterState } from "@/lib/human-design/chart/centerStates";
 import type { PlanetName } from "@/lib/human-design/engine/types";
+import type { HdProfessionalReportSummary } from "./reportSummary";
+import { isHdReportSnapshotV2, type AnyHdReportSnapshot } from "./reportSnapshotV2";
 
 type Vals = Record<string, string | number>;
 
@@ -224,5 +226,56 @@ export function localizeSystemReadingEn(
     }),
     // Dil notu TR okura "bazı metinler İngilizce" der; EN çıktıda yerine `system.providerNote` basılır.
     ...(reading.languageNote !== undefined ? { languageNote: null } : {}),
+  };
+}
+
+// ── Profesyonel Rapor Özeti (Android/özet penceresi) — donmuş TR etiketleri TR DIŞINDA koddan ──────────────
+
+/**
+ * Özet DTO'sunu çıktı diline taşır. TR (kaynak dil) → girdi AYNEN döner (bugünkü yanıt birebir). Diğer dillerde tip /
+ * profil / otorite / tanım / merkez / kanal / kapı adları kanonik koddan; kişisel kanal adı ve danışan bilgileri aynen;
+ * başlık yalnız sistemin ürettiği kalıpla birebir aynıysa (kullanıcı başlığı değilse) yeniden üretilir.
+ */
+export function localizeReportSummary(
+  summary: HdProfessionalReportSummary,
+  snap: AnyHdReportSnapshot,
+  output?: OutputLocale | null,
+): HdProfessionalReportSummary {
+  const x = hdReportText(output ?? null);
+  if (x.isSource) return summary;
+  // Kayıtlı başlık sistem kalıbıyla (wordReport.hdReportTitle, TR) birebir aynıysa çıktı dilinde yeniden üretilir.
+  const src = hdReportText(null);
+  const name = summary.client.name.trim();
+  const sysTitle = (t: HdReportText) => (name ? t.t("brand.docTitleV1", { name }) : t.t("brand.docTitleV1Empty"));
+  const title = summary.title === sysTitle(src) ? sysTitle(x) : summary.title;
+  if (isHdReportSnapshotV2(snap)) {
+    return {
+      ...summary,
+      title,
+      chart: {
+        profile: hdEn.profile(snap.identity.profile),
+        definition: hdEn.definition(snap.identity.definition),
+        definedCenters: snap.centers.filter((c) => c.defined).map((c) => hdEn.center(c.code) ?? c.label),
+      },
+      type: hdEn.type(snap.identity.type),
+      authority: hdEn.authority(snap.identity.authority, snap.identity.type),
+      channels: snap.channels.map((c) => hdEn.channelLabel(c.label, c.code)),
+      gates: snap.gates.map((g) => x.t("gateN", { n: g.gate })),
+    };
+  }
+  const s = snap;
+  return {
+    ...summary,
+    title,
+    chart: {
+      profile: hdEn.profile(summary.chart.profile),
+      definition: hdEn.definition(summary.chart.definition),
+      definedCenters: summary.chart.definedCenters.map((l) => hdEn.center(hdEn.centerCode(l)) ?? l),
+    },
+    type: s.identity?.type ? hdEn.term("type", s.identity.type.key.replace(/^tip_/, "")) ?? summary.type : summary.type,
+    authority: s.identity?.authority ? hdEn.term("authority", s.identity.authority.key.replace(/^otorite_/, "")) ?? summary.authority : summary.authority,
+    channels: (s.channels ?? []).map((c) => x.t("v1.channelHeading", { name: hdEn.term("channel", c.code) ?? c.displayName })),
+    gates: (s.gates ?? []).map((g) => x.t("v1.gate", { n: g.gate })),
+    hangingGates: (s.hangingContexts ?? []).map((h) => x.t("v1.gate", { n: h.gate })),
   };
 }
