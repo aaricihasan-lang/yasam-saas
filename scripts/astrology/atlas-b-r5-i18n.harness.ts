@@ -171,70 +171,75 @@ async function main() {
   // ─── [T] techniques.ts çıktıları ─────────────────────────────────────────────────────────────────────────────
   const allChecked = Object.fromEntries(T.UI_TECHNIQUES.map((id) => [id, true]));
   const partnerLabel = (id: string) => (id === "p1" ? "Sentetik B" : null);
-  const libOut: Record<string, string> = {};
-  for (const [vn, p] of Object.entries(VARIANTS)) {
-    for (const [mi, m] of METHODS.entries()) {
-      for (const s of T.buildSelections(allChecked as J, p, m)) {
-        libOut[`describe|${vn}|m${mi}|${s.technique}`] = T.describeOptions(s.technique, s.options);
-        libOut[`describeP|${vn}|m${mi}|${s.technique}`] = T.describeOptions(s.technique, s.options, partnerLabel);
+  // L verilmezse lib varsayılanı (kaynak dil); verilirse ekranın next-intl çevirmeni (TR / EN).
+  const computeLib = (L?: J) => {
+    const libOut: Record<string, string> = {};
+    for (const [vn, p] of Object.entries(VARIANTS)) {
+      for (const [mi, m] of METHODS.entries()) {
+        for (const s of T.buildSelections(allChecked as J, p, m)) {
+          libOut[`describe|${vn}|m${mi}|${s.technique}`] = T.describeOptions(s.technique, s.options, undefined, L);
+          libOut[`describeP|${vn}|m${mi}|${s.technique}`] = T.describeOptions(s.technique, s.options, partnerLabel, L);
+        }
       }
+      for (const id of T.UI_TECHNIQUES) {
+        libOut[`missing|${vn}|${id}`] = String(T.missingReason(id, p, L));
+        libOut[`dateInput|${vn}|${id}`] = String(T.dateInputReason(id, p, L));
+      }
+      libOut[`kpRangeIssue|${vn}`] = String(T.kpRangeIssue(p, L));
     }
-    for (const id of T.UI_TECHNIQUES) {
-      libOut[`missing|${vn}|${id}`] = String(T.missingReason(id, p));
-      libOut[`dateInput|${vn}|${id}`] = String(T.dateInputReason(id, p));
-    }
-    libOut[`kpRangeIssue|${vn}`] = String(T.kpRangeIssue(p));
-  }
-  // Eski kayıt seçenekleri (alan eksik / eski biçim).
-  const legacy: [string, Record<string, unknown>][] = [
-    ["western.lunar_return", { month: "2026-10" }],
-    ["western.lunar_return", { month: "2026-10", sequence: 2, returnLocation: { label: "Londra" }, returnLocationId: "gb-london" }],
-    ["western.solar_return", { returnYear: 2026, returnLocationId: null }],
-    ["western.transit", { now: true }],
-    ["western.transit", { atUtc: "2026-10-22T09:00:00Z", calendar: { startDate: "2026-10-01", days: 30 } }],
-    ["vedic.dasha", { chainNow: true }],
-    ["vedic.dasha", { md: "venus", ad: "sun", pd: "moon", sd: "mars", chainAtUtc: "2026-10-01T07:00:00Z" }],
-    ["kp.dasha", { md: "saturn", ayanamsa: "kp-old", nodeType: "true" }],
-    ["kp.horary", { horaryNumber: 249, now: true, ayanamsa: "kp-newcomb" }],
-    ["kp.horary", { horaryNumber: 7, atUtc: "2026-10-22T09:00:00Z", place: { label: "Londra", timezone: "Europe/London" } }],
-    ["kp.ruling", { now: true, place: { label: "Londra" } }],
-    ["vedic.panchanga", { detail: true, hours: false }],
-    ["vedic.panchanga", { hours: true }],
-    ["vedic.heliacal", {}],
-    ["vedic.sade_sati", { asOf: "2026-10-22", ayanamsa: "kp-old" }],
-    ["vedic.monthly", { year: 2026, month: 2, sections: ["parallels", "natal_parallels"] }],
-    ["vedic.monthly", { year: 2026, month: 13 }],
-    ["western.local_space", { referenceLocationId: "gb-london" }],
-    ["western.local_space", {}],
-    ["western.relocation", { target: { label: "Londra" } }],
-    ["western.fixed_stars", { orb: 1.5, reportCatalog: true }],
-    ["western.profections", { age: 0 }],
-    ["western.profections", { age: 200 }],
-    ["western.extra_points", { sections: ["lots"] }],
-    ["western.classical_dignities", { school: "ptolemy", houseSystem: "regiomontanus", nodeType: "mean" }],
-    ["western.classical_dignities", {}],
-    ["western.declination_parallels", { month: "2026-02", orb: 1.5, nodeType: "mean", displayTz: "UTC" }],
-    ["western.transit_scan", { start: "2026-01-01", end: "2026-06-30", orb: 1.5, bodies: ["saturn"], points: ["sun"], aspects: ["conjunction"] }],
-    ["vedic.chara_karaka", { scheme: "seven" }],
-    ["vedic.gun_milan", { partnerProfileId: "p1", partnerRevision: 3, order: "partner_first", ayanamsa: "raman" }],
-    ["vedic.dashakoot", { partnerProfileId: "zz", order: "client_first" }],
-    ["vedic.papasamyam", { partnerProfileId: "p1" }],
-    ["western.synastry", { partnerProfileId: "p1", partnerRevision: 2 }],
-    ["vedic.d1", { ayanamsa: "kp-newcomb" }],
-    ["vedic.varga", { division: 60, ayanamsa: "lahiri" }],
-    ["vedic.transit", { atUtc: "2026-10-22T09:00:00Z", ayanamsa: "lahiri" }],
-    ["kp.ruling_interval", { atUtc: "2026-10-22T09:00:00Z", durationMinutes: 120, intervalMinutes: 15, ayanamsa: "kp-newcomb" }],
-    ["kp.transit", { range: { startDate: "2026-10-22", days: 3, kinds: ["positions"], planets: [], intervalMinutes: 60 }, ayanamsa: "kp-old" }],
-    ["western.planetary_return", { planet: "venus", approxDate: "2026-05-01", crossing: 3, returnLocation: { label: "Londra" }, returnLocationId: "gb-london" }],
-    ["western.forecast", { startDate: "2026-10-01", days: 366, displayTz: "UTC" }],
-    ["unknown.technique", { a: 1 }],
-  ];
-  legacy.forEach(([id, o], i) => {
-    libOut[`legacy|${i}|${id}`] = T.describeOptions(id, o, partnerLabel);
-  });
-  for (const id of [...T.UI_TECHNIQUES, "unknown.x"]) libOut[`label|${id}`] = T.techniqueLabel(id);
-  for (const id of T.UI_TECHNIQUES) libOut[`zodiac|${id}`] = T.zodiacLabel(id);
-  for (const h of ["placidus", "whole_sign", "whole-sign", "koch", null]) libOut[`house|${String(h)}`] = T.houseSystemLabel(h, { placidus: "Placidus", koch: "Koch", "whole-sign": "Bütün burç" });
+    // Eski kayıt seçenekleri (alan eksik / eski biçim).
+    const legacy: [string, Record<string, unknown>][] = [
+      ["western.lunar_return", { month: "2026-10" }],
+      ["western.lunar_return", { month: "2026-10", sequence: 2, returnLocation: { label: "Londra" }, returnLocationId: "gb-london" }],
+      ["western.solar_return", { returnYear: 2026, returnLocationId: null }],
+      ["western.transit", { now: true }],
+      ["western.transit", { atUtc: "2026-10-22T09:00:00Z", calendar: { startDate: "2026-10-01", days: 30 } }],
+      ["vedic.dasha", { chainNow: true }],
+      ["vedic.dasha", { md: "venus", ad: "sun", pd: "moon", sd: "mars", chainAtUtc: "2026-10-01T07:00:00Z" }],
+      ["kp.dasha", { md: "saturn", ayanamsa: "kp-old", nodeType: "true" }],
+      ["kp.horary", { horaryNumber: 249, now: true, ayanamsa: "kp-newcomb" }],
+      ["kp.horary", { horaryNumber: 7, atUtc: "2026-10-22T09:00:00Z", place: { label: "Londra", timezone: "Europe/London" } }],
+      ["kp.ruling", { now: true, place: { label: "Londra" } }],
+      ["vedic.panchanga", { detail: true, hours: false }],
+      ["vedic.panchanga", { hours: true }],
+      ["vedic.heliacal", {}],
+      ["vedic.sade_sati", { asOf: "2026-10-22", ayanamsa: "kp-old" }],
+      ["vedic.monthly", { year: 2026, month: 2, sections: ["parallels", "natal_parallels"] }],
+      ["vedic.monthly", { year: 2026, month: 13 }],
+      ["western.local_space", { referenceLocationId: "gb-london" }],
+      ["western.local_space", {}],
+      ["western.relocation", { target: { label: "Londra" } }],
+      ["western.fixed_stars", { orb: 1.5, reportCatalog: true }],
+      ["western.profections", { age: 0 }],
+      ["western.profections", { age: 200 }],
+      ["western.extra_points", { sections: ["lots"] }],
+      ["western.classical_dignities", { school: "ptolemy", houseSystem: "regiomontanus", nodeType: "mean" }],
+      ["western.classical_dignities", {}],
+      ["western.declination_parallels", { month: "2026-02", orb: 1.5, nodeType: "mean", displayTz: "UTC" }],
+      ["western.transit_scan", { start: "2026-01-01", end: "2026-06-30", orb: 1.5, bodies: ["saturn"], points: ["sun"], aspects: ["conjunction"] }],
+      ["vedic.chara_karaka", { scheme: "seven" }],
+      ["vedic.gun_milan", { partnerProfileId: "p1", partnerRevision: 3, order: "partner_first", ayanamsa: "raman" }],
+      ["vedic.dashakoot", { partnerProfileId: "zz", order: "client_first" }],
+      ["vedic.papasamyam", { partnerProfileId: "p1" }],
+      ["western.synastry", { partnerProfileId: "p1", partnerRevision: 2 }],
+      ["vedic.d1", { ayanamsa: "kp-newcomb" }],
+      ["vedic.varga", { division: 60, ayanamsa: "lahiri" }],
+      ["vedic.transit", { atUtc: "2026-10-22T09:00:00Z", ayanamsa: "lahiri" }],
+      ["kp.ruling_interval", { atUtc: "2026-10-22T09:00:00Z", durationMinutes: 120, intervalMinutes: 15, ayanamsa: "kp-newcomb" }],
+      ["kp.transit", { range: { startDate: "2026-10-22", days: 3, kinds: ["positions"], planets: [], intervalMinutes: 60 }, ayanamsa: "kp-old" }],
+      ["western.planetary_return", { planet: "venus", approxDate: "2026-05-01", crossing: 3, returnLocation: { label: "Londra" }, returnLocationId: "gb-london" }],
+      ["western.forecast", { startDate: "2026-10-01", days: 366, displayTz: "UTC" }],
+      ["unknown.technique", { a: 1 }],
+    ];
+    legacy.forEach(([id, o], i) => {
+      libOut[`legacy|${i}|${id}`] = T.describeOptions(id, o, partnerLabel, L);
+    });
+    for (const id of [...T.UI_TECHNIQUES, "unknown.x"]) libOut[`label|${id}`] = T.techniqueLabel(id, L);
+    for (const id of T.UI_TECHNIQUES) libOut[`zodiac|${id}`] = T.zodiacLabel(id, L);
+    for (const h of ["placidus", "whole_sign", "whole-sign", "koch", null]) libOut[`house|${String(h)}`] = T.houseSystemLabel(h, { placidus: "Placidus", koch: "Koch", "whole-sign": "Bütün burç" }, L);
+    return libOut;
+  };
+  const libOut = computeLib();
 
   // ─── [S] TechniqueSelector çizim vakaları ────────────────────────────────────────────────────────────────────
   type Case = { name: string; el: () => ReactElement };
@@ -415,6 +420,9 @@ async function main() {
   const gold = JSON.parse(readFileSync(GOLD, "utf8")) as { lib: Record<string, string>; cases: Record<string, string> };
   const scope = (process.env.ATLAS_B_SCOPE ?? "R,L").split(",");
 
+  const { createTranslator: ct } = await import("next-intl");
+  const { getCatalogMessages: gcm } = await import("@/lib/i18n/catalog");
+  const createTranslatorFor = (locale: "tr" | "en") => ct({ locale, messages: gcm(locale) as Record<string, never>, namespace: "atlas.techniques" as never }) as unknown as J;
   console.log("\n[T] techniques.ts: TR çıktı çeviri öncesiyle birebir");
   t(`${Object.keys(libOut).length} lib çıktısı (özet / eksik neden / tarih nedeni / etiket) TR = taban`, () => {
     assert.deepEqual(Object.keys(libOut).sort(), Object.keys(gold.lib).sort(), "vaka seti");
@@ -422,6 +430,21 @@ async function main() {
     assert.deepEqual(bad.slice(0, 10).map((k) => `${k}: «${libOut[k]}» ≠ «${gold.lib[k]}»`), []);
   });
 
+  t("ekran yolu: next-intl TR çevirmeniyle (ICU) aynı 1.087 çıktı tabanla birebir (UI = lib varsayılanı)", () => {
+    const L = createTranslatorFor("tr");
+    const out = computeLib(L);
+    const bad = Object.keys(out).filter((k) => out[k] !== gold.lib[k]);
+    assert.deepEqual(bad.slice(0, 10).map((k) => `${k}: «${out[k]}» ≠ «${gold.lib[k]}»`), []);
+  });
+  t("EN: aynı 1.087 çıktı Türkçe harfsiz, ham anahtar yok (kullanıcı verisi hariç); tarih GG/AA/YYYY", () => {
+    const out = computeLib(createTranslatorFor("en"));
+    const probs = Object.entries(out)
+      .filter(([k]) => !k.startsWith("house|"))
+      .map(([k, v]) => [k, v.replace(/Londra|Sentetik B|Bütün burç|Europe\/Istanbul|Asia\/Kolkata/g, "")] as const)
+      .filter(([, v]) => /[çğıöşüÇĞİÖŞÜ]/.test(v) || /\b(meta|d|reason)\.[a-z]/.test(v) || /\b\d{2}\.\d{2}\.\d{4}\b/.test(v))
+      .map(([k, v]) => `${k}: ${v}`);
+    assert.deepEqual(probs.slice(0, 10), [], `${probs.length} çıktı`);
+  });
   console.log("\n[K] Word/PDF ile paylaşılan lib metinleri = TR katalog (tek anlam kaynağı)");
   const { createTranslator } = await import("next-intl");
   const { getCatalogMessages } = await import("@/lib/i18n/catalog");

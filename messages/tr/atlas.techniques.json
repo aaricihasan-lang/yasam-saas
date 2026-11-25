@@ -1,0 +1,394 @@
+{
+  "atlas": {
+    "techniques": {
+      "meta": {
+        "western": {
+          "natal": {
+            "label": "Natal",
+            "hint": "Doğum haritası"
+          },
+          "transit": {
+            "label": "Transit (tek an)",
+            "hint": "Seçilen andaki gökyüzü → natal açılar"
+          },
+          "forecast": {
+            "label": "Transit takvimi",
+            "hint": "Dönem boyunca açı, burç girişi, istasyon, tutulma, Ay evresi"
+          },
+          "progression": {
+            "label": "Secondary progression",
+            "hint": "Gün = yıl ilerletilmiş harita"
+          },
+          "solar_arc": {
+            "label": "Solar arc",
+            "hint": "Tüm noktalar ilerletilmiş Güneş yayı kadar"
+          },
+          "solar_return": {
+            "label": "Solar return",
+            "hint": "Güneş'in natal konumuna dönüş haritası (doğum yeri)"
+          },
+          "lunar_return": {
+            "label": "Lunar return",
+            "hint": "Ay'ın natal konumuna dönüş haritası (doğum yeri)"
+          },
+          "synastry": {
+            "label": "Sinastri",
+            "hint": "İki kişinin haritaları arası açılar + ev bindirmesi"
+          },
+          "composite": {
+            "label": "Composite",
+            "hint": "İki haritanın orta nokta haritası"
+          },
+          "astrocartography": {
+            "label": "Astrocartography",
+            "hint": "Gezegen MC/IC/AC/DC hatları — dünya haritası"
+          },
+          "relocation": {
+            "label": "Relocation",
+            "hint": "Aynı doğum anı, yeni konum: ASC/MC/evler"
+          },
+          "local_space": {
+            "label": "Local Space",
+            "hint": "Doğum anında ufuk yönleri (pusula + harita)"
+          },
+          "fixed_stars": {
+            "label": "Sabit yıldızlar",
+            "hint": "43 sabit yıldızın doğum anındaki konumu + natal noktalarla ekliptik boylam kavuşumları"
+          },
+          "profections": {
+            "label": "Yıllık Profeksiyonlar",
+            "hint": "Yükselen burçtan her yaş için bir burç (bütün-burç evleri): yılın etkin evi, burcu ve klasik yönetici gezegeni"
+          },
+          "extra_points": {
+            "label": "Ek noktalar",
+            "hint": "İsteğe bağlı bölümler: asteroitler (Ceres, Pallas, Juno, Vesta), yedi Hermetik lot, Kara Ay Lilith ortalama + gerçek"
+          },
+          "planetary_return": {
+            "label": "Gezegen dönüşleri",
+            "hint": "Satürn, Jüpiter, Mars, Venüs veya Merkür'ün natal boylamına döndüğü anın haritası; retro döngüsünde kavuşum seçilir"
+          },
+          "transit_scan": {
+            "label": "Transit Taraması",
+            "hint": "Seçilen tarih aralığında transit gezegenlerin natal noktalara açılarını tarar: orb giriş/çıkış, tam an(lar), istasyon ve burç girişleri"
+          },
+          "classical_dignities": {
+            "label": "Klasik Asalet ve Almuten",
+            "hint": "Esas ve arızi asalet puanları, kabuller, ev başı almutenleri, harita almuteni; varsayılan ekol William Lilly (1647)"
+          },
+          "declination_parallels": {
+            "label": "Deklinasyon paralelleri",
+            "hint": "Seçilen ayda iki gök cismi arasındaki paralel (aynı deklinasyon) ve kontraparalel (zıt deklinasyon) temasların kesinleşme anları — gökyüzü takvimi; doğum verisi kullanılmaz"
+          }
+        },
+        "vedic": {
+          "d1": {
+            "label": "Vedik D1 (Rashi)",
+            "hint": "Sidereal kundli: Lagna, graha, nakshatra/pada, yogalar"
+          },
+          "drishti": {
+            "label": "Graha Drishti",
+            "hint": "Parashari bütün-burç graha drishti — yalnız Lahiri"
+          },
+          "ashtakavarga": {
+            "label": "Ashtakavarga",
+            "hint": "Bhinna/Sarva bindu ızgarası, Shodhana, Shodhya Pinda"
+          },
+          "shadbala": {
+            "label": "Shadbala",
+            "hint": "Altı katlı graha gücü (BPHS), oran ve sıralama"
+          },
+          "panchanga": {
+            "label": "Janma Panchanga",
+            "hint": "Doğum anı tithi, nakshatra, nitya yoga, karana; isteğe bağlı ayrıntılı gün (vara, gün doğumu, Rahu Kaal…) ve gezegen saatleri (hora) + Choghadiya — yalnız Lahiri"
+          },
+          "transit": {
+            "label": "Gochara (Vedik transit)",
+            "hint": "Seçilen anın sidereal grahaları → Janma Rashi'den / Lagna'dan ev, bütün-burç drishti, kaksha — yalnız Lahiri"
+          },
+          "bhav_chalit": {
+            "label": "Bhav Chalit",
+            "hint": "Bhava (Sripati) ev başlangıçları, madhya ve sandhi; grahaların chalit bhavası ile D1 rashi evi karşılaştırması"
+          },
+          "chara_karaka": {
+            "label": "Chara Karakalar",
+            "hint": "Jaimini: Atmakaraka … Darakaraka; derece sıralaması; 8'li (Rahu dahil) veya 7'li şema"
+          },
+          "arudha": {
+            "label": "Arudha Padalar",
+            "hint": "Jaimini: Arudha Lagna (AL), A2…A11, Upapada (UL); lord, sayım ve 1./7. ev istisnası"
+          },
+          "bhava_bala": {
+            "label": "Bhava Bala",
+            "hint": "12 evin gücü: Bhavadhipati, Dig ve Drishti Bala; toplam ve sıralama (gezegen gücü Shadbala'dan ayrı)"
+          },
+          "dasha": {
+            "label": "Vimshottari Dasha",
+            "hint": "Mahadasha zaman çizelgesi; alt dönemler Prana düzeyine kadar tıklayınca yüklenir; güncel dönem zinciri isteğe bağlı"
+          },
+          "varga": {
+            "label": "Vedik Varga (D9 Navamsa / Dn)",
+            "hint": "Bölümsel harita: D9 varsayılan; D2…D60 seçilebilir; vargottama"
+          },
+          "gun_milan": {
+            "label": "Gun Milan (Ashtakoot)",
+            "hint": "İki kişinin Ay nakshatra / burcuna göre 8 koota puanı (36 üzerinden), Nadi / Bhakoot dosha ve klasik iptal, iki kişi Manglik — teknik değerlendirme"
+          },
+          "monthly": {
+            "label": "Vedik aylık zamanlama",
+            "hint": "Seçilen ayın sidereal (Lahiri) gökyüzü takvimi: gezegen burç girişleri, gezegenler arası ve Ay ile astronomik açı kesinleşmeleri, deklinasyon paralelleri; isteğe bağlı doğum anı deklinasyonları. Graha drishti değildir"
+          },
+          "sade_sati": {
+            "label": "Sade Sati",
+            "hint": "Satürn'ün Janma Rashi'den 12. / 1. / 2. ev gocharası: yalnız değerlendirme günündeki durum ve evre (dönem başlangıç / bitiş tarihleri bu sürümde yok)"
+          },
+          "dashakoot": {
+            "label": "On Porutham (Dashakoot)",
+            "hint": "Güney Hint eşleştirme: 10 porutham kriteri (karşılandı / karşılanmadı), 10 üzerinden toplam, Rajju ve Vedha kesin kısıtları; Gun Milan'dan ayrı sistem — teknik değerlendirme"
+          },
+          "papasamyam": {
+            "label": "Papasamyam",
+            "hint": "İki haritada Mars, Satürn, Güneş ve Rahu'nun Lagna / Ay / Venüs'ten 1-2-4-7-8-12. evlerdeki malefik katkıları, ağırlıklı toplamlar ve karşılaştırma — teknik değerlendirme"
+          },
+          "upagraha": {
+            "label": "Upagrahalar",
+            "hint": "11 hesaplanan duyarlı nokta: zaman tabanlı (Gulika, Mandi, Kala, Mrityu, Ardhaprahara, Yamaghantaka) ve Güneş türevli (Dhuma, Vyatipata, Parivesha, Indra Chapa, Upaketu); burç, derece, nakshatra, pada"
+          },
+          "heliacal": {
+            "label": "Graha Asta / Udaya",
+            "hint": "Seçilen gün ve gözlem yerinde altı görünür grahanın Güneş parıltısından kurtulup kurtulmadığı (kalamsa), son ve sonraki heliakal doğuş / batış; doğum saati gerekmez"
+          }
+        },
+        "kp": {
+          "chart": {
+            "label": "KP doğum haritası",
+            "hint": "Placidus cusp'ları, sign / star / sub / sub-sub lord, 4 düzey significator (KP-Newcomb)"
+          },
+          "dasha": {
+            "label": "KP dasha",
+            "hint": "Vimshottari (KP ayanamsa) + dönem lordlarının KP significator'ları; alt dönemler tıklayınca"
+          },
+          "ruling": {
+            "label": "KP ruling planets",
+            "hint": "Seçilen anın ruling planet'leri + natal significator'ları"
+          },
+          "transit": {
+            "label": "KP transit",
+            "hint": "Tek an KP gökyüzü veya zaman aralığında Sub-Lord / Rasi geçişleri; natal ev analizi yok"
+          },
+          "horary": {
+            "label": "KP horary (1–249)",
+            "hint": "Sayı + soru anı + değerlendirme yeri; doğum verisi kullanılmaz"
+          },
+          "ruling_interval": {
+            "label": "KP ruling planets zaman taraması",
+            "hint": "Seçilen aralıkta adım adım ruling planet'ler, Lagna/Ay lord zinciri ve o anın haritasından significator'lar; doğum verisi kullanılmaz"
+          }
+        }
+      },
+      "dashaLord": {
+        "ketu": "Ketu",
+        "venus": "Venüs (Shukra)",
+        "sun": "Güneş (Surya)",
+        "moon": "Ay (Chandra)",
+        "mars": "Mars (Mangala)",
+        "rahu": "Rahu",
+        "jupiter": "Jüpiter (Guru)",
+        "saturn": "Satürn (Shani)",
+        "mercury": "Merkür (Budha)"
+      },
+      "varga": {
+        "9": "D9 Navamsa (varsayılan)",
+        "2": "D2 Hora",
+        "3": "D3 Drekkana",
+        "4": "D4 Chaturthamsa",
+        "7": "D7 Saptamsa",
+        "10": "D10 Dasamsa",
+        "12": "D12 Dwadasamsa",
+        "16": "D16 Shodasamsa",
+        "20": "D20 Vimsamsa",
+        "24": "D24 Chaturvimsamsa",
+        "27": "D27 Bhamsa",
+        "30": "D30 Trimsamsa",
+        "40": "D40 Khavedamsa",
+        "45": "D45 Akshavedamsa",
+        "60": "D60 Shashtiamsa"
+      },
+      "kpAyanamsaOption": {
+        "kp-newcomb": "KP-Newcomb — varsayılan",
+        "kp-old": "KP (Krishnamurti eski tablo)"
+      },
+      "kpAy": {
+        "kp-newcomb": "KP-Newcomb",
+        "kp-old": "KP (eski tablo)"
+      },
+      "vedicAyanamsaOption": {
+        "lahiri": "Lahiri (Chitrapaksha) — varsayılan",
+        "raman": "B.V. Raman",
+        "kp-newcomb": "KP Newcomb",
+        "kp-old": "KP (eski)"
+      },
+      "dateSep": ".",
+      "decimalSep": ",",
+      "numLocale": "tr-TR",
+      "monthYear": "{m}.{y}",
+      "month": {
+        "1": "Ocak",
+        "2": "Şubat",
+        "3": "Mart",
+        "4": "Nisan",
+        "5": "Mayıs",
+        "6": "Haziran",
+        "7": "Temmuz",
+        "8": "Ağustos",
+        "9": "Eylül",
+        "10": "Ekim",
+        "11": "Kasım",
+        "12": "Aralık"
+      },
+      "d": {
+        "partnerFallback": "karşı taraf",
+        "transitCal": " · takvim {start} + {days} gün",
+        "forecast": "{start} + {days} gün{end} ({parts} parça){tz}",
+        "forecastEnd": " (→ {end})",
+        "target": "hedef {date}",
+        "solarReturn": "{year} dönüşü{place}",
+        "lunar": "{monthYear} · {n}. dönüş{legacy}{place}",
+        "lunarLegacy": " (ayın ilk dönüşü)",
+        "partnerRev": " (karşı taraf rev {rev})",
+        "lahiriFixed": "ayanamsa: Lahiri (sabit)",
+        "birthDay": "doğum günü",
+        "birthPlace": "doğum yeri",
+        "panchangaDetail": "ayrıntılı: {day}{hours}",
+        "panchangaHoursSuffix": " · hora + choghadiya",
+        "panchangaHoursOnly": "hora + choghadiya: {day}",
+        "kpChart": "{ay}Placidus · düğüm {node}",
+        "nodeTrueShort": "gerçek",
+        "nodeMeanShort": "ortalama",
+        "horaryNow": "şimdi (gerçek soru anı)",
+        "horary": "sayı {n} · {when}{place}",
+        "kpRange": "aralık {start} + {days} gün · {kinds}{planets} · {ay}",
+        "riHours": "{n} sa",
+        "riMinutes": "{n} dk",
+        "ri": "başlangıç {date} {time} UTC · {dur} / {iv} dk adım ({n} an) · {ay}{place}",
+        "ayanamsa": "ayanamsa: {ay}",
+        "chara7": "7 karaka (Rahu hariç)",
+        "chara8": "8 karaka (Rahu dahil)",
+        "fixedStars": "orb {orb}° · ekliptik boylam kavuşumu{cat}",
+        "fixedStarsCatalog": " · raporda katalog",
+        "profections": "{age} yaş profeksiyon yılı · bütün-burç",
+        "extra": {
+          "asteroids": "asteroitler",
+          "lots": "Hermetik lotlar",
+          "lilith": "Lilith ortalama + gerçek"
+        },
+        "planetaryReturn": "{title} · hedef {date} · {n}. kavuşum{place}",
+        "role1Partner": "1. rol: karşı taraf",
+        "role1Client": "1. rol: danışan",
+        "roleGroomPartner": "1. rol (damat): karşı taraf",
+        "roleGroomClient": "1. rol (damat): danışan",
+        "all": "tümü",
+        "transitScan": "{start} – {end} · orb {orb}° · gezegen {b} · nokta {p} · açı {a}",
+        "houseSystemOf": "ev sistemi {hs}",
+        "nodeMean": "ortalama düğüm",
+        "nodeTrue": "gerçek düğüm",
+        "heliacal": "gün {date} · gözlem yeri: {place}",
+        "sadeSatiAsOf": "değerlendirme günü {date} · ",
+        "monthly": {
+          "ingress": "burç girişleri",
+          "aspects": "açılar",
+          "lunar": "Ay açıları",
+          "parallels": "deklinasyon",
+          "natal_parallels": "doğum anı deklinasyonları"
+        },
+        "monthlyHead": "{month} {year} (UTC ayı)",
+        "localSpace": "merkez: {place}",
+        "returnPlaceOther": " · konum: {place}",
+        "returnPlaceBirth": " · doğum yeri",
+        "dashaChainAt": " · güncel dönem zinciri: {date} {time} UTC",
+        "dashaChainNow": " · güncel dönem zinciri: şimdi",
+        "horaryUnverified": "yerel saat dilimi doğrulanamadı; UTC gösteriliyor",
+        "turkeyTime": "Türkiye saati"
+      },
+      "kpKind": {
+        "sublord": "Sub-Lord",
+        "rasi": "Rasi",
+        "positions": "konum tablosu"
+      },
+      "kpPlanet": {
+        "sun": "Güneş",
+        "moon": "Ay",
+        "mars": "Mars",
+        "mercury": "Merkür",
+        "jupiter": "Jüpiter",
+        "venus": "Venüs",
+        "saturn": "Satürn"
+      },
+      "prTitle": {
+        "saturn": "Satürn dönüşü",
+        "jupiter": "Jüpiter dönüşü",
+        "mars": "Mars dönüşü",
+        "venus": "Venüs dönüşü",
+        "mercury": "Merkür dönüşü"
+      },
+      "dignitySchool": {
+        "lilly-1647": "Lilly 1647",
+        "dorothean-egyptian": "Dorothean"
+      },
+      "natalHouse": {
+        "placidus": "Placidus",
+        "whole-sign": "Tam Burç (Whole Sign)",
+        "equal": "Eşit Ev",
+        "koch": "Koch",
+        "regiomontanus": "Regiomontanus",
+        "campanus": "Campanus",
+        "porphyry": "Porphyry",
+        "alcabitius": "Alcabitius"
+      },
+      "reason": {
+        "transitDate": "transit tarihini / saatini tamamlayın",
+        "transitMoment": "transit anı geçersiz (ön izlemeye bakın)",
+        "forecastStart": "takvim başlangıç tarihini tamamlayın",
+        "forecastEnd": "takvim bitiş tarihini düzeltin",
+        "targetDate": "hedef tarihi tamamlayın",
+        "gochara": "Gochara tarihini / saatini tamamlayın",
+        "kpDate": "KP tarihini / saatini tamamlayın",
+        "riStart": "tarama başlangıcını tamamlayın",
+        "riWindow": "tarama süresi / adımı geçersiz (en çok 24 saat, en çok 121 an)",
+        "chainDate": "güncel dönem zinciri tarihini / saatini tamamlayın",
+        "chainMoment": "güncel dönem zinciri anı geçersiz",
+        "panchangaDetail": "ayrıntılı Panchanga gününü tamamlayın",
+        "panchangaHours": "hora / choghadiya gününü tamamlayın",
+        "prDate": "dönüş hedef tarihini tamamlayın",
+        "declination": "deklinasyon ayını tamamlayın (1600–2600)",
+        "heliacal": "heliakal değerlendirme gününü tamamlayın",
+        "monthly": "takvim ayını tamamlayın (1600–2600)",
+        "partner": "karşı taraf seçin",
+        "relocation": "hedef konum seçin",
+        "profection": "profeksiyon yılını seçin",
+        "horaryPlace": "değerlendirme yeri seçin",
+        "observePlace": "gözlem yeri seçin",
+        "extraSections": "en az bir ek nokta bölümü seçin",
+        "monthlySections": "en az bir aylık takvim bölümü seçin",
+        "kpRangeStart": "KP aralık başlangıç tarihini tamamlayın",
+        "kpRangeKind": "KP aralık türü seçin",
+        "kpRangePlanet": "KP aralık gezegeni seçin",
+        "kpRangeDays": "KP aralığı en çok {max} gün olabilir",
+        "kpPositionsDays": "KP konum tablosu en çok {max} gün olabilir",
+        "scanDates": "başlangıç ve bitiş tarihini tamamlayın",
+        "scanOrder": "bitiş başlangıçtan önce olamaz",
+        "scanYears": "desteklenen yıllar {min}–{max}",
+        "scanMax": "tarama aralığı en çok 1 yıl ({days} gün)"
+      },
+      "house": {
+        "none": "ev sistemi yok",
+        "wholeSign": "Bütün-burç (rashi chakra)",
+        "sripati": "Sripati (bhava)"
+      },
+      "zodiac": {
+        "kp": "Sidereal (KP)",
+        "vedic": "Sidereal (nirayana)",
+        "western": "Tropikal"
+      }
+    }
+  }
+}
