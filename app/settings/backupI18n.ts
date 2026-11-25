@@ -115,3 +115,133 @@ export function clientErrorText(t: BackupTranslator, isSource: boolean, err: unk
   if (err instanceof TypeError) return t("codes.NETWORK");
   return t(fallbackKey);
 }
+
+// ─── Dışa Aktarım (Premium Word Arşivi) ──────────────────────────────────────
+// Arşiv DOSYALARI (Word, klasör adları, BENİOKU.txt, ARŞİV-RAPORU.txt) Türkçe kalır (lib/archive değişmez). Ekranda
+// kaynak dilde plan / iş metinleri BİREBİR; diğer dillerde yalnız `scope_code` / `reason_code` / `display` /
+// `message_code` / `warning_codes` EK alanlarından üretilir.
+
+type ScopeNote = { scope: string; reason: string; scope_code?: CodedMessage; reason_code?: CodedMessage };
+type JobLike = { kind: string; label: string; display?: CodedMessage };
+
+function archiveScopeText(t: BackupTranslator, c: CodedMessage): string {
+  const p = c.params ?? {};
+  switch (c.code) {
+    case "TABLE":
+      return tableTitle(t, String(p.table ?? ""));
+    case "FILE_SOURCE":
+      return t.has(`archive.fileSources.${p.source}`) ? t(`archive.fileSources.${p.source}`) : String(p.source ?? "");
+    case "MEDIA_SOURCE":
+      return t.has(`archive.mediaSources.${p.table}`) ? t(`archive.mediaSources.${p.table}`) : String(p.table ?? "");
+    default:
+      return t.has(`archive.scopes.${c.code}`) ? t(`archive.scopes.${c.code}`, values(c.params)) : t("archive.reasons.UNKNOWN");
+  }
+}
+
+function archiveReasonText(t: BackupTranslator, c: CodedMessage): string {
+  const p = c.params ?? {};
+  switch (c.code) {
+    case "MODULE_LIST":
+      return String(p.modules ?? "")
+        .split(",")
+        .filter(Boolean)
+        .map((m) => moduleLabel(t, m))
+        .join(", ");
+    case "DATE_RANGE_OUTSIDE":
+      return t("archive.reasons.DATE_RANGE_OUTSIDE", {
+        from: String(p.from ?? "") || t("archive.reasons.rangeStart"),
+        to: String(p.to ?? "") || t("archive.reasons.rangeToday"),
+      });
+    case "PERMISSION_OFF":
+      return t("archive.reasons.PERMISSION_OFF", { module: moduleLabel(t, String(p.module ?? "")) });
+    default:
+      return t.has(`archive.reasons.${c.code}`) ? t(`archive.reasons.${c.code}`, values(c.params)) : t("archive.reasons.UNKNOWN");
+  }
+}
+
+/** Kapsam notu → { scope, reason } ekran metni. Kodsuz not (eski sunucu) diğer dillerde genel metinle gösterilir. */
+export function archiveNote(t: BackupTranslator, isSource: boolean, n: ScopeNote): { scope: string; reason: string } {
+  if (isSource) return { scope: n.scope, reason: n.reason };
+  return {
+    scope: n.scope_code ? archiveScopeText(t, n.scope_code) : t("archive.reasons.UNKNOWN"),
+    reason: n.reason_code ? archiveReasonText(t, n.reason_code) : t("archive.uncodedNote"),
+  };
+}
+
+/** Plan uyarıları: kaynak dilde birebir; diğer dillerde koddan (kodsuz fazlalık için tek genel satır). */
+export function archiveWarnings(t: BackupTranslator, isSource: boolean, texts: readonly string[], codes: readonly CodedMessage[] | undefined): string[] {
+  if (isSource) return [...texts];
+  const list = codes ?? [];
+  const out = list.map((c) => {
+    if (c.code === "TABLE_COUNT_FAILED") {
+      return t("archive.warnings.TABLE_COUNT_FAILED", { scope: tableTitle(t, String(c.params?.table ?? "")), detail: String(c.params?.detail ?? "") });
+    }
+    return t.has(`archive.warnings.${c.code}`) ? t(`archive.warnings.${c.code}`, values(c.params)) : t("archive.warnings.uncoded");
+  });
+  if (texts.length > list.length) out.push(t("archive.warnings.uncoded"));
+  return [...new Set(out)];
+}
+
+/** İş (parça) ekran adı: kaynak dilde `label` birebir (ARŞİV-RAPORU.txt ile aynı); diğer dillerde `display` kodundan. */
+export function archiveJobLabel(t: BackupTranslator, isSource: boolean, job: JobLike): string {
+  if (isSource || !job.display) return isSource ? job.label : t("archive.jobs.generic");
+  const p = job.display.params ?? {};
+  const name = String(p.name ?? "");
+  switch (job.display.code) {
+    case "DATA_JOB":
+      return t("archive.jobs.DATA_JOB", { module: moduleLabel(t, String(p.module ?? "")) });
+    case "DOSSIER_JOB":
+      return t("archive.jobs.DOSSIER_JOB", { name });
+    case "NUMEROLOGY_JOB":
+      return t("archive.jobs.NUMEROLOGY_JOB", { name: name || t("archive.jobs.unnamedRecord") });
+    case "HD_REPORT_JOB":
+      return t("archive.jobs.HD_REPORT_JOB", { name: name || t("archive.jobs.unlinked") });
+    case "HD_RELATION_JOB":
+      return t("archive.jobs.HD_RELATION_JOB");
+    case "ASTRO_JOB":
+      return t("archive.jobs.ASTRO_JOB", { name: name || t("archive.jobs.unnamedAnalysis") });
+    case "FILE_JOB": {
+      const source = t.has(`archive.fileSources.${p.source}`) ? t(`archive.fileSources.${p.source}`) : String(p.source ?? "");
+      return t("archive.jobs.FILE_JOB", { source, name: name || String(p.id ?? "") });
+    }
+    case "MEDIA_JOB": {
+      const source = t.has(`archive.mediaSources.${p.table}`) ? t(`archive.mediaSources.${p.table}`) : String(p.table ?? "");
+      return t("archive.jobs.MEDIA_JOB", { source, id: String(p.id ?? "") });
+    }
+    default:
+      return t("archive.jobs.generic");
+  }
+}
+
+/** İş sonucu mesajı: kaynak dilde Türkçe mesaj birebir; diğer dillerde `message_code`'dan. */
+export function archiveJobMessage(t: BackupTranslator, isSource: boolean, message: string | null, coded: CodedMessage | undefined): string {
+  if (isSource) return message ?? "";
+  if (!message && !coded) return "";
+  if (!coded) return t("codes.SERVER_TEXT");
+  const p = coded.params ?? {};
+  switch (coded.code) {
+    case "HTTP_STATUS":
+      return httpStatusText(t, Number(p.status) || 0);
+    case "SERVER_CODE":
+      return t.has(`archive.serverCodes.${p.code}`) ? t(`archive.serverCodes.${p.code}`) : httpStatusText(t, Number(p.status) || 0);
+    case "DATA_PARTIAL":
+      return Number(p.errors) > 0
+        ? t("archive.messages.DATA_PARTIAL_ERRORS", { rows: String(p.rows ?? ""), expected: String(p.expected ?? ""), errors: String(p.errors ?? "") })
+        : t("archive.messages.DATA_PARTIAL", { rows: String(p.rows ?? ""), expected: String(p.expected ?? "") });
+    default:
+      return t.has(`archive.messages.${coded.code}`) ? t(`archive.messages.${coded.code}`, values(coded.params)) : t("codes.SERVER_TEXT");
+  }
+}
+
+/** Arşiv API hata yanıtı (plan / danışan arama): kaynak dilde sunucu metni birebir; diğer dillerde kod / HTTP durumu. */
+export function archiveApiError(
+  t: BackupTranslator,
+  isSource: boolean,
+  res: { status: number; json: Record<string, unknown> },
+  fallbackKey: string,
+): string {
+  if (isSource) return String(res.json.error ?? t(fallbackKey));
+  const code = typeof res.json.code === "string" ? res.json.code : "";
+  if (code && t.has(`archive.serverCodes.${code}`)) return t(`archive.serverCodes.${code}`);
+  return res.status ? httpStatusText(t, res.status) : t(fallbackKey);
+}
