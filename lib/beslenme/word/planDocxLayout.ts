@@ -31,6 +31,8 @@ import {
 } from "docx";
 import { C_DARK, C_LIGHT, C_MID, REPORT_FONT, getImgDimensions, sanitizeXmlText, type ReportChild } from "@/lib/docx/reportHelpers";
 import { expertCoverBlock, expertSignatureBlock, type ExpertBranding, type ExpertBrandingVariant } from "@/lib/docx/expertBranding";
+import type { ReportCommonStrings } from "@/lib/i18n/reportCommon";
+import { nutritionText, type NutritionText } from "./planDocxText";
 
 export const BPAGE = {
   size: { width: 11906, height: 16838 },
@@ -69,6 +71,10 @@ export type BCoverInput = {
   brandingVariant?: ExpertBrandingVariant;
   /** Markalama bloğu varsa "Uzman" künye satırı yerine blokta gösterilecek ad. */
   expertName?: string | null;
+  /** Künyedeki uzman satırının etiketi (çıktı dili; yoksa "Uzman"). Markalama bloğu varken bu satır atlanır. */
+  expertLabel?: string;
+  /** Çıktı dili metin katmanı (yoksa kaynak dil tr → bugünkü kapak birebir). */
+  text?: NutritionText;
 };
 
 function rule(color: string, size: number, after: number): Paragraph {
@@ -89,6 +95,7 @@ function logoParagraph(logo: Buffer): Paragraph | null {
 
 /** Tek sayfalık premium kapak (ayrı bölüm → üst/alt bilgi taşımaz). */
 export function bCover(c: BCoverInput): ReportChild[] {
+  const x = c.text ?? nutritionText();
   const out: ReportChild[] = [new Paragraph({ spacing: { before: 0, after: 760 } })];
   const logo = c.logo ? logoParagraph(c.logo) : null;
   if (logo) out.push(logo);
@@ -102,18 +109,18 @@ export function bCover(c: BCoverInput): ReportChild[] {
   out.push(new Paragraph({
     alignment: AlignmentType.CENTER,
     spacing: { after: 640 },
-    children: [new TextRun({ text: "Bütüncül Yaşam Analizi Platformu", italics: true, size: 22, font: REPORT_FONT, color: C_MID })],
+    children: [new TextRun({ text: x.t("brandTagline"), italics: true, size: 22, font: REPORT_FONT, color: C_MID })],
   }));
   out.push(rule(BG.green, 12, 80), rule(BG.mint, 6, 460));
   out.push(new Paragraph({
     alignment: AlignmentType.CENTER,
     spacing: { after: 160 },
-    children: [new TextRun({ text: "BESLENME PLANI", bold: true, size: 30, font: REPORT_FONT, color: BG.green, characterSpacing: 60 })],
+    children: [new TextRun({ text: x.t("coverKicker"), bold: true, size: 30, font: REPORT_FONT, color: BG.green, characterSpacing: 60 })],
   }));
   out.push(new Paragraph({
     alignment: AlignmentType.CENTER,
     spacing: { after: 160 },
-    children: [new TextRun({ text: safe(c.planTitle) || "Beslenme Planı", bold: true, size: 52, font: REPORT_FONT, color: C_DARK })],
+    children: [new TextRun({ text: safe(c.planTitle) || x.t("planFallback"), bold: true, size: 52, font: REPORT_FONT, color: C_DARK })],
   }));
   out.push(new Paragraph({
     alignment: AlignmentType.CENTER,
@@ -122,10 +129,10 @@ export function bCover(c: BCoverInput): ReportChild[] {
   }));
   out.push(rule(BG.mint, 6, 320));
   // F3A: markalama bloğu varsa uzman kimliği blokta yer alır → "Uzman" künye satırı tekrar edilmez.
-  const expertBlock = expertCoverBlock(c.branding, { variant: c.brandingVariant, accent: BG.green, ruleColor: BG.mint, fallbackName: c.expertName, before: 160 });
+  const expertBlock = expertCoverBlock(c.branding, { variant: c.brandingVariant, accent: BG.green, ruleColor: BG.mint, fallbackName: c.expertName, before: 160, common: c.text?.output.isSource === false ? c.text.output.common : undefined });
   for (const [label, value] of c.meta) {
     if (!value?.trim()) continue;
-    if (expertBlock.length && label === "Uzman") continue;
+    if (expertBlock.length && label === (c.expertLabel ?? "Uzman")) continue;
     out.push(new Paragraph({
       alignment: AlignmentType.CENTER,
       spacing: { after: 100 },
@@ -146,13 +153,13 @@ export function bCover(c: BCoverInput): ReportChild[] {
 }
 
 /** Gövde üst bilgisi: sağda marka + plan adı, ince yeşil çizgi. */
-export function bHeader(planTitle: string): Header {
+export function bHeader(planTitle: string, brandLabel = "Yaşam Sistemi · Beslenme Planı"): Header {
   return new Header({
     children: [new Paragraph({
       alignment: AlignmentType.RIGHT,
       border: { bottom: { style: BorderStyle.SINGLE, size: 4, color: BG.mint, space: 4 } },
       children: [
-        new TextRun({ text: "Yaşam Sistemi · Beslenme Planı", size: 16, font: REPORT_FONT, color: BG.green, bold: true }),
+        new TextRun({ text: brandLabel, size: 16, font: REPORT_FONT, color: BG.green, bold: true }),
         new TextRun({ text: `  ·  ${safe(planTitle)}`, size: 16, font: REPORT_FONT, color: C_LIGHT }),
       ],
     })],
@@ -307,17 +314,19 @@ export function bStripTable(items: { label: string; value: string }[], opts: { h
 }
 
 /** Bilgilendirme + Hazırlayan — bölünmeyen tek blok (sona tek başına düşmez). */
-export function bWellness(note: string, expertName?: string | null, brand: { branding?: ExpertBranding | null; brandingVariant?: ExpertBrandingVariant } = {}): ReportChild[] {
+export function bWellness(note: string, expertName?: string | null, brand: { branding?: ExpertBranding | null; brandingVariant?: ExpertBrandingVariant; common?: ReportCommonStrings } = {}): ReportChild[] {
   const name = expertName?.trim();
+  const info = brand.common?.information ?? "Bilgilendirme";
+  const preparedBy = brand.common?.preparedBy ?? "Hazırlayan";
   // F3A: markalama açıksa "Hazırlayan" satırı genişletilmiş imza bloğuyla değişir (bilgilendirme metni AYNEN).
-  const signature = expertSignatureBlock(brand.branding, { variant: brand.brandingVariant, accent: BG.green, fallbackName: name, contentWidth: BCONTENT_W, fill: "f0fdf4" });
+  const signature = expertSignatureBlock(brand.branding, { variant: brand.brandingVariant, accent: BG.green, fallbackName: name, contentWidth: BCONTENT_W, fill: "f0fdf4", common: brand.common });
   if (signature.length) {
     return [
       new Paragraph({
         keepNext: true,
         keepLines: true,
         spacing: { before: 360, after: 60 },
-        children: [new TextRun({ text: "Bilgilendirme", bold: true, size: 18, font: REPORT_FONT, color: C_MID })],
+        children: [new TextRun({ text: info, bold: true, size: 18, font: REPORT_FONT, color: C_MID })],
       }),
       new Paragraph({
         // Sayfa düzeni (10.11): imza kartı bilgilendirmeyle ZORLA birlikte tutulmaz (kart kendi içinde bölünmez).
@@ -334,7 +343,7 @@ export function bWellness(note: string, expertName?: string | null, brand: { bra
       keepNext: true,
       keepLines: true,
       spacing: { before: 360, after: 60 },
-      children: [new TextRun({ text: "Bilgilendirme", bold: true, size: 18, font: REPORT_FONT, color: C_MID })],
+      children: [new TextRun({ text: info, bold: true, size: 18, font: REPORT_FONT, color: C_MID })],
     }),
     new Paragraph({
       keepNext: !!name,
@@ -345,7 +354,7 @@ export function bWellness(note: string, expertName?: string | null, brand: { bra
     ...(name ? [new Paragraph({
       keepLines: true,
       spacing: { after: 60 },
-      children: [new TextRun({ text: `Hazırlayan: ${safe(name)}`, size: 16, font: REPORT_FONT, color: C_MID })],
+      children: [new TextRun({ text: `${preparedBy}: ${safe(name)}`, size: 16, font: REPORT_FONT, color: C_MID })],
     })] : []),
   ];
 }

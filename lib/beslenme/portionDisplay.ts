@@ -22,11 +22,14 @@ export type PortionDisplayInput = {
 /** "su bardağı" (ve olası ascii/case varyantları) — ithal/mekanik ölçü işareti. */
 const CUP_MEASURE_RE = /su\s*barda[ğg][ıi]/i;
 
-/** Doğal porsiyon miktarı (tam sayı → ondalıksız; ondalık → tr-TR, en çok 2 basamak). */
-function formatQuantity(q: number): string {
+/**
+ * Doğal porsiyon miktarı (tam sayı → ondalıksız; ondalık → tr-TR, en çok 2 basamak).
+ * `intlTag` yalnız ondalık AYRACINI seçer (Word çıktı dili, ör. en-GB "1.5"); değer değişmez. Varsayılan tr-TR (web).
+ */
+function formatQuantity(q: number, intlTag = "tr-TR"): string {
   if (!Number.isFinite(q)) return "1";
   if (Number.isInteger(q)) return String(q);
-  return q.toLocaleString("tr-TR", { maximumFractionDigits: 2 });
+  return q.toLocaleString(intlTag, { maximumFractionDigits: 2 });
 }
 
 /**
@@ -38,7 +41,7 @@ function formatQuantity(q: number): string {
  *   - "su bardağı" gibi ithal/mekanik ölçü,
  *   - güvenle normalize edilemeyen hâl (qty≠1 ama etiket "1 <birim>" biçiminde değil).
  */
-export function formatPortionLabel(input: PortionDisplayInput): string | null {
+export function formatPortionLabel(input: PortionDisplayInput, intlTag?: string): string | null {
   const raw = (input.portionLabel ?? "").trim();
   if (!raw) return null;
   if (CUP_MEASURE_RE.test(raw)) return null; // ithal ölçü → gram fallback
@@ -51,7 +54,7 @@ export function formatPortionLabel(input: PortionDisplayInput): string | null {
   //   qty=2, "1 dilim"          → "2 dilim"
   //   qty=1, "1 porsiyon (28 g)"→ "1 porsiyon (28 g)"  (duplicate yok)
   const unitMatch = /^1\s+(.+)$/.exec(raw);
-  if (unitMatch) return `${formatQuantity(q)} ${unitMatch[1].trim()}`;
+  if (unitMatch) return `${formatQuantity(q, intlTag)} ${unitMatch[1].trim()}`;
 
   // "1 <birim>" değil: yalnız tek adet ise etiketi olduğu gibi göster (RAW anlam korunur).
   if (q === 1) return raw;

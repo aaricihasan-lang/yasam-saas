@@ -1,0 +1,63 @@
+{
+  "reports": {
+    "nutrition": {
+      "brandTagline": "Bütüncül Yaşam Analizi Platformu",
+      "coverKicker": "BESLENME PLANI",
+      "planFallback": "Beslenme Planı",
+      "headerBrand": "Yaşam Sistemi · Beslenme Planı",
+      "footerName": "Beslenme Planı · Yaşam Sistemi",
+      "docTitle": "Beslenme Planı — {title}",
+      "filePrefix": "Beslenme-Plani",
+      "status": {
+        "draft": "Taslak",
+        "active": "Aktif",
+        "archived": "Arşiv"
+      },
+      "meta": {
+        "client": "Danışan",
+        "status": "Durum",
+        "statusValue": "{status} · Revizyon V{rev}",
+        "energyTarget": "Günlük Enerji Hedefi",
+        "duration": "Plan Süresi",
+        "durationValue": "{count, plural, other {{shown} gün kaydı}}",
+        "expert": "Uzman"
+      },
+      "intro": "Bu belge, plan içindeki öğün ve besinlerin donmuş kayıt (snapshot) değerlerinden üretilmiş profesyonel beslenme planı özetidir. Enerji ve makro değerleri, kayıt anındaki besin değerlerine dayanır.",
+      "planNote": "Plan Notu",
+      "columns": {
+        "food": "Besin",
+        "amount": "Miktar",
+        "grams": "Gram",
+        "energy": "Enerji"
+      },
+      "dayTarget": "Günlük enerji hedefi: {value}",
+      "mealFallback": "Öğün",
+      "mealEmpty": "Bu öğüne besin eklenmemiş.",
+      "dayEmpty": "Bu güne öğün eklenmemiş.",
+      "energyUnknown": "Kalori girilmemiş",
+      "energyWithMissing": "≥ {value} ({count, plural, other {{shown} kalemde}} enerji verisi eksik)",
+      "strip": {
+        "energy": "Gün Toplamı — Enerji",
+        "protein": "Protein",
+        "carbohydrate": "Karbonhidrat",
+        "fat": "Yağ",
+        "fiber": "Lif"
+      },
+      "summary": {
+        "title": "Plan Genel Özeti",
+        "durationDays": "Plan Süresi (gün kaydı)",
+        "contentDays": "İçerikli Gün Sayısı",
+        "energyTarget": "Günlük Enerji Hedefi",
+        "avgEnergy": "Ortalama Günlük Enerji",
+        "delta": "Hedefe Göre Fark",
+        "avgProtein": "Ortalama Protein",
+        "avgCarbohydrate": "Ortalama Karbonhidrat",
+        "avgFat": "Ortalama Yağ",
+        "avgFiber": "Ortalama Lif",
+        "missingItems": "Enerji Verisi Eksik Kalem",
+        "missingItemsValue": "{count, plural, other {{shown} kalem}} (toplamlara dahil edilmedi)",
+        "note": "Ortalamalar yalnız en az bir besin içeren günler üzerinden hesaplanır."
+      }
+    }
+  }
+}
