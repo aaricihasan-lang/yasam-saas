@@ -14,7 +14,7 @@ import type { Usage360ExpertsData } from "@/lib/admin/stats/apiTypes";
 
 export const runtime = "nodejs";
 
-// F4-R1 (20280125000200): passive = giriş açık + modüller kilitli; login_closed = active=false & arşivde değil.
+// F4-R1 (20280126000200): passive = giriş açık + modüller kilitli; login_closed = active=false & arşivde değil.
 const STATUS_ALLOW = new Set(["all", "active", "passive", "login_closed", "archive", "pending"]);
 const SORT_ALLOW = new Set(["last_activity", "name", "last_login", "today_actions", "d7", "d30", "created_at"]);
 const NO_STORE = { "Cache-Control": "no-store" } as const;

@@ -43,7 +43,7 @@ create table public.users (
   is_super_admin boolean not null default false, is_demo_account boolean not null default false,
   -- TRIAL7 (20280101000000): 7 günlük deneme rejimi; mevcut hesaplarda NULL.
   trial_kind text, trial_status text,
-  -- ÜYE PASİFLEŞTİRME (20280125000000): bağımsız erişim kısıtı ("Pasif"); mevcut hesaplarda NULL.
+  -- ÜYE PASİFLEŞTİRME (20280126000000): bağımsız erişim kısıtı ("Pasif"); mevcut hesaplarda NULL.
   access_restricted_at timestamptz
 );
 create table public.user_sessions (

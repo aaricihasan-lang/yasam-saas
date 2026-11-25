@@ -1,7 +1,7 @@
 /**
  * ÜYE PASİFLEŞTİRME F4 — yerel UI doğrulaması (Playwright; yalnız localhost, dış istekler engellenir; sentetik veri).
  * Önkoşul: scripts/uye-arsiv-4a/ui-stack.ts + yerel `next dev` (UD2_BASE). Production'a temas YOK.
- * Bu betik yığın veritabanına 20280125000000 migration'ını uygular (yeniden çalıştırılabilir) ve mevcut Üye Detayı
+ * Bu betik yığın veritabanına 20280126000000 migration'ını uygular (yeniden çalıştırılabilir) ve mevcut Üye Detayı
  * sayfasında Pasif Yap / Aktif Yap akışını, rozetleri, onay metnini, yönetici hesabının eski davranışını ve 360 px
  * taşmayı doğrular. Yeni sayfa / modül YOK.
  */
@@ -27,7 +27,7 @@ const ok = (c, l, d) => {
   if (c) { pass++; console.log(`  ✓ ${l}`); } else { fail++; failures.push(l); console.error(`  ✗ ${l}${d === undefined ? "" : ` — ${JSON.stringify(d).slice(0, 300)}`}`); }
 };
 
-await db.query(readFileSync(path.join(process.cwd(), "supabase/migrations/20280125000000_member_access_restriction.sql"), "utf8"));
+await db.query(readFileSync(path.join(process.cwd(), "supabase/migrations/20280126000000_member_access_restriction.sql"), "utf8"));
 
 const consoleErrors = [];
 const browser = await chromium.launch();

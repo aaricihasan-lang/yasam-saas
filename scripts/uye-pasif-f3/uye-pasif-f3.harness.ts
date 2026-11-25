@@ -1,6 +1,6 @@
 /**
  * ÜYE PASİFLEŞTİRME F3 — sunucu / API erişim güvenliği harness'ı.
- * Gerçek PostgreSQL (embedded) + gerçek migration zinciri (… → 4a → 4b → 20280125000000) + test-only PostgREST şimi +
+ * Gerçek PostgreSQL (embedded) + gerçek migration zinciri (… → 4a → 4b → 20280126000000) + test-only PostgREST şimi +
  * GERÇEK Next route handler'ları (app/api altındaki TÜM route.ts dosyaları dinamik yüklenir). Production'a / ağa SIFIR
  * temas: global fetch yalnız 127.0.0.1 şimine izin verir (Roxy / Turnstile / e-posta çağrısı yapılamaz, yapılırsa FAIL).
  *
@@ -81,7 +81,7 @@ function ok(cond: boolean, label: string, detail?: unknown): void {
 }
 
 const readMigAt = (dir: string, f: string) => readFileSync(path.join(dir, "supabase/migrations", f), "utf8");
-const MIG_F2 = "20280125000000_member_access_restriction.sql";
+const MIG_F2 = "20280126000000_member_access_restriction.sql";
 const F2_DIR = path.resolve(HERE, "..", "..");
 const PRE = [
   "20271009100000_admin_purge_archived_expert.sql",

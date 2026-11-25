@@ -5,7 +5,7 @@
 -- Etki: seçilen hesapta giriş AÇILIR ama tüm modüller kilitli kalır (active=true + access_restricted_at).
 --   Tek UPDATE ile iki alan birlikte yazılır → hesabın kısıtsız aktif olduğu bir an YOKTUR.
 --   Paket, deneme, modül, ödeme ve onay alanlarına dokunulmaz. Hiçbir satır silinmez. Oturum açılmaz.
--- Ön koşul: 20280125000000 uygulanmış VE F3 kodu (üyelik kapısında kısıt) production'da. Aksi halde kısıt
+-- Ön koşul: 20280126000000 uygulanmış VE F3 kodu (üyelik kapısında kısıt) production'da. Aksi halde kısıt
 --   uygulanmaz ve hesap TAM erişimle açılır → betik F3 işaret kontrolü ister (aşağıda v_f3_live).
 -- Varsayılan son satır ROLLBACK'tir; sonuç doğrulandıktan sonra Owner ayrıca COMMIT kararı verir.
 --

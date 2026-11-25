@@ -90,7 +90,7 @@ export async function GET(req: NextRequest, ctx: RouteContext) {
   };
 
   // ÜYE PASİFLEŞTİRME F4: bağımsız erişim kısıtı ("Pasif" = giriş açık, modüller kilitli) AYRI okunur — arşiv ile
-  // aynı desen; kolon yoksa (migration 20280125000000 öncesi) supported=false → istemci eski "Pasif Yap" davranışı.
+  // aynı desen; kolon yoksa (migration 20280126000000 öncesi) supported=false → istemci eski "Pasif Yap" davranışı.
   const { data: accessRow, error: accessErr } = await db
     .from("users")
     .select("access_restricted_at")

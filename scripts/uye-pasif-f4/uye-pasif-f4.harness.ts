@@ -1,6 +1,6 @@
 /**
  * ÜYE PASİFLEŞTİRME F4 — mevcut uzman yönetim sayfası (Pasif Yap / Aktif Yap) harness'ı.
- * Gerçek PostgreSQL (embedded) + gerçek migration zinciri (… → 4a → 4b → 20280125000000) + test-only PostgREST şimi +
+ * Gerçek PostgreSQL (embedded) + gerçek migration zinciri (… → 4a → 4b → 20280126000000) + test-only PostgREST şimi +
  * GERÇEK admin route handler'ları (detay GET, status POST) + gerçek kullanıcı kapısı (verifyUserRequest).
  * Production'a / ağa SIFIR temas; tüm hesaplar sentetik (ZZ_PSF4_*). Yeni sayfa / modül YOK.
  *
@@ -46,7 +46,7 @@ globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
   throw new Error(`AG ENGELLENDI (harness): ${u.slice(0, 80)}`);
 }) as typeof fetch;
 
-const MIG_F2 = "20280125000000_member_access_restriction.sql";
+const MIG_F2 = "20280126000000_member_access_restriction.sql";
 const PRE = [
   "20271009100000_admin_purge_archived_expert.sql",
   "20271230000000_astrology_technique_grants.sql",

@@ -3,7 +3,7 @@
  *
  * Owner kararı (2026-11-24): Pasif uzman giriş yapar, ana sayfayı ve modülleri görür; hiçbir ürün modülünü kullanamaz
  * (danışan, eski/yeni analiz, rapor/Word/PDF, yedek/geri yükleme/dışa aktarma, Storage/imzalı bağlantı, kayıt yazma).
- * DB eşi: supabase/migrations/20280125000000_member_access_restriction.sql (users.access_restricted_at; active=true kalır).
+ * DB eşi: supabase/migrations/20280126000000_member_access_restriction.sql (users.access_restricted_at; active=true kalır).
  *
  * KAPALI-BAŞLANGIÇ: kısıt verifyUserRequest'te (tüm kullanıcı uçlarının ortak kapısı) uygulanır; yalnız aşağıdaki
  * AÇIK LİSTE geçer. Listede olmayan her mevcut ve YENİ eklenen uç kısıtlıdır. Liste yol + yöntem bazında BİREBİR

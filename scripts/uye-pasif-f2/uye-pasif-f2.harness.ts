@@ -1,6 +1,6 @@
 /**
  * ÜYE PASİFLEŞTİRME F2 — bağımsız erişim kısıtı ("Pasif") veritabanı altyapısı harness'ı.
- * Gerçek PostgreSQL (embedded) + gerçek migration zinciri (… → 4a → 4b → 20280125000000) + gerçek RPC'ler.
+ * Gerçek PostgreSQL (embedded) + gerçek migration zinciri (… → 4a → 4b → 20280126000000) + gerçek RPC'ler.
  * Production'a / ağa SIFIR temas; tüm hesaplar sentetik (ZZ_PSF2_*). Route / UI kodu YOK (F3+).
  *
  *   M  migration: ön koşul fail-closed (audit CHECK sürüklenmesi, 4a alanı yok) · 2× uygulama · DML yok · yetkiler
@@ -46,7 +46,7 @@ function ok(cond: boolean, label: string, detail?: unknown): void {
   }
 }
 
-const MIG = "20280125000000_member_access_restriction.sql";
+const MIG = "20280126000000_member_access_restriction.sql";
 const PRE = [
   "20271009100000_admin_purge_archived_expert.sql",
   "20271230000000_astrology_technique_grants.sql",

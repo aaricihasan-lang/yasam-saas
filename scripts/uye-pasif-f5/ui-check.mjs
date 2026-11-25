@@ -1,7 +1,7 @@
 /**
  * ÜYE PASİFLEŞTİRME F5 — pasif uzmanın ana sayfası (Playwright; yalnız localhost, dış istekler engellenir; sentetik veri).
  * Önkoşul: scripts/uye-arsiv-4a/ui-stack.ts + yerel `next dev` (UD2_BASE). Production'a temas YOK.
- * Betik yığın veritabanına 20280125000000 + 20280125000100 migration'larını uygular (yeniden çalıştırılabilir).
+ * Betik yığın veritabanına 20280126000000 + 20280126000100 migration'larını uygular (yeniden çalıştırılabilir).
  *
  *   [1] aktif uzman: bant yok, modül kutuları açık, sol menü bağlantılı (mevcut davranış)
  *   [2] uzman sistemdeyken yönetici pasif yapar → modül tıklaması: rota ekranı standart metin; API 403
@@ -35,7 +35,7 @@ const ok = (c, l, d) => {
   if (c) { pass++; console.log(`  ✓ ${l}`); } else { fail++; failures.push(l); console.error(`  ✗ ${l}${d === undefined ? "" : ` — ${JSON.stringify(d).slice(0, 300)}`}`); }
 };
 
-for (const m of ["20280125000000_member_access_restriction.sql", "20280125000100_member_list_access_restricted.sql", "20280125000200_usage360_member_access_states.sql"]) {
+for (const m of ["20280126000000_member_access_restriction.sql", "20280126000100_member_list_access_restricted.sql", "20280126000200_usage360_member_access_states.sql"]) {
   await db.query(readFileSync(path.join(process.cwd(), "supabase/migrations", m), "utf8"));
 }
 const E = cfg.expert, O = cfg.owner;

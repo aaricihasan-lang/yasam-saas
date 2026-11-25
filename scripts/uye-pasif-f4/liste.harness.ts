@@ -2,14 +2,14 @@
  * ÜYE PASİFLEŞTİRME F4 tamamlama — üye listeleri harness'ı (gerçek PG + gerçek migration + gerçek admin rotaları).
  * Production'a / ağa SIFIR temas; sentetik hesaplar (ZZ_PSL_*).
  *
- *   M  20280125000100: ön koşul fail-closed (kısıt kolonu yokken uygulanmaz) · 2× uygulama · DML yok · yetkiler
+ *   M  20280126000100: ön koşul fail-closed (kısıt kolonu yokken uygulanmaz) · 2× uygulama · DML yok · yetkiler
  *   V  Üye Listesi V2 (admin_list_members_v2 + /api/admin/members): kısıtlı uzman 'pasif' + access_restricted; eski giriş
  *      kapalı 'pasif' (access_restricted=false); arşiv 'arsiv'; Aktif (Pro/Deneme) görünmez; 'Pasif hesaplar' filtresi
  *   K  TİCARİ SAYAÇLAR ('counts') ve ödeme / süre bayrakları kısıt öncesi ↔ sonrası BİREBİR (anlam değişmez)
  *   C  Klasik liste (admin_list_users + /api/admin/users): 'Aktif' filtresinde kısıtlı uzman YOK, 'Pasif'te VAR;
  *      satır access_restricted; klasik sayaçlar birebir
  *   U  Kullanım Takibi (usage360 experts / detail rotaları): accessRestricted gösterim bayrağı
- *   G  F4-R1 Kullanım Takibi: 20280125000200 (fail-closed · 2× · DML yok · yetkiler) · Genel Bakış 4 ayrık durum
+ *   G  F4-R1 Kullanım Takibi: 20280126000200 (fail-closed · 2× · DML yok · yetkiler) · Genel Bakış 4 ayrık durum
  *      (Aktif / Pasif / Giriş kapalı / Arşivde; toplam = Toplam Uzman) · uzman süzgeci 4 durum · gerçek arşiv bayrağı ·
  *      geçmiş kullanım kayıtları (usage_daily) birebir
  *   E  etiketler: memberStageLabel (Pasif · modüller kilitli / Pasif · giriş kapalı), StatusPill, AccountBadge
@@ -44,9 +44,9 @@ globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
   throw new Error(`AG ENGELLENDI (harness): ${u.slice(0, 80)}`);
 }) as typeof fetch;
 
-const MIG_F2 = "20280125000000_member_access_restriction.sql";
-const MIG_LIST = "20280125000100_member_list_access_restricted.sql";
-const MIG_U360 = "20280125000200_usage360_member_access_states.sql";
+const MIG_F2 = "20280126000000_member_access_restriction.sql";
+const MIG_LIST = "20280126000100_member_list_access_restricted.sql";
+const MIG_U360 = "20280126000200_usage360_member_access_states.sql";
 const PRE = [
   "20271009100000_admin_purge_archived_expert.sql",
   "20271230000000_astrology_technique_grants.sql",
@@ -129,7 +129,7 @@ async function main(): Promise<void> {
     const usage0 = await usageHash();
 
     // ── M) Migration ─────────────────────────────────────────────────────────
-    console.log("\n[M] Migration 20280125000100");
+    console.log("\n[M] Migration 20280126000100");
     let pre = "";
     try { await su.query(readMig(MIG_LIST)); } catch (e) { pre = (e as Error).message; await su.query("rollback").catch(() => undefined); }
     ok(/uye-pasif liste on kosul/.test(pre), "ön koşul: kısıt kolonu yokken liste migration'ı fail-closed (uygulanmaz)", pre);

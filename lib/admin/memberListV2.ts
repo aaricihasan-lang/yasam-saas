@@ -211,7 +211,7 @@ export type MemberV2Row = {
   last_login_at: string | null;
   pro_request_at: string | null;
   pay_check: boolean;
-  /** ÜYE PASİFLEŞTİRME (20280125000100): 'pasif' aşamasında bağımsız kısıt (giriş açık, modüller kilitli). Eski RPC'de yok. */
+  /** ÜYE PASİFLEŞTİRME (20280126000100): 'pasif' aşamasında bağımsız kısıt (giriş açık, modüller kilitli). Eski RPC'de yok. */
   access_restricted?: boolean;
 };
 

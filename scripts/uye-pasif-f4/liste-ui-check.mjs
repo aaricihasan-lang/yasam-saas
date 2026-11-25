@@ -1,7 +1,7 @@
 /**
  * ÜYE PASİFLEŞTİRME F4-R1 — yönetici listeleri tarayıcı kontrolü (Playwright; yalnız localhost; sentetik yığın).
  * Önkoşul: scripts/uye-arsiv-4a/ui-stack.ts + yerel `next dev` (UD2_BASE). Production'a temas YOK.
- * Yığına 20280125000000 / 000100 / 000200 migration'larını uygular (yeniden çalıştırılabilir).
+ * Yığına 20280126000000 / 000100 / 000200 migration'larını uygular (yeniden çalıştırılabilir).
  *
  *   V2 üye listesi · Pasif süzgeci · klasik liste rozeti · Kullanım Takibi › Genel Bakış (4 ayrık durum, DB ile birebir)
  *   · Uzmanlar süzgeci (Aktif / Pasif / Giriş kapalı / Arşivde) · 360 px taşma yok · "Aktif Yap" sonrası ilk hâl
@@ -19,7 +19,7 @@ const cfg = (await resolveUiConfig({ envVar: "UD2_CFG", prefixes: ["uye-detay-v2
 mkdirSync(SHOTS, { recursive: true });
 const db = new pg.Client({ host: "127.0.0.1", port: cfg.pg.port, user: "postgres", password: "testpw", database: "postgres" });
 await db.connect();
-for (const m of ["20280125000000_member_access_restriction.sql", "20280125000100_member_list_access_restricted.sql", "20280125000200_usage360_member_access_states.sql"]) {
+for (const m of ["20280126000000_member_access_restriction.sql", "20280126000100_member_list_access_restricted.sql", "20280126000200_usage360_member_access_states.sql"]) {
   await db.query(readFileSync(path.join(process.cwd(), "supabase/migrations", m), "utf8"));
 }
 let pass = 0, fail = 0;

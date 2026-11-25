@@ -1,7 +1,7 @@
 -- =============================================================================
 -- ÜYE PASİFLEŞTİRME · F4 tamamlama — ÜYE LİSTESİ V2: bağımsız kısıtlı ("Pasif") uzman listede Aktif görünmez
 -- =============================================================================
--- SORUN: 20280125000000 sonrası "Pasif" uzman active=true kalır → admin_member_stage_of 'pro'/'deneme' döner → listede
+-- SORUN: 20280126000000 sonrası "Pasif" uzman active=true kalır → admin_member_stage_of 'pro'/'deneme' döner → listede
 --   Aktif (Pro / Denemede) görünür.
 -- ÇÖZÜM: admin_list_members_v2 (REPLACE) — 20280101000600 §6 gövdesi AYNEN; farklar YALNIZ:
 --   1) base: u.access_restricted_at okunur.
@@ -10,8 +10,8 @@
 --      ANLAMLARI DEĞİŞMEZ (kısıtlı Pro uzman ticari Pro sayılmaya devam eder; ödeme takibinde kalır).
 --   4) satır çıktısına access_restricted (boolean): 'pasif' aşamasında "modüller kilitli" ile eski "giriş kapalı" ayrımı.
 -- DOKUNULMAYAN: imza, yetkiler, filtre adları, admin_member_stage_of, karar sayaçları, arşiv mantığı. MEVCUT SATIRLARA DML YOK.
--- ÖN KOŞUL: 20280125000000 (users.access_restricted_at) + 4a (archived_at).
--- DEPLOY SIRASI: 20280125000000 → bu migration → kod. Eski kod access_restricted alanını yok sayar (zararsız).
+-- ÖN KOŞUL: 20280126000000 (users.access_restricted_at) + 4a (archived_at).
+-- DEPLOY SIRASI: 20280126000000 → bu migration → kod. Eski kod access_restricted alanını yok sayar (zararsız).
 -- UYGULAMA: AYRI OWNER ONAYI. Bu aşamada production'a UYGULANMAZ.
 -- KLASİK LİSTE: admin_list_users (REPLACE) — 20271006000000 gövdesi AYNEN; yalnız 'Aktif / Pasif' filtresi kısıtı dikkate alır.
 -- GERİ ALMA: 20280101000600 §6 (admin_list_members_v2) ve 20271006000000 (admin_list_users) gövdeleri yeniden uygulanır.

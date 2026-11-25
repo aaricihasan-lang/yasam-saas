@@ -1,7 +1,7 @@
 -- =============================================================================
 -- ÜYE PASİFLEŞTİRME F2 — ESKİ "GİRİŞİ KAPALI" HESAPLAR · SALT-OKUNUR RAPOR (migration DEĞİL)
 -- =============================================================================
--- Amaç: 20280125000000 uygulandıktan sonra, bugünkü "Pasif Yap" (active=false) ile girişi kapatılmış ve
+-- Amaç: 20280126000000 uygulandıktan sonra, bugünkü "Pasif Yap" (active=false) ile girişi kapatılmış ve
 --   arşivlenmemiş hesapları Owner kararına sunmak. Hiçbir satır DEĞİŞMEZ (READ ONLY işlem).
 -- Kişisel veri yazdırılmaz: ad / e-posta / telefon YOK; yalnız kimlik, rol, onay, paket özeti ve tarihler.
 -- Çalıştırma: Owner onayıyla, production SQL konsolunda; işlem READ ONLY açılır.

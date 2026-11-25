@@ -150,7 +150,7 @@ export async function verifyUserRequest(
   // (sessionToken / userId header'ları) dayanır ve ayrı tablolara vurur → paralel
   // çalıştırılır. Güvenlik kontrolleri aşağıda aynı sırayla, aynı status ve gövdeyle
   // değerlendirilir (davranış korunur; users satırı yalnız binding geçerse döner).
-  // ÜYE PASİFLEŞTİRME F3: bağımsız erişim kısıtı ayrı (paralel) okunur — migration 20280125000000 öncesi kolon
+  // ÜYE PASİFLEŞTİRME F3: bağımsız erişim kısıtı ayrı (paralel) okunur — migration 20280126000000 öncesi kolon
   // yoksa (42703) kısıt YOK sayılır (bugünkü davranış); başka her hata → kapalı (403).
   const restrictionQuery = db
     .from("users")

@@ -11,8 +11,8 @@
 --   pending / all AYNEN. Dört durum ayrık; 'all' toplamı değişmez.
 -- DOKUNULMAYAN: imza, yetkiler (REVOKE/GRANT aynen geçerli; CREATE OR REPLACE korur), satır çıktısı, telemetri
 --   hesapları, ticari sayaçlar (usage360 ticari sayaç üretmez). MEVCUT SATIRLARA / KULLANIM KAYITLARINA DML YOK.
--- ÖN KOŞUL: 20280125000000 (users.access_restricted_at) + 4a (archived_at).
--- DEPLOY SIRASI: 20280125000000 → 20280125000100 → bu migration → kod. Eski kod 'login_closed' göndermez (zararsız).
+-- ÖN KOŞUL: 20280126000000 (users.access_restricted_at) + 4a (archived_at).
+-- DEPLOY SIRASI: 20280126000000 → 20280126000100 → bu migration → kod. Eski kod 'login_closed' göndermez (zararsız).
 -- UYGULAMA: AYRI OWNER ONAYI. Bu aşamada production'a UYGULANMAZ.
 -- GERİ ALMA: 20270206000000 §2 gövdesi yeniden uygulanır.
 -- =============================================================================

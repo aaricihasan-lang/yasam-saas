@@ -60,8 +60,8 @@ const AUDIT_ACTIONS_AT_4A: readonly string[] = [
 ];
 /** 4a SONRASI yetkili olarak eklenen eylemler → ekleyen migration. Yeni eylem ancak buraya bilinçli eklenirse geçer. */
 const AUDIT_ACTIONS_AFTER_4A: Readonly<Record<string, string>> = {
-  user_access_restricted: "20280125000000_member_access_restriction.sql",
-  user_access_unrestricted: "20280125000000_member_access_restriction.sql",
+  user_access_restricted: "20280126000000_member_access_restriction.sql",
+  user_access_unrestricted: "20280126000000_member_access_restriction.sql",
 };
 
 const AUDIT_CHECK_RE = /ADD\s+CONSTRAINT\s+admin_audit_action_chk\s+CHECK\s*\(\s*action\s+IN\s*\(([\s\S]*?)\)\s*\)/i;
