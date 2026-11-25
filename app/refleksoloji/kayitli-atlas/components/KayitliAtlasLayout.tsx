@@ -235,7 +235,7 @@ export function KayitliAtlasLayout() {
 
   const handleDeleteOrgan = async (organ: string) => {
     // BUG-3: bu organı kullanan protokolleri sessizce orphan bırakma — kullanıcıya söyle.
-    const usage = await getOrganProtocolUsage(organ).catch(() => ({ count: 0, titles: [] }));
+    const usage = await getOrganProtocolUsage(organ).catch(() => ({ count: 0, titles: [] as string[], untitled: undefined as boolean[] | undefined }));
     const usageNote =
       usage.count > 0
         ? `\n\n${t("single.usageNote", {
@@ -265,7 +265,7 @@ export function KayitliAtlasLayout() {
   };
 
   const handleDeleteOrphan = async (organ: string) => {
-    const usage = await getOrganProtocolUsage(organ).catch(() => ({ count: 0, titles: [] }));
+    const usage = await getOrganProtocolUsage(organ).catch(() => ({ count: 0, titles: [] as string[], untitled: undefined as boolean[] | undefined }));
     const usageNote =
       usage.count > 0
         ? `\n\n${t("single.usageNote", {
