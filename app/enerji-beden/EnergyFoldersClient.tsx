@@ -2,13 +2,17 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { readYasamUser, syncYasamUserFromDb, type YasamUser } from "@/lib/auth/yasamUser";
 import { ENERGY_BODY_HUB_CHILDREN, canSeeHubChild } from "@/lib/auth/hubVisibility";
 import { tiltLeave, tiltMove } from "@/app/_premium/enerji-beden/cardTilt";
 import styles from "@/app/_premium/enerji-beden/enerjiBeden.module.css";
 
 export type EnergyFolder = {
+  /** Kanonik (dil-bağımsız) kart kimliği — React anahtarı; görünen metin i18nKey ile çözülür. */
   title: string;
+  /** Görünen başlık/açıklama/rozet anahtarı (bodyEnergyHub.cards.<i18nKey>). */
+  i18nKey: "bioenergy" | "reflexology" | "cupping";
   desc: string;
   href: string;
   badge: string;
@@ -28,6 +32,7 @@ const CHILD_BY_HREF = new Map(ENERGY_BODY_HUB_CHILDREN.map((child) => [child.hre
  * İzinler canlı DB'den kesinleşmeden kart render EDİLMEZ (yetkisiz kart flash etmez).
  */
 export function EnergyFoldersClient({ folders }: { folders: readonly EnergyFolder[] }) {
+  const t = useTranslations("bodyEnergyHub");
   const [user, setUser] = useState<YasamUser | null>(null);
   const [resolved, setResolved] = useState(false);
 
@@ -57,7 +62,7 @@ export function EnergyFoldersClient({ folders }: { folders: readonly EnergyFolde
     : [];
 
   return (
-    <section className={styles.cards} aria-label="Beden & Enerji klasörleri">
+    <section className={styles.cards} aria-label={t("cardsAria")}>
       {visible.map((folder) => (
         <Link
           key={folder.title}
@@ -74,9 +79,9 @@ export function EnergyFoldersClient({ folders }: { folders: readonly EnergyFolde
             </span>
           </div>
           <div className={styles.cardBody}>
-            <span className={styles.badge}>{folder.badge}</span>
-            <h2 className={styles.cardTitle}>{folder.title}</h2>
-            <p className={styles.cardDesc}>{folder.desc}</p>
+            <span className={styles.badge}>{t(`cards.${folder.i18nKey}.badge`)}</span>
+            <h2 className={styles.cardTitle}>{t(`cards.${folder.i18nKey}.title`)}</h2>
+            <p className={styles.cardDesc}>{t(`cards.${folder.i18nKey}.desc`)}</p>
           </div>
         </Link>
       ))}
