@@ -26,6 +26,7 @@ import { SIGN_IDS, type SignId } from "@/lib/astrology/model/western";
 import { SIGN_GLYPHS, formatDegree } from "@/lib/astrology/labels/tr";
 import { RoxyKundli, type KbLookup } from "./VedicPanels";
 import { chalitKundliTitles, toChalitKundliData } from "../_lib/chalitKundli";
+import type { KundliLocale } from "../_lib/kundliLocalize";
 
 const th = "px-2 py-1.5 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500";
 const td = "px-2 py-1.5 text-sm text-slate-800";
@@ -40,7 +41,7 @@ function useHaritaText() {
   const t = useTranslations("atlas.vedicHarita");
   const tv = useTranslations("atlas.vedic");
   const tt = useTranslations("terms");
-  const locale = useLocale() === "en" ? "en" : "tr";
+  const locale: KundliLocale = useLocale() === "en" ? "en" : "tr";
   const graha = (id: VedicGrahaId) => tt(`graha.${id}`);
   const sign = (s: SignId) => `${SIGN_GLYPHS[s]} ${tt(`zodiac.${s}`)}`;
   const lon = (x: number) => `${sign(SIGN_IDS[Math.floor((((x % 360) + 360) % 360) / 30) % 12])} ${formatDegree(((x % 30) + 30) % 30)}`;
