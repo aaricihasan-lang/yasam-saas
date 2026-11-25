@@ -100,9 +100,9 @@ export function stoneRecordDisplayName(stone: { id?: string | null; stone_name: 
 // ─── 3. EN arama genişletmesi ─────────────────────────────────────────────────────────────────────
 
 /** Önek eşleşmesi için en kısa terim (daha kısası çok sayıda taşı genişletir). */
-export const STONE_SEARCH_PREFIX_MIN = 3;
+export const STONE_SEARCH_PREFIX_MIN = 4;
 /** Bir aramaya eklenecek en çok Türkçe yazım (regex uzunluğu sınırı). */
-export const STONE_SEARCH_VARIANTS_MAX = 12;
+export const STONE_SEARCH_VARIANTS_MAX = 6;
 
 /** EN karşılaştırma anahtarı: kütüphane katlaması + boşluk/kesme işaretsiz ("Tiger's Eye" = "tigers eye" = "tigerseye"). */
 const enKey = (s: string): string => foldStoneLibraryText(s).replace(/ /g, "");
@@ -127,7 +127,7 @@ function getEnIndex(): EnIndexEntry[] {
 
 /**
  * EN arayüz araması için ek Türkçe yazımlar. Terim, yüksek güvenli bir standart taşın İngilizce adına (veya İngilizce
- * takma adına) TAM ya da ÖNEK (≥ 3 karakter) olarak eşleşirse o taşın Türkçe yazım kökleri döner; aksi hâlde boş dizi.
+ * takma adına) TAM ya da ÖNEK (≥ 4 karakter; QA D4-01: kısa öneklerin filtre URL'sini şişirmemesi için) olarak eşleşirse o taşın Türkçe yazım kökleri döner; aksi hâlde boş dizi.
  * TR arayüzde DAİMA boş dizi (davranış birebir). Dönen değerler düz metindir — çağıran (stonesListFetch) her birini aynı
  * literal-regex kaçışından geçirir; kullanıcı girdisi desen olarak yorumlanmaz.
  */
