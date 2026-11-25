@@ -3,7 +3,8 @@
  * SAF (server/client-agnostic; supabase/secret YOK).
  */
 
-import { formatInstantDate, zonedDayKey } from "@/lib/time/reportTime";
+import { zonedDayKey } from "@/lib/time/reportTime";
+import { aromaText } from "./text";
 
 /** Aromaterapi modül kimliği — kapak/başlık. */
 export const AROMA_MODULE_TITLE = "AROMATERAPİ";
@@ -35,8 +36,12 @@ export const OIL_TYPE_LABEL: Record<string, string> = {
 /** Genel raporda yağ bölümlerinin sırası. */
 export const OIL_TYPE_ORDER = ["essential", "carrier", "maceration", "hydrosol", "resin", "absolute"] as const;
 
+/** Çıktı dilinde etiket (I18N: report/text — TR'de OIL_TYPE_LABEL ile birebir). Bilinmeyen kod aynen. */
 export function oilTypeLabel(t: string | null | undefined): string {
-  return OIL_TYPE_LABEL[(t ?? "").trim()] ?? (t ?? "—");
+  const code = (t ?? "").trim();
+  const x = aromaText();
+  if (OIL_TYPE_LABEL[code] !== undefined) return x.t(`oilType.${code}`);
+  return t ?? "—";
 }
 
 /**
@@ -109,13 +114,13 @@ export function dateStamp(d: Date): string {
   return zonedDayKey(d);
 }
 
-/** İnsan-okur tarih (kapak): "27 Eylül 2026" — Europe/Istanbul günü (FA-02). */
+/** İnsan-okur tarih (kapak): "27 Eylül 2026" — Europe/Istanbul günü (FA-02); ay adı çıktı dilinde. */
 export function humanDate(d: Date): string {
-  return formatInstantDate(d, { style: "long" });
+  return aromaText().output.date(d, { style: "long" });
 }
 
-/** Aromaterapi_<parça>_<tarih>.docx — profesyonel, filesystem-safe. */
+/** Aromaterapi_<parça>_<tarih>.docx — profesyonel, filesystem-safe. Sistem öneki çıktı dilinde (EN: Aromatherapy_). */
 export function reportFilename(parts: string[], d: Date): string {
   const slug = parts.map((p) => slugifyTr(p, 40)).filter(Boolean).join("_");
-  return `Aromaterapi_${slug}_${dateStamp(d)}.docx`;
+  return `${slugifyTr(aromaText().t("filePrefix"), 40)}_${slug}_${dateStamp(d)}.docx`;
 }

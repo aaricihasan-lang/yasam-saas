@@ -33,7 +33,7 @@ const OUT_DIR = outIdx >= 0 ? args[outIdx + 1] : null;
 const onlyIdx = args.indexOf("--only");
 const ONLY = onlyIdx >= 0 ? new Set(args[onlyIdx + 1]!.split(",")) : null;
 /** Çevirisi bu dalda tamamlanan üreticiler — EN kontrolleri yalnız bunlarda zorunlu (diğerleri yalnız TR golden). */
-const EN_READY = new Set((process.env.RCD_EN_READY ?? "P16").split(",").filter(Boolean));
+const EN_READY = new Set((process.env.RCD_EN_READY ?? "P16,P19").split(",").filter(Boolean));
 
 let pass = 0;
 let fail = 0;
@@ -102,7 +102,8 @@ const TR_CATALOG_FRAGMENTS: { text: string; re: RegExp; folded?: boolean }[] = (
   }
   const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   // Hem birebir hem ASCII'ye katlanmış + büyük/küçük harf duyarsız eşleşme ("ÜRÜN #" → "URUN #" sızıntısı da yakalanır).
-  return [...frags].flatMap((text) => [
+  // C+D eki: TR parçası aynı zamanda bir EN değeriyse (ör. "Cins (Genus)" → "Genus") dil-bağımsız terimdir → sızıntı sayılmaz.
+  return [...frags].filter((text) => !enFolded.has(fold(text).toLowerCase())).flatMap((text) => [
     { text, re: new RegExp(`(^|[^A-Za-zÇĞİÖŞÜçğıöşü])${esc(text)}($|[^A-Za-zÇĞİÖŞÜçğıöşü])`) },
     ...(enFolded.has(fold(text).toLowerCase()) ? [] : [{ text: `${text} (ASCII)`, re: new RegExp(`(^|[^A-Za-z])${esc(fold(text))}($|[^A-Za-z])`, "i"), folded: true }]),
   ]);
@@ -114,7 +115,8 @@ function fold(t: string): string {
 }
 
 function leakOf(t: string): string | null {
-  const s = t.replace(/Yaşam Sistemi|YAŞAM SİSTEMİ/g, "");
+  // URL'ler kayıt verisidir (ör. kaynak bağlantısı) → dil denetimine girmez.
+  const s = t.replace(/Yaşam Sistemi|YAŞAM SİSTEMİ/g, "").replace(/https?:\/\/\S+/g, " ");
   const frag = TR_CATALOG_FRAGMENTS.find((f) => (f.folded ? f.re.test(fold(s)) : f.re.test(s)));
   if (TR_LETTERS.test(s) || TR_ASCII_WORDS.test(s) || frag) return `«${t}»${frag ? ` (TR katalog parçası «${frag.text}»)` : ""}`;
   return null;
@@ -147,7 +149,8 @@ async function enChecks(tr: Run, en: Run): Promise<void> {
     ok(/\/Lang \(en-GB\)/.test(raw), `EN ${name}: PDF /Lang (en-GB)`);
   }
   if (en.filename) {
-    const f = en.filename.replace(USER_RE, "");
+    // Kullanıcı/katalog adının slug'ı (KULLANICI_…/KATALOG_…) dosya adında aynen kalır → sistem kısmı denetiminden çıkarılır.
+    const f = en.filename.replace(USER_RE, "").replace(/(KULLANICI|KATALOG)[-_][A-Za-z0-9_-]*?(?=[-_]\d{4}-\d{2}-\d{2}|\.docx$)/gi, "");
     ok(!TR_ASCII_WORDS.test(f.replace(/[-_.]/g, " ")) && !TR_LETTERS.test(f), `EN ${name}: dosya adı sistem kısmı İngilizce (${en.filename})`);
   }
 }
