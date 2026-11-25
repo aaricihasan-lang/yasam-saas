@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
+import { useDogaltasServerError } from "@/lib/dogaltas/useServerErrorText";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { CameraCaptureButton } from "@/components/media/CameraCaptureButton";
 import { looksLikeImageFile, optimizeImageFile } from "@/lib/media/imageOptimize";
@@ -62,24 +63,28 @@ const warningTypes = STONE_WARNING_OPTIONS;
 const assignmentSections = [
   {
     title: "Mineraller",
+    // i18n-ignore: kullanılmayan TR yedek alanı; gösterim asgDesc() → stones.assignmentDesc
     desc: "Mineral adı ve oran yüzdesi ekleyin.",
     icon: "🧪",
     fields: ["Mineral", "Oran %"],
   },
   {
     title: "Etkili Organlar",
+    // i18n-ignore: kullanılmayan TR yedek alanı; gösterim asgDesc() → stones.assignmentDesc
     desc: "Etkili organ veya kısa not ekleyin.",
     icon: "🫀",
     fields: ["Etkili Organ / Not"],
   },
   {
     title: "Astrolojik Atama",
+    // i18n-ignore: kullanılmayan TR yedek alanı; gösterim asgDesc() → stones.assignmentDesc
     desc: "Burç, gezegen veya astrolojik eşleşme ekleyin.",
     icon: "✨",
     fields: ["Astrolojik Atama"],
   },
   {
     title: "Elementler",
+    // i18n-ignore: kullanılmayan TR yedek alanı; gösterim asgDesc() → stones.assignmentDesc
     desc: "Ateş, su, hava, toprak gibi elementleri ekleyin.",
     icon: "🌿",
     fields: ["Element"],
@@ -159,6 +164,7 @@ const uiBtn =
 
 export default function DogaltasKayitPage() {
   const t = useTranslations("stones.records");
+  const se = useDogaltasServerError();
   // Facet display: value KANONİK Türkçe kalır (chakras[]/warning_tags[] yazımı + filtre
   // canonical'da); yalnız görünen etiket localize edilir. Anahtar eksikse canonical'a düşer.
   const tf = useTranslations("stones");
@@ -478,7 +484,7 @@ export default function DogaltasKayitPage() {
         // FAZ-5H: ham backend hatası kullanıcıya gösterilmez; fotoğraf önizlemede kalır.
         // AUTH-06: demo salt-okunur yanıtında (403) sunucunun demo açıklaması gösterilir.
         console.error("[dogaltas-kayit] fotoğraf kaldırma hatası:", `HTTP ${res.status}`);
-        showError(json.demo && json.error ? json.error : t("toasts.photoRemoveFailed"));
+        showError(json.demo && json.error ? se.text(json.error, t("toasts.photoRemoveFailed")) : t("toasts.photoRemoveFailed"));
         return;
       }
       setImages((prev) => prev.filter((img) => img.id !== id));

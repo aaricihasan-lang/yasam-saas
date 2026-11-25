@@ -32,11 +32,13 @@ import tr_commonSubmitLock from "@/messages/tr/common.submitLock.json";
 import tr_home from "@/messages/tr/home.json";
 import tr_homeYhStatus from "@/messages/tr/home.yhStatus.json";
 import tr_memoryPicker from "@/messages/tr/memoryPicker.json";
+import tr_naturalSupportHub from "@/messages/tr/naturalSupportHub.json";
 import tr_navigation from "@/messages/tr/navigation.json";
 import tr_stonesCombinations from "@/messages/tr/stones.combinations.json";
 import tr_stonesHub from "@/messages/tr/stones.hub.json";
 import tr_stones from "@/messages/tr/stones.json";
 import tr_stonesKnowledge from "@/messages/tr/stones.knowledge.json";
+import tr_stonesLibrary from "@/messages/tr/stones.library.json";
 import tr_stonesList from "@/messages/tr/stones.list.json";
 import tr_stonesMinerals from "@/messages/tr/stones.minerals.json";
 import tr_stonesRecords from "@/messages/tr/stones.records.json";
@@ -70,19 +72,21 @@ import en_commonSubmitLock from "@/messages/en/common.submitLock.json";
 import en_home from "@/messages/en/home.json";
 import en_homeYhStatus from "@/messages/en/home.yhStatus.json";
 import en_memoryPicker from "@/messages/en/memoryPicker.json";
+import en_naturalSupportHub from "@/messages/en/naturalSupportHub.json";
 import en_navigation from "@/messages/en/navigation.json";
 import en_stonesCombinations from "@/messages/en/stones.combinations.json";
 import en_stonesHub from "@/messages/en/stones.hub.json";
 import en_stones from "@/messages/en/stones.json";
 import en_stonesKnowledge from "@/messages/en/stones.knowledge.json";
+import en_stonesLibrary from "@/messages/en/stones.library.json";
 import en_stonesList from "@/messages/en/stones.list.json";
 import en_stonesMinerals from "@/messages/en/stones.minerals.json";
 import en_stonesRecords from "@/messages/en/stones.records.json";
 import en_terms from "@/messages/en/terms.json";
 
 export const CATALOG_FILES = {
-  tr: ["auth.client.json", "auth.email.json", "auth.server.json", "auth.ui.json", "beslenme.json", "clients.analizler.json", "clients.anamnez.json", "clients.charges.json", "clients.combinations.json", "clients.consent.json", "clients.detail.json", "clients.homework.json", "clients.json", "clients.list.json", "clients.memory.json", "clients.notes.json", "clients.sessions.json", "clients.stones.json", "clients.yolculuk.json", "common.apiErrors.json", "common.deleteConfirm.json", "common.demo.json", "common.json", "common.languagePreference.json", "common.reader.json", "common.submitLock.json", "home.json", "home.yhStatus.json", "memoryPicker.json", "navigation.json", "stones.combinations.json", "stones.hub.json", "stones.json", "stones.knowledge.json", "stones.list.json", "stones.minerals.json", "stones.records.json", "terms.json"],
-  en: ["auth.client.json", "auth.email.json", "auth.server.json", "auth.ui.json", "beslenme.json", "clients.analizler.json", "clients.anamnez.json", "clients.charges.json", "clients.combinations.json", "clients.consent.json", "clients.detail.json", "clients.homework.json", "clients.json", "clients.list.json", "clients.memory.json", "clients.notes.json", "clients.sessions.json", "clients.stones.json", "clients.yolculuk.json", "common.apiErrors.json", "common.deleteConfirm.json", "common.demo.json", "common.json", "common.languagePreference.json", "common.reader.json", "common.submitLock.json", "home.json", "home.yhStatus.json", "memoryPicker.json", "navigation.json", "stones.combinations.json", "stones.hub.json", "stones.json", "stones.knowledge.json", "stones.list.json", "stones.minerals.json", "stones.records.json", "terms.json"],
+  tr: ["auth.client.json", "auth.email.json", "auth.server.json", "auth.ui.json", "beslenme.json", "clients.analizler.json", "clients.anamnez.json", "clients.charges.json", "clients.combinations.json", "clients.consent.json", "clients.detail.json", "clients.homework.json", "clients.json", "clients.list.json", "clients.memory.json", "clients.notes.json", "clients.sessions.json", "clients.stones.json", "clients.yolculuk.json", "common.apiErrors.json", "common.deleteConfirm.json", "common.demo.json", "common.json", "common.languagePreference.json", "common.reader.json", "common.submitLock.json", "home.json", "home.yhStatus.json", "memoryPicker.json", "naturalSupportHub.json", "navigation.json", "stones.combinations.json", "stones.hub.json", "stones.json", "stones.knowledge.json", "stones.library.json", "stones.list.json", "stones.minerals.json", "stones.records.json", "terms.json"],
+  en: ["auth.client.json", "auth.email.json", "auth.server.json", "auth.ui.json", "beslenme.json", "clients.analizler.json", "clients.anamnez.json", "clients.charges.json", "clients.combinations.json", "clients.consent.json", "clients.detail.json", "clients.homework.json", "clients.json", "clients.list.json", "clients.memory.json", "clients.notes.json", "clients.sessions.json", "clients.stones.json", "clients.yolculuk.json", "common.apiErrors.json", "common.deleteConfirm.json", "common.demo.json", "common.json", "common.languagePreference.json", "common.reader.json", "common.submitLock.json", "home.json", "home.yhStatus.json", "memoryPicker.json", "naturalSupportHub.json", "navigation.json", "stones.combinations.json", "stones.hub.json", "stones.json", "stones.knowledge.json", "stones.library.json", "stones.list.json", "stones.minerals.json", "stones.records.json", "terms.json"],
 } as const;
 
 export const CATALOG_PARTS: Record<"tr" | "en", Record<string, unknown>[]> = {
@@ -116,11 +120,13 @@ export const CATALOG_PARTS: Record<"tr" | "en", Record<string, unknown>[]> = {
     tr_home,
     tr_homeYhStatus,
     tr_memoryPicker,
+    tr_naturalSupportHub,
     tr_navigation,
     tr_stonesCombinations,
     tr_stonesHub,
     tr_stones,
     tr_stonesKnowledge,
+    tr_stonesLibrary,
     tr_stonesList,
     tr_stonesMinerals,
     tr_stonesRecords,
@@ -156,11 +162,13 @@ export const CATALOG_PARTS: Record<"tr" | "en", Record<string, unknown>[]> = {
     en_home,
     en_homeYhStatus,
     en_memoryPicker,
+    en_naturalSupportHub,
     en_navigation,
     en_stonesCombinations,
     en_stonesHub,
     en_stones,
     en_stonesKnowledge,
+    en_stonesLibrary,
     en_stonesList,
     en_stonesMinerals,
     en_stonesRecords,

@@ -5,6 +5,8 @@
  * (hedef gün gerektiği için). Owner-only.
  */
 import { useCallback, useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
+import { usePlanFormat } from "../planlar/_components/usePlanFormat";
 import { CopyPlus, LayoutTemplate, Pencil, Trash2, UtensilsCrossed } from "lucide-react";
 import {
   listTemplates,
@@ -13,7 +15,7 @@ import {
   deleteTemplate,
   type TemplateListRow,
 } from "@/lib/beslenme/faz6Client";
-import { TEMPLATE_TYPE_LABELS, type TemplateType } from "@/lib/beslenme/templateContracts";
+import { type TemplateType } from "@/lib/beslenme/templateContracts";
 import {
   BeslenmeGate,
   BeslenmeShell,
@@ -32,9 +34,10 @@ import {
 import { runInEffect } from "@/lib/runInEffect";
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
 
-const TABS: Array<{ value: TemplateType; label: string }> = [
-  { value: "meal", label: "Öğün Şablonları" },
-  { value: "day", label: "Gün Şablonları" },
+// Sekme değerleri kanonik (template_type); etiket ekran dilinde.
+const TABS: Array<{ value: TemplateType; labelKey: "tabMeal" | "tabDay" }> = [
+  { value: "meal", labelKey: "tabMeal" },
+  { value: "day", labelKey: "tabDay" },
 ];
 
 export default function SablonlarPage() {
@@ -49,15 +52,17 @@ export default function SablonlarPage() {
   const [renameVal, setRenameVal] = useState("");
   // Silme onayı ortak dialog'dan (aynı noktada iki adımlı buton → çift tıkta istemeden silme riski vardı).
   const deleteConfirm = useDeleteConfirm();
+  const tb = useTranslations("beslenme.templates");
+  const pf = usePlanFormat();
 
   const load = useCallback(async () => {
     setLoading(true);
     setErr("");
     const r = await listTemplates(tab);
     if (r.ok && r.data) setRows(r.data.templates);
-    else setErr("Şablonlar yüklenemedi.");
+    else setErr(tb("loadFailed"));
     setLoading(false);
-  }, [tab]);
+  }, [tab, tb]);
 
   useEffect(() => {
     if (guard === "ok") runInEffect(() => void load());
@@ -75,7 +80,7 @@ export default function SablonlarPage() {
     if (r.ok) {
       setRenameId(null);
       void load();
-    } else setActionErr("Yeniden adlandırma başarısız.");
+    } else setActionErr(tb("renameFailed"));
   };
 
   const doDuplicate = async (id: string) => {
@@ -84,14 +89,14 @@ export default function SablonlarPage() {
     const r = await duplicateTemplate(id);
     setBusyId(null);
     if (r.ok) void load();
-    else setActionErr("Çoğaltma başarısız.");
+    else setActionErr(tb("duplicateFailed"));
   };
 
   const doDelete = async (tpl: TemplateListRow) => {
     if (busyId) return;
     const ok = await deleteConfirm({
-      title: "Şablonu sil",
-      message: "Bu şablon kalıcı olarak silinecek. Şablondan daha önce oluşturulan planlar etkilenmez.",
+      title: tb("deleteTitle"),
+      message: tb("deleteMessage"),
       names: [tpl.title],
     });
     if (!ok) return;
@@ -100,7 +105,7 @@ export default function SablonlarPage() {
     try {
       const r = await deleteTemplate(tpl.id);
       if (r.ok) void load();
-      else setActionErr("Silme başarısız.");
+      else setActionErr(tb("deleteFailed"));
     } finally {
       setBusyId(null);
     }
@@ -108,9 +113,8 @@ export default function SablonlarPage() {
 
   return (
     <BeslenmeShell
-      eyebrow="Beslenme & Metabolik Yaşam"
-      title="Şablonlar"
-      subtitle="Sık kullandığınız öğünleri ve günleri şablon olarak saklayın; planlara hızlıca uygulayın."
+      title={tb("title")}
+      subtitle={tb("subtitle")}
       icon={<LayoutTemplate />}
       backHref="/beslenme"
     >
@@ -126,7 +130,7 @@ export default function SablonlarPage() {
                 : "bg-white/70 text-slate-500 hover:bg-white"
             }`}
           >
-            {t.label}
+            {tb(t.labelKey)}
           </button>
         ))}
       </div>
@@ -144,8 +148,8 @@ export default function SablonlarPage() {
       ) : rows.length === 0 ? (
         <EmptyState
           icon={<UtensilsCrossed className="h-8 w-8" />}
-          title={tab === "meal" ? "Henüz öğün şablonu yok" : "Henüz gün şablonu yok"}
-          description="Bir plan öğününü veya gününü şablon olarak kaydederek başlayın. (Plan editöründe “Şablon Olarak Kaydet”.)"
+          title={tab === "meal" ? tb("emptyMeal") : tb("emptyDay")}
+          description={tb("emptyDesc")}
         />
       ) : (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
@@ -158,22 +162,22 @@ export default function SablonlarPage() {
                       <TextInput
                         value={renameVal}
                         onChange={(e) => setRenameVal(e.target.value)}
-                        placeholder="Şablon adı"
+                        placeholder={tb("namePlaceholder")}
                         autoFocus
                       />
                       <PrimaryButton
                         loading={busyId === tpl.id}
                         onClick={() => void doRename(tpl.id)}
                       >
-                        Kaydet
+                        {tb("save")}
                       </PrimaryButton>
-                      <GhostButton onClick={() => setRenameId(null)}>Vazgeç</GhostButton>
+                      <GhostButton onClick={() => setRenameId(null)}>{tb("cancel")}</GhostButton>
                     </div>
                   ) : (
                     <>
                       <p className="truncate text-[15px] font-black text-slate-800">{tpl.title}</p>
                       <p className="mt-0.5 text-[12px] font-bold text-emerald-600">
-                        {TEMPLATE_TYPE_LABELS[tpl.template_type]}
+                        {pf.templateType(tpl.template_type)}
                       </p>
                       {tpl.note ? (
                         <p className="mt-1 line-clamp-2 text-[12px] font-medium text-slate-400">{tpl.note}</p>
@@ -192,21 +196,21 @@ export default function SablonlarPage() {
                       setRenameVal(tpl.title);
                     }}
                   >
-                    Adı Değiştir
+                    {tb("rename")}
                   </GhostButton>
                   <GhostButton
                     icon={<CopyPlus className="h-4 w-4" />}
                     loading={busyId === tpl.id}
                     onClick={() => void doDuplicate(tpl.id)}
                   >
-                    Çoğalt
+                    {tb("duplicate")}
                   </GhostButton>
                   <DangerButton
                     icon={<Trash2 className="h-4 w-4" />}
                     loading={busyId === tpl.id}
                     onClick={() => void doDelete(tpl)}
                   >
-                    Sil
+                    {tb("delete")}
                   </DangerButton>
                 </div>
               ) : null}

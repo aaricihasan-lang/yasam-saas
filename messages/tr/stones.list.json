@@ -192,6 +192,7 @@
       },
       "image": {
         "none": "Görsel eklenmemiş",
+        "fallbackName": "Görsel {n}",
         "notWebTitle": "Web'de gösterilemeyen görseller",
         "notWebFormat": "Görsel yolu web formatında değil",
         "add": "Fotoğraf Ekle",
@@ -233,7 +234,19 @@
         "invalidData": "Geçersiz kayıt verisi."
       },
       "thisStone": "bu taş",
-      "matchCount": "{n} eşleşme"
+      "matchCount": "{n} eşleşme",
+      "entryCount": "{count} kayıt",
+      "entriesAdd": "Kayıtlar · Ekle",
+      "entryDelete": {
+        "title": "Bilgi kaydını sil",
+        "message": "\"{preview}\" bilgisi (Kaynak: {source}) silinecek. Bu alandaki diğer kayıtlar korunur.",
+        "second": "Bu işlem geri alınamaz. Emin misiniz?"
+      },
+      "sourceNotFound": "Kaynak bulunamadı; sayfayı yenileyin.",
+      "entryAddFailed": "Bilgi eklenemedi.",
+      "entrySaveFailed": "Bilgi kaydedilemedi.",
+      "entryDeleteFailed": "Bilgi silinemedi.",
+      "sourceUnspecified": "Kaynak belirtilmemiş"
     }
   }
 }

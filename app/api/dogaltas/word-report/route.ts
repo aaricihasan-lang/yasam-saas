@@ -175,7 +175,7 @@ function buildSummary(counts: Record<string, number>, hd: TocHeadingFns = PLAIN_
   if (counts.knowledge != null)    rows.push(["Taş Bilgi Kütüphanesi", `${counts.knowledge} makale`]);
   return [
     hd.h1Colored("1. Genel Özet", SECTION_COLORS.summary, true),
-    muted("Seçilen bölümlere ait Supabase verilerinden oluşturulmuştur."),
+    muted("Seçilen bölümlere ait kayıtlarınızdan oluşturulmuştur."),
     ...(rows.length > 0 ? [twoColTable(rows), spacer()] : []),
   ];
 }

@@ -15,7 +15,7 @@ import { ChevronRight, FileText, Flower2, Search } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations, useLocale } from "next-intl";
 import { runInEffect } from "@/lib/runInEffect";
-import { formatDate } from "@/lib/i18n/format";
+import { formatDate, formatNumber } from "@/lib/i18n/format";
 import type { ActiveLocale } from "@/lib/i18n/locales";
 import { useBfcacheRefresh } from "@/hooks/useBfcacheRefresh";
 import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
@@ -29,6 +29,7 @@ import { fetchStonesByConditions } from "@/lib/dogaltas/conditionSearchApi";
 import { normalizeTrSearch } from "@/lib/dogaltas/searchHighlight";
 import { normalizeTr } from "@/lib/dogaltas/stoneSearchUtils";
 import { DOGALTAS_PRIMARY_MODULES, type DogaltasModule } from "@/lib/dogaltas/dogaltasModules";
+import { libraryStoneName, stoneRecordDisplayName } from "@/lib/dogaltas/stoneNames";
 import { useStoneLibraryAccess, useStoneLibraryCardAccess } from "./StoneLibraryAccess";
 import { viewerGet } from "./kutuphane/_shared/api";
 import type { StoneLibraryListItem, StoneLibrarySearchResult } from "@/lib/stone-library/contract";
@@ -242,12 +243,13 @@ function knowledgeHubResults(articles: HubKnowledgeArticle[], query: string, t: 
  * G2-01B (owner): Doğaltaş Kütüphanesi — kütüphanenin kendi kapılı arama ucu (yalnız yayımlanmış yüzey, beyaz liste DTO,
  * sızıntı kilidi); sıra = ucun alaka sırası. Kartla aynı: önizleme atıflıysa atıf birlikte (ikinci satırda) gösterilir.
  */
-function libraryHubResults(items: readonly StoneLibraryListItem[], t: HubLabelResolver): StoneSearchResult[] {
+function libraryHubResults(items: readonly StoneLibraryListItem[], t: HubLabelResolver, locale: ActiveLocale): StoneSearchResult[] {
   return items
     .filter((it) => it?.slug && it.name_tr)
     .map((it) => ({
       id: it.slug,
-      stone_name: it.name_tr,
+      // Sistem kartı: EN arayüzde name_en (TR'de name_tr birebir).
+      stone_name: libraryStoneName(it, locale),
       short_description: it.excerpt?.trim() || t("results.noDescription"),
       matchedField: "",
       snippet: it.excerpt && it.excerpt_attribution ? it.excerpt_attribution : "",
@@ -329,6 +331,9 @@ function searchStones(
   records: StoneSearchRecord[],
   query: string,
   t: HubLabelResolver,
+  locale: ActiveLocale,
+  /** I18N (QTM-DG-06): adsız taş gösterim yedeği ekran dilinde (stones.common.unnamedStone; TR birebir). */
+  unnamedLabel: string,
 ): StoneSearchResult[] {
   const qNorm = normalizeTrSearch(query.trim());
   if (!qNorm) return [];
@@ -342,7 +347,8 @@ function searchStones(
 
     results.push({
       id: stone.id,
-      stone_name: stone.stone_name?.trim() || "İsimsiz taş",
+      // Demo vitrin taşı → EN arayüzde sözlükteki EN ad; kullanıcının taşı ve TR arayüz birebir.
+      stone_name: stoneRecordDisplayName({ id: stone.id, stone_name: stone.stone_name?.trim() || unnamedLabel }, locale),
       short_description:
         stone.short_description?.trim() || t("results.noDescription"),
       matchedField: hit.label,
@@ -433,10 +439,12 @@ function formatCount(
   value: number | null,
   loading: boolean,
   loadingLabel: string,
+  locale: ActiveLocale,
 ): string {
   if (loading) return loadingLabel;
   if (value === null) return "—";
-  return value.toLocaleString("tr-TR");
+  // I18N (QTM-DG-08): ekran dilinde basamak ayracı (lib/i18n/format; tr çıktısı toLocaleString("tr-TR") ile birebir).
+  return formatNumber(value, undefined, locale);
 }
 
 // ─── 2026-10-18 premium görünüm (owner onaylı prototip ee64597) — yalnız görsel yardımcılar ───────────
@@ -459,6 +467,7 @@ const MENU_ART: Record<string, string> = {
  */
 const STONE_LIBRARY_CARD: DogaltasModule = {
   slug: "kutuphane",
+  // i18n-ignore: TR yedek; gösterim stones.modules.kutuphane.title
   title: "Doğaltaş Kütüphanesi",
   subtitle: "Doğrulanmış taş bilgileri ve görseller.",
   icon: "💠",
@@ -797,13 +806,13 @@ function DogaltasPageContent() {
         ? mineralSectionHubResults(mineralsAllRes.data?.rows ?? [], trimmed, new Set(coreMinerals.map((m) => m.id)), t)
         : [];
       setSearchResults([
-        ...searchStones(records, trimmed, t),
+        ...searchStones(records, trimmed, t, locale, tc("unnamedStone")),
         ...(sectionMinerals.length
           ? [...coreMinerals, ...sectionMinerals].sort((a, b) => a.stone_name.localeCompare(b.stone_name, "tr-TR"))
           : coreMinerals),
         ...(combinationsRes.ok ? combinationHubResults(combinationsRes.rows, trimmed, t) : []),
         ...(knowledgeRes.ok ? knowledgeHubResults(knowledgeRes.data?.articles ?? [], trimmed, t) : []),
-        ...(libraryRes?.ok ? libraryHubResults(libraryRes.data.items ?? [], t) : []),
+        ...(libraryRes?.ok ? libraryHubResults(libraryRes.data.items ?? [], t, locale) : []),
       ]);
       // M05: mineral / kombinasyon okunamazsa taş sonuçları gösterilir, eksik kısım dürüstçe bildirilir.
       if (mineralsRes.error || !combinationsRes.ok) {
@@ -825,7 +834,7 @@ function DogaltasPageContent() {
       }
       setHasSearched(true);
     },
-    [t, tc, stoneLibraryAllowed],
+    [t, tc, stoneLibraryAllowed, locale],
   );
 
   const runSearch = useCallback(
@@ -1192,7 +1201,7 @@ function DogaltasPageContent() {
                   <span className={styles.statText}>
                     <span className={styles.statLabel}>{stat.label}</span>
                     <span className={`${styles.statValue} ${loading ? styles.statValueText : ""}`}>
-                      {formatCount(stat.value, loading, t("analytics.loading"))}
+                      {formatCount(stat.value, loading, t("analytics.loading"), locale)}
                     </span>
                   </span>
                   <span className={styles.sheen} aria-hidden />

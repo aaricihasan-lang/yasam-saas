@@ -12,6 +12,7 @@
  */
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { ArrowLeft, Loader2, Lock, RefreshCw } from "lucide-react";
@@ -89,6 +90,7 @@ function Blobs() {
  * etmeli (asla gerçek içeriği değil). loading → spinner; denied → yönlendiriliyor.
  */
 export function BeslenmeGate({ state }: { state: GuardState }) {
+  const ts = useTranslations("beslenme.shell");
   return (
     <main className={PAGE_BG}>
       <Blobs />
@@ -99,12 +101,12 @@ export function BeslenmeGate({ state }: { state: GuardState }) {
               <span className="flex h-12 w-12 items-center justify-center rounded-2xl border border-slate-200 bg-white/90 text-slate-400 shadow-sm">
                 <Lock className="h-5 w-5" aria-hidden />
               </span>
-              <p className="text-[13px] font-bold text-slate-500">Yönlendiriliyorsunuz…</p>
+              <p className="text-[13px] font-bold text-slate-500">{ts("redirecting")}</p>
             </>
           ) : state === "unavailable" ? (
             <div data-testid="access-unverified" className="flex flex-col items-center gap-3">
               <p className="text-[13px] font-bold text-slate-600" role="status" aria-live="polite">
-                Erişim şu an doğrulanamadı. Oturumunuz açık; lütfen tekrar deneyin.
+                {ts("unverified")}
               </p>
               <button
                 type="button"
@@ -113,13 +115,13 @@ export function BeslenmeGate({ state }: { state: GuardState }) {
                 className="inline-flex min-h-[44px] items-center gap-2 rounded-xl border border-emerald-200 bg-white/90 px-4 text-[13px] font-bold text-emerald-700 shadow-sm transition hover:bg-emerald-50"
               >
                 <RefreshCw className="h-4 w-4" aria-hidden />
-                Tekrar Dene
+                {ts("retry")}
               </button>
             </div>
           ) : (
             <>
               <Loader2 className="h-6 w-6 animate-spin text-emerald-500" aria-hidden />
-              <p className="text-[13px] font-bold text-slate-500">Erişim doğrulanıyor…</p>
+              <p className="text-[13px] font-bold text-slate-500">{ts("verifying")}</p>
             </>
           )}
         </div>
@@ -144,16 +146,19 @@ export type BeslenmeShellProps = {
 };
 
 export function BeslenmeShell({
-  eyebrow = "Beslenme & Metabolik Yaşam",
+  eyebrow: eyebrowProp,
   title,
   subtitle,
   icon,
   actions,
   backHref,
-  backLabel = "Beslenme Merkezi",
+  backLabel: backLabelProp,
   maxWidthClass = "max-w-[1600px]",
   children,
 }: BeslenmeShellProps) {
+  const ts = useTranslations("beslenme.shell");
+  const eyebrow = eyebrowProp ?? ts("eyebrow");
+  const backLabel = backLabelProp ?? ts("backLabel");
   return (
     <main className={PAGE_BG}>
       <Blobs />

@@ -19,6 +19,8 @@ import {
 import { serverErrorResponse } from "@/lib/http/apiError";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { fetchAllRows } from "@/lib/dogaltas/fetchAllRows";
+import { stoneSearchTrVariants } from "@/lib/dogaltas/stoneNames";
+import { resolveOutputLocale } from "@/lib/i18n/output";
 
 import { demoReadOnlyResponse } from "@/lib/auth/demoReadOnly";
 export const runtime = "nodejs";
@@ -72,6 +74,15 @@ function pick(body: Record<string, unknown>, keys: readonly string[]): Record<st
 }
 
 // ─── GET: list | count | extended | raw ──────────────────────────────────────
+/** Arama genişletmesi için ekran dili; çerez okunamazsa kaynak dil (TR → genişletme yok, davranış birebir). */
+function searchLocaleOf(req: NextRequest): string {
+  try {
+    return resolveOutputLocale(req).locale;
+  } catch {
+    return "tr";
+  }
+}
+
 export async function GET(req: NextRequest): Promise<Response> {
   // PERF-3 (yalnız TEŞHİS): endpoint alt-adım süreleri yalnızca standart
   // `Server-Timing` response header'ı ile sunulur. Auth/tenant/sorgu davranışı ve
@@ -99,6 +110,8 @@ export async function GET(req: NextRequest): Promise<Response> {
   const mode = sp.get("mode") ?? "list";
   const q = sp.get("q")?.trim() ?? "";
   const searchMode: "name" | "content" = sp.get("searchMode") === "content" ? "content" : "name";
+  // I18N-F1-R3: EN arayüzde standart taşın İngilizce adı → Türkçe yazımları da aranır (TR'de boş dizi; SQL/tenant aynı).
+  const nameVariants = q ? stoneSearchTrVariants(q, searchLocaleOf(req)) : [];
   const ids = tenantIdsFor(tenantId, is_demo_account);
 
   try {
@@ -151,7 +164,7 @@ export async function GET(req: NextRequest): Promise<Response> {
       const buildCount = (schemaLevel: ContentSchemaLevel) => {
         let query = db.from("stones").select("id", { count: "exact", head: true }).in("tenant_id", ids);
         if (excluded.length) query = query.not("id", "in", `(${excluded.join(",")})`);
-        if (q) { const or = buildStonesListSearchOrFilter(q, searchMode, { schemaLevel }); if (or) query = query.or(or); }
+        if (q) { const or = buildStonesListSearchOrFilter(q, searchMode, { schemaLevel, nameVariants }); if (or) query = query.or(or); }
         return query;
       };
       const tC = performance.now();
@@ -189,7 +202,7 @@ export async function GET(req: NextRequest): Promise<Response> {
         .order("id", { ascending: true })
         .range(offset, offset + limit - 1);
       if (excluded.length) query = query.not("id", "in", `(${excluded.join(",")})`);
-      if (q) { const or = buildStonesListSearchOrFilter(q, searchMode, { schemaLevel }); if (or) query = query.or(or); }
+      if (q) { const or = buildStonesListSearchOrFilter(q, searchMode, { schemaLevel, nameVariants }); if (or) query = query.or(or); }
       return query;
     };
 

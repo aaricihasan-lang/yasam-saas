@@ -7,6 +7,8 @@
  * MealCard'a additive; kilitli plan-motoru mantığını değiştirmez.
  */
 import { useCallback, useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
+import { usePlanFormat } from "./usePlanFormat";
 import { createTemplate, getItemAlternatives, type AlternativeRow } from "@/lib/beslenme/faz6Client";
 import { replaceItemFood } from "@/lib/beslenme/planClient";
 import { Modal } from "./planUi";
@@ -24,6 +26,7 @@ export function SaveMealTemplateModal({
   onClose: () => void;
   onSaved: () => void;
 }) {
+  const ta = useTranslations("beslenme.alt");
   const [title, setTitle] = useState(mealLabel);
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState("");
@@ -36,18 +39,18 @@ export function SaveMealTemplateModal({
     const r = await createTemplate({ from: "meal", source_id: mealId, title: t });
     setSaving(false);
     if (r.ok) onSaved();
-    else setErr("Şablon kaydedilemedi.");
+    else setErr(ta("tplSaveFailed"));
   };
 
   return (
-    <Modal open onClose={onClose} title="Öğünü Şablon Olarak Kaydet" subtitle={mealLabel} maxWidthClass="max-w-md">
+    <Modal open onClose={onClose} title={ta("tplTitle")} subtitle={mealLabel} maxWidthClass="max-w-md">
       <div className="flex flex-col gap-3">
-        <TextInput value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Örn: Standart Kahvaltı" autoFocus />
+        <TextInput value={title} onChange={(e) => setTitle(e.target.value)} placeholder={ta("tplPlaceholder")} autoFocus />
         {err ? <StatusMessage type="error">{err}</StatusMessage> : null}
         <div className="flex justify-end gap-2">
-          <GhostButton onClick={onClose}>Vazgeç</GhostButton>
+          <GhostButton onClick={onClose}>{ta("cancel")}</GhostButton>
           <PrimaryButton loading={saving} disabled={!title.trim()} onClick={() => void save()}>
-            Kaydet
+            {ta("save")}
           </PrimaryButton>
         </div>
       </div>
@@ -70,6 +73,8 @@ export function ItemAlternativesModal({
   onClose: () => void;
   onReplaced: () => void;
 }) {
+  const ta = useTranslations("beslenme.alt");
+  const pf = usePlanFormat();
   const [sameGroupOnly, setSameGroupOnly] = useState(true);
   const [alts, setAlts] = useState<AlternativeRow[]>([]);
   const [target, setTarget] = useState<{ name: string; grams: number; energyTotal: number } | null>(null);
@@ -84,9 +89,9 @@ export function ItemAlternativesModal({
     if (r.ok && r.data) {
       setAlts(r.data.alternatives ?? []);
       setTarget(r.data.target ?? null);
-    } else setErr("Değişim seçenekleri yüklenemedi.");
+    } else setErr(ta("loadFailed"));
     setLoading(false);
-  }, [planId, itemId, sameGroupOnly]);
+  }, [planId, itemId, sameGroupOnly, ta]);
 
   useEffect(() => {
     runInEffect(() => void load());
@@ -98,25 +103,24 @@ export function ItemAlternativesModal({
     const r = await replaceItemFood(planId, itemId, { food_id: a.food_id, grams: a.grams });
     setBusyId(null);
     if (r.ok) onReplaced();
-    else setErr("Değiştirme başarısız.");
+    else setErr(ta("replaceFailed"));
   };
 
   return (
     <Modal
       open
       onClose={onClose}
-      title="Kaloriye Göre Besin Değiştir"
+      title={ta("title")}
       subtitle={itemName}
       maxWidthClass="max-w-lg"
     >
       <div className="flex flex-col gap-3">
         <p className="text-[11px] font-medium leading-relaxed text-slate-400">
-          Seçilen besinin toplam kalorisine yaklaşık karşılık gelen miktarlar gösterilir. Bu besinler
-          besin değeri, alerjen veya beslenme amacı bakımından eşdeğer değildir.
+          {ta("disclaimer")}
         </p>
         <label className="inline-flex w-fit cursor-pointer items-center gap-2 text-[12px] font-bold text-slate-600">
           <input type="checkbox" checked={sameGroupOnly} onChange={(e) => setSameGroupOnly(e.target.checked)} />
-          Yalnızca aynı besin grubu
+          {ta("sameGroupOnly")}
         </label>
 
         {loading ? (
@@ -124,12 +128,12 @@ export function ItemAlternativesModal({
         ) : err ? (
           <StatusMessage type="error">{err}</StatusMessage>
         ) : alts.length === 0 ? (
-          <EmptyState title="Uygun değişim seçeneği bulunamadı" description="Bu filtreyle uygun değişim seçeneği bulunamadı. Filtreyi genişletmeyi deneyin (tüm besinler)." />
+          <EmptyState title={ta("emptyTitle")} description={ta("emptyDesc")} />
         ) : (
           <div className="flex flex-col gap-2">
             {target ? (
               <p className="text-[12px] font-bold text-slate-500">
-                Hedef: {target.name} · {Math.round(target.energyTotal).toLocaleString("tr-TR")} kcal
+                {ta("target", { name: target.name, kcal: Math.round(target.energyTotal).toLocaleString(pf.numTag) })}
               </p>
             ) : null}
             {alts.map((a) => (
@@ -137,13 +141,13 @@ export function ItemAlternativesModal({
                 <div className="min-w-0">
                   <p className="truncate text-[13px] font-black text-slate-700">{a.name_tr}</p>
                   <p className="text-[11px] font-bold text-slate-400">
-                    ~{Math.round(a.grams).toLocaleString("tr-TR")} g · {Math.round(a.energyPer100)} kcal/100g
-                    {a.ownership === "system" ? " · Sistem" : " · Özel"}
+                    ~{Math.round(a.grams).toLocaleString(pf.numTag)} g · {Math.round(a.energyPer100)} kcal/100g
+                    {a.ownership === "system" ? ta("ownSystem") : ta("ownCustom")}
                   </p>
                 </div>
                 {!readOnly ? (
                   <PrimaryButton loading={busyId === a.food_id} onClick={() => void replace(a)}>
-                    Bununla Değiştir
+                    {ta("replaceWith")}
                   </PrimaryButton>
                 ) : null}
               </div>

@@ -1,7 +1,11 @@
 "use client";
 
 import { runInEffect } from "@/lib/runInEffect";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import { localeTag } from "@/lib/i18n/format";
+import { resolveLocale } from "@/lib/i18n/locales";
+import { stoneRecordDisplayName } from "@/lib/dogaltas/stoneNames";
+import { useDogaltasServerError } from "@/lib/dogaltas/useServerErrorText";
 import Link from "next/link";
 import BfcacheRefreshHandler from "@/components/BfcacheRefreshHandler";
 import AdminTransferBadge from "@/components/provenance/AdminTransferBadge";
@@ -87,6 +91,7 @@ const SEARCH_DEBOUNCE_MS = 300;
 const SEARCH_MIN_LENGTH = 2;
 
 const CHAKRA_CHIPS = [
+  // i18n-ignore: kanonik çakra filtre değeri; gösterim facet()
   "Kök", "Sakral", "Solar Pleksus", "Kalp", "Boğaz", "Alın", "Taç",
 ] as const;
 
@@ -188,10 +193,11 @@ function stoneDetailHref(id: string, queryString: string) {
   return queryString ? `${base}?${queryString}` : base;
 }
 
-function formatDate(value: string | null | undefined) {
+// A13 (Owner §19): yalnız gösterim — tr çıktısı eski Intl.DateTimeFormat("tr-TR") ile birebir; en → en-GB (DD/MM/YYYY, 24 saat).
+function formatDate(value: string | null | undefined, locale: string) {
   if (!value) return "-";
 
-  return new Intl.DateTimeFormat("tr-TR", {
+  return new Intl.DateTimeFormat(localeTag(resolveLocale(locale)), {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
@@ -270,6 +276,7 @@ const StoneCard = memo(function StoneCard({
 }: StoneRowSharedProps) {
   const t = useTranslations("stones.list");
   const tf = useTranslations("stones");
+  const locale = useLocale();
   const facet = (v: string) => (tf.has(`facetLabels.${v}`) ? tf(`facetLabels.${v}`) : v);
   const imageCount = stoneListImageCount(stone.images);
   // F-016: kapak URL'i parent'ta batch signed-URL ile çözülür (private-read, N+1'siz).
@@ -277,7 +284,8 @@ const StoneCard = memo(function StoneCard({
   const sessionTenant = getSessionTenantId();
   const isLibraryStone = sessionTenant !== null && stone.tenant_id !== sessionTenant;
   const detailHref = stoneDetailHref(stone.id, filterQueryString);
-  const displayName = stone.stone_name || tf("common.unnamedStone");
+  // Demo vitrin taşı → EN arayüzde EN gösterim adı; kullanıcının taşı / TR arayüz birebir (kayıt değişmez).
+  const displayName = stone.stone_name ? stoneRecordDisplayName(stone, locale) : tf("common.unnamedStone");
   const displayDescription = safeText(stone.short_description, 120, t("card.noShortDescription"));
 
   return (
@@ -306,7 +314,7 @@ const StoneCard = memo(function StoneCard({
               checked={isSelected}
               onChange={() => onToggleSelect(stone.id)}
               onClick={(event) => event.stopPropagation()}
-              aria-label={t("card.selectAria", { name: stone.stone_name || tf("common.unnamedStone") })}
+              aria-label={t("card.selectAria", { name: displayName })}
               className={dp.checkbox}
             />
           ) : null}
@@ -316,7 +324,7 @@ const StoneCard = memo(function StoneCard({
         </div>
         <span className={dp.date}>
           <CalendarDays className="h-3.5 w-3.5" aria-hidden />
-          {formatDate(stone.updated_at)}
+          {formatDate(stone.updated_at, locale)}
         </span>
       </div>
       <Link
@@ -402,7 +410,7 @@ const StoneCard = memo(function StoneCard({
               event.stopPropagation();
               onDelete(stone);
             }}
-            aria-label={t("card.deleteAria", { name: stone.stone_name || tf("common.unnamedStone") })}
+            aria-label={t("card.deleteAria", { name: displayName })}
             // F-015a: destructive dokunma hedefi ~44×44px (mobil erişilebilirlik).
             className="btn-danger shrink-0 !min-h-[44px] !min-w-[44px] !rounded-lg !px-3 !py-1.5 !text-xs"
           >
@@ -416,6 +424,7 @@ const StoneCard = memo(function StoneCard({
 
 function DogaltasListesiPageContent() {
   const t = useTranslations("stones.list");
+  const se = useDogaltasServerError();
   // Facet chip display: filtre value KANONİK Türkçe (detailFilters.chakra + containsTr eşleşme);
   // yalnız etiket localize. Anahtar yoksa canonical'a düşer.
   const tf = useTranslations("stones");
@@ -537,7 +546,7 @@ function DogaltasListesiPageContent() {
       setLoadingMore(false);
 
       if (pageRes.error) {
-        setErrorMessage(t("error.fetchFailed", { error: pageRes.error }));
+        setErrorMessage(t("error.fetchFailed", { error: se.detail(pageRes.error) }));
         // stale cache gösterildiyse listeyi boşaltma; yalnız hiç veri yoksa boşalt.
         if (opts.reset && !shownFromCache) setStones([]);
         return;
@@ -545,7 +554,7 @@ function DogaltasListesiPageContent() {
 
       applyResult(pageRes.rows, opts.reset ? pageRes.count : undefined);
     },
-    [debouncedSearch, searchMode, queryTenantId, t, tc],
+    [debouncedSearch, searchMode, queryTenantId, t, tc, se],
   );
 
   const resolveTenant = useCallback(async () => {
@@ -606,7 +615,7 @@ function DogaltasListesiPageContent() {
       const { error } = await excludeStonesForTenant(tenantId, [stoneId]);
       setDeleteLoading(false);
       if (error) {
-        setErrorMessage(t("error.removeFailed", { error }));
+        setErrorMessage(t("error.removeFailed", { error: se.detail(error) }));
         return;
       }
       setExcludedStoneIds((prev) => new Set([...prev, stoneId]));
@@ -617,7 +626,7 @@ function DogaltasListesiPageContent() {
       setDeleteLoading(false);
 
       if (!ok) {
-        setErrorMessage(t("error.deleteFailed", { error: error ?? t("error.tryAgain") }));
+        setErrorMessage(t("error.deleteFailed", { error: se.detail(error, t("error.tryAgain")) }));
         return;
       }
 
@@ -634,7 +643,7 @@ function DogaltasListesiPageContent() {
       next.delete(stoneId);
       return next;
     });
-  }, [deleteConfirm, isDemo, queryTenantId, showToast, t, tc, tf]);
+  }, [deleteConfirm, isDemo, queryTenantId, showToast, t, tc, tf, se]);
 
   const selectedCount = selectedIds.size;
 
@@ -1049,7 +1058,7 @@ function DogaltasListesiPageContent() {
         removedIds.forEach((id) => next.delete(id));
         return next;
       });
-      setErrorMessage(t("error.someRemoveFailed", { error: ownError ?? libError ?? "" }));
+      setErrorMessage(t("error.someRemoveFailed", { error: se.detail(ownError ?? libError) }));
       if (removedIds.size > 0 && ownIds.length > 0) await fetchList({ reset: true });
       return;
     }
@@ -1058,7 +1067,7 @@ function DogaltasListesiPageContent() {
     setSelectedIds(new Set());
     setScopeRows(new Map());
     if (ownIds.length > 0) await fetchList({ reset: true });
-  }, [deleteConfirm, deleteLoading, excludedStoneIds, fetchList, queryTenantId, selectedIds, showToast, stoneRowOf, isDemo, t, tc, tf]);
+  }, [deleteConfirm, deleteLoading, excludedStoneIds, fetchList, queryTenantId, selectedIds, showToast, stoneRowOf, isDemo, t, tc, tf, se]);
 
   const loadedImages = useMemo(
     () =>

@@ -7,10 +7,11 @@
 import { useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { Plus, X } from "lucide-react";
+import { useTranslations } from "next-intl";
+import { useBeslenmeLabels } from "./useBeslenmeLabels";
 import { quickCreateFood, type FoodGroupRef, type Food, type QuickAddPayload } from "@/lib/beslenme/beslenmeClient";
 import { kcalMacroConsistency } from "@/lib/beslenme/quickAddFood";
 import { Field, PrimaryButton, GhostButton, StatusMessage, TextInput, SelectInput, TextArea } from "./primitives";
-import { PREP_STATE_OPTIONS, friendlyError } from "./constants";
 
 type NutrientField = { code: string; unit_code: string; label: string; suffix: string };
 const PRIMARY: NutrientField[] = [
@@ -51,7 +52,7 @@ export function QuickAddFoodDialog({
   onCreated,
   groups = [],
   initialName = "",
-  title = "Besin Ekle",
+  title,
 }: {
   open: boolean;
   onClose: () => void;
@@ -60,6 +61,11 @@ export function QuickAddFoodDialog({
   initialName?: string;
   title?: string;
 }) {
+  const tq = useTranslations("beslenme.quickAdd");
+  const tf = useTranslations("beslenme.nutrientField");
+  const bl = useBeslenmeLabels();
+  // Alan etiketi: kanonik kod → ekran dili (TR: bugünkü etiket birebir; "Kalori"/"Yağ" hızlı ekleme adları).
+  const fieldLabel = (f: NutrientField) => (f.code === "energy" ? tq("kcal") : f.code === "total_fat" ? tq("fat") : tf.has(f.code) ? tf(f.code) : f.label);
   const [nameTr, setNameTr] = useState(initialName);
   const [groupId, setGroupId] = useState("");
   const [prep, setPrep] = useState("");
@@ -84,22 +90,22 @@ export function QuickAddFoodDialog({
 
   async function save() {
     setMsg(null);
-    if (!nameTr.trim()) { setMsg({ type: "error", text: "Besin adı zorunludur." }); return; }
+    if (!nameTr.trim()) { setMsg({ type: "error", text: tq("nameRequired") }); return; }
     // nutrients: yalnız DOLU alanlar (boş = gönderilmez). Geçersiz/negatif → hata.
     const nutrients: QuickAddPayload["nutrients"] = [];
     for (const f of [...PRIMARY, ...MORE]) {
       const raw = vals[f.code];
       if (raw == null || raw.trim() === "") continue; // BOŞ ≠ 0 → atla
       const p = parseVal(raw);
-      if (Number.isNaN(p as number)) { setMsg({ type: "error", text: `${f.label} için geçerli, negatif olmayan bir sayı girin.` }); return; }
+      if (Number.isNaN(p as number)) { setMsg({ type: "error", text: tq("valueInvalid", { label: fieldLabel(f) }) }); return; }
       nutrients!.push({ nutrient_code: f.code, amount: p as number, unit_code: f.unit_code });
     }
     // porsiyon: yalnız hem ad hem gram varsa (gram bilinmiyorsa TAHMİN YOK)
     let portion: QuickAddPayload["portion"] = null;
     if (portionLabel.trim() || portionGram.trim()) {
       const g = parseVal(portionGram);
-      if (!portionLabel.trim()) { setMsg({ type: "error", text: "Porsiyon için ad girin veya porsiyonu boş bırakın." }); return; }
-      if (typeof g !== "number" || g <= 0) { setMsg({ type: "error", text: "Porsiyonun gram karşılığını girin (bilinmiyorsa porsiyonu boş bırakın)." }); return; }
+      if (!portionLabel.trim()) { setMsg({ type: "error", text: tq("portionNameRequired") }); return; }
+      if (typeof g !== "number" || g <= 0) { setMsg({ type: "error", text: tq("portionGramRequired") }); return; }
       portion = { label_tr: portionLabel.trim(), gram_weight: g, measure_unit_code: "serving", quantity: 1 };
     }
     setSaving(true);
@@ -113,8 +119,8 @@ export function QuickAddFoodDialog({
     });
     setSaving(false);
     if (r.ok && r.data?.food) { onCreated(r.data.food); }
-    else if (r.code === "DUPLICATE_NAME") setMsg({ type: "error", text: "Bu adda bir besin zaten var. Farklı bir ad deneyin veya mevcut besni kullanın." });
-    else setMsg({ type: "error", text: friendlyError(r.code, r.status) });
+    else if (r.code === "DUPLICATE_NAME") setMsg({ type: "error", text: tq("duplicateName") });
+    else setMsg({ type: "error", text: bl.error(r.code, r.status) });
   }
 
   // Portal: plan besin seçici (Modal) içinden açıldığında da viewport'u kaplar; üst kapsayıcının
@@ -124,21 +130,21 @@ export function QuickAddFoodDialog({
     <div className="fixed inset-0 z-[70] flex items-start justify-center overflow-y-auto overscroll-contain bg-slate-900/40 p-4 backdrop-blur-sm" role="dialog" aria-modal="true">
       <div className="mt-6 w-full max-w-xl rounded-2xl bg-white p-5 shadow-xl ring-1 ring-slate-200">
         <div className="mb-1 flex items-center justify-between gap-2">
-          <h2 className="text-lg font-black text-slate-900">{title}</h2>
-          <button type="button" onClick={onClose} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600" aria-label="Kapat">
+          <h2 className="text-lg font-black text-slate-900">{title ?? tq("title")}</h2>
+          <button type="button" onClick={onClose} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600" aria-label={tq("close")}>
             <X className="h-5 w-5" aria-hidden />
           </button>
         </div>
-        <p className="mb-4 text-[12px] font-medium text-slate-400">Değerler 100 g içindir. Yalnız bildiğiniz değerleri girin; boş bıraktıklarınız sonradan tamamlanabilir.</p>
+        <p className="mb-4 text-[12px] font-medium text-slate-400">{tq("intro")}</p>
 
         <div className="flex flex-col gap-3">
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <Field label="Besin Adı (Türkçe)" required>
-              <TextInput value={nameTr} onChange={(e) => setNameTr(e.target.value)} placeholder="Örn: Ev yapımı tarhana" autoFocus />
+            <Field label={tq("nameLabel")} required>
+              <TextInput value={nameTr} onChange={(e) => setNameTr(e.target.value)} placeholder={tq("namePlaceholder")} autoFocus />
             </Field>
-            <Field label="Besin Grubu">
+            <Field label={tq("groupLabel")}>
               <SelectInput value={groupId} onChange={(e) => setGroupId(e.target.value)}>
-                <option value="">Grupsuz</option>
+                <option value="">{tq("noGroup")}</option>
                 {groups.map((g) => (<option key={g.id} value={g.id}>{g.name_tr}</option>))}
               </SelectInput>
             </Field>
@@ -146,7 +152,7 @@ export function QuickAddFoodDialog({
 
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
             {PRIMARY.map((f) => (
-              <Field key={f.code} label={`${f.label} (${f.suffix})`}>
+              <Field key={f.code} label={`${fieldLabel(f)} (${f.suffix})`}>
                 <TextInput inputMode="decimal" value={vals[f.code] ?? ""} onChange={(e) => setVal(f.code, e.target.value)} placeholder="—" />
               </Field>
             ))}
@@ -154,17 +160,17 @@ export function QuickAddFoodDialog({
 
           {kcalWarn.hasWarning ? (
             <StatusMessage type="info">
-              Girdiğiniz kalori ({kcalWarn.givenKcal} kcal) makrolardan hesaplanandan (~{kcalWarn.computedKcal} kcal, %{kcalWarn.diffPct} fark) belirgin farklı. Değerleri kontrol edin — otomatik düzeltme yapılmaz.
+              {tq("kcalWarn", { given: kcalWarn.givenKcal ?? "", computed: kcalWarn.computedKcal ?? "", pct: kcalWarn.diffPct ?? "" })}
             </StatusMessage>
           ) : null}
 
           <button type="button" onClick={() => setShowMore((s) => !s)} className="w-fit text-[12px] font-bold text-emerald-700 hover:underline">
-            {showMore ? "− Diğer değerleri gizle" : "+ Diğer değerler (lif, şeker, mineral, vitamin)"}
+            {showMore ? tq("hideMore") : tq("showMore")}
           </button>
           {showMore ? (
             <div className="grid grid-cols-2 gap-2 rounded-xl bg-slate-50 p-3 sm:grid-cols-3">
               {MORE.map((f) => (
-                <Field key={f.code} label={`${f.label} (${f.suffix})`}>
+                <Field key={f.code} label={`${fieldLabel(f)} (${f.suffix})`}>
                   <TextInput inputMode="decimal" value={vals[f.code] ?? ""} onChange={(e) => setVal(f.code, e.target.value)} placeholder="—" />
                 </Field>
               ))}
@@ -172,37 +178,37 @@ export function QuickAddFoodDialog({
           ) : null}
 
           <button type="button" onClick={() => setShowPortion((s) => !s)} className="w-fit text-[12px] font-bold text-emerald-700 hover:underline">
-            {showPortion ? "− Porsiyonu gizle" : "+ Porsiyon ekle (isteğe bağlı)"}
+            {showPortion ? tq("hidePortion") : tq("showPortion")}
           </button>
           {showPortion ? (
             <div className="grid grid-cols-2 gap-2 rounded-xl bg-slate-50 p-3">
-              <Field label="Porsiyon Adı">
-                <TextInput value={portionLabel} onChange={(e) => setPortionLabel(e.target.value)} placeholder="Örn: 1 kase" />
+              <Field label={tq("portionNameLabel")}>
+                <TextInput value={portionLabel} onChange={(e) => setPortionLabel(e.target.value)} placeholder={tq("portionNamePlaceholder")} />
               </Field>
-              <Field label="Gram Karşılığı (g)" hint="Bilinmiyorsa boş bırakın; tahmin edilmez.">
-                <TextInput inputMode="decimal" value={portionGram} onChange={(e) => setPortionGram(e.target.value)} placeholder="Örn: 200" />
+              <Field label={tq("portionGramLabel")} hint={tq("portionGramHint")}>
+                <TextInput inputMode="decimal" value={portionGram} onChange={(e) => setPortionGram(e.target.value)} placeholder={tq("portionGramPlaceholder")} />
               </Field>
             </div>
           ) : null}
 
-          <Field label="Kaynak / Açıklama (isteğe bağlı)" hint="Örn: ürün etiketi, üretici bilgisi.">
-            <TextArea rows={2} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Bu besin manuel eklenmiştir; kaynak notu ekleyebilirsiniz." />
+          <Field label={tq("descLabel")} hint={tq("descHint")}>
+            <TextArea rows={2} value={description} onChange={(e) => setDescription(e.target.value)} placeholder={tq("descPlaceholder")} />
           </Field>
 
           {prep ? null : null}
-          <Field label="Hazırlık Durumu">
+          <Field label={tq("prepLabel")}>
             <SelectInput value={prep} onChange={(e) => setPrep(e.target.value)}>
-              <option value="">Belirtilmemiş</option>
-              {PREP_STATE_OPTIONS.map((o) => (<option key={o.value} value={o.value}>{o.label}</option>))}
+              <option value="">{tq("prepNone")}</option>
+              {bl.prepStateOptions.map((o) => (<option key={o.value} value={o.value}>{o.label}</option>))}
             </SelectInput>
           </Field>
 
           {msg ? <StatusMessage type={msg.type}>{msg.text}</StatusMessage> : null}
 
           <div className="flex items-center justify-end gap-2 pt-1">
-            <GhostButton onClick={onClose}>Vazgeç</GhostButton>
+            <GhostButton onClick={onClose}>{tq("cancel")}</GhostButton>
             <PrimaryButton icon={<Plus className="h-4 w-4" />} loading={saving} onClick={() => void save()}>
-              Kaydet
+              {tq("save")}
             </PrimaryButton>
           </div>
         </div>

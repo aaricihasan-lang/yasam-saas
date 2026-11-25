@@ -5,7 +5,10 @@ import BfcacheRefreshHandler from "@/components/BfcacheRefreshHandler";
 import Link from "next/link";
 import AdminTransferBadge from "@/components/provenance/AdminTransferBadge";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import { localeTag } from "@/lib/i18n/format";
+import { resolveLocale, type ActiveLocale } from "@/lib/i18n/locales";
+import { useDogaltasServerError } from "@/lib/dogaltas/useServerErrorText";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
 import { requiresBulkDeleteGuard, runBulkDeleteConfirm } from "@/lib/ui/bulkDeleteGuard";
 import { buildNameListLines } from "@/lib/ui/deleteConfirmMessage";
@@ -170,8 +173,9 @@ function latestDisplayTimestamp(rows: CombinationRecord[]) {
   return chosen;
 }
 
-function formatListCardDate(iso: string) {
-  return new Intl.DateTimeFormat("tr-TR", {
+// A13 (Owner §19): yalnız gösterim — tr çıktısı eski Intl.DateTimeFormat("tr-TR") ile birebir; en → en-GB (DD/MM/YYYY, 24 saat).
+function formatListCardDate(iso: string, locale: ActiveLocale) {
+  return new Intl.DateTimeFormat(localeTag(locale), {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
@@ -228,10 +232,14 @@ const GROUPS_PAGE_SIZE = 24;
 // ─── Page ──────────────────────────────────────────────────────────────────────
 
 export default function KombinasyonlarPage() {
+  const locale = resolveLocale(useLocale());
   const { confirm } = useConfirm();
   const { showToast } = useToast();
   const t = useTranslations("stones.combinations.list");
+  const se = useDogaltasServerError();
   const tc = useTranslations("stones.common");
+  // I18N (QTM-DG-05): onaydaki "ve N kayıt daha" satırı ekran dilinde (common.deleteConfirm.moreRecords; TR birebir).
+  const tDel = useTranslations("common.deleteConfirm");
   const [rows, setRows] = useState<CombinationRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleteLoading, setDeleteLoading] = useState(false);
@@ -344,6 +352,7 @@ export default function KombinasyonlarPage() {
   // eski veri kırılmaz (issue tüm satırlarda var).
   const categories = useMemo(() => {
     const set = new Set<string>();
+    // i18n-ignore: kanonik grup anahtarı/sentinel; gösterim t("untitled")
     for (const row of rows) set.add(row.issue?.trim() || "İsimsiz");
     return Array.from(set).sort((a, b) => a.localeCompare(b, "tr-TR"));
   }, [rows]);
@@ -351,6 +360,7 @@ export default function KombinasyonlarPage() {
   const filteredRows = useMemo(() => {
     const category = categoryFilter.trim();
     return rows.filter((row) => {
+      // i18n-ignore: kanonik grup anahtarı/sentinel; gösterim t("untitled")
       if (category && (row.issue?.trim() || "İsimsiz") !== category) return false;
       return rowMatchesSearch(row, isSearchActive ? searchTerm : "");
     });
@@ -359,6 +369,7 @@ export default function KombinasyonlarPage() {
   const groups = useMemo(() => {
     const map = new Map<string, CombinationRecord[]>();
     for (const row of filteredRows) {
+      // i18n-ignore: kanonik grup anahtarı/sentinel; gösterim t("untitled")
       const key = row.issue?.trim() || "İsimsiz";
       const list = map.get(key);
       if (list) list.push(row);
@@ -374,6 +385,7 @@ export default function KombinasyonlarPage() {
 
   const uniqueIssues = useMemo(() => {
     const set = new Set<string>();
+    // i18n-ignore: kanonik grup anahtarı/sentinel; gösterim t("untitled")
     rows.forEach((r) => set.add(r.issue?.trim() || "İsimsiz"));
     return set.size;
   }, [rows]);
@@ -383,6 +395,7 @@ export default function KombinasyonlarPage() {
   const rowsByIssue = useMemo(() => {
     const map = new Map<string, CombinationRecord[]>();
     for (const row of rows) {
+      // i18n-ignore: kanonik grup anahtarı/sentinel; gösterim t("untitled")
       const key = row.issue?.trim() || "İsimsiz";
       const list = map.get(key);
       if (list) list.push(row);
@@ -463,7 +476,7 @@ export default function KombinasyonlarPage() {
           count: recordCount,
           detail: [
             t("deleteMessage", { n: recordCount, groups: groupCount }),
-            buildNameListLines(issueKeys, groupCount).join("\n"),
+            buildNameListLines(issueKeys, groupCount, (n) => tDel("moreRecords", { count: n })).join("\n"),
           ].join("\n\n"),
         });
         if (!ok) return;
@@ -474,7 +487,7 @@ export default function KombinasyonlarPage() {
     } finally {
       deleteBusyRef.current = false;
     }
-  }, [confirm, groups, selectedIds, resolveIdsForIssues, t]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [confirm, groups, selectedIds, resolveIdsForIssues, t, tDel]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const confirmSmallDelete = async (ids: string[], recordCount: number, groupCount: number) => {
     const firstConfirmed = await confirm({
@@ -510,7 +523,7 @@ export default function KombinasyonlarPage() {
     setDeleteLoading(false);
 
     if (!result.ok) {
-      setErrorMessage(t("deleteSelectedError", { error: result.error ?? "" }));
+      setErrorMessage(t("deleteSelectedError", { error: se.detail(result.error) }));
       return;
     }
 
@@ -612,7 +625,7 @@ export default function KombinasyonlarPage() {
     setDeleteLoading(false);
 
     if (!result.ok) {
-      setErrorMessage(t("deleteGroupError", { error: result.error ?? "" }));
+      setErrorMessage(t("deleteGroupError", { error: se.detail(result.error) }));
       return;
     }
 
@@ -623,7 +636,7 @@ export default function KombinasyonlarPage() {
       return next;
     });
     void loadCombinations();
-  }, [confirm, resolveIdsForIssues, showToast, t, tc]);
+  }, [confirm, resolveIdsForIssues, showToast, t, tc, se]);
 
   return (
     <DogaltasPremiumShell
@@ -744,7 +757,7 @@ export default function KombinasyonlarPage() {
             {errorMessage.startsWith("@@loadError:")
               ? errorMessage.slice("@@loadError:".length) === STONES_WORKSPACE_UNAVAILABLE
                 ? tc("workspaceUnavailable")
-                : t("loadError", { error: errorMessage.slice("@@loadError:".length) })
+                : t("loadError", { error: se.detail(errorMessage.slice("@@loadError:".length)) })
               : errorMessage}
           </div>
         )}
@@ -798,6 +811,7 @@ export default function KombinasyonlarPage() {
                     <span className={`${dp.chip} ${dp.chipViolet}`}>{t("variantBadge", { n: count })}</span>
                     {category && (
                       <span className={dp.chip}>
+                        {/* i18n-ignore: kanonik sentinel karşılaştırması */}
                         {category === "İsimsiz"
                           ? t("untitled")
                           : isSearchActive ? renderHighlightedText(category, activeSearch) : category}
@@ -846,7 +860,7 @@ export default function KombinasyonlarPage() {
                       <p className={dp.cardMeta}>
                         {stats.sources > 0 ? t("sourcesCount", { n: stats.sources }) + " · " : ""}
                         {stats.stonesCount > 0 ? t("stoneTextCount", { n: stats.stonesCount }) + " · " : ""}
-                        {ts ? formatListCardDate(ts) : "—"}
+                        {ts ? formatListCardDate(ts, locale) : "—"}
                       </p>
                     </DemoBlur>
                   </div>

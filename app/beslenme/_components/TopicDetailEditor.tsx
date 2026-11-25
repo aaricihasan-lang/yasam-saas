@@ -9,6 +9,8 @@
  * (durum tutarlılığı).
  */
 import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { useTranslations } from "next-intl";
+import { useBeslenmeLabels } from "./useBeslenmeLabels";
 import { runInEffect } from "@/lib/runInEffect";
 import {
   BookOpen,
@@ -41,11 +43,6 @@ import {
 } from "@/lib/beslenme/beslenmeClient";
 import {
   RELATION_TYPE_CHIP,
-  RELATION_TYPE_LABELS,
-  RELATION_TYPE_OPTIONS,
-  SECTION_KEY_LABELS,
-  SECTION_KEY_OPTIONS,
-  friendlyError,
 } from "./constants";
 import { SourcesPanel, type LinkedSource } from "./SourcesPanel";
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
@@ -91,6 +88,8 @@ export function TopicDetailEditor({
   /** Başlık vb. değiştiğinde parent liste etiketini tazelemek için. */
   onChanged?: (topic: Topic) => void;
 }) {
+  const tt = useTranslations("beslenme.topic");
+  const bl = useBeslenmeLabels();
   const [data, setData] = useState<LoadedTopic | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadErr, setLoadErr] = useState("");
@@ -102,7 +101,7 @@ export function TopicDetailEditor({
     const r = await getTopic(topicId);
     setLoading(false);
     if (!r.ok || !r.data?.topic) {
-      setLoadErr(friendlyError(r.code, r.status));
+      setLoadErr(bl.error(r.code, r.status));
       setData(null);
       return;
     }
@@ -113,7 +112,7 @@ export function TopicDetailEditor({
       foods: (r.data.foods ?? []) as TopicFoodRel[],
       sources: (r.data.sources ?? []) as LinkedSource[],
     });
-  }, [topicId]);
+  }, [topicId, bl]);
 
   useEffect(() => {
     runInEffect(() => {
@@ -125,16 +124,16 @@ export function TopicDetailEditor({
   if (loading) {
     return (
       <Card className="p-4">
-        <InlineSpinner label="Konu yükleniyor…" />
+        <InlineSpinner label={tt("loading")} />
       </Card>
     );
   }
   if (loadErr || !data) {
     return (
       <Card className="p-4">
-        <StatusMessage type="error">{loadErr || "Konu yüklenemedi."}</StatusMessage>
+        <StatusMessage type="error">{loadErr || tt("loadFailed")}</StatusMessage>
         <div className="mt-3">
-          <GhostButton onClick={() => void load()}>Tekrar Dene</GhostButton>
+          <GhostButton onClick={() => void load()}>{tt("retry")}</GhostButton>
         </div>
       </Card>
     );
@@ -152,10 +151,10 @@ export function TopicDetailEditor({
       {/* Sekme çubuğu */}
       <div className="inline-flex w-fit gap-1 rounded-xl bg-white/70 p-1 ring-1 ring-emerald-100">
         <TabButton active={tab === "content"} onClick={() => setTab("content")} icon={<Layers className="h-4 w-4" />}>
-          İçerik
+          {tt("tabContent")}
         </TabButton>
         <TabButton active={tab === "sources"} onClick={() => setTab("sources")} icon={<BookOpen className="h-4 w-4" />}>
-          Kaynaklar
+          {tt("tabSources")}
           {data.sources.length > 0 ? (
             <span className="ml-1 rounded-full bg-emerald-100 px-1.5 text-[10px] text-emerald-700">
               {data.sources.length}
@@ -227,6 +226,8 @@ function TopicHeader({
   onSaved: (t: Topic) => void;
   onDeleted: () => void;
 }) {
+  const tt = useTranslations("beslenme.topic");
+  const bl = useBeslenmeLabels();
   const [title, setTitle] = useState(topic.title);
   const [summary, setSummary] = useState(topic.summary ?? "");
   const [saving, setSaving] = useState(false);
@@ -246,7 +247,7 @@ function TopicHeader({
 
   async function save() {
     if (!title.trim()) {
-      setMsg({ type: "error", text: "Başlık boş olamaz." });
+      setMsg({ type: "error", text: tt("titleEmpty") });
       return;
     }
     setSaving(true);
@@ -255,9 +256,9 @@ function TopicHeader({
     setSaving(false);
     if (r.ok && r.data?.topic) {
       onSaved(r.data.topic);
-      setMsg({ type: "success", text: "Kaydedildi." });
+      setMsg({ type: "success", text: tt("saved") });
     } else {
-      setMsg({ type: "error", text: friendlyError(r.code, r.status) });
+      setMsg({ type: "error", text: bl.error(r.code, r.status) });
     }
   }
 
@@ -265,23 +266,21 @@ function TopicHeader({
   async function doDelete() {
     if (deleting) return;
     const parts: string[] = [];
-    if (related.sections) parts.push(`${related.sections} bölüm`);
-    if (related.foods) parts.push(`${related.foods} besin ilişkisi`);
-    if (related.sources) parts.push(`${related.sources} kaynak bağlantısı`);
+    if (related.sections) parts.push(tt("partSections", { count: related.sections }));
+    if (related.foods) parts.push(tt("partFoods", { count: related.foods }));
+    if (related.sources) parts.push(tt("partSources", { count: related.sources }));
     const ok = await deleteConfirm({
-      title: "Kaydı sil",
-      message:
-        `Bu kayıt kalıcı olarak silinecek${parts.length ? ` (${parts.join(", ")} dahil)` : ""}. ` +
-        "Besinlerin ve kaynak kataloğunuzun kendisi silinmez.",
+      title: tt("deleteTitle"),
+      message: parts.length ? tt("deleteMsgWith", { parts: parts.join(", ") }) : tt("deleteMsg"),
       names: [topic.title],
-      confirmText: "Sil",
+      confirmText: tt("confirmDelete"),
     });
     if (!ok) return;
     setDeleting(true);
     const r = await deleteTopic(topic.id);
     setDeleting(false);
     if (r.ok) onDeleted();
-    else setMsg({ type: "error", text: friendlyError(r.code, r.status) });
+    else setMsg({ type: "error", text: bl.error(r.code, r.status) });
   }
 
   return (
@@ -292,23 +291,23 @@ function TopicHeader({
         </div>
       ) : null}
       <div className="flex flex-col gap-3">
-        <Field label="Başlık" required>
-          <TextInput value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Konu başlığı" />
+        <Field label={tt("titleLabel")} required>
+          <TextInput value={title} onChange={(e) => setTitle(e.target.value)} placeholder={tt("titlePlaceholder")} />
         </Field>
-        <Field label="Özet">
+        <Field label={tt("summaryLabel")}>
           <TextArea
             value={summary}
             onChange={(e) => setSummary(e.target.value)}
             rows={3}
-            placeholder="Bu beslenme yaklaşımının kısa özeti…"
+            placeholder={tt("summaryPlaceholder")}
           />
         </Field>
         <div className="flex flex-wrap items-center justify-between gap-2">
           <PrimaryButton icon={<Save className="h-4 w-4" />} loading={saving} disabled={!dirty} onClick={() => void save()}>
-            Kaydet
+            {tt("save")}
           </PrimaryButton>
           <DangerButton icon={<Trash2 className="h-4 w-4" />} loading={deleting} onClick={() => void doDelete()}>
-            Sil
+            {tt("delete")}
           </DangerButton>
         </div>
       </div>
@@ -326,6 +325,8 @@ function SectionsManager({
   sections: Section[];
   onChanged: () => Promise<void>;
 }) {
+  const tt = useTranslations("beslenme.topic");
+  const bl = useBeslenmeLabels();
   const [adding, setAdding] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
@@ -337,7 +338,7 @@ function SectionsManager({
     const r = await addSection(topicId, { section_key: "ozet", heading: "", content: "", sort_order: nextOrder });
     setBusy(false);
     if (r.ok) await onChanged();
-    else setErr(friendlyError(r.code, r.status));
+    else setErr(bl.error(r.code, r.status));
   }
 
   async function move(idx: number, dir: -1 | 1) {
@@ -356,10 +357,10 @@ function SectionsManager({
     <Card className="p-4">
       <div className="mb-3 flex items-center justify-between">
         <h3 className="inline-flex items-center gap-1.5 text-[14px] font-black text-slate-800">
-          <Layers className="h-4 w-4 text-emerald-500" aria-hidden /> Bölümler
+          <Layers className="h-4 w-4 text-emerald-500" aria-hidden /> {tt("sections")}
         </h3>
         <GhostButton icon={<Plus className="h-4 w-4" />} loading={busy && adding} onClick={() => { setAdding(true); void addNew(); }}>
-          Bölüm Ekle
+          {tt("addSection")}
         </GhostButton>
       </div>
 
@@ -372,8 +373,8 @@ function SectionsManager({
       {sections.length === 0 ? (
         <EmptyState
           icon={<Layers className="h-8 w-8" />}
-          title="Henüz bölüm eklenmemiş."
-          description="Genel özet, temel prensipler, uygun/nötr besinler gibi bölümler ekleyerek içeriği yapılandırın."
+          title={tt("noSectionsTitle")}
+          description={tt("noSectionsDesc")}
         />
       ) : (
         <ul className="flex flex-col gap-3">
@@ -409,6 +410,8 @@ function SectionRow({
   onMove: (dir: -1 | 1) => void;
   onChanged: () => Promise<void>;
 }) {
+  const tt = useTranslations("beslenme.topic");
+  const bl = useBeslenmeLabels();
   const [key, setKey] = useState(section.section_key ?? "ozet");
   const [heading, setHeading] = useState(section.heading ?? "");
   const [content, setContent] = useState(section.content ?? "");
@@ -440,15 +443,15 @@ function SectionRow({
     });
     setSaving(false);
     if (r.ok) await onChanged();
-    else setErr(friendlyError(r.code, r.status));
+    else setErr(bl.error(r.code, r.status));
   }
 
   async function del() {
     if (deleting) return;
     const ok = await deleteConfirm({
-      title: "Bölümü sil",
-      message: "Bu bölüm ve içeriği kalıcı olarak silinecek.",
-      names: [section.heading?.trim() || SECTION_KEY_LABELS[section.section_key ?? ""] || "Bölüm"],
+      title: tt("deleteSectionTitle"),
+      message: tt("deleteSectionMsg"),
+      names: [section.heading?.trim() || (section.section_key ? bl.sectionKey(section.section_key) : "") || tt("sectionFallback")],
     });
     if (!ok) return;
     setDeleting(true);
@@ -456,7 +459,7 @@ function SectionRow({
     try {
       const r = await deleteSection(topicId, section.id);
       if (r.ok) await onChanged();
-      else setErr(friendlyError(r.code, r.status));
+      else setErr(bl.error(r.code, r.status));
     } finally {
       setDeleting(false);
     }
@@ -472,7 +475,7 @@ function SectionRow({
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
         <div className="w-full sm:w-56">
           <SelectInput value={key} onChange={(e) => setKey(e.target.value)}>
-            {SECTION_KEY_OPTIONS.map((o) => (
+            {bl.sectionKeyOptions.map((o) => (
               <option key={o.value} value={o.value}>
                 {o.label}
               </option>
@@ -482,13 +485,13 @@ function SectionRow({
         <TextInput
           value={heading}
           onChange={(e) => setHeading(e.target.value)}
-          placeholder={`Başlık (varsayılan: ${SECTION_KEY_LABELS[key] ?? "Bölüm"})`}
+          placeholder={tt("headingPlaceholder", { label: bl.sectionKey(key) })}
         />
         <div className="flex shrink-0 items-center gap-1">
-          <IconBtn label="Yukarı taşı" disabled={!canUp} onClick={() => onMove(-1)}>
+          <IconBtn label={tt("moveUp")} disabled={!canUp} onClick={() => onMove(-1)}>
             <ChevronUp className="h-4 w-4" aria-hidden />
           </IconBtn>
-          <IconBtn label="Aşağı taşı" disabled={!canDown} onClick={() => onMove(1)}>
+          <IconBtn label={tt("moveDown")} disabled={!canDown} onClick={() => onMove(1)}>
             <ChevronDown className="h-4 w-4" aria-hidden />
           </IconBtn>
         </div>
@@ -498,15 +501,15 @@ function SectionRow({
           value={content}
           onChange={(e) => setContent(e.target.value)}
           rows={4}
-          placeholder="Bölüm içeriği…"
+          placeholder={tt("contentPlaceholder")}
         />
       </div>
       <div className="mt-2 flex items-center justify-between">
         <PrimaryButton icon={<Save className="h-4 w-4" />} loading={saving} disabled={!dirty} onClick={() => void save()}>
-          Kaydet
+          {tt("save")}
         </PrimaryButton>
         <DangerButton icon={<Trash2 className="h-4 w-4" />} loading={deleting} onClick={() => void del()}>
-          Sil
+          {tt("delete")}
         </DangerButton>
       </div>
     </li>
@@ -548,6 +551,8 @@ function RelatedFoodsManager({
   rels: TopicFoodRel[];
   onChanged: () => Promise<void>;
 }) {
+  const tt = useTranslations("beslenme.topic");
+  const bl = useBeslenmeLabels();
   const [picking, setPicking] = useState(false);
   const [q, setQ] = useState("");
   const [results, setResults] = useState<Food[] | null>(null);
@@ -562,7 +567,7 @@ function RelatedFoodsManager({
     const r = await listFoods({ q: q.trim() || undefined });
     setSearching(false);
     if (!r.ok || !r.data) {
-      setErr(friendlyError(r.code, r.status));
+      setErr(bl.error(r.code, r.status));
       setResults([]);
       return;
     }
@@ -581,7 +586,7 @@ function RelatedFoodsManager({
       setResults(null);
       await onChanged();
     } else {
-      setErr(friendlyError(r.code, r.status));
+      setErr(bl.error(r.code, r.status));
     }
   }
 
@@ -589,11 +594,11 @@ function RelatedFoodsManager({
     <Card className="p-4">
       <div className="mb-3 flex items-center justify-between">
         <h3 className="inline-flex items-center gap-1.5 text-[14px] font-black text-slate-800">
-          <Link2 className="h-4 w-4 text-emerald-500" aria-hidden /> İlişkili Besinler
+          <Link2 className="h-4 w-4 text-emerald-500" aria-hidden /> {tt("relatedFoods")}
         </h3>
         {!picking ? (
           <GhostButton icon={<Plus className="h-4 w-4" />} onClick={() => setPicking(true)}>
-            Besin Ekle
+            {tt("addFood")}
           </GhostButton>
         ) : null}
       </div>
@@ -607,12 +612,12 @@ function RelatedFoodsManager({
       {picking ? (
         <div className="mb-3 rounded-xl border border-emerald-100 bg-emerald-50/40 p-3">
           <div className="mb-2 flex items-center justify-between">
-            <span className="text-[12px] font-black text-slate-600">Besin bağla</span>
+            <span className="text-[12px] font-black text-slate-600">{tt("linkFood")}</span>
             <button
               type="button"
               onClick={() => { setPicking(false); setResults(null); setQ(""); }}
               className="rounded-lg p-1 text-slate-400 hover:bg-white hover:text-slate-600"
-              aria-label="Kapat"
+              aria-label={tt("close")}
             >
               <X className="h-4 w-4" aria-hidden />
             </button>
@@ -620,7 +625,7 @@ function RelatedFoodsManager({
           <div className="flex flex-col gap-2 sm:flex-row">
             <div className="sm:w-48">
               <SelectInput value={relType} onChange={(e) => setRelType(e.target.value as RelationType)}>
-                {RELATION_TYPE_OPTIONS.map((o) => (
+                {bl.relationTypeOptions.map((o) => (
                   <option key={o.value} value={o.value}>
                     {o.label}
                   </option>
@@ -636,16 +641,16 @@ function RelatedFoodsManager({
                   void search();
                 }
               }}
-              placeholder="Besin ara…"
+              placeholder={tt("searchPlaceholder")}
             />
             <GhostButton icon={<Search className="h-4 w-4" />} loading={searching} onClick={() => void search()}>
-              Ara
+              {tt("search")}
             </GhostButton>
           </div>
 
           {results !== null ? (
             results.length === 0 ? (
-              <p className="mt-2 text-[12px] font-medium text-slate-400">Eklenebilecek besin bulunamadı.</p>
+              <p className="mt-2 text-[12px] font-medium text-slate-400">{tt("noFoodsToAdd")}</p>
             ) : (
               <ul className="mt-2 flex max-h-56 flex-col gap-1.5 overflow-y-auto">
                 {results.map((f) => (
@@ -670,8 +675,8 @@ function RelatedFoodsManager({
       {rels.length === 0 ? (
         <EmptyState
           icon={<Link2 className="h-8 w-8" />}
-          title="Henüz ilişkili besin yok."
-          description="Bu beslenme yaklaşımı için önerilen, uygun veya kaçınılması gereken besinleri ekleyin."
+          title={tt("noRelatedTitle")}
+          description={tt("noRelatedDesc")}
         />
       ) : (
         <ul className="flex flex-col gap-2">
@@ -693,6 +698,8 @@ function RelatedFoodRow({
   rel: TopicFoodRel;
   onChanged: () => Promise<void>;
 }) {
+  const tt = useTranslations("beslenme.topic");
+  const bl = useBeslenmeLabels();
   const [relType, setRelType] = useState<RelationType>(rel.relation_type);
   const [rationale, setRationale] = useState(rel.rationale ?? "");
   const [saving, setSaving] = useState(false);
@@ -716,10 +723,10 @@ function RelatedFoodRow({
   async function remove() {
     if (removing) return;
     const ok = await deleteConfirm({
-      title: "Besini konudan kaldır",
-      message: "Bu besin bu konudan kaldırılacak (besin kaydı silinmez; ilişki ve gerekçe silinir).",
-      names: [rel.food?.name_tr ?? "Besin"],
-      confirmText: "Kaldır",
+      title: tt("removeFoodTitle"),
+      message: tt("removeFoodMsg"),
+      names: [rel.food?.name_tr ?? tt("foodFallback")],
+      confirmText: tt("remove"),
     });
     if (!ok) return;
     setRemoving(true);
@@ -727,7 +734,7 @@ function RelatedFoodRow({
     try {
       const r = await removeTopicFood(topicId, rel.id);
       if (r.ok) await onChanged();
-      else setRowErr(friendlyError(r.code, r.status));
+      else setRowErr(bl.error(r.code, r.status));
     } finally {
       setRemoving(false);
     }
@@ -742,14 +749,14 @@ function RelatedFoodRow({
       ) : null}
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="truncate text-[13px] font-black text-slate-800">{rel.food?.name_tr ?? "Besin"}</p>
+          <p className="truncate text-[13px] font-black text-slate-800">{rel.food?.name_tr ?? tt("foodFallback")}</p>
           <div className="mt-1 flex flex-wrap items-center gap-2">
             <span
               className={`rounded-full border px-2 py-0.5 text-[10px] font-black ${
                 RELATION_TYPE_CHIP[rel.relation_type] ?? "border-slate-200 bg-slate-50 text-slate-600"
               }`}
             >
-              {RELATION_TYPE_LABELS[rel.relation_type] ?? rel.relation_type}
+              {bl.relationType(rel.relation_type)}
             </span>
             {rel.rationale ? (
               <span className="truncate text-[11px] font-medium text-slate-400">{rel.rationale}</span>
@@ -757,7 +764,7 @@ function RelatedFoodRow({
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-1">
-          <IconBtn label={editing ? "Kapat" : "Düzenle"} onClick={() => setEditing((v) => !v)}>
+          <IconBtn label={editing ? tt("close") : tt("edit")} onClick={() => setEditing((v) => !v)}>
             {editing ? <X className="h-4 w-4" aria-hidden /> : <Pencil className="h-4 w-4" aria-hidden />}
           </IconBtn>
           <button
@@ -765,8 +772,8 @@ function RelatedFoodRow({
             onClick={() => void remove()}
             disabled={removing}
             className="rounded-lg p-2 text-slate-400 transition hover:bg-rose-50 hover:text-rose-600 disabled:opacity-50"
-            aria-label="Besini kaldır"
-            title="Besini kaldır"
+            aria-label={tt("removeFood")}
+            title={tt("removeFood")}
           >
             <Trash2 className="h-4 w-4" aria-hidden />
           </button>
@@ -776,9 +783,9 @@ function RelatedFoodRow({
       {editing ? (
         <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-end">
           <div className="sm:w-48">
-            <Field label="İlişki">
+            <Field label={tt("relationLabel")}>
               <SelectInput value={relType} onChange={(e) => setRelType(e.target.value as RelationType)}>
-                {RELATION_TYPE_OPTIONS.map((o) => (
+                {bl.relationTypeOptions.map((o) => (
                   <option key={o.value} value={o.value}>
                     {o.label}
                   </option>
@@ -787,12 +794,12 @@ function RelatedFoodRow({
             </Field>
           </div>
           <div className="flex-1">
-            <Field label="Gerekçe (opsiyonel)">
-              <TextInput value={rationale} onChange={(e) => setRationale(e.target.value)} placeholder="Kısa açıklama" />
+            <Field label={tt("rationaleLabel")}>
+              <TextInput value={rationale} onChange={(e) => setRationale(e.target.value)} placeholder={tt("rationalePlaceholder")} />
             </Field>
           </div>
           <PrimaryButton icon={<Save className="h-4 w-4" />} loading={saving} disabled={!dirty} onClick={() => void save()}>
-            Kaydet
+            {tt("save")}
           </PrimaryButton>
         </div>
       ) : null}

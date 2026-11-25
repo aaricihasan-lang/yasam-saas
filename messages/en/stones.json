@@ -114,7 +114,8 @@
       "noMatch": "No matching clients.",
       "noClients": "No clients found.",
       "selectedSummary": "Selected: \"{combo}\" ({count, plural, one {# stone} other {# stones}}) will be saved to {name}.",
-      "saveToClientBtn": "💾 Save to Client"
+      "saveToClientBtn": "💾 Save to Client",
+      "unnamedClient": "Unnamed client"
     },
     "detailDrawer": {
       "detailAria": "{name} details",
@@ -149,10 +150,13 @@
       "stockTitle": "Inventory Status",
       "stockBadge": "INVENTORY",
       "inStockYes": "✓ This stone is in stock.",
-      "inStockNo": "This stone does not appear to be in stock right now."
+      "inStockNo": "This stone does not appear to be in stock right now.",
+      "stockBadgeYes": "In stock",
+      "stockBadgeNo": "Out of stock"
     },
     "reader": {
-      "demoProtected": "🔒 This content is protected in the demo account"
+      "demoProtected": "🔒 This content is protected in the demo account",
+      "empty": "No information entered yet."
     },
     "facetLabels": {
       "Kök": "Root",
@@ -222,6 +226,36 @@
       "empty": "There are no records to include in the selected sections.",
       "invalid": "The report selection is invalid. Refresh the list and try again.",
       "generic": "The Word report couldn't be created. Please try again."
+    },
+    "entries": {
+      "sourceLabel": "Source:",
+      "sourceUnspecified": "Source not specified",
+      "dialogAria": "{title} — information entries",
+      "intro": "Each piece of information is a separate entry and carries its own source. Changing one entry does not affect the others.",
+      "close": "Close",
+      "existingTitle": "Existing Entries ({count})",
+      "empty": "There are no information entries in this field yet.",
+      "infoField": "Information",
+      "sourceField": "Source",
+      "giveUp": "Cancel",
+      "saving": "Saving…",
+      "save": "Save",
+      "edit": "Edit",
+      "delete": "Delete",
+      "newTitle": "New Information",
+      "contentPlaceholder": "E.g. Improves blood flow to the lungs.",
+      "sourcePlaceholder": "E.g. Ahmet Hoca, The Crystal Healing Book",
+      "add": "+ Add Information",
+      "errEmpty": "The information text cannot be empty.",
+      "errSourceRequired": "A source is required. Enter who or where this information came from.",
+      "errSourceTooLong": "The source can be at most {max} characters.",
+      "unsaved": "There is unsaved information. It will be lost if you close.",
+      "backToEdit": "Back to editing",
+      "closeWithoutSaving": "Close without saving",
+      "sourcesAria": "Sources used for this stone",
+      "sourcesTitle": "Sources Used ({count})",
+      "entryCountTitle": "{count, plural, one {# information entry} other {# information entries}}",
+      "sourceHint": "The source is written separately under each <b>information entry</b>. Images, mineral/zodiac/organ assignments and warning tags belong to the stone."
     }
   }
 }

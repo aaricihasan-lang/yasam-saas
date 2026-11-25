@@ -17,7 +17,8 @@ import type { FoodNutrientView, FoodPortionView, FoodTraditional, FrameworkRef }
 import { putFoodNutrients, putFoodPortions, putFoodTraditional } from "@/lib/beslenme/beslenmeClient";
 import { calculateFoodForPortion, formatAmount, type Per100g } from "@/lib/beslenme/calc/nutrients";
 import { NUTRIENT_FIELDS, NUTRIENT_FIELD_CODES, NUTRIENT_GROUPS } from "@/lib/beslenme/nutrientFields";
-import { friendlyError } from "./constants";
+import { useTranslations } from "next-intl";
+import { useBeslenmeLabels } from "./useBeslenmeLabels";
 import { Card, Field, GhostButton, PrimaryButton, SelectInput, StatusMessage, TextInput } from "./primitives";
 
 /** Kayıt sonrası: effective besin id (sistem besininde ilk kayıt → kişisel kopya id). */
@@ -49,6 +50,11 @@ export function NutrientsPanel({
   const [showAll, setShowAll] = useState(false);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ type: "error" | "success"; text: string } | null>(null);
+  const tn = useTranslations("beslenme.nutrition");
+  const tf = useTranslations("beslenme.nutrientField");
+  const tg = useTranslations("beslenme.nutrientGroup");
+  const bl = useBeslenmeLabels();
+  const fieldLabel = (f: { code: string; label: string }) => (tf.has(f.code) ? tf(f.code) : f.label);
 
   const byCode = useMemo(() => {
     const m: Record<string, FoodNutrientView> = {};
@@ -66,7 +72,7 @@ export function NutrientsPanel({
       const amount = Number(raw);
       if (!Number.isFinite(amount) || amount < 0) {
         setBusy(false);
-        setMsg({ type: "error", text: `${f.label}: geçerli bir sayı girin (negatif olamaz).` });
+        setMsg({ type: "error", text: tn("invalidValue", { label: fieldLabel(f) }) });
         return;
       }
       // Mevcut kayıt farklı (izinli) bir birimdeyse o birim korunur; yoksa kanonik birim.
@@ -82,9 +88,9 @@ export function NutrientsPanel({
     setBusy(false);
     if (r.ok) {
       setEditing(false);
-      setMsg({ type: "success", text: "Besin değerleri kaydedildi." });
+      setMsg({ type: "success", text: tn("saved") });
       onChanged(r.data?.food_id);
-    } else setMsg({ type: "error", text: friendlyError(r.code, r.status) });
+    } else setMsg({ type: "error", text: bl.error(r.code, r.status) });
   }
 
   const hasAnyValue = (codes: string[]) => codes.some((c) => byCode[c]);
@@ -92,8 +98,8 @@ export function NutrientsPanel({
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-center justify-between">
-        <p className="text-[13px] font-black text-slate-700">100 g için</p>
-        {!editing ? <GhostButton onClick={() => { setVals(initial); setEditing(true); }}>Düzenle</GhostButton> : null}
+        <p className="text-[13px] font-black text-slate-700">{tn("per100")}</p>
+        {!editing ? <GhostButton onClick={() => { setVals(initial); setEditing(true); }}>{tn("edit")}</GhostButton> : null}
       </div>
       {msg ? <StatusMessage type={msg.type}>{msg.text}</StatusMessage> : null}
 
@@ -104,7 +110,7 @@ export function NutrientsPanel({
         const rows = editing || g.key === "main" || showAll ? g.fields : g.fields.filter((f) => byCode[f.code]);
         return (
           <div key={g.key} className="overflow-hidden rounded-xl border border-slate-100">
-            <p className="bg-slate-50/80 px-3 py-1.5 text-[11px] font-black uppercase tracking-wide text-slate-500">{g.label}</p>
+            <p className="bg-slate-50/80 px-3 py-1.5 text-[11px] font-black uppercase tracking-wide text-slate-500">{tg.has(g.key) ? tg(g.key) : g.label}</p>
             <table className="w-full text-[13px]">
               <tbody>
                 {rows.map((f) => {
@@ -112,7 +118,7 @@ export function NutrientsPanel({
                   const unitCode = existing?.unit?.code ?? f.unit;
                   return (
                     <tr key={f.code} className="border-b border-slate-50 last:border-0">
-                      <td className="px-3 py-2 font-medium text-slate-600">{f.label}</td>
+                      <td className="px-3 py-2 font-medium text-slate-600">{fieldLabel(f)}</td>
                       <td className="px-3 py-2 text-right">
                         {editing ? (
                           <input
@@ -120,7 +126,7 @@ export function NutrientsPanel({
                             value={vals[f.code] ?? ""}
                             onChange={(e) => setVals((p) => ({ ...p, [f.code]: e.target.value }))}
                             placeholder="—"
-                            aria-label={`${f.label} (${unitCode})`}
+                            aria-label={`${fieldLabel(f)} (${unitCode})`}
                             className="w-24 rounded-lg border border-slate-200 px-2 py-1 text-right text-[13px] focus:border-emerald-400 focus:outline-none"
                           />
                         ) : existing ? (
@@ -145,7 +151,7 @@ export function NutrientsPanel({
             icon={showAll ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
             onClick={() => setShowAll((v) => !v)}
           >
-            {showAll ? "Yalnız girilen değerleri göster" : "Tüm besin öğelerini göster"}
+            {showAll ? tn("showEntered") : tn("showAll")}
           </GhostButton>
         </div>
       ) : null}
@@ -153,11 +159,11 @@ export function NutrientsPanel({
       {editing ? (
         <div className="flex flex-col gap-2">
           <p className="text-[11px] font-medium text-slate-400">
-            Boş bıraktığınız alan &quot;bilinmiyor&quot; olarak kalır; 0 yazarsanız gerçek sıfır kaydedilir.
+            {tn("emptyHint")}
           </p>
           <div className="flex gap-2">
-            <PrimaryButton loading={busy} onClick={() => void save()}>Kaydet</PrimaryButton>
-            <GhostButton onClick={() => { setEditing(false); setVals(initial); setMsg(null); }}>Vazgeç</GhostButton>
+            <PrimaryButton loading={busy} onClick={() => void save()}>{tn("save")}</PrimaryButton>
+            <GhostButton onClick={() => { setEditing(false); setVals(initial); setMsg(null); }}>{tn("cancel")}</GhostButton>
           </div>
         </div>
       ) : null}
@@ -192,6 +198,10 @@ export function PortionsPanel({
   const [drafts, setDrafts] = useState<PortionDraft[]>([]);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ type: "error" | "success"; text: string } | null>(null);
+  const tn = useTranslations("beslenme.nutrition");
+  const tf = useTranslations("beslenme.nutrientField");
+  const bl = useBeslenmeLabels();
+  const fieldLabel = (f: { code: string; label: string }) => (tf.has(f.code) ? tf(f.code) : f.label);
 
   function startEdit() {
     setDrafts(
@@ -215,7 +225,7 @@ export function PortionsPanel({
       const g = Number((d.gram_weight ?? "").trim().replace(",", "."));
       if (!d.label_tr.trim() || !Number.isFinite(g) || g <= 0) {
         setBusy(false);
-        setMsg({ type: "error", text: "Her porsiyon için ad ve 0'dan büyük gram değeri girin." });
+        setMsg({ type: "error", text: tn("portionInvalid") });
         return;
       }
       items.push({
@@ -232,9 +242,9 @@ export function PortionsPanel({
     setBusy(false);
     if (r.ok) {
       setEditing(false);
-      setMsg({ type: "success", text: "Porsiyonlar kaydedildi." });
+      setMsg({ type: "success", text: tn("portionsSaved") });
       onChanged(r.data?.food_id);
-    } else setMsg({ type: "error", text: friendlyError(r.code, r.status) });
+    } else setMsg({ type: "error", text: bl.error(r.code, r.status) });
   }
 
   async function removeDraft(i: number) {
@@ -247,31 +257,31 @@ export function PortionsPanel({
         {msg ? <StatusMessage type={msg.type}>{msg.text}</StatusMessage> : null}
         {drafts.map((d, i) => (
           <div key={d.id ?? `new-${i}`} className="grid grid-cols-1 gap-2 rounded-xl border border-slate-100 p-3 sm:grid-cols-[1fr_auto_auto_auto]">
-            <TextInput value={d.label_tr} placeholder="1 orta elma" onChange={(e) => setDrafts((p) => p.map((x, j) => (j === i ? { ...x, label_tr: e.target.value } : x)))} />
+            <TextInput value={d.label_tr} placeholder={tn("portionPlaceholder")} onChange={(e) => setDrafts((p) => p.map((x, j) => (j === i ? { ...x, label_tr: e.target.value } : x)))} />
             <SelectInput value={d.measure_unit_code} onChange={(e) => setDrafts((p) => p.map((x, j) => (j === i ? { ...x, measure_unit_code: e.target.value } : x)))}>
-              <option value="piece">adet</option>
-              <option value="serving">porsiyon</option>
-              <option value="cup">su bardağı</option>
-              <option value="tbsp">yemek kaşığı</option>
-              <option value="tsp">tatlı kaşığı</option>
+              <option value="piece">{tn("unit.piece")}</option>
+              <option value="serving">{tn("unit.serving")}</option>
+              <option value="cup">{tn("unit.cup")}</option>
+              <option value="tbsp">{tn("unit.tbsp")}</option>
+              <option value="tsp">{tn("unit.tsp")}</option>
             </SelectInput>
-            <input inputMode="decimal" value={d.gram_weight} placeholder="g" aria-label="Gram" onChange={(e) => setDrafts((p) => p.map((x, j) => (j === i ? { ...x, gram_weight: e.target.value } : x)))} className="w-20 rounded-lg border border-slate-200 px-2 py-1.5 text-right text-[13px]" />
-            <button type="button" aria-label="Porsiyonu kaldır" title="Porsiyonu kaldır (Kaydet ile kalıcı olur)" onClick={() => void removeDraft(i)} className="rounded-lg p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600">
+            <input inputMode="decimal" value={d.gram_weight} placeholder="g" aria-label={tn("gramAria")} onChange={(e) => setDrafts((p) => p.map((x, j) => (j === i ? { ...x, gram_weight: e.target.value } : x)))} className="w-20 rounded-lg border border-slate-200 px-2 py-1.5 text-right text-[13px]" />
+            <button type="button" aria-label={tn("removePortion")} title={tn("removePortionTitle")} onClick={() => void removeDraft(i)} className="rounded-lg p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600">
               <Trash2 className="h-4 w-4" />
             </button>
           </div>
         ))}
         <div>
           <GhostButton icon={<Plus className="h-4 w-4" />} onClick={() => setDrafts((p) => [...p, { label_tr: "", measure_unit_code: "piece", gram_weight: "", is_default: false }])}>
-            Porsiyon Ekle
+            {tn("addPortion")}
           </GhostButton>
         </div>
         <p className="text-[11px] font-medium text-slate-400">
-          Kaldırdığınız porsiyonlar &quot;Kaydet&quot;e basana kadar silinmez; vazgeçerseniz değişmez.
+          {tn("removeHint")}
         </p>
         <div className="flex gap-2">
-          <PrimaryButton loading={busy} onClick={() => void save()}>Kaydet</PrimaryButton>
-          <GhostButton onClick={() => { setEditing(false); setMsg(null); }}>Vazgeç</GhostButton>
+          <PrimaryButton loading={busy} onClick={() => void save()}>{tn("save")}</PrimaryButton>
+          <GhostButton onClick={() => { setEditing(false); setMsg(null); }}>{tn("cancel")}</GhostButton>
         </div>
       </div>
     );
@@ -280,13 +290,13 @@ export function PortionsPanel({
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-center justify-between">
-        <p className="text-[13px] font-black text-slate-700">Porsiyonlar</p>
-        <GhostButton onClick={startEdit}>Düzenle</GhostButton>
+        <p className="text-[13px] font-black text-slate-700">{tn("portions")}</p>
+        <GhostButton onClick={startEdit}>{tn("edit")}</GhostButton>
       </div>
       {msg ? <StatusMessage type={msg.type}>{msg.text}</StatusMessage> : null}
       {portions.length === 0 ? (
         <p className="rounded-xl border border-dashed border-slate-200 px-3 py-4 text-center text-[13px] text-slate-400">
-          Porsiyon eklenmemiş. Ev ölçüsü → gram karşılığı ekleyebilirsiniz (ör. 1 orta = 182 g).
+          {tn("noPortions")}
         </p>
       ) : (
         <ul className="flex flex-col gap-1.5">
@@ -309,7 +319,8 @@ export function PortionsPanel({
                       .filter((v) => ["energy", "protein", "carbohydrate", "total_fat", "fiber"].includes(v.nutrient_code))
                       .map((v) => {
                         const nv = nutrients.find((n) => n.nutrient?.code === v.nutrient_code);
-                        const label = NUTRIENT_FIELDS.find((f) => f.code === v.nutrient_code)?.label ?? nv?.nutrient?.name_tr ?? v.nutrient_code;
+                        const fld = NUTRIENT_FIELDS.find((f) => f.code === v.nutrient_code);
+                        const label = fld ? fieldLabel(fld) : (nv?.nutrient?.name_tr ?? v.nutrient_code);
                         return `${label} ${formatAmount(v.amount, v.unit_code)} ${nv?.unit?.symbol ?? ""}`;
                       })
                       .join(" · ")}
@@ -348,6 +359,8 @@ export function TraditionalPanel({
   const [notes, setNotes] = useState(traditional?.notes ?? "");
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ type: "error" | "success"; text: string } | null>(null);
+  const tn = useTranslations("beslenme.nutrition");
+  const bl = useBeslenmeLabels();
 
   async function save() {
     setBusy(true);
@@ -362,17 +375,16 @@ export function TraditionalPanel({
     setBusy(false);
     if (r.ok) {
       setEditing(false);
-      setMsg({ type: "success", text: "Geleneksel nitelik kaydedildi." });
+      setMsg({ type: "success", text: tn("traditionalSaved") });
       onChanged(r.data?.food_id);
-    } else setMsg({ type: "error", text: friendlyError(r.code, r.status) });
+    } else setMsg({ type: "error", text: bl.error(r.code, r.status) });
   }
 
   return (
     <div className="flex flex-col gap-3">
       <Card className="border-amber-100 bg-amber-50/40 p-3">
         <p className="text-[11px] font-medium text-amber-700">
-          Geleneksel/bütünsel sınıflandırmadır; besin kompozisyonu veya klinik beslenme değeri değildir.
-          Tanı/tedavi amacı taşımaz.
+          {tn("tradDisclaimer")}
         </p>
       </Card>
       {msg ? <StatusMessage type={msg.type}>{msg.text}</StatusMessage> : null}
@@ -380,29 +392,29 @@ export function TraditionalPanel({
       {editing ? (
         <div className="flex flex-col gap-3">
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <Field label="Sıcaklık niteliği">
+            <Field label={tn("thermalLabel")}>
               <SelectInput value={thermal} onChange={(e) => setThermal(e.target.value)}>
-                {THERMAL.map((o) => <option key={o.v} value={o.v}>{o.l}</option>)}
+                {THERMAL.map((o) => <option key={o.v} value={o.v}>{o.v ? tn(`thermal.${o.v}`) : o.l}</option>)}
               </SelectInput>
             </Field>
-            <Field label="Nem niteliği">
+            <Field label={tn("moistureLabel")}>
               <SelectInput value={moisture} onChange={(e) => setMoisture(e.target.value)}>
-                {MOISTURE.map((o) => <option key={o.v} value={o.v}>{o.l}</option>)}
+                {MOISTURE.map((o) => <option key={o.v} value={o.v}>{o.v ? tn(`moisture.${o.v}`) : o.l}</option>)}
               </SelectInput>
             </Field>
-            <Field label="Çerçeve (opsiyonel)">
+            <Field label={tn("frameworkLabel")}>
               <SelectInput value={frameworkId} onChange={(e) => setFrameworkId(e.target.value)}>
                 <option value="">—</option>
                 {frameworks.map((f) => <option key={f.id} value={f.id}>{f.name_tr}</option>)}
               </SelectInput>
             </Field>
           </div>
-          <Field label="Not">
-            <TextInput value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Geleneksel kaynak/gözlem notu" />
+          <Field label={tn("noteLabel")}>
+            <TextInput value={notes} onChange={(e) => setNotes(e.target.value)} placeholder={tn("notePlaceholder")} />
           </Field>
           <div className="flex gap-2">
-            <PrimaryButton loading={busy} onClick={() => void save()}>Kaydet</PrimaryButton>
-            <GhostButton onClick={() => setEditing(false)}>Vazgeç</GhostButton>
+            <PrimaryButton loading={busy} onClick={() => void save()}>{tn("save")}</PrimaryButton>
+            <GhostButton onClick={() => setEditing(false)}>{tn("cancel")}</GhostButton>
           </div>
         </div>
       ) : (
@@ -410,20 +422,20 @@ export function TraditionalPanel({
           <div className="flex flex-wrap gap-2">
             {traditional?.thermal_quality ? (
               <span className="rounded-lg border border-orange-200 bg-orange-50 px-2.5 py-1 text-[12px] font-bold text-orange-700">
-                {THERMAL_L[traditional.thermal_quality]}
+                {THERMAL_L[traditional.thermal_quality] ? tn(`thermal.${traditional.thermal_quality}`) : traditional.thermal_quality}
               </span>
             ) : null}
             {traditional?.moisture_quality ? (
               <span className="rounded-lg border border-sky-200 bg-sky-50 px-2.5 py-1 text-[12px] font-bold text-sky-700">
-                {MOISTURE_L[traditional.moisture_quality]}
+                {MOISTURE_L[traditional.moisture_quality] ? tn(`moisture.${traditional.moisture_quality}`) : traditional.moisture_quality}
               </span>
             ) : null}
             {!traditional?.thermal_quality && !traditional?.moisture_quality ? (
-              <span className="text-[13px] text-slate-400">Geleneksel nitelik girilmemiş.</span>
+              <span className="text-[13px] text-slate-400">{tn("noTraditional")}</span>
             ) : null}
           </div>
           {traditional?.notes ? <p className="text-[13px] text-slate-600">{traditional.notes}</p> : null}
-          <div><GhostButton onClick={() => setEditing(true)}>Düzenle</GhostButton></div>
+          <div><GhostButton onClick={() => setEditing(true)}>{tn("edit")}</GhostButton></div>
         </div>
       )}
     </div>

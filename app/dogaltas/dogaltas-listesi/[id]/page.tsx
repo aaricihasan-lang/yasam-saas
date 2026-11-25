@@ -1,7 +1,11 @@
 "use client";
 
 import { runInEffect } from "@/lib/runInEffect";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import { localeTag } from "@/lib/i18n/format";
+import { resolveLocale } from "@/lib/i18n/locales";
+import { stoneRecordDisplayName } from "@/lib/dogaltas/stoneNames";
+import { useDogaltasServerError } from "@/lib/dogaltas/useServerErrorText";
 import Link from "next/link";
 import {
   ChangeEvent,
@@ -97,14 +101,23 @@ const CHAKRA_OPTIONS: readonly string[] = STONE_CHAKRA_OPTIONS;
 
 const WARNING_OPTIONS: readonly string[] = STONE_WARNING_OPTIONS;
 
+// Kanonik atama bölümü anahtarları (assignments JSON nesne anahtarı, DB'ye yazılır); gösterim asgLabel() ile.
 const ASSIGNMENT_SECTIONS = [
+  // i18n-ignore: kanonik DB anahtarı
   "Elementler",
+  // i18n-ignore: kanonik DB anahtarı
   "Mineraller",
+  // i18n-ignore: kanonik DB anahtarı
   "Etkili Organlar",
+  // i18n-ignore: kanonik DB anahtarı
   "Astrolojik Atama",
+  // i18n-ignore: kanonik DB anahtarı
   "Çakra Atama",
+  // i18n-ignore: kanonik DB anahtarı
   "Burçlar",
+  // i18n-ignore: kanonik DB anahtarı
   "Mizaçlar",
+  // i18n-ignore: kanonik DB anahtarı
   "Kan Grupları",
 ];
 
@@ -231,7 +244,18 @@ function normalizeAssignments(raw: unknown): Record<string, string[][]> {
   return result;
 }
 
-function normalizeImages(raw: unknown, signed: Record<string, string> = {}): StoneImageItem[] {
+/** Adı olmayan görselin yedek adı — Türkçe varsayılan. DB'ye geri yazılan liste (toSafeStone) bunu kullanır → kayıt değişmez. */
+const imageFallbackNameTr = (n: number): string => `Görsel ${n}`;
+
+/**
+ * @param fallbackName I18N (QTM-DG-07): yalnız GÖSTERİM listesinde ekran dilinde yedek ad (stones.detail.image.fallbackName).
+ *   Kalıcı kayda giden liste (toSafeStone) bunu vermez → Türkçe yedek birebir korunur.
+ */
+function normalizeImages(
+  raw: unknown,
+  signed: Record<string, string> = {},
+  fallbackName: (n: number) => string = imageFallbackNameTr,
+): StoneImageItem[] {
   if (!Array.isArray(raw)) return [];
 
   return raw.map((item, index) => {
@@ -241,7 +265,7 @@ function normalizeImages(raw: unknown, signed: Record<string, string> = {}): Sto
       const resolved = path && signed[path] ? signed[path] : undefined;
       return {
         id: `legacy-${index}`,
-        name: path.split(/[/\\]/).pop() || `Görsel ${index + 1}`,
+        name: path.split(/[/\\]/).pop() || fallbackName(index + 1),
         url: resolved,
         file_path: path || undefined,
         displayable: Boolean(resolved),
@@ -251,7 +275,7 @@ function normalizeImages(raw: unknown, signed: Record<string, string> = {}): Sto
     if (!item || typeof item !== "object") {
       return {
         id: `unknown-${index}`,
-        name: `Görsel ${index + 1}`,
+        name: fallbackName(index + 1),
         displayable: false,
       };
     }
@@ -269,7 +293,7 @@ function normalizeImages(raw: unknown, signed: Record<string, string> = {}): Sto
     return {
       id: String(record.id ?? `img-${index}`),
       name: String(
-        record.name ?? filePath.split(/[/\\]/).pop() ?? legacyUrl ?? `Görsel ${index + 1}`,
+        record.name ?? filePath.split(/[/\\]/).pop() ?? legacyUrl ?? fallbackName(index + 1),
       ),
       url: displayable ? resolved : undefined,
       file_path: filePath || undefined,
@@ -287,6 +311,7 @@ function toSafeStone(data: Record<string, unknown> | null | undefined): StoneRec
   return {
     id: String(data.id),
     tenant_id: stringField(data.tenant_id),
+    // i18n-ignore: veri modeli yedeği (stone_name alanına girer, düzenlenip kaydedilebilir)
     stone_name: stringField(data.stone_name) || "İsimsiz Taş",
     short_description: stringField(data.short_description),
     general_info: stringField(data.general_info),
@@ -315,24 +340,38 @@ function toSafeStone(data: Record<string, unknown> | null | undefined): StoneRec
   };
 }
 
+// Dosya adı için Türkçe harf → ASCII dönüşümü; harfler gösterim metni değildir.
 function safeFileName(fileName: string) {
   return fileName
+    // i18n-ignore: dosya adı harf dönüşümü
     .replaceAll("ı", "i")
+    // i18n-ignore: dosya adı harf dönüşümü
     .replaceAll("İ", "I")
+    // i18n-ignore: dosya adı harf dönüşümü
     .replaceAll("ğ", "g")
+    // i18n-ignore: dosya adı harf dönüşümü
     .replaceAll("Ğ", "G")
+    // i18n-ignore: dosya adı harf dönüşümü
     .replaceAll("ü", "u")
+    // i18n-ignore: dosya adı harf dönüşümü
     .replaceAll("Ü", "U")
+    // i18n-ignore: dosya adı harf dönüşümü
     .replaceAll("ş", "s")
+    // i18n-ignore: dosya adı harf dönüşümü
     .replaceAll("Ş", "S")
+    // i18n-ignore: dosya adı harf dönüşümü
     .replaceAll("ö", "o")
+    // i18n-ignore: dosya adı harf dönüşümü
     .replaceAll("Ö", "O")
+    // i18n-ignore: dosya adı harf dönüşümü
     .replaceAll("ç", "c")
+    // i18n-ignore: dosya adı harf dönüşümü
     .replaceAll("Ç", "C")
     .replace(/[^a-zA-Z0-9._-]/g, "-");
 }
 
-function formatDate(value: string | null | undefined) {
+// A13 (Owner §19): yalnız gösterim — tr çıktısı eski Intl.DateTimeFormat("tr-TR") ile birebir; en → en-GB (DD/MM/YYYY, 24 saat).
+function formatDate(value: string | null | undefined, locale: string) {
   if (!value) return "-";
 
   // Legacy/bozuk kayıtlar: created_at/updated_at ISO olmayabilir (ör. epoch string,
@@ -341,7 +380,7 @@ function formatDate(value: string | null | undefined) {
   const parsed = new Date(value);
   if (Number.isNaN(parsed.getTime())) return "-";
 
-  return new Intl.DateTimeFormat("tr-TR", {
+  return new Intl.DateTimeFormat(localeTag(resolveLocale(locale)), {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
@@ -501,12 +540,12 @@ function TextBlock({
           <h2 className="text-sm font-black text-slate-950">{title}</h2>
           {showMatchBadge ? <SearchMatchBadge /> : null}
           {sourceBlocks.entries.length > 1 ? (
-            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-black text-slate-500">{sourceBlocks.entries.length} kayıt</span>
+            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-black text-slate-500">{t("entryCount", { count: sourceBlocks.entries.length })}</span>
           ) : null}
         </div>
         {editEnabled ? (
           <span className="shrink-0 rounded-lg border border-emerald-200 bg-white px-2 py-0.5 text-[10px] font-black text-emerald-700 shadow-sm">
-            Kayıtlar · Ekle
+            {t("entriesAdd")}
           </span>
         ) : null}
       </div>
@@ -617,6 +656,8 @@ function TextBlock({
 
 function StoneDetailPage() {
   const t = useTranslations("stones.detail");
+  const locale = useLocale();
+  const se = useDogaltasServerError();
   const tl = useTranslations("stones.longText");
   const tre = useTranslations("stones.reportErrors");
   const { showToast } = useToast();
@@ -827,7 +868,7 @@ function StoneDetailPage() {
 
       if (!ok) {
         setStone(null);
-        setLoadError({ kind: "loadFailed", detail: error ?? "" });
+        setLoadError({ kind: "loadFailed", detail: se.detail(error) });
         return;
       }
 
@@ -901,7 +942,7 @@ function StoneDetailPage() {
       setSourceNames((prev) => (prev.includes(sourceName) ? prev : [...prev, sourceName]));
     }
     setEntryBusy(false);
-    if (!r.ok) setEntryError(r.error ?? "Bilgi eklenemedi.");
+    if (!r.ok) setEntryError(se.text(r.error, t("entryAddFailed")));
     return r.ok;
   }
 
@@ -917,16 +958,16 @@ function StoneDetailPage() {
       await refreshAfterEntryWrite(stone.id);
     }
     setEntryBusy(false);
-    if (!r.ok) setEntryError(r.error ?? "Bilgi kaydedilemedi.");
+    if (!r.ok) setEntryError(se.text(r.error, t("entrySaveFailed")));
     return r.ok;
   }
 
   async function handleDeleteEntry(entry: StoneEntryView): Promise<void> {
     if (!stone) return;
     const confirmed = await deleteConfirm({
-      title: "Bilgi kaydını sil",
-      message: `"${shortPreview(entry.content, 90)}" bilgisi (Kaynak: ${sourceDisplayName(entry.sourceName)}) silinecek. Bu alandaki diğer kayıtlar korunur.`,
-      secondMessage: "Bu işlem geri alınamaz. Emin misiniz?",
+      title: t("entryDelete.title"),
+      message: t("entryDelete.message", { preview: shortPreview(entry.content, 90), source: sourceDisplayName(entry.sourceName, t("sourceUnspecified")) }),
+      secondMessage: t("entryDelete.second"),
     });
     if (!confirmed) return;
     setEntryBusy(true);
@@ -938,7 +979,7 @@ function StoneDetailPage() {
       await refreshAfterEntryWrite(stone.id);
     }
     setEntryBusy(false);
-    if (!r.ok) setEntryError(r.error ?? "Bilgi silinemedi.");
+    if (!r.ok) setEntryError(se.text(r.error, t("entryDeleteFailed")));
   }
 
   async function loadSources(stoneId: string) {
@@ -994,7 +1035,7 @@ function StoneDetailPage() {
     openEditor({
       mode: "text",
       field,
-      title: field !== "stone_name" && multiSource ? `${title} · ${sourceDisplayName(sourceById(sourceId)?.name)}` : title,
+      title: field !== "stone_name" && multiSource ? `${title} · ${sourceDisplayName(sourceById(sourceId)?.name, t("sourceUnspecified"))}` : title,
       badge,
       value: String(value || ""),
       multiline,
@@ -1026,7 +1067,7 @@ function StoneDetailPage() {
     openEditor({
       mode: "checkbox",
       field,
-      title: field === "chakras" && multiSource ? `${title} · ${sourceDisplayName(sourceById(sourceId)?.name)}` : title,
+      title: field === "chakras" && multiSource ? `${title} · ${sourceDisplayName(sourceById(sourceId)?.name, t("sourceUnspecified"))}` : title,
       badge,
       selected,
       options,
@@ -1124,7 +1165,7 @@ function StoneDetailPage() {
     const activeExtra = editorSourceId ? extraSources.find((s) => s.id === editorSourceId) ?? null : null;
     if (editorSourceId && !activeExtra) {
       setSaving(false);
-      setErrorMessage(t("editor.updateFailed", { error: "Kaynak bulunamadı; sayfayı yenileyin." }));
+      setErrorMessage(t("editor.updateFailed", { error: t("sourceNotFound") }));
       return;
     }
     if (activeExtra && sourceKeys.length > 0) {
@@ -1133,7 +1174,7 @@ function StoneDetailPage() {
       const r = await updateStoneSource(stone.id, activeExtra.id, patch);
       setSaving(false);
       if (!r.ok) {
-        setErrorMessage(t("editor.updateFailed", { error: r.error ?? t("editor.updateFailedFallback") }));
+        setErrorMessage(t("editor.updateFailed", { error: se.detail(r.error, t("editor.updateFailedFallback")) }));
         return;
       }
       if (r.row) {
@@ -1155,14 +1196,14 @@ function StoneDetailPage() {
     setSaving(false);
 
     if (conflict) {
-      setErrorMessage(error ?? t("editor.updateFailedFallback"));
+      setErrorMessage(se.text(error, t("editor.updateFailedFallback")));
       const fresh = await getStone(stone.id);
       if (fresh.ok && fresh.row) commitStoneRecord(fresh.row as Record<string, unknown>);
       return;
     }
 
     if (!ok || !data) {
-      setErrorMessage(t("editor.updateFailed", { error: error ?? t("editor.updateFailedFallback") }));
+      setErrorMessage(t("editor.updateFailed", { error: se.detail(error, t("editor.updateFailedFallback")) }));
       return;
     }
 
@@ -1234,7 +1275,7 @@ function StoneDetailPage() {
     setDeleteLoading(false);
 
     if (!ok) {
-      setErrorMessage(t("error.deleteFailed", { error: error ?? t("error.tryAgain") }));
+      setErrorMessage(t("error.deleteFailed", { error: se.detail(error, t("error.tryAgain")) }));
       return;
     }
 
@@ -1367,12 +1408,12 @@ function StoneDetailPage() {
         // Kayda bağlanamayan yeni dosyalar temizlenir (referanssız oldukları sunucuda doğrulanır).
         await cleanupPhotoFiles(additions.map((a) => a.file_path));
         if (conflict) {
-          setErrorMessage(error ?? t("editor.updateFailedFallback"));
+          setErrorMessage(se.text(error, t("editor.updateFailedFallback")));
           const fresh = await getStone(currentStone.id);
           if (fresh.ok && fresh.row) commitStoneRecord(fresh.row as Record<string, unknown>);
           return;
         }
-        setErrorMessage(t("editor.updateFailed", { error: error ?? t("editor.updateFailedFallback") }));
+        setErrorMessage(t("editor.updateFailed", { error: se.detail(error, t("editor.updateFailedFallback")) }));
         return;
       }
 
@@ -1419,14 +1460,14 @@ function StoneDetailPage() {
 
       if (conflict) {
         // Başka sekme/oturum kaydı değiştirmiş → hiçbir dosya silinmez; güncel kayıt yüklenir.
-        setErrorMessage(error ?? t("editor.updateFailedFallback"));
+        setErrorMessage(se.text(error, t("editor.updateFailedFallback")));
         const fresh = await getStone(currentStone.id);
         if (fresh.ok && fresh.row) commitStoneRecord(fresh.row as Record<string, unknown>);
         return;
       }
 
       if (!ok || !data) {
-        setErrorMessage(t("editor.updateFailed", { error: error ?? t("editor.updateFailedFallback") }));
+        setErrorMessage(t("editor.updateFailed", { error: se.detail(error, t("editor.updateFailedFallback")) }));
         return;
       }
 
@@ -1450,6 +1491,9 @@ function StoneDetailPage() {
     () => (stone ? toSafeStone(stone as unknown as Record<string, unknown>) : null),
     [stone],
   );
+  // Görünen başlık: demo vitrin taşı EN arayüzde EN ad; kullanıcının taşı / TR arayüz birebir. Düzenleyici, silme onayı ve
+  // kayıt her zaman saklanan adı (safeStone.stone_name) kullanır.
+  const shownStoneName = safeStone ? stoneRecordDisplayName(safeStone, locale) : "";
   // Madde 14: arama eşleşmesi çok kaynaklı taşta TÜM kaynakların metninde aranır.
   // Bilgi kaydı modeli: alan eşleşmesi o alanın TÜM kayıtlarında (eski metinler + yeni kayıtlar) aranır.
   const fieldSearchText = (field: SourceTextField): string | null => fieldEntriesText(entriesByField[field]) || null;
@@ -1610,7 +1654,7 @@ function StoneDetailPage() {
 
   const hasAssignments = Object.keys(safeAssignments).length > 0;
 
-  const images = normalizeImages(safeImages, signedImageUrls);
+  const images = normalizeImages(safeImages, signedImageUrls, (n) => t("image.fallbackName", { n }));
   const imagesWithUrl = images.filter((img) => img.displayable && img.url);
   const imagesNotWebFormat = images.filter((img) => !img.displayable);
 
@@ -1649,15 +1693,15 @@ function StoneDetailPage() {
             ) : (
               <div className="flex flex-wrap items-center gap-2">
                 <h1 className="text-xl font-black tracking-tight text-slate-950 sm:text-2xl">
-                  {renderHighlightedText(safeStone.stone_name, highlightQuery)}
+                  {renderHighlightedText(shownStoneName, highlightQuery)}
                 </h1>
                 {sectionMatches?.stoneName ? <SearchMatchBadge /> : null}
               </div>
             )}
 
             <p className="mt-1 text-[11px] font-medium text-slate-500">
-              {formatDate(safeStone.created_at)}
-              {safeStone.updated_at ? t("updatedAt", { date: formatDate(safeStone.updated_at) }) : ""}
+              {formatDate(safeStone.created_at, locale)}
+              {safeStone.updated_at ? t("updatedAt", { date: formatDate(safeStone.updated_at, locale) }) : ""}
             </p>
           </div>
 
@@ -1801,7 +1845,7 @@ function StoneDetailPage() {
                       </button>
                     )}
                     <h2 className="w-full break-words border-t border-emerald-200/80 bg-white/70 px-3 pb-3 pt-3 text-xl font-black text-slate-950">
-                      {renderHighlightedText(safeStone.stone_name, highlightQuery)}
+                      {renderHighlightedText(shownStoneName, highlightQuery)}
                     </h2>
                   </div>
 
@@ -1848,7 +1892,7 @@ function StoneDetailPage() {
                   <div className="min-w-0 px-3 py-2 text-center">
                     <div className="text-[34px]">💎</div>
                     <h2 className="mt-1 break-words text-sm font-black text-slate-900">
-                      {safeStone.stone_name}
+                      {shownStoneName}
                     </h2>
                     <p className="mt-1 text-[10px] leading-4 text-slate-400">
                       {t("image.none")}
@@ -2252,7 +2296,7 @@ function StoneDetailPage() {
                           {usageHasMatch ? <SearchMatchBadge /> : null}
                         </div>
                         {editEnabled ? (
-                          <span className="rounded-md bg-emerald-50 px-1.5 py-0.5 text-[9px] font-black text-emerald-700 ring-1 ring-emerald-100">Kayıtlar · Ekle</span>
+                          <span className="rounded-md bg-emerald-50 px-1.5 py-0.5 text-[9px] font-black text-emerald-700 ring-1 ring-emerald-100">{t("entriesAdd")}</span>
                         ) : null}
                       </div>
                     );
@@ -2346,7 +2390,7 @@ function StoneDetailPage() {
         open={Boolean(activeReader)}
         title={activeReader?.title ?? ""}
         badge={activeReader?.badge ?? ""}
-        subtitle={`${t("readerSubtitle", { name: safeStone.stone_name })}${(activeReader?.entries?.length ?? 0) > 1 ? ` · ${t("readerEntryCount", { n: activeReader!.entries!.length })}` : ""}`}
+        subtitle={`${t("readerSubtitle", { name: shownStoneName })}${(activeReader?.entries?.length ?? 0) > 1 ? ` · ${t("readerEntryCount", { n: activeReader!.entries!.length })}` : ""}`}
         text={activeReader?.text ?? ""}
         entries={activeReader?.entries}
         highlightQuery={highlightQuery}

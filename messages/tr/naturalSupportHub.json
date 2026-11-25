@@ -1,0 +1,13 @@
+{
+  "naturalSupportHub": {
+    "titleA": "Doğal Destek",
+    "titleB": "Rehber",
+    "subtitle": "Doğaltaş, doğal destek yöntemleri, beslenme ve profesyonel başvuru kaynakları",
+    "cards": {
+      "stones": { "title": "Doğaltaş", "desc": "Taş ve mineral kayıtları, kombinasyonlar ve danışan eşleşmeleri" },
+      "aromatherapy": { "title": "Aromaterapi", "desc": "Uçucu yağlar, sabit yağlar ve karışımlar" },
+      "sifaRehberi": { "title": "Şifa Rehberi", "desc": "Rahatsızlık kayıtları, belirtiler ve destekleyici öneriler" },
+      "beslenme": { "title": "Beslenme", "desc": "Besinler, beslenme yaklaşımları ve profesyonel beslenme bilgileri" }
+    }
+  }
+}

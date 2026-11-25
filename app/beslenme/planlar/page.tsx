@@ -9,6 +9,8 @@ import Link from "next/link";
 import { runInEffect } from "@/lib/runInEffect";
 import { useRouter } from "next/navigation";
 import { CalendarDays, Copy, GitBranch, Plus } from "lucide-react";
+import { useTranslations } from "next-intl";
+import { usePlanFormat } from "./_components/usePlanFormat";
 import {
   copyPlan,
   listPlans,
@@ -31,18 +33,14 @@ import {
 } from "../_components/primitives";
 import { NewPlanDialog } from "./_components/NewPlanDialog";
 import { PlanDeleteDialog } from "./_components/PlanDeleteDialog";
-import {
-  formatDateTr,
-  friendlyPlanError,
-  revisionLabel,
-  statusClass,
-  statusLabel,
-} from "./_components/planFormat";
+import { revisionLabel, statusClass } from "./_components/planFormat";
 import { BES_CARD_BLEED, BES_GUTTER } from "@/app/beslenme/_components/mobileBleed";
 
 export default function PlanlarPage() {
   const guard = useBeslenmeModuleGuard();
   const router = useRouter();
+  const t = useTranslations("beslenme.plans");
+  const pf = usePlanFormat();
 
   const [plans, setPlans] = useState<Plan[]>([]);
   const [loading, setLoading] = useState(true);
@@ -64,7 +62,7 @@ export default function PlanlarPage() {
     const cname = p.get("clientName");
     if (cid) {
       runInEffect(() => {
-        setPresetClient({ id: cid, name: cname || "Danışan" });
+        setPresetClient({ id: cid, name: cname || t("clientFallback") });
         setDialogOpen(true);
       });
       // DY-02: ön-seçim parametreleri bir kez kullanılır → adresten kaldırılır. Aksi hâlde planı oluşturup
@@ -74,7 +72,7 @@ export default function PlanlarPage() {
       const rest = p.toString();
       window.history.replaceState(window.history.state, "", `${window.location.pathname}${rest ? `?${rest}` : ""}${window.location.hash}`);
     }
-  }, []);
+  }, [t]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -82,8 +80,8 @@ export default function PlanlarPage() {
     const r = await listPlans();
     setLoading(false);
     if (r.ok && r.data) setPlans(r.data.plans ?? []);
-    else setErr(friendlyPlanError(r.code, r.status));
-  }, []);
+    else setErr(pf.error(r.code, r.status));
+  }, [pf]);
 
   useEffect(() => {
     if (guard !== "ok") return;
@@ -99,7 +97,7 @@ export default function PlanlarPage() {
     const r = await copyPlan(plan.id, {});
     setBusyId(null);
     if (r.ok && r.data?.plan) router.push(`/beslenme/planlar/${r.data.plan.id}`);
-    else setActionErr(friendlyPlanError(r.code, r.status));
+    else setActionErr(pf.error(r.code, r.status));
   }
 
   async function doRevise(plan: Plan) {
@@ -108,7 +106,7 @@ export default function PlanlarPage() {
     const r = await revisePlan(plan.id);
     setBusyId(null);
     if (r.ok && r.data?.plan) router.push(`/beslenme/planlar/${r.data.plan.id}`);
-    else setActionErr(friendlyPlanError(r.code, r.status));
+    else setActionErr(pf.error(r.code, r.status));
   }
 
   /**
@@ -124,13 +122,13 @@ export default function PlanlarPage() {
 
   return (
     <BeslenmeShell
-      title="Beslenme Planları"
-      subtitle="Günlük, haftalık ve aylık beslenme planları. Kalori ve besin değerleri seçtiğiniz besinlerden otomatik hesaplanır."
+      title={t("title")}
+      subtitle={t("subtitle")}
       icon={<CalendarDays className="h-32 w-32" strokeWidth={1} />}
       backHref="/beslenme"
       actions={
         <PrimaryButton icon={<Plus className="h-4 w-4" />} onClick={() => setDialogOpen(true)}>
-          Yeni Plan
+          {t("newPlan")}
         </PrimaryButton>
       }
     >
@@ -146,22 +144,22 @@ export default function PlanlarPage() {
       ) : null}
 
       {loading ? (
-        <InlineSpinner label="Planlar yükleniyor…" />
+        <InlineSpinner label={t("loading")} />
       ) : err ? (
         <div className={BES_GUTTER}>
           <StatusMessage type="error">{err}</StatusMessage>
           <div className="mt-3">
-            <GhostButton onClick={() => void load()}>Tekrar Dene</GhostButton>
+            <GhostButton onClick={() => void load()}>{t("retry")}</GhostButton>
           </div>
         </div>
       ) : plans.length === 0 ? (
         <EmptyState
           icon={<CalendarDays className="h-8 w-8" />}
-          title="Henüz plan yok."
-          description="İlk beslenme planınızı oluşturarak başlayın."
+          title={t("emptyTitle")}
+          description={t("emptyDesc")}
           action={
             <PrimaryButton icon={<Plus className="h-4 w-4" />} onClick={() => setDialogOpen(true)}>
-              Yeni Plan
+              {t("newPlan")}
             </PrimaryButton>
           }
         />
@@ -178,17 +176,17 @@ export default function PlanlarPage() {
                 <div className="flex items-start justify-between gap-2">
                   <h2 className="min-w-0 truncate text-[15px] font-black text-slate-900">{p.title}</h2>
                   <span className={`shrink-0 rounded-full border px-2.5 py-0.5 text-[10px] font-black ${statusClass(p.status)}`}>
-                    {statusLabel(p.status)}
+                    {pf.status(p.status)}
                   </span>
                 </div>
 
                 <p className="mt-1 text-[12px] font-bold text-slate-500">
-                  {formatDateTr(p.start_date)} – {formatDateTr(p.end_date)}
+                  {pf.date(p.start_date)} – {pf.date(p.end_date)}
                 </p>
 
                 <div className="mt-2 flex flex-wrap items-center gap-1.5">
                   <span className="rounded-full border border-emerald-100 bg-emerald-50 px-2.5 py-0.5 text-[11px] font-black text-emerald-700">
-                    {p.daily_energy_target ? `${p.daily_energy_target.toLocaleString("tr-TR")} kcal/gün` : "Hedef yok"}
+                    {p.daily_energy_target ? t("energyPerDay", { kcal: p.daily_energy_target.toLocaleString(pf.numTag) }) : t("noTarget")}
                   </span>
                   {p.revision_number > 1 ? (
                     <span className="rounded-full border border-slate-200 bg-white px-2.5 py-0.5 text-[11px] font-black text-slate-600">
@@ -198,11 +196,11 @@ export default function PlanlarPage() {
                 </div>
 
                 <p className="mt-2 text-[11px] font-medium text-slate-400">
-                  Son güncelleme: {formatDateTr(p.updated_at)}
+                  {t("lastUpdated", { date: pf.date(p.updated_at) })}
                 </p>
 
                 {locked ? (
-                  <p className="mt-1 text-[11px] font-bold text-amber-600">Düzenlemeye kapalı — düzenlemek için kopyalayın</p>
+                  <p className="mt-1 text-[11px] font-bold text-amber-600">{t("lockedHint")}</p>
                 ) : null}
 
                 {/* Aksiyonlar */}
@@ -211,14 +209,14 @@ export default function PlanlarPage() {
                     href={`/beslenme/planlar/${p.id}`}
                     className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 px-3.5 py-2 text-[13px] font-black text-white shadow-sm ring-1 ring-white/25 transition hover:brightness-105"
                   >
-                    Aç
+                    {t("open")}
                   </Link>
                   <GhostButton
                     icon={<Copy className="h-4 w-4" />}
                     loading={busyId === p.id}
                     onClick={() => void doCopy(p)}
                   >
-                    Planı Kopyala
+                    {t("copy")}
                   </GhostButton>
                   {!locked ? (
                     <GhostButton
@@ -226,7 +224,7 @@ export default function PlanlarPage() {
                       loading={busyId === p.id}
                       onClick={() => void doRevise(p)}
                     >
-                      Yeni Revizyon
+                      {t("revise")}
                     </GhostButton>
                   ) : null}
                   <DangerButton
@@ -234,7 +232,7 @@ export default function PlanlarPage() {
                     loading={busyId === p.id}
                     onClick={() => doDelete(p)}
                   >
-                    Sil
+                    {t("delete")}
                   </DangerButton>
                 </div>
               </div>
@@ -250,7 +248,7 @@ export default function PlanlarPage() {
           onDeleted={() => {
             const title = deleteTarget.title;
             setDeleteTarget(null);
-            setActionOk(`"${title}" silindi.`);
+            setActionOk(t("deleted", { title }));
             void load();
           }}
         />

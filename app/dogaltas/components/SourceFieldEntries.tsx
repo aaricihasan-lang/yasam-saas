@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { useTranslations } from "next-intl";
 import { sourceDisplayName, type SourceChakraEntry } from "@/lib/dogaltas/stoneSources";
 
 /**
@@ -9,6 +10,7 @@ import { sourceDisplayName, type SourceChakraEntry } from "@/lib/dogaltas/stoneS
  */
 
 function SourceName({ name }: { name: string | null }) {
+  const t = useTranslations("stones.entries");
   return (
     <p
       data-testid="source-field-entry-name"
@@ -16,7 +18,7 @@ function SourceName({ name }: { name: string | null }) {
       className={`flex min-w-0 items-center gap-1 text-[10.5px] font-black uppercase tracking-[0.08em] text-cyan-800 ${name ? "" : "italic"}`}
     >
       <span aria-hidden>📖</span>
-      <span className="min-w-0 break-words">{sourceDisplayName(name)}</span>
+      <span className="min-w-0 break-words">{sourceDisplayName(name, t("sourceUnspecified"))}</span>
     </p>
   );
 }

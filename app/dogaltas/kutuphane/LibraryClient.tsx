@@ -7,34 +7,51 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { useLocale, useTranslations } from "next-intl";
 import type { StoneLibraryFacetCatalog, StoneLibraryKeyedFacet, StoneLibraryListItem } from "@/lib/stone-library/contract";
 import { viewerGet } from "./_shared/api";
 import { AuthImage } from "./_shared/AuthImage";
-import { FACET_LABEL, FACET_ORDER, LIBRARY_TITLE, NOT_FOUND_TEXT, monthName } from "./_shared/labels";
+import { FACET_ORDER } from "./_shared/labels";
+import { libraryStoneName, libraryStoneSecondaryName, sortLibraryItemsForLocale } from "@/lib/dogaltas/stoneNames";
 import s from "./kutuphane.module.css";
 
 const PAGE = 30;
+/** EN arayüzde (arama terimi yokken) İngilizce ada göre sıralama için yayımlanmış kartların tamamı sayfa sayfa okunur
+ *  (sunucu sırası Türkçe `sort_key`; migration yok). Üst sınırı aşan kütüphanede sunucu sırasına dönülür. */
+const EN_SORT_FETCH_PAGE = 50;
+const EN_SORT_MAX_ITEMS = 500;
 type Search = { total: number; limit: number; offset: number; items: StoneLibraryListItem[] };
 type Selected = Record<StoneLibraryKeyedFacet | "birth_month", string[]>;
 const emptySel = (): Selected => ({ color: [], chakra: [], zodiac: [], element: [], planet: [], birth_month: [] });
 
+/** Kütüphane arayüz çevirisi: ay adı + facet değer etiketi (DB'den label_tr / label_en; anahtar kanonik kalır). */
+export function useLibraryLabels() {
+  const t = useTranslations("stones.library");
+  const locale = useLocale();
+  const monthName = (m: number): string => (Number.isInteger(m) && m >= 1 && m <= 12 ? t(`month.${m}`) : String(m));
+  const facetValueLabel = (v: { label_tr: string; label_en: string }): string => (locale === "en" && v.label_en ? v.label_en : v.label_tr);
+  return { t, locale, monthName, facetValueLabel };
+}
+
 export function ModuleNav({ current, ownerWorkspaceHref }: { current: "library" | "articles"; ownerWorkspaceHref?: string }) {
+  const t = useTranslations("stones.library");
   return (
-    <nav className={s.modnav} aria-label="Doğaltaş modülü">
+    <nav className={s.modnav} aria-label={t("moduleNavAria")}>
       <Link href="/dogaltas/kutuphane" aria-current={current === "library" ? "page" : undefined}>
-        {LIBRARY_TITLE}
+        {t("title")}
       </Link>
-      {ownerWorkspaceHref ? <Link href={ownerWorkspaceHref}>Kütüphane Yönetimi</Link> : null}
+      {ownerWorkspaceHref ? <Link href={ownerWorkspaceHref}>{t("managementTab")}</Link> : null}
     </nav>
   );
 }
 
 export function NotFoundState() {
+  const t = useTranslations("stones.library");
   return (
     <div className={s.gate} role="status">
-      <h1>{NOT_FOUND_TEXT}</h1>
+      <h1>{t("notFound")}</h1>
       <Link className={s.btn} href="/dogaltas">
-        Doğaltaş modülüne dön
+        {t("backToModule")}
       </Link>
     </div>
   );
@@ -42,6 +59,7 @@ export function NotFoundState() {
 
 /** ownerWorkspaceHref: "Kütüphane Yönetimi" sekmesi (yalnız owner yoklaması başarılıysa verilir; uzmanlara yok). */
 export default function LibraryClient({ ownerWorkspaceHref }: { ownerWorkspaceHref?: string } = {}) {
+  const { t, locale, monthName, facetValueLabel } = useLibraryLabels();
   const [q, setQ] = useState("");
   const [debouncedQ, setDebouncedQ] = useState("");
   const [sel, setSel] = useState<Selected>(emptySel);
@@ -71,24 +89,41 @@ export default function LibraryClient({ ownerWorkspaceHref }: { ownerWorkspaceHr
     return () => ctrl.abort();
   }, []);
 
-  const queryKey = useMemo(() => {
+  // EN arayüz + arama terimi yok → görünen (İngilizce) ada göre sıra. Arama terimi varken sunucunun alaka sırası korunur.
+  // TR arayüzde istek ve sıra birebir aynı.
+  const sortByEn = locale === "en" && !debouncedQ;
+  const filterQuery = useMemo(() => {
     const p = new URLSearchParams();
     if (debouncedQ) p.set("q", debouncedQ);
     for (const k of [...FACET_ORDER, "birth_month"] as const) for (const v of sel[k]) p.append(k, v);
+    return p;
+  }, [debouncedQ, sel]);
+  const queryKey = useMemo(() => {
+    const p = new URLSearchParams(filterQuery);
     p.set("limit", String(PAGE));
     p.set("offset", String(offset));
     return p.toString();
-  }, [debouncedQ, sel, offset]);
+  }, [filterQuery, offset]);
+  const resultKey = sortByEn ? `${queryKey}#en` : queryKey;
 
   useEffect(() => {
     const ctrl = new AbortController();
     void (async () => {
+      if (sortByEn) {
+        const all = await fetchAllForEnSort(filterQuery, ctrl.signal);
+        if (ctrl.signal.aborted) return;
+        if (all) {
+          const items = sortLibraryItemsForLocale(all.items, locale).slice(offset, offset + PAGE);
+          setResult({ key: resultKey, data: { total: all.total, limit: PAGE, offset, items }, denied: false });
+          return;
+        }
+      }
       const r = await viewerGet<Search & { ok: true }>(`/api/dogaltas/kutuphane?${queryKey}`, ctrl.signal);
       if (ctrl.signal.aborted) return;
-      setResult({ key: queryKey, data: r.ok ? r.data : null, denied: !r.ok });
+      setResult({ key: resultKey, data: r.ok ? r.data : null, denied: !r.ok });
     })();
     return () => ctrl.abort();
-  }, [queryKey]);
+  }, [queryKey, resultKey, sortByEn, filterQuery, offset, locale]);
 
   const toggle = (k: keyof Selected, v: string) => {
     setSel((cur) => ({ ...cur, [k]: cur[k].includes(v) ? cur[k].filter((x) => x !== v) : [...cur[k], v] }));
@@ -99,7 +134,10 @@ export default function LibraryClient({ ownerWorkspaceHref }: { ownerWorkspaceHr
     setOffset(0);
   };
   const activeCount = Object.values(sel).reduce((n, a) => n + a.length, 0);
-  const labelOf = (k: StoneLibraryKeyedFacet, key: string) => catalog?.facets[k]?.find((x) => x.key === key)?.label_tr ?? key;
+  const labelOf = (k: StoneLibraryKeyedFacet, key: string) => {
+    const v = catalog?.facets[k]?.find((x) => x.key === key);
+    return v ? facetValueLabel(v) : key;
+  };
 
   if (denied) {
     return (
@@ -112,7 +150,7 @@ export default function LibraryClient({ ownerWorkspaceHref }: { ownerWorkspaceHr
     );
   }
 
-  const loading = !result || result.key !== queryKey;
+  const loading = !result || result.key !== resultKey;
   const data = result?.data ?? null;
   const total = data?.total ?? 0;
 
@@ -121,11 +159,11 @@ export default function LibraryClient({ ownerWorkspaceHref }: { ownerWorkspaceHr
     if (!vals.length) return null;
     return (
       <section className={s.fgroup} key={k}>
-        <h3>{FACET_LABEL[k]}</h3>
+        <h3>{t(`facet.${k}`)}</h3>
         <div className={s.chips}>
           {vals.map((v) => (
             <button key={v.key} type="button" className={s.chip} aria-pressed={sel[k].includes(v.key)} onClick={() => toggle(k, v.key)}>
-              {v.label_tr} <small>{v.count}</small>
+              {facetValueLabel(v)} <small>{v.count}</small>
             </button>
           ))}
         </div>
@@ -140,14 +178,14 @@ export default function LibraryClient({ ownerWorkspaceHref }: { ownerWorkspaceHr
         <section className={s.hero}>
           <div>
             <span className={s.eyebrow}>Yaşam Sistemi</span>
-            <h1>{LIBRARY_TITLE}</h1>
-            <p>Doğaltaşların açıklamaları, anlamları, olumlamaları ve eşleştirmeleri tek yerde. Kaynak metinler değiştirilmeden korunur; doğrulanmış Türkçe çeviri ayrı bir katmandır.</p>
+            <h1>{t("title")}</h1>
+            <p>{t("heroLead")}</p>
           </div>
           {catalog ? (
             <div className={s.heroStats}>
               <div className={s.statPill}>
                 <b>{catalog.total}</b>
-                <span>Yayındaki taş</span>
+                <span>{t("publishedStones")}</span>
               </div>
             </div>
           ) : null}
@@ -155,10 +193,10 @@ export default function LibraryClient({ ownerWorkspaceHref }: { ownerWorkspaceHr
 
         <div className={s.searchrow}>
           <label className={s.search}>
-            <span className={s.srOnly}>Taş ara</span>
-            <input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Taş adıyla arayın (Türkçe veya İngilizce)…" autoComplete="off" maxLength={80} enterKeyHint="search" />
+            <span className={s.srOnly}>{t("searchLabel")}</span>
+            <input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("searchPlaceholder")} autoComplete="off" maxLength={80} enterKeyHint="search" />
             {q ? (
-              <button type="button" className={s.iconBtn} aria-label="Aramayı temizle" onClick={() => setQ("")}>
+              <button type="button" className={s.iconBtn} aria-label={t("clearSearch")} onClick={() => setQ("")}>
                 ×
               </button>
             ) : null}
@@ -172,24 +210,24 @@ export default function LibraryClient({ ownerWorkspaceHref }: { ownerWorkspaceHr
               setCollapsed((v) => !v);
             }}
           >
-            Filtreler {activeCount ? <span className={s.count}>{activeCount}</span> : null}
+            {t("filters")} {activeCount ? <span className={s.count}>{activeCount}</span> : null}
           </button>
         </div>
 
         <div className={`${s.lib} ${sheet ? s.sheetOpen : ""} ${collapsed ? s.filtersCollapsed : ""}`}>
-          <aside className={s.filters} aria-label="Filtreler">
+          <aside className={s.filters} aria-label={t("filters")}>
             <div className={s.filtersHead}>
-              <h2>Filtreler</h2>
+              <h2>{t("filters")}</h2>
               {activeCount ? (
                 <button type="button" className={`${s.btn} ${s.btnGhost}`} onClick={clearAll}>
-                  Tümünü temizle
+                  {t("clearAll")}
                 </button>
               ) : null}
             </div>
-            {catalog ? FACET_ORDER.map(group) : <p className={s.missing}>Filtreler yükleniyor…</p>}
+            {catalog ? FACET_ORDER.map(group) : <p className={s.missing}>{t("filtersLoading")}</p>}
             {catalog && catalog.birth_month.length ? (
               <section className={s.fgroup}>
-                <h3>Doğum ayı</h3>
+                <h3>{t("birthMonth")}</h3>
                 <div className={s.chips}>
                   {catalog.birth_month.map((m) => (
                     <button key={m.value} type="button" className={s.chip} aria-pressed={sel.birth_month.includes(String(m.value))} onClick={() => toggle("birth_month", String(m.value))}>
@@ -201,17 +239,17 @@ export default function LibraryClient({ ownerWorkspaceHref }: { ownerWorkspaceHr
             ) : null}
             <div className={s.sheetFoot}>
               <button type="button" className={s.btn} onClick={clearAll}>
-                Tümünü temizle
+                {t("clearAll")}
               </button>
               <button type="button" className={`btn-success ${s.btn}`} onClick={() => setSheet(false)}>
-                Sonuçları göster ({total})
+                {t("showResults", { total })}
               </button>
             </div>
           </aside>
 
           <section aria-live="polite" aria-busy={loading}>
             <div className={s.resultsBar}>
-              <span className={s.n}>{loading ? "Aranıyor…" : `${total} taş`}</span>
+              <span className={s.n}>{loading ? t("searching") : t("resultCount", { total })}</span>
               <div className={s.chips}>
                 {FACET_ORDER.flatMap((k) =>
                   sel[k].map((v) => (
@@ -228,7 +266,7 @@ export default function LibraryClient({ ownerWorkspaceHref }: { ownerWorkspaceHr
               </div>
             </div>
             {loading && !data ? (
-              <p className={s.loading}>Yükleniyor…</p>
+              <p className={s.loading}>{t("loading")}</p>
             ) : !data ? (
               <NotFoundState />
             ) : data.items.length ? (
@@ -241,21 +279,21 @@ export default function LibraryClient({ ownerWorkspaceHref }: { ownerWorkspaceHr
                 {total > PAGE ? (
                   <div className={s.pager}>
                     <button type="button" className={`btn-outline ${s.btn}`} disabled={offset === 0 || loading} onClick={() => setOffset(Math.max(0, offset - PAGE))}>
-                      Önceki
+                      {t("prev")}
                     </button>
                     <span className={s.missing}>
                       {offset + 1}–{Math.min(offset + PAGE, total)} / {total}
                     </span>
                     <button type="button" className={`btn-outline ${s.btn}`} disabled={offset + PAGE >= total || loading} onClick={() => setOffset(offset + PAGE)}>
-                      Sonraki
+                      {t("next")}
                     </button>
                   </div>
                 ) : null}
               </>
             ) : (
               <div className={s.emptyState}>
-                <b>Bu ölçütlere uyan taş bulunamadı.</b>
-                Filtreleri azaltmayı veya farklı bir ad yazmayı deneyin.
+                <b>{t("emptyTitle")}</b>
+                {t("emptyHint")}
               </div>
             )}
           </section>
@@ -265,20 +303,45 @@ export default function LibraryClient({ ownerWorkspaceHref }: { ownerWorkspaceHr
   );
 }
 
+/**
+ * EN sıralaması için filtreye uyan tüm yayımlanmış kartlar (sayfa sayfa; yalnız okuma ucu, kredi/sağlayıcı çağrısı yok).
+ * Hata / yetkisiz / üst sınır aşımı → null (çağıran sunucu sayfalamasına döner).
+ */
+async function fetchAllForEnSort(filter: URLSearchParams, signal: AbortSignal): Promise<{ total: number; items: StoneLibraryListItem[] } | null> {
+  const items: StoneLibraryListItem[] = [];
+  let total = 0;
+  for (let off = 0; off < EN_SORT_MAX_ITEMS; off += EN_SORT_FETCH_PAGE) {
+    const p = new URLSearchParams(filter);
+    p.set("limit", String(EN_SORT_FETCH_PAGE));
+    p.set("offset", String(off));
+    const r = await viewerGet<Search & { ok: true }>(`/api/dogaltas/kutuphane?${p.toString()}`, signal);
+    if (!r.ok || signal.aborted) return null;
+    total = r.data.total;
+    if (total > EN_SORT_MAX_ITEMS) return null;
+    items.push(...r.data.items);
+    if (r.data.items.length < EN_SORT_FETCH_PAGE || items.length >= total) break;
+  }
+  return { total, items };
+}
+
 function StoneCard({ item }: { item: StoneLibraryListItem }) {
-  const tags = [...(item.facets.color ?? []), ...(item.facets.chakra ?? [])].map((v) => v.label_tr);
+  const { t, locale, facetValueLabel } = useLibraryLabels();
+  // Sistem kartı: EN arayüzde name_en birincil, Türkçe ad alt satırda; TR'de bugünkü gibi name_tr + name_en alt satır.
+  const name = libraryStoneName(item, locale);
+  const secondary = libraryStoneSecondaryName(item, locale);
+  const tags = [...(item.facets.color ?? []), ...(item.facets.chakra ?? [])].map(facetValueLabel);
   return (
     <Link className={s.card} href={`/dogaltas/kutuphane/${item.slug}`}>
       <span className={s.ph}>
         {item.has_image ? (
-          <AuthImage src={`/api/dogaltas/kutuphane/${item.slug}/gorsel`} alt={`${item.name_tr} — taş görseli`} lazy className={s.phImg} placeholderClassName={s.phEmpty} />
+          <AuthImage src={`/api/dogaltas/kutuphane/${item.slug}/gorsel`} alt={t("imageAlt", { name })} lazy className={s.phImg} placeholderClassName={s.phEmpty} />
         ) : (
-          <span className={s.phEmpty}>Görsel yok</span>
+          <span className={s.phEmpty}>{t("noImage")}</span>
         )}
       </span>
       <span className={s.cardBody}>
-        <h3>{item.name_tr}</h3>
-        {item.name_en && item.name_en !== item.name_tr ? <span className={s.alt}>{item.name_en}</span> : null}
+        <h3>{name}</h3>
+        {secondary ? <span className={s.alt}>{secondary}</span> : null}
         {tags.length ? (
           <span className={s.tags}>
             {tags.slice(0, 3).map((t) => (

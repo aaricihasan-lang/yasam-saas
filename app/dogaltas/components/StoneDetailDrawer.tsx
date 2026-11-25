@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import { stoneRecordDisplayName } from "@/lib/dogaltas/stoneNames";
 import { type StoneListItemExtended } from "@/lib/dogaltas/stonesListFetch";
 import { useOverlay } from "@/lib/dogaltas/useOverlay";
 import { useSearchHighlight } from "@/lib/search/useSearchHighlight";
@@ -137,6 +138,7 @@ export function StoneDetailDrawer({
 }: StoneDetailDrawerProps) {
   const t = useTranslations("stones.detailDrawer");
   const tc = useTranslations("stones.common");
+  const locale = useLocale();
   const tp = useTranslations("stones.photos");
   const tf = useTranslations("stones");
   const facet = (v: string) => (tf.has(`facetLabels.${v}`) ? tf(`facetLabels.${v}`) : v);
@@ -267,7 +269,7 @@ export function StoneDetailDrawer({
       className="fixed inset-0 z-[70] flex items-center justify-center px-3 sm:items-stretch sm:justify-end sm:px-0"
       role="dialog"
       aria-modal="true"
-      aria-label={t("detailAria", { name: stone.stone_name || t("stoneFallback") })}
+      aria-label={t("detailAria", { name: stone.stone_name ? stoneRecordDisplayName(stone, locale) : t("stoneFallback") })}
     >
       {/* Arka plan — panelin ÜSTÜNDE ve ALTINDAKİ karartılmış alanın tamamı (dokunma → kapanır). */}
       <div
@@ -296,16 +298,17 @@ export function StoneDetailDrawer({
               </span>
               {inStock ? (
                 <span className="rounded-full bg-emerald-600 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-white">
-                  Stokta
+                  {t("stockBadgeYes")}
                 </span>
               ) : (
                 <span className="rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-slate-500">
-                  Stok yok
+                  {t("stockBadgeNo")}
                 </span>
               )}
             </div>
             <h2 className="truncate text-lg font-black tracking-tight text-slate-950">
-              {stone.stone_name || tc("unnamedStone")}
+              {/* Demo vitrin taşı → EN arayüzde EN gösterim adı; kullanıcının taşı / TR arayüz birebir. */}
+              {stone.stone_name ? stoneRecordDisplayName(stone, locale) : tc("unnamedStone")}
             </h2>
           </div>
           <button
