@@ -12,6 +12,7 @@ import {
 } from "@/app/numeroloji/bilgi-bankasi/helpers/wordPersonSections";
 import {
   buildNumerolojiWordChildren,
+  numerologyWordFileName, // I18N-F1-R5
   packNumerolojiDocx,
   type WordRecordRow,
   type WordSharedData,
@@ -23,6 +24,7 @@ import type { SourceEntryRow } from "@/app/numeroloji/bilgi-bankasi/helpers/sour
 import type { KnowledgeRecordRow } from "@/app/numeroloji/bilgi-bankasi/helpers/bilgiBankaKayit";
 import { buildStockIndex, type StockIndex } from "@/app/numeroloji/bilgi-bankasi/helpers/stoneStockLogic";
 import { canSeeNumerologyFutureYears } from "@/app/numeroloji/utils/futureYearsAccess";
+import { resolveOutputLocale } from "@/lib/i18n/output"; // I18N-F1-R5
 
 export const runtime = "nodejs";
 
@@ -136,9 +138,12 @@ export async function POST(req: NextRequest): Promise<Response> {
   // yeniden çözülür; body'de gelen hiçbir alan yetki sayılmaz. Rapor saklanmaz/önbelleğe alınmaz →
   // yetki kapatıldıktan sonraki ilk indirme sınırı yeniden uygular.
   const futureYears = canSeeNumerologyFutureYears(guard.profile);
+  // I18N-F1-R5 (P35): çıktı dili = ekran dili (çerez + yayın kapısı; istemci parametresi okunmaz). Yalnız görünen
+  // I18N-F1-R5 metni seçer; kayıt / yetki / gizleme kararına GİRMEZ. #855 birleşince: resolveReportLocale(req, hesap).
+  const output = resolveOutputLocale(req); // I18N-F1-R5
   // F3A: uzman markalaması (oturum sahibinin profili; anahtar kapalı / tablo yok / hata → null = markasız).
   const branding = await resolveReportBranding(db, { tenantId, userId: guard.userId }, { fullName: expertDisplayName(guard.profile) });
-  const { children, emptyTabs, anyContent } = buildNumerolojiWordChildren(rows, sections, shared, stockIndex, refCalendar, new Date(), futureYears, { branding });
+  const { children, emptyTabs, anyContent } = buildNumerolojiWordChildren(rows, sections, shared, stockIndex, refCalendar, new Date(), futureYears, { branding, output });
 
   // Tüm seçilen sekmeler boşsa → dosya üretme, açık mesaj döndür.
   if (!anyContent) {
@@ -157,12 +162,15 @@ export async function POST(req: NextRequest): Promise<Response> {
   const buffer = await packNumerolojiDocx(children, `${rows[0]!.name} ${rows[0]!.surname}`.trim(), {
     expertName: expertDisplayName(guard.profile),
     branding,
+    output,
   });
 
   const filename = isSingle
     ? wordFileName(`${rows[0]!.name} ${rows[0]!.surname}`, selectedTabs)
     : `Numeroloji_${rows.length}_Kayit_${selectedTabs.length === 1 ? WORD_TAB_LABELS[selectedTabs[0]!].replace(/[^A-Za-z0-9]+/g, "_") : "Secili_Bolumler"}.docx`;
 
+  // I18N-F1-R5: dosya adı çıktı dilinde (TR → yukarıdaki ad AYNEN). X-Empty-Tabs / 422 TR sekme adları API sözleşmesidir.
+  const outFilename = numerologyWordFileName(output, filename, { rows, selectedTabs, isSingle }); // I18N-F1-R5
   const emptyHeader = emptyTabs.map((t) => WORD_TAB_LABELS[t]).join("|");
 
   // Usage360: Word dosyası BAŞARIYLA üretildi → tek rapor olayı (konu: analiz; çoklu → itemCount).
@@ -177,7 +185,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   return new Response(new Uint8Array(buffer), {
     headers: {
       "Content-Type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-      "Content-Disposition": `attachment; filename*=UTF-8''${encodeURIComponent(filename)}`,
+      "Content-Disposition": `attachment; filename*=UTF-8''${encodeURIComponent(outFilename)}`,
       "Content-Length": String(buffer.length),
       "X-Empty-Tabs": encodeURIComponent(emptyHeader),
       // Yetkiye bağlı içerik (Gelecek Yıllar) → ara katman/tarayıcı önbelleğinde tekrar kullanılmaz.

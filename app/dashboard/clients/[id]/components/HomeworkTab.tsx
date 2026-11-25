@@ -2,9 +2,12 @@
 
 import { runInEffect } from "@/lib/runInEffect";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { formatDateAbsolute } from "@/lib/i18n/format";
+import { resolveLocale } from "@/lib/i18n/locales";
 import { useToast } from "@/components/ui/ToastProvider";
+import { useClientsApiError } from "@/lib/danisan/clientApiErrors";
+import type { ApiErrorPayload } from "@/lib/i18n/apiError";
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
 import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
@@ -405,6 +408,7 @@ function HomeworkForm({ data, onChange, openEditor }: HomeworkFormProps) {
 
 export default function HomeworkTab({ clientId }: HomeworkTabProps) {
   const t = useTranslations("clients.homework");
+  const apiErr = useClientsApiError();
   const { showToast } = useToast();
   const deleteConfirm = useDeleteConfirm();
 
@@ -412,11 +416,12 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
   const statusLabelI18n = (s: string | null | undefined): string =>
     s && t.has(`status.${s}`) ? t(`status.${s}`) : (s || t("status.unknown"));
 
-  // Mutlak tarih (global sözleşme: tüm locale'lerde DD.MM.YYYY); boş tarihte sistem etiketi (DISPLAY-only).
+  // Mutlak tarih (A13: tr DD.MM.YYYY · en DD/MM/YYYY); boş tarihte sistem etiketi (DISPLAY-only).
+  const displayLocale = resolveLocale(useLocale());
   const fmtDate = useCallback(
     (date: string | null) =>
-      date ? formatDateAbsolute(date) : t("noDate"),
-    [t],
+      date ? formatDateAbsolute(date, displayLocale) : t("noDate"),
+    [t, displayLocale],
   );
   const [tenantId, setTenantId] = useState<string | null>(null);
   const [homeworks, setHomeworks] = useState<ClientHomework[]>([]);
@@ -551,7 +556,7 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
 
     if (!res.ok || !json.ok) {
       console.error("Ödev kayıtları yüklenemedi:", json.error);
-      setErrorMessage(t("error.loadFailed") + ": " + (json.error ?? ""));
+      setErrorMessage(apiErr.detail(t("error.loadFailed"), json as ApiErrorPayload));
       setLoading(false);
       return;
     }
@@ -624,7 +629,7 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
       console.error("Ödev kaydı eklenemedi:", json.error);
       showToast({
         title: t("toast.failTitle"),
-        message: t("toast.addFailed") + ": " + (json.error ?? ""),
+        message: apiErr.detail(t("toast.addFailed"), json as ApiErrorPayload),
         type: "error",
       });
       setSaving(false);
@@ -723,7 +728,7 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
       console.error("Ödev kaydı güncellenemedi:", json.error);
       showToast({
         title: t("toast.failTitle"),
-        message: t("toast.updateFailed") + ": " + (json.error ?? ""),
+        message: apiErr.detail(t("toast.updateFailed"), json as ApiErrorPayload),
         type: "error",
       });
       setUpdating(false);
@@ -765,7 +770,7 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
     if (!res || !res.ok || !json.ok) {
       showToast({
         title: t("toast.failTitle"),
-        message: t("toast.statusFailed") + ": " + (json.error ?? ""),
+        message: apiErr.detail(t("toast.statusFailed"), json as ApiErrorPayload),
         type: "error",
       });
       return;
@@ -802,7 +807,7 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
     if (!res || !res.ok || !json.ok) {
       showToast({
         title: t("toast.failTitle"),
-        message: t("toast.dismissFailed") + ": " + (json.error ?? ""),
+        message: apiErr.detail(t("toast.dismissFailed"), json as ApiErrorPayload),
         type: "error",
       });
       return;
@@ -846,7 +851,7 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
     if (!res || !res.ok || !json.ok) {
       showToast({
         title: t("toast.failTitle"),
-        message: t("toast.deleteFailed") + ": " + (json.error ?? ""),
+        message: apiErr.detail(t("toast.deleteFailed"), json as ApiErrorPayload),
         type: "error",
       });
       // D1 (DY-04): 404 = ödev artık yok → bayat satır listeden kalkar.

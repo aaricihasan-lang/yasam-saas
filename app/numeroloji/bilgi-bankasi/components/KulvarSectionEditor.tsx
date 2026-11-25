@@ -5,6 +5,8 @@
  * Yalnız body metinleri düzenlenir; key/label/order sabittir (KULVAR_SECTION_TEMPLATE).
  * Ana Kulvar ve Yan Kulvar AYNI bileşeni, aynı sırayı ve aynı etiketleri kullanır.
  */
+import { useLocale, useTranslations } from "next-intl";
+import { DEFAULT_LOCALE } from "@/lib/i18n/locales";
 import { KULVAR_SECTION_TEMPLATE, type KulvarSectionKey } from "../helpers/knowledgeSections";
 import type { KulvarBodies } from "../helpers/kulvarFormLogic";
 
@@ -26,15 +28,20 @@ export function KulvarSectionEditor({
   errors?: Partial<Record<KulvarSectionKey, string>>;
   idPrefix?: string;
 }) {
+  const tr = useTranslations("numerology.knowledge");
+  // I18N: bölüm key/label kanonik şablondur (helpers/knowledgeSections, Word üreticisi "Genel Açıklama" ile karşılaştırır);
+  // yalnız GÖSTERİM: TR'de şablon etiketi aynen, EN'de numerology.knowledge.shared.sectionLabels.<key>.
+  const isSourceLocale = useLocale() === DEFAULT_LOCALE;
   return (
     <div className="grid gap-3">
       {KULVAR_SECTION_TEMPLATE.map((t) => {
+        const label = isSourceLocale ? t.label : tr(`shared.sectionLabels.${t.key}`);
         const fieldId = `${idPrefix}-${t.key}`;
         const err = errors?.[t.key];
         return (
           <div key={t.key} className="min-w-0">
             <label htmlFor={fieldId} className={sectionLabelClass}>
-              {t.label}
+              {label}
             </label>
             <textarea
               id={fieldId}
@@ -42,7 +49,7 @@ export function KulvarSectionEditor({
               onChange={(e) => onChange(t.key, e.target.value)}
               disabled={disabled}
               rows={4}
-              placeholder={`${t.label} metnini buraya yazın…`}
+              placeholder={tr("sectionEditor.placeholder", { label })}
               className={sectionTextareaClass}
             />
             {err ? <p className="mt-1 text-xs font-semibold text-rose-600">{err}</p> : null}

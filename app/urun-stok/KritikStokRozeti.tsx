@@ -1,5 +1,7 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+
 /**
  * KritikStokRozeti — Ürün & Stok hub'ında canlı kritik stok sayacı.
  * Senaryo 2: uzman uygulamayı açar açmaz, tıklamadan "🔴 N kritik ürün" görür;
@@ -17,6 +19,7 @@ import {
 } from "@/lib/urun-stok/liveStockLogic";
 
 export default function KritikStokRozeti() {
+  const t = useTranslations("stock.hub.critical");
   const [count, setCount] = useState<number | null>(null);
 
   useEffect(() => {
@@ -51,7 +54,7 @@ export default function KritikStokRozeti() {
         href="/urun-stok/canli-stok"
         className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-black text-emerald-800 no-underline"
       >
-        ✓ Kritik stok yok
+        {t("none")}
       </Link>
     );
   }
@@ -61,7 +64,7 @@ export default function KritikStokRozeti() {
       href="/urun-stok/canli-stok"
       className="inline-flex items-center gap-1.5 rounded-full border-2 border-rose-300 bg-rose-50 px-3 py-1 text-xs font-black text-rose-800 no-underline transition hover:bg-rose-100"
     >
-      🔴 {count} kritik ürün — listeye git →
+      {t("some", { count: String(count) })}
     </Link>
   );
 }

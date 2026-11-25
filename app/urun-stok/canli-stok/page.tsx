@@ -1,5 +1,12 @@
 "use client";
 
+import { useLocale, useTranslations } from "next-intl";
+import { useStockServerText } from "../useStockServerText";
+import { useStockFormat } from "../useStockFormat";
+import { DEFAULT_LOCALE, type ActiveLocale } from "@/lib/i18n/locales";
+import { formatCurrency, formatNumber } from "@/lib/i18n/format";
+import { saleRecordedParts } from "@/lib/urun-stok/stockErrorCodes";
+
 import Link from "next/link";
 import BfcacheRefreshHandler from "@/components/BfcacheRefreshHandler";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -17,7 +24,7 @@ import {
   applyStockDelta,
   buildCriticalListText,
   filterLiveStock,
-  fmtMoney,
+  fmtMoney as libFmtMoney,
   formatStockTotals,
   isCriticalAmount,
   loadLiveStockRows,
@@ -85,6 +92,11 @@ function StockCard({
   row: LiveStockRow;
   onAdjust: (row: LiveStockRow, delta: number, idempotencyKey: string) => Promise<StockDeltaResult>;
 }) {
+  const t = useTranslations("stock.live");
+  const ss = useStockServerText();
+
+  const { fmtMoney } = useStockFormat({ fmtMoney: libFmtMoney });
+  const uiLocale = useLocale() as ActiveLocale;
   const [mode, setMode] = useState<null | "add" | "sell">(null);
   const [qty, setQty] = useState("");
   const [busy, setBusy] = useState(false);
@@ -108,7 +120,7 @@ function StockCard({
   async function confirm() {
     const n = parseFloat(qty.replace(",", "."));
     if (!Number.isFinite(n) || n <= 0) {
-      setErr("Geçerli bir miktar girin.");
+      setErr(t("invalidQty"));
       return;
     }
     setBusy(true);
@@ -123,13 +135,22 @@ function StockCard({
     const res = await onAdjust(row, delta, attempt.key);
     setBusy(false);
     if (!res.ok) {
-      setErr(res.error);
+      // QA K3D-01: TR'de lib metni birebir; diğer dillerde çevrilmiş yedek.
+      setErr(ss.isSourceLocale ? res.error : ss.text(res.error, t("adjustFailed")));
       return;
     }
     attemptRef.current = null;
     if (delta < 0) clearPendingSaleAttempt(scope);
     close();
-    setNote(res.message ?? null);
+    // QS-01: diğer dilde lib notundaki tutar korunur (yalnız gösterim — lib metninden okunur), birim ekran diline eşlenir.
+    const parts = ss.isSourceLocale ? null : saleRecordedParts(res.message);
+    setNote(
+      ss.isSourceLocale || !res.message
+        ? (res.message ?? null)
+        : parts
+          ? t("saleRecordedAmount", { qty: formatNumber(n, { maximumFractionDigits: 2 }, uiLocale), unit: ss.unit(row.unitLabel), amount: formatCurrency(parts.total, uiLocale) })
+          : t("saleRecorded", { qty: formatNumber(n, { maximumFractionDigits: 2 }, uiLocale), unit: ss.unit(row.unitLabel) }),
+    );
   }
 
   return (
@@ -149,24 +170,24 @@ function StockCard({
               {row.categoryLabel}
             </span>
             {row.isCritical ? (
-              <span className="rounded-xl bg-rose-100 px-3 py-1 text-xs font-black text-rose-800">Kritik stok</span>
+              <span className="rounded-xl bg-rose-100 px-3 py-1 text-xs font-black text-rose-800">{t("criticalBadge")}</span>
             ) : null}
           </div>
           <h2 className="text-base font-black leading-tight text-slate-900 sm:text-lg">{row.name}</h2>
           <p className="text-sm font-semibold text-slate-600">{row.groupLabel}</p>
           <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm font-semibold text-slate-700">
-            <span>Maliyet: {row.costPerUnitLabel}</span>
-            <span className="text-emerald-800">Satış: {row.salePerUnitLabel}</span>
+            <span>{t("cost", { value: row.costPerUnitLabel })}</span>
+            <span className="text-emerald-800">{t("sale", { value: row.salePerUnitLabel })}</span>
             {row.marginPct != null ? (
-              <span className="rounded-lg bg-emerald-50 px-2 font-black text-emerald-800">Kâr %{row.marginPct}</span>
+              <span className="rounded-lg bg-emerald-50 px-2 font-black text-emerald-800">{t("margin", { pct: String(row.marginPct) })}</span>
             ) : null}
-            <span className="text-slate-500">Değer: {fmtMoney(row.stockValue)}</span>
+            <span className="text-slate-500">{t("value", { value: fmtMoney(row.stockValue) })}</span>
           </div>
         </div>
 
         <div className="flex shrink-0 flex-col items-stretch sm:items-end">
           <p className="mb-1 text-center text-xs font-black uppercase tracking-wider text-slate-500 sm:text-right">
-            Mevcut stok
+            {t("currentStock")}
           </p>
           <div
             className={`rounded-xl border-2 px-4 py-3 text-center sm:min-w-[110px] ${
@@ -176,7 +197,7 @@ function StockCard({
             }`}
           >
             <p className="text-xl font-black leading-none text-slate-900 sm:text-2xl">{row.stockDisplay}</p>
-            <p className="mt-1 text-xs font-bold text-slate-500">birim: {row.unitLabel}</p>
+            <p className="mt-1 text-xs font-bold text-slate-500">{t("unit", { unit: ss.unit(row.unitLabel) })}</p>
           </div>
         </div>
       </div>
@@ -190,21 +211,21 @@ function StockCard({
               onClick={() => open("sell")}
               className="inline-flex h-10 min-h-[40px] flex-1 items-center justify-center gap-1 rounded-xl border-2 border-rose-200 bg-rose-50 px-4 text-sm font-black text-rose-800 transition hover:bg-rose-100 sm:flex-none"
             >
-              − Sat (stok düş)
+              {t("sell")}
             </button>
             <button
               type="button"
               onClick={() => open("add")}
               className="inline-flex h-10 min-h-[40px] flex-1 items-center justify-center gap-1 rounded-xl border-2 border-emerald-200 bg-emerald-50 px-4 text-sm font-black text-emerald-800 transition hover:bg-emerald-100 sm:flex-none"
             >
-              + Stok ekle
+              {t("addStock")}
             </button>
           </div>
         ) : (
           <div className="space-y-2">
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-sm font-black text-slate-700">
-                {mode === "sell" ? `Kaç ${row.unitLabel} satıldı?` : `Kaç ${row.unitLabel} eklenecek?`}
+                {mode === "sell" ? t("howManySold", { unit: ss.unit(row.unitLabel) }) : t("howManyAdd", { unit: ss.unit(row.unitLabel) })}
               </span>
               <input
                 autoFocus
@@ -218,10 +239,10 @@ function StockCard({
                   if (e.key === "Enter") void confirm();
                   if (e.key === "Escape") close();
                 }}
-                placeholder={`kaç ${row.unitLabel}?`}
+                placeholder={t("howManyPh", { unit: ss.unit(row.unitLabel) })}
                 className="h-10 w-28 rounded-xl border-2 border-violet-200 bg-white px-3 text-sm font-bold text-slate-900 outline-none focus:border-violet-500"
               />
-              <span className="text-sm font-semibold text-slate-500">{row.unitLabel}</span>
+              <span className="text-sm font-semibold text-slate-500">{ss.unit(row.unitLabel)}</span>
               <button
                 type="button"
                 disabled={busy}
@@ -239,7 +260,7 @@ function StockCard({
                 onClick={close}
                 className="inline-flex h-10 min-h-[40px] items-center justify-center rounded-xl border-2 border-slate-200 bg-white px-4 text-sm font-black text-slate-600 transition hover:bg-slate-50"
               >
-                İptal
+                {t("cancel")}
               </button>
             </div>
             {err ? <p className="text-sm font-bold text-rose-700">{err}</p> : null}
@@ -254,6 +275,12 @@ function StockCard({
 }
 
 export default function CanliStokMerkeziPage() {
+  const { fmtMoney } = useStockFormat({ fmtMoney: libFmtMoney });
+  const t = useTranslations("stock.live");
+  const tCat = useTranslations("stock.pricing");
+  // Kategori kodu kanonik (option value); yalnız görünen etiket çevrilir.
+  const catLabel = (c: string) => (tCat.has(`categories.${c}`) ? tCat(`categories.${c}`) : CATEGORY_LABELS[c as keyof typeof CATEGORY_LABELS] ?? c);
+  const isSourceLocale = useLocale() === DEFAULT_LOCALE;
   const [hydrated, setHydrated] = useState(false);
   const [isDemo, setIsDemo] = useState(false);
   const [rows, setRows] = useState<LiveStockRow[]>([]);
@@ -343,7 +370,7 @@ export default function CanliStokMerkeziPage() {
     // tenant sunucuda oturumdan belirlenir.
     const uid = readYasamUser()?.id;
     const token = readSessionToken();
-    if (!uid || !hasSessionCredential(token)) { alert("Oturum bulunamadı. Lütfen tekrar giriş yapın."); return; }
+    if (!uid || !hasSessionCredential(token)) { alert(t("sessionMissing")); return; }
     setWordBusy(true);
     try {
       const res = await fetch("/api/urun-stok/stock-report", {
@@ -357,7 +384,7 @@ export default function CanliStokMerkeziPage() {
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({})) as { error?: string };
-        alert(err.error || "Rapor oluşturulamadı.");
+        alert((isSourceLocale ? err.error : "") || t("reportFailed"));
         return;
       }
       await downloadFileResponse(res, `urun-stok-${mode === "critical" ? "kritik" : "tumu"}-${reportFileDate()}.docx`);
@@ -383,9 +410,9 @@ export default function CanliStokMerkeziPage() {
     const text = buildCriticalListText(adjustedRows);
     try {
       await navigator.clipboard.writeText(text);
-      setCopyMsg(`Kritik liste kopyalandı (${summary.criticalCount} ürün) — toptancıya yapıştırabilirsiniz.`);
+      setCopyMsg(t("copied", { count: String(summary.criticalCount) }));
     } catch {
-      setCopyMsg("Kopyalanamadı. Tarayıcı izni gerekebilir.");
+      setCopyMsg(t("copyFailed"));
     }
     window.setTimeout(() => setCopyMsg(null), 4000);
   }
@@ -394,7 +421,7 @@ export default function CanliStokMerkeziPage() {
     return (
       <main className={pageBg}>
         <div className="flex min-h-screen items-center justify-center text-lg font-semibold text-slate-600">
-          Yükleniyor…
+          {t("loading")}
         </div>
       </main>
     );
@@ -411,30 +438,30 @@ export default function CanliStokMerkeziPage() {
       <div className={pageShell}>
         {isDemo && <DemoUrunStokBanner />}
         <header className={`${panelClass} mb-4`}>
-          <p className="text-[10px] font-black uppercase tracking-[0.3em] text-violet-700">Canlı depo</p>
-          <h1 className="mt-1 text-2xl font-black sm:text-3xl">Canlı Stok Merkezi</h1>
+          <p className="text-[10px] font-black uppercase tracking-[0.3em] text-violet-700">{t("eyebrow")}</p>
+          <h1 className="mt-1 text-2xl font-black sm:text-3xl">{t("title")}</h1>
           <p className="mt-1 text-sm text-slate-600">
-            Tüm modüllerdeki gerçek stoklar tek ekranda. Ara, satış/maliyet/kâr marjını gör, karttan hızlıca sat (stok düş) veya stok ekle — değişiklik tüm cihazlarda anında.
+            {t("subtitle")}
           </p>
         </header>
 
         <div className="mb-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <div className={`${panelClass} !p-3`}>
-            <p className="text-xs font-black uppercase tracking-wider text-slate-500">Ürün çeşidi</p>
+            <p className="text-xs font-black uppercase tracking-wider text-slate-500">{t("kpiVariety")}</p>
             <p className="mt-1.5 text-2xl font-black text-violet-900">{summary.totalVarieties}</p>
           </div>
           <div className={`${panelClass} !p-3`}>
-            <p className="text-xs font-black uppercase tracking-wider text-slate-500">Toplam stok miktarı</p>
+            <p className="text-xs font-black uppercase tracking-wider text-slate-500">{t("kpiTotal")}</p>
             <p className="mt-1.5 text-base font-black leading-snug text-violet-900 sm:text-lg">
               {formatStockTotals(summary)}
             </p>
           </div>
           <div className={`${panelClass} !p-3`}>
-            <p className="text-xs font-black uppercase tracking-wider text-slate-500">Kritik stoktaki ürünler</p>
+            <p className="text-xs font-black uppercase tracking-wider text-slate-500">{t("kpiCritical")}</p>
             <p className="mt-1.5 text-2xl font-black text-rose-700">{summary.criticalCount}</p>
           </div>
           <div className={`${panelClass} !p-3`}>
-            <p className="text-xs font-black uppercase tracking-wider text-slate-500">Tahmini stok değeri</p>
+            <p className="text-xs font-black uppercase tracking-wider text-slate-500">{t("kpiValue")}</p>
             <p className="mt-1.5 text-xl font-black text-emerald-800 sm:text-2xl">{fmtMoney(summary.totalValue)}</p>
           </div>
         </div>
@@ -451,7 +478,7 @@ export default function CanliStokMerkeziPage() {
                   : "border-rose-300 bg-rose-50 text-rose-800 hover:bg-rose-100"
               }`}
             >
-              🔴 Kritik Stok ({summary.criticalCount}){criticalOnly ? " · filtre açık" : ""}
+              {t("criticalFilter", { count: String(summary.criticalCount) })}{criticalOnly ? t("filterOn") : ""}
             </button>
             <button
               type="button"
@@ -459,10 +486,10 @@ export default function CanliStokMerkeziPage() {
               disabled={summary.criticalCount === 0}
               className="inline-flex h-11 min-h-[44px] items-center gap-2 rounded-xl border-2 border-violet-300 bg-white px-4 text-sm font-black text-violet-800 transition hover:bg-violet-50 disabled:opacity-50"
             >
-              📋 Kritik listeyi kopyala
+              {t("copyList")}
             </button>
             <div className="flex flex-wrap items-center gap-2 sm:ml-auto">
-              <span className="text-xs font-black uppercase tracking-wide text-slate-500">Kritik eşiği:</span>
+              <span className="text-xs font-black uppercase tracking-wide text-slate-500">{t("threshold")}</span>
               {(["adet", "ml", "gram"] as (keyof StockThresholds)[]).map((k) => (
                 <label key={k} className="flex items-center gap-1 text-sm font-bold text-slate-700">
                   <span className="text-slate-400">≤</span>
@@ -481,47 +508,47 @@ export default function CanliStokMerkeziPage() {
           </div>
           {copyMsg ? <p className="mt-2 text-sm font-bold text-emerald-700">{copyMsg}</p> : null}
           <p className="mt-2 text-xs font-medium text-slate-500">
-            Eşik altındaki ürünler kritik sayılır. Kritik listeyi kopyalayıp toptancıya WhatsApp'tan gönderebilirsiniz.
+            {t("thresholdHint")}
           </p>
         </section>
 
         <section className={`${panelClass} mb-4 space-y-3`}>
-          <h2 className="text-base font-black text-slate-800">Filtreler</h2>
+          <h2 className="text-base font-black text-slate-800">{t("filters")}</h2>
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
             <label className="block md:col-span-2">
-              <span className="mb-1.5 block text-sm font-black">Ürün adı ara</span>
+              <span className="mb-1.5 block text-sm font-black">{t("searchName")}</span>
               <input
                 className={inputClass}
                 type="search"
-                placeholder="Ad, grup veya kategori…"
+                placeholder={t("searchPh")}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
             </label>
             <label className="block">
-              <span className="mb-1.5 block text-sm font-black">Kategori</span>
+              <span className="mb-1.5 block text-sm font-black">{t("category")}</span>
               <select
                 className={inputClass}
                 value={category}
                 onChange={(e) => setCategory(e.target.value as LiveStockCategory | "all")}
               >
-                <option value="all">Tümü</option>
+                <option value="all">{t("all")}</option>
                 {(Object.keys(CATEGORY_LABELS) as LiveStockCategory[]).map((c) => (
                   <option key={c} value={c}>
-                    {CATEGORY_LABELS[c]}
+                    {catLabel(c)}
                   </option>
                 ))}
               </select>
             </label>
             <label className="block">
-              <span className="mb-1.5 block text-sm font-black">Doğaltaş USD kuru (₺)</span>
+              <span className="mb-1.5 block text-sm font-black">{t("usdRate")}</span>
               <input
                 className={inputClass}
                 type="number"
                 step="0.01"
                 value={usdRate}
                 onChange={(e) => setUsdRate(e.target.value)}
-                placeholder="Maliyet hesabı için"
+                placeholder={t("usdRatePh")}
               />
             </label>
           </div>
@@ -535,7 +562,7 @@ export default function CanliStokMerkeziPage() {
               }`}
               onClick={() => setSortMode("stock-asc")}
             >
-              Stok ↑ (azdan çoğa)
+              {t("sortAsc")}
             </button>
             <button
               type="button"
@@ -546,7 +573,7 @@ export default function CanliStokMerkeziPage() {
               }`}
               onClick={() => setSortMode("stock-desc")}
             >
-              Stok ↓ (çoktan aza)
+              {t("sortDesc")}
             </button>
             <button
               type="button"
@@ -557,23 +584,26 @@ export default function CanliStokMerkeziPage() {
               }`}
               onClick={() => setSortMode("name")}
             >
-              Ada göre
+              {t("sortName")}
             </button>
           </div>
           <p className="text-sm font-semibold text-slate-500">
-            Listelenen: <span className="font-black text-violet-800">{filtered.length}</span> / {rows.length} stoklu
-            kalem
+            {t.rich("listed", {
+              shown: String(filtered.length),
+              total: String(rows.length),
+              b: (c) => <span className="font-black text-violet-800">{c}</span>,
+            })}
           </p>
           {/* Word export butonları */}
           <div className="flex flex-wrap items-center gap-2 border-t border-violet-100 pt-3">
-            <span className="text-xs font-black uppercase tracking-wide text-slate-500">Word Raporu:</span>
+            <span className="text-xs font-black uppercase tracking-wide text-slate-500">{t("wordLabel")}</span>
             <button
               type="button"
               disabled={wordBusy || rows.length === 0}
               onClick={() => void exportStockWord("all")}
               className="rounded-xl border-2 border-blue-200 bg-blue-50 px-3 py-2 text-sm font-black text-blue-800 transition hover:bg-blue-100 disabled:opacity-50"
             >
-              {wordBusy ? "⏳ Hazırlanıyor..." : `📄 Tüm Stok Word (${rows.length})`}
+              {wordBusy ? t("preparing") : t("wordAll", { count: String(rows.length) })}
             </button>
             <button
               type="button"
@@ -581,10 +611,10 @@ export default function CanliStokMerkeziPage() {
               onClick={() => void exportStockWord("critical")}
               className="rounded-xl border-2 border-rose-200 bg-rose-50 px-3 py-2 text-sm font-black text-rose-800 transition hover:bg-rose-100 disabled:opacity-50"
             >
-              {wordBusy ? "⏳..." : `⚠️ Kritik Stok Word (${summary.criticalCount})`}
+              {wordBusy ? "⏳..." : t("wordCritical", { count: String(summary.criticalCount) })}
             </button>
             <span className="text-xs text-slate-400">
-              (Rapor; hesabınızda kayıtlı Doğaltaş, Yağ, Sabun / Krem, Tespih / Takı / Aksesuar ve Diğer Ürünler stoklarını içerir)
+              {t("wordNote")}
             </span>
           </div>
         </section>
@@ -594,14 +624,14 @@ export default function CanliStokMerkeziPage() {
             <p className="text-5xl" aria-hidden>
               📦
             </p>
-            <h2 className="mt-4 text-2xl font-black text-slate-800">Henüz görüntülenecek stok yok</h2>
+            <h2 className="mt-4 text-2xl font-black text-slate-800">{t("emptyTitle")}</h2>
             <p className="mx-auto mt-3 max-w-md text-base text-slate-600">
               {rows.length === 0
-                ? "Modüllerde stok girişi yaptığınızda veya satış sonrası kalan stok olduğunda burada otomatik görünür."
-                : "Filtreleri gevşetin veya arama metnini temizleyin."}
+                ? t("emptyNoRows")
+                : t("emptyFiltered")}
             </p>
             <Link href="/urun-stok" className={`${btnSecondary} mt-8 inline-flex`}>
-              Ürün & Stok Merkezine dön
+              {t("backToHub")}
             </Link>
           </section>
         ) : (

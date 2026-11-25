@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useId } from "react";
 import { AromaterapiFieldError } from "@/app/aromaterapi/_components/write/AromaterapiFormShell";
 
@@ -26,7 +27,7 @@ export function EnumSelect({
   required = false,
   error,
   disabled = false,
-  allLabel = "Seçin…",
+  allLabel: allLabelProp,
 }: {
   label: string;
   value: string;
@@ -37,6 +38,8 @@ export function EnumSelect({
   disabled?: boolean;
   allLabel?: string;
 }) {
+  const tFields = useTranslations("aromatherapy.shared.fields");
+  const allLabel = allLabelProp ?? tFields("choose");
   const id = useId();
   return (
     <div>
@@ -189,6 +192,7 @@ export function ChildGroupShell({
   count: number;
   children: React.ReactNode;
 }) {
+  const tFields = useTranslations("aromatherapy.shared.fields");
   return (
     <div className="rounded-lg bg-slate-50/50 p-3">
       <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
@@ -210,7 +214,7 @@ export function ChildGroupShell({
       </div>
       {count === 0 ? (
         <p className="rounded-lg border border-dashed border-slate-200 bg-white/60 px-3 py-2 text-center text-[12px] font-medium italic text-slate-400">
-          Kayıt yok.
+          {tFields("noRecords")}
         </p>
       ) : (
         <div className="space-y-2">{children}</div>
@@ -221,6 +225,7 @@ export function ChildGroupShell({
 }
 
 export function RowShell({ onRemove, disabled, children }: { onRemove: () => void; disabled?: boolean; children: React.ReactNode }) {
+  const tFields = useTranslations("aromatherapy.shared.fields");
   return (
     <div className="rounded-lg border border-slate-200 bg-white p-3">
       <div className="flex items-start gap-2">
@@ -229,7 +234,7 @@ export function RowShell({ onRemove, disabled, children }: { onRemove: () => voi
           <button
             type="button"
             onClick={onRemove}
-            aria-label="Satırı kaldır"
+            aria-label={tFields("removeRow")}
             className="inline-flex h-[44px] w-[44px] shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-400 shadow-sm transition hover:border-rose-200 hover:text-rose-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-300/60"
           >
             ✕

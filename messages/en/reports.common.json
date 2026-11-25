@@ -1,0 +1,66 @@
+{
+  "reports": {
+    "common": {
+      "reportSummary": "REPORT SUMMARY",
+      "tocHeading": "CONTENTS",
+      "tocField": "Contents",
+      "tocFieldNote": "Note: If the document is edited, you can update the Contents field in Word.",
+      "summaryTitle": "Report Summary",
+      "staticTocTitle": "Contents",
+      "staticTocHint": "Click a heading to go to that section. Word updates the page numbers when the document is opened.",
+      "page": "Page",
+      "information": "Information",
+      "preparedBy": "Prepared by",
+      "preparedByExpert": "Prepared by Practitioner",
+      "expertNote": "Practitioner's Note",
+      "signature": "Signature",
+      "generatedOn": "Date Generated",
+      "wellness": {
+        "general": {
+          "short": "Supportive personal record · not a substitute for medical diagnosis/treatment",
+          "full": "This document is a supportive personal record prepared by the practitioner; it is not a substitute for medical diagnosis or treatment. Please consult your physician for decisions about your health."
+        },
+        "danisan": {
+          "short": "Supportive personal record · not a substitute for medical diagnosis/treatment",
+          "full": "This document is a supportive personal record prepared by the practitioner; it is not a substitute for medical diagnosis or treatment. Please consult your physician for decisions about your health."
+        },
+        "dogaltas": {
+          "short": "Traditional/complementary information · not a substitute for medical diagnosis/treatment",
+          "full": "Information about natural stones is based on traditional and complementary usage sources; it is not a substitute for medical diagnosis or treatment. Please consult your physician for decisions about your health."
+        },
+        "sifa": {
+          "short": "Supportive personal record · not a substitute for medical diagnosis/treatment",
+          "full": "This document is a supportive personal record prepared by the practitioner; it is not a substitute for medical diagnosis or treatment. Please consult your physician for decisions about your health."
+        },
+        "aromaterapi": {
+          "short": "External, diluted use · not a substitute for medical diagnosis/treatment",
+          "full": "Aromatherapy suggestions are for external use with appropriate dilution; they are not a substitute for medical diagnosis or treatment. In case of pregnancy, breastfeeding, chronic illness or medication use, consult your physician before use."
+        },
+        "hacamat": {
+          "short": "Traditional information · not a health claim",
+          "full": "Information on hijama/cupping practices is based on traditional sources; it makes no health claims and is not a substitute for medical diagnosis or treatment. A physician's assessment is recommended before the application."
+        },
+        "numeroloji": {
+          "short": "For personal awareness",
+          "full": "This content is intended for personal awareness and development; it does not constitute medical, psychological, legal or financial advice."
+        },
+        "human_design": {
+          "short": "For personal awareness",
+          "full": "This content is intended for personal awareness and development; it does not constitute medical, psychological, legal or financial advice."
+        },
+        "biyoenerji": {
+          "short": "Complementary/wellness content · not a substitute for medical diagnosis/treatment",
+          "full": "Bioenergy and complementary/wellness content is intended for personal awareness and support; it is not a substitute for medical diagnosis or treatment."
+        },
+        "refleksoloji": {
+          "short": "Complementary practice · not a substitute for medical diagnosis/treatment",
+          "full": "Reflexology practices are complementary in nature. This module is not intended for medical diagnosis or treatment and is not a substitute for a physician's assessment."
+        },
+        "beslenme": {
+          "short": "General nutrition information · not a substitute for medical diet therapy",
+          "full": "This nutrition plan is intended for general information and support; it is not a substitute for medical nutrition therapy or an assessment by a physician/dietitian."
+        }
+      }
+    }
+  }
+}

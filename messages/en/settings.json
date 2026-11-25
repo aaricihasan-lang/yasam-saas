@@ -1,0 +1,147 @@
+{
+  "settings": {
+    "page": {
+      "title": "Settings & Security",
+      "subtitle": "Password, contact, backup and export",
+      "loginRequired": "You need to sign in.",
+      "loginLink": "Sign in →",
+      "demoBanner": "Backup, restore, export and password change are disabled on the demo account.",
+      "demoLockedTitle": "This action is disabled on the demo account.",
+      "demoLockedBody": "Backup, restore, export and password change are available only on registered accounts."
+    },
+    "tabs": {
+      "security": "Account Security",
+      "profile": "My Profile",
+      "location": "Location",
+      "contact": "Contact Admin",
+      "export": "Export",
+      "backup": "System Backup",
+      "restore": "Restore",
+      "membership": "My Membership",
+      "workspace": "My Workspace"
+    },
+    "tabBar": {
+      "groupData": "Backup & Export",
+      "more": "More"
+    },
+    "security": {
+      "fillAll": "Please fill in all fields.",
+      "mismatch": "The new password confirmation does not match.",
+      "changeFailed": "The password could not be changed.",
+      "updatedTitle": "Password updated",
+      "revokeFailed": "However, sessions on your other devices could not be signed out. Please try again or let the administrator know.",
+      "successTitle": "Done",
+      "successBody": "Your password has been updated; sessions on your other devices have been signed out.",
+      "connectionError": "Connection error.",
+      "sessionsNotice": "When your password changes, sessions on your other devices are signed out automatically.",
+      "currentLabel": "Current Password",
+      "currentPlaceholder": "Enter your current password",
+      "newLabel": "New Password",
+      "newPlaceholder": "At least 6 characters",
+      "repeatLabel": "Repeat New Password",
+      "repeatPlaceholder": "Enter your new password again",
+      "updating": "Updating…",
+      "updated": "Updated",
+      "submit": "Update Password"
+    },
+    "contact": {
+      "subjectRequired": "Please enter a subject.",
+      "messageRequired": "Please enter a message.",
+      "sendFailed": "Could not be sent.",
+      "sentTitle": "Sent",
+      "sentBody": "Your message has been forwarded to the admin.",
+      "connectionError": "Connection error.",
+      "subjectLabel": "Subject",
+      "subjectPlaceholder": "Message subject",
+      "messageLabel": "Message",
+      "messagePlaceholder": "Write your message here…",
+      "priorityLabel": "Priority",
+      "priorityNormal": "Normal",
+      "priorityUrgentButton": "⚡ Urgent",
+      "sending": "Sending…",
+      "send": "Send",
+      "loadingMessages": "Loading messages…",
+      "previousMessages": "Previous Messages",
+      "urgent": "Urgent",
+      "adminNote": "Admin Note",
+      "status": {
+        "open": "Open",
+        "read": "Read",
+        "replied": "Replied",
+        "closed": "Closed"
+      },
+      "direct": {
+        "title": "For faster contact",
+        "body": "If you do not hear back about your message soon, you can also reach us via WhatsApp or by phone.",
+        "whatsappAria": "Message on WhatsApp: {number} (opens in a new tab)",
+        "whatsappCta": "Message on WhatsApp",
+        "phone": "Phone",
+        "phoneAria": "Call by phone: {number}",
+        "phoneCta": "Call by Phone"
+      }
+    },
+    "location": {
+      "selectFirst": "Please select a city first.",
+      "savedTitle": "Saved",
+      "savedBody": "Default location: {name}",
+      "saveFailed": "Could not be saved.",
+      "currentLabel": "Current default location",
+      "notSaved": "Not saved — default: Ankara",
+      "demoNote": "The default location cannot be saved on the demo account.",
+      "searchLabel": "Search city (81 provinces)",
+      "searchAria": "Search for a city for the default location",
+      "searchPlaceholder": "e.g. Manisa, İzmir…",
+      "selected": "Selected:",
+      "save": "Save default location",
+      "hint": "The default location is used as the starting city in location-dependent calculations such as eclipse visibility in the Cosmic Calendar.",
+      "errors": {
+        "codes": {
+          "NO_SESSION": "No session was found. Please sign in again.",
+          "NETWORK": "Network error. Please check your connection and try again."
+        }
+      }
+    },
+    "workspace": {
+      "layouts": {
+        "A": "A · Signature Band",
+        "B": "B · Digital Office",
+        "C": "C · Business Card Studio"
+      },
+      "appliedDesign": "Applied design",
+      "defaultDesign": "Default Yaşam Sistemi look",
+      "logoAndBackground": "Logo and background",
+      "personalLogo": "Personal logo",
+      "ownPhoto": "My own photo",
+      "presetTheme": "Preset theme",
+      "default": "Default",
+      "draftHistory": "Saved draft / history",
+      "draftSaved": "Saved draft available",
+      "noDraft": "No draft",
+      "historyCount": "{count, plural, one {# previous design} other {# previous designs}}",
+      "intro": "Personalise your home screen with your own logo, photo and brand colours; hide modules and arrange your My Favourites list. The personalisation centre opens on the home screen and shows changes live before you apply them. You can also change the view mode (Day, Night, Reading, Focus) from the top bar of the home screen.",
+      "demoNote": "On the demo account personalisation can only be viewed; changes cannot be saved.",
+      "edit": "Edit My Workspace",
+      "footer": "Personalisation changes only your own home screen look; your module permissions, client records and inner module screens are not affected."
+    },
+    "api": {
+      "supportLoadFailed": "Messages could not be loaded.",
+      "invalidRequest": "Invalid request.",
+      "subjectRequired": "A subject is required.",
+      "messageRequired": "A message is required.",
+      "subjectTooLong": "The subject can be at most 200 characters.",
+      "messageTooLong": "The message can be at most 5000 characters.",
+      "supportRateLimited": "Too many support messages have been sent. Please try again later.",
+      "supportSendFailed": "The message could not be sent; please try again.",
+      "locationReadFailed": "The location could not be read.",
+      "locationDemo": "The default location cannot be saved on the demo account.",
+      "locationIdRequired": "A location ID is required.",
+      "cityRequired": "A city name is required.",
+      "countryCode": "The country code must be 2 letters.",
+      "tzRequired": "A time zone is required.",
+      "latRange": "Latitude must be between -90 and 90.",
+      "lonRange": "Longitude must be between -180 and 180.",
+      "elevNumber": "Elevation must be numeric.",
+      "locationSaveFailed": "The location could not be saved."
+    }
+  }
+}

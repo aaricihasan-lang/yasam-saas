@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { KupaShell } from "@/app/kupa/components/KupaShell";
 import { CalendarWorkspace } from "./components/CalendarWorkspace";
 
@@ -12,12 +13,13 @@ import { CalendarWorkspace } from "./components/CalendarWorkspace";
  * aşamada YOK. Tüm yazma işlemleri mevcut tenant-güvenli /api/kupa/* uçlarından geçer.
  */
 export default function KupaTakvimPage() {
+  const t = useTranslations("cupping.home");
   return (
     <KupaShell
-      title="Hacamat Takvimi"
-      subtitle="Kendi yıllık hacamat çalışma takviminizi oluşturun; Gregoryen ve Hicrî tarihleri birlikte görün, uygulama günlerinizi kendiniz belirleyin."
-      badge="Profesyonel Çalışma Alanı"
-      breadcrumb={[{ label: "Hacamat Takvimi" }]}
+      title={t("calendar.title")}
+      subtitle={t("calendar.desc")}
+      badge={t("eyebrow")}
+      breadcrumb={[{ label: t("calendar.title") }]}
       /* Mobil/tablet: dış yatay boşluk 0 (takvim tam genişlik; başlık okuma payını korur).
          Desktop (lg): mevcut premium max-w + lg:px-8 AYNEN geri gelir (değişmez). */
       fullBleedBelowLg

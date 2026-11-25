@@ -12,7 +12,8 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { createElement } from "react";
-import { renderToStaticMarkup } from "react-dom/server";
+// I18N ATLAS-V: Vedik ek paneller metni katalogdan alır → çizim next-intl sağlayıcısıyla (TR katalog = önceki metin; beklentiler değişmedi).
+import { renderToStaticMarkup } from "./intlRender";
 import { projectRoxyVedicTransit } from "@/lib/astrology/providers/roxy/vedic";
 import { buildAstroReport, reportTexts } from "@/lib/astrology/report/model";
 import { VedicTransitPanel } from "@/app/admin/astroloji/_components/VedicExtraPanels";

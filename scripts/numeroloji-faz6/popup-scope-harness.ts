@@ -13,7 +13,7 @@
  *
  * Çalıştır:  npx tsx scripts/numeroloji-faz6/popup-scope-harness.ts
  */
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -51,8 +51,34 @@ for (const { file, scope } of removedSurfaces) {
 
 // POPUP-SCOPE-08 — Sinerji disclosure label sadeleşti ("· Nasıl hesaplandı?" YOK).
 const iliski = read("NumerolojiIliskiAnaliziTab.tsx");
-assert(iliski.includes("Hane karşılaştırmasını göster"), "POPUP-SCOPE-08a Sinerji disclosure KORUNUR");
-assert(!iliski.includes("Hane karşılaştırmasını göster · Nasıl hesaplandı?"), "POPUP-SCOPE-08b disclosure label'ında 'Nasıl hesaplandı?' YOK");
+// I18N-F1-R5: etiket metni bileşenden TR mesaj dosyasına taşındı (TR değeri birebir). Kural aynı: ya kaynakta literal,
+// ya da bileşen tam o anahtarı kullanıyor VE TR değeri birebir "Hane karşılaştırmasını göster".
+const iliskiTr = (JSON.parse(readFileSync(join(HERE, "../../messages/tr/numerology.tabs.json"), "utf8")) as {
+  numerology?: { tabs?: { relationship?: { showCompare?: string } } };
+}).numerology?.tabs?.relationship?.showCompare;
+const disclosureLabel = iliski.includes('{t("showCompare")}') ? iliskiTr : iliski.includes("Hane karşılaştırmasını göster") ? "Hane karşılaştırmasını göster" : undefined;
+assert(disclosureLabel === "Hane karşılaştırmasını göster", "POPUP-SCOPE-08a Sinerji disclosure KORUNUR");
+assert(!iliski.includes("Hane karşılaştırmasını göster · Nasıl hesaplandı?") && !(disclosureLabel ?? "").includes("Nasıl hesaplandı?"), "POPUP-SCOPE-08b disclosure label'ında 'Nasıl hesaplandı?' YOK");
+// QA-N3-05 (R5): 08b dar sıkılaştırma — anahtar + bileşende yapıştırılmış metin (`{t("showCompare")} · Nasıl hesaplandı?`)
+// ya da "Nasıl hesaplandı?" değerli bir katalog anahtarı da yakalanır. Kapsam YALNIZ İlişki bileşeni + disclosure <summary>'si.
+const trCatalogLeaves = (o: unknown, pre = ""): [string, string][] =>
+  o && typeof o === "object"
+    ? Object.entries(o as Record<string, unknown>).flatMap(([k, v]) => trCatalogLeaves(v, pre ? `${pre}.${k}` : k))
+    : typeof o === "string" ? [[pre, o]] : [];
+const MSG_DIR = join(HERE, "../../messages/tr");
+const howKeys = new Set(
+  readdirSync(MSG_DIR).filter((f) => f.startsWith("numerology") && f.endsWith(".json"))
+    .flatMap((f) => trCatalogLeaves(JSON.parse(readFileSync(join(MSG_DIR, f), "utf8"))))
+    .filter(([, v]) => /Nasıl hesaplandı/i.test(v))
+    .map(([k]) => k.split(".").pop()!),
+);
+const compareSummary = Array.from(iliski.matchAll(/<summary\b[\s\S]*?<\/summary>/g)).map((m) => m[0]).find((s) => s.includes('t("showCompare")')) ?? "";
+const summaryKeys = Array.from(compareSummary.matchAll(/\bt\w*\(\s*["'`]([\w.]+)["'`]/g)).map((m) => m[1]!.split(".").pop()!);
+assert(
+  !/Nasıl hesaplandı/i.test(iliski) && compareSummary !== "" && howKeys.size > 0 && summaryKeys.every((k) => !howKeys.has(k)) && !/∑/.test(compareSummary),
+  "POPUP-SCOPE-08b' İlişki bileşeninde literal 'Nasıl hesaplandı' YOK ve disclosure <summary>'si 'Nasıl hesaplandı?' değerli anahtar (ör. howQ) kullanmıyor",
+  JSON.stringify({ summaryKeys, howKeys: Array.from(howKeys) }),
+);
 
 // POPUP-SCOPE-02/09 — Analiz (Hesap Özetli) inline hesap dökümü + Bilgi Bankası korunur.
 const tabs = read("NumerolojiAnalizSonucTabs.tsx");

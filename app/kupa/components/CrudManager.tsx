@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useTranslations } from "next-intl";
+import { useKupaErrorText } from "@/app/kupa/lib/errorText";
 import { kupaBtnDanger, kupaBtnGhost, kupaBtnPrimary, kupaBtnSuccess, kupaCard, kupaInput } from "./KupaShell";
 import { KupaConfirmDialog } from "./ConfirmDialog";
 import { normalizeNullableNumber, normalizeSortOrder } from "@/lib/cupping/normalize";
@@ -43,6 +45,8 @@ type Rec = { id: string } & Record<string, unknown>;
 type CrudManagerProps<T extends Rec> = {
   titleKey: keyof T & string;
   subtitleKey?: keyof T & string;
+  /** I18N-0126: alt satırdaki kod değerinin GÖRÜNEN etiketi (ör. severity → sözlük etiketi). Verilmezse ham değer (bugünkü). */
+  subtitleFormat?: (value: unknown) => string;
   fields: FieldDef[];
   load: () => Promise<T[]>;
   create: (body: Partial<T>) => Promise<T>;
@@ -115,6 +119,7 @@ export function CrudManager<T extends Rec>(props: CrudManagerProps<T>) {
 function CrudManagerInner<T extends Rec>({
   titleKey,
   subtitleKey,
+  subtitleFormat,
   fields,
   load,
   create,
@@ -142,6 +147,9 @@ function CrudManagerInner<T extends Rec>({
   const [impact, setImpact] = useState<{ message: string; blocked?: boolean } | null>(null);
   const [impactLoading, setImpactLoading] = useState(false);
   const [query, setQuery] = useState("");
+  const t = useTranslations("cupping.crud");
+  const tc = useTranslations("cupping.common");
+  const errText = useKupaErrorText();
   const [filterValues, setFilterValues] = useState<Record<string, string>>({});
 
   const formDirty = (creating || selectedId != null) && openFormDirty(form, baseline);
@@ -186,7 +194,7 @@ function CrudManagerInner<T extends Rec>({
         const list = await load();
         if (!cancelled) setItems(list);
       } catch (e) {
-        if (!cancelled) setError(e instanceof Error ? e.message : "Yükleme hatası.");
+        if (!cancelled) setError(errText(e, t("loadError")));
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -194,6 +202,7 @@ function CrudManagerInner<T extends Rec>({
     return () => {
       cancelled = true;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- yalnız load değişiminde yeniden yükle (dil değişimi tetiklemez)
   }, [load]);
 
   const openNew = async () => {
@@ -236,7 +245,7 @@ function CrudManagerInner<T extends Rec>({
     for (const f of fields) body[f.key] = fromFormValue(form[f.key] ?? (f.type === "boolean" ? false : ""), f.type, f.key);
     const req = fields.find((f) => f.required);
     if (req && !String(body[req.key] ?? "").trim()) {
-      setError(`${req.label} gerekli.`);
+      setError(t("required", { label: req.label }));
       return;
     }
     setBusy(true);
@@ -255,7 +264,7 @@ function CrudManagerInner<T extends Rec>({
         setBaseline(savedSnapshot);
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Kaydedilemedi.");
+      setError(errText(e, tc("saveFailed")));
     } finally {
       setBusy(false);
     }
@@ -279,7 +288,7 @@ function CrudManagerInner<T extends Rec>({
         // Server hiçbir satır silmedi (kayıt yok / bu hesaba ait değil / demo no-op). Optimistic
         // kaldırma YAPMA; gerçek durumu yansıtmak için listeyi yeniden yükle.
         setConfirmOpen(false);
-        setError("Kayıt silinemedi (bu hesapta değişiklik yapılmadı).");
+        setError(t("deleteNoop"));
         try {
           const list = await load();
           setItems(list);
@@ -295,7 +304,7 @@ function CrudManagerInner<T extends Rec>({
       }
     } catch (e) {
       setConfirmOpen(false);
-      setError(e instanceof Error ? e.message : "Silinemedi.");
+      setError(errText(e, t("deleteFailed")));
     } finally {
       setBusy(false);
     }
@@ -318,7 +327,7 @@ function CrudManagerInner<T extends Rec>({
       setConfirmOpen(true);
     } catch (e) {
       setError(
-        `Silme etkisi hesaplanamadı; silme yapılmadı. Tekrar deneyin.${e instanceof Error ? ` (${e.message})` : ""}`,
+        t("impactFailed") + (e instanceof Error ? ` (${errText(e, t("impactFailedShort"))})` : ""),
       );
     } finally {
       setImpactLoading(false);
@@ -341,7 +350,7 @@ function CrudManagerInner<T extends Rec>({
         {/* LİSTE */}
         <div className={kupaCard}>
           <div className="mb-3 flex items-center justify-between gap-2">
-            <h3 className="text-[11px] font-bold uppercase tracking-wide text-slate-500">Kayıtlar</h3>
+            <h3 className="text-[11px] font-bold uppercase tracking-wide text-slate-500">{t("records")}</h3>
             <button type="button" onClick={() => void openNew()} className={kupaBtnPrimary}>
               + {addLabel}
             </button>
@@ -353,8 +362,8 @@ function CrudManagerInner<T extends Rec>({
                   type="text"
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
-                  placeholder={searchPlaceholder ?? "Ara…"}
-                  aria-label="Kayıtlarda ara"
+                  placeholder={searchPlaceholder ?? t("searchPlaceholder")}
+                  aria-label={t("searchAria")}
                   className={kupaInput}
                 />
               ) : null}
@@ -370,7 +379,7 @@ function CrudManagerInner<T extends Rec>({
                       aria-label={f.label}
                       className={`${kupaInput} flex-1`}
                     >
-                      <option value="">{f.label}: Tümü</option>
+                      <option value="">{t("filterAll", { label: f.label })}</option>
                       {f.options.map((o) => (
                         <option key={o.value} value={o.value}>
                           {o.label}
@@ -382,13 +391,13 @@ function CrudManagerInner<T extends Rec>({
               ) : null}
               {hasQuery || activeFilters ? (
                 <div className="flex items-center justify-between gap-2 text-[11px] text-slate-500">
-                  <span>{visibleItems.length} sonuç</span>
+                  <span>{t("results", { count: String(visibleItems.length) })}</span>
                   <button
                     type="button"
                     onClick={resetControls}
                     className="font-semibold text-amber-600 hover:text-amber-700"
                   >
-                    Temizle
+                    {t("clear")}
                   </button>
                 </div>
               ) : null}
@@ -396,14 +405,14 @@ function CrudManagerInner<T extends Rec>({
           ) : null}
           <div className="max-h-[62vh] space-y-1.5 overflow-y-auto pr-0.5">
             {loading ? (
-              <p className="px-1 py-2 text-xs text-slate-400">Yükleniyor…</p>
+              <p className="px-1 py-2 text-xs text-slate-400">{tc("loading")}</p>
             ) : items.length === 0 ? (
               <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50/60 px-3 py-6 text-center">
                 <p className="text-xs text-slate-500">{emptyLabel}</p>
               </div>
             ) : visibleItems.length === 0 ? (
               <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50/60 px-3 py-6 text-center">
-                <p className="text-xs text-slate-500">Aramanıza uygun kayıt bulunamadı.</p>
+                <p className="text-xs text-slate-500">{t("noMatch")}</p>
               </div>
             ) : (
               visibleItems.map((item) => (
@@ -422,7 +431,7 @@ function CrudManagerInner<T extends Rec>({
                   </span>
                   {subtitleKey && item[subtitleKey] ? (
                     <span className="block truncate text-[11px] text-slate-400">
-                      {String(item[subtitleKey])}
+                      {subtitleFormat ? subtitleFormat(item[subtitleKey]) : String(item[subtitleKey])}
                     </span>
                   ) : null}
                 </button>
@@ -436,7 +445,7 @@ function CrudManagerInner<T extends Rec>({
           {!editing ? (
             <div className="flex min-h-[200px] flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-slate-200 bg-slate-50/50 px-4 py-10 text-center">
               <span className="text-2xl" aria-hidden>📝</span>
-              <p className="text-sm text-slate-500">Düzenlemek için soldan bir kayıt seçin veya yeni ekleyin.</p>
+              <p className="text-sm text-slate-500">{t("selectHint")}</p>
             </div>
           ) : (
             <>
@@ -463,7 +472,7 @@ function CrudManagerInner<T extends Rec>({
                           onChange={(e) => setField(f.key, e.target.checked)}
                           className="h-4 w-4 accent-amber-500"
                         />
-                        Aktif
+                        {tc("active")}
                       </label>
                     ) : f.type === "select" ? (
                       <select
@@ -492,14 +501,14 @@ function CrudManagerInner<T extends Rec>({
               </div>
               <div className="mt-5 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-4">
                 <button type="button" onClick={handleSave} disabled={busy} className={kupaBtnSuccess}>
-                  {creating ? "Ekle" : "Kaydet"}
+                  {creating ? t("add") : tc("save")}
                 </button>
                 <button
                   type="button"
                   onClick={() => void cancelForm()}
                   className={kupaBtnGhost}
                 >
-                  Vazgeç
+                  {tc("cancel")}
                 </button>
                 {!creating && selectedId ? (
                   <button
@@ -508,7 +517,7 @@ function CrudManagerInner<T extends Rec>({
                     disabled={busy || impactLoading}
                     className={`${kupaBtnDanger} ml-auto min-h-[40px]`}
                   >
-                    {impactLoading ? "Kontrol ediliyor…" : "Sil"}
+                    {impactLoading ? t("checking") : tc("delete")}
                   </button>
                 ) : null}
               </div>
@@ -520,15 +529,14 @@ function CrudManagerInner<T extends Rec>({
 
       <KupaConfirmDialog
         open={confirmOpen}
-        title={impact?.blocked ? "Kayıt silinemiyor" : "Kaydı sil"}
+        title={impact?.blocked ? t("deleteBlockedTitle") : t("deleteTitle")}
         description={
           impact?.blocked
             ? impact.message
-            : `“${selectedName || "Bu kayıt"}” kaydını silmek istediğinize emin misiniz? ` +
-              `Bu işlem geri alınamaz.` +
+            : t("deleteConfirm", { name: selectedName || t("thisRecord") }) +
               (impact?.message ? `\n\n${impact.message}` : deleteCascadeHint ? `\n\n${deleteCascadeHint}` : "")
         }
-        confirmLabel={impact?.blocked ? undefined : "Sil"}
+        confirmLabel={impact?.blocked ? undefined : tc("delete")}
         busy={busy}
         onConfirm={impact?.blocked ? undefined : performDelete}
         onClose={() => {

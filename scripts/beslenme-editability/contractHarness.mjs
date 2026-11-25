@@ -146,7 +146,8 @@ ok("TopicDetailEditor: 3 ayrı silme yolunda onay (rehber + bölüm + besin bağ
 const dlg = src("app/beslenme/_components/DestructiveChallengeDialog.tsx");
 ok("3 aşama: Kapsam → Uyarı → Kod (ayrı adımlar)", /stage === 1/.test(dlg) && /stage === 2/.test(dlg) && /stage === 3/.test(dlg) && /setStage\(2\)/.test(dlg) && /setStage\(3\)/.test(dlg));
 ok("son buton kod birebir eşleşmeden PASİF", /disabled=\{!codeMatches\}/.test(dlg) && /typed === info\.code/.test(dlg));
-ok("ikinci uyarı 'geri alınamaz' metni", /Bu işlem geri alınamaz/.test(dlg));
+// I18N (gece 25.11): uyarı metni katalogdan (beslenme.challenge.irreversible). Niyet aynı: 2. aşamada render edilir + TR metni birebir.
+ok("ikinci uyarı 'geri alınamaz' metni", /\{t\("irreversible"\)\}/.test(dlg) && JSON.parse(src("messages/tr/beslenme.json")).beslenme.challenge.irreversible === "Emin misiniz? Bu işlem geri alınamaz.");
 ok("Günü Temizle → 3 aşamalı dialog + sunucu kodu", /DestructiveChallengeDialog/.test(src("app/beslenme/planlar/_components/DayEditor.tsx")) && /requestClearDayChallenge/.test(src("app/beslenme/planlar/_components/DayEditor.tsx")));
 // DD-P2 BES-2: plan Sil artık tek onay DEĞİL; "Günü Temizle" ile aynı 3 aşamalı dialog + sunucu kodu.
 // (Önceki "plan Sil (liste/detay): useDeleteConfirm" beklentisi bilinçli olarak bununla değiştirildi.)
@@ -160,7 +161,8 @@ for (const [n, f] of [["plan Sil (liste)", "app/beslenme/planlar/page.tsx"], ["p
     /<DestructiveChallengeDialog/.test(pd) && /requestPlanDeleteChallenge\(/.test(pd) && /deletePlan\(plan\.id, challengeId, code\)/.test(pd));
 }
 ok("Tek besin + tüm besinler reset → 3 aşamalı dialog", (src("app/beslenme/_components/BesinYonetimiScreen.tsx").match(/<DestructiveChallengeDialog/g) || []).length === 2);
-ok("Sil ≠ Sistem değerine dön (ayrı buton/ayrı akış)", /Sistem Değerine Dön/.test(src("app/beslenme/_components/BesinYonetimiScreen.tsx")) && /deleteFood\(effectiveId\)/.test(src("app/beslenme/_components/BesinYonetimiScreen.tsx")));
+// I18N (gece 25.11): buton metni katalogdan (beslenme.foods.resetOne; TR "Sistem Değerine Dön" birebir). Niyet aynı: ayrı buton.
+ok("Sil ≠ Sistem değerine dön (ayrı buton/ayrı akış)", /\{tb\("resetOne"\)\}/.test(src("app/beslenme/_components/BesinYonetimiScreen.tsx")) && JSON.parse(src("messages/tr/beslenme.json")).beslenme.foods.resetOne === "Sistem Değerine Dön" &&/deleteFood\(effectiveId\)/.test(src("app/beslenme/_components/BesinYonetimiScreen.tsx")));
 
 console.log("\n[6] teknik sahiplik etiketi yok + sistem besini düzenlenebilir");
 const ownerLabelFiles = ["app/beslenme/_components/BesinYonetimiScreen.tsx", "app/beslenme/planlar/_components/FoodPickerDialog.tsx", "app/beslenme/_components/FoodNutrition.tsx"];
@@ -193,7 +195,10 @@ ok("Modal kartında iç scroll (max-h + overflow-y-auto) YOK → tek doğal scro
 ok("Modal üst kırpma önlemi (min-h-full sarmalayıcı) + arka plan kaydırma kilidi", /min-h-full/.test(modalBody) && /document\.body\.style\.overflow = "hidden"/.test(modalBody));
 const tools = src("app/beslenme/planlar/_components/PlanTools.tsx");
 ok("Analiz geniş (sm:max-w-6xl) + mobil tam ekran", /maxWidthClass="sm:max-w-6xl"/.test(tools) && /fullScreenOnMobile/.test(tools));
-ok("Analiz API'nin günlük dökümünü + haftalık makro/hedef farkını gösterir", /Günlük Döküm/.test(tools) && /w\.avgMacros/.test(tools) && /w\.delta/.test(tools));
+// I18N (gece 25.11): "Günlük Döküm" başlığı katalogdan gelir (beslenme.tools.an.daily). Niyet aynı: bölüm başlığı
+// ekranda render ediliyor + TR metni katalogda birebir; haftalık makro/hedef farkı gösteriliyor.
+const besTr = JSON.parse(src("messages/tr/beslenme.json"));
+ok("Analiz API'nin günlük dökümünü + haftalık makro/hedef farkını gösterir", /\{t\("daily"\)\}/.test(tools) && besTr.beslenme.tools.an.daily === "Günlük Döküm" &&/w\.avgMacros/.test(tools) && /w\.delta/.test(tools));
 ok("QuickAdd dialog da portal (modal içinden açıldığında kaymaz)", /createPortal\(/.test(src("app/beslenme/_components/QuickAddFoodDialog.tsx")));
 
 console.log("\n[9] Word eksik enerji (gerçek DOCX)");

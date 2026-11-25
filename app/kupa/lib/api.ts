@@ -180,6 +180,28 @@ export type CuppingCitationEntity =
 
 type ApiOk = { ok: true; [k: string]: unknown };
 
+/**
+ * I18N-F1-R3 — Kupa API hatası. `message` sunucunun Türkçe güvenli metnidir (AYNEN; kaynak dilde
+ * ekranda birebir gösterilir). `code` dil-bağımsız `CUP_*` kodudur (istemci
+ * `cupping.errors.codes.<KOD>` ile ekran diline çevirir; kontrol akışı — ör. 404 — buna bağlanır).
+ * `Error` alt sınıfı olduğundan `e instanceof Error ? e.message : …` kalıpları değişmeden çalışır.
+ */
+export class KupaApiError extends Error {
+  readonly code: string | null;
+  readonly status: number;
+  constructor(message: string, code: unknown, status: number) {
+    super(message);
+    this.name = "KupaApiError";
+    this.code = typeof code === "string" && /^[A-Z][A-Z0-9_]{1,63}$/.test(code) ? code : null;
+    this.status = status;
+  }
+}
+
+/** Sunucu "kayıt bu hesaba ait değil veya bulunamadı" (404) yanıtı mı? Metne değil KODA bağlı. */
+export function isKupaNotFound(e: unknown): boolean {
+  return e instanceof KupaApiError && e.code === "CUP_NOT_FOUND";
+}
+
 /** Ağ hatası (fetch reddi: bağlantı yok/kesildi) için kullanıcıya gösterilen Türkçe mesaj. */
 export const KUPA_NETWORK_ERROR =
   "Sunucuya ulaşılamadı. İnternet bağlantınızı kontrol edip tekrar deneyin.";
@@ -198,9 +220,9 @@ async function kupaFetch(url: string, init: RequestInit): Promise<Response> {
 
 async function call<T>(url: string, init: RequestInit, key: string): Promise<T> {
   const res = await kupaFetch(url, { ...init, headers: userHeaders() });
-  const json = (await res.json().catch(() => ({}))) as ApiOk & { error?: string };
+  const json = (await res.json().catch(() => ({}))) as ApiOk & { error?: string; code?: unknown };
   if (!res.ok || !json.ok) {
-    throw new Error(json.error ?? "İşlem başarısız.");
+    throw new KupaApiError(json.error ?? "İşlem başarısız.", json.code, res.status);
   }
   return json[key] as T;
 }
@@ -464,8 +486,8 @@ export async function downloadProtocolWord(id: string): Promise<{ blob: Blob; fi
     headers: userHeaders(),
   });
   if (!res.ok) {
-    const json = (await res.json().catch(() => ({}))) as { error?: string };
-    throw new Error(json.error ?? "Word belgesi oluşturulamadı.");
+    const json = (await res.json().catch(() => ({}))) as { error?: string; code?: unknown };
+    throw new KupaApiError(json.error ?? "Word belgesi oluşturulamadı.", json.code, res.status);
   }
   const blob = await res.blob();
   const cd = res.headers.get("Content-Disposition") ?? "";
@@ -562,9 +584,9 @@ export const deleteProtocolSource = (id: string) =>
 /** Çok-anahtarlı yanıt (plan+days, inserted/skippedExisting) için ham çağrı. */
 async function callRaw<T extends { ok: true }>(url: string, init: RequestInit): Promise<T> {
   const res = await kupaFetch(url, { ...init, headers: userHeaders() });
-  const json = (await res.json().catch(() => ({}))) as T & { ok?: boolean; error?: string };
+  const json = (await res.json().catch(() => ({}))) as T & { ok?: boolean; error?: string; code?: unknown };
   if (!res.ok || !json.ok) {
-    throw new Error(json.error ?? "İşlem başarısız.");
+    throw new KupaApiError(json.error ?? "İşlem başarısız.", json.code, res.status);
   }
   return json as T;
 }
@@ -590,6 +612,11 @@ export type CreateCalendarPlanResult = {
 };
 export const createCalendarPlan = (body: {
   name: string;
+  /**
+   * I18N A8: true → sunucu varsayılan adı kendisi üretir (kanonik TR) ve kolon varsa name_is_default=true yazar.
+   * `name` yine gönderilir: bayrağı tanımayan sunucu sürümü bugünkü gibi bu adı yazar (sürüm kayması güvenli).
+   */
+  use_default_name?: boolean;
   year: number;
   description?: string | null;
   advice_template_id?: string | null;
@@ -627,8 +654,8 @@ export async function downloadCalendarPlanWord(id: string, month?: number): Prom
     headers: userHeaders(),
   });
   if (!res.ok) {
-    const json = (await res.json().catch(() => ({}))) as { error?: string };
-    throw new Error(json.error ?? "Word raporu oluşturulamadı.");
+    const json = (await res.json().catch(() => ({}))) as { error?: string; code?: unknown };
+    throw new KupaApiError(json.error ?? "Word raporu oluşturulamadı.", json.code, res.status);
   }
   const blob = await res.blob();
   const cd = res.headers.get("Content-Disposition") ?? "";

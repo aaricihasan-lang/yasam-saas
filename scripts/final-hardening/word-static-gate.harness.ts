@@ -132,7 +132,9 @@ check("gate: kapsamda tz'siz tarih biçimleme / UTC gün dilimi YOK", unexpected
 // ── Pozitif kapsam kanıtları (üreticiler gerçekten ortak helper'ı kullanıyor) ──
 const mustUse: [string, RegExp][] = [
   ["app/api/ajanda/word-report/buildAjandaReport.ts", /formatInstantDateTime|zonedDayKey/],
-  ["app/api/clients/[id]/word-report/clientReportBuilder.ts", /formatInstantDateTime/],
+  // I18N RAPOR-AB: Danışan Word tarih/saat biçimi metin katmanına (clientReportText) taşındı; kurucu onu kullanır.
+  ["app/api/clients/[id]/word-report/clientReportText.ts", /formatInstantDateTime/],
+  ["app/api/clients/[id]/word-report/clientReportBuilder.ts", /dateTimeTR/],
   ["app/api/clients/[id]/word-report/clientReportBuilder.ts", /looseDayKey/],
   // WT7: toplu rapor tekli builder'ı kullanır (buildClientsBulkFullReport → reportDates → reportFileDate).
   ["app/api/clients/word-report-bulk/route.ts", /buildClientsBulkFullReport/],
@@ -143,7 +145,8 @@ const mustUse: [string, RegExp][] = [
   ["app/numeroloji/bilgi-bankasi/helpers/wordDocxBuild.ts", /formatInstantDateTime/],
   ["app/api/sifa-rehberi/word-report/route.ts", /reportFileDate/],
   ["lib/sifa-rehberi/wordDocument.ts", /formatInstantDate/],
-  ["app/api/urun-stok/stock-report/route.ts", /reportFileDate/],
+  // I18N RAPOR-AB: Ürün/Stok belge kurucusu route'tan lib'e taşındı (route yalnız okuma + dil çözümü).
+  ["lib/urun-stok/stockReportWord.ts", /reportFileDate/],
   ["lib/aromaterapi/report/theme.ts", /zonedDayKey/],
   ["lib/yasam-hafizasi/client/snapshotReport.ts", /formatDateLoose/],
   ["app/api/hacamat/word-report/route.ts", /todayInZone/],

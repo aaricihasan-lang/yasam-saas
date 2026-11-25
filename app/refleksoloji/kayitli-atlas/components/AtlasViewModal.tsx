@@ -1,5 +1,7 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { getRegionsForOrgan, loadAtlas } from "@/lib/atlasStorage";
@@ -14,6 +16,8 @@ type AtlasViewModalProps = {
 };
 
 export function AtlasViewModal({ open, organName, onClose }: AtlasViewModalProps) {
+  const t = useTranslations("reflexology.savedAtlas.viewModal");
+  const tc = useTranslations("reflexology.common");
   const [mounted, setMounted] = useState(false);
   const [footView, setFootView] = useState<FootView>("taban");
 
@@ -56,13 +60,13 @@ export function AtlasViewModal({ open, organName, onClose }: AtlasViewModalProps
         <header className="mb-4 flex shrink-0 flex-wrap items-start justify-between gap-4 border-b border-slate-100 pb-4">
           <div>
             <p className="text-sm font-black uppercase tracking-[0.18em] text-violet-700">
-              Atlas Görüntüle
+              {t("title")}
             </p>
             <h2 id="atlas-view-title" className="mt-1 text-2xl font-black text-slate-900">
               {organName}
             </h2>
             <p className="mt-1 text-base font-medium text-slate-500">
-              {regions.length} kayıtlı bölge · salt okunur önizleme
+              {t("meta", { count: String(regions.length) })}
             </p>
           </div>
           <button
@@ -70,7 +74,7 @@ export function AtlasViewModal({ open, organName, onClose }: AtlasViewModalProps
             onClick={onClose}
             className="rounded-2xl bg-slate-100 px-5 py-3 text-sm font-black text-slate-700 transition hover:bg-slate-200"
           >
-            Kapat
+            {tc("close")}
           </button>
         </header>
 

@@ -1,0 +1,104 @@
+{
+  "atlas": {
+    "vedicHarita": {
+      "frame": {
+        "prefix": "Sidereal (nirayana) · ayanamsa ",
+        "bhavaMethod": "bhava method: {m}",
+        "scheme": "scheme: {s}",
+        "lagna": "Lagna {s}"
+      },
+      "note": {
+        "chalitVsD1": "Bhav Chalit is a house method SEPARATE from the Vedic D1 (Rashi) chart: in D1 the houses are counted whole-sign from the Lagna rashi; in Bhav Chalit each bhava is defined around its own madhya (cusp), with sandhi boundaries between two madhyas. A graha can therefore fall in a chalit bhava different from its D1 house.",
+        "chalitKundli": "The chart cells are bhavas (in the North style the 1st bhava is at the top centre); each graha is shown in its CHALIT bhava. The sign number in a cell is the whole-sign order from the Lagna rashi; for grahas whose bhava differs from their rashi house the degree is not written in the cell (the actual rashi and degree are in the table). This chart is NOT the Vedic D1 (Rashi) chart.",
+        "arudhaMethod": "Arudha pada: count from the bhava rashi to the rashi of its lord, then go the same number of signs forward from the lord. If the result falls in the bhava itself (1st) or in its 7th, the 10th rashi from it is taken (classical exception). For dual-lord signs (Scorpio, Aquarius) only the classical lord (Mars, Saturn) is used, even when the lord is in its own sign; the rule of some schools (e.g. Jaimini) that switches to Ketu/Rahu or picks the stronger lord is not applied, and under those schools some padas may fall in a different sign.",
+        "charaMethod": "Chara karakas are ranked by the grahas' degrees within their signs, from highest to lowest, following the Jaimini method; the highest degree is the Atmakaraka and the lowest the Darakaraka. Because Rahu moves backwards it is ranked by 30° − degree (only in the 8-karaka scheme). The choice of scheme is a school preference; the 7-karaka scheme has no Rahu and no Pitrikaraka.",
+        "balaVsShadbala": "Bhava Bala is the strength of the HOUSE (bhava); Shadbala is the strength of the PLANET (graha). Bhava Bala is the sum of three components: Bhavadhipati Bala (the Shadbala total of the house lord), Dig Bala (the directional strength of the bhava sign) and Drishti Bala (the net effect of aspects falling on the bhava; can be negative). Values are in virupas, with the total also in rupas (virupa / 60). Rank 1 = strongest house.",
+        "balaSchool": "Calculation school: Dig Bala is given by sign class (human signs strongest in the Lagna, quadrupeds in the 10th, water signs in the 4th, Scorpio in the 7th; Sagittarius and Capricorn are split at mid-sign, Cancer counts as a water sign) and decreases by 10 virupas per full house of distance. Drishti Bala is one quarter of the value of the aspects falling on the bhava madhya, computed with the BPHS aspect curve and the special aspects of Mars, Jupiter and Saturn (benefics added, malefics subtracted). The school that adds the aspects of Mercury and Jupiter in full and the school that measures the difference continuously by degree are not applied in this calculation; under those schools the values and the ranking may differ."
+      },
+      "scheme": {
+        "eight": "8 karakas (Rahu included; separate Pitrikaraka)",
+        "seven": "7 karakas (Rahu excluded; no Pitrikaraka)"
+      },
+      "bhavaSystem": {
+        "sripati": "Sripati (bhava madhya = cusp; boundaries are the sandhis between two madhyas)"
+      },
+      "centre": "Bhav Chalit",
+      "col": {
+        "graha": "Graha",
+        "rashiDegree": "Rashi and degree",
+        "bhava": "Bhava",
+        "lord": "Lord",
+        "rank": "Rank"
+      },
+      "yes": "Yes",
+      "no": "No",
+      "yesSep": "Yes · ",
+      "ord": {
+        "house": "{n, selectordinal, one {st house} two {nd house} few {rd house} other {th house}}",
+        "bhava": "{n, selectordinal, one {st bhava} two {nd bhava} few {rd bhava} other {th bhava}}"
+      },
+      "chalit": {
+        "chartLabel": "Bhav Chalit chart",
+        "viewTitle": "Bhav Chalit view (North style)",
+        "movedCount": "Grahas that changed bhava: ",
+        "compareLabel": "D1 compared with Bhav Chalit",
+        "colRashiHouse": "Rashi house (D1)",
+        "colChalitBhava": "Chalit bhava",
+        "colMoved": "Changed?",
+        "selectedLabel": "Selected graha",
+        "selChalit": " · chalit ",
+        "selBhavaD1": "{n, selectordinal, one {st bhava · D1 } two {nd bhava · D1 } few {rd bhava · D1 } other {th bhava · D1 }}",
+        "kbEmpty": "You have no Knowledge Bank entry for this chalit placement.",
+        "boundsLabel": "Bhava boundaries",
+        "colStart": "Start (sandhi)",
+        "colMadhya": "Madhya (cusp)",
+        "colEnd": "End (sandhi)",
+        "colSpan": "Width",
+        "colMadhyaRashi": "Madhya rashi",
+        "colGrahas": "Grahas"
+      },
+      "chara": {
+        "ak": "Atmakaraka (AK)",
+        "dk": "Darakaraka (DK)",
+        "rankingLabel": "Degree ranking",
+        "colKaraka": "Karaka",
+        "colRankingDegree": "Ranking degree",
+        "reversed": " (reversed: 30° − degree)",
+        "selectedLabel": "Selected karaka",
+        "kbEmpty": "You have no Knowledge Bank entry for this karaka assignment."
+      },
+      "arudha": {
+        "al": "Arudha Lagna (AL)",
+        "ul": "Upapada (UL / A12)",
+        "fromLagna": " · {n, selectordinal, one {#st} two {#nd} few {#rd} other {#th}} house from Lagna",
+        "tableLabel": "Arudha calculation table",
+        "colPada": "Pada",
+        "colLordRashi": "Lord's rashi",
+        "colCount": "Count",
+        "colException": "Exception",
+        "colPadaRashi": "Pada rashi",
+        "colFromLagna": "From Lagna",
+        "selectedLabel": "Selected pada",
+        "selFrom": " · from Lagna: ",
+        "kbEmpty": "You have no Knowledge Bank entry for this pada placement."
+      },
+      "bala": {
+        "houseSep": "{n, selectordinal, one {st house · } two {nd house · } few {rd house · } other {th house · }}",
+        "tableLabel": "Bhava Bala table",
+        "colBhavadhipati": "Bhavadhipati",
+        "colDig": "Dig",
+        "colDrishti": "Drishti",
+        "colTotal": "Total (virupa)",
+        "colRupa": "Rupa",
+        "selectedLabel": "Selected bhava",
+        "selHouseOpen": "{n, selectordinal, one {st house (} two {nd house (} few {rd house (} other {th house (}}",
+        "selRank": ") · rank ",
+        "rupaSuffix": " rupa",
+        "madhyaA": "Bhava madhya ",
+        "madhyaB": " · lord ",
+        "madhyaC": " (Bhavadhipati Bala = Shadbala total of the lord).",
+        "kbEmpty": "You have no Knowledge Bank entry for this house-strength state."
+      }
+    }
+  }
+}

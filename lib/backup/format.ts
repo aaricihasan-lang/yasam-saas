@@ -2,7 +2,7 @@
  * lib/backup/format.ts — Yedek dosyası normalize etme, parçalama ve rapor birleştirme (SAF).
  * Hem Ayarlar sayfası (istemci orkestrasyonu) hem sunucu (eski tek-gövde restore) kullanır.
  */
-import { ACCEPTED_BACKUP_VERSIONS, BACKUP_FORMAT, type RestoreOverallStatus, type RestoreTableReport, type BackupStoredFile } from "./types";
+import { ACCEPTED_BACKUP_VERSIONS, BACKUP_FORMAT, type CodedMessage, type RestoreOverallStatus, type RestoreTableReport, type BackupStoredFile } from "./types";
 
 export type NormalizedBackup = {
   version: string;
@@ -17,7 +17,12 @@ export type NormalizedBackup = {
   files: BackupStoredFile[];
 };
 
-export type NormalizeResult = { ok: true; backup: NormalizedBackup } | { ok: false; error: string };
+/** Reddedilen dosya: Türkçe `error` aynen; `code`/`params` dil-bağımsız EK alan (I18N — arayüz metni koddan üretir). */
+export type NormalizeResult =
+  | { ok: true; backup: NormalizedBackup }
+  | { ok: false; error: string; code: NormalizeErrorCode; params?: Record<string, string> };
+
+export type NormalizeErrorCode = "FILE_NOT_OBJECT" | "FILE_UNSUPPORTED_VERSION" | "FILE_BAD_FORMAT" | "FILE_NO_TABLES";
 
 function isPlainObject(v: unknown): v is Record<string, unknown> {
   return !!v && typeof v === "object" && !Array.isArray(v);
@@ -25,15 +30,22 @@ function isPlainObject(v: unknown): v is Record<string, unknown> {
 
 /** 1.0 / 2.0 / 2.1 (tables[t] = satır dizisi) ve 3.0 (tables[t].rows) biçimlerini tek şekle indirger. */
 export function normalizeBackupFile(parsed: unknown): NormalizeResult {
-  if (!isPlainObject(parsed)) return { ok: false, error: "Yedek dosyası geçersiz (JSON nesnesi değil)." };
+  if (!isPlainObject(parsed)) return { ok: false, error: "Yedek dosyası geçersiz (JSON nesnesi değil).", code: "FILE_NOT_OBJECT" };
   const version = typeof parsed.version === "string" ? parsed.version : String(parsed.version ?? "");
   if (!(ACCEPTED_BACKUP_VERSIONS as readonly string[]).includes(version)) {
-    return { ok: false, error: `Desteklenmeyen yedek sürümü: ${version || "(yok)"}` };
+    return {
+      ok: false,
+      error: `Desteklenmeyen yedek sürümü: ${version || "(yok)"}`,
+      code: "FILE_UNSUPPORTED_VERSION",
+      params: { version },
+    };
   }
   if (version === "3.0" && parsed.format !== BACKUP_FORMAT) {
-    return { ok: false, error: "Yedek dosyası biçimi tanınmadı (format alanı eksik/yanlış)." };
+    return { ok: false, error: "Yedek dosyası biçimi tanınmadı (format alanı eksik/yanlış).", code: "FILE_BAD_FORMAT" };
   }
-  if (!isPlainObject(parsed.tables)) return { ok: false, error: "Yedek yapısı geçersiz ('tables' alanı eksik)." };
+  if (!isPlainObject(parsed.tables)) {
+    return { ok: false, error: "Yedek yapısı geçersiz ('tables' alanı eksik).", code: "FILE_NO_TABLES" };
+  }
 
   const tables: Record<string, Record<string, unknown>[]> = {};
   const incompleteTables: { table: string; error: string | null }[] = [];
@@ -180,6 +192,28 @@ export function emptyTableReport(table: string, module: string | null, expected 
   };
 }
 
+/**
+ * Uyarı ekler: Türkçe metin `warnings`'e AYNEN, dil-bağımsız karşılığı `warning_codes`'a (I18N EK alan).
+ * Mevcut rapor biçimi korunur; `warning_codes` yalnız ilk kodlu uyarıda oluşturulur.
+ */
+export function pushWarning(r: RestoreTableReport, text: string, coded: CodedMessage): void {
+  r.warnings.push(text);
+  (r.warning_codes ??= []).push(coded);
+}
+
+function mergeCoded(a: CodedMessage[] | undefined, b: CodedMessage[] | undefined): CodedMessage[] | undefined {
+  if (!a && !b) return undefined;
+  const seen = new Set<string>();
+  const out: CodedMessage[] = [];
+  for (const c of [...(a ?? []), ...(b ?? [])]) {
+    const k = JSON.stringify(c);
+    if (seen.has(k)) continue;
+    seen.add(k);
+    out.push(c);
+  }
+  return out;
+}
+
 export function addFailure(r: RestoreTableReport, code: string, ids: string[], count = ids.length || 1): void {
   let f = r.failed.find((x) => x.code === code);
   if (!f) {
@@ -217,6 +251,9 @@ export function mergeTableReports(a: RestoreTableReport, b: RestoreTableReport):
     dropped_columns: [...new Set([...a.dropped_columns, ...b.dropped_columns])],
     warnings: [...new Set([...a.warnings, ...b.warnings])],
   };
+  const codes = mergeCoded(a.warning_codes, b.warning_codes);
+  if (codes) out.warning_codes = codes;
+  else delete out.warning_codes;
   for (const f of b.failed) addFailure(out, f.code, f.sample_ids, f.count);
   out.status = computeTableStatus(out);
   return out;

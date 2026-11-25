@@ -1,0 +1,39 @@
+{
+  "hd": {
+    "forms": {
+      "location": {
+        "placeholder": "Province, district or city… (e.g. Selçuklu, Berlin)",
+        "unselectedHint": "Select a place from the list; text that is not selected is not used as the place of birth.",
+        "noResults": "No settlement found with this name. Check the spelling or select a province.",
+        "searchFailed": "The location search could not be completed right now. Please try again.",
+        "networkError": "Network error. Check your connection and try again.",
+        "searching": "Searching…",
+        "searchFor": "Search district / city: “{query}”",
+        "enterKey": "Enter"
+      },
+      "date": {
+        "placeholder": "DD.MM.YYYY",
+        "invalid": "Enter the date as DD.MM.YYYY (a real day, 1800 – today), e.g. 10.04.1992."
+      },
+      "time": {
+        "placeholder": "HH:MM",
+        "invalid": "Enter the time as HH:MM (00:00–23:59), e.g. 14:30."
+      },
+      "gateNotes": {
+        "title": "Knowledge Base Notes",
+        "loading": "Loading...",
+        "empty": "No Knowledge Base notes have been added for this topic yet."
+      },
+      "gateTech": {
+        "title": "Gate Technical Details",
+        "gate": "Gate",
+        "center": "Center",
+        "centerType": "Center Type",
+        "summary": "Summary",
+        "sign": "Sign",
+        "degree": "Degree",
+        "antiscia": "Antiscia"
+      }
+    }
+  }
+}

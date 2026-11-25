@@ -9,6 +9,7 @@ import "server-only";
 import { assertServerOnly } from "@/lib/server/serverOnlyGuard";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { ExpertBranding } from "@/lib/docx/expertBranding";
+import type { OutputLocale } from "@/lib/i18n/output";
 import { isUuid, validateDraftRef, type ClassicDraftRefInput, type Validation } from "../input";
 import {
   buildBusinessReport,
@@ -100,6 +101,8 @@ export type ReportCtx = {
   db: SupabaseClient; tenantId: string; viewerId: string; expertName: string | null; futureYears?: boolean; canSeeStock?: boolean; now?: () => Date;
   /** F3A: render-hazır uzman markalaması (null/yok → çıktı birebir; veri kaynağı F1/F2). */
   branding?: ExpertBranding | null;
+  /** I18N-F1-R5 (P37): çıktı dili (route çözer). Yok → TR çıktı birebir. Kayıt seçimi / gizleme kararına GİRMEZ. */
+  output?: OutputLocale | null;
 };
 
 export type ReportOutcome =
@@ -123,7 +126,7 @@ export async function buildClassicReport(
   draftRowOverride: ClassicAnalysisRow | null = null,
 ): Promise<ReportOutcome> {
   const at = (ctx.now ?? (() => new Date()))();
-  const common = { generatedAt: at, expertName: ctx.expertName, branding: ctx.branding ?? null };
+  const common = { generatedAt: at, expertName: ctx.expertName, branding: ctx.branding ?? null, output: ctx.output ?? null };
 
   if (req.kind === "comparison") {
     let pair: ComparePairRequest = { legacyId: req.legacyId, classicId: req.analysisId };
@@ -169,7 +172,7 @@ export async function buildClassicReport(
     );
     // NK-R14: dosya adına kişi adı EKLENMEZ (yalnız uzmanın yazdığı klasik başlık; yoksa sabit ad).
     const title = sources.classic?.title || "Karsilastirma";
-    return { ok: true, buffer, filename: buildReportFilename("karsilastirma", title, at), resourceId: req.noteId ?? [pair.legacyId, pair.classicId].filter(Boolean).join(",") };
+    return { ok: true, buffer, filename: buildReportFilename("karsilastirma", title, at, ctx.output), resourceId: req.noteId ?? [pair.legacyId, pair.classicId].filter(Boolean).join(",") };
   }
 
   let row: ClassicAnalysisRow;
@@ -210,7 +213,7 @@ export async function buildClassicReport(
       buffer = await buildNamesReport(record, { ...common, variant: req.variant });
       break;
   }
-  return { ok: true, buffer, filename: buildReportFilename(FILE_KIND[req.kind], row.title, at), resourceId: row.id };
+  return { ok: true, buffer, filename: buildReportFilename(FILE_KIND[req.kind], row.title, at, ctx.output), resourceId: row.id };
 }
 
 function personNameOf(input: unknown): string | null {

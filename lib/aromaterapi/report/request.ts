@@ -78,6 +78,17 @@ export function isUuid(v: string | null | undefined): v is string {
   return typeof v === "string" && UUID_RE.test(v.trim());
 }
 
+/**
+ * I18N: rapor oluşturucu (builders) hata durumu → dil-bağımsız kod. Türkçe `error` metni AYNEN yanıtta kalır;
+ * istemci EN'de aromatherapy.errors.codes.<KOD> gösterir. Saf (yalnız HTTP status'tan türetilir).
+ */
+export function reportErrorCode(status: number): string {
+  if (status === 404) return "AROMA_REPORT_NOT_FOUND";
+  if (status === 413) return "AROMA_REPORT_TOO_MANY";
+  if (status >= 400 && status < 500) return "AROMA_REPORT_INVALID_REQUEST";
+  return "AROMA_REPORT_FAILED";
+}
+
 /** DOCX Buffer → indirilebilir attachment Response. */
 export function docxResponse(buffer: Buffer, filename: string): Response {
   // filename yalnız güvenli karakterler (theme.reportFilename zaten sanitize eder; ek koruma).

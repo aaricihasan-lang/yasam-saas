@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { useTranslations } from "next-intl";
 import { createPortal } from "react-dom";
 import { runInEffect } from "@/lib/runInEffect";
 import { useModalFocusTrap } from "@/lib/biyoenerji/useModalFocusTrap";
@@ -49,6 +50,7 @@ export function BiyoenerjiCrudFormModal({
 }: BiyoenerjiCrudFormModalProps) {
   // BIO-004 — kaydedilmemiş değişiklik çıkış onayı katmanı.
   const [askDiscard, setAskDiscard] = useState(false);
+  const tm = useTranslations("bioenergy.modal");
   const dialogRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -159,7 +161,7 @@ export function BiyoenerjiCrudFormModal({
               type="button"
               onClick={requestClose}
               className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-slate-200/80 bg-white/90 text-lg leading-none text-slate-600 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900"
-              aria-label="Kapat"
+              aria-label={tm("close")}
             >
               ×
             </button>
@@ -189,10 +191,10 @@ export function BiyoenerjiCrudFormModal({
                 id="biyo-crud-discard-title"
                 className="text-[15px] font-black leading-snug text-slate-950"
               >
-                Kaydedilmemiş değişiklikler
+                {tm("unsavedTitle")}
               </h3>
               <p className="mt-2 text-[12px] font-medium leading-relaxed text-slate-500">
-                Kaydedilmemiş değişiklikleriniz var. Çıkarsanız yaptığınız değişiklikler kaybolacak.
+                {tm("unsavedBody")}
               </p>
               <div className="mt-5 flex flex-wrap items-center justify-end gap-2">
                 <button
@@ -200,7 +202,7 @@ export function BiyoenerjiCrudFormModal({
                   onClick={() => setAskDiscard(false)}
                   className="rounded-xl border border-slate-200/90 bg-white px-4 py-2.5 text-[12px] font-black text-slate-700 shadow-sm transition hover:bg-slate-50"
                 >
-                  Düzenlemeye Devam Et
+                  {tm("keepEditing")}
                 </button>
                 <button
                   type="button"
@@ -210,7 +212,7 @@ export function BiyoenerjiCrudFormModal({
                   }}
                   className="rounded-xl bg-rose-600 px-4 py-2.5 text-[12px] font-black text-white shadow-[0_10px_24px_rgba(225,29,72,0.22)] transition hover:bg-rose-700"
                 >
-                  Değişiklikleri Sil ve Çık
+                  {tm("discardExit")}
                 </button>
               </div>
             </div>

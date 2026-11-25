@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { AromaterapiSectionShell } from "@/app/aromaterapi/_components/AromaterapiSectionShell";
@@ -18,20 +19,21 @@ export default function KaynakDuzenlePage() {
   const router = useRouter();
   const { showToast } = useToast();
   const isDemo = readYasamUser()?.is_demo_account === true;
+  const t = useTranslations("aromatherapy.catalog.pages");
   const detailHref = id ? `/aromaterapi/kaynaklar/${id}` : "/aromaterapi/kaynaklar";
 
   return (
     <AromaterapiSectionShell
-      title="Kaynağı Düzenle"
-      subtitle="Değişiklik yaparken bir gerekçe girmeniz gerekir."
+      title={t("editSource")}
+      subtitle={t("editSubtitle")}
       icon="📜"
-      breadcrumbLeaf="Düzenle"
+      breadcrumbLeaf={t("editLeaf")}
       actions={
         <Link
           href={detailHref}
           className="inline-flex min-h-[44px] items-center gap-1.5 rounded-xl border border-slate-200 bg-white/85 px-3.5 text-[13px] font-black text-slate-600 shadow-sm transition hover:border-amber-200 hover:text-amber-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/60"
         >
-          ← Kaynağa dön
+          {t("backSource")}
         </Link>
       }
     >
@@ -41,7 +43,7 @@ export default function KaynakDuzenlePage() {
           sourceId={id}
           isDemo={isDemo}
           onSaved={() => {
-            showToast({ title: "Başarılı", message: "Kaynak güncellendi.", type: "success" });
+            showToast({ title: t("successTitle"), message: t("sourceUpdated"), type: "success" });
             router.push(detailHref);
           }}
           onCancel={() => router.push(detailHref)}

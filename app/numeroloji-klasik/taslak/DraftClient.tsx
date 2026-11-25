@@ -6,19 +6,20 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { runInEffect } from "@/lib/runInEffect";
 import { loadDraft, type StoredDraft } from "../_lib/draft";
 import type { AnalysisView } from "../_lib/types";
 import { Alert, Shell, Skeleton } from "../_ui/kit";
 import { ResultView } from "../analiz/[id]/ResultClient";
 
-const CRUMBS = [
-  { href: "/numeroloji-merkezi", label: "Numeroloji Merkezi" },
-  { href: "/numeroloji-klasik", label: "Klasik Numeroloji" },
-  { label: "Analiz Sonucu" },
-];
-
 export default function DraftClient() {
+  const t = useTranslations("numerology.classic");
+  const CRUMBS = [
+    { href: "/numeroloji-merkezi", label: t("shared.crumbCentre") },
+    { href: "/numeroloji-klasik", label: t("shared.crumbClassic") },
+    { label: t("draft.crumbResult") },
+  ];
   const [state, setState] = useState<{ loaded: boolean; draft: StoredDraft | null }>({ loaded: false, draft: null });
   useEffect(() => {
     const key = new URLSearchParams(window.location.search).get("t");
@@ -28,7 +29,7 @@ export default function DraftClient() {
   if (!state.loaded) {
     return (
       <Shell crumbs={CRUMBS}>
-        <div style={{ marginTop: 14 }}><Skeleton lines={2} label="Sonuç yükleniyor…" /></div>
+        <div style={{ marginTop: 14 }}><Skeleton lines={2} label={t("draft.loading")} /></div>
       </Shell>
     );
   }
@@ -37,8 +38,8 @@ export default function DraftClient() {
     return (
       <Shell crumbs={CRUMBS}>
         <div style={{ marginTop: 14 }} data-testid="draft-missing">
-          <Alert tone="info" title="Kaydedilmemiş sonuç bulunamadı" action={<Link className="nk-btn nk-sm" href="/numeroloji-klasik/yeni">Yeni Analiz</Link>}>
-            Kaydedilmemiş sonuçlar yalnız hesaplandıkları sekmede, sekme açık kaldıkça görüntülenir. Bilgileri girip yeniden hesaplayabilirsiniz; kaydettiğiniz analizler Kayıtlı Analizler’de durur.
+          <Alert tone="info" title={t("draft.missingTitle")} action={<Link className="nk-btn nk-sm" href="/numeroloji-klasik/yeni">{t("draft.newAnalysis")}</Link>}>
+            {t("draft.missingBody")}
           </Alert>
         </div>
       </Shell>

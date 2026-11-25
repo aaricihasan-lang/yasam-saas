@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { useTranslations } from "next-intl";
 
 /**
  * KUPA & HACAMAT — ortak premium sayfa kabuğu (tüm /kupa/** sayfalarının görsel
@@ -37,6 +38,7 @@ export function KupaShell({
   fullBleedBelowLg?: boolean;
 }) {
   // fullBleed: children full-bleed (px-0) below lg; header/breadcrumb keep reading gutter.
+  const ts = useTranslations("cupping.shell");
   const containerPad = fullBleedBelowLg ? "px-0 lg:px-8" : "px-4 sm:px-6 lg:px-8";
   const readingGutter = fullBleedBelowLg ? "px-4 sm:px-6 lg:px-0" : "";
   return (
@@ -55,13 +57,13 @@ export function KupaShell({
         {/* Breadcrumb */}
         <nav className={`mb-2 flex flex-wrap items-center gap-1.5 text-xs font-medium text-slate-500 ${readingGutter}`}>
           <Link href="/" className="no-underline transition hover:text-amber-700">
-            Ana Sayfa
+            {ts("crumbHome")}
           </Link>
           <span aria-hidden className="text-slate-300">
             /
           </span>
           <Link href="/enerji-beden" className="no-underline transition hover:text-amber-700">
-            Beden &amp; Enerji Uygulamaları
+            {ts("crumbEnergyBody")}
           </Link>
           <span aria-hidden className="text-slate-300">
             /
@@ -69,7 +71,7 @@ export function KupaShell({
           {breadcrumb?.length ? (
             <>
               <Link href="/kupa" className="no-underline transition hover:text-amber-700">
-                Kupa &amp; Hacamat
+                {ts("moduleName")}
               </Link>
               {breadcrumb.map((b) => (
                 <span key={b.label} className="flex items-center gap-1.5">
@@ -87,7 +89,7 @@ export function KupaShell({
               ))}
             </>
           ) : (
-            <span className="text-slate-700">Kupa &amp; Hacamat</span>
+            <span className="text-slate-700">{ts("moduleName")}</span>
           )}
         </nav>
 

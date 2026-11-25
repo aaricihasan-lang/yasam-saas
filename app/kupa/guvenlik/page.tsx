@@ -11,70 +11,84 @@
  * render edilir (allowEmpty:false + defaultValue). contraindication_class NULLABLE → boş = null.
  */
 
+import { useMemo } from "react";
+import { useTranslations } from "next-intl";
 import { KupaShell } from "../components/KupaShell";
 import { CrudManager, type FieldDef } from "../components/CrudManager";
+import { useCuppingVocab } from "@/app/kupa/lib/useCuppingVocab";
 import { CuppingProtocolUsage } from "../components/ProtocolUsage";
 import { createSafety, deleteSafety, listSafety, updateSafety, type CuppingSafetyNote } from "../lib/api";
 
-const SEVERITY_OPTIONS = [
-  { value: "info", label: "Bilgi" },
-  { value: "warning", label: "Uyarı" },
-  { value: "contraindication", label: "Kontrendikasyon" },
+type Tr = ReturnType<typeof useTranslations>;
+
+// Görünen etiketler: messages/<dil>/cupping.library.json → cupping.library.safety. Seçenek değerleri kanonik.
+
+const buildSeverityOptions = (t: Tr) => [
+  { value: "info", label: t("opt.severity.info") },
+  { value: "warning", label: t("opt.severity.warning") },
+  { value: "contraindication", label: t("opt.severity.contraindication") },
 ];
 
-const CONTRAINDICATION_OPTIONS = [
-  { value: "absolute", label: "Mutlak (absolute)" },
-  { value: "relative", label: "Göreceli (relative)" },
-  { value: "none", label: "Yok (none)" },
+const buildContraindicationOptions = (t: Tr) => [
+  { value: "absolute", label: t("opt.contraindication.absolute") },
+  { value: "relative", label: t("opt.contraindication.relative") },
+  { value: "none", label: t("opt.contraindication.none") },
 ];
 
-const FIELDS: FieldDef[] = [
-  { key: "title", label: "Başlık", type: "text", required: true },
+const buildFields = (t: Tr): FieldDef[] => [
+  { key: "title", label: t("fields.title"), type: "text", required: true },
   {
     key: "severity",
-    label: "Önem",
+    label: t("fields.severity"),
     type: "select",
-    options: SEVERITY_OPTIONS,
+    options: buildSeverityOptions(t),
     allowEmpty: false,
     defaultValue: "warning",
   },
   {
     key: "contraindication_class",
-    label: "Kontrendikasyon Sınıfı",
+    label: t("fields.contraindication_class"),
     type: "select",
-    options: CONTRAINDICATION_OPTIONS,
+    options: buildContraindicationOptions(t),
   },
-  { key: "content", label: "Açıklama", type: "textarea" },
-  { key: "scope_tags", label: "Kapsam Etiketleri (virgülle ayırın)", type: "tags" },
-  { key: "source_note", label: "Kaynak Bilgisi (serbest)", type: "textarea" },
-  { key: "sort_order", label: "Sıra", type: "number" },
-  { key: "is_active", label: "Aktif", type: "boolean" },
+  { key: "content", label: t("fields.content"), type: "textarea" },
+  { key: "scope_tags", label: t("fields.scope_tags"), type: "tags" },
+  { key: "source_note", label: t("fields.source_note"), type: "textarea" },
+  { key: "sort_order", label: t("fields.sort_order"), type: "number" },
+  { key: "is_active", label: t("fields.is_active"), type: "boolean" },
 ];
 
 export default function GuvenlikPage() {
+  const t = useTranslations("cupping.library.safety");
+  const vocab = useCuppingVocab();
+  const fields = useMemo(() => buildFields(t), [t]);
+  const severityOptions = useMemo(() => buildSeverityOptions(t), [t]);
+  const contraOptions = useMemo(() => buildContraindicationOptions(t), [t]);
   return (
     <KupaShell
-      title="Güvenlik & Kontrendikasyonlar"
-      subtitle="Kendi güvenlik / dikkat maddelerinizi yönetin; protokollere QuickCreate ile de bağlanır."
-      breadcrumb={[{ label: "Güvenlik" }]}
+      title={t("title")}
+      subtitle={t("subtitle")}
+      breadcrumb={[{ label: t("crumb") }]}
     >
       <CrudManager<CuppingSafetyNote>
         titleKey="title"
         subtitleKey="severity"
-        fields={FIELDS}
+        // I18N-0126: alt satırda ham kod ("warning") yerine sözlük etiketi; kayıt değeri değişmez.
+        subtitleFormat={(v) => vocab.severity(typeof v === "string" ? v : null)}
+        fields={fields}
         load={listSafety}
         create={createSafety}
         update={updateSafety}
         remove={deleteSafety}
-        emptyLabel="Henüz güvenlik kaydı yok. Yeni ekleyin."
-        addLabel="Güvenlik"
+        emptyLabel={t("empty")}
+        addLabel={t("addLabel")}
         searchKeys={["title", "content", "source_note", "scope_tags"]}
-        searchPlaceholder="Başlık veya içeriğe göre ara…"
+        searchPlaceholder={t("searchPlaceholder")}
         filters={[
-          { key: "severity", label: "Önem", options: SEVERITY_OPTIONS },
-          { key: "contraindication_class", label: "Sınıf", options: CONTRAINDICATION_OPTIONS },
+          { key: "severity", label: t("filterSeverity"), options: severityOptions },
+          { key: "contraindication_class", label: t("filterClass"), options: contraOptions },
         ]}
-        deleteCascadeHint="Bir protokolde kullanılan güvenlik maddesi silinemez; önce ilgili protokollerden çıkarın."
+        deleteCascadeHint={t("deleteCascadeHint")}
         renderExtra={(rec) => <CuppingProtocolUsage entity="safety" entityId={rec.id} />}
       />
     </KupaShell>

@@ -40,7 +40,7 @@ export async function POST(
   const guard = await requireModuleAccess(req, "cupping");
   if (!guard.ok) return guard.response;
   const { id } = await params;
-  if (!id) return cuppingError(400, "Plan id gerekli.");
+  if (!id) return cuppingError(400, "Plan id gerekli.", "CUP_ID_REQUIRED");
   const { db, tenantId, is_demo_account } = guard;
   if (is_demo_account) return demoReadOnlyResponse();
 
@@ -57,7 +57,7 @@ export async function POST(
   if (Array.isArray(parsed.data.days)) {
     for (const entry of parsed.data.days) {
       if (!entry || typeof entry !== "object") {
-        return cuppingError(400, "Geçersiz gün öğesi.");
+        return cuppingError(400, "Geçersiz gün öğesi.", "CUP_DAY_ITEM_INVALID");
       }
       const e = entry as Record<string, unknown>;
       // YALNIZ gerçekten gönderilmiş stil alanları (undefined enjekte YOK → stilsiz gün geçerli).
@@ -78,9 +78,9 @@ export async function POST(
     items = rawDates.map((date) => ({ date, style: sharedStyle }));
   }
 
-  if (items.length === 0) return cuppingError(400, "En az bir tarih (YYYY-MM-DD) gerekli.");
+  if (items.length === 0) return cuppingError(400, "En az bir tarih (YYYY-MM-DD) gerekli.", "CUP_DATES_REQUIRED");
   if (items.length > CUPPING_PLAN_DAYS_MAX_BATCH) {
-    return cuppingError(400, `Tek seferde en fazla ${CUPPING_PLAN_DAYS_MAX_BATCH} gün seçilebilir.`);
+    return cuppingError(400, `Tek seferde en fazla ${CUPPING_PLAN_DAYS_MAX_BATCH} gün seçilebilir.`, "CUP_TOO_MANY_DAYS");
   }
 
   // KATI doğrulama + yıl eşitliği + istek-içi tekilleştirme (ilk giren kazanır; giriş sırasını korur).
@@ -88,9 +88,9 @@ export async function POST(
   const rows: Record<string, unknown>[] = [];
   for (const item of items) {
     const parts = parseYmd(item.date);
-    if (!parts) return cuppingError(400, "Geçersiz tarih biçimi (YYYY-MM-DD bekleniyor).");
+    if (!parts) return cuppingError(400, "Geçersiz tarih biçimi (YYYY-MM-DD bekleniyor).", "CUP_DATE_INVALID");
     if (parts.year !== planYear) {
-      return cuppingError(400, `Seçilen tarih plan yılına (${planYear}) ait olmalı.`);
+      return cuppingError(400, `Seçilen tarih plan yılına (${planYear}) ait olmalı.`, "CUP_DATE_OUTSIDE_PLAN_YEAR");
     }
     const ymd = typeof item.date === "string" ? item.date.trim() : "";
     if (seen.has(ymd)) continue;
@@ -98,7 +98,7 @@ export async function POST(
 
     // Per-day stil doğrulama — YENİ günde RENK ZORUNLU (renk allowlist + kısa açıklama/not sınırı).
     const norm = normalizeCuppingDayStyle(item.style, { requireColorPresent: true });
-    if (!norm.ok) return cuppingError(400, norm.error);
+    if (!norm.ok) return cuppingError(400, norm.error, norm.code);
 
     // Tüm günler MANUEL (uzman-sahipli) köken ile yazılır (client köken enjekte edemez).
     // Kolon kümesi SABİT (heterojen upsert yok): stil verilmeyen alanlar NULL.
@@ -120,7 +120,7 @@ export async function POST(
     .select("id");
   if (error) {
     await trackUsage(guard, req, { module: "cupping", action: "action_failed", failedAction: "record_created", subEntity: "calendar_day", errorClass: "server" });
-    return cuppingError(500, "İşlem tamamlanamadı. Lütfen tekrar deneyin.");
+    return cuppingError(500, "İşlem tamamlanamadı. Lütfen tekrar deneyin.", "CUP_DB_FAIL");
   }
 
   const inserted = data?.length ?? 0;

@@ -1,6 +1,7 @@
 import { Brush, Circle, CircleDot, Eraser, Footprints, Hand, Move, Pencil, Save, Square } from "lucide-react";
+import { useTranslations } from "next-intl";
 import premium from "@/app/_premium/refleksoloji/bolgeHaritasi.module.css";
-import { POINT_SIZE_LABEL, POINT_SIZES } from "../types";
+import { POINT_SIZES } from "../types";
 import type { FootView, PointSize, RegionDrawShape, RegionToolMode } from "../types";
 
 type RegionToolbarProps = {
@@ -57,12 +58,14 @@ export function RegionToolbar({
   onClear,
   editingAllowed,
 }: RegionToolbarProps) {
+  const t = useTranslations("reflexology.zoneMap.toolbar");
+  const tc = useTranslations("reflexology.common");
   const isAdd = toolMode === "add";
   const isMove = toolMode === "move";
 
   return (
     <div className="flex w-full shrink-0 justify-center pb-2">
-      <div className={premium.toolbar} role="toolbar" aria-label="Bölge haritası araçları">
+      <div className={premium.toolbar} role="toolbar" aria-label={t("aria")}>
         <div className={premium.toolRow}>
         {/* DÜZENLEME KÜMESİ — yalnız geniş ekranda (telefon/dar ekranda gizli). */}
         {editingAllowed ? (
@@ -77,7 +80,7 @@ export function RegionToolbar({
           className={btnClass("border-violet-200 bg-violet-50 text-violet-700", isAdd && drawShape === "oval")}
         >
           <Circle className={ico} aria-hidden />
-          Oval
+          {t("oval")}
         </button>
 
         <button
@@ -87,7 +90,7 @@ export function RegionToolbar({
           className={btnClass("border-blue-200 bg-blue-50 text-blue-700", isAdd && drawShape === "rect")}
         >
           <Square className={ico} aria-hidden />
-          Kare
+          {t("rect")}
         </button>
 
         <button
@@ -100,7 +103,7 @@ export function RegionToolbar({
           )}
         >
           <Pencil className={ico} aria-hidden />
-          Manuel Çizim
+          {t("freeDraw")}
         </button>
 
         <button
@@ -113,7 +116,7 @@ export function RegionToolbar({
           )}
         >
           <Brush className={ico} aria-hidden />
-          Kalın Çizgi
+          {t("thickLine")}
         </button>
 
         <button
@@ -123,13 +126,13 @@ export function RegionToolbar({
           className={btnClass("border-rose-200 bg-rose-50 text-rose-700", isAdd && drawShape === "point")}
         >
           <CircleDot className={ico} aria-hidden />
-          Nokta
+          {t("point")}
         </button>
 
         {showPointSize ? (
           <div
             role="radiogroup"
-            aria-label="Nokta boyutu"
+            aria-label={t("pointSizeAria")}
             className="inline-flex min-h-11 shrink-0 items-center gap-0.5 rounded-lg border border-rose-200 bg-rose-50/70 px-0.5 shadow-sm sm:min-h-0 sm:h-7"
           >
             {POINT_SIZES.map((size) => {
@@ -141,8 +144,8 @@ export function RegionToolbar({
                   type="button"
                   role="radio"
                   aria-checked={active}
-                  aria-label={POINT_SIZE_LABEL[size]}
-                  title={POINT_SIZE_LABEL[size]}
+                  aria-label={tc(`pointSizes.${size}`)}
+                  title={tc(`pointSizes.${size}`)}
                   onClick={() => onPointSizeChange(size)}
                   className={`flex h-10 w-9 items-center justify-center rounded-md transition-colors duration-200 sm:h-6 sm:w-6 ${
                     active ? "bg-white shadow-sm ring-1 ring-rose-300" : "hover:bg-white/70"
@@ -166,7 +169,7 @@ export function RegionToolbar({
           className={btnClass("border-cyan-200 bg-cyan-50 text-cyan-700", isMove)}
         >
           <Move className={ico} aria-hidden />
-          Taşı / Düzenle
+          {t("move")}
         </button>
 
         <button
@@ -175,7 +178,7 @@ export function RegionToolbar({
           className={btnClass("border-transparent bg-[#22a35a] text-white hover:bg-[#1c8f4e]", false)}
         >
           <Save className={ico} aria-hidden />
-          Kaydet
+          {t("save")}
         </button>
 
         <button
@@ -184,7 +187,7 @@ export function RegionToolbar({
           className={btnClass("border-red-200 bg-red-50 text-red-700", false)}
         >
           <Eraser className={ico} aria-hidden />
-          Temizle
+          {t("clear")}
         </button>
         </div>
 
@@ -199,10 +202,10 @@ export function RegionToolbar({
         {/* EKOLE BAĞIMSIZ: 3 bağımsız görünüm — uzman MANUEL seçer. Organ adı
             görünümü belirlemez. Organ seçili olmasa da seçilebilir. */}
         {([
-          { view: "taban", label: "Taban", tone: "border-fuchsia-200 bg-fuchsia-50 text-fuchsia-700" },
-          { view: "yan_ic", label: "Yan İç", tone: "border-purple-200 bg-purple-50 text-purple-700" },
-          { view: "yan_dis", label: "Yan Dış", tone: "border-violet-200 bg-violet-50 text-violet-700" },
-        ] as const).map(({ view, label, tone }) => (
+          { view: "taban", tone: "border-fuchsia-200 bg-fuchsia-50 text-fuchsia-700" },
+          { view: "yan_ic", tone: "border-purple-200 bg-purple-50 text-purple-700" },
+          { view: "yan_dis", tone: "border-violet-200 bg-violet-50 text-violet-700" },
+        ] as const).map(({ view, tone }) => (
           <button
             key={view}
             type="button"
@@ -211,15 +214,15 @@ export function RegionToolbar({
             className={btnClass(tone, selectedView === view)}
           >
             <Footprints className={ico} aria-hidden />
-            {label}
+            {tc(`views.${view}.short`)}
           </button>
         ))}
 
         {/* El yüzeyleri — iki el aynı görselde (sol yarı sol el, sağ yarı sağ el). */}
         {([
-          { view: "el_avuc", label: "Avuç İçi", tone: "border-teal-200 bg-teal-50 text-teal-700" },
-          { view: "el_sirt", label: "El Sırtı", tone: "border-amber-200 bg-amber-50 text-amber-700" },
-        ] as const).map(({ view, label, tone }) => (
+          { view: "el_avuc", tone: "border-teal-200 bg-teal-50 text-teal-700" },
+          { view: "el_sirt", tone: "border-amber-200 bg-amber-50 text-amber-700" },
+        ] as const).map(({ view, tone }) => (
           <button
             key={view}
             type="button"
@@ -228,7 +231,7 @@ export function RegionToolbar({
             className={btnClass(tone, selectedView === view)}
           >
             <Hand className={ico} aria-hidden />
-            {label}
+            {tc(`views.${view}.short`)}
           </button>
         ))}
         </div>

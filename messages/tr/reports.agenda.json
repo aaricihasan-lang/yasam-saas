@@ -1,0 +1,57 @@
+{
+  "reports": {
+    "agenda": {
+      "brand": "YAŞAM SİSTEMİ",
+      "coverTitle": "AJANDA RAPORU",
+      "generatedOn": "Oluşturulma Tarihi: {date}",
+      "status": {
+        "completed": "Tamamlandı",
+        "cancelled": "İptal Edildi",
+        "noResult": "Sonuç girilmedi",
+        "waiting": "Bekliyor"
+      },
+      "mode": {
+        "all": "Tüm Randevular",
+        "selected": "Seçili Randevular",
+        "filtered": "Filtrelenmiş Randevular",
+        "weekly": "Haftalık Randevular",
+        "monthly": "Aylık Randevular",
+        "single": "Tek Randevu",
+        "singleWithTitle": "Tek Randevu — {title}",
+        "fallback": "Randevular"
+      },
+      "stats": {
+        "total": "Toplam Randevu",
+        "completed": "Tamamlandı",
+        "waiting": "Bekliyor",
+        "noResult": "Sonuç girilmedi",
+        "cancelled": "İptal",
+        "days": "Gün Sayısı",
+        "scope": "Kapsam",
+        "dateRange": "Tarih Aralığı"
+      },
+      "listHeading": "1. Randevu Listesi",
+      "listSummary": "{count, plural, other {{total} randevu}} · {dayCount, plural, other {{days} gün}}",
+      "itemLabel": "RANDEVU #{n}",
+      "defaultTitle": "Görüşme",
+      "unknownClient": "Danışan",
+      "fields": {
+        "dateTime": "Tarih / Saat",
+        "status": "Durum",
+        "type": "Tür",
+        "client": "Danışan",
+        "note": "Not"
+      },
+      "type": {
+        "client": "Danışan Randevusu",
+        "general": "Genel Randevu"
+      },
+      "footer": "Ajanda Raporu · {scope}",
+      "file": {
+        "base": "ajanda",
+        "single": "tek",
+        "singleFallback": "randevu"
+      }
+    }
+  }
+}

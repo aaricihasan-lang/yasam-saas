@@ -14,5 +14,6 @@ export function bioDbError(
   userMessage = "İşlem sırasında bir hata oluştu.",
 ): NextResponse {
   console.error(`[biyoenerji] ${context}:`, error);
-  return NextResponse.json({ ok: false, error: userMessage }, { status: 500 });
+  // I18N: dil-bağımsız `code` (istemci kod ile çevirir); Türkçe `error` aynen kalır.
+  return NextResponse.json({ ok: false, code: "BIO_DB_ERROR", error: userMessage }, { status: 500 });
 }

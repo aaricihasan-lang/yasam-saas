@@ -13,6 +13,7 @@
  * DB eşi: supabase/migrations/20280101000000_trial7_self_trial.sql (trial_phase_of,
  * trial_allowed_module_keys) — iki tarafın aynı kalması harness ile doğrulanır.
  */
+import trTrialMessages from "@/messages/tr/trial.json";
 
 export const TRIAL_KIND_SELF_7D = "self_7d" as const;
 export const TRIAL_DURATION_HOURS = 168;
@@ -160,10 +161,21 @@ export function trialRemainingMs(row: Record<string, unknown>, nowMs: number = D
  * Geri sayım kutusu metni. İlk giriş → 7 gün; sonraki günler kalan süre (yukarı yuvarlanmış gün);
  * son 24 saat → "son günü". Değer sunucunun bitiş zamanından hesaplanır.
  */
-export function trialCountdownTitle(remainingMs: number): string {
-  if (remainingMs <= 24 * 60 * 60 * 1000) return "Bugün Ücretsiz Denemenizin Son Günü";
+export function trialCountdownTitle(
+  remainingMs: number,
+  // I18N: ekran dilinde çevirici (useTranslations("trial.notice")); yoksa kaynak dil (tr) katalog metni → birebir.
+  tx: (key: "lastDay" | "daysLeft", values?: Record<string, string>) => string = trTrialNoticeTx,
+): string {
+  if (remainingMs <= 24 * 60 * 60 * 1000) return tx("lastDay");
   const days = Math.min(7, Math.ceil(remainingMs / (24 * 60 * 60 * 1000)));
-  return `Ücretsiz Denemenize ${days} Gün Kaldı`;
+  return tx("daysLeft", { days: String(days) });
+}
+
+function trTrialNoticeTx(key: "lastDay" | "daysLeft", values?: Record<string, string>): string {
+  // Anahtar bulunamazsa HAM ANAHTAR ASLA gösterilmez → boş metin (güvenli yedek).
+  const raw: unknown = (trTrialMessages.trial.notice as Record<string, unknown>)[key];
+  const text = typeof raw === "string" ? raw : "";
+  return values ? text.replace(/\{(\w+)\}/g, (m, k: string) => (k in values ? values[k] : m)) : text;
 }
 
 export const TRIAL_MESSAGES = {
@@ -176,9 +188,9 @@ export const TRIAL_MESSAGES = {
   notStarted: "Deneme süreniz henüz başlamadı. Lütfen çıkış yapıp yeniden giriş yapın.",
   moduleNotInTrial: "Bu modül ücretsiz deneme paketine dahil değildir. Pro üyelikle kullanılabilir.",
   creditDaily:
-    "Bugünkü Roxy hesaplama krediniz doldu. Kayıtlı sonuçlarınızı görüntüleyebilirsiniz; krediniz Türkiye saatiyle 00.00'da yenilenir.",
+    "Bugünkü hesaplama krediniz doldu. Kayıtlı sonuçlarınızı görüntüleyebilirsiniz; krediniz Türkiye saatiyle 00.00'da yenilenir.",
   creditModule:
-    "Bu modül için bugünkü Roxy hesaplama sınırına ulaştınız. Krediniz Türkiye saatiyle 00.00'da yenilenir.",
+    "Bu modül için bugünkü hesaplama kredisi sınırına ulaştınız. Krediniz Türkiye saatiyle 00.00'da yenilenir.",
 } as const;
 
 export const TRIAL_EXPIRED_CODE = "TRIAL_EXPIRED" as const;

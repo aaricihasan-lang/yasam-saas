@@ -1,3 +1,4 @@
+import { hdApiText } from "../../../../_lib/hdApiText";
 import { resolveReportBranding } from "@/lib/profile/reportBranding";
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
@@ -7,6 +8,7 @@ import { getRelationReportSnapshot } from "@/lib/human-design/relations/relation
 import { relationReportFilename, renderRelationReportBuffer } from "@/lib/human-design/relations/relationReport";
 import { renderRelationImage } from "@/lib/human-design/relations/relationImages";
 import { loadHdReportLogo } from "@/lib/human-design/reporting/reportBrandAssets";
+import { resolveOutputLocale } from "@/lib/i18n/output";
 
 export const runtime = "nodejs";
 
@@ -29,7 +31,7 @@ export async function POST(req: NextRequest, ctx: RouteContext): Promise<Respons
   const rl = await hitDbRateLimit(guard.db, rateLimitBucket("hd-word-dl", guard.tenantId), 20, 60);
   if (!rl.allowed) {
     return NextResponse.json(
-      { ok: false, error: "Çok fazla indirme isteği. Lütfen biraz sonra tekrar deneyin." },
+      { ok: false, error: hdApiText(req, "rateLimitedDownload") },
       { status: 429, headers: { "Cache-Control": "no-store", "Retry-After": String(rl.retryAfterSec || 60) } },
     );
   }
@@ -37,8 +39,10 @@ export async function POST(req: NextRequest, ctx: RouteContext): Promise<Respons
   const r = await getRelationReportSnapshot({ db: guard.db, tenantId: guard.tenantId, userId: guard.userId, isDemo: guard.is_demo_account }, reportId);
   if (!r.body.ok) return NextResponse.json(r.body, { status: r.status, headers: { "Cache-Control": "no-store" } });
   const s = r.body.snapshot;
+  // Çıktı dili = ekran dili (I18N; #855 birleşince: `await resolveReportLocale(req, { db, tenantId, userId })`).
+  const output = resolveOutputLocale(req);
   const logo = await loadHdReportLogo();
-  const image = s.image.status !== "ok" ? null : s.image.png ? Buffer.from(s.image.png, "base64") : renderRelationImage(s.analysis, 1100, logo)?.png ?? null;
+  const image = s.image.status !== "ok" ? null : s.image.png ? Buffer.from(s.image.png, "base64") : renderRelationImage(s.analysis, 1100, logo, output)?.png ?? null;
   let buffer: Buffer;
   try {
     // F3A: YALNIZ "Raporu Hazırlayan" (preparedBy) doluysa kapak künyesine Unvan/Kurum (logo/iletişim/dipnot yok;
@@ -46,14 +50,14 @@ export async function POST(req: NextRequest, ctx: RouteContext): Promise<Respons
     const branding = s.preparedBy?.trim()
       ? await resolveReportBranding(guard.db, { tenantId: guard.tenantId, userId: guard.userId }, { fullName: null }, { purpose: "hd-relation" })
       : null;
-    buffer = await renderRelationReportBuffer(s, { image, logo, branding });
+    buffer = await renderRelationReportBuffer(s, { image, logo, branding, output });
   } catch {
-    return NextResponse.json({ ok: false, error: "Rapor belgesi oluşturulamadı." }, { status: 500, headers: { "Cache-Control": "no-store" } });
+    return NextResponse.json({ ok: false, error: hdApiText(req, "reportDocFailed") }, { status: 500, headers: { "Cache-Control": "no-store" } });
   }
   return new Response(new Uint8Array(buffer), {
     headers: {
       "Content-Type": DOCX_MIME,
-      "Content-Disposition": `attachment; filename="${relationReportFilename(s.analysis, s.generatedAt)}"`,
+      "Content-Disposition": `attachment; filename="${relationReportFilename(s.analysis, s.generatedAt, output)}"`,
       "Content-Length": String(buffer.length),
       "Cache-Control": "no-store, private",
     },

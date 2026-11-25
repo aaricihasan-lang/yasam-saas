@@ -1,5 +1,7 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+import { useCatalogWriteError } from "@/lib/aromaterapi/useAromaterapiModuleText";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, type FormEvent } from "react";
 import {
@@ -15,7 +17,6 @@ import {
   type StepDraft,
 } from "@/app/aromaterapi/katalog/_components/MethodStepsEditor";
 import { appendMethodRevision } from "@/lib/aromaterapi/methodWrite";
-import { writeMessageForCode } from "@/lib/aromaterapi/catalogWrite";
 import type { MethodRevisionDetail } from "@/lib/aromaterapi/readTypes";
 
 /**
@@ -71,6 +72,8 @@ export function MethodRevisionForm({
   const [noop, setNoop] = useState(false);
   const [done, setDone] = useState(false);
   const [triedSubmit, setTriedSubmit] = useState(false);
+  const t = useTranslations("aromatherapy.catalog.methodForm.revision");
+  const writeError = useCatalogWriteError();
 
   const setField = (k: keyof MethodContentState, v: string) => {
     setContent((c) => ({ ...c, [k]: v }));
@@ -87,8 +90,8 @@ export function MethodRevisionForm({
 
   useAromaterapiDirtyGuard(touched && !isDemo && !done);
 
-  const methodTextError = triedSubmit && content.method_text.trim() === "" ? "Ana yöntem metni zorunludur." : null;
-  const reasonError = triedSubmit && reason.trim() === "" ? "Gerekçe zorunludur." : null;
+  const methodTextError = triedSubmit && content.method_text.trim() === "" ? t("methodTextRequired") : null;
+  const reasonError = triedSubmit && reason.trim() === "" ? t("reasonRequired") : null;
   const hasErrors = useMemo(
     () => content.method_text.trim() === "" || reason.trim() === "",
     [content.method_text, reason],
@@ -141,22 +144,22 @@ export function MethodRevisionForm({
     const seriesHref = `/aromaterapi/katalog/preparatlar/${preparationId}/yontemler/${seriesId}`;
     return (
       <div className="mx-auto w-full max-w-4xl space-y-3">
-        <AromaterapiMutationNotice tone="success">Yeni revizyon eklendi.</AromaterapiMutationNotice>
+        <AromaterapiMutationNotice tone="success">{t("added")}</AromaterapiMutationNotice>
         <a href={seriesHref} className="inline-flex min-h-[44px] items-center justify-center rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 px-5 text-[13px] font-black text-white shadow-md transition hover:brightness-105">
-          Yönteme dön →
+          {t("backMethod")}
         </a>
       </div>
     );
   }
 
-  const generalError = errorCode && !conflict ? writeMessageForCode(errorCode) : null;
+  const generalError = errorCode && !conflict ? writeError(errorCode) : null;
 
   return (
     <AromaterapiFormShell
       mode="edit"
       wide
-      title="Yeni Revizyon"
-      description={`Bu yöntemin ${expectedLatestRevision}. revizyonundan yola çıkıyorsunuz. Değişiklikler yeni bir revizyon olarak eklenir; önceki revizyonlar değişmez.`}
+      title={t("title")}
+      description={t("description", { n: expectedLatestRevision })}
       onSubmit={onSubmit}
       onCancel={() => router.back()}
       submitting={submitting}
@@ -164,14 +167,14 @@ export function MethodRevisionForm({
       dirty={touched}
       conflict={conflict}
       errorMessage={generalError}
-      submitLabel="Yeni revizyon oluştur"
+      submitLabel={t("submit")}
       reason={
         <AromaterapiReasonField value={reason} onChange={(v) => { setReason(v); setNoop(false); }} required error={reasonError} />
       }
     >
       {noop ? (
         <AromaterapiMutationNotice tone="info">
-          İçerik son revizyonla birebir aynı; yeni revizyon oluşturulmadı. Bir değişiklik yapıp tekrar deneyin.
+          {t("noop")}
         </AromaterapiMutationNotice>
       ) : null}
       <MethodContentSections

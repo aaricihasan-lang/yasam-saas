@@ -1,0 +1,19 @@
+{
+  "numerology": {
+    "clientPanel": {
+      "title": "Klasik Numeroloji",
+      "intro": "Numeroloji Merkezi’ndeki Klasik Numeroloji analizleri (yukarıdaki Bütüncül Numeroloji kayıtlarından ayrıdır).",
+      "new": "Yeni Klasik Numeroloji analizi",
+      "loadError": "Klasik Numeroloji kayıtları şu an yüklenemedi.",
+      "empty": "Bu danışana bağlı Klasik Numeroloji analizi yok.",
+      "analysisFallback": "Analiz",
+      "partial": " · kısmi",
+      "kinds": {
+        "person": "Kişi analizi",
+        "relationship": "İlişki uyumu",
+        "business": "İşletme adı",
+        "names": "İsim seçenekleri"
+      }
+    }
+  }
+}

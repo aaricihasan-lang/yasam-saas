@@ -1,0 +1,168 @@
+{
+  "videoTranslate": {
+    "fileName": {
+      "original": "original",
+      "turkish": "turkish",
+      "comparison": "comparison"
+    },
+    "header": {
+      "badge": "AI-Assisted Translation",
+      "titleLead": "Video",
+      "titleRest": "Turkish Word/PDF Centre",
+      "desc": "Upload a video; speech is automatically transcribed, translated into Turkish and made available to download as Word and PDF."
+    },
+    "steps": {
+      "aria": "Processing steps",
+      "upload": "Video uploaded",
+      "transcribe": "Speech transcribed",
+      "translate": "Translated into Turkish",
+      "export": "Word and PDF created"
+    },
+    "status": {
+      "completed": "Completed",
+      "transcribing": "Transcribing…",
+      "translating": "Translating into Turkish…",
+      "generating": "Creating file…",
+      "uploaded": "Uploaded",
+      "failed": "Failed"
+    },
+    "languages": {
+      "de": "German",
+      "en": "English",
+      "fr": "French",
+      "es": "Spanish",
+      "tr": "Turkish",
+      "ar": "Arabic",
+      "ru": "Russian",
+      "it": "Italian",
+      "pt": "Portuguese",
+      "nl": "Dutch",
+      "pl": "Polish",
+      "ja": "Japanese",
+      "zh": "Chinese",
+      "ko": "Korean"
+    },
+    "download": {
+      "button": "Download",
+      "wordOriginal": "Original Word",
+      "wordTurkish": "Turkish Word",
+      "wordComparison": "Side-by-Side Word",
+      "pdfOriginal": "Original PDF",
+      "pdfTurkish": "Turkish PDF",
+      "pdfComparison": "Side-by-Side PDF",
+      "translateFirst": "Translate into Turkish first",
+      "generating": "Creating…"
+    },
+    "card": {
+      "transcript": "Transcript",
+      "turkishTranslation": "Turkish Translation",
+      "summary": "Summary",
+      "startTranscription": "Start Transcription",
+      "alreadyTurkish": "Already Turkish",
+      "translating": "Translating…",
+      "translate": "Translate into Turkish",
+      "preparing": "Preparing…",
+      "summarize": "Summarise",
+      "generating": "Creating…",
+      "headings": "Add Headings",
+      "detail": "Details"
+    },
+    "info": {
+      "privacyTitle": "Privacy & Security",
+      "privacy1": "The uploaded video is deleted automatically once transcription ends (whether it succeeds or fails)",
+      "privacy2": "Transcripts and translations belong to you alone",
+      "privacy3": "Administrators cannot access your content",
+      "privacy4": "Word and PDF can be saved optionally",
+      "formatsTitle": "Supported Formats",
+      "formatsVideo": "Video",
+      "formatsAudio": "Audio",
+      "limit": "Transcription limit: 25 MB",
+      "uploadAria": "Video upload area"
+    },
+    "recent": {
+      "title": "Recently Translated",
+      "viewAll": "View All Translated Records",
+      "empty": "No processing records yet. Start by uploading your first video.",
+      "more": "{count, plural, one {+ # more record →} other {+ # more records →}}"
+    },
+    "panel": {
+      "title": "Translated Records",
+      "subtitle": "Video and audio translation jobs you have uploaded before",
+      "completedSuffix": " · {count} completed",
+      "close": "Close",
+      "empty": "No records yet."
+    },
+    "detail": {
+      "error": "Error",
+      "originalTranscript": "Original Transcript",
+      "turkishTranslation": "Turkish Translation",
+      "summary": "Short Summary",
+      "headings": "Section Headings",
+      "close": "Close"
+    },
+    "toast": {
+      "wordFailedTitle": "Word could not be created",
+      "pdfFailedTitle": "PDF could not be created",
+      "tryAgain": "Please try again.",
+      "connectionErrorTitle": "Connection error",
+      "serverUnreachable": "The server could not be reached.",
+      "translateFailedTitle": "Translation failed",
+      "unknownError": "Unknown error.",
+      "alreadyTurkishTitle": "Already Turkish",
+      "alreadyTurkishMsg": "This text already appears to be Turkish.",
+      "summaryFailedTitle": "Summary could not be created",
+      "headingsFailedTitle": "Headings could not be created",
+      "transcribeFailedTitle": "Transcription failed"
+    },
+    "upload": {
+      "title": "Upload Video",
+      "validating": "Checking file…",
+      "inserting": "Creating record…",
+      "uploading": "Uploading file…",
+      "progress": "Uploading… {percent}%",
+      "done": "File uploaded successfully.",
+      "newFile": "Upload a new file",
+      "fileSize": "{size} MB",
+      "change": "Change",
+      "dropHint": "Drag and drop or select",
+      "formatsHint": "MP4 · MOV · MP3 · WAV · M4A · max. 25 MB",
+      "selectFile": "Select File",
+      "sourceLanguage": "Source Language",
+      "autoDetect": "Auto-detect",
+      "outputFormat": "Output Format",
+      "start": "Start Processing",
+      "sessionMissing": "Session information could not be retrieved. Please sign in again.",
+      "jobCreateFailed": "The job record could not be created.",
+      "typeUnknown": "The file type could not be determined. Accepted: MP4, MOV, WEBM, MKV, AVI, OGG · MP3, M4A, WAV, AAC, AMR.",
+      "startFailed": "The upload could not be started: {message}",
+      "uploadFailed": "The file could not be uploaded: {message}",
+      "linkFailed": "The upload link could not be obtained.",
+      "fileErrors": {
+        "UNSUPPORTED_FORMAT": "This format is not supported. Accepted: MP4, MOV, WEBM, MKV, AVI, OGG · MP3, M4A, WAV, AAC, AMR.",
+        "UNKNOWN_TYPE": "The file type cannot be determined (the .{ext} extension is not supported). Accepted audio formats: MP3, M4A, WAV, AAC, AMR.",
+        "EMPTY_FILE": "The file appears to be empty.",
+        "FILE_TOO_LARGE": "The file is {mb} MB — a maximum of 25 MB is supported for transcription. Please upload a shorter audio or video file."
+      }
+    },
+    "apiErrors": {
+      "JOB_ID_REQUIRED": "A job ID is required.",
+      "AI_NOT_CONFIGURED": "The AI service is not configured.",
+      "JOB_NOT_FOUND": "The job record was not found.",
+      "TRANSCRIPT_MISSING": "No transcript was found.",
+      "TRANSLATION_REQUIRED": "A Turkish translation must be created first.",
+      "JOB_NOT_COMPLETED": "Only completed jobs can be translated.",
+      "JOB_ALREADY_PROCESSED": "The job is already being processed or has been processed.",
+      "VIDEO_PATH_MISSING": "The video file path is missing.",
+      "INVALID_STORAGE_PATH": "Invalid storage path.",
+      "FILE_TOO_LARGE": "The file exceeds the 25 MB limit. Upload a shorter file.",
+      "TRANSCRIBE_FAILED": "Transcription could not be completed.",
+      "PROCESSING_FAILED": "Processing could not be completed right now. Please try again or contact support.",
+      "UPLOAD_NOT_ALLOWED": "Uploading is no longer possible for this job.",
+      "UPLOAD_URL_FAILED": "The upload link could not be generated.",
+      "JOB_UPDATE_FAILED": "The job record could not be updated.",
+      "UPLOAD_START_FAILED": "The upload could not be started.",
+      "FILE_NAME_REQUIRED": "A file name is required.",
+      "NO_FIELDS": "There are no fields to update."
+    }
+  }
+}

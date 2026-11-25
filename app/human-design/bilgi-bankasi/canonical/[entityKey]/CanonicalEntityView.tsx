@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { ArrowLeft } from "lucide-react";
 import { HumanDesignShell } from "../../../components/HumanDesignShell";
 import { isAdminUser, readYasamUser } from "@/lib/auth/yasamUser";
@@ -13,14 +14,16 @@ import {
   KnowledgeLoading,
 } from "@/components/human-design/knowledge/KnowledgeStates";
 import { fetchCanonicalEntity } from "../../helpers/hdCanonicalRead";
+import { useKbLabels } from "../../helpers/useKbLabels";
 import type { HdKnowledgeEntityDetail } from "@/lib/human-design/knowledge/expertReadTypes";
 
 const MODULE_HOME = "/human-design/bilgi-bankasi";
 
 function BackLink() {
+  const t = useTranslations("hd.knowledge.canonical");
   return (
     <Link href={MODULE_HOME} className="mb-3 inline-flex items-center gap-1 text-xs font-semibold text-indigo-600 hover:underline">
-      <ArrowLeft className="h-3.5 w-3.5" /> Bilgi Bankası&apos;na dön
+      <ArrowLeft className="h-3.5 w-3.5" /> {t("backToKb")}
     </Link>
   );
 }
@@ -34,6 +37,8 @@ function BackLink() {
  */
 export function CanonicalEntityView({ entityKey }: { entityKey: string }) {
   const [role, setRole] = useState<"admin" | "expert" | null>(null);
+  const t = useTranslations("hd.knowledge.canonical");
+  const labels = useKbLabels();
 
   const [detail, setDetail] = useState<HdKnowledgeEntityDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -83,17 +88,17 @@ export function CanonicalEntityView({ entityKey }: { entityKey: string }) {
           <KnowledgeLoading />
         ) : locked ? (
           <KnowledgeEmpty
-            title="Bu hesap için henüz Human Design bilgi içeriği oluşturulmamış."
-            hint="Kendi Human Design bilgi içeriğinizi eklediğinizde burada listelenecektir."
+            title={t("lockedTitle")}
+            hint={t("lockedHint")}
           />
         ) : notFound ? (
-          <KnowledgeEmpty title="Kayıt bulunamadı" hint="Bu kanonik anahtar mevcut değil." />
+          <KnowledgeEmpty title={t("notFound")} hint={t("notFoundHint")} />
         ) : error ? (
-          <KnowledgeError message={error} />
+          <KnowledgeError message={labels.err(error)} />
         ) : detail ? (
           <CanonicalDetail detail={detail} />
         ) : (
-          <KnowledgeEmpty title="İçerik yok" />
+          <KnowledgeEmpty title={t("noContent")} />
         )}
       </div>
     </HumanDesignShell>

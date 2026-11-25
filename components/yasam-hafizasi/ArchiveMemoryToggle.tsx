@@ -12,13 +12,15 @@
  */
 
 import { useCallback, useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { readSessionToken, readYasamUser } from "@/lib/auth/yasamUser";
 import { runInEffect } from "@/lib/runInEffect";
 
 type State = "included" | "needs-review" | "excluded";
 type Status = { kind: "loading" } | { kind: "hidden" } | { kind: "ready"; state: State; hasIndexableContent: boolean };
 
-const CONFIRM_REASON = "Uzman onayı: kayıt danışana ait kimlik veya özel bilgi içermiyor.";
+// i18n-ignore: sunucuya giden denetim (audit) gerekçesi — kanonik kayıt metni, arayüz dili ile DEĞİŞMEZ.
+const CONFIRM_REASON = "Uzman onayı: kayıt danışana ait kimlik veya özel bilgi içermiyor."; // i18n-ignore: kanonik audit gerekçesi
 
 function headers(json = false): Record<string, string> {
   const h: Record<string, string> = { "x-user-id": readYasamUser()?.id ?? "" };
@@ -33,6 +35,7 @@ function headers(json = false): Record<string, string> {
  * sunucudan güncel durumu okur — senkron setState yok).
  */
 export default function ArchiveMemoryToggle({ archiveId }: { archiveId: string }) {
+  const t = useTranslations("memory.archive");
   const [status, setStatus] = useState<Status>({ kind: "loading" });
   const [confirming, setConfirming] = useState(false);
   const [checked, setChecked] = useState(false);
@@ -74,8 +77,8 @@ export default function ArchiveMemoryToggle({ archiveId }: { archiveId: string }
       if (!res.ok) {
         const json = (await res.json().catch(() => null)) as { code?: string } | null;
         setError(json?.code === "YH_ARC_NO_INDEXABLE_CONTENT"
-          ? "Bu kayıtta aranabilir başlık/not bulunmuyor."
-          : "İşlem tamamlanamadı. Lütfen tekrar deneyin.");
+          ? t("errors.noIndexableContent")
+          : t("errors.generic"));
         return;
       }
       setConfirming(false);
@@ -84,47 +87,47 @@ export default function ArchiveMemoryToggle({ archiveId }: { archiveId: string }
     } finally {
       setBusy(false);
     }
-  }, [archiveId, load]);
+  }, [archiveId, load, t]);
 
   if (status.kind !== "ready") return null;
   const { state, hasIndexableContent } = status;
 
   return (
     <div className="mt-4 rounded-3xl border border-sky-200/90 bg-sky-50/60 p-5">
-      <p className="text-[11px] font-black uppercase tracking-widest text-sky-700">Yaşam Hafızası</p>
+      <p className="text-[11px] font-black uppercase tracking-widest text-sky-700">{t("label")}</p>
       <p className="mt-2 text-sm font-semibold text-slate-800" aria-live="polite">
-        {state === "included" && "Bu kayıt Mesleki Hafızanızda aranabilir."}
-        {state === "needs-review" && "Kayıt değiştiği için Hafızadan çıkarıldı. Yeniden dahil etmek için onaylayın."}
-        {state === "excluded" && "Bu kayıt Mesleki Hafızanıza dahil değil."}
+        {state === "included" && t("state.included")}
+        {state === "needs-review" && t("state.needsReview")}
+        {state === "excluded" && t("state.excluded")}
       </p>
       <p className="mt-1 text-xs text-slate-600">
-        Yalnız başlık, not, kategori ve etiketler aranır. Dosya içerikleri aranmaz.
+        {t("scopeNote")}
       </p>
 
       {state === "included" ? (
         <button type="button" className="btn-secondary mt-3 px-3 py-1.5 text-sm" disabled={busy} onClick={() => void submit(false)}>
-          Hafızadan çıkar
+          {t("remove")}
         </button>
       ) : !hasIndexableContent ? (
-        <p className="mt-3 text-xs text-slate-500">Hafızaya eklemek için kayda başlık veya not ekleyin.</p>
+        <p className="mt-3 text-xs text-slate-500">{t("noContent")}</p>
       ) : confirming ? (
         <div className="mt-3 space-y-2">
           <label className="flex items-start gap-2 text-sm text-slate-800">
             <input type="checkbox" className="mt-1" checked={checked} onChange={(e) => setChecked(e.target.checked)} />
-            <span>Bu kayıt danışana ait kimlik veya özel bilgi (ad, telefon, adres, sağlık geçmişi vb.) içermiyor.</span>
+            <span>{t("confirmCheckbox")}</span>
           </label>
           <div className="flex flex-wrap gap-2">
             <button type="button" className="btn-primary px-3 py-1.5 text-sm" disabled={busy || !checked} onClick={() => void submit(true)}>
-              Onayla ve dahil et
+              {t("confirmInclude")}
             </button>
             <button type="button" className="btn-secondary px-3 py-1.5 text-sm" disabled={busy} onClick={() => { setConfirming(false); setChecked(false); }}>
-              Vazgeç
+              {t("cancel")}
             </button>
           </div>
         </div>
       ) : (
         <button type="button" className="btn-primary mt-3 px-3 py-1.5 text-sm" disabled={busy} onClick={() => setConfirming(true)}>
-          Yaşam Hafızası&apos;na dahil et
+          {t("include")}
         </button>
       )}
       {error ? <p className="mt-2 text-xs font-semibold text-rose-700" role="alert">{error}</p> : null}

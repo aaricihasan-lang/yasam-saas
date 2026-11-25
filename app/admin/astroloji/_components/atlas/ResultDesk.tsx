@@ -15,6 +15,7 @@
  * Harita SVG'sine dönüşüm/perspektif UYGULANMAZ (okunabilirlik ve hesaplama doğruluğu). Bu bileşen veri üretmez /
  * değiştirmez; hangi bölümlerin var olduğuna çağıran karar verir. Panel/menü/odak durumu hiçbir kaydı etkilemez.
  */
+import { deskMetaSplit, deskMetaTexts, type DeskMetaItem } from "./deskMeta";
 import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type ComponentType, type KeyboardEvent, type ReactNode } from "react";
 import { ArrowLeft, BookOpen, CircleDot, House, Maximize, Maximize2, Minus, MoreHorizontal, Plus, Orbit, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, PenLine, Save, Sparkles, Sun, Table2, Triangle, X, Home } from "lucide-react";
 import { atlasDisplay, atlasText } from "./fonts";
@@ -379,7 +380,7 @@ function NightDesk({
   subtitle?: ReactNode;
   details?: ReactNode;
   /** Harita künyesi (zodyak · ev sistemi · düğüm …): görünür küçük etiketler. */
-  meta?: (string | null | undefined)[];
+  meta?: DeskMetaItem[];
   chips?: ReactNode;
   actions?: ReactNode;
   switcher?: ReactNode;
@@ -417,7 +418,7 @@ function NightDesk({
   const [panelOpen, setPanelOpen] = useState(false);
   const panelRef = useRef<HTMLDivElement | null>(null);
   const isDesk = useDeskLayout();
-  const metaList = (meta ?? []).filter((m): m is string => !!m);
+  const metaList = deskMetaTexts(meta);
 
   // Masaüstü masa yüksekliği = görünür ekran − masanın sayfa üstünden uzaklığı (kaydırmadan tamamı görünür).
   const measure = useCallback(() => {
@@ -1037,10 +1038,10 @@ function LightDesk({ backLabel, onBack, eyebrow, title, subtitle, details, meta,
     return () => ro?.disconnect();
   }, []);
   const isDesk = wideScreen && roomy;
-  const metaList = (meta ?? []).filter((m): m is string => !!m);
+  const metaList = deskMetaTexts(meta);
   // Künyedeki UYARI niteliğindeki öğeler (saat bilinmiyor, yüksek enlem, ev sınırı) uyarı çipi olarak HER genişlikte görünür.
-  const metaWarn = metaList.filter((m) => META_WARN_RE.test(m));
-  const metaPlain = metaList.filter((m) => !META_WARN_RE.test(m));
+  const metaWarn = deskMetaSplit(meta).warn;
+  const metaPlain = deskMetaSplit(meta).plain;
   const hasChart = !!chart;
   const current = tabs.find((t) => t.id === active);
   // Araç satırı tek satırda kalsın: sığmazsa önce "Odak modu" yalnız simge (1280 px altındaki mevcut davranış), yine sığmazsa
@@ -1546,9 +1547,6 @@ function LightDesk({ backLabel, onBack, eyebrow, title, subtitle, details, meta,
 }
 
 /** Başlık çipleri (masa tonuna göre: koyu gece masası / aydınlık masa). */
-/** Künyede uyarı niteliğindeki öğeler (seçici kipinde gizlenmez). */
-const META_WARN_RE = /bilinmiyor|Yüksek enlem|sınırına/i;
-
 export function DeskChip({ tone, status = false, children }: { tone: "ok" | "warn" | "muted" | "saved"; /** Yalnız kayıt DURUMU çipi (başlıkta zaten var → telefonda V3 seçiciyle gizlenir). */ status?: boolean; children: ReactNode }) {
   const light = useContext(DeskToneCtx) === "light";
   const cls = light

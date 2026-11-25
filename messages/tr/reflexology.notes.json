@@ -1,0 +1,112 @@
+{
+  "reflexology": {
+    "notes": {
+      "title": "Klinik Notlar",
+      "loadingBadge": "REFLEKSOLOJİ · KLİNİK NOTLAR",
+      "demoBanner": "Klinik notlar sadece cihazınızda saklanır. Oturumunuz boyunca görünür; çıkışta silinir. Gerçek uzman verileri bu hesapta görünmez.",
+      "mainMenu": "Ana Menü",
+      "breadcrumbAria": "Breadcrumb",
+      "crumb": "Notlar",
+      "imported": "{count} not hesabınıza aktarıldı.",
+      "quarantineRemoved": "Sahibi belirsiz notlar bu cihazdan kaldırıldı.",
+      "tabsAria": "Not sekmeleri",
+      "tabNew": "Not Kaydı",
+      "tabSaved": "Kayıtlı Notlar",
+      "form": {
+        "titleRequired": "Not başlığı zorunludur.",
+        "useUpdate": "Güncelleme için Güncelle butonunu kullanın.",
+        "saveFailed": "Kayıt yapılamadı.",
+        "noSelection": "Güncellenecek not seçili değil.",
+        "updateFailed": "Güncelleme yapılamadı.",
+        "updated": "Not güncellendi.",
+        "new": "+ Yeni Not",
+        "save": "Kaydet",
+        "delete": "Sil",
+        "importWordJsx": "Word'den Aktar",
+        "titlePlaceholder": "Örn: Migren protokolü",
+        "openEditor": "Büyük Editör Aç",
+        "contentPlaceholder": "Seans notu, dikkat, gözlem, ek bilgi..."
+      },
+      "conflict": {
+        "title": "Not başka yerde değiştirildi",
+        "message": "Bu not siz düzenlerken başka bir sekmede veya cihazda değiştirildi.\n\n«Üzerine yaz» derseniz ekrandaki metniniz kaydedilir ve diğer değişiklik kaybolur. «Vazgeç» derseniz hiçbir şey kaydedilmez; metniniz formda kalır.",
+        "overwrite": "Üzerine yaz"
+      },
+      "delete": {
+        "pendingTitle": "Silme bekliyor",
+        "pendingBody": "Bağlantı yok; silme bağlantı gelince tamamlanacak.",
+        "done": "Not silindi.",
+        "failedTitle": "Not silinemedi",
+        "failedBody": "Silme işlemi tamamlanamadı. Lütfen tekrar deneyin.",
+        "confirm": "Bu not silinsin mi? Bu işlem geri alınamaz."
+      },
+      "attachments": {
+        "rejected": "Dosya eklenemedi (desteklenmeyen tür veya boyut sınırı).",
+        "selectFirst": "Önce listeden bir ek dosya seçin.",
+        "renamePrompt": "Yeni ek adı:",
+        "nameEmpty": "Ek adı boş olamaz.",
+        "removeConfirm": "Bu ek dosya kaldırılsın mı?",
+        "remove": "Kaldır",
+        "add": "Dosya Ekle",
+        "none": "Ek dosya yok.",
+        "rename": "Ek Adı Değiştir",
+        "unsupportedType": "Bu dosya türü artık desteklenmiyor (yalnız görsel ve PDF). Eki kaldırmadan not sunucuyla eşitlenemez; gerekirse önce indirin.",
+        "noPreview": "Bu ek için önizleme verisi yok. Yalnızca dosya adı kayıtlı.",
+        "openPreview": "Aç / Önizle",
+        "newTab": "Yeni Sekme",
+        "download": "İndir",
+        "renameShort": "Adını Değiştir",
+        "emptyHint": "Henüz ek dosya yok. Dosya Ekle ile görsel veya PDF ekleyebilirsiniz (dosya başına ve not başına toplam en fazla 3 MB).",
+        "open": "Aç",
+        "kindImage": "Görsel",
+        "kindUnsupported": "Desteklenmeyen dosya"
+      },
+      "word": {
+        "unsupported": "Eski .doc formatı desteklenmiyor. .txt veya .docx kullanın ya da metni kopyalayıp yapıştırın.",
+        "empty": "Dosyada aktarılacak metin bulunamadı.",
+        "failed": "Word dosyası okunamadı.",
+        "deflate": "Tarayıcı .docx açmayı desteklemiyor. .txt dosyası deneyin.",
+        "inserted": "Metin not içeriğine eklendi."
+      },
+      "detail": {
+        "notFound": "Not bulunamadı.",
+        "back": "Notlara Dön",
+        "heading": "Not Detayı",
+        "edit": "Düzenle",
+        "cancelEdit": "İptal",
+        "update": "Güncelle",
+        "deleting": "Siliniyor…",
+        "noContent": "İçerik eklenmemiş."
+      },
+      "fields": {
+        "title": "Not Başlığı",
+        "date": "Tarih",
+        "content": "Not İçeriği",
+        "attachments": "Ek Dosyalar"
+      },
+      "list": {
+        "loading": "Notlar yükleniyor…",
+        "emptyTitle": "Henüz kayıtlı not yok.",
+        "emptyBody": "Not Kaydı sekmesinden yeni klinik not oluşturabilirsiniz.",
+        "searchPlaceholder": "Başlık, tarih veya içeriğe göre ara...",
+        "noMatch": "Aramanızla eşleşen not bulunamadı.",
+        "cancel": "Vazgeç",
+        "syncRejected": "Eşitlenemedi: {reason}",
+        "syncRejectedGeneric": "Sunucu bu notu kabul etmedi.",
+        "detail": "Detay",
+        "attachmentCount": "{count} ek"
+      },
+      "pdf": {
+        "openNewTab": "Yeni Sekmede Aç",
+        "close": "Kapat",
+        "unsupported": "Bu cihaz PDF önizlemesini sayfa içinde gösteremiyor. Dosyayı indirip cihazınızın PDF görüntüleyicisiyle açabilirsiniz.",
+        "download": "PDF dosyasını indir"
+      },
+      "editor": {
+        "badge": "KLİNİK NOT",
+        "save": "Bu Alanı Kaydet"
+      },
+      "toastSaved": "Not kaydedildi."
+    }
+  }
+}

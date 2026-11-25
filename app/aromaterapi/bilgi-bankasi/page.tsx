@@ -2,6 +2,7 @@
 
 import { runInEffect } from "@/lib/runInEffect";
 import Link from "next/link";
+import { useLocale, useTranslations } from "next-intl";
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { useBfcacheRefresh } from "@/hooks/useBfcacheRefresh";
 import { getSyncedTenantId, MISSING_SESSION_TENANT_MESSAGE } from "@/lib/auth/sessionTenant";
@@ -20,13 +21,16 @@ import { ArticlesPanel } from "@/app/aromaterapi/bilgi-bankasi/_components/Artic
 // Tasarım token'ları
 // -------------------------------------------------------
 
+// overflow-x-clip: sağdaki dekoratif blur lekesi (-right-20 = 80 px dışarı taşar) yatay kaydırma üretmesin.
+// (Kardeş OilsPage aynı pageBg + overflow-hidden kullanır; clip sticky/scroll-container davranışını değiştirmez.)
 const pageBg =
-  "relative min-h-screen bg-[radial-gradient(ellipse_at_top_left,#fdf4ff_0%,#fff7ed_50%,#f8fafc_100%)] text-slate-950";
+  "relative min-h-screen overflow-x-clip bg-[radial-gradient(ellipse_at_top_left,#fdf4ff_0%,#fff7ed_50%,#f8fafc_100%)] text-slate-950";
 
 // -------------------------------------------------------
 // Tab metadata
 // -------------------------------------------------------
 
+// i18n-ignore: anahtarlar kanonik sheet_name değerleri (DB); ekran başlığı display_title (içerik)
 const TAB_ICONS: Record<string, string> = {
   "Genel Bilgi":                        "📖",
   "Uçucu Yağ Elde Etme Yöntemleri":    "⚗️",
@@ -214,9 +218,11 @@ function DefaultRenderer({ rows }: { rows: ReferenceRow[] }) {
 // -------------------------------------------------------
 
 function SheetContent({ sheet }: { sheet: ReferenceSheet }) {
+  // i18n-ignore: kanonik sheet_name (DB değeri) — renderer seçimi
   if (sheet.sheet_name === "Genel Bilgi") {
     return <GenelBilgiRenderer rows={sheet.rows} />;
   }
+  // i18n-ignore: kanonik sheet_name (DB değeri) — renderer seçimi
   if (sheet.sheet_name === "Uçucu Yağ Elde Etme Yöntemleri") {
     return <EldeEtmeRenderer rows={sheet.rows} />;
   }
@@ -229,6 +235,8 @@ function SheetContent({ sheet }: { sheet: ReferenceSheet }) {
 
 export default function BilgiBankasiPage() {
   const isDemo = readYasamUser()?.is_demo_account === true;
+  const t = useTranslations("aromatherapy.knowledgeBase");
+  const locale = useLocale();
   const [sheets, setSheets] = useState<ReferenceSheet[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -256,7 +264,8 @@ export default function BilgiBankasiPage() {
     }
     const { sheets: data, error } = await fetchReferenceSheets(tid);
     setLoading(false);
-    if (error) { setErrorMsg(`Veriler yüklenemedi: ${error}`); return; }
+    // I18N: sunucu/kütüphane ayrıntısı yalnız kaynak dilde (tr) birebir; diğer dilde Türkçe metin gösterilmez.
+    if (error) { setErrorMsg(locale === "tr" ? t("loadFailedDetail", { detail: String(error) }) : t("loadFailed")); return; }
     setSheets(data);
     if (data.length > 0 && !activeId) setActiveId(data[0]!.id);
   }, [isDemo]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -281,12 +290,12 @@ export default function BilgiBankasiPage() {
             className="inline-flex min-h-[40px] items-center gap-1.5 rounded-xl border border-rose-200/70 bg-white/80 px-3.5 text-[12.5px] font-black text-rose-700 shadow-sm transition hover:border-rose-300 hover:bg-rose-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-300/60"
           >
             <span aria-hidden>📖</span>
-            Sözlük&apos;e git →
+            {t("goGlossary")}
           </Link>
         </div>
 
         {isDemo && (
-          <DemoModuleBanner message="Bilgi bankası içerikleri demo hesabında korunur. Sekme başlıkları görünür; makale içerikleri tam sürümde açılır." />
+          <DemoModuleBanner message={t("demoBanner")} />
         )}
 
         {/* ─── HEADER ─────────────────────────────────────────────── */}
@@ -295,13 +304,13 @@ export default function BilgiBankasiPage() {
             <div className="min-w-0 flex-1">
               <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-amber-200/70 bg-amber-50/90 px-3.5 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-amber-800 shadow-sm">
                 <span>📚</span>
-                <span>Aromaterapi — Bilgi Bankası</span>
+                <span>{t("eyebrow")}</span>
               </div>
               <h1 className="text-2xl font-black tracking-tight text-slate-950 sm:text-3xl">
-                Bilgi Bankası
+                {t("title")}
               </h1>
               <p className="mt-1.5 text-[12px] font-medium text-slate-500">
-                Uzman referans içerikleri ve notları
+                {t("subtitle")}
               </p>
             </div>
           </div>
@@ -319,15 +328,14 @@ export default function BilgiBankasiPage() {
 
         {loading ? (
           <div className="flex min-h-[280px] items-center justify-center rounded-[20px] bg-white/80 shadow-sm">
-            <p className="text-sm font-bold text-slate-500">Yükleniyor…</p>
+            <p className="text-sm font-bold text-slate-500">{t("loading")}</p>
           </div>
         ) : sheets.length === 0 ? (
           <div className="flex min-h-[280px] flex-col items-center justify-center rounded-[20px] border border-amber-100/70 bg-white/85 p-8 text-center shadow-sm sm:p-10">
             <div className="flex h-16 w-16 items-center justify-center rounded-2xl border border-amber-100 bg-amber-50/60 text-3xl shadow-sm">📚</div>
-            <h2 className="mt-4 text-xl font-black text-slate-900">Hazır referans içeriği yok</h2>
+            <h2 className="mt-4 text-xl font-black text-slate-900">{t("emptyTitle")}</h2>
             <p className="mt-2 max-w-md text-sm font-medium leading-relaxed text-slate-500">
-              Bu alan hazır referans tabloları içindir. Kendi notlarınızı yukarıdaki
-              “Kendi Bilgi Notlarım” bölümünden şimdi ekleyebilirsiniz.
+              {t("emptyBody")}
             </p>
           </div>
         ) : (
@@ -373,7 +381,7 @@ export default function BilgiBankasiPage() {
 
                 <DemoGate
                 isProtected={isDemo}
-                message="Bilgi bankası makaleleri demo hesabında korunur. Tam sürümde tüm içerikler açık olarak kullanılabilir."
+                message={t("demoGate")}
               >
                 <SheetContent sheet={activeSheet} />
               </DemoGate>

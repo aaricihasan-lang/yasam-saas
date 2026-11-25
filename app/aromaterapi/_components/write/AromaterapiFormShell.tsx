@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useId, type FormEvent, type ReactNode } from "react";
 import {
   AROMATERAPI_REASON_MAX_LEN,
@@ -61,7 +62,8 @@ export function AromaterapiFormShell({
   wide = false,
 }: AromaterapiFormShellProps) {
   const errId = useId();
-  const defaultLabel = mode === "create" ? "Kaydet" : "Değişiklikleri kaydet";
+  const tf = useTranslations("aromatherapy.shared.form");
+  const defaultLabel = mode === "create" ? tf("save") : tf("saveChanges");
 
   // Uygulama-içi dirty navigasyon koruması (Cancel/Vazgeç → onay diyaloğu).
   // beforeUnload: false → sekme-kapat uyarısını çağıran form kendi
@@ -88,15 +90,13 @@ export function AromaterapiFormShell({
 
       {isDemo ? (
         <AromaterapiMutationNotice tone="info">
-          Demo hesabında kayıt oluşturma ve düzenleme yapılamaz; alanları
-          inceleyebilirsiniz.
+          {tf("demo")}
         </AromaterapiMutationNotice>
       ) : null}
 
       {conflict ? (
         <AromaterapiMutationNotice tone="warning">
-          Bu kayıt siz düzenlerken başkası tarafından güncellendi. Değişikliklerinizi
-          kaybetmemek için yeniden yükleyip tekrar deneyin.
+          {tf("conflict")}
         </AromaterapiMutationNotice>
       ) : null}
 
@@ -165,6 +165,7 @@ export function AromaterapiFormActions({
   dirty?: boolean;
   submitLabel: string;
 }) {
+  const tf = useTranslations("aromatherapy.shared.form");
   const disabled = Boolean(isDemo) || Boolean(submitting) || (mode === "edit" && dirty === false);
   return (
     <div className="flex flex-col-reverse gap-2 pt-1 sm:flex-row sm:justify-end">
@@ -174,7 +175,7 @@ export function AromaterapiFormActions({
           onClick={onCancel}
           className="inline-flex min-h-[44px] items-center justify-center rounded-xl border border-slate-200 bg-white px-4 text-[13px] font-black text-slate-600 shadow-sm transition hover:border-slate-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300/60"
         >
-          Vazgeç
+          {tf("cancel")}
         </button>
       ) : null}
       {isDemo ? null : (
@@ -187,7 +188,7 @@ export function AromaterapiFormActions({
               : "bg-gradient-to-r from-emerald-500 to-teal-500 hover:brightness-105"
           }`}
         >
-          {submitting ? "Kaydediliyor…" : submitLabel}
+          {submitting ? tf("saving") : submitLabel}
         </button>
       )}
     </div>
@@ -245,10 +246,11 @@ export function AromaterapiReasonField({
 }) {
   const id = useId();
   const errId = useId();
+  const tf = useTranslations("aromatherapy.shared.form");
   return (
     <div>
       <label htmlFor={id} className="block text-[12px] font-black uppercase tracking-wide text-slate-500">
-        Gerekçe {required ? <span className="text-rose-500">*</span> : <span className="text-slate-400">(opsiyonel)</span>}
+        {tf("reason")} {required ? <span className="text-rose-500">*</span> : <span className="text-slate-400">{tf("optional")}</span>}
       </label>
       <textarea
         id={id}
@@ -259,7 +261,7 @@ export function AromaterapiReasonField({
         rows={2}
         aria-invalid={Boolean(error)}
         aria-describedby={error ? errId : undefined}
-        placeholder={required ? "Bu değişikliğin nedenini kısaca yazın…" : "İsteğe bağlı not…"}
+        placeholder={required ? tf("reasonRequiredPlaceholder") : tf("reasonOptionalPlaceholder")}
         className="mt-1 min-h-[44px] w-full rounded-xl border border-slate-200 bg-white/90 px-3 py-2 text-[14px] font-medium text-slate-800 shadow-sm outline-none transition focus-visible:border-emerald-300 focus-visible:ring-2 focus-visible:ring-emerald-300/50"
       />
       <AromaterapiFieldError message={error} id={errId} />

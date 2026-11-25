@@ -73,7 +73,7 @@ export async function GET(req: NextRequest): Promise<Response> {
   const entries = res.data as Record<string, unknown>[];
   const byEntry = await pointsByEntry(db, tenantId, entries.map((e) => String(e.id)));
   // Bağlar okunamadıysa EKSİK veri döndürme → kontrollü hata (istemci düzenlemeyi açmaz).
-  if (!byEntry) return cuppingError(500, "Bilgilerin bölge bağları okunamadı. Lütfen tekrar deneyin.");
+  if (!byEntry) return cuppingError(500, "Bilgilerin bölge bağları okunamadı. Lütfen tekrar deneyin.", "CUP_READ_FAILED");
   const withPoints = entries.map((e) => ({ ...e, point_ids: byEntry[String(e.id)] ?? [] }));
   return NextResponse.json({ ok: true, entries: withPoints });
 }
@@ -90,12 +90,12 @@ export async function POST(req: NextRequest): Promise<Response> {
   const protocolId = typeof parsed.data.protocol_id === "string" ? parsed.data.protocol_id : "";
   const fields = pickWritable(parsed.data, PROTOCOL_ENTRY_WRITABLE);
   // Erken/ucuz doğrulamalar (RPC de aynı kuralları uygular — savunma derinliği).
-  if (!String(fields.content ?? "").trim()) return cuppingError(400, "Bilgi içeriği gerekli.");
+  if (!String(fields.content ?? "").trim()) return cuppingError(400, "Bilgi içeriği gerekli.", "CUP_CONTENT_REQUIRED");
   // HAC-UX-2/3 — RPC bypass yolunda string uzunluk denetimi (genel api.ts chokepoint devrede değil).
   const invalid = validateWritable(CUPPING_TABLES.protocolEntries, fields);
   if (invalid) return invalid;
   const pointIds = parsePointIds(parsed.data.point_ids);
-  if (pointIds.length > MAX_POINTS) return cuppingError(400, "Çok fazla bölge seçildi.");
+  if (pointIds.length > MAX_POINTS) return cuppingError(400, "Çok fazla bölge seçildi.", "CUP_TOO_MANY_POINTS");
 
   // TEK transaction: protokol/source/point sahiplik doğrulaması + entry + entry_points.
   // Herhangi bir hata TÜM işlemi geri alır (hiç entry oluşmaz); telafi mantığı YOK.
@@ -109,13 +109,13 @@ export async function POST(req: NextRequest): Promise<Response> {
   if (error) {
     // SQLSTATE → sabit güvenli mesaj (ham DB hatası SIZMAZ).
     const code = (error as { code?: string }).code ?? "";
-    if (code === "45001") return cuppingError(400, "Protokol bu hesaba ait değil veya bulunamadı.");
-    if (code === "45002") return cuppingError(400, "Bilgi içeriği gerekli.");
-    if (code === "45003") return cuppingError(400, "Seçilen bölge bu hesaba ait değil.");
-    if (code === "45004") return cuppingError(400, "Çok fazla bölge seçildi.");
-    if (code === "45005") return cuppingError(400, "Seçilen kaynak bu hesaba ait değil.");
+    if (code === "45001") return cuppingError(400, "Protokol bu hesaba ait değil veya bulunamadı.", "CUP_PROTOCOL_NOT_OWNED");
+    if (code === "45002") return cuppingError(400, "Bilgi içeriği gerekli.", "CUP_CONTENT_REQUIRED");
+    if (code === "45003") return cuppingError(400, "Seçilen bölge bu hesaba ait değil.", "CUP_POINT_NOT_OWNED");
+    if (code === "45004") return cuppingError(400, "Çok fazla bölge seçildi.", "CUP_TOO_MANY_POINTS");
+    if (code === "45005") return cuppingError(400, "Seçilen kaynak bu hesaba ait değil.", "CUP_SOURCE_NOT_OWNED");
     await trackUsage(guard, req, { module: "cupping", action: "action_failed", failedAction: "record_updated", subEntity: "protocol", errorClass: "server" });
-    return cuppingError(500, "İşlem tamamlanamadı. Lütfen tekrar deneyin.");
+    return cuppingError(500, "İşlem tamamlanamadı. Lütfen tekrar deneyin.", "CUP_DB_FAIL");
   }
 
   // Protokol alt-kaydı (bilgi girdisi) = kullanıcı açısından protokol düzenlemesi → tek record_updated.

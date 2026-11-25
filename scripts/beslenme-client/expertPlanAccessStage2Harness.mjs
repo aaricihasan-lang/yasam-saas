@@ -121,7 +121,8 @@ ok("foods/[id]/sources requireBeslenmeModule", /requireBeslenmeModule\(/.test(re
 ok("PlanTools şablon butonları role-fork ETMİYOR (isExpert yok)", !/isExpert/.test(read("app/beslenme/planlar/_components/PlanTools.tsx")));
 {
   const mc = read("app/beslenme/planlar/_components/MealCard.tsx");
-  ok("MealCard 'Öğünü Şablonla' herkese açık (useEditorCaps yok)", !/useEditorCaps/.test(mc) && /Öğünü Şablonla/.test(mc));
+  // I18N (gece 25.11): "Öğünü Şablonla" menü metni katalogdan (beslenme.meal.menuTemplate; TR birebir). Niyet aynı: menü öğesi herkese açık.
+  ok("MealCard 'Öğünü Şablonla' herkese açık (useEditorCaps yok)", !/useEditorCaps/.test(mc) && (/label: tm\("menuTemplate"\)/.test(mc) && JSON.parse(read("messages/tr/beslenme.json")).beslenme.meal.menuTemplate === "Öğünü Şablonla"));
 }
 
 // 17) FAZ 1 client route'ları hâlâ clients-scoped.

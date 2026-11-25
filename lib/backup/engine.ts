@@ -22,10 +22,10 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { resolveModuleAccess } from "@/lib/auth/moduleAccessCore";
 import { SYSTEM_NUTRITION_TENANT_ID } from "@/lib/beslenme/systemTenant";
 import { columnPolicyFor, hasTenantColumn, SAFE_COLUMN_RE } from "./columns";
-import { addFailure, computeTableStatus, emptyTableReport } from "./format";
+import { addFailure, computeTableStatus, emptyTableReport, pushWarning } from "./format";
 import { getRegistryEntry, isExportable, isOperationalBackupTable, topologicalOrder } from "./registry";
 import { stripForeignStoragePaths } from "./storagePaths";
-import type { BackupPageResponse, RegistryEntry, RestoreDecision, RestoreTableReport } from "./types";
+import type { BackupPageResponse, CodedMessage, RegistryEntry, RestoreDecision, RestoreTableReport } from "./types";
 
 type Row = Record<string, unknown>;
 type DbError = { code?: string; message?: string } | null;
@@ -189,6 +189,18 @@ function errText(err: DbError): string {
   return [err.code, err.message].filter(Boolean).join(": ") || "bilinmeyen hata";
 }
 
+/** Veritabanı hatası: teknik metin aynen; dil-bağımsız kod `DB_ERROR` + teknik ayrıntı (I18N EK alan). */
+function dbFailure(err: DbError): { count: null; error: string; code: CodedMessage } {
+  const detail = errText(err);
+  return { count: null, error: detail, code: { code: "DB_ERROR", params: { detail } } };
+}
+
+/** "Çok büyük kayıt atlandı" notu (Türkçe metin aynen) ve dil-bağımsız karşılığı. */
+function skippedNoteOf(ids: string[]): { text: string; code: CodedMessage } | null {
+  if (!ids.length) return null;
+  return { text: `Çok büyük kayıt atlandı: ${ids.join(", ")}`, code: { code: "ROWS_TOO_LARGE", params: { ids: ids.join(", ") } } };
+}
+
 /** PostgREST "tablo şema önbelleğinde yok" (PGRST205) / PostgreSQL "ilişki yok" (42P01). */
 const MISSING_RELATION_CODES = new Set(["PGRST205", "42P01"]);
 
@@ -224,17 +236,17 @@ export async function countTableRows(
   e: RegistryEntry,
   tenantId: string,
   opts: { ownerUserId?: string | null; filters?: readonly RowFilter[] } = {},
-): Promise<{ count: number | null; error: string | null }> {
+): Promise<{ count: number | null; error: string | null; code?: CodedMessage }> {
   if (nutritionBlocked(e, tenantId)) return { count: 0, error: null };
   const owner = ownerFilterFor(e, opts.ownerUserId);
-  if (owner === "missing") return { count: null, error: OWNER_MISSING_ERROR };
+  if (owner === "missing") return { count: null, error: OWNER_MISSING_ERROR, code: { code: "OWNER_MISSING" } };
   const ps = parentScopeOf(e, owner);
   if (e.tenantScope === "direct" && ps === null) {
     let q = db.from(e.table).select(keyColumn(e), { count: "exact", head: true }).eq("tenant_id", tenantId);
     if (owner && "column" in owner) q = q.eq(owner.column, owner.value);
     q = applyRowFilters(q, opts.filters);
     const res = (await q) as QueryResult;
-    if (res.error) return absentTable(e, res.error) ? { count: 0, error: null } : { count: null, error: errText(res.error) };
+    if (res.error) return absentTable(e, res.error) ? { count: 0, error: null } : dbFailure(res.error);
     return { count: typeof res.count === "number" ? res.count : null, error: null };
   }
   if (ps) {
@@ -242,19 +254,19 @@ export async function countTableRows(
     let after: string | null = null;
     for (let guard = 0; guard < 100_000; guard++) {
       const page = await parentIdPage(db, ps.parent, tenantId, after, ps.parentOwner);
-      if (page.error) return { count: null, error: errText(page.error) };
+      if (page.error) return dbFailure(page.error);
       if (page.ids.length === 0) return { count: total, error: null };
       let q = db.from(e.table).select(keyColumn(e), { count: "exact", head: true }).in(ps.fk, page.ids);
       if (ps.childTenant) q = q.eq("tenant_id", tenantId);
       q = applyRowFilters(q, opts.filters);
       const res = (await q) as QueryResult;
-      if (res.error) return { count: null, error: errText(res.error) };
+      if (res.error) return dbFailure(res.error);
       total += typeof res.count === "number" ? res.count : 0;
       after = page.ids[page.ids.length - 1];
     }
-    return { count: null, error: "sayım sınırı aşıldı" };
+    return { count: null, error: "sayım sınırı aşıldı", code: { code: "COUNT_LIMIT" } };
   }
-  return { count: null, error: "tenant kapsamı yok" };
+  return { count: null, error: "tenant kapsamı yok", code: { code: "NO_TENANT_SCOPE" } };
 }
 
 function trimToBudget(e: RegistryEntry, rows: Row[]): { rows: Row[]; skippedIds: string[]; lastKey: unknown } {
@@ -290,24 +302,26 @@ export async function fetchTablePage(
   opts: { pageSize?: number; includeCount?: boolean; ownerUserId?: string | null; filters?: readonly RowFilter[] } = {},
 ): Promise<BackupPageResponse> {
   const base: BackupPageResponse = { ok: true, table: e.table, rows: [], next_cursor: null, done: true };
-  if (!isExportable(e)) return { ...base, ok: false, error: "Bu tablo yedek kapsamında değil." };
+  if (!isExportable(e)) return { ...base, ok: false, error: "Bu tablo yedek kapsamında değil.", error_code: { code: "NOT_EXPORTABLE" } };
   const cursor = decodeCursor(rawCursor);
-  if (cursor === "invalid") return { ...base, ok: false, error: "Geçersiz cursor." };
+  if (cursor === "invalid") return { ...base, ok: false, error: "Geçersiz cursor.", error_code: { code: "INVALID_CURSOR" } };
   const owner = ownerFilterFor(e, opts.ownerUserId);
-  if (owner === "missing") return { ...base, ok: false, error: OWNER_MISSING_ERROR };
+  if (owner === "missing") return { ...base, ok: false, error: OWNER_MISSING_ERROR, error_code: { code: "OWNER_MISSING" } };
   const ps = parentScopeOf(e, owner);
   const pageSize = Math.max(1, Math.min(opts.pageSize ?? e.pageSize ?? BACKUP_PAGE_SIZE, BACKUP_PAGE_SIZE));
 
   let expected: number | null | undefined;
   let countError: string | null = null;
+  let countErrorCode: CodedMessage | null = null;
   if (cursor === null && opts.includeCount !== false) {
     const c = await countTableRows(db, e, tenantId, { ownerUserId: opts.ownerUserId, filters: opts.filters });
     expected = c.count;
     countError = c.error;
+    countErrorCode = c.error === null ? null : (c.code ?? { code: "DB_ERROR", params: { detail: c.error } });
   }
   if (nutritionBlocked(e, tenantId)) return { ...base, expected_count: 0 };
 
-  const finish = (rows: Row[], next: Cursor | null, error: string | null): BackupPageResponse => {
+  const finish = (rows: Row[], next: Cursor | null, error: string | null, errorCode: CodedMessage | null = null): BackupPageResponse => {
     const res: BackupPageResponse = {
       ok: error === null,
       table: e.table,
@@ -316,10 +330,17 @@ export async function fetchTablePage(
       done: next === null,
       error: error ?? countError,
     };
+    // I18N: hata metninin dil-bağımsız kodu yalnız hata varken eklenir (başarılı yanıt biçimi değişmez).
+    const code = error !== null ? errorCode : countErrorCode;
+    if (res.error != null && code) res.error_code = code;
     if (expected !== undefined) res.expected_count = expected;
     return res;
   };
-  const invalidCursor = (): BackupPageResponse => ({ ...base, ok: false, error: "Geçersiz cursor." });
+  const failDb = (err: DbError): BackupPageResponse => {
+    const f = dbFailure(err);
+    return finish([], null, f.error, f.code);
+  };
+  const invalidCursor = (): BackupPageResponse => ({ ...base, ok: false, error: "Geçersiz cursor.", error_code: { code: "INVALID_CURSOR" } });
 
   if (e.tenantScope === "direct" && ps === null) {
     let sel = db.from(e.table).select("*").eq("tenant_id", tenantId);
@@ -328,12 +349,12 @@ export async function fetchTablePage(
     const q = applyKeyset(sel as unknown as KeysetQuery, e, cursor ? cursor.k : null);
     if (q === "invalid") return invalidCursor();
     const res = await q.limit(pageSize);
-    if (res.error) return absentTable(e, res.error) ? finish([], null, null) : finish([], null, errText(res.error));
+    if (res.error) return absentTable(e, res.error) ? finish([], null, null) : failDb(res.error);
     const rows = (res.data as Row[] | null) ?? [];
     if (rows.length === 0) return finish([], null, null);
     const t = trimToBudget(e, rows);
-    const skippedNote = t.skippedIds.length ? `Çok büyük kayıt atlandı: ${t.skippedIds.join(", ")}` : null;
-    return finish(t.rows, { k: t.lastKey as string | number, p: null }, skippedNote);
+    const skipped = skippedNoteOf(t.skippedIds);
+    return finish(t.rows, { k: t.lastKey as string | number, p: null }, skipped?.text ?? null, skipped?.code ?? null);
   }
 
   if (ps) {
@@ -341,7 +362,7 @@ export async function fetchTablePage(
     let childAfter = cursor ? cursor.k : null;
     for (let i = 0; i < MAX_PARENT_CHUNKS_PER_REQUEST; i++) {
       const page = await parentIdPage(db, ps.parent, tenantId, parentAfter, ps.parentOwner);
-      if (page.error) return finish([], null, errText(page.error));
+      if (page.error) return failDb(page.error);
       if (page.ids.length === 0) return finish([], null, null);
       let sel = db.from(e.table).select("*").in(ps.fk, page.ids);
       if (ps.childTenant) sel = sel.eq("tenant_id", tenantId);
@@ -349,12 +370,12 @@ export async function fetchTablePage(
       const q = applyKeyset(sel as unknown as KeysetQuery, e, childAfter);
       if (q === "invalid") return invalidCursor();
       const res = await q.limit(pageSize);
-      if (res.error) return finish([], null, errText(res.error));
+      if (res.error) return failDb(res.error);
       const rows = (res.data as Row[] | null) ?? [];
       if (rows.length > 0) {
         const t = trimToBudget(e, rows);
-        const skippedNote = t.skippedIds.length ? `Çok büyük kayıt atlandı: ${t.skippedIds.join(", ")}` : null;
-        return finish(t.rows, { p: parentAfter, k: t.lastKey as string | number }, skippedNote);
+        const skipped = skippedNoteOf(t.skippedIds);
+        return finish(t.rows, { p: parentAfter, k: t.lastKey as string | number }, skipped?.text ?? null, skipped?.code ?? null);
       }
       // Bu ebeveyn parçası bitti → sonraki parçaya geç.
       parentAfter = page.ids[page.ids.length - 1];
@@ -363,7 +384,7 @@ export async function fetchTablePage(
     // Çok sayıda boş ebeveyn parçası: boş ama BİTMEDİ yanıtı (istemci devam eder).
     return { ...finish([], { p: parentAfter, k: null }, null), done: false };
   }
-  return finish([], null, "tenant kapsamı yok");
+  return finish([], null, "tenant kapsamı yok", { code: "NO_TENANT_SCOPE" });
 }
 
 /** Tüm sayfaları okur (Word dışa aktarımı + harness). */
@@ -454,7 +475,7 @@ export function planRestore(
   tables: Record<string, number>,
   ctx: RestoreContext,
   sourceTenantId: string | null,
-): { decisions: RestoreDecision[]; crossTenant: boolean; notes: string[] } {
+): { decisions: RestoreDecision[]; crossTenant: boolean; notes: string[]; note_codes: CodedMessage[] } {
   const decisions = Object.keys(tables).map((t) => decideTable(t, ctx));
   decisions.sort((a, b) => {
     const oa = a.action === "restore" ? a.order : Number.MAX_SAFE_INTEGER;
@@ -463,13 +484,16 @@ export function planRestore(
   });
   const crossTenant = !!sourceTenantId && sourceTenantId !== ctx.tenantId;
   const notes: string[] = [];
+  /** I18N: `notes` ile aynı sırada dil-bağımsız kodlar (EK alan). */
+  const note_codes: CodedMessage[] = [];
   if (crossTenant) {
     notes.push(
       "Bu yedek başka bir hesaptan alınmış. Kayıt kimlikleri korunur (yeniden eşleme yapılmaz); " +
         "aynı kimlik başka bir hesapta hâlâ varsa o kayıt 'başka hesapta mevcut' olarak atlanır.",
     );
+    note_codes.push({ code: "CROSS_TENANT" });
   }
-  return { decisions, crossTenant, notes };
+  return { decisions, crossTenant, notes, note_codes };
 }
 
 type ProbeCache = Map<string, Map<string, boolean>>;
@@ -549,7 +573,7 @@ export async function restoreChunk(
     } else {
       report.expected = 0;
     }
-    report.warnings.push(`${decision.reason}: ${decision.detail}`);
+    pushWarning(report, `${decision.reason}: ${decision.detail}`, { code: "SKIPPED", params: { reason: decision.reason } });
     report.status = "SKIPPED";
     return report;
   }
@@ -559,7 +583,10 @@ export async function restoreChunk(
     const probe = (await db.from(entry.table).select(entry.pk[0] ?? "id").limit(0)) as QueryResult;
     if (probe.error && absentTable(entry, probe.error)) {
       report.expected = 0;
-      report.warnings.push(`table_absent: ${entry.table} bu ortamda henüz kurulmamış; ${rawRows.length} satır yazılmadı.`);
+      pushWarning(report, `table_absent: ${entry.table} bu ortamda henüz kurulmamış; ${rawRows.length} satır yazılmadı.`, {
+        code: "TABLE_ABSENT",
+        params: { table: entry.table, rows: rawRows.length },
+      });
       report.status = "SKIPPED";
       return report;
     }
@@ -788,12 +815,17 @@ export async function restoreChunk(
     });
   }
   if (report.storage_refs_removed > 0) {
-    report.warnings.push(
+    pushWarning(
+      report,
       `${report.storage_refs_removed} görsel bağlantısı bu hesaba ait olmadığı (veya eski/geçersiz yol olduğu) için kaldırıldı (kaydın metin içeriği korunur).`,
+      { code: "STORAGE_REFS_REMOVED", params: { count: report.storage_refs_removed } },
     );
   }
   if (report.fk_nulled > 0) {
-    report.warnings.push(`${report.fk_nulled} kayıtta bağlı (isteğe bağlı) kayıt bulunamadı; bağlantı boş bırakıldı.`);
+    pushWarning(report, `${report.fk_nulled} kayıtta bağlı (isteğe bağlı) kayıt bulunamadı; bağlantı boş bırakıldı.`, {
+      code: "FK_NULLED",
+      params: { count: report.fk_nulled },
+    });
   }
 
   // 6) Toplu ekleme (yalnız eksikler) — hata → satır satır izolasyon

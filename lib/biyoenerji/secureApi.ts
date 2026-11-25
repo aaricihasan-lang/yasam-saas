@@ -27,6 +27,47 @@ export const BIO_TIMEOUT_ERROR =
   "İstek zaman aşımına uğradı. Lütfen tekrar deneyin.";
 
 /**
+ * I18N-F1-R3 — sunucu hata KODU kaydı (yalnız GÖSTERİM içindir; kontrol akışı buna bağlanmaz).
+ *
+ * `bioApi*` yardımcıları çağırana yalnız `error: string` (sunucunun Türkçe metni AYNEN) döndürür; bu sözleşme
+ * ve kaynak dildeki (tr) davranış değişmez. Sunucu yanıtı dil-bağımsız `code` (BIO_*) taşıyorsa, o metnin
+ * kodu burada saklanır; `useBioErrorText` kaynak dil dışında metni değil kodu `bioenergy.errors.codes.<KOD>`
+ * ile çevirir. Anahtar, sunucunun o yanıtta gönderdiği metnin kendisidir (aynı metin her zaman aynı kodla
+ * gelir — scripts/i18n-mod-c/bio-error-codes.test.ts doğrular). Bellek sınırlı (en fazla 200 kayıt).
+ */
+const BIO_CODE_RE = /^[A-Z][A-Z0-9_]{1,63}$/;
+const BIO_CODE_BY_MESSAGE = new Map<string, string>();
+const BIO_CODE_MAP_MAX = 200;
+
+export function rememberBioErrorCode(message: unknown, code: unknown): void {
+  if (typeof message !== "string" || !message || typeof code !== "string" || !BIO_CODE_RE.test(code)) return;
+  if (BIO_CODE_BY_MESSAGE.has(message)) BIO_CODE_BY_MESSAGE.delete(message);
+  else if (BIO_CODE_BY_MESSAGE.size >= BIO_CODE_MAP_MAX) {
+    const oldest = BIO_CODE_BY_MESSAGE.keys().next().value;
+    if (oldest !== undefined) BIO_CODE_BY_MESSAGE.delete(oldest);
+  }
+  BIO_CODE_BY_MESSAGE.set(message, code);
+}
+
+/** Gösterilen hata metninin kodu (yoksa null). İstemcinin kendi ağ/zaman aşımı metinleri sabit kodludur. */
+export function bioErrorCodeFor(message: unknown): string | null {
+  if (typeof message !== "string") return null;
+  if (message === BIO_NETWORK_ERROR) return "BIO_NETWORK";
+  if (message === BIO_TIMEOUT_ERROR) return "BIO_TIMEOUT";
+  return BIO_CODE_BY_MESSAGE.get(message) ?? null;
+}
+
+/**
+ * Başarısız yanıttan çağırana dönecek hata metni — DEĞİŞMEDİ (j.error; yoksa "HTTP <durum>").
+ * Yan etki: yanıttaki `code` metinle birlikte kaydedilir.
+ */
+export function bioErrorText(j: Record<string, unknown>, status: number): string {
+  const text = String(j.error ?? `HTTP ${status}`);
+  rememberBioErrorCode(text, j.code);
+  return text;
+}
+
+/**
  * BIO-06 — fetch sarmalayıcısı: ağ kesintisi ("Failed to fetch") veya zaman aşımı
  * ASLA reddedilmiş promise olarak yukarı sızmaz; kontrollü bir hata yanıtı (503,
  * `{ ok:false, error }`) döner. Böylece çağıran her yol loading/busy durumunu
@@ -69,7 +110,7 @@ export async function bioApiList(
   const qs = p.toString();
   const res = await bioFetch(`${BASE}/${resource}${qs ? `?${qs}` : ""}`, { headers: authHeaders() });
   const j = await readJson(res);
-  if (!res.ok || j.ok !== true) return { rows: [], error: String(j.error ?? `HTTP ${res.status}`) };
+  if (!res.ok || j.ok !== true) return { rows: [], error: bioErrorText(j, res.status) };
   return { rows: (j.rows as BioRow[]) ?? [], error: null };
 }
 
@@ -83,7 +124,7 @@ export async function bioApiCount(
   if (category?.trim()) p.set("category", category.trim());
   const res = await bioFetch(`${BASE}/${resource}?${p.toString()}`, { headers: authHeaders() });
   const j = await readJson(res);
-  if (!res.ok || j.ok !== true) return { count: 0, error: String(j.error ?? `HTTP ${res.status}`) };
+  if (!res.ok || j.ok !== true) return { count: 0, error: bioErrorText(j, res.status) };
   return { count: Number(j.count ?? 0), error: null };
 }
 
@@ -93,7 +134,7 @@ export async function bioApiCategories(
 ): Promise<{ categories: string[]; error: string | null }> {
   const res = await bioFetch(`${BASE}/${resource}?distinct=category`, { headers: authHeaders() });
   const j = await readJson(res);
-  if (!res.ok || j.ok !== true) return { categories: [], error: String(j.error ?? `HTTP ${res.status}`) };
+  if (!res.ok || j.ok !== true) return { categories: [], error: bioErrorText(j, res.status) };
   return { categories: (j.categories as string[]) ?? [], error: null };
 }
 
@@ -102,7 +143,7 @@ export async function bioApiLastCreated(
 ): Promise<{ lastCreatedAt: string | null; error: string | null }> {
   const res = await bioFetch(`${BASE}/${resource}?lastCreated=1`, { headers: authHeaders() });
   const j = await readJson(res);
-  if (!res.ok || j.ok !== true) return { lastCreatedAt: null, error: String(j.error ?? `HTTP ${res.status}`) };
+  if (!res.ok || j.ok !== true) return { lastCreatedAt: null, error: bioErrorText(j, res.status) };
   return { lastCreatedAt: (j.lastCreatedAt as string | null) ?? null, error: null };
 }
 
@@ -113,7 +154,7 @@ export async function bioApiGetOne(
   const res = await bioFetch(`${BASE}/${resource}/${id}`, { headers: authHeaders() });
   const j = await readJson(res);
   if (res.status === 404) return { row: null, error: null };
-  if (!res.ok || j.ok !== true) return { row: null, error: String(j.error ?? `HTTP ${res.status}`) };
+  if (!res.ok || j.ok !== true) return { row: null, error: bioErrorText(j, res.status) };
   return { row: (j.row as BioRow) ?? null, error: null };
 }
 
@@ -127,7 +168,7 @@ export async function bioApiCreate(
     body: JSON.stringify(fields),
   });
   const j = await readJson(res);
-  if (!res.ok || j.ok !== true) return { row: null, error: String(j.error ?? `HTTP ${res.status}`) };
+  if (!res.ok || j.ok !== true) return { row: null, error: bioErrorText(j, res.status) };
   return { row: (j.row as BioRow) ?? null, error: null };
 }
 
@@ -142,7 +183,7 @@ export async function bioApiUpdate(
     body: JSON.stringify(fields),
   });
   const j = await readJson(res);
-  if (!res.ok || j.ok !== true) return { error: String(j.error ?? `HTTP ${res.status}`) };
+  if (!res.ok || j.ok !== true) return { error: bioErrorText(j, res.status) };
   return { error: null };
 }
 
@@ -152,7 +193,7 @@ export async function bioApiDelete(
 ): Promise<{ error: string | null }> {
   const res = await bioFetch(`${BASE}/${resource}/${id}`, { method: "DELETE", headers: authHeaders() });
   const j = await readJson(res);
-  if (!res.ok || j.ok !== true) return { error: String(j.error ?? `HTTP ${res.status}`) };
+  if (!res.ok || j.ok !== true) return { error: bioErrorText(j, res.status) };
   return { error: null };
 }
 
@@ -172,7 +213,7 @@ export async function bioApiDeleteMany(
     body: JSON.stringify({ ids: clean }),
   });
   const j = await readJson(res);
-  if (!res.ok || j.ok !== true) return { deleted: 0, error: String(j.error ?? `HTTP ${res.status}`) };
+  if (!res.ok || j.ok !== true) return { deleted: 0, error: bioErrorText(j, res.status) };
   return { deleted: Number(j.deleted ?? 0), error: null };
 }
 
@@ -194,6 +235,6 @@ export async function bioApiDeleteAll(
     ),
   });
   const j = await readJson(res);
-  if (!res.ok || j.ok !== true) return { deleted: 0, error: String(j.error ?? `HTTP ${res.status}`) };
+  if (!res.ok || j.ok !== true) return { deleted: 0, error: bioErrorText(j, res.status) };
   return { deleted: Number(j.deleted ?? 0), error: null };
 }

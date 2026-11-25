@@ -45,7 +45,7 @@ async function assertStepRefs(
       protocol_id: protocolId,
       point_id: refPoint,
     });
-    if (!inSet) return cuppingError(400, "Adımın referans verdiği bölge, protokolün uygulama bölgeleri arasında değil.");
+    if (!inSet) return cuppingError(400, "Adımın referans verdiği bölge, protokolün uygulama bölgeleri arasında değil.", "CUP_STEP_POINT_NOT_IN_PROTOCOL");
   }
   if (refTechnique) {
     const inSet = await assertCompositeRef(db, CUPPING_TABLES.protocolTechniques, {
@@ -53,7 +53,7 @@ async function assertStepRefs(
       protocol_id: protocolId,
       technique_id: refTechnique,
     });
-    if (!inSet) return cuppingError(400, "Adımın referans verdiği teknik, protokolün teknikleri arasında değil.");
+    if (!inSet) return cuppingError(400, "Adımın referans verdiği teknik, protokolün teknikleri arasında değil.", "CUP_STEP_TECHNIQUE_NOT_IN_PROTOCOL");
   }
   return null;
 }
@@ -84,7 +84,7 @@ export async function POST(req: NextRequest): Promise<Response> {
 
   const fields = pickWritable(parsed.data, PROTOCOL_STEP_WRITABLE);
   const protocolId = typeof fields.protocol_id === "string" ? fields.protocol_id : "";
-  if (!String(fields.body ?? "").trim()) return cuppingError(400, "Adım metni gerekli.");
+  if (!String(fields.body ?? "").trim()) return cuppingError(400, "Adım metni gerekli.", "CUP_STEP_TEXT_REQUIRED");
 
   const refPoint = normRef(fields.ref_point_id);
   const refTechnique = normRef(fields.ref_technique_id);
@@ -92,7 +92,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   fields.ref_technique_id = refTechnique;
 
   if (!(await assertOwnedRef(db, CUPPING_TABLES.protocols, tenantId, protocolId))) {
-    return cuppingError(400, "Protokol bu hesaba ait değil veya bulunamadı.");
+    return cuppingError(400, "Protokol bu hesaba ait değil veya bulunamadı.", "CUP_PROTOCOL_NOT_OWNED");
   }
   const refErr = await assertStepRefs(db, tenantId, protocolId, refPoint, refTechnique);
   if (refErr) return refErr;

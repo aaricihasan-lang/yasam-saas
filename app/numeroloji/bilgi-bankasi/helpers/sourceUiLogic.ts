@@ -7,7 +7,14 @@ import { validateSourceInput, type SourcePayload } from "./sourcesValidation";
 import type { LinkInput, NumerologySourceRow, RecordSourceRow } from "./sourcesApi";
 
 export type Ok<T> = { ok: true; value: T };
-export type Err = { ok: false; error: string };
+/**
+ * I18N-F1-R5: `code` dil-bağımsız form hata kodu (ekran EN'de `sourceManager.formErrors.<code>` gösterir; TR'de `error`
+ * metni AYNEN). `field` sayfa/sıra alanı (page_start | page_end | display_order).
+ */
+export type Err = { ok: false; error: string; code?: SourceFormErrorCode; field?: "page_start" | "page_end" | "display_order" };
+export type SourceFormErrorCode =
+  | "PUB_YEAR_INT" | "LABEL_REQUIRED" | "SOURCE_INVALID" | "SOURCE_REQUIRED" | "SECTION_INVALID"
+  | "SECTION_KULVAR_ONLY" | "INT_NONNEG" | "INT_INVALID" | "PAGE_RANGE";
 export type Result<T> = Ok<T> | Err;
 
 // section_key seçenekleri: "" = null = Tüm kayıt.
@@ -58,12 +65,12 @@ export function sectionKeyFromSelect(v: string): KulvarSectionKey | null {
 }
 
 /** "" → null; sayı değilse veya <0 ise hata; aksi halde tamsayı. */
-function parseOptionalInt(raw: string): { value: number | null; error?: string } {
+function parseOptionalInt(raw: string): { value: number | null; error?: string; code?: "INT_NONNEG" | "INT_INVALID" } {
   const t = (raw ?? "").trim();
   if (t === "") return { value: null };
-  if (!/^\d+$/.test(t)) return { value: null, error: "Yalnız 0 veya pozitif tamsayı girin." };
+  if (!/^\d+$/.test(t)) return { value: null, error: "Yalnız 0 veya pozitif tamsayı girin.", code: "INT_NONNEG" };
   const n = Number(t);
-  if (!Number.isInteger(n) || n < 0 || n > 1_000_000) return { value: null, error: "Geçersiz sayı." };
+  if (!Number.isInteger(n) || n < 0 || n > 1_000_000) return { value: null, error: "Geçersiz sayı.", code: "INT_INVALID" };
   return { value: n };
 }
 
@@ -88,11 +95,11 @@ export function buildSourceInputFromForm(form: SourceFormState): Result<SourcePa
   }
   const py = form.publication_year.trim();
   if (py !== "") {
-    if (!/^\d+$/.test(py)) return { ok: false, error: "Yayın yılı geçerli bir tamsayı olmalı." };
+    if (!/^\d+$/.test(py)) return { ok: false, error: "Yayın yılı geçerli bir tamsayı olmalı.", code: "PUB_YEAR_INT" };
     body.publication_year = Number(py);
   }
   const res = validateSourceInput(body, { partial: false });
-  if (!res.ok) return { ok: false, error: res.error };
+  if (!res.ok) return { ok: false, error: res.error, code: form.display_label.trim() === "" ? "LABEL_REQUIRED" : "SOURCE_INVALID" };
   return { ok: true, value: res.value };
 }
 
@@ -112,25 +119,25 @@ export function buildLinkInputFromForm(
   form: LinkFormState,
   opts: { recordAnalysisType: string | null | undefined },
 ): Result<LinkInput> {
-  if (!form.source_id) return { ok: false, error: "Bir kaynak seçin." };
+  if (!form.source_id) return { ok: false, error: "Bir kaynak seçin.", code: "SOURCE_REQUIRED" };
 
   const section_key = form.section_key === "" ? null : form.section_key;
   if (section_key !== null) {
-    if (!SECTION_KEY_SET.has(section_key)) return { ok: false, error: "Geçersiz bölüm seçimi." };
+    if (!SECTION_KEY_SET.has(section_key)) return { ok: false, error: "Geçersiz bölüm seçimi.", code: "SECTION_INVALID" };
     if (!isKulvarAnalysisType(opts.recordAnalysisType ?? "")) {
-      return { ok: false, error: "Bölüm düzeyi kaynak bağı yalnız Ana/Yan Kulvar kayıtlarında kullanılabilir." };
+      return { ok: false, error: "Bölüm düzeyi kaynak bağı yalnız Ana/Yan Kulvar kayıtlarında kullanılabilir.", code: "SECTION_KULVAR_ONLY" };
     }
   }
 
   const ps = parseOptionalInt(form.page_start);
-  if (ps.error) return { ok: false, error: `Başlangıç sayfası: ${ps.error}` };
+  if (ps.error) return { ok: false, error: `Başlangıç sayfası: ${ps.error}`, code: ps.code, field: "page_start" };
   const pe = parseOptionalInt(form.page_end);
-  if (pe.error) return { ok: false, error: `Bitiş sayfası: ${pe.error}` };
+  if (pe.error) return { ok: false, error: `Bitiş sayfası: ${pe.error}`, code: pe.code, field: "page_end" };
   if (ps.value !== null && pe.value !== null && ps.value > pe.value) {
-    return { ok: false, error: "Başlangıç sayfası, bitiş sayfasından büyük olamaz." };
+    return { ok: false, error: "Başlangıç sayfası, bitiş sayfasından büyük olamaz.", code: "PAGE_RANGE" };
   }
   const dord = parseOptionalInt(form.display_order);
-  if (dord.error) return { ok: false, error: `Sıra: ${dord.error}` };
+  if (dord.error) return { ok: false, error: `Sıra: ${dord.error}`, code: dord.code, field: "display_order" };
 
   const locator = form.locator.trim();
   const internal_note = form.internal_note.trim();

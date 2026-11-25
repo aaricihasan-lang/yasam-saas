@@ -6,6 +6,9 @@ import { runInEffect } from "@/lib/runInEffect";
 import { Activity, ChevronDown, Clock3, FileText, Folder, Layers, Search } from "lucide-react";
 import styles from "@/app/_premium/biyoenerji/kutuphane/bioKutuphane.module.css";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
+import { useBioErrorText } from "../useBioErrorText";
+import { useBioDateTime } from "../useBioDateTime";
 import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import { readYasamUser } from "@/lib/auth/yasamUser";
 import {
@@ -72,19 +75,6 @@ function trimOrNull(v: string) {
   return t.length > 0 ? t : null;
 }
 
-function formatDate(iso: string) {
-  try {
-    return new Intl.DateTimeFormat("tr-TR", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    }).format(new Date(iso));
-  } catch {
-    return "—";
-  }
-}
 
 /** BIO-14 — yan panel listenin altına yığıldığında (Tailwind xl altı) paneli görünür alana getir. */
 function scrollPanelIntoViewIfStacked(el: HTMLElement | null) {
@@ -98,6 +88,12 @@ function scrollPanelIntoViewIfStacked(el: HTMLElement | null) {
 
 export default function BiyoenerjiSeanslari() {
   const { isDemo } = useDemoGuard();
+  const t = useTranslations("bioenergy.sessions");
+  const tl = useTranslations("bioenergy.list");
+  const td = useTranslations("bioenergy.detail");
+  const te = useTranslations("bioenergy.energyBodies");
+  const errText = useBioErrorText();
+  const formatDate = useBioDateTime();
   const [tenantId, setTenantId] = useState<string | null>(null);
   const [rows, setRows] = useState<BioenergySession[]>([]);
   const [loading, setLoading] = useState(true);
@@ -213,7 +209,7 @@ export default function BiyoenerjiSeanslari() {
       setLoadingMore(false);
 
       if (pageRes.error) {
-        showSoft("err", `Kayıtlar yüklenemedi: ${pageRes.error}`);
+        showSoft("err", t("readFailed", { detail: errText(pageRes.error, tl("serverError")) }));
         if (opts.reset && !bioListGet(cacheKey)) setRows([]);
         return;
       }
@@ -252,6 +248,7 @@ export default function BiyoenerjiSeanslari() {
         })();
       }
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- çeviri işlevleri dil değişiminde yeniden liste çekmez
     [tenantId, debouncedSearch, categoryFilter, showSoft, listGate],
   );
 
@@ -316,7 +313,7 @@ export default function BiyoenerjiSeanslari() {
   async function exportSessionsWord(mode: "selected" | "all" | "single", singleId?: string) {
     if (!tenantId) return;
     const userId = readYasamUser()?.id;
-    if (!userId) { showSoft("err", "Kullanıcı kimliği bulunamadı. Lütfen tekrar giriş yapın."); return; }
+    if (!userId) { showSoft("err", t("noUser")); return; }
     setWordBusy(true);
     try {
       const body: Record<string, unknown> = { tenantId, userId, exportMode: mode === "single" ? "single" : mode };
@@ -331,10 +328,10 @@ export default function BiyoenerjiSeanslari() {
         headers: authHeaders(),
         body: JSON.stringify(body),
       });
-      if (!res.ok) { showSoft("err", "Rapor oluşturulamadı."); return; }
+      if (!res.ok) { showSoft("err", tl("reportFailed")); return; }
       await downloadFileResponse(res, `biyoenerji-seans-${mode === "selected" ? "secili" : mode === "single" ? "tek" : "tumu"}-${reportFileDate()}.docx`);
-      showSoft("ok", "Seans raporu indirildi.");
-    } catch { showSoft("err", "Rapor oluşturulamadı."); } finally {
+      showSoft("ok", t("reportDownloaded"));
+    } catch { showSoft("err", tl("reportFailed")); } finally {
       setWordBusy(false);
     }
   }
@@ -381,7 +378,7 @@ export default function BiyoenerjiSeanslari() {
 
   function openEditModal() {
     if (!selectedRow) {
-      showSoft("err", "Güncellemek için listeden bir kayıt seçin.");
+      showSoft("err", te("selectToUpdate"));
       return;
     }
     setFormModalMode("edit");
@@ -407,7 +404,7 @@ export default function BiyoenerjiSeanslari() {
 
           const titleTrim = form.title.trim();
           if (!titleTrim) {
-            showSoft("err", "Seans başlığı zorunludur.");
+            showSoft("err", t("titleRequired"));
             return;
           }
 
@@ -424,19 +421,19 @@ export default function BiyoenerjiSeanslari() {
           setSaving(false);
 
           if (error) {
-            showSoft("err", `Kayıt eklenemedi: ${error}`);
+            showSoft("err", tl("addFailed", { detail: errText(error, tl("serverError")) }));
             return;
           }
 
           setFormModalOpen(false);
           await loadSessions({ reset: true });
           void refreshCategories();
-          showSoft("ok", "Seans kaydı oluşturuldu.");
+          showSoft("ok", t("created"));
         } finally {
           setSaving(false);
         }
       })
-      .catch((e: unknown) => showSoft("err", e instanceof Error ? e.message : "İşlem tamamlanamadı."));
+      .catch((e: unknown) => showSoft("err", errText(e, tl("opFailed"))));
   }
 
   async function handleGuncelle() {
@@ -445,12 +442,12 @@ export default function BiyoenerjiSeanslari() {
       .run(async () => {
         try {
           if (!tenantId || !selectedId) {
-            showSoft("err", "Güncellemek için listeden bir kayıt seçin.");
+            showSoft("err", te("selectToUpdate"));
             return;
           }
           const titleTrim = form.title.trim();
           if (!titleTrim) {
-            showSoft("err", "Seans başlığı zorunludur.");
+            showSoft("err", t("titleRequired"));
             return;
           }
 
@@ -465,7 +462,7 @@ export default function BiyoenerjiSeanslari() {
           const changes = changedFields(payloadOf(form), editOriginalRef.current ? payloadOf(editOriginalRef.current) : null);
           if (Object.keys(changes).length === 0) {
             setFormModalOpen(false);
-            showSoft("ok", "Değişiklik yok.");
+            showSoft("ok", td("noChanges"));
             return;
           }
           setSaving(true);
@@ -475,24 +472,24 @@ export default function BiyoenerjiSeanslari() {
           setSaving(false);
 
           if (error) {
-            showSoft("err", `Güncellenemedi: ${error}`);
+            showSoft("err", td("updateFailed", { detail: errText(error, tl("serverError")) }));
             return;
           }
 
           setFormModalOpen(false);
           await loadSessions({ reset: true });
           void refreshCategories();
-          showSoft("ok", "Kayıt güncellendi.");
+          showSoft("ok", td("updated"));
         } finally {
           setSaving(false);
         }
       })
-      .catch((e: unknown) => showSoft("err", e instanceof Error ? e.message : "İşlem tamamlanamadı."));
+      .catch((e: unknown) => showSoft("err", errText(e, tl("opFailed"))));
   }
 
   function openDeleteConfirm() {
     if (!selectedId) {
-      showSoft("err", "Silmek için listeden bir kayıt seçin.");
+      showSoft("err", te("selectToDelete"));
       return;
     }
     setDeleteConfirmOpen(true);
@@ -510,7 +507,7 @@ export default function BiyoenerjiSeanslari() {
     setDeleteConfirmOpen(false);
 
     if (error) {
-      showSoft("err", `Silinemedi: ${error}`);
+      showSoft("err", tl("deleteFailed", { detail: errText(error, tl("serverError")) }));
       return;
     }
 
@@ -524,7 +521,7 @@ export default function BiyoenerjiSeanslari() {
     await loadSessions({ reset: true });
     void refreshCategories();
     resetFormSelection();
-    showSoft("ok", "Kayıt silindi.");
+    showSoft("ok", te("deleted"));
   }
 
   // Toplu seçim güvenliği: arama/filtre ile liste değişince seçim görünür kayıtlarla
@@ -544,7 +541,7 @@ export default function BiyoenerjiSeanslari() {
     setIsBulkDeleting(false);
     setDanger((d) => ({ ...d, open: false }));
     if (error) {
-      showSoft("err", `Silinemedi: ${error}`);
+      showSoft("err", tl("deleteFailed", { detail: errText(error, tl("serverError")) }));
       return;
     }
     const deletedSet = new Set(ids);
@@ -552,7 +549,7 @@ export default function BiyoenerjiSeanslari() {
     setSelectedForExport(new Set());
     await loadSessions({ reset: true });
     void refreshCategories();
-    showSoft("ok", `${ids.length} kayıt silindi.`);
+    showSoft("ok", tl("deletedCount", { count: String(ids.length) }));
   }
 
   async function handleDeleteAll() {
@@ -561,7 +558,7 @@ export default function BiyoenerjiSeanslari() {
     setIsBulkDeleting(false);
     setDanger((d) => ({ ...d, open: false }));
     if (error) {
-      showSoft("err", `Silinemedi: ${error}`);
+      showSoft("err", tl("deleteFailed", { detail: errText(error, tl("serverError")) }));
       return;
     }
     setSelectedForExport(new Set());
@@ -569,7 +566,7 @@ export default function BiyoenerjiSeanslari() {
     resetFormSelection();
     await loadSessions({ reset: true });
     void refreshCategories();
-    showSoft("ok", "Tüm kayıtlar silindi.");
+    showSoft("ok", tl("deletedAll"));
   }
 
   return (
@@ -579,10 +576,9 @@ export default function BiyoenerjiSeanslari() {
           <div className="flex items-start gap-3">
             <span className="mt-0.5 text-lg leading-none" aria-hidden>🔎</span>
             <div>
-              <p className="text-sm font-black text-blue-900">Demo Modu — Biyoenerji Seansları</p>
+              <p className="text-sm font-black text-blue-900">{t("demoTitle")}</p>
               <p className="mt-0.5 text-[13px] leading-relaxed text-blue-800">
-                Bu sayfa demo amaçlıdır. Seans içerikleri demo güvenliği nedeniyle flu gösterilmektedir.
-                Yeni kayıt, düzenleme, silme ve dışa aktarma işlemleri devre dışıdır.
+                {t("demoBody")}
               </p>
             </div>
           </div>
@@ -593,33 +589,33 @@ export default function BiyoenerjiSeanslari() {
       <section className={`${styles.card} ${styles.searchCard}`}>
         <div className={`${styles.filters} ${categories.length > 0 ? styles.filtersNarrowCat : styles.filtersOne}`} style={{ marginBottom: 0 }}>
           <label className="block min-w-0">
-            <span className={styles.fLabel}>Başlık, metin, kategori, kaynak ve not içinde ara</span>
+            <span className={styles.fLabel}>{t("searchLabel")}</span>
             <span className={styles.inputWrap}>
               <Search className={styles.inIcon} strokeWidth={2} aria-hidden />
               <input
                 type="search"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Örn. analiz, enerji, blokaj…"
+                placeholder={t("searchPlaceholder")}
                 className={`${styles.input} ${styles.inputSearch}`}
               />
             </span>
             {isSearchActive ? (
               <p className={styles.hint}>
-                “{debouncedSearch}” · {searchResultCount} eşleşme
+                {tl("searchSummaryCurly", { query: debouncedSearch, count: String(searchResultCount) })}
               </p>
             ) : null}
           </label>
           {categories.length > 0 && (
             <label className="block min-w-0">
-              <span className={styles.fLabel}>Kategori</span>
+              <span className={styles.fLabel}>{t("fields.category")}</span>
               <span className={styles.inputWrap}>
                 <select
                   value={categoryFilter}
                   onChange={(e) => setCategoryFilter(e.target.value)}
                   className={`${styles.input} ${styles.select}`}
                 >
-                  <option value="">Tümü</option>
+                  <option value="">{tl("all")}</option>
                   {categories.map((c) => (
                     <option key={c} value={c}>{c}</option>
                   ))}
@@ -635,21 +631,21 @@ export default function BiyoenerjiSeanslari() {
         <div className={`${styles.stat} ${styles.sViolet}`}>
           <span className={styles.statIcon} aria-hidden><Layers className="h-7 w-7" strokeWidth={2} /></span>
           <div className={styles.statText}>
-            <p className={styles.statLabel}>Toplam Kayıt</p>
+            <p className={styles.statLabel}>{tl("statTotalCap")}</p>
             <p className={styles.statValue}>{statsReady ? moduleStats.total : "…"}</p>
           </div>
         </div>
         <div className={`${styles.stat} ${styles.sBlue}`}>
           <span className={styles.statIcon} aria-hidden><Folder className="h-7 w-7" fill="currentColor" strokeWidth={1.6} /></span>
           <div className={styles.statText}>
-            <p className={styles.statLabel}>Kategori</p>
+            <p className={styles.statLabel}>{t("fields.category")}</p>
             <p className={styles.statValue}>{statsReady ? moduleStats.cats : "…"}</p>
           </div>
         </div>
         <div className={`${styles.stat} ${styles.sTeal}`}>
           <span className={styles.statIcon} aria-hidden><Clock3 className="h-7 w-7" strokeWidth={2} /></span>
           <div className={styles.statText}>
-            <p className={styles.statLabel}>Son Kayıt</p>
+            <p className={styles.statLabel}>{tl("statLastCap")}</p>
             <p className={`${styles.statValue} ${styles.statSmall}`}>{moduleStats.last}</p>
           </div>
         </div>
@@ -673,12 +669,12 @@ export default function BiyoenerjiSeanslari() {
       <div className={styles.workspace}>
         <section className={`${styles.card} ${styles.listPanel}`}>
           <div className={styles.listHead}>
-            <h2 className={styles.listTitle}>Kayıtlar ({filteredRows.length})</h2>
+            <h2 className={styles.listTitle}>{te("listTitle", { count: String(filteredRows.length) })}</h2>
             <div className="flex flex-wrap items-center gap-2">
-              {loading ? <span className="text-[11px] font-bold text-slate-400">Yükleniyor…</span> : null}
+              {loading ? <span className="text-[11px] font-bold text-slate-400">{tl("loading")}</span> : null}
               {!isDemo && (
                 <button type="button" onClick={openCreateModal} className={`${styles.newBtn} ${styles.seansNew}`}>
-                  + Yeni Kayıt
+                  {tl("newRecord")}
                 </button>
               )}
             </div>
@@ -689,7 +685,7 @@ export default function BiyoenerjiSeanslari() {
               <BulkExportBar
                 selectedCount={selectedForExport.size}
                 totalCount={totalInDb}
-                selectAllLabel="Görünenleri Seç"
+                selectAllLabel={tl("selectVisible")}
                 selectAllCount={rows.length}
                 onSelectAll={() => setSelectedForExport(new Set(rows.map((r) => r.id)))}
                 onClearSelection={() => setSelectedForExport(new Set())}
@@ -704,15 +700,15 @@ export default function BiyoenerjiSeanslari() {
           )}
           <div className={styles.rows}>
             {loading ? (
-              <p className={styles.listEmpty}>Yükleniyor…</p>
+              <p className={styles.listEmpty}>{tl("loading")}</p>
             ) : filteredRows.length === 0 ? (
               <div className={`${styles.emptyBox} ${styles.emptyList}`}>
                 <span className={styles.emptyIcon} aria-hidden><Activity className="h-6 w-6" strokeWidth={2} /></span>
-                <p className={styles.emptyTitle}>Liste boş</p>
+                <p className={styles.emptyTitle}>{te("emptyTitle")}</p>
                 <p className={styles.emptySub}>
                   {hasSearch
-                    ? "Arama kriterlerinizi değiştirin veya Yeni Kayıt ile seans ekleyin."
-                    : "Henüz kayıt yok. Yeni Kayıt ile ilk seansınızı oluşturabilirsiniz."}
+                    ? t("emptySearchBody")
+                    : t("emptyBody")}
                 </p>
               </div>
             ) : (
@@ -725,7 +721,7 @@ export default function BiyoenerjiSeanslari() {
                       <label className={styles.rowCheck} onClick={(e) => e.stopPropagation()}>
                         <input
                           type="checkbox"
-                          aria-label="Bu kaydı seç"
+                          aria-label={tl("selectRecord")}
                           checked={exportSelected}
                           onChange={() => toggleExportSelection(row.id)}
                         />
@@ -758,7 +754,7 @@ export default function BiyoenerjiSeanslari() {
                 onClick={() => void loadSessions({ reset: false, append: true, offset: rows.length })}
                 className={styles.moreBtn}
               >
-                {loadingMore ? "Yükleniyor…" : `Daha Fazla Göster (${rows.length} / ${searchResultCount})`}
+                {loadingMore ? tl("loading") : tl("loadMore", { shown: String(rows.length), total: String(searchResultCount) })}
               </button>
             </div>
           ) : null}
@@ -774,7 +770,7 @@ export default function BiyoenerjiSeanslari() {
           {selectedRow ? (
             <>
               <div className="mb-1 inline-flex w-fit rounded-full bg-violet-50/90 px-2.5 py-1 text-[9px] font-black tracking-[0.14em] text-violet-800 ring-1 ring-violet-200/45">
-                SEÇİLİ KAYIT
+                {te("selectedPill")}
               </div>
               <h3 className="mt-2 text-[19px] font-black leading-snug text-slate-900 sm:text-[21px]">
                 {selectedRow.title?.trim() || "—"}
@@ -786,7 +782,7 @@ export default function BiyoenerjiSeanslari() {
                 ) : null}
                 {selectedRow.source?.trim() ? (
                   <span className="rounded-full border border-amber-100/80 bg-amber-50/80 px-2 py-0.5 text-[11px] font-black text-amber-950/90">
-                    Kaynak: {selectedRow.source}
+                    {t("sourcePrefix")} {selectedRow.source}
                   </span>
                 ) : null}
               </div>
@@ -798,11 +794,11 @@ export default function BiyoenerjiSeanslari() {
                       {selectedRow.content}
                     </p>
                   ) : (
-                    <p className="text-[13px] font-semibold text-slate-400">Seans metni henüz girilmemiş.</p>
+                    <p className="text-[13px] font-semibold text-slate-400">{t("textEmpty")}</p>
                   )}
                   {selectedRow.note?.trim() ? (
                     <div className="mt-4 rounded-xl border border-slate-200/80 bg-white/70 px-3.5 py-3">
-                      <p className="text-[10px] font-black uppercase tracking-[0.12em] text-slate-500">Not</p>
+                      <p className="text-[10px] font-black uppercase tracking-[0.12em] text-slate-500">{t("fields.note")}</p>
                       <p className="mt-1 whitespace-pre-wrap break-words text-[14px] font-medium leading-relaxed text-slate-700 [overflow-wrap:anywhere]">
                         {selectedRow.note}
                       </p>
@@ -818,14 +814,14 @@ export default function BiyoenerjiSeanslari() {
                     onClick={() => void exportSessionsWord("single", selectedRow.id)}
                     className="min-h-[44px] rounded-xl border border-blue-200/70 bg-blue-50/90 px-4 py-2.5 text-[13px] font-black text-blue-800 transition hover:bg-blue-100/90 disabled:opacity-50"
                   >
-                    {wordBusy ? "⏳ Hazırlanıyor..." : "📄 Word Raporu"}
+                    {wordBusy ? te("wordPreparing") : te("wordReport")}
                   </button>
                   <button
                     type="button"
                     onClick={openEditModal}
                     className="min-h-[44px] rounded-xl border border-violet-200/70 bg-violet-50/90 px-4 py-2.5 text-[13px] font-black text-violet-900 shadow-[0_4px_18px_-8px_rgba(109,40,217,0.12)] transition hover:bg-violet-100/90"
                   >
-                    Güncelle
+                    {td("update")}
                   </button>
                   <button
                     type="button"
@@ -833,7 +829,7 @@ export default function BiyoenerjiSeanslari() {
                     onClick={openDeleteConfirm}
                     className="min-h-[44px] rounded-xl border border-rose-200/70 bg-rose-50/90 px-4 py-2.5 text-[13px] font-black text-rose-800 transition hover:bg-rose-100/90 disabled:opacity-45"
                   >
-                    Sil
+                    {td("delete")}
                   </button>
                 </div>
               )}
@@ -842,7 +838,7 @@ export default function BiyoenerjiSeanslari() {
             <div className={`${styles.emptyBox} ${styles.emptyDetail}`}>
               <span className={styles.emptyIcon} aria-hidden><FileText className="h-6 w-6" strokeWidth={2} /></span>
               <p className={styles.emptySub}>
-                {isDemo ? "Soldan bir kayıt seçerek özetini görün." : "Soldan bir kayıt seçerek özetini görün veya yeni kayıt ekleyin."}
+                {isDemo ? t("pickDemo") : t("pick")}
               </p>
             </div>
           )}
@@ -854,11 +850,11 @@ export default function BiyoenerjiSeanslari() {
         open={formModalOpen}
         onClose={closeFormModal}
         isDirty={formIsDirty}
-        title={formModalMode === "create" ? "Yeni seans kaydı" : "Seans kaydını düzenle"}
+        title={formModalMode === "create" ? t("formCreate") : t("formEdit")}
         subtitle={
           formModalMode === "edit"
-            ? "Değişiklikleri kaydettikten sonra panel kapanır ve liste yenilenir."
-            : "Zorunlu alanları doldurup kaydedin; panel kapanır ve liste yenilenir."
+            ? t("formSubtitleEdit")
+            : t("formSubtitleCreate")
         }
         titleId="seans-form-modal-title"
         accentRingClass="ring-violet-100/50"
@@ -870,7 +866,7 @@ export default function BiyoenerjiSeanslari() {
               onClick={requestClose}
               className="rounded-xl border border-slate-200/85 bg-white/90 px-4 py-2.5 text-[12px] font-black text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-50"
             >
-              Vazgeç
+              {tl("cancel")}
             </button>
             <button
               type="button"
@@ -878,7 +874,7 @@ export default function BiyoenerjiSeanslari() {
               onClick={modalTemizle}
               className="rounded-xl border border-slate-200/80 bg-white/90 px-4 py-2.5 text-[12px] font-black text-slate-600 shadow-sm transition hover:bg-slate-50 disabled:opacity-50"
             >
-              Temizle
+              {tl("clear")}
             </button>
             {formModalMode === "create" ? (
               <button
@@ -887,7 +883,7 @@ export default function BiyoenerjiSeanslari() {
                 onClick={() => void handleKaydet()}
                 className={bioSaveBtnClass}
               >
-                {saving ? "Kaydediliyor…" : "Kaydet"}
+                {saving ? tl("saving") : tl("save")}
               </button>
             ) : (
               <button
@@ -896,7 +892,7 @@ export default function BiyoenerjiSeanslari() {
                 onClick={() => void handleGuncelle()}
                 className="rounded-xl border border-violet-200/70 bg-violet-50/90 px-4 py-2.5 text-[12px] font-black text-violet-900 shadow-sm transition hover:bg-violet-100/90 disabled:opacity-55"
               >
-                {saving ? "Güncelleniyor…" : "Güncelle"}
+                {saving ? td("updating") : td("update")}
               </button>
             )}
           </>
@@ -906,7 +902,7 @@ export default function BiyoenerjiSeanslari() {
           <label className="block">
             <span className="mb-2 flex items-center gap-2 text-[12px] font-black text-slate-800">
               <span className="h-1.5 w-1.5 rounded-full bg-violet-500/90 shadow-[0_0_8px_rgba(109,40,217,0.35)]" />
-              Seans Başlığı
+              {t("fields.title")}
             </span>
             <input
               value={form.title}
@@ -917,7 +913,7 @@ export default function BiyoenerjiSeanslari() {
           <label className="block">
             <span className="mb-2 flex items-center gap-2 text-[12px] font-black text-slate-800">
               <span className="h-1.5 w-1.5 rounded-full bg-cyan-500/85" />
-              Kategori
+              {t("fields.category")}
             </span>
             <div className={badgeFieldWrapClass("cyan")}>
               <input
@@ -931,10 +927,10 @@ export default function BiyoenerjiSeanslari() {
             label={
               <span className="mb-2 flex items-center gap-2 text-[12px] font-black text-slate-800">
                 <span className="h-1.5 w-1.5 rounded-full bg-emerald-500/85" />
-                Seans Metni
+                {t("fields.text")}
               </span>
             }
-            modalTitle="Seans Metni"
+            modalTitle={t("fields.text")}
             value={form.content}
             onChange={(v) => setForm((f) => ({ ...f, content: v }))}
             minRows={5}
@@ -944,7 +940,7 @@ export default function BiyoenerjiSeanslari() {
           <label className="block">
             <span className="mb-2 flex items-center gap-2 text-[12px] font-black text-slate-800">
               <span className="h-1.5 w-1.5 rounded-full bg-amber-500/85" />
-              Kaynak
+              {t("fields.source")}
             </span>
             <input
               value={form.source}
@@ -956,10 +952,10 @@ export default function BiyoenerjiSeanslari() {
             label={
               <span className="mb-2 flex items-center gap-2 text-[12px] font-black text-slate-800">
                 <span className="h-1.5 w-1.5 rounded-full bg-fuchsia-500/75" />
-                Not
+                {t("fields.note")}
               </span>
             }
-            modalTitle="Not"
+            modalTitle={t("fields.note")}
             value={form.note}
             onChange={(v) => setForm((f) => ({ ...f, note: v }))}
             minRows={3}
@@ -971,7 +967,7 @@ export default function BiyoenerjiSeanslari() {
 
       <BiyoenerjiConfirmModal
         open={deleteConfirmOpen}
-        title="Bu seans kaydını silmek istediğinizden emin misiniz?"
+        title={t("deleteConfirm")}
         busy={saving}
         onClose={() => setDeleteConfirmOpen(false)}
         onConfirm={() => void executeDelete()}
@@ -982,8 +978,8 @@ export default function BiyoenerjiSeanslari() {
         scope={{ filterActive: Boolean(debouncedSearch.trim() || categoryFilter), visibleCount: searchResultCount }}
         mode={danger.mode}
         count={danger.mode === "all" ? totalInDb : selectedVisibleRows.length}
-        names={danger.mode === "all" ? undefined : selectedVisibleRows.map((r) => (r.title?.trim() || "İsimsiz kayıt"))}
-        resourceLabel="Biyoenerji Seansları"
+        names={danger.mode === "all" ? undefined : selectedVisibleRows.map((r) => (r.title?.trim() || tl("untitled")))}
+        resourceLabel={t("resourceLabel")}
         isDeleting={isBulkDeleting}
         onClose={() => !isBulkDeleting && setDanger((d) => ({ ...d, open: false }))}
         onConfirm={() => void (danger.mode === "all" ? handleDeleteAll() : handleBulkDeleteSelected())}

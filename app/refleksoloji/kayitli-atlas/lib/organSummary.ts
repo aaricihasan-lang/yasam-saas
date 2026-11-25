@@ -17,6 +17,9 @@ export type OrganSummary = {
   viewLabel: string;
   /** El yüzeylerinde (avuç içi / el sırtı) bölge varsa "Sol el" / "Sağ el" / "Her iki el"; yoksa null. */
   handLabel: string | null;
+  /** I18N gösterimi için (handLabel ile aynı kaynaktan): el yüzeyinde sol / sağ bölge var mı. */
+  hasHandLeft?: boolean;
+  hasHandRight?: boolean;
 };
 
 const HAND_VIEWS: readonly FootView[] = ["el_avuc", "el_sirt"];
@@ -78,10 +81,9 @@ export function buildOrganSummary(atlas: AtlasDocument, organName: string): Orga
   const handRegions = regions.filter((r) => isHandView(r.view));
   const hasLeft = footRegions.some((r) => r.footSide === "left");
   const hasRight = footRegions.some((r) => r.footSide === "right");
-  const handLabel = buildHandLabel(
-    handRegions.some((r) => r.footSide === "left"),
-    handRegions.some((r) => r.footSide === "right"),
-  );
+  const hasHandLeft = handRegions.some((r) => r.footSide === "left");
+  const hasHandRight = handRegions.some((r) => r.footSide === "right");
+  const handLabel = buildHandLabel(hasHandLeft, hasHandRight);
 
   return {
     name: organName,
@@ -93,6 +95,8 @@ export function buildOrganSummary(atlas: AtlasDocument, organName: string): Orga
     footLabel: buildFootLabel(hasLeft, hasRight),
     viewLabel: buildViewLabel(hasTaban, hasYan, handRegions.length > 0),
     handLabel,
+    hasHandLeft,
+    hasHandRight,
   };
 }
 

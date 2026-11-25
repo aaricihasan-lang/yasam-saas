@@ -1,0 +1,154 @@
+{
+  "docTranslate": {
+    "fileName": {
+      "ocrText": "ocr-text",
+      "ocrTranslation": "ocr-translation"
+    },
+    "header": {
+      "badge": "Document Conversion and Translation",
+      "titleLead": "Document",
+      "titleAccent": "Translation Centre",
+      "descAdmin": "Convert PDF documents, translate them into other languages and read scanned text. All processing takes place on a secure server.",
+      "descExpert": "Convert PDF documents into editable Word files. All processing takes place on a secure server.",
+      "history": "Translated Documents"
+    },
+    "cards": {
+      "pdfToWord": {
+        "title": "PDF → Word",
+        "subtitle": "Convert your PDF document into an editable Word file."
+      },
+      "pdfToTurkishWord": {
+        "title": "PDF → Turkish Word",
+        "subtitle": "Translate the PDF content into Turkish and download it as an editable Word document."
+      },
+      "ocr": {
+        "title": "📷 Image OCR",
+        "subtitle": "Convert text in photos or screenshots into digital text. PNG, JPG and WEBP are supported."
+      },
+      "badgeActive": "Active",
+      "selectPdf": "Select PDF",
+      "selectImage": "Select Image",
+      "changeFile": "Change File",
+      "selectedFile": "Selected File",
+      "fileSize": "{size} MB",
+      "removeFile": "Remove file",
+      "modeTitle": "Translation Mode",
+      "modeStandard": "Standard",
+      "modeAcademic": "Academic",
+      "modeStandardHint": "gpt-4o-mini · fast",
+      "modeAcademicHint": "gpt-4.1 · books, theses",
+      "tooLarge": "This file exceeds the 50 MB server limit and cannot be uploaded. Please use a smaller PDF or split large files.",
+      "largeWarning": "As this document is large, translation may take a while. Do not close the page during processing.",
+      "translating": "Translating...",
+      "processing": "Processing...",
+      "actionPdfToWord": "Convert to Word",
+      "actionPdfToTurkishWord": "Translate into Turkish + Word",
+      "actionOcr": "Read Text",
+      "comingSoon": "This feature will be available soon."
+    },
+    "ocr": {
+      "extracted": "Extracted Text",
+      "closeResult": "Close result",
+      "copy": "Copy",
+      "downloadTxt": "Download TXT",
+      "downloadWord": "Download Word",
+      "isTurkish": "The text appears to be Turkish — no translation was made.",
+      "translationTitle": "Turkish Translation",
+      "copyTranslation": "Copy Translation",
+      "translationMissing": "The text appears to be in a foreign language, but the translation could not be retrieved. Please try again."
+    },
+    "job": {
+      "queued": "Queued...",
+      "translating": "Translating...",
+      "progress": "{done} / {total} sections completed",
+      "completed": "Translation completed",
+      "failed": "Error: {message}",
+      "close": "Close",
+      "downloadDocx": "Download DOCX",
+      "keepOpen": "Do not close the page — processing continues in the background."
+    },
+    "help": {
+      "toggle": "Large PDF Help",
+      "title": "📄 Large PDF Upload Guide",
+      "intro": "The Document Translation Centre can translate large PDF files. However, some PDFs can reach very large file sizes because of high-resolution scans and large images.",
+      "maxSize": "Maximum PDF size: 50 MB",
+      "s1Title": "PDF Compression",
+      "s1Sub": "For Windows Users:",
+      "s1Step1": "Save your PDF file to your computer.",
+      "s1Step2": "Open a PDF compression tool.",
+      "s1Step3": "Choose the Medium Quality or High Quality option.",
+      "s1Step4": "Save the new PDF file.",
+      "s1Step5": "Upload the new PDF file to the system again.",
+      "s1Note": "In most cases, large PDF files can be reduced below 50 MB without loss of quality.",
+      "s2Title": "Splitting the PDF into Parts",
+      "s2Body": "You can split large PDFs into several parts and translate them separately.",
+      "s2Range1": "Pages 1–100",
+      "s2Range2": "Pages 101–200",
+      "s2Range3": "Pages 201–300",
+      "s3Title": "Reducing Image Quality",
+      "s3Body": "In some PDFs, high-resolution images make up most of the file size. After PDF optimisation, the same content can be uploaded at a much smaller size.",
+      "faqTitle": "Frequently Asked Questions",
+      "faq1Q": "My PDF is very large. Can it be translated?",
+      "faq1A": "In most cases, yes. However, uploading large files may take longer.",
+      "faq2Q": "Can I translate scanned books?",
+      "faq2A": "Yes. The system tries to detect the text using OCR.",
+      "faq3Q": "Can I translate PDFs with tables?",
+      "faq3A": "Yes. Simple tables are usually preserved. Complex tables may show layout differences.",
+      "toolsTitle": "📌 Recommended PDF Compression Tools",
+      "toolsBody": "These tools can be used to reduce the size of PDF files."
+    },
+    "info": {
+      "secureTitle": "Secure Processing",
+      "secureDesc": "Documents are deleted after processing.",
+      "multiTitle": "Multiple Languages",
+      "multiDesc": "Eng, Ger, Fr and more.",
+      "formatTitle": "Format Preservation",
+      "formatDesc": "The document format is preserved."
+    },
+    "history": {
+      "title": "Translated Documents",
+      "subtitle": "Documents you have previously converted or translated",
+      "close": "Close",
+      "loading": "Loading records…",
+      "emptyTitle": "No translated documents yet.",
+      "emptyBody": "Records will appear here once you upload and convert a PDF file.",
+      "upload": "Upload Document",
+      "statusCompleted": "Completed",
+      "statusFailed": "Failed",
+      "statusProcessing": "Processing…",
+      "pages": "{count, plural, one { · # page} other { · # pages}}",
+      "linkExpired": "The download link has expired. Refresh the page and try again."
+    },
+    "toast": {
+      "errorTitle": "Error",
+      "successTitle": "Success",
+      "connectionErrorTitle": "Connection error",
+      "unknownError": "Unknown error",
+      "wordFailed": "The Word file could not be created.",
+      "sessionMissing": "Session information could not be retrieved. Refresh the page and try again.",
+      "serverError": "Server error (HTTP {status})",
+      "queuedTitle": "Queued",
+      "queuedMsg": "A {pages}-page document has been added to the translation queue.",
+      "ocrFailed": "The text could not be extracted.",
+      "ocrSuccess": "Text extracted successfully.",
+      "fileDownloaded": "The file was created and downloaded.",
+      "copiedTitle": "Copied",
+      "textCopied": "Text copied to the clipboard.",
+      "translationCopied": "Translation copied to the clipboard."
+    },
+    "apiErrors": {
+      "FILE_MISSING": "No file was found. Please select a file.",
+      "PDF_ONLY": "Only PDF files are accepted.",
+      "IMAGE_ONLY": "Only PNG, JPG, JPEG and WEBP files are accepted.",
+      "INVALID_FILE_TYPE": "Invalid file type.",
+      "FILE_TOO_LARGE": "The file is too large. Maximum {maxMb} MB.",
+      "PAGE_LIMIT": "This document has {pages} pages. A Large File Mode for documents over 200 pages is being prepared.",
+      "UPLOAD_FAILED": "The file could not be uploaded.",
+      "JOB_CREATE_FAILED": "The job record could not be created.",
+      "PROCESSING_FAILED": "Processing could not be completed right now. Please try again or contact support.",
+      "NO_TEXT_FOUND": "No readable text was found in the image.",
+      "PDF_NO_TEXT": "No text could be extracted from the PDF. The file may be scanned, encrypted or contain only images.",
+      "TEXT_MISSING": "No text was found."
+    }
+  }
+}

@@ -24,6 +24,12 @@ const steps = [
   ["i18n birim testleri", [tsx, "scripts/i18n/unit.test.ts"]],
   ["sunucu çevirici güvenliği", [tsx, "scripts/i18n/server-messages.test.ts"]],
   ["kapı negatif testleri", ["scripts/i18n/gates.negative.test.mjs"]],
+  // Çıktı dili sözleşmesi: TR rapor golden'ı (bayt-bayt) + EN dil/nöbetçi/sayı kontrolleri (Kupa pilotu + ortak motorlar).
+  ["rapor golden (TR birebir + EN)", [tsx, "scripts/i18n/reports-golden.harness.ts"]],
+  // Rapor grubu A+B (Ajanda, Ürün/Stok, Danışan Yolculuğu tekli/toplu, Anamnez PDF): TR golden + EN kontrolleri.
+  ["rapor golden A+B (TR birebir + EN)", [tsx, "scripts/i18n/reports-golden-ab.harness.ts"]],
+  // I18N-F1-R5 RAPOR-CD: grup C+D üreticileri (Beslenme, Aromaterapi, Doğaltaş …) — ayrı golden, aynı normalizasyon.
+  ["rapor golden C+D (TR birebir + EN)", [tsx, "scripts/i18n/reports-golden-cd.harness.ts"]],
   ...["2a", "2c", "2d", "2e", "2f", "2g", "2h", "2i", "2j"].map((h) => [`Doğaltaş ${h}`, [`scripts/stones-i18n-${h}-harness.mjs`]]),
 ];
 

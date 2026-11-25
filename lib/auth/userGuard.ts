@@ -17,6 +17,8 @@ import {
   TRIAL_MESSAGES,
   type TrialPhase,
 } from "@/lib/trial/trialCore";
+// I18N-F1-R3: dil-bağımsız EK alan (kod MODULE_DENIED aynen; Türkçe metin aynen).
+import { MODULE_NOT_IN_TRIAL_CODE } from "@/lib/trial/trialErrors";
 import { isTrialReadOnlyExportPath } from "@/lib/trial/readOnlyRoutes";
 import { bindTrialMeterIdentity } from "@/lib/trial/roxyMeter";
 import { isUndefinedColumnError } from "@/lib/auth/undefinedColumn";
@@ -283,7 +285,7 @@ export function trialWriteDenied(profile: Record<string, unknown> | undefined): 
 export function trialModuleDenied(profile: Record<string, unknown> | undefined): NextResponse | null {
   if (!profile || !isTrialRestrictedRow(profile)) return null;
   return NextResponse.json(
-    { code: MODULE_DENIED_CODE, error: TRIAL_MESSAGES.moduleNotInTrial },
+    { code: MODULE_DENIED_CODE, error: TRIAL_MESSAGES.moduleNotInTrial, trialCode: MODULE_NOT_IN_TRIAL_CODE },
     { status: 403, headers: { "Cache-Control": "no-store" } },
   );
 }
@@ -332,7 +334,7 @@ export async function requireModuleAccess(
       return {
         ok: false,
         response: NextResponse.json(
-          { code: MODULE_DENIED_CODE, error: TRIAL_MESSAGES.moduleNotInTrial },
+          { code: MODULE_DENIED_CODE, error: TRIAL_MESSAGES.moduleNotInTrial, trialCode: MODULE_NOT_IN_TRIAL_CODE },
           { status: 403, headers: { "Cache-Control": "no-store" } },
         ),
       };

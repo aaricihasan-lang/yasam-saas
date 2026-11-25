@@ -128,3 +128,47 @@ export function errorMessage(e: ApiErr): string {
   if (e.status >= 500) return "İşlem şu an tamamlanamadı. Lütfen daha sonra tekrar deneyin.";
   return "İşlem tamamlanamadı.";
 }
+
+/** Çeviri işlevi (next-intl `t`, "numerology.classic.apiErrors" kapsamında) — saf yardımcıya parametre olarak geçer. */
+export type ApiErrorTranslator = (key: string, values?: Record<string, string | number>) => string;
+
+/** Dil-bağımsız hata kodu → katalog anahtarı (yalnız EN gösterimi; kontrol akışı koda bağlı değildir). */
+const EN_CODE_KEYS: Readonly<Record<string, string>> = Object.freeze({
+  NETWORK: "network",
+  RATE_LIMITED: "rateLimited",
+  MODULE: "module",
+  MODULE_FORBIDDEN: "module",
+  MODULE_ACCESS: "module",
+  MEMBERSHIP: "membership",
+  MEMBERSHIP_INACTIVE: "membership",
+  MEMBERSHIP_EXPIRED: "membership",
+  CLIENTS_PERMISSION: "clientsPermission",
+});
+const EN_KNOWN_CODES = new Set([
+  "NOT_FOUND", "DEMO_READONLY", "CLIENTS_PERMISSION_REQUIRED", "CLIENT_NOT_FOUND", "FUTURE_YEARS_PERMISSION_REQUIRED",
+  "PROVIDER_CALLS_DISABLED", "NOT_CONFIGURED", "QUOTA_PROTECTED", "IN_PROGRESS", "CLASSIC_BUSY", "PROVIDER_TIMEOUT",
+  "PROVIDER_ERROR", "SAVE_FAILED", "DRAFT_STALE", "DB_ERROR", "CONFLICT", "INVALID_ID", "METHOD_NOT_ALLOWED",
+  "STONES_NOT_AVAILABLE", "INVALID_NAME", "INVALID_DATE", "INVALID_TITLE", "INVALID_CLIENT_ID", "INVALID_TECHNIQUES",
+  "INVALID_INPUT", "INVALID_KIND", "DUPLICATE_CANDIDATE", "TARGET_BEFORE_BIRTH", "PAYLOAD_TOO_LARGE", "MALFORMED_JSON",
+  "UNKNOWN_FIELD", "INVALID_ROW_VERSION", "NOTHING_TO_UPDATE", "INVALID_DRAFT",
+]);
+
+/**
+ * API hatasının İngilizce (kaynak dil dışı) ekran metni: `errorMessage` ile aynı öncelik, ancak sunucunun Türkçe
+ * `error` metni yerine dil-bağımsız `code` → katalog; kod tanınmazsa HTTP durumu, o da yoksa genel metin.
+ * TR yolu `errorMessage` (sunucu metni birebir) DEĞİŞMEDİ.
+ */
+export function errorMessageEn(e: ApiErr, t: ApiErrorTranslator): string {
+  if (e.status === 0 || e.code === "NETWORK") return t("network");
+  if (e.status === 429 || e.code === "RATE_LIMITED") return t("rateLimited");
+  const mapped = e.code ? EN_CODE_KEYS[e.code] : undefined;
+  if (mapped) return t(mapped);
+  if (e.code && EN_KNOWN_CODES.has(e.code)) return t(`codes.${e.code}`);
+  if (e.status === 401) return t("status401");
+  if (e.status === 403) return t("status403");
+  if (e.status === 404) return t("status404");
+  if (e.status === 409) return t("status409");
+  if (e.status === 413) return t("status413");
+  if (e.status >= 500) return t("status5xx");
+  return t("generic");
+}

@@ -6,6 +6,8 @@
  */
 
 import { useState } from "react";
+import { useLocale, useTranslations } from "next-intl";
+import { DEFAULT_LOCALE } from "@/lib/i18n/locales";
 import {
   WORD_SECTION_LABELS,
   WORD_SECTION_ORDER,
@@ -25,6 +27,10 @@ export function WordSectionPicker({
   onCancel: () => void;
   onConfirm: (sections: WordSections) => void;
 }) {
+  const t = useTranslations("numerology.knowledge.wordPicker");
+  const tc = useTranslations("numerology.knowledge.shared");
+  // I18N: bölüm anahtarları sunucuya giden koddur; TR'de WORD_SECTION_LABELS aynen, EN'de katalogdan.
+  const isSourceLocale = useLocale() === DEFAULT_LOCALE;
   const [sections, setSections] = useState<WordSections>(defaultWordSections());
 
   if (!open) return null;
@@ -47,10 +53,10 @@ export function WordSectionPicker({
         if (e.target === e.currentTarget && !busy) onCancel();
       }}
     >
-      <div role="dialog" aria-modal="true" aria-label="Word bölüm seçimi" className="w-full max-w-md overflow-hidden rounded-3xl border border-white/40 bg-white shadow-2xl">
+      <div role="dialog" aria-modal="true" aria-label={t("dialogAria")} className="w-full max-w-md overflow-hidden rounded-3xl border border-white/40 bg-white shadow-2xl">
         <div className="bg-gradient-to-r from-blue-600 to-indigo-700 px-6 py-5 text-white">
-          <div className="text-lg font-black">Word Raporu — Bölüm Seçimi</div>
-          <div className="mt-1 text-sm text-white/85">Rapora eklenecek bölümleri seçin</div>
+          <div className="text-lg font-black">{t("title")}</div>
+          <div className="mt-1 text-sm text-white/85">{t("subtitle")}</div>
         </div>
         <div className="px-6 py-5">
           <div className="flex flex-col gap-2">
@@ -72,16 +78,16 @@ export function WordSectionPicker({
                     onChange={() => toggle(key)}
                     className="h-4 w-4 rounded border-violet-300 text-violet-600 focus:ring-violet-400"
                   />
-                  {WORD_SECTION_LABELS[key]}
+                  {isSourceLocale ? WORD_SECTION_LABELS[key] : t(`sections.${key}`)}
                   {key === "sourceNotes" ? (
-                    <span className="ml-auto text-[11px] font-medium text-slate-400">Açıklama ile</span>
+                    <span className="ml-auto text-[11px] font-medium text-slate-400">{t("withDescriptions")}</span>
                   ) : null}
                 </label>
               );
             })}
           </div>
           {!canGenerate ? (
-            <p className="mt-3 text-xs font-bold text-rose-600">En az bir bölüm seçin.</p>
+            <p className="mt-3 text-xs font-bold text-rose-600">{t("atLeastOne")}</p>
           ) : null}
           <div className="mt-5 flex justify-end gap-2.5">
             <button
@@ -90,7 +96,7 @@ export function WordSectionPicker({
               onClick={onCancel}
               className="h-10 rounded-2xl border border-slate-200 bg-slate-100 px-5 text-sm font-black text-slate-700 transition hover:bg-slate-200 disabled:opacity-60"
             >
-              Vazgeç
+              {tc("cancel")}
             </button>
             <button
               type="button"
@@ -98,7 +104,7 @@ export function WordSectionPicker({
               onClick={() => onConfirm(sections)}
               className="h-10 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 px-6 text-sm font-black text-white shadow-lg transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {busy ? "Hazırlanıyor…" : "Word Oluştur"}
+              {busy ? t("preparing") : t("generate")}
             </button>
           </div>
         </div>

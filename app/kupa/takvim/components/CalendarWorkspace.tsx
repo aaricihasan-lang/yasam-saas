@@ -2,6 +2,11 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
+import { useTranslations } from "next-intl";
+import { useKupaErrorText } from "@/app/kupa/lib/errorText";
+import { useCalendarNames } from "../lib/useCalendarNames";
+import { useSystemNames } from "../lib/useSystemNames";
+import { defaultPlanNameForSave } from "../lib/systemNames";
 import { useToast } from "@/components/ui/ToastProvider";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
 import { requiresBulkDeleteGuard, runBulkDeleteConfirm } from "@/lib/ui/bulkDeleteGuard";
@@ -26,7 +31,7 @@ import {
   type CuppingPlanDayInput,
 } from "@/app/kupa/lib/api";
 import { useUnsavedChangesGuard } from "@/app/kupa/lib/useUnsavedChangesGuard";
-import { MonthCalendar, MONTHS_TR, type CuppingDayStyleView } from "./MonthCalendar";
+import { MonthCalendar, type CuppingDayStyleView } from "./MonthCalendar";
 import { MonthNav } from "./MonthNav";
 import { PlanPicker } from "./PlanPicker";
 import { BulkDateSelector } from "./BulkDateSelector";
@@ -145,6 +150,11 @@ type PendingFailures = {
 export function CalendarWorkspace() {
   const { showToast } = useToast();
   const { confirm } = useConfirm();
+  const t = useTranslations("cupping.calendar.ws");
+  const tc = useTranslations("cupping.common");
+  const sysNames = useSystemNames();
+  const errText = useKupaErrorText();
+  const names = useCalendarNames();
 
   const [plans, setPlans] = useState<CuppingCalendarPlan[]>([]);
   const [templates, setTemplates] = useState<CuppingAdviceTemplate[]>([]);
@@ -327,7 +337,7 @@ export function CalendarWorkspace() {
         setPlans(list);
         if (list.length > 0) await loadPlanInto(list[0].id);
       } catch (e) {
-        setError(e instanceof Error ? e.message : "Takvimler yüklenemedi.");
+        setError(errText(e, t("loadError")));
       } finally {
         setLoading(false);
       }
@@ -342,7 +352,7 @@ export function CalendarWorkspace() {
     if (savingRef.current) return;
     const newlyAdded = dates.filter((d) => !draft.has(d));
     if (newlyAdded.length === 0) {
-      showToast({ message: "Eklenecek yeni gün yok (seçilen günler zaten takvimde).", type: "info" });
+      showToast({ message: t("bulkNone"), type: "info" });
       return;
     }
     setDraft((prev) => {
@@ -355,8 +365,8 @@ export function CalendarWorkspace() {
       for (const d of newlyAdded) next.set(d, { colorKey, label: "", note: "" });
       return next;
     });
-    showToast({ message: `${newlyAdded.length} yeni gün seçtiğiniz renkle eklendi. Kaydetmeyi unutmayın.`, type: "info" });
-  }, [draft, showToast]);
+    showToast({ message: t("bulkAdded", { count: String(newlyAdded.length) }), type: "info" });
+  }, [draft, showToast, t]);
 
   // Düzenleme panelinden gelen stil uygulaması (taslağa yazar; gün seçili kalır).
   const applyDayStyle = useCallback((ymd: string, style: DayStyleDraft) => {
@@ -388,13 +398,13 @@ export function CalendarWorkspace() {
   const confirmDiscard = useCallback(
     () =>
       confirm({
-        title: "Kaydedilmemiş Değişiklikler",
-        message: "Kaydedilmemiş değişiklikleriniz var. Devam ederseniz bu değişiklikler kaybolur.",
-        confirmText: "Kaydetmeden Devam Et",
-        cancelText: "Vazgeç",
+        title: t("discardTitle"),
+        message: t("discardMessage"),
+        confirmText: t("discardConfirm"),
+        cancelText: tc("cancel"),
         tone: "danger",
       }),
-    [confirm],
+    [confirm, t, tc],
   );
 
   // Plan değişimi/silme/yeni takvim alt formları da söker → açık formlar dâhil (pageDirty).
@@ -470,15 +480,18 @@ export function CalendarWorkspace() {
           revertDraftToSaved();
         }
       } else {
-        const res = await createCalendarPlan({ name: `${year} Hacamat Takvimi`, year, reuse_year: true });
+        // I18N-F1-R3: varsayılan plan ADI DB'ye HER ZAMAN Türkçe sabit yazılır (i18n öncesiyle birebir; Word çıktısına
+        // basılır). Gösterimde sistem adı ekran dilinde üretilir (useSystemNames) — kullanıcının yazdığı ad aynen kalır.
+        // I18N A8: use_default_name → sunucu aynı kanonik adı yazar ve kolon varsa name_is_default=true işaretler.
+        const res = await createCalendarPlan({ name: defaultPlanNameForSave(year), use_default_name: true, year, reuse_year: true });
         if (!res.plan) {
           // Demo hesabı (persist=0): sahte takvim/gün gösterilmez.
-          showToast({ message: "Demo hesabında takvim kaydedilmez.", type: "info" });
+          showToast({ message: t("demoNoSave"), type: "info" });
           setNewOpen(false);
           return;
         }
         await refreshPlansList(res.plan.id);
-        showToast({ message: res.reused ? `${year} takviminiz açıldı.` : `${year} takvimi oluşturuldu.`, type: "success" });
+        showToast({ message: res.reused ? t("opened", { year: String(year) }) : t("created", { year: String(year) }), type: "success" });
       }
       setMonth(month);
       setView("monthly");
@@ -486,7 +499,7 @@ export function CalendarWorkspace() {
       setEditing(true);
       setNewOpen(false);
     } catch (e) {
-      showToast({ message: e instanceof Error ? e.message : "Takvim açılamadı.", type: "error" });
+      showToast({ message: errText(e, t("openFailed")), type: "error" });
     } finally {
       openingRef.current = false;
       setOpening(false);
@@ -500,7 +513,7 @@ export function CalendarWorkspace() {
       await loadPlanInto(id);
       setEditing(false);
     } catch (e) {
-      showToast({ message: e instanceof Error ? e.message : "Takvim yüklenemedi.", type: "error" });
+      showToast({ message: errText(e, t("planLoadFailed")), type: "error" });
     }
   }
 
@@ -525,9 +538,9 @@ export function CalendarWorkspace() {
       try {
         confirmed = await runBulkDeleteConfirm(confirm, {
           count: savedRemovals.length,
-          noun: "kayıtlı takvim günü",
+          noun: t("bulkDeleteNoun"),
           detail: [
-            "Değişiklikleri kaydetmek, takvimden çıkardığınız şu kayıtlı günleri siler:",
+            t("bulkDeleteDetail"),
             buildNameListLines(savedRemovals, savedRemovals.length).join("\n"),
           ].join("\n"),
         });
@@ -597,16 +610,16 @@ export function CalendarWorkspace() {
         reloaded = false;
       }
       if (failCount === 0 && reloaded) {
-        showToast({ message: "Takvim kaydedildi.", type: "success" });
+        showToast({ message: t("saved"), type: "success" });
       } else if (failCount === 0) {
         showToast({
-          message: "Değişiklikler gönderildi ancak güncel durum doğrulanamadı. Tekrar kaydedebilir veya sayfayı yenileyebilirsiniz.",
+          message: t("savedUnverified"),
           type: "warning",
         });
       } else {
-        const reason = lastError instanceof Error ? lastError.message : "Kaydetme başarısız.";
+        const reason = errText(lastError, t("saveFailedShort"));
         showToast({
-          message: `${failCount} değişiklik kaydedilemedi. Seçimleriniz korunuyor; "Değişiklikleri Kaydet" ile tekrar deneyin. (${reason})`,
+          message: t("saveFailedCount", { count: String(failCount), reason }),
           type: "error",
         });
       }
@@ -621,7 +634,7 @@ export function CalendarWorkspace() {
   async function handleWordDownload(scopeMonth?: number) {
     if (!plan || wordBusy) return;
     if (dirty) {
-      showToast({ message: "Önce değişikliklerinizi kaydedin.", type: "warning" });
+      showToast({ message: t("saveFirst"), type: "warning" });
       return;
     }
     setWordBusy(true);
@@ -645,9 +658,9 @@ export function CalendarWorkspace() {
         setTimeout(() => URL.revokeObjectURL(url), 60_000);
       }
       // Tarayıcının dosyayı diske yazdığını DOĞRULAYAMAYIZ → yalnız "başlatıldı" denir (kesin başarı iddiası yok).
-      showToast({ message: "Word dosyasının indirilmesi başlatıldı.", type: "success" });
+      showToast({ message: t("wordStarted"), type: "success" });
     } catch (e) {
-      showToast({ message: e instanceof Error ? e.message : "Word raporu oluşturulamadı.", type: "error" });
+      showToast({ message: errText(e, t("wordFailed")), type: "error" });
     } finally {
       setWordBusy(false);
     }
@@ -656,17 +669,17 @@ export function CalendarWorkspace() {
   async function handleDeletePlan(p: CuppingCalendarPlan) {
     if (!(await confirmDiscardIfDirty())) return;
     const ok = await confirm({
-      title: "Takvimi Sil",
-      message: `"${p.name}" takvimini ve seçili günlerini silmek istiyor musunuz? Bu işlem geri alınamaz.`,
-      confirmText: "Takvimi Sil",
-      cancelText: "Vazgeç",
+      title: t("deleteTitle"),
+      message: t("deleteMessage", { name: sysNames.planName(p) }),
+      confirmText: t("deleteTitle"),
+      cancelText: tc("cancel"),
       tone: "danger",
     });
     if (!ok) return;
     try {
       await deleteCalendarPlan(p.id);
     } catch (e) {
-      showToast({ message: e instanceof Error ? e.message : "Silinemedi.", type: "error" });
+      showToast({ message: errText(e, t("deleteFailed")), type: "error" });
       return;
     }
     // Silme kesinleşti. Liste tazelenemezse yerelden düş (silinen plan ekranda kalmaz).
@@ -685,11 +698,11 @@ export function CalendarWorkspace() {
         try {
           await loadPlanInto(next.id);
         } catch (e) {
-          showToast({ message: e instanceof Error ? e.message : "Takvim yüklenemedi.", type: "error" });
+          showToast({ message: errText(e, t("planLoadFailed")), type: "error" });
         }
       }
     }
-    showToast({ message: "Takvim silindi.", type: "success" });
+    showToast({ message: t("deleted"), type: "success" });
   }
 
   // Şablon seçimi YALNIZ taslağı değiştirir (YAZMA YOK); görüntüleme modunda / kayıt sürerken yok sayılır.
@@ -725,11 +738,11 @@ export function CalendarWorkspace() {
     const h = gregorianToHijri(infoYmd);
     const saved = savedDays.get(infoYmd);
     return {
-      gregText: `${d} ${MONTHS_TR[m - 1]} ${y}`,
-      hijriText: h?.formatted ?? "",
+      gregText: `${d} ${names.months[m - 1]} ${y}`,
+      hijriText: names.hijriText(h),
       info: saved ? { colorKey: saved.colorKey, label: saved.label, note: saved.note } : null,
     };
-  }, [infoYmd, savedDays]);
+  }, [infoYmd, savedDays, names]);
 
   // Düzenleme paneli için tam Gregoryen + Hicrî tarih metni (motor: lib/cupping/hijri).
   const editContext = useMemo(() => {
@@ -739,11 +752,11 @@ export function CalendarWorkspace() {
     const d = Number(editYmd.slice(8, 10));
     const h = gregorianToHijri(editYmd);
     return {
-      gregText: `${d} ${MONTHS_TR[m - 1]} ${y}`,
-      hijriText: h?.formatted ?? "",
+      gregText: `${d} ${names.months[m - 1]} ${y}`,
+      hijriText: names.hijriText(h),
       initial: draftStyle.get(editYmd) ?? EMPTY_STYLE,
     };
-  }, [editYmd, draftStyle]);
+  }, [editYmd, draftStyle, names]);
 
   /** Kaydet/durum barı içeriği — tek tanım; masaüstünde kart içinde, mobilde ekrana sabit. */
   function saveBar(variant: "inline" | "fixed") {
@@ -755,23 +768,23 @@ export function CalendarWorkspace() {
       <div className={shell} data-kupa-savebar={variant}>
         <span className="flex min-w-0 flex-col gap-0.5 text-sm" aria-live="polite">
           {saving ? (
-            <span className="font-medium text-slate-600">Kaydediliyor…</span>
+            <span className="font-medium text-slate-600">{tc("saving")}</span>
           ) : dirty ? (
             <>
-              <span className="font-medium leading-tight text-amber-700">Kaydedilmemiş değişiklikler var</span>
+              <span className="font-medium leading-tight text-amber-700">{t("dirty")}</span>
               <span className="text-xs text-amber-600">
                 {[
-                  additions.length > 0 ? `${additions.length} kaydedilecek` : "",
-                  styleChanges.length > 0 ? `${styleChanges.length} güncellenecek` : "",
-                  removals.length > 0 ? `${removals.length} kaldırılacak` : "",
-                  templateChanged ? "bilgilendirme şablonu değişecek" : "",
+                  additions.length > 0 ? t("countAdd", { count: String(additions.length) }) : "",
+                  styleChanges.length > 0 ? t("countUpdate", { count: String(styleChanges.length) }) : "",
+                  removals.length > 0 ? t("countRemove", { count: String(removals.length) }) : "",
+                  templateChanged ? t("templateChange") : "",
                 ]
                   .filter(Boolean)
                   .join(" · ")}
               </span>
             </>
           ) : (
-            <span className="font-medium text-slate-500">Tüm değişiklikler kaydedildi</span>
+            <span className="font-medium text-slate-500">{t("allSaved")}</span>
           )}
         </span>
         <button
@@ -780,7 +793,7 @@ export function CalendarWorkspace() {
           onClick={handleSave}
           disabled={!dirty || saving}
         >
-          {saving ? "Kaydediliyor…" : "Değişiklikleri Kaydet"}
+          {saving ? tc("saving") : t("saveChanges")}
         </button>
       </div>
     );
@@ -788,7 +801,7 @@ export function CalendarWorkspace() {
 
   // ── Render ────────────────────────────────────────────────────────────────
   if (loading) {
-    return <div className={`${edgeCard}`}><p className="py-8 text-center text-sm text-slate-400">Yükleniyor…</p></div>;
+    return <div className={`${edgeCard}`}><p className="py-8 text-center text-sm text-slate-400">{tc("loading")}</p></div>;
   }
   if (error && plans.length === 0) {
     return <div className={`${edgeCard}`}><p className="py-8 text-center text-sm text-rose-600">{error}</p></div>;
@@ -800,13 +813,11 @@ export function CalendarWorkspace() {
       <div className={`${edgeCard} flex flex-col items-center gap-4 py-10 text-center`}>
         <span className="flex h-14 w-14 items-center justify-center rounded-2xl border border-amber-200 bg-amber-50 text-3xl" aria-hidden>🗓️</span>
         <div>
-          <h2 className="text-lg font-black text-slate-900">İlk Hacamat Takviminizi Oluşturun</h2>
-          <p className="mx-auto mt-1 max-w-md text-sm text-slate-500">
-            Yılı ve ayı seçin; o ayın düzenleme ekranında uygulama günlerinizi kendiniz işaretleyin.
-          </p>
+          <h2 className="text-lg font-black text-slate-900">{t("emptyTitle")}</h2>
+          <p className="mx-auto mt-1 max-w-md text-sm text-slate-500">{t("emptyBody")}</p>
         </div>
         <button type="button" className={`${kupaBtnPrimary} min-h-[44px]`} onClick={() => setNewOpen(true)}>
-          Takvim Oluştur
+          {t("create")}
         </button>
         {newOpen ? (
           <NewCalendarDialog
@@ -826,14 +837,9 @@ export function CalendarWorkspace() {
     <div className="flex flex-col gap-4 pb-28 lg:pb-0">
       {/* Header açıklama — takvim UZMAN-SAHİPLİDİR (hazır gün YOK) */}
       <div className={`${edgeCard}`}>
-        <p className="text-sm leading-relaxed text-slate-600">
-          Bu takvim sizin çalışma planınızdır. Uygulama günlerinizi kendi yaklaşımınıza göre siz
-          belirlersiniz.
-        </p>
+        <p className="text-sm leading-relaxed text-slate-600">{t("introOwn")}</p>
         <p className="mt-1 text-xs leading-relaxed text-slate-400">
-          Yaşam Sistemi takvime hazır uygulama günü eklemez. Aşağıdaki takvim kayıtlı takviminizi
-          gösterir (salt okunur; güne dokunmak bilgisini açar). Günleri değiştirmek için
-          <strong> Bu Ayı Düzenle</strong> veya <strong>+ Takvim Oluştur / Aç</strong> (yıl/ay) kullanın.
+          {t.rich("introHow", { strong: (c) => <strong>{c}</strong> })}
         </p>
       </div>
 
@@ -855,7 +861,7 @@ export function CalendarWorkspace() {
       </div>
 
       {planLoading ? (
-        <div className={`${edgeCard}`}><p className="py-6 text-center text-sm text-slate-400">Takvim yükleniyor…</p></div>
+        <div className={`${edgeCard}`}><p className="py-6 text-center text-sm text-slate-400">{t("planLoading")}</p></div>
       ) : plan ? (
         <>
           {/* Görünüm anahtarı + kaydet durumu (AYNI plan/taslak; iki görünüm) */}
@@ -867,19 +873,19 @@ export function CalendarWorkspace() {
                 className="flex flex-col gap-2 rounded-xl border border-amber-300 bg-amber-50 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between"
               >
                 <span className="text-sm font-bold text-amber-900">
-                  ✎ Düzenleniyor: {MONTHS_TR[month - 1]} {plan.year}
+                  {t("editingBanner", { month: names.months[month - 1], year: String(plan.year) })}
                   <span className="block text-xs font-medium text-amber-800">
-                    Güne dokunarak ekleyin/düzenleyin; kalıcı olması için <strong>Değişiklikleri Kaydet</strong>&apos;e basın.
+                    {t.rich("editingHint", { strong: (c) => <strong>{c}</strong> })}
                   </span>
                 </span>
                 <button type="button" className={`${kupaBtnGhost} min-h-[44px] shrink-0`} onClick={() => void finishEditing()} disabled={saving}>
-                  Düzenlemeyi Bitir
+                  {t("finishEditing")}
                 </button>
               </div>
             ) : (
               <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <span className="text-sm font-semibold text-slate-600">
-                  Görüntüleme <span className="text-xs font-medium text-slate-400">· salt okunur</span>
+                  {t("viewing")} <span className="text-xs font-medium text-slate-400">{t("readOnly")}</span>
                 </span>
                 <button
                   type="button"
@@ -888,7 +894,7 @@ export function CalendarWorkspace() {
                   onClick={startEditingCurrentMonth}
                   disabled={planLoading}
                 >
-                  ✎ Bu Ayı Düzenle ({MONTHS_TR[month - 1]})
+                  {t("editMonth", { month: names.months[month - 1] })}
                 </button>
               </div>
             )}
@@ -897,26 +903,26 @@ export function CalendarWorkspace() {
               {/* Word İndir — kapsam AÇIK: Yıllık (12 ay) veya yalnız SEÇİLİ AY. Yalnız aktif plan;
                   kaydedilmemiş taslakta uyarır (üretmez). Yıllık indirme istemeden aylığa dönüşmez. */}
               <div className="flex flex-col items-stretch gap-1.5 sm:flex-row sm:items-center">
-                <span className="text-xs font-medium text-slate-400 sm:mr-1">Word indir:</span>
+                <span className="text-xs font-medium text-slate-400 sm:mr-1">{t("wordLabel")}</span>
                 <button
                   type="button"
                   className={`${kupaBtnGhost} min-h-[44px]`}
                   onClick={() => handleWordDownload()}
                   disabled={wordBusy || planLoading}
-                  title={dirty ? "Önce değişikliklerinizi kaydedin." : "Yıllık takvimi (12 ay) Word olarak indir"}
+                  title={dirty ? t("saveFirst") : t("wordAnnualTitle")}
                 >
                   <span aria-hidden>⤓</span>
-                  {wordBusy ? "Hazırlanıyor…" : "Yıllık (12 ay)"}
+                  {wordBusy ? t("wordPreparing") : t("wordAnnual")}
                 </button>
                 <button
                   type="button"
                   className={`${kupaBtnGhost} min-h-[44px]`}
                   onClick={() => handleWordDownload(month)}
                   disabled={wordBusy || planLoading}
-                  title={dirty ? "Önce değişikliklerinizi kaydedin." : `Yalnız ${MONTHS_TR[month - 1]} ${plan.year} Word olarak indir`}
+                  title={dirty ? t("saveFirst") : t("wordMonthTitle", { month: names.months[month - 1], year: String(plan.year) })}
                 >
                   <span aria-hidden>⤓</span>
-                  {wordBusy ? "Hazırlanıyor…" : `${MONTHS_TR[month - 1]} ayı`}
+                  {wordBusy ? t("wordPreparing") : t("wordMonth", { month: names.months[month - 1] })}
                 </button>
               </div>
             </div>
@@ -943,21 +949,21 @@ export function CalendarWorkspace() {
                 <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[11px] text-slate-500">
                   <span className="inline-flex items-center gap-1.5">
                     <span className="h-3 w-3 rounded border border-indigo-300 bg-indigo-50" aria-hidden />
-                    Seçili
+                    {t("legendSelected")}
                   </span>
                   <span className="inline-flex items-center gap-1.5">
                     <span className="h-3 w-3 rounded border border-dashed border-indigo-400 bg-indigo-50/70" aria-hidden />
-                    Kaydedilecek
+                    {t("legendPendingAdd")}
                   </span>
                   <span className="inline-flex items-center gap-1.5">
                     <span className="h-3 w-3 rounded border border-indigo-200 bg-indigo-50/40 opacity-70" aria-hidden />
-                    Kaldırılacak
+                    {t("legendPendingRemove")}
                   </span>
                   <span className="inline-flex items-center gap-1.5">
                     <span aria-hidden>{editing ? "✎" : "ⓘ"}</span>
                     {editing
-                      ? "Eklemek/düzenlemek için güne dokunun (renk seçimi zorunlu)"
-                      : "Bilgisini görmek için güne dokunun (salt okunur)"}
+                      ? t("hintEdit")
+                      : t("hintView")}
                   </span>
                 </div>
               </div>
@@ -987,7 +993,7 @@ export function CalendarWorkspace() {
             <div className={`${edgeCard}`}>
               <AnnualCalendarOverview
                 year={plan.year}
-                title={plan.name}
+                title={sysNames.planName(plan)}
                 description={plan.description}
                 selected={draft}
                 saved={savedSet}
@@ -1043,9 +1049,7 @@ export function CalendarWorkspace() {
 
       {/* Sakin açıklayıcı dipnot — kişisel çalışma planı; randevu sistemi değildir. */}
       <p className="px-1 text-xs leading-relaxed text-slate-400">
-        Not: Bu takvim kişisel çalışma planınızdır; randevu sistemi değildir. Uygulama günlerini
-        kendi yaklaşımınıza göre siz belirlersiniz; Yaşam Sistemi takvime hazır gün eklemez. Renklerin
-        anlamını siz belirlersiniz.
+        {t("footerNote")}
       </p>
     </div>
   );

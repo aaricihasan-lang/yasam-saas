@@ -1,0 +1,218 @@
+{
+  "numerology": {
+    "analysis": {
+      "explain": {
+        "months": {
+          "1": "January",
+          "2": "February",
+          "3": "March",
+          "4": "April",
+          "5": "May",
+          "6": "June",
+          "7": "July",
+          "8": "August",
+          "9": "September",
+          "10": "October",
+          "11": "November",
+          "12": "December"
+        },
+        "masterStops": " (master number — stops here)",
+        "step": "Step {n} — {label}",
+        "result": "{label}: {value}",
+        "forYear": "For {year}: {value}",
+        "totalLine": "Total: {total}",
+        "l": {
+          "birthDay": "Day of birth",
+          "birthMonth": "Month of birth",
+          "calcYear": "Calendar year calculated",
+          "total": "Total",
+          "birthYear": "Year of birth",
+          "birth": "Birth",
+          "reference": "Reference",
+          "nominalPyYear": "Nominal Personal Year ({year})",
+          "nominalPy": "Nominal Personal Year",
+          "calendarMonth": "Calendar month",
+          "calendarMonthAdded": "Calendar month added",
+          "personalMonth": "Personal Month",
+          "personalDay": "Personal Day",
+          "selectedDay": "Selected day",
+          "selectedYear": "Selected calendar year",
+          "yearDigits": "Digits of the year",
+          "universalYear": "Universal Year",
+          "universalMonth": "Universal Month",
+          "universalDay": "Universal Day",
+          "refYear": "Reference year",
+          "yearChakra": "Current Year Chakra",
+          "dobSide": "Date of birth side",
+          "nameSide": "Name + surname side",
+          "maturity": "Maturity",
+          "dayOfBirthMonth": "Day of the month you were born",
+          "birthDayEnergy": "Birthday Energy",
+          "personalityEnergy": "Personality Energy",
+          "lifePath": "Life Path",
+          "lifeLesson": "Life Lesson",
+          "nameLetters": "Letters of name + surname",
+          "letterValues": "Letter values",
+          "destiny": "Destiny Number",
+          "calcAge": "Calculated age"
+        },
+        "nominalPy": {
+          "unusedNote": "Your year of birth is not used in the Personal Year calculation. The source method uses your day of birth, your month of birth and the calendar year being calculated.",
+          "rationale": "{year} is used here because the personal year number is being calculated for the calendar year {year}.",
+          "result": "{year} Nominal Personal Year: {value}",
+          "resultNote": "This value is the personal year number calculated for the selected calendar year. The personal year actually active on the reference date is shown separately on the Active Personal Year card."
+        },
+        "activePy": {
+          "rationale": "In the source method a new Personal Year becomes active on the person's birthday and lasts until the next birthday. Because {ref} falls after {start}, the Personal Year {value} calculated for {year} is active on this date.",
+          "result": "Personal Year active on the reference date: {value}"
+        },
+        "personalMonth": {
+          "rationale": "In this source method the Personal Month uses the Nominal Personal Year calculated for the calendar year (not the personal year active on that date)."
+        },
+        "personalDay": {
+          "rationale": "The Personal Day is found by adding the Personal Month and the single-digit value of the selected day (the Personal Year is already included in the Personal Month)."
+        },
+        "universalYear": {
+          "rationale": "The Universal Year is not personal. The digits of the selected calendar year are added and reduced to a single digit."
+        },
+        "universalMonth": {
+          "rationale": "First the Universal Year value of the year is found, then the number of the selected month is added and reduced to a single digit. It is not personal."
+        },
+        "universalDay": {
+          "rationale": "First the Universal Month value is found, then the single-digit value of the selected day is added. It is not personal."
+        },
+        "yearChakra": {
+          "unusedNote": "Your year of birth is not used in the Current Year Chakra calculation; the day of birth, month of birth and reference year are used.",
+          "rationale": "This calculation shows the chakra influence of the selected reference year. It can reach the same number as the Personal Year mathematically, but its conceptual identity is different (the Year Chakra is not the same calculation as the Personal Year)."
+        },
+        "maturity": {
+          "rationale": "Maturity is obtained by evaluating the date of birth side together with the name and surname side. Only 11 and 22 are kept as master numbers in this calculation."
+        },
+        "birthDayEnergy": {
+          "rationale": "This calculation uses the day of the month you were born exactly as it is, with no reduction. For example, a birthday on day {day} of the month is evaluated as Birthday Energy {day}.",
+          "resultNote": "This should not be confused with the Personality Energy, which is reduced to a single digit."
+        },
+        "personalityEnergy": {
+          "rationale": "The Personality Energy is your day of birth reduced to a single digit. So while the Birthday Energy is {day}, the Personality Energy can be {value}.",
+          "stepTitle": "Reducing the day of birth"
+        },
+        "lifeLesson": {
+          "rationale": "The Life Lesson is obtained by evaluating the Personality Energy together with the Life Path side. This is not the same calculation as the 'Life Lesson' in the 5th digit of the PIN code."
+        },
+        "destiny": {
+          "rationale": "The Destiny Number is obtained from the numerical values of all the letters in your name and surname. Only 11 and 22 are kept as master numbers in this calculation."
+        },
+        "evre": {
+          "rangeLine": "Age {start}–{end} → Phase {i}",
+          "youAreHere": "   ← you are here",
+          "rationale": "The source method divides life into nine-year Phases. Your Phase is determined by your age on the reference date; the Phase energy comes from your PIN code.",
+          "placementTitle": "Placing the age in a Phase",
+          "resultTitle": "Resulting placement",
+          "ageToEvre": "Age {age} → Phase {i}",
+          "result": "Phase {i} · Energy {energy}",
+          "resultNote": "The energy value comes from the PIN digit corresponding to this Phase."
+        },
+        "dongu": {
+          "rationale": "The Cycle shows which year of your current nine-year Phase you are in. It is not the same as the Phase.",
+          "stepTitle": "Year within the Phase",
+          "ageToYear": "Age {age} → year {i} of the Phase",
+          "result": "Cycle {i}"
+        }
+      },
+      "concept": {
+        "anaKulvar": "The Main Lane number (the core life lane), calculated from the letter values of your name. It is the main line representing the person's core/essential side.",
+        "yanKulvar": "The Side Lane number that complements the Main Lane; it is also calculated from the letter values of your name.",
+        "ifadeSayisi": "The Expression Number, found by reducing the numerical values of all the letters in your name and surname. Master numbers (11/19/22/33) may be kept according to the source rule.",
+        "hayatYolu": "The Life Path number, found by adding and reducing all the digits of your date of birth. Master numbers (11/22/33) are kept.",
+        "pin": "A nine-digit numerical code derived from your date of birth; each digit represents a different area of life.",
+        "elementler": "The distribution of the numbers in your PIN code across the Air, Water, Fire and Earth elements.",
+        "cakraOmurgasi": "The spine table showing how your number and letter supports are distributed across the chakras.",
+        "degisimDonusum": "Shows the years of change and transformation in your life and the periods in which these changes are effective.",
+        "zirve": "Shows the pinnacle (peak) periods in your life and the corresponding ages.",
+        "mucadele": "Shows the challenge periods in your life and the corresponding ages.",
+        "harflerinYankilanisi": "A source method showing in which age/year range of your life timeline the letters of your name and surname are effective, according to their letter values.",
+        "universalYear": "The general numerological number of the selected calendar year. It is not personal; it is the same universal timing value for everyone for that year.",
+        "universalMonth": "The general monthly number formed by the selected month together with the Universal Year. It is not personal.",
+        "universalDay": "The universal daily number of the selected day. It is not personal.",
+        "nominalPersonalYear": "The personal year number calculated for the selected calendar year using your day of birth, month of birth and the year. This number shows the calendar-year calculation; the personal year actually active on that date may differ.",
+        "activePersonalYear": "The personal year period you are actually in on the reference date. In the source method a new personal year begins on your birthday and lasts until the next birthday.",
+        "personalMonth": "The personal monthly timing number for the selected month. The personal year calculation and the calendar month are evaluated together.",
+        "personalDay": "The personal daily timing number for the selected day. It is calculated by adding the personal month and the value of the day.",
+        "evre": "Shows which of life's nine-year major development periods you are in.",
+        "dongu": "Shows which year of your current nine-year phase you are in. It is not the same as the phase.",
+        "yearChakra": "The annual chakra number for the selected year, calculated using the day of birth, month of birth and the reference year.",
+        "maturity": "A development number obtained by evaluating the date of birth side together with the name and surname side. In the source method it shows the theme that becomes prominent especially in the maturity period (from about age 45).",
+        "birthDayEnergy": "The source interpretation for the actual day of the month you were born, i.e. your birthday number from 1 to 31. This number is not reduced.",
+        "personalityEnergy": "The personality number: your day of birth reduced to a single digit.",
+        "lifeLesson": "A separate development calculation obtained by evaluating the Personality Energy together with the Life Path side. It is not the same as the 'Life Lesson' in the 5th digit of the PIN.",
+        "destiny": "A name-based destiny number obtained from the numerical values of all the letters in your name and surname.",
+        "kisiselPin": "Each person's nine-digit numerical code derived from their date of birth.",
+        "synergyPin": "The shared synergy code formed by combining the first eight digits of two people's PIN codes position by position.",
+        "relationshipSoulFeeling": "The source interpretation for the 8th digit of the Synergy PIN, describing the emotional/spiritual tone of the relationship.",
+        "whyTogether": "The number obtained from the sum of the first eight digits of the Synergy PIN (9th digit), describing the theme that brings the two people together.",
+        "relationshipTriangle": "The Relationship Triangle is not a new calculation; it is the source interpretation of digits 1, 2, 3, 6, 7 and 8 of the Synergy PIN (4 and 5 are left out by the source rule).",
+        "lifeCode": "Each person's Life Code number, found by reducing all the digits of their date of birth to a single digit.",
+        "nameNumber": "The name number, found by reducing the numerical values of the letters in the person's name and surname to a single digit.",
+        "acquisition": "The acquisition number, found by reducing the day and month of birth to a single digit.",
+        "birthdayNumber": "Your day of birth reduced to a single digit.",
+        "commonDigit": "The common digit found by adding the two people's Name Number values and reducing them to a single digit; it describes the topics on which you agree.",
+        "elementBalance": "The distribution of the Synergy PIN digits across the Air, Water, Fire and Earth elements.",
+        "dominance": "The distribution of the Synergy PIN digits between dominant (1,3,6,8) and passive (2,4,5,7) numbers. This is not a compatibility score.",
+        "evOfisSayisi": "The place number of your home or workplace, found by adding the building/door number and the flat number and reducing to a single digit; it shows the numerological character of the place.",
+        "isyeriUyumu": "A source classification calculated from the letter values of the business name, showing the compatibility character of the business."
+      },
+      "page": {
+        "demoLimit": "On the demo account only 1 sample numerology analysis can be created per link.\n\nTo create more analyses, request a practitioner account.",
+        "pngFailed": "The PNG image could not be downloaded. Please try again.",
+        "calcFailed": "An error occurred during the calculation.",
+        "demoVerifyFailed": "The connection could not be verified. Please try again.",
+        "errors": {
+          "firstName": "Please enter your first name.",
+          "lastName": "Please enter your surname.",
+          "birthDate": "Please enter the date of birth.",
+          "birthDateFormat": "Complete the date of birth in DD.MM.YYYY format.",
+          "birthDateInvalid": "Enter a valid date of birth (day 1–31, month 1–12; dates such as 30/02 are invalid)."
+        },
+        "demoBanner": "You can try the numerology analysis. On the demo account only 1 sample analysis can be created per link; saving is disabled.",
+        "navAria": "Page navigation",
+        "savedAnalyses": "Saved analyses",
+        "eyebrow": "YAŞAM SİSTEMİ · NUMEROLOGY",
+        "title": "Numerology <a>Analysis</a>",
+        "sub": "Calculate your life map, create your visual report and save your analyses.",
+        "activeAnalysis": "Active analysis",
+        "birthLabel": "Birth: ",
+        "editInfo": "✎ Edit Details",
+        "firstName": "First name",
+        "firstNamePlaceholder": "e.g. Hasan Ali",
+        "lastName": "Surname",
+        "lastNamePlaceholder": "e.g. YILMAZ",
+        "birthDate": "Date of Birth",
+        "calculate": "CALCULATE",
+        "stale": "The details have changed. The result below belongs to the previous details; press CALCULATE before saving.",
+        "tabs": {
+          "summary": "Result Summary",
+          "plain": "Numerological Analysis",
+          "detailed": "Numerical Calculation",
+          "zamanlama": "Timing & Development",
+          "tas": "My Stone Notes",
+          "gorsel": "Visual Report"
+        },
+        "tapFullscreen": "Tap the report to view it full screen",
+        "fullscreenTitle": "Full-screen view of the numerological life map",
+        "close": "Close",
+        "closeFullscreenAria": "Close full screen",
+        "pngFileName": "numerology-report.png"
+      },
+      "deleteConfirm": {
+        "oneTitle": "Delete analysis",
+        "oneNamed": "Do you want to permanently delete the numerology analysis \"{label}\"?",
+        "oneUnnamed": "Do you want to permanently delete this numerology analysis?",
+        "oneSecond": "This action cannot be undone. The record will be permanently deleted.",
+        "more": "+{n} more records",
+        "manyTitle": "Delete selected analyses",
+        "manyIntro": "You are about to permanently delete {n} numerology analyses:",
+        "manySecond": "This action cannot be undone. The selected records will be permanently deleted."
+      }
+    }
+  }
+}

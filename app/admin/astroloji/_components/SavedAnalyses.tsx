@@ -440,7 +440,7 @@ export function SavedAnalysisView({
             {partner ? <>1. kişi: {person(a.profile)} · 2. kişi: {person(partner)}</> : person(a.profile)}
           </span>
         }
-        meta={[zodiacLabel(a.technique), a.method.houseSystem ? houseSystemLabel(a.method.houseSystem, HOUSE_SYSTEM_LABELS) : null, a.method.nodeType ? NODE_TYPE_LABELS[a.method.nodeType] : null, a.method.timeUnknownMasked ? "Saat bilinmiyor · evler gizli" : null, a.method.houseCalculation === "local" ? LOCAL_NATAL_HOUSE_CALC_TEXT : null]}
+        meta={[zodiacLabel(a.technique), a.method.houseSystem ? houseSystemLabel(a.method.houseSystem, HOUSE_SYSTEM_LABELS) : null, a.method.nodeType ? NODE_TYPE_LABELS[a.method.nodeType] : null, a.method.timeUnknownMasked ? { text: "Saat bilinmiyor · evler gizli", warn: true as const } : null, a.method.houseCalculation === "local" ? LOCAL_NATAL_HOUSE_CALC_TEXT : null]}
         // V4-005: tekrarsız künye — danışan + doğum bilgisi seçicinin üstünde, teknik adı seçicide; "Künye ▾" yalnız ek ayrıntılar.
         params={opts || null}
         kunye={[

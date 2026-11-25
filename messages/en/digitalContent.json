@@ -1,0 +1,37 @@
+{
+  "digitalContent": {
+    "hub": {
+      "title": "Digital Content Centre",
+      "subtitle": "Personal archive and digital content management",
+      "empty": "No modules are enabled for your account in this centre.",
+      "active": "Active",
+      "cards": {
+        "personal_archive": {
+          "title": "Personal Archive",
+          "desc": "Audio, video, document and personal record system. Keep all your files in one place.",
+          "badge": "Archive"
+        },
+        "belge_ceviri": {
+          "title": "Document Translation Centre",
+          "desc": "Convert PDF documents into editable Word files and manage them.",
+          "badge": "Document"
+        },
+        "video_ceviri": {
+          "title": "Video → Turkish Word/PDF",
+          "desc": "A centre for producing Turkish transcripts, translations and training documents from videos.",
+          "badge": "Video"
+        },
+        "ders_notu": {
+          "title": "Lecture Notes Centre",
+          "desc": "Clean up a raw transcript and turn it into lecture notes. Human Design–compatible AI output.",
+          "badge": "Notes"
+        }
+      }
+    },
+    "demo": {
+      "title": "Demo Account",
+      "message": "This action is disabled on the demo account. You can explore the Personal Archive screens; uploading files, creating records, deleting and downloading work on a practitioner account.",
+      "banner": "You are exploring the Personal Archive in demo mode. You can browse the archive screens; uploading files, creating records, deleting and downloading are disabled on the demo account."
+    }
+  }
+}

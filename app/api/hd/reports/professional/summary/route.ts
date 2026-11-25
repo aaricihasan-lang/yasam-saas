@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { getCanonicalReportForDownload } from "@/lib/human-design/api/reportPersistence";
 import { buildProfessionalReportSummary } from "@/lib/human-design/reporting/reportSummary";
+import { localizeReportSummary } from "@/lib/human-design/reporting/reportText";
+import { resolveOutputLocale } from "@/lib/i18n/output";
 import { invalidIdResponse, isUuid } from "@/lib/human-design/api/requestIds";
 
 /**
@@ -30,6 +32,7 @@ export async function GET(req: NextRequest): Promise<Response> {
   if (!read.data) {
     return NextResponse.json({ ok: false, error: read.error }, { status: read.status, headers: NO_STORE });
   }
-  const summary = buildProfessionalReportSummary(read.data.title, read.data.snapshot);
+  // Ekran dili: TR → özet AYNEN; diğer dillerde donmuş TR etiketleri koddan (snapshot DEĞİŞMEZ).
+  const summary = localizeReportSummary(buildProfessionalReportSummary(read.data.title, read.data.snapshot), read.data.snapshot, resolveOutputLocale(req));
   return NextResponse.json({ ok: true, summary }, { status: 200, headers: NO_STORE });
 }

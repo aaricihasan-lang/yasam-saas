@@ -1,5 +1,10 @@
 "use client";
 
+import { useLocale, useTranslations } from "next-intl";
+import { DEFAULT_LOCALE, type ActiveLocale } from "@/lib/i18n/locales";
+import { localeTag } from "@/lib/i18n/format";
+import { useRefCodeText } from "@/app/refleksoloji/hooks/useRefCodeText";
+
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
@@ -27,7 +32,7 @@ import { formatProtocolDate, parseOrgansList } from "../lib/protocolActions";
 import {
   buildProtocolClinicalContent,
   formatRawJsonForDev,
-  protocolHeroTitle,
+  resolveTargetProblem,
 } from "../lib/protocolDetailContent";
 import type { ReflexologyProtocolRecord } from "../types";
 import { ClinicalProtocolStepsCard } from "./ClinicalProtocolStepsCard";
@@ -97,15 +102,16 @@ function ClinicalCard({
 
 /** RF-07: harita kutusunun DIŞINDA gösterilen eksik-atlas uyarısı (metin ProtocolFootMap ile aynı). */
 function MissingOrgansNotice({ organs }: { organs: string[] }) {
+  const t = useTranslations("reflexology.savedProtocols.detail");
   return (
     <div className="mb-3 rounded-xl border border-amber-200/80 bg-amber-50/95 px-3 py-2">
-      <p className="text-xs font-bold text-amber-950">Atlas bulunamayan organlar: {organs.join(", ")}</p>
+      <p className="text-xs font-bold text-amber-950">{t("missingOrgans", { organs: organs.join(", ") })}</p>
       <p className="mt-0.5 text-xs font-medium text-amber-900/90">
-        Bu organ için atlas bölgesi kayıtlı değil. Önce{" "}
+        {t("missingLead")}{" "}
         <Link href="/refleksoloji/bolge-haritasi" className="font-bold underline hover:text-amber-950">
-          Bölge Haritası
+          {t("zoneMap")}
         </Link>
-        &apos;ndan organ bölgesi ekleyin.
+        {t("missingTail")}
       </p>
     </div>
   );
@@ -159,22 +165,29 @@ function OrganPills({ organs }: { organs: OrganResolved[] }) {
 }
 
 function FootMapAtlasCompactCard({ hasOrgans }: { hasOrgans: boolean }) {
+  const t = useTranslations("reflexology.savedProtocols.detail");
   return (
-    <section className={footMapPanelCompactClass} aria-label="Ayak haritası bilgisi">
-      <h2 className="text-[11px] font-semibold uppercase tracking-wide text-violet-600">Ayak Haritası</h2>
+    <section className={footMapPanelCompactClass} aria-label={t("footMapAria")}>
+      <h2 className="text-[11px] font-semibold uppercase tracking-wide text-violet-600">{t("footMap")}</h2>
       <p className="mt-1.5 text-sm font-medium text-violet-900">
-        Bu protokol için atlasta eşleşen bölge bulunamadı.
+        {t("noMatch")}
       </p>
       <p className="mt-1 text-xs font-medium text-violet-700/80">
         {hasOrgans
-          ? "Organlar kayıtlı; Bölge Haritası'nda bu organlar için bölge tanımlayın."
-          : "Organ eklendiğinde harita otomatik gösterilir."}
+          ? t("defineZones")
+          : t("autoMap")}
       </p>
     </section>
   );
 }
 
 export function KayitliProtokolDetayLayout({ protocolId }: KayitliProtokolDetayLayoutProps) {
+  const t = useTranslations("reflexology.savedProtocols");
+  const td = useTranslations("reflexology.savedProtocols.detail");
+  const tc = useTranslations("reflexology.common");
+  const uiLocale = useLocale() as ActiveLocale;
+  const isSourceLocale = uiLocale === DEFAULT_LOCALE;
+  const refCode = useRefCodeText();
   const isDemo = readYasamUser()?.is_demo_account === true;
   const isSeed = isDemo && isDemoFixtureProtocol(protocolId);
 
@@ -192,7 +205,7 @@ export function KayitliProtokolDetayLayout({ protocolId }: KayitliProtokolDetayL
     if (!protocol || isDemo) return;
     const tid = await getSyncedTenantId();
     if (!tid) {
-      showToast({ title: "Hata", message: "Oturum bulunamadı. Lütfen sayfayı yenileyin.", type: "error" });
+      showToast({ title: tc("errorTitle"), message: t("sessionMissingRefresh"), type: "error" });
       return;
     }
     setWordBusy(true);
@@ -209,8 +222,8 @@ export function KayitliProtokolDetayLayout({ protocolId }: KayitliProtokolDetayL
         body: JSON.stringify({ tenantId: tid, exportMode: "single", protocolId: protocol.id, ...yhAttach }),
       });
       if (!res.ok) {
-        const errJson = (await res.json().catch(() => ({}))) as { error?: string };
-        showToast({ title: "Hata", message: errJson.error || "Rapor oluşturulamadı.", type: "error" });
+        const errJson = (await res.json().catch(() => ({}))) as { error?: string; code?: string };
+        showToast({ title: tc("errorTitle"), message: isSourceLocale ? errJson.error || t("reportFailed") : refCode(errJson, t("reportFailed")), type: "error" });
         return;
       }
       // Dosya adı sunucudan (Content-Disposition, İstanbul günü); yoksa yerel gün.
@@ -219,7 +232,7 @@ export function KayitliProtokolDetayLayout({ protocolId }: KayitliProtokolDetayL
         `refleksoloji-protokol-${slugifyTr(protocol.title || "", "protokol")}-${reportFileDate()}.docx`,
       );
     } catch {
-      showToast({ title: "Hata", message: "Rapor oluşturulamadı. Lütfen tekrar deneyin.", type: "error" });
+      showToast({ title: tc("errorTitle"), message: t("reportFailedRetry"), type: "error" });
     } finally {
       setWordBusy(false);
     }
@@ -266,11 +279,12 @@ export function KayitliProtokolDetayLayout({ protocolId }: KayitliProtokolDetayL
         }
 
         const json = (await res.json().catch(() => null)) as
-          | { ok?: boolean; protocol?: ReflexologyProtocolRecord | null; error?: string }
+          | { ok?: boolean; protocol?: ReflexologyProtocolRecord | null; error?: string; code?: string }
           | null;
 
         if (!res.ok || !json?.ok) {
-          setLoadErrorMessage(`Protokoller okunamadı: ${json?.error ?? res.statusText}`);
+          // Sunucu ayrıntısı Türkçe: yalnız kaynak dilde eklenir.
+          setLoadErrorMessage(isSourceLocale ? t("loadFailed", { detail: json?.error ?? res.statusText }) : refCode(json, t("loadFailedGeneric")));
           setProtocol(null);
           return;
         }
@@ -280,7 +294,7 @@ export function KayitliProtokolDetayLayout({ protocolId }: KayitliProtokolDetayL
         if (cancelled) return;
         setLoading(false);
         setLoadErrorMessage(
-          `Protokoller okunamadı: ${err instanceof Error ? err.message : "Bağlantı hatası"}`,
+          t("loadFailed", { detail: err instanceof Error ? err.message : t("connectionError") }),
         );
         setProtocol(null);
       }
@@ -327,10 +341,13 @@ export function KayitliProtokolDetayLayout({ protocolId }: KayitliProtokolDetayL
   const applicationNotesDisplay = clinical?.applicationNotes ?? null;
   const sourceDescription = clinical?.source ?? null;
 
-  const heroTitle = useMemo(
-    () => (protocol ? protocolHeroTitle(protocol, rawJson) : ""),
-    [protocol, rawJson],
-  );
+  // QA K2-03 / K2D4-QA-02 (I18N-F1-R3): protocolHeroTitle = resolveTargetProblem(...) || "Başlıksız protokol" (yalnız
+  // gösterim yedeği; DB'ye yazılmaz). Yedeğe metin eşitliğiyle değil "çözülen başlık boş mu" koşuluyla karar verilir:
+  // TR çıktı birebir (card.untitled TR = "Başlıksız protokol"); kullanıcının bilerek verdiği aynı ad EN'de de aynen kalır.
+  const heroTitle = useMemo(() => {
+    if (!protocol) return "";
+    return resolveTargetProblem(protocol, rawJson) || t("card.untitled");
+  }, [protocol, rawJson, t]);
 
   const rawJsonDevText = useMemo(
     () => formatRawJsonForDev(protocol?.raw_json ?? null),
@@ -358,7 +375,7 @@ export function KayitliProtokolDetayLayout({ protocolId }: KayitliProtokolDetayL
         </p>
         <Link href="/refleksoloji/kayitli-protokoller" className={navBtnBackToList}>
           <span className={navBtnIconWrap} aria-hidden>🗂️</span>
-          <span>← Kayıtlı Protokollere Dön</span>
+          <span>{td("backToList")}</span>
         </Link>
       </main>
     );
@@ -367,10 +384,10 @@ export function KayitliProtokolDetayLayout({ protocolId }: KayitliProtokolDetayL
   if (!protocol) {
     return (
       <main className="flex min-h-screen w-full flex-col items-center justify-center gap-4 bg-[linear-gradient(160deg,#f3ebff_0%,#ebe4ff_28%,#f8f4ff_58%,#f0f7ff_100%)] px-6">
-        <p className="text-xl font-bold text-violet-900">Protokol bulunamadı.</p>
+        <p className="text-xl font-bold text-violet-900">{td("notFound")}</p>
         <Link href="/refleksoloji/kayitli-protokoller" className={navBtnBackToList}>
           <span className={navBtnIconWrap} aria-hidden>🗂️</span>
-          <span>← Kayıtlı Protokollere Dön</span>
+          <span>{td("backToList")}</span>
         </Link>
       </main>
     );
@@ -390,20 +407,20 @@ export function KayitliProtokolDetayLayout({ protocolId }: KayitliProtokolDetayL
             className="mb-3"
             message={
               isSeed
-                ? "Bu demo protokolüdür. Başlık ve harita görünümü açık; klinik detaylar demo hesabında gizlidir."
-                : "Kendi oluşturduğunuz protokol. Oturumunuz boyunca görünür; çıkışta silinir."
+                ? td("demoSeed")
+                : td("demoOwn")
             }
           />
         )}
 
-        <nav className="rounded-xl border border-violet-200/50 bg-white/70 p-2.5 backdrop-blur-md" aria-label="Sayfa gezintisi">
+        <nav className="rounded-xl border border-violet-200/50 bg-white/70 p-2.5 backdrop-blur-md" aria-label={td("navAria")}>
           <div className="flex flex-wrap items-center gap-2">
             <Link href="/refleksoloji/kayitli-protokoller" className={navBtnBackToList}>
               <span className={navBtnIconWrap} aria-hidden>🗂️</span>
-              <span>← Protokollere Dön</span>
+              <span>{td("backToProtocols")}</span>
             </Link>
             <Link href="/refleksoloji" className={navBtnBackToMenu}>
-              <span>← Refleksoloji</span>
+              <span>{td("backToMenu")}</span>
             </Link>
             {/* Word raporu sadece gerçek hesaplarda */}
             {protocol && !isDemo && (
@@ -412,7 +429,7 @@ export function KayitliProtokolDetayLayout({ protocolId }: KayitliProtokolDetayL
                 onClick={() => setYhPickerOpen(true)}
                 className="inline-flex h-8 items-center rounded-lg border border-violet-200 bg-violet-50 px-3 text-[12px] font-semibold text-violet-800 transition hover:bg-violet-100"
               >
-                🧠 Yaşam Hafızası{yhSelection ? ` (${yhSelection.total})` : ""}
+                {td("lifeMemory")}{yhSelection ? ` (${yhSelection.total})` : ""}
               </button>
             )}
             {protocol && !isDemo && (
@@ -422,7 +439,7 @@ export function KayitliProtokolDetayLayout({ protocolId }: KayitliProtokolDetayL
                 disabled={wordBusy}
                 className="inline-flex h-8 items-center rounded-lg border border-blue-200 bg-blue-50 px-3 text-[12px] font-semibold text-blue-800 transition hover:bg-blue-100 disabled:opacity-60"
               >
-                {wordBusy ? "Hazırlanıyor..." : "Word Raporu"}
+                {wordBusy ? td("preparing") : td("wordReport")}
               </button>
             )}
             {/* Düzenle: sadece kullanıcının kendi oluşturduğu protokollerde */}
@@ -431,7 +448,7 @@ export function KayitliProtokolDetayLayout({ protocolId }: KayitliProtokolDetayL
                 href={`/refleksoloji/protokol-haritasi?id=${encodeURIComponent(protocol.source_uid ?? protocol.id)}`}
                 className="ml-auto inline-flex h-8 items-center rounded-lg border border-emerald-300 bg-emerald-500 px-3 text-[12px] font-semibold text-white transition hover:bg-emerald-600"
               >
-                Protokolü Düzenle
+                {td("edit")}
               </Link>
             )}
           </div>
@@ -439,14 +456,14 @@ export function KayitliProtokolDetayLayout({ protocolId }: KayitliProtokolDetayL
 
         <header className="mt-3 rounded-xl border border-violet-200/50 bg-white/70 p-3 shadow-sm">
           <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-violet-500">
-            Klinik Protokol Detayı
+            {td("eyebrow")}
           </p>
           <h1 className="mt-1 text-xl font-bold leading-snug tracking-tight text-slate-950 sm:text-2xl">
             {heroTitle}
           </h1>
           <div className="mt-2 flex flex-wrap gap-1.5">
             <span className="inline-flex rounded-full border border-violet-200/80 bg-white/90 px-2.5 py-0.5 text-[11px] font-medium text-violet-800">
-              {formatProtocolDate(protocol.created_at)}
+              {formatProtocolDate(protocol.created_at, localeTag(uiLocale))}
             </span>
             {/* Teknik kimlik (source_uid) kullanıcıya gösterilmez — Word raporunda da yok. */}
             {protocol.title?.trim() && protocol.title.trim() !== heroTitle ? (
@@ -456,7 +473,7 @@ export function KayitliProtokolDetayLayout({ protocolId }: KayitliProtokolDetayL
             ) : null}
             {organs.length > 0 ? (
               <span className="inline-flex rounded-full border border-emerald-200/80 bg-emerald-50 px-2.5 py-0.5 text-[11px] font-medium text-emerald-900">
-                {organs.length} organ
+                {t("card.organCount", { count: organs.length })}
               </span>
             ) : null}
           </div>
@@ -474,9 +491,9 @@ export function KayitliProtokolDetayLayout({ protocolId }: KayitliProtokolDetayL
         >
           <div className="min-w-0 space-y-3">
             <div className="rounded-lg border border-violet-200/40 bg-violet-50/30 px-4 py-2.5">
-              <h2 className="text-sm font-bold text-violet-950">Klinik Protokol Bilgileri</h2>
+              <h2 className="text-sm font-bold text-violet-950">{td("infoTitle")}</h2>
               <p className="mt-0.5 text-xs font-medium text-violet-800/85">
-                Hedef, organlar, uygulama adımları ve seans notları
+                {td("infoSub")}
               </p>
             </div>
 
@@ -486,22 +503,22 @@ export function KayitliProtokolDetayLayout({ protocolId }: KayitliProtokolDetayL
             */}
             <DemoGate
               isProtected={isSeed}
-              message="Bu içerik demo hesabında gizlidir. Tam sürümde tüm klinik detaylar açık olarak kullanılabilir."
+              message={td("demoHidden")}
             >
               <>
-                <ClinicalCard title="Hedef / Sorun" tone="fuchsia" hidden={!targetText}>
+                <ClinicalCard title={td("cardTarget")} tone="fuchsia" hidden={!targetText}>
                   <p className="text-[14px] font-medium leading-relaxed text-slate-800 sm:text-[15px]">
                     {targetText}
                   </p>
                 </ClinicalCard>
 
-                <ClinicalCard title="Organlar" tone="cyan" hidden={organs.length === 0}>
+                <ClinicalCard title={td("cardOrgans")} tone="cyan" hidden={organs.length === 0}>
                   <OrganPills organs={resolved.organs} />
                 </ClinicalCard>
 
                 <ClinicalProtocolStepsCard grouped={groupedProtocol} />
 
-                <ClinicalCard title="Uygulama Notları" tone="amber" hidden={!applicationNotesDisplay}>
+                <ClinicalCard title={td("cardNotes")} tone="amber" hidden={!applicationNotesDisplay}>
                   {notesParagraphs.length >= 2 ? (
                     <div className="space-y-3">
                       {notesParagraphs.map((paragraph, index) => (
@@ -518,7 +535,7 @@ export function KayitliProtokolDetayLayout({ protocolId }: KayitliProtokolDetayL
                   )}
                 </ClinicalCard>
 
-                <ClinicalCard title="Kaynak / Açıklama" tone="emerald" hidden={!sourceDescription}>
+                <ClinicalCard title={td("cardSource")} tone="emerald" hidden={!sourceDescription}>
                   <p className="whitespace-pre-wrap text-[14px] font-medium leading-relaxed text-slate-800 sm:text-[15px]">
                     {sourceDescription}
                   </p>
@@ -527,7 +544,7 @@ export function KayitliProtokolDetayLayout({ protocolId }: KayitliProtokolDetayL
                 {showDevJson ? (
                   <details className="rounded-2xl border border-dashed border-slate-300/80 bg-slate-50/80 px-4 py-3">
                     <summary className="cursor-pointer text-sm font-black text-slate-600">
-                      Geliştirici Verisi (raw_json)
+                      {td("devData")}
                     </summary>
                     <pre className="mt-3 max-h-64 overflow-auto rounded-xl border border-slate-200 bg-white p-3 text-xs font-mono leading-relaxed text-slate-700">
                       {rawJsonDevText}
@@ -541,15 +558,15 @@ export function KayitliProtokolDetayLayout({ protocolId }: KayitliProtokolDetayL
           {hasAtlasMapping ? (
             <section
               className={footMapPanelLargeClass}
-              aria-label={isHandView(effectiveFootView) ? "El haritası önizleme" : "Ayak haritası önizleme"}
+              aria-label={isHandView(effectiveFootView) ? td("handPreviewAria") : td("footPreviewAria")}
             >
               <div className="shrink-0 border-b border-violet-200/70 px-4 py-3">
                 {/* Protokol Haritası (ProtocolFootMap) ile aynı kural: el görünümünde "El", ayakta "Ayak". */}
                 <h2 className="text-sm font-bold text-violet-950">
-                  {isHandView(effectiveFootView) ? "El Haritası Önizleme" : "Ayak Haritası Önizleme"}
+                  {isHandView(effectiveFootView) ? td("handPreview") : td("footPreview")}
                 </h2>
                 <p className="mt-0.5 text-xs font-medium text-violet-800/80">
-                  Protokole bağlı organ bölgeleri atlas üzerinde vurgulanır
+                  {td("mapSub")}
                 </p>
               </div>
 
@@ -602,7 +619,7 @@ export function KayitliProtokolDetayLayout({ protocolId }: KayitliProtokolDetayL
           onConfirmed={(r) => {
             setYhSelection(r);
             setYhPickerOpen(false);
-            showToast({ title: "Eklendi", message: `${r.total} kayıt protokol teslimine eklenecek.`, type: "success" });
+            showToast({ title: td("addedTitle"), message: td("addedMsg", { count: String(r.total) }), type: "success" });
           }}
         />
       ) : null}

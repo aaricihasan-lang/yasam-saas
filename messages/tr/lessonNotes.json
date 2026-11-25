@@ -1,0 +1,73 @@
+{
+  "lessonNotes": {
+    "fileName": {
+      "base": "ders-notu"
+    },
+    "header": {
+      "badge": "Transkript Düzenleme",
+      "titleLead": "Temizlenmiş",
+      "titleAccent": "Ders Notu Merkezi",
+      "desc": "Ham transkripti yapıştır veya TXT olarak yükle. Sistem gereksiz konuşmaları temizler, ders notuna dönüştürür."
+    },
+    "input": {
+      "title": "Ham Transkript",
+      "hint": "Yapıştır veya TXT yükle",
+      "uploadTxt": "TXT Yükle",
+      "placeholder": "Ham transkripti buraya yapıştırın...",
+      "charCount": "{count} / {max} karakter",
+      "clear": "Temizle",
+      "overLimit": "Metin 40.000 karakter sınırını aşıyor ({over} karakter fazla). Lütfen kısaltın.",
+      "longWarning": "Uzun transkript — işlem birkaç dakika sürebilir. Sayfayı kapatmayın.",
+      "cleaning": "Temizleniyor...",
+      "submit": "Ders Notunu Temizle"
+    },
+    "about": {
+      "title": "Bu modül nedir?",
+      "item1": "Ham transkript temizlenir, ders notu formatına dönüştürülür",
+      "item2": "Eğitmenin bilgisine dokunulmaz — sadece gereksiz konuşmalar silinir",
+      "item3": "Human Design kanal ve kapı numaraları otomatik düzeltilir",
+      "item4": "Soru-cevap bölümleri korunur ve formatlanır"
+    },
+    "result": {
+      "title": "Temizlenmiş Ders Notu",
+      "chars": "{count} karakter",
+      "copy": "Kopyala",
+      "downloadTxt": "TXT İndir",
+      "downloadWord": "Word İndir",
+      "processing": "İşleniyor...",
+      "emptyTitle": "Temizlenmiş not burada görünecek",
+      "processingHint": "Yapay zeka transkripti işliyor. Bu işlem birkaç dakika sürebilir.",
+      "emptyHint": "Sol alana transkripti yapıştırın ve temizle butonuna tıklayın."
+    },
+    "info": {
+      "keptTitle": "Bilgi Korunur",
+      "keptDesc": "Eğitmenin anlattıkları değiştirilmez, gereksiz konuşmalar silinir.",
+      "hdTitle": "Human Design Uyumlu",
+      "hdDesc": "Kanal ve kapı numaraları otomatik doğru yazılır.",
+      "exportTitle": "Word & TXT Çıktı",
+      "exportDesc": "Temizlenmiş notu Word veya TXT olarak indirin."
+    },
+    "toast": {
+      "errorTitle": "Hata",
+      "connectionErrorTitle": "Bağlantı hatası",
+      "unknownError": "Bilinmeyen hata",
+      "wordFailed": "Word dosyası oluşturulamadı.",
+      "tooLongTitle": "Metin çok uzun",
+      "tooLongMsg": "Maksimum 40.000 karakter. Şu an: {count} karakter.",
+      "serverError": "Sunucu hatası (HTTP {status})",
+      "emptyOutput": "Çıktı boş geldi.",
+      "doneTitle": "Tamamlandı",
+      "doneMsg": "Ders notu başarıyla temizlendi.",
+      "copiedTitle": "Kopyalandı",
+      "textCopied": "Metin panoya kopyalandı."
+    },
+    "apiErrors": {
+      "TEXT_MISSING": "Metin bulunamadı.",
+      "TEXT_TOO_LONG": "Metin çok uzun. Maksimum 40.000 karakter.",
+      "EMPTY_OUTPUT": "İşlem tamamlandı ancak çıktı boş geldi. Lütfen tekrar deneyin.",
+      "OUTPUT_CHECK_FAILED": "Çıktı güvenlik kontrolünden geçmedi. Lütfen daha kısa bir metin parçası deneyin.",
+      "CHUNK_FAILED": "Bir metin parçası işlenemedi. Lütfen tekrar deneyin.",
+      "PROCESSING_FAILED": "İşlem şu anda tamamlanamadı. Lütfen tekrar deneyin veya destek ekibiyle iletişime geçin."
+    }
+  }
+}

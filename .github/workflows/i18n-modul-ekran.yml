@@ -1,0 +1,99 @@
+# I18N-F1-R3/R4 — MODÜL EKRAN KABUL TESTİ (Türkçe / İngilizce × 1280 / 768 / 390 / 360 px; tüm kapsam içi uzman modül ekranları).
+# Ana CI'ya (ci.yml) yük BİNDİRMEZ: ayrı iş akışı; ürün dosyası (app/components/lib/messages/i18n) değişince ya da elle tetiklenir.
+# Sır KULLANMAZ; production'a / Supabase'e / ücretli API'ye istek ATMAZ. Build yerel test önüne (127.0.0.1) işaret eden SAHTE
+# değerlerle yapılır; veriler sentetiktir (embedded PostgreSQL + PostgREST şimi, scripts/anamnez/testEnv).
+# Dil başına bir iş (matrix) — tr / en işleri kapı AÇIK build yapar, 4 genişliği paralel bağlamlarda gezer; "kapali" işi
+# kapı KAPALI build yapar (NEXT_LOCALE=en çerezi + hesap tercihi en iken her ekran tr olmalı; R4 Owner §18).
+# Sonuç: ekran görüntüleri (PNG) + ozet.json + ozet.md + next-sunucu.log → artefakt (14 gün).
+# FAIL: sayfa çökmesi / belge-RSC 5xx / yatay taşma / uygulama konsol hatası / ham anahtar (MISSING_MESSAGE) / <html lang>
+# uyuşmazlığı / senaryo hatası. BİLGİ: EN'de TR-aday metin, /api 5xx (eksik modül tabloları), kapsam dışı modül ekranları.
+name: I18N modül ekran kabulü
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - "app/**"
+      - "components/**"
+      - "lib/**"
+      - "messages/**"
+      - "i18n/**"
+      - "scripts/i18n/modul-ekran-kabul.e2e.ts"
+      - ".github/workflows/i18n-modul-ekran.yml"
+  workflow_dispatch:
+    inputs:
+      extra:
+        description: "Ek test argümanları (R5: ör. --skip-tour --s6-repeat 5 --only <rota-id>)"
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+concurrency:
+  group: i18n-modul-ekran-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NEXT_TELEMETRY_DISABLED: "1"
+  NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:54398
+  NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: zz-ds-anon-not-a-secret
+  SUPABASE_SERVICE_ROLE_KEY: zz-test-service-role-not-a-secret
+  I18N_E2E_SUPA_PORT: "54398"
+
+jobs:
+  modul-ekran:
+    name: modül ekranları (${{ matrix.locale }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - locale: tr
+            gate: "on"
+            args: --locales tr --widths 1280,768,390,360
+          - locale: en
+            gate: "on"
+            args: --locales en --widths 1280,768,390,360 --s6-repeat 5
+          - locale: kapali
+            gate: "off"
+            args: --locales tr --widths 1280,360 --gate-closed
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+      - name: Bağımlılıklar
+        run: npm ci --no-audit --no-fund
+      - name: Playwright chromium
+        run: npx playwright install --with-deps chromium
+      # Tip denetimi zorunlu ana CI'da (ci.yml "TypeScript"); bu test build'inde tekrarlanmaz. YALNIZ runner'ın geçici checkout'unda.
+      - name: Test build'i için tip denetimini atla (yalnız bu runner)
+        run: node scripts/campaign/ci-e2e-build-config.cjs
+      - name: Build (yayın kapısı ${{ matrix.gate == 'on' && 'AÇIK' || 'KAPALI' }}; webpack; sahte yerel değerler)
+        run: npx next build --webpack || (echo "::warning title=modul-ekran build::ilk build başarısız; bir kez yeniden deneniyor" && npx next build --webpack)
+        env:
+          NEXT_PUBLIC_I18N_LOCALE_SWITCHING: ${{ matrix.gate }}
+          NODE_OPTIONS: --max-old-space-size=6144
+      - name: Modül ekran kabulü (${{ matrix.locale }})
+        run: npx tsx scripts/i18n/modul-ekran-kabul.e2e.ts ${{ matrix.args }} $MODUL_EKRAN_EXTRA --budget-min 42 --out "$RUNNER_TEMP/modul-ekran/${{ matrix.locale }}"
+        env:
+          # Doğaltaş Bilgi Kütüphanesi sunucu kapısı (istek anında okunur); kapalıyken ekran 404 olur.
+          STONE_LIBRARY_ENABLED: "true"
+          # R5: elle tetiklemede ek argümanlar (betiğe doğrudan gömülmez; ortam değişkeni → kabuk sözcüklerine bölünür).
+          MODUL_EKRAN_EXTRA: ${{ inputs.extra }}
+      - name: Özet (iş özeti sayfasına)
+        if: always()
+        run: |
+          f="$RUNNER_TEMP/modul-ekran/${{ matrix.locale }}/ozet.md"
+          if [ -f "$f" ]; then head -c 900000 "$f" >> "$GITHUB_STEP_SUMMARY"; else echo "ozet.md üretilmedi" >> "$GITHUB_STEP_SUMMARY"; fi
+      - name: Kanıtlar (PNG + ozet.json + ozet.md + sunucu günlüğü; sentetik veri)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: i18n-modul-ekran-${{ matrix.locale }}
+          path: ${{ runner.temp }}/modul-ekran/${{ matrix.locale }}
+          if-no-files-found: warn
+          retention-days: 14

@@ -1,0 +1,81 @@
+{
+  "reports": {
+    "stock": {
+      "brand": "YAŞAM SİSTEMİ",
+      "coverTitle": {
+        "all": "ÜRÜN & STOK RAPORU",
+        "critical": "KRİTİK STOK RAPORU"
+      },
+      "coverSubtitle": "Ürün & Stok Envanter Raporu · {scope}",
+      "generatedOn": "Oluşturulma Tarihi: {date}",
+      "scope": {
+        "all": "Tüm Ürün Stoku",
+        "critical": "Kritik Stok"
+      },
+      "cover": {
+        "products": "Ürün Çeşidi",
+        "categories": "Kategori",
+        "critical": "Kritik Stok",
+        "depleted": "Tükenmiş",
+        "value": "Tahmini Stok Değeri"
+      },
+      "stats": {
+        "products": "Ürün Çeşidi",
+        "categories": "Kategori Sayısı",
+        "critical": "Kritik Stok Sayısı",
+        "depleted": "Tükenmiş Ürün",
+        "value": "Tahmini Stok Değeri",
+        "scope": "Kapsam"
+      },
+      "summary": {
+        "heading": "1. Stok Özeti",
+        "products": "Toplam Ürün Çeşidi",
+        "categories": "Kategori Sayısı",
+        "critical": "Kritik Stok Sayısı",
+        "depleted": "Tükenmiş Ürün",
+        "value": "Tahmini Stok Değeri",
+        "scope": "Rapor Kapsamı",
+        "productCount": "{count, plural, other {{shown} ürün}}",
+        "note": "Bu rapor tüm DB-tabanlı ürün-stok kategorilerini (Doğaltaş, Yağ, Sabun/Krem, Aksesuar, Diğer) kapsar. Stok değerine yalnız pozitif stok katkı sağlar."
+      },
+      "criticalSection": {
+        "heading": "2. Kritik & Tükenmiş Stok Uyarısı",
+        "summary": "{count, plural, other {{shown} ürün}} kritik seviyede veya tükenmiş"
+      },
+      "list": {
+        "heading": "{n}. Ürün Listesi",
+        "summary": "{count, plural, other {{shown} ürün}} · kategoriye göre gruplu",
+        "categoryCount": "{count, plural, other {{shown} ürün}}",
+        "item": "ÜRÜN #{n}",
+        "depletedPrefix": "⚠ TÜKENMİŞ — ",
+        "criticalPrefix": "⚠ KRİTİK — "
+      },
+      "fields": {
+        "stock": "Mevcut Stok",
+        "group": "Tür / Grup",
+        "unitCost": "Birim Maliyet",
+        "value": "Tahmini Değer"
+      },
+      "criticalSuffix": " ⚠ Kritik",
+      "depleted": "(Tükenmiş)",
+      "category": {
+        "dogaltas": "Doğaltaş",
+        "oil": "Yağ",
+        "soap_cream": "Sabun / Krem",
+        "accessory": "Tespih / Takı / Aksesuar",
+        "other": "Diğer Ürünler"
+      },
+      "footer": "Ürün & Stok Raporu · {scope}",
+      "file": {
+        "base": "urun-stok",
+        "all": "tumu",
+        "critical": "kritik"
+      },
+      "unit": {
+        "adet": "adet",
+        "ml": "ml",
+        "gram": "gram"
+      }
+    }
+  }
+}

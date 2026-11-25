@@ -1,3 +1,5 @@
+import { hdApiText, hdApiTextWith } from "../../_lib/hdApiText";
+import { resolveOutputLocale } from "@/lib/i18n/output";
 import { NextRequest, NextResponse } from "next/server";
 import { randomUUID } from "node:crypto";
 import { isUuid, professionalReportIdFor } from "@/lib/human-design/api/deterministicId";
@@ -14,7 +16,7 @@ import { trackUsage } from "@/lib/usage/trackUsage";
 import { hitDbRateLimit, rateLimitBucket } from "@/lib/security/dbRateLimit";
 import { createReportSnapshotV2FromChart } from "@/lib/human-design/reporting/reportSnapshotV2Service";
 import { parseCommentarySelection, sanitizePreparedBy, type HdCommentarySelection } from "@/lib/human-design/reporting/reportSnapshotV2";
-import { decodePngBase64, validateBodygraphPng } from "@/lib/human-design/reporting/bodygraphPng";
+import { decodePngBase64, HD_BODYGRAPH_PNG_MIN_HEIGHT, validateBodygraphPng } from "@/lib/human-design/reporting/bodygraphPng";
 import { bodygraphBindingText, bodygraphFingerprint, verifyBodygraphBinding } from "@/lib/human-design/reporting/bodygraphBinding";
 import { saveCanonicalReport, findReportBrief } from "@/lib/human-design/api/reportPersistence";
 import { hdReportTitle } from "@/lib/human-design/reporting/wordReport";
@@ -60,7 +62,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   if (!guard.ok) return guard.response;
   if (guard.is_demo_account) {
     return NextResponse.json(
-      { ok: false, code: "DEMO_READONLY", error: "Demo hesabında profesyonel rapor oluşturulamaz." },
+      { ok: false, code: "DEMO_READONLY", error: hdApiText(req, "demoNoProReport") },
       { status: 403, headers: NO_STORE },
     );
   }
@@ -69,31 +71,31 @@ export async function POST(req: NextRequest): Promise<Response> {
   const rl = await hitDbRateLimit(guard.db, rateLimitBucket("hd-word", guard.tenantId), 10, 60);
   if (!rl.allowed) {
     return NextResponse.json(
-      { ok: false, error: "Çok fazla rapor isteği. Lütfen biraz sonra tekrar deneyin." },
+      { ok: false, error: hdApiText(req, "rateLimitedReport") },
       { status: 429, headers: { ...NO_STORE, "Retry-After": String(rl.retryAfterSec || 60) } },
     );
   }
 
   const declared = Number(req.headers.get("content-length") ?? "0");
   if (Number.isFinite(declared) && declared > MAX_BODY_BYTES) {
-    return NextResponse.json({ ok: false, code: "PAYLOAD_TOO_LARGE", error: "İstek çok büyük." }, { status: 413, headers: NO_STORE });
+    return NextResponse.json({ ok: false, code: "PAYLOAD_TOO_LARGE", error: hdApiText(req, "payloadTooLarge") }, { status: 413, headers: NO_STORE });
   }
 
   let raw: Record<string, unknown> | null;
   try {
     raw = (await req.json()) as Record<string, unknown> | null;
   } catch {
-    return NextResponse.json({ ok: false, error: "Geçerli JSON gövdesi gerekli." }, { status: 400, headers: NO_STORE });
+    return NextResponse.json({ ok: false, error: hdApiText(req, "malformedJson") }, { status: 400, headers: NO_STORE });
   }
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
-    return NextResponse.json({ ok: false, error: "Geçerli JSON gövdesi gerekli." }, { status: 400, headers: NO_STORE });
+    return NextResponse.json({ ok: false, error: hdApiText(req, "malformedJson") }, { status: 400, headers: NO_STORE });
   }
   const chartId = typeof raw.chartId === "string" ? raw.chartId.trim() : "";
   if (!chartId) {
     return NextResponse.json({ ok: false, error: "chartId gerekli." }, { status: 400, headers: NO_STORE });
   }
   if (!isUuid(chartId)) {
-    return NextResponse.json({ ok: false, code: "INVALID_ID", error: "Geçersiz chartId." }, { status: 400, headers: NO_STORE });
+    return NextResponse.json({ ok: false, code: "INVALID_ID", error: hdApiText(req, "invalidChartId") }, { status: 400, headers: NO_STORE });
   }
 
   // Yetki SUNUCUDA: hd_system_reading (admin her zaman). İstemci seçimi yalnız TERCİHTİR.
@@ -104,7 +106,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   if (raw.commentary !== undefined) {
     const parsed = parseCommentarySelection(raw.commentary);
     if (!parsed) {
-      return NextResponse.json({ ok: false, code: "INVALID_COMMENTARY", error: "Geçersiz yorum seçimi." }, { status: 400, headers: NO_STORE });
+      return NextResponse.json({ ok: false, code: "INVALID_COMMENTARY", error: hdApiText(req, "invalidReadingSelection") }, { status: 400, headers: NO_STORE });
     }
     requested = parsed;
   }
@@ -116,7 +118,17 @@ export async function POST(req: NextRequest): Promise<Response> {
     const check = validateBodygraphPng(buf);
     if (!buf || !check.ok) {
       return NextResponse.json(
-        { ok: false, code: "BODYGRAPH_INVALID", error: check.ok ? "BodyGraph görseli okunamadı." : check.error },
+        {
+          ok: false,
+          code: "BODYGRAPH_INVALID",
+          // Doğrulama `code`'u dil-bağımsız; metin istek dilinde (TR = bodygraphPng.ts'teki eski metin birebir).
+          // TR (kaynak dil): doğrulayıcının ayrıntılı metni AYNEN (ör. "bozuk (CRC)"); diğer dillerde koddan.
+          error: check.ok
+            ? hdApiText(req, "bodygraphReadFailed")
+            : resolveOutputLocale(req).locale === "tr"
+              ? check.error
+              : hdApiTextWith(req, `bodygraphPng.${check.code}`, { min: HD_BODYGRAPH_PNG_MIN_HEIGHT }),
+        },
         { status: 422, headers: NO_STORE },
       );
     }
@@ -132,19 +144,19 @@ export async function POST(req: NextRequest): Promise<Response> {
   if (requestId) {
     const prior = await findReportBrief(guard.db, guard.tenantId, reportId);
     if (prior.error) {
-      return NextResponse.json({ ok: false, error: "Rapor durumu okunamadı. Lütfen tekrar deneyin." }, { status: 500, headers: NO_STORE });
+      return NextResponse.json({ ok: false, error: hdApiText(req, "reportStatusReadFailed") }, { status: 500, headers: NO_STORE });
     }
     if (prior.row) {
       if (prior.row.report_kind === "canonical" && (prior.row.chart_id === chartId || prior.row.chart_id === null)) {
         return NextResponse.json({ ok: true, id: prior.row.id, reused: true, omittedCount: 0 }, { status: 200, headers: NO_STORE });
       }
-      return NextResponse.json({ ok: false, error: "Bu istek kimliği başka bir rapora ait." }, { status: 409, headers: NO_STORE });
+      return NextResponse.json({ ok: false, error: hdApiText(req, "requestIdConflict") }, { status: 409, headers: NO_STORE });
     }
   }
 
   // "Raporu Hazırlayan": istemcinin yazdığı ad/unvan (yalnız bu rapor); profil adı OTOMATİK yazılmaz.
   if (raw.preparedBy !== undefined && raw.preparedBy !== null && typeof raw.preparedBy !== "string") {
-    return NextResponse.json({ ok: false, code: "INVALID_PREPARED_BY", error: "Geçersiz hazırlayan bilgisi." }, { status: 400, headers: NO_STORE });
+    return NextResponse.json({ ok: false, code: "INVALID_PREPARED_BY", error: hdApiText(req, "invalidPreparer") }, { status: 400, headers: NO_STORE });
   }
   const preparedBy = sanitizePreparedBy(raw.preparedBy);
 
@@ -161,7 +173,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   }
   if (png && !built.isRoxy) {
     return NextResponse.json(
-      { ok: false, code: "BODYGRAPH_NOT_APPLICABLE", error: "BodyGraph görseli yalnız otomatik hesaplanmış haritalarda kabul edilir." },
+      { ok: false, code: "BODYGRAPH_NOT_APPLICABLE", error: hdApiText(req, "bodygraphComputedOnly") },
       { status: 400, headers: NO_STORE },
     );
   }
@@ -187,7 +199,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   if (png) {
     const up = await uploadReportSnapshotPng(guard.db, guard.tenantId, reportId, png.buf);
     if (up.error || !up.path) {
-      return NextResponse.json({ ok: false, error: "BodyGraph görseli rapora kaydedilemedi. Lütfen tekrar deneyin." }, { status: 503, headers: NO_STORE });
+      return NextResponse.json({ ok: false, error: hdApiText(req, "bodygraphSaveFailed") }, { status: 503, headers: NO_STORE });
     }
     storedImagePath = up.path;
     built.snapshot.bodygraph = { status: "roxy_render", width: png.width, height: png.height, sha256: png.sha256 };
@@ -199,7 +211,7 @@ export async function POST(req: NextRequest): Promise<Response> {
     const copied = await copyChartImageToReportSnapshot(guard.db, guard.tenantId, built.clientId, built.uploadedImagePath, reportId);
     if (copied.error || !copied.path) {
       return NextResponse.json(
-        { ok: false, error: "Harita görseli rapora kopyalanamadı. Lütfen tekrar deneyin." },
+        { ok: false, error: hdApiText(req, "chartImageCopyFailed") },
         { status: 503, headers: NO_STORE },
       );
     }
@@ -210,7 +222,7 @@ export async function POST(req: NextRequest): Promise<Response> {
       {
         ok: false,
         code: "BODYGRAPH_REQUIRED",
-        error: "BodyGraph görseli oluşturulamadı. Tekrar deneyin ya da raporu BodyGraph görseli olmadan oluşturmayı açıkça onaylayın.",
+        error: hdApiText(req, "bodygraphCreateFailed"),
       },
       { status: 422, headers: NO_STORE },
     );

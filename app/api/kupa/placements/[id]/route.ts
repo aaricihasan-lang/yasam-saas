@@ -28,7 +28,7 @@ export async function PATCH(
   const guard = await requireModuleAccess(req, "cupping");
   if (!guard.ok) return guard.response;
   const { id } = await params;
-  if (!id) return NextResponse.json({ ok: false, error: "Yerleşim id gerekli." }, { status: 400 });
+  if (!id) return NextResponse.json({ ok: false, code: "CUP_ID_REQUIRED", error: "Yerleşim id gerekli." }, { status: 400 });
 
   const { db, tenantId, is_demo_account } = guard;
   if (is_demo_account) return demoReadOnlyResponse();
@@ -41,12 +41,12 @@ export async function PATCH(
     if (fields[key] === undefined) continue;
     const n = finiteNum(fields[key]);
     if (n === null) {
-      return NextResponse.json({ ok: false, error: "Geçersiz konum bilgisi." }, { status: 400 });
+      return NextResponse.json({ ok: false, code: "CUP_POSITION_INVALID", error: "Geçersiz konum bilgisi." }, { status: 400 });
     }
     fields[key] = n;
   }
   if (Object.keys(fields).length === 0) {
-    return NextResponse.json({ ok: false, error: "Güncellenecek alan yok." }, { status: 400 });
+    return NextResponse.json({ ok: false, code: "CUP_NO_FIELDS", error: "Güncellenecek alan yok." }, { status: 400 });
   }
 
   const res = await updateEntity(db, CUPPING_TABLES.placements, tenantId, id, fields);
@@ -66,7 +66,7 @@ export async function DELETE(
   const guard = await requireModuleAccess(req, "cupping");
   if (!guard.ok) return guard.response;
   const { id } = await params;
-  if (!id) return NextResponse.json({ ok: false, error: "Yerleşim id gerekli." }, { status: 400 });
+  if (!id) return NextResponse.json({ ok: false, code: "CUP_ID_REQUIRED", error: "Yerleşim id gerekli." }, { status: 400 });
 
   const { db, tenantId, is_demo_account } = guard;
   if (is_demo_account) return demoReadOnlyResponse();

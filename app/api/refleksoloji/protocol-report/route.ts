@@ -20,6 +20,8 @@ import {
   reflexologyFooters,
   type ReflexologyProtocolInput,
 } from "@/lib/refleksoloji/reflexologyWord";
+import { resolveReportLocale } from "@/lib/i18n/reportLocale";
+import { reflexFileName, reflexText, reflexTextFor, withReflexOutput } from "@/lib/refleksoloji/reportText";
 
 export const runtime = "nodejs";
 
@@ -56,18 +58,7 @@ type ProtocolRow = {
 // cosmic/audit vb. Europe/Istanbul kullanır).
 const TR_TZ = "Europe/Istanbul";
 
-function formatDateTR(d: string): string {
-  try {
-    return new Date(d).toLocaleDateString("tr-TR", { day: "2-digit", month: "long", year: "numeric", timeZone: TR_TZ });
-  } catch {
-    return d;
-  }
-}
-
-/** Raporun GERÇEK üretim tarihi (export anı) — Türkiye takvimi, uzun biçim. */
-function reportDateTR(): string {
-  return new Date().toLocaleDateString("tr-TR", { day: "2-digit", month: "long", year: "numeric", timeZone: TR_TZ });
-}
+// Uzun tarih (protokol tarihi + üretim tarihi) çıktı dilinde: reflexText().dateLong (TR: eski biçim birebir).
 
 /** Dosya adı için üretim günü YYYY-MM-DD — Istanbul takvimi (UTC gün kayması yok). */
 function reportDateSlug(): string {
@@ -115,13 +106,13 @@ export async function POST(request: NextRequest): Promise<Response> {
   const { tenantId } = guard;
 
   if (guard.is_demo_account)
-    return Response.json({ error: "Demo hesabında bu işlem kullanılamaz." }, { status: 403 });
+    return Response.json({ code: "REF_DEMO_FORBIDDEN", error: "Demo hesabında bu işlem kullanılamaz." }, { status: 403 });
 
   let body: unknown;
   try {
     body = await request.json();
   } catch {
-    return Response.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 });
+    return Response.json({ ok: false, code: "REF_INVALID_BODY", error: "Geçersiz istek gövdesi." }, { status: 400 });
   }
 
   const { exportMode = "all", protocolIds, protocolId, clientId, selectionGroupId } = body as {
@@ -133,21 +124,21 @@ export async function POST(request: NextRequest): Promise<Response> {
   };
 
   if (exportMode !== "all" && exportMode !== "selected" && exportMode !== "single")
-    return Response.json({ ok: false, error: "Geçersiz dışa aktarma türü." }, { status: 400 });
+    return Response.json({ ok: false, code: "REF_INVALID_EXPORT_SCOPE", error: "Geçersiz dışa aktarma türü." }, { status: 400 });
 
   if (exportMode === "single" && !protocolId)
-    return Response.json({ ok: false, error: "Tek protokol için protocolId zorunludur." }, { status: 400 });
+    return Response.json({ ok: false, code: "REF_PROTOCOL_ID_REQUIRED", error: "Tek protokol için protocolId zorunludur." }, { status: 400 });
   // REF-05: kimlikler yalnız UUID; aynı kimlik bir kez; adet sınırlı.
   if (exportMode === "single" && (typeof protocolId !== "string" || !UUID_RE.test(protocolId)))
-    return Response.json({ ok: false, error: "Geçersiz protokol kimliği." }, { status: 400 });
+    return Response.json({ ok: false, code: "REF_INVALID_PROTOCOL_ID", error: "Geçersiz protokol kimliği." }, { status: 400 });
 
   if (exportMode === "selected" && (!Array.isArray(protocolIds) || protocolIds.length === 0))
-    return Response.json({ ok: false, error: "Seçili export için en az bir protocolId gerekli." }, { status: 400 });
+    return Response.json({ ok: false, code: "REF_PROTOCOL_ID_REQUIRED", error: "Seçili export için en az bir protocolId gerekli." }, { status: 400 });
   const selectedIds = exportMode === "selected" && Array.isArray(protocolIds) ? [...new Set(protocolIds)] : [];
   if (selectedIds.some((v) => typeof v !== "string" || !UUID_RE.test(v)))
-    return Response.json({ ok: false, error: "Geçersiz protokol kimliği." }, { status: 400 });
+    return Response.json({ ok: false, code: "REF_INVALID_PROTOCOL_ID", error: "Geçersiz protokol kimliği." }, { status: 400 });
   if (selectedIds.length > MAX_SELECTED_PROTOCOLS)
-    return Response.json({ ok: false, error: `Tek raporda en fazla ${MAX_SELECTED_PROTOCOLS} protokol seçilebilir.` }, { status: 400 });
+    return Response.json({ ok: false, code: "REF_TOO_MANY_SELECTED", error: `Tek raporda en fazla ${MAX_SELECTED_PROTOCOLS} protokol seçilebilir.` }, { status: 400 });
 
   // AA-6: route kendi service_role client'ını KURMAZ — guard'ın sunucu client'ı (guard.db).
   const { db } = guard;
@@ -164,12 +155,12 @@ export async function POST(request: NextRequest): Promise<Response> {
     // REF-016: ham DB mesajı istemciye sızmaz; teknik ayrıntı yalnız server logunda.
     console.error(`[refleksoloji] protocol-report.protocols: ${error.code ?? ""} ${error.message}`);
     await trackUsage(guard, request, { module: "reflexology", action: "action_failed", failedAction: "report_generated", subEntity: "protocol", errorClass: "server" });
-    return Response.json({ ok: false, error: "Protokoller okunamadı." }, { status: 500 });
+    return Response.json({ ok: false, code: "REF_PROTOCOLS_READ_FAILED", error: "Protokoller okunamadı." }, { status: 500 });
   }
 
   const protocols = (data || []) as ProtocolRow[];
   if (!protocols.length)
-    return Response.json({ ok: false, error: "Bu seçim için protokol bulunamadı." }, { status: 404 });
+    return Response.json({ ok: false, code: "REF_PROTOCOL_NOT_FOUND", error: "Bu seçim için protokol bulunamadı." }, { status: 404 });
 
   // Tenant atlas belgesi (READ-ONLY; mutate YOK). Yoksa boş belge → harita üretilmez.
   const { data: atlasRow, error: atlasErr } = await db
@@ -180,7 +171,7 @@ export async function POST(request: NextRequest): Promise<Response> {
   if (atlasErr) {
     console.error(`[refleksoloji] protocol-report.atlas: ${atlasErr.code ?? ""} ${atlasErr.message}`);
     await trackUsage(guard, request, { module: "reflexology", action: "action_failed", failedAction: "report_generated", subEntity: "protocol", errorClass: "server" });
-    return Response.json({ ok: false, error: "Atlas okunamadı." }, { status: 500 });
+    return Response.json({ ok: false, code: "REF_ATLAS_READ_FAILED", error: "Atlas okunamadı." }, { status: 500 });
   }
   // CANONICAL SINIR (server read): DB belgesi legacy `{taban,yan}` olabilir →
   // 3-görünüme normalize et. Word grouping yalnız explicit region.view'a bakar.
@@ -188,12 +179,14 @@ export async function POST(request: NextRequest): Promise<Response> {
 
   const dateSlug = reportDateSlug();
   const isSingle = protocols.length === 1;
+  const output = await resolveReportLocale(request, { db, tenantId, userId: guard.userId });
+  const RT = reflexTextFor(output);
 
   const toInput = (proto: ProtocolRow, index: number): ReflexologyProtocolInput => {
     const organs = protocolOrganLabels(proto);
     return {
       index,
-      title: proto.title?.trim() || "Başlıksız Protokol",
+      title: proto.title?.trim() || RT.t("untitledProtocol"),
       description: proto.target_problem,
       notes: proto.application_notes,
       organs,
@@ -206,12 +199,13 @@ export async function POST(request: NextRequest): Promise<Response> {
   // purpose "signature": Refleksoloji bugün uzman adı göstermez; anahtar açıkken yalnız rapor sonuna "Hazırlayan" imza bloğu.
   const branding = await resolveReportBranding(db, { tenantId, userId: guard.userId }, { fullName: expertDisplayName(guard.profile) }, { purpose: "signature" });
 
-  let children: ReportChild[];
+  let children: ReportChild[] = [];
+  const built = await withReflexOutput(output, async (): Promise<Response | null> => {
   if (isSingle) {
     const input = toInput(protocols[0]!, 0);
     // "Oluşturulma Tarihi" = raporun ÜRETİM tarihi (bugün). Protokolün kayıt tarihi
     // ayrı "Protokol Tarihi" metadata'sı olarak korunur (yanlış etiketlenmez).
-    children = await buildSingleReport(input, reportDateTR(), formatDateTR(protocols[0]!.created_at), { branding });
+    children = await buildSingleReport(input, RT.dateLong(new Date()), RT.dateLong(protocols[0]!.created_at), { branding });
 
     // ── Yaşam Hafızası Seçimleri (BF-14 P2; danışana özel teslim eki, OPSİYONEL) ──
     // Yalnız exportMode === "single" + doğrulanmış client + selection group.
@@ -225,7 +219,7 @@ export async function POST(request: NextRequest): Promise<Response> {
       const { data: cliRow } = await db
         .from("clients").select("id").eq("id", clientId).eq("tenant_id", tenantId).maybeSingle();
       if (!cliRow) {
-        return Response.json({ ok: false, error: "Danışan bulunamadı veya erişim yok." }, { status: 403 });
+        return Response.json({ ok: false, code: "REF_CLIENT_FORBIDDEN", error: "Danışan bulunamadı veya erişim yok." }, { status: 403 });
       }
       try {
         const snaps = await readSnapshotsForDelivery(db, {
@@ -240,11 +234,16 @@ export async function POST(request: NextRequest): Promise<Response> {
     }
   } else {
     const inputs = protocols.map(toInput);
-    const scopeLabel = exportMode === "selected" ? "Seçili Protokoller" : "Tüm Protokoller";
-    children = await buildBulkReport(inputs, reportDateTR(), scopeLabel, { branding });
+    const scopeLabel = exportMode === "selected" ? RT.t("scope.protocolsSelected") : RT.t("scope.protocolsAll");
+    children = await buildBulkReport(inputs, RT.dateLong(new Date()), scopeLabel, { branding });
   }
+  return null;
+  });
+  if (built) return built;
 
-  const doc = new Document({
+  const styles = output.docxStyles();
+  const doc = withReflexOutput(output, () => new Document({
+    ...(styles ? { styles } : {}),
     sections: [{
       properties: {
         titlePage: true,
@@ -254,10 +253,10 @@ export async function POST(request: NextRequest): Promise<Response> {
         },
       },
       headers: reflexologyHeaders(),
-      footers: reflexologyFooters(),
+      footers: reflexologyFooters(reflexText().t("footer.protocol")),
       children,
     }],
-  });
+  }));
 
   const buffer = await Packer.toBuffer(doc);
   // REF-04: yanıt sınırını aşacak rapor platformda opak hata vermek yerine anlaşılır mesajla durur.
@@ -265,6 +264,7 @@ export async function POST(request: NextRequest): Promise<Response> {
     await trackUsage(guard, request, { module: "reflexology", action: "action_failed", failedAction: "report_generated", subEntity: "protocol", errorClass: "too_large" });
     return Response.json({
       ok: false,
+      code: "REF_REPORT_TOO_LARGE",
       error: isSingle
         ? "Rapor indirilebilir boyutu (4,4 MB) aşıyor."
         : "Rapor indirilebilir boyutu (4,4 MB) aşıyor. Lütfen daha az protokol seçerek tekrar deneyin.",
@@ -279,9 +279,9 @@ export async function POST(request: NextRequest): Promise<Response> {
     itemCount: protocols.length,
   });
   const modeSlug = isSingle
-    ? slugify(protocols[0]!.title || "protokol")
-    : exportMode === "selected" ? "secili" : "tumu";
-  const filename = `refleksoloji-protokol-${modeSlug}-${dateSlug}.docx`;
+    ? slugify(protocols[0]!.title || RT.t("file.protocolFallback"))
+    : exportMode === "selected" ? RT.t("file.selected") : RT.t("file.all");
+  const filename = reflexFileName("protocol", modeSlug, dateSlug, output);
 
   return new Response(new Uint8Array(buffer), {
     headers: {

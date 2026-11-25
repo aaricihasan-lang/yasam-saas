@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
+import { useKupaErrorText } from "@/app/kupa/lib/errorText";
 import { useToast } from "@/components/ui/ToastProvider";
 import {
   kupaBtnGhost,
@@ -10,6 +12,7 @@ import {
 } from "@/app/kupa/components/KupaShell";
 import { CUPPING_PLAN_YEAR_MIN, CUPPING_PLAN_YEAR_MAX } from "@/lib/cupping/calendarTypes";
 import { updateCalendarPlan, type CuppingCalendarPlan } from "@/app/kupa/lib/api";
+import { useSystemNames } from "../lib/useSystemNames";
 
 /**
  * FAZ 5 / AŞAMA 3 — Plan kontrolü: aktif plan seçimi + Yeni Takvim + ad/açıklama + sil.
@@ -50,6 +53,10 @@ export function PlanPicker({
   onDelete: (plan: CuppingCalendarPlan) => void;
 }) {
   const { showToast } = useToast();
+  const t = useTranslations("cupping.calendar.plan");
+  const tc = useTranslations("cupping.common");
+  const sysNames = useSystemNames();
+  const errText = useKupaErrorText();
   const active = plans.find((p) => p.id === activePlanId) ?? null;
   const [mode, setMode] = useState<"none" | "edit">("none");
   const [name, setName] = useState("");
@@ -63,7 +70,8 @@ export function PlanPicker({
 
   function openEdit() {
     if (!active) return;
-    setName(active.name);
+    // I18N A8: alan EKRANDA GÖRÜNEN adla dolar (EN ekranda sistem adı "2027 Hijama Calendar"; ham TR değil).
+    setName(sysNames.planName(active));
     setYear(active.year);
     setDescription(active.description ?? "");
     setMode("edit");
@@ -71,29 +79,32 @@ export function PlanPicker({
 
   async function save() {
     if (!name.trim()) {
-      showToast({ message: "Takvim adı gerekli.", type: "warning" });
+      showToast({ message: t("nameRequired"), type: "warning" });
       return;
     }
     if (!Number.isInteger(year) || year < CUPPING_PLAN_YEAR_MIN || year > CUPPING_PLAN_YEAR_MAX) {
-      showToast({ message: `Yıl ${CUPPING_PLAN_YEAR_MIN}–${CUPPING_PLAN_YEAR_MAX} aralığında olmalı.`, type: "warning" });
+      showToast({ message: t("yearRange", { min: String(CUPPING_PLAN_YEAR_MIN), max: String(CUPPING_PLAN_YEAR_MAX) }), type: "warning" });
       return;
     }
     setBusy(true);
     try {
       if (mode === "edit" && active) {
-        // Yıl yalnız gün yoksa gönderilir (invariant); ad/açıklama her zaman.
+        // Yıl yalnız gün yoksa gönderilir (invariant); açıklama her zaman.
+        // I18N A8: ad YALNIZ kullanıcı görünen adı DEĞİŞTİRDİYSE gönderilir. Değişmediyse kayıtlı ad zaten aynıdır
+        //   (bugünkü gönderimle DB sonucu birebir); böylece EN ekranda çevrilmiş sistem adı DB'ye yazılmaz ve
+        //   name_is_default (kolon varsa) korunur. Ad gönderilirse taslak DB tetiği bayrağı FALSE yapar.
         const body: Parameters<typeof updateCalendarPlan>[1] = {
-          name: name.trim(),
           description: description.trim() || null,
         };
+        if (name.trim() !== sysNames.planName(active)) body.name = name.trim();
         if (!yearLocked && year !== active.year) body.year = year;
         const updated = await updateCalendarPlan(active.id, body);
         onPlanUpdated(updated);
-        showToast({ message: "Takvim güncellendi.", type: "success" });
+        showToast({ message: t("updated"), type: "success" });
       }
       setMode("none");
     } catch (e) {
-      showToast({ message: e instanceof Error ? e.message : "İşlem başarısız.", type: "error" });
+      showToast({ message: errText(e, t("failed")), type: "error" });
     } finally {
       setBusy(false);
     }
@@ -103,7 +114,7 @@ export function PlanPicker({
     <div className="flex flex-col gap-3">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
         <label className="flex flex-1 flex-col gap-1">
-          <span className="text-xs font-bold uppercase tracking-wide text-slate-500">Aktif Takvim</span>
+          <span className="text-xs font-bold uppercase tracking-wide text-slate-500">{t("active")}</span>
           <select
             className={kupaInput}
             value={activePlanId ?? ""}
@@ -112,12 +123,12 @@ export function PlanPicker({
           >
             {activePlanId ? null : (
               <option value="" disabled>
-                Takvim seçin…
+                {t("choose")}
               </option>
             )}
             {plans.map((p) => (
               <option key={p.id} value={p.id}>
-                {p.name} ({p.year})
+                {sysNames.planName(p)} ({p.year})
               </option>
             ))}
           </select>
@@ -125,12 +136,12 @@ export function PlanPicker({
         <div className="flex gap-2">
           <button type="button" className={`${kupaBtnPrimary} min-h-[40px]`} onClick={onNewCalendar} disabled={disabled}>
             {/* FINAL-A1: yıl için takvim varsa YENİSİ oluşturulmaz, mevcut açılır → etiket bunu söyler. */}
-            + Takvim Oluştur / Aç
+            {t("createOpen")}
           </button>
           {active ? (
             <>
               <button type="button" className={`${kupaBtnGhost} min-h-[40px]`} onClick={openEdit} disabled={disabled}>
-                Ad / Açıklama
+                {t("editMeta")}
               </button>
               <button
                 type="button"
@@ -138,7 +149,7 @@ export function PlanPicker({
                 onClick={() => onDelete(active)}
                 disabled={disabled}
               >
-                Sil
+                {tc("delete")}
               </button>
             </>
           ) : null}
@@ -147,7 +158,7 @@ export function PlanPicker({
 
       {active && mode === "none" ? (
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-slate-600">
-          <span className="font-bold text-slate-800">{active.name}</span>
+          <span className="font-bold text-slate-800">{sysNames.planName(active)}</span>
           <span className="rounded-md bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600">{active.year}</span>
           {active.description ? <span className="text-slate-500">{active.description}</span> : null}
         </div>
@@ -155,18 +166,18 @@ export function PlanPicker({
 
       {mode !== "none" ? (
         <div className="rounded-xl border border-slate-200 bg-white p-4">
-          <h3 className="mb-3 text-sm font-black text-slate-900">Takvim Adı ve Açıklaması</h3>
+          <h3 className="mb-3 text-sm font-black text-slate-900">{t("metaTitle")}</h3>
           <div className="flex flex-col gap-3">
             <label className="flex flex-col gap-1">
-              <span className="text-xs font-bold uppercase tracking-wide text-slate-500">Takvim adı</span>
+              <span className="text-xs font-bold uppercase tracking-wide text-slate-500">{t("name")}</span>
               <input className={kupaInput} value={name} onChange={(e) => setName(e.target.value)} />
             </label>
             <label className="flex flex-col gap-1">
-              <span className="text-xs font-bold uppercase tracking-wide text-slate-500">Yıl</span>
+              <span className="text-xs font-bold uppercase tracking-wide text-slate-500">{t("year")}</span>
               {yearLocked ? (
                 <>
                   <input className={`${kupaInput} bg-slate-50 text-slate-500`} value={year} readOnly aria-readonly />
-                  <span className="text-xs text-slate-400">Seçili günleri olan takvimin yılı değiştirilemez.</span>
+                  <span className="text-xs text-slate-400">{t("yearLocked")}</span>
                 </>
               ) : (
                 <input
@@ -180,15 +191,15 @@ export function PlanPicker({
               )}
             </label>
             <label className="flex flex-col gap-1">
-              <span className="text-xs font-bold uppercase tracking-wide text-slate-500">Açıklama (opsiyonel)</span>
+              <span className="text-xs font-bold uppercase tracking-wide text-slate-500">{t("description")}</span>
               <input className={kupaInput} value={description} onChange={(e) => setDescription(e.target.value)} />
             </label>
             <div className="flex justify-end gap-2">
               <button type="button" className={`${kupaBtnGhost} min-h-[40px]`} onClick={() => setMode("none")} disabled={busy}>
-                Vazgeç
+                {tc("cancel")}
               </button>
               <button type="button" className={`${kupaBtnSuccess} min-h-[40px]`} onClick={save} disabled={busy}>
-                {busy ? "Kaydediliyor…" : "Kaydet"}
+                {busy ? tc("saving") : tc("save")}
               </button>
             </div>
           </div>

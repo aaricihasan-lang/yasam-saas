@@ -36,7 +36,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   if (!parsed.ok) return parsed.response;
 
   const fields = pickWritable(parsed.data, ADVICE_TEMPLATE_WRITABLE);
-  if (!String(fields.title ?? "").trim()) return cuppingError(400, "Şablon başlığı gerekli.");
+  if (!String(fields.title ?? "").trim()) return cuppingError(400, "Şablon başlığı gerekli.", "CUP_TITLE_REQUIRED");
 
   const ins = await insertEntity(db, CUPPING_TABLES.adviceTemplates, tenantId, fields);
   if (!ins.ok) {
@@ -55,7 +55,7 @@ export async function POST(req: NextRequest): Promise<Response> {
     });
     if (error) {
       await trackUsage(guard, req, { module: "cupping", action: "action_failed", failedAction: "record_updated", subEntity: "advice_template", errorClass: "server" });
-      return cuppingError(500, "İşlem tamamlanamadı. Lütfen tekrar deneyin.");
+      return cuppingError(500, "İşlem tamamlanamadı. Lütfen tekrar deneyin.", "CUP_DB_FAIL");
     }
     return NextResponse.json({ ok: true, template: data });
   }

@@ -1,11 +1,14 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+
 import { useSyncExternalStore } from "react";
 import {
   getReflexologySyncStatus,
   subscribeReflexologySyncStatus,
   type ReflexologySyncState,
 } from "@/lib/refleksoloji/syncStatus";
+import { useSyncStatusText } from "@/app/refleksoloji/hooks/useSyncStatusText";
 
 /**
  * REF-007: sunucu senkron durumunu gösteren küçük rozet. "Kaydedildi" mesajı artık
@@ -39,7 +42,9 @@ const DOT: Record<ReflexologySyncState, string> = {
 };
 
 export function SyncStatusBadge({ className = "" }: { className?: string }) {
+  const tc = useTranslations("reflexology.common");
   const status = useReflexologySyncStatus();
+  const statusText = useSyncStatusText();
   if (status.state === "idle") return null;
 
   const showRetry =
@@ -53,14 +58,14 @@ export function SyncStatusBadge({ className = "" }: { className?: string }) {
       className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold ${STYLE[status.state]} ${className}`}
     >
       <span className={`h-1.5 w-1.5 rounded-full ${DOT[status.state]}`} aria-hidden />
-      {status.message}
+      {statusText(status)}
       {showRetry ? (
         <button
           type="button"
           onClick={() => status.retry?.()}
           className="ml-1 rounded-md px-1.5 py-0.5 text-[11px] font-bold underline underline-offset-2 hover:opacity-80"
         >
-          Yeniden dene
+          {tc("retry")}
         </button>
       ) : null}
     </span>

@@ -12,7 +12,10 @@ import {
   type ReactNode,
 } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import { localeTag } from "@/lib/i18n/format";
+import { resolveLocale, type ActiveLocale } from "@/lib/i18n/locales";
+import { useDogaltasServerError } from "@/lib/dogaltas/useServerErrorText";
 import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
 import { DogaltasFontSizeControl } from "@/app/dogaltas/components/DogaltasFontSizeControl";
@@ -161,9 +164,10 @@ function mineralToEditForm(m: MineralRecord): MineralEditForm {
   };
 }
 
-function formatDate(value: string | null | undefined) {
+// A13 (Owner §19): yalnız gösterim — tr çıktısı eski Intl.DateTimeFormat("tr-TR") ile birebir; en → en-GB (DD/MM/YYYY, 24 saat).
+function formatDate(value: string | null | undefined, locale: ActiveLocale) {
   if (!value) return "—";
-  return new Intl.DateTimeFormat("tr-TR", {
+  return new Intl.DateTimeFormat(localeTag(locale), {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
@@ -369,7 +373,9 @@ function ListSectionCard({
 }
 
 function MineralDetailPageContent() {
+  const locale = resolveLocale(useLocale());
   const t = useTranslations("stones.minerals.detail");
+  const se = useDogaltasServerError();
   const tEdit = useTranslations("stones.minerals.edit");
   const tRoot = useTranslations("stones.minerals");
   const tc = useTranslations("stones.common");
@@ -428,7 +434,7 @@ function MineralDetailPageContent() {
     const r = await bulkDeleteMinerals([mineral.id]);
     setDeleteBusy(false);
     if (!r.ok || (r.deleted ?? 0) < 1) {
-      showToast({ type: "error", message: t("deleteFailed", { error: r.error ?? "" }) });
+      showToast({ type: "error", message: t("deleteFailed", { error: se.detail(r.error) }) });
       return;
     }
     showToast({ type: "success", message: t("deletedToast", { name }) });
@@ -469,12 +475,12 @@ function MineralDetailPageContent() {
     const res = await updateMineral(mineral.id, payload, expected);
     setEditSaving(false);
     if (res.conflict) {
-      setEditError(res.error || t("updateFailed"));
+      setEditError(se.text(res.error || undefined, t("updateFailed")));
       await loadMineral(); // en güncel kaydı getir (form açık kalır)
       return;
     }
     if (!res.ok) {
-      setEditError(res.error || t("updateFailed"));
+      setEditError(se.text(res.error || undefined, t("updateFailed")));
       return;
     }
     setIsEditing(false);
@@ -521,7 +527,7 @@ function MineralDetailPageContent() {
     setLoading(false);
 
     if (!ok) {
-      setErrorMessage(t("loadError", { error: error ?? "" }));
+      setErrorMessage(t("loadError", { error: se.detail(error) }));
       setMineral(null);
       return;
     }
@@ -533,7 +539,7 @@ function MineralDetailPageContent() {
     }
 
     setMineral(normalizeMineral(data as MineralRow));
-  }, [id, highlightQuery, refMineralIdFromQuery, t, tc]);
+  }, [id, highlightQuery, refMineralIdFromQuery, t, tc, se]);
 
   useEffect(() => {
     runInEffect(() => {
@@ -699,7 +705,7 @@ function MineralDetailPageContent() {
             </div>
 
             <p className="mt-1 text-[11px] font-medium text-slate-500">
-              {formatDate(mineral.created_at)}
+              {formatDate(mineral.created_at, locale)}
               {" · "}
               {hasHighlight
                 ? renderHighlightedText(mineral.source_id, highlightQuery)

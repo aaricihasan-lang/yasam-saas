@@ -110,7 +110,7 @@ export async function PUT(req: NextRequest): Promise<Response> {
   const contentLength = Number(req.headers.get("content-length") ?? "0");
   if (contentLength && contentLength > NOTE_LIMITS.MAX_BODY_BYTES) {
     return NextResponse.json(
-      { ok: false, error: "İstek gövdesi çok büyük." },
+      { ok: false, code: "REF_BODY_TOO_LARGE", error: "İstek gövdesi çok büyük." },
       { status: 413 },
     );
   }
@@ -119,14 +119,14 @@ export async function PUT(req: NextRequest): Promise<Response> {
   try {
     body = (await req.json()) as { notes?: unknown; deleted_uids?: unknown };
   } catch {
-    return NextResponse.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 });
+    return NextResponse.json({ ok: false, code: "REF_INVALID_BODY", error: "Geçersiz istek gövdesi." }, { status: 400 });
   }
 
   // Sunucu tarafı runtime doğrulama (REF-009 / REF-017) — NOT-BAŞINA (FA-03).
   const prepared = prepareNoteSyncBatch(body);
   if (!prepared.ok) {
     return NextResponse.json(
-      { ok: false, error: prepared.error.message },
+      { ok: false, code: "REF_VALIDATION", error: prepared.error.message },
       { status: prepared.error.status },
     );
   }

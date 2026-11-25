@@ -1,6 +1,9 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useTranslations } from "next-intl";
+import { useCuppingVocab } from "@/app/kupa/lib/useCuppingVocab";
+import { useKupaErrorText } from "@/app/kupa/lib/errorText";
 import { kupaBtnGhost, kupaBtnPrimary, kupaBtnSuccess, kupaInput } from "@/app/kupa/components/KupaShell";
 
 /**
@@ -46,31 +49,12 @@ export type QuickCreateConfig =
       onUseExisting: (id: string) => void;
     };
 
-const TECHNIQUE_TYPE_OPTIONS = [
-  { value: "", label: "Belirtilmemiş" },
-  { value: "dry", label: "Kuru Kupa" },
-  { value: "wet", label: "Yaş Kupa / Hacamat" },
-] as const;
-
-const MOVEMENT_STYLE_OPTIONS = [
-  { value: "", label: "Belirtilmemiş" },
-  { value: "stationary", label: "Sabit" },
-  { value: "gliding", label: "Kaydırmalı" },
-  { value: "flash", label: "Flaş" },
-] as const;
-
-const SEVERITY_OPTIONS = [
-  { value: "info", label: "Bilgi" },
-  { value: "warning", label: "Uyarı" },
-  { value: "contraindication", label: "Kontrendikasyon" },
-] as const;
-
-const CONTRA_CLASS_OPTIONS = [
-  { value: "", label: "Belirtilmemiş" },
-  { value: "absolute", label: "Mutlak" },
-  { value: "relative", label: "Göreceli" },
-  { value: "none", label: "Yok" },
-] as const;
+// Seçenek DEĞERLERİ kanonik koddur (DB); görünen etiket useCuppingVocab ile ekran dilinde üretilir
+// (TR değerleri messages/tr/cupping.json → cupping.vocab; app/kupa/teknikler/lib/labels.ts ile birebir).
+const TECHNIQUE_TYPE_OPTIONS = ["", "dry", "wet"] as const;
+const MOVEMENT_STYLE_OPTIONS = ["", "stationary", "gliding", "flash"] as const;
+const SEVERITY_OPTIONS = ["info", "warning", "contraindication"] as const;
+const CONTRA_CLASS_OPTIONS = ["", "absolute", "relative", "none"] as const;
 
 const fieldLabel = "block text-[11px] font-semibold text-slate-500";
 
@@ -86,6 +70,10 @@ export function QuickCreateMasterForm({
   onSuccess: () => void;
 }) {
   const isTechnique = config.entity === "technique";
+  const t = useTranslations("cupping.protocols.quickCreate");
+  const tc = useTranslations("cupping.common");
+  const vocab = useCuppingVocab();
+  const errText = useKupaErrorText();
 
   // Ortak birincil ad alanı (technique.name / safety.title).
   const [name, setName] = useState("");
@@ -109,7 +97,7 @@ export function QuickCreateMasterForm({
 
   async function doCreate() {
     if (!name.trim()) {
-      setError(isTechnique ? "Teknik adı gerekli." : "Başlık gerekli.");
+      setError(isTechnique ? t("techniqueNameRequired") : t("titleRequired"));
       return;
     }
     setError(null);
@@ -134,7 +122,7 @@ export function QuickCreateMasterForm({
       onSuccess();
     } catch (e) {
       // Create hatası → form açık kalır, kullanıcı dostu mesaj (ham DB hatası değil).
-      setError(e instanceof Error ? e.message : "Oluşturulamadı.");
+      setError(errText(e, t("createFailed")));
     } finally {
       setBusy(false);
     }
@@ -146,14 +134,14 @@ export function QuickCreateMasterForm({
         <div className="space-y-3">
           {/* Birincil ad */}
           <label className="block">
-            <span className={fieldLabel}>{isTechnique ? "Teknik Adı *" : "Başlık *"}</span>
+            <span className={fieldLabel}>{isTechnique ? t("techniqueNameLabel") : t("titleLabel")}</span>
             <input
               autoFocus
               className={`mt-1 ${kupaInput}`}
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder={isTechnique ? "Örn. Sabit kuru kupa" : "Örn. Gebelikte uygulanmaz"}
-              aria-label={isTechnique ? "Teknik adı" : "Başlık"}
+              placeholder={isTechnique ? t("techniquePlaceholder") : t("titlePlaceholder")}
+              aria-label={isTechnique ? t("techniqueNameAria") : t("titleAria")}
             />
           </label>
 
@@ -161,7 +149,7 @@ export function QuickCreateMasterForm({
           {duplicate ? (
             <div className="rounded-xl border border-amber-200 bg-amber-50 p-3">
               <p className="text-[12px] text-amber-800">
-                Benzer kayıt zaten var: <b>{duplicate.label}</b>
+                {t("duplicatePrefix")} <b>{duplicate.label}</b>
               </p>
               <div className="mt-2 flex flex-wrap items-center gap-2">
                 <button
@@ -169,10 +157,10 @@ export function QuickCreateMasterForm({
                   className={kupaBtnPrimary}
                   onClick={() => config.onUseExisting(duplicate.id)}
                 >
-                  Mevcut Kaydı Kullan
+                  {t("useExisting")}
                 </button>
                 <button type="button" disabled={busy} className={kupaBtnGhost} onClick={doCreate}>
-                  Yine de Oluştur
+                  {t("createAnyway")}
                 </button>
               </div>
             </div>
@@ -182,80 +170,80 @@ export function QuickCreateMasterForm({
           {config.entity === "technique" ? (
             <>
               <label className="block">
-                <span className={fieldLabel}>Tür</span>
+                <span className={fieldLabel}>{t("typeLabel")}</span>
                 <select
                   className={`mt-1 ${kupaInput}`}
                   value={techniqueType}
                   onChange={(e) => setTechniqueType(e.target.value)}
-                  aria-label="Tür"
+                  aria-label={t("typeLabel")}
                 >
-                  {TECHNIQUE_TYPE_OPTIONS.map((o) => (
-                    <option key={o.value} value={o.value}>{o.label}</option>
+                  {TECHNIQUE_TYPE_OPTIONS.map((v) => (
+                    <option key={v} value={v}>{vocab.techniqueType(v || null)}</option>
                   ))}
                 </select>
               </label>
               <label className="block">
-                <span className={fieldLabel}>Uygulama Biçimi</span>
+                <span className={fieldLabel}>{t("movementLabel")}</span>
                 <select
                   className={`mt-1 ${kupaInput}`}
                   value={movementStyle}
                   onChange={(e) => setMovementStyle(e.target.value)}
-                  aria-label="Uygulama biçimi"
+                  aria-label={t("movementAria")}
                 >
-                  {MOVEMENT_STYLE_OPTIONS.map((o) => (
-                    <option key={o.value} value={o.value}>{o.label}</option>
+                  {MOVEMENT_STYLE_OPTIONS.map((v) => (
+                    <option key={v} value={v}>{vocab.movementStyle(v || null)}</option>
                   ))}
                 </select>
               </label>
               <label className="block">
-                <span className={fieldLabel}>Kısa Açıklama</span>
+                <span className={fieldLabel}>{t("shortDescLabel")}</span>
                 <textarea
                   className={`mt-1 ${kupaInput}`}
                   rows={3}
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Opsiyonel"
-                  aria-label="Kısa açıklama"
+                  placeholder={t("optional")}
+                  aria-label={t("shortDescAria")}
                 />
               </label>
             </>
           ) : (
             <>
               <label className="block">
-                <span className={fieldLabel}>Açıklama</span>
+                <span className={fieldLabel}>{t("descLabel")}</span>
                 <textarea
                   className={`mt-1 ${kupaInput}`}
                   rows={3}
                   value={content}
                   onChange={(e) => setContent(e.target.value)}
-                  placeholder="Opsiyonel"
-                  aria-label="Açıklama"
+                  placeholder={t("optional")}
+                  aria-label={t("descLabel")}
                 />
               </label>
               <label className="block">
-                <span className={fieldLabel}>Önem</span>
+                <span className={fieldLabel}>{t("severityLabel")}</span>
                 <select
                   className={`mt-1 ${kupaInput}`}
                   value={severity}
                   onChange={(e) => setSeverity(e.target.value as "info" | "warning" | "contraindication")}
-                  aria-label="Önem"
+                  aria-label={t("severityLabel")}
                 >
-                  {SEVERITY_OPTIONS.map((o) => (
-                    <option key={o.value} value={o.value}>{o.label}</option>
+                  {SEVERITY_OPTIONS.map((v) => (
+                    <option key={v} value={v}>{vocab.severity(v)}</option>
                   ))}
                 </select>
               </label>
               {severity === "contraindication" ? (
                 <label className="block">
-                  <span className={fieldLabel}>Kontrendikasyon Sınıfı</span>
+                  <span className={fieldLabel}>{t("contraLabel")}</span>
                   <select
                     className={`mt-1 ${kupaInput}`}
                     value={contraClass}
                     onChange={(e) => setContraClass(e.target.value)}
-                    aria-label="Kontrendikasyon sınıfı"
+                    aria-label={t("contraAria")}
                   >
-                    {CONTRA_CLASS_OPTIONS.map((o) => (
-                      <option key={o.value} value={o.value}>{o.label}</option>
+                    {CONTRA_CLASS_OPTIONS.map((v) => (
+                      <option key={v} value={v}>{v ? vocab.contraClass(v) : vocab.unspecified}</option>
                     ))}
                   </select>
                 </label>
@@ -270,11 +258,11 @@ export function QuickCreateMasterForm({
       {/* Aksiyonlar (her zaman görünür; dup varken birincil oluştur GİZLİ → sessiz create yok) */}
       <div className="flex items-center justify-end gap-2 border-t border-slate-100 px-4 py-3.5">
         <button type="button" className={kupaBtnGhost} onClick={onCancel}>
-          Vazgeç
+          {tc("cancel")}
         </button>
         {!duplicate ? (
           <button type="button" disabled={busy} className={kupaBtnSuccess} onClick={doCreate}>
-            Oluştur ve Ekle
+            {t("createAndAdd")}
           </button>
         ) : null}
       </div>

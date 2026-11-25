@@ -1,0 +1,140 @@
+{
+  "reports": {
+    "hdRelations": {
+      "title": {
+        "connection": "Human Design İlişki Analizi (Connection)",
+        "penta": "Human Design Grup Analizi (Penta)"
+      },
+      "header": {
+        "connection": "Human Design · İlişki Analizi",
+        "penta": "Human Design · Grup Analizi"
+      },
+      "cover": {
+        "kind": "Analiz türü",
+        "relationType": "İlişki bağlamı (yalnız bilgi)",
+        "analysisDate": "Analiz tarihi",
+        "reportDate": "Rapor tarihi",
+        "memberCount": "Kişi sayısı",
+        "preparedBy": "Raporu Hazırlayan",
+        "credTitle": "Unvan",
+        "credOrg": "Kurum"
+      },
+      "status": {
+        "birth_data_changed": "Danışanın doğum bilgisi bu analizden sonra değişmiştir; analiz o tarihteki kayıtlı bilgilerle hazırlanmıştır.",
+        "source_chart_deleted": "Kaynak bireysel analiz sonradan silinmiş ya da değiştirilmiştir; bu sonuç tarihsel kayıttır.",
+        "client_deleted": "Danışan profili sonradan silinmiştir; ad tarihsel kayıttan gösterilir."
+      },
+      "participants": {
+        "heading": "Katılımcılar",
+        "colTag": "Kişi",
+        "colName": "Ad Soyad",
+        "colBirthDate": "Doğum Tarihi",
+        "colTime": "Saat",
+        "colPlace": "Doğum Yeri"
+      },
+      "image": {
+        "headingConnection": "Birleşik İlişki BodyGraph'ı",
+        "headingPenta": "Penta Şeması",
+        "missing": "Görsel bu raporda oluşturulamadı.",
+        "resultOnlyNote": "Kaynak bireysel analiz verisi artık mevcut olmadığından grafikte yalnız kayıtlı sonuçtaki birlikte tamamlanan kanallar gösterilmiştir; yarım kanallar çizilmemiştir."
+      },
+      "legend": {
+        "standard1": "Standart Human Design birleşik BodyGraph'ı. Renk kişiyi gösterir: mavi = A, turuncu = B; iki renkli (yarım yarım) kapı = iki kişide de aktif.",
+        "standard2": "Grafikte yalnız iki kişinin BİRLİKTE tamamladığı kanallar çizilir. İki renkli kanal = Elektromanyetik; tek renkli kanal = Baskınlık, Uzlaşma ya da Arkadaşlık (türü aşağıdaki tabloda).",
+        "standard3": "Renkli merkez = birleşik haritada tanımlı; beyaz merkez = açık. Yarım kanallar ve kişilerin tüm aktif kapıları 'Yarım Kanallar ve Aktif Kapılar' bölümündedir.",
+        "connection1": "Renk kişiyi gösterir: mavi = A, turuncu = B. Aktif kapı kanalın kendi yarısını kişinin rengine boyar; mavi zemin üzerinde turuncu çizgili yarı ve iki renkli kapı = iki kişide ortak kapı.",
+        "connection2": "İki yarısı da boyalı kanal = birleşik haritada tanımlı. Yalnız bir yarısı boyalı kanal = yarım kanal (tanımlı değil). Bağlantı türü aşağıdaki kanal tablosundadır.",
+        "connection3": "Renkli merkez = birleşik haritada tanımlı; beyaz merkez = açık.",
+        "schematic1": "Renk kişiyi gösterir: mavi = A, turuncu = B; iki renkli (çizgili / yarım daire) = iki kişide ortak kapı.",
+        "schematic2": "Kalın kanal = birleşik haritada tanımlı. İnce kesikli yarım kanal = yalnız bir kapısı aktif (tanımlı değil).",
+        "schematic3": "Kanal ortasındaki şekil bağlantı türünü gösterir: ◆ Elektromanyetik · ▲ Baskınlık · ■ Uzlaşma · ● Arkadaşlık / Eşlik.",
+        "schematic4": "Dolgulu merkez = birleşik haritada tanımlı; merkezdeki A / B / A+B = merkezi kendi haritasında tanımlayan kişi.",
+        "penta1": "Kalın mor çizgi = grupta tanımlı Penta kanalı (güçlü yön); pembe = 2/14 çekirdek tanımlı; noktalı gri = boşluk var (kanal tamamlanmıyor).",
+        "penta2": "Kapının yanındaki numaralı rozetler o kapıyı taşıyan üyeleri gösterir (numara = üye sırası); kesikli kapı + 'boşluk' = hiçbir üye taşımıyor."
+      },
+      "conn": {
+        "summaryHeading": "Bağlantı Özeti",
+        "channelCount": "Bağlı kanal sayısı",
+        "combinedDefinition": "Birleşik Tanım (Combined Definition)",
+        "typesHeading": "Bağlantı Türleri",
+        "channelsHeading": "Kanal Bağlantıları",
+        "noChannels": "İki kişi birlikte hiçbir kanalı tamamlamıyor.",
+        "colChannel": "Kanal",
+        "colCircuit": "Devre",
+        "colCenters": "Merkezler",
+        "centersHeading": "Birleşik Merkezler",
+        "centersNote": "Birleşik haritada bir kanal, iki kişi birlikte iki kapısını da taşıdığında tanımlı sayılır. Son sütun merkezi KENDİ haritasında kimin tanımladığını gösterir.",
+        "colCenter": "Merkez",
+        "colCombined": "Birleşik Haritada",
+        "colDefinedBy": "Kendi Haritasında Tanımlayan",
+        "defined": "Tanımlı",
+        "notDefined": "Tanımlı değil",
+        "both": "Her ikisi ({a}, {b})",
+        "none": "Hiçbiri"
+      },
+      "gates": {
+        "heading": "Yarım Kanallar ve Aktif Kapılar",
+        "noSource": "Kaynak bireysel analiz verisi bu raporda bulunmadığı için yarım kanallar ve kişilerin tüm aktif kapıları gösterilemiyor.",
+        "halfNote": "Yarım kanal: birlikte kanalın yalnız bir kapısı aktif; birleşik haritada tanımlı değildir.",
+        "colHalf": "Yarım kanal",
+        "colLower": "Alt kapı — taşıyan",
+        "colUpper": "Üst kapı — taşıyan",
+        "noHalf": "Yarım kanal yok.",
+        "allHeading": "Kişilerin tüm aktif kapıları",
+        "starNote": "* Birlikte tamamlanan bir kanala ait kapı.",
+        "holderBoth": "{a} ve {b}"
+      },
+      "penta": {
+        "summaryHeading": "Grup Özeti",
+        "memberCount": "Üye sayısı",
+        "definedChannels": "Tanımlı Penta kanalı (Güçlü yön)",
+        "filledGates": "Dolu Penta kapısı",
+        "core": "2/14 çekirdek (The Beat)",
+        "gapGates": "Eksik işlev kapıları (boşluk)",
+        "none": "Yok",
+        "coreSuffix": " · çekirdek",
+        "strong": "Güçlü yön (tanımlı)",
+        "gap": "Boşluk var",
+        "colChannel": "Kanal",
+        "colStatus": "Durum",
+        "colGateA": "Kapı A — taşıyan",
+        "colGateB": "Kapı B — taşıyan",
+        "gatesHeading": "Penta Kapıları ve Katkılar",
+        "colGate": "Kapı",
+        "colRole": "Rol (kapı adı)",
+        "colGateStatus": "Durum",
+        "colHolders": "Taşıyan üye(ler)",
+        "filled": "Dolu",
+        "gapShort": "Boşluk"
+      },
+      "sections": {
+        "analysisHeading": "Analiz Açıklamaları",
+        "knowledgeHeading": "Bilgi Bankamdaki Açıklamalar",
+        "knowledgeNote": "Uzmanın kendi Bilgi Bankası kayıtları. Kişiye ait bireysel kayıtlar kişinin adıyla belirtilmiştir; genel kanal/kapı kayıtları ilişki/grup yorumu değildir.",
+        "expertHeading": "Uzman Yorumu"
+      },
+      "knowledgeGroup": {
+        "channels": "Birleşik haritadaki kanallar — genel kanal kayıtlarınız",
+        "pentaChannels": "Tanımlı Penta kanalları — genel kanal kayıtlarınız",
+        "pentaGates": "Penta kapıları — genel kapı kayıtlarınız",
+        "person": "{name} — bireysel kayıtlarınız"
+      },
+      "footer": {
+        "page": "Sayfa "
+      },
+      "file": {
+        "connection": "HD-Iliski",
+        "penta": "HD-Grup-Penta",
+        "fallback": "analiz"
+      },
+      "scene": {
+        "bandThroat": "BOĞAZ MERKEZİ",
+        "bandG": "G MERKEZİ",
+        "bandSacral": "SAKRAL MERKEZ",
+        "coreSuffix": " · ÇEKİRDEK",
+        "gapSuffix": " · boşluk var",
+        "gapWord": "boşluk"
+      }
+    }
+  }
+}

@@ -11,6 +11,7 @@
  */
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { authHeaders } from "../helpers/numApiClient";
 import { runInEffect } from "@/lib/runInEffect";
 
@@ -24,17 +25,19 @@ export function NumerolojiDanisanBagi({ recordId }: { recordId: string }) {
   const [loaded, setLoaded] = useState(false);
   const [unavailable, setUnavailable] = useState(false);
   const [link, setLink] = useState<LinkState>(null);
-  const [msg, setMsg] = useState<string | null>(null);
+  const t = useTranslations("numerology.app.clientLink");
+  // Hata durumu dil-bağımsız anahtar olarak tutulur; metin çizimde ekran dilinde üretilir.
+  const [msg, setMsg] = useState<"readFailed" | "network" | null>(null);
 
   const load = useCallback(async () => {
     try {
       const res = await fetch(base, { headers: authHeaders(), cache: "no-store" });
       const j = (await res.json().catch(() => ({}))) as { ok?: boolean; link?: LinkState };
       if (res.status === 503) { setUnavailable(true); return; }
-      if (!res.ok || !j.ok) { setMsg("Danışan bağlantısı okunamadı."); return; }
+      if (!res.ok || !j.ok) { setMsg("readFailed"); return; }
       setLink(j.link ?? null);
     } catch {
-      setMsg("Ağ hatası. Bağlantını kontrol et.");
+      setMsg("network");
     } finally {
       setLoaded(true);
     }
@@ -45,25 +48,25 @@ export function NumerolojiDanisanBagi({ recordId }: { recordId: string }) {
   if (!loaded || unavailable) return null;
 
   return (
-    <section aria-label="Danışan bağlantısı" className="rounded-xl border border-violet-200/70 bg-white/80 px-3 py-2.5 text-xs text-slate-700 md:px-4">
+    <section aria-label={t("aria")} className="rounded-xl border border-violet-200/70 bg-white/80 px-3 py-2.5 text-xs text-slate-700 md:px-4">
       {link ? (
         <div className="flex flex-wrap items-center gap-2">
-          <span className="font-bold text-violet-800">Bağlı danışan:</span>
+          <span className="font-bold text-violet-800">{t("linkedLabel")}</span>
           {link.client ? (
             <Link href={`/dashboard/clients/${link.clientId}?tab=numeroloji`} className="font-bold text-slate-900 underline decoration-violet-300 underline-offset-2">
               {fullName(link.client)}
             </Link>
           ) : (
-            <span className="font-semibold text-slate-600">Bir danışana bağlı</span>
+            <span className="font-semibold text-slate-600">{t("linkedUnknown")}</span>
           )}
         </div>
       ) : (
         <div className="flex flex-wrap items-center gap-2">
-          <span className="font-semibold text-slate-600">Bu analiz bir danışana bağlı değil.</span>
-          <span className="text-slate-500">Danışan analizleri, Danışan Yolculuğu&apos;nda danışan kaydedilince otomatik oluşturulur.</span>
+          <span className="font-semibold text-slate-600">{t("notLinked")}</span>
+          <span className="text-slate-500">{t("autoNote")}</span>
         </div>
       )}
-      {msg ? <p role="alert" className="mt-1.5 font-semibold text-rose-700">{msg}</p> : null}
+      {msg ? <p role="alert" className="mt-1.5 font-semibold text-rose-700">{t(msg)}</p> : null}
     </section>
   );
 }

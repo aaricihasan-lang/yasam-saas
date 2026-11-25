@@ -1,0 +1,93 @@
+{
+  "reflexology": {
+    "zoneMap": {
+      "title": "Bölge Haritası",
+      "subtitle": "Ayak bölgeleri üzerinden organ ve sistemlerle ilişkili alanları inceleyin.",
+      "localOnly": "Bölge haritasında yaptığınız çizimler sadece cihazınızda saklanır. Oturumunuz boyunca görünür; çıkışta silinir.",
+      "atlasLoading": "Atlas yükleniyor…",
+      "quarantineFound": "Bu cihazda sahibi belirsiz eski atlas verisi bulundu.",
+      "quarantineLink": "Kayıtlı Atlas'ta içe aktarın veya silin",
+      "toolbar": {
+        "aria": "Bölge haritası araçları",
+        "oval": "Oval",
+        "rect": "Kare",
+        "freeDraw": "Manuel Çizim",
+        "thickLine": "Kalın Çizgi",
+        "point": "Nokta",
+        "pointSizeAria": "Nokta boyutu",
+        "move": "Taşı / Düzenle",
+        "save": "Kaydet",
+        "clear": "Temizle"
+      },
+      "canvas": {
+        "aria": "Ayak haritası çalışma alanı",
+        "noActiveOrgan": "Aktif organ yok",
+        "regionCount": "{count} bölge",
+        "overlay": " · {count} organ overlay",
+        "drawMode": " · Çizim modu",
+        "editMode": " · Düzenleme modu",
+        "unsaved": " · {count} kaydedilmemiş",
+        "drawFree": "«{organ}» için basılı tutup çizin",
+        "drawPoint": "«{organ}» için dokunarak nokta koyun",
+        "drawThick": "«{organ}» için sürükleyerek kalın çizgi çizin",
+        "drawRect": "«{organ}» için sürükleyerek kare çizin",
+        "drawOval": "«{organ}» için sürükleyerek oval çizin",
+        "toolRequired": "Önce alttan çizim modelini seçin",
+        "imageFailed": "Atlas görseli yüklenemedi.",
+        "imageLoading": "Ayak görseli yükleniyor…",
+        "selectOrganFirst": "Önce soldan bir organ seçiniz.",
+        "editHint": "Seç · sürükle · boyutlandır · döndür",
+        "emptyEditable": "Bu görünümde henüz çizilmiş bölge yok. Alttan bir çizim modeli seçerek çizmeye başlayın.",
+        "emptyReadonly": "Bu görünümde çizili bölge yok. Bölge ekleme bilgisayardan yapılır.",
+        "resize": "Boyutlandır: {handle}",
+        "rotate": "Döndür",
+        "lineStart": "Çizgi başlangıcı",
+        "lineEnd": "Çizgi bitişi",
+        "lineRotate": "Çizgiyi döndür"
+      },
+      "hands": {
+        "left": "Sol",
+        "right": "Sağ",
+        "aria": "Sol el solda, sağ el sağda"
+      },
+      "mobile": {
+        "aria": "Bölge düzenleme bilgisi",
+        "title": "Bölge düzenleme bilgisayarda kullanılabilir",
+        "body": "Refleksoloji bölgelerinin hassas ve doğru şekilde konumlandırılabilmesi için harita üzerinde bölge ekleme ve düzenleme işlemleri bilgisayardan yapılmaktadır. Kayıtlı atlasınızı ve bölgelerinizi bu cihazdan görüntülemeye devam edebilirsiniz."
+      },
+      "conflict": {
+        "organs": "Çakışan organlar: {organs}",
+        "pushMine": "Benim sürümümü gönder",
+        "takeServer": "Sunucu sürümünü al"
+      },
+      "saveToast": {
+        "synced": "Atlas kaydedildi ve sunucuyla eşitlendi. Bölgeler Kayıtlı Atlas'ta.",
+        "failed": "Bölgeler bu cihaza kaydedildi ancak sunucuya gönderilemedi. Üstteki «Yeniden dene» ile tekrar deneyin.",
+        "pending": "Bölgeler bu cihaza kaydedildi — sunucuya gönderiliyor…",
+        "localOnly": "Atlas bu cihaza kaydedildi."
+      },
+      "organs": {
+        "title": "ORGANLAR",
+        "multiHint": "Çoklu seçim için tıklayın",
+        "emptyName": "Organ adı boş olamaz.",
+        "exists": "«{organ}» zaten listede — mevcut organ seçildi.",
+        "addPlaceholder": "Organ adı yaz...",
+        "add": "Ekle",
+        "search": "Organ ara",
+        "searchPlaceholder": "Organ ara...",
+        "deleteDrawing": "Çizimi Sil",
+        "none": "Henüz organ eklenmedi.",
+        "noMatch": "Eşleşen organ bulunamadı."
+      },
+      "notes": {
+        "title": "ORGAN ATLASI",
+        "selected": "Seçili Organ",
+        "selectOrgan": "Organ seçiniz",
+        "savedZones": "Kayıtlı Bölgeler",
+        "noZones": "Bu organ için henüz bölge çizilmedi. Ayak üzerinde bölge işaretleyip Kaydet ile ekleyebilirsiniz.",
+        "pickHint": "Bir organ seçtiğinizde atlas bilgisi burada görüntülenir.",
+        "info": "Bilgilendirme"
+      }
+    }
+  }
+}

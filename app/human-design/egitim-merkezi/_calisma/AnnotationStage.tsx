@@ -13,11 +13,13 @@
  */
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { Maximize2 } from "lucide-react";
+import { useTranslations } from "next-intl";
+import { useAnchorLabel } from "../_ui/labels";
 import { HdPremiumBodygraph } from "@/app/human-design/kayitli-haritalar/components/HdPremiumBodygraph";
 import { CBG_PALETTE_COLOR, type CbgState } from "@/lib/human-design/relations/connectionBodygraphScene";
 import { HD_PREMIUM_INDIVIDUAL_TONE } from "@/lib/human-design/bodygraph/rendererConfig";
 import {
-  ANN_BG_BOX, ANN_BOX, ANN_BUBBLE_R, ANN_CANVAS, ANN_CANVAS_VIEWBOX, ANN_COLORS, ANN_MAX_NOTE, ANN_MAX_PEN_POINTS, anchorLabel, elPosition, nearestAnchor,
+  ANN_BG_BOX, ANN_BOX, ANN_BUBBLE_R, ANN_CANVAS, ANN_CANVAS_VIEWBOX, ANN_COLORS, ANN_MAX_NOTE, ANN_MAX_PEN_POINTS, elPosition, nearestAnchor,
   type AnnColor, type AnnEl, type AnnFront, type AnnWidth,
 } from "@/lib/human-design/education/annotations/annotationContract";
 import css from "@/app/_premium/hd-education/calismaAlani.module.css";
@@ -147,6 +149,9 @@ export function AnnotationStage({
   onNoteText?: (id: string, n: string) => void;
   onNoteEdit?: (phase: "begin" | "end") => void;
 }) {
+  const tx = useTranslations("hd.education.ws");
+  const tLegend = useTranslations("hd.chart.bodygraph");
+  const anchorText = useAnchorLabel();
   const svgRef = useRef<SVGSVGElement | null>(null);
   const wrapRef = useRef<HTMLDivElement | null>(null);
   // Telefon: tuval kart genişliğinden geniş → başlangıçta BodyGraph ortada (yan çalışma alanları yatay kaydırmayla).
@@ -278,7 +283,7 @@ export function AnnotationStage({
             viewBox={ANN_CANVAS_VIEWBOX}
             className={drawing || tool === "bubble" || tool === "text" || drag || resize ? css.overlay : css.overlayIdle}
             role="group"
-            aria-label="Çizim ve not katmanı"
+            aria-label={tx("layerAria")}
             data-ann-overlay
             data-ann-hidden={hidden ? "1" : "0"}
             onPointerDown={down}
@@ -350,7 +355,7 @@ export function AnnotationStage({
                   );
                   const common = {
                     ...hitProps, "data-ann-x": r1(p.x), "data-ann-y": r1(p.y), "data-ann-anchor": el.a ? `${el.a.k}:${el.a.id}` : "", "data-ann-r": r, "data-ann-mode": el.m ?? "pop",
-                    role: !interactive ? "button" : undefined, tabIndex: !interactive ? 0 : undefined, "aria-label": `Not ${no}${el.a ? ` · ${anchorLabel(el.a)}` : ""}`,
+                    role: !interactive ? "button" : undefined, tabIndex: !interactive ? 0 : undefined, "aria-label": `${tx("noteN", { n: String(no) })}${el.a ? ` · ${anchorText(el.a)}` : ""}`,
                   };
                   if (el.m === "in") {
                     // Not metni harita üzerinde kutu içinde: kutu boyutu tutamaçla değişir; uzun metin kutu içinde KAYAR (kesilmez).
@@ -361,11 +366,11 @@ export function AnnotationStage({
                         <rect x={p.x} y={p.y} width={bx.w} height={bx.h} rx={10} fill="#fff" fillOpacity={0.97} stroke={col} strokeWidth={2} />
                         <foreignObject x={p.x} y={p.y} width={bx.w} height={bx.h} style={{ pointerEvents: editing || !interactive ? "auto" : "none" }}>
                           {editing ? (
-                            <textarea className={css.boxEdit} style={{ paddingTop: r + 4 }} value={el.n} maxLength={ANN_MAX_NOTE} aria-label={`Not ${no} metni`} data-ann-box-input={el.id}
+                            <textarea className={css.boxEdit} style={{ paddingTop: r + 4 }} value={el.n} maxLength={ANN_MAX_NOTE} aria-label={tx("noteTextAria", { n: String(no) })} data-ann-box-input={el.id}
                               onPointerDown={(ev) => ev.stopPropagation()} onFocus={() => onNoteEdit?.("begin")} onBlur={() => onNoteEdit?.("end")}
-                              onChange={(ev) => onNoteText?.(el.id, ev.target.value.replace(/[<>]/g, ""))} placeholder="Notu buraya yazın…" />
+                              onChange={(ev) => onNoteText?.(el.id, ev.target.value.replace(/[<>]/g, ""))} placeholder={tx("boxPh")} />
                           ) : (
-                            <div className={css.boxText} style={{ paddingTop: r + 4 }} data-ann-box-text={el.id}>{el.n.trim() ? el.n : <em>(boş not)</em>}</div>
+                            <div className={css.boxText} style={{ paddingTop: r + 4 }} data-ann-box-text={el.id}>{el.n.trim() ? el.n : <em>{tx("emptyNote")}</em>}</div>
                           )}
                         </foreignObject>
                         {marker}
@@ -393,14 +398,14 @@ export function AnnotationStage({
             )) : null}
           </svg>
           {openB && openPos && !hidden && openB.m !== "in" ? (
-            <div className={`${css.pop} ${openPos.y < Y0 + 220 ? css.popBelow : ""}`} role="dialog" aria-label={`Not ${bubbleNo.get(openB.id) ?? ""}`} data-ann-popover={openB.id}
+            <div className={`${css.pop} ${openPos.y < Y0 + 220 ? css.popBelow : ""}`} role="dialog" aria-label={tx("noteN", { n: String(bubbleNo.get(openB.id) ?? "") })} data-ann-popover={openB.id}
               style={{ left: `${((openPos.x - X0) / ANN_CANVAS.width) * 100}%`, top: `${((openPos.y - Y0) / ANN_CANVAS.height) * 100}%` }}>
-              <button type="button" className={css.popClose} aria-label="Notu kapat" onClick={() => onBubble?.(null)}>×</button>
-              <span className={css.popHead}>Not {bubbleNo.get(openB.id)}{openB.a ? ` · ${anchorLabel(openB.a)}` : ""}</span>
-              <div className={css.popBody} data-ann-popover-body>{openB.n.trim() ? openB.n : <em>(boş not)</em>}</div>
+              <button type="button" className={css.popClose} aria-label={tx("closeNote")} onClick={() => onBubble?.(null)}>×</button>
+              <span className={css.popHead}>{tx("noteN", { n: String(bubbleNo.get(openB.id) ?? "") })}{openB.a ? ` · ${anchorText(openB.a)}` : ""}</span>
+              <div className={css.popBody} data-ann-popover-body>{openB.n.trim() ? openB.n : <em>{tx("emptyNote")}</em>}</div>
               {onExpandBubble && openB.n.trim() ? (
                 <button type="button" className={css.popExpand} onClick={() => onExpandBubble(openB.id)} data-ann-popover-expand>
-                  <Maximize2 size={14} aria-hidden /> Genişlet
+                  <Maximize2 size={14} aria-hidden /> {tx("expand")}
                 </button>
               ) : null}
             </div>
@@ -408,9 +413,9 @@ export function AnnotationStage({
         </div>
       </div>
       <p className={css.legend} data-hd-premium-legend>
-        <span><span className={css.dot} style={{ background: pColor }} />Kişilik (bilinçli)</span>
-        <span><span className={css.dot} style={{ background: dColor }} />Tasarım (bilinçsiz)</span>
-        <span>Çizgili / iki renkli: ikisi birden</span>
+        <span><span className={css.dot} style={{ background: pColor }} />{tLegend("legendPersonality")}</span>
+        <span><span className={css.dot} style={{ background: dColor }} />{tLegend("legendDesign")}</span>
+        <span>{tLegend("legendBoth")}</span>
       </p>
     </div>
   );

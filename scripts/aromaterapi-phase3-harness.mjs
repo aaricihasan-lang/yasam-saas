@@ -84,9 +84,14 @@ check("OilsPage NewOilForm gerçek dirty (pristine karşılaştırma) + guard + 
   /useAromaterapiDirtyGuard\(isDirty\)/.test(OILS) && /function requestBack/.test(OILS));
 check("OilsPage back düğmeleri requestBack (onBack körlemesine değil)",
   /onClick=\{requestBack\}/.test(OILS) && !/onClick=\{onBack\}/.test(OILS));
+// I18N (2026-11-25): rozet ve aria-label metinleri aromatherapy.oils.list.* katalog anahtarlarına taşındı;
+// niyet aynı — anahtar kullanımı + TR katalog değeri birebir doğrulanır.
+const AROMA_TR = JSON.parse(read("messages/tr/aromatherapy.json")).aromatherapy.oils.list;
 check("OilsPage 'İçerikte geçiyor' rozeti matchedOnlyInContent(appliedQuery=s.q)",
-  /const appliedQuery = s\.q/.test(OILS) && /matchedOnlyInContent\(row, appliedQuery\)/.test(OILS) && /İçerikte geçiyor/.test(OILS));
-check("OilsPage search + refresh aria-label", /aria-label="Yağ ara/.test(OILS) && /aria-label="Listeyi yenile"/.test(OILS));
+  /const appliedQuery = s\.q/.test(OILS) && /matchedOnlyInContent\(row, appliedQuery\)/.test(OILS) && /tl\("contentMatch"\)/.test(OILS) && AROMA_TR.contentMatch === "İçerikte geçiyor");
+check("OilsPage search + refresh aria-label",
+  /aria-label=\{tl\("searchAria"\)\}/.test(OILS) && /aria-label=\{tl\("refresh"\)\}/.test(OILS) &&
+  AROMA_TR.searchAria.startsWith("Yağ ara") && AROMA_TR.refresh === "Listeyi yenile");
 
 // --- yaglar/[id]: confirm dialog + real dirty ---------------------------------
 const DETAIL = read("app/aromaterapi/yaglar/[id]/page.tsx");
@@ -107,10 +112,14 @@ check("Blend Builder dirty guard (pristine/boş → guard yok; baseline kıyasl�
   /isBlendFormDirty\(currentSnapshot, baseline\)/.test(BLEND) &&
   /useState<BlendFormSnapshot>\(\(\) => emptyBlendSnapshot\(/.test(BLEND) &&
   /export function isBlendFormDirty/.test(BLEND_STATE));
+// I18N (2026-11-25): aria-label metinleri aromatherapy.blend.page.* anahtarlarına taşındı; anahtar + TR değer kilitli.
+const BLEND_PAGE_TR = JSON.parse(read("messages/tr/aromatherapy.json")).aromatherapy.blend.page;
 check("Blend Builder drops input + remove ✕ aria-label",
-  /aria-label=\{`\$\{it\.oil_name\} damla sayısı`\}/.test(BLEND) &&
-  /aria-label=\{`\$\{it\.oil_name\} karışımdan çıkar`\}/.test(BLEND) &&
-  /aria-label=\{`\$\{b\.name\} karışımını sil`\}/.test(BLEND));
+  /aria-label=\{tp\("dropsAria", \{ name: it\.oil_name \}\)\}/.test(BLEND) &&
+  /aria-label=\{tp\("removeAria", \{ name: it\.oil_name \}\)\}/.test(BLEND) &&
+  /aria-label=\{tp\("deleteAria", \{ name: b\.name \}\)\}/.test(BLEND) &&
+  BLEND_PAGE_TR.dropsAria === "{name} damla sayısı" && BLEND_PAGE_TR.removeAria === "{name} karışımdan çıkar" &&
+  BLEND_PAGE_TR.deleteAria === "{name} karışımını sil");
 
 // --- badge helper contract ----------------------------------------------------
 const DATA = read("lib/aromaterapi/aromatherapyData.ts");

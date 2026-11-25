@@ -94,7 +94,9 @@ const globalsCss = readFileSync(new URL("../../app/globals.css", import.meta.url
 const planTools = readFileSync(new URL("../../app/beslenme/planlar/_components/PlanTools.tsx", import.meta.url), "utf8");
 eq("globals: beslenme-export-desktop-only YOK", globalsCss.includes("beslenme-export-desktop-only"), false);
 eq("PlanTools: masaüstü sarmalayıcı sınıfı YOK", /EXPORT_DESKTOP_ONLY_CLASS|beslenme-export-desktop-only/.test(planTools), false);
-eq("PlanTools: Word İndir butonu var", /Word İndir/.test(planTools) && /downloadPlanWord\(planId\)/.test(planTools), true);
+// I18N (gece 25.11): buton metni katalogdan (beslenme.tools.wordDownload; TR "Word İndir" birebir). Niyet aynı: buton var.
+const besTr = JSON.parse(readFileSync(new URL("../../messages/tr/beslenme.json", import.meta.url), "utf8"));
+eq("PlanTools: Word İndir butonu var", /\{t\("wordDownload"\)\}/.test(planTools) && besTr.beslenme.tools.wordDownload === "Word İndir" && /downloadPlanWord\(planId\)/.test(planTools), true);
 eq("PlanTools: Android engeli yok", /useIsAndroid|no-android/.test(planTools), false);
 
 console.log(`\n${fail === 0 ? "✅" : "❌"} portion+export harness: ${pass} pass, ${fail} fail`);

@@ -30,7 +30,8 @@ import {
   type VedicUpagrahaTechnical,
 } from "@/lib/astrology/model/vedicNoktalar";
 import { createElement } from "react";
-import { renderToStaticMarkup } from "react-dom/server";
+// I18N ATLAS-V: Vedik eşleşme/nokta bileşenleri metni katalogdan alır → çizim next-intl sağlayıcısıyla (TR katalog = önceki metin; beklentiler değişmedi).
+import { renderToStaticMarkup } from "./intlRender";
 import { VedicUpagrahaPanel } from "@/app/admin/astroloji/_components/VedicNoktalarPanels";
 import { vedicNoktaReport } from "@/lib/astrology/report/vedicNoktalarReport";
 

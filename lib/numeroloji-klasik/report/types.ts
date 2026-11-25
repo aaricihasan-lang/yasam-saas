@@ -6,6 +6,7 @@
  */
 import type { ClassicKind } from "../input";
 import type { ExpertBranding, ExpertBrandingVariant } from "@/lib/docx/expertBranding";
+import type { OutputLocale } from "@/lib/i18n/output";
 
 /** Kayıtlı analiz (repository satırı ya da uzman görünümünden `toReportRecord` ile kurulur). */
 export type ClassicReportRecord = {
@@ -59,6 +60,8 @@ export const PERSON_REPORT_GROUPS: readonly PersonReportGroup[] = Object.freeze(
 ]);
 
 export type CommonReportOptions = {
+  /** I18N-F1-R5 (P37): çıktı dili. Yok / kaynak dil → bugünkü Türkçe çıktı birebir. Hesaba / gizleme kararına GİRMEZ. */
+  output?: OutputLocale | null;
   /** Rapor tarihi (deterministik çıktı için enjekte edilir; verilmezse şimdi). */
   generatedAt?: string | Date;
   expertName?: string | null;

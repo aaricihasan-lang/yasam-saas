@@ -57,7 +57,8 @@ export function jsonServerError(
     console.error(`[refleksoloji] ${context}: ${briefDbError(error)}`);
   }
   return NextResponse.json(
-    { ok: false, error: "İşlem tamamlanamadı. Lütfen tekrar deneyin." },
+    // I18N: dil-bağımsız `code` (istemci kod ile çevirir); Türkçe `error` aynen kalır.
+    { ok: false, code: "REF_SERVER_ERROR", error: "İşlem tamamlanamadı. Lütfen tekrar deneyin." },
     { status: 500 },
   );
 }

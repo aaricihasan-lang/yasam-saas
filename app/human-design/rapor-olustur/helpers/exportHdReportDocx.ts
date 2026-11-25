@@ -10,6 +10,29 @@ import {
 import { reportFileDate, reportGeneratedLabel } from "@/lib/time/reportTime";
 import { wellnessNote } from "@/lib/docx/reportDisclaimer";
 import { hdXmlSafeLine, hdXmlSafeMultiline } from "@/lib/human-design/reporting/xmlSafeText";
+import trReportBuilder from "@/messages/tr/hd.reportBuilder.json";
+import enReportBuilder from "@/messages/en/hd.reportBuilder.json";
+
+/**
+ * I18N (HD-B, P32) — çıktı dili = EKRAN dili (çağıran `useLocale()` ile verir; parametresiz = tr = bugünkü çıktı).
+ * Sistem metinleri ekranla AYNI katalogdan (`hd.reportBuilder.docx`); TR değerleri eski sabitlerle bayt-bayt aynı
+ * (golden: scripts/hd-i18n/reports-golden-p32.harness.ts). Kullanıcı içeriği (başlık, danışan adı, rapor metni)
+ * ÇEVRİLMEZ. Belge dili (`w:lang`) yalnız TR dışında eklenir → TR belgesi bayt-eşit.
+ * Ortak motorlar (reportDisclaimer.wellnessNote, reportTime) bu dalda dil almıyor: TR'de ortak motor çıktısı AYNEN,
+ * EN'de HD katalogundaki karşılık. #855 birleşince: `wellnessNote` yerine `output.common.wellness.human_design.full`,
+ * "Bilgilendirme" yerine `output.common.information` (tek satır geçiş).
+ */
+export type HdReportDocxLocale = "tr" | "en";
+const DOCX_TEXT = {
+  tr: trReportBuilder.hd.reportBuilder.docx,
+  en: enReportBuilder.hd.reportBuilder.docx,
+} as const;
+const DOCUMENT_LANG: Record<HdReportDocxLocale, string> = { tr: "tr-TR", en: "en-GB" };
+
+/** Tek geçişli {ad} yer tutucu doldurma (değerler yeniden taranmaz → kullanıcı metnindeki "{…}" korunur). */
+function fill(tpl: string, vars: Record<string, string>): string {
+  return tpl.replace(/\{(\w+)\}/g, (m, k: string) => (k in vars ? vars[k]! : m));
+}
 
 function toSafeFilename(name: string): string {
   return name
@@ -122,7 +145,12 @@ export async function exportHdReportDocx(params: {
   reportTitle: string;
   clientName: string;
   reportText: string;
+  /** Ekran dili; verilmezse kaynak dil (tr). */
+  locale?: HdReportDocxLocale;
 }): Promise<void> {
+  const locale: HdReportDocxLocale = params.locale === "en" ? "en" : "tr";
+  const isSource = locale === "tr";
+  const T = DOCX_TEXT[locale];
   // HD-09: bu (eski) istemci hattında da hiçbir metin XML 1.0'da geçersiz karakter taşımaz.
   const reportTitle = hdXmlSafeLine(params.reportTitle);
   const clientName = hdXmlSafeLine(params.clientName);
@@ -130,24 +158,24 @@ export async function exportHdReportDocx(params: {
 
   // FA-02: tarih + dosya adı Europe/Istanbul günü (UTC dilimi 00:00–03:00 arası "dün" üretmez).
   const now = new Date();
-  const today = reportGeneratedLabel(undefined, now);
+  const today = isSource ? reportGeneratedLabel(undefined, now) : reportGeneratedLabel({ locale: DOCUMENT_LANG[locale] }, now);
   const dateStr = reportFileDate(undefined, now); // "2026-06-23"
 
   const headerParagraphs: Paragraph[] = [
     new Paragraph({
       heading: HeadingLevel.TITLE,
       alignment: AlignmentType.CENTER,
-      children: [new TextRun({ text: "Human Design Raporu", bold: true })],
+      children: [new TextRun({ text: T.title, bold: true })],
       spacing: { after: 200 },
     }),
     new Paragraph({
       alignment: AlignmentType.CENTER,
-      children: [new TextRun({ text: `Danışan: ${clientName}`, size: 26 })],
+      children: [new TextRun({ text: fill(T.client, { name: clientName }), size: 26 })],
       spacing: { after: 120 },
     }),
     new Paragraph({
       alignment: AlignmentType.CENTER,
-      children: [new TextRun({ text: `Oluşturma Tarihi: ${today}`, size: 22, color: "555555" })],
+      children: [new TextRun({ text: fill(T.createdAt, { date: today }), size: 22, color: "555555" })],
       spacing: { after: 120 },
     }),
     new Paragraph({
@@ -171,6 +199,7 @@ export async function exportHdReportDocx(params: {
     .filter((p): p is Paragraph => p !== null);
 
   const doc = new Document({
+    ...(isSource ? {} : { styles: { default: { document: { run: { language: { value: DOCUMENT_LANG[locale] } } } } } }),
     sections: [
       {
         children: [
@@ -179,10 +208,10 @@ export async function exportHdReportDocx(params: {
           // FA-16: sade bilgilendirme notu (küçük, gri; uyarı kutusu değil).
           new Paragraph({
             spacing: { before: 360, after: 60 },
-            children: [new TextRun({ text: "Bilgilendirme", bold: true, size: 18, color: "475569" })],
+            children: [new TextRun({ text: T.information, bold: true, size: 18, color: "475569" })],
           }),
           new Paragraph({
-            children: [new TextRun({ text: wellnessNote("human_design").full, italics: true, size: 16, color: "94a3b8" })],
+            children: [new TextRun({ text: isSource ? wellnessNote("human_design").full : T.wellnessFull, italics: true, size: 16, color: "94a3b8" })],
           }),
         ],
       },
@@ -191,8 +220,8 @@ export async function exportHdReportDocx(params: {
 
   const blob = await Packer.toBlob(doc);
 
-  const safeName = toSafeFilename(clientName) || "Danisan";
-  const filename = `Human-Design-Raporu-${safeName}-${dateStr}.docx`;
+  const safeName = toSafeFilename(clientName) || T.clientFallback;
+  const filename = `${T.fileStem}-${safeName}-${dateStr}.docx`;
 
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");

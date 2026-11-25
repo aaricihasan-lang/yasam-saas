@@ -11,19 +11,17 @@
  * - Arayüzün türetme biçimi korunur (iki metotlu Zirve, Kitap 2 Mücadele biçim tespiti): görünmeyen tek
  *   metot yaşı / gelecekteki ana mücadele / gelecek harf segmentinin zamanlaması, gerçek değer yerine açıkça
  *   "gizli" yer tutucularla değiştirilir (REDACTED_* — gerçek bir sonuç değildir; arayüzün süzgeci bunları göstermez).
- * - Kronolojik ham metinler (Değişim, Zirve, Mücadele, Harfler) yalnız "Doğum Tarihi:" satırına indirilir
- *   (arayüz doğum tarihini bu satırdan okur; dönem listeleri yapısal veriden / doğum tarihinden üretilir).
- * - Doğum yılı çözülemezse (bozuk kayıt) kronolojik yapılar güvenli tarafta BOŞALTILIR (fail-closed).
+ * - Kronolojik ham metinler (Değişim, Zirve, Mücadele, Harfler) yalnız doğum tarihi satırına indirilir
+ *   (TR çıktı birebir; etiket TR/EN tanınır, tanınmayan metin tamamen boşaltılır). Doğum yılı KARARI bu
+ *   metinden DEĞİL, tek çözücüden (chronoBirth.resolveChronoBirth) gelir: kayıt `birth_date` alanı
+ *   birincil, snapshot metni yalnız eski kayıt geri dönüşü, harf segmentleri yapısal çapraz doğrulama.
+ * - Doğum yılı çözülemezse / kaynaklar çelişirse (bozuk kayıt) kronolojik yapılar güvenli tarafta
+ *   BOŞALTILIR (fail-closed).
  */
-import { parseBirthDate } from "@/lib/numeroloji";
-import { dogumTarihiFromOut } from "./chronoCutoff";
+import { birthLineOf, resolveChronoBirth, REDACTED_FUTURE_AGE, REDACTED_TOPIC, REDACTED_FUTURE_YEAR } from "./chronoBirth";
 
-/** Yaşam süresi dışı yaş: "bu dönem gizli" yer tutucusu (birthYear + 999 > her sınır yılı). */
-export const REDACTED_FUTURE_AGE = 999;
-/** Gizli ana mücadele konusu yer tutucusu (geçerli konular 0–8). */
-export const REDACTED_TOPIC = -1;
-/** Gizli takvim yılı yer tutucusu (her sınır yılından büyük). */
-export const REDACTED_FUTURE_YEAR = 9999;
+// Yer tutucular tek kaynakta (chronoBirth) tanımlıdır; mevcut içe aktaranlar için yeniden dışa aktarılır.
+export { REDACTED_FUTURE_AGE, REDACTED_TOPIC, REDACTED_FUTURE_YEAR };
 
 const CHRONO_TEXT_KEYS = ["degisimDonusumMetni", "zirveYillariMetni", "mucadeleYillariMetni", "harflerinYankilanisiMetni"] as const;
 
@@ -33,11 +31,6 @@ const num = (v: unknown): number | null => {
   const n = typeof v === "number" ? v : typeof v === "string" && v.trim() !== "" ? Number(v) : NaN;
   return Number.isFinite(n) ? n : null;
 };
-
-function birthLine(text: unknown): string {
-  const m = String(text ?? "").match(/Doğum Tarihi:\s*[^\n\r]+/i);
-  return m ? m[0].trim() : "";
-}
 
 function redactZirve(z: unknown, vis: (age: number) => boolean): unknown {
   if (!isObj(z) || !Array.isArray(z.peaks)) return z;
@@ -105,7 +98,7 @@ function redactHarf(segs: unknown, birthYear: number, limitYear: number): unknow
 
 /**
  * `analysis_data` görüntüleme kopyası. futureYears=true → GİRDİ AYNEN döner (tam analiz).
- * `birthDate`: kayıt doğum tarihi (motor metinlerinde bulunamazsa yedek).
+ * `birthDate`: kaydın yapısal `birth_date` alanı (karar için BİRİNCİL kaynak; yoksa eski kayıt metni).
  */
 export function redactAnalysisDataForFutureYears(
   analysisData: unknown,
@@ -113,8 +106,9 @@ export function redactAnalysisDataForFutureYears(
 ): unknown {
   if (opts.futureYears === true || !isObj(analysisData) || !isObj(analysisData.motor)) return analysisData;
   const motor = analysisData.motor;
-  const bd = dogumTarihiFromOut(motor as never) ?? (opts.birthDate ? String(opts.birthDate) : null);
-  const birthYear = bd ? parseBirthDate(bd.replace(/\//g, ".").replace(/^(\d{4})-(\d{2})-(\d{2})$/, "$3.$2.$1"))?.year ?? null : null;
+  // I18N-0003: yapısal kayıt alanı birincil; metin yalnız eski kayıt geri dönüşü; belirsiz → null (fail-closed).
+  const birth = resolveChronoBirth(motor, opts.birthDate ?? null);
+  const birthYear = birth.ok ? birth.year : null;
   const limitYear = opts.currentYear;
   const out: Obj = { ...motor };
 
@@ -129,7 +123,9 @@ export function redactAnalysisDataForFutureYears(
     if ("zirveYillari" in out) out.zirveYillari = redactZirve(out.zirveYillari, vis);
     if ("mucadeleYillari" in out) out.mucadeleYillari = redactMucadele(out.mucadeleYillari, vis);
     if ("harflerinYankilanisi" in out) out.harflerinYankilanisi = redactHarf(out.harflerinYankilanisi, birthYear, limitYear);
-    for (const k of CHRONO_TEXT_KEYS) if (k in out) out[k] = birthLine(out[k]);
+    for (const k of CHRONO_TEXT_KEYS) if (k in out) out[k] = birthLineOf(out[k]);
   }
-  return { ...analysisData, motor: out, futureYearsView: { restricted: true, limitYear } };
+  // Doğum tarihi çözülemediyse istemciye açıkça bildirilir: istemci kalan metinlerden yeniden türetme
+  // YAPMAZ, kronolojiyi tamamen kapalı tutar (ChronoRecordContext). Çözüldüğünde alan eklenmez (TR birebir).
+  return { ...analysisData, motor: out, futureYearsView: { restricted: true, limitYear, ...(birthYear === null ? { birthResolved: false } : {}) } };
 }

@@ -1,0 +1,218 @@
+{
+  "numerology": {
+    "analysis": {
+      "explain": {
+        "months": {
+          "1": "Ocak",
+          "2": "Şubat",
+          "3": "Mart",
+          "4": "Nisan",
+          "5": "Mayıs",
+          "6": "Haziran",
+          "7": "Temmuz",
+          "8": "Ağustos",
+          "9": "Eylül",
+          "10": "Ekim",
+          "11": "Kasım",
+          "12": "Aralık"
+        },
+        "masterStops": " (ana sayı — burada durur)",
+        "step": "Adım {n} — {label}",
+        "result": "{label}: {value}",
+        "forYear": "{year} için: {value}",
+        "totalLine": "Toplam: {total}",
+        "l": {
+          "birthDay": "Doğum günü",
+          "birthMonth": "Doğum ayı",
+          "calcYear": "Hesaplanan takvim yılı",
+          "total": "Toplam",
+          "birthYear": "Doğum yılı",
+          "birth": "Doğum",
+          "reference": "Referans",
+          "nominalPyYear": "Nominal Kişisel Yıl ({year})",
+          "nominalPy": "Nominal Kişisel Yıl",
+          "calendarMonth": "Takvim ayı",
+          "calendarMonthAdded": "Takvim ayı eklenir",
+          "personalMonth": "Kişisel Ay",
+          "personalDay": "Kişisel Gün",
+          "selectedDay": "Seçilen gün",
+          "selectedYear": "Seçilen takvim yılı",
+          "yearDigits": "Yılın rakamları",
+          "universalYear": "Evrensel Yıl",
+          "universalMonth": "Evrensel Ay",
+          "universalDay": "Evrensel Gün",
+          "refYear": "Referans yıl",
+          "yearChakra": "Güncel Yıl Çakrası",
+          "dobSide": "Doğum tarihi tarafı",
+          "nameSide": "Ad + soyad tarafı",
+          "maturity": "Olgunluk",
+          "dayOfBirthMonth": "Doğduğunuz ayın günü",
+          "birthDayEnergy": "Doğum Günü Enerjisi",
+          "personalityEnergy": "Kişilik Enerjisi",
+          "lifePath": "Hayat Yolu",
+          "lifeLesson": "Hayat Dersi",
+          "nameLetters": "Ad + soyad harfleri",
+          "letterValues": "Harf değerleri",
+          "destiny": "Kader Sayısı",
+          "calcAge": "Hesaplanan yaş"
+        },
+        "nominalPy": {
+          "unusedNote": "Kişisel Yıl hesabında doğum yılınız kullanılmaz. Kaynak yönteminde doğduğunuz gün, doğduğunuz ay ve hesaplanan takvim yılı kullanılır.",
+          "rationale": "Burada {year} kullanılmasının nedeni, {year} takvim yılı için kişisel yıl sayısının hesaplanıyor olmasıdır.",
+          "result": "{year} Nominal Kişisel Yıl: {value}",
+          "resultNote": "Bu değer seçilen takvim yılı için hesaplanan kişisel yıl sayısıdır. Referans tarihinde fiilen aktif olan kişisel yıl ayrıca Aktif Kişisel Yıl kartında gösterilir."
+        },
+        "activePy": {
+          "rationale": "Kaynak yönteminde yeni Kişisel Yıl, kişinin doğum gününde aktif olur ve bir sonraki doğum gününe kadar devam eder. {ref} tarihi {start} tarihinden sonra olduğu için, {year} için hesaplanan Kişisel Yıl {value} bu tarihte aktiftir.",
+          "result": "Referans tarihinde aktif olan Kişisel Yıl: {value}"
+        },
+        "personalMonth": {
+          "rationale": "Kişisel Ay hesabında bu kaynak yöntemine göre takvim yılı için hesaplanan Nominal Kişisel Yıl kullanılır (o tarihte aktif olan kişisel yıl değil)."
+        },
+        "personalDay": {
+          "rationale": "Kişisel Gün, Kişisel Ay ile seçilen günün tek haneye indirilmiş değeri toplanarak bulunur (Kişisel Yıl, Kişisel Ay'ın içinde zaten yer alır)."
+        },
+        "universalYear": {
+          "rationale": "Evrensel Yıl kişiye özel değildir. Seçilen takvim yılının rakamları toplanıp tek haneye indirilir."
+        },
+        "universalMonth": {
+          "rationale": "Önce yılın Evrensel Yıl değeri bulunur, sonra seçilen ayın numarası eklenir ve tek haneye indirilir. Kişiye özel değildir."
+        },
+        "universalDay": {
+          "rationale": "Önce ayın Evrensel Ay değeri bulunur, sonra seçilen günün tek haneye indirilmiş değeri eklenir. Kişiye özel değildir."
+        },
+        "yearChakra": {
+          "unusedNote": "Güncel Yıl Çakrası hesabında doğum yılınız kullanılmaz; doğum günü, doğum ayı ve referans yıl kullanılır.",
+          "rationale": "Bu hesap seçilen referans yılın çakra etkisini gösterir. Kişisel Yıl ile matematiksel olarak aynı sayıya ulaşabilir; ancak kavramsal kimliği farklıdır (Yıl Çakrası, Kişisel Yıl ile aynı hesap değildir)."
+        },
+        "maturity": {
+          "rationale": "Olgunluk, doğum tarihi tarafı ile ad-soyad tarafının birlikte değerlendirilmesinden elde edilir. Bu hesapta yalnız 11 ve 22 ana sayı olarak korunur."
+        },
+        "birthDayEnergy": {
+          "rationale": "Bu hesap doğduğunuz ayın gününü aynen kullanır ve sadeleştirme yapılmaz. Örneğin {day} doğum günü, Doğum Günü Enerjisi {day} olarak değerlendirilir.",
+          "resultNote": "Bu, tek haneye indirilen Kişilik Enerjisi ile karıştırılmamalıdır."
+        },
+        "personalityEnergy": {
+          "rationale": "Kişilik Enerjisi, doğum gününüzün tek haneye sadeleştirilmiş halidir. Bu nedenle Doğum Günü Enerjisi {day} iken Kişilik Enerjisi {value} olabilir.",
+          "stepTitle": "Doğum gününün sadeleştirilmesi"
+        },
+        "lifeLesson": {
+          "rationale": "Hayat Dersi, Kişilik Enerjisi ile Hayat Yolu tarafının birlikte değerlendirilmesinden elde edilir. Bu hesap, PIN kodundaki 5. hane 'Yaşam Dersi' ile aynı hesap değildir."
+        },
+        "destiny": {
+          "rationale": "Kader Sayısı, ad ve soyadınızdaki bütün harflerin sayısal değerlerinden elde edilir. Bu hesapta 11 ve 22 ana sayı olarak korunur."
+        },
+        "evre": {
+          "rangeLine": "{start}–{end} yaş → {i}. Evre",
+          "youAreHere": "   ← siz buradasınız",
+          "rationale": "Kaynak yöntemi yaşamı dokuz yıllık Evrelere ayırır. Bulunduğunuz Evre, referans tarihteki yaşınıza göre belirlenir; Evre enerjisi PIN kodunuzdan gelir.",
+          "placementTitle": "Yaşın Evreye yerleşimi",
+          "resultTitle": "Sonuç yerleşimi",
+          "ageToEvre": "Yaş {age} → {i}. Evre",
+          "result": "{i}. Evre · Enerji {energy}",
+          "resultNote": "Enerji değeri, bu Evreye karşılık gelen PIN hanesinden gelir."
+        },
+        "dongu": {
+          "rationale": "Döngü, içinde bulunduğunuz dokuz yıllık Evrenin kaçıncı yılında olduğunuzu gösterir. Evre ile aynı şey değildir.",
+          "stepTitle": "Evre içi yıl",
+          "ageToYear": "Yaş {age} → Evrenin {i}. yılı",
+          "result": "Döngü {i}"
+        }
+      },
+      "concept": {
+        "anaKulvar": "Adınızın harf değerlerinden hesaplanan ana kulvar (temel yaşam kulvarı) sayısıdır. Kişinin çekirdek/özsel yönünü temsil eden ana çizgidir.",
+        "yanKulvar": "Ana Kulvarı tamamlayan yan kulvar sayısıdır; yine adınızın harf değerlerinden hesaplanır.",
+        "ifadeSayisi": "Ad ve soyadınızdaki tüm harflerin sayısal değerlerinin sadeleştirilmesiyle bulunan ifade sayısıdır. Ana/master sayılar (11/19/22/33) kaynak kuralınca korunabilir.",
+        "hayatYolu": "Doğum tarihinizdeki tüm rakamların toplanıp sadeleştirilmesiyle bulunan hayat yolu sayısıdır. Ana/master sayılar (11/22/33) korunur.",
+        "pin": "Doğum tarihinizden türetilen dokuz haneli sayısal koddur; her hane farklı bir yaşam alanını temsil eder.",
+        "elementler": "PIN kodunuzdaki sayıların Hava, Su, Ateş ve Toprak elementlerine göre dağılımıdır.",
+        "cakraOmurgasi": "Sayı ve harf desteklerinizin çakralara göre dağılımını gösteren omurga tablosudur.",
+        "degisimDonusum": "Yaşamınızdaki değişim-dönüşüm yıllarını ve bu değişimlerin etkili olduğu dönemleri gösterir.",
+        "zirve": "Yaşamınızdaki zirve (doruk) dönemlerini ve karşılık gelen yaşları gösterir.",
+        "mucadele": "Yaşamınızdaki mücadele dönemlerini ve karşılık gelen yaşları gösterir.",
+        "harflerinYankilanisi": "Ad-soyad harflerinizin, harf değerlerine göre yaşam zaman çizginizde hangi yaş/yıl aralığında etkili olduğunu gösteren kaynak yöntemidir.",
+        "universalYear": "Seçilen takvim yılının genel numerolojik sayısıdır. Kişiye özel değildir; aynı yıl için herkes açısından aynı evrensel zamanlama değeridir.",
+        "universalMonth": "Seçilen ayın Evrensel Yıl ile birlikte oluşturduğu genel aylık sayıdır. Kişiye özel değildir.",
+        "universalDay": "Seçilen günün evrensel günlük sayısıdır. Kişiye özel değildir.",
+        "nominalPersonalYear": "Seçilen takvim yılı için doğum gününüz, doğum ayınız ve yıl kullanılarak hesaplanan kişisel yıl sayısıdır. Bu sayı takvim yılı hesabını gösterir; o tarihte fiilen aktif olan kişisel yıl farklı olabilir.",
+        "activePersonalYear": "Referans tarihinde gerçekten içinde bulunduğunuz kişisel yıl dönemidir. Kaynak yönteminde yeni kişisel yıl doğum gününüzde başlar ve bir sonraki doğum gününe kadar devam eder.",
+        "personalMonth": "Seçilen ay için kişiye özel aylık zamanlama sayısıdır. Kişisel yıl hesabı ile takvim ayı birlikte değerlendirilir.",
+        "personalDay": "Seçilen gün için kişiye özel günlük zamanlama sayısıdır. Kişisel ay ile günün değeri toplanarak hesaplanır.",
+        "evre": "Yaşamın dokuz yıllık büyük gelişim dönemlerinden hangisinde bulunduğunuzu gösterir.",
+        "dongu": "Bulunduğunuz dokuz yıllık evrenin içinde kaçıncı yılda olduğunuzu gösterir. Evre ile aynı şey değildir.",
+        "yearChakra": "Seçilen yıl için doğum günü, doğum ayı ve referans yıl kullanılarak hesaplanan yıllık çakra sayısıdır.",
+        "maturity": "Doğum tarihi tarafı ile ad-soyad tarafının birlikte değerlendirilmesinden elde edilen gelişim sayısıdır. Kaynak yönteminde özellikle olgunluk döneminde (yaklaşık 45 yaştan itibaren) belirginleşen temayı gösterir.",
+        "birthDayEnergy": "Doğduğunuz ayın gerçek gününe, yani 1–31 arasındaki doğum günü sayınıza ait kaynak yorumudur. Bu sayı sadeleştirilmez.",
+        "personalityEnergy": "Doğum gününüzün tek haneye sadeleştirilmiş kişilik sayısıdır.",
+        "lifeLesson": "Kişilik Enerjisi ile Hayat Yolu tarafının birlikte değerlendirilmesinden elde edilen ayrı bir gelişim hesabıdır. PIN'deki 5. hane 'Yaşam Dersi' ile aynı şey değildir.",
+        "destiny": "Ad ve soyadınızdaki bütün harflerin sayısal değerlerinden elde edilen isim temelli kader sayısıdır.",
+        "kisiselPin": "Her kişinin doğum tarihinden türetilen dokuz haneli sayısal kodudur.",
+        "synergyPin": "İki kişinin PIN kodlarının ilk sekiz hanesinin aynı pozisyonda birleştirilmesiyle oluşan ortak sinerji kodudur.",
+        "relationshipSoulFeeling": "Sinerji PIN'in 8. hanesine karşılık gelen, ilişkinin duygusal/ruhsal tonunu anlatan kaynak yorumudur.",
+        "whyTogether": "Sinerji PIN'in ilk sekiz hanesinin toplamından (9. hane) elde edilen, iki kişiyi bir araya getiren temayı anlatan sayıdır.",
+        "relationshipTriangle": "İlişki Üçgeni yeni bir hesap değildir; Sinerji PIN'in 1,2,3,6,7,8. hanelerinin kaynak yorumudur (4 ve 5 kaynak kuralı gereği dışta kalır).",
+        "lifeCode": "Her kişinin doğum tarihindeki tüm rakamların tek haneye indirgenmesiyle bulunan Yaşam Kodu sayısıdır.",
+        "nameNumber": "Kişinin ad ve soyadındaki harflerin sayısal değerlerinin tek haneye indirgenmesiyle bulunan isim sayısıdır.",
+        "acquisition": "Doğum günü ve doğum ayının tek haneye indirgenmesiyle bulunan edinim sayısıdır.",
+        "birthdayNumber": "Doğum gününüzün tek haneye indirgenmiş sayısıdır.",
+        "commonDigit": "İki kişinin İsim Sayısı değerlerinin toplanıp tek haneye indirgenmesiyle bulunan ortak rakamdır; hangi konularda anlaştığınızı anlatır.",
+        "elementBalance": "Sinerji PIN hanelerinin Hava, Su, Ateş ve Toprak elementlerine göre dağılımıdır.",
+        "dominance": "Sinerji PIN hanelerinin baskın (1,3,6,8) ve edilgen (2,4,5,7) sayılara göre dağılımıdır. Bu bir uyum puanı değildir.",
+        "evOfisSayisi": "Ev veya iş yerinizin bina/kapı numarası ile daire numarasının toplanıp tek haneye indirilmesiyle bulunan mekân sayısıdır; mekânın numerolojik karakterini gösterir.",
+        "isyeriUyumu": "İş yeri adının harf değerlerinden hesaplanan, iş yerinin uyum karakterini gösteren kaynak sınıflandırmasıdır."
+      },
+      "page": {
+        "demoLimit": "Demo hesapta her bağlantı için yalnızca 1 örnek numeroloji analizi oluşturulabilir.\n\nDaha fazla analiz oluşturmak için uzman hesabı talebinde bulunun.",
+        "pngFailed": "PNG görsel indirilemedi. Lütfen tekrar deneyin.",
+        "calcFailed": "Hesaplama sırasında bir hata oluştu.",
+        "demoVerifyFailed": "Bağlantı doğrulanamadı. Lütfen tekrar deneyin.",
+        "errors": {
+          "firstName": "Lütfen adınızı girin.",
+          "lastName": "Lütfen soyadınızı girin.",
+          "birthDate": "Lütfen doğum tarihini girin.",
+          "birthDateFormat": "Doğum tarihini GG.AA.YYYY formatında tamamlayın.",
+          "birthDateInvalid": "Geçerli bir doğum tarihi girin (gün 1–31, ay 1–12; örn. 30/02 gibi tarihler geçersizdir)."
+        },
+        "demoBanner": "Numeroloji analizini deneyebilirsiniz. Demo hesapta her bağlantı için yalnızca 1 örnek analiz oluşturulabilir; kaydetme işlemi devre dışıdır.",
+        "navAria": "Sayfa gezinmesi",
+        "savedAnalyses": "Kayıtlı analizler",
+        "eyebrow": "YAŞAM SİSTEMİ · NUMEROLOJİ",
+        "title": "Numeroloji <a>Analizi</a>",
+        "sub": "Yaşam haritanızı hesaplayın, görsel raporunuzu oluşturun ve analizlerinizi kaydedin.",
+        "activeAnalysis": "Aktif analiz",
+        "birthLabel": "Doğum: ",
+        "editInfo": "✎ Bilgileri Düzenle",
+        "firstName": "Ad",
+        "firstNamePlaceholder": "Örn. Hasan Ali",
+        "lastName": "Soyad",
+        "lastNamePlaceholder": "Örn. YILMAZ",
+        "birthDate": "Doğum Tarihi",
+        "calculate": "HESAPLA",
+        "stale": "Bilgiler değişti. Aşağıdaki sonuç önceki bilgilere aittir; kaydetmeden önce HESAPLA'ya basın.",
+        "tabs": {
+          "summary": "Sonuç Özeti",
+          "plain": "Numerolojik Analiz",
+          "detailed": "Sayısal Hesaplama",
+          "zamanlama": "Zamanlama & Gelişim",
+          "tas": "Taş Notlarım",
+          "gorsel": "Görsel Rapor"
+        },
+        "tapFullscreen": "Tam ekran görüntülemek için rapora dokunun",
+        "fullscreenTitle": "Numerolojik yaşam haritası tam ekran görünümü",
+        "close": "Kapat",
+        "closeFullscreenAria": "Tam ekranı kapat",
+        "pngFileName": "numeroloji-raporu.png"
+      },
+      "deleteConfirm": {
+        "oneTitle": "Analizi sil",
+        "oneNamed": "\"{label}\" adlı numeroloji analizini kalıcı olarak silmek istiyor musunuz?",
+        "oneUnnamed": "Bu numeroloji analizini kalıcı olarak silmek istiyor musunuz?",
+        "oneSecond": "Bu işlem geri alınamaz. Kayıt kalıcı olarak silinecek.",
+        "more": "+{n} kayıt daha",
+        "manyTitle": "Seçili analizleri sil",
+        "manyIntro": "{n} numeroloji analizini kalıcı olarak silmek üzeresiniz:",
+        "manySecond": "Bu işlem geri alınamaz. Seçili kayıtlar kalıcı olarak silinecek."
+      }
+    }
+  }
+}

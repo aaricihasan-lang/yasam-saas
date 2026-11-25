@@ -1,0 +1,55 @@
+{
+  "reflexology": {
+    "errors": {
+      "codes": {
+        "REF_INVALID_BODY": "Geçersiz istek gövdesi.",
+        "REF_DEMO_FORBIDDEN": "Demo hesabında bu işlem kullanılamaz.",
+        "REF_BODY_TOO_LARGE": "İstek gövdesi çok büyük.",
+        "REF_VALIDATION": "Girilen bilgiler geçerli değil.",
+        "REF_INVALID_EXPORT_SCOPE": "Geçersiz dışa aktarma türü.",
+        "REF_TOO_MANY_SELECTED": "Tek raporda seçilebilecek kayıt sınırı aşıldı.",
+        "REF_REPORT_TOO_LARGE": "Rapor çok büyük.",
+        "REF_ORGAN_REQUIRED": "organ adı gerekli.",
+        "REF_INVALID_ORGAN": "Geçersiz organ adı.",
+        "REF_ATLAS_READ_FAILED": "Atlas okunamadı.",
+        "REF_ATLAS_NOT_FOUND": "Bu seçim için atlas kaydı bulunamadı.",
+        "REF_PROTOCOL_ID_REQUIRED": "protokol id gerekli.",
+        "REF_INVALID_PROTOCOL_ID": "Geçersiz protokol kimliği.",
+        "REF_PROTOCOLS_READ_FAILED": "Protokoller okunamadı.",
+        "REF_PROTOCOL_NOT_FOUND": "Bu seçim için protokol bulunamadı.",
+        "REF_PROTOCOL_NOT_OWNED": "Protokol bu hesaba ait değil.",
+        "REF_CLIENT_FORBIDDEN": "Danışan bulunamadı veya erişim yok.",
+        "REF_SOURCE_UID_REQUIRED": "source_uid gerekli.",
+        "REF_RENAME_NAMES_REQUIRED": "oldName ve newName gerekli.",
+        "REF_SERVER_ERROR": "İşlem tamamlanamadı. Lütfen tekrar deneyin."
+      },
+      "sync": {
+        "notesSyncing": "Notlar eşitleniyor…",
+        "notesOffline": "Çevrimdışı — notlar cihazda saklandı.",
+        "notesFailed": "Notlar eşitlenemedi.",
+        "notesConflict": "Bazı notlar başka bir cihazda veya sekmede değiştirilmiş. Yerel metniniz korundu; sunucudaki güncel sürümü yeniden yükleyebilirsiniz.",
+        "notesOversize": "{count} not çok büyük olduğu için sunucuya gönderilemedi (ekler en fazla 3 MB). Eki küçültüp notu yeniden kaydedin.",
+        "notesRejected": "{count} not eşitlenemedi (geçersiz içerik veya ekler çok büyük). İşaretli notu düzenleyip yeniden kaydedin; diğer notlar eşitlendi.",
+        "notesPartial": "Notların bir kısmı eşitlenemedi.",
+        "notesSynced": "Notlar eşitlendi",
+        "atlasFetchFailed": "Atlas sunucudan alınamadı.",
+        "atlasSynced": "Atlas eşitlendi",
+        "atlasPending": "Atlasta henüz eşitlenmemiş değişiklikler var.",
+        "atlasSyncing": "Atlas sunucuya gönderiliyor…",
+        "atlasOffline": "Çevrimdışı — atlas bu cihazda saklandı, bağlantı gelince gönderilecek.",
+        "atlasTimeout": "Atlas sunucuya gönderilemedi (zaman aşımı) — bu cihazda saklandı.",
+        "atlasFailed": "Atlas sunucuya gönderilemedi — bu cihazda saklandı.",
+        "atlasRejected": "Atlas verisi sunucu tarafından reddedildi — bu cihazda saklandı.",
+        "atlasConflict": "Atlas başka bir cihazda güncellendi — yenileyin. Bu cihazdaki değişiklikleriniz korunuyor.",
+        "atlasQuotaConflict": "Atlas başka bir cihazda güncellendi ancak cihaz depolaması dolu olduğu için birleştirilemedi. Bu cihazdaki değişiklikleriniz korunuyor.",
+        "state": {
+          "syncing": "Eşitleniyor…",
+          "synced": "Eşitlendi",
+          "error": "Eşitlenemedi.",
+          "offline": "Çevrimdışı — veriler cihazda saklandı.",
+          "conflict": "Başka bir cihazda yapılan değişiklikler var."
+        }
+      }
+    }
+  }
+}

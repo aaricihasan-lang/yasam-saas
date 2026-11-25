@@ -83,6 +83,8 @@ export function personSourceNotesForRecords(
   matched: MatchedNoteRef[],
   entries: SourceEntryRow[],
   sourceLabelById: Map<string, string>,
+  /** I18N: sistem etiketleri (çıktı dili). Yok → Türkçe (bugünkü davranış). Kaynak display_label kullanıcı içeriğidir. */
+  labels?: { own: string; unknown: string },
 ): PersonSourceNoteGroup[] {
   const byRecord = new Map<string, SourceEntryRow[]>();
   for (const e of sortSourceEntries(entries)) {
@@ -101,7 +103,7 @@ export function personSourceNotesForRecords(
     out.push({
       ref,
       notes: es.map((e) => ({
-        label: e.source_id === null ? EXPERT_OWN_NOTE_LABEL : sourceLabelById.get(e.source_id) ?? "Bilinmeyen Kaynak",
+        label: e.source_id === null ? labels?.own ?? EXPERT_OWN_NOTE_LABEL : sourceLabelById.get(e.source_id) ?? labels?.unknown ?? "Bilinmeyen Kaynak",
         body: e.body,
       })),
     });
@@ -110,19 +112,27 @@ export function personSourceNotesForRecords(
 }
 
 /** Güvenli dosya adı parçası (Türkçe → ASCII, boşluk → _). */
-export function safeFileNamePart(v: string): string {
+export function safeFileNamePart(v: string, fallback = "kayit"): string {
   return (v || "")
     .replace(/ı/g, "i").replace(/İ/g, "I").replace(/ğ/g, "g").replace(/Ğ/g, "G")
     .replace(/ü/g, "u").replace(/Ü/g, "U").replace(/ş/g, "s").replace(/Ş/g, "S")
     .replace(/ö/g, "o").replace(/Ö/g, "O").replace(/ç/g, "c").replace(/Ç/g, "C")
-    .replace(/[^A-Za-z0-9]+/g, "_").replace(/^_+|_+$/g, "") || "kayit";
+    .replace(/[^A-Za-z0-9]+/g, "_").replace(/^_+|_+$/g, "") || fallback;
 }
+
+/** I18N: dosya adının sistem parçaları (çıktı dili; sunucu katalogdan verir). Yok → Türkçe (bugünkü ad birebir). */
+export type WordFileNameParts = { prefix: string; selected: string; tabFile: Record<WordTabKey, string>; fallback: string };
 
 /**
  * Word dosya adı: tek sekme → Numeroloji_<Ad_Soyad>_<Sekme>.docx;
  * çok sekme → Numeroloji_<Ad_Soyad>_Secili_Bolumler.docx.
  */
-export function wordFileName(adSoyad: string, selectedTabs: WordTabKey[]): string {
+export function wordFileName(adSoyad: string, selectedTabs: WordTabKey[], parts?: WordFileNameParts): string {
+  if (parts) {
+    const who = safeFileNamePart(adSoyad, parts.fallback);
+    if (selectedTabs.length === 1) return `${parts.prefix}_${who}_${parts.tabFile[selectedTabs[0]!]}.docx`;
+    return `${parts.prefix}_${who}_${parts.selected}.docx`;
+  }
   const who = safeFileNamePart(adSoyad);
   if (selectedTabs.length === 1) return `Numeroloji_${who}_${WORD_TAB_FILENAME[selectedTabs[0]!]}.docx`;
   return `Numeroloji_${who}_Secili_Bolumler.docx`;

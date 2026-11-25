@@ -1,0 +1,151 @@
+{
+  "hd": {
+    "terms": {
+      "type": {
+        "generator": "Generator",
+        "manifesting_generator": "Manifesting Generator",
+        "projector": "Projector",
+        "manifestor": "Manifestor",
+        "reflector": "Reflector"
+      },
+      "authority": {
+        "sacral": "Sacral Authority",
+        "emotional": "Emotional Authority (Solar Plexus)",
+        "splenic": "Splenic Authority",
+        "ego_heart": "Ego Authority",
+        "self_projected": "Self-Projected Authority",
+        "mental_environmental": "Mental / Environmental Authority",
+        "lunar": "Lunar Authority",
+        "ego_manifested": "Ego Manifested Authority",
+        "ego_projected": "Ego Projected Authority"
+      },
+      "profile": {
+        "1_3": "1/3 — Investigator / Martyr",
+        "1_4": "1/4 — Investigator / Opportunist",
+        "2_4": "2/4 — Hermit / Opportunist",
+        "2_5": "2/5 — Hermit / Heretic",
+        "3_5": "3/5 — Martyr / Heretic",
+        "3_6": "3/6 — Martyr / Role Model",
+        "4_6": "4/6 — Opportunist / Role Model",
+        "4_1": "4/1 — Opportunist / Investigator",
+        "5_1": "5/1 — Heretic / Investigator",
+        "5_2": "5/2 — Heretic / Hermit",
+        "6_2": "6/2 — Role Model / Hermit",
+        "6_3": "6/3 — Role Model / Martyr"
+      },
+      "definition": {
+        "single": "Single Definition",
+        "split": "Split Definition",
+        "triple_split": "Triple Split Definition",
+        "quadruple_split": "Quadruple Split Definition",
+        "none": "No Definition"
+      },
+      "center": {
+        "head": "Head Center",
+        "ajna": "Ajna Center",
+        "throat": "Throat Center",
+        "g_identity": "G Center (Identity)",
+        "heart_ego": "Heart / Ego Center",
+        "solar_plexus": "Solar Plexus Center",
+        "sacral": "Sacral Center",
+        "spleen": "Spleen Center",
+        "root": "Root Center"
+      },
+      "channel": {
+        "1-8": "1-8 Channel of Inspiration",
+        "2-14": "2-14 Channel of the Beat",
+        "3-60": "3-60 Channel of Mutation",
+        "4-63": "4-63 Channel of Logic",
+        "5-15": "5-15 Channel of Rhythm",
+        "6-59": "6-59 Channel of Mating",
+        "7-31": "7-31 Channel of the Alpha",
+        "9-52": "9-52 Channel of Concentration",
+        "10-20": "10-20 Channel of Awakening",
+        "10-34": "10-34 Channel of Exploration",
+        "10-57": "10-57 Channel of Perfected Form",
+        "11-56": "11-56 Channel of Curiosity",
+        "12-22": "12-22 Channel of Openness",
+        "13-33": "13-33 Channel of the Prodigal",
+        "16-48": "16-48 Channel of the Wavelength",
+        "17-62": "17-62 Channel of Acceptance",
+        "18-58": "18-58 Channel of Judgment",
+        "19-49": "19-49 Channel of Synthesis",
+        "20-34": "20-34 Channel of Charisma",
+        "20-57": "20-57 Channel of the Brainwave",
+        "21-45": "21-45 Channel of Money",
+        "23-43": "23-43 Channel of Structuring",
+        "24-61": "24-61 Channel of Awareness",
+        "25-51": "25-51 Channel of Initiation",
+        "26-44": "26-44 Channel of Surrender",
+        "27-50": "27-50 Channel of Preservation",
+        "28-38": "28-38 Channel of Struggle",
+        "29-46": "29-46 Channel of Discovery",
+        "30-41": "30-41 Channel of Recognition",
+        "32-54": "32-54 Channel of Transformation",
+        "34-57": "34-57 Channel of Power",
+        "35-36": "35-36 Channel of Transitoriness",
+        "37-40": "37-40 Channel of Community",
+        "39-55": "39-55 Channel of Emoting",
+        "42-53": "42-53 Channel of Maturation",
+        "47-64": "47-64 Channel of Abstraction"
+      },
+      "centerState": {
+        "defined": "Defined",
+        "undefined": "Undefined",
+        "open": "Completely Open",
+        "unverified": "Could not be verified"
+      },
+      "planet": {
+        "Sun": "Sun",
+        "Earth": "Earth",
+        "NorthNode": "North Node",
+        "SouthNode": "South Node",
+        "Moon": "Moon",
+        "Mercury": "Mercury",
+        "Venus": "Venus",
+        "Mars": "Mars",
+        "Jupiter": "Jupiter",
+        "Saturn": "Saturn",
+        "Uranus": "Uranus",
+        "Neptune": "Neptune",
+        "Pluto": "Pluto"
+      },
+      "title": {
+        "type": "Type",
+        "strategy": "Strategy",
+        "authority": "Inner Authority",
+        "profile": "Profile",
+        "definition": "Definition",
+        "signature": "Signature",
+        "notSelf": "Not-Self Theme",
+        "cross": "Incarnation Cross"
+      },
+      "strategy": {
+        "generator": "Wait to Respond",
+        "manifesting_generator": "Wait to Respond, then Inform",
+        "manifestor": "Inform",
+        "projector": "Wait for the Invitation",
+        "reflector": "Wait a Lunar Cycle"
+      },
+      "signature": {
+        "generator": "Satisfaction",
+        "manifesting_generator": "Satisfaction",
+        "manifestor": "Peace",
+        "projector": "Success",
+        "reflector": "Surprise"
+      },
+      "notSelf": {
+        "generator": "Frustration",
+        "manifesting_generator": "Frustration",
+        "manifestor": "Anger",
+        "projector": "Bitterness",
+        "reflector": "Disappointment"
+      },
+      "angle": {
+        "right_angle": "Right Angle",
+        "left_angle": "Left Angle",
+        "juxtaposition": "Juxtaposition"
+      }
+    }
+  }
+}

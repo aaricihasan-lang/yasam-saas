@@ -1,0 +1,159 @@
+{
+  "settings": {
+    "profile": {
+      "leaveConfirm": "Profilim sekmesinde kaydedilmemiş değişiklikler var. Kaydetmeden ayrılırsanız bu değişiklikler kaybolur. Devam edilsin mi?",
+      "fields": {
+        "title": {
+          "label": "Unvan",
+          "placeholder": "ör. Uzman Psikolojik Danışman"
+        },
+        "organization": {
+          "label": "Kurum / işletme",
+          "placeholder": "ör. Yaşam Danışmanlık Merkezi"
+        },
+        "phone": {
+          "label": "Telefon",
+          "placeholder": "ör. +90 532 123 45 67",
+          "hint": "Rakam, boşluk ve + - ( ) kullanılabilir."
+        },
+        "contactEmail": {
+          "label": "İletişim e-postası",
+          "placeholder": "ör. iletisim@alanadi.com",
+          "hint": "Danışanlarınızın size ulaşacağı adres; giriş e-postanızdan farklı olabilir."
+        },
+        "website": {
+          "label": "İnternet sitesi",
+          "placeholder": "https://www.alanadi.com",
+          "hint": "Yalnız https:// ile başlayan adresler."
+        },
+        "bio": {
+          "label": "Kısa biyografi",
+          "placeholder": "Uzmanlık alanlarınızı ve yaklaşımınızı birkaç cümleyle anlatın."
+        },
+        "reportNote": {
+          "label": "Rapor dipnotu",
+          "placeholder": "ör. Bu rapor bilgilendirme amaçlıdır; tıbbi tanı ve tedavinin yerini tutmaz.",
+          "hint": "En fazla 4 satır."
+        }
+      },
+      "fieldErrors": {
+        "notText": "Metin olmalı.",
+        "badChar": "Geçersiz karakter içeriyor.",
+        "controlMulti": "Görünmez veya kontrol karakteri içeremez.",
+        "controlSingle": "Tek satır olmalı; görünmez veya kontrol karakteri içeremez.",
+        "tooLong": "En fazla {max} karakter olabilir.",
+        "tooManyLines": "En fazla {max} satır olabilir.",
+        "phone": "Yalnız rakam, boşluk ve + - ( ) kullanın (7–15 rakam).",
+        "email": "Geçerli bir e-posta adresi girin (ör. ad@alanadi.com).",
+        "httpsRequired": "Adres https:// ile başlamalı (ör. https://www.alanadi.com).",
+        "website": "Geçerli bir https:// adresi girin (Latin harfli alan adı; kullanıcı adı / IP içermez).",
+        "htmlTag": "“<” işaretinin hemen ardından harf veya / ! ? gelemez (HTML etiketi kabul edilmez)."
+      },
+      "charCountSr": "Karakter sayısı: ",
+      "loadUnavailable": "Profil bölümü henüz kullanıma açılmadı. Lütfen daha sonra yeniden deneyin.",
+      "loadFailed": "Profil bilgileri yüklenemedi. Lütfen yeniden deneyin.",
+      "loadFailedShort": "Profil bilgileri yüklenemedi.",
+      "invalidFields": "Bazı alanlar geçersiz. İşaretli alanları düzeltip yeniden kaydedin.",
+      "saved": "Profiliniz kaydedildi.",
+      "savedToastTitle": "Kaydedildi",
+      "savedToastBody": "Profil bilgileriniz güncellendi.",
+      "conflict": "Profiliniz başka bir sekmede ya da cihazda değişti. Güncel sürüm alındı; değişiklikleriniz formda duruyor — kontrol edip yeniden kaydedin.",
+      "demoSave": "Demo hesapta profil değişikliği kaydedilemez.",
+      "saveUnavailable": "Profil şu anda kaydedilemiyor. Lütfen daha sonra yeniden deneyin.",
+      "loading": "Profil yükleniyor…",
+      "retry": "Yeniden dene",
+      "accountTitle": "Hesap bilgileri",
+      "fullName": "Ad soyad",
+      "loginEmail": "Giriş e-postası",
+      "accountLockNote": "Ad soyadınızı ve giriş e-postanızı yalnız yönetici değiştirebilir. Değişiklik için “Admin ile İrtibat” sekmesinden yazabilirsiniz.",
+      "demoNote": "Demo hesapta profil yalnız görüntülenebilir; değişiklik kaydedilemez.",
+      "professionalTitle": "Mesleki bilgiler",
+      "professionalHint": "Tüm alanlar isteğe bağlıdır. Boş bıraktığınız alan hiçbir yerde gösterilmez.",
+      "reportIdentityTitle": "Rapor kimliği",
+      "reportScope1": "\"Raporlarımda kurumsal bilgilerimi göster\" açıkken seçtiğiniz bilgiler şu Word raporlarına eklenir: Danışan Yolculuğu, Numeroloji analiz, Klasik Numeroloji ve Beslenme planı. Bilgiler kapakta, rapor sonundaki imza bölümünde ve sayfa altında yer alır; yasal bilgilendirme metni aynen kalır.",
+      "reportScope2": "Human Design raporlarında adınız otomatik yazılmaz; yalnız raporda \"Hazırlayan\" alanı doluysa unvan ve kurum (profesyonel raporda ayrıca logo) eklenir, iletişim bilgisi ve dipnot eklenmez.",
+      "reportScope3": "Refleksoloji, Kupa (protokol ve takvim) ve Gökyüzü Atlası (Word ve PDF) raporlarında, anahtar açıkken rapor sonuna bir \"Hazırlayan\" imza bölümü eklenir; adınız otomatik yazılmaz, yalnız seçtiğiniz unvan, kurum, iletişim, logo ve dipnot yer alır.",
+      "reportScope4": "Hacamat raporunda (Word ve PDF) formdaki \"Hazırlayan\" adı aynen kalır, profil adınızla değiştirilmez; bu alan doluysa yalnız unvan, kurum ve logo eklenir, iletişim bilgisi ve dipnot eklenmez.",
+      "reportScope5": "Ansiklopediler, ders notları, stok ve arşiv dışa aktarımları bu kapsamda değildir. Anahtar kapalıyken hiçbir rapor değişmez.",
+      "brandingLabel": "Raporlarımda kurumsal bilgilerimi göster",
+      "brandingDescription": "Kapalıyken raporlarınız bugünkü gibi üretilir. Açtığınızda aşağıda seçtiğiniz bilgiler yukarıda sayılan raporlara eklenir.",
+      "subsLegend": "Raporda gösterilecek bilgiler",
+      "subsHintOn": "Raporda gösterilecek bilgiler:",
+      "subsHintOff": "Raporda gösterilecek bilgiler (önce yukarıdaki anahtarı açın):",
+      "showTitle": "Unvan",
+      "showOrganization": "Kurum / işletme",
+      "showContact": "İletişim bilgileri",
+      "showContactDescription": "Telefon, iletişim e-postası ve internet sitesi.",
+      "showNote": "Rapor dipnotu",
+      "errorSummary": "{count} alanda hata var.",
+      "dirty": "Kaydedilmemiş değişiklikleriniz var.",
+      "logoDirty": "Rapor logosu seçiminiz kaydedilmedi.",
+      "clean": "Tüm değişiklikler kaydedildi.",
+      "cancel": "Vazgeç",
+      "saving": "Kaydediliyor…",
+      "save": "Kaydet",
+      "logo": {
+        "loadUnavailable": "Rapor logosu bölümü henüz kullanıma açılmadı.",
+        "loadFailed": "Rapor logosu bilgisi yüklenemedi.",
+        "removed": "Rapor logosu kaldırıldı.",
+        "saved": "Rapor logosu seçiminiz kaydedildi.",
+        "conflict": "Profiliniz başka bir sekmede ya da cihazda değişti. Güncel hâl yüklendi; seçiminizi kontrol edip yeniden kaydedin.",
+        "demo": "Demo hesapta rapor logosu değiştirilemez.",
+        "uploadedSelected": "Logo yüklendi ve seçildi. Raporlarda kullanmak için “Seçimi kaydet”e basın.",
+        "uploadOff": "Görsel alanına şu an erişilemiyor.",
+        "uploadFailed": "Logo yüklenemedi. Lütfen yeniden deneyin.",
+        "loading": "Rapor logosu yükleniyor…",
+        "retry": "Yeniden dene",
+        "title": "Rapor logosu",
+        "intro": "Yaşam Sistemi logosu raporun kapağında aynen kalır; logonuz rapor sonundaki imza kartında ikincil olarak yer alır.",
+        "introBrandingOff": " Raporda görünmesi için yukarıdaki “Raporlarımda kurumsal bilgilerimi göster” anahtarı da açık olmalıdır.",
+        "missing": "Logo bulunamadı, yeniden seçin. Seçtiğiniz logo silinmiş ya da artık kullanılamıyor; o zamana kadar raporlarınız logosuz üretilir.",
+        "checkFailed": "Logo durumu şu an doğrulanamadı. Biraz sonra yeniden deneyin.",
+        "accessOff": "Rapor logosu, Kişisel Dijital Ofis görsel alanındaki logolarınızı kullanır. Bu alan hesabınızda şu an açık olmadığı için raporlarınız logosuz üretilir.",
+        "clearPrevious": "Önceki logo seçimini kaldır",
+        "optNone": "Logo kullanma",
+        "optNoneHint": "Raporlarınız logosuz üretilir.",
+        "optWorkspace": "Çalışma alanı logomu kullan",
+        "optWorkspaceHintHas": "Ana ekranınızdaki güncel logo kullanılır; tasarımda logoyu değiştirirseniz raporlarınız da değişir.",
+        "optWorkspaceHintNone": "Uygulanan çalışma alanı tasarımınızda şu an logo yok; bu seçenekte raporlar logosuz üretilir.",
+        "optCustom": "Raporlar için ayrı logo",
+        "optCustomHint": "Yüklediğiniz logolardan birini seçin ya da yeni logo yükleyin.",
+        "assetsLoading": "Logolarınız yükleniyor…",
+        "assetsError": "Logolarınız listelenemedi.",
+        "assetsEmpty": "Henüz yüklenmiş logonuz yok.",
+        "assetsAria": "Yüklenmiş logolarınız",
+        "assetAria": "Logo {index} ({width}×{height})",
+        "uploading": "Yükleniyor… %{pct}",
+        "upload": "Yeni logo yükle",
+        "uploadHint": "PNG, JPEG veya WebP · en fazla 2 MB · şeffaf PNG önerilir",
+        "cancel": "Vazgeç",
+        "saving": "Kaydediliyor…",
+        "save": "Seçimi kaydet",
+        "preview": {
+          "nameFallback": "Ad Soyad",
+          "captionNone": "Logosuz imza kartı",
+          "captionWorkspaceEmpty": "Tasarımda logo yok → logosuz",
+          "captionPending": "Önizleme için bir logo seçin",
+          "captionBroken": "Logo okunamadı → rapor logosuz üretilir",
+          "captionOk": "Logonuz imza kartında",
+          "title": "Rapor önizlemesi · B · Uzman İmzalı",
+          "coverAria": "Kapak önizlemesi",
+          "signatureAria": "İmza kartı önizlemesi",
+          "expertLogoAlt": "Uzman logosu"
+        },
+        "preflight": {
+          "empty": "Dosya boş görünüyor. Başka bir görsel seçin.",
+          "heic": "HEIC biçimi desteklenmiyor. Telefonunuzda fotoğrafı JPEG olarak paylaşın veya kamera ayarından \"En uyumlu\" biçimi seçin; ardından JPEG, PNG veya WebP dosyasını yükleyin.",
+          "type": "Yalnız JPEG, PNG veya WebP görseller yüklenebilir.",
+          "size": "Görsel çok büyük. Logo en fazla {max} MB olabilir."
+        }
+      },
+      "apiCodes": {
+        "PROFILE_UNAVAILABLE": "Profil şu anda kullanılamıyor. Lütfen daha sonra yeniden deneyin.",
+        "LOGO_ASSET_INVALID": "Logo bulunamadı veya kullanılamıyor. Listeden yeniden seçin.",
+        "LOGO_ACCESS_OFF": "Logo seçimi Kişisel Dijital Ofis görsel alanını kullanır; hesabınızda şu an açık değil.",
+        "LOGO_ACCESS_ERROR": "Erişim doğrulanamadı. Lütfen daha sonra yeniden deneyin."
+      }
+    }
+  }
+}

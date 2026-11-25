@@ -18,7 +18,8 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
 import { createElement } from "react";
-import { renderToStaticMarkup } from "react-dom/server";
+// I18N mod-g: Atlas bileşenleri metni katalogdan alır → çizim next-intl sağlayıcısıyla (TR katalog = önceki metin; beklentiler değişmedi).
+import { renderToStaticMarkup } from "./intlRender";
 import JSZip from "jszip";
 import { createFakeClient, createStore, type FakeStore } from "./fakeSupabase";
 import { SYNTH_A } from "./golden/phase3-golden-calls";

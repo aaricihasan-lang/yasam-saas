@@ -7,7 +7,6 @@ import {
   capSelectedIds,
   MAX_SELECTED_IDS,
   MAX_EXPORT_RECORDS,
-  EXPORT_TRUNCATED_NOTE,
 } from "@/lib/biyoenerji/reportSecurity";
 import {
   bodyText,
@@ -23,11 +22,14 @@ import {
   spacer,
   twoColTable,
 } from "@/lib/docx/reportHelpers";
-import { StaticTocCollector } from "@/lib/docx/premiumToc";
+import { buildStaticTocPage, StaticTocCollector } from "@/lib/docx/premiumToc";
 import { expertDisplayName } from "@/lib/docx/reportDisclaimer";
 import { sanitizeBioenergyXmlText } from "@/lib/biyoenerji/xmlSafeText";
 
-import { formatInstantDate, reportFileDate, reportGeneratedLabel } from "@/lib/time/reportTime";
+import { reportFileDate } from "@/lib/time/reportTime";
+import { resolveReportLocale } from "@/lib/i18n/reportLocale";
+// I18N-F1-R5 RAPOR-E (P22): sistem metinleri reports.bioenergy.* (çıktı dili; TR birebir — golden). Kayıt içeriği çevrilmez.
+import { bioTextFor } from "@/lib/biyoenerji/reportText";
 import {
   deriveChakraBibliography,
   SOURCE_EVIDENCE_BLOCK_TYPE,
@@ -48,16 +50,16 @@ export const runtime = "nodejs";
 
 const C_CAKRA = "9333ea"; // çakra mor
 
-/** 8 canonical section — Word bölüm başlıkları. */
-const WORD_SECTION_ORDER: readonly [string, string][] = [
-  ["genel-bakis", "Genel Bakış"],
-  ["enerji-anatomisi", "Enerji Anatomisi & Denge"],
-  ["nedenler-blokajlar", "Nedenler & Blokajlar"],
-  ["beden-sistem", "Beden & Sistem"],
-  ["duygusal-zihinsel", "Duygusal & Zihinsel"],
-  ["uygulamalar", "Uygulamalar"],
-  ["taslar-destekleyiciler", "Taşlar & Destekleyiciler"],
-  ["notlar-kaynaklar", "Notlar & Kaynaklar"],
+/** 8 canonical section (kanonik anahtar, sıra) — Word bölüm başlığı: reports.bioenergy.chakra.section.<anahtar>. */
+const WORD_SECTION_ORDER: readonly string[] = [
+  "genel-bakis",
+  "enerji-anatomisi",
+  "nedenler-blokajlar",
+  "beden-sistem",
+  "duygusal-zihinsel",
+  "uygulamalar",
+  "taslar-destekleyiciler",
+  "notlar-kaynaklar",
 ];
 
 /** editorial_explanation'ı Word gövdesine güvenli düz metne indir (raw ### sızıntısı yok). */
@@ -74,10 +76,7 @@ type ExportMode = "all" | "selected" | "single";
 
 type ChakraRow = ChakraReportRow;
 
-/** created_at (timestamptz) → Europe/Istanbul takvim günü (FA-02; sunucu UTC'de çalışır). */
-function formatDateTR(d: string): string {
-  return formatInstantDate(d, { style: "long", fallback: d });
-}
+// created_at (timestamptz) → Europe/Istanbul takvim günü (FA-02): B.dateLong (çıktı dilinde).
 
 function slugify(t: string): string {
   return t.toLowerCase()
@@ -105,7 +104,7 @@ export async function POST(request: NextRequest): Promise<Response> {
 
   let body: unknown;
   try { body = await request.json(); }
-  catch { return Response.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 }); }
+  catch { return Response.json({ ok: false, code: "BIO_INVALID_BODY", error: "Geçersiz istek gövdesi." }, { status: 400 }); }
 
   const { exportMode = "all", chakraIds, chakraId } = body as {
     exportMode?: ExportMode;
@@ -115,6 +114,8 @@ export async function POST(request: NextRequest): Promise<Response> {
 
   // AA-6: route kendi service_role client'ını KURMAZ — guard'ın sunucu client'ı (guard.db).
   const { db } = guard;
+  const B = bioTextFor(await resolveReportLocale(request, { db, tenantId, userId: guard.userId }));
+  const C = B.t;
 
   // BIO-01 — çakralar + bloklar sayfalı, deterministik sıralı ve sayım-doğrulamalı okunur.
   // Okuma eksik/hatalıysa rapor ÜRETİLMEZ (sessiz kırpma / sessiz legacy fallback yok).
@@ -160,34 +161,32 @@ export async function POST(request: NextRequest): Promise<Response> {
     return Response.json({ ok: false, error: "Bu seçim için çakra kaydı bulunamadı." }, { status: 404 });
   const blocksByChakra = read.blocksByChakra;
 
-  const today = reportGeneratedLabel();
+  const today = B.generated();
   const dateSlug = reportFileDate();
   const isSingle = exportMode === "single" || (exportMode === "selected" && chakras.length === 1);
 
   const exportLabel =
-    isSingle ? `Tek Çakra — ${chakras[0]!.name || ""}` :
-    exportMode === "selected" ? `Seçili Çakralar (${chakras.length})` :
-    `Tüm Çakra Kütüphanesi (${chakras.length})`;
+    B.scope("chakra", isSingle ? "single" : exportMode === "selected" ? "selected" : "all", chakras.length, chakras[0]!.name || "");
 
   const all: ReportChild[] = [];
 
   all.push(...buildPremiumCover({
-    title1:   "YAŞAM SİSTEMİ",
-    title2:   "ÇAKRA KÜTÜPHANESİ",
+    title1:   C("common.brand"),
+    title2:   C("chakra.title"),
     subtitle: isSingle && chakras[0]
-      ? `${chakras[0].name || "Çakra"} · Çakra Raporu`
-      : "Biyoenerji Çakra Kataloğu",
-    date:     `Oluşturulma Tarihi: ${today}`,
+      ? C("chakra.singleSubtitle", { name: chakras[0].name || C("chakra.nameFallback") })
+      : C("chakra.catalogSubtitle"),
+    date:     C("common.generatedOn", { date: today }),
     stats: [
-      { label: "Çakra Kayıt Sayısı", value: String(chakras.length) },
-      { label: "Kapsam",             value: exportLabel },
+      { label: C("chakra.stat"),   value: String(chakras.length) },
+      { label: C("common.scope"),  value: exportLabel },
     ],
   }));
 
   all.push(...buildStatsPage([
-    ["Çakra Kayıt Sayısı", String(chakras.length)],
-    ["Kapsam",             exportLabel],
-  ]));
+    [C("chakra.stat"),  String(chakras.length)],
+    [C("common.scope"), exportLabel],
+  ], undefined, B.common));
 
   // İçindekiler: eski boş Word TOC alanı yerine STATİK + tıklanabilir girişler (gövde
   // başlıklarından toplanır, gövde bittikten sonra bu konuma yerleştirilir; başlık yoksa sayfa yok).
@@ -195,32 +194,32 @@ export async function POST(request: NextRequest): Promise<Response> {
   const tocAt = all.length;
 
   if (read.truncated) {
-    all.push(muted(EXPORT_TRUNCATED_NOTE(MAX_EXPORT_RECORDS)));
+    all.push(muted(B.truncated(MAX_EXPORT_RECORDS)));
   }
 
-  all.push(toc.h1Colored("1. Çakra Kütüphanesi", C_CAKRA, true));
-  all.push(muted(`${chakras.length} kayıt`));
+  all.push(toc.h1Colored(C("chakra.heading"), C_CAKRA, true));
+  all.push(muted(B.records(chakras.length)));
   all.push(spacer());
 
   chakras.forEach((chakra, i) => {
-    const name = chakra.name?.trim() || "İsimsiz Çakra";
+    const name = chakra.name?.trim() || C("chakra.unnamed");
 
     if (i > 0) all.push(divider());
 
-    all.push(profileLabel(`ÇAKRA #${String(i + 1).padStart(3, "0")}`, C_CAKRA));
+    all.push(profileLabel(C("chakra.cardNo", { no: String(i + 1).padStart(3, "0") }), C_CAKRA));
     all.push(toc.h2(name));
 
     // Quick-fact tablosu (canonical block modeliyle uyumlu; legacy Renk fallback korunur)
     // Hızlı bilgiler: yalnız dolu alanlar (Sanskritçe ad / element / konum / bija mantra).
     const quick: [string, string][] = [];
-    if (chakra.sanskrit_name?.trim()) quick.push(["Sanskritçe Ad", chakra.sanskrit_name.trim()]);
-    if (chakra.element?.trim()) quick.push(["Element", chakra.element.trim()]);
-    if (chakra.location?.trim()) quick.push(["Konum", chakra.location.trim()]);
-    if (chakra.bija_mantra?.trim()) quick.push(["Bija Mantra", chakra.bija_mantra.trim()]);
+    if (chakra.sanskrit_name?.trim()) quick.push([C("chakra.quick.sanskrit"), chakra.sanskrit_name.trim()]);
+    if (chakra.element?.trim()) quick.push([C("chakra.quick.element"), chakra.element.trim()]);
+    if (chakra.location?.trim()) quick.push([C("chakra.quick.location"), chakra.location.trim()]);
+    if (chakra.bija_mantra?.trim()) quick.push([C("chakra.quick.bija"), chakra.bija_mantra.trim()]);
     all.push(twoColTable([
       ...quick,
-      ["Renk",         chakra.color?.trim() || "Belirtilmemiş"],
-      ["Kayıt Tarihi", formatDateTR(chakra.created_at)],
+      [C("chakra.quick.color"),  chakra.color?.trim() || C("common.notSpecified")],
+      [C("common.recordDate"),   B.dateLong(chakra.created_at)],
     ]));
 
     const blocks = blocksByChakra.get(chakra.id) ?? [];
@@ -232,10 +231,10 @@ export async function POST(request: NextRequest): Promise<Response> {
 
     if (visible.length > 0) {
       // ── Canonical block modeli: 8 section sırasında görünür bloklar ──
-      for (const [key, label] of WORD_SECTION_ORDER) {
+      for (const key of WORD_SECTION_ORDER) {
         const secBlocks = visible.filter((b) => b.section_key === key);
         if (secBlocks.length === 0) continue; // boş section gösterme
-        all.push(h3(label));
+        all.push(h3(C(`chakra.section.${key}`)));
         for (const b of secBlocks) {
           if (b.block_title?.trim()) all.push(bodyText(b.block_title.trim()));
           all.push(bodyText(blockBodyToPlain(b.editorial_explanation ?? "")));
@@ -244,42 +243,43 @@ export async function POST(request: NextRequest): Promise<Response> {
       // Tek Kaynakça (source-evidence'tan distinct eser; ana gövdede kaynak adı YOK)
       const bib = deriveChakraBibliography(blocks);
       if (bib.length > 0) {
-        all.push(h3("Kaynakça"));
+        all.push(h3(C("chakra.bibliography")));
         bib.forEach((e, idx) => all.push(bodyText(`${idx + 1}. ${e.author ? `${e.author} — ` : ""}${e.title}`)));
       }
       // BIO-05 — editörde düzenlenebilen "Ek Bilgiler" (doluysa) zengin içerikli çakrada da raporlanır.
       const extra: [string, string | null][] = [
-        ["Organlar", chakra.organs], ["Bezler", chakra.glands], ["Taşlar", chakra.stones],
-        ["Nedenler", chakra.causes], ["Fiziksel", chakra.physical], ["Zihinsel", chakra.mental],
-        ["Notlar", chakra.notes],
+        [C("chakra.field.organs"), chakra.organs], [C("chakra.field.glands"), chakra.glands], [C("chakra.field.stones"), chakra.stones],
+        [C("chakra.field.causes"), chakra.causes], [C("chakra.field.physical"), chakra.physical], [C("chakra.field.mental"), chakra.mental],
+        [C("chakra.field.notes"), chakra.notes],
       ];
       const filled = extra.filter(([, v]) => (v ?? "").trim().length > 0);
       if (filled.length > 0) {
-        all.push(h3("Ek Bilgiler"));
+        all.push(h3(C("chakra.extra")));
         for (const [label, v] of filled) all.push(bodyText(`${label}: ${(v ?? "").trim()}`));
       }
     } else {
       // ── Legacy fallback: rich-block'suz eski kayıtlar (mevcut davranış korunur) ──
-      if (chakra.organs?.trim())  { all.push(h3("Organlar"));  all.push(bodyText(chakra.organs.trim())); }
-      if (chakra.glands?.trim())  { all.push(h3("Bezler"));    all.push(bodyText(chakra.glands.trim())); }
-      if (chakra.stones?.trim())  { all.push(h3("Taşlar"));    all.push(bodyText(chakra.stones.trim())); }
-      if (chakra.causes?.trim())  { all.push(h3("Nedenler"));  all.push(bodyText(chakra.causes.trim())); }
-      if (chakra.physical?.trim()){ all.push(h3("Fiziksel"));  all.push(bodyText(chakra.physical.trim())); }
-      if (chakra.mental?.trim())  { all.push(h3("Zihinsel"));  all.push(bodyText(chakra.mental.trim())); }
-      if (chakra.notes?.trim())   { all.push(h3("Notlar"));    all.push(bodyText(chakra.notes.trim())); }
+      if (chakra.organs?.trim())  { all.push(h3(C("chakra.field.organs")));   all.push(bodyText(chakra.organs.trim())); }
+      if (chakra.glands?.trim())  { all.push(h3(C("chakra.field.glands")));   all.push(bodyText(chakra.glands.trim())); }
+      if (chakra.stones?.trim())  { all.push(h3(C("chakra.field.stones")));   all.push(bodyText(chakra.stones.trim())); }
+      if (chakra.causes?.trim())  { all.push(h3(C("chakra.field.causes")));   all.push(bodyText(chakra.causes.trim())); }
+      if (chakra.physical?.trim()){ all.push(h3(C("chakra.field.physical"))); all.push(bodyText(chakra.physical.trim())); }
+      if (chakra.mental?.trim())  { all.push(h3(C("chakra.field.mental")));   all.push(bodyText(chakra.mental.trim())); }
+      if (chakra.notes?.trim())   { all.push(h3(C("chakra.field.notes")));    all.push(bodyText(chakra.notes.trim())); }
     }
   });
 
   // FA-16: sade bilgilendirme notu + Hazırlayan (rapor sonu).
-  all.push(...buildWellnessNoteSection("biyoenerji", safeExpertName(guard.profile)));
+  all.push(...buildWellnessNoteSection("biyoenerji", safeExpertName(guard.profile), B.common));
 
-  all.splice(tocAt, 0, ...toc.page());
+  all.splice(tocAt, 0, ...buildStaticTocPage(toc.entries, B.common));
 
   const doc = new Document({
     ...toc.documentOptions(),
+    ...B.styles(),
     sections: [{
       properties: {},
-      footers: { default: buildFooter("Çakra Kütüphanesi Raporu · Yaşam Sistemi", { note: "biyoenerji" }) },
+      footers: { default: buildFooter(C("chakra.footer"), { note: "biyoenerji", common: B.common }) },
       children: all,
     }],
   });
@@ -293,10 +293,7 @@ export async function POST(request: NextRequest): Promise<Response> {
     resourceId: exportMode === "single" && typeof chakraId === "string" ? chakraId : null,
     itemCount: chakras.length,
   });
-  const modeSlug =
-    isSingle && chakras[0]?.name ? slugify(chakras[0].name) :
-    exportMode === "selected" ? "secili" : "tumu";
-  const filename = `biyoenerji-cakra-${modeSlug}-${dateSlug}.docx`;
+  const filename = B.fileName("chakra", isSingle && chakras[0]?.name ? slugify(chakras[0].name) : null, exportMode, dateSlug);
 
   return new Response(new Uint8Array(buffer), {
     headers: {

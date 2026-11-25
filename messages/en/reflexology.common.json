@@ -1,0 +1,66 @@
+{
+  "reflexology": {
+    "common": {
+      "eyebrow": "REFLEXOLOGY",
+      "loading": "Loading…",
+      "cancel": "Cancel",
+      "delete": "Delete",
+      "close": "Close",
+      "successTitle": "Success",
+      "errorTitle": "Error",
+      "storageErrorTitle": "Storage Error",
+      "storageQuota": "Browser storage is full. Reduce the size of attachments/photos or delete some records.",
+      "retry": "Try again",
+      "goToModule": "Go to module",
+      "disclaimer": "Reflexology practices are complementary. This module is not intended for medical diagnosis or treatment and does not replace assessment by a physician.",
+      "placeholder": {
+        "title": "Reflexology Module",
+        "body": "This area will be migrated step by step according to the desktop reflexology structure."
+      },
+      "views": {
+        "taban": {
+          "short": "Sole",
+          "surface": "Sole View",
+          "label": "Sole view"
+        },
+        "yan_ic": {
+          "short": "Medial Side",
+          "surface": "Medial Side View",
+          "label": "Medial side view"
+        },
+        "yan_dis": {
+          "short": "Lateral Side",
+          "surface": "Lateral Side View",
+          "label": "Lateral side view"
+        },
+        "el_avuc": {
+          "short": "Palm",
+          "surface": "Palm View",
+          "label": "Palm view"
+        },
+        "el_sirt": {
+          "short": "Back of Hand",
+          "surface": "Back of Hand View",
+          "label": "Back of hand view"
+        }
+      },
+      "pointSizes": {
+        "xs": "Extra small",
+        "sm": "Small",
+        "md": "Medium",
+        "lg": "Large"
+      },
+      "quarantine": {
+        "importMsg": "{count} {noun} found on this device will be imported into your account and synchronised with the server. Continue only if you are sure these records belong to you.",
+        "importConfirm": "They are mine, import",
+        "discardDetail": "Records of unknown ownership on this device (not linked to an account) will be deleted.",
+        "discardMsg": "Permanently delete {count} {noun} of unknown ownership on this device? This action cannot be undone.",
+        "found": "{count} {noun} of unknown ownership were found on this device.",
+        "explain": "These records may be left over from an earlier session (not linked to an account) and have not yet been synchronised with the server. If they are yours, import them; otherwise you can delete them from this device.",
+        "nounOrgan": "organ record(s)",
+        "nounProtocol": "protocol(s)",
+        "nounNote": "note(s)"
+      }
+    }
+  }
+}

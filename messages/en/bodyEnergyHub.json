@@ -1,0 +1,13 @@
+{
+  "bodyEnergyHub": {
+    "titleA": "Body",
+    "titleB": "Energy Practices",
+    "subtitle": "Practice and therapy tools that work with the body",
+    "cardsAria": "Body & Energy folders",
+    "cards": {
+      "bioenergy": { "title": "Bioenergy", "desc": "Aura, chakra, imagination and energy work", "badge": "Energy" },
+      "reflexology": { "title": "Reflexology", "desc": "Zone map, atlas and practice system", "badge": "Body" },
+      "cupping": { "title": "Cupping & Hijama Therapy", "desc": "Body point atlas, purpose guide, cupping techniques and safety system", "badge": "Cupping" }
+    }
+  }
+}

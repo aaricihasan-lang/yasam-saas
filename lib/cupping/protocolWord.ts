@@ -32,6 +32,8 @@ import {
   WidthType,
 } from "docx";
 import { expertSignatureBlock, type ExpertBranding, type ExpertBrandingVariant } from "@/lib/docx/expertBranding";
+import type { ReportLocale } from "@/lib/i18n/reportLocale";
+import { cuppingReportText, type CuppingReportText } from "@/lib/cupping/reportText";
 
 export const WORD_CONTENT_TYPE =
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
@@ -85,6 +87,11 @@ export type ProtocolWordInput = {
   branding?: ExpertBranding | null;
   /** Yalnız örnek/test üretimi için tasarım varyantı. */
   brandingVariant?: ExpertBrandingVariant;
+  /**
+   * I18N çıktı dili (route girişinde `resolveReportLocale` ile çözülür). Yoksa kaynak dil (tr) → belge bugünküyle birebir.
+   * Yalnız SİSTEM metinlerini seçer; kullanıcı içeriği (başlık, notlar, kaynak adları) aynen yerleşir.
+   */
+  output?: ReportLocale | null;
 };
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -104,12 +111,12 @@ function titleParagraph(text: string): Paragraph {
 }
 
 /** Bölüm başlığı (Heading 2 hissi) + altına ince çizgi. */
-function sectionHeading(text: string): Paragraph {
+function sectionHeading(text: string, x: CuppingReportText): Paragraph {
   return new Paragraph({
     spacing: { before: 260, after: 100 },
     border: { bottom: { style: BorderStyle.SINGLE, size: 6, color: RULE_GRAY, space: 4 } },
     children: [
-      new TextRun({ text: text.toLocaleUpperCase("tr-TR"), bold: true, size: 22, font: HEAD_FONT, color: C_BRAND }),
+      new TextRun({ text: x.rl.upper(text), bold: true, size: 22, font: HEAD_FONT, color: C_BRAND }),
     ],
   });
 }
@@ -171,7 +178,7 @@ function stepParagraph(index: number, step: ProtocolWordStep): Paragraph[] {
 }
 
 /** Kaynaklar tablosu (Kaynak · Tür · Sayfa/Not). */
-function sourcesTable(sources: ProtocolWordSource[]): Table {
+function sourcesTable(sources: ProtocolWordSource[], x: CuppingReportText): Table {
   const headerCell = (t: string) =>
     new TableCell({
       shading: { type: ShadingType.CLEAR, color: "auto", fill: C_CELL_FILL },
@@ -184,7 +191,7 @@ function sourcesTable(sources: ProtocolWordSource[]): Table {
       children: [new Paragraph({ children: [new TextRun({ text: t, size: 18, font: FONT, color: C_MID })] })],
     });
   const rows: TableRow[] = [
-    new TableRow({ tableHeader: true, children: [headerCell("Kaynak"), headerCell("Tür"), headerCell("Sayfa / Not")] }),
+    new TableRow({ tableHeader: true, children: [headerCell(x.t("protocol.sourcesTable.source")), headerCell(x.t("protocol.sourcesTable.type")), headerCell(x.t("protocol.sourcesTable.pageNote"))] }),
   ];
   for (const s of sources) {
     const meta = [isFilled(s.locator) ? s.locator : null, isFilled(s.note) ? s.note : null]
@@ -199,7 +206,7 @@ function sourcesTable(sources: ProtocolWordSource[]): Table {
   return new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, rows });
 }
 
-function buildFooter(): Footer {
+function buildFooter(x: CuppingReportText): Footer {
   return new Footer({
     children: [
       new Paragraph({
@@ -213,7 +220,7 @@ function buildFooter(): Footer {
         spacing: { before: 0, after: 20 },
         children: [
           new TextRun({
-            text: "Bu içerik, uzman tarafından oluşturulan çalışma ve bilgilendirme kaydının bir parçasıdır.",
+            text: x.usageNote,
             italics: true,
             size: 12,
             font: FONT,
@@ -240,7 +247,7 @@ function buildFooter(): Footer {
         alignment: AlignmentType.CENTER,
         spacing: { before: 0, after: 0 },
         children: [
-          new TextRun({ text: "Hacamat Protokolü  •  Sayfa ", size: 13, font: FONT, color: C_LIGHT }),
+          new TextRun({ text: `${x.t("protocol.footerLabel")}  •  ${x.page} `, size: 13, font: FONT, color: C_LIGHT }),
           // Yalnız CURRENT sayfa (NUMPAGES/TOTAL_PAGES KULLANILMAZ — calendarWord ile aynı gerekçe:
           // sayfa sınırına denk gelen belgelerde Word yazdırma/PDF motorunu kilitleyebilir).
           new TextRun({ children: [PageNumber.CURRENT], size: 13, font: FONT, color: C_LIGHT }),
@@ -256,6 +263,8 @@ function buildFooter(): Footer {
 
 export async function buildProtocolWordBuffer(input: ProtocolWordInput): Promise<Buffer> {
   const { protocol, points, techniques, steps, safety, entries, sources } = input;
+  const x = cuppingReportText(input.output);
+  const sec = (key: string) => sectionHeading(x.t(`protocol.sections.${key}`), x);
   const children: Paragraph[] | (Paragraph | Table)[] = [];
 
   // 1) Başlık
@@ -279,45 +288,45 @@ export async function buildProtocolWordBuffer(input: ProtocolWordInput): Promise
 
   // 3) Noktalar / Bölgeler
   if (points.length > 0) {
-    children.push(sectionHeading("Bölgeler / Noktalar"));
+    children.push(sec("points"));
     for (const p of points) children.push(bulletParagraph(p.name, p.note, p.extra));
   }
 
   // 4) Teknikler
   if (techniques.length > 0) {
-    children.push(sectionHeading("Teknikler"));
+    children.push(sec("techniques"));
     for (const t of techniques) children.push(bulletParagraph(t.name, t.note, t.extra));
   }
 
   // 5) Uygulama Akışı
   if (steps.length > 0) {
-    children.push(sectionHeading("Uygulama Akışı"));
+    children.push(sec("flow"));
     steps.forEach((s, i) => children.push(...stepParagraph(i + 1, s)));
   }
 
   // 6) Güvenlik
   if (safety.length > 0) {
-    children.push(sectionHeading("Güvenlik / Dikkat"));
+    children.push(sec("safety"));
     for (const s of safety) children.push(bulletParagraph(s.name, s.note, s.extra, s.detail));
   }
 
   // 7) Hazırlık — 8) Uygulama Sonrası — 9) Takip (yalnız dolu olanlar)
   if (isFilled(protocol.preparation_note)) {
-    children.push(sectionHeading("Hazırlık"));
+    children.push(sec("preparation"));
     children.push(...bodyParagraphs(protocol.preparation_note));
   }
   if (isFilled(protocol.aftercare_note)) {
-    children.push(sectionHeading("Uygulama Sonrası"));
+    children.push(sec("aftercare"));
     children.push(...bodyParagraphs(protocol.aftercare_note));
   }
   if (isFilled(protocol.follow_up_note)) {
-    children.push(sectionHeading("Takip / Sonraki Seans"));
+    children.push(sec("followUp"));
     children.push(...bodyParagraphs(protocol.follow_up_note));
   }
 
   // 10) Bilgiler
   if (entries.length > 0) {
-    children.push(sectionHeading("Bilgiler"));
+    children.push(sec("entries"));
     for (const e of entries) {
       if (isFilled(e.title)) {
         children.push(
@@ -335,7 +344,7 @@ export async function buildProtocolWordBuffer(input: ProtocolWordInput): Promise
         children.push(
           new Paragraph({
             spacing: { before: 0, after: 40 },
-            children: [new TextRun({ text: `Kaynak: ${src}`, italics: true, size: 16, font: FONT, color: C_LIGHT })],
+            children: [new TextRun({ text: x.t("protocol.entrySource", { source: src }), italics: true, size: 16, font: FONT, color: C_LIGHT })],
           }),
         );
       }
@@ -344,18 +353,20 @@ export async function buildProtocolWordBuffer(input: ProtocolWordInput): Promise
 
   // 11) Kaynaklar (tablo)
   if (sources.length > 0) {
-    children.push(sectionHeading("Kaynaklar"));
-    (children as (Paragraph | Table)[]).push(sourcesTable(sources));
+    children.push(sec("sources"));
+    (children as (Paragraph | Table)[]).push(sourcesTable(sources, x));
   }
 
   // 12) F3B: "Hazırlayan" imza kartı — yalnız markalama açıkken (A4 − 2 × 900 kenar = 10106 twip içerik genişliği).
   (children as (Paragraph | Table)[]).push(
-    ...(expertSignatureBlock(input.branding, { variant: input.brandingVariant, accent: C_BRAND, contentWidth: 11906 - 2 * 900, fill: C_CELL_FILL, font: FONT }) as (Paragraph | Table)[]),
+    ...(expertSignatureBlock(input.branding, { variant: input.brandingVariant, common: input.output?.common, accent: C_BRAND, contentWidth: 11906 - 2 * 900, fill: C_CELL_FILL, font: FONT }) as (Paragraph | Table)[]),
   );
 
   const doc = new Document({
     creator: "Yaşam Sistemi",
-    title: `Hacamat Protokolü — ${protocol.title}`,
+    title: `${x.t("protocol.documentTitle")} — ${protocol.title}`,
+    // Belge dili: yalnız TR dışında (TR XML'i bugünküyle birebir kalır).
+    ...(x.rl.docxStyles() ? { styles: x.rl.docxStyles() } : {}),
     sections: [
       {
         properties: {
@@ -364,7 +375,7 @@ export async function buildProtocolWordBuffer(input: ProtocolWordInput): Promise
             margin: { top: 720, bottom: 900, left: 900, right: 900 },
           },
         },
-        footers: { default: buildFooter() },
+        footers: { default: buildFooter(x) },
         children: children as (Paragraph | Table)[],
       },
     ],
@@ -372,13 +383,17 @@ export async function buildProtocolWordBuffer(input: ProtocolWordInput): Promise
   return Buffer.from(await Packer.toBuffer(doc));
 }
 
-/** Server-generated güvenli dosya adı (path traversal / control char YOK; Türkçe korunur). */
-export function protocolWordFilename(protocol: Pick<ProtocolWordProtocol, "title">): string {
+/**
+ * Server-generated güvenli dosya adı (path traversal / control char YOK; Türkçe korunur).
+ * Sistem kısmı (önek / yedek ad) çıktı dilinde; protokol başlığı (kullanıcı içeriği) AYNEN.
+ */
+export function protocolWordFilename(protocol: Pick<ProtocolWordProtocol, "title">, output?: ReportLocale | null): string {
+  const x = cuppingReportText(output);
   const safe = protocol.title
     .replace(/[\\/:*?"<>|\x00-\x1F]/g, " ") // path/control karakterleri
     .replace(/\s+/g, "-")
     .replace(/-+/g, "-")
     .replace(/^-|-$/g, "")
     .slice(0, 80);
-  return `Kupa-Protokolu-${safe || "Protokol"}.docx`;
+  return `${x.t("protocol.filename.prefix")}-${safe || x.t("protocol.filename.fallback")}.docx`;
 }

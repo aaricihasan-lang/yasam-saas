@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { createPortal } from "react-dom";
 
 type NoteSaveToastProps = {
@@ -8,9 +9,9 @@ type NoteSaveToastProps = {
   onDismiss: () => void;
 };
 
-const MESSAGE = "Not kaydedildi.";
 
 export function NoteSaveToast({ visible, onDismiss }: NoteSaveToastProps) {
+  const t = useTranslations("reflexology.notes");
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -32,7 +33,7 @@ export function NoteSaveToast({ visible, onDismiss }: NoteSaveToastProps) {
       aria-live="polite"
     >
       <p className="rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-center text-base font-bold leading-snug text-emerald-800 shadow-lg">
-        {MESSAGE}
+        {t("toastSaved")}
       </p>
     </div>,
     document.body,

@@ -26,12 +26,12 @@ export async function GET(
 
   const { id } = await params;
   if (!id) {
-    return NextResponse.json({ ok: false, error: "protokol id gerekli." }, { status: 400 });
+    return NextResponse.json({ ok: false, code: "REF_PROTOCOL_ID_REQUIRED", error: "protokol id gerekli." }, { status: 400 });
   }
   // Bozuk UUID DB'ye ulaşmadan 400 ile reddedilir (ham Postgres 22P02 → 500 sızıntısı yok).
   // Geçerli ama var olmayan UUID → aşağıda 404 semantiği korunur.
   if (!isUuid(id)) {
-    return NextResponse.json({ ok: false, error: "Geçersiz protokol kimliği." }, { status: 400 });
+    return NextResponse.json({ ok: false, code: "REF_INVALID_PROTOCOL_ID", error: "Geçersiz protokol kimliği." }, { status: 400 });
   }
 
   const { db, tenantId } = guard;
@@ -48,7 +48,7 @@ export async function GET(
   }
   if (!data) {
     return NextResponse.json(
-      { ok: false, error: "Protokol bu hesaba ait değil." },
+      { ok: false, code: "REF_PROTOCOL_NOT_OWNED", error: "Protokol bu hesaba ait değil." },
       { status: 404 },
     );
   }
@@ -66,11 +66,11 @@ export async function DELETE(
 
   const { id } = await params;
   if (!id) {
-    return NextResponse.json({ ok: false, error: "protokol id gerekli." }, { status: 400 });
+    return NextResponse.json({ ok: false, code: "REF_PROTOCOL_ID_REQUIRED", error: "protokol id gerekli." }, { status: 400 });
   }
   // Bozuk UUID → 400 (ham Postgres hatası / 500 sızıntısı yerine).
   if (!isUuid(id)) {
-    return NextResponse.json({ ok: false, error: "Geçersiz protokol kimliği." }, { status: 400 });
+    return NextResponse.json({ ok: false, code: "REF_INVALID_PROTOCOL_ID", error: "Geçersiz protokol kimliği." }, { status: 400 });
   }
 
   const { db, tenantId, is_demo_account } = guard;

@@ -1,5 +1,9 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+import { useStockServerText } from "../useStockServerText";
+import { useStockFormat } from "../useStockFormat";
+
 import { useCallback, useEffect, useMemo, useState } from "react";
 import BfcacheRefreshHandler from "@/components/BfcacheRefreshHandler";
 import { toFloat } from "@/lib/urun-stok/dogaltasStockLogic";
@@ -11,7 +15,7 @@ import {
   type ProductRank,
   buildProductInsight,
   filterReportLines,
-  fmtMoney,
+  fmtMoney as libFmtMoney,
   generateSmartAlerts,
   highStockLowSales,
   leastProfit,
@@ -57,11 +61,13 @@ function SummaryCard({ label, value }: { label: string; value: string }) {
 }
 
 function RankList({ title, items, valueKey }: { title: string; items: ProductRank[]; valueKey: "qty" | "profit" | "revenue" }) {
+  const { fmtMoney } = useStockFormat({ fmtMoney: libFmtMoney });
+  const t = useTranslations("stock.reports");
   return (
     <div className="rounded-xl border-2 border-rose-100 bg-white/90 p-3">
       <h3 className="text-sm font-black text-slate-800">{title}</h3>
       {items.length === 0 ? (
-        <p className="mt-2 text-xs text-slate-500">Veri yok</p>
+        <p className="mt-2 text-xs text-slate-500">{t("noData")}</p>
       ) : (
         <ul className="mt-2 space-y-1.5">
           {items.map((p, i) => (
@@ -85,6 +91,13 @@ function RankList({ title, items, valueKey }: { title: string; items: ProductRan
 }
 
 export default function SatisRaporlariPage() {
+  const t = useTranslations("stock.reports");
+  const ss = useStockServerText();
+  const { fmtMoney } = useStockFormat({ fmtMoney: libFmtMoney });
+  const tS = useTranslations("stock.common");
+  const tCat = useTranslations("stock.pricing");
+  // Kategori kodu kanonik (option value); yalnız görünen etiket çevrilir.
+  const catLabel = (c: string) => (tCat.has(`categories.${c}`) ? tCat(`categories.${c}`) : CATEGORY_LABELS[c as keyof typeof CATEGORY_LABELS] ?? c);
   const [hydrated, setHydrated] = useState(false);
   const [isDemo, setIsDemo] = useState(false);
   const [allLines, setAllLines] = useState<ReturnType<typeof loadAllReportLines>>([]);
@@ -104,9 +117,11 @@ export default function SatisRaporlariPage() {
     } else {
       const res = await loadDbReportLines();
       setAllLines(res.lines);
-      setLoadIssue(salesLoadIssue(res));
+      // QA K3D-01: TR'de lib metni birebir; diğer dillerde katalog karşılığı.
+      const issue = salesLoadIssue(res);
+      setLoadIssue(issue && !ss.isSourceLocale ? tS("msg.loadIssue") : issue);
     }
-  }, [usdRate]);
+  }, [usdRate, ss, tS]);
 
   useEffect(() => {
     const demo = readYasamUser()?.is_demo_account === true;
@@ -158,7 +173,7 @@ export default function SatisRaporlariPage() {
     return (
       <main className={pageBg}>
         <div className="flex min-h-screen items-center justify-center font-semibold text-slate-600">
-          Yükleniyor&hellip;
+          {t("loading")}
         </div>
       </main>
     );
@@ -166,27 +181,27 @@ export default function SatisRaporlariPage() {
 
   const na = "—";
   const summaryCards = loadIssue ? [
-    { label: "Bugünkü satış", value: na },
-    { label: "Haftalık satış", value: na },
-    { label: "Aylık satış", value: na },
-    { label: "Yıllık satış", value: na },
-    { label: "Toplam ciro", value: na },
-    { label: "Toplam maliyet", value: na },
-    { label: "Toplam kar", value: na },
-    { label: "Toplam zarar", value: na },
-    { label: "Satılan ürün adedi", value: na },
-    { label: "Ortalama kar oranı", value: na },
+    { label: t("cards.today"), value: na },
+    { label: t("cards.week"), value: na },
+    { label: t("cards.month"), value: na },
+    { label: t("cards.year"), value: na },
+    { label: t("cards.revenue"), value: na },
+    { label: t("cards.cost"), value: na },
+    { label: t("cards.profit"), value: na },
+    { label: t("cards.loss"), value: na },
+    { label: t("cards.units"), value: na },
+    { label: t("cards.avgMargin"), value: na },
   ] : [
-    { label: "Bugünkü satış", value: fmtMoney(summary.todaySales) },
-    { label: "Haftalık satış", value: fmtMoney(summary.weekSales) },
-    { label: "Aylık satış", value: fmtMoney(summary.monthSales) },
-    { label: "Yıllık satış", value: fmtMoney(summary.yearSales) },
-    { label: "Toplam ciro", value: fmtMoney(summary.totalRevenue) },
-    { label: "Toplam maliyet", value: fmtMoney(summary.totalCost) },
-    { label: "Toplam kar", value: fmtMoney(summary.totalProfit) },
-    { label: "Toplam zarar", value: fmtMoney(summary.totalLoss) },
-    { label: "Satılan ürün adedi", value: summary.unitsSold.toFixed(1) },
-    { label: "Ortalama kar oranı", value: `%${summary.avgProfitPct.toFixed(1)}` },
+    { label: t("cards.today"), value: fmtMoney(summary.todaySales) },
+    { label: t("cards.week"), value: fmtMoney(summary.weekSales) },
+    { label: t("cards.month"), value: fmtMoney(summary.monthSales) },
+    { label: t("cards.year"), value: fmtMoney(summary.yearSales) },
+    { label: t("cards.revenue"), value: fmtMoney(summary.totalRevenue) },
+    { label: t("cards.cost"), value: fmtMoney(summary.totalCost) },
+    { label: t("cards.profit"), value: fmtMoney(summary.totalProfit) },
+    { label: t("cards.loss"), value: fmtMoney(summary.totalLoss) },
+    { label: t("cards.units"), value: summary.unitsSold.toFixed(1) },
+    { label: t("cards.avgMargin"), value: `%${summary.avgProfitPct.toFixed(1)}` },
   ];
 
   return (
@@ -200,25 +215,25 @@ export default function SatisRaporlariPage() {
       <div className={pageShell}>
         {isDemo && <DemoUrunStokBanner />}
         <header className={`${panelClass} mb-3`}>
-          <p className="text-xs font-black uppercase tracking-[0.3em] text-rose-700">Rapor &amp; analiz</p>
+          <p className="text-xs font-black uppercase tracking-[0.3em] text-rose-700">{t("eyebrow")}</p>
           <h1 className="mt-1 text-2xl font-black sm:text-3xl">
-            Satış Raporları &amp; Karar Destek
+            {t("title")}
           </h1>
           <p className="mt-1 text-sm text-slate-600">
-            Salt okunur rapor ekranı. Tüm modül satış geçmişleri tekilleştirilerek gösterilir.
+            {t("subtitle")}
           </p>
         </header>
 
         {loadIssue ? (
           <section role="alert" data-testid="sales-report-incomplete" className={`${panelClass} mb-3 border-red-300 bg-red-50/90`}>
-            <p className="text-sm font-black text-red-800">Satış verisi eksik yüklendi</p>
+            <p className="text-sm font-black text-red-800">{t("incomplete")}</p>
             <p className="mt-1 text-sm font-semibold text-red-900">{loadIssue}</p>
             <button
               type="button"
               className="mt-2 rounded-xl border-2 border-red-300 bg-white px-3 py-1.5 text-xs font-black text-red-800 hover:bg-red-100"
               onClick={() => void reload()}
             >
-              Tekrar dene
+              {t("retry")}
             </button>
           </section>
         ) : null}
@@ -230,29 +245,29 @@ export default function SatisRaporlariPage() {
         </section>
 
         <section className={`${panelClass} mb-3 space-y-3`}>
-          <h2 className="text-sm font-black text-slate-800">Filtreler</h2>
+          <h2 className="text-sm font-black text-slate-800">{t("filters")}</h2>
           <div className="grid gap-3 md:grid-cols-2">
             <label className="block">
-              <span className="mb-1 block text-xs font-black">Ürün ara</span>
+              <span className="mb-1 block text-xs font-black">{t("searchProduct")}</span>
               <input
                 className={inputClass}
                 type="search"
-                placeholder="Örn. Ametist, Lavanta Yağı..."
+                placeholder={t("searchPh")}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
             </label>
             <label className="block">
-              <span className="mb-1 block text-xs font-black">Kategori</span>
+              <span className="mb-1 block text-xs font-black">{t("category")}</span>
               <select
                 className={inputClass}
                 value={category}
                 onChange={(e) => setCategory(e.target.value as ProductCategory | "all")}
               >
-                <option value="all">Tümü</option>
+                <option value="all">{t("all")}</option>
                 {(Object.keys(CATEGORY_LABELS) as ProductCategory[]).map((c) => (
                   <option key={c} value={c}>
-                    {CATEGORY_LABELS[c]}
+                    {catLabel(c)}
                   </option>
                 ))}
               </select>
@@ -261,12 +276,12 @@ export default function SatisRaporlariPage() {
           <div className="flex flex-wrap gap-1.5">
             {(
               [
-                ["today", "Bugün"],
-                ["week", "Bu hafta"],
-                ["month", "Bu ay"],
-                ["year", "Bu yıl"],
-                ["all", "Tüm zamanlar"],
-                ["custom", "Özel tarih"],
+                ["today", t("period.today")],
+                ["week", t("period.week")],
+                ["month", t("period.month")],
+                ["year", t("period.year")],
+                ["all", t("period.all")],
+                ["custom", t("period.custom")],
               ] as const
             ).map(([id, label]) => (
               <button key={id} type="button" className={periodBtn(period === id)} onClick={() => setPeriod(id)}>
@@ -277,31 +292,31 @@ export default function SatisRaporlariPage() {
           {period === "custom" ? (
             <div className="grid gap-3 sm:grid-cols-2">
               <label className="block">
-                <span className="mb-1 block text-xs font-black">Başlangıç</span>
+                <span className="mb-1 block text-xs font-black">{t("start")}</span>
                 <input className={inputClass} type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
               </label>
               <label className="block">
-                <span className="mb-1 block text-xs font-black">Bitiş</span>
+                <span className="mb-1 block text-xs font-black">{t("end")}</span>
                 <input className={inputClass} type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
               </label>
             </div>
           ) : null}
           <label className="block max-w-xs">
-            <span className="mb-1 block text-xs font-black">Doğaltaş USD kuru (TL)</span>
+            <span className="mb-1 block text-xs font-black">{t("usdRate")}</span>
             <input
               className={inputClass}
               type="number"
               step="0.01"
               value={usdRate}
               onChange={(e) => setUsdRate(e.target.value)}
-              placeholder="Canlı stok maliyeti"
+              placeholder={t("usdRatePh")}
             />
           </label>
         </section>
 
         {insight && !loadIssue ? (
           <section className={`${panelClass} mb-3 border-rose-300`}>
-            <h2 className="text-base font-black text-slate-900">Satın alma karar desteği &mdash; {insight.productName}</h2>
+            <h2 className="text-base font-black text-slate-900">{t("insightTitle", { product: insight.productName })}</h2>
             <div className="mt-3 flex flex-wrap gap-2">
               <span className={`rounded-xl px-4 py-2 text-base font-black ${insight.decisionColor}`}>
                 {insight.decision}
@@ -309,49 +324,49 @@ export default function SatisRaporlariPage() {
             </div>
             <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
               <div>
-                <p className="text-xs font-black uppercase text-slate-500">Bu yıl satış</p>
+                <p className="text-xs font-black uppercase text-slate-500">{t("insight.yearSales")}</p>
                 <p className="text-xl font-black">{insight.soldYear}</p>
               </div>
               <div>
-                <p className="text-xs font-black uppercase text-slate-500">Bu ay satış</p>
+                <p className="text-xs font-black uppercase text-slate-500">{t("insight.monthSales")}</p>
                 <p className="text-xl font-black">{insight.soldMonth}</p>
               </div>
               <div>
-                <p className="text-xs font-black uppercase text-slate-500">Son 30 gün</p>
+                <p className="text-xs font-black uppercase text-slate-500">{t("insight.last30")}</p>
                 <p className="text-xl font-black">{insight.sold30d}</p>
               </div>
               <div>
-                <p className="text-xs font-black uppercase text-slate-500">Canlı stok</p>
+                <p className="text-xs font-black uppercase text-slate-500">{t("insight.liveStock")}</p>
                 <p className="text-xl font-black">
                   {insight.currentStock} {insight.stockUnit}
                 </p>
               </div>
               <div>
-                <p className="text-xs font-black uppercase text-slate-500">Toplam ciro</p>
+                <p className="text-xs font-black uppercase text-slate-500">{t("insight.revenue")}</p>
                 <p className="text-lg font-black">{fmtMoney(insight.totalRevenue)}</p>
               </div>
               <div>
-                <p className="text-xs font-black uppercase text-slate-500">Toplam kar</p>
+                <p className="text-xs font-black uppercase text-slate-500">{t("insight.profit")}</p>
                 <p className="text-lg font-black">{fmtMoney(insight.totalProfit)}</p>
               </div>
               <div>
-                <p className="text-xs font-black uppercase text-slate-500">Ort. satış fiyatı</p>
+                <p className="text-xs font-black uppercase text-slate-500">{t("insight.avgPrice")}</p>
                 <p className="text-lg font-black">{fmtMoney(insight.avgSalePrice)}</p>
               </div>
               <div>
-                <p className="text-xs font-black uppercase text-slate-500">Ort. maliyet</p>
+                <p className="text-xs font-black uppercase text-slate-500">{t("insight.avgCost")}</p>
                 <p className="text-lg font-black">{fmtMoney(insight.avgCost)}</p>
               </div>
             </div>
             <p className="mt-3 text-xs font-semibold text-slate-600">
-              Son satış: {insight.lastSaleDate || "—"} &middot; En çok satılan tip: {insight.topType}
+              {t("insight.footer", { date: insight.lastSaleDate || "—", type: insight.topType })}
             </p>
           </section>
         ) : null}
 
         {alerts.length > 0 && !loadIssue ? (
           <section className={`${panelClass} mb-3 border-amber-200 bg-amber-50/50`}>
-            <h2 className="text-sm font-black text-amber-900">Akıllı uyarılar</h2>
+            <h2 className="text-sm font-black text-amber-900">{t("alerts")}</h2>
             <ul className="mt-3 space-y-1.5">
               {alerts.map((a) => (
                 <li key={a} className="rounded-lg bg-white/80 px-3 py-2 text-xs font-semibold text-amber-950">
@@ -363,26 +378,26 @@ export default function SatisRaporlariPage() {
         ) : null}
 
         <section className="mb-3">
-          <h2 className="mb-3 text-base font-black text-slate-900">Satış analizleri</h2>
+          <h2 className="mb-3 text-base font-black text-slate-900">{t("analytics")}</h2>
           {loadIssue ? (
             <p className="rounded-xl border-2 border-red-200 bg-red-50 p-3 text-sm font-semibold text-red-900">
-              Sıralamalar eksik veriye dayanacağı için gösterilmiyor.
+              {t("rankHidden")}
             </p>
           ) : (
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            <RankList title="En çok satan" items={topSelling(filtered)} valueKey="qty" />
-            <RankList title="En az satan" items={leastSelling(filtered)} valueKey="qty" />
-            <RankList title="En çok kar bırakan" items={topProfit(filtered)} valueKey="profit" />
-            <RankList title="En az kar bırakan" items={leastProfit(filtered)} valueKey="profit" />
-            <RankList title="Zarar ettiren" items={lossMaking(filtered)} valueKey="profit" />
-            <RankList title="Stoktan en çok çıkan" items={mostStockOut(filtered)} valueKey="qty" />
+            <RankList title={t("rank.topSelling")} items={topSelling(filtered)} valueKey="qty" />
+            <RankList title={t("rank.leastSelling")} items={leastSelling(filtered)} valueKey="qty" />
+            <RankList title={t("rank.topProfit")} items={topProfit(filtered)} valueKey="profit" />
+            <RankList title={t("rank.leastProfit")} items={leastProfit(filtered)} valueKey="profit" />
+            <RankList title={t("rank.loss")} items={lossMaking(filtered)} valueKey="profit" />
+            <RankList title={t("rank.stockOut")} items={mostStockOut(filtered)} valueKey="qty" />
             <RankList
-              title="Çok stok, az satış"
+              title={t("rank.highStockLowSales")}
               items={highStockLowSales(filtered, stockRows)}
               valueKey="qty"
             />
             <RankList
-              title="Az stok, çok satış"
+              title={t("rank.lowStockHighSales")}
               items={lowStockHighSales(filtered, stockRows)}
               valueKey="qty"
             />
@@ -391,29 +406,29 @@ export default function SatisRaporlariPage() {
         </section>
 
         <section className={panelClass}>
-          <h2 className="mb-3 text-base font-black text-slate-900">Satış tablosu</h2>
+          <h2 className="mb-3 text-base font-black text-slate-900">{t("tableTitle")}</h2>
           {loadIssue ? (
-            <p className="mb-3 text-xs font-black text-red-800">Kısmi liste — satış geçmişinin tamamı yüklenemedi.</p>
+            <p className="mb-3 text-xs font-black text-red-800">{t("partial")}</p>
           ) : null}
           {filtered.length === 0 ? (
             <p className="py-10 text-center text-sm text-slate-600">
-              Seçilen filtrelere uygun satış kaydı bulunamadı.
+              {t("noRows")}
             </p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full min-w-[900px] border-collapse text-left text-sm">
                 <thead>
                   <tr className="border-b-2 border-rose-100 text-xs font-black uppercase tracking-wide text-slate-500">
-                    <th className="px-2 py-2">Tarih</th>
-                    <th className="px-2 py-2">Kategori</th>
-                    <th className="px-2 py-2">Ürün</th>
-                    <th className="px-2 py-2 text-right">Miktar</th>
-                    <th className="px-2 py-2">Birim</th>
-                    <th className="px-2 py-2 text-right">Maliyet</th>
-                    <th className="px-2 py-2 text-right">Satış</th>
-                    <th className="px-2 py-2 text-right">Kâr</th>
-                    <th className="px-2 py-2 text-right">Kâr %</th>
-                    <th className="px-2 py-2">Kaynak</th>
+                    <th className="px-2 py-2">{t("col.date")}</th>
+                    <th className="px-2 py-2">{t("col.category")}</th>
+                    <th className="px-2 py-2">{t("col.product")}</th>
+                    <th className="px-2 py-2 text-right">{t("col.qty")}</th>
+                    <th className="px-2 py-2">{t("col.unit")}</th>
+                    <th className="px-2 py-2 text-right">{t("col.cost")}</th>
+                    <th className="px-2 py-2 text-right">{t("col.sale")}</th>
+                    <th className="px-2 py-2 text-right">{t("col.profit")}</th>
+                    <th className="px-2 py-2 text-right">{t("col.profitPct")}</th>
+                    <th className="px-2 py-2">{t("col.source")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -443,7 +458,7 @@ export default function SatisRaporlariPage() {
                         {row.source}
                         {row.hiddenFromList ? (
                           <span className="block text-[11px] font-semibold text-slate-500">
-                            Satış Geçmişi listesinden silindi (iptal değil; toplamlarda yer alır)
+                            {t("hiddenNote")}
                           </span>
                         ) : null}
                       </td>

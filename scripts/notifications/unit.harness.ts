@@ -21,6 +21,7 @@ import {
   buildStateIndex,
   buildWhenLabel,
   clientDisplayName,
+  trNotificationViewTx,
   istanbulTodayWindow,
   isNotifiable,
   isUuid,
@@ -149,6 +150,8 @@ console.log("\n[3] buildNotificationView — başlık / bağlantı / zaman etike
   ok(buildWhenLabel(ist("2026-10-01T15:35:00").toISOString(), now) === "Bugün 15:35 · 1 sa 30 dk sonra", "whenLabel saat+dk");
   ok(buildWhenLabel(ist("2026-10-01T16:05:00").toISOString(), now) === "Bugün 16:05 · 2 sa sonra", "whenLabel tam saat");
   ok(buildWhenLabel(ist("2026-10-01T13:55:00").toISOString(), now) === "Bugün 13:55 · 10 dk önce başladı", "whenLabel başlamış randevu");
+  // I18N QA A-05: kaynak-dil çeviricisi eksik anahtarda HAM ANAHTAR döndürmez.
+  ok(trNotificationViewTx("yokBoyleBirAnahtar") === "" && trNotificationViewTx("now") === "Şimdi", "kaynak-dil çevirici: eksik anahtar → ham anahtar yok");
 }
 
 // ─── 4) İstanbul günü penceresi ───────────────────────────────────────────────
@@ -208,7 +211,9 @@ console.log("\n[5] Statik: route güvenliği + bileşen sözleşmesi");
   const stripComments = (src: string) => src.replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, "");
   ok(!/\balert\(/.test(stripComments(bell + store)), "alert() YOK");
   // Final-A2: etiket okunmamış sayısını da taşır ("Bildirimler, N okunmamış"); aria-haspopup (menü anlamı) kaldırıldı.
-  ok(/aria-label=\{unread > 0 \? `Bildirimler, \$\{unread\} okunmamış` : "Bildirimler"\}/.test(bell) && /aria-expanded=\{open\}/.test(bell) && !/aria-haspopup/.test(bell), "zil: aria-label (okunmamış sayısıyla) + aria-expanded");
+  // I18N (gece 2026-11-25): aria-label metni notifications.bell.{ariaUnread,title} anahtarlarına taşındı; TR katalogda birebir.
+  const bellTr = (JSON.parse(read("messages/tr/notifications.json")) as { notifications: { bell: Record<string, string> } }).notifications.bell;
+  ok(/aria-label=\{unread > 0 \? t\("ariaUnread", \{ count: String\(unread\) \}\) : t\("title"\)\}/.test(bell) && bellTr.ariaUnread === "Bildirimler, {count} okunmamış" && bellTr.title === "Bildirimler" && /aria-expanded=\{open\}/.test(bell) && !/aria-haspopup/.test(bell), "zil: aria-label (okunmamış sayısıyla) + aria-expanded");
   ok(/role="dialog"/.test(bell) && /aria-labelledby=\{panelTitleId\}/.test(bell) && /focus\(\{ preventScroll: true \}\)/.test(bell) && /aria-live="polite"/.test(bell), "zil paneli: dialog + başlık + odak + canlı bölge");
   ok(/createPortal\(/.test(bell) && /document\.body,/.test(bell) && /computeBellPanelBox\(/.test(bell) && /maxHeight: box\.maxHeight/.test(bell) && /min-h-0 flex-1 overflow-y-auto/.test(bell), "panel: body portalı + viewport içine sıkıştırılmış + kendi içinde kayar (WT8)");
   ok(/panelRef\.current\?\.contains\(e\.target\)/.test(bell), "panel: portal içi dokunuş 'dışarı' sayılmaz (WT8)");
@@ -231,7 +236,9 @@ console.log("\n[5] Statik: route güvenliği + bileşen sözleşmesi");
 
   const ajanda = read("app/dashboard/ajanda/page.tsx");
   ok(/useSearchParams\(\)/.test(ajanda) && /searchParams\.get\("randevu"\)/.test(ajanda) && /<Suspense fallback=/.test(ajanda), "ajanda: ?randevu + Suspense");
-  ok(/router\.replace\("\/dashboard\/ajanda"/.test(ajanda) && /Randevu bulunamadı/.test(ajanda) && /setSelectedAppointment\(target\)/.test(ajanda), "ajanda: bulunca modal, yoksa toast, param temizlenir");
+  // I18N (gece 2026-11-25): toast metni agenda.toast.notFoundTitle anahtarına taşındı; TR metin katalogda birebir.
+  const agendaTr = JSON.parse(read("messages/tr/agenda.json")) as { agenda: { toast: { notFoundTitle: string } } };
+  ok(/router\.replace\("\/dashboard\/ajanda"/.test(ajanda) && /t\("toast\.notFoundTitle"\)/.test(ajanda) && agendaTr.agenda.toast.notFoundTitle === "Randevu bulunamadı" && /setSelectedAppointment\(target\)/.test(ajanda), "ajanda: bulunca modal, yoksa toast, param temizlenir");
   ok(/aria-labelledby="ajanda-appt-modal-title"[\s\S]{0,400}max-h-\[calc\(100dvh-1\.5rem\)\][\s\S]{0,3000}min-h-0 flex-1 [^"]*overflow-y-auto/.test(ajanda), "ajanda: randevu detay modalı max-h + scroll (4.10)");
   const clientPage = read("app/dashboard/clients/[id]/page.tsx");
   ok(/initialAppointmentId=\{deepLinkAppointmentId\}/.test(clientPage) && /searchParams\.get\("randevu"\)/.test(clientPage), "danışan kartı: ?randevu → AppointmentsTab initialAppointmentId");

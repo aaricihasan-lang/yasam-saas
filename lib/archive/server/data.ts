@@ -13,7 +13,17 @@ import { assertServerOnly } from "@/lib/server/serverOnlyGuard";
 import { countTableRows, fetchTablePage, type RowFilter } from "@/lib/backup/engine";
 import { getRegistryEntry, MODULE_LABELS } from "@/lib/backup/registry";
 import { MIGRATION_SCHEMA } from "@/lib/backup/schema.generated";
+import { backupFileText, SOURCE_FILE_TEXT } from "@/lib/backup/fileText";
+import type { ActiveLocale } from "@/lib/i18n/locales";
 import type { RegistryEntry } from "@/lib/backup/types";
+import {
+  addReadableCounts,
+  applyReadableView,
+  readableViewNotes,
+  restrictedReadableView,
+  type ReadableView,
+  type ReadableViewCounts,
+} from "@/lib/backup/readableView";
 import { buildArchiveDocx, type WordTableData } from "@/lib/backup/wordExport";
 import { clientLinkColumn, istanbulDayStartIso, moduleTables, nextDay } from "../scope";
 import type { ArchiveOptions, DataPartState } from "../types";
@@ -27,8 +37,9 @@ export const PART_MAX_CHARS = 2_500_000;
 const LABEL_CHUNK = 100;
 
 export type TableScope =
-  | { entry: RegistryEntry; filters: RowFilter[]; skip: null }
-  | { entry: RegistryEntry; filters: null; skip: string };
+  | { entry: RegistryEntry; filters: RowFilter[]; skip: null; skipCode?: undefined }
+  /** I18N: `skipCode` gerekçenin dil-bağımsız karşılığı (EK alan; `skip` Türkçe metni aynen). */
+  | { entry: RegistryEntry; filters: null; skip: string; skipCode: "NOT_CLIENT_LINKED" | "NO_CREATED_AT" };
 
 type ProbeCache = Map<string, boolean>;
 
@@ -49,11 +60,13 @@ export async function tableScope(db: SupabaseClient, e: RegistryEntry, opts: Arc
   const filters: RowFilter[] = [];
   if (opts.clientIds) {
     const col = clientLinkColumn(e);
-    if (!col) return { entry: e, filters: null, skip: "danışana bağlı olmayan kayıt (danışan seçimi yapıldı)" };
+    if (!col) return { entry: e, filters: null, skip: "danışana bağlı olmayan kayıt (danışan seçimi yapıldı)", skipCode: "NOT_CLIENT_LINKED" };
     filters.push({ column: col, op: "in", values: opts.clientIds });
   }
   if (opts.dateFrom || opts.dateTo) {
-    if (!(await hasCreatedAt(db, e, cache))) return { entry: e, filters: null, skip: "kayıt tarihi alanı yok (tarih aralığı seçildi)" };
+    if (!(await hasCreatedAt(db, e, cache))) {
+      return { entry: e, filters: null, skip: "kayıt tarihi alanı yok (tarih aralığı seçildi)", skipCode: "NO_CREATED_AT" };
+    }
     if (opts.dateFrom) filters.push({ column: "created_at", op: "gte", value: istanbulDayStartIso(opts.dateFrom) });
     if (opts.dateTo) filters.push({ column: "created_at", op: "lt", value: istanbulDayStartIso(nextDay(opts.dateTo)) });
   }
@@ -62,7 +75,7 @@ export async function tableScope(db: SupabaseClient, e: RegistryEntry, opts: Arc
 
 export type ModuleDataPlan = {
   module: string;
-  tables: { entry: RegistryEntry; label: string; expected: number | null; error: string | null; skip: string | null }[];
+  tables: { entry: RegistryEntry; label: string; expected: number | null; error: string | null; skip: string | null; skipCode?: string }[];
   records: number;
 };
 
@@ -79,7 +92,7 @@ export async function planModuleData(
   for (const e of moduleTables(module)) {
     const sc = await tableScope(db, e, opts, cache);
     if (sc.skip !== null) {
-      out.tables.push({ entry: e, label: e.label, expected: 0, error: null, skip: sc.skip });
+      out.tables.push({ entry: e, label: e.label, expected: 0, error: null, skip: sc.skip, skipCode: sc.skipCode });
       continue;
     }
     const c = await countTableRows(db, e, tenantId, { ownerUserId: userId, filters: sc.filters });
@@ -184,8 +197,20 @@ export async function buildDataPart(
   opts: ArchiveOptions,
   state: DataPartState | null,
   now: Date = new Date(),
+  /**
+   * Okunabilir çıktı görünümü (A3 / QA-N-01): Numeroloji gelecek dönemleri ve HD Sistem Yorumu yalnız sunucuda
+   * doğrulanmış yetkiyle. Verilmezse KISITLI görünüm (fail-closed). Teknik JSON yedeği bu yoldan geçmez.
+   */
+  view: ReadableView = restrictedReadableView(now),
+  /**
+   * Dosya dili — arşiv PLANINDA sabitlenir ve her parçada aynı gelir (çok parçalı arşivde ad / içerik tutarlı).
+   * Verilmezse / tr → bugünkü Türkçe parça bayt-bayt aynı.
+   */
+  locale?: ActiveLocale,
 ): Promise<DataPartResult> {
+  const ft = backupFileText(locale);
   const cache: ProbeCache = new Map();
+  let viewCounts: ReadableViewCounts = { numerologyRedacted: 0, hdSystemReadingRedacted: 0 };
   const tables = moduleTables(module);
   let t = state?.t ?? 0;
   let cursor = state?.c ?? null;
@@ -212,8 +237,9 @@ export async function buildDataPart(
       expected_count: null,
       complete: true,
       error: null,
-      titleSuffix: continued ? " (önceki bölümden devam)" : "",
+      titleSuffix: continued ? ft.continued : "",
       firstIndex: emitted + 1,
+      ...(ft.isSource ? {} : { label: ft.tableLabel(e) }),
     };
     let tableDone = false;
     while (records < PART_MAX_RECORDS && chars < PART_MAX_CHARS) {
@@ -235,9 +261,11 @@ export async function buildDataPart(
         bucket.complete = false;
         bucket.error = page.error;
       }
-      for (const r of page.rows) chars += JSON.stringify(r).length;
-      bucket.rows.push(...page.rows);
-      records += page.rows.length;
+      const shown = applyReadableView(e.table, page.rows, view, ft.hidden);
+      viewCounts = addReadableCounts(viewCounts, shown.counts);
+      for (const r of shown.rows) chars += JSON.stringify(r).length;
+      bucket.rows.push(...shown.rows);
+      records += shown.rows.length;
       if (page.done) {
         tableDone = true;
         break;
@@ -261,20 +289,23 @@ export async function buildDataPart(
 
   const next: DataPartState | null = t < tables.length ? { t, c: cursor, n: part + 1, i: cursor ? emitted : 0 } : null;
   const rowsTotal = collected.reduce((s, b) => s + b.rows.length, 0);
-  const label = MODULE_LABELS[module] ?? module;
-  const fileName = `${label} — Kayıt Dökümü — Bölüm ${part}.docx`;
+  const label = ft.moduleLabel(module);
+  // ZIP yol adları (klasör / dosya) bu turda dil-SABİT (TR): plan klasörleriyle tutarlı; belge İÇERİĞİ çıktı dilinde.
+  const fileName = `${SOURCE_FILE_TEXT.dumpFileName(module, part)}.docx`;
   if (rowsTotal === 0 && errors.length === 0) return { buffer: null, next, rows: 0, errors, fileName };
 
   const refLabels = await resolveRefLabels(db, tenantId, userId, collected);
-  const notes: string[] = [`Bölüm ${part}${next ? " (devamı sonraki bölümde)" : " (son bölüm)"} · ${rowsTotal} kayıt`];
-  if (opts.clientIds) notes.push(`Danışan seçimi: ${opts.clientIds.length} danışan (yalnız danışana bağlı kayıtlar).`);
-  if (opts.dateFrom || opts.dateTo) notes.push(`Kayıt tarihi aralığı: ${opts.dateFrom ?? "başlangıç"} – ${opts.dateTo ?? "bugün"} (Europe/Istanbul).`);
+  const notes: string[] = [ft.partNote(part, next !== null, rowsTotal)];
+  if (opts.clientIds) notes.push(ft.clientFilterNote(opts.clientIds.length));
+  if (opts.dateFrom || opts.dateTo) notes.push(ft.dateRangeNote(opts.dateFrom, opts.dateTo));
+  notes.push(...readableViewNotes(viewCounts, ft));
   const built = await buildArchiveDocx({
-    title: `${label} — Kayıt Dökümü`,
+    title: ft.dumpTitle(module),
     modules: [{ key: module, label, tables: collected }],
     refLabels,
     notes,
     now,
+    ...(ft.isSource ? {} : { text: ft.word }),
   });
   return { buffer: built.buffer, next, rows: rowsTotal, errors, fileName };
 }

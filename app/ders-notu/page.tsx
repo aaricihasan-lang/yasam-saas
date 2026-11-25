@@ -2,10 +2,10 @@
 
 import Link from "next/link";
 import { DemoModuleBanner } from "@/components/demo/DemoModuleBanner";
-import {
-  DIGITAL_CONTENT_DEMO_BANNER,
-  notifyDigitalContentDemo,
-} from "@/lib/demo/digitalContentDemo";
+import { useLocale, useTranslations } from "next-intl";
+import { useDigitalContentDemo } from "@/app/digital-content/useDigitalContentDemo";
+import { DEFAULT_LOCALE, resolveLocale } from "@/lib/i18n/locales";
+import { formatNumber } from "@/lib/i18n/format";
 import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
 import { useRef, useState } from "react";
 import { useBfcacheRefresh } from "@/hooks/useBfcacheRefresh";
@@ -48,6 +48,16 @@ export default function DersNotuPage() {
   useBfcacheRefresh();
   const isDemo = readYasamUser()?.is_demo_account === true;
   const { showToast } = useToast();
+  const t = useTranslations("lessonNotes");
+  const locale = resolveLocale(useLocale());
+  const demo = useDigitalContentDemo();
+  /** Sayı gösterimi (tr: 40.000 · en: 40,000) — eski toLocaleString("tr-TR") ile TR birebir. */
+  const num = (n: number) => formatNumber(n, undefined, locale);
+  /** TR'de sunucunun Türkçe `message`'ı aynen; diğer dillerde `code` → lessonNotes.apiErrors, yoksa yedek. */
+  function serverMessage(data: { code?: string; message?: string } | null | undefined, fallback: string): string {
+    if (locale === DEFAULT_LOCALE) return data?.message ?? fallback;
+    return data?.code && t.has(`apiErrors.${data.code}`) ? t(`apiErrors.${data.code}`) : fallback;
+  }
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const [inputText, setInputText] = useState("");
@@ -59,7 +69,7 @@ export default function DersNotuPage() {
   // ── .txt dosya yükleme ─────────────────────────────────────────────────────
 
   function handleTxtUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    if (isDemo) { notifyDigitalContentDemo(showToast); e.target.value = ""; return; }
+    if (isDemo) { demo.notify(showToast); e.target.value = ""; return; }
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
@@ -78,7 +88,7 @@ export default function DersNotuPage() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "ders-notu.txt";
+    a.download = `${t("fileName.base")}.txt`; // P44: ekran dilinde (tr birebir)
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -86,7 +96,7 @@ export default function DersNotuPage() {
   }
 
   async function handleWordDownload() {
-    if (isDemo) { notifyDigitalContentDemo(showToast); return; }
+    if (isDemo) { demo.notify(showToast); return; }
     if (!result || downloadingWord) return;
     setDownloadingWord(true);
     try {
@@ -94,22 +104,22 @@ export default function DersNotuPage() {
       form.append("text", result);
       const res = await fetch("/api/ders-notu/to-word", { method: "POST", body: form, headers: authHeaders() });
       if (!res.ok) {
-        const data = await res.json().catch(() => ({})) as { message?: string };
-        showToast({ title: "Hata", message: data.message ?? "Word dosyası oluşturulamadı.", type: "error" });
+        const data = await res.json().catch(() => ({})) as { code?: string; message?: string };
+        showToast({ title: t("toast.errorTitle"), message: serverMessage(data, t("toast.wordFailed")), type: "error" });
         return;
       }
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = "ders-notu.docx";
+      a.download = `${t("fileName.base")}.docx`; // P39: ekran dilinde (tr birebir)
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Bilinmeyen hata";
-      showToast({ title: "Bağlantı hatası", message: msg, type: "error" });
+      const msg = err instanceof Error ? err.message : t("toast.unknownError");
+      showToast({ title: t("toast.connectionErrorTitle"), message: msg, type: "error" });
     } finally {
       setDownloadingWord(false);
     }
@@ -118,14 +128,14 @@ export default function DersNotuPage() {
   // ── Temizleme işlemi ───────────────────────────────────────────────────────
 
   async function handleSubmit() {
-    if (isDemo) { notifyDigitalContentDemo(showToast); return; }
+    if (isDemo) { demo.notify(showToast); return; }
     const trimmed = inputText.trim();
     if (!trimmed || processing) return;
 
     if (trimmed.length > MAX_CHARS) {
       showToast({
-        title: "Metin çok uzun",
-        message: `Maksimum 40.000 karakter. Şu an: ${trimmed.length.toLocaleString("tr-TR")} karakter.`,
+        title: t("toast.tooLongTitle"),
+        message: t("toast.tooLongMsg", { count: num(trimmed.length) }),
         type: "error",
       });
       return;
@@ -139,26 +149,26 @@ export default function DersNotuPage() {
       const res = await fetch("/api/ders-notu/temizle", { method: "POST", body: form, headers: authHeaders() });
 
       if (!res.ok) {
-        let errorMsg = `Sunucu hatası (HTTP ${res.status})`;
+        let errorMsg = t("toast.serverError", { status: String(res.status) });
         try {
-          const data = (await res.json()) as { message?: string };
-          if (data.message) errorMsg = data.message;
+          const data = (await res.json()) as { code?: string; message?: string };
+          if (data.message || data.code) errorMsg = serverMessage(data, errorMsg);
         } catch { /* non-JSON hata */ }
-        showToast({ title: "Hata", message: errorMsg, type: "error" });
+        showToast({ title: t("toast.errorTitle"), message: errorMsg, type: "error" });
         return;
       }
 
-      const data = (await res.json()) as { success: boolean; text?: string; message?: string };
+      const data = (await res.json()) as { success: boolean; text?: string; code?: string; message?: string };
       if (!data.success || !data.text) {
-        showToast({ title: "Hata", message: data.message ?? "Çıktı boş geldi.", type: "error" });
+        showToast({ title: t("toast.errorTitle"), message: serverMessage(data, t("toast.emptyOutput")), type: "error" });
         return;
       }
 
       setResult(data.text);
-      showToast({ title: "Tamamlandı", message: "Ders notu başarıyla temizlendi.", type: "success" });
+      showToast({ title: t("toast.doneTitle"), message: t("toast.doneMsg"), type: "success" });
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Bilinmeyen hata";
-      showToast({ title: "Bağlantı hatası", message: msg, type: "error" });
+      const msg = err instanceof Error ? err.message : t("toast.unknownError");
+      showToast({ title: t("toast.connectionErrorTitle"), message: msg, type: "error" });
     } finally {
       setProcessing(false);
     }
@@ -178,7 +188,7 @@ export default function DersNotuPage() {
       <div className="relative z-10 mx-auto w-full max-w-[1400px] min-w-0 px-4 pb-4 pt-3 sm:px-6 sm:pb-5 lg:px-8">
 
         {isDemo && (
-          <DemoModuleBanner message={DIGITAL_CONTENT_DEMO_BANNER} />
+          <DemoModuleBanner message={demo.banner} />
         )}
 
         {/* header */}
@@ -187,16 +197,16 @@ export default function DersNotuPage() {
             <div className="min-w-0">
               <div className="inline-flex items-center gap-1 rounded-full border border-teal-200/80 bg-teal-50/95 px-2.5 py-0.5 text-[10px] font-bold text-teal-800 shadow-sm">
                 <ClipboardList className="h-3 w-3" aria-hidden />
-                Transkript Düzenleme
+                {t("header.badge")}
               </div>
               <h1 className="mt-1 text-xl font-black leading-tight tracking-tight text-slate-950 sm:text-2xl">
-                Temizlenmiş{" "}
+                {t("header.titleLead")}{" "}
                 <span className="bg-gradient-to-r from-teal-600 via-emerald-600 to-cyan-600 bg-clip-text text-transparent">
-                  Ders Notu Merkezi
+                  {t("header.titleAccent")}
                 </span>
               </h1>
               <p className="mt-0.5 max-w-[700px] text-[11px] leading-relaxed text-slate-500 sm:text-xs">
-                Ham transkripti yapıştır veya TXT olarak yükle. Sistem gereksiz konuşmaları temizler, ders notuna dönüştürür.
+                {t("header.desc")}
               </p>
             </div>
           </div>
@@ -216,8 +226,8 @@ export default function DersNotuPage() {
                     <BookOpen className="h-4 w-4" strokeWidth={1.75} />
                   </div>
                   <div>
-                    <p className="text-sm font-black text-slate-900">Ham Transkript</p>
-                    <p className="text-[11px] font-medium text-slate-500">Yapıştır veya TXT yükle</p>
+                    <p className="text-sm font-black text-slate-900">{t("input.title")}</p>
+                    <p className="text-[11px] font-medium text-slate-500">{t("input.hint")}</p>
                   </div>
                 </div>
 
@@ -227,7 +237,7 @@ export default function DersNotuPage() {
                   className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-teal-200 bg-white px-3 text-[11px] font-bold text-teal-700 shadow-sm transition hover:-translate-y-0.5 hover:border-teal-300 hover:shadow"
                 >
                   <FileUp className="h-3.5 w-3.5" strokeWidth={2.25} />
-                  TXT Yükle
+                  {t("input.uploadTxt")}
                 </button>
                 <input
                   ref={fileInputRef}
@@ -242,7 +252,7 @@ export default function DersNotuPage() {
               <textarea
                 value={inputText}
                 onChange={(e) => setInputText(e.target.value)}
-                placeholder="Ham transkripti buraya yapıştırın..."
+                placeholder={t("input.placeholder")}
                 rows={10}
                 className="mt-2 w-full resize-y rounded-xl border border-teal-200/80 bg-white/90 px-3 py-2 text-xs font-medium leading-relaxed text-slate-700 placeholder-slate-400 shadow-sm transition focus:border-teal-400 focus:outline-none focus:ring-2 focus:ring-teal-100"
               />
@@ -250,7 +260,7 @@ export default function DersNotuPage() {
               {/* Karakter sayacı */}
               <div className="mt-1.5 flex items-center justify-between gap-3">
                 <span className={`text-[11px] ${charCountColor(charLen)}`}>
-                  {charLen.toLocaleString("tr-TR")} / {MAX_CHARS.toLocaleString("tr-TR")} karakter
+                  {t("input.charCount", { count: num(charLen), max: num(MAX_CHARS) })}
                 </span>
                 {charLen > 0 && (
                   <button
@@ -258,7 +268,7 @@ export default function DersNotuPage() {
                     onClick={() => { setInputText(""); setResult(null); }}
                     className="text-[11px] font-bold text-slate-400 transition hover:text-slate-600"
                   >
-                    Temizle
+                    {t("input.clear")}
                   </button>
                 )}
               </div>
@@ -266,13 +276,13 @@ export default function DersNotuPage() {
               {/* Limit uyarısı */}
               {isOverLimit && (
                 <p className="mt-1.5 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[11px] font-medium text-red-700">
-                  Metin 40.000 karakter sınırını aşıyor ({(charLen - MAX_CHARS).toLocaleString("tr-TR")} karakter fazla). Lütfen kısaltın.
+                  {t("input.overLimit", { over: num(charLen - MAX_CHARS) })}
                 </p>
               )}
 
               {charLen > WARN_CHARS && !isOverLimit && (
                 <p className="mt-1.5 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] font-medium text-amber-700">
-                  Uzun transkript — işlem birkaç dakika sürebilir. Sayfayı kapatmayın.
+                  {t("input.longWarning")}
                 </p>
               )}
 
@@ -286,12 +296,12 @@ export default function DersNotuPage() {
                 {processing ? (
                   <>
                     <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    Temizleniyor...
+                    {t("input.cleaning")}
                   </>
                 ) : (
                   <>
                     <Sparkles className="h-3.5 w-3.5" strokeWidth={2.25} />
-                    Ders Notunu Temizle
+                    {t("input.submit")}
                   </>
                 )}
               </button>
@@ -299,13 +309,13 @@ export default function DersNotuPage() {
 
             {/* Bilgi kartı */}
             <div className="rounded-xl border border-teal-100 bg-white/80 px-3 py-2.5 shadow-sm">
-              <p className="text-[10px] font-black uppercase tracking-wider text-teal-600">Bu modül nedir?</p>
+              <p className="text-[10px] font-black uppercase tracking-wider text-teal-600">{t("about.title")}</p>
               <ul className="mt-1.5 space-y-1">
                 {[
-                  "Ham transkript temizlenir, ders notu formatına dönüştürülür",
-                  "Eğitmenin bilgisine dokunulmaz — sadece gereksiz konuşmalar silinir",
-                  "Human Design kanal ve kapı numaraları otomatik düzeltilir",
-                  "Soru-cevap bölümleri korunur ve formatlanır",
+                  t("about.item1"),
+                  t("about.item2"),
+                  t("about.item3"),
+                  t("about.item4"),
                 ].map((item) => (
                   <li key={item} className="flex items-start gap-1.5 text-[11px] font-medium leading-relaxed text-slate-600">
                     <Check className="mt-0.5 h-3 w-3 shrink-0 text-teal-500" strokeWidth={2.5} />
@@ -328,9 +338,9 @@ export default function DersNotuPage() {
                     <Check className="h-4 w-4" strokeWidth={2.5} />
                   </div>
                   <div>
-                    <p className="text-sm font-black text-slate-900">Temizlenmiş Ders Notu</p>
+                    <p className="text-sm font-black text-slate-900">{t("result.title")}</p>
                     <p className="text-[11px] font-medium text-slate-500">
-                      {result.length.toLocaleString("tr-TR")} karakter
+                      {t("result.chars", { count: num(result.length) })}
                     </p>
                   </div>
                 </div>
@@ -349,12 +359,12 @@ export default function DersNotuPage() {
                     type="button"
                     onClick={() => {
                       void navigator.clipboard.writeText(result);
-                      showToast({ title: "Kopyalandı", message: "Metin panoya kopyalandı.", type: "success" });
+                      showToast({ title: t("toast.copiedTitle"), message: t("toast.textCopied"), type: "success" });
                     }}
                     className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-emerald-200 bg-white py-2 text-[11px] font-bold text-emerald-700 shadow-sm transition hover:bg-emerald-50"
                   >
                     <Copy className="h-3.5 w-3.5" strokeWidth={2.25} />
-                    Kopyala
+                    {t("result.copy")}
                   </button>
 
                   <button
@@ -363,7 +373,7 @@ export default function DersNotuPage() {
                     className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-emerald-200 bg-white py-2 text-[11px] font-bold text-emerald-700 shadow-sm transition hover:bg-emerald-50"
                   >
                     <FileDown className="h-3.5 w-3.5" strokeWidth={2.25} />
-                    TXT İndir
+                    {t("result.downloadTxt")}
                   </button>
 
                   <button
@@ -377,7 +387,7 @@ export default function DersNotuPage() {
                     ) : (
                       <FileCheck className="h-3.5 w-3.5" strokeWidth={2.25} />
                     )}
-                    Word İndir
+                    {t("result.downloadWord")}
                   </button>
                 </div>
               </div>
@@ -388,12 +398,10 @@ export default function DersNotuPage() {
                   <ClipboardList className="h-5 w-5" strokeWidth={1.75} />
                 </div>
                 <p className="mt-2 text-sm font-black text-slate-600">
-                  {processing ? "İşleniyor..." : "Temizlenmiş not burada görünecek"}
+                  {processing ? t("result.processing") : t("result.emptyTitle")}
                 </p>
                 <p className="mt-1 max-w-xs text-xs font-medium leading-relaxed text-slate-400">
-                  {processing
-                    ? "Yapay zeka transkripti işliyor. Bu işlem birkaç dakika sürebilir."
-                    : "Sol alana transkripti yapıştırın ve temizle butonuna tıklayın."}
+                  {processing ? t("result.processingHint") : t("result.emptyHint")}
                 </p>
                 {processing && (
                   <Loader2 className="mt-3 h-5 w-5 animate-spin text-teal-500" />
@@ -407,9 +415,9 @@ export default function DersNotuPage() {
         <div className="mt-3 overflow-hidden rounded-lg border border-teal-900/20 bg-gradient-to-r from-teal-950 via-emerald-900 to-teal-950 shadow-sm">
           <div className="grid grid-cols-1 gap-0 sm:grid-cols-3">
             {[
-              { icon: "🎯", title: "Bilgi Korunur", desc: "Eğitmenin anlattıkları değiştirilmez, gereksiz konuşmalar silinir." },
-              { icon: "⚡", title: "Human Design Uyumlu", desc: "Kanal ve kapı numaraları otomatik doğru yazılır." },
-              { icon: "📄", title: "Word & TXT Çıktı", desc: "Temizlenmiş notu Word veya TXT olarak indirin." },
+              { icon: "🎯", title: t("info.keptTitle"), desc: t("info.keptDesc") },
+              { icon: "⚡", title: t("info.hdTitle"), desc: t("info.hdDesc") },
+              { icon: "📄", title: t("info.exportTitle"), desc: t("info.exportDesc") },
             ].map((item, i) => (
               <div key={item.title} className={`flex items-center gap-2 px-4 py-2.5 sm:flex-col sm:items-center sm:gap-1 sm:py-2.5 sm:text-center ${i < 2 ? "sm:border-r sm:border-white/10" : ""}`}>
                 <span className="text-sm shrink-0" aria-hidden>{item.icon}</span>

@@ -27,9 +27,11 @@ export type LegacyMissingReason =
   | "field_missing"
   | "not_in_snapshot"
   | "empty"
+  | "future_hidden"
   | "unparseable";
 
-export const LEGACY_MISSING_REASON_TR: Readonly<Record<LegacyMissingReason, string>> = Object.freeze({
+// "future_hidden" etiketi ekran dilinde katalogdan gelir (numerology.compare.futureHidden).
+export const LEGACY_MISSING_REASON_TR: Readonly<Record<Exclude<LegacyMissingReason, "future_hidden">, string>> = Object.freeze({
   no_snapshot: "Bütüncül Numeroloji kaydı seçilmedi.",
   invalid_snapshot: "Kayıtlı analiz okunamadı.",
   unsupported_version: "Kayıtlı analizin sürümü desteklenmiyor.",
@@ -136,6 +138,11 @@ export function parseLegacyDisplay(display: unknown): ParsedDisplay | null {
 }
 
 const NOT_IN_SNAPSHOT: LegacyRead = Object.freeze({ ok: false, reason: "not_in_snapshot" }) as LegacyRead;
+
+// Sunucu gizlemesinin yer tutucuları (app/numeroloji/utils/chronoBirth.ts ile AYNI değerler; bu saf okuyucu
+// uygulama katmanını içe aktarmaz — statik sınır). Gerçek sonuç değildir.
+const REDACTED_TOPIC = -1;
+const isRedactedAge = (v: number | null): boolean => v !== null && v >= 999;
 
 function fail(reason: LegacyMissingReason): LegacyRead {
   return { ok: false, reason };
@@ -292,8 +299,12 @@ function readMucadele(motor: Record<string, unknown>): LegacySnapshotRead["mucad
   if (kitap2) {
     const ana = finiteInt(m.anaMucadele);
     const anaStart = finiteInt(m.anaMucadeleBaslangicYasi);
+    // I18N-0003: "Gelecek Yılları Göster" yetkisi olmayan görüntüleyicide sunucu gizlemesinin yer tutucusu
+    // (REDACTED_TOPIC / REDACTED_FUTURE_AGE) gerçek değer gibi GÖSTERİLMEZ.
     const anaRead: LegacyRead =
-      ana === null
+      ana === REDACTED_TOPIC || isRedactedAge(anaStart)
+        ? fail("future_hidden")
+        : ana === null
         ? fail("field_missing")
         : {
             ok: true,

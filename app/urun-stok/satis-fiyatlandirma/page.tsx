@@ -1,12 +1,16 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+import { useStockServerText } from "../useStockServerText";
+import { useStockFormat } from "../useStockFormat";
+
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import BfcacheRefreshHandler from "@/components/BfcacheRefreshHandler";
 import {
   CATEGORY_LABELS,
   type ProductCategory,
   type UnifiedProduct,
-  fmtMoney,
+  fmtMoney as libFmtMoney,
   loadUnifiedProducts,
   toFloat,
   turkishUpper,
@@ -146,6 +150,7 @@ function calcPreview(p: UiProduct, qtyRaw: number, unit: string, markupRaw: numb
   } else {
     baseQty = toBaseQty(p.measureType, unit, qtyRaw);
   }
+  // i18n-ignore: TR kaynak doğrulama metni (tr'de birebir); diğer dilde ss.text → stock.errors.codes.STK_SALE_QTY_POSITIVE
   if (!(baseQty > 0)) return { error: "Satış miktarı 0'dan büyük olmalı." };
   if (baseQty > p.stockAmount) return { error: `Yetersiz stok. Mevcut: ${p.stockDisplay}` };
   // STK-02: sunucu fiyat kuralının aynası (yuvarlama dahil) — ekrandaki tutar = kaydedilen tutar.
@@ -165,6 +170,12 @@ function productOptionLabel(p: UiProduct): string {
 }
 
 export default function MerkeziSatisFiyatlandirmaPage() {
+  const ss = useStockServerText();
+  const { fmtMoney } = useStockFormat({ fmtMoney: libFmtMoney });
+  const t = useTranslations("stock.pricing");
+  const tS = useTranslations("stock.common");
+  // Kategori GÖSTERİMİ (kimlik kanonik; satış etiketine yazılan CATEGORY_LABELS Türkçe kalır)
+  const catLabel = (c: string) => (t.has(`categories.${c}`) ? t(`categories.${c}`) : c);
   const committingRef = useRef(false);
   const saleAttemptRef = useRef<SaleAttempt | null>(null);
   const [isCommitting, setIsCommitting] = useState(false);
@@ -188,7 +199,7 @@ export default function MerkeziSatisFiyatlandirmaPage() {
       const res = await fetchSalesCatalog();
       if (!res.ok) {
         setMsgOk(false);
-        setMsg(res.error ?? "Ürün kataloğu okunamadı.");
+        setMsg(ss.text(res.error, t("catalogFailed")));
         setProducts([]);
         return;
       }
@@ -196,7 +207,7 @@ export default function MerkeziSatisFiyatlandirmaPage() {
     } finally {
       setLoading(false);
     }
-  }, [usdRate]);
+  }, [usdRate, t, ss]);
 
   const liveCounts = useMemo(() => {
     const counts = { dogaltas: 0, oil: 0, soap_cream: 0, accessory: 0, other: 0 } as Record<ProductCategory, number>;
@@ -278,13 +289,13 @@ export default function MerkeziSatisFiyatlandirmaPage() {
   function addToBasket() {
     if (!picked) {
       setMsgOk(false);
-      setMsg("Ürün seçin.");
+      setMsg(tS("msg.pickProduct"));
       return;
     }
     const line = calcPreview(picked, toFloat(saleQty, 0), saleUnit, toFloat(profitPct, 100));
     if ("error" in line) {
       setMsgOk(false);
-      setMsg(line.error);
+      setMsg(ss.text(line.error, tS("msg.invalidInput")));
       return;
     }
     const rec: UiBasketLine = {
@@ -303,7 +314,7 @@ export default function MerkeziSatisFiyatlandirmaPage() {
     setBasket((b) => [...b, rec]);
     setSaleQty("1");
     setMsgOk(false);
-    setMsg("Sepete eklendi.");
+    setMsg(ss.addedToBasket());
   }
 
   async function commitSale() {
@@ -323,7 +334,7 @@ export default function MerkeziSatisFiyatlandirmaPage() {
         setBasket([]);
         setPickKey("");
         setMsgOk(true);
-        setMsg("Demo: satış önizlendi (kalıcı kayıt yapılmaz).");
+        setMsg(tS("msg.demoPreview"));
         return;
       }
 
@@ -340,7 +351,7 @@ export default function MerkeziSatisFiyatlandirmaPage() {
 
       if (!res.ok) {
         setMsgOk(false);
-        setMsg(res.error ?? "Satış kaydedilemedi.");
+        setMsg(ss.text(res.error, tS("msg.saleFailed")));
         await loadCatalog(false); // gerçek stok yenilensin (yetersiz stok vs.)
         return;
       }
@@ -352,10 +363,10 @@ export default function MerkeziSatisFiyatlandirmaPage() {
       setSaleLabel("");
       await loadCatalog(false); // stok DB'den yeniden yüklenir (canonical)
       setMsgOk(true);
-      setMsg(res.duplicate ? DUPLICATE_SALE_MESSAGE : "Satış kaydedildi. Stok düşüldü ve satış geçmişine yazıldı.");
+      setMsg(res.duplicate ? ss.constant(DUPLICATE_SALE_MESSAGE, tS("msg.duplicateSale")) : t("saleSaved"));
     } catch {
       setMsgOk(false);
-      setMsg("Satış sırasında ağ hatası. Lütfen tekrar deneyin.");
+      setMsg(tS("msg.networkError"));
       await loadCatalog(false);
     } finally {
       committingRef.current = false;
@@ -367,7 +378,7 @@ export default function MerkeziSatisFiyatlandirmaPage() {
     return (
       <main className={pageBg}>
         <div className="flex min-h-screen items-center justify-center font-semibold text-slate-600">
-          Yükleniyor&hellip;
+          {tS("loading")}
         </div>
       </main>
     );
@@ -384,20 +395,20 @@ export default function MerkeziSatisFiyatlandirmaPage() {
       <div className={pageShell}>
         {isDemo && <DemoUrunStokBanner />}
         <header className={`${panelClass} mb-3`}>
-          <p className="text-xs font-black uppercase tracking-[0.3em] text-fuchsia-700">Merkezi Satış</p>
-          <h1 className="mt-1 text-2xl font-black xl:text-3xl">Satış &amp; Fiyatlandırma</h1>
+          <p className="text-xs font-black uppercase tracking-[0.3em] text-fuchsia-700">{t("eyebrow")}</p>
+          <h1 className="mt-1 text-2xl font-black xl:text-3xl">{t("title")}</h1>
           <p className="mt-1 text-sm text-slate-600">
-            Ürün ekleme yapılmaz &mdash; modül stoklarından canlı seçim. Satış sunucuda doğrulanır; stok atomik olarak düşer ve satış geçmişi kalıcıdır.
+            {t("subtitle")}
           </p>
         </header>
 
         <section className={`${panelClass} mb-3`}>
-          <h2 className="text-xs font-black uppercase tracking-[0.2em] text-fuchsia-800">Canlı ürün kaynakları</h2>
-          <p className="mt-0.5 text-xs text-slate-600">Stoklu ürün sayıları (anlık)</p>
+          <h2 className="text-xs font-black uppercase tracking-[0.2em] text-fuchsia-800">{t("sources")}</h2>
+          <p className="mt-0.5 text-xs text-slate-600">{t("sourcesSub")}</p>
           <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
             {(Object.keys(CATEGORY_LABELS) as ProductCategory[]).map((c) => (
               <div key={c} className="rounded-xl border-2 border-fuchsia-100 bg-fuchsia-50/70 px-3 py-2 text-center">
-                <p className="text-xs font-black uppercase text-slate-500">{CATEGORY_LABELS[c]}</p>
+                <p className="text-xs font-black uppercase text-slate-500">{catLabel(c)}</p>
                 <p className="mt-0.5 text-xl font-black text-fuchsia-900">{liveCounts[c]}</p>
               </div>
             ))}
@@ -417,9 +428,9 @@ export default function MerkeziSatisFiyatlandirmaPage() {
         ) : null}
 
         <section className={`${panelClass} relative z-20 mb-2`}>
-          <h2 className="text-base font-black text-fuchsia-900">Satış paneli</h2>
+          <h2 className="text-base font-black text-fuchsia-900">{t("panel")}</h2>
           <p className="mt-0.5 text-xs text-slate-600">
-            Kategori filtreleyin, ürün seçin, miktar ve kâr oranı ile sepete ekleyin.
+            {t("panelSub")}
           </p>
         </section>
 
@@ -427,7 +438,7 @@ export default function MerkeziSatisFiyatlandirmaPage() {
           <section className={`${panelClass} relative z-20 space-y-4 pointer-events-auto`}>
             <div className="grid gap-3 md:grid-cols-2">
               <label className="block">
-                <span className="mb-1 block text-xs font-black">Kategori</span>
+                <span className="mb-1 block text-xs font-black">{t("category")}</span>
                 <select
                   className={inputClass}
                   value={categoryFilter}
@@ -436,46 +447,46 @@ export default function MerkeziSatisFiyatlandirmaPage() {
                     setPickKey("");
                   }}
                 >
-                  <option value="all">Tümü</option>
+                  <option value="all">{t("all")}</option>
                   {(Object.keys(CATEGORY_LABELS) as ProductCategory[]).map((c) => (
                     <option key={c} value={c}>
-                      {CATEGORY_LABELS[c]}
+                      {catLabel(c)}
                     </option>
                   ))}
                 </select>
               </label>
               <label className="block">
-                <span className="mb-1 block text-xs font-black">Dolar kuru (Doğaltaş $)</span>
+                <span className="mb-1 block text-xs font-black">{t("usdRate")}</span>
                 <input
                   className={inputClass}
                   type="number"
                   step="0.01"
                   value={usdRate}
                   onChange={(e) => setUsdRate(e.target.value)}
-                  placeholder="Opsiyonel"
+                  placeholder={t("optional")}
                 />
               </label>
             </div>
 
             <label className="block">
-              <span className="mb-1 block text-xs font-black">Ürün ara</span>
+              <span className="mb-1 block text-xs font-black">{t("search")}</span>
               <input
                 className={inputClass}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Ürün adı, tür, grup, model..."
+                placeholder={t("searchPh")}
               />
             </label>
 
             <label className="block">
-              <span className="mb-1 block text-xs font-black">Ürün seç</span>
+              <span className="mb-1 block text-xs font-black">{t("pick")}</span>
               <select
                 key={`product-pick-${categoryFilter}-${filtered.length}`}
                 className={inputClass}
                 value={pickKey}
                 onChange={(e) => setPickKey(e.target.value)}
               >
-                <option value="">— Ürün seçin —</option>
+                <option value="">{t("pickPh")}</option>
                 {filtered.map((p) => (
                   <option key={p.productId} value={p.productId}>
                     {productOptionLabel(p)}
@@ -483,13 +494,13 @@ export default function MerkeziSatisFiyatlandirmaPage() {
                 ))}
               </select>
               {loading ? (
-                <p className="mt-1 text-xs font-semibold text-slate-500">Katalog yükleniyor…</p>
+                <p className="mt-1 text-xs font-semibold text-slate-500">{t("catalogLoading")}</p>
               ) : products.length === 0 ? (
                 <p className="relative z-0 mt-2 rounded-xl border border-dashed border-fuchsia-200 bg-fuchsia-50/60 px-3 py-2 text-xs font-semibold text-slate-600">
-                  Henüz satışa hazır ürün bulunamadı. Önce ilgili ürün/stok modülünden ürün ekleyin.
+                  {t("noProducts")}
                 </p>
               ) : categoryFilter !== "all" && filtered.length === 0 ? (
-                <p className="mt-1 text-xs font-semibold text-slate-500">Filtreye uygun ürün yok.</p>
+                <p className="mt-1 text-xs font-semibold text-slate-500">{t("noFiltered")}</p>
               ) : null}
             </label>
 
@@ -509,28 +520,28 @@ export default function MerkeziSatisFiyatlandirmaPage() {
                     </div>
                   )}
                   <div className="min-w-0 flex-1">
-                    <p className="text-xs font-black uppercase text-fuchsia-700">Seçili ürün</p>
+                    <p className="text-xs font-black uppercase text-fuchsia-700">{t("selected")}</p>
                     <p className="mt-0.5 text-lg font-black text-slate-900">{picked.name}</p>
                     <p className="text-xs font-semibold text-slate-600">
-                      {CATEGORY_LABELS[picked.category]} &middot; {picked.subtitle}
+                      {catLabel(picked.category)} &middot; {picked.subtitle}
                     </p>
                   </div>
                 </div>
                 <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                   <div className="rounded-lg border border-white bg-white/90 px-3 py-2">
-                    <p className="text-xs font-black text-slate-500">Mevcut stok</p>
+                    <p className="text-xs font-black text-slate-500">{t("currentStock")}</p>
                     <p className="text-sm font-black">{picked.stockDisplay}</p>
                   </div>
                   <div className="rounded-lg border border-white bg-white/90 px-3 py-2">
-                    <p className="text-xs font-black text-slate-500">Birim</p>
+                    <p className="text-xs font-black text-slate-500">{t("unit")}</p>
                     <p className="text-sm font-black">{picked.unitLabel}</p>
                   </div>
                   <div className="rounded-lg border border-white bg-white/90 px-3 py-2">
-                    <p className="text-xs font-black text-slate-500">Maliyet (birim)</p>
+                    <p className="text-xs font-black text-slate-500">{t("unitCost")}</p>
                     <p className="text-sm font-black">{fmtMoney(picked.costPerUnit)} / {picked.unitLabel}</p>
                   </div>
                   <div className="rounded-lg border border-white bg-white/90 px-3 py-2">
-                    <p className="text-xs font-black text-slate-500">Satış fiyatı (birim)</p>
+                    <p className="text-xs font-black text-slate-500">{t("unitSale")}</p>
                     <p className="text-sm font-black">
                       {preview && !("error" in preview)
                         ? fmtMoney(preview.lineSale / (preview.saleBaseQty || 1))
@@ -538,15 +549,15 @@ export default function MerkeziSatisFiyatlandirmaPage() {
                     </p>
                   </div>
                   <div className="rounded-lg border border-white bg-white/90 px-3 py-2 sm:col-span-2">
-                    <p className="text-xs font-black text-slate-500">Fotoğraf</p>
-                    <p className="text-sm font-black">{picked.photoCount} adet</p>
+                    <p className="text-xs font-black text-slate-500">{t("photo")}</p>
+                    <p className="text-sm font-black">{t("photoCount", { count: String(picked.photoCount) })}</p>
                   </div>
                 </div>
               </div>
             ) : null}
 
             <label className="block">
-              <span className="mb-1 block text-xs font-black">Satış etiketi</span>
+              <span className="mb-1 block text-xs font-black">{t("saleLabel")}</span>
               <input
                 className={inputClass}
                 value={saleLabel}
@@ -557,7 +568,7 @@ export default function MerkeziSatisFiyatlandirmaPage() {
             <div className="grid gap-3 sm:grid-cols-3">
               <label className="block">
                 <span className="mb-1 block text-xs font-black">
-                  {picked?.saleMode === "measure" ? "Satış miktarı" : "Satış adedi"}
+                  {picked?.saleMode === "measure" ? t("saleQty") : t("saleCount")}
                 </span>
                 <input
                   className={inputClass}
@@ -570,7 +581,7 @@ export default function MerkeziSatisFiyatlandirmaPage() {
               </label>
               {picked?.saleMode === "measure" ? (
                 <label className="block">
-                  <span className="mb-1 block text-xs font-black">Birim</span>
+                  <span className="mb-1 block text-xs font-black">{t("unit")}</span>
                   <select
                     className={inputClass}
                     value={saleUnit}
@@ -578,14 +589,14 @@ export default function MerkeziSatisFiyatlandirmaPage() {
                   >
                     {picked.saleUnits.map((u) => (
                       <option key={u} value={u}>
-                        {u}
+                        {ss.option(u)}
                       </option>
                     ))}
                   </select>
                 </label>
               ) : null}
               <label className="block">
-                <span className="mb-1 block text-xs font-black">Maliyet üzerinden kâr %</span>
+                <span className="mb-1 block text-xs font-black">{t("marginOnCost")}</span>
                 <input
                   className={inputClass}
                   value={profitPct}
@@ -598,18 +609,18 @@ export default function MerkeziSatisFiyatlandirmaPage() {
             {preview && !("error" in preview) ? (
               <div className="grid gap-3 sm:grid-cols-3">
                 <div className="rounded-xl border border-fuchsia-200 bg-fuchsia-50 p-3 text-center text-sm font-black">
-                  Maliyet: {fmtMoney(preview.lineCost)}
+                  {t("previewCost", { value: fmtMoney(preview.lineCost) })}
                 </div>
                 <div className="rounded-xl border border-pink-200 bg-pink-50 p-3 text-center text-sm font-black">
-                  Satış: {fmtMoney(preview.lineSale)}
+                  {t("previewSale", { value: fmtMoney(preview.lineSale) })}
                 </div>
                 <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-center text-xs font-semibold">
-                  Kâr: {fmtMoney(preview.lineSale - preview.lineCost)} &middot; Stok &minus;{fmtQty(preview.saleBaseQty)}{" "}
+                  {t("previewProfit", { value: fmtMoney(preview.lineSale - preview.lineCost), qty: fmtQty(preview.saleBaseQty) })}{" "}
                   {picked?.unitLabel}
                 </div>
               </div>
             ) : preview && "error" in preview ? (
-              <p className="text-sm font-semibold text-red-700">{preview.error}</p>
+              <p className="text-sm font-semibold text-red-700">{ss.text(preview.error, tS("msg.invalidInput"))}</p>
             ) : null}
 
             <button
@@ -618,15 +629,15 @@ export default function MerkeziSatisFiyatlandirmaPage() {
               onClick={addToBasket}
               disabled={!picked}
             >
-              Sepete Ekle
+              {t("addToBasket")}
             </button>
           </section>
 
           <section className={`${panelClass} relative z-20 flex flex-col`}>
-            <h2 className="mb-3 text-base font-black">Sepet</h2>
+            <h2 className="mb-3 text-base font-black">{t("basket")}</h2>
             <div className="min-h-[160px] flex-1 space-y-2 overflow-y-auto">
               {basket.length === 0 ? (
-                <p className="py-10 text-center text-sm text-slate-500">Sepet boş</p>
+                <p className="py-10 text-center text-sm text-slate-500">{t("basketEmpty")}</p>
               ) : (
                 basket.map((ln, i) => {
                   const profit = ln.lineSale - ln.lineCost;
@@ -634,19 +645,19 @@ export default function MerkeziSatisFiyatlandirmaPage() {
                     <div key={i} className="rounded-xl border-2 border-fuchsia-100 bg-fuchsia-50/70 p-3">
                       <p className="text-sm font-black text-slate-900">{ln.name}</p>
                       <p className="mt-0.5 text-xs font-bold text-fuchsia-800">
-                        {CATEGORY_LABELS[ln.inventoryType]} &middot; {fmtQty(ln.saleQty)} {ln.saleUnit}
+                        {catLabel(ln.inventoryType)} &middot; {fmtQty(ln.saleQty)} {ss.unit(ln.saleUnit)}
                       </p>
                       <div className="mt-2 grid grid-cols-3 gap-1 text-center text-xs">
                         <div>
-                          <p className="text-slate-500">Maliyet</p>
+                          <p className="text-slate-500">{t("cost")}</p>
                           <p className="font-black">{fmtMoney(ln.lineCost)}</p>
                         </div>
                         <div>
-                          <p className="text-slate-500">Satış</p>
+                          <p className="text-slate-500">{t("sale")}</p>
                           <p className="font-black">{fmtMoney(ln.lineSale)}</p>
                         </div>
                         <div>
-                          <p className="text-slate-500">Kâr</p>
+                          <p className="text-slate-500">{t("profit")}</p>
                           <p className={`font-black ${profit < 0 ? "text-rose-700" : "text-emerald-700"}`}>
                             {fmtMoney(profit)}
                           </p>
@@ -657,7 +668,7 @@ export default function MerkeziSatisFiyatlandirmaPage() {
                         className="mt-2 text-xs font-black text-red-600"
                         onClick={() => setBasket((b) => b.filter((_, j) => j !== i))}
                       >
-                        Sepetten kaldır
+                        {t("removeFromBasket")}
                       </button>
                     </div>
                   );
@@ -666,15 +677,15 @@ export default function MerkeziSatisFiyatlandirmaPage() {
             </div>
             <div className="mt-3 space-y-1.5 border-t-2 border-fuchsia-100 pt-3">
               <p className="flex justify-between text-xs font-semibold text-slate-600">
-                <span>Toplam maliyet</span>
+                <span>{t("totalCost")}</span>
                 <span className="font-black text-slate-900">{fmtMoney(basketTotals.totalCost)}</span>
               </p>
               <p className="flex justify-between text-xs font-semibold text-slate-600">
-                <span>Toplam satış</span>
+                <span>{t("totalSale")}</span>
                 <span className="font-black text-slate-900">{fmtMoney(basketTotals.totalSale)}</span>
               </p>
               <p className="flex justify-between text-sm font-black">
-                <span>Toplam kâr</span>
+                <span>{t("totalProfit")}</span>
                 <span className={basketTotals.totalProfit < 0 ? "text-rose-700" : "text-emerald-700"}>
                   {fmtMoney(basketTotals.totalProfit)}
                 </span>
@@ -682,10 +693,10 @@ export default function MerkeziSatisFiyatlandirmaPage() {
             </div>
             <div className="mt-4 flex flex-col gap-2">
               <button type="button" className={btnSecondary} onClick={() => setBasket([])} disabled={!basket.length}>
-                Sepeti Temizle
+                {tS("clearBasket")}
               </button>
               <button type="button" className={btnPrimary} onClick={() => void commitSale()} disabled={!basket.length || isCommitting}>
-                {isCommitting ? "Kaydediliyor..." : "Satışı Kaydet"}
+                {isCommitting ? tS("savingDots") : tS("commitSale")}
               </button>
             </div>
           </section>

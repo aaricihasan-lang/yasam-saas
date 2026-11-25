@@ -1,11 +1,12 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+
 import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import { RegionShape } from "@/app/refleksoloji/bolge-haritasi/components/regions/RegionShape";
 import type { FootView, Region } from "@/app/refleksoloji/bolge-haritasi/types";
 import {
   ATLAS_IMAGE_SRC,
-  atlasBackgroundLabel,
   resolveAtlasBackgroundKey,
 } from "@/app/refleksoloji/bolge-haritasi/utils/atlasBackground";
 import { computeObjectContainRect } from "@/app/refleksoloji/bolge-haritasi/utils/imageContainRect";
@@ -22,6 +23,8 @@ export function AtlasReadonlyFootMap({
   footView,
   onFootViewChange,
 }: AtlasReadonlyFootMapProps) {
+  const tViews = useTranslations("reflexology.common.views");
+  const tAtlas = useTranslations("reflexology.savedAtlas.viewModal");
   const canvasRef = useRef<HTMLDivElement>(null);
   const [containerSize, setContainerSize] = useState({ w: 0, h: 0 });
   const [naturalSize, setNaturalSize] = useState({ w: 0, h: 0 });
@@ -29,7 +32,7 @@ export function AtlasReadonlyFootMap({
   // EKOLE BAĞIMSIZ: arka plan DOĞRUDAN footView'dan; organ adı KULLANILMAZ.
   const backgroundKey = resolveAtlasBackgroundKey(footView);
   const imageSrc = ATLAS_IMAGE_SRC[backgroundKey];
-  const imageLabel = atlasBackgroundLabel(backgroundKey);
+  const imageLabel = tViews(`${backgroundKey}.surface`);
 
   const visibleRegions = useMemo(
     () => regions.filter((r) => r.view === footView),
@@ -72,12 +75,12 @@ export function AtlasReadonlyFootMap({
             varsa manuel seçilebilir. Organ adı arka planı belirlemez. */}
         <div className="flex flex-wrap gap-2">
           {([
-            { view: "taban", label: "Taban" },
-            { view: "yan_ic", label: "Yan İç" },
-            { view: "yan_dis", label: "Yan Dış" },
-            { view: "el_avuc", label: "Avuç İçi" },
-            { view: "el_sirt", label: "El Sırtı" },
-          ] as const).map(({ view, label }) => (
+            { view: "taban" },
+            { view: "yan_ic" },
+            { view: "yan_dis" },
+            { view: "el_avuc" },
+            { view: "el_sirt" },
+          ] as const).map(({ view }) => (
             <button
               key={view}
               type="button"
@@ -89,7 +92,7 @@ export function AtlasReadonlyFootMap({
                   : "border-violet-200/80 bg-violet-50/80 text-violet-800"
               }`}
             >
-              {label}
+              {tViews(`${view}.short`)}
             </button>
           ))}
         </div>
@@ -114,7 +117,7 @@ export function AtlasReadonlyFootMap({
           <div className="absolute z-10" style={overlayStyle}>
             {visibleRegions.length === 0 ? (
               <p className="pointer-events-none absolute inset-0 flex items-center justify-center px-4 text-center text-base font-medium text-slate-500">
-                Bu görünümde kayıtlı bölge yok.
+                {tAtlas("noZones")}
               </p>
             ) : (
               visibleRegions.map((region) => (

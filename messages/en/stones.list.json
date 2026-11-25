@@ -192,6 +192,7 @@
       },
       "image": {
         "none": "No photo added",
+        "fallbackName": "Image {n}",
         "notWebTitle": "Photos that can't be shown on the web",
         "notWebFormat": "The photo path isn't in a web format",
         "add": "Add Photo",
@@ -233,7 +234,19 @@
         "invalidData": "Invalid record data."
       },
       "thisStone": "this stone",
-      "matchCount": "{n, plural, one {# match} other {# matches}}"
+      "matchCount": "{n, plural, one {# match} other {# matches}}",
+      "entryCount": "{count, plural, one {# entry} other {# entries}}",
+      "entriesAdd": "Entries · Add",
+      "entryDelete": {
+        "title": "Delete information entry",
+        "message": "The information \"{preview}\" (Source: {source}) will be deleted. Other entries in this field are kept.",
+        "second": "This action cannot be undone. Are you sure?"
+      },
+      "sourceNotFound": "Source not found; please refresh the page.",
+      "entryAddFailed": "The information could not be added.",
+      "entrySaveFailed": "The information could not be saved.",
+      "entryDeleteFailed": "The information could not be deleted.",
+      "sourceUnspecified": "Source not specified"
     }
   }
 }

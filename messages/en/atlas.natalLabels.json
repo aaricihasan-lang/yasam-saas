@@ -1,0 +1,65 @@
+{
+  "atlas": {
+    "natalLabels": {
+      "point": {
+        "fortune": "Part of Fortune",
+        "vertex": "Vertex"
+      },
+      "uncertain": "uncertain",
+      "retroTitle": "Retrograde",
+      "noonAssumption": "12:00 assumption",
+      "colPoint": "Point",
+      "colSign": "Sign",
+      "colDegree": "Degree",
+      "colHouse": "House",
+      "colMinute": "Minute",
+      "colMotion": "Motion",
+      "houseN": "House {n}",
+      "stripAria": "{sign} 0–30° detail ruler",
+      "stripNote": "≈ 12:00 assumption, not exact",
+      "moonLead": "☽︎ Moon — uncertain.",
+      "moonUnknownText": "The Moon's exact sign and degree cannot be verified because the birth time is unknown.",
+      "moonTail": "It is not shown on the wheel, in groups or on rulers.",
+      "groupSummary": "Group details",
+      "groupCount": " · {n, plural, one {# group} other {# groups}}",
+      "timeUnknownNote": "Birth time unknown: “≈” values assume local 12:00 and are not exact.",
+      "compactNote": "The chart area is narrow: the wheel shows planet and sign symbols. Sign, degree and minute of every point are listed below; zooming in also writes them on the wheel.",
+      "noGroups": "No grouped points in this view: every planet is labelled individually on the wheel.",
+      "groupsIntro": "Clusters that do not fit one by one in their sign segment on the wheel. Sign, degree and minute are always readable here; zooming in also separates them on the wheel.",
+      "groupHead": "{sign} · {n, plural, one {# point} other {# points}}",
+      "angle": {
+        "ASC": "Ascendant (ASC)",
+        "DSC": "Descendant (DSC)",
+        "MC": "Midheaven (MC)",
+        "IC": "Imum Coeli (IC)"
+      },
+      "angleShort": {
+        "ASC": "Ascendant",
+        "DSC": "Descendant",
+        "MC": "Midheaven (MC)",
+        "IC": "Imum Coeli (IC)"
+      },
+      "groupTitle": "Points in {sign}",
+      "groupedWhy": "They were grouped because they do not fit individually at a readable size in this sign segment.",
+      "stripExact": "Each point is at its real degree on the ruler; values come from the stored technical data.",
+      "retroMotion": "℞ retrograde",
+      "direct": "direct",
+      "houseUnknown": "cannot be calculated (time unknown)",
+      "houseMissing": "not in the technical data",
+      "cuspTitle": "Cusp of house {n} ({hs})",
+      "axisNote": "Real {axis} degree; in the {hs} system it differs from the cusp of house {n} (house {n}: {sign} {deg}).",
+      "close": "Close",
+      "storedNote": "The value is read from the stored technical data; it is not recalculated.",
+      "showAll": "All positions (Planets and Houses sections)",
+      "svgTimeUnknown": " — birth time unknown; the Moon is not drawn (its position cannot be verified); other positions assume 12:00 and are not exact",
+      "cuspAria": "Cusp of house {n}",
+      "cuspTitleFull": "Cusp of house {n} — {sign} {deg}",
+      "groupAria": "{n, plural, one {# point} other {# points}} in {sign}: {names}{assumed}. Details in the group area; also opens on tap.",
+      "groupAssumed": " (12:00 assumption)",
+      "retroSuffix": " ℞ (retrograde)",
+      "assumedSuffix": " · ≈ 12:00 assumption, not exact",
+      "centerTimeUnknown": "Time unknown",
+      "centerNoAspects": "no aspect lines"
+    }
+  }
+}

@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { GORSEL_TEMA_LIST, type GorselTemaId } from "./NumerolojiGorselRaporInfografik";
 
 export type GorselRaporKontrolYanPanelProps = {
@@ -27,6 +28,8 @@ export function GorselRaporKontrolYanPanel({
   tasKutle,
   setTasKutle,
 }: GorselRaporKontrolYanPanelProps) {
+  const t = useTranslations("numerology.app.visual");
+  const tResult = useTranslations("numerology.result.detail");
   return (
     <aside className="shrink-0 space-y-3 rounded-xl border border-slate-200/90 bg-white/95 p-3 shadow-sm ring-1 ring-violet-100/50 lg:sticky lg:top-2 lg:w-[min(100%,280px)]">
       <label className="flex cursor-pointer items-start gap-2 text-xs font-semibold text-slate-800">
@@ -36,58 +39,58 @@ export function GorselRaporKontrolYanPanel({
           onChange={(e) => setGorselTaslariGoster(e.target.checked)}
           className="mt-0.5 size-4 shrink-0 rounded border-slate-300 text-violet-600 focus:ring-violet-500"
         />
-        <span>Taş önerilerini görsel raporda göster</span>
+        <span>{t("showStones")}</span>
       </label>
       <div>
         <label htmlFor="noj-uzman" className="mb-1 block text-xs font-bold text-slate-700">
-          Uzman adı
+          {t("expertName")}
         </label>
         <input
           id="noj-uzman"
           type="text"
           value={uzmanAdi}
           onChange={(e) => setUzmanAdi(e.target.value)}
-          placeholder="Örn. Hasan Arıcı"
+          placeholder={t("expertPlaceholder")}
           className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none ring-violet-100 focus:ring-2"
           autoComplete="name"
         />
       </div>
       <div>
         <label htmlFor="noj-tas-bileklik" className="mb-1 block text-xs font-bold text-slate-700">
-          Bileklik taşları
+          {t("braceletStones")}
         </label>
         <textarea
           id="noj-tas-bileklik"
           value={tasBileklik}
           onChange={(e) => setTasBileklik(e.target.value)}
           rows={2}
-          placeholder="Virgülle ayırarak yazın"
+          placeholder={t("commaPlaceholder")}
           className="w-full resize-y rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs outline-none ring-violet-100 focus:ring-2"
         />
       </div>
       <div>
         <label htmlFor="noj-tas-kolye" className="mb-1 block text-xs font-bold text-slate-700">
-          Kolye taşları
+          {t("necklaceStones")}
         </label>
         <textarea
           id="noj-tas-kolye"
           value={tasKolye}
           onChange={(e) => setTasKolye(e.target.value)}
           rows={2}
-          placeholder="Virgülle ayırarak yazın"
+          placeholder={t("commaPlaceholder")}
           className="w-full resize-y rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs outline-none ring-violet-100 focus:ring-2"
         />
       </div>
       <div>
         <label htmlFor="noj-tas-kutle" className="mb-1 block text-xs font-bold text-slate-700">
-          Kütle taşları
+          {tResult("stones.mass")}
         </label>
         <textarea
           id="noj-tas-kutle"
           value={tasKutle}
           onChange={(e) => setTasKutle(e.target.value)}
           rows={2}
-          placeholder="Virgülle ayırarak yazın"
+          placeholder={t("commaPlaceholder")}
           className="w-full resize-y rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs outline-none ring-violet-100 focus:ring-2"
         />
       </div>
@@ -114,11 +117,12 @@ export function GorselRaporKontrolCubugu({
   gorselTamEkran,
   setGorselTamEkran,
 }: GorselRaporKontrolCubuguProps) {
+  const tv = useTranslations("numerology.app.visual");
   return (
     <div className="absolute right-0 top-0 z-20 flex max-w-[min(100%,28rem)] flex-col items-stretch gap-2 sm:right-0 sm:top-0 sm:max-w-none sm:flex-row sm:items-start sm:justify-end">
       <div
         role="group"
-        aria-label="Görsel rapor teması"
+        aria-label={tv("themeAria")}
         className="flex flex-wrap justify-end gap-1.5 rounded-2xl border-2 border-amber-400/55 bg-zinc-950/95 px-2.5 py-2 shadow-[0_4px_24px_rgba(0,0,0,0.65)] backdrop-blur-md sm:gap-2"
       >
         {GORSEL_TEMA_LIST.map((t) => (
@@ -144,7 +148,7 @@ export function GorselRaporKontrolCubugu({
         disabled={gorselIndirmeKilitli}
         className="block shrink-0 self-end rounded-full border-2 border-amber-400/80 bg-zinc-950 px-3 py-2 text-[10px] font-black uppercase leading-tight tracking-[0.08em] text-amber-100 shadow-[0_0_20px_rgba(251,191,36,0.30)] backdrop-blur-md transition hover:border-amber-300 hover:bg-amber-400 hover:text-zinc-950 disabled:cursor-not-allowed disabled:opacity-60 sm:px-4 sm:text-xs sm:tracking-[0.1em]"
       >
-        {gorselPngHazirlaniyor ? "Görsel hazırlanıyor..." : "⤓ PNG İndir"}
+        {gorselPngHazirlaniyor ? tv("preparing") : tv("pngDownload")}
       </button>
       {!gorselTamEkran ? (
         <button
@@ -152,7 +156,7 @@ export function GorselRaporKontrolCubugu({
           onClick={() => setGorselTamEkran(true)}
           className="shrink-0 self-end rounded-full border-2 border-amber-400/80 bg-zinc-950 px-4 py-2 text-[11px] font-black uppercase tracking-[0.12em] text-amber-100 shadow-[0_0_20px_rgba(251,191,36,0.25)] backdrop-blur-md transition hover:border-amber-300 hover:bg-zinc-900 hover:text-amber-50 sm:px-5 sm:text-xs"
         >
-          Tam Ekran
+          {tv("fullscreen")}
         </button>
       ) : null}
     </div>
@@ -174,13 +178,14 @@ export function GorselRaporTamEkranKontrolCubugu({
   gorselIndirmeKilitli,
   gorselPngHazirlaniyor,
 }: GorselRaporTamEkranKontrolCubuguProps) {
+  const tv = useTranslations("numerology.app.visual");
   return (
     // NUM-MOB-2-FIX2: mobil/masaüstü görünürlük artık çağıran taraftaki resolveViewerControls
     // kararıyla yönetilir (mobilde hiç render edilmez).
     <div className="fixed left-6 top-6 z-[10050] flex flex-col gap-2">
       <div
         role="group"
-        aria-label="Tam ekran teması"
+        aria-label={tv("fullscreenThemeAria")}
         className="flex max-w-[min(calc(100vw-8rem),36rem)] flex-wrap gap-1.5 rounded-2xl border-2 border-amber-400/55 bg-zinc-950/95 px-2 py-1.5 shadow-[0_4px_28px_rgba(0,0,0,0.85)] backdrop-blur-md"
       >
         {GORSEL_TEMA_LIST.map((t) => (
@@ -205,7 +210,7 @@ export function GorselRaporTamEkranKontrolCubugu({
         disabled={gorselIndirmeKilitli}
         className="block rounded-full border-2 border-amber-400/80 bg-zinc-950/95 px-3 py-2 text-center text-[9px] font-black uppercase leading-tight tracking-[0.06em] text-amber-100 shadow-[0_4px_28px_rgba(0,0,0,0.85)] backdrop-blur-md transition hover:border-amber-300 hover:bg-amber-400 hover:text-zinc-950 disabled:cursor-not-allowed disabled:opacity-60 sm:text-[10px] sm:tracking-[0.1em]"
       >
-        {gorselPngHazirlaniyor ? "Görsel hazırlanıyor..." : "⤓ PNG İndir"}
+        {gorselPngHazirlaniyor ? tv("preparing") : tv("pngDownload")}
       </button>
     </div>
   );

@@ -1,5 +1,9 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+import { useStockServerText } from "../useStockServerText";
+import { useStockFormat } from "../useStockFormat";
+
 import { runInEffect } from "@/lib/runInEffect";
 import Link from "next/link";
 import BfcacheRefreshHandler from "@/components/BfcacheRefreshHandler";
@@ -23,8 +27,8 @@ import {
   deductAccessoryInventory,
   filesToDataUrls,
   filterAccessoryItems,
-  fmtMoney,
-  fmtQty,
+  fmtMoney as libFmtMoney,
+  fmtQty as libFmtQty,
   fmtUnitCost,
   formatLineCostBreakdown,
   formatSizeLabel,
@@ -64,14 +68,12 @@ import { quarantineNoticeText } from "@/lib/urun-stok/inventorySyncState";
 import { saleLinePrice } from "@/lib/urun-stok/salePricing";
 import {
   cancelSale,
-  describeCancelOutcomes,
   submitCategorySale,
   DUPLICATE_SALE_MESSAGE,
   setSalesVisibility,
   type CancelOutcome,
   type SaleAttempt,
 } from "@/lib/urun-stok/salesApi";
-import { describeVisibilityOutcome } from "@/lib/urun-stok/salesVisibility";
 import SalesHistorySection from "../SalesHistorySection";
 import { loadDbCategorySales, salesLoadIssue, type DbCategorySale } from "@/lib/urun-stok/salesHistoryDb";
 import { seedDemoUrunStok } from "@/lib/demo/demoUrunStok";
@@ -139,15 +141,16 @@ const tabBtn = (active: boolean) =>
   }`;
 
 function PhotoGalleryModal({ photos, onClose }: { photos: string[]; onClose: () => void }) {
+  const tS = useTranslations("stock.common");
   const [idx, setIdx] = useState(0);
   const safe = photos.length ? photos : [];
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/55 p-4 backdrop-blur-md">
       <div className="relative max-h-[90vh] w-full max-w-3xl rounded-[28px] border-2 border-white/90 bg-white p-6 shadow-2xl">
         <button type="button" onClick={onClose} className="absolute right-4 top-4 rounded-xl border px-4 py-2 text-sm font-black">
-          Kapat
+          {tS("close")}
         </button>
-        <h3 className="mb-4 text-xl font-black">Fotoğraf</h3>
+        <h3 className="mb-4 text-xl font-black">{tS("photo")}</h3>
         {safe.length ? (
           <>
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -162,7 +165,7 @@ function PhotoGalleryModal({ photos, onClose }: { photos: string[]; onClose: () 
             </div>
           </>
         ) : (
-          <p className="py-12 text-center text-slate-500">Fotoğraf yok</p>
+          <p className="py-12 text-center text-slate-500">{tS("noPhoto")}</p>
         )}
       </div>
     </div>
@@ -170,6 +173,9 @@ function PhotoGalleryModal({ photos, onClose }: { photos: string[]; onClose: () 
 }
 
 function SalesDetailModal({ record, onClose }: { record: AccessorySaleRecord; onClose: () => void }) {
+  const { fmtMoney, fmtQty } = useStockFormat({ fmtMoney: libFmtMoney, fmtQty: libFmtQty });
+  const tS = useTranslations("stock.common");
+  const tP = useTranslations("stock.pages.accessory");
   const [gallery, setGallery] = useState<string[] | null>(null);
   return (
     <>
@@ -179,7 +185,7 @@ function SalesDetailModal({ record, onClose }: { record: AccessorySaleRecord; on
             <div className="flex flex-wrap items-center justify-between gap-3">
               <h3 className="text-lg font-black">{record.name}</h3>
               <button type="button" className={btnSecondary} onClick={() => setGallery(record.photos || [])}>
-                Foto ({record.photos?.length || 0})
+                {tS("photoCount", { count: String(record.photos?.length || 0) })}
               </button>
             </div>
           </div>
@@ -187,17 +193,17 @@ function SalesDetailModal({ record, onClose }: { record: AccessorySaleRecord; on
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-left text-xs font-black text-amber-800">
-                  <th className="py-1.5">Ürün</th>
-                  <th>Adet</th>
-                  <th>Maliyet</th>
-                  <th>Satış</th>
+                  <th className="py-1.5">{tS("colProduct")}</th>
+                  <th>{tP("colCount")}</th>
+                  <th>{tS("colCost")}</th>
+                  <th>{tS("colSale")}</th>
                 </tr>
               </thead>
               <tbody>
                 {record.lines.map((ln, i) => (
                   <tr key={i} className="border-t">
                     <td className="py-2 font-semibold">{ln.productName}</td>
-                    <td>{fmtQty(ln.saleQty, 0)} adet</td>
+                    <td>{tP("unitQty", { qty: fmtQty(ln.saleQty, 0) })}</td>
                     <td>{fmtMoney(ln.lineCost)}</td>
                     <td>{fmtMoney(ln.lineSale)}</td>
                   </tr>
@@ -205,12 +211,12 @@ function SalesDetailModal({ record, onClose }: { record: AccessorySaleRecord; on
               </tbody>
             </table>
             <p className="mt-3 text-right text-sm font-black">
-              Toplam: {fmtMoney(record.total_cost)} &rarr; {fmtMoney(record.sale_price)}
+              {tS("total", { cost: fmtMoney(record.total_cost), sale: fmtMoney(record.sale_price) })}
             </p>
           </div>
           <div className="border-t p-3 text-right">
             <button type="button" className={btnSecondary} onClick={onClose}>
-              Kapat
+              {tS("close")}
             </button>
           </div>
         </div>
@@ -221,6 +227,10 @@ function SalesDetailModal({ record, onClose }: { record: AccessorySaleRecord; on
 }
 
 export default function AksesuarUrunStokPage() {
+  const ss = useStockServerText();
+  const { fmtMoney, fmtQty } = useStockFormat({ fmtMoney: libFmtMoney, fmtQty: libFmtQty });
+  const tS = useTranslations("stock.common");
+  const tP = useTranslations("stock.pages.accessory");
   const deleteConfirm = useDeleteConfirm();
   const committingRef = useRef(false);
   const saveLock = useSubmitLock();
@@ -261,8 +271,12 @@ export default function AksesuarUrunStokPage() {
     if (demo) { setSales(loadAccessorySales()); setHistoryLoadIssue(null); return; }
     const res = await loadDbCategorySales("accessory");
     setSales(dbToAccessoryRecords(res.sales));
-    setHistoryLoadIssue(salesLoadIssue(res));
-  }, []);
+    {
+      // QA K3D-01: TR'de lib metni birebir; diğer dillerde katalog karşılığı.
+      const issue = salesLoadIssue(res);
+      setHistoryLoadIssue(issue && !ss.isSourceLocale ? tS("msg.loadIssue") : issue);
+    }
+  }, [ss, tS]);
 
   useEffect(() => {
     const demo = readYasamUser()?.is_demo_account === true;
@@ -373,7 +387,7 @@ export default function AksesuarUrunStokPage() {
     // Çift gönderim kilidi (senkron, ilk ifade): ikinci tık yok sayılır.
     return saveLock
       .run(() => saveStockNow())
-      .catch((e: unknown) => setMsg(e instanceof Error ? e.message : "Kayıt tamamlanamadı."));
+      .catch((e: unknown) => setMsg(ss.exception(e, tS("msg.saveIncomplete"))));
   }
 
   async function saveStockNow() {
@@ -421,7 +435,7 @@ export default function AksesuarUrunStokPage() {
         deltaMode: plan.forceAbsolute ? false : addDelta,
       });
       if (!result.ok) {
-        setMsg(result.error);
+        setMsg(ss.text(result.error, tS("msg.invalidInput")));
         return;
       }
       items = result.items;
@@ -434,7 +448,7 @@ export default function AksesuarUrunStokPage() {
       setInventory(items);
       if (!saved) {
         setMsg(
-          "⚠ Tarayıcı depolama alanı doldu. Fotoğraf boyutlarını küçültün veya bazı kayıtları silin.",
+          tS("msg.storageFull"),
         );
         return;
       }
@@ -458,15 +472,15 @@ export default function AksesuarUrunStokPage() {
           await reloadInv();
           setMsg(
             res.conflict
-              ? "Stok bu arada başka bir işlemle (ör. satış) değişti; kayıt yazılmadı. Güncel stok yüklendi — formu kontrol edip yeniden kaydedin."
-              : `Kayıt güncellenemedi: ${res.error}`,
+              ? tS("msg.conflict")
+              : tS("msg.updateFailed", { error: ss.detail(res.error) }),
           );
           return;
         }
         if (!res.ok) {
           retryRef.current = { signature, targetId: target.id, isNew, baseStock };
           setMsg(
-            `Kayıt cihazınıza eklendi ancak buluta yazılamadı: ${res.error}. İnternet bağlantınızı kontrol edip kaydı yeniden ekleyin.`,
+            tS("msg.cloudAddFailed", { error: ss.detail(res.error) }),
           );
           return; // Alanları temizleme — kullanıcı tekrar deneyebilsin.
         }
@@ -476,15 +490,15 @@ export default function AksesuarUrunStokPage() {
         resetForm();
         setMsg(
           res.created
-            ? "Kayıt eklendi ve buluta kaydedildi (tüm cihazlarda görünür)."
-            : "Kayıt güncellendi ve buluta kaydedildi.",
+            ? tS("msg.cloudAdded")
+            : tS("msg.cloudUpdated"),
         );
         return;
       }
     }
 
     resetForm();
-    setMsg(editingId ? "Kayıt güncellendi." : "Kayıt eklendi.");
+    setMsg(editingId ? tS("msg.updated") : tS("msg.added"));
   }
 
   const deleteBusyRef = useRef(false);
@@ -493,7 +507,7 @@ export default function AksesuarUrunStokPage() {
     // Yalnız görünür ∩ seçili: aramayla gizlenmiş seçili kayıt habersiz silinmez.
     const removed = displayed.filter((i) => selectedIds.has(i.id));
     if (!removed.length) {
-      setMsg("Silmek için seçim yapın.");
+      setMsg(tS("msg.pickToDelete"));
       return;
     }
     deleteBusyRef.current = true;
@@ -501,11 +515,11 @@ export default function AksesuarUrunStokPage() {
     try {
       const removedIds = new Set(removed.map((i) => i.id));
       const ok = await deleteConfirm({
-        title: "Stok kaydı silinecek",
-        message: `Seçili ${removed.length} stok kaydı kalıcı olarak silinecek. Bu işlem geri alınamaz.`,
-        names: removed.map((i) => i.name || "(adsız ürün)"),
+        title: tS("msg.deleteTitle"),
+        message: tS("msg.deleteMessage", { count: String(removed.length) }),
+        names: removed.map((i) => i.name || tS("msg.unnamed")),
         count: removed.length,
-        noun: "stok kaydı",
+        noun: tS("msg.noun"),
       });
       if (!ok) return;
       const count = removed.length;
@@ -515,18 +529,18 @@ export default function AksesuarUrunStokPage() {
         const res = await deleteAccessoryInventoryItems(activeTenantId, removed);
         await reloadInv();
         if (!res.ok) {
-          setMsg(`Silme tamamlanamadı (${res.deleted}/${count} silindi): ${res.error} Silinemeyen kayıtlar listede kalır.`);
+          setMsg(tS("msg.deletePartial", { deleted: String(res.deleted), count: String(count), error: ss.detail(res.error) }));
           return;
         }
         setSelectedIds(new Set());
-        setMsg(`${count} kayıt silindi.`);
+        setMsg(tS("msg.recordsDeleted", { count }));
         return;
       }
       const next = inventory.filter((i) => !removedIds.has(i.id));
       saveAccessoryInventory(next);
       setInventory(next);
       setSelectedIds(new Set());
-      setMsg(`${count} kayıt silindi.`);
+      setMsg(tS("msg.recordsDeleted", { count }));
     } finally {
       deleteBusyRef.current = false;
       setDeleteBusy(false);
@@ -565,12 +579,12 @@ export default function AksesuarUrunStokPage() {
 
   function addToBasket() {
     if (!picked) {
-      setMsg("Ürün seçin.");
+      setMsg(tS("msg.pickProduct"));
       return;
     }
     const calc = calcLineAmounts(picked, toFloat(saleQty, 0));
     if ("error" in calc) {
-      setMsg(calc.error);
+      setMsg(ss.text(calc.error, tS("msg.invalidInput")));
       return;
     }
     const pct = toFloat(checkoutProfitPct, picked.profitPct);
@@ -597,7 +611,7 @@ export default function AksesuarUrunStokPage() {
     setBasket((b) => [...b, rec]);
     setSaleQty("1");
     setSalePhotos([]);
-    setMsg("Sepete eklendi.");
+    setMsg(ss.addedToBasket());
   }
 
   // USM-001/003/004/005: satış artık CANONICAL server RPC üzerinden atomik. Fire-and-forget
@@ -605,7 +619,7 @@ export default function AksesuarUrunStokPage() {
   async function commitSale() {
     if (committingRef.current) return;
     if (!basket.length) {
-      setMsg("Sepet boş.");
+      setMsg(tS("msg.basketEmpty"));
       return;
     }
     committingRef.current = true;
@@ -622,7 +636,7 @@ export default function AksesuarUrunStokPage() {
         appendAccessorySales(basket);
         void reloadSales();
         setBasket([]);
-        setMsg("Demo: satış önizlendi (kalıcı kayıt yapılmaz).");
+        setMsg(tS("msg.demoPreview"));
         return;
       }
 
@@ -637,16 +651,16 @@ export default function AksesuarUrunStokPage() {
       const { res, attempt } = await submitCategorySale({ category: "accessory", lines, current: saleAttemptRef.current });
       saleAttemptRef.current = attempt;
       if (!res.ok) {
-        setMsg(res.error ?? "Satış kaydedilemedi.");
+        setMsg(ss.text(res.error, tS("msg.saleFailed")));
         await reloadInv(); // gerçek stok yenilensin (yetersiz stok vb.)
         return;
       }
       setBasket([]);
       await reloadInv(); // stok DB'den (canonical) yeniden yüklenir
       await reloadSales(); // geçmiş DB'den (yeni satış görünür)
-      setMsg(res.duplicate ? DUPLICATE_SALE_MESSAGE : "Satış kaydedildi, stok düşüldü.");
+      setMsg(res.duplicate ? ss.constant(DUPLICATE_SALE_MESSAGE, tS("msg.duplicateSale")) : tS("msg.saleSaved"));
     } catch {
-      setMsg("Satış sırasında ağ hatası. Lütfen tekrar deneyin.");
+      setMsg(tS("msg.networkError"));
       await reloadInv();
     } finally {
       committingRef.current = false;
@@ -677,8 +691,8 @@ export default function AksesuarUrunStokPage() {
       saveAccessorySales(next);
       setSales(next);
       setMsg(missing.length > 0
-        ? `İptal edildi. Uyarı: ${[...new Set(missing)].join(", ")} stoğu bulunamadı.`
-        : "Satış iptal edildi (demo).");
+        ? tS("msg.cancelledMissing", { list: [...new Set(missing)].join(", ") })
+        : tS("msg.cancelledDemo"));
       return;
     }
 
@@ -690,7 +704,7 @@ export default function AksesuarUrunStokPage() {
     }
     await reloadSales();
     await reloadInv();
-    setMsg(describeCancelOutcomes(outcomes));
+    setMsg(ss.cancelOutcome(outcomes));
   }
 
   async function setRecordsVisibility(recs: AccessorySaleRecord[], hide: boolean) {
@@ -700,13 +714,13 @@ export default function AksesuarUrunStokPage() {
       const next = sales.filter((r) => !recs.includes(r));
       saveAccessorySales(next);
       setSales(next);
-      setMsg(`${recs.length} satış listeden kaldırıldı (demo; stok değişmedi).`);
+      setMsg(tS("msg.hiddenDemo", { count: String(recs.length) }));
       return;
     }
     const ids = recs.map((r) => r.saleId).filter((x): x is string => Boolean(x));
     const res = await setSalesVisibility(ids, hide ? "hide" : "unhide");
     await reloadSales();
-    setMsg(describeVisibilityOutcome(hide ? "hide" : "unhide", res, recs.length - ids.length));
+    setMsg(ss.visibilityOutcome(hide ? "hide" : "unhide", res, recs.length - ids.length));
   }
 
 
@@ -714,7 +728,7 @@ export default function AksesuarUrunStokPage() {
     return (
       <main className={pageBg}>
         <div className="flex min-h-screen items-center justify-center font-semibold text-slate-600">
-          Yükleniyor&hellip;
+          {tS("loading")}
         </div>
       </main>
     );
@@ -731,17 +745,17 @@ export default function AksesuarUrunStokPage() {
       <div className={pageShell}>
         {isDemo && <DemoUrunStokBanner />}
         <header className={`${panelClass} mb-3`}>
-          <p className="text-xs font-black uppercase tracking-[0.3em] text-amber-700">Tespih &amp; Takı</p>
-          <h1 className="mt-1 text-2xl font-black xl:text-3xl">Tespih / Takı / Aksesuar</h1>
+          <p className="text-xs font-black uppercase tracking-[0.3em] text-amber-700">{tP("eyebrow")}</p>
+          <h1 className="mt-1 text-2xl font-black xl:text-3xl">{tP("title")}</h1>
           <p className="mt-1 text-sm text-slate-600">
-            Renk, ölçü ve model varyasyonları ayrı stok satırı olarak tutulur; satış adet bazlı, maliyet ve kar otomatik hesaplanır.
+            {tP("subtitle")}
           </p>
         </header>
 
         <div className="mb-3 flex flex-wrap gap-2">
           {(["stock", "pricing", "history"] as TabId[]).map((t) => (
             <button key={t} type="button" className={tabBtn(tab === t)} onClick={() => setTab(t)}>
-              {t === "stock" ? "Ürün/Stok" : t === "pricing" ? "Satış & Fiyatlandırma" : "Satış Geçmişi"}
+              {t === "stock" ? tS("tabs.stock") : t === "pricing" ? tS("tabs.pricing") : tS("tabs.history")}
             </button>
           ))}
         </div>
@@ -755,17 +769,17 @@ export default function AksesuarUrunStokPage() {
         {tab === "stock" && (
           <div className="w-full space-y-4">
             <section className={panelClass}>
-              <h2 className="mb-1 text-base font-black">{editId ? "Kayıt Düzenle" : "Yeni Ürün Kaydı"}</h2>
+              <h2 className="mb-1 text-base font-black">{editId ? tS("form.editRecord") : tS("form.newRecord")}</h2>
               <p className="mb-3 text-xs font-semibold text-slate-600">
-                Aynı ürünün farklı renk / ölçü / modeli için ayrı satır açın (ör. Kaplan Gözü Bileklik | 18 cm | Kahverengi).
+                {tP("variantHint")}
               </p>
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
                 <label className="block sm:col-span-2">
-                  <span className="mb-1 block text-xs font-black">Ürün adı</span>
+                  <span className="mb-1 block text-xs font-black">{tS("productName")}</span>
                   <input className={inputClass} value={name} onChange={(e) => setName(turkishUpper(e.target.value))} />
                 </label>
                 <SelectWithOther
-                  label="Ürün grubu"
+                  label={tS("form.productGroup")}
                   options={PRODUCT_GROUPS}
                   value={productGroup}
                   custom={productGroupCustom}
@@ -773,14 +787,14 @@ export default function AksesuarUrunStokPage() {
                   onCustom={setProductGroupCustom}
                   selectClassName={inputClass}
                   labelClassName="mb-1 block text-xs font-black"
-                  placeholder="Örn. Halhal"
+                  placeholder={tP("groupPh")}
                 />
                 <label className="block">
-                  <span className="mb-1 block text-xs font-black">Ürün tipi / model</span>
+                  <span className="mb-1 block text-xs font-black">{tP("model")}</span>
                   <input className={inputClass} value={productModel} onChange={(e) => setProductModel(e.target.value)} />
                 </label>
                 <SelectWithOther
-                  label="Malzeme"
+                  label={tP("material")}
                   options={MATERIALS}
                   value={material}
                   custom={materialCustom}
@@ -789,74 +803,74 @@ export default function AksesuarUrunStokPage() {
                   otherLabel="diğer"
                   selectClassName={inputClass}
                   labelClassName="mb-1 block text-xs font-black"
-                  placeholder="Örn. pirinç"
+                  placeholder={tP("materialPh")}
                 />
                 <label className="block">
-                  <span className="mb-1 block text-xs font-black">Renk</span>
-                  <input className={inputClass} value={color} onChange={(e) => setColor(e.target.value)} placeholder="Kahverengi, Gümüş..." />
+                  <span className="mb-1 block text-xs font-black">{tP("colour")}</span>
+                  <input className={inputClass} value={color} onChange={(e) => setColor(e.target.value)} placeholder={tP("colourPh")} />
                 </label>
                 <label className="block">
-                  <span className="mb-1 block text-xs font-black">Ölçü / beden türü</span>
+                  <span className="mb-1 block text-xs font-black">{tP("sizeType")}</span>
                   <select className={inputClass} value={sizeKind} onChange={(e) => setSizeKind(e.target.value)}>
                     {SIZE_KINDS.map((s) => (
-                      <option key={s}>{s}</option>
+                      <option key={s} value={s}>{ss.option(s)}</option>
                     ))}
                   </select>
                 </label>
                 <label className="block">
-                  <span className="mb-1 block text-xs font-black">Ölçü değeri</span>
+                  <span className="mb-1 block text-xs font-black">{tP("sizeValue")}</span>
                   <input
                     className={inputClass}
                     value={sizeDetail}
                     onChange={(e) => setSizeDetail(e.target.value)}
-                    placeholder="18 cm, 45 cm, 33 tane..."
+                    placeholder={tP("sizePh")}
                   />
                 </label>
                 <label className="block">
-                  <span className="mb-1 block text-xs font-black">Stok adedi</span>
+                  <span className="mb-1 block text-xs font-black">{tP("stockCount")}</span>
                   <input className={inputClass} type="number" step="1" min="0" value={stockQty} onChange={(e) => setStockQty(e.target.value)} />
                 </label>
                 <label className="block">
-                  <span className="mb-1 block text-xs font-black">Alış maliyeti (TL, toplam)</span>
+                  <span className="mb-1 block text-xs font-black">{tS("form.purchaseCostTl")}</span>
                   <input className={inputClass} type="number" step="0.01" value={costTotal} onChange={(e) => setCostTotal(e.target.value)} />
                 </label>
                 <label className="block">
-                  <span className="mb-1 block text-xs font-black">Satış fiyatı (TL, toplam)</span>
+                  <span className="mb-1 block text-xs font-black">{tS("form.salePriceTl")}</span>
                   <input className={inputClass} type="number" step="0.01" value={salePriceTotal} onChange={(e) => setSalePriceTotal(e.target.value)} />
                 </label>
                 <label className="block">
-                  <span className="mb-1 block text-xs font-black">Kar oranı %</span>
+                  <span className="mb-1 block text-xs font-black">{tS("form.profitPct")}</span>
                   <input className={inputClass} type="number" value={profitPct} onChange={(e) => setProfitPct(e.target.value)} />
                 </label>
                 <label className="block">
-                  <span className="mb-1 block text-xs font-black">Barkod / ürün kodu (opsiyonel)</span>
+                  <span className="mb-1 block text-xs font-black">{tS("form.barcode")}</span>
                   <input className={inputClass} value={barcode} onChange={(e) => setBarcode(e.target.value)} />
                 </label>
                 <label className="block sm:col-span-2">
-                  <span className="mb-1 block text-xs font-black">Not</span>
+                  <span className="mb-1 block text-xs font-black">{tS("note")}</span>
                   <input className={inputClass} value={note} onChange={(e) => setNote(e.target.value)} />
                 </label>
               </div>
               {stockUnitPreview ? (
                 <div className="mt-3 rounded-xl border-2 border-amber-200/90 bg-gradient-to-r from-amber-50/90 to-orange-50/80 p-3">
-                  <p className="text-xs font-black uppercase tracking-wide text-amber-800">Birim maliyet özeti</p>
+                  <p className="text-xs font-black uppercase tracking-wide text-amber-800">{tS("form.unitSummary")}</p>
                   <div className="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                     {stockUnitPreview.costPer != null ? (
                       <div className="rounded-lg border border-amber-200 bg-white/90 px-3 py-2">
-                        <p className="text-xs font-black text-amber-700">Birim maliyet</p>
+                        <p className="text-xs font-black text-amber-700">{tS("form.unitCost")}</p>
                         <p className="mt-0.5 text-base font-black">{fmtUnitCost(stockUnitPreview.costPer)}</p>
                       </div>
                     ) : (
-                      <p className="text-xs text-slate-500">Alış maliyeti ve stok adedi girildiğinde hesaplanır.</p>
+                      <p className="text-xs text-slate-500">{tP("unitHint")}</p>
                     )}
                     {stockUnitPreview.salePer != null ? (
                       <div className="rounded-lg border border-orange-200 bg-white/90 px-3 py-2">
-                        <p className="text-xs font-black text-orange-700">Birim satış</p>
+                        <p className="text-xs font-black text-orange-700">{tS("form.unitSale")}</p>
                         <p className="mt-0.5 text-base font-black">{fmtUnitCost(stockUnitPreview.salePer)}</p>
                       </div>
                     ) : stockUnitPreview.suggestedSalePer != null ? (
                       <div className="rounded-lg border border-violet-200 bg-white/90 px-3 py-2">
-                        <p className="text-xs font-black text-violet-700">Kar %{profitPct} ile birim satış</p>
+                        <p className="text-xs font-black text-violet-700">{tS("form.profitUnitSale", { pct: String(profitPct) })}</p>
                         <p className="mt-0.5 text-base font-black">{fmtUnitCost(stockUnitPreview.suggestedSalePer)}</p>
                       </div>
                     ) : null}
@@ -866,10 +880,10 @@ export default function AksesuarUrunStokPage() {
               <div className="mt-4 flex flex-wrap items-center gap-3">
                 <label className="flex items-center gap-2 text-sm font-bold">
                   <input type="checkbox" checked={addDelta} onChange={(e) => setAddDelta(e.target.checked)} className="h-4 w-4" />
-                  Mevcut stoğa ekle / düş
+                  {tS("form.adjustStockPlain")}
                 </label>
                 <label className="cursor-pointer">
-                  <span className={btnSecondary}> ({photos.length}) Foto</span>
+                  <span className={btnSecondary}>{tS("photoBtn", { count: String(photos.length) })}</span>
                   <input
                     type="file"
                     accept="image/*"
@@ -879,7 +893,7 @@ export default function AksesuarUrunStokPage() {
                       const f = e.target.files;
                       if (f?.length) {
                         const { urls, error } = await filesToDataUrls(f);
-                        if (error) setMsg(error);
+                        if (error) setMsg(ss.photo(error));
                         else setPhotos(urls);
                       }
                       e.target.value = "";
@@ -894,51 +908,51 @@ export default function AksesuarUrunStokPage() {
                       existingCount: photos.length,
                       existingBytes: dataUrlsByteSize(photos),
                     });
-                    if (error) setMsg(error);
+                    if (error) setMsg(ss.photo(error));
                     else setPhotos((prev) => [...prev, ...urls]);
                   }}
                 >
-                  📷 Çek
+                  {tS("capture")}
                 </CameraCaptureButton>
                 <button type="button" className={btnPrimary} onClick={() => void handleSaveStock()} disabled={saveLock.pending} aria-busy={saveLock.pending}>
-                  {saveLock.pending ? "Kaydediliyor…" : editId ? "Güncelle" : "Ekle"}
+                  {saveLock.pending ? tS("saving") : editId ? tS("update") : tS("add")}
                 </button>
                 {editId ? (
                   <button type="button" className={btnSecondary} onClick={resetForm}>
-                    İptal
+                    {tS("cancel")}
                   </button>
                 ) : null}
-                <p className="ml-auto text-sm font-black text-amber-900">Stok değeri: {fmtMoney(stockValue)}</p>
+                <p className="ml-auto text-sm font-black text-amber-900">{tS("form.stockValue", { value: fmtMoney(stockValue) })}</p>
               </div>
             </section>
 
             <section className={panelClass}>
               <div className="mb-3 grid gap-3 md:grid-cols-2">
-                <input className={inputClass} placeholder="Ara..." value={search} onChange={(e) => setSearch(e.target.value)} />
+                <input className={inputClass} placeholder={tS("searchDots")} value={search} onChange={(e) => setSearch(e.target.value)} />
                 <select className={inputClass} value={sortMode} onChange={(e) => setSortMode(e.target.value)}>
-                  <option value="Urun (A->Z)">Ürün (A→Z)</option>
-                  <option value="Ürün (Z→A)">Ürün (Z→A)</option>
-                  <option value="Stok (Az→Çok)">Stok (Az→Çok)</option>
-                  <option value="Stok (Çok→Az)">Stok (Çok→Az)</option>
+                  <option value="Urun (A->Z)">{tS("sort.productAsc")}</option>
+                  <option value="Ürün (Z→A)">{tS("sort.productDesc")}</option>
+                  <option value="Stok (Az→Çok)">{tS("sort.stockAsc")}</option>
+                  <option value="Stok (Çok→Az)">{tS("sort.stockDesc")}</option>
                 </select>
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[1400px] text-sm">
                   <thead>
                     <tr className="text-xs font-black uppercase text-amber-800">
-                      <th className="p-1.5">Seç</th>
-                      <th>No</th>
-                      <th>Varyant</th>
-                      <th>Grup</th>
-                      <th>Model</th>
-                      <th>Malzeme</th>
-                      <th>Renk</th>
-                      <th>Ölçü</th>
-                      <th>Stok</th>
-                      <th>Birim Maliyet</th>
-                      <th>Birim Satış</th>
-                      <th>Barkod</th>
-                      <th>Foto</th>
+                      <th className="p-1.5">{tS("colSelect")}</th>
+                      <th>{tS("colNo")}</th>
+                      <th>{tS("colVariant")}</th>
+                      <th>{tS("colGroup")}</th>
+                      <th>{tP("colModel")}</th>
+                      <th>{tP("colMaterial")}</th>
+                      <th>{tP("colour")}</th>
+                      <th>{tP("colSize")}</th>
+                      <th>{tS("colStock")}</th>
+                      <th>{tS("colUnitCost")}</th>
+                      <th>{tS("colUnitSale")}</th>
+                      <th>{tS("colBarcode")}</th>
+                      <th>{tS("colPhoto")}</th>
                       <th />
                     </tr>
                   </thead>
@@ -978,7 +992,7 @@ export default function AksesuarUrunStokPage() {
                         </td>
                         <td className="p-2">
                           <button type="button" className="text-xs font-black text-violet-700" onClick={() => loadToForm(it)}>
-                            Düzenle
+                            {tS("edit")}
                           </button>
                         </td>
                       </tr>
@@ -987,7 +1001,7 @@ export default function AksesuarUrunStokPage() {
                 </table>
               </div>
               <button type="button" className={`${btnSecondary} mt-3`} disabled={deleteBusy} onClick={() => void deleteSelected()}>
-                {deleteBusy ? "Siliniyor…" : "Seçilenleri Sil"}
+                {deleteBusy ? tS("deleting") : tS("deleteSelected")}
               </button>
             </section>
           </div>
@@ -998,7 +1012,7 @@ export default function AksesuarUrunStokPage() {
             <section className={`${panelClass} space-y-4`}>
               <div className="grid gap-3 lg:grid-cols-2">
                 <select className={inputClass} value={pickId} onChange={(e) => setPickId(e.target.value)}>
-                  <option value="">— Ürün seç —</option>
+                  <option value="">{tS("pickProduct")}</option>
                   {inventory.map((it) => (
                     <option key={it.id} value={it.id}>
                       {formatVariantLabel(it)} — {formatStockDisplay(it)}
@@ -1007,29 +1021,29 @@ export default function AksesuarUrunStokPage() {
                 </select>
                 <input
                   className={inputClass}
-                  placeholder="Satış etiketi"
+                  placeholder={tP("saleLabelPh")}
                   value={saleLabel}
                   onChange={(e) => setSaleLabel(turkishUpper(e.target.value))}
                 />
               </div>
               {picked ? (
                 <div className="rounded-xl border border-amber-200 bg-amber-50/80 px-4 py-3">
-                  <p className="text-xs font-black text-amber-800">Kayıtlı birim fiyat</p>
+                  <p className="text-xs font-black text-amber-800">{tP("savedUnitPrice")}</p>
                   <p className="mt-0.5 text-base font-black">
                     {fmtUnitCost(picked.costPerUnit)}
                     <span className="mx-2 text-slate-400">&middot;</span>
-                    Satış: {fmtUnitCost(picked.salePerUnit)}
+                    {tS("sale.salePrice", { value: fmtUnitCost(picked.salePerUnit) })}
                   </p>
                 </div>
               ) : null}
               {picked ? (
                 <div className="grid gap-3 sm:grid-cols-2">
                   <label className="block">
-                    <span className="mb-1 block text-xs font-black">Satılacak adet</span>
+                    <span className="mb-1 block text-xs font-black">{tP("qtyToSell")}</span>
                     <input className={inputClass} type="number" step="1" min="1" value={saleQty} onChange={(e) => setSaleQty(e.target.value)} />
                   </label>
                   <label className="block">
-                    <span className="mb-1 block text-xs font-black">Ek kar % (opsiyonel)</span>
+                    <span className="mb-1 block text-xs font-black">{tS("sale.extraProfit")}</span>
                     <input className={inputClass} value={checkoutProfitPct} onChange={(e) => setCheckoutProfitPct(e.target.value)} placeholder={String(picked.profitPct)} />
                   </label>
                 </div>
@@ -1038,16 +1052,16 @@ export default function AksesuarUrunStokPage() {
                 <div className="space-y-2">
                   <div className="grid gap-3 sm:grid-cols-3">
                     <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-center text-sm font-black">
-                      Maliyet: {fmtMoney(previewLine.lineCost)}
+                      {tS("costLabel", { value: fmtMoney(previewLine.lineCost) })}
                     </div>
                     <div className="rounded-xl border border-orange-200 bg-orange-50 p-3 text-center text-sm font-black">
-                      Satış:{" "}
+                      {tS("saleLabel")}
                       {fmtMoney(
                         linePrice(picked, previewLine.saleQty).lineSale,
                       )}
                     </div>
                     <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-center text-xs font-semibold">
-                      Stok düşümü: {fmtQty(previewLine.saleQty, 0)} adet
+                      {tP("deduct", { qty: fmtQty(previewLine.saleQty, 0) })}
                     </div>
                   </div>
                   <p className="rounded-lg border border-amber-100 bg-white/90 px-3 py-2 text-center text-xs font-bold text-slate-800">
@@ -1058,7 +1072,7 @@ export default function AksesuarUrunStokPage() {
                 <p className="text-sm font-semibold text-red-700">{previewLine.error}</p>
               ) : null}
               <label className="inline-block cursor-pointer">
-                <span className={btnSecondary}>({salePhotos.length}) Ürün fotoğrafı</span>
+                <span className={btnSecondary}>{tS("productPhotoBtn", { count: String(salePhotos.length) })}</span>
                 <input
                   type="file"
                   accept="image/*"
@@ -1068,7 +1082,7 @@ export default function AksesuarUrunStokPage() {
                     const f = e.target.files;
                     if (f?.length) {
                       const { urls, error } = await filesToDataUrls(f);
-                      if (error) setMsg(error);
+                      if (error) setMsg(ss.photo(error));
                       else setSalePhotos(urls);
                     }
                     e.target.value = "";
@@ -1076,11 +1090,11 @@ export default function AksesuarUrunStokPage() {
                 />
               </label>
               <button type="button" className={`${btnPrimary} w-full`} onClick={addToBasket}>
-                Sepete Ekle
+                {tS("addToBasket")}
               </button>
             </section>
             <section className={panelClass}>
-              <h2 className="mb-3 text-base font-black">Sepet</h2>
+              <h2 className="mb-3 text-base font-black">{tS("basket")}</h2>
               <div className="space-y-2">
                 {basket.map((rec, i) => (
                   <div key={i} className="rounded-xl border bg-amber-50/50 p-3">
@@ -1089,18 +1103,18 @@ export default function AksesuarUrunStokPage() {
                       {fmtMoney(rec.total_cost)} &rarr; {fmtMoney(rec.sale_price)}
                     </p>
                     <button type="button" className="mt-1 text-xs font-black text-red-600" onClick={() => setBasket((b) => b.filter((_, j) => j !== i))}>
-                      Sil
+                      {tS("delete")}
                     </button>
                   </div>
                 ))}
               </div>
-              <p className="mt-3 text-sm font-black">Toplam satış: {fmtMoney(basket.reduce((s, r) => s + r.sale_price, 0))}</p>
+              <p className="mt-3 text-sm font-black">{tS("sale.basketTotal", { value: fmtMoney(basket.reduce((s, r) => s + r.sale_price, 0)) })}</p>
               <div className="mt-4 flex flex-col gap-2">
                 <button type="button" className={btnSecondary} onClick={() => setBasket([])}>
-                  Sepeti Temizle
+                  {tS("clearBasket")}
                 </button>
                 <button type="button" className={btnPrimary} onClick={() => void commitSale()} disabled={isCommitting}>
-                  {isCommitting ? "Kaydediliyor..." : "Satışı Kaydet"}
+                  {isCommitting ? tS("savingDots") : tS("commitSale")}
                 </button>
               </div>
             </section>
@@ -1114,7 +1128,7 @@ export default function AksesuarUrunStokPage() {
               loadIssue={historyLoadIssue}
               isDemo={isDemo}
               headClassName="text-amber-800"
-              extraSummary={(done) => <span>Satılan Ürün: {countSoldUnits(done)} adet</span>}
+              extraSummary={(done) => <span>{tP("soldSummary", { count: String(countSoldUnits(done)) })}</span>}
               onCancel={cancelSalesRecords}
               onHide={(recs) => setRecordsVisibility(recs, true)}
               onUnhide={(recs) => setRecordsVisibility(recs, false)}

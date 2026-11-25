@@ -1,5 +1,7 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+
 import type { ResizeHandle } from "../../utils/regionTransform";
 
 const HANDLE_CLASS =
@@ -22,13 +24,14 @@ const HANDLES: { id: ResizeHandle; className: string; cursor: string }[] = [
 ];
 
 export function RegionHandles({ onResizeStart, onRotateStart }: RegionHandlesProps) {
+  const t = useTranslations("reflexology.zoneMap.canvas");
   return (
     <>
       {HANDLES.map((h) => (
         <button
           key={h.id}
           type="button"
-          aria-label={`Boyutlandır: ${h.id}`}
+          aria-label={t("resize", { handle: h.id })}
           className={`${HANDLE_CLASS} ${h.className}`}
           style={{ cursor: h.cursor }}
           onPointerDown={(e) => {
@@ -40,7 +43,7 @@ export function RegionHandles({ onResizeStart, onRotateStart }: RegionHandlesPro
       ))}
       <button
         type="button"
-        aria-label="Döndür"
+        aria-label={t("rotate")}
         className="absolute left-1/2 top-0 z-30 h-3 w-3 -translate-x-1/2 -translate-y-[calc(100%+6px)] rounded-full border-2 border-white bg-red-500 shadow-md"
         style={{ cursor: "grab" }}
         onPointerDown={(e) => {

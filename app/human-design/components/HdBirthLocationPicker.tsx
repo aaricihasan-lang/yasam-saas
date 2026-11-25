@@ -15,6 +15,7 @@
 // input'tan almaz (preventDefault); liste yalnız odak bileşen DIŞINA çıkınca veya Esc ile kapanır.
 
 import { type KeyboardEvent, useEffect, useId, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 import { searchLocations, type Location } from "@/lib/location";
 import { TR_LOCATIONS } from "@/lib/location/tr";
 import { searchTrDistricts } from "@/lib/human-design/location/trDistrictIndex";
@@ -40,8 +41,8 @@ export function HdBirthLocationPicker({
   onTextChange,
   disabled,
   initialText,
-  placeholder = "İl, ilçe veya şehir… (ör. Selçuklu, Berlin)",
-  unselectedHint = "Listeden bir yer seçin; seçilmeyen metin doğum yeri olarak kullanılmaz.",
+  placeholder: placeholderProp,
+  unselectedHint: unselectedHintProp,
 }: {
   id?: string;
   value: HdPickedLocation | null;
@@ -58,6 +59,10 @@ export function HdBirthLocationPicker({
   /** Seçilmemiş metin uyarısı (varsayılan: doğum yeri metni — mevcut formlar birebir aynı). */
   unselectedHint?: string;
 }) {
+  // I18N: varsayılan metinler hd.forms.location (TR değerleri önceki varsayılanlarla bayt-eşit).
+  const tl = useTranslations("hd.forms.location");
+  const placeholder = placeholderProp ?? tl("placeholder");
+  const unselectedHint = unselectedHintProp ?? tl("unselectedHint");
   const autoId = useId();
   const listboxId = `${id ?? autoId}-listbox`;
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -141,15 +146,15 @@ export function HdBirthLocationPicker({
       if (my !== remoteSeq.current) return; // daha yeni bir arama başladı
       if (res.ok && j.ok && Array.isArray(j.results)) {
         setRemote(j.results.map((r) => ({ id: r.ref, label: r.label, tz: r.tz, source: "roxy" as const })));
-        setRemoteMsg(j.results.length === 0 ? "Bu isimle yerleşim bulunamadı. Yazımı kontrol edin veya il seçin." : null);
+        setRemoteMsg(j.results.length === 0 ? tl("noResults") : null);
         setActive(j.results.length > 0 ? 0 : -1);
         setOpen(true);
       } else {
         // Teknik JSON gösterilmez; sunucu zaten anlaşılır Türkçe mesaj döner.
-        setRemoteMsg(typeof j.error === "string" && j.error.length < 160 ? j.error : "Konum araması şu anda yapılamadı. Lütfen tekrar deneyin.");
+        setRemoteMsg(typeof j.error === "string" && j.error.length < 160 ? j.error : tl("searchFailed"));
       }
     } catch {
-      if (my === remoteSeq.current) setRemoteMsg("Ağ hatası. Bağlantınızı kontrol edip tekrar deneyin.");
+      if (my === remoteSeq.current) setRemoteMsg(tl("networkError"));
     } finally {
       if (my === remoteSeq.current) setRemoteBusy(false);
     }
@@ -253,8 +258,8 @@ export function HdBirthLocationPicker({
               disabled={remoteBusy}
               className="flex w-full items-center justify-between gap-2 border-t border-indigo-100 bg-indigo-50/50 px-3 py-2 text-left text-xs font-bold text-indigo-700 transition hover:bg-indigo-100 disabled:opacity-60"
             >
-              <span className="min-w-0 truncate">{remoteBusy ? "Aranıyor…" : `İlçe / şehir ara: “${query.trim()}”`}</span>
-              <span className="shrink-0 text-[10px] font-semibold text-indigo-500">Enter</span>
+              <span className="min-w-0 truncate">{remoteBusy ? tl("searching") : tl("searchFor", { query: query.trim() })}</span>
+              <span className="shrink-0 text-[10px] font-semibold text-indigo-500">{tl("enterKey")}</span>
             </button>
           ) : null}
         </div>

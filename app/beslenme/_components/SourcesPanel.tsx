@@ -11,11 +11,12 @@
  * kayda bağlıysa sunucu reddeder ve kullanıcıya nerede kullanıldığı söylenir.
  */
 import { useState } from "react";
+import { useTranslations } from "next-intl";
+import { useBeslenmeLabels } from "./useBeslenmeLabels";
 import { BookOpen, ExternalLink, Link2, Plus, Search, Trash2, X } from "lucide-react";
 import type { Source, SourceLinkBody } from "@/lib/beslenme/beslenmeClient";
 import { deleteSource, listSources } from "@/lib/beslenme/beslenmeClient";
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
-import { SOURCE_TYPE_LABELS, SOURCE_TYPE_OPTIONS, friendlyError } from "./constants";
 import {
   Card,
   EmptyState,
@@ -44,6 +45,8 @@ export function SourcesPanel({ links, disabledReason, onLink, onUnlink }: Props)
   const [mode, setMode] = useState<Mode>("idle");
   const [err, setErr] = useState("");
   const deleteConfirm = useDeleteConfirm();
+  const tsr = useTranslations("beslenme.sources");
+  const bl = useBeslenmeLabels();
 
   // Picker durumu
   const [q, setQ] = useState("");
@@ -85,7 +88,7 @@ export function SourcesPanel({ links, disabledReason, onLink, onUnlink }: Props)
     const r = await listSources(q.trim() || undefined);
     setSearching(false);
     if (!r.ok || !r.data) {
-      setErr(friendlyError(r.code, r.status));
+      setErr(bl.error(r.code, r.status));
       setResults([]);
       return;
     }
@@ -98,23 +101,23 @@ export function SourcesPanel({ links, disabledReason, onLink, onUnlink }: Props)
     const ok = await onLink({ source_id: sourceId, locator: locator.trim() || null });
     setBusy(false);
     if (ok) resetAll();
-    else setErr("Kaynak bağlanamadı. Lütfen tekrar deneyin.");
+    else setErr(tsr("linkFailed"));
   }
 
   async function handleUnlink(l: LinkedSource) {
     if (unlinkingId) return;
     const ok = await deleteConfirm({
-      title: "Kaynak bağlantısını kaldır",
-      message: "Bu kaynak bu kayıttan kaldırılacak (kaynak kataloğda kalır).",
-      names: [l.source?.title ?? "Kaynak"],
-      confirmText: "Kaldır",
+      title: tsr("unlinkTitle"),
+      message: tsr("unlinkMessage"),
+      names: [l.source?.title ?? tsr("sourceFallback")],
+      confirmText: tsr("unlinkConfirm"),
     });
     if (!ok) return;
     setUnlinkingId(l.id);
     setUnlinkErr("");
     try {
       const done = await onUnlink(l.id);
-      if (!done) setUnlinkErr("Kaynak bağlantısı kaldırılamadı. Lütfen tekrar deneyin.");
+      if (!done) setUnlinkErr(tsr("unlinkFailed"));
     } finally {
       setUnlinkingId(null);
     }
@@ -124,10 +127,10 @@ export function SourcesPanel({ links, disabledReason, onLink, onUnlink }: Props)
   async function removeSource(s: Source) {
     if (deletingId) return;
     const ok = await deleteConfirm({
-      title: "Kaynağı sil",
-      message: "Bu kaynak kaynak kataloğunuzdan kalıcı olarak silinecek.",
+      title: tsr("deleteTitle"),
+      message: tsr("deleteMessage"),
       names: [s.title],
-      confirmText: "Sil",
+      confirmText: tsr("deleteConfirm"),
     });
     if (!ok) return;
     setDeletingId(s.id);
@@ -141,20 +144,18 @@ export function SourcesPanel({ links, disabledReason, onLink, onUnlink }: Props)
     if (r.code === "IN_USE") {
       const u = r.data?.usage;
       const parts: string[] = [];
-      if (u?.topics) parts.push(`${u.topics} rehber`);
-      if (u?.foods) parts.push(`${u.foods} besin`);
-      if (u?.foodValues) parts.push(`${u.foodValues} besin değeri/porsiyon kaydı`);
-      setErr(
-        `Bu kaynak silinemedi çünkü ${parts.length ? parts.join(", ") : "başka kayıtlar"} tarafından kullanılıyor. Önce ilgili kayıtlardaki kaynak bağlantısını kaldırın.`,
-      );
+      if (u?.topics) parts.push(tsr("usageTopics", { count: u.topics }));
+      if (u?.foods) parts.push(tsr("usageFoods", { count: u.foods }));
+      if (u?.foodValues) parts.push(tsr("usageValues", { count: u.foodValues }));
+      setErr(tsr("inUse", { parts: parts.length ? parts.join(", ") : tsr("usageOther") }));
       return;
     }
-    setErr(friendlyError(r.code, r.status));
+    setErr(bl.error(r.code, r.status));
   }
 
   async function createAndLink() {
     if (!nTitle.trim()) {
-      setErr("Kaynak başlığı zorunludur.");
+      setErr(tsr("titleRequired"));
       return;
     }
     setBusy(true);
@@ -173,7 +174,7 @@ export function SourcesPanel({ links, disabledReason, onLink, onUnlink }: Props)
     });
     setBusy(false);
     if (ok) resetAll();
-    else setErr("Kaynak eklenemedi. Bilgileri kontrol edip tekrar deneyin.");
+    else setErr(tsr("createFailed"));
   }
 
   const disabled = Boolean(disabledReason);
@@ -187,12 +188,12 @@ export function SourcesPanel({ links, disabledReason, onLink, onUnlink }: Props)
       {links.length === 0 ? (
         <EmptyState
           icon={<BookOpen className="h-8 w-8" />}
-          title="Bu kayıt için henüz kaynak eklenmemiş."
-          description="Bilimsel/geleneksel dayanak eklemek isterseniz kaynak bağlayabilirsiniz. Kaynak eklemek zorunlu değildir."
+          title={tsr("emptyTitle")}
+          description={tsr("emptyDesc")}
           action={
             !disabled ? (
               <PrimaryButton icon={<Plus className="h-4 w-4" />} onClick={() => setMode("pick")}>
-                Kaynak Ekle
+                {tsr("addSource")}
               </PrimaryButton>
             ) : undefined
           }
@@ -206,11 +207,11 @@ export function SourcesPanel({ links, disabledReason, onLink, onUnlink }: Props)
             >
               <div className="min-w-0">
                 <p className="truncate text-[13px] font-black text-slate-800">
-                  {l.source?.title ?? "Kaynak"}
+                  {l.source?.title ?? tsr("sourceFallback")}
                 </p>
                 <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] font-medium text-slate-400">
                   {l.source?.source_type ? (
-                    <span>{SOURCE_TYPE_LABELS[l.source.source_type] ?? l.source.source_type}</span>
+                    <span>{bl.sourceType(l.source.source_type)}</span>
                   ) : null}
                   {l.source?.authors ? <span>· {l.source.authors}</span> : null}
                   {l.source?.publication_year ? <span>· {l.source.publication_year}</span> : null}
@@ -222,7 +223,7 @@ export function SourcesPanel({ links, disabledReason, onLink, onUnlink }: Props)
                       rel="noreferrer"
                       className="inline-flex items-center gap-0.5 text-emerald-600 hover:underline"
                     >
-                      <ExternalLink className="h-3 w-3" aria-hidden /> Bağlantı
+                      <ExternalLink className="h-3 w-3" aria-hidden /> {tsr("link")}
                     </a>
                   ) : null}
                 </p>
@@ -233,8 +234,8 @@ export function SourcesPanel({ links, disabledReason, onLink, onUnlink }: Props)
                   onClick={() => void handleUnlink(l)}
                   disabled={unlinkingId !== null}
                   className="shrink-0 rounded-lg p-1.5 text-slate-400 transition hover:bg-rose-50 hover:text-rose-600 disabled:opacity-50"
-                  title="Bağlantıyı kaldır"
-                  aria-label="Kaynak bağlantısını kaldır"
+                  title={tsr("unlinkBtnTitle")}
+                  aria-label={tsr("unlinkTitle")}
                 >
                   <Trash2 className="h-4 w-4" aria-hidden />
                 </button>
@@ -247,7 +248,7 @@ export function SourcesPanel({ links, disabledReason, onLink, onUnlink }: Props)
       {!disabled && links.length > 0 && mode === "idle" ? (
         <div>
           <GhostButton icon={<Plus className="h-4 w-4" />} onClick={() => setMode("pick")}>
-            Kaynak Ekle
+            {tsr("addSource")}
           </GhostButton>
         </div>
       ) : null}
@@ -264,7 +265,7 @@ export function SourcesPanel({ links, disabledReason, onLink, onUnlink }: Props)
                   mode === "pick" ? "bg-white text-emerald-700 shadow-sm" : "text-slate-500"
                 }`}
               >
-                Mevcut Kaynak
+                {tsr("existingTab")}
               </button>
               <button
                 type="button"
@@ -273,14 +274,14 @@ export function SourcesPanel({ links, disabledReason, onLink, onUnlink }: Props)
                   mode === "create" ? "bg-white text-emerald-700 shadow-sm" : "text-slate-500"
                 }`}
               >
-                Yeni Kaynak
+                {tsr("newTab")}
               </button>
             </div>
             <button
               type="button"
               onClick={resetAll}
               className="rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
-              aria-label="Kapat"
+              aria-label={tsr("close")}
             >
               <X className="h-4 w-4" aria-hidden />
             </button>
@@ -293,11 +294,11 @@ export function SourcesPanel({ links, disabledReason, onLink, onUnlink }: Props)
           ) : null}
 
           <div className="mb-3">
-            <Field label="Konum / Sayfa (opsiyonel)" hint="Örn: s. 45–48, Bölüm 3">
+            <Field label={tsr("locatorLabel")} hint={tsr("locatorHint")}>
               <TextInput
                 value={locator}
                 onChange={(e) => setLocator(e.target.value)}
-                placeholder="Sayfa, bölüm veya not"
+                placeholder={tsr("locatorPlaceholder")}
               />
             </Field>
           </div>
@@ -314,20 +315,20 @@ export function SourcesPanel({ links, disabledReason, onLink, onUnlink }: Props)
                       void runSearch();
                     }
                   }}
-                  placeholder="Kaynak ara (başlık, yazar…)"
+                  placeholder={tsr("searchPlaceholder")}
                 />
                 <GhostButton icon={<Search className="h-4 w-4" />} loading={searching} onClick={() => void runSearch()}>
-                  Ara
+                  {tsr("search")}
                 </GhostButton>
               </div>
 
               {results === null ? (
                 <p className="text-[12px] font-medium text-slate-400">
-                  Bağlamak istediğiniz kaynağı bulmak için arama yapın.
+                  {tsr("searchHint")}
                 </p>
               ) : results.length === 0 ? (
                 <p className="text-[12px] font-medium text-slate-400">
-                  Kaynak bulunamadı. &quot;Yeni Kaynak&quot; sekmesinden ekleyebilirsiniz.
+                  {tsr("noResults")}
                 </p>
               ) : (
                 <ul className="flex max-h-64 flex-col gap-1.5 overflow-y-auto">
@@ -339,12 +340,12 @@ export function SourcesPanel({ links, disabledReason, onLink, onUnlink }: Props)
                           disabled={busy || deletingId === s.id}
                           onClick={() => void linkExisting(s.id)}
                           className="flex min-w-0 flex-1 items-center justify-between gap-2 rounded-lg px-2 py-1.5 text-left transition hover:bg-emerald-50 disabled:opacity-60"
-                          title="Bu kaynağı bağla"
+                          title={tsr("linkThis")}
                         >
                           <span className="min-w-0">
                             <span className="block truncate text-[13px] font-bold text-slate-800">{s.title}</span>
                             <span className="block truncate text-[11px] font-medium text-slate-400">
-                              {s.source_type ? SOURCE_TYPE_LABELS[s.source_type] ?? s.source_type : ""}
+                              {s.source_type ? bl.sourceType(s.source_type) : ""}
                               {s.authors ? ` · ${s.authors}` : ""}
                             </span>
                           </span>
@@ -355,8 +356,8 @@ export function SourcesPanel({ links, disabledReason, onLink, onUnlink }: Props)
                           disabled={busy || deletingId === s.id}
                           onClick={() => void removeSource(s)}
                           className="shrink-0 rounded-lg p-1.5 text-slate-400 transition hover:bg-rose-50 hover:text-rose-600 disabled:opacity-60"
-                          title="Kaynağı kataloğdan sil"
-                          aria-label="Kaynağı kataloğdan sil"
+                          title={tsr("deleteFromCatalog")}
+                          aria-label={tsr("deleteFromCatalog")}
                         >
                           <Trash2 className="h-4 w-4" aria-hidden />
                         </button>
@@ -369,47 +370,47 @@ export function SourcesPanel({ links, disabledReason, onLink, onUnlink }: Props)
           ) : (
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="sm:col-span-2">
-                <Field label="Başlık" required>
-                  <TextInput value={nTitle} onChange={(e) => setNTitle(e.target.value)} placeholder="Kaynak başlığı" />
+                <Field label={tsr("titleLabel")} required>
+                  <TextInput value={nTitle} onChange={(e) => setNTitle(e.target.value)} placeholder={tsr("titlePlaceholder")} />
                 </Field>
               </div>
-              <Field label="Tür">
+              <Field label={tsr("typeLabel")}>
                 <SelectInput value={nType} onChange={(e) => setNType(e.target.value)}>
-                  {SOURCE_TYPE_OPTIONS.map((o) => (
+                  {bl.sourceTypeOptions.map((o) => (
                     <option key={o.value} value={o.value}>
                       {o.label}
                     </option>
                   ))}
                 </SelectInput>
               </Field>
-              <Field label="Yıl">
+              <Field label={tsr("yearLabel")}>
                 <TextInput
                   inputMode="numeric"
                   value={nYear}
                   onChange={(e) => setNYear(e.target.value.replace(/[^0-9]/g, "").slice(0, 4))}
-                  placeholder="Örn: 2021"
+                  placeholder={tsr("yearPlaceholder")}
                 />
               </Field>
-              <Field label="Yazar(lar)">
-                <TextInput value={nAuthors} onChange={(e) => setNAuthors(e.target.value)} placeholder="Ad Soyad" />
+              <Field label={tsr("authorsLabel")}>
+                <TextInput value={nAuthors} onChange={(e) => setNAuthors(e.target.value)} placeholder={tsr("authorsPlaceholder")} />
               </Field>
-              <Field label="Kurum">
-                <TextInput value={nOrg} onChange={(e) => setNOrg(e.target.value)} placeholder="Yayınevi / kurum" />
+              <Field label={tsr("orgLabel")}>
+                <TextInput value={nOrg} onChange={(e) => setNOrg(e.target.value)} placeholder={tsr("orgPlaceholder")} />
               </Field>
               <div className="sm:col-span-2">
-                <Field label="Bağlantı (URL)">
+                <Field label={tsr("urlLabel")}>
                   <TextInput value={nUrl} onChange={(e) => setNUrl(e.target.value)} placeholder="https://…" />
                 </Field>
               </div>
               <div className="sm:col-span-2 flex justify-end">
                 <PrimaryButton icon={<Plus className="h-4 w-4" />} loading={busy} onClick={() => void createAndLink()}>
-                  Oluştur ve Bağla
+                  {tsr("createAndLink")}
                 </PrimaryButton>
               </div>
             </div>
           )}
 
-          {mode === "pick" && busy ? <InlineSpinner label="Bağlanıyor…" /> : null}
+          {mode === "pick" && busy ? <InlineSpinner label={tsr("linking")} /> : null}
         </Card>
       ) : null}
     </div>

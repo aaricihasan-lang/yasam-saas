@@ -8,6 +8,10 @@ import AdminTransferBadge from "@/components/provenance/AdminTransferBadge";
 import Link from "next/link";
 import { ArrowRight, Flower2 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
+import { useBioErrorText } from "../useBioErrorText";
+import { useBioDateTime } from "../useBioDateTime";
+import { useChakraLabels } from "../useChakraLabels";
 import { BulkExportBar } from "@/components/common/BulkExportBar";
 import { backgroundSyncYasamUserFromDb, readYasamUser } from "@/lib/auth/yasamUser";
 import { useDemoGuard } from "@/hooks/useDemoGuard";
@@ -117,20 +121,6 @@ function slugifySourceUid(value: string) {
   return slug || String(Date.now());
 }
 
-function formatDate(iso: string | null) {
-  if (!iso) return "—";
-  try {
-    return new Intl.DateTimeFormat("tr-TR", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    }).format(new Date(iso));
-  } catch {
-    return "—";
-  }
-}
 
 const loadMoreBtnClass =
   "rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-60";
@@ -141,7 +131,12 @@ const detailOpenBtnClass =
   "relative z-10 mt-auto flex shrink-0 items-center justify-end gap-1 self-end rounded-lg px-2.5 py-1 text-[12.5px] font-bold text-violet-700 transition duration-200 group-hover:bg-violet-50 group-hover:text-violet-800 group-focus-visible:bg-violet-50";
 
 export default function Cakralar() {
+  const t = useTranslations("bioenergy.chakras");
   const { isDemo } = useDemoGuard();
+  const tl = useTranslations("bioenergy.list");
+  const CL = useChakraLabels();
+  const errText = useBioErrorText();
+  const formatDate = useBioDateTime();
   const lastGoodRowsRef = useRef<ChakraListItem[]>([]);
   const [queryTenantId, setQueryTenantId] = useState<string | null>(null);
   const [rows, setRows] = useState<ChakraListItem[]>([]);
@@ -269,9 +264,9 @@ export default function Cakralar() {
         const hadPageError = Boolean(pageRes.error);
 
         if (hadPageError) {
-          const warnParts = [`Çakra kayıtları okunamadı: ${pageRes.error}`];
+          const warnParts = [t("readFailed", { detail: errText(pageRes.error, tl("serverError")) })];
           if (pageRes.usedFallback) {
-            warnParts.push("Arama filtresi kaldırılarak liste gösteriliyor.");
+            warnParts.push(tl("fallbackNotice"));
           }
           setLoadErrorMessage(warnParts.join(" "));
 
@@ -327,10 +322,11 @@ export default function Cakralar() {
         setLoadingMore(false);
         const message = err instanceof Error ? err.message : String(err);
         console.error("[Cakralar] fetchList exception:", message);
-        setLoadErrorMessage(`Beklenmeyen hata: ${message}`);
+        setLoadErrorMessage(tl("unexpected", { detail: errText(message, tl("serverError")) }));
         if (lastGoodRowsRef.current.length > 0) setRows(lastGoodRowsRef.current);
       }
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- çeviri işlevleri dil değişiminde yeniden liste çekmez
     [debouncedSearch, queryTenantId, listGate],
   );
 
@@ -377,7 +373,7 @@ export default function Cakralar() {
 
           const nameTrim = form.name.trim();
           if (!nameTrim) {
-            showSoft("err", "Çakra adı zorunludur.");
+            showSoft("err", t("nameRequired"));
             return;
           }
 
@@ -398,19 +394,19 @@ export default function Cakralar() {
           setSaving(false);
 
           if (error) {
-            showSoft("err", `Kayıt eklenemedi: ${error}`);
+            showSoft("err", tl("addFailed", { detail: errText(error, tl("serverError")) }));
             return;
           }
 
           setFormModalOpen(false);
           setForm({ ...emptyForm });
           await fetchList({ reset: true });
-          showSoft("ok", "Çakra kaydı oluşturuldu.");
+          showSoft("ok", t("created"));
         } finally {
           setSaving(false);
         }
       })
-      .catch((e: unknown) => showSoft("err", e instanceof Error ? e.message : "İşlem tamamlanamadı."));
+      .catch((e: unknown) => showSoft("err", errText(e, tl("opFailed"))));
   }
 
   // Toplu seçim güvenliği: arama/filtre ile liste değişince seçim görünür kayıtlarla
@@ -431,12 +427,12 @@ export default function Cakralar() {
     setIsBulkDeleting(false);
     setDanger((d) => ({ ...d, open: false }));
     if (error) {
-      showSoft("err", `Silinemedi: ${error}`);
+      showSoft("err", tl("deleteFailed", { detail: errText(error, tl("serverError")) }));
       return;
     }
     setSelectedForExport(new Set());
     await fetchList({ reset: true });
-    showSoft("ok", `${ids.length} kayıt silindi.`);
+    showSoft("ok", tl("deletedCount", { count: String(ids.length) }));
   }
 
   async function handleDeleteAll() {
@@ -445,12 +441,12 @@ export default function Cakralar() {
     setIsBulkDeleting(false);
     setDanger((d) => ({ ...d, open: false }));
     if (error) {
-      showSoft("err", `Silinemedi: ${error}`);
+      showSoft("err", tl("deleteFailed", { detail: errText(error, tl("serverError")) }));
       return;
     }
     setSelectedForExport(new Set());
     await fetchList({ reset: true });
-    showSoft("ok", "Tüm kayıtlar silindi.");
+    showSoft("ok", tl("deletedAll"));
   }
 
   return (
@@ -460,10 +456,9 @@ export default function Cakralar() {
           <div className="flex items-start gap-3">
             <span className="mt-0.5 text-lg leading-none" aria-hidden>🔎</span>
             <div>
-              <p className="text-sm font-black text-blue-900">Demo Modu — Çakralar</p>
+              <p className="text-sm font-black text-blue-900">{t("demoTitle")}</p>
               <p className="mt-0.5 text-[13px] leading-relaxed text-blue-800">
-                Bu sayfa demo amaçlıdır. Kayıt içerikleri demo güvenliği nedeniyle flu gösterilmektedir.
-                Yeni kayıt, düzenleme, silme ve dışa aktarma işlemleri devre dışıdır.
+                {tl("demoBody")}
               </p>
             </div>
           </div>
@@ -472,28 +467,28 @@ export default function Cakralar() {
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         {!isDemo && (
           <button type="button" onClick={() => { setForm({ ...emptyForm }); setFormModalOpen(true); }} className={newRecordBtnClass}>
-            + Yeni Kayıt
+            {tl("newRecord")}
           </button>
         )}
       </div>
 
       <div className="mb-3 grid grid-cols-3 gap-2">
         <div className="rounded-xl border border-slate-200/80 bg-white/90 px-3 py-1.5 shadow-sm">
-          <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Toplam kayıt</p>
+          <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">{tl("statTotal")}</p>
           <p className="mt-0.5 truncate text-lg font-black tabular-nums tracking-tight text-violet-700">
             {statsReady ? totalInDb : "…"}
           </p>
         </div>
         <div className="rounded-xl border border-slate-200/80 bg-white/90 px-3 py-1.5 shadow-sm">
           <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">
-            {isSearchActive ? "Arama sonucu" : "Görünen sonuç"}
+            {isSearchActive ? tl("statSearch") : tl("statVisible")}
           </p>
           <p className="mt-0.5 truncate text-lg font-black tabular-nums tracking-tight text-violet-700">
             {statsReady ? searchResultCount : "…"}
           </p>
         </div>
         <div className="rounded-xl border border-slate-200/80 bg-white/90 px-3 py-1.5 shadow-sm">
-          <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Son kayıt</p>
+          <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">{tl("statLast")}</p>
           <p className="mt-0.5 truncate text-[15px] font-black tracking-tight text-cyan-800">
             {formatDate(lastCreatedAt)}
           </p>
@@ -501,18 +496,18 @@ export default function Cakralar() {
       </div>
 
       <label className="mb-3 block w-full xl:max-w-sm">
-        <span className="mb-1 block text-[10px] font-black uppercase tracking-wide text-slate-500">Kütüphane araması</span>
+        <span className="mb-1 block text-[10px] font-black uppercase tracking-wide text-slate-500">{tl("searchLabel")}</span>
         <input
           type="search"
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          placeholder="Çakra adı veya kayıt bilgilerinde ara…"
+          placeholder={t("searchPlaceholder")}
           className={bioSearchInputClass}
         />
         {listBusy ? (
-          <p className="mt-1 text-[10px] font-semibold text-violet-600">Aranıyor…</p>
+          <p className="mt-1 text-[10px] font-semibold text-violet-600">{tl("searching")}</p>
         ) : isSearchActive ? (
-          <p className="mt-1 text-[10px] font-semibold text-violet-600"> Arama: “{debouncedSearch}” · {searchResultCount} eşleşme
+          <p className="mt-1 text-[10px] font-semibold text-violet-600"> {tl("searchSummary", { query: debouncedSearch, count: String(searchResultCount) })}
           </p>
         ) : null}
       </label>
@@ -547,15 +542,15 @@ export default function Cakralar() {
       )}
 
       {listLoading && rows.length === 0 ? (
-        <p className="py-8 text-center text-sm font-medium text-slate-400">Yükleniyor…</p>
+        <p className="py-8 text-center text-sm font-medium text-slate-400">{tl("loading")}</p>
       ) : rows.length === 0 ? (
         <CrudEmptyState
           Icon={Flower2}
-          title={isSearchActive ? "Sonuç bulunamadı" : "Kütüphane boş"}
+          title={isSearchActive ? tl("emptySearchTitle") : tl("emptyTitle")}
           subtitle={
             isSearchActive
-              ? "Arama terimini değiştirin veya yeni kayıt ekleyin."
-              : "Yeni Kayıt ile ilk çakra kaydını ekleyebilirsiniz."
+              ? tl("emptySearchBody")
+              : t("emptyBody")
           }
           tone="orange"
         />
@@ -566,12 +561,12 @@ export default function Cakralar() {
             <BulkExportBar
               selectedCount={selectedForExport.size}
               totalCount={totalInDb}
-              selectAllLabel="Görünenleri Seç"
+              selectAllLabel={tl("selectVisible")}
               selectAllCount={rows.length}
               onSelectAll={() => setSelectedForExport(new Set(rows.map((r) => r.id)))}
               onClearSelection={() => setSelectedForExport(new Set())}
-              onExportSelected={() => void exportChakrasWord(queryTenantId ?? "", readYasamUser()?.id ?? "", "selected", selectedVisibleIds, setWordBusy, () => showSoft("ok", "Rapor indirildi."), () => showSoft("err", "Rapor oluşturulamadı."))}
-              onExportAll={() => void exportChakrasWord(queryTenantId ?? "", readYasamUser()?.id ?? "", "all", selectedForExport, setWordBusy, () => showSoft("ok", "Rapor indirildi."), () => showSoft("err", "Rapor oluşturulamadı."))}
+              onExportSelected={() => void exportChakrasWord(queryTenantId ?? "", readYasamUser()?.id ?? "", "selected", selectedVisibleIds, setWordBusy, () => showSoft("ok", tl("reportDownloaded")), () => showSoft("err", tl("reportFailed")))}
+              onExportAll={() => void exportChakrasWord(queryTenantId ?? "", readYasamUser()?.id ?? "", "all", selectedForExport, setWordBusy, () => showSoft("ok", tl("reportDownloaded")), () => showSoft("err", tl("reportFailed")))}
               isExporting={wordBusy}
               onDeleteSelected={() => void openDanger("selected")}
               isDeleting={isBulkDeleting}
@@ -586,7 +581,9 @@ export default function Cakralar() {
               const theme = getChakraCardTheme(index);
               // Premium quick-fact chip'leri (yalnız non-null); canonical color UI için doldurulmaz.
               const quickFacts = chakraQuickFactChips(row);
-              const displayTitle = chakraDisplayName(row);
+              const rawTitle = chakraDisplayName(row);
+              // i18n-ignore: chakraDisplayName() kaynak-dil yedek adıyla eşitlik (yalnız gösterim eşlemesi)
+              const displayTitle = rawTitle === "İsimsiz çakra" ? t("untitled") : rawTitle;
               const isExportSelected = selectedForExport.has(row.id);
 
               if (!detailHref) return null;
@@ -601,7 +598,7 @@ export default function Cakralar() {
                     >
                       <input
                         type="checkbox"
-                        aria-label="Bu kaydı seç"
+                        aria-label={tl("selectRecord")}
                         checked={isExportSelected}
                         onChange={() => setSelectedForExport((prev) => {
                           const next = new Set(prev);
@@ -630,7 +627,7 @@ export default function Cakralar() {
                           key={f.key}
                           className="inline-flex max-w-full items-center gap-1 rounded-md bg-white/70 px-2 py-0.5 text-[11px] font-semibold text-slate-700 ring-1 ring-slate-200/80"
                         >
-                          <span className="text-slate-400">{f.label}</span>
+                          <span className="text-slate-400">{CL.quickLabel(f.key, f.label)}</span>
                           <span className="min-w-0 truncate text-slate-800">{f.value}</span>
                         </span>
                       ))}
@@ -649,7 +646,7 @@ export default function Cakralar() {
                   )}
 
                   <span className={detailOpenBtnClass}>
-                    Detayı Aç
+                    {tl("openDetail")}
                     <ArrowRight className="ml-1.5 h-4 w-4" strokeWidth={2.25} aria-hidden />
                   </span>
                 </Link>
@@ -667,8 +664,8 @@ export default function Cakralar() {
                 className={loadMoreBtnClass}
               >
                 {loadingMore
-                  ? "Yükleniyor…"
-                  : `Daha Fazla Göster (${rows.length} / ${searchResultCount})`}
+                  ? tl("loading")
+                  : tl("loadMore", { shown: String(rows.length), total: String(searchResultCount) })}
               </button>
             </div>
           ) : null}
@@ -679,8 +676,8 @@ export default function Cakralar() {
         open={formModalOpen}
         onClose={() => setFormModalOpen(false)}
         isDirty={formIsDirty}
-        title="Yeni çakra kaydı"
-        subtitle="Kaydettikten sonra kütüphanede görünür."
+        title={t("formTitle")}
+        subtitle={tl("formSubtitle")}
         titleId="chakra-form-modal-title"
         accentRingClass="ring-fuchsia-100/50"
         footer={({ requestClose }) => (
@@ -691,7 +688,7 @@ export default function Cakralar() {
               onClick={requestClose}
               className="rounded-xl border border-slate-200/85 bg-white/90 px-4 py-2.5 text-[12px] font-black text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-50"
             >
-              Vazgeç
+              {tl("cancel")}
             </button>
             <button
               type="button"
@@ -699,7 +696,7 @@ export default function Cakralar() {
               onClick={() => setForm({ ...emptyForm })}
               className="rounded-xl border border-slate-200/80 bg-white/90 px-4 py-2.5 text-[12px] font-black text-slate-600 shadow-sm transition hover:bg-slate-50 disabled:opacity-50"
             >
-              Temizle
+              {tl("clear")}
             </button>
             <button
               type="button"
@@ -707,14 +704,14 @@ export default function Cakralar() {
               onClick={() => void handleKaydet()}
               className={bioSaveBtnClass}
             >
-              {saving ? "Kaydediliyor…" : "Kaydet"}
+              {saving ? tl("saving") : tl("save")}
             </button>
           </>
         )}
       >
         <div className="space-y-5">
           <label className="block">
-            <span className="mb-2 block text-[12px] font-black text-slate-800">Çakra Adı *</span>
+            <span className="mb-2 block text-[12px] font-black text-slate-800">{t("fields.nameLabel")}</span>
             <input
               value={form.name}
               onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
@@ -722,17 +719,17 @@ export default function Cakralar() {
             />
           </label>
           <label className="block">
-            <span className="mb-2 block text-[12px] font-black text-slate-800">Renk</span>
+            <span className="mb-2 block text-[12px] font-black text-slate-800">{t("fields.color")}</span>
             <input
               value={form.color}
               onChange={(e) => setForm((f) => ({ ...f, color: e.target.value }))}
-              placeholder="#FF5733 veya kırmızı"
+              placeholder={t("fields.colorPlaceholder")}
               className="h-12 w-full rounded-xl border border-rose-100/80 bg-white/90 px-3.5 text-[13px] font-semibold text-slate-900 outline-none transition focus:border-rose-200/90 focus:ring-2 focus:ring-rose-100/55"
             />
           </label>
           <LongTextareaField
-            label={<span className="mb-2 block text-[12px] font-black text-slate-800">Organlar</span>}
-            modalTitle="Organlar"
+            label={<span className="mb-2 block text-[12px] font-black text-slate-800">{t("fields.organs")}</span>}
+            modalTitle={t("fields.organs")}
             value={form.organs}
             onChange={(v) => setForm((f) => ({ ...f, organs: v }))}
             minRows={2}
@@ -740,8 +737,8 @@ export default function Cakralar() {
             disabled={saving}
           />
           <LongTextareaField
-            label={<span className="mb-2 block text-[12px] font-black text-slate-800">Bezler</span>}
-            modalTitle="Bezler"
+            label={<span className="mb-2 block text-[12px] font-black text-slate-800">{t("fields.glands")}</span>}
+            modalTitle={t("fields.glands")}
             value={form.glands}
             onChange={(v) => setForm((f) => ({ ...f, glands: v }))}
             minRows={2}
@@ -749,8 +746,8 @@ export default function Cakralar() {
             disabled={saving}
           />
           <LongTextareaField
-            label={<span className="mb-2 block text-[12px] font-black text-slate-800">Taşlar</span>}
-            modalTitle="Taşlar"
+            label={<span className="mb-2 block text-[12px] font-black text-slate-800">{t("fields.stones")}</span>}
+            modalTitle={t("fields.stones")}
             value={form.stones}
             onChange={(v) => setForm((f) => ({ ...f, stones: v }))}
             minRows={2}
@@ -758,8 +755,8 @@ export default function Cakralar() {
             disabled={saving}
           />
           <LongTextareaField
-            label={<span className="mb-2 block text-[12px] font-black text-slate-800">Nedenler</span>}
-            modalTitle="Nedenler"
+            label={<span className="mb-2 block text-[12px] font-black text-slate-800">{t("fields.causes")}</span>}
+            modalTitle={t("fields.causes")}
             value={form.causes}
             onChange={(v) => setForm((f) => ({ ...f, causes: v }))}
             minRows={3}
@@ -767,8 +764,8 @@ export default function Cakralar() {
             disabled={saving}
           />
           <LongTextareaField
-            label={<span className="mb-2 block text-[12px] font-black text-slate-800">Fiziksel</span>}
-            modalTitle="Fiziksel"
+            label={<span className="mb-2 block text-[12px] font-black text-slate-800">{t("fields.physical")}</span>}
+            modalTitle={t("fields.physical")}
             value={form.physical}
             onChange={(v) => setForm((f) => ({ ...f, physical: v }))}
             minRows={3}
@@ -776,8 +773,8 @@ export default function Cakralar() {
             disabled={saving}
           />
           <LongTextareaField
-            label={<span className="mb-2 block text-[12px] font-black text-slate-800">Zihinsel</span>}
-            modalTitle="Zihinsel"
+            label={<span className="mb-2 block text-[12px] font-black text-slate-800">{t("fields.mental")}</span>}
+            modalTitle={t("fields.mental")}
             value={form.mental}
             onChange={(v) => setForm((f) => ({ ...f, mental: v }))}
             minRows={3}
@@ -785,8 +782,8 @@ export default function Cakralar() {
             disabled={saving}
           />
           <LongTextareaField
-            label={<span className="mb-2 block text-[12px] font-black text-slate-800">Notlar</span>}
-            modalTitle="Notlar"
+            label={<span className="mb-2 block text-[12px] font-black text-slate-800">{t("fields.notes")}</span>}
+            modalTitle={t("fields.notes")}
             value={form.notes}
             onChange={(v) => setForm((f) => ({ ...f, notes: v }))}
             minRows={3}
@@ -801,9 +798,9 @@ export default function Cakralar() {
         scope={{ filterActive: Boolean(debouncedSearch.trim()), visibleCount: searchResultCount }}
         mode={danger.mode}
         count={danger.mode === "all" ? totalInDb : selectedVisibleRows.length}
-        names={danger.mode === "all" ? undefined : selectedVisibleRows.map((r) => (r.name?.trim() || "İsimsiz kayıt"))}
+        names={danger.mode === "all" ? undefined : selectedVisibleRows.map((r) => (r.name?.trim() || tl("untitled")))}
         childCounts={deleteCascade}
-        resourceLabel="Çakralar"
+        resourceLabel={t("resourceLabel")}
         isDeleting={isBulkDeleting}
         onClose={() => !isBulkDeleting && setDanger((d) => ({ ...d, open: false }))}
         onConfirm={() => void (danger.mode === "all" ? handleDeleteAll() : handleBulkDeleteSelected())}

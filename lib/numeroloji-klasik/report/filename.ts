@@ -23,6 +23,16 @@ const KIND_PREFIX: Readonly<Record<ReportFileKind, string>> = Object.freeze({
   karsilastirma: "Numeroloji-Karsilastirma",
 });
 
+/** I18N-F1-R5: diğer çıktı dillerinde dosya adı öneki (sistem parçası). Kaynak dilde KIND_PREFIX aynen. */
+const KIND_PREFIX_EN: Readonly<Record<ReportFileKind, string>> = Object.freeze({
+  kisi: "Classical-Numerology",
+  tas: "Classical-Numerology-Stones",
+  iliski: "Classical-Numerology-Relationship",
+  isletme: "Classical-Numerology-Business",
+  isimler: "Classical-Numerology-Names",
+  karsilastirma: "Numerology-Comparison",
+});
+
 /** ASCII katlama: Türkçe eşleme → NFKD + birleşik işaret silme. */
 export function asciiFold(s: string): string {
   return Array.from(s.normalize("NFC"))
@@ -43,8 +53,10 @@ export function slugifyTitle(title: unknown, max = 60): string {
 }
 
 /** Tam dosya adı: `<önek>-<başlık>-<YYYY-AA-GG>.docx` (≤ 80 karakter; Windows ayrılmış adları güvenli). */
-export function buildReportFilename(kind: ReportFileKind, title: unknown, date?: string | Date | null): string {
-  const prefix = KIND_PREFIX[kind] ?? KIND_PREFIX.kisi;
+export function buildReportFilename(kind: ReportFileKind, title: unknown, date?: string | Date | null, output?: { locale: string } | null): string {
+  // Kaynak dil (tr) / dil yok → bugünkü ad birebir. Başlık (uzman içeriği) her dilde aynı güvenli ASCII parça.
+  const table = output && output.locale !== "tr" ? KIND_PREFIX_EN : KIND_PREFIX;
+  const prefix = table[kind] ?? table.kisi;
   let day = "";
   if (date) {
     // NK-R14: Date → Europe/Istanbul takvim günü (TR 00:00–03:00 arası önceki gün yazılmaz); metin olduğu gibi.

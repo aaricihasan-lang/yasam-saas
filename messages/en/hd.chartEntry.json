@@ -1,0 +1,12 @@
+{
+  "hd": {
+    "chartEntry": {
+      "closedTitle": "New manual Human Design records are no longer used.",
+      "closedBody": "Run an automatic calculation from the Human Design Calculation section.",
+      "calculation": "Human Design Calculation",
+      "legacyRecords": "Legacy records",
+      "title": "Human Design — Chart Entry",
+      "loading": "Loading..."
+    }
+  }
+}

@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useTranslations } from "next-intl";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
 
 /**
@@ -15,18 +16,25 @@ import { useConfirm } from "@/components/ui/ConfirmProvider";
  * `useAnyProtocolDirty()` ile tek bir sayfa-geneli koruma kurar.
  */
 
-export const UNSAVED_LEAVE_CONFIRM = {
-  title: "Kaydedilmemiş Değişiklikler",
-  message: "Kaydedilmemiş değişiklikleriniz var.\nKaydetmeden çıkmak istiyor musunuz?",
-  confirmText: "Kaydetmeden Çık",
-  cancelText: "Vazgeç",
-  tone: "danger" as const,
-};
+// Metinler: messages/<dil>/cupping.json → cupping.unsaved (TR birebir: "Kaydedilmemiş Değişiklikler" /
+// "Kaydetmeden Çık" / "Vazgeç"). tone kanonik.
+export const UNSAVED_LEAVE_TONE = "danger" as const;
 
 /** Ortak "kaydetmeden çık?" onayı (true → kullanıcı değişiklikleri atmayı seçti). */
 export function useConfirmLeave(): () => Promise<boolean> {
   const { confirm } = useConfirm();
-  return useCallback(() => confirm({ ...UNSAVED_LEAVE_CONFIRM }), [confirm]);
+  const t = useTranslations("cupping.unsaved");
+  return useCallback(
+    () =>
+      confirm({
+        title: t("title"),
+        message: t("message"),
+        confirmText: t("confirm"),
+        cancelText: t("cancel"),
+        tone: UNSAVED_LEAVE_TONE,
+      }),
+    [confirm, t],
+  );
 }
 
 type Registry = { report: (key: string, dirty: boolean) => void; anyDirty: boolean };

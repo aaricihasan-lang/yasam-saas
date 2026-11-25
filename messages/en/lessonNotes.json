@@ -1,0 +1,73 @@
+{
+  "lessonNotes": {
+    "fileName": {
+      "base": "lecture-notes"
+    },
+    "header": {
+      "badge": "Transcript Editing",
+      "titleLead": "Cleaned",
+      "titleAccent": "Lecture Notes Centre",
+      "desc": "Paste the raw transcript or upload it as a TXT file. The system removes unnecessary talk and turns it into lecture notes."
+    },
+    "input": {
+      "title": "Raw Transcript",
+      "hint": "Paste or upload a TXT file",
+      "uploadTxt": "Upload TXT",
+      "placeholder": "Paste the raw transcript here...",
+      "charCount": "{count} / {max} characters",
+      "clear": "Clear",
+      "overLimit": "The text exceeds the 40,000-character limit (excess: {over}). Please shorten it.",
+      "longWarning": "Long transcript — processing may take a few minutes. Do not close the page.",
+      "cleaning": "Cleaning...",
+      "submit": "Clean Lecture Notes"
+    },
+    "about": {
+      "title": "What is this module?",
+      "item1": "The raw transcript is cleaned and converted into lecture-note format",
+      "item2": "The instructor’s content is left untouched — only unnecessary talk is removed",
+      "item3": "Human Design channel and gate numbers are corrected automatically",
+      "item4": "Question-and-answer sections are preserved and formatted"
+    },
+    "result": {
+      "title": "Cleaned Lecture Notes",
+      "chars": "Characters: {count}",
+      "copy": "Copy",
+      "downloadTxt": "Download TXT",
+      "downloadWord": "Download Word",
+      "processing": "Processing...",
+      "emptyTitle": "The cleaned notes will appear here",
+      "processingHint": "The AI is processing the transcript. This may take a few minutes.",
+      "emptyHint": "Paste the transcript into the left panel and click the clean button."
+    },
+    "info": {
+      "keptTitle": "Content Preserved",
+      "keptDesc": "What the instructor says is not changed; unnecessary talk is removed.",
+      "hdTitle": "Human Design Compatible",
+      "hdDesc": "Channel and gate numbers are written correctly automatically.",
+      "exportTitle": "Word & TXT Output",
+      "exportDesc": "Download the cleaned notes as Word or TXT."
+    },
+    "toast": {
+      "errorTitle": "Error",
+      "connectionErrorTitle": "Connection error",
+      "unknownError": "Unknown error",
+      "wordFailed": "The Word file could not be created.",
+      "tooLongTitle": "Text too long",
+      "tooLongMsg": "Maximum 40,000 characters. Currently: {count} characters.",
+      "serverError": "Server error (HTTP {status})",
+      "emptyOutput": "The output was empty.",
+      "doneTitle": "Completed",
+      "doneMsg": "The lecture notes were cleaned successfully.",
+      "copiedTitle": "Copied",
+      "textCopied": "Text copied to the clipboard."
+    },
+    "apiErrors": {
+      "TEXT_MISSING": "No text was found.",
+      "TEXT_TOO_LONG": "The text is too long. Maximum 40,000 characters.",
+      "EMPTY_OUTPUT": "Processing finished, but the output was empty. Please try again.",
+      "OUTPUT_CHECK_FAILED": "The output did not pass the safety check. Please try a shorter piece of text.",
+      "CHUNK_FAILED": "A part of the text could not be processed. Please try again.",
+      "PROCESSING_FAILED": "Processing could not be completed right now. Please try again or contact support."
+    }
+  }
+}

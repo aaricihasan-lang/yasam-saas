@@ -8,7 +8,7 @@
 // Önbellek: gövde yalnız { yıl, ay, timezone: 0, orb, düğüm } → aynı ay + orb + düğüm her danışan için aynı anahtar (ücret tekrarlanmaz).
 // Gösterim saat dilimi (displayTz) gövdeye / anahtara GİRMEZ.
 
-import { ASTRO_PROVIDER_LANG, ROXY_API_VERSION, ROXY_PROVIDER } from "../config";
+import { ASTRO_CHART_IDENTITY_LANG, ROXY_API_VERSION, ROXY_PROVIDER } from "../config";
 import { calcInputHash, type CalcIdentity } from "./inputHash";
 import type { CalcUnit, TechniqueDefinition } from "./techniques";
 import { isValidIanaTimeZone } from "../birth/timeResolution";
@@ -20,7 +20,7 @@ const o = (raw: unknown) => (raw && typeof raw === "object" && !Array.isArray(ra
 
 /** techniques.ts `unit()` ile AYNI kimlik kuralı. */
 function unitOf(meta: { endpoint: string; adapter: string }, body: Record<string, unknown>): CalcUnit {
-  const identity: CalcIdentity = { provider: ROXY_PROVIDER, providerApiVersion: ROXY_API_VERSION, adapterVersion: meta.adapter, endpoint: meta.endpoint, lang: ASTRO_PROVIDER_LANG, body };
+  const identity: CalcIdentity = { provider: ROXY_PROVIDER, providerApiVersion: ROXY_API_VERSION, adapterVersion: meta.adapter, endpoint: meta.endpoint, lang: ASTRO_CHART_IDENTITY_LANG, body };
   return { technique: "western.declination_parallels", ...identity, inputHash: calcInputHash(identity), covers: [], timeDependent: true, part: 0 };
 }
 

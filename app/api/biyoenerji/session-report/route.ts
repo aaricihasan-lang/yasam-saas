@@ -6,10 +6,10 @@ import { trackUsage } from "@/lib/usage/trackUsage";
 import {
   reportRateLimit,
   MAX_EXPORT_RECORDS,
-  EXPORT_TRUNCATED_NOTE,
   MAX_SELECTED_IDS,
 } from "@/lib/biyoenerji/reportSecurity";
 import { expertDisplayName } from "@/lib/docx/reportDisclaimer";
+import { resolveReportLocale } from "@/lib/i18n/reportLocale";
 import { sanitizeBioenergyRow, sanitizeBioenergyXmlText } from "@/lib/biyoenerji/xmlSafeText";
 
 // Saf belge kurucusu (FA-02 tarih/saat Europe/Istanbul + FA-16 bilgilendirme notu) — harness test eder.
@@ -44,7 +44,7 @@ export async function POST(request: NextRequest): Promise<Response> {
 
   let body: unknown;
   try { body = await request.json(); }
-  catch { return Response.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 }); }
+  catch { return Response.json({ ok: false, code: "BIO_INVALID_BODY", error: "Geçersiz istek gövdesi." }, { status: 400 }); }
 
   const { exportMode = "all", sessionIds, sessionId } = body as {
     exportMode?: ExportMode;
@@ -92,10 +92,12 @@ export async function POST(request: NextRequest): Promise<Response> {
   if (!sessions.length)
     return Response.json({ ok: false, error: "Bu seçim için seans bulunamadı." }, { status: 404 });
 
+  const output = await resolveReportLocale(request, { db, tenantId, userId: guard.userId });
   const { doc, filename } = buildBioSessionReportDoc({
+    output,
     sessions,
     exportMode,
-    truncatedNote: truncatedRead ? EXPORT_TRUNCATED_NOTE(MAX_EXPORT_RECORDS) : null,
+    truncatedAt: truncatedRead ? MAX_EXPORT_RECORDS : null,
     expertName: safeExpertName(guard.profile),
   });
 

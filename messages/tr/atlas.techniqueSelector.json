@@ -1,0 +1,309 @@
+{
+  "atlas": {
+    "techniqueSelector": {
+      "lib": {
+        "dateMissing": "Tarih eksik — gün, ay ve yılı tamamlayın.",
+        "dateInvalid": "Tarih geçersiz — gün, ay ve 4 haneli yılı kontrol edin.",
+        "timeMissing": "Saat eksik — saat ve dakikayı tamamlayın.",
+        "timeInvalid": "Saat geçersiz.",
+        "tzInvalid": "Saat dilimi geçersiz.",
+        "timeGap": "Bu yerel saat bu tarihte yok (saat dilimi veya yaz saati değişikliği) — saati değiştirin.",
+        "dateTimeInvalid": "Tarih veya saat geçersiz.",
+        "dateRangeYear": "Tarih {min}–{max} aralığında olmalı (yıl 4 haneli yazılmalı).",
+        "dateRange": "Tarih {min}–{max} aralığında olmalı.",
+        "preview": "Hesaplanacak an: {date} {time} UTC"
+      },
+      "kpAyanamsaHint": "KP-Newcomb ile KP eski tablo arasındaki fark günümüzde birkaç açı saniyesidir; sub-lord sonucunu yalnız sınıra çok yakın noktalarda değiştirebilir.",
+      "tzCommon": "Sık kullanılan",
+      "tzAll": "Tüm saat dilimleri",
+      "chain": {
+        "legend": "Güncel dönem zinciri (Maha → Prana)",
+        "off": "Ekleme",
+        "now": "Şimdi (dakika hassasiyetinde)",
+        "custom": "Seçilen an",
+        "dateAria": "Güncel dönem zinciri tarihi",
+        "timeAria": "Güncel dönem zinciri saati",
+        "tzAria": "Güncel dönem zinciri saat dilimi",
+        "note": "Ek 1 istek (önbellekte varsa yok). Kayıt yalnız seçili düzeyin listesini ve bu andaki 5 dönemi içerir."
+      },
+      "forecast": {
+        "endInvalid": "Bitiş tarihi geçersiz.",
+        "endBefore": "Bitiş, başlangıçtan önce olamaz.",
+        "endMax": "En çok {max} gün seçilebilir.",
+        "endAria": "Takvim bitişi",
+        "endIssue": "Bitiş: {issue}",
+        "start": "Başlangıç",
+        "startAria": "Takvim başlangıcı",
+        "end": "Bitiş",
+        "daysAria": "Takvim süresi",
+        "tzAria": "Takvim saat dilimi",
+        "startIssue": "Başlangıç: {issue}",
+        "summary": "{days} gün · {parts} parça (sağlayıcı sınırı 90 gün/istek; en çok {max} gün). Gün ayrıntıları sonuç ekranında, istenirse ayrıca hesaplanır."
+      },
+      "kpRange": {
+        "kind": {
+          "sublord": "Sub-Lord değişimleri",
+          "rasi": "Rasi (burç) geçişleri",
+          "positions": "KP konum tablosu (≤ 7 gün)"
+        },
+        "legend": "KP zaman aralığı",
+        "start": "Başlangıç (UTC günü)",
+        "startAria": "KP aralık başlangıcı",
+        "duration": "Süre",
+        "durationAria": "KP aralık süresi",
+        "tzAria": "KP aralık gösterim saat dilimi",
+        "tzDisplay": "{z} (gösterim)",
+        "kindsAria": "KP aralık türleri",
+        "planetsAria": "KP aralık gezegenleri",
+        "noNodes": "Rahu/Ketu bu uçlarda yok.",
+        "interval": "Konum aralığı",
+        "intervalAria": "KP konum aralığı",
+        "posTooLong": "Konum tablosu en çok {max} gün olabilir; süreyi kısaltın veya konum tablosunu kaldırın.",
+        "estimate": "Tahmini {n} sağlayıcı isteği (gezegen × tür başına 1; konum tablosu 1). Kayıtlı parçalar yeniden istenmez; kesin sayı plan önizlemesindedir. En çok {max} gün; Ay günde ~9 Sub-Lord değiştirir."
+      },
+      "days": "{n} gün",
+      "minutes": "{n} dk",
+      "daily": "günlük",
+      "hours": "{n} saat",
+      "returnLoc": {
+        "aria": "{label} konumu",
+        "birth": "Doğum yerine göre",
+        "other": "Farklı konumda",
+        "pick": " (aşağıdan seçin)"
+      },
+      "transit": {
+        "aria": "Transit anı",
+        "now": "Şimdi",
+        "date": "Seçilen gün",
+        "custom": "Seçilen gün ve saat",
+        "dateAria": "Transit tarihi",
+        "timeAria": "Transit saati",
+        "tzAria": "Transit saat dilimi",
+        "noteNow": "Şimdi: hesaplama anı UTC saat başına yuvarlanır (ör. 14:37 → 14:00 UTC); aynı saat içinde tekrar açmak yeni istek üretmez. Dakika hassasiyeti için “Seçilen gün ve saat” kullanın. Saat dilimi yalnız gösterim içindir.",
+        "noteDate": "Seçilen gün: o günün yerel 12:00'si kullanılır (Ay günde ~13° ilerler; belirli bir an için saat seçin).",
+        "noteCustom": "Seçilen saat dakika hassasiyetiyle işlenir."
+      },
+      "targetShared": "Hedef tarih (progression + solar arc ortak)",
+      "targetAria": "Hedef tarih",
+      "solar": {
+        "year": "Dönüş yılı",
+        "yearAria": "Solar return yılı",
+        "name": "Solar return"
+      },
+      "lunar": {
+        "month": "Dönüş ayı (UTC)",
+        "monthAria": "Lunar return ayı",
+        "seqAria": "Ay içindeki lunar return",
+        "seq": "{n}. dönüş",
+        "none": " (bu ayda yok)",
+        "two": "Bu ayda {n} lunar return var. Diğerini hesaplamak için sırayı değiştirip yeniden hesaplayın (her dönüş 1 istek; ikisi de ayrı kayıt olarak kalır).",
+        "name": "Lunar return"
+      },
+      "lahiriFixed": "Lahiri (sabit) — bu hesapta ayanamsa seçeneği yoktur.",
+      "panchanga": {
+        "detail": "Ayrıntılı Panchanga ekle (gün doğumu/batımı, vara, Rahu Kaal, Yamaganda, Gulika, Abhijit, Brahma muhurta) —",
+        "plus1": "ek 1 istek",
+        "hours": "Gezegen saatleri (Hora, 24 dilim) ve Choghadiya (16 dilim) ekle —",
+        "plus2": "ek 2 istek",
+        "sameDay": "(aynı gün ve yer)",
+        "day": "Gün",
+        "dayAria": "Ayrıntılı Panchanga günü",
+        "place": "Yer:",
+        "polar": "Kutup dairesi ötesindeki yerlerde bu seçenek hesaplanmaz."
+      },
+      "emptyBirthday": "(boş = doğum günü)",
+      "birthPlace": "doğum yeri",
+      "notLahiri": "Seçili ayanamsa Lahiri değil: bu hesap yapılmaz (sağlayıcı yalnız Lahiri ile hesaplar). Vedik seçimlerde ayanamsa'yı Lahiri yapın.",
+      "kp": {
+        "ayanamsa": "KP ayanamsa (tüm KP)",
+        "ayanamsaAria": "KP ayanamsa ({tech})",
+        "node": "Düğüm",
+        "nodeAria": "KP düğüm ({id})",
+        "nodeMean": "Ortalama (KP geleneği)",
+        "nodeTrue": "Gerçek",
+        "nowHorary": "Şimdi (gerçek soru anı · dakika hassasiyetinde)",
+        "dateAria": "KP tarihi",
+        "timeAria": "KP saati",
+        "tzAria": "KP saat dilimi",
+        "sharedMoment": "(ruling / transit / horary ortak an)",
+        "assessPlace": "Değerlendirme yeri",
+        "observePlace": "Gözlem yeri",
+        "placeShared": "(ruling + horary ortak)",
+        "placeIntro": "Sorunun veya olayın ele alındığı konum —",
+        "notBirth": "doğum yeri değildir",
+        "placeTail": ". Doğum haritası gereken teknikler kayıtlı doğum yerini ayrıca kullanır.",
+        "useBirth": "Doğum yerini gözlem yeri olarak kullan",
+        "otherPlace": "Başka konum",
+        "placeRequired": "Gözlem yeri seçilmeden bu teknik plana alınmaz.",
+        "pickPlace": "Konumu seçin.",
+        "mdAria": "KP dasha mahadasha",
+        "adAria": "KP dasha antardasha",
+        "pdAria": "KP dasha pratyantardasha",
+        "sdAria": "KP dasha sookshma",
+        "horaryNumber": "Horary sayısı (1–249)",
+        "horaryAria": "Horary sayısı",
+        "transitModeAria": "KP transit kipi",
+        "moment": "Tek an (KP gökyüzü)",
+        "range": "Zaman aralığı (Sub-Lord · Rasi geçişleri)",
+        "rulingNote": "Ruling planets hesabı ayanamsa seçeneği almaz (KP-Newcomb dahili).",
+        "momentNote": "Tek an: sağlayıcı natal cusp'lara göre transit analizi vermez; anın KP gökyüzü. Geçiş zamanları için “Zaman aralığı”."
+      },
+      "nowHour": "Şimdi (UTC saat başı)",
+      "dateTime": "Tarih/saat",
+      "dasha": {
+        "mdList": "Mahadasha listesi",
+        "kpTo": {
+          "ad": "{lord} → antardashalar",
+          "pd": "{lord} → pratyantardashalar",
+          "sd": "{lord} → sookshmalar",
+          "pr": "{lord} → pranalar"
+        },
+        "adList": "(antardasha listesi)",
+        "pdList": "(pratyantardasha listesi)",
+        "sdList": "(sookshma listesi)",
+        "ayAria": "Vedik ayanamsa (dasha)",
+        "level": "Düzey",
+        "mdAria": "Dasha mahadasha",
+        "mdList120": "Mahadasha listesi (120 yıl)",
+        "vTo": {
+          "ad": "{lord} mahadashası → antardashalar",
+          "pd": "{lord} antardashası → pratyantardashalar",
+          "sd": "{lord} pratyantardashası → sookshmalar",
+          "pr": "{lord} sookshması → pranalar"
+        },
+        "adAria": "Dasha antardasha",
+        "pdAria": "Dasha pratyantardasha",
+        "sdAria": "Dasha sookshma"
+      },
+      "gochara": {
+        "dateAria": "Gochara tarihi",
+        "timeAria": "Gochara saati",
+        "tzAria": "Gochara saat dilimi",
+        "lahiri": "Lahiri (sabit) — Gochara hesabı ayanamsa seçeneği almaz. Batı transitinden ayrı hesap ve kayıttır.",
+        "notLahiri": "Seçili ayanamsa Lahiri değil: Gochara hesaplanmaz (sağlayıcı yalnız Lahiri ile hesaplar)."
+      },
+      "chara": {
+        "scheme": "Karaka şeması",
+        "schemeAria": "Chara karaka şeması",
+        "eight": "8 karaka (Rahu dahil; Pitrikaraka ayrı)",
+        "seven": "7 karaka (Rahu hariç)",
+        "note": "Şema seçimi bir ekol tercihidir; iki şema ayrı hesap ve ayrı kayıttır.",
+        "ayAria": "Vedik ayanamsa (Chara Karakalar)"
+      },
+      "vedicAyanamsa": "Ayanamsa (tüm Vedik hesaplar)",
+      "vedicAyAria": "Vedik ayanamsa ({tech})",
+      "varga": {
+        "ayAria": "Vedik ayanamsa (varga)",
+        "division": "Bölüm",
+        "aria": "Varga bölümü"
+      },
+      "d1": {
+        "ayAria": "Vedik ayanamsa"
+      },
+      "relocation": "Hedef konum (doğum anı aynı kalır; yalnız konum değişir)",
+      "ls": {
+        "birth": "Merkez: doğum yeri",
+        "other": "Merkez: başka konum"
+      },
+      "prof": {
+        "year": "Profeksiyon yılı",
+        "pick": "Seçin",
+        "age": "{n} yaş",
+        "thisYear": " (bu yıl)",
+        "ageAria": "Profeksiyon yaşı",
+        "range": "{n} yaş profeksiyon yılı: {start} – {end}",
+        "wholeSign": "Ev sistemi bu teknikte sabittir: Tam Burç (Whole Sign). Doğum haritası analizlerinizdeki ev sistemi tercihi değişmez.",
+        "leap": "29 Şubat doğumu: artık olmayan yıllarda yeni profeksiyon yılı 1 Mart'ta başlar; artık yıllarda 29 Şubat'ta."
+      },
+      "extra": {
+        "sections": "Bölümler (her bölüm ayrı hesaplanır)",
+        "label": {
+          "asteroids": "Asteroitler (Ceres, Pallas, Juno, Vesta)",
+          "lots": "Hermetik lotlar (Arap noktaları)",
+          "lilith": "Kara Ay Lilith — ortalama ve gerçek"
+        },
+        "note": "Hermetik lotlar doğum saati gerektirir. Natal harita ve natal istek değişmez; aynı ev sistemiyle kayıtlı natal varsa sonuç natal çark üzerinde katman olarak gösterilir."
+      },
+      "pr": {
+        "planet": "Gezegen",
+        "planetAria": "Dönüş gezegeni",
+        "target": "Hedef tarih (yaklaşık; geçmiş veya gelecek)",
+        "targetAria": "Gezegen dönüşü hedef tarihi",
+        "note": "Bu tarihe en yakın dönüş hesaplanır. Retro döngüsünde gezegen natal derecesinden birden fazla kez geçebilir; aşağıdan kavuşumu seçin.",
+        "navTitle": "Hedef tarih {d} olur; kavuşumlar yeniden listelenir",
+        "navNone": "Plan bilgisi bekleniyor ya da bu yönde dönüş yok",
+        "prev": "← Önceki dönüş",
+        "next": "Sonraki dönüş →",
+        "crossingAria": "Dönüş kümesindeki kavuşum",
+        "crossing": "{n}. kavuşum",
+        "loop": "Bu dönüş kümesinde {n} kavuşum var (retro döngüsü). Her kavuşum ayrı istek ve ayrı kayıttır; diğerini hesaplamak için seçimi değiştirin.",
+        "none": "Hedef tarihe yakın dönüş bulunamadı.",
+        "name": "Gezegen dönüşü"
+      },
+      "displayTz": "Gösterim saat dilimi",
+      "fs": {
+        "orb": "Kavuşum orbu",
+        "orbAria": "Sabit yıldız orbu",
+        "note": "Orb yalnız filtredir: veri sağlayıcıdan 3° ile bir kez alınır; orbu değiştirmek yeni istek oluşturmaz.",
+        "catalog": "Word/PDF raporuna 43 yıldızlık katalog ekini ekle"
+      },
+      "defaultSuffix": " (varsayılan)",
+      "hel": {
+        "day": "Değerlendirme günü (yerel)",
+        "dayAria": "Heliakal değerlendirme günü",
+        "place": "Gözlem yeri:",
+        "note": "Görünürlük gün doğumu / batımı ufkunda ve gözlem yerine göre değerlendirilir; doğum saati gerekmez. Enlemi ±60° dışındaki yerlerde hesaplanmaz. Doğum haritasındaki “yanık” işaretinden farklı bir hesaptır."
+      },
+      "gm": {
+        "rolesAria": "Gun Milan hesaplama rolleri",
+        "roles": "Hesaplama rolleri (geleneksel tabloda 1. rol erkek / damat, 2. rol kadın / gelin):",
+        "note": "Karşı taraf seçimi Sinastri / Composite ile ortaktır; iki kişinin doğum saati gereklidir. Rol değişirse sıraya duyarlı kootalar (ör. Varna) farklı puanlanabilir; her rol sırası ayrı hesap ve ayrı kayıttır. Sonuç teknik değerlendirmedir; evlilik / ilişki hükmü içermez."
+      },
+      "role": {
+        "clientFirst": "1. rol: analiz edilen danışan · 2. rol: karşı taraf",
+        "partnerFirst": "1. rol: karşı taraf · 2. rol: analiz edilen danışan"
+      },
+      "sadeSati": {
+        "note": "Durum, hesaplamanın yapıldığı güne göre verilir (değerlendirme günü kayda yazılır). Aynı gün tekrar açmak yeni istek oluşturmaz."
+      },
+      "rolesAria": "{tech} hesaplama rolleri",
+      "dk": {
+        "roles": "Hesaplama rolleri — 1. rol (geleneksel: damat) / 2. rol (geleneksel: gelin):",
+        "noteDashakoot": "Gun Milan'dan ayrı sistemdir; puanlar birbirine çevrilmez. Dina, Mahendra, Stree Deergha, Rasi ve Vasya gelinden damada sayıldığından rol sırasına duyarlıdır; her rol sırası ayrı hesap ve ayrı kayıttır.",
+        "notePapasamyam": "Karşılaştırma yönlüdür (2. rol toplamı 1. rolünkiyle karşılaştırılır); her rol sırası ayrı hesap ve ayrı kayıttır.",
+        "note": "Karşı taraf seçimi diğer iki kişili tekniklerle ortaktır; iki kişinin doğum saati gereklidir. Sonuç teknik değerlendirmedir; evlilik / ilişki kararı içermez."
+      },
+      "partner": {
+        "label": "Karşı taraf (sinastri / composite ortak)",
+        "search": "Karşı tarafı ara",
+        "searchAria": "Karşı taraf ara",
+        "aria": "Karşı taraf profili",
+        "pick": "— seçin —"
+      },
+      "natal": {
+        "note": "Evler seçilen klasik sistemle hesaplanır; gezegen konumları değişmez. Gezegen yorumları bu sistemde gösterilmez.",
+        "north": "K",
+        "south": "G",
+        "polarLead": "Bu seçim hesaplanamaz.",
+        "polar": "{hs} ev sistemi {lat} enleminde tanımsızdır. Tam Burç veya Eşit Ev seçin.",
+        "highLead": "Yüksek enlem ({lat}).",
+        "high": "Bu enlemde evlerin genişlikleri çok eşitsiz olabilir; yorumlarken dikkate alın.",
+        "tuLead": "Doğum saati bilinmiyor.",
+        "tu": "Evler, Yükselen/MC ve ev yerleşimleri gösterilmez; seçilen ev sistemi bu analizde kullanılmaz.",
+        "hs": "Ev sistemi",
+        "only": "Yalnız Natal",
+        "hsAria": "Natal ev sistemi",
+        "basic": "Temel sistemler",
+        "classic": "Klasik sistemler",
+        "shared": "{list} ortak ev sistemiyle hesaplanır:",
+        "change": "Değiştir"
+      },
+      "method": {
+        "node": "Ay düğümü (Batı ortak)",
+        "nodeAria": "Ay düğümü",
+        "hs": "Ev sistemi (Batı ortak)",
+        "hsAria": "Ev sistemi"
+      }
+    }
+  }
+}

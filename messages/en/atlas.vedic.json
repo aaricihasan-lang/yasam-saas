@@ -1,0 +1,226 @@
+{
+  "atlas": {
+    "vedic": {
+      "lagna": "Lagna",
+      "rashi": "Rashi",
+      "bhava": "Bhava",
+      "nakshatra": "Nakshatra",
+      "none": "none",
+      "padaSuffix": ". pada",
+      "bhavaSuffix": ". bhava",
+      "chartStyleLabel": "Chart style",
+      "chartStyle": {
+        "north": "North Indian",
+        "south": "South Indian",
+        "east": "East Indian"
+      },
+      "ayanamsa": {
+        "lahiri": "Lahiri (Chitrapaksha)",
+        "raman": "B.V. Raman",
+        "kp-newcomb": "KP Newcomb",
+        "kp-old": "KP (old)"
+      },
+      "unit": {
+        "y": "{n} y",
+        "mo": "{n} mo",
+        "d": "{n} d",
+        "h": "{n} h",
+        "min": "{n} min"
+      },
+      "kundli": {
+        "loadFailed": "The chart component could not be loaded; the technical table is below.",
+        "loading": "Loading chart…",
+        "legendTail": " · ʳ retrograde (vakri) · ᶜ combust (asta) · ʷ planetary war (graha yuddha). In cells with 3+ grahas (North/East style) or 5+ (South style) the degree is not shown on the chart (see the table and the tooltip)."
+      },
+      "kb": {
+        "title": "My Knowledge Bank",
+        "notLoaded": "Knowledge Bank matches appear once the workspace has loaded.",
+        "noneForPlacement": "You have no Knowledge Bank entry for this placement.",
+        "noneForPeriod": "You have no Knowledge Bank entry for this period."
+      },
+      "col": {
+        "graha": "Graha",
+        "rashiDegree": "Rashi / degree",
+        "nakshatraPada": "Nakshatra · pada",
+        "lord": "Lord",
+        "status": "Status",
+        "point": "Point",
+        "pada": "Pada",
+        "progress": "Progress",
+        "lordPlace": "Lord → placement"
+      },
+      "d1": {
+        "framePrefix": "Sidereal (nirayana) · ayanamsa ",
+        "frameLagna": "° · Lagna",
+        "frameBhava": "· bhava: whole sign (rashi chakra)",
+        "detailLabel": "Selected graha details",
+        "padaLord": ". pada · lord ",
+        "inNakshatra": "Within nakshatra",
+        "pctRemaining": "% · remaining ",
+        "motion": "Motion",
+        "retro": "Retrograde (vakri)",
+        "direct": "Direct",
+        "avastha": "Avastha",
+        "asta": "Asta (combustion)",
+        "astaA": "From the Sun ",
+        "astaB": "° (orb ",
+        "astaC": "°) — combust",
+        "grahaTableTitle": "Graha placements (D1) — click a row",
+        "statusRetro": "℞ retrograde · ",
+        "statusAsta": "combust · "
+      },
+      "nak": {
+        "sectionLabel": "Nakshatra and pada",
+        "title": "Nakshatra & Pada (27 nakshatras · 4 padas = 3°20′)",
+        "janmaTitle": "Janma nakshatra (Chandra)",
+        "traversed": " · traversed ",
+        "remaining": "%, remaining",
+        "janmaNote": "Vimshottari dasha starts from the lord of this nakshatra and the remaining portion (the dasha values themselves are taken from the calculation result).",
+        "byLordTitle": "By nakshatra lord (Vimshottari order)"
+      },
+      "yoga": {
+        "sectionA": "Bhava → rashi (whole sign) · Yogas formed (",
+        "sectionB": " checked)",
+        "none": "No yoga formed.",
+        "qualityLine": " · class: {q}",
+        "quality": {
+          "positive": "benefic",
+          "negative": "malefic",
+          "mixed": "mixed"
+        },
+        "formation": "Formation rule: ",
+        "evidenceSummary": "Evidence note from the calculation service (original English text)",
+        "suppressedTitle": "Suppressed yogas — the rule holds, but a higher-ranking family took precedence (",
+        "suppressedBy": " · suppressed by family: ",
+        "evidence": "Evidence: ",
+        "precedenceNote": "Classical precedence: Akriti overrides Asraya; Akriti, Asraya and Dala override Sankhya. These yogas are not counted as formed in the chart."
+      },
+      "war": {
+        "title": "Graha yuddha (planetary war)",
+        "graha1": "Graha 1",
+        "graha2": "Graha 2",
+        "distance": "Distance",
+        "winner": "Winner",
+        "note": "Two visible grahas within 1°; the winner is the graha with the more northerly ecliptic latitude, and the loser is weakened."
+      },
+      "varga": {
+        "check": {
+          "notVerified": "Not verified:",
+          "forPrefix": ": ",
+          "mismatchMid": " points have a calculated rashi that differs from the ",
+          "mismatchOpen": " rule (",
+          "mismatchItem": "{point}: calculated {got}, rule {expected}",
+          "mismatchTail": "). This may be a method or school difference; this chart is not considered verified.",
+          "unsupported": ": no independent reference rule — not verified.",
+          "independent": "Independent check:",
+          "matchMid": " points (Lagna + 9 grahas) match the ",
+          "matchTail": " rule — ",
+          "goldenYes": " The method was also confirmed against a real calculation sample.",
+          "goldenNo": " (This division was not separately confirmed against a real calculation sample; the check used this chart's own data.)"
+        },
+        "divisionPart": " · division {part}",
+        "ayanamsaSep": " · ayanamsa ",
+        "lagnaSuffix": " Lagna",
+        "vargottamaSep": ") · vargottama: ",
+        "detailLabel": "Selected point details",
+        "d1Rashi": "D1 rashi",
+        "rashiSuffix": " rashi",
+        "bhavaOpen": "Bhava (",
+        "navamsaArrow": " → navamsa {sign}",
+        "clickRow": " — click a row",
+        "retro": "℞ retrograde"
+      },
+      "dasha": {
+        "vimshottari": "Vimshottari",
+        "today": "today",
+        "now": "now",
+        "periodAria": "{graha} period",
+        "openLevel": "Send this level to the selector (for notes / saving)",
+        "start": "Start",
+        "end": "End",
+        "duration": "Duration",
+        "kpHouses": "KP houses (L1→L4)",
+        "subPeriod": "Sub-period",
+        "cutByBirth": " · cut at birth",
+        "close": "Close",
+        "selectedLabel": "Selected period",
+        "daysExact": "{n} days",
+        "yearsExact": "{n} y",
+        "nominalStart": "Nominal start",
+        "nominalNote": " (before birth; the period is cut at birth)",
+        "kpPosition": "KP position",
+        "kpHouseStar": ". house (Placidus) · star lord ",
+        "kpSub": " · sub lord ",
+        "signifiedHouses": "Signified houses",
+        "kpNotForecast": "Not an event prediction.",
+        "kpMethodNote": " Dates are Vimshottari (KP ayanamsa); the KP significators of the period lords come from the calculation result. This technique offers no KP event timing (house group → period matching), and the system does not produce one either; interpreting the periods is the practitioner's task.",
+        "kpLegendContext": "KP dasha (period lords)",
+        "janmaNakshatra": " · Janma nakshatra",
+        "lordOpen": "(lord ",
+        "lordCloseAyanamsa": ") · ayanamsa ",
+        "balance": " · remaining {graha} period at birth: {y} y {m} mo {d} d",
+        "datesNoteA": "Dates come from the provider in the local time of birth (",
+        "datesNoteB": ") and are not recalculated. Sub-periods load when clicked (no new request if cached).",
+        "savedNoDrill": " Sub-periods are not loaded in a saved analysis — open it in the workspace."
+      },
+      "chain": {
+        "title": "Current period chain",
+        "atA": "Selected moment: ",
+        "atB": " UTC · at the birth offset ",
+        "atC": ") · ayanamsa ",
+        "level": "Level",
+        "remainingTitle": "Days from the selected moment to the end of the period, rounded up",
+        "remaining": "Remaining (days)",
+        "commonA": "Common houses — Maha · Antar · Pratyantar: ",
+        "commonB": " · all 5 levels: ",
+        "commonC": " (not an event prediction)"
+      },
+      "yogaTable": {
+        "titleA": "Yoga check table · ",
+        "titleB": " formed / ",
+        "titleC": " rules checked",
+        "suppressedCount": " · {n} suppressed",
+        "filterLabel": "Yoga list view",
+        "filterFormed": "Formed and suppressed",
+        "filterAll": "All checks ({n})",
+        "checkA": "Independent check: ",
+        "checkB": " consistent · ",
+        "checkC": " school-dependent · ",
+        "checkD": " not checked",
+        "checkE": " inconsistent",
+        "empty": "No yoga is formed or suppressed in this chart.",
+        "qualityLine": " · traditional class: {q}",
+        "suppressedByLine": " · suppressed by family: {f}",
+        "formation": "Formation rule: ",
+        "triggers": "Grahas · bhavas involved: ",
+        "checkLabel": "Independent check: ",
+        "evidenceSummary": "Evidence and school note",
+        "evidenceLabel": "Evidence (original English text from the calculation service): ",
+        "school": "School: ",
+        "status": {
+          "present": "Formed",
+          "suppressed": "Suppressed (rule holds)",
+          "absent": "Not formed"
+        },
+        "quality": {
+          "positive": "Benefic",
+          "negative": "Malefic",
+          "both": "Mixed"
+        },
+        "consistency": {
+          "consistent": "Consistent",
+          "inconsistent": "Inconsistent",
+          "uncertain": "School-dependent",
+          "not_checked": "Not checked"
+        },
+        "family": {
+          "classical": "Classical (single yoga)",
+          "asraya": "Asraya (Nabhasa)",
+          "dala": "Dala (Nabhasa)",
+          "akriti": "Akriti (Nabhasa)",
+          "sankhya": "Sankhya (Nabhasa)"
+        }
+      }
+    }
+  }
+}

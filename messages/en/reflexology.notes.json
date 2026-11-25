@@ -1,0 +1,112 @@
+{
+  "reflexology": {
+    "notes": {
+      "title": "Practitioner Notes",
+      "loadingBadge": "REFLEXOLOGY · PRACTITIONER NOTES",
+      "demoBanner": "Practitioner notes are stored only on your device. They are visible during your session and deleted when you sign out. Real practitioner data is not shown on this account.",
+      "mainMenu": "Main Menu",
+      "breadcrumbAria": "Breadcrumb",
+      "crumb": "Notes",
+      "imported": "{count, plural, one {{count} note was imported into your account.} other {{count} notes were imported into your account.}}",
+      "quarantineRemoved": "Notes of unknown ownership were removed from this device.",
+      "tabsAria": "Note tabs",
+      "tabNew": "New Note",
+      "tabSaved": "Saved Notes",
+      "form": {
+        "titleRequired": "A note title is required.",
+        "useUpdate": "Use the Update button to update.",
+        "saveFailed": "The note could not be saved.",
+        "noSelection": "No note is selected to update.",
+        "updateFailed": "The update could not be completed.",
+        "updated": "Note updated.",
+        "new": "+ New Note",
+        "save": "Save",
+        "delete": "Delete",
+        "importWordJsx": "Import from Word",
+        "titlePlaceholder": "e.g. Migraine protocol",
+        "openEditor": "Open Large Editor",
+        "contentPlaceholder": "Session note, caution, observation, additional information..."
+      },
+      "conflict": {
+        "title": "The note was changed elsewhere",
+        "message": "This note was changed in another tab or on another device while you were editing it.\n\nIf you choose «Overwrite», the text on screen is saved and the other change is lost. If you choose «Cancel», nothing is saved; your text stays in the form.",
+        "overwrite": "Overwrite"
+      },
+      "delete": {
+        "pendingTitle": "Deletion pending",
+        "pendingBody": "No connection; the deletion will be completed when the connection returns.",
+        "done": "Note deleted.",
+        "failedTitle": "The note could not be deleted",
+        "failedBody": "The deletion could not be completed. Please try again.",
+        "confirm": "Delete this note? This action cannot be undone."
+      },
+      "attachments": {
+        "rejected": "The file could not be attached (unsupported type or size limit).",
+        "selectFirst": "Select an attachment from the list first.",
+        "renamePrompt": "New attachment name:",
+        "nameEmpty": "The attachment name cannot be empty.",
+        "removeConfirm": "Remove this attachment?",
+        "remove": "Remove",
+        "add": "Add File",
+        "none": "No attachments.",
+        "rename": "Rename Attachment",
+        "unsupportedType": "This file type is no longer supported (images and PDF only). The note cannot be synchronised until the attachment is removed; download it first if needed.",
+        "noPreview": "There is no preview data for this attachment. Only the file name is saved.",
+        "openPreview": "Open / Preview",
+        "newTab": "New Tab",
+        "download": "Download",
+        "renameShort": "Rename",
+        "emptyHint": "No attachments yet. Use Add File to attach images or PDFs (up to 3 MB per file and in total per note).",
+        "open": "Open",
+        "kindImage": "Image",
+        "kindUnsupported": "Unsupported file"
+      },
+      "word": {
+        "unsupported": "The old .doc format is not supported. Use .txt or .docx, or copy and paste the text.",
+        "empty": "No text to import was found in the file.",
+        "failed": "The Word file could not be read.",
+        "deflate": "Your browser does not support opening .docx files. Try a .txt file.",
+        "inserted": "The text was added to the note content."
+      },
+      "detail": {
+        "notFound": "Note not found.",
+        "back": "Back to Notes",
+        "heading": "Note Details",
+        "edit": "Edit",
+        "cancelEdit": "Cancel",
+        "update": "Update",
+        "deleting": "Deleting…",
+        "noContent": "No content added."
+      },
+      "fields": {
+        "title": "Note Title",
+        "date": "Date",
+        "content": "Note Content",
+        "attachments": "Attachments"
+      },
+      "list": {
+        "loading": "Loading notes…",
+        "emptyTitle": "No saved notes yet.",
+        "emptyBody": "You can create a new practitioner note from the New Note tab.",
+        "searchPlaceholder": "Search by title, date or content...",
+        "noMatch": "No notes match your search.",
+        "cancel": "Cancel",
+        "syncRejected": "Could not be synchronised: {reason}",
+        "syncRejectedGeneric": "The server did not accept this note.",
+        "detail": "Details",
+        "attachmentCount": "{count, plural, one {{count} attachment} other {{count} attachments}}"
+      },
+      "pdf": {
+        "openNewTab": "Open in New Tab",
+        "close": "Close",
+        "unsupported": "This device cannot show the PDF preview within the page. You can download the file and open it with your device's PDF viewer.",
+        "download": "Download the PDF file"
+      },
+      "editor": {
+        "badge": "PRACTITIONER NOTE",
+        "save": "Save This Field"
+      },
+      "toastSaved": "Note saved."
+    }
+  }
+}

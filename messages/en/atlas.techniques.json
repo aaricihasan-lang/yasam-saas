@@ -1,0 +1,394 @@
+{
+  "atlas": {
+    "techniques": {
+      "meta": {
+        "western": {
+          "natal": {
+            "label": "Natal",
+            "hint": "Birth chart"
+          },
+          "transit": {
+            "label": "Transit (single moment)",
+            "hint": "Sky at the selected moment → aspects to the natal chart"
+          },
+          "forecast": {
+            "label": "Transit calendar",
+            "hint": "Aspects, sign ingresses, stations, eclipses and Moon phases over a period"
+          },
+          "progression": {
+            "label": "Secondary progression",
+            "hint": "Day-for-a-year progressed chart"
+          },
+          "solar_arc": {
+            "label": "Solar arc",
+            "hint": "All points advanced by the progressed Sun's arc"
+          },
+          "solar_return": {
+            "label": "Solar return",
+            "hint": "Chart of the Sun's return to its natal position (birthplace)"
+          },
+          "lunar_return": {
+            "label": "Lunar return",
+            "hint": "Chart of the Moon's return to its natal position (birthplace)"
+          },
+          "synastry": {
+            "label": "Synastry",
+            "hint": "Aspects between two people's charts + house overlays"
+          },
+          "composite": {
+            "label": "Composite",
+            "hint": "Midpoint chart of two charts"
+          },
+          "astrocartography": {
+            "label": "Astrocartography",
+            "hint": "Planetary MC/IC/AC/DC lines — world map"
+          },
+          "relocation": {
+            "label": "Relocation",
+            "hint": "Same birth moment, new location: ASC/MC/houses"
+          },
+          "local_space": {
+            "label": "Local Space",
+            "hint": "Horizon directions at the birth moment (compass + map)"
+          },
+          "fixed_stars": {
+            "label": "Fixed stars",
+            "hint": "Positions of 43 fixed stars at the birth moment + ecliptic longitude conjunctions with natal points"
+          },
+          "profections": {
+            "label": "Annual Profections",
+            "hint": "One sign per year of age from the Ascendant (whole sign houses): the year's active house, sign and classical ruling planet"
+          },
+          "extra_points": {
+            "label": "Extra points",
+            "hint": "Optional sections: asteroids (Ceres, Pallas, Juno, Vesta), seven Hermetic lots, Black Moon Lilith mean + true"
+          },
+          "planetary_return": {
+            "label": "Planetary returns",
+            "hint": "Chart of the moment Saturn, Jupiter, Mars, Venus or Mercury returns to its natal longitude; in a retrograde cycle a crossing is selected"
+          },
+          "transit_scan": {
+            "label": "Transit Scan",
+            "hint": "Scans transiting planets' aspects to natal points over the selected date range: orb entry/exit, exact moment(s), stations and sign ingresses"
+          },
+          "classical_dignities": {
+            "label": "Classical Dignities and Almuten",
+            "hint": "Essential and accidental dignity scores, receptions, house almutens, chart almuten; default school William Lilly (1647)"
+          },
+          "declination_parallels": {
+            "label": "Declination parallels",
+            "hint": "Exact moments of parallel (same declination) and contraparallel (opposite declination) contacts between two bodies in the selected month — sky calendar; birth data is not used"
+          }
+        },
+        "vedic": {
+          "d1": {
+            "label": "Vedic D1 (Rashi)",
+            "hint": "Sidereal kundli: Lagna, grahas, nakshatra/pada, yogas"
+          },
+          "drishti": {
+            "label": "Graha Drishti",
+            "hint": "Parashari whole-sign graha drishti — Lahiri only"
+          },
+          "ashtakavarga": {
+            "label": "Ashtakavarga",
+            "hint": "Bhinna/Sarva bindu grid, Shodhana, Shodhya Pinda"
+          },
+          "shadbala": {
+            "label": "Shadbala",
+            "hint": "Six-fold graha strength (BPHS), ratio and ranking"
+          },
+          "panchanga": {
+            "label": "Janma Panchanga",
+            "hint": "Birth-moment tithi, nakshatra, nitya yoga, karana; optional detailed day (vara, sunrise, Rahu Kaal…) and planetary hours (hora) + Choghadiya — Lahiri only"
+          },
+          "transit": {
+            "label": "Gochara (Vedic transit)",
+            "hint": "Sidereal grahas at the selected moment → house from the Janma Rashi / Lagna, whole-sign drishti, kaksha — Lahiri only"
+          },
+          "bhav_chalit": {
+            "label": "Bhav Chalit",
+            "hint": "Bhava (Sripati) house cusps, madhya and sandhi; grahas' chalit bhava compared with the D1 rashi house"
+          },
+          "chara_karaka": {
+            "label": "Chara Karakas",
+            "hint": "Jaimini: Atmakaraka … Darakaraka; degree ranking; 8-karaka (Rahu included) or 7-karaka scheme"
+          },
+          "arudha": {
+            "label": "Arudha Padas",
+            "hint": "Jaimini: Arudha Lagna (AL), A2…A11, Upapada (UL); lord, count and the 1st/7th house exception"
+          },
+          "bhava_bala": {
+            "label": "Bhava Bala",
+            "hint": "Strength of the 12 houses: Bhavadhipati, Dig and Drishti Bala; total and ranking (separate from Shadbala planetary strength)"
+          },
+          "dasha": {
+            "label": "Vimshottari Dasha",
+            "hint": "Mahadasha timeline; sub-periods load on click down to Prana level; current period chain optional"
+          },
+          "varga": {
+            "label": "Vedic Varga (D9 Navamsa / Dn)",
+            "hint": "Divisional chart: D9 by default; D2…D60 selectable; vargottama"
+          },
+          "gun_milan": {
+            "label": "Gun Milan (Ashtakoot)",
+            "hint": "8 koota scores (out of 36) from both people's Moon nakshatra / sign, Nadi / Bhakoot dosha and classical cancellation, Manglik for both — technical assessment"
+          },
+          "monthly": {
+            "label": "Vedic monthly timing",
+            "hint": "Sidereal (Lahiri) sky calendar of the selected month: planetary sign ingresses, exact astronomical aspects between planets and with the Moon, declination parallels; optional birth-moment declinations. Not graha drishti"
+          },
+          "sade_sati": {
+            "label": "Sade Sati",
+            "hint": "Saturn's gochara through the 12th / 1st / 2nd house from the Janma Rashi: status and phase on the assessment day only (period start / end dates are not in this version)"
+          },
+          "dashakoot": {
+            "label": "Ten Porutham (Dashakoot)",
+            "hint": "South Indian matching: 10 porutham criteria (met / not met), total out of 10, strict Rajju and Vedha constraints; a system separate from Gun Milan — technical assessment"
+          },
+          "papasamyam": {
+            "label": "Papasamyam",
+            "hint": "Malefic contributions of Mars, Saturn, the Sun and Rahu in houses 1-2-4-7-8-12 from the Lagna / Moon / Venus in both charts, weighted totals and comparison — technical assessment"
+          },
+          "upagraha": {
+            "label": "Upagrahas",
+            "hint": "11 calculated sensitive points: time-based (Gulika, Mandi, Kala, Mrityu, Ardhaprahara, Yamaghantaka) and Sun-derived (Dhuma, Vyatipata, Parivesha, Indra Chapa, Upaketu); sign, degree, nakshatra, pada"
+          },
+          "heliacal": {
+            "label": "Graha Asta / Udaya",
+            "hint": "Whether the six visible grahas are free of the Sun's glare (kalamsa) on the selected day and observation place, last and next heliacal rising / setting; birth time not required"
+          }
+        },
+        "kp": {
+          "chart": {
+            "label": "KP birth chart",
+            "hint": "Placidus cusps, sign / star / sub / sub-sub lord, 4-level significators (KP-Newcomb)"
+          },
+          "dasha": {
+            "label": "KP dasha",
+            "hint": "Vimshottari (KP ayanamsa) + KP significators of the period lords; sub-periods on click"
+          },
+          "ruling": {
+            "label": "KP ruling planets",
+            "hint": "Ruling planets of the selected moment + their natal significators"
+          },
+          "transit": {
+            "label": "KP transit",
+            "hint": "KP sky at a single moment or Sub-Lord / Rasi changes over a time range; no natal house analysis"
+          },
+          "horary": {
+            "label": "KP horary (1–249)",
+            "hint": "Number + question moment + assessment place; birth data is not used"
+          },
+          "ruling_interval": {
+            "label": "KP ruling planets time scan",
+            "hint": "Ruling planets step by step over the selected range, Lagna/Moon lord chain and significators from that moment's chart; birth data is not used"
+          }
+        }
+      },
+      "dashaLord": {
+        "ketu": "Ketu",
+        "venus": "Venus (Shukra)",
+        "sun": "Sun (Surya)",
+        "moon": "Moon (Chandra)",
+        "mars": "Mars (Mangala)",
+        "rahu": "Rahu",
+        "jupiter": "Jupiter (Guru)",
+        "saturn": "Saturn (Shani)",
+        "mercury": "Mercury (Budha)"
+      },
+      "varga": {
+        "9": "D9 Navamsa (default)",
+        "2": "D2 Hora",
+        "3": "D3 Drekkana",
+        "4": "D4 Chaturthamsa",
+        "7": "D7 Saptamsa",
+        "10": "D10 Dasamsa",
+        "12": "D12 Dwadasamsa",
+        "16": "D16 Shodasamsa",
+        "20": "D20 Vimsamsa",
+        "24": "D24 Chaturvimsamsa",
+        "27": "D27 Bhamsa",
+        "30": "D30 Trimsamsa",
+        "40": "D40 Khavedamsa",
+        "45": "D45 Akshavedamsa",
+        "60": "D60 Shashtiamsa"
+      },
+      "kpAyanamsaOption": {
+        "kp-newcomb": "KP-Newcomb — default",
+        "kp-old": "KP (Krishnamurti old table)"
+      },
+      "kpAy": {
+        "kp-newcomb": "KP-Newcomb",
+        "kp-old": "KP (old table)"
+      },
+      "vedicAyanamsaOption": {
+        "lahiri": "Lahiri (Chitrapaksha) — default",
+        "raman": "B.V. Raman",
+        "kp-newcomb": "KP Newcomb",
+        "kp-old": "KP (old)"
+      },
+      "dateSep": "/",
+      "decimalSep": ".",
+      "numLocale": "en-GB",
+      "monthYear": "{m}/{y}",
+      "month": {
+        "1": "January",
+        "2": "February",
+        "3": "March",
+        "4": "April",
+        "5": "May",
+        "6": "June",
+        "7": "July",
+        "8": "August",
+        "9": "September",
+        "10": "October",
+        "11": "November",
+        "12": "December"
+      },
+      "d": {
+        "partnerFallback": "other person",
+        "transitCal": " · calendar {start} + {days} days",
+        "forecast": "{start} + {days} days{end} ({parts, plural, one {# part} other {# parts}}){tz}",
+        "forecastEnd": " (→ {end})",
+        "target": "target {date}",
+        "solarReturn": "{year} return{place}",
+        "lunar": "{monthYear} · return {n}{legacy}{place}",
+        "lunarLegacy": " (first return of the month)",
+        "partnerRev": " (other person rev {rev})",
+        "lahiriFixed": "ayanamsa: Lahiri (fixed)",
+        "birthDay": "birthday",
+        "birthPlace": "birthplace",
+        "panchangaDetail": "detailed: {day}{hours}",
+        "panchangaHoursSuffix": " · hora + choghadiya",
+        "panchangaHoursOnly": "hora + choghadiya: {day}",
+        "kpChart": "{ay}Placidus · {node} node",
+        "nodeTrueShort": "true",
+        "nodeMeanShort": "mean",
+        "horaryNow": "now (actual question moment)",
+        "horary": "number {n} · {when}{place}",
+        "kpRange": "range {start} + {days} days · {kinds}{planets} · {ay}",
+        "riHours": "{n} h",
+        "riMinutes": "{n} min",
+        "ri": "start {date} {time} UTC · {dur} / {iv} min step ({n} moments) · {ay}{place}",
+        "ayanamsa": "ayanamsa: {ay}",
+        "chara7": "7 karakas (Rahu excluded)",
+        "chara8": "8 karakas (Rahu included)",
+        "fixedStars": "orb {orb}° · ecliptic longitude conjunction{cat}",
+        "fixedStarsCatalog": " · catalogue in report",
+        "profections": "profection year at age {age} · whole sign",
+        "extra": {
+          "asteroids": "asteroids",
+          "lots": "Hermetic lots",
+          "lilith": "Lilith mean + true"
+        },
+        "planetaryReturn": "{title} · target {date} · crossing {n}{place}",
+        "role1Partner": "1st role: other person",
+        "role1Client": "1st role: client",
+        "roleGroomPartner": "1st role (groom): other person",
+        "roleGroomClient": "1st role (groom): client",
+        "all": "all",
+        "transitScan": "{start} – {end} · orb {orb}° · planets {b} · points {p} · aspects {a}",
+        "houseSystemOf": "house system {hs}",
+        "nodeMean": "mean node",
+        "nodeTrue": "true node",
+        "heliacal": "day {date} · observation place: {place}",
+        "sadeSatiAsOf": "assessment day {date} · ",
+        "monthly": {
+          "ingress": "sign ingresses",
+          "aspects": "aspects",
+          "lunar": "Moon aspects",
+          "parallels": "declination",
+          "natal_parallels": "birth-moment declinations"
+        },
+        "monthlyHead": "{month} {year} (UTC month)",
+        "localSpace": "centre: {place}",
+        "returnPlaceOther": " · location: {place}",
+        "returnPlaceBirth": " · birthplace",
+        "dashaChainAt": " · current period chain: {date} {time} UTC",
+        "dashaChainNow": " · current period chain: now",
+        "horaryUnverified": "local time zone could not be verified; showing UTC",
+        "turkeyTime": "Turkey time"
+      },
+      "kpKind": {
+        "sublord": "Sub-Lord",
+        "rasi": "Rasi",
+        "positions": "position table"
+      },
+      "kpPlanet": {
+        "sun": "Sun",
+        "moon": "Moon",
+        "mars": "Mars",
+        "mercury": "Mercury",
+        "jupiter": "Jupiter",
+        "venus": "Venus",
+        "saturn": "Saturn"
+      },
+      "prTitle": {
+        "saturn": "Saturn return",
+        "jupiter": "Jupiter return",
+        "mars": "Mars return",
+        "venus": "Venus return",
+        "mercury": "Mercury return"
+      },
+      "dignitySchool": {
+        "lilly-1647": "Lilly 1647",
+        "dorothean-egyptian": "Dorothean"
+      },
+      "natalHouse": {
+        "placidus": "Placidus",
+        "whole-sign": "Whole Sign",
+        "equal": "Equal House",
+        "koch": "Koch",
+        "regiomontanus": "Regiomontanus",
+        "campanus": "Campanus",
+        "porphyry": "Porphyry",
+        "alcabitius": "Alcabitius"
+      },
+      "reason": {
+        "transitDate": "complete the transit date / time",
+        "transitMoment": "transit moment is invalid (see the preview)",
+        "forecastStart": "complete the calendar start date",
+        "forecastEnd": "correct the calendar end date",
+        "targetDate": "complete the target date",
+        "gochara": "complete the Gochara date / time",
+        "kpDate": "complete the KP date / time",
+        "riStart": "complete the scan start",
+        "riWindow": "scan duration / step is invalid (at most 24 hours, at most 121 moments)",
+        "chainDate": "complete the current period chain date / time",
+        "chainMoment": "current period chain moment is invalid",
+        "panchangaDetail": "complete the detailed Panchanga day",
+        "panchangaHours": "complete the hora / choghadiya day",
+        "prDate": "complete the return target date",
+        "declination": "complete the declination month (1600–2600)",
+        "heliacal": "complete the heliacal assessment day",
+        "monthly": "complete the calendar month (1600–2600)",
+        "partner": "select the other person",
+        "relocation": "select the target location",
+        "profection": "select the profection year",
+        "horaryPlace": "select the assessment place",
+        "observePlace": "select the observation place",
+        "extraSections": "select at least one extra point section",
+        "monthlySections": "select at least one monthly calendar section",
+        "kpRangeStart": "complete the KP range start date",
+        "kpRangeKind": "select a KP range type",
+        "kpRangePlanet": "select a KP range planet",
+        "kpRangeDays": "the KP range can be at most {max} days",
+        "kpPositionsDays": "the KP position table can be at most {max} days",
+        "scanDates": "complete the start and end dates",
+        "scanOrder": "the end cannot be before the start",
+        "scanYears": "supported years {min}–{max}",
+        "scanMax": "scan range is at most 1 year ({days} days)"
+      },
+      "house": {
+        "none": "no house system",
+        "wholeSign": "Whole sign (rashi chakra)",
+        "sripati": "Sripati (bhava)"
+      },
+      "zodiac": {
+        "kp": "Sidereal (KP)",
+        "vedic": "Sidereal (nirayana)",
+        "western": "Tropical"
+      }
+    }
+  }
+}

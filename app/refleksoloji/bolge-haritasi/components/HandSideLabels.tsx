@@ -1,3 +1,4 @@
+import { useTranslations } from "next-intl";
 import type { FootView } from "../types";
 
 export function isHandView(view: FootView): boolean {
@@ -14,17 +15,18 @@ function hasRoomBelow(rect: ImageRect, containerHeight: number): boolean {
 }
 
 function Labels({ rect }: { rect: ImageRect }) {
+  const t = useTranslations("reflexology.zoneMap.hands");
   const tone = "absolute top-0.5 -translate-x-1/2 text-[11px] tracking-wide";
   return (
     <>
       <span className={`${tone} font-bold text-slate-500`} style={{ left: rect.left + rect.width * 0.25 }}>
-        Sol
+        {t("left")}
       </span>
       <span className={`${tone} font-semibold text-slate-300`} style={{ left: rect.left + rect.width * 0.5 }} aria-hidden>
         |
       </span>
       <span className={`${tone} font-bold text-slate-500`} style={{ left: rect.left + rect.width * 0.75 }}>
-        Sağ
+        {t("right")}
       </span>
     </>
   );
@@ -48,6 +50,7 @@ export function HandSideLabels({
   containerHeight: number;
   placement: "inside" | "strip";
 }) {
+  const tHands = useTranslations("reflexology.zoneMap.hands");
   const room = hasRoomBelow(rect, containerHeight);
   if (placement === "inside") {
     if (!room) return null;
@@ -55,7 +58,7 @@ export function HandSideLabels({
       <div
         className="pointer-events-none absolute inset-x-0 z-10 select-none"
         style={{ top: rect.top + rect.height, height: LABEL_H }}
-        aria-label="Sol el solda, sağ el sağda"
+        aria-label={tHands("aria")}
       >
         <Labels rect={rect} />
       </div>
@@ -63,7 +66,7 @@ export function HandSideLabels({
   }
   if (room) return null;
   return (
-    <div className="relative shrink-0 select-none" style={{ height: LABEL_H }} aria-label="Sol el solda, sağ el sağda">
+    <div className="relative shrink-0 select-none" style={{ height: LABEL_H }} aria-label={tHands("aria")}>
       {rect.width > 0 ? <Labels rect={rect} /> : null}
     </div>
   );

@@ -1,6 +1,7 @@
 "use client";
 
 import { Suspense } from "react";
+import { useTranslations } from "next-intl";
 import { AromaterapiSectionShell } from "@/app/aromaterapi/_components/AromaterapiSectionShell";
 import { AromaterapiListSkeleton } from "@/app/aromaterapi/_components/AromaterapiSkeleton";
 import { BilgiKayitlariView } from "@/app/aromaterapi/bilgi-kayitlari/_components/BilgiKayitlariView";
@@ -12,10 +13,11 @@ import { BilgiKayitlariView } from "@/app/aromaterapi/bilgi-kayitlari/_component
  * ayrı istemci bileşeni (BilgiKayitlariView) ve server read API üzerindedir.
  */
 export default function BilgiKayitlariPage() {
+  const t = useTranslations("aromatherapy.knowledge.page");
   return (
     <AromaterapiSectionShell
-      title="Bilgi Kayıtları"
-      subtitle="Kaynağa dayalı, kanıt ve provenans taşıyan bilgi kayıtları. Güvenlik konuları burada filtre ve bağlam olarak ele alınır."
+      title={t("title")}
+      subtitle={t("subtitle")}
       icon="📑"
     >
       <Suspense fallback={<AromaterapiListSkeleton />}>

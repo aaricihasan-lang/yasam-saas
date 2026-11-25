@@ -1,0 +1,770 @@
+{
+  "numerology": {
+    "classic": {
+      "shared": {
+        "crumbCentre": "Numeroloji Merkezi",
+        "crumbClassic": "Klasik Numeroloji"
+      },
+      "labels": {
+        "method": {
+          "pythagorean": "Pisagor (Batı)",
+          "chaldean": "Kalde (Cheiro)"
+        },
+        "interpretationHeading": "Klasik yöntem yorumu",
+        "numberKind": {
+          "single": "Tek hane",
+          "master": "Usta sayı",
+          "compound": "Bileşik sayı"
+        },
+        "compoundNature": {
+          "fortunate": "Uğurlu",
+          "unfortunate": "Uğursuz",
+          "mixed": "Karışık"
+        },
+        "businessRating": {
+          "excellent": "Mükemmel",
+          "good": "İyi",
+          "caution": "Dikkat",
+          "avoid": "Kaçınılmalı"
+        },
+        "verification": {
+          "match": "Bağımsız hesapla doğrulandı",
+          "mismatch": "Bağımsız hesapla uyuşmuyor",
+          "unverified": "Doğrulanmadı"
+        },
+        "meaning": {
+          "strengths": "Güçlü yönler",
+          "challenges": "Zorlayıcı yönler",
+          "career": "Kariyer",
+          "relationships": "İlişkiler",
+          "spirituality": "Ruhsallık"
+        },
+        "core": {
+          "lifePath": "Yaşam Yolu",
+          "expression": "İfade",
+          "soulUrge": "Ruh Güdüsü",
+          "personality": "Kişilik",
+          "birthDay": "Doğum Günü",
+          "maturity": "Olgunluk",
+          "hiddenPassion": "Gizli Tutku",
+          "subconsciousSelf": "Bilinçaltı Benlik",
+          "cornerstone": "Köşe Taşı",
+          "capstone": "Tepe Taşı",
+          "firstVowel": "İlk Sesli Harf",
+          "birthDayProfile": "Doğum Günü Profili"
+        },
+        "bridge": {
+          "lifePathExpression": "Yaşam Yolu ↔ İfade",
+          "expressionSoulUrge": "İfade ↔ Ruh Güdüsü",
+          "soulUrgePersonality": "Ruh Güdüsü ↔ Kişilik",
+          "expressionPersonality": "İfade ↔ Kişilik"
+        }
+      },
+      "meta": {
+        "hubTitle": "Klasik Numeroloji · Yaşam Sistemi",
+        "libraryTitle": "Sayı Bilgi Kütüphanesi · Klasik Numeroloji",
+        "relationshipTitle": "İlişki Analizi · Klasik Numeroloji",
+        "namesTitle": "İsim Seçenekleri · Klasik Numeroloji",
+        "businessTitle": "İşletme Numerolojisi · Klasik Numeroloji",
+        "recordsTitle": "Kayıtlı Analizler · Klasik Numeroloji"
+      },
+      "hub": {
+        "title": "Batı ve Kalde gelenekleri",
+        "sub": "Pisagor çekirdek sayıları, karmik yapı, zamanlama döngüleri ve Kalde bileşik sayıları — her adımı izlenebilir hesapla.",
+        "chipsLabel": "Yöntemin temel ilkeleri",
+        "chipMaster": "Usta sayılar 11 · 22 · 33",
+        "sectionsLabel": "Klasik Numeroloji bölümleri",
+        "tiles": {
+          "new": {
+            "title": "Yeni Analiz",
+            "desc": "Ad soyad ve doğum tarihiyle tüm teknikleri ya da seçtiklerinizi hesaplayın.",
+            "badge": "Buradan başlayın"
+          },
+          "records": {
+            "title": "Kayıtlı Analizler",
+            "desc": "Saklanan Klasik analizler; yeniden adlandırma, silme ve Word çıktısı."
+          },
+          "library": {
+            "title": "Sayı Bilgi Kütüphanesi",
+            "desc": "1–9, usta sayılar ve Kalde 10–52 bileşik sayı anlamları."
+          },
+          "relationship": {
+            "title": "İlişki Analizi",
+            "desc": "İki kişinin çekirdek sayılarının uyumu ve tamamlayıcı yönleri."
+          },
+          "business": {
+            "title": "İşletme Numerolojisi",
+            "desc": "Firma ve marka adının Kalde sayısı ve geleneksel değerlendirmesi."
+          },
+          "names": {
+            "title": "İsim Seçenekleri",
+            "desc": "En çok altı aday ismi Pisagor ve Kalde ile yan yana inceleyin."
+          }
+        },
+        "stone": {
+          "title": "Numeroloji – Doğaltaş",
+          "desc": "Kişi analizinin “Taşlar” sekmesinde üç kaynak ayrı gösterilir: haritanın önerdiği taşlar, titreşim eşleşmesi ve gezegen ilişkisi; stok bilginizle birlikte. Öneriler sembolik ve gelenekseldir; sağlık iddiası taşımaz.",
+          "badgeSymbolic": "Sembolik / geleneksel",
+          "badgeWhere": "Analiz sonucunda · Taşlar"
+        }
+      },
+      "kit": {
+        "crumbsLabel": "Konum",
+        "loading": "Yükleniyor…",
+        "cancel": "Vazgeç",
+        "pleaseWait": "Lütfen bekleyin…",
+        "verified": "Doğrulandı",
+        "mismatch": "Uyuşmazlık",
+        "mismatchPlain": "Bağımsız hesap farklı sonuç verdi.",
+        "mismatchWithValue": "Bağımsız hesap farklı sonuç verdi (bağımsız hesap: {value}).",
+        "expertDecides": "Karar uzmanındır.",
+        "yes": "evet",
+        "no": "hayır",
+        "traceLabel": "Nasıl Hesaplandı?",
+        "karmicDebt": "Karmik borç {value}"
+      },
+      "dupDialog": {
+        "titleFailed": "Önceki kayıtlar kontrol edilemedi",
+        "titleDuplicate": "Bu kişi için kayıtlı analiz var",
+        "failedLead": "Bu ad soyad ve doğum tarihiyle daha önce kayıt yapılıp yapılmadığı şu anda kontrol edilemedi. Tekrar deneyebilir ya da kontrol etmeden kaydedebilirsiniz.",
+        "failedHint": "Henüz hiçbir şey kaydedilmedi; bu sayfadaki sonuç korunur.",
+        "leadSingle": "Bu ad soyad ve doğum tarihiyle kaydedilmiş bir kişi analiziniz bulunuyor. Mevcut kaydı açmak mı, yoksa yeni bir analiz kaydetmek mi istersiniz?",
+        "leadMany": "Bu ad soyad ve doğum tarihiyle kaydedilmiş {total} kişi analiziniz bulunuyor. Mevcut kaydı açmak mı, yoksa yeni bir analiz kaydetmek mi istersiniz?",
+        "hint": "Mevcut kayıt yeni sekmede açılır; bu sayfadaki kaydedilmemiş sonuç kaybolmaz. Eski kayıt değiştirilmez.",
+        "matchesLabel": "Eşleşen kayıtlar",
+        "born": "Doğum {date}",
+        "savedAt": "Kayıt {date}",
+        "openThis": "Bu Kaydı Aç",
+        "shownOf": "En yeni {shown} kayıt gösteriliyor (toplam {total}).",
+        "checking": "Kontrol ediliyor…",
+        "retry": "Tekrar Dene",
+        "openExisting": "Mevcut Kaydı Aç",
+        "saveAnyway": "Yine de Kaydet",
+        "saveNewAnyway": "Yine de Yeni Kaydet",
+        "cancel": "Vazgeç"
+      },
+      "premiumArt": {
+        "sceneCaption": "PİSAGOR · KALDE"
+      },
+      "library": {
+        "title": "Sayı Bilgi Kütüphanesi",
+        "sub": "Klasik yöntemin sabit sayı anlamları. Kişisel veri içermez; yorumlar geleneksel yöntem yorumudur.",
+        "tabsLabel": "Kütüphane bölümleri",
+        "tabs": {
+          "pythagorean_meaning": "Pisagor sayı anlamları",
+          "chaldean_compound": "Kalde bileşik sayılar"
+        },
+        "numberFallback": "Sayı {n}",
+        "compoundFallback": "Bileşik {n}",
+        "root": "Kök {n}",
+        "sameAs": "{n} ile aynı anlam",
+        "retry": "Tekrar dene",
+        "loading": "Kütüphane yükleniyor…",
+        "emptyTitle": "Kütüphane içeriği henüz yüklenmedi",
+        "emptyBody": "Sayı anlamları yöneticiniz tarafından içe aktarıldığında burada görünecek."
+      },
+      "report": {
+        "groups": {
+          "core": "Çekirdek sayılar",
+          "karmic": "Karmik dersler ve borçlar",
+          "timing": "Zirveler, zorluklar, kişisel döngüler",
+          "bridge": "Köprü sayıları",
+          "name_letters": "İsim harfleri",
+          "hidden_subconscious": "Gizli tutku ve bilinçaltı benlik",
+          "birthday_profile": "Doğum günü profili",
+          "maturity": "Olgunluk",
+          "chaldean": "Kalde (Cheiro)",
+          "dual": "İki sistem karşılaştırması",
+          "lucky": "Uğurlu ilişkiler",
+          "stones": "Taş önerileri (bilgilendirme notuyla)"
+        },
+        "variants": {
+          "summary": {
+            "label": "Özet",
+            "desc": "Sayılar ve kısa anlamlar"
+          },
+          "technical": {
+            "label": "Teknik",
+            "desc": "Hesap izleri ve doğrulama durumu"
+          },
+          "full": {
+            "label": "Tam",
+            "desc": "Tüm bölümler ve yorumlar"
+          }
+        },
+        "wordTitle": "Word raporu",
+        "leadPerson": "Rapora girecek bölümleri seçin.",
+        "leadOther": "Analiz sonucundan Word raporu üretilir.",
+        "sectionsLegend": "Rapor bölümleri",
+        "fullHint": "Tam raporda tüm bölümler yer alır.",
+        "detailLevel": "Ayrıntı düzeyi",
+        "downloaded": "Rapor indirildi.",
+        "preparing": "Hazırlanıyor…",
+        "wordDownload": "Word indir",
+        "stonesWord": "Taş raporu (Word)",
+        "preview": "Önizleme",
+        "png": {
+          "title": "Görsel rapor (PNG)",
+          "lead": "Temel sayılar, karmik ve dönemsel bilgiler tek sayfalık yüksek çözünürlüklü görselde. Paylaşım ve baskı için uygundur.",
+          "alt": "Klasik Numeroloji görsel raporu önizlemesi",
+          "download": "PNG indir",
+          "build": "Görsel raporu oluştur"
+        }
+      },
+      "other": {
+        "compatibility": "Uyum · %{value}",
+        "scorePercent": "%{value}",
+        "relTitle": "Numerolojik uyum",
+        "scoreBadge": "Klasik yöntem puanı · doğrulanamaz",
+        "scoreNote": "Klasik yöntem puanı · formülü kaynakta belgelenmediği için bağımsız doğrulanamaz; aşağıdaki sayılar ayrıca bağımsız olarak kontrol edilir.",
+        "independentCheck": "Sayıların bağımsız kontrolü",
+        "notSpecified": "Belirtilmemiş.",
+        "advice": "Öneri",
+        "bizSub": "Kalde (Cheiro) · işletme adı",
+        "favorableCompound": "Uğurlu bileşik",
+        "assessment": "Değerlendirme",
+        "industries": "Geleneksel olarak uyumlu alanlar",
+        "namesTitle": "Aday adlar yan yana",
+        "namesLead": "Her aday iki sistemle ayrı hesaplanır; sayılar birleştirilmez ve sıralama yapılmaz.",
+        "namesCaption": "Aday adların Pisagor ve Kalde sayıları",
+        "colCandidate": "Aday",
+        "colPythagorean": "Pisagor",
+        "colChaldean": "Kalde",
+        "colAgreement": "Uyum",
+        "sameRoot": "Aynı kök",
+        "different": "Farklı",
+        "failedCandidates": "Hesaplanamayan adaylar: {list}",
+        "pythagoreanTitle": "Pisagor · {title}",
+        "chaldeanValue": "Kalde {value}",
+        "chaldeanCaution": "Kalde · Dikkat",
+        "tracePythagorean": "Pisagor · Nasıl Hesaplandı?",
+        "traceChaldean": "Kalde · Nasıl Hesaplandı?"
+      },
+      "draft": {
+        "crumbResult": "Analiz Sonucu",
+        "loading": "Sonuç yükleniyor…",
+        "missingTitle": "Kaydedilmemiş sonuç bulunamadı",
+        "newAnalysis": "Yeni Analiz",
+        "missingBody": "Kaydedilmemiş sonuçlar yalnız hesaplandıkları sekmede, sekme açık kaldıkça görüntülenir. Bilgileri girip yeniden hesaplayabilirsiniz; kaydettiğiniz analizler Kayıtlı Analizler’de durur."
+      },
+      "fmt": {
+        "kinds": {
+          "person": "Kişi analizi",
+          "relationship": "İlişki analizi",
+          "business": "İşletme adı",
+          "names": "İsim seçenekleri"
+        },
+        "kindFallback": "Analiz",
+        "techniques": {
+          "core": "Pisagor çekirdek harita",
+          "chart": "Pisagor çekirdek harita",
+          "bridge": "Köprü sayıları",
+          "personal_day": "Kişisel gün",
+          "daily": "Günün sayısı (sembolik)",
+          "chaldean": "Kalde (Cheiro)",
+          "dual": "İki sistem karşılaştırması",
+          "compatibility": "Numerolojik uyum",
+          "business_name": "İşletme adı (Kalde)"
+        },
+        "candidate": "{n}. aday ad",
+        "techniqueFallback": "Bir teknik"
+      },
+      "apiErrors": {
+        "network": "Bağlantı kurulamadı. İnternet bağlantınızı kontrol edip tekrar deneyin.",
+        "rateLimited": "Çok sık istek; biraz sonra tekrar deneyin.",
+        "module": "Bu modüle erişim izniniz yok. Yöneticinizle iletişime geçin.",
+        "membership": "Üyeliğiniz bu işlem için etkin değil.",
+        "clientsPermission": "Bu işlem için Danışan Yönetimi izniniz olmalı.",
+        "status401": "Oturumunuz sona ermiş olabilir. Lütfen yeniden giriş yapın.",
+        "status403": "Bu işlem için yetkiniz yok.",
+        "status404": "Kayıt bulunamadı ya da artık mevcut değil.",
+        "status409": "Kayıt başka bir oturumda değişti. Sayfayı yenileyip tekrar deneyin.",
+        "status413": "İstek çok büyük.",
+        "status5xx": "İşlem şu an tamamlanamadı. Lütfen daha sonra tekrar deneyin.",
+        "generic": "İşlem tamamlanamadı.",
+        "codes": {
+          "NOT_FOUND": "Bulunamadı.",
+          "DEMO_READONLY": "Demo hesapta yeni analiz hesaplanamaz ve kayıt değiştirilemez.",
+          "CLIENTS_PERMISSION_REQUIRED": "Danışana bağlamak için Danışan Yönetimi izniniz olmalı.",
+          "CLIENT_NOT_FOUND": "Danışan bulunamadı.",
+          "FUTURE_YEARS_PERMISSION_REQUIRED": "Gelecek yıllara ait hesaplama için \"Gelecek Yılları Göster\" izniniz olmalı. Hedef tarihi bu yıl içinde seçin.",
+          "PROVIDER_CALLS_DISABLED": "Yeni hesaplama şu an kapalı. Kayıtlı analizlerinizi açabilirsiniz.",
+          "NOT_CONFIGURED": "Hesaplama servisi henüz yapılandırılmadı. Kayıtlı analizlerinizi açabilirsiniz.",
+          "QUOTA_PROTECTED": "Hesaplama kapasitesi geçici olarak korumaya alındı. Lütfen daha sonra tekrar deneyin.",
+          "RATE_LIMITED": "Kısa sürede çok fazla hesaplama yapıldı. Lütfen biraz sonra tekrar deneyin.",
+          "IN_PROGRESS": "Aynı hesaplama şu an sürüyor. Birkaç saniye sonra tekrar deneyin.",
+          "CLASSIC_BUSY": "Hesaplama servisi şu an yoğun. Birkaç saniye sonra tekrar deneyin.",
+          "PROVIDER_TIMEOUT": "Hesaplama servisi zamanında yanıt vermedi. Tekrar deneyebilirsiniz.",
+          "PROVIDER_ERROR": "Hesaplama şu an tamamlanamadı. Lütfen daha sonra tekrar deneyin.",
+          "SAVE_FAILED": "Analiz hesaplandı ancak kaydedilemedi. Tekrar denediğinizde ek hesap yapılmaz.",
+          "DRAFT_STALE": "Bu hesaplama sonucu artık doğrulanamıyor. Lütfen bilgileri kontrol edip yeniden hesaplayın.",
+          "DB_ERROR": "İşlem tamamlanamadı. Lütfen tekrar deneyin.",
+          "CONFLICT": "Kayıt başka bir oturumda değişti. Sayfayı yenileyip tekrar deneyin.",
+          "INVALID_ID": "Bulunamadı.",
+          "METHOD_NOT_ALLOWED": "Bu işlem desteklenmiyor.",
+          "STONES_NOT_AVAILABLE": "Bu analizde taş eşleştirmesi için kişi haritası bulunmuyor.",
+          "INVALID_NAME": "Ad geçersiz.",
+          "INVALID_DATE": "Tarih geçersiz.",
+          "INVALID_TITLE": "Başlık geçersiz.",
+          "INVALID_CLIENT_ID": "Geçersiz danışan kimliği.",
+          "INVALID_TECHNIQUES": "Teknik seçimi geçersiz.",
+          "INVALID_INPUT": "Geçersiz istek.",
+          "INVALID_KIND": "Analiz türü geçersiz.",
+          "DUPLICATE_CANDIDATE": "Aynı aday ad iki kez girilmiş.",
+          "TARGET_BEFORE_BIRTH": "Hedef tarih doğum tarihinden önce olamaz.",
+          "PAYLOAD_TOO_LARGE": "İstek çok büyük.",
+          "MALFORMED_JSON": "Geçerli JSON gövdesi gerekli.",
+          "UNKNOWN_FIELD": "Beklenmeyen alan.",
+          "INVALID_ROW_VERSION": "Sürüm bilgisi gerekli.",
+          "NOTHING_TO_UPDATE": "Değiştirilecek alan yok.",
+          "INVALID_DRAFT": "Hesaplama sonucu bilgisi geçersiz."
+        }
+      },
+      "validation": {
+        "nameRequired": "Ad boş olamaz.",
+        "nameInvalid": "Ad yalnız harf, boşluk, kesme işareti, tire ve nokta içerebilir; en az bir sesli ve bir sessiz harf içermeli (en fazla 120 karakter).",
+        "businessNameRequired": "İşletme adı boş olamaz.",
+        "businessNameInvalid": "İşletme adı yalnız harf, rakam, boşluk ve ' . , & - içerebilir; en az bir sesli ve bir sessiz harf içermeli (en fazla 120 karakter).",
+        "titleInvalid": "Başlık izin verilmeyen karakter içeriyor ya da çok uzun.",
+        "generic": "Girilen bilgiler geçersiz.",
+        "codes": {
+          "INVALID_NAME": "Ad geçersiz.",
+          "INVALID_DATE": "Tarih geçersiz.",
+          "INVALID_TITLE": "Başlık geçersiz.",
+          "INVALID_CLIENT_ID": "Geçersiz danışan kimliği.",
+          "INVALID_TECHNIQUES": "Teknik seçimi geçersiz.",
+          "INVALID_INPUT": "Geçersiz istek.",
+          "INVALID_KIND": "Analiz türü geçersiz.",
+          "DUPLICATE_CANDIDATE": "Aynı aday ad iki kez girilmiş.",
+          "TARGET_BEFORE_BIRTH": "Hedef tarih doğum tarihinden önce olamaz.",
+          "PAYLOAD_TOO_LARGE": "İstek çok büyük.",
+          "MALFORMED_JSON": "Geçerli JSON gövdesi gerekli.",
+          "UNKNOWN_FIELD": "Beklenmeyen alan.",
+          "INVALID_ROW_VERSION": "Sürüm bilgisi gerekli.",
+          "NOTHING_TO_UPDATE": "Değiştirilecek alan yok.",
+          "INVALID_DRAFT": "Hesaplama sonucu bilgisi geçersiz."
+        }
+      },
+      "form": {
+        "birthLabel": "Doğum tarihi",
+        "targetLabel": "Hedef tarih",
+        "errRequired": "{label} gerekli.",
+        "errFormat": "{label} GG.AA.YYYY biçiminde olmalı.",
+        "errYear": "Yıl 1900–2100 arasında olmalı.",
+        "errMonth": "Ay 1–12 arasında olmalı.",
+        "errDay": "Bu ayda böyle bir gün yok.",
+        "errStorage": "Tarayıcınız sonucu bu sekmede saklayamadı (gizli pencere ya da depolama kapalı olabilir). Depolamayı açıp yeniden hesaplayın.",
+        "editMissingDraft": "Düzenlenecek sonuç bu sekmede bulunamadı; bilgileri yeniden girebilirsiniz.",
+        "editMissingRecord": "Düzenlenecek kayıt açılamadı; bilgileri yeniden girebilirsiniz.",
+        "editTitle": "Bilgileri düzenliyorsunuz",
+        "editSource": "Düzeltip <b>Yeniden Hesapla</b>’ya basın. Kayıtlı “{title}” analizi siz sonuç ekranında açıkça güncelleyene kadar değişmez.",
+        "editNew": "Düzeltip <b>Yeniden Hesapla</b>’ya basın. Yeni sonuç da kaydetmediğiniz sürece kayıt oluşturmaz.",
+        "demoTitle": "Demo hesap",
+        "demoBody": "Demo hesapta yeni analiz hesaplanamaz; kayıtlı örnekleri inceleyebilirsiniz.",
+        "closedTitle": "Yeni hesaplama şu an kapalı",
+        "closedBody": "Kayıtlı analizlerinizi açmaya ve Word çıktısı almaya devam edebilirsiniz.",
+        "optional": "(isteğe bağlı)",
+        "latinLabel": "Hesapta kullanılacak yazım",
+        "dropped": "Hesaba katılmayan harfler: {list}",
+        "latinHint": "Hesapta Latin yazım kullanılır: <code>Işıl → ISIL</code>, <code>Çağrı → CAGRI</code>.",
+        "calculating": "Hesaplanıyor…",
+        "recalc": "Yeniden Hesapla",
+        "calc": "Hesapla",
+        "cancel": "Vazgeç",
+        "calculatingSr": "Hesaplanıyor, lütfen bekleyin.",
+        "tech": {
+          "core": {
+            "name": "Pisagor Çekirdek Harita",
+            "desc": "Yaşam Yolu, İfade, Ruh Güdüsü, Kişilik, Doğum Günü, Olgunluk; karmik dersler ve borçlar; zirveler, zorluklar, kişisel yıl/ay; isim harfleri; uğurlu ilişkiler ve taşlar"
+          },
+          "bridge": {
+            "name": "Köprü Sayıları",
+            "desc": "Çekirdek sayılar arasındaki dört köprü"
+          },
+          "personal_day": {
+            "name": "Kişisel Gün",
+            "desc": "Hedef tarihe göre kişisel gün"
+          },
+          "daily": {
+            "name": "Günün Sayısı (sembolik)",
+            "desc": "Hedef güne ait sembolik sayı ve mesaj; doğum verisinden hesaplanmaz, Kişisel Gün’den ayrıdır"
+          },
+          "chaldean": {
+            "name": "Kalde (Cheiro)",
+            "desc": "Kader, ruh, kişilik — bileşik 10–52 ve gezegen"
+          },
+          "dual": {
+            "name": "İki Sistem Karşılaştırması",
+            "desc": "Pisagor ↔ Kalde yan yana, uyum işareti"
+          }
+        },
+        "targetBeforeBirth": "Hedef tarih doğum tarihinden önce olamaz.",
+        "futureYears": "Gelecek yıllara ait hedef tarih için \"Gelecek Yılları Göster\" izniniz olmalı. Bu yıl içinde bir tarih seçin.",
+        "prebirth": "Doğum tarihi bugünden sonra (doğum öncesi analiz). Tarihe bağlı değerler doğumdan önceki bir gün için hesaplanamaz: hedef tarih olarak doğum tarihini ya da sonrasını girin. Yalnız isim değerlendirmesi için İsim Seçenekleri analizini kullanabilirsiniz.",
+        "techRequired": "En az bir teknik seçin.",
+        "titleMax": "Başlık en fazla {max} karakter olabilir.",
+        "startFailed": "Analiz başlatılamadı",
+        "personInfo": "Kişi Bilgileri",
+        "fullName": "Ad soyad",
+        "person": {
+          "title": "Yeni Analiz",
+          "sub": "Kişi bilgilerini girin, hesaplanacak teknikleri seçin.",
+          "targetHint": "Boşsa bugün; kişisel yıl / ay / gün bu tarihe göre.",
+          "techTitle": "Teknik seçimi",
+          "techAll": "Tüm teknikler",
+          "techSome": "Seçili teknikler",
+          "techNone": "Teknik seçilmedi",
+          "techCount": "{n} / {total} grup seçili",
+          "techLegend": "Hesaplanacak teknik grupları",
+          "allName": "Tümü",
+          "allDesc": "Bütün grupları hesapla",
+          "groupCount": "{n} grup",
+          "dualHint": "İki Sistem karşılaştırması için Pisagor çekirdek ve Kalde sonuçları da hesaplanır."
+        },
+        "relationship": {
+          "title": "İlişki Analizi",
+          "sub": "İki kişinin Yaşam Yolu, İfade ve Ruh Güdüsü uyumu (Pisagor).",
+          "personN": "{n}. kişi",
+          "relTitle": "İlişki uyumu",
+          "relLead": "Uyum puanı, çekirdek sayı eşleşmeleri, güçlü yönler ve zorluklar hesaplanır. Kayıt başlığı Kaydet adımında sorulur."
+        },
+        "business": {
+          "title": "İşletme Numerolojisi",
+          "sub": "Firma ya da marka adının Kalde (Cheiro) sayısı ve geleneksel değerlendirmesi.",
+          "nameTitle": "İşletme adı",
+          "charsHint": "Harf, rakam, boşluk ve ' . , & - kullanılabilir.",
+          "nameLabel": "İşletme / marka adı"
+        },
+        "names": {
+          "title": "İsim Seçenekleri",
+          "sub": "En çok {max} aday ad; her biri Pisagor ve Kalde ile ayrı hesaplanır.",
+          "candTitle": "Aday adlar",
+          "candLead": "Boş satırlar hesaba katılmaz.",
+          "candN": "{n}. aday",
+          "removeAria": "{n}. adayı kaldır",
+          "remove": "Kaldır",
+          "previewLabel": "{n}. aday için hesap yazımı",
+          "add": "Aday ekle",
+          "maxHint": "En çok {max} aday girilebilir.",
+          "candRequired": "En az bir aday ad girin.",
+          "duplicate": "Aynı aday ad iki kez girilmiş."
+        }
+      },
+      "person": {
+        "coreSub": {
+          "lifePath": "Doğum tarihinden",
+          "expression": "Tam adın tüm harfleri",
+          "soulUrge": "Sesli harfler",
+          "personality": "Sessiz harfler",
+          "birthDay": "Doğduğu gün",
+          "maturity": "Yaşam Yolu + İfade"
+        },
+        "summary": {
+          "title": "Özet",
+          "lead": "Çekirdek sayılar bir bakışta. Ayrıntı ve hesap izi ilgili sekmede.",
+          "karmic": "Karmik {n}",
+          "master": "Usta",
+          "noChart": "Pisagor çekirdek harita bu analizde yok.",
+          "personalYear": "Kişisel yıl",
+          "personalYearRef": "Kişisel yıl ({year})",
+          "currentPinnacle": "Şu anki zirve ({start}–{end})",
+          "missing": "Eksik sayı (karmik ders)",
+          "none": "Yok",
+          "chaldeanDestiny": "Kalde kader sayısı",
+          "personalDayAt": "Kişisel gün ({date})"
+        },
+        "core": {
+          "srTitle": "Pisagor Çekirdek Sayılar",
+          "maturityActive": "Olgunluk sayısı etkin",
+          "maturityInactive": "Olgunluk sayısı henüz etkin değil",
+          "maturityLine": "{status} · {range} · şu anki yaş {age}",
+          "root": "kök {n}"
+        },
+        "karmic": {
+          "lessonsTitle": "Karmik dersler",
+          "lessonsLead": "Tam addaki harflerin 1–9 dağılımı. Hiç bulunmayan sayı, karmik ders olarak okunur.",
+          "gridLabel": "Sayı dağılımı",
+          "cellMissing": "eksik",
+          "cellLetters": "{n} harf",
+          "cellZero": "0 · eksik",
+          "legendMissing": "Eksik sayı",
+          "legendHigh": "En sık (gizli tutku: {list})",
+          "howToOvercome": "Aşma yolu:",
+          "noMissing": "Bu adda eksik sayı yok.",
+          "debtsTitle": "Karmik borçlar",
+          "debtsLead": "13 · 14 · 16 · 19 ara toplamları.",
+          "challenge": "Zorluk:",
+          "resolution": "Çözüm:",
+          "noDebt": "Bu analizde karmik borç görünmüyor.",
+          "hpKey": "Adda en sık tekrar eden değer · {n} kez",
+          "scKey": "Adda bulunan farklı değer adedi"
+        },
+        "timing": {
+          "segPinnacle": "{position}. zirve · {ages} yaş",
+          "segChallenge": "{position}. zorluk · {ages} yaş",
+          "nowSuffix": " · şu an",
+          "periodPinnacle": "{position}. zirve",
+          "periodChallenge": "{position}. zorluk",
+          "mainLabel": "Ana zorluk (tüm yaşam)",
+          "lesson": "Ders:",
+          "opportunities": "Fırsatlar:",
+          "challenges": "Zorluklar:",
+          "pcTitle": "Zirveler ve zorluklar",
+          "pcLead": "Dört zirve dönemi; ilk dönem 36 − Yaşam Yolu yaşında biter, sonraki iki dönem 9’ar yıldır. 1., 2. ve 4. zorluk bu dönemlere eşlik eder; 3. zorluk ana zorluktur ve tüm yaşam boyunca geçerlidir.",
+          "ageBadge": "Hedef tarihte {age} yaş",
+          "periodSuffix": " · {n}. dönem",
+          "pinnacles": "Zirveler",
+          "challengesPeriods": "Zorluklar (yaş dönemleri)",
+          "challengesList": "Zorluklar",
+          "mainAria": "Ana zorluk",
+          "mainSeg": "3. zorluk · Ana zorluk · tüm yaşam boyunca",
+          "noPeriodic": "Hedef yaşta dönemsel zorluk yok; ana zorluk geçerlidir.",
+          "details": "Dönem ayrıntıları",
+          "cyclesTitle": "Kişisel döngüler",
+          "cyclesTarget": "Hedef tarih {date} · ",
+          "cyclesLead": "Klasik yöntemde kişisel yıl 1 Ocak’ta değişir.",
+          "personalYear": "Kişisel yıl",
+          "personalMonth": "Kişisel ay",
+          "personalDay": "Kişisel gün · {date}",
+          "advice": "Öneri:",
+          "guidance": "Günün yönlendirmesi:",
+          "howToOvercome": "Aşma yolu:"
+        },
+        "daily": {
+          "title": "Günün sayısı (sembolik)",
+          "seedCommon": "Bu güne ait ortak sayı",
+          "seedPersonal": "Kişiye özel tohumla üretilen sayı",
+          "lead": "{date} · {seed}. Doğum verisinden hesaplanmaz; yukarıdaki Kişisel Gün ile aynı şey değildir.",
+          "badge": "Sembolik · doğrulanamaz",
+          "numberCap": "Günün sayısı",
+          "keywords": "Anahtar sözcükler:"
+        },
+        "bridges": {
+          "title": "Köprü sayıları",
+          "lead": "İki çekirdek sayı arasındaki fark; aralarındaki gerilimi yumuşatan tema."
+        },
+        "letters": {
+          "cornerstone": "İlk adın ilk harfi",
+          "capstone": "İlk adın son harfi",
+          "firstVowelY": "Y burada sesli işlevinde (klasik yöntem uzlaşımı; ilk adda A/E/I/O/U yok)",
+          "firstVowel": "İlk adın ilk sesli harfi"
+        },
+        "kalde": {
+          "sr": "bileşik {compound}, kök {root}",
+          "title": "Kalde (Cheiro) sayıları",
+          "lead": "Kalde tablosunda 9 harfe atanmaz; bileşik sayı (10–52) ayrıca yorumlanır ve köke indirgenir.",
+          "natureLegend": "— bileşik sayının geleneksel niteliği",
+          "caution": "Kader sayısının kökü geleneksel okumada dikkat işaretlidir.",
+          "destiny": "Kader sayısı",
+          "fullName": "Tam ad",
+          "soul": "Ruh sayısı",
+          "vowels": "Sesli harfler",
+          "personality": "Kişilik sayısı",
+          "consonants": "Sessiz harfler",
+          "rootHeading": "Kök {n}"
+        },
+        "dual": {
+          "colConcept": "Kavram",
+          "title": "İki sistem yan yana",
+          "lead": "Pisagor ve Kalde farklı harf tablosu kullanır; aynı kavramda farklı sonuç beklenen bir durumdur. Sayılar birleştirilmez.",
+          "caption": "Pisagor ve Kalde karşılaştırması",
+          "rowName": "İsim (İfade / Kader)",
+          "rowSoul": "Ruh",
+          "rowPersonality": "Kişilik",
+          "chaldeanTitle": "Kalde · {title}",
+          "caution": "Dikkat"
+        }
+      },
+      "stones": {
+        "disclaimer": "Taş önerileri sembolik ve geleneksel numeroloji yorumudur; tıbbi teşhis, tedavi veya sağlık iddiası taşımaz ve hiçbir tedavinin yerine geçmez.",
+        "modeReason": {
+          "library_disabled": "Doğaltaş Kütüphanesi bağlantısı şu an kapalı.",
+          "no_access": "Doğaltaş Kütüphanesi erişiminiz bulunmuyor.",
+          "unavailable": "Doğaltaş Kütüphanesi şu an yanıt vermiyor.",
+          "empty": "Doğaltaş Kütüphanesinde yayında taş yok."
+        },
+        "modeReasonFallback": "Doğaltaş Kütüphanesi şu an kullanılamıyor.",
+        "status": {
+          "duplicate": {
+            "badge": "Birden fazla olası taş",
+            "why": "Kütüphanede benzer taş kayıtları bulundu. Doğru kaydı uzman seçmelidir:"
+          },
+          "similar": {
+            "badge": "Tam karşılık yok · benzer taşlar var",
+            "why": "Kütüphanede bu adın tam karşılığı yok; adı benzeyen taş kayıtları bulundu. Doğru kaydı uzman seçmelidir:"
+          },
+          "unmatched": {
+            "badge": "Kütüphanede bulunamadı",
+            "why": "Bu ad kütüphanedeki taş kayıtlarından hiçbiriyle eşleşmedi; ad yalnız metin olarak gösterilir."
+          },
+          "text_only": {
+            "badge": "Yalnız ad",
+            "why": "Taş kütüphanesine şu an erişilemiyor; ad metin olarak gösterilir, stok ve kütüphane bilgisi eklenmez."
+          }
+        },
+        "stockCount": "Stokta · {n} adet",
+        "stock": "Stokta",
+        "noStock": "Stokta yok",
+        "mapName": "Haritadaki ad: {name}",
+        "alsoSource1": "1. kaynakta da var",
+        "otherReasons": "Başka gerekçe: {n}",
+        "noMatch": "Bu kaynakta eşleşme yok.",
+        "collapse": "Listeyi daralt",
+        "showAll": "Tüm taşları göster (+{n})",
+        "unavailableFallback": "Bu analizde taş eşleştirmesi için kişi haritası bulunmuyor.",
+        "title": "Taş önerileri",
+        "lead": "Üç kaynak birbirinden ayrı gösterilir; aynı taş birden fazla kaynakta görünebilir.",
+        "luckyPlanet": "Uğurlu gezegen · {v}",
+        "element": "Element · {v}",
+        "day": "Gün · {v}",
+        "colors": "Renkler · {v}",
+        "noSuggestionTitle": "Taş önerisi yok",
+        "loading": "Taş önerileri yükleniyor…",
+        "retry": "Tekrar dene",
+        "textOnlyTitle": "Yalnız taş adları gösteriliyor",
+        "textOnlyTail": "Haritanın önerdiği taşlar ad olarak listelenir; türetilmiş eşleşmeler kütüphane bağlantısı gerektirir.",
+        "src1Title": "Haritanın önerdiği taşlar",
+        "src1Sub": "Analiz sonucundaki uğurlu taş listesi",
+        "src1Empty": "Bu haritada taş önerisi yok.",
+        "src2Title": "Titreşim eşleşmesi",
+        "src2Sub": "Kütüphanedeki taşın titreşim sayısı",
+        "exact": "Tam eşleşme",
+        "exactSub": "Sayının kendisi",
+        "root": "Kök sayı eşleşmesi",
+        "rootSub": "Usta / bileşik sayının kökü — tam eşleşme değildir",
+        "src3Title": "Gezegen ilişkisi",
+        "src3Sub": "Yönetici gezegenle gelenekte eşleşen taşlar",
+        "group": {
+          "pairs_with": "Doğrudan önerilerle birlikte kullanılan taşlar",
+          "element": "Uğurlu elementle ilişkili taşlar"
+        }
+      },
+      "result": {
+        "crumbResult": "Analiz Sonucu",
+        "crumbRecords": "Kayıtlı Analizler",
+        "loading": "Analiz yükleniyor…",
+        "notFoundTitle": "Analiz bulunamadı",
+        "openFailedTitle": "Analiz açılamadı",
+        "backToRecords": "Kayıtlara dön",
+        "retry": "Tekrar dene",
+        "notFoundBody": "Bu analiz silinmiş olabilir ya da size ait değildir.",
+        "unexpected": "Beklenmeyen bir durum oluştu.",
+        "metaBirth": "Doğum <b>{date}</b>",
+        "metaTarget": "Hedef tarih <b>{date}</b>",
+        "metaFolded": "Hesap yazımı <b>{name}</b>",
+        "metaBizName": "İşletme adı <b>{name}</b>",
+        "metaCalculated": "Hesaplandı <b>{date}</b>",
+        "metaSaved": "Kayıt <b>{date}</b>",
+        "masterBadge": "Usta sayı korunur · 11 · 22 · 33",
+        "person1": "1. kişi",
+        "person2": "2. kişi",
+        "candCount": "{n} aday",
+        "candN": "{n}. aday",
+        "tabs": {
+          "ozet": "Özet",
+          "cekirdek": "Pisagor Çekirdek",
+          "karmik": "Karmik",
+          "zamanlama": "Zamanlama",
+          "kopruler": "Köprüler",
+          "harfler": "İsim Harfleri",
+          "kalde": "Kalde",
+          "iki": "İki Sistem",
+          "taslar": "Taşlar",
+          "uyum": "Uyum",
+          "isletme": "İşletme Adı",
+          "adaylar": "Adaylar",
+          "rapor": "Rapor"
+        },
+        "tabsLabel": "Analiz bölümleri",
+        "draftBadge": "Kaydedilmedi",
+        "editInputs": "Bilgileri Düzenle",
+        "compare": "Karşılaştır",
+        "futureTitle": "Gelecek dönemler gizli",
+        "futureBody": "“Gelecek Yılları Göster” izniniz olmadığı için içinde bulunulan yıldan sonra başlayan dönemler ve gelecek yıla ait zamanlama sonuçları gösterilmiyor.",
+        "partialTitle": "Kısmi sonuç",
+        "partialBody": "Bazı teknikler hesaplanamadı; diğer bölümler eksiksizdir."
+      },
+      "records": {
+        "titleEmpty": "Başlık boş olamaz.",
+        "renamed": "Başlık güncellendi.",
+        "conflictRename": "Kayıt başka bir oturumda değişti; liste yenilendi. Değişikliği tekrar deneyin.",
+        "deleted": "“{title}” silindi.",
+        "conflictDelete": "Kayıt başka bir oturumda değişti; liste yenilendi. Silmeyi tekrar deneyin.",
+        "alreadyDeleted": "Kayıt zaten silinmiş.",
+        "title": "Kayıtlı Analizler",
+        "sub": "Kayıtlı analizi açmak yeniden hesap yapmaz.",
+        "newAnalysis": "Yeni analiz",
+        "refresh": "Yenile",
+        "loading": "Kayıtlar yükleniyor…",
+        "countOne": "{n} kayıt",
+        "count": "{n} kayıt",
+        "none": "Kayıt yok",
+        "emptyLead": "Henüz kayıtlı Klasik Numeroloji analizi yok. <link>Yeni analiz başlatın</link>.",
+        "newTitleLabel": "Yeni başlık",
+        "saving": "Kaydediliyor…",
+        "save": "Kaydet",
+        "cancel": "Vazgeç",
+        "untitled": "Adsız analiz",
+        "partial": "Kısmi",
+        "renameAria": "{title} — yeniden adlandır",
+        "rename": "Yeniden adlandır",
+        "deleteAria": "{title} — sil",
+        "delete": "Sil",
+        "loadingMore": "Yükleniyor…",
+        "showAll": "Tümünü göster",
+        "confirmTitle": "Analiz silinsin mi?",
+        "confirmBody": "“{title}” kayıtlı analizler listesinden kaldırılacak. Bu işlem geri alınamaz."
+      },
+      "clientLink": {
+        "unnamed": "Adsız danışan",
+        "listFailed": "Danışan listesi yüklenemedi.",
+        "title": "Danışan bağlantısı",
+        "optional": "(isteğe bağlı)",
+        "lead": "Analizi kendi danışanınıza bağlarsanız Danışan dosyasının Numeroloji sekmesinde görünür.",
+        "linked": "Bağlı danışan: <b>{name}</b>",
+        "prefill": "Bilgileri forma aktar",
+        "unlink": "Bağı kaldır",
+        "searchLabel": "Danışan ara",
+        "searchPh": "Ad veya soyad ile ara",
+        "loading": "Yükleniyor…",
+        "noMatch": "Eşleşen danışan yok.",
+        "cancel": "Vazgeç",
+        "choose": "Danışan seç",
+        "chooseCap": "Danışan Seç",
+        "chip": "Danışan",
+        "removeAria": "{name} danışan seçimini kaldır",
+        "prefillShort": "Bilgileri aktar",
+        "lineMissing": "Danışan bağlı (görüntüleme izniniz yok ya da danışan silinmiş)",
+        "linePending": "Danışan bağlı…",
+        "lineLabel": "Danışan",
+        "queryNotFound": "Bağlantıdaki danışan bulunamadı; analiz danışansız kaydedilir ya da listeden seçebilirsiniz.",
+        "conflict": "Kayıt başka bir sekmede değişti; sayfayı yenileyip tekrar deneyin.",
+        "notFound": "Danışan ya da analiz bulunamadı.",
+        "saveFailed": "Danışan bağlantısı kaydedilemedi.",
+        "resultUnlink": "Danışan bağını kaldır",
+        "resultLink": "Danışana bağla"
+      },
+      "draftSave": {
+        "staleFallback": "Bu hesaplama sonucu artık doğrulanamıyor. Bilgileri kontrol edip yeniden hesaplayın.",
+        "conflict": "Kayıt başka bir oturumda değişti. Kayıtlı analizi yeniden açıp tekrar düzenleyin.",
+        "editedTitle": "Düzenlenmiş sonuç henüz kaydedilmedi",
+        "newTitle": "Bu sonuç henüz kaydedilmedi",
+        "editedHint": "Kayıtlı “{title}” analizi değişmedi. Güncellemek ya da yeni kayıt olarak saklamak için seçim yapın; kaydetmeden çıkarsanız kayıt olduğu gibi kalır.",
+        "newHint": "İnceleyebilir, Word / görsel rapor alabilirsiniz. Kayıtlı Analizler’e eklemek, danışana bağlamak ya da karşılaştırmak için kaydedin; kaydetmeden çıkarsanız kayıt oluşmaz.",
+        "replace": "Kaydı Güncelle",
+        "saveNew": "Yeni kayıt olarak kaydet",
+        "checking": "Kontrol ediliyor…",
+        "save": "Kaydet",
+        "failedTitle": "Kaydedilemedi",
+        "editInputs": "Bilgileri Düzenle",
+        "confirmReplaceTitle": "Kayıtlı analiz güncellensin mi?",
+        "confirmSaveTitle": "Analizi kaydet",
+        "replaceBody": "“{title}” kaydındaki bilgiler ve sonuçlar bu yeni hesapla değiştirilecek. Eski sonuç saklanmaz.",
+        "saveBody": "Analiz Kayıtlı Analizler listesine eklenir.",
+        "saveBodyLinked": "Analiz Kayıtlı Analizler listesine eklenir ve seçtiğiniz danışana bağlanır.",
+        "titleLabel": "Kayıt başlığı",
+        "titleHint": "Boş bırakılırsa ad kullanılır."
+      }
+    }
+  }
+}

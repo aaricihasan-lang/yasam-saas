@@ -4,6 +4,8 @@ import { runInEffect } from "@/lib/runInEffect";
 import BfcacheRefreshHandler from "@/components/BfcacheRefreshHandler";
 import { useState, useEffect, useRef, type FormEvent } from "react";
 import { createPortal } from "react-dom";
+import { useLocale, useTranslations } from "next-intl";
+import { DEFAULT_LOCALE } from "@/lib/i18n/locales";
 import { ArrowRight, CalendarDays, FileText, Sparkles, User } from "lucide-react";
 import { energyFontVars } from "@/app/_premium/enerji-beden/fonts";
 import styles from "@/app/_premium/numeroloji/numerolojiAnaliz.module.css";
@@ -32,6 +34,7 @@ import {
   type ContentFontSize,
 } from "../components/numerolojiContentTypography";
 import type { NumerolojiMotorOut } from "../utils/numerolojiPlainMetin";
+import { ChronoRecordProvider } from "../hooks/ChronoRecordContext";
 import { type GorselTemaId } from "../components/NumerolojiGorselRaporInfografik";
 import { GorselScaleFit } from "../components/GorselScaleFit";
 import { NumerolojiTarihInput } from "@/components/numeroloji/NumerolojiTarihInput";
@@ -43,8 +46,6 @@ import {
 
 type TabId = "summary" | "plain" | "detailed" | "zamanlama" | "tas" | "gorsel";
 
-const DEMO_LIMIT_TEXT =
-  "Demo hesapta her bağlantı için yalnızca 1 örnek numeroloji analizi oluşturulabilir.\n\nDaha fazla analiz oluşturmak için uzman hesabı talebinde bulunun.";
 
 function birthDateForMotor(display: string): string {
   return display.trim().replace(/\//g, ".");
@@ -61,16 +62,21 @@ function isoBirthDateToDisplay(iso: string): string {
 }
 
 
-const TABS: { id: TabId; label: string }[] = [
-  { id: "summary", label: "Sonuç Özeti" },
-  { id: "plain", label: "Numerolojik Analiz" },
-  { id: "detailed", label: "Sayısal Hesaplama" },
-  { id: "zamanlama", label: "Zamanlama & Gelişim" },
-  { id: "tas", label: "Taş Notlarım" },
-  { id: "gorsel", label: "Görsel Rapor" },
+/** Sekme kimlikleri (kanonik); etiketler katalogdan (`numerology.analysis.page.tabs.<id>`). */
+const TABS: { id: TabId }[] = [
+  { id: "summary" },
+  { id: "plain" },
+  { id: "detailed" },
+  { id: "zamanlama" },
+  { id: "tas" },
+  { id: "gorsel" },
 ];
 
 export default function NumerolojiAnalizPage() {
+  // I18N: TR ekran metinleri katalogdan birebir; sunucu / dışa aktarma hata metni TR'de aynen, diğer dillerde genel metin.
+  const ta = useTranslations("numerology.analysis.page");
+  const isSourceLocale = useLocale() === DEFAULT_LOCALE;
+  const DEMO_LIMIT_TEXT = ta("demoLimit");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [birthDate, setBirthDate] = useState("");
@@ -197,10 +203,10 @@ export default function NumerolojiAnalizPage() {
 
     const el = gorselRaporRef.current;
     try {
-      if (el) await gorselRaporuPngYakalaVeIndir(el);
+      if (el) await gorselRaporuPngYakalaVeIndir(el, ta("pngFileName"));
     } catch (err) {
       console.error(err);
-      setError(err instanceof Error ? err.message : "PNG görsel indirilemedi. Lütfen tekrar deneyin.");
+      setError(isSourceLocale && err instanceof Error ? err.message : ta("pngFailed"));
     } finally {
       if (scrollHost) {
         scrollHost.style.maxHeight = prevMaxH;
@@ -225,7 +231,7 @@ export default function NumerolojiAnalizPage() {
       setTab("summary");
     } catch (err) {
       console.error(err);
-      setError("Hesaplama sırasında bir hata oluştu.");
+      setError(ta("calcFailed"));
     }
   }
 
@@ -272,10 +278,10 @@ export default function NumerolojiAnalizPage() {
         saveDemoNumerolojiAnaliz({ firstName: fn, lastName: ln, birthDate: bd });
         return true;
       }
-      setDemoLimitMsg(typeof json.message === "string" ? json.message : DEMO_LIMIT_TEXT);
+      setDemoLimitMsg(isSourceLocale && typeof json.message === "string" ? json.message : DEMO_LIMIT_TEXT);
       return false;
     } catch {
-      setDemoLimitMsg("Bağlantı doğrulanamadı. Lütfen tekrar deneyin.");
+      setDemoLimitMsg(ta("demoVerifyFailed"));
       return false;
     }
   }
@@ -291,23 +297,23 @@ export default function NumerolojiAnalizPage() {
     const bd = birthDate.trim();
 
     if (!fnRaw) {
-      setError("Lütfen adınızı girin.");
+      setError(ta("errors.firstName"));
       return;
     }
     if (!lnRaw) {
-      setError("Lütfen soyadınızı girin.");
+      setError(ta("errors.lastName"));
       return;
     }
     if (!bd) {
-      setError("Lütfen doğum tarihini girin.");
+      setError(ta("errors.birthDate"));
       return;
     }
     if (bd.length !== 10) {
-      setError("Doğum tarihini GG.AA.YYYY formatında tamamlayın.");
+      setError(ta("errors.birthDateFormat"));
       return;
     }
     if (!isValidBirthDateDisplay(bd)) {
-      setError("Geçerli bir doğum tarihi girin (gün 1–31, ay 1–12; örn. 30/02 gibi tarihler geçersizdir).");
+      setError(ta("errors.birthDateInvalid"));
       return;
     }
 
@@ -344,13 +350,15 @@ export default function NumerolojiAnalizPage() {
   const dogumGoster = sonucBilgisi.bd;
 
   return (
+    // I18N-0003: kronolojik gizlilik kararı HESAPLANAN kişinin yapısal doğum tarihinden (metin geri dönüşü değil).
+    <ChronoRecordProvider birthDate={out && computedFor ? computedFor.bd : null}>
     <main className={`${styles.page} ${energyFontVars}`}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img className={styles.waves} src="/premium/numeroloji/analiz-dalga-alt.webp" alt="" aria-hidden decoding="async" draggable={false} />
       <div className={styles.inner}>
       <BfcacheRefreshHandler />
       {isDemo && (
-        <DemoModuleBanner message="Numeroloji analizini deneyebilirsiniz. Demo hesapta her bağlantı için yalnızca 1 örnek analiz oluşturulabilir; kaydetme işlemi devre dışıdır." />
+        <DemoModuleBanner message={ta("demoBanner")} />
       )}
       <div className="space-y-3">
         {/* 2026-10-20 premium görünüm (owner GÖRSEL PASS prototipi numeroloji-analizi). Yalnız sunum. */}
@@ -359,18 +367,18 @@ export default function NumerolojiAnalizPage() {
           <img className={styles.artL} src="/premium/numeroloji/analiz-hero-cark.webp" width={836} height={580} alt="" aria-hidden decoding="async" draggable={false} />
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img className={styles.artR} src="/premium/numeroloji/analiz-hero-kristal.webp" width={860} height={424} alt="" aria-hidden decoding="async" draggable={false} />
-          <nav className={styles.heroNav} aria-label="Sayfa gezinmesi">
+          <nav className={styles.heroNav} aria-label={ta("navAria")}>
             <Link href="/numeroloji/liste" className={styles.pill}>
               <FileText className={styles.ico} width={18} height={18} strokeWidth={2} aria-hidden />
-              Kayıtlı analizler
+              {ta("savedAnalyses")}
             </Link>
           </nav>
           <div className={styles.heroBody}>
-            <p className={styles.eyebrow}>YAŞAM SİSTEMİ &middot; NUMEROLOJİ</p>
+            <p className={styles.eyebrow}>{ta("eyebrow")}</p>
             <h1 className={styles.title}>
-              Numeroloji <span className={styles.accent}>Analizi</span>
+              {ta.rich("title", { a: (chunks) => <span className={styles.accent}>{chunks}</span> })}
             </h1>
-            <p className={styles.sub}>Yaşam haritanızı hesaplayın, görsel raporunuzu oluşturun ve analizlerinizi kaydedin.</p>
+            <p className={styles.sub}>{ta("sub")}</p>
             <div className={styles.divider} aria-hidden>
               <span />
               <i>✦</i>
@@ -382,9 +390,9 @@ export default function NumerolojiAnalizPage() {
         {out && !formAcik ? (
           <div className="flex flex-wrap items-center justify-between gap-3 px-[clamp(8px,2.5vw,14px)] py-2 md:rounded-2xl md:border md:border-violet-200/70 md:bg-gradient-to-r md:from-violet-100/70 md:via-white/80 md:to-amber-50/60 md:px-4 md:py-3 md:shadow-[0_8px_24px_-12px_rgba(91,33,182,0.18)] md:ring-1 md:ring-violet-100/55 md:backdrop-blur-xl">
             <div className="min-w-0">
-              <p className="text-[10px] font-black uppercase tracking-[0.22em] text-violet-500">Aktif analiz</p>
+              <p className="text-[10px] font-black uppercase tracking-[0.22em] text-violet-500">{ta("activeAnalysis")}</p>
               <p className="mt-0.5 truncate text-base font-black text-slate-900">{isimGoster || "—"}</p>
-              <p className="text-xs font-medium text-slate-500">Doğum: {dogumGoster || "—"}</p>
+              <p className="text-xs font-medium text-slate-500">{ta("birthLabel")}{dogumGoster || "—"}</p>
             </div>
             <div className="flex shrink-0 flex-wrap items-center gap-2">
               <SaveAnalysisButton
@@ -399,7 +407,7 @@ export default function NumerolojiAnalizPage() {
                 onClick={() => setFormAcik(true)}
                 className="inline-flex h-10 items-center justify-center gap-1.5 rounded-xl border border-violet-300/80 bg-white/90 px-4 text-xs font-black uppercase tracking-wide text-violet-800 shadow-sm transition hover:border-violet-400 hover:bg-white"
               >
-                ✎ Bilgileri Düzenle
+                {ta("editInfo")}
               </button>
             </div>
           </div>
@@ -411,7 +419,7 @@ export default function NumerolojiAnalizPage() {
           <div className={styles.row2}>
             <div>
               <label htmlFor="noj-ad" className={styles.lbl}>
-                Ad
+                {ta("firstName")}
               </label>
               <span className={styles.inWrap}>
                 <User className={styles.inIcon} strokeWidth={1.8} aria-hidden />
@@ -420,7 +428,7 @@ export default function NumerolojiAnalizPage() {
                   type="text"
                   value={firstName}
                   onChange={(e) => setFirstName(formatFirstNameTurkish(e.target.value))}
-                  placeholder="Örn. Hasan Ali"
+                  placeholder={ta("firstNamePlaceholder")}
                   className={styles.input}
                   autoComplete="given-name"
                 />
@@ -428,7 +436,7 @@ export default function NumerolojiAnalizPage() {
             </div>
             <div>
               <label htmlFor="noj-soyad" className={styles.lbl}>
-                Soyad
+                {ta("lastName")}
               </label>
               <span className={styles.inWrap}>
                 <User className={styles.inIcon} strokeWidth={1.8} aria-hidden />
@@ -437,7 +445,7 @@ export default function NumerolojiAnalizPage() {
                   type="text"
                   value={lastName}
                   onChange={(e) => setLastName(formatLastNameTurkish(e.target.value))}
-                  placeholder="Örn. YILMAZ"
+                  placeholder={ta("lastNamePlaceholder")}
                   className={styles.input}
                   autoComplete="family-name"
                 />
@@ -445,7 +453,7 @@ export default function NumerolojiAnalizPage() {
             </div>
             <div style={{ gridColumn: "1 / -1" }}>
               <label htmlFor="noj-dt" className={styles.lbl}>
-                Doğum Tarihi
+                {ta("birthDate")}
               </label>
               <span className={styles.inWrap}>
                 <CalendarDays className={styles.inIcon} strokeWidth={1.8} aria-hidden />
@@ -463,7 +471,7 @@ export default function NumerolojiAnalizPage() {
           <div className={styles.actions}>
             <button type="submit" className={styles.calc}>
               <Sparkles className={styles.ico} width={20} height={20} strokeWidth={2} aria-hidden />
-              HESAPLA
+              {ta("calculate")}
               <ArrowRight className={styles.ico} width={20} height={20} strokeWidth={2.2} aria-hidden />
             </button>
             <span className={styles.saveSlot}>
@@ -478,7 +486,7 @@ export default function NumerolojiAnalizPage() {
           </div>
           {sonucBayat ? (
             <p role="status" className={styles.warn}>
-              Bilgiler değişti. Aşağıdaki sonuç önceki bilgilere aittir; kaydetmeden önce HESAPLA&apos;ya basın.
+              {ta("stale")}
             </p>
           ) : null}
         </form>
@@ -530,7 +538,7 @@ export default function NumerolojiAnalizPage() {
                   }`}
                 >
                   {t.id === "gorsel" ? <span className="mr-1" aria-hidden>✦</span> : null}
-                  {t.label}
+                  {ta(`tabs.${t.id}`)}
                 </button>
               ))}
               </div>
@@ -593,7 +601,7 @@ export default function NumerolojiAnalizPage() {
                       />
                       {/* NUM-MOB-1: mobilde önizlemeye dokununca tam ekran viewer açılır. */}
                       <p className="mb-1 mt-1 text-center text-[11px] font-bold text-violet-700/80 md:hidden">
-                        Tam ekran görüntülemek için rapora dokunun
+                        {ta("tapFullscreen")}
                       </p>
                       <div
                         className="pt-14 sm:pt-[4.5rem] max-md:cursor-zoom-in"
@@ -632,7 +640,7 @@ export default function NumerolojiAnalizPage() {
                             data-gorsel-rapor-scroll-host
                           >
                             <p id="gorsel-fs-title" className="sr-only">
-                              Numerolojik yaşam haritası tam ekran görünümü
+                              {ta("fullscreenTitle")}
                             </p>
                             <div className="flex min-h-full flex-col items-center px-1 pb-8 pt-8 sm:px-6 sm:pb-12 sm:pt-12">
                               <div className="w-full max-w-[min(760px,210mm)] shrink-0">
@@ -664,7 +672,7 @@ export default function NumerolojiAnalizPage() {
                                     onClick={() => setGorselTamEkran(false)}
                                     className="inline-flex min-h-[48px] items-center justify-center rounded-full border border-yellow-300/60 bg-black/70 px-8 text-sm font-black uppercase tracking-wider text-white shadow-lg transition hover:bg-yellow-300 hover:text-black"
                                   >
-                                    Kapat
+                                    {ta("close")}
                                   </button>
                                 </div>
                               ) : null}
@@ -685,7 +693,7 @@ export default function NumerolojiAnalizPage() {
                               type="button"
                               onClick={() => setGorselTamEkran(false)}
                               className="fixed right-6 top-6 z-[10050] flex h-[52px] w-[52px] items-center justify-center rounded-full border border-yellow-300/60 bg-black/80 text-2xl font-light leading-none text-white shadow-lg transition hover:bg-yellow-300 hover:text-black"
-                              aria-label="Tam ekranı kapat"
+                              aria-label={ta("closeFullscreenAria")}
                             >
                               ×
                             </button>
@@ -702,5 +710,6 @@ export default function NumerolojiAnalizPage() {
       </div>
       </div>
     </main>
+    </ChronoRecordProvider>
   );
 }

@@ -1,3 +1,4 @@
+import { hdApiText } from "../../../_lib/hdApiText";
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { trackUsage } from "@/lib/usage/trackUsage";
@@ -33,7 +34,7 @@ export async function POST(req: NextRequest, ctx: RouteContext): Promise<Respons
   const rl = await quotaCheck("hd-relation-report", guard.userId, () => hitDbRateLimit(guard.db, rateLimitBucket("hd-relation-report", guard.userId), 40, 60 * 60), { isDemo: guard.is_demo_account, tenantId: guard.tenantId });
   if (!rl.allowed) {
     return NextResponse.json(
-      { ok: false, code: "RATE_LIMITED", error: "Kısa sürede çok fazla rapor hazırlandı. Lütfen biraz sonra tekrar deneyin." },
+      { ok: false, code: "RATE_LIMITED", error: hdApiText(req, "rateLimitedReportPrepare") },
       { status: 429, headers: { ...NO_STORE, "Retry-After": String(rl.retryAfterSec || 60) } },
     );
   }
@@ -41,7 +42,7 @@ export async function POST(req: NextRequest, ctx: RouteContext): Promise<Respons
   try {
     raw = await req.json();
   } catch {
-    return NextResponse.json({ ok: false, code: "MALFORMED_JSON", error: "Geçerli JSON gövdesi gerekli." }, { status: 400, headers: NO_STORE });
+    return NextResponse.json({ ok: false, code: "MALFORMED_JSON", error: hdApiText(req, "malformedJson") }, { status: 400, headers: NO_STORE });
   }
   const { id } = await ctx.params;
   const r = await createRelationReport({ db: guard.db, tenantId: guard.tenantId, userId: guard.userId, isDemo: guard.is_demo_account }, id, raw);

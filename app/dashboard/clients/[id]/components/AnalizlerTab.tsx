@@ -1,14 +1,17 @@
 "use client";
 
 import { useEffect, useMemo, useState, useRef } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { formatDateAbsolute, formatDateTimeAbsolute } from "@/lib/i18n/format";
+import { resolveLocale, type ActiveLocale } from "@/lib/i18n/locales";
 // PERF (C1): html2canvas + jsPDF ağır kütüphaneler; statik import edilirse Analizler sekmesi
 // AÇILIR AÇILMAZ chunk'a girip indirilir/parse edilir. Yalnız PDF/snapshot üretimi anında
 // dynamic import edilir → sekmenin ilk açılış yükünden çıkarılır. Davranış/çıktı aynıdır.
 import { useConfirm } from "@/components/ui/ConfirmProvider";
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
 import { useToast } from "@/components/ui/ToastProvider";
+import { useClientsApiError } from "@/lib/danisan/clientApiErrors";
+import type { ApiErrorPayload } from "@/lib/i18n/apiError";
 import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
 import { reportUsageExport, reportUsageClientFailure } from "@/lib/usage/usageBeaconClient";
@@ -136,8 +139,8 @@ function valueClass(value: string): string {
   return "";
 }
 
-function formatDateTimeTR(value: string) {
-  return formatDateTimeAbsolute(value);
+function formatDateTimeTR(value: string, locale: ActiveLocale) {
+  return formatDateTimeAbsolute(value, locale);
 }
 
 
@@ -159,6 +162,8 @@ const PDF_EXPORT_ENABLED = false;
 // ─── Main component ───────────────────────────────────────────────────────────
 export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps) {
   const t = useTranslations("clients.analizler");
+  const displayLocale = resolveLocale(useLocale());
+  const apiErr = useClientsApiError();
   const [tenantId, setTenantId]     = useState<string | null>(null);
   const { confirm }                  = useConfirm();
   const deleteConfirm                = useDeleteConfirm();
@@ -203,7 +208,7 @@ export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps
     code && t.has(`analysisType.${code}`) ? t(`analysisType.${code}`) : t("analysisType.default");
   const activeTitleDisplay = analysisTypeDisplay(activeAnalysis);
 
-  const todayText = useMemo(() => formatDateAbsolute(new Date()), []);
+  const todayText = useMemo(() => formatDateAbsolute(new Date(), displayLocale), [displayLocale]);
 
   useEffect(() => { void getSyncedTenantId().then(setTenantId); }, []);
 
@@ -227,7 +232,7 @@ export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps
     const json = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string; analyses?: SavedAnalysis[] };
     if (!res.ok || !json.ok) {
       console.error("Analizler yüklenemedi:", json.error);
-      showToast({ title: t("toast.failTitle"), message: t("toast.loadFailed") + ": " + (json.error ?? ""), type: "error" });
+      showToast({ title: t("toast.failTitle"), message: apiErr.detail(t("toast.loadFailed"), json as ApiErrorPayload), type: "error" });
       setLoadingSaved(false);
       return;
     }
@@ -279,7 +284,7 @@ export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps
     });
     const json = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string; warnings?: string[] };
     if (!res.ok || !json.ok) {
-      showToast({ title: t("toast.failTitle"), message: t("toast.deleteFailed") + ": " + (json.error ?? ""), type: "error" });
+      showToast({ title: t("toast.failTitle"), message: apiErr.detail(t("toast.deleteFailed"), json as ApiErrorPayload), type: "error" });
       // D1 (DY-04): 404 = analiz artık yok → bayat satır listeden kalkar.
       if (res.status === 404) setSavedAnalyses((old) => old.filter((item) => item.id !== id));
       return;
@@ -399,7 +404,7 @@ export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps
         placed++;
       }
 
-      pdf.save(`${safeFileName(clientName || "danisan")}-${safeFileName(activeTitleDisplay)}.pdf`);
+      pdf.save(`${safeFileName(clientName || t("fileNameFallback"))}-${safeFileName(activeTitleDisplay)}.pdf`);
       showToast({ title: t("toast.successTitle"), message: t("toast.pdfDownloaded"), type: "success" });
       reportUsageExport("clients", "analysis");
     } catch (error) {
@@ -467,7 +472,7 @@ export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps
       return;
     }
     if (!res.ok || !json.ok) {
-      showToast({ title: t("toast.failTitle"), message: t("toast.saveFailed") + ": " + (json.error ?? ""), type: "error" });
+      showToast({ title: t("toast.failTitle"), message: apiErr.detail(t("toast.saveFailed"), json as ApiErrorPayload), type: "error" });
       return; // modal AÇIK kalır
     }
     // Güncellemede aynı id korunur; yeni kayıtta dönen id döner.
@@ -562,13 +567,13 @@ export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps
       });
       if (!res.ok) {
         const json = (await res.json().catch(() => ({}))) as { error?: string };
-        showToast({ title: t("toast.failTitle"), message: json.error || t("toast.wordFailed"), type: "error" });
+        showToast({ title: t("toast.failTitle"), message: apiErr.message(json as ApiErrorPayload, t("toast.wordFailed")), type: "error" });
         return;
       }
       const blob = await res.blob();
       const cd = res.headers.get("Content-Disposition") || "";
       const match = cd.match(/filename="?([^"]+)"?/);
-      const filename = match?.[1] || `${safeFileName(clientName || "danisan")}-${safeFileName(activeTitleDisplay)}.docx`;
+      const filename = match?.[1] || `${safeFileName(clientName || t("fileNameFallback"))}-${safeFileName(activeTitleDisplay)}.docx`;
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
@@ -643,7 +648,7 @@ export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps
               <div key={item.id} className="border border-slate-200 bg-gradient-to-br from-white to-slate-50 rounded-[14px] p-3 flex justify-between gap-3 items-center">
                 <div>
                   <div className="text-[14px] font-black text-slate-950">{analysisTypeDisplay(item.analysis_type)}</div>
-                  <div className="mt-[3px] text-[11px] font-bold text-slate-500">{formatDateTimeTR(item.created_at)}</div>
+                  <div className="mt-[3px] text-[11px] font-bold text-slate-500">{formatDateTimeTR(item.created_at, displayLocale)}</div>
                   {item.note && (
                     <div className="mt-1.5 text-[11px] text-slate-600 bg-slate-100 rounded-xl px-2 py-1.5">
                       {item.note.slice(0, 90)}{item.note.length > 90 ? "..." : ""}
@@ -688,7 +693,7 @@ export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps
                 <button
                   type="button"
                   onClick={closeModal}
-                  aria-label="Kapat"
+                  aria-label={t("modal.closeAria")}
                   className="no-pdf shrink-0 w-8 h-8 rounded-full border border-white/22 bg-white/14 text-white text-[22px] font-black cursor-pointer leading-none flex items-center justify-center hover:bg-white/25 transition-colors"
                 >
                   ×

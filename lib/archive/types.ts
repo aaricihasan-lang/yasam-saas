@@ -6,6 +6,8 @@
  * sahipliği, danışan süzgeci ve izinler yeniden doğrulanır.
  */
 
+import type { CodedMessage } from "@/lib/backup/types";
+
 export const ARCHIVE_PLAN_VERSION = 1;
 /** Danışan seçimi üst sınırı (PostgREST `in` filtresi + toplu Word kuralı ile aynı). */
 export const ARCHIVE_CLIENT_FILTER_MAX = 100;
@@ -38,18 +40,31 @@ export type ArchiveOptions = {
 
 export type ArchiveFileSource = "analysis_image" | "stone_photo" | "anamnez_pdf" | "archive_file";
 
-export type ArchiveJob =
-  | { kind: "data"; module: string; label: string; folder: string; expected: number }
-  | { kind: "client_dossier"; clientId: string; label: string; folder: string }
-  | { kind: "numerology_record"; clientId: string | null; recordId: string; label: string; folder: string }
-  | { kind: "hd_report"; reportId: string; label: string; folder: string }
-  | { kind: "hd_relation_report"; reportId: string; label: string; folder: string }
-  | { kind: "astro_report"; analysisId: string; label: string; folder: string }
-  | { kind: "file"; source: ArchiveFileSource; rowId: string; index: number; label: string; folder: string }
-  /** Kayda bağlı kullanıcı görselleri (depolama yolu veya gömülü data: URI) — satır başına, görsel görsel indirilir. */
-  | { kind: "media"; table: string; rowId: string; label: string; folder: string };
+/**
+ * I18N: `label` (Türkçe; ARŞİV-RAPORU.txt'ye ve klasör adlarına yazılır) AYNEN kalır. `display` yalnız ekran içindir:
+ * dil-bağımsız kod + parametre (kullanıcı içeriği — danışan adı, rapor başlığı, dosya adı — parametrede ham).
+ * Sunucu `display`'e güvenmez / okumaz (parseJob yalnız kimlik alanlarını alır).
+ */
+type JobDisplay = { display?: CodedMessage };
 
-export type ArchiveScopeNote = { scope: string; reason: string };
+export type ArchiveJob = JobDisplay &
+  (
+    | { kind: "data"; module: string; label: string; folder: string; expected: number }
+    | { kind: "client_dossier"; clientId: string; label: string; folder: string }
+    | { kind: "numerology_record"; clientId: string | null; recordId: string; label: string; folder: string }
+    | { kind: "hd_report"; reportId: string; label: string; folder: string }
+    | { kind: "hd_relation_report"; reportId: string; label: string; folder: string }
+    | { kind: "astro_report"; analysisId: string; label: string; folder: string }
+    | { kind: "file"; source: ArchiveFileSource; rowId: string; index: number; label: string; folder: string }
+    /** Kayda bağlı kullanıcı görselleri (depolama yolu veya gömülü data: URI) — satır başına, görsel görsel indirilir. */
+    | { kind: "media"; table: string; rowId: string; label: string; folder: string }
+  );
+
+/**
+ * Kapsam notu. `scope` / `reason` Türkçe metin AYNEN (BENİOKU.txt'ye yazılır). I18N: `scope_code` / `reason_code`
+ * dil-bağımsız EK alanlar — yalnız ekran için; arşiv dosyalarına yazılmaz.
+ */
+export type ArchiveScopeNote = { scope: string; reason: string; scope_code?: CodedMessage; reason_code?: CodedMessage };
 
 export type ArchivePlanResponse = {
   ok: true;
@@ -71,6 +86,13 @@ export type ArchivePlanResponse = {
   /** Kullanıcının seçimleriyle kapsam dışı kalanlar (eksiklik DEĞİL; arşiv durumunu etkilemez, açıklamalı gösterilir). */
   preferences?: ArchiveScopeNote[];
   warnings: string[];
+  /** I18N: `warnings` ile aynı sırada dil-bağımsız kodlar (EK alan; BENİOKU.txt Türkçe `warnings`'i yazar). */
+  warning_codes?: CodedMessage[];
+  /**
+   * I18N (A16): arşiv DOSYA dili — planda bir kez çözülür; istemci her parça isteğinde aynen geri gönderir. Sunucu
+   * yalnız etkin bir dil kabul eder (yayın kapısı kapalı / geçersiz → tr). Dil bir yetki değildir.
+   */
+  file_locale?: string;
 };
 
 /** Veri parçası durum belirteci (opak; sunucu doğrular) — t: tablo sırası · c: tablo içi imleç · n: bölüm no · i: bu tablodan önceki bölümlerde yazılan kayıt (numaralandırma). */

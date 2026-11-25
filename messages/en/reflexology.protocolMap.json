@@ -1,0 +1,92 @@
+{
+  "reflexology": {
+    "protocolMap": {
+      "eyebrow": "Reflexology · Protocol Record",
+      "titleNew": "Protocol Map",
+      "titleEdit": "Edit Protocol",
+      "hintEdit": "You are editing an existing protocol; it will be updated when you save.",
+      "hintNew": "Create a new protocol; use the Saved Protocols page for saved ones.",
+      "demoBanner": "Protocols you create are stored only on your device and appear on the Saved Protocols page. They are deleted when you sign out.",
+      "editLoading": "Loading the protocol to edit…",
+      "deletedElsewhere": "This protocol was <b>deleted</b> on another device. The change was not saved and the protocol was <b>not recreated</b>. If you want to save the content as a new protocol, use the button below.",
+      "notFound": "The protocol to edit was not found (it may have been deleted or belong to another account). For safety, a new record is <b>not created</b> automatically.",
+      "createNew": "Create new protocol",
+      "summaryHeading": "Protocol Summary",
+      "validation": {
+        "loading": "The protocol is loading, please wait.",
+        "editNotFound": "The protocol to edit was not found. A new record is NOT created automatically. If you want to create a new protocol, use «Create new protocol».",
+        "titleRequired": "The target / concern name is required.",
+        "organRequired": "Add at least one organ.",
+        "saveIncomplete": "The save could not be completed. Please try again."
+      },
+      "errors": {
+        "validation": "Could not save. Check the fields.",
+        "storage": "Device storage is full; could not save.",
+        "deleted": "This protocol was deleted on another device; the change was not saved and the protocol was not recreated. If needed, save it again with «Create new protocol».",
+        "conflict": "The protocol was changed on another device. Your changes are kept on this device; refresh the page and try again on the latest version.",
+        "network": "The protocol could not be saved to the server. Your changes are kept on this device; check your connection and save again."
+      },
+      "toast": {
+        "cloudSyncTitle": "Cloud sync",
+        "conflictTitle": "Concurrent change",
+        "saveFailedTitle": "Could not save",
+        "updatedTitle": "Protocol updated",
+        "updatedMsg": "«{title}» was updated.",
+        "savedTitle": "Protocol saved",
+        "savedMsg": "«{title}» was saved successfully."
+      },
+      "form": {
+        "title": "Protocol Record",
+        "subtitle": "Enter the target, organs and application notes",
+        "target": "Target / Concern Name",
+        "targetPlaceholder": "E.g. Digestive Concern",
+        "description": "Short Description",
+        "descriptionPlaceholder": "Purpose and scope of the protocol",
+        "addOrgan": "Add Organ",
+        "organPlaceholder": "Type or choose an organ name",
+        "add": "Add",
+        "organEmpty": "The organ name cannot be empty.",
+        "organExists": "\"{name}\" has already been added.",
+        "removeAria": "Remove {name}",
+        "noOrgans": "No organs added yet.",
+        "notes": "Application Notes",
+        "expand": "Expand",
+        "notesPlaceholder": "Click to open the large notes area…",
+        "saving": "Saving…",
+        "update": "Update",
+        "save": "Save",
+        "clear": "Clear"
+      },
+      "summary": {
+        "emptyTitle": "Protocol summary",
+        "emptyBody": "As you fill in the form, the target, organs and atlas match status appear here.",
+        "noDescription": "No description entered.",
+        "organs": "Organs",
+        "noOrgans": "No organs added.",
+        "atlasFound": "Atlas found ({count, plural, one {# zone} other {# zones}})",
+        "atlasMissing": "Atlas not found",
+        "atlasMissingHint": "No atlas zone is saved for this organ. Add one from the Zone Map first.",
+        "notes": "Application Notes",
+        "otherViewPart": "{count, plural, one {# zone} other {# zones}} in {view} view",
+        "otherViews": "This organ has no saved zones in {view} view. Available: {parts}."
+      },
+      "footMap": {
+        "handPreview": "Hand Map Preview",
+        "footPreview": "Foot Map Preview",
+        "missingOrgans": "Organs without an atlas: {organs}",
+        "missingLead": "No atlas zone is saved for this organ. First add an organ zone from the",
+        "zoneMap": "Zone Map",
+        "missingTail": ".",
+        "empty": "Add organs; saved atlas zones are shown here in colour."
+      },
+      "notesModal": {
+        "badge": "PROTOCOL NOTE",
+        "title": "Application Notes",
+        "subtitle": "Write the session length, pressure, frequency and application details.",
+        "close": "Close",
+        "save": "Save This Field",
+        "placeholder": "Write your application notes here..."
+      }
+    }
+  }
+}

@@ -1,0 +1,123 @@
+{
+  "reflexology": {
+    "savedAtlas": {
+      "title": "Kayıtlı Atlas",
+      "loadingBadge": "REFLEKSOLOJİ · KAYITLI ATLAS",
+      "subtitle": "Bölge Haritası'ndan kaydedilen organ koordinatları burada yönetilir.",
+      "demoBanner": "Atlas bölgeleri sadece cihazınızda saklanır. Oturumunuz boyunca görünür; çıkışta silinir. Gerçek uzman atlas verileri bu hesapta görünmez.",
+      "searchPlaceholder": "Organ adına göre ara…",
+      "imported": "{count} organ atlasınıza aktarıldı.",
+      "quarantineRemoved": "Sahibi belirsiz atlas verisi bu cihazdan kaldırıldı.",
+      "emptyTitle": "Henüz kayıtlı organ yok.",
+      "emptyBody": "Bölge Haritası'ndan organ ekleyip Kaydet ile atlas oluşturun.",
+      "goZoneMap": "Bölge Haritasına Git",
+      "noMatch": "Aramanızla eşleşen organ bulunamadı.",
+      "bulk": {
+        "aria": "Toplu işlemler",
+        "selectVisibleAria": "Görünen kayıtların tümünü seç",
+        "selectVisible": "Görünenleri seç",
+        "selected": "{count} seçili",
+        "hiddenSelected": " ({count} tanesi aramada gizli)",
+        "clear": "Seçimi temizle",
+        "wordSelected": "Seçilenleri Word",
+        "preparing": "Hazırlanıyor…",
+        "wordAll": "Tümünü Word ({count})",
+        "deleteSelected": "Seçilenleri Sil",
+        "deleteAll": "Tümünü Sil ({count})",
+        "moreRecords": "+{count} kayıt daha",
+        "usageNote": "⚠️ {count} organ protokollerde kullanılıyor: {list}. Silerseniz bu protokollerin haritasında bu organlar eşleşmeyecek (protokol metni korunur).",
+        "scopeNote": "Kapsam: bu hesaptaki tüm Kayıtlı Atlas organları (arama filtresinden bağımsız). \"Atlası Olmayan Organlar\" listesi bu işleme dahil değildir.",
+        "detail": "Silinecek kayıtlar:\n{list}",
+        "noun": "atlas kaydı",
+        "confirmMsg": "{count} atlas kaydı ve kayıtlı tüm bölgeleri kalıcı olarak silinecek. Bu işlem geri alınamaz.",
+        "confirmBtn": "Sil ({count})",
+        "quotaFailed": "{count} kayıt silinemedi (cihaz depolama alanı dolu). Hiçbir kayıt değişmedi; seçim korundu.",
+        "partialTitle": "Kısmi silme",
+        "partialMsg": "{deleted} kayıt silindi. {missing} kayıt bulunamadı (başka sekmede/cihazda silinmiş olabilir): {list}",
+        "deleted": "{count} atlas kaydı silindi.",
+        "organListTitle": "Organ listesi güncellenemedi",
+        "organListMsg": "Silinen organlar \"Atlası Olmayan Organlar\" bölümünde görünebilir; oradan kaldırabilirsiniz."
+      },
+      "single": {
+        "usageNote": "⚠️ Bu organ {count} protokolde kullanılıyor{titles}. Silerseniz bu protokollerin haritasında bu organ eşleşmeyecek (protokol metni korunur).",
+        "confirmMsg": "Bu organ ve kayıtlı tüm atlas bölgeleri silinsin mi? Bu işlem geri alınamaz.",
+        "orphanMsg": "\"{organ}\" atlas kaydı olmayan (bölgesiz) bir organ. Organ listesinden kalıcı olarak silinsin mi?",
+        "quotaFailed": "Organ silinemedi (cihaz depolama alanı dolu)."
+      },
+      "word": {
+        "sessionTitle": "Oturum",
+        "sessionMsg": "Oturum doğrulanamadı. Lütfen yeniden giriş yapın.",
+        "failed": "Atlas raporu oluşturulamadı.",
+        "downloadedTitle": "Atlas raporu indirildi",
+        "syncWarn": "Son değişiklikler sunucuya gönderilemedi; rapor sunucudaki son kayıtla oluşturuldu.",
+        "downloaded": "Atlas raporu indirildi."
+      },
+      "orphans": {
+        "title": "Atlası Olmayan Organlar",
+        "body": "Organ listesinde görünen ama kayıtlı atlas bölgesi olmayan organlar. Eski/test kaydıysa silebilirsiniz; bilinçli oluşturduysanız bırakabilirsiniz. Silme kalıcıdır ve başka cihazdan geri gelmez.",
+        "deleteAria": "{organ} organını sil"
+      },
+      "card": {
+        "selectAria": "{name} kaydını seç",
+        "regionCount": "{count} bölge",
+        "view": "Görünüm",
+        "foot": "Ayak",
+        "hand": "El",
+        "updated": "Son güncelleme",
+        "open": "Görüntüle",
+        "edit": "Düzenle"
+      },
+      "labels": {
+        "bothFeet": "Her iki ayak",
+        "leftFoot": "Sol ayak",
+        "rightFoot": "Sağ ayak",
+        "bothHands": "Her iki el",
+        "leftHand": "Sol el",
+        "rightHand": "Sağ el",
+        "viewTaban": "Taban",
+        "viewYan": "Yan",
+        "viewEl": "El",
+        "handPalm": "Avuç İçi",
+        "handBack": "El Sırtı",
+        "shapes": {
+          "oval": "Oval",
+          "rect": "Kare",
+          "free_draw": "Manuel",
+          "thick_line": "Çizgi",
+          "point": "Nokta"
+        },
+        "coordLine": "x1:{x1} y1:{y1} → x2:{x2} y2:{y2}",
+        "coordFree": "{count} nokta · ilk ({x}, {y})",
+        "coordCenter": "merkez ({cx}, {cy}) · rx:{rx} ry:{ry}",
+        "coordNone": "Koordinat özeti yok"
+      },
+      "edit": {
+        "deleteRegionMsg": "Bu bölge silinsin mi? Bu işlem geri alınamaz.",
+        "deleteRegionConfirm": "Bölgeyi Sil",
+        "title": "Atlas Düzenle",
+        "subtitle": "Organ adını güncelleyin veya kayıtlı bölgeleri silin. Koordinat düzenleme Bölge Haritası'nda yapılır.",
+        "organName": "Organ Adı",
+        "noZonesLeft": "Bu organın kayıtlı bölgesi kalmadı.",
+        "savedZones": "Kayıtlı Bölgeler",
+        "saveFailed": "Kaydedilemedi.",
+        "noZonesLead": "Kayıtlı bölge yok. Yeni bölge eklemek için",
+        "zoneMap": "Bölge Haritası",
+        "noZonesTail": "'nı kullanın.",
+        "deleteZone": "Bölge Sil",
+        "goZoneMap": "Bölge Haritasına Git",
+        "saveName": "Organ Adını Kaydet"
+      },
+      "viewModal": {
+        "title": "Atlas Görüntüle",
+        "meta": "{count} kayıtlı bölge · salt okunur önizleme",
+        "noZones": "Bu görünümde kayıtlı bölge yok."
+      },
+      "rename": {
+        "protocolTitle": "Protokol güncellemesi",
+        "protocolFailed": "Bağlı protokoller güncellenemedi. Tekrar deneyin.",
+        "protocolsUpdatedTitle": "Protokoller güncellendi",
+        "protocolsUpdated": "{count} protokolde organ adı güncellendi."
+      }
+    }
+  }
+}

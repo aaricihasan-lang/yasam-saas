@@ -1,3 +1,4 @@
+import { hdApiText } from "../_lib/hdApiText";
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 
@@ -20,7 +21,7 @@ export async function POST(req: NextRequest): Promise<Response> {
     {
       ok: false,
       code: "MANUAL_IMAGE_CLOSED",
-      error: "Yeni manuel Human Design harita görseli yükleme artık kullanılmıyor. Human Design Hesaplama bölümünden otomatik hesaplama yapın.",
+      error: hdApiText(req, "manualImageUploadClosed"),
     },
     { status: 410, headers: NO_STORE },
   );

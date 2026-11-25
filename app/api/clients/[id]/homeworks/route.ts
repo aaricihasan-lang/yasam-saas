@@ -3,7 +3,7 @@ import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { serverErrorResponse } from "@/lib/http/apiError";
 import { trackUsage } from "@/lib/usage/trackUsage";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { mergeHomeworkDates, validateHomeworkDates } from "@/lib/danisan/homeworkDates";
+import { HOMEWORK_END_BEFORE_START, mergeHomeworkDates, validateHomeworkDates } from "@/lib/danisan/homeworkDates";
 import { demoReadOnlyResponse } from "@/lib/auth/demoReadOnly";
 import { casResponses, casUpdate, readRowVersion } from "@/lib/danisan/rowVersion";
 
@@ -38,6 +38,11 @@ const ALLOWED_FIELDS = [
 
 const HOMEWORK_TITLE_REQUIRED = "Ödev başlığı zorunludur.";
 
+/** I18N-F1-R3: tarih doğrulama metnine karşılık gelen dil-bağımsız kod (Türkçe `error` aynen kalır). */
+function homeworkDateCode(err: string): string {
+  return err === HOMEWORK_END_BEFORE_START ? "HOMEWORK_END_BEFORE_START" : "HOMEWORK_INVALID_DATE";
+}
+
 function pickAllowed(input: Record<string, unknown> | null | undefined): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   if (!input) return out;
@@ -71,13 +76,13 @@ export async function GET(
 
   const { id: clientId } = await params;
   if (!clientId) {
-    return NextResponse.json({ ok: false, error: "client_id gerekli." }, { status: 400 });
+    return NextResponse.json({ ok: false, code: "CLIENT_ID_REQUIRED", error: "client_id gerekli." }, { status: 400 });
   }
 
   const { db, tenantId } = guard;
 
   if (!(await clientBelongsToTenant(db, clientId, tenantId))) {
-    return NextResponse.json({ ok: false, error: "Danışan bu hesaba ait değil." }, { status: 403 });
+    return NextResponse.json({ ok: false, code: "CLIENT_NOT_OWNED", error: "Danışan bu hesaba ait değil." }, { status: 403 });
   }
 
   const { data, error } = await db
@@ -105,7 +110,7 @@ export async function POST(
 
   const { id: clientId } = await params;
   if (!clientId) {
-    return NextResponse.json({ ok: false, error: "client_id gerekli." }, { status: 400 });
+    return NextResponse.json({ ok: false, code: "CLIENT_ID_REQUIRED", error: "client_id gerekli." }, { status: 400 });
   }
 
   const { db, tenantId, is_demo_account } = guard;
@@ -113,25 +118,25 @@ export async function POST(
   if (is_demo_account) return demoReadOnlyResponse();
 
   if (!(await clientBelongsToTenant(db, clientId, tenantId))) {
-    return NextResponse.json({ ok: false, error: "Danışan bu hesaba ait değil." }, { status: 403 });
+    return NextResponse.json({ ok: false, code: "CLIENT_NOT_OWNED", error: "Danışan bu hesaba ait değil." }, { status: 403 });
   }
 
   let body: Record<string, unknown>;
   try {
     body = (await req.json()) as Record<string, unknown>;
   } catch {
-    return NextResponse.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 });
+    return NextResponse.json({ ok: false, code: "INVALID_BODY", error: "Geçersiz istek gövdesi." }, { status: 400 });
   }
 
   const insertFields = pickAllowed(body);
   // M3-B (2026-11-04): başlıksız ödev kaydı engellenir — başlık zorunlu.
   if (typeof insertFields.title !== "string" || insertFields.title.trim().length === 0) {
-    return NextResponse.json({ ok: false, error: HOMEWORK_TITLE_REQUIRED }, { status: 400 });
+    return NextResponse.json({ ok: false, code: "HOMEWORK_TITLE_REQUIRED", error: HOMEWORK_TITLE_REQUIRED }, { status: 400 });
   }
   // DY-A: bitiş < başlangıç (veya bozuk tarih) → 400.
   const dateErr = validateHomeworkDates(insertFields);
   if (dateErr) {
-    return NextResponse.json({ ok: false, error: dateErr }, { status: 400 });
+    return NextResponse.json({ ok: false, code: homeworkDateCode(dateErr), error: dateErr }, { status: 400 });
   }
 
   const { data, error } = await db
@@ -166,7 +171,7 @@ export async function PATCH(
 
   const { id: clientId } = await params;
   if (!clientId) {
-    return NextResponse.json({ ok: false, error: "client_id gerekli." }, { status: 400 });
+    return NextResponse.json({ ok: false, code: "CLIENT_ID_REQUIRED", error: "client_id gerekli." }, { status: 400 });
   }
 
   const { db, tenantId, is_demo_account } = guard;
@@ -177,25 +182,25 @@ export async function PATCH(
   try {
     body = (await req.json()) as { homeworkId?: unknown; patch?: Record<string, unknown>; row_version?: unknown };
   } catch {
-    return NextResponse.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 });
+    return NextResponse.json({ ok: false, code: "INVALID_BODY", error: "Geçersiz istek gövdesi." }, { status: 400 });
   }
 
   const homeworkId = typeof body.homeworkId === "string" ? body.homeworkId.trim() : "";
   if (!homeworkId) {
-    return NextResponse.json({ ok: false, error: "homeworkId gerekli." }, { status: 400 });
+    return NextResponse.json({ ok: false, code: "HOMEWORK_ID_REQUIRED", error: "homeworkId gerekli." }, { status: 400 });
   }
 
   const patch = pickAllowed(body.patch);
   if (Object.keys(patch).length === 0) {
-    return NextResponse.json({ ok: false, error: "Güncellenecek alan yok." }, { status: 400 });
+    return NextResponse.json({ ok: false, code: "NO_FIELDS", error: "Güncellenecek alan yok." }, { status: 400 });
   }
   // M3-B: başlık gönderiliyorsa boş olamaz (yalnız durum/tarih güncellemesi etkilenmez).
   if ("title" in patch && (typeof patch.title !== "string" || patch.title.trim().length === 0)) {
-    return NextResponse.json({ ok: false, error: HOMEWORK_TITLE_REQUIRED }, { status: 400 });
+    return NextResponse.json({ ok: false, code: "HOMEWORK_TITLE_REQUIRED", error: HOMEWORK_TITLE_REQUIRED }, { status: 400 });
   }
 
   if (!(await clientBelongsToTenant(db, clientId, tenantId))) {
-    return NextResponse.json({ ok: false, error: "Danışan bu hesaba ait değil." }, { status: 403 });
+    return NextResponse.json({ ok: false, code: "CLIENT_NOT_OWNED", error: "Danışan bu hesaba ait değil." }, { status: 403 });
   }
 
   // DY-A: tarih alanlarından biri değişiyorsa KAYITLI satırla birleştirip doğrula
@@ -212,13 +217,13 @@ export async function PATCH(
       return serverErrorResponse({ route: "clients/[id]/homeworks", action: "PATCH-read", tenantId, cause: readErr });
     }
     if (!existing) {
-      return NextResponse.json({ ok: false, error: "Ödev bulunamadı." }, { status: 404 });
+      return NextResponse.json({ ok: false, code: "HOMEWORK_NOT_FOUND", error: "Ödev bulunamadı." }, { status: 404 });
     }
     const dateErr = validateHomeworkDates(
       mergeHomeworkDates(existing as { start_date?: string | null; end_date?: string | null }, patch),
     );
     if (dateErr) {
-      return NextResponse.json({ ok: false, error: dateErr }, { status: 400 });
+      return NextResponse.json({ ok: false, code: homeworkDateCode(dateErr), error: dateErr }, { status: 400 });
     }
   }
 
@@ -243,7 +248,7 @@ export async function PATCH(
     return NextResponse.json(r.body, { status: r.status });
   }
   if (cas.kind === "not_found") {
-    return NextResponse.json({ ok: false, error: "Ödev bulunamadı." }, { status: 404 });
+    return NextResponse.json({ ok: false, code: "HOMEWORK_NOT_FOUND", error: "Ödev bulunamadı." }, { status: 404 });
   }
   if (cas.kind === "conflict") {
     await trackUsage(guard, req, { module: "clients", action: "action_failed", failedAction: "record_updated", subEntity: "homework", errorClass: "conflict" });
@@ -267,7 +272,7 @@ export async function DELETE(
 
   const { id: clientId } = await params;
   if (!clientId) {
-    return NextResponse.json({ ok: false, error: "client_id gerekli." }, { status: 400 });
+    return NextResponse.json({ ok: false, code: "CLIENT_ID_REQUIRED", error: "client_id gerekli." }, { status: 400 });
   }
 
   const { db, tenantId, is_demo_account } = guard;
@@ -282,11 +287,11 @@ export async function DELETE(
     /* aşağıda boş kontrolü yakalar */
   }
   if (!homeworkId) {
-    return NextResponse.json({ ok: false, error: "homeworkId gerekli." }, { status: 400 });
+    return NextResponse.json({ ok: false, code: "HOMEWORK_ID_REQUIRED", error: "homeworkId gerekli." }, { status: 400 });
   }
 
   if (!(await clientBelongsToTenant(db, clientId, tenantId))) {
-    return NextResponse.json({ ok: false, error: "Danışan bu hesaba ait değil." }, { status: 403 });
+    return NextResponse.json({ ok: false, code: "CLIENT_NOT_OWNED", error: "Danışan bu hesaba ait değil." }, { status: 403 });
   }
 
   const { data: deleted, error } = await db
@@ -309,7 +314,7 @@ export async function DELETE(
 
   // D1 (DY-04): 0 satır → 404 (eskiden ok:true).
   if ((deleted?.length ?? 0) === 0) {
-    return NextResponse.json({ ok: false, error: "Ödev bulunamadı." }, { status: 404 });
+    return NextResponse.json({ ok: false, code: "HOMEWORK_NOT_FOUND", error: "Ödev bulunamadı." }, { status: 404 });
   }
 
   await trackUsage(guard, req, { module: "clients", action: "record_deleted", subEntity: "homework", resourceId: homeworkId });

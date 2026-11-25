@@ -21,6 +21,30 @@ import type { DignitySchoolId } from "@/lib/astrology/dignities/schools";
 import { TRANSIT_SCAN_ASPECTS, TRANSIT_SCAN_BODIES, TRANSIT_SCAN_ORB_DEFAULT, TRANSIT_SCAN_POINTS, transitScanRangeIssue, type TransitScanAspect, type TransitScanBody, type TransitScanPoint } from "@/lib/astrology/model/westernTransitScan";
 // 2026-10-22 — Vedik aylık zamanlama (ayrı satır: paralel teknik eklemeleriyle birleştirme çakışması olmasın).
 import { VEDIC_MONTHLY_DEFAULT_SECTIONS, vedicMonthlySectionsOf, vedicMonthOk, type VedicMonthlySection } from "@/lib/astrology/model/vedicMonthly";
+// I18N-F1-R5 (ATLAS-B): teknik adları / ipuçları / seçenek özetleri / eksik alan nedenleri katalogdan (atlas.techniques).
+import trTechniques from "@/messages/tr/atlas.techniques.json";
+
+/**
+ * I18N-F1-R5 (ATLAS-B) — metin kaynağı. Kanonik kimlikler (teknik id, seçenek kodları) DEĞİŞMEZ; yalnız gösterim metni.
+ * Varsayılan = kaynak dil (tr) katalogdan düz `{ad}` biçimleyici: Word/PDF (report/model.ts), sunucu planı ve eski çağıranlar
+ * BAYT-BAYT eski metni alır. Ekran `useTranslations("atlas.techniques")` çevirmenini geçirir (EN dahil).
+ */
+export type TechText = (key: string, values?: Record<string, string | number>) => string;
+type TechTree = { [k: string]: string | TechTree };
+const TR_TECH_TREE = (trTechniques as unknown as { atlas: { techniques: TechTree } }).atlas.techniques;
+export const TECH_TEXT_TR: TechText = (key, values) => {
+  let node: string | TechTree | undefined = TR_TECH_TREE;
+  for (const part of key.split(".")) node = typeof node === "object" ? node[part] : undefined;
+  if (typeof node !== "string") throw new Error(`atlas.techniques: anahtar yok: ${key}`);
+  return values ? node.replace(/\{(\w+)\}/g, (m, k: string) => (k in values ? String(values[k]) : m)) : node;
+};
+/** Katalog anahtarı var mı (bilinmeyen kod → ham değer gösterilir; eski davranış). */
+const hasTech = (key: string): boolean => {
+  let node: string | TechTree | undefined = TR_TECH_TREE;
+  for (const part of key.split(".")) node = typeof node === "object" ? node[part] : undefined;
+  return typeof node === "string";
+};
+const metaKey = (id: string) => `meta.${id}`;
 
 export const UI_TECHNIQUES = [
   "western.natal",
@@ -78,93 +102,93 @@ export const UI_TECHNIQUES = [
 export type UiTechniqueId = (typeof UI_TECHNIQUES)[number];
 
 export const TECHNIQUE_META: Record<UiTechniqueId, { label: string; hint: string; needsPartner: boolean; needsTime: boolean }> = {
-  "western.natal": { label: "Natal", hint: "Doğum haritası", needsPartner: false, needsTime: false },
-  "western.transit": { label: "Transit (tek an)", hint: "Seçilen andaki gökyüzü → natal açılar", needsPartner: false, needsTime: false },
-  "western.forecast": { label: "Transit takvimi", hint: "Dönem boyunca açı, burç girişi, istasyon, tutulma, Ay evresi", needsPartner: false, needsTime: false },
-  "western.progression": { label: "Secondary progression", hint: "Gün = yıl ilerletilmiş harita", needsPartner: false, needsTime: false },
-  "western.solar_arc": { label: "Solar arc", hint: "Tüm noktalar ilerletilmiş Güneş yayı kadar", needsPartner: false, needsTime: false },
-  "western.solar_return": { label: "Solar return", hint: "Güneş'in natal konumuna dönüş haritası (doğum yeri)", needsPartner: false, needsTime: true },
-  "western.lunar_return": { label: "Lunar return", hint: "Ay'ın natal konumuna dönüş haritası (doğum yeri)", needsPartner: false, needsTime: true },
-  "western.synastry": { label: "Sinastri", hint: "İki kişinin haritaları arası açılar + ev bindirmesi", needsPartner: true, needsTime: false },
-  "western.composite": { label: "Composite", hint: "İki haritanın orta nokta haritası", needsPartner: true, needsTime: false },
-  "western.astrocartography": { label: "Astrocartography", hint: "Gezegen MC/IC/AC/DC hatları — dünya haritası", needsPartner: false, needsTime: true },
-  "western.relocation": { label: "Relocation", hint: "Aynı doğum anı, yeni konum: ASC/MC/evler", needsPartner: false, needsTime: true },
-  "western.local_space": { label: "Local Space", hint: "Doğum anında ufuk yönleri (pusula + harita)", needsPartner: false, needsTime: true },
-  "western.fixed_stars": { label: "Sabit yıldızlar", hint: "43 sabit yıldızın doğum anındaki konumu + natal noktalarla ekliptik boylam kavuşumları", needsPartner: false, needsTime: false },
-  "western.profections": { label: "Yıllık Profeksiyonlar", hint: "Yükselen burçtan her yaş için bir burç (bütün-burç evleri): yılın etkin evi, burcu ve klasik yönetici gezegeni", needsPartner: false, needsTime: true },
-  "western.extra_points": { label: "Ek noktalar", hint: "İsteğe bağlı bölümler: asteroitler (Ceres, Pallas, Juno, Vesta), yedi Hermetik lot, Kara Ay Lilith ortalama + gerçek", needsPartner: false, needsTime: false },
-  "western.planetary_return": { label: "Gezegen dönüşleri", hint: "Satürn, Jüpiter, Mars, Venüs veya Merkür'ün natal boylamına döndüğü anın haritası; retro döngüsünde kavuşum seçilir", needsPartner: false, needsTime: true },
-  "western.transit_scan": { label: "Transit Taraması", hint: "Seçilen tarih aralığında transit gezegenlerin natal noktalara açılarını tarar: orb giriş/çıkış, tam an(lar), istasyon ve burç girişleri", needsPartner: false, needsTime: false },
-  "western.classical_dignities": { label: "Klasik Asalet ve Almuten", hint: "Esas ve arızi asalet puanları, kabuller, ev başı almutenleri, harita almuteni; varsayılan ekol William Lilly (1647)", needsPartner: false, needsTime: true },
-  "western.declination_parallels": { label: "Deklinasyon paralelleri", hint: "Seçilen ayda iki gök cismi arasındaki paralel (aynı deklinasyon) ve kontraparalel (zıt deklinasyon) temasların kesinleşme anları — gökyüzü takvimi; doğum verisi kullanılmaz", needsPartner: false, needsTime: false },
-  "vedic.d1": { label: "Vedik D1 (Rashi)", hint: "Sidereal kundli: Lagna, graha, nakshatra/pada, yogalar", needsPartner: false, needsTime: true },
-  "vedic.drishti": { label: "Graha Drishti", hint: "Parashari bütün-burç graha drishti — yalnız Lahiri", needsPartner: false, needsTime: true },
-  "vedic.ashtakavarga": { label: "Ashtakavarga", hint: "Bhinna/Sarva bindu ızgarası, Shodhana, Shodhya Pinda", needsPartner: false, needsTime: true },
-  "vedic.shadbala": { label: "Shadbala", hint: "Altı katlı graha gücü (BPHS), oran ve sıralama", needsPartner: false, needsTime: true },
-  "vedic.panchanga": { label: "Janma Panchanga", hint: "Doğum anı tithi, nakshatra, nitya yoga, karana; isteğe bağlı ayrıntılı gün (vara, gün doğumu, Rahu Kaal…) ve gezegen saatleri (hora) + Choghadiya — yalnız Lahiri", needsPartner: false, needsTime: true },
-  "vedic.transit": { label: "Gochara (Vedik transit)", hint: "Seçilen anın sidereal grahaları → Janma Rashi'den / Lagna'dan ev, bütün-burç drishti, kaksha — yalnız Lahiri", needsPartner: false, needsTime: true },
-  "vedic.bhav_chalit": { label: "Bhav Chalit", hint: "Bhava (Sripati) ev başlangıçları, madhya ve sandhi; grahaların chalit bhavası ile D1 rashi evi karşılaştırması", needsPartner: false, needsTime: true },
-  "vedic.chara_karaka": { label: "Chara Karakalar", hint: "Jaimini: Atmakaraka … Darakaraka; derece sıralaması; 8'li (Rahu dahil) veya 7'li şema", needsPartner: false, needsTime: true },
-  "vedic.arudha": { label: "Arudha Padalar", hint: "Jaimini: Arudha Lagna (AL), A2…A11, Upapada (UL); lord, sayım ve 1./7. ev istisnası", needsPartner: false, needsTime: true },
-  "vedic.bhava_bala": { label: "Bhava Bala", hint: "12 evin gücü: Bhavadhipati, Dig ve Drishti Bala; toplam ve sıralama (gezegen gücü Shadbala'dan ayrı)", needsPartner: false, needsTime: true },
-  "kp.chart": { label: "KP doğum haritası", hint: "Placidus cusp'ları, sign / star / sub / sub-sub lord, 4 düzey significator (KP-Newcomb)", needsPartner: false, needsTime: true },
-  "kp.dasha": { label: "KP dasha", hint: "Vimshottari (KP ayanamsa) + dönem lordlarının KP significator'ları; alt dönemler tıklayınca", needsPartner: false, needsTime: true },
-  "kp.ruling": { label: "KP ruling planets", hint: "Seçilen anın ruling planet'leri + natal significator'ları", needsPartner: false, needsTime: true },
-  "kp.transit": { label: "KP transit", hint: "Tek an KP gökyüzü veya zaman aralığında Sub-Lord / Rasi geçişleri; natal ev analizi yok", needsPartner: false, needsTime: false },
-  "kp.horary": { label: "KP horary (1–249)", hint: "Sayı + soru anı + değerlendirme yeri; doğum verisi kullanılmaz", needsPartner: false, needsTime: false },
-  "kp.ruling_interval": { label: "KP ruling planets zaman taraması", hint: "Seçilen aralıkta adım adım ruling planet'ler, Lagna/Ay lord zinciri ve o anın haritasından significator'lar; doğum verisi kullanılmaz", needsPartner: false, needsTime: false },
-  "vedic.dasha": { label: "Vimshottari Dasha", hint: "Mahadasha zaman çizelgesi; alt dönemler Prana düzeyine kadar tıklayınca yüklenir; güncel dönem zinciri isteğe bağlı", needsPartner: false, needsTime: true },
-  "vedic.varga": { label: "Vedik Varga (D9 Navamsa / Dn)", hint: "Bölümsel harita: D9 varsayılan; D2…D60 seçilebilir; vargottama", needsPartner: false, needsTime: true },
-  "vedic.gun_milan": { label: "Gun Milan (Ashtakoot)", hint: "İki kişinin Ay nakshatra / burcuna göre 8 koota puanı (36 üzerinden), Nadi / Bhakoot dosha ve klasik iptal, iki kişi Manglik — teknik değerlendirme", needsPartner: true, needsTime: true },
-  "vedic.monthly": { label: "Vedik aylık zamanlama", hint: "Seçilen ayın sidereal (Lahiri) gökyüzü takvimi: gezegen burç girişleri, gezegenler arası ve Ay ile astronomik açı kesinleşmeleri, deklinasyon paralelleri; isteğe bağlı doğum anı deklinasyonları. Graha drishti değildir", needsPartner: false, needsTime: false },
-  "vedic.sade_sati": { label: "Sade Sati", hint: "Satürn'ün Janma Rashi'den 12. / 1. / 2. ev gocharası: yalnız değerlendirme günündeki durum ve evre (dönem başlangıç / bitiş tarihleri bu sürümde yok)", needsPartner: false, needsTime: true },
-  "vedic.dashakoot": { label: "On Porutham (Dashakoot)", hint: "Güney Hint eşleştirme: 10 porutham kriteri (karşılandı / karşılanmadı), 10 üzerinden toplam, Rajju ve Vedha kesin kısıtları; Gun Milan'dan ayrı sistem — teknik değerlendirme", needsPartner: true, needsTime: true },
-  "vedic.papasamyam": { label: "Papasamyam", hint: "İki haritada Mars, Satürn, Güneş ve Rahu'nun Lagna / Ay / Venüs'ten 1-2-4-7-8-12. evlerdeki malefik katkıları, ağırlıklı toplamlar ve karşılaştırma — teknik değerlendirme", needsPartner: true, needsTime: true },
-  "vedic.upagraha": { label: "Upagrahalar", hint: "11 hesaplanan duyarlı nokta: zaman tabanlı (Gulika, Mandi, Kala, Mrityu, Ardhaprahara, Yamaghantaka) ve Güneş türevli (Dhuma, Vyatipata, Parivesha, Indra Chapa, Upaketu); burç, derece, nakshatra, pada", needsPartner: false, needsTime: true },
-  "vedic.heliacal": { label: "Graha Asta / Udaya", hint: "Seçilen gün ve gözlem yerinde altı görünür grahanın Güneş parıltısından kurtulup kurtulmadığı (kalamsa), son ve sonraki heliakal doğuş / batış; doğum saati gerekmez", needsPartner: false, needsTime: false },
+  "western.natal": { label: TECH_TEXT_TR("meta.western.natal.label"), hint: TECH_TEXT_TR("meta.western.natal.hint"), needsPartner: false, needsTime: false },
+  "western.transit": { label: TECH_TEXT_TR("meta.western.transit.label"), hint: TECH_TEXT_TR("meta.western.transit.hint"), needsPartner: false, needsTime: false },
+  "western.forecast": { label: TECH_TEXT_TR("meta.western.forecast.label"), hint: TECH_TEXT_TR("meta.western.forecast.hint"), needsPartner: false, needsTime: false },
+  "western.progression": { label: TECH_TEXT_TR("meta.western.progression.label"), hint: TECH_TEXT_TR("meta.western.progression.hint"), needsPartner: false, needsTime: false },
+  "western.solar_arc": { label: TECH_TEXT_TR("meta.western.solar_arc.label"), hint: TECH_TEXT_TR("meta.western.solar_arc.hint"), needsPartner: false, needsTime: false },
+  "western.solar_return": { label: TECH_TEXT_TR("meta.western.solar_return.label"), hint: TECH_TEXT_TR("meta.western.solar_return.hint"), needsPartner: false, needsTime: true },
+  "western.lunar_return": { label: TECH_TEXT_TR("meta.western.lunar_return.label"), hint: TECH_TEXT_TR("meta.western.lunar_return.hint"), needsPartner: false, needsTime: true },
+  "western.synastry": { label: TECH_TEXT_TR("meta.western.synastry.label"), hint: TECH_TEXT_TR("meta.western.synastry.hint"), needsPartner: true, needsTime: false },
+  "western.composite": { label: TECH_TEXT_TR("meta.western.composite.label"), hint: TECH_TEXT_TR("meta.western.composite.hint"), needsPartner: true, needsTime: false },
+  "western.astrocartography": { label: TECH_TEXT_TR("meta.western.astrocartography.label"), hint: TECH_TEXT_TR("meta.western.astrocartography.hint"), needsPartner: false, needsTime: true },
+  "western.relocation": { label: TECH_TEXT_TR("meta.western.relocation.label"), hint: TECH_TEXT_TR("meta.western.relocation.hint"), needsPartner: false, needsTime: true },
+  "western.local_space": { label: TECH_TEXT_TR("meta.western.local_space.label"), hint: TECH_TEXT_TR("meta.western.local_space.hint"), needsPartner: false, needsTime: true },
+  "western.fixed_stars": { label: TECH_TEXT_TR("meta.western.fixed_stars.label"), hint: TECH_TEXT_TR("meta.western.fixed_stars.hint"), needsPartner: false, needsTime: false },
+  "western.profections": { label: TECH_TEXT_TR("meta.western.profections.label"), hint: TECH_TEXT_TR("meta.western.profections.hint"), needsPartner: false, needsTime: true },
+  "western.extra_points": { label: TECH_TEXT_TR("meta.western.extra_points.label"), hint: TECH_TEXT_TR("meta.western.extra_points.hint"), needsPartner: false, needsTime: false },
+  "western.planetary_return": { label: TECH_TEXT_TR("meta.western.planetary_return.label"), hint: TECH_TEXT_TR("meta.western.planetary_return.hint"), needsPartner: false, needsTime: true },
+  "western.transit_scan": { label: TECH_TEXT_TR("meta.western.transit_scan.label"), hint: TECH_TEXT_TR("meta.western.transit_scan.hint"), needsPartner: false, needsTime: false },
+  "western.classical_dignities": { label: TECH_TEXT_TR("meta.western.classical_dignities.label"), hint: TECH_TEXT_TR("meta.western.classical_dignities.hint"), needsPartner: false, needsTime: true },
+  "western.declination_parallels": { label: TECH_TEXT_TR("meta.western.declination_parallels.label"), hint: TECH_TEXT_TR("meta.western.declination_parallels.hint"), needsPartner: false, needsTime: false },
+  "vedic.d1": { label: TECH_TEXT_TR("meta.vedic.d1.label"), hint: TECH_TEXT_TR("meta.vedic.d1.hint"), needsPartner: false, needsTime: true },
+  "vedic.drishti": { label: TECH_TEXT_TR("meta.vedic.drishti.label"), hint: TECH_TEXT_TR("meta.vedic.drishti.hint"), needsPartner: false, needsTime: true },
+  "vedic.ashtakavarga": { label: TECH_TEXT_TR("meta.vedic.ashtakavarga.label"), hint: TECH_TEXT_TR("meta.vedic.ashtakavarga.hint"), needsPartner: false, needsTime: true },
+  "vedic.shadbala": { label: TECH_TEXT_TR("meta.vedic.shadbala.label"), hint: TECH_TEXT_TR("meta.vedic.shadbala.hint"), needsPartner: false, needsTime: true },
+  "vedic.panchanga": { label: TECH_TEXT_TR("meta.vedic.panchanga.label"), hint: TECH_TEXT_TR("meta.vedic.panchanga.hint"), needsPartner: false, needsTime: true },
+  "vedic.transit": { label: TECH_TEXT_TR("meta.vedic.transit.label"), hint: TECH_TEXT_TR("meta.vedic.transit.hint"), needsPartner: false, needsTime: true },
+  "vedic.bhav_chalit": { label: TECH_TEXT_TR("meta.vedic.bhav_chalit.label"), hint: TECH_TEXT_TR("meta.vedic.bhav_chalit.hint"), needsPartner: false, needsTime: true },
+  "vedic.chara_karaka": { label: TECH_TEXT_TR("meta.vedic.chara_karaka.label"), hint: TECH_TEXT_TR("meta.vedic.chara_karaka.hint"), needsPartner: false, needsTime: true },
+  "vedic.arudha": { label: TECH_TEXT_TR("meta.vedic.arudha.label"), hint: TECH_TEXT_TR("meta.vedic.arudha.hint"), needsPartner: false, needsTime: true },
+  "vedic.bhava_bala": { label: TECH_TEXT_TR("meta.vedic.bhava_bala.label"), hint: TECH_TEXT_TR("meta.vedic.bhava_bala.hint"), needsPartner: false, needsTime: true },
+  "kp.chart": { label: TECH_TEXT_TR("meta.kp.chart.label"), hint: TECH_TEXT_TR("meta.kp.chart.hint"), needsPartner: false, needsTime: true },
+  "kp.dasha": { label: TECH_TEXT_TR("meta.kp.dasha.label"), hint: TECH_TEXT_TR("meta.kp.dasha.hint"), needsPartner: false, needsTime: true },
+  "kp.ruling": { label: TECH_TEXT_TR("meta.kp.ruling.label"), hint: TECH_TEXT_TR("meta.kp.ruling.hint"), needsPartner: false, needsTime: true },
+  "kp.transit": { label: TECH_TEXT_TR("meta.kp.transit.label"), hint: TECH_TEXT_TR("meta.kp.transit.hint"), needsPartner: false, needsTime: false },
+  "kp.horary": { label: TECH_TEXT_TR("meta.kp.horary.label"), hint: TECH_TEXT_TR("meta.kp.horary.hint"), needsPartner: false, needsTime: false },
+  "kp.ruling_interval": { label: TECH_TEXT_TR("meta.kp.ruling_interval.label"), hint: TECH_TEXT_TR("meta.kp.ruling_interval.hint"), needsPartner: false, needsTime: false },
+  "vedic.dasha": { label: TECH_TEXT_TR("meta.vedic.dasha.label"), hint: TECH_TEXT_TR("meta.vedic.dasha.hint"), needsPartner: false, needsTime: true },
+  "vedic.varga": { label: TECH_TEXT_TR("meta.vedic.varga.label"), hint: TECH_TEXT_TR("meta.vedic.varga.hint"), needsPartner: false, needsTime: true },
+  "vedic.gun_milan": { label: TECH_TEXT_TR("meta.vedic.gun_milan.label"), hint: TECH_TEXT_TR("meta.vedic.gun_milan.hint"), needsPartner: true, needsTime: true },
+  "vedic.monthly": { label: TECH_TEXT_TR("meta.vedic.monthly.label"), hint: TECH_TEXT_TR("meta.vedic.monthly.hint"), needsPartner: false, needsTime: false },
+  "vedic.sade_sati": { label: TECH_TEXT_TR("meta.vedic.sade_sati.label"), hint: TECH_TEXT_TR("meta.vedic.sade_sati.hint"), needsPartner: false, needsTime: true },
+  "vedic.dashakoot": { label: TECH_TEXT_TR("meta.vedic.dashakoot.label"), hint: TECH_TEXT_TR("meta.vedic.dashakoot.hint"), needsPartner: true, needsTime: true },
+  "vedic.papasamyam": { label: TECH_TEXT_TR("meta.vedic.papasamyam.label"), hint: TECH_TEXT_TR("meta.vedic.papasamyam.hint"), needsPartner: true, needsTime: true },
+  "vedic.upagraha": { label: TECH_TEXT_TR("meta.vedic.upagraha.label"), hint: TECH_TEXT_TR("meta.vedic.upagraha.hint"), needsPartner: false, needsTime: true },
+  "vedic.heliacal": { label: TECH_TEXT_TR("meta.vedic.heliacal.label"), hint: TECH_TEXT_TR("meta.vedic.heliacal.hint"), needsPartner: false, needsTime: false },
 };
 
 export const DASHA_LORD_OPTIONS: [string, string][] = [
-  ["ketu", "Ketu"],
-  ["venus", "Venüs (Shukra)"],
-  ["sun", "Güneş (Surya)"],
-  ["moon", "Ay (Chandra)"],
-  ["mars", "Mars (Mangala)"],
-  ["rahu", "Rahu"],
-  ["jupiter", "Jüpiter (Guru)"],
-  ["saturn", "Satürn (Shani)"],
-  ["mercury", "Merkür (Budha)"],
+  ["ketu", TECH_TEXT_TR("dashaLord.ketu")],
+  ["venus", TECH_TEXT_TR("dashaLord.venus")],
+  ["sun", TECH_TEXT_TR("dashaLord.sun")],
+  ["moon", TECH_TEXT_TR("dashaLord.moon")],
+  ["mars", TECH_TEXT_TR("dashaLord.mars")],
+  ["rahu", TECH_TEXT_TR("dashaLord.rahu")],
+  ["jupiter", TECH_TEXT_TR("dashaLord.jupiter")],
+  ["saturn", TECH_TEXT_TR("dashaLord.saturn")],
+  ["mercury", TECH_TEXT_TR("dashaLord.mercury")],
 ];
 
 export const VEDIC_VARGA_OPTIONS: [number, string][] = [
-  [9, "D9 Navamsa (varsayılan)"],
-  [2, "D2 Hora"],
-  [3, "D3 Drekkana"],
-  [4, "D4 Chaturthamsa"],
-  [7, "D7 Saptamsa"],
-  [10, "D10 Dasamsa"],
-  [12, "D12 Dwadasamsa"],
-  [16, "D16 Shodasamsa"],
-  [20, "D20 Vimsamsa"],
-  [24, "D24 Chaturvimsamsa"],
-  [27, "D27 Bhamsa"],
-  [30, "D30 Trimsamsa"],
-  [40, "D40 Khavedamsa"],
-  [45, "D45 Akshavedamsa"],
-  [60, "D60 Shashtiamsa"],
+  [9, TECH_TEXT_TR("varga.9")],
+  [2, TECH_TEXT_TR("varga.2")],
+  [3, TECH_TEXT_TR("varga.3")],
+  [4, TECH_TEXT_TR("varga.4")],
+  [7, TECH_TEXT_TR("varga.7")],
+  [10, TECH_TEXT_TR("varga.10")],
+  [12, TECH_TEXT_TR("varga.12")],
+  [16, TECH_TEXT_TR("varga.16")],
+  [20, TECH_TEXT_TR("varga.20")],
+  [24, TECH_TEXT_TR("varga.24")],
+  [27, TECH_TEXT_TR("varga.27")],
+  [30, TECH_TEXT_TR("varga.30")],
+  [40, TECH_TEXT_TR("varga.40")],
+  [45, TECH_TEXT_TR("varga.45")],
+  [60, TECH_TEXT_TR("varga.60")],
 ];
 
 export const KP_AYANAMSA_OPTIONS: [string, string][] = [
-  ["kp-newcomb", "KP-Newcomb — varsayılan"],
-  ["kp-old", "KP (Krishnamurti eski tablo)"],
+  ["kp-newcomb", TECH_TEXT_TR("kpAyanamsaOption.kp-newcomb")],
+  ["kp-old", TECH_TEXT_TR("kpAyanamsaOption.kp-old")],
 ];
-const KP_AY_LABEL: Record<string, string> = { "kp-newcomb": "KP-Newcomb", "kp-old": "KP (eski tablo)" };
+
 
 export const VEDIC_AYANAMSA_OPTIONS: [string, string][] = [
-  ["lahiri", "Lahiri (Chitrapaksha) — varsayılan"],
-  ["raman", "B.V. Raman"],
-  ["kp-newcomb", "KP Newcomb"],
-  ["kp-old", "KP (eski)"],
+  ["lahiri", TECH_TEXT_TR("vedicAyanamsaOption.lahiri")],
+  ["raman", TECH_TEXT_TR("vedicAyanamsaOption.raman")],
+  ["kp-newcomb", TECH_TEXT_TR("vedicAyanamsaOption.kp-newcomb")],
+  ["kp-old", TECH_TEXT_TR("vedicAyanamsaOption.kp-old")],
 ];
 
 export type TechniqueParams = {
@@ -623,13 +647,13 @@ export function dashaChainOptions(p: TechniqueParams): Record<string, unknown> {
   return r.kind === "ok" ? { chainAtUtc: r.utcIso.slice(0, 16) } : {};
 }
 const LEVEL_TR = ["Antardasha", "Pratyantardasha", "Sookshma", "Prana"];
-function dashaLevelLabel(o: Record<string, unknown>): string {
-  const lord = (v: unknown) => DASHA_LORD_OPTIONS.find((x) => x[0] === v)?.[1] ?? String(v);
+function dashaLevelLabel(o: Record<string, unknown>, L: TechText): string {
+  const lord = (v: unknown) => (DASHA_LORD_OPTIONS.some((x) => x[0] === v) ? L(`dashaLord.${String(v)}`) : String(v));
   const path = [o.mahadasha, o.antardasha, o.pratyantardasha, o.sookshma].filter((x) => typeof x === "string" && x) as string[];
   return path.length ? `${LEVEL_TR[path.length - 1]} · ${path.map(lord).join(" / ")}` : "Mahadasha";
 }
-const dashaChainLabel = (o: Record<string, unknown>) =>
-  typeof o.chainAtUtc === "string" ? ` · güncel dönem zinciri: ${fmtDate(o.chainAtUtc)} ${o.chainAtUtc.slice(11, 16)} UTC` : o.chainNow === true ? " · güncel dönem zinciri: şimdi" : "";
+const dashaChainLabel = (o: Record<string, unknown>, L: TechText) =>
+  typeof o.chainAtUtc === "string" ? L("d.dashaChainAt", { date: fmtDate(o.chainAtUtc, L), time: o.chainAtUtc.slice(11, 16) }) : o.chainNow === true ? L("d.dashaChainNow") : "";
 
 /** 2026-10-22 — Vedik aylık zamanlama: seçilen yıl / ay (eski parametrelerde yoksa transit gününün ayı). */
 export function vedicMonthlyYm(p: TechniqueParams): { year: number; month: number } {
@@ -645,51 +669,51 @@ export function kpPlaceReady(p: TechniqueParams): boolean {
  * Tarih/saat alanı tamamlanmamış veya geçersizse kısa neden (yoksa null). Tarayıcı tarih kutusu yazma sırasında boş
  * dize ya da "0002-10-17" gibi ara değerler üretir; bunlarla hesap / plan / istek YAPILMAZ.
  */
-export function dateInputReason(id: UiTechniqueId, p: TechniqueParams): string | null {
+export function dateInputReason(id: UiTechniqueId, p: TechniqueParams, L: TechText = TECH_TEXT_TR): string | null {
   const bad = (date: string, time?: string) => !!(dateInputIssue(date) ?? (time === undefined ? null : timeInputIssue(time)));
   switch (id) {
     case "western.transit":
       // Ekrandaki UTC ön izlemesiyle AYNI karar (sunucunun resolveAstroBirthTime + 1600–2600 UTC yıl sınırı): biçim, yaz saati
       // boşluğu ve UTC'de sınır dışına düşen an da plana / API'ye girmez → ön izleme uyarısı ile Başlat her zaman tutarlı.
       if (p.transitMode === "now") return null;
-      if (bad(p.transitDate, p.transitMode === "custom" ? p.transitTime : undefined)) return "transit tarihini / saatini tamamlayın";
-      return localToUtcPreview(p.transitDate, p.transitMode === "date" ? "12:00" : p.transitTime, p.transitTz).ok ? null : "transit anı geçersiz (ön izlemeye bakın)";
+      if (bad(p.transitDate, p.transitMode === "custom" ? p.transitTime : undefined)) return L("reason.transitDate");
+      return localToUtcPreview(p.transitDate, p.transitMode === "date" ? "12:00" : p.transitTime, p.transitTz).ok ? null : L("reason.transitMoment");
     case "western.transit_scan":
-      return transitScanRangeIssue(p.scanStart ?? p.forecastStart, p.scanEnd ?? addDaysIso(p.scanStart ?? p.forecastStart, 91) ?? null);
+      return scanIssueText(transitScanRangeIssue(p.scanStart ?? p.forecastStart, p.scanEnd ?? addDaysIso(p.scanStart ?? p.forecastStart, 91) ?? null), L);
     case "western.forecast":
-      return bad(p.forecastStart) ? "takvim başlangıç tarihini tamamlayın" : p.forecastEndDraft != null ? "takvim bitiş tarihini düzeltin" : null;
+      return bad(p.forecastStart) ? L("reason.forecastStart") : p.forecastEndDraft != null ? L("reason.forecastEnd") : null;
     case "western.progression":
     case "western.solar_arc":
-      return bad(p.targetDate) ? "hedef tarihi tamamlayın" : null;
+      return bad(p.targetDate) ? L("reason.targetDate") : null;
     case "vedic.transit":
-      return p.vedicTransitMode === "custom" && bad(p.vedicTransitDate, p.vedicTransitTime) ? "Gochara tarihini / saatini tamamlayın" : null;
+      return p.vedicTransitMode === "custom" && bad(p.vedicTransitDate, p.vedicTransitTime) ? L("reason.gochara") : null;
     case "kp.transit":
       // TRANSİT-03 zaman aralığı: tek-an tarihi bu kipte kullanılmaz; aralık başlangıcı + aralık ayarları (sunucuyla aynı) denetlenir.
-      if (p.kpTransitMode === "range") return kpRangeIssue(p);
-      return p.kpMomentMode === "custom" && bad(p.kpDate, p.kpTime) ? "KP tarihini / saatini tamamlayın" : null;
+      if (p.kpTransitMode === "range") return kpRangeIssue(p, L);
+      return p.kpMomentMode === "custom" && bad(p.kpDate, p.kpTime) ? L("reason.kpDate") : null;
     case "kp.ruling":
     case "kp.horary":
-      return p.kpMomentMode === "custom" && bad(p.kpDate, p.kpTime) ? "KP tarihini / saatini tamamlayın" : null;
+      return p.kpMomentMode === "custom" && bad(p.kpDate, p.kpTime) ? L("reason.kpDate") : null;
     case "kp.ruling_interval":
-      if (p.kpMomentMode === "custom" && bad(p.kpDate, p.kpTime)) return "tarama başlangıcını tamamlayın";
-      return kpIntervalWindowOk(p.kpRiDuration ?? KP_RI_DEFAULT.durationMinutes, p.kpRiInterval ?? KP_RI_DEFAULT.intervalMinutes) ? null : "tarama süresi / adımı geçersiz (en çok 24 saat, en çok 121 an)";
+      if (p.kpMomentMode === "custom" && bad(p.kpDate, p.kpTime)) return L("reason.riStart");
+      return kpIntervalWindowOk(p.kpRiDuration ?? KP_RI_DEFAULT.durationMinutes, p.kpRiInterval ?? KP_RI_DEFAULT.intervalMinutes) ? null : L("reason.riWindow");
     case "vedic.dasha":
     case "kp.dasha":
       // 2026-10-21: seçilen an kipinde tamamlanmamış/geçersiz an sessizce düşürülmez — plana girmez, neden gösterilir.
       if (p.dashaChainMode !== "custom") return null;
-      if (bad(p.dashaChainDate ?? "", p.dashaChainTime ?? "")) return "güncel dönem zinciri tarihini / saatini tamamlayın";
-      return localToUtcPreview(p.dashaChainDate ?? "", p.dashaChainTime ?? "", p.dashaChainTz || "Europe/Istanbul").ok ? null : "güncel dönem zinciri anı geçersiz";
+      if (bad(p.dashaChainDate ?? "", p.dashaChainTime ?? "")) return L("reason.chainDate");
+      return localToUtcPreview(p.dashaChainDate ?? "", p.dashaChainTime ?? "", p.dashaChainTz || "Europe/Istanbul").ok ? null : L("reason.chainMoment");
     case "vedic.panchanga":
-      return (p.panchangaDetail || p.panchangaHours) && p.panchangaDate && bad(p.panchangaDate) ? (p.panchangaDetail ? "ayrıntılı Panchanga gününü tamamlayın" : "hora / choghadiya gününü tamamlayın") : null;
+      return (p.panchangaDetail || p.panchangaHours) && p.panchangaDate && bad(p.panchangaDate) ? (p.panchangaDetail ? L("reason.panchangaDetail") : L("reason.panchangaHours")) : null;
     case "western.planetary_return":
-      return bad(p.planetaryReturnDate ?? p.targetDate) ? "dönüş hedef tarihini tamamlayın" : null;
+      return bad(p.planetaryReturnDate ?? p.targetDate) ? L("reason.prDate") : null;
     case "western.declination_parallels":
-      return declinationMonthOk(p.declinationMonth ?? p.lunarMonth) ? null : "deklinasyon ayını tamamlayın (1600–2600)";
+      return declinationMonthOk(p.declinationMonth ?? p.lunarMonth) ? null : L("reason.declination");
     case "vedic.heliacal":
-      return p.heliacalDate && bad(p.heliacalDate) ? "heliakal değerlendirme gününü tamamlayın" : null;
+      return p.heliacalDate && bad(p.heliacalDate) ? L("reason.heliacal") : null;
     case "vedic.monthly": {
       const ym = vedicMonthlyYm(p);
-      return vedicMonthOk(ym.year, ym.month) ? null : "takvim ayını tamamlayın (1600–2600)";
+      return vedicMonthOk(ym.year, ym.month) ? null : L("reason.monthly");
     }
     default:
       return null;
@@ -697,15 +721,15 @@ export function dateInputReason(id: UiTechniqueId, p: TechniqueParams): string |
 }
 
 /** Seçili ama eksik ayar yüzünden plana alınmayan tekniğin kısa nedeni (yoksa null). */
-export function missingReason(id: UiTechniqueId, p: TechniqueParams): string | null {
-  const dateWhy = dateInputReason(id, p);
+export function missingReason(id: UiTechniqueId, p: TechniqueParams, L: TechText = TECH_TEXT_TR): string | null {
+  const dateWhy = dateInputReason(id, p, L);
   if (dateWhy) return dateWhy;
-  if (TECHNIQUE_META[id].needsPartner && !p.partnerProfileId) return "karşı taraf seçin";
-  if (id === "western.relocation" && !p.relocationTarget) return "hedef konum seçin";
-  if (id === "western.profections" && profectionAgeOf(p.profectionAge) === null) return "profeksiyon yılını seçin";
-  if ((id === "kp.ruling" || id === "kp.horary" || id === "kp.ruling_interval") && !kpPlaceReady(p)) return id === "kp.horary" ? "değerlendirme yeri seçin" : "gözlem yeri seçin";
-  if (id === "western.extra_points" && !extraSectionsOf(p.extraSections ?? [...EXTRA_SECTIONS])) return "en az bir ek nokta bölümü seçin";
-  if (id === "vedic.monthly" && !vedicMonthlySectionsOf(p.vedicMonthlySections ?? [...VEDIC_MONTHLY_DEFAULT_SECTIONS])) return "en az bir aylık takvim bölümü seçin";
+  if (TECHNIQUE_META[id].needsPartner && !p.partnerProfileId) return L("reason.partner");
+  if (id === "western.relocation" && !p.relocationTarget) return L("reason.relocation");
+  if (id === "western.profections" && profectionAgeOf(p.profectionAge) === null) return L("reason.profection");
+  if ((id === "kp.ruling" || id === "kp.horary" || id === "kp.ruling_interval") && !kpPlaceReady(p)) return id === "kp.horary" ? L("reason.horaryPlace") : L("reason.observePlace");
+  if (id === "western.extra_points" && !extraSectionsOf(p.extraSections ?? [...EXTRA_SECTIONS])) return L("reason.extraSections");
+  if (id === "vedic.monthly" && !vedicMonthlySectionsOf(p.vedicMonthlySections ?? [...VEDIC_MONTHLY_DEFAULT_SECTIONS])) return L("reason.monthlySections");
   return null;
 }
 
@@ -732,152 +756,183 @@ export function forecastPartCount(days: number): number {
   return Math.max(1, Math.ceil(days / FORECAST_CHUNK_DAYS));
 }
 
-const TR_MONTHS = ["Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran", "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık"];
-const fmtDate = (iso: string) => {
+/** Gün/ay/yıl; ayırıcı dile göre (tr "." · en "/" — Owner A13). Yalnız gösterim. */
+const fmtDate = (iso: string, L: TechText = TECH_TEXT_TR) => {
   const [y, m, d] = iso.slice(0, 10).split("-");
-  return `${d}.${m}.${y}`;
+  const sep = L("dateSep");
+  return `${d}${sep}${m}${sep}${y}`;
 };
+/** Batı transit taraması aralık nedeni (lib, kaynak dil) → ekran dili. Bilinmeyen metin olduğu gibi (eski davranış). */
+function scanIssueText(issue: string | null, L: TechText): string | null {
+  if (issue === null || L === TECH_TEXT_TR) return issue;
+  if (issue === TECH_TEXT_TR("reason.scanDates")) return L("reason.scanDates");
+  if (issue === TECH_TEXT_TR("reason.scanOrder")) return L("reason.scanOrder");
+  const y = /^desteklenen yıllar (\d+)–(\d+)$/.exec(issue);
+  if (y) return L("reason.scanYears", { min: y[1], max: y[2] });
+  const d = /^tarama aralığı en çok 1 yıl \((\d+) gün\)$/.exec(issue);
+  if (d) return L("reason.scanMax", { days: d[1] });
+  return issue;
+}
+/** KP horary soru anı: kaynak dilde lib `questionMomentLabel` (bayt-bayt); diğer dillerde aynı kural katalogla. */
+function questionMoment(utcIso: string, tz: string | null, L: TechText): string {
+  if (L === TECH_TEXT_TR) return questionMomentLabel(utcIso, tz);
+  const utcDate = fmtDate(utcIso, L);
+  const utcTime = utcIso.slice(11, 16);
+  if (tz === "UTC" || tz === "Etc/UTC") return `${utcDate} ${utcTime} UTC`;
+  const z = tz ? formatInZone(utcIso, tz) : null;
+  if (!tz || !z) return `${utcDate} ${utcTime} UTC (${L("d.horaryUnverified")})`;
+  const name = tz === "Europe/Istanbul" || tz === "Asia/Istanbul" || tz === "Turkey" ? L("d.turkeyTime") : tz;
+  const zText = z.text.replace(/^(\d{2})\.(\d{2})\.(\d{4})/, `$1${L("dateSep")}$2${L("dateSep")}$3`);
+  const utc = zText.slice(0, 10) === utcDate ? `${utcTime} UTC` : `${utcDate} ${utcTime} UTC`;
+  return `${zText} — ${name}, ${z.zone} (${utc})`;
+}
+/** Kayıtlı Vedik ayanamsa etiketi (" —" öncesi; eski davranış). */
+const vedicAy = (v: unknown, L: TechText) => {
+  const code = String(v ?? "lahiri");
+  return (VEDIC_AYANAMSA_OPTIONS.some((x) => x[0] === v) ? L(`vedicAyanamsaOption.${code}`) : code).split(" —")[0];
+};
+const kpAy = (v: unknown, L: TechText) => (hasTech(`kpAy.${String(v)}`) ? L(`kpAy.${String(v)}`) : String(v));
+const decimal = (x: unknown, L: TechText) => String(x).replace(".", L("decimalSep"));
 
 /** Normalize seçeneklerin okunur özeti (sonuç kartı / kayıtlı analiz başlığı). */
-export function describeOptions(technique: string, o: Record<string, unknown>, partnerLabel?: (id: string) => string | null): string {
-  const partner = typeof o.partnerProfileId === "string" ? (partnerLabel?.(o.partnerProfileId) ?? "karşı taraf") : null;
+export function describeOptions(technique: string, o: Record<string, unknown>, partnerLabel?: (id: string) => string | null, L: TechText = TECH_TEXT_TR): string {
+  const partner = typeof o.partnerProfileId === "string" ? (partnerLabel?.(o.partnerProfileId) ?? L("d.partnerFallback")) : null;
+  const rev = o.partnerRevision ? L("d.partnerRev", { rev: String(o.partnerRevision) }) : "";
   switch (technique) {
     case "western.transit": {
       if (typeof o.atUtc !== "string") return "";
       // TRANSİT-01: gösterim saat dilimi varsa yerel an + UTC; yoksa (eski kayıtlar) yalnız UTC — eski metin aynen.
-      const utc = `${fmtDate(o.atUtc)} ${o.atUtc.slice(11, 16)} UTC`;
+      const utc = `${fmtDate(o.atUtc, L)} ${o.atUtc.slice(11, 16)} UTC`;
       const tz = typeof o.displayTz === "string" && o.displayTz !== "UTC" ? o.displayTz : null;
       const z = tz ? formatInZone(o.atUtc, tz) : null;
       const cal = o.calendar as { startDate?: unknown; days?: unknown } | undefined;
-      const calTxt = cal && typeof cal.startDate === "string" ? ` · takvim ${fmtDate(cal.startDate)} + ${String(cal.days)} gün` : "";
-      return `${z ? `${z.text} ${z.zone} (${utc})` : utc}${calTxt}`;
+      const calTxt = cal && typeof cal.startDate === "string" ? L("d.transitCal", { start: fmtDate(cal.startDate, L), days: String(cal.days) }) : "";
+      return `${z ? `${L === TECH_TEXT_TR ? z.text : z.text.replace(/^(\d{2})\.(\d{2})\.(\d{4})/, `$1${L("dateSep")}$2${L("dateSep")}$3`)} ${z.zone} (${utc})` : utc}${calTxt}`;
     }
     case "western.forecast": {
       const days = Number(o.days);
       if (typeof o.startDate !== "string") return "";
       const end = addDaysIso(o.startDate, days - 1);
       const tz = typeof o.displayTz === "string" ? ` · ${o.displayTz}` : "";
-      return `${fmtDate(o.startDate)} + ${days} gün${end ? ` (→ ${fmtDate(end)})` : ""} (${forecastPartCount(days)} parça)${tz}`;
+      return L("d.forecast", { start: fmtDate(o.startDate, L), days, end: end ? L("d.forecastEnd", { end: fmtDate(end, L) }) : "", parts: forecastPartCount(days), tz });
     }
     case "western.progression":
     case "western.solar_arc":
-      return typeof o.targetDate === "string" ? `hedef ${fmtDate(o.targetDate)}` : "";
+      return typeof o.targetDate === "string" ? L("d.target", { date: fmtDate(o.targetDate, L) }) : "";
     case "western.solar_return":
-      return `${String(o.returnYear)} dönüşü${returnPlace(o)}`;
+      return L("d.solarReturn", { year: String(o.returnYear), place: returnPlace(o, L) });
     case "western.lunar_return":
       if (typeof o.month !== "string") return "";
       // Eski (Aşama 3) kayıtlarda sıra yok: o zaman yalnız ayın ilk dönüşü hesaplanabiliyordu.
-      return `${o.month.slice(5, 7)}.${o.month.slice(0, 4)} · ${o.sequence === 2 ? "2." : "1."} dönüş${o.sequence === undefined ? " (ayın ilk dönüşü)" : ""}${returnPlace(o)}`;
+      return L("d.lunar", { monthYear: L("monthYear", { m: o.month.slice(5, 7), y: o.month.slice(0, 4) }), n: o.sequence === 2 ? 2 : 1, legacy: o.sequence === undefined ? L("d.lunarLegacy") : "", place: returnPlace(o, L) });
     case "western.synastry":
     case "western.composite":
-      return `${partner ?? ""}${o.partnerRevision ? ` (karşı taraf rev ${String(o.partnerRevision)})` : ""}`;
+      return `${partner ?? ""}${rev}`;
     case "western.relocation": {
       const t = o.target as { label?: string } | undefined;
       return t?.label ? `→ ${t.label}` : typeof o.targetLocationId === "string" ? `→ ${o.targetLocationId}` : "";
     }
     case "vedic.drishti":
-      return "ayanamsa: Lahiri (sabit)";
+      return L("d.lahiriFixed");
     case "vedic.panchanga": {
-      if (o.detail !== true && o.hours !== true) return "ayanamsa: Lahiri (sabit)";
+      if (o.detail !== true && o.hours !== true) return L("d.lahiriFixed");
       const pl = (o.place as { label?: string } | undefined)?.label;
-      const day = typeof o.detailDate === "string" ? fmtDate(o.detailDate) : "doğum günü";
-      const what = o.detail === true ? `ayrıntılı: ${day}${o.hours === true ? " · hora + choghadiya" : ""}` : `hora + choghadiya: ${day}`;
-      return `ayanamsa: Lahiri (sabit) · ${what}${pl ? ` · ${pl}` : ""}`;
+      const day = typeof o.detailDate === "string" ? fmtDate(o.detailDate, L) : L("d.birthDay");
+      const what = o.detail === true ? L("d.panchangaDetail", { day, hours: o.hours === true ? L("d.panchangaHoursSuffix") : "" }) : L("d.panchangaHoursOnly", { day });
+      return `${L("d.lahiriFixed")} · ${what}${pl ? ` · ${pl}` : ""}`;
     }
     case "kp.chart":
-      return `${o.ayanamsa ? `${KP_AY_LABEL[String(o.ayanamsa)] ?? String(o.ayanamsa)} · ` : ""}Placidus · düğüm ${o.nodeType === "true" ? "gerçek" : "ortalama"}`;
+      return L("d.kpChart", { ay: o.ayanamsa ? `${kpAy(o.ayanamsa, L)} · ` : "", node: o.nodeType === "true" ? L("d.nodeTrueShort") : L("d.nodeMeanShort") });
     case "kp.dasha":
-      return `${dashaLevelLabel(o)} · ${KP_AY_LABEL[String(o.ayanamsa)] ?? String(o.ayanamsa)}${dashaChainLabel(o)}`;
+      return `${dashaLevelLabel(o, L)} · ${kpAy(o.ayanamsa, L)}${dashaChainLabel(o, L)}`;
     case "kp.ruling":
     case "kp.transit":
     case "kp.horary": {
-      const at = typeof o.atUtc === "string" ? `${fmtDate(o.atUtc)} ${o.atUtc.slice(11, 16)} UTC` : "";
+      const at = typeof o.atUtc === "string" ? `${fmtDate(o.atUtc, L)} ${o.atUtc.slice(11, 16)} UTC` : "";
       const pl = (o.place as { label?: string } | undefined)?.label;
       if (technique === "kp.horary") {
         // HORARY-P2: yerel soru anı esas, UTC parantezde (dilim: displayTz → değerlendirme yeri → UTC + not). Yalnız gösterim.
         // HORARY-P1: başarısız denemeler ham seçenekle listelenir ({ now: true } — an henüz sunucuda belirlenmedi).
-        const when = typeof o.atUtc === "string" ? questionMomentLabel(o.atUtc, horaryDisplayZone(o)) : o.now === true ? "şimdi (gerçek soru anı)" : "";
-        return `sayı ${String(o.horaryNumber)} · ${when}${pl ? ` · ${pl}` : ""}`;
+        const when = typeof o.atUtc === "string" ? questionMoment(o.atUtc, horaryDisplayZone(o), L) : o.now === true ? L("d.horaryNow") : "";
+        return L("d.horary", { n: String(o.horaryNumber), when, place: pl ? ` · ${pl}` : "" });
       }
       if (technique === "kp.ruling") return `${at}${pl ? ` · ${pl}` : ""}`;
       const rg = o.range as { startDate?: string; days?: number; planets?: string[]; kinds?: string[] } | undefined;
       if (technique === "kp.transit" && rg && typeof rg.startDate === "string") {
-        const kinds = (rg.kinds ?? []).map((k) => KP_KIND_SHORT[k] ?? k).join(" + ");
-        const planets = (rg.planets ?? []).map((x) => KP_PLANET_SHORT[x] ?? x).join(", ");
-        return `aralık ${fmtDate(rg.startDate)} + ${String(rg.days)} gün · ${kinds}${planets ? ` · ${planets}` : ""} · ${KP_AY_LABEL[String(o.ayanamsa)] ?? String(o.ayanamsa)}`;
+        const kinds = (rg.kinds ?? []).map((k) => (hasTech(`kpKind.${k}`) ? L(`kpKind.${k}`) : k)).join(" + ");
+        const planets = (rg.planets ?? []).map((x) => (hasTech(`kpPlanet.${x}`) ? L(`kpPlanet.${x}`) : x)).join(", ");
+        return L("d.kpRange", { start: fmtDate(rg.startDate, L), days: String(rg.days), kinds, planets: planets ? ` · ${planets}` : "", ay: kpAy(o.ayanamsa, L) });
       }
-      return `${at} · ${KP_AY_LABEL[String(o.ayanamsa)] ?? String(o.ayanamsa)}`;
+      return `${at} · ${kpAy(o.ayanamsa, L)}`;
     }
     case "kp.ruling_interval": {
       if (typeof o.atUtc !== "string") return "";
       const pl = (o.place as { label?: string } | undefined)?.label;
       const d = Number(o.durationMinutes);
       const iv = Number(o.intervalMinutes);
-      const dur = d >= 60 && d % 60 === 0 ? `${d / 60} sa` : `${d} dk`;
-      return `başlangıç ${fmtDate(o.atUtc)} ${o.atUtc.slice(11, 16)} UTC · ${dur} / ${iv} dk adım (${d / iv + 1} an) · ${KP_AY_LABEL[String(o.ayanamsa)] ?? String(o.ayanamsa)}${pl ? ` · ${pl}` : ""}`;
+      const dur = d >= 60 && d % 60 === 0 ? L("d.riHours", { n: d / 60 }) : L("d.riMinutes", { n: d });
+      return L("d.ri", { date: fmtDate(o.atUtc, L), time: o.atUtc.slice(11, 16), dur, iv, n: d / iv + 1, ay: kpAy(o.ayanamsa, L), place: pl ? ` · ${pl}` : "" });
     }
     case "vedic.transit":
-      return typeof o.atUtc === "string" ? `${fmtDate(o.atUtc)} ${o.atUtc.slice(11, 16)} UTC · ayanamsa: Lahiri (sabit)` : "ayanamsa: Lahiri (sabit)";
+      return typeof o.atUtc === "string" ? `${fmtDate(o.atUtc, L)} ${o.atUtc.slice(11, 16)} UTC · ${L("d.lahiriFixed")}` : L("d.lahiriFixed");
     case "vedic.bhav_chalit":
     case "vedic.arudha":
     case "vedic.bhava_bala":
-      return `ayanamsa: ${(VEDIC_AYANAMSA_OPTIONS.find((x) => x[0] === o.ayanamsa)?.[1] ?? String(o.ayanamsa ?? "lahiri")).split(" —")[0]}`;
+      return L("d.ayanamsa", { ay: vedicAy(o.ayanamsa, L) });
     case "vedic.chara_karaka":
-      return `${o.scheme === "seven" ? "7 karaka (Rahu hariç)" : "8 karaka (Rahu dahil)"} · ayanamsa: ${(VEDIC_AYANAMSA_OPTIONS.find((x) => x[0] === o.ayanamsa)?.[1] ?? String(o.ayanamsa ?? "lahiri")).split(" —")[0]}`;
+      return `${o.scheme === "seven" ? L("d.chara7") : L("d.chara8")} · ${L("d.ayanamsa", { ay: vedicAy(o.ayanamsa, L) })}`;
     case "vedic.ashtakavarga":
     case "vedic.shadbala":
-      return `ayanamsa: ${(VEDIC_AYANAMSA_OPTIONS.find((x) => x[0] === o.ayanamsa)?.[1] ?? String(o.ayanamsa ?? "lahiri")).split(" —")[0]}`;
+      return L("d.ayanamsa", { ay: vedicAy(o.ayanamsa, L) });
     case "vedic.dasha":
-      return `${dashaLevelLabel(o)} · ayanamsa: ${(VEDIC_AYANAMSA_OPTIONS.find((x) => x[0] === o.ayanamsa)?.[1] ?? String(o.ayanamsa ?? "lahiri")).split(" —")[0]}${dashaChainLabel(o)}`;
+      return `${dashaLevelLabel(o, L)} · ${L("d.ayanamsa", { ay: vedicAy(o.ayanamsa, L) })}${dashaChainLabel(o, L)}`;
     case "vedic.varga":
-      return `D${Number(o.division ?? 9)} · ayanamsa: ${(VEDIC_AYANAMSA_OPTIONS.find((x) => x[0] === o.ayanamsa)?.[1] ?? String(o.ayanamsa ?? "lahiri")).split(" —")[0]}`;
+      return `D${Number(o.division ?? 9)} · ${L("d.ayanamsa", { ay: vedicAy(o.ayanamsa, L) })}`;
     case "vedic.d1":
-      return `ayanamsa: ${(VEDIC_AYANAMSA_OPTIONS.find((x) => x[0] === o.ayanamsa)?.[1] ?? String(o.ayanamsa ?? "lahiri")).split(" —")[0]}`;
+      return L("d.ayanamsa", { ay: vedicAy(o.ayanamsa, L) });
     case "western.fixed_stars":
-      return `orb ${Number(o.orb ?? 1).toLocaleString("tr-TR")}° · ekliptik boylam kavuşumu${o.reportCatalog === true ? " · raporda katalog" : ""}`;
+      return L("d.fixedStars", { orb: Number(o.orb ?? 1).toLocaleString(L("numLocale")), cat: o.reportCatalog === true ? L("d.fixedStarsCatalog") : "" });
     case "western.profections":
-      return profectionAgeOf(o.age) !== null ? `${Number(o.age)} yaş profeksiyon yılı · bütün-burç` : "";
+      return profectionAgeOf(o.age) !== null ? L("d.profections", { age: Number(o.age) }) : "";
     case "western.extra_points": {
-      const names: Record<string, string> = { asteroids: "asteroitler", lots: "Hermetik lotlar", lilith: "Lilith ortalama + gerçek" };
-      return Array.isArray(o.sections) ? o.sections.map((s) => names[String(s)] ?? String(s)).join(" · ") : "";
+      return Array.isArray(o.sections) ? o.sections.map((s) => (hasTech(`d.extra.${String(s)}`) ? L(`d.extra.${String(s)}`) : String(s))).join(" · ") : "";
     }
     case "western.planetary_return":
       if (!isPlanetaryReturnPlanet(o.planet) || typeof o.approxDate !== "string") return "";
-      return `${PLANETARY_RETURN_LABELS[o.planet].title} · hedef ${fmtDate(o.approxDate)} · ${Number(o.crossing ?? 1)}. kavuşum${returnPlace(o)}`;
+      return L("d.planetaryReturn", { title: L === TECH_TEXT_TR ? PLANETARY_RETURN_LABELS[o.planet].title : L(`prTitle.${o.planet}`), date: fmtDate(o.approxDate, L), n: Number(o.crossing ?? 1), place: returnPlace(o, L) });
     case "vedic.gun_milan":
-      return `${partner ?? ""}${o.partnerRevision ? ` (karşı taraf rev ${String(o.partnerRevision)})` : ""} · ${o.order === "partner_first" ? "1. rol: karşı taraf" : "1. rol: danışan"} · ayanamsa: ${(VEDIC_AYANAMSA_OPTIONS.find((x) => x[0] === o.ayanamsa)?.[1] ?? String(o.ayanamsa ?? "lahiri")).split(" —")[0]}`;
+      return `${partner ?? ""}${rev} · ${o.order === "partner_first" ? L("d.role1Partner") : L("d.role1Client")} · ${L("d.ayanamsa", { ay: vedicAy(o.ayanamsa, L) })}`;
     case "western.transit_scan": {
       if (typeof o.start !== "string" || typeof o.end !== "string") return "";
-      const n = (v: unknown, all: number) => (Array.isArray(v) && v.length < all ? `${v.length}/${all}` : "tümü");
-      return `${fmtDate(o.start)} – ${fmtDate(o.end)} · orb ${String(o.orb ?? TRANSIT_SCAN_ORB_DEFAULT).replace(".", ",")}° · gezegen ${n(o.bodies, TRANSIT_SCAN_BODIES.length)} · nokta ${n(o.points, TRANSIT_SCAN_POINTS.length)} · açı ${n(o.aspects, TRANSIT_SCAN_ASPECTS.length)}`;
+      const n = (v: unknown, all: number) => (Array.isArray(v) && v.length < all ? `${v.length}/${all}` : L("d.all"));
+      return L("d.transitScan", { start: fmtDate(o.start, L), end: fmtDate(o.end, L), orb: decimal(o.orb ?? TRANSIT_SCAN_ORB_DEFAULT, L), b: n(o.bodies, TRANSIT_SCAN_BODIES.length), p: n(o.points, TRANSIT_SCAN_POINTS.length), a: n(o.aspects, TRANSIT_SCAN_ASPECTS.length) });
     }
     case "western.classical_dignities":
-      return `${isDignitySchool(o.school) ? DIGNITY_SCHOOL_LABELS[o.school] : "Lilly 1647"} · ev sistemi ${NATAL_HOUSE_SYSTEM_LABELS[String(o.houseSystem)] ?? String(o.houseSystem ?? "placidus")} · ${o.nodeType === "mean" ? "ortalama düğüm" : "gerçek düğüm"}`;
+      return `${isDignitySchool(o.school) ? (L === TECH_TEXT_TR ? DIGNITY_SCHOOL_LABELS[o.school] : L(`dignitySchool.${o.school}`)) : "Lilly 1647"} · ${L("d.houseSystemOf", { hs: NATAL_HOUSE_SYSTEM_LABELS[String(o.houseSystem)] ? L(`natalHouse.${String(o.houseSystem)}`) : String(o.houseSystem ?? "placidus") })} · ${o.nodeType === "mean" ? L("d.nodeMean") : L("d.nodeTrue")}`;
     case "western.declination_parallels":
       return typeof o.month === "string"
-        ? `${declinationMonthLabel(o.month)} · orb ${String(o.orb ?? DECLINATION_ORB_DEFAULT).replace(".", ",")}° · ${o.nodeType === "mean" ? "ortalama düğüm" : "gerçek düğüm"}${typeof o.displayTz === "string" ? ` · ${o.displayTz}` : ""}`
+        ? `${L === TECH_TEXT_TR || !declinationMonthOk(o.month) ? declinationMonthLabel(o.month) : `${L(`month.${Number(o.month.slice(5, 7))}`)} ${o.month.slice(0, 4)}`} · orb ${decimal(o.orb ?? DECLINATION_ORB_DEFAULT, L)}° · ${o.nodeType === "mean" ? L("d.nodeMean") : L("d.nodeTrue")}${typeof o.displayTz === "string" ? ` · ${o.displayTz}` : ""}`
         : "";
     case "vedic.dashakoot":
     case "vedic.papasamyam":
-      return `${partner ?? ""}${o.partnerRevision ? ` (karşı taraf rev ${String(o.partnerRevision)})` : ""} · ${o.order === "partner_first" ? "1. rol (damat): karşı taraf" : "1. rol (damat): danışan"} · ayanamsa: ${(VEDIC_AYANAMSA_OPTIONS.find((x) => x[0] === o.ayanamsa)?.[1] ?? String(o.ayanamsa ?? "lahiri")).split(" —")[0]}`;
+      return `${partner ?? ""}${rev} · ${o.order === "partner_first" ? L("d.roleGroomPartner") : L("d.roleGroomClient")} · ${L("d.ayanamsa", { ay: vedicAy(o.ayanamsa, L) })}`;
     case "vedic.upagraha":
-      return `ayanamsa: ${(VEDIC_AYANAMSA_OPTIONS.find((x) => x[0] === o.ayanamsa)?.[1] ?? String(o.ayanamsa ?? "lahiri")).split(" —")[0]}`;
+      return L("d.ayanamsa", { ay: vedicAy(o.ayanamsa, L) });
     case "vedic.heliacal": {
       const pl = (o.place as { label?: string } | undefined)?.label;
-      return `gün ${typeof o.date === "string" ? fmtDate(o.date) : "doğum günü"} · gözlem yeri: ${pl ?? (typeof o.placeLocationId === "string" ? o.placeLocationId : "doğum yeri")}`;
+      return L("d.heliacal", { date: typeof o.date === "string" ? fmtDate(o.date, L) : L("d.birthDay"), place: pl ?? (typeof o.placeLocationId === "string" ? o.placeLocationId : L("d.birthPlace")) });
     }
     case "vedic.sade_sati":
-      return `${typeof o.asOf === "string" ? `değerlendirme günü ${fmtDate(o.asOf)} · ` : ""}ayanamsa: ${(VEDIC_AYANAMSA_OPTIONS.find((x) => x[0] === o.ayanamsa)?.[1] ?? String(o.ayanamsa ?? "lahiri")).split(" —")[0]}`;
+      return `${typeof o.asOf === "string" ? L("d.sadeSatiAsOf", { date: fmtDate(o.asOf, L) }) : ""}${L("d.ayanamsa", { ay: vedicAy(o.ayanamsa, L) })}`;
     case "vedic.monthly": {
-      const names: Record<string, string> = { ingress: "burç girişleri", aspects: "açılar", lunar: "Ay açıları", parallels: "deklinasyon", natal_parallels: "doğum anı deklinasyonları" };
       const mo = Number(o.month);
-      const head = Number.isInteger(mo) && mo >= 1 && mo <= 12 ? `${TR_MONTHS[mo - 1]} ${String(o.year)} (UTC ayı)` : "";
-      const secs = Array.isArray(o.sections) ? o.sections.map((s) => names[String(s)] ?? String(s)).join(" · ") : "";
+      const head = Number.isInteger(mo) && mo >= 1 && mo <= 12 ? L("d.monthlyHead", { month: L(`month.${mo}`), year: String(o.year) }) : "";
+      const secs = Array.isArray(o.sections) ? o.sections.map((s) => (hasTech(`d.monthly.${String(s)}`) ? L(`d.monthly.${String(s)}`) : String(s))).join(" · ") : "";
       return [head, secs, "Lahiri", typeof o.displayTz === "string" ? o.displayTz : ""].filter(Boolean).join(" · ");
     }
     case "western.local_space": {
       const r = o.reference as { label?: string } | undefined;
-      return `merkez: ${r?.label ?? (o.referenceLocationId ? String(o.referenceLocationId) : "doğum yeri")}`;
+      return L("d.localSpace", { place: r?.label ?? (o.referenceLocationId ? String(o.referenceLocationId) : L("d.birthPlace")) });
     }
     default:
       return "";
@@ -885,18 +940,18 @@ export function describeOptions(technique: string, o: Record<string, unknown>, p
 }
 
 /** Dönüş konumu etiketi: farklı konumsa " · konum: Londra", doğum yeriyse " · doğum yeri" (eski kayıtlarda boş). */
-function returnPlace(o: Record<string, unknown>): string {
+function returnPlace(o: Record<string, unknown>, L: TechText): string {
   const rl = o.returnLocation as { locationId?: string | null; label?: string } | undefined;
-  if (rl?.locationId) return ` · konum: ${rl.label ?? rl.locationId}`;
-  if (typeof o.returnLocationId === "string") return ` · konum: ${o.returnLocationId}`;
-  return rl || o.returnLocationId === null ? " · doğum yeri" : "";
+  if (rl?.locationId) return L("d.returnPlaceOther", { place: rl.label ?? rl.locationId });
+  if (typeof o.returnLocationId === "string") return L("d.returnPlaceOther", { place: o.returnLocationId });
+  return rl || o.returnLocationId === null ? L("d.returnPlaceBirth") : "";
 }
 
 /** 02.11.2026: Yeni Analiz listesinde "YENİ" işareti taşıyan teknikler (owner görsel PASS prototipi). */
 export const NEW_TECHNIQUES: ReadonlySet<string> = new Set<string>(["western.classical_dignities", "western.transit_scan"]);
 
-export function techniqueLabel(id: string): string {
-  return (TECHNIQUE_META as Record<string, { label: string }>)[id]?.label ?? id;
+export function techniqueLabel(id: string, L: TechText = TECH_TEXT_TR): string {
+  return Object.prototype.hasOwnProperty.call(TECHNIQUE_META, id) ? L(`${metaKey(id)}.label`) : id;
 }
 
 export type LunarReturnInfo = { sequence: number; approxUtc: string };
@@ -906,29 +961,27 @@ export type PlanetaryReturnInfo = { crossing: number; of: number; approxUtc: str
 export type PlanetaryReturnNeighbors = { previous: string | null; next: string | null };
 
 /** "2027-06-28T13:58" → "28.06.2027 13:58 UTC" */
-export function fmtUtcMinute(iso: string): string {
-  return `${iso.slice(8, 10)}.${iso.slice(5, 7)}.${iso.slice(0, 4)} ${iso.slice(11, 16)} UTC`;
+export function fmtUtcMinute(iso: string, L: TechText = TECH_TEXT_TR): string {
+  return `${fmtDate(iso, L)} ${iso.slice(11, 16)} UTC`;
 }
 
 /** Aşama 5: ev/bhava sistemi etiketi — Vedik "whole_sign" Batı etiket tablosunda yok. */
-export function houseSystemLabel(h: string | null | undefined, westernLabels: Record<string, string>): string {
-  if (!h) return "ev sistemi yok";
-  if (h === "whole_sign") return "Bütün-burç (rashi chakra)";
-  if (h === "sripati") return "Sripati (bhava)";
-  return westernLabels[h] ?? NATAL_HOUSE_SYSTEM_LABELS[h] ?? h;
+export function houseSystemLabel(h: string | null | undefined, westernLabels: Record<string, string>, L: TechText = TECH_TEXT_TR): string {
+  if (!h) return L("house.none");
+  if (h === "whole_sign") return L("house.wholeSign");
+  if (h === "sripati") return L("house.sripati");
+  return westernLabels[h] ?? (NATAL_HOUSE_SYSTEM_LABELS[h] ? L(`natalHouse.${h}`) : h);
 }
 
 /** Zodyak çerçevesi: Vedik teknikler sidereal (nirayana), diğerleri tropikal. */
-export function zodiacLabel(technique: string): string {
-  return technique.startsWith("kp.") ? "Sidereal (KP)" : technique.startsWith("vedic.") ? "Sidereal (nirayana)" : "Tropikal";
+export function zodiacLabel(technique: string, L: TechText = TECH_TEXT_TR): string {
+  return technique.startsWith("kp.") ? L("zodiac.kp") : technique.startsWith("vedic.") ? L("zodiac.vedic") : L("zodiac.western");
 }
 
 // ─── TRANSİT-03: KP Transit zaman aralığı (istemci meta; sınırlar sunucudaki engine/techniques ile AYNI, test denetler) ───
 export const KP_TIMING_MAX_DAYS = 92;
 export const KP_POSITIONS_MAX_DAYS = 7;
 export const KP_POSITIONS_INTERVALS = [60, 180, 360, 720, 1440] as const;
-const KP_KIND_SHORT: Record<string, string> = { sublord: "Sub-Lord", rasi: "Rasi", positions: "konum tablosu" };
-const KP_PLANET_SHORT: Record<string, string> = { sun: "Güneş", moon: "Ay", mars: "Mars", mercury: "Merkür", jupiter: "Jüpiter", venus: "Venüs", saturn: "Satürn" };
 export function kpRangeOptions(p: TechniqueParams): Record<string, unknown> {
   const kinds = p.kpRangeKinds ?? [];
   return {
@@ -944,13 +997,13 @@ export function kpRangeOptions(p: TechniqueParams): Record<string, unknown> {
  * başlangıç tarihi (yıl yazılırken "0002-10-07" gibi ara değerler dahil), en az bir tür, Sub-Lord/Rasi için gezegen,
  * konum tablosu ≤ 7 gün. Neden varsa seçim plana / API'ye GİRMEZ.
  */
-export function kpRangeIssue(p: TechniqueParams): string | null {
-  if (dateInputIssue(p.kpRangeStart)) return "KP aralık başlangıç tarihini tamamlayın";
+export function kpRangeIssue(p: TechniqueParams, L: TechText = TECH_TEXT_TR): string | null {
+  if (dateInputIssue(p.kpRangeStart)) return L("reason.kpRangeStart");
   const k = p.kpRangeKinds ?? [];
-  if (k.length === 0) return "KP aralık türü seçin";
-  if ((k.includes("sublord") || k.includes("rasi")) && (p.kpRangePlanets ?? []).length === 0) return "KP aralık gezegeni seçin";
-  if (!Number.isInteger(p.kpRangeDays) || p.kpRangeDays < 1 || p.kpRangeDays > KP_TIMING_MAX_DAYS) return `KP aralığı en çok ${KP_TIMING_MAX_DAYS} gün olabilir`;
-  if (k.includes("positions") && p.kpRangeDays > KP_POSITIONS_MAX_DAYS) return `KP konum tablosu en çok ${KP_POSITIONS_MAX_DAYS} gün olabilir`;
+  if (k.length === 0) return L("reason.kpRangeKind");
+  if ((k.includes("sublord") || k.includes("rasi")) && (p.kpRangePlanets ?? []).length === 0) return L("reason.kpRangePlanet");
+  if (!Number.isInteger(p.kpRangeDays) || p.kpRangeDays < 1 || p.kpRangeDays > KP_TIMING_MAX_DAYS) return L("reason.kpRangeDays", { max: KP_TIMING_MAX_DAYS });
+  if (k.includes("positions") && p.kpRangeDays > KP_POSITIONS_MAX_DAYS) return L("reason.kpPositionsDays", { max: KP_POSITIONS_MAX_DAYS });
   return null;
 }
 /** Tahmini istek sayısı (önbellek hariç): gezegen × (sub-lord + rasi) + konum tablosu. */

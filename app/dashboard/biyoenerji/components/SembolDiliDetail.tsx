@@ -5,6 +5,10 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FileText, Pencil, Sparkles, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
+import { useBioErrorText } from "../useBioErrorText";
+import { useBioDateTime } from "../useBioDateTime";
+import { useBioReportError } from "../useBioReportError";
 import { DogaltasFontSizeControl } from "@/app/dogaltas/components/DogaltasFontSizeControl";
 import { formatStoneContent } from "@/lib/dogaltas/formatStoneContent";
 import { getSyncedTenantId, MISSING_SESSION_TENANT_MESSAGE } from "@/lib/auth/sessionTenant";
@@ -33,7 +37,6 @@ import {
   BIO_TIMEOUT_ERROR,
 } from "@/lib/biyoenerji/secureApi";
 import { changedFields } from "@/lib/biyoenerji/changedFields";
-import { BIO_REPORT_NETWORK_ERROR, bioReportErrorMessage } from "@/lib/biyoenerji/reportDownloadError";
 import { badgeFieldWrapClass } from "./BiyoenerjiUi";
 import { useDemoGuard } from "@/hooks/useDemoGuard";
 import { DemoGate } from "@/components/demo/DemoGate";
@@ -61,20 +64,6 @@ function trimOrNull(v: string) {
   return t.length > 0 ? t : null;
 }
 
-function formatDate(iso: string | null | undefined) {
-  if (!iso) return "—";
-  try {
-    return new Intl.DateTimeFormat("tr-TR", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    }).format(new Date(iso));
-  } catch {
-    return "—";
-  }
-}
 
 function useMobileViewport() {
   const [isMobile, setIsMobile] = useState(false);
@@ -110,6 +99,12 @@ function DetailContentCard({
 }
 
 export default function SembolDiliDetail({ id }: { id: string }) {
+  const t = useTranslations("bioenergy.symbols");
+  const td = useTranslations("bioenergy.detail");
+  const tl = useTranslations("bioenergy.list");
+  const errText = useBioErrorText();
+  const formatDate = useBioDateTime();
+  const reportErr = useBioReportError();
   const { isDemo } = useDemoGuard();
   const router = useRouter();
   const lastGoodRecordRef = useRef<SymbolLanguageListItem | null>(null);
@@ -178,16 +173,16 @@ export default function SembolDiliDetail({ id }: { id: string }) {
         body: JSON.stringify({ tenantId, userId: readYasamUser()?.id ?? "", exportMode: "single", id: record.id }),
       });
       if (!res.ok) {
-        setInfoError(await bioReportErrorMessage(res));
+        setInfoError(await reportErr.fromResponse(res));
         return;
       }
       await downloadFileResponse(res, `sembol-${record.id.slice(0, 8)}-${reportFileDate()}.docx`);
     } catch {
-      setInfoError(BIO_REPORT_NETWORK_ERROR);
+      setInfoError(reportErr.network());
     } finally {
       setWordBusy(false);
     }
-  }, [record, wordBusy]);
+  }, [record, wordBusy, reportErr]);
 
   useEffect(() => {
     if (!infoSuccess && !infoError) return;
@@ -202,7 +197,7 @@ export default function SembolDiliDetail({ id }: { id: string }) {
     const recordId = id.trim();
     if (!recordId) {
       setLoading(false);
-      setErrorMessage("Geçersiz kayıt bağlantısı.");
+      setErrorMessage(td("invalidLink"));
       setRecord(null);
       return;
     }
@@ -234,7 +229,7 @@ export default function SembolDiliDetail({ id }: { id: string }) {
       setLoading(false);
 
       if (result.error) {
-        setErrorMessage(`Kayıt okunamadı: ${result.error}`);
+        setErrorMessage(td("readFailed", { detail: errText(result.error, tl("serverError")) }));
         // BIO-02 — yalnız geçici ağ hatasında son iyi kayıt korunur; erişim
         // hatalarında bayat kayıt ekranda TUTULMAZ.
         const transient = result.error === BIO_NETWORK_ERROR || result.error === BIO_TIMEOUT_ERROR;
@@ -249,7 +244,7 @@ export default function SembolDiliDetail({ id }: { id: string }) {
 
       if (!result.data) {
         // BIO-02 — 404: silinmiş veya bu hesaba ait değil → bayat kayıt gösterilmez.
-        setErrorMessage("Kayıt bulunamadı veya bu hesaba ait değil.");
+        setErrorMessage(td("notFound"));
         lastGoodRecordRef.current = null;
         setRecord(null);
         return;
@@ -263,11 +258,12 @@ export default function SembolDiliDetail({ id }: { id: string }) {
       setLoading(false);
       const message = err instanceof Error ? err.message : String(err);
       console.error("[SembolDiliDetail] loadRecord exception:", message);
-      setErrorMessage(`Beklenmeyen hata: ${message}`);
+      setErrorMessage(tl("unexpected", { detail: errText(message, tl("serverError")) }));
       if (lastGoodRecordRef.current) {
         setRecord(lastGoodRecordRef.current);
       }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- çeviri işlevleri dil değişiminde yeniden kayıt okumaz
   }, [id]);
 
   /** BIO-11 — düzenleme formu her açılışta güncel kayıttan doldurulur. */
@@ -275,6 +271,7 @@ export default function SembolDiliDetail({ id }: { id: string }) {
     if (!record) return;
     const displayName = symbolDisplayName(record);
     const next = {
+      // i18n-ignore: symbolDisplayName() kaynak-dil yedek adıyla karşılaştırma (kontrol akışı; çevrilmez)
       symbol_name: displayName === "İsimsiz sembol" ? "" : displayName,
       category: record.category ?? "",
       meaning: record.meaning ?? "",
@@ -288,11 +285,12 @@ export default function SembolDiliDetail({ id }: { id: string }) {
   useEffect(() => {
     if (!id.trim()) {
       setLoading(false);
-      setErrorMessage("Geçersiz kayıt bağlantısı.");
+      setErrorMessage(td("invalidLink"));
       setRecord(null);
       return;
     }
     void loadRecord();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- çeviri işlevleri dil değişiminde yeniden kayıt okumaz
   }, [loadRecord, id]);
 
   async function handleGuncelle() {
@@ -305,7 +303,7 @@ export default function SembolDiliDetail({ id }: { id: string }) {
 
           const nameTrim = form.symbol_name.trim();
           if (!nameTrim) {
-            showSoft("err", "Sembol adı zorunludur.");
+            showSoft("err", t("nameRequired"));
             return;
           }
 
@@ -326,7 +324,7 @@ export default function SembolDiliDetail({ id }: { id: string }) {
           const changes = changedFields(payloadOf(form), editOriginalRef.current ? payloadOf(editOriginalRef.current) : null);
           if (Object.keys(changes).length === 0) {
             setFormModalOpen(false);
-            showSoft("ok", "Değişiklik yok.");
+            showSoft("ok", td("noChanges"));
             return;
           }
           setSaving(true);
@@ -335,18 +333,18 @@ export default function SembolDiliDetail({ id }: { id: string }) {
           setSaving(false);
 
           if (error) {
-            showSoft("err", `Güncellenemedi: ${error}`);
+            showSoft("err", td("updateFailed", { detail: errText(error, tl("serverError")) }));
             return;
           }
 
           setFormModalOpen(false);
           await loadRecord();
-          showSoft("ok", "Kayıt güncellendi.");
+          showSoft("ok", td("updated"));
         } finally {
           setSaving(false);
         }
       })
-      .catch((e: unknown) => showSoft("err", e instanceof Error ? e.message : "İşlem tamamlanamadı."));
+      .catch((e: unknown) => showSoft("err", errText(e, tl("opFailed"))));
   }
 
   async function executeDelete() {
@@ -363,7 +361,7 @@ export default function SembolDiliDetail({ id }: { id: string }) {
     setDeleteConfirmOpen(false);
 
     if (error) {
-      showSoft("err", `Silinemedi: ${error}`);
+      showSoft("err", tl("deleteFailed", { detail: errText(error, tl("serverError")) }));
       return;
     }
 
@@ -373,7 +371,7 @@ export default function SembolDiliDetail({ id }: { id: string }) {
   if (loading) {
     return (
       <div className="flex min-h-[320px] items-center justify-center rounded-3xl border-2 border-emerald-200/60 bg-emerald-50/80">
-        <p className="text-lg font-semibold text-slate-600">Kayıt yükleniyor…</p>
+        <p className="text-lg font-semibold text-slate-600">{td("loading")}</p>
       </div>
     );
   }
@@ -393,7 +391,10 @@ export default function SembolDiliDetail({ id }: { id: string }) {
   const meaningContent = record.meaning?.trim() ?? "";
   const sourceContent = record.source?.trim() ?? "";
   const categoryText = record.category?.trim() ?? "";
-  const displayTitle = symbolDisplayName(record);
+  // Görünen ad: kaynak-dil yedek adı ekran dilinde gösterilir; kayıt/karşılaştırma değişmez.
+  const rawTitle = symbolDisplayName(record);
+  // i18n-ignore: symbolDisplayName() yedek adıyla eşitlik (yalnız gösterim eşlemesi)
+  const displayTitle = rawTitle === "İsimsiz sembol" ? t("untitled") : rawTitle;
 
   return (
     <div className="w-full min-w-0 max-w-none">
@@ -445,15 +446,15 @@ export default function SembolDiliDetail({ id }: { id: string }) {
               <div className="hidden h-7 w-px bg-slate-200 sm:block" aria-hidden />
               <button type="button" onClick={openEdit} className={tbBtn}>
                 <Pencil className="h-4 w-4" strokeWidth={2} aria-hidden />
-                Düzenle
+                {td("edit")}
               </button>
               <button type="button" disabled={saving} onClick={() => setDeleteConfirmOpen(true)} className={tbBtnDanger}>
                 <Trash2 className="h-4 w-4" strokeWidth={2} aria-hidden />
-                Sil
+                {td("delete")}
               </button>
               <button type="button" disabled={wordBusy} onClick={() => void downloadWord()} className={tbBtn}>
                 <FileText className="h-4 w-4" strokeWidth={2} aria-hidden />
-                {wordBusy ? "Hazırlanıyor…" : "Word"}
+                {wordBusy ? td("preparing") : "Word"}
               </button>
             </>
           )}
@@ -463,13 +464,13 @@ export default function SembolDiliDetail({ id }: { id: string }) {
       {/* Document sections */}
       <DemoGate
         isProtected={isDemo}
-        message="Bu kayıt içeriği demo hesabında sınırlı gösterilir. Tam sürümde tüm bilgilere erişilebilir."
+        message={td("demoGate")}
       >
         <div>
-          {meaningContent ? <DetailContentCard title="Anlam" text={meaningContent} typography={contentTypography} /> : null}
-          {sourceContent ? <DetailContentCard title="Kaynak" text={sourceContent} typography={contentTypography} /> : null}
+          {meaningContent ? <DetailContentCard title={t("fields.meaning")} text={meaningContent} typography={contentTypography} /> : null}
+          {sourceContent ? <DetailContentCard title={t("fields.source")} text={sourceContent} typography={contentTypography} /> : null}
           {!meaningContent && !sourceContent ? (
-            <DetailContentCard title="İçerik" text="Bu kayıt için henüz anlam veya kaynak girilmemiş." typography={contentTypography} />
+            <DetailContentCard title={t("fields.content")} text={t("emptyMeaning")} typography={contentTypography} />
           ) : null}
         </div>
       </DemoGate>
@@ -478,8 +479,8 @@ export default function SembolDiliDetail({ id }: { id: string }) {
         open={formModalOpen}
         onClose={() => setFormModalOpen(false)}
         isDirty={formIsDirty}
-        title="Sembol kaydını düzenle"
-        subtitle="Kaydettikten sonra detay yenilenir."
+        title={t("editTitle")}
+        subtitle={td("formSubtitle")}
         titleId="symbol-edit-modal-title"
         accentRingClass="ring-emerald-100/50"
         footer={({ requestClose }) => (
@@ -490,7 +491,7 @@ export default function SembolDiliDetail({ id }: { id: string }) {
               onClick={requestClose}
               className="rounded-xl border border-slate-200/85 bg-white/90 px-4 py-2.5 text-[12px] font-black text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-50"
             >
-              Vazgeç
+              {tl("cancel")}
             </button>
             <button
               type="button"
@@ -498,6 +499,7 @@ export default function SembolDiliDetail({ id }: { id: string }) {
               onClick={() => {
                 const displayName = symbolDisplayName(record);
                 setForm({
+                  // i18n-ignore: symbolDisplayName() kaynak-dil yedek adıyla karşılaştırma (kontrol akışı; çevrilmez)
                   symbol_name: displayName === "İsimsiz sembol" ? "" : displayName,
                   category: record.category ?? "",
                   meaning: record.meaning ?? "",
@@ -506,7 +508,7 @@ export default function SembolDiliDetail({ id }: { id: string }) {
               }}
               className="rounded-xl border border-slate-200/80 bg-white/90 px-4 py-2.5 text-[12px] font-black text-slate-600 shadow-sm transition hover:bg-slate-50 disabled:opacity-50"
             >
-              Sıfırla
+              {td("reset")}
             </button>
             <button
               type="button"
@@ -514,14 +516,14 @@ export default function SembolDiliDetail({ id }: { id: string }) {
               onClick={() => void handleGuncelle()}
               className="rounded-xl border border-emerald-200/70 bg-emerald-50/90 px-4 py-2.5 text-[12px] font-black text-emerald-950 shadow-sm transition hover:bg-emerald-100/90 disabled:opacity-55"
             >
-              {saving ? "Güncelleniyor…" : "Güncelle"}
+              {saving ? td("updating") : td("update")}
             </button>
           </>
         )}
       >
         <div className="space-y-5">
           <label className="block">
-            <span className="mb-2 block text-[12px] font-black text-slate-800">Sembol Adı *</span>
+            <span className="mb-2 block text-[12px] font-black text-slate-800">{t("fields.nameLabel")}</span>
             <input
               value={form.symbol_name}
               onChange={(e) => setForm((f) => ({ ...f, symbol_name: e.target.value }))}
@@ -529,7 +531,7 @@ export default function SembolDiliDetail({ id }: { id: string }) {
             />
           </label>
           <label className="block">
-            <span className="mb-2 block text-[12px] font-black text-slate-800">Kategori</span>
+            <span className="mb-2 block text-[12px] font-black text-slate-800">{t("fields.category")}</span>
             <div className={badgeFieldWrapClass("emerald")}>
               <input
                 value={form.category}
@@ -539,8 +541,8 @@ export default function SembolDiliDetail({ id }: { id: string }) {
             </div>
           </label>
           <LongTextareaField
-            label={<span className="mb-2 block text-[12px] font-black text-slate-800">Anlam</span>}
-            modalTitle="Anlam"
+            label={<span className="mb-2 block text-[12px] font-black text-slate-800">{t("fields.meaning")}</span>}
+            modalTitle={t("fields.meaning")}
             value={form.meaning}
             onChange={(v) => setForm((f) => ({ ...f, meaning: v }))}
             minRows={5}
@@ -548,7 +550,7 @@ export default function SembolDiliDetail({ id }: { id: string }) {
             disabled={saving}
           />
           <label className="block">
-            <span className="mb-2 block text-[12px] font-black text-slate-800">Kaynak</span>
+            <span className="mb-2 block text-[12px] font-black text-slate-800">{t("fields.source")}</span>
             <input
               value={form.source}
               onChange={(e) => setForm((f) => ({ ...f, source: e.target.value }))}
@@ -560,8 +562,8 @@ export default function SembolDiliDetail({ id }: { id: string }) {
 
       <BiyoenerjiConfirmModal
         open={deleteConfirmOpen}
-        title="Bu sembol kaydını silmek istediğinizden emin misiniz?"
-        message="Bu işlem geri alınamaz."
+        title={t("deleteConfirm")}
+        message={td("irreversible")}
         busy={saving}
         onClose={() => setDeleteConfirmOpen(false)}
         onConfirm={() => void executeDelete()}

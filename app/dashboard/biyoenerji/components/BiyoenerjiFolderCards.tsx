@@ -2,12 +2,8 @@
 
 import Link from "next/link";
 import type { CSSProperties } from "react";
-import {
-  BIOENERJI_GROUP_ORDER,
-  BIOENERJI_SECTIONS_IN_ORDER,
-  type BiyoenerjiGroupId,
-  type BiyoenerjiSectionKey,
-} from "../biyoenerjiFolderConfig";
+import { BIOENERJI_SECTIONS_IN_ORDER, type BiyoenerjiSectionKey } from "../biyoenerjiFolderConfig";
+import { useBiyoenerjiLabels } from "../useBiyoenerjiLabels";
 import { tiltLeave, tiltMove } from "@/app/_premium/enerji-beden/cardTilt";
 import styles from "@/app/_premium/biyoenerji/biyoenerji.module.css";
 
@@ -29,18 +25,12 @@ const ART: Record<BiyoenerjiSectionKey, { file: string; w: number; h: number; gl
   "sembol-dili": { file: "sembol-dili", w: 266, h: 254, glow: { kind: "symbol", x: 56.4, y: 43, w: 64, h: 66, dur: 60 } },
 };
 
-/** IA grubu (FAZ 2): her kartın küçük kategori etiketi — tek kaynak folderConfig BIOENERJI_GROUP_ORDER. */
-const GROUP_TITLE: Record<BiyoenerjiGroupId, string> = BIOENERJI_GROUP_ORDER.reduce(
-  (acc, g) => {
-    acc[g.id] = g.title;
-    return acc;
-  },
-  {} as Record<BiyoenerjiGroupId, string>,
-);
+/** IA grubu (FAZ 2): her kartın küçük kategori etiketi — grup kimliği folderConfig'ten, görünen ad useBiyoenerjiLabels. */
 
 const GLOW_CLASS = { chakra: styles.glowChakra, aura: styles.glowAura, symbol: styles.glowSymbol } as const;
 
 export default function BiyoenerjiFolderCards() {
+  const L = useBiyoenerjiLabels();
   return (
     <div className={styles.cards}>
       {BIOENERJI_SECTIONS_IN_ORDER.map((card) => {
@@ -81,9 +71,9 @@ export default function BiyoenerjiFolderCards() {
               <span className={styles.cardIcon} aria-hidden>
                 <Icon className="h-[26px] w-[26px]" strokeWidth={1.7} />
               </span>
-              <span className={styles.cardGroup}>{GROUP_TITLE[card.group]}</span>
-              <h3 className={styles.cardTitle}>{card.title}</h3>
-              <p className={styles.cardDesc}>{card.desc}</p>
+              <span className={styles.cardGroup}>{L.groupTitle(card.group)}</span>
+              <h3 className={styles.cardTitle}>{L.cardTitle(card.key)}</h3>
+              <p className={styles.cardDesc}>{L.cardDesc(card.key)}</p>
             </div>
           </Link>
         );

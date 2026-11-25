@@ -58,25 +58,25 @@ export async function PATCH(
 
   const { id: rawId } = await ctx.params;
   const id = (rawId ?? "").trim();
-  if (!id) return NextResponse.json({ ok: false, error: "id zorunludur." }, { status: 400 });
+  if (!id) return NextResponse.json({ ok: false, code: "AROMA_ID_REQUIRED", error: "id zorunludur." }, { status: 400 });
 
   let body: Record<string, unknown>;
   try {
     body = (await req.json()) as Record<string, unknown>;
   } catch {
-    return NextResponse.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 });
+    return NextResponse.json({ ok: false, code: "AROMA_INVALID_BODY", error: "Geçersiz istek gövdesi." }, { status: 400 });
   }
 
   const name = String(body.name ?? "").trim();
-  if (!name) return NextResponse.json({ ok: false, error: "Karışım adı zorunludur." }, { status: 400 });
+  if (!name) return NextResponse.json({ ok: false, code: "AROMA_BLEND_NAME_REQUIRED", error: "Karışım adı zorunludur." }, { status: 400 });
 
   const bottleMl = toNumber(body.bottle_ml);
   const dilutionPercent = toNumber(body.dilution_percent);
-  if (!(bottleMl > 0)) return NextResponse.json({ ok: false, error: "Şişe hacmi 0'dan büyük olmalıdır." }, { status: 400 });
-  if (!(dilutionPercent > 0)) return NextResponse.json({ ok: false, error: "Seyreltme oranı 0'dan büyük olmalıdır." }, { status: 400 });
+  if (!(bottleMl > 0)) return NextResponse.json({ ok: false, code: "AROMA_BOTTLE_INVALID", error: "Şişe hacmi 0'dan büyük olmalıdır." }, { status: 400 });
+  if (!(dilutionPercent > 0)) return NextResponse.json({ ok: false, code: "AROMA_DILUTION_INVALID", error: "Seyreltme oranı 0'dan büyük olmalıdır." }, { status: 400 });
 
   const items = sanitizeItems(body.items);
-  if (items.length === 0) return NextResponse.json({ ok: false, error: "En az bir uçucu yağ eklemelisiniz." }, { status: 400 });
+  if (items.length === 0) return NextResponse.json({ ok: false, code: "AROMA_ITEMS_REQUIRED", error: "En az bir uçucu yağ eklemelisiniz." }, { status: 400 });
 
   if (is_demo_account) return demoReadOnlyResponse();
 
@@ -107,7 +107,7 @@ export async function PATCH(
       : null;
   if (!expectedUpdatedAt) {
     return NextResponse.json(
-      { ok: false, error: "AROMA_MISSING_VERSION" },
+      { ok: false, code: "AROMA_MISSING_VERSION", error: "AROMA_MISSING_VERSION" },
       { status: 400, headers: { "Cache-Control": "no-store" } },
     );
   }
@@ -137,12 +137,12 @@ export async function PATCH(
     if (existing) {
       await trackUsage(guard, req, { module: "aromatherapy", action: "action_failed", failedAction: "record_updated", subEntity: "blend", errorClass: "conflict" });
       return NextResponse.json(
-        { ok: false, error: "AROMA_STALE_BLEND", stale: true },
+        { ok: false, code: "AROMA_STALE_BLEND", error: "AROMA_STALE_BLEND", stale: true },
         { status: 409, headers: { "Cache-Control": "no-store" } },
       );
     }
     return NextResponse.json(
-      { ok: false, error: "Karışım bulunamadı veya bu hesaba ait değil." },
+      { ok: false, code: "AROMA_BLEND_NOT_OWNED", error: "Karışım bulunamadı veya bu hesaba ait değil." },
       { status: 404 },
     );
   }
@@ -160,7 +160,7 @@ export async function DELETE(
 
   const { id: rawId } = await ctx.params;
   const id = (rawId ?? "").trim();
-  if (!id) return NextResponse.json({ ok: false, error: "id zorunludur." }, { status: 400 });
+  if (!id) return NextResponse.json({ ok: false, code: "AROMA_ID_REQUIRED", error: "id zorunludur." }, { status: 400 });
 
   if (is_demo_account) return demoReadOnlyResponse();
 
@@ -182,7 +182,7 @@ export async function DELETE(
   }
   if (!data || data.length === 0) {
     return NextResponse.json(
-      { ok: false, error: "Karışım bulunamadı veya bu hesaba ait değil." },
+      { ok: false, code: "AROMA_BLEND_NOT_OWNED", error: "Karışım bulunamadı veya bu hesaba ait değil." },
       { status: 404 },
     );
   }

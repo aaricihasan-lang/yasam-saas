@@ -1,0 +1,201 @@
+{
+  "numerology": {
+    "app": {
+      "gate": {
+        "metaTitle": "Numerology Centre · Yaşam Sistemi",
+        "eyebrow": "Numerology Centre",
+        "title": "Which numerology method will you work with?",
+        "sub": "The two methods are independent; their calculation rules and records are kept separate. You can review the two records side by side whenever you wish.",
+        "methodsAria": "Numerology methods",
+        "idLetterTable": "Letter table",
+        "idMasterNumber": "Master number",
+        "idTechniques": "Core techniques",
+        "a": {
+          "title": "Holistic Numerology",
+          "sub": "A holistic numerology workspace based on training techniques.",
+          "idcardAria": "Method identity card — Holistic Numerology",
+          "letterTable": "Pythagorean letter table + training techniques",
+          "masterNumber": "All digits are added in a single pass and the intermediate total is shown (e.g. 32/5).",
+          "chips": {
+            "pin": "PIN",
+            "anaKulvar": "Main Lane",
+            "yanKulvar": "Side Lane",
+            "cakraOmurgasi": "Chakra Spine",
+            "elementler": "Elements",
+            "hayatYolu": "Life Path"
+          },
+          "foot": "Opens in its own workspace.",
+          "cta": "Open Holistic Numerology →"
+        },
+        "b": {
+          "title": "Classical Numerology",
+          "sub": "Western and Chaldean traditions; a calculation you can verify step by step.",
+          "idcardAria": "Method identity card — Classical Numerology",
+          "letterTable": "Pythagorean (Western) and Chaldean (Cheiro) — two separate methods",
+          "masterNumber": "Month, day and year are reduced separately; 11 · 22 · 33 are preserved.",
+          "chips": {
+            "cekirdek": "Core Numbers",
+            "karmik": "Karmic Lessons",
+            "zirveler": "Pinnacles",
+            "kopruler": "Bridges",
+            "kaldeBilesik": "Chaldean Compound",
+            "ikiSistem": "Two Systems"
+          },
+          "foot": "The calculation of every number is shown step by step.",
+          "cta": "Open Classical Numerology →"
+        },
+        "compare": {
+          "title": "Comparative Review",
+          "lead": "Review the same client's records from both methods side by side, concept by concept. Numbers are not merged; the original analyses remain unchanged.",
+          "badge": "Two methods"
+        }
+      },
+      "home": {
+        "title": "Numerology",
+        "sub": "Calculate your life map, create your report and save your analyses. Choose a module.",
+        "navAria": "Numerology areas",
+        "cards": {
+          "analiz": {
+            "title": "Numerology Analysis",
+            "desc": "Full engine output from first name, surname and date of birth; tabbed analysis, a premium life-map visual and high-resolution PNG export on a single screen.",
+            "badge": "Start here"
+          },
+          "kayitli": {
+            "title": "Saved Analyses",
+            "desc": "List your records; open each record with its full name, date of birth and save time, and view its full-text summary instantly."
+          },
+          "bilgi": {
+            "title": "Knowledge Base",
+            "desc": "Edit numerology training notes, explanations, interpretation texts and knowledge content in one centre."
+          }
+        },
+        "foot": "Numerology — discover yourself through the language of numbers, analyse your life map and manage your knowledge in one centre."
+      },
+      "list": {
+        "tenantMissing": "The active user's tenant ID could not be found. Please sign in again.",
+        "loadFailed": "Records could not be loaded: {detail}",
+        "demoTitle": "Demo Mode",
+        "demoNoDelete": "Records cannot be deleted in the demo account.",
+        "errorTitle": "Error",
+        "deleteFailed": "The selected records could not be deleted: {detail}",
+        "unknownError": "Unknown error",
+        "deleteNothing": "Nothing was deleted. Please try again.",
+        "successTitle": "Success",
+        "deleted": "Analyses deleted successfully: {countText}.",
+        "demoNoWord": "A bulk Word report cannot be generated in the demo account.",
+        "noSession": "No active session found. Please sign in again.",
+        "reportFailed": "The report could not be generated.",
+        "reportDownloaded": "Numerology report downloaded.",
+        "infoTitle": "Information",
+        "emptyTabs": "Some sections had no content and were not added: {list}",
+        "pageNavAria": "Page navigation",
+        "newAnalysis": "New analysis",
+        "title": "Saved analyses",
+        "sub": "View and manage all your numerology records.",
+        "demoBannerTitle": "Demo Mode — Sample Analysis List",
+        "demoBannerText": "The <b>{name}</b> sample analysis is fully open and all of its content is accessible. The other records have been added to demonstrate the system; their analysis content is blurred for demo security.",
+        "searchAria": "Search by first name or surname",
+        "searchPlaceholder": "Search by first name or surname…",
+        "loading": "Loading…",
+        "empty": "There are no saved analyses yet.",
+        "noMatch": "No records match your search."
+      },
+      "duplicate": {
+        "titleFailed": "Previous records could not be checked",
+        "titleDuplicate": "A saved analysis already exists for this person",
+        "failedBody": "We could not check right now whether a record has already been saved with this first name, surname and date of birth. You can try again or save without checking.",
+        "failedNote": "Nothing has been saved yet; your work on this page is kept.",
+        "bodySingle": "You already have an analysis saved with this first name, surname and date of birth. Would you like to open the existing record or save a new analysis?",
+        "bodyMany": "You already have {countText} analyses saved with this first name, surname and date of birth. Would you like to open an existing record or save a new analysis?",
+        "note": "The existing record opens in a new tab; your work on this page is not lost. The old record is not changed.",
+        "matchesAria": "Matching records",
+        "birth": "Born {date}",
+        "createdSuffix": " · Saved {date}",
+        "openThis": "Open This Record",
+        "singleRecord": "Record: {name} {surname} · Born {birth}",
+        "checking": "Checking…",
+        "retry": "Try Again",
+        "openExisting": "Open Existing Record",
+        "saving": "Saving…",
+        "saveAnyway": "Save Anyway",
+        "saveNewAnyway": "Save as New Anyway",
+        "cancel": "Cancel"
+      },
+      "save": {
+        "checking": "Checking…",
+        "saving": "Saving…",
+        "saved": "Saved ✓",
+        "save": "SAVE",
+        "failedTitle": "Could not save",
+        "unknownError": "Unknown error",
+        "success": "Analysis saved"
+      },
+      "visual": {
+        "showStones": "Show stone recommendations in the visual report",
+        "expertName": "Practitioner name",
+        "expertPlaceholder": "e.g. Hasan Arıcı",
+        "braceletStones": "Bracelet stones",
+        "necklaceStones": "Necklace stones",
+        "commaPlaceholder": "Separate with commas",
+        "themeAria": "Visual report theme",
+        "preparing": "Preparing visual...",
+        "pngDownload": "⤓ Download PNG",
+        "fullscreen": "Full Screen",
+        "fullscreenThemeAria": "Full-screen theme"
+      },
+      "picker": {
+        "title": "Word Report — Section Selection",
+        "sub": "Select the sections to include in the report",
+        "tabs": {
+          "summary": "Results Summary",
+          "plain": "Analysis (without Calculation Summary)",
+          "detailed": "Analysis (with Calculation Summary)",
+          "zamanlama": "Timing & Development",
+          "tas": "Stone Descriptions"
+        },
+        "refDateLabel": "Timing reference date",
+        "refDateHint": "Year, month, day and development calculations are based on this date.",
+        "atLeastOne": "Select at least one section.",
+        "refDateRequired": "Select a valid reference date for timing.",
+        "cancel": "Cancel",
+        "preparing": "Preparing…",
+        "generate": "Create Word"
+      },
+      "clientLink": {
+        "readFailed": "The client link could not be read.",
+        "network": "Network error. Check your connection.",
+        "aria": "Client link",
+        "linkedLabel": "Linked client:",
+        "linkedUnknown": "Linked to a client",
+        "notLinked": "This analysis is not linked to a client.",
+        "autoNote": "Client analyses are created automatically when a client is saved in Client Journey."
+      },
+      "fontSize": {
+        "aria": "Text size",
+        "decrease": "Decrease text size",
+        "increase": "Increase text size"
+      },
+      "rowError": {
+        "unreadable": "⚠️ This record could not be read (the data may be outdated or corrupted)."
+      },
+      "calcInfo": {
+        "usedInputs": "Information used",
+        "unusedInputs": "Not used in this calculation",
+        "rationale": "Calculation logic",
+        "steps": "Step-by-step calculation",
+        "reduction": "Reduction",
+        "result": "Result",
+        "period": "Validity / period",
+        "formula": "Formula",
+        "calc": "Calculation",
+        "meaningQ": "What does this mean?",
+        "howQ": "How was it calculated?",
+        "meaningAria": "{title}: What does this mean?",
+        "howAria": "{title}: How was it calculated?",
+        "close": "Close",
+        "meaningFoot": "This is a short definition of the concept behind the calculation; it contains no personal interpretation.",
+        "calcFoot": "This breakdown only shows how the number was found; it contains no numerological interpretation."
+      }
+    }
+  }
+}

@@ -1,12 +1,13 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { HdBilgiKayitForm } from "./HdBilgiKayitForm";
 import { HdBilgiKayitListesi } from "./HdBilgiKayitListesi";
 
 const TABS = [
-  { id: "kayit-listesi" as const, label: "Kayıtlarım" },
-  { id: "kayit-ekle" as const, label: "Yeni Kayıt Ekle" },
+  { id: "kayit-listesi" as const, labelKey: "workspace.tabList" },
+  { id: "kayit-ekle" as const, labelKey: "workspace.tabAdd" },
 ];
 
 type TabId = (typeof TABS)[number]["id"];
@@ -21,9 +22,10 @@ type TabId = (typeof TABS)[number]["id"];
  */
 export function HdKnowledgeWorkspace({ isDemo }: { isDemo: boolean }) {
   const [tab, setTab] = useState<TabId>("kayit-listesi");
+  const tr = useTranslations("hd.knowledge");
   return (
     <div className="overflow-hidden rounded-2xl border border-indigo-200/80 bg-white/95 shadow-[0_8px_28px_-10px_rgba(79,70,229,0.18)] ring-1 ring-indigo-200/60 backdrop-blur-md">
-      <div role="tablist" aria-label="Bilgi Bankası" className="flex flex-wrap gap-2 rounded-t-2xl border-b border-indigo-200/60 bg-white/75 p-3 backdrop-blur-xl">
+      <div role="tablist" aria-label={tr("workspace.aria")} className="flex flex-wrap gap-2 rounded-t-2xl border-b border-indigo-200/60 bg-white/75 p-3 backdrop-blur-xl">
         {TABS.filter((t) => !isDemo || t.id === "kayit-listesi").map((t) => (
           <button
             key={t.id}
@@ -37,7 +39,7 @@ export function HdKnowledgeWorkspace({ isDemo }: { isDemo: boolean }) {
                 : "border-indigo-200 bg-white/90 text-slate-700 hover:border-indigo-400 hover:bg-indigo-50"
             }`}
           >
-            {t.label}
+            {tr(t.labelKey)}
           </button>
         ))}
       </div>

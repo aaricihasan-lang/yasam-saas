@@ -135,7 +135,8 @@ export function badge(text: string, tone: BadgeTone): TextRun {
 }
 
 /** Lila değer kartları (tek satır; sayı büyük). */
-export function valueCards(items: readonly { label: string; value: string; badges?: TextRun[] }[]): Table {
+/** `upperLocale`: etiket büyük harf dili (I18N-F1-R5; yok → "tr-TR", bugünkü çıktı birebir). */
+export function valueCards(items: readonly { label: string; value: string; badges?: TextRun[] }[], upperLocale = "tr-TR"): Table {
   const list = items.length ? items : [{ label: "—", value: "—" }];
   return new Table({
     width: { size: 100, type: WidthType.PERCENTAGE },
@@ -148,7 +149,7 @@ export function valueCards(items: readonly { label: string; value: string; badge
         margins: { top: 120, bottom: 120, left: 60, right: 60 },
         width: { size: Math.floor(100 / list.length), type: WidthType.PERCENTAGE },
         children: [
-          new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 40 }, children: [run(it.label.toLocaleUpperCase("tr-TR"), { bold: true, color: SECONDARY, size: S_TINY })] }),
+          new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 40 }, children: [run(it.label.toLocaleUpperCase(upperLocale), { bold: true, color: SECONDARY, size: S_TINY })] }),
           new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: it.badges?.length ? 40 : 0 }, children: [run(it.value, { bold: true, color: INDIGO, size: S_BIG })] }),
           ...(it.badges?.length ? [new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 0 }, children: it.badges })] : []),
         ],
@@ -226,10 +227,12 @@ export function noteBox(title: string, lines: readonly string[], tone: "neutral"
 }
 
 /** Kapak sayfası. */
-export function coverPage(o: { heading: string; subtitle: string; bulletsList?: readonly string[]; info: readonly (readonly [string, string])[]; branding?: ExpertBranding | null; brandingVariant?: ExpertBrandingVariant }): Block[] {
+/** I18N-F1-R5: kapak sabit metinleri (çıktı dili). Yok → Türkçe (bugünkü kapak birebir). */
+export type CoverText = { brand: string; platform: string; brandFooter: string; motto: string };
+export function coverPage(o: { heading: string; subtitle: string; bulletsList?: readonly string[]; info: readonly (readonly [string, string])[]; branding?: ExpertBranding | null; brandingVariant?: ExpertBrandingVariant; text?: CoverText }): Block[] {
   const out: Block[] = [];
-  out.push(new Paragraph({ spacing: { after: 0 }, shading: { type: ShadingType.CLEAR, fill: MOR, color: "auto" }, alignment: AlignmentType.CENTER, children: [run("YAŞAM SİSTEMİ", { bold: true, color: WHITE, size: S_H3 })] }));
-  out.push(new Paragraph({ spacing: { before: 40, after: 500 }, alignment: AlignmentType.CENTER, children: [run("Bütüncül Yaşam Analizi Platformu", { color: SECONDARY, size: S_SMALL })] }));
+  out.push(new Paragraph({ spacing: { after: 0 }, shading: { type: ShadingType.CLEAR, fill: MOR, color: "auto" }, alignment: AlignmentType.CENTER, children: [run(o.text?.brand ?? "YAŞAM SİSTEMİ", { bold: true, color: WHITE, size: S_H3 })] }));
+  out.push(new Paragraph({ spacing: { before: 40, after: 500 }, alignment: AlignmentType.CENTER, children: [run(o.text?.platform ?? "Bütüncül Yaşam Analizi Platformu", { color: SECONDARY, size: S_SMALL })] }));
   out.push(new Paragraph({ heading: HeadingLevel.TITLE, spacing: { before: 700, after: 120 }, alignment: AlignmentType.CENTER, children: [run(o.heading, { bold: true, color: INDIGO, size: S_H1 })] }));
   out.push(new Paragraph({ spacing: { after: 240 }, alignment: AlignmentType.CENTER, border: { bottom: { style: BorderStyle.SINGLE, size: 12, color: MOR } }, children: [] }));
   out.push(new Paragraph({ spacing: { after: 400 }, alignment: AlignmentType.CENTER, children: [run(o.subtitle, { bold: true, color: MOR, size: S_H2 })] }));
@@ -252,8 +255,8 @@ export function coverPage(o: { heading: string; subtitle: string; bulletsList?: 
   // F3A: uzman kimlik bloğu (markalama yoksa öğe YOK → kapak birebir); blok varsa alt boşluk daralır.
   const expertBlock = expertCoverBlock(o.branding, { variant: o.brandingVariant, accent: MOR, ruleColor: "EDE9FE", before: 360 });
   out.push(...expertBlock);
-  out.push(new Paragraph({ spacing: { before: expertBlock.length ? 480 : 800, after: 20 }, alignment: AlignmentType.CENTER, children: [run("Yaşam Sistemi", { bold: true, color: MOR, size: S_SMALL })] }));
-  out.push(new Paragraph({ spacing: { after: 0 }, alignment: AlignmentType.CENTER, children: [run("Bütünsel farkındalık, kişisel dönüşüm", { color: SECONDARY, size: 16 })] }));
+  out.push(new Paragraph({ spacing: { before: expertBlock.length ? 480 : 800, after: 20 }, alignment: AlignmentType.CENTER, children: [run(o.text?.brandFooter ?? "Yaşam Sistemi", { bold: true, color: MOR, size: S_SMALL })] }));
+  out.push(new Paragraph({ spacing: { after: 0 }, alignment: AlignmentType.CENTER, children: [run(o.text?.motto ?? "Bütünsel farkındalık, kişisel dönüşüm", { color: SECONDARY, size: 16 })] }));
   return out;
 }
 
@@ -267,7 +270,8 @@ export function runningHeader(label: string): Header {
   });
 }
 
-export function runningFooter(disclaimerShort: string, brandLine?: Paragraph | null): Footer {
+/** `pageLabel`: I18N-F1-R5 çıktı dili sayfa öneki ("Yaşam Sistemi  ·  Page "); yok → Türkçe (birebir). */
+export function runningFooter(disclaimerShort: string, brandLine?: Paragraph | null, pageLabel?: string): Footer {
   return new Footer({
     children: [
       new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 20 }, children: [run(disclaimerShort, { italics: true, color: SECONDARY, size: 14 })] }),
@@ -276,7 +280,7 @@ export function runningFooter(disclaimerShort: string, brandLine?: Paragraph | n
       new Paragraph({
         alignment: AlignmentType.CENTER,
         children: [
-          run("Yaşam Sistemi  ·  Sayfa ", { color: SECONDARY, size: 16 }),
+          run(pageLabel ?? "Yaşam Sistemi  ·  Sayfa ", { color: SECONDARY, size: 16 }),
           new TextRun({ children: [PageNumber.CURRENT], font: FONT, size: 16, color: SECONDARY }),
           run(" / ", { color: SECONDARY, size: 16 }),
           new TextRun({ children: [PageNumber.TOTAL_PAGES], font: FONT, size: 16, color: SECONDARY }),

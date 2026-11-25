@@ -1,5 +1,7 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+
 /**
  * FAZ 5 / AŞAMA 3 — Görünüm anahtarı (segmented control): Aylık Düzenleme ↔ Yıllık Özet.
  *
@@ -15,14 +17,15 @@ export function CalendarViewToggle({
   view: CalendarView;
   onChange: (view: CalendarView) => void;
 }) {
+  const t = useTranslations("cupping.calendar.view");
   const items: { key: CalendarView; label: string }[] = [
-    { key: "monthly", label: "Aylık Görünüm" },
-    { key: "annual", label: "Yıllık Özet" },
+    { key: "monthly", label: t("monthly") },
+    { key: "annual", label: t("annual") },
   ];
   return (
     <div
       role="group"
-      aria-label="Takvim görünümü"
+      aria-label={t("aria")}
       className="inline-flex w-full items-center gap-1 rounded-2xl border border-amber-100 bg-amber-50/50 p-1 sm:w-auto"
     >
       {items.map((it) => {

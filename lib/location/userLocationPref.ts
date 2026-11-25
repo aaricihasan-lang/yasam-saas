@@ -43,10 +43,18 @@ export async function getUserLocationPref(): Promise<UserLocationPref | null> {
   }
 }
 
+/**
+ * İstemci tarafı hata kodu (I18N-F1-R3): dil-bağımsız EK alan; `error` metni aynen korunur (Kozmik Ajanda bugünkü
+ * gibi `error`'u gösterir). Ayarlar › Konum kaynak dil dışında `settings.location.errors.codes.<KOD>` gösterir.
+ */
+export type UserLocationPrefErrorCode = "NO_SESSION" | "NETWORK";
+
 /** Varsayılan konumu kaydet (upsert). Location katmanının kaydını API gövdesine eşler. */
-export async function saveUserLocationPref(loc: Location): Promise<{ ok: boolean; error?: string }> {
+export async function saveUserLocationPref(
+  loc: Location,
+): Promise<{ ok: boolean; error?: string; code?: UserLocationPrefErrorCode }> {
   const headers = authHeaders();
-  if (!headers) return { ok: false, error: "Oturum bulunamadı." };
+  if (!headers) return { ok: false, error: "Oturum bulunamadı.", code: "NO_SESSION" };
   try {
     const res = await fetch("/api/settings/location", {
       method: "PUT",
@@ -65,6 +73,6 @@ export async function saveUserLocationPref(loc: Location): Promise<{ ok: boolean
     const json = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string };
     return { ok: res.ok && json.ok === true, error: json.error };
   } catch (e) {
-    return { ok: false, error: e instanceof Error ? e.message : "Ağ hatası." };
+    return { ok: false, error: e instanceof Error ? e.message : "Ağ hatası.", code: "NETWORK" };
   }
 }

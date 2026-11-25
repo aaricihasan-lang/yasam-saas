@@ -1,6 +1,7 @@
 "use client";
 
 import type { ClinicalNoteFormDraft } from "../types";
+import { useTranslations } from "next-intl";
 import { AttachmentsPanel } from "./AttachmentsPanel";
 
 const toolBtn =
@@ -44,6 +45,7 @@ export function NotKaydiTab({
   onRemoveAttachment,
   onOpenEditor,
 }: NotKaydiTabProps) {
+  const t = useTranslations("reflexology.notes");
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap gap-2 rounded-[28px] border border-purple-100 bg-white/85 p-4 shadow-sm ring-1 ring-violet-100/60">
@@ -52,7 +54,7 @@ export function NotKaydiTab({
           onClick={onNew}
           className={`${toolBtn} border-emerald-300/80 bg-emerald-100 text-emerald-950 hover:bg-emerald-200/90`}
         >
-          + Yeni Not
+          {t("form.new")}
         </button>
         <button
           type="button"
@@ -60,7 +62,7 @@ export function NotKaydiTab({
           disabled={Boolean(editingId)}
           className={`${toolBtn} border-sky-300/80 bg-sky-500 text-white hover:bg-sky-600`}
         >
-          Kaydet
+          {t("form.save")}
         </button>
         <button
           type="button"
@@ -68,7 +70,7 @@ export function NotKaydiTab({
           disabled={!editingId}
           className={`${toolBtn} border-violet-300/80 bg-violet-500 text-white hover:bg-violet-600`}
         >
-          Güncelle
+          {t("detail.update")}
         </button>
         <button
           type="button"
@@ -76,14 +78,14 @@ export function NotKaydiTab({
           disabled={!editingId}
           className={`${toolBtn} border-red-300/80 bg-red-50 text-red-700 hover:bg-red-100`}
         >
-          Sil
+          {t("form.delete")}
         </button>
         <button
           type="button"
           onClick={onAddFileClick}
           className={`${toolBtn} border-amber-300/80 bg-amber-100 text-amber-950 hover:bg-amber-200/90`}
         >
-          Dosya Ekle
+          {t("attachments.add")}
         </button>
         <button
           type="button"
@@ -91,14 +93,14 @@ export function NotKaydiTab({
           disabled={!selectedAttachmentId}
           className={`${toolBtn} border-fuchsia-300/80 bg-fuchsia-100 text-fuchsia-950 hover:bg-fuchsia-200/90`}
         >
-          Ek Adı Değiştir
+          {t("attachments.rename")}
         </button>
         <button
           type="button"
           onClick={onWordImportClick}
           className={`${toolBtn} border-indigo-300/80 bg-indigo-100 text-indigo-950 hover:bg-indigo-200/90`}
         >
-          Word&apos;den Aktar
+          {t("form.importWordJsx")}
         </button>
       </div>
 
@@ -111,18 +113,18 @@ export function NotKaydiTab({
       <section className="rounded-[28px] border border-purple-100 bg-white/80 p-5 shadow-sm ring-1 ring-violet-100/60 md:p-6">
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
           <label className="block">
-            <span className="mb-2 block text-base font-bold text-slate-800">Not Başlığı</span>
+            <span className="mb-2 block text-base font-bold text-slate-800">{t("fields.title")}</span>
             <input
               type="text"
               value={draft.title}
               onChange={(e) => onDraftChange({ title: e.target.value })}
-              placeholder="Örn: Migren protokolü"
+              placeholder={t("form.titlePlaceholder")}
               className="w-full rounded-xl border border-violet-200/90 bg-white px-4 py-3 text-base font-medium text-slate-800 outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-200/50"
             />
           </label>
 
           <label className="block">
-            <span className="mb-2 block text-base font-bold text-slate-800">Tarih</span>
+            <span className="mb-2 block text-base font-bold text-slate-800">{t("fields.date")}</span>
             <input
               type="date"
               value={draft.date}
@@ -134,20 +136,20 @@ export function NotKaydiTab({
 
         <div className="mt-5">
           <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-            <span className="text-base font-bold text-slate-800">Not İçeriği</span>
+            <span className="text-base font-bold text-slate-800">{t("fields.content")}</span>
             <button
               type="button"
               onClick={onOpenEditor}
               className="rounded-xl border border-violet-300/80 bg-violet-100 px-4 py-2 text-sm font-bold text-violet-950 transition hover:bg-violet-200/90"
             >
-              Büyük Editör Aç
+              {t("form.openEditor")}
             </button>
           </div>
 
           <textarea
             value={draft.content}
             onChange={(e) => onDraftChange({ content: e.target.value })}
-            placeholder="Seans notu, dikkat, gözlem, ek bilgi..."
+            placeholder={t("form.contentPlaceholder")}
             rows={12}
             className="w-full resize-y rounded-xl border border-violet-200/90 bg-white px-4 py-3 text-base font-medium leading-relaxed text-slate-800 outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-200/50"
           />

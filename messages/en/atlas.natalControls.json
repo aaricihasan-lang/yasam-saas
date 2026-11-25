@@ -1,0 +1,65 @@
+{
+  "atlas": {
+    "natalControls": {
+      "viewAria": "Chart view",
+      "mode": {
+        "basic": "Basic",
+        "pro": "Professional"
+      },
+      "modeTitle": {
+        "basic": "Simple view: only the major aspects between the 10 planets (conjunction, sextile, square, trine, opposition). The calculation and the aspect list do not change.",
+        "pro": "Detailed view: every aspect type in the list and house cusp degrees; tight-orb aspects are drawn thicker. The calculation does not change."
+      },
+      "pointsLabel": "Extra points",
+      "pointsNone": "none",
+      "pointsTitle": "Extra points shown on the chart: {on}/{total} selected{missing} · Wheel labels: {labels}",
+      "pointsMissing": " ({n, plural, one {# point is} other {# points are}} not in this chart)",
+      "pointsGroupAria": "Points shown on the chart",
+      "pointMissingNote": "Not in this chart (birth time unknown)",
+      "point": {
+        "nodes": "Lunar Nodes",
+        "chiron": "Chiron",
+        "lilith": "Lilith",
+        "vertex": "Vertex",
+        "fortune": "Part of Fortune"
+      },
+      "labelsAria": "Wheel labels",
+      "labelsTitle": "Wheel labels",
+      "labelPref": {
+        "auto": "By view",
+        "simple": "Simple",
+        "detailed": "Detailed"
+      },
+      "labelHint": {
+        "auto": "Basic: simple · Professional: detailed (currently {current})",
+        "simple": "Planet · degree · minute",
+        "detailed": "Planet · degree · sign · minute; house cusps"
+      },
+      "currentDetailed": "detailed",
+      "currentSimple": "simple",
+      "drawOnly": "Only the drawing changes; the calculation and the record do not.",
+      "filterLabel": "Aspect lines",
+      "filterTitle": "Aspects drawn on the wheel: {on}/{total} options selected{focus}",
+      "filterFocusOnly": " · only {body}",
+      "filterAllBodies": " · all bodies",
+      "groupAria": "Aspect group",
+      "groupTitle": "Aspect group",
+      "minorBasicNote": "Not drawn in the Basic view — switch to Professional",
+      "majorNote": "Conjunction, sextile, square, trine, opposition",
+      "minorNote": "Semi-sextile, semi-square, sesquiquadrate, quincunx",
+      "major": "Major aspects",
+      "minor": "Minor aspects",
+      "natureAria": "Aspect nature",
+      "natureTitle": "Nature",
+      "focusLabel": "Body focus",
+      "focusTitle": "Show only the aspect lines of the selected planet / point",
+      "focusAll": "All bodies",
+      "countsFoot": "Aspect list: <strong>{total}</strong> · drawn on the wheel: <strong>{drawn}</strong>. The list and orbs do not change; all aspects are in the Aspects section.",
+      "countsTitle": "Total aspects in the list / aspects drawn on the wheel",
+      "counts": "Aspect list: <strong>{total}</strong> · drawn on the wheel: <strong>{drawn}</strong>",
+      "countsSr": " (conjunctions may not show as lines because the points are close; the full list is in the Aspects section)",
+      "selectAll": "Select all",
+      "clear": "Clear"
+    }
+  }
+}

@@ -19,7 +19,9 @@ import {
   type ChallengeConfirm,
   type ChallengeRequest,
 } from "../../_components/DestructiveChallengeDialog";
-import { friendlyPlanError, revisionLabel } from "./planFormat";
+import { revisionLabel } from "./planFormat";
+import { usePlanFormat } from "./usePlanFormat";
+import { useTranslations } from "next-intl";
 
 export type PlanDeleteTarget = { id: string; title: string; revision_number: number };
 
@@ -32,6 +34,9 @@ export function PlanDeleteDialog({
   onClose: () => void;
   onDeleted: () => void;
 }) {
+  const td = useTranslations("beslenme.planDelete");
+  const tch = useTranslations("beslenme.challenge");
+  const pf = usePlanFormat();
   const requestChallenge = useCallback<ChallengeRequest>(async () => {
     const r = await requestPlanDeleteChallenge(plan.id);
     if (r.ok && r.data) {
@@ -45,46 +50,45 @@ export function PlanDeleteDialog({
           count: 1,
           names: [
             `${d.plan.title} (${revisionLabel(d.plan.revision_number)})`,
-            `${d.days} gün`,
-            `${d.meals} öğün`,
-            `${d.items} besin kalemi`,
+            td("daysCount", { count: d.days }),
+            td("mealsCount", { count: d.meals }),
+            td("itemsCount", { count: d.items }),
             d.other_revisions > 0
-              ? `Bu planın diğer ${d.other_revisions} revizyonu silinmez`
-              : "Bu planın başka revizyonu yok",
+              ? td("otherRevisions", { count: d.other_revisions })
+              : td("noOtherRevisions"),
           ],
         },
       };
     }
-    return { ok: false, message: friendlyPlanError(r.code, r.status) };
-  }, [plan.id]);
+    return { ok: false, message: pf.error(r.code, r.status) };
+  }, [plan.id, td, pf]);
 
   const confirm = useCallback<ChallengeConfirm>(
     async (challengeId, code) => {
       const r = await deletePlan(plan.id, challengeId, code);
       if (r.ok) return { ok: true };
-      const e = challengeErrorMessage(r.code);
+      const e = challengeErrorMessage(r.code, tch);
       return {
         ok: false,
-        message: r.code?.startsWith("CHALLENGE_") ? e.message : friendlyPlanError(r.code, r.status),
+        message: r.code?.startsWith("CHALLENGE_") ? e.message : pf.error(r.code, r.status),
         refresh: e.refresh,
       };
     },
-    [plan.id],
+    [plan.id, tch, pf],
   );
 
   return (
     <DestructiveChallengeDialog
       open
-      title="Planı Sil"
-      itemNoun="plan revizyonu"
+      title={td("title")}
+      itemNoun={td("itemNoun")}
       scopeIntro={
         <>
-          <b>{plan.title}</b> ({revisionLabel(plan.revision_number)}) planı <b>tüm günleri, öğünleri ve besin
-          kalemleriyle birlikte</b> kalıcı olarak silinecek. Varsa aynı planın diğer revizyonları etkilenmez.
+          {td.rich("intro", { title: plan.title, rev: revisionLabel(plan.revision_number), b: (chunks) => <b>{chunks}</b> })}
         </>
       }
-      warning="Plan, içindeki tüm günler, öğünler ve besin kalemleri kalıcı olarak silinecektir."
-      confirmLabel="Planı Sil"
+      warning={td("warning")}
+      confirmLabel={td("title")}
       requestChallenge={requestChallenge}
       confirm={confirm}
       onClose={onClose}

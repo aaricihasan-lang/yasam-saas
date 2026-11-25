@@ -110,6 +110,19 @@ if (existsSync(RAW_DIR)) {
 async function screenAndPng(): Promise<void> {
 if (lp6) {
   const { TimingPanel } = await import("../../../app/numeroloji-klasik/_ui/result/person");
+  // I18N (25.11.2026): ortak kit bileşenleri (VerificationBadge vb.) artık next-intl `useTranslations` kullanıyor →
+  // ekran, uygulamadaki gibi Türkçe (kaynak dil) sağlayıcı içinde çizilir. Beklenen TR metinler ve kontrollerin niyeti DEĞİŞMEDİ.
+  const { NextIntlClientProvider } = await import("next-intl");
+  const trMessages: Record<string, unknown> = {};
+  const deepMerge = (dst: Record<string, unknown>, src: Record<string, unknown>): void => {
+    for (const [k, v] of Object.entries(src)) {
+      if (v && typeof v === "object" && !Array.isArray(v) && dst[k] && typeof dst[k] === "object") deepMerge(dst[k] as Record<string, unknown>, v as Record<string, unknown>);
+      else dst[k] = v;
+    }
+  };
+  const trDir = path.join(ROOT, "messages", "tr");
+  for (const f of readdirSync(trDir).filter((x) => x.endsWith(".json")).sort()) deepMerge(trMessages, JSON.parse(readFileSync(path.join(trDir, f), "utf8")) as Record<string, unknown>);
+  const inTr = (el: ReturnType<typeof createElement>) => createElement(NextIntlClientProvider, { locale: "tr", timeZone: "Europe/Istanbul", messages: trMessages as never, children: el });
   const ch = lp6.challenges as Period[];
   ok(ch.map((p) => `${p.position}:${p.number}`).join(",") === "1:4,2:1,3:3,4:5", "24.02.1960: sağlayıcı sayıları 4/1/3/5 (değiştirilmedi)", ch);
   ok(currentPeriodicChallenge(ch, 66)?.number === 5 && currentPeriodicChallenge(ch, 66)?.position === 4, "24.02.1960 · 66 yaş → dönemsel 4. zorluk 5");
@@ -118,7 +131,7 @@ if (lp6) {
   ok(oldFirstMatch?.position === 3, "eski ilk-eşleşme kuralı 3. zorluğu seçiyordu (hata kanıtı)");
 
   const d: PersonData = { chart: lp6, bridge: null, personalDay: null, daily: null, chaldean: null, dual: null, referenceDate: "2026-11-05", birth: { year: 1960, month: 2, day: 24 } };
-  const html = renderToStaticMarkup(createElement(TimingPanel, { d }));
+  const html = renderToStaticMarkup(inTr(createElement(TimingPanel, { d })));
   const nowSeg = /<div class="nk-tl-seg nk-c nk-now"[^>]*><b>(\d+)<\/b><small>([^<]*)<\/small>/.exec(html);
   ok(!!nowSeg && nowSeg[1] === "5" && /^4\. zorluk · 49\+ yaş · şu an$/.test(nowSeg[2]), "ekran: şu an = 4. zorluk 5 (49+ yaş)", nowSeg?.slice(1));
   ok(/data-testid="main-challenge"[\s\S]*?<b>3<\/b><small>3\. zorluk · Ana zorluk · tüm yaşam boyunca<\/small>/.test(html), "ekran: ana zorluk 3 ayrı, tüm yaşam boyunca");
@@ -128,7 +141,7 @@ if (lp6) {
   ok(html.includes("· Ana zorluk (tüm yaşam)"), "ekran: dönem ayrıntılarında 3. zorluk 'Ana zorluk' etiketli");
   // 3. zirve dönemi (40–48 yaş): dönemsel yok, ana geçerli notu
   const d44: PersonData = { ...d, referenceDate: "2004-06-01" };
-  const html44 = renderToStaticMarkup(createElement(TimingPanel, { d: d44 }));
+  const html44 = renderToStaticMarkup(inTr(createElement(TimingPanel, { d: d44 })));
   ok(html44.includes('data-testid="no-periodic-challenge"') && !/nk-tl-seg nk-c nk-now/.test(html44), "ekran 44 yaş: dönemsel zorluk yok notu, zorlukta 'şu an' yok");
 
   const record: ClassicReportRecord = {

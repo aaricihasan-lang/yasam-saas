@@ -1,0 +1,113 @@
+{
+  "atlas": {
+    "vedicMonthly": {
+      "month": {
+        "m1": "January",
+        "m2": "February",
+        "m3": "March",
+        "m4": "April",
+        "m5": "May",
+        "m6": "June",
+        "m7": "July",
+        "m8": "August",
+        "m9": "September",
+        "m10": "October",
+        "m11": "November",
+        "m12": "December"
+      },
+      "frameLine": "· sidereal (Lahiri) · UTC calendar month",
+      "display": "Display",
+      "displayTzLabel": "Display time zone",
+      "text": {
+        "method": "Monthly sky calendar: sidereal (nirayana) zodiac, Lahiri ayanamsa. No birth data is used (except in the birth-moment declinations section). Event moments are the provider's minute-precision search results; the system does not recalculate them, it only checks their internal consistency.",
+        "window": "The window is the UTC calendar month (the 1st of the month 00:00 UTC → the 1st of the next month 00:00 UTC). Local times are shown for each event with the offset of the selected time zone at that moment (daylight saving time included); some events in the first / last hours of the local month may therefore appear in the neighbouring month's record.",
+        "aspectVsDrishti": "The aspects here are ASTRONOMICAL aspects: the moment when the ecliptic longitude difference of two planets equals a given angle (0°, 60°, 90°, 120°, 180° and the minor aspects). Traditional Vedic graha drishti (Parashari whole-sign aspects: all grahas the 7th, Mars 4/8, Jupiter 5/9, Saturn 3/10) is a SEPARATE method and is shown in the “Graha Drishti” / “Gochara” techniques; this table must not be used in place of drishti.",
+        "aspectZodiac": "The aspect moment depends on the DIFFERENCE of two longitudes; since the ayanamsa cancels out on both sides, the moments are the same in the sidereal and tropical zodiacs. The longitude columns are sidereal (Lahiri) values.",
+        "declination": "Declination parallels are a mathematical domain SEPARATE from ecliptic longitude aspects: angular distance north / south of the celestial equator (declination) is compared. Parallel = two planets at equal declination in the same hemisphere (|d1 − d2| ≤ orb); contraparallel = equal declination in opposite hemispheres (|d1 + d2| ≤ orb). Declination is independent of the zodiac choice (sidereal / tropical).",
+        "parallelsSampling": "The monthly parallel moment is the minute-precision exact moment at which the declinations of two planets become equal (parallel) or equal in opposite hemispheres (contraparallel). The scope is the seven visible planets (Sun … Saturn; no Rahu / Ketu).",
+        "station": "Retrograde / direct station moments are not in this calendar's provider data and are not produced by the system; for sign ingresses only the direction of motion at the moment of crossing (forward / retrograde) is shown. Rahu and Ketu move retrograde by mean motion.",
+        "natalDeclination": "The declinations at the moment of birth and the parallels / contraparallels in the birth chart (orb 1.5°). This section depends on the birth time; it is not calculated if the time is unknown."
+      },
+      "section": {
+        "ingress": "Planetary sign ingresses",
+        "aspects": "Exact aspects between planets",
+        "lunar": "Moon aspects",
+        "parallels": "Declination parallels (monthly)",
+        "natal_parallels": "Birth-moment declinations"
+      },
+      "kind": {
+        "ingress": "Sign ingress",
+        "aspect": "Aspect",
+        "lunar": "Moon aspect",
+        "parallel": "Declination"
+      },
+      "declType": {
+        "parallel": "Parallel",
+        "contraparallel": "Contraparallel"
+      },
+      "graha": {
+        "sun": "Sun",
+        "moon": "Moon",
+        "mars": "Mars",
+        "mercury": "Mercury",
+        "jupiter": "Jupiter",
+        "venus": "Venus",
+        "saturn": "Saturn",
+        "rahu": "Rahu",
+        "ketu": "Ketu"
+      },
+      "missingA": "Section not shown: ",
+      "missingB": " (the section could not be calculated or the birth time is unknown).",
+      "summary": {
+        "title": "Monthly summary",
+        "ingressA": "Sign ingresses: ",
+        "ingressB": " (Moon ",
+        "ingressC": "; others ",
+        "aspectA": "Aspects between planets: ",
+        "aspectB": " (major ",
+        "aspectC": " · minor ",
+        "lunar": "Moon aspects: ",
+        "declA": "Declination: parallel ",
+        "declB": " · contraparallel ",
+        "keyIngresses": "Ingresses other than the Moon:",
+        "keyIngress": "{graha} {sign} ({at}{retro})",
+        "retro": ", retrograde"
+      },
+      "filter": {
+        "label": "Filter",
+        "planet": "Planet:",
+        "majorOnly": " Major aspects only"
+      },
+      "timeline": {
+        "title": "Timeline",
+        "titleOpen": "Timeline (",
+        "empty": "No events for the selected filter.",
+        "more": " more events"
+      },
+      "startTitle": "Positions at the start of the month (day 1, 00:00 UTC)",
+      "natal": {
+        "title": "Birth-moment declinations",
+        "none": "No parallel / contraparallel within orb.",
+        "orbSep": ") · orb "
+      },
+      "kbLabel": "Monthly calendar Knowledge Bank",
+      "kbEmpty": "You have no Knowledge Bank entry for this month's events (sign ingress / astronomical aspect / declination topics).",
+      "fields": {
+        "legend": "Calendar month and sections",
+        "prev": "Previous month",
+        "month": "Calendar month",
+        "next": "Next month",
+        "tz": "Display time zone",
+        "tzAria": "Monthly calendar display time zone",
+        "rangeA": "The calendar month must be within ",
+        "rangeB": ".",
+        "sectionsAria": "Monthly calendar sections",
+        "natalHint": " — the client's birth moment; requires the birth time",
+        "pickOne": "Select at least one section.",
+        "requests": "Each section is a separate calculation and record (at most {n} requests; no new request if the same month was calculated before).",
+        "requestTail": " Ayanamsa: Lahiri (fixed). The window is the UTC calendar month; the time zone changes the display only.",
+        "aspectNote": "The aspects are astronomical aspects (longitude difference); for traditional graha drishti use the “Graha Drishti” technique."
+      }
+    }
+  }
+}

@@ -38,7 +38,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   if (!parsed.ok) return parsed.response;
 
   const fields = pickWritable(parsed.data, PROTOCOL_WRITABLE);
-  if (!String(fields.title ?? "").trim()) return cuppingError(400, "Protokol başlığı gerekli.");
+  if (!String(fields.title ?? "").trim()) return cuppingError(400, "Protokol başlığı gerekli.", "CUP_TITLE_REQUIRED");
 
   const ins = await insertEntity(db, CUPPING_TABLES.protocols, tenantId, fields);
   if (!ins.ok) {

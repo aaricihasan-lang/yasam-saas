@@ -9,6 +9,8 @@
  * tenant_id gönderilmez; hata mesajları API'nin güvenli metinleridir.
  */
 import { useState } from "react";
+import { useLocale, useTranslations } from "next-intl";
+import { DEFAULT_LOCALE } from "@/lib/i18n/locales";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
 import { useToast } from "@/components/ui/ToastProvider";
 import {
@@ -108,48 +110,49 @@ function SourceFormFields({
   set: (patch: Partial<SourceFormState>) => void;
   disabled: boolean;
 }) {
+  const t = useTranslations("numerology.knowledge.sourceManager");
   return (
     <div className="grid gap-3 sm:grid-cols-2">
       <div className="sm:col-span-2">
-        <label className={labelCls}>Gösterim Adı (zorunlu)</label>
+        <label className={labelCls}>{t("displayLabel")}</label>
         <input
           className={inputCls}
           value={form.display_label}
           onChange={(e) => set({ display_label: e.target.value })}
-          placeholder="Örn. Elif YILMAZ&Sema ÇAYLAR"
+          placeholder={t("displayLabelPlaceholder")}
           disabled={disabled}
         />
       </div>
       <div>
-        <label className={labelCls}>Eser</label>
+        <label className={labelCls}>{t("work")}</label>
         <input className={inputCls} value={form.title} onChange={(e) => set({ title: e.target.value })} disabled={disabled} />
       </div>
       <div>
-        <label className={labelCls}>Yazar/Hazırlayan</label>
+        <label className={labelCls}>{t("authors")}</label>
         <input className={inputCls} value={form.authors} onChange={(e) => set({ authors: e.target.value })} disabled={disabled} />
       </div>
       <div>
-        <label className={labelCls}>Kurum</label>
+        <label className={labelCls}>{t("organization")}</label>
         <input className={inputCls} value={form.organization} onChange={(e) => set({ organization: e.target.value })} disabled={disabled} />
       </div>
       <div>
-        <label className={labelCls}>Kaynak Türü</label>
+        <label className={labelCls}>{t("sourceType")}</label>
         <input className={inputCls} value={form.source_type} onChange={(e) => set({ source_type: e.target.value })} disabled={disabled} />
       </div>
       <div>
-        <label className={labelCls}>Seviye/Baskı</label>
+        <label className={labelCls}>{t("levelEdition")}</label>
         <input className={inputCls} value={form.level_or_edition} onChange={(e) => set({ level_or_edition: e.target.value })} disabled={disabled} />
       </div>
       <div>
-        <label className={labelCls}>Yayın Yılı</label>
+        <label className={labelCls}>{t("publicationYear")}</label>
         <input className={inputCls} value={form.publication_year} onChange={(e) => set({ publication_year: e.target.value })} inputMode="numeric" disabled={disabled} />
       </div>
       <div>
-        <label className={labelCls}>Dil</label>
+        <label className={labelCls}>{t("language")}</label>
         <input className={inputCls} value={form.language} onChange={(e) => set({ language: e.target.value })} disabled={disabled} />
       </div>
       <div className="sm:col-span-2">
-        <label className={labelCls}>Notlar</label>
+        <label className={labelCls}>{t("notes")}</label>
         <textarea className={textareaCls} rows={2} value={form.notes} onChange={(e) => set({ notes: e.target.value })} disabled={disabled} />
       </div>
     </div>
@@ -169,12 +172,15 @@ function LinkFormFields({
   sources: NumerologySourceRow[];
   lockSource: boolean;
 }) {
+  const t = useTranslations("numerology.knowledge");
+  // I18N: section_key seçenek değerleri kanonik koddur; TR'de SECTION_KEY_OPTIONS etiketi aynen, EN'de katalogdan.
+  const isSourceLocale = useLocale() === DEFAULT_LOCALE;
   return (
     <div className="grid gap-3 sm:grid-cols-2">
       <div className="sm:col-span-2">
-        <label className={labelCls}>Kaynak</label>
+        <label className={labelCls}>{t("sourceManager.source")}</label>
         <select className={selectCls} value={form.source_id} onChange={(e) => set({ source_id: e.target.value })} disabled={disabled || lockSource}>
-          <option value="">Kaynak seçin…</option>
+          <option value="">{t("sourceManager.chooseSource")}</option>
           {sources.map((s) => (
             <option key={s.id} value={s.id}>
               {s.display_label}
@@ -183,38 +189,38 @@ function LinkFormFields({
         </select>
       </div>
       <div>
-        <label className={labelCls}>Kapsam</label>
+        <label className={labelCls}>{t("sourceManager.scope")}</label>
         <select className={selectCls} value={form.section_key} onChange={(e) => set({ section_key: e.target.value })} disabled={disabled}>
           {SECTION_KEY_OPTIONS.map((o) => (
             <option key={o.value || "tum"} value={o.value}>
-              {o.label}
+              {isSourceLocale ? o.label : t(`shared.sectionLabels.${o.value || "all"}`)}
             </option>
           ))}
         </select>
       </div>
       <div>
-        <label className={labelCls}>Sıra</label>
+        <label className={labelCls}>{t("sourceManager.order")}</label>
         <input className={inputCls} value={form.display_order} onChange={(e) => set({ display_order: e.target.value })} inputMode="numeric" placeholder="0" disabled={disabled} />
       </div>
       <div>
-        <label className={labelCls}>Başlangıç Sayfası</label>
+        <label className={labelCls}>{t("sourceManager.pageStart")}</label>
         <input className={inputCls} value={form.page_start} onChange={(e) => set({ page_start: e.target.value })} inputMode="numeric" disabled={disabled} />
       </div>
       <div>
-        <label className={labelCls}>Bitiş Sayfası</label>
+        <label className={labelCls}>{t("sourceManager.pageEnd")}</label>
         <input className={inputCls} value={form.page_end} onChange={(e) => set({ page_end: e.target.value })} inputMode="numeric" disabled={disabled} />
       </div>
       <div className="sm:col-span-2">
-        <label className={labelCls}>Locator (serbest)</label>
-        <input className={inputCls} value={form.locator} onChange={(e) => set({ locator: e.target.value })} placeholder="Örn. Ana Kulvar — 1 No'lu Tipoloji" disabled={disabled} />
+        <label className={labelCls}>{t("sourceManager.locator")}</label>
+        <input className={inputCls} value={form.locator} onChange={(e) => set({ locator: e.target.value })} placeholder={t("sourceManager.locatorPlaceholder")} disabled={disabled} />
       </div>
       <div className="sm:col-span-2">
-        <label className={labelCls}>İç Not (yalnız admin)</label>
+        <label className={labelCls}>{t("sourceManager.internalNote")}</label>
         <input className={inputCls} value={form.internal_note} onChange={(e) => set({ internal_note: e.target.value })} disabled={disabled} />
       </div>
       <label className="flex items-center gap-2 text-sm font-semibold text-slate-700 sm:col-span-2">
         <input type="checkbox" checked={form.is_primary} onChange={(e) => set({ is_primary: e.target.checked })} disabled={disabled} className="h-4 w-4 accent-violet-600" />
-        Birincil kaynak
+        {t("sourceManager.primarySource")}
       </label>
     </div>
   );
@@ -237,6 +243,29 @@ export function KulvarSourceManager({
 }) {
   const { showToast } = useToast();
   const { confirm } = useConfirm();
+  const t = useTranslations("numerology.knowledge");
+  const ts = useTranslations("numerology.knowledge.sourceManager");
+  // I18N: TR'de yardımcı/sunucu metinleri birebir; EN'de katalog. Sunucu hata metni dil-bağımsız kod taşımadığından
+  // EN'de modülün genel hata metni gösterilir. Form doğrulama metinleri (helpers/sourceUiLogic) yardımcıya aittir → aynen.
+  const isSourceLocale = useLocale() === DEFAULT_LOCALE;
+  const msgLinkDuplicate = isSourceLocale ? MSG_LINK_DUPLICATE : ts("linkDuplicate");
+  const msgSourceInUse = isSourceLocale ? MSG_SOURCE_IN_USE : ts("sourceInUse");
+  // I18N-F1-R5: form doğrulama hatası — TR'de yardımcı metni AYNEN; EN'de dil-bağımsız koddan.
+  const formError = (e: { error: string; code?: string; field?: string }): string =>
+    isSourceLocale || !e.code
+      ? isSourceLocale ? e.error : ts("formErrors.SOURCE_INVALID")
+      : e.field
+        ? ts("formErrors.withField", { field: ts(`formErrors.fields.${e.field}`), error: ts(`formErrors.${e.code}`) })
+        : ts(`formErrors.${e.code}`);
+  const sectionLabel = (key: RecordSourceRow["section_key"]): string =>
+    isSourceLocale ? sectionKeyLabel(key) : t(`shared.sectionLabels.${key ?? "all"}`);
+  const pageText = (link: RecordSourceRow): string => {
+    if (isSourceLocale) return pageDisplay(link);
+    const { page_start: s, page_end: e } = link;
+    if (s === null && e === null) return "";
+    if (s !== null && e !== null && s !== e) return t("shared.pageRange", { start: s, end: e });
+    return t("shared.pageSingle", { page: s ?? e ?? 0 });
+  };
   const [busy, setBusy] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
 
@@ -262,15 +291,15 @@ export function KulvarSourceManager({
       const outcome = classifyWriteResult(res, { conflictMsg });
       if (outcome.kind === "demo") {
         // Demo no-op: gerçek başarı gösterme, reload etme, id/liste değiştirme.
-        showToast({ message: outcome.message ?? MSG_DEMO_NO_WRITE, type: "info" });
+        showToast({ message: isSourceLocale ? outcome.message ?? MSG_DEMO_NO_WRITE : ts("demoNoWrite"), type: "info" });
         return false;
       }
       if (outcome.kind === "conflict") {
-        setLocalError(outcome.message);
+        setLocalError(isSourceLocale ? outcome.message : conflictMsg ?? ts("operationFailed"));
         return false;
       }
       if (outcome.kind === "error") {
-        setLocalError(outcome.message);
+        setLocalError(isSourceLocale ? outcome.message : ts("operationFailed"));
         return false;
       }
       await reload();
@@ -283,81 +312,81 @@ export function KulvarSourceManager({
   async function handleAttach() {
     const built = buildLinkInputFromForm(linkForm, { recordAnalysisType });
     if (!built.ok) {
-      setLocalError(built.error);
+      setLocalError(formError(built));
       return;
     }
-    const ok = await run(() => createRecordSource(recordId, built.value), MSG_LINK_DUPLICATE);
+    const ok = await run(() => createRecordSource(recordId, built.value), msgLinkDuplicate);
     if (ok) {
       setLinkForm({ ...EMPTY_LINK_FORM });
-      showToast({ message: "Kaynak bağlandı.", type: "success" });
+      showToast({ message: ts("attached"), type: "success" });
     }
   }
 
   async function handleDetach(linkId: string) {
     const ok = await confirm({
-      title: "Bağlantıyı kaldır",
-      message: "Bu kaynak bağlantısını bu kayıttan kaldırmak istiyor musunuz? Kaynak kütüphanede kalır.",
+      title: ts("detachTitle"),
+      message: ts("detachMessage"),
       tone: "warning",
-      confirmText: "Kaldır",
-      cancelText: "Vazgeç",
+      confirmText: ts("detachConfirm"),
+      cancelText: t("shared.cancel"),
     });
     if (!ok) return;
     const done = await run(() => deleteRecordSource(linkId));
-    if (done) showToast({ message: "Bağlantı kaldırıldı.", type: "success" });
+    if (done) showToast({ message: ts("detached"), type: "success" });
   }
 
   async function handleSaveLinkEdit(linkId: string) {
     const built = buildLinkInputFromForm(editLinkForm, { recordAnalysisType });
     if (!built.ok) {
-      setLocalError(built.error);
+      setLocalError(formError(built));
       return;
     }
     const { source_id: _omit, ...meta } = built.value;
     void _omit;
-    const ok = await run(() => updateRecordSourceById(linkId, meta), MSG_LINK_DUPLICATE);
+    const ok = await run(() => updateRecordSourceById(linkId, meta), msgLinkDuplicate);
     if (ok) {
       setEditingLinkId(null);
-      showToast({ message: "Bağlantı güncellendi.", type: "success" });
+      showToast({ message: ts("linkUpdated"), type: "success" });
     }
   }
 
   async function handleCreateSource() {
     const built = buildSourceInputFromForm(sourceForm);
     if (!built.ok) {
-      setLocalError(built.error);
+      setLocalError(formError(built));
       return;
     }
     const ok = await run(() => createSource(built.value).then((r) => ({ error: r.error, demo: r.demo })));
     if (ok) {
       setSourceForm({ ...EMPTY_SOURCE_FORM });
-      showToast({ message: "Kaynak oluşturuldu.", type: "success" });
+      showToast({ message: ts("sourceCreated"), type: "success" });
     }
   }
 
   async function handleSaveSourceEdit(sourceId: string) {
     const built = buildSourceInputFromForm(editSourceForm);
     if (!built.ok) {
-      setLocalError(built.error);
+      setLocalError(formError(built));
       return;
     }
     const ok = await run(() => updateSourceById(sourceId, built.value));
     if (ok) {
       setEditingSourceId(null);
-      showToast({ message: "Kaynak güncellendi.", type: "success" });
+      showToast({ message: ts("sourceUpdated"), type: "success" });
     }
   }
 
   async function handleDeleteSource(sourceId: string) {
     const ok = await confirm({
-      title: "Kaynağı tamamen sil",
-      message: "Bu kaynağı kütüphaneden tamamen silmek istiyor musunuz? Bağlı olduğu kayıt varsa silinemez.",
+      title: ts("deleteSourceTitle"),
+      message: ts("deleteSourceMessage"),
       tone: "danger",
-      confirmText: "Sil",
-      cancelText: "Vazgeç",
+      confirmText: t("shared.delete"),
+      cancelText: t("shared.cancel"),
     });
     if (!ok) return;
-    const done = await run(() => deleteSource(sourceId), MSG_SOURCE_IN_USE);
-    if (done) showToast({ message: "Kaynak silindi.", type: "success" });
+    const done = await run(() => deleteSource(sourceId), msgSourceInUse);
+    if (done) showToast({ message: ts("sourceDeleted"), type: "success" });
   }
 
   return (
@@ -368,11 +397,11 @@ export function KulvarSourceManager({
 
       {/* 1) Bağlı kaynaklar */}
       <section className="min-w-0">
-        <h4 className="text-sm font-black uppercase tracking-wide text-violet-800">Bağlı Kaynaklar</h4>
+        <h4 className="text-sm font-black uppercase tracking-wide text-violet-800">{ts("linkedSources")}</h4>
         {loading ? (
-          <p className="mt-2 text-sm font-medium text-slate-500">Yükleniyor…</p>
+          <p className="mt-2 text-sm font-medium text-slate-500">{t("shared.loading")}</p>
         ) : joined.length === 0 ? (
-          <p className="mt-2 text-sm font-medium text-slate-500">Bu kayda henüz kaynak bağlanmamış.</p>
+          <p className="mt-2 text-sm font-medium text-slate-500">{ts("noLinks")}</p>
         ) : (
           <ul className="mt-2 grid gap-3">
             {joined.map(({ link, source }) => (
@@ -381,26 +410,26 @@ export function KulvarSourceManager({
                   <div className="space-y-3">
                     <LinkFormFields form={editLinkForm} set={(p) => setEditLinkForm((s) => ({ ...s, ...p }))} disabled={busy} sources={sources} lockSource />
                     <div className="flex flex-wrap gap-2">
-                      <button type="button" className={btnPrimary} disabled={busy} onClick={() => void handleSaveLinkEdit(link.id)}>Kaydet</button>
-                      <button type="button" className={btnSoft} disabled={busy} onClick={() => setEditingLinkId(null)}>Vazgeç</button>
+                      <button type="button" className={btnPrimary} disabled={busy} onClick={() => void handleSaveLinkEdit(link.id)}>{t("shared.save")}</button>
+                      <button type="button" className={btnSoft} disabled={busy} onClick={() => setEditingLinkId(null)}>{t("shared.cancel")}</button>
                     </div>
                   </div>
                 ) : (
                   <div className="flex flex-wrap items-start justify-between gap-2">
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="break-words text-base font-black text-slate-900">{source?.display_label ?? "(kaynak yok)"}</span>
-                        {link.is_primary ? <span className="rounded-lg bg-violet-100 px-2 py-0.5 text-xs font-bold text-violet-800">Birincil</span> : null}
-                        <span className="rounded-lg bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-700">{sectionKeyLabel(link.section_key)}</span>
+                        <span className="break-words text-base font-black text-slate-900">{source?.display_label ?? ts("noSource")}</span>
+                        {link.is_primary ? <span className="rounded-lg bg-violet-100 px-2 py-0.5 text-xs font-bold text-violet-800">{t("shared.primary")}</span> : null}
+                        <span className="rounded-lg bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-700">{sectionLabel(link.section_key)}</span>
                       </div>
                       <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-sm font-medium text-slate-600">
-                        {pageDisplay(link) ? <span>{pageDisplay(link)}</span> : null}
+                        {pageText(link) ? <span>{pageText(link)}</span> : null}
                         {link.locator ? <span className="break-words">{link.locator}</span> : null}
                       </div>
                     </div>
                     <div className="flex shrink-0 flex-wrap gap-2">
-                      <button type="button" className={btnSoft} disabled={busy} onClick={() => { setEditingLinkId(link.id); setEditLinkForm(linkRowToForm(link)); }}>Düzenle</button>
-                      <button type="button" className={btnDanger} disabled={busy} onClick={() => void handleDetach(link.id)}>Bağlantıyı kaldır</button>
+                      <button type="button" className={btnSoft} disabled={busy} onClick={() => { setEditingLinkId(link.id); setEditLinkForm(linkRowToForm(link)); }}>{t("shared.edit")}</button>
+                      <button type="button" className={btnDanger} disabled={busy} onClick={() => void handleDetach(link.id)}>{ts("detach")}</button>
                     </div>
                   </div>
                 )}
@@ -412,22 +441,22 @@ export function KulvarSourceManager({
 
       {/* 2) Kaynak bağla */}
       <section className="min-w-0 rounded-2xl border border-violet-200/70 bg-violet-50/30 p-3">
-        <h4 className="text-sm font-black uppercase tracking-wide text-violet-800">Kaynak Bağla</h4>
+        <h4 className="text-sm font-black uppercase tracking-wide text-violet-800">{ts("attachSource")}</h4>
         {sources.length === 0 ? (
-          <p className="mt-2 text-sm font-medium text-slate-500">Önce aşağıdan bir kaynak oluşturun.</p>
+          <p className="mt-2 text-sm font-medium text-slate-500">{ts("createSourceFirst")}</p>
         ) : (
           <div className="mt-2 space-y-3">
             <LinkFormFields form={linkForm} set={(p) => setLinkForm((s) => ({ ...s, ...p }))} disabled={busy} sources={sources} lockSource={false} />
-            <button type="button" className={btnPrimary} disabled={busy} onClick={() => void handleAttach()}>Bağla</button>
+            <button type="button" className={btnPrimary} disabled={busy} onClick={() => void handleAttach()}>{ts("attach")}</button>
           </div>
         )}
       </section>
 
       {/* 3) Kaynak kütüphanesi */}
       <section className="min-w-0">
-        <h4 className="text-sm font-black uppercase tracking-wide text-violet-800">Kaynak Kütüphanesi</h4>
+        <h4 className="text-sm font-black uppercase tracking-wide text-violet-800">{ts("library")}</h4>
         {sources.length === 0 ? (
-          <p className="mt-2 text-sm font-medium text-slate-500">Henüz kaynak yok.</p>
+          <p className="mt-2 text-sm font-medium text-slate-500">{ts("noSources")}</p>
         ) : (
           <ul className="mt-2 grid gap-3">
             {sources.map((s) => (
@@ -436,8 +465,8 @@ export function KulvarSourceManager({
                   <div className="space-y-3">
                     <SourceFormFields form={editSourceForm} set={(p) => setEditSourceForm((f) => ({ ...f, ...p }))} disabled={busy} />
                     <div className="flex flex-wrap gap-2">
-                      <button type="button" className={btnPrimary} disabled={busy} onClick={() => void handleSaveSourceEdit(s.id)}>Kaydet</button>
-                      <button type="button" className={btnSoft} disabled={busy} onClick={() => setEditingSourceId(null)}>Vazgeç</button>
+                      <button type="button" className={btnPrimary} disabled={busy} onClick={() => void handleSaveSourceEdit(s.id)}>{t("shared.save")}</button>
+                      <button type="button" className={btnSoft} disabled={busy} onClick={() => setEditingSourceId(null)}>{t("shared.cancel")}</button>
                     </div>
                   </div>
                 ) : (
@@ -447,8 +476,8 @@ export function KulvarSourceManager({
                       {s.title ? <p className="break-words text-sm font-medium text-slate-600">{s.title}</p> : null}
                     </div>
                     <div className="flex shrink-0 flex-wrap gap-2">
-                      <button type="button" className={btnSoft} disabled={busy} onClick={() => { setEditingSourceId(s.id); setEditSourceForm(sourceRowToForm(s)); }}>Düzenle</button>
-                      <button type="button" className={btnDanger} disabled={busy} onClick={() => void handleDeleteSource(s.id)}>Kaynağı tamamen sil</button>
+                      <button type="button" className={btnSoft} disabled={busy} onClick={() => { setEditingSourceId(s.id); setEditSourceForm(sourceRowToForm(s)); }}>{t("shared.edit")}</button>
+                      <button type="button" className={btnDanger} disabled={busy} onClick={() => void handleDeleteSource(s.id)}>{ts("deleteSource")}</button>
                     </div>
                   </div>
                 )}
@@ -458,9 +487,9 @@ export function KulvarSourceManager({
         )}
 
         <div className="mt-4 rounded-2xl border border-violet-200/70 bg-violet-50/30 p-3">
-          <p className="mb-2 text-sm font-black text-violet-800">Yeni Kaynak</p>
+          <p className="mb-2 text-sm font-black text-violet-800">{ts("newSource")}</p>
           <SourceFormFields form={sourceForm} set={(p) => setSourceForm((f) => ({ ...f, ...p }))} disabled={busy} />
-          <button type="button" className={`${btnPrimary} mt-3`} disabled={busy} onClick={() => void handleCreateSource()}>Kaynak Oluştur</button>
+          <button type="button" className={`${btnPrimary} mt-3`} disabled={busy} onClick={() => void handleCreateSource()}>{ts("createSource")}</button>
         </div>
       </section>
     </div>

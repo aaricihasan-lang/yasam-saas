@@ -1,12 +1,14 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+import { useAromaReadError } from "@/lib/aromaterapi/useAromaterapiModuleText";
+import { useEnumLabel } from "@/lib/aromaterapi/useEnumLabel";
 import { useEffect, useState } from "react";
 import {
   LayerCard,
   MetaChip,
 } from "@/app/aromaterapi/_components/read/ReadPrimitives";
 import { fetchPassage } from "@/lib/aromaterapi/sourceData";
-import { messageForCode } from "@/lib/aromaterapi/readClient";
 import type {
   PassageDetail,
   PassageEditorialLayer,
@@ -17,8 +19,7 @@ import {
   FIDELITY_TR,
   PASSAGE_KIND_TR,
   RIGHTS_STATUS_TR,
-  tr,
-} from "@/lib/aromaterapi/readLabels";
+  } from "@/lib/aromaterapi/readLabels";
 
 /**
  * Kaynak detayında bir pasaj satırı. Açılınca pasaj katmanlarını (özgün metin /
@@ -27,6 +28,9 @@ import {
  * boşsa dürüst "yok" notu gösterilir, başka katmanla doldurulmaz.
  */
 export function PassageAccordionItem({ passage }: { passage: PassageListItem }) {
+  const enumLabel = useEnumLabel();
+  const tp = useTranslations("aromatherapy.shared.passage");
+  const readError = useAromaReadError();
   const [open, setOpen] = useState(false);
   const [detail, setDetail] = useState<PassageDetail | null>(null);
   const [errorCode, setErrorCode] = useState<string | null>(null);
@@ -66,9 +70,9 @@ export function PassageAccordionItem({ passage }: { passage: PassageListItem }) 
             {passage.locator_label}
           </span>
           <span className="mt-1 flex flex-wrap items-center gap-1.5">
-            <MetaChip tone="violet">{tr.label(PASSAGE_KIND_TR, passage.passage_kind)}</MetaChip>
+            <MetaChip tone="violet">{enumLabel(PASSAGE_KIND_TR, passage.passage_kind)}</MetaChip>
             <MetaChip tone="slate">{passage.original_lang}</MetaChip>
-            <MetaChip tone="amber">{tr.label(RIGHTS_STATUS_TR, passage.rights_status)}</MetaChip>
+            <MetaChip tone="amber">{enumLabel(RIGHTS_STATUS_TR, passage.rights_status)}</MetaChip>
           </span>
         </span>
         <span aria-hidden className={`shrink-0 text-violet-400 transition ${open ? "rotate-180" : ""}`}>
@@ -80,11 +84,11 @@ export function PassageAccordionItem({ passage }: { passage: PassageListItem }) 
         <div id={panelId} className="space-y-3 border-t border-violet-100/60 bg-violet-50/20 p-4">
           {loading ? (
             <p className="py-3 text-center text-[13px] font-semibold text-slate-400">
-              Katmanlar yükleniyor…
+              {tp("loading")}
             </p>
           ) : errorCode ? (
             <p role="alert" className="py-3 text-center text-[13px] font-bold text-rose-600">
-              {messageForCode(errorCode)}
+              {readError(errorCode)}
             </p>
           ) : detail ? (
             <PassageLayers detail={detail} />
@@ -96,22 +100,24 @@ export function PassageAccordionItem({ passage }: { passage: PassageListItem }) 
 }
 
 function PassageLayers({ detail }: { detail: PassageDetail }) {
+  const enumLabel = useEnumLabel();
+  const tp = useTranslations("aromatherapy.shared.passage");
   return (
     <div className="space-y-3">
       {/* 1) Özgün Kaynak Metni */}
-      <LayerCard index={1} title="Özgün Kaynak Metni" tone="amber">
+      <LayerCard index={1} title={tp("original")} tone="amber">
         {detail.original_text && detail.original_text.trim() !== "" ? (
           detail.original_text
         ) : (
-          <EmptyLayer text="Bu pasaj yalnız atıf içeriyor; birebir özgün metin kaydı yok." />
+          <EmptyLayer text={tp("originalEmpty")} />
         )}
       </LayerCard>
 
       {/* 2) Sadık Çeviriler */}
       <div className="space-y-2">
-        <LayerHeading index={2} title="Sadık Çeviriler" />
+        <LayerHeading index={2} title={tp("translations")} />
         {detail.translations.length === 0 ? (
-          <ShallowEmpty text="Bu pasaj için sadık çeviri girilmemiş." />
+          <ShallowEmpty text={tp("translationsEmpty")} />
         ) : (
           detail.translations.map((t) => (
             <LayerCard
@@ -120,8 +126,8 @@ function PassageLayers({ detail }: { detail: PassageDetail }) {
               title={`${t.source_lang} → ${t.target_lang}`}
               meta={
                 <>
-                  <MetaChip tone="emerald">{tr.label(FIDELITY_TR, t.fidelity)}</MetaChip>
-                  <MetaChip tone="slate">rev. {t.revision}</MetaChip>
+                  <MetaChip tone="emerald">{enumLabel(FIDELITY_TR, t.fidelity)}</MetaChip>
+                  <MetaChip tone="slate">{tp("rev", { n: t.revision })}</MetaChip>
                 </>
               }
             >
@@ -133,17 +139,17 @@ function PassageLayers({ detail }: { detail: PassageDetail }) {
 
       {/* 3) Editoryal Açıklamalar */}
       <div className="space-y-2">
-        <LayerHeading index={3} title="Editoryal Açıklamalar" />
-        <EditorialList layers={detail.editorial_explanations} tone="violet" emptyText="Editoryal açıklama girilmemiş." />
+        <LayerHeading index={3} title={tp("explanations")} />
+        <EditorialList layers={detail.editorial_explanations} tone="violet" emptyText={tp("explanationsEmpty")} />
       </div>
 
       {/* 4/5) Editoryal Yorum & Uzman Notu */}
       <div className="space-y-2">
-        <LayerHeading index={4} title="Editoryal Yorum & Uzman Notu" />
+        <LayerHeading index={4} title={tp("interpretations")} />
         <EditorialList
           layers={detail.editorial_interpretations}
           tone="sky"
-          emptyText="Editoryal yorum veya uzman notu girilmemiş."
+          emptyText={tp("interpretationsEmpty")}
         />
       </div>
     </div>
@@ -159,6 +165,8 @@ function EditorialList({
   tone: "violet" | "sky";
   emptyText: string;
 }) {
+  const enumLabel = useEnumLabel();
+  const tp = useTranslations("aromatherapy.shared.passage");
   if (layers.length === 0) return <ShallowEmpty text={emptyText} />;
   return (
     <>
@@ -166,11 +174,11 @@ function EditorialList({
         <LayerCard
           key={n.id}
           tone={tone}
-          title={tr.label(EDITORIAL_NOTE_TYPE_TR, n.note_type)}
+          title={enumLabel(EDITORIAL_NOTE_TYPE_TR, n.note_type)}
           meta={
             <>
               <MetaChip tone="slate">{n.note_lang}</MetaChip>
-              <MetaChip tone="slate">rev. {n.revision}</MetaChip>
+              <MetaChip tone="slate">{tp("rev", { n: n.revision })}</MetaChip>
             </>
           }
         >

@@ -66,7 +66,7 @@ export async function GET(req: NextRequest): Promise<Response> {
   const firstErr = dg.error || oil.error || soap.error || acc.error || other.error;
   if (firstErr) {
     console.error("[urun-stok/sales/catalog] okuma hata", { code: (firstErr as { code?: string }).code });
-    return NextResponse.json({ ok: false, error: "Katalog okunamadı." }, { status: 500 });
+    return NextResponse.json({ ok: false, code: "STK_CATALOG_READ_FAILED", error: "Katalog okunamadı." }, { status: 500 });
   }
 
   const products: CatalogProduct[] = [];

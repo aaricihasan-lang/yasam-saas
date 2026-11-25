@@ -1,6 +1,8 @@
 ﻿"use client";
 
 import Link from "next/link";
+import { useLocale, useTranslations } from "next-intl";
+import { DEFAULT_LOCALE } from "@/lib/i18n/locales";
 import { useCallback, useRef, useState } from "react";
 import { DemoModuleBanner } from "@/components/demo/DemoModuleBanner";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
@@ -29,6 +31,10 @@ import type { DeleteNoteOutcome } from "../lib/notesSync";
 export function KlinikNotlarLayout() {
   const isDemo = readYasamUser()?.is_demo_account === true;
   const { confirm } = useConfirm();
+  const tc = useTranslations("reflexology.common");
+  const t = useTranslations("reflexology.notes");
+  // Kaynak dilde (tr) yardımcı/senkron katmanının Türkçe mesajları aynen; diğer dillerde çevrilmiş genel metin.
+  const isSourceLocale = useLocale() === DEFAULT_LOCALE;
   const { showToast } = useToast();
   const {
     notes,
@@ -77,7 +83,7 @@ export function KlinikNotlarLayout() {
 
   const validateTitle = (): boolean => {
     if (!draft.title.trim()) {
-      setValidationMessage("Not başlığı zorunludur.");
+      setValidationMessage(t("form.titleRequired"));
       return false;
     }
     setValidationMessage(null);
@@ -94,18 +100,18 @@ export function KlinikNotlarLayout() {
 
   const handleSave = () => {
     if (editingId) {
-      setValidationMessage("Güncelleme için Güncelle butonunu kullanın.");
+      setValidationMessage(t("form.useUpdate"));
       return;
     }
     if (!validateTitle()) return;
 
     const result = saveNote(draft, null);
     if (!result.saved) {
-      setValidationMessage("Kayıt yapılamadı.");
+      setValidationMessage(t("form.saveFailed"));
       return;
     }
     if (!result.storageOk) {
-      showToast({ type: "error", title: "Depolama Hatası", message: STORAGE_QUOTA_ERROR_MESSAGE });
+      showToast({ type: "error", title: tc("storageErrorTitle"), message: isSourceLocale ? STORAGE_QUOTA_ERROR_MESSAGE : tc("storageQuota") });
       return;
     }
 
@@ -115,7 +121,7 @@ export function KlinikNotlarLayout() {
 
   const handleUpdate = async () => {
     if (!editingId) {
-      setValidationMessage("Güncellenecek not seçili değil.");
+      setValidationMessage(t("form.noSelection"));
       return;
     }
     if (!validateTitle()) return;
@@ -124,30 +130,27 @@ export function KlinikNotlarLayout() {
     if (result.conflict) {
       // RF-10: başka sekme/cihaz bu notu siz düzenlerken değiştirdi → sessiz ezme YOK.
       const overwrite = await confirm({
-        title: "Not başka yerde değiştirildi",
-        message:
-          "Bu not siz düzenlerken başka bir sekmede veya cihazda değiştirildi.\n\n" +
-          "«Üzerine yaz» derseniz ekrandaki metniniz kaydedilir ve diğer değişiklik kaybolur. " +
-          "«Vazgeç» derseniz hiçbir şey kaydedilmez; metniniz formda kalır.",
-        confirmText: "Üzerine yaz",
-        cancelText: "Vazgeç",
+        title: t("conflict.title"),
+        message: t("conflict.message"),
+        confirmText: t("conflict.overwrite"),
+        cancelText: tc("cancel"),
         tone: "warning",
       });
       if (!overwrite) return;
       result = saveNote(draft, editingId, { force: true });
     }
     if (!result.saved) {
-      setValidationMessage("Güncelleme yapılamadı.");
+      setValidationMessage(t("form.updateFailed"));
       return;
     }
     if (!result.storageOk) {
-      showToast({ type: "error", title: "Depolama Hatası", message: STORAGE_QUOTA_ERROR_MESSAGE });
+      showToast({ type: "error", title: tc("storageErrorTitle"), message: isSourceLocale ? STORAGE_QUOTA_ERROR_MESSAGE : tc("storageQuota") });
       return;
     }
 
     showToast({
       type: "success",
-      message: "Not güncellendi.",
+      message: t("form.updated"),
       duration: 2500,
     });
     setEditingId(result.saved.id);
@@ -157,11 +160,11 @@ export function KlinikNotlarLayout() {
   // FA-25: silme sunucu-önce; sonuç kullanıcıya açıkça bildirilir.
   const reportDeleteOutcome = (outcome: DeleteNoteOutcome) => {
     if (outcome.ok && outcome.state === "queued") {
-      showToast({ type: "warning", title: "Silme bekliyor", message: outcome.message ?? "" });
+      showToast({ type: "warning", title: t("delete.pendingTitle"), message: isSourceLocale ? outcome.message ?? "" : t("delete.pendingBody") });
     } else if (outcome.ok) {
-      showToast({ type: "success", message: "Not silindi.", duration: 2500 });
+      showToast({ type: "success", message: t("delete.done"), duration: 2500 });
     } else {
-      showToast({ type: "error", title: "Not silinemedi", message: outcome.message });
+      showToast({ type: "error", title: t("delete.failedTitle"), message: isSourceLocale ? outcome.message : t("delete.failedBody") });
     }
   };
 
@@ -181,9 +184,9 @@ export function KlinikNotlarLayout() {
     if (!editingId || deleting) return;
 
     const ok = await confirm({
-      message: "Bu not silinsin mi? Bu işlem geri alınamaz.",
-      confirmText: "Sil",
-      cancelText: "Vazgeç",
+      message: t("delete.confirm"),
+      confirmText: tc("delete"),
+      cancelText: tc("cancel"),
       tone: "danger",
     });
     if (!ok) return;
@@ -209,7 +212,7 @@ export function KlinikNotlarLayout() {
     const existingBytes = draft.attachments.reduce((sum, a) => sum + (a.size || 0), 0);
     const { added, errors } = await readNoteAttachments(files, newAttachmentId, existingBytes);
     for (const message of errors) {
-      showToast({ type: "warning", message });
+      showToast({ type: "warning", message: isSourceLocale ? message : t("attachments.rejected") });
     }
 
     if (added.length > 0) {
@@ -229,11 +232,10 @@ export function KlinikNotlarLayout() {
 
     if (!result.ok) {
       const messages: Record<string, string> = {
-        UNSUPPORTED:
-          "Eski .doc formatı desteklenmiyor. .txt veya .docx kullanın ya da metni kopyalayıp yapıştırın.",
-        EMPTY: "Dosyada aktarılacak metin bulunamadı.",
-        FAILED: "Word dosyası okunamadı.",
-        DEFLATE_UNSUPPORTED: "Tarayıcı .docx açmayı desteklemiyor. .txt dosyası deneyin.",
+        UNSUPPORTED: t("word.unsupported"),
+        EMPTY: t("word.empty"),
+        FAILED: t("word.failed"),
+        DEFLATE_UNSUPPORTED: t("word.deflate"),
       };
       showToast({ type: "warning", message: messages[result.code] });
       return;
@@ -248,26 +250,26 @@ export function KlinikNotlarLayout() {
 
     showToast({
       type: "success",
-      message: "Metin not içeriğine eklendi.",
+      message: t("word.inserted"),
       duration: 2500,
     });
   };
 
   const handleRenameAttachment = () => {
     if (!selectedAttachmentId) {
-      setValidationMessage("Önce listeden bir ek dosya seçin.");
+      setValidationMessage(t("attachments.selectFirst"));
       return;
     }
 
     const target = draft.attachments.find((a) => a.id === selectedAttachmentId);
     if (!target) return;
 
-    const nextName = window.prompt("Yeni ek adı:", target.displayName);
+    const nextName = window.prompt(t("attachments.renamePrompt"), target.displayName);
     if (nextName == null) return;
 
     const trimmed = nextName.trim();
     if (!trimmed) {
-      setValidationMessage("Ek adı boş olamaz.");
+      setValidationMessage(t("attachments.nameEmpty"));
       return;
     }
 
@@ -290,7 +292,7 @@ export function KlinikNotlarLayout() {
 
   if (!hydrated) {
     // REF-021: düz "Yükleniyor…" yerine route skeleton'ıyla tutarlı iskelet.
-    return <RefleksolojiListLoading badge="REFLEKSOLOJİ · KLİNİK NOTLAR" title="Klinik Notlar" />;
+    return <RefleksolojiListLoading badge={t("loadingBadge")} title={t("title")} />;
   }
 
   return (
@@ -302,7 +304,7 @@ export function KlinikNotlarLayout() {
 
       <div className="relative z-10 mx-auto w-full max-w-none px-4 py-4 xl:px-7">
         {isDemo && (
-          <DemoModuleBanner message="Klinik notlar sadece cihazınızda saklanır. Oturumunuz boyunca görünür; çıkışta silinir. Gerçek uzman verileri bu hesapta görünmez." />
+          <DemoModuleBanner message={t("demoBanner")} />
         )}
         <div className="flex flex-wrap items-start gap-3">
           <Link
@@ -310,26 +312,26 @@ export function KlinikNotlarLayout() {
             className="inline-flex shrink-0 items-center gap-1 rounded-md border border-violet-300/70 bg-white px-2.5 py-1 text-xs font-semibold text-violet-950 shadow-sm transition hover:border-violet-400"
           >
             <span aria-hidden>←</span>
-            Ana Menü
+            {t("mainMenu")}
           </Link>
 
           <header className="min-w-0 flex-1">
-            <nav className="text-sm font-bold text-violet-700/90" aria-label="Breadcrumb">
+            <nav className="text-sm font-bold text-violet-700/90" aria-label={t("breadcrumbAria")}>
               <ol className="flex flex-wrap items-center gap-1.5">
                 <li>
                   <Link href="/refleksoloji" className="hover:text-violet-900">
-                    Ana Menü
+                    {t("mainMenu")}
                   </Link>
                 </li>
                 <li aria-hidden className="text-violet-400">
                   &gt;
                 </li>
-                <li className="text-slate-700">Notlar</li>
+                <li className="text-slate-700">{t("crumb")}</li>
               </ol>
             </nav>
             <div className="mt-2 flex flex-wrap items-center gap-2">
               <h1 className="text-xl font-black tracking-tight text-slate-900 sm:text-2xl">
-                Klinik Notlar
+                {t("title")}
               </h1>
               {!isDemo ? <SyncStatusBadge /> : null}
             </div>
@@ -340,18 +342,18 @@ export function KlinikNotlarLayout() {
           <LegacyQuarantineBanner
             className="mt-4"
             count={quarantineCount}
-            noun="not"
+            noun={tc("quarantine.nounNote")}
             onImport={() => {
               const r = importQuarantine();
               showToast(
                 r.ok
-                  ? { type: "success", message: `${r.imported} not hesabınıza aktarıldı.` }
-                  : { type: "error", title: "Depolama Hatası", message: STORAGE_QUOTA_ERROR_MESSAGE },
+                  ? { type: "success", message: t("imported", { count: String(r.imported) }) }
+                  : { type: "error", title: tc("storageErrorTitle"), message: isSourceLocale ? STORAGE_QUOTA_ERROR_MESSAGE : tc("storageQuota") },
               );
             }}
             onDiscard={() => {
               discardQuarantine();
-              showToast({ type: "success", message: "Sahibi belirsiz notlar bu cihazdan kaldırıldı." });
+              showToast({ type: "success", message: t("quarantineRemoved") });
             }}
           />
         ) : null}
@@ -359,7 +361,7 @@ export function KlinikNotlarLayout() {
         <div
           className="mt-4 inline-flex rounded-2xl border border-violet-200/80 bg-white/80 p-1 shadow-sm ring-1 ring-violet-100/60"
           role="tablist"
-          aria-label="Not sekmeleri"
+          aria-label={t("tabsAria")}
         >
           <button
             type="button"
@@ -372,7 +374,7 @@ export function KlinikNotlarLayout() {
                 : "text-violet-900 hover:bg-violet-50"
             }`}
           >
-            Not Kaydı
+            {t("tabNew")}
           </button>
           <button
             type="button"
@@ -385,7 +387,7 @@ export function KlinikNotlarLayout() {
                 : "text-violet-900 hover:bg-violet-50"
             }`}
           >
-            Kayıtlı Notlar
+            {t("tabSaved")}
           </button>
         </div>
 

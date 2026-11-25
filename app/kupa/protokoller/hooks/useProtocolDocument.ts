@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   getProtocol,
   listProtocolPoints,
@@ -24,9 +25,8 @@ import {
   type CuppingTechnique,
   type CuppingSafetyNote,
   type CuppingSource,
+  isKupaNotFound,
 } from "@/app/kupa/lib/api";
-
-const NOT_FOUND_MSG = "Kayıt bu hesaba ait değil veya bulunamadı.";
 
 /**
  * Protokol dosyasının TÜM bölümlerini yükler. Master listeleri (points/techniques/
@@ -35,6 +35,7 @@ const NOT_FOUND_MSG = "Kayıt bu hesaba ait değil veya bulunamadı.";
  * (server canonical; optimistic YOK).
  */
 export function useProtocolDocument(id: string) {
+  const tu = useTranslations("cupping.protocols.doc.unknown");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [notFound, setNotFound] = useState(false);
@@ -97,7 +98,8 @@ export function useProtocolDocument(id: string) {
       setMasterSources(msrc);
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Yüklenemedi.";
-      if (msg === NOT_FOUND_MSG) setNotFound(true);
+      // I18N-F1-R3: 404 tespiti metne değil dil-bağımsız koda bağlı (CUP_NOT_FOUND ⇔ eski NOT_FOUND metni).
+      if (isKupaNotFound(e)) setNotFound(true);
       else setError(msg);
     } finally {
       setLoading(false);
@@ -144,7 +146,8 @@ export function useProtocolDocument(id: string) {
       } catch (e) {
         if (cancelled) return;
         const msg = e instanceof Error ? e.message : "Yüklenemedi.";
-        if (msg === NOT_FOUND_MSG) setNotFound(true);
+        // I18N-F1-R3: 404 tespiti metne değil dil-bağımsız koda bağlı (CUP_NOT_FOUND ⇔ eski NOT_FOUND metni).
+        if (isKupaNotFound(e)) setNotFound(true);
         else setError(msg);
       } finally {
         if (!cancelled) setLoading(false);
@@ -161,10 +164,10 @@ export function useProtocolDocument(id: string) {
   const safetyMap = useMemo(() => new Map(masterSafety.map((s) => [s.id, s])), [masterSafety]);
   const sourceMap = useMemo(() => new Map(masterSources.map((s) => [s.id, s])), [masterSources]);
 
-  const pointName = useCallback((pid: string) => pointMap.get(pid)?.name ?? "Bilinmeyen bölge", [pointMap]);
-  const techniqueName = useCallback((tid: string) => techniqueMap.get(tid)?.name ?? "Bilinmeyen teknik", [techniqueMap]);
-  const safetyTitle = useCallback((sid: string) => safetyMap.get(sid)?.title ?? "Bilinmeyen madde", [safetyMap]);
-  const sourceName = useCallback((sid: string) => sourceMap.get(sid)?.source_name ?? "Bilinmeyen kaynak", [sourceMap]);
+  const pointName = useCallback((pid: string) => pointMap.get(pid)?.name ?? tu("point"), [pointMap, tu]);
+  const techniqueName = useCallback((tid: string) => techniqueMap.get(tid)?.name ?? tu("technique"), [techniqueMap, tu]);
+  const safetyTitle = useCallback((sid: string) => safetyMap.get(sid)?.title ?? tu("safety"), [safetyMap, tu]);
+  const sourceName = useCallback((sid: string) => sourceMap.get(sid)?.source_name ?? tu("source"), [sourceMap, tu]);
 
   return {
     loading,

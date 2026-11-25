@@ -35,11 +35,11 @@ export async function GET(req: NextRequest): Promise<Response> {
   const { db, tenantId } = guard;
 
   const clientId = req.nextUrl.searchParams.get("clientId");
-  if (!clientId) return cuppingError(400, "clientId gerekli.");
+  if (!clientId) return cuppingError(400, "clientId gerekli.", "CUP_CLIENT_ID_REQUIRED");
 
   // Danışan AYNI tenant'a ait olmalı (fail-closed; cross-tenant enumeration engeli).
   const ownsClient = await assertOwnedRef(db, "clients", tenantId, clientId);
-  if (!ownsClient) return cuppingError(404, NOT_FOUND);
+  if (!ownsClient) return cuppingError(404, NOT_FOUND, "CUP_NOT_FOUND");
 
   const res = await listEntity(db, CUPPING_TABLES.clientAdvice, tenantId, {
     orderBy: "created_at",
@@ -60,11 +60,11 @@ export async function POST(req: NextRequest): Promise<Response> {
   if (!parsed.ok) return parsed.response;
 
   const clientId = typeof parsed.data.client_id === "string" ? parsed.data.client_id.trim() : "";
-  if (!clientId) return cuppingError(400, "client_id gerekli.");
+  if (!clientId) return cuppingError(400, "client_id gerekli.", "CUP_CLIENT_ID_REQUIRED");
 
   // P0: danışan sahiplik (fail-closed).
   const ownsClient = await assertOwnedRef(db, "clients", tenantId, clientId);
-  if (!ownsClient) return cuppingError(404, NOT_FOUND);
+  if (!ownsClient) return cuppingError(404, NOT_FOUND, "CUP_NOT_FOUND");
 
   const sourceTemplateId =
     typeof parsed.data.source_template_id === "string" && parsed.data.source_template_id.trim() !== ""
@@ -77,7 +77,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   if (sourceTemplateId) {
     // ── PATH A — GENEL ŞABLONDAN KOPYA (snapshot) ──
     const owned = await assertOwnedRef(db, CUPPING_TABLES.adviceTemplates, tenantId, sourceTemplateId);
-    if (!owned) return cuppingError(400, "Seçilen şablon bu hesaba ait değil.");
+    if (!owned) return cuppingError(400, "Seçilen şablon bu hesaba ait değil.", "CUP_TEMPLATE_NOT_OWNED");
     const tpl = await getEntity(db, CUPPING_TABLES.adviceTemplates, tenantId, sourceTemplateId);
     if (!tpl.ok) return tpl.response;
     const t = tpl.data as {
@@ -100,7 +100,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   } else {
     // ── PATH B — MANUEL KİŞİSELLEŞTİRİLMİŞ (bağımsız snapshot) ──
     const fields = pickWritable(parsed.data, CLIENT_ADVICE_WRITABLE);
-    if (!String(fields.title ?? "").trim()) return cuppingError(400, "Bilgilendirme başlığı gerekli.");
+    if (!String(fields.title ?? "").trim()) return cuppingError(400, "Bilgilendirme başlığı gerekli.", "CUP_TITLE_REQUIRED");
     insertObj = {
       client_id: clientId,
       source_template_id: null,

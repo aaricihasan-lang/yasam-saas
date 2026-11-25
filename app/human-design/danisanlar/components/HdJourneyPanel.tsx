@@ -8,6 +8,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
 import { useToast } from "@/components/ui/ToastProvider";
 import { readYasamUser } from "@/lib/auth/yasamUser";
@@ -41,6 +42,7 @@ export function HdJourneyPanel({
 }) {
   const { confirm } = useConfirm();
   const { showToast } = useToast();
+  const t = useTranslations("hd.clients.journey");
   const [busy, setBusy] = useState(false);
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -52,7 +54,7 @@ export function HdJourneyPanel({
   async function run(action: string, body: Record<string, unknown>, okMsg: string) {
     if (busy) return;
     if (isDemo) {
-      showToast({ message: "Demo hesabında danışan işlemi yapılamaz.", type: "info" });
+      showToast({ message: t("demoBlocked"), type: "info" });
       return;
     }
     setBusy(true);
@@ -69,22 +71,22 @@ export function HdJourneyPanel({
 
   async function linkTo(c: { id: string; ad: string; soyad: string; dogum: string | null }) {
     const ok = await confirm({
-      title: "Danışan Yolculuğu'na bağla",
-      message: `Bu Human Design kaydı "${fullName(c)}" (doğum: ${formatIsoDateTr(c.dogum)}) danışanına bağlanacak. Doğru kişi olduğundan emin misiniz?`,
-      confirmText: "Bağla",
-      cancelText: "Vazgeç",
+      title: t("linkTitle"),
+      message: t("linkMessage", { name: fullName(c), date: formatIsoDateTr(c.dogum) }),
+      confirmText: t("link"),
+      cancelText: t("cancel"),
     });
-    if (ok) await run("link_existing", { journey_client_id: c.id }, "Danışan Yolculuğu'na bağlandı.");
+    if (ok) await run("link_existing", { journey_client_id: c.id }, t("linked"));
   }
 
   async function syncBirthDate() {
     const ok = await confirm({
-      title: "HD bilgisini güncelle",
-      message: `Human Design doğum tarihi, Danışan Yolculuğu'ndaki tarih (${formatIsoDateTr(journey?.dogum)}) ile güncellenecek. Mevcut analizler değişmez; sonraki hesaplama yeni tarihle yapılır ve yeni bir analiz oluşturabilir.`,
-      confirmText: "Güncelle",
-      cancelText: "Vazgeç",
+      title: t("syncTitle"),
+      message: t("syncMessage", { date: formatIsoDateTr(journey?.dogum) }),
+      confirmText: t("update"),
+      cancelText: t("cancel"),
     });
-    if (ok) await run("sync_birth_date", {}, "Human Design doğum tarihi güncellendi.");
+    if (ok) await run("sync_birth_date", {}, t("synced"));
   }
 
   if (journey) {
@@ -93,20 +95,20 @@ export function HdJourneyPanel({
       <div className="space-y-3" data-hd-journey-linked>
         <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-emerald-200/80 bg-emerald-50/50 px-4 py-3">
           <div className="min-w-0">
-            <p className="m-0 text-[10px] font-bold uppercase tracking-widest text-emerald-700">Danışan Yolculuğu</p>
+            <p className="m-0 text-[10px] font-bold uppercase tracking-widest text-emerald-700">{t("journey")}</p>
             <p className="m-0 break-words text-sm font-bold text-slate-900">{fullName(journey)}</p>
           </div>
           {canOpenJourney ? (
             <Link href={`/dashboard/clients/${journey.id}`} className="text-xs font-bold text-emerald-700 hover:underline">
-              Danışan Yolculuğu&apos;nda aç →
+              {t("openInJourney")}
             </Link>
           ) : null}
         </div>
         {mismatch ? (
           <div role="status" className="rounded-2xl border border-amber-300/80 bg-amber-50 px-4 py-3" data-hd-birth-mismatch>
-            <p className="m-0 text-sm font-bold text-amber-900">Danışan Yolculuğu&apos;ndaki doğum tarihi bu Human Design profilinden farklı.</p>
+            <p className="m-0 text-sm font-bold text-amber-900">{t("mismatch")}</p>
             <p className="m-0 mt-1 text-xs text-amber-800">
-              Danışan Yolculuğu doğum tarihi: {formatIsoDateTr(journey.dogum)} · Human Design doğum tarihi: {formatIsoDateTr(profileBirthDate)}
+              {t("mismatchDates", { journeyDate: formatIsoDateTr(journey.dogum), hdDate: formatIsoDateTr(profileBirthDate) })}
             </p>
             <button
               type="button"
@@ -114,7 +116,7 @@ export function HdJourneyPanel({
               onClick={() => void syncBirthDate()}
               className="mt-2 h-9 rounded-xl border border-amber-400 bg-white px-4 text-xs font-bold text-amber-900 hover:bg-amber-100 disabled:opacity-60"
             >
-              HD bilgisini güncelle
+              {t("syncTitle")}
             </button>
           </div>
         ) : null}
@@ -125,14 +127,14 @@ export function HdJourneyPanel({
   return (
     <div className="rounded-2xl border border-amber-200/80 bg-amber-50/40 px-4 py-3" data-hd-journey-unlinked>
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="m-0 text-sm font-semibold text-amber-900">Bu Human Design kaydı Danışan Yolculuğu&apos;na bağlı değil.</p>
+        <p className="m-0 text-sm font-semibold text-amber-900">{t("notLinked")}</p>
         {!open ? (
           <button
             type="button"
             onClick={() => setOpen(true)}
             className="h-9 rounded-xl border border-amber-400 bg-white px-4 text-xs font-bold text-amber-900 hover:bg-amber-100"
           >
-            Danışan Yolculuğu&apos;na Bağla
+            {t("linkToJourney")}
           </button>
         ) : null}
       </div>
@@ -140,7 +142,7 @@ export function HdJourneyPanel({
         <div className="mt-3 space-y-4">
           {suggestions.length > 0 ? (
             <div data-hd-journey-suggestions>
-              <p className={hdLabelCls}>Muhtemel eşleşme (onayınızla bağlanır)</p>
+              <p className={hdLabelCls}>{t("suggestions")}</p>
               <ul className="m-0 list-none space-y-2 p-0">
                 {suggestions.map((c) => (
                   <li key={c.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-amber-200 bg-white px-3 py-2">
@@ -148,7 +150,7 @@ export function HdJourneyPanel({
                       {fullName(c)} <span className="font-normal text-slate-500">· {formatIsoDateTr(c.dogum)}</span>
                     </span>
                     <button type="button" disabled={busy} onClick={() => void linkTo(c)} className="h-8 rounded-lg bg-indigo-600 px-3 text-xs font-bold text-white hover:bg-indigo-700 disabled:opacity-60">
-                      Bu danışana bağla
+                      {t("linkThis")}
                     </button>
                   </li>
                 ))}
@@ -157,20 +159,20 @@ export function HdJourneyPanel({
           ) : null}
 
           <div>
-            <label htmlFor="hd-link-search" className={hdLabelCls}>Mevcut danışana bağla</label>
+            <label htmlFor="hd-link-search" className={hdLabelCls}>{t("linkExisting")}</label>
             <div className="flex gap-2">
-              <input id="hd-link-search" type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Ad veya soyad" className={`h-9 ${hdFieldBase}`} />
+              <input id="hd-link-search" type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t("searchPlaceholder")} className={`h-9 ${hdFieldBase}`} />
               <button
                 type="button"
                 onClick={() => void searchJourneyClients(query.trim()).then((r) => setResults(r.rows))}
                 className="h-9 shrink-0 rounded-xl border border-indigo-200 bg-white px-3 text-xs font-bold text-indigo-700 hover:bg-indigo-50"
               >
-                Ara
+                {t("search")}
               </button>
             </div>
             {results ? (
               results.length === 0 ? (
-                <p className="mt-2 text-xs text-slate-500">Eşleşen danışan bulunamadı.</p>
+                <p className="mt-2 text-xs text-slate-500">{t("noMatch")}</p>
               ) : (
                 <ul className="m-0 mt-2 max-h-56 list-none space-y-1 overflow-y-auto p-0">
                   {results.map((c) => (
@@ -179,10 +181,10 @@ export function HdJourneyPanel({
                         {fullName(c)} <span className="text-slate-500">· {formatIsoDateTr(c.dogum)}</span>
                       </span>
                       {c.hd_client_id ? (
-                        <span className="text-[11px] font-semibold text-slate-500">Başka bir Human Design kaydına bağlı</span>
+                        <span className="text-[11px] font-semibold text-slate-500">{t("linkedElsewhere")}</span>
                       ) : (
                         <button type="button" disabled={busy} onClick={() => void linkTo(c)} className="h-8 rounded-lg border border-indigo-200 bg-indigo-50 px-3 text-xs font-bold text-indigo-800 hover:bg-indigo-100 disabled:opacity-60">
-                          Bağla
+                          {t("link")}
                         </button>
                       )}
                     </li>
@@ -193,28 +195,28 @@ export function HdJourneyPanel({
           </div>
 
           <div>
-            <p className={hdLabelCls}>Yeni merkezî danışan oluştur</p>
+            <p className={hdLabelCls}>{t("createNew")}</p>
             <div className="grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
-              <input aria-label="Ad" value={newName.ad} onChange={(e) => setNewName((p) => ({ ...p, ad: e.target.value }))} placeholder="Ad *" className={`h-9 ${hdFieldBase}`} />
-              <input aria-label="Soyad" value={newName.soyad} onChange={(e) => setNewName((p) => ({ ...p, soyad: e.target.value }))} placeholder="Soyad *" className={`h-9 ${hdFieldBase}`} />
+              <input aria-label={t("firstNameAria")} value={newName.ad} onChange={(e) => setNewName((p) => ({ ...p, ad: e.target.value }))} placeholder={t("firstNamePlaceholder")} className={`h-9 ${hdFieldBase}`} />
+              <input aria-label={t("lastNameAria")} value={newName.soyad} onChange={(e) => setNewName((p) => ({ ...p, soyad: e.target.value }))} placeholder={t("lastNamePlaceholder")} className={`h-9 ${hdFieldBase}`} />
               <button
                 type="button"
                 disabled={busy}
                 onClick={() => {
                   if (!newName.ad.trim() || !newName.soyad.trim()) {
-                    showToast({ message: "Ad ve soyad zorunludur.", type: "warning" });
+                    showToast({ message: t("nameRequired"), type: "warning" });
                     return;
                   }
-                  void run("link_new", { ad: newName.ad.trim(), soyad: newName.soyad.trim() }, "Danışan oluşturuldu ve bağlandı.");
+                  void run("link_new", { ad: newName.ad.trim(), soyad: newName.soyad.trim() }, t("createdAndLinked"));
                 }}
                 className="h-9 rounded-xl bg-indigo-600 px-4 text-xs font-bold text-white hover:bg-indigo-700 disabled:opacity-60"
               >
-                Oluştur ve Bağla
+                {t("createAndLink")}
               </button>
             </div>
           </div>
           <button type="button" onClick={() => setOpen(false)} className="text-xs font-bold text-slate-500 hover:underline">
-            Vazgeç
+            {t("cancel")}
           </button>
         </div>
       ) : null}

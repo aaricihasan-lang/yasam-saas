@@ -1,0 +1,1488 @@
+{
+ "endpoint": "/astrology/natal-chart",
+ "lang": "tr",
+ "query": null,
+ "body": {
+  "date": "1990-04-01",
+  "time": "14:30:00",
+  "latitude": 41.0082,
+  "longitude": 28.9784,
+  "timezone": 3,
+  "nodeType": "true",
+  "houseSystem": "placidus"
+ },
+ "response": {
+  "birthDetails": {
+   "date": "1990-04-01",
+   "time": "14:30:00",
+   "latitude": 41.0082,
+   "longitude": 28.9784,
+   "timezone": 3,
+   "nodeType": "true"
+  },
+  "planets": [
+   {
+    "name": "Sun",
+    "longitude": 11.479347018841024,
+    "latitude": 0.00011873038259241554,
+    "sign": "Aries",
+    "degree": 11.479347018841024,
+    "speed": 0.9869505153951934,
+    "isRetrograde": false,
+    "house": 9,
+    "nameLocalized": "Güneş",
+    "signLocalized": "Koç",
+    "dignity": "exaltation",
+    "interpretation": {
+     "summary": "Hareket benliğinizi tutuşturur ve kim olduğunuzu en iyi, kapıdan çoktan yarı yarıya çıkmışken bilirsiniz. İnanç, ilim ve uzak kıyılar sizi genişletir ve her geniş bakış, olmakta olduğunuz kişiye bir şey ekler.",
+     "detailed": "Bir plan tıkandığında ve herkes başkasının konuşmasını beklerken, siz çoktan ayağa kalkmış bir öneri sunuyorsunuzdur. Cesaret size kolay gelir ve dolaysız tavrınız, başkalarının seve seve izlediği bir yol açar. Bir plan dördüncü kez tartışılmak istendiğinde sabırsızlığınız alevlenir; net bir bitiş noktası sizi masada tutar. Birinci olmak, hareket hâlinde olmak kadar önemli değildir sizin için ve cesur başlangıçlarla dolu bir hayat size en çok yakışır. Güneş Koç burcundayken kendiniz olmak daha az çaba ister ve hedefleriniz pek ikna gerektirmez. Her yolculuk ya da kurs sizi eve yepyeni bir soru ve kendinize dair daha büyük bir fikirle gönderir. Başka kültürlerden gelen fikirler yön duygunuzu besler ve onları eve getirip paylaşmayı seversiniz. Uzun bir yolculukta plansız bir sapma, sonradan en çok anlattığınız kısım olabilir. Chiron Güneş'e sürtündüğünde tümüyle parlamak riskli gelebilir; yine de ortaya çıktığınız her seferinde yara, öğretebilecek kadar iyi tanıdığınız bir şeye dönüşür.",
+     "keywords": [
+      "girişkenlik",
+      "cesaret",
+      "dolaysızlık",
+      "atılganlık"
+     ]
+    }
+   },
+   {
+    "name": "Moon",
+    "longitude": 89.22706230352259,
+    "latitude": 3.64775587473349,
+    "sign": "Gemini",
+    "degree": 29.227062303522587,
+    "speed": 14.005612057120757,
+    "isRetrograde": false,
+    "house": 11,
+    "nameLocalized": "Ay",
+    "signLocalized": "İkizler",
+    "dignity": "peregrine",
+    "interpretation": {
+     "summary": "Kalbiniz kelimelerle çalışır, bir duygu ancak onu anlatmanın bir yolunu bulduğunuzda yatışır. Topluluk sizin duygusal ağınızdır; dostluklar, ekipler ve davalarla sizi yakalar ve umutlarınıza bir yuva verir.",
+     "detailed": "Moraliniz bozukken üç kişiye mesaj atar, iki makale okur ve öğlene kadar kendinize gelirsiniz. Ne hissettiğinizi kelimeler sayesinde keşfedersiniz, çoğu zaman da onu yüksek sesle söylemenin tam ortasında. Emin olamadığınızda gevezelik hızlanır, cümlenin ortasında durup asıl ihtiyacı adlandırmak ise duygunun yüzeye çıkmasını sağlar. Çevik zihniniz sizi kriz anında iyi bir yol arkadaşı yapar, seçeneklerle ve güzel esprilerle dolu. Siz geldiğinizde hâlâ güç toplayan döngü, bir yön inancınızı kazandığında size derin bir bağlılık verir ve istikrarlı sebat, eski alışkanlıkların geriye çeken çekiminden uzun yaşar. Haftalık sabit bir buluşma, bir koro ya da birkaç eski dost, keyifsiz bir akşamda sizi dengede tutabilir. Dostlar sizin için çoğu zaman aileye dönüşür ve hayatlarını gerçek bir şefkatle takip edersiniz. Kalbinize yakın bir dava, huzursuz bir günde duygularınızın gidebileceği faydalı bir yer olur. Ay'ın yanındaki Jüpiter sizi doğuştan geniş yürekli kılar; ağırlamaya, doyurmaya ve insanları yüreklendirmeye hevesli, kendi sınırlarına ihtiyaç duyacak kadar cömert.",
+     "keywords": [
+      "sohbet",
+      "merak",
+      "çeşitlilik",
+      "huzursuzluk"
+     ]
+    }
+   },
+   {
+    "name": "Mercury",
+    "longitude": 24.85998879209296,
+    "latitude": 0.7924721534224808,
+    "sign": "Aries",
+    "degree": 24.85998879209296,
+    "speed": 1.8796388705901137,
+    "isRetrograde": false,
+    "house": 9,
+    "nameLocalized": "Merkür",
+    "signLocalized": "Koç",
+    "dignity": "peregrine",
+    "interpretation": {
+     "summary": "Kararlar size koşarak gelir ve sözleriniz, gerekçeleriniz yetişmeden bir adım önce çıkışa fırlar. Düşünceniz uzaklara yolculuk eder: başka dillere, inanç sistemlerine ve nasıl yaşanacağı bilmecesine doğru.",
+     "detailed": "Biri sorusunun yarısındayken cevabınız hazırdır, hatta onu söylemeye çoktan başlamışsınızdır. Size göre net bir cevap bir nezakettir, çünkü herkesi tahmin yürütme zahmetinden kurtarır. Bilgiler gelmeden konuşmak sizi aceleyle verilmiş bir kararı savunmak zorunda bırakır, önce bir soru daha sormak ise geri adım atma zahmetinden kurtarır. Zihniniz en canlı hâline, karar vakti gelmiş ve saat işliyorken ulaşır. Bir yolculuğu bir müzenin, bir konferansın ya da denemek istediğiniz bir dilin etrafında planlarsınız. Öğretmek ve yazmak size uyar ve önemsediğiniz konularda doğal bir otoriteyle konuşursunuz. Yurt dışına her yolculuktan önce birkaç ifade öğrenmek, asla atlamayacağınız bir ritüeldir. Satürn Merkür'ü sıkıştırdığında yanılma korkusu kelimelerinizi durdurabilir; ilk taslağı yalnızca bir taslak saymak zaten sahip olduğunuz uzmanlığı özgür bırakır.",
+     "keywords": [
+      "hız",
+      "açık sözlülük",
+      "kararlılık",
+      "coşku"
+     ]
+    }
+   },
+   {
+    "name": "Venus",
+    "longitude": 325.03061663457913,
+    "latitude": 1.2515496061258817,
+    "sign": "Aquarius",
+    "degree": 25.030616634579133,
+    "speed": 0.9992446578001761,
+    "isRetrograde": false,
+    "house": 7,
+    "nameLocalized": "Venüs",
+    "signLocalized": "Kova",
+    "dignity": "peregrine",
+    "interpretation": {
+     "summary": "Birine vurulduğunuzda önce dostluk gelir; sizi özgünlük, bağımsızlık ve sıra dışı zihinler çeker. Ortaklık sizin sanatınızdır ve hayatı, işi ya da fikirleri tek bir kişiyle paylaşmaktan derin bir keyif alırsınız.",
+     "detailed": "En yakın bağlarınız çoğu zaman, herkes evine döndükten çok sonra da süren fikir tartışmaları olarak başladı. Sevdiklerinize eşit ve dost gözüyle bakarsınız, asla iyileştirilecek projeler gibi değil. Alana ihtiyaç duymak haklıdır; yine de tek söz etmeden ortadan kaybolmak başkalarını tahmine bırakır, geri çekilmeden önce bırakılan kısa bir not ise güveni korur. Sevginiz insanlara kalıba sokmadan ve sıraya dizmeden bütün birer birey olarak bakar; pek çok kişi bunu derinden ferahlatıcı bulur. Bir yolculuğu ya da bir projeyi birlikte planlamak, ikisini de tek başına yapmaktan çok daha fazla keyif verir. Nezaket ve denge sizin için önemlidir ve onları her ittifakınıza taşırsınız. Müşteriler, çalışma arkadaşları ve sırdaşlar, onlara nasıl davrandığınızdan ötürü çoğu zaman yıllarca hayatınızda kalır. Venüs Merkür'ün köşelerini yumuşatır, bu yüzden nezaketle ikna eder, nazik kelimeler seçer ve iyi bir sohbetten kendi başına keyif alırsınız.",
+     "keywords": [
+      "bağımsızlık",
+      "özgünlük",
+      "dostluk",
+      "sıra dışılık"
+     ]
+    }
+   },
+   {
+    "name": "Mars",
+    "longitude": 315.47139933987694,
+    "latitude": -1.1871060162791058,
+    "sign": "Aquarius",
+    "degree": 15.471399339876939,
+    "speed": 0.7458317992114587,
+    "isRetrograde": false,
+    "house": 7,
+    "nameLocalized": "Mars",
+    "signLocalized": "Kova",
+    "dignity": "peregrine",
+    "interpretation": {
+     "summary": "Yönteminde bağımsız ve yaratıcı biri olarak hedeflerinize kendi yolunuzdan uzanır ve sizi bir kalıba sokmaya çalışan herkese direnirsiniz. Yakın ilişkiler sizde hareketli ve coşkulu yürür ve size karşılık veren birinin yanında serpilirsiniz.",
+     "detailed": "Bir şeyin yapılamayacağı söylendiğinde itirazın etrafından dolanan zekice bir yol bulur ve onu yine de yaparsınız. Bağımsızlık emeğinize güç verir ve kendi saatlerinizi ve yöntemlerinizi seçme alanınız olduğunda en iyi işinizi çıkarırsınız. Sırf isyan olsun diye isyan etmek dürtünüzü yanlış kavgada harcayabilir ve davanın gerçekte neye ihtiyacı olduğunu sormak onu yeniden yönlendirir. Eşitlik için yaratıcılıkla, inançla ve bir parça yaramazlıkla mücadele edersiniz. Mars haritanızın batı ufkunda durduğu için onunla masanın karşı tarafında, onu size gösteren müttefiklerde ve rakiplerde karşılaşırsınız. Mars ile Lilith arasında yutulmuş öfke ile ani meydan okuma birbirine sürtünür; bu keskinliği açıkça sahiplenmek onun sessizlik ile patlama arasında gidip gelmesini önler.",
+     "keywords": [
+      "bağımsızlık",
+      "özgünlük",
+      "reform",
+      "dik başlılık"
+     ]
+    }
+   },
+   {
+    "name": "Jupiter",
+    "longitude": 92.80976889889256,
+    "latitude": 0.07679053967337145,
+    "sign": "Cancer",
+    "degree": 2.809768898892557,
+    "speed": 0.10727606344377705,
+    "isRetrograde": false,
+    "house": 11,
+    "nameLocalized": "Jüpiter",
+    "signLocalized": "Yengeç",
+    "dignity": "exaltation",
+    "interpretation": {
+     "summary": "İyimserliğiniz iyilikte yaşar; önemli olanı göstermesi için duygulara ve içgüdüye güvenirsiniz. Ortak bir amacı olan gruplar iyimserliğinizi ateşler ve onları gerçeğe dönüştürmeye yardım eden dostlarla büyük projeler planlarsınız.",
+     "detailed": "Sokağın yarısı, yedek şemsiyenin, ilk yardım çantasının ve iyi bir tesisatçının numarasının sizde olduğunu bilir. Gelenek ve eski bağlar sizin için çok önemlidir; emeğinizi insanları güvende tutacak şeylere verirsiniz. Kimsenin istemediği kadar özen gösterdiğinizde koruyuculuk boğuculuğa dönüşür; başkalarının kendi derdiyle kendisinin baş etmesine izin vermek de bir iyiliktir. Sizin için bolluk, insanların yanınızda kendilerini ne kadar güvende hissettiğiyle ölçülür. Jüpiter Yengeç burcundayken büyüme daha az zorlanmayla gelir ve genişleyecek alan pek zorlamadan açılır.",
+     "keywords": [
+      "şefkat",
+      "koruma",
+      "iyilik",
+      "içgüdü"
+     ]
+    }
+   },
+   {
+    "name": "Saturn",
+    "longitude": 294.43433243500357,
+    "latitude": 0.2010111337804318,
+    "sign": "Capricorn",
+    "degree": 24.43433243500357,
+    "speed": 0.05296724981957368,
+    "isRetrograde": false,
+    "house": 6,
+    "nameLocalized": "Satürn",
+    "signLocalized": "Oğlak",
+    "dignity": "domicile",
+    "interpretation": {
+     "summary": "Görev sizi hem yorar hem de kendine çeker; bu yüzden uzun planları adım adım kurar, başkalarının bıraktığını sırtlanırsınız. Gündelik iş ve rutinler, yavaş yavaş ustalık kazandığınız ve en pratik sınavlarınızla karşılaştığınız yerlerdir.",
+     "detailed": "Uzun hedefler size uyar: başkaları ilgisini yitirirken siz birine doğru tuğla tuğla ilerlersiniz. Odak aşırı çalışmaya ya da değerinizi yalnızca başardıklarınızla ölçmeye kayar; korunan boş zaman dengeyi yeniden kurar. Gücünüz istikrarlı ve gösterişsizdir. Satürn Oğlak burcunda rahattır; bu yüzden sınır koymak ve ona uymak, ayırabileceğiniz kadar bir çaba ister. Güvenilirlik sizin güçlü yanınızdır ve kurduğunuz sistemler gerçekten işler. Eleştiri övgüden daha sert çarpar, bu yüzden tek bir şikâyet on teşekkürden ağır basabilir ve teşekkürleri yüksek sesle saymak teraziyi yeniden dengeler. Bitmiş bir işi başka birinin görmesine izin vermeden önce üç kez okursunuz.",
+     "keywords": [
+      "hırs",
+      "planlama",
+      "dayanma gücü",
+      "sorumluluk"
+     ]
+    }
+   },
+   {
+    "name": "Uranus",
+    "longitude": 279.523046891411,
+    "latitude": -0.29754267869323886,
+    "sign": "Capricorn",
+    "degree": 9.523046891411013,
+    "speed": 0.010695957069174256,
+    "isRetrograde": false,
+    "house": 5,
+    "nameLocalized": "Uranüs",
+    "signLocalized": "Oğlak",
+    "dignity": "peregrine",
+    "interpretation": {
+     "summary": "Yaratıcı özgürlük sizin çıkış kapınızdır; aşk, sanat ve eğlence hep beklenmedik bir dokunuşla gelir.",
+     "detailed": "Sanatınız, siz dahil kimsenin öngörmediği keskin dönüşler yapar ve o sürpriz cazibesinin yarısıdır. Taze bir başlangıcın heyecanı bitirme emeğini gölgede bırakabilir; kendinize koyduğunuz bir son tarih en iyi fikirleri sonuca ulaştırır. En iyi şarkınız sabahın üçünde gelir ve his kaybolmadan onu kaydedersiniz. Yıllarca Oğlak burcunda kalan Uranüs, bir yaş grubunun ortak iklimini belirler ve sizin kuşağınız da bunun dışında değildir. Döneminiz yapının kendisini baştan aşağı yenilemeye girişir; sistemlerin insanlara hizmet etmesi gerektiğine inanır. Uranüs Güneş'le kesiştiğinde huzursuzluk onu dürtükler; kopuş noktalarınızı bilinçli seçmek özgürlüğün bir terk etme alışkanlığına dönüşmesini önler.",
+     "keywords": [
+      "reform",
+      "beceriklilik",
+      "strateji",
+      "otorite"
+     ]
+    }
+   },
+   {
+    "name": "Neptune",
+    "longitude": 284.51224675690366,
+    "latitude": 0.8593690758853847,
+    "sign": "Capricorn",
+    "degree": 14.512246756903664,
+    "speed": 0.008323839951941636,
+    "isRetrograde": false,
+    "house": 6,
+    "nameLocalized": "Neptün",
+    "signLocalized": "Oğlak",
+    "dignity": "peregrine",
+    "interpretation": {
+     "summary": "Hizmet ve gündelik görevler kutsal bir şey aradığınız alandır ve işiniz ince etkilere karşılık verir.",
+     "detailed": "Sıradan işlere nezaket ve hayal gücü katarsınız; yardım meslekleri sizi çağırır. Saatler kayar ve görevler bulanıklaşır, ta ki önemli iş el değmemiş hâlde kalana dek; o işi öğleden önce adlandırmak günün dağılmasını önler. Yapılacaklar listeniz kenardaki bir çizime doğru kayar; bu hem cazibe hem de sorunun ta kendisidir. Bu burcu pratik hayalperestler paylaşır; hırsın ve hayal gücünün birlikte çalışabileceğine inanırlar. Neptün Güneş'in çizdiği hatları bulanıklaştırıp durur; tek bir vizyonu haftalık bir göreve bağlamak bu sise yerleşebileceği sağlam bir zemin verir.",
+     "keywords": [
+      "gerçekçilik",
+      "düzen",
+      "hayal kırıklığı"
+     ]
+    }
+   },
+   {
+    "name": "Pluto",
+    "longitude": 227.3191817783967,
+    "latitude": 15.92971543405521,
+    "sign": "Scorpio",
+    "degree": 17.31918177839671,
+    "speed": -0.021116709386134858,
+    "isRetrograde": true,
+    "house": 4,
+    "nameLocalized": "Plüton",
+    "signLocalized": "Akrep",
+    "dignity": "domicile",
+    "interpretation": {
+     "summary": "Mahrem üssünüz bir güç ve korunma kalesidir ve onu yakından savunursunuz.",
+     "detailed": "Psikoloji ve hanenizin tarihi sizi içine çeker; örüntülerinin ardındaki güçleri anlamak istersiniz. Dile getirilmemiş aile kuralları hâlâ rotanızı belirleyebilir; birini açıkça sorgulamak sadakati bir refleks olmaktan çıkarıp seçime dönüştürür. Ev taşımak sizin için asla salt bir lojistik değildir, çünkü her taşınma küçük bir ölüm ve yeniden doğuştur. Tabu yaşıtlarınızı korkutmaz; gömülü gerçekleri gün ışığına çıkarmaya heveslidirler. Plüton Mars'ı kavradığında güç çatışmaları patlak verebilir; öfkenin altındaki gerçek isteği bulmak gücünüzün nereye ait olduğunu gösterir.",
+     "keywords": [
+      "derinlik",
+      "yoğunluk",
+      "algı",
+      "yeniden doğuş"
+     ]
+    }
+   },
+   {
+    "name": "North Node",
+    "longitude": 314.7789878111296,
+    "latitude": 0,
+    "sign": "Aquarius",
+    "degree": 14.778987811129582,
+    "speed": -0.02772726507078005,
+    "isRetrograde": true,
+    "house": 7,
+    "nameLocalized": "Kuzey Düğümü",
+    "signLocalized": "Kova",
+    "interpretation": {
+     "summary": "Yakın bağlar ve ikili iş birliği size en çok şeyi öğretir; iki kişinin birlikte neler yapabileceğini gösterir.",
+     "detailed": "Dostluk ve hakkaniyet büyümenizdir; insanların kendileri olmasına izin vermek ve ayrı durmadan da önemli olabileceğinizi keşfetmek. Bir grup projesinde fikrinizin manşet olmasını istersiniz, oysa daha mütevazı bir öneri herkese daha iyi hizmet ederdi. Eşitlerden oluşan bir topluluğa ait olmak, sahnenin ortasında olmadan kendinizi özel hissetmenizi sağlar ve dostluklar bununla derinleşir. Anın sizin etrafınızda dönmesini istemek doğal gelir, ama başkalarının oldukları gibi olmasına izin vermek daha istikrarlı bir sevgi kazandırır. Kuzey Düğümü Alçalanınıza yakın durduğu için çoğu zaman ilgi duyduğunuz insanlarda karşınıza çıkar ve onun niteliklerini önce onlarda tanırsınız. Lilith, Kuzey Düğümü'nün yoluna keskin bir bağımsızlık katar ve refleks hâline gelmiş isyan, retlerinizi sizi gerçekten küçülten şeylere saklayana dek büyümeyi yavaşlatır.",
+     "keywords": [
+      "topluluk",
+      "tarafsızlık",
+      "dostluk",
+      "hakkaniyet"
+     ]
+    }
+   },
+   {
+    "name": "South Node",
+    "longitude": 134.77898781112958,
+    "latitude": 0,
+    "sign": "Leo",
+    "degree": 14.778987811129582,
+    "speed": -0.02772726507078005,
+    "isRetrograde": true,
+    "house": 1,
+    "nameLocalized": "Güney Düğümü",
+    "signLocalized": "Aslan",
+    "interpretation": {
+     "summary": "Kişisel bağımsızlık en iyi bildiğiniz zemindir ve kendi işlerinizi yürütmek çok az çaba ister.",
+     "detailed": "Görünüşünüz, seçimleriniz ve gündelik yönünüz, yargınızın deneyimli ve emin olduğu alanlardır. Kişisel seçimlerde inisiyatif almak sizin için ikinci doğadır; çağırmanız gereken bir şey değil, iyi eğitilmiş bir beceri. Sağlam bir kimlik sizin kendi sahanızdır ve oradan başkalarına öz güvenle uzanabilirsiniz. Yaratıcı öz güven ve geniş, sadık bir yürek size doğal gelir; her akşamın nasıl geçmesi gerektiğine dair sağlam fikirlerle birlikte. Doğum gününü planlar, konuşmayı yazar ve çalma listesini seçersiniz; bir şekilde her buluşmanın ev sahibi siz olursunuz. Sadakat ve cömertlik sizde güçlüdür ve size yakın olan herkes yanınızda gerçekten kutlandığını hisseder. Spot ışığına ihtiyaç duymak dramaya kayabilir ve sahneyi eşitlerden oluşan bir grupla paylaşmak, alkışın asla açamadığı dostlukların kapısını açar. Güney Düğümü haritanızın doğu ufkuna sokulduğu için onun havası tavrınızın bir parçasıdır ve başkaları bunu birkaç dakika içinde sizde okur.",
+     "keywords": [
+      "sıcaklık",
+      "yaratıcılık",
+      "parıltı",
+      "cömertlik"
+     ]
+    }
+   },
+   {
+    "name": "Chiron",
+    "longitude": 100.79209124267008,
+    "latitude": -6.7663862430729,
+    "sign": "Cancer",
+    "degree": 10.792091242670082,
+    "speed": 0.02603076328355769,
+    "isRetrograde": false,
+    "house": 11,
+    "nameLocalized": "Chiron",
+    "signLocalized": "Yengeç",
+    "interpretation": {
+     "summary": "Dostluklarınız her türü kapsar ve ayrı duran kim varsa onu karşılamanız, o köşeyi iyi tanımanızdan gelir.",
+     "detailed": "Göz ardı edilmek sizi keskin biçimde yaralar ve bu, sizi çevrenizdeki herkesin uyanık, düşünceli bir koruyucusu yapar. Üzgün gelen herkes elinde bir çay ve akşam için bir planla ayrılır, ama aynı ilgiyi karşılığında kabul etmek garip biçimde zor gelir. Chiron yakınlık isteyen bir sızı taşırken Uranüs ondan uzak durmak ister; hangi çekişin sizi koruduğunu fark ederek bu gerilimden öğrenirsiniz.",
+     "keywords": [
+      "şefkat",
+      "sığınak",
+      "iyilik",
+      "aidiyet"
+     ]
+    }
+   },
+   {
+    "name": "Black Moon Lilith",
+    "longitude": 226.54644180124865,
+    "latitude": -5.138553641596216,
+    "sign": "Scorpio",
+    "degree": 16.546441801248648,
+    "speed": 0.11209474889712112,
+    "isRetrograde": false,
+    "house": 4,
+    "nameLocalized": "Kara Ay Lilith",
+    "signLocalized": "Akrep",
+    "interpretation": {
+     "summary": "Güce, sadakate ve derin bağlara doğrudan dalarsınız ve onlara duyduğunuz açlığı sahiplenirsiniz. Kapalı kapılar ardında seçtiğiniz kurallarla yaşarsınız ve kimsenin beklentileri oraya taşınamaz.",
+     "detailed": "Kibar olanı değil gerçek sohbeti istersiniz ve iş rahatsız edici bir hâl aldığında odadan çıkmazsınız. Kıskançlık ya da sahiplenme saklanması gereken bir şey gibi gelebilir ve bu onu genellikle daha gürültülü kılar; duyguyu önce kendinize adlandırmak onun pençesini gevşetir. Dönüşüm sizi korkutmaz ve hayat ne zaman isterse yeniden başlamak tamamen elinizdedir. Koruduğunuz mahrem alan kendi örfleriyle işler ve davet etmediğiniz fikirlere karşı korunur. Sığınağa ve konfora ihtiyaç duymak açıkça kabul edilir ve ikisini de kendi tasarımınıza göre kurarsınız. Korumayı seçtiğiniz kökler zorunluluktan değil, inançla korunur. Lilith'in Plüton ile birleştiği yerde ham içgüdü ile derin güç kaynaşır; kontrol edilmeyi reddeder, başkalarının gömdüğü şeyleri açıkça sahiplenirsiniz.",
+     "keywords": [
+      "yoğunluk",
+      "derinlik",
+      "sadakat",
+      "güç"
+     ]
+    }
+   }
+  ],
+  "houses": [
+   {
+    "number": 1,
+    "longitude": 133.71248471231593,
+    "sign": "Leo",
+    "degree": 13.712484712315927,
+    "signLocalized": "Aslan"
+   },
+   {
+    "number": 2,
+    "longitude": 154.90915934399388,
+    "sign": "Virgo",
+    "degree": 4.909159343993878,
+    "signLocalized": "Başak"
+   },
+   {
+    "number": 3,
+    "longitude": 181.01299173443738,
+    "sign": "Libra",
+    "degree": 1.012991734437378,
+    "signLocalized": "Terazi"
+   },
+   {
+    "number": 4,
+    "longitude": 213.26944359480206,
+    "sign": "Scorpio",
+    "degree": 3.2694435948020555,
+    "signLocalized": "Akrep"
+   },
+   {
+    "number": 5,
+    "longitude": 249.52992153407098,
+    "sign": "Sagittarius",
+    "degree": 9.52992153407098,
+    "signLocalized": "Yay"
+   },
+   {
+    "number": 6,
+    "longitude": 284.05831820945616,
+    "sign": "Capricorn",
+    "degree": 14.05831820945616,
+    "signLocalized": "Oğlak"
+   },
+   {
+    "number": 7,
+    "longitude": 313.7124847123159,
+    "sign": "Aquarius",
+    "degree": 13.712484712315927,
+    "signLocalized": "Kova"
+   },
+   {
+    "number": 8,
+    "longitude": 334.9091593439939,
+    "sign": "Pisces",
+    "degree": 4.909159343993906,
+    "signLocalized": "Balık"
+   },
+   {
+    "number": 9,
+    "longitude": 1.012991734437378,
+    "sign": "Aries",
+    "degree": 1.012991734437378,
+    "signLocalized": "Koç"
+   },
+   {
+    "number": 10,
+    "longitude": 33.26944359480207,
+    "sign": "Taurus",
+    "degree": 3.2694435948020697,
+    "signLocalized": "Boğa"
+   },
+   {
+    "number": 11,
+    "longitude": 69.52992153407097,
+    "sign": "Gemini",
+    "degree": 9.529921534070965,
+    "signLocalized": "İkizler"
+   },
+   {
+    "number": 12,
+    "longitude": 104.05831820945613,
+    "sign": "Cancer",
+    "degree": 14.058318209456132,
+    "signLocalized": "Yengeç"
+   }
+  ],
+  "houseSystem": "placidus",
+  "aspects": [
+   {
+    "planet1": "North Node",
+    "planet2": "South Node",
+    "type": "OPPOSITION",
+    "angle": 180,
+    "orb": 0,
+    "isApplying": false,
+    "strength": 100,
+    "interpretation": "challenging",
+    "planet1Localized": "Kuzey Düğümü",
+    "planet2Localized": "Güney Düğümü",
+    "typeLocalized": "Karşıtlık",
+    "aspectInterpretation": {
+     "summary": "Büyümeniz Kuzey Düğümü'nün burcu olan Kova tarafına yönelir ve Güney Düğümü'nün durduğu Aslan burcunun kolay alışkanlıklarından uzaklaşır.",
+     "keywords": [
+      "kutupluluk",
+      "gerilim",
+      "denge",
+      "ilişki",
+      "uzlaşma"
+     ]
+    }
+   },
+   {
+    "planet1": "Mercury",
+    "planet2": "Venus",
+    "type": "SEXTILE",
+    "angle": 60,
+    "orb": 0.17062784248616936,
+    "isApplying": true,
+    "strength": 97.15620262523052,
+    "interpretation": "harmonious",
+    "planet1Localized": "Merkür",
+    "planet2Localized": "Venüs",
+    "typeLocalized": "Sekstil",
+    "aspectInterpretation": {
+     "summary": "Venüs Merkür'ün köşelerini yumuşatır, bu yüzden nezaketle ikna eder, nazik kelimeler seçer ve iyi bir sohbetten kendi başına keyif alırsınız.",
+     "keywords": [
+      "kolaylık",
+      "doğal",
+      "ilişki",
+      "yetenek"
+     ]
+    }
+   },
+   {
+    "planet1": "Mercury",
+    "planet2": "Saturn",
+    "type": "SQUARE",
+    "angle": 90,
+    "orb": 0.42565635708939453,
+    "isApplying": false,
+    "strength": 93.91919489872294,
+    "interpretation": "challenging",
+    "planet1Localized": "Merkür",
+    "planet2Localized": "Satürn",
+    "typeLocalized": "Kare",
+    "aspectInterpretation": {
+     "summary": "Satürn Merkür'ü sıkıştırdığında yanılma korkusu kelimelerinizi durdurabilir; ilk taslağı yalnızca bir taslak saymak zaten sahip olduğunuz uzmanlığı özgür bırakır.",
+     "keywords": [
+      "zorluk",
+      "engel",
+      "stres",
+      "gerilim"
+     ]
+    }
+   },
+   {
+    "planet1": "Mars",
+    "planet2": "North Node",
+    "type": "CONJUNCTION",
+    "angle": 0,
+    "orb": 0.6924115287473569,
+    "isApplying": false,
+    "strength": 91.34485589065804,
+    "interpretation": "neutral",
+    "planet1Localized": "Mars",
+    "planet2Localized": "Kuzey Düğümü",
+    "typeLocalized": "Kavuşum",
+    "aspectInterpretation": {
+     "summary": "Kuzey Düğümü üzerindeki Mars büyümeyi eyleme yönlendirdiğinden yeni bir alanda atılan cesur ilk adımlar aradığınız öz güveni inşa eder.",
+     "keywords": [
+      "kaynaşma",
+      "yoğunluk",
+      "odak",
+      "birlik",
+      "vurgu"
+     ]
+    }
+   },
+   {
+    "planet1": "Mars",
+    "planet2": "South Node",
+    "type": "OPPOSITION",
+    "angle": 180,
+    "orb": 0.6924115287473569,
+    "isApplying": false,
+    "strength": 91.34485589065804,
+    "interpretation": "challenging",
+    "planet1Localized": "Mars",
+    "planet2Localized": "Güney Düğümü",
+    "typeLocalized": "Karşıtlık",
+    "aspectInterpretation": {
+     "summary": "Mars ile Güney Düğümü arasındaki karşıtlık, Mars ile Kuzey Düğümü arasındaki kavuşum ile aynı temastır.",
+     "keywords": [
+      "kutupluluk",
+      "gerilim",
+      "denge",
+      "ilişki",
+      "uzlaşma"
+     ]
+    }
+   },
+   {
+    "planet1": "Neptune",
+    "planet2": "North Node",
+    "type": "SEMI_SEXTILE",
+    "angle": 30,
+    "orb": 0.26674105422591765,
+    "isApplying": true,
+    "strength": 91.10863152580274,
+    "interpretation": "neutral",
+    "planet1Localized": "Neptün",
+    "planet2Localized": "Kuzey Düğümü",
+    "typeLocalized": "Yarı Sekstil",
+    "aspectInterpretation": {
+     "summary": "Neptün ile Kuzey Düğümü sessiz bir bağla birbirine tutunur; başta biraz tutuk olsa da biraz pratikle ikisi de diğerine işe yarar bir şey katar.",
+     "keywords": [
+      "büyüme",
+      "incelik",
+      "ayarlama",
+      "farkındalık"
+     ]
+    }
+   },
+   {
+    "planet1": "Neptune",
+    "planet2": "South Node",
+    "type": "QUINCUNX",
+    "angle": 150,
+    "orb": 0.26674105422591765,
+    "isApplying": true,
+    "strength": 91.10863152580274,
+    "interpretation": "challenging",
+    "planet1Localized": "Neptün",
+    "planet2Localized": "Güney Düğümü",
+    "typeLocalized": "Kuinkuks",
+    "aspectInterpretation": {
+     "summary": "Düğüm ekseninin öbür ucundan bakınca Neptün ile Güney Düğümü arasındaki kuinkuks, Neptün ile Kuzey Düğümü arasındaki yarı sekstil olarak okunur.",
+     "keywords": [
+      "ayarlama",
+      "gerilim",
+      "uyum sağlama",
+      "yön değiştirme"
+     ]
+    }
+   },
+   {
+    "planet1": "Pluto",
+    "planet2": "Black Moon Lilith",
+    "type": "CONJUNCTION",
+    "angle": 0,
+    "orb": 0.7727399771480634,
+    "isApplying": true,
+    "strength": 90.34075028564921,
+    "interpretation": "neutral",
+    "planet1Localized": "Plüton",
+    "planet2Localized": "Kara Ay Lilith",
+    "typeLocalized": "Kavuşum",
+    "aspectInterpretation": {
+     "summary": "Lilith'in Plüton ile birleştiği yerde ham içgüdü ile derin güç kaynaşır; kontrol edilmeyi reddeder, başkalarının gömdüğü şeyleri açıkça sahiplenirsiniz.",
+     "keywords": [
+      "kaynaşma",
+      "yoğunluk",
+      "odak",
+      "birlik",
+      "vurgu"
+     ]
+    }
+   },
+   {
+    "planet1": "Sun",
+    "planet2": "Chiron",
+    "type": "SQUARE",
+    "angle": 90,
+    "orb": 0.687255776170943,
+    "isApplying": false,
+    "strength": 90.1820603404151,
+    "interpretation": "challenging",
+    "planet1Localized": "Güneş",
+    "planet2Localized": "Chiron",
+    "typeLocalized": "Kare",
+    "aspectInterpretation": {
+     "summary": "Chiron Güneş'e sürtündüğünde tümüyle parlamak riskli gelebilir; yine de ortaya çıktığınız her seferinde yara, öğretebilecek kadar iyi tanıdığınız bir şeye dönüşür.",
+     "keywords": [
+      "zorluk",
+      "engel",
+      "stres",
+      "gerilim"
+     ]
+    }
+   },
+   {
+    "planet1": "Mars",
+    "planet2": "Black Moon Lilith",
+    "type": "SQUARE",
+    "angle": 90,
+    "orb": 1.0750424613717087,
+    "isApplying": true,
+    "strength": 84.64225055183273,
+    "interpretation": "challenging",
+    "planet1Localized": "Mars",
+    "planet2Localized": "Kara Ay Lilith",
+    "typeLocalized": "Kare",
+    "aspectInterpretation": {
+     "summary": "Mars ile Lilith arasında yutulmuş öfke ile ani meydan okuma birbirine sürtünür; bu keskinliği açıkça sahiplenmek onun sessizlik ile patlama arasında gidip gelmesini önler.",
+     "keywords": [
+      "zorluk",
+      "engel",
+      "stres",
+      "gerilim"
+     ]
+    }
+   },
+   {
+    "planet1": "Uranus",
+    "planet2": "Chiron",
+    "type": "OPPOSITION",
+    "angle": 180,
+    "orb": 1.2690443512590832,
+    "isApplying": false,
+    "strength": 84.13694560926146,
+    "interpretation": "challenging",
+    "planet1Localized": "Uranüs",
+    "planet2Localized": "Chiron",
+    "typeLocalized": "Karşıtlık",
+    "aspectInterpretation": {
+     "summary": "Chiron yakınlık isteyen bir sızı taşırken Uranüs ondan uzak durmak ister; hangi çekişin sizi koruduğunu fark ederek bu gerilimden öğrenirsiniz.",
+     "keywords": [
+      "kutupluluk",
+      "gerilim",
+      "denge",
+      "ilişki",
+      "uzlaşma"
+     ]
+    }
+   },
+   {
+    "planet1": "Venus",
+    "planet2": "Saturn",
+    "type": "SEMI_SEXTILE",
+    "angle": 30,
+    "orb": 0.5962841995755639,
+    "isApplying": false,
+    "strength": 80.12386001414788,
+    "interpretation": "neutral",
+    "planet1Localized": "Venüs",
+    "planet2Localized": "Satürn",
+    "typeLocalized": "Yarı Sekstil",
+    "aspectInterpretation": {
+     "summary": "Venüs ile Satürn arasında hafif ama işe yarar bir bağ var; ortak noktası az olup birbirine yer açmayı öğrenen iki komşu gibiler.",
+     "keywords": [
+      "büyüme",
+      "incelik",
+      "ayarlama",
+      "farkındalık"
+     ]
+    }
+   },
+   {
+    "planet1": "Jupiter",
+    "planet2": "Pluto",
+    "type": "SESQUIQUADRATE",
+    "angle": 135,
+    "orb": 0.49058712049583164,
+    "isApplying": false,
+    "strength": 75.47064397520842,
+    "interpretation": "challenging",
+    "planet1Localized": "Jüpiter",
+    "planet2Localized": "Plüton",
+    "typeLocalized": "Seskikare",
+    "aspectInterpretation": {
+     "summary": "Jüpiter ile Plüton uyum içinde çalışsın diye ara sıra düzeltme gerekir; bu küçük tahriş, rahata kapılmak yerine yaklaşımınızı inceltmeye devam etmenizi sağlar.",
+     "keywords": [
+      "hayal kırıklığı",
+      "ayarlama",
+      "dışsal gerilim",
+      "yön değiştirme"
+     ]
+    }
+   },
+   {
+    "planet1": "North Node",
+    "planet2": "Black Moon Lilith",
+    "type": "SQUARE",
+    "angle": 90,
+    "orb": 1.7674539901190656,
+    "isApplying": false,
+    "strength": 74.75065728401336,
+    "interpretation": "challenging",
+    "planet1Localized": "Kuzey Düğümü",
+    "planet2Localized": "Kara Ay Lilith",
+    "typeLocalized": "Kare",
+    "aspectInterpretation": {
+     "summary": "Lilith, Kuzey Düğümü'nün yoluna keskin bir bağımsızlık katar ve refleks hâline gelmiş isyan, retlerinizi sizi gerçekten küçülten şeylere saklayana dek büyümeyi yavaşlatır.",
+     "keywords": [
+      "zorluk",
+      "engel",
+      "stres",
+      "gerilim"
+     ]
+    }
+   },
+   {
+    "planet1": "South Node",
+    "planet2": "Black Moon Lilith",
+    "type": "SQUARE",
+    "angle": 90,
+    "orb": 1.7674539901190656,
+    "isApplying": false,
+    "strength": 74.75065728401336,
+    "interpretation": "challenging",
+    "planet1Localized": "Güney Düğümü",
+    "planet2Localized": "Kara Ay Lilith",
+    "typeLocalized": "Kare",
+    "aspectInterpretation": {
+     "summary": "Kara Ay Lilith ile Güney Düğümü arasındaki kare, Kara Ay Lilith ile Kuzey Düğümü arasındaki kare ile aynı temastır.",
+     "keywords": [
+      "zorluk",
+      "engel",
+      "stres",
+      "gerilim"
+     ]
+    }
+   },
+   {
+    "planet1": "Venus",
+    "planet2": "Uranus",
+    "type": "SEMI_SQUARE",
+    "angle": 45,
+    "orb": 0.5075697431681192,
+    "isApplying": false,
+    "strength": 74.62151284159404,
+    "interpretation": "challenging",
+    "planet1Localized": "Venüs",
+    "planet2Localized": "Uranüs",
+    "typeLocalized": "Yarı Kare",
+    "aspectInterpretation": {
+     "summary": "Venüs ile Uranüs buluştuğunda belli belirsiz ama inatçı bir gerilim hissedebilirsiniz, sizi yerinize oturtmak yerine sürekli kurcalamaya iten içsel bir kaşıntı.",
+     "keywords": [
+      "sürtüşme",
+      "huzursuzluk",
+      "içsel gerginlik",
+      "küçük gerilim"
+     ]
+    }
+   },
+   {
+    "planet1": "Mars",
+    "planet2": "Pluto",
+    "type": "SQUARE",
+    "angle": 90,
+    "orb": 1.847782438519772,
+    "isApplying": true,
+    "strength": 73.60310802114611,
+    "interpretation": "challenging",
+    "planet1Localized": "Mars",
+    "planet2Localized": "Plüton",
+    "typeLocalized": "Kare",
+    "aspectInterpretation": {
+     "summary": "Plüton Mars'ı kavradığında güç çatışmaları patlak verebilir; öfkenin altındaki gerçek isteği bulmak gücünüzün nereye ait olduğunu gösterir.",
+     "keywords": [
+      "zorluk",
+      "engel",
+      "stres",
+      "gerilim"
+     ]
+    }
+   },
+   {
+    "planet1": "Moon",
+    "planet2": "North Node",
+    "type": "SESQUIQUADRATE",
+    "angle": 135,
+    "orb": 0.5519255076069953,
+    "isApplying": true,
+    "strength": 72.40372461965023,
+    "interpretation": "challenging",
+    "planet1Localized": "Ay",
+    "planet2Localized": "Kuzey Düğümü",
+    "typeLocalized": "Seskikare",
+    "aspectInterpretation": {
+     "summary": "Ay ile Kuzey Düğümü uyum içinde çalışsın diye ara sıra düzeltme gerekir; bu küçük tahriş, rahata kapılmak yerine yaklaşımınızı inceltmeye devam etmenizi sağlar.",
+     "keywords": [
+      "hayal kırıklığı",
+      "ayarlama",
+      "dışsal gerilim",
+      "yön değiştirme"
+     ]
+    }
+   },
+   {
+    "planet1": "Moon",
+    "planet2": "South Node",
+    "type": "SEMI_SQUARE",
+    "angle": 45,
+    "orb": 0.5519255076069953,
+    "isApplying": true,
+    "strength": 72.40372461965023,
+    "interpretation": "challenging",
+    "planet1Localized": "Ay",
+    "planet2Localized": "Güney Düğümü",
+    "typeLocalized": "Yarı Kare",
+    "aspectInterpretation": {
+     "summary": "Düğüm ekseninin öbür ucundan bakınca Ay ile Güney Düğümü arasındaki yarı kare, Ay ile Kuzey Düğümü arasındaki seskikare olarak okunur.",
+     "keywords": [
+      "sürtüşme",
+      "huzursuzluk",
+      "içsel gerginlik",
+      "küçük gerilim"
+     ]
+    }
+   },
+   {
+    "planet1": "Sun",
+    "planet2": "Uranus",
+    "type": "SQUARE",
+    "angle": 90,
+    "orb": 1.9563001274299836,
+    "isApplying": false,
+    "strength": 72.0528553224288,
+    "interpretation": "challenging",
+    "planet1Localized": "Güneş",
+    "planet2Localized": "Uranüs",
+    "typeLocalized": "Kare",
+    "aspectInterpretation": {
+     "summary": "Uranüs Güneş'le kesiştiğinde huzursuzluk onu dürtükler; kopuş noktalarınızı bilinçli seçmek özgürlüğün bir terk etme alışkanlığına dönüşmesini önler.",
+     "keywords": [
+      "zorluk",
+      "engel",
+      "stres",
+      "gerilim"
+     ]
+    }
+   },
+   {
+    "planet1": "Mars",
+    "planet2": "Neptune",
+    "type": "SEMI_SEXTILE",
+    "angle": 30,
+    "orb": 0.9591525829732745,
+    "isApplying": false,
+    "strength": 68.02824723422418,
+    "interpretation": "neutral",
+    "planet1Localized": "Mars",
+    "planet2Localized": "Neptün",
+    "typeLocalized": "Yarı Sekstil",
+    "aspectInterpretation": {
+     "summary": "Mars ile Neptün arasında hafif ama işe yarar bir bağ var; ortak noktası az olup birbirine yer açmayı öğrenen iki komşu gibiler.",
+     "keywords": [
+      "büyüme",
+      "incelik",
+      "ayarlama",
+      "farkındalık"
+     ]
+    }
+   },
+   {
+    "planet1": "Neptune",
+    "planet2": "Black Moon Lilith",
+    "type": "SEXTILE",
+    "angle": 60,
+    "orb": 2.034195044344983,
+    "isApplying": false,
+    "strength": 66.09674926091695,
+    "interpretation": "harmonious",
+    "planet1Localized": "Neptün",
+    "planet2Localized": "Kara Ay Lilith",
+    "typeLocalized": "Sekstil",
+    "aspectInterpretation": {
+     "summary": "Neptün, Lilith temasına hayal gücünde bir çıkış verir; başkalarının yargılayabileceği şeyler hikâyelere, imgelere ve şefkate dönüşür, utanç duyulmadan sahiplenilir.",
+     "keywords": [
+      "kolaylık",
+      "doğal",
+      "ilişki",
+      "yetenek"
+     ]
+    }
+   },
+   {
+    "planet1": "Pluto",
+    "planet2": "North Node",
+    "type": "SQUARE",
+    "angle": 90,
+    "orb": 2.540193967267129,
+    "isApplying": false,
+    "strength": 63.711514753326725,
+    "interpretation": "challenging",
+    "planet1Localized": "Plüton",
+    "planet2Localized": "Kuzey Düğümü",
+    "typeLocalized": "Kare",
+    "aspectInterpretation": {
+     "summary": "Plüton, Kuzey Düğümü'nün yolunu sıkıca kavradıkça kontrol ile büyüme boğuşur ve tutuşları birer birer gevşetmek, çabanızı gerçekten seçtiğiniz değişime yöneltir.",
+     "keywords": [
+      "zorluk",
+      "engel",
+      "stres",
+      "gerilim"
+     ]
+    }
+   },
+   {
+    "planet1": "Pluto",
+    "planet2": "South Node",
+    "type": "SQUARE",
+    "angle": 90,
+    "orb": 2.540193967267129,
+    "isApplying": false,
+    "strength": 63.711514753326725,
+    "interpretation": "challenging",
+    "planet1Localized": "Plüton",
+    "planet2Localized": "Güney Düğümü",
+    "typeLocalized": "Kare",
+    "aspectInterpretation": {
+     "summary": "Plüton ile Güney Düğümü arasındaki kare, Plüton ile Kuzey Düğümü arasındaki kare ile aynı temastır.",
+     "keywords": [
+      "zorluk",
+      "engel",
+      "stres",
+      "gerilim"
+     ]
+    }
+   },
+   {
+    "planet1": "Venus",
+    "planet2": "Chiron",
+    "type": "SESQUIQUADRATE",
+    "angle": 135,
+    "orb": 0.761474608090964,
+    "isApplying": true,
+    "strength": 61.9262695954518,
+    "interpretation": "challenging",
+    "planet1Localized": "Venüs",
+    "planet2Localized": "Chiron",
+    "typeLocalized": "Seskikare",
+    "aspectInterpretation": {
+     "summary": "Venüs ile Chiron uyum içinde çalışsın diye ara sıra düzeltme gerekir; bu küçük tahriş, rahata kapılmak yerine yaklaşımınızı inceltmeye devam etmenizi sağlar.",
+     "keywords": [
+      "hayal kırıklığı",
+      "ayarlama",
+      "dışsal gerilim",
+      "yön değiştirme"
+     ]
+    }
+   },
+   {
+    "planet1": "Sun",
+    "planet2": "South Node",
+    "type": "TRINE",
+    "angle": 120,
+    "orb": 3.2996407922885567,
+    "isApplying": true,
+    "strength": 58.75449009639304,
+    "interpretation": "harmonious",
+    "planet1Localized": "Güneş",
+    "planet2Localized": "Güney Düğümü",
+    "typeLocalized": "Üçgen",
+    "aspectInterpretation": {
+     "summary": "Düğüm ekseninin öbür ucundan bakınca Güneş ile Güney Düğümü arasındaki üçgen, Güneş ile Kuzey Düğümü arasındaki sekstil olarak okunur.",
+     "keywords": [
+      "uyum",
+      "akış",
+      "yetenek",
+      "destek",
+      "kabul"
+     ]
+    }
+   },
+   {
+    "planet1": "Sun",
+    "planet2": "Neptune",
+    "type": "SQUARE",
+    "angle": 90,
+    "orb": 3.0328997380626674,
+    "isApplying": true,
+    "strength": 56.672860884819045,
+    "interpretation": "challenging",
+    "planet1Localized": "Güneş",
+    "planet2Localized": "Neptün",
+    "typeLocalized": "Kare",
+    "aspectInterpretation": {
+     "summary": "Neptün Güneş'in çizdiği hatları bulanıklaştırıp durur; tek bir vizyonu haftalık bir göreve bağlamak bu sise yerleşebileceği sağlam bir zemin verir.",
+     "keywords": [
+      "zorluk",
+      "engel",
+      "stres",
+      "gerilim"
+     ]
+    }
+   },
+   {
+    "planet1": "Moon",
+    "planet2": "Jupiter",
+    "type": "CONJUNCTION",
+    "angle": 0,
+    "orb": 3.58270659536997,
+    "isApplying": true,
+    "strength": 55.21616755787537,
+    "interpretation": "neutral",
+    "planet1Localized": "Ay",
+    "planet2Localized": "Jüpiter",
+    "typeLocalized": "Kavuşum",
+    "aspectInterpretation": {
+     "summary": "Ay'ın yanındaki Jüpiter sizi doğuştan geniş yürekli kılar; ağırlamaya, doyurmaya ve insanları yüreklendirmeye hevesli, kendi sınırlarına ihtiyaç duyacak kadar cömert.",
+     "keywords": [
+      "kaynaşma",
+      "yoğunluk",
+      "odak",
+      "birlik",
+      "vurgu"
+     ]
+    }
+   },
+   {
+    "planet1": "Neptune",
+    "planet2": "Chiron",
+    "type": "OPPOSITION",
+    "angle": 180,
+    "orb": 3.720155514233568,
+    "isApplying": true,
+    "strength": 53.4980560720804,
+    "interpretation": "challenging",
+    "planet1Localized": "Neptün",
+    "planet2Localized": "Chiron",
+    "typeLocalized": "Karşıtlık",
+    "aspectInterpretation": {
+     "summary": "Neptün eski acıdan kaçış, Chiron ise onu anlama imkânı sunar ve anın hangisini gerektirdiğini öğrendikçe hassasiyetiniz keskinleşir.",
+     "keywords": [
+      "kutupluluk",
+      "gerilim",
+      "denge",
+      "ilişki",
+      "uzlaşma"
+     ]
+    }
+   },
+   {
+    "planet1": "Neptune",
+    "planet2": "Pluto",
+    "type": "SEXTILE",
+    "angle": 60,
+    "orb": 2.8069350214930466,
+    "isApplying": true,
+    "strength": 53.21774964178256,
+    "interpretation": "harmonious",
+    "planet1Localized": "Neptün",
+    "planet2Localized": "Plüton",
+    "typeLocalized": "Sekstil",
+    "aspectInterpretation": {
+     "summary": "Haritanızdaki bazı açılar, Neptün ile Plüton ve Uranüs ile Neptün, sizin yıllarınızda doğan herkese aittir; bunlar yalnızca size özgü bir özellikten çok çağın ortak arka planıdır.",
+     "keywords": [
+      "kolaylık",
+      "doğal",
+      "ilişki",
+      "yetenek"
+     ]
+    }
+   },
+   {
+    "planet1": "Moon",
+    "planet2": "Venus",
+    "type": "TRINE",
+    "angle": 120,
+    "orb": 4.196445668943454,
+    "isApplying": false,
+    "strength": 47.54442913820682,
+    "interpretation": "harmonious",
+    "planet1Localized": "Ay",
+    "planet2Localized": "Venüs",
+    "typeLocalized": "Üçgen",
+    "aspectInterpretation": {
+     "summary": "Ay ile Venüs sizi zor anlarda iyi bir yoldaş yapar; insanları rahatlatan sıcaklık ve küçük keyifler sunarsınız.",
+     "keywords": [
+      "uyum",
+      "akış",
+      "yetenek",
+      "destek",
+      "kabul"
+     ]
+    }
+   },
+   {
+    "planet1": "Sun",
+    "planet2": "North Node",
+    "type": "SEXTILE",
+    "angle": 60,
+    "orb": 3.299640792288585,
+    "isApplying": true,
+    "strength": 45.005986795190246,
+    "interpretation": "harmonious",
+    "planet1Localized": "Güneş",
+    "planet2Localized": "Kuzey Düğümü",
+    "typeLocalized": "Sekstil",
+    "aspectInterpretation": {
+     "summary": "Kim olduğunuzu ifade eden seçimler sizi ileri taşıma eğilimindedir, çünkü Güneş Kuzey Düğümü ile sıcaklık ve gönüllü bir çabayla omuz omuzadır.",
+     "keywords": [
+      "kolaylık",
+      "doğal",
+      "ilişki",
+      "yetenek"
+     ]
+    }
+   },
+   {
+    "planet1": "Moon",
+    "planet2": "Mars",
+    "type": "SESQUIQUADRATE",
+    "angle": 135,
+    "orb": 1.2443370363543522,
+    "isApplying": true,
+    "strength": 37.78314818228239,
+    "interpretation": "challenging",
+    "planet1Localized": "Ay",
+    "planet2Localized": "Mars",
+    "typeLocalized": "Seskikare",
+    "aspectInterpretation": {
+     "summary": "Ay ile Mars birleşimindeki bir şey arada bir sürtünür; bu küçük tahriş, baskı birikmeden yaklaşımınızı ayarlamanız için sizi uyarır.",
+     "keywords": [
+      "hayal kırıklığı",
+      "ayarlama",
+      "dışsal gerilim",
+      "yön değiştirme"
+     ]
+    }
+   },
+   {
+    "planet1": "Uranus",
+    "planet2": "Neptune",
+    "type": "CONJUNCTION",
+    "angle": 0,
+    "orb": 4.989199865492651,
+    "isApplying": true,
+    "strength": 37.63500168134186,
+    "interpretation": "neutral",
+    "planet1Localized": "Uranüs",
+    "planet2Localized": "Neptün",
+    "typeLocalized": "Kavuşum",
+    "aspectInterpretation": {
+     "summary": "Haritanızdaki bazı açılar, Neptün ile Plüton ve Uranüs ile Neptün, sizin yıllarınızda doğan herkese aittir; bunlar yalnızca size özgü bir özellikten çok çağın ortak arka planıdır.",
+     "keywords": [
+      "kaynaşma",
+      "yoğunluk",
+      "odak",
+      "birlik",
+      "vurgu"
+     ]
+    }
+   },
+   {
+    "planet1": "Jupiter",
+    "planet2": "Black Moon Lilith",
+    "type": "SESQUIQUADRATE",
+    "angle": 135,
+    "orb": 1.2633270976439235,
+    "isApplying": true,
+    "strength": 36.833645117803826,
+    "interpretation": "challenging",
+    "planet1Localized": "Jüpiter",
+    "planet2Localized": "Kara Ay Lilith",
+    "typeLocalized": "Seskikare",
+    "aspectInterpretation": {
+     "summary": "Dışarıdan gelen küçük takılmalar genellikle Jüpiter ile Kara Ay Lilith bağının olduğu yerde baş gösterir ve her biri sizi daha iyi bir ayara doğru dürter.",
+     "keywords": [
+      "hayal kırıklığı",
+      "ayarlama",
+      "dışsal gerilim",
+      "yön değiştirme"
+     ]
+    }
+   },
+   {
+    "planet1": "Sun",
+    "planet2": "Mars",
+    "type": "SEXTILE",
+    "angle": 60,
+    "orb": 3.992052321035942,
+    "isApplying": true,
+    "strength": 33.46579464940097,
+    "interpretation": "harmonious",
+    "planet1Localized": "Güneş",
+    "planet2Localized": "Mars",
+    "typeLocalized": "Sekstil",
+    "aspectInterpretation": {
+     "summary": "Mars Güneş'in kararlarının arkasına güç koyduğundan ivme nadiren dil dökmeyi gerektirir ve başladığınızı bitirmek karakterinizin bir parçası gibi gelir.",
+     "keywords": [
+      "kolaylık",
+      "doğal",
+      "ilişki",
+      "yetenek"
+     ]
+    }
+   },
+   {
+    "planet1": "Chiron",
+    "planet2": "Black Moon Lilith",
+    "type": "TRINE",
+    "angle": 120,
+    "orb": 5.754350558578565,
+    "isApplying": false,
+    "strength": 28.070618017767934,
+    "interpretation": "harmonious",
+    "planet1Localized": "Chiron",
+    "planet2Localized": "Kara Ay Lilith",
+    "typeLocalized": "Üçgen",
+    "aspectInterpretation": {
+     "summary": "Lilith Chiron'a arka çıktığında kendinizi kabullenmek kolaylaşır; başkalarının sizde reddettiği yanlara saygı duyar, yargılanmış hisseden herkesin özür dilemeyi bırakmasına yardım edersiniz.",
+     "keywords": [
+      "uyum",
+      "akış",
+      "yetenek",
+      "destek",
+      "kabul"
+     ]
+    }
+   },
+   {
+    "planet1": "Sun",
+    "planet2": "Venus",
+    "type": "SEMI_SQUARE",
+    "angle": 45,
+    "orb": 1.4487303842618644,
+    "isApplying": true,
+    "strength": 27.56348078690678,
+    "interpretation": "challenging",
+    "planet1Localized": "Güneş",
+    "planet2Localized": "Venüs",
+    "typeLocalized": "Yarı Kare",
+    "aspectInterpretation": {
+     "summary": "Zaman zaman Güneş ile Venüs birbirine sürtünür; bu hafif huzursuzluğu çoğunlukla yaklaşımınızda küçük bir değişiklikle yatıştırırsınız.",
+     "keywords": [
+      "sürtüşme",
+      "huzursuzluk",
+      "içsel gerginlik",
+      "küçük gerilim"
+     ]
+    }
+   },
+   {
+    "planet1": "Moon",
+    "planet2": "Mercury",
+    "type": "SEXTILE",
+    "angle": 60,
+    "orb": 4.3670735114296235,
+    "isApplying": false,
+    "strength": 27.21544147617294,
+    "interpretation": "harmonious",
+    "planet1Localized": "Ay",
+    "planet2Localized": "Merkür",
+    "typeLocalized": "Sekstil",
+    "aspectInterpretation": {
+     "summary": "Merkür ile Ay iş birliği yaptığından yatıştırıcı bir söz genellikle elinizin altındadır ve kendinizi ya da bir dostunuzu doğru kelimelerle sakinleştirebilirsiniz.",
+     "keywords": [
+      "kolaylık",
+      "doğal",
+      "ilişki",
+      "yetenek"
+     ]
+    }
+   },
+   {
+    "planet1": "Pluto",
+    "planet2": "Chiron",
+    "type": "TRINE",
+    "angle": 120,
+    "orb": 6.527090535726629,
+    "isApplying": true,
+    "strength": 18.41136830341714,
+    "interpretation": "harmonious",
+    "planet1Localized": "Plüton",
+    "planet2Localized": "Chiron",
+    "typeLocalized": "Üçgen",
+    "aspectInterpretation": {
+     "summary": "Plüton Chiron temasını derinleştirdikçe hassasiyetin altında bir dayanıklılık akar; acıyı sonuna kadar işleyebilir, başkalarına en karanlık dönemlerinde eşlik edebilirsiniz.",
+     "keywords": [
+      "uyum",
+      "akış",
+      "yetenek",
+      "destek",
+      "kabul"
+     ]
+    }
+   },
+   {
+    "planet1": "Jupiter",
+    "planet2": "Uranus",
+    "type": "OPPOSITION",
+    "angle": 180,
+    "orb": 6.713277992518442,
+    "isApplying": true,
+    "strength": 16.08402509351947,
+    "interpretation": "challenging",
+    "planet1Localized": "Jüpiter",
+    "planet2Localized": "Uranüs",
+    "typeLocalized": "Karşıtlık",
+    "aspectInterpretation": {
+     "summary": "Jüpiter büyük bir plan, Uranüs temiz bir kopuş ister; vizyonu koruyup rotayı değiştirme özgürlüğünü elde tutarak bu iki ihtiyacı uzlaştırırsınız.",
+     "keywords": [
+      "kutupluluk",
+      "gerilim",
+      "denge",
+      "ilişki",
+      "uzlaşma"
+     ]
+    }
+   },
+   {
+    "planet1": "Venus",
+    "planet2": "Jupiter",
+    "type": "TRINE",
+    "angle": 120,
+    "orb": 7.7791522643134385,
+    "isApplying": true,
+    "strength": 2.7605966960820183,
+    "interpretation": "harmonious",
+    "planet1Localized": "Venüs",
+    "planet2Localized": "Jüpiter",
+    "typeLocalized": "Üçgen",
+    "aspectInterpretation": {
+     "summary": "Jüpiter Venüs'ü genişlettikçe çevrenizde iyi niyet toplanır, bu yüzden dostluklar, sanat ve iyi yemek düzenli neşe kaynaklarına dönüşür.",
+     "keywords": [
+      "uyum",
+      "akış",
+      "yetenek",
+      "destek",
+      "kabul"
+     ]
+    }
+   },
+   {
+    "planet1": "Jupiter",
+    "planet2": "Chiron",
+    "type": "CONJUNCTION",
+    "angle": 0,
+    "orb": 7.9823223437775255,
+    "isApplying": true,
+    "strength": 0.22097070278093156,
+    "interpretation": "neutral",
+    "planet1Localized": "Jüpiter",
+    "planet2Localized": "Chiron",
+    "typeLocalized": "Kavuşum",
+    "aspectInterpretation": {
+     "summary": "Chiron'un Jüpiter'e katıldığı yerde zor kazanılmış bilgelik inancı biçimlendirir, bu yüzden kendi acınızdan çıkardığınız dersler en çok öğretmek istediğiniz şeye dönüşür.",
+     "keywords": [
+      "kaynaşma",
+      "yoğunluk",
+      "odak",
+      "birlik",
+      "vurgu"
+     ]
+    }
+   }
+  ],
+  "ascendant": {
+   "longitude": 133.71248471231593,
+   "sign": "Leo",
+   "degree": 13.712484712315927,
+   "signLocalized": "Aslan",
+   "interpretation": {
+    "summary": "Söze varlığınızla başlarsınız; insanlar önce sizi fark eder, yön vermeyi ve görünür olmayı seven birini sezer.",
+    "detailed": "Uyuklayan bir bekleme odasını tek bir iyi sözle canlandırır, insanları sohbete çeker ve her birine bir anlığına görünür olma fırsatı verirsiniz. İlk bakışta ışıltınız, dik duruşunuz ve uzaktan duyulan kahkahanız dikkat çeker; insanlar sizi çok daha yakından tanımaya değer bulur. Yabancısı olduğunuz şeye çıkılacak bir sahne gibi yaklaşırsınız; biraz prova yapar, sonra bütün canlılığınızla katılırsınız, çünkü yarım gönülle uğraşmak size hiç uymaz. Alkış başkasına gittiğinde gururunuz incinir, tavrınıza biraz gösteriş karışır; başka birinin parladığı ana cömertçe yer vermek doğal ve rahat sıcaklığınızı geri getirir. İnsanlar yanınızda görüldüklerini, desteklendiklerini ve biraz daha cesur olduklarını hatırlar; bu sıcaklık sergilediğiniz her gösteriden uzun yaşar."
+   }
+  },
+  "midheaven": {
+   "longitude": 33.26944359480207,
+   "sign": "Taurus",
+   "degree": 3.2694435948020697,
+   "signLocalized": "Boğa",
+   "interpretation": {
+    "summary": "Toplum önündeki yerinizin kalıcı olmasını istersiniz; değerini yıllarca koruyan, istikrarlı ve işe yarar çalışmalarla tanınmak size çekici gelir.",
+    "detailed": "Bir düzine yeni girişimin peşinden koşmaktansa işe yarayan tek bir şeyi üç yıl geliştirmeyi seçersiniz; başarıyı heyecan geçtikten çok sonra ayakta kalanla ölçersiniz. Başkaları sizi güvenilir bilir; sonuçlarınız zamanında gelir, yoğun bir haftada da sakin bir haftada da, denetleyen olsa da olmasa da standartlarınız aynı kalır. Kalıcı olanın üzerinde adınız olsun istersiniz: özenle bitirilmiş bir masa, sağlam bir plan, tekrar tekrar sorulan bir tarif ya da zahmetsiz görünene kadar işlenmiş bir beceri. Yerleştikten sonra zamanı çoktan gelmiş olsa da değişime direnirsiniz; yeni yönü yavaşça, her adımı sınayarak kurulacak bir şey saymak, sağlam zemini kaybetmeden ilerlemenizi sağlar. İnsanlar iyi ekmeğe ya da sağlam bir sandalyeye güvenir gibi, mesele etmeden size güvenir; her şeyden çok değer verdiğiniz saygınlık bu güvenilirliktir."
+   }
+  },
+  "partOfFortune": {
+   "sign": "Scorpio",
+   "degree": 1.4601999969974884,
+   "longitude": 211.4601999969975,
+   "sect": "day",
+   "house": 3,
+   "signLocalized": "Akrep"
+  },
+  "vertex": {
+   "longitude": 271.04616124378384,
+   "sign": "Capricorn",
+   "degree": 1.0461612437838426,
+   "house": 5,
+   "signLocalized": "Oğlak"
+  },
+  "interpretation": {
+   "opening": "Amaç ve duygu sizde birbirini besler, zira taze fikirlerin kesintisiz akışı, bir öncünün cesareti için bir dayanak olur ama onu asla boğmaz. Yüzey ile öz arasında pek az şey kaybolur, çünkü Aslan yükseleniniz Güneşinize öyle doğal oturur ki kendinize karşı nadiren davranırsınız.\n\nSatürn, Uranüs ve Neptün hep birlikte Oğlak burcunda durduğu için bu burç, üstlendiğiniz işlerden dinlenme biçiminize kadar seçimlerinizin önemli bir kısmını renklendirir. Güçlü bir konumdan yön verirsiniz, zira Aslan yükseleninizin yöneticisi Güneş, Koç burcunda gelişir ve inançlarınız, yolculuklarınız ve yüksek öğreniminiz konusunda boş durmaz. Bir işin yapılması gerektiğinde aramayı yapan, tarihi ayarlayan ve havada kalan bir ihtimali somut bir gündeme dönüştüren genellikle ilk kişi sizsinizdir.\n\nBir düzen açık meydan okumaya duyulan iştah için daralmaya başladığı an inatçı bir bağımsızlık damarı çıkışa yönelir ve erken ayrılmak size tutulup kalmaktan daha güvenli gelir. Özgürlük en çok onu bilerek tasarladığınızda işinize yarar; deneme yapmak için ayrılmış bir alanla değişim bir altüst oluş olarak değil, sizin şartlarınızla gelir. Mars desteğine güvenin; Güneş için çalışan bir müttefiktir ve içinizde işe koşmaya değer ilk parçadır.",
+   "love": "Dürüst insanlar, tek başınıza nadiren fark ettiğiniz yanlarınızı gösterir; bu yüzden gerçeği söylemeye istekli kişilere değer verirsiniz. Özgünlük sizi etkiler; kendi aklıyla düşünen ve sizi önce arkadaş gören kişilere çekilirsiniz, bu insanlar fikirleriniz kadar duygularınıza da ihtiyaç duyar. Yedinci evinizin yöneticisi Uranüs, oyun ve romantizm alanınız olan beşinci evinizdedir; yakınlığın ilk kıvılcımdan çok sonra da flörtöz, yaratıcı ve eğlenceli kalmasını istersiniz. En güzel eğlenceyi paylaşılan heyecanda bulursunuz; beşinci evinizi yöneten Jüpiter, on birinci evinizdedir ve festivaller, hayran buluşmaları, kalabalıkla üretilen yaratıcı projeler size keyif verir. Yedinci evinizde Venüs, Mars ve Kuzey Düğümü bulunur; bu yerleşim dikkatinizi destekçilerinize, zaman zaman da rakiplerinize çevirir ve karakterinizin büyük bölümü bir başkasının karşısında şekillenir.",
+   "career": "Emeğinizin insanların gösterebileceği somut bir karşılığı olsun istersiniz; para getirse de getirmese de, tek başınıza da başkalarıyla birlikte de kursanız bu önemini korur. Çalışma hayatınız başkalarıyla kurduğunuz bağlardan geçer; Venüs, iyi bir eşleşmenin yetenek kadar önem taşıdığı birebir ilişkiler alanınız olan yedinci evinizdedir. Tepe Noktanız Boğa burcundayken kalıcı değer ararsınız; görebildiğiniz, dokunabildiğiniz ve yıllarca ayakta kalacak kadar özenle kurulmuş işler istersiniz.",
+   "home": "Kendi kapınızın ardında yeniden güç toplayan yanınız yaşar; o yanınızın yerleşip rahatlamak için ne istediğini hissederek bilirsiniz. Kökleriniz derine iner: Plüton yönettiği dördüncü evinizde bulunduğu için, size ait bir sığınak ihtiyacı önce gelir ve vardığınız her yerde bir tane kurarsınız. Dördüncü evinizde Kara Ay Lilith yer alır; karakterinizin kökleri en çok savunmalarınızı indirebildiğiniz yerde görünür. Köklerinizdeki Akrep özel hayatınıza gerçek bir yoğunluk verir; bütünüyle kendiniz olabileceğiniz bir sığınağa ihtiyaç duyarsınız.",
+   "closing": "Hayatınızı iki güç taşır, bir yanda başlangıç çizgisine duyulan açlık ve öbür yanda kalıpları kırma dürtüsü; onları konuşturan da sizsiniz. İlerleme çoğu zaman Mars ile başlar; Güneş için destek olur ve gerginlik yayılmadan onu pratik bir yöne çevirir. Bütünleştiğinde sarsıntılar yaratıcılığa dönüşür: daha iyi bir yolu görme ve evi yakmadan hayata geçirme becerisi. Ne yaparsanız bütün kalbinizle yaparsınız ve bu belli olur."
+  },
+  "patterns": [
+   {
+    "kind": "STELLIUM",
+    "name": "Stellium",
+    "planets": [
+     "Uranus",
+     "Neptune",
+     "Saturn"
+    ],
+    "tightness": 100,
+    "interpretationKey": "aspectPattern.stelliumSameSign",
+    "interpretationVars": {
+     "count": "3",
+     "sign": "Oğlak",
+     "planets": "Uranüs, Neptün, ve Satürn"
+    },
+    "interpretation": "Oğlak burcunda 3 gezegenlik Stelyum, Uranüs, Neptün, ve Satürn aracılığıyla Oğlak temalarına hâkim olmayı gerektiren yoğunlaşmış enerji."
+   }
+  ],
+  "aspectsInterpretation": {
+   "summary": "Açılarınız destek ile zorlanmayı adil ölçüde karıştırır: yaslanacak armağanlardan ve büyütülecek sınırlardan oluşan istikrarlı bir harman.",
+   "dominant": "balanced",
+   "harmonious": 11,
+   "challenging": 16,
+   "neutral": 5
+  },
+  "summary": {
+   "dominantElement": "Air",
+   "dominantModality": "Cardinal",
+   "retrogradePlanets": [
+    "Pluto",
+    "North Node",
+    "South Node"
+   ],
+   "dominantElementLocalized": "Hava",
+   "dominantModalityLocalized": "Öncü",
+   "retrogradePlanetsLocalized": [
+    "Plüton",
+    "Kuzey Düğümü",
+    "Güney Düğümü"
+   ],
+   "elementDistribution": {
+    "Fire": 2,
+    "Earth": 3,
+    "Air": 3,
+    "Water": 2
+   },
+   "modalityDistribution": {
+    "Cardinal": 6,
+    "Fixed": 3,
+    "Mutable": 1
+   }
+  }
+ }
+}

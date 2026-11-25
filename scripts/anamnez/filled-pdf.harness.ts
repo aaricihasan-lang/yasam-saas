@@ -30,6 +30,25 @@ const ROOT = process.cwd();
 const read = (p: string) => readFileSync(path.join(ROOT, p), "utf8");
 const font = readFileSync(path.join(ROOT, "public/fonts/Geist-Regular.ttf")).toString("base64");
 
+/** jsPDF `setLanguage` geçici olarak etkisiz → dil işareti olmadan üretim (yalnız refactor-kilidi karşılaştırması için). */
+function withoutPdfLanguage<T>(fn: () => T): T {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const mod = require("jspdf") as { jsPDF: new (...a: unknown[]) => { setLanguage: (...a: unknown[]) => unknown } };
+  const Orig = mod.jsPDF;
+  function Patched(...a: unknown[]) {
+    const inst = new Orig(...a);
+    inst.setLanguage = () => inst;
+    return inst;
+  }
+  Object.setPrototypeOf(Patched, Orig);
+  mod.jsPDF = Patched as unknown as typeof Orig;
+  try {
+    return fn();
+  } finally {
+    mod.jsPDF = Orig;
+  }
+}
+
 /** jsPDF çıktısında zaman damgası + dosya kimliği dışındaki her bayt deterministiktir. */
 const normHash = (b: Uint8Array) =>
   createHash("sha256")
@@ -126,7 +145,12 @@ async function main() {
   const blankTr = buildBlankAnamnesisPdf({ locale: "tr", version: "std-v1", formCustom: null, clientName: "Ayşe Yılmaz", fontBase64: font });
   const blankEn = buildBlankAnamnesisPdf({ locale: "en", version: "std-v1", formCustom: cfOld, clientName: null, fontBase64: font });
   ok(normHash(blankTr) === "c1b0f2dd8b01673c9c4883a071ce4cb47b465ec20e155dac1b7d1b65d2d8ba11", "TR standart boş form normalize hash = refactor öncesi", normHash(blankTr));
-  ok(normHash(blankEn) === "a3986a88c6ba77ba7019a64073f1951ef48fb5aeae918abb8ec0ae284b7542c7", "EN özel boş form normalize hash = refactor öncesi", normHash(blankEn));
+  // I18N RAPOR-AB: EN PDF'e yalnız belge dili (/Lang en-GB) eklendi. Kilit GEVŞETİLMEDİ: dil işareti kapatılarak
+  // üretilen EN çıktı refactor öncesi hash'le birebir aynı olmalı (başka hiçbir bayt değişmedi), normal çıktıda /Lang var.
+  const blankEnNoLang = withoutPdfLanguage(() => buildBlankAnamnesisPdf({ locale: "en", version: "std-v1", formCustom: cfOld, clientName: null, fontBase64: font }));
+  ok(normHash(blankEnNoLang) === "a3986a88c6ba77ba7019a64073f1951ef48fb5aeae918abb8ec0ae284b7542c7", "EN özel boş form normalize hash = refactor öncesi (belge dili işareti hariç)", normHash(blankEnNoLang));
+  ok(Buffer.from(blankEn).toString("latin1").includes("/Lang (en-GB)"), "EN boş form: PDF belge dili /Lang (en-GB)");
+  ok(!Buffer.from(blankTr).toString("latin1").includes("/Lang"), "TR boş form: belge dili işareti EKLENMEDİ (TR birebir)");
   ok(markCount(blankTr) === 0, "boş formda işaretli kutu YOK");
 
   // ── 2. Tamamlanmış kayıt (TR, L açık) ─────────────────────────────────────

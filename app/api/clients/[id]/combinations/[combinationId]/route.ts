@@ -56,7 +56,7 @@ export async function PATCH(
 
   const { id: clientId, combinationId } = await params;
   if (!clientId || !combinationId) {
-    return NextResponse.json({ ok: false, error: "Eksik parametre." }, { status: 400 });
+    return NextResponse.json({ ok: false, code: "MISSING_PARAMETER", error: "Eksik parametre." }, { status: 400 });
   }
 
   const { db, tenantId, is_demo_account } = guard;
@@ -65,7 +65,7 @@ export async function PATCH(
 
   if (!(await clientBelongsToTenant(db, clientId, tenantId))) {
     return NextResponse.json(
-      { ok: false, error: "Danışan bu hesaba ait değil." },
+      { ok: false, code: "CLIENT_NOT_OWNED", error: "Danışan bu hesaba ait değil." },
       { status: 403 },
     );
   }
@@ -74,14 +74,14 @@ export async function PATCH(
   try {
     body = (await req.json()) as typeof body;
   } catch {
-    return NextResponse.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 });
+    return NextResponse.json({ ok: false, code: "INVALID_BODY", error: "Geçersiz istek gövdesi." }, { status: 400 });
   }
 
   const fields: Record<string, unknown> = {};
   if ("name" in body) {
     const name = str(body.name, MAX_NAME);
     if (!name) {
-      return NextResponse.json({ ok: false, error: "Kombinasyon adı boş olamaz." }, { status: 400 });
+      return NextResponse.json({ ok: false, code: "COMBINATION_NAME_REQUIRED", error: "Kombinasyon adı boş olamaz." }, { status: 400 });
     }
     fields.name = name;
   }
@@ -91,13 +91,13 @@ export async function PATCH(
   if ("stones" in body) {
     const stoneNames = Array.isArray(body.stones) ? body.stones.map((s) => String(s).trim()).filter(Boolean) : [];
     if (stoneNames.length === 0) {
-      return NextResponse.json({ ok: false, error: "En az bir taş seçilmelidir." }, { status: 400 });
+      return NextResponse.json({ ok: false, code: "COMBINATION_STONES_REQUIRED", error: "En az bir taş seçilmelidir." }, { status: 400 });
     }
     fields.stones_text = stoneNames.join(", ").slice(0, MAX_TEXT);
   }
 
   if (Object.keys(fields).length === 0) {
-    return NextResponse.json({ ok: false, error: "Güncellenecek alan yok." }, { status: 400 });
+    return NextResponse.json({ ok: false, code: "NO_FIELDS", error: "Güncellenecek alan yok." }, { status: 400 });
   }
 
   // B6.2 (danışan kombinasyonu): taş listesi gerçekten değişirse kayıt anındaki otomatik "Mineral
@@ -124,7 +124,7 @@ export async function PATCH(
       });
     }
     if (!prev) {
-      return NextResponse.json({ ok: false, error: "Kombinasyon bulunamadı." }, { status: 404 });
+      return NextResponse.json({ ok: false, code: "COMBINATION_NOT_FOUND", error: "Kombinasyon bulunamadı." }, { status: 404 });
     }
     const ch = staleSummaryChanges(
       prev as { stones_text: string | null; notes_text: string | null; notes_text_2: string | null },
@@ -170,7 +170,7 @@ export async function PATCH(
       }
     }
     return NextResponse.json(
-      { ok: false, error: "Kombinasyon bulunamadı." },
+      { ok: false, code: "COMBINATION_NOT_FOUND", error: "Kombinasyon bulunamadı." },
       { status: 404 },
     );
   }
@@ -190,7 +190,7 @@ export async function DELETE(
 
   const { id: clientId, combinationId } = await params;
   if (!clientId || !combinationId) {
-    return NextResponse.json({ ok: false, error: "Eksik parametre." }, { status: 400 });
+    return NextResponse.json({ ok: false, code: "MISSING_PARAMETER", error: "Eksik parametre." }, { status: 400 });
   }
 
   const { db, tenantId, is_demo_account } = guard;
@@ -199,7 +199,7 @@ export async function DELETE(
 
   if (!(await clientBelongsToTenant(db, clientId, tenantId))) {
     return NextResponse.json(
-      { ok: false, error: "Danışan bu hesaba ait değil." },
+      { ok: false, code: "CLIENT_NOT_OWNED", error: "Danışan bu hesaba ait değil." },
       { status: 403 },
     );
   }
@@ -224,7 +224,7 @@ export async function DELETE(
 
   // D1 (DY-04): 0 satır (yabancı/silinmiş/yanlış id) → 404 (eskiden ok:true).
   if ((deleted?.length ?? 0) === 0) {
-    return NextResponse.json({ ok: false, error: "Kombinasyon bulunamadı." }, { status: 404 });
+    return NextResponse.json({ ok: false, code: "COMBINATION_NOT_FOUND", error: "Kombinasyon bulunamadı." }, { status: 404 });
   }
 
   await trackUsage(guard, req, { module: "clients", action: "record_deleted", subEntity: "combination", resourceId: combinationId });

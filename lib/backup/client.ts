@@ -12,6 +12,7 @@ import {
   computeOverallStatus,
   emptyTableReport,
   mergeTableReports,
+  pushWarning,
   sortSelfReferencing,
   type NormalizedBackup,
 } from "./format";
@@ -22,6 +23,7 @@ import {
   type BackupFileV3,
   type BackupStoredFile,
   type BackupPageResponse,
+  type CodedMessage,
   type BackupPlanResponse,
   type RestoreDecision,
   type RestoreOverallStatus,
@@ -36,10 +38,50 @@ export type BackupProgress = { table: string; label: string; index: number; tota
 export type BackupRunResult = {
   file: BackupFileV3;
   fileName: string;
-  incomplete: { table: string; label: string; expected: number | null; rows: number; error: string | null }[];
+  incomplete: {
+    table: string;
+    label: string;
+    expected: number | null;
+    rows: number;
+    error: string | null;
+    /** I18N: `error`'ın dil-bağımsız parçaları (EK alan; dosyaya yazılmaz). */
+    error_codes?: CodedMessage[];
+  }[];
   /** P2-11: gömülü Human Design dosyaları özeti. */
-  hdFiles?: { expected: number | null; included: number; error: string | null };
+  hdFiles?: { expected: number | null; included: number; error: string | null; error_codes?: CodedMessage[] };
+  /**
+   * I18N: tablo → hata metninin dil-bağımsız parçaları. YEDEK DOSYASINA YAZILMAZ (dosyadaki `error` Türkçe
+   * metni bugünkü gibi kalır; dosya içeriği ekran dilinden bağımsızdır).
+   */
+  errorCodes?: Record<string, CodedMessage[]>;
 };
+
+/**
+ * I18N: istemci orkestrasyonunun fırlattığı hata. `message` bugünkü Türkçe metin (sunucunun `error`'ı veya istemci
+ * geri dönüşü) AYNEN; `code` / `status` / `serverCode` dil-bağımsız EK alanlar (arayüz kaynak dil dışında kullanır).
+ */
+export class BackupClientError extends Error {
+  constructor(
+    message: string,
+    readonly code: string,
+    readonly status: number | null = null,
+    readonly serverCode: string | null = null,
+  ) {
+    super(message);
+    this.name = "BackupClientError";
+  }
+}
+
+function serverCodeOf(json: unknown): string | null {
+  const c = json && typeof json === "object" ? (json as { code?: unknown }).code : undefined;
+  return typeof c === "string" && /^[A-Z][A-Z0-9_]{1,63}$/.test(c) ? c : null;
+}
+
+/** Sunucu yanıtı hatasının dil-bağımsız karşılığı: sunucu kodu varsa o, yoksa HTTP durumu. */
+function httpCoded(res: JsonResponse): CodedMessage {
+  const c = serverCodeOf(res.json);
+  return c ? { code: "SERVER_CODE", params: { code: c, status: res.status } } : { code: "HTTP_STATUS", params: { status: res.status } };
+}
 
 const MAX_PAGES_PER_TABLE = 100_000;
 
@@ -52,17 +94,26 @@ function errorOf(json: unknown, fallback: string): string {
 
 export async function runBackup(fetcher: JsonFetcher, onProgress?: (p: BackupProgress) => void): Promise<BackupRunResult> {
   const planRes = await fetcher("/api/settings/backup");
-  if (!planRes.ok) throw new Error(errorOf(planRes.json, "Yedek planı alınamadı."));
+  if (!planRes.ok) {
+    throw new BackupClientError(errorOf(planRes.json, "Yedek planı alınamadı."), "BACKUP_PLAN_FAILED", planRes.status, serverCodeOf(planRes.json));
+  }
   const plan = planRes.json as BackupPlanResponse;
 
   const tables: BackupFileV3["tables"] = {};
   const incomplete: BackupRunResult["incomplete"] = [];
+  const errorCodes: Record<string, CodedMessage[]> = {};
   let index = 0;
   for (const t of plan.tables) {
     index++;
     const rows: Record<string, unknown>[] = [];
     let expected: number | null = null;
     const errors: string[] = [];
+    // I18N: `errors` ile paralel dil-bağımsız kodlar (metin aynen kalır; kod yalnız arayüz için).
+    const codes: CodedMessage[] = [];
+    const note = (text: string, coded: CodedMessage) => {
+      errors.push(text);
+      codes.push(coded);
+    };
     let cursor: string | null = null;
     let finished = false;
     for (let page = 0; page < MAX_PAGES_PER_TABLE; page++) {
@@ -73,16 +124,16 @@ export async function runBackup(fetcher: JsonFetcher, onProgress?: (p: BackupPro
       try {
         res = await fetcher(url);
       } catch {
-        errors.push("Bağlantı hatası");
+        note("Bağlantı hatası", { code: "NETWORK" });
         break;
       }
       const body = res.json as BackupPageResponse | null;
       if (!res.ok || !body) {
-        errors.push(errorOf(res.json, `Sunucu hatası (${res.status})`));
+        note(errorOf(res.json, `Sunucu hatası (${res.status})`), body?.error_code ?? httpCoded(res));
         break;
       }
       if (page === 0 && body.expected_count !== undefined) expected = body.expected_count ?? null;
-      if (body.error) errors.push(body.error);
+      if (body.error) note(body.error, body.error_code ?? { code: "SERVER_TEXT" });
       rows.push(...(body.rows ?? []));
       onProgress?.({ table: t.table, label: t.label, index, total: plan.tables.length, rows: rows.length });
       if (body.done) {
@@ -91,26 +142,33 @@ export async function runBackup(fetcher: JsonFetcher, onProgress?: (p: BackupPro
       }
       if (!body.ok) break;
       if (!body.next_cursor || body.next_cursor === cursor) {
-        errors.push("Sayfalama ilerlemedi");
+        note("Sayfalama ilerlemedi", { code: "PAGINATION_STALLED" });
         break;
       }
       cursor = body.next_cursor;
     }
-    if (!finished && errors.length === 0) errors.push("Tablo tamamlanamadı");
+    if (!finished && errors.length === 0) note("Tablo tamamlanamadı", { code: "TABLE_UNFINISHED" });
     const error = errors.length ? [...new Set(errors)].join(" · ") : null;
     // Tamlık: boş sayfaya kadar okundu + hata yok + okunan satır == head count.
     // (Sayım farkı, ör. yedek sırasında kayıt eklendi/silindi → dürüstçe eksik işaretlenir.)
     let complete = finished && error === null && expected !== null && rows.length === expected;
     let finalError = error;
+    // Metin tekrarları (Set) gibi kodlar da tekilleştirilir.
+    let finalCodes: CodedMessage[] = uniqueCoded(codes);
     if (finished && error === null && expected !== null && rows.length !== expected) {
       finalError = `Sayım uyuşmazlığı: beklenen ${expected}, okunan ${rows.length}`;
+      finalCodes = [{ code: "COUNT_MISMATCH", params: { expected, rows: rows.length } }];
       complete = false;
     } else if (finished && error === null && expected === null) {
       finalError = "Beklenen kayıt sayısı alınamadı";
+      finalCodes = [{ code: "COUNT_UNAVAILABLE" }];
       complete = false;
     }
     tables[t.table] = { module: t.module, expected_count: expected, row_count: rows.length, complete, error: finalError, rows };
-    if (!complete) incomplete.push({ table: t.table, label: t.label, expected, rows: rows.length, error: finalError });
+    if (finalError !== null) errorCodes[t.table] = finalCodes;
+    if (!complete) {
+      incomplete.push({ table: t.table, label: t.label, expected, rows: rows.length, error: finalError, error_codes: finalCodes });
+    }
   }
 
   // P2-11: Human Design dosyaları (harita görseli + profesyonel rapor görsel snapshot'ı).
@@ -118,7 +176,15 @@ export async function runBackup(fetcher: JsonFetcher, onProgress?: (p: BackupPro
     onProgress?.({ table: HD_FILES_KEY, label: HD_FILES_LABEL, index: plan.tables.length, total: plan.tables.length, rows: Math.min(rows, total) }),
   );
   if (hd.error !== null) {
-    incomplete.push({ table: HD_FILES_KEY, label: HD_FILES_LABEL, expected: hd.expected, rows: hd.files.length, error: hd.error });
+    incomplete.push({
+      table: HD_FILES_KEY,
+      label: HD_FILES_LABEL,
+      expected: hd.expected,
+      rows: hd.files.length,
+      error: hd.error,
+      error_codes: hd.error_codes,
+    });
+    errorCodes[HD_FILES_KEY] = hd.error_codes;
   }
 
   const file: BackupFileV3 = {
@@ -135,7 +201,23 @@ export async function runBackup(fetcher: JsonFetcher, onProgress?: (p: BackupPro
     excluded: plan.excluded,
     files: hd.files,
   };
-  return { file, fileName: plan.file_name, incomplete, hdFiles: { expected: hd.expected, included: hd.files.length, error: hd.error } };
+  return {
+    file,
+    fileName: plan.file_name,
+    incomplete,
+    hdFiles: { expected: hd.expected, included: hd.files.length, error: hd.error, error_codes: hd.error_codes },
+    errorCodes,
+  };
+}
+
+function uniqueCoded(list: CodedMessage[]): CodedMessage[] {
+  const seen = new Set<string>();
+  return list.filter((c) => {
+    const k = JSON.stringify(c);
+    if (seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  });
 }
 
 export const HD_FILES_KEY = "hd_files";
@@ -148,19 +230,25 @@ type HdFilePartBody = { ok?: boolean; parts?: number; size?: number; sha256?: st
 async function backupHdFiles(
   fetcher: JsonFetcher,
   onProgress?: (done: number, total: number) => void,
-): Promise<{ files: BackupStoredFile[]; expected: number | null; error: string | null }> {
+): Promise<{ files: BackupStoredFile[]; expected: number | null; error: string | null; error_codes: CodedMessage[] }> {
   let listRes: JsonResponse;
   try {
     listRes = await fetcher("/api/settings/backup/files");
   } catch {
-    return { files: [], expected: null, error: "Dosya listesi alınamadı (bağlantı)." };
+    return { files: [], expected: null, error: "Dosya listesi alınamadı (bağlantı).", error_codes: [{ code: "HD_FILES_LIST_NETWORK" }] };
   }
   const list = listRes.json as { ok?: boolean; files?: HdFileListItem[] } | null;
   if (!listRes.ok || !list?.ok || !Array.isArray(list.files)) {
-    return { files: [], expected: null, error: errorOf(listRes.json, "Dosya listesi alınamadı.") };
+    return {
+      files: [],
+      expected: null,
+      error: errorOf(listRes.json, "Dosya listesi alınamadı."),
+      error_codes: [{ code: "HD_FILES_LIST_FAILED", params: { status: listRes.status } }],
+    };
   }
   const files: BackupStoredFile[] = [];
   const errors: string[] = [];
+  const failedPaths: string[] = [];
   for (const f of list.files) {
     let data = "";
     let meta: HdFilePartBody | null = null;
@@ -176,6 +264,7 @@ async function backupHdFiles(
       const body = res.json as HdFilePartBody | null;
       if (!res.ok || !body?.ok || typeof body.data_base64 !== "string") {
         errors.push(`${f.path}: ${errorOf(res.json, `HTTP ${res.status}`)}`);
+        failedPaths.push(f.path);
         failed = true;
         break;
       }
@@ -184,7 +273,10 @@ async function backupHdFiles(
       if (part + 1 >= (body.parts ?? 1)) break;
     }
     if (failed || !meta) {
-      if (!failed) errors.push(`${f.path}: okunamadı`);
+      if (!failed) {
+        errors.push(`${f.path}: okunamadı`);
+        failedPaths.push(f.path);
+      }
       continue;
     }
     files.push({
@@ -202,6 +294,8 @@ async function backupHdFiles(
     files,
     expected: list.files.length,
     error: errors.length ? `${errors.length} dosya okunamadı (${errors.slice(0, 3).join(" · ")})` : null,
+    // I18N: dosya yolları dil-bağımsızdır; sunucu metni yerine yalnız sayı + yollar taşınır.
+    error_codes: errors.length ? [{ code: "HD_FILES_UNREADABLE", params: { count: errors.length, paths: failedPaths.slice(0, 3).join(" · ") } }] : [],
   };
 }
 
@@ -228,6 +322,8 @@ export type RestoreRunResult = {
   tables: RestoreTableReport[];
   skipped: RestoreDecision[];
   notes: string[];
+  /** I18N: `notes`'un dil-bağımsız karşılığı (EK alan; eski sunucu göndermezse boş). */
+  noteCodes: CodedMessage[];
 };
 
 export async function runRestore(
@@ -241,8 +337,15 @@ export async function runRestore(
     method: "POST",
     body: { mode: "plan", version: backup.version, source_tenant_id: backup.sourceTenantId, tables: counts },
   });
-  if (!planRes.ok) throw new Error(errorOf(planRes.json, "Geri yükleme planı alınamadı."));
-  const plan = planRes.json as { decisions: RestoreDecision[]; notes: string[] };
+  if (!planRes.ok) {
+    throw new BackupClientError(
+      errorOf(planRes.json, "Geri yükleme planı alınamadı."),
+      "RESTORE_PLAN_FAILED",
+      planRes.status,
+      serverCodeOf(planRes.json),
+    );
+  }
+  const plan = planRes.json as { decisions: RestoreDecision[]; notes: string[]; note_codes?: CodedMessage[] };
 
   const reports: RestoreTableReport[] = [];
   const skipped: RestoreDecision[] = [];
@@ -256,7 +359,7 @@ export async function runRestore(
         const r = emptyTableReport(d.table, d.module, rows.length);
         r.skipped_unlicensed = rows.length;
         r.status = "SKIPPED";
-        r.warnings.push(d.detail);
+        pushWarning(r, d.detail, { code: "SKIPPED", params: { reason: d.reason } });
         reports.push(r);
       }
       continue;
@@ -287,7 +390,7 @@ export async function runRestore(
         const r = emptyTableReport(d.table, d.module, chunk.rows.length);
         const ids = pk ? chunk.rows.map((x) => String((x as Record<string, unknown>)[pk] ?? "")).filter(Boolean) : [];
         addFailure(r, "request_failed", ids, chunk.rows.length);
-        if (res) r.warnings.push(errorOf(res.json, `Sunucu hatası (${res.status})`));
+        if (res) pushWarning(r, errorOf(res.json, `Sunucu hatası (${res.status})`), httpCoded(res));
         agg = mergeTableReports(agg, r);
       } else {
         agg = mergeTableReports(agg, report);
@@ -299,7 +402,13 @@ export async function runRestore(
   }
   // P2-11: gömülü Human Design dosyaları (DB satırlarından SONRA; insert-only, doğrulamalı).
   if (backup.files.length > 0) reports.push(await restoreHdFiles(backup.files, fetcher));
-  return { status: computeOverallStatus(reports), tables: reports, skipped, notes: plan.notes ?? [] };
+  return {
+    status: computeOverallStatus(reports),
+    tables: reports,
+    skipped,
+    notes: plan.notes ?? [],
+    noteCodes: Array.isArray(plan.note_codes) ? plan.note_codes : [],
+  };
 }
 
 /** base64 parça boyutu (4'ün katı → her parça bağımsız çözülebilir; sunucu ≤1.398.100 kabul eder). */
@@ -327,7 +436,10 @@ async function restoreHdFiles(files: BackupStoredFile[], fetcher: JsonFetcher): 
   const decisions = (planRes?.json as { decisions?: { path: string; action: string; reason?: string }[] } | null)?.decisions;
   if (!planRes?.ok || !Array.isArray(decisions)) {
     addFailure(report, "request_failed", [], files.length);
-    report.warnings.push(errorOf(planRes?.json, "Dosya geri yükleme planı alınamadı."));
+    pushWarning(report, errorOf(planRes?.json, "Dosya geri yükleme planı alınamadı."), {
+      code: "HD_FILES_PLAN_FAILED",
+      params: { status: planRes?.status ?? 0 },
+    });
     report.status = "FAILED";
     return report;
   }
@@ -368,7 +480,7 @@ async function restoreHdFiles(files: BackupStoredFile[], fetcher: JsonFetcher): 
         });
         ok = r.ok;
         result = (r.json as { result?: string } | null)?.result;
-        if (!r.ok) report.warnings.push(errorOf(r.json, "Dosya doğrulanamadı."));
+        if (!r.ok) pushWarning(report, errorOf(r.json, "Dosya doğrulanamadı."), { code: "HD_FILE_VERIFY_FAILED", params: { path: f.path } });
       } catch {
         ok = false;
       }

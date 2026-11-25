@@ -7,10 +7,12 @@
  * Metin hukuken kesinleşmiş gibi sunulmaz: "TASLAK" ibaresi taşıyan metin açıkça işaretlenir.
  */
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import base from "@/app/_premium/hd-education/egitimYonetim.module.css";
 import oz from "@/app/_premium/hd-education/ozelArsiv.module.css";
 import { PRIV_EVIDENCE_MAX_BYTES, PRIV_METHOD_LABEL, type PrivConsentMethod } from "@/lib/human-design/education/private/privateContract";
-import { privCall } from "./privApi";
+import { privCall, useEduApiError } from "./privApi";
+import { useEduLabel } from "./labels";
 
 type Text = { version: string; title: string; body: string; sha256: string };
 const MIMES: Record<string, string> = { "application/pdf": "PDF", "image/png": "PNG", "image/jpeg": "JPEG" };
@@ -26,6 +28,9 @@ function toBase64(buf: ArrayBuffer): string {
 export function ConsentForm({ hdClientId, clientLabel, onSaved, onCancel }: {
   hdClientId: string; clientLabel: string; onSaved: (consentId: string) => void; onCancel: () => void;
 }) {
+  const t = useTranslations("hd.education");
+  const label = useEduLabel();
+  const apiErr = useEduApiError();
   const [text, setText] = useState<Text | null>(null);
   const [textState, setTextState] = useState<"loading" | "ok" | "unapproved" | "error">("loading");
   const [name, setName] = useState("");
@@ -52,9 +57,9 @@ export function ConsentForm({ hdClientId, clientLabel, onSaved, onCancel }: {
   async function pickFile(f: File | undefined) {
     setFileErr(null); setFile(null);
     if (!f) return;
-    if (!MIMES[f.type]) { setFileErr("Yalnız PDF, PNG veya JPEG yüklenebilir."); return; }
-    if (f.size > PRIV_EVIDENCE_MAX_BYTES) { setFileErr("Dosya 2 MB sınırını aşıyor."); return; }
-    if (f.size < 64) { setFileErr("Dosya çok küçük veya boş."); return; }
+    if (!MIMES[f.type]) { setFileErr(t("consent.fileType")); return; }
+    if (f.size > PRIV_EVIDENCE_MAX_BYTES) { setFileErr(t("consent.fileSize")); return; }
+    if (f.size < 64) { setFileErr(t("consent.fileSmall")); return; }
     setFile({ name: f.name, mime: f.type, size: f.size, b64: toBase64(await f.arrayBuffer()) });
   }
 
@@ -69,82 +74,82 @@ export function ConsentForm({ hdClientId, clientLabel, onSaved, onCancel }: {
       textVersion: text.version, textSha256: text.sha256, givenOn, method, evidenceMime: file.mime, evidenceBase64: file.b64,
     } });
     setBusy(false);
-    if (r.ok && r.body.id) onSaved(r.body.id); else setErr(r.ok ? "Sunucu izin kimliği döndürmedi; izin kaydedilmedi." : r.error);
+    if (r.ok && r.body.id) onSaved(r.body.id); else setErr(r.ok ? t("consent.noId") : apiErr(r));
   }
 
-  if (textState === "loading") return <p className={base.empty} aria-live="polite">İzin metni yükleniyor…</p>;
+  if (textState === "loading") return <p className={base.empty} aria-live="polite">{t("consent.textLoading")}</p>;
   if (textState === "unapproved") {
     return (
       <div className={`${oz.result} ${oz.resultWarn}`} role="alert" data-edu-consent-unapproved>
-        <span>Kullanıma onaylı izin metni henüz yok (hukuk incelemesi ve sistem sahibi onayı bekleniyor). Bu nedenle izin kaydedilemez ve harita eklenemez.</span>
+        <span>{t("consent.unapproved")}</span>
       </div>
     );
   }
-  if (textState === "error" || !text) return <p className={base.err} role="alert">İzin metni yüklenemedi. Sayfayı yenileyin.</p>;
+  if (textState === "error" || !text) return <p className={base.err} role="alert">{t("consent.textError")}</p>;
   const draft = /^\s*TASLAK/i.test(text.body);
 
   return (
     <div className={oz.consentGrid} data-edu-consent-form>
       <article className={base.panel}>
         <div className={oz.cmpHead}>
-          <h2>İzin metni ({text.version.replace("hd-egitim-izin-", "")})</h2>
-          {draft ? <span className={`${base.tag} ${base.tWarn} ${base.big}`} data-edu-text-draft>Taslak · hukuk incelemesi bekliyor</span> : null}
+          <h2>{t("consent.textTitle", { version: text.version.replace("hd-egitim-izin-", "") })}</h2>
+          {draft ? <span className={`${base.tag} ${base.tWarn} ${base.big}`} data-edu-text-draft>{t("consent.draftTag")}</span> : null}
         </div>
-        <div className={oz.legal} tabIndex={0} aria-label="İzin metni">{text.body}</div>
-        <p className={oz.sha}>Sürüm {text.version} · SHA-256 {text.sha256}</p>
+        <div className={oz.legal} tabIndex={0} aria-label={t("consent.textAria")}>{text.body}</div>
+        <p className={oz.sha}>{t("consent.sha", { version: text.version, sha: text.sha256 })}</p>
       </article>
       <article className={base.panel}>
-        <h2 className={base.h2}>İzin bilgileri</h2>
-        <p className={base.lead}>Danışan: {clientLabel}</p>
+        <h2 className={base.h2}>{t("consent.infoTitle")}</h2>
+        <p className={base.lead}>{t("consent.client", { client: clientLabel })}</p>
         <div className={oz.form2}>
-          <label className={oz.field}>İzni veren (ad soyad)
+          <label className={oz.field}>{t("consent.consenterName")}
             <input value={name} onChange={(e) => setName(e.target.value)} maxLength={200} autoComplete="off" data-edu-consenter />
           </label>
-          <label className={oz.field}>İzni veren kişi
+          <label className={oz.field}>{t("consent.consenterWho")}
             <select value={relation} onChange={(e) => setRelation(e.target.value as "danisan" | "yasal_temsilci")}>
-              <option value="danisan">Danışanın kendisi</option><option value="yasal_temsilci">Yasal temsilcisi</option>
+              <option value="danisan">{t("form.relationSelf")}</option><option value="yasal_temsilci">{t("form.relationLegal")}</option>
             </select>
           </label>
-          <label className={oz.field}>İzin tarihi
+          <label className={oz.field}>{t("detail.consentDate")}
             <input type="date" value={givenOn} max={today()} onChange={(e) => setGivenOn(e.target.value)} data-edu-given-on />
           </label>
-          <label className={oz.field}>İzin yöntemi
+          <label className={oz.field}>{t("consent.method")}
             <select value={method} onChange={(e) => setMethod(e.target.value as PrivConsentMethod)} data-edu-method>
-              {(Object.keys(PRIV_METHOD_LABEL) as PrivConsentMethod[]).map((m) => <option key={m} value={m}>{PRIV_METHOD_LABEL[m]}</option>)}
+              {(Object.keys(PRIV_METHOD_LABEL) as PrivConsentMethod[]).map((m) => <option key={m} value={m}>{label("privMethod", m, PRIV_METHOD_LABEL[m])}</option>)}
             </select>
           </label>
         </div>
         <fieldset className={oz.fieldset}>
-          <legend className={oz.legend}>Sunum kapsamı</legend>
+          <legend className={oz.legend}>{t("consent.scope")}</legend>
           <div className={oz.stack}>
             <label className={`${oz.radio} ${scope === "anonim" ? oz.radioOn : ""}`}>
               <input type="radio" name="edu-scope" checked={scope === "anonim"} onChange={() => setScope("anonim")} data-edu-scope="anonim" />
-              <span><b>Anonim (takma ad)</b><small>Önerilen · danışanın adı eğitimde hiçbir yerde görünmez</small></span>
+              <span><b>{t("consent.anon")}</b><small>{t("consent.anonHint")}</small></span>
             </label>
             <label className={`${oz.radio} ${scope === "acik_isim" ? oz.radioOn : ""}`}>
               <input type="radio" name="edu-scope" checked={scope === "acik_isim"} onChange={() => setScope("acik_isim")} data-edu-scope="acik_isim" />
-              <span><b>Açık isim</b><small>Ayrı açık isim onayı + imzalı yöntem gerekir; e-posta onayı yetmez</small></span>
+              <span><b>{t("detail.scopeNamed")}</b><small>{t("consent.namedHint")}</small></span>
             </label>
           </div>
           {scope === "acik_isim" ? (
             <label className={oz.chk}><input type="checkbox" checked={namedOk} onChange={(e) => setNamedOk(e.target.checked)} data-edu-named-ok />
-              <span>Danışan, adının eğitimde gösterilmesine imzalı belgede <b>ayrıca</b> onay verdi.</span></label>
+              <span>{t.rich("consent.namedOk", { b: (c) => <b>{c}</b> })}</span></label>
           ) : null}
-          {scope === "acik_isim" && method === "kayitli_eposta" ? <p className={oz.fieldErr}>Açık isim için kayıtlı e-posta yöntemi yeterli değil.</p> : null}
+          {scope === "acik_isim" && method === "kayitli_eposta" ? <p className={oz.fieldErr}>{t("consent.namedEmail")}</p> : null}
           <label className={oz.chk}><input type="checkbox" checked={birth} onChange={(e) => setBirth(e.target.checked)} data-edu-birth />
-            <span>Doğum tarihi, saati ve yeri eğitimde gösterilebilir (ayrı izin; işaretlenmezse bu bilgiler sunucudan hiç gönderilmez).</span></label>
+            <span>{t("consent.birth")}</span></label>
         </fieldset>
         <div className={oz.upload}>
-          <div><b>İmzalı izin kopyası</b><small>{file ? `${file.name} · ${MIMES[file.mime]} · ${(file.size / 1024).toFixed(0)} KB` : "PDF, PNG veya JPEG · en fazla 2 MB · yalnız siz ve sistem sahibi indirebilir"}</small></div>
+          <div><b>{t("consent.evidenceTitle")}</b><small>{file ? `${file.name} · ${MIMES[file.mime]} · ${(file.size / 1024).toFixed(0)} KB` : t("consent.evidenceHint")}</small></div>
           <input id="edu-evidence" className={oz.fileInput} type="file" accept="application/pdf,image/png,image/jpeg" onChange={(e) => void pickFile(e.target.files?.[0])} data-edu-evidence />
-          <label htmlFor="edu-evidence" className={oz.fileLabel}>{file ? "Dosyayı değiştir" : "Dosya seç"}</label>
+          <label htmlFor="edu-evidence" className={oz.fileLabel}>{file ? t("consent.changeFile") : t("consent.chooseFile")}</label>
         </div>
         {fileErr ? <p className={oz.fieldErr} role="alert">{fileErr}</p> : null}
-        <p className={`${base.note} ${base.warn}`}>Bir kutunun işaretlenmesi tek başına izin kanıtı değildir. İmzalı kopya olmadan izin kaydedilemez.</p>
+        <p className={`${base.note} ${base.warn}`}>{t("consent.boxNote")}</p>
         {err ? <p className={base.err} role="alert" data-edu-error>{err}</p> : null}
         <div className={base.actions}>
-          <button type="button" className={`${base.btn} ${base.ghost} ${oz.touch}`} onClick={onCancel} disabled={busy}>Vazgeç</button>
-          <button type="button" className={`${base.btn} ${base.save} ${oz.touch}`} onClick={save} disabled={!canSave} data-edu-consent-save>{busy ? "Kaydediliyor…" : "İzni kaydet"}</button>
+          <button type="button" className={`${base.btn} ${base.ghost} ${oz.touch}`} onClick={onCancel} disabled={busy}>{t("common.cancel")}</button>
+          <button type="button" className={`${base.btn} ${base.save} ${oz.touch}`} onClick={save} disabled={!canSave} data-edu-consent-save>{busy ? t("edit.saving") : t("consent.save")}</button>
         </div>
       </article>
     </div>

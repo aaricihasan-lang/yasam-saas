@@ -1,0 +1,30 @@
+{
+  "atlas": {
+    "wheel": {
+      "defaultLabel": "Natal harita çarkı",
+      "aspectTitle": {
+        "conjunction": "Kavuşum (0°)",
+        "opposition": "Karşıt (180°)",
+        "trine": "Üçgen (120°)",
+        "square": "Kare (90°)",
+        "sextile": "Sekstil (60°)",
+        "semi_sextile": "Yarım sekstil (30°)",
+        "semi_square": "Yarım kare (45°)",
+        "sesquiquadrate": "Bir buçuk kare (135°)",
+        "quincunx": "Quincunx (150°)"
+      },
+      "cuspTitle": "{n}. ev başlangıcı — {sign} {deg}",
+      "angle": {
+        "asc": "Yükselen",
+        "dsc": "Alçalan",
+        "mc": "Tepe Noktası (MC)",
+        "ic": "Dip Noktası (IC)"
+      },
+      "retroLong": " ℞ (geri hareket)",
+      "point": {
+        "fortune": "Şans Noktası",
+        "vertex": "Vertex"
+      }
+    }
+  }
+}

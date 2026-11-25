@@ -1,6 +1,7 @@
 "use client";
 
 import { runInEffect } from "@/lib/runInEffect";
+import { useTranslations } from "next-intl";
 import {
   useCallback,
   useEffect,
@@ -33,6 +34,7 @@ export function LongTextareaField({
   disabled?: boolean;
 }) {
   const [open, setOpen] = useState(false);
+  const tm = useTranslations("bioenergy.modal");
   const previewRows = Math.min(Math.max(minRows, 3), 4);
 
   return (
@@ -46,7 +48,7 @@ export function LongTextareaField({
           tabIndex={disabled ? -1 : 0}
           rows={previewRows}
           value={value}
-          aria-label={`${modalTitle} — düzenlemek için tıklayın`}
+          aria-label={tm("editAria", { title: modalTitle })}
           onClick={() => !disabled && setOpen(true)}
           onPointerDown={(e) => {
             if (disabled || e.button !== 0) return;
@@ -94,6 +96,7 @@ export function LargeTextModal({
   const [draft, setDraft] = useState(initialValue);
   // BIO-003 — kaydedilmemiş değişiklik için çıkış onayı katmanı.
   const [askDiscard, setAskDiscard] = useState(false);
+  const tm = useTranslations("bioenergy.modal");
   const taRef = useRef<HTMLTextAreaElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
 
@@ -204,7 +207,7 @@ export function LargeTextModal({
             type="button"
             onClick={requestDismiss}
             className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-slate-200/80 bg-white/90 text-lg leading-none text-slate-600 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900"
-            aria-label="Kapat"
+            aria-label={tm("close")}
           >
             ×
           </button>
@@ -225,14 +228,14 @@ export function LargeTextModal({
             onClick={requestDismiss}
             className="rounded-xl border border-slate-200/80 bg-white/90 px-4 py-2.5 text-[12px] font-black text-slate-700 shadow-[0_4px_18px_-8px_rgba(15,23,42,0.1)] transition hover:bg-slate-50/95"
           >
-            Vazgeç
+            {tm("cancel")}
           </button>
           <button
             type="button"
             onClick={() => onSave(draft)}
             className="rounded-xl bg-emerald-600 px-4 py-2.5 text-[12px] font-black text-white shadow-[0_8px_24px_-8px_rgba(16,185,129,0.35)] transition hover:bg-emerald-700"
           >
-            Kaydet ve Kapat
+            {tm("saveClose")}
           </button>
         </div>
 
@@ -249,10 +252,10 @@ export function LargeTextModal({
                 id="large-text-discard-title"
                 className="text-[15px] font-black leading-snug text-slate-950"
               >
-                Kaydedilmemiş değişiklikler
+                {tm("unsavedTitle")}
               </h3>
               <p className="mt-2 text-[12px] font-medium leading-relaxed text-slate-500">
-                Kaydedilmemiş değişiklikleriniz var. Çıkarsanız yaptığınız değişiklikler kaybolacak.
+                {tm("unsavedBody")}
               </p>
               <div className="mt-5 flex flex-wrap items-center justify-end gap-2">
                 <button
@@ -260,7 +263,7 @@ export function LargeTextModal({
                   onClick={() => setAskDiscard(false)}
                   className="rounded-xl border border-slate-200/90 bg-white px-4 py-2.5 text-[12px] font-black text-slate-700 shadow-sm transition hover:bg-slate-50"
                 >
-                  Düzenlemeye Devam Et
+                  {tm("keepEditing")}
                 </button>
                 <button
                   type="button"
@@ -270,7 +273,7 @@ export function LargeTextModal({
                   }}
                   className="rounded-xl bg-rose-600 px-4 py-2.5 text-[12px] font-black text-white shadow-[0_10px_24px_rgba(225,29,72,0.22)] transition hover:bg-rose-700"
                 >
-                  Değişiklikleri Sil ve Çık
+                  {tm("discardExit")}
                 </button>
               </div>
             </div>

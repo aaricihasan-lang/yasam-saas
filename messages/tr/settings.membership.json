@@ -1,0 +1,90 @@
+{
+  "settings": {
+    "membership": {
+      "loading": "Üyelik bilgileriniz yükleniyor…",
+      "currentPackage": "Mevcut paket",
+      "statusSr": "Üyelik durumu: ",
+      "datesTitle": "Tarihler ve kullanım",
+      "datesNote": "Tarihler Türkiye saatiyle gösterilir.",
+      "rulesTitle": "Erişim kuralları",
+      "footer": "Bu sayfa yalnız bilgi amaçlıdır; paket ve üyelik değişiklikleri yöneticiniz tarafından yapılır.",
+      "noEndDate": "Bitiş tarihi tanımlı değil",
+      "noEndDateNote": "Üyelik süresi ayrıntısı için yöneticinizle iletişime geçin.",
+      "contactPro": {
+        "label": "Pro üyelik talebi",
+        "hint": "Talebiniz “Admin ile İrtibat” sekmesinden yöneticinize iletilir; üyelik yönetici onayıyla açılır."
+      },
+      "contactInfo": {
+        "label": "Yöneticiyle iletişime geç",
+        "hint": "Mesajınız “Admin ile İrtibat” sekmesinden yöneticinize iletilir."
+      },
+      "rules": {
+        "trialDigital": "Dijital İçerik ve alt modülleri (Kişisel Arşiv, Belge Çeviri, Video Çeviri, Ders Notu) ile Yaşam Hafızası deneme paketine dahil değildir.",
+        "trialCredit": "Gökyüzü Atlası, Human Design ve Numeroloji'deki hesaplamalar günlük ortak hesaplama kredisiyle sınırlıdır; kredi Türkiye saatiyle 00.00'da yenilenir.",
+        "trialNoExtend": "Deneme süresi uzatılamaz ve yeniden başlatılamaz.",
+        "readOnlyView": "Kayıtlarınızı görüntüleyebilir ve dışa aktarabilirsiniz.",
+        "readOnlyBlock": "Yeni kayıt, düzenleme, silme ve yeni hesaplama yapılamaz.",
+        "recordsKept": "Pro üyeliğe geçişte danışan ve analiz kayıtlarınız korunur.",
+        "modules": "Modül erişiminiz, yöneticinizin hesabınız için açtığı modüllerle sınırlıdır.",
+        "pendingClosed": "Onay tamamlanana kadar modüllere erişim kapalıdır.",
+        "demoClosed": "Demo hesabında yedekleme, geri yükleme, dışa aktarma ve parola değiştirme işlemleri kapalıdır.",
+        "reviewClosed": "İnceleme tamamlanana kadar modüllere erişim kapalıdır.",
+        "noPackageClosed": "Paket tanımlanana kadar modüllere erişim kapalıdır."
+      },
+      "rows": {
+        "trialStart": "Deneme başlangıcı",
+        "trialEnd": "Deneme bitişi",
+        "proRequest": "Pro üyelik talebi",
+        "proRequestReceivedAt": "Alındı · {at}",
+        "proRequestReceived": "Alındı",
+        "proRequestNote": "Yöneticiniz talebinizi değerlendirecektir.",
+        "credit": "Bugün Kalan Hesaplama Kredisi",
+        "creditNote": "Kalan / günlük ortak kredi. Türkiye saatiyle 00.00'da yenilenir.",
+        "membershipStart": "Üyelik başlangıcı",
+        "membershipEnd": "Üyelik bitişi",
+        "membershipEndPassedNote": "Kayıtlı bitiş tarihi geçmiş görünüyor. Hesabınız şu an aktif; üyelik süresi için yöneticinizle iletişime geçin."
+      },
+      "views": {
+        "pending": {
+          "package": "Onay bekliyor",
+          "status": "Onay bekliyor",
+          "summary": "Hesabınız yönetici onayı bekliyor. Onaylandığında paket ve üyelik bilgileriniz burada görünür."
+        },
+        "unavailable": {
+          "status": "Bilgi alınamadı",
+          "summary": "Üyelik bilgileriniz şu anda alınamadı. Sayfayı yenileyip tekrar deneyin."
+        },
+        "admin": {
+          "package": "Yönetici",
+          "status": "Aktif",
+          "summary": "Yönetici hesabı üyelik paketine bağlı değildir; paket ve deneme kuralları bu hesaba uygulanmaz."
+        },
+        "demo": {
+          "package": "Demo hesabı",
+          "status": "Tanıtım hesabı",
+          "summary": "Bu, sistemi tanımanız için açılmış ortak bir demo hesabıdır; kişisel bir üyelik paketi değildir. Kendi üyeliğiniz için yöneticiyle iletişime geçebilirsiniz."
+        },
+        "trial": {
+          "package": "Ücretsiz deneme (7 gün)",
+          "statusActive": "Deneme sürüyor",
+          "summaryEndsAt": "Ücretsiz deneme süreniz {at} tarihinde sona erer.",
+          "summaryOngoing": "Ücretsiz deneme süreniz devam ediyor.",
+          "statusExpired": "Deneme sona erdi · salt okunur",
+          "statusSuspended": "Deneme durduruldu · salt okunur",
+          "statusReview": "İncelemede",
+          "statusNotStarted": "Deneme başlamadı"
+        },
+        "pro": {
+          "package": "Pro üyelik",
+          "status": "Aktif",
+          "summary": "Pro üyeliğiniz aktif. Üyelik ayrıntıları yöneticiniz tarafından yönetilir."
+        },
+        "noPackage": {
+          "package": "Paket tanımlı değil",
+          "status": "Erişim kapalı",
+          "summary": "Hesabınız için tanımlı bir üyelik paketi bulunmuyor; bu nedenle modüllere erişim kapalıdır."
+        }
+      }
+    }
+  }
+}

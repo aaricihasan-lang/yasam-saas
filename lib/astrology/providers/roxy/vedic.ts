@@ -93,6 +93,14 @@ export function mapGraha(v: unknown): VedicGrahaId | null {
   const k = v.trim().toLowerCase();
   return (VEDIC_GRAHAS as readonly string[]).includes(k) ? (k as VedicGrahaId) : null;
 }
+/**
+ * R5 ROXY B1 (P2, mevcut TR ürün hatası): panchang `tithi.rulingPlanet` TR yanıtta Türkçe gezegen adıyla geliyor ("Satürn";
+ * EN yanıtta "Saturn") → kanonik koda eşlenir (sağlayıcı TR adları; tr-TR küçük harf). Yalnız bu alanda kullanılır.
+ */
+const GRAHA_TR_NAMES: Readonly<Record<string, VedicGrahaId>> = { "güneş": "sun", ay: "moon", mars: "mars", "merkür": "mercury", "jüpiter": "jupiter", "venüs": "venus", "satürn": "saturn", rahu: "rahu", ketu: "ketu" };
+export function mapGrahaAnyLang(v: unknown): VedicGrahaId | null {
+  return mapGraha(v) ?? (typeof v === "string" ? GRAHA_TR_NAMES[v.trim().toLocaleLowerCase("tr-TR")] ?? null : null);
+}
 export function mapRashi(v: unknown): SignId | null {
   if (typeof v !== "string") return null;
   const k = v.trim().toLowerCase();
@@ -1259,7 +1267,7 @@ export function projectRoxyVedicPanchanga(raw: unknown): AdapterResult<VedicPanc
   if (Math.min(4, Math.floor((moon % NAK_SPAN) / PADA_SPAN) + 1) !== np) errors.push("pada Ay boylamıyla uyuşmuyor");
   if (nl !== NAKSHATRA_LORDS[ni % 9]) errors.push("nakshatra yöneticisi sırayla uyuşmuyor");
   if (typeof n?.name === "string" && slug(n.name) !== NAKSHATRAS[ni]) dropped.push("nakshatra.name");
-  const rp = t?.rulingPlanet === undefined ? null : mapGraha(t.rulingPlanet);
+  const rp = t?.rulingPlanet === undefined ? null : mapGrahaAnyLang(t.rulingPlanet);
   if (t?.rulingPlanet !== undefined && !rp) dropped.push("tithi.rulingPlanet");
   const short = (v: unknown) => (typeof v === "string" && v.trim() && v.length <= 40 ? v.trim() : null);
   return done(

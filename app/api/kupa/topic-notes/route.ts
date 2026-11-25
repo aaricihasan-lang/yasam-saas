@@ -72,7 +72,7 @@ export async function GET(req: NextRequest): Promise<Response> {
 
   const notes = res.data as Record<string, unknown>[];
   const byNote = await pointsByNote(db, tenantId, notes.map((n) => String(n.id)));
-  if (!byNote) return cuppingError(500, "Notların bölge bağları okunamadı. Lütfen tekrar deneyin.");
+  if (!byNote) return cuppingError(500, "Notların bölge bağları okunamadı. Lütfen tekrar deneyin.", "CUP_READ_FAILED");
   const withPoints = notes.map((n) => ({ ...n, point_ids: byNote[String(n.id)] ?? [] }));
   return NextResponse.json({ ok: true, notes: withPoints });
 }
@@ -89,17 +89,17 @@ export async function POST(req: NextRequest): Promise<Response> {
   const topicId = typeof parsed.data.topic_id === "string" ? parsed.data.topic_id : "";
   const fields = pickWritable(parsed.data, TOPIC_NOTE_WRITABLE);
   if (!String(fields.note ?? "").trim()) {
-    return cuppingError(400, "Not metni gerekli.");
+    return cuppingError(400, "Not metni gerekli.", "CUP_NOTE_TEXT_REQUIRED");
   }
   const pointIds = parsePointIds(parsed.data.point_ids);
-  if (pointIds.length > MAX_POINTS) return cuppingError(400, "Çok fazla bölge seçildi.");
+  if (pointIds.length > MAX_POINTS) return cuppingError(400, "Çok fazla bölge seçildi.", "CUP_TOO_MANY_POINTS");
 
   // topic + tüm point'ler AYNI tenant'ta gerçek olmalı (cross-tenant FK enjeksiyonu reddi).
   const topicOwned = await assertOwnedRef(db, CUPPING_TABLES.topics, tenantId, topicId);
-  if (!topicOwned) return cuppingError(400, "Konu bu hesaba ait değil veya bulunamadı.");
+  if (!topicOwned) return cuppingError(400, "Konu bu hesaba ait değil veya bulunamadı.", "CUP_TOPIC_NOT_OWNED");
   for (const pid of pointIds) {
     if (!(await assertOwnedRef(db, CUPPING_TABLES.points, tenantId, pid))) {
-      return cuppingError(400, "Seçilen bölge bu hesaba ait değil.");
+      return cuppingError(400, "Seçilen bölge bu hesaba ait değil.", "CUP_POINT_NOT_OWNED");
     }
   }
 
@@ -126,7 +126,7 @@ export async function POST(req: NextRequest): Promise<Response> {
       // partial state bırakma: notu geri al (compensating delete).
       await db.from(CUPPING_TABLES.topicNotes).delete().eq("tenant_id", tenantId).eq("id", noteId);
       await trackUsage(guard, req, { module: "cupping", action: "action_failed", failedAction: "record_created", subEntity: "topic_note", errorClass: "server" });
-      return cuppingError(500, "İşlem tamamlanamadı. Lütfen tekrar deneyin.");
+      return cuppingError(500, "İşlem tamamlanamadı. Lütfen tekrar deneyin.", "CUP_DB_FAIL");
     }
   }
 

@@ -7,6 +7,7 @@
  * harita registry; modül gate kaydı; admin→uzman transfer additive kayıt (drift).
  */
 import { readFileSync, readdirSync, statSync } from "node:fs";
+import { resolveTrSource, trValue } from "./i18n-mod-c/trResolve";
 import { CUPPING_BODY_MAPS, getCuppingMap, isKnownCuppingMap } from "../lib/cupping/maps";
 import {
   POINT_WRITABLE,
@@ -36,6 +37,13 @@ import {
 import { gregorianToHijri, parseYmd, monthHijriCells, HIJRI_MONTHS_TR } from "../lib/cupping/hijri";
 import { CUPPING_CITATION_COPY_FIELDS } from "../lib/cupping/transferFields";
 import { CUPPING_EVIDENCE_CLASSES } from "../lib/cupping/vocab";
+import {
+  CLIENT_ADVICE_DEFAULT_TITLE_TR,
+  defaultPlanNameForSave,
+  displayClientAdviceTitle,
+  displayPlanName,
+  isSystemPlanName,
+} from "../app/kupa/takvim/lib/systemNames";
 import { ModuleGateKey } from "../lib/auth/moduleAccess";
 import { MODULE_ROUTE_PREFIXES, DEFERRED_MODULE_PREFIXES } from "../lib/auth/moduleRouteRegistry";
 import { ALL_ACTIVE_GROUP_KEYS, TRANSFER_MODULES } from "../lib/admin/transferRegistry";
@@ -76,7 +84,9 @@ function ok(cond: boolean, name: string): void {
     console.log("  ✗ FAIL:", name);
   }
 }
-const read = (p: string) => readFileSync(p, "utf8");
+// I18N gece 2026-11-25: ekran metinleri messages/tr/cupping*.json'a taşındı → kaynak okunurken t("…") çağrıları
+// TR katalog değeriyle çözülür (testlerin "metin ekranda var/yok/sırada" niyeti korunur; bkz. scripts/i18n-mod-c/trResolve.ts).
+const read = (p: string) => resolveTrSource(readFileSync(p, "utf8"));
 
 function listRoutes(dir: string): string[] {
   const out: string[] = [];
@@ -741,9 +751,15 @@ function run(): void {
   // D) TR enum eşlemeleri + kod GÖSTERİLMEZ (enum sadece value; UI label Türkçe).
   ok(/dry/.test(pQuick) && /wet/.test(pQuick) && /stationary/.test(pQuick) && /gliding/.test(pQuick) && /flash/.test(pQuick),
     "faz3a-enum: technique_type/movement_style enum value'ları mevcut");
-  ok(/Kuru Kupa/.test(pQuick) && /Yaş Kupa/.test(pQuick) && /Sabit/.test(pQuick) && /Kaydırmalı/.test(pQuick),
+  // I18N 2026-11-25: etiketler kod yerine useCuppingVocab (messages/<dil>/cupping.json → cupping.vocab) ile üretilir;
+  // TR katalog değerleri eski sabit etiketlerle BİREBİR olmalı (niyet: UI kod değil Türkçe etiket gösterir).
+  const vocabTr = (k: string) => trValue(`cupping.vocab.${k}`);
+  ok(/useCuppingVocab/.test(pQuick) && /vocab\.techniqueType\(/.test(pQuick) && /vocab\.movementStyle\(/.test(pQuick) &&
+     vocabTr("techniqueType.dry") === "Kuru Kupa" && vocabTr("techniqueType.wet") === "Yaş Kupa / Hacamat" &&
+     vocabTr("movementStyle.stationary") === "Sabit" && vocabTr("movementStyle.gliding") === "Kaydırmalı",
     "faz3a-enum: technique UI Türkçe etiketler (kod değil)");
-  ok(/"info"/.test(pQuick) && /"warning"/.test(pQuick) && /"contraindication"/.test(pQuick) && /Bilgi/.test(pQuick) && /Uyarı/.test(pQuick) && /Kontrendikasyon/.test(pQuick),
+  ok(/"info"/.test(pQuick) && /"warning"/.test(pQuick) && /"contraindication"/.test(pQuick) && /vocab\.severity\(/.test(pQuick) &&
+     vocabTr("severity.info") === "Bilgi" && vocabTr("severity.warning") === "Uyarı" && vocabTr("severity.contraindication") === "Kontrendikasyon",
     "faz3a-enum: safety severity enum + Türkçe etiketler");
   // severity !== contraindication → contraindication_class DAİMA null.
   ok(/severity === "contraindication" \? contraClass \|\| null : null/.test(pQuick),
@@ -995,7 +1011,9 @@ function run(): void {
     "faz4b-nav: liste satırları /kupa/teknikler/[id] deep-link");
 
   // Normal UI ham enum kodu GÖSTERMEZ (label helper üzerinden).
-  ok(/techniqueTypeLabel/.test(tList) && /techniqueTypeLabel/.test(tRead),
+  // I18N 2026-11-25: label helper'ın ekran-dili karşılığı useCuppingVocab (TR = labels.ts, birebir).
+  const typeLabelled = (s: string) => /techniqueTypeLabel/.test(s) || /vocab\.techniqueType\(/.test(s);
+  ok(typeLabelled(tList) && typeLabelled(tRead),
     "faz4b-labels: tür TR etiketle gösterilir (ham dry/wet değil)");
   ok(/dry: "Kuru Kupa"/.test(tLabels) && /wet: "Yaş Kupa \/ Hacamat"/.test(tLabels) &&
      /stationary: "Sabit"/.test(tLabels) && /gliding: "Kaydırmalı"/.test(tLabels) && /flash: "Flaş"/.test(tLabels),
@@ -1125,7 +1143,8 @@ function run(): void {
     "faz4c-protocol-note: PATCH yalnız protocol_note/sort_order (relation-specific)");
 
   // Tür/stil propagasyonu: RelationSection master listfrom join → dinamik TR etiket (ham kod YOK).
-  ok(/techniqueTypeLabel/.test(rSec) && /movementStyleLabel/.test(rSec),
+  // I18N 2026-11-25: etiket artık ekran dilinde useCuppingVocab üzerinden (TR = labels.ts haritası, birebir).
+  ok((/techniqueTypeLabel/.test(rSec) || /vocab\.techniqueType\(/.test(rSec)) && (/movementStyleLabel/.test(rSec) || /vocab\.movementStyle\(/.test(rSec)),
     "faz4c-labels: protokol picker TR etiket (techniqueTypeLabel/movementStyleLabel)");
   ok(!/\[t\.technique_type, t\.movement_style\]\.filter/.test(rSec),
     "faz4c-labels: ham technique_type/movement_style kod join'i KALDIRILDI");
@@ -1484,7 +1503,8 @@ function run(): void {
     // ── Gregoryen + Hicrî HER GÜN, TAM ay adı (korunur) ──────────────────────────
     ok(/from "@\/lib\/cupping\/hijri"/.test(mcSrc) && /monthHijriCells/.test(mcSrc),
       "faz5-a3: takvim ızgarası lib/cupping/hijri.ts kullanır (Hicrî türetilir)");
-    ok(/hijri\.day/.test(mcSrc) && /hijri\.monthName/.test(mcSrc) && /hijri\.year/.test(mcSrc),
+    // I18N 2026-11-25: Hicrî ay ADI artık ekran dilinde names.hijriMonth(hijri.month) ile (tr = HIJRI_MONTHS_TR birebir; hesap aynı).
+    ok(/hijri\.day/.test(mcSrc) && (/hijri\.monthName/.test(mcSrc) || /names\.hijriMonth\(cell\.hijri\.month\)/.test(mcSrc)) && /hijri\.year/.test(mcSrc),
       "faz5-a3: her gün Gregoryen + TAM Hicrî (gün + ay adı + yıl) gösterir");
     ok(!/shortHijriMonth/.test(mcSrc) && !/\.slice\(0,\s*3\)/.test(mcSrc),
       "faz5-a3: Hicrî ay adı KISALTILMAZ (görünür tam ad)");
@@ -1587,7 +1607,8 @@ function run(): void {
       "faz5-cell: cellState.ts'de sunnah/golden durumu YOK (kaldırıldı)");
     ok(!/>\s*Seçili\s*</.test(mcSrc) && /Kaydedilecek/.test(mcSrc) && /Kaldırılacak/.test(mcSrc),
       "faz5/5-cell: KAYDEDİLMİŞ günde görünür 'Seçili' YAZISI YOK (Kaydedilecek/Kaldırılacak korunur)");
-    ok(/sr-only/.test(mcSrc) && /cuppingCellBadge/.test(mcSrc),
+    // I18N 2026-11-25: rozet names.badge() üzerinden (tr = cuppingCellBadge birebir).
+    ok(/sr-only/.test(mcSrc) && (/cuppingCellBadge/.test(mcSrc) || /names\.badge\(state\.kind\)/.test(mcSrc)),
       "faz5/5-cell: seçim durumu ekran-okuyucu için sr-only rozetle korunur (renk TEK sinyal değil)");
     ok(/getCuppingCellState/.test(mcSrc) && /getCuppingCellState/.test(annualSrc),
       "faz5-cell: Aylık + Yıllık durumu paylaşılan getCuppingCellState'ten türetir (tek doğruluk)");
@@ -1723,7 +1744,8 @@ function run(): void {
     ok(JSON.stringify(h1) === JSON.stringify(sortedUniq), "faz5-bulk: sonuç artan + tekil");
 
     // ── FULL HICRI NAME + preservation regression shield ─────────────────────────
-    ok(/hijri\.day/.test(mcSrc) && /hijri\.monthName/.test(mcSrc) && /hijri\.year/.test(mcSrc),
+    // I18N 2026-11-25: Hicrî ay ADI artık ekran dilinde names.hijriMonth(hijri.month) ile (tr = HIJRI_MONTHS_TR birebir; hesap aynı).
+    ok(/hijri\.day/.test(mcSrc) && (/hijri\.monthName/.test(mcSrc) || /names\.hijriMonth\(cell\.hijri\.month\)/.test(mcSrc)) && /hijri\.year/.test(mcSrc),
       "faz5-final: TAM Hicrî ad korunur (aylık hücre)");
     ok(!/shortHijriMonth/.test(mcSrc) && !/\.slice\(0,\s*3\)/.test(mcSrc),
       "faz5-final: Hicrî ay adı KISALTILMAZ");
@@ -2099,7 +2121,9 @@ function run(): void {
     {
       const call = /buildCalendarPlanWordBuffer\(\{([^}]*)\}\)/.exec(wr);
       const fields = call ? call[1]!.split(",").map((f) => f.trim()).filter(Boolean) : [];
-      ok(!!call && ["plan", "days", "template", "month"].every((f) => fields.includes(f)) && fields.every((f) => /^[a-zA-Z]+$/.test(f)) && /calendarWordFilename\(plan, month\)/.test(wr),
+      // I18N (çıktı dili sözleşmesi): dosya adına isteğe bağlı 3. argüman `output` (rapor dili) eklenebilir; niyet (month'un
+      // dosya adına geçmesi) aynen kontrol edilir.
+      ok(!!call && ["plan", "days", "template", "month"].every((f) => fields.includes(f)) && fields.every((f) => /^[a-zA-Z]+$/.test(f)) && /calendarWordFilename\(plan, month(, output)?\)/.test(wr),
         "faz6-ay[m5]: month builder + dosya adına geçirilir");
     }
     ok(!/searchParams[\s\S]{0,40}year|body[\s\S]{0,40}year/.test(wr),
@@ -2117,6 +2141,86 @@ function run(): void {
       "faz6-ay[m10]: aylık rapor A4 dikey + bağımsız tek-ay ızgarası");
     ok(!/sünnet|sunnah|altın|altin|yasakl|17\/19\/21/i.test(cwCode),
       "faz6-ay[m11]: aylık kodda da otomatik Sünnet/Altın/yasaklı YOK");
+  }
+
+  // ── I18N-F1-R3 — SİSTEM VARSAYILAN ADLARI (plan adı / boş danışan bilgilendirmesi başlığı) ─────────────
+  // Niyet: (1) DB'ye yazılan varsayılan ad ekran dilinden BAĞIMSIZ Türkçe sabittir (i18n öncesi "<yıl> Hacamat
+  // Takvimi" / "Danışan Bilgilendirmesi" ile birebir; Word çıktısı kayıtlı adı basar). (2) Gösterimde yalnız sistem
+  // adıyla TAM eşleşen ad (TR ya da gece sürümünün kaydetmiş olabileceği EN) ekran dilinde üretilir; kullanıcının adı aynen.
+  {
+    ok(defaultPlanNameForSave(2027) === "2027 Hacamat Takvimi", "i18n-r3[ad1]: yeni plan varsayılan adı TR sabit (i18n öncesiyle birebir)");
+    ok(CLIENT_ADVICE_DEFAULT_TITLE_TR === "Danışan Bilgilendirmesi", "i18n-r3[ad2]: boş bilgilendirme başlığı TR sabit (birebir)");
+    const cwSrc = readFileSync("app/kupa/takvim/components/CalendarWorkspace.tsx", "utf8");
+    // A8: çağrı use_default_name ekledi; ad yine sabit TR'den (niyet ve kayıt değeri aynı).
+    ok(/createCalendarPlan\(\{ name: defaultPlanNameForSave\(year\), use_default_name: true, year, reuse_year: true \}\)/.test(cwSrc)
+      && !/createCalendarPlan\(\{ name: t\(/.test(cwSrc),
+      "i18n-r3[ad3]: plan oluşturma adı ekran dili çevirisinden DEĞİL sabit TR'den (kayıt dil-bağımsız)");
+    const caSrc = readFileSync("app/kupa/takvim/components/ClientAdviceSection.tsx", "utf8");
+    ok(/\{ title: CLIENT_ADVICE_DEFAULT_TITLE_TR \}/.test(caSrc) && !/\{ title: tca\(/.test(caSrc)
+      && /sysNames\.adviceTitle\(a\.title\)/.test(caSrc),
+      "i18n-r3[ad4]: boş bilgilendirme başlığı sabit TR'den kaydedilir; listede gösterim kuralıyla basılır");
+    const en = (y: string) => y + " Hijama Calendar";
+    const tr = (y: string) => y + " Hacamat Takvimi";
+    ok(displayPlanName({ name: "2027 Hacamat Takvimi", year: 2027 }, en) === "2027 Hijama Calendar", "i18n-r3[ad5]: TR sistem adı EN ekranda çevrilir");
+    ok(displayPlanName({ name: "2027 Hijama Calendar", year: 2027 }, tr) === "2027 Hacamat Takvimi", "i18n-r3[ad6]: gece EN kaydedilmiş sistem adı TR ekranda Türkçe");
+    ok(displayPlanName({ name: "2027 Hacamat Takvimi", year: 2027 }, tr) === "2027 Hacamat Takvimi", "i18n-r3[ad7]: TR ekranda TR sistem adı birebir");
+    ok(displayPlanName({ name: "Ayşe Hanım 2027", year: 2027 }, en) === "Ayşe Hanım 2027", "i18n-r3[ad8]: kullanıcının adı aynen");
+    ok(displayPlanName({ name: "2026 Hacamat Takvimi", year: 2027 }, en) === "2026 Hacamat Takvimi", "i18n-r3[ad9]: yıl uyuşmazsa ad aynen");
+    ok(!isSystemPlanName("2027 Hacamat Takvimi ", 2027) && !isSystemPlanName("2027 hacamat takvimi", 2027), "i18n-r3[ad10]: yalnız TAM eşleşme");
+    ok(displayClientAdviceTitle("Danışan Bilgilendirmesi", () => "Client Information") === "Client Information"
+      && displayClientAdviceTitle("Client Information", () => "Danışan Bilgilendirmesi") === "Danışan Bilgilendirmesi"
+      && displayClientAdviceTitle("Ali Bey için notlar", () => "Client Information") === "Ali Bey için notlar",
+      "i18n-r3[ad11]: bilgilendirme başlığı — sistem başlığı ekran dilinde, kullanıcınınki aynen");
+    // Katalog: gösterim varsayılanı TR'de kayıt sabitiyle birebir (TR ekranda değişiklik yok)
+    const trCal = JSON.parse(readFileSync("messages/tr/cupping.calendar.json", "utf8")).cupping.calendar;
+    const enCal = JSON.parse(readFileSync("messages/en/cupping.calendar.json", "utf8")).cupping.calendar;
+    ok(trCal.ws.defaultPlanName.replace("{year}", "2027") === defaultPlanNameForSave(2027)
+      && trCal.clientAdvice.defaultTitle === CLIENT_ADVICE_DEFAULT_TITLE_TR, "i18n-r3[ad12]: TR katalog varsayılanı = kayıt sabiti");
+    ok(isSystemPlanName(enCal.ws.defaultPlanName.replace("{year}", "2027"), 2027)
+      && displayClientAdviceTitle(enCal.clientAdvice.defaultTitle, () => "X") === "X",
+      "i18n-r3[ad13]: EN katalog varsayılanı (gece kaydedilmiş biçim) sistem adı olarak tanınır");
+    for (const comp of ["CalendarWorkspace", "PlanPicker", "NewCalendarDialog"]) {
+      const src = readFileSync("app/kupa/takvim/components/" + comp + ".tsx", "utf8");
+      ok(/sysNames\.planName\(/.test(src) && !/\{p\.name\}|name: existing\.name|name: p\.name|title=\{plan\.name\}/.test(src),
+        "i18n-r3[ad14]: " + comp + " plan adını gösterim kuralıyla basar");
+    }
+
+    // ── I18N A8 (Owner §16) — name_is_default üç durumlu bayrak; migration UYGULANMADAN önce eski davranış güvenli ──
+    ok(displayPlanName({ name: "2027 Hacamat Takvimi", year: 2027, name_is_default: true }, en) === "2027 Hijama Calendar"
+      && displayPlanName({ name: "2027 Hacamat Takvimi", year: 2027, name_is_default: false }, en) === "2027 Hacamat Takvimi"
+      && displayPlanName({ name: "2027 Hacamat Takvimi", year: 2027, name_is_default: null }, en) === "2027 Hijama Calendar"
+      && displayPlanName({ name: "2027 Hacamat Takvimi", year: 2027 }, en) === "2027 Hijama Calendar",
+      "a8[ad15]: üç durum — TRUE üret, FALSE aynen, NULL/alan yok (kolon yok) = bugünkü desen kuralı");
+    ok(displayPlanName({ name: "Ayşe Hanım 2027", year: 2027, name_is_default: null }, en) === "Ayşe Hanım 2027"
+      && displayPlanName({ name: "2027 Hacamat Takvimi", year: 2027, name_is_default: true }, tr) === "2027 Hacamat Takvimi"
+      && displayPlanName({ name: "2027 Hacamat Takvimi", year: 2027, name_is_default: false }, tr) === "2027 Hacamat Takvimi",
+      "a8[ad16]: TR ekran çıktısı üç durumda da bugünküyle birebir; kullanıcı adı aynen");
+    const prSrc = readFileSync("app/api/kupa/calendar/plans/route.ts", "utf8");
+    ok(/if \(useDefaultName\) fields\.name = defaultPlanNameForSave\(year\);/.test(prSrc)
+      && /insertEntityWithOptionalColumns\(db, CUPPING_TABLES\.calendarPlans, tenantId, fields, \{ name_is_default: true \}\)/.test(prSrc)
+      && /if \(!useDefaultName && !String\(fields\.name \?\? ""\)\.trim\(\)\) return cuppingError\(400, "Plan adı gerekli\.", "CUP_NAME_REQUIRED"\);/.test(prSrc),
+      "a8[ad17]: POST — varsayılan ad sunucuda kanonik TR; bayrak yalnız opsiyonel kolonla; eski istemci yolu (ad zorunlu) aynen");
+    ok(!(CALENDAR_PLAN_WRITABLE as readonly string[]).includes("name_is_default"),
+      "a8[ad18]: name_is_default istemciden YAZILAMAZ (CALENDAR_PLAN_WRITABLE dışında)");
+    const ppSrc = readFileSync("app/kupa/takvim/components/PlanPicker.tsx", "utf8");
+    ok(/setName\(sysNames\.planName\(active\)\)/.test(ppSrc)
+      && /if \(name\.trim\(\) !== sysNames\.planName\(active\)\) body\.name = name\.trim\(\);/.test(ppSrc)
+      && !/\n\s+name: name\.trim\(\),/.test(ppSrc),
+      "a8[ad19]: düzenleme — görünen ad; ad yalnız DEĞİŞTİYSE gönderilir (çevrilmiş sistem adı DB'ye yazılmaz)");
+  }
+
+  // ── I18N-0126 / I18N-0127 (A26, Owner §25) — ham severity kodu yerine etiket; TR boşluk kusuru ─────────────
+  {
+    const crud = readFileSync("app/kupa/components/CrudManager.tsx", "utf8");
+    const guv = readFileSync("app/kupa/guvenlik/page.tsx", "utf8");
+    const rel = readFileSync("app/kupa/protokoller/components/RelationSection.tsx", "utf8");
+    ok(/subtitleFormat \? subtitleFormat\(item\[subtitleKey\]\) : String\(item\[subtitleKey\]\)/.test(crud)
+      && /subtitleFormat=\{\(v\) => vocab\.severity\(typeof v === "string" \? v : null\)\}/.test(guv)
+      && /meta: s\.severity \? vocab\.severity\(s\.severity\) : undefined/.test(rel) && !/meta: s\.severity \?\? undefined/.test(rel),
+      "i18n-0126: güvenlik listesi alt satırı ve seçici meta'sı ham kod değil sözlük etiketi (formatlayıcısız CrudManager kullanımları aynen)");
+    const trCal2 = JSON.parse(readFileSync("messages/tr/cupping.calendar.json", "utf8")).cupping.calendar;
+    ok(trCal2.annual.empty.includes("</strong> veya <strong>") && !/<\/strong>veya/.test(trCal2.annual.empty),
+      "i18n-0127: TR 'Bu Ayı Düzenle veya' boşluk kusuru giderildi (Owner A26 onaylı TR metin düzeltmesi)");
   }
 
   console.log(`\ncupping-module harness: ${passed} PASS, ${failed} FAIL`);

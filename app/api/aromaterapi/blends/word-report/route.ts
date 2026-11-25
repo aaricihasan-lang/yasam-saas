@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { trackUsage } from "@/lib/usage/trackUsage";
 import { expertDisplayName } from "@/lib/docx/reportDisclaimer";
+import { resolveReportLocale } from "@/lib/i18n/reportLocale";
 import { checkRateLimit } from "@/lib/rateLimit";
-import { parseExportBody, docxResponse } from "@/lib/aromaterapi/report/request";
+import { parseExportBody, docxResponse, reportErrorCode } from "@/lib/aromaterapi/report/request";
 import { MAX_EXPORT_BODY_BYTES } from "@/lib/aromaterapi/report/theme";
 import { readJsonBounded } from "@/lib/aromaterapi/service/requestBody";
 import { buildBlendsDoc } from "@/lib/aromaterapi/report/builders";
@@ -27,7 +28,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   const rl = checkRateLimit(`aromaterapi-word:${guard.tenantId}`, 10, 60_000);
   if (!rl.allowed) {
     return NextResponse.json(
-      { ok: false, error: "Çok fazla rapor isteği. Lütfen biraz sonra tekrar deneyin." },
+      { ok: false, code: "AROMA_REPORT_RATE_LIMITED", error: "Çok fazla rapor isteği. Lütfen biraz sonra tekrar deneyin." },
       { status: 429, headers: { "Retry-After": String(rl.retryAfterSeconds) } },
     );
   }
@@ -35,25 +36,25 @@ export async function POST(req: NextRequest): Promise<Response> {
   const bounded = await readJsonBounded(req, MAX_EXPORT_BODY_BYTES);
   if (!bounded.ok) {
     return bounded.reason === "too_large"
-      ? NextResponse.json({ ok: false, error: "İstek gövdesi çok büyük." }, { status: 413 })
-      : NextResponse.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 });
+      ? NextResponse.json({ ok: false, code: "AROMA_REPORT_BODY_TOO_LARGE", error: "İstek gövdesi çok büyük." }, { status: 413 })
+      : NextResponse.json({ ok: false, code: "AROMA_REPORT_INVALID_BODY", error: "Geçersiz istek gövdesi." }, { status: 400 });
   }
 
   const parsed = parseExportBody(bounded.value);
-  if (!parsed.ok) return NextResponse.json({ ok: false, error: parsed.error }, { status: parsed.status });
+  if (!parsed.ok) return NextResponse.json({ ok: false, code: "AROMA_REPORT_INVALID_REQUEST", error: parsed.error }, { status: parsed.status });
 
   const sel: ExportSelector = parsed.mode === "selected" ? { mode: "selected", ids: parsed.ids } : { mode: "all" };
   try {
-    const res = await buildBlendsDoc(db, tenantId, sel, { expertName: expertDisplayName(guard.profile), date: new Date() });
+    const res = await buildBlendsDoc(db, tenantId, sel, { expertName: expertDisplayName(guard.profile), date: new Date(), output: await resolveReportLocale(req, { db, tenantId, userId: guard.userId }) });
     if (!res.ok) {
       if (res.status >= 500) await trackUsage(guard, req, { module: "aromatherapy", action: "action_failed", failedAction: "report_generated", subEntity: "blend", errorClass: "server" });
-      return NextResponse.json({ ok: false, error: res.error }, { status: res.status });
+      return NextResponse.json({ ok: false, code: reportErrorCode(res.status), error: res.error }, { status: res.status });
     }
     // Usage360: DOCX tamponu BAŞARIYLA üretildikten sonra (rapor konusu alt-varlık).
     await trackUsage(guard, req, { module: "aromatherapy", action: "report_generated", subEntity: "blend", itemCount: res.count });
     return docxResponse(res.buffer, res.filename);
   } catch {
     await trackUsage(guard, req, { module: "aromatherapy", action: "action_failed", failedAction: "report_generated", subEntity: "blend", errorClass: "server" });
-    return NextResponse.json({ ok: false, error: "Rapor oluşturulamadı." }, { status: 500 });
+    return NextResponse.json({ ok: false, code: "AROMA_REPORT_FAILED", error: "Rapor oluşturulamadı." }, { status: 500 });
   }
 }

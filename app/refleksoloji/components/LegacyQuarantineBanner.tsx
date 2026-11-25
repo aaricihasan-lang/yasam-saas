@@ -1,5 +1,7 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+
 import { useState } from "react";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
 import { requiresBulkDeleteGuard, runBulkDeleteConfirm } from "@/lib/ui/bulkDeleteGuard";
@@ -26,6 +28,8 @@ export function LegacyQuarantineBanner({
   onDiscard,
   className = "",
 }: LegacyQuarantineBannerProps) {
+  const t = useTranslations("reflexology.common.quarantine");
+  const tc = useTranslations("reflexology.common");
   const { confirm } = useConfirm();
   const [busy, setBusy] = useState(false);
 
@@ -44,11 +48,9 @@ export function LegacyQuarantineBanner({
   const handleImport = () =>
     run(async () => {
       const ok = await confirm({
-        message:
-          `Bu cihazda bulunan ${count} ${noun} sizin hesabınıza aktarılacak ve sunucuyla eşitlenecek. ` +
-          "Yalnız bu kayıtların size ait olduğundan eminseniz devam edin.",
-        confirmText: "Bana ait, içe aktar",
-        cancelText: "Vazgeç",
+        message: t("importMsg", { count: String(count), noun }),
+        confirmText: t("importConfirm"),
+        cancelText: tc("cancel"),
       });
       if (ok) await onImport();
     });
@@ -60,12 +62,12 @@ export function LegacyQuarantineBanner({
         ? await runBulkDeleteConfirm(confirm, {
             count,
             noun,
-            detail: "Bu cihazdaki sahibi belirsiz (hesaba bağlı olmayan) kayıtlar silinecek.",
+            detail: t("discardDetail"),
           })
         : await confirm({
-            message: `Bu cihazdaki sahibi belirsiz ${count} ${noun} kalıcı olarak silinsin mi? Bu işlem geri alınamaz.`,
-            confirmText: "Sil",
-            cancelText: "Vazgeç",
+            message: t("discardMsg", { count: String(count), noun }),
+            confirmText: tc("delete"),
+            cancelText: tc("cancel"),
             tone: "danger",
           });
       if (ok) await onDiscard();
@@ -77,11 +79,10 @@ export function LegacyQuarantineBanner({
       className={`rounded-2xl border border-amber-300/80 bg-amber-50/90 p-4 shadow-sm ring-1 ring-amber-100/70 ${className}`}
     >
       <p className="text-sm font-bold text-amber-950">
-        Bu cihazda sahibi belirsiz {count} {noun} bulundu.
+        {t("found", { count: String(count), noun })}
       </p>
       <p className="mt-1 text-xs font-medium text-amber-900/90">
-        Bu kayıtlar önceki bir oturumdan (hesaba bağlanmadan) kalmış olabilir ve henüz
-        sunucuya eşitlenmemiş. Size aitse içe aktarın; değilse bu cihazdan silebilirsiniz.
+        {t("explain")}
       </p>
       <div className="mt-3 flex flex-wrap gap-2">
         <button
@@ -90,7 +91,7 @@ export function LegacyQuarantineBanner({
           onClick={() => void handleImport()}
           className="rounded-lg border border-emerald-300/80 bg-emerald-100 px-3 py-1.5 text-xs font-bold text-emerald-950 transition hover:bg-emerald-200/90 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          Bana ait, içe aktar
+          {t("importConfirm")}
         </button>
         <button
           type="button"
@@ -98,7 +99,7 @@ export function LegacyQuarantineBanner({
           onClick={() => void handleDiscard()}
           className="rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-bold text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          Sil
+          {tc("delete")}
         </button>
       </div>
     </section>

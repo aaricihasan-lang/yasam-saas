@@ -6,6 +6,7 @@ import { getServerDb } from "@/lib/supabase-server";
 import { ADMIN_SESSION_COOKIE, resolveAdminShellUserId } from "@/lib/auth/adminShellSession";
 import { isEducationCatalogOpen, isEducationOwner } from "@/lib/human-design/education/educationAccess";
 import { privateEnvKillSwitch } from "@/lib/human-design/education/private/privateAccess";
+import { getLocale, getTranslations } from "next-intl/server";
 
 // 2026-10-18 premium görünüm (owner onaylı prototip, tasarım arşivi 1fed59a): başlık Fraunces, etiket Jost —
 // next/font ile kendi sunucumuzdan (dış istek yok); Türkçe için latin-ext.
@@ -77,9 +78,28 @@ async function resolveCatalogOpen(): Promise<boolean> {
   try { return await isEducationCatalogOpen(getServerDb()); } catch { return false; }
 }
 
+/** D-HD i18n: kart metni anahtarı (href son bölümü → hd.hub.modules.<anahtar>). */
+const HUB_MODULE_KEY: Readonly<Record<string, string>> = {
+  "/human-design/danisanlar": "danisanlar",
+  "/human-design/bilgi-bankasi": "bilgiBankasi",
+  "/human-design/iliski-grup": "iliskiGrup",
+  "/human-design/transit": "transit",
+};
+
 export default async function HumanDesignHubPage() {
   const ownerEducationCard = await resolveOwnerEducationCard();
   const catalogOpen = await resolveCatalogOpen();
+  // D-HD i18n: Türkçede kaynak kart verisi AYNEN (sözleşme testleri HD_MODULES metnini kilitler); diğer dillerde
+  // görünen başlık/açıklama/rozet sözlükten. href / ton / görsel değişmez.
+  const locale = await getLocale();
+  const t = await getTranslations("hd.hub");
+  const modules: readonly HdHubModule[] =
+    locale === "tr"
+      ? HD_MODULES
+      : HD_MODULES.map((m) => {
+          const k = HUB_MODULE_KEY[m.href];
+          return k ? { ...m, title: t(`modules.${k}.title`), desc: t(`modules.${k}.desc`), badge: t(`modules.${k}.badge`) } : m;
+        });
   return (
     <div className={`${styles.root} ys-fv-human-design ${jost400Vars}`}>
       <div className={styles.page}>
@@ -100,7 +120,7 @@ export default async function HumanDesignHubPage() {
             <h1 id="hd-hub-title" className={styles.heroTitle}>
               Human Design
             </h1>
-            <p className={styles.heroSub}>Profesyonel Human Design hesaplama ve mesleki bilgi çalışma alanı.</p>
+            <p className={styles.heroSub}>{t("heroSub")}</p>
           </div>
         </section>
 
@@ -108,7 +128,7 @@ export default async function HumanDesignHubPage() {
         {/* Katalog kapısı KAPALIYKEN (varsayılan) merkezî kart yoklaması yapılmaz. Özel arşiv kartı: kapı owner'ın arşiv
             anahtarıdır ve yalnız sunucu yoklamasıyla (yetkili eğitmene 200) görünür; acil kapatmada yoklama yok. */}
         <HdHubModules
-          modules={HD_MODULES}
+          modules={modules}
           educationCard={catalogOpen}
           privateEducationCard={!privateEnvKillSwitch()}
           ownerEducationCard={ownerEducationCard}

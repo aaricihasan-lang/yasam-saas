@@ -1,17 +1,20 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+
 /**
  * Telefon/dar ekranda Bölge Haritası düzenleme kapalıyken gösterilen premium,
  * bilgilendirici (alarm/hata DEĞİL) panel. Harita ve kayıtlı bölgeler görünmeye
  * devam eder; yalnız hassas koordinat düzenleme masaüstüne yönlendirilir.
  */
 export function MobileEditNoticePanel() {
+  const t = useTranslations("reflexology.zoneMap.mobile");
   return (
     <div className="w-full px-2 pb-2">
       <aside
         className="flex w-full items-start gap-3 rounded-2xl border border-violet-200/80 bg-gradient-to-r from-violet-50/95 via-white/92 to-fuchsia-50/85 px-3.5 py-3 shadow-[0_10px_30px_-14px_rgba(91,33,182,0.28)] ring-1 ring-violet-100/70 backdrop-blur-md"
         role="note"
-        aria-label="Bölge düzenleme bilgisi"
+        aria-label={t("aria")}
       >
         <span
           className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-fuchsia-500 text-white shadow-[0_6px_16px_-6px_rgba(139,92,246,0.7)]"
@@ -23,12 +26,10 @@ export function MobileEditNoticePanel() {
         </span>
         <div className="min-w-0">
           <p className="text-sm font-black tracking-tight text-violet-950">
-            Bölge düzenleme bilgisayarda kullanılabilir
+            {t("title")}
           </p>
           <p className="mt-1 text-xs font-medium leading-relaxed text-violet-900/85">
-            Refleksoloji bölgelerinin hassas ve doğru şekilde konumlandırılabilmesi için harita
-            üzerinde bölge ekleme ve düzenleme işlemleri bilgisayardan yapılmaktadır. Kayıtlı
-            atlasınızı ve bölgelerinizi bu cihazdan görüntülemeye devam edebilirsiniz.
+            {t("body")}
           </p>
         </div>
       </aside>

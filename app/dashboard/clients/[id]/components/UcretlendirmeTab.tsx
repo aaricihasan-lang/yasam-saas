@@ -13,8 +13,9 @@
 
 import { runInEffect } from "@/lib/runInEffect";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useTranslations } from "next-intl";
-import { formatDateAbsolute } from "@/lib/i18n/format";
+import { useLocale, useTranslations } from "next-intl";
+import { formatCurrency, formatDateAbsolute } from "@/lib/i18n/format";
+import { resolveLocale, type ActiveLocale } from "@/lib/i18n/locales";
 import { useToast } from "@/components/ui/ToastProvider";
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
 import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
@@ -68,12 +69,9 @@ function emptyForm(): ChargeForm {
   return { chargeDate: todayISO(), category: "session", detail: "", note: "", amount: "", paymentStatus: "" };
 }
 
-function formatMoney(value: number) {
-  return new Intl.NumberFormat("tr-TR", {
-    style: "currency",
-    currency: "TRY",
-    maximumFractionDigits: 2,
-  }).format(value);
+// F0 #15: merkezî biçim (lib/i18n/format) — tr çıktısı eski Intl("tr-TR") ile birebir; para birimi TRY sabit (dil değiştirmez).
+function formatMoney(value: number, locale: ActiveLocale) {
+  return formatCurrency(value, locale, "TRY", { maximumFractionDigits: 2 });
 }
 
 /** Tutar geçerli (sonlu, > 0) mu? */
@@ -101,12 +99,13 @@ const labelCls = "mb-1.5 block text-xs font-black uppercase tracking-wide text-s
 
 export default function UcretlendirmeTab({ clientId, onUnpaidChange }: UcretlendirmeTabProps) {
   const t = useTranslations("clients.charges");
+  const locale = resolveLocale(useLocale());
   const { showToast } = useToast();
   const deleteConfirm = useDeleteConfirm();
 
   const fmtDate = useCallback(
-    (date: string | null) => (date ? formatDateAbsolute(date) : "—"),
-    [],
+    (date: string | null) => (date ? formatDateAbsolute(date, locale) : "—"),
+    [locale],
   );
 
   const [tenantId, setTenantId] = useState<string | null>(null);
@@ -445,13 +444,13 @@ export default function UcretlendirmeTab({ clientId, onUnpaidChange }: Ucretlend
 
             <div className="flex w-full flex-col items-stretch gap-2 md:w-auto md:items-end">
               <div className="rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-white px-5 py-3 text-center shadow-md">
-                <div className="text-2xl font-black text-emerald-700">{formatMoney(total)}</div>
+                <div className="text-2xl font-black text-emerald-700">{formatMoney(total, locale)}</div>
                 <div className="text-xs font-black uppercase tracking-wide text-slate-500">
                   {t("totalLabel")} · {charges.length} {t("countLabel")}
                 </div>
                 {unpaid.count > 0 ? (
                   <div data-testid="charges-unpaid-summary" className="mt-1 text-xs font-black text-red-600">
-                    {t("payment.unpaidSummary", { count: unpaid.count, total: formatMoney(unpaid.total) })}
+                    {t("payment.unpaidSummary", { count: unpaid.count, total: formatMoney(unpaid.total, locale) })}
                   </div>
                 ) : null}
               </div>
@@ -585,7 +584,7 @@ export default function UcretlendirmeTab({ clientId, onUnpaidChange }: Ucretlend
 
                   <div className="flex items-center justify-between gap-3 sm:justify-end">
                     <span className="rounded-xl bg-emerald-100 px-3 py-1.5 text-sm font-black text-emerald-800">
-                      {formatMoney(Number(charge.amount || 0))}
+                      {formatMoney(Number(charge.amount || 0), locale)}
                     </span>
                     <div className="flex flex-wrap justify-end gap-2">
                       {readPaymentStatus(charge.payment_status) === "unpaid" ? (

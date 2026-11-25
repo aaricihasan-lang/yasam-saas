@@ -5,10 +5,12 @@
 //   • Düzenlenen kayıtlı analiz → "Kaydı Güncelle" (onaylı; PUT /analyses/[id], row_version CAS) ya da
 //     "Yeni kayıt olarak kaydet". Kaydetmeden çıkılırsa hiçbir kayıt oluşmaz / değişmez.
 
+import { useLocale, useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { useId, useRef, useState } from "react";
+import { DEFAULT_LOCALE } from "@/lib/i18n/locales";
 import { CLASSIC_TITLE_MAX } from "@/lib/numeroloji-klasik/input";
-import { API_BASE, apiRequest, errorMessage, type ApiErr } from "../_lib/api";
+import { API_BASE, apiRequest, errorMessage, errorMessageEn, type ApiErr } from "../_lib/api";
 import { draftRefOf, dropDraft, editHref, type StoredDraft } from "../_lib/draft";
 import type { AnalysisResponse } from "../_lib/types";
 import { DuplicateAnalysisDialog, type DuplicateDialogMode, type DuplicateMatchView } from "./DuplicateAnalysisDialog";
@@ -22,6 +24,9 @@ function clip(s: string): string {
 }
 
 export function DraftSaveBar({ draft, activeTab, canWrite }: { draft: StoredDraft; activeTab: string; canWrite: boolean }) {
+  const t = useTranslations("numerology.classic.draftSave");
+  const tErr = useTranslations("numerology.classic.apiErrors");
+  const isTr = useLocale() === DEFAULT_LOCALE;
   const router = useRouter();
   const uid = useId();
   const [dialog, setDialog] = useState<Action | null>(null);
@@ -67,11 +72,11 @@ export function DraftSaveBar({ draft, activeTab, canWrite }: { draft: StoredDraf
   }
 
   async function run(action: Action) {
-    const t = clip(title) || draft.request.title;
+    const finalTitle = clip(title) || draft.request.title;
     setBusy(true);
     setErr(null);
     const ref = draftRefOf(draft);
-    const body = { ...ref, request: { ...ref.request, title: t } };
+    const body = { ...ref, request: { ...ref.request, title: finalTitle } };
     const r = action === "replace" && src
       ? await apiRequest<AnalysisResponse>(`${API_BASE}/analyses/${encodeURIComponent(src.id)}`, { method: "PUT", json: { ...body, rowVersion: src.rowVersion } })
       : await apiRequest<AnalysisResponse>(`${API_BASE}/analyses`, { method: "POST", json: body });
@@ -83,9 +88,10 @@ export function DraftSaveBar({ draft, activeTab, canWrite }: { draft: StoredDraf
     }
     setBusy(false);
     const e = r as ApiErr;
-    if (e.code === "DRAFT_STALE") setErr({ msg: e.error ?? "Bu hesaplama sonucu artık doğrulanamıyor. Bilgileri kontrol edip yeniden hesaplayın.", stale: true });
-    else if (e.status === 409) setErr({ msg: "Kayıt başka bir oturumda değişti. Kayıtlı analizi yeniden açıp tekrar düzenleyin.", stale: false });
-    else setErr({ msg: errorMessage(e), stale: false });
+    // TR: sunucu metni birebir; EN: dil-bağımsız kod → katalog (kontrol akışı koda bağlı, değişmedi).
+    if (e.code === "DRAFT_STALE") setErr({ msg: (isTr ? e.error : null) ?? t("staleFallback"), stale: true });
+    else if (e.status === 409) setErr({ msg: t("conflict"), stale: false });
+    else setErr({ msg: isTr ? errorMessage(e) : errorMessageEn(e, tErr), stale: false });
     setDialog(null);
   }
 
@@ -93,28 +99,26 @@ export function DraftSaveBar({ draft, activeTab, canWrite }: { draft: StoredDraf
     <section className="nk-card nk-panel nk-draft-bar" aria-labelledby={`${uid}-t`} data-testid="draft-bar" style={{ marginTop: 14 }}>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 12, alignItems: "center", justifyContent: "space-between" }}>
         <div style={{ minWidth: 0, flex: "1 1 320px" }}>
-          <h2 className="nk-h3" id={`${uid}-t`}>{src ? "Düzenlenmiş sonuç henüz kaydedilmedi" : "Bu sonuç henüz kaydedilmedi"}</h2>
+          <h2 className="nk-h3" id={`${uid}-t`}>{src ? t("editedTitle") : t("newTitle")}</h2>
           <p className="nk-hint" style={{ marginTop: 4 }}>
-            {src
-              ? <>Kayıtlı “{src.title}” analizi değişmedi. Güncellemek ya da yeni kayıt olarak saklamak için seçim yapın; kaydetmeden çıkarsanız kayıt olduğu gibi kalır.</>
-              : <>İnceleyebilir, Word / görsel rapor alabilirsiniz. Kayıtlı Analizler’e eklemek, danışana bağlamak ya da karşılaştırmak için kaydedin; kaydetmeden çıkarsanız kayıt oluşmaz.</>}
+            {src ? t("editedHint", { title: src.title }) : t("newHint")}
           </p>
         </div>
         {canWrite ? (
           <div className="nk-btn-row">
             {src ? (
               <>
-                <button type="button" className="nk-btn nk-primary" onClick={() => { setTitle(draft.request.title); setDialog("replace"); }} disabled={busy} data-testid="draft-replace"><Icon name="save" />Kaydı Güncelle</button>
-                <button type="button" className="nk-btn" onClick={() => void startNewSave()} disabled={busy || checking} data-testid="draft-save-new">Yeni kayıt olarak kaydet</button>
+                <button type="button" className="nk-btn nk-primary" onClick={() => { setTitle(draft.request.title); setDialog("replace"); }} disabled={busy} data-testid="draft-replace"><Icon name="save" />{t("replace")}</button>
+                <button type="button" className="nk-btn" onClick={() => void startNewSave()} disabled={busy || checking} data-testid="draft-save-new">{t("saveNew")}</button>
               </>
             ) : (
-              <button type="button" className="nk-btn nk-primary" onClick={() => void startNewSave()} disabled={busy || checking} data-testid="draft-save"><Icon name="save" />{checking && !dup ? "Kontrol ediliyor…" : "Kaydet"}</button>
+              <button type="button" className="nk-btn nk-primary" onClick={() => void startNewSave()} disabled={busy || checking} data-testid="draft-save"><Icon name="save" />{checking && !dup ? t("checking") : t("save")}</button>
             )}
           </div>
         ) : null}
       </div>
       {err ? (
-        <Alert tone="error" title="Kaydedilemedi" action={err.stale ? <a className="nk-btn nk-sm" href={editHref(draft.request.kind, { draftKey: draft.key })}>Bilgileri Düzenle</a> : undefined}>
+        <Alert tone="error" title={t("failedTitle")} action={err.stale ? <a className="nk-btn nk-sm" href={editHref(draft.request.kind, { draftKey: draft.key })}>{t("editInputs")}</a> : undefined}>
           {err.msg}
         </Alert>
       ) : null}
@@ -135,21 +139,21 @@ export function DraftSaveBar({ draft, activeTab, canWrite }: { draft: StoredDraf
       />
       <ConfirmDialog
         open={dialog !== null}
-        title={dialog === "replace" ? "Kayıtlı analiz güncellensin mi?" : "Analizi kaydet"}
-        confirmLabel={dialog === "replace" ? "Kaydı Güncelle" : "Kaydet"}
+        title={dialog === "replace" ? t("confirmReplaceTitle") : t("confirmSaveTitle")}
+        confirmLabel={dialog === "replace" ? t("replace") : t("save")}
         busy={busy}
         onCancel={() => setDialog(null)}
         onConfirm={() => void run(dialog ?? "save")}
       >
         {dialog === "replace" && src ? (
-          <p className="nk-lead">“{src.title}” kaydındaki bilgiler ve sonuçlar bu yeni hesapla değiştirilecek. Eski sonuç saklanmaz.</p>
+          <p className="nk-lead">{t("replaceBody", { title: src.title })}</p>
         ) : (
-          <p className="nk-lead">Analiz Kayıtlı Analizler listesine eklenir{draft.request.clientId ? " ve seçtiğiniz danışana bağlanır" : ""}.</p>
+          <p className="nk-lead">{draft.request.clientId ? t("saveBodyLinked") : t("saveBody")}</p>
         )}
         <div className="nk-field" style={{ marginTop: 12 }}>
-          <label htmlFor={`${uid}-baslik`}>Kayıt başlığı</label>
+          <label htmlFor={`${uid}-baslik`}>{t("titleLabel")}</label>
           <input id={`${uid}-baslik`} className="nk-input" value={title} maxLength={CLASSIC_TITLE_MAX} onChange={(e) => setTitle(e.target.value)} autoComplete="off" data-testid="draft-title" />
-          <p className="nk-hint">Boş bırakılırsa ad kullanılır.</p>
+          <p className="nk-hint">{t("titleHint")}</p>
         </div>
       </ConfirmDialog>
     </section>

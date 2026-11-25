@@ -50,6 +50,34 @@ export function placeInputMessage(label: string, p: PlaceNumberInput): { tone: "
   }
 }
 
+/** Çeviri fonksiyonu (next-intl `t`, ad alanı `numerology.tabs.place`) — saf yardımcıda hook yok. */
+export type PlaceInputT = (key: string, values?: Record<string, string>) => string;
+
+/**
+ * I18N: `placeInputMessage` ile AYNI karar (durum kodu → ton); yalnız metin katalogdan (kaynak dil dışı ekranlar).
+ * TR ekran `placeInputMessage`'ı birebir kullanmaya devam eder.
+ */
+export function placeInputMessageEn(t: PlaceInputT, label: string, p: PlaceNumberInput): { tone: "error" | "info"; text: string } | null {
+  switch (p.status) {
+    case "noDigits":
+      return { tone: "error", text: t("msg.noDigits", { label }) };
+    case "tooLong":
+      return { tone: "error", text: t("msg.tooLong", { label, max: String(PLACE_NUMBER_MAX_DIGITS) }) };
+    case "zero":
+      return { tone: "error", text: t("msg.zero", { label }) };
+    case "ok":
+      if (!p.altered) return null;
+      return {
+        tone: "info",
+        text: p.ignored.length
+          ? t("msg.altered", { raw: p.raw, value: String(p.value), ignored: p.ignored.map((c) => `“${c}”`).join(", ") })
+          : t("msg.alteredSpaces", { raw: p.raw, value: String(p.value) }),
+      };
+    default:
+      return null;
+  }
+}
+
 /** İşyeri adındaki rakam grupları (harf tablosunda yer almaz; hesaba katılmaz). */
 export function businessNameDigitGroups(name: string): string[] {
   return name.match(/\d+/g) ?? [];

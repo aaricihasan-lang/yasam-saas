@@ -1,0 +1,224 @@
+{
+  "cupping": {
+    "shell": {
+      "crumbAria": "Location",
+      "crumbHome": "Home",
+      "crumbEnergyBody": "Body & Energy Practices",
+      "moduleName": "Cupping & Hijama"
+    },
+    "home": {
+      "eyebrow": "Professional Workspace",
+      "title": "Cupping & Hijama Therapy",
+      "desc": "Create your hijama protocols and manage areas, techniques, application flow, safety notes, information and sources in a single workspace.",
+      "mainCardsAria": "Workspace",
+      "mainEyebrow": "Workspace",
+      "protocols": {
+        "title": "Hijama Protocols",
+        "desc": "Manage areas, techniques, application flow, safety, information and sources in one place, organised by complaint or working purpose.",
+        "cta": "Open Protocols"
+      },
+      "calendar": {
+        "title": "Hijama Calendar",
+        "desc": "Create your own annual hijama working calendar; view Gregorian and Hijri dates together and choose your application days yourself.",
+        "cta": "Open Calendar"
+      },
+      "supportTitle": "Support Libraries",
+      "supportAria": "Support libraries",
+      "supportCta": "Open",
+      "support": {
+        "points": {
+          "title": "Hijama Points",
+          "desc": "View hijama areas and their saved descriptions."
+        },
+        "techniques": {
+          "title": "Cupping Techniques",
+          "desc": "Manage dry, wet and other application techniques."
+        },
+        "safety": {
+          "title": "Safety & Contraindications",
+          "desc": "Create and edit your own safety / caution items and link them to protocols."
+        }
+      },
+      "note": "Note: This module organises traditional-use / sourced relationship information; no topic automatically implies that it \"treats\" anything."
+    },
+    "error": {
+      "title": "Something went wrong",
+      "crumb": "Error",
+      "heading": "This screen could not be displayed because of an unexpected error.",
+      "body": "Your saved data has not been affected. You can try the screen again or return to the Cupping & Hijama home.",
+      "retry": "Try again",
+      "home": "Cupping & Hijama home"
+    },
+    "errors": {
+      "network": "Could not reach the server. Please check your internet connection and try again.",
+      "codes": {
+        "CUP_DB_FAIL": "The action could not be completed. Please try again.",
+        "CUP_READ_FAILED": "The data could not be loaded. Please try again.",
+        "CUP_NOT_FOUND": "This record does not belong to this account or could not be found.",
+        "CUP_DUPLICATE": "This record has already been added.",
+        "CUP_IN_USE": "This record cannot be deleted because it is in use. Remove it from the linked records first.",
+        "CUP_INVALID_BODY": "Invalid request body.",
+        "CUP_NO_FIELDS": "There are no fields to update.",
+        "CUP_ID_REQUIRED": "A record ID is required.",
+        "CUP_CLIENT_ID_REQUIRED": "A client ID is required.",
+        "CUP_FIELD_INVALID": "One of the fields contains an invalid value.",
+        "CUP_FIELD_TOO_LONG": "One of the fields is too long.",
+        "CUP_LIST_TOO_LONG": "One of the lists contains too many items.",
+        "CUP_WORD_FAILED": "The Word report could not be created. Please try again.",
+        "CUP_NAME_REQUIRED": "A name is required.",
+        "CUP_TITLE_REQUIRED": "A title is required.",
+        "CUP_NOTE_TEXT_REQUIRED": "Note text is required.",
+        "CUP_CONTENT_REQUIRED": "Information content is required.",
+        "CUP_STEP_TEXT_REQUIRED": "Step text is required.",
+        "CUP_PROTOCOL_NOT_OWNED": "The protocol does not belong to this account or could not be found.",
+        "CUP_POINT_NOT_OWNED": "The selected area does not belong to this account.",
+        "CUP_POINT_OR_TOPIC_NOT_OWNED": "The point or topic does not belong to this account.",
+        "CUP_TOPIC_NOT_OWNED": "The topic does not belong to this account or could not be found.",
+        "CUP_TEMPLATE_NOT_OWNED": "The selected template does not belong to this account.",
+        "CUP_SOURCE_NOT_OWNED": "The selected source does not belong to this account.",
+        "CUP_TECHNIQUE_NOT_OWNED": "The selected technique does not belong to this account.",
+        "CUP_SAFETY_NOT_OWNED": "The selected safety item does not belong to this account.",
+        "CUP_TECHNIQUE_NOT_FOUND": "The technique does not belong to this account or could not be found.",
+        "CUP_SOURCE_NOT_FOUND": "The source does not belong to this account or could not be found.",
+        "CUP_POINT_NOT_FOUND": "The point does not belong to this account or could not be found.",
+        "CUP_SAFETY_NOT_FOUND": "The safety record does not belong to this account or could not be found.",
+        "CUP_TECHNIQUE_ALREADY_ADDED": "This technique has already been added to the protocol.",
+        "CUP_SAFETY_ALREADY_ADDED": "This safety item has already been added to the protocol.",
+        "CUP_POINT_ALREADY_ADDED": "This area has already been added to the protocol.",
+        "CUP_TECHNIQUE_IN_STEP": "This technique is used in the protocol's application flow (in a step). Edit the relevant step first.",
+        "CUP_POINT_IN_STEP": "This area is used in the protocol's application flow (in a step). Edit the relevant step first.",
+        "CUP_STEP_TECHNIQUE_NOT_IN_PROTOCOL": "The technique referenced by the step is not among the protocol's techniques.",
+        "CUP_STEP_POINT_NOT_IN_PROTOCOL": "The area referenced by the step is not among the protocol's application areas.",
+        "CUP_TOO_MANY_POINTS": "Too many areas were selected.",
+        "CUP_MAP_INVALID": "Invalid map.",
+        "CUP_POSITION_INVALID": "Invalid position information.",
+        "CUP_SEVERITY_INVALID": "Invalid severity level.",
+        "CUP_YEAR_INVALID": "Invalid year.",
+        "CUP_YEAR_OUT_OF_RANGE": "The year must be within the valid range.",
+        "CUP_MONTH_INVALID": "Invalid month. It must be a whole number between 1 and 12.",
+        "CUP_MONTH_DUPLICATE": "The month can only be specified once.",
+        "CUP_TOO_MANY_DAYS": "Too many days were selected at once.",
+        "CUP_DATE_OUTSIDE_PLAN_YEAR": "The selected date is not in the plan year.",
+        "CUP_DATE_INVALID": "Invalid date format (YYYY-MM-DD expected).",
+        "CUP_DAY_ITEM_INVALID": "Invalid day entry.",
+        "CUP_DATES_REQUIRED": "At least one date (YYYY-MM-DD) is required.",
+        "CUP_PLAN_HAS_DAYS": "This plan has selected days, so the year cannot be changed. Remove the days first.",
+        "CUP_ADVICE_TEMPLATE_MISSING": "The information template linked to the calendar could not be found. Link the template again or remove the link.",
+        "CUP_DAY_COLOR_INVALID": "Invalid colour selection.",
+        "CUP_DAY_COLOR_REQUIRED": "A colour must be selected.",
+        "CUP_DAY_COLOR_REMOVE": "The colour cannot be removed; choose a different colour.",
+        "CUP_DAY_LABEL_INVALID": "The short description is not valid.",
+        "CUP_DAY_LABEL_TOO_LONG": "The short description is too long.",
+        "CUP_DAY_NOTE_INVALID": "The detailed note is not valid.",
+        "CUP_DAY_NOTE_TOO_LONG": "The detailed note is too long."
+      }
+    },
+    "common": {
+      "save": "Save",
+      "saving": "Saving…",
+      "saved": "Saved.",
+      "saveFailed": "Could not be saved.",
+      "cancel": "Cancel",
+      "edit": "Edit",
+      "delete": "Delete",
+      "close": "Close",
+      "retry": "Try again",
+      "loading": "Loading…",
+      "demoNoCreate": "Records are not created on the demo account.",
+      "passive": "Inactive",
+      "active": "Active"
+    },
+    "vocab": {
+      "techniqueType": {
+        "dry": "Dry Cupping",
+        "wet": "Wet Cupping / Hijama",
+        "unspecified": "Not specified"
+      },
+      "movementStyle": {
+        "stationary": "Stationary",
+        "gliding": "Gliding",
+        "flash": "Flash",
+        "unspecified": "Not specified"
+      },
+      "severity": {
+        "info": "Information",
+        "warning": "Warning",
+        "contraindication": "Contraindication"
+      },
+      "contraClass": {
+        "absolute": "Absolute",
+        "relative": "Relative",
+        "none": "None"
+      },
+      "unspecified": "Not specified",
+      "all": "All"
+    },
+    "unsaved": {
+      "title": "Unsaved Changes",
+      "message": "You have unsaved changes.\nDo you want to leave without saving?",
+      "confirm": "Leave Without Saving",
+      "cancel": "Cancel"
+    },
+    "crud": {
+      "loadError": "Loading error.",
+      "required": "{label} is required.",
+      "deleteNoop": "The record could not be deleted (no change was made on this account).",
+      "deleteFailed": "Could not be deleted.",
+      "impactFailed": "The impact of deletion could not be calculated; nothing was deleted. Please try again.",
+      "impactFailedShort": "Error",
+      "records": "Records",
+      "searchPlaceholder": "Search…",
+      "searchAria": "Search records",
+      "filterAll": "{label}: All",
+      "results": "{count, plural, one {{count} result} other {{count} results}}",
+      "clear": "Clear",
+      "noMatch": "No records match your search.",
+      "selectHint": "Select a record on the left to edit, or add a new one.",
+      "add": "Add",
+      "checking": "Checking…",
+      "deleteBlockedTitle": "Record cannot be deleted",
+      "deleteTitle": "Delete record",
+      "deleteConfirm": "Are you sure you want to delete “{name}”? This action cannot be undone.",
+      "thisRecord": "This record"
+    },
+    "bigNote": {
+      "unsaved": "Unsaved change",
+      "hint": "{count, plural, one {{count} character} other {{count} characters}} · Press <strong>Save</strong> in the form to save permanently",
+      "apply": "Apply"
+    },
+    "usage": {
+      "loadError": "Usage information could not be loaded.",
+      "title": "Protocols Using This",
+      "unused": "This record is not used in any protocol yet. (It can be deleted.)",
+      "usedIn": "{count, plural, one {This record is used in {count} protocol; remove it from this protocol before deleting.} other {This record is used in {count} protocols; remove it from these protocols before deleting.}}"
+    },
+    "citation": {
+      "evidence": {
+        "traditional": "Traditional",
+        "historical": "Historical",
+        "modern_clinical": "Modern Clinical",
+        "systematic_review": "Systematic Review",
+        "safety_guidance": "Safety Guidance",
+        "expert_educational": "Expert / Educational"
+      },
+      "unknownSource": "(source)",
+      "loadError": "Sources could not be loaded.",
+      "nameRequired": "Enter the source name (e.g. Teacher Ahmet's training note).",
+      "removeNoop": "The link could not be removed (no change was made on this account).",
+      "removeFailed": "Could not be removed.",
+      "title": "Sources",
+      "empty": "No sources linked yet.",
+      "remove": "Remove",
+      "sourceLabel": "Source (who / where I learned it from)",
+      "sourcePlaceholder": "e.g. Teacher Ahmet's training note, my own training notes, Book X…",
+      "evidenceAria": "Evidence class",
+      "evidenceEmpty": "— evidence class —",
+      "locator": "Page / section (locator)",
+      "note": "Citation note (optional)",
+      "update": "Update Source",
+      "link": "Link Source",
+      "removeTitle": "Remove source",
+      "removeConfirm": "The link between “{name}” and this record will be removed. The source remains in your source catalogue (it is not deleted entirely)."
+    }
+  }
+}

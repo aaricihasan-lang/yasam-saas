@@ -119,7 +119,7 @@ ok("E4 Kayıtlı Raporlar: canonical Word İndir uzmana açık (yalnız Android 
   /isCanonical\s*\?[\s\S]{0,700}!isAndroid\s*\?/.test(raporList) && !/isCanonical\s*\?[\s\S]{0,700}isAdmin\s*&&/.test(raporList));
 const reader = strip(read("app/human-design/kayitli-haritalar/components/HdPersonalKnowledgePanel.tsx"));
 ok("E5 Chart Reader paneli: non-admin (locked) → empty-state (admin prose YOK)",
-  /state\.locked/.test(reader) && /oluşturulmamış/.test(read("app/human-design/kayitli-haritalar/components/HdPersonalKnowledgePanel.tsx")));
+  /state\.locked/.test(reader) && /t\("lockedTitle"\)/.test(read("app/human-design/kayitli-haritalar/components/HdPersonalKnowledgePanel.tsx")) && /oluşturulmamış/.test(JSON.parse(read("messages/tr/hd.records.json")).hd.records.personal.lockedTitle)); // I18N R5: metin katalogda
 const canonicalView = strip(read("app/human-design/bilgi-bankasi/canonical/[entityKey]/CanonicalEntityView.tsx"));
 ok("E6 Canonical detay (direct URL): non-admin locked → KnowledgeEmpty",
   /locked\s*\?[\s\S]{0,160}KnowledgeEmpty/.test(canonicalView));

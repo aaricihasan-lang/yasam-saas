@@ -4,41 +4,18 @@
  * Natal "Semboller" rehberi (2026-11-04) — yeni başlayanlar için kısa, TEKNİK tanımlar. Yorum / astrolojik iddia içermez:
  * gök cismi ve noktalar astronomik / hesap tanımıyla, açılar açı değeriyle anlatılır. Profesyonel kullanıcıyı yormamak için
  * ayrı sekmededir (çarkta yalnız ipucu). Haritaya özgü bilgiler (düğüm türü, Şans Noktası gündüz/gece) teknik veriden okunur.
+ *
+ * I18N mod-g (25.11.2026): metinler katalogda (atlas.natal.symbols); gezegen / burç / açı / element / nitelik / düğüm / retro adları
+ * ortak terim kataloğundan (terms.*; TR değerleri lib/astrology/labels/tr.ts ile birebir — scripts/astrology/atlas-terms-catalog.harness.ts).
+ * TR çıktı önceki sürümle karakteri karakterine aynı (scripts/astrology/atlas-natal-symbols-i18n.harness.ts).
  */
 
 import type { ReactNode } from "react";
-import type { AspectType, BodyId, NatalTechnical, SignId } from "@/lib/astrology/model/western";
-import { SIGN_IDS } from "@/lib/astrology/model/western";
-import {
-  ASPECT_GLYPHS,
-  ASPECT_LABELS,
-  BODY_GLYPHS,
-  BODY_LABELS,
-  ELEMENT_LABELS,
-  MODALITY_LABELS,
-  NODE_TYPE_LABELS,
-  SIGN_ELEMENT,
-  SIGN_GLYPHS,
-  SIGN_LABELS,
-} from "@/lib/astrology/labels/tr";
+import { useTranslations } from "next-intl";
+import type { AspectType, NatalTechnical, SignId } from "@/lib/astrology/model/western";
+import { BODY_IDS, SIGN_IDS } from "@/lib/astrology/model/western";
+import { ASPECT_GLYPHS, BODY_GLYPHS, SIGN_ELEMENT, SIGN_GLYPHS } from "@/lib/astrology/labels/tr";
 import styles from "./natalWheel.module.css";
-
-const BODY_TEXT: Record<BodyId, string> = {
-  sun: "Doğum anında Güneş'in zodyaktaki konumu. Güneş zodyağı yaklaşık bir yılda dolaşır (günde ~1°).",
-  moon: "Ay'ın konumu. En hızlı hareket eden gök cismidir: günde yaklaşık 12–15°, bu yüzden doğum saati Ay derecesini belirgin etkiler.",
-  mercury: "Güneş'e en yakın gezegen. Dünya'dan bakıldığında Güneş'ten en fazla ~28° uzaklaşır.",
-  venus: "Dünya'dan bakıldığında Güneş'ten en fazla ~47° uzaklaşır.",
-  mars: "Zodyağı yaklaşık 2 yılda (687 gün) dolaşır.",
-  jupiter: "Zodyağı yaklaşık 12 yılda dolaşır.",
-  saturn: "Zodyağı yaklaşık 29,5 yılda dolaşır; antik çağdan bilinen gezegenlerin en uzağı.",
-  uranus: "Zodyağı yaklaşık 84 yılda dolaşır.",
-  neptune: "Zodyağı yaklaşık 165 yılda dolaşır.",
-  pluto: "Zodyağı yaklaşık 248 yılda dolaşır (yörüngesi çok basık olduğundan burçlarda kalma süresi değişkendir).",
-  north_node: "Ay yörüngesinin ekliptiği güneyden kuzeye kestiği nokta (hesaplanan nokta, gök cismi değildir).",
-  south_node: "Kuzey Ay Düğümü'nün tam karşısı (her zaman 180°).",
-  chiron: "Satürn ile Uranüs yörüngeleri arasında dolanan küçük gök cismi (2060 Chiron); zodyağı yaklaşık 50 yılda dolaşır.",
-  lilith: "Kara Ay Lilith: Ay yörüngesinin Dünya'dan en uzak noktası (apoje). Bu sistemde ortalama (mean) hesap kullanılır.",
-};
 
 const ASPECT_DEG: Record<AspectType, number> = {
   conjunction: 0,
@@ -97,97 +74,87 @@ function Row({ glyph, name, children, glyphInk }: { glyph: ReactNode; name: stri
 }
 
 export default function NatalSymbolGuide({ technical }: { technical: NatalTechnical }) {
+  const t = useTranslations("atlas.natal.symbols");
+  const tt = useTranslations("terms");
   const sect = technical.points?.partOfFortune?.sect ?? null;
+  // Düğüm türü kanonik kimlik ("true" | "mean"); tanınmayan değer ham gösterilir (önceki davranış: etiket ?? ham değer).
+  const nodeType = technical.nodeType as string | null | undefined;
+  const nodeLabel = nodeType === "true" || nodeType === "mean" ? tt(`nodeType.${nodeType}`) : String(nodeType ?? "");
   return (
     <div className="flex flex-col gap-3" data-testid="natal-symbol-guide">
       <p className="rounded-lg border border-slate-200 bg-[#fbfaf7] px-3 py-2 text-sm leading-6 text-slate-600">
-        Bu rehber çarktaki işaretlerin <strong>ne olduğunu</strong> kısaca anlatır; yorum değildir. Çarkta bir sembolün üzerine
-        gelince (dokunmatikte basılı tutunca) adı ve tam derecesi görünür.
+        {t.rich("intro", { strong: (c) => <strong>{c}</strong> })}
       </p>
 
-      <Block title="Gezegenler ve noktalar">
+      <Block title={t("blockBodies")}>
         <ul>
-          {(Object.keys(BODY_TEXT) as BodyId[]).map((id) => (
-            <Row key={id} glyph={BODY_GLYPHS[id]} name={BODY_LABELS[id]}>
-              {BODY_TEXT[id]}
-              {id === "north_node" ? ` Bu haritada: ${NODE_TYPE_LABELS[technical.nodeType] ?? technical.nodeType}.` : ""}
+          {BODY_IDS.map((id) => (
+            <Row key={id} glyph={BODY_GLYPHS[id]} name={tt(`body.${id}`)}>
+              {t(`body.${id}`)}
+              {id === "north_node" ? ` ${t("nodeHere", { node: nodeLabel })}` : ""}
             </Row>
           ))}
-          <Row glyph="⊗" name="Şans Noktası" glyphInk="#0f766e">
-            Yükselen, Güneş ve Ay&apos;dan hesaplanan nokta (gök cismi değildir). Gündüz doğumunda Yükselen + Ay − Güneş, gece doğumunda
-            Yükselen + Güneş − Ay formülü kullanılır.
-            {sect ? ` Bu harita: ${sect === "day" ? "gündüz" : "gece"} doğumu.` : ""}
+          <Row glyph="⊗" name={t("fortuneName")} glyphInk="#0f766e">
+            {t("fortuneText")}
+            {sect ? ` ${sect === "day" ? t("sectDay") : t("sectNight")}` : ""}
           </Row>
           <Row glyph="Vx" name="Vertex" glyphInk="#0f766e">
-            Ana dikey dairenin (doğu–batı yönündeki dikey daire) ekliptiği batı tarafta kestiği nokta; doğum yerinin enlemine ve saatine
-            bağlıdır.
+            {t("vertexText")}
           </Row>
         </ul>
       </Block>
 
-      <Block title="Açısal noktalar (eksenler)">
+      <Block title={t("blockAngles")}>
         <ul>
-          <Row glyph="ASC" name="Yükselen">
-            Doğum anında doğu ufkunda yükselen zodyak derecesi. Çoğu ev sisteminde 1. evin başlangıcıdır.
+          <Row glyph="ASC" name={t("ascName")}>
+            {t("ascText")}
           </Row>
-          <Row glyph="DSC" name="Alçalan">
-            Batı ufkundaki derece; Yükselen&apos;in tam karşısı (180°).
+          <Row glyph="DSC" name={t("dscName")}>
+            {t("dscText")}
           </Row>
-          <Row glyph="MC" name="Tepe Noktası (Medium Coeli)">
-            Ekliptiğin yerel meridyeni (güney yönü) kestiği derece. Placidus, Koch gibi sistemlerde 10. evin başlangıcıdır.
+          <Row glyph="MC" name={t("mcName")}>
+            {t("mcText")}
           </Row>
-          <Row glyph="IC" name="Dip Noktası (Imum Coeli)">
-            MC&apos;nin tam karşısı (180°).
+          <Row glyph="IC" name={t("icName")}>
+            {t("icText")}
           </Row>
         </ul>
-        <p className="mt-1 text-xs leading-5 text-slate-500">
-          Tam Burç ve Eşit Ev sistemlerinde ev başlangıçları eksenlerle çakışmayabilir; Natal çarkında gerçek ASC–DSC ve MC–IC ekseni
-          kalın çizgiyle ayrıca gösterilir.
-        </p>
+        <p className="mt-1 text-xs leading-5 text-slate-500">{t("anglesNote")}</p>
       </Block>
 
-      <Block title="Burçlar">
+      <Block title={t("blockSigns")}>
         <ul className="grid gap-x-4 sm:grid-cols-2">
           {SIGN_IDS.map((s, i) => (
-            <Row key={s} glyph={SIGN_GLYPHS[s]} name={SIGN_LABELS[s]} glyphInk={ELEMENT_INK[SIGN_ELEMENT[s]]}>
-              {i * 30}°–{i * 30 + 30}° · {ELEMENT_LABELS[SIGN_ELEMENT[s]]} · {MODALITY_LABELS[SIGN_MODALITY[s]]}
+            <Row key={s} glyph={SIGN_GLYPHS[s]} name={tt(`zodiac.${s}`)} glyphInk={ELEMENT_INK[SIGN_ELEMENT[s]]}>
+              {i * 30}°–{i * 30 + 30}° · {tt(`element.${SIGN_ELEMENT[s]}`)} · {tt(`modality.${SIGN_MODALITY[s]}`)}
             </Row>
           ))}
         </ul>
-        <p className="mt-1 text-xs leading-5 text-slate-500">
-          Zodyak 12 eşit 30° dilimdir (tropikal zodyak; 0° Koç = ilkbahar noktası). Burç rengi elementini gösterir.
-        </p>
+        <p className="mt-1 text-xs leading-5 text-slate-500">{t("signsNote")}</p>
       </Block>
 
-      <Block title="Açılar">
+      <Block title={t("blockAspects")}>
         <ul>
-          {[...MAJOR_ORDER, ...MINOR_ORDER].map((t) => (
-            <Row key={t} glyph={ASPECT_GLYPHS[t]} name={ASPECT_LABELS[t]}>
-              İki nokta arasındaki {ASPECT_DEG[t]}° açı.
-              {MAJOR_ORDER.includes(t) ? " Başlıca açı: Temel görünümde de çizilir." : " Küçük açı: yalnız Profesyonel görünümde, kesik çizgiyle."}
+          {[...MAJOR_ORDER, ...MINOR_ORDER].map((a) => (
+            <Row key={a} glyph={ASPECT_GLYPHS[a]} name={tt(`aspect.${a}`)}>
+              {t("aspectText", { deg: ASPECT_DEG[a] })}
+              {` ${MAJOR_ORDER.includes(a) ? t("aspectMajor") : t("aspectMinor")}`}
             </Row>
           ))}
         </ul>
-        <p className="mt-1 text-xs leading-5 text-slate-500">
-          Çizgi renkleri sistemin açı türü sınıfıdır: mavi uyumlu, kırmızı zorlayıcı, gri nötr. Kavuşumdaki iki nokta çarkta üst üste
-          olduğundan kavuşum çizgisi görünmeyebilir; bütün açılar Açılar sekmesinde listelenir. Kuzey–Güney Düğüm karşıtlığı her haritada
-          tanım gereği 180° olduğundan çarka çizilmez.
-        </p>
+        <p className="mt-1 text-xs leading-5 text-slate-500">{t("aspectsNote")}</p>
       </Block>
 
-      <Block title="Orb, retro ve derece gösterimi">
+      <Block title={t("blockOrb")}>
         <ul>
-          <Row glyph="orb" name="Orb">
-            Gerçek açının tam açı değerinden farkı. Örnek: iki gezegen arasında 93° varsa kare (90°) açı, orb 3°. Hangi orb&apos;a kadar açı
-            sayılacağı hesaplama kaynağının kuralıdır; bu ekran orb&apos;u değiştirmez. Profesyonel görünümde orb küçüldükçe çizgi kalınlaşır.
+          <Row glyph="orb" name={t("orbName")}>
+            {t("orbText")}
           </Row>
-          <Row glyph="℞" name="Retro (geri hareket)" glyphInk="#be123c">
-            Gezegen Dünya&apos;dan bakıldığında zodyakta geri yönde ilerliyor görünür. Bu görünür bir harekettir; gezegenin yörüngedeki
-            yönü değişmez.
+          <Row glyph="℞" name={tt("motion.retrograde")} glyphInk="#be123c">
+            {t("retroText")}
           </Row>
-          <Row glyph="°′" name="Derece ve dakika">
-            1° = 60′ (yay dakikası). Dereceler efemeris geleneğiyle dakika kesilerek yazılır: 29°59,9′ → 29°59′ (sonraki burca
-            yuvarlanmaz). Çarktaki cetvelde her çentik 1°, orta çentik 5°, uzun çentik 10°dir.
+          <Row glyph="°′" name={t("degreeName")}>
+            {t("degreeText")}
           </Row>
         </ul>
       </Block>

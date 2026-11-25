@@ -1,0 +1,147 @@
+{
+  "settings": {
+    "page": {
+      "title": "Ayarlar & Güvenlik",
+      "subtitle": "Parola, iletişim, yedekleme ve dışa aktarma",
+      "loginRequired": "Giriş yapmanız gerekiyor.",
+      "loginLink": "Giriş Yap →",
+      "demoBanner": "Demo hesabında yedekleme, geri yükleme, dışa aktarma ve parola değiştirme işlemleri kapalıdır.",
+      "demoLockedTitle": "Bu işlem demo hesabında kapalıdır.",
+      "demoLockedBody": "Yedekleme, geri yükleme, dışa aktarma ve parola değiştirme yalnızca kayıtlı hesaplarda kullanılabilir."
+    },
+    "tabs": {
+      "security": "Hesap Güvenliği",
+      "profile": "Profilim",
+      "location": "Konum",
+      "contact": "Admin ile İrtibat",
+      "export": "Dışa Aktarım",
+      "backup": "Sistem Yedeği",
+      "restore": "Geri Yükleme",
+      "membership": "Üyeliğim",
+      "workspace": "Çalışma Alanım"
+    },
+    "tabBar": {
+      "groupData": "Yedek & Aktarım",
+      "more": "Diğer"
+    },
+    "security": {
+      "fillAll": "Tüm alanları doldurun.",
+      "mismatch": "Yeni parola tekrarı eşleşmiyor.",
+      "changeFailed": "Parola değiştirilemedi.",
+      "updatedTitle": "Parola güncellendi",
+      "revokeFailed": "Ancak diğer cihazlardaki oturumlar kapatılamadı. Lütfen tekrar deneyin veya yöneticiye bildirin.",
+      "successTitle": "Başarılı",
+      "successBody": "Parolanız güncellendi; diğer cihazlardaki oturumlar kapatıldı.",
+      "connectionError": "Bağlantı hatası.",
+      "sessionsNotice": "Parola değiştiğinde diğer cihazlardaki oturumlar otomatik kapatılır.",
+      "currentLabel": "Mevcut Parola",
+      "currentPlaceholder": "Mevcut parolanızı girin",
+      "newLabel": "Yeni Parola",
+      "newPlaceholder": "En az 6 karakter",
+      "repeatLabel": "Yeni Parola Tekrar",
+      "repeatPlaceholder": "Yeni parolanızı tekrar girin",
+      "updating": "Güncelleniyor…",
+      "updated": "Güncellendi",
+      "submit": "Parolayı Güncelle"
+    },
+    "contact": {
+      "subjectRequired": "Konu giriniz.",
+      "messageRequired": "Mesaj giriniz.",
+      "sendFailed": "Gönderilemedi.",
+      "sentTitle": "Gönderildi",
+      "sentBody": "Mesajınız admin'e iletildi.",
+      "connectionError": "Bağlantı hatası.",
+      "subjectLabel": "Konu",
+      "subjectPlaceholder": "Mesaj konusu",
+      "messageLabel": "Mesaj",
+      "messagePlaceholder": "Mesajınızı buraya yazın…",
+      "priorityLabel": "Öncelik",
+      "priorityNormal": "Normal",
+      "priorityUrgentButton": "⚡ Acil",
+      "sending": "Gönderiliyor…",
+      "send": "Gönder",
+      "loadingMessages": "Mesajlar yükleniyor…",
+      "previousMessages": "Önceki Mesajlar",
+      "urgent": "Acil",
+      "adminNote": "Admin Notu",
+      "status": {
+        "open": "Açık",
+        "read": "Okundu",
+        "replied": "Yanıtlandı",
+        "closed": "Kapatıldı"
+      },
+      "direct": {
+        "title": "Daha hızlı iletişim için",
+        "body": "Mesajınıza geç dönüş alırsanız bize WhatsApp veya telefonla da ulaşabilirsiniz.",
+        "whatsappAria": "WhatsApp’tan yaz: {number} (yeni sekmede açılır)",
+        "whatsappCta": "WhatsApp’tan Yaz",
+        "phone": "Telefon",
+        "phoneAria": "Telefonla ara: {number}",
+        "phoneCta": "Telefonla Ara"
+      }
+    },
+    "location": {
+      "selectFirst": "Önce bir şehir seçin.",
+      "savedTitle": "Kaydedildi",
+      "savedBody": "Varsayılan konum: {name}",
+      "saveFailed": "Kaydedilemedi.",
+      "currentLabel": "Mevcut varsayılan konum",
+      "notSaved": "Kayıtlı değil — varsayılan: Ankara",
+      "demoNote": "Demo hesabında varsayılan konum kaydedilemez.",
+      "searchLabel": "Şehir ara (81 il)",
+      "searchAria": "Varsayılan konum için şehir ara",
+      "searchPlaceholder": "Örn. Manisa, İzmir…",
+      "selected": "Seçili:",
+      "save": "Varsayılan konumu kaydet",
+      "hint": "Varsayılan konum, Kozmik Ajanda tutulma görünürlüğü gibi konuma bağlı hesaplarda başlangıç şehri olarak kullanılır.",
+      "errors": {
+        "codes": {
+          "NO_SESSION": "Oturum bulunamadı.",
+          "NETWORK": "Ağ hatası."
+        }
+      }
+    },
+    "workspace": {
+      "layouts": {
+        "A": "A · İmza Bandı",
+        "B": "B · Dijital Ofis",
+        "C": "C · Kartvizit Stüdyo"
+      },
+      "appliedDesign": "Uygulanan tasarım",
+      "defaultDesign": "Varsayılan Yaşam Sistemi görünümü",
+      "logoAndBackground": "Logo ve arka plan",
+      "personalLogo": "Kişisel logo",
+      "ownPhoto": "Kendi fotoğrafım",
+      "presetTheme": "Hazır tema",
+      "default": "Varsayılan",
+      "draftHistory": "Kayıtlı taslak / geçmiş",
+      "draftSaved": "Kaydedilmiş taslak var",
+      "noDraft": "Taslak yok",
+      "historyCount": "{count} önceki tasarım",
+      "intro": "Ana ekranınızı kendi logonuz, fotoğrafınız ve marka renklerinizle kişiselleştirin; modülleri gizleyin, Favorilerim listenizi düzenleyin. Kişiselleştirme merkezi ana ekranda açılır ve değişiklikleri uygulamadan önce canlı olarak gösterir. Görünüm modunu (Gündüz, Gece, Okuma, Odak) ana ekranın üst çubuğundan da değiştirebilirsiniz.",
+      "demoNote": "Demo hesapta kişiselleştirme yalnız görüntülenebilir; değişiklik kaydedilemez.",
+      "edit": "Çalışma Alanımı Düzenle",
+      "footer": "Kişiselleştirme yalnız sizin ana ekran görünümünüzü değiştirir; modül yetkileriniz, danışan kayıtlarınız ve iç modül ekranları etkilenmez."
+    },
+    "api": {
+      "supportLoadFailed": "Mesajlar yüklenemedi.",
+      "invalidRequest": "Geçersiz istek.",
+      "subjectRequired": "Konu gerekli.",
+      "messageRequired": "Mesaj gerekli.",
+      "subjectTooLong": "Konu en fazla 200 karakter.",
+      "messageTooLong": "Mesaj en fazla 5000 karakter.",
+      "supportRateLimited": "Çok fazla destek mesajı gönderildi. Lütfen daha sonra tekrar deneyin.",
+      "supportSendFailed": "Mesaj gönderilemedi; lütfen tekrar deneyin.",
+      "locationReadFailed": "Konum okunamadı.",
+      "locationDemo": "Demo hesapta varsayılan konum kaydedilemez.",
+      "locationIdRequired": "Konum kimliği gerekli.",
+      "cityRequired": "Şehir adı gerekli.",
+      "countryCode": "Ülke kodu 2 harf olmalı.",
+      "tzRequired": "Saat dilimi gerekli.",
+      "latRange": "Enlem -90 ile 90 arasında olmalı.",
+      "lonRange": "Boylam -180 ile 180 arasında olmalı.",
+      "elevNumber": "Rakım sayısal olmalı.",
+      "locationSaveFailed": "Konum kaydedilemedi."
+    }
+  }
+}

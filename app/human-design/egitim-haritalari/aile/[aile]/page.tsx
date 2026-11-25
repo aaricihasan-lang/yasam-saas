@@ -11,6 +11,7 @@
 import Link from "next/link";
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import base from "@/app/_premium/hd-education/egitimYonetim.module.css";
 import css from "@/app/_premium/hd-education/egitimKatalog.module.css";
 import ov from "@/app/admin/hd-egitim-haritalari/ownerViews.module.css";
@@ -20,9 +21,11 @@ import type { EduCatalogDetail } from "@/lib/human-design/education/educationCon
 import type { EduVisibleFamily } from "@/lib/human-design/education/educationFamilies";
 import { catalogGet } from "../../catalogApi";
 import { EduLoading, EduNotFound, EduShell } from "../../EduShell";
-import { EDU_CATALOG_HREF } from "../../EduFamilyCards";
+import { EDU_CATALOG_HREF, useFamilyText } from "../../EduFamilyCards";
 
 function FamilyCompare() {
+  const t = useTranslations("hd.education");
+  const ft = useFamilyText();
   const params = useParams<{ aile: string }>();
   const sp = useSearchParams();
   const key = String(params?.aile ?? "");
@@ -62,28 +65,28 @@ function FamilyCompare() {
 
   if (state === "loading") return <EduLoading />;
   if (state === "notfound" || !family) return <EduNotFound />;
-  if (state === "error") return <EduShell><p className={base.err} role="alert">Aile haritaları şu anda yüklenemedi. Bağlantınızı kontrol edip sayfayı yenileyin.</p></EduShell>;
+  if (state === "error") return <EduShell><p className={base.err} role="alert">{t("fam.loadError")}</p></EduShell>;
   const nameOf = (id: string) => family.members.find((m) => m.id === id)?.displayName ?? null;
   const famHref = `${EDU_CATALOG_HREF}/aile/${encodeURIComponent(family.key)}`;
   return (
     <EduShell>
-      <Link className={css.back} href={EDU_CATALOG_HREF}>← Hazır Eğitim Haritaları</Link>
+      <Link className={css.back} href={EDU_CATALOG_HREF}>{t("cat.back")}</Link>
       <section className={base.hero} aria-labelledby="fam-title">
-        <p className={base.eyebrow}>YAŞAM SİSTEMİ · HUMAN DESIGN</p>
-        <h1 id="fam-title" className={base.title}>{family.title}</h1>
-        <p className={base.sub}>{selected.length === family.members.length ? "Ailenin tamamı" : "Seçili kişiler"} — kayıtlı haritalar tek sayfada</p>
+        <p className={base.eyebrow}>{t("cat.eyebrow")}</p>
+        <h1 id="fam-title" className={base.title}>{ft.title(family)}</h1>
+        <p className={base.sub}>{t("fam.pageSub", { who: selected.length === family.members.length ? t("fam.whole") : t("fam.selected") })}</p>
       </section>
-      <section className={base.panel} aria-label="Aile bağları" data-edu-family-page={family.key}>
+      <section className={base.panel} aria-label={t("fam.linksAria")} data-edu-family-page={family.key}>
         {family.links.map((l) => {
           const a = nameOf(l.from); const b = nameOf(l.to);
-          return a && b ? <p key={`${l.from}-${l.to}`} className={ov.relLine} data-edu-family-link>{a} ⟷ {b} <span>· {l.label}</span></p> : null;
+          return a && b ? <p key={`${l.from}-${l.to}`} className={ov.relLine} data-edu-family-link>{a} ⟷ {b} <span>· {ft.link(l.label)}</span></p> : null;
         })}
-        <p className={ov.famNote}>Kaynakla doğrulanmış aile bağı. Bu sayfa yeni ilişki hesabı yapmaz; kayıtlı bireysel haritalar yan yana gösterilir.</p>
+        <p className={ov.famNote}>{t("fam.note")}</p>
         <div className={ov.famActions}>
           {family.members.map((m) => (
-            <Link key={m.id} className={ov.famBtn} href={`${famHref}?sec=${encodeURIComponent(m.id)}`} aria-current={selected.length === 1 && selected[0].id === m.id ? "page" : undefined}>Yalnız {m.displayName} ({m.role})</Link>
+            <Link key={m.id} className={ov.famBtn} href={`${famHref}?sec=${encodeURIComponent(m.id)}`} aria-current={selected.length === 1 && selected[0].id === m.id ? "page" : undefined}>{t("fam.only", { name: m.displayName, role: ft.role(m.role) })}</Link>
           ))}
-          <Link className={`${ov.famBtn} ${ov.famBtnMain}`} href={famHref}>Ailenin Tamamını İncele</Link>
+          <Link className={`${ov.famBtn} ${ov.famBtnMain}`} href={famHref}>{t("fam.reviewAll")}</Link>
         </div>
       </section>
       <div className={ov.cmpGrid} data-edu-family-grid={selected.length}>
@@ -92,17 +95,17 @@ function FamilyCompare() {
           return (
             <article key={m.id} className={ov.cmpCard} data-edu-family-member={m.id}>
               <div className={ov.cmpHead}>
-                <h2 className={ov.cmpName}>{m.displayName} <span className={ov.famRole}>{m.role}</span></h2>
-                <Link className={ov.famOpen} href={`${EDU_CATALOG_HREF}/${encodeURIComponent(m.id)}`}>Ayrıntılı incele →</Link>
+                <h2 className={ov.cmpName}>{m.displayName} <span className={ov.famRole}>{ft.role(m.role)}</span></h2>
+                <Link className={ov.famOpen} href={`${EDU_CATALOG_HREF}/${encodeURIComponent(m.id)}`}>{t("fam.reviewDetail")}</Link>
               </div>
-              {!d ? <p className={base.empty}>Harita yükleniyor…</p>
-                : d === "err" ? <p className={base.err}>Harita şu anda açılamadı.</p>
-                : <EduBodygraphViewer result={d.chart.result as unknown as HdComputedChart} roxyRender={d.chart.render} title={`${m.displayName} (${m.role})`} compact={selected.length > 1} />}
+              {!d ? <p className={base.empty}>{t("fam.chartLoading")}</p>
+                : d === "err" ? <p className={base.err}>{t("fam.chartError")}</p>
+                : <EduBodygraphViewer result={d.chart.result as unknown as HdComputedChart} roxyRender={d.chart.render} title={`${m.displayName} (${ft.role(m.role)})`} compact={selected.length > 1} />}
             </article>
           );
         })}
       </div>
-      <p className={base.note}>Eğitim amaçlıdır. Bu kişiler, mirasçıları veya hak sahipleriyle herhangi bir ticari bağlantı, sponsorluk ya da onay ilişkisi yoktur.</p>
+      <p className={base.note}>{t("cat.disclaimer")}</p>
     </EduShell>
   );
 }

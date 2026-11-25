@@ -374,7 +374,9 @@ async function main(): Promise<void> {
     for (const p of ["app/api/refleksoloji/protocol-report/route.ts", "app/api/refleksoloji/atlas-report/route.ts", "app/api/kupa/protocols/[id]/word-report/route.ts", "app/api/kupa/calendar/plans/[id]/word-report/route.ts"]) {
       const s = src(p);
       const calls = s.match(/resolveReportBranding\([^;]*\);/g) ?? [];
-      ok(calls.length === 1 && /\{ tenantId, userId: guard\.userId \}/.test(calls[0]!) && /fullName: expertDisplayName\(guard\.profile\)/.test(calls[0]!) && /purpose: "signature"/.test(calls[0]!) && /branding \}\)|branding\);|, branding \}/.test(s), `${p}: tek çağrı, oturum sahibi + oturum adı, purpose signature, kurucuya iletilir`, calls);
+      // "kurucuya iletilir": çözülen `branding` bir build*(…) çağrısının nesne argümanına AYNEN (kısa özellik, `branding: …` değil)
+      // girer; diğer alanların sırası / sayısı serbest (I18N: Kupa kurucularına `output` eklendi — `{ …, branding, output }`).
+      ok(calls.length === 1 && /\{ tenantId, userId: guard\.userId \}/.test(calls[0]!) && /fullName: expertDisplayName\(guard\.profile\)/.test(calls[0]!) && /purpose: "signature"/.test(calls[0]!) && /\bbuild\w*\([^;]*\{[^{};]*\bbranding\b(?!\s*:)[^{};]*\}\s*\)/.test(s), `${p}: tek çağrı, oturum sahibi + oturum adı, purpose signature, kurucuya iletilir`, calls);
     }
     for (const p of ["app/api/hacamat/word-report/route.ts", "app/api/hacamat/pdf-report/route.ts"]) {
       const s = src(p);

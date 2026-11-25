@@ -1,0 +1,63 @@
+{
+  "reports": {
+    "nutrition": {
+      "brandTagline": "Holistic Life Analysis Platform",
+      "coverKicker": "NUTRITION PLAN",
+      "planFallback": "Nutrition Plan",
+      "headerBrand": "Yaşam Sistemi · Nutrition Plan",
+      "footerName": "Nutrition Plan · Yaşam Sistemi",
+      "docTitle": "Nutrition Plan — {title}",
+      "filePrefix": "Nutrition-Plan",
+      "status": {
+        "draft": "Draft",
+        "active": "Active",
+        "archived": "Archived"
+      },
+      "meta": {
+        "client": "Client",
+        "status": "Status",
+        "statusValue": "{status} · Revision V{rev}",
+        "energyTarget": "Daily Energy Target",
+        "duration": "Plan Duration",
+        "durationValue": "{count, plural, one {{shown} day entry} other {{shown} day entries}}",
+        "expert": "Practitioner"
+      },
+      "intro": "This document is a professional nutrition plan summary generated from the frozen record values of the meals and foods in the plan. Energy and macronutrient values are based on the food values at the time of recording.",
+      "planNote": "Plan Note",
+      "columns": {
+        "food": "Food",
+        "amount": "Amount",
+        "grams": "Grams",
+        "energy": "Energy"
+      },
+      "dayTarget": "Daily energy target: {value}",
+      "mealFallback": "Meal",
+      "mealEmpty": "No foods have been added to this meal.",
+      "dayEmpty": "No meals have been added to this day.",
+      "energyUnknown": "Calories not entered",
+      "energyWithMissing": "≥ {value} (energy data missing for {count, plural, one {{shown} item} other {{shown} items}})",
+      "strip": {
+        "energy": "Day Total — Energy",
+        "protein": "Protein",
+        "carbohydrate": "Carbohydrate",
+        "fat": "Fat",
+        "fiber": "Fibre"
+      },
+      "summary": {
+        "title": "Plan Overview",
+        "durationDays": "Plan Duration (day entries)",
+        "contentDays": "Days with Content",
+        "energyTarget": "Daily Energy Target",
+        "avgEnergy": "Average Daily Energy",
+        "delta": "Difference from Target",
+        "avgProtein": "Average Protein",
+        "avgCarbohydrate": "Average Carbohydrate",
+        "avgFat": "Average Fat",
+        "avgFiber": "Average Fibre",
+        "missingItems": "Items Missing Energy Data",
+        "missingItemsValue": "{count, plural, one {{shown} item (not included in totals)} other {{shown} items (not included in totals)}}",
+        "note": "Averages are calculated only over days that contain at least one food."
+      }
+    }
+  }
+}

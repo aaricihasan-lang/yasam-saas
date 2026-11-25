@@ -17,6 +17,7 @@ import type { RoxyCallResult } from "@/lib/astrology/providers/roxy/client";
 import { Lru } from "../ephemeris/provider";
 import { MONTHLY_ADAPTER_VERSION, MONTHLY_ENDPOINT, MONTHLY_NODE_METHOD, monthlyProviderBody, projectMonthly } from "./contract";
 import { crossCheckMonthly, independentCheckReady } from "./crossCheck";
+import { SOURCE_TEXT } from "./text";
 import type { MonthlyEphemeris, MonthlyError, MonthlyRequest } from "./types";
 
 assertServerOnly("lib/astrology/pro/monthly/service");
@@ -68,13 +69,14 @@ export function ensureVerified(e: MonthlyEphemeris): { ok: true; result: Monthly
   if (isVerifiedPass(cc)) return { ok: true, result: { ...e, crossCheck: cc } };
   return { ok: false, error: cc.status === "fail" ? CROSSCHECK_FAILED_ERROR : CROSSCHECK_UNAVAILABLE_ERROR };
 }
+// Hata metinleri kaynak dilde (tr; katalog). Rota sınırında istek diline çevrilir (routeKit.localizeBody).
 export const CROSSCHECK_UNAVAILABLE_ERROR: MonthlyError = {
   code: "CROSSCHECK_UNAVAILABLE",
-  error: "Bağımsız doğrulama şu anda yapılamıyor; doğrulanmamış tablo gösterilmez. Geçici bir sorun — lütfen biraz sonra tekrar deneyin.",
+  error: SOURCE_TEXT.t("errors.crossUnavailable"),
 };
 export const CROSSCHECK_FAILED_ERROR: MonthlyError = {
   code: "CROSSCHECK_FAILED",
-  error: "Hesaplanan konumlar bağımsız kontrolden geçmedi (tolerans dışı fark); tablo gösterilmez ve saklanmaz.",
+  error: SOURCE_TEXT.t("errors.crossFailed"),
 };
 
 function isMonthlyEphemeris(x: unknown, req: MonthlyRequest): x is MonthlyEphemeris {
@@ -120,7 +122,7 @@ async function writeDbCache(db: MonthlyDeps["db"], key: string, req: MonthlyRequ
 }
 
 async function fetchFromProvider(req: MonthlyRequest, key: string, deps: MonthlyDeps): Promise<MonthlyOutcome> {
-  if (!deps.callProvider) return { ok: false, providerCalls: 0, error: { code: "PROVIDER_DISABLED", error: "Hesaplama altyapısı şu anda yapılandırılmamış. Daha önce hesaplanmış aylar yine açılabilir." } };
+  if (!deps.callProvider) return { ok: false, providerCalls: 0, error: { code: "PROVIDER_DISABLED", error: SOURCE_TEXT.t("errors.providerDisabled") } };
   // Bağımsız kontrol yapılamayacaksa ücretli istek HİÇ atılmaz (sonuç zaten kabul edilemezdi).
   const ready = (deps.independentCheckReady ?? independentCheckReady)();
   if (!ready.ok) {
@@ -129,19 +131,19 @@ async function fetchFromProvider(req: MonthlyRequest, key: string, deps: Monthly
   }
   if (deps.beforeProviderCall) {
     const g = await deps.beforeProviderCall();
-    if (!g.ok) return { ok: false, providerCalls: 0, error: { code: "RATE_LIMITED", error: "Kısa sürede çok fazla yeni ay hesaplandı. Lütfen biraz sonra tekrar deneyin.", retryAfterSec: g.retryAfterSec } };
+    if (!g.ok) return { ok: false, providerCalls: 0, error: { code: "RATE_LIMITED", error: SOURCE_TEXT.t("errors.providerRate"), retryAfterSec: g.retryAfterSec } };
   }
   const endpoint = MONTHLY_ENDPOINT[req.kind];
   const r = await deps.callProvider(endpoint, monthlyProviderBody(req));
   const calls = Math.max(1, r.attempts);
   if (!r.ok) {
     console.error("[astro-monthly] sağlayıcı hatası", { kind: req.kind, status: r.status ?? null, err: r.kind });
-    return { ok: false, providerCalls: calls, error: { code: "PROVIDER_FAILED", error: "Hesaplama altyapısından bu ay alınamadı; tablo eksik veriyle gösterilmez. Lütfen biraz sonra tekrar deneyin." } };
+    return { ok: false, providerCalls: calls, error: { code: "PROVIDER_FAILED", error: SOURCE_TEXT.t("errors.providerFailed") } };
   }
   const pr = projectMonthly(req, r.raw);
   if (!pr.ok) {
     console.error("[astro-monthly] yanıt reddedildi", { kind: req.kind, year: req.year, month: req.month, reason: pr.reason });
-    return { ok: false, providerCalls: calls, error: { code: "PROVIDER_INCONSISTENT", error: "Hesaplama altyapısının yanıtı tutarlılık denetiminden geçmedi; tablo gösterilmez." } };
+    return { ok: false, providerCalls: calls, error: { code: "PROVIDER_INCONSISTENT", error: SOURCE_TEXT.t("errors.providerInconsistent") } };
   }
   let cc: MonthlyEphemeris["crossCheck"];
   try {
@@ -194,7 +196,7 @@ export async function getMonthlyEphemeris(req: MonthlyRequest, deps: MonthlyDeps
   // belleğe yeniden bakılır; aksi hâlde aynı ay için ikinci ücretli istek giderdi.
   const late = MEMORY.get(key);
   if (late && isVerifiedPass(late.crossCheck)) return { ok: true, result: late, cache: "memory", providerCalls: 0 };
-  if (!opts.allowProvider) return { ok: false, providerCalls: 0, error: { code: "NOT_CACHED", error: "Bu ayın tablosu henüz hesaplanmamış. Önce tabloyu hesaplayın." } };
+  if (!opts.allowProvider) return { ok: false, providerCalls: 0, error: { code: "NOT_CACHED", error: SOURCE_TEXT.t("errors.notCached") } };
   const pending = IN_FLIGHT.get(key);
   if (pending) {
     const o = await pending;

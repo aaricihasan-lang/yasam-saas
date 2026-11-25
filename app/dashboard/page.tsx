@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
 
 /** Uzman API çağrıları için kimlik başlıkları (publishable supabase yerine). */
@@ -12,6 +13,7 @@ function userHeaders(): Record<string, string> {
 }
 
 export default function DashboardPage() {
+  const t = useTranslations("home.dashboard");
   const [totalClients, setTotalClients] = useState<number | null>(null);
   const [todayAppointments, setTodayAppointments] = useState<number | null>(
     null,
@@ -81,6 +83,7 @@ export default function DashboardPage() {
   }, []);
 
   const modules: {
+    id: string;
     title: string;
     desc: string;
     icon: string;
@@ -90,60 +93,69 @@ export default function DashboardPage() {
     premiumGlow?: boolean;
   }[] = [
     {
-      title: "Danışanlar",
-      desc: "Danışan kayıt ve analiz sistemi",
+      id: "clients",
+      title: t("cards.clients.title"),
+      desc: t("cards.clients.desc"),
       icon: "👥",
       href: "/dashboard/clients",
     },
     {
-      title: "Ajanda",
-      desc: "Randevu ve seans yönetimi",
+      id: "agenda",
+      title: t("cards.agenda.title"),
+      desc: t("cards.agenda.desc"),
       icon: "🗓️",
       href: "/dashboard/ajanda",
     },
     {
-      title: "Doğaltaş",
-      desc: "Taş ve mineral veri sistemi",
+      id: "stones",
+      title: t("cards.stones.title"),
+      desc: t("cards.stones.desc"),
       icon: "💎",
       href: "/dogaltas",
     },
     {
-      title: "Biyoenerji",
-      desc: "Aura, çakra, imajinasyon ve sembol dili çalışma alanı",
+      id: "bioenergy",
+      title: t("cards.bioenergy.title"),
+      desc: t("cards.bioenergy.desc"),
       icon: "✨",
       href: "/dashboard/biyoenerji",
-      badge: "Yeni",
+      badge: t("badgeNew"),
     },
     {
-      title: "Kişisel Arşiv (TEST)",
-      desc: "Ses, video, belge ve kişisel kayıt sistemi",
+      id: "personalArchive",
+      title: t("cards.personalArchive.title"),
+      desc: t("cards.personalArchive.desc"),
       icon: "🗂️",
       href: "/dashboard/kisisel-arsiv",
-      badge: "YENİ",
+      badge: t("badgeNewUpper"),
     },
     {
-      title: "Numeroloji",
-      desc: "Numerolojik analiz modülü",
+      id: "numerology",
+      title: t("cards.numerology.title"),
+      desc: t("cards.numerology.desc"),
       icon: "🔢",
       href: "/numeroloji",
       premiumGlow: true,
     },
     {
-      title: "Refleksoloji",
-      desc: "Bölge ve seans sistemi",
+      id: "reflexology",
+      title: t("cards.reflexology.title"),
+      desc: t("cards.reflexology.desc"),
       icon: "🦶",
     },
     {
-      title: "Aromaterapi",
-      desc: "Uçucu ve sabit yağ sistemi",
+      id: "aromatherapy",
+      title: t("cards.aromatherapy.title"),
+      desc: t("cards.aromatherapy.desc"),
       icon: "🌿",
     },
     {
-      title: "Kupa & Hacamat Terapisi",
-      desc: "Vücut nokta atlası, amaç rehberi, teknik ve güvenlik sistemi",
+      id: "cupping",
+      title: t("cards.cupping.title"),
+      desc: t("cards.cupping.desc"),
       icon: "🫙",
       href: "/kupa",
-      badge: "Yeni",
+      badge: t("badgeNew"),
     },
   ];
 
@@ -158,45 +170,45 @@ export default function DashboardPage() {
           </h1>
 
           <p className="mt-0.5 text-[11px] text-slate-400">
-            Premium SaaS Panel
+            {t("brandTagline")}
           </p>
         </div>
 
         <div className="mt-6 space-y-2">
           <button className="w-full rounded-xl border border-indigo-400/30 bg-indigo-500/20 p-2.5 text-left text-sm transition hover:bg-indigo-500/30">
-            Dashboard
+            {t("navDashboard")}
           </button>
 
           <Link
             href="/dashboard/clients"
             className="block w-full rounded-xl bg-white/5 p-2.5 text-left text-sm text-inherit no-underline transition hover:bg-white/10"
           >
-            Danışanlar
+            {t("navClients")}
           </Link>
 
           <Link
             href="/dashboard/ajanda"
             className="block w-full rounded-xl bg-white/5 p-2.5 text-left text-sm text-inherit no-underline transition hover:bg-white/10"
           >
-            Ajanda
+            {t("navAgenda")}
           </Link>
 
           <Link
             href="/dogaltas"
             className="block w-full rounded-xl bg-white/5 p-2.5 text-left text-sm text-inherit no-underline transition hover:bg-white/10"
           >
-            Doğaltaş
+            {t("navStones")}
           </Link>
         </div>
 
         <div className="mt-auto pt-3">
           <div className="rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 p-3">
             <p className="text-xs font-semibold">
-              Premium Sistem Aktif
+              {t("premiumActive")}
             </p>
 
             <p className="mt-0.5 text-[11px] opacity-80">
-              Tüm modüller çalışıyor
+              {t("allModulesRunning")}
             </p>
           </div>
         </div>
@@ -210,20 +222,20 @@ export default function DashboardPage() {
         <div className="flex shrink-0 flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
             <h2 className="text-2xl font-bold tracking-tight md:text-[1.65rem]">
-              Hoş Geldiniz 👋
+              {t("welcome")}
             </h2>
 
             <p className="mt-0.5 text-xs text-slate-400 md:text-[13px]">
-              Yaşam Sistemi yönetim paneline giriş yaptınız.
+              {t("welcomeSub")}
             </p>
           </div>
 
           <div className="shrink-0 rounded-xl bg-gradient-to-r from-pink-500 to-orange-500 px-3 py-2 shadow-lg shadow-pink-500/20 ring-1 ring-white/10">
             <p className="text-[10px] font-medium uppercase tracking-wide text-white/90">
-              Aktif Kullanıcı
+              {t("activeUser")}
             </p>
             <p className="text-xs font-bold leading-tight">
-              Uzman Paneli
+              {t("expertPanel")}
             </p>
           </div>
         </div>
@@ -233,7 +245,7 @@ export default function DashboardPage() {
         <div className="grid shrink-0 grid-cols-2 gap-2 md:grid-cols-4 md:gap-2.5">
           <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-3 backdrop-blur-sm">
             <p className="text-[11px] text-slate-400">
-              Toplam Danışan
+              {t("statTotalClients")}
             </p>
 
             <h3 className="mt-1 text-xl font-bold tabular-nums md:text-2xl">
@@ -243,7 +255,7 @@ export default function DashboardPage() {
 
           <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-3 backdrop-blur-sm">
             <p className="text-[11px] text-slate-400">
-              Bugünkü Randevu
+              {t("statTodayAppointments")}
             </p>
 
             <h3 className="mt-1 text-xl font-bold tabular-nums md:text-2xl">
@@ -253,7 +265,7 @@ export default function DashboardPage() {
 
           <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-3 backdrop-blur-sm">
             <p className="text-[11px] text-slate-400">
-              Kayıtlı Taş
+              {t("statSavedStones")}
             </p>
 
             <h3 className="mt-1 text-xl font-bold tabular-nums md:text-2xl">
@@ -263,7 +275,7 @@ export default function DashboardPage() {
 
           <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-3 backdrop-blur-sm">
             <p className="text-[11px] text-slate-400">
-              Aktif Modül
+              {t("statActiveModules")}
             </p>
 
             <h3 className="mt-1 text-xl font-bold tabular-nums md:text-2xl">
@@ -276,7 +288,7 @@ export default function DashboardPage() {
 
         <div className="flex min-h-0 flex-1 flex-col gap-1.5 pt-0.5">
           <h3 className="shrink-0 text-sm font-semibold text-slate-200 md:text-base">
-            Modüller
+            {t("modulesTitle")}
           </h3>
 
           <div className="grid w-full min-h-0 shrink-0 grid-cols-2 content-start gap-1.5 auto-rows-fr md:grid-cols-3 md:gap-2">
@@ -319,7 +331,7 @@ export default function DashboardPage() {
                   : "focus-visible:ring-2 focus-visible:ring-indigo-400/50 focus-visible:ring-offset-2 focus-visible:ring-offset-[#081028]";
                 return (
                   <Link
-                    key={module.title}
+                    key={module.id}
                     href={module.href}
                     className={`${cardClass} ${linkMotion} text-inherit no-underline outline-none ${focusRing}`}
                   >
@@ -335,7 +347,7 @@ export default function DashboardPage() {
 
               return (
                 <div
-                  key={module.title}
+                  key={module.id}
                   className={`${cardClass} ${staticHoverClass} cursor-default`}
                 >
                   {module.badge ? (

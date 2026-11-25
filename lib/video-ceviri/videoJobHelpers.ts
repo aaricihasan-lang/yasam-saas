@@ -81,29 +81,46 @@ export type InsertVideoJobResult =
   | { jobId: string; error: null }
   | { jobId: null; error: string };
 
-export function validateVideoFile(file: File): string | null {
+/**
+ * I18N: dil-bağımsız dosya doğrulama sonucu (kod + ayrıntı). Kontrol kuralları validateVideoFile ile
+ * BİREBİR aynıdır; arayüz metni `videoTranslate.upload.fileErrors.<code>` anahtarından üretilir.
+ */
+export type VideoFileCheck =
+  | { code: "UNSUPPORTED_FORMAT" }
+  | { code: "UNKNOWN_TYPE"; ext: string }
+  | { code: "EMPTY_FILE" }
+  | { code: "FILE_TOO_LARGE"; mb: string };
+
+export function checkVideoFile(file: File): VideoFileCheck | null {
   const ext = (file.name.split(".").pop() ?? "").toLowerCase();
   // MIME tipini lowercase'e normalize et (audio/AMR → audio/amr)
   const normalizedMime = (file.type ?? "").toLowerCase();
   const mimeOk = ALLOWED_VIDEO_MIME_TYPES.has(file.type) || ALLOWED_VIDEO_MIME_TYPES.has(normalizedMime);
   const extOk  = ALLOWED_EXTENSIONS.has(ext);
 
-  if (!mimeOk && !extOk) {
-    return `Bu format desteklenmiyor. Kabul edilen: MP4, MOV, WEBM, MKV, AVI, OGG · MP3, M4A, WAV, AAC, AMR.`;
-  }
+  if (!mimeOk && !extOk) return { code: "UNSUPPORTED_FORMAT" };
 
   // application/octet-stream yalnızca bilinen uzantılarla kabul edilir
-  if (normalizedMime === "application/octet-stream" && !extOk) {
-    return `Dosya tipi belirlenemiyor (.${ext || "?"} uzantısı desteklenmiyor). Kabul edilen ses formatları: MP3, M4A, WAV, AAC, AMR.`;
-  }
-  if (file.size === 0) {
-    return "Dosya boş görünüyor.";
-  }
-  if (file.size > MAX_WHISPER_SIZE_BYTES) {
-    const mb = (file.size / 1024 / 1024).toFixed(1);
-    return `Dosya ${mb} MB — transkripsiyon için maksimum 25 MB desteklenmektedir. Lütfen daha kısa bir ses veya video dosyası yükleyin.`;
-  }
+  if (normalizedMime === "application/octet-stream" && !extOk) return { code: "UNKNOWN_TYPE", ext: ext || "?" };
+  if (file.size === 0) return { code: "EMPTY_FILE" };
+  if (file.size > MAX_WHISPER_SIZE_BYTES) return { code: "FILE_TOO_LARGE", mb: (file.size / 1024 / 1024).toFixed(1) };
   return null;
+}
+
+/** Türkçe doğrulama metni (kaynak dil; değerler DEĞİŞMEDİ). */
+export function validateVideoFile(file: File): string | null {
+  const r = checkVideoFile(file);
+  if (!r) return null;
+  switch (r.code) {
+    case "UNSUPPORTED_FORMAT":
+      return `Bu format desteklenmiyor. Kabul edilen: MP4, MOV, WEBM, MKV, AVI, OGG · MP3, M4A, WAV, AAC, AMR.`;
+    case "UNKNOWN_TYPE":
+      return `Dosya tipi belirlenemiyor (.${r.ext} uzantısı desteklenmiyor). Kabul edilen ses formatları: MP3, M4A, WAV, AAC, AMR.`;
+    case "EMPTY_FILE":
+      return "Dosya boş görünüyor.";
+    case "FILE_TOO_LARGE":
+      return `Dosya ${r.mb} MB — transkripsiyon için maksimum 25 MB desteklenmektedir. Lütfen daha kısa bir ses veya video dosyası yükleyin.`;
+  }
 }
 
 // FAZ1 FINAL HARDENING (AUTH / item 11): video-temp nesne yolu artık YALNIZ sunucuda

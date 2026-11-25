@@ -153,7 +153,7 @@ export async function DELETE(
 
   const { id: clientId } = await params;
   if (!clientId) {
-    return NextResponse.json({ ok: false, error: "client_id gerekli." }, { status: 400 });
+    return NextResponse.json({ ok: false, code: "CLIENT_ID_REQUIRED", error: "client_id gerekli." }, { status: 400 });
   }
 
   const { db, tenantId, is_demo_account } = guard;
@@ -173,7 +173,7 @@ export async function DELETE(
     return serverErrorResponse({ route: "clients/[id]/cascade-delete", action: "ownership", tenantId, cause: cliErr });
   }
   if (!cli) {
-    return NextResponse.json({ ok: false, error: "Danışan bu hesaba ait değil." }, { status: 403 });
+    return NextResponse.json({ ok: false, code: "CLIENT_NOT_OWNED", error: "Danışan bu hesaba ait değil." }, { status: 403 });
   }
 
   // 1) Silmeden ÖNCE storage object path'lerini topla (DB satırları cascade ile gidecek).

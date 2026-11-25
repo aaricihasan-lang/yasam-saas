@@ -7,6 +7,7 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import kat from "@/app/_premium/hd-education/egitimKatalog.module.css";
 import base from "@/app/_premium/hd-education/egitimYonetim.module.css";
 import { PRIV_UUID_RE } from "@/lib/human-design/education/private/privateContract";
@@ -15,6 +16,7 @@ import { ConsentForm } from "../../_ui/ConsentForm";
 import { privCall } from "../../_ui/privApi";
 
 function ConsentPage() {
+  const t = useTranslations("hd.education");
   const sp = useSearchParams();
   const router = useRouter();
   const chart = sp.get("chart") ?? "";
@@ -35,15 +37,15 @@ function ConsentPage() {
   const back = `/human-design/egitim-merkezi/ozel/ekle?chart=${chart}`;
   return (
     <Shell>
-      <Link className={kat.back} href={back}>← Eğitim arşivine ekleme</Link>
+      <Link className={kat.back} href={back}>{t("consentPage.back")}</Link>
       <header className={kat.dHead}>
         <div>
-          <p className={base.eyebrow}>DANIŞAN İZNİ</p>
-          <h1 className={kat.dTitle}>Eğitim örneği izni</h1>
-          <p className={kat.sub2}>İzin, seçili kayıtlı haritanın danışanına bağlanır</p>
+          <p className={base.eyebrow}>{t("consentPage.eyebrow")}</p>
+          <h1 className={kat.dTitle}>{t("consentPage.title")}</h1>
+          <p className={kat.sub2}>{t("consentPage.sub")}</p>
         </div>
       </header>
-      <ConsentForm hdClientId={client} clientLabel="Seçili kayıtlı haritanın danışanı" onCancel={() => router.push(back)} onSaved={() => router.push(`${back}&step=2`)} />
+      <ConsentForm hdClientId={client} clientLabel={t("consentPage.clientLabel")} onCancel={() => router.push(back)} onSaved={() => router.push(`${back}&step=2`)} />
     </Shell>
   );
 }

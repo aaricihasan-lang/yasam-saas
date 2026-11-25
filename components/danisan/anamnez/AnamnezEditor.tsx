@@ -118,7 +118,19 @@ export function AnamnezEditor({ clientId, anamnesisId }: { clientId: string; ana
 
   const applyPayload = useCallback((p: LoadedPayload) => {
     setRec(p.anamnesis);
-    setFormCustom(p.anamnesis.form_custom);
+    // Savunma: sunucu (validateFormCustom) eksik anahtarları []/{} sayar; editör de aynı şekilde normalize eder.
+    // Kısmi/boş form_custom ('{}') artık effectiveSections'ta TypeError ile sayfayı düşürmez. Yazma yolu değişmez.
+    const fcRaw = p.anamnesis.form_custom as Partial<FormCustom> | null;
+    setFormCustom(
+      fcRaw
+        ? {
+            hidden: Array.isArray(fcRaw.hidden) ? fcRaw.hidden : [],
+            labels: fcRaw.labels && typeof fcRaw.labels === "object" ? fcRaw.labels : {},
+            enabledSections: Array.isArray(fcRaw.enabledSections) ? fcRaw.enabledSections : [],
+            custom: Array.isArray(fcRaw.custom) ? fcRaw.custom : [],
+          }
+        : null,
+    );
     setAnswers(p.anamnesis.answers ?? {});
     setLinks(p.anamnesis.source_links ?? {});
     setTitle(p.anamnesis.title ?? "");
@@ -422,7 +434,7 @@ export function AnamnezEditor({ clientId, anamnesisId }: { clientId: string; ana
     if (busy) return;
     setBusy("pdf");
     try {
-      const res = await fetch(`${anamnezBase(clientId)}/blank-form?aid=${encodeURIComponent(anamnesisId)}&locale=${locale}`, {
+      const res = await fetch(`${anamnezBase(clientId)}/blank-form?aid=${encodeURIComponent(anamnesisId)}`, {
         headers: anamnezAuthHeaders(),
         cache: "no-store",
       });
@@ -447,7 +459,7 @@ export function AnamnezEditor({ clientId, anamnesisId }: { clientId: string; ana
     if (busy || dirty || !rec) return;
     setBusy("filledPdf");
     try {
-      const res = await fetch(`${base}/pdf?rev=${rec.revision}&locale=${locale}`, {
+      const res = await fetch(`${base}/pdf?rev=${rec.revision}`, {
         headers: anamnezAuthHeaders(),
         cache: "no-store",
       });
@@ -457,7 +469,7 @@ export function AnamnezEditor({ clientId, anamnesisId }: { clientId: string; ana
         toastError(code);
         return;
       }
-      await downloadFileResponse(res, `anamnez-${rec.assessment_date}.pdf`);
+      await downloadFileResponse(res, `${locale === "en" ? "intake" : "anamnez"}-${rec.assessment_date}.pdf`);
     } catch {
       toastError("generic");
     } finally {

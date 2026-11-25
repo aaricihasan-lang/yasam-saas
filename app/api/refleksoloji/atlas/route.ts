@@ -85,10 +85,10 @@ export async function PUT(req: NextRequest): Promise<Response> {
     rawBody = await req.text();
     body = JSON.parse(rawBody) as typeof body;
   } catch {
-    return NextResponse.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 });
+    return NextResponse.json({ ok: false, code: "REF_INVALID_BODY", error: "Geçersiz istek gövdesi." }, { status: 400 });
   }
   if (!body || typeof body !== "object" || Array.isArray(body)) {
-    return NextResponse.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 });
+    return NextResponse.json({ ok: false, code: "REF_INVALID_BODY", error: "Geçersiz istek gövdesi." }, { status: 400 });
   }
 
   // Hardening: bozuk bölge (null / id'siz / sayı olmayan koordinat) renderer'ı ve Word'ü

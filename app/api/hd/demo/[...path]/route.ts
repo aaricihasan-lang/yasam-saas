@@ -1,3 +1,4 @@
+import { hdApiText } from "../../_lib/hdApiText";
 import { NextResponse, type NextRequest } from "next/server";
 import { isHdDemoViewer } from "@/lib/human-design/demo/demoGate";
 import { handleHdDemoRequest } from "@/lib/human-design/demo/demoService";
@@ -23,7 +24,7 @@ async function handle(req: NextRequest): Promise<Response> {
     try {
       body = await req.json();
     } catch {
-      return NextResponse.json({ ok: false, code: "MALFORMED_JSON", error: "Geçerli JSON gövdesi gerekli." }, { status: 400, headers: NO_STORE });
+      return NextResponse.json({ ok: false, code: "MALFORMED_JSON", error: hdApiText(req, "malformedJson") }, { status: 400, headers: NO_STORE });
     }
   }
   const r = handleHdDemoRequest(req.method, path, req.nextUrl.searchParams, body);

@@ -12,6 +12,7 @@ import {
   addFailure,
   mergeTableReports,
   normalizeBackupFile,
+  pushWarning,
   sortSelfReferencing,
   RESTORE_CHUNK_MAX_ROWS,
 } from "./format";
@@ -66,10 +67,10 @@ export async function handleBackupTableRequest(
 ): Promise<ServiceResult> {
   const e = name ? getRegistryEntry(name) : undefined;
   if (!e || !isExportable(e)) {
-    return { status: 400, body: { ok: false, error: "Geçersiz tablo adı." } };
+    return { status: 400, body: { ok: false, error: "Geçersiz tablo adı.", code: "BACKUP_BAD_TABLE" } };
   }
   const page = await fetchTablePage(db, e, tenantId, cursor, { ownerUserId: userId });
-  if (!page.ok && page.error === "Geçersiz cursor.") return { status: 400, body: page };
+  if (!page.ok && page.error_code?.code === "INVALID_CURSOR") return { status: 400, body: page };
   return { status: 200, body: page };
 }
 
@@ -77,7 +78,7 @@ type PlanBody = { version?: unknown; source_tenant_id?: unknown; tables?: unknow
 
 export function handleRestorePlan(ctx: RestoreContext, body: PlanBody): ServiceResult {
   if (!body.tables || typeof body.tables !== "object" || Array.isArray(body.tables)) {
-    return { status: 400, body: { ok: false, error: "Yedek yapısı geçersiz ('tables' eksik)." } };
+    return { status: 400, body: { ok: false, error: "Yedek yapısı geçersiz ('tables' eksik).", code: "RESTORE_BAD_PLAN" } };
   }
   const counts: Record<string, number> = {};
   for (const [k, v] of Object.entries(body.tables as Record<string, unknown>)) {
@@ -97,10 +98,13 @@ export async function handleRestoreChunk(
   body: ChunkBody,
 ): Promise<ServiceResult> {
   const table = typeof body.table === "string" ? body.table : "";
-  if (!table || table.length > 128) return { status: 400, body: { ok: false, error: "Tablo adı eksik." } };
-  if (!Array.isArray(body.rows)) return { status: 400, body: { ok: false, error: "Satır listesi eksik." } };
+  if (!table || table.length > 128) return { status: 400, body: { ok: false, error: "Tablo adı eksik.", code: "RESTORE_NO_TABLE" } };
+  if (!Array.isArray(body.rows)) return { status: 400, body: { ok: false, error: "Satır listesi eksik.", code: "RESTORE_NO_ROWS" } };
   if (body.rows.length > RESTORE_CHUNK_MAX_ROWS * 2) {
-    return { status: 413, body: { ok: false, error: `Parça en fazla ${RESTORE_CHUNK_MAX_ROWS * 2} satır olabilir.` } };
+    return {
+      status: 413,
+      body: { ok: false, error: `Parça en fazla ${RESTORE_CHUNK_MAX_ROWS * 2} satır olabilir.`, code: "RESTORE_CHUNK_TOO_LARGE" },
+    };
   }
   const report = await restoreChunk(db, ctx, table, body.rows);
   return { status: 200, body: { ok: true, report } };
@@ -119,7 +123,7 @@ export type FullRestoreResult = {
 /** Eski tek-gövde istek (`{ backup }`): küçük yedekler için sunucuda parça parça işlenir. */
 export async function handleFullRestore(db: SupabaseClient, ctx: RestoreContext, backup: unknown): Promise<ServiceResult> {
   const norm = normalizeBackupFile(backup);
-  if (!norm.ok) return { status: 400, body: { ok: false, error: norm.error } };
+  if (!norm.ok) return { status: 400, body: { ok: false, error: norm.error, code: norm.code } };
   const b = norm.backup;
   const counts: Record<string, number> = {};
   for (const [t, rows] of Object.entries(b.tables)) counts[t] = rows.length;
@@ -135,7 +139,7 @@ export async function handleFullRestore(db: SupabaseClient, ctx: RestoreContext,
         const r = emptyTableReport(d.table, d.module, rows.length);
         r.skipped_unlicensed = rows.length;
         r.status = "SKIPPED";
-        r.warnings.push(d.detail);
+        pushWarning(r, d.detail, { code: "SKIPPED", params: { reason: d.reason } });
         tables.push(r);
       }
       continue;

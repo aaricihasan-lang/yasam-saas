@@ -19,7 +19,8 @@
 
 import type { AspectNature, AspectType, BodyId, NatalHouse, SignId } from "@/lib/astrology/model/western";
 import { SIGN_IDS } from "@/lib/astrology/model/western";
-import { BODY_GLYPHS, BODY_LABELS, formatDegree, SIGN_ELEMENT, SIGN_GLYPHS, SIGN_LABELS } from "@/lib/astrology/labels/tr";
+import { useTranslations } from "next-intl";
+import { BODY_GLYPHS, formatDegree, SIGN_ELEMENT, SIGN_GLYPHS } from "@/lib/astrology/labels/tr";
 import { isAspectDrawn, type NatalAspectFilter, type NatalWheelMode, type WheelExtraPoint } from "@/lib/astrology/view/natalWheelDisplay";
 import NatalWheelLabeled, { type NatalLabelPick, type NatalWheelLayoutInfo } from "./NatalWheelLabeled";
 
@@ -55,18 +56,7 @@ const NATURE_COLOR: Record<string, string> = {
 
 const MAJOR = new Set(["conjunction", "opposition", "trine", "square", "sextile"]);
 
-/** Açı çizgisi ipucu (yalnız Natal görünüm katmanı). */
-const ASPECT_TITLE: Record<AspectType, string> = {
-  conjunction: "Kavuşum (0°)",
-  opposition: "Karşıt (180°)",
-  trine: "Üçgen (120°)",
-  square: "Kare (90°)",
-  sextile: "Sekstil (60°)",
-  semi_sextile: "Yarım sekstil (30°)",
-  semi_square: "Yarım kare (45°)",
-  sesquiquadrate: "Bir buçuk kare (135°)",
-  quincunx: "Quincunx (150°)",
-};
+// I18N-F1-R5: açı çizgisi ipucu katalogdan (atlas.wheel.aspectTitle.<tür>; TR değerleri önceki ASPECT_TITLE ile birebir).
 
 function norm(deg: number): number {
   return ((deg % 360) + 360) % 360;
@@ -133,7 +123,7 @@ const POINT_INK = "#0f766e";
 
 export default function NatalWheel({
   technical,
-  label = "Natal harita çarkı",
+  label: labelProp,
   sizeClassName = "h-auto w-full max-w-[604px]",
   tinted = false,
   display,
@@ -147,6 +137,12 @@ export default function NatalWheel({
   /** Yalnız Natal ekranı: derece cetveli + Temel/Profesyonel + nokta seçimi. Verilmezse önceki çizim aynen. */
   display?: NatalWheelDisplay;
 }) {
+  // I18N-F1-R5: SVG ipuçları / erişilebilir ad katalogdan (atlas.wheel + terms); geometri ve çizim değişmez.
+  const tw = useTranslations("atlas.wheel");
+  const tt = useTranslations("terms");
+  const SIGN_LABELS = (s: SignId) => tt(`zodiac.${s}`);
+  const BODY_LABELS = (b: BodyId) => tt(`body.${b}`);
+  const label = labelProp ?? tw("defaultLabel");
   if (display?.labels) return <NatalWheelLabeled technical={technical} label={label} sizeClassName={sizeClassName} display={{ ...display, labels: display.labels }} />;
   const D = display ?? null;
   const fs = tinted ? { sign: 22, glyph: 22, deg: 11, min: 8.5, house: 12, angle: 10.5 } : { sign: 19, glyph: 20, deg: 9.5, min: 7.5, house: 11, angle: 9.5 };
@@ -308,7 +304,7 @@ export default function NatalWheel({
               fontSize={fs.sign}
               fill={ELEMENT_COLOR[SIGN_ELEMENT[sign]]}
             >
-              <title>{SIGN_LABELS[sign]}</title>
+              <title>{SIGN_LABELS(sign)}</title>
               {SIGN_GLYPHS[sign]}
             </text>
           </g>
@@ -394,7 +390,7 @@ export default function NatalWheel({
             <g key={`cd${h.number}`} data-cusp-degree={h.number}>
               <line x1={t1.x} y1={t1.y} x2={t2.x} y2={t2.y} stroke="#94a3b8" strokeWidth={0.8} />
               <text x={q.x} y={q.y} textAnchor="middle" dominantBaseline="central" fontSize={fs.min} fill="#475569" {...HALO}>
-                <title>{`${h.number}. ev başlangıcı — ${SIGN_LABELS[h.sign]} ${formatDegree(h.degreeInSign)}`}</title>
+                <title>{tw("cuspTitle", { n: String(h.number), sign: SIGN_LABELS(h.sign), deg: formatDegree(h.degreeInSign) })}</title>
                 {formatDegree(h.degreeInSign)}
               </text>
             </g>
@@ -405,10 +401,10 @@ export default function NatalWheel({
       {technical.angles && (
         <>
           {[
-            { lon: technical.angles.ascendant.longitude, t: "ASC", title: "Yükselen" },
-            { lon: technical.angles.ascendant.longitude + 180, t: "DSC", title: "Alçalan" },
-            { lon: technical.angles.midheaven.longitude, t: "MC", title: "Tepe Noktası (MC)" },
-            { lon: technical.angles.midheaven.longitude + 180, t: "IC", title: "Dip Noktası (IC)" },
+            { lon: technical.angles.ascendant.longitude, t: "ASC", title: tw("angle.asc") },
+            { lon: technical.angles.ascendant.longitude + 180, t: "DSC", title: tw("angle.dsc") },
+            { lon: technical.angles.midheaven.longitude, t: "MC", title: tw("angle.mc") },
+            { lon: technical.angles.midheaven.longitude + 180, t: "IC", title: tw("angle.ic") },
           ].map((a) => {
             if (D) {
               // Natal: iki satırlı levha — kısaltma + burç içi derece (tablolarla aynı biçimlendirici; dakika kesilir).
@@ -419,7 +415,7 @@ export default function NatalWheel({
                 <g key={a.t} data-angle={a.t}>
                   <rect x={q2.x - 23} y={q2.y - 13} width={46} height={26} rx={5} fill="#fffdf7" stroke="#334155" strokeWidth={0.8} />
                   <text x={q2.x} y={q2.y - 5.5} textAnchor="middle" dominantBaseline="central" fontSize={fs.angle} fontWeight={700} fill="#0f172a">
-                    <title>{`${a.title} — ${SIGN_LABELS[sign]} ${formatDegree(l % 30)}`}</title>
+                    <title>{`${a.title} — ${SIGN_LABELS(sign)} ${formatDegree(l % 30)}`}</title>
                     {a.t}
                   </text>
                   <text x={q2.x} y={q2.y + 6} textAnchor="middle" dominantBaseline="central" fontSize={fs.angle - 1} fill="#334155">
@@ -469,7 +465,7 @@ export default function NatalWheel({
               opacity={0.8}
               data-aspect={`${a.a}-${a.b}-${a.type}`}
             >
-              <title>{`${BODY_LABELS[a.a]} – ${BODY_LABELS[a.b]} · ${ASPECT_TITLE[a.type]}${typeof a.orb === "number" ? ` · orb ${formatDegree(a.orb)}` : ""}`}</title>
+              <title>{`${BODY_LABELS(a.a)} – ${BODY_LABELS(a.b)} · ${tw(`aspectTitle.${a.type}`)}${typeof a.orb === "number" ? ` · orb ${formatDegree(a.orb)}` : ""}`}</title>
             </line>
           );
         }
@@ -537,7 +533,7 @@ export default function NatalWheel({
               {/* Odak gövde (yalnız açı filtresi): glif arkasında ince halka — konum / boyut değişmez. */}
               {D.aspectFilter?.focus === b.id && <circle cx={g.x} cy={g.y} r={fs.glyph * 0.78} fill="#ccfbf1" stroke={POINT_INK} strokeWidth={1.4} />}
               <text x={g.x} y={g.y} textAnchor="middle" dominantBaseline="central" fontSize={fs.glyph} fill="#0f172a" {...HALO}>
-                <title>{`${BODY_LABELS[b.id]} — ${SIGN_LABELS[b.sign]} ${formatDegree(b.degreeInSign)}${b.retrograde ? " ℞ (geri hareket)" : ""}`}</title>
+                <title>{`${BODY_LABELS(b.id)} — ${SIGN_LABELS(b.sign)} ${formatDegree(b.degreeInSign)}${b.retrograde ? tw("retroLong") : ""}`}</title>
                 {BODY_GLYPHS[b.id]}
               </text>
               <text x={deg.x} y={deg.y} textAnchor="middle" dominantBaseline="central" fontSize={fs.deg} fontWeight={600} fill="#1e293b" {...HALO}>
@@ -565,7 +561,7 @@ export default function NatalWheel({
             <line x1={tick2.x} y1={tick2.y} x2={g.x} y2={g.y} stroke="#cbd5e1" strokeWidth={0.6} />
             <circle cx={dot.x} cy={dot.y} r={1.8} fill="#0f172a" />
             <text x={g.x} y={g.y} textAnchor="middle" dominantBaseline="central" fontSize={fs.glyph} fill="#0f172a">
-              <title>{`${BODY_LABELS[b.id]} — ${SIGN_LABELS[b.sign]} ${formatDegree(b.degreeInSign)}${b.retrograde ? " ℞" : ""}`}</title>
+              <title>{`${BODY_LABELS(b.id)} — ${SIGN_LABELS(b.sign)} ${formatDegree(b.degreeInSign)}${b.retrograde ? " ℞" : ""}`}</title>
               {BODY_GLYPHS[b.id]}
             </text>
             <text x={deg.x} y={deg.y} textAnchor="middle" dominantBaseline="central" fontSize={fs.deg} fontWeight={600} fill="#1e293b">
@@ -602,7 +598,7 @@ export default function NatalWheel({
               fill={POINT_INK}
               {...HALO}
             >
-              <title>{`${p.label} — ${SIGN_LABELS[p.sign]} ${formatDegree(p.degreeInSign)}`}</title>
+              <title>{`${tw(`point.${p.id}`)} — ${SIGN_LABELS(p.sign)} ${formatDegree(p.degreeInSign)}`}</title>
               {p.glyph}
             </text>
             <text x={deg.x} y={deg.y} textAnchor="middle" dominantBaseline="central" fontSize={fs.deg} fontWeight={600} fill={POINT_INK} {...HALO}>
@@ -628,7 +624,7 @@ export default function NatalWheel({
             <g key={`o${b.id}`} data-outer-body={b.id}>
               <line x1={t1.x} y1={t1.y} x2={t2.x} y2={t2.y} stroke={OUTER_INK} strokeWidth={1.4} />
               <text x={g.x} y={g.y} textAnchor="middle" dominantBaseline="central" fontSize={fs.glyph - 2} fill={OUTER_INK}>
-                <title>{`${outer.title} ${BODY_LABELS[b.id]} — ${SIGN_LABELS[b.sign]} ${formatDegree(b.degreeInSign)}${b.retrograde ? " ℞" : ""}`}</title>
+                <title>{`${outer.title} ${BODY_LABELS(b.id)} — ${SIGN_LABELS(b.sign)} ${formatDegree(b.degreeInSign)}${b.retrograde ? " ℞" : ""}`}</title>
                 {BODY_GLYPHS[b.id]}
               </text>
               <text x={dg.x} y={dg.y} textAnchor="middle" dominantBaseline="central" fontSize={fs.deg} fontWeight={600} fill={OUTER_INK}>

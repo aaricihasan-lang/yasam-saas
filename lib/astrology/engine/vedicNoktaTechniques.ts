@@ -9,7 +9,7 @@
 //   Gün / yer / ofset sunucuda çözülür (service.ts; Ayrıntılı Panchanga ile aynı kural); |enlem| > 60° → istek YOK. Doğum saati
 //   gerekmez. Ayanamsa yok (görünürlük çerçeveden bağımsız).
 
-import { ASTRO_PROVIDER_LANG, ROXY_API_VERSION, ROXY_PROVIDER } from "../config";
+import { ASTRO_CHART_IDENTITY_LANG, ROXY_API_VERSION, ROXY_PROVIDER } from "../config";
 import { calcInputHash, type CalcIdentity } from "./inputHash";
 import type { CalcUnit, TechniqueDefinition, TechniqueProjection } from "./techniques";
 import { vedicBirthBody, VEDIC_AYANAMSAS, type BirthPoint, type VedicAyanamsa } from "../providers/roxy/requests";
@@ -30,7 +30,7 @@ function ayOf(v: unknown): VedicAyanamsa | null {
 }
 /** techniques.ts `unit()` ile AYNI kimlik → aynı gövdeli mevcut birimle (ör. Vedik D1) aynı anahtar. */
 function unitOf(technique: CalcUnit["technique"], meta: { endpoint: string; adapter: string }, body: Record<string, unknown>, extra: Partial<CalcUnit> = {}): CalcUnit {
-  const identity: CalcIdentity = { provider: ROXY_PROVIDER, providerApiVersion: ROXY_API_VERSION, adapterVersion: meta.adapter, endpoint: meta.endpoint, lang: ASTRO_PROVIDER_LANG, body };
+  const identity: CalcIdentity = { provider: ROXY_PROVIDER, providerApiVersion: ROXY_API_VERSION, adapterVersion: meta.adapter, endpoint: meta.endpoint, lang: ASTRO_CHART_IDENTITY_LANG, body };
   return { technique, ...identity, inputHash: calcInputHash(identity), covers: [], timeDependent: false, part: 0, ...extra };
 }
 function fromAdapter<T>(r: AdapterResult<T, null>, technicalSchema: string, projectionVersion: string): TechniqueProjection {

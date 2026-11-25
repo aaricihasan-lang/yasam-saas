@@ -1,59 +1,68 @@
 "use client";
 
+import { useMemo } from "react";
+import { useTranslations } from "next-intl";
 import { KupaShell } from "../components/KupaShell";
 import { CrudManager, type FieldDef } from "../components/CrudManager";
 import { CuppingCitationManager } from "../components/CitationManager";
 import { CuppingProtocolUsage } from "../components/ProtocolUsage";
 import { createPoint, deletePoint, listPoints, updatePoint, type CuppingPoint } from "../lib/api";
 
-const LATERALITY_OPTIONS = [
-  { value: "midline", label: "Orta hat (midline)" },
-  { value: "bilateral", label: "İki taraflı (bilateral)" },
-  { value: "left", label: "Sol" },
-  { value: "right", label: "Sağ" },
-  { value: "unspecified", label: "Belirtilmemiş" },
+type Tr = ReturnType<typeof useTranslations>;
+
+// Görünen etiketler: messages/<dil>/cupping.library.json → cupping.library.points. Seçenek değerleri (midline/…) kanonik.
+
+const buildLateralityOptions = (t: Tr) => [
+  { value: "midline", label: t("opt.laterality.midline") },
+  { value: "bilateral", label: t("opt.laterality.bilateral") },
+  { value: "left", label: t("opt.laterality.left") },
+  { value: "right", label: t("opt.laterality.right") },
+  { value: "unspecified", label: t("opt.laterality.unspecified") },
 ];
 
-const FIELDS: FieldDef[] = [
-  { key: "name", label: "Ad", type: "text", required: true },
-  { key: "alt_name", label: "Alternatif Ad", type: "text" },
-  { key: "synonyms", label: "Eş Adlar / Kodlar (virgülle ayırın)", type: "tags" },
-  { key: "code", label: "Kod", type: "text" },
-  { key: "anatomical_region", label: "Anatomik Bölge", type: "text" },
+const buildFields = (t: Tr): FieldDef[] => [
+  { key: "name", label: t("fields.name"), type: "text", required: true },
+  { key: "alt_name", label: t("fields.alt_name"), type: "text" },
+  { key: "synonyms", label: t("fields.synonyms"), type: "tags" },
+  { key: "code", label: t("fields.code"), type: "text" },
+  { key: "anatomical_region", label: t("fields.anatomical_region"), type: "text" },
   {
     key: "laterality",
-    label: "Taraf (laterality)",
+    label: t("fields.laterality"),
     type: "select",
-    options: LATERALITY_OPTIONS,
+    options: buildLateralityOptions(t),
   },
-  { key: "description", label: "Açıklama", type: "textarea" },
-  { key: "traditional_use", label: "Geleneksel Kullanım", type: "textarea" },
-  { key: "application_info", label: "Uygulama Bilgisi", type: "textarea" },
-  { key: "related_points", label: "İlişkili Noktalar (virgülle ayırın)", type: "tags" },
-  { key: "safety_note", label: "Güvenlik / Dikkat", type: "textarea" },
-  { key: "source_note", label: "Kaynak Bilgisi (serbest — yapısal atıf için Kaynaklar)", type: "textarea" },
-  { key: "professional_note", label: "Profesyonel Not", type: "textarea" },
-  { key: "sort_order", label: "Sıra", type: "number" },
-  { key: "is_active", label: "Aktif", type: "boolean" },
+  { key: "description", label: t("fields.description"), type: "textarea" },
+  { key: "traditional_use", label: t("fields.traditional_use"), type: "textarea" },
+  { key: "application_info", label: t("fields.application_info"), type: "textarea" },
+  { key: "related_points", label: t("fields.related_points"), type: "tags" },
+  { key: "safety_note", label: t("fields.safety_note"), type: "textarea" },
+  { key: "source_note", label: t("fields.source_note"), type: "textarea" },
+  { key: "professional_note", label: t("fields.professional_note"), type: "textarea" },
+  { key: "sort_order", label: t("fields.sort_order"), type: "number" },
+  { key: "is_active", label: t("fields.is_active"), type: "boolean" },
 ];
 
 export default function NoktalarPage() {
+  const t = useTranslations("cupping.library.points");
+  const fields = useMemo(() => buildFields(t), [t]);
+  const lateralityOptions = useMemo(() => buildLateralityOptions(t), [t]);
   return (
     <KupaShell
-      title="Hacamat Noktaları"
-      subtitle="Nokta bilgisi: ad, kod, anatomik bölge, geleneksel kullanım, uygulama ve güvenlik."
-      breadcrumb={[{ label: "Hacamat Noktaları" }]}
+      title={t("title")}
+      subtitle={t("subtitle")}
+      breadcrumb={[{ label: t("title") }]}
     >
       <CrudManager<CuppingPoint>
         titleKey="name"
         subtitleKey="code"
-        fields={FIELDS}
+        fields={fields}
         load={listPoints}
         create={createPoint}
         update={updatePoint}
         remove={deletePoint}
-        emptyLabel="Henüz nokta yok. Yeni ekleyin."
-        addLabel="Nokta"
+        emptyLabel={t("empty")}
+        addLabel={t("addLabel")}
         searchKeys={[
           "name",
           "alt_name",
@@ -64,9 +73,9 @@ export default function NoktalarPage() {
           "application_info",
           "synonyms",
         ]}
-        searchPlaceholder="Ada veya detaya göre ara…"
-        filters={[{ key: "laterality", label: "Taraf", options: LATERALITY_OPTIONS }]}
-        deleteCascadeHint="Bu noktaya bağlı harita yerleşimleri, konu ilişkileri ve kaynak atıfları da birlikte silinir. Bir protokolde kullanılan nokta silinemez; önce ilgili protokollerden çıkarın."
+        searchPlaceholder={t("searchPlaceholder")}
+        filters={[{ key: "laterality", label: t("filterLaterality"), options: lateralityOptions }]}
+        deleteCascadeHint={t("deleteCascadeHint")}
         renderExtra={(rec) => (
           <>
             <CuppingProtocolUsage entity="point" entityId={rec.id} />

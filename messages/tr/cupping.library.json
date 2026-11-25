@@ -1,0 +1,143 @@
+{
+  "cupping": {
+    "library": {
+      "points": {
+        "title": "Hacamat Noktaları",
+        "subtitle": "Nokta bilgisi: ad, kod, anatomik bölge, geleneksel kullanım, uygulama ve güvenlik.",
+        "empty": "Henüz nokta yok. Yeni ekleyin.",
+        "addLabel": "Nokta",
+        "searchPlaceholder": "Ada veya detaya göre ara…",
+        "filterLaterality": "Taraf",
+        "deleteCascadeHint": "Bu noktaya bağlı harita yerleşimleri, konu ilişkileri ve kaynak atıfları da birlikte silinir. Bir protokolde kullanılan nokta silinemez; önce ilgili protokollerden çıkarın.",
+        "opt": {
+          "laterality": {
+            "midline": "Orta hat (midline)",
+            "bilateral": "İki taraflı (bilateral)",
+            "left": "Sol",
+            "right": "Sağ",
+            "unspecified": "Belirtilmemiş"
+          }
+        },
+        "fields": {
+          "name": "Ad",
+          "alt_name": "Alternatif Ad",
+          "synonyms": "Eş Adlar / Kodlar (virgülle ayırın)",
+          "code": "Kod",
+          "anatomical_region": "Anatomik Bölge",
+          "laterality": "Taraf (laterality)",
+          "description": "Açıklama",
+          "traditional_use": "Geleneksel Kullanım",
+          "application_info": "Uygulama Bilgisi",
+          "related_points": "İlişkili Noktalar (virgülle ayırın)",
+          "safety_note": "Güvenlik / Dikkat",
+          "source_note": "Kaynak Bilgisi (serbest — yapısal atıf için Kaynaklar)",
+          "professional_note": "Profesyonel Not",
+          "sort_order": "Sıra",
+          "is_active": "Aktif"
+        }
+      },
+      "safety": {
+        "title": "Güvenlik & Kontrendikasyonlar",
+        "subtitle": "Kendi güvenlik / dikkat maddelerinizi yönetin; protokollere QuickCreate ile de bağlanır.",
+        "crumb": "Güvenlik",
+        "empty": "Henüz güvenlik kaydı yok. Yeni ekleyin.",
+        "addLabel": "Güvenlik",
+        "searchPlaceholder": "Başlık veya içeriğe göre ara…",
+        "filterSeverity": "Önem",
+        "filterClass": "Sınıf",
+        "deleteCascadeHint": "Bir protokolde kullanılan güvenlik maddesi silinemez; önce ilgili protokollerden çıkarın.",
+        "opt": {
+          "severity": {
+            "info": "Bilgi",
+            "warning": "Uyarı",
+            "contraindication": "Kontrendikasyon"
+          },
+          "contraindication": {
+            "absolute": "Mutlak (absolute)",
+            "relative": "Göreceli (relative)",
+            "none": "Yok (none)"
+          }
+        },
+        "fields": {
+          "title": "Başlık",
+          "severity": "Önem",
+          "contraindication_class": "Kontrendikasyon Sınıfı",
+          "content": "Açıklama",
+          "scope_tags": "Kapsam Etiketleri (virgülle ayırın)",
+          "source_note": "Kaynak Bilgisi (serbest)",
+          "sort_order": "Sıra",
+          "is_active": "Aktif"
+        }
+      },
+      "knowledge": {
+        "title": "Bilgi & Eğitim Kütüphanesi",
+        "subtitle": "Uzun profesyonel bilgi ve eğitim kayıtları.",
+        "empty": "Henüz bilgi kaydı yok. Yeni ekleyin.",
+        "addLabel": "Kayıt",
+        "fields": {
+          "title": "Başlık",
+          "category": "Kategori",
+          "content": "İçerik",
+          "tags": "Etiketler (virgülle ayırın)",
+          "source": "Kaynak",
+          "source_section": "Kaynak Bölümü",
+          "keyword": "Anahtar Kelime",
+          "notes": "Notlar",
+          "sort_order": "Sıra",
+          "is_active": "Aktif"
+        }
+      },
+      "sources": {
+        "impact": {
+          "protocolSources": "{count} protokol kaynağı",
+          "protocolEntries": "{count} protokol bilgisi",
+          "and": " ve ",
+          "blocked": "“{name}” kaynağı {parts} tarafından kullanılıyor; bu nedenle silinemez. Önce ilgili protokollerden bu kaynağı çıkarın.",
+          "none": "Bu kaynağa bağlı atıf yok.",
+          "cascade": "Bu kaynak {count} atıfta kullanılıyor ({detail}). Kaynak silinirse bu atıfların tamamı da kalıcı olarak kaldırılacaktır.",
+          "entityCount": {
+            "point": "{count} nokta",
+            "topic": "{count} amaç/rahatsızlık",
+            "pointTopic": "{count} nokta–konu ilişkisi",
+            "technique": "{count} teknik",
+            "knowledge": "{count} bilgi kaydı",
+            "safety": "{count} güvenlik maddesi"
+          }
+        },
+        "title": "Kaynak Kataloğu",
+        "subtitle": "Kaynak künyeleri (tarihsel, akademik, klinik, resmî rehber…). İçerik atıfları (Kaynaklar bölümleri) bu kayıtlara bağlanır.",
+        "empty": "Henüz kaynak yok. Yeni ekleyin.",
+        "addLabel": "Kaynak",
+        "searchPlaceholder": "Ada, yazara veya detaya göre ara…",
+        "filterType": "Tür",
+        "opt": {
+          "source_type": {
+            "historical_primary": "Tarihsel Birincil",
+            "historical_secondary": "Tarihsel İkincil",
+            "book_monograph": "Kitap / Monografi",
+            "academic_article": "Akademik Makale",
+            "systematic_review": "Sistematik Derleme / Meta-analiz",
+            "clinical_study": "Klinik Çalışma",
+            "official_guidance": "Resmî Rehber / Otorite",
+            "expert_educational": "Uzman / Eğitim"
+          }
+        },
+        "fields": {
+          "source_name": "Kaynak Adı",
+          "source_type": "Bibliyografik Tür",
+          "author_or_organization": "Yazar / Kurum",
+          "title": "Başlık",
+          "publication": "Yayın / Dergi",
+          "year": "Yıl",
+          "identifier": "Tanımlayıcı (DOI / PMID / ISBN)",
+          "language": "Dil",
+          "page_or_section": "Sayfa / Bölüm",
+          "source_url": "Bağlantı (URL)",
+          "accessed_on": "Erişim Tarihi",
+          "note": "Not",
+          "sort_order": "Sıra"
+        }
+      }
+    }
+  }
+}

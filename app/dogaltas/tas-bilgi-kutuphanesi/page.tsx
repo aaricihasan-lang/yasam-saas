@@ -10,6 +10,7 @@ import {
   type ReactNode,
 } from "react";
 import { useTranslations } from "next-intl";
+import { useDogaltasServerError } from "@/lib/dogaltas/useServerErrorText";
 import BfcacheRefreshHandler from "@/components/BfcacheRefreshHandler";
 import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import { readYasamUser, readSessionToken, isAdminUser } from "@/lib/auth/yasamUser";
@@ -102,16 +103,23 @@ const COLOR_MAP: Record<string, { hex: string; bg: string; border: string }> = {
 };
 
 const COLOR_OPTIONS = [
+  // i18n-ignore: TR yedek; gösterim stones.knowledge.colorOptions
   { value: "emerald", label: "Yeşil" },
   { value: "blue",    label: "Mavi" },
+  // i18n-ignore: TR yedek; gösterim stones.knowledge.colorOptions
   { value: "violet",  label: "Mor" },
   { value: "amber",   label: "Amber" },
+  // i18n-ignore: TR yedek; gösterim stones.knowledge.colorOptions
   { value: "slate",   label: "Gri" },
   { value: "rose",    label: "Pembe" },
+  // i18n-ignore: TR yedek; gösterim stones.knowledge.colorOptions
   { value: "cyan",    label: "Açık Mavi" },
   { value: "orange",  label: "Turuncu" },
+  // i18n-ignore: TR yedek; gösterim stones.knowledge.colorOptions
   { value: "green",   label: "Açık Yeşil" },
+  // i18n-ignore: TR yedek; gösterim stones.knowledge.colorOptions
   { value: "indigo",  label: "İndigo" },
+  // i18n-ignore: TR yedek; gösterim stones.knowledge.colorOptions
   { value: "teal",    label: "Teal" },
 ];
 
@@ -278,6 +286,7 @@ function adminHeaders(json = false): Record<string, string> {
 
 export default function TasBilgiKutuphanesiPage() {
   const t = useTranslations("stones.knowledge");
+  const se = useDogaltasServerError();
   const tc = useTranslations("stones.common");
   // Kategori display: value KANONİK Türkçe kalır (activeKat/filter/DB/query/<option value>);
   // yalnız görünen etiket localize. Bilinmeyen (admin-eklenen/legacy) kategori verbatim.
@@ -289,6 +298,7 @@ export default function TasBilgiKutuphanesiPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [rawSearch, setRawSearch] = useState("");
   const [search, setSearch] = useState("");
+  // i18n-ignore: kanonik 'tüm kategoriler' sentinel'i; gösterim t("allCategory")
   const [activeKat, setActiveKat] = useState("Tümü");
   const [mobileView, setMobileView] = useState<"list" | "detail">("list");
   const [viewed, setViewed] = useState<Set<string>>(new Set());
@@ -445,7 +455,7 @@ export default function TasBilgiKutuphanesiPage() {
       if (!res.ok || !json.ok) {
         if (res.status === 409) { setCatError(t("category.errors.duplicate")); return; }
         if (res.status === 401 || res.status === 403) { setCatError(t("category.errors.adminRequired")); return; }
-        setCatError(json.error ? t("category.errors.generic", { error: json.error }) : t("category.errors.saveFailed"));
+        setCatError(json.error ? t("category.errors.generic", { error: se.detail(json.error) }) : t("category.errors.saveFailed"));
         return;
       }
     } catch {
@@ -473,6 +483,7 @@ export default function TasBilgiKutuphanesiPage() {
     const extra = [...new Set(articles.map((r) => r.category).filter(Boolean))]
       .filter((n) => !fromDb.includes(n))
       .sort(trSort);
+    // i18n-ignore: kanonik 'tüm kategoriler' sentinel'i; gösterim t("allCategory")
     return ["Tümü", ...fromDb, ...extra];
   }, [categoryList, articles]);
 
@@ -494,6 +505,7 @@ export default function TasBilgiKutuphanesiPage() {
 
   const filtered = useMemo(() => {
     return articles.filter((r) => {
+      // i18n-ignore: kanonik 'tüm kategoriler' sentinel'i; gösterim t("allCategory")
       if (activeKat !== "Tümü" && r.category !== activeKat) return false;
       if (!recordMatchesAll(r, searchTerms)) return false;
       return true;
@@ -698,7 +710,7 @@ export default function TasBilgiKutuphanesiPage() {
       });
       const json = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string };
       if (!res.ok || !json.ok) {
-        setSaveError(t("errors.saveError", { error: json.error ?? t("errors.unknown") }));
+        setSaveError(t("errors.saveError", { error: se.detail(json.error, t("errors.unknown")) }));
         return;
       }
     } finally {
@@ -734,7 +746,7 @@ export default function TasBilgiKutuphanesiPage() {
       });
       const json = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string };
       if (!res.ok || !json.ok) {
-        setEditError(t("errors.updateError", { error: json.error ?? t("errors.unknown") }));
+        setEditError(t("errors.updateError", { error: se.detail(json.error, t("errors.unknown")) }));
         return;
       }
     } finally {
@@ -1228,6 +1240,7 @@ export default function TasBilgiKutuphanesiPage() {
             <div className={dp.catChips}>
               {categories.map((kat) => {
                 const isActive = activeKat === kat;
+                // i18n-ignore: kanonik 'tüm kategoriler' sentinel'i; gösterim t("allCategory")
                 const cfg = kat === "Tümü" ? null : katConfig(kat);
                 return (
                   <button key={kat} type="button" onClick={() => setActiveKat(kat)}
@@ -1618,6 +1631,7 @@ export default function TasBilgiKutuphanesiPage() {
                   className="w-full rounded-xl border border-indigo-200 bg-white px-3 py-2 text-sm font-medium outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
                 >
                   <option value="">{t("form.categorySelectPlaceholder")}</option>
+                  {/* i18n-ignore: kanonik 'tüm kategoriler' sentinel'i; gösterim t("allCategory") */}
                   {categories.filter((c) => c !== "Tümü").map((c) => (
                     <option key={c} value={c}>{catLabel(c)}</option>
                   ))}

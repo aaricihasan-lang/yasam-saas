@@ -8,7 +8,7 @@ import { readFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createElement } from "react";
-import { renderToStaticMarkup } from "react-dom/server";
+import { renderToStaticMarkup } from "../hd-i18n/intlRender";
 
 import { parseRoxyLocationResponse, searchRoxyLocations } from "../../lib/human-design/providers/roxy/location";
 import { roxyCityToLocation, signLocationRef, verifyLocationRef } from "../../lib/human-design/api/hdLocationRef";
@@ -252,7 +252,10 @@ async function main() {
     ok("RX11 MIT lisansı yanında", /MIT License/.test(src("public/vendor/roxy-ui/0.48.0/LICENSE.txt")));
     const wrap = src("app/human-design/kayitli-haritalar/components/HdRoxyBodygraph.tsx");
     ok("RX12 bileşen kendi origin'inden yüklenir; CDN / fetch / anahtar YOK", wrap.includes("/vendor/roxy-ui/") && !["cdn.jsdelivr", "fetch(", "publishable", "X-API-Key"].some((t) => wrap.includes(t)));
-    ok("RX13 eski renderer'a sessiz düşüş YOK (hata mesajı)", !wrap.includes("BodyGraph result") && wrap.includes("yüklenemedi"));
+    // I18N (R5): hata metni katalogda (hd.chart.bodygraph.loadError; TR değeri kaynak metinle aynı) — niyet aynı:
+    // eski renderer'a sessiz düşüş yok + görünür hata mesajı var.
+    const trChart = JSON.parse(src("messages/tr/hd.chart.json")) as { hd: { chart: { bodygraph: { loadError: string } } } };
+    ok("RX13 eski renderer'a sessiz düşüş YOK (hata mesajı)", !wrap.includes("BodyGraph result") && wrap.includes('t("loadError")') && trChart.hd.chart.bodygraph.loadError.includes("yüklenemedi"));
     ok("RX20 resmi grafik 480px sınırı kaldırıldı (kabı doldurur)", wrap.includes("::part(chart){margin:0;padding:0;width:100%;max-width:none;height:auto}"));
     const svc = src("lib/human-design/api/roxyChartService.ts");
     ok("RX14 otomatik hesap: dahili motor / handleCompute KULLANILMAZ", !["engine/compute", "handleCompute", "computeHumanDesignChart"].some((t) => svc.includes(t)));
@@ -278,7 +281,7 @@ async function main() {
     ok("H3 seçici: blur ZAMANLAYICISI yok (prod kök neden)", !picker.includes("blurTimer") && !picker.includes("setTimeout(() => setOpen(false)"));
     ok("H4 seçici: liste içi mousedown odağı input'tan almaz", picker.includes("onMouseDown={(e) => e.preventDefault()}"));
     ok("H5 seçici: yalnız odak bileşen dışına çıkınca kapanır", picker.includes("wrapRef.current?.contains(e.relatedTarget"));
-    ok("H6 seçici: teknik JSON gösterilmez, anlaşılır mesaj", !picker.includes("JSON.stringify(j") && picker.includes("Konum araması şu anda yapılamadı"));
+    ok("H6 seçici: teknik JSON gösterilmez, anlaşılır mesaj", !picker.includes("JSON.stringify(j") && picker.includes('tl("searchFailed")') && /Konum araması şu anda yapılamadı/.test(src("messages/tr/hd.forms.json"))); // I18N R5: mesaj katalogda (hd.forms)
     const modal = src("app/human-design/kayitli-haritalar/components/HdComputedChartModal.tsx");
     ok("H7 çalışma alanı uygulama header'ının (z-50) ÜSTÜNDE: z-[70]", modal.includes("fixed inset-0 z-[70]"));
     ok("H8 tam ekranda backdrop-blur yok", !/fixed inset-0[^"]*backdrop-blur/.test(modal));

@@ -9,9 +9,11 @@
 // "Yeniden Hesapla" yine kayıt oluşturmaz / mevcut kaydı değiştirmez.
 
 import Link from "next/link";
+import { useLocale, useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { useEffect, useId, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { runInEffect } from "@/lib/runInEffect";
+import { DEFAULT_LOCALE } from "@/lib/i18n/locales";
 import {
   CLASSIC_MAX_CANDIDATES,
   CLASSIC_TITLE_MAX,
@@ -24,7 +26,7 @@ import {
 } from "@/lib/numeroloji-klasik/input";
 import { foldName } from "@/lib/numeroloji-klasik/oracle/text";
 import { NumerolojiTarihInput } from "@/components/numeroloji/NumerolojiTarihInput";
-import { API_BASE, apiRequest, errorMessage, type ApiErr } from "../_lib/api";
+import { API_BASE, apiRequest, errorMessage, errorMessageEn, type ApiErr } from "../_lib/api";
 import { isDraftKey, loadDraft, saveDraft, type DraftResponse, type DraftSource } from "../_lib/draft";
 import { istanbulToday, parseTrDate, toIso } from "../_lib/format";
 import type { AnalysisResponse, Entitlements } from "../_lib/types";
@@ -35,36 +37,46 @@ import "./nkm-form.css";
 
 type Errors = Record<string, string>;
 type Birth = { year: number; month: number; day: number };
+/** next-intl çevirici (form: "numerology.classic.form", doğrulama: "numerology.classic.validation"). */
+type Tr = ReturnType<typeof useTranslations>;
 
-function parseBirthField(raw: string, field: string, errors: Errors, label = "Doğum tarihi"): Birth | null {
+/** Ekran metinleri katalogdan (TR değerleri önceki sabitlerle birebir). `label` verilmezse "Doğum tarihi". */
+function parseBirthField(raw: string, field: string, errors: Errors, t: Tr, label?: string): Birth | null {
+  const lb = label ?? t("birthLabel");
   if (!raw.trim()) {
-    errors[field] = `${label} gerekli.`;
+    errors[field] = t("errRequired", { label: lb });
     return null;
   }
   const d = parseTrDate(raw);
   if (!d) {
-    errors[field] = `${label} GG.AA.YYYY biçiminde olmalı.`;
+    errors[field] = t("errFormat", { label: lb });
     return null;
   }
   if (d.year < 1900 || d.year > 2100) {
-    errors[field] = "Yıl 1900–2100 arasında olmalı.";
+    errors[field] = t("errYear");
     return null;
   }
   if (d.month < 1 || d.month > 12) {
-    errors[field] = "Ay 1–12 arasında olmalı.";
+    errors[field] = t("errMonth");
     return null;
   }
   if (d.day < 1 || d.day > daysInMonth(d.year, d.month)) {
-    errors[field] = "Bu ayda böyle bir gün yok.";
+    errors[field] = t("errDay");
     return null;
   }
   return d;
 }
 
-function nameError(v: string, field: string, errors: Errors, business = false): string | null {
+/**
+ * Ad doğrulaması (lib/numeroloji-klasik/input — DEĞİŞMEZ). TR: doğrulayıcının Türkçe metni birebir.
+ * EN (`tVal` verilirse): doğrulayıcı metni yerine katalog (boş / geçersiz ayrımı girdinin YAPISINDAN, metinden değil).
+ */
+function nameError(v: string, field: string, errors: Errors, business = false, tVal?: Tr): string | null {
   const r = business ? canonicalBusinessName(v, field) : canonicalName(v, field);
   if (!r.ok) {
-    errors[field] = r.error;
+    errors[field] = tVal
+      ? tVal(v.trim() ? (business ? "businessNameInvalid" : "nameInvalid") : (business ? "businessNameRequired" : "nameRequired"))
+      : r.error;
     return null;
   }
   return r.value;
@@ -89,6 +101,9 @@ function useEntitlements() {
 }
 
 function useSubmit(source: DraftSource | null) {
+  const t = useTranslations("numerology.classic.form");
+  const tErr = useTranslations("numerology.classic.apiErrors");
+  const isTr = useLocale() === DEFAULT_LOCALE;
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
@@ -106,12 +121,13 @@ function useSubmit(source: DraftSource | null) {
         return;
       }
       setBusy(false);
-      setApiError("Tarayıcınız sonucu bu sekmede saklayamadı (gizli pencere ya da depolama kapalı olabilir). Depolamayı açıp yeniden hesaplayın.");
+      setApiError(t("errStorage"));
       return;
     }
     setBusy(false);
     const e = r as ApiErr;
-    setApiError(errorMessage(e));
+    // TR: sunucu metni birebir; EN: dil-bağımsız kod → katalog.
+    setApiError(isTr ? errorMessage(e) : errorMessageEn(e, tErr));
   }
   return { busy, apiError, serverField, setApiError, setServerField, submit };
 }
@@ -119,15 +135,18 @@ function useSubmit(source: DraftSource | null) {
 // ── Bilgileri Düzenle: formu mevcut analiz bilgileriyle doldurma ───────────────────────────────
 type EditSeed = { request: ClassicAnalysisRequest; source: DraftSource | null; client: LinkedClient | null; backHref: string };
 
+/** Düzenleme tohumu hata kodu → numerology.classic.form.<anahtar> (metin çizimde çözülür; dil değişimi isteği tetiklemez). */
+type EditSeedError = "editMissingDraft" | "editMissingRecord";
+
 /** ?taslak= (kaydedilmemiş sonuç) ya da ?kayit= (kayıtlı analiz) → form tohumu. Tür uyuşmazsa yok sayılır. */
-function useEditSeed(kind: ClassicKind): { seed: EditSeed | null; loading: boolean; error: string | null } {
-  const [st, setSt] = useState<{ seed: EditSeed | null; loading: boolean; error: string | null }>({ seed: null, loading: true, error: null });
+function useEditSeed(kind: ClassicKind): { seed: EditSeed | null; loading: boolean; error: EditSeedError | null } {
+  const [st, setSt] = useState<{ seed: EditSeed | null; loading: boolean; error: EditSeedError | null }>({ seed: null, loading: true, error: null });
   useEffect(() => {
     const sp = new URLSearchParams(window.location.search);
     const tk = sp.get("taslak");
     const kid = sp.get("kayit");
     let alive = true;
-    const done = (seed: EditSeed | null, error: string | null = null) => { if (alive) setSt({ seed, loading: false, error }); };
+    const done = (seed: EditSeed | null, error: EditSeedError | null = null) => { if (alive) setSt({ seed, loading: false, error }); };
     const withClient = async (req: ClassicAnalysisRequest, source: DraftSource | null, backHref: string) => {
       let client: LinkedClient | null = null;
       if (req.clientId) {
@@ -139,10 +158,10 @@ function useEditSeed(kind: ClassicKind): { seed: EditSeed | null; loading: boole
     if (isDraftKey(tk)) {
       const d = loadDraft(tk);
       if (d && d.request.kind === kind) void withClient(d.request, d.source, `/numeroloji-klasik/taslak?t=${encodeURIComponent(tk)}`);
-      else done(null, "Düzenlenecek sonuç bu sekmede bulunamadı; bilgileri yeniden girebilirsiniz.");
+      else done(null, "editMissingDraft");
     } else if (kid && /^[0-9a-f-]{36}$/i.test(kid)) {
       void apiRequest<AnalysisResponse>(`${API_BASE}/analyses/${encodeURIComponent(kid)}`).then((r) => {
-        if (!r.ok) return done(null, "Düzenlenecek kayıt açılamadı; bilgileri yeniden girebilirsiniz.");
+        if (!r.ok) return done(null, "editMissingRecord");
         const a = r.data.analysis;
         if (a.kind !== kind) return done(null, null);
         const req = { kind: a.kind, title: a.title, clientId: a.clientId, techniques: a.techniques, input: a.input } as ClassicAnalysisRequest;
@@ -164,22 +183,23 @@ function birthToTr(b: { year: number; month: number; day: number } | undefined):
   return b ? `${String(b.day).padStart(2, "0")}.${String(b.month).padStart(2, "0")}.${b.year}` : "";
 }
 
-function EditNotice({ seed, error }: { seed: EditSeed | null; error: string | null }) {
-  if (error) return <Alert tone="info">{error}</Alert>;
+function EditNotice({ seed, error }: { seed: EditSeed | null; error: EditSeedError | null }) {
+  const t = useTranslations("numerology.classic.form");
+  if (error) return <Alert tone="info">{t(error)}</Alert>;
   if (!seed) return null;
+  const b = (c: ReactNode) => <b>{c}</b>;
   return (
-    <Alert tone="info" title="Bilgileri düzenliyorsunuz">
-      {seed.source
-        ? <>Düzeltip <b>Yeniden Hesapla</b>’ya basın. Kayıtlı “{seed.source.title}” analizi siz sonuç ekranında açıkça güncelleyene kadar değişmez.</>
-        : <>Düzeltip <b>Yeniden Hesapla</b>’ya basın. Yeni sonuç da kaydetmediğiniz sürece kayıt oluşturmaz.</>}
+    <Alert tone="info" title={t("editTitle")}>
+      {seed.source ? t.rich("editSource", { title: seed.source.title, b }) : t.rich("editNew", { b })}
     </Alert>
   );
 }
 
 function EntitlementNotice({ ent }: { ent: Entitlements | null }) {
+  const t = useTranslations("numerology.classic.form");
   if (!ent) return null;
-  if (ent.isDemo) return <Alert tone="warn" title="Demo hesap">Demo hesapta yeni analiz hesaplanamaz; kayıtlı örnekleri inceleyebilirsiniz.</Alert>;
-  if (!ent.canCompute) return <Alert tone="warn" title="Yeni hesaplama şu an kapalı">Kayıtlı analizlerinizi açmaya ve Word çıktısı almaya devam edebilirsiniz.</Alert>;
+  if (ent.isDemo) return <Alert tone="warn" title={t("demoTitle")}>{t("demoBody")}</Alert>;
+  if (!ent.canCompute) return <Alert tone="warn" title={t("closedTitle")}>{t("closedBody")}</Alert>;
   return null;
 }
 
@@ -196,13 +216,14 @@ function TextField({
   /** 30.10.2026: Numeroloji tarih standardı — GG.AA.YYYY, yazarken noktalar otomatik (ortak bileşen). */
   date?: boolean; children?: ReactNode;
 }) {
+  const t = useTranslations("numerology.classic.form");
   const hintId = `${id}-ipucu`;
   const errId = `${id}-hata`;
   const described = [hint ? hintId : null, error ? errId : null].filter(Boolean).join(" ") || undefined;
   return (
     <div className="nk-field">
       <label htmlFor={id}>
-        {label} {optional ? <span className="nk-muted" style={{ fontWeight: 500 }}>(isteğe bağlı)</span> : null}
+        {label} {optional ? <span className="nk-muted" style={{ fontWeight: 500 }}>{t("optional")}</span> : null}
       </label>
       {date ? (
         <NumerolojiTarihInput
@@ -233,66 +254,78 @@ function TextField({
   );
 }
 
-function LatinPreview({ name, label = "Hesapta kullanılacak yazım" }: { name: string; label?: string }) {
+function LatinPreview({ name, label }: { name: string; label?: string }) {
+  const t = useTranslations("numerology.classic.form");
   const f = useMemo(() => foldName(name), [name]);
   return (
     <>
-      <div className="nk-preview-latin" aria-live="polite" aria-label={label} data-testid="latin-preview">
+      <div className="nk-preview-latin" aria-live="polite" aria-label={label ?? t("latinLabel")} data-testid="latin-preview">
         {f.words.length ? f.words.map((w, i) => <span key={`${w.display}-${i}`}>{w.letters.join("")}</span>) : <span>—</span>}
       </div>
-      {f.dropped.length ? <p className="nk-hint">Hesaba katılmayan harfler: {[...new Set(f.dropped)].join(" ")}</p> : null}
+      {f.dropped.length ? <p className="nk-hint">{t("dropped", { list: [...new Set(f.dropped)].join(" ") })}</p> : null}
     </>
   );
 }
 
-const LATIN_HINT = (
-  <span>
-    Hesapta Latin yazım kullanılır: <code>Işıl → ISIL</code>, <code>Çağrı → CAGRI</code>.
-  </span>
-);
+function LatinHint() {
+  const t = useTranslations("numerology.classic.form");
+  return <span>{t.rich("latinHint", { code: (c) => <code>{c}</code> })}</span>;
+}
 
 function FormShell({ crumb, title, sub, children }: { crumb: string; title: string; sub: string; children: ReactNode }) {
+  const t = useTranslations("numerology.classic.shared");
   return (
-    <Shell crumbs={[{ href: "/numeroloji-merkezi", label: "Numeroloji Merkezi" }, { href: "/numeroloji-klasik", label: "Klasik Numeroloji" }, { label: crumb }]}>
-      <Hero compact eyebrow="Klasik Numeroloji" title={title} sub={sub} />
+    <Shell crumbs={[{ href: "/numeroloji-merkezi", label: t("crumbCentre") }, { href: "/numeroloji-klasik", label: t("crumbClassic") }, { label: crumb }]}>
+      <Hero compact eyebrow={t("crumbClassic")} title={title} sub={sub} />
       {children}
     </Shell>
   );
 }
 
 function SubmitRow({ busy, editing, backHref }: { busy: boolean; editing?: boolean; backHref?: string }) {
+  const t = useTranslations("numerology.classic.form");
   return (
     <div className="nk-form-actions">
       <button className="nk-btn nk-primary" type="submit" disabled={busy} aria-busy={busy} data-testid="form-submit">
-        {busy ? "Hesaplanıyor…" : editing ? "Yeniden Hesapla" : "Hesapla"}
+        {busy ? t("calculating") : editing ? t("recalc") : t("calc")}
       </button>
-      <Link className="nk-btn" href={backHref ?? "/numeroloji-klasik"}>Vazgeç</Link>
-      {busy ? <span className="nk-sr-only" role="status">Hesaplanıyor, lütfen bekleyin.</span> : null}
+      <Link className="nk-btn" href={backHref ?? "/numeroloji-klasik"}>{t("cancel")}</Link>
+      {busy ? <span className="nk-sr-only" role="status">{t("calculatingSr")}</span> : null}
     </div>
   );
 }
 
-/** İstemci tarafı son kontrol: sunucuyla aynı doğrulayıcı. */
-function finalCheck(body: unknown, errors: Errors): boolean {
+/** İstemci tarafı son kontrol: sunucuyla aynı doğrulayıcı. EN (`tVal` verilirse): Türkçe metin yerine kod → katalog. */
+function finalCheck(body: unknown, errors: Errors, tVal?: Tr): boolean {
   const v = validateAnalysisRequest(body);
   if (!v.ok) {
-    errors[v.field ?? "_"] = v.error;
+    errors[v.field ?? "_"] = tVal ? (tVal.has(`codes.${v.code}`) ? tVal(`codes.${v.code}`) : tVal("generic")) : v.error;
     return false;
   }
   return true;
 }
 
+/** Form bileşenlerinin ortak çeviri araçları. EN'de doğrulayıcı (lib) metinleri yerine katalog (`val`). */
+function useFormT() {
+  const t = useTranslations("numerology.classic.form");
+  const tVal = useTranslations("numerology.classic.validation");
+  const isTr = useLocale() === DEFAULT_LOCALE;
+  return { t, val: isTr ? undefined : tVal };
+}
+
 // ── Kişi ──────────────────────────────────────────────────────────────────────────────────────
-const PERSON_TECHS: { key: string; name: string; desc: string }[] = [
-  { key: "core", name: "Pisagor Çekirdek Harita", desc: "Yaşam Yolu, İfade, Ruh Güdüsü, Kişilik, Doğum Günü, Olgunluk; karmik dersler ve borçlar; zirveler, zorluklar, kişisel yıl/ay; isim harfleri; uğurlu ilişkiler ve taşlar" },
-  { key: "bridge", name: "Köprü Sayıları", desc: "Çekirdek sayılar arasındaki dört köprü" },
-  { key: "personal_day", name: "Kişisel Gün", desc: "Hedef tarihe göre kişisel gün" },
-  { key: "daily", name: "Günün Sayısı (sembolik)", desc: "Hedef güne ait sembolik sayı ve mesaj; doğum verisinden hesaplanmaz, Kişisel Gün’den ayrıdır" },
-  { key: "chaldean", name: "Kalde (Cheiro)", desc: "Kader, ruh, kişilik — bileşik 10–52 ve gezegen" },
-  { key: "dual", name: "İki Sistem Karşılaştırması", desc: "Pisagor ↔ Kalde yan yana, uyum işareti" },
+/** Teknik anahtarları kanoniktir (istek gövdesi); ad / açıklama: numerology.classic.form.tech.<key>.{name,desc}. */
+const PERSON_TECHS: { key: string }[] = [
+  { key: "core" },
+  { key: "bridge" },
+  { key: "personal_day" },
+  { key: "daily" },
+  { key: "chaldean" },
+  { key: "dual" },
 ];
 
 export function PersonForm() {
+  const { t, val } = useFormT();
   const ent = useEntitlements();
   const ed = useEditSeed("person");
   const s = useSubmit(ed.seed?.source ?? null);
@@ -335,31 +368,31 @@ export function PersonForm() {
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     const er: Errors = {};
-    const nm = nameError(fullName, "input.fullName", er);
-    const b = parseBirthField(birth, "input.birth", er);
+    const nm = nameError(fullName, "input.fullName", er, false, val);
+    const b = parseBirthField(birth, "input.birth", er, t);
     let targetIso: string | undefined;
     if (target.trim()) {
-      const t = parseBirthField(target, "input.targetDate", er, "Hedef tarih");
-      if (t) {
-        targetIso = toIso(t);
-        if (b && isoBeforeBirth(targetIso, b)) er["input.targetDate"] = "Hedef tarih doğum tarihinden önce olamaz.";
+      const td = parseBirthField(target, "input.targetDate", er, t, t("targetLabel"));
+      if (td) {
+        targetIso = toIso(td);
+        if (b && isoBeforeBirth(targetIso, b)) er["input.targetDate"] = t("targetBeforeBirth");
         // NK-R3: "Gelecek Yılları Göster" izni yoksa gelecek yıla düşen hedef tarih seçilemez (sunucu da 403 verir).
-        else if (ent && ent.canSeeFutureYears === false && t.year > Number(istanbulToday().slice(0, 4))) {
-          er["input.targetDate"] = "Gelecek yıllara ait hedef tarih için \"Gelecek Yılları Göster\" izniniz olmalı. Bu yıl içinde bir tarih seçin.";
+        else if (ent && ent.canSeeFutureYears === false && td.year > Number(istanbulToday().slice(0, 4))) {
+          er["input.targetDate"] = t("futureYears");
         }
       }
     } else if (b && isoBeforeBirth(istanbulToday(), b)) {
-      er["input.birth"] = "Doğum tarihi bugünden sonra (doğum öncesi analiz). Tarihe bağlı değerler doğumdan önceki bir gün için hesaplanamaz: hedef tarih olarak doğum tarihini ya da sonrasını girin. Yalnız isim değerlendirmesi için İsim Seçenekleri analizini kullanabilirsiniz.";
+      er["input.birth"] = t("prebirth");
     }
     if (!techs.length) {
-      er.techniques = "En az bir teknik seçin.";
+      er.techniques = t("techRequired");
       setTechOpen(true);
     }
-    if ([...title.trim()].length > CLASSIC_TITLE_MAX) er.title = `Başlık en fazla ${CLASSIC_TITLE_MAX} karakter olabilir.`;
+    if ([...title.trim()].length > CLASSIC_TITLE_MAX) er.title = t("titleMax", { max: String(CLASSIC_TITLE_MAX) });
     const body = nm && b
       ? { kind: "person", title: clipTitle(title.trim() || nm), clientId: cl.client?.id ?? null, techniques: techs, input: { fullName: nm, birth: b, ...(targetIso ? { targetDate: targetIso } : {}) } }
       : null;
-    if (body && !Object.keys(er).length) finalCheck(body, er);
+    if (body && !Object.keys(er).length) finalCheck(body, er, val);
     setErrors(er);
     if (Object.keys(er).length || !body) {
       focusFirstError(uid, er);
@@ -369,15 +402,15 @@ export function PersonForm() {
   }
 
   return (
-    <FormShell crumb="Yeni Analiz" title="Yeni Analiz" sub="Kişi bilgilerini girin, hesaplanacak teknikleri seçin.">
+    <FormShell crumb={t("person.title")} title={t("person.title")} sub={t("person.sub")}>
       <EntitlementNotice ent={ent} />
       <EditNotice seed={ed.seed} error={ed.error} />
-      {s.apiError ? <Alert tone="error" title="Analiz başlatılamadı">{s.apiError}</Alert> : null}
+      {s.apiError ? <Alert tone="error" title={t("startFailed")}>{s.apiError}</Alert> : null}
       <form className="nk-form-grid nk-form-compact" noValidate onSubmit={onSubmit} style={{ marginTop: 14 }} data-testid="person-form">
         <section className="nk-card nk-panel nk-person-card" aria-labelledby={`${uid}-kisi`}>
-          <h2 className="nk-h2" id={`${uid}-kisi`}>Kişi Bilgileri</h2>
+          <h2 className="nk-h2" id={`${uid}-kisi`}>{t("personInfo")}</h2>
           <div className="nk-person-name-field">
-            <TextField id={fid(uid, "input.fullName")} label="Ad soyad" value={fullName} onChange={setFullName} error={errors["input.fullName"]} hint={LATIN_HINT}>
+            <TextField id={fid(uid, "input.fullName")} label={t("fullName")} value={fullName} onChange={setFullName} error={errors["input.fullName"]} hint={<LatinHint />}>
               <LatinPreview name={fullName} />
             </TextField>
           </div>
@@ -394,14 +427,14 @@ export function PersonForm() {
             }}
           />
           <div className="nk-row2 nk-date-row">
-            <TextField id={fid(uid, "input.birth")} label="Doğum tarihi" value={birth} onChange={setBirth} error={errors["input.birth"] ?? errors["input.birth.day"] ?? errors["input.birth.month"] ?? errors["input.birth.year"]} date />
-            <TextField id={fid(uid, "input.targetDate")} label="Hedef tarih" optional value={target} onChange={setTarget} error={errors["input.targetDate"]} date hint="Boşsa bugün; kişisel yıl / ay / gün bu tarihe göre." />
+            <TextField id={fid(uid, "input.birth")} label={t("birthLabel")} value={birth} onChange={setBirth} error={errors["input.birth"] ?? errors["input.birth.day"] ?? errors["input.birth.month"] ?? errors["input.birth.year"]} date />
+            <TextField id={fid(uid, "input.targetDate")} label={t("targetLabel")} optional value={target} onChange={setTarget} error={errors["input.targetDate"]} date hint={t("person.targetHint")} />
           </div>
           {errors.title ? <FieldError id={`${uid}-title-err`} msg={errors.title} /> : null}
         </section>
 
         <section className="nk-card nk-panel nk-tech-card" aria-labelledby={`${uid}-teknik`}>
-          <h2 className="nk-h2" id={`${uid}-teknik`}>Teknik seçimi</h2>
+          <h2 className="nk-h2" id={`${uid}-teknik`}>{t("person.techTitle")}</h2>
           {/* 30.10.2026: varsayılan KAPALI kısa seçim çubuğu (tüm teknikler seçili); aç/kapat istek göndermez. */}
           <button
             type="button"
@@ -411,24 +444,24 @@ export function PersonForm() {
             onClick={() => setTechOpen((o) => !o)}
             data-testid="tech-toggle"
           >
-            <span className="nk-tech-sum-t">{all ? "Tüm teknikler" : techs.length ? "Seçili teknikler" : "Teknik seçilmedi"}</span>
-            <span className="nk-tech-sum-c" data-testid="tech-count">{techs.length} / {PERSON_TECHS.length} grup seçili</span>
+            <span className="nk-tech-sum-t">{all ? t("person.techAll") : techs.length ? t("person.techSome") : t("person.techNone")}</span>
+            <span className="nk-tech-sum-c" data-testid="tech-count">{t("person.techCount", { n: String(techs.length), total: String(PERSON_TECHS.length) })}</span>
             <span className="nk-tech-chev" aria-hidden="true">▾</span>
           </button>
           <div id={`${uid}-tech-list`} hidden={!techOpen} data-testid="tech-list">
           <fieldset className="nk-toggles" style={{ border: 0, padding: 0, margin: "12px 0 0" }} aria-describedby={errors.techniques && !techs.length ? `${uid}-tech-err` : undefined}>
-            <legend className="nk-sr-only">Hesaplanacak teknik grupları</legend>
+            <legend className="nk-sr-only">{t("person.techLegend")}</legend>
             <label className="nk-toggle nk-all">
-              <input type="checkbox" checked={all} onChange={(e) => setTechs(e.target.checked ? PERSON_TECHS.map((t) => t.key) : [])} data-testid="tech-all" />
+              <input type="checkbox" checked={all} onChange={(e) => setTechs(e.target.checked ? PERSON_TECHS.map((x) => x.key) : [])} data-testid="tech-all" />
               <span className="nk-sw" aria-hidden="true" />
-              <span><span className="nk-t-name">Tümü</span><br /><span className="nk-t-desc">Bütün grupları hesapla</span></span>
-              <span className="nk-t-count">{PERSON_TECHS.length} grup</span>
+              <span><span className="nk-t-name">{t("person.allName")}</span><br /><span className="nk-t-desc">{t("person.allDesc")}</span></span>
+              <span className="nk-t-count">{t("person.groupCount", { n: String(PERSON_TECHS.length) })}</span>
             </label>
-            {PERSON_TECHS.map((t) => (
-              <label key={t.key} className="nk-toggle">
-                <input type="checkbox" checked={techs.includes(t.key)} onChange={(e) => toggle(t.key, e.target.checked)} data-tech={t.key} />
+            {PERSON_TECHS.map((x) => (
+              <label key={x.key} className="nk-toggle">
+                <input type="checkbox" checked={techs.includes(x.key)} onChange={(e) => toggle(x.key, e.target.checked)} data-tech={x.key} />
                 <span className="nk-sw" aria-hidden="true" />
-                <span><span className="nk-t-name">{t.name}</span><br /><span className="nk-t-desc">{t.desc}</span></span>
+                <span><span className="nk-t-name">{t(`tech.${x.key}.name`)}</span><br /><span className="nk-t-desc">{t(`tech.${x.key}.desc`)}</span></span>
                 <span className="nk-t-count" />
               </label>
             ))}
@@ -437,7 +470,7 @@ export function PersonForm() {
           {/* D6-1: "En az bir teknik seçin" yalnız gerçekten hiç teknik seçili değilken görünür (seçim yapılınca kalkar). */}
           <FieldError id={`${uid}-tech-err`} msg={techs.length ? undefined : errors.techniques} />
           {techs.includes("dual") && (!techs.includes("core") || !techs.includes("chaldean")) ? (
-            <p className="nk-hint" style={{ marginTop: 8 }}>İki Sistem karşılaştırması için Pisagor çekirdek ve Kalde sonuçları da hesaplanır.</p>
+            <p className="nk-hint" style={{ marginTop: 8 }}>{t("person.dualHint")}</p>
           ) : null}
           <SubmitRow busy={s.busy} editing={!!ed.seed} backHref={ed.seed?.backHref} />
         </section>
@@ -460,6 +493,7 @@ function focusFirstError(uid: string, er: Errors) {
 
 // ── İlişki ────────────────────────────────────────────────────────────────────────────────────
 export function RelationshipForm() {
+  const { t, val } = useFormT();
   const ent = useEntitlements();
   const ed = useEditSeed("relationship");
   const s = useSubmit(ed.seed?.source ?? null);
@@ -483,15 +517,15 @@ export function RelationshipForm() {
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     const er: Errors = {};
-    const n1 = nameError(p.n1, "input.person1.fullName", er);
-    const b1 = parseBirthField(p.b1, "input.person1.birth", er);
-    const n2 = nameError(p.n2, "input.person2.fullName", er);
-    const b2 = parseBirthField(p.b2, "input.person2.birth", er);
-    if ([...title.trim()].length > CLASSIC_TITLE_MAX) er.title = `Başlık en fazla ${CLASSIC_TITLE_MAX} karakter olabilir.`;
+    const n1 = nameError(p.n1, "input.person1.fullName", er, false, val);
+    const b1 = parseBirthField(p.b1, "input.person1.birth", er, t);
+    const n2 = nameError(p.n2, "input.person2.fullName", er, false, val);
+    const b2 = parseBirthField(p.b2, "input.person2.birth", er, t);
+    if ([...title.trim()].length > CLASSIC_TITLE_MAX) er.title = t("titleMax", { max: String(CLASSIC_TITLE_MAX) });
     const body = n1 && b1 && n2 && b2
       ? { kind: "relationship", title: clipTitle(title.trim() || `${n1} & ${n2}`), clientId: cl.client?.id ?? null, techniques: ["compatibility"], input: { person1: { fullName: n1, birth: b1 }, person2: { fullName: n2, birth: b2 } } }
       : null;
-    if (body && !Object.keys(er).length) finalCheck(body, er);
+    if (body && !Object.keys(er).length) finalCheck(body, er, val);
     setErrors(er);
     if (Object.keys(er).length || !body) return focusFirstError(uid, er);
     await s.submit(body);
@@ -502,14 +536,14 @@ export function RelationshipForm() {
   // alanları aynı yatay hizada kalır, 2. kişiye boşluk / sahte öğe eklenmez (30.10.2026 v2 owner kararı).
   const person = (i: 1 | 2) => (
     <fieldset className="nk-person-block nk-rel-person" data-testid={`rel-person-${i}`}>
-      <legend className="nk-h3">{i}. kişi</legend>
+      <legend className="nk-h3">{t("relationship.personN", { n: String(i) })}</legend>
       <div style={{ marginTop: 10 }}>
-        <TextField id={fid(uid, `input.person${i}.fullName`)} label="Ad soyad" value={i === 1 ? p.n1 : p.n2} onChange={(v) => setP((c) => ({ ...c, [i === 1 ? "n1" : "n2"]: v }))} error={errors[`input.person${i}.fullName`]}>
+        <TextField id={fid(uid, `input.person${i}.fullName`)} label={t("fullName")} value={i === 1 ? p.n1 : p.n2} onChange={(v) => setP((c) => ({ ...c, [i === 1 ? "n1" : "n2"]: v }))} error={errors[`input.person${i}.fullName`]}>
           <LatinPreview name={i === 1 ? p.n1 : p.n2} />
         </TextField>
       </div>
       <div style={{ marginTop: 12 }}>
-        <TextField id={fid(uid, `input.person${i}.birth`)} label="Doğum tarihi" value={i === 1 ? p.b1 : p.b2} onChange={(v) => setP((c) => ({ ...c, [i === 1 ? "b1" : "b2"]: v }))} error={errors[`input.person${i}.birth`] ?? errors[`input.person${i}.birth.day`]} date />
+        <TextField id={fid(uid, `input.person${i}.birth`)} label={t("birthLabel")} value={i === 1 ? p.b1 : p.b2} onChange={(v) => setP((c) => ({ ...c, [i === 1 ? "b1" : "b2"]: v }))} error={errors[`input.person${i}.birth`] ?? errors[`input.person${i}.birth.day`]} date />
       </div>
       {i === 1 ? (
         <div style={{ marginTop: 12 }}>
@@ -521,13 +555,13 @@ export function RelationshipForm() {
   );
 
   return (
-    <FormShell crumb="İlişki Analizi" title="İlişki Analizi" sub="İki kişinin Yaşam Yolu, İfade ve Ruh Güdüsü uyumu (Pisagor).">
+    <FormShell crumb={t("relationship.title")} title={t("relationship.title")} sub={t("relationship.sub")}>
       <EntitlementNotice ent={ent} />
       <EditNotice seed={ed.seed} error={ed.error} />
-      {s.apiError ? <Alert tone="error" title="Analiz başlatılamadı">{s.apiError}</Alert> : null}
+      {s.apiError ? <Alert tone="error" title={t("startFailed")}>{s.apiError}</Alert> : null}
       <form className="nk-form-grid nk-form-rel" noValidate onSubmit={onSubmit} style={{ marginTop: 14 }} data-testid="relationship-form">
         <section className="nk-card nk-panel" aria-labelledby={`${uid}-kisiler`}>
-          <h2 className="nk-h2" id={`${uid}-kisiler`}>Kişi Bilgileri</h2>
+          <h2 className="nk-h2" id={`${uid}-kisiler`}>{t("personInfo")}</h2>
           <div className="nk-rel-pair">
             {person(1)}
             {person(2)}
@@ -535,8 +569,8 @@ export function RelationshipForm() {
         </section>
         <section className="nk-card nk-panel nk-rel-actions">
           <div style={{ minWidth: 0 }}>
-            <h2 className="nk-h2">İlişki uyumu</h2>
-            <p className="nk-lead">Uyum puanı, çekirdek sayı eşleşmeleri, güçlü yönler ve zorluklar hesaplanır. Kayıt başlığı Kaydet adımında sorulur.</p>
+            <h2 className="nk-h2">{t("relationship.relTitle")}</h2>
+            <p className="nk-lead">{t("relationship.relLead")}</p>
             {errors.title ? <FieldError id={`${uid}-title-err`} msg={errors.title} /> : null}
           </div>
           <SubmitRow busy={s.busy} editing={!!ed.seed} backHref={ed.seed?.backHref} />
@@ -548,6 +582,7 @@ export function RelationshipForm() {
 
 // ── İşletme ───────────────────────────────────────────────────────────────────────────────────
 export function BusinessForm() {
+  const { t, val } = useFormT();
   const ent = useEntitlements();
   const ed = useEditSeed("business");
   const s = useSubmit(ed.seed?.source ?? null);
@@ -571,26 +606,26 @@ export function BusinessForm() {
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     const er: Errors = {};
-    const n = nameError(name, "input.name", er, true);
-    if ([...title.trim()].length > CLASSIC_TITLE_MAX) er.title = `Başlık en fazla ${CLASSIC_TITLE_MAX} karakter olabilir.`;
+    const n = nameError(name, "input.name", er, true, val);
+    if ([...title.trim()].length > CLASSIC_TITLE_MAX) er.title = t("titleMax", { max: String(CLASSIC_TITLE_MAX) });
     const body = n ? { kind: "business", title: clipTitle(title.trim() || n), clientId: cl.client?.id ?? null, techniques: ["business_name"], input: { name: n } } : null;
-    if (body && !Object.keys(er).length) finalCheck(body, er);
+    if (body && !Object.keys(er).length) finalCheck(body, er, val);
     setErrors(er);
     if (Object.keys(er).length || !body) return focusFirstError(uid, er);
     await s.submit(body);
   }
 
   return (
-    <FormShell crumb="İşletme Numerolojisi" title="İşletme Numerolojisi" sub="Firma ya da marka adının Kalde (Cheiro) sayısı ve geleneksel değerlendirmesi.">
+    <FormShell crumb={t("business.title")} title={t("business.title")} sub={t("business.sub")}>
       <EntitlementNotice ent={ent} />
       <EditNotice seed={ed.seed} error={ed.error} />
-      {s.apiError ? <Alert tone="error" title="Analiz başlatılamadı">{s.apiError}</Alert> : null}
+      {s.apiError ? <Alert tone="error" title={t("startFailed")}>{s.apiError}</Alert> : null}
       <form className="nk-form-grid" noValidate onSubmit={onSubmit} style={{ marginTop: 14 }} data-testid="business-form">
         <section className="nk-card nk-panel nk-person-card">
-          <h2 className="nk-h2">İşletme adı</h2>
-          <p className="nk-lead">{"Harf, rakam, boşluk ve ' . , & - kullanılabilir."}</p>
+          <h2 className="nk-h2">{t("business.nameTitle")}</h2>
+          <p className="nk-lead">{t("business.charsHint")}</p>
           <div style={{ marginTop: 14 }}>
-            <TextField id={fid(uid, "input.name")} label="İşletme / marka adı" value={name} onChange={setName} error={errors["input.name"]} hint={LATIN_HINT}>
+            <TextField id={fid(uid, "input.name")} label={t("business.nameLabel")} value={name} onChange={setName} error={errors["input.name"]} hint={<LatinHint />}>
               <LatinPreview name={name} />
             </TextField>
           </div>
@@ -605,6 +640,7 @@ export function BusinessForm() {
 
 // ── İsim seçenekleri ──────────────────────────────────────────────────────────────────────────
 export function NamesForm() {
+  const { t, val } = useFormT();
   const ent = useEntitlements();
   const ed = useEditSeed("names");
   const s = useSubmit(ed.seed?.source ?? null);
@@ -620,7 +656,7 @@ export function NamesForm() {
     seeded.current = true;
     runInEffect(() => {
       setCands(r.input.candidates.length ? [...r.input.candidates] : ["", ""]);
-      setTitle(r.title === `İsim seçenekleri: ${r.input.candidates.join(", ")}` ? "" : r.title);
+      setTitle(r.title === `İsim seçenekleri: ${r.input.candidates.join(", ")}` ? "" : r.title); // i18n-ignore: varsayılan kayıt başlığı (veri; kayıtlı başlıkla karşılaştırma)
       if (ed.seed?.client) cl.setClient(ed.seed.client);
     });
   }, [ed.seed, cl]);
@@ -631,57 +667,58 @@ export function NamesForm() {
     const filled = cands.map((c, i) => ({ c, i })).filter((x) => x.c.trim());
     const out: string[] = [];
     const seen = new Set<string>();
-    if (!filled.length) er["input.candidates.0"] = "En az bir aday ad girin.";
+    if (!filled.length) er["input.candidates.0"] = t("names.candRequired");
     for (const { c, i } of filled) {
-      const n = nameError(c, `input.candidates.${i}`, er);
+      const n = nameError(c, `input.candidates.${i}`, er, false, val);
       if (!n) continue;
       const k = n.toLocaleLowerCase("tr-TR");
-      if (seen.has(k)) er[`input.candidates.${i}`] = "Aynı aday ad iki kez girilmiş.";
+      if (seen.has(k)) er[`input.candidates.${i}`] = t("names.duplicate");
       seen.add(k);
       out.push(n);
     }
-    if ([...title.trim()].length > CLASSIC_TITLE_MAX) er.title = `Başlık en fazla ${CLASSIC_TITLE_MAX} karakter olabilir.`;
+    if ([...title.trim()].length > CLASSIC_TITLE_MAX) er.title = t("titleMax", { max: String(CLASSIC_TITLE_MAX) });
     const body = out.length && !Object.keys(er).length
+      // i18n-ignore: varsayılan kayıt başlığı (veri; dil bağımsız aynı kalır, düzenlemede karşılaştırılır)
       ? { kind: "names", title: clipTitle(title.trim() || `İsim seçenekleri: ${out.join(", ")}`), clientId: cl.client?.id ?? null, techniques: ["dual"], input: { candidates: out } }
       : null;
-    if (body) finalCheck(body, er);
+    if (body) finalCheck(body, er, val);
     setErrors(er);
     if (Object.keys(er).length || !body) return focusFirstError(uid, er);
     await s.submit(body);
   }
 
   return (
-    <FormShell crumb="İsim Seçenekleri" title="İsim Seçenekleri" sub={`En çok ${CLASSIC_MAX_CANDIDATES} aday ad; her biri Pisagor ve Kalde ile ayrı hesaplanır.`}>
+    <FormShell crumb={t("names.title")} title={t("names.title")} sub={t("names.sub", { max: String(CLASSIC_MAX_CANDIDATES) })}>
       <EntitlementNotice ent={ent} />
       <EditNotice seed={ed.seed} error={ed.error} />
-      {s.apiError ? <Alert tone="error" title="Analiz başlatılamadı">{s.apiError}</Alert> : null}
+      {s.apiError ? <Alert tone="error" title={t("startFailed")}>{s.apiError}</Alert> : null}
       <form className="nk-form-grid" noValidate onSubmit={onSubmit} style={{ marginTop: 14 }} data-testid="names-form">
         <section className="nk-card nk-panel nk-person-card">
-          <h2 className="nk-h2">Aday adlar</h2>
-          <p className="nk-lead">Boş satırlar hesaba katılmaz.</p>
+          <h2 className="nk-h2">{t("names.candTitle")}</h2>
+          <p className="nk-lead">{t("names.candLead")}</p>
           <div style={{ marginTop: 14 }}>
             {cands.map((c, i) => {
               const id = fid(uid, `input.candidates.${i}`);
               const err = errors[`input.candidates.${i}`];
               return (
                 <div key={i} className="nk-field" style={{ marginTop: i ? 10 : 0 }}>
-                  <label htmlFor={id}>{i + 1}. aday</label>
+                  <label htmlFor={id}>{t("names.candN", { n: String(i + 1) })}</label>
                   <div className="nk-cand-row">
                     <input className="nk-input" id={id} value={c} autoComplete="off" aria-invalid={err ? true : undefined} aria-describedby={err ? `${id}-hata` : undefined}
                       onChange={(e) => setCands((cur) => cur.map((x, j) => (j === i ? e.target.value : x)))} />
                     {cands.length > 1 ? (
-                      <button type="button" className="nk-btn nk-sm" aria-label={`${i + 1}. adayı kaldır`} onClick={() => setCands((cur) => cur.filter((_, j) => j !== i))}>Kaldır</button>
+                      <button type="button" className="nk-btn nk-sm" aria-label={t("names.removeAria", { n: String(i + 1) })} onClick={() => setCands((cur) => cur.filter((_, j) => j !== i))}>{t("names.remove")}</button>
                     ) : <span />}
                   </div>
-                  <LatinPreview name={c} label={`${i + 1}. aday için hesap yazımı`} />
+                  <LatinPreview name={c} label={t("names.previewLabel", { n: String(i + 1) })} />
                   <FieldError id={`${id}-hata`} msg={err} />
                 </div>
               );
             })}
           </div>
           {cands.length < CLASSIC_MAX_CANDIDATES ? (
-            <button type="button" className="nk-btn nk-sm" style={{ marginTop: 12 }} onClick={() => setCands((cur) => [...cur, ""])}>Aday ekle</button>
-          ) : <p className="nk-hint" style={{ marginTop: 10 }}>En çok {CLASSIC_MAX_CANDIDATES} aday girilebilir.</p>}
+            <button type="button" className="nk-btn nk-sm" style={{ marginTop: 12 }} onClick={() => setCands((cur) => [...cur, ""])}>{t("names.add")}</button>
+          ) : <p className="nk-hint" style={{ marginTop: 10 }}>{t("names.maxHint", { max: String(CLASSIC_MAX_CANDIDATES) })}</p>}
           <ClientPickerCompact enabled={!!ent?.canLinkClients} value={cl.client} onChange={cl.setClient} error={cl.error} />
           {errors.title ? <FieldError id={`${uid}-title-err`} msg={errors.title} /> : null}
           <SubmitRow busy={s.busy} editing={!!ed.seed} backHref={ed.seed?.backHref} />

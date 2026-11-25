@@ -15,6 +15,7 @@ import { withTenant } from "../api/tenantScope";
 import { isUuid } from "../api/deterministicId";
 import { hdSafeDbError } from "../api/safeError";
 import { ROXY_POLICY, ROXY_PROVIDER_ID, ROXY_RATE_LIMITS, type RoxyPolicy, type RoxyServerConfig } from "../providers/roxy/config";
+import { withLanguageInCacheKey } from "@/lib/i18n/providerLanguage";
 import type { RoxyCallResult } from "../providers/roxy/client";
 import { ROXY_TRANSIT_ADAPTER_VERSION, type RoxyTransitRequest } from "./roxyTransitClient";
 import { chartBirthMoment, chartMatchesClient, participantChartFacts } from "../relations/relationService";
@@ -144,8 +145,10 @@ export async function computePersonalTransit(ctx: PersonalTransitCtx, raw: unkno
   // 2) Transit anı
   const moment = m.moment;
   const utc = new Date(moment.utcIso);
+  // I18N-0006: anahtar sağlayıcı dilini (policy.lang) AÇIKÇA içerir — harita kimliği dilden bağımsız (I18N-0005) olduğundan
+  // aynı harita + aynı an için farklı dildeki sağlayıcı yanıtları ASLA aynı önbellek kaydını / eşzamanlılık kilidini paylaşmaz.
   const key = createHash("sha256")
-    .update([ROXY_TRANSIT_ADAPTER_VERSION, policy.nodeType, ctx.tenantId, chart.id, chart.input_hash ?? "", moment.utcIso].join("|"))
+    .update(withLanguageInCacheKey([ROXY_TRANSIT_ADAPTER_VERSION, policy.nodeType, ctx.tenantId, chart.id, chart.input_hash ?? "", moment.utcIso], policy.lang))
     .digest("hex");
   const ok = (view: PersonalTransitView, reused: boolean): PersonalTransitResponse => ({
     status: 200,

@@ -1,5 +1,7 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+
 import { useEffect, useMemo, useState } from "react";
 import { listOrganNamesFromAtlas, loadAtlas, loadOrganList } from "@/lib/atlasStorage";
 import { dedupeByOrganKey, organKey } from "@/app/refleksoloji/bolge-haritasi/utils/organUtils";
@@ -32,6 +34,7 @@ export function ProtocolRegistrationForm({
   saving = false,
   editing = false,
 }: ProtocolRegistrationFormProps) {
+  const t = useTranslations("reflexology.protocolMap.form");
   const [organInput, setOrganInput] = useState("");
   const [organSuggestions, setOrganSuggestions] = useState<string[]>([]);
   const [organError, setOrganError] = useState<string | null>(null);
@@ -55,13 +58,13 @@ export function ProtocolRegistrationForm({
   const addOrgan = (raw: string) => {
     const name = raw.trim();
     if (!name) {
-      setOrganError("Organ adı boş olamaz.");
+      setOrganError(t("organEmpty"));
       return;
     }
     const exists = draft.organs.some((o) => organKey(o) === organKey(name));
     if (exists) {
       // Sessiz davranma yerine geri bildirim ver (çoklu-organ duplicate seçimi).
-      setOrganError(`"${name}" zaten eklendi.`);
+      setOrganError(t("organExists", { name }));
       return;
     }
     onDraftChange({ ...draft, organs: [...draft.organs, name] });
@@ -79,29 +82,29 @@ export function ProtocolRegistrationForm({
   return (
     <div className="flex h-full min-h-0 flex-col">
       <div className="shrink-0">
-        <h2 className="text-sm font-bold text-violet-900">Protokol Kaydı</h2>
+        <h2 className="text-sm font-bold text-violet-900">{t("title")}</h2>
         <p className="mt-0.5 text-xs font-medium text-slate-500">
-          Hedef, organlar ve uygulama notlarını girin
+          {t("subtitle")}
         </p>
       </div>
 
       <div className="mt-3 flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto pr-1">
         <div>
           <label className={labelClass} htmlFor="protocol-title">
-            Hedef / Sorun Adı
+            {t("target")}
           </label>
           <input
             id="protocol-title"
             value={draft.title}
             onChange={(e) => onDraftChange({ ...draft, title: e.target.value })}
             className={inputClass}
-            placeholder="Örn. Sindirim Problemi"
+            placeholder={t("targetPlaceholder")}
           />
         </div>
 
         <div>
           <label className={labelClass} htmlFor="protocol-description">
-            Kısa Açıklama
+            {t("description")}
           </label>
           <textarea
             id="protocol-description"
@@ -109,13 +112,13 @@ export function ProtocolRegistrationForm({
             onChange={(e) => onDraftChange({ ...draft, description: e.target.value })}
             rows={2}
             className={`${inputClass} resize-none`}
-            placeholder="Protokolün amacı ve kapsamı"
+            placeholder={t("descriptionPlaceholder")}
           />
         </div>
 
         <div>
           <label className={labelClass} htmlFor="protocol-organ-input">
-            Organ Ekle
+            {t("addOrgan")}
           </label>
           <div className="flex gap-2">
             <input
@@ -133,14 +136,14 @@ export function ProtocolRegistrationForm({
                 }
               }}
               className={inputClass}
-              placeholder="Organ adı yazın veya seçin"
+              placeholder={t("organPlaceholder")}
             />
             <button
               type="button"
               onClick={() => addOrgan(organInput)}
               className="shrink-0 rounded-xl border border-violet-300/80 bg-violet-100 px-3 py-1.5 text-xs font-bold text-violet-950 hover:bg-violet-200/90"
             >
-              Ekle
+              {t("add")}
             </button>
           </div>
           <datalist id={datalistId}>
@@ -169,7 +172,7 @@ export function ProtocolRegistrationForm({
                       type="button"
                       onClick={() => removeOrgan(name)}
                       className="rounded-md px-1.5 text-sm leading-none opacity-70 hover:opacity-100"
-                      aria-label={`${name} kaldır`}
+                      aria-label={t("removeAria", { name })}
                     >
                       ×
                     </button>
@@ -179,20 +182,20 @@ export function ProtocolRegistrationForm({
             })}
           </ul>
         ) : (
-          <p className="text-sm font-medium text-slate-500">Henüz organ eklenmedi.</p>
+          <p className="text-sm font-medium text-slate-500">{t("noOrgans")}</p>
         )}
 
         <div>
           <div className="mb-2 flex items-center justify-between gap-2">
             <label className={labelClass} htmlFor="protocol-notes">
-              Uygulama Notları
+              {t("notes")}
             </label>
             <button
               type="button"
               onClick={openNotesModal}
               className="text-sm font-bold text-violet-700 underline-offset-2 hover:underline"
             >
-              Genişlet
+              {t("expand")}
             </button>
           </div>
           <textarea
@@ -202,7 +205,7 @@ export function ProtocolRegistrationForm({
             onClick={openNotesModal}
             rows={3}
             className={`${inputClass} cursor-text resize-none`}
-            placeholder="Tıklayarak geniş not alanını açın…"
+            placeholder={t("notesPlaceholder")}
           />
         </div>
 
@@ -220,7 +223,7 @@ export function ProtocolRegistrationForm({
             aria-busy={saving}
             className="flex-1 rounded-xl border border-emerald-400/80 bg-emerald-500 px-3 py-2 text-sm font-bold text-white shadow-sm transition hover:bg-emerald-600 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:bg-emerald-500"
           >
-            {saving ? "Kaydediliyor…" : editing ? "Güncelle" : "Kaydet"}
+            {saving ? t("saving") : editing ? t("update") : t("save")}
           </button>
           <button
             type="button"
@@ -228,7 +231,7 @@ export function ProtocolRegistrationForm({
             disabled={saving}
             className="rounded-xl border border-violet-200/90 bg-violet-50 px-3 py-2 text-sm font-bold text-violet-900 hover:bg-violet-100/90 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            Temizle
+            {t("clear")}
           </button>
         </div>
       </div>

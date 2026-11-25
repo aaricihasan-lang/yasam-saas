@@ -7,6 +7,7 @@ import { isUuid } from "@/lib/beslenme/planContracts";
 import { buildPlanDocxBuffer, PlanDocxReadError } from "@/lib/beslenme/word/planDocx";
 import { rateLimit } from "@/lib/rateLimit";
 import { expertDisplayName } from "@/lib/docx/reportDisclaimer";
+import { resolveReportLocale } from "@/lib/i18n/reportLocale";
 
 export const runtime = "nodejs";
 type RouteCtx = { params: Promise<{ id: string }> };
@@ -53,7 +54,8 @@ export async function POST(req: NextRequest, ctx: RouteCtx): Promise<Response> {
   try {
     // F3A: uzman markalaması (oturum sahibinin profili; anahtar kapalı / tablo yok / hata → null = markasız).
     const branding = await resolveReportBranding(db, { tenantId, userId }, { fullName: expertDisplayName(guard.profile) });
-    result = await buildPlanDocxBuffer(db, tenantId, id, { expertName: expertDisplayName(guard.profile), branding });
+    const output = await resolveReportLocale(req, { db, tenantId, userId });
+    result = await buildPlanDocxBuffer(db, tenantId, id, { expertName: expertDisplayName(guard.profile), branding, output });
   } catch (e) {
     // BES-02: eksik Word ÜRETİLMEZ; sunucu tarafı güvenli kayıt (tablo + hata kodu; içerik/PII yok).
     const table = e instanceof PlanDocxReadError ? e.table : "unknown";

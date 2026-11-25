@@ -99,7 +99,56 @@ function syntheticInputs(n: number) {
  * ENGINE_PATHS'in geri kalanı (motor / hesap / kayıt üretme) için "main'e göre fark YOK" şartı AYNEN sürer.
  */
 const NUMEROLOJI_WORD_FILES = ["app/numeroloji/bilgi-bankasi/helpers/wordDocxBuild.ts", "app/api/numeroloji/word-report/route.ts"];
-const ENGINE_REFS = /hesaplaNumeroloji|numerolojiMotor|@\/lib\/numeroloji(?:\/|")|computeDevelopment|\.insert\(|\.update\(|\.upsert\(|\.delete\(|\.rpc\(/;
+/**
+ * I18N-0003 / I18N-0007 (gizlilik P0): gelecek yılları gizleme kararının dilden bağımsız, yapısal ve
+ * fail-closed hale getirildiği SUNUM/GİZLİLİK dosyaları. Hesap / motor / kayıt üretme kodu DEĞİLDİR
+ * (motor çağırmaz, formül yok). "Main'e göre fark YOK" şartından yalnız bunlar ayrılır; davranışları
+ * aşağıdaki daha sıkı kontrollerle kilitlidir: motor 400/400 birebir, Numeroloji Word 48/48 XML birebir,
+ * ayrıca scripts/numeroloji/p0-gizlilik.harness.ts (TR golden + negatif senaryolar).
+ */
+const PRIVACY_CORE_FILES = [
+  "app/numeroloji/utils/chronoBirth.ts",
+  "app/numeroloji/utils/chronoCutoff.ts",
+  "app/numeroloji/utils/futureYearsRedaction.ts",
+  "app/numeroloji/utils/numerolojiPlainMetin.ts",
+  // QA-N3-02 (R5): "app/numeroloji/analiz/page.tsx", "app/numeroloji/bilgi-bankasi/page.tsx" ve
+  // "app/numeroloji/bilgi-bankasi/components" artık burada DEĞİL (koşulsuz dışlama kaldırıldı) → I18N_PRESENTATION_FILES
+  // altında (a) şartına bağlı: fark satırları motor / hesap / DB / HTTP yazma desenine dokunamaz.
+];
+/**
+ * I18N-F1-R5 (25.11.2026) — ekran dili sunum katmanı: yalnız metin → katalog (TR çıktı birebir) ve API yanıtlarına
+ * dil-bağımsız `code` alanı. Hesap / motor / kayıt üretme kodu değişmez. Koşulsuz dışlama YOK (QA-N-07 dersi): bu
+ * dosyalar "main'e fark YOK" listesinden yalnız şu daha sıkı şartlarla ayrılır:
+ *   (a) fark satırlarının HİÇBİRİ motor / hesap / DB yazma desenine (ENGINE_REFS) dokunmaz;
+ *   (b) analyses rotası: `, code: "…"` eklemeleri çıkarılınca main ile metin olarak BİREBİR;
+ *   (c) davranış ayrıca: teach-harness (67) + final-methodology (personalDayExplain golden) + prebirth + place-input.
+ */
+const I18N_PRESENTATION_FILES = [
+  "app/numeroloji/utils/teachingExplain.ts",
+  "app/numeroloji/utils/preBirth.ts",
+  "app/numeroloji/utils/placeInput.ts",
+  "app/numeroloji/utils/deleteConfirmMessage.ts",
+  "app/numeroloji/helpers/conceptHelp.ts",
+  "app/numeroloji/helpers/numApiClient.ts",
+  "app/api/numeroloji/analyses/route.ts",
+  // QA-N3-02 (R5): eskiden PRIVACY_CORE_FILES içinde koşulsuz dışlanan ekran / Bilgi Bankası yolları (klasör = pathspec):
+  "app/numeroloji/analiz/page.tsx",
+  "app/numeroloji/bilgi-bankasi/page.tsx",
+  "app/numeroloji/bilgi-bankasi/components",
+  // I18N-F1-R5 (P35 rapor dili + kalan metin): Word/Bilgi Bankası sunum yardımcıları — yalnız isteğe bağlı çıktı dili
+  // metin parametresi (yok → TR çıktı birebir; golden: scripts/numeroloji/report-golden) ve kanonik değer gösterim eşlemesi.
+  "app/numeroloji/bilgi-bankasi/helpers/wordKulvarLogic.ts",
+  "app/numeroloji/bilgi-bankasi/helpers/wordPersonSections.ts",
+  "app/numeroloji/bilgi-bankasi/helpers/kbValueDisplay.ts",
+  // form hata kodu (TR metni aynen; EN koddan)
+  "app/numeroloji/bilgi-bankasi/helpers/sourceUiLogic.ts",
+];
+/**
+ * Motor / hesap / DB yazma deseni + (QA-N3-04, R5) HTTP yazma çağrıları: `fetch(…, { method: "DELETE" | "POST" | "PUT" |
+ * "PATCH" })`, axios/istemci tarzı `.post(` / `.put(` / `.patch(`, `navigator.sendBeacon(`, Supabase `.storage.` erişimi.
+ * Not: `Map.delete(` de `.delete(` ile yakalanır (bilinçli sıkı; yanlış pozitif kabul).
+ */
+const ENGINE_REFS = /hesaplaNumeroloji|numerolojiMotor|@\/lib\/numeroloji(?:\/|")|computeDevelopment|\.insert\(|\.update\(|\.upsert\(|\.delete\(|\.rpc\(|\bmethod\s*:\s*["'`](?:DELETE|POST|PUT|PATCH|delete|post|put|patch)["'`]|\.(?:post|put|patch)\(|\bsendBeacon\(|\.storage\./;
 
 /** docx → karşılaştırılabilir parçalar (zaman damgalı docProps hariç; ikili parçalar SHA ile). */
 async function docxParts(buf: Buffer): Promise<Record<string, string>> {
@@ -123,6 +172,18 @@ function stripRouteBranding(src: string): string {
     .join("\n");
 }
 
+/**
+ * I18N-F1-R5 (P35): rotanın çıktı dili satırlarını çıkarır — YALNIZ şu kalıplar: `// I18N-F1-R5` ile işaretli satırlar,
+ * `output,` (paketleme seçeneği), `{ branding, output }` → `{ branding }`, `outFilename` → `filename`. Başka hiçbir satır
+ * dokunulmaz; çıkarılınca (markalama çıkarımıyla birlikte) main ile BİREBİR olmalıdır.
+ */
+function stripRouteI18n(src: string): string {
+  return src.replace(/\r\n/g, "\n").split("\n")
+    .filter((l) => !/^\s*\/\/ I18N-F1-R5\b/.test(l) && !/\/\/ I18N-F1-R5$/.test(l) && !/^\s*output,$/.test(l))
+    .map((l) => l.replace(/\{ branding, output \}/g, "{ branding }").replace(/\boutFilename\b/g, "filename"))
+    .join("\n");
+}
+
 async function numerologyWordGuard() {
   const changed = execFileSync("git", ["diff", "--name-only", "origin/main", "--", ...NUMEROLOJI_WORD_FILES], { cwd: ROOT, encoding: "utf8" }).trim();
   if (!changed) { ok(true, "Numeroloji Word dosyalarında main'e göre fark YOK"); return; }
@@ -133,7 +194,9 @@ async function numerologyWordGuard() {
   // (3) Rota: markalama satırları çıkarılınca main ile BİREBİR.
   const routePath = NUMEROLOJI_WORD_FILES[1]!;
   const mainRoute = execFileSync("git", ["show", `origin/main:${routePath}`], { cwd: ROOT, encoding: "utf8" }).replace(/\r\n/g, "\n");
-  ok(stripRouteBranding(readFileSync(path.join(ROOT, routePath), "utf8")) === mainRoute, "Numeroloji Word rotası: fark YALNIZ markalama satırları (çıkarılınca main ile birebir)");
+  // Rota main ile ZATEN birebirse (markalama main'e girmiş) şart daha güçlü biçimde sağlanır.
+  const curRoute = readFileSync(path.join(ROOT, routePath), "utf8").replace(/\r\n/g, "\n");
+  ok(curRoute === mainRoute || stripRouteBranding(curRoute) === mainRoute || stripRouteI18n(curRoute) === mainRoute || stripRouteBranding(stripRouteI18n(curRoute)) === mainRoute, "Numeroloji Word rotası: fark YALNIZ markalama + çıktı dili satırları (çıkarılınca main ile birebir)");
   // (1) Markasız çıktı: origin/main kurucusu (git archive → geçici klasör) ile dal kurucusu BİREBİR.
   const tmp = mkdtempSync(path.join(os.tmpdir(), "num-word-main-"));
   const tar = execFileSync("git", ["archive", "--format=tar", "origin/main", "app/numeroloji"], { cwd: ROOT, maxBuffer: 64 * 1024 * 1024 });
@@ -181,11 +244,22 @@ async function numerologyWordGuard() {
   ok(total === 48 && same === total, `Numeroloji Word (markasız) origin/main kurucusuyla BİREBİR (${same}/${total} senaryo; tüm XML parçaları)`, diffs);
 }
 
+function i18nPresentationGuard() {
+  const patch = execFileSync("git", ["diff", "-U0", "origin/main", "--", ...I18N_PRESENTATION_FILES], { cwd: ROOT, encoding: "utf8" });
+  const engineTouch = patch.split("\n").filter((l) => /^[+-](?![+-])/.test(l) && ENGINE_REFS.test(l));
+  ok(engineTouch.length === 0, "i18n sunum farkı motor / hesap / DB yazma koduna dokunmuyor", engineTouch);
+  const route = "app/api/numeroloji/analyses/route.ts";
+  const mainRoute = execFileSync("git", ["show", `origin/main:${route}`], { cwd: ROOT, encoding: "utf8" }).replace(/\r\n/g, "\n");
+  const curRoute = readFileSync(path.join(ROOT, route), "utf8").replace(/\r\n/g, "\n");
+  ok(curRoute.replace(/, code: "[A-Z_]+"/g, "") === mainRoute, "analyses rotası: fark YALNIZ dil-bağımsız `code` alanı (çıkarılınca main ile birebir)");
+}
+
 async function engineUnchanged() {
   console.log("\n── 0) Numeroloji motoru DEĞİŞMEDİ (dosya + karşılaştırmalı çıktı)");
-  const diff = execFileSync("git", ["diff", "--name-only", "origin/main", "--", ...ENGINE_PATHS, ...NUMEROLOJI_WORD_FILES.map((f) => `:(exclude)${f}`)], { cwd: ROOT, encoding: "utf8" }).trim();
+  const diff = execFileSync("git", ["diff", "--name-only", "origin/main", "--", ...ENGINE_PATHS, ...[...NUMEROLOJI_WORD_FILES, ...PRIVACY_CORE_FILES, ...I18N_PRESENTATION_FILES].map((f) => `:(exclude)${f}`)], { cwd: ROOT, encoding: "utf8" }).trim();
   ok(diff === "", "motor / hesap / kayıt üretme dosyalarında main'e göre fark YOK", diff);
   await numerologyWordGuard();
+  i18nPresentationGuard();
   const tmp = mkdtempSync(path.join(os.tmpdir(), "num-main-"));
   const tar = execFileSync("git", ["archive", "--format=tar", "origin/main", "lib/numeroloji"], { cwd: ROOT, maxBuffer: 64 * 1024 * 1024 });
   execFileSync("tar", ["-x", "-C", tmp.replace(/\\/g, "/")], { input: tar });
@@ -318,8 +392,10 @@ async function routeTests(analysis: unknown) {
     const ca = await seedRichClient(su, A.tenant, 1);
     const ca2 = await seedRichClient(su, A.tenant, 2);
     const cb = await seedRichClient(su, Bu.tenant, 3);
+    // I18N-0003: kayıt `birth_date` alanı snapshot'ın hesaplandığı tarihle (15.03.1975) AYNI olmalı; çelişen
+    // kayıt artık belirsiz sayılır ve kronolojik bölümler fail-closed gizlenir (önceki fikstür 1990 idi).
     const ins = async (tenant: string, name: string, surname: string) => (await q(
-      `insert into public.numerology_records(tenant_id, name, surname, birth_date, analysis_data) values ($1,$2,$3,'15.03.1990',$4) returning id`,
+      `insert into public.numerology_records(tenant_id, name, surname, birth_date, analysis_data) values ($1,$2,$3,'15.03.1975',$4) returning id`,
       [tenant, name, surname, JSON.stringify(analysis)]))[0].id as string;
     // recA ve recSame danışan ca ile AYNI ad/soyada sahip — otomatik eşleşme OLMAMALI.
     const recA = await ins(A.tenant, "ZZ_Ayşe1", "Çiğdem-Işık1");

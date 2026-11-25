@@ -25,6 +25,7 @@
  *   • "Yeni Word oluştur (içerik seçerek)" bilinçli yeni sürüm içindir; kayıtlı Word'den AYRIDIR.
  *   • `autoStart`: listeden gelen istek analizi açıp akışı bir kez başlatır.
  */
+import { useLocale, useTranslations } from "next-intl";
 import { useEffect, useRef, useState } from "react";
 import { useIsAndroid } from "@/hooks/useIsAndroid";
 import { commentaryFromFlags, type HdCommentarySelection } from "@/lib/human-design/reporting/reportV2Shared";
@@ -37,12 +38,12 @@ import {
   createProfessionalReport,
   downloadProfessionalReport,
   fetchKnowledgeMatchCount,
-  HD_REPORT_REDACTED_MESSAGE,
   type CreateResult,
 } from "../../kayitli-raporlar/helpers/hdProfessionalReport";
 import { HD_PREPARED_BY_MAX } from "@/lib/human-design/reporting/reportV2Shared";
-import { HD_ADMIN_SOURCE_LABELS, canUseHdSystemReading, isHdAdminSourceView } from "./HdChartKnowledgeTabs";
+import { canUseHdSystemReading, isHdAdminSourceView } from "./HdChartKnowledgeTabs";
 import { loadRoxyBodygraph } from "./HdRoxyBodygraph";
+import { useLocalizedCenterText } from "../../_i18n/bodygraphCenterText";
 
 type Phase = "idle" | "choosing" | "capturing" | "creating" | "downloading" | "done" | "error" | "bodygraph_failed";
 
@@ -55,17 +56,19 @@ function newRequestId(): string {
   });
 }
 
-function successMessage(created: Extract<CreateResult, { ok: true }>, redacted: boolean, requested: HdCommentarySelection): string {
-  const notes: string[] = ["Human Design Danışan Raporu hazırlandı ve indirildi (Word)."];
-  if (created.bodygraph === "missing") notes.push("Bu rapor BodyGraph görseli OLMADAN oluşturuldu.");
-  else if (created.bodygraph === "uploaded_image") notes.push("BodyGraph yerine danışan profilindeki harita görseli kullanıldı.");
+type ReportT = (key: string, values?: Record<string, string | number>) => string;
+
+function successMessage(t: ReportT, created: Extract<CreateResult, { ok: true }>, redacted: boolean, requested: HdCommentarySelection): string {
+  const notes: string[] = [t("success")];
+  if (created.bodygraph === "missing") notes.push(t("noBodygraph"));
+  else if (created.bodygraph === "uploaded_image") notes.push(t("uploadedImage"));
   const wantedKnowledge = requested === "expert" || requested === "both";
   const wantedSystem = requested === "system" || requested === "both";
-  if (wantedSystem && created.systemReading === "unavailable") notes.push("Bu analizde kayıtlı Sistem Yorumu olmadığından Sistem Yorumu eklenmedi.");
-  if (wantedKnowledge && created.expertEntries === 0) notes.push("Bilgi Bankanızda bu analizle eşleşen aktif açıklama bulunmadığından açıklama eklenmedi.");
-  if (!wantedKnowledge && !wantedSystem) notes.push("Rapor teknik harita bilgileriyle oluşturuldu (açıklama / sistem yorumu seçilmedi).");
-  if (redacted) notes.push(HD_REPORT_REDACTED_MESSAGE);
-  notes.push("Bu analizde “Raporu İndir” ile veya Kayıtlı Raporlar'dan tekrar indirebilirsiniz.");
+  if (wantedSystem && created.systemReading === "unavailable") notes.push(t("systemMissing"));
+  if (wantedKnowledge && created.expertEntries === 0) notes.push(t("knowledgeMissing"));
+  if (!wantedKnowledge && !wantedSystem) notes.push(t("technicalOnly"));
+  if (redacted) notes.push(t("redacted"));
+  notes.push(t("downloadAgain"));
   return notes.join(" ");
 }
 
@@ -95,6 +98,12 @@ export function HdProfessionalReportButton({
   autoStart?: boolean;
 }) {
   const isAndroid = useIsAndroid();
+  const t = useTranslations("hd.records.report");
+  // P33: Word'e gömülen BodyGraph PNG'si ekrandaki çizimle aynı dilde (TR'de sahne aynen → bugünkü PNG).
+  const locale = useLocale();
+  const localizeCenters = useLocalizedCenterText();
+  const tTabs = useTranslations("hd.records.tabs");
+  const msg: ReportT = (key, values) => t(key, values);
   const [phase, setPhase] = useState<Phase>("idle");
   const [message, setMessage] = useState<string>("");
   // Görünürlük için istemci kapısı; asıl karar sunucuda (hd_system_reading).
@@ -131,16 +140,16 @@ export function HdProfessionalReportButton({
     const dl = await downloadProfessionalReport(reportId);
     if (!dl.ok) {
       setPhase("error");
-      setMessage(`Rapor kaydedildi ancak indirilemedi: ${dl.error} Tekrar indirmeyi deneyin veya Kayıtlı Raporlar'ı kullanın.`);
+      setMessage(t("savedNotDownloaded", { error: dl.error }));
       return;
     }
     setPhase("done");
     setMessage(
       created
-        ? successMessage(created, dl.systemReadingRedacted, lastCommentaryRef.current ?? "none")
+        ? successMessage(msg, created, dl.systemReadingRedacted, lastCommentaryRef.current ?? "none")
         : dl.systemReadingRedacted
-          ? `${HD_SAVED_WORD_MESSAGE} ${HD_REPORT_REDACTED_MESSAGE}`
-          : HD_SAVED_WORD_MESSAGE,
+          ? `${t("savedWord")} ${t("redacted")}`
+          : t("savedWord"),
     );
   }
 
@@ -158,11 +167,11 @@ export function HdProfessionalReportButton({
         // AKTİF: premium BodyGraph (ekrandaki çizimle aynı). PASİF: Roxy resmî bileşeninden yakalama (rendererConfig).
         const premium = HD_INDIVIDUAL_BODYGRAPH === "premium" && chartResult && premiumStateFromChart(chartResult);
         const cap = premium && chartResult
-          ? await capturePremiumBodygraphPng(chartResult, roxyRender, chartId)
-          : await captureRoxyBodygraphPng(roxyRender, loadRoxyBodygraph, chartId);
+          ? await capturePremiumBodygraphPng(chartResult, roxyRender, chartId, localizeCenters)
+          : await captureRoxyBodygraphPng(roxyRender, loadRoxyBodygraph, chartId, locale);
         if (!cap.ok) {
           setPhase("bodygraph_failed");
-          setMessage(`${cap.error} Tekrar deneyebilir ya da raporu BodyGraph görseli olmadan oluşturabilirsiniz.`);
+          setMessage(t("bodygraphFailed", { error: cap.code ? t(`capture.${cap.code}`) : cap.error }));
           return;
         }
         bodygraphPng = cap.dataUrl;
@@ -234,7 +243,7 @@ export function HdProfessionalReportButton({
         disabled={busy || lookupPending}
         aria-busy={busy || lookupPending}
         data-hd-word-download
-        title={createdReportId ? "Human Design Danışan Raporunu İndir (Word)" : "Human Design Danışan Raporunu Hazırla (Word)"}
+        title={createdReportId ? t("titleDownload") : t("titlePrepare")}
         // Küçük, nötr işlem düğmesi (owner kararı 2026-10-17): harita baskın kalır; parlak geniş alan yok.
         className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 no-underline transition hover:border-emerald-300 hover:bg-emerald-50/60 disabled:cursor-not-allowed disabled:opacity-60"
       >
@@ -243,14 +252,14 @@ export function HdProfessionalReportButton({
           <path d="M9.5 1.5V5H13M5.5 8.5h5M5.5 11h3.5" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
         {phase === "capturing"
-          ? "BodyGraph hazırlanıyor…"
+          ? t("capturing")
           : phase === "creating"
-            ? "Rapor hazırlanıyor…"
+            ? t("creating")
             : phase === "downloading"
-              ? "İndiriliyor…"
+              ? t("downloading")
               : createdReportId
-                ? "Raporu İndir"
-                : label ?? "Raporu Hazırla"}
+                ? t("download")
+                : label ?? t("prepare")}
       </button>
       {createdReportId && !busy ? (
         <button
@@ -259,7 +268,7 @@ export function HdProfessionalReportButton({
           data-hd-word-new
           className="self-start text-[11px] font-semibold text-slate-500 underline-offset-2 hover:text-emerald-700 hover:underline"
         >
-          Yeni rapor hazırla (içerik seçerek)
+          {t("newVersion")}
         </button>
       ) : null}
       {phase === "bodygraph_failed" ? (
@@ -269,14 +278,14 @@ export function HdProfessionalReportButton({
             onClick={() => void run({ commentary: lastCommentaryRef.current, preparedBy: lastPreparedByRef.current })}
             className="h-8 rounded-lg border border-emerald-300 bg-white px-3 text-xs font-bold text-emerald-700 hover:bg-emerald-50"
           >
-            Tekrar dene
+            {t("retry")}
           </button>
           <button
             type="button"
             onClick={() => void run({ commentary: lastCommentaryRef.current, allowMissingBodygraph: true, preparedBy: lastPreparedByRef.current })}
             className="h-8 rounded-lg border border-amber-300 bg-amber-50 px-3 text-xs font-bold text-amber-800 hover:bg-amber-100"
           >
-            BodyGraph olmadan oluştur
+            {t("withoutBodygraph")}
           </button>
         </div>
       ) : null}
@@ -310,14 +319,14 @@ export function HdProfessionalReportButton({
             className="w-full max-w-md rounded-t-2xl bg-white p-4 shadow-xl sm:rounded-2xl sm:p-5"
           >
             <h3 id="hd-word-commentary-title" className="text-base font-black text-slate-900">
-              Human Design Danışan Raporu&apos;na neler eklensin?
+              {t("dialogTitle")}
             </h3>
             <p className="mt-1 text-xs leading-relaxed text-slate-600">
-              Teknik harita bilgileri her raporda yer alır. Aşağıdakiler yalnız siz işaretlerseniz eklenir.
-              <span className="font-bold"> Özel Çalışma Notlarınız hiçbir durumda rapora eklenmez.</span>
+              {t("dialogIntro")}
+              <span className="font-bold"> {t("dialogPrivate")}</span>
             </p>
             <fieldset className="mt-3 space-y-2">
-              <legend className="sr-only">Rapora eklenecek içerik</legend>
+              <legend className="sr-only">{t("legend")}</legend>
               <label
                 className={`flex min-h-[48px] cursor-pointer items-start gap-3 rounded-xl border px-3 py-2.5 ${
                   addKnowledge ? "border-emerald-400 bg-emerald-50/60" : "border-slate-200"
@@ -333,18 +342,18 @@ export function HdProfessionalReportButton({
                 />
                 <span>
                   <span className="block text-sm font-bold text-slate-800">
-                    {isAdmin ? `${HD_ADMIN_SOURCE_LABELS.expert} Açıklamalarını Ekle` : "Bilgi Bankamdaki Açıklamaları Ekle"}
+                    {isAdmin ? t("addExpertAdmin", { label: tTabs("expert") }) : t("addKnowledge")}
                   </span>
                   <span className="block text-xs text-slate-500">
-                    İlgili Human Design özellikleri için Bilgi Bankası&apos;na yazdığınız açıklamalar Word raporuna eklenir.
+                    {t("addKnowledgeHelp")}
                   </span>
                   {addKnowledge && kbMatch === 0 ? (
                     <span className="mt-1 block text-xs font-semibold text-amber-700" role="status" data-hd-kb-no-match>
-                      Bu analizle eşleşen aktif Bilgi Bankası açıklaması bulunamadı.
+                      {t("kbNoMatch")}
                     </span>
                   ) : addKnowledge && typeof kbMatch === "number" && kbMatch > 0 ? (
                     <span className="mt-1 block text-xs font-semibold text-emerald-700" data-hd-kb-match>
-                      Bu analizle eşleşen {kbMatch} aktif açıklama eklenecek.
+                      {t("kbMatch", { count: kbMatch })}
                     </span>
                   ) : null}
                 </span>
@@ -364,13 +373,13 @@ export function HdProfessionalReportButton({
                     className="mt-1"
                   />
                   <span>
-                    <span className="block text-sm font-bold text-slate-800">{isAdmin ? `${HD_ADMIN_SOURCE_LABELS.system}nu Ekle` : "Sistem Yorumunu Ekle"}</span>
+                    <span className="block text-sm font-bold text-slate-800">{t("addSystem")}</span>
                     <span className="block text-xs text-slate-500">
-                      Bu analiz için mevcut ve kullanılabilir sistem yorumları Word raporuna eklenir.
+                      {t("addSystemHelp")}
                     </span>
                     {!systemAvailable ? (
                       <span className="mt-1 block text-xs font-semibold text-amber-700" data-hd-system-unavailable>
-                        Bu analizde kayıtlı sistem yorumu yok (manuel ya da eski kayıt).
+                        {t("systemUnavailable")}
                       </span>
                     ) : null}
                   </span>
@@ -378,25 +387,25 @@ export function HdProfessionalReportButton({
               ) : null}
               {isAdmin ? (
                 <p className="px-1 text-[11px] leading-relaxed text-slate-500" data-hd-word-central-note>
-                  {HD_ADMIN_SOURCE_LABELS.central} bu Word raporuna eklenmez.
+                  {t("centralNotIncluded", { label: tTabs("central") })}
                 </p>
               ) : null}
             </fieldset>
             <label className="mt-3 block" htmlFor={`hd-word-prepared-by-${chartId}`}>
-              <span className="block text-sm font-bold text-slate-800">Raporu Hazırlayan</span>
-              <span className="block text-xs text-slate-500">Raporda görünmesini istediğiniz ad ve unvanı yazabilirsiniz.</span>
+              <span className="block text-sm font-bold text-slate-800">{t("preparedBy")}</span>
+              <span className="block text-xs text-slate-500">{t("preparedByHelp")}</span>
               <input
                 id={`hd-word-prepared-by-${chartId}`}
                 type="text"
                 value={preparedBy}
                 maxLength={HD_PREPARED_BY_MAX}
                 onChange={(e) => setPreparedBy(e.target.value)}
-                placeholder="Örn. Human Design Uzmanı Ahmet Yılmaz"
+                placeholder={t("preparedByPlaceholder")}
                 autoComplete="off"
                 data-hd-word-prepared-by
                 className="mt-1.5 h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
               />
-              <span className="mt-1 block text-[11px] text-slate-400">Boş bırakırsanız raporda “Hazırlayan” satırı yer almaz.</span>
+              <span className="mt-1 block text-[11px] text-slate-400">{t("preparedByEmpty")}</span>
             </label>
             <div className="mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
               <button
@@ -404,14 +413,14 @@ export function HdProfessionalReportButton({
                 onClick={() => setPhase("idle")}
                 className="h-10 rounded-xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-700 hover:bg-slate-50"
               >
-                Vazgeç
+                {t("cancel")}
               </button>
               <button
                 type="button"
                 onClick={confirmChoice}
                 className="h-10 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 px-5 text-sm font-black text-white shadow-sm hover:brightness-105"
               >
-                Raporu Hazırla
+                {t("prepare")}
               </button>
             </div>
           </div>

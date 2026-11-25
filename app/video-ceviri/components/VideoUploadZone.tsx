@@ -8,17 +8,19 @@ import {
   UploadCloud,
   Video,
 } from "lucide-react";
+import { useLocale, useTranslations } from "next-intl";
 import { supabase } from "@/lib/supabase";
+import { DEFAULT_LOCALE } from "@/lib/i18n/locales";
 import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import { readYasamUser } from "@/lib/auth/yasamUser";
 import {
   authHeaders,
   insertVideoJob,
+  checkVideoFile,
   updateVideoJobStatus,
   validateVideoFile,
 } from "@/lib/video-ceviri/videoJobHelpers";
 import { resolveVideoUploadMime, VIDEO_TEMP_BUCKET } from "@/lib/video-ceviri/videoTempPath";
-import { DIGITAL_CONTENT_DEMO_MESSAGE } from "@/lib/demo/digitalContentDemo";
 
 /*
  * FAZ1 FINAL HARDENING (AUTH / item 11): TEK yükleme yolu — sunucudan imzalı yükleme
@@ -51,18 +53,25 @@ const ACCEPT = [
   ".amr", ".3gp", ".3gpp", ".mp3", ".m4a", ".wav", ".aac",
 ].join(",");
 
-const PHASE_LABEL: Record<UploadPhase, string> = {
-  idle: "",
-  validating: "Dosya kontrol ediliyor…",
-  inserting: "Kayıt oluşturuluyor…",
-  uploading: "Dosya yükleniyor…",
-  done: "",
-  error: "",
+// I18N: aşama etiketleri videoTranslate.upload.<phase> (yalnız validating / inserting / uploading görünür).
+const PHASE_KEY: Partial<Record<UploadPhase, "validating" | "inserting" | "uploading">> = {
+  validating: "validating",
+  inserting: "inserting",
+  uploading: "uploading",
 };
 
 type Props = { onSuccess: () => void };
 
 export default function VideoUploadZone({ onSuccess }: Props) {
+  const t = useTranslations("videoTranslate.upload");
+  const tApi = useTranslations("videoTranslate.apiErrors");
+  const tDemo = useTranslations("digitalContent.demo");
+  const locale = useLocale();
+  const isSource = locale === DEFAULT_LOCALE;
+  const phaseLabel = (p: UploadPhase) => (PHASE_KEY[p] ? t(PHASE_KEY[p]!) : "");
+  /** Sunucu/depolama ayrıntısı: TR'de aynen; diğer dillerde kod eşlemesi ya da çevrilmiş yedek. */
+  const detail = (raw: string, code: string | undefined, fallback: string) =>
+    isSource ? raw : code && tApi.has(code) ? tApi(code) : fallback;
   const [phase, setPhase] = useState<UploadPhase>("idle");
   const [errorMsg, setErrorMsg] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -115,7 +124,7 @@ export default function VideoUploadZone({ onSuccess }: Props) {
 
     // Demo hesapta yükleme engeli
     if (readYasamUser()?.is_demo_account === true) {
-      setErrorMsg(DIGITAL_CONTENT_DEMO_MESSAGE);
+      setErrorMsg(tDemo("message"));
       setPhase("error");
       return;
     }
@@ -124,7 +133,16 @@ export default function VideoUploadZone({ onSuccess }: Props) {
     setPhase("validating");
     const validErr = validateVideoFile(selectedFile);
     if (validErr) {
-      setErrorMsg(validErr);
+      // TR: kaynak doğrulama metni aynen; diğer dillerde aynı kontrolün kodu → upload.fileErrors.<code>.
+      const check = checkVideoFile(selectedFile);
+      setErrorMsg(
+        isSource || !check
+          ? validErr
+          : t(`fileErrors.${check.code}`, {
+              ext: "ext" in check ? check.ext : "",
+              mb: "mb" in check ? check.mb : "",
+            }),
+      );
       setPhase("error");
       return;
     }
@@ -133,7 +151,7 @@ export default function VideoUploadZone({ onSuccess }: Props) {
     const tenantId = await getSyncedTenantId();
     const user = readYasamUser();
     if (!tenantId || !user?.id) {
-      setErrorMsg("Oturum bilgisi alınamadı. Lütfen tekrar giriş yapın.");
+      setErrorMsg(t("sessionMissing"));
       setPhase("error");
       return;
     }
@@ -147,7 +165,7 @@ export default function VideoUploadZone({ onSuccess }: Props) {
       fileSizeBytes: selectedFile.size,
     });
     if (!result.jobId) {
-      setErrorMsg(result.error ?? "İş kaydı oluşturulamadı.");
+      setErrorMsg(result.error && isSource ? result.error : t("jobCreateFailed"));
       setPhase("error");
       return;
     }
@@ -160,9 +178,10 @@ export default function VideoUploadZone({ onSuccess }: Props) {
     // göre gerçek MIME'e eşlenir (paylaşılan harita: lib/video-ceviri/videoTempPath).
     const resolvedMime = resolveVideoUploadMime(selectedFile.name, selectedFile.type);
     if (!resolvedMime) {
-      const msg = "Dosya türü belirlenemedi. Kabul edilen: MP4, MOV, WEBM, MKV, AVI, OGG · MP3, M4A, WAV, AAC, AMR.";
+      // i18n-ignore: iş kaydına (DB error_message) yazılan kanonik Türkçe hata metni — arayüz dilinden bağımsız.
+      const msg = "Dosya türü belirlenemedi. Kabul edilen: MP4, MOV, WEBM, MKV, AVI, OGG · MP3, M4A, WAV, AAC, AMR."; // i18n-ignore: DB'ye yazılır
       await updateVideoJobStatus(jobId, "failed", msg, tenantId);
-      setErrorMsg(msg);
+      setErrorMsg(isSource ? msg : t("typeUnknown"));
       setPhase("error");
       return;
     }
@@ -172,6 +191,7 @@ export default function VideoUploadZone({ onSuccess }: Props) {
     // Adım 1: sunucudan kısa ömürlü imzalı yükleme token'ı + sunucu-türetilmiş yol al.
     let signedPath: string;
     let signedToken: string;
+    let tokenCode: string | undefined;
     try {
       const tokenRes = await fetch("/api/video-ceviri/get-upload-url", {
         method: "POST",
@@ -182,17 +202,21 @@ export default function VideoUploadZone({ onSuccess }: Props) {
         ok?: boolean;
         token?: string;
         path?: string;
+        code?: string;
         error?: string;
       };
       if (!tokenRes.ok || !tokenData.ok || !tokenData.token || !tokenData.path) {
-        throw new Error(tokenData.error ?? "Yükleme bağlantısı alınamadı.");
+        tokenCode = tokenData.code;
+        // i18n-ignore: yedek metin iş kaydına (DB error_message) yazılır — kanonik Türkçe.
+        throw new Error(tokenData.error ?? "Yükleme bağlantısı alınamadı."); // i18n-ignore: DB'ye yazılır
       }
       signedPath = tokenData.path;
       signedToken = tokenData.token;
     } catch (tokenErr) {
-      const msg = tokenErr instanceof Error ? tokenErr.message : "Yükleme bağlantısı hatası.";
+      // i18n-ignore: iş kaydına (DB error_message) yazılan kanonik Türkçe yedek metin.
+      const msg = tokenErr instanceof Error ? tokenErr.message : "Yükleme bağlantısı hatası."; // i18n-ignore: DB'ye yazılır
       await updateVideoJobStatus(jobId, "failed", msg, tenantId);
-      setErrorMsg(`Yükleme başlatılamadı: ${msg}`);
+      setErrorMsg(t("startFailed", { message: detail(msg, tokenCode, t("linkFailed")) }));
       setPhase("error");
       return;
     }
@@ -207,7 +231,7 @@ export default function VideoUploadZone({ onSuccess }: Props) {
 
     if (upErr) {
       await updateVideoJobStatus(jobId, "failed", upErr.message, tenantId);
-      setErrorMsg(`Dosya yüklenemedi: ${upErr.message}`);
+      setErrorMsg(t("uploadFailed", { message: upErr.message }));
       setPhase("error");
       return;
     }
@@ -233,7 +257,7 @@ export default function VideoUploadZone({ onSuccess }: Props) {
         <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-600 to-violet-600 text-white shadow-sm">
           <UploadCloud className="h-3.5 w-3.5" strokeWidth={2.25} />
         </span>
-        Video Yükle
+        {t("title")}
       </h2>
 
       {/* drop zone */}
@@ -255,8 +279,8 @@ export default function VideoUploadZone({ onSuccess }: Props) {
             <Loader2 className="h-6 w-6 animate-spin text-violet-600" />
             <p className="text-xs font-bold text-slate-600">
               {phase === "uploading" && uploadProgress > 0
-                ? `Yükleniyor… %${uploadProgress}`
-                : PHASE_LABEL[phase]}
+                ? t("progress", { percent: String(uploadProgress) })
+                : phaseLabel(phase)}
             </p>
             {phase === "uploading" && uploadProgress > 0 && (
               <div className="h-1.5 w-48 overflow-hidden rounded-full bg-violet-100">
@@ -276,14 +300,14 @@ export default function VideoUploadZone({ onSuccess }: Props) {
               strokeWidth={1.75}
             />
             <p className="text-xs font-bold text-emerald-700">
-              Dosya başarıyla yüklendi.
+              {t("done")}
             </p>
             <button
               type="button"
               onClick={resetToIdle}
               className="text-[11px] font-bold text-violet-600 underline underline-offset-2 transition hover:text-violet-800"
             >
-              Yeni dosya yükle
+              {t("newFile")}
             </button>
           </div>
         )}
@@ -300,7 +324,7 @@ export default function VideoUploadZone({ onSuccess }: Props) {
                   {selectedFile.name}
                 </p>
                 <p className="text-[11px] font-medium text-slate-500">
-                  {(selectedFile.size / 1024 / 1024).toFixed(1)} MB
+                  {t("fileSize", { size: (selectedFile.size / 1024 / 1024).toFixed(1) })}
                 </p>
                 <button
                   type="button"
@@ -311,16 +335,16 @@ export default function VideoUploadZone({ onSuccess }: Props) {
                   }}
                   className="text-[11px] font-semibold text-slate-400 underline underline-offset-2 transition hover:text-slate-600"
                 >
-                  Değiştir
+                  {t("change")}
                 </button>
               </div>
             ) : (
               <>
                 <p className="text-xs font-black text-slate-700">
-                  Sürükleyin veya seçin
+                  {t("dropHint")}
                 </p>
                 <p className="mt-0.5 text-[11px] font-medium text-slate-400">
-                  MP4 · MOV · MP3 · WAV · M4A · maks. 25 MB
+                  {t("formatsHint")}
                 </p>
               </>
             )}
@@ -331,7 +355,7 @@ export default function VideoUploadZone({ onSuccess }: Props) {
               className="mt-2 inline-flex h-7 items-center gap-1.5 rounded-lg border border-violet-200 bg-white px-3 text-[11px] font-bold text-violet-700 shadow-sm transition hover:border-violet-300 hover:bg-violet-50"
             >
               <UploadCloud className="h-3 w-3" strokeWidth={2.25} />
-              Dosya Seç
+              {t("selectFile")}
             </button>
           </>
         )}
@@ -360,15 +384,15 @@ export default function VideoUploadZone({ onSuccess }: Props) {
       <div className="mt-2.5 grid grid-cols-2 gap-2">
         <div className="rounded-lg border border-slate-200/80 bg-slate-50/90 px-3 py-2">
           <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
-            Kaynak Dil
+            {t("sourceLanguage")}
           </p>
           <p className="mt-0.5 text-xs font-black text-slate-700">
-            Otomatik Algıla
+            {t("autoDetect")}
           </p>
         </div>
         <div className="rounded-lg border border-slate-200/80 bg-slate-50/90 px-3 py-2">
           <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
-            Çıktı Formatı
+            {t("outputFormat")}
           </p>
           <p className="mt-0.5 text-xs font-black text-slate-700">Word + PDF</p>
         </div>
@@ -384,10 +408,10 @@ export default function VideoUploadZone({ onSuccess }: Props) {
         {isBusy ? (
           <>
             <Loader2 className="h-4 w-4 animate-spin" strokeWidth={2.25} />
-            {PHASE_LABEL[phase]}
+            {phaseLabel(phase)}
           </>
         ) : (
-          "İşlem Başlat"
+          t("start")
         )}
       </button>
     </div>

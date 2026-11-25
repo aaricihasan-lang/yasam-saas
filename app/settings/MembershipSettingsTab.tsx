@@ -1,12 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useLocale, useTranslations } from "next-intl";
+import type { ActiveLocale } from "@/lib/i18n/locales";
 import { BadgeCheck, CalendarClock, Crown, Info, Loader2, MessageSquare, ShieldAlert } from "lucide-react";
 import { readSessionToken, sessionTokenHeader, type YasamUser } from "@/lib/auth/yasamUser";
 import {
   profileStateFromResponse,
   resolveMembershipView,
   type MembershipTone,
+  type MembershipTx,
   type MembershipView,
   type ProfileFetchState,
   type TrialStatusLite,
@@ -33,7 +36,7 @@ function authHeaders(userId: string): Record<string, string> {
   return { "x-user-id": userId, ...sessionTokenHeader(readSessionToken()) };
 }
 
-async function loadMembership(user: YasamUser, signal: AbortSignal): Promise<MembershipView> {
+async function loadMembership(user: YasamUser, signal: AbortSignal, tx: MembershipTx, locale: ActiveLocale): Promise<MembershipView> {
   let profile: ProfileFetchState = { status: "error" };
   try {
     const res = await fetch("/api/auth/profile", { headers: authHeaders(user.id), cache: "no-store", signal });
@@ -58,7 +61,7 @@ async function loadMembership(user: YasamUser, signal: AbortSignal): Promise<Mem
       if (signal.aborted) throw e;
     }
   }
-  return resolveMembershipView({ profile, trial });
+  return resolveMembershipView({ profile, trial, tx, locale });
 }
 
 /** Sekme simgesi (page.tsx lucide import listesine dokunmamak için buradan verilir). */
@@ -66,22 +69,25 @@ export const MEMBERSHIP_TAB_ICON = BadgeCheck;
 
 export function MembershipSettingsTab({ user, onOpenContact }: { user: YasamUser; onOpenContact: () => void }) {
   const [state, setState] = useState<LoadState>({ loading: true });
+  const t = useTranslations("settings.membership");
+  const tRoot = useTranslations();
+  const locale = useLocale() as ActiveLocale;
 
   useEffect(() => {
     const ctrl = new AbortController();
-    loadMembership(user, ctrl.signal)
+    loadMembership(user, ctrl.signal, tRoot as MembershipTx, locale)
       .then((view) => setState({ loading: false, view }))
       .catch(() => {
         /* iptal edildi */
       });
     return () => ctrl.abort();
-  }, [user]);
+  }, [user, tRoot, locale]);
 
   if (state.loading) {
     return (
       <div className="flex items-center justify-center gap-2 py-10 text-sm font-semibold text-slate-500" role="status">
         <Loader2 className="h-5 w-5 animate-spin text-violet-500" aria-hidden />
-        Üyelik bilgileriniz yükleniyor…
+        {t("loading")}
       </div>
     );
   }
@@ -98,7 +104,7 @@ export function MembershipSettingsTab({ user, onOpenContact }: { user: YasamUser
             <HeadIcon className="h-5 w-5" aria-hidden />
           </span>
           <div className="min-w-0 flex-1">
-            <p className="text-[11px] font-black uppercase tracking-wide text-violet-700">Mevcut paket</p>
+            <p className="text-[11px] font-black uppercase tracking-wide text-violet-700">{t("currentPackage")}</p>
             <h3 id="membership-heading" className="mt-0.5 break-words text-lg font-black text-slate-900 sm:text-xl">
               {v.packageLabel}
             </h3>
@@ -106,7 +112,7 @@ export function MembershipSettingsTab({ user, onOpenContact }: { user: YasamUser
               className={`mt-2 inline-flex max-w-full items-center rounded-full border px-3 py-1 text-xs font-bold ${TONE_BADGE[v.tone]}`}
               data-testid="membership-status"
             >
-              <span className="sr-only">Üyelik durumu: </span>
+              <span className="sr-only">{t("statusSr")}</span>
               {v.statusLabel}
             </span>
             <p className="mt-3 break-words text-sm leading-relaxed text-slate-700">{v.summary}</p>
@@ -118,7 +124,7 @@ export function MembershipSettingsTab({ user, onOpenContact }: { user: YasamUser
         <div className="min-w-0">
           <h4 className="mb-2 flex items-center gap-2 text-sm font-black text-slate-800">
             <CalendarClock className="h-4 w-4 text-violet-600" aria-hidden />
-            Tarihler ve kullanım
+            {t("datesTitle")}
           </h4>
           <dl className="grid min-w-0 gap-2.5 sm:grid-cols-2">
             {v.rows.map((r) => (
@@ -129,7 +135,7 @@ export function MembershipSettingsTab({ user, onOpenContact }: { user: YasamUser
               </div>
             ))}
           </dl>
-          <p className="mt-2 text-[11px] text-slate-400">Tarihler Türkiye saatiyle gösterilir.</p>
+          <p className="mt-2 text-[11px] text-slate-400">{t("datesNote")}</p>
         </div>
       ) : null}
 
@@ -137,7 +143,7 @@ export function MembershipSettingsTab({ user, onOpenContact }: { user: YasamUser
         <div className="min-w-0">
           <h4 className="mb-2 flex items-center gap-2 text-sm font-black text-slate-800">
             <Info className="h-4 w-4 text-violet-600" aria-hidden />
-            Erişim kuralları
+            {t("rulesTitle")}
           </h4>
           <ul className="space-y-1.5">
             {v.restrictions.map((r) => (
@@ -166,7 +172,7 @@ export function MembershipSettingsTab({ user, onOpenContact }: { user: YasamUser
       ) : null}
 
       <p className="text-[11px] leading-relaxed text-slate-400">
-        Bu sayfa yalnız bilgi amaçlıdır; paket ve üyelik değişiklikleri yöneticiniz tarafından yapılır.
+        {t("footer")}
       </p>
     </section>
   );

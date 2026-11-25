@@ -1,5 +1,7 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useModalA11y } from "@/app/refleksoloji/components/useModalA11y";
@@ -12,6 +14,7 @@ type ProtocolNotesModalProps = {
 };
 
 export function ProtocolNotesModal({ open, value, onClose, onSave }: ProtocolNotesModalProps) {
+  const t = useTranslations("reflexology.protocolMap.notesModal");
   const [draft, setDraft] = useState(value);
   const [mounted, setMounted] = useState(false);
 
@@ -50,13 +53,13 @@ export function ProtocolNotesModal({ open, value, onClose, onSave }: ProtocolNot
         <header className="mb-5 flex shrink-0 flex-col gap-4 border-b border-slate-100 pb-5 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0">
             <div className="mb-2 inline-flex rounded-full bg-violet-50 px-3 py-1 text-xs font-black tracking-[0.14em] text-violet-700 ring-1 ring-violet-100">
-              PROTOKOL NOTU
+              {t("badge")}
             </div>
             <h2 id="protocol-notes-modal-title" className="text-2xl font-black text-slate-950 sm:text-[26px]">
-              Uygulama Notları
+              {t("title")}
             </h2>
             <p className="mt-1 text-sm font-medium text-slate-500">
-              Seans süresi, basınç, sıklık ve uygulama detaylarını yazın.
+              {t("subtitle")}
             </p>
           </div>
 
@@ -66,14 +69,14 @@ export function ProtocolNotesModal({ open, value, onClose, onSave }: ProtocolNot
               onClick={onClose}
               className="rounded-2xl bg-slate-100 px-5 py-3 text-sm font-black text-slate-700 transition hover:bg-slate-200"
             >
-              Kapat
+              {t("close")}
             </button>
             <button
               type="button"
               onClick={handleSave}
               className="rounded-2xl bg-emerald-600 px-6 py-3 text-sm font-black text-white shadow-[0_14px_30px_rgba(16,185,129,0.22)] transition hover:bg-emerald-700"
             >
-              Bu Alanı Kaydet
+              {t("save")}
             </button>
           </div>
         </header>
@@ -84,7 +87,7 @@ export function ProtocolNotesModal({ open, value, onClose, onSave }: ProtocolNot
             value={draft}
             onChange={(event) => setDraft(event.target.value)}
             className="min-h-[420px] max-h-[60vh] w-full resize-y rounded-[22px] border border-violet-200/90 bg-white p-5 text-lg font-medium leading-relaxed text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-violet-400 focus:ring-4 focus:ring-violet-100/80"
-            placeholder="Uygulama notlarınızı buraya yazın..."
+            placeholder={t("placeholder")}
           />
         </div>
       </div>

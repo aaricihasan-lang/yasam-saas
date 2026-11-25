@@ -3,14 +3,14 @@
 import Link from "next/link";
 import BfcacheRefreshHandler from "@/components/BfcacheRefreshHandler";
 import { useEffect, useRef, useState } from "react";
+import { useLocale, useTranslations } from "next-intl";
 import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import { readYasamUser, readSessionToken, isAdminUser } from "@/lib/auth/yasamUser";
 import { useToast } from "@/components/ui/ToastProvider";
 import { DemoModuleBanner } from "@/components/demo/DemoModuleBanner";
-import {
-  DIGITAL_CONTENT_DEMO_BANNER,
-  notifyDigitalContentDemo,
-} from "@/lib/demo/digitalContentDemo";
+import { useDigitalContentDemo } from "@/app/digital-content/useDigitalContentDemo";
+import { DEFAULT_LOCALE } from "@/lib/i18n/locales";
+import { formatDateTime } from "@/lib/i18n/format";
 import {
   BookOpen,
   CheckCircle,
@@ -62,17 +62,16 @@ type ActiveJob = {
   errorMessage: string | null;
 };
 
+// I18N: başlık / alt başlık docTranslate.cards.<msgKey>.{title,subtitle}; rozet + "… Seç" etiketi anahtarla.
 type CardDef = {
   id: CardId;
-  title: string;
-  subtitle: string;
+  msgKey: "pdfToWord" | "pdfToTurkishWord" | "ocr";
   icon: React.ReactNode;
   accept: string;
-  acceptLabel: string;
+  acceptKind: "pdf" | "image";
   gradient: string;
   border: string;
   iconWrap: string;
-  badge: string;
   badgeColor: string;
 };
 
@@ -81,41 +80,35 @@ type CardDef = {
 const CARDS: CardDef[] = [
   {
     id: "pdf-to-word",
-    title: "PDF → Word",
-    subtitle: "PDF belgeni düzenlenebilir Word dosyasına dönüştür.",
+    msgKey: "pdfToWord",
     icon: <FileText className="h-5 w-5" strokeWidth={1.75} />,
     accept: ".pdf,application/pdf",
-    acceptLabel: "PDF",
+    acceptKind: "pdf",
     gradient: "from-violet-50/90 via-white to-indigo-50/80",
     border: "border-violet-200/70",
     iconWrap: "from-violet-500 to-indigo-600",
-    badge: "Aktif",
     badgeColor: "bg-green-100 text-green-700",
   },
   {
     id: "pdf-to-turkce-word",
-    title: "PDF → Türkçe Word",
-    subtitle: "PDF içeriğini Türkçeye çevir, düzenlenebilir Word belgesi olarak indir.",
+    msgKey: "pdfToTurkishWord",
     icon: <Languages className="h-5 w-5" strokeWidth={1.75} />,
     accept: ".pdf,application/pdf",
-    acceptLabel: "PDF",
+    acceptKind: "pdf",
     gradient: "from-sky-50/90 via-white to-cyan-50/80",
     border: "border-sky-200/70",
     iconWrap: "from-sky-500 to-cyan-600",
-    badge: "Aktif",
     badgeColor: "bg-green-100 text-green-700",
   },
   {
     id: "ocr",
-    title: "📷 Görsel OCR",
-    subtitle: "Fotoğraf veya ekran görüntüsündeki yazıları dijital metne dönüştürün. PNG, JPG, WEBP desteklenir.",
+    msgKey: "ocr",
     icon: <ScanLine className="h-5 w-5" strokeWidth={1.75} />,
     accept: ".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp",
-    acceptLabel: "Görüntü",
+    acceptKind: "image",
     gradient: "from-amber-50/90 via-white to-orange-50/80",
     border: "border-amber-200/70",
     iconWrap: "from-amber-500 to-orange-500",
-    badge: "Aktif",
     badgeColor: "bg-green-100 text-green-700",
   },
 ];
@@ -149,6 +142,24 @@ function authHeaders(): Record<string, string> {
 
 export default function BelgeCeviriPage() {
   const { showToast } = useToast();
+  const t = useTranslations("docTranslate");
+  const locale = useLocale();
+  const demo = useDigitalContentDemo();
+  /**
+   * Sunucu hata metni: kaynak dilde (tr) sunucunun Türkçe `message`'ı bugünkü gibi gösterilir; diğer
+   * dillerde dil-bağımsız `code` → docTranslate.apiErrors, eşleşme yoksa çağıranın (çevrilmiş) yedeği.
+   */
+  function serverMessage(
+    data: { code?: string; message?: string; maxMb?: number; totalPages?: number } | null | undefined,
+    fallback: string,
+  ): string {
+    if (locale === DEFAULT_LOCALE) return data?.message ?? fallback;
+    const code = data?.code;
+    if (code && t.has(`apiErrors.${code}`)) {
+      return t(`apiErrors.${code}`, { maxMb: String(data?.maxMb ?? 50), pages: String(data?.totalPages ?? "?") });
+    }
+    return fallback;
+  }
   const isDemo = readYasamUser()?.is_demo_account === true;
   // Android dahil tüm cihazlarda Word indirme açık (2026-10-14 owner kararı); HD ve Astroloji kendi
   // kurallarını korur. Uygulama WebView blob indirmelerini (Word + TXT) kaydeder.
@@ -277,7 +288,8 @@ export default function BelgeCeviriPage() {
     e.target.value = "";
   }
 
-  function downloadTxt(text: string, filename = "ocr-metin.txt") {
+  // P38/P44: indirme adı ekran dilinde (tr birebir: ocr-metin / ocr-ceviri). Sunucu adı iki türü ayırmadığı için istemci üretir.
+  function downloadTxt(text: string, filename = `${t("fileName.ocrText")}.txt`) {
     const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -289,8 +301,8 @@ export default function BelgeCeviriPage() {
     URL.revokeObjectURL(url);
   }
 
-  async function handleOcrWordDownload(text: string, which: "original" | "translation", filename = "ocr-metin.docx") {
-    if (isDemo) { notifyDigitalContentDemo(showToast); return; }
+  async function handleOcrWordDownload(text: string, which: "original" | "translation", filename = `${t("fileName.ocrText")}.docx`) {
+    if (isDemo) { demo.notify(showToast); return; }
     if (downloadingWord) return;
     setDownloadingWord(which);
     try {
@@ -298,8 +310,8 @@ export default function BelgeCeviriPage() {
       form.append("text", text);
       const res = await fetch("/api/belge-ceviri/ocr-to-word", { method: "POST", body: form, headers: authHeaders() });
       if (!res.ok) {
-        const data = await res.json().catch(() => ({})) as { message?: string };
-        showToast({ title: "Hata", message: data.message ?? "Word dosyası oluşturulamadı.", type: "error" });
+        const data = await res.json().catch(() => ({})) as { code?: string; message?: string };
+        showToast({ title: t("toast.errorTitle"), message: serverMessage(data, t("toast.wordFailed")), type: "error" });
         return;
       }
       const blob = await res.blob();
@@ -312,8 +324,8 @@ export default function BelgeCeviriPage() {
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Bilinmeyen hata";
-      showToast({ title: "Bağlantı hatası", message: msg, type: "error" });
+      const msg = err instanceof Error ? err.message : t("toast.unknownError");
+      showToast({ title: t("toast.connectionErrorTitle"), message: msg, type: "error" });
     } finally {
       setDownloadingWord(null);
     }
@@ -326,7 +338,7 @@ export default function BelgeCeviriPage() {
   async function handleSubmit(cardId: CardId) {
     // Demo hesapta belge işleme engeli
     if (isDemo) {
-      notifyDigitalContentDemo(showToast);
+      demo.notify(showToast);
       return;
     }
 
@@ -336,7 +348,7 @@ export default function BelgeCeviriPage() {
 
     // pdf-to-turkce-word için oturum gerekli
     if (cardId === "pdf-to-turkce-word" && (!tenantId || !userId)) {
-      showToast({ title: "Hata", message: "Oturum bilgisi alınamadı. Sayfayı yenileyip tekrar deneyin.", type: "error" });
+      showToast({ title: t("toast.errorTitle"), message: t("toast.sessionMissing"), type: "error" });
       return;
     }
 
@@ -352,14 +364,14 @@ export default function BelgeCeviriPage() {
       const res = await fetch(endpoint, { method: "POST", body: form, headers: authHeaders() });
 
       if (!res.ok) {
-        let errorMsg = `Sunucu hatası (HTTP ${res.status})`;
+        let errorMsg = t("toast.serverError", { status: String(res.status) });
         try {
-          const data = (await res.json()) as { message?: string };
-          if (data.message) errorMsg = data.message;
+          const data = (await res.json()) as { code?: string; message?: string; maxMb?: number; totalPages?: number };
+          if (data.message || data.code) errorMsg = serverMessage(data, errorMsg);
         } catch {
           // non-JSON hata sayfası (örn. Vercel 500 HTML)
         }
-        showToast({ title: "Hata", message: errorMsg, type: "error" });
+        showToast({ title: t("toast.errorTitle"), message: errorMsg, type: "error" });
         return;
       }
 
@@ -369,10 +381,11 @@ export default function BelgeCeviriPage() {
           success: boolean;
           jobId?: string;
           totalPages?: number;
+          code?: string;
           message?: string;
         };
         if (!data.success || !data.jobId) {
-          showToast({ title: "Hata", message: data.message ?? "Bilinmeyen hata", type: "error" });
+          showToast({ title: t("toast.errorTitle"), message: serverMessage(data, t("toast.unknownError")), type: "error" });
           return;
         }
         setActiveJob({
@@ -388,8 +401,8 @@ export default function BelgeCeviriPage() {
         });
         clearFile(cardId);
         showToast({
-          title: "Kuyruğa alındı",
-          message: `${data.totalPages ?? "?"} sayfalık belge çeviri kuyruğuna eklendi.`,
+          title: t("toast.queuedTitle"),
+          message: t("toast.queuedMsg", { pages: String(data.totalPages ?? "?") }),
           type: "success",
         });
         return;
@@ -402,15 +415,16 @@ export default function BelgeCeviriPage() {
           text?: string;
           isTurkish?: boolean;
           translation?: string;
+          code?: string;
           message?: string;
         };
         if (!data.success || !data.text) {
-          showToast({ title: "Hata", message: data.message ?? "Metin çıkarılamadı.", type: "error" });
+          showToast({ title: t("toast.errorTitle"), message: serverMessage(data, t("toast.ocrFailed")), type: "error" });
           return;
         }
         setOcrResult({ text: data.text, isTurkish: data.isTurkish ?? true, translation: data.translation });
         clearFile(cardId);
-        showToast({ title: "Başarılı", message: "Metin başarıyla çıkarıldı.", type: "success" });
+        showToast({ title: t("toast.successTitle"), message: t("toast.ocrSuccess"), type: "success" });
         return;
       }
 
@@ -427,20 +441,20 @@ export default function BelgeCeviriPage() {
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
-        showToast({ title: "Başarılı", message: "Dosya oluşturuldu ve indirildi.", type: "success" });
+        showToast({ title: t("toast.successTitle"), message: t("toast.fileDownloaded"), type: "success" });
         clearFile(cardId);
       } else {
-        const data = (await res.json()) as { success: boolean; message: string };
+        const data = (await res.json()) as { success: boolean; code?: string; message: string };
         if (data.success) {
-          showToast({ title: "Başarılı", message: data.message, type: "success" });
+          showToast({ title: t("toast.successTitle"), message: locale === DEFAULT_LOCALE ? data.message : t("toast.fileDownloaded"), type: "success" });
           clearFile(cardId);
         } else {
-          showToast({ title: "Hata", message: data.message, type: "error" });
+          showToast({ title: t("toast.errorTitle"), message: serverMessage(data, t("toast.unknownError")), type: "error" });
         }
       }
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Bilinmeyen hata";
-      showToast({ title: "Bağlantı hatası", message: msg, type: "error" });
+      const msg = err instanceof Error ? err.message : t("toast.unknownError");
+      showToast({ title: t("toast.connectionErrorTitle"), message: msg, type: "error" });
     } finally {
       setSubmitting(null);
     }
@@ -459,7 +473,7 @@ export default function BelgeCeviriPage() {
       <div className="relative z-10 mx-auto w-full max-w-[1400px] min-w-0 px-4 pb-4 pt-3 sm:px-6 sm:pb-5 lg:px-8">
 
         {isDemo && (
-          <DemoModuleBanner message={DIGITAL_CONTENT_DEMO_BANNER} />
+          <DemoModuleBanner message={demo.banner} />
         )}
 
         {/* hero — rozet + başlık + buton tek satırda */}
@@ -468,18 +482,16 @@ export default function BelgeCeviriPage() {
             <div className="min-w-0">
               <div className="inline-flex items-center gap-1 rounded-full border border-sky-200/80 bg-sky-50/95 px-2.5 py-0.5 text-[10px] font-bold text-sky-800 shadow-sm">
                 <BookOpen className="h-3 w-3" aria-hidden />
-                Belge Dönüştürme ve Çeviri
+                {t("header.badge")}
               </div>
               <h1 className="mt-1 text-xl font-black leading-tight tracking-tight text-slate-950 sm:text-2xl">
-                Belge{" "}
+                {t("header.titleLead")}{" "}
                 <span className="bg-gradient-to-r from-sky-600 via-violet-600 to-emerald-600 bg-clip-text text-transparent">
-                  Çeviri Merkezi
+                  {t("header.titleAccent")}
                 </span>
               </h1>
               <p className="mt-0.5 max-w-[700px] text-[11px] leading-relaxed text-slate-500 sm:text-xs">
-                {isAdmin
-                  ? "PDF belgelerini dönüştür, farklı dillere çevir, taranmış metinleri oku. Tüm işlemler güvenli sunucuda gerçekleşir."
-                  : "PDF belgelerini düzenlenebilir Word dosyasına dönüştür. Tüm işlemler güvenli sunucuda gerçekleşir."}
+                {isAdmin ? t("header.descAdmin") : t("header.descExpert")}
               </p>
             </div>
             <button
@@ -488,7 +500,7 @@ export default function BelgeCeviriPage() {
               className="inline-flex h-8 w-full shrink-0 items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white/90 px-3 text-[11px] font-bold text-slate-600 shadow-sm transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md sm:w-auto"
             >
               <Clock className="h-3 w-3" strokeWidth={2.25} />
-              Çevrilen Belgeler
+              {t("header.history")}
             </button>
           </div>
         </header>
@@ -512,13 +524,13 @@ export default function BelgeCeviriPage() {
                     {card.icon}
                   </div>
                   <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${card.badgeColor}`}>
-                    {card.badge}
+                    {t("cards.badgeActive")}
                   </span>
                 </div>
 
                 {/* başlık */}
-                <h2 className="mt-1.5 text-sm font-black text-slate-900">{card.title}</h2>
-                <p className="mt-0.5 text-[11px] leading-snug text-slate-500">{card.subtitle}</p>
+                <h2 className="mt-1.5 text-sm font-black text-slate-900">{t(`cards.${card.msgKey}.title`)}</h2>
+                <p className="mt-0.5 text-[11px] leading-snug text-slate-500">{t(`cards.${card.msgKey}.subtitle`)}</p>
 
                 {/* dosya seçici alanı */}
                 <div className="mt-1.5 space-y-1">
@@ -530,7 +542,7 @@ export default function BelgeCeviriPage() {
                   >
                     <span className="flex items-center gap-1.5">
                       <FileUp className="h-3.5 w-3.5 shrink-0" strokeWidth={2.25} />
-                      {file ? "Dosyayı Değiştir" : `${card.acceptLabel} Seç`}
+                      {file ? t("cards.changeFile") : card.acceptKind === "pdf" ? t("cards.selectPdf") : t("cards.selectImage")}
                     </span>
                     <ChevronRight className="h-3.5 w-3.5 shrink-0" strokeWidth={2.5} />
                   </button>
@@ -539,20 +551,20 @@ export default function BelgeCeviriPage() {
                     <div className="flex items-center justify-between gap-2 rounded-lg border border-slate-200/80 bg-white/80 px-3 py-1.5">
                       <div className="min-w-0 flex-1">
                         <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                          Seçilen Dosya
+                          {t("cards.selectedFile")}
                         </p>
                         <p className="mt-0.5 truncate text-[11px] font-bold text-slate-700" title={file.name}>
                           {file.name}
                         </p>
                         <p className="text-[10px] font-medium text-slate-400">
-                          {(file.size / 1024 / 1024).toFixed(2)} MB
+                          {t("cards.fileSize", { size: (file.size / 1024 / 1024).toFixed(2) })}
                         </p>
                       </div>
                       <button
                         type="button"
                         onClick={() => clearFile(card.id)}
                         className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-400 transition hover:bg-slate-50 hover:text-slate-600"
-                        aria-label="Dosyayı kaldır"
+                        aria-label={t("cards.removeFile")}
                       >
                         <X className="h-3 w-3" strokeWidth={2.5} />
                       </button>
@@ -572,7 +584,7 @@ export default function BelgeCeviriPage() {
                 {card.id === "pdf-to-turkce-word" && !disabled && (
                   <div className="mt-1 rounded-lg border border-slate-200/80 bg-white/70 p-1.5">
                     <p className="mb-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                      Çeviri Modu
+                      {t("cards.modeTitle")}
                     </p>
                     <div className="flex flex-col gap-0.5">
                       {(["standard", "academic"] as const).map((m) => (
@@ -594,12 +606,10 @@ export default function BelgeCeviriPage() {
                           />
                           <div className="min-w-0">
                             <p className="text-[11px] font-bold leading-none text-slate-800">
-                              {m === "standard" ? "Standart" : "Akademik"}
+                              {m === "standard" ? t("cards.modeStandard") : t("cards.modeAcademic")}
                             </p>
                             <p className="text-[10px] font-medium leading-tight text-slate-400">
-                              {m === "standard"
-                                ? "gpt-4o-mini · hızlı"
-                                : "gpt-4.1 · kitap, tez"}
+                              {m === "standard" ? t("cards.modeStandardHint") : t("cards.modeAcademicHint")}
                             </p>
                           </div>
                         </label>
@@ -611,12 +621,12 @@ export default function BelgeCeviriPage() {
                 {/* boyut uyarıları */}
                 {file && !disabled && file.size > MAX_FILE_BYTES && (
                   <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-[11px] font-medium leading-relaxed text-red-800">
-                    Bu dosya 50 MB sunucu limitini aşıyor ve yüklenemez. Lütfen daha küçük bir PDF kullanın veya büyük dosyaları bölün.
+                    {t("cards.tooLarge")}
                   </p>
                 )}
                 {file && !disabled && card.id === "pdf-to-turkce-word" && file.size > LARGE_FILE_BYTES && file.size <= MAX_FILE_BYTES && (
                   <p className="rounded-lg border border-sky-200 bg-sky-50 px-3 py-1.5 text-[11px] font-medium leading-relaxed text-sky-800">
-                    Bu belge büyük olduğu için çeviri uzun sürebilir. İşlem sırasında sayfayı kapatmayın.
+                    {t("cards.largeWarning")}
                   </p>
                 )}
 
@@ -630,20 +640,20 @@ export default function BelgeCeviriPage() {
                   {submitting === card.id ? (
                     <>
                       <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
-                      {card.id === "pdf-to-turkce-word" ? "Çeviriliyor..." : "İşleniyor..."}
+                      {card.id === "pdf-to-turkce-word" ? t("cards.translating") : t("cards.processing")}
                     </>
                   ) : (
                     <>
-                      {card.id === "pdf-to-word" && "Word'e Dönüştür"}
-                      {card.id === "pdf-to-turkce-word" && "Türkçeye Çevir + Word"}
-                      {card.id === "ocr" && "Metni Oku"}
+                      {card.id === "pdf-to-word" && t("cards.actionPdfToWord")}
+                      {card.id === "pdf-to-turkce-word" && t("cards.actionPdfToTurkishWord")}
+                      {card.id === "ocr" && t("cards.actionOcr")}
                     </>
                   )}
                 </button>
 
                 {isDisabled(card.id) && (
                   <p className="mt-2 text-center text-xs font-medium text-slate-400">
-                    Bu özellik yakında aktif olacak.
+                    {t("cards.comingSoon")}
                   </p>
                 )}
 
@@ -653,12 +663,12 @@ export default function BelgeCeviriPage() {
 
                     {/* Başlık + kapat */}
                     <div className="flex items-center justify-between gap-2">
-                      <p className="text-sm font-bold text-amber-800">Çıkarılan Metin</p>
+                      <p className="text-sm font-bold text-amber-800">{t("ocr.extracted")}</p>
                       <button
                         type="button"
                         onClick={() => setOcrResult(null)}
                         className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-amber-200 bg-white text-amber-400 transition hover:bg-amber-50"
-                        aria-label="Sonucu kapat"
+                        aria-label={t("ocr.closeResult")}
                       >
                         <X className="h-3 w-3" strokeWidth={2.5} />
                       </button>
@@ -678,12 +688,12 @@ export default function BelgeCeviriPage() {
                         type="button"
                         onClick={() => {
                           void navigator.clipboard.writeText(ocrResult.text);
-                          showToast({ title: "Kopyalandı", message: "Metin panoya kopyalandı.", type: "success" });
+                          showToast({ title: t("toast.copiedTitle"), message: t("toast.textCopied"), type: "success" });
                         }}
                         className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-amber-200 bg-white py-2 text-xs font-bold text-amber-700 transition hover:bg-amber-50"
                       >
                         <Copy className="h-3.5 w-3.5" strokeWidth={2.25} />
-                        Kopyala
+                        {t("ocr.copy")}
                       </button>
                       <button
                         type="button"
@@ -691,7 +701,7 @@ export default function BelgeCeviriPage() {
                         className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-amber-200 bg-white py-2 text-xs font-bold text-amber-700 transition hover:bg-amber-50"
                       >
                         <FileDown className="h-3.5 w-3.5" strokeWidth={2.25} />
-                        TXT İndir
+                        {t("ocr.downloadTxt")}
                       </button>
                       <button
                         type="button"
@@ -704,18 +714,18 @@ export default function BelgeCeviriPage() {
                         ) : (
                           <FileCheck className="h-3.5 w-3.5" strokeWidth={2.25} />
                         )}
-                        Word İndir
+                        {t("ocr.downloadWord")}
                       </button>
                     </div>
 
                     {/* Dil durumu ve çeviri */}
                     {ocrResult.isTurkish ? (
                       <p className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-medium text-emerald-700">
-                        Metin Türkçe görünüyor — çeviri yapılmadı.
+                        {t("ocr.isTurkish")}
                       </p>
                     ) : ocrResult.translation ? (
                       <div className="space-y-2 border-t border-amber-200 pt-3">
-                        <p className="text-sm font-bold text-amber-800">Türkçe Çeviri</p>
+                        <p className="text-sm font-bold text-amber-800">{t("ocr.translationTitle")}</p>
 
                         <textarea
                           readOnly
@@ -729,24 +739,24 @@ export default function BelgeCeviriPage() {
                             type="button"
                             onClick={() => {
                               void navigator.clipboard.writeText(ocrResult.translation ?? "");
-                              showToast({ title: "Kopyalandı", message: "Çeviri panoya kopyalandı.", type: "success" });
+                              showToast({ title: t("toast.copiedTitle"), message: t("toast.translationCopied"), type: "success" });
                             }}
                             className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-amber-200 bg-white py-2 text-xs font-bold text-amber-700 transition hover:bg-amber-50"
                           >
                             <Copy className="h-3.5 w-3.5" strokeWidth={2.25} />
-                            Çeviriyi Kopyala
+                            {t("ocr.copyTranslation")}
                           </button>
                           <button
                             type="button"
-                            onClick={() => downloadTxt(ocrResult.translation ?? "", "ocr-ceviri.txt")}
+                            onClick={() => downloadTxt(ocrResult.translation ?? "", `${t("fileName.ocrTranslation")}.txt`)}
                             className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-amber-200 bg-white py-2 text-xs font-bold text-amber-700 transition hover:bg-amber-50"
                           >
                             <FileDown className="h-3.5 w-3.5" strokeWidth={2.25} />
-                            TXT İndir
+                            {t("ocr.downloadTxt")}
                           </button>
                           <button
                             type="button"
-                            onClick={() => void handleOcrWordDownload(ocrResult.translation ?? "", "translation", "ocr-ceviri.docx")}
+                            onClick={() => void handleOcrWordDownload(ocrResult.translation ?? "", "translation", `${t("fileName.ocrTranslation")}.docx`)}
                             disabled={downloadingWord === "translation"}
                             className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-amber-500 py-2 text-xs font-bold text-white transition hover:bg-amber-600 disabled:opacity-50"
                           >
@@ -755,7 +765,7 @@ export default function BelgeCeviriPage() {
                             ) : (
                               <FileCheck className="h-3.5 w-3.5" strokeWidth={2.25} />
                             )}
-                            Word İndir
+                            {t("ocr.downloadWord")}
                           </button>
                         </div>
                       </div>
@@ -763,7 +773,7 @@ export default function BelgeCeviriPage() {
                       // isTurkish=false ama çeviri gelmedi (API hatası)
                       !ocrResult.isTurkish && (
                         <p className="rounded-xl border border-orange-200 bg-orange-50 px-3 py-2 text-xs font-medium text-orange-700">
-                          Metin yabancı dilde görünüyor ancak çeviri alınamadı. Lütfen tekrar deneyin.
+                          {t("ocr.translationMissing")}
                         </p>
                       )
                     )}
@@ -777,14 +787,14 @@ export default function BelgeCeviriPage() {
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0 flex-1">
                         {activeJob.status === "pending" && (
-                          <p className="text-sm font-bold text-slate-700">Kuyruğa alındı...</p>
+                          <p className="text-sm font-bold text-slate-700">{t("job.queued")}</p>
                         )}
                         {activeJob.status === "processing" && (
                           <>
-                            <p className="text-sm font-bold text-sky-700">Çevriliyor...</p>
+                            <p className="text-sm font-bold text-sky-700">{t("job.translating")}</p>
                             {activeJob.totalChunks > 0 && (
                               <p className="mt-0.5 text-xs font-medium text-slate-500">
-                                {activeJob.doneChunks} / {activeJob.totalChunks} bölüm tamamlandı
+                                {t("job.progress", { done: String(activeJob.doneChunks), total: String(activeJob.totalChunks) })}
                               </p>
                             )}
                             {activeJob.totalChunks > 0 && (
@@ -800,12 +810,12 @@ export default function BelgeCeviriPage() {
                         {activeJob.status === "completed" && (
                           <div className="flex items-center gap-2">
                             <CheckCircle className="h-4 w-4 shrink-0 text-emerald-600" strokeWidth={2.25} />
-                            <p className="text-sm font-bold text-emerald-700">Çeviri tamamlandı</p>
+                            <p className="text-sm font-bold text-emerald-700">{t("job.completed")}</p>
                           </div>
                         )}
                         {activeJob.status === "failed" && (
                           <p className="text-sm font-bold text-red-600">
-                            Hata: {activeJob.errorMessage ?? "Bilinmeyen hata"}
+                            {t("job.failed", { message: activeJob.errorMessage ?? t("toast.unknownError") })}
                           </p>
                         )}
                       </div>
@@ -813,7 +823,7 @@ export default function BelgeCeviriPage() {
                         type="button"
                         onClick={() => setActiveJob(null)}
                         className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-slate-400 transition hover:bg-slate-100"
-                        aria-label="Kapat"
+                        aria-label={t("job.close")}
                       >
                         <X className="h-3 w-3" strokeWidth={2.5} />
                       </button>
@@ -826,13 +836,13 @@ export default function BelgeCeviriPage() {
                         className="mt-3 flex h-10 w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 text-sm font-bold text-white transition hover:bg-emerald-700"
                       >
                         <Download className="h-4 w-4" strokeWidth={2.25} />
-                        DOCX İndir
+                        {t("job.downloadDocx")}
                       </a>
                     )}
 
                     {(activeJob.status === "pending" || activeJob.status === "processing") && (
                       <p className="mt-2 text-[11px] font-medium text-slate-400">
-                        Sayfayı kapatmayın — işlem arka planda devam ediyor.
+                        {t("job.keepOpen")}
                       </p>
                     )}
                   </div>
@@ -850,7 +860,7 @@ export default function BelgeCeviriPage() {
             className="inline-flex items-center gap-1.5 rounded-xl border border-violet-200/70 bg-white/80 px-4 py-2 text-xs font-bold text-slate-600 shadow-sm transition hover:-translate-y-0.5 hover:border-violet-300 hover:shadow-md"
           >
             <span className="text-base">📄</span>
-            Büyük PDF Yardımı
+            {t("help.toggle")}
             <ChevronDown
               className={`h-4 w-4 shrink-0 text-slate-400 transition-transform duration-200 ${helpOpen ? "rotate-180" : ""}`}
               strokeWidth={2.25}
@@ -860,13 +870,12 @@ export default function BelgeCeviriPage() {
           {helpOpen && (
             <div className="mt-2 overflow-hidden rounded-2xl border border-violet-100 bg-white/90 shadow-md">
               <div className="px-4 py-3">
-                <h3 className="text-base font-black text-slate-900">📄 Büyük PDF Yükleme Rehberi</h3>
+                <h3 className="text-base font-black text-slate-900">{t("help.title")}</h3>
                 <p className="mt-2 text-sm leading-relaxed text-slate-600">
-                  Belge Çeviri Merkezi yüksek boyutlu PDF dosyalarını çevirebilir. Ancak bazı PDF'ler yüksek
-                  çözünürlüklü taramalar ve büyük görseller nedeniyle çok yüksek dosya boyutlarına ulaşabilir.
+                  {t("help.intro")}
                 </p>
                 <div className="mt-2 inline-flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-1.5 text-xs font-bold text-emerald-700">
-                  Maksimum PDF boyutu: 50 MB
+                  {t("help.maxSize")}
                 </div>
 
                 <div className="mt-5 space-y-4">
@@ -874,15 +883,15 @@ export default function BelgeCeviriPage() {
                   <div className="flex gap-3">
                     <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-violet-100 text-xs font-black text-violet-700">1</div>
                     <div>
-                      <p className="text-sm font-black text-slate-800">PDF Sıkıştırma</p>
-                      <p className="mt-1 text-xs font-bold text-slate-500">Windows Kullanıcıları İçin:</p>
+                      <p className="text-sm font-black text-slate-800">{t("help.s1Title")}</p>
+                      <p className="mt-1 text-xs font-bold text-slate-500">{t("help.s1Sub")}</p>
                       <ol className="mt-1.5 space-y-1">
                         {[
-                          "PDF dosyanızı bilgisayarınıza kaydedin.",
-                          "Bir PDF sıkıştırma aracı açın.",
-                          "Orta Kalite veya Yüksek Kalite seçeneğini tercih edin.",
-                          "Yeni PDF dosyasını kaydedin.",
-                          "Yeni PDF dosyasını sisteme tekrar yükleyin.",
+                          t("help.s1Step1"),
+                          t("help.s1Step2"),
+                          t("help.s1Step3"),
+                          t("help.s1Step4"),
+                          t("help.s1Step5"),
                         ].map((step, i) => (
                           <li key={i} className="flex items-start gap-1.5 text-xs font-medium text-slate-600">
                             <span className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-slate-100 text-[10px] font-black text-slate-500">{i + 1}</span>
@@ -891,7 +900,7 @@ export default function BelgeCeviriPage() {
                         ))}
                       </ol>
                       <p className="mt-2 rounded-lg border border-emerald-100 bg-emerald-50/70 px-3 py-2 text-xs font-medium leading-relaxed text-emerald-700">
-                        Çoğu durumda büyük PDF dosyaları kalite kaybı yaşamadan 50 MB altına indirilebilir.
+                        {t("help.s1Note")}
                       </p>
                     </div>
                   </div>
@@ -900,10 +909,10 @@ export default function BelgeCeviriPage() {
                   <div className="flex gap-3">
                     <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-violet-100 text-xs font-black text-violet-700">2</div>
                     <div>
-                      <p className="text-sm font-black text-slate-800">PDF'i Bölümlere Ayırma</p>
-                      <p className="mt-0.5 text-sm leading-relaxed text-slate-600">Büyük PDF'leri birkaç parçaya bölerek ayrı ayrı çevirebilirsiniz.</p>
+                      <p className="text-sm font-black text-slate-800">{t("help.s2Title")}</p>
+                      <p className="mt-0.5 text-sm leading-relaxed text-slate-600">{t("help.s2Body")}</p>
                       <ul className="mt-1.5 space-y-0.5">
-                        {["1–100 sayfa", "101–200 sayfa", "201–300 sayfa"].map((l) => (
+                        {[t("help.s2Range1"), t("help.s2Range2"), t("help.s2Range3")].map((l) => (
                           <li key={l} className="flex items-center gap-1.5 text-xs font-medium text-slate-500">
                             <span className="h-1 w-1 rounded-full bg-slate-400" />
                             {l}
@@ -917,27 +926,18 @@ export default function BelgeCeviriPage() {
                   <div className="flex gap-3">
                     <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-violet-100 text-xs font-black text-violet-700">3</div>
                     <div>
-                      <p className="text-sm font-black text-slate-800">Görsel Kalitesini Azaltma</p>
-                      <p className="mt-0.5 text-sm leading-relaxed text-slate-600">Bazı PDF'lerde dosya boyutunu yüksek çözünürlüklü görseller oluşturur. PDF optimizasyonu sonrasında aynı içerik çok daha düşük boyutlarda yüklenebilir.</p>
+                      <p className="text-sm font-black text-slate-800">{t("help.s3Title")}</p>
+                      <p className="mt-0.5 text-sm leading-relaxed text-slate-600">{t("help.s3Body")}</p>
                     </div>
                   </div>
                 </div>
 
                 <div className="mt-5 space-y-2.5 border-t border-slate-100 pt-5">
-                  <p className="text-xs font-black uppercase tracking-wider text-slate-400">Sık Sorulan Sorular</p>
+                  <p className="text-xs font-black uppercase tracking-wider text-slate-400">{t("help.faqTitle")}</p>
                   {[
-                    {
-                      q: "PDF'im çok büyük. Çevrilir mi?",
-                      a: "Çoğu durumda evet. Ancak büyük dosyalarda yükleme süresi uzayabilir.",
-                    },
-                    {
-                      q: "Taranmış kitapları çevirebilir miyim?",
-                      a: "Evet. Sistem OCR kullanarak metni algılamaya çalışır.",
-                    },
-                    {
-                      q: "Tablolu PDF'leri çevirebilir miyim?",
-                      a: "Evet. Basit tablolar genellikle korunur. Karmaşık tablolarda düzen farklılıkları oluşabilir.",
-                    },
+                    { q: t("help.faq1Q"), a: t("help.faq1A") },
+                    { q: t("help.faq2Q"), a: t("help.faq2A") },
+                    { q: t("help.faq3Q"), a: t("help.faq3A") },
                   ].map((faq) => (
                     <div key={faq.q} className="rounded-xl border border-slate-100 bg-slate-50/80 px-4 py-3">
                       <p className="text-xs font-bold text-slate-700">{faq.q}</p>
@@ -948,8 +948,8 @@ export default function BelgeCeviriPage() {
 
                 {/* Önerilen araçlar */}
                 <div className="mt-5 border-t border-slate-100 pt-5">
-                  <p className="text-xs font-black uppercase tracking-wider text-slate-400">📌 Önerilen PDF Sıkıştırma Araçları</p>
-                  <p className="mt-1.5 text-xs font-medium text-slate-500">Bu araçlar PDF dosyalarının boyutunu azaltmak için kullanılabilir.</p>
+                  <p className="text-xs font-black uppercase tracking-wider text-slate-400">{t("help.toolsTitle")}</p>
+                  <p className="mt-1.5 text-xs font-medium text-slate-500">{t("help.toolsBody")}</p>
                   <div className="mt-2.5 flex flex-wrap gap-2">
                     {["Adobe Acrobat", "SmallPDF", "ILovePDF"].map((tool) => (
                       <span key={tool} className="rounded-full border border-violet-200/70 bg-violet-50 px-3 py-1 text-xs font-bold text-violet-700">
@@ -967,9 +967,9 @@ export default function BelgeCeviriPage() {
         <div className="mt-3 overflow-hidden rounded-lg border border-indigo-900/20 bg-gradient-to-r from-indigo-950 via-slate-900 to-sky-950 shadow-lg">
           <div className="grid grid-cols-1 gap-0 sm:grid-cols-3">
             {[
-              { icon: "🔒", title: "Güvenli İşlem", desc: "Belgeler işlem sonrası silinir." },
-              { icon: "🌐", title: "Çoklu Dil", desc: "İng, Alm, Fr ve daha fazlası." },
-              { icon: "📄", title: "Format Koruma", desc: "Belge formatı korunur." },
+              { icon: "🔒", title: t("info.secureTitle"), desc: t("info.secureDesc") },
+              { icon: "🌐", title: t("info.multiTitle"), desc: t("info.multiDesc") },
+              { icon: "📄", title: t("info.formatTitle"), desc: t("info.formatDesc") },
             ].map((item, i) => (
               <div key={item.title} className={`flex items-center gap-2 px-4 py-2 sm:flex-col sm:items-center sm:gap-1 sm:px-3 sm:py-2 sm:text-center ${i < 2 ? "sm:border-r sm:border-white/10" : ""}`}>
                 <span className="text-sm shrink-0" aria-hidden>{item.icon}</span>
@@ -989,14 +989,15 @@ export default function BelgeCeviriPage() {
           <div className="w-full max-w-2xl rounded-[32px] border border-white/80 bg-white shadow-2xl">
             <div className="flex items-center justify-between gap-4 rounded-t-[32px] border-b border-slate-100 px-7 py-5">
               <div>
-                <h2 className="text-xl font-black text-slate-900">Çevrilen Belgeler</h2>
+                <h2 className="text-xl font-black text-slate-900">{t("history.title")}</h2>
                 <p className="mt-0.5 text-sm font-medium text-slate-400">
-                  Daha önce dönüştürdüğünüz veya çevirdiğiniz belgeler
+                  {t("history.subtitle")}
                 </p>
               </div>
               <button
                 type="button"
                 onClick={() => setHistoryOpen(false)}
+                aria-label={t("history.close")}
                 className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-slate-500 transition hover:bg-slate-100"
               >
                 <X className="h-4 w-4" strokeWidth={2.25} />
@@ -1007,23 +1008,23 @@ export default function BelgeCeviriPage() {
               {historyLoading ? (
                 <div className="flex flex-col items-center justify-center py-12">
                   <span className="inline-block h-8 w-8 animate-spin rounded-full border-2 border-slate-200 border-t-sky-600" />
-                  <p className="mt-4 text-sm font-medium text-slate-400">Kayıtlar yükleniyor…</p>
+                  <p className="mt-4 text-sm font-medium text-slate-400">{t("history.loading")}</p>
                 </div>
               ) : historyJobs.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-10 text-center">
                   <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-slate-100 to-slate-200 text-slate-400">
                     <BookOpen className="h-8 w-8" strokeWidth={1.75} />
                   </div>
-                  <p className="mt-5 text-lg font-black text-slate-700">Henüz çevrilmiş belge yok.</p>
+                  <p className="mt-5 text-lg font-black text-slate-700">{t("history.emptyTitle")}</p>
                   <p className="mt-2 max-w-xs text-sm font-medium leading-relaxed text-slate-400">
-                    PDF dosyanızı yükleyip dönüştürdükten sonra kayıtlar burada görünecek.
+                    {t("history.emptyBody")}
                   </p>
                   <button
                     type="button"
                     onClick={() => setHistoryOpen(false)}
                     className="mt-7 inline-flex h-11 items-center gap-2 rounded-2xl bg-gradient-to-r from-slate-900 to-slate-700 px-7 text-sm font-bold text-white shadow-md transition hover:-translate-y-0.5"
                   >
-                    Belge Yükle
+                    {t("history.upload")}
                   </button>
                 </div>
               ) : (
@@ -1033,21 +1034,21 @@ export default function BelgeCeviriPage() {
                     const isFailed    = job.status === "failed";
                     const isPending   = job.status === "pending" || job.status === "processing";
                     const jobLabel =
-                      job.job_type === "pdf-to-turkce-word" ? "PDF → Türkçe Word" : "PDF → Word";
+                      job.job_type === "pdf-to-turkce-word" ? t("cards.pdfToTurkishWord.title") : t("cards.pdfToWord.title");
                     const statusStyle = isCompleted
                       ? "bg-emerald-100 text-emerald-800"
                       : isFailed
                         ? "bg-rose-100 text-rose-800"
                         : "bg-slate-100 text-slate-600";
                     const statusLabel = isCompleted
-                      ? "Tamamlandı"
+                      ? t("history.statusCompleted")
                       : isFailed
-                        ? "Başarısız"
-                        : "İşleniyor…";
-                    const dateStr = new Intl.DateTimeFormat("tr-TR", {
+                        ? t("history.statusFailed")
+                        : t("history.statusProcessing");
+                    const dateStr = formatDateTime(job.created_at, {
                       day: "2-digit", month: "short", year: "numeric",
                       hour: "2-digit", minute: "2-digit",
-                    }).format(new Date(job.created_at));
+                    }, locale === "en" ? "en" : DEFAULT_LOCALE);
 
                     return (
                       <div key={job.id} className="flex flex-col gap-2 py-4">
@@ -1058,7 +1059,7 @@ export default function BelgeCeviriPage() {
                             </p>
                             <p className="mt-0.5 text-xs font-medium text-slate-400">
                               {jobLabel} · {dateStr}
-                              {job.total_pages > 0 && ` · ${job.total_pages} sayfa`}
+                              {job.total_pages > 0 && t("history.pages", { count: job.total_pages })}
                             </p>
                           </div>
                           <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-[11px] font-bold ${statusStyle}`}>
@@ -1069,7 +1070,7 @@ export default function BelgeCeviriPage() {
                         {isPending && job.total_chunks > 0 && (
                           <div className="space-y-1">
                             <p className="text-xs font-medium text-slate-500">
-                              {job.done_chunks} / {job.total_chunks} bölüm tamamlandı
+                              {t("job.progress", { done: String(job.done_chunks), total: String(job.total_chunks) })}
                             </p>
                             <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
                               <div
@@ -1093,13 +1094,13 @@ export default function BelgeCeviriPage() {
                             className="inline-flex h-8 w-full items-center justify-center gap-1.5 rounded-xl bg-emerald-600 text-xs font-bold text-white transition hover:bg-emerald-700 sm:w-auto sm:px-5"
                           >
                             <Download className="h-3.5 w-3.5" strokeWidth={2.25} />
-                            DOCX İndir
+                            {t("job.downloadDocx")}
                           </a>
                         )}
 
                         {isCompleted && !job.downloadUrl && (
                           <p className="text-xs font-medium text-slate-400">
-                            İndirme bağlantısı süresi dolmuş. Sayfayı yenileyip tekrar deneyin.
+                            {t("history.linkExpired")}
                           </p>
                         )}
                       </div>

@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
+import { useKupaErrorText } from "@/app/kupa/lib/errorText";
 import { useToast } from "@/components/ui/ToastProvider";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
 import ClientPicker, { type PickerClient } from "@/components/danisan/ClientPicker";
@@ -14,6 +16,8 @@ import {
   type CuppingClientAdvice,
 } from "@/app/kupa/lib/api";
 import { openFormDirty } from "@/app/kupa/lib/formDirty";
+import { useSystemNames } from "../lib/useSystemNames";
+import { CLIENT_ADVICE_DEFAULT_TITLE_TR } from "../lib/systemNames";
 
 /**
  * FAZ 5 / AŞAMA 3 — "Danışana Özel Hazırla" (ENTEGRE, katlanır alt bölüm; ana modül DEĞİL).
@@ -44,6 +48,10 @@ export function ClientAdviceSection({
 }) {
   const { showToast } = useToast();
   const { confirm } = useConfirm();
+  const tca = useTranslations("cupping.calendar");
+  const tc = useTranslations("cupping.common");
+  const sysNames = useSystemNames();
+  const errText = useKupaErrorText();
   const [open, setOpen] = useState(false);
   const [client, setClient] = useState<PickerClient | null>(null);
   const [advice, setAdvice] = useState<CuppingClientAdvice[]>([]);
@@ -65,10 +73,10 @@ export function ClientAdviceSection({
   async function confirmDropEdit(): Promise<boolean> {
     if (!editDirty) return true;
     return confirm({
-      title: "Kaydedilmemiş Değişiklikler",
-      message: "Danışan bilgilendirmesinde kaydedilmemiş değişiklikleriniz var.\nKaydetmeden devam etmek istiyor musunuz?",
-      confirmText: "Kaydetmeden Devam Et",
-      cancelText: "Vazgeç",
+      title: tca("advice.discardTitle"),
+      message: tca("clientAdvice.discardMessage"),
+      confirmText: tca("advice.discardConfirm"),
+      cancelText: tc("cancel"),
       tone: "danger",
     });
   }
@@ -101,7 +109,7 @@ export function ClientAdviceSection({
       setAdvice(rows);
     } catch (e) {
       if (seq !== reqSeqRef.current) return;
-      setError(e instanceof Error ? e.message : "Danışan bilgileri alınamadı.");
+      setError(errText(e, tca("clientAdvice.loadError")));
       setAdvice([]);
     } finally {
       if (seq === reqSeqRef.current) setLoading(false);
@@ -121,7 +129,7 @@ export function ClientAdviceSection({
       if (seq !== reqSeqRef.current) return;
       // Liste tazelenemedi: eski liste gösterilmeye devam eder ama kullanıcı UYARILIR (tekrar
       //   oluşturup mükerrer kayıt üretmesin).
-      setError(e instanceof Error ? `${e.message} Liste güncel olmayabilir.` : "Liste yenilenemedi.");
+      setError(e instanceof Error ? tca("clientAdvice.refreshStale", { detail: errText(e, tca("clientAdvice.refreshFailed")) }) : tca("clientAdvice.refreshFailed"));
     }
   }
 
@@ -132,13 +140,15 @@ export function ClientAdviceSection({
       await createClientAdvice({
         client_id: client.id,
         source_template_id: sourceTemplateId || null, // boşsa: boş bilgilendirme
-        ...(sourceTemplateId ? {} : { title: "Danışan Bilgilendirmesi" }),
+        // I18N-F1-R3: boş kaydın varsayılan BAŞLIĞI DB'ye HER ZAMAN Türkçe sabit yazılır (i18n öncesiyle birebir);
+        // gösterimde sistem başlığı ekran dilinde üretilir (useSystemNames) — kullanıcının yazdığı başlık aynen kalır.
+        ...(sourceTemplateId ? {} : { title: CLIENT_ADVICE_DEFAULT_TITLE_TR }),
       });
       await refresh();
       setSourceTemplateId("");
-      showToast({ message: "Danışana özel bilgilendirme oluşturuldu.", type: "success" });
+      showToast({ message: tca("clientAdvice.created"), type: "success" });
     } catch (e) {
-      showToast({ message: e instanceof Error ? e.message : "Oluşturulamadı.", type: "error" });
+      showToast({ message: errText(e, tca("clientAdvice.createFailed")), type: "error" });
     } finally {
       setCreating(false);
     }
@@ -147,7 +157,7 @@ export function ClientAdviceSection({
   async function saveEdit() {
     if (!edit) return;
     if (!edit.title.trim()) {
-      showToast({ message: "Başlık gerekli.", type: "warning" });
+      showToast({ message: tca("clientAdvice.titleRequired"), type: "warning" });
       return;
     }
     try {
@@ -161,18 +171,18 @@ export function ClientAdviceSection({
       await refresh();
       setEdit(null);
       setEditBase(null);
-      showToast({ message: "Bilgilendirme güncellendi.", type: "success" });
+      showToast({ message: tca("clientAdvice.updated"), type: "success" });
     } catch (e) {
-      showToast({ message: e instanceof Error ? e.message : "Kaydedilemedi.", type: "error" });
+      showToast({ message: errText(e, tc("saveFailed")), type: "error" });
     }
   }
 
   async function remove(a: CuppingClientAdvice) {
     const ok = await confirm({
-      title: "Bilgilendirmeyi Sil",
-      message: "Bu danışana özel bilgilendirmeyi silmek istiyor musunuz?",
-      confirmText: "Sil",
-      cancelText: "Vazgeç",
+      title: tca("clientAdvice.deleteTitle"),
+      message: tca("clientAdvice.deleteMessage"),
+      confirmText: tc("delete"),
+      cancelText: tc("cancel"),
       tone: "danger",
     });
     if (!ok) return;
@@ -184,9 +194,9 @@ export function ClientAdviceSection({
         setEdit(null);
         setEditBase(null);
       }
-      showToast({ message: "Bilgilendirme silindi.", type: "success" });
+      showToast({ message: tca("clientAdvice.deleted"), type: "success" });
     } catch (e) {
-      showToast({ message: e instanceof Error ? e.message : "Silinemedi.", type: "error" });
+      showToast({ message: errText(e, tca("advice.deleteFailed")), type: "error" });
     }
   }
 
@@ -200,8 +210,8 @@ export function ClientAdviceSection({
       >
         <span className="flex items-center gap-2">
           <span aria-hidden>👤</span>
-          <span className="text-sm font-bold text-slate-800">Danışana Özel Hazırla</span>
-          <span className="text-xs text-slate-400">(opsiyonel)</span>
+          <span className="text-sm font-bold text-slate-800">{tca("clientAdvice.title")}</span>
+          <span className="text-xs text-slate-400">{tca("clientAdvice.optional")}</span>
         </span>
         <span aria-hidden className="text-slate-400">{open ? "−" : "+"}</span>
       </button>
@@ -209,7 +219,7 @@ export function ClientAdviceSection({
       {open ? (
         <div className="flex flex-col gap-4 border-t border-slate-100 px-4 py-4">
           <p className="text-xs leading-relaxed text-slate-500">
-            Bir danışan seçin; ona özel, ana şablondan <strong>bağımsız</strong> bir bilgilendirme kopyası hazırlayın.
+            {tca.rich("clientAdvice.intro", { strong: (c) => <strong>{c}</strong> })}
           </p>
 
           <ClientPicker onSelect={selectClient} selectedId={client?.id ?? null} />
@@ -219,9 +229,9 @@ export function ClientAdviceSection({
               {/* Oluşturma */}
               <div className="flex flex-col gap-2 rounded-lg border border-slate-200 bg-white p-3 sm:flex-row sm:items-end">
                 <label className="flex flex-1 flex-col gap-1">
-                  <span className="text-xs font-bold uppercase tracking-wide text-slate-500">Genel Şablondan</span>
+                  <span className="text-xs font-bold uppercase tracking-wide text-slate-500">{tca("clientAdvice.fromTemplate")}</span>
                   <select className={kupaInput} value={sourceTemplateId} onChange={(e) => setSourceTemplateId(e.target.value)}>
-                    <option value="">— Boş bilgilendirme —</option>
+                    <option value="">{tca("clientAdvice.blankOption")}</option>
                     {activeTemplates.map((t) => (
                       <option key={t.id} value={t.id}>
                         {t.title}
@@ -230,44 +240,44 @@ export function ClientAdviceSection({
                   </select>
                 </label>
                 <button type="button" className={`${kupaBtnPrimary} min-h-[40px]`} onClick={createFromTemplate} disabled={creating}>
-                  {sourceTemplateId ? "Şablondan Oluştur" : "Boş Oluştur"}
+                  {sourceTemplateId ? tca("clientAdvice.createFromTemplate") : tca("clientAdvice.createBlank")}
                 </button>
               </div>
 
               {/* Liste */}
               {loading ? (
-                <p className="text-sm text-slate-400">Yükleniyor…</p>
+                <p className="text-sm text-slate-400">{tc("loading")}</p>
               ) : error ? (
                 <p className="text-sm text-rose-600">{error}</p>
               ) : advice.length === 0 ? (
-                <p className="text-sm text-slate-400">Bu danışan için henüz bilgilendirme yok.</p>
+                <p className="text-sm text-slate-400">{tca("clientAdvice.empty")}</p>
               ) : (
                 <ul className="flex flex-col gap-2">
                   {advice.map((a) => (
                     <li key={a.id} className="rounded-lg border border-slate-200 bg-white p-3">
                       {edit?.id === a.id ? (
                         <div className="flex flex-col gap-2">
-                          <input className={kupaInput} value={edit.title} onChange={(e) => setEdit({ ...edit, title: e.target.value })} placeholder="Başlık" />
-                          <textarea className={`${kupaInput} min-h-[60px]`} value={edit.before_text} onChange={(e) => setEdit({ ...edit, before_text: e.target.value })} placeholder="Hacamat Öncesi" />
-                          <textarea className={`${kupaInput} min-h-[60px]`} value={edit.after_text} onChange={(e) => setEdit({ ...edit, after_text: e.target.value })} placeholder="Hacamat Sonrası" />
-                          <textarea className={`${kupaInput} min-h-[48px]`} value={edit.general_note} onChange={(e) => setEdit({ ...edit, general_note: e.target.value })} placeholder="Genel / Ek Not" />
+                          <input className={kupaInput} value={edit.title} onChange={(e) => setEdit({ ...edit, title: e.target.value })} placeholder={tca("clientAdvice.titlePlaceholder")} />
+                          <textarea className={`${kupaInput} min-h-[60px]`} value={edit.before_text} onChange={(e) => setEdit({ ...edit, before_text: e.target.value })} placeholder={tca("advice.before")} />
+                          <textarea className={`${kupaInput} min-h-[60px]`} value={edit.after_text} onChange={(e) => setEdit({ ...edit, after_text: e.target.value })} placeholder={tca("advice.after")} />
+                          <textarea className={`${kupaInput} min-h-[48px]`} value={edit.general_note} onChange={(e) => setEdit({ ...edit, general_note: e.target.value })} placeholder={tca("advice.general")} />
                           <div className="flex justify-end gap-2">
-                            <button type="button" className={`${kupaBtnGhost} min-h-[36px]`} onClick={() => void openEdit(null)}>Vazgeç</button>
-                            <button type="button" className={`${kupaBtnSuccess} min-h-[36px]`} onClick={saveEdit}>Kaydet</button>
+                            <button type="button" className={`${kupaBtnGhost} min-h-[36px]`} onClick={() => void openEdit(null)}>{tc("cancel")}</button>
+                            <button type="button" className={`${kupaBtnSuccess} min-h-[36px]`} onClick={saveEdit}>{tc("save")}</button>
                           </div>
                         </div>
                       ) : (
                         <div className="flex items-start justify-between gap-2">
                           <div className="min-w-0">
-                            <p className="truncate text-sm font-bold text-slate-800">{a.title}</p>
+                            <p className="truncate text-sm font-bold text-slate-800">{sysNames.adviceTitle(a.title)}</p>
                             <p className="mt-0.5 line-clamp-2 text-xs text-slate-500">{a.before_text || a.after_text || a.general_note || "—"}</p>
                             {a.source_template_id ? (
-                              <p className="mt-1 text-[11px] text-slate-400">Ana şablondan bağımsız kopya</p>
+                              <p className="mt-1 text-[11px] text-slate-400">{tca("clientAdvice.independent")}</p>
                             ) : null}
                           </div>
                           <span className={kupaRowActions}>
-                            <button type="button" className={`${kupaBtnGhost} min-h-[40px] px-3 py-1 text-xs lg:min-h-[32px]`} onClick={() => void openEdit(editFromAdvice(a))}>Düzenle</button>
-                            <button type="button" className={kupaRowActionDanger} onClick={() => remove(a)}>Sil</button>
+                            <button type="button" className={`${kupaBtnGhost} min-h-[40px] px-3 py-1 text-xs lg:min-h-[32px]`} onClick={() => void openEdit(editFromAdvice(a))}>{tc("edit")}</button>
+                            <button type="button" className={kupaRowActionDanger} onClick={() => remove(a)}>{tc("delete")}</button>
                           </span>
                         </div>
                       )}
@@ -276,7 +286,7 @@ export function ClientAdviceSection({
                 </ul>
               )}
               <p className="text-[11px] leading-relaxed text-slate-400">
-                Bu danışana özel kopya, ana şablondan bağımsızdır; ana şablonu sonradan değiştirmeniz bu kopyayı etkilemez.
+                {tca("clientAdvice.footer")}
               </p>
             </div>
           ) : null}

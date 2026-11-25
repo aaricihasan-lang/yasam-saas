@@ -1,11 +1,12 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+
 import Link from "next/link";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { DemoModuleBanner } from "@/components/demo/DemoModuleBanner";
 import { useToast } from "@/components/ui/ToastProvider";
 import { readYasamUser } from "@/lib/auth/yasamUser";
-import { STORAGE_QUOTA_ERROR_MESSAGE } from "@/lib/safeStorage";
 import { useAtlasWorkspace } from "../hooks/useAtlasWorkspace";
 import { useRegionEditingAllowed } from "../hooks/useRegionEditingAllowed";
 import { DEFAULT_POINT_SIZE, resolvePointSize, type PointSize, type RegionDrawShape, type RegionToolMode } from "../types";
@@ -27,6 +28,8 @@ type RegionMapLayoutProps = {
 };
 
 export function RegionMapLayout({ initialOrgan = null }: RegionMapLayoutProps) {
+  const t = useTranslations("reflexology.zoneMap");
+  const tc = useTranslations("reflexology.common");
   const isDemo = readYasamUser()?.is_demo_account === true;
   const { showToast } = useToast();
   const [toolMode, setToolMode] = useState<RegionToolMode>("select");
@@ -125,7 +128,7 @@ export function RegionMapLayout({ initialOrgan = null }: RegionMapLayoutProps) {
     setSaveSeq(getReflexologySyncStatus().seq);
     const saved = saveAtlas();
     if (!saved) {
-      showToast({ type: "error", title: "Depolama Hatası", message: STORAGE_QUOTA_ERROR_MESSAGE });
+      showToast({ type: "error", title: tc("storageErrorTitle"), message: tc("storageQuota") });
       return;
     }
     setToolMode("select");
@@ -159,7 +162,7 @@ export function RegionMapLayout({ initialOrgan = null }: RegionMapLayoutProps) {
   if (!workspace.hydrated) {
     return (
       <main className="flex w-full flex-1 items-center justify-center bg-[linear-gradient(160deg,#f3ebff_0%,#ebe4ff_28%,#f8f4ff_58%,#f0f7ff_100%)]">
-        <p className="text-sm font-semibold text-violet-900">Atlas yükleniyor…</p>
+        <p className="text-sm font-semibold text-violet-900">{t("atlasLoading")}</p>
       </main>
     );
   }
@@ -179,7 +182,7 @@ export function RegionMapLayout({ initialOrgan = null }: RegionMapLayoutProps) {
         {isDemo && (
           <DemoModuleBanner
             className="shrink-0"
-            message="Bölge haritasında yaptığınız çizimler sadece cihazınızda saklanır. Oturumunuz boyunca görünür; çıkışta silinir."
+            message={t("localOnly")}
           />
         )}
         {/* 2026-10-20 premium başlık bandı (owner GÖRSEL PASS). Dekor yalnız burada; çizim yüzeyinin üstünde dekor YOK. */}
@@ -188,9 +191,9 @@ export function RegionMapLayout({ initialOrgan = null }: RegionMapLayoutProps) {
           <img className={premium.heroArt} src="/premium/refleksoloji/spa-hero-bolge.webp" width={2394} height={244} alt="" aria-hidden decoding="async" draggable={false} />
           <div className={premium.heroBody}>
             <div className="min-w-0">
-              <p className={premium.eyebrow}>REFLEKSOLOJİ</p>
-              <h1 className={premium.title}>Bölge Haritası</h1>
-              <p className={premium.sub}>Ayak bölgeleri üzerinden organ ve sistemlerle ilişkili alanları inceleyin.</p>
+              <p className={premium.eyebrow}>{tc("eyebrow")}</p>
+              <h1 className={premium.title}>{t("title")}</h1>
+              <p className={premium.sub}>{t("subtitle")}</p>
             </div>
             {/* REF-007 / FA-13: atlas senkron sonucu + "yeniden dene" görünür. */}
             {!isDemo ? <SyncStatusBadge className={premium.sync} /> : null}
@@ -199,9 +202,9 @@ export function RegionMapLayout({ initialOrgan = null }: RegionMapLayoutProps) {
 
         {!isDemo && workspace.quarantineCount > 0 ? (
           <p className="mb-1 shrink-0 rounded-lg border border-amber-300/80 bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-950">
-            Bu cihazda sahibi belirsiz eski atlas verisi bulundu.{" "}
+            {t("quarantineFound")}{" "}
             <Link href="/refleksoloji/kayitli-atlas" className="underline underline-offset-2">
-              Kayıtlı Atlas&apos;ta içe aktarın veya silin
+              {t("quarantineLink")}
             </Link>
             .
           </p>

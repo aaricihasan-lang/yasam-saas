@@ -1,0 +1,159 @@
+{
+  "settings": {
+    "profile": {
+      "leaveConfirm": "There are unsaved changes on the My Profile tab. If you leave without saving, these changes will be lost. Continue?",
+      "fields": {
+        "title": {
+          "label": "Title",
+          "placeholder": "e.g. Specialist Psychological Counsellor"
+        },
+        "organization": {
+          "label": "Organisation / business",
+          "placeholder": "e.g. Yaşam Counselling Centre"
+        },
+        "phone": {
+          "label": "Phone",
+          "placeholder": "e.g. +90 532 123 45 67",
+          "hint": "Digits, spaces and + - ( ) may be used."
+        },
+        "contactEmail": {
+          "label": "Contact email",
+          "placeholder": "e.g. contact@yourdomain.com",
+          "hint": "The address your clients will use to reach you; it may differ from your sign-in email."
+        },
+        "website": {
+          "label": "Website",
+          "placeholder": "https://www.yourdomain.com",
+          "hint": "Only addresses starting with https://."
+        },
+        "bio": {
+          "label": "Short biography",
+          "placeholder": "Describe your areas of expertise and your approach in a few sentences."
+        },
+        "reportNote": {
+          "label": "Report footnote",
+          "placeholder": "e.g. This report is for information purposes; it does not replace medical diagnosis or treatment.",
+          "hint": "Up to 4 lines."
+        }
+      },
+      "fieldErrors": {
+        "notText": "Must be text.",
+        "badChar": "Contains an invalid character.",
+        "controlMulti": "Cannot contain invisible or control characters.",
+        "controlSingle": "Must be a single line; cannot contain invisible or control characters.",
+        "tooLong": "Can be at most {max} characters.",
+        "tooManyLines": "Can be at most {max} lines.",
+        "phone": "Use only digits, spaces and + - ( ) (7–15 digits).",
+        "email": "Enter a valid email address (e.g. name@yourdomain.com).",
+        "httpsRequired": "The address must start with https:// (e.g. https://www.yourdomain.com).",
+        "website": "Enter a valid https:// address (Latin-letter domain name; no user name / IP).",
+        "htmlTag": "A letter or / ! ? cannot directly follow the “<” sign (HTML tags are not accepted)."
+      },
+      "charCountSr": "Character count: ",
+      "loadUnavailable": "The profile section is not available yet. Please try again later.",
+      "loadFailed": "Profile details could not be loaded. Please try again.",
+      "loadFailedShort": "Profile details could not be loaded.",
+      "invalidFields": "Some fields are invalid. Correct the marked fields and save again.",
+      "saved": "Your profile has been saved.",
+      "savedToastTitle": "Saved",
+      "savedToastBody": "Your profile details have been updated.",
+      "conflict": "Your profile was changed in another tab or on another device. The latest version has been loaded; your changes are still in the form — check them and save again.",
+      "demoSave": "Profile changes cannot be saved on the demo account.",
+      "saveUnavailable": "The profile cannot be saved right now. Please try again later.",
+      "loading": "Loading profile…",
+      "retry": "Try again",
+      "accountTitle": "Account details",
+      "fullName": "Full name",
+      "loginEmail": "Sign-in email",
+      "accountLockNote": "Only the administrator can change your full name and sign-in email. To request a change, write via the “Contact Admin” tab.",
+      "demoNote": "On the demo account the profile can only be viewed; changes cannot be saved.",
+      "professionalTitle": "Professional details",
+      "professionalHint": "All fields are optional. A field you leave empty is not shown anywhere.",
+      "reportIdentityTitle": "Report identity",
+      "reportScope1": "When \"Show my business details in my reports\" is on, the details you select are added to these Word reports: Client Journey, Numerology analysis, Classical Numerology and Nutrition plan. The details appear on the cover, in the signature section at the end of the report and in the page footer; the legal notice text stays unchanged.",
+      "reportScope2": "In Human Design reports your name is not written automatically; only if the \"Prepared by\" field in the report is filled are your title and organisation (and, in the professional report, your logo) added; contact details and the footnote are not added.",
+      "reportScope3": "In Reflexology, Cupping (protocol and calendar) and Celestial Atlas (Word and PDF) reports, when the switch is on, a \"Prepared by\" signature section is added at the end of the report; your name is not written automatically, only the title, organisation, contact details, logo and footnote you select appear.",
+      "reportScope4": "In the Hijama report (Word and PDF) the \"Prepared by\" name in the form stays as it is and is not replaced with your profile name; if this field is filled, only your title, organisation and logo are added; contact details and the footnote are not added.",
+      "reportScope5": "Encyclopaedias, lecture notes, stock and archive exports are not covered. While the switch is off, no report changes.",
+      "brandingLabel": "Show my business details in my reports",
+      "brandingDescription": "While off, your reports are produced as they are today. When you turn it on, the details you select below are added to the reports listed above.",
+      "subsLegend": "Details to show in the report",
+      "subsHintOn": "Details to show in the report:",
+      "subsHintOff": "Details to show in the report (turn on the switch above first):",
+      "showTitle": "Title",
+      "showOrganization": "Organisation / business",
+      "showContact": "Contact details",
+      "showContactDescription": "Phone, contact email and website.",
+      "showNote": "Report footnote",
+      "errorSummary": "{count, plural, one {There is an error in # field.} other {There are errors in # fields.}}",
+      "dirty": "You have unsaved changes.",
+      "logoDirty": "Your report logo selection has not been saved.",
+      "clean": "All changes saved.",
+      "cancel": "Cancel",
+      "saving": "Saving…",
+      "save": "Save",
+      "logo": {
+        "loadUnavailable": "The report logo section is not available yet.",
+        "loadFailed": "Report logo details could not be loaded.",
+        "removed": "The report logo has been removed.",
+        "saved": "Your report logo selection has been saved.",
+        "conflict": "Your profile was changed in another tab or on another device. The latest state has been loaded; check your selection and save again.",
+        "demo": "The report logo cannot be changed on the demo account.",
+        "uploadedSelected": "The logo has been uploaded and selected. To use it in reports, press “Save selection”.",
+        "uploadOff": "The image area cannot be reached right now.",
+        "uploadFailed": "The logo could not be uploaded. Please try again.",
+        "loading": "Loading report logo…",
+        "retry": "Try again",
+        "title": "Report logo",
+        "intro": "The Yaşam Sistemi logo stays unchanged on the report cover; your logo appears as a secondary element on the signature card at the end of the report.",
+        "introBrandingOff": " For it to appear in the report, the “Show my business details in my reports” switch above must also be on.",
+        "missing": "Logo not found; please select it again. The logo you selected has been deleted or is no longer available; until then your reports are produced without a logo.",
+        "checkFailed": "The logo status could not be verified right now. Please try again shortly.",
+        "accessOff": "The report logo uses the logos in your Personal Digital Office image area. Because this area is not currently enabled on your account, your reports are produced without a logo.",
+        "clearPrevious": "Remove previous logo selection",
+        "optNone": "Do not use a logo",
+        "optNoneHint": "Your reports are produced without a logo.",
+        "optWorkspace": "Use my workspace logo",
+        "optWorkspaceHintHas": "The current logo on your home screen is used; if you change the logo in the design, your reports change too.",
+        "optWorkspaceHintNone": "Your applied workspace design currently has no logo; with this option reports are produced without a logo.",
+        "optCustom": "Separate logo for reports",
+        "optCustomHint": "Select one of the logos you have uploaded or upload a new logo.",
+        "assetsLoading": "Loading your logos…",
+        "assetsError": "Your logos could not be listed.",
+        "assetsEmpty": "You have not uploaded a logo yet.",
+        "assetsAria": "Your uploaded logos",
+        "assetAria": "Logo {index} ({width}×{height})",
+        "uploading": "Uploading… {pct}%",
+        "upload": "Upload new logo",
+        "uploadHint": "PNG, JPEG or WebP · up to 2 MB · transparent PNG recommended",
+        "cancel": "Cancel",
+        "saving": "Saving…",
+        "save": "Save selection",
+        "preview": {
+          "nameFallback": "Full Name",
+          "captionNone": "Signature card without logo",
+          "captionWorkspaceEmpty": "No logo in the design → no logo",
+          "captionPending": "Select a logo for the preview",
+          "captionBroken": "Logo could not be read → report is produced without a logo",
+          "captionOk": "Your logo on the signature card",
+          "title": "Report preview · B · Expert Signed",
+          "coverAria": "Cover preview",
+          "signatureAria": "Signature card preview",
+          "expertLogoAlt": "Expert logo"
+        },
+        "preflight": {
+          "empty": "The file appears to be empty. Choose another image.",
+          "heic": "HEIC format is not supported. Share the photo as JPEG from your phone or choose the \"Most Compatible\" format in your camera settings; then upload a JPEG, PNG or WebP file.",
+          "type": "Only JPEG, PNG or WebP images can be uploaded.",
+          "size": "The image is too large. The logo can be at most {max} MB."
+        }
+      },
+      "apiCodes": {
+        "PROFILE_UNAVAILABLE": "The profile is not available right now. Please try again later.",
+        "LOGO_ASSET_INVALID": "The logo could not be found or is not available. Select it again from the list.",
+        "LOGO_ACCESS_OFF": "Logo selection uses the Personal Digital Office image area; it is not currently enabled on your account.",
+        "LOGO_ACCESS_ERROR": "Access could not be verified. Please try again later."
+      }
+    }
+  }
+}

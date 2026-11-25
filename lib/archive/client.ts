@@ -10,6 +10,7 @@
 import { ZipWriter, safeFileName } from "./zip";
 import { MODULE_LABELS } from "@/lib/backup/registry";
 import type { ArchiveJob, ArchivePlanResponse } from "./types";
+import type { CodedMessage } from "@/lib/backup/types";
 
 export type PartResponse = {
   status: number;
@@ -59,6 +60,8 @@ export type JobOutcome = {
   files: string[];
   rows: number;
   message: string | null;
+  /** I18N: `message`'ın dil-bağımsız karşılığı (EK alan; ARŞİV-RAPORU.txt Türkçe `message`'ı yazar). */
+  message_code?: CodedMessage;
 };
 
 export type ArchiveRunResult = {
@@ -78,9 +81,19 @@ class PartError extends Error {
     message: string,
     readonly retryable: boolean,
     readonly retryAfterMs = 0,
+    /** I18N: dil-bağımsız karşılık (EK alan). */
+    readonly coded: CodedMessage = { code: "JOB_ERROR" },
   ) {
     super(message);
   }
+}
+
+/** Sunucu iş yanıtının dil-bağımsız karşılığı: sunucu `code`'u varsa o, yoksa HTTP durumu (+ atlandı / boş bayrağı). */
+function serverCoded(status: number, j: { code?: unknown; skipped?: unknown; empty?: unknown } | null | undefined): CodedMessage {
+  const code = j && typeof j.code === "string" && /^[A-Z][A-Z0-9_]{1,63}$/.test(j.code) ? j.code : null;
+  if (j?.empty === true) return { code: "JOB_EMPTY" };
+  if (j?.skipped === true) return { code: "JOB_SKIPPED", ...(code ? { params: { code } } : {}) };
+  return code ? { code: "SERVER_CODE", params: { code, status } } : { code: "HTTP_STATUS", params: { status } };
 }
 
 const defaultSleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
@@ -129,16 +142,21 @@ export async function runArchive(plan: ArchivePlanResponse, deps: ArchiveDeps): 
   const request = async (body: unknown): Promise<PartResponse> => {
     let attempt = 0;
     for (;;) {
-      if (deps.signal?.aborted) throw new PartError("İptal edildi.", false);
+      if (deps.signal?.aborted) throw new PartError("İptal edildi.", false, 0, { code: "JOB_CANCELLED" });
       try {
         const r = await deps.postPart(body, deps.signal);
         if (r.status === 429 || r.status >= 500) {
           const ra = Number(r.header("Retry-After") ?? "0");
-          throw new PartError(r.status === 429 ? "Sunucu yoğun (429)." : `Sunucu hatası (${r.status}).`, true, Math.min(30_000, (ra > 0 ? ra : 2) * 1000));
+          throw new PartError(
+            r.status === 429 ? "Sunucu yoğun (429)." : `Sunucu hatası (${r.status}).`,
+            true,
+            Math.min(30_000, (ra > 0 ? ra : 2) * 1000),
+            { code: "HTTP_STATUS", params: { status: r.status } },
+          );
         }
         return r;
       } catch (e) {
-        const pe = e instanceof PartError ? e : new PartError("Bağlantı hatası.", !deps.signal?.aborted, 1500);
+        const pe = e instanceof PartError ? e : new PartError("Bağlantı hatası.", !deps.signal?.aborted, 1500, { code: "NETWORK" });
         if (!pe.retryable || attempt >= retries) throw pe;
         attempt++;
         await sleep(pe.retryAfterMs || 1500 * attempt);
@@ -146,12 +164,18 @@ export async function runArchive(plan: ArchivePlanResponse, deps: ArchiveDeps): 
     }
   };
 
-  const errorOf = async (r: PartResponse): Promise<{ error: string; skipped: boolean; empty: boolean }> => {
+  const errorOf = async (r: PartResponse): Promise<{ error: string; skipped: boolean; empty: boolean; coded: CodedMessage }> => {
     try {
-      const j = (await r.json()) as { error?: unknown; skipped?: unknown; empty?: unknown };
-      return { error: String(j?.error ?? `Hata (${r.status}).`), skipped: j?.skipped === true, empty: r.status === 200 && j?.empty === true };
+      const j = (await r.json()) as { error?: unknown; skipped?: unknown; empty?: unknown; code?: unknown };
+      const empty = r.status === 200 && j?.empty === true;
+      return {
+        error: String(j?.error ?? `Hata (${r.status}).`),
+        skipped: j?.skipped === true,
+        empty,
+        coded: serverCoded(r.status, { ...j, empty }),
+      };
     } catch {
-      return { error: `Hata (${r.status}).`, skipped: false, empty: false };
+      return { error: `Hata (${r.status}).`, skipped: false, empty: false, coded: { code: "HTTP_STATUS", params: { status: r.status } } };
     }
   };
 
@@ -164,17 +188,19 @@ export async function runArchive(plan: ArchivePlanResponse, deps: ArchiveDeps): 
 
   const runJob = async (job: ArchiveJob): Promise<JobOutcome> => {
     const out: JobOutcome = { job, status: "ok", files: [], rows: 0, message: null };
-    const body = { options: plan.options, job };
+    // A16: dosya dili planda sabit; her parçada aynen gönderilir (TR planda alan yok → istek gövdesi bugünküyle aynı).
+    const body = { options: plan.options, job, ...(plan.file_locale && plan.file_locale !== "tr" ? { file_locale: plan.file_locale } : {}) };
     if (job.kind === "data") {
       let state: string | null = null;
       const errors: string[] = [];
       for (let guard = 0; guard < 100_000; guard++) {
         const r = await request({ ...body, state });
         if (!r.isFile) {
-          const j = (await r.json()) as { ok?: boolean; empty?: boolean; next?: string | null; error?: string; errors?: string[] };
+          const j = (await r.json()) as { ok?: boolean; empty?: boolean; next?: string | null; error?: string; errors?: string[]; code?: string };
           if (!j?.ok) {
             out.status = "failed";
             out.message = String(j?.error ?? `Hata (${r.status}).`);
+            out.message_code = serverCoded(r.status, { code: j?.code });
             return out;
           }
           for (const e of j.errors ?? []) errors.push(e);
@@ -193,6 +219,8 @@ export async function runArchive(plan: ArchivePlanResponse, deps: ArchiveDeps): 
       if (errors.length > 0 || out.rows !== job.expected) {
         out.status = "failed";
         out.message = [`${out.rows} / ${job.expected} kayıt arşivlendi`, ...errors].join(" · ");
+        // Sunucunun parça hata metinleri (Türkçe) yalnız ARŞİV-RAPORU'nda; ekran kodu sayıları ve hata adedini taşır.
+        out.message_code = { code: "DATA_PARTIAL", params: { rows: out.rows, expected: job.expected, errors: errors.length } };
       }
       return out;
     }
@@ -208,12 +236,13 @@ export async function runArchive(plan: ArchivePlanResponse, deps: ArchiveDeps): 
           out.files.push(await addFile(job.folder, name, await r.bytes()));
           continue;
         }
-        const j = (await r.json()) as { ok?: boolean; empty?: boolean; url?: string; file_name?: string; total?: number; rejected?: number; error?: string };
+        const j = (await r.json()) as { ok?: boolean; empty?: boolean; url?: string; file_name?: string; total?: number; rejected?: number; error?: string; code?: string };
         if (typeof j?.total === "number") total = j.total;
         if (typeof j?.rejected === "number") rejected = j.rejected;
         if (!j?.ok) {
           out.status = "failed";
           out.message = String(j?.error ?? `Hata (${r.status}).`);
+          out.message_code = serverCoded(r.status, { code: j?.code });
           return out;
         }
         if (j.empty || !j.url) break;
@@ -232,12 +261,14 @@ export async function runArchive(plan: ArchivePlanResponse, deps: ArchiveDeps): 
         if (!got) {
           out.status = "failed";
           out.message = lastErr;
+          out.message_code = { code: "IMAGE_DOWNLOAD_FAILED" };
           return out;
         }
       }
       if (rejected > 0) {
         out.status = "failed";
         out.message = `${rejected} görsel bağlantısı bu hesaba ait olarak doğrulanamadı ve arşive alınmadı (kayıt JSON yedekte).`;
+        out.message_code = { code: "IMAGES_REJECTED", params: { count: rejected } };
       }
       return out;
     }
@@ -247,12 +278,14 @@ export async function runArchive(plan: ArchivePlanResponse, deps: ArchiveDeps): 
         const e = await errorOf(r);
         out.status = "failed";
         out.message = e.error;
+        out.message_code = e.coded;
         return out;
       }
       const j = (await r.json()) as { ok?: boolean; url?: string; file_name?: string; error?: string };
       if (!j?.ok || !j.url) {
         out.status = "failed";
         out.message = String(j?.error ?? "Dosya bağlantısı alınamadı.");
+        out.message_code = { code: "FILE_LINK_FAILED" };
         return out;
       }
       let lastErr = "Dosya indirilemedi.";
@@ -269,18 +302,23 @@ export async function runArchive(plan: ArchivePlanResponse, deps: ArchiveDeps): 
       }
       out.status = "failed";
       out.message = lastErr;
+      out.message_code = { code: "FILE_DOWNLOAD_FAILED" };
       return out;
     }
     if (!r.isFile) {
       const e = await errorOf(r);
       out.status = e.empty ? "empty" : e.skipped ? "skipped" : "failed";
       out.message = e.error;
+      out.message_code = e.coded;
       return out;
     }
     const name = decodeHeader(r.header("X-Archive-File-Name")) || `${job.label}.docx`;
     out.files.push(await addFile(job.folder, name, await r.bytes()));
     const note = decodeHeader(r.header("X-Archive-Note"));
-    if (note) out.message = note;
+    if (note) {
+      out.message = note;
+      out.message_code = { code: "JOB_NOTE" };
+    }
     return out;
   };
 
@@ -300,7 +338,14 @@ export async function runArchive(plan: ArchivePlanResponse, deps: ArchiveDeps): 
         o = await runJob(job);
       } catch (e) {
         if (deps.signal?.aborted) cancelled = true;
-        o = { job, status: "failed", files: [], rows: 0, message: (e as Error)?.message || "Bilinmeyen hata." };
+        o = {
+          job,
+          status: "failed",
+          files: [],
+          rows: 0,
+          message: (e as Error)?.message || "Bilinmeyen hata.",
+          message_code: e instanceof PartError ? e.coded : { code: "JOB_ERROR" },
+        };
       }
       outcomes.push(o);
       progress.done++;

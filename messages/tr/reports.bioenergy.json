@@ -1,0 +1,138 @@
+{
+  "reports": {
+    "bioenergy": {
+      "common": {
+        "brand": "YAŞAM SİSTEMİ",
+        "generatedOn": "Oluşturulma Tarihi: {date}",
+        "scope": "Kapsam",
+        "recordCount": "Kayıt Sayısı",
+        "category": "Kategori",
+        "date": "Tarih",
+        "source": "Kaynak",
+        "notSpecified": "Belirtilmemiş",
+        "recordDate": "Kayıt Tarihi",
+        "records": "{count, plural, other {{shown} kayıt}}",
+        "recordNo": "KAYIT #{no}",
+        "untitledRecord": "Başlıksız Kayıt",
+        "unnamedRecord": "İsimsiz Kayıt",
+        "notes": "Notlar",
+        "note": "Not",
+        "reportSuffix": "{name} · Rapor",
+        "scopeSingle": "Tek Kayıt — {name}",
+        "scopeSelected": "Seçili Kayıtlar ({shown})",
+        "truncated": "Not: Çok sayıda kayıt nedeniyle rapora ilk {shown} kayıt dahil edildi. Tümü için kategori filtresi veya seçili export kullanın.",
+        "fileSelected": "secili",
+        "fileAll": "tumu"
+      },
+      "chakra": {
+        "title": "ÇAKRA KÜTÜPHANESİ",
+        "singleSubtitle": "{name} · Çakra Raporu",
+        "nameFallback": "Çakra",
+        "catalogSubtitle": "Biyoenerji Çakra Kataloğu",
+        "stat": "Çakra Kayıt Sayısı",
+        "scopeSingle": "Tek Çakra — {name}",
+        "scopeSelected": "Seçili Çakralar ({shown})",
+        "scopeAll": "Tüm Çakra Kütüphanesi ({shown})",
+        "heading": "1. Çakra Kütüphanesi",
+        "unnamed": "İsimsiz Çakra",
+        "cardNo": "ÇAKRA #{no}",
+        "quick": {
+          "sanskrit": "Sanskritçe Ad",
+          "element": "Element",
+          "location": "Konum",
+          "bija": "Bija Mantra",
+          "color": "Renk"
+        },
+        "section": {
+          "genel-bakis": "Genel Bakış",
+          "enerji-anatomisi": "Enerji Anatomisi & Denge",
+          "nedenler-blokajlar": "Nedenler & Blokajlar",
+          "beden-sistem": "Beden & Sistem",
+          "duygusal-zihinsel": "Duygusal & Zihinsel",
+          "uygulamalar": "Uygulamalar",
+          "taslar-destekleyiciler": "Taşlar & Destekleyiciler",
+          "notlar-kaynaklar": "Notlar & Kaynaklar"
+        },
+        "bibliography": "Kaynakça",
+        "extra": "Ek Bilgiler",
+        "field": {
+          "organs": "Organlar",
+          "glands": "Bezler",
+          "stones": "Taşlar",
+          "causes": "Nedenler",
+          "physical": "Fiziksel",
+          "mental": "Zihinsel",
+          "notes": "Notlar"
+        },
+        "footer": "Çakra Kütüphanesi Raporu · Yaşam Sistemi",
+        "file": "biyoenerji-cakra"
+      },
+      "energyBody": {
+        "title": "ENERJİ BEDENLERİ",
+        "singleSubtitle": "{name} · Enerji Bedeni Raporu",
+        "nameFallback": "Enerji Bedeni",
+        "catalogSubtitle": "Biyoenerji Enerji Bedenleri Kataloğu",
+        "scopeAll": "Tüm Enerji Bedenleri ({shown})",
+        "heading": "1. Enerji Bedenleri",
+        "field": {
+          "general": "Genel Tanım",
+          "duty": "Görevi",
+          "disruption": "Bozulma Belirtileri",
+          "stones": "Önerilen Taşlar"
+        },
+        "footer": "Enerji Bedenleri Raporu · Yaşam Sistemi",
+        "file": "biyoenerji-enerji-bedenleri"
+      },
+      "imagination": {
+        "title": "İMAJİNASYONLAR",
+        "nameFallback": "İmajinasyon",
+        "catalogSubtitle": "Biyoenerji İmajinasyon Kataloğu",
+        "scopeAll": "Tüm İmajinasyonlar ({shown})",
+        "heading": "1. İmajinasyonlar",
+        "text": "Metin",
+        "footer": "İmajinasyon Raporu · Yaşam Sistemi",
+        "file": "biyoenerji-imajinasyon"
+      },
+      "subconscious": {
+        "title": "BİLİNÇALTI SEBEPLER",
+        "nameFallback": "Bilinçaltı Sebebi",
+        "catalogSubtitle": "Biyoenerji Bilinçaltı Sebepler Kataloğu",
+        "scopeAll": "Tüm Bilinçaltı Sebepleri ({shown})",
+        "heading": "1. Bilinçaltı Sebepler",
+        "sourceUid": "Kaynak UID",
+        "content": "İçerik",
+        "footer": "Bilinçaltı Sebepler Raporu · Yaşam Sistemi",
+        "file": "biyoenerji-bilincalti"
+      },
+      "symbol": {
+        "title": "SEMBOL DİLİ",
+        "singleSubtitle": "{name} · Sembol Raporu",
+        "nameFallback": "Sembol",
+        "catalogSubtitle": "Biyoenerji Sembol Dili Kataloğu",
+        "scopeAll": "Tüm Semboller ({shown})",
+        "heading": "1. Sembol Dili",
+        "unnamed": "İsimsiz Sembol",
+        "meaning": "Anlam",
+        "footer": "Sembol Dili Raporu · Yaşam Sistemi",
+        "file": "biyoenerji-sembol"
+      },
+      "session": {
+        "title": "BİYOENERJİ SEANSLARI",
+        "singleSubtitle": "{name} · Seans Raporu",
+        "nameFallback": "Seans",
+        "catalogSubtitle": "Biyoenerji Seans Kataloğu",
+        "stat": "Seans Sayısı",
+        "scopeSingle": "Tek Seans — {name}",
+        "scopeSelected": "Seçili Seanslar ({shown})",
+        "scopeAll": "Tüm Seanslar ({shown})",
+        "heading": "1. Seans Listesi",
+        "meta": "{count, plural, other {{shown} seans kaydı}}",
+        "untitled": "Başlıksız Seans",
+        "cardNo": "SEANS #{no}",
+        "content": "İçerik / Uygulama Notları",
+        "footer": "Biyoenerji Seans Raporu · Yaşam Sistemi",
+        "file": "biyoenerji-seans"
+      }
+    }
+  }
+}

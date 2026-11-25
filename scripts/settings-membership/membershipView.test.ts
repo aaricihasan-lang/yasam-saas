@@ -7,10 +7,14 @@ import {
   NO_END_DATE_TEXT,
   profileStateFromResponse,
   resolveMembershipView,
+  trMembershipTx,
   type MembershipView,
   type TrialStatusLite,
 } from "../../lib/settings/membershipView";
 import { TRIAL_MESSAGES } from "../../lib/trial/trialCore";
+import { localizeTrialError, trialErrorCode, TRIAL_ERROR_CODES } from "../../lib/trial/trialErrors";
+import trTrial from "../../messages/tr/trial.json";
+import enTrial from "../../messages/en/trial.json";
 
 let pass = 0;
 let fail = 0;
@@ -60,7 +64,7 @@ console.log("\n── Deneme üyesi aktif ──");
   ok(v.kind === "trial_active" && v.packageLabel === "Ücretsiz deneme (7 gün)" && v.statusLabel === "Deneme sürüyor", "aktif deneme etiketi (admin adlandırmasıyla aynı)", v);
   ok(v.rows.some((r) => r.term === "Deneme başlangıcı" && r.value === "8 Kasım 2026, 12:00"), "deneme başlangıcı TSİ", v.rows);
   ok(v.rows.some((r) => r.term === "Deneme bitişi" && r.value === "15 Kasım 2026, 12:00"), "deneme bitişi TSİ (168 saat)");
-  ok(v.rows.some((r) => r.term === "Bugünkü Roxy krediniz" && r.value === "38 / 50"), "günlük ortak kredi: kalan / limit");
+  ok(v.rows.some((r) => r.term === "Bugün Kalan Hesaplama Kredisi" && r.value === "38 / 50"), "günlük ortak kredi: kalan / limit");
   ok(v.restrictions.some((r) => r.includes("Dijital İçerik")) && v.restrictions.some((r) => r.includes("00.00")), "deneme kısıtları: Dijital İçerik kapalı + kredi gece yarısı yenilenir");
   ok(v.contactCta?.label === "Pro üyelik talebi", "Pro üyelik talebi → mevcut İrtibat akışı");
   noForbidden(v, "aktif deneme");
@@ -148,6 +152,51 @@ console.log("\n── Demo / admin ──");
   ok(a.kind === "admin" && a.packageLabel === "Yönetici" && a.rows.length === 0 && a.contactCta === null, "admin: Yönetici, paket kuralları uygulanmaz");
   const A = view(base({ role: "ADMIN " }));
   ok(A.kind === "admin", "rol büyük/küçük harf + boşluk toleransı");
+}
+
+// I18N QA A-05: kaynak-dil çeviricisi eksik anahtarda HAM ANAHTAR döndürmez (güvenli yedek: boş metin).
+ok(trMembershipTx("settings.membership.yokBoyleBirAnahtar") === "" && trMembershipTx("settings.membership.noEndDate") === NO_END_DATE_TEXT, "kaynak-dil çevirici: eksik anahtar → ham anahtar yok");
+
+// I18N-F1-R3: deneme hata kodları → trial.errors.codes.<KOD>. TR katalog kopyası sunucunun Türkçe metniyle BİREBİR
+// (TRIAL_MESSAGES + roxyMeter "kredi doğrulanamadı"); EN'de Roxy adı geçmez; TR ekranda sunucu metni aynen gösterilir.
+console.log("\n── Deneme hata kodları (i18n) ──");
+{
+  const trCodes = trTrial.trial.errors.codes as Record<string, string>;
+  const enCodes = enTrial.trial.errors.codes as Record<string, string>;
+  const expectTr: Record<string, string> = {
+    TRIAL_EXPIRED: TRIAL_MESSAGES.expired,
+    TRIAL_SUSPENDED: TRIAL_MESSAGES.suspended,
+    TRIAL_REVIEW: TRIAL_MESSAGES.review,
+    TRIAL_NOT_STARTED: TRIAL_MESSAGES.notStarted,
+    TRIAL_CREDIT_LIMIT: TRIAL_MESSAGES.creditDaily,
+    TRIAL_CREDIT_MODULE_LIMIT: TRIAL_MESSAGES.creditModule,
+    TRIAL_CREDIT_UNAVAILABLE: "Kredi durumu doğrulanamadı. Lütfen biraz sonra tekrar deneyin.",
+    MODULE_NOT_IN_TRIAL: TRIAL_MESSAGES.moduleNotInTrial,
+  };
+  ok(TRIAL_ERROR_CODES.every((c) => trCodes[c] === expectTr[c]), "TR katalog = sunucu Türkçe metni (8 kod, birebir)");
+  ok(TRIAL_ERROR_CODES.every((c) => typeof enCodes[c] === "string" && enCodes[c] !== "" && !/roxy/i.test(enCodes[c])), "EN: 8 kod dolu, Roxy adı yok");
+  // I18N geniş geliştirme (B1): uzman ekranında sağlayıcı adı görünmez — TR katalog ve sunucu Türkçe metni de "Roxy" içermez
+  // ("Hesaplama Kredisi" terimi). Kod adları (TRIAL_CREDIT_*), kredi hesabı ve API sözleşmesi değişmedi.
+  ok(
+    TRIAL_ERROR_CODES.every((c) => !/roxy/i.test(trCodes[c])) &&
+      !/roxy/i.test(JSON.stringify(trTrial)) &&
+      !/roxy/i.test(TRIAL_MESSAGES.creditDaily + TRIAL_MESSAGES.creditModule),
+    "TR: deneme metinlerinde Roxy adı yok (hesaplama kredisi)",
+  );
+  ok(
+    trialErrorCode({ code: "MODULE_DENIED", trialCode: "MODULE_NOT_IN_TRIAL" }) === "MODULE_NOT_IN_TRIAL" &&
+      trialErrorCode({ code: "MODULE_DENIED" }) === null &&
+      trialErrorCode({ code: "TRIAL_EXPIRED" }) === "TRIAL_EXPIRED" &&
+      trialErrorCode({ code: "TRIAL_CREDIT_LIMIT", trialCode: "TRIAL_CREDIT_MODULE_LIMIT" }) === "TRIAL_CREDIT_MODULE_LIMIT" &&
+      trialErrorCode(null) === null,
+    "trialErrorCode: EK trialCode önce, deneme dışı kod → null",
+  );
+  const mk = (codes: Record<string, string>) =>
+    Object.assign((k: string) => codes[k.replace(/^codes\./, "")] ?? k, { has: (k: string) => k.replace(/^codes\./, "") in codes });
+  const body = { code: "TRIAL_CREDIT_LIMIT", trialCode: "TRIAL_CREDIT_LIMIT", error: TRIAL_MESSAGES.creditDaily };
+  ok(localizeTrialError(mk(trCodes), "tr", body) === TRIAL_MESSAGES.creditDaily, "tr: sunucu metni birebir");
+  ok(localizeTrialError(mk(enCodes), "en", body) === enCodes.TRIAL_CREDIT_LIMIT, "en: koddan çeviri (Türkçe sızmaz)");
+  ok(localizeTrialError(mk(enCodes), "en", { code: "MODULE_DENIED", error: "x" }) === null, "deneme dışı hata → null (çağıran kendi eşlemesi)");
 }
 
 console.log(`\nToplam: ${pass} geçti, ${fail} kaldı`);

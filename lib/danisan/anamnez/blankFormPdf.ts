@@ -41,6 +41,11 @@ export function anamnezMessages(locale: AnamnezLocale): AnamnezMessages {
   return (locale === "en" ? enMessages : trMessages).clients.anamnez;
 }
 
+/** PDF belge dili: yalnız EN'de "en-GB" (TR'de işaret EKLENMEZ — mevcut TR PDF birebir). */
+export function pdfDocumentLang(locale: AnamnezLocale): string | undefined {
+  return locale === "en" ? "en-GB" : undefined;
+}
+
 export function pdfText(locale: AnamnezLocale): { pdf: PdfText; wellness: string; yes: string; no: string; detail: string } {
   const m = anamnezMessages(locale);
   return { pdf: m.pdf, wellness: m.wellnessNote, yes: m.field.yes, no: m.field.no, detail: m.field.detail };
@@ -60,8 +65,13 @@ const USABLE_H = PAGE_H - BOTTOM - TOP;
 export class Writer {
   doc: Pdf;
   y = TOP;
-  constructor(fontBase64: string) {
+  /**
+   * `documentLang` (I18N çıktı dili): yalnız kaynak dil DIŞINDA verilir → PDF katalog `/Lang` (ekran okuyucu,
+   * heceleme). TR'de verilmez → TR PDF bayt-bayt aynı (golden: scripts/i18n/golden/reports-ab-tr.golden.json).
+   */
+  constructor(fontBase64: string, documentLang?: string) {
     this.doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+    if (documentLang) this.doc.setLanguage(documentLang as Parameters<jsPDF["setLanguage"]>[0]);
     this.doc.addFileToVFS("Geist-Regular.ttf", fontBase64);
     this.doc.addFont("Geist-Regular.ttf", "Geist", "normal");
     this.doc.setFont("Geist", "normal");
@@ -234,7 +244,7 @@ export function buildBlankAnamnesisPdf(input: BlankFormInput): Uint8Array {
   const catalog = getCatalog(version, locale);
   const t = pdfText(locale);
   const custom: FormCustom = input.formCustom ?? { hidden: [], labels: {}, enabledSections: [], custom: [] };
-  const w = new Writer(input.fontBase64);
+  const w = new Writer(input.fontBase64, pdfDocumentLang(locale));
   const doc = w.doc;
 
   // ── Başlık ──

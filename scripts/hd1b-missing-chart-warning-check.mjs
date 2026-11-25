@@ -149,7 +149,9 @@ check("24. clientId encode edilir (encodeURIComponent)",
 check("25. Dirty=false → doğrudan yönlendirme",
   /if \(!dirty\)\s*\{\s*router\.push\(target\);/.test(completeBody));
 check("26. Dirty=true → mevcut unsaved karar mekanizmasından (askUnsaved) geçer",
-  /if \(!dirty\)[\s\S]*?await askUnsaved\(\{[\s\S]*?Değişiklikleri At ve Eksikleri Tamamla/.test(completeBody));
+  // I18N-F1-R5 (HD-B): seçenek metni katalogda (hd.reportBuilder.unsaved.discardComplete; TR bayt-eşit) — niyet aynı.
+  /if \(!dirty\)[\s\S]*?await askUnsaved\(\{[\s\S]*?t\("unsaved\.discardComplete"\)/.test(completeBody) &&
+  JSON.parse(read("messages/tr/hd.reportBuilder.json")).hd.reportBuilder.unsaved.discardComplete === "Değişiklikleri At ve Eksikleri Tamamla");
 check("27. Vazgeç/Escape/backdrop → navigasyon YAPILMAZ (choice !== discard → return)",
   /if \(choice !== "discard"\) return;/.test(completeBody));
 check("28. Onaylı discard → navigasyon (router.push target, choice sonrası)",

@@ -1,0 +1,87 @@
+{
+  "stones": {
+    "library": {
+      "title": "Natural Stone Library",
+      "notFound": "This content could not be found or you do not have permission to access it.",
+      "moduleNavAria": "Natural Stone module",
+      "managementTab": "Library Management",
+      "backToModule": "Back to the Natural Stone module",
+      "heroLead": "Descriptions, meanings, affirmations and associations of natural stones in one place. Source texts are preserved unchanged; the verified Turkish translation is a separate layer.",
+      "publishedStones": "Published stones",
+      "searchLabel": "Search stones",
+      "searchPlaceholder": "Search by stone name (Turkish or English)…",
+      "clearSearch": "Clear search",
+      "filters": "Filters",
+      "clearAll": "Clear all",
+      "filtersLoading": "Loading filters…",
+      "birthMonth": "Birth month",
+      "showResults": "Show results ({total})",
+      "searching": "Searching…",
+      "resultCount": "{total, plural, one {# stone} other {# stones}}",
+      "loading": "Loading…",
+      "prev": "Previous",
+      "next": "Next",
+      "emptyTitle": "No stones match these criteria.",
+      "emptyHint": "Try removing some filters or entering a different name.",
+      "imageAlt": "{name} — stone image",
+      "noImage": "No image",
+      "facet": {
+        "chakra": "Chakra",
+        "zodiac": "Zodiac sign",
+        "element": "Element",
+        "color": "Colour",
+        "planet": "Planet"
+      },
+      "field": {
+        "description": "Description",
+        "meaning_spiritual": "Spiritual meaning",
+        "meaning_emotional": "Emotional meaning",
+        "meaning_physical": "Physical effect",
+        "affirmation": "Affirmation",
+        "keywords": "Keywords"
+      },
+      "month": {
+        "1": "January",
+        "2": "February",
+        "3": "March",
+        "4": "April",
+        "5": "May",
+        "6": "June",
+        "7": "July",
+        "8": "August",
+        "9": "September",
+        "10": "October",
+        "11": "November",
+        "12": "December"
+      },
+      "detail": {
+        "modeDefault": "Recommended view",
+        "modeVerified": "Verified Turkish translation",
+        "modeTr": "Source text (Turkish)",
+        "modeEn": "Source text (English)",
+        "displaySource": {
+          "OWNER_SURUMU": "Owner version",
+          "DOGRULANMIS_TR_CEVIRI": "Verified Turkish translation",
+          "KAYNAK_TR": "Source text (Turkish)"
+        },
+        "noVerified": "There is no verified Turkish translation for this field.",
+        "hardness": "Hardness (Mohs)",
+        "numericalVibration": "Numerical vibration",
+        "healthNotice": "Health notice",
+        "backToLibrary": "‹ Back to the library",
+        "stoneInfo": "Stone details",
+        "associations": "Associations",
+        "englishName": "English name: {name}",
+        "turkishName": "Turkish name: {name}",
+        "contentSource": "Content source",
+        "sourceOnlyNote": "A verified Turkish translation of this stone has not been published yet; the content is shown as the source text (Turkish).",
+        "fieldMissing": "This field is not included in this source.",
+        "notesTitle": "Additional Information and Expert Notes",
+        "notesSub": "This section is separate from the source texts and the verified translation.",
+        "noteWarning": "Usage warning",
+        "noteInfo": "Additional information",
+        "pairedStones": "Stones used together"
+      }
+    }
+  }
+}

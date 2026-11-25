@@ -332,6 +332,7 @@ async function run() {
   const { PATCH: adminTrialPATCH } = await import("@/app/api/admin/trials/[id]/route");
   const { POST: adminConvertPOST } = await import("@/app/api/admin/trials/[id]/convert/route");
   const { withTrialRoxyMeter, trialMeteredFetch } = await import("@/lib/trial/roxyMeter");
+  const { TRIAL_MESSAGES } = await import("@/lib/trial/trialCore");
   const { callRoxyBodygraph } = await import("@/lib/human-design/providers/roxy/client");
 
   // ── R: kayıt ────────────────────────────────────────────────────────────────
@@ -416,6 +417,12 @@ async function run() {
     g = await gate(U.active, `${A}/x`, "GET", key);
     ok(g.status === 403 && g.code === "MODULE_DENIED", `G3 aktif deneme: ${key} → 403 (Dijital İçerik ailesi)`, g);
   }
+  // I18N-F1-R3: deneme modül reddi dil-bağımsız EK alan taşır (code MODULE_DENIED ve Türkçe metin aynen).
+  {
+    const g3 = await requireModuleAccess(req(`${A}/x`, U.active, "GET"), "digital_content");
+    const g3j = g3.ok ? null : ((await g3.response.json()) as Row);
+    ok(!!g3j && g3j.code === "MODULE_DENIED" && g3j.trialCode === "MODULE_NOT_IN_TRIAL" && g3j.error === TRIAL_MESSAGES.moduleNotInTrial, "G3b deneme modül reddi: trialCode MODULE_NOT_IN_TRIAL + Türkçe metin aynen", g3j);
+  }
   // Allowlist dışı her anahtar (ileride eklenecek alt modül) — saf çekirdek kararı:
   const { resolveModuleAccess } = await import("@/lib/auth/moduleAccessCore");
   ok(resolveModuleAccess("expert", { ...TRIAL_PERMS, dijital_yeni_alt_modul: true }, "dijital_yeni_alt_modul", { isTrial: true }) === false &&
@@ -495,11 +502,14 @@ async function run() {
   res = await hd(U.active, "d");
   const xj = (await res.json()) as Row;
   ok(res.status === 429 && xj.code === "TRIAL_CREDIT_LIMIT" && roxy.calls === before, "X5 limit doldu → 429 anlaşılır mesaj, Roxy isteği ATILMADI", xj);
+  ok(xj.trialCode === "TRIAL_CREDIT_LIMIT" && xj.error === TRIAL_MESSAGES.creditDaily, "X5b günlük limit: trialCode TRIAL_CREDIT_LIMIT + Türkçe metin aynen (I18N-F1-R3)", xj);
   res = await hd(U.active, "a");
   ok(res.status === 200, "X6 limit dolu iken kayıtlı (önbellek) sonuç görüntülenebilir");
   limits.set(U.active, { daily: 10, mods: { human_design: 2 } });
   res = await hd(U.active, "e");
-  ok(res.status === 429 && ((await res.json()) as Row).error === "Bu modül için bugünkü Roxy hesaplama sınırına ulaştınız. Krediniz Türkiye saatiyle 00.00'da yenilenir.", "X7 modül limiti mesajı");
+  const x7 = (await res.json()) as Row;
+  ok(res.status === 429 && x7.error === "Bu modül için bugünkü hesaplama kredisi sınırına ulaştınız. Krediniz Türkiye saatiyle 00.00'da yenilenir.", "X7 modül limiti mesajı");
+  ok(x7.code === "TRIAL_CREDIT_LIMIT" && x7.trialCode === "TRIAL_CREDIT_MODULE_LIMIT", "X7b modül limiti: code aynen + trialCode TRIAL_CREDIT_MODULE_LIMIT (I18N-F1-R3)", x7);
   const premBefore = calledRpc("trial_credit_reserve").length;
   roxy.calls = 0;
   res = await hd(U.premium, "z");

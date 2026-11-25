@@ -1,0 +1,770 @@
+{
+  "numerology": {
+    "classic": {
+      "shared": {
+        "crumbCentre": "Numerology Centre",
+        "crumbClassic": "Classical Numerology"
+      },
+      "labels": {
+        "method": {
+          "pythagorean": "Pythagorean (Western)",
+          "chaldean": "Chaldean (Cheiro)"
+        },
+        "interpretationHeading": "Classical method interpretation",
+        "numberKind": {
+          "single": "Single digit",
+          "master": "Master number",
+          "compound": "Compound number"
+        },
+        "compoundNature": {
+          "fortunate": "Fortunate",
+          "unfortunate": "Unfortunate",
+          "mixed": "Mixed"
+        },
+        "businessRating": {
+          "excellent": "Excellent",
+          "good": "Good",
+          "caution": "Caution",
+          "avoid": "Avoid"
+        },
+        "verification": {
+          "match": "Verified by independent calculation",
+          "mismatch": "Does not match independent calculation",
+          "unverified": "Not verified"
+        },
+        "meaning": {
+          "strengths": "Strengths",
+          "challenges": "Challenges",
+          "career": "Career",
+          "relationships": "Relationships",
+          "spirituality": "Spirituality"
+        },
+        "core": {
+          "lifePath": "Life Path",
+          "expression": "Expression",
+          "soulUrge": "Soul Urge",
+          "personality": "Personality",
+          "birthDay": "Birthday",
+          "maturity": "Maturity",
+          "hiddenPassion": "Hidden Passion",
+          "subconsciousSelf": "Subconscious Self",
+          "cornerstone": "Cornerstone",
+          "capstone": "Capstone",
+          "firstVowel": "First Vowel",
+          "birthDayProfile": "Birthday Profile"
+        },
+        "bridge": {
+          "lifePathExpression": "Life Path ↔ Expression",
+          "expressionSoulUrge": "Expression ↔ Soul Urge",
+          "soulUrgePersonality": "Soul Urge ↔ Personality",
+          "expressionPersonality": "Expression ↔ Personality"
+        }
+      },
+      "meta": {
+        "hubTitle": "Classical Numerology · Yaşam Sistemi",
+        "libraryTitle": "Number Knowledge Library · Classical Numerology",
+        "relationshipTitle": "Relationship Analysis · Classical Numerology",
+        "namesTitle": "Name Options · Classical Numerology",
+        "businessTitle": "Business Numerology · Classical Numerology",
+        "recordsTitle": "Saved Analyses · Classical Numerology"
+      },
+      "hub": {
+        "title": "Western and Chaldean traditions",
+        "sub": "Pythagorean core numbers, karmic structure, timing cycles and Chaldean compound numbers — every step calculated traceably.",
+        "chipsLabel": "Core principles of the method",
+        "chipMaster": "Master numbers 11 · 22 · 33",
+        "sectionsLabel": "Classical Numerology sections",
+        "tiles": {
+          "new": {
+            "title": "New Analysis",
+            "desc": "Calculate all techniques, or only the ones you choose, from full name and date of birth.",
+            "badge": "Start here"
+          },
+          "records": {
+            "title": "Saved Analyses",
+            "desc": "Stored Classical analyses; renaming, deletion and Word export."
+          },
+          "library": {
+            "title": "Number Knowledge Library",
+            "desc": "Meanings of 1–9, master numbers and Chaldean compound numbers 10–52."
+          },
+          "relationship": {
+            "title": "Relationship Analysis",
+            "desc": "Compatibility of two people’s core numbers and their complementary aspects."
+          },
+          "business": {
+            "title": "Business Numerology",
+            "desc": "The Chaldean number of a company or brand name and its traditional assessment."
+          },
+          "names": {
+            "title": "Name Options",
+            "desc": "Compare up to six candidate names side by side using Pythagorean and Chaldean."
+          }
+        },
+        "stone": {
+          "title": "Numerology – Natural Stones",
+          "desc": "The “Stones” tab of a person analysis shows three sources separately: stones suggested by the chart, vibration match and planetary association, together with your stock information. Suggestions are symbolic and traditional; they make no health claims.",
+          "badgeSymbolic": "Symbolic / traditional",
+          "badgeWhere": "In the analysis result · Stones"
+        }
+      },
+      "kit": {
+        "crumbsLabel": "Breadcrumb",
+        "loading": "Loading…",
+        "cancel": "Cancel",
+        "pleaseWait": "Please wait…",
+        "verified": "Verified",
+        "mismatch": "Mismatch",
+        "mismatchPlain": "The independent calculation gave a different result.",
+        "mismatchWithValue": "The independent calculation gave a different result (independent calculation: {value}).",
+        "expertDecides": "The decision rests with the practitioner.",
+        "yes": "yes",
+        "no": "no",
+        "traceLabel": "How was it calculated?",
+        "karmicDebt": "Karmic debt {value}"
+      },
+      "dupDialog": {
+        "titleFailed": "Previous records could not be checked",
+        "titleDuplicate": "A saved analysis already exists for this person",
+        "failedLead": "We could not check right now whether a record already exists with this full name and date of birth. You can try again or save without checking.",
+        "failedHint": "Nothing has been saved yet; the result on this page is kept.",
+        "leadSingle": "You have a person analysis saved with this full name and date of birth. Would you like to open the existing record or save a new analysis?",
+        "leadMany": "You have {total} person analyses saved with this full name and date of birth. Would you like to open the existing record or save a new analysis?",
+        "hint": "The existing record opens in a new tab; the unsaved result on this page is not lost. The earlier record is not changed.",
+        "matchesLabel": "Matching records",
+        "born": "Born {date}",
+        "savedAt": "Saved {date}",
+        "openThis": "Open This Record",
+        "shownOf": "Showing the {shown} most recent records ({total} in total).",
+        "checking": "Checking…",
+        "retry": "Try Again",
+        "openExisting": "Open Existing Record",
+        "saveAnyway": "Save Anyway",
+        "saveNewAnyway": "Save as New Anyway",
+        "cancel": "Cancel"
+      },
+      "premiumArt": {
+        "sceneCaption": "PYTHAGOREAN · CHALDEAN"
+      },
+      "library": {
+        "title": "Number Knowledge Library",
+        "sub": "Fixed number meanings of the classical method. Contains no personal data; interpretations follow the traditional method.",
+        "tabsLabel": "Library sections",
+        "tabs": {
+          "pythagorean_meaning": "Pythagorean number meanings",
+          "chaldean_compound": "Chaldean compound numbers"
+        },
+        "numberFallback": "Number {n}",
+        "compoundFallback": "Compound {n}",
+        "root": "Root {n}",
+        "sameAs": "Same meaning as {n}",
+        "retry": "Try again",
+        "loading": "Loading library…",
+        "emptyTitle": "Library content has not been loaded yet",
+        "emptyBody": "Number meanings will appear here once your administrator has imported them."
+      },
+      "report": {
+        "groups": {
+          "core": "Core numbers",
+          "karmic": "Karmic lessons and debts",
+          "timing": "Pinnacles, challenges, personal cycles",
+          "bridge": "Bridge numbers",
+          "name_letters": "Name letters",
+          "hidden_subconscious": "Hidden passion and subconscious self",
+          "birthday_profile": "Birthday profile",
+          "maturity": "Maturity",
+          "chaldean": "Chaldean (Cheiro)",
+          "dual": "Two-system comparison",
+          "lucky": "Lucky associations",
+          "stones": "Stone suggestions (with information note)"
+        },
+        "variants": {
+          "summary": {
+            "label": "Summary",
+            "desc": "Numbers and short meanings"
+          },
+          "technical": {
+            "label": "Technical",
+            "desc": "Calculation traces and verification status"
+          },
+          "full": {
+            "label": "Full",
+            "desc": "All sections and interpretations"
+          }
+        },
+        "wordTitle": "Word report",
+        "leadPerson": "Choose the sections to include in the report.",
+        "leadOther": "A Word report is generated from the analysis result.",
+        "sectionsLegend": "Report sections",
+        "fullHint": "The full report includes all sections.",
+        "detailLevel": "Level of detail",
+        "downloaded": "Report downloaded.",
+        "preparing": "Preparing…",
+        "wordDownload": "Download Word",
+        "stonesWord": "Stone report (Word)",
+        "preview": "Preview",
+        "png": {
+          "title": "Visual report (PNG)",
+          "lead": "Core numbers, karmic and periodic information in a single-page, high-resolution image. Suitable for sharing and printing.",
+          "alt": "Classical Numerology visual report preview",
+          "download": "Download PNG",
+          "build": "Create visual report"
+        }
+      },
+      "other": {
+        "compatibility": "Compatibility · {value}%",
+        "scorePercent": "{value}%",
+        "relTitle": "Numerological compatibility",
+        "scoreBadge": "Classical method score · cannot be verified",
+        "scoreNote": "Classical method score · its formula is not documented in the source, so it cannot be independently verified; the numbers below are checked independently.",
+        "independentCheck": "Independent check of the numbers",
+        "notSpecified": "Not specified.",
+        "advice": "Recommendation",
+        "bizSub": "Chaldean (Cheiro) · business name",
+        "favorableCompound": "Fortunate compound",
+        "assessment": "Assessment",
+        "industries": "Traditionally compatible fields",
+        "namesTitle": "Candidate names side by side",
+        "namesLead": "Each candidate is calculated separately with both systems; the numbers are not combined and no ranking is made.",
+        "namesCaption": "Pythagorean and Chaldean numbers of the candidate names",
+        "colCandidate": "Candidate",
+        "colPythagorean": "Pythagorean",
+        "colChaldean": "Chaldean",
+        "colAgreement": "Agreement",
+        "sameRoot": "Same root",
+        "different": "Different",
+        "failedCandidates": "Candidates that could not be calculated: {list}",
+        "pythagoreanTitle": "Pythagorean · {title}",
+        "chaldeanValue": "Chaldean {value}",
+        "chaldeanCaution": "Chaldean · Caution",
+        "tracePythagorean": "Pythagorean · How was it calculated?",
+        "traceChaldean": "Chaldean · How was it calculated?"
+      },
+      "draft": {
+        "crumbResult": "Analysis Result",
+        "loading": "Loading result…",
+        "missingTitle": "Unsaved result not found",
+        "newAnalysis": "New Analysis",
+        "missingBody": "Unsaved results can only be viewed in the tab where they were calculated, while that tab remains open. You can enter the details and calculate again; analyses you save are kept in Saved Analyses."
+      },
+      "fmt": {
+        "kinds": {
+          "person": "Person analysis",
+          "relationship": "Relationship analysis",
+          "business": "Business name",
+          "names": "Name options"
+        },
+        "kindFallback": "Analysis",
+        "techniques": {
+          "core": "Pythagorean core chart",
+          "chart": "Pythagorean core chart",
+          "bridge": "Bridge numbers",
+          "personal_day": "Personal day",
+          "daily": "Number of the day (symbolic)",
+          "chaldean": "Chaldean (Cheiro)",
+          "dual": "Two-system comparison",
+          "compatibility": "Numerological compatibility",
+          "business_name": "Business name (Chaldean)"
+        },
+        "candidate": "Candidate name {n}",
+        "techniqueFallback": "A technique"
+      },
+      "apiErrors": {
+        "network": "Could not connect. Check your internet connection and try again.",
+        "rateLimited": "Too many requests; please try again shortly.",
+        "module": "You do not have access to this module. Please contact your administrator.",
+        "membership": "Your membership is not active for this action.",
+        "clientsPermission": "You need the Client Management permission for this action.",
+        "status401": "Your session may have expired. Please sign in again.",
+        "status403": "You are not authorised to perform this action.",
+        "status404": "The record was not found or no longer exists.",
+        "status409": "The record was changed in another session. Refresh the page and try again.",
+        "status413": "The request is too large.",
+        "status5xx": "The action could not be completed right now. Please try again later.",
+        "generic": "The action could not be completed.",
+        "codes": {
+          "NOT_FOUND": "Not found.",
+          "DEMO_READONLY": "New analyses cannot be calculated and records cannot be changed on a demo account.",
+          "CLIENTS_PERMISSION_REQUIRED": "You need the Client Management permission to link a client.",
+          "CLIENT_NOT_FOUND": "Client not found.",
+          "FUTURE_YEARS_PERMISSION_REQUIRED": "Calculations for future years require the \"Show Future Years\" permission. Choose a target date within this year.",
+          "PROVIDER_CALLS_DISABLED": "New calculations are currently disabled. You can still open your saved analyses.",
+          "NOT_CONFIGURED": "The calculation service has not been configured yet. You can still open your saved analyses.",
+          "QUOTA_PROTECTED": "Calculation capacity is temporarily protected. Please try again later.",
+          "RATE_LIMITED": "Too many calculations in a short time. Please try again shortly.",
+          "IN_PROGRESS": "The same calculation is already running. Try again in a few seconds.",
+          "CLASSIC_BUSY": "The calculation service is busy right now. Try again in a few seconds.",
+          "PROVIDER_TIMEOUT": "The calculation service did not respond in time. You can try again.",
+          "PROVIDER_ERROR": "The calculation could not be completed right now. Please try again later.",
+          "SAVE_FAILED": "The analysis was calculated but could not be saved. Trying again will not run an extra calculation.",
+          "DRAFT_STALE": "This calculation result can no longer be verified. Please check the details and calculate again.",
+          "DB_ERROR": "The action could not be completed. Please try again.",
+          "CONFLICT": "The record was changed in another session. Refresh the page and try again.",
+          "INVALID_ID": "Not found.",
+          "METHOD_NOT_ALLOWED": "This action is not supported.",
+          "STONES_NOT_AVAILABLE": "This analysis has no person chart for stone matching.",
+          "INVALID_NAME": "The name is invalid.",
+          "INVALID_DATE": "The date is invalid.",
+          "INVALID_TITLE": "The title is invalid.",
+          "INVALID_CLIENT_ID": "Invalid client ID.",
+          "INVALID_TECHNIQUES": "The technique selection is invalid.",
+          "INVALID_INPUT": "Invalid request.",
+          "INVALID_KIND": "The analysis type is invalid.",
+          "DUPLICATE_CANDIDATE": "The same candidate name has been entered twice.",
+          "TARGET_BEFORE_BIRTH": "The target date cannot be before the date of birth.",
+          "PAYLOAD_TOO_LARGE": "The request is too large.",
+          "MALFORMED_JSON": "A valid JSON body is required.",
+          "UNKNOWN_FIELD": "Unexpected field.",
+          "INVALID_ROW_VERSION": "Version information is required.",
+          "NOTHING_TO_UPDATE": "There is nothing to change.",
+          "INVALID_DRAFT": "The calculation result information is invalid."
+        }
+      },
+      "validation": {
+        "nameRequired": "The name cannot be empty.",
+        "nameInvalid": "The name may contain only letters, spaces, apostrophes, hyphens and full stops, and must include at least one vowel and one consonant (up to 120 characters).",
+        "businessNameRequired": "The business name cannot be empty.",
+        "businessNameInvalid": "The business name may contain only letters, digits, spaces and ' . , & -, and must include at least one vowel and one consonant (up to 120 characters).",
+        "titleInvalid": "The title contains characters that are not allowed or is too long.",
+        "generic": "The details entered are invalid.",
+        "codes": {
+          "INVALID_NAME": "The name is invalid.",
+          "INVALID_DATE": "The date is invalid.",
+          "INVALID_TITLE": "The title is invalid.",
+          "INVALID_CLIENT_ID": "Invalid client ID.",
+          "INVALID_TECHNIQUES": "The technique selection is invalid.",
+          "INVALID_INPUT": "Invalid request.",
+          "INVALID_KIND": "The analysis type is invalid.",
+          "DUPLICATE_CANDIDATE": "The same candidate name has been entered twice.",
+          "TARGET_BEFORE_BIRTH": "The target date cannot be before the date of birth.",
+          "PAYLOAD_TOO_LARGE": "The request is too large.",
+          "MALFORMED_JSON": "A valid JSON body is required.",
+          "UNKNOWN_FIELD": "Unexpected field.",
+          "INVALID_ROW_VERSION": "Version information is required.",
+          "NOTHING_TO_UPDATE": "There is nothing to change.",
+          "INVALID_DRAFT": "The calculation result information is invalid."
+        }
+      },
+      "form": {
+        "birthLabel": "Date of birth",
+        "targetLabel": "Target date",
+        "errRequired": "{label} is required.",
+        "errFormat": "{label} must be in DD.MM.YYYY format.",
+        "errYear": "The year must be between 1900 and 2100.",
+        "errMonth": "The month must be between 1 and 12.",
+        "errDay": "This month has no such day.",
+        "errStorage": "Your browser could not keep the result in this tab (private window or storage may be disabled). Enable storage and calculate again.",
+        "editMissingDraft": "The result to edit was not found in this tab; you can enter the details again.",
+        "editMissingRecord": "The record to edit could not be opened; you can enter the details again.",
+        "editTitle": "You are editing the details",
+        "editSource": "Make your corrections and press <b>Recalculate</b>. The saved “{title}” analysis does not change until you explicitly update it on the result screen.",
+        "editNew": "Make your corrections and press <b>Recalculate</b>. The new result is not saved as a record unless you save it.",
+        "demoTitle": "Demo account",
+        "demoBody": "New analyses cannot be calculated on a demo account; you can review the saved examples.",
+        "closedTitle": "New calculations are currently disabled",
+        "closedBody": "You can still open your saved analyses and export them to Word.",
+        "optional": "(optional)",
+        "latinLabel": "Spelling used in the calculation",
+        "dropped": "Letters not included in the calculation: {list}",
+        "latinHint": "The calculation uses Latin spelling: <code>Işıl → ISIL</code>, <code>Çağrı → CAGRI</code>.",
+        "calculating": "Calculating…",
+        "recalc": "Recalculate",
+        "calc": "Calculate",
+        "cancel": "Cancel",
+        "calculatingSr": "Calculating, please wait.",
+        "tech": {
+          "core": {
+            "name": "Pythagorean Core Chart",
+            "desc": "Life Path, Expression, Soul Urge, Personality, Birthday, Maturity; karmic lessons and debts; pinnacles, challenges, personal year/month; name letters; lucky associations and stones"
+          },
+          "bridge": {
+            "name": "Bridge Numbers",
+            "desc": "The four bridges between the core numbers"
+          },
+          "personal_day": {
+            "name": "Personal Day",
+            "desc": "Personal day for the target date"
+          },
+          "daily": {
+            "name": "Number of the Day (symbolic)",
+            "desc": "Symbolic number and message for the target day; not calculated from birth data and separate from the Personal Day"
+          },
+          "chaldean": {
+            "name": "Chaldean (Cheiro)",
+            "desc": "Destiny, soul, personality — compound 10–52 and planet"
+          },
+          "dual": {
+            "name": "Two-System Comparison",
+            "desc": "Pythagorean ↔ Chaldean side by side, with agreement marker"
+          }
+        },
+        "targetBeforeBirth": "The target date cannot be before the date of birth.",
+        "futureYears": "A target date in a future year requires the \"Show Future Years\" permission. Choose a date within this year.",
+        "prebirth": "The date of birth is after today (pre-birth analysis). Date-based values cannot be calculated for a day before birth: enter the date of birth or a later date as the target date. For a name-only assessment you can use the Name Options analysis.",
+        "techRequired": "Select at least one technique.",
+        "titleMax": "The title can be at most {max} characters.",
+        "startFailed": "The analysis could not be started",
+        "personInfo": "Personal Details",
+        "fullName": "Full name",
+        "person": {
+          "title": "New Analysis",
+          "sub": "Enter the person’s details and choose the techniques to calculate.",
+          "targetHint": "Today if left empty; personal year / month / day are based on this date.",
+          "techTitle": "Technique selection",
+          "techAll": "All techniques",
+          "techSome": "Selected techniques",
+          "techNone": "No technique selected",
+          "techCount": "{n} / {total} groups selected",
+          "techLegend": "Technique groups to calculate",
+          "allName": "All",
+          "allDesc": "Calculate every group",
+          "groupCount": "{n} groups",
+          "dualHint": "For the Two-System comparison, the Pythagorean core and Chaldean results are calculated as well."
+        },
+        "relationship": {
+          "title": "Relationship Analysis",
+          "sub": "Compatibility of two people’s Life Path, Expression and Soul Urge (Pythagorean).",
+          "personN": "Person {n}",
+          "relTitle": "Relationship compatibility",
+          "relLead": "The compatibility score, core number matches, strengths and challenges are calculated. The record title is asked for at the Save step."
+        },
+        "business": {
+          "title": "Business Numerology",
+          "sub": "The Chaldean (Cheiro) number of a company or brand name and its traditional assessment.",
+          "nameTitle": "Business name",
+          "charsHint": "Letters, digits, spaces and ' . , & - may be used.",
+          "nameLabel": "Business / brand name"
+        },
+        "names": {
+          "title": "Name Options",
+          "sub": "Up to {max} candidate names; each is calculated separately with Pythagorean and Chaldean.",
+          "candTitle": "Candidate names",
+          "candLead": "Empty rows are ignored.",
+          "candN": "Candidate {n}",
+          "removeAria": "Remove candidate {n}",
+          "remove": "Remove",
+          "previewLabel": "Calculation spelling for candidate {n}",
+          "add": "Add candidate",
+          "maxHint": "Up to {max} candidates can be entered.",
+          "candRequired": "Enter at least one candidate name.",
+          "duplicate": "The same candidate name has been entered twice."
+        }
+      },
+      "person": {
+        "coreSub": {
+          "lifePath": "From the date of birth",
+          "expression": "All letters of the full name",
+          "soulUrge": "Vowels",
+          "personality": "Consonants",
+          "birthDay": "Day of birth",
+          "maturity": "Life Path + Expression"
+        },
+        "summary": {
+          "title": "Summary",
+          "lead": "The core numbers at a glance. Details and calculation traces are in the relevant tab.",
+          "karmic": "Karmic {n}",
+          "master": "Master",
+          "noChart": "This analysis has no Pythagorean core chart.",
+          "personalYear": "Personal year",
+          "personalYearRef": "Personal year ({year})",
+          "currentPinnacle": "Current pinnacle ({start}–{end})",
+          "missing": "Missing number (karmic lesson)",
+          "none": "None",
+          "chaldeanDestiny": "Chaldean destiny number",
+          "personalDayAt": "Personal day ({date})"
+        },
+        "core": {
+          "srTitle": "Pythagorean Core Numbers",
+          "maturityActive": "Maturity number active",
+          "maturityInactive": "Maturity number not yet active",
+          "maturityLine": "{status} · {range} · current age {age}",
+          "root": "root {n}"
+        },
+        "karmic": {
+          "lessonsTitle": "Karmic lessons",
+          "lessonsLead": "Distribution of the full name’s letters over 1–9. A number that never appears is read as a karmic lesson.",
+          "gridLabel": "Number distribution",
+          "cellMissing": "missing",
+          "cellLetters": "{n} letters",
+          "cellZero": "0 · missing",
+          "legendMissing": "Missing number",
+          "legendHigh": "Most frequent (hidden passion: {list})",
+          "howToOvercome": "How to overcome:",
+          "noMissing": "This name has no missing numbers.",
+          "debtsTitle": "Karmic debts",
+          "debtsLead": "Intermediate sums 13 · 14 · 16 · 19.",
+          "challenge": "Challenge:",
+          "resolution": "Resolution:",
+          "noDebt": "No karmic debt appears in this analysis.",
+          "hpKey": "Value repeated most often in the name · {n} times",
+          "scKey": "Number of distinct values present in the name"
+        },
+        "timing": {
+          "segPinnacle": "Pinnacle {position} · age {ages}",
+          "segChallenge": "Challenge {position} · age {ages}",
+          "nowSuffix": " · now",
+          "periodPinnacle": "Pinnacle {position}",
+          "periodChallenge": "Challenge {position}",
+          "mainLabel": "Main challenge (whole life)",
+          "lesson": "Lesson:",
+          "opportunities": "Opportunities:",
+          "challenges": "Challenges:",
+          "pcTitle": "Pinnacles and challenges",
+          "pcLead": "Four pinnacle periods; the first ends at age 36 − Life Path, the next two last 9 years each. Challenges 1, 2 and 4 accompany these periods; challenge 3 is the main challenge and applies throughout life.",
+          "ageBadge": "Age {age} on the target date",
+          "periodSuffix": " · period {n}",
+          "pinnacles": "Pinnacles",
+          "challengesPeriods": "Challenges (age periods)",
+          "challengesList": "Challenges",
+          "mainAria": "Main challenge",
+          "mainSeg": "Challenge 3 · Main challenge · throughout life",
+          "noPeriodic": "No periodic challenge at the target age; the main challenge applies.",
+          "details": "Period details",
+          "cyclesTitle": "Personal cycles",
+          "cyclesTarget": "Target date {date} · ",
+          "cyclesLead": "In the classical method the personal year changes on 1 January.",
+          "personalYear": "Personal year",
+          "personalMonth": "Personal month",
+          "personalDay": "Personal day · {date}",
+          "advice": "Recommendation:",
+          "guidance": "Guidance for the day:",
+          "howToOvercome": "How to overcome:"
+        },
+        "daily": {
+          "title": "Number of the day (symbolic)",
+          "seedCommon": "Shared number for this day",
+          "seedPersonal": "Number generated with a personal seed",
+          "lead": "{date} · {seed}. Not calculated from birth data; it is not the same as the Personal Day above.",
+          "badge": "Symbolic · cannot be verified",
+          "numberCap": "Number of the day",
+          "keywords": "Keywords:"
+        },
+        "bridges": {
+          "title": "Bridge numbers",
+          "lead": "The difference between two core numbers; the theme that eases the tension between them."
+        },
+        "letters": {
+          "cornerstone": "First letter of the first name",
+          "capstone": "Last letter of the first name",
+          "firstVowelY": "Y acts as a vowel here (classical convention; the first name has no A/E/I/O/U)",
+          "firstVowel": "First vowel of the first name"
+        },
+        "kalde": {
+          "sr": "compound {compound}, root {root}",
+          "title": "Chaldean (Cheiro) numbers",
+          "lead": "In the Chaldean table, 9 is not assigned to any letter; the compound number (10–52) is interpreted separately and reduced to its root.",
+          "natureLegend": "— traditional nature of the compound number",
+          "caution": "The root of the destiny number carries a caution mark in the traditional reading.",
+          "destiny": "Destiny number",
+          "fullName": "Full name",
+          "soul": "Soul number",
+          "vowels": "Vowels",
+          "personality": "Personality number",
+          "consonants": "Consonants",
+          "rootHeading": "Root {n}"
+        },
+        "dual": {
+          "colConcept": "Concept",
+          "title": "The two systems side by side",
+          "lead": "Pythagorean and Chaldean use different letter tables; a different result for the same concept is expected. The numbers are not combined.",
+          "caption": "Pythagorean and Chaldean comparison",
+          "rowName": "Name (Expression / Destiny)",
+          "rowSoul": "Soul",
+          "rowPersonality": "Personality",
+          "chaldeanTitle": "Chaldean · {title}",
+          "caution": "Caution"
+        }
+      },
+      "stones": {
+        "disclaimer": "Stone suggestions are a symbolic and traditional numerology interpretation; they make no medical diagnosis, treatment or health claim and do not replace any treatment.",
+        "modeReason": {
+          "library_disabled": "The Natural Stone Library connection is currently disabled.",
+          "no_access": "You do not have access to the Natural Stone Library.",
+          "unavailable": "The Natural Stone Library is not responding right now.",
+          "empty": "There are no published stones in the Natural Stone Library."
+        },
+        "modeReasonFallback": "The Natural Stone Library is currently unavailable.",
+        "status": {
+          "duplicate": {
+            "badge": "More than one possible stone",
+            "why": "Similar stone records were found in the library. The practitioner should choose the correct record:"
+          },
+          "similar": {
+            "badge": "No exact match · similar stones exist",
+            "why": "The library has no exact match for this name; stone records with similar names were found. The practitioner should choose the correct record:"
+          },
+          "unmatched": {
+            "badge": "Not found in the library",
+            "why": "This name did not match any stone record in the library; it is shown as text only."
+          },
+          "text_only": {
+            "badge": "Name only",
+            "why": "The stone library cannot be reached right now; the name is shown as text, without stock or library information."
+          }
+        },
+        "stockCount": "In stock · {n} pcs",
+        "stock": "In stock",
+        "noStock": "Not in stock",
+        "mapName": "Name in the chart: {name}",
+        "alsoSource1": "Also in source 1",
+        "otherReasons": "Other reasons: {n}",
+        "noMatch": "No matches in this source.",
+        "collapse": "Collapse list",
+        "showAll": "Show all stones (+{n})",
+        "unavailableFallback": "This analysis has no person chart for stone matching.",
+        "title": "Stone suggestions",
+        "lead": "The three sources are shown separately; the same stone may appear in more than one source.",
+        "luckyPlanet": "Lucky planet · {v}",
+        "element": "Element · {v}",
+        "day": "Day · {v}",
+        "colors": "Colours · {v}",
+        "noSuggestionTitle": "No stone suggestion",
+        "loading": "Loading stone suggestions…",
+        "retry": "Try again",
+        "textOnlyTitle": "Only stone names are shown",
+        "textOnlyTail": "Stones suggested by the chart are listed by name; derived matches require the library connection.",
+        "src1Title": "Stones suggested by the chart",
+        "src1Sub": "Lucky stone list from the analysis result",
+        "src1Empty": "This chart has no stone suggestions.",
+        "src2Title": "Vibration match",
+        "src2Sub": "Vibration number of the stone in the library",
+        "exact": "Exact match",
+        "exactSub": "The number itself",
+        "root": "Root number match",
+        "rootSub": "Root of the master / compound number — not an exact match",
+        "src3Title": "Planetary association",
+        "src3Sub": "Stones traditionally associated with the ruling planet",
+        "group": {
+          "pairs_with": "Stones used together with the direct suggestions",
+          "element": "Stones associated with the lucky element"
+        }
+      },
+      "result": {
+        "crumbResult": "Analysis Result",
+        "crumbRecords": "Saved Analyses",
+        "loading": "Loading analysis…",
+        "notFoundTitle": "Analysis not found",
+        "openFailedTitle": "The analysis could not be opened",
+        "backToRecords": "Back to records",
+        "retry": "Try again",
+        "notFoundBody": "This analysis may have been deleted or does not belong to you.",
+        "unexpected": "Something unexpected happened.",
+        "metaBirth": "Born <b>{date}</b>",
+        "metaTarget": "Target date <b>{date}</b>",
+        "metaFolded": "Calculation spelling <b>{name}</b>",
+        "metaBizName": "Business name <b>{name}</b>",
+        "metaCalculated": "Calculated <b>{date}</b>",
+        "metaSaved": "Saved <b>{date}</b>",
+        "masterBadge": "Master numbers kept · 11 · 22 · 33",
+        "person1": "Person 1",
+        "person2": "Person 2",
+        "candCount": "{n} candidates",
+        "candN": "Candidate {n}",
+        "tabs": {
+          "ozet": "Summary",
+          "cekirdek": "Pythagorean Core",
+          "karmik": "Karmic",
+          "zamanlama": "Timing",
+          "kopruler": "Bridges",
+          "harfler": "Name Letters",
+          "kalde": "Chaldean",
+          "iki": "Two Systems",
+          "taslar": "Stones",
+          "uyum": "Compatibility",
+          "isletme": "Business Name",
+          "adaylar": "Candidates",
+          "rapor": "Report"
+        },
+        "tabsLabel": "Analysis sections",
+        "draftBadge": "Not saved",
+        "editInputs": "Edit Details",
+        "compare": "Compare",
+        "futureTitle": "Future periods hidden",
+        "futureBody": "Because you do not have the “Show Future Years” permission, periods starting after the current year and timing results for future years are not shown.",
+        "partialTitle": "Partial result",
+        "partialBody": "Some techniques could not be calculated; the other sections are complete."
+      },
+      "records": {
+        "titleEmpty": "The title cannot be empty.",
+        "renamed": "Title updated.",
+        "conflictRename": "The record was changed in another session; the list has been refreshed. Please try your change again.",
+        "deleted": "“{title}” deleted.",
+        "conflictDelete": "The record was changed in another session; the list has been refreshed. Please try deleting again.",
+        "alreadyDeleted": "The record has already been deleted.",
+        "title": "Saved Analyses",
+        "sub": "Opening a saved analysis does not recalculate it.",
+        "newAnalysis": "New analysis",
+        "refresh": "Refresh",
+        "loading": "Loading records…",
+        "countOne": "{n} record",
+        "count": "{n} records",
+        "none": "No records",
+        "emptyLead": "There are no saved Classical Numerology analyses yet. <link>Start a new analysis</link>.",
+        "newTitleLabel": "New title",
+        "saving": "Saving…",
+        "save": "Save",
+        "cancel": "Cancel",
+        "untitled": "Untitled analysis",
+        "partial": "Partial",
+        "renameAria": "{title} — rename",
+        "rename": "Rename",
+        "deleteAria": "{title} — delete",
+        "delete": "Delete",
+        "loadingMore": "Loading…",
+        "showAll": "Show all",
+        "confirmTitle": "Delete this analysis?",
+        "confirmBody": "“{title}” will be removed from the saved analyses list. This cannot be undone."
+      },
+      "clientLink": {
+        "unnamed": "Unnamed client",
+        "listFailed": "The client list could not be loaded.",
+        "title": "Client link",
+        "optional": "(optional)",
+        "lead": "If you link the analysis to one of your clients, it appears in the Numerology tab of the client file.",
+        "linked": "Linked client: <b>{name}</b>",
+        "prefill": "Copy details to the form",
+        "unlink": "Remove link",
+        "searchLabel": "Search clients",
+        "searchPh": "Search by first or last name",
+        "loading": "Loading…",
+        "noMatch": "No matching clients.",
+        "cancel": "Cancel",
+        "choose": "Choose client",
+        "chooseCap": "Choose Client",
+        "chip": "Client",
+        "removeAria": "Remove client selection {name}",
+        "prefillShort": "Copy details",
+        "lineMissing": "Client linked (you do not have permission to view it, or the client has been deleted)",
+        "linePending": "Client linked…",
+        "lineLabel": "Client",
+        "queryNotFound": "The client in the link was not found; the analysis will be saved without a client, or you can choose one from the list.",
+        "conflict": "The record was changed in another tab; refresh the page and try again.",
+        "notFound": "Client or analysis not found.",
+        "saveFailed": "The client link could not be saved.",
+        "resultUnlink": "Remove client link",
+        "resultLink": "Link to client"
+      },
+      "draftSave": {
+        "staleFallback": "This calculation result can no longer be verified. Check the details and calculate again.",
+        "conflict": "The record was changed in another session. Reopen the saved analysis and edit it again.",
+        "editedTitle": "The edited result has not been saved yet",
+        "newTitle": "This result has not been saved yet",
+        "editedHint": "The saved “{title}” analysis has not changed. Choose whether to update it or keep this as a new record; if you leave without saving, the record stays as it is.",
+        "newHint": "You can review it and export a Word / visual report. Save it to add it to Saved Analyses, link it to a client or compare it; if you leave without saving, no record is created.",
+        "replace": "Update Record",
+        "saveNew": "Save as new record",
+        "checking": "Checking…",
+        "save": "Save",
+        "failedTitle": "Could not save",
+        "editInputs": "Edit Details",
+        "confirmReplaceTitle": "Update the saved analysis?",
+        "confirmSaveTitle": "Save analysis",
+        "replaceBody": "The details and results in “{title}” will be replaced by this new calculation. The old result is not kept.",
+        "saveBody": "The analysis is added to the Saved Analyses list.",
+        "saveBodyLinked": "The analysis is added to the Saved Analyses list and linked to the client you selected.",
+        "titleLabel": "Record title",
+        "titleHint": "If left empty, the name is used."
+      }
+    }
+  }
+}

@@ -651,11 +651,12 @@ export function interpretationTitle(interpretation: InterpretationLayer): Interp
 }
 
 /** 2026-10-16: Local Space merkezi doğum yerinden farklıysa kalıptaki yer atfı seçilen merkeze bağlanır (rapordakiyle aynı). */
-function withLocalSpaceCenter(content: unknown, center: LocalSpaceCenter | null | undefined): { content: unknown; note: string | null } {
+function withLocalSpaceCenter(content: unknown, center: LocalSpaceCenter | null | undefined, providerLang: string = "tr"): { content: unknown; note: string | null } {
   const c = content as { schema?: unknown; bodies?: unknown; summary?: unknown } | null;
   if (!center || !c || c.schema !== "astro.western.local_space.interp.v1") return { content, note: null };
-  const bodies = Array.isArray(c.bodies) ? (c.bodies as { text?: unknown }[]).map((b) => (typeof b?.text === "string" ? { ...b, text: localSpaceText(b.text, center) } : b)) : c.bodies;
-  return { content: { ...c, bodies, ...(typeof c.summary === "string" ? { summary: localSpaceText(c.summary, center) } : {}) }, note: localSpaceCenterNote(center) };
+  // I18N A7: yer atfı yorumun KAYITLI sağlayıcı diline göre bağlanır (ekran dili değil); "tr" = bugünkü davranış.
+  const bodies = Array.isArray(c.bodies) ? (c.bodies as { text?: unknown }[]).map((b) => (typeof b?.text === "string" ? { ...b, text: localSpaceText(b.text, center, providerLang) } : b)) : c.bodies;
+  return { content: { ...c, bodies, ...(typeof c.summary === "string" ? { summary: localSpaceText(c.summary, center, providerLang) } : {}) }, note: localSpaceCenterNote(center) };
 }
 
 export default function ProviderInterpretationPanel({
@@ -669,7 +670,8 @@ export default function ProviderInterpretationPanel({
   displayTz?: string | null;
 }) {
   const title = interpretationTitle(interpretation);
-  const ls = interpretation.visible ? withLocalSpaceCenter(stripSystemKeys(interpretation.content), localSpace) : null;
+  // QA-ATLAS-R5 P3-3: dil yoksa kaynak dil "tr" (report/model.ts ile aynı savunma).
+  const ls = interpretation.visible ? withLocalSpaceCenter(stripSystemKeys(interpretation.content), localSpace, typeof interpretation.lang === "string" && interpretation.lang ? interpretation.lang : "tr") : null;
   return (
     <section className="rounded-xl border border-slate-200/90 bg-white p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04)] max-sm:-mx-3 max-sm:rounded-none max-sm:border-x-0 max-sm:px-3" aria-label={title}>
       <div className="mb-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-b border-slate-100 pb-2.5">

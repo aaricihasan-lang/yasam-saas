@@ -41,6 +41,128 @@
       "first_quarter": "First Quarter",
       "full_moon": "Full Moon",
       "last_quarter": "Last Quarter"
+    },
+    "aspect": {
+      "conjunction": "Conjunction",
+      "opposition": "Opposition",
+      "trine": "Trine",
+      "square": "Square",
+      "sextile": "Sextile (60°)",
+      "semi_sextile": "Semi-sextile (30°)",
+      "semi_square": "Semi-square",
+      "sesquiquadrate": "Sesquiquadrate",
+      "quincunx": "Quincunx (150°)"
+    },
+    "aspectNature": {
+      "harmonious": "Harmonious",
+      "challenging": "Challenging",
+      "neutral": "Neutral"
+    },
+    "dignity": {
+      "domicile": "Domicile (rulership)",
+      "exaltation": "Exaltation",
+      "detriment": "Detriment",
+      "fall": "Fall",
+      "peregrine": "Peregrine"
+    },
+    "pattern": {
+      "grand_trine": "Grand Trine",
+      "kite": "Kite",
+      "t_square": "T-Square",
+      "grand_cross": "Grand Cross",
+      "yod": "Yod",
+      "mystic_rectangle": "Mystic Rectangle",
+      "stellium": "Stellium"
+    },
+    "modality": {
+      "cardinal": "Cardinal",
+      "fixed": "Fixed",
+      "mutable": "Mutable"
+    },
+    "houseSystem": {
+      "placidus": "Placidus",
+      "whole-sign": "Whole Sign",
+      "equal": "Equal House",
+      "koch": "Koch",
+      "regiomontanus": "Regiomontanus",
+      "campanus": "Campanus",
+      "porphyry": "Porphyry",
+      "alcabitius": "Alcabitius"
+    },
+    "nodeType": {
+      "true": "True node",
+      "mean": "Mean node"
+    },
+    "angle": {
+      "ascendant": "Ascendant (ASC)",
+      "midheaven": "Midheaven (MC)",
+      "descendant": "Descendant (DSC)",
+      "imum_coeli": "Imum Coeli (IC)"
+    },
+    "motion": {
+      "retrograde": "Retrograde",
+      "retrograde_short": "Rx (℞)"
+    },
+    "zodiacType": {
+      "tropical": "Tropical",
+      "sidereal": "Sidereal"
+    },
+    "graha": {
+      "sun": "Sun (Surya)",
+      "moon": "Moon (Chandra)",
+      "mars": "Mars (Mangala)",
+      "mercury": "Mercury (Budha)",
+      "jupiter": "Jupiter (Guru)",
+      "venus": "Venus (Shukra)",
+      "saturn": "Saturn (Shani)",
+      "rahu": "Rahu",
+      "ketu": "Ketu"
+    },
+    "grahaNodeFull": {
+      "rahu": "Rahu (North Node)",
+      "ketu": "Ketu (South Node)"
+    },
+    "nakshatra": {
+      "ashwini": "Ashwini",
+      "bharani": "Bharani",
+      "krittika": "Krittika",
+      "rohini": "Rohini",
+      "mrigashira": "Mrigashira",
+      "ardra": "Ardra",
+      "punarvasu": "Punarvasu",
+      "pushya": "Pushya",
+      "ashlesha": "Ashlesha",
+      "magha": "Magha",
+      "purva_phalguni": "Purva Phalguni",
+      "uttara_phalguni": "Uttara Phalguni",
+      "hasta": "Hasta",
+      "chitra": "Chitra",
+      "swati": "Swati",
+      "vishakha": "Vishakha",
+      "anuradha": "Anuradha",
+      "jyeshtha": "Jyeshtha",
+      "mula": "Mula",
+      "purva_ashadha": "Purva Ashadha",
+      "uttara_ashadha": "Uttara Ashadha",
+      "shravana": "Shravana",
+      "dhanishta": "Dhanishta",
+      "shatabhisha": "Shatabhisha",
+      "purva_bhadrapada": "Purva Bhadrapada",
+      "uttara_bhadrapada": "Uttara Bhadrapada",
+      "revati": "Revati"
+    },
+    "dashaLevel": {
+      "mahadasha": "Mahadasha",
+      "antardasha": "Antardasha (bhukti)",
+      "pratyantardasha": "Pratyantardasha",
+      "sookshma": "Sookshma",
+      "prana": "Prana"
+    },
+    "ayanamsa": {
+      "lahiri": "Lahiri (Chitrapaksha)",
+      "raman": "B.V. Raman",
+      "kp-newcomb": "KP Newcomb",
+      "kp-old": "KP (old table)"
     }
   }
 }

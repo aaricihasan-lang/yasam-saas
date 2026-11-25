@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { mapSaleRpcError } from "@/lib/urun-stok/salesErrors";
+import { saleRpcErrorCode } from "@/lib/urun-stok/stockErrorCodes";
 import { trackUsage } from "@/lib/usage/trackUsage";
 
 import { demoReadOnlyResponse } from "@/lib/auth/demoReadOnly";
@@ -25,7 +26,7 @@ export async function POST(
   const { id } = await ctx.params;
   const saleId = String(id ?? "").trim();
   if (!UUID_RE.test(saleId))
-    return NextResponse.json({ ok: false, error: "Geçersiz satış kimliği." }, { status: 400 });
+    return NextResponse.json({ ok: false, code: "STK_INVALID_SALE_ID", error: "Geçersiz satış kimliği." }, { status: 400 });
 
   if (is_demo_account) return demoReadOnlyResponse();
 
@@ -49,7 +50,7 @@ export async function POST(
         errorClass: mapped.status === 409 ? "conflict" : "server",
       });
     }
-    return NextResponse.json({ ok: false, error: mapped.error }, { status: mapped.status });
+    return NextResponse.json({ ok: false, code: saleRpcErrorCode(error), error: mapped.error }, { status: mapped.status });
   }
 
   const result = data as { already_cancelled?: boolean; restored?: number };

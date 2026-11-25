@@ -27,6 +27,7 @@ import {
   type TrialCreditModule,
   type TrialPhase,
 } from "@/lib/trial/trialCore";
+import { TRIAL_CREDIT_MODULE_LIMIT_CODE } from "@/lib/trial/trialErrors";
 
 assertServerOnly("lib/trial/roxyMeter");
 
@@ -120,6 +121,8 @@ function denialResponse(reason: string): NextResponse {
       {
         code: TRIAL_CREDIT_LIMIT_CODE,
         error: reason === "module_limit" ? TRIAL_MESSAGES.creditModule : TRIAL_MESSAGES.creditDaily,
+        // I18N-F1-R3: dil-bağımsız EK alan (code ve Türkçe metin aynen) → istemci trial.errors.codes.<KOD>.
+        trialCode: reason === "module_limit" ? TRIAL_CREDIT_MODULE_LIMIT_CODE : TRIAL_CREDIT_LIMIT_CODE,
       },
       { status: 429, headers: { "Cache-Control": "no-store" } },
     );

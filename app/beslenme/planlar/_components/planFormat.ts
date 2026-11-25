@@ -72,44 +72,46 @@ export function revisionLabel(n: number | null | undefined): string {
   return `V${n && n > 0 ? n : 1}`;
 }
 
+/** Kullanıcı dostu plan hata mesajının katalog anahtarı (beslenme.fmt.errors.<anahtar>). */
+export type PlanErrorKey = "archived" | "notDraft" | "refreshStale" | "nothingToClear" | "deleteUnavailable" | "rangeHasContent" | "targetNotEmpty" | "rangeOutOfBounds" | "planStale" | "versionRequired" | "demoReadonly" | "membershipInactive" | "network" | "forbidden" | "notFound" | "conflict" | "invalid" | "generic";
+
 /**
- * API hata kodu / HTTP durumunu kullanıcıya gösterilebilir Türkçe mesaja çevirir.
+ * API hata kodu / HTTP durumunu gösterilebilir mesaj ANAHTARINA çevirir (dil-bağımsız).
  * Ham kod ASLA kullanıcıya gösterilmez. Plan-motoru domain kodları öncelikli.
+ * Arayüz metni: usePlanFormat().error(...) (çevrilmiş); friendlyPlanError → kaynak dil (TR) metni.
  */
-export function friendlyPlanError(code?: string, status?: number): string {
+export function planErrorKey(code?: string, status?: number): PlanErrorKey {
   switch (code) {
     case "PLAN_ARCHIVED":
-      return "Bu plan düzenlemeye kapalı. Düzenlemek için planı kopyalayın.";
+      return "archived";
     case "PLAN_NOT_DRAFT":
-      return "Besin değerleri yalnızca taslak planlarda güncellenebilir.";
+      return "notDraft";
     case "REFRESH_STALE":
-      return "Plan bu arada değişti. Güncel farkları görmek için önizlemeyi yenileyin.";
+      return "refreshStale";
     case "NOTHING_TO_CLEAR":
-      return "Bu günde silinecek öğün yok.";
+      return "nothingToClear";
     case "DELETE_UNAVAILABLE":
-      return "Plan silme şu anda kullanılamıyor (sistem güncellemesi bekleniyor). Plan silinmedi; lütfen daha sonra tekrar deneyin.";
+      return "deleteUnavailable";
     case "RANGE_HAS_CONTENT":
-      return "Yeni tarih aralığının dışında öğün bulunan günler var. Önce bu günleri temizleyin veya planı kopyalayın.";
+      return "rangeHasContent";
     case "TARGET_NOT_EMPTY":
-      return "Hedef gün boş değil.";
+      return "targetNotEmpty";
     case "RANGE_OUT_OF_BOUNDS":
-      return "Seçilen aralık plan sınırları dışında.";
+      return "rangeOutOfBounds";
     case "PLAN_STALE":
-      return "Bu plan başka bir sekmede veya cihazda güncellendi. Değişiklikleriniz kaydedilmedi; güncel veriyi yükleyip tekrar deneyin.";
+      return "planStale";
     case "VERSION_REQUIRED":
-      return "Plan sürümü doğrulanamadı. Sayfayı yenileyip tekrar deneyin.";
+      return "versionRequired";
     case "DEMO_READONLY":
-      return "Demo hesabında değişiklik yapılamaz.";
+      return "demoReadonly";
     case "MEMBERSHIP_INACTIVE":
-      return "Üyeliğiniz aktif değil. Beslenme planlarına erişmek için yöneticinizle iletişime geçin.";
+      return "membershipInactive";
     case "NETWORK":
-      return "Bağlantı kurulamadı. İnternet bağlantınızı kontrol edip tekrar deneyin.";
+      return "network";
     default:
       break;
   }
-  if (code === "NETWORK" || status === 0) {
-    return "Bağlantı kurulamadı. İnternet bağlantınızı kontrol edip tekrar deneyin.";
-  }
+  if (code === "NETWORK" || status === 0) return "network";
   if (
     status === 401 ||
     status === 403 ||
@@ -118,18 +120,39 @@ export function friendlyPlanError(code?: string, status?: number): string {
     code === "NOT_OWNER" ||
     code === "OWNER_ONLY"
   ) {
-    return "Bu işlem için yetkiniz bulunmuyor.";
+    return "forbidden";
   }
-  if (status === 404 || code === "NOT_FOUND") {
-    return "Kayıt bulunamadı. Sayfayı yenilemeyi deneyin.";
-  }
-  if (status === 409 || code === "CONFLICT") {
-    return "Bu kayıt başka yerde değişmiş olabilir. Sayfayı yenileyin.";
-  }
-  if (status === 400 || status === 422 || code === "VALIDATION" || code === "INVALID") {
-    return "Girilen bilgiler geçerli değil. Lütfen kontrol edip tekrar deneyin.";
-  }
-  return "İşlem başarısız.";
+  if (status === 404 || code === "NOT_FOUND") return "notFound";
+  if (status === 409 || code === "CONFLICT") return "conflict";
+  if (status === 400 || status === 422 || code === "VALIDATION" || code === "INVALID") return "invalid";
+  return "generic";
+}
+
+/** Kaynak dil (TR) metinleri — messages/tr/beslenme.json beslenme.fmt.errors ile birebir (React dışı çağıranlar / testler). */
+const PLAN_ERROR_TR: Record<PlanErrorKey, string> = {
+  archived: "Bu plan düzenlemeye kapalı. Düzenlemek için planı kopyalayın.",
+  notDraft: "Besin değerleri yalnızca taslak planlarda güncellenebilir.",
+  refreshStale: "Plan bu arada değişti. Güncel farkları görmek için önizlemeyi yenileyin.",
+  nothingToClear: "Bu günde silinecek öğün yok.",
+  deleteUnavailable: "Plan silme şu anda kullanılamıyor (sistem güncellemesi bekleniyor). Plan silinmedi; lütfen daha sonra tekrar deneyin.",
+  rangeHasContent: "Yeni tarih aralığının dışında öğün bulunan günler var. Önce bu günleri temizleyin veya planı kopyalayın.",
+  targetNotEmpty: "Hedef gün boş değil.",
+  rangeOutOfBounds: "Seçilen aralık plan sınırları dışında.",
+  planStale: "Bu plan başka bir sekmede veya cihazda güncellendi. Değişiklikleriniz kaydedilmedi; güncel veriyi yükleyip tekrar deneyin.",
+  versionRequired: "Plan sürümü doğrulanamadı. Sayfayı yenileyip tekrar deneyin.",
+  demoReadonly: "Demo hesabında değişiklik yapılamaz.",
+  membershipInactive: "Üyeliğiniz aktif değil. Beslenme planlarına erişmek için yöneticinizle iletişime geçin.",
+  network: "Bağlantı kurulamadı. İnternet bağlantınızı kontrol edip tekrar deneyin.",
+  forbidden: "Bu işlem için yetkiniz bulunmuyor.",
+  notFound: "Kayıt bulunamadı. Sayfayı yenilemeyi deneyin.",
+  conflict: "Bu kayıt başka yerde değişmiş olabilir. Sayfayı yenileyin.",
+  invalid: "Girilen bilgiler geçerli değil. Lütfen kontrol edip tekrar deneyin.",
+  generic: "İşlem başarısız.",
+};
+
+/** API hata kodu / HTTP durumu → Türkçe kullanıcı mesajı (kaynak dil). Arayüzde usePlanFormat().error tercih edilir. */
+export function friendlyPlanError(code?: string, status?: number): string {
+  return PLAN_ERROR_TR[planErrorKey(code, status)];
 }
 
 // ── Gün / öğün toplam hesabı (HAM; display yuvarlaması formatAmount ile) ──

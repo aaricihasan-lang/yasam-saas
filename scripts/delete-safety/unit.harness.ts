@@ -14,6 +14,7 @@
  * Çalıştır: npx tsx scripts/delete-safety/unit.harness.ts
  */
 import { readFileSync } from "node:fs";
+import { trValue } from "../i18n-mod-c/trResolve";
 import path from "node:path";
 import {
   BULK_DELETE_THRESHOLD,
@@ -173,7 +174,11 @@ async function main(): Promise<void> {
     ok(s.includes("requiresBulkDeleteGuard(") && s.includes("runBulkDeleteConfirm(confirm"), `${p}: 3+ → runBulkDeleteConfirm`);
   }
   const bio = read("app/dashboard/biyoenerji/components/BiyoenerjiDangerDeleteModal.tsx");
-  ok(bio.includes("guardedSelected") && bio.includes("bulkPhraseMatches(codeInput, phrase)") && bio.includes("Son Onay — Bu işlem geri alınamaz."),
+  // I18N 2026-11-25: son onay başlığı katalogdan (bioenergy.danger.finalTitle); TR değeri birebir aynı metin olmalı.
+  const bioFinalTitle =
+    bio.includes("Son Onay — Bu işlem geri alınamaz.") ||
+    (bio.includes('t("finalTitle")') && trValue("bioenergy.danger.finalTitle") === "Son Onay — Bu işlem geri alınamaz.");
+  ok(bio.includes("guardedSelected") && bio.includes("bulkPhraseMatches(codeInput, phrase)") && bioFinalTitle,
     "Biyoenerji seçilenleri sil: 3+ → 3 aşama (ifade + son onay)");
   const hook = read("hooks/useDeleteConfirm.ts");
   ok(hook.includes("requiresBulkDeleteGuard(count, opts.deleteAll)"), "useDeleteConfirm 3+ dalı");

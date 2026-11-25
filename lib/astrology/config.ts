@@ -23,6 +23,31 @@ export const ROXY_API_VERSION = "v2@2.0.0";
 /** Sağlayıcı yanıt dili. Yorum katmanı Türkçe gelir; teknik katman dilden bağımsızdır. */
 export const ASTRO_PROVIDER_LANG = "tr" as const;
 
+/**
+ * I18N-F1-R5 / A7 (I18N-0017): HESAP KİMLİĞİ dili — önbellek anahtarına (calcInputHash) giren `lang` alanı. SABİT "tr";
+ * DEĞİŞTİRİLMEZ: mevcut tüm hesap satırlarının input_hash / sonuç kimliği bu değerle üretildi (bayt-bayt aynı kalır,
+ * migration gerekmez). Sağlayıcı yanıt dili (ASTRO_PROVIDER_LANG / astroProviderLangFor) ileride değişse bile aynı doğum
+ * verisi + aynı yöntem AYNI kanonik haritayı bulur → ekran dili değişince teknik hesap YENİDEN ÜCRETLENMEZ
+ * (Human Design I18N-0005 deseni: ROXY_CHART_IDENTITY_LANG). Sayısal katmanın dilden bağımsızlığı ücretli ölçümle
+ * kanıtlı (Natal 316/316). Yorum (anlatı) katmanının dil başına saklanması ayrı iştir (migration TASLAĞI; bkz. R5 raporu).
+ */
+export const ASTRO_CHART_IDENTITY_LANG = "tr" as const;
+
+/**
+ * A7 bayrağı: İngilizce sağlayıcı anlatısı (Roxy lang=en). VARSAYILAN KAPALI — yalnız sunucu env `ASTRO_PROVIDER_LANG_EN`
+ * tam "true" ise açık. Açılması Owner kararı + yorum katmanı dil ayrımı (migration TASLAĞI) sonrasıdır. engine/service.ts
+ * sağlayıcı çağrısında okur (EngineCtx.locale); route'lar henüz locale GEÇİRMEZ → bayrak açık olsa bile üretimde dil "tr"
+ * (uçtan uca test: scripts/astrology/atlas-provider-lang-a7-service.harness.ts).
+ */
+export function isAstroProviderEnEnabled(env: Record<string, string | undefined> = process.env): boolean {
+  return env.ASTRO_PROVIDER_LANG_EN === "true";
+}
+
+/** Ekran dili → sağlayıcı ANLATI dili. Bayrak kapalıyken her dilde "tr" (bugünkü davranış). Kimlik dilini ETKİLEMEZ. */
+export function astroProviderLangFor(locale: string, env: Record<string, string | undefined> = process.env): "tr" | "en" {
+  return locale === "en" && isAstroProviderEnEnabled(env) ? "en" : ASTRO_PROVIDER_LANG;
+}
+
 export const ASTRO_ROXY_TIMEOUT_MS = 20_000;
 /** Yeniden deneme üst sınırı (yalnız 429/503 + kısa Retry-After; çift ücret riskine karşı başka durumda yok). */
 export const ASTRO_ROXY_MAX_RETRIES = 1;

@@ -17,7 +17,8 @@ import assert from "node:assert/strict";
 import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { createElement } from "react";
-import { renderToStaticMarkup } from "react-dom/server";
+// I18N ATLAS-V: Vedik eşleşme/nokta bileşenleri metni katalogdan alır → çizim next-intl sağlayıcısıyla (TR katalog = önceki metin; beklentiler değişmedi).
+import { renderToStaticMarkup } from "./intlRender";
 import { projectRoxyVedicHeliacal } from "@/lib/astrology/providers/roxy/vedicNoktalar";
 import { vedicNoktaReport } from "@/lib/astrology/report/vedicNoktalarReport";
 import { VedicHeliacalPanel } from "@/app/admin/astroloji/_components/VedicNoktalarPanels";

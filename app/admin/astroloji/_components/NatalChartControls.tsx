@@ -18,8 +18,8 @@
 
 import { useCallback, useMemo, useRef, useState, useSyncExternalStore, type ReactNode, type RefObject } from "react";
 import { ChevronDown } from "lucide-react";
+import { useTranslations } from "next-intl";
 import type { AspectNature, BodyId, NatalTechnical } from "@/lib/astrology/model/western";
-import { BODY_LABELS, NATURE_LABELS } from "@/lib/astrology/labels/tr";
 import {
   aspectCounts,
   availablePoints,
@@ -27,11 +27,8 @@ import {
   extraPointsFor,
   hiddenBodiesFor,
   isDefaultAspectFilter,
-  NATAL_LABEL_PREF_LABELS,
   NATAL_LABEL_PREFS,
-  NATAL_OPTIONAL_POINT_LABELS,
   NATAL_OPTIONAL_POINTS,
-  NATAL_WHEEL_MODE_LABELS,
   NATAL_WHEEL_MODES,
   parsePrefs,
   type NatalAspectFilter,
@@ -162,6 +159,9 @@ export default function NatalChartControls({
   /** G2: doğum saati bilinmiyor → çarkta açı çizgisi yok; liste sayısı Ay'a bağlı açılar hariç. */
   timeUnknown?: boolean;
 }) {
+  // I18N-F1-R5: metin katalogdan (atlas.natalControls + terms); lib etiketleri (NATAL_*_LABELS) TR katalogla kilitli.
+  const t = useTranslations("atlas.natalControls");
+  const tt = useTranslations("terms");
   const mode = prefs.mode;
   const points = prefs.points[mode];
   const available = useMemo(() => availablePoints(technical), [technical]);
@@ -193,17 +193,17 @@ export default function NatalChartControls({
   const availableKeys = NATAL_OPTIONAL_POINTS.filter((k) => available[k]);
   const onCount = availableKeys.filter((k) => points[k]).length;
   const missing = NATAL_OPTIONAL_POINTS.length - availableKeys.length;
-  const pointsSummary = availableKeys.length === 0 ? "yok" : `${onCount}/${availableKeys.length}`;
+  const pointsSummary = availableKeys.length === 0 ? t("pointsNone") : `${onCount}/${availableKeys.length}`;
 
   // Açı seçenekleri: Temel görünüm küçük açı çizmez → orada seçenek pasif ve sayıma girmez.
   const flagKeys = (["major", "minor", ...NATURES] as const).filter((k) => !(k === "minor" && mode === "basic"));
   const flagOn = flagKeys.filter((k) => filter[k]).length;
   const filterDefault = isDefaultAspectFilter({ ...filter, focus });
-  const filterSummary = `${flagOn}/${flagKeys.length}${focus ? ` · ${BODY_LABELS[focus]}` : ""}`;
+  const filterSummary = `${flagOn}/${flagKeys.length}${focus ? ` · ${tt(`body.${focus}`)}` : ""}`;
 
   return (
     <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5" data-testid="natal-wheel-controls" data-mode={mode}>
-      <div role="group" aria-label="Harita görünümü" className="inline-flex shrink-0 rounded-lg border border-slate-200 bg-slate-50 p-0.5">
+      <div role="group" aria-label={t("viewAria")} className="inline-flex shrink-0 rounded-lg border border-slate-200 bg-slate-50 p-0.5">
         {NATAL_WHEEL_MODES.map((m) => (
           <button
             key={m}
@@ -213,36 +213,32 @@ export default function NatalChartControls({
             className={`min-h-[30px] rounded-md px-2.5 text-[12.5px] font-semibold transition max-sm:min-h-[36px] ${
               m === mode ? "bg-[#0B1430] text-white shadow-sm" : "text-slate-600 hover:text-slate-900"
             }`}
-            title={
-              m === "basic"
-                ? "Sade görünüm: yalnız 10 gezegen arasındaki başlıca açılar (kavuşum, sekstil, kare, üçgen, karşıt). Hesap ve açı listesi değişmez."
-                : "Ayrıntılı görünüm: listedeki bütün açı türleri, ev başlangıç dereceleri; sıkı orb'lu açılar daha kalın. Hesap değişmez."
-            }
+            title={t(`modeTitle.${m}`)}
             data-testid={`natal-mode-${m}`}
           >
-            {NATAL_WHEEL_MODE_LABELS[m]}
+            {t(`mode.${m}`)}
           </button>
         ))}
       </div>
 
       <MenuButton
-        label="Ek noktalar"
+        label={t("pointsLabel")}
         summary={pointsSummary}
         changed={availableKeys.length > 0 && onCount < availableKeys.length}
         open={menuOpen === "points"}
         onToggle={() => setMenuOpen((m) => (m === "points" ? null : "points"))}
         btnRef={pointsRef}
-        title={`Haritada gösterilecek ek noktalar: ${onCount}/${availableKeys.length} seçili${missing ? ` (${missing} nokta bu haritada yok)` : ""} · Çark etiketleri: ${NATAL_LABEL_PREF_LABELS[prefs.labels]}`}
+        title={t("pointsTitle", { on: String(onCount), total: String(availableKeys.length), missing: missing ? t("pointsMissing", { n: missing }) : "", labels: t(`labelPref.${prefs.labels}`) })}
         testId="natal-points-toggle"
       />
-      <DeskPopover open={menuOpen === "points"} onClose={closeMenu} triggerRef={pointsRef} width={292} label="Ek noktalar" testId="natal-points-panel">
+      <DeskPopover open={menuOpen === "points"} onClose={closeMenu} triggerRef={pointsRef} width={292} label={t("pointsLabel")} testId="natal-points-panel">
         <MenuHead
-          title="Ek noktalar"
+          title={t("pointsLabel")}
           onAll={availableKeys.length > 0 && onCount < availableKeys.length ? () => setPoints({ ...points, ...Object.fromEntries(availableKeys.map((k) => [k, true])) }) : undefined}
           onNone={onCount > 0 ? () => setPoints({ ...points, ...Object.fromEntries(availableKeys.map((k) => [k, false])) }) : undefined}
           testIdBase="natal-points"
         />
-        <ul className="px-1.5 pb-1.5" role="group" aria-label="Haritada gösterilecek noktalar">
+        <ul className="px-1.5 pb-1.5" role="group" aria-label={t("pointsGroupAria")}>
           {NATAL_OPTIONAL_POINTS.map((k) => {
             const ok = available[k];
             return (
@@ -252,20 +248,20 @@ export default function NatalChartControls({
                   disabled={!ok}
                   onChange={() => setPoints({ ...points, [k]: !points[k] })}
                   testId={`natal-point-${k}`}
-                  note={ok ? undefined : "Bu haritada yok (doğum saati bilinmiyor)"}
+                  note={ok ? undefined : t("pointMissingNote")}
                 >
                   <span className={`${styles.symbol} w-5 shrink-0 text-center text-slate-500`} aria-hidden="true">
                     {POINT_GLYPH[k]}
                   </span>
-                  {NATAL_OPTIONAL_POINT_LABELS[k]}
+                  {t(`point.${k}`)}
                 </CheckRow>
               </li>
             );
           })}
         </ul>
         {/* G2-K: etiket tercihi araç satırında ayrı kontrol değil (V4 tek satır kararı; 1440 px'te yer yok) → bu menüde. */}
-        <div className="border-t border-slate-100 px-1.5 py-1" role="radiogroup" aria-label="Çark etiketleri" data-testid="natal-labels-group">
-          <p className="px-2 pb-0.5 pt-1 text-[10.5px] font-semibold uppercase tracking-[0.1em] text-slate-400">Çark etiketleri</p>
+        <div className="border-t border-slate-100 px-1.5 py-1" role="radiogroup" aria-label={t("labelsAria")} data-testid="natal-labels-group">
+          <p className="px-2 pb-0.5 pt-1 text-[10.5px] font-semibold uppercase tracking-[0.1em] text-slate-400">{t("labelsTitle")}</p>
           {NATAL_LABEL_PREFS.map((k) => (
             <label
               key={k}
@@ -280,36 +276,36 @@ export default function NatalChartControls({
                 data-testid={`natal-labels-${k}`}
               />
               <span className="flex min-w-0 flex-1 flex-col">
-                <span>{NATAL_LABEL_PREF_LABELS[k]}</span>
+                <span>{t(`labelPref.${k}`)}</span>
                 <span className="text-[11px] leading-snug text-slate-400">
-                  {k === "auto" ? `Temel: sade · Profesyonel: ayrıntılı (şu an ${mode === "pro" ? "ayrıntılı" : "sade"})` : k === "simple" ? "Gezegen · derece · dakika" : "Gezegen · derece · burç · dakika; ev başlangıçları"}
+                  {k === "auto" ? t("labelHint.auto", { current: mode === "pro" ? t("currentDetailed") : t("currentSimple") }) : t(`labelHint.${k}`)}
                 </span>
               </span>
             </label>
           ))}
         </div>
-        <MenuFoot>Yalnız çizim değişir; hesap ve kayıt değişmez.</MenuFoot>
+        <MenuFoot>{t("drawOnly")}</MenuFoot>
       </DeskPopover>
 
       <MenuButton
-        label="Açı çizgileri"
+        label={t("filterLabel")}
         summary={filterSummary}
         changed={!filterDefault}
         open={menuOpen === "filter"}
         onToggle={() => setMenuOpen((m) => (m === "filter" ? null : "filter"))}
         btnRef={filterRef}
-        title={`Çarkta çizilen açılar: ${flagOn}/${flagKeys.length} seçenek seçili${focus ? ` · yalnız ${BODY_LABELS[focus]}` : " · tüm gövdeler"}`}
+        title={t("filterTitle", { on: String(flagOn), total: String(flagKeys.length), focus: focus ? t("filterFocusOnly", { body: tt(`body.${focus}`) }) : t("filterAllBodies") })}
         testId="natal-filter-toggle"
       />
-      <DeskPopover open={menuOpen === "filter"} onClose={closeMenu} triggerRef={filterRef} width={300} label="Açı çizgileri" testId="natal-aspect-filter">
+      <DeskPopover open={menuOpen === "filter"} onClose={closeMenu} triggerRef={filterRef} width={300} label={t("filterLabel")} testId="natal-aspect-filter">
         <MenuHead
-          title="Açı çizgileri"
+          title={t("filterLabel")}
           onAll={!filterDefault ? () => onChange({ ...prefs, filter: { ...DEFAULT_ASPECT_FILTER } }) : undefined}
           onNone={flagOn > 0 ? () => setFilter({ major: false, minor: false, harmonious: false, challenging: false, neutral: false }) : undefined}
           testIdBase="natal-filter"
         />
-        <div className="px-1.5 pb-1" role="group" aria-label="Açı grubu">
-          <p className="px-2 pb-0.5 pt-1 text-[10.5px] font-semibold uppercase tracking-[0.1em] text-slate-400">Açı grubu</p>
+        <div className="px-1.5 pb-1" role="group" aria-label={t("groupAria")}>
+          <p className="px-2 pb-0.5 pt-1 text-[10.5px] font-semibold uppercase tracking-[0.1em] text-slate-400">{t("groupTitle")}</p>
           {(["major", "minor"] as const).map((k) => {
             const disabled = k === "minor" && mode === "basic";
             return (
@@ -319,49 +315,45 @@ export default function NatalChartControls({
                 disabled={disabled}
                 onChange={() => setFilter({ [k]: !filter[k] })}
                 testId={`natal-filter-${k}`}
-                note={disabled ? "Temel görünümde çizilmez — Profesyonel'e geçin" : k === "major" ? "Kavuşum, sekstil, kare, üçgen, karşıt" : "Yarım sekstil, yarım kare, seskikare, kuinkunks"}
+                note={disabled ? t("minorBasicNote") : k === "major" ? t("majorNote") : t("minorNote")}
               >
-                {k === "major" ? "Başlıca açılar" : "Küçük açılar"}
+                {k === "major" ? t("major") : t("minor")}
               </CheckRow>
             );
           })}
         </div>
-        <div className="border-t border-slate-100 px-1.5 py-1" role="group" aria-label="Açı niteliği">
-          <p className="px-2 pb-0.5 pt-1 text-[10.5px] font-semibold uppercase tracking-[0.1em] text-slate-400">Nitelik</p>
+        <div className="border-t border-slate-100 px-1.5 py-1" role="group" aria-label={t("natureAria")}>
+          <p className="px-2 pb-0.5 pt-1 text-[10.5px] font-semibold uppercase tracking-[0.1em] text-slate-400">{t("natureTitle")}</p>
           {NATURES.map((k) => (
             <CheckRow key={k} checked={filter[k]} onChange={() => setFilter({ [k]: !filter[k] })} testId={`natal-filter-${k}`}>
               <span className="inline-block h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: NATURE_DOT[k] }} aria-hidden="true" />
-              {NATURE_LABELS[k]}
+              {tt(`aspectNature.${k}`)}
             </CheckRow>
           ))}
         </div>
         <label className="flex items-center justify-between gap-2 border-t border-slate-100 px-3.5 py-2.5 text-[13px] text-slate-700">
-          <span className="font-medium">Gövde odağı</span>
+          <span className="font-medium">{t("focusLabel")}</span>
           <select
             value={focus ?? ""}
             onChange={(e) => setFilter({ focus: (e.target.value || null) as BodyId | null })}
             className="min-h-[34px] max-w-[11rem] rounded-md border border-slate-300 bg-white px-1.5 text-[13px] text-slate-800"
-            title="Yalnız seçilen gezegenin / noktanın açı çizgilerini göster"
+            title={t("focusTitle")}
             data-testid="natal-filter-focus"
           >
-            <option value="">Tüm gövdeler</option>
+            <option value="">{t("focusAll")}</option>
             {focusable.map((id) => (
               <option key={id} value={id}>
-                {BODY_LABELS[id]}
+                {tt(`body.${id}`)}
               </option>
             ))}
           </select>
         </label>
-        <MenuFoot>
-          Açı listesi: <strong className="font-semibold text-slate-700">{counts.total}</strong> · çarkta çizili: <strong className="font-semibold text-slate-700">{counts.drawn}</strong>. Liste ve orb
-          değişmez; tüm açılar Açılar bölümünde.
-        </MenuFoot>
+        <MenuFoot>{t.rich("countsFoot", { total: String(counts.total), drawn: String(counts.drawn), strong: (c) => <strong className="font-semibold text-slate-700">{c}</strong> })}</MenuFoot>
       </DeskPopover>
 
-      <p className="ml-auto shrink-0 pl-1 text-[11.5px] tabular-nums text-slate-500 max-[1535px]:sr-only" data-testid="natal-aspect-counts" aria-live="polite" title="Açı listesindeki toplam açı / çarkta çizilen açı">
-        Açı listesi: <strong className="font-semibold text-slate-700">{counts.total}</strong> · çarkta çizili:{" "}
-        <strong className="font-semibold text-slate-700">{counts.drawn}</strong>
-        <span className="sr-only"> (kavuşumlar yakın noktalar olduğundan çizgi olarak görünmeyebilir; tüm liste Açılar bölümünde)</span>
+      <p className="ml-auto shrink-0 pl-1 text-[11.5px] tabular-nums text-slate-500 max-[1535px]:sr-only" data-testid="natal-aspect-counts" aria-live="polite" title={t("countsTitle")}>
+        {t.rich("counts", { total: String(counts.total), drawn: String(counts.drawn), strong: (c) => <strong className="font-semibold text-slate-700">{c}</strong> })}
+        <span className="sr-only">{t("countsSr")}</span>
       </p>
     </div>
   );
@@ -410,16 +402,17 @@ function MenuButton({
 }
 
 function MenuHead({ title, onAll, onNone, testIdBase }: { title: string; onAll?: () => void; onNone?: () => void; testIdBase: string }) {
+  const t = useTranslations("atlas.natalControls");
   const link = "rounded-md px-1.5 py-1 text-[12px] font-medium text-teal-800 hover:bg-teal-50 disabled:cursor-default disabled:text-slate-300 disabled:hover:bg-transparent";
   return (
     <div className="flex items-center justify-between gap-2 border-b border-slate-100 px-3.5 py-2">
       <b className="text-[13px] font-semibold text-slate-900">{title}</b>
       <span className="flex items-center gap-0.5">
         <button type="button" className={link} onClick={onAll} disabled={!onAll} data-testid={`${testIdBase}-reset`}>
-          Tümünü seç
+          {t("selectAll")}
         </button>
         <button type="button" className={link} onClick={onNone} disabled={!onNone} data-testid={`${testIdBase}-none`}>
-          Temizle
+          {t("clear")}
         </button>
       </span>
     </div>

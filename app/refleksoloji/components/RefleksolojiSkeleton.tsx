@@ -1,3 +1,5 @@
+import { useTranslations } from "next-intl";
+
 /**
  * Rota geçişlerinde (loading.tsx) gösterilen hafif iskeletler.
  *
@@ -75,12 +77,16 @@ export function RefleksolojiHubLoading() {
 
 /** Liste sayfaları iskeleti — başlık + arama + kart ızgarası yer tutucular. */
 export function RefleksolojiListLoading({
-  badge = "REFLEKSOLOJİ",
-  title = "Yükleniyor…",
+  badge: badgeProp,
+  title: titleProp,
 }: {
   badge?: string;
   title?: string;
 }) {
+  // I18N: varsayılanlar reflexology.common (TR "REFLEKSOLOJİ" / "Yükleniyor…" birebir).
+  const tc = useTranslations("reflexology.common");
+  const badge = badgeProp ?? tc("eyebrow");
+  const title = titleProp ?? tc("loading");
   return (
     <main
       className={`relative flex min-h-screen w-full flex-col overflow-x-hidden ${PAGE_BG} text-slate-900 antialiased`}

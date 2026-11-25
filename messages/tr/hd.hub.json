@@ -1,0 +1,29 @@
+{
+  "hd": {
+    "hub": {
+      "heroSub": "Profesyonel Human Design hesaplama ve mesleki bilgi çalışma alanı.",
+      "modules": {
+        "danisanlar": {
+          "title": "Human Design Hesaplama",
+          "desc": "Danışan seçin veya yeni danışan oluşturun ve profesyonel Human Design haritasını hesaplayın.",
+          "badge": "Hesaplama"
+        },
+        "bilgiBankasi": {
+          "title": "Bilgi Bankası",
+          "desc": "Human Design mesleki bilgilerinizi yönetin.",
+          "badge": "İçerik"
+        },
+        "iliskiGrup": {
+          "title": "İlişki ve Grup Analizleri",
+          "desc": "İki kişi için ilişki analizi (Connection), 3–5 kişi için grup analizi (Penta). Kayıtlı danışanlarınızdan seçin.",
+          "badge": "Connection · Penta"
+        },
+        "transit": {
+          "title": "Günün ve Kişisel Transitleri",
+          "desc": "Seçtiğiniz tarihin gezegensel etkilerini inceleyin; kayıtlı danışanlarınızın kişisel transitlerini görüntüleyin.",
+          "badge": "Transit"
+        }
+      }
+    }
+  }
+}

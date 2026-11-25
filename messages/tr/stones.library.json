@@ -1,0 +1,87 @@
+{
+  "stones": {
+    "library": {
+      "title": "Doğaltaş Kütüphanesi",
+      "notFound": "Bu içerik bulunamadı veya erişim izniniz yok.",
+      "moduleNavAria": "Doğaltaş modülü",
+      "managementTab": "Kütüphane Yönetimi",
+      "backToModule": "Doğaltaş modülüne dön",
+      "heroLead": "Doğaltaşların açıklamaları, anlamları, olumlamaları ve eşleştirmeleri tek yerde. Kaynak metinler değiştirilmeden korunur; doğrulanmış Türkçe çeviri ayrı bir katmandır.",
+      "publishedStones": "Yayındaki taş",
+      "searchLabel": "Taş ara",
+      "searchPlaceholder": "Taş adıyla arayın (Türkçe veya İngilizce)…",
+      "clearSearch": "Aramayı temizle",
+      "filters": "Filtreler",
+      "clearAll": "Tümünü temizle",
+      "filtersLoading": "Filtreler yükleniyor…",
+      "birthMonth": "Doğum ayı",
+      "showResults": "Sonuçları göster ({total})",
+      "searching": "Aranıyor…",
+      "resultCount": "{total} taş",
+      "loading": "Yükleniyor…",
+      "prev": "Önceki",
+      "next": "Sonraki",
+      "emptyTitle": "Bu ölçütlere uyan taş bulunamadı.",
+      "emptyHint": "Filtreleri azaltmayı veya farklı bir ad yazmayı deneyin.",
+      "imageAlt": "{name} — taş görseli",
+      "noImage": "Görsel yok",
+      "facet": {
+        "chakra": "Çakra",
+        "zodiac": "Burç",
+        "element": "Element",
+        "color": "Renk",
+        "planet": "Gezegen"
+      },
+      "field": {
+        "description": "Açıklama",
+        "meaning_spiritual": "Ruhsal anlam",
+        "meaning_emotional": "Duygusal anlam",
+        "meaning_physical": "Fiziksel etki",
+        "affirmation": "Olumlama",
+        "keywords": "Anahtar kelimeler"
+      },
+      "month": {
+        "1": "Ocak",
+        "2": "Şubat",
+        "3": "Mart",
+        "4": "Nisan",
+        "5": "Mayıs",
+        "6": "Haziran",
+        "7": "Temmuz",
+        "8": "Ağustos",
+        "9": "Eylül",
+        "10": "Ekim",
+        "11": "Kasım",
+        "12": "Aralık"
+      },
+      "detail": {
+        "modeDefault": "Önerilen gösterim",
+        "modeVerified": "Doğrulanmış Türkçe çeviri",
+        "modeTr": "Kaynak metin (Türkçe)",
+        "modeEn": "Kaynak metin (İngilizce)",
+        "displaySource": {
+          "OWNER_SURUMU": "Owner sürümü",
+          "DOGRULANMIS_TR_CEVIRI": "Doğrulanmış Türkçe çeviri",
+          "KAYNAK_TR": "Kaynak metin (Türkçe)"
+        },
+        "noVerified": "Bu alan için doğrulanmış Türkçe çeviri yok.",
+        "hardness": "Sertlik (Mohs)",
+        "numericalVibration": "Sayısal titreşim",
+        "healthNotice": "Sağlık bilgilendirmesi",
+        "backToLibrary": "‹ Kütüphaneye dön",
+        "stoneInfo": "Taş bilgileri",
+        "associations": "Eşleştirmeler",
+        "englishName": "İngilizce adı: {name}",
+        "turkishName": "Türkçe adı: {name}",
+        "contentSource": "İçerik kaynağı",
+        "sourceOnlyNote": "Bu taş için doğrulanmış Türkçe çeviri henüz yayında değil; içerik kaynak metin (Türkçe) olarak gösteriliyor.",
+        "fieldMissing": "Bu alan bu kaynakta yer almıyor.",
+        "notesTitle": "Ek Bilgiler ve Uzman Notları",
+        "notesSub": "Bu bölüm kaynak metinlerden ve doğrulanmış çeviriden ayrıdır.",
+        "noteWarning": "Kullanım uyarısı",
+        "noteInfo": "Ek bilgi",
+        "pairedStones": "Birlikte kullanılan taşlar"
+      }
+    }
+  }
+}

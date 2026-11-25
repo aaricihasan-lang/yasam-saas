@@ -10,14 +10,14 @@
  *  - Veri yoksa içerik UYDURULMAZ: bölüm üretilmez.
  */
 import type { ReportChild } from "@/lib/docx/reportHelpers";
-import { formatDateLoose, formatInstantDateTime } from "@/lib/time/reportTime";
 import trAnamnez from "@/messages/tr/clients.anamnez.json";
+import enAnamnez from "@/messages/en/clients.anamnez.json";
 import { effectiveSections, fieldLabel, getCatalog, isKnownTemplateVersion } from "@/lib/danisan/anamnez/schema";
 import { displayAnswer } from "@/lib/danisan/anamnez/format";
 import { isEmptyAnswer, validateFormCustom } from "@/lib/danisan/anamnez/validate";
 import type { AnswerValue, FormCustom } from "@/lib/danisan/anamnez/types";
-import { ACTIVITY_LEVEL_LABELS, GOAL_TYPE_LABELS } from "@/lib/beslenme/clientContracts";
 import { dyDataTable, dyGap, dyKvTable, dyNote, dySubTitle, filledRows } from "./clientReportLayout";
+import { dyText, type DyText } from "./clientReportText";
 
 // ─── Anamnez ─────────────────────────────────────────────────────────────────
 
@@ -35,24 +35,30 @@ export type AnamnezReportRow = {
 
 export const ANAMNEZ_REPORT_COLUMNS = "id, kind, title, assessment_date, status, template_version, form_custom, answers, completed_at";
 
-export function buildAnamnezSection(row: AnamnezReportRow, color: string): ReportChild[] {
+/**
+ * `x` (I18N çıktı dili metin katmanı) verilmezse TR = bugünkü çıktı. Anamnez soru/seçenek etiketleri şablonun
+ * kendi dil kataloğundan (std-v1 TR/EN); danışanın yazdığı cevaplar ÇEVRİLMEZ.
+ */
+export function buildAnamnezSection(row: AnamnezReportRow, color: string, x: DyText = dyText()): ReportChild[] {
   // Savunma: yalnız tamamlanmış ve bilinen şablonlu form (route da doğrular).
   if (row.status !== "completed" || !isKnownTemplateVersion(row.template_version)) return [];
-  const m = trAnamnez.clients.anamnez;
+  const lang = x.rl.isSource ? "tr" : "en";
+  const loc = x.rl.isSource ? {} : { locale: x.rl.intlTag };
+  const m = (lang === "en" ? enAnamnez : trAnamnez).clients.anamnez;
   const yesNo = { yes: m.field.yes, no: m.field.no };
-  const catalog = getCatalog(row.template_version, "tr");
+  const catalog = getCatalog(row.template_version, lang);
   const answers = row.answers ?? {};
   const kindLabel = (m.kind as Record<string, string>)[row.kind] ?? "";
   // DB varsayılanı '{}' (kısmi) olabilir → anamnez PDF route'u ile AYNI doğrulama/normalizasyon.
   const fc = validateFormCustom(row.template_version, row.form_custom ?? {});
-  if (!fc.ok) return [dyNote("Bu anamnez formunun yapısı okunamadı; içerik rapora aktarılmadı.")];
+  if (!fc.ok) return [dyNote(x.t("anamnez.unreadable"))];
 
   const out: ReportChild[] = [];
-  out.push(dyNote("Danışanın tamamlanmış anamnez formundan, kaydedildiği haliyle aktarılmıştır. Danışanın açık rıza kaydı mevcuttur. Yalnız yanıtlanmış alanlar gösterilir."));
+  out.push(dyNote(x.t("anamnez.intro")));
   const meta = dyKvTable(filledRows([
-    ["Form", row.title?.trim() || kindLabel],
-    ["Değerlendirme Tarihi", row.assessment_date ? formatDateLoose(row.assessment_date, { fallback: row.assessment_date }) : ""],
-    ["Tamamlanma", row.completed_at ? formatInstantDateTime(row.completed_at) : ""],
+    [x.t("anamnez.form"), row.title?.trim() || kindLabel],
+    [x.t("anamnez.assessmentDate"), row.assessment_date ? x.loose(row.assessment_date, row.assessment_date) : ""],
+    [x.t("anamnez.completedAt"), row.completed_at ? x.instantDateTime(row.completed_at) : ""],
   ]), { cols: 2, labelColor: color });
   if (meta) out.push(meta, dyGap());
 
@@ -64,7 +70,7 @@ export function buildAnamnezSection(row: AnamnezReportRow, color: string): Repor
       if (f.hidden) continue;
       const v = answers[f.key];
       if (isEmptyAnswer(v)) continue;
-      const text = displayAnswer(v, f, row.template_version, "tr", yesNo).trim();
+      const text = displayAnswer(v, f, row.template_version, lang, yesNo).trim();
       if (text) rows.push([fieldLabel(f, catalog), text]);
     }
     if (!rows.length) continue;
@@ -73,7 +79,7 @@ export function buildAnamnezSection(row: AnamnezReportRow, color: string): Repor
     const t = dyKvTable(rows, { cols: 2, labelColor: color });
     if (t) out.push(t, dyGap());
   }
-  if (!answered) out.push(dyNote("Bu tamamlanmış formda yanıtlanmış alan bulunmuyor."));
+  if (!answered) out.push(dyNote(x.t("anamnez.noAnswers")));
   return out;
 }
 
@@ -110,64 +116,68 @@ export type BeslenmeReportInput = {
   preferences?: BeslenmePreferenceRow[];
 };
 export type BeslenmePreferenceRow = { stance: string; label: string; note?: string | null };
-const PREFERENCE_STANCE_LABEL: Record<string, string> = { preferred: "Tercih Edilen", avoided: "Kaçınılan" };
+/** Kanonik tercih kodları (etiket katalogda: reports.clients.nutrition.stance). */
+const PREFERENCE_STANCES = new Set(["preferred", "avoided"]);
+const GOAL_TYPES = new Set(["weight_loss", "weight_gain", "maintenance", "muscle_gain", "healthy_lifestyle", "other"]);
+const ACTIVITY_LEVELS = new Set(["sedentary", "light", "moderate", "active", "very_active"]);
 
 export const BESLENME_MEASUREMENT_LIMIT = 10;
 export const BESLENME_PROFILE_COLUMNS = "goal_type, goal_note, activity_level, dietary_pattern, daily_meal_count, target_weight_kg, water_note, lifestyle_note, general_note";
 export const BESLENME_MEASUREMENT_COLUMNS = "measured_at, weight_kg, height_cm, waist_cm, hip_cm, note";
 
-const fmtNum = (v: unknown, unit: string) => {
+/** Ölçüm değeri: kayıtlı sayı AYNEN (yuvarlama yok); yalnız ondalık ayırıcı dile göre (tr "," · en "."). */
+const fmtNumFor = (x: DyText) => (v: unknown, unit: string) => {
   const n = typeof v === "number" ? v : typeof v === "string" && v.trim() ? Number(v) : Number.NaN;
-  return Number.isFinite(n) ? `${String(n).replace(".", ",")} ${unit}` : "";
+  if (!Number.isFinite(n)) return "";
+  return `${x.rl.isSource ? String(n).replace(".", ",") : String(n)} ${unit}`;
 };
 
-export function buildBeslenmeSection(input: BeslenmeReportInput, color: string): ReportChild[] {
+export function buildBeslenmeSection(input: BeslenmeReportInput, color: string, x: DyText = dyText()): ReportChild[] {
   const out: ReportChild[] = [];
+  const fmtNum = fmtNumFor(x);
   const p = input.profile;
   const profileRows = p ? filledRows([
-    ["Hedef", p.goal_type ? (GOAL_TYPE_LABELS as Record<string, string>)[p.goal_type] ?? p.goal_type : ""],
-    ["Hedef Notu", p.goal_note],
-    ["Aktivite Düzeyi", p.activity_level ? (ACTIVITY_LEVEL_LABELS as Record<string, string>)[p.activity_level] ?? p.activity_level : ""],
-    ["Beslenme Düzeni", p.dietary_pattern],
-    ["Günlük Öğün Sayısı", p.daily_meal_count != null ? String(p.daily_meal_count) : ""],
-    ["Hedef Kilo", fmtNum(p.target_weight_kg, "kg")],
-    ["Su Tüketimi", p.water_note],
-    ["Yaşam Tarzı", p.lifestyle_note],
-    ["Genel Not", p.general_note],
+    [x.t("nutrition.goal"), p.goal_type ? (GOAL_TYPES.has(p.goal_type) ? x.t(`nutrition.goalType.${p.goal_type}`) : p.goal_type) : ""],
+    [x.t("nutrition.goalNote"), p.goal_note],
+    [x.t("nutrition.activity"), p.activity_level ? (ACTIVITY_LEVELS.has(p.activity_level) ? x.t(`nutrition.activityLevel.${p.activity_level}`) : p.activity_level) : ""],
+    [x.t("nutrition.dietaryPattern"), p.dietary_pattern],
+    [x.t("nutrition.mealCount"), p.daily_meal_count != null ? String(p.daily_meal_count) : ""],
+    [x.t("nutrition.targetWeight"), fmtNum(p.target_weight_kg, "kg")],
+    [x.t("nutrition.water"), p.water_note],
+    [x.t("nutrition.lifestyle"), p.lifestyle_note],
+    [x.t("nutrition.generalNote"), p.general_note],
   ]) : [];
   const allergens = input.allergens.filter((a) => a.name.trim());
   const meas = input.measurements.filter((r) => [r.weight_kg, r.height_cm, r.waist_cm, r.hip_cm].some((x) => fmtNum(x, "") !== "") || (r.note ?? "").trim());
-  const prefs = (input.preferences ?? []).filter((r) => r.label.trim() && PREFERENCE_STANCE_LABEL[r.stance]);
+  const prefs = (input.preferences ?? []).filter((r) => r.label.trim() && PREFERENCE_STANCES.has(r.stance));
   if (!profileRows.length && !allergens.length && !meas.length && !prefs.length) return [];
 
-  out.push(dyNote(prefs.length
-    ? "Beslenme modülündeki danışan profili, beyan edilen alerjiler, tercih edilen / kaçınılan besinler ve ölçüm özetinden aktarılmıştır. Beslenme planları bu rapora eklenmez; planın kendi Word raporu ayrıca alınabilir."
-    : "Beslenme modülündeki danışan profili, beyan edilen alerjiler ve ölçüm özetinden aktarılmıştır. Beslenme planları bu rapora eklenmez; planın kendi Word raporu ayrıca alınabilir."));
+  out.push(dyNote(prefs.length ? x.t("nutrition.introWithPrefs") : x.t("nutrition.intro")));
   if (profileRows.length) {
-    out.push(dySubTitle("Beslenme Profili", color));
+    out.push(dySubTitle(x.t("nutrition.profile"), color));
     const t = dyKvTable(profileRows, { cols: 2, labelColor: color });
     if (t) out.push(t, dyGap());
   }
   if (allergens.length) {
-    out.push(dySubTitle("Beyan Edilen Alerjiler", color));
-    out.push(dyDataTable([{ header: "Alerji", pct: 40 }, { header: "Not", pct: 60 }], allergens.map((a) => [a.name, a.note?.trim() || "—"]), { headerFill: color }), dyGap());
+    out.push(dySubTitle(x.t("nutrition.allergens"), color));
+    out.push(dyDataTable([{ header: x.t("nutrition.colAllergen"), pct: 40 }, { header: x.t("nutrition.colNote"), pct: 60 }], allergens.map((a) => [a.name, a.note?.trim() || "—"]), { headerFill: color }), dyGap());
   }
   if (prefs.length) {
     // C12: önce tercih edilenler, sonra kaçınılanlar (kendi içinde kayıt sırası korunur).
     const ordered = [...prefs.filter((r) => r.stance === "preferred"), ...prefs.filter((r) => r.stance === "avoided")];
-    out.push(dySubTitle("Tercih Edilen / Kaçınılan Besinler", color));
+    out.push(dySubTitle(x.t("nutrition.preferences"), color));
     out.push(dyDataTable(
-      [{ header: "Durum", pct: 22 }, { header: "Besin", pct: 38 }, { header: "Not", pct: 40 }],
-      ordered.map((r) => [PREFERENCE_STANCE_LABEL[r.stance] ?? r.stance, r.label.trim(), r.note?.trim() || "—"]),
+      [{ header: x.t("nutrition.colStance"), pct: 22 }, { header: x.t("nutrition.colFood"), pct: 38 }, { header: x.t("nutrition.colNote"), pct: 40 }],
+      ordered.map((r) => [x.t(`nutrition.stance.${r.stance}`), r.label.trim(), r.note?.trim() || "—"]),
       { headerFill: color },
     ), dyGap());
   }
   if (meas.length) {
-    out.push(dySubTitle("Ölçüm Özeti", color));
+    out.push(dySubTitle(x.t("nutrition.measurements"), color));
     out.push(dyDataTable(
-      [{ header: "Tarih", pct: 16 }, { header: "Kilo", pct: 13, align: "center" }, { header: "Boy", pct: 13, align: "center" }, { header: "Bel", pct: 13, align: "center" }, { header: "Kalça", pct: 13, align: "center" }, { header: "Not", pct: 32 }],
+      [{ header: x.t("nutrition.colDate"), pct: 16 }, { header: x.t("nutrition.colWeight"), pct: 13, align: "center" }, { header: x.t("nutrition.colHeight"), pct: 13, align: "center" }, { header: x.t("nutrition.colWaist"), pct: 13, align: "center" }, { header: x.t("nutrition.colHip"), pct: 13, align: "center" }, { header: x.t("nutrition.colNote"), pct: 32 }],
       meas.map((r) => [
-        r.measured_at ? formatDateLoose(r.measured_at, { fallback: r.measured_at }) : "—",
+        r.measured_at ? x.loose(r.measured_at, r.measured_at) : "—",
         fmtNum(r.weight_kg, "kg") || "—",
         fmtNum(r.height_cm, "cm") || "—",
         fmtNum(r.waist_cm, "cm") || "—",
@@ -176,7 +186,7 @@ export function buildBeslenmeSection(input: BeslenmeReportInput, color: string):
       ]),
       { headerFill: color },
     ));
-    if (input.measurementTotal > meas.length) out.push(dyNote(`Son ${meas.length} ölçüm gösterilmiştir (toplam ${input.measurementTotal}).`));
+    if (input.measurementTotal > meas.length) out.push(dyNote(x.count("nutrition.measurementsShown", meas.length, { total: String(input.measurementTotal) })));
     else out.push(dyGap());
   }
   return out;

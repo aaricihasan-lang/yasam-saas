@@ -12,6 +12,7 @@
 //   • Connection / Penta analizleri danışan listesine eklenmez (İlişki ve Grup Analizleri'nde tutulur).
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { ArrowLeft, Info, Link2, List, Orbit, UserPlus, Users, UsersRound, Zap } from "lucide-react";
 import { useBfcacheRefresh } from "@/hooks/useBfcacheRefresh";
@@ -28,6 +29,7 @@ import s from "@/app/_premium/human-design/calismaAlani.module.css";
 export default function HdHesaplamaPage() {
   useBfcacheRefresh();
   const { showToast } = useToast();
+  const t = useTranslations("hd.clients.page");
   const isDemo = readYasamUser()?.is_demo_account === true;
   const [full, setFull] = useState(false);
   const [analyzed, setAnalyzed] = useState<HdAnalyzedResult | null>(null);
@@ -37,7 +39,7 @@ export default function HdHesaplamaPage() {
     <main className={`${s.page} ${energyFontVars}`}>
       <div className={s.inner}>
         {isDemo && (
-          <DemoModuleBanner className="mb-3" message="Human Design demo hesabında görüntüleme modundadır. Yeni danışan ekleme, düzenleme ve hesaplama yapılamaz." />
+          <DemoModuleBanner className="mb-3" message={t("demoBanner")} />
         )}
         <header className={s.hero}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -45,9 +47,9 @@ export default function HdHesaplamaPage() {
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img className={s.heroR} src="/premium/human-design/hero-sag.webp" width={510} height={254} alt="" aria-hidden decoding="async" draggable={false} />
           <div className={s.heroBody}>
-            <p className={s.eyebrow}>YAŞAM SİSTEMİ · HUMAN DESIGN</p>
-            <h1 className={s.title}>Human Design Çalışma Alanı</h1>
-            <p className={s.sub}>Yeni analiz oluşturun veya kayıtlı danışanlarınızla çalışın.</p>
+            <p className={s.eyebrow}>{t("eyebrow")}</p>
+            <h1 className={s.title}>{t("title")}</h1>
+            <p className={s.sub}>{t("subtitle")}</p>
           </div>
         </header>
 
@@ -55,14 +57,14 @@ export default function HdHesaplamaPage() {
 
         <div className={`${s.work} ${onlyList ? s.onlyList : ""}`}>
           {!isDemo ? (
-            <section className={s.panel} aria-label="Yeni Hesaplama" hidden={full} id="hd-new-client-panel" data-hd-workspace-client>
+            <section className={s.panel} aria-label={t("newCalc")} hidden={full} id="hd-new-client-panel" data-hd-workspace-client>
               <div className={s.pHead}>
                 <span className={s.pIcon} aria-hidden>
                   <UserPlus className="h-[22px] w-[22px]" strokeWidth={2} />
                 </span>
                 <div className={s.pTxt}>
-                  <h2>Yeni Hesaplama</h2>
-                  <p>Yeni bireysel analiz başlat.</p>
+                  <h2>{t("newCalc")}</h2>
+                  <p>{t("newCalcSub")}</p>
                 </div>
               </div>
               <HdClientForm onAnalyzed={(r) => setAnalyzed(r)} />
@@ -77,13 +79,13 @@ export default function HdHesaplamaPage() {
                   <Users className="h-[22px] w-[22px]" strokeWidth={2} />
                 </span>
                 <div className={s.pTxt}>
-                  <h2>Danışan Listesi</h2>
-                  <p>Kayıtlı kişiler, detay ve yeni analiz işlemleri.</p>
+                  <h2>{t("clientList")}</h2>
+                  <p>{t("clientListSub")}</p>
                 </div>
                 {!isDemo ? (
                   <button type="button" className={s.link} onClick={() => { setFull((v) => !v); window.scrollTo(0, 0); }} aria-pressed={full} data-hd-list-full>
                     {full ? <ArrowLeft className="h-[15px] w-[15px]" strokeWidth={2} aria-hidden /> : <List className="h-[15px] w-[15px]" strokeWidth={2} aria-hidden />}
-                    {full ? "Çalışma alanına dön" : "Tüm liste"}
+                    {full ? t("backToWorkspace") : t("fullList")}
                   </button>
                 ) : null}
               </div>
@@ -92,28 +94,28 @@ export default function HdHesaplamaPage() {
         </div>
 
         {!full ? (
-          <section className={s.quick} aria-label="Hızlı İşlemler">
+          <section className={s.quick} aria-label={t("quickActions")}>
             <div className={s.qHead}>
               <span className={s.qIcon} aria-hidden>
                 <Zap className="h-[18px] w-[18px]" strokeWidth={2.2} />
               </span>
               <div>
-                <h2>Hızlı İşlemler</h2>
-                <p>Mevcut analiz modüllerine geçiş.</p>
+                <h2>{t("quickActions")}</h2>
+                <p>{t("quickActionsSub")}</p>
               </div>
             </div>
             <div className={s.qBtns}>
               <Link href="/human-design/iliski-grup" className={s.q} data-hd-quick="connection">
                 <Link2 className="h-4 w-4" strokeWidth={2} aria-hidden />
-                Connection Başlat
+                {t("startConnection")}
               </Link>
               <Link href="/human-design/iliski-grup" className={s.q} data-hd-quick="penta">
                 <UsersRound className="h-4 w-4" strokeWidth={2} aria-hidden />
-                Penta Başlat
+                {t("startPenta")}
               </Link>
               <Link href="/human-design/transit" className={`${s.q} ${s.qWarm}`} data-hd-quick="transit">
                 <Orbit className="h-4 w-4" strokeWidth={2} aria-hidden />
-                Kişisel Transit
+                {t("personalTransit")}
               </Link>
             </div>
           </section>
@@ -121,7 +123,7 @@ export default function HdHesaplamaPage() {
 
         <p className={s.info}>
           <Info className="h-4 w-4 shrink-0" strokeWidth={2} aria-hidden />
-          Connection ve Penta analizleri danışan listesine eklenmez; İlişki ve Grup Analizleri&apos;ndeki kayıtlı analiz listesinde tutulur.
+          {t("relationsInfo")}
         </p>
       </div>
 
@@ -134,7 +136,7 @@ export default function HdHesaplamaPage() {
           onProfileDeleted={(res) => {
             setAnalyzed(null);
             showToast({
-              message: `Human Design kayıtları silindi: ${res.deletedAnalyses} analiz ve ${res.deletedReports} Word raporu. Danışan Yolculuğu ana kaydı korundu.`,
+              message: t("profileDeleted", { analyses: res.deletedAnalyses, reports: res.deletedReports }),
               type: "success",
             });
           }}

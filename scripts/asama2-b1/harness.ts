@@ -125,7 +125,8 @@ async function main(): Promise<void> {
   ok(formatDateLoose("2026-10-22T21:30:00.000Z", { locale: "tr-TR" }) === "23.10.2026", "UTC 21:30 → İstanbul 23.10.2026 (gerçek yerel gün)");
   ok(formatDateLoose("2026-10-25", { locale: "en-GB" }) === "25/10/2026", "EN arayüz: en-GB biçimi korunur");
   ok(!/\{f\.latest\.start_date\} →/.test(tab) && /displayDay\(f\.latest\.start_date, locale\)/.test(tab), "BeslenmeTab: plan aralığı ham ISO DEĞİL");
-  ok(/dayLabel=\{formatDateTr\(selectedDay\.plan_date\)\}/.test(src("app/beslenme/planlar/_components/PlanTools.tsx")), "Gün şablonu diyaloğu: ham plan_date DEĞİL");
+  // I18N (gece 25.11): tarih artık ekran diline göre usePlanFormat().date ile (TR çıktısı formatDateTr ile birebir). Niyet aynı: ham ISO değil.
+  ok(/dayLabel=\{pf\.date\(selectedDay\.plan_date\)\}/.test(src("app/beslenme/planlar/_components/PlanTools.tsx")) && /if \(isTr\) return formatDateTr\(iso\);/.test(src("app/beslenme/planlar/_components/usePlanFormat.ts")), "Gün şablonu diyaloğu: ham plan_date DEĞİL");
 
   section("BUG-017 kaynak kapısı");
   const shell = src("app/beslenme/_components/BeslenmeShell.tsx");

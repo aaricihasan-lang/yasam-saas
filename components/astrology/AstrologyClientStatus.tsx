@@ -15,15 +15,13 @@
  */
 
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { hasSessionCredential, readSessionToken, readYasamUser, sessionTokenHeader } from "@/lib/auth/yasamUser";
 
 type Status = "has_analyses" | "no_analyses" | "not_linked";
 
-const LABELS: Record<Status, string> = {
-  has_analyses: "Astroloji analizi mevcut",
-  no_analyses: "Henüz Astroloji analizi yok",
-  not_linked: "Astroloji bağlantısı bulunmuyor",
-};
+// Durum KODU dilden bağımsız (sunucu sözleşmesi); görünen etiket katalogdan (clients.detail.astrologyStatus.*).
+const STATUSES: ReadonlySet<Status> = new Set<Status>(["has_analyses", "no_analyses", "not_linked"]);
 
 const STYLES: Record<Status, string> = {
   has_analyses: "bg-violet-100 text-violet-800",
@@ -32,6 +30,7 @@ const STYLES: Record<Status, string> = {
 };
 
 export default function AstrologyClientStatus({ clientId }: { clientId: string }) {
+  const t = useTranslations("clients.detail.astrologyStatus");
   const [state, setState] = useState<{ id: string; status: Status; count: number } | null>(null);
 
   useEffect(() => {
@@ -51,7 +50,7 @@ export default function AstrologyClientStatus({ clientId }: { clientId: string }
       .then(async (r) => {
         if (!r.ok) return null;
         const b = (await r.json()) as { ok?: boolean; status?: Status; analysisCount?: number };
-        return b.ok === true && b.status && b.status in LABELS ? b : null;
+        return b.ok === true && b.status && STATUSES.has(b.status) ? b : null;
       })
       .catch(() => null)
       .then((b) => {
@@ -66,11 +65,11 @@ export default function AstrologyClientStatus({ clientId }: { clientId: string }
   return (
     <span
       className={`inline-flex items-center rounded-full px-2.5 py-1.5 text-[11px] font-semibold ${STYLES[state.status]}`}
-      title="Astroloji kendi modülünde yönetilir; burada yalnız eşleştirme ve analiz bulunma durumu gösterilir."
+      title={t("hint")}
       data-testid="dy-astrology-status"
       data-status={state.status}
     >
-      {LABELS[state.status]}
+      {t(state.status)}
       {state.status === "has_analyses" && state.count > 0 ? ` (${state.count})` : ""}
     </span>
   );

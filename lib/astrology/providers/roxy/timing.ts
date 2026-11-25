@@ -64,7 +64,7 @@ import {
   mapAspect,
   mapBody,
   mapEnum,
-  mapNature,
+  mapNatureFor,
   mapPoint,
   mapSign,
   num,
@@ -142,7 +142,7 @@ export function projectRoxyTransit(raw: unknown, opts: { nodeType: NodeType; atU
       errors.push("transitAspects[]: sayısal alan");
       continue;
     }
-    aspects.push({ transit, natal, type, exactAngle, orb, applying: o.isApplying, strength, nature: mapNature(o.nature) });
+    aspects.push({ transit, natal, type, exactAngle, orb, applying: o.isApplying, strength, nature: mapNatureFor(o.nature, type) });
     const i = obj(o.interpretation);
     if (i) iAspects.push({ transit, natal, type, summary: text(i.summary), timing: text(i.timing), impact: text(i.impact), guidance: text(i.guidance), keywords: keywords(i.keywords) });
   }
@@ -667,7 +667,7 @@ export function projectRoxySynastry(raw: unknown, opts: { houseSystem: HouseSyst
     // Yaklaşan/ayrılan: yalnız boolean kabul; başka değer düşürülür (null = bilinmiyor; uydurulmaz).
     const applying = typeof o.isApplying === "boolean" ? o.isApplying : null;
     if (o.isApplying !== undefined && applying === null) dropped.push("interAspects[].isApplying");
-    aspects.push({ a: p1, b: p2, type, exactAngle, orb, strength, nature: mapNature(o.interpretation), applying });
+    aspects.push({ a: p1, b: p2, type, exactAngle, orb, strength, nature: mapNatureFor(o.interpretation, type), applying });
     const m = obj(o.meaning);
     const d = obj(m?.description);
     if (m) iAspects.push({ a: p1, b: p2, type, short: text(d?.short), long: text(d?.long), relationshipContext: text(m.relationshipContext), keywords: keywords(m.keywords) });

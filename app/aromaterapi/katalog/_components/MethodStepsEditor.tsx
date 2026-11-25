@@ -1,5 +1,7 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+
 /**
  * C3D-B2B — Sıralı üretim adımları editörü (controlled).
  *
@@ -29,6 +31,7 @@ export function MethodStepsEditor({
     if (disabled || steps.length >= MAX_STEPS) return;
     onChange([...steps, { key: nextKey(), text: "" }]);
   };
+  const t = useTranslations("aromatherapy.catalog.methodForm.steps");
   const remove = (key: number) => onChange(steps.filter((s) => s.key !== key));
   const setText = (key: number, text: string) =>
     onChange(steps.map((s) => (s.key === key ? { ...s, text } : s)));
@@ -45,10 +48,10 @@ export function MethodStepsEditor({
       <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
         <div className="min-w-0">
           <h4 className="text-[13px] font-black text-slate-800">
-            Sıralı Adımlar {steps.length > 0 ? <span className="text-slate-400">({steps.length})</span> : null}
+            {t("title")} {steps.length > 0 ? <span className="text-slate-400">({steps.length})</span> : null}
           </h4>
           <p className="text-[11.5px] font-medium text-slate-400">
-            İşlem sırası önemliyse her adımı ayrı yazın; sıra otomatik numaralanır.
+            {t("hint")}
           </p>
         </div>
         {!disabled ? (
@@ -58,14 +61,14 @@ export function MethodStepsEditor({
             disabled={steps.length >= MAX_STEPS}
             className="inline-flex min-h-[40px] items-center gap-1 rounded-lg border border-emerald-200 bg-emerald-50/70 px-3 text-[12.5px] font-black text-emerald-800 transition hover:bg-emerald-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/60 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            + Adım ekle
+            {t("add")}
           </button>
         ) : null}
       </div>
 
       {steps.length === 0 ? (
         <p className="rounded-lg border border-dashed border-slate-200 bg-white/60 px-3 py-2 text-center text-[12px] font-medium italic text-slate-400">
-          Adım eklenmedi (opsiyonel).
+          {t("empty")}
         </p>
       ) : (
         <ol className="space-y-2">
@@ -80,7 +83,7 @@ export function MethodStepsEditor({
                 </span>
                 <div className="min-w-0 flex-1">
                   <label className="sr-only" htmlFor={`step-${s.key}`}>
-                    Adım {i + 1}
+                    {t("step", { n: i + 1 })}
                   </label>
                   <textarea
                     id={`step-${s.key}`}
@@ -89,19 +92,19 @@ export function MethodStepsEditor({
                     disabled={disabled}
                     maxLength={STEP_TEXT_MAX}
                     onChange={(e) => setText(s.key, e.target.value)}
-                    placeholder={`Adım ${i + 1}…`}
+                    placeholder={t("stepPh", { n: i + 1 })}
                     className="min-h-[44px] w-full rounded-lg border border-slate-200 bg-white/90 px-3 py-2 text-[14px] font-medium text-slate-800 shadow-sm outline-none transition focus-visible:border-emerald-300 focus-visible:ring-2 focus-visible:ring-emerald-300/50 disabled:bg-slate-50"
                   />
                 </div>
                 {!disabled ? (
                   <div className="flex shrink-0 flex-col gap-1">
-                    <button type="button" onClick={() => move(i, -1)} disabled={i === 0} aria-label={`Adım ${i + 1} yukarı`} className="inline-flex h-[38px] w-[44px] items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 shadow-sm transition hover:border-emerald-200 hover:text-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/60 disabled:cursor-not-allowed disabled:opacity-40">
+                    <button type="button" onClick={() => move(i, -1)} disabled={i === 0} aria-label={t("up", { n: i + 1 })} className="inline-flex h-[38px] w-[44px] items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 shadow-sm transition hover:border-emerald-200 hover:text-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/60 disabled:cursor-not-allowed disabled:opacity-40">
                       ↑
                     </button>
-                    <button type="button" onClick={() => move(i, 1)} disabled={i === steps.length - 1} aria-label={`Adım ${i + 1} aşağı`} className="inline-flex h-[38px] w-[44px] items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 shadow-sm transition hover:border-emerald-200 hover:text-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/60 disabled:cursor-not-allowed disabled:opacity-40">
+                    <button type="button" onClick={() => move(i, 1)} disabled={i === steps.length - 1} aria-label={t("down", { n: i + 1 })} className="inline-flex h-[38px] w-[44px] items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 shadow-sm transition hover:border-emerald-200 hover:text-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/60 disabled:cursor-not-allowed disabled:opacity-40">
                       ↓
                     </button>
-                    <button type="button" onClick={() => remove(s.key)} aria-label={`Adım ${i + 1} kaldır`} className="inline-flex h-[38px] w-[44px] items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-400 shadow-sm transition hover:border-rose-200 hover:text-rose-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-300/60">
+                    <button type="button" onClick={() => remove(s.key)} aria-label={t("remove", { n: i + 1 })} className="inline-flex h-[38px] w-[44px] items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-400 shadow-sm transition hover:border-rose-200 hover:text-rose-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-300/60">
                       ✕
                     </button>
                   </div>

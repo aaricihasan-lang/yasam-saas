@@ -1,6 +1,8 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { useTranslations } from "next-intl";
+import { useKupaErrorText } from "@/app/kupa/lib/errorText";
 import { useToast } from "@/components/ui/ToastProvider";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
 import { kupaBtnPrimary, kupaBtnGhost, kupaBtnSuccess, kupaInput, kupaRowAction, kupaRowActionDanger, kupaRowActions } from "@/app/kupa/components/KupaShell";
@@ -21,6 +23,9 @@ import { useConfirmLeave, useReportDirty } from "../hooks/protocolDirty";
 export function SourcesSection({ protocolId, doc }: { protocolId: string; doc: ProtocolDocument }) {
   const { showToast } = useToast();
   const { confirm } = useConfirm();
+  const t = useTranslations("cupping.protocols.sources");
+  const tc = useTranslations("cupping.common");
+  const errText = useKupaErrorText();
   const confirmLeave = useConfirmLeave();
   const [formOpen, setFormOpen] = useState(false);
   const [sourceText, setSourceText] = useState("");
@@ -55,7 +60,7 @@ export function SourcesSection({ protocolId, doc }: { protocolId: string; doc: P
     const loc = locator.trim();
     const text = sourceText.trim();
     if (!text) {
-      showToast({ message: "Kaynak adını yazın (ör. Ahmet Hoca Eğitim Notu).", type: "warning" });
+      showToast({ message: t("nameRequired"), type: "warning" });
       return;
     }
     busyRef.current = true;
@@ -73,7 +78,7 @@ export function SourcesSection({ protocolId, doc }: { protocolId: string; doc: P
         if (!sid) {
           const created = await createSource({ source_name: text });
           if (!created || !created.id) {
-            showToast({ message: "Demo hesabında kayıt oluşturulmaz.", type: "info" });
+            showToast({ message: tc("demoNoCreate"), type: "info" });
             return;
           }
           sid = created.id;
@@ -82,15 +87,15 @@ export function SourcesSection({ protocolId, doc }: { protocolId: string; doc: P
       }
       // Aynı kaynak + aynı sayfa/bölüm UNIQUE ön-kontrolü (yalnız reuse durumunda anlamlı).
       if (rows.some((r) => r.source_id === sid && (r.locator ?? "") === loc)) {
-        showToast({ message: "Bu kaynak aynı sayfa/bölüm ile zaten eklenmiş.", type: "warning" });
+        showToast({ message: t("duplicate"), type: "warning" });
         return;
       }
       await addProtocolSource({ protocol_id: protocolId, source_id: sid, locator: loc || null, note: note.trim() || null, sort_order: rows.length });
       await doc.reload.sources();
       reset();
-      showToast({ message: "Kaydedildi.", type: "success" });
+      showToast({ message: tc("saved"), type: "success" });
     } catch (e) {
-      showToast({ message: e instanceof Error ? e.message : "Kaydedilemedi.", type: "error" });
+      showToast({ message: errText(e, tc("saveFailed")), type: "error" });
     } finally {
       busyRef.current = false;
       setBusy(false);
@@ -105,9 +110,9 @@ export function SourcesSection({ protocolId, doc }: { protocolId: string; doc: P
       await updateProtocolSource(r.id, { locator: locator.trim() || null, note: note.trim() || null });
       await doc.reload.sources();
       reset();
-      showToast({ message: "Kaydedildi.", type: "success" });
+      showToast({ message: tc("saved"), type: "success" });
     } catch (e) {
-      showToast({ message: e instanceof Error ? e.message : "Kaydedilemedi.", type: "error" });
+      showToast({ message: errText(e, tc("saveFailed")), type: "error" });
     } finally {
       busyRef.current = false;
       setBusy(false);
@@ -115,29 +120,29 @@ export function SourcesSection({ protocolId, doc }: { protocolId: string; doc: P
   }
 
   async function remove(r: CuppingProtocolSourceLink) {
-    const ok = await confirm({ title: "Kaynağı Çıkar", message: `"${doc.sourceName(r.source_id)}" bu protokolden çıkarılsın mı? Ana kaynak kaydı silinmez.`, confirmText: "Çıkar", cancelText: "Vazgeç", tone: "danger" });
+    const ok = await confirm({ title: t("detach.title"), message: t("detach.message", { name: doc.sourceName(r.source_id) }), confirmText: t("detach.confirm"), cancelText: tc("cancel"), tone: "danger" });
     if (!ok) return;
     try {
       await deleteProtocolSource(r.id);
       await doc.reload.sources();
-      showToast({ message: "Çıkarıldı.", type: "success" });
+      showToast({ message: t("detach.done"), type: "success" });
     } catch (e) {
-      showToast({ message: e instanceof Error ? e.message : "Çıkarılamadı.", type: "error" });
+      showToast({ message: errText(e, t("detach.failed")), type: "error" });
     }
   }
 
   return (
     <ProtocolSectionShell
-      title="Kaynaklar"
-      description="Bu protokolün kaynak künyeleri."
+      title={t("title")}
+      description={t("description")}
       action={
         <button type="button" onClick={async () => { if (dirty && !(await confirmLeave())) return; reset(); setFormOpen(true); }} className={kupaBtnPrimary}>
-          + Kaynak Ekle
+          {t("add")}
         </button>
       }
     >
       {rows.length === 0 && !formOpen ? (
-        <ProtocolEmpty message="Bu protokole henüz kaynak bağlanmadı." />
+        <ProtocolEmpty message={t("empty")} />
       ) : (
         <ul className="space-y-2">
           {rows.map((r) => (
@@ -145,11 +150,11 @@ export function SourcesSection({ protocolId, doc }: { protocolId: string; doc: P
               {editingId === r.id ? (
                 <div className="space-y-2">
                   <p className="text-sm font-semibold text-slate-800">{doc.sourceName(r.source_id)}</p>
-                  <input className={kupaInput} placeholder="Sayfa / bölüm (locator)" value={locator} onChange={(e) => setLocator(e.target.value)} aria-label="Locator" />
-                  <input className={kupaInput} placeholder="Not (opsiyonel)" value={note} onChange={(e) => setNote(e.target.value)} aria-label="Not" />
+                  <input className={kupaInput} placeholder={t("locatorEditPlaceholder")} value={locator} onChange={(e) => setLocator(e.target.value)} aria-label={t("locatorEditAria")} />
+                  <input className={kupaInput} placeholder={t("notePlaceholder")} value={note} onChange={(e) => setNote(e.target.value)} aria-label={t("noteAria")} />
                   <div className="flex items-center gap-2">
-                    <button type="button" disabled={busy} className={kupaBtnSuccess} onClick={() => saveEdit(r)}>Kaydet</button>
-                    <button type="button" className={kupaBtnGhost} onClick={() => void cancelForm()}>Vazgeç</button>
+                    <button type="button" disabled={busy} className={kupaBtnSuccess} onClick={() => saveEdit(r)}>{tc("save")}</button>
+                    <button type="button" className={kupaBtnGhost} onClick={() => void cancelForm()}>{tc("cancel")}</button>
                   </div>
                 </div>
               ) : (
@@ -160,8 +165,8 @@ export function SourcesSection({ protocolId, doc }: { protocolId: string; doc: P
                     {r.note ? <p className="mt-0.5 text-[13px] text-slate-600">{r.note}</p> : null}
                   </div>
                   <div className={kupaRowActions}>
-                    <button type="button" className={kupaRowAction} onClick={() => { setEditingId(r.id); setLocator(r.locator ?? ""); setNote(r.note ?? ""); setFormOpen(false); }}>Düzenle</button>
-                    <button type="button" className={kupaRowActionDanger} onClick={() => remove(r)}>Çıkar</button>
+                    <button type="button" className={kupaRowAction} onClick={() => { setEditingId(r.id); setLocator(r.locator ?? ""); setNote(r.note ?? ""); setFormOpen(false); }}>{tc("edit")}</button>
+                    <button type="button" className={kupaRowActionDanger} onClick={() => remove(r)}>{t("detach.confirm")}</button>
                   </div>
                 </div>
               )}
@@ -174,18 +179,18 @@ export function SourcesSection({ protocolId, doc }: { protocolId: string; doc: P
         <div className="mt-3 space-y-2 rounded-xl border border-amber-100 bg-amber-50/40 p-3">
           {/* WT6: hazır katalog YOK — serbest yazı; öneri yalnız uzmanın kendi geçmiş kaynakları. */}
           <SourceNameField
-            label="Kaynak (kimden / nereden öğrendim)"
-            placeholder="Örn. Ahmet Hoca Eğitim Notu, kendi eğitim notlarım, X Kitabı…"
+            label={t("nameLabel")}
+            placeholder={t("namePlaceholder")}
             value={sourceText}
             onChange={setSourceText}
             sources={doc.masterSources}
             testId="kupa-source-name"
           />
-          <input className={kupaInput} placeholder="Sayfa / bölüm (opsiyonel)" value={locator} onChange={(e) => setLocator(e.target.value)} aria-label="Sayfa / bölüm" />
-          <input className={kupaInput} placeholder="Not (opsiyonel)" value={note} onChange={(e) => setNote(e.target.value)} aria-label="Not" />
+          <input className={kupaInput} placeholder={t("locatorPlaceholder")} value={locator} onChange={(e) => setLocator(e.target.value)} aria-label={t("locatorAria")} />
+          <input className={kupaInput} placeholder={t("notePlaceholder")} value={note} onChange={(e) => setNote(e.target.value)} aria-label={t("noteAria")} />
           <div className="flex items-center gap-2">
-            <button type="button" disabled={busy} className={kupaBtnSuccess} onClick={add} data-testid="kupa-source-save">{busy ? "Kaydediliyor…" : "Kaydet"}</button>
-            <button type="button" className={kupaBtnGhost} onClick={() => void cancelForm()}>Vazgeç</button>
+            <button type="button" disabled={busy} className={kupaBtnSuccess} onClick={add} data-testid="kupa-source-save">{busy ? tc("saving") : tc("save")}</button>
+            <button type="button" className={kupaBtnGhost} onClick={() => void cancelForm()}>{tc("cancel")}</button>
           </div>
         </div>
       ) : null}

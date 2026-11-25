@@ -1,6 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useLocale, useTranslations } from "next-intl";
+import { DEFAULT_LOCALE } from "@/lib/i18n/locales";
+import { useRefCodeText } from "@/app/refleksoloji/hooks/useRefCodeText";
 import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
 import {
   DEMO_SEED_PROTOCOLS,
@@ -78,6 +81,9 @@ function userHeaders(): Record<string, string> {
 }
 
 export function useProtocolList() {
+  const t = useTranslations("reflexology.savedProtocols");
+  const isSourceLocale = useLocale() === DEFAULT_LOCALE;
+  const refCode = useRefCodeText();
   const isDemo = readYasamUser()?.is_demo_account === true;
 
   const [protocols, setProtocols] = useState<ReflexologyProtocolRecord[]>([]);
@@ -107,17 +113,18 @@ export function useProtocolList() {
       setLoading(false);
 
       if (res.status === 401 || res.status === 403) {
-        setLoadErrorMessage("Oturum bulunamadı. Lütfen tekrar giriş yapın.");
+        setLoadErrorMessage(t("sessionMissing"));
         setProtocols([]);
         return;
       }
 
       const json = (await res.json().catch(() => null)) as
-        | { ok?: boolean; protocols?: ReflexologyProtocolRecord[]; error?: string }
+        | { ok?: boolean; protocols?: ReflexologyProtocolRecord[]; error?: string; code?: string }
         | null;
 
       if (!res.ok || !json?.ok) {
-        setLoadErrorMessage(`Protokoller okunamadı: ${json?.error ?? res.statusText}`);
+        // Sunucu ayrıntısı Türkçe: yalnız kaynak dilde eklenir.
+        setLoadErrorMessage(isSourceLocale ? t("loadFailed", { detail: json?.error ?? res.statusText }) : refCode(json, t("loadFailedGeneric")));
         setProtocols([]);
         return;
       }
@@ -130,7 +137,7 @@ export function useProtocolList() {
     } catch (err) {
       setLoading(false);
       setLoadErrorMessage(
-        `Protokoller okunamadı: ${err instanceof Error ? err.message : "Bağlantı hatası"}`,
+        t("loadFailed", { detail: err instanceof Error ? err.message : t("connectionError") }),
       );
       setProtocols([]);
     }

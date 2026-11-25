@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState, type ChangeEvent } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import { formatDate } from "@/lib/i18n/format";
+import { DEFAULT_LOCALE, resolveLocale, type ActiveLocale } from "@/lib/i18n/locales";
 import { useRouter } from "next/navigation";
 import { useBfcacheRefresh } from "@/hooks/useBfcacheRefresh";
 import Link from "next/link";
@@ -14,6 +16,7 @@ import { useSubmitLock } from "@/hooks/useSubmitLock";
 import { SubmitTimeoutError } from "@/lib/ui/submitLock";
 import { todayInZone } from "@/lib/time/reportTime";
 import { isRealCalendarDate } from "@/lib/danisan/dateValidation";
+import { KAN_VALUES } from "@/lib/danisan/clientValidation";
 import ClientConsentPanel from "@/components/kvkk/ClientConsentPanel";
 import {
   CalendarDays,
@@ -70,12 +73,17 @@ function burcGoster(date: string): string {
   return computeBurc(date) ?? "";
 }
 
-const MONTH_NAMES_TR = [
-  "Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran",
-  "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık",
-] as const;
+// I18N (F0 bulgu #17): takvim ay / gün adları dile göre Intl ile üretilir (lib/i18n/format.ts →
+// tr-TR / en-GB). tr-TR çıktısı eski sabit dizilerle birebir aynıdır: "Ocak … Aralık" ve
+// "Pzt Sal Çar Per Cum Cmt Paz" (Pazartesi başlangıçlı ızgara). Yalnız GÖSTERİM; değer/tarih mantığı değişmez.
+function calendarMonthName(month: number, locale: ActiveLocale): string {
+  return formatDate(new Date(2024, month - 1, 1), { month: "long" }, locale);
+}
 
-const WEEKDAY_NAMES_TR = ["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"] as const;
+function calendarWeekdayNames(locale: ActiveLocale): string[] {
+  // 1 Ocak 2024 Pazartesi → 7 ardışık gün = Pzt…Paz.
+  return Array.from({ length: 7 }, (_, i) => formatDate(new Date(2024, 0, 1 + i), { weekday: "short" }, locale));
+}
 
 function parseInputDate(value: string) {
   if (!value) return null;
@@ -122,6 +130,7 @@ function PremiumDatePicker({
   onInvalidChange?: (invalid: boolean) => void;
 }) {
   const t = useTranslations("clients.form.datePicker");
+  const locale = resolveLocale(useLocale());
   const today = todayForInput();
   const parsedToday = parseInputDate(today);
   const parsedValue = parseInputDate(value);
@@ -241,7 +250,7 @@ function PremiumDatePicker({
               aria-label={t("prevMonth")}
             >‹</button>
             <p className="text-lg font-black text-slate-900">
-              {MONTH_NAMES_TR[viewMonth - 1]} {viewYear}
+              {calendarMonthName(viewMonth, locale)} {viewYear}
             </p>
             <button
               type="button"
@@ -252,7 +261,7 @@ function PremiumDatePicker({
           </div>
 
           <div className="mb-2 grid grid-cols-7 gap-1">
-            {WEEKDAY_NAMES_TR.map((name) => (
+            {calendarWeekdayNames(locale).map((name) => (
               <div key={name} className="flex h-8 items-center justify-center text-sm font-bold text-slate-500">
                 {name}
               </div>
@@ -320,6 +329,11 @@ function Field({ label, required = false, children }: { label: string; required?
 
 export default function DanisanKayitPage() {
   const t = useTranslations("clients.form");
+  const tList = useTranslations("clients.list");
+  // Sunucu doğrulama metni Türkçedir: kaynak dilde (tr) aynen, diğer dillerde genel çevrilmiş metin (karışık dil yok).
+  const isSourceLocale = useLocale() === DEFAULT_LOCALE;
+  const tj = useTranslations("journey.form");
+  const tCommon = useTranslations("common");
   const router = useRouter();
   useBfcacheRefresh();
   const { showToast } = useToast();
@@ -357,6 +371,7 @@ export default function DanisanKayitPage() {
   const [mizac, setMizac] = useState("");
 
   const burc = burcGoster(dogum);
+  const burcLabel = burc && tList.has(`filter.burcOptions.${burc}`) ? tList(`filter.burcOptions.${burc}`) : burc;
 
   useEffect(() => {
     setSessionUser(readYasamUser());
@@ -380,7 +395,7 @@ export default function DanisanKayitPage() {
       setSaving(false);
       showToast({
         title: t("toast.failTitle"),
-        message: err instanceof SubmitTimeoutError ? err.message : t("toast.saveError"),
+        message: err instanceof SubmitTimeoutError ? tCommon("submitLock.timeout") : t("toast.saveError"),
         type: "error",
       });
     }
@@ -484,7 +499,7 @@ export default function DanisanKayitPage() {
       if (insRes.status === 400) {
         try { serverMsg = ((await insRes.json()) as { error?: string }).error ?? null; } catch { serverMsg = null; }
       }
-      showToast({ title: t("toast.failTitle"), message: serverMsg ?? t("toast.saveError"), type: "error" });
+      showToast({ title: t("toast.failTitle"), message: (isSourceLocale ? serverMsg : null) ?? t("toast.saveError"), type: "error" });
       setSaving(false);
       return;
     }
@@ -594,10 +609,11 @@ export default function DanisanKayitPage() {
                 </p>
               </Field>
               <Field label={t("fields.burc")}>
-                {/* burc = computeBurc() ile türetilen KANONİK değer; yalnız gösterilir,
-                    çeviriye SARILMAZ. */}
+                {/* burc = computeBurc() ile türetilen KANONİK değer (gövdede aynen gider, sunucu yeniden
+                    türetir). Yalnız GÖSTERİM etiketi Danışan Listesi filtresiyle aynı sözlükten eşlenir
+                    (clients.list.filter.burcOptions: EN→Aries…); bilinmeyen değer ham gösterilir. */}
                 <DypInputIcon icon={Star}>
-                  <input value={burc} disabled placeholder={t("placeholders.burc")} className={inputClassName} />
+                  <input value={burcLabel} disabled placeholder={t("placeholders.burc")} className={inputClassName} />
                 </DypInputIcon>
               </Field>
               <Field label={t("fields.kan")}>
@@ -606,10 +622,9 @@ export default function DanisanKayitPage() {
                 <DypInputIcon icon={Droplet}>
                   <select value={kan} onChange={(e) => setKan(e.target.value)} className={inputClassName}>
                     <option value="">{t("placeholders.select")}</option>
-                    <option>A Rh+</option><option>A Rh-</option>
-                    <option>B Rh+</option><option>B Rh-</option>
-                    <option>AB Rh+</option><option>AB Rh-</option>
-                    <option>0 Rh+</option><option>0 Rh-</option>
+                    {KAN_VALUES.map((v) => (
+                      <option key={v} value={v}>{v}</option>
+                    ))}
                   </select>
                 </DypInputIcon>
               </Field>
@@ -670,7 +685,7 @@ export default function DanisanKayitPage() {
                 href={`/dashboard/clients/${createdClientId}`}
                 className={dyp.btnSave}
               >
-                Danışan detayına git
+                {tj("goToDetail")}
                 <ChevronRight aria-hidden />
               </Link>
             )}

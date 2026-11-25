@@ -7,22 +7,11 @@
  */
 
 import { useMemo, useState } from "react";
+import { useLocale, useTranslations } from "next-intl";
+import { dmyOf, dmyText } from "../_lib/atlasDate";
 import {
-  ASPECT_VS_DRISHTI_TEXT,
-  ASPECT_ZODIAC_TEXT,
-  DECLINATION_TEXT,
-  DECLINATION_TYPE_LABELS,
-  MONTHLY_GRAHA_TR,
-  MONTHLY_KIND_LABELS,
-  NATAL_DECLINATION_TEXT,
-  PARALLELS_SAMPLING_TEXT,
-  STATION_TEXT,
-  VEDIC_MONTHLY_METHOD_TEXT,
-  VEDIC_MONTHLY_SECTION_LABELS,
-  VEDIC_MONTHLY_WINDOW_TEXT,
   filterTimeline,
   fmtDeclination,
-  monthlySignTr,
   monthlySummary,
   monthlyTimeline,
   type MonthlyTimelineKind,
@@ -33,14 +22,29 @@ import { formatInZone } from "@/lib/astrology/transitDetail";
 import type { KbLookup } from "./VedicPanels";
 
 const card = "min-w-0 rounded-xl border border-slate-200 bg-white";
-const TR_MONTHS = ["Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran", "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık"];
 const TZ = ["Europe/Istanbul", "UTC", "Europe/London", "Europe/Berlin", "America/New_York", "Asia/Dubai", "Asia/Kolkata"];
 const KINDS: MonthlyTimelineKind[] = ["ingress", "aspect", "lunar", "parallel"];
 const STEP = 150;
-const utcL = (at: string) => `${at.slice(8, 10)}.${at.slice(5, 7)}.${at.slice(0, 4)} ${at.slice(11, 16)}`;
-const deg = (v: number) => `${v.toFixed(2).replace(".", ",")}°`;
+const utcL = (at: string, loc = "tr") => `${dmyOf(at, loc)} ${at.slice(11, 16)}`;
+/**
+ * I18N ATLAS-V: ekran dili yardımcıları. Kod-anahtarlı lib etiketleri ve yöntem metinleri Word/PDF ile ortaktır → TR katalog
+ * değeri lib ile birebir (atlas-vedic-monthly-i18n kilidi). Zaman çizelgesi olay cümleleri (monthlyTimeline) lib metnidir.
+ */
+function useMonthlyText() {
+  const t = useTranslations("atlas.vedicMonthly");
+  const tv = useTranslations("atlas.vedic");
+  const tt = useTranslations("terms");
+  const tr = useLocale() !== "en";
+  const deg = (v: number) => `${tr ? v.toFixed(2).replace(".", ",") : v.toFixed(2)}°`;
+  const dec = (v: number) => (tr ? fmtDeclination(v) : `${v >= 0 ? "+" : "−"}${Math.abs(v).toFixed(2)}°`);
+  const graha = (id: VedicGrahaId) => t(`graha.${id}`);
+  const sign = (s: string) => tt(`zodiac.${s as "aries"}`);
+  return { t, tv, deg, dec, graha, sign };
+}
 
 export function VedicMonthlyPanel({ t, options = {}, kbLookup = null }: { t: VedicMonthlyTechnical; options?: Record<string, unknown>; kbLookup?: KbLookup | null }) {
+  const { t: tx, tv, deg, dec, graha, sign } = useMonthlyText();
+  const loc = useLocale();
   const [tz, setTz] = useState<string>(typeof options.displayTz === "string" ? options.displayTz : "Europe/Istanbul");
   const [planets, setPlanets] = useState<VedicGrahaId[] | null>(null);
   const [kinds, setKinds] = useState<MonthlyTimelineKind[]>(KINDS);
@@ -67,12 +71,12 @@ export function VedicMonthlyPanel({ t, options = {}, kbLookup = null }: { t: Ved
     <div className="flex min-w-0 flex-col gap-3" data-testid="astro-vm-panel">
       <div className="flex min-w-0 flex-wrap items-center gap-2 text-sm text-slate-700">
         <strong>
-          {TR_MONTHS[w.month - 1]} {w.year}
+          {tx(`month.m${w.month}`)} {w.year}
         </strong>
-        <span>· sidereal (Lahiri) · UTC takvim ayı</span>
+        <span>{tx("frameLine")}</span>
         <label className="ml-auto flex min-w-0 flex-wrap items-center gap-1.5 text-xs">
-          Gösterim
-          <select className="max-w-full min-w-0 rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs" value={tz} onChange={(e) => setTz(e.target.value)} aria-label="Gösterim saat dilimi" data-testid="astro-vm-tz">
+          {tx("display")}
+          <select className="max-w-full min-w-0 rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs" value={tz} onChange={(e) => setTz(e.target.value)} aria-label={tx("displayTzLabel")} data-testid="astro-vm-tz">
             {[...new Set([tz, ...TZ])].map((z) => (
               <option key={z} value={z}>
                 {z}
@@ -82,51 +86,77 @@ export function VedicMonthlyPanel({ t, options = {}, kbLookup = null }: { t: Ved
         </label>
       </div>
       <p className="rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-900" data-testid="astro-vm-method">
-        {VEDIC_MONTHLY_METHOD_TEXT} {VEDIC_MONTHLY_WINDOW_TEXT}
+        {tx("text.method")} {tx("text.window")}
       </p>
       {(t.aspects || t.lunar) && (
         <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900" data-testid="astro-vm-drishti-note">
-          {ASPECT_VS_DRISHTI_TEXT} <span className="text-amber-800">{ASPECT_ZODIAC_TEXT}</span>
+          {tx("text.aspectVsDrishti")} <span className="text-amber-800">{tx("text.aspectZodiac")}</span>
         </p>
       )}
       {t.missing.length > 0 && (
         <p className="rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900" data-testid="astro-vm-missing">
-          Gösterilmeyen bölüm: {t.missing.map((s) => VEDIC_MONTHLY_SECTION_LABELS[s]).join(", ")} (bölüm hesaplanamadı ya da doğum saati bilinmiyor).
+          {tx("missingA")}
+          {t.missing.map((s) => tx(`section.${s}`)).join(", ")}
+          {tx("missingB")}
         </p>
       )}
 
-      <section className={`${card} p-3`} aria-label="Aylık özet" data-testid="astro-vm-summary">
-        <h4 className="text-sm font-semibold text-slate-900">Aylık özet</h4>
+      <section className={`${card} p-3`} aria-label={tx("summary.title")} data-testid="astro-vm-summary">
+        <h4 className="text-sm font-semibold text-slate-900">{tx("summary.title")}</h4>
         <ul className="mt-1 grid min-w-0 grid-cols-2 gap-x-3 gap-y-1 text-sm max-sm:grid-cols-1">
-          {t.ingress && <li>Burç girişi: {sm.counts.ingress} (Ay {sm.moonIngresses}; diğer {sm.keyIngresses.length})</li>}
-          {t.aspects && (
+          {t.ingress && (
             <li>
-              Gezegenler arası açı: {sm.counts.aspect} (majör {sm.majorAspects} · minör {sm.minorAspects})
+              {tx("summary.ingressA")}
+              {sm.counts.ingress}
+              {tx("summary.ingressB")}
+              {sm.moonIngresses}
+              {tx("summary.ingressC")}
+              {sm.keyIngresses.length})
             </li>
           )}
-          {t.lunar && <li>Ay açısı: {sm.counts.lunar}</li>}
+          {t.aspects && (
+            <li>
+              {tx("summary.aspectA")}
+              {sm.counts.aspect}
+              {tx("summary.aspectB")}
+              {sm.majorAspects}
+              {tx("summary.aspectC")}
+              {sm.minorAspects})
+            </li>
+          )}
+          {t.lunar && (
+            <li>
+              {tx("summary.lunar")}
+              {sm.counts.lunar}
+            </li>
+          )}
           {t.parallels && (
             <li>
-              Deklinasyon: paralel {sm.parallels} · kontraparalel {sm.contraparallels}
+              {tx("summary.declA")}
+              {sm.parallels}
+              {tx("summary.declB")}
+              {sm.contraparallels}
             </li>
           )}
         </ul>
         {sm.keyIngresses.length > 0 && (
           <p className="mt-1 min-w-0 break-words text-xs text-slate-700">
-            Ay dışındaki girişler:{" "}
-            {sm.keyIngresses.map((e) => `${MONTHLY_GRAHA_TR[e.planet]} ${monthlySignTr(e.to)} (${local(e.atUtc)?.text ?? utcL(e.atUtc)}${e.retrograde && e.planet !== "rahu" && e.planet !== "ketu" ? ", geri" : ""})`).join(" · ")}
+            {tx("summary.keyIngresses")}{" "}
+            {sm.keyIngresses
+              .map((e) => tx("summary.keyIngress", { graha: graha(e.planet), sign: sign(e.to), at: dmyText(local(e.atUtc)?.text ?? "", loc) || utcL(e.atUtc, loc), retro: e.retrograde && e.planet !== "rahu" && e.planet !== "ketu" ? tx("summary.retro") : "" }))
+              .join(" · ")}
           </p>
         )}
       </section>
 
-      <section className={`${card} p-3`} aria-label="Filtre" data-testid="astro-vm-filters">
+      <section className={`${card} p-3`} aria-label={tx("filter.label")} data-testid="astro-vm-filters">
         <div className="flex min-w-0 flex-wrap items-center gap-1.5 text-xs">
-          <span className="text-slate-600">Gezegen:</span>
+          <span className="text-slate-600">{tx("filter.planet")}</span>
           {VEDIC_GRAHAS.map((p) => {
             const on = !planets || planets.includes(p);
             return (
               <button key={p} type="button" onClick={() => togglePlanet(p)} aria-pressed={on} className={`rounded-full border px-2 py-0.5 ${on ? "border-indigo-300 bg-indigo-50 text-indigo-900" : "border-slate-200 bg-white text-slate-400"}`} data-testid={`astro-vm-planet-${p}`}>
-                {MONTHLY_GRAHA_TR[p]}
+                {graha(p)}
               </button>
             );
           })}
@@ -143,31 +173,33 @@ export function VedicMonthlyPanel({ t, options = {}, kbLookup = null }: { t: Ved
                 }}
                 data-testid={`astro-vm-kind-${k}`}
               />
-              {MONTHLY_KIND_LABELS[k]}
+              {tx(`kind.${k}`)}
             </label>
           ))}
           <label className="flex items-center gap-1">
-            <input type="checkbox" checked={majorOnly} onChange={(e) => setMajorOnly(e.target.checked)} data-testid="astro-vm-major" /> Yalnız majör açılar
+            <input type="checkbox" checked={majorOnly} onChange={(e) => setMajorOnly(e.target.checked)} data-testid="astro-vm-major" />
+            {tx("filter.majorOnly")}
           </label>
         </div>
       </section>
 
-      <section className={`${card} p-3`} aria-label="Zaman çizelgesi" data-testid="astro-vm-timeline">
+      <section className={`${card} p-3`} aria-label={tx("timeline.title")} data-testid="astro-vm-timeline">
         <h4 className="text-sm font-semibold text-slate-900">
-          Zaman çizelgesi ({items.length}
+          {tx("timeline.titleOpen")}
+          {items.length}
           {items.length !== all.length ? ` / ${all.length}` : ""})
         </h4>
         {items.length === 0 ? (
-          <p className="text-xs text-slate-500">Seçili filtrede olay yok.</p>
+          <p className="text-xs text-slate-500">{tx("timeline.empty")}</p>
         ) : (
           <ul className="mt-1 flex min-w-0 flex-col divide-y divide-slate-100">
             {items.slice(0, limit).map((x, i) => {
               const z = local(x.atUtc);
               return (
                 <li key={`${x.atUtc}-${x.kind}-${i}`} className="flex min-w-0 flex-wrap items-baseline gap-x-2 py-1 text-sm" data-vm-kind={x.kind}>
-                  <span className="tabular-nums font-medium text-slate-900">{z ? `${z.text} (${z.zone})` : `${utcL(x.atUtc)} UTC`}</span>
-                  {z && <span className="tabular-nums text-[11px] text-slate-500">{utcL(x.atUtc)} UTC</span>}
-                  <span className="rounded bg-slate-100 px-1.5 text-[11px] text-slate-600">{MONTHLY_KIND_LABELS[x.kind]}</span>
+                  <span className="tabular-nums font-medium text-slate-900">{z ? `${dmyText(z.text, loc)} (${z.zone})` : `${utcL(x.atUtc, loc)} UTC`}</span>
+                  {z && <span className="tabular-nums text-[11px] text-slate-500">{utcL(x.atUtc, loc)} UTC</span>}
+                  <span className="rounded bg-slate-100 px-1.5 text-[11px] text-slate-600">{tx(`kind.${x.kind}`)}</span>
                   <span className="min-w-0 break-words text-slate-800">{x.text}</span>
                 </li>
               );
@@ -176,55 +208,58 @@ export function VedicMonthlyPanel({ t, options = {}, kbLookup = null }: { t: Ved
         )}
         {items.length > limit && (
           <button type="button" className="mt-2 rounded border border-slate-300 px-2 py-1 text-xs text-slate-700" onClick={() => setLimit(limit + STEP)} data-testid="astro-vm-more">
-            {Math.min(STEP, items.length - limit)} olay daha göster
+            {Math.min(STEP, items.length - limit)}
+            {tx("timeline.more")}
           </button>
         )}
-        {t.ingress && <p className="mt-2 text-[11px] text-slate-500">{STATION_TEXT}</p>}
+        {t.ingress && <p className="mt-2 text-[11px] text-slate-500">{tx("text.station")}</p>}
       </section>
 
       {t.ingress && (
         <details className={`${card} p-3`} data-testid="astro-vm-start">
-          <summary className="cursor-pointer text-sm font-semibold text-slate-900">Ay başı konumları (1. gün 00:00 UTC)</summary>
+          <summary className="cursor-pointer text-sm font-semibold text-slate-900">{tx("startTitle")}</summary>
           <ul className="mt-1 grid min-w-0 grid-cols-3 gap-1 text-xs max-sm:grid-cols-2">
             {t.ingress.start.map((s) => (
               <li key={s.planet}>
-                {MONTHLY_GRAHA_TR[s.planet]}: {monthlySignTr(s.sign)} {deg(s.longitude % 30)}
+                {graha(s.planet)}: {sign(s.sign)} {deg(s.longitude % 30)}
               </li>
             ))}
           </ul>
         </details>
       )}
 
-      {(t.parallels || t.natalParallels) && <p className="text-xs text-slate-600">{DECLINATION_TEXT}</p>}
-      {t.parallels && <p className="text-[11px] text-slate-500">{PARALLELS_SAMPLING_TEXT}</p>}
+      {(t.parallels || t.natalParallels) && <p className="text-xs text-slate-600">{tx("text.declination")}</p>}
+      {t.parallels && <p className="text-[11px] text-slate-500">{tx("text.parallelsSampling")}</p>}
       {t.natalParallels && (
-        <section className={`${card} p-3`} aria-label="Doğum anı deklinasyonları" data-testid="astro-vm-natal">
-          <h4 className="text-sm font-semibold text-slate-900">Doğum anı deklinasyonları</h4>
-          <p className="text-xs text-slate-500">{NATAL_DECLINATION_TEXT}</p>
+        <section className={`${card} p-3`} aria-label={tx("natal.title")} data-testid="astro-vm-natal">
+          <h4 className="text-sm font-semibold text-slate-900">{tx("natal.title")}</h4>
+          <p className="text-xs text-slate-500">{tx("text.natalDeclination")}</p>
           <ul className="mt-1 grid min-w-0 grid-cols-3 gap-1 text-xs max-sm:grid-cols-2">
             {t.natalParallels.planets.map((p) => (
               <li key={p.id}>
-                {MONTHLY_GRAHA_TR[p.id]}: {fmtDeclination(p.declination)}
+                {graha(p.id)}: {dec(p.declination)}
               </li>
             ))}
           </ul>
           <ul className="mt-2 flex flex-col gap-0.5 text-sm">
-            {t.natalParallels.parallels.length === 0 && <li className="text-xs text-slate-500">Orb içinde paralel / kontraparalel yok.</li>}
+            {t.natalParallels.parallels.length === 0 && <li className="text-xs text-slate-500">{tx("natal.none")}</li>}
             {t.natalParallels.parallels.map((p) => (
               <li key={`${p.a}-${p.b}-${p.type}`} className="min-w-0 break-words">
-                {MONTHLY_GRAHA_TR[p.a]} – {MONTHLY_GRAHA_TR[p.b]} · {DECLINATION_TYPE_LABELS[p.type]} ({fmtDeclination(p.decA)} / {fmtDeclination(p.decB)}) · orb {deg(p.orb)}
+                {graha(p.a)} – {graha(p.b)} · {tx(`declType.${p.type}`)} ({dec(p.decA)} / {dec(p.decB)}
+                {tx("natal.orbSep")}
+                {deg(p.orb)}
               </li>
             ))}
           </ul>
         </section>
       )}
 
-      <section className="min-w-0 rounded-xl border border-amber-200 bg-amber-50/40 p-3 text-sm" aria-label="Aylık takvim Bilgi Bankası">
-        <div className="text-xs font-semibold text-indigo-900">Bilgi Bankam</div>
+      <section className="min-w-0 rounded-xl border border-amber-200 bg-amber-50/40 p-3 text-sm" aria-label={tx("kbLabel")}>
+        <div className="text-xs font-semibold text-indigo-900">{tv("kb.title")}</div>
         {kb === null ? (
-          <p className="text-xs text-slate-500">Bilgi Bankası eşleşmeleri çalışma alanı yüklenince görünür.</p>
+          <p className="text-xs text-slate-500">{tv("kb.notLoaded")}</p>
         ) : kb.length === 0 ? (
-          <p className="text-xs text-slate-500">Bu ayın olayları için Bilgi Bankası kaydınız yok (burç girişi / astronomik açı / deklinasyon konuları).</p>
+          <p className="text-xs text-slate-500">{tx("kbEmpty")}</p>
         ) : (
           <ul className="mt-1 flex flex-col gap-1">
             {kb.map((e) => (

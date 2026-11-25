@@ -3,6 +3,12 @@
     "detail": {
       "cancel": "Vazgeç",
       "clientFallback": "Danışan",
+      "astrologyStatus": {
+        "has_analyses": "Astroloji analizi mevcut",
+        "no_analyses": "Henüz Astroloji analizi yok",
+        "not_linked": "Astroloji bağlantısı bulunmuyor",
+        "hint": "Astroloji kendi modülünde yönetilir; burada yalnız eşleştirme ve analiz bulunma durumu gösterilir."
+      },
       "unnamed": "İsimsiz Danışan",
       "notFound": "Danışan bulunamadı",
       "notFoundHint": "Bu danışan silinmiş olabilir ya da bu hesaba ait değil.",

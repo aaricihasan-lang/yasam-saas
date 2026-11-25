@@ -1,0 +1,61 @@
+{
+  "hd": {
+    "chart": {
+      "centers": "Merkezler",
+      "motor": "Motor",
+      "motorTitle": "Motor (enerji kaynağı) merkez",
+      "awareness": "Farkındalık",
+      "awarenessTitle": "Farkındalık merkezi",
+      "centerStateUnverifiedHint": "Kayıtlı veriden kesin durum kanıtlanamadı",
+      "definedChannels": "Tanımlı Kanallar ({count})",
+      "noDefinedChannels": "Tanımlı kanal yok.",
+      "activeGates": "Aktif Kapılar ({count})",
+      "providerNote": "Hesaplama bilgisi: Yaşam Sistemi hesaplama altyapısı (nodeType: {nodeType}). Kayıtlı sonuç gösterilmektedir; görüntülemede yeniden hesap yapılmaz.",
+      "engineNote": "Hesaplama kaynağı: Yaşam Sistemi dahili motoru (eski kayıt).",
+      "info": {
+        "sourceValue": "Kaynak değeri: {value}",
+        "gatesOnly": "{angle} (yalnız kapılar)",
+        "ariaLabel": "Danışan ve harita bilgileri",
+        "client": "Danışan",
+        "name": "Ad Soyad",
+        "birthDate": "Doğum Tarihi",
+        "birthPlace": "Doğum Yeri",
+        "coordinates": "Koordinatlar",
+        "age": "Yaş"
+      },
+      "planets": {
+        "designSubtitle": "Bilinçdışı",
+        "personalitySubtitle": "Bilinçli",
+        "groupAria": "{title} ({subtitle}) gezegen aktivasyonları",
+        "activationAria": "{planet}: kapı {gate}, çizgi {line}"
+      },
+      "keynotes": {
+        "ariaLabel": "Ek Human Design bilgileri",
+        "heading": "Ek Human Design Bilgileri",
+        "whatIs": "{label} nedir?",
+        "signatureHelp": "Human Design yaklaşımında, kişinin tipine uygun strateji ve otoriteyle yaşadığında deneyimlediği olumlu durum."
+      },
+      "bodygraph": {
+        "title": "Human Design BodyGraph",
+        "desc": "{centers} tanımlı merkez, {channels} tanımlı kanal, {gates} aktif kapı.",
+        "legendPersonality": "Kişilik (bilinçli)",
+        "legendDesign": "Tasarım (bilinçsiz)",
+        "legendBoth": "Çizgili / iki renkli: ikisi birden",
+        "loading": "BodyGraph yükleniyor…",
+        "loadError": "BodyGraph görseli yüklenemedi. Sayfayı yenileyip tekrar deneyin. Harita verileri (Design / Personality) kayıtlıdır."
+      },
+      "svgCenter": {
+        "head": "BAŞ",
+        "ajna": "AJNA",
+        "throat": "BOĞAZ",
+        "g": "G",
+        "heart": "KALP",
+        "sacral": "SAKRAL",
+        "root": "KÖK",
+        "spleen": "DALAK",
+        "solar": "SOLAR",
+        "plexus": "PLEKSUS"
+      }
+    }
+  }
+}

@@ -1,0 +1,78 @@
+{
+  "atlas": {
+    "forecast": {
+      "eventType": {
+        "transit_aspect": "Transit açı",
+        "sign_ingress": "Burç girişi",
+        "retrograde_station": "İstasyon",
+        "eclipse": "Tutulma",
+        "lunar_phase": "Ay evresi"
+      },
+      "eclipseKind": {
+        "penumbral": "yarıgölge",
+        "partial": "parçalı",
+        "annular": "halkalı",
+        "total": "tam"
+      },
+      "ev": {
+        "aspect": "{body} {aspect} natal {target}",
+        "ingress": "{body} {sign} burcuna girer",
+        "stationRetro": "{body} retro istasyonu",
+        "stationDirect": "{body} direkt istasyonu",
+        "eclipseMoon": "Ay tutulması",
+        "eclipseSun": "Güneş tutulması",
+        "eclipseKindSuffix": " ({kind})",
+        "obscuration": " · örtme %{n}",
+        "newMoon": "Yeni Ay",
+        "fullMoon": "Dolunay",
+        "phaseSignSuffix": " — {sign}"
+      },
+      "sigNone": "önem —",
+      "sigValue": "önem {n} · {band}",
+      "band": {
+        "high": "yüksek",
+        "mid": "orta",
+        "low": "düşük"
+      },
+      "significanceNote": "Önem puanı (0–100), hesaplama sağlayıcısının olayları sıralamak için verdiği göreli değerlendirmedir. Olayın gerçekleşme olasılığı, kesin sonuç, sağlık riski veya maddi kazanç göstergesi değildir.",
+      "scopeNote": "Kapsam: takvimdeki transit gök cisimleri Güneş'ten Plüton'a kadardır; transit Ay'ın natal haritaya açıları ve Ay'ın burç girişleri bu takvimde yer almaz. Ay evreleri ve tutulmalar yer alır.",
+      "orb": "orb {orb}",
+      "exactChartBtn": "Kesinleşme anının haritası",
+      "exactLabel": "{event} — kesinleşme anı",
+      "dayAria": "Seçilen günün transit ayrıntısı",
+      "dayTitle": "Seçilen Günün Transit Ayrıntısı · {date}",
+      "close": "Kapat",
+      "personalTitle": "Natal haritaya etkiler ({n})",
+      "personalNone": "Bu gün natal haritaya kesinleşen (majör) transit açısı yok; o günün tüm transit açıları günün transit haritasında görünür.",
+      "skyTitle": "Genel gökyüzü olayları ({n}) — kişiye özel değildir",
+      "skyNone": "Bu gün genel gökyüzü olayı yok.",
+      "noonLabel": "günün transit haritası (yerel 12:00)",
+      "noonBtn": "Günün transit haritası (yerel 12:00)",
+      "noonFromDesk": "Günün transit haritası analiz çalışma masasından açılır (kayıtlı analiz görünümünde hesaplama yapılmaz).",
+      "planChecking": "Plan kontrol ediliyor (sağlayıcıya istek gönderilmez)…",
+      "planCached": "Kayıtlı sonuç var — yeni istek yok.",
+      "planNew": "{n} yeni hesaplama isteği gönderilecek.",
+      "opening": "Açılıyor…",
+      "openTransit": "Transit analizini aç",
+      "calcOpen": "Hesapla ve aç",
+      "cancel": "Vazgeç",
+      "dayFootnote": "Takvim olayları sağlayıcıda kesinleşme anına inceltilmiştir; yaklaşan/ayrılan durumu ve tüm açılar günün transit haritasında görünür. Transit haritası yeni bir analiz sekmesinde açılır ve ayrıca kaydedilebilir; bu takvim analizi değişmez.",
+      "period": "Dönem: <strong>{start}</strong> – <strong>{end}</strong> · {n} olay",
+      "pickDay": "gün seç",
+      "pickDayAria": "Takvimden gün seç",
+      "timeZone": "saat dilimi",
+      "timeZoneAria": "Takvim gösterim saat dilimi",
+      "typeFilterAria": "Olay türü filtresi",
+      "typeCount": "{label} ({n})",
+      "onlyPersonal": "Yalnız natal etkiler",
+      "minSigAria": "En az önem puanı",
+      "sigAny": "Her önem",
+      "sigMin": "Önem ≥ {n}",
+      "noMatch": "Seçili filtrelere uyan olay yok.",
+      "dayEvents": "{date} · {n} olay",
+      "natalBadge": "natal",
+      "detailOpen": "Ayrıntı açık ▲",
+      "detailClosed": "Gün ayrıntısı ▸"
+    }
+  }
+}

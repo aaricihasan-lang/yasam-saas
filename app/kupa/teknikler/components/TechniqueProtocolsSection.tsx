@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { listTechniqueProtocols, type CuppingTechniqueProtocolRef } from "../../lib/api";
 
 /**
@@ -12,13 +13,15 @@ import { listTechniqueProtocols, type CuppingTechniqueProtocolRef } from "../../
 export function TechniqueProtocolsSection({ techniqueId }: { techniqueId: string }) {
   const [rows, setRows] = useState<CuppingTechniqueProtocolRef[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const t = useTranslations("cupping.techniques.usage");
+  const tc = useTranslations("cupping.common");
 
   // techniqueId okuyucu mount'unda sabittir (reader key'li) → tek yükleme; init null.
   useEffect(() => {
     let alive = true;
     listTechniqueProtocols(techniqueId)
       .then((data) => alive && setRows(data))
-      .catch((e) => alive && setError(e instanceof Error ? e.message : "Yüklenemedi."));
+      .catch((e) => alive && setError(e instanceof Error ? e.message : "error"));
     return () => {
       alive = false;
     };
@@ -26,22 +29,22 @@ export function TechniqueProtocolsSection({ techniqueId }: { techniqueId: string
 
   return (
     <section>
-      <h3 className="text-sm font-black uppercase tracking-wide text-slate-500">Kullanıldığı Protokoller</h3>
+      <h3 className="text-sm font-black uppercase tracking-wide text-slate-500">{t("title")}</h3>
       <div className="mt-2">
         {error ? (
           <p className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-[13px] text-rose-700">
-            Protokol kullanımı yüklenemedi.
+            {t("loadError")}
           </p>
         ) : rows === null ? (
-          <p className="text-[13px] text-slate-400">Yükleniyor…</p>
+          <p className="text-[13px] text-slate-400">{tc("loading")}</p>
         ) : rows.length === 0 ? (
           <p className="text-[13px] leading-relaxed text-slate-500">
-            Bu teknik henüz bir protokolde kullanılmıyor.
+            {t("unused")}
           </p>
         ) : (
           <>
             <p className="text-[13px] font-semibold text-slate-600">
-              {rows.length} protokolde kullanılıyor
+              {t("usedIn", { count: String(rows.length) })}
             </p>
             <ul className="mt-2 flex flex-col gap-1.5">
               {rows.map((p) => (
@@ -58,7 +61,7 @@ export function TechniqueProtocolsSection({ techniqueId }: { techniqueId: string
                     </span>
                     <span className="flex shrink-0 items-center gap-2">
                       {p.is_active === false ? (
-                        <span className="rounded-md bg-slate-100 px-1.5 py-0.5 text-[10.5px] font-medium text-slate-400">Pasif</span>
+                        <span className="rounded-md bg-slate-100 px-1.5 py-0.5 text-[10.5px] font-medium text-slate-400">{tc("passive")}</span>
                       ) : null}
                       <span className="text-sm font-semibold text-amber-700 transition-transform group-hover:translate-x-0.5" aria-hidden>→</span>
                     </span>

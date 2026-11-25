@@ -1,0 +1,224 @@
+{
+  "cupping": {
+    "shell": {
+      "crumbAria": "Konum",
+      "crumbHome": "Ana Sayfa",
+      "crumbEnergyBody": "Beden & Enerji Uygulamaları",
+      "moduleName": "Kupa & Hacamat"
+    },
+    "home": {
+      "eyebrow": "Profesyonel Çalışma Alanı",
+      "title": "Kupa & Hacamat Terapisi",
+      "desc": "Hacamat protokollerinizi oluşturun; bölgeleri, teknikleri, uygulama akışını, güvenlik notlarını, bilgileri ve kaynakları tek çalışma alanında yönetin.",
+      "mainCardsAria": "Çalışma alanı",
+      "mainEyebrow": "Çalışma Alanı",
+      "protocols": {
+        "title": "Hacamat Protokolleri",
+        "desc": "Rahatsızlık veya çalışma amacına göre bölgeleri, teknikleri, uygulama akışını, güvenliği, bilgileri ve kaynakları tek yerde yönetin.",
+        "cta": "Protokolleri Aç"
+      },
+      "calendar": {
+        "title": "Hacamat Takvimi",
+        "desc": "Kendi yıllık hacamat çalışma takviminizi oluşturun; Gregoryen ve Hicrî tarihleri birlikte görün, uygulama günlerinizi kendiniz belirleyin.",
+        "cta": "Takvimi Aç"
+      },
+      "supportTitle": "Destek Kütüphaneleri",
+      "supportAria": "Destek kütüphaneleri",
+      "supportCta": "Aç",
+      "support": {
+        "points": {
+          "title": "Hacamat Noktaları",
+          "desc": "Hacamat bölgelerini ve kayıtlı açıklamalarını görüntüleyin."
+        },
+        "techniques": {
+          "title": "Kupa Teknikleri",
+          "desc": "Kuru, yaş ve farklı uygulama tekniklerini yönetin."
+        },
+        "safety": {
+          "title": "Güvenlik & Kontrendikasyonlar",
+          "desc": "Kendi güvenlik / dikkat maddelerinizi oluşturun, düzenleyin ve protokollere bağlayın."
+        }
+      },
+      "note": "Not: Bu modül geleneksel kullanım / kaynaklandırılmış ilişki bilgisini düzenler; hiçbir konu otomatik olarak \"tedavi eder\" anlamı taşımaz."
+    },
+    "error": {
+      "title": "Bir sorun oluştu",
+      "crumb": "Hata",
+      "heading": "Bu ekran beklenmedik bir hata nedeniyle gösterilemedi.",
+      "body": "Kayıtlı verileriniz etkilenmedi. Ekranı yeniden deneyebilir veya Kupa & Hacamat girişine dönebilirsiniz.",
+      "retry": "Tekrar dene",
+      "home": "Kupa & Hacamat girişi"
+    },
+    "errors": {
+      "network": "Sunucuya ulaşılamadı. İnternet bağlantınızı kontrol edip tekrar deneyin.",
+      "codes": {
+        "CUP_DB_FAIL": "İşlem tamamlanamadı. Lütfen tekrar deneyin.",
+        "CUP_READ_FAILED": "Veriler alınamadı. Lütfen tekrar deneyin.",
+        "CUP_NOT_FOUND": "Kayıt bu hesaba ait değil veya bulunamadı.",
+        "CUP_DUPLICATE": "Bu kayıt zaten ekli.",
+        "CUP_IN_USE": "Bu kayıt kullanımda olduğu için silinemiyor. Önce bağlı kayıtlardan çıkarın.",
+        "CUP_INVALID_BODY": "Geçersiz istek gövdesi.",
+        "CUP_NO_FIELDS": "Güncellenecek alan yok.",
+        "CUP_ID_REQUIRED": "Kayıt id gerekli.",
+        "CUP_CLIENT_ID_REQUIRED": "clientId gerekli.",
+        "CUP_FIELD_INVALID": "Geçersiz alan değeri.",
+        "CUP_FIELD_TOO_LONG": "Alan çok uzun.",
+        "CUP_LIST_TOO_LONG": "Liste çok uzun.",
+        "CUP_WORD_FAILED": "Word raporu oluşturulamadı. Lütfen tekrar deneyin.",
+        "CUP_NAME_REQUIRED": "Ad gerekli.",
+        "CUP_TITLE_REQUIRED": "Başlık gerekli.",
+        "CUP_NOTE_TEXT_REQUIRED": "Not metni gerekli.",
+        "CUP_CONTENT_REQUIRED": "Bilgi içeriği gerekli.",
+        "CUP_STEP_TEXT_REQUIRED": "Adım metni gerekli.",
+        "CUP_PROTOCOL_NOT_OWNED": "Protokol bu hesaba ait değil veya bulunamadı.",
+        "CUP_POINT_NOT_OWNED": "Seçilen bölge bu hesaba ait değil.",
+        "CUP_POINT_OR_TOPIC_NOT_OWNED": "Nokta veya konu bu hesaba ait değil.",
+        "CUP_TOPIC_NOT_OWNED": "Konu bu hesaba ait değil veya bulunamadı.",
+        "CUP_TEMPLATE_NOT_OWNED": "Seçilen şablon bu hesaba ait değil.",
+        "CUP_SOURCE_NOT_OWNED": "Seçilen kaynak bu hesaba ait değil.",
+        "CUP_TECHNIQUE_NOT_OWNED": "Seçilen teknik bu hesaba ait değil.",
+        "CUP_SAFETY_NOT_OWNED": "Seçilen güvenlik maddesi bu hesaba ait değil.",
+        "CUP_TECHNIQUE_NOT_FOUND": "Teknik bu hesaba ait değil veya bulunamadı.",
+        "CUP_SOURCE_NOT_FOUND": "Kaynak bu hesaba ait değil veya bulunamadı.",
+        "CUP_POINT_NOT_FOUND": "Nokta bu hesaba ait değil veya bulunamadı.",
+        "CUP_SAFETY_NOT_FOUND": "Güvenlik kaydı bu hesaba ait değil veya bulunamadı.",
+        "CUP_TECHNIQUE_ALREADY_ADDED": "Bu teknik protokole zaten eklenmiş.",
+        "CUP_SAFETY_ALREADY_ADDED": "Bu güvenlik maddesi protokole zaten eklenmiş.",
+        "CUP_POINT_ALREADY_ADDED": "Bu bölge protokole zaten eklenmiş.",
+        "CUP_TECHNIQUE_IN_STEP": "Bu teknik protokolün uygulama akışında (bir adım) kullanılıyor. Önce ilgili adımı düzenleyin.",
+        "CUP_POINT_IN_STEP": "Bu bölge protokolün uygulama akışında (bir adım) kullanılıyor. Önce ilgili adımı düzenleyin.",
+        "CUP_STEP_TECHNIQUE_NOT_IN_PROTOCOL": "Adımın referans verdiği teknik, protokolün teknikleri arasında değil.",
+        "CUP_STEP_POINT_NOT_IN_PROTOCOL": "Adımın referans verdiği bölge, protokolün uygulama bölgeleri arasında değil.",
+        "CUP_TOO_MANY_POINTS": "Çok fazla bölge seçildi.",
+        "CUP_MAP_INVALID": "Geçersiz harita.",
+        "CUP_POSITION_INVALID": "Geçersiz konum bilgisi.",
+        "CUP_SEVERITY_INVALID": "Geçersiz önem düzeyi.",
+        "CUP_YEAR_INVALID": "Geçersiz yıl.",
+        "CUP_YEAR_OUT_OF_RANGE": "Yıl geçerli aralıkta olmalı.",
+        "CUP_MONTH_INVALID": "Geçersiz ay. 1–12 arası tam sayı olmalı.",
+        "CUP_MONTH_DUPLICATE": "Ay parametresi yalnız bir kez verilebilir.",
+        "CUP_TOO_MANY_DAYS": "Tek seferde çok fazla gün seçildi.",
+        "CUP_DATE_OUTSIDE_PLAN_YEAR": "Seçilen tarih plan yılına ait değil.",
+        "CUP_DATE_INVALID": "Geçersiz tarih biçimi (YYYY-MM-DD bekleniyor).",
+        "CUP_DAY_ITEM_INVALID": "Geçersiz gün öğesi.",
+        "CUP_DATES_REQUIRED": "En az bir tarih (YYYY-MM-DD) gerekli.",
+        "CUP_PLAN_HAS_DAYS": "Bu planda seçili günler var; yıl değiştirilemez. Önce günleri kaldırın.",
+        "CUP_ADVICE_TEMPLATE_MISSING": "Takvime bağlı bilgilendirme şablonu bulunamadı. Şablonu yeniden bağlayın veya bağlantısını kaldırın.",
+        "CUP_DAY_COLOR_INVALID": "Geçersiz renk seçimi.",
+        "CUP_DAY_COLOR_REQUIRED": "Renk seçimi zorunludur.",
+        "CUP_DAY_COLOR_REMOVE": "Renk kaldırılamaz; farklı bir renk seçin.",
+        "CUP_DAY_LABEL_INVALID": "Kısa açıklama geçersiz.",
+        "CUP_DAY_LABEL_TOO_LONG": "Kısa açıklama çok uzun.",
+        "CUP_DAY_NOTE_INVALID": "Detay notu geçersiz.",
+        "CUP_DAY_NOTE_TOO_LONG": "Detay notu çok uzun."
+      }
+    },
+    "common": {
+      "save": "Kaydet",
+      "saving": "Kaydediliyor…",
+      "saved": "Kaydedildi.",
+      "saveFailed": "Kaydedilemedi.",
+      "cancel": "Vazgeç",
+      "edit": "Düzenle",
+      "delete": "Sil",
+      "close": "Kapat",
+      "retry": "Tekrar dene",
+      "loading": "Yükleniyor…",
+      "demoNoCreate": "Demo hesabında kayıt oluşturulmaz.",
+      "passive": "Pasif",
+      "active": "Aktif"
+    },
+    "vocab": {
+      "techniqueType": {
+        "dry": "Kuru Kupa",
+        "wet": "Yaş Kupa / Hacamat",
+        "unspecified": "Belirtilmemiş"
+      },
+      "movementStyle": {
+        "stationary": "Sabit",
+        "gliding": "Kaydırmalı",
+        "flash": "Flaş",
+        "unspecified": "Belirtilmemiş"
+      },
+      "severity": {
+        "info": "Bilgi",
+        "warning": "Uyarı",
+        "contraindication": "Kontrendikasyon"
+      },
+      "contraClass": {
+        "absolute": "Mutlak",
+        "relative": "Göreceli",
+        "none": "Yok"
+      },
+      "unspecified": "Belirtilmemiş",
+      "all": "Tümü"
+    },
+    "unsaved": {
+      "title": "Kaydedilmemiş Değişiklikler",
+      "message": "Kaydedilmemiş değişiklikleriniz var.\nKaydetmeden çıkmak istiyor musunuz?",
+      "confirm": "Kaydetmeden Çık",
+      "cancel": "Vazgeç"
+    },
+    "crud": {
+      "loadError": "Yükleme hatası.",
+      "required": "{label} gerekli.",
+      "deleteNoop": "Kayıt silinemedi (bu hesapta değişiklik yapılmadı).",
+      "deleteFailed": "Silinemedi.",
+      "impactFailed": "Silme etkisi hesaplanamadı; silme yapılmadı. Tekrar deneyin.",
+      "impactFailedShort": "Hata",
+      "records": "Kayıtlar",
+      "searchPlaceholder": "Ara…",
+      "searchAria": "Kayıtlarda ara",
+      "filterAll": "{label}: Tümü",
+      "results": "{count} sonuç",
+      "clear": "Temizle",
+      "noMatch": "Aramanıza uygun kayıt bulunamadı.",
+      "selectHint": "Düzenlemek için soldan bir kayıt seçin veya yeni ekleyin.",
+      "add": "Ekle",
+      "checking": "Kontrol ediliyor…",
+      "deleteBlockedTitle": "Kayıt silinemiyor",
+      "deleteTitle": "Kaydı sil",
+      "deleteConfirm": "“{name}” kaydını silmek istediğinize emin misiniz? Bu işlem geri alınamaz.",
+      "thisRecord": "Bu kayıt"
+    },
+    "bigNote": {
+      "unsaved": "Kaydedilmemiş değişiklik",
+      "hint": "{count} karakter · Kalıcı kayıt için formdaki <strong>Kaydet</strong>'e basın",
+      "apply": "Uygula"
+    },
+    "usage": {
+      "loadError": "Kullanım bilgisi yüklenemedi.",
+      "title": "Kullanıldığı Protokoller",
+      "unused": "Bu kayıt henüz bir protokolde kullanılmıyor. (Silinebilir.)",
+      "usedIn": "Bu kayıt {count} protokolde kullanılıyor; silmeden önce bu protokollerden çıkarın."
+    },
+    "citation": {
+      "evidence": {
+        "traditional": "Geleneksel",
+        "historical": "Tarihsel",
+        "modern_clinical": "Modern Klinik",
+        "systematic_review": "Sistematik Derleme",
+        "safety_guidance": "Güvenlik Rehberi",
+        "expert_educational": "Uzman / Eğitim"
+      },
+      "unknownSource": "(kaynak)",
+      "loadError": "Kaynaklar yüklenemedi.",
+      "nameRequired": "Kaynak adını yazın (ör. Ahmet Hoca Eğitim Notu).",
+      "removeNoop": "Bağlantı kaldırılamadı (bu hesapta değişiklik yapılmadı).",
+      "removeFailed": "Kaldırılamadı.",
+      "title": "Kaynaklar",
+      "empty": "Henüz kaynak bağlanmadı.",
+      "remove": "Kaldır",
+      "sourceLabel": "Kaynak (kimden / nereden öğrendim)",
+      "sourcePlaceholder": "Örn. Ahmet Hoca Eğitim Notu, kendi eğitim notlarım, X Kitabı…",
+      "evidenceAria": "Kanıt sınıfı",
+      "evidenceEmpty": "— kanıt sınıfı —",
+      "locator": "Sayfa / bölüm (locator)",
+      "note": "Atıf notu (opsiyonel)",
+      "update": "Kaynağı Güncelle",
+      "link": "Kaynak Bağla",
+      "removeTitle": "Kaynağı kaldır",
+      "removeConfirm": "“{name}” kaynağının bu kayıtla bağlantısı kaldırılacak. Kaynak, kaynak kataloğunuzda kalır (tamamen silinmez)."
+    }
+  }
+}

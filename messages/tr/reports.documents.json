@@ -1,0 +1,27 @@
+{
+  "reports": {
+    "documents": {
+      "video": {
+        "title": {
+          "original": "Orijinal Transkript",
+          "turkish": "Türkçe Çeviri",
+          "comparison": "Video Çeviri Raporu"
+        },
+        "source": "Kaynak: {fileName}",
+        "originalHeading": "ORİJİNAL TRANSKRİPT",
+        "translationHeading": "TÜRKÇE ÇEVİRİ",
+        "fileSuffix": {
+          "original": "orijinal",
+          "turkish": "turkce",
+          "comparison": "karsilastirmali"
+        }
+      },
+      "lectureNotes": {
+        "fileName": "ders-notu.docx"
+      },
+      "ocr": {
+        "wordFileName": "ocr-metin.docx"
+      }
+    }
+  }
+}
