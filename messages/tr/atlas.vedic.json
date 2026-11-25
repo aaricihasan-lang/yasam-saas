@@ -1,0 +1,226 @@
+{
+  "atlas": {
+    "vedic": {
+      "lagna": "Lagna",
+      "rashi": "Rashi",
+      "bhava": "Bhava",
+      "nakshatra": "Nakshatra",
+      "none": "yok",
+      "padaSuffix": ". pada",
+      "bhavaSuffix": ". bhava",
+      "chartStyleLabel": "Harita düzeni",
+      "chartStyle": {
+        "north": "Kuzey Hindistan",
+        "south": "Güney Hindistan",
+        "east": "Doğu Hindistan"
+      },
+      "ayanamsa": {
+        "lahiri": "Lahiri (Chitrapaksha)",
+        "raman": "B.V. Raman",
+        "kp-newcomb": "KP Newcomb",
+        "kp-old": "KP (eski)"
+      },
+      "unit": {
+        "y": "{n} y",
+        "mo": "{n} ay",
+        "d": "{n} g",
+        "h": "{n} sa",
+        "min": "{n} dk"
+      },
+      "kundli": {
+        "loadFailed": "Harita bileşeni yüklenemedi; teknik tablo aşağıda.",
+        "loading": "Harita yükleniyor…",
+        "legendTail": " · ʳ vakri · ᶜ yanık (asta) · ʷ graha yuddha. Kuzey/Doğu düzeninde 3+, Güney'de 5+ grahalı hücrede derece haritada gösterilmez (tabloda ve ipucunda)."
+      },
+      "kb": {
+        "title": "Bilgi Bankam",
+        "notLoaded": "Bilgi Bankası eşleşmeleri çalışma alanı yüklenince görünür.",
+        "noneForPlacement": "Bu yerleşim için Bilgi Bankası kaydınız yok.",
+        "noneForPeriod": "Bu dönem için Bilgi Bankası kaydınız yok."
+      },
+      "col": {
+        "graha": "Graha",
+        "rashiDegree": "Rashi / derece",
+        "nakshatraPada": "Nakshatra · pada",
+        "lord": "Yönetici",
+        "status": "Durum",
+        "point": "Nokta",
+        "pada": "Pada",
+        "progress": "İlerleme",
+        "lordPlace": "Yönetici → yeri"
+      },
+      "d1": {
+        "framePrefix": "Sidereal (nirayana) · ayanamsa ",
+        "frameLagna": "° · Lagna",
+        "frameBhava": "· bhava: bütün-burç (rashi chakra)",
+        "detailLabel": "Seçili graha ayrıntısı",
+        "padaLord": ". pada · yönetici ",
+        "inNakshatra": "Nakshatra içi",
+        "pctRemaining": " · kalan ",
+        "motion": "Hareket",
+        "retro": "Vakri (retro)",
+        "direct": "Direkt",
+        "avastha": "Avastha",
+        "asta": "Asta",
+        "astaA": "Güneş'e ",
+        "astaB": "° (orb ",
+        "astaC": "°) — yanık",
+        "grahaTableTitle": "Graha yerleşimleri (D1) — satıra tıklayın",
+        "statusRetro": "℞ vakri · ",
+        "statusAsta": "asta · "
+      },
+      "nak": {
+        "sectionLabel": "Nakshatra ve pada",
+        "title": "Nakshatra & Pada (27 nakshatra · 4 pada = 3°20′)",
+        "janmaTitle": "Janma nakshatra (Chandra)",
+        "traversed": " · katedilen %",
+        "remaining": ", kalan",
+        "janmaNote": "Vimshottari dasha bu nakshatranın yöneticisiyle ve kalan oranla başlar (dasha değerleri ayrıca hesaplama sonucundan alınır).",
+        "byLordTitle": "Nakshatra yöneticisine göre (Vimshottari sırası)"
+      },
+      "yoga": {
+        "sectionA": "Bhava → rashi (bütün-burç) · Oluşan yogalar (",
+        "sectionB": " denetlendi)",
+        "none": "Oluşan yoga yok.",
+        "qualityLine": " · sınıf: {q}",
+        "quality": {
+          "positive": "olumlu",
+          "negative": "olumsuz",
+          "mixed": "karma"
+        },
+        "formation": "Oluşum kuralı: ",
+        "evidenceSummary": "Hesaplama hizmetinin kanıt notu (özgün İngilizce metin)",
+        "suppressedTitle": "Bastırılan yogalar — kural sağlandı, üst sıradaki aile öncelik aldı (",
+        "suppressedBy": " · bastıran aile: ",
+        "evidence": "Kanıt: ",
+        "precedenceNote": "Klasik öncelik: Akriti, Asraya'nın; Akriti, Asraya ve Dala, Sankhya'nın önüne geçer. Bu yogalar haritada oluşmuş sayılmaz."
+      },
+      "war": {
+        "title": "Graha yuddha (gezegen savaşı)",
+        "graha1": "Graha 1",
+        "graha2": "Graha 2",
+        "distance": "Uzaklık",
+        "winner": "Kazanan",
+        "note": "Görünür iki graha 1° içinde; kazanan daha kuzey ekliptik enlemli grahadır, kaybeden zayıflar."
+      },
+      "varga": {
+        "check": {
+          "notVerified": "Doğrulanmadı:",
+          "forPrefix": " için ",
+          "mismatchMid": " noktada hesaplanan rashi ",
+          "mismatchOpen": " kuralından farklı (",
+          "mismatchItem": "{point}: hesaplanan {got}, kural {expected}",
+          "mismatchTail": "). Yöntem/ekol farkı olabilir; bu harita doğrulanmış sayılmaz.",
+          "unsupported": " için bağımsız referans kuralı yok — doğrulanmadı.",
+          "independent": "Bağımsız denetim:",
+          "matchMid": " nokta (Lagna + 9 graha) ",
+          "matchTail": " kuralıyla aynı — ",
+          "goldenYes": " Yöntem gerçek bir hesaplama örneğiyle de teyit edildi.",
+          "goldenNo": " (Bu bölüm ayrıca gerçek bir hesaplama örneğiyle teyit edilmedi; denetim bu haritanın kendi verisiyle yapıldı.)"
+        },
+        "divisionPart": " · bölüm {part}",
+        "ayanamsaSep": " · ayanamsa ",
+        "lagnaSuffix": " Lagna",
+        "vargottamaSep": ") · vargottama: ",
+        "detailLabel": "Seçili nokta ayrıntısı",
+        "d1Rashi": "D1 rashi",
+        "rashiSuffix": " rashi",
+        "bhavaOpen": "Bhava (",
+        "navamsaArrow": " → navamsa {sign}",
+        "clickRow": " — satıra tıklayın",
+        "retro": "℞ vakri"
+      },
+      "dasha": {
+        "vimshottari": "Vimshottari",
+        "today": "bugün",
+        "now": "şimdi",
+        "periodAria": "{graha} dönemi",
+        "openLevel": "Bu düzeyi seçiciye aktar (not / kayıt için)",
+        "start": "Başlangıç",
+        "end": "Bitiş",
+        "duration": "Süre",
+        "kpHouses": "KP evleri (L1→L4)",
+        "subPeriod": "Alt dönem",
+        "cutByBirth": " · doğumla kesilmiş",
+        "close": "Kapat",
+        "selectedLabel": "Seçili dönem",
+        "daysExact": "{n} gün",
+        "yearsExact": "{n} y",
+        "nominalStart": "Teorik başlangıç",
+        "nominalNote": " (doğumdan önce; dönem doğumla kesildi)",
+        "kpPosition": "KP konumu",
+        "kpHouseStar": ". ev (Placidus) · star lord ",
+        "kpSub": " · sub lord ",
+        "signifiedHouses": "Gösterdiği evler",
+        "kpNotForecast": "Olay tahmini değildir.",
+        "kpMethodNote": " Tarihler Vimshottari (KP ayanamsa); dönem lordlarının KP significator'ları hesaplama sonucundan. Bu teknik KP olay zamanlaması (ev grubu → dönem eşleştirmesi) sunmaz, Yaşam Sistemi de üretmez; dönemleri yorumlamak uzmana aittir.",
+        "kpLegendContext": "KP dasha (dönem lordları)",
+        "janmaNakshatra": " · Janma nakshatra",
+        "lordOpen": "(yönetici ",
+        "lordCloseAyanamsa": ") · ayanamsa ",
+        "balance": " · doğumda kalan {graha} dönemi: {y} y {m} ay {d} g",
+        "datesNoteA": "Tarihler doğum yerel saatiyle (",
+        "datesNoteB": ") sağlayıcıdan gelir; yeniden hesaplanmaz. Alt dönemler tıklanınca yüklenir (önbellekte varsa yeni istek yok).",
+        "savedNoDrill": " Kayıtlı analizde alt dönem yüklenmez — çalışma alanında açın."
+      },
+      "chain": {
+        "title": "Güncel dönem zinciri",
+        "atA": "Seçilen an: ",
+        "atB": " UTC · doğum ofsetinde ",
+        "atC": ") · ayanamsa ",
+        "level": "Düzey",
+        "remainingTitle": "Seçilen andan dönem sonuna kadar gün, yukarı yuvarlı",
+        "remaining": "Kalan (gün)",
+        "commonA": "Ortak evler — Maha · Antar · Pratyantar: ",
+        "commonB": " · 5 düzeyin tümü: ",
+        "commonC": " (olay tahmini değildir)"
+      },
+      "yogaTable": {
+        "titleA": "Yoga denetim tablosu · ",
+        "titleB": " oluşuyor / ",
+        "titleC": " kural denetlendi",
+        "suppressedCount": " · {n} bastırıldı",
+        "filterLabel": "Yoga listesi görünümü",
+        "filterFormed": "Oluşan ve bastırılan",
+        "filterAll": "Tüm denetimler ({n})",
+        "checkA": "Bağımsız denetim: ",
+        "checkB": " uyumlu · ",
+        "checkC": " ekole bağlı · ",
+        "checkD": " denetlenmedi",
+        "checkE": " uyuşmazlık",
+        "empty": "Bu haritada oluşan ya da bastırılan yoga yok.",
+        "qualityLine": " · geleneksel nitelik: {q}",
+        "suppressedByLine": " · bastıran aile: {f}",
+        "formation": "Oluşum kuralı: ",
+        "triggers": "İlgili graha · bhava: ",
+        "checkLabel": "Bağımsız denetim: ",
+        "evidenceSummary": "Kanıt ve ekol notu",
+        "evidenceLabel": "Kanıt (hesaplama hizmetinin özgün İngilizce metni): ",
+        "school": "Ekol: ",
+        "status": {
+          "present": "Oluşuyor",
+          "suppressed": "Bastırıldı (kural sağlandı)",
+          "absent": "Oluşmuyor"
+        },
+        "quality": {
+          "positive": "Olumlu",
+          "negative": "Olumsuz",
+          "both": "Karma"
+        },
+        "consistency": {
+          "consistent": "Uyumlu",
+          "inconsistent": "Uyuşmazlık",
+          "uncertain": "Ekole bağlı",
+          "not_checked": "Denetlenmedi"
+        },
+        "family": {
+          "classical": "Klasik (tekil yoga)",
+          "asraya": "Asraya (Nabhasa)",
+          "dala": "Dala (Nabhasa)",
+          "akriti": "Akriti (Nabhasa)",
+          "sankhya": "Sankhya (Nabhasa)"
+        }
+      }
+    }
+  }
+}
