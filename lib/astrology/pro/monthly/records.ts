@@ -11,7 +11,7 @@ import { hitDbRateLimit, rateLimitBucket } from "@/lib/security/dbRateLimit";
 import { ASTRO_WRITE_LIMITS } from "@/lib/astrology/limits";
 import { parseMonthlyRequest } from "./contract";
 import { kindLabel, periodLabel } from "./format";
-import { getMonthlyEphemeris, MONTHLY_METHODOLOGY_VERSION, type MonthlyDeps } from "./service";
+import { CROSSCHECK_UNAVAILABLE_ERROR, ensureVerified, getMonthlyEphemeris, isVerifiedPass, MONTHLY_METHODOLOGY_VERSION, type MonthlyDeps } from "./service";
 import type { MonthlyEphemeris, MonthlyKind } from "./types";
 
 assertServerOnly("lib/astrology/pro/monthly/records");
@@ -101,7 +101,12 @@ export async function saveMonthlyRecord(ctx: Ctx, raw: unknown, deps: Pick<Month
 
   // Ücretli çağrı YOK: yalnız önbellek. Önbellekte yoksa uzman önce tabloyu hesaplamalıdır.
   const got = await getMonthlyEphemeris(req, { db: deps.db, callProvider: null }, { allowProvider: false });
-  if (!got.ok) return got.error.code === "NOT_CACHED" ? bad(409, "NOT_CACHED", "Bu ayın tablosu sunucuda bulunamadı. Tabloyu yeniden hesaplayıp sonra kaydedin.") : bad(500, got.error.code, got.error.error);
+  if (!got.ok) {
+    if (got.error.code === "NOT_CACHED") return bad(409, "NOT_CACHED", "Bu ayın tablosu sunucuda bulunamadı. Tabloyu yeniden hesaplayıp sonra kaydedin.");
+    // Doğrulanmamış içerik KAYDA YAZILMAZ.
+    return bad(got.error.code === "CROSSCHECK_UNAVAILABLE" ? 503 : got.error.code === "CROSSCHECK_FAILED" ? 502 : 500, got.error.code, got.error.error);
+  }
+  if (!isVerifiedPass(got.result.crossCheck)) return bad(503, CROSSCHECK_UNAVAILABLE_ERROR.code, CROSSCHECK_UNAVAILABLE_ERROR.error);
   const rl = await writeRate(ctx);
   if (rl) return rl;
   const e = got.result;
@@ -162,7 +167,10 @@ async function loadOwn(ctx: Ctx, id: string): Promise<{ row: Row | null; res?: R
   if (!data) return { row: null, res: notFound() };
   const row = data as unknown as Row;
   if (!row.result_snapshot || typeof row.result_snapshot !== "object" || !Array.isArray(row.result_snapshot.days)) return { row: null, res: dbFail("snapshot", { code: "SNAPSHOT_MISSING" }) };
-  return { row };
+  // Kayıt değişmezdir; PASS dışı (eski) bir anlık görüntü yerelde yeniden kontrol edilir — PASS değilse açılmaz / rapora girmez.
+  const v = ensureVerified(row.result_snapshot);
+  if (!v.ok) return { row: null, res: bad(v.error.code === "CROSSCHECK_FAILED" ? 502 : 503, v.error.code, v.error.error) };
+  return { row: { ...row, result_snapshot: v.result } };
 }
 
 /** GET /:id — kayıtlı anlık görüntüyle birlikte. Yeniden hesap / sağlayıcı çağrısı YOK. */

@@ -18,7 +18,8 @@
 import "server-only";
 import { assertServerOnly } from "@/lib/server/serverOnlyGuard";
 import { deltaTPositionArcsec, deltaTUncertaintySec } from "../ephemeris/accuracy";
-import { ensurePositionEngine } from "../ephemeris/engine";
+import { de440Status } from "../ephemeris/de440/source";
+import { proEphemerisEngine } from "../ephemeris/flags";
 import { localPosition, STATION_THRESHOLD_DEG_PER_DAY } from "../ephemeris/local";
 import type { EphemerisBody, Zodiac } from "../ephemeris/types";
 import type { MonthlyBody, MonthlyCrossCheck, MonthlyDay, MonthlyKind } from "./types";
@@ -46,14 +47,25 @@ export function toleranceArcsec(kind: MonthlyKind, body: EphemerisBody, ms: numb
   return CROSSCHECK_BASE_ARCSEC[kind] + deltaTPositionArcsec(body, "lon", deltaTUncertaintySec(ms));
 }
 
+/**
+ * Bağımsız kontrol yapılabilir mi? (Owner kararı 2026-11-25: yeni hesapta bağımsız DE440 doğrulaması ZORUNLU.)
+ * Yalnız yerel motor DE440 seçiliyse VE DE440 kerneli bu sunucuda okunabiliyorsa true. "legacy" motor bağımsız DE440 sayılmaz.
+ * Sağlayıcı çağrısından ÖNCE sorulur → kontrol yapılamayacaksa ücretli istek hiç atılmaz.
+ */
+export function independentCheckReady(): { ok: true } | { ok: false; reason: string } {
+  if (proEphemerisEngine() !== "de440") return { ok: false, reason: "Yerel bağımsız motor DE440 değil; kontrol yapılamaz." };
+  const st = de440Status();
+  return st.ok ? { ok: true } : { ok: false, reason: "Yerel bağımsız efemeris verisi bu sunucuda kullanılamıyor; kontrol yapılamadı." };
+}
+
 export function crossCheckMonthly(kind: MonthlyKind, days: MonthlyDay[]): MonthlyCrossCheck {
   const map = LOCAL_OF[kind];
   const checkedBodies = Object.keys(map) as MonthlyBody[];
   const all = days[0]?.positions.map((p) => p.body) ?? [];
   const uncheckedBodies = all.filter((b) => !map[b] && !DERIVED[kind].includes(b));
   const base: MonthlyCrossCheck = { status: "unavailable", compared: 0, maxAbsArcsec: 0, maxAt: null, retroMismatches: 0, retroStationSkipped: 0, checkedBodies, uncheckedBodies, method: CROSSCHECK_METHOD[kind] };
-  const eng = ensurePositionEngine();
-  if (!eng.ok) return { ...base, reason: "Yerel bağımsız efemeris verisi bu sunucuda kullanılamıyor; kontrol yapılamadı." };
+  const eng = independentCheckReady();
+  if (!eng.ok) return { ...base, reason: eng.reason };
   const zodiac: Zodiac = kind === "western" ? "tropical" : "sidereal_lahiri";
   let fail = false;
   const out = { ...base };
@@ -65,6 +77,8 @@ export function crossCheckMonthly(kind: MonthlyKind, days: MonthlyDay[]): Monthl
         if (!lb) continue;
         const loc = localPosition(lb, ms, zodiac);
         const diff = sepArcsec(p.lon, loc.lon);
+        // Sayısal olmayan sonuç (NaN/∞) karşılaştırmada sessizce "tolerans içinde" görünürdü → kontrol YAPILAMADI sayılır.
+        if (!Number.isFinite(diff) || !Number.isFinite(loc.speed) || !Number.isFinite(ms)) return { ...base, reason: "Yerel bağımsız hesap bu tarih için geçerli sonuç vermedi; kontrol yapılamadı." };
         out.compared += 1;
         if (Math.abs(diff) > out.maxAbsArcsec) {
           out.maxAbsArcsec = Math.abs(diff);
@@ -81,6 +95,9 @@ export function crossCheckMonthly(kind: MonthlyKind, days: MonthlyDay[]): Monthl
   } catch {
     return { ...base, reason: "Yerel bağımsız hesap bu tarih için yapılamadı; kontrol yapılamadı." };
   }
+  // Her gün × her denetlenen cisim karşılaştırılmış olmalı; hiç değer yoksa ya da eksikse PASS verilmez.
+  const expected = days.reduce((n, d) => n + d.positions.filter((p) => map[p.body]).length, 0);
+  if (out.compared === 0 || out.compared !== expected || out.compared !== days.length * checkedBodies.length) return { ...base, reason: "Karşılaştırılacak değerler eksik; kontrol yapılamadı." };
   out.maxAbsArcsec = Math.round(out.maxAbsArcsec * 100) / 100;
   out.status = fail ? "fail" : "pass";
   return out;

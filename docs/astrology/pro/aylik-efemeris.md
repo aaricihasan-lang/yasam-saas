@@ -55,6 +55,13 @@ Kiron ve Kara Ay Lilith'in çalışma anında yerel bağımsız motoru yoktur. D
   (tanım farkı). Aynı tanımı paylaşıp modeli paylaşmayan bağımsız referans bulunamadı → varsayılan görünümde gizli, kullanıcı
   açarsa "⚠" ile görünür, Word/PDF'e girmez (künyede adıyla yazılır); ham değer kayıtta saklanır.
 
+**Doğrulama zorunlu (Owner kararı 2026-11-25).** Kullanıcıya, önbelleğe ve kayda yalnız bağımsız DE440 kontrolünden PASS
+alan sonuç gider. DE440 motoru seçili değilse ya da kernel okunamıyorsa sağlayıcı HİÇ çağrılmaz (`independentCheckReady`;
+`CROSSCHECK_UNAVAILABLE`, 503, geçici hata). Çağrıdan sonra kontrol yapılamazsa / istisna / NaN / eksik karşılaştırma olursa sonuç
+reddedilir, hiçbir yere yazılmaz, yeniden denenmez. Önceden PASS almış önbellek ve kayıtlar aynen kullanılır; PASS dışı eski
+satır/kayıt yerelde yeniden kontrol edilir (sağlayıcı çağrısı yok) — PASS değilse gösterilmez (`CROSSCHECK_FAILED` 502 /
+`CROSSCHECK_UNAVAILABLE` 503).
+
 ## 4. Gösterim kuralları
 
 - "Günlük konumlar: 12.00 UTC" her zaman görünür; Türkiye saati notu yalnız 2016-10 ve sonrası aylar için (öncesinde TR UTC+3 değildi).

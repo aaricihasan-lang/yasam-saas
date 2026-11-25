@@ -67,7 +67,7 @@ export type MonthlyEphemeris = {
 export type MonthlyRequest = { kind: MonthlyKind; year: number; month: number };
 
 export type MonthlyError = {
-  code: "INVALID_INPUT" | "OUT_OF_RANGE" | "PROVIDER_DISABLED" | "PROVIDER_FAILED" | "PROVIDER_INCONSISTENT" | "CROSSCHECK_FAILED" | "NOT_CACHED" | "RATE_LIMITED";
+  code: "INVALID_INPUT" | "OUT_OF_RANGE" | "PROVIDER_DISABLED" | "PROVIDER_FAILED" | "PROVIDER_INCONSISTENT" | "CROSSCHECK_FAILED" | "CROSSCHECK_UNAVAILABLE" | "NOT_CACHED" | "RATE_LIMITED";
   field?: string;
   error: string;
 };

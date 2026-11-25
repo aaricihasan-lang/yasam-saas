@@ -17,12 +17,12 @@ import JSZip from "jszip";
 import { localPosition } from "@/lib/astrology/pro/ephemeris/local";
 import { de440Status } from "@/lib/astrology/pro/ephemeris/de440/source";
 import { MONTHLY_ENDPOINT, bodyVerification, daysInMonth, monthDates, monthlyProviderBody, parseMonthlyRequest, projectMonthly } from "@/lib/astrology/pro/monthly/contract";
-import { crossCheckMonthly } from "@/lib/astrology/pro/monthly/crossCheck";
+import { crossCheckMonthly, independentCheckReady } from "@/lib/astrology/pro/monthly/crossCheck";
 import { cellParts, cellText, methodLines, stripVs, trLocalNote } from "@/lib/astrology/pro/monthly/format";
 import { buildMonthlyReport } from "@/lib/astrology/pro/monthly/reportModel";
 import { renderMonthlyReport } from "@/lib/astrology/pro/monthly/reportRender";
 import { getMonthlyRecord, listMonthlyRecords, loadMonthlyForReport, saveMonthlyRecord } from "@/lib/astrology/pro/monthly/records";
-import { __resetMonthlyMemoryForTests, getMonthlyEphemeris, monthlyCacheKey, type MonthlyDeps } from "@/lib/astrology/pro/monthly/service";
+import { __resetMonthlyMemoryForTests, ensureVerified, getMonthlyEphemeris, isVerifiedPass, monthlyCacheKey, type MonthlyDeps } from "@/lib/astrology/pro/monthly/service";
 import type { MonthlyKind, MonthlyRequest } from "@/lib/astrology/pro/monthly/types";
 import type { RoxyCallResult } from "@/lib/astrology/providers/roxy/client";
 
@@ -468,6 +468,112 @@ async function main() {
     });
   }
 
+  // ─── V) BAĞIMSIZ DOĞRULAMA ZORUNLU (Owner kararı 2026-11-25): yalnız PASS gösterilir / önbelleğe / kayda girer ────────
+  const NOT_READY = () => ({ ok: false as const, reason: "test: DE440 yok" });
+  const cacheRows = (db: ReturnType<typeof fakeDb>) => db.tables.astro_sky_monthly_cache?.length ?? 0;
+  const withEnv = async (k: string, v: string, fn: () => Promise<void> | void) => {
+    const old = process.env[k];
+    process.env[k] = v;
+    try {
+      await fn();
+    } finally {
+      if (old === undefined) delete process.env[k];
+      else process.env[k] = old;
+    }
+  };
+  await t("V1 DE440 kullanılamıyor (hazırlık sorgusu false) → CROSSCHECK_UNAVAILABLE; sağlayıcı ÇAĞRILMAZ (0 ücret); bellek/önbellek boş; DE440 dönünce normal PASS (1 çağrı)", async () => {
+    __resetMonthlyMemoryForTests();
+    const c = { n: 0 };
+    const db = fakeDb();
+    const r = await getMonthlyEphemeris(req("western", 2033, 3), { db: db.client, callProvider: providerFake(responder, c), independentCheckReady: NOT_READY }, { allowProvider: true });
+    assert.ok(!r.ok && r.error.code === "CROSSCHECK_UNAVAILABLE", JSON.stringify(r));
+    assert.match(r.ok ? "" : r.error.error, /Geçici bir sorun/);
+    assert.equal(c.n, 0);
+    assert.equal(r.providerCalls, 0);
+    assert.equal(cacheRows(db), 0);
+    const again = await getMonthlyEphemeris(req("western", 2033, 3), { db: db.client, callProvider: providerFake(responder, c) }, { allowProvider: false });
+    assert.ok(!again.ok && again.error.code === "NOT_CACHED", "doğrulanmamış sonuç belleğe yazılmadı");
+    const ok = await getMonthlyEphemeris(req("western", 2033, 3), { db: db.client, callProvider: providerFake(responder, c) }, { allowProvider: true });
+    assert.ok(ok.ok && ok.result.crossCheck.status === "pass" && ok.result.crossCheck.compared > 0);
+    assert.equal(c.n, 1);
+    assert.equal(cacheRows(db), 1);
+  });
+  await t("V2 GERÇEK hazırlık sorgusu: motor 'legacy' (DE440 değil) → independentCheckReady false ve crossCheck 'unavailable'; DE440'ta true", async () => {
+    assert.equal(independentCheckReady().ok, true);
+    await withEnv("ATLAS_PRO_EPHEMERIS_ENGINE", "legacy", () => {
+      assert.equal(independentCheckReady().ok, false);
+      const pr = projectMonthly(req("vedic"), synth("vedic", 2026, 11));
+      assert.ok(pr.ok);
+      assert.equal(crossCheckMonthly("vedic", pr.days).status, "unavailable");
+    });
+  });
+  await t("V3 DE440 çalışmıyor (sağlayıcı çağrısından SONRA kontrol yapılamadı) → sonuç REDDEDİLİR, önbelleğe/belleğe YAZILMAZ, yeniden deneme YOK (1 çağrı)", async () => {
+    __resetMonthlyMemoryForTests();
+    const c = { n: 0 };
+    const db = fakeDb();
+    await withEnv("ATLAS_PRO_EPHEMERIS_ENGINE", "legacy", async () => {
+      const r = await getMonthlyEphemeris(req("vedic", 2033, 4), { db: db.client, callProvider: providerFake(responder, c), independentCheckReady: () => ({ ok: true }) }, { allowProvider: true });
+      assert.ok(!r.ok && r.error.code === "CROSSCHECK_UNAVAILABLE", JSON.stringify(r).slice(0, 200));
+      assert.equal(r.providerCalls, 1);
+    });
+    assert.equal(c.n, 1);
+    assert.equal(cacheRows(db), 0);
+    const mem = await getMonthlyEphemeris(req("vedic", 2033, 4), { db: db.client, callProvider: null }, { allowProvider: false });
+    assert.ok(!mem.ok && mem.error.code === "NOT_CACHED");
+  });
+  await t("V4 hesaplama istisnası / geçersiz tarih / eksik karşılaştırma → 'unavailable' (asla PASS değil)", () => {
+    const pr = projectMonthly(req("western"), synth("western", 2026, 11));
+    assert.ok(pr.ok);
+    const badDate = pr.days.map((d, i) => (i === 3 ? { ...d, date: "2026-13-45" } : d));
+    assert.equal(crossCheckMonthly("western", badDate).status, "unavailable");
+    const missingBody = pr.days.map((d, i) => (i === 5 ? { ...d, positions: d.positions.filter((x) => x.body !== "mars") } : d));
+    assert.equal(crossCheckMonthly("western", missingBody).status, "unavailable");
+    assert.equal(crossCheckMonthly("western", []).status, "unavailable");
+    assert.equal(isVerifiedPass({ ...crossCheckMonthly("western", pr.days), compared: 0 }), false, "compared 0 ile PASS sayılmaz");
+  });
+  await t("V5 bozuk/eski önbellek: 'unavailable' satırı + DOĞRU veri → yerelde yeniden kontrol PASS → gösterilir (0 çağrı); bozuk veri → CROSSCHECK_FAILED (0 çağrı); veri kontrol edilemiyor → CROSSCHECK_UNAVAILABLE (0 çağrı)", async () => {
+    const pr = projectMonthly(req("western", 2034, 5), synth("western", 2034, 5));
+    assert.ok(pr.ok);
+    const base = { kind: "western", year: 2034, month: 5, zodiac: "tropical", ayanamsa: null, nodeMethod: "true", timeOfDay: "12:00", timeReference: "UTC", bodies: pr.bodies, missingBodies: pr.missingBodies, days: pr.days, source: { id: "provider", endpoint: MONTHLY_ENDPOINT.western, adapterVersion: "monthly-ephemeris-1", providerApiVersion: "v2", fetchedAt: "2026-11-24T00:00:00.000Z" }, crossCheck: { status: "unavailable", compared: 0, maxAbsArcsec: 0, maxAt: null, retroMismatches: 0, retroStationSkipped: 0, checkedBodies: [], uncheckedBodies: [], method: "" } };
+    const tampered = { ...base, days: pr.days.map((d) => ({ ...d, positions: d.positions.map((x) => (x.body === "venus" ? { ...x, lon: (x.lon + 1) % 360 } : x)) })) };
+    const broken = { ...base, days: pr.days.map((d, i) => (i === 0 ? { ...d, date: "bozuk" } : d)) };
+    for (const [label, technical, expect] of [["doğru veri", base, "ok"], ["bozuk veri", tampered, "CROSSCHECK_FAILED"], ["kontrol edilemeyen veri", broken, "CROSSCHECK_UNAVAILABLE"]] as const) {
+      __resetMonthlyMemoryForTests();
+      const db = fakeDb();
+      (db.tables.astro_sky_monthly_cache ??= []).push({ cache_key: monthlyCacheKey(req("western", 2034, 5)), technical } as never);
+      const c = { n: 0 };
+      const r = await getMonthlyEphemeris(req("western", 2034, 5), { db: db.client, callProvider: providerFake(responder, c) }, { allowProvider: true });
+      assert.equal(c.n, 0, `${label}: ücretli çağrı yapılmamalı`);
+      if (expect === "ok") assert.ok(r.ok && r.result.crossCheck.status === "pass" && r.cache === "db", label);
+      else assert.ok(!r.ok && r.error.code === expect, `${label}: ${JSON.stringify(r).slice(0, 160)}`);
+    }
+  });
+  await t("V6 önceden PASS almış önbellek satırı olduğu gibi kullanılır (yeniden hesap/bozma yok, 0 çağrı)", async () => {
+    __resetMonthlyMemoryForTests();
+    const pr = projectMonthly(req("vedic", 2034, 6), synth("vedic", 2034, 6));
+    assert.ok(pr.ok);
+    const cc = crossCheckMonthly("vedic", pr.days);
+    assert.equal(cc.status, "pass");
+    const technical = { kind: "vedic", year: 2034, month: 6, zodiac: "sidereal", ayanamsa: "lahiri", nodeMethod: "mean", timeOfDay: "12:00", timeReference: "UTC", bodies: pr.bodies, missingBodies: [], days: pr.days, source: { id: "provider", endpoint: MONTHLY_ENDPOINT.vedic, adapterVersion: "monthly-ephemeris-1", providerApiVersion: "v2", fetchedAt: "2026-11-24T00:00:00.000Z" }, crossCheck: cc };
+    const db = fakeDb();
+    (db.tables.astro_sky_monthly_cache ??= []).push({ cache_key: monthlyCacheKey(req("vedic", 2034, 6)), technical } as never);
+    const c = { n: 0 };
+    const r = await getMonthlyEphemeris(req("vedic", 2034, 6), { db: db.client, callProvider: providerFake(responder, c), independentCheckReady: NOT_READY }, { allowProvider: true });
+    assert.ok(r.ok && r.cache === "db");
+    assert.deepEqual(r.result.crossCheck, cc, "saklanan PASS kontrolü korunur");
+    assert.equal(c.n, 0);
+  });
+  await t("V7 ensureVerified: PASS dışı kayıt anlık görüntüsü yerelde yeniden denetlenir; DE440 yoksa açılmaz", async () => {
+    const pr = projectMonthly(req("western"), synth("western", 2026, 11));
+    assert.ok(pr.ok);
+    const e = { kind: "western", year: 2026, month: 11, days: pr.days, crossCheck: { status: "unavailable", compared: 0 } } as never;
+    assert.equal(ensureVerified(e).ok, true);
+    await withEnv("ATLAS_PRO_EPHEMERIS_ENGINE", "legacy", () => {
+      const v = ensureVerified(e);
+      assert.ok(!v.ok && v.error.code === "CROSSCHECK_UNAVAILABLE");
+    });
+  });
+
   // ─── F) Kayıt + tenant / uzman izolasyonu ────────────────────────────────────────────────────────────────────
   const TA = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
   const TB = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
@@ -548,6 +654,39 @@ async function main() {
     assert.equal((await listMonthlyRecords(ctx1, new URLSearchParams({ year: "20x6" }))).status, 400);
     const listed = JSON.stringify(all.body);
     assert.ok(!listed.includes("result_snapshot") && !listed.includes("raw_response"), "liste anlık görüntü / ham yanıt sızdırmaz");
+  });
+  await t("F9 doğrulama zorunlu (kayıt): PASS dışı + bozuk anlık görüntü açılmaz (502) ve rapora girmez; DE440 yoksa PASS dışı kayıt 503; doğrulanmamış önbellek KAYDEDİLMEZ", async () => {
+    const row0 = rdb.tables.astro_sky_monthly_ephemeris![0];
+    const good = row0.result_snapshot as { days: { positions: { body: string; lon: number }[] }[] };
+    const id = randomUUID();
+    rdb.tables.astro_sky_monthly_ephemeris!.push({
+      ...row0,
+      id,
+      save_request_id: randomUUID(),
+      result_snapshot: { ...good, crossCheck: { status: "unavailable", compared: 0 }, days: good.days.map((d) => ({ ...d, positions: d.positions.map((x) => (x.body === "mars" ? { ...x, lon: (x.lon + 2) % 360 } : x)) })) },
+    });
+    const g = await getMonthlyRecord(ctx1, id);
+    assert.equal(g.status, 502, JSON.stringify(g.body).slice(0, 160));
+    assert.equal(g.body.code, "CROSSCHECK_FAILED");
+    const rep = await loadMonthlyForReport(ctx1, id);
+    assert.ok(!rep.ok);
+    const id2 = randomUUID();
+    rdb.tables.astro_sky_monthly_ephemeris!.push({ ...row0, id: id2, save_request_id: randomUUID(), result_snapshot: { ...good, crossCheck: { status: "unavailable", compared: 0 } } });
+    assert.equal((await getMonthlyRecord(ctx1, id2)).status, 200, "doğru veri yerel yeniden kontrolle açılır");
+    await withEnv("ATLAS_PRO_EPHEMERIS_ENGINE", "legacy", async () => {
+      assert.equal((await getMonthlyRecord(ctx1, id2)).status, 503);
+      assert.equal((await getMonthlyRecord(ctx1, savedId)).status, 200, "PASS kayıt DE440 olmadan da açılır (bozulmaz)");
+    });
+    rdb.tables.astro_sky_monthly_ephemeris = rdb.tables.astro_sky_monthly_ephemeris!.filter((r) => r.id !== id && r.id !== id2);
+    // Önbellekte PASS dışı + bozuk satır → kayıt reddedilir (502), tabloya satır eklenmez.
+    __resetMonthlyMemoryForTests();
+    const db = fakeDb();
+    const pr = projectMonthly(req("western", 2035, 1), synth("western", 2035, 1));
+    assert.ok(pr.ok);
+    (db.tables.astro_sky_monthly_cache ??= []).push({ cache_key: monthlyCacheKey(req("western", 2035, 1)), technical: { kind: "western", year: 2035, month: 1, zodiac: "tropical", ayanamsa: null, bodies: pr.bodies, missingBodies: [], source: { id: "provider", endpoint: "/x" }, crossCheck: { status: "unavailable", compared: 0 }, days: pr.days.map((d) => ({ ...d, positions: d.positions.map((x) => (x.body === "sun" ? { ...x, lon: (x.lon + 1) % 360 } : x)) })) } } as never);
+    const sv = await saveMonthlyRecord({ db: db.client, tenantId: TA, userId: U1 }, { kind: "western", year: 2035, month: 1, saveRequestId: randomUUID() }, { db: db.client });
+    assert.equal(sv.status, 502, JSON.stringify(sv.body).slice(0, 160));
+    assert.equal(db.tables.astro_sky_monthly_ephemeris?.length ?? 0, 0);
   });
   await t("F8 kayıt tablosu yoksa (migration uygulanmamış) açık 503 STORE_UNAVAILABLE", async () => {
     const db = fakeDb({ missingTables: ["astro_sky_monthly_ephemeris"] });

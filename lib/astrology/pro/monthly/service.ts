@@ -16,7 +16,7 @@ import { ROXY_API_VERSION, ROXY_PROVIDER } from "@/lib/astrology/config";
 import type { RoxyCallResult } from "@/lib/astrology/providers/roxy/client";
 import { Lru } from "../ephemeris/provider";
 import { MONTHLY_ADAPTER_VERSION, MONTHLY_ENDPOINT, MONTHLY_NODE_METHOD, monthlyProviderBody, projectMonthly } from "./contract";
-import { crossCheckMonthly } from "./crossCheck";
+import { crossCheckMonthly, independentCheckReady } from "./crossCheck";
 import type { MonthlyEphemeris, MonthlyError, MonthlyRequest } from "./types";
 
 assertServerOnly("lib/astrology/pro/monthly/service");
@@ -32,6 +32,8 @@ export type MonthlyDeps = {
   callProvider: ProviderCall | null;
   /** Sağlayıcı çağrısından HEMEN önce (önbellek ıskası kesinleşince) çağrılır; false → istek atılmaz (hız sınırı). */
   beforeProviderCall?: () => Promise<{ ok: true } | { ok: false; retryAfterSec: number }>;
+  /** Yalnız testler: bağımsız kontrol hazırlık sorgusunu değiştirir (varsayılan: crossCheck.independentCheckReady). */
+  independentCheckReady?: () => { ok: true } | { ok: false; reason: string };
   now?: () => Date;
 };
 export type MonthlyOutcome =
@@ -51,12 +53,29 @@ export function __resetMonthlyMemoryForTests() {
   IN_FLIGHT.clear();
 }
 
-/** Kayıtlı/önbellekteki sonucun bağımsız kontrolü "yapılamadı" ise (o anda DE440 yoksa) yerelde yeniden denenir — sağlayıcı çağrısı YOK. */
-function refreshCrossCheck(e: MonthlyEphemeris): MonthlyEphemeris {
-  if (e.crossCheck.status !== "unavailable") return e;
-  const cc = crossCheckMonthly(e.kind, e.days);
-  return cc.status === "unavailable" ? e : { ...e, crossCheck: cc };
+/**
+ * BAĞIMSIZ DOĞRULAMA ZORUNLU (Owner kararı 2026-11-25): kullanıcıya, kayda ya da önbelleğe giden her sonuç bağımsız DE440
+ * kontrolünden PASS almış olmalıdır. "fail" ve "unavailable" sonuç GÖSTERİLMEZ, SAKLANMAZ.
+ * Daha önce PASS almış önbellek / kayıt olduğu gibi kullanılır (bozulmaz). PASS dışı eski bir giriş (ör. eski kodun "kontrol
+ * yapılamadı" ile yazdığı önbellek satırı) yerelde yeniden kontrol edilir — sağlayıcı çağrısı YOK; PASS olursa kullanılır.
+ */
+export function isVerifiedPass(cc: MonthlyEphemeris["crossCheck"] | null | undefined): boolean {
+  return !!cc && cc.status === "pass" && Number.isFinite(cc.compared) && cc.compared > 0;
 }
+export function ensureVerified(e: MonthlyEphemeris): { ok: true; result: MonthlyEphemeris } | { ok: false; error: MonthlyError } {
+  if (isVerifiedPass(e.crossCheck)) return { ok: true, result: e };
+  const cc = crossCheckMonthly(e.kind, e.days);
+  if (isVerifiedPass(cc)) return { ok: true, result: { ...e, crossCheck: cc } };
+  return { ok: false, error: cc.status === "fail" ? CROSSCHECK_FAILED_ERROR : CROSSCHECK_UNAVAILABLE_ERROR };
+}
+export const CROSSCHECK_UNAVAILABLE_ERROR: MonthlyError = {
+  code: "CROSSCHECK_UNAVAILABLE",
+  error: "Bağımsız doğrulama şu anda yapılamıyor; doğrulanmamış tablo gösterilmez. Geçici bir sorun — lütfen biraz sonra tekrar deneyin.",
+};
+export const CROSSCHECK_FAILED_ERROR: MonthlyError = {
+  code: "CROSSCHECK_FAILED",
+  error: "Hesaplanan konumlar bağımsız kontrolden geçmedi (tolerans dışı fark); tablo gösterilmez ve saklanmaz.",
+};
 
 function isMonthlyEphemeris(x: unknown, req: MonthlyRequest): x is MonthlyEphemeris {
   const e = x as MonthlyEphemeris | null;
@@ -102,6 +121,12 @@ async function writeDbCache(db: MonthlyDeps["db"], key: string, req: MonthlyRequ
 
 async function fetchFromProvider(req: MonthlyRequest, key: string, deps: MonthlyDeps): Promise<MonthlyOutcome> {
   if (!deps.callProvider) return { ok: false, providerCalls: 0, error: { code: "PROVIDER_DISABLED", error: "Hesaplama altyapısı şu anda yapılandırılmamış. Daha önce hesaplanmış aylar yine açılabilir." } };
+  // Bağımsız kontrol yapılamayacaksa ücretli istek HİÇ atılmaz (sonuç zaten kabul edilemezdi).
+  const ready = (deps.independentCheckReady ?? independentCheckReady)();
+  if (!ready.ok) {
+    console.error("[astro-monthly] bağımsız kontrol hazır değil; sağlayıcı çağrılmadı", { kind: req.kind, year: req.year, month: req.month });
+    return { ok: false, providerCalls: 0, error: CROSSCHECK_UNAVAILABLE_ERROR };
+  }
   if (deps.beforeProviderCall) {
     const g = await deps.beforeProviderCall();
     if (!g.ok) return { ok: false, providerCalls: 0, error: { code: "RATE_LIMITED", error: "Kısa sürede çok fazla yeni ay hesaplandı. Lütfen biraz sonra tekrar deneyin.", retryAfterSec: g.retryAfterSec } };
@@ -118,10 +143,16 @@ async function fetchFromProvider(req: MonthlyRequest, key: string, deps: Monthly
     console.error("[astro-monthly] yanıt reddedildi", { kind: req.kind, year: req.year, month: req.month, reason: pr.reason });
     return { ok: false, providerCalls: calls, error: { code: "PROVIDER_INCONSISTENT", error: "Hesaplama altyapısının yanıtı tutarlılık denetiminden geçmedi; tablo gösterilmez." } };
   }
-  const cc = crossCheckMonthly(req.kind, pr.days);
-  if (cc.status === "fail") {
-    console.error("[astro-monthly] bağımsız kontrol başarısız", { kind: req.kind, year: req.year, month: req.month, max: cc.maxAbsArcsec, at: cc.maxAt, retro: cc.retroMismatches });
-    return { ok: false, providerCalls: calls, error: { code: "CROSSCHECK_FAILED", error: "Hesaplanan konumlar bağımsız kontrolden geçmedi (tolerans dışı fark); tablo gösterilmez ve saklanmaz." } };
+  let cc: MonthlyEphemeris["crossCheck"];
+  try {
+    cc = crossCheckMonthly(req.kind, pr.days);
+  } catch {
+    cc = { status: "unavailable", compared: 0, maxAbsArcsec: 0, maxAt: null, retroMismatches: 0, retroStationSkipped: 0, checkedBodies: [], uncheckedBodies: [], method: "" };
+  }
+  if (!isVerifiedPass(cc)) {
+    // fail ya da unavailable → bellek / kalıcı önbellek / kayıt YAZILMAZ; yeniden deneme YOK (çağrı 1 kez yapıldı).
+    console.error("[astro-monthly] bağımsız kontrol PASS değil; sonuç reddedildi", { kind: req.kind, year: req.year, month: req.month, status: cc.status, max: cc.maxAbsArcsec, at: cc.maxAt, retro: cc.retroMismatches });
+    return { ok: false, providerCalls: calls, error: cc.status === "fail" ? CROSSCHECK_FAILED_ERROR : CROSSCHECK_UNAVAILABLE_ERROR };
   }
   const result: MonthlyEphemeris = {
     kind: req.kind,
@@ -146,21 +177,23 @@ async function fetchFromProvider(req: MonthlyRequest, key: string, deps: Monthly
 export async function getMonthlyEphemeris(req: MonthlyRequest, deps: MonthlyDeps, opts: { allowProvider: boolean }): Promise<MonthlyOutcome> {
   const key = monthlyCacheKey(req);
   const mem = MEMORY.get(key);
-  if (mem) {
-    const fresh = refreshCrossCheck(mem);
-    if (fresh !== mem) MEMORY.set(key, fresh);
-    return { ok: true, result: fresh, cache: "memory", providerCalls: 0 };
-  }
+  if (mem && isVerifiedPass(mem.crossCheck)) return { ok: true, result: mem, cache: "memory", providerCalls: 0 };
   const db = await readDbCache(deps.db, key, req);
   if (db) {
-    const fresh = refreshCrossCheck(db);
-    MEMORY.set(key, fresh);
-    return { ok: true, result: fresh, cache: "db", providerCalls: 0 };
+    // Kalıcı önbellek satırı değiştirilemez (yalnız SELECT/INSERT) → PASS dışı eski satır için yeniden sağlayıcı çağrısı da
+    // yazılamazdı; yerelde yeniden kontrol edilir, PASS değilse doğrulanmamış tablo gösterilmez (ücretli çağrı YOK).
+    const v = ensureVerified(db);
+    if (!v.ok) {
+      console.error("[astro-monthly] kalıcı önbellek satırı doğrulanmadı; gösterilmedi", { kind: req.kind, year: req.year, month: req.month, code: v.error.code });
+      return { ok: false, providerCalls: 0, error: v.error };
+    }
+    MEMORY.set(key, v.result);
+    return { ok: true, result: v.result, cache: "db", providerCalls: 0 };
   }
   // Kalıcı önbellek okuması beklerken aynı ayın sağlayıcı isteği bu süreçte TAMAMLANMIŞ olabilir (tek uçuş kaydı silinmiştir) →
   // belleğe yeniden bakılır; aksi hâlde aynı ay için ikinci ücretli istek giderdi.
   const late = MEMORY.get(key);
-  if (late) return { ok: true, result: late, cache: "memory", providerCalls: 0 };
+  if (late && isVerifiedPass(late.crossCheck)) return { ok: true, result: late, cache: "memory", providerCalls: 0 };
   if (!opts.allowProvider) return { ok: false, providerCalls: 0, error: { code: "NOT_CACHED", error: "Bu ayın tablosu henüz hesaplanmamış. Önce tabloyu hesaplayın." } };
   const pending = IN_FLIGHT.get(key);
   if (pending) {
