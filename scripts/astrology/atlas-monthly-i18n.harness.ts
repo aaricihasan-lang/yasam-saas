@@ -37,7 +37,10 @@ const json = <T>(p: string) => JSON.parse(read(p)) as T;
 const TR_CHARS = /[çğıöşüÇĞİÖŞÜ]/;
 const ALLOWED_TR = [/Yaşam Sistemi/g, /YAŞAM SİSTEMİ/g];
 const stripAllowed = (s: string) => ALLOWED_TR.reduce((a, re) => a.replace(re, ""), s);
-const normHtml = (h: string) => h.replace(/<!-- -->/g, "");
+// React metin ayırıcı yorumları atılır; katlanır "Ayrıntılı yerel tablo" (eski EphemerisDesk — bu işin dışı) gövdesi süreç saat dilimine
+// bağlı metin içerir (TZ=UTC'de "UTC", Europe/Istanbul'da "TSİ") → yalnız özet başlığı karşılaştırılır.
+const normHtml = (h: string) =>
+  h.replace(/<!-- -->/g, "").replace(/(<details[^>]*>\s*<summary>[\s\S]*?<\/summary>)[\s\S]*<\/details>/, "$1</details>");
 
 let pass = 0;
 let fail = 0;
