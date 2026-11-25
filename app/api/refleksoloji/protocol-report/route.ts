@@ -115,13 +115,13 @@ export async function POST(request: NextRequest): Promise<Response> {
   const { tenantId } = guard;
 
   if (guard.is_demo_account)
-    return Response.json({ error: "Demo hesabında bu işlem kullanılamaz." }, { status: 403 });
+    return Response.json({ code: "REF_DEMO_FORBIDDEN", error: "Demo hesabında bu işlem kullanılamaz." }, { status: 403 });
 
   let body: unknown;
   try {
     body = await request.json();
   } catch {
-    return Response.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 });
+    return Response.json({ ok: false, code: "REF_INVALID_BODY", error: "Geçersiz istek gövdesi." }, { status: 400 });
   }
 
   const { exportMode = "all", protocolIds, protocolId, clientId, selectionGroupId } = body as {
@@ -133,21 +133,21 @@ export async function POST(request: NextRequest): Promise<Response> {
   };
 
   if (exportMode !== "all" && exportMode !== "selected" && exportMode !== "single")
-    return Response.json({ ok: false, error: "Geçersiz dışa aktarma türü." }, { status: 400 });
+    return Response.json({ ok: false, code: "REF_INVALID_EXPORT_SCOPE", error: "Geçersiz dışa aktarma türü." }, { status: 400 });
 
   if (exportMode === "single" && !protocolId)
-    return Response.json({ ok: false, error: "Tek protokol için protocolId zorunludur." }, { status: 400 });
+    return Response.json({ ok: false, code: "REF_PROTOCOL_ID_REQUIRED", error: "Tek protokol için protocolId zorunludur." }, { status: 400 });
   // REF-05: kimlikler yalnız UUID; aynı kimlik bir kez; adet sınırlı.
   if (exportMode === "single" && (typeof protocolId !== "string" || !UUID_RE.test(protocolId)))
-    return Response.json({ ok: false, error: "Geçersiz protokol kimliği." }, { status: 400 });
+    return Response.json({ ok: false, code: "REF_INVALID_PROTOCOL_ID", error: "Geçersiz protokol kimliği." }, { status: 400 });
 
   if (exportMode === "selected" && (!Array.isArray(protocolIds) || protocolIds.length === 0))
-    return Response.json({ ok: false, error: "Seçili export için en az bir protocolId gerekli." }, { status: 400 });
+    return Response.json({ ok: false, code: "REF_PROTOCOL_ID_REQUIRED", error: "Seçili export için en az bir protocolId gerekli." }, { status: 400 });
   const selectedIds = exportMode === "selected" && Array.isArray(protocolIds) ? [...new Set(protocolIds)] : [];
   if (selectedIds.some((v) => typeof v !== "string" || !UUID_RE.test(v)))
-    return Response.json({ ok: false, error: "Geçersiz protokol kimliği." }, { status: 400 });
+    return Response.json({ ok: false, code: "REF_INVALID_PROTOCOL_ID", error: "Geçersiz protokol kimliği." }, { status: 400 });
   if (selectedIds.length > MAX_SELECTED_PROTOCOLS)
-    return Response.json({ ok: false, error: `Tek raporda en fazla ${MAX_SELECTED_PROTOCOLS} protokol seçilebilir.` }, { status: 400 });
+    return Response.json({ ok: false, code: "REF_TOO_MANY_SELECTED", error: `Tek raporda en fazla ${MAX_SELECTED_PROTOCOLS} protokol seçilebilir.` }, { status: 400 });
 
   // AA-6: route kendi service_role client'ını KURMAZ — guard'ın sunucu client'ı (guard.db).
   const { db } = guard;
@@ -164,12 +164,12 @@ export async function POST(request: NextRequest): Promise<Response> {
     // REF-016: ham DB mesajı istemciye sızmaz; teknik ayrıntı yalnız server logunda.
     console.error(`[refleksoloji] protocol-report.protocols: ${error.code ?? ""} ${error.message}`);
     await trackUsage(guard, request, { module: "reflexology", action: "action_failed", failedAction: "report_generated", subEntity: "protocol", errorClass: "server" });
-    return Response.json({ ok: false, error: "Protokoller okunamadı." }, { status: 500 });
+    return Response.json({ ok: false, code: "REF_PROTOCOLS_READ_FAILED", error: "Protokoller okunamadı." }, { status: 500 });
   }
 
   const protocols = (data || []) as ProtocolRow[];
   if (!protocols.length)
-    return Response.json({ ok: false, error: "Bu seçim için protokol bulunamadı." }, { status: 404 });
+    return Response.json({ ok: false, code: "REF_PROTOCOL_NOT_FOUND", error: "Bu seçim için protokol bulunamadı." }, { status: 404 });
 
   // Tenant atlas belgesi (READ-ONLY; mutate YOK). Yoksa boş belge → harita üretilmez.
   const { data: atlasRow, error: atlasErr } = await db
@@ -180,7 +180,7 @@ export async function POST(request: NextRequest): Promise<Response> {
   if (atlasErr) {
     console.error(`[refleksoloji] protocol-report.atlas: ${atlasErr.code ?? ""} ${atlasErr.message}`);
     await trackUsage(guard, request, { module: "reflexology", action: "action_failed", failedAction: "report_generated", subEntity: "protocol", errorClass: "server" });
-    return Response.json({ ok: false, error: "Atlas okunamadı." }, { status: 500 });
+    return Response.json({ ok: false, code: "REF_ATLAS_READ_FAILED", error: "Atlas okunamadı." }, { status: 500 });
   }
   // CANONICAL SINIR (server read): DB belgesi legacy `{taban,yan}` olabilir →
   // 3-görünüme normalize et. Word grouping yalnız explicit region.view'a bakar.
@@ -225,7 +225,7 @@ export async function POST(request: NextRequest): Promise<Response> {
       const { data: cliRow } = await db
         .from("clients").select("id").eq("id", clientId).eq("tenant_id", tenantId).maybeSingle();
       if (!cliRow) {
-        return Response.json({ ok: false, error: "Danışan bulunamadı veya erişim yok." }, { status: 403 });
+        return Response.json({ ok: false, code: "REF_CLIENT_FORBIDDEN", error: "Danışan bulunamadı veya erişim yok." }, { status: 403 });
       }
       try {
         const snaps = await readSnapshotsForDelivery(db, {
@@ -265,6 +265,7 @@ export async function POST(request: NextRequest): Promise<Response> {
     await trackUsage(guard, request, { module: "reflexology", action: "action_failed", failedAction: "report_generated", subEntity: "protocol", errorClass: "too_large" });
     return Response.json({
       ok: false,
+      code: "REF_REPORT_TOO_LARGE",
       error: isSingle
         ? "Rapor indirilebilir boyutu (4,4 MB) aşıyor."
         : "Rapor indirilebilir boyutu (4,4 MB) aşıyor. Lütfen daha az protokol seçerek tekrar deneyin.",

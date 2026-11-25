@@ -52,27 +52,27 @@ export async function POST(request: NextRequest): Promise<Response> {
   const { tenantId, db } = guard;
 
   if (guard.is_demo_account)
-    return Response.json({ ok: false, error: "Demo hesabında bu işlem kullanılamaz." }, { status: 403 });
+    return Response.json({ ok: false, code: "REF_DEMO_FORBIDDEN", error: "Demo hesabında bu işlem kullanılamaz." }, { status: 403 });
 
   let body: unknown;
   try {
     body = await request.json();
   } catch {
-    return Response.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 });
+    return Response.json({ ok: false, code: "REF_INVALID_BODY", error: "Geçersiz istek gövdesi." }, { status: 400 });
   }
   if (!body || typeof body !== "object" || Array.isArray(body))
-    return Response.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 });
+    return Response.json({ ok: false, code: "REF_INVALID_BODY", error: "Geçersiz istek gövdesi." }, { status: 400 });
 
   const { exportMode = "all", organs } = body as { exportMode?: ExportMode; organs?: unknown };
   if (exportMode !== "all" && exportMode !== "selected")
-    return Response.json({ ok: false, error: "Geçersiz dışa aktarma türü." }, { status: 400 });
+    return Response.json({ ok: false, code: "REF_INVALID_EXPORT_SCOPE", error: "Geçersiz dışa aktarma türü." }, { status: 400 });
 
   const requested: string[] = [];
   if (exportMode === "selected") {
     if (!Array.isArray(organs) || organs.length === 0)
-      return Response.json({ ok: false, error: "Seçili dışa aktarma için en az bir organ gerekli." }, { status: 400 });
+      return Response.json({ ok: false, code: "REF_ORGAN_REQUIRED", error: "Seçili dışa aktarma için en az bir organ gerekli." }, { status: 400 });
     if (organs.some((o) => typeof o !== "string" || !o.trim() || o.length > MAX_ORGAN_NAME_LENGTH))
-      return Response.json({ ok: false, error: "Geçersiz organ adı." }, { status: 400 });
+      return Response.json({ ok: false, code: "REF_INVALID_ORGAN", error: "Geçersiz organ adı." }, { status: 400 });
     const seen = new Set<string>();
     for (const o of organs as string[]) {
       const key = o.trim().toLocaleLowerCase("tr");
@@ -81,7 +81,7 @@ export async function POST(request: NextRequest): Promise<Response> {
       requested.push(o.trim());
     }
     if (requested.length > MAX_SELECTED_ORGANS)
-      return Response.json({ ok: false, error: `Tek raporda en fazla ${MAX_SELECTED_ORGANS} organ seçilebilir.` }, { status: 400 });
+      return Response.json({ ok: false, code: "REF_TOO_MANY_SELECTED", error: `Tek raporda en fazla ${MAX_SELECTED_ORGANS} organ seçilebilir.` }, { status: 400 });
   }
 
   // Tenant atlas belgesi (READ-ONLY).
@@ -93,7 +93,7 @@ export async function POST(request: NextRequest): Promise<Response> {
   if (atlasErr) {
     console.error(`[refleksoloji] atlas-report.atlas: ${atlasErr.code ?? ""} ${atlasErr.message}`);
     await trackUsage(guard, request, { module: "reflexology", action: "action_failed", failedAction: "report_generated", subEntity: "atlas", errorClass: "server" });
-    return Response.json({ ok: false, error: "Atlas okunamadı." }, { status: 500 });
+    return Response.json({ ok: false, code: "REF_ATLAS_READ_FAILED", error: "Atlas okunamadı." }, { status: 500 });
   }
   const atlasDoc = normalizeAtlasDocument((atlasRow?.document as AtlasDocument | null) ?? EMPTY_ATLAS);
 
@@ -105,7 +105,7 @@ export async function POST(request: NextRequest): Promise<Response> {
   const resolved = resolveProtocolAtlas(atlasDoc, names);
   const found = resolved.organs.filter((o) => o.found).length;
   if (found === 0)
-    return Response.json({ ok: false, error: "Bu seçim için atlas kaydı bulunamadı." }, { status: 404 });
+    return Response.json({ ok: false, code: "REF_ATLAS_NOT_FOUND", error: "Bu seçim için atlas kaydı bulunamadı." }, { status: 404 });
 
   const scopeLabel = exportMode === "selected" ? "Seçili Atlas Kayıtları" : "Tüm Atlas Kayıtları";
   // F3B: uzman markalaması (yalnız anahtar açıkken rapor sonunda "Hazırlayan" imza bloğu); sahip/ad yalnız guard'dan.
@@ -132,6 +132,7 @@ export async function POST(request: NextRequest): Promise<Response> {
     await trackUsage(guard, request, { module: "reflexology", action: "action_failed", failedAction: "report_generated", subEntity: "atlas", errorClass: "too_large" });
     return Response.json({
       ok: false,
+      code: "REF_REPORT_TOO_LARGE",
       error: "Rapor indirilebilir boyutu (4,4 MB) aşıyor. Lütfen daha az kayıt seçerek tekrar deneyin.",
     }, { status: 413 });
   }
