@@ -13,7 +13,7 @@
  *   3. Yerel motorlar: klasik ev sistemleri (200 kayıtlı Natal × Regiomontanus/Campanus/Porphyry/Alcabitius), element/nitelik
  *      dağılımı (2 yöntem), Batı Horary (Lilly; Regiomontanus + saygınlık), efemeris konumu / düğüm / ayanamsa, burç girişleri ve
  *      duraklar, Ay/Güneş tutulmaları.
- *   4. Görünüm (TechniqueView): saat bilinmiyor maskesi + uyarı kodları (yeni warningCodes alanı).
+ *   4. Görünüm (TechniqueView): saat bilinmiyor maskesi + uyarı kodları (istemcide türetilen deriveViewWarningCodes; sunucu yanıtında alan yok).
  *
  * Karşılaştırma yerelleştirilmiş metin üzerinden DEĞİL, kanonik sonuç nesnesinin JSON'u üzerinden yapılır; bölüm başına SHA-256
  * birebir eşit olmalı. Ayrıca hesap dizinleri dil katmanını içe aktarmaz (statik kapı; calc-invariance kapsamı + Atlas'ın
@@ -49,6 +49,7 @@ async function worker() {
   const E = await import("@/lib/astrology/pro/ephemeris/events");
   const X = await import("@/lib/astrology/pro/lunations/eclipses");
   const { buildTechniqueView } = await import("@/lib/astrology/view/techniqueView");
+  const { deriveViewWarningCodes } = await import("@/lib/astrology/viewWarnings");
 
   const safe = (f: () => unknown) => {
     try {
@@ -153,7 +154,7 @@ async function worker() {
   const threw = (v: unknown): number => (v && typeof v === "object" ? ("threw" in (v as J) ? 1 : Object.values(v as J).reduce<number>((n, x) => n + threw(x), 0)) : 0);
   const unavailable = { ephemeris: threw(ephemeris), events: threw(events), eclipses: threw(eclipses), horary: threw(horary), distribution: threw(distribution) };
   const okCount = Object.fromEntries(Object.entries(providers).map(([k, v]) => [k, (v as { ok?: unknown })?.ok === true]));
-  process.stdout.write(JSON.stringify({ sections: { tz, providers, localHouses, distribution, horary, ephemeris, events, eclipses, view, viewSansCodes: JSON.parse(JSON.stringify(view, (k, v) => (k === "warningCodes" ? undefined : v))) }, okCount, unavailable, intl, probes }));
+  process.stdout.write(JSON.stringify({ sections: { tz, providers, localHouses, distribution, horary, ephemeris, events, eclipses, view, viewSansCodes: JSON.parse(JSON.stringify(view, (k, v) => (k === "warningCodes" ? undefined : v))), viewCodes: Array.isArray(view) ? view.map((x) => (x && typeof x === "object" && "technique" in x ? deriveViewWarningCodes(x as Parameters<typeof deriveViewWarningCodes>[0]) : null)) : null }, okCount, unavailable, intl, probes }));
 }
 
 const sha = (v: unknown) => crypto.createHash("sha256").update(JSON.stringify(v)).digest("hex");

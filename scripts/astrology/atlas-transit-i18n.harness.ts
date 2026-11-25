@@ -26,13 +26,17 @@ const FIX = join(__dirname, "fixtures");
 const golden = (JSON.parse(readFileSync(join(FIX, "i18n", "transit-panel-tr-taban.json"), "utf8")) as { cases: Record<string, string> }).cases;
 
 // KİLİT 1: lib sabitleri = TR katalog.
-const tr = createTranslator({ locale: "tr", messages: getCatalogMessages("tr"), namespace: "atlas.transit" });
+// Katalog tipi gevşek (Record<string, unknown>); lib/i18n/output.ts ile aynı desen — anahtarlar çalışma anında doğrulanır.
+type Tr = (key: string, values?: Record<string, string | number>) => string;
+const translator = (locale: "tr" | "en", namespace: string): Tr =>
+  createTranslator({ locale, messages: getCatalogMessages(locale) as Record<string, never>, namespace: namespace as never }) as unknown as Tr;
+const tr = translator("tr", "atlas.transit");
 assert.equal(tr("calendarUnmatched"), CALENDAR_UNMATCHED_NOTE);
 assert.equal(tr("natalHouseNote"), NATAL_HOUSE_NOTE);
 
 // KİLİT 2: göreli süre — bileşendeki katalog kompozisyonu (aynı aritmetik) TR'de relativeTo ile birebir.
 const rel = (loc: "tr" | "en") => {
-  const t = createTranslator({ locale: loc, messages: getCatalogMessages(loc), namespace: "atlas.transit.rel" });
+  const t = translator(loc, "atlas.transit.rel");
   return (atUtc: string, exactUtc: string): string => {
     const a = Date.parse(/Z$/.test(atUtc) ? atUtc : `${atUtc}Z`);
     const b = Date.parse(exactUtc);

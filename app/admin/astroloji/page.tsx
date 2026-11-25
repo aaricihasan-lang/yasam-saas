@@ -21,7 +21,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, use
 import { useRouter } from "next/navigation";
 import type { TechniqueView } from "@/lib/astrology/view/techniqueView";
 import { LOCAL_NATAL_SOURCE_TEXT } from "@/lib/astrology/model/natalHouseSystems";
-import { hasViewWarning } from "@/lib/astrology/viewWarnings";
+import { deriveViewWarningCodes, hasViewWarning, viewWithWarningCodes } from "@/lib/astrology/viewWarnings";
 import { HOUSE_SYSTEM_LABELS, NODE_TYPE_LABELS } from "@/lib/astrology/labels/tr";
 import { astroFetch, isAdminSurface, probeAstroAccess, readPreviewFlag, subscribePreviewFlag, writePreviewFlag } from "./_lib/api";
 import { consumeAtlasNavTarget } from "./_lib/skyToolsNav";
@@ -1855,8 +1855,8 @@ export default function AstrologyWorkspacePage() {
                           item.view.timeUnknownMasked ? { text: "Saat bilinmiyor · evler gizli", warn: true } : null,
                           // Aşama 3 (#643): Natal klasik ev sistemi — kaynak satırı + yüksek enlem / ev sınırı işaretleri (sunucu uyarısından).
                           item.view.method.houseCalculation === "local" ? LOCAL_NATAL_SOURCE_TEXT : null,
-                          item.view.method.houseCalculation === "local" && hasViewWarning(item.view, "high_latitude") ? { text: "Yüksek enlem · evler eşitsiz olabilir", warn: true } : null,
-                          item.view.method.houseCalculation === "local" && hasViewWarning(item.view, "near_cusp") ? { text: "Ev sınırına yakın nokta var", warn: true } : null,
+                          item.view.method.houseCalculation === "local" && hasViewWarning(viewWithWarningCodes(item.view), "high_latitude") ? { text: "Yüksek enlem · evler eşitsiz olabilir", warn: true } : null,
+                          item.view.method.houseCalculation === "local" && hasViewWarning(viewWithWarningCodes(item.view), "near_cusp") ? { text: "Ev sınırına yakın nokta var", warn: true } : null,
                         ]
                       : undefined
                   }
@@ -1958,7 +1958,7 @@ export default function AstrologyWorkspacePage() {
                         technical={item.view.technical}
                         timeUnknownMasked={item.view.timeUnknownMasked}
                         warnings={item.view.warnings}
-                        warningCodes={item.view.warningCodes}
+                        warningCodes={deriveViewWarningCodes(item.view)}
                         names={[shownDetail.label, partnerLabelOf(item.view)]}
                         options={item.view.options}
                         birthplace={birthplace}
@@ -2017,7 +2017,7 @@ export default function AstrologyWorkspacePage() {
                           technical={item.view.technical}
                           timeUnknownMasked={item.view.timeUnknownMasked}
                           warnings={item.view.warnings}
-                          warningCodes={item.view.warningCodes}
+                          warningCodes={deriveViewWarningCodes(item.view)}
                           names={[shownDetail.label, partnerLabelOf(item.view)]}
                           options={item.view.options}
                           birthplace={birthplace}
