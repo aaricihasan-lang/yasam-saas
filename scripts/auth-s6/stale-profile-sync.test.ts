@@ -10,6 +10,9 @@
  *  4) Yalnız token değişirse (aynı kullanıcı, yeni oturum) → bayat yanıt yazılmaz.
  *  5) Sunucu farklı kimlikli profil döndürürse → yazılmaz.
  */
+// Modül kapsamı (tam tsc'de diğer harness'larla genel kapsam çakışması olmasın — TS2451).
+export {};
+
 type Store = Map<string, string>;
 const store: Store = new Map();
 const localStorageShim = {
