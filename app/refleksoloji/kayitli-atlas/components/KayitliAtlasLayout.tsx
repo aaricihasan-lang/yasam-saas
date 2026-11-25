@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
 import { DEFAULT_LOCALE } from "@/lib/i18n/locales";
+import { useRefCodeText } from "@/app/refleksoloji/hooks/useRefCodeText";
 import { Search } from "lucide-react";
 import { energyFontVars } from "@/app/_premium/enerji-beden/fonts";
 import premium from "@/app/_premium/refleksoloji/kayitliAtlas.module.css";
@@ -38,10 +39,14 @@ export function KayitliAtlasLayout() {
   const t = useTranslations("reflexology.savedAtlas");
   const tc = useTranslations("reflexology.common");
   const isSourceLocale = useLocale() === DEFAULT_LOCALE;
+  const refCode = useRefCodeText();
   const tpc = useTranslations("reflexology.savedProtocols.card");
   // QA K2-03: API (protocols/organ GET) başlıksız protokol için kaynak-dil yedeği döndürür → gösterimde eşle.
-  // i18n-ignore: app/api/refleksoloji/protocols/organ yedek başlığıyla eşitlik (yalnız gösterim eşlemesi)
-  const shownTitle = (title: string) => (title === "Başlıksız protokol" ? tpc("untitled") : title);
+  // I18N-F1-R3: sunucu dil-bağımsız "untitled" bayrağını verdiyse ona göre (kullanıcının aynı adlı protokolü aynen kalır);
+  // bayrak yoksa (eski yanıt) önceki eşitlik eşlemesi.
+  const shownTitle = (title: string, untitled?: boolean) =>
+    // i18n-ignore: app/api/refleksoloji/protocols/organ yedek başlığıyla eşitlik (yalnız gösterim eşlemesi; bayraksız eski yanıt)
+    untitled === undefined ? (title === "Başlıksız protokol" ? tpc("untitled") : title) : untitled ? tpc("untitled") : title;
   const isDemo = readYasamUser()?.is_demo_account === true;
   const { confirm } = useConfirm();
   const {
@@ -134,9 +139,9 @@ export function KayitliAtlasLayout() {
         body: JSON.stringify(mode === "selected" ? { exportMode: mode, organs } : { exportMode: mode }),
       });
       if (!res.ok) {
-        const err = (await res.json().catch(() => ({}))) as { error?: string };
-        // Sunucu hata metni Türkçe: kaynak dilde aynen, diğer dillerde çevrilmiş genel metin.
-        showToast({ type: "error", title: tc("errorTitle"), message: (isSourceLocale ? err.error : "") || t("word.failed") });
+        const err = (await res.json().catch(() => ({}))) as { error?: string; code?: string };
+        // Sunucu hata metni Türkçe: kaynak dilde aynen; diğer dillerde dil-bağımsız koddan (I18N-F1-R3), yoksa genel metin.
+        showToast({ type: "error", title: tc("errorTitle"), message: isSourceLocale ? err.error || t("word.failed") : refCode(err, t("word.failed")) });
         return;
       }
       await downloadFileResponse(res, `refleksoloji-atlas-${mode === "selected" ? "secili" : "tumu"}-${reportFileDate()}.docx`);
@@ -235,7 +240,7 @@ export function KayitliAtlasLayout() {
       usage.count > 0
         ? `\n\n${t("single.usageNote", {
             count: String(usage.count),
-            titles: usage.titles.length ? `: ${usage.titles.slice(0, 5).map(shownTitle).join(", ")}${usage.titles.length > 5 ? "…" : ""}` : "",
+            titles: usage.titles.length ? `: ${usage.titles.slice(0, 5).map((title, i) => shownTitle(title, usage.untitled?.[i])).join(", ")}${usage.titles.length > 5 ? "…" : ""}` : "",
           })}`
         : "";
     const ok = await confirm({
@@ -265,7 +270,7 @@ export function KayitliAtlasLayout() {
       usage.count > 0
         ? `\n\n${t("single.usageNote", {
             count: String(usage.count),
-            titles: usage.titles.length ? `: ${usage.titles.slice(0, 5).map(shownTitle).join(", ")}${usage.titles.length > 5 ? "…" : ""}` : "",
+            titles: usage.titles.length ? `: ${usage.titles.slice(0, 5).map((title, i) => shownTitle(title, usage.untitled?.[i])).join(", ")}${usage.titles.length > 5 ? "…" : ""}` : "",
           })}`
         : "";
     const ok = await confirm({

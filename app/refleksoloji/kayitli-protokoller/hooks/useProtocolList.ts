@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { DEFAULT_LOCALE } from "@/lib/i18n/locales";
+import { useRefCodeText } from "@/app/refleksoloji/hooks/useRefCodeText";
 import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
 import {
   DEMO_SEED_PROTOCOLS,
@@ -82,6 +83,7 @@ function userHeaders(): Record<string, string> {
 export function useProtocolList() {
   const t = useTranslations("reflexology.savedProtocols");
   const isSourceLocale = useLocale() === DEFAULT_LOCALE;
+  const refCode = useRefCodeText();
   const isDemo = readYasamUser()?.is_demo_account === true;
 
   const [protocols, setProtocols] = useState<ReflexologyProtocolRecord[]>([]);
@@ -117,12 +119,12 @@ export function useProtocolList() {
       }
 
       const json = (await res.json().catch(() => null)) as
-        | { ok?: boolean; protocols?: ReflexologyProtocolRecord[]; error?: string }
+        | { ok?: boolean; protocols?: ReflexologyProtocolRecord[]; error?: string; code?: string }
         | null;
 
       if (!res.ok || !json?.ok) {
         // Sunucu ayrıntısı Türkçe: yalnız kaynak dilde eklenir.
-        setLoadErrorMessage(isSourceLocale ? t("loadFailed", { detail: json?.error ?? res.statusText }) : t("loadFailedGeneric"));
+        setLoadErrorMessage(isSourceLocale ? t("loadFailed", { detail: json?.error ?? res.statusText }) : refCode(json, t("loadFailedGeneric")));
         setProtocols([]);
         return;
       }

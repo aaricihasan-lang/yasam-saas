@@ -63,7 +63,8 @@
       "saveToast": {
         "synced": "Atlas saved and synchronised with the server. The zones are in the Saved Atlas.",
         "failed": "The zones were saved on this device but could not be sent to the server. Use «Try again» above to retry.",
-        "pending": "The zones were saved on this device — sending to the server…"
+        "pending": "The zones were saved on this device — sending to the server…",
+        "localOnly": "The atlas has been saved on this device."
       },
       "organs": {
         "title": "ORGANS",

@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { useReflexologySyncStatus } from "@/app/refleksoloji/components/SyncStatusBadge";
+import { useSyncStatusText } from "@/app/refleksoloji/hooks/useSyncStatusText";
 
 type AtlasSaveToastProps = {
   visible: boolean;
@@ -26,6 +27,7 @@ export function AtlasSaveToast({ visible, onDismiss, sinceSeq, localOnly = false
   const t = useTranslations("reflexology.zoneMap.saveToast");
   const [mounted, setMounted] = useState(false);
   const status = useReflexologySyncStatus();
+  const statusText = useSyncStatusText();
 
   useEffect(() => {
     setMounted(true);
@@ -48,13 +50,13 @@ export function AtlasSaveToast({ visible, onDismiss, sinceSeq, localOnly = false
   if (!visible || !mounted) return null;
 
   const text = localOnly
-    ? "Atlas bu cihaza kaydedildi."
+    ? t("localOnly")
     : phase === "synced"
       ? t("synced")
       : phase === "failed"
         ? t("failed")
         : phase === "conflict"
-          ? status.message
+          ? statusText(status)
           : t("pending");
   const tone =
     phase === "synced"
