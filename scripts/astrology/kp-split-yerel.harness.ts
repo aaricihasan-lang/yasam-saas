@@ -189,7 +189,8 @@ async function main() {
 
   await t("G ekran (sunucu render): gezegen ve cusp tablosu — düzeltilen nokta '23*' + not; düzeltilmeyen tabloda not YOK", async () => {
     const React = await import("react");
-    const { renderToStaticMarkup } = await import("react-dom/server");
+    // I18N ATLAS-V (R5): KP tabloları metni katalogdan alır → next-intl sağlayıcılı çizim (TR katalog = önceki metin; beklentiler değişmedi).
+    const { renderToStaticMarkup } = await import("./intlRender");
     const { KpBodyTable, KpCuspTable } = await import("@/app/admin/astroloji/_components/KpPanels");
     const at = projectRoxyKpPlanetsAt(G("kp-planets-mars-2036-split").response, { atUtc: "2036-03-06T00:00", ayanamsa: "kp-newcomb", nodeType: "mean" });
     assert.ok(at.ok);

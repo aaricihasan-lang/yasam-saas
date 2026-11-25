@@ -85,7 +85,7 @@ export const TIMELINE_TAG: Readonly<Record<string, string>> = {
   ingress: "Burç girişi",
 };
 
-const ACC_BASE: Readonly<Record<string, string>> = {
+export const ACC_BASE: Readonly<Record<string, string>> = {
   retrograde: "Geri",
   direct: "Doğrudan",
   swift: "Hızlı",
@@ -105,7 +105,7 @@ const ACC_BASE: Readonly<Record<string, string>> = {
   spica_1647: "Spika ile",
   algol_1647: "Algol ile",
 };
-const PARTILE: Readonly<Record<string, string>> = { conj: "tam kavuşum", sextile: "tam altmışlık", square: "tam kare", trine: "tam üçgen", opposition: "tam karşıt" };
+export const PARTILE: Readonly<Record<string, string>> = { conj: "tam kavuşum", sextile: "tam altmışlık", square: "tam kare", trine: "tam üçgen", opposition: "tam karşıt" };
 export function accidentalLabel(key: string): string {
   if (ACC_BASE[key]) return ACC_BASE[key];
   const h = /^house_(\d+)$/.exec(key);
@@ -127,8 +127,12 @@ export function offsetLabel(sec: number): string {
 }
 /** UTC ISO → sorunun yerel saatinde kısa tarih-saat (Intl; tarayıcı saat dilimi kullanılmaz). */
 export function localAt(iso: string, tz: string): string {
+  return localAtIn("tr", iso, tz);
+}
+/** I18N: ekran dili için aynı biçim (TR = localAt birebir; EN en-GB gün-ay-yıl). Rapor localAt (TR) kullanmaya devam eder. */
+export function localAtIn(locale: string, iso: string, tz: string): string {
   try {
-    return formatZoned("tr-TR", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }, Date.parse(iso), tz);
+    return formatZoned(locale === "tr" ? "tr-TR" : "en-GB", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }, Date.parse(iso), tz);
   } catch {
     return iso;
   }
