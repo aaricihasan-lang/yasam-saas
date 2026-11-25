@@ -1573,7 +1573,8 @@ async function scenarioNumerologyCreate(browser: Browser, env: TestEnv, fx: Fixt
       await sleep(1_500);
       const saveLabel = Mq(lang, "numerology.app", "save.save") ?? (lang === "en" ? "SAVE" : "KAYDET");
       const respP = page.waitForResponse((r) => r.url().includes("/api/numeroloji/analyses") && r.request().method() === "POST", { timeout: 30_000 }).catch(() => null);
-      const btn = page.getByRole("button", { name: new RegExp(escRe(saveLabel), "i") }).filter({ visible: true }).first();
+      // Karşılaştırma tabanında (main) kaydet düğmesi çevrilmemiş olabilir → TR etiketi de kabul edilir (yalnız seçici).
+      const btn = page.getByRole("button", { name: new RegExp(`${escRe(saveLabel)}|^KAYDET$`, "i") }).filter({ visible: true }).first();
       await btn.waitFor({ timeout: 20_000 });
       await btn.click();
       // Aynı kişi önceden kaydedildiyse çift kayıt diyaloğu: yeni kayıt olarak devam.
