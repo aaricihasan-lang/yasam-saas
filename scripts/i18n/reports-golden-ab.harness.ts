@@ -84,13 +84,15 @@ const TR_ASCII_WORDS =
   /\b(Sayfa|Takvim|Kaynak|Bilgiler|Hazirlayan|Ocak|Mart|Nisan|Haziran|Temmuz|Ekim|Kasim|Aralik|Pazartesi|Cuma|Pazar|Genel|Sonrasi|Oncesi|gun|daha|ilk|Tarih|Rapor|Uzman|Bilgilendirme|Randevu|Randevular|Randevusu|Danisan|Kapsam|Toplam|Bekliyor|Tamamlandi|Iptal|Urun|Stok|Kategori|Tumu|Kritik|Tukenmis|Diger|Yag|Sabun|Krem|Tespih|Aksesuar|Seans|Odev|Analiz|Notlar|Burc|Kan|Mizac|Durum|Tur|Adet|adet|Ajanda|Haftalik|Aylik|Secili|Tek|Gorusme|Genel|Yolculuk|Yolculugu|Tutar|Odendi|Kayit)\b/;
 const USER_RE = /⟦[^⟧]*⟧/g;
 const NAMESPACES = ["reports.common", "reports.agenda", "reports.stock", "reports.clients"];
-const TR_CATALOG_FRAGMENTS: { text: string; re: RegExp }[] = (() => {
+const TR_CATALOG_FRAGMENTS: { text: string; re: RegExp; folded?: boolean }[] = (() => {
   const flat = (o: unknown, p = "", out: Record<string, string> = {}) => {
     if (o && typeof o === "object") for (const [k, v] of Object.entries(o as Record<string, unknown>)) flat(v, p ? `${p}.${k}` : k, out);
     else if (typeof o === "string") out[p] = o;
     return out;
   };
   const frags = new Set<string>();
+  /** EN değerlerinin ASCII-katlanmış küçük harf hâli (ör. "VENUS"): TR'nin katlanmış hâli bunlardan biriyse sızıntı sayılmaz. */
+  const enFolded = new Set<string>();
   for (const ns of NAMESPACES) {
     const f = join(ROOT, `messages/tr/${ns}.json`);
     if (!existsSync(f)) continue;
@@ -98,6 +100,7 @@ const TR_CATALOG_FRAGMENTS: { text: string; re: RegExp }[] = (() => {
     const enFile = join(ROOT, `messages/en/${ns}.json`);
     const en = existsSync(enFile) ? flat(JSON.parse(readFileSync(enFile, "utf8"))) : {};
     for (const [k, v] of Object.entries(flat(JSON.parse(readFileSync(f, "utf8"))))) {
+      if (typeof en[k] === "string") enFolded.add(fold(en[k]!).toLowerCase());
       if (en[k] === v) continue;
       for (const part of v.split(/\{[^}]*\}|·|•|\+|—|\/|\(|\)|:/)) {
         const t = part.trim();
@@ -106,12 +109,21 @@ const TR_CATALOG_FRAGMENTS: { text: string; re: RegExp }[] = (() => {
     }
   }
   const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  return [...frags].map((text) => ({ text, re: new RegExp(`(^|[^A-Za-zÇĞİÖŞÜçğıöşü])${esc(text)}($|[^A-Za-zÇĞİÖŞÜçğıöşü])`) }));
+  // Hem birebir hem ASCII'ye katlanmış + büyük/küçük harf duyarsız eşleşme ("ÜRÜN #" → "URUN #" sızıntısı da yakalanır).
+  return [...frags].flatMap((text) => [
+    { text, re: new RegExp(`(^|[^A-Za-zÇĞİÖŞÜçğıöşü])${esc(text)}($|[^A-Za-zÇĞİÖŞÜçğıöşü])`) },
+    ...(enFolded.has(fold(text).toLowerCase()) ? [] : [{ text: `${text} (ASCII)`, re: new RegExp(`(^|[^A-Za-z])${esc(fold(text))}($|[^A-Za-z])`, "i"), folded: true }]),
+  ]);
 })();
+/** Türkçe harfleri ASCII karşılığına katlar (büyük/küçük korunur). */
+function fold(t: string): string {
+  const map: Record<string, string> = { ç: "c", Ç: "C", ğ: "g", Ğ: "G", ı: "i", İ: "I", ö: "o", Ö: "O", ş: "s", Ş: "S", ü: "u", Ü: "U", â: "a", Â: "A", î: "i", Î: "I", û: "u", Û: "U" };
+  return t.replace(/[çÇğĞıİöÖşŞüÜâÂîÎûÛ]/g, (c) => map[c] ?? c);
+}
 
 function leakOf(t: string): string | null {
   const s = t.replace(/Yaşam Sistemi|YAŞAM SİSTEMİ/g, "");
-  const frag = TR_CATALOG_FRAGMENTS.find((f) => f.re.test(s));
+  const frag = TR_CATALOG_FRAGMENTS.find((f) => (f.folded ? f.re.test(fold(s)) : f.re.test(s)));
   if (TR_LETTERS.test(s) || TR_ASCII_WORDS.test(s) || frag) return `«${t}»${frag ? ` (TR katalog parçası «${frag.text}»)` : ""}`;
   return null;
 }
@@ -153,6 +165,48 @@ async function enChecks(tr: Run, en: Run): Promise<void> {
   }
 }
 
+/** Sözleşme/katman birim kontrolleri: hesap–etiket ayrımı, TR birebir sabitler, ICU, katalog tamlığı. */
+async function unitChecks(): Promise<void> {
+  const { reportLocaleFor } = await import("@/lib/i18n/reportLocale");
+  const tr = reportLocaleFor("tr");
+  const en = reportLocaleFor("en");
+  const now = new Date("2026-11-25T09:30:00Z");
+  // P07: durum HESABI dilden bağımsız; TR etiketleri eski sabitlerle birebir.
+  const A = await import("@/app/api/ajanda/word-report/buildAjandaReport");
+  const cases: [string | null, string, string, string][] = [
+    ["tamamlandi", "2026-11-20T09:00:00Z", "Tamamlandı", "Completed"],
+    ["iptal", "2026-11-20T09:00:00Z", "İptal Edildi", "Cancelled"],
+    ["bekliyor", "2026-11-20T09:00:00Z", "Sonuç girilmedi", "No outcome entered"],
+    ["bekliyor", "2026-11-30T09:00:00Z", "Bekliyor", "Pending"],
+  ];
+  for (const [st, at, trL, enL] of cases) {
+    ok(A.ajandaStatusLabel(st, at, now) === trL && A.ajandaStatusLabel(st, at, now, tr) === trL && A.ajandaStatusLabel(st, at, now, en) === enL, `P07 durum etiketi ${st}@${at.slice(0, 10)} → tr «${trL}» · en «${enL}»`);
+  }
+  // P26: kritik eşiği dilden bağımsız; >999 sayım TR'de gruplamasız (eski `${n} ürün`).
+  const S = await import("@/lib/urun-stok/stockReportWord");
+  ok(S.isCriticalStockRow({ stock: 300, unit: "ml" }) && !S.isCriticalStockRow({ stock: 301, unit: "ml" }) && S.isCriticalStockRow({ stock: 0, unit: "adet" }), "P26 kritik eşik (ml 300 / adet 5) değişmedi");
+  const st = tr.t("reports.stock");
+  const se = en.t("reports.stock");
+  ok(st("summary.productCount", { count: 1200, shown: "1200" }) === "1200 ürün", `P26 TR sayım gruplamasız: ${st("summary.productCount", { count: 1200, shown: "1200" })}`);
+  ok(se("summary.productCount", { count: 1, shown: "1" }) === "1 product" && se("summary.productCount", { count: 3, shown: "3" }) === "3 products", "P26 EN çoğul (ICU)");
+  // P01: metin katmanı — kanonik kod → etiket; TR eski sabitlerle birebir.
+  const { dyText } = await import("@/app/api/clients/[id]/word-report/clientReportText");
+  const xt = dyText();
+  const xe = dyText(en);
+  ok(xt.money(1500) === "1.500 ₺" && xt.money(350.5) === "350,50 ₺" && xe.money(1500) === "₺1,500" && xe.money(350.5) === "₺350.50", `P01 para TRY sabit, biçim dile göre — ${xt.money(350.5)} · ${xe.money(350.5)}`);
+  ok(xt.temperament("sovdavi") === "Sovdavi" && xe.temperament("Sovdavi") === "Melancholic" && xe.temperament("serbest metin") === "serbest metin", "P01 mizaç: kanonik kod → etiket; serbest metin aynen");
+  ok(xt.homeworkStatus("devam") === "Devam Ediyor" && xe.homeworkStatus("gecikti") === "Overdue" && xe.homeworkStatus("ozel") === "ozel" && xt.homeworkStatus(null) === "Bilinmiyor", "P01 ödev durumu etiketi (bilinmeyen → ham / Bilinmiyor)");
+  ok(xt.paymentStatus("paid") === "Ödendi" && xe.paymentStatus(null) === "Not specified", "P01 ödeme durumu etiketi");
+  ok(xt.analysisType("planet") === "Çakra-Gezegen Analizi" && xe.analysisType("x") === "Analysis", "P01 analiz türü etiketi");
+  // Katalog tamlığı (EN'de eksik anahtar → sessiz TR düşüşü olmasın).
+  const leaves = (o: unknown, p = ""): string[] => (o && typeof o === "object" ? Object.entries(o as Record<string, unknown>).flatMap(([k, v]) => leaves(v, p ? `${p}.${k}` : k)) : [p]);
+  for (const ns of ["reports.agenda", "reports.stock", "reports.clients"]) {
+    const la = leaves(JSON.parse(readFileSync(join(ROOT, `messages/tr/${ns}.json`), "utf8"))).sort();
+    const lb = leaves(JSON.parse(readFileSync(join(ROOT, `messages/en/${ns}.json`), "utf8"))).sort();
+    ok(JSON.stringify(la) === JSON.stringify(lb), `katalog: ${ns} TR/EN anahtar ağacı aynı (${la.length})`);
+  }
+}
+
 async function main(): Promise<void> {
   const fixtures = allFixtures().filter((f) => !ONLY || ONLY.has(f.producer));
   const trRuns: Run[] = [];
@@ -186,6 +240,7 @@ async function main(): Promise<void> {
         await enChecks(r, en);
       }
     }
+    if (!ONLY) await unitChecks();
     if (OUT_DIR) {
       for (const [lang, runs] of [["TR", trRuns], ["EN", enRuns]] as const) {
         for (const r of runs) {
