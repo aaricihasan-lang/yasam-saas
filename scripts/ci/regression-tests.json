@@ -76,6 +76,12 @@
    "timeoutSec": 60
   },
   {
+   "file": "scripts/aromaterapi-koruma/aromaterapi-koruma-sozlesme.test.ts",
+   "tsx": true,
+   "tsconfig": "scripts/tsconfig.aromaterapi-tests.json",
+   "timeoutSec": 300
+  },
+  {
    "file": "scripts/aromaterapi-phase1-hardening-harness.mjs",
    "timeoutSec": 60
   },
