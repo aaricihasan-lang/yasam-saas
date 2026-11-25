@@ -337,10 +337,13 @@ export function KayitliProtokolDetayLayout({ protocolId }: KayitliProtokolDetayL
   const applicationNotesDisplay = clinical?.applicationNotes ?? null;
   const sourceDescription = clinical?.source ?? null;
 
-  const heroTitle = useMemo(
-    () => (protocol ? protocolHeroTitle(protocol, rawJson) : ""),
-    [protocol, rawJson],
-  );
+  // QA K2-03: protocolHeroTitle yalnız gösterim yedeği döndürür (DB'ye yazılmaz, karşılaştırılmaz) → ekran dilinde.
+  const heroTitle = useMemo(() => {
+    if (!protocol) return "";
+    const title = protocolHeroTitle(protocol, rawJson);
+    // i18n-ignore: protocolDetailContent.ts kaynak-dil yedek başlığıyla eşitlik (yalnız gösterim eşlemesi)
+    return title === "Başlıksız protokol" ? t("card.untitled") : title;
+  }, [protocol, rawJson, t]);
 
   const rawJsonDevText = useMemo(
     () => formatRawJsonForDev(protocol?.raw_json ?? null),

@@ -38,6 +38,10 @@ export function KayitliAtlasLayout() {
   const t = useTranslations("reflexology.savedAtlas");
   const tc = useTranslations("reflexology.common");
   const isSourceLocale = useLocale() === DEFAULT_LOCALE;
+  const tpc = useTranslations("reflexology.savedProtocols.card");
+  // QA K2-03: API (protocols/organ GET) başlıksız protokol için kaynak-dil yedeği döndürür → gösterimde eşle.
+  // i18n-ignore: app/api/refleksoloji/protocols/organ yedek başlığıyla eşitlik (yalnız gösterim eşlemesi)
+  const shownTitle = (title: string) => (title === "Başlıksız protokol" ? tpc("untitled") : title);
   const isDemo = readYasamUser()?.is_demo_account === true;
   const { confirm } = useConfirm();
   const {
@@ -231,7 +235,7 @@ export function KayitliAtlasLayout() {
       usage.count > 0
         ? `\n\n${t("single.usageNote", {
             count: String(usage.count),
-            titles: usage.titles.length ? `: ${usage.titles.slice(0, 5).join(", ")}${usage.titles.length > 5 ? "…" : ""}` : "",
+            titles: usage.titles.length ? `: ${usage.titles.slice(0, 5).map(shownTitle).join(", ")}${usage.titles.length > 5 ? "…" : ""}` : "",
           })}`
         : "";
     const ok = await confirm({
@@ -261,7 +265,7 @@ export function KayitliAtlasLayout() {
       usage.count > 0
         ? `\n\n${t("single.usageNote", {
             count: String(usage.count),
-            titles: usage.titles.length ? `: ${usage.titles.slice(0, 5).join(", ")}${usage.titles.length > 5 ? "…" : ""}` : "",
+            titles: usage.titles.length ? `: ${usage.titles.slice(0, 5).map(shownTitle).join(", ")}${usage.titles.length > 5 ? "…" : ""}` : "",
           })}`
         : "";
     const ok = await confirm({
