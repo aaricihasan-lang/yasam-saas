@@ -1,6 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
+import { useStockServerText } from "../useStockServerText";
 
 import { runInEffect } from "@/lib/runInEffect";
 import Link from "next/link";
@@ -238,6 +239,7 @@ function SalesDetailModal({ record, onClose }: { record: SoapCreamSaleRecord; on
 }
 
 export default function SabunKremUrunStokPage() {
+  const ss = useStockServerText();
   const tS = useTranslations("stock.common");
   const tP = useTranslations("stock.pages.soapCream");
   const deleteConfirm = useDeleteConfirm();
@@ -398,7 +400,7 @@ export default function SabunKremUrunStokPage() {
     // Çift gönderim kilidi (senkron, ilk ifade): ikinci tık yok sayılır.
     return saveLock
       .run(() => saveStockNow())
-      .catch((e: unknown) => setMsg(e instanceof Error ? e.message : tS("msg.saveIncomplete")));
+      .catch((e: unknown) => setMsg(ss.exception(e, tS("msg.saveIncomplete"))));
   }
 
   async function saveStockNow() {
@@ -484,14 +486,14 @@ export default function SabunKremUrunStokPage() {
           setMsg(
             res.conflict
               ? tS("msg.conflict")
-              : tS("msg.updateFailed", { error: String(res.error ?? "") }),
+              : tS("msg.updateFailed", { error: ss.detail(res.error) }),
           );
           return;
         }
         if (!res.ok) {
           retryRef.current = { signature, targetId: target.id, isNew, baseStock };
           setMsg(
-            tS("msg.cloudAddFailed", { error: String(res.error ?? "") }),
+            tS("msg.cloudAddFailed", { error: ss.detail(res.error) }),
           );
           return; // Alanları temizleme — kullanıcı tekrar deneyebilsin.
         }
@@ -540,7 +542,7 @@ export default function SabunKremUrunStokPage() {
         const res = await deleteSoapCreamInventoryItems(activeTenantId, removed);
         await reloadInv();
         if (!res.ok) {
-          setMsg(tS("msg.deletePartial", { deleted: String(res.deleted), count: String(count), error: String(res.error ?? "") }));
+          setMsg(tS("msg.deletePartial", { deleted: String(res.deleted), count: String(count), error: ss.detail(res.error) }));
           return;
         }
         setSelectedIds(new Set());
@@ -676,14 +678,14 @@ export default function SabunKremUrunStokPage() {
       const { res, attempt } = await submitCategorySale({ category: "soap_cream", lines, current: saleAttemptRef.current });
       saleAttemptRef.current = attempt;
       if (!res.ok) {
-        setMsg(res.error ?? tS("msg.saleFailed"));
+        setMsg(ss.text(res.error, tS("msg.saleFailed")));
         await reloadInv(); // gerçek stok yenilensin (yetersiz stok vb.)
         return;
       }
       setBasket([]);
       await reloadInv(); // stok DB'den (canonical) yeniden yüklenir
       await reloadSales(); // geçmiş DB'den (yeni satış görünür)
-      setMsg(res.duplicate ? DUPLICATE_SALE_MESSAGE : tS("msg.saleSaved"));
+      setMsg(res.duplicate ? ss.constant(DUPLICATE_SALE_MESSAGE, tS("msg.duplicateSale")) : tS("msg.saleSaved"));
     } catch {
       setMsg(tS("msg.networkError"));
       await reloadInv();

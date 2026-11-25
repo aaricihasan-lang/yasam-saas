@@ -45,7 +45,12 @@
       "otherCategory": "+ başka kategoriden {count} ürün (işlemler satışın tamamına uygulanır)",
       "statusCancelled": "İptal edildi",
       "statusCompleted": "Tamamlandı",
-      "detail": "Detay"
+      "detail": "Detay",
+      "confirmCancel": "Seçilen satışlar iptal edilecek. Stokta hâlâ bulunan ilgili ürünlerin satılan miktarları geri eklenecek. İşlemi onaylıyor musunuz?",
+      "confirmHide": "Seçilen satışlar görünür listeden kaldırılacak. Stok miktarları değişmeyecek ve satışlar iptal edilmeyecek. İşlemi onaylıyor musunuz?",
+      "confirmUnhide": "Seçilen satışlar yeniden görünür listeye alınacak. Stok miktarları ve satış durumu değişmeyecek. İşlemi onaylıyor musunuz?",
+      "noteMulti": "Not: Seçilen satışlardan {count} tanesi başka kategorilerden ürün de içeriyor; işlem satışın TAMAMINA (tüm kategorilerdeki kalemlerine) uygulanır.",
+      "noteIneligible": "İşleme alınmayacak {count} kayıt."
     }
   }
 }

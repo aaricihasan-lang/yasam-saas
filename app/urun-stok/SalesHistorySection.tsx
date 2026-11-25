@@ -1,6 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
+import { useStockServerText } from "./useStockServerText";
 
 /**
  * Ürün & Stok kategori ekranlarının ortak "Satış Geçmişi" bölümü.
@@ -66,6 +67,7 @@ export default function SalesHistorySection<T extends HistoryRecordLike>({
   loadIssue?: string | null;
 }) {
   const t = useTranslations("stock.history");
+  const ss = useStockServerText();
   const deleteConfirm = useDeleteConfirm();
   const { confirm } = useConfirm();
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -117,6 +119,15 @@ export default function SalesHistorySection<T extends HistoryRecordLike>({
   }
 
   const withNotes = (base: string, notes: string) => (notes ? `${base}\n\n${notes}` : base);
+  // QA K3-03: TR'de lib metinleri (confirmNotes + *_CONFIRM_MESSAGE) birebir; diğer dillerde aynı sayımlarla çevrilmiş not.
+  const notesFor = (plan: { eligible: { otherCategoryItems?: number }[]; ineligible: unknown[] }, trNotes: string) => {
+    if (ss.isSourceLocale) return trNotes;
+    const notes: string[] = [];
+    const multi = plan.eligible.filter((r) => (r.otherCategoryItems ?? 0) > 0).length;
+    if (multi > 0) notes.push(t("noteMulti", { count: multi }));
+    if (plan.ineligible.length > 0) notes.push(t("noteIneligible", { count: plan.ineligible.length }));
+    return notes.join("\n\n");
+  };
 
   async function handleCancel() {
     if (!selectedRecs.length) return onNotice(t("pickSale"));
@@ -125,7 +136,7 @@ export default function SalesHistorySection<T extends HistoryRecordLike>({
     }
     const ok = await deleteConfirm({
       title: t("cancelSale"),
-      message: withNotes(CANCEL_CONFIRM_MESSAGE, confirmNotes(cancelPlan)),
+      message: withNotes(ss.constant(CANCEL_CONFIRM_MESSAGE, t("confirmCancel")), notesFor(cancelPlan, confirmNotes(cancelPlan))),
       names: cancelPlan.eligible.map(recordLabel),
       count: cancelPlan.eligible.length,
       noun: t("nounSale"),
@@ -145,7 +156,7 @@ export default function SalesHistorySection<T extends HistoryRecordLike>({
     if (!hidePlan.eligible.length) return onNotice(t("alreadyHidden"));
     const ok = await deleteConfirm({
       title: t("removeFromList"),
-      message: withNotes(HIDE_CONFIRM_MESSAGE, confirmNotes(hidePlan)),
+      message: withNotes(ss.constant(HIDE_CONFIRM_MESSAGE, t("confirmHide")), notesFor(hidePlan, confirmNotes(hidePlan))),
       names: hidePlan.eligible.map(recordLabel),
       count: hidePlan.eligible.length,
       noun: t("nounSaleRecord"),
@@ -166,7 +177,7 @@ export default function SalesHistorySection<T extends HistoryRecordLike>({
     const names = unhidePlan.eligible.map(recordLabel);
     const ok = await confirm({
       title: t("restore"),
-      message: `${withNotes(UNHIDE_CONFIRM_MESSAGE, confirmNotes(unhidePlan))}\n\n${t("restoreList", { count: String(names.length), list: names.slice(0, 10).map((n) => `• ${n}`).join("\n") })}${names.length > 10 ? t("andMore", { count: String(names.length - 10) }) : ""}`,
+      message: `${withNotes(ss.constant(UNHIDE_CONFIRM_MESSAGE, t("confirmUnhide")), notesFor(unhidePlan, confirmNotes(unhidePlan)))}\n\n${t("restoreList", { count: String(names.length), list: names.slice(0, 10).map((n) => `• ${n}`).join("\n") })}${names.length > 10 ? t("andMore", { count: String(names.length - 10) }) : ""}`,
       confirmText: t("restore"),
       cancelText: t("cancel"),
     });

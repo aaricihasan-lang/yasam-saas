@@ -1,6 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
+import { useStockServerText } from "../useStockServerText";
 
 import { runInEffect } from "@/lib/runInEffect";
 import Link from "next/link";
@@ -279,6 +280,7 @@ type RecipeRow = {
 };
 
 export default function DogaltasUrunStokPage() {
+  const ss = useStockServerText();
   const tS = useTranslations("stock.common");
   const tD = useTranslations("stock.pages.stone");
   useBfcacheRefresh();
@@ -391,7 +393,7 @@ export default function DogaltasUrunStokPage() {
     // Çift gönderim kilidi (senkron, ilk ifade): ikinci tık yok sayılır.
     return saveLock
       .run(() => addStockNow())
-      .catch((e: unknown) => setStockMsg(e instanceof Error ? e.message : tS("msg.saveIncomplete")));
+      .catch((e: unknown) => setStockMsg(ss.exception(e, tS("msg.saveIncomplete"))));
   }
 
   async function addStockNow() {
@@ -467,7 +469,7 @@ export default function DogaltasUrunStokPage() {
         if (!res.ok) {
           retryRef.current = { signature, targetId: targetKey, isNew: false, baseStock };
           setStockMsg(
-            tS("msg.cloudAddFailed", { error: String(res.error ?? "") }),
+            tS("msg.cloudAddFailed", { error: ss.detail(res.error) }),
           );
           return; // Alanları temizleme — kullanıcı tekrar deneyebilsin.
         }
@@ -520,7 +522,7 @@ export default function DogaltasUrunStokPage() {
         const res = await deleteDogaltasInventoryItems(activeTenantId, removed);
         await reloadInventory();
         if (!res.ok) {
-          setStockMsg(tD("deleteIncomplete", { error: String(res.error) }));
+          setStockMsg(tD("deleteIncomplete", { error: ss.isSourceLocale ? String(res.error) : ss.detail(res.error) }));
           return;
         }
         setSelectedKeys(new Set());
@@ -754,7 +756,7 @@ export default function DogaltasUrunStokPage() {
       const { res, attempt } = await submitCategorySale({ category: "dogaltas", lines, current: saleAttemptRef.current });
       saleAttemptRef.current = attempt;
       if (!res.ok) {
-        setPricingMsg(res.error ?? tS("msg.saleFailed"));
+        setPricingMsg(ss.text(res.error, tS("msg.saleFailed")));
         await reloadInventory(); // gerçek stok yenilensin
         return;
       }
@@ -762,7 +764,7 @@ export default function DogaltasUrunStokPage() {
       resetProductForm();
       await reloadInventory(); // stok DB'den (canonical) yeniden yüklenir
       await reloadSales(); // geçmiş DB'den (yeni satış görünür)
-      setPricingMsg(res.duplicate ? DUPLICATE_SALE_MESSAGE : tS("msg.saleSaved"));
+      setPricingMsg(res.duplicate ? ss.constant(DUPLICATE_SALE_MESSAGE, tS("msg.duplicateSale")) : tS("msg.saleSaved"));
     } catch {
       setPricingMsg(tS("msg.networkError"));
       await reloadInventory();

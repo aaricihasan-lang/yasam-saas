@@ -45,7 +45,12 @@
       "otherCategory": "+ {count, select, 1 {1 product from another category} other {{count} products from another category}} (actions apply to the whole sale)",
       "statusCancelled": "Cancelled",
       "statusCompleted": "Completed",
-      "detail": "Details"
+      "detail": "Details",
+      "confirmCancel": "The selected sales will be cancelled. The sold quantities of the related products still in stock will be added back. Do you confirm?",
+      "confirmHide": "The selected sales will be removed from the visible list. Stock quantities will not change and the sales will not be cancelled. Do you confirm?",
+      "confirmUnhide": "The selected sales will be returned to the visible list. Stock quantities and sale status will not change. Do you confirm?",
+      "noteMulti": "Note: {count, plural, one {# of the selected sales also contains} other {# of the selected sales also contain}} products from other categories; the action applies to the WHOLE sale (its items in all categories).",
+      "noteIneligible": "{count, plural, one {# record} other {# records}} will not be processed."
     }
   }
 }

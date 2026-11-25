@@ -80,7 +80,9 @@
         "demoPreview": "Demo: sale previewed (no permanent record is made).",
         "conflict": "The stock changed in the meantime due to another operation (e.g. a sale); the record was not written. The current stock has been loaded — check the form and save again.",
         "updateFailed": "The record could not be updated: {error}",
-        "saveIncomplete": "The record could not be completed."
+        "saveIncomplete": "The record could not be completed.",
+        "serverDetail": "the action could not be completed",
+        "duplicateSale": "This sale had already been recorded (retried after a connection interruption); it was not recorded a second time and stock was not deducted again."
       },
       "form": {
         "editRecord": "Edit Record",

@@ -80,7 +80,9 @@
         "demoPreview": "Demo: satış önizlendi (kalıcı kayıt yapılmaz).",
         "conflict": "Stok bu arada başka bir işlemle (ör. satış) değişti; kayıt yazılmadı. Güncel stok yüklendi — formu kontrol edip yeniden kaydedin.",
         "updateFailed": "Kayıt güncellenemedi: {error}",
-        "saveIncomplete": "Kayıt tamamlanamadı."
+        "saveIncomplete": "Kayıt tamamlanamadı.",
+        "serverDetail": "İşlem tamamlanamadı",
+        "duplicateSale": "Bu satış daha önce kaydedilmişti (bağlantı kesintisi sonrası tekrar denendi); ikinci kez kaydedilmedi ve stok yeniden düşülmedi."
       },
       "form": {
         "editRecord": "Kayıt Düzenle",

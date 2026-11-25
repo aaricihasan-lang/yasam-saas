@@ -1,6 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
+import { useStockServerText } from "../useStockServerText";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import BfcacheRefreshHandler from "@/components/BfcacheRefreshHandler";
@@ -167,6 +168,7 @@ function productOptionLabel(p: UiProduct): string {
 }
 
 export default function MerkeziSatisFiyatlandirmaPage() {
+  const ss = useStockServerText();
   const t = useTranslations("stock.pricing");
   const tS = useTranslations("stock.common");
   // Kategori GÖSTERİMİ (kimlik kanonik; satış etiketine yazılan CATEGORY_LABELS Türkçe kalır)
@@ -194,7 +196,7 @@ export default function MerkeziSatisFiyatlandirmaPage() {
       const res = await fetchSalesCatalog();
       if (!res.ok) {
         setMsgOk(false);
-        setMsg(res.error ?? t("catalogFailed"));
+        setMsg(ss.text(res.error, t("catalogFailed")));
         setProducts([]);
         return;
       }
@@ -202,7 +204,7 @@ export default function MerkeziSatisFiyatlandirmaPage() {
     } finally {
       setLoading(false);
     }
-  }, [usdRate, t]);
+  }, [usdRate, t, ss]);
 
   const liveCounts = useMemo(() => {
     const counts = { dogaltas: 0, oil: 0, soap_cream: 0, accessory: 0, other: 0 } as Record<ProductCategory, number>;
@@ -346,7 +348,7 @@ export default function MerkeziSatisFiyatlandirmaPage() {
 
       if (!res.ok) {
         setMsgOk(false);
-        setMsg(res.error ?? tS("msg.saleFailed"));
+        setMsg(ss.text(res.error, tS("msg.saleFailed")));
         await loadCatalog(false); // gerçek stok yenilensin (yetersiz stok vs.)
         return;
       }
@@ -358,7 +360,7 @@ export default function MerkeziSatisFiyatlandirmaPage() {
       setSaleLabel("");
       await loadCatalog(false); // stok DB'den yeniden yüklenir (canonical)
       setMsgOk(true);
-      setMsg(res.duplicate ? DUPLICATE_SALE_MESSAGE : t("saleSaved"));
+      setMsg(res.duplicate ? ss.constant(DUPLICATE_SALE_MESSAGE, tS("msg.duplicateSale")) : t("saleSaved"));
     } catch {
       setMsgOk(false);
       setMsg(tS("msg.networkError"));
