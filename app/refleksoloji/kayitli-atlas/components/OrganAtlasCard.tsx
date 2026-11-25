@@ -1,6 +1,8 @@
 ﻿"use client";
 
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import { localeTag } from "@/lib/i18n/format";
+import type { ActiveLocale } from "@/lib/i18n/locales";
 import type { OrganSummary } from "../lib/organSummary";
 import { useAtlasLabels } from "../lib/useAtlasLabels";
 import { formatInstantDateTime } from "@/lib/time/reportTime";
@@ -29,6 +31,7 @@ export function OrganAtlasCard({
 }: OrganAtlasCardProps) {
   const t = useTranslations("reflexology.savedAtlas.card");
   const tc = useTranslations("reflexology.common");
+  const bcp47 = localeTag(useLocale() as ActiveLocale);
   const labels = useAtlasLabels();
   const handLabel = labels.handLabel(summary);
   return (
@@ -73,7 +76,7 @@ export function OrganAtlasCard({
           <div>
             <dt>{t("updated")}</dt>
             <dd>
-              {formatInstantDateTime(updatedAt, { fallback: "—" })}
+              {formatInstantDateTime(updatedAt, { fallback: "—", locale: bcp47 })}
             </dd>
           </div>
         ) : null}

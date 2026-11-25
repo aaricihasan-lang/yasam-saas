@@ -1,6 +1,8 @@
 "use client";
 
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import { localeTag } from "@/lib/i18n/format";
+import type { ActiveLocale } from "@/lib/i18n/locales";
 
 import Link from "next/link";
 import { Calendar, Eye, Pencil, Trash2 } from "lucide-react";
@@ -31,6 +33,7 @@ export function ProtocolListCard({
 }: ProtocolListCardProps) {
   const t = useTranslations("reflexology.savedProtocols.card");
   const tc = useTranslations("reflexology.common");
+  const bcp47 = localeTag(useLocale() as ActiveLocale);
   const title = protocol.title?.trim() || t("untitled");
   const targetProblem = protocol.target_problem?.trim() || "";
   const organsList = parseOrgansList(protocol.organs);
@@ -116,7 +119,7 @@ export function ProtocolListCard({
             {t("date")}
           </dt>
           <dd className="whitespace-nowrap font-semibold text-[#17132f]">
-            {formatProtocolDate(protocol.created_at)}
+            {formatProtocolDate(protocol.created_at, bcp47)}
           </dd>
         </div>
       </dl>

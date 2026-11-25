@@ -8,6 +8,7 @@ import {
   subscribeReflexologySyncStatus,
   type ReflexologySyncState,
 } from "@/lib/refleksoloji/syncStatus";
+import { useSyncStatusText } from "@/app/refleksoloji/hooks/useSyncStatusText";
 
 /**
  * REF-007: sunucu senkron durumunu gösteren küçük rozet. "Kaydedildi" mesajı artık
@@ -43,6 +44,7 @@ const DOT: Record<ReflexologySyncState, string> = {
 export function SyncStatusBadge({ className = "" }: { className?: string }) {
   const tc = useTranslations("reflexology.common");
   const status = useReflexologySyncStatus();
+  const statusText = useSyncStatusText();
   if (status.state === "idle") return null;
 
   const showRetry =
@@ -56,7 +58,7 @@ export function SyncStatusBadge({ className = "" }: { className?: string }) {
       className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold ${STYLE[status.state]} ${className}`}
     >
       <span className={`h-1.5 w-1.5 rounded-full ${DOT[status.state]}`} aria-hidden />
-      {status.message}
+      {statusText(status)}
       {showRetry ? (
         <button
           type="button"

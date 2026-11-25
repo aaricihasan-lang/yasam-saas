@@ -67,6 +67,8 @@ export async function GET(req: NextRequest): Promise<Response> {
     ok: true,
     count: matches.length,
     titles: matches.map((m) => m.title ?? "Başlıksız protokol"),
+    // I18N-F1-R3: başlıksız kaydın yedek adı yalnız gösterimdir (DB'ye yazılmaz); istemci dile göre karar versin.
+    untitled: matches.map((m) => m.title == null),
   });
 }
 

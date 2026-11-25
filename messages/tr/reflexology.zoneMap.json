@@ -63,7 +63,8 @@
       "saveToast": {
         "synced": "Atlas kaydedildi ve sunucuyla eşitlendi. Bölgeler Kayıtlı Atlas'ta.",
         "failed": "Bölgeler bu cihaza kaydedildi ancak sunucuya gönderilemedi. Üstteki «Yeniden dene» ile tekrar deneyin.",
-        "pending": "Bölgeler bu cihaza kaydedildi — sunucuya gönderiliyor…"
+        "pending": "Bölgeler bu cihaza kaydedildi — sunucuya gönderiliyor…",
+        "localOnly": "Atlas bu cihaza kaydedildi."
       },
       "organs": {
         "title": "ORGANLAR",

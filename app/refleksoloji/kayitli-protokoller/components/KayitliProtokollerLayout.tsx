@@ -2,6 +2,7 @@
 
 import { useLocale, useTranslations } from "next-intl";
 import { DEFAULT_LOCALE } from "@/lib/i18n/locales";
+import { useRefCodeText } from "@/app/refleksoloji/hooks/useRefCodeText";
 
 import Link from "next/link";
 import { Plus, Search } from "lucide-react";
@@ -32,6 +33,7 @@ export function KayitliProtokollerLayout() {
   const t = useTranslations("reflexology.savedProtocols");
   const tc = useTranslations("reflexology.common");
   const isSourceLocale = useLocale() === DEFAULT_LOCALE;
+  const refCode = useRefCodeText();
   const { confirm } = useConfirm();
   const { showToast } = useToast();
   const {
@@ -87,8 +89,8 @@ export function KayitliProtokollerLayout() {
         body: JSON.stringify(body),
       });
       if (!res.ok) {
-        const err = await res.json().catch(() => ({})) as { error?: string };
-        showToast({ title: tc("errorTitle"), message: (isSourceLocale ? err.error : "") || t("reportFailed"), type: "error" });
+        const err = await res.json().catch(() => ({})) as { error?: string; code?: string };
+        showToast({ title: tc("errorTitle"), message: isSourceLocale ? err.error || t("reportFailed") : refCode(err, t("reportFailed")), type: "error" });
         return;
       }
       // Dosya adı sunucudan (Content-Disposition, İstanbul günü); yoksa yerel gün.

@@ -32,10 +32,11 @@ function localUsageCount(name: string): number {
 /** Bu organı kullanan protokol sayısı + başlıkları (server + yerel birleşik). */
 export async function getOrganProtocolUsage(
   name: string,
-): Promise<{ count: number; titles: string[] }> {
+): Promise<{ count: number; titles: string[]; untitled?: boolean[] }> {
   const isDemo = readYasamUser()?.is_demo_account === true;
   let serverCount = 0;
   let titles: string[] = [];
+  let untitled: boolean[] | undefined;
   if (!isDemo) {
     try {
       const res = await fetch(
@@ -43,11 +44,13 @@ export async function getOrganProtocolUsage(
         { headers: userHeaders(), cache: "no-store" },
       );
       const json = (await res.json().catch(() => null)) as
-        | { ok?: boolean; count?: number; titles?: string[] }
+        | { ok?: boolean; count?: number; titles?: string[]; untitled?: boolean[] }
         | null;
       if (res.ok && json?.ok) {
         serverCount = json.count ?? 0;
         titles = Array.isArray(json.titles) ? json.titles : [];
+        // I18N-F1-R3: yalnız gösterim bayrağı (eşleşme/uzlaştırma mantığı kullanmaz).
+        untitled = Array.isArray(json.untitled) && json.untitled.length === titles.length ? json.untitled.map((v) => v === true) : undefined;
       }
     } catch {
       // sessiz — yerel sayıya düş.
@@ -55,7 +58,7 @@ export async function getOrganProtocolUsage(
   }
   const local = localUsageCount(name);
   // Server ve yerel çoğunlukla aynı kayıtlardır; en güvenli üst sınır max.
-  return { count: Math.max(serverCount, local), titles };
+  return { count: Math.max(serverCount, local), titles, untitled };
 }
 
 /** Yerel Protokol Haritası kayıtlarında organ adını değiştir (Türkçe-duyarsız). */

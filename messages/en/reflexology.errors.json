@@ -1,0 +1,55 @@
+{
+  "reflexology": {
+    "errors": {
+      "codes": {
+        "REF_INVALID_BODY": "Invalid request body.",
+        "REF_DEMO_FORBIDDEN": "This action is not available in the demo account.",
+        "REF_BODY_TOO_LARGE": "The request is too large.",
+        "REF_VALIDATION": "The information entered is not valid.",
+        "REF_INVALID_EXPORT_SCOPE": "Invalid export type.",
+        "REF_TOO_MANY_SELECTED": "Too many items were selected for a single report.",
+        "REF_REPORT_TOO_LARGE": "The report is too large.",
+        "REF_ORGAN_REQUIRED": "An organ name is required.",
+        "REF_INVALID_ORGAN": "Invalid organ name.",
+        "REF_ATLAS_READ_FAILED": "The atlas could not be loaded.",
+        "REF_ATLAS_NOT_FOUND": "No atlas record was found for this selection.",
+        "REF_PROTOCOL_ID_REQUIRED": "A protocol ID is required.",
+        "REF_INVALID_PROTOCOL_ID": "Invalid protocol ID.",
+        "REF_PROTOCOLS_READ_FAILED": "The protocols could not be loaded.",
+        "REF_PROTOCOL_NOT_FOUND": "No protocol was found for this selection.",
+        "REF_PROTOCOL_NOT_OWNED": "This protocol does not belong to this account.",
+        "REF_CLIENT_FORBIDDEN": "Client not found, or you do not have access.",
+        "REF_SOURCE_UID_REQUIRED": "A source ID is required.",
+        "REF_RENAME_NAMES_REQUIRED": "Both the old and the new name are required.",
+        "REF_SERVER_ERROR": "The action could not be completed. Please try again."
+      },
+      "sync": {
+        "notesSyncing": "Synchronising notes…",
+        "notesOffline": "Offline — notes are stored on this device.",
+        "notesFailed": "Notes could not be synchronised.",
+        "notesConflict": "Some notes were changed on another device or tab. Your local text has been kept; you can reload the latest version from the server.",
+        "notesOversize": "{count, plural, one {# note is} other {# notes are}} too large to send to the server (attachments up to 3 MB). Reduce the attachment and save the note again.",
+        "notesRejected": "{count, plural, one {# note} other {# notes}} could not be synchronised (invalid content or attachments too large). Edit the marked note and save it again; the other notes were synchronised.",
+        "notesPartial": "Some notes could not be synchronised.",
+        "notesSynced": "Notes synchronised",
+        "atlasFetchFailed": "The atlas could not be loaded from the server.",
+        "atlasSynced": "Atlas synchronised",
+        "atlasPending": "The atlas has changes that are not yet synchronised.",
+        "atlasSyncing": "Sending the atlas to the server…",
+        "atlasOffline": "Offline — the atlas is stored on this device and will be sent when the connection returns.",
+        "atlasTimeout": "The atlas could not be sent to the server (timed out) — it is stored on this device.",
+        "atlasFailed": "The atlas could not be sent to the server — it is stored on this device.",
+        "atlasRejected": "The atlas data was rejected by the server — it is stored on this device.",
+        "atlasConflict": "The atlas was updated on another device — refresh. Your changes on this device are kept.",
+        "atlasQuotaConflict": "The atlas was updated on another device but could not be merged because device storage is full. Your changes on this device are kept.",
+        "state": {
+          "syncing": "Synchronising…",
+          "synced": "Synchronised",
+          "error": "Could not be synchronised.",
+          "offline": "Offline — data is stored on this device.",
+          "conflict": "There are changes made on another device."
+        }
+      }
+    }
+  }
+}

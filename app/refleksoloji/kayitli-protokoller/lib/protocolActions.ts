@@ -34,9 +34,12 @@ export function protocolMatchesSearch(
   return haystack.includes(query);
 }
 
-export function formatProtocolDate(iso: string): string {
+/**
+ * I18N-F1-R3: `bcp47` ekran dilinin etiketi (lib/i18n/format.localeTag). Varsayılan "tr-TR" → eski çıktı birebir.
+ */
+export function formatProtocolDate(iso: string, bcp47: string = "tr-TR"): string {
   try {
-    return new Date(iso).toLocaleString("tr-TR", {
+    return new Date(iso).toLocaleString(bcp47, {
       dateStyle: "medium",
       timeStyle: "short",
     });

@@ -1,7 +1,9 @@
 "use client";
 
 import { useLocale, useTranslations } from "next-intl";
-import { DEFAULT_LOCALE } from "@/lib/i18n/locales";
+import { DEFAULT_LOCALE, type ActiveLocale } from "@/lib/i18n/locales";
+import { localeTag } from "@/lib/i18n/format";
+import { useRefCodeText } from "@/app/refleksoloji/hooks/useRefCodeText";
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
@@ -30,7 +32,7 @@ import { formatProtocolDate, parseOrgansList } from "../lib/protocolActions";
 import {
   buildProtocolClinicalContent,
   formatRawJsonForDev,
-  protocolHeroTitle,
+  resolveTargetProblem,
 } from "../lib/protocolDetailContent";
 import type { ReflexologyProtocolRecord } from "../types";
 import { ClinicalProtocolStepsCard } from "./ClinicalProtocolStepsCard";
@@ -183,7 +185,9 @@ export function KayitliProtokolDetayLayout({ protocolId }: KayitliProtokolDetayL
   const t = useTranslations("reflexology.savedProtocols");
   const td = useTranslations("reflexology.savedProtocols.detail");
   const tc = useTranslations("reflexology.common");
-  const isSourceLocale = useLocale() === DEFAULT_LOCALE;
+  const uiLocale = useLocale() as ActiveLocale;
+  const isSourceLocale = uiLocale === DEFAULT_LOCALE;
+  const refCode = useRefCodeText();
   const isDemo = readYasamUser()?.is_demo_account === true;
   const isSeed = isDemo && isDemoFixtureProtocol(protocolId);
 
@@ -218,8 +222,8 @@ export function KayitliProtokolDetayLayout({ protocolId }: KayitliProtokolDetayL
         body: JSON.stringify({ tenantId: tid, exportMode: "single", protocolId: protocol.id, ...yhAttach }),
       });
       if (!res.ok) {
-        const errJson = (await res.json().catch(() => ({}))) as { error?: string };
-        showToast({ title: tc("errorTitle"), message: (isSourceLocale ? errJson.error : "") || t("reportFailed"), type: "error" });
+        const errJson = (await res.json().catch(() => ({}))) as { error?: string; code?: string };
+        showToast({ title: tc("errorTitle"), message: isSourceLocale ? errJson.error || t("reportFailed") : refCode(errJson, t("reportFailed")), type: "error" });
         return;
       }
       // Dosya adı sunucudan (Content-Disposition, İstanbul günü); yoksa yerel gün.
@@ -275,12 +279,12 @@ export function KayitliProtokolDetayLayout({ protocolId }: KayitliProtokolDetayL
         }
 
         const json = (await res.json().catch(() => null)) as
-          | { ok?: boolean; protocol?: ReflexologyProtocolRecord | null; error?: string }
+          | { ok?: boolean; protocol?: ReflexologyProtocolRecord | null; error?: string; code?: string }
           | null;
 
         if (!res.ok || !json?.ok) {
           // Sunucu ayrıntısı Türkçe: yalnız kaynak dilde eklenir.
-          setLoadErrorMessage(isSourceLocale ? t("loadFailed", { detail: json?.error ?? res.statusText }) : t("loadFailedGeneric"));
+          setLoadErrorMessage(isSourceLocale ? t("loadFailed", { detail: json?.error ?? res.statusText }) : refCode(json, t("loadFailedGeneric")));
           setProtocol(null);
           return;
         }
@@ -337,12 +341,12 @@ export function KayitliProtokolDetayLayout({ protocolId }: KayitliProtokolDetayL
   const applicationNotesDisplay = clinical?.applicationNotes ?? null;
   const sourceDescription = clinical?.source ?? null;
 
-  // QA K2-03: protocolHeroTitle yalnız gösterim yedeği döndürür (DB'ye yazılmaz, karşılaştırılmaz) → ekran dilinde.
+  // QA K2-03 / K2D4-QA-02 (I18N-F1-R3): protocolHeroTitle = resolveTargetProblem(...) || "Başlıksız protokol" (yalnız
+  // gösterim yedeği; DB'ye yazılmaz). Yedeğe metin eşitliğiyle değil "çözülen başlık boş mu" koşuluyla karar verilir:
+  // TR çıktı birebir (card.untitled TR = "Başlıksız protokol"); kullanıcının bilerek verdiği aynı ad EN'de de aynen kalır.
   const heroTitle = useMemo(() => {
     if (!protocol) return "";
-    const title = protocolHeroTitle(protocol, rawJson);
-    // i18n-ignore: protocolDetailContent.ts kaynak-dil yedek başlığıyla eşitlik (yalnız gösterim eşlemesi)
-    return title === "Başlıksız protokol" ? t("card.untitled") : title;
+    return resolveTargetProblem(protocol, rawJson) || t("card.untitled");
   }, [protocol, rawJson, t]);
 
   const rawJsonDevText = useMemo(
@@ -459,7 +463,7 @@ export function KayitliProtokolDetayLayout({ protocolId }: KayitliProtokolDetayL
           </h1>
           <div className="mt-2 flex flex-wrap gap-1.5">
             <span className="inline-flex rounded-full border border-violet-200/80 bg-white/90 px-2.5 py-0.5 text-[11px] font-medium text-violet-800">
-              {formatProtocolDate(protocol.created_at)}
+              {formatProtocolDate(protocol.created_at, localeTag(uiLocale))}
             </span>
             {/* Teknik kimlik (source_uid) kullanıcıya gösterilmez — Word raporunda da yok. */}
             {protocol.title?.trim() && protocol.title.trim() !== heroTitle ? (
