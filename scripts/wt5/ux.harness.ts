@@ -256,6 +256,8 @@ async function main() {
         { file: "app/numeroloji/components/NumerolojiAnalizSonucTabs.tsx", line: `<DetayCard title="Elementler">`, msgFile: "messages/tr/numerology.result.json", key: "numerology.result.tabs.labels.elementler", tr: "Elementler", use: `<DetayCard title={t("labels.elementler")}>` },
         { file: "app/numeroloji/components/NumerolojiGorselRaporInfografik.tsx", line: `<GorselKutuBaslik className="text-center text-xl">Elementler</GorselKutuBaslik>`, msgFile: "messages/tr/numerology.tabs.json", key: "numerology.tabs.visual.elements", tr: "Elementler", use: `<GorselKutuBaslik className="text-center text-xl">{t("elements")}</GorselKutuBaslik>` },
         { file: "app/numeroloji/components/NumerolojiIliskiAnaliziTab.tsx", line: `<span className="text-[10px] font-bold text-slate-500">Öne Çıkan Elementler:</span>`, msgFile: "messages/tr/numerology.tabs.json", key: "numerology.tabs.relationship.highlighted", tr: "Öne Çıkan Elementler:", use: `<span className="text-[10px] font-bold text-slate-500">{t("highlighted")}</span>` },
+        // R5 NUM-RAPOR (P35 Bilgi Bankası Word): bölüm başlığı katalogdan — aynı dar desen (TR değeri birebir + yerinde anahtar).
+        { file: "app/numeroloji/bilgi-bankasi/helpers/wordDocxBuild.ts", line: `blocks.push(subHeading("Elementler"));`, msgFile: "messages/tr/reports.numerology.json", key: "reports.numerology.word.h.elements", tr: "Elementler", use: `blocks.push(subHeading(w("word.h.elements")));` },
       ];
       for (const r of R5_TASINAN) {
         if (trAt(r.msgFile, r.key) === r.tr && read(r.file).includes(r.use)) I18N_TASINAN.add(`a/${r.file} b/${r.file}: ${r.line}`);
