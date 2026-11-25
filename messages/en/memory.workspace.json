@@ -3,8 +3,7 @@
     "workspace": {
       "page": {
         "title": "Life Memory",
-        "subtitle": "Search your professional knowledge and client history securely, from one place.",
-        "loadingSubtitle": "Search your professional knowledge and content across modules from one place."
+        "subtitle": "Search your professional knowledge and client history securely, from one place."
       },
       "shell": {
         "breadcrumbAria": "Breadcrumb",

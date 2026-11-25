@@ -3,8 +3,7 @@
     "workspace": {
       "page": {
         "title": "Yaşam Hafızası",
-        "subtitle": "Mesleki bilgi ve danışan geçmişinizi güvenli biçimde tek noktadan arayın.",
-        "loadingSubtitle": "Farklı modüllerdeki mesleki bilgi ve içeriklerinizi tek yerden arayın."
+        "subtitle": "Mesleki bilgi ve danışan geçmişinizi güvenli biçimde tek noktadan arayın."
       },
       "shell": {
         "breadcrumbAria": "Sayfa yolu",
