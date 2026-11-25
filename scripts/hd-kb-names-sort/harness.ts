@@ -301,7 +301,7 @@ async function main() {
   // ══ TEST 10 ══════════════════════════════════════════════════════════════════
   section("TEST 10 — Admin üç kaynak ayrı; normal uzmanın akışı değişmez");
   const React = await import("react");
-  const { renderToStaticMarkup } = await import("react-dom/server");
+  const { renderToStaticMarkup } = await import("../hd-i18n/intlRender");
   const { HdChartKnowledgeTabs } = await import("../../app/human-design/kayitli-haritalar/components/HdChartKnowledgeTabs");
   const expertEl = React.createElement("div", { "data-expert": "1" }, "UZMAN-ICERIK");
   const centralEl = React.createElement("div", { "data-central": "1" }, "MERKEZI-ICERIK");

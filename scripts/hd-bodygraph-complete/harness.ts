@@ -17,7 +17,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import JSZip from "jszip";
 import { createElement } from "react";
-import { renderToStaticMarkup } from "react-dom/server";
+import { renderToStaticMarkup } from "../hd-i18n/intlRender";
 import { TA, TB, BODYGRAPH, FIXTURE, callRoute, installFakeRoxy, mkUser, startHdFlowEnv, type Auth } from "../hd-analysis-word-flow/env";
 import { boundBodygraphDataUrl } from "../hd-roxy/consistentFixture";
 import { extractSystemReading, looksEnglishText, type SystemReadingDto } from "../../lib/human-design/providers/roxy/systemReading";

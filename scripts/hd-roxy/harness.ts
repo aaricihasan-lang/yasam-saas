@@ -11,7 +11,7 @@ import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createElement } from "react";
-import { renderToStaticMarkup } from "react-dom/server";
+import { renderToStaticMarkup } from "../hd-i18n/intlRender";
 
 import { validateRoxyBodygraph } from "../../lib/human-design/providers/roxy/schema";
 import { normalizeRoxyBodygraph, type RoxyNormalizeInput } from "../../lib/human-design/providers/roxy/normalize";

@@ -18,7 +18,7 @@ import { join } from "node:path";
   };
 }
 import { createElement } from "react";
-import { renderToStaticMarkup } from "react-dom/server";
+import { renderToStaticMarkup } from "../hd-i18n/intlRender";
 import { validateRoxyBodygraph } from "../../lib/human-design/providers/roxy/schema";
 import { normalizeRoxyBodygraph } from "../../lib/human-design/providers/roxy/normalize";
 import { buildRoxyRenderPayload } from "../../lib/human-design/providers/roxy/render";

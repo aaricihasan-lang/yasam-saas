@@ -78,7 +78,7 @@ async function main() {
   // ══ 4. Sunum ════════════════════════════════════════════════════════════════
   section("4 — Panel: Kapılar bölümü + mevcut bölümler korunur");
   const React = await import("react");
-  const { renderToStaticMarkup } = await import("react-dom/server");
+  const { renderToStaticMarkup } = await import("../hd-i18n/intlRender");
   const { HdSystemReadingView } = await import("../../app/human-design/kayitli-haritalar/components/HdSystemReadingPanel");
   const html = renderToStaticMarkup(React.createElement(HdSystemReadingView, { data: dto }));
   ok("4a 'Kapılar (21)' bölümü var", html.includes("Kapılar (21)"));

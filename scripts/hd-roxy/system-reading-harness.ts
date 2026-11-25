@@ -12,7 +12,7 @@ import { readFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createElement } from "react";
-import { renderToStaticMarkup } from "react-dom/server";
+import { renderToStaticMarkup } from "../hd-i18n/intlRender";
 import { NextRequest } from "next/server";
 
 import { extractSystemReading, SYSTEM_READING_LIMITS, type SystemReadingDto } from "../../lib/human-design/providers/roxy/systemReading";

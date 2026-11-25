@@ -8,7 +8,7 @@ import { readFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createElement } from "react";
-import { renderToStaticMarkup } from "react-dom/server";
+import { renderToStaticMarkup } from "../hd-i18n/intlRender";
 
 import { parseRoxyLocationResponse, searchRoxyLocations } from "../../lib/human-design/providers/roxy/location";
 import { roxyCityToLocation, signLocationRef, verifyLocationRef } from "../../lib/human-design/api/hdLocationRef";
