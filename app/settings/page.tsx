@@ -31,7 +31,7 @@ import {
 import { useToast } from "@/components/ui/ToastProvider";
 import { SettingsTabBar } from "./SettingsTabBar";
 import PasswordInput from "@/components/ui/PasswordInput";
-import { PASSWORD_HINT, newPasswordPolicyMessage } from "@/lib/auth/passwordPolicy";
+import { passwordHintFor, newPasswordPolicyMessage } from "@/lib/auth/passwordPolicy";
 import { searchLocations, type Location } from "@/lib/location";
 import { TR_LOCATIONS } from "@/lib/location/tr";
 import { getUserLocationPref, saveUserLocationPref, type UserLocationPref } from "@/lib/location/userLocationPref";
@@ -140,6 +140,8 @@ function PasswordField({
 function SecurityTab({ user }: { user: YasamUser }) {
   const { showToast } = useToast();
   const t = useTranslations("settings.security");
+  // Parola kuralı ipucu/uyarısı dile göre (lib/auth/passwordPolicy); TR çıktısı PASSWORD_HINT ile BİREBİR aynı.
+  const locale = useLocale();
   const [oldPw,     setOldPw]     = useState("");
   const [newPw,     setNewPw]     = useState("");
   const [confirmPw, setConfirmPw] = useState("");
@@ -156,7 +158,7 @@ function SecurityTab({ user }: { user: YasamUser }) {
       showToast({ message: t("mismatch"), type: "warning" });
       return;
     }
-    const policyError = newPasswordPolicyMessage(newPw.trim(), user.email ?? "");
+    const policyError = newPasswordPolicyMessage(newPw.trim(), user.email ?? "", locale);
     if (policyError) {
       showToast({ message: policyError, type: "warning" });
       return;
@@ -209,7 +211,7 @@ function SecurityTab({ user }: { user: YasamUser }) {
 
       <PasswordField id="settings-current-password" label={t("currentLabel")}     value={oldPw}     onChange={(v) => { setOldPw(v); setSuccess(false); }}     placeholder={t("currentPlaceholder")}      autoComplete="current-password" />
       <PasswordField id="settings-new-password"     label={t("newLabel")}       value={newPw}     onChange={setNewPw}     placeholder={t("newPlaceholder")}             autoComplete="new-password" />
-      <p className="-mt-2 text-xs font-medium text-slate-500">{PASSWORD_HINT}</p>
+      <p className="-mt-2 text-xs font-medium text-slate-500">{passwordHintFor(locale)}</p>
       <PasswordField id="settings-new-password-2"   label={t("repeatLabel")} value={confirmPw} onChange={setConfirmPw} placeholder={t("repeatPlaceholder")} autoComplete="new-password" />
 
       <button
