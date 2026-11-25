@@ -332,6 +332,8 @@ function searchStones(
   query: string,
   t: HubLabelResolver,
   locale: ActiveLocale,
+  /** I18N (QTM-DG-06): adsız taş gösterim yedeği ekran dilinde (stones.common.unnamedStone; TR birebir). */
+  unnamedLabel: string,
 ): StoneSearchResult[] {
   const qNorm = normalizeTrSearch(query.trim());
   if (!qNorm) return [];
@@ -346,7 +348,7 @@ function searchStones(
     results.push({
       id: stone.id,
       // Demo vitrin taşı → EN arayüzde sözlükteki EN ad; kullanıcının taşı ve TR arayüz birebir.
-      stone_name: stoneRecordDisplayName({ id: stone.id, stone_name: stone.stone_name?.trim() || "İsimsiz taş" }, locale),
+      stone_name: stoneRecordDisplayName({ id: stone.id, stone_name: stone.stone_name?.trim() || unnamedLabel }, locale),
       short_description:
         stone.short_description?.trim() || t("results.noDescription"),
       matchedField: hit.label,
@@ -802,7 +804,7 @@ function DogaltasPageContent() {
         ? mineralSectionHubResults(mineralsAllRes.data?.rows ?? [], trimmed, new Set(coreMinerals.map((m) => m.id)), t)
         : [];
       setSearchResults([
-        ...searchStones(records, trimmed, t, locale),
+        ...searchStones(records, trimmed, t, locale, tc("unnamedStone")),
         ...(sectionMinerals.length
           ? [...coreMinerals, ...sectionMinerals].sort((a, b) => a.stone_name.localeCompare(b.stone_name, "tr-TR"))
           : coreMinerals),
