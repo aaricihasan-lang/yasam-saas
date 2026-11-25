@@ -30,6 +30,7 @@ import tr_home from "@/messages/tr/home.json";
 import tr_memoryPicker from "@/messages/tr/memoryPicker.json";
 import tr_navigation from "@/messages/tr/navigation.json";
 import tr_stockCommon from "@/messages/tr/stock.common.json";
+import tr_stockErrors from "@/messages/tr/stock.errors.json";
 import tr_stockHistory from "@/messages/tr/stock.history.json";
 import tr_stockHub from "@/messages/tr/stock.hub.json";
 import tr_stockLive from "@/messages/tr/stock.live.json";
@@ -71,6 +72,7 @@ import en_home from "@/messages/en/home.json";
 import en_memoryPicker from "@/messages/en/memoryPicker.json";
 import en_navigation from "@/messages/en/navigation.json";
 import en_stockCommon from "@/messages/en/stock.common.json";
+import en_stockErrors from "@/messages/en/stock.errors.json";
 import en_stockHistory from "@/messages/en/stock.history.json";
 import en_stockHub from "@/messages/en/stock.hub.json";
 import en_stockLive from "@/messages/en/stock.live.json";
@@ -87,8 +89,8 @@ import en_stonesRecords from "@/messages/en/stones.records.json";
 import en_terms from "@/messages/en/terms.json";
 
 export const CATALOG_FILES = {
-  tr: ["auth.client.json", "auth.email.json", "auth.server.json", "auth.ui.json", "beslenme.json", "clients.analizler.json", "clients.anamnez.json", "clients.charges.json", "clients.combinations.json", "clients.consent.json", "clients.detail.json", "clients.homework.json", "clients.json", "clients.list.json", "clients.memory.json", "clients.notes.json", "clients.sessions.json", "clients.stones.json", "clients.yolculuk.json", "common.apiErrors.json", "common.deleteConfirm.json", "common.json", "common.languagePreference.json", "home.json", "memoryPicker.json", "navigation.json", "stock.common.json", "stock.history.json", "stock.hub.json", "stock.live.json", "stock.pages.json", "stock.pricing.json", "stock.reports.json", "stones.combinations.json", "stones.hub.json", "stones.json", "stones.knowledge.json", "stones.list.json", "stones.minerals.json", "stones.records.json", "terms.json"],
-  en: ["auth.client.json", "auth.email.json", "auth.server.json", "auth.ui.json", "beslenme.json", "clients.analizler.json", "clients.anamnez.json", "clients.charges.json", "clients.combinations.json", "clients.consent.json", "clients.detail.json", "clients.homework.json", "clients.json", "clients.list.json", "clients.memory.json", "clients.notes.json", "clients.sessions.json", "clients.stones.json", "clients.yolculuk.json", "common.apiErrors.json", "common.deleteConfirm.json", "common.json", "common.languagePreference.json", "home.json", "memoryPicker.json", "navigation.json", "stock.common.json", "stock.history.json", "stock.hub.json", "stock.live.json", "stock.pages.json", "stock.pricing.json", "stock.reports.json", "stones.combinations.json", "stones.hub.json", "stones.json", "stones.knowledge.json", "stones.list.json", "stones.minerals.json", "stones.records.json", "terms.json"],
+  tr: ["auth.client.json", "auth.email.json", "auth.server.json", "auth.ui.json", "beslenme.json", "clients.analizler.json", "clients.anamnez.json", "clients.charges.json", "clients.combinations.json", "clients.consent.json", "clients.detail.json", "clients.homework.json", "clients.json", "clients.list.json", "clients.memory.json", "clients.notes.json", "clients.sessions.json", "clients.stones.json", "clients.yolculuk.json", "common.apiErrors.json", "common.deleteConfirm.json", "common.json", "common.languagePreference.json", "home.json", "memoryPicker.json", "navigation.json", "stock.common.json", "stock.errors.json", "stock.history.json", "stock.hub.json", "stock.live.json", "stock.pages.json", "stock.pricing.json", "stock.reports.json", "stones.combinations.json", "stones.hub.json", "stones.json", "stones.knowledge.json", "stones.list.json", "stones.minerals.json", "stones.records.json", "terms.json"],
+  en: ["auth.client.json", "auth.email.json", "auth.server.json", "auth.ui.json", "beslenme.json", "clients.analizler.json", "clients.anamnez.json", "clients.charges.json", "clients.combinations.json", "clients.consent.json", "clients.detail.json", "clients.homework.json", "clients.json", "clients.list.json", "clients.memory.json", "clients.notes.json", "clients.sessions.json", "clients.stones.json", "clients.yolculuk.json", "common.apiErrors.json", "common.deleteConfirm.json", "common.json", "common.languagePreference.json", "home.json", "memoryPicker.json", "navigation.json", "stock.common.json", "stock.errors.json", "stock.history.json", "stock.hub.json", "stock.live.json", "stock.pages.json", "stock.pricing.json", "stock.reports.json", "stones.combinations.json", "stones.hub.json", "stones.json", "stones.knowledge.json", "stones.list.json", "stones.minerals.json", "stones.records.json", "terms.json"],
 } as const;
 
 export const CATALOG_PARTS: Record<"tr" | "en", Record<string, unknown>[]> = {
@@ -120,6 +122,7 @@ export const CATALOG_PARTS: Record<"tr" | "en", Record<string, unknown>[]> = {
     tr_memoryPicker,
     tr_navigation,
     tr_stockCommon,
+    tr_stockErrors,
     tr_stockHistory,
     tr_stockHub,
     tr_stockLive,
@@ -163,6 +166,7 @@ export const CATALOG_PARTS: Record<"tr" | "en", Record<string, unknown>[]> = {
     en_memoryPicker,
     en_navigation,
     en_stockCommon,
+    en_stockErrors,
     en_stockHistory,
     en_stockHub,
     en_stockLive,

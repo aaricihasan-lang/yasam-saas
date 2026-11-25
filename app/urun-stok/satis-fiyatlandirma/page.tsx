@@ -2,6 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import { useStockServerText } from "../useStockServerText";
+import { useStockFormat } from "../useStockFormat";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import BfcacheRefreshHandler from "@/components/BfcacheRefreshHandler";
@@ -9,7 +10,7 @@ import {
   CATEGORY_LABELS,
   type ProductCategory,
   type UnifiedProduct,
-  fmtMoney,
+  fmtMoney as libFmtMoney,
   loadUnifiedProducts,
   toFloat,
   turkishUpper,
@@ -149,6 +150,7 @@ function calcPreview(p: UiProduct, qtyRaw: number, unit: string, markupRaw: numb
   } else {
     baseQty = toBaseQty(p.measureType, unit, qtyRaw);
   }
+  // i18n-ignore: TR kaynak doğrulama metni (tr'de birebir); diğer dilde ss.text → stock.errors.codes.STK_SALE_QTY_POSITIVE
   if (!(baseQty > 0)) return { error: "Satış miktarı 0'dan büyük olmalı." };
   if (baseQty > p.stockAmount) return { error: `Yetersiz stok. Mevcut: ${p.stockDisplay}` };
   // STK-02: sunucu fiyat kuralının aynası (yuvarlama dahil) — ekrandaki tutar = kaydedilen tutar.
@@ -169,6 +171,7 @@ function productOptionLabel(p: UiProduct): string {
 
 export default function MerkeziSatisFiyatlandirmaPage() {
   const ss = useStockServerText();
+  const { fmtMoney } = useStockFormat({ fmtMoney: libFmtMoney });
   const t = useTranslations("stock.pricing");
   const tS = useTranslations("stock.common");
   // Kategori GÖSTERİMİ (kimlik kanonik; satış etiketine yazılan CATEGORY_LABELS Türkçe kalır)
@@ -311,7 +314,7 @@ export default function MerkeziSatisFiyatlandirmaPage() {
     setBasket((b) => [...b, rec]);
     setSaleQty("1");
     setMsgOk(false);
-    setMsg("Sepete eklendi.");
+    setMsg(ss.addedToBasket());
   }
 
   async function commitSale() {
@@ -586,7 +589,7 @@ export default function MerkeziSatisFiyatlandirmaPage() {
                   >
                     {picked.saleUnits.map((u) => (
                       <option key={u} value={u}>
-                        {u}
+                        {ss.option(u)}
                       </option>
                     ))}
                   </select>
@@ -617,7 +620,7 @@ export default function MerkeziSatisFiyatlandirmaPage() {
                 </div>
               </div>
             ) : preview && "error" in preview ? (
-              <p className="text-sm font-semibold text-red-700">{preview.error}</p>
+              <p className="text-sm font-semibold text-red-700">{ss.text(preview.error, tS("msg.invalidInput"))}</p>
             ) : null}
 
             <button
@@ -642,7 +645,7 @@ export default function MerkeziSatisFiyatlandirmaPage() {
                     <div key={i} className="rounded-xl border-2 border-fuchsia-100 bg-fuchsia-50/70 p-3">
                       <p className="text-sm font-black text-slate-900">{ln.name}</p>
                       <p className="mt-0.5 text-xs font-bold text-fuchsia-800">
-                        {catLabel(ln.inventoryType)} &middot; {fmtQty(ln.saleQty)} {ln.saleUnit}
+                        {catLabel(ln.inventoryType)} &middot; {fmtQty(ln.saleQty)} {ss.unit(ln.saleUnit)}
                       </p>
                       <div className="mt-2 grid grid-cols-3 gap-1 text-center text-xs">
                         <div>

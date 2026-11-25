@@ -2,6 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import { useStockServerText } from "../useStockServerText";
+import { useStockFormat } from "../useStockFormat";
 
 import { runInEffect } from "@/lib/runInEffect";
 import Link from "next/link";
@@ -24,7 +25,7 @@ import {
   deductInventoryForSales,
   filesToDataUrls,
   filterInventory,
-  fmtMoney,
+  fmtMoney as libFmtMoney,
   fmtTrim,
   formatTotalsCard,
   isDizi,
@@ -54,14 +55,12 @@ import {
 } from "@/lib/urun-stok/dogaltasInventoryDb";
 import {
   cancelSale,
-  describeCancelOutcomes,
   submitCategorySale,
   DUPLICATE_SALE_MESSAGE,
   setSalesVisibility,
   type CancelOutcome,
   type SaleAttempt,
 } from "@/lib/urun-stok/salesApi";
-import { describeVisibilityOutcome } from "@/lib/urun-stok/salesVisibility";
 import SalesHistorySection from "../SalesHistorySection";
 import { loadDbCategorySales, salesLoadIssue, type DbCategorySale } from "@/lib/urun-stok/salesHistoryDb";
 import { calculateCurrencyCost } from "@/lib/urun-stok/calculateCurrencyCost";
@@ -209,6 +208,7 @@ function PhotoGalleryModal({
 }
 
 function SalesDetailModal({ record, onClose }: { record: SaleRecord; onClose: () => void }) {
+  const { fmtMoney } = useStockFormat({ fmtMoney: libFmtMoney });
   const tS = useTranslations("stock.common");
   const tD = useTranslations("stock.pages.stone");
   const [gallery, setGallery] = useState<string[] | null>(null);
@@ -281,6 +281,7 @@ type RecipeRow = {
 
 export default function DogaltasUrunStokPage() {
   const ss = useStockServerText();
+  const { fmtMoney } = useStockFormat({ fmtMoney: libFmtMoney });
   const tS = useTranslations("stock.common");
   const tD = useTranslations("stock.pages.stone");
   useBfcacheRefresh();
@@ -607,7 +608,7 @@ export default function DogaltasUrunStokPage() {
     const rateEur = toFloat(eurRate, 0);
     const { unit, currency, warning } = unitCostAndCurrency(it, rate, rateEur);
     if (warning) {
-      setPricingMsg(warning);
+      setPricingMsg(ss.text(warning, tS("msg.invalidInput")));
       return;
     }
     if (unit <= 0) {
@@ -824,7 +825,7 @@ export default function DogaltasUrunStokPage() {
     }
     await reloadSales();
     await reloadInventory();
-    setStockMsg(describeCancelOutcomes(outcomes));
+    setStockMsg(ss.cancelOutcome(outcomes));
   }
 
   async function setRecordsVisibility(recs: SaleRecord[], hide: boolean) {
@@ -840,7 +841,7 @@ export default function DogaltasUrunStokPage() {
     const ids = recs.map((r) => r.saleId).filter((x): x is string => Boolean(x));
     const res = await setSalesVisibility(ids, hide ? "hide" : "unhide");
     await reloadSales();
-    setStockMsg(describeVisibilityOutcome(hide ? "hide" : "unhide", res, recs.length - ids.length));
+    setStockMsg(ss.visibilityOutcome(hide ? "hide" : "unhide", res, recs.length - ids.length));
   }
 
   if (!hydrated) {
@@ -1028,7 +1029,7 @@ export default function DogaltasUrunStokPage() {
                       key={msg}
                       className="mt-2 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-900"
                     >
-                      {msg}
+                      {ss.text(msg, tS("msg.invalidInput"))}
                     </p>
                   ))}
                   {stockCostPreview.warnings.map((msg) => (
@@ -1036,7 +1037,7 @@ export default function DogaltasUrunStokPage() {
                       key={msg}
                       className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-950"
                     >
-                      {msg}
+                      {ss.text(msg, tS("msg.invalidInput"))}
                     </p>
                   ))}
                 </div>
@@ -1055,7 +1056,7 @@ export default function DogaltasUrunStokPage() {
                       const files = e.target.files;
                       if (!files?.length) return;
                       const { urls, error } = await filesToDataUrls(files);
-                      if (error) setStockMsg(error);
+                      if (error) setStockMsg(ss.photo(error));
                       else setPendingPhotos(urls);
                       e.target.value = "";
                     }}
@@ -1069,7 +1070,7 @@ export default function DogaltasUrunStokPage() {
                       existingCount: pendingPhotos.length,
                       existingBytes: dataUrlsByteSize(pendingPhotos),
                     });
-                    if (error) setStockMsg(error);
+                    if (error) setStockMsg(ss.photo(error));
                     else setPendingPhotos((prev) => [...prev, ...urls]);
                   }}
                 >
@@ -1253,7 +1254,7 @@ export default function DogaltasUrunStokPage() {
                     const f = e.target.files;
                     if (!f?.length) return;
                     const { urls, error } = await filesToDataUrls(f);
-                    if (error) setPricingMsg(error);
+                    if (error) setPricingMsg(ss.photo(error));
                     else setProductPhotos(urls);
                     e.target.value = "";
                   }}
@@ -1267,7 +1268,7 @@ export default function DogaltasUrunStokPage() {
                     existingCount: productPhotos.length,
                     existingBytes: dataUrlsByteSize(productPhotos),
                   });
-                  if (error) setPricingMsg(error);
+                  if (error) setPricingMsg(ss.photo(error));
                   else setProductPhotos((prev) => [...prev, ...urls]);
                 }}
               >

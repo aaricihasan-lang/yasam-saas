@@ -2,6 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import { useStockServerText } from "../useStockServerText";
+import { useStockFormat } from "../useStockFormat";
 
 import { runInEffect } from "@/lib/runInEffect";
 import Link from "next/link";
@@ -34,8 +35,8 @@ import {
   salePerBaseWithProfit,
   filesToDataUrls,
   filterOilItems,
-  fmtMoney,
-  fmtQty,
+  fmtMoney as libFmtMoney,
+  fmtQty as libFmtQty,
   formatStockDisplay,
   fromCanonical,
   inventoryStockValue,
@@ -72,14 +73,12 @@ import { quarantineNoticeText } from "@/lib/urun-stok/inventorySyncState";
 import { saleLinePrice } from "@/lib/urun-stok/salePricing";
 import {
   cancelSale,
-  describeCancelOutcomes,
   submitCategorySale,
   DUPLICATE_SALE_MESSAGE,
   setSalesVisibility,
   type CancelOutcome,
   type SaleAttempt,
 } from "@/lib/urun-stok/salesApi";
-import { describeVisibilityOutcome } from "@/lib/urun-stok/salesVisibility";
 import SalesHistorySection from "../SalesHistorySection";
 import { loadDbCategorySales, salesLoadIssue, type DbCategorySale } from "@/lib/urun-stok/salesHistoryDb";
 import { seedDemoUrunStok } from "@/lib/demo/demoUrunStok";
@@ -196,6 +195,7 @@ function PhotoGalleryModal({ photos, onClose }: { photos: string[]; onClose: () 
 }
 
 function SalesDetailModal({ record, onClose }: { record: OilSaleRecord; onClose: () => void }) {
+  const { fmtMoney, fmtQty } = useStockFormat({ fmtMoney: libFmtMoney, fmtQty: libFmtQty });
   const tS = useTranslations("stock.common");
   const [gallery, setGallery] = useState<string[] | null>(null);
   return (
@@ -251,6 +251,7 @@ function SalesDetailModal({ record, onClose }: { record: OilSaleRecord; onClose:
 
 export default function YagUrunStokPage() {
   const ss = useStockServerText();
+  const { fmtMoney, fmtQty } = useStockFormat({ fmtMoney: libFmtMoney, fmtQty: libFmtQty });
   const tS = useTranslations("stock.common");
   const tP = useTranslations("stock.pages.oil");
   const deleteConfirm = useDeleteConfirm();
@@ -650,7 +651,7 @@ export default function YagUrunStokPage() {
     setBasket((b) => [...b, rec]);
     setSaleQty("1");
     setSalePhotos([]);
-    setMsg("Sepete eklendi.");
+    setMsg(ss.addedToBasket());
   }
 
   // USM-001/003/004/005: satış artık CANONICAL server RPC üzerinden atomik. Fire-and-forget
@@ -745,7 +746,7 @@ export default function YagUrunStokPage() {
     }
     await reloadSales();
     await reloadInv();
-    setMsg(describeCancelOutcomes(outcomes));
+    setMsg(ss.cancelOutcome(outcomes));
   }
 
   async function setRecordsVisibility(recs: OilSaleRecord[], hide: boolean) {
@@ -761,7 +762,7 @@ export default function YagUrunStokPage() {
     const ids = recs.map((r) => r.saleId).filter((x): x is string => Boolean(x));
     const res = await setSalesVisibility(ids, hide ? "hide" : "unhide");
     await reloadSales();
-    setMsg(describeVisibilityOutcome(hide ? "hide" : "unhide", res, recs.length - ids.length));
+    setMsg(ss.visibilityOutcome(hide ? "hide" : "unhide", res, recs.length - ids.length));
   }
 
 
@@ -834,7 +835,7 @@ export default function YagUrunStokPage() {
                     onChange={(e) => setMeasureType(e.target.value as OilMeasureType)}
                   >
                     {MEASURE_TYPES.map((t) => (
-                      <option key={t}>{t}</option>
+                      <option key={t} value={t}>{ss.option(t)}</option>
                     ))}
                   </select>
                 </label>
@@ -847,7 +848,7 @@ export default function YagUrunStokPage() {
                   <select className={inputClass} value={inputUnit} onChange={(e) => setInputUnit(e.target.value as OilInputUnit)}>
                     {unitsForMeasure(measureType).map((u) => (
                       <option key={u} value={u}>
-                        {u}
+                        {ss.option(u)}
                       </option>
                     ))}
                   </select>
@@ -871,7 +872,8 @@ export default function YagUrunStokPage() {
                   <span className="mb-1 block text-sm font-black">{tP("bottleVolume")}</span>
                   <select className={inputClass} value={bottleVolume} onChange={(e) => setBottleVolume(e.target.value)}>
                     {BOTTLE_VOLUMES.map((v) => (
-                      <option key={v}>{v}</option>
+                      // K3-05: değer kanonik (açık value — "özel" karşılaştırması buna bağlı); yalnız etiket eşlenir.
+                      <option key={v} value={v}>{ss.option(v)}</option>
                     ))}
                   </select>
                 </label>
@@ -948,7 +950,7 @@ export default function YagUrunStokPage() {
                       const f = e.target.files;
                       if (f?.length) {
                         const { urls, error } = await filesToDataUrls(f);
-                        if (error) setMsg(error);
+                        if (error) setMsg(ss.photo(error));
                         else setPhotos(urls);
                       }
                       e.target.value = "";
@@ -963,7 +965,7 @@ export default function YagUrunStokPage() {
                       existingCount: photos.length,
                       existingBytes: dataUrlsByteSize(photos),
                     });
-                    if (error) setMsg(error);
+                    if (error) setMsg(ss.photo(error));
                     else setPhotos((prev) => [...prev, ...urls]);
                   }}
                 >
@@ -1099,7 +1101,7 @@ export default function YagUrunStokPage() {
                     <select className={inputClass} value={saleUnit} onChange={(e) => setSaleUnit(e.target.value as OilInputUnit)}>
                       {unitsForMeasure(picked.measureType).map((u) => (
                         <option key={u} value={u}>
-                          {u}
+                          {ss.option(u)}
                         </option>
                       ))}
                     </select>
@@ -1150,7 +1152,7 @@ export default function YagUrunStokPage() {
                     const f = e.target.files;
                     if (f?.length) {
                       const { urls, error } = await filesToDataUrls(f);
-                      if (error) setMsg(error);
+                      if (error) setMsg(ss.photo(error));
                       else setSalePhotos(urls);
                     }
                     e.target.value = "";

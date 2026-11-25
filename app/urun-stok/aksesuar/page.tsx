@@ -2,6 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import { useStockServerText } from "../useStockServerText";
+import { useStockFormat } from "../useStockFormat";
 
 import { runInEffect } from "@/lib/runInEffect";
 import Link from "next/link";
@@ -26,8 +27,8 @@ import {
   deductAccessoryInventory,
   filesToDataUrls,
   filterAccessoryItems,
-  fmtMoney,
-  fmtQty,
+  fmtMoney as libFmtMoney,
+  fmtQty as libFmtQty,
   fmtUnitCost,
   formatLineCostBreakdown,
   formatSizeLabel,
@@ -67,14 +68,12 @@ import { quarantineNoticeText } from "@/lib/urun-stok/inventorySyncState";
 import { saleLinePrice } from "@/lib/urun-stok/salePricing";
 import {
   cancelSale,
-  describeCancelOutcomes,
   submitCategorySale,
   DUPLICATE_SALE_MESSAGE,
   setSalesVisibility,
   type CancelOutcome,
   type SaleAttempt,
 } from "@/lib/urun-stok/salesApi";
-import { describeVisibilityOutcome } from "@/lib/urun-stok/salesVisibility";
 import SalesHistorySection from "../SalesHistorySection";
 import { loadDbCategorySales, salesLoadIssue, type DbCategorySale } from "@/lib/urun-stok/salesHistoryDb";
 import { seedDemoUrunStok } from "@/lib/demo/demoUrunStok";
@@ -174,6 +173,7 @@ function PhotoGalleryModal({ photos, onClose }: { photos: string[]; onClose: () 
 }
 
 function SalesDetailModal({ record, onClose }: { record: AccessorySaleRecord; onClose: () => void }) {
+  const { fmtMoney, fmtQty } = useStockFormat({ fmtMoney: libFmtMoney, fmtQty: libFmtQty });
   const tS = useTranslations("stock.common");
   const tP = useTranslations("stock.pages.accessory");
   const [gallery, setGallery] = useState<string[] | null>(null);
@@ -228,6 +228,7 @@ function SalesDetailModal({ record, onClose }: { record: AccessorySaleRecord; on
 
 export default function AksesuarUrunStokPage() {
   const ss = useStockServerText();
+  const { fmtMoney, fmtQty } = useStockFormat({ fmtMoney: libFmtMoney, fmtQty: libFmtQty });
   const tS = useTranslations("stock.common");
   const tP = useTranslations("stock.pages.accessory");
   const deleteConfirm = useDeleteConfirm();
@@ -610,7 +611,7 @@ export default function AksesuarUrunStokPage() {
     setBasket((b) => [...b, rec]);
     setSaleQty("1");
     setSalePhotos([]);
-    setMsg("Sepete eklendi.");
+    setMsg(ss.addedToBasket());
   }
 
   // USM-001/003/004/005: satış artık CANONICAL server RPC üzerinden atomik. Fire-and-forget
@@ -703,7 +704,7 @@ export default function AksesuarUrunStokPage() {
     }
     await reloadSales();
     await reloadInv();
-    setMsg(describeCancelOutcomes(outcomes));
+    setMsg(ss.cancelOutcome(outcomes));
   }
 
   async function setRecordsVisibility(recs: AccessorySaleRecord[], hide: boolean) {
@@ -719,7 +720,7 @@ export default function AksesuarUrunStokPage() {
     const ids = recs.map((r) => r.saleId).filter((x): x is string => Boolean(x));
     const res = await setSalesVisibility(ids, hide ? "hide" : "unhide");
     await reloadSales();
-    setMsg(describeVisibilityOutcome(hide ? "hide" : "unhide", res, recs.length - ids.length));
+    setMsg(ss.visibilityOutcome(hide ? "hide" : "unhide", res, recs.length - ids.length));
   }
 
 
@@ -812,7 +813,7 @@ export default function AksesuarUrunStokPage() {
                   <span className="mb-1 block text-xs font-black">{tP("sizeType")}</span>
                   <select className={inputClass} value={sizeKind} onChange={(e) => setSizeKind(e.target.value)}>
                     {SIZE_KINDS.map((s) => (
-                      <option key={s}>{s}</option>
+                      <option key={s} value={s}>{ss.option(s)}</option>
                     ))}
                   </select>
                 </label>
@@ -892,7 +893,7 @@ export default function AksesuarUrunStokPage() {
                       const f = e.target.files;
                       if (f?.length) {
                         const { urls, error } = await filesToDataUrls(f);
-                        if (error) setMsg(error);
+                        if (error) setMsg(ss.photo(error));
                         else setPhotos(urls);
                       }
                       e.target.value = "";
@@ -907,7 +908,7 @@ export default function AksesuarUrunStokPage() {
                       existingCount: photos.length,
                       existingBytes: dataUrlsByteSize(photos),
                     });
-                    if (error) setMsg(error);
+                    if (error) setMsg(ss.photo(error));
                     else setPhotos((prev) => [...prev, ...urls]);
                   }}
                 >
@@ -1081,7 +1082,7 @@ export default function AksesuarUrunStokPage() {
                     const f = e.target.files;
                     if (f?.length) {
                       const { urls, error } = await filesToDataUrls(f);
-                      if (error) setMsg(error);
+                      if (error) setMsg(ss.photo(error));
                       else setSalePhotos(urls);
                     }
                     e.target.value = "";

@@ -3,6 +3,7 @@
 import { useId } from "react";
 import { useTranslations } from "next-intl";
 import { OTHER_TEXT_MAX, isOtherOption } from "@/lib/urun-stok/selectOther";
+import { useStockServerText } from "./useStockServerText";
 
 /**
  * Ürün & Stok — "Diğer" destekli seçim alanı. Diğer seçiliyken serbest metin kutusu açılır
@@ -42,6 +43,8 @@ export function SelectWithOther({
   hint?: string;
 }) {
   const tOther = useTranslations("stock.hub.selectOther");
+  // K3-05: <option> DEĞERİ kanonik kalır; yalnız görünen etiket ekran diline eşlenir (isOtherOption değere bakar).
+  const ss = useStockServerText();
   // otherLabel KANONİK (isOtherOption karşılaştırması) — çevrilmez; yalnız yer tutucu ve aria metni dile göre.
   const placeholder = placeholderProp ?? tOther("placeholder");
   const id = useId();
@@ -56,7 +59,7 @@ export function SelectWithOther({
       <select id={`${id}-select`} className={selectClassName} value={value} onChange={(e) => onSelect(e.target.value)}>
         {opts.map((o) => (
           <option key={o} value={o}>
-            {o}
+            {ss.option(o)}
           </option>
         ))}
       </select>
