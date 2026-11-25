@@ -1017,25 +1017,53 @@ function codeFromTables(): string[] {
     }
   });
   await t("UI: 'eksiksiz' yalnız tamlık kontrolü dalında; 'Tüm kayıtlar dahildir' yok", () => {
+    // I18N (Yedek & Aktarım): ekran metinleri BackupSections.tsx'ten messages/<dil>/settings.backup.json'a taşındı.
+    // Testin NİYETİ aynen korunur: dürüst metin kuralları artık TR (kaynak) katalog değerlerinde denetlenir; "eksiksiz"
+    // iddiası yalnız tamlık kontrolü geçtiğinde kullanılan TEK anahtarda (backup.outcomeComplete) bulunur ve o anahtar
+    // arayüzde yalnız `outcome.complete` dalında çağrılır. EN katalogda aynı iddianın karşılığı ("in full") da aynı
+    // tek anahtardadır (dil değişince dürüstlük kuralı gevşemez).
     const ui = readFileSync(join(ROOT, "app/settings/BackupSections.tsx"), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
     const page = readFileSync(join(ROOT, "app/settings/page.tsx"), "utf8");
-    for (const src of [ui, page]) {
+    const catTr = JSON.parse(readFileSync(join(ROOT, "messages/tr/settings.backup.json"), "utf8")).settings.backup as Record<string, unknown>;
+    const catEn = JSON.parse(readFileSync(join(ROOT, "messages/en/settings.backup.json"), "utf8")).settings.backup as Record<string, unknown>;
+    const leaves = (o: unknown, p = ""): [string, string][] =>
+      typeof o === "string" ? [[p, o]] : Object.entries(o as Record<string, unknown>).flatMap(([k, v]) => leaves(v, p ? `${p}.${k}` : k));
+    // Modül/tablo adları ve kod metinleri (dil-bağımsız kodların EN gösterimi) dürüstlük metni değildir → hariç.
+    const uiLeaves = (c: Record<string, unknown>) => leaves({ backup: c.backup, restore: c.restore });
+    const tr = uiLeaves(catTr);
+    const en = uiLeaves(catEn);
+    const trText = tr.map(([, v]) => v).join("\n");
+    for (const src of [ui, page, trText]) {
       assert.ok(!/Tüm kayıtlar dahildir|Tüm kayıtlar tek belgede|Eksiksiz JSON|eksiksiz ve geri yüklenebilir/i.test(src));
     }
-    const hits = ui.match(/eksiksiz/gi) ?? [];
-    assert.equal(hits.length, 1);
-    const idx = ui.search(/eksiksiz/i);
+    assert.ok(!/eksiksiz/i.test(ui), "arayüz kaynağında sabit 'eksiksiz' metni kalmamalı (katalogda)");
+    const hits = tr.filter(([, v]) => /eksiksiz/i.test(v)).map(([k]) => k);
+    assert.deepEqual(hits, ["backup.outcomeComplete"]);
+    const enHits = en.filter(([, v]) => /\bin full\b|\bcomplete(ly)? backup\b|all records/i.test(v) && !/could not be read in full/i.test(v)).map(([k]) => k);
+    assert.deepEqual(enHits, ["backup.outcomeComplete"]);
+    const keyUses = ui.match(/backup\.outcomeComplete/g) ?? [];
+    assert.equal(keyUses.length, 1);
+    const idx = ui.indexOf("backup.outcomeComplete");
     assert.ok(ui.slice(Math.max(0, idx - 200), idx).includes("outcome.complete"), "eksiksiz yalnız complete dalında");
     // P2-11: Human Design görselleri artık yedekte; diğer modüllerin dosyaları hâlâ dahil değil (dürüst metin).
-    assert.ok(ui.includes("Human Design harita ve rapor görselleri dahildir"));
-    assert.ok(ui.includes("fotoğraf ve dosyaları dahil değildir"));
-    assert.ok(ui.includes("Yalnız eksik kayıtlar eklenir; mevcut kayıtlar değiştirilmez veya silinmez"));
+    assert.ok(trText.includes("Human Design harita ve rapor görselleri dahildir"));
+    assert.ok(trText.includes("fotoğraf ve dosyaları dahil değildir"));
+    assert.ok(trText.includes("Yalnız eksik kayıtlar eklenir; mevcut kayıtlar değiştirilmez veya silinmez"));
     // SETTINGS-AUDIT: kullanıcı "yedek tarihine tam dönüş" sanmamalı; duplicate ve dosya kapsamı açık yazılı.
-    assert.ok(ui.includes("hesabınızı yedek tarihindeki hâline döndürmez"));
-    assert.ok(ui.includes("yedekten sonra eklediğiniz kayıtlar silinmez"));
-    assert.ok(ui.includes("kopya (çift) kayıt oluşturmaz"));
-    assert.ok(ui.includes("diğer modüllerin fotoğraf ve dosyaları yedeğe dahil değildir"));
-    assert.ok(ui.includes("Human Design görselleri dosyadan geri yüklenir"));
+    assert.ok(trText.includes("hesabınızı yedek tarihindeki hâline döndürmez"));
+    assert.ok(trText.includes("yedekten sonra eklediğiniz kayıtlar silinmez"));
+    assert.ok(trText.includes("kopya (çift) kayıt oluşturmaz"));
+    assert.ok(trText.includes("diğer modüllerin fotoğraf ve dosyaları yedeğe dahil değildir"));
+    assert.ok(trText.includes("Human Design görselleri dosyadan geri yüklenir"));
+    // Bu metinlerin anahtarları arayüzde gerçekten kullanılıyor (katalogda kalıp ekranda kaybolmasın).
+    for (const k of ["backup.intro", "restore.introTitle", "restore.intro2", "restore.intro3", "restore.intro4"]) {
+      assert.ok(ui.includes(`"${k}"`), `${k} arayüzde kullanılmalı`);
+    }
+    // EN karşılıkları aynı dürüstlük içeriğini taşır (ör. dosya kapsamı / tam dönüş yok / çift kayıt yok).
+    const enText = en.map(([, v]) => v).join("\n");
+    assert.ok(enText.includes("does not return your account to its state on the backup date"));
+    assert.ok(enText.includes("does not create duplicate records"));
+    assert.ok(enText.includes("photos and files from other modules are not included in the backup"));
   });
 
   // 7) Gökyüzü Atlası — uzman bazlı izolasyon (aynı tenant'ta iki uzman + başka tenant)
