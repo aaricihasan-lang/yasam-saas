@@ -310,6 +310,20 @@
         "LINK_DUPLICATE": "Bu kaynak bu kayda (aynı bölüm) zaten bağlı.",
         "SOURCE_IN_USE": "Bu kaynak bir veya daha fazla bilgi kaydına bağlı. Önce bağlantıları kaldırın.",
         "NOTHING_TO_UPDATE": "Güncellenecek alan yok."
+      },
+      "valueDisplay": {
+        "chakra": "{n}. Çakra | {level} Destek",
+        "element": "{el} | {level} Destek",
+        "level": {
+          "low": "AZ",
+          "excess": "FAZLA"
+        },
+        "el": {
+          "hava": "Hava",
+          "su": "Su",
+          "ates": "Ateş",
+          "toprak": "Toprak"
+        }
       }
     }
   }

@@ -135,6 +135,11 @@ const I18N_PRESENTATION_FILES = [
   "app/numeroloji/analiz/page.tsx",
   "app/numeroloji/bilgi-bankasi/page.tsx",
   "app/numeroloji/bilgi-bankasi/components",
+  // I18N-F1-R5 (P35 rapor dili + kalan metin): Word/Bilgi Bankası sunum yardımcıları — yalnız isteğe bağlı çıktı dili
+  // metin parametresi (yok → TR çıktı birebir; golden: scripts/numeroloji/report-golden) ve kanonik değer gösterim eşlemesi.
+  "app/numeroloji/bilgi-bankasi/helpers/wordKulvarLogic.ts",
+  "app/numeroloji/bilgi-bankasi/helpers/wordPersonSections.ts",
+  "app/numeroloji/bilgi-bankasi/helpers/kbValueDisplay.ts",
 ];
 /**
  * Motor / hesap / DB yazma deseni + (QA-N3-04, R5) HTTP yazma çağrıları: `fetch(…, { method: "DELETE" | "POST" | "PUT" |
@@ -165,6 +170,18 @@ function stripRouteBranding(src: string): string {
     .join("\n");
 }
 
+/**
+ * I18N-F1-R5 (P35): rotanın çıktı dili satırlarını çıkarır — YALNIZ şu kalıplar: `// I18N-F1-R5` ile işaretli satırlar,
+ * `output,` (paketleme seçeneği), `{ branding, output }` → `{ branding }`, `outFilename` → `filename`. Başka hiçbir satır
+ * dokunulmaz; çıkarılınca (markalama çıkarımıyla birlikte) main ile BİREBİR olmalıdır.
+ */
+function stripRouteI18n(src: string): string {
+  return src.replace(/\r\n/g, "\n").split("\n")
+    .filter((l) => !/^\s*\/\/ I18N-F1-R5\b/.test(l) && !/\/\/ I18N-F1-R5$/.test(l) && !/^\s*output,$/.test(l))
+    .map((l) => l.replace(/\{ branding, output \}/g, "{ branding }").replace(/\boutFilename\b/g, "filename"))
+    .join("\n");
+}
+
 async function numerologyWordGuard() {
   const changed = execFileSync("git", ["diff", "--name-only", "origin/main", "--", ...NUMEROLOJI_WORD_FILES], { cwd: ROOT, encoding: "utf8" }).trim();
   if (!changed) { ok(true, "Numeroloji Word dosyalarında main'e göre fark YOK"); return; }
@@ -177,7 +194,7 @@ async function numerologyWordGuard() {
   const mainRoute = execFileSync("git", ["show", `origin/main:${routePath}`], { cwd: ROOT, encoding: "utf8" }).replace(/\r\n/g, "\n");
   // Rota main ile ZATEN birebirse (markalama main'e girmiş) şart daha güçlü biçimde sağlanır.
   const curRoute = readFileSync(path.join(ROOT, routePath), "utf8").replace(/\r\n/g, "\n");
-  ok(curRoute === mainRoute || stripRouteBranding(curRoute) === mainRoute, "Numeroloji Word rotası: fark YALNIZ markalama satırları (çıkarılınca main ile birebir)");
+  ok(curRoute === mainRoute || stripRouteBranding(curRoute) === mainRoute || stripRouteI18n(curRoute) === mainRoute || stripRouteBranding(stripRouteI18n(curRoute)) === mainRoute, "Numeroloji Word rotası: fark YALNIZ markalama + çıktı dili satırları (çıkarılınca main ile birebir)");
   // (1) Markasız çıktı: origin/main kurucusu (git archive → geçici klasör) ile dal kurucusu BİREBİR.
   const tmp = mkdtempSync(path.join(os.tmpdir(), "num-word-main-"));
   const tar = execFileSync("git", ["archive", "--format=tar", "origin/main", "app/numeroloji"], { cwd: ROOT, maxBuffer: 64 * 1024 * 1024 });

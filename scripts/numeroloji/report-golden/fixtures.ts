@@ -183,7 +183,8 @@ function knowledgeTables(p: Person): Record<string, Row[]> {
 function strings(v: unknown, out: string[] = []): string[] {
   if (typeof v === "string") { if (v.trim()) out.push(v); }
   else if (Array.isArray(v)) for (const x of v) strings(x, out);
-  else if (v && typeof v === "object") for (const x of Object.values(v)) strings(x, out);
+  // Sistem alanları (bölüm etiketi şablonu, kod) içerik SAYILMAZ → EN'de çevrilmeleri zorunlu kalır.
+  else if (v && typeof v === "object") for (const [k, x] of Object.entries(v)) { if (k !== "label" && k !== "key" && k !== "analysis_type" && k !== "section_key") strings(x, out); }
   return out;
 }
 
@@ -206,7 +207,7 @@ function wordFixture(name: string, people: Person[], body: Row, opts: { legacy?:
     content: () => {
       const t = tables();
       const s = strings([t.numerology_knowledge_records, t.numerology_stone_assignments, t.numerology_sources, t.numerology_knowledge_source_entries, t.dogaltas_inventory]);
-      for (const p of people) s.push(p.name, p.surname, `${p.name} ${p.surname}`, p.birth);
+      for (const p of people) s.push(p.name, p.surname, `${p.name} ${p.surname}`, p.birth, ...Array.from(`${p.name}${p.surname}`.replace(/\s+/g, "").toLocaleUpperCase("tr-TR")));
       s.push("Sentetik kayıtlı özet: güçlü ifade, dengeli çakra omurgası.", "İkinci paragraf — kullanıcı özeti.", PROFILE_CLOSED.full_name);
       return s;
     },

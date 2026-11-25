@@ -27,6 +27,7 @@ const ROOT = process.cwd();
 const GOLDEN = path.join(ROOT, "scripts", "numeroloji", "report-golden", "golden-tr.json");
 const WRITE = process.argv.includes("--write-golden");
 const VERBOSE = process.argv.includes("--verbose");
+const ONLY = process.argv.includes("--only") ? process.argv[process.argv.indexOf("--only") + 1]! : null;
 const OUT = process.argv.includes("--out") ? process.argv[process.argv.indexOf("--out") + 1]! : null;
 if (OUT) mkdirSync(OUT, { recursive: true });
 
@@ -113,11 +114,16 @@ type Residue = { system: string[]; content: number; engine: number; shared: numb
 function classify(lines: string[], content: string[], engine: string[]): Residue {
   const byLen = (a: string[]) => [...new Set(a)].filter((s) => s.trim().length >= 2).sort((x, y) => y.length - x.length);
   const C = byLen(content);
-  const E = byLen(engine);
+  // Motor yorum kataloğu: yalnız cümle uzunluğundaki metinler (kısa etiketler sistem metni sayılır → maskelenmez).
+  const E = byLen(engine).filter((e) => e.length >= 24);
   const S = byLen(SHARED_ENGINE);
   const r: Residue = { system: [], content: 0, engine: 0, shared: 0 };
-  for (const line of lines) {
+  const CSET = new Set(content.map((c) => c.trim()));
+  for (const raw of lines) {
+    // Ürün markası (çevrilmez; diğer rapor harness'larıyla aynı kural).
+    const line = raw.replace(/Yaşam Sistemi|YAŞAM SİSTEMİ/g, " ");
     if (!isTurkishish(line)) continue;
+    if (CSET.has(line.trim())) { r.content++; continue; } // tam satır içerik (ör. Harfler tablosundaki ad harfi)
     let rest = line;
     let hitC = false, hitE = false, hitS = false;
     for (const c of C) if (rest.includes(c)) { rest = rest.split(c).join(" "); hitC = true; }
@@ -154,7 +160,7 @@ async function main() {
   const partial: string[] = [];
   ok(Object.keys(golden).length === FIXTURES.length, `golden fikstür sayısı ${Object.keys(golden).length} = ${FIXTURES.length}`);
 
-  for (const f of FIXTURES as Fixture[]) {
+  for (const f of (FIXTURES as Fixture[]).filter((x) => !ONLY || x.name.startsWith(ONLY))) {
     const g = golden[f.name];
     ok(!!g, `${f.name}: golden kaydı var`);
     if (!g) continue;

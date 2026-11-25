@@ -41,6 +41,11 @@ import {
   type SourceEntryRow,
 } from "@/app/numeroloji/bilgi-bankasi/helpers/sourceEntryUiLogic";
 
+import { getOutputTranslator, resolveOutputLocale } from "@/lib/i18n/output";
+import { DEFAULT_LOCALE } from "@/lib/i18n/locales";
+import { kbValueDisplay, type KbValueT } from "@/app/numeroloji/bilgi-bankasi/helpers/kbValueDisplay";
+import { KULVAR_SECTION_TEMPLATE } from "@/app/numeroloji/bilgi-bankasi/helpers/knowledgeSections";
+
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export const runtime = "nodejs";
@@ -70,18 +75,16 @@ type StoneRow = {
   updated_at: string;
 };
 
-const ANALIZ_LABELS: Record<string, string> = {
-  "ana-kulvar":    "Ana Kulvar",
-  "yan-kulvar":    "Yan Kulvar",
-  "ifade-sayisi":  "İfade Sayısı",
-  "hayat-yolu":    "Hayat Yolu",
-  "cakra-omurga":  "Çakra Omurga",
-  element:         "Element",
-  diger:           "Diğer",
+const ANALIZ_KEY: Record<string, string> = {
+  "ana-kulvar": "anaKulvar", "yan-kulvar": "yanKulvar", "ifade-sayisi": "ifadeSayisi",
+  "hayat-yolu": "hayatYolu", "cakra-omurga": "cakraOmurga", element: "element", diger: "diger",
 };
+type RawT = (k: string, v?: Record<string, string>) => string;
+const SOURCE_T = getOutputTranslator(DEFAULT_LOCALE, "reports.numerology") as unknown as RawT;
 
-function analizLabel(key: string): string {
-  return ANALIZ_LABELS[key] ?? key;
+/** Grup başlığı — gösterim dili; GRUP SIRASI her dilde kaynak (TR) etiketle (numaralar diller arasında aynı). */
+function analizLabelWith(t: RawT, key: string): string {
+  return ANALIZ_KEY[key] ? t(`analysisTypes.${ANALIZ_KEY[key]}`) : key;
 }
 
 function parseStones(raw: unknown): string[] {
@@ -229,13 +232,35 @@ export async function POST(req: NextRequest): Promise<Response> {
     }
   }
 
+  // I18N-F1-R5 (P35): çıktı dili = ekran dili (çerez + yayın kapısı). Kayıt seçimi / sıralama dilden bağımsız.
+  // #855 birleşince: resolveReportLocale(req, hesap) + ortak motorlara `common: output.common`.
+  const output = resolveOutputLocale(req);
+  const isSource = output.locale === DEFAULT_LOCALE;
+  const rt = getOutputTranslator(output, "reports.numerology") as unknown as RawT;
+  const k = (key: string, v?: Record<string, string | number>) => rt(`knowledge.${key}`, v ? Object.fromEntries(Object.entries(v).map(([a, b]) => [a, String(b)])) : undefined);
+  const vd = getOutputTranslator(output, "numerology.knowledge.valueDisplay") as unknown as KbValueT;
+  const valueView = (v: string) => (isSource ? v : kbValueDisplay(v, vd));
+  const analizLabel = (key: string) => analizLabelWith(rt, key);
+  const dateOpts = isSource ? {} : { locale: output.intlTag };
+  const SEC_KEY = new Map<string, string>(KULVAR_SECTION_TEMPLATE.map((t) => [t.label, t.key]));
+  const secLabel = (label: string) => (isSource ? label : SEC_KEY.has(label) ? rt(`word.notes.sections.${SEC_KEY.get(label)}`) : label);
+  const sourceText = isSource
+    ? undefined
+    : {
+        missing: k("sourceMissing"),
+        primary: k("primarySource"),
+        section: (key: string) => rt(`word.notes.sections.${key}`),
+        page: (s: number | null, e: number | null) =>
+          s !== null && e !== null && s !== e ? k("pages", { start: s, end: e }) : k("page", { page: String(s ?? e) }),
+      };
+
   // FA-02: rapor tarihi / dosya adı Europe/Istanbul yerel günü.
-  const today = reportGeneratedLabel();
+  const today = reportGeneratedLabel(isSource ? undefined : dateOpts);
   const dateSlug = reportFileDate();
   const totalCount = knowledgeRows.length + stoneRows.length;
   const exportLabel = exportMode === "filtered"
-    ? `Filtrelenmiş Kayıtlar (${totalCount})`
-    : `Tüm Bilgi Bankası (${totalCount})`;
+    ? k("scopeFiltered", { n: totalCount })
+    : k("scopeAll", { n: totalCount });
 
   // Analiz türlerine göre grupla
   const groupKeys = new Set<string>();
@@ -243,31 +268,31 @@ export async function POST(req: NextRequest): Promise<Response> {
   for (const r of stoneRows) groupKeys.add(r.analysis_type);
 
   const sortedKeys = Array.from(groupKeys).sort((a, b) =>
-    analizLabel(a).localeCompare(analizLabel(b), "tr-TR")
+    analizLabelWith(SOURCE_T, a).localeCompare(analizLabelWith(SOURCE_T, b), "tr-TR")
   );
 
   const all: ReportChild[] = [];
 
   // Premium kapak
   all.push(...buildPremiumCover({
-    title1:   "YAŞAM SİSTEMİ",
-    title2:   "NUMEROLOJİ BİLGİ BANKASI",
-    subtitle: "Yorum ve Doğaltaş Atama Referans Kataloğu",
-    date:     `Oluşturulma Tarihi: ${today}`,
+    title1:   k("title1"),
+    title2:   k("title2"),
+    subtitle: k("subtitle"),
+    date:     k("createdOn", { date: today }),
     stats: [
-      { label: "Açıklama Kaydı",  value: String(knowledgeRows.length) },
-      { label: "Doğaltaş Atama",  value: String(stoneRows.length) },
-      { label: "Analiz Türü",     value: String(groupKeys.size) },
-      { label: "Kapsam",          value: exportLabel },
+      { label: k("descriptionRecords"), value: String(knowledgeRows.length) },
+      { label: k("stoneAssignments"),   value: String(stoneRows.length) },
+      { label: k("analysisTypes"),      value: String(groupKeys.size) },
+      { label: k("scope"),              value: exportLabel },
     ],
   }));
 
   // Sistem özeti
   all.push(...buildStatsPage([
-    ["Açıklama Kaydı",  String(knowledgeRows.length)],
-    ["Doğaltaş Atama",  String(stoneRows.length)],
-    ["Toplam Kayıt",    String(totalCount)],
-    ["Analiz Türü",     String(groupKeys.size)],
+    [k("descriptionRecords"), String(knowledgeRows.length)],
+    [k("stoneAssignments"),   String(stoneRows.length)],
+    [k("totalRecords"),       String(totalCount)],
+    [k("analysisTypes"),      String(groupKeys.size)],
   ]));
 
   // İçindekiler: eski boş Word TOC alanı yerine STATİK + tıklanabilir girişler (gövde
@@ -276,23 +301,23 @@ export async function POST(req: NextRequest): Promise<Response> {
   const tocAt = all.length;
 
   // Genel özet
-  all.push(toc.h1Colored("1. Genel Özet", C_KNOWLEDGE, true));
+  all.push(toc.h1Colored(k("generalSummary", { n: 1 }), C_KNOWLEDGE, true));
   all.push(twoColTable([
-    ["Açıklama Kaydı",  `${knowledgeRows.length} kayıt`],
-    ["Doğaltaş Atama",  `${stoneRows.length} kayıt`],
-    ["Toplam",          `${totalCount} kayıt`],
-    ["Kapsam",          exportLabel],
+    [k("descriptionRecords"), k("recordCount", { n: knowledgeRows.length })],
+    [k("stoneAssignments"),   k("recordCount", { n: stoneRows.length })],
+    [k("total"),              k("recordCount", { n: totalCount })],
+    [k("scope"),              exportLabel],
   ]));
 
   // Bir kanonik kayda ait Kaynak Notları'nı Word'e ekler (yalnız sourceNotes seçiliyse çağrılır).
   const pushSourceNotes = (recordId: string) => {
     const es = entriesByRecord.get(recordId);
     if (!es || es.length === 0) return;
-    all.push(muted("Kaynak Notları"));
+    all.push(muted(k("sourceNotes")));
     for (const e of es) {
       const srcLabel = e.source_id === null
-        ? EXPERT_OWN_NOTE_LABEL
-        : entrySourceLabelById.get(e.source_id) ?? "Bilinmeyen Kaynak";
+        ? (isSource ? EXPERT_OWN_NOTE_LABEL : rt("word.notes.expertOwn"))
+        : entrySourceLabelById.get(e.source_id) ?? (isSource ? "Bilinmeyen Kaynak" : rt("word.notes.unknownSource"));
       all.push(bodyText(`[${srcLabel}] ${e.body.trim()}`, 20));
     }
   };
@@ -309,51 +334,51 @@ export async function POST(req: NextRequest): Promise<Response> {
     const showStones = sections.stones && sRows.length > 0;
     if (!showDesc && !showStones) continue; // boş grup başlığı basılmaz
 
-    all.push(toc.h1Colored(`${sectionN}. ${label}`, C_KNOWLEDGE, true));
-    all.push(muted(`${kRows.length} açıklama · ${sRows.length} taş atama`));
+    all.push(toc.h1Colored(k("groupHeading", { n: sectionN, label }), C_KNOWLEDGE, true));
+    all.push(muted(k("groupCounts", { d: kRows.length, s: sRows.length })));
     all.push(spacer());
 
     let itemN = 0;
 
     // Açıklama kayıtları
     if (showDesc) {
-      all.push(toc.h2("Açıklama Kayıtları"));
-      for (const k of kRows) {
+      all.push(toc.h2(k("descriptionsHeading")));
+      for (const kr of kRows) {
         itemN++;
-        all.push(profileLabel(`KAYIT #${String(itemN).padStart(3, "0")}`, C_KNOWLEDGE));
-        all.push(h3(k.value || "—"));
+        all.push(profileLabel(k("recordLabel", { n: String(itemN).padStart(3, "0") }), C_KNOWLEDGE));
+        all.push(h3(kr.value ? valueView(kr.value) : "—"));
 
-        if (isKulvarAnalysisType(k.analysis_type)) {
+        if (isKulvarAnalysisType(kr.analysis_type)) {
           // Yapılandırılmış dört bölüm (KANONİK sıra) veya legacy overview fallback; boş bölüm atlanır.
-          for (const sec of kulvarSectionsForWord(k)) {
-            all.push(h3(sec.label));
+          for (const sec of kulvarSectionsForWord(kr)) {
+            all.push(h3(secLabel(sec.label)));
             all.push(bodyText(sec.body));
           }
           // Eski Kaynak Bilgisi (legacy source) — yapılandırılmış kaynaklardan AYRI.
-          if (k.source?.trim()) all.push(fieldInline("Eski Kaynak Bilgisi", k.source.trim()));
+          if (kr.source?.trim()) all.push(fieldInline(k("legacySource"), kr.source.trim()));
           // Yapılandırılmış Kaynaklar (kayıt-altı, ikincil hiyerarşi). internal_note YOK.
-          const links = [...(linksByRecord.get(k.id) ?? [])].sort(
+          const links = [...(linksByRecord.get(kr.id) ?? [])].sort(
             (a, b) => a.display_order - b.display_order || a.created_at.localeCompare(b.created_at),
           );
           if (links.length > 0) {
-            all.push(muted("Yapılandırılmış Kaynaklar"));
+            all.push(muted(k("structuredSources")));
             for (const l of links) {
-              const view = recordSourceView(l, sourcesById.get(l.source_id) ?? null);
-              all.push(bodyText(recordSourceMainLine(view), 20));
+              const view = recordSourceView(l, sourcesById.get(l.source_id) ?? null, sourceText);
+              all.push(bodyText(recordSourceMainLine(view, sourceText), 20));
               if (view.title) all.push(muted(view.title));
             }
           }
         } else {
           // Diğer analysis_type türleri: mevcut Word davranışı AYNEN.
-          if (k.source?.trim()) all.push(fieldInline("Kaynak", k.source.trim()));
-          if (k.description?.trim()) all.push(bodyText(k.description.trim()));
+          if (kr.source?.trim()) all.push(fieldInline(k("source"), kr.source.trim()));
+          if (kr.description?.trim()) all.push(bodyText(kr.description.trim()));
         }
 
         // NKB-V2: Kaynak Notları (yalnız sourceNotes seçiliyse; include_in_analysis=true).
-        if (sourceNotesEffective(sections)) pushSourceNotes(k.id);
+        if (sourceNotesEffective(sections)) pushSourceNotes(kr.id);
 
-        all.push(fieldInline("Güncelleme",
-          formatInstantDateTime(k.updated_at, { fallback: "—" })
+        all.push(fieldInline(k("updated"),
+          formatInstantDateTime(kr.updated_at, { fallback: "—", ...dateOpts })
         ));
         if (itemN < kRows.length) all.push(divider());
       }
@@ -362,17 +387,17 @@ export async function POST(req: NextRequest): Promise<Response> {
     // Doğaltaş atamaları
     if (showStones) {
       if (showDesc) all.push(spacer());
-      all.push(toc.h2("Doğaltaş Atamaları"));
+      all.push(toc.h2(k("stonesHeading")));
       let sItemN = 0;
       for (const s of sRows) {
         sItemN++;
         const stones = parseStones(s.stones);
-        all.push(profileLabel(`ATAMA #${String(sItemN).padStart(3, "0")}`, C_KNOWLEDGE));
-        all.push(h3(s.value || "—"));
+        all.push(profileLabel(k("assignmentLabel", { n: String(sItemN).padStart(3, "0") }), C_KNOWLEDGE));
+        all.push(h3(s.value ? valueView(s.value) : "—"));
         if (s.reason?.trim()) all.push(bodyText(s.reason.trim()));
-        all.push(...arraySection("Taşlar", stones));
-        all.push(fieldInline("Güncelleme",
-          formatInstantDateTime(s.updated_at, { fallback: "—" })
+        all.push(...arraySection(k("stones"), stones));
+        all.push(fieldInline(k("updated"),
+          formatInstantDateTime(s.updated_at, { fallback: "—", ...dateOpts })
         ));
         if (sItemN < sRows.length) all.push(divider());
       }
@@ -387,8 +412,8 @@ export async function POST(req: NextRequest): Promise<Response> {
     ? buildBibliography(recordSources, Array.from(sourcesById.values()))
     : [];
   if (bibliography.length > 0) {
-    all.push(toc.h1Colored(`${sectionN}. Kaynakça`, C_KNOWLEDGE, true));
-    all.push(muted(`${bibliography.length} kaynak`));
+    all.push(toc.h1Colored(k("bibliography", { n: sectionN }), C_KNOWLEDGE, true));
+    all.push(muted(k("sourceCount", { n: bibliography.length })));
     all.push(spacer());
     for (const s of bibliography) {
       all.push(h3(s.display_label));
@@ -404,16 +429,17 @@ export async function POST(req: NextRequest): Promise<Response> {
 
   const doc = new Document({
     ...toc.documentOptions(),
+    // Belge dili: TR'de dil işareti EKLENMEZ (golden bayt-eşit); diğer dillerde w:lang = documentLang.
+    ...(isSource ? {} : { styles: { default: { document: { run: { language: { value: output.documentLang } } } } } }),
     sections: [{
       properties: {},
-      footers: { default: buildFooter("Numeroloji Bilgi Bankası · Yaşam Sistemi", { note: "numeroloji" }) },
+      footers: { default: buildFooter(k("footer"), { note: "numeroloji" }) },
       children: all,
     }],
   });
 
   const buffer = await Packer.toBuffer(doc);
-  const modeSlug = exportMode === "filtered" ? "filtreli" : "tumu";
-  const filename = `numeroloji-bilgi-bankasi-${modeSlug}-${dateSlug}.docx`;
+  const filename = k("file", { mode: exportMode === "filtered" ? k("modeFiltered") : k("modeAll"), date: dateSlug });
 
   // Usage360: Word dosyası BAŞARIYLA üretildi → tek rapor olayı (konu: bilgi bankası).
   await trackUsage(guard, req, {

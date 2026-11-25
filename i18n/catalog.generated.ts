@@ -41,6 +41,7 @@ import tr_numerologyCompare from "@/messages/tr/numerology.compare.json";
 import tr_numerologyKnowledge from "@/messages/tr/numerology.knowledge.json";
 import tr_numerologyResult from "@/messages/tr/numerology.result.json";
 import tr_numerologyTabs from "@/messages/tr/numerology.tabs.json";
+import tr_reportsNumerology from "@/messages/tr/reports.numerology.json";
 import tr_stonesCombinations from "@/messages/tr/stones.combinations.json";
 import tr_stonesHub from "@/messages/tr/stones.hub.json";
 import tr_stones from "@/messages/tr/stones.json";
@@ -87,6 +88,7 @@ import en_numerologyCompare from "@/messages/en/numerology.compare.json";
 import en_numerologyKnowledge from "@/messages/en/numerology.knowledge.json";
 import en_numerologyResult from "@/messages/en/numerology.result.json";
 import en_numerologyTabs from "@/messages/en/numerology.tabs.json";
+import en_reportsNumerology from "@/messages/en/reports.numerology.json";
 import en_stonesCombinations from "@/messages/en/stones.combinations.json";
 import en_stonesHub from "@/messages/en/stones.hub.json";
 import en_stones from "@/messages/en/stones.json";
@@ -97,8 +99,8 @@ import en_stonesRecords from "@/messages/en/stones.records.json";
 import en_terms from "@/messages/en/terms.json";
 
 export const CATALOG_FILES = {
-  tr: ["auth.client.json", "auth.email.json", "auth.server.json", "auth.ui.json", "beslenme.json", "clients.analizler.json", "clients.anamnez.json", "clients.charges.json", "clients.combinations.json", "clients.consent.json", "clients.detail.json", "clients.homework.json", "clients.json", "clients.list.json", "clients.memory.json", "clients.notes.json", "clients.sessions.json", "clients.stones.json", "clients.yolculuk.json", "common.apiErrors.json", "common.deleteConfirm.json", "common.demo.json", "common.json", "common.languagePreference.json", "common.reader.json", "common.submitLock.json", "home.json", "home.yhStatus.json", "memoryPicker.json", "navigation.json", "numerology.analysis.json", "numerology.app.json", "numerology.classic.json", "numerology.clientPanel.json", "numerology.compare.json", "numerology.knowledge.json", "numerology.result.json", "numerology.tabs.json", "stones.combinations.json", "stones.hub.json", "stones.json", "stones.knowledge.json", "stones.list.json", "stones.minerals.json", "stones.records.json", "terms.json"],
-  en: ["auth.client.json", "auth.email.json", "auth.server.json", "auth.ui.json", "beslenme.json", "clients.analizler.json", "clients.anamnez.json", "clients.charges.json", "clients.combinations.json", "clients.consent.json", "clients.detail.json", "clients.homework.json", "clients.json", "clients.list.json", "clients.memory.json", "clients.notes.json", "clients.sessions.json", "clients.stones.json", "clients.yolculuk.json", "common.apiErrors.json", "common.deleteConfirm.json", "common.demo.json", "common.json", "common.languagePreference.json", "common.reader.json", "common.submitLock.json", "home.json", "home.yhStatus.json", "memoryPicker.json", "navigation.json", "numerology.analysis.json", "numerology.app.json", "numerology.classic.json", "numerology.clientPanel.json", "numerology.compare.json", "numerology.knowledge.json", "numerology.result.json", "numerology.tabs.json", "stones.combinations.json", "stones.hub.json", "stones.json", "stones.knowledge.json", "stones.list.json", "stones.minerals.json", "stones.records.json", "terms.json"],
+  tr: ["auth.client.json", "auth.email.json", "auth.server.json", "auth.ui.json", "beslenme.json", "clients.analizler.json", "clients.anamnez.json", "clients.charges.json", "clients.combinations.json", "clients.consent.json", "clients.detail.json", "clients.homework.json", "clients.json", "clients.list.json", "clients.memory.json", "clients.notes.json", "clients.sessions.json", "clients.stones.json", "clients.yolculuk.json", "common.apiErrors.json", "common.deleteConfirm.json", "common.demo.json", "common.json", "common.languagePreference.json", "common.reader.json", "common.submitLock.json", "home.json", "home.yhStatus.json", "memoryPicker.json", "navigation.json", "numerology.analysis.json", "numerology.app.json", "numerology.classic.json", "numerology.clientPanel.json", "numerology.compare.json", "numerology.knowledge.json", "numerology.result.json", "numerology.tabs.json", "reports.numerology.json", "stones.combinations.json", "stones.hub.json", "stones.json", "stones.knowledge.json", "stones.list.json", "stones.minerals.json", "stones.records.json", "terms.json"],
+  en: ["auth.client.json", "auth.email.json", "auth.server.json", "auth.ui.json", "beslenme.json", "clients.analizler.json", "clients.anamnez.json", "clients.charges.json", "clients.combinations.json", "clients.consent.json", "clients.detail.json", "clients.homework.json", "clients.json", "clients.list.json", "clients.memory.json", "clients.notes.json", "clients.sessions.json", "clients.stones.json", "clients.yolculuk.json", "common.apiErrors.json", "common.deleteConfirm.json", "common.demo.json", "common.json", "common.languagePreference.json", "common.reader.json", "common.submitLock.json", "home.json", "home.yhStatus.json", "memoryPicker.json", "navigation.json", "numerology.analysis.json", "numerology.app.json", "numerology.classic.json", "numerology.clientPanel.json", "numerology.compare.json", "numerology.knowledge.json", "numerology.result.json", "numerology.tabs.json", "reports.numerology.json", "stones.combinations.json", "stones.hub.json", "stones.json", "stones.knowledge.json", "stones.list.json", "stones.minerals.json", "stones.records.json", "terms.json"],
 } as const;
 
 export const CATALOG_PARTS: Record<"tr" | "en", Record<string, unknown>[]> = {
@@ -141,6 +143,7 @@ export const CATALOG_PARTS: Record<"tr" | "en", Record<string, unknown>[]> = {
     tr_numerologyKnowledge,
     tr_numerologyResult,
     tr_numerologyTabs,
+    tr_reportsNumerology,
     tr_stonesCombinations,
     tr_stonesHub,
     tr_stones,
@@ -189,6 +192,7 @@ export const CATALOG_PARTS: Record<"tr" | "en", Record<string, unknown>[]> = {
     en_numerologyKnowledge,
     en_numerologyResult,
     en_numerologyTabs,
+    en_reportsNumerology,
     en_stonesCombinations,
     en_stonesHub,
     en_stones,

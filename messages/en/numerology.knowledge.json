@@ -310,6 +310,20 @@
         "LINK_DUPLICATE": "This source is already linked to this record (same section).",
         "SOURCE_IN_USE": "This source is linked to one or more knowledge records. Remove the links first.",
         "NOTHING_TO_UPDATE": "There is nothing to update."
+      },
+      "valueDisplay": {
+        "chakra": "Chakra {n} | {level} support",
+        "element": "{el} | {level} support",
+        "level": {
+          "low": "Low",
+          "excess": "Excess"
+        },
+        "el": {
+          "hava": "Air",
+          "su": "Water",
+          "ates": "Fire",
+          "toprak": "Earth"
+        }
       }
     }
   }
