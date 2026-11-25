@@ -89,6 +89,9 @@ function RankList({ title, items, valueKey }: { title: string; items: ProductRan
 
 export default function SatisRaporlariPage() {
   const t = useTranslations("stock.reports");
+  const tCat = useTranslations("stock.pricing");
+  // Kategori kodu kanonik (option value); yalnız görünen etiket çevrilir.
+  const catLabel = (c: string) => (tCat.has(`categories.${c}`) ? tCat(`categories.${c}`) : CATEGORY_LABELS[c as keyof typeof CATEGORY_LABELS] ?? c);
   const [hydrated, setHydrated] = useState(false);
   const [isDemo, setIsDemo] = useState(false);
   const [allLines, setAllLines] = useState<ReturnType<typeof loadAllReportLines>>([]);
@@ -256,7 +259,7 @@ export default function SatisRaporlariPage() {
                 <option value="all">{t("all")}</option>
                 {(Object.keys(CATEGORY_LABELS) as ProductCategory[]).map((c) => (
                   <option key={c} value={c}>
-                    {CATEGORY_LABELS[c]}
+                    {catLabel(c)}
                   </option>
                 ))}
               </select>
@@ -271,7 +274,7 @@ export default function SatisRaporlariPage() {
                 ["year", t("period.year")],
                 ["all", t("period.all")],
                 ["custom", t("period.custom")],
-              ] as [PeriodFilter, string][]
+              ] as const
             ).map(([id, label]) => (
               <button key={id} type="button" className={periodBtn(period === id)} onClick={() => setPeriod(id)}>
                 {label}

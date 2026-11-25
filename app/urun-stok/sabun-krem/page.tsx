@@ -153,7 +153,6 @@ function unitsForMeasure(mt: ScMeasureType): ScInputUnit[] {
 
 function PhotoGalleryModal({ photos, onClose }: { photos: string[]; onClose: () => void }) {
   const tS = useTranslations("stock.common");
-  const tP = useTranslations("stock.pages.soapCream");
   const [idx, setIdx] = useState(0);
   const safe = photos.length ? photos : [];
   return (
@@ -186,7 +185,6 @@ function PhotoGalleryModal({ photos, onClose }: { photos: string[]; onClose: () 
 
 function SalesDetailModal({ record, onClose }: { record: SoapCreamSaleRecord; onClose: () => void }) {
   const tS = useTranslations("stock.common");
-  const tP = useTranslations("stock.pages.soapCream");
   const [gallery, setGallery] = useState<string[] | null>(null);
   return (
     <>

@@ -17,7 +17,7 @@
       "cancel": "Cancel",
       "sessionMissing": "Session not found. Please sign in again.",
       "reportFailed": "The report could not be generated.",
-      "copied": "Critical list copied ({count} product(s)) — you can paste it to your wholesaler.",
+      "copied": "Critical list copied ({count, select, 1 {1 product} other {{count} products}}) — you can paste it to your wholesaler.",
       "copyFailed": "Could not copy. Browser permission may be required.",
       "loading": "Loading…",
       "eyebrow": "Live warehouse",

@@ -202,7 +202,6 @@ function inferMeasureType(productGroup: string, productName: string, subCategory
 
 function PhotoGalleryModal({ photos, onClose }: { photos: string[]; onClose: () => void }) {
   const tS = useTranslations("stock.common");
-  const tP = useTranslations("stock.pages.other");
   const [idx, setIdx] = useState(0);
   const safe = photos.length ? photos : [];
   return (
@@ -235,7 +234,6 @@ function PhotoGalleryModal({ photos, onClose }: { photos: string[]; onClose: () 
 
 function SalesDetailModal({ record, onClose }: { record: OtherSaleRecord; onClose: () => void }) {
   const tS = useTranslations("stock.common");
-  const tP = useTranslations("stock.pages.other");
   const [gallery, setGallery] = useState<string[] | null>(null);
   return (
     <>

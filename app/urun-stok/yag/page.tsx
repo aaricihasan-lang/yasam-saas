@@ -164,7 +164,6 @@ const SORT_STOCK_DESC = "Stok (Çok→Az)";
 
 function PhotoGalleryModal({ photos, onClose }: { photos: string[]; onClose: () => void }) {
   const tS = useTranslations("stock.common");
-  const tP = useTranslations("stock.pages.oil");
   const [idx, setIdx] = useState(0);
   const safe = photos.length ? photos : [];
   return (
@@ -197,7 +196,6 @@ function PhotoGalleryModal({ photos, onClose }: { photos: string[]; onClose: () 
 
 function SalesDetailModal({ record, onClose }: { record: OilSaleRecord; onClose: () => void }) {
   const tS = useTranslations("stock.common");
-  const tP = useTranslations("stock.pages.oil");
   const [gallery, setGallery] = useState<string[] | null>(null);
   return (
     <>

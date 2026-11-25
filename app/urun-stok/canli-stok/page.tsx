@@ -259,6 +259,9 @@ function StockCard({
 
 export default function CanliStokMerkeziPage() {
   const t = useTranslations("stock.live");
+  const tCat = useTranslations("stock.pricing");
+  // Kategori kodu kanonik (option value); yalnız görünen etiket çevrilir.
+  const catLabel = (c: string) => (tCat.has(`categories.${c}`) ? tCat(`categories.${c}`) : CATEGORY_LABELS[c as keyof typeof CATEGORY_LABELS] ?? c);
   const isSourceLocale = useLocale() === DEFAULT_LOCALE;
   const [hydrated, setHydrated] = useState(false);
   const [isDemo, setIsDemo] = useState(false);
@@ -514,7 +517,7 @@ export default function CanliStokMerkeziPage() {
                 <option value="all">{t("all")}</option>
                 {(Object.keys(CATEGORY_LABELS) as LiveStockCategory[]).map((c) => (
                   <option key={c} value={c}>
-                    {CATEGORY_LABELS[c]}
+                    {catLabel(c)}
                   </option>
                 ))}
               </select>

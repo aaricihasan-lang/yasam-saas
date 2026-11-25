@@ -202,7 +202,7 @@ export default function MerkeziSatisFiyatlandirmaPage() {
     } finally {
       setLoading(false);
     }
-  }, [usdRate]);
+  }, [usdRate, t]);
 
   const liveCounts = useMemo(() => {
     const counts = { dogaltas: 0, oil: 0, soap_cream: 0, accessory: 0, other: 0 } as Record<ProductCategory, number>;
@@ -445,7 +445,7 @@ export default function MerkeziSatisFiyatlandirmaPage() {
                   <option value="all">{t("all")}</option>
                   {(Object.keys(CATEGORY_LABELS) as ProductCategory[]).map((c) => (
                     <option key={c} value={c}>
-                      {CATEGORY_LABELS[c]}
+                      {catLabel(c)}
                     </option>
                   ))}
                 </select>

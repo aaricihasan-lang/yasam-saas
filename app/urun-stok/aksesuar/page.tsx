@@ -142,7 +142,6 @@ const tabBtn = (active: boolean) =>
 
 function PhotoGalleryModal({ photos, onClose }: { photos: string[]; onClose: () => void }) {
   const tS = useTranslations("stock.common");
-  const tP = useTranslations("stock.pages.accessory");
   const [idx, setIdx] = useState(0);
   const safe = photos.length ? photos : [];
   return (

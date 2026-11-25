@@ -42,7 +42,7 @@
       },
       "critical": {
         "none": "✓ No critical stock",
-        "some": "🔴 {count} critical product(s) — go to list →"
+        "some": "🔴 {count, select, 1 {1 critical product} other {{count} critical products}} — go to list →"
       },
       "selectOther": {
         "other": "Other",

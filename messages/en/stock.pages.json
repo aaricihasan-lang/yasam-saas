@@ -104,7 +104,7 @@
         "clearBasketTitle": "The basket will be cleared",
         "clearBasketMessage": "All products in the basket will be removed. Do you want to continue?",
         "nothingToSave": "There is no sale to save.",
-        "cancelledDemo": "{sales} sale(s) cancelled, {items} stock item(s) updated (demo).",
+        "cancelledDemo": "{sales, plural, one {# sale cancelled} other {# sales cancelled}}, {items, plural, one {# stock item updated} other {# stock items updated}} (demo).",
         "eyebrow": "Natural Stone",
         "title": "Product / Stock Management",
         "subtitle": "Current stones, sales pricing and sales history — with desktop stock logic.",
