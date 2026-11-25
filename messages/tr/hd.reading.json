@@ -46,7 +46,18 @@
       "gatesN": "Kapılar ({count})",
       "activationsN": "Aktivasyonlar ({count})",
       "designGroup": "Design · Bilinçdışı",
-      "personalityGroup": "Personality · Bilinçli"
+      "personalityGroup": "Personality · Bilinçli",
+      "dto": {
+        "description": "Açıklama",
+        "aura": "Aura",
+        "angle": "Açı",
+        "gates": "Kapılar",
+        "personalityLine": "Personality (bilinçli) — {line}. çizgi",
+        "personality": "Personality (bilinçli)",
+        "designLine": "Design (bilinçdışı) — {line}. çizgi",
+        "design": "Design (bilinçdışı)",
+        "crossGates": "Personality Güneş {ps} · Personality Dünya {pe} · Design Güneş {ds} · Design Dünya {de}"
+      }
     }
   }
 }

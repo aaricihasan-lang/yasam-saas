@@ -56,7 +56,9 @@ const STORED_CHART = n0.chart;
 
 /** Sentetik "EN" yanıt: kanonik alanlar aynı, yalnız açıklama metinleri İngilizce işaretli. */
 /** ROXY ajanının gerçek EN yanıtıyla tekrar: HD_NARRATIVE_EN_RAW=<aynı sentetik girdinin ?lang=en ham yanıtı (JSON)>. */
-const REAL_EN = process.env.HD_NARRATIVE_EN_RAW ? (JSON.parse(readFileSync(process.env.HD_NARRATIVE_EN_RAW, "utf8")) as Record<string, unknown>) : null;
+// ROXY ajanı ham kaydı {endpoint, lang, body, response} biçimindeyse yanıt gövdesi alınır (R5 B2).
+const REAL_EN_FILE = process.env.HD_NARRATIVE_EN_RAW ? (JSON.parse(readFileSync(process.env.HD_NARRATIVE_EN_RAW, "utf8")) as Record<string, unknown>) : null;
+const REAL_EN = REAL_EN_FILE && "response" in REAL_EN_FILE && typeof REAL_EN_FILE.response === "object" ? (REAL_EN_FILE.response as Record<string, unknown>) : REAL_EN_FILE;
 function enRaw(): Record<string, unknown> {
   if (REAL_EN) return clone(REAL_EN);
   const r = clone(FIXTURE);
@@ -268,6 +270,9 @@ async function main() {
     ok("R2 EN kaydı varken: EN anlatı (İngilizce metin) + available:true + Türkçe 'İngilizce kaldı' notu YOK",
       !!data && (REAL_EN ? true : JSON.stringify(data).includes("EN-TEXT")) && post.body.ok && "narrative" in post.body && post.body.narrative?.available === true &&
       post.body.narrative?.lang === "en" && (data.languageNote ?? null) === null, post.body);
+    // R5 B2 (Roxy ajanı bulgusu): EN çıktıda ürünün TR sistem etiketleri ("Jeneratör (Generator)", "İç Otorite", "(bilinçli)") 0.
+    const trLeak = JSON.stringify(data ?? {}).match(/[^"]*[çğıöşüÇĞİÖŞÜ][^"]*/g) ?? [];
+    ok("R2b EN anlatı DTO'sunda Türkçe sistem etiketi / metni YOK", !!data && trLeak.length === 0, trLeak.slice(0, 4));
     ok("R3 okuma ek ücretli çağrı yapmaz (toplam yine 1)", calls.length === 1);
     const trAgain = await getChartSystemReading(db, T_A, CHART);
     ok("R4 TR ekranı EN üretiminden sonra da birebir aynı", JSON.stringify(trAgain.body) === JSON.stringify({ ok: true, available: true, data: trDto }));

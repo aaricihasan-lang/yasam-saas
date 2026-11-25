@@ -31,6 +31,7 @@ import {
 import { classifyHdCenters, type HdCenterState } from "@/lib/human-design/chart/centerStates";
 import type { HdCenterCode } from "@/lib/human-design/types";
 import { toPlanetName } from "./normalize";
+import { SR_EN } from "./systemReadingLabelsEn";
 import { HD_CROSS_SECTION_TITLE, HD_TERM, HD_TERM_BI, hdCrossAngleLabel, hdTypeKeynotes, normalizeProviderTrText } from "@/lib/human-design/normalize/hdDisplayLabels";
 
 export const SYSTEM_READING_LIMITS = Object.freeze({
@@ -160,7 +161,7 @@ function details(pairs: Array<[string, string | null]>): SystemReadingDetail[] {
   return pairs.filter((p): p is [string, string] => p[1] !== null).map(([l, t]) => ({ label: l, text: t }));
 }
 
-function general(r: Obj): SystemReadingGeneralItem[] {
+function general(r: Obj, en = false): SystemReadingGeneralItem[] {
   const pk = isObj(r.profileKeynotes) ? r.profileKeynotes : {};
   const xc = isObj(r.incarnationCross) ? r.incarnationCross : {};
   const profile = typeof r.profile === "string" && /^[1-6]\/[1-6]$/.test(r.profile.trim()) ? r.profile.trim() : null;
@@ -168,14 +169,50 @@ function general(r: Obj): SystemReadingGeneralItem[] {
   const dLine = int(pk.designLine, 1, 6);
   // Açı: uygulamanın onaylı Türkçe etiketi (ör. "Sağ Açı (Right Angle)"); bilinmeyen → sağlayıcının yerel değeri.
   const angleApp = typeof xc.angle === "string" ? hdCrossAngleLabel(xc.angle.trim()) : null;
-  const angle = angleApp && angleApp !== xc.angle ? angleApp : localized(xc, "angle");
+  // I18N (R5/B2): sağlayıcı dili TR değilken sistem etiketleri İngilizce sözlükten (TR yolu aynen).
+  const angle = en ? label(xc.angle) : angleApp && angleApp !== xc.angle ? angleApp : localized(xc, "angle");
   const angleCode = typeof xc.angleCode === "string" && /^[A-Z]{2,5}$/.test(xc.angleCode.trim()) ? xc.angleCode.trim() : null;
   const crossName = label(xc.name);
   const xg = Array.isArray(xc.gates) && xc.gates.length === 4 ? xc.gates.map((g) => int(g, 1, 64)) : null;
   const crossGates =
     xg && xg.every((g) => g !== null)
-      ? `Personality Güneş ${xg[0]} · Personality Dünya ${xg[1]} · Design Güneş ${xg[2]} · Design Dünya ${xg[3]}`
+      ? en
+        ? SR_EN.detail("crossGates", { ps: xg[0]!, pe: xg[1]!, ds: xg[2]!, de: xg[3]! })
+        : `Personality Güneş ${xg[0]} · Personality Dünya ${xg[1]} · Design Güneş ${xg[2]} · Design Dünya ${xg[3]}`
       : null;
+  if (en) {
+    const v = (k: string) => label(r[k]);
+    const d = (k: string) => SR_EN.detail(k);
+    const enItems: SystemReadingGeneralItem[] = [
+      { key: "type", title: SR_EN.title("type") ?? "Type", value: v("type"), details: details([[d("description"), text(r.typeDescription)], [d("aura"), text(r.aura)]]) },
+      { key: "strategy", title: SR_EN.title("strategy") ?? "Strategy", value: v("strategy"), details: details([[d("description"), text(r.strategyDescription)]]) },
+      { key: "authority", title: SR_EN.title("authority") ?? "Inner Authority", value: v("authority"), details: details([[d("description"), text(r.authorityDescription)]]) },
+      {
+        key: "profile",
+        title: SR_EN.title("profile") ?? "Profile",
+        value: profile,
+        details: details([
+          [d("description"), text(r.profileDescription)],
+          [pLine ? SR_EN.detail("personalityLine", { line: pLine }) : d("personality"), text(pk.personality)],
+          [dLine ? SR_EN.detail("designLine", { line: dLine }) : d("design"), text(pk.design)],
+        ]),
+      },
+      { key: "definition", title: SR_EN.title("definition") ?? "Definition", value: v("definition"), details: details([[d("description"), text(r.definitionDescription)]]) },
+      {
+        key: "cross",
+        title: SR_EN.title("cross") ?? "Incarnation Cross",
+        value: crossName ?? angle,
+        details: details([
+          [d("angle"), crossName && angle ? `${angle}${angleCode ? ` (${angleCode})` : ""}` : null],
+          [d("gates"), crossGates],
+          [d("description"), text(xc.description)],
+        ]),
+      },
+      { key: "signature", title: SR_EN.title("signature") ?? "Signature", value: v("signature"), details: [] },
+      { key: "notSelf", title: SR_EN.title("notSelf") ?? "Not-Self Theme", value: v("notSelf"), details: [] },
+    ];
+    return enItems.filter((i) => i.value !== null || i.details.length > 0);
+  }
   const items: SystemReadingGeneralItem[] = [
     { key: "type", title: "Tip", value: localized(r, "type"), details: details([["Açıklama", text(r.typeDescription)], ["Aura", text(r.aura)]]) },
     { key: "strategy", title: "Strateji", value: localized(r, "strategy"), details: details([["Açıklama", text(r.strategyDescription)]]) },
@@ -245,10 +282,10 @@ function rawCenterStates(r: Obj): Map<HdCenterCode, HdCenterState> {
 }
 
 /** Sağlayıcı merkez kimliği → uygulama merkez adı (bilinmeyen → null). */
-function centerName(v: unknown): string | null {
+function centerName(v: unknown, en = false): string | null {
   if (typeof v !== "string" || !/^[a-z_-]{1,32}$/.test(v)) return null;
   const code = toAppCenterCode(v);
-  return code ? hdCenterLabelFromCode(code) : null;
+  return code ? (en ? SR_EN.term("center", code) : hdCenterLabelFromCode(code)) : null;
 }
 
 function centers(r: Obj): SystemReadingCenter[] {
@@ -279,7 +316,7 @@ function centers(r: Obj): SystemReadingCenter[] {
   return out;
 }
 
-function channels(r: Obj): SystemReadingChannel[] {
+function channels(r: Obj, en = false): SystemReadingChannel[] {
   if (!Array.isArray(r.channels)) return [];
   const out: SystemReadingChannel[] = [];
   for (const c of r.channels.slice(0, SYSTEM_READING_LIMITS.channels)) {
@@ -292,7 +329,7 @@ function channels(r: Obj): SystemReadingChannel[] {
       circuit: localized(c, "circuit"),
       description: text(c.description),
       circuitDescription: text(c.circuitDescription),
-      centers: Array.isArray(c.centers) ? c.centers.slice(0, 2).map(centerName).filter((x): x is string => x !== null) : [],
+      centers: Array.isArray(c.centers) ? c.centers.slice(0, 2).map((x) => centerName(x, en)).filter((x): x is string => x !== null) : [],
     };
     if (item.id || item.name || item.description) out.push(item);
   }
@@ -402,6 +439,7 @@ export function harmonizeSystemReading(
   labels: SystemReadingLabels = {},
   opts: { bilingual?: boolean; providerLang?: string } = {},
 ): SystemReadingDto {
+  const en = (opts.providerLang ?? "tr") !== "tr";
   const titles = opts.bilingual === false ? GENERAL_TITLE_TR : GENERAL_TITLE_BI;
   const fixText = textFixerFor(opts.providerLang ?? "tr");
   return {
@@ -409,7 +447,7 @@ export function harmonizeSystemReading(
       const appValue = g.key in labels ? labels[g.key as keyof SystemReadingLabels] : null;
       return {
         ...g,
-        title: titles[g.key] ?? g.title,
+        title: en ? SR_EN.title(g.key) ?? g.title : titles[g.key] ?? g.title,
         value: appValue ?? fixText(g.value),
         details: g.details.map((d) => ({ label: d.label, text: fixText(d.text) ?? d.text })),
       };
@@ -418,14 +456,14 @@ export function harmonizeSystemReading(
       const code = toAppCenterCode(c.id);
       return {
         ...c,
-        name: code ? hdCenterLabelFromCode(code) : fixText(c.name) ?? c.name,
+        name: code ? (en ? SR_EN.term("center", code) ?? c.name : hdCenterLabelFromCode(code)) : fixText(c.name) ?? c.name,
         theme: fixText(c.theme),
         notSelfQuestion: c.defined === false ? fixText(c.notSelfQuestion) : null,
         biology: fixText(c.biology),
       };
     }),
     channels: dto.channels.map((c) => {
-      const appLabel = c.id ? HUMAN_DESIGN_CHANNELS.find((x) => x.code === c.id)?.label : undefined;
+      const appLabel = c.id ? (en ? SR_EN.term("channel", c.id) ?? undefined : HUMAN_DESIGN_CHANNELS.find((x) => x.code === c.id)?.label) : undefined;
       const appName = appLabel ? appLabel.replace(/^\s*\d+-\d+\s*/, "").trim() : null;
       return {
         ...c,
@@ -454,11 +492,24 @@ export function harmonizeSystemReading(
  * Ham sağlayıcı yanıtının İngilizce anahtar değerlerinden uygulama etiketleri (yalnız tanınanlar).
  * Strateji / İmza / Kendilik Dışı Tema: "Türkçe (sağlayıcı KANONİK İngilizce)" — ekrandaki bilgi bloğuyla aynı.
  */
-export function systemReadingLabelsFromRaw(raw: unknown): SystemReadingLabels {
+export function systemReadingLabelsFromRaw(raw: unknown, opts: { providerLang?: string } = {}): SystemReadingLabels {
   if (!isObj(raw)) return {};
   const typeCode = toAppTypeCode(raw.type);
   const authorityCode = toAppAuthorityCode(raw.authority);
   const definitionCode = toAppDefinitionCode(raw.definition);
+  if ((opts.providerLang ?? "tr") !== "tr") {
+    // I18N (R5/B2): TR dışı sağlayıcı dilinde uygulama etiketleri hd.terms (EN) sözlüğünden; Ego ayrımı aynı kural.
+    const authKey =
+      authorityCode === "ego_heart" && typeCode === "manifestor" ? "ego_manifested" : authorityCode === "ego_heart" && typeCode === "projector" ? "ego_projected" : authorityCode;
+    return {
+      type: SR_EN.term("type", typeCode),
+      authority: SR_EN.term("authority", authKey),
+      definition: SR_EN.term("definition", definitionCode),
+      strategy: SR_EN.term("strategy", typeCode),
+      signature: SR_EN.term("signature", typeCode),
+      notSelf: SR_EN.term("notSelf", typeCode),
+    };
+  }
   const keynotes = hdTypeKeynotes(typeCode, { canonical: { strategy: raw.strategy, signature: raw.signature, notSelf: raw.notSelf } });
   return {
     type: typeCode ? hdTypeLabelFromCode(typeCode) : null,
@@ -478,20 +529,20 @@ export function systemReadingLabelsFromRaw(raw: unknown): SystemReadingLabels {
 export function extractSystemReading(raw: unknown, opts: { providerLang?: string } = {}): SystemReadingDto | null {
   if (!isObj(raw)) return null;
   const base: SystemReadingDto = {
-    general: general(raw),
+    general: general(raw, (opts.providerLang ?? "tr") !== "tr"),
     centers: centers(raw),
-    channels: channels(raw),
+    channels: channels(raw, (opts.providerLang ?? "tr") !== "tr"),
     activations: activations(raw),
     sides: sides(raw),
   };
   const providerLang = opts.providerLang ?? "tr";
   const dto: SystemReadingDto = harmonizeSystemReading(
     { ...base, languageNote: providerLang === "tr" ? languageNoteOf(base) : null },
-    systemReadingLabelsFromRaw(raw),
+    systemReadingLabelsFromRaw(raw, { providerLang }),
     { providerLang },
   );
   const hasText =
-    dto.general.some((g) => g.details.some((d) => d.label !== "Açı")) ||
+    dto.general.some((g) => g.details.some((d) => d.label !== "Açı" && d.label !== SR_EN.detail("angle"))) ||
     dto.centers.some((c) => c.theme || c.notSelfQuestion || c.biology) ||
     dto.channels.some((c) => c.description || c.circuitDescription) ||
     dto.activations.some((a) => a.gateDescription || a.lineMeaning || a.planetDescription) ||

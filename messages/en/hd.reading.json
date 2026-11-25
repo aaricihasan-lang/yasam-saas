@@ -46,7 +46,18 @@
       "gatesN": "Gates ({count})",
       "activationsN": "Activations ({count})",
       "designGroup": "Design · Unconscious",
-      "personalityGroup": "Personality · Conscious"
+      "personalityGroup": "Personality · Conscious",
+      "dto": {
+        "description": "Description",
+        "aura": "Aura",
+        "angle": "Angle",
+        "gates": "Gates",
+        "personalityLine": "Personality (conscious) — line {line}",
+        "personality": "Personality (conscious)",
+        "designLine": "Design (unconscious) — line {line}",
+        "design": "Design (unconscious)",
+        "crossGates": "Personality Sun {ps} · Personality Earth {pe} · Design Sun {ds} · Design Earth {de}"
+      }
     }
   }
 }
