@@ -7,6 +7,7 @@
 // Konum / saat dilimi: tarayıcı saat dilimi (IANA doğrulamalı) ya da Türkiye; seçim iki sekmede ortak tutulur.
 
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { useState, useSyncExternalStore } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { HumanDesignShell } from "../../components/HumanDesignShell";
@@ -21,6 +22,7 @@ const readIsDemo = () => readYasamUser()?.is_demo_account === true;
 
 export function HdTransitContent() {
   const sp = useSearchParams();
+  const t = useTranslations("hd.transit.page");
   const router = useRouter();
   const personal = sp.get("gorunum") === "kisisel";
   // Tarayıcı saat dilimi yalnız istemcide okunur (sunucu çiziminde null → görünümler henüz kurulmaz; yanlış bölgeyle başlamaz).
@@ -35,27 +37,27 @@ export function HdTransitContent() {
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
         <div>
           <p className="text-[11px] font-black uppercase tracking-widest text-indigo-600">Human Design</p>
-          <h1 className="text-2xl font-black tracking-tight text-slate-900">{personal ? "Kişisel Transit Analizi" : "Günün Human Design Transitleri"}</h1>
+          <h1 className="text-2xl font-black tracking-tight text-slate-900">{personal ? t("titlePersonal") : t("titleGeneral")}</h1>
         </div>
         <Link href="/human-design" className="rounded-xl border border-indigo-200 bg-white px-3 py-1.5 text-xs font-bold text-indigo-700 no-underline hover:bg-indigo-50">
-          ← Human Design
+          <span aria-hidden>← </span>Human Design
         </Link>
       </div>
       <div role="tablist" className="mb-4 flex gap-1 rounded-xl bg-slate-100/80 p-1" data-hd-transit-tabs>
         <button type="button" role="tab" aria-selected={!personal} className={tab(!personal)} onClick={() => router.push("/human-design/transit")} data-hd-transit-tab="general">
-          Günün Transitleri
+          {t("tabGeneral")}
         </button>
         <button type="button" role="tab" aria-selected={personal} className={tab(personal)} onClick={() => router.push("/human-design/transit?gorunum=kisisel")} data-hd-transit-tab="personal">
-          Kişisel Transit
+          {t("tabPersonal")}
         </button>
       </div>
       {isDemo ? (
         <DemoModuleBanner
           className="mb-3"
-          message="Demo hesabında transit hesaplaması yapılmaz. Doğrulanmış hazır örnekleri Danışanlar, Kayıtlı Haritalar ve İlişki & Grup ekranlarında inceleyebilirsiniz."
+          message={t("demo")}
         />
       ) : zone === null ? (
-        <p className="text-xs text-slate-500">Hazırlanıyor…</p>
+        <p className="text-xs text-slate-500">{t("preparing")}</p>
       ) : personal ? (
         <PersonalTransitView zone={zone} onZone={setChosen} />
       ) : (

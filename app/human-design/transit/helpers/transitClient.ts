@@ -52,7 +52,7 @@ export async function fetchGeneralTransit(date?: string, time?: string, signal?:
       ? { ok: true, moment: j.moment as TransitMoment, transit: j.transit as GeneralTransit, resolution: j.resolution as TransitResolutionTag, complete: j.complete === true }
       : errOf(j, res);
   } catch (e) {
-    return isAbort(e, signal) ? aborted() : { ok: false, error: "Ağ hatası. Bağlantınızı kontrol edin." };
+    return isAbort(e, signal) ? aborted() : { ok: false, error: "Ağ hatası. Bağlantınızı kontrol edin.", code: "NETWORK" };
   }
 }
 
@@ -87,6 +87,6 @@ export async function fetchPersonalTransit(
       ? { ok: true, reused: j.reused === true, moment: j.moment as TransitMoment, client: j.client as PersonalTransitResult["client"], chart: j.chart as PersonalTransitResult["chart"], view: j.view as PersonalTransitView }
       : errOf(j, res);
   } catch (e) {
-    return isAbort(e, signal) ? aborted() : { ok: false, error: "Ağ hatası. Bağlantınızı kontrol edin." };
+    return isAbort(e, signal) ? aborted() : { ok: false, error: "Ağ hatası. Bağlantınızı kontrol edin.", code: "NETWORK" };
   }
 }
