@@ -1,0 +1,140 @@
+{
+  "reports": {
+    "hdRelations": {
+      "title": {
+        "connection": "Human Design Relationship Analysis (Connection)",
+        "penta": "Human Design Group Analysis (Penta)"
+      },
+      "header": {
+        "connection": "Human Design · Relationship Analysis",
+        "penta": "Human Design · Group Analysis"
+      },
+      "cover": {
+        "kind": "Analysis type",
+        "relationType": "Relationship context (information only)",
+        "analysisDate": "Analysis date",
+        "reportDate": "Report date",
+        "memberCount": "Number of people",
+        "preparedBy": "Prepared by",
+        "credTitle": "Title",
+        "credOrg": "Organisation"
+      },
+      "status": {
+        "birth_data_changed": "The client's birth details changed after this analysis; the analysis was prepared with the details saved at that time.",
+        "source_chart_deleted": "The source individual analysis was later deleted or changed; this result is a historical record.",
+        "client_deleted": "The client profile was later deleted; the name is shown from the historical record."
+      },
+      "participants": {
+        "heading": "Participants",
+        "colTag": "Person",
+        "colName": "Full Name",
+        "colBirthDate": "Date of Birth",
+        "colTime": "Time",
+        "colPlace": "Place of Birth"
+      },
+      "image": {
+        "headingConnection": "Combined Relationship BodyGraph",
+        "headingPenta": "Penta Diagram",
+        "missing": "The image could not be created for this report.",
+        "resultOnlyNote": "Because the source individual analysis data is no longer available, the chart shows only the channels completed together in the saved result; half channels are not drawn."
+      },
+      "legend": {
+        "standard1": "Standard Human Design combined BodyGraph. Colour shows the person: blue = A, orange = B; a two-coloured (half-and-half) gate = active in both people.",
+        "standard2": "The chart draws only the channels the two people complete TOGETHER. Two-coloured channel = Electromagnetic; single-coloured channel = Dominance, Compromise or Companionship (type in the table below).",
+        "standard3": "Coloured center = defined in the combined chart; white center = open. Half channels and all active gates of each person are in the 'Half Channels and Active Gates' section.",
+        "connection1": "Colour shows the person: blue = A, orange = B. An active gate colours its own half of the channel in the person's colour; an orange-striped half on a blue base and a two-coloured gate = a gate shared by both people.",
+        "connection2": "Channel with both halves coloured = defined in the combined chart. Channel with only one half coloured = half channel (not defined). The connection type is in the channel table below.",
+        "connection3": "Coloured center = defined in the combined chart; white center = open.",
+        "schematic1": "Colour shows the person: blue = A, orange = B; two-coloured (striped / half circle) = a gate shared by both people.",
+        "schematic2": "Thick channel = defined in the combined chart. Thin dashed half channel = only one gate active (not defined).",
+        "schematic3": "The shape in the middle of a channel shows the connection type: ◆ Electromagnetic · ▲ Dominance · ■ Compromise · ● Companionship.",
+        "schematic4": "Filled center = defined in the combined chart; A / B / A+B in the center = the person who defines the center in their own chart.",
+        "penta1": "Thick purple line = Penta channel defined in the group (strength); pink = 2/14 core defined; dotted grey = gap (channel not completed).",
+        "penta2": "Numbered badges next to a gate show the members carrying that gate (number = member order); dashed gate + 'gap' = no member carries it."
+      },
+      "conn": {
+        "summaryHeading": "Connection Summary",
+        "channelCount": "Connected channels",
+        "combinedDefinition": "Combined Definition",
+        "typesHeading": "Connection Types",
+        "channelsHeading": "Channel Connections",
+        "noChannels": "The two people do not complete any channel together.",
+        "colChannel": "Channel",
+        "colCircuit": "Circuit",
+        "colCenters": "Centers",
+        "centersHeading": "Combined Centers",
+        "centersNote": "In the combined chart a channel counts as defined when the two people together carry both of its gates. The last column shows who defines the center in their OWN chart.",
+        "colCenter": "Center",
+        "colCombined": "In the Combined Chart",
+        "colDefinedBy": "Defined in Own Chart by",
+        "defined": "Defined",
+        "notDefined": "Not defined",
+        "both": "Both ({a}, {b})",
+        "none": "Neither"
+      },
+      "gates": {
+        "heading": "Half Channels and Active Gates",
+        "noSource": "Half channels and all active gates of each person cannot be shown because the source individual analysis data is not included in this report.",
+        "halfNote": "Half channel: only one gate of the channel is active together; it is not defined in the combined chart.",
+        "colHalf": "Half channel",
+        "colLower": "Lower gate — carrier",
+        "colUpper": "Upper gate — carrier",
+        "noHalf": "No half channels.",
+        "allHeading": "All active gates of each person",
+        "starNote": "* Gate belonging to a channel completed together.",
+        "holderBoth": "{a} and {b}"
+      },
+      "penta": {
+        "summaryHeading": "Group Summary",
+        "memberCount": "Number of members",
+        "definedChannels": "Defined Penta channels (strength)",
+        "filledGates": "Filled Penta gates",
+        "core": "2/14 core (The Beat)",
+        "gapGates": "Missing function gates (gap)",
+        "none": "None",
+        "coreSuffix": " · core",
+        "strong": "Strength (defined)",
+        "gap": "Gap",
+        "colChannel": "Channel",
+        "colStatus": "Status",
+        "colGateA": "Gate A — carrier",
+        "colGateB": "Gate B — carrier",
+        "gatesHeading": "Penta Gates and Contributions",
+        "colGate": "Gate",
+        "colRole": "Role (gate name)",
+        "colGateStatus": "Status",
+        "colHolders": "Carrying member(s)",
+        "filled": "Filled",
+        "gapShort": "Gap"
+      },
+      "sections": {
+        "analysisHeading": "Analysis Explanations",
+        "knowledgeHeading": "Explanations from My Knowledge Base",
+        "knowledgeNote": "The practitioner's own Knowledge Base records. Individual records are labelled with the person's name; general channel/gate records are not a relationship/group reading.",
+        "expertHeading": "Practitioner Commentary"
+      },
+      "knowledgeGroup": {
+        "channels": "Channels in the combined chart — your general channel records",
+        "pentaChannels": "Defined Penta channels — your general channel records",
+        "pentaGates": "Penta gates — your general gate records",
+        "person": "{name} — your individual records"
+      },
+      "footer": {
+        "page": "Page "
+      },
+      "file": {
+        "connection": "HD-Relationship",
+        "penta": "HD-Group-Penta",
+        "fallback": "analysis"
+      },
+      "scene": {
+        "bandThroat": "THROAT CENTER",
+        "bandG": "G CENTER",
+        "bandSacral": "SACRAL CENTER",
+        "coreSuffix": " · CORE",
+        "gapSuffix": " · gap",
+        "gapWord": "gap"
+      }
+    }
+  }
+}
