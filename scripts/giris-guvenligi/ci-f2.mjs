@@ -96,6 +96,11 @@ const TSX = [
   "scripts/giris-guvenligi/smtp-saatlik-kota.check.ts",
   // Yayın ön kontrolü (salt-okunur): kitsiz zorunlu Owner / Owner sayısı → GO / NO-GO (F2 öncesi production dahil).
   "scripts/giris-guvenligi/f2-owner-kit-onkontrol.harness.ts",
+  // F3: kullanıcı e-postası kapsamı (AUTH_EMAIL_SELF_SERVICE_ROLES; varsayılan yalnız Owner) — sunucu denetimi, IDOR/CSRF, bildirim.
+  "scripts/giris-guvenligi/f3-eposta-kapsam.harness.ts",
+  // F3: gerçek gönderim öncesi SMTP kabul provası — production sağlayıcı yolu (env → smtpProvider → DB kota) + sahte TLS sunucusu;
+  // Owner doğrulama → kitsiz red → kit → zorunluluk → e-posta koduyla giriş; süre / kesinti / kimlik / TLS hataları; uzman korunur.
+  "scripts/giris-guvenligi/f3-smtp-kabul-provasi.harness.ts",
 ];
 
 // F2-J: migration yeniden / sırasız uygulama koruması (statik blok denetimi, üretilmiş katalog dosyalarının güncelliği,
@@ -147,6 +152,11 @@ const steps = [
     ].map(([v, mustRe]) => ({ label: `owner-kilitlenme NEGATİF (${v}=1 → FAIL beklenir)`, cmd: process.execPath,
       args: [path.join("node_modules", "tsx", "dist", "cli.mjs"), "scripts/giris-guvenligi/owner-kilitlenme.harness.ts"],
       env: { [v]: "1" }, expectFail: true, passRe: /owner-kilitlenme: [0-9]+ PASS \/ [1-9][0-9]* FAIL/, mustRe })),
+    // NEGATİF KONTROL (F3): kapsam kararı "her zaman açık" yapılınca uzman / yönetici / bildirim maddeleri FAIL VERMELİ.
+    { label: "f3-eposta-kapsam NEGATİF (F3_KAPSAM_NEGATIF=1 → FAIL beklenir)", cmd: process.execPath,
+      args: [path.join("node_modules", "tsx", "dist", "cli.mjs"), "scripts/giris-guvenligi/f3-eposta-kapsam.harness.ts"],
+      env: { F3_KAPSAM_NEGATIF: "1" }, expectFail: true, passRe: /f3-eposta-kapsam: [0-9]+ PASS \/ [1-9][0-9]* FAIL/,
+      mustRe: /NEGATİF KONTROL \(F3_KAPSAM_NEGATIF=1\)[\s\S]*FAIL uzman kod isteği → 403[\s\S]*FAIL Owner OLMAYAN yönetici de kapalı[\s\S]*FAIL uzmana bildirim GİTMEDİ/ },
     // NEGATİF KONTROL: A3 öncesi kural yüklenince taklit testleri FAIL VERMELİ (vermiyorsa test kör demektir).
     { label: "f2k-token NEGATİF (F2K_A3_WITHOUT_FIX=1 → FAIL beklenir)", cmd: process.execPath,
       args: [path.join("node_modules", "tsx", "dist", "cli.mjs"), "scripts/giris-guvenligi/f2k-token.harness.ts"],

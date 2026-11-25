@@ -11,6 +11,7 @@ import { getEmailProvider } from "@/lib/email/provider";
 import { renderOtpEmail } from "@/lib/email/templates/otpEmail";
 import { reconfirmPassword } from "@/lib/auth/stepUp";
 import { sendSecurityNotice } from "@/lib/auth/securityNotice";
+import { emailSelfServiceAllowed } from "@/lib/auth/emailSelfService";
 
 export const runtime = "nodejs";
 
@@ -21,6 +22,8 @@ const NEED_STRONG = "emailChange.needStrong"; // auth.server katalog anahtarı (
  * Şartlar: QR (güvenilir cihaz) veya kurtarma koduyla açılmış oturum (DB) + parola (burada) + YENİ
  * adrese gönderilen 6 haneli kod (10 dk, 5 yanlışta kilit). Başarıda eski adrese güvenlik bildirimi.
  * Hesap kimliği (users.id), tenant, danışan ve analiz kayıtları DEĞİŞMEZ — yalnız giriş adresi.
+ * F3: kapsam AUTH_EMAIL_SELF_SERVICE_ROLES (varsayılan yalnız Owner). Kapsam dışı hesapta start / confirm 403
+ * (METHOD_NOT_IN_SCOPE); parola denenmez, kod üretilmez, e-posta gönderilmez.
  *
  * POST { action: "start", newEmail, password } → { requestId, expiresAt, sentTo: maske }
  * POST { action: "confirm", requestId, code }   → { ok, email: maske }
@@ -30,6 +33,9 @@ export async function POST(req: NextRequest) {
   const guard = await verifySelfSessionRequest(req);
   if (!guard.ok) return guard.response;
   if (guard.isDemo) return demoReadOnlyResponse();
+  if (!(await emailSelfServiceAllowed(guard.db, guard.userId, guard.role))) {
+    return jsonNoStore({ code: "METHOD_NOT_IN_SCOPE", error: te("common.emailNotInScope") }, 403);
+  }
   const body = (await req.json().catch(() => null)) as { action?: unknown; newEmail?: unknown; password?: unknown; requestId?: unknown; code?: unknown } | null;
   const pepper = otpPepper();
   const provider = getEmailProvider();

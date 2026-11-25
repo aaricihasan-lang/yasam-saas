@@ -1,7 +1,7 @@
 // ============================================================
 // Ayarlar → Sistem Yedeği / Dışa Aktarım — Gökyüzü Atlası + HD İlişki Analizleri GERÇEK DB harness'i (PGlite).
 //
-//   Gerçek migration'lar (astrology 20271101000000…0800 + Horary 20271210000000 + HD İlişki 20271102000000 /
+//   Gerçek migration'lar (astrology 20271101000000…0800 + Horary 20271210000000 + Aylık Efemeris 20280125000000 + HD İlişki 20271102000000 /
 //   20271103000000) PGlite'a uygulanır. Motor (lib/backup/engine) Supabase-js alt kümesini taklit eden adaptörle
 //   `SET ROLE service_role` (production'daki GRANT'lar: çoğu astro tablosunda yalnız SELECT/INSERT) altında koşar →
 //   bileşik (tenant_id, owner_user_id, …) FK'ler, CHECK'ler, değişmezlik ve kayıt tavanı tetikleyicileri GERÇEKTEN
@@ -38,6 +38,8 @@ const MIGRATIONS = [
   "20271102000000_hd_relation_analyses.sql",
   "20271103000000_hd_relation_comments_reports.sql",
   "20271210000000_astro_horary_questions.sql",
+  // 2026-11-24: aylık efemeris kayıtları (yedeğe girer; ASTRO_OWNER) + tenant'sız sağlayıcı önbelleği (yedeğe girmez).
+  "20280125000000_astro_sky_monthly_ephemeris.sql",
 ];
 
 let pass = 0;
@@ -227,6 +229,11 @@ async function seedAstro(tenant, owner, n, tag, clientId) {
        VALUES ($1,$2,$3,$4,'İş değişikliği olacak mı?','2026-11-01','14:30','Europe/Istanbul',10800,'2026-11-01T11:30:00Z','ist','İstanbul',41.01,28.97,10,'lilly_1647','m1','o1',1,'{"hukum":"evet"}'::jsonb,$5)`,
       [uid("a8"), tenant, owner, `${tag} soru ${i}`, uid("a9")],
     );
+    await pg.query(
+      `INSERT INTO astro_sky_monthly_ephemeris (id, tenant_id, owner_user_id, title, kind, year, month, zodiac, ayanamsa, source_endpoint, adapter_version, provider_api_version, methodology_version, snapshot_schema, result_snapshot, save_request_id)
+       VALUES ($1,$2,$3,$4,$5,2026,11,$6,$7,'/astrology/planets/monthly','monthly-ephemeris-1','v2@2.0.0','m1',1,'{"days":[{"date":"2026-11-01"}]}'::jsonb,$8)`,
+      [uid("aa"), tenant, owner, `${tag} efemeris ${i} ğüşİ`, i % 2 ? "vedic" : "western", i % 2 ? "sidereal" : "tropical", i % 2 ? "lahiri" : null, uid("ab")],
+    );
   }
   return ids;
 }
@@ -313,6 +320,7 @@ for (const t of ASTRO) ua2Before[t] = digest((await pg.query(ownerSql(t), [TA, U
 await pg.query(`DELETE FROM astro_birth_profiles WHERE tenant_id = $1 AND owner_user_id = $2`, [TA, UA]);
 await pg.query(`DELETE FROM astro_kb_entries WHERE tenant_id = $1 AND owner_user_id = $2`, [TA, UA]);
 await pg.query(`DELETE FROM astro_horary_questions WHERE tenant_id = $1 AND owner_user_id = $2`, [TA, UA]);
+await pg.query(`DELETE FROM astro_sky_monthly_ephemeris WHERE tenant_id = $1 AND owner_user_id = $2`, [TA, UA]);
 await pg.query(`DELETE FROM human_design_relation_analyses WHERE tenant_id = $1`, [TA]);
 const left = (await pg.query(`SELECT (SELECT count(*) FROM astro_analyses WHERE owner_user_id=$1)::int a, (SELECT count(*) FROM astro_provider_results WHERE owner_user_id=$1)::int r`, [UA])).rows[0];
 ok("kayıp simülasyonu: UA analizleri ve önbelleği silindi", left.a === 0 && left.r === 0);

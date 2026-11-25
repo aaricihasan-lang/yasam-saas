@@ -53,6 +53,7 @@
       },
       "recovery": {
         "loadFailed": "Recovery information could not be loaded. Please check your connection.",
+        "emailChangeUnavailable": "Changing the email address is not currently available for this account.",
         "actionFailed": "The action could not be completed. Please check your connection.",
         "codesFailed": "The codes could not be generated.",
         "codesClosed": "Your recovery codes are now only where you saved them. They will not be shown on this screen again.",
