@@ -4,15 +4,25 @@
  *   [S] "Yakında" (ComingSoonPanel): TR bölüm/madde metinleri KANONİK ANAHTAR olarak kaynakta kalır (görünürlük eşlemesi);
  *       ekran metni koddan katalogla. TR katalog değeri = kaynak metin (karakteri karakterine); her madde/bölüm/not kodlu;
  *       EN katalog eksiksiz ve Türkçe harfsiz; görünürlük kararı dilden bağımsız (kod kümesi aynı).
+ *   [F] Transit Takvimi (ForecastPanel + gün ayrıntısı): TR çizimi çeviri ÖNCESİ bileşenle aynı (fixtures/i18n/
+ *       forecast-panel-tr-taban.json; SSR metin düğümü ayırıcıları `<!-- -->` hariç — DOM metni birebir); olay cümlesi
+ *       TR'de lib eventText ile birebir; lib notları (kapsam, önem) = TR katalog; EN'de Türkçe harf yok.
+ *       Taban yeniden üretimi YALNIZ çeviri öncesi kodla: ... --write-golden
  *
  * Çalıştırma: npx tsx --tsconfig scripts/astrology/tsconfig.json scripts/astrology/atlas-a-r5-i18n.harness.ts
  */
 import "./css-module-stub.cjs";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { createTranslator } from "next-intl";
 import { getCatalogMessages } from "@/lib/i18n/catalog";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "./intlRender";
+import { getTechnique } from "@/lib/astrology/engine/techniques";
+import { DayDetail, ForecastPanel, eventText } from "@/app/admin/astroloji/_components/TransitPanels";
+import type { ForecastEvent, ForecastTechnical } from "@/lib/astrology/model/westernTiming";
+import { FORECAST_SCOPE_NOTE, SIGNIFICANCE_BAND_LABELS, SIGNIFICANCE_NOTE, groupEventsByDay } from "@/lib/astrology/transitDetail";
 import { AVAILABLE_TECHNIQUES, COMING_SOON_AVAILABLE_AS, COMING_SOON_ITEM_CODES, COMING_SOON_SECTION_CODES, visibleComingSoonSections } from "@/app/admin/astroloji/_lib/comingSoon";
 
 const ROOT = join(__dirname, "..", "..");
@@ -97,6 +107,77 @@ t("panel kaynakta kullanıcı metni yok (yalnız katalog anahtarı); kanonik lis
   const body = soonSrc.slice(soonSrc.indexOf("export default function ComingSoonPanel"));
   assert.ok(!TR_LETTERS.test(body), "panel gövdesinde Türkçe metin");
   assert.ok(body.includes('useTranslations("atlas.soon")'));
+});
+
+// ─── [F] Transit Takvimi ──────────────────────────────────────────────────────────────────────────────────────────
+type J = Record<string, unknown>;
+const GOLD_F = join(__dirname, "fixtures", "i18n", "forecast-panel-tr-taban.json");
+const goldenRaw = (name: string) => JSON.parse(readFileSync(join(__dirname, "fixtures", "golden", `${name}.json`), "utf8")) as { response: unknown };
+const FC = getTechnique("western.forecast")!;
+const CAL = { startDate: "2026-10-01", days: 90 };
+const UCTX = { birth: { birthDate: "1990-07-15", birthTime: "14:30:00", utcOffsetSeconds: 10800, latitude: 41.0082, longitude: 28.9784 }, birthUtc: "1990-07-15T11:30:00Z", partner: null } as never;
+const fc = (FC.project(FC.units(UCTX, CAL)[0], goldenRaw("forecast").response, CAL) as J).technical as ForecastTechnical;
+const noSig: ForecastTechnical = { ...fc, events: fc.events.map((e) => ({ ...e, significance: null })) };
+const empty: ForecastTechnical = { ...fc, events: [] };
+/** Gün ayrıntısı vakaları: en kalabalık gün (kişisel + genel), yalnız genel olaylı gün, olaysız gün. */
+const fdays = groupEventsByDay(fc.events, "Europe/Istanbul");
+const busiest = [...fdays].sort((a, b) => b[1].length - a[1].length)[0];
+const skyOnly = fdays.find(([, l]) => l.every((e) => e.type !== "transit_aspect"));
+const fakeApi = { plan: async () => ({ ok: true as const, newRequests: 0 }), open: async () => ({ ok: true as const }) };
+type Case = { name: string; el: () => ReturnType<typeof createElement> };
+const noop = () => {};
+const forecastCases: Case[] = [
+  { name: "panel-utc", el: () => createElement(ForecastPanel, { t: fc, options: CAL }) },
+  { name: "panel-istanbul", el: () => createElement(ForecastPanel, { t: fc, options: { ...CAL, displayTz: "Europe/Istanbul" } }) },
+  { name: "panel-onemsiz", el: () => createElement(ForecastPanel, { t: noSig, options: { ...CAL, displayTz: "America/New_York" } }) },
+  { name: "panel-bos", el: () => createElement(ForecastPanel, { t: empty, options: CAL }) },
+  { name: "gun-kalabalik-api", el: () => createElement(DayDetail, { day: busiest[0], events: busiest[1], tz: "Europe/Istanbul", api: fakeApi, onClose: noop }) },
+  { name: "gun-kalabalik-kayitli", el: () => createElement(DayDetail, { day: busiest[0], events: busiest[1], tz: "UTC", api: null, onClose: noop }) },
+  { name: "gun-genel", el: () => createElement(DayDetail, { day: skyOnly![0], events: skyOnly![1], tz: "Asia/Kolkata", api: fakeApi, onClose: noop }) },
+  { name: "gun-bos", el: () => createElement(DayDetail, { day: "2026-10-02", events: [], tz: "Europe/Istanbul", api: fakeApi, onClose: noop }) },
+];
+const stripMarkers = (h: string) => h.replace(/<!-- -->/g, "");
+if (process.argv.includes("--write-golden")) {
+  const cases: Record<string, string> = {};
+  for (const c of forecastCases) cases[c.name] = renderToStaticMarkup(c.el(), "tr");
+  writeFileSync(GOLD_F, JSON.stringify({ source: "atlas-a-r5-i18n --write-golden — ForecastPanel/DayDetail çeviri ÖNCESİ (work/i18n-mod-g-atlas 200fd634d + yalnız DayDetail export)", cases }, null, 0) + "\n");
+  console.log(`taban yazıldı: ${Object.keys(cases).length} vaka`);
+  process.exit(0);
+}
+console.log("\n[F] Transit Takvimi: TR birebir, EN Türkçe harfsiz");
+const goldF = (JSON.parse(readFileSync(GOLD_F, "utf8")) as { cases: Record<string, string> }).cases;
+t(`TR çizim çeviri öncesiyle aynı (${forecastCases.length} vaka; ${fc.events.length} olay; ayırıcı yorumlar hariç)`, () => {
+  // Kapsam: kalabalık gün kişisel (natal) olayları, "gun-genel" genel gökyüzü olaylarını çizer.
+  assert.ok(busiest[1].some((e) => e.type === "transit_aspect"), "kalabalık günde kişisel olay olmalı");
+  assert.ok(skyOnly && skyOnly[1].length > 0, "genel olaylı gün olmalı");
+  for (const c of forecastCases) assert.equal(stripMarkers(renderToStaticMarkup(c.el(), "tr")), stripMarkers(goldF[c.name]), c.name);
+});
+t("lib notları = TR katalog (kapsam, önem notu, önem bantları)", () => {
+  const f = translator("tr", "atlas.forecast");
+  assert.equal(f("scopeNote"), FORECAST_SCOPE_NOTE);
+  assert.equal(f("significanceNote"), SIGNIFICANCE_NOTE);
+  for (const [k, v] of Object.entries(SIGNIFICANCE_BAND_LABELS)) assert.equal(f(`band.${k}`), v);
+});
+const visibleText = (h: string) => stripMarkers(h).replace(/<[^>]*>/g, " ");
+const attrText = (h: string) => [...h.matchAll(/(?:title|aria-label|placeholder|alt)="([^"]*)"/g)].map((m) => m[1]).join(" ");
+t("EN: metin + öznitelik Türkçe harfsiz; ham anahtar yok", () => {
+  for (const c of forecastCases) {
+    const h = renderToStaticMarkup(c.el(), "en");
+    assert.ok(!TR_LETTERS.test(visibleText(h)), `${c.name}: ${visibleText(h).match(/\S*[çğıöşüÇĞİÖŞÜ]\S*/)?.[0]}`);
+    assert.ok(!TR_LETTERS.test(attrText(h)), `${c.name} öznitelik`);
+    assert.ok(!/atlas\.forecast\./.test(h), `${c.name}: ham anahtar`);
+  }
+});
+t("olay cümlesi: TR'de lib eventText ile birebir (tüm golden olayları + sentetik tutulma/istasyon/evre varyantları)", () => {
+  const extra: ForecastEvent[] = [
+    { ...fc.events[0], type: "eclipse", body: "moon", eclipseKind: "penumbral", obscuration: 0.42 } as ForecastEvent,
+    { ...fc.events[0], type: "eclipse", body: "sun", eclipseKind: null, obscuration: null } as ForecastEvent,
+    { ...fc.events[0], type: "retrograde_station", body: "mercury", station: "direct" } as ForecastEvent,
+    { ...fc.events[0], type: "lunar_phase", body: null, phase: "full_moon", targetSign: null } as ForecastEvent,
+  ];
+  const all = [...fc.events, ...extra];
+  const html = stripMarkers(renderToStaticMarkup(createElement(DayDetail, { day: "2026-10-02", events: all, tz: "UTC", api: null, onClose: noop }), "tr"));
+  for (const e of all) assert.ok(html.includes(eventText(e).replace(/&/g, "&amp;")), eventText(e));
 });
 
 console.log(`\natlas-a-r5-i18n: ${pass} PASS / ${fail} FAIL`);

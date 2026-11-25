@@ -1,0 +1,78 @@
+{
+  "atlas": {
+    "forecast": {
+      "eventType": {
+        "transit_aspect": "Transit aspect",
+        "sign_ingress": "Sign ingress",
+        "retrograde_station": "Station",
+        "eclipse": "Eclipse",
+        "lunar_phase": "Lunar phase"
+      },
+      "eclipseKind": {
+        "penumbral": "penumbral",
+        "partial": "partial",
+        "annular": "annular",
+        "total": "total"
+      },
+      "ev": {
+        "aspect": "{body} {aspect} natal {target}",
+        "ingress": "{body} enters {sign}",
+        "stationRetro": "{body} retrograde station",
+        "stationDirect": "{body} direct station",
+        "eclipseMoon": "Lunar eclipse",
+        "eclipseSun": "Solar eclipse",
+        "eclipseKindSuffix": " ({kind})",
+        "obscuration": " · obscuration {n}%",
+        "newMoon": "New Moon",
+        "fullMoon": "Full Moon",
+        "phaseSignSuffix": " — {sign}"
+      },
+      "sigNone": "significance —",
+      "sigValue": "significance {n} · {band}",
+      "band": {
+        "high": "high",
+        "mid": "medium",
+        "low": "low"
+      },
+      "significanceNote": "The significance score (0–100) is a relative rating the calculation provider assigns to rank events. It does not indicate the probability of the event, a definite outcome, a health risk or financial gain.",
+      "scopeNote": "Scope: the transiting bodies in this calendar run from the Sun to Pluto; aspects of the transiting Moon to the natal chart and the Moon's sign ingresses are not included. Lunar phases and eclipses are included.",
+      "orb": "orb {orb}",
+      "exactChartBtn": "Chart of the exact moment",
+      "exactLabel": "{event} — exact moment",
+      "dayAria": "Transit detail for the selected day",
+      "dayTitle": "Transit Detail for the Selected Day · {date}",
+      "close": "Close",
+      "personalTitle": "Effects on the natal chart ({n})",
+      "personalNone": "No (major) transit aspect to the natal chart perfects on this day; all of the day's transit aspects appear in the day's transit chart.",
+      "skyTitle": "General sky events ({n}) — not personal",
+      "skyNone": "No general sky events on this day.",
+      "noonLabel": "transit chart of the day (local 12:00)",
+      "noonBtn": "Transit chart of the day (local 12:00)",
+      "noonFromDesk": "The day's transit chart is opened from the analysis workbench (no calculation is run in the saved-analysis view).",
+      "planChecking": "Checking the plan (no request is sent to the provider)…",
+      "planCached": "A saved result exists — no new request.",
+      "planNew": "{n, plural, one {# new calculation request will be sent.} other {# new calculation requests will be sent.}}",
+      "opening": "Opening…",
+      "openTransit": "Open transit analysis",
+      "calcOpen": "Calculate and open",
+      "cancel": "Cancel",
+      "dayFootnote": "Calendar events are refined to the exact moment by the provider; applying/separating status and all aspects appear in the day's transit chart. The transit chart opens in a new analysis tab and can be saved separately; this calendar analysis does not change.",
+      "period": "Period: <strong>{start}</strong> – <strong>{end}</strong> · {n} events",
+      "pickDay": "pick a day",
+      "pickDayAria": "Pick a day from the calendar",
+      "timeZone": "time zone",
+      "timeZoneAria": "Calendar display time zone",
+      "typeFilterAria": "Event type filter",
+      "typeCount": "{label} ({n})",
+      "onlyPersonal": "Natal effects only",
+      "minSigAria": "Minimum significance score",
+      "sigAny": "Any significance",
+      "sigMin": "Significance ≥ {n}",
+      "noMatch": "No events match the selected filters.",
+      "dayEvents": "{date} · {n} events",
+      "natalBadge": "natal",
+      "detailOpen": "Details open ▲",
+      "detailClosed": "Day details ▸"
+    }
+  }
+}
