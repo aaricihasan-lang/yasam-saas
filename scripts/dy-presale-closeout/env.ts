@@ -46,10 +46,12 @@ grant select, insert, update, delete on public.appointments, public.client_sessi
   public.nutrition_plan_clients to service_role;
 `;
 
-export async function startDyEnv(opts: { port: number; dirName: string; httpPort?: number }): Promise<{ env: TestEnv; seed: Seed }> {
+/** rpcAllow: ek PostgREST rpc izinleri (isteğe bağlı; varsayılan DY listesine EKLENİR — I18N-R5 modül ekran testi Atlas RPC'leri). */
+export async function startDyEnv(opts: { port: number; dirName: string; httpPort?: number; rpcAllow?: string[] }): Promise<{ env: TestEnv; seed: Seed }> {
+  const { rpcAllow: extraRpc = [], ...rest } = opts;
   const env = await startAnamnezTestEnv({
-    ...opts,
-    rpcAllow: ["client_notes_cas_update", "client_notes_cas_update_v2", "nutrition_replace_client_allergens", "nutrition_replace_client_allergens_v2", "nutrition_client_allergens_version"],
+    ...rest,
+    rpcAllow: ["client_notes_cas_update", "client_notes_cas_update_v2", "nutrition_replace_client_allergens", "nutrition_replace_client_allergens_v2", "nutrition_client_allergens_version", ...extraRpc],
     extraSql: [
       DY_DDL,
       readMig("20260927000000_yh_source_activation_control.sql"),

@@ -28,7 +28,9 @@
  *   S7 (her dil, 1280 + 360) Yükleme ekranı (loading.tsx): RSC yanıtı geciktirilerek istemci gezintisinde yakalanır
  *   K1 (--gate-closed) Kapı kapalı: NEXT_LOCALE=en çerezi + hesap tercihi en olsa bile her ekran tr, dil seçimi görünmez
  *
- * Kapsam DIŞI (Owner kararı): Numeroloji, Atlas/Astroloji, Kozmik Ajanda, Şifa Rehberi (ekran görüntüsü + TR-aday sayımı
+ * R5 (§29): Numeroloji, Human Design ve Atlas gerçek ekranları kapsama girdi (N1/H1/A1 sentetik kayıt → tur → N2/H2/A2 arşiv,
+ *   rapor, silme; E1 erişim engeli; ücretli Roxy uçları anahtarsız + tarayıcıda kesilir). S6 kök neden tanısı: S6/S6-YARIS/S6-T/S6-API.
+ * Kapsam DIŞI (Owner kararı): Kozmik Ajanda, Şifa Rehberi (ekran görüntüsü + TR-aday sayımı
  * ALINIR ama "KAPSAM-DIŞI" olarak ayrı raporlanır, başarısızlık sayılmaz), HD alt ekranları, admin ekranları.
  * Human Design ana ekranı (/human-design hub, #854) R4'te kapsama girdi.
  *
@@ -153,6 +155,8 @@ type RouteDef = {
   /** Yüklendikten sonra yapılacak etkileşim: "bell" = bildirim panelini aç; "error-boundary" = API yanıtı bozularak
    *  segment hata sınırı (error.tsx) tetiklenir (ürün koduna dokunmadan, yalnız tarayıcıda yanıt değiştirilir). */
   action?: "bell" | "error-boundary";
+  /** R5: yüklendikten sonra tıklanacak öğe (Playwright seçicisi; sekme geçişi). Yoksa not düşülür, FAIL sayılmaz. */
+  click?: string;
   /** Beklenen belge HTTP durumu (ör. 404 sayfası). */
   expectStatus?: number;
   /** Bu rota için tam sayfa ekran görüntüsü (uzun ayar sekmeleri). */
@@ -259,11 +263,30 @@ const ROUTES: RouteDef[] = [
   { id: "urun-stok-satis-fiyatlandirma", group: "Ürün & Stok", path: "/urun-stok/satis-fiyatlandirma" },
   { id: "urun-stok-satis-gecmisi", group: "Ürün & Stok", path: "/urun-stok/satis-gecmisi" },
   { id: "urun-stok-stok-hareketleri", group: "Ürün & Stok", path: "/urun-stok/stok-hareketleri" },
+  // ── R5 §29: Numeroloji / Human Design / Atlas gerçek ekranları (sentetik kayıtlar N1/H1/A1 ile ekran turundan önce oluşur) ──
+  { id: "numeroloji", group: "Numeroloji", path: "/numeroloji" },
+  { id: "numeroloji-analiz", group: "Numeroloji", path: "/numeroloji/analiz" },
+  { id: "numeroloji-liste", group: "Numeroloji", path: "/numeroloji/liste" },
+  { id: "numeroloji-kayit-detay", group: "Numeroloji", path: "/numeroloji/liste/{numRecord}" },
+  { id: "numeroloji-bilgi-bankasi", group: "Numeroloji", path: "/numeroloji/bilgi-bankasi" },
+  { id: "hd-danisanlar", group: "Human Design", path: "/human-design/danisanlar" },
+  { id: "hd-kayitli-haritalar", group: "Human Design", path: "/human-design/kayitli-haritalar" },
+  { id: "hd-harita-detay", group: "Human Design", path: "/human-design/kayitli-haritalar/{hdChart}" },
+  { id: "hd-kayitli-raporlar", group: "Human Design", path: "/human-design/kayitli-raporlar" },
+  { id: "hd-bilgi-bankasi", group: "Human Design", path: "/human-design/bilgi-bankasi" },
+  { id: "hd-transit", group: "Human Design", path: "/human-design/transit" },
+  { id: "hd-iliski-grup", group: "Human Design", path: "/human-design/iliski-grup" },
+  { id: "atlas", group: "Atlas", path: "/astroloji" },
+  { id: "atlas-yeni-analiz", group: "Atlas", path: "/astroloji", click: "nav:has([data-testid=atlas-nav-skytools]) button >> nth=0" },
+  { id: "atlas-analiz-arsivi", group: "Atlas", path: "/astroloji", click: "nav:has([data-testid=atlas-nav-skytools]) button >> nth=1" },
+  { id: "atlas-bilgi-bankasi", group: "Atlas", path: "/astroloji", click: "nav:has([data-testid=atlas-nav-skytools]) button >> nth=2" },
+  { id: "atlas-horary", group: "Atlas", path: "/astroloji#horary-lilly" },
+  { id: "atlas-gokyuzu-efemeris", group: "Atlas", path: "/astroloji/efemeris" },
+  { id: "atlas-gokyuzu-ay-evreleri", group: "Atlas", path: "/astroloji/efemeris", click: "[data-testid=sky-tab-ay]" },
+  { id: "atlas-gokyuzu-derece", group: "Atlas", path: "/astroloji/efemeris", click: "[data-testid=sky-tab-derece]" },
   // ── Kapsam DIŞI / bekliyor (Owner): ölçülür, ayrı raporlanır, FAIL sayılmaz ──
   { id: "kd-kozmik-ajanda", group: "KAPSAM DIŞI", path: "/cosmic-calendar", outOfScope: true },
   { id: "kd-sifa-rehberi", group: "KAPSAM DIŞI", path: "/sifa-rehberi", outOfScope: true },
-  { id: "kd-numeroloji", group: "KAPSAM DIŞI", path: "/numeroloji", outOfScope: true },
-  { id: "kd-atlas", group: "KAPSAM DIŞI", path: "/astroloji", outOfScope: true },
 ];
 
 // ─── Sentetik veri ───────────────────────────────────────────────────────────
@@ -321,6 +344,10 @@ grant select, insert, update, delete on all tables in schema public to service_r
 type Fixture = {
   tenant: string; userId: string; token: string; client: string; anamnesis: string | null; userRecord: Record<string, unknown>;
   userB: { tenant: string; userId: string; token: string; userRecord: Record<string, unknown> } | null;
+  /** R5: modül izni OLMAYAN uzman (erişim engeli senaryosu). */
+  userC: { userId: string; token: string; userRecord: Record<string, unknown> } | null;
+  /** R5: senaryolarla oluşan sentetik kayıtlar (yoksa ilgili rota ATLANDI). */
+  numRecord: string | null; hdChart: string | null; horaryRecord: string | null;
 };
 
 async function seed(env: TestEnv): Promise<{ fx: Fixture; seedNotes: string[] }> {
@@ -398,7 +425,25 @@ async function seed(env: TestEnv): Promise<{ fx: Fixture; seedNotes: string[] }>
   } catch (e) {
     notes.push(`tohum: ikinci hesap (B) ATLANDI (${(e as Error).message.slice(0, 160)})`);
   }
-  return { fx: { tenant, userId, token, client, anamnesis, userRecord, userB }, seedNotes: notes };
+  // R5: izinsiz uzman C (kendi kiracısı; modül izni yok, üyelik aktif).
+  let userC: Fixture["userC"] = null;
+  try {
+    const tenantC = randomUUID();
+    const userIdC = randomUUID();
+    const tokenC = `zz-modul-ekran-tokC-${userIdC.slice(0, 8)}`;
+    await q(`insert into public.tenants(id, name) values ($1,$2)`, [tenantC, `${SYN.tenantName}_C`]);
+    await q(
+      `insert into public.users(id, full_name, email, role, active, approval_status, module_permissions, package_type, plan, tenant_id, is_demo_account)
+       values ($1,'ZZ Modul Uzman C','zz.modul.uzman.c@example.test','expert',true,'approved','{}'::jsonb,'premium','premium',$2,false)`,
+      [userIdC, tenantC],
+    );
+    await q(`insert into public.user_sessions(user_id, session_token) values ($1,$2)`, [userIdC, tokenC]);
+    userC = { userId: userIdC, token: tokenC, userRecord: { ...userRecord, id: userIdC, tenant_id: tenantC, full_name: "ZZ Modul Uzman C", email: "zz.modul.uzman.c@example.test", module_permissions: {} } };
+    notes.push("tohum: izinsiz hesap (C) ✓");
+  } catch (e) {
+    notes.push(`tohum: izinsiz hesap (C) ATLANDI (${(e as Error).message.slice(0, 160)})`);
+  }
+  return { fx: { tenant, userId, token, client, anamnesis, userRecord, userB, userC, numRecord: null, hdChart: null, horaryRecord: null }, seedNotes: notes };
 }
 
 // ─── Sonuç tipleri ───────────────────────────────────────────────────────────
@@ -479,6 +524,7 @@ async function newCtx(
   });
   // tsx/esbuild keepNames: page.evaluate'e giden işlevler __name(...) yardımcısını çağırır; tarayıcıda tanımlı olmalı.
   await ctx.addInitScript({ content: "globalThis.__name = globalThis.__name || ((f) => f);" });
+  await guardPaid(ctx);
   // Kapı kapalı turunda çerez bilerek "en" (eski EN çerezi kalmış kullanıcı) — render yine tr olmalı.
   const cookie = opts.cookie === undefined ? (GATE_CLOSED ? "en" : lang) : opts.cookie;
   if (cookie) await ctx.addCookies([{ name: "NEXT_LOCALE", value: cookie, url: APP }]);
@@ -636,7 +682,9 @@ let ROOTS: string[] = [];
 
 function resolvePath(p: string, fx: Fixture): string | null {
   if (p.includes("{anamnesis}") && !fx.anamnesis) return null;
-  return p.replace("{client}", fx.client).replace("{anamnesis}", fx.anamnesis ?? "");
+  if (p.includes("{numRecord}") && !fx.numRecord) return null;
+  if (p.includes("{hdChart}") && !fx.hdChart) return null;
+  return p.replace("{client}", fx.client).replace("{anamnesis}", fx.anamnesis ?? "").replace("{numRecord}", fx.numRecord ?? "").replace("{hdChart}", fx.hdChart ?? "");
 }
 
 async function visitRoute(page: Page, t: ReturnType<typeof track>, r: RouteDef, lang: Lang, width: number, fx: Fixture, exclude: string[]): Promise<RouteResult> {
@@ -650,7 +698,7 @@ async function visitRoute(page: Page, t: ReturnType<typeof track>, r: RouteDef, 
   };
   if (Date.now() - STARTED > BUDGET_MS) return { ...base, note: "süre bütçesi aşıldı — atlandı", verdict: "ATLANDI" };
   const p = resolvePath(r.path, fx);
-  if (!p) return { ...base, note: "tohum kaydı yok (anamnez) — atlandı", verdict: "ATLANDI" };
+  if (!p) return { ...base, note: "tohum kaydı yok (anamnez / N1 / H1 senaryo kaydı) — atlandı", verdict: "ATLANDI" };
   base.url = p;
   t.reset();
   // Hata sınırı denemesi: liste API'si 200 + bozuk şekil ({protocols: nesne}) döner → bileşen render'da patlar →
@@ -679,6 +727,11 @@ async function visitRoute(page: Page, t: ReturnType<typeof track>, r: RouteDef, 
         const bell = page.locator(titles.map((x) => `button[title="${x}"]`).join(",")).filter({ visible: true }).first();
         if ((await bell.count()) > 0) { await bell.click().catch(() => undefined); await sleep(800); await settle(page); }
         else base.note = "bildirim zili bulunamadı";
+      }
+      if (r.click) {
+        const el = page.locator(r.click).filter({ visible: true }).first();
+        if ((await el.count()) > 0) { await el.click().catch(() => undefined); await sleep(500); await settle(page); }
+        else base.note = `tıklanacak öğe yok (${r.click})`;
       }
       if (r.action === "error-boundary") {
         boundaryShown = await page.locator("[role=alert]").filter({ visible: true }).first().waitFor({ timeout: 10_000 }).then(() => true).catch(() => false);
@@ -1364,6 +1417,356 @@ async function scenarioAccountApiIsolation(env: TestEnv, fx: Fixture) {
   });
 }
 
+// ─── R5 §29: Numeroloji / Human Design / Atlas gerçek ekranları + işlevsel senaryolar ─────────────────────────
+//
+// Ücretli çağrı YOK: test ortamında ROXY_API_KEY tanımsız (workflow + next start ortamında boş) → ücretli uçlar sunucuda 503
+// döner; ayrıca tarayıcı bağlamında bilinen ücretli uçlar (Roxy) ağ katmanında kesilir ve sayılır (PAID_BLOCKED).
+// Yalnız YEREL motorlu teknikler: Numeroloji (tarayıcıda hesaplama + sunucu doğrulaması), HD /api/hd/compute + /api/hd/charts
+// (yerel motor), Atlas Batı Horary (William Lilly; yerel) + Word/PDF raporları. Veri sentetik (ZZ_*).
+
+/** Ücretli sağlayıcıya (Roxy) giden ya da gidebilecek uçlar — tarayıcıda kesilir (sunucuda da anahtar yok → 503). */
+const PAID_PATTERNS = [
+  "**/api/hd/charts/roxy**", "**/api/hd/location/search**", "**/api/hd/charts/variables**", "**/api/hd/transit**", "**/api/hd/relations/**",
+  "**/api/astroloji/engine/run**", "**/api/admin/astroloji/engine/run**", "**/api/astroloji/efemeris/aylik**", "**/api/admin/astroloji/efemeris/aylik**",
+  "**/api/numeroloji-klasik/hesapla**",
+];
+const paidBlocked: string[] = [];
+async function guardPaid(ctx: BrowserContext) {
+  for (const pat of PAID_PATTERNS) {
+    await ctx.route(pat, (route) => {
+      const u = route.request().url();
+      paidBlocked.push(`${route.request().method()} ${u.startsWith(APP) ? u.slice(APP.length).split("?")[0] : u}`);
+      return route.fulfill({ status: 503, contentType: "application/json", body: JSON.stringify({ ok: false, code: "E2E_PAID_PROVIDER_BLOCKED" }) });
+    });
+  }
+}
+
+/** Sayfa bağlamında, istemcinin kurduğu kimlik başlıklarıyla (localStorage) istek. İkili yanıt base64 döner. */
+async function pageFetch(page: Page, method: string, url: string, body?: unknown): Promise<{ status: number; ct: string; text: string; b64: string | null; headers: Record<string, string> }> {
+  return page.evaluate(async ([m, u, b]) => {
+    let id = "";
+    try { id = (JSON.parse(localStorage.getItem("yasam_user") ?? "null") as { id?: string } | null)?.id ?? ""; } catch { id = ""; }
+    const tok = localStorage.getItem("yasam_session_token");
+    const h: Record<string, string> = { "x-user-id": id, ...(tok ? { "x-session-token": tok } : {}) };
+    if (b !== null) h["content-type"] = "application/json";
+    const r = await fetch(u as string, { method: m as string, headers: h, body: b === null ? undefined : JSON.stringify(b), cache: "no-store" });
+    const ct = r.headers.get("content-type") ?? "";
+    const headers: Record<string, string> = {};
+    r.headers.forEach((v, k) => { if (/^(content-type|content-disposition|x-)/i.test(k)) headers[k] = v; });
+    if (/json|text/.test(ct)) return { status: r.status, ct, text: (await r.text()).slice(0, 4000), b64: null, headers };
+    const buf = new Uint8Array(await r.arrayBuffer());
+    let s = "";
+    for (let i = 0; i < buf.length; i += 0x8000) s += String.fromCharCode(...buf.subarray(i, i + 0x8000));
+    return { status: r.status, ct, text: "", b64: btoa(s), headers };
+  }, [method, url, body === undefined ? null : body] as const);
+}
+
+const TR_CHAR = /[çğıöşüÇĞİÖŞÜ]/;
+/** Word (.docx) açılabilir mi + görünen metinde Türkçe karakterli sözcük sayısı (EN'de "Türkçe sistem metni" adayı). */
+async function docxStats(buf: Buffer): Promise<{ opens: boolean; words: number; trWords: number; samples: string[]; err?: string }> {
+  try {
+    const JSZip = (await import("jszip")).default;
+    const z = await JSZip.loadAsync(buf);
+    const xml = await z.file("word/document.xml")?.async("string");
+    if (!xml) return { opens: false, words: 0, trWords: 0, samples: [], err: "word/document.xml yok" };
+    const text = Array.from(xml.matchAll(/<w:t(?:\s[^>]*)?>([^<]*)<\/w:t>/g)).map((m) => m[1]).join(" ");
+    const words = text.split(/\s+/).filter(Boolean);
+    const tr = words.filter((w) => TR_CHAR.test(w));
+    return { opens: true, words: words.length, trWords: tr.length, samples: Array.from(new Set(tr)).slice(0, 12) };
+  } catch (e) {
+    return { opens: false, words: 0, trWords: 0, samples: [], err: (e as Error).message.slice(0, 120) };
+  }
+}
+function pdfStats(buf: Buffer): { opens: boolean; bytes: number } {
+  return { opens: buf.subarray(0, 5).toString("latin1") === "%PDF-" && buf.includes(Buffer.from("%%EOF")), bytes: buf.length };
+}
+async function reportCheck(label: string, r: { status: number; ct: string; text: string; b64: string | null }, kind: "docx" | "pdf", lang: Lang, file: string): Promise<{ ok: boolean; line: string }> {
+  if (r.status !== 200 || !r.b64) return { ok: false, line: `${label}: HTTP ${r.status} ${r.ct} ${r.text.replace(/\s+/g, " ").slice(0, 160)}` };
+  const buf = Buffer.from(r.b64, "base64");
+  writeFileSync(path.join(OUT, file), buf);
+  if (kind === "pdf") {
+    const p = pdfStats(buf);
+    return { ok: p.opens, line: `${label}: 200 ${r.ct} ${p.bytes} bayt; PDF açılabilir=${p.opens ? "evet" : "HAYIR"} (${file})` };
+  }
+  const d = await docxStats(buf);
+  return { ok: d.opens, line: `${label}: 200 ${buf.length} bayt; docx açılabilir=${d.opens ? "evet" : `HAYIR (${d.err ?? ""})`}; sözcük=${d.words}; Türkçe karakterli sözcük=${d.trWords}${lang === "en" && d.samples.length ? ` (örnek: ${d.samples.join(" · ")})` : ""} (${file})` };
+}
+
+/** R5 kurulum: HD tabloları (production şemasındaki kolonlar; lib/backup/schema.generated.ts), Numeroloji/HD bilgi bankası
+ *  asgari tabloları, users ek kolonları. Atlas migration'ları ayrıca (gerçek dosyalar) uygulanır. */
+const R5_DDL = `
+alter table public.users add column if not exists is_super_admin boolean default false;
+create table if not exists public.human_design_charts (id uuid primary key default gen_random_uuid(), tenant_id uuid not null, user_id uuid,
+  client_id uuid, client_name text, birth_date date, birth_time text, birth_place text, external_chart_url text, chart_image_url text,
+  type_code text, authority_code text, profile_code text, definition_code text, active_centers text[], open_centers text[], gates int[],
+  channels text[], notes text, created_at timestamptz default now(), updated_at timestamptz default now(), timezone text,
+  source text default 'manual', input jsonb, computed_result jsonb, engine_version text, contract_version text, location_id text,
+  provider text, provider_raw jsonb, input_hash text);
+alter table public.human_design_reports add column if not exists selected_codes text[] not null default '{}';
+alter table public.human_design_reports add column if not exists generated_content text;
+alter table public.human_design_reports add column if not exists edited_content text;
+alter table public.human_design_reports add column if not exists report_file_url text;
+alter table public.human_design_reports add column if not exists updated_at timestamptz default now();
+alter table public.human_design_reports add column if not exists canonical_provenance jsonb;
+alter table public.human_design_reports add column if not exists report_version integer;
+alter table public.human_design_clients add column if not exists birth_time text;
+alter table public.human_design_clients add column if not exists birth_place text;
+alter table public.human_design_clients add column if not exists chart_image_url text;
+alter table public.human_design_clients add column if not exists external_chart_url text;
+alter table public.human_design_clients add column if not exists notes text;
+alter table public.human_design_clients add column if not exists updated_at timestamptz default now();
+alter table public.human_design_clients add column if not exists birth_location_id text;
+alter table public.human_design_clients add column if not exists birth_location_label text;
+alter table public.human_design_clients add column if not exists birth_timezone text;
+alter table public.human_design_clients add column if not exists birth_latitude double precision;
+alter table public.human_design_clients add column if not exists birth_longitude double precision;
+create table if not exists public.human_design_knowledge_records (id uuid primary key default gen_random_uuid(), tenant_id uuid, user_id uuid,
+  category text, title text, code text, content text, keywords text[], related_gates int[], related_channels text[], related_centers text[],
+  tags text[], sort_order int default 0, is_active boolean default true, created_at timestamptz default now(), updated_at timestamptz default now(),
+  expert_notes text, origin_type text, origin_label text, origin_source_id uuid, origin_transfer_batch_id uuid, transferred_at timestamptz);
+alter table public.numerology_records add column if not exists user_id uuid;
+alter table public.numerology_records add column if not exists updated_at timestamptz default now();
+grant select, insert, update, delete on all tables in schema public to service_role;
+`;
+const ASTRO_MIGRATIONS = [
+  "20260903000000_admin_audit_log.sql", "20271101000000_astrology_foundation.sql", "20271101000100_astrology_kb_analyses.sql",
+  "20271101000200_astrology_timing_relationship.sql", "20271101000300_astrology_owner_isolation.sql", "20271101000400_astrology_client_list.sql",
+  "20271101000500_astrology_profile_delete.sql", "20271101000600_astrology_record_caps.sql", "20271101000700_astrology_kb_snapshot_cleanup.sql",
+  "20271101000800_astrology_analysis_delete.sql", "20271210000000_astro_horary_questions.sql", "20271230000000_astrology_technique_grants.sql",
+  "20280125000000_astro_sky_monthly_ephemeris.sql",
+];
+/** Atlas API'lerinin PostgREST rpc/<ad> ile çağırdığı yerel fonksiyonlar (shim izin listesi). Ücretli değil. */
+const ASTRO_RPCS = [
+  "astro_profile_create", "astro_profile_append_revision", "astro_profile_page", "astro_analysis_page", "astro_analysis_summary",
+  "astro_client_candidates", "astro_client_status", "astro_profile_set_client", "astro_analysis_save_v2", "astro_unmapped_touch",
+  "astro_profile_delete_preview", "astro_profile_delete", "astro_profile_analyses_delete",
+];
+
+async function r5Setup(env: TestEnv, fx: Fixture): Promise<string[]> {
+  const notes: string[] = [];
+  const tryQ = async (label: string, sql: string, a: unknown[] = []) => {
+    try { await env.su.query(sql, a); notes.push(`R5 kurulum: ${label} ✓`); return true; } catch (e) { notes.push(`R5 kurulum: ${label} ATLANDI (${(e as Error).message.slice(0, 160)})`); return false; }
+  };
+  await tryQ("HD / bilgi bankası / users ek kolonları", R5_DDL);
+  for (const m of ASTRO_MIGRATIONS) {
+    let sql = "";
+    try { sql = readFileSync(path.join(ROOT, "supabase/migrations", m), "utf8"); } catch { notes.push(`R5 kurulum: ${m} DOSYA YOK`); continue; }
+    await tryQ(`Atlas migration ${m}`, sql);
+  }
+  await tryQ("A: Atlas teknik izinleri (mode=all)", `update public.users set astrology_technique_grants = '{"mode":"all"}'::jsonb where id = $1`, [fx.userId]);
+  await tryQ("service_role tablo yetkileri", `grant select, insert, update, delete on all tables in schema public to service_role`);
+  return notes;
+}
+
+/** N1 (ekran turundan ÖNCE): Numeroloji analizini arayüzde hesapla (yerel motor) + KAYDET → POST /api/numeroloji/analyses → fx.numRecord. */
+async function scenarioNumerologyCreate(browser: Browser, env: TestEnv, fx: Fixture, lang: Lang) {
+  await runScenario(`N1-numeroloji-hesapla-kaydet-${lang}`, lang, "Numeroloji › Analiz: ad/soyad/doğum gir → hesapla (yerel motor) → Kaydet → kayıt DB'de", async () => {
+    const ctx = await newCtx(browser, fx, lang, 1280);
+    try {
+      const page = await ctx.newPage();
+      await page.goto(`${APP}/numeroloji/analiz`, { waitUntil: "domcontentloaded" });
+      await settle(page);
+      await page.locator("#noj-ad").waitFor({ timeout: 30_000 });
+      await page.locator("#noj-ad").fill("ZZ Numa");
+      await page.locator("#noj-soyad").fill("TESTKAYIT");
+      await page.locator("#noj-dt").pressSequentially("12041991", { delay: 30 });
+      await page.getByRole("button", { name: /HESAPLA|CALCULATE/i }).first().click();
+      await sleep(1_500);
+      const saveLabel = Mq(lang, "numerology.app", "save.save") ?? (lang === "en" ? "SAVE" : "KAYDET");
+      const respP = page.waitForResponse((r) => r.url().includes("/api/numeroloji/analyses") && r.request().method() === "POST", { timeout: 30_000 }).catch(() => null);
+      const btn = page.getByRole("button", { name: new RegExp(escRe(saveLabel), "i") }).filter({ visible: true }).first();
+      await btn.waitFor({ timeout: 20_000 });
+      await btn.click();
+      // Aynı kişi önceden kaydedildiyse çift kayıt diyaloğu: yeni kayıt olarak devam.
+      const dup = page.locator('[role="alertdialog"],[role="dialog"]').filter({ visible: true }).first();
+      if (await dup.isVisible().catch(() => false)) await dup.getByRole("button").last().click().catch(() => undefined);
+      const resp = await respP;
+      const body = resp ? await resp.json().catch(() => null) as { ok?: boolean; id?: string } | null : null;
+      const shot = `senaryo-N1-numeroloji-${lang}.png`;
+      await settle(page);
+      await page.screenshot({ path: path.join(OUT, shot) });
+      const id = body?.id ?? null;
+      const row = id ? await env.su.query(`select name, surname, birth_date, (analysis_data->'motor') is not null as motor from public.numerology_records where id=$1 and tenant_id=$2`, [id, fx.tenant]).catch(() => ({ rows: [] as Record<string, unknown>[] })) : { rows: [] as Record<string, unknown>[] };
+      if (id && row.rows.length === 1) fx.numRecord = id;
+      const ok = resp?.status() === 200 && !!id && row.rows.length === 1 && row.rows[0]!.motor === true;
+      return { ok, shot, detail: `POST /api/numeroloji/analyses → ${resp?.status() ?? "yanıt yok"}; kayıt=${id ? "var" : "yok"}; DB satırı=${row.rows.length} (motor anlık görüntüsü ${row.rows[0]?.motor === true ? "var" : "yok"}); lang=${await htmlLang(page)}` };
+    } finally {
+      await ctx.close().catch(() => undefined);
+    }
+  }, 180_000);
+}
+
+/** H1 (ekran turundan ÖNCE): HD yerel motor hesabı + kayıt (POST /api/hd/compute, /api/hd/charts) → fx.hdChart. Ücretli Roxy yolu KULLANILMAZ. */
+async function scenarioHdCreate(browser: Browser, env: TestEnv, fx: Fixture, lang: Lang) {
+  await runScenario(`H1-hd-yerel-hesap-kayit-${lang}`, lang, "Human Design: yerel motorla hesapla (/api/hd/compute) + haritayı kaydet (/api/hd/charts) → DB", async () => {
+    const ctx = await newCtx(browser, fx, lang, 1280);
+    try {
+      const page = await ctx.newPage();
+      await page.goto(`${APP}${S6_STATIC}`, { waitUntil: "load" });
+      const input = { date: "1991-04-12", time: "14:30", timezone: "Europe/Istanbul" };
+      const c = await pageFetch(page, "POST", "/api/hd/compute", { input });
+      const s = await pageFetch(page, "POST", "/api/hd/charts", { input, client_name: "ZZ HD Danisan", birth_place: "Adana" });
+      let id: string | null = null;
+      try { const j = JSON.parse(s.text) as { id?: string; chart?: { id?: string }; data?: { id?: string } }; id = j.id ?? j.chart?.id ?? j.data?.id ?? null; } catch { id = null; }
+      const row = await env.su.query(`select id::text, type_code, source, engine_version from public.human_design_charts where tenant_id=$1 order by created_at desc limit 1`, [fx.tenant]).catch(() => ({ rows: [] as Record<string, unknown>[] }));
+      id = id ?? (row.rows[0]?.id as string | undefined) ?? null;
+      if (id) fx.hdChart = id;
+      let type = "";
+      try { const j = JSON.parse(c.text) as Record<string, unknown>; type = JSON.stringify(j).match(/"type(?:_code|Code)?":"([^"]+)"/)?.[1] ?? ""; } catch { /* yok */ }
+      const ok = c.status === 200 && (s.status === 200 || s.status === 201) && !!id && row.rows.length > 0;
+      return { ok, detail: `compute → ${c.status}${type ? ` (tip ${type})` : ""}; kaydet → ${s.status} ${s.status >= 400 ? s.text.slice(0, 160) : ""}; DB: ${row.rows.length ? `source=${row.rows[0]!.source} tip=${row.rows[0]!.type_code} motor=${row.rows[0]!.engine_version}` : "satır yok"}` };
+    } finally {
+      await ctx.close().catch(() => undefined);
+    }
+  });
+}
+
+/** A1 (ekran turundan ÖNCE): Atlas erişimi + Batı Horary (yerel) hesap + kayıt → fx.horaryRecord. */
+async function scenarioAtlasCreate(browser: Browser, env: TestEnv, fx: Fixture, lang: Lang) {
+  await runScenario(`A1-atlas-horary-hesap-kayit-${lang}`, lang, "Atlas: erişim + Batı Horary (yerel motor) hesapla + kaydet → DB", async () => {
+    const ctx = await newCtx(browser, fx, lang, 1280);
+    try {
+      const page = await ctx.newPage();
+      await page.goto(`${APP}${S6_STATIC}`, { waitUntil: "load" });
+      const acc = await pageFetch(page, "GET", "/api/astroloji/access");
+      const q = { date: "2026-11-20", time: "14:30", locationId: "tr-01-adana", quesitedHouse: 7, dst: "auto" };
+      const h = await pageFetch(page, "POST", "/api/astroloji/horary/western", q);
+      const sv = await pageFetch(page, "POST", "/api/astroloji/horary/western/records", { ...q, title: "ZZ Horary Kayit", saveRequestId: randomUUID(), saveQuestion: false });
+      let id: string | null = null;
+      try { const j = JSON.parse(sv.text) as { id?: string; record?: { id?: string } }; id = j.id ?? j.record?.id ?? null; } catch { id = null; }
+      const row = await env.su.query(`select id::text from public.astro_horary_questions where tenant_id=$1 order by created_at desc limit 1`, [fx.tenant]).catch(() => ({ rows: [] as Record<string, unknown>[] }));
+      id = id ?? (row.rows[0]?.id as string | undefined) ?? null;
+      if (id) fx.horaryRecord = id;
+      const ok = acc.status === 200 && h.status === 200 && (sv.status === 200 || sv.status === 201) && !!id;
+      return { ok, detail: `access → ${acc.status} ${acc.status !== 200 ? acc.text.slice(0, 120) : ""}; horary → ${h.status} ${h.status !== 200 ? h.text.slice(0, 160) : ""}; kaydet → ${sv.status} ${sv.status >= 400 ? sv.text.slice(0, 160) : ""}; DB kayıt=${row.rows.length}` };
+    } finally {
+      await ctx.close().catch(() => undefined);
+    }
+  });
+}
+
+/** N2/H2/A2 (ekran turundan SONRA): arşivden aç + rapor indir (200 + dosya açılır + Türkçe sözcük sayımı) + silme (onaylı; yalnız testin kendi kaydı). */
+async function scenarioModuleFunctional(browser: Browser, env: TestEnv, fx: Fixture, lang: Lang) {
+  // ── Numeroloji
+  await runScenario(`N2-numeroloji-arsiv-rapor-sil-${lang}`, lang, "Numeroloji: arşivden aç → Word raporu (200 + açılır) → sil (onaylı, yalnız test kaydı)", async () => {
+    if (!fx.numRecord) return { ok: false, detail: "N1 kaydı yok (önce N1 başarısız)" };
+    const ctx = await newCtx(browser, fx, lang, 1280);
+    try {
+      const page = await ctx.newPage();
+      await page.goto(`${APP}/numeroloji/liste/${fx.numRecord}`, { waitUntil: "domcontentloaded" });
+      await settle(page);
+      const shot = `senaryo-N2-numeroloji-arsiv-${lang}.png`;
+      await page.screenshot({ path: path.join(OUT, shot) });
+      const opened = (await page.getByText("TESTKAYIT", { exact: false }).count()) > 0;
+      const rep = await pageFetch(page, "POST", "/api/numeroloji/word-report", { exportMode: "single", recordId: fx.numRecord, sections: { plain: true } });
+      const rc = await reportCheck("Word", rep, "docx", lang, `rapor-numeroloji-${lang}.docx`);
+      const del = await pageFetch(page, "DELETE", "/api/numeroloji/analyses", { ids: [fx.numRecord] });
+      const left = await env.su.query(`select count(*)::int as n from public.numerology_records where id=$1`, [fx.numRecord]).catch(() => ({ rows: [{ n: -1 }] }));
+      const gone = Number(left.rows[0]?.n) === 0;
+      if (gone) fx.numRecord = null;
+      return { ok: opened && rc.ok && del.status === 200 && gone, shot, detail: `arşivden açıldı=${opened ? "evet" : "HAYIR"}; ${rc.line}; sil → ${del.status}; DB'de kaldı mı=${gone ? "hayır (silindi)" : "EVET"}` };
+    } finally {
+      await ctx.close().catch(() => undefined);
+    }
+  }, 180_000);
+  // ── Human Design
+  await runScenario(`H2-hd-arsiv-rapor-sil-${lang}`, lang, "Human Design: kayıtlı haritayı aç → profesyonel rapor oluştur + Word indir (200 + açılır) → silme önizleme + sil", async () => {
+    if (!fx.hdChart) return { ok: false, detail: "H1 haritası yok" };
+    const ctx = await newCtx(browser, fx, lang, 1280);
+    try {
+      const page = await ctx.newPage();
+      await page.goto(`${APP}/human-design/kayitli-haritalar/${fx.hdChart}`, { waitUntil: "domcontentloaded" });
+      await settle(page);
+      const shot = `senaryo-H2-hd-arsiv-${lang}.png`;
+      await page.screenshot({ path: path.join(OUT, shot) });
+      const opened = (await page.getByText("ZZ HD Danisan", { exact: false }).count()) > 0;
+      const mk = await pageFetch(page, "POST", "/api/hd/reports/professional", { chartId: fx.hdChart, requestId: randomUUID(), allowMissingBodygraph: true });
+      let reportId: string | null = null;
+      try { const j = JSON.parse(mk.text) as { id?: string; reportId?: string; report?: { id?: string } }; reportId = j.reportId ?? j.id ?? j.report?.id ?? null; } catch { reportId = null; }
+      const dl = reportId ? await pageFetch(page, "POST", "/api/hd/reports/professional/download", { reportId }) : null;
+      const rc = dl ? await reportCheck("Word", dl, "docx", lang, `rapor-hd-${lang}.docx`) : { ok: false, line: `rapor oluşturma → ${mk.status} ${mk.text.replace(/\s+/g, " ").slice(0, 200)}` };
+      const pv = await pageFetch(page, "GET", `/api/hd/charts?delete_preview=${fx.hdChart}`);
+      let expect = 0;
+      try { const j = JSON.parse(pv.text) as Record<string, unknown>; expect = Number((j.reports ?? (j.preview as Record<string, unknown> | undefined)?.reports ?? (j.counts as Record<string, unknown> | undefined)?.reports ?? 0)) || 0; } catch { expect = 0; }
+      if (!expect) expect = Number((await env.su.query(`select count(*)::int as n from public.human_design_reports where chart_id=$1`, [fx.hdChart]).catch(() => ({ rows: [{ n: 0 }] }))).rows[0]?.n ?? 0);
+      const del = await pageFetch(page, "DELETE", `/api/hd/charts?id=${fx.hdChart}&expect_reports=${expect}`);
+      const left = await env.su.query(`select count(*)::int as n from public.human_design_charts where id=$1`, [fx.hdChart]).catch(() => ({ rows: [{ n: -1 }] }));
+      const gone = Number(left.rows[0]?.n) === 0;
+      const id = fx.hdChart;
+      if (gone) fx.hdChart = null;
+      return { ok: opened && rc.ok && pv.status === 200 && del.status === 200 && gone, shot, detail: `arşivden açıldı=${opened ? "evet" : "HAYIR"}; rapor oluştur → ${mk.status}; ${rc.line}; silme önizleme → ${pv.status} (rapor ${expect}); sil → ${del.status} ${del.status >= 400 ? del.text.slice(0, 120) : ""}; DB'de kaldı mı=${gone ? "hayır" : "EVET"} (${id.slice(0, 8)})` };
+    } finally {
+      await ctx.close().catch(() => undefined);
+    }
+  }, 180_000);
+  // ── Atlas
+  await runScenario(`A2-atlas-horary-arsiv-rapor-${lang}`, lang, "Atlas: kayıtlı Horary'yi aç + Word/PDF rapor (200 + açılır, EN'de Türkçe sözcük sayımı)", async () => {
+    const ctx = await newCtx(browser, fx, lang, 1280);
+    try {
+      const page = await ctx.newPage();
+      await page.goto(`${APP}${S6_STATIC}`, { waitUntil: "load" });
+      const q = { date: "2026-11-20", time: "14:30", locationId: "tr-01-adana", quesitedHouse: 7, dst: "auto", question: "ZZ soru" };
+      const lines: string[] = [];
+      const oks: boolean[] = [];
+      for (const fmt of ["docx", "pdf"] as const) {
+        const r = await pageFetch(page, "POST", `/api/astroloji/horary/western/report?format=${fmt}`, q);
+        const c = await reportCheck(`Horary ${fmt}`, r, fmt, lang, `rapor-atlas-horary-${lang}.${fmt}`);
+        oks.push(c.ok); lines.push(c.line);
+      }
+      if (fx.horaryRecord) {
+        const g = await pageFetch(page, "GET", `/api/astroloji/horary/western/records/${fx.horaryRecord}`);
+        oks.push(g.status === 200); lines.push(`arşivden aç (GET kayıt) → ${g.status}`);
+        const r = await pageFetch(page, "GET", `/api/astroloji/horary/western/records/${fx.horaryRecord}/report?format=docx`);
+        const c = await reportCheck("Kayıtlı horary docx", r, "docx", lang, `rapor-atlas-horary-kayit-${lang}.docx`);
+        oks.push(c.ok); lines.push(c.line);
+      } else { oks.push(false); lines.push("A1 kaydı yok"); }
+      await page.goto(`${APP}/astroloji`, { waitUntil: "domcontentloaded" });
+      await settle(page);
+      const shot = `senaryo-A2-atlas-${lang}.png`;
+      await page.screenshot({ path: path.join(OUT, shot) });
+      return { ok: oks.every(Boolean), shot, detail: lines.join("; ") };
+    } finally {
+      await ctx.close().catch(() => undefined);
+    }
+  }, 180_000);
+}
+
+/** E1: erişim engeli — modül izni OLMAYAN sentetik uzman (C) Numeroloji / HD / Atlas'ı açamaz (ModuleAccessDenied) ve API'ler reddeder. */
+async function scenarioModuleDenied(browser: Browser, env: TestEnv, fx: Fixture, lang: Lang) {
+  await runScenario(`E1-erisim-engeli-${lang}`, lang, "İzinsiz uzman: /numeroloji, /human-design, /astroloji → erişim engeli ekranı; API 403/404; veri yok", async () => {
+    const C = fx.userC;
+    if (!C) return { ok: false, detail: "izinsiz hesap (C) tohumlanamadı" };
+    const ctx = await newCtx(browser, { ...fx, userRecord: C.userRecord, token: C.token }, lang, 390);
+    try {
+      const page = await ctx.newPage();
+      const lines: string[] = [];
+      const oks: boolean[] = [];
+      for (const p of ["/numeroloji", "/human-design", "/astroloji"]) {
+        await page.goto(`${APP}${p}`, { waitUntil: "domcontentloaded" });
+        await settle(page);
+        const denied = await page.getByText(/Yetkiniz Bulunmuyor|Access (?:denied|restricted)|You do(?: not|n't) have (?:access|permission)/i).first().isVisible().catch(() => false);
+        const notFound = /404|could not be found|bulunamadı/i.test(await page.evaluate(() => document.body?.innerText ?? "").catch(() => ""));
+        const ov = await measureOverflow(page, 390);
+        const tr = lang === "en" ? await scanTurkish(page, []) : { count: 0, samples: [] as TrHit[] };
+        const shot = `senaryo-E1-erisim-engeli-${lang}${p.replace(/\//g, "-")}.png`;
+        await page.screenshot({ path: path.join(OUT, shot) });
+        oks.push(denied || notFound);
+        lines.push(`${p}: engel ekranı=${denied ? "evet" : notFound ? "404" : "HAYIR"}; lang=${await htmlLang(page)}; taşma=${Math.round(ov.px)}${lang === "en" ? `; TR-aday=${tr.count}${tr.samples.length ? ` (${tr.samples.slice(0, 4).map((x) => x.text).join(" · ")})` : ""}` : ""}`);
+      }
+      await page.goto(`${APP}${S6_STATIC}`, { waitUntil: "load" });
+      for (const [m, u, want] of [["GET", "/api/numeroloji/analyses?fields=summary", [403]], ["GET", "/api/hd/charts", [403]], ["GET", "/api/astroloji/access", [404]]] as const) {
+        const r = await pageFetch(page, m, u);
+        const ok = (want as readonly number[]).includes(r.status);
+        oks.push(ok);
+        lines.push(`${m} ${u} → ${r.status} ${ok ? "✔" : "✘"}`);
+      }
+      return { ok: oks.every(Boolean), detail: lines.join("; ") };
+    } finally {
+      await ctx.close().catch(() => undefined);
+    }
+  }, 180_000);
+}
+
 /** S7: yükleme ekranı (loading.tsx) — sayfa RSC yanıtı geciktirilip istemci gezintisi yapılır; dil, taşma, ham anahtar. */
 async function scenarioLoading(browser: Browser, env: TestEnv, fx: Fixture, lang: Lang) {
   await setAccountLocale(env, fx, GATE_CLOSED ? "en" : lang);
@@ -1494,6 +1897,7 @@ function writeSummary(meta: Record<string, unknown>, missingMessages: string[]) 
   L.push(`- EN TR-aday (BİLGİ, FAIL değil): ${totals.trAdayEkran} ekranda ${totals.trAdayToplam} düğüm/öznitelik (kapsam dışı ekranlar ayrıca: ${totals.trAdayKapsamDisiToplam}) · Sunucu eksik katalog anahtarı günlüğü: ${totals.eksikKatalogAnahtari}`);
   L.push(`- Rapor dili: KAPSAM DIŞI (Word/PDF çıktıları henüz çevrilmedi; yalnız indirme yanıtı denetlendi).`);
   L.push(`- Veri: tamamen sentetik (ZZ_*), gömülü PostgreSQL + PostgREST şimi; production'a temas yok.`);
+  L.push(`- Ücretli sağlayıcı (Roxy): sunucuda anahtar YOK; tarayıcıda kesilen ücretli uç isteği: ${paidBlocked.length}${paidBlocked.length ? ` (${Array.from(new Set(paidBlocked)).slice(0, 8).join(", ")})` : ""}`);
   L.push("");
   L.push("## Rota × dil × genişlik");
   L.push("");
@@ -1575,7 +1979,7 @@ async function main() {
   const nextBin = path.join(ROOT, "node_modules", "next", "dist", "bin", "next");
   if (!existsSync(path.join(ROOT, ".next", "BUILD_ID"))) { console.error("önce yayın kapısı AÇIK build gerekli (.next/BUILD_ID yok)"); process.exit(2); }
 
-  const { env } = await startDyEnv({ port: PG_PORT, dirName: "i18n-modul-ekran-pgdata", httpPort: SUPA_PORT });
+  const { env } = await startDyEnv({ port: PG_PORT, dirName: "i18n-modul-ekran-pgdata", httpPort: SUPA_PORT, rpcAllow: ASTRO_RPCS });
   const setupNotes: string[] = [];
   for (const [label, sql] of [
     ["user_locale_prefs migration", readFileSync(path.join(ROOT, "supabase/migrations/20280126000000_user_locale_prefs.sql"), "utf8")],
@@ -1585,6 +1989,7 @@ async function main() {
     try { await env.su.query(sql); setupNotes.push(`kurulum: ${label} ✓`); } catch (e) { setupNotes.push(`kurulum: ${label} ATLANDI (${(e as Error).message.slice(0, 160)})`); }
   }
   const { fx, seedNotes } = await seed(env);
+  seedNotes.push(...await r5Setup(env, fx));
   for (const n of [...setupNotes, ...seedNotes]) console.log(`  ${n}`);
   const exclude = [
     ...brandAllowlist(), SYN.tenantName, SYN.expertName, SYN.expertEmail,
@@ -1599,7 +2004,11 @@ async function main() {
   try {
     app = spawn(process.execPath, [nextBin, "start", "-p", String(APP_PORT), "-H", "127.0.0.1"], {
       cwd: ROOT,
-      env: { ...process.env, SUPABASE_SERVICE_ROLE_KEY: SERVICE_KEY, NEXT_TELEMETRY_DISABLED: "1" },
+      // R5: ücretli sağlayıcı anahtarı bilinçli olarak BOŞ (Roxy çağrısı imkânsız → 503); Atlas modülü açık; aylık efemeris sağlayıcısı kapalı.
+      env: {
+        ...process.env, SUPABASE_SERVICE_ROLE_KEY: SERVICE_KEY, NEXT_TELEMETRY_DISABLED: "1", ROXY_API_KEY: "",
+        ASTROLOGY_MODULE_ENABLED: process.env.ASTROLOGY_MODULE_ENABLED ?? "true", ATLAS_MONTHLY_EPHEMERIS_PROVIDER: "0", ATLAS_PRO_EPHEMERIS_PROVIDER: "0",
+      },
       stdio: ["ignore", "pipe", "pipe"],
     });
     app.stdout?.pipe(log, { end: false });
@@ -1607,6 +2016,10 @@ async function main() {
     await waitHttp(`${APP}/`, 180_000);
     browser = await chromium.launch();
 
+    console.log("\n[R5 ön senaryolar: Numeroloji / HD / Atlas sentetik kayıtları (yerel motor)]");
+    await scenarioNumerologyCreate(browser, env, fx, LOCALES[0]!);
+    await scenarioHdCreate(browser, env, fx, LOCALES[0]!);
+    await scenarioAtlasCreate(browser, env, fx, LOCALES[0]!);
     for (const lang of SKIP_TOUR ? [] : LOCALES) {
       console.log(`\n[ekran turu: ${lang} × ${WIDTHS.join("/")} px — ${ROUTES.length} rota]`);
       await screenTour(browser, env, fx, lang, exclude);
@@ -1616,6 +2029,7 @@ async function main() {
       // Kapı kapalı build: yalnız K1 + yükleme ekranı (tr render beklenir); dil değişimi senaryoları anlamsız.
       await scenarioGateClosed(browser, env, fx);
       await scenarioLoading(browser, env, fx, "tr");
+      await scenarioModuleDenied(browser, env, fx, "tr");
     } else {
       if (LOCALES.includes("tr")) await scenarioKeepData(browser, env, fx);
       if (LOCALES.includes("tr")) await scenarioPersist(browser, env, fx);
@@ -1627,6 +2041,8 @@ async function main() {
         await scenarioAccountLegacyDiag(browser, env, fx);
       }
       for (const lang of LOCALES) await scenarioWord(browser, env, fx, lang);
+      for (const lang of LOCALES) await scenarioModuleDenied(browser, env, fx, lang);
+      for (const lang of LOCALES) await scenarioModuleFunctional(browser, env, fx, lang);
       for (const lang of LOCALES) await scenarioLoading(browser, env, fx, lang);
       console.log("\n[silme onayı modalları (1280 px)]");
       for (const lang of LOCALES) await modalProbes(browser, env, fx, lang);
@@ -1650,6 +2066,7 @@ async function main() {
   } catch { /* günlük yok */ }
   const meta = {
     tarih: new Date().toISOString(), locales: LOCALES, widths: WIDTHS, rotaSayisi: ROUTES.length, strictApi: STRICT_API, fullPage: FULL_PAGE, gateClosed: GATE_CLOSED,
+    ucretliUcKesildi: paidBlocked.length, ucretliUcOrnek: Array.from(new Set(paidBlocked)).slice(0, 20),
     sureSn: Math.round((Date.now() - STARTED) / 1000), kurulum: [...setupNotes, ...seedNotes], genelHata: crashed ? crashed.message.slice(0, 300) : null,
   };
   const { verdict, totals } = writeSummary(meta, missing);
