@@ -86,8 +86,10 @@ const HEIGHT: Record<number, number> = { 1280: 900, 768: 1024, 390: 844, 360: 78
 const STABILIZE_CSS = `*,*::before,*::after{animation:none!important;transition:none!important;caret-color:transparent!important}`;
 const CRASH_TEXT = /This page couldn[’']t load|Application error: a (client|server)-side exception/i;
 const NOISE_PAGEERROR = /Failed to fetch|NetworkError|Load failed|AbortError|ResizeObserver loop/i;
-/** Tarayıcının kaynak yükleme günlüğü (HTTP durumu ayrıca ölçülür) → uygulama konsol hatası sayılmaz. */
-const RESOURCE_CONSOLE = /^Failed to load resource/i;
+/** Tarayıcının kaynak yükleme günlüğü (HTTP durumu ayrıca ölçülür) → uygulama konsol hatası sayılmaz. Ayrıca test ortamı
+ *  yapıtı: `next start` Vercel Analytics / Speed Insights betiklerini (/_vercel/…/script.js) sunmaz → "Refused to execute
+ *  script … MIME type ('text/plain')" (Vercel'de bu yollar platformca sunulur; ürün hatası değil). */
+const RESOURCE_CONSOLE = /^Failed to load resource|Refused to execute script from '[^']*\/_vercel\/(?:speed-)?insights\//i;
 /** next-intl hata kodları: eksik / geçersiz anahtar ya da ICU biçim hatası → FAIL. */
 const INTL_CONSOLE = /MISSING_MESSAGE|INVALID_KEY|INVALID_MESSAGE|FORMATTING_ERROR|INSUFFICIENT_PATH|ENVIRONMENT_FALLBACK|IntlError/;
 
@@ -296,6 +298,21 @@ create table if not exists public.client_charges (id uuid primary key default ge
 create table if not exists public.human_design_clients (id uuid primary key default gen_random_uuid(), tenant_id uuid not null, user_id uuid, name text, birth_date text, journey_client_id uuid, created_at timestamptz default now());
 create table if not exists public.human_design_reports (id uuid primary key default gen_random_uuid(), tenant_id uuid not null, user_id uuid, client_id uuid, chart_id uuid, title text, report_kind text, schema_version text, snapshot jsonb, created_at timestamptz default now());
 create table if not exists public.numerology_records (id uuid primary key default gen_random_uuid(), tenant_id uuid not null, name text, surname text, birth_date text, analysis_data jsonb, is_demo_seed boolean default false, created_at timestamptz default now());
+-- R4: dy-presale-closeout test şeması client_stones / client_combinations'ı asgari kolonla kurar; Word raporu
+-- (clientReportData.ts) production şemasındaki kolonlara göre sıralar/seçer → 42703 → "Rapor seçenekleri yüklenemedi" →
+-- "Word Oluştur" pasif → S4 tıklama zaman aşımı (R3/R4 kanıtı: next-sunucu.log: column "stone_date" does not exist).
+alter table public.client_stones add column if not exists stone_type text;
+alter table public.client_stones add column if not exists note text;
+alter table public.client_stones add column if not exists usage_area text;
+alter table public.client_stones add column if not exists combination_text text;
+alter table public.client_stones add column if not exists warning_text text;
+alter table public.client_stones add column if not exists other_notes text;
+alter table public.client_stones add column if not exists stone_date text;
+alter table public.client_combinations add column if not exists description text;
+alter table public.client_combinations add column if not exists note text;
+alter table public.client_combinations add column if not exists stones_text text;
+alter table public.client_combinations add column if not exists notes_text text;
+alter table public.client_combinations add column if not exists notes_text_2 text;
 grant select, insert, update, delete on all tables in schema public to service_role;
 `;
 
@@ -940,7 +957,12 @@ async function modalProbes(browser: Browser, env: TestEnv, fx: Fixture, lang: La
         const btns = page.getByRole("button", { name: DELETE_RE }).filter({ visible: true });
         const n = await btns.count();
         if (n === 0) { scenario(`M-${r.id}`, lang, `Silme onayı: ${r.id}`, true, "silme düğmesi yok (kayıt yok / bu ortamda tablo yok) — atlandı (bilgi)"); continue; }
-        const btn = r.modal === "last" ? btns.nth(n - 1) : btns.first();
+        // R4: pasif (disabled) silme düğmesi tıklanamaz (ör. Refleksoloji › Notlar'da seçili not yokken "Sil") → zaman aşımı
+        // yerine bilgi olarak atlanır.
+        const enabledIdx: number[] = [];
+        for (let i = 0; i < n; i++) if (await btns.nth(i).isEnabled().catch(() => false)) enabledIdx.push(i);
+        if (enabledIdx.length === 0) { scenario(`M-${r.id}`, lang, `Silme onayı: ${r.id}`, true, `silme düğmesi pasif (${n} adet; seçili kayıt yok) — atlandı (bilgi)`); continue; }
+        const btn = btns.nth(r.modal === "last" ? enabledIdx[enabledIdx.length - 1]! : enabledIdx[0]!);
         const label = ((await btn.getAttribute("aria-label")) ?? (await btn.innerText().catch(() => "")) ?? "").replace(/\s+/g, " ").trim().slice(0, 60);
         const clientsBefore = (await env.su.query(`select count(*)::int as n from public.clients where tenant_id=$1`, [fx.tenant])).rows[0]?.n as number;
         await btn.click();
@@ -1001,7 +1023,8 @@ async function scenarioPersist(browser: Browser, env: TestEnv, fx: Fixture) {
       const other = await htmlLang(page);
       const shot = "senaryo-S5-yenileme-sonrasi-en.png";
       await page.screenshot({ path: path.join(OUT, shot) });
-      const cookie = (await ctx.cookies(APP)).find((c) => c.name === "NEXT_LOCALE")?.value ?? "-";
+      // Not: çerez production build'de Secure → ctx.cookies(http-URL) onu süzer; tüm çerezler okunur.
+      const cookie = (await ctx.cookies()).find((c) => c.name === "NEXT_LOCALE")?.value ?? "-";
       const pref = await prefOf(env, fx.userId);
       // Geri al (sonraki senaryolar TR varsayar).
       await page.goto(`${APP}/settings`, { waitUntil: "domcontentloaded" });
@@ -1033,7 +1056,7 @@ async function scenarioAccountIsolation(browser: Browser, env: TestEnv, fx: Fixt
       const steps: string[] = [];
       // Oturum değişimi: oturum çerezleri + localStorage temizlenir (çıkış), cihazın NEXT_LOCALE çerezi KALIR → yeni hesap.
       const switchTo = async (u: { userRecord: Record<string, unknown>; token: string }) => {
-        const keep = (await ctx.cookies(APP)).filter((c) => c.name === "NEXT_LOCALE");
+        const keep = (await ctx.cookies()).filter((c) => c.name === "NEXT_LOCALE"); // Secure çerez: URL süzgeçsiz oku
         await ctx.clearCookies();
         if (keep.length) await ctx.addCookies(keep);
         await page.goto(`${APP}/zz-olmayan-sayfa-r4`, { waitUntil: "domcontentloaded" });
@@ -1084,12 +1107,18 @@ async function scenarioLoading(browser: Browser, env: TestEnv, fx: Fixture, lang
         const page = await ctx.newPage();
         await page.goto(`${APP}/refleksoloji`, { waitUntil: "domcontentloaded" });
         await settle(page);
-        // Yalnız sayfanın tam RSC isteği (prefetch değil) 8 sn bekletilir → loading.tsx ekranda kalır.
+        // Yalnız sayfanın tam (dinamik) RSC isteği 8 sn bekletilir; prefetch (yükleme sınırını getiren) istekler serbest →
+        // önce prefetch, sonra push: Next yükleme sınırını (loading.tsx) anında gösterir, sayfa verisi gecikir.
         await page.route(pat, async (route) => {
           const h = route.request().headers();
-          if (h["rsc"] && !h["next-router-prefetch"]) await sleep(8_000);
+          if (h["rsc"] && !h["next-router-prefetch"] && !h["next-router-segment-prefetch"]) await sleep(8_000);
           await route.continue().catch(() => undefined);
         });
+        await page.evaluate(() => {
+          const n = (window as unknown as { next?: { router?: { prefetch?: (u: string) => void } } }).next;
+          try { n?.router?.prefetch?.("/refleksoloji/notlar"); } catch { /* yok */ }
+        });
+        await sleep(2_500);
         const pushed = await page.evaluate(() => {
           const n = (window as unknown as { next?: { router?: { push?: (u: string) => void } } }).next;
           if (!n?.router?.push) return false;
