@@ -537,7 +537,7 @@
         "no_dose_found": "No Dose Found",
         "source_does_not_recommend": "Source Does Not Recommend",
         "source_contraindicates": "Source Contraindicates",
-        "context_specific_non_recommendation": "No Recommendation for This Context",
+        "context_specific_non_recommendation": "Not Recommended in This Context",
         "conflicting": "Conflicting",
         "unknown": "Unknown",
         "not_classified_as_risk_in_reviewed_source": "Not Classified as a Risk in the Reviewed Source"
