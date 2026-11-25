@@ -6,9 +6,20 @@
 import tr_agenda from "@/messages/tr/agenda.json";
 import tr_archivePersonal from "@/messages/tr/archive.personal.json";
 import tr_aromatherapy from "@/messages/tr/aromatherapy.json";
+import tr_atlasForecast from "@/messages/tr/atlas.forecast.json";
+import tr_atlasHorary from "@/messages/tr/atlas.horary.json";
+import tr_atlasKp from "@/messages/tr/atlas.kp.json";
 import tr_atlasNatal from "@/messages/tr/atlas.natal.json";
+import tr_atlasNatalControls from "@/messages/tr/atlas.natalControls.json";
+import tr_atlasNatalPanel from "@/messages/tr/atlas.natalPanel.json";
+import tr_atlasSoon from "@/messages/tr/atlas.soon.json";
 import tr_atlasTiming from "@/messages/tr/atlas.timing.json";
 import tr_atlasTransit from "@/messages/tr/atlas.transit.json";
+import tr_atlasVedic from "@/messages/tr/atlas.vedic.json";
+import tr_atlasVedicExtra from "@/messages/tr/atlas.vedicExtra.json";
+import tr_atlasVedicHarita from "@/messages/tr/atlas.vedicHarita.json";
+import tr_atlasVedicMatch from "@/messages/tr/atlas.vedicMatch.json";
+import tr_atlasVedicMonthly from "@/messages/tr/atlas.vedicMonthly.json";
 import tr_authClient from "@/messages/tr/auth.client.json";
 import tr_authEmail from "@/messages/tr/auth.email.json";
 import tr_authServer from "@/messages/tr/auth.server.json";
@@ -108,9 +119,20 @@ import tr_videoTranslate from "@/messages/tr/videoTranslate.json";
 import en_agenda from "@/messages/en/agenda.json";
 import en_archivePersonal from "@/messages/en/archive.personal.json";
 import en_aromatherapy from "@/messages/en/aromatherapy.json";
+import en_atlasForecast from "@/messages/en/atlas.forecast.json";
+import en_atlasHorary from "@/messages/en/atlas.horary.json";
+import en_atlasKp from "@/messages/en/atlas.kp.json";
 import en_atlasNatal from "@/messages/en/atlas.natal.json";
+import en_atlasNatalControls from "@/messages/en/atlas.natalControls.json";
+import en_atlasNatalPanel from "@/messages/en/atlas.natalPanel.json";
+import en_atlasSoon from "@/messages/en/atlas.soon.json";
 import en_atlasTiming from "@/messages/en/atlas.timing.json";
 import en_atlasTransit from "@/messages/en/atlas.transit.json";
+import en_atlasVedic from "@/messages/en/atlas.vedic.json";
+import en_atlasVedicExtra from "@/messages/en/atlas.vedicExtra.json";
+import en_atlasVedicHarita from "@/messages/en/atlas.vedicHarita.json";
+import en_atlasVedicMatch from "@/messages/en/atlas.vedicMatch.json";
+import en_atlasVedicMonthly from "@/messages/en/atlas.vedicMonthly.json";
 import en_authClient from "@/messages/en/auth.client.json";
 import en_authEmail from "@/messages/en/auth.email.json";
 import en_authServer from "@/messages/en/auth.server.json";
@@ -209,8 +231,8 @@ import en_trial from "@/messages/en/trial.json";
 import en_videoTranslate from "@/messages/en/videoTranslate.json";
 
 export const CATALOG_FILES = {
-  tr: ["agenda.json", "archive.personal.json", "aromatherapy.json", "atlas.natal.json", "atlas.timing.json", "atlas.transit.json", "auth.client.json", "auth.email.json", "auth.server.json", "auth.ui.json", "beslenme.json", "bioenergy.json", "bodyEnergyHub.json", "clients.analizler.json", "clients.anamnez.json", "clients.charges.json", "clients.combinations.json", "clients.consent.json", "clients.detail.json", "clients.errors.json", "clients.homework.json", "clients.json", "clients.list.json", "clients.memory.json", "clients.notes.json", "clients.sessions.json", "clients.stones.json", "clients.yolculuk.json", "common.apiErrors.json", "common.deleteConfirm.json", "common.demo.json", "common.json", "common.languagePreference.json", "common.reader.json", "common.submitLock.json", "cupping.calendar.json", "cupping.json", "cupping.library.json", "cupping.protocols.json", "cupping.techniques.json", "digitalContent.json", "docTranslate.json", "hd.hub.json", "hd.terms.json", "home.dashboard.json", "home.json", "home.personal.json", "home.yhStatus.json", "journey.json", "lessonNotes.json", "memory.archive.json", "memory.modules.json", "memory.workspace.json", "memoryPicker.json", "naturalSupportHub.json", "navigation.json", "notifications.json", "numerology.analysis.json", "numerology.app.json", "numerology.classic.json", "numerology.clientPanel.json", "numerology.compare.json", "numerology.knowledge.json", "numerology.result.json", "numerology.tabs.json", "reflexology.common.json", "reflexology.errors.json", "reflexology.menu.json", "reflexology.notes.json", "reflexology.protocolMap.json", "reflexology.savedAtlas.json", "reflexology.savedProtocols.json", "reflexology.zoneMap.json", "reports.agenda.json", "reports.clients.json", "reports.common.json", "reports.cupping.json", "reports.stock.json", "settings.backup.json", "settings.json", "settings.membership.json", "settings.profile.json", "stock.common.json", "stock.errors.json", "stock.history.json", "stock.hub.json", "stock.live.json", "stock.pages.json", "stock.pricing.json", "stock.reports.json", "stones.combinations.json", "stones.hub.json", "stones.json", "stones.knowledge.json", "stones.library.json", "stones.list.json", "stones.minerals.json", "stones.records.json", "system.json", "terms.json", "trial.json", "videoTranslate.json"],
-  en: ["agenda.json", "archive.personal.json", "aromatherapy.json", "atlas.natal.json", "atlas.timing.json", "atlas.transit.json", "auth.client.json", "auth.email.json", "auth.server.json", "auth.ui.json", "beslenme.json", "bioenergy.json", "bodyEnergyHub.json", "clients.analizler.json", "clients.anamnez.json", "clients.charges.json", "clients.combinations.json", "clients.consent.json", "clients.detail.json", "clients.errors.json", "clients.homework.json", "clients.json", "clients.list.json", "clients.memory.json", "clients.notes.json", "clients.sessions.json", "clients.stones.json", "clients.yolculuk.json", "common.apiErrors.json", "common.deleteConfirm.json", "common.demo.json", "common.json", "common.languagePreference.json", "common.reader.json", "common.submitLock.json", "cupping.calendar.json", "cupping.json", "cupping.library.json", "cupping.protocols.json", "cupping.techniques.json", "digitalContent.json", "docTranslate.json", "hd.hub.json", "hd.terms.json", "home.dashboard.json", "home.json", "home.personal.json", "home.yhStatus.json", "journey.json", "lessonNotes.json", "memory.archive.json", "memory.modules.json", "memory.workspace.json", "memoryPicker.json", "naturalSupportHub.json", "navigation.json", "notifications.json", "numerology.analysis.json", "numerology.app.json", "numerology.classic.json", "numerology.clientPanel.json", "numerology.compare.json", "numerology.knowledge.json", "numerology.result.json", "numerology.tabs.json", "reflexology.common.json", "reflexology.errors.json", "reflexology.menu.json", "reflexology.notes.json", "reflexology.protocolMap.json", "reflexology.savedAtlas.json", "reflexology.savedProtocols.json", "reflexology.zoneMap.json", "reports.agenda.json", "reports.clients.json", "reports.common.json", "reports.cupping.json", "reports.stock.json", "settings.backup.json", "settings.json", "settings.membership.json", "settings.profile.json", "stock.common.json", "stock.errors.json", "stock.history.json", "stock.hub.json", "stock.live.json", "stock.pages.json", "stock.pricing.json", "stock.reports.json", "stones.combinations.json", "stones.hub.json", "stones.json", "stones.knowledge.json", "stones.library.json", "stones.list.json", "stones.minerals.json", "stones.records.json", "system.json", "terms.json", "trial.json", "videoTranslate.json"],
+  tr: ["agenda.json", "archive.personal.json", "aromatherapy.json", "atlas.forecast.json", "atlas.horary.json", "atlas.kp.json", "atlas.natal.json", "atlas.natalControls.json", "atlas.natalPanel.json", "atlas.soon.json", "atlas.timing.json", "atlas.transit.json", "atlas.vedic.json", "atlas.vedicExtra.json", "atlas.vedicHarita.json", "atlas.vedicMatch.json", "atlas.vedicMonthly.json", "auth.client.json", "auth.email.json", "auth.server.json", "auth.ui.json", "beslenme.json", "bioenergy.json", "bodyEnergyHub.json", "clients.analizler.json", "clients.anamnez.json", "clients.charges.json", "clients.combinations.json", "clients.consent.json", "clients.detail.json", "clients.errors.json", "clients.homework.json", "clients.json", "clients.list.json", "clients.memory.json", "clients.notes.json", "clients.sessions.json", "clients.stones.json", "clients.yolculuk.json", "common.apiErrors.json", "common.deleteConfirm.json", "common.demo.json", "common.json", "common.languagePreference.json", "common.reader.json", "common.submitLock.json", "cupping.calendar.json", "cupping.json", "cupping.library.json", "cupping.protocols.json", "cupping.techniques.json", "digitalContent.json", "docTranslate.json", "hd.hub.json", "hd.terms.json", "home.dashboard.json", "home.json", "home.personal.json", "home.yhStatus.json", "journey.json", "lessonNotes.json", "memory.archive.json", "memory.modules.json", "memory.workspace.json", "memoryPicker.json", "naturalSupportHub.json", "navigation.json", "notifications.json", "numerology.analysis.json", "numerology.app.json", "numerology.classic.json", "numerology.clientPanel.json", "numerology.compare.json", "numerology.knowledge.json", "numerology.result.json", "numerology.tabs.json", "reflexology.common.json", "reflexology.errors.json", "reflexology.menu.json", "reflexology.notes.json", "reflexology.protocolMap.json", "reflexology.savedAtlas.json", "reflexology.savedProtocols.json", "reflexology.zoneMap.json", "reports.agenda.json", "reports.clients.json", "reports.common.json", "reports.cupping.json", "reports.stock.json", "settings.backup.json", "settings.json", "settings.membership.json", "settings.profile.json", "stock.common.json", "stock.errors.json", "stock.history.json", "stock.hub.json", "stock.live.json", "stock.pages.json", "stock.pricing.json", "stock.reports.json", "stones.combinations.json", "stones.hub.json", "stones.json", "stones.knowledge.json", "stones.library.json", "stones.list.json", "stones.minerals.json", "stones.records.json", "system.json", "terms.json", "trial.json", "videoTranslate.json"],
+  en: ["agenda.json", "archive.personal.json", "aromatherapy.json", "atlas.forecast.json", "atlas.horary.json", "atlas.kp.json", "atlas.natal.json", "atlas.natalControls.json", "atlas.natalPanel.json", "atlas.soon.json", "atlas.timing.json", "atlas.transit.json", "atlas.vedic.json", "atlas.vedicExtra.json", "atlas.vedicHarita.json", "atlas.vedicMatch.json", "atlas.vedicMonthly.json", "auth.client.json", "auth.email.json", "auth.server.json", "auth.ui.json", "beslenme.json", "bioenergy.json", "bodyEnergyHub.json", "clients.analizler.json", "clients.anamnez.json", "clients.charges.json", "clients.combinations.json", "clients.consent.json", "clients.detail.json", "clients.errors.json", "clients.homework.json", "clients.json", "clients.list.json", "clients.memory.json", "clients.notes.json", "clients.sessions.json", "clients.stones.json", "clients.yolculuk.json", "common.apiErrors.json", "common.deleteConfirm.json", "common.demo.json", "common.json", "common.languagePreference.json", "common.reader.json", "common.submitLock.json", "cupping.calendar.json", "cupping.json", "cupping.library.json", "cupping.protocols.json", "cupping.techniques.json", "digitalContent.json", "docTranslate.json", "hd.hub.json", "hd.terms.json", "home.dashboard.json", "home.json", "home.personal.json", "home.yhStatus.json", "journey.json", "lessonNotes.json", "memory.archive.json", "memory.modules.json", "memory.workspace.json", "memoryPicker.json", "naturalSupportHub.json", "navigation.json", "notifications.json", "numerology.analysis.json", "numerology.app.json", "numerology.classic.json", "numerology.clientPanel.json", "numerology.compare.json", "numerology.knowledge.json", "numerology.result.json", "numerology.tabs.json", "reflexology.common.json", "reflexology.errors.json", "reflexology.menu.json", "reflexology.notes.json", "reflexology.protocolMap.json", "reflexology.savedAtlas.json", "reflexology.savedProtocols.json", "reflexology.zoneMap.json", "reports.agenda.json", "reports.clients.json", "reports.common.json", "reports.cupping.json", "reports.stock.json", "settings.backup.json", "settings.json", "settings.membership.json", "settings.profile.json", "stock.common.json", "stock.errors.json", "stock.history.json", "stock.hub.json", "stock.live.json", "stock.pages.json", "stock.pricing.json", "stock.reports.json", "stones.combinations.json", "stones.hub.json", "stones.json", "stones.knowledge.json", "stones.library.json", "stones.list.json", "stones.minerals.json", "stones.records.json", "system.json", "terms.json", "trial.json", "videoTranslate.json"],
 } as const;
 
 export const CATALOG_PARTS: Record<"tr" | "en", Record<string, unknown>[]> = {
@@ -218,9 +240,20 @@ export const CATALOG_PARTS: Record<"tr" | "en", Record<string, unknown>[]> = {
     tr_agenda,
     tr_archivePersonal,
     tr_aromatherapy,
+    tr_atlasForecast,
+    tr_atlasHorary,
+    tr_atlasKp,
     tr_atlasNatal,
+    tr_atlasNatalControls,
+    tr_atlasNatalPanel,
+    tr_atlasSoon,
     tr_atlasTiming,
     tr_atlasTransit,
+    tr_atlasVedic,
+    tr_atlasVedicExtra,
+    tr_atlasVedicHarita,
+    tr_atlasVedicMatch,
+    tr_atlasVedicMonthly,
     tr_authClient,
     tr_authEmail,
     tr_authServer,
@@ -322,9 +355,20 @@ export const CATALOG_PARTS: Record<"tr" | "en", Record<string, unknown>[]> = {
     en_agenda,
     en_archivePersonal,
     en_aromatherapy,
+    en_atlasForecast,
+    en_atlasHorary,
+    en_atlasKp,
     en_atlasNatal,
+    en_atlasNatalControls,
+    en_atlasNatalPanel,
+    en_atlasSoon,
     en_atlasTiming,
     en_atlasTransit,
+    en_atlasVedic,
+    en_atlasVedicExtra,
+    en_atlasVedicHarita,
+    en_atlasVedicMatch,
+    en_atlasVedicMonthly,
     en_authClient,
     en_authEmail,
     en_authServer,

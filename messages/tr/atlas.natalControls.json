@@ -1,0 +1,65 @@
+{
+  "atlas": {
+    "natalControls": {
+      "viewAria": "Harita görünümü",
+      "mode": {
+        "basic": "Temel",
+        "pro": "Profesyonel"
+      },
+      "modeTitle": {
+        "basic": "Sade görünüm: yalnız 10 gezegen arasındaki başlıca açılar (kavuşum, sekstil, kare, üçgen, karşıt). Hesap ve açı listesi değişmez.",
+        "pro": "Ayrıntılı görünüm: listedeki bütün açı türleri, ev başlangıç dereceleri; sıkı orb'lu açılar daha kalın. Hesap değişmez."
+      },
+      "pointsLabel": "Ek noktalar",
+      "pointsNone": "yok",
+      "pointsTitle": "Haritada gösterilecek ek noktalar: {on}/{total} seçili{missing} · Çark etiketleri: {labels}",
+      "pointsMissing": " ({n} nokta bu haritada yok)",
+      "pointsGroupAria": "Haritada gösterilecek noktalar",
+      "pointMissingNote": "Bu haritada yok (doğum saati bilinmiyor)",
+      "point": {
+        "nodes": "Ay Düğümleri",
+        "chiron": "Kiron",
+        "lilith": "Lilith",
+        "vertex": "Vertex",
+        "fortune": "Şans Noktası"
+      },
+      "labelsAria": "Çark etiketleri",
+      "labelsTitle": "Çark etiketleri",
+      "labelPref": {
+        "auto": "Moda göre",
+        "simple": "Sade",
+        "detailed": "Ayrıntılı"
+      },
+      "labelHint": {
+        "auto": "Temel: sade · Profesyonel: ayrıntılı (şu an {current})",
+        "simple": "Gezegen · derece · dakika",
+        "detailed": "Gezegen · derece · burç · dakika; ev başlangıçları"
+      },
+      "currentDetailed": "ayrıntılı",
+      "currentSimple": "sade",
+      "drawOnly": "Yalnız çizim değişir; hesap ve kayıt değişmez.",
+      "filterLabel": "Açı çizgileri",
+      "filterTitle": "Çarkta çizilen açılar: {on}/{total} seçenek seçili{focus}",
+      "filterFocusOnly": " · yalnız {body}",
+      "filterAllBodies": " · tüm gövdeler",
+      "groupAria": "Açı grubu",
+      "groupTitle": "Açı grubu",
+      "minorBasicNote": "Temel görünümde çizilmez — Profesyonel'e geçin",
+      "majorNote": "Kavuşum, sekstil, kare, üçgen, karşıt",
+      "minorNote": "Yarım sekstil, yarım kare, seskikare, kuinkunks",
+      "major": "Başlıca açılar",
+      "minor": "Küçük açılar",
+      "natureAria": "Açı niteliği",
+      "natureTitle": "Nitelik",
+      "focusLabel": "Gövde odağı",
+      "focusTitle": "Yalnız seçilen gezegenin / noktanın açı çizgilerini göster",
+      "focusAll": "Tüm gövdeler",
+      "countsFoot": "Açı listesi: <strong>{total}</strong> · çarkta çizili: <strong>{drawn}</strong>. Liste ve orb değişmez; tüm açılar Açılar bölümünde.",
+      "countsTitle": "Açı listesindeki toplam açı / çarkta çizilen açı",
+      "counts": "Açı listesi: <strong>{total}</strong> · çarkta çizili: <strong>{drawn}</strong>",
+      "countsSr": " (kavuşumlar yakın noktalar olduğundan çizgi olarak görünmeyebilir; tüm liste Açılar bölümünde)",
+      "selectAll": "Tümünü seç",
+      "clear": "Temizle"
+    }
+  }
+}

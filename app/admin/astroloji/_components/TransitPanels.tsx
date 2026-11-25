@@ -18,9 +18,6 @@ import { ASPECT_GLYPHS, ASPECT_LABELS, BODY_GLYPHS, BODY_LABELS, NATURE_LABELS, 
 import {
   dayInWindow,
   MAJOR_ASPECTS,
-  SIGNIFICANCE_BAND_LABELS,
-  SIGNIFICANCE_NOTE,
-  FORECAST_SCOPE_NOTE,
   aspectTypeCounts,
   eventMinuteUtc,
   exactTimesOf,
@@ -443,8 +440,10 @@ const EVENT_LABELS: Record<ForecastEvent["type"], string> = {
   eclipse: "Tutulma",
   lunar_phase: "Ay evresi",
 };
+const EVENT_TYPES = Object.keys(EVENT_LABELS) as ForecastEvent["type"][];
 const ECLIPSE_LABELS: Record<string, string> = { penumbral: "yarıgölge", partial: "parçalı", annular: "halkalı", total: "tam" };
 
+/** Olay cümlesi (TR; Word/PDF ve eski çağıranlar için korunur). Ekran useEventText ile katalogdan — TR çıktı birebir aynı. */
 export function eventText(e: ForecastEvent): string {
   const body = e.body ? `${BODY_GLYPHS[e.body]} ${BODY_LABELS[e.body]}` : "";
   switch (e.type) {
@@ -461,13 +460,45 @@ export function eventText(e: ForecastEvent): string {
   }
 }
 
+/** I18N-F1-R5: eventText ile AYNI kompozisyon; metin katalogdan (atlas.forecast.ev + terms). TR çıktı eventText ile birebir (harness kilidi). */
+function useEventText() {
+  const t = useTranslations("atlas.forecast");
+  const tt = useTranslations("terms");
+  const point = usePointLabel();
+  return (e: ForecastEvent): string => {
+    const body = e.body ? `${BODY_GLYPHS[e.body]} ${tt(`body.${e.body}`)}` : "";
+    const sign = e.targetSign ? `${SIGN_GLYPHS[e.targetSign]} ${tt(`zodiac.${e.targetSign}`)}` : "";
+    switch (e.type) {
+      case "transit_aspect":
+        return t("ev.aspect", {
+          body,
+          aspect: e.aspect ? `${ASPECT_GLYPHS[e.aspect]} ${tt(`aspect.${e.aspect}`)}` : "",
+          target: e.targetBody ? `${pointGlyph(e.targetBody)} ${point(e.targetBody)}` : "",
+        });
+      case "sign_ingress":
+        return t("ev.ingress", { body, sign });
+      case "retrograde_station":
+        return t(e.station === "retrograde" ? "ev.stationRetro" : "ev.stationDirect", { body });
+      case "eclipse":
+        return (
+          t(e.body === "moon" ? "ev.eclipseMoon" : "ev.eclipseSun") +
+          (e.eclipseKind ? t("ev.eclipseKindSuffix", { kind: t(`eclipseKind.${e.eclipseKind}`) }) : "") +
+          (e.obscuration !== null ? t("ev.obscuration", { n: String(Math.round(e.obscuration * 100)) }) : "")
+        );
+      case "lunar_phase":
+        return t(e.phase === "new_moon" ? "ev.newMoon" : "ev.fullMoon") + (e.targetSign ? t("ev.phaseSignSuffix", { sign }) : "");
+    }
+  };
+}
+
 function SignificanceBadge({ v }: { v: number | null }) {
+  const t = useTranslations("atlas.forecast");
   const b = significanceBand(v);
-  if (!b || v === null) return <span className="text-[11px] text-slate-400">önem —</span>;
+  if (!b || v === null) return <span className="text-[11px] text-slate-400">{t("sigNone")}</span>;
   const c = b === "high" ? "bg-amber-100 text-amber-900" : b === "mid" ? "bg-slate-100 text-slate-700" : "bg-white text-slate-500 ring-1 ring-slate-200";
   return (
-    <span className={`whitespace-nowrap rounded-full px-1.5 py-0.5 text-[11px] tabular-nums ${c}`} title={SIGNIFICANCE_NOTE} data-significance={Math.round(v)}>
-      önem {Math.round(v)} · {SIGNIFICANCE_BAND_LABELS[b]}
+    <span className={`whitespace-nowrap rounded-full px-1.5 py-0.5 text-[11px] tabular-nums ${c}`} title={t("significanceNote")} data-significance={Math.round(v)}>
+      {t("sigValue", { n: String(Math.round(v)), band: t(`band.${b}`) })}
     </span>
   );
 }
@@ -480,7 +511,10 @@ export type CalendarTransitApi = {
 
 type Pending = { atUtc: string; label: string; state: "planning" | "ready" | "running" | "error"; newRequests?: number; error?: string };
 
-function DayDetail({ day, events, tz, api, onClose }: { day: string; events: ForecastEvent[]; tz: string; api: CalendarTransitApi | null; onClose: () => void }) {
+/** I18N-F1-R5: dışa aktarım yalnız test çizimi içindir (davranış değişmedi). */
+export function DayDetail({ day, events, tz, api, onClose }: { day: string; events: ForecastEvent[]; tz: string; api: CalendarTransitApi | null; onClose: () => void }) {
+  const t = useTranslations("atlas.forecast");
+  const evText = useEventText();
   const personal = events.filter(isPersonalEvent).sort((a, b) => (b.significance ?? -1) - (a.significance ?? -1) || a.datetime.localeCompare(b.datetime));
   const sky = events.filter((e) => !isPersonalEvent(e));
   const [pending, setPending] = useState<Pending | null>(null);
@@ -503,53 +537,53 @@ function DayDetail({ day, events, tz, api, onClose }: { day: string; events: For
   const row = (e: ForecastEvent, i: number) => (
     <li key={`${e.datetime}-${i}`} className="flex flex-wrap items-center gap-x-2 gap-y-1 px-3 py-2 text-sm text-slate-800">
       <span className="w-full text-xs tabular-nums text-slate-500 sm:w-auto">{at(e.datetime, tz)}</span>
-      <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[11px] text-slate-600">{EVENT_LABELS[e.type]}</span>
-      <span className="min-w-0 break-words">{eventText(e)}</span>
-      {e.orb !== null && <span className="text-xs tabular-nums text-slate-500">orb {formatDegree(e.orb)}</span>}
+      <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[11px] text-slate-600">{t(`eventType.${e.type}`)}</span>
+      <span className="min-w-0 break-words">{evText(e)}</span>
+      {e.orb !== null && <span className="text-xs tabular-nums text-slate-500">{t("orb", { orb: formatDegree(e.orb) })}</span>}
       <SignificanceBadge v={e.significance} />
       {api && isPersonalEvent(e) && eventMinuteUtc(e.datetime) && (
         <button
           type="button"
           className="ml-auto rounded-lg border border-indigo-200 bg-indigo-50 px-2 py-0.5 text-xs text-indigo-900 hover:bg-indigo-100"
-          onClick={() => void ask(eventMinuteUtc(e.datetime)!, `${eventText(e)} — kesinleşme anı`)}
+          onClick={() => void ask(eventMinuteUtc(e.datetime)!, t("exactLabel", { event: evText(e) }))}
           data-testid="astro-day-open-exact"
         >
-          Kesinleşme anının haritası
+          {t("exactChartBtn")}
         </button>
       )}
     </li>
   );
 
   return (
-    <section className="rounded-xl border-2 border-indigo-200 bg-indigo-50/40 max-sm:-mx-3 max-sm:rounded-none max-sm:border-x-0" data-testid="astro-day-detail" aria-label="Seçilen günün transit ayrıntısı">
+    <section className="rounded-xl border-2 border-indigo-200 bg-indigo-50/40 max-sm:-mx-3 max-sm:rounded-none max-sm:border-x-0" data-testid="astro-day-detail" aria-label={t("dayAria")}>
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-indigo-100 px-3 py-2">
         <h4 className="text-sm font-semibold text-indigo-950">
-          Seçilen Günün Transit Ayrıntısı · {day.split("-").reverse().join(".")} <span className="font-normal text-indigo-900/70">({tz})</span>
+          {t("dayTitle", { date: day.split("-").reverse().join(".") })} <span className="font-normal text-indigo-900/70">({tz})</span>
         </h4>
         <button type="button" className="rounded-lg border border-indigo-200 bg-white px-2 py-0.5 text-xs text-indigo-900" onClick={onClose} data-testid="astro-day-close">
-          Kapat
+          {t("close")}
         </button>
       </div>
       <div className="flex flex-col gap-2 px-0 py-2">
         <div className="px-3">
-          <p className="text-xs font-semibold uppercase tracking-wide text-indigo-900/80">Natal haritaya etkiler ({personal.length})</p>
-          {personal.length === 0 ? <p className="py-1 text-sm text-slate-500">Bu gün natal haritaya kesinleşen (majör) transit açısı yok; o günün tüm transit açıları günün transit haritasında görünür.</p> : null}
+          <p className="text-xs font-semibold uppercase tracking-wide text-indigo-900/80">{t("personalTitle", { n: String(personal.length) })}</p>
+          {personal.length === 0 ? <p className="py-1 text-sm text-slate-500">{t("personalNone")}</p> : null}
         </div>
         {personal.length > 0 && <ul className="divide-y divide-indigo-100 bg-white" data-testid="astro-day-personal">{personal.map(row)}</ul>}
         <div className="px-3">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Genel gökyüzü olayları ({sky.length}) — kişiye özel değildir</p>
-          {sky.length === 0 ? <p className="py-1 text-sm text-slate-500">Bu gün genel gökyüzü olayı yok.</p> : null}
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{t("skyTitle", { n: String(sky.length) })}</p>
+          {sky.length === 0 ? <p className="py-1 text-sm text-slate-500">{t("skyNone")}</p> : null}
         </div>
         {sky.length > 0 && <ul className="divide-y divide-slate-100 bg-white" data-testid="astro-day-sky">{sky.map(row)}</ul>}
         <div className="flex flex-wrap items-center gap-2 px-3 pt-1">
           {api ? (
             noon && (
-              <button type="button" className="rounded-lg bg-indigo-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-indigo-800" onClick={() => void ask(noon, "günün transit haritası (yerel 12:00)")} data-testid="astro-day-open-noon">
-                Günün transit haritası (yerel 12:00)
+              <button type="button" className="rounded-lg bg-indigo-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-indigo-800" onClick={() => void ask(noon, t("noonLabel"))} data-testid="astro-day-open-noon">
+                {t("noonBtn")}
               </button>
             )
           ) : (
-            <p className="text-xs text-slate-500">Günün transit haritası analiz çalışma masasından açılır (kayıtlı analiz görünümünde hesaplama yapılmaz).</p>
+            <p className="text-xs text-slate-500">{t("noonFromDesk")}</p>
           )}
         </div>
         {pending && (
@@ -557,32 +591,32 @@ function DayDetail({ day, events, tz, api, onClose }: { day: string; events: For
             <p className="text-slate-700">
               <strong>{pending.label}</strong> · {at(pending.atUtc, tz)}
             </p>
-            {pending.state === "planning" && <p className="text-xs text-slate-500">Plan kontrol ediliyor (sağlayıcıya istek gönderilmez)…</p>}
+            {pending.state === "planning" && <p className="text-xs text-slate-500">{t("planChecking")}</p>}
             {pending.state === "error" && <p className="text-xs text-rose-700">{pending.error}</p>}
             {(pending.state === "ready" || pending.state === "running") && (
               <div className="mt-1 flex flex-wrap items-center gap-2">
                 <span className="text-xs text-slate-600" data-testid="astro-day-plan-count">
-                  {pending.newRequests === 0 ? "Kayıtlı sonuç var — yeni istek yok." : `${pending.newRequests} yeni hesaplama isteği gönderilecek.`}
+                  {pending.newRequests === 0 ? t("planCached") : t("planNew", { n: pending.newRequests ?? 0 })}
                 </span>
                 <button type="button" disabled={pending.state === "running"} className="rounded-lg bg-[#0b1430] px-3 py-1 text-xs font-semibold text-white disabled:opacity-50" onClick={() => void confirm()} data-testid="astro-day-plan-confirm">
-                  {pending.state === "running" ? "Açılıyor…" : pending.newRequests === 0 ? "Transit analizini aç" : "Hesapla ve aç"}
+                  {pending.state === "running" ? t("opening") : pending.newRequests === 0 ? t("openTransit") : t("calcOpen")}
                 </button>
                 <button type="button" className="rounded-lg border border-slate-300 px-2 py-1 text-xs text-slate-600" onClick={() => setPending(null)}>
-                  Vazgeç
+                  {t("cancel")}
                 </button>
               </div>
             )}
           </div>
         )}
-        <p className="px-3 text-[11px] leading-snug text-slate-500">
-          Takvim olayları sağlayıcıda kesinleşme anına inceltilmiştir; yaklaşan/ayrılan durumu ve tüm açılar günün transit haritasında görünür. Transit haritası yeni bir analiz sekmesinde açılır ve ayrıca kaydedilebilir; bu takvim analizi değişmez.
-        </p>
+        <p className="px-3 text-[11px] leading-snug text-slate-500">{t("dayFootnote")}</p>
       </div>
     </section>
   );
 }
 
 export function ForecastPanel({ t, options = {}, calendarTransit = null }: { t: ForecastTechnical; options?: Record<string, unknown>; calendarTransit?: CalendarTransitApi | null }) {
+  const tf = useTranslations("atlas.forecast");
+  const evText = useEventText();
   const [tz, setTz] = useState(zoneOf(options.displayTz));
   const [types, setTypes] = useState<Set<ForecastEvent["type"]>>(() => new Set(["transit_aspect", "sign_ingress", "retrograde_station", "eclipse", "lunar_phase"]));
   const [minSig, setMinSig] = useState(0);
@@ -607,9 +641,14 @@ export function ForecastPanel({ t, options = {}, calendarTransit = null }: { t: 
   return (
     <div className="flex flex-col gap-3" data-testid="astro-forecast-panel">
       <div className="rounded-xl border border-slate-200 bg-slate-50/70 px-3 py-2 text-sm text-slate-700">
-        Dönem: <strong>{t.window.start.split("-").reverse().join(".")}</strong> – <strong>{t.window.end.split("-").reverse().join(".")}</strong> · {t.events.length} olay
+        {tf.rich("period", {
+          start: t.window.start.split("-").reverse().join("."),
+          end: t.window.end.split("-").reverse().join("."),
+          n: String(t.events.length),
+          strong: (c) => <strong>{c}</strong>,
+        })}
         <span className="ml-2 inline-flex items-center gap-1 text-xs text-slate-500">
-          gün seç
+          {tf("pickDay")}
           <input
             type="date"
             className={inp}
@@ -617,13 +656,13 @@ export function ForecastPanel({ t, options = {}, calendarTransit = null }: { t: 
             max={t.window.end}
             value={day ?? ""}
             onChange={(e) => setDay(dayInWindow(e.target.value, t.window) ? e.target.value : null)}
-            aria-label="Takvimden gün seç"
+            aria-label={tf("pickDayAria")}
             data-testid="astro-forecast-pick-day"
           />
         </span>
         <span className="ml-2 inline-flex items-center gap-1 text-xs text-slate-500">
-          saat dilimi
-          <select className={inp} value={tz} onChange={(e) => setTz(e.target.value)} aria-label="Takvim gösterim saat dilimi">
+          {tf("timeZone")}
+          <select className={inp} value={tz} onChange={(e) => setTz(e.target.value)} aria-label={tf("timeZoneAria")}>
             {zones.map((z) => (
               <option key={z} value={z}>
                 {z}
@@ -632,8 +671,8 @@ export function ForecastPanel({ t, options = {}, calendarTransit = null }: { t: 
           </select>
         </span>
       </div>
-      <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="Olay türü filtresi">
-        {(Object.keys(EVENT_LABELS) as ForecastEvent["type"][]).map((k) => (
+      <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label={tf("typeFilterAria")}>
+        {EVENT_TYPES.map((k) => (
           <label key={k} className={`flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs ${types.has(k) ? "border-sky-300 bg-sky-50 text-sky-900" : "border-slate-200 text-slate-500"}`}>
             <input
               type="checkbox"
@@ -645,31 +684,31 @@ export function ForecastPanel({ t, options = {}, calendarTransit = null }: { t: 
                 setTypes(n);
               }}
             />
-            {EVENT_LABELS[k]} ({counts.get(k) ?? 0})
+            {tf("typeCount", { label: tf(`eventType.${k}`), n: String(counts.get(k) ?? 0) })}
           </label>
         ))}
         <label className="flex items-center gap-1 rounded-full border border-slate-200 px-2 py-0.5 text-xs text-slate-700">
-          <input type="checkbox" checked={onlyPersonal} onChange={(e) => setOnlyPersonal(e.target.checked)} data-testid="astro-forecast-only-personal" /> Yalnız natal etkiler
+          <input type="checkbox" checked={onlyPersonal} onChange={(e) => setOnlyPersonal(e.target.checked)} data-testid="astro-forecast-only-personal" /> {tf("onlyPersonal")}
         </label>
         {hasSig && (
-          <select className={inp} value={minSig} onChange={(e) => setMinSig(Number(e.target.value))} aria-label="En az önem puanı" data-testid="astro-forecast-min-sig">
-            <option value={0}>Her önem</option>
-            <option value={40}>Önem ≥ 40</option>
-            <option value={70}>Önem ≥ 70</option>
+          <select className={inp} value={minSig} onChange={(e) => setMinSig(Number(e.target.value))} aria-label={tf("minSigAria")} data-testid="astro-forecast-min-sig">
+            <option value={0}>{tf("sigAny")}</option>
+            <option value={40}>{tf("sigMin", { n: "40" })}</option>
+            <option value={70}>{tf("sigMin", { n: "70" })}</option>
           </select>
         )}
       </div>
       <p className="text-[11px] leading-snug text-slate-500" data-testid="astro-forecast-scope-note">
-        {FORECAST_SCOPE_NOTE}
+        {tf("scopeNote")}
       </p>
       {hasSig && (
         <p className="text-[11px] leading-snug text-slate-500" data-testid="astro-significance-note">
-          {SIGNIFICANCE_NOTE}
+          {tf("significanceNote")}
         </p>
       )}
       {day && <DayDetail key={`${day}|${tz}`} day={day} events={allByDay.get(day) ?? []} tz={tz} api={calendarTransit} onClose={() => setDay(null)} />}
       {byMonth.length === 0 ? (
-        <p className="text-sm text-slate-500">Seçili filtrelere uyan olay yok.</p>
+        <p className="text-sm text-slate-500">{tf("noMatch")}</p>
       ) : (
         byMonth.map(([month, days]) => (
           <Section key={month} title={`${month.slice(5, 7)}.${month.slice(0, 4)} (${days.reduce((n, [, l]) => n + l.length, 0)})`}>
@@ -685,18 +724,18 @@ export function ForecastPanel({ t, options = {}, calendarTransit = null }: { t: 
                     data-day={d}
                   >
                     <span>
-                      {d.split("-").reverse().join(".")} · {list.length} olay
-                      {list.some(isPersonalEvent) && <span className="ml-1.5 rounded-full bg-indigo-100 px-1.5 py-0.5 text-[10px] text-indigo-900">natal</span>}
+                      {tf("dayEvents", { date: d.split("-").reverse().join("."), n: String(list.length) })}
+                      {list.some(isPersonalEvent) && <span className="ml-1.5 rounded-full bg-indigo-100 px-1.5 py-0.5 text-[10px] text-indigo-900">{tf("natalBadge")}</span>}
                     </span>
-                    <span className="text-[11px] font-normal text-indigo-800">{day === d ? "Ayrıntı açık ▲" : "Gün ayrıntısı ▸"}</span>
+                    <span className="text-[11px] font-normal text-indigo-800">{day === d ? tf("detailOpen") : tf("detailClosed")}</span>
                   </button>
                   <ul className="divide-y divide-slate-50">
                     {list.map((e, i) => (
                       <li key={`${e.datetime}-${i}`} className="flex flex-wrap items-center gap-x-2 gap-y-0.5 px-3 py-1.5 text-sm text-slate-800">
                         <span className="text-xs tabular-nums text-slate-500">{at(e.datetime, tz).slice(11)}</span>
-                        <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[11px] text-slate-600">{EVENT_LABELS[e.type]}</span>
-                        <span className="min-w-0 break-words">{eventText(e)}</span>
-                        {e.orb !== null && <span className="text-xs tabular-nums text-slate-500">orb {formatDegree(e.orb)}</span>}
+                        <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[11px] text-slate-600">{tf(`eventType.${e.type}`)}</span>
+                        <span className="min-w-0 break-words">{evText(e)}</span>
+                        {e.orb !== null && <span className="text-xs tabular-nums text-slate-500">{tf("orb", { orb: formatDegree(e.orb) })}</span>}
                         {hasSig && <SignificanceBadge v={e.significance} />}
                       </li>
                     ))}

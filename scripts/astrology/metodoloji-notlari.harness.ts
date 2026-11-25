@@ -11,7 +11,8 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { createElement } from "react";
-import { renderToStaticMarkup } from "react-dom/server";
+// I18N (ATLAS-A R5 + ATLAS-V): ForecastPanel ve Vedik eşleşme/nokta bileşenleri metni katalogdan alır → next-intl sağlayıcılı çizim (TR katalog = önceki metin; beklentiler değişmedi).
+import { renderToStaticMarkup } from "./intlRender";
 import { readFileSync as readFont } from "node:fs";
 import { join as joinPath } from "node:path";
 import JSZip from "jszip";

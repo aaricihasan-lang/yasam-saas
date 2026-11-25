@@ -1,0 +1,396 @@
+{
+  "atlas": {
+    "horary": {
+      "eyebrow": "Horary · Soru haritası",
+      "title": "William Lilly Horary",
+      "openArchive": "Kayıtlı sorular",
+      "back": "Atlas ana ekranı",
+      "formLabel": "Horary sorusu",
+      "demoBadge": "DEMO VERİSİ",
+      "demoNote": "Örnek girdi; hesaplama gerçektir.",
+      "question": "Soru",
+      "questionPh": "Danışanın sorusu (isteğe bağlı)",
+      "questionHelp": "Soru metni hesaplama için gönderilmez ve kaydedilmez; yalnız raporda “Soru metnini rapora ekle” işaretliyse o rapor için gönderilir.",
+      "dateLabel": "Tarih (sorunun yerel tarihi)",
+      "timeLabel": "Saat (yerel)",
+      "now": "Şimdi",
+      "place": "Konum",
+      "house": "Sorulan ev",
+      "housePick": "Sorulan evi seçin…",
+      "houseOption": "{h}. ev — {topic}",
+      "houseHelp": "Sorunun konusu hangi eve aitse onu seçin. Ev konuları klasik anlamlardır; seçim uzmana aittir.",
+      "submit": "Haritayı Oluştur",
+      "busySubmit": "Hesaplanıyor…",
+      "demoFill": "DEMO verisiyle doldur",
+      "source": "William Lilly, Christian Astrology (1647) · Regiomontanus evleri",
+      "busyLine": "Harita hesaplanıyor…",
+      "demo": {
+        "question": "DEMO — Bu ortaklık teklifi gerçekleşecek mi?",
+        "place": "İstanbul, Türkiye"
+      },
+      "err": {
+        "date": "Sorunun tarihini girin.",
+        "time": "Sorunun saatini girin.",
+        "place": "Sorunun sorulduğu konumu seçin.",
+        "house": "Sorulan evi seçin. Sorunun konusu hangi eve aitse onu bilerek seçmelisiniz.",
+        "range": "Desteklenen tarih aralığı {min}–{max}. Bu sınır, hesaplamanın doğrulandığı aralıktır.",
+        "timeout": "Hesaplama {s} saniye içinde yanıt vermedi. Bağlantınızı kontrol edip tekrar deneyin.",
+        "network": "Sunucuya ulaşılamadı. İnternet bağlantınızı kontrol edip tekrar deneyin.",
+        "server": "Sunucu hatası nedeniyle harita oluşturulamadı. Girdileriniz korunuyor; biraz sonra tekrar deneyin."
+      },
+      "dst": {
+        "earlier": "İlk yaşanan",
+        "later": "İkinci yaşanan"
+      },
+      "none": "yok",
+      "yes": "evet",
+      "no": "hayır",
+      "empty": "Yok.",
+      "evidence": "Kanıt",
+      "ev": {
+        "reason": "Neden: {r}",
+        "translationPrefix": "Işık aktarımı — ",
+        "separated": "Ayrılma ",
+        "joins": " · birleşme ",
+        "ca125": "· CA s. 125: göstergeler ayrılmış ",
+        "receptionComma": ", kabul ",
+        "interruptions": " · araya girenler: ",
+        "orderUncertain": "sırası belirsiz",
+        "collectionPrefix": "Işık toplanması — ",
+        "collectionOk": "CA s. 126 şartları sağlanıyor",
+        "collectionMissing": "şartı eksik",
+        "receptionColon": " · kabul: ",
+        "notAspecting": " · göstergeler birbirine bakmıyor: ",
+        "refranationPrefix": "Refranation adayı: ",
+        "refranationMid": " kesinleşmeden geri dönüyor (en küçük uzaklık "
+      },
+      "report": {
+        "serverError": "Sunucu hatası nedeniyle rapor oluşturulamadı. Biraz sonra tekrar deneyin.",
+        "failed": "Rapor oluşturulamadı.",
+        "preparing": "Hazırlanıyor…",
+        "word": "Word indir",
+        "pdf": "PDF indir",
+        "downloaded": "{fmt} raporu indirildi: {name}",
+        "addQuestion": "Soru metnini rapora ekle",
+        "note": "Rapor sunucuda yeniden hesaplanır; soru metni yalnız işaretliyse bu rapor için gönderilir ve saklanmaz."
+      },
+      "save": {
+        "defaultTitle": "Horary — {date} {time} · {house}. ev",
+        "titleRequired": "Kayıt başlığı gerekli.",
+        "reused": "Bu harita zaten kayıtlı.",
+        "saved": "Kaydedildi. Analiz Arşivi → Horary Soruları içinde bulabilirsiniz.",
+        "failed": "Kayıt şu anda yapılamadı. Girdileriniz korunuyor; tekrar deneyin.",
+        "title": "Kayıt başlığı",
+        "client": "Danışan (isteğe bağlı)",
+        "saving": "Kaydediliyor…",
+        "done": "Kaydedildi",
+        "retry": "Tekrar dene",
+        "save": "Kaydet",
+        "withQuestion": "Soru metnini de kaydet",
+        "openSaved": "Kayıtlı haritayı aç",
+        "note": "Harita kayıt anındaki hesaplamayla saklanır ve sonradan değişmez. Soru metni yalnız işaretlerseniz kaydedilir.",
+        "okFallback": "Kaydedildi.",
+        "errFallback": "Kayıt yapılamadı."
+      },
+      "record": {
+        "loading": "Kayıtlı harita yükleniyor…",
+        "notFound": "Kayıt bulunamadı ya da bu kayda erişim yetkiniz yok.",
+        "loadFailed": "Kayıt yüklenemedi. Bağlantınızı kontrol edip tekrar deneyin.",
+        "newQuestion": "Yeni Horary sorusu"
+      },
+      "saved": {
+        "updateFailed": "Güncelleme yapılamadı; tekrar deneyin.",
+        "titleUpdated": "Başlık güncellendi.",
+        "clientLinked": "Danışan bağlandı.",
+        "clientUnlinked": "Danışan bağlantısı kaldırıldı.",
+        "badge": "KAYITLI HARİTA",
+        "methodPrefix": "William Lilly · ",
+        "savedAt": "· kaydedildi ",
+        "frozen": "Bu harita kayıt anındaki hesaplamadır; hesap motoru güncellense de değişmez.",
+        "clientMissing": "Bağlı danışana artık erişilemiyor (silinmiş olabilir). Kayıt korunuyor.",
+        "addQuestion": "Kayıtlı soru metnini rapora ekle"
+      },
+      "res": {
+        "questionInfo": "Soru bilgisi",
+        "demoInput": "DEMO GİRDİSİ",
+        "wheel": "Horary çarkı",
+        "wheelLabel": "Horary soru haritası çarkı",
+        "summary": "Temel bulgular"
+      },
+      "sig": {
+        "label": "Göstergeler",
+        "querent": "Soran: ",
+        "firstHouse": "(1. ev, ",
+        "quesited": "Sorulan: ",
+        "houseComma": "{n, selectordinal, other {. ev, }}",
+        "common": "Ortak gösterge: ",
+        "sameRuler": "Soran ve sorulan aynı gezegen — gösterge çifti analizi yapılmaz; Ay ilişkisi gösterilir."
+      },
+      "rel": {
+        "label": "Göstergeler arasındaki ilişki",
+        "now": "Şu an: ",
+        "distance": " uzaklık · ",
+        "applying": "yaklaşıyor",
+        "separating": "ayrılıyor",
+        "inOrb": "orb içinde",
+        "outOrb": "orb dışında",
+        "perfection": "Kesinleşme: ",
+        "noPerfection": "{n, plural, other { günlük hesaplama ufkunda kesinleşme yok.}}",
+        "moonWith": "Ay ile {b}"
+      },
+      "moon": {
+        "label": "Ay’ın durumu",
+        "ingress": " · burç değişimi ",
+        "void": "Ay boşlukta — burç içinde yeni açı yok.",
+        "next": "Sonraki açı: ",
+        "last": "Son açı: "
+      },
+      "met": {
+        "label": "Klasik şartları sağlanan olaylar",
+        "none": "Hesaplama ufkunda şartları tam sağlanan ışık aktarımı veya toplanması yok."
+      },
+      "others": {
+        "prefix": "İncelenecek diğer olaylar: ",
+        "candidate": "{n} aday",
+        "incomplete": "{n} şartı eksik / kesintili",
+        "unresolved": "{n} sınıflandırılamayan"
+      },
+      "rad": {
+        "label": "Radikallik ve dikkat noktaları",
+        "hour": "Saat yöneticisi ",
+        "asc": ", yükselen yöneticisi ",
+        "same": "aynı gezegen",
+        "triplicity": "aynı üçlü",
+        "differ": "aynı değil, üçlü ortak değil",
+        "ca121": "(CA s. 121)",
+        "noneConsiderations": "Lilly’nin dikkat noktalarından (CA s. 121–123) hiçbiri yok."
+      },
+      "tl": {
+        "aria": "Olay çizelgesi",
+        "titlePrefix": "Olay çizelgesi · sonraki ",
+        "titleSuffix": "{n, plural, other { gün}}",
+        "note": "Göstergelerle ilgili astronomik olaylar; kesintili ışık aktarımları burada gösterilmez.",
+        "empty": "Ufuk içinde göstergelerle ilgili olay yok.",
+        "station": "{tag} ({dir})",
+        "retro": "geri",
+        "direct": "düz",
+        "ingress": "{tag}: {signs}"
+      },
+      "pl": {
+        "title": "Gezegenler · temel ve arızi asalet",
+        "hint": "Konum, ev, hız, asalet ve puanlar",
+        "scroll": "Gezegen tablosu (yatay kaydırılabilir)",
+        "col": {
+          "planet": "Gezegen",
+          "position": "Konum",
+          "house": "Ev",
+          "speed": "Hız °/gün",
+          "essential": "Temel asalet",
+          "essentialScore": "Temel puan",
+          "accidentalScore": "Arızi puan",
+          "solar": "Güneş’e göre"
+        },
+        "retro": "geri",
+        "virtuePrefix": "etkisi ",
+        "virtueSuffix": "{n, selectordinal, other {. evde (5° kuralı)}}",
+        "accItems": "Arızi puan kalemleri",
+        "total": "· toplam "
+      },
+      "dig": {
+        "domicile": "ev",
+        "exaltation": "yücelme",
+        "triplicity": "üçlü",
+        "term": "terim",
+        "face": "yüz",
+        "detriment": "zarar",
+        "fall": "düşüş",
+        "peregrine": "peregrine"
+      },
+      "cu": {
+        "title": "Ev başlangıçları · Regiomontanus",
+        "hint": "12 ev, Şans Noktası, gündüz/gece, gezegen saati",
+        "house": "{n, selectordinal, other {. ev}}",
+        "pof": "Şans Noktası: ",
+        "houseClose": "{n, selectordinal, other {. ev)}}",
+        "day": "Gündüz haritası",
+        "night": "Gece haritası",
+        "sunAlt": " · Güneş irtifası ",
+        "hourPrefix": "Gezegen saati: ",
+        "dayRuler": " · günün yöneticisi "
+      },
+      "rc": {
+        "title": "Kabul ilişkileri ve anlık açılar",
+        "hint": "Karşılıklı kabul, tek yönlü kabul, orb içindeki açılar",
+        "mutual": "Karşılıklı kabul",
+        "points": "{n, plural, other { puan, CA s. 115)}}",
+        "oneWay": "Tek yönlü kabul (kabul eden → kabul edilen)",
+        "applying": "Yaklaşan açılar (orb içinde)",
+        "separating": "Ayrılan açılar (orb içinde)",
+        "outOfSign": " · burç dışı"
+      },
+      "all": {
+        "title": "Tüm olaylar ve kanıtları",
+        "hint": "Şartları sağlanan, aday, eksik/kesintili ve sınıflandırılamayan kayıtlar",
+        "met": "Klasik şartları sağlanan",
+        "candidate": "Aday — kaynak tanımına uyan olay (değerlendirme uzmana aittir)",
+        "incomplete": "Şartı eksik, kesintili veya sırası/hareketi belirsiz — geçerli sonuç değil",
+        "unresolved": "Sınıflandırılamayan — kaynak bu durumu çözmüyor"
+      },
+      "me": {
+        "title": "Yöntem ve açık noktalar",
+        "hint": "Kaynak, ev sistemi, efemeris, eğitmen kararı bekleyen noktalar",
+        "housePrefix": "Ev sistemi: Regiomontanus · Efemeris: ",
+        "orbSuffix": " · Orb: Lilly CA s. 107 birinci sütun",
+        "open": "Açık noktalar",
+        "noJudgement": "Bu ekran hüküm üretmez; olaylar kaynak tanımıyla ve olay kanıtıyla listelenir."
+      },
+      "unc": {
+        "sec": "{n, plural, other {±{n} sn}}",
+        "min": "{n, plural, other {±{n} dk}}",
+        "hour": "±{n} sa"
+      },
+      "acc": {
+        "house": "{n}. ev",
+        "partile": "{body} ile {aspect}",
+        "retrograde": "Geri",
+        "direct": "Doğrudan",
+        "swift": "Hızlı",
+        "slow": "Yavaş",
+        "moon_increasing": "Ay ışık artırıyor",
+        "moon_decreasing": "Ay ışık azaltıyor",
+        "oriental": "Doğulu",
+        "occidental": "Batılı",
+        "cazimi": "Cazimi",
+        "combust": "Yanık",
+        "under_beams": "Işın altında",
+        "free_from_combustion": "Yanıklıktan serbest",
+        "besieged_saturn_mars": "Satürn ile Mars arasında kuşatılmış",
+        "partile_conj_north_node": "Kuzey Ay Düğümü ile tam kavuşum",
+        "partile_conj_south_node": "Güney Ay Düğümü ile tam kavuşum",
+        "regulus_1647": "Regulus ile",
+        "spica_1647": "Spika ile",
+        "algol_1647": "Algol ile"
+      },
+      "archive": {
+        "aria": "Horary soruları",
+        "searchPh": "Başlıkta ara",
+        "searchAria": "Horary kayıtlarında ara",
+        "from": "Başlangıç tarihi",
+        "to": "Bitiş tarihi",
+        "loadFailed": "Horary kayıtları yüklenemedi. Bağlantınızı kontrol edip tekrar deneyin.",
+        "retry": "Tekrar dene",
+        "emptyFiltered": "Bu filtrelere uyan Horary kaydı yok.",
+        "empty": "Henüz kayıtlı Horary sorusu yok. Horary ekranında haritayı oluşturup “Kaydet”e basın.",
+        "col": {
+          "title": "Soru başlığı",
+          "moment": "Soru anı",
+          "place": "Konum",
+          "house": "Ev",
+          "client": "Danışan",
+          "open": "Aç"
+        },
+        "demo": "DEMO",
+        "method": "William Lilly · {v}",
+        "clientGone": "erişilemiyor",
+        "openRecord": "{title} kaydını aç",
+        "openTitle": "Kayıtlı haritayı aç",
+        "loadingMore": "Yükleniyor…",
+        "more": "Daha fazla göster",
+        "mode": {
+          "aria": "Arşiv türü",
+          "profiles": "Doğum Profilleri",
+          "horary": "Horary Soruları"
+        }
+      },
+      "client": {
+        "minChars": "En az 2 harf yazın.",
+        "clear": "Bağlantıyı kaldır",
+        "ph": "Danışan adı (isteğe bağlı)",
+        "aria": "Danışan ara",
+        "searching": "Aranıyor…",
+        "search": "Ara",
+        "noMatch": "Eşleşen danışan yok.",
+        "unnamed": "Adsız danışan"
+      },
+      "houseTopic": {
+        "2": "Para, mal, kayıp eşya",
+        "3": "Kardeşler, kısa yolculuk, haber",
+        "4": "Baba, ev, mülk, toprak",
+        "5": "Çocuk, hamilelik, eğlence",
+        "6": "Hastalık, çalışan, küçük hayvan",
+        "7": "Evlilik, ortak, karşı taraf",
+        "8": "Ölüm, ortağın parası, miras",
+        "9": "Uzun yolculuk, eğitim, inanç",
+        "10": "Meslek, makam, anne",
+        "11": "Dostlar, umutlar",
+        "12": "Gizli düşman, kapanma, büyük hayvan"
+      },
+      "aspect": {
+        "0": "kavuşum",
+        "60": "altmışlık",
+        "90": "kare",
+        "120": "üçgen",
+        "180": "karşıt"
+      },
+      "interposition": {
+        "prohibition": "Engelleme adayı (CA s. 110–111)",
+        "frustration": "Hüsran adayı (CA s. 112)",
+        "faster_significator_elsewhere": "Hızlı gösterge önce başka gezegene ulaşıyor",
+        "unresolved": "Sınıflandırılamadı — kaynak bu durumu çözmüyor"
+      },
+      "unresolvedReason": {
+        "event_mutual": "iki gezegen birbirine doğru hareket ediyor",
+        "event_station": "gezegenlerden biri istasyonda",
+        "event_superior_overtakes_inferior": "üst gezegen alt gezegeni yakalıyor (CA s. 108 ile çelişir)",
+        "ab_perfection_not_one_sided": "göstergelerin kesinleşmesi tek taraflı değil"
+      },
+      "translationStatus": {
+        "valid": "Kesintisiz",
+        "interrupted": "Kesintili — aktarım değil",
+        "order_uncertain": "Olay sırası belirsiz — kesin aktarım sayılmaz",
+        "motion_uncertain": "Aktaran yaklaşmıyor / istasyonda — kesin aktarım sayılmaz"
+      },
+      "solarPhase": {
+        "cazimi": "Cazimi",
+        "combust": "Yanık",
+        "under_beams": "Işın altında",
+        "free": "Serbest"
+      },
+      "consideration": {
+        "asc_early": "Yükselen çok erken derecede",
+        "asc_late": "Yükselen geç derecede",
+        "moon_via_combusta": "Ay Yanık Yol'da (Via Combusta)",
+        "moon_late_degree": "Ay burcun son derecelerinde",
+        "moon_void_of_course": "Ay boşlukta",
+        "saturn_in_1": "Satürn 1. evde",
+        "saturn_in_7": "Satürn 7. evde",
+        "lord1_combust": "1. ev yöneticisi yanık",
+        "lord7_afflicted": "7. ev yöneticisi zarar görmüş"
+      },
+      "timelineTag": {
+        "perfection": "Göstergeler kesinleşir",
+        "interposition": "Araya giren temas",
+        "translation_join": "Işık aktarımı birleşmesi",
+        "moon_aspect": "Ay açısı",
+        "moon_ingress": "Ay burç değiştirir",
+        "station": "İstasyon",
+        "ingress": "Burç girişi"
+      },
+      "reception": {
+        "domicile": "ev",
+        "exaltation": "yücelme",
+        "triplicity": "üçlü",
+        "participating": "ortak üçlü",
+        "term": "terim",
+        "face": "yüz"
+      },
+      "partile": {
+        "conj": "tam kavuşum",
+        "sextile": "tam altmışlık",
+        "square": "tam kare",
+        "trine": "tam üçgen",
+        "opposition": "tam karşıt"
+      }
+    }
+  }
+}

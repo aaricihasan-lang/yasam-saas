@@ -13,7 +13,8 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { createElement } from "react";
-import { renderToStaticMarkup } from "react-dom/server";
+// I18N-F1-R5: Natal paneli metinlerini katalogdan alır → next-intl sağlayıcılı çizim (varsayılan TR; beklentiler değişmedi).
+import { renderToStaticMarkup } from "./intlRender";
 import NatalTechnicalPanel, { NatalKeyPlacementCards } from "@/app/admin/astroloji/_components/NatalTechnicalPanel";
 import { projectRoxyNatal } from "@/lib/astrology/providers/roxy/natal";
 import { maskTimeDependent } from "@/lib/astrology/view/natalView";
