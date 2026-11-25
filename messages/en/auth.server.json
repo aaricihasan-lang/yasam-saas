@@ -3,6 +3,7 @@
     "server": {
       "common": {
         "forbiddenOrigin": "The request origin could not be verified.",
+        "emailNotInScope": "Email verification and email address changes are not yet enabled for this account.",
         "tooManyAttempts": "Too many attempts. Please try again shortly.",
         "invalidOrExpiredRelogin": "This sign-in request is invalid or has expired. Please sign in again.",
         "sessionCreateFailed": "The session could not be created.",
