@@ -14,6 +14,7 @@ import { formatCurrency, formatDateAbsolute, formatDateAbsoluteInZone, formatNum
 import { apiErrorCode, localizeApiError, withServerDetail } from "../../lib/i18n/apiError";
 import { buildBulkDeleteStages, bulkPhraseMatches, setDefaultBulkDeleteTexts, TR_BULK_DELETE_TEXTS, type BulkDeleteTexts } from "../../lib/ui/bulkDeleteGuard";
 import { buildNameListLines } from "../../lib/ui/deleteConfirmMessage";
+import { SubmitTimeoutError, submitErrorCode, submitErrorMessageKey } from "../../lib/ui/submitLock";
 import { composeDeleteMessage, TR_DELETE_CONFIRM_TEXTS, type DeleteConfirmTexts } from "../../hooks/useDeleteConfirm";
 import { BODY_IDS, ELEMENT_IDS, fromLegacyTr, MOON_PHASE_IDS, toLegacyTr, ZODIAC_IDS } from "../../lib/i18n/terms/registry";
 import { BODY_LABELS, SIGN_LABELS } from "../../lib/astrology/labels/tr";
@@ -161,6 +162,19 @@ ok(composeDeleteMessage({ message: "This cannot  be undone, really." }, EN.singl
 ok(buildNameListLines(Array.from({ length: 12 }, (_, i) => `K${i}`)).at(-1) === "• ve 2 kayıt daha", "TR 've N kayıt daha' birebir");
 ok(buildNameListLines(Array.from({ length: 12 }, (_, i) => `K${i}`), undefined, EN.single.moreRecords).at(-1) === "• and 2 more records", "EN 'and N more records'");
 ok(TR_DELETE_CONFIRM_TEXTS.irreversibleNotice === TR.single.irreversibleNotice, "tekli TR varsayılanı katalogla aynı");
+
+// ── 7b. Gönderim zaman aşımı + ortak okuyucu (QTM-DY-01 / QTM-DG-02) ─────────
+section("7b. gönderim zaman aşımı kodu + ortak okuyucu metinleri");
+{
+  const tcTr = createTranslator({ locale: "tr", messages: getCatalogMessages("tr") as any, namespace: "common" as never }) as any;
+  const tcEn = createTranslator({ locale: "en", messages: getCatalogMessages("en") as any, namespace: "common" as never }) as any;
+  const te = new SubmitTimeoutError();
+  ok(submitErrorCode(te) === "SUBMIT_TIMEOUT" && submitErrorCode(new Error("x")) === null && submitErrorCode("x") === null, "zaman aşımı kodu dil-bağımsız; başka hata null");
+  const key = submitErrorMessageKey(te);
+  ok(key !== null && tcTr(key) === te.message, "TR katalog zaman aşımı metni = SubmitTimeoutError.message (birebir)", key && tcTr(key));
+  ok(key !== null && !/[çğıöşüİ]/.test(tcEn(key)) && tcEn(key) !== te.message, "EN zaman aşımı metni Türkçe değil");
+  ok(submitErrorMessageKey(new Error("İşlem zaman aşımına uğradı. Lütfen tekrar deneyin.")) === null, "kontrol akışı metne değil türe bağlı");
+}
 
 // ── 8. Terminoloji + kanonik kimlik ──────────────────────────────────────────
 section("8. terminoloji ve kanonik kimlik");
