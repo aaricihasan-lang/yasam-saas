@@ -168,7 +168,7 @@
       "loggingIn": "Giriş yapılıyor...",
       "systemError": "Sistem hatası oluştu.",
       "emailPasswordWrong": "E-posta veya parola hatalı.",
-      "noValidRole": "Giriş başarısız: hesabınızda geçerli bir rol (admin / expert) tanımlı değil. Supabase users kaydını kontrol edin.",
+      "noValidRole": "Hesap bilgileri doğrulanamadı. Lütfen tekrar deneyin veya destek ekibiyle iletişime geçin.",
       "userVerifyFailed": "Kullanıcı kaydı doğrulanamadı. Lütfen tekrar deneyin.",
       "sessionLimit": "Oturum limiti nedeniyle giriş yapılamadı. Yöneticinizle iletişime geçin.",
       "securityWarningTitle": "Güvenlik Uyarısı",
@@ -639,6 +639,27 @@
         "stokSales": "Satış Geçmişi",
         "stokOther": "Diğer Ürünler"
       }
+    },
+    "membershipContact": {
+      "managerTitle": "Yöneticiye Mesaj Gönder",
+      "managerDesc": "Üyelik ve fiyatlandırma hakkında sorunuzu bize iletin. Size en kısa sürede geri dönüş yapalım.",
+      "whatsappTitle": "WhatsApp'tan Görüş",
+      "whatsappDesc": "Üyelik ve fiyatlandırma hakkında hızlıca WhatsApp üzerinden bilgi alabilirsiniz.",
+      "phoneTitle": "Müşteri Hizmetleri",
+      "phoneDesc": "Dilerseniz müşteri hizmetlerimizi arayarak üyelik ve fiyatlandırma hakkında doğrudan bilgi alabilirsiniz.",
+      "emailLine": "E-posta ile ulaşmak isterseniz bize doğrudan yazabilirsiniz.",
+      "backToLogin": "Giriş ekranına dön",
+      "inactiveContact": "Üyelik ve fiyatlandırma hakkında iletişime geçebilirsiniz.",
+      "getInfoCta": "Üyelik ve Fiyat Bilgisi Al",
+      "supportBadge": "Şifre Desteği",
+      "membershipBadge": "Üyelik İletişimi",
+      "supportTitle": "Giriş Sorunu Bildir",
+      "membershipTitle": "Üyelik ve Fiyat Bilgisi",
+      "supportSubtitle": "Giriş yapamıyorsanız yöneticimize doğrudan mesaj bırakın; en kısa sürede size dönüş yapılır.",
+      "optionsSubtitle": "Size en uygun iletişim yöntemini seçin; en kısa sürede dönüş yapalım.",
+      "membershipSubtitle": "Üyelik seçenekleri ve fiyatlandırma hakkında yöneticimize mesaj bırakabilirsiniz.",
+      "notMemberYet": "Henüz Yaşam Sistemi üyesi değil misiniz?",
+      "completeMembership": "Üyelik sürecimi tamamla"
     }
   }
 }

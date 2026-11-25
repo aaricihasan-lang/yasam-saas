@@ -68,7 +68,7 @@ async function clientBelongsToTenant(db: SupabaseClient, clientId: string, tenan
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function notFound(): NextResponse {
-  return NextResponse.json({ ok: false, error: "Danışan bulunamadı." }, { status: 404, headers: NO_STORE });
+  return NextResponse.json({ ok: false, code: "CLIENT_NOT_FOUND", error: "Danışan bulunamadı." }, { status: 404, headers: NO_STORE });
 }
 
 // ─── GET ──────────────────────────────────────────────────────────────────────
@@ -130,12 +130,12 @@ export async function POST(
   try {
     body = await req.json();
   } catch {
-    return NextResponse.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400, headers: NO_STORE });
+    return NextResponse.json({ ok: false, code: "INVALID_BODY", error: "Geçersiz istek gövdesi." }, { status: 400, headers: NO_STORE });
   }
   const parsed = validateConsentInput(body);
   if (!parsed.ok) {
     return NextResponse.json(
-      { ok: false, error: parsed.error, field: parsed.field },
+      { ok: false, code: "CONSENT_INVALID", error: parsed.error, field: parsed.field },
       { status: 400, headers: NO_STORE },
     );
   }

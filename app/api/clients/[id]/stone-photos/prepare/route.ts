@@ -72,7 +72,7 @@ export async function POST(
 
   const { id: clientId } = await params;
   if (!clientId) {
-    return NextResponse.json({ ok: false, error: "client_id gerekli." }, { status: 400 });
+    return NextResponse.json({ ok: false, code: "CLIENT_ID_REQUIRED", error: "client_id gerekli." }, { status: 400 });
   }
 
   const { db, tenantId, is_demo_account } = guard;
@@ -84,19 +84,19 @@ export async function POST(
   try {
     body = (await req.json()) as Record<string, unknown>;
   } catch {
-    return NextResponse.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 });
+    return NextResponse.json({ ok: false, code: "INVALID_BODY", error: "Geçersiz istek gövdesi." }, { status: 400 });
   }
 
   const stoneId = typeof body.stoneId === "string" ? body.stoneId.trim() : "";
   if (!stoneId) {
-    return NextResponse.json({ ok: false, error: "stoneId gerekli." }, { status: 400 });
+    return NextResponse.json({ ok: false, code: "STONE_ID_REQUIRED", error: "stoneId gerekli." }, { status: 400 });
   }
 
   // MIME allow-list → güvenilir uzantı. Client dosya adına/uzantısına GÜVENİLMEZ.
   const ext = extForMime(body.mimeType);
   if (!ext) {
     return NextResponse.json(
-      { ok: false, error: "Desteklenmeyen görsel türü. (png, jpeg, webp, gif)" },
+      { ok: false, code: "IMAGE_TYPE_UNSUPPORTED", error: "Desteklenmeyen görsel türü. (png, jpeg, webp, gif)" },
       { status: 400 },
     );
   }
@@ -105,17 +105,17 @@ export async function POST(
   const size = body.size != null ? Number(body.size) : null;
   if (size != null && Number.isFinite(size) && size > STONE_PHOTO_MAX_BYTES) {
     return NextResponse.json(
-      { ok: false, error: "Görsel boyutu 10 MB sınırını aşıyor." },
+      { ok: false, code: "FILE_TOO_LARGE", error: "Görsel boyutu 10 MB sınırını aşıyor." },
       { status: 413 },
     );
   }
 
   // Ownership zinciri: client → tenant, sonra stone → client + tenant.
   if (!(await clientBelongsToTenant(db, clientId, tenantId))) {
-    return NextResponse.json({ ok: false, error: "Danışan bu hesaba ait değil." }, { status: 403 });
+    return NextResponse.json({ ok: false, code: "CLIENT_NOT_OWNED", error: "Danışan bu hesaba ait değil." }, { status: 403 });
   }
   if (!(await stoneBelongsToClient(db, stoneId, clientId, tenantId))) {
-    return NextResponse.json({ ok: false, error: "Taş kaydı bu danışana ait değil." }, { status: 403 });
+    return NextResponse.json({ ok: false, code: "STONE_NOT_OWNED", error: "Taş kaydı bu danışana ait değil." }, { status: 403 });
   }
 
   // Obje yolu SUNUCUDA üretilir (mevcut format korunur): {tenant}/{client}/{stone}/{uuid}.{ext}
@@ -127,7 +127,7 @@ export async function POST(
 
   if (signError || !signed?.token) {
     console.error("[clients/stone-photos/prepare] createSignedUploadUrl", signError?.message);
-    return NextResponse.json({ ok: false, error: "Yükleme hazırlanamadı." }, { status: 500 });
+    return NextResponse.json({ ok: false, code: "UPLOAD_PREPARE_FAILED", error: "Yükleme hazırlanamadı." }, { status: 500 });
   }
 
   return NextResponse.json({ ok: true, path: signed.path, token: signed.token });

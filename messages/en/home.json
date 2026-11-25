@@ -168,7 +168,7 @@
       "loggingIn": "Signing in...",
       "systemError": "A system error occurred.",
       "emailPasswordWrong": "Incorrect email or password.",
-      "noValidRole": "Sign-in failed: your account has no valid role (admin / expert) defined. Check the Supabase users record.",
+      "noValidRole": "Your account details could not be verified. Please try again or contact our support team.",
       "userVerifyFailed": "The user record could not be verified. Please try again.",
       "sessionLimit": "Sign-in blocked due to the session limit. Contact your administrator.",
       "securityWarningTitle": "Security Alert",
@@ -639,6 +639,27 @@
         "stokSales": "Sales History",
         "stokOther": "Other Products"
       }
+    },
+    "membershipContact": {
+      "managerTitle": "Send a Message to the Administrator",
+      "managerDesc": "Send us your question about membership and pricing. We will get back to you as soon as possible.",
+      "whatsappTitle": "Chat on WhatsApp",
+      "whatsappDesc": "You can quickly get information about membership and pricing on WhatsApp.",
+      "phoneTitle": "Customer Service",
+      "phoneDesc": "If you prefer, you can call our customer service for direct information about membership and pricing.",
+      "emailLine": "If you would like to reach us by email, you can write to us directly.",
+      "backToLogin": "Back to sign-in",
+      "inactiveContact": "You can get in touch with us about membership and pricing.",
+      "getInfoCta": "Get Membership and Pricing Information",
+      "supportBadge": "Password Support",
+      "membershipBadge": "Membership Contact",
+      "supportTitle": "Report a Sign-in Problem",
+      "membershipTitle": "Membership and Pricing Information",
+      "supportSubtitle": "If you cannot sign in, leave a message directly for our administrator; we will get back to you as soon as possible.",
+      "optionsSubtitle": "Choose the contact method that suits you best; we will get back to you as soon as possible.",
+      "membershipSubtitle": "You can leave a message for our administrator about membership options and pricing.",
+      "notMemberYet": "Not a Yaşam Sistemi member yet?",
+      "completeMembership": "Complete my membership"
     }
   }
 }

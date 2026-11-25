@@ -80,13 +80,13 @@ export async function GET(
 
   const { id: clientId } = await params;
   if (!clientId) {
-    return NextResponse.json({ ok: false, error: "client_id gerekli." }, { status: 400 });
+    return NextResponse.json({ ok: false, code: "CLIENT_ID_REQUIRED", error: "client_id gerekli." }, { status: 400 });
   }
 
   const { db, tenantId } = guard;
 
   if (!(await clientBelongsToTenant(db, clientId, tenantId))) {
-    return NextResponse.json({ ok: false, error: "Danışan bu hesaba ait değil." }, { status: 403 });
+    return NextResponse.json({ ok: false, code: "CLIENT_NOT_OWNED", error: "Danışan bu hesaba ait değil." }, { status: 403 });
   }
 
   const { data, error } = await db
@@ -113,7 +113,7 @@ export async function POST(
 
   const { id: clientId } = await params;
   if (!clientId) {
-    return NextResponse.json({ ok: false, error: "client_id gerekli." }, { status: 400 });
+    return NextResponse.json({ ok: false, code: "CLIENT_ID_REQUIRED", error: "client_id gerekli." }, { status: 400 });
   }
 
   const { db, tenantId, is_demo_account } = guard;
@@ -121,14 +121,14 @@ export async function POST(
   if (is_demo_account) return demoReadOnlyResponse();
 
   if (!(await clientBelongsToTenant(db, clientId, tenantId))) {
-    return NextResponse.json({ ok: false, error: "Danışan bu hesaba ait değil." }, { status: 403 });
+    return NextResponse.json({ ok: false, code: "CLIENT_NOT_OWNED", error: "Danışan bu hesaba ait değil." }, { status: 403 });
   }
 
   let body: CreateBody;
   try {
     body = (await req.json()) as CreateBody;
   } catch {
-    return NextResponse.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 });
+    return NextResponse.json({ ok: false, code: "INVALID_BODY", error: "Geçersiz istek gövdesi." }, { status: 400 });
   }
 
   const stoneId = typeof body.stone_id === "string" ? body.stone_id.trim() : "";
@@ -136,14 +136,14 @@ export async function POST(
 
   if (!stoneId || !filePath) {
     return NextResponse.json(
-      { ok: false, error: "stone_id ve file_path gerekli." },
+      { ok: false, code: "STONE_PHOTO_FIELDS_REQUIRED", error: "stone_id ve file_path gerekli." },
       { status: 400 },
     );
   }
 
   // Stone ownership: stone bu danışana + tenant'a ait olmalı (IDOR).
   if (!(await stoneBelongsToClient(db, stoneId, clientId, tenantId))) {
-    return NextResponse.json({ ok: false, error: "Taş kaydı bu danışana ait değil." }, { status: 403 });
+    return NextResponse.json({ ok: false, code: "STONE_NOT_OWNED", error: "Taş kaydı bu danışana ait değil." }, { status: 403 });
   }
 
   // file_path SUNUCUDA doğrulanır: tenant+client öneki + bu stone'a bağlı segment.
@@ -152,7 +152,7 @@ export async function POST(
     !isOwnedClientStonePhotoPath(filePath, tenantId, clientId) ||
     !filePath.startsWith(stonePhotoPrefix(tenantId, clientId, stoneId))
   ) {
-    return NextResponse.json({ ok: false, error: "Geçersiz dosya yolu." }, { status: 400 });
+    return NextResponse.json({ ok: false, code: "INVALID_FILE_PATH", error: "Geçersiz dosya yolu." }, { status: 400 });
   }
 
   // Güçlü bağlama: obje gerçekten (signed upload ile) yüklenmiş olmalı — uydurma path
@@ -171,7 +171,7 @@ export async function POST(
       subEntity: "photo",
       errorClass: "conflict",
     });
-    return NextResponse.json({ ok: false, error: "Yüklenen dosya bulunamadı." }, { status: 409 });
+    return NextResponse.json({ ok: false, code: "UPLOADED_FILE_NOT_FOUND", error: "Yüklenen dosya bulunamadı." }, { status: 409 });
   }
 
   // Idempotency (DYA-07 veri bütünlüğü): aynı obje (file_path) için MÜKERRER metadata
@@ -237,7 +237,7 @@ export async function DELETE(
 
   const { id: clientId } = await params;
   if (!clientId) {
-    return NextResponse.json({ ok: false, error: "client_id gerekli." }, { status: 400 });
+    return NextResponse.json({ ok: false, code: "CLIENT_ID_REQUIRED", error: "client_id gerekli." }, { status: 400 });
   }
 
   const { db, tenantId, is_demo_account } = guard;
@@ -255,11 +255,11 @@ export async function DELETE(
   }
 
   if (!photoId && !all) {
-    return NextResponse.json({ ok: false, error: "photoId veya all gerekli." }, { status: 400 });
+    return NextResponse.json({ ok: false, code: "PHOTO_ID_REQUIRED", error: "photoId veya all gerekli." }, { status: 400 });
   }
 
   if (!(await clientBelongsToTenant(db, clientId, tenantId))) {
-    return NextResponse.json({ ok: false, error: "Danışan bu hesaba ait değil." }, { status: 403 });
+    return NextResponse.json({ ok: false, code: "CLIENT_NOT_OWNED", error: "Danışan bu hesaba ait değil." }, { status: 403 });
   }
 
   // DB-FIRST + referans-güvenli silme (ortak dosya kullanan başka kayıt varsa obje
@@ -281,7 +281,7 @@ export async function DELETE(
     });
   }
   if (!all && result.deleted === 0) {
-    return NextResponse.json({ ok: false, error: "Kayıt bulunamadı." }, { status: 404 });
+    return NextResponse.json({ ok: false, code: "RECORD_NOT_FOUND", error: "Kayıt bulunamadı." }, { status: 404 });
   }
 
   // Tek foto veya "tümü" = tek kullanıcı eylemi → tek olay (+ itemCount); 0 silindi → olay yok.

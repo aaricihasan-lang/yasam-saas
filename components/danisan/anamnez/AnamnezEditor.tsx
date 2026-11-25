@@ -118,7 +118,19 @@ export function AnamnezEditor({ clientId, anamnesisId }: { clientId: string; ana
 
   const applyPayload = useCallback((p: LoadedPayload) => {
     setRec(p.anamnesis);
-    setFormCustom(p.anamnesis.form_custom);
+    // Savunma: sunucu (validateFormCustom) eksik anahtarları []/{} sayar; editör de aynı şekilde normalize eder.
+    // Kısmi/boş form_custom ('{}') artık effectiveSections'ta TypeError ile sayfayı düşürmez. Yazma yolu değişmez.
+    const fcRaw = p.anamnesis.form_custom as Partial<FormCustom> | null;
+    setFormCustom(
+      fcRaw
+        ? {
+            hidden: Array.isArray(fcRaw.hidden) ? fcRaw.hidden : [],
+            labels: fcRaw.labels && typeof fcRaw.labels === "object" ? fcRaw.labels : {},
+            enabledSections: Array.isArray(fcRaw.enabledSections) ? fcRaw.enabledSections : [],
+            custom: Array.isArray(fcRaw.custom) ? fcRaw.custom : [],
+          }
+        : null,
+    );
     setAnswers(p.anamnesis.answers ?? {});
     setLinks(p.anamnesis.source_links ?? {});
     setTitle(p.anamnesis.title ?? "");

@@ -53,14 +53,14 @@ export async function GET(
 
   const { id: clientId } = await params;
   if (!clientId) {
-    return NextResponse.json({ ok: false, error: "client_id gerekli." }, { status: 400 });
+    return NextResponse.json({ ok: false, code: "CLIENT_ID_REQUIRED", error: "client_id gerekli." }, { status: 400 });
   }
 
   const { db, tenantId } = guard;
 
   if (!(await clientBelongsToTenant(db, clientId, tenantId))) {
     return NextResponse.json(
-      { ok: false, error: "Danışan bu hesaba ait değil." },
+      { ok: false, code: "CLIENT_NOT_OWNED", error: "Danışan bu hesaba ait değil." },
       { status: 403 },
     );
   }
@@ -89,7 +89,7 @@ export async function POST(
 
   const { id: clientId } = await params;
   if (!clientId) {
-    return NextResponse.json({ ok: false, error: "client_id gerekli." }, { status: 400 });
+    return NextResponse.json({ ok: false, code: "CLIENT_ID_REQUIRED", error: "client_id gerekli." }, { status: 400 });
   }
 
   const { db, tenantId, is_demo_account } = guard;
@@ -98,7 +98,7 @@ export async function POST(
 
   if (!(await clientBelongsToTenant(db, clientId, tenantId))) {
     return NextResponse.json(
-      { ok: false, error: "Danışan bu hesaba ait değil." },
+      { ok: false, code: "CLIENT_NOT_OWNED", error: "Danışan bu hesaba ait değil." },
       { status: 403 },
     );
   }
@@ -107,7 +107,7 @@ export async function POST(
   try {
     body = (await req.json()) as Record<string, unknown>;
   } catch {
-    return NextResponse.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 });
+    return NextResponse.json({ ok: false, code: "INVALID_BODY", error: "Geçersiz istek gövdesi." }, { status: 400 });
   }
 
   // DY-A: alan izin listesi + status enum + gelecekte "tamamlandi" yasağı (409).

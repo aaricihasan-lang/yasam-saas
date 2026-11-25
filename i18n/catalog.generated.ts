@@ -14,6 +14,7 @@ import tr_clientsCharges from "@/messages/tr/clients.charges.json";
 import tr_clientsCombinations from "@/messages/tr/clients.combinations.json";
 import tr_clientsConsent from "@/messages/tr/clients.consent.json";
 import tr_clientsDetail from "@/messages/tr/clients.detail.json";
+import tr_clientsErrors from "@/messages/tr/clients.errors.json";
 import tr_clientsHomework from "@/messages/tr/clients.homework.json";
 import tr_clients from "@/messages/tr/clients.json";
 import tr_clientsList from "@/messages/tr/clients.list.json";
@@ -29,7 +30,9 @@ import tr_common from "@/messages/tr/common.json";
 import tr_commonLanguagePreference from "@/messages/tr/common.languagePreference.json";
 import tr_commonReader from "@/messages/tr/common.reader.json";
 import tr_commonSubmitLock from "@/messages/tr/common.submitLock.json";
+import tr_homeDashboard from "@/messages/tr/home.dashboard.json";
 import tr_home from "@/messages/tr/home.json";
+import tr_homePersonal from "@/messages/tr/home.personal.json";
 import tr_homeYhStatus from "@/messages/tr/home.yhStatus.json";
 import tr_memoryPicker from "@/messages/tr/memoryPicker.json";
 import tr_navigation from "@/messages/tr/navigation.json";
@@ -52,6 +55,7 @@ import en_clientsCharges from "@/messages/en/clients.charges.json";
 import en_clientsCombinations from "@/messages/en/clients.combinations.json";
 import en_clientsConsent from "@/messages/en/clients.consent.json";
 import en_clientsDetail from "@/messages/en/clients.detail.json";
+import en_clientsErrors from "@/messages/en/clients.errors.json";
 import en_clientsHomework from "@/messages/en/clients.homework.json";
 import en_clients from "@/messages/en/clients.json";
 import en_clientsList from "@/messages/en/clients.list.json";
@@ -67,7 +71,9 @@ import en_common from "@/messages/en/common.json";
 import en_commonLanguagePreference from "@/messages/en/common.languagePreference.json";
 import en_commonReader from "@/messages/en/common.reader.json";
 import en_commonSubmitLock from "@/messages/en/common.submitLock.json";
+import en_homeDashboard from "@/messages/en/home.dashboard.json";
 import en_home from "@/messages/en/home.json";
+import en_homePersonal from "@/messages/en/home.personal.json";
 import en_homeYhStatus from "@/messages/en/home.yhStatus.json";
 import en_memoryPicker from "@/messages/en/memoryPicker.json";
 import en_navigation from "@/messages/en/navigation.json";
@@ -81,8 +87,8 @@ import en_stonesRecords from "@/messages/en/stones.records.json";
 import en_terms from "@/messages/en/terms.json";
 
 export const CATALOG_FILES = {
-  tr: ["auth.client.json", "auth.email.json", "auth.server.json", "auth.ui.json", "beslenme.json", "clients.analizler.json", "clients.anamnez.json", "clients.charges.json", "clients.combinations.json", "clients.consent.json", "clients.detail.json", "clients.homework.json", "clients.json", "clients.list.json", "clients.memory.json", "clients.notes.json", "clients.sessions.json", "clients.stones.json", "clients.yolculuk.json", "common.apiErrors.json", "common.deleteConfirm.json", "common.demo.json", "common.json", "common.languagePreference.json", "common.reader.json", "common.submitLock.json", "home.json", "home.yhStatus.json", "memoryPicker.json", "navigation.json", "stones.combinations.json", "stones.hub.json", "stones.json", "stones.knowledge.json", "stones.list.json", "stones.minerals.json", "stones.records.json", "terms.json"],
-  en: ["auth.client.json", "auth.email.json", "auth.server.json", "auth.ui.json", "beslenme.json", "clients.analizler.json", "clients.anamnez.json", "clients.charges.json", "clients.combinations.json", "clients.consent.json", "clients.detail.json", "clients.homework.json", "clients.json", "clients.list.json", "clients.memory.json", "clients.notes.json", "clients.sessions.json", "clients.stones.json", "clients.yolculuk.json", "common.apiErrors.json", "common.deleteConfirm.json", "common.demo.json", "common.json", "common.languagePreference.json", "common.reader.json", "common.submitLock.json", "home.json", "home.yhStatus.json", "memoryPicker.json", "navigation.json", "stones.combinations.json", "stones.hub.json", "stones.json", "stones.knowledge.json", "stones.list.json", "stones.minerals.json", "stones.records.json", "terms.json"],
+  tr: ["auth.client.json", "auth.email.json", "auth.server.json", "auth.ui.json", "beslenme.json", "clients.analizler.json", "clients.anamnez.json", "clients.charges.json", "clients.combinations.json", "clients.consent.json", "clients.detail.json", "clients.errors.json", "clients.homework.json", "clients.json", "clients.list.json", "clients.memory.json", "clients.notes.json", "clients.sessions.json", "clients.stones.json", "clients.yolculuk.json", "common.apiErrors.json", "common.deleteConfirm.json", "common.demo.json", "common.json", "common.languagePreference.json", "common.reader.json", "common.submitLock.json", "home.dashboard.json", "home.json", "home.personal.json", "home.yhStatus.json", "memoryPicker.json", "navigation.json", "stones.combinations.json", "stones.hub.json", "stones.json", "stones.knowledge.json", "stones.list.json", "stones.minerals.json", "stones.records.json", "terms.json"],
+  en: ["auth.client.json", "auth.email.json", "auth.server.json", "auth.ui.json", "beslenme.json", "clients.analizler.json", "clients.anamnez.json", "clients.charges.json", "clients.combinations.json", "clients.consent.json", "clients.detail.json", "clients.errors.json", "clients.homework.json", "clients.json", "clients.list.json", "clients.memory.json", "clients.notes.json", "clients.sessions.json", "clients.stones.json", "clients.yolculuk.json", "common.apiErrors.json", "common.deleteConfirm.json", "common.demo.json", "common.json", "common.languagePreference.json", "common.reader.json", "common.submitLock.json", "home.dashboard.json", "home.json", "home.personal.json", "home.yhStatus.json", "memoryPicker.json", "navigation.json", "stones.combinations.json", "stones.hub.json", "stones.json", "stones.knowledge.json", "stones.list.json", "stones.minerals.json", "stones.records.json", "terms.json"],
 } as const;
 
 export const CATALOG_PARTS: Record<"tr" | "en", Record<string, unknown>[]> = {
@@ -98,6 +104,7 @@ export const CATALOG_PARTS: Record<"tr" | "en", Record<string, unknown>[]> = {
     tr_clientsCombinations,
     tr_clientsConsent,
     tr_clientsDetail,
+    tr_clientsErrors,
     tr_clientsHomework,
     tr_clients,
     tr_clientsList,
@@ -113,7 +120,9 @@ export const CATALOG_PARTS: Record<"tr" | "en", Record<string, unknown>[]> = {
     tr_commonLanguagePreference,
     tr_commonReader,
     tr_commonSubmitLock,
+    tr_homeDashboard,
     tr_home,
+    tr_homePersonal,
     tr_homeYhStatus,
     tr_memoryPicker,
     tr_navigation,
@@ -138,6 +147,7 @@ export const CATALOG_PARTS: Record<"tr" | "en", Record<string, unknown>[]> = {
     en_clientsCombinations,
     en_clientsConsent,
     en_clientsDetail,
+    en_clientsErrors,
     en_clientsHomework,
     en_clients,
     en_clientsList,
@@ -153,7 +163,9 @@ export const CATALOG_PARTS: Record<"tr" | "en", Record<string, unknown>[]> = {
     en_commonLanguagePreference,
     en_commonReader,
     en_commonSubmitLock,
+    en_homeDashboard,
     en_home,
+    en_homePersonal,
     en_homeYhStatus,
     en_memoryPicker,
     en_navigation,

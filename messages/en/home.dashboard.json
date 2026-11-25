@@ -1,0 +1,35 @@
+{
+  "home": {
+    "dashboard": {
+      "brandTagline": "Premium SaaS Panel",
+      "navDashboard": "Dashboard",
+      "navClients": "Clients",
+      "navAgenda": "Agenda",
+      "navStones": "Natural Stone",
+      "premiumActive": "Premium System Active",
+      "allModulesRunning": "All modules are running",
+      "welcome": "Welcome 👋",
+      "welcomeSub": "You have signed in to the Yaşam Sistemi management panel.",
+      "activeUser": "Active User",
+      "expertPanel": "Practitioner Panel",
+      "statTotalClients": "Total Clients",
+      "statTodayAppointments": "Today's Appointments",
+      "statSavedStones": "Saved Stones",
+      "statActiveModules": "Active Modules",
+      "modulesTitle": "Modules",
+      "badgeNew": "New",
+      "badgeNewUpper": "NEW",
+      "cards": {
+        "clients": { "title": "Clients", "desc": "Client records and analysis system" },
+        "agenda": { "title": "Agenda", "desc": "Appointment and session management" },
+        "stones": { "title": "Natural Stone", "desc": "Stone and mineral data system" },
+        "bioenergy": { "title": "Bioenergy", "desc": "Workspace for aura, chakra, imagination and symbol language" },
+        "personalArchive": { "title": "Personal Archive (TEST)", "desc": "Audio, video, document and personal record system" },
+        "numerology": { "title": "Numerology", "desc": "Numerology analysis module" },
+        "reflexology": { "title": "Reflexology", "desc": "Zone and session system" },
+        "aromatherapy": { "title": "Aromatherapy", "desc": "Essential and carrier oil system" },
+        "cupping": { "title": "Cupping & Hijama Therapy", "desc": "Body point atlas, purpose guide, technique and safety system" }
+      }
+    }
+  }
+}

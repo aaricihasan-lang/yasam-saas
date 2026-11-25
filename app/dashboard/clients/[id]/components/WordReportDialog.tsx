@@ -16,10 +16,11 @@
  * Seçenekler GET /api/clients/[id]/word-report (salt-okunur) ile gelir.
  */
 import { useEffect, useId, useRef, useState } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { readSessionToken, readYasamUser } from "@/lib/auth/yasamUser";
 import { useModalBehavior } from "@/hooks/useModalBehavior";
 import { formatDateTimeAbsolute } from "@/lib/i18n/format";
+import { resolveLocale } from "@/lib/i18n/locales";
 
 export type WordReportRequest = {
   reportKind: "full" | "custom";
@@ -64,6 +65,7 @@ export default function WordReportDialog({
   onGenerate: (req: WordReportRequest) => void;
 }) {
   const t = useTranslations("clients.detail.wordDialog");
+  const displayLocale = resolveLocale(useLocale());
   const titleId = useId();
   const firstRef = useRef<HTMLInputElement>(null);
   const [kind, setKind] = useState<"full" | "custom">("full");
@@ -239,7 +241,7 @@ export default function WordReportDialog({
               <span className="mb-1 block font-bold text-slate-700">{t("hdPick")}</span>
               <select className="w-full rounded-xl border border-slate-200 px-3 py-2 text-[14px]" value={hdReportId} onChange={(e) => setHdReportId(e.target.value)}>
                 {hdReports.map((r) => (
-                  <option key={r.id} value={r.id}>{formatDateTimeAbsolute(r.createdAt)}</option>
+                  <option key={r.id} value={r.id}>{formatDateTimeAbsolute(r.createdAt, displayLocale)}</option>
                 ))}
               </select>
             </label>
@@ -258,7 +260,7 @@ export default function WordReportDialog({
                 <select aria-label={t("anamnezPick")} className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-[14px]" value={anamnezId} onChange={(e) => setAnamnezId(e.target.value)}>
                   {anamnezForms.map((f) => (
                     <option key={f.id} value={f.id}>
-                      {(f.title?.trim() || t(`anamnezKind.${f.kind === "update" ? "update" : "initial"}`))}{f.completed_at ? ` · ${formatDateTimeAbsolute(f.completed_at)}` : ""}
+                      {(f.title?.trim() || t(`anamnezKind.${f.kind === "update" ? "update" : "initial"}`))}{f.completed_at ? ` · ${formatDateTimeAbsolute(f.completed_at, displayLocale)}` : ""}
                     </option>
                   ))}
                 </select>
@@ -280,7 +282,7 @@ export default function WordReportDialog({
                 <option value="">{t("numerologyPickNone")}</option>
                 {numRecords.map((r) => (
                   <option key={r.id} value={r.id}>
-                    {`${r.name} ${r.surname}`.trim()}{r.birth_date ? ` · ${r.birth_date}` : ""}{r.created_at ? ` · ${formatDateTimeAbsolute(r.created_at)}` : ""}
+                    {`${r.name} ${r.surname}`.trim()}{r.birth_date ? ` · ${r.birth_date}` : ""}{r.created_at ? ` · ${formatDateTimeAbsolute(r.created_at, displayLocale)}` : ""}
                   </option>
                 ))}
               </select>

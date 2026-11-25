@@ -3,6 +3,12 @@
     "detail": {
       "cancel": "Cancel",
       "clientFallback": "Client",
+      "astrologyStatus": {
+        "has_analyses": "Astrology analysis available",
+        "no_analyses": "No Astrology analysis yet",
+        "not_linked": "No Astrology link",
+        "hint": "Astrology is managed in its own module; only the link and whether an analysis exists are shown here."
+      },
       "unnamed": "Unnamed Client",
       "notFound": "Client not found",
       "notFoundHint": "This client may have been deleted or does not belong to this account.",
@@ -181,8 +187,8 @@
         "title": "Numerology Summary",
         "readonly": "Read Only · Automatic",
         "needName": "Completed once the first/last name is entered",
-        "anaKulvar": "Soul Number",
-        "yanKulvar": "Personality Number",
+        "anaKulvar": "Main Lane",
+        "yanKulvar": "Side Lane",
         "ifadeSayisi": "Expression Number",
         "hayatYolu": "Life Path / DM",
         "kisiselYil": "Personal Year",

@@ -78,7 +78,7 @@ function docxResponse(buffer: Buffer, filename: string): Response {
   });
 }
 
-const notFound = () => Response.json({ ok: false, error: "Danışan bulunamadı." }, { status: 404 });
+const notFound = () => Response.json({ ok: false, code: "CLIENT_NOT_FOUND", error: "Danışan bulunamadı." }, { status: 404 });
 
 const TAB_TABLE: Partial<Record<ClientReportTab, ClientReportTable>> = {
   randevular: "appointments",
@@ -183,7 +183,7 @@ export async function POST(
 
   let raw: unknown;
   try { raw = await req.json(); }
-  catch { return Response.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 }); }
+  catch { return Response.json({ ok: false, code: "INVALID_BODY", error: "Geçersiz istek gövdesi." }, { status: 400 }); }
   const body = (raw && typeof raw === "object" && !Array.isArray(raw) ? raw : {}) as Record<string, unknown>;
 
   if (!UUID_RE.test(clientId)) return notFound();
@@ -255,9 +255,9 @@ export async function POST(
   if (exportMode === "single-analysis") {
     const analysisId = body.analysisId;
     if (!analysisId || typeof analysisId !== "string")
-      return Response.json({ ok: false, error: "Analiz kimliği gerekli." }, { status: 400 });
+      return Response.json({ ok: false, code: "ANALYSIS_ID_REQUIRED", error: "Analiz kimliği gerekli." }, { status: 400 });
     if (!UUID_RE.test(analysisId))
-      return Response.json({ ok: false, error: "Analiz kaydı bulunamadı." }, { status: 404 });
+      return Response.json({ ok: false, code: "ANALYSIS_NOT_FOUND", error: "Analiz kaydı bulunamadı." }, { status: 404 });
     try {
       const [client, notes, an] = await Promise.all([
         loadClientRow(db, tenantId, clientId),
@@ -265,7 +265,7 @@ export async function POST(
         loadClientAnalysis(db, tenantId, clientId, analysisId),
       ]);
       if (!client) return notFound();
-      if (!an) return Response.json({ ok: false, error: "Analiz kaydı bulunamadı." }, { status: 404 });
+      if (!an) return Response.json({ ok: false, code: "ANALYSIS_NOT_FOUND", error: "Analiz kaydı bulunamadı." }, { status: 404 });
       const imageBuf = an.image_url?.trim() ? await downloadAnalysisImage(db, tenantId, clientId, an.id) : null;
       const { doc, filename } = buildClientSingleAnalysisReport({ client, notes, analysis: an, imageBuf }, ctx);
       const buf = await Packer.toBuffer(doc);
@@ -285,7 +285,7 @@ export async function POST(
     const drStart = looseDayKey(dateRange.start) || String(dateRange.start).slice(0, 10);
     const drEnd = looseDayKey(dateRange.end) || String(dateRange.end).slice(0, 10);
     if (drStart > drEnd)
-      return Response.json({ ok: false, error: "Başlangıç tarihi bitiş tarihinden sonra olamaz." }, { status: 400 });
+      return Response.json({ ok: false, code: "DATE_RANGE_INVALID", error: "Başlangıç tarihi bitiş tarihinden sonra olamaz." }, { status: 400 });
     try {
       const all = await loadClientDataset(db, tenantId, clientId);
       if (!all) return notFound();
@@ -316,26 +316,26 @@ export async function POST(
   const numerologyRecordIdRaw = body.numerologyRecordId;
   if (numerologyRecordIdRaw !== undefined && numerologyRecordIdRaw !== null &&
       (typeof numerologyRecordIdRaw !== "string" || !UUID_RE.test(numerologyRecordIdRaw)))
-    return Response.json({ ok: false, error: "Geçersiz Numeroloji kaydı." }, { status: 400 });
+    return Response.json({ ok: false, code: "NUMEROLOGY_RECORD_INVALID", error: "Geçersiz Numeroloji kaydı." }, { status: 400 });
   const numerologyRecordId = typeof numerologyRecordIdRaw === "string" ? numerologyRecordIdRaw : null;
   // BUG-005: hassas bölümler YALNIZ açık `true` ile (Tam Rapor dahil varsayılan KAPALI).
   const includeAnamnez = body.includeAnamnez === true;
   const includeBeslenme = body.includeBeslenme === true;
   const anamnezIdRaw = body.anamnezId;
   if (includeAnamnez && anamnezIdRaw !== undefined && anamnezIdRaw !== null && (typeof anamnezIdRaw !== "string" || !UUID_RE.test(anamnezIdRaw)))
-    return Response.json({ ok: false, error: "Geçersiz anamnez kaydı." }, { status: 400 });
+    return Response.json({ ok: false, code: "ANAMNESIS_RECORD_INVALID", error: "Geçersiz anamnez kaydı." }, { status: 400 });
   const anamnezId = includeAnamnez && typeof anamnezIdRaw === "string" ? anamnezIdRaw : null;
   // Word yetki kuralı (owner 24.10.2026): yetkisiz modülün verisi AÇIKÇA istenirse 403 (sessizce yok sayılmaz).
   // Tam Rapor'un olağan akışında bu alanlar gönderilmez → yetkisiz bölümler zaten eklenmez, rapor engellenmez.
   // İzin her istekte GÜNCEL profilden okunur → sonradan kapatılan izin açık oturumda da hemen geçerlidir.
   if (numerologyRecordId && !hasModulePermissionForProfile(guard.profile, "numerology"))
-    return Response.json({ ok: false, error: "Numeroloji kaydını rapora eklemek için Numeroloji modülü yetkisi gerekir." }, { status: 403 });
+    return Response.json({ ok: false, code: "REPORT_NUMEROLOGY_FORBIDDEN", error: "Numeroloji kaydını rapora eklemek için Numeroloji modülü yetkisi gerekir." }, { status: 403 });
   if (hdReportId && !hasModulePermissionForProfile(guard.profile, "human_design"))
-    return Response.json({ ok: false, error: "Human Design raporunu eklemek için Human Design modülü yetkisi gerekir." }, { status: 403 });
+    return Response.json({ ok: false, code: "REPORT_HD_FORBIDDEN", error: "Human Design raporunu eklemek için Human Design modülü yetkisi gerekir." }, { status: 403 });
   if (includeBeslenme && !hasModulePermissionForProfile(guard.profile, "beslenme"))
-    return Response.json({ ok: false, error: "Beslenme özetini eklemek için Beslenme modülü yetkisi gerekir." }, { status: 403 });
+    return Response.json({ ok: false, code: "REPORT_NUTRITION_FORBIDDEN", error: "Beslenme özetini eklemek için Beslenme modülü yetkisi gerekir." }, { status: 403 });
   if (typeof selectionGroupId === "string" && UUID_RE.test(selectionGroupId) && !hasModulePermissionForProfile(guard.profile, "yasam_hafizasi"))
-    return Response.json({ ok: false, error: "Yaşam Hafızası seçimlerini eklemek için Yaşam Hafızası modülü yetkisi gerekir." }, { status: 403 });
+    return Response.json({ ok: false, code: "REPORT_MEMORY_FORBIDDEN", error: "Yaşam Hafızası seçimlerini eklemek için Yaşam Hafızası modülü yetkisi gerekir." }, { status: 403 });
   try {
     const data = await loadClientDataset(db, tenantId, clientId);
     if (!data) return notFound();
@@ -352,7 +352,7 @@ export async function POST(
         systemReadingPermitted: hasModulePermissionForProfile(guard.profile, "hd_system_reading"),
       });
       if (hdReportId && !hd)
-        return Response.json({ ok: false, error: "Seçilen Human Design raporu bu danışana bağlı değil." }, { status: 404 });
+        return Response.json({ ok: false, code: "REPORT_HD_NOT_LINKED", error: "Seçilen Human Design raporu bu danışana bağlı değil." }, { status: 404 });
     }
 
     let numerologyRecord: SavedNumerologyRow | null = null;
@@ -360,16 +360,16 @@ export async function POST(
       const { data: nr, error: nrErr } = await db.from("numerology_records").select(SAVED_NUMEROLOGY_COLUMNS)
         .eq("tenant_id", tenantId).eq("client_id", clientId).eq("id", numerologyRecordId).maybeSingle();
       if (nrErr && isMissingClientIdColumn(nrErr))
-        return Response.json({ ok: false, error: "Numeroloji danışan bağlantısı şu anda kullanılamıyor." }, { status: 503 });
+        return Response.json({ ok: false, code: "REPORT_NUMEROLOGY_LINK_UNAVAILABLE", error: "Numeroloji danışan bağlantısı şu anda kullanılamıyor." }, { status: 503 });
       if (nrErr) throw nrErr;
-      if (!nr) return Response.json({ ok: false, error: "Seçilen Numeroloji kaydı bu danışana bağlı değil." }, { status: 404 });
+      if (!nr) return Response.json({ ok: false, code: "REPORT_NUMEROLOGY_NOT_LINKED", error: "Seçilen Numeroloji kaydı bu danışana bağlı değil." }, { status: 404 });
       numerologyRecord = nr as unknown as SavedNumerologyRow;
     }
 
     let anamnez: AnamnezReportRow | null = null;
     if (includeAnamnez) {
       const a = await loadAnamnezForReport(db, tenantId, clientId, anamnezId);
-      if (!a.ok) return Response.json({ ok: false, error: a.error }, { status: a.status });
+      if (!a.ok) return Response.json({ ok: false, code: a.code, error: a.error }, { status: a.status });
       anamnez = a.row;
     }
     const beslenme: BeslenmeReportInput | null = includeBeslenme ? await loadBeslenmeForReport(db, tenantId, clientId) : null;

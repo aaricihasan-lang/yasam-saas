@@ -1,8 +1,9 @@
 "use client";
 
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useTranslations } from "next-intl";
-import { formatDateTimeAbsolute } from "@/lib/i18n/format";
+import { useLocale, useTranslations } from "next-intl";
+import { absoluteDateSeparator, formatCurrency, formatDateTimeAbsolute } from "@/lib/i18n/format";
+import { resolveLocale, type ActiveLocale } from "@/lib/i18n/locales";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { groupClientDetailTabs, resolveClientDetailTab, visibleClientDetailTabs } from "@/lib/danisan/clientDetailTabs";
 import { hasModulePermission } from "@/lib/auth/modulePermissions";
@@ -21,6 +22,8 @@ import { readYasamUser, readSessionToken, syncYasamUserFromDb, type YasamUser } 
 import { invalidateDanisanListCache, removeClientFromDanisanListCache } from "@/lib/danisan/listCache";
 import { computeBurc } from "@/lib/danisan/burc";
 import { summarizeUnpaid } from "@/lib/danisan/chargePayment";
+import { useClientsApiError } from "@/lib/danisan/clientApiErrors";
+import type { ApiErrorPayload } from "@/lib/i18n/apiError";
 import NotesTab from "./components/NotesTab";
 import WordReportDialog, { type WordReportRequest } from "./components/WordReportDialog";
 import { BirthDateInput } from "@/components/ui/BirthDateInput";
@@ -106,15 +109,17 @@ type Appointment = {
 type PlanningMode = "auto" | "manual";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-function formatDateTR(date: string | undefined) {
+// A13: ayırıcı ekran dilinden (TR "." — eski çıktı birebir; EN "/"). Saklanan ISO değer değişmez.
+function formatDateTR(date: string | undefined, locale?: string) {
   if (!date) return "-";
   const parts = date.split("-");
   if (parts.length !== 3) return date;
-  return `${parts[2]}.${parts[1]}.${parts[0]}`;
+  const sep = absoluteDateSeparator(resolveLocale(locale));
+  return `${parts[2]}${sep}${parts[1]}${sep}${parts[0]}`;
 }
 
-function formatDateTimeTR(value: string) {
-  return formatDateTimeAbsolute(value);
+function formatDateTimeTR(value: string, locale: ActiveLocale) {
+  return formatDateTimeAbsolute(value, locale);
 }
 
 // i18n translator tipi — modül-seviyesi saf fonksiyonlara t geçirmek için.
@@ -190,8 +195,9 @@ const wordBtnCls = dyp.wordBtn;
 
 // Soyad her zaman Türkçe locale ile BÜYÜK harf normalize edilir (i→İ, ı→I).
 // Kayıt anında savunmacı: trim + büyük harf. Yazım sırasında boşluk korunur.
-function formatTry(value: number) {
-  return new Intl.NumberFormat("tr-TR", { style: "currency", currency: "TRY", maximumFractionDigits: 2 }).format(value);
+// F0 #15: merkezî biçim — tr çıktısı eski Intl("tr-TR") ile birebir; para birimi TRY sabit.
+function formatTry(value: number, locale: string) {
+  return formatCurrency(value, resolveLocale(locale), "TRY", { maximumFractionDigits: 2 });
 }
 
 function normalizeSurname(value: string) {
@@ -204,6 +210,10 @@ function ClientDetailPageInner() {
   // D1 (DY-040): danışan silme onayının "Vazgeç" metni ortak çeviriden (EN arayüzde İngilizce).
   const tConfirm = useTranslations("common.confirmDialog");
   const tDel = useTranslations("common.deleteConfirm");
+  const apiErr = useClientsApiError();
+  // F0 #15: para gösterimi ekran diline göre (TRY sabit; tr çıktısı birebir). resolveLocale formatTry içinde
+  // (bileşen gövdesinde çağrı React Compiler memo korumasını bozuyordu — eslint preserve-manual-memoization).
+  const uiLocale = useLocale();
   // Canonical değer → yerelleştirilmiş görünen etiket (data DEĞİŞMEZ).
   // Bilinmeyen/eşleşmeyen değer ham (canonical) döner → veri sızmaz, kırılmaz.
   const localize = (group: string, v: string | null | undefined): string | undefined => {
@@ -568,12 +578,13 @@ function ClientDetailPageInner() {
     }
 
     if (!clientRes.ok) {
-      // Sunucu doğrulaması (400) alan bazlı Türkçe mesaj döner → aynen göster.
-      let serverMsg: string | null = null;
+      // Sunucu doğrulaması (400) alan bazlı Türkçe mesaj + dil-bağımsız code/field döner → tr: aynen; diğer dillerde
+      // clients.errors.codes (alan bazlı) — kod eşlenemezse çevrilmiş genel metin.
+      let serverPayload: ApiErrorPayload = null;
       if (clientRes.status === 400) {
-        try { serverMsg = ((await clientRes.json()) as { error?: string }).error ?? null; } catch { serverMsg = null; }
+        try { serverPayload = (await clientRes.json()) as ApiErrorPayload; } catch { serverPayload = null; }
       }
-      showToast({ title: t("toast.failTitle"), message: serverMsg ?? t("toast.saveClientFailed"), type: "error" });
+      showToast({ title: t("toast.failTitle"), message: apiErr.message(serverPayload, t("toast.saveClientFailed")), type: "error" });
       setSavingAll(false);
       return;
     }
@@ -614,7 +625,7 @@ function ClientDetailPageInner() {
     }
 
     if (!notesRes.ok || !notesJson.ok) {
-      showToast({ title: t("toast.failTitle"), message: t("toast.notesSaveFailed") + ": " + (notesJson.error ?? ""), type: "error" });
+      showToast({ title: t("toast.failTitle"), message: apiErr.detail(t("toast.notesSaveFailed"), notesJson as ApiErrorPayload), type: "error" });
       setSavingAll(false);
       return;
     }
@@ -699,7 +710,7 @@ function ClientDetailPageInner() {
     }
 
     if (!res.ok || !json.ok) {
-      showToast({ title: t("toast.failTitle"), message: t("toast.noteSaveError") + ": " + (json.error ?? ""), type: "error" });
+      showToast({ title: t("toast.failTitle"), message: apiErr.detail(t("toast.noteSaveError"), json as ApiErrorPayload), type: "error" });
       setSavingClientNotes(false);
       return false;
     }
@@ -728,7 +739,7 @@ function ClientDetailPageInner() {
         },
         body: JSON.stringify({ ...choice, ...(yhSelectionGroupId ? { selectionGroupId: yhSelectionGroupId } : {}) }),
       });
-      if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error((err as { error?: string }).error || t("error.reportFailed")); }
+      if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(apiErr.message(err as ApiErrorPayload, t("error.reportFailed"))); }
       // Dosya adı sunucudan (Content-Disposition, yerel tarih); yoksa yerel-gün yedeği.
       const nameSlug = nameSlugTR(`${client.ad ?? ""} ${client.soyad ?? ""}`.trim());
       await downloadFileResponse(res, `danisan-raporu-${nameSlug}-${reportFileDate()}.docx`);
@@ -756,7 +767,7 @@ function ClientDetailPageInner() {
         },
         body: JSON.stringify({ exportMode: "date-range", dateRange: { start: drStart, end: drEnd }, includeCharges: drCharges }),
       });
-      if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error((err as { error?: string }).error || t("error.reportFailed")); }
+      if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(apiErr.message(err as ApiErrorPayload, t("error.reportFailed"))); }
       const nameSlug = nameSlugTR(`${client.ad ?? ""} ${client.soyad ?? ""}`.trim());
       await downloadFileResponse(res, `danisan-tarih-araligi-${nameSlug}-${drStart}-${drEnd}.docx`);
       showToast({ title: t("toast.successTitle"), message: t("toast.dateRangeReportStarted"), type: "success" });
@@ -780,7 +791,7 @@ function ClientDetailPageInner() {
         },
         body: JSON.stringify({ exportMode: "tab", tabName: tab }),
       });
-      if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error((err as { error?: string }).error || t("error.reportFailed")); }
+      if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(apiErr.message(err as ApiErrorPayload, t("error.reportFailed"))); }
       const nameSlug = nameSlugTR(`${client.ad ?? ""} ${client.soyad ?? ""}`.trim());
       await downloadFileResponse(res, `danisan-${tab}-${nameSlug}-${reportFileDate()}.docx`);
       showToast({ title: t("toast.successTitle"), message: t("toast.reportStarted"), type: "success" });
@@ -995,13 +1006,13 @@ function ClientDetailPageInner() {
                 type="button"
                 data-testid="client-unpaid-warning"
                 onClick={() => { if (canSeeTab("ucretlendirme")) setActiveTab("ucretlendirme"); }}
-                title={t("hero.unpaidDetail", { count: unpaidCharges.count, total: formatTry(unpaidCharges.total) })}
+                title={t("hero.unpaidDetail", { count: unpaidCharges.count, total: formatTry(unpaidCharges.total, uiLocale) })}
                 className="inline-flex items-center gap-1 rounded-full border border-red-200 bg-red-50 px-2.5 py-1 text-[11px] font-black text-red-700"
               >
                 <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-red-500" />
                 {t("hero.unpaid")}
                 <span className="font-bold text-red-600">
-                  · {t("hero.unpaidDetail", { count: unpaidCharges.count, total: formatTry(unpaidCharges.total) })}
+                  · {t("hero.unpaidDetail", { count: unpaidCharges.count, total: formatTry(unpaidCharges.total, uiLocale) })}
                 </span>
               </button>
             ) : null}
@@ -1033,8 +1044,8 @@ function ClientDetailPageInner() {
         </div>
           <div className={dyp.infoGrid}>
             <Info label={t("info.phone")}       value={client.telefon}              color="#2563eb" tint="#eaf2ff" icon={DYP_INFO_ICONS.phone} />
-            <Info label={t("info.birthDate")}   value={formatDateTR(client.dogum)}  color="#7c3aed" tint="#f1ecff" icon={DYP_INFO_ICONS.birthDate} />
-            <Info label={t("info.meetingDate")} value={formatDateTR(client.gorusme)} color="#db2777" tint="#fdeef6" icon={DYP_INFO_ICONS.meetingDate} />
+            <Info label={t("info.birthDate")}   value={formatDateTR(client.dogum, uiLocale)}  color="#7c3aed" tint="#f1ecff" icon={DYP_INFO_ICONS.birthDate} />
+            <Info label={t("info.meetingDate")} value={formatDateTR(client.gorusme, uiLocale)} color="#db2777" tint="#fdeef6" icon={DYP_INFO_ICONS.meetingDate} />
             <Info label={t("info.zodiac")}      value={localize("burc", client.burc)}  color="#ea580c" tint="#fff3e6" icon={DYP_INFO_ICONS.zodiac} />
             <Info label={t("info.bloodType")}   value={client.kan}                  color="#dc2626" tint="#ffeef0" icon={DYP_INFO_ICONS.bloodType} />
             <Info label={t("info.temperament")} value={localize("mizac", client.mizac)} color="#16a34a" tint="#eafaf0" icon={DYP_INFO_ICONS.temperament} />
@@ -1390,7 +1401,7 @@ function ClientDetailPageInner() {
               tenantId={tenantId}
               clientName={fullName || t("clientFallback")}
               clientPhone={client.telefon}
-              clientLastSession={client.gorusme ? formatDateTR(client.gorusme) : undefined}
+              clientLastSession={client.gorusme ? formatDateTR(client.gorusme, uiLocale) : undefined}
               clientAd={client.ad}
               clientSoyad={client.soyad}
               clientDogum={client.dogum}
@@ -1475,6 +1486,8 @@ function AppointmentsTab({
   onInitialAppointmentHandled?: () => void;
 }) {
   const t = useTranslations("clients.detail");
+  const displayLocale = resolveLocale(useLocale());
+  const apiErr = useClientsApiError();
   const deleteConfirm = useDeleteConfirm();
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(false);
@@ -1659,11 +1672,12 @@ function AppointmentsTab({
         body: JSON.stringify({ title: title || t("appt.defaultTitle"), notes: notes || null, appointment_date: new Date(date).toISOString() }),
       });
       if (!res.ok) {
-        let serverMsg: string | null = null;
+        // tr: sunucu metni birebir; diğer dillerde randevu kodu (clients.errors.codes) — yoksa çevrilmiş genel metin.
+        let serverPayload: ApiErrorPayload = null;
         if (res.status === 409 || res.status === 400) {
-          try { serverMsg = ((await res.json()) as { error?: string }).error ?? null; } catch { serverMsg = null; }
+          try { serverPayload = (await res.json()) as ApiErrorPayload; } catch { serverPayload = null; }
         }
-        showToast({ title: t("toast.failTitle"), message: serverMsg ?? t("appt.updateFailed"), type: "error" });
+        showToast({ title: t("toast.failTitle"), message: apiErr.message(serverPayload, t("appt.updateFailed")), type: "error" });
         setSaving(false);
         return;
       }
@@ -1927,7 +1941,7 @@ function AppointmentsTab({
                         {si.label}
                       </span>
                     </div>
-                    <div className="mt-[3px] text-[13px] font-extrabold text-indigo-600">{formatDateTimeTR(item.appointment_date)}</div>
+                    <div className="mt-[3px] text-[13px] font-extrabold text-indigo-600">{formatDateTimeTR(item.appointment_date, displayLocale)}</div>
                     {item.notes && (
                       <div className="mt-1.5 rounded-xl bg-slate-50 p-2.5 text-[13px] text-slate-600">{item.notes}</div>
                     )}
@@ -1977,7 +1991,7 @@ function AppointmentsTab({
                 </div>
                 <div className="grid gap-1 rounded-2xl border border-slate-200 bg-slate-50 p-3">
                   <span className="text-[12px] font-bold text-slate-500">{t("appt.modal.dateTime")}</span>
-                  <strong className="text-[14px] text-slate-950">{formatDateTimeTR(selectedAppointment.appointment_date)}</strong>
+                  <strong className="text-[14px] text-slate-950">{formatDateTimeTR(selectedAppointment.appointment_date, displayLocale)}</strong>
                 </div>
                 <div className="grid gap-1 rounded-2xl p-3"
                   style={{ borderColor: getAppointmentStatusInfo(selectedAppointment, t).border, background: getAppointmentStatusInfo(selectedAppointment, t).bg, border: `1px solid ${getAppointmentStatusInfo(selectedAppointment, t).border}` }}>

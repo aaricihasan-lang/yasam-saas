@@ -1,0 +1,45 @@
+{
+  "home": {
+    "personal": {
+      "viewMode": "View mode",
+      "view_auto": "Automatic",
+      "view_day": "Day",
+      "view_night": "Night",
+      "view_focus": "Focus",
+      "viewDesc_auto": "Follows your device light/dark setting",
+      "viewDesc_day": "Bright and airy",
+      "viewDesc_night": "Premium dark, balanced contrast",
+      "viewDesc_focus": "Minimal; Favourites and your work come first",
+      "autoNow": "now",
+      "editWorkspace": "Edit My Workspace",
+      "editDisabledDemo": "Editing is disabled on the demo account",
+      "favorites": "My Favourites",
+      "logoLabel": "Company logo",
+      "logoEditLabel": "Company logo — drag to move freely, arrow keys to nudge, + / − to resize, Esc to finish",
+      "logoFreeEditLabel": "Company logo — drag it anywhere on the page or into the empty area below the left menu; resize from the corners; arrow keys nudge (Shift for larger steps), + / − resize, Esc finishes",
+      "logoKept": "The logo does not fit the requested position at this screen width; it is shown at its last valid position.",
+      "logoNoFit": "At this screen width the logo does not fit its saved position and there is no free space nearby. Drag it to an empty area or make it smaller.",
+      "logoRejected": "The logo would not fit with this change; the last valid position was kept.",
+      "logoDropInvalid": "The logo cannot be dropped here: it would cover the Yaşam Sistemi area, the welcome text, buttons or cards, or leave the page. It stayed at its last valid position.",
+      "logoDropOk": "You can drop it here",
+      "logoDropNo": "Cannot drop here",
+      "logoFrameMissing": "This area is not visible right now (e.g. the left menu is collapsed or the mobile drawer is closed)."
+    },
+    "personalNotices": {
+      "conflict": "The design was changed in another tab. The latest version has been loaded.",
+      "draftSaved": "Draft saved.",
+      "applied": "Design applied.",
+      "historyLoaded": "The previous design has been loaded into the draft.",
+      "restored": "Reverted to the previous design.",
+      "resetDone": "Returned to the default Yaşam Sistemi view. Hidden modules and My Favourites were kept.",
+      "factoryResetDone": "Returned to the original Yaşam Sistemi home screen. Your design history and uploaded images were kept.",
+      "prefsResetFailed": "Your personal design was removed, but your view preferences (hidden modules, My Favourites, view mode) could not be reset. Please try again."
+    },
+    "personalReadability": {
+      "pass": "Readability on the photo: {ratio} (WCAG AA)",
+      "fixed": "Automatic overlay applied: {ratio}",
+      "insufficient": "Readability is insufficient — choose a different focus/tone",
+      "unmeasured": "Not measured — it is measured once the photo is uploaded"
+    }
+  }
+}

@@ -12,6 +12,8 @@
  * - Gizleme / favori yalnız görünürlüktür; modül yetkisi ve kilit kararı çağıranda kalır.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useLocale, useTranslations } from "next-intl";
+import { DEFAULT_LOCALE } from "@/lib/i18n/locales";
 import {
   fetchAssetBlobUrl, getDesign, getPrefs, postDesign, putPrefs,
   type ApiResult, type DesignActionBody, type DesignState, type PrefsState,
@@ -49,6 +51,9 @@ export function usePersonalWorkspace(opts: { enabled: boolean; readOnly: boolean
   const [working, setWorking] = useState<WorkspaceDesign | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [notice, setNotice] = useState<Notice>(null);
+  // I18N-F1-R3: sistem bildirimleri ekran dilinde (home.personalNotices; tr metinleri eskisiyle birebir).
+  const tN = useTranslations("home.personalNotices");
+  const isSourceLocale = useLocale() === DEFAULT_LOCALE;
   const [assetUrls, setAssetUrls] = useState<Record<string, string>>({});
   const assetReq = useRef(new Map<string, Promise<void>>());
 
@@ -99,13 +104,13 @@ export function usePersonalWorkspace(opts: { enabled: boolean; readOnly: boolean
     if (r.kind === "ok") { setDesign(r.value); if (okText) setNotice({ tone: "ok", text: okText }); return true; }
     if (r.kind === "conflict") {
       if (r.current) setDesign(r.current as DesignState);
-      setNotice({ tone: "warn", text: r.error || "Tasarım başka bir sekmede değişti. Güncel hâli yüklendi." });
+      setNotice({ tone: "warn", text: r.error || tN("conflict") });
       return false;
     }
     if (r.kind === "off") { setStatus("off"); setEditing(false); return false; }
     setNotice({ tone: "error", text: r.error, issues: r.issues });
     return false;
-  }, []);
+  }, [tN]);
 
   const run = useCallback(async (label: string, body: DesignActionBody, okText?: string): Promise<DesignState | null> => {
     if (!design || opts.readOnly) return null;
@@ -135,17 +140,17 @@ export function usePersonalWorkspace(opts: { enabled: boolean; readOnly: boolean
 
   const saveDraft = useCallback(async () => {
     if (!working) return false;
-    return (await run("saveDraft", { action: "saveDraft", draft: working }, "Taslak kaydedildi.")) !== null;
-  }, [run, working]);
+    return (await run("saveDraft", { action: "saveDraft", draft: working }, tN("draftSaved"))) !== null;
+  }, [run, working, tN]);
 
   /** `design` verilirse (ör. "mobilde de uygula" ile uyarlanmış taslak) o uygulanır; yoksa çalışılan taslak. */
   const apply = useCallback(async (design?: WorkspaceDesign) => {
     const draft = design ?? working;
     if (!draft) return false;
-    const s = await run("apply", { action: "apply", draft }, "Tasarım uygulandı.");
+    const s = await run("apply", { action: "apply", draft }, tN("applied"));
     if (s) { setEditing(false); setWorking(null); }
     return s !== null;
-  }, [run, working]);
+  }, [run, working, tN]);
 
   /** Vazgeç: kaydedilmemiş değişiklikleri bırakır; sunucudaki taslak da silinir. */
   const discard = useCallback(async () => {
@@ -159,24 +164,24 @@ export function usePersonalWorkspace(opts: { enabled: boolean; readOnly: boolean
 
   /** Geçmişteki tasarımı TASLAĞA yükler (uygulamaz). */
   const loadHistory = useCallback(async (historyId: string) => {
-    const s = await run("loadHistory", { action: "loadHistory", historyId }, "Önceki tasarım taslağa yüklendi.");
+    const s = await run("loadHistory", { action: "loadHistory", historyId }, tN("historyLoaded"));
     if (s?.draft) setWorking(clone(s.draft));
-  }, [run]);
+  }, [run, tN]);
 
   /** Geçmişteki tasarımı doğrudan UYGULAR. */
   const restore = useCallback(async (historyId: string) => {
-    const s = await run("restore", { action: "restore", historyId }, "Önceki tasarıma dönüldü.");
+    const s = await run("restore", { action: "restore", historyId }, tN("restored"));
     if (s) { setEditing(false); setWorking(null); }
-  }, [run]);
+  }, [run, tN]);
 
   /** Taslağa varsayılan Yaşam Sistemi görünümünü yükler (uygulamaz). */
   const loadDefaultIntoDraft = useCallback(() => { setWorking(defaultDesign(working?.layout ?? "A")); }, [working?.layout]);
 
   /** Tasarımımı sıfırla: uygulanan tasarım kaldırılır (varsayılan görünüm). Gizleme / Favorilerim / görünüm modu KORUNUR. */
   const resetDesign = useCallback(async () => {
-    const s = await run("reset", { action: "reset" }, "Varsayılan Yaşam Sistemi görünümüne dönüldü. Gizlenen modüller ve Favorilerim korundu.");
+    const s = await run("reset", { action: "reset" }, tN("resetDone"));
     if (s) { setEditing(false); setWorking(null); }
-  }, [run]);
+  }, [run, tN]);
 
   /**
    * Başlangıç görünümüne TAM dönüş (Owner kararı 2026-11-02): uygulanan tasarım + taslak kaldırılır VE tercihler
@@ -201,16 +206,17 @@ export function usePersonalWorkspace(opts: { enabled: boolean; readOnly: boolean
         setPrefsState(normPrefs(pr.value));
         setEditing(false);
         setWorking(null);
-        setNotice({ tone: "ok", text: "İlk günkü Yaşam Sistemi ana ekranına dönüldü. Tasarım geçmişiniz ve yüklediğiniz görseller korundu." });
+        setNotice({ tone: "ok", text: tN("factoryResetDone") });
         return "ok";
       }
       if (pr.kind === "off") { setStatus("off"); return "partial"; }
-      setNotice({ tone: "error", text: `Kişisel tasarım kaldırıldı; ancak görünüm tercihleri (gizlenen modüller, Favorilerim, görünüm modu) sıfırlanamadı: ${pr.error} Lütfen yeniden deneyin.` });
+      // tr: sunucu ayrıntısıyla eski metin birebir; diğer dillerde Türkçe sunucu metni yapıştırılmaz.
+      setNotice({ tone: "error", text: isSourceLocale && pr.error ? `Kişisel tasarım kaldırıldı; ancak görünüm tercihleri (gizlenen modüller, Favorilerim, görünüm modu) sıfırlanamadı: ${pr.error} Lütfen yeniden deneyin.` : tN("prefsResetFailed") });
       return "partial";
     } finally {
       setBusy(null);
     }
-  }, [design, prefs, opts.readOnly, handle]);
+  }, [design, prefs, opts.readOnly, handle, tN, isSourceLocale]);
 
   /** Tercihler anında kaydedilir (tasarım taslağından bağımsız). Hata / çakışmada sunucudaki son hâl geri yüklenir. */
   const updatePrefs = useCallback(async (fn: (p: UiPrefs) => UiPrefs) => {
