@@ -583,10 +583,18 @@ async function main() {
     const list = readFileSync("app/refleksoloji/notlar/components/KlinikNotlarLayout.tsx", "utf8");
     const detail = readFileSync("app/refleksoloji/notlar/components/NotDetayLayout.tsx", "utf8");
     ok("N3 hook çakışmada kaydetmez", /hasLocalEditConflict\(previous, opts\.expectedUpdatedAt, opts\.force\)/.test(hook));
+    // I18N (Dalga 4, Ajan C): onay düğmesi metni katalogdan (reflexology.notes.conflict.overwrite) gelir.
+    // Niyet korunur: ekran "Üzerine yaz" onayını sorar → kaynakta anahtar çağrısı VE TR katalog değerinin birebir eşitliği.
+    const notesTr = JSON.parse(readFileSync("messages/tr/reflexology.notes.json", "utf8")) as {
+      reflexology: { notes: { conflict: { overwrite: string } } };
+    };
+    const overwriteTrOk = notesTr.reflexology.notes.conflict.overwrite === "Üzerine yaz";
+    const asksOverwrite = (src: string) =>
+      /Üzerine yaz/.test(src) || (/confirmText: t\("conflict\.overwrite"\)/.test(src) && /useTranslations\("reflexology\.notes"\)/.test(src) && overwriteTrOk);
     ok("N3 liste ekranı düzenleme başlangıç sürümünü gönderir + onay sorar",
-      /expectedUpdatedAt: editingSince/.test(list) && /Üzerine yaz/.test(list) && /setEditingSince\(note\.updatedAt\)/.test(list));
+      /expectedUpdatedAt: editingSince/.test(list) && asksOverwrite(list) && /setEditingSince\(note\.updatedAt\)/.test(list));
     ok("N3 detay ekranı düzenleme başlangıç sürümünü gönderir + onay sorar",
-      /expectedUpdatedAt: editingSince/.test(detail) && /Üzerine yaz/.test(detail));
+      /expectedUpdatedAt: editingSince/.test(detail) && asksOverwrite(detail));
   }
 
   section("N4 — çift kaydet → tek kayıt");

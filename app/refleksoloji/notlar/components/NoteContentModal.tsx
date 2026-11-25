@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 import { createPortal } from "react-dom";
 import { useModalA11y } from "@/app/refleksoloji/components/useModalA11y";
 
@@ -12,6 +13,7 @@ type NoteContentModalProps = {
 };
 
 export function NoteContentModal({ open, value, onClose, onSave }: NoteContentModalProps) {
+  const t = useTranslations("reflexology.notes");
   const [draft, setDraft] = useState(value);
   const [mounted, setMounted] = useState(false);
 
@@ -50,10 +52,10 @@ export function NoteContentModal({ open, value, onClose, onSave }: NoteContentMo
         <header className="mb-5 flex shrink-0 flex-col gap-4 border-b border-slate-100 pb-5 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0">
             <div className="mb-2 inline-flex rounded-full bg-sky-50 px-3 py-1 text-xs font-black tracking-[0.14em] text-sky-800 ring-1 ring-sky-100">
-              KLİNİK NOT
+              {t("editor.badge")}
             </div>
             <h2 id="note-content-modal-title" className="text-2xl font-black text-slate-950 sm:text-[26px]">
-              Not İçeriği
+              {t("fields.content")}
             </h2>
           </div>
 
@@ -63,14 +65,14 @@ export function NoteContentModal({ open, value, onClose, onSave }: NoteContentMo
               onClick={onClose}
               className="rounded-2xl bg-slate-100 px-5 py-3 text-sm font-black text-slate-700 transition hover:bg-slate-200"
             >
-              Kapat
+              {t("pdf.close")}
             </button>
             <button
               type="button"
               onClick={handleSave}
               className="rounded-2xl bg-emerald-600 px-6 py-3 text-sm font-black text-white shadow-[0_14px_30px_rgba(16,185,129,0.22)] transition hover:bg-emerald-700"
             >
-              Bu Alanı Kaydet
+              {t("editor.save")}
             </button>
           </div>
         </header>
@@ -81,7 +83,7 @@ export function NoteContentModal({ open, value, onClose, onSave }: NoteContentMo
             value={draft}
             onChange={(event) => setDraft(event.target.value)}
             className="min-h-[420px] max-h-[60vh] w-full resize-y rounded-[22px] border border-sky-200/90 bg-white p-5 text-lg font-medium leading-relaxed text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-sky-400 focus:ring-4 focus:ring-sky-100/80"
-            placeholder="Seans notu, dikkat, gözlem, ek bilgi..."
+            placeholder={t("form.contentPlaceholder")}
           />
         </div>
       </div>
