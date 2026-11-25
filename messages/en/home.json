@@ -168,7 +168,7 @@
       "loggingIn": "Signing in...",
       "systemError": "A system error occurred.",
       "emailPasswordWrong": "Incorrect email or password.",
-      "noValidRole": "Sign-in failed: no valid role has been assigned to your account. Please contact your administrator.",
+      "noValidRole": "Your account details could not be verified. Please try again or contact our support team.",
       "userVerifyFailed": "The user record could not be verified. Please try again.",
       "sessionLimit": "Sign-in blocked due to the session limit. Contact your administrator.",
       "securityWarningTitle": "Security Alert",
