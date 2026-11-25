@@ -1,5 +1,7 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+import { useEnumOptions } from "@/lib/aromaterapi/useEnumLabel";
 import type { PickerItem } from "@/app/aromaterapi/_components/write/EntitySearchPicker";
 import {
   ChildGroupShell,
@@ -7,8 +9,7 @@ import {
   NumberField,
   RowShell,
   TextField,
-  enumOptions,
-} from "@/app/aromaterapi/_components/write/KnowledgeRecordFields";
+  } from "@/app/aromaterapi/_components/write/KnowledgeRecordFields";
 import {
   PassagePicker,
   RelatedRecordPicker,
@@ -58,18 +59,20 @@ type Form = {
 };
 
 export function KnowledgeRecordChildEditors({ form, disabled }: { form: Form; disabled: boolean }) {
+  const enumOptionsI18n = useEnumOptions();
+  const tc = useTranslations("aromatherapy.knowledge.form.child");
   const err = (k: string) => (form.triedSubmit ? form.fieldErrors[k] : undefined);
 
   return (
     <div className="space-y-3">
       {/* Rotalar */}
       <ChildGroupShell
-        title="Uygulama Yolları"
-        hint="Ağızdan, haricen, solunum vb."
+        title={tc("routes")}
+        hint={tc("routesHint")}
         error={err("routes")}
         disabled={disabled}
         count={form.routes.length}
-        addLabel="Yol ekle"
+        addLabel={tc("addRoute")}
         onAdd={() => {
           form.setRoutes((r) => [...r, { _key: form.nextKey(), route_code: "" }]);
           form.markTouched("routes");
@@ -85,10 +88,10 @@ export function KnowledgeRecordChildEditors({ form, disabled }: { form: Form; di
             }}
           >
             <EnumSelect
-              label="Uygulama Yolu"
+              label={tc("route")}
               value={row.route_code}
               disabled={disabled}
-              options={enumOptions(ROUTE_CODES, ROUTE_CODE_TR)}
+              options={enumOptionsI18n(ROUTE_CODES, ROUTE_CODE_TR)}
               onChange={(v) => {
                 form.setRoutes((r) => r.map((x) => (x._key === row._key ? { ...x, route_code: v } : x)));
                 form.markTouched("routes");
@@ -100,12 +103,12 @@ export function KnowledgeRecordChildEditors({ form, disabled }: { form: Form; di
 
       {/* Popülasyonlar */}
       <ChildGroupShell
-        title="Popülasyonlar"
-        hint="Hedef yaş grubu / durum; opsiyonel yaş aralığı."
+        title={tc("populations")}
+        hint={tc("populationsHint")}
         error={err("populations")}
         disabled={disabled}
         count={form.populations.length}
-        addLabel="Popülasyon ekle"
+        addLabel={tc("addPopulation")}
         onAdd={() => {
           form.setPopulations((r) => [...r, { _key: form.nextKey(), population_code: "", age_min: "", age_max: "" }]);
           form.markTouched("populations");
@@ -121,10 +124,10 @@ export function KnowledgeRecordChildEditors({ form, disabled }: { form: Form; di
             }}
           >
             <EnumSelect
-              label="Popülasyon"
+              label={tc("population")}
               value={row.population_code}
               disabled={disabled}
-              options={enumOptions(POPULATION_CODES, POPULATION_CODE_TR)}
+              options={enumOptionsI18n(POPULATION_CODES, POPULATION_CODE_TR)}
               onChange={(v) => {
                 form.setPopulations((r) => r.map((x) => (x._key === row._key ? { ...x, population_code: v } : x)));
                 form.markTouched("populations");
@@ -132,7 +135,7 @@ export function KnowledgeRecordChildEditors({ form, disabled }: { form: Form; di
             />
             <div className="grid grid-cols-2 gap-2">
               <NumberField
-                label="Yaş (min)"
+                label={tc("ageMin")}
                 value={row.age_min}
                 min={0}
                 max={120}
@@ -143,7 +146,7 @@ export function KnowledgeRecordChildEditors({ form, disabled }: { form: Form; di
                 }}
               />
               <NumberField
-                label="Yaş (max)"
+                label={tc("ageMax")}
                 value={row.age_max}
                 min={1}
                 max={120}
@@ -160,12 +163,12 @@ export function KnowledgeRecordChildEditors({ form, disabled }: { form: Form; di
 
       {/* Kaynaklar */}
       <ChildGroupShell
-        title="Kaynaklar"
-        hint="Kaynak, rol ve isteğe bağlı alıntı/çeviri."
+        title={tc("sources")}
+        hint={tc("sourcesHint")}
         error={err("sources")}
         disabled={disabled}
         count={form.sources.length}
-        addLabel="Kaynak ekle"
+        addLabel={tc("addSource")}
         onAdd={() => {
           form.setSources((r) => [
             ...r,
@@ -185,7 +188,7 @@ export function KnowledgeRecordChildEditors({ form, disabled }: { form: Form; di
           >
             <SourcePicker
               disabled={disabled}
-              selected={row.source_id ? { id: row.source_id, label: row.source_label || "Seçilen kaynak" } : null}
+              selected={row.source_id ? { id: row.source_id, label: row.source_label || tc("selectedSource") } : null}
               onSelect={(it: PickerItem) => {
                 form.setSources((r) => r.map((x) => (x._key === row._key ? { ...x, source_id: it.id, source_label: it.label } : x)));
                 form.markTouched("sources");
@@ -197,21 +200,21 @@ export function KnowledgeRecordChildEditors({ form, disabled }: { form: Form; di
             />
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
               <EnumSelect
-                label="Kaynak Rolü"
+                label={tc("sourceRole")}
                 value={row.source_role}
                 disabled={disabled}
-                options={enumOptions(SOURCE_ROLES, SOURCE_ROLE_TR)}
+                options={enumOptionsI18n(SOURCE_ROLES, SOURCE_ROLE_TR)}
                 onChange={(v) => {
                   form.setSources((r) => r.map((x) => (x._key === row._key ? { ...x, source_role: v } : x)));
                   form.markTouched("sources");
                 }}
               />
               <EnumSelect
-                label="Doğrulama"
+                label={tc("verification")}
                 value={row.verification_status}
                 disabled={disabled}
                 allLabel="Belirtilmedi"
-                options={enumOptions(VERIFICATION_STATUSES, VERIFICATION_STATUS_TR)}
+                options={enumOptionsI18n(VERIFICATION_STATUSES, VERIFICATION_STATUS_TR)}
                 onChange={(v) => {
                   form.setSources((r) => r.map((x) => (x._key === row._key ? { ...x, verification_status: v } : x)));
                   form.markTouched("sources");
@@ -219,17 +222,17 @@ export function KnowledgeRecordChildEditors({ form, disabled }: { form: Form; di
               />
             </div>
             <TextField
-              label="Konum / Locator"
+              label={tc("locator")}
               value={row.locator_text}
               disabled={disabled}
-              placeholder="ör. s. 42"
+              placeholder={tc("locatorPh")}
               onChange={(v) => {
                 form.setSources((r) => r.map((x) => (x._key === row._key ? { ...x, locator_text: v } : x)));
                 form.markTouched("sources");
               }}
             />
             <TextField
-              label="Özgün Alıntı"
+              label={tc("originalQuote")}
               value={row.source_original_excerpt}
               disabled={disabled}
               multiline
@@ -239,11 +242,11 @@ export function KnowledgeRecordChildEditors({ form, disabled }: { form: Form; di
               }}
             />
             <TextField
-              label="Sadık Çeviri"
+              label={tc("faithfulTranslation")}
               value={row.faithful_translation}
               disabled={disabled}
               multiline
-              hint="Yalnız özgün alıntı girildiyse doldurulabilir; ifade güçlendirilmez/zayıflatılmaz."
+              hint={tc("faithfulTranslationHint")}
               onChange={(v) => {
                 form.setSources((r) => r.map((x) => (x._key === row._key ? { ...x, faithful_translation: v } : x)));
                 form.markTouched("sources");
@@ -255,12 +258,12 @@ export function KnowledgeRecordChildEditors({ form, disabled }: { form: Form; di
 
       {/* Pasajlar */}
       <ChildGroupShell
-        title="Pasajlar"
-        hint="Önce kaynak seçin, ardından pasajı seçin."
+        title={tc("passages")}
+        hint={tc("passagesHint")}
         error={err("passages")}
         disabled={disabled}
         count={form.passages.length}
-        addLabel="Pasaj ekle"
+        addLabel={tc("addPassage")}
         onAdd={() => {
           form.setPassages((r) => [
             ...r,
@@ -280,7 +283,7 @@ export function KnowledgeRecordChildEditors({ form, disabled }: { form: Form; di
           >
             <SourcePicker
               disabled={disabled}
-              selected={row.source_id ? { id: row.source_id, label: row.source_label || "Seçilen kaynak" } : null}
+              selected={row.source_id ? { id: row.source_id, label: row.source_label || tc("selectedSource") } : null}
               onSelect={(it) => {
                 form.setPassages((r) => r.map((x) => (x._key === row._key ? { ...x, source_id: it.id, source_label: it.label, passage_id: "", passage_label: "", passage_kind: "" } : x)));
                 form.markTouched("passages");
@@ -294,7 +297,7 @@ export function KnowledgeRecordChildEditors({ form, disabled }: { form: Form; di
               <PassagePicker
                 sourceId={row.source_id}
                 disabled={disabled}
-                selected={row.passage_id ? { id: row.passage_id, label: row.passage_label || "Seçilen pasaj" } : null}
+                selected={row.passage_id ? { id: row.passage_id, label: row.passage_label || tc("selectedPassage") } : null}
                 onSelect={(it) => {
                   const kind = (it.data as PassageListItem | undefined)?.passage_kind ?? "";
                   form.setPassages((r) => r.map((x) => (x._key === row._key ? { ...x, passage_id: it.id, passage_label: it.label, passage_kind: kind } : x)));
@@ -307,21 +310,21 @@ export function KnowledgeRecordChildEditors({ form, disabled }: { form: Form; di
               />
             ) : null}
             <EnumSelect
-              label="Kanıt İlişkisi"
+              label={tc("evidenceRelation")}
               value={row.evidence_relation}
               disabled={disabled}
-              options={enumOptions(EVIDENCE_RELATIONS, EVIDENCE_RELATION_TR)}
+              options={enumOptionsI18n(EVIDENCE_RELATIONS, EVIDENCE_RELATION_TR)}
               onChange={(v) => {
                 form.setPassages((r) => r.map((x) => (x._key === row._key ? { ...x, evidence_relation: v } : x)));
                 form.markTouched("passages");
               }}
             />
             <EnumSelect
-              label="Doğrulama"
+              label={tc("verification")}
               value={row.verification_status}
               disabled={disabled}
               allLabel="Belirtilmedi"
-              options={enumOptions(VERIFICATION_STATUSES, VERIFICATION_STATUS_TR)}
+              options={enumOptionsI18n(VERIFICATION_STATUSES, VERIFICATION_STATUS_TR)}
               onChange={(v) => {
                 form.setPassages((r) => r.map((x) => (x._key === row._key ? { ...x, verification_status: v } : x)));
                 form.markTouched("passages");
@@ -333,12 +336,12 @@ export function KnowledgeRecordChildEditors({ form, disabled }: { form: Form; di
 
       {/* İlişkiler */}
       <ChildGroupShell
-        title="İlişkiler"
-        hint="Başka bir Bilgi Kaydıyla ilişki (tür + açıklama)."
+        title={tc("relations")}
+        hint={tc("relationsHint")}
         error={err("relations")}
         disabled={disabled}
         count={form.relations.length}
-        addLabel="İlişki ekle"
+        addLabel={tc("addRelation")}
         onAdd={() => {
           form.setRelations((r) => [...r, { _key: form.nextKey(), other_claim_id: "", other_label: "", relation_type: "", explanation_tr: "" }]);
           form.markTouched("relations");
@@ -355,7 +358,7 @@ export function KnowledgeRecordChildEditors({ form, disabled }: { form: Form; di
           >
             <RelatedRecordPicker
               disabled={disabled}
-              selected={row.other_claim_id ? { id: row.other_claim_id, label: row.other_label || "Seçilen kayıt" } : null}
+              selected={row.other_claim_id ? { id: row.other_claim_id, label: row.other_label || tc("selectedRecord") } : null}
               onSelect={(it) => {
                 form.setRelations((r) => r.map((x) => (x._key === row._key ? { ...x, other_claim_id: it.id, other_label: it.label } : x)));
                 form.markTouched("relations");
@@ -366,17 +369,17 @@ export function KnowledgeRecordChildEditors({ form, disabled }: { form: Form; di
               }}
             />
             <EnumSelect
-              label="İlişki Türü"
+              label={tc("relationType")}
               value={row.relation_type}
               disabled={disabled}
-              options={enumOptions(RELATION_TYPES, RELATION_TYPE_TR)}
+              options={enumOptionsI18n(RELATION_TYPES, RELATION_TYPE_TR)}
               onChange={(v) => {
                 form.setRelations((r) => r.map((x) => (x._key === row._key ? { ...x, relation_type: v } : x)));
                 form.markTouched("relations");
               }}
             />
             <TextField
-              label="Açıklama"
+              label={tc("explanation")}
               value={row.explanation_tr}
               disabled={disabled}
               multiline

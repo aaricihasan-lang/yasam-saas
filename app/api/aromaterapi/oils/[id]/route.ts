@@ -27,7 +27,7 @@ export async function GET(
 
   const { id: rawId } = await ctx.params;
   const id = (rawId ?? "").trim();
-  if (!id) return NextResponse.json({ ok: false, error: "id zorunludur." }, { status: 400 });
+  if (!id) return NextResponse.json({ ok: false, code: "AROMA_ID_REQUIRED", error: "id zorunludur." }, { status: 400 });
 
   const { data, error } = await db
     .from("aromatherapy_oils")
@@ -37,7 +37,7 @@ export async function GET(
     .maybeSingle();
   if (error) return legacyDbErrorResponse("oils.detail", error, "Yağ kaydı yüklenemedi.");
   if (!data)
-    return NextResponse.json({ ok: false, error: "Kayıt bulunamadı.", notFound: true }, { status: 404 });
+    return NextResponse.json({ ok: false, code: "AROMA_NOT_FOUND", error: "Kayıt bulunamadı.", notFound: true }, { status: 404 });
   return NextResponse.json({ ok: true, oil: data });
 }
 
@@ -51,20 +51,20 @@ export async function PATCH(
 
   const { id: rawId } = await ctx.params;
   const id = (rawId ?? "").trim();
-  if (!id) return NextResponse.json({ ok: false, error: "id zorunludur." }, { status: 400 });
+  if (!id) return NextResponse.json({ ok: false, code: "AROMA_ID_REQUIRED", error: "id zorunludur." }, { status: 400 });
 
   let body: unknown;
   try { body = await req.json(); }
-  catch { return NextResponse.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 }); }
+  catch { return NextResponse.json({ ok: false, code: "AROMA_INVALID_BODY", error: "Geçersiz istek gövdesi." }, { status: 400 }); }
   if (!body || typeof body !== "object" || Array.isArray(body))
-    return NextResponse.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 });
+    return NextResponse.json({ ok: false, code: "AROMA_INVALID_BODY", error: "Geçersiz istek gövdesi." }, { status: 400 });
 
   // ARO-003: kısmi birleştirme — yalnız gövdede BULUNAN alanlar güncellenir; omit edilen
   // güvenlik alanları (safety_notes/contraindications/photosensitivity_status) DOKUNULMAZ.
   const fields = pickWritableOilFields(body, { partial: true });
   // İsim yalnız gövdede gönderildiyse zorunluluk denetlenir (kısmi PATCH ismi omit edebilir).
   if ("name" in (body as Record<string, unknown>) && !fields.name)
-    return NextResponse.json({ ok: false, error: "Yağ adı zorunludur." }, { status: 400 });
+    return NextResponse.json({ ok: false, code: "AROMA_OIL_NAME_REQUIRED", error: "Yağ adı zorunludur." }, { status: 400 });
 
   if (is_demo_account) return demoReadOnlyResponse();
 
@@ -76,13 +76,13 @@ export async function PATCH(
     typeof rawExpected === "string" && rawExpected.trim() ? rawExpected.trim() : null;
   if (!expectedUpdatedAt) {
     return NextResponse.json(
-      { ok: false, error: "AROMA_MISSING_VERSION" },
+      { ok: false, code: "AROMA_MISSING_VERSION", error: "AROMA_MISSING_VERSION" },
       { status: 400, headers: { "Cache-Control": "no-store" } },
     );
   }
   if (!isValidExpectedUpdatedAt(expectedUpdatedAt)) {
     return NextResponse.json(
-      { ok: false, error: "AROMA_INVALID_VERSION" },
+      { ok: false, code: "AROMA_INVALID_VERSION", error: "AROMA_INVALID_VERSION" },
       { status: 400, headers: { "Cache-Control": "no-store" } },
     );
   }
@@ -111,12 +111,12 @@ export async function PATCH(
     if (existing) {
       await trackUsage(guard, req, { module: "aromatherapy", action: "action_failed", failedAction: "record_updated", subEntity: "oil", errorClass: "conflict" });
       return NextResponse.json(
-        { ok: false, error: "AROMA_STALE_OIL", stale: true },
+        { ok: false, code: "AROMA_STALE_OIL", error: "AROMA_STALE_OIL", stale: true },
         { status: 409, headers: { "Cache-Control": "no-store" } },
       );
     }
     return NextResponse.json(
-      { ok: false, error: "Kayıt bulunamadı veya bu hesaba ait değil.", notFound: true },
+      { ok: false, code: "AROMA_NOT_OWNED", error: "Kayıt bulunamadı veya bu hesaba ait değil.", notFound: true },
       { status: 404 },
     );
   }
@@ -136,7 +136,7 @@ export async function DELETE(
 
   const { id: rawId } = await ctx.params;
   const id = (rawId ?? "").trim();
-  if (!id) return NextResponse.json({ ok: false, error: "id zorunludur." }, { status: 400 });
+  if (!id) return NextResponse.json({ ok: false, code: "AROMA_ID_REQUIRED", error: "id zorunludur." }, { status: 400 });
 
   if (is_demo_account) return demoReadOnlyResponse();
 
@@ -152,7 +152,7 @@ export async function DELETE(
   }
   if (!data || data.length === 0)
     return NextResponse.json(
-      { ok: false, error: "Kayıt bulunamadı veya bu hesaba ait değil." },
+      { ok: false, code: "AROMA_NOT_OWNED", error: "Kayıt bulunamadı veya bu hesaba ait değil." },
       { status: 404 },
     );
   await trackUsage(guard, req, { module: "aromatherapy", action: "record_deleted", subEntity: "oil", resourceId: id });

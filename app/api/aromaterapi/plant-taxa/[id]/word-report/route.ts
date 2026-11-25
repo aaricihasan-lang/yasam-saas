@@ -3,7 +3,7 @@ import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { trackUsage } from "@/lib/usage/trackUsage";
 import { expertDisplayName } from "@/lib/docx/reportDisclaimer";
 import { checkRateLimit } from "@/lib/rateLimit";
-import { isUuid, docxResponse } from "@/lib/aromaterapi/report/request";
+import { isUuid, docxResponse, reportErrorCode } from "@/lib/aromaterapi/report/request";
 import { buildTaxaDoc } from "@/lib/aromaterapi/report/builders";
 
 export const runtime = "nodejs";
@@ -23,24 +23,24 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   const rl = checkRateLimit(`aromaterapi-word:${guard.tenantId}`, 10, 60_000);
   if (!rl.allowed) {
     return NextResponse.json(
-      { ok: false, error: "Çok fazla rapor isteği. Lütfen biraz sonra tekrar deneyin." },
+      { ok: false, code: "AROMA_REPORT_RATE_LIMITED", error: "Çok fazla rapor isteği. Lütfen biraz sonra tekrar deneyin." },
       { status: 429, headers: { "Retry-After": String(rl.retryAfterSeconds) } },
     );
   }
   const params = await ctx.params;
   const id = (params.id ?? "").trim();
-  if (!isUuid(id)) return NextResponse.json({ ok: false, error: "Geçersiz kayıt kimliği." }, { status: 400 });
+  if (!isUuid(id)) return NextResponse.json({ ok: false, code: "AROMA_REPORT_INVALID_ID", error: "Geçersiz kayıt kimliği." }, { status: 400 });
   try {
     const res = await buildTaxaDoc(db, tenantId, { mode: "selected", ids: [id] }, { expertName: expertDisplayName(guard.profile), date: new Date() });
     if (!res.ok) {
       if (res.status >= 500) await trackUsage(guard, req, { module: "aromatherapy", action: "action_failed", failedAction: "report_generated", subEntity: "plant_taxon", errorClass: "server" });
-      return NextResponse.json({ ok: false, error: res.error }, { status: res.status });
+      return NextResponse.json({ ok: false, code: reportErrorCode(res.status), error: res.error }, { status: res.status });
     }
     // Usage360: DOCX tamponu BAŞARIYLA üretildikten sonra (rapor konusu alt-varlık).
     await trackUsage(guard, req, { module: "aromatherapy", action: "report_generated", subEntity: "plant_taxon", resourceId: id });
     return docxResponse(res.buffer, res.filename);
   } catch {
     await trackUsage(guard, req, { module: "aromatherapy", action: "action_failed", failedAction: "report_generated", subEntity: "plant_taxon", errorClass: "server" });
-    return NextResponse.json({ ok: false, error: "Rapor oluşturulamadı." }, { status: 500 });
+    return NextResponse.json({ ok: false, code: "AROMA_REPORT_FAILED", error: "Rapor oluşturulamadı." }, { status: 500 });
   }
 }

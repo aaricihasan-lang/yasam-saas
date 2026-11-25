@@ -18,6 +18,7 @@ import {
   createOil,
   deleteOils,
   OIL_NETWORK_ERROR_MESSAGE,
+  OIL_NETWORK_ERROR_CODE,
   fetchOilListPage,
   fetchOilCounts,
   buildOilSearchBlob,
@@ -25,7 +26,6 @@ import {
   matchedOnlyInContent,
   oilListRowPreview,
   oilTypeBadgeClass,
-  oilTypeLabel,
   OIL_TYPES,
   parseTagsInput,
   parseImageUrls,
@@ -38,7 +38,7 @@ import { useAromaterapiDirtyGuard } from "@/app/aromaterapi/_components/write/us
 import { useDialogA11y } from "@/app/aromaterapi/_components/write/useDialogA11y";
 import { useAromaterapiListQuery } from "@/app/aromaterapi/_components/read/useAromaterapiListQuery";
 import { ReadPagination } from "@/app/aromaterapi/_components/read/ReadPrimitives";
-import { messageForCode, type ListResult } from "@/lib/aromaterapi/readClient";
+import { type ListResult } from "@/lib/aromaterapi/readClient";
 import { useToast } from "@/components/ui/ToastProvider";
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
 import { BulkExportBar } from "@/components/common/BulkExportBar";
@@ -47,6 +47,8 @@ import { DemoModuleBanner } from "@/components/demo/DemoModuleBanner";
 import { DemoBlur } from "@/components/demo/DemoBlur";
 import { readYasamUser } from "@/lib/auth/yasamUser";
 import { DEMO_SEED_OILS, isDemoFixtureOil } from "@/lib/demo/demoAromaterapi";
+import { useTranslations } from "next-intl";
+import { useAromaApiError, useAromaReadError, useOilFieldText, useOilTypeLabel } from "@/lib/aromaterapi/useAromaterapiModuleText";
 
 // -------------------------------------------------------
 // Sayfa yapılandırması
@@ -113,74 +115,55 @@ type FormTabId =
   | "onlemler"
   | "notlar";
 
+// I18N: sekme adı/açıklaması aromatherapy.oilTabs.<id>.{label,desc}.
 const FORM_TABS: {
   id: FormTabId;
-  label: string;
   icon: string;
-  desc: string;
   fields: (keyof OilFormData)[];
 }[] = [
   {
     id: "kimlik",
-    label: "Kimlik",
     icon: "🌿",
-    desc: "Ad, Latince/İngilizce ad, yağ tipi ve kategori.",
     fields: ["name", "latin_name", "english_name", "oil_type", "category"],
   },
   {
     id: "botanik",
-    label: "Botanik & Kaynak",
     icon: "🌱",
-    desc: "Menşei, çıkarma yöntemi, kullanılan bitki bölümü ve raf ömrü.",
     fields: ["origin", "extraction_method", "plant_part", "shelf_life"],
   },
   {
     id: "yag-ozellikleri",
-    label: "Yağ Özellikleri",
     icon: "✨",
-    desc: "Koku profili, nota, renk, kıvam ve fotosensitiflik.",
     fields: ["aroma_profile", "aroma_note", "color", "consistency", "is_photosensitive"],
   },
   {
     id: "kimyasal",
-    label: "Kimyasal İçerik",
     icon: "🔬",
-    desc: "Ana kimyasal bileşenler ve terapötik özellikler.",
     fields: ["main_components", "therapeutic_properties_raw"],
   },
   {
     id: "ruhsal-duygusal",
-    label: "Ruhsal & Duygusal",
     icon: "💚",
-    desc: "Duygusal, ruhsal, fiziksel ve cilt faydaları.",
     fields: ["emotional_benefits", "spiritual_benefits", "physical_benefits", "skin_benefits", "benefits"],
   },
   {
     id: "kullanim",
-    label: "Kullanım Şekilleri",
     icon: "💧",
-    desc: "Difüzyon, masaj, genel kullanım ve seyreltme oranı.",
     fields: ["diffuser_usage", "massage_usage", "usage_methods", "dilution_ratio"],
   },
   {
     id: "uyumlu",
-    label: "Uyumlu Yağlar",
     icon: "🔮",
-    desc: "İyi karıştığı yağlar, hedef sistemler, çakra ve element bağlantısı.",
     fields: ["blends_well_with_raw", "target_systems_raw", "chakra_connection", "element_connection"],
   },
   {
     id: "onlemler",
-    label: "Önlemler & Güvenlik",
     icon: "⚠️",
-    desc: "Güvenlik notları ve kontrendikasyonlar.",
     fields: ["safety_notes", "contraindications"],
   },
   {
     id: "notlar",
-    label: "Notlar",
     icon: "📝",
-    desc: "Görseller (URL), ek notlar ve kaynak.",
     fields: ["images_raw", "notes", "source"],
   },
 ];
@@ -189,76 +172,58 @@ const FORM_TABS: {
 // Alan meta bilgileri
 // -------------------------------------------------------
 
+// I18N: etiket / yer tutucu aromatherapy.oilFields.<alan>.{label,placeholder}; burada yalnız yapısal bayraklar.
 const FIELD_META: Record<
   string,
   {
-    label: string;
-    placeholder?: string;
     multiline?: boolean;
     isOilType?: boolean;
     isBooleanToggle?: boolean;
     isImageList?: boolean;
   }
 > = {
-  name:              { label: "Yağ Adı", placeholder: "Örn. Lavanta" },
-  latin_name:        { label: "Latince Adı", placeholder: "Örn. Lavandula angustifolia" },
-  english_name:      { label: "İngilizce Adı", placeholder: "Örn. Lavender" },
-  oil_type:          { label: "Yağ Tipi", isOilType: true },
-  category:          { label: "Kategori", placeholder: "Örn. Çiçek, Narenciye, Ağaç…" },
+  name: {},
+  latin_name: {},
+  english_name: {},
+  oil_type: { isOilType: true },
+  category: {},
 
-  origin:            { label: "Menşei / Ülke", placeholder: "Örn. Fransa, Türkiye…" },
-  extraction_method: { label: "Çıkarma Yöntemi", placeholder: "Örn. Buhar damıtma, Soğuk pres…" },
-  plant_part:        { label: "Kullanılan Bitki Bölümü", placeholder: "Örn. Çiçek, Yaprak, Meyve kabuğu…" },
-  shelf_life:        { label: "Raf Ömrü", placeholder: "Örn. 12–18 ay" },
+  origin: {},
+  extraction_method: {},
+  plant_part: {},
+  shelf_life: {},
 
-  aroma_profile:     { label: "Koku Profili", placeholder: "Örn. Çiçeksi, tatlı, odunsu…", multiline: true },
-  aroma_note:        { label: "Koku Notası", placeholder: "Örn. Üst nota, Orta nota, Alt nota" },
-  color:             { label: "Renk", placeholder: "Örn. Renksiz, Sarı, Soluk sarı…" },
-  consistency:       { label: "Kıvam / Yoğunluk", placeholder: "Örn. İnce, Orta, Koyu…" },
-  is_photosensitive: { label: "Fotosensitif mi?", isBooleanToggle: true },
+  aroma_profile: { multiline: true },
+  aroma_note: {},
+  color: {},
+  consistency: {},
+  is_photosensitive: { isBooleanToggle: true },
 
-  main_components:          { label: "Ana Kimyasal Bileşenler", placeholder: "Örn. Linalool %51, Linalyl asetat %38…", multiline: true },
-  therapeutic_properties_raw: {
-    label: "Terapötik Özellikler",
-    placeholder: "Virgülle ayırın: antibakteriyel, antifungal, antiseptik…",
-    multiline: true,
-  },
+  main_components: { multiline: true },
+  therapeutic_properties_raw: { multiline: true },
 
-  emotional_benefits: { label: "Duygusal Etkiler", placeholder: "Rahatlatıcı, stres azaltıcı, sakinleştirici…", multiline: true },
-  spiritual_benefits: { label: "Ruhsal Etkiler", placeholder: "Meditasyonu derinleştirir, sezgiyi açar…", multiline: true },
-  physical_benefits:  { label: "Fiziksel Faydalar", placeholder: "Ağrı kesici, kas gevşetici, bağışıklık destekleyici…", multiline: true },
-  skin_benefits:      { label: "Cilt Faydaları", placeholder: "Nemlendirici, yenileyici, sivilce karşıtı…", multiline: true },
-  benefits:           { label: "Genel Faydalar", placeholder: "Diğer genel faydalar…", multiline: true },
+  emotional_benefits: { multiline: true },
+  spiritual_benefits: { multiline: true },
+  physical_benefits: { multiline: true },
+  skin_benefits: { multiline: true },
+  benefits: { multiline: true },
 
-  diffuser_usage: { label: "Brülör & Buharlaştırıcı", placeholder: "Difüzyon yöntemi, damlalık sayısı ve dozaj bilgisi…", multiline: true },
-  massage_usage:  { label: "Masaj Kullanımı", placeholder: "Masaj için uygulama yöntemi, karışım oranı…", multiline: true },
-  usage_methods:  { label: "Genel Kullanım Yöntemleri", placeholder: "İnhalasyon, banyo, kompres, difüzyon…", multiline: true },
-  dilution_ratio: { label: "Seyreltme Oranı", placeholder: "Örn. %1-3 (taşıyıcı yağda)" },
+  diffuser_usage: { multiline: true },
+  massage_usage: { multiline: true },
+  usage_methods: { multiline: true },
+  dilution_ratio: {},
 
-  blends_well_with_raw: {
-    label: "İyi Karıştığı Yağlar",
-    placeholder: "Virgülle ayırın: bergamot, sandal ağacı, gül…",
-    multiline: true,
-  },
-  target_systems_raw: {
-    label: "Hedef Sistemler",
-    placeholder: "Virgülle ayırın: sinir sistemi, bağışıklık sistemi…",
-    multiline: true,
-  },
-  chakra_connection:  { label: "Çakra Bağlantısı", placeholder: "Örn. Kalp çakrası, Taç çakrası…" },
-  element_connection: { label: "Element Bağlantısı", placeholder: "Örn. Hava, Ateş, Su, Toprak, Eter…" },
+  blends_well_with_raw: { multiline: true },
+  target_systems_raw: { multiline: true },
+  chakra_connection: {},
+  element_connection: {},
 
-  safety_notes:     { label: "Güvenlik Notları", placeholder: "Hamilelerde, çocuklarda dikkat; güneşe çıkmadan önce…", multiline: true },
-  contraindications: { label: "Kontrendikasyonlar", placeholder: "Kimler kullanmamalı…", multiline: true },
+  safety_notes: { multiline: true },
+  contraindications: { multiline: true },
 
-  images_raw: {
-    label: "Görseller (URL)",
-    placeholder: "Her satıra bir URL girin…\nhttps://example.com/gorsel.jpg",
-    multiline: true,
-    isImageList: true,
-  },
-  notes:  { label: "Ek Notlar", placeholder: "Ek notlar…", multiline: true },
-  source: { label: "Kaynak", placeholder: "Kitap, eğitim, kaynak adı…" },
+  images_raw: { multiline: true, isImageList: true },
+  notes: { multiline: true },
+  source: {},
 };
 
 // -------------------------------------------------------
@@ -280,6 +245,11 @@ function NewOilForm({
     oil_type: defaultOilType,
   });
   const [formTab, setFormTab] = useState<FormTabId>("kimlik");
+  const tf = useTranslations("aromatherapy.oils.form");
+  const tTabs = useTranslations("aromatherapy.oilTabs");
+  const fieldText = useOilFieldText();
+  const typeLabel = useOilTypeLabel();
+  const apiError = useAromaApiError();
   const [saving, setSaving] = useState(false);
   // Çift tıklamaya karşı senkron kilit — React re-render'ı beklemeden ikinci
   // çağrıyı anında engeller, böylece mükerrer kayıt oluşmaz.
@@ -334,7 +304,7 @@ function NewOilForm({
     // Halihazırda bir kayıt isteği uçuyorsa ikinci tıklamayı yok say.
     if (submittingRef.current) return;
     const nameTrim = form.name.trim();
-    if (!nameTrim) { setError("Yağ adı zorunludur."); return; }
+    if (!nameTrim) { setError(tf("nameRequired")); return; }
 
     submittingRef.current = true;
     setSaving(true);
@@ -352,7 +322,7 @@ function NewOilForm({
 
       const t = (v: string) => v.trim() || "";
 
-      const { error: insertError } = await createOil({
+      const { error: insertError, errorCode: insertCode } = await createOil({
         name: nameTrim,
         latin_name: t(form.latin_name),
         english_name: t(form.english_name),
@@ -390,17 +360,19 @@ function NewOilForm({
       });
 
       if (insertError) {
-        setError(`Kayıt eklenemedi: ${insertError}`);
+        // I18N: kütüphane / sunucu ayrıntısı tr'de birebir; diğer dilde dil-bağımsız koddan çeviri (yoksa ayrıntısız) — Türkçe sızıntı yok.
+        const insertDetail = apiError.detail(insertError, insertCode);
+        setError(insertDetail ? tf("addFailedDetail", { detail: insertDetail }) : tf("addFailed"));
         return;
       }
 
       succeeded = true;
       // Başarılıda kilit açılmaz: onSaved() listeye yönlendirip formu unmount eder.
-      showToast({ title: "Başarılı", message: "Yağ kaydı oluşturuldu.", type: "success" });
+      showToast({ title: tf("successTitle"), message: tf("created"), type: "success" });
       onSaved();
     } catch {
       // Kayıt oluşturulduktan SONRA (yönlendirme) atılan hata "eklenemedi" diye gösterilmez.
-      if (!succeeded) setError(`Kayıt eklenemedi: ${OIL_NETWORK_ERROR_MESSAGE}`);
+      if (!succeeded) setError(tf("addFailedDetail", { detail: apiError.text(OIL_NETWORK_ERROR_MESSAGE, OIL_NETWORK_ERROR_CODE, OIL_NETWORK_ERROR_MESSAGE) }));
     } finally {
       setSaving(false);
       if (!succeeded) submittingRef.current = false;
@@ -437,12 +409,12 @@ function NewOilForm({
             className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg border border-amber-300/55 bg-gradient-to-r from-amber-500 to-rose-400 px-3.5 text-[12px] font-black text-white shadow-md ring-1 ring-white/35 transition hover:brightness-105"
           >
             <span aria-hidden className="text-sm leading-none">←</span>
-            <span className="hidden sm:inline">Listeye Dön</span>
-            <span className="sm:hidden">Geri</span>
+            <span className="hidden sm:inline">{tf("backToList")}</span>
+            <span className="sm:hidden">{tf("back")}</span>
           </button>
           <div className="min-w-0 pl-4 text-right">
-            <p className="text-[10px] font-black uppercase tracking-[0.12em] text-amber-700">Yeni Kayıt</p>
-            <h2 className="truncate text-base font-black text-slate-950">Yeni yağ kaydı</h2>
+            <p className="text-[10px] font-black uppercase tracking-[0.12em] text-amber-700">{tf("newEyebrow")}</p>
+            <h2 className="truncate text-base font-black text-slate-950">{tf("newTitle")}</h2>
           </div>
         </header>
 
@@ -469,7 +441,7 @@ function NewOilForm({
                   }`}
                 >
                   <span className="text-sm leading-none">{tab.icon}</span>
-                  <span>{tab.label}</span>
+                  <span>{tTabs(`${tab.id}.label`)}</span>
                 </button>
               );
             })}
@@ -479,7 +451,7 @@ function NewOilForm({
         <div className="grid min-h-0 flex-1 grid-cols-1 gap-5 lg:grid-cols-[260px_1fr]">
           {/* Desktop sidebar */}
           <aside className={`hidden h-full min-h-0 rounded-[28px] border border-amber-100/80 bg-white/85 p-4 shadow-xl lg:block ${scrollArea}`}>
-            <p className="mb-3 text-[10px] font-black uppercase tracking-[0.14em] text-amber-700">Bölümler</p>
+            <p className="mb-3 text-[10px] font-black uppercase tracking-[0.14em] text-amber-700">{tf("sections")}</p>
             <div className="space-y-1.5">
               {FORM_TABS.map((tab) => {
                 const active = formTab === tab.id;
@@ -495,7 +467,7 @@ function NewOilForm({
                     }`}
                   >
                     <span className="shrink-0 text-base leading-none">{tab.icon}</span>
-                    <span className="min-w-0 flex-1 truncate">{tab.label}</span>
+                    <span className="min-w-0 flex-1 truncate">{tTabs(`${tab.id}.label`)}</span>
                   </button>
                 );
               })}
@@ -506,8 +478,8 @@ function NewOilForm({
           <section className="flex h-full min-h-0 flex-col overflow-hidden rounded-[28px] border border-amber-100/80 bg-white/85 shadow-xl">
             <div className={`${scrollArea} p-5`}>
               <header className="mb-5 border-b border-amber-100/80 pb-4">
-                <h3 className="text-lg font-black tracking-tight text-slate-950">{activeTab.label}</h3>
-                <p className="mt-1 text-[12px] font-medium text-slate-500">{activeTab.desc}</p>
+                <h3 className="text-lg font-black tracking-tight text-slate-950">{tTabs(`${activeTab.id}.label`)}</h3>
+                <p className="mt-1 text-[12px] font-medium text-slate-500">{tTabs(`${activeTab.id}.desc`)}</p>
               </header>
 
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -521,7 +493,7 @@ function NewOilForm({
                     return (
                       <section key={fieldKey} className={`${miniCard} sm:col-span-2`}>
                         <header className="mb-2.5">
-                          <h4 className="text-[13px] font-black text-slate-900">{meta.label}</h4>
+                          <h4 className="text-[13px] font-black text-slate-900">{fieldText.label(fieldKey as string)}</h4>
                         </header>
                         <button
                           type="button"
@@ -533,11 +505,11 @@ function NewOilForm({
                           }`}
                         >
                           <span className="text-base leading-none">{boolVal ? "☀️" : "○"}</span>
-                          {boolVal ? "Evet — Fotosensitif" : "Hayır — Fotosensitif Değil"}
+                          {boolVal ? tf("photoYes") : tf("photoNo")}
                         </button>
                         {boolVal && (
                           <p className="mt-2 text-[11px] font-medium text-amber-700">
-                            Güneş ışığına maruz kalmadan önce uyarı verilmesi gerekir.
+                            {tf("photoWarning")}
                           </p>
                         )}
                       </section>
@@ -549,7 +521,7 @@ function NewOilForm({
                     return (
                       <section key={fieldKey} className={miniCard}>
                         <header className="mb-2.5">
-                          <h4 className="text-[13px] font-black text-slate-900">{meta.label}</h4>
+                          <h4 className="text-[13px] font-black text-slate-900">{fieldText.label(fieldKey as string)}</h4>
                         </header>
                         <select
                           value={form.oil_type}
@@ -557,7 +529,7 @@ function NewOilForm({
                           className="h-10 w-full rounded-xl border border-amber-100/90 bg-white px-3 text-sm font-medium text-slate-900 shadow-sm outline-none focus:border-amber-300 focus:ring-2 focus:ring-amber-100/80"
                         >
                           {OIL_TYPES.map((t) => (
-                            <option key={t.value} value={t.value}>{t.label}</option>
+                            <option key={t.value} value={t.value}>{typeLabel(t.value)}</option>
                           ))}
                         </select>
                       </section>
@@ -567,7 +539,7 @@ function NewOilForm({
                   return (
                     <section key={fieldKey} className={`${miniCard} ${meta.multiline ? "sm:col-span-2" : ""}`}>
                       <header className="mb-2.5">
-                        <h4 className="text-[13px] font-black text-slate-900">{meta.label}</h4>
+                        <h4 className="text-[13px] font-black text-slate-900">{fieldText.label(fieldKey as string)}</h4>
                       </header>
                       {meta.multiline ? (
                         <>
@@ -577,12 +549,12 @@ function NewOilForm({
                             onClick={() => openLarge(fieldKey as string)}
                             onFocus={(e) => { openLarge(fieldKey as string); e.target.blur(); }}
                             rows={3}
-                            placeholder={meta.placeholder}
+                            placeholder={fieldText.placeholder(fieldKey as string)}
                             className={`${fieldTextarea} cursor-pointer`}
                           />
                           {meta.isImageList ? (
                             <p className="mt-1.5 text-[10px] font-medium text-slate-400">
-                              Her satıra bir görsel URL’si girin (galeriye dosya yükleme bu ekranda desteklenmez).
+                              {tf("imagesHint")}
                             </p>
                           ) : null}
                         </>
@@ -591,7 +563,7 @@ function NewOilForm({
                           type="text"
                           value={form[fieldKey as keyof OilFormData] as string}
                           onChange={(e) => setField(fieldKey as keyof OilFormData, e.target.value)}
-                          placeholder={meta.placeholder}
+                          placeholder={fieldText.placeholder(fieldKey as string)}
                           className={fieldInput}
                         />
                       )}
@@ -612,14 +584,14 @@ function NewOilForm({
                 disabled={saving}
                 className={`inline-flex h-9 items-center rounded-xl bg-gradient-to-r from-amber-500 to-rose-500 px-5 text-[13px] font-black text-white shadow-md disabled:opacity-60 ${saving ? "pointer-events-none" : ""}`}
               >
-                {saving ? "Kaydediliyor..." : "Kaydet"}
+                {saving ? tf("saving") : tf("save")}
               </button>
               <button
                 type="button"
                 onClick={requestBack}
                 className="inline-flex h-9 items-center rounded-xl border border-slate-200 bg-white px-4 text-[13px] font-black text-slate-700 shadow-sm hover:bg-slate-50"
               >
-                İptal
+                {tf("cancel")}
               </button>
             </div>
           </section>
@@ -640,13 +612,13 @@ function NewOilForm({
             className="w-full max-w-[920px] rounded-[28px] bg-white p-5 shadow-2xl"
           >
             <h3 id={largeTitleId} className="mb-4 text-[18px] font-black text-slate-950">
-              {FIELD_META[largeKey]?.label ?? largeKey}
+              {fieldText.label(largeKey)}
             </h3>
             <textarea
               ref={largeTextRef}
               value={largeValue}
               onChange={(e) => setLargeValue(e.target.value)}
-              placeholder={FIELD_META[largeKey]?.placeholder}
+              placeholder={fieldText.placeholder(largeKey)}
               className="h-[min(420px,52vh)] w-full resize-y rounded-2xl border border-amber-100 p-5 text-[15px] leading-7 text-slate-800 outline-none focus:ring-4 focus:ring-amber-100/70"
             />
             <div className="mt-4 flex gap-2">
@@ -655,14 +627,14 @@ function NewOilForm({
                 onClick={saveLarge}
                 className="rounded-2xl bg-gradient-to-r from-amber-500 to-rose-500 px-6 py-3 text-[13px] font-black text-white"
               >
-                Uygula
+                {tf("apply")}
               </button>
               <button
                 type="button"
                 onClick={() => setLargeKey(null)}
                 className="rounded-2xl bg-slate-100 px-5 py-3 text-[13px] font-black text-slate-700"
               >
-                İptal
+                {tf("cancel")}
               </button>
             </div>
           </div>
@@ -672,10 +644,10 @@ function NewOilForm({
       {/* Kaydedilmemiş yeni kayıt — çıkış onayı (erişilebilir primitive). */}
       <AromaterapiConfirmDialog
         open={leaveConfirmOpen}
-        title="Kaydedilmemiş kayıt"
-        description="Bu yağ kaydını henüz kaydetmediniz. Çıkarsanız girdiğiniz bilgiler kaybolur."
-        confirmLabel="Kaydetmeden Çık"
-        cancelLabel="Düzenlemeye Dön"
+        title={tf("leaveTitle")}
+        description={tf("leaveBody")}
+        confirmLabel={tf("leaveConfirm")}
+        cancelLabel={tf("leaveCancel")}
         tone="danger"
         onConfirm={() => { setLeaveConfirmOpen(false); onBack(); }}
         onCancel={() => setLeaveConfirmOpen(false)}
@@ -730,6 +702,11 @@ function OilsPageContent({ fixedOilType, basePath, pageTitle, pageSubtitle, page
 
   const { showToast } = useToast();
   const deleteConfirm = useDeleteConfirm();
+  const tl = useTranslations("aromatherapy.oils.list");
+  const tTypes = useTranslations("aromatherapy.oilTypes");
+  const typeLabel = useOilTypeLabel();
+  const readError = useAromaReadError();
+  const bulkApiError = useAromaApiError();
   // FAZ 2 — server-side paginated okuma (useAromaterapiListQuery). fetch-all KALDIRILDI.
   // Demo: client-side seed (fetcher demoListResult ile sayfalar/filtreler). Gerçek:
   // fetchOilListPage (search_norm arama + oil_type + name,id sort + range pagination).
@@ -764,15 +741,17 @@ function OilsPageContent({ fixedOilType, basePath, pageTitle, pageSubtitle, page
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [bulkError, setBulkError] = useState("");
   const [exporting, setExporting] = useState(false);
+  // I18N: wordExport Türkçe/sunucu hata metni tr'de birebir; diğer dilde dil-bağımsız koddan çeviri (yoksa genel metin).
+  const wordApiError = useAromaApiError();
 
   // FAZ Word — .docx export (seçili / tümü / typed). Çift-tık kilidi (exporting).
   async function runOilExport(body: Record<string, unknown>) {
     if (exporting) return;
     setExporting(true);
-    const { ok, error } = await downloadWord("/api/aromaterapi/oils/word-report", body);
+    const { ok, error, errorCode } = await downloadWord("/api/aromaterapi/oils/word-report", body);
     setExporting(false);
-    if (ok) showToast({ title: "Word hazırlandı", message: "Rapor indiriliyor.", type: "success" });
-    else showToast({ title: "Word oluşturulamadı", message: error ?? "Rapor oluşturulamadı.", type: "error" });
+    if (ok) showToast({ title: tl("wordReadyTitle"), message: tl("wordReadyBody"), type: "success" });
+    else showToast({ title: tl("wordFailedTitle"), message: wordApiError.text(error, errorCode, tl("wordFailedBody")), type: "error" });
   }
   const exportAllBody = () => (fixedOilType ? { mode: "all", oilType: fixedOilType } : { mode: "all" });
   const pageView = useMemo(() => viewFromParam(searchParams.get("view")), [searchParams]);
@@ -826,7 +805,8 @@ function OilsPageContent({ fixedOilType, basePath, pageTitle, pageSubtitle, page
   const appliedQuery = s.q;
   const typeFilter = fixedOilType ?? s.filters.type ?? "all";
   const setTypeFilter = (v: string) => s.setFilter("type", v === "all" ? "" : v);
-  const errorMessage = bulkError || (s.errorCode ? messageForCode(s.errorCode) : "");
+  // I18N: okuma hata metni koddan (aromatherapy.readErrors; TR = messageForCode birebir).
+  const errorMessage = bulkError || (s.errorCode ? readError(s.errorCode) : "");
   const filteredRows = rows; // render uyumluluğu (sunucu = filtrelenmiş sayfa)
   const visibleRows = rows; // DOM windowing kaldırıldı (page_size render'ı sınırlar)
   const refresh = s.retry;
@@ -875,12 +855,12 @@ function OilsPageContent({ fixedOilType, basePath, pageTitle, pageSubtitle, page
     bulkDeleteBusyRef.current = true;
     try {
       const confirmed = await deleteConfirm({
-        title: "Seçili yağları sil",
-        message: `${ids.length} yağ kaydını silmek istediğinizden emin misiniz?`,
-        secondMessage: "Bu işlem geri alınamaz. Seçili kayıtlar kalıcı olarak silinecek.",
+        title: tl("deleteTitle"),
+        message: tl("deleteMessage", { count: ids.length }),
+        secondMessage: tl("deleteSecond"),
         count: ids.length,
-        names: ids.map((id) => visibleById.get(id)?.name || "(adsız yağ)"),
-        noun: "yağ kaydı",
+        names: ids.map((id) => visibleById.get(id)?.name || tl("unnamed")),
+        noun: tl("noun"),
       });
       if (!confirmed) return;
       await runBulkDelete(ids);
@@ -895,28 +875,31 @@ function OilsPageContent({ fixedOilType, basePath, pageTitle, pageSubtitle, page
     // AROMA-2 — ağ hatasında da deleteLoading `finally` ile sıfırlanır (buton kilitli kalmaz).
     let deletedIds: string[] = [];
     let deleteError: string | null = null;
+    let deleteCode: string | null | undefined = null;
     try {
-      ({ deletedIds, error: deleteError } = await deleteOils(ids));
+      ({ deletedIds, error: deleteError, errorCode: deleteCode } = await deleteOils(ids));
     } catch {
       deleteError = OIL_NETWORK_ERROR_MESSAGE;
+      deleteCode = OIL_NETWORK_ERROR_CODE;
     } finally {
       setDeleteLoading(false);
     }
 
     if (deleteError) {
-      setBulkError(`Seçili kayıtlar silinemedi: ${deleteError}`);
+      const deleteDetail = bulkApiError.detail(deleteError, deleteCode);
+      setBulkError(deleteDetail ? tl("deleteFailedDetail", { detail: deleteDetail }) : tl("deleteFailed"));
       return;
     }
 
     const deletedCount = deletedIds.length;
     if (deletedCount === 0) {
-      setBulkError("Silme işlemi gerçekleşmedi. Lütfen sayfayı yenileyip tekrar deneyin.");
+      setBulkError(tl("deleteNone"));
       return;
     }
 
     setSelectedIds(new Set());
     setBulkError("");
-    showToast({ title: "Başarılı", message: `${deletedCount} yağ kaydı başarıyla silindi.`, type: "success" });
+    showToast({ title: tl("successTitle"), message: tl("deleted", { count: deletedCount }), type: "success" });
     refresh(); // sunucudan geçerli sayfayı tazele (optimistik client-mutation yerine)
   }
 
@@ -945,7 +928,7 @@ function OilsPageContent({ fixedOilType, basePath, pageTitle, pageSubtitle, page
 
       <div className="relative z-10 mx-auto w-full max-w-[1600px] space-y-3 px-3 py-3 sm:px-5 xl:px-7">
         {isDemo && (
-          <DemoModuleBanner message="Yağ kütüphanesi demo hesabı için temsili verilerle gösterilmektedir. Yağ adı, kategori ve tip görünürdür; klinik detaylar korunur. Yeni kayıt ve düzenleme işlemleri demo hesabında çalışmaz." />
+          <DemoModuleBanner message={tl("demoBanner")} />
         )}
         {/* Header */}
         <header className={`${headerCard} flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between`}>
@@ -959,12 +942,12 @@ function OilsPageContent({ fixedOilType, basePath, pageTitle, pageSubtitle, page
           <div className="flex items-center gap-2">
             <Link href="/aromaterapi" className={hubBtn}>
               <span aria-hidden className="text-sm leading-none">←</span>
-              <span className="hidden sm:inline">Aromaterapi Ana</span>
-              <span className="sm:hidden">Ana</span>
+              <span className="hidden sm:inline">{tl("homeChip")}</span>
+              <span className="sm:hidden">{tl("homeShort")}</span>
             </Link>
             {!isDemo && (
               <button type="button" onClick={goToNew} className={newBtn}>
-                + Yeni Yağ
+                {tl("newOil")}
               </button>
             )}
           </div>
@@ -981,7 +964,7 @@ function OilsPageContent({ fixedOilType, basePath, pageTitle, pageSubtitle, page
           {/* Tip filtresi — fixedOilType yoksa göster */}
           {!fixedOilType && (
             <div className="mb-3 flex flex-wrap items-center gap-1.5">
-              {[{ value: "all", label: "Tümü" }, ...OIL_TYPES].map((t) => {
+              {[{ value: "all" }, ...OIL_TYPES].map((t) => {
                 const active = typeFilter === t.value;
                 const count = typeCounts[t.value] ?? 0;
                 return (
@@ -995,7 +978,7 @@ function OilsPageContent({ fixedOilType, basePath, pageTitle, pageSubtitle, page
                         : "border-amber-100 bg-white/80 text-slate-600 hover:border-amber-200"
                     }`}
                   >
-                    {t.label}
+                    {t.value === "all" ? tTypes("all") : typeLabel(t.value)}
                     <span className={`rounded-full px-1 text-[10px] font-black ${active ? "bg-white/20 text-white" : "bg-amber-50 text-amber-700"}`}>
                       {count}
                     </span>
@@ -1012,27 +995,27 @@ function OilsPageContent({ fixedOilType, basePath, pageTitle, pageSubtitle, page
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Yağ adı, özellik, etki veya menşei ara…"
-                aria-label="Yağ ara (ad, özellik, etki veya menşei)"
+                placeholder={tl("searchPlaceholder")}
+                aria-label={tl("searchAria")}
                 className={searchInput}
               />
             </div>
             <div className="flex shrink-0 items-center gap-1.5">
-              <button type="button" onClick={() => setViewMode("card")} className={`${viewBtn} ${viewMode === "card" ? viewBtnActive : viewBtnIdle}`}>Kart</button>
-              <button type="button" onClick={() => setViewMode("list")} className={`${viewBtn} ${viewMode === "list" ? viewBtnActive : viewBtnIdle}`}>Liste</button>
-              <button type="button" onClick={() => refresh()} aria-label="Listeyi yenile" title="Listeyi yenile" className={`${viewBtn} ${viewBtnIdle}`}>↻</button>
+              <button type="button" onClick={() => setViewMode("card")} className={`${viewBtn} ${viewMode === "card" ? viewBtnActive : viewBtnIdle}`}>{tl("viewCard")}</button>
+              <button type="button" onClick={() => setViewMode("list")} className={`${viewBtn} ${viewMode === "list" ? viewBtnActive : viewBtnIdle}`}>{tl("viewList")}</button>
+              <button type="button" onClick={() => refresh()} aria-label={tl("refresh")} title={tl("refresh")} className={`${viewBtn} ${viewBtnIdle}`}>↻</button>
             </div>
           </div>
 
           <div className="mt-2.5 flex items-center justify-between border-t border-slate-100 pt-2">
             <p className="text-[11px] font-bold text-slate-400">
               {search.trim() || (!fixedOilType && typeFilter !== "all")
-                ? `${totalCount} sonuç`
-                : `${totalCount} yağ (A–Z)`}
+                ? tl("resultCount", { count: totalCount })
+                : tl("oilCount", { count: totalCount })}
             </p>
             {loading && (
               <span className="rounded-full bg-amber-50 px-2.5 py-0.5 text-[10px] font-black text-amber-700 ring-1 ring-amber-100">
-                Yükleniyor...
+                {tl("loading")}
               </span>
             )}
           </div>
@@ -1044,7 +1027,7 @@ function OilsPageContent({ fixedOilType, basePath, pageTitle, pageSubtitle, page
             selectedCount={selectedIds.size}
             totalCount={totalCount}
             filteredCount={totalCount}
-            selectAllLabel="Bu Sayfadaki Kayıtlarımı Seç"
+            selectAllLabel={tl("selectPage")}
             selectAllCount={ownFilteredRows.length}
             hasActiveFilter={Boolean(search.trim() || (!fixedOilType && typeFilter !== "all"))}
             onSelectAll={selectAllFiltered}
@@ -1052,7 +1035,7 @@ function OilsPageContent({ fixedOilType, basePath, pageTitle, pageSubtitle, page
             onDeleteSelected={() => void handleBulkDelete()}
             isDeleting={deleteLoading}
             isExporting={exporting}
-            exportSelectedLabel={selectedIds.size === 1 ? "Seçili Kaydı Word'e Aktar" : "Seçili Kayıtları Word'e Aktar"}
+            exportSelectedLabel={selectedIds.size === 1 ? tl("exportOne") : tl("exportMany")}
             onExportSelected={selectedIds.size > 0 ? () => void runOilExport({ mode: "selected", ids: [...selectedIds] }) : undefined}
             onExportAll={() => void runOilExport(exportAllBody())}
           />
@@ -1062,18 +1045,18 @@ function OilsPageContent({ fixedOilType, basePath, pageTitle, pageSubtitle, page
         <section className={contentCard}>
           {loading ? (
             <div className="flex min-h-[280px] flex-col items-center justify-center text-sm font-bold text-slate-500">
-              Yağlar yükleniyor...
+              {tl("oilsLoading")}
             </div>
           ) : filteredRows.length === 0 ? (
             <div className="flex min-h-[280px] flex-col items-center justify-center text-center">
               <div className="text-5xl">🌸</div>
               <h3 className="mt-4 text-xl font-black text-slate-900">
-                {search.trim() || typeFilter !== "all" ? "Sonuç bulunamadı" : "Henüz yağ kaydı yok"}
+                {search.trim() || typeFilter !== "all" ? tl("noResults") : tl("empty")}
               </h3>
               <p className="mt-2 max-w-sm text-sm text-slate-500">
                 {search.trim() || typeFilter !== "all"
-                  ? "Aramayı değiştirin veya filtreyi kaldırın."
-                  : "Yeni yağ ekle butonuyla ilk kaydınızı oluşturun."}
+                  ? tl("noResultsHint")
+                  : tl("emptyHint")}
               </p>
               {!isDemo && (
                 <button
@@ -1081,7 +1064,7 @@ function OilsPageContent({ fixedOilType, basePath, pageTitle, pageSubtitle, page
                   onClick={goToNew}
                   className="mt-5 inline-flex items-center rounded-2xl bg-gradient-to-r from-amber-500 to-rose-500 px-5 py-2.5 text-[13px] font-black text-white shadow-md"
                 >
-                  + Yeni Yağ Ekle
+                  {tl("addOil")}
                 </button>
               )}
             </div>
@@ -1097,21 +1080,21 @@ function OilsPageContent({ fixedOilType, basePath, pageTitle, pageSubtitle, page
                         type="checkbox"
                         checked={isSelected}
                         onChange={() => toggleOilSelection(row.id)}
-                        aria-label={`${row.name} seç`}
+                        aria-label={tl("selectAria", { name: row.name })}
                         className="h-4 w-4 rounded accent-amber-600"
                       />
                     </div>
                   )}
                   <div className="flex flex-wrap items-center gap-1.5">
                     <span className={`inline-flex rounded-full border px-2.5 py-0.5 text-[10px] font-black tracking-wide ${oilTypeBadgeClass(row.oil_type)}`}>
-                      {oilTypeLabel(row.oil_type)}
+                      {typeLabel(row.oil_type)}
                     </span>
                     {matchedOnlyInContent(row, appliedQuery) ? (
                       <span
                         className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10px] font-bold text-slate-500"
-                        title="Arama, adında değil içerik alanlarında (fayda, kullanım vb.) eşleşti."
+                        title={tl("contentMatchTitle")}
                       >
-                        İçerikte geçiyor
+                        {tl("contentMatch")}
                       </span>
                     ) : null}
                     {row.category.trim() ? (
@@ -1121,7 +1104,7 @@ function OilsPageContent({ fixedOilType, basePath, pageTitle, pageSubtitle, page
                     ) : null}
                     {row.is_photosensitive ? (
                       <span className="inline-flex items-center gap-0.5 rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-700">
-                        ☀️ Fotosensitif
+                        {tl("photosensitive")}
                       </span>
                     ) : null}
                   </div>
@@ -1148,7 +1131,7 @@ function OilsPageContent({ fixedOilType, basePath, pageTitle, pageSubtitle, page
                       className="inline-flex h-8 w-full items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-rose-500 px-3 text-[12px] font-semibold text-white shadow-sm ring-1 ring-white/25 transition hover:brightness-105"
                     >
                       <span aria-hidden className="text-sm leading-none opacity-90">✦</span>
-                      Detayı Aç →
+                      {tl("openDetail")}
                     </Link>
                   </div>
                 </article>
@@ -1161,11 +1144,11 @@ function OilsPageContent({ fixedOilType, basePath, pageTitle, pageSubtitle, page
               <div className="min-w-[720px]">
                 <div className="grid grid-cols-[2rem_1.2fr_0.9fr_0.8fr_1.4fr_0.6fr] gap-3 border-b border-slate-100 bg-slate-50/80 px-4 py-2.5 text-[10px] font-black uppercase tracking-[0.12em] text-slate-400">
                   <div />
-                  <div>Yağ Adı</div>
-                  <div>Tip</div>
-                  <div>Kategori</div>
-                  <div>Önizleme</div>
-                  <div className="text-right">İşlem</div>
+                  <div>{tl("colName")}</div>
+                  <div>{tl("colType")}</div>
+                  <div>{tl("colCategory")}</div>
+                  <div>{tl("colPreview")}</div>
+                  <div className="text-right">{tl("colAction")}</div>
                 </div>
                 <div className="divide-y divide-slate-100">
                   {visibleRows.map((row) => {
@@ -1178,7 +1161,7 @@ function OilsPageContent({ fixedOilType, basePath, pageTitle, pageSubtitle, page
                             type="checkbox"
                             checked={isSelected}
                             onChange={() => toggleOilSelection(row.id)}
-                            aria-label={`${row.name} seç`}
+                            aria-label={tl("selectAria", { name: row.name })}
                             className="h-4 w-4 rounded accent-amber-600"
                           />
                         )}
@@ -1196,13 +1179,13 @@ function OilsPageContent({ fixedOilType, basePath, pageTitle, pageSubtitle, page
                       </div>
                       <div>
                         <span className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-bold ${oilTypeBadgeClass(row.oil_type)}`}>
-                          {oilTypeLabel(row.oil_type)}
+                          {typeLabel(row.oil_type)}
                         </span>
                         {matchedOnlyInContent(row, appliedQuery) ? (
-                          <span className="mt-0.5 block text-[10px] font-bold text-slate-500" title="Arama içerik alanlarında eşleşti.">İçerikte geçiyor</span>
+                          <span className="mt-0.5 block text-[10px] font-bold text-slate-500" title={tl("contentMatchShortTitle")}>{tl("contentMatch")}</span>
                         ) : null}
                         {row.is_photosensitive ? (
-                          <span className="mt-0.5 block text-[10px] font-bold text-amber-600">☀️ Fotosensitif</span>
+                          <span className="mt-0.5 block text-[10px] font-bold text-amber-600">{tl("photosensitive")}</span>
                         ) : null}
                       </div>
                       <div className="truncate text-slate-600">{row.category || "—"}</div>
@@ -1216,7 +1199,7 @@ function OilsPageContent({ fixedOilType, basePath, pageTitle, pageSubtitle, page
                           href={`/aromaterapi/yaglar/${row.id}`}
                           className="inline-flex shrink-0 rounded-xl bg-slate-950 px-3 py-1.5 text-[11px] font-black text-white shadow transition hover:bg-slate-800"
                         >
-                          Aç
+                          {tl("open")}
                         </Link>
                       </div>
                     </div>
@@ -1241,15 +1224,18 @@ function OilsPageContent({ fixedOilType, basePath, pageTitle, pageSubtitle, page
 // Export (Suspense wrapper dahil)
 // -------------------------------------------------------
 
-const fallback = (
-  <div className="flex min-h-screen items-center justify-center bg-[radial-gradient(ellipse_at_top_left,#fdf4ff_0%,#fff7ed_50%,#f8fafc_100%)] text-sm font-bold text-slate-500">
-    Yükleniyor…
-  </div>
-);
+function OilsFallback() {
+  const tl = useTranslations("aromatherapy.oils.list");
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-[radial-gradient(ellipse_at_top_left,#fdf4ff_0%,#fff7ed_50%,#f8fafc_100%)] text-sm font-bold text-slate-500">
+      {tl("fallbackLoading")}
+    </div>
+  );
+}
 
 export default function OilsPage(config: OilsPageConfig) {
   return (
-    <Suspense fallback={fallback}>
+    <Suspense fallback={<OilsFallback />}>
       <OilsPageContent {...config} />
     </Suspense>
   );

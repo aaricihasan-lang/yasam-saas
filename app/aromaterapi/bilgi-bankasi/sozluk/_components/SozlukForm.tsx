@@ -1,18 +1,19 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+import { useEnumOptions } from "@/lib/aromaterapi/useEnumLabel";
 import { useMemo, useState, type FormEvent } from "react";
 import {
   AromaterapiFormShell,
   AromaterapiFormSection,
 } from "@/app/aromaterapi/_components/write/AromaterapiFormShell";
-import { TextField, EnumSelect, enumOptions } from "@/app/aromaterapi/_components/write/KnowledgeRecordFields";
+import { TextField, EnumSelect } from "@/app/aromaterapi/_components/write/KnowledgeRecordFields";
 import { useAromaterapiDirtyGuard } from "@/app/aromaterapi/_components/write/useAromaterapiDirtyGuard";
 import { GLOSSARY_STATUS_TR } from "@/lib/aromaterapi/readLabels";
 import { GLOSSARY_STATUS_VALUES } from "@/lib/aromaterapi/glossaryFields";
 import {
   createGlossaryTerm,
   updateGlossaryTerm,
-  glossaryMessageForCode,
   type GlossaryTermBody,
 } from "@/lib/aromaterapi/glossaryWrite";
 import type { GlossaryTermListItem } from "@/lib/aromaterapi/readTypes";
@@ -69,9 +70,12 @@ export function SozlukForm({
     [f, initialState],
   );
   useAromaterapiDirtyGuard(dirty && !isDemo);
+  const t = useTranslations("aromatherapy.glossary");
+  const tf = useTranslations("aromatherapy.glossary.form");
+  const enumOptionsI18n = useEnumOptions();
 
-  const termError = triedSubmit && f.canonical_term_tr.trim() === "" ? "Terim (TR) zorunludur." : null;
-  const defError = triedSubmit && f.short_definition_tr.trim() === "" ? "Kısa tanım zorunludur." : null;
+  const termError = triedSubmit && f.canonical_term_tr.trim() === "" ? tf("termRequired") : null;
+  const defError = triedSubmit && f.short_definition_tr.trim() === "" ? tf("defRequired") : null;
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -105,18 +109,18 @@ export function SozlukForm({
   return (
     <AromaterapiFormShell
       mode={mode}
-      title={mode === "create" ? "Yeni Sözlük Terimi" : "Terimi Düzenle"}
-      description="Aromaterapi terimlerinizi kendi kütüphanenize ekleyin; yalnız size görünür."
+      title={mode === "create" ? tf("createTitle") : tf("editTitle")}
+      description={tf("description")}
       onSubmit={onSubmit}
       onCancel={onCancel}
       submitting={submitting}
       isDemo={isDemo}
       dirty={dirty}
-      errorMessage={errorCode ? glossaryMessageForCode(errorCode) : null}
+      errorMessage={errorCode ? (t.has(`errors.${errorCode}`) ? t(`errors.${errorCode}`) : t("errors.generic")) : null}
     >
-      <AromaterapiFormSection title="Terim">
+      <AromaterapiFormSection title={tf("section")}>
         <TextField
-          label="Terim (TR)"
+          label={tf("termTr")}
           value={f.canonical_term_tr}
           onChange={(v) => set("canonical_term_tr", v)}
           required
@@ -125,15 +129,15 @@ export function SozlukForm({
           error={termError}
         />
         <TextField
-          label="Terim (EN)"
+          label={tf("termEn")}
           value={f.canonical_term_en}
           onChange={(v) => set("canonical_term_en", v)}
           disabled={isDemo}
           maxLength={200}
-          hint="İsteğe bağlı."
+          hint={tf("optional")}
         />
         <TextField
-          label="Kısa Tanım"
+          label={tf("shortDef")}
           value={f.short_definition_tr}
           onChange={(v) => set("short_definition_tr", v)}
           required
@@ -143,21 +147,21 @@ export function SozlukForm({
           error={defError}
         />
         <TextField
-          label="Profesyonel Tanım"
+          label={tf("proDef")}
           value={f.professional_definition_tr}
           onChange={(v) => set("professional_definition_tr", v)}
           disabled={isDemo}
           multiline
           rows={4}
-          hint="İsteğe bağlı — ayrıntılı editöryal tanım."
+          hint={tf("proDefHint")}
         />
         <EnumSelect
-          label="Durum"
+          label={tf("status")}
           value={f.status}
           onChange={(v) => set("status", v || "draft")}
-          options={enumOptions(GLOSSARY_STATUS_VALUES, GLOSSARY_STATUS_TR)}
+          options={enumOptionsI18n(GLOSSARY_STATUS_VALUES, GLOSSARY_STATUS_TR)}
           disabled={isDemo}
-          allLabel="Taslak"
+          allLabel={tf("statusDefault")}
         />
       </AromaterapiFormSection>
     </AromaterapiFormShell>

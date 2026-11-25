@@ -1,5 +1,9 @@
 "use client";
 
+import { useLocale, useTranslations } from "next-intl";
+import { formatNumber } from "@/lib/i18n/format";
+import type { ActiveLocale } from "@/lib/i18n/locales";
+import { useEnumLabel } from "@/lib/aromaterapi/useEnumLabel";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useCallback } from "react";
@@ -15,7 +19,7 @@ import { PreparationMethodList } from "@/app/aromaterapi/katalog/_components/Pre
 import { fetchPreparation } from "@/lib/aromaterapi/catalogData";
 import { readYasamUser } from "@/lib/auth/yasamUser";
 import type { PreparationDetail } from "@/lib/aromaterapi/readTypes";
-import { CATALOG_STATUS_TR, PREPARATION_TYPE_TR, tr } from "@/lib/aromaterapi/readLabels";
+import { CATALOG_STATUS_TR, PREPARATION_TYPE_TR } from "@/lib/aromaterapi/readLabels";
 
 /**
  * Preparat detay — künye + bağlı bitki + üretim/elde ediliş yöntemleri (C3D-B2B) +
@@ -23,6 +27,9 @@ import { CATALOG_STATUS_TR, PREPARATION_TYPE_TR, tr } from "@/lib/aromaterapi/re
  * (method series/revision); düzenleme ve "Yeni Üretim Yöntemi" akışları bağlanır.
  */
 export default function PreparatDetayPage() {
+  const enumLabel = useEnumLabel();
+  const t = useTranslations("aromatherapy.catalog.prep");
+  const locale = useLocale() as ActiveLocale;
   const params = useParams<{ id: string }>();
   const id = typeof params?.id === "string" ? params.id : "";
   const isDemo = readYasamUser()?.is_demo_account === true;
@@ -32,16 +39,16 @@ export default function PreparatDetayPage() {
     id,
   );
 
-  const typeLabel = data ? tr.label(PREPARATION_TYPE_TR, data.preparation_type) : "Preparat Detayı";
+  const typeLabel = data ? enumLabel(PREPARATION_TYPE_TR, data.preparation_type) : t("fallbackTitle");
 
   return (
     <DetailScreen
       title={typeLabel}
       subtitle={data?.taxon_canonical_name ?? undefined}
       icon="⚗️"
-      breadcrumbLeaf="Preparat Detayı"
+      breadcrumbLeaf={t("fallbackTitle")}
       backHref="/aromaterapi/katalog?tab=preparatlar"
-      backLabel="Kataloğa dön"
+      backLabel={t("back")}
       wordExportUrl={id ? `/api/aromaterapi/preparations/${id}/word-report` : undefined}
       extraActions={
         data ? (
@@ -55,7 +62,7 @@ export default function PreparatDetayPage() {
                 {data.taxon_canonical_name ? <> · <span className="italic">{data.taxon_canonical_name}</span></> : null}
               </>
             }
-            entityNoun="preparat"
+            entityNoun={t("noun")}
             listHref="/aromaterapi/katalog?tab=preparatlar"
             isDemo={isDemo}
             onReload={retry}
@@ -75,24 +82,24 @@ export default function PreparatDetayPage() {
                 href={`/aromaterapi/katalog/preparatlar/${data.id}/duzenle`}
                 className="inline-flex min-h-[44px] items-center gap-1.5 rounded-xl border border-slate-200 bg-white/85 px-4 text-[13px] font-black text-slate-600 shadow-sm transition hover:border-emerald-200 hover:text-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/60"
               >
-                ✏️ Preparatı düzenle
+                {t("edit")}
               </Link>
             </div>
           ) : null}
 
-          <DetailSection title="Genel Bilgiler">
+          <DetailSection title={t("general")}>
             <dl className="grid grid-cols-1 gap-x-6 sm:grid-cols-2">
-              <DetailField label="Preparat Türü" value={typeLabel} />
-              <DetailField label="Bitki Kısmı" value={data.plant_part} />
-              <DetailField label="Kemotip (CT)" value={data.chemotype ?? "—"} />
+              <DetailField label={t("type")} value={typeLabel} />
+              <DetailField label={t("plantPart")} value={data.plant_part} />
+              <DetailField label={t("chemotype")} value={data.chemotype ?? "—"} />
               <DetailField
-                label="Durum"
-                value={<MetaChip tone="teal">{tr.label(CATALOG_STATUS_TR, data.status)}</MetaChip>}
+                label={t("status")}
+                value={<MetaChip tone="teal">{enumLabel(CATALOG_STATUS_TR, data.status)}</MetaChip>}
               />
             </dl>
           </DetailSection>
 
-          <DetailSection title="Bağlı Bitki">
+          <DetailSection title={t("linkedPlant")}>
             {data.taxon ? (
               <Link
                 href={`/aromaterapi/katalog/bitkiler/${data.taxon.id}`}
@@ -112,29 +119,29 @@ export default function PreparatDetayPage() {
               </Link>
             ) : (
               <p className="py-3 text-center text-[13px] font-semibold text-slate-400">
-                Bağlı bitki bulunamadı.
+                {t("noPlant")}
               </p>
             )}
           </DetailSection>
 
           <DetailSection
-            title="Üretim ve Elde Ediliş Yöntemleri"
-            hint="Bu preparatın nasıl elde edildiği; her yöntem kendi revizyon geçmişini taşır."
+            title={t("methods")}
+            hint={t("methodsHint")}
           >
             <PreparationMethodList preparationId={data.id} isDemo={isDemo} />
           </DetailSection>
 
-          <DetailSection title="İlişkili Bilgi Kayıtları">
+          <DetailSection title={t("knowledge")}>
             {data.knowledge_record_count > 0 ? (
               <Link
                 href={`/aromaterapi/bilgi-kayitlari?preparation_id=${data.id}`}
                 className="inline-flex min-h-[44px] items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 text-[13px] font-black text-emerald-800 shadow-sm transition hover:bg-emerald-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/60"
               >
-                📑 {data.knowledge_record_count.toLocaleString("tr-TR")} bilgi kaydını görüntüle →
+                {t("viewKnowledge", { n: data.knowledge_record_count, count: formatNumber(data.knowledge_record_count, undefined, locale) })}
               </Link>
             ) : (
               <p className="py-3 text-center text-[13px] font-semibold text-slate-400">
-                Bu preparata bağlı bilgi kaydı bulunmuyor.
+                {t("noKnowledge")}
               </p>
             )}
           </DetailSection>

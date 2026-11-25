@@ -1,5 +1,10 @@
 "use client";
 
+import { useLocale, useTranslations } from "next-intl";
+import { formatDate, formatNumber } from "@/lib/i18n/format";
+import type { ActiveLocale } from "@/lib/i18n/locales";
+import { useAromaReadError } from "@/lib/aromaterapi/useAromaterapiModuleText";
+import { useEnumLabel } from "@/lib/aromaterapi/useEnumLabel";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { AromaterapiDetailSkeleton } from "@/app/aromaterapi/_components/AromaterapiSkeleton";
@@ -12,13 +17,11 @@ import {
 } from "@/app/aromaterapi/_components/read/ReadPrimitives";
 import { MethodStatusActions } from "@/app/aromaterapi/katalog/_components/MethodStatusActions";
 import { fetchMethodRevision, fetchMethodSeries } from "@/lib/aromaterapi/methodData";
-import { messageForCode } from "@/lib/aromaterapi/readClient";
 import {
   MATERIAL_STATE_TR,
   METHOD_KIND_TR,
   METHOD_STATUS_TR,
-  tr,
-} from "@/lib/aromaterapi/readLabels";
+  } from "@/lib/aromaterapi/readLabels";
 import type { MethodRevisionDetail, MethodSeriesDetail } from "@/lib/aromaterapi/readTypes";
 
 /**
@@ -34,9 +37,10 @@ function statusTone(status: string): Tone {
   return "slate";
 }
 
-function fmtDate(iso: string): string {
+function fmtDate(iso: string, locale: ActiveLocale): string {
   const d = new Date(iso);
-  return Number.isNaN(d.getTime()) ? iso : d.toLocaleDateString("tr-TR");
+  // tr: eski toLocaleDateString("tr-TR") ile birebir (formatDate tr → tr-TR).
+  return Number.isNaN(d.getTime()) ? iso : formatDate(d, undefined, locale);
 }
 
 export function MethodSeriesDetail({
@@ -48,6 +52,10 @@ export function MethodSeriesDetail({
   seriesId: string;
   isDemo: boolean;
 }) {
+  const enumLabel = useEnumLabel();
+  const t = useTranslations("aromatherapy.catalog.method");
+  const locale = useLocale() as ActiveLocale;
+  const readError = useAromaReadError();
   // loading TÜRETİLİR (effect içinde senkron setState YOK → cascading render yok).
   const [state, setState] = useState<{
     series: MethodSeriesDetail | null;
@@ -103,42 +111,42 @@ export function MethodSeriesDetail({
       <AromaterapiEmptyState
         variant="empty"
         icon="🔎"
-        title="Yöntem bulunamadı"
-        message="Bu üretim yöntemi bulunamadı veya bu hesabın kütüphanesinde değil."
+        title={t("notFound")}
+        message={t("notFoundBody")}
         action={
           <Link
             href={`/aromaterapi/katalog/preparatlar/${preparationId}`}
             className="inline-flex min-h-[44px] items-center rounded-xl border border-slate-200 bg-white px-4 text-[13px] font-black text-slate-600 shadow-sm transition hover:border-amber-200 hover:text-amber-800"
           >
-            Preparata dön
+            {t("backPrep")}
           </Link>
         }
       />
     );
   }
-  if (errorCode) return <ReadError message={messageForCode(errorCode)} onRetry={reload} />;
+  if (errorCode) return <ReadError message={readError(errorCode)} onRetry={reload} />;
   if (!series) return null;
 
   return (
     <div className="space-y-4">
-      <DetailSection title="Yöntem Kimliği" hint="Bu bilgiler seri oluşturulduktan sonra değiştirilemez.">
+      <DetailSection title={t("identity")} hint={t("identityHint")}>
         <dl className="grid grid-cols-1 gap-x-6 sm:grid-cols-2">
-          <DetailField label="Yöntem Türü" value={tr.label(METHOD_KIND_TR, series.method_kind)} />
-          <DetailField label="Yöntem Dili" value={series.method_lang} />
+          <DetailField label={t("kind")} value={enumLabel(METHOD_KIND_TR, series.method_kind)} />
+          <DetailField label={t("lang")} value={series.method_lang} />
           {series.source_id ? (
-            <DetailField label="Kaynak" value={series.source_title ?? "—"} />
+            <DetailField label={t("source")} value={series.source_title ?? "—"} />
           ) : null}
           {series.passage_id ? (
-            <DetailField label="Pasaj" value={series.passage_locator ?? "—"} />
+            <DetailField label={t("passage")} value={series.passage_locator ?? "—"} />
           ) : null}
-          <DetailField label="Revizyon Sayısı" value={series.revision_count.toLocaleString("tr-TR")} />
+          <DetailField label={t("revisionCount")} value={formatNumber(series.revision_count, undefined, locale)} />
           <DetailField
-            label="Doğrulanmış Revizyon"
+            label={t("verifiedRevision")}
             value={
               series.verified_revision !== null ? (
-                <MetaChip tone="emerald">{series.verified_revision}. revizyon</MetaChip>
+                <MetaChip tone="emerald">{t("revisionN", { n: series.verified_revision })}</MetaChip>
               ) : (
-                <span className="text-slate-400">Yok</span>
+                <span className="text-slate-400">{t("none")}</span>
               )
             }
           />
@@ -146,36 +154,36 @@ export function MethodSeriesDetail({
       </DetailSection>
 
       <DetailSection
-        title={`Güncel İçerik — ${series.latest_revision}. Revizyon`}
-        hint="İçeriği değiştirmek için yeni bir revizyon oluşturun; mevcut revizyonlar değişmez."
+        title={t("currentContent", { n: series.latest_revision })}
+        hint={t("currentHint")}
       >
         <div className="mb-3 flex flex-wrap items-center gap-2">
           <MetaChip tone={statusTone(series.latest_status)}>
-            {tr.label(METHOD_STATUS_TR, series.latest_status)}
+            {enumLabel(METHOD_STATUS_TR, series.latest_status)}
           </MetaChip>
           <span className="text-[11.5px] font-semibold text-slate-400">
-            Güncelleme: {fmtDate(series.latest_updated_at)}
+            {t("updatedAt", { date: fmtDate(series.latest_updated_at, locale) })}
           </span>
         </div>
 
         {latest ? (
           <div className="space-y-3">
-            <RevField label="Ana Yöntem Metni" value={latest.method_text} pre />
+            <RevField label={t("methodText")} value={latest.method_text} pre />
             <dl className="grid grid-cols-1 gap-x-6 sm:grid-cols-2">
-              {latest.plant_part_used ? <DetailField label="Kullanılan Bitki Kısmı" value={latest.plant_part_used} /> : null}
-              {latest.material_state ? <DetailField label="Malzemenin Durumu" value={tr.label(MATERIAL_STATE_TR, latest.material_state)} /> : null}
-              {latest.equipment ? <DetailField label="Ekipman" value={latest.equipment} /> : null}
-              {latest.amount_ratio ? <DetailField label="Miktar / Oran" value={latest.amount_ratio} /> : null}
-              {latest.solvent_carrier ? <DetailField label="Çözücü / Taşıyıcı" value={latest.solvent_carrier} /> : null}
-              {latest.duration_text ? <DetailField label="Süre" value={latest.duration_text} /> : null}
-              {latest.temperature_text ? <DetailField label="Sıcaklık" value={latest.temperature_text} /> : null}
-              {latest.filtration ? <DetailField label="Filtrasyon" value={latest.filtration} /> : null}
-              {latest.resting ? <DetailField label="Dinlendirme" value={latest.resting} /> : null}
-              {latest.storage ? <DetailField label="Saklama" value={latest.storage} /> : null}
+              {latest.plant_part_used ? <DetailField label={t("plantPartUsed")} value={latest.plant_part_used} /> : null}
+              {latest.material_state ? <DetailField label={t("materialState")} value={enumLabel(MATERIAL_STATE_TR, latest.material_state)} /> : null}
+              {latest.equipment ? <DetailField label={t("equipment")} value={latest.equipment} /> : null}
+              {latest.amount_ratio ? <DetailField label={t("amountRatio")} value={latest.amount_ratio} /> : null}
+              {latest.solvent_carrier ? <DetailField label={t("solventCarrier")} value={latest.solvent_carrier} /> : null}
+              {latest.duration_text ? <DetailField label={t("duration")} value={latest.duration_text} /> : null}
+              {latest.temperature_text ? <DetailField label={t("temperature")} value={latest.temperature_text} /> : null}
+              {latest.filtration ? <DetailField label={t("filtration")} value={latest.filtration} /> : null}
+              {latest.resting ? <DetailField label={t("resting")} value={latest.resting} /> : null}
+              {latest.storage ? <DetailField label={t("storage")} value={latest.storage} /> : null}
             </dl>
             {latest.steps && latest.steps.length > 0 ? (
               <div>
-                <h4 className="mb-1.5 text-[11px] font-black uppercase tracking-wide text-slate-400">Sıralı Adımlar</h4>
+                <h4 className="mb-1.5 text-[11px] font-black uppercase tracking-wide text-slate-400">{t("steps")}</h4>
                 <ol className="space-y-1.5">
                   {latest.steps.map((s) => (
                     <li key={s.order} className="flex gap-2 rounded-lg border border-slate-100 bg-white px-3 py-2 text-[14px] font-medium text-slate-800">
@@ -186,11 +194,11 @@ export function MethodSeriesDetail({
                 </ol>
               </div>
             ) : null}
-            {latest.quality_notes ? <RevField label="Kalite Kontrol Notları" value={latest.quality_notes} pre /> : null}
-            {latest.safety_notes ? <RevField label="Güvenlik Notları" value={latest.safety_notes} pre /> : null}
+            {latest.quality_notes ? <RevField label={t("qualityNotes")} value={latest.quality_notes} pre /> : null}
+            {latest.safety_notes ? <RevField label={t("safetyNotes")} value={latest.safety_notes} pre /> : null}
           </div>
         ) : (
-          <p className="text-[13px] font-semibold text-slate-400">Revizyon içeriği yüklenemedi.</p>
+          <p className="text-[13px] font-semibold text-slate-400">{t("revisionLoadFailed")}</p>
         )}
 
         <div className="mt-4 flex flex-col gap-3 border-t border-amber-100/60 pt-3 sm:flex-row sm:items-center sm:justify-between">
@@ -207,13 +215,13 @@ export function MethodSeriesDetail({
               href={`/aromaterapi/katalog/preparatlar/${preparationId}/yontemler/${seriesId}/yeni-revizyon`}
               className="inline-flex min-h-[44px] items-center justify-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50/70 px-4 text-[13px] font-black text-emerald-800 shadow-sm transition hover:bg-emerald-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/60"
             >
-              <span aria-hidden>＋</span> Yeni Revizyon
+              <span aria-hidden>＋</span> {t("newRevision")}
             </Link>
           ) : null}
         </div>
       </DetailSection>
 
-      <DetailSection title="Revizyon Geçmişi" hint="En yeni revizyon en üstte.">
+      <DetailSection title={t("history")} hint={t("historyHint")}>
         <ul className="space-y-2">
           {series.revisions.map((r) => (
             <li
@@ -223,10 +231,10 @@ export function MethodSeriesDetail({
               }`}
             >
               <span className="flex items-center gap-2">
-                <span className="text-[14px] font-black text-slate-800">{r.revision}. revizyon</span>
-                <MetaChip tone={statusTone(r.status)}>{tr.label(METHOD_STATUS_TR, r.status)}</MetaChip>
+                <span className="text-[14px] font-black text-slate-800">{t("revisionN", { n: r.revision })}</span>
+                <MetaChip tone={statusTone(r.status)}>{enumLabel(METHOD_STATUS_TR, r.status)}</MetaChip>
               </span>
-              <span className="text-[11.5px] font-semibold text-slate-400">{fmtDate(r.updated_at)}</span>
+              <span className="text-[11.5px] font-semibold text-slate-400">{fmtDate(r.updated_at, locale)}</span>
             </li>
           ))}
         </ul>

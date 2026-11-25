@@ -135,6 +135,10 @@ export type BlendSafetyWarning = {
   kind: "photosensitive" | "photosensitive_unknown" | "contraindication" | "safety_note";
   label: string;
   detail: string;
+  /** I18N: taşıyıcı yağ uyarısı mı (oil_name "Taşıyıcı: …" Türkçe ön eki taşır; ekran dili için ham ad ayrı). */
+  carrier?: boolean;
+  /** I18N: ön eksiz yağ adı (ekran dilinde ön ek üretmek için). */
+  source_name?: string;
 };
 
 export type BlendSafetyResult = {
@@ -202,8 +206,12 @@ export function collectSafetyWarnings(
 
   if (carrier && carrier.oil_name.trim()) {
     const cName = `Taşıyıcı: ${carrier.oil_name.trim()}`;
+    const before = warnings.length;
     pushPhoto(cName, carrier.photosensitivity_status);
     pushText(cName, carrier.contraindications, carrier.safety_notes);
+    for (let i = before; i < warnings.length; i++) {
+      warnings[i] = { ...warnings[i], carrier: true, source_name: carrier.oil_name.trim() };
+    }
   }
 
   const hasWarnings = warnings.length > 0;
@@ -250,13 +258,28 @@ export function makeBlendItem(
 // Doğrulama
 // -------------------------------------------------------
 
+/** I18N: dil-bağımsız doğrulama kodu (ekran metni aromatherapy.blend.validation.<kod>). */
+export type BlendInputErrorCode = "nameRequired" | "bottleInvalid" | "dilutionInvalid" | "itemsRequired";
+
+export function blendInputErrorCode(input: BlendInput): BlendInputErrorCode | null {
+  if (!input.name.trim()) return "nameRequired";
+  if (!(input.bottle_ml > 0)) return "bottleInvalid";
+  if (!(input.dilution_percent > 0)) return "dilutionInvalid";
+  if (!input.items || input.items.length === 0) return "itemsRequired";
+  return null;
+}
+
+const BLEND_INPUT_ERROR_TR: Record<BlendInputErrorCode, string> = {
+  nameRequired: "Karışım adı zorunludur.",
+  bottleInvalid: "Şişe hacmi 0'dan büyük olmalıdır.",
+  dilutionInvalid: "Seyreltme oranı 0'dan büyük olmalıdır.",
+  itemsRequired: "En az bir uçucu yağ eklemelisiniz.",
+};
+
 /** Kaydetme öncesi minimal doğrulama. Hata varsa mesaj döner, yoksa null. */
 export function validateBlendInput(input: BlendInput): string | null {
-  if (!input.name.trim()) return "Karışım adı zorunludur.";
-  if (!(input.bottle_ml > 0)) return "Şişe hacmi 0'dan büyük olmalıdır.";
-  if (!(input.dilution_percent > 0)) return "Seyreltme oranı 0'dan büyük olmalıdır.";
-  if (!input.items || input.items.length === 0) return "En az bir uçucu yağ eklemelisiniz.";
-  return null;
+  const code = blendInputErrorCode(input);
+  return code ? BLEND_INPUT_ERROR_TR[code] : null;
 }
 
 // -------------------------------------------------------
@@ -276,27 +299,49 @@ function authHeaders(json = false): Record<string, string> | null {
   return h;
 }
 
-export async function fetchBlends(): Promise<{ blends: Blend[]; error: string | null }> {
+/**
+ * I18N: dil-bağımsız hata kodu (EK alan `errorCode`; ekran aromatherapy.errors.codes.<KOD>). Türkçe `error` AYNEN.
+ * Sunucu `code` alanı; eski yanıtlarda `error` değerinin kendisi kod ise o; bilinmeyen → null.
+ */
+export const BLEND_NETWORK_ERROR_CODE = "AROMA_NETWORK";
+export const BLEND_MISSING_AUTH_CODE = "AROMA_SESSION_MISSING";
+const BLEND_INPUT_ERROR_API_CODE: Record<BlendInputErrorCode, string> = {
+  nameRequired: "AROMA_BLEND_NAME_REQUIRED",
+  bottleInvalid: "AROMA_BOTTLE_INVALID",
+  dilutionInvalid: "AROMA_DILUTION_INVALID",
+  itemsRequired: "AROMA_ITEMS_REQUIRED",
+};
+function blendErrorCodeOf(json: { code?: unknown; error?: unknown }): string | null {
+  if (typeof json.code === "string" && json.code) return json.code;
+  if (typeof json.error === "string" && /^AROMA_[A-Z_]+$/.test(json.error)) return json.error;
+  return null;
+}
+function blendInputApiCode(input: BlendInput): string | null {
+  const c = blendInputErrorCode(input);
+  return c ? BLEND_INPUT_ERROR_API_CODE[c] : null;
+}
+
+export async function fetchBlends(): Promise<{ blends: Blend[]; error: string | null; errorCode?: string | null }> {
   const headers = authHeaders();
-  if (!headers) return { blends: [], error: BLEND_MISSING_AUTH };
+  if (!headers) return { blends: [], error: BLEND_MISSING_AUTH, errorCode: BLEND_MISSING_AUTH_CODE };
   try {
     const res = await fetch(BLENDS_API, { headers, cache: "no-store" });
-    const json = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string; rows?: Blend[] };
-    if (!res.ok || !json.ok) return { blends: [], error: json.error ?? `HTTP ${res.status}` };
+    const json = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string; code?: string; rows?: Blend[] };
+    if (!res.ok || !json.ok) return { blends: [], error: json.error ?? `HTTP ${res.status}`, errorCode: blendErrorCodeOf(json) };
     return { blends: json.rows ?? [], error: null };
   } catch (e) {
-    return { blends: [], error: e instanceof Error ? e.message : "Ağ hatası" };
+    return { blends: [], error: e instanceof Error ? e.message : "Ağ hatası", errorCode: BLEND_NETWORK_ERROR_CODE };
   }
 }
 
 export async function saveBlend(
   input: BlendInput,
-): Promise<{ blend: Blend | null; error: string | null; demo?: boolean }> {
+): Promise<{ blend: Blend | null; error: string | null; demo?: boolean; errorCode?: string | null }> {
   const validationError = validateBlendInput(input);
-  if (validationError) return { blend: null, error: validationError };
+  if (validationError) return { blend: null, error: validationError, errorCode: blendInputApiCode(input) };
 
   const headers = authHeaders(true);
-  if (!headers) return { blend: null, error: BLEND_MISSING_AUTH };
+  if (!headers) return { blend: null, error: BLEND_MISSING_AUTH, errorCode: BLEND_MISSING_AUTH_CODE };
 
   // tenant_id GÖNDERİLMEZ — sunucu oturumdan belirler.
   const payload = {
@@ -316,11 +361,11 @@ export async function saveBlend(
 
   try {
     const res = await fetch(BLENDS_API, { method: "POST", headers, body: JSON.stringify(payload) });
-    const json = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string; blend?: Blend; demo?: boolean };
-    if (!res.ok || !json.ok) return { blend: null, error: json.error ?? `HTTP ${res.status}` };
+    const json = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string; code?: string; blend?: Blend; demo?: boolean };
+    if (!res.ok || !json.ok) return { blend: null, error: json.error ?? `HTTP ${res.status}`, errorCode: blendErrorCodeOf(json) };
     return { blend: json.blend ?? null, error: null, demo: json.demo };
   } catch (e) {
-    return { blend: null, error: e instanceof Error ? e.message : "Ağ hatası" };
+    return { blend: null, error: e instanceof Error ? e.message : "Ağ hatası", errorCode: BLEND_NETWORK_ERROR_CODE };
   }
 }
 
@@ -336,19 +381,19 @@ export const BLEND_MISSING_VERSION_MESSAGE =
 export async function updateBlend(
   id: string,
   input: BlendInput,
-): Promise<{ blend: Blend | null; error: string | null; demo?: boolean; stale?: boolean }> {
+): Promise<{ blend: Blend | null; error: string | null; demo?: boolean; stale?: boolean; errorCode?: string | null }> {
   const validationError = validateBlendInput(input);
-  if (validationError) return { blend: null, error: validationError };
+  if (validationError) return { blend: null, error: validationError, errorCode: blendInputApiCode(input) };
 
   // ARO-008 — mecburi sürüm sözleşmesi: null/boş expected_updated_at ile API'ye GİDİLMEZ.
   const expectedUpdatedAt =
     typeof input.expected_updated_at === "string" && input.expected_updated_at.trim()
       ? input.expected_updated_at.trim()
       : null;
-  if (!expectedUpdatedAt) return { blend: null, error: BLEND_MISSING_VERSION_MESSAGE };
+  if (!expectedUpdatedAt) return { blend: null, error: BLEND_MISSING_VERSION_MESSAGE, errorCode: "AROMA_MISSING_VERSION" };
 
   const headers = authHeaders(true);
-  if (!headers) return { blend: null, error: BLEND_MISSING_AUTH };
+  if (!headers) return { blend: null, error: BLEND_MISSING_AUTH, errorCode: BLEND_MISSING_AUTH_CODE };
 
   // tenant_id GÖNDERİLMEZ — sunucu oturumdan belirler; başka tenant güncellenemez.
   const payload = {
@@ -369,15 +414,15 @@ export async function updateBlend(
 
   try {
     const res = await fetch(`${BLENDS_API}/${encodeURIComponent(id)}`, { method: "PATCH", headers, body: JSON.stringify(payload) });
-    const json = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string; blend?: Blend; demo?: boolean; stale?: boolean };
+    const json = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string; code?: string; blend?: Blend; demo?: boolean; stale?: boolean };
     // ARO-008 iyimser kilit çakışması — kayıt başka yerde değişmiş.
     if (res.status === 409 || json.stale === true || json.error === "AROMA_STALE_BLEND") {
-      return { blend: null, error: BLEND_STALE_MESSAGE, stale: true };
+      return { blend: null, error: BLEND_STALE_MESSAGE, stale: true, errorCode: "AROMA_STALE_BLEND" };
     }
-    if (!res.ok || !json.ok) return { blend: null, error: json.error ?? `HTTP ${res.status}` };
+    if (!res.ok || !json.ok) return { blend: null, error: json.error ?? `HTTP ${res.status}`, errorCode: blendErrorCodeOf(json) };
     return { blend: json.blend ?? null, error: null, demo: json.demo };
   } catch (e) {
-    return { blend: null, error: e instanceof Error ? e.message : "Ağ hatası" };
+    return { blend: null, error: e instanceof Error ? e.message : "Ağ hatası", errorCode: BLEND_NETWORK_ERROR_CODE };
   }
 }
 
@@ -401,15 +446,15 @@ export function blendToInput(blend: Blend): BlendInput {
 
 export async function deleteBlend(
   id: string,
-): Promise<{ ok: boolean; error: string | null; demo?: boolean }> {
+): Promise<{ ok: boolean; error: string | null; demo?: boolean; errorCode?: string | null }> {
   const headers = authHeaders();
-  if (!headers) return { ok: false, error: BLEND_MISSING_AUTH };
+  if (!headers) return { ok: false, error: BLEND_MISSING_AUTH, errorCode: BLEND_MISSING_AUTH_CODE };
   try {
     const res = await fetch(`${BLENDS_API}/${encodeURIComponent(id)}`, { method: "DELETE", headers });
-    const json = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string; demo?: boolean };
-    if (!res.ok || !json.ok) return { ok: false, error: json.error ?? `HTTP ${res.status}` };
+    const json = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string; code?: string; demo?: boolean };
+    if (!res.ok || !json.ok) return { ok: false, error: json.error ?? `HTTP ${res.status}`, errorCode: blendErrorCodeOf(json) };
     return { ok: true, error: null, demo: json.demo };
   } catch (e) {
-    return { ok: false, error: e instanceof Error ? e.message : "Ağ hatası" };
+    return { ok: false, error: e instanceof Error ? e.message : "Ağ hatası", errorCode: BLEND_NETWORK_ERROR_CODE };
   }
 }

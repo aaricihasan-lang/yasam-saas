@@ -1,15 +1,17 @@
 "use client";
 
 import OilsPage from "@/app/aromaterapi/_components/OilsPage";
+import { useTranslations } from "next-intl";
 
 export default function MiserasyonYaglariPage() {
+  const t = useTranslations("aromatherapy.oils.pages.maceration");
   return (
     <OilsPage
       fixedOilType="maceration"
       basePath="/aromaterapi/maserasyon-yaglari"
-      pageTitle="Maserasyon Yağları"
-      pageSubtitle="AROMATERAPİ — MASERASYON YAĞLARI"
-      pageDescription="Bitkisel maserasyon ve infüzyon yağları — bitkilerin sabit yağa demlenmesiyle elde edilir"
+      pageTitle={t("title")}
+      pageSubtitle={t("subtitle")}
+      pageDescription={t("description")}
     />
   );
 }

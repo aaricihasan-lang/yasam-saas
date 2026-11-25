@@ -1,5 +1,8 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+import { useCatalogWriteError } from "@/lib/aromaterapi/useAromaterapiModuleText";
+import { useEnumOptions } from "@/lib/aromaterapi/useEnumLabel";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import {
@@ -8,10 +11,10 @@ import {
   AromaterapiMutationNotice,
   AromaterapiReasonField,
 } from "@/app/aromaterapi/_components/write/AromaterapiFormShell";
-import { EnumSelect, TextField, enumOptions } from "@/app/aromaterapi/_components/write/KnowledgeRecordFields";
+import { EnumSelect, TextField } from "@/app/aromaterapi/_components/write/KnowledgeRecordFields";
 import { EntitySearchPicker, type PickerItem } from "@/app/aromaterapi/_components/write/EntitySearchPicker";
 import { useAromaterapiDirtyGuard } from "@/app/aromaterapi/_components/write/useAromaterapiDirtyGuard";
-import { createPreparation, updatePreparation, writeMessageForCode } from "@/lib/aromaterapi/catalogWrite";
+import { createPreparation, updatePreparation } from "@/lib/aromaterapi/catalogWrite";
 import { fetchPlantTaxaList } from "@/lib/aromaterapi/catalogData";
 import { fetchMethodSeriesList } from "@/lib/aromaterapi/methodData";
 import { CATALOG_STATUS_TR, PREPARATION_TYPE_TR } from "@/lib/aromaterapi/readLabels";
@@ -26,7 +29,7 @@ import type { PlantTaxonListItem, PreparationDetail } from "@/lib/aromaterapi/re
  * C3C read API'sini tüketir.
  */
 
-const PREP_TYPE_OPTIONS = enumOptions(Object.keys(PREPARATION_TYPE_TR), PREPARATION_TYPE_TR);
+const PREP_TYPE_VALUES = Object.keys(PREPARATION_TYPE_TR);
 
 type CoreState = {
   taxon_id: string;
@@ -46,14 +49,14 @@ function fromInitial(initial?: PreparationDetail): CoreState {
   };
 }
 
-function statusOptions(current: string) {
+function statusValues(current: string): string[] {
   const allowed =
     current === "draft"
       ? ["draft", "verified"]
       : current === "verified"
         ? ["verified", "approved"]
         : ["approved"];
-  return enumOptions(allowed, CATALOG_STATUS_TR);
+  return allowed;
 }
 
 export function PreparationForm({
@@ -65,6 +68,10 @@ export function PreparationForm({
   initial?: PreparationDetail;
   isDemo: boolean;
 }) {
+  const enumOptionsI18n = useEnumOptions();
+  const tf = useTranslations("aromatherapy.catalog.form");
+  const tp = useTranslations("aromatherapy.catalog.form.prep");
+  const writeError = useCatalogWriteError();
   const router = useRouter();
   const [core, setCore] = useState<CoreState>(() => fromInitial(initial));
   const [taxonItem, setTaxonItem] = useState<PickerItem | null>(
@@ -113,12 +120,12 @@ export function PreparationForm({
 
   const fieldErrors = useMemo(() => {
     const e: Partial<Record<string, string>> = {};
-    if (core.taxon_id === "") e.taxon_id = "Bitki seçimi zorunludur.";
-    if (core.preparation_type === "") e.preparation_type = "Preparat türü zorunludur.";
-    if (core.plant_part.trim() === "") e.plant_part = "Bitki kısmı zorunludur.";
-    if (mode === "edit" && reason.trim() === "") e.reason = "Gerekçe zorunludur.";
+    if (core.taxon_id === "") e.taxon_id = tp("taxonRequired");
+    if (core.preparation_type === "") e.preparation_type = tp("typeRequired");
+    if (core.plant_part.trim() === "") e.plant_part = tp("partRequired");
+    if (mode === "edit" && reason.trim() === "") e.reason = tf("reasonRequired");
     return e;
-  }, [core, reason, mode]);
+  }, [core, reason, mode, tf, tp]);
 
   const hasErrors = Object.keys(fieldErrors).length > 0;
   const err = (k: string) => (triedSubmit ? fieldErrors[k] ?? null : null);
@@ -201,14 +208,14 @@ export function PreparationForm({
     );
   }
 
-  const generalError = errorCode && !conflict ? writeMessageForCode(errorCode) : null;
+  const generalError = errorCode && !conflict ? writeError(errorCode) : null;
 
   return (
     <AromaterapiFormShell
       mode={mode}
       wide
-      title={mode === "create" ? "Yeni Preparat" : "Preparatı Düzenle"}
-      description="Bir bitkiye bağlı hazırlık/elde ediliş türünü tanımlar (uçucu yağ, hidrosol, maserat vb.)."
+      title={mode === "create" ? tp("newTitle") : tp("editTitle")}
+      description={tp("description")}
       onSubmit={onSubmit}
       onCancel={() => router.back()}
       submitting={submitting}
@@ -230,29 +237,28 @@ export function PreparationForm({
     >
       {noop ? (
         <AromaterapiMutationNotice tone="info">
-          Kaydedilecek bir değişiklik bulunmuyor. Yalnızca gerekçe girmek değişiklik sayılmaz.
+          {tf("noop")}
         </AromaterapiMutationNotice>
       ) : null}
 
       {identityLocked ? (
         <AromaterapiMutationNotice tone="warning">
-          Bu preparata üretim yöntemi eklendiği için temel kimlik alanları (bitki, tür, kısım, kemotip)
-          artık değiştirilemez. Yalnızca durum ve gerekçe güncellenebilir.
+          {tp("locked")}
         </AromaterapiMutationNotice>
       ) : null}
 
-      <AromaterapiFormSection title="Temel Kimlik" hint="Preparatın bağlı olduğu bitki ve hazırlık türü.">
+      <AromaterapiFormSection title={tf("identity")} hint={tp("identityHint")}>
         {identityLocked ? (
           <div className="rounded-xl border border-slate-200 bg-slate-50/70 px-3 py-2.5">
-            <span className="block text-[11px] font-black uppercase tracking-wide text-slate-400">Bitki</span>
+            <span className="block text-[11px] font-black uppercase tracking-wide text-slate-400">{tp("plant")}</span>
             <span className="block text-[14px] font-black italic text-slate-800 [overflow-wrap:anywhere]">
               {taxonItem?.label ?? initial?.taxon_canonical_name ?? "—"}
             </span>
           </div>
         ) : (
           <EntitySearchPicker<PlantTaxonListItem>
-            label="Bitki (Bilimsel Ad)"
-            placeholder="Bilimsel ad / cins / familya ile ara…"
+            label={tp("plantPicker")}
+            placeholder={tp("plantPickerPh")}
             selected={taxonItem}
             onSelect={selectTaxon}
             onClear={clearTaxon}
@@ -266,15 +272,15 @@ export function PreparationForm({
           <p role="alert" className="text-[12px] font-bold text-rose-600">{err("taxon_id")}</p>
         ) : null}
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <EnumSelect label="Preparat Türü" value={core.preparation_type} onChange={(v) => set("preparation_type", v)} options={PREP_TYPE_OPTIONS} required error={err("preparation_type")} disabled={isDemo || identityLocked} />
-          <TextField label="Bitki Kısmı" value={core.plant_part} onChange={(v) => set("plant_part", v)} required error={err("plant_part")} disabled={isDemo || identityLocked} maxLength={120} placeholder="ör. çiçekli dal uçları" />
-          <TextField label="Kemotip (CT)" value={core.chemotype} onChange={(v) => set("chemotype", v)} disabled={isDemo || identityLocked} maxLength={120} hint="Kemotip ayrımı varsa (opsiyonel)." />
+          <EnumSelect label={tp("type")} value={core.preparation_type} onChange={(v) => set("preparation_type", v)} options={enumOptionsI18n(PREP_TYPE_VALUES, PREPARATION_TYPE_TR)} required error={err("preparation_type")} disabled={isDemo || identityLocked} />
+          <TextField label={tp("part")} value={core.plant_part} onChange={(v) => set("plant_part", v)} required error={err("plant_part")} disabled={isDemo || identityLocked} maxLength={120} placeholder={tp("partPh")} />
+          <TextField label={tp("chemotype")} value={core.chemotype} onChange={(v) => set("chemotype", v)} disabled={isDemo || identityLocked} maxLength={120} hint={tp("chemotypeHint")} />
         </div>
       </AromaterapiFormSection>
 
       {mode === "edit" ? (
-        <AromaterapiFormSection title="Durum" hint="Durum yalnız izinli sırayla ilerler: Taslak → Doğrulanmış → Onaylanmış.">
-          <EnumSelect label="Kayıt Durumu" value={core.status} onChange={(v) => set("status", v)} options={statusOptions(initialState.status)} required disabled={isDemo} allLabel="Seçin…" />
+        <AromaterapiFormSection title={tf("status")} hint={tf("statusHint")}>
+          <EnumSelect label={tf("recordStatus")} value={core.status} onChange={(v) => set("status", v)} options={enumOptionsI18n(statusValues(initialState.status), CATALOG_STATUS_TR)} required disabled={isDemo} allLabel={tf("choose")} />
         </AromaterapiFormSection>
       ) : null}
     </AromaterapiFormShell>
@@ -290,22 +296,24 @@ function SuccessPanel({
   href: string;
   onCreateAnother: () => void;
 }) {
+  const tf = useTranslations("aromatherapy.catalog.form");
+  const tp = useTranslations("aromatherapy.catalog.form.prep");
   return (
     <div className="mx-auto w-full max-w-4xl space-y-3">
       <AromaterapiMutationNotice tone="success">
-        {mode === "create" ? "Preparat oluşturuldu." : "Preparat güncellendi."}
+        {mode === "create" ? tp("created") : tp("updated")}
       </AromaterapiMutationNotice>
       <div className="flex flex-col gap-2 sm:flex-row">
         <a href={href} className="inline-flex min-h-[44px] items-center justify-center rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 px-5 text-[13px] font-black text-white shadow-md transition hover:brightness-105">
-          Preparatı aç →
+          {tp("open")}
         </a>
         {mode === "create" ? (
           <button type="button" onClick={onCreateAnother} className="inline-flex min-h-[44px] items-center justify-center rounded-xl border border-slate-200 bg-white px-5 text-[13px] font-black text-slate-600 shadow-sm transition hover:border-emerald-200 hover:text-emerald-800">
-            Yeni preparat ekle
+            {tp("addAnother")}
           </button>
         ) : (
           <a href="/aromaterapi/katalog?tab=preparatlar" className="inline-flex min-h-[44px] items-center justify-center rounded-xl border border-slate-200 bg-white px-5 text-[13px] font-black text-slate-600 shadow-sm transition hover:border-amber-200 hover:text-amber-800">
-            Kataloğa dön
+            {tf("backCatalog")}
           </a>
         )}
       </div>

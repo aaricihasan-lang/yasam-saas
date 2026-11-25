@@ -1,8 +1,9 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+import { useAromaReadError } from "@/lib/aromaterapi/useAromaterapiModuleText";
 import { useEffect, useId, useState } from "react";
 import type { ListResult } from "@/lib/aromaterapi/readClient";
-import { messageForCode } from "@/lib/aromaterapi/readClient";
 
 /**
  * Aromaterapi V2 — C3D-D generic tek-seçim arama seçicisi (search-as-you-type).
@@ -47,6 +48,8 @@ export function EntitySearchPicker<T>({
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState<PickerItem[]>([]);
   const [errorCode, setErrorCode] = useState<string | null>(null);
+  const tp = useTranslations("aromatherapy.shared.picker");
+  const readError = useAromaReadError();
   const [fetchedKey, setFetchedKey] = useState("");
 
   const trimmed = query.trim();
@@ -104,7 +107,7 @@ export function EntitySearchPicker<T>({
               onClick={onClear}
               className="inline-flex min-h-[36px] shrink-0 items-center rounded-lg border border-slate-200 bg-white px-3 text-[12px] font-black text-slate-600 shadow-sm transition hover:border-rose-200 hover:text-rose-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-300/60"
             >
-              Değiştir
+              {tp("change")}
             </button>
           ) : null}
         </div>
@@ -130,13 +133,13 @@ export function EntitySearchPicker<T>({
       {active ? (
         <div className="mt-1 rounded-xl border border-slate-200 bg-white shadow-sm">
           {loading ? (
-            <p className="px-3 py-2.5 text-[13px] font-semibold text-slate-400">Aranıyor…</p>
+            <p className="px-3 py-2.5 text-[13px] font-semibold text-slate-400">{tp("searching")}</p>
           ) : errorCode ? (
             <p role="alert" className="px-3 py-2.5 text-[13px] font-bold text-rose-600">
-              {messageForCode(errorCode)}
+              {readError(errorCode)}
             </p>
           ) : items.length === 0 ? (
-            <p className="px-3 py-2.5 text-[13px] font-semibold text-slate-400">Sonuç bulunamadı.</p>
+            <p className="px-3 py-2.5 text-[13px] font-semibold text-slate-400">{tp("noResults")}</p>
           ) : (
             <ul className="max-h-64 overflow-y-auto py-1">
               {items.map((it) => (
@@ -166,7 +169,7 @@ export function EntitySearchPicker<T>({
         </div>
       ) : trimmed.length > 0 && trimmed.length < minChars ? (
         <p className="mt-1 text-[11.5px] font-semibold text-slate-400">
-          Aramak için en az {minChars} karakter girin.
+          {tp("minChars", { count: minChars })}
         </p>
       ) : null}
     </div>

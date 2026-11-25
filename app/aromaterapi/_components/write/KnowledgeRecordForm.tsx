@@ -1,5 +1,8 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+import { useClaimWriteError } from "@/lib/aromaterapi/useAromaterapiModuleText";
+import { useEnumLabel, useEnumOptions } from "@/lib/aromaterapi/useEnumLabel";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
@@ -10,12 +13,11 @@ import {
   AromaterapiReasonField,
 } from "@/app/aromaterapi/_components/write/AromaterapiFormShell";
 import { useAromaterapiDirtyGuard } from "@/app/aromaterapi/_components/write/useAromaterapiDirtyGuard";
-import { EnumSelect, TextField, enumOptions } from "@/app/aromaterapi/_components/write/KnowledgeRecordFields";
+import { EnumSelect, TextField } from "@/app/aromaterapi/_components/write/KnowledgeRecordFields";
 import { PreparationPicker } from "@/app/aromaterapi/_components/write/KnowledgeRecordPickers";
 import { KnowledgeRecordChildEditors } from "@/app/aromaterapi/_components/write/KnowledgeRecordChildEditors";
 import { useKnowledgeRecordForm, type FormMode } from "@/app/aromaterapi/_components/write/useKnowledgeRecordForm";
 import type { KnowledgeRecordDetail } from "@/lib/aromaterapi/readTypes";
-import { writeMessageForCode } from "@/lib/aromaterapi/claimWrite";
 import {
   CLAIM_TYPES,
   CONCLUSION_PROVENANCES,
@@ -34,8 +36,7 @@ import {
   OUTCOME_TYPE_TR,
   CLAIM_STATUS_TR,
   PREPARATION_TYPE_TR,
-  tr,
-} from "@/lib/aromaterapi/readLabels";
+  } from "@/lib/aromaterapi/readLabels";
 
 /**
  * Aromaterapi V2 — C3D-D Bilgi Kaydı oluşturma/düzenleme formu.
@@ -51,7 +52,11 @@ export function KnowledgeRecordForm({
   initial?: KnowledgeRecordDetail | null;
   isDemo: boolean;
 }) {
+  const enumLabel = useEnumLabel();
+  const enumOptionsI18n = useEnumOptions();
   const router = useRouter();
+  const t = useTranslations("aromatherapy.knowledge.form");
+  const writeError = useClaimWriteError();
   const [successId, setSuccessId] = useState<string | null>(null);
   const [successWarnings, setSuccessWarnings] = useState<unknown[]>([]);
 
@@ -79,17 +84,17 @@ export function KnowledgeRecordForm({
   const showErr = (k: string) => (form.triedSubmit ? form.fieldErrors[k] : undefined);
   const noop = form.result?.errorCode === "AROMA_NOOP";
   const generalError = form.result && !form.result.ok && !noop && !form.result.stale
-    ? writeMessageForCode(form.result.errorCode)
+    ? writeError(form.result.errorCode)
     : null;
 
   return (
     <AromaterapiFormShell
       mode={mode}
-      title={mode === "create" ? "Yeni Bilgi Kaydı" : "Bilgi Kaydını Düzenle"}
+      title={mode === "create" ? t("newTitle") : t("editTitle")}
       description={
         mode === "create"
-          ? "Kaynağa dayalı yeni bir bilgi kaydı oluşturun."
-          : "Değişiklik yaparken bir gerekçe girmeniz gerekir."
+          ? t("newDescription")
+          : t("editDescription")
       }
       onSubmit={onSubmit}
       onCancel={() => router.back()}
@@ -98,7 +103,7 @@ export function KnowledgeRecordForm({
       dirty={form.dirty}
       conflict={form.result?.stale ?? false}
       errorMessage={generalError}
-      submitLabel={mode === "create" ? "Bilgi Kaydını Oluştur" : "Değişiklikleri kaydet"}
+      submitLabel={mode === "create" ? t("submitCreate") : t("submitEdit")}
       reason={
         <AromaterapiReasonField
           value={form.reason}
@@ -110,16 +115,16 @@ export function KnowledgeRecordForm({
     >
       {noop ? (
         <AromaterapiMutationNotice tone="info">
-          Kaydedilecek bir değişiklik bulunmuyor. Yalnızca gerekçe girmek değişiklik sayılmaz.
+          {t("noop")}
         </AromaterapiMutationNotice>
       ) : null}
 
-      <AromaterapiFormSection title="Sonuç ve Bağlam">
+      <AromaterapiFormSection title={t("secConclusion")}>
         {mode === "create" ? (
           <PreparationPicker
             required
             disabled={isDemo}
-            selected={form.core.preparation_id ? { id: form.core.preparation_id, label: form.core.preparation_label || "Seçilen preparat" } : null}
+            selected={form.core.preparation_id ? { id: form.core.preparation_id, label: form.core.preparation_label || t("selectedPrep") } : null}
             onSelect={(it) => {
               form.setCoreField("preparation_id", it.id);
               form.setCoreField("preparation_label", it.label);
@@ -131,15 +136,15 @@ export function KnowledgeRecordForm({
           />
         ) : (
           <div>
-            <span className="block text-[12px] font-black uppercase tracking-wide text-slate-500">Preparat</span>
+            <span className="block text-[12px] font-black uppercase tracking-wide text-slate-500">{t("preparation")}</span>
             <p className="mt-1 rounded-xl border border-slate-100 bg-slate-50/70 px-3 py-2.5 text-[14px] font-bold text-slate-700">
-              {initial?.preparation ? tr.label(PREPARATION_TYPE_TR, initial.preparation.preparation_type) : "—"}
+              {initial?.preparation ? enumLabel(PREPARATION_TYPE_TR, initial.preparation.preparation_type) : "—"}
               {initial?.preparation?.taxon_canonical_name ? (
                 <span className="ml-1 text-[12px] font-semibold italic text-slate-400">
                   · {initial.preparation.taxon_canonical_name}
                 </span>
               ) : null}
-              <span className="ml-2 text-[11px] font-bold text-slate-400">(değiştirilemez)</span>
+              <span className="ml-2 text-[11px] font-bold text-slate-400">{t("immutable")}</span>
             </p>
           </div>
         )}
@@ -148,16 +153,16 @@ export function KnowledgeRecordForm({
         ) : null}
 
         <EnumSelect
-          label="Bilgi Türü"
+          label={t("claimType")}
           required
           disabled={isDemo}
           value={form.core.claim_type}
           error={showErr("claim_type")}
-          options={enumOptions(CLAIM_TYPES, CLAIM_TYPE_TR)}
+          options={enumOptionsI18n(CLAIM_TYPES, CLAIM_TYPE_TR)}
           onChange={(v) => form.setCoreField("claim_type", v)}
         />
         <TextField
-          label="Sonuç"
+          label={t("conclusion")}
           required
           multiline
           disabled={isDemo}
@@ -167,36 +172,36 @@ export function KnowledgeRecordForm({
         />
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <EnumSelect
-            label="Sonuç Kaynağı"
+            label={t("conclusionSource")}
             required
             disabled={isDemo}
             value={form.core.conclusion_provenance}
             error={showErr("conclusion_provenance")}
-            options={enumOptions(CONCLUSION_PROVENANCES, CONCLUSION_PROVENANCE_TR)}
+            options={enumOptionsI18n(CONCLUSION_PROVENANCES, CONCLUSION_PROVENANCE_TR)}
             onChange={(v) => form.setCoreField("conclusion_provenance", v)}
           />
           <EnumSelect
-            label="Kanıt Katmanı"
+            label={t("evidenceLayer")}
             required
             disabled={isDemo}
             value={form.core.evidence_layer}
             error={showErr("evidence_layer")}
-            options={enumOptions(EVIDENCE_LAYERS, EVIDENCE_LAYER_TR)}
+            options={enumOptionsI18n(EVIDENCE_LAYERS, EVIDENCE_LAYER_TR)}
             onChange={(v) => form.setCoreField("evidence_layer", v)}
           />
         </div>
         <EnumSelect
-          label="Gerekçe Durumu"
+          label={t("rationaleStatus")}
           required
           disabled={isDemo}
           value={form.core.rationale_status}
           error={showErr("rationale_status")}
-          options={enumOptions(RATIONALE_STATUSES, RATIONALE_STATUS_TR)}
+          options={enumOptionsI18n(RATIONALE_STATUSES, RATIONALE_STATUS_TR)}
           onChange={(v) => form.setCoreField("rationale_status", v)}
         />
         {rationaleRequired(form.core.rationale_status) ? (
           <TextField
-            label="Gerekçe"
+            label={t("rationale")}
             required
             multiline
             disabled={isDemo}
@@ -208,52 +213,52 @@ export function KnowledgeRecordForm({
         {safetyTopicRequired(form.core.claim_type) ? (
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <TextField
-              label="Güvenlik Konusu"
+              label={t("safetyTopic")}
               required
               mono
               disabled={isDemo}
               value={form.core.safety_topic}
               error={showErr("safety_topic")}
-              placeholder="ör. pregnancy"
-              hint="Küçük harf, rakam, alt çizgi; harfle başlar."
+              placeholder={t("safetyTopicPh")}
+              hint={t("safetyTopicHint")}
               onChange={(v) => form.setCoreField("safety_topic", v)}
             />
             <EnumSelect
-              label="Güvenlik Sonucu Türü"
+              label={t("outcomeType")}
               required
               disabled={isDemo}
               value={form.core.outcome_type}
               error={showErr("outcome_type")}
-              options={enumOptions(OUTCOME_TYPES, OUTCOME_TYPE_TR)}
+              options={enumOptionsI18n(OUTCOME_TYPES, OUTCOME_TYPE_TR)}
               onChange={(v) => form.setCoreField("outcome_type", v)}
             />
           </div>
         ) : null}
         <TextField
-          label="Preparat / Kullanım Bağlamı"
+          label={t("prepContext")}
           mono
           disabled={isDemo}
           value={form.core.preparation_context}
           error={showErr("preparation_context")}
-          placeholder="ör. topical_diluted (opsiyonel)"
-          hint="Opsiyonel; küçük harf/rakam/alt çizgi."
+          placeholder={t("prepContextPh")}
+          hint={t("prepContextHint")}
           onChange={(v) => form.setCoreField("preparation_context", v)}
         />
         {mode === "edit" ? (
           <EnumSelect
-            label="Durum"
+            label={t("status")}
             disabled={isDemo}
             value={form.core.status}
             allLabel="—"
-            options={enumOptions(CLAIM_STATUSES, CLAIM_STATUS_TR)}
+            options={enumOptionsI18n(CLAIM_STATUSES, CLAIM_STATUS_TR)}
             onChange={(v) => form.setCoreField("status", v)}
           />
         ) : null}
       </AromaterapiFormSection>
 
       <AromaterapiFormSection
-        title="Kanıt, Kaynak ve İlişkiler"
-        hint="Rotalar, popülasyonlar, kaynaklar, pasajlar ve ilişkiler — hepsi opsiyonel."
+        title={t("secEvidence")}
+        hint={t("secEvidenceHint")}
       >
         <KnowledgeRecordChildEditors form={form} disabled={isDemo} />
       </AromaterapiFormSection>
@@ -262,14 +267,15 @@ export function KnowledgeRecordForm({
 }
 
 function SuccessPanel({ id, mode, warnings }: { id: string; mode: FormMode; warnings: unknown[] }) {
+  const t = useTranslations("aromatherapy.knowledge.form");
   return (
     <div className="mx-auto w-full max-w-2xl space-y-4">
       <AromaterapiMutationNotice tone="success">
-        {mode === "create" ? "Bilgi kaydı oluşturuldu." : "Bilgi kaydı güncellendi."}
+        {mode === "create" ? t("created") : t("updated")}
       </AromaterapiMutationNotice>
       {Array.isArray(warnings) && warnings.length > 0 ? (
         <div className="rounded-xl border border-amber-200 bg-amber-50/70 px-4 py-3">
-          <p className="text-[12px] font-black uppercase tracking-wide text-amber-700">Uyarılar</p>
+          <p className="text-[12px] font-black uppercase tracking-wide text-amber-700">{t("warnings")}</p>
           <ul className="mt-1 list-disc space-y-0.5 pl-5 text-[13px] font-medium text-amber-800">
             {warnings.map((w, i) => (
               <li key={i} className="[overflow-wrap:anywhere]">{typeof w === "string" ? w : JSON.stringify(w)}</li>
@@ -282,13 +288,13 @@ function SuccessPanel({ id, mode, warnings }: { id: string; mode: FormMode; warn
           href={`/aromaterapi/bilgi-kayitlari/${id}`}
           className="inline-flex min-h-[44px] items-center justify-center rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 px-5 text-[13px] font-black text-white shadow-md transition hover:brightness-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/60"
         >
-          Bilgi Kaydını Aç →
+          {t("open")}
         </Link>
         <Link
           href="/aromaterapi/bilgi-kayitlari"
           className="inline-flex min-h-[44px] items-center justify-center rounded-xl border border-slate-200 bg-white px-5 text-[13px] font-black text-slate-600 shadow-sm transition hover:border-amber-200 hover:text-amber-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300/60"
         >
-          Listeye dön
+          {t("backList")}
         </Link>
       </div>
     </div>

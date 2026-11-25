@@ -1,5 +1,9 @@
 "use client";
 
+import { useLocale, useTranslations } from "next-intl";
+import { formatNumber } from "@/lib/i18n/format";
+import type { ActiveLocale } from "@/lib/i18n/locales";
+import { useEnumLabel } from "@/lib/aromaterapi/useEnumLabel";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useCallback } from "react";
@@ -17,11 +21,13 @@ import {
   CATALOG_STATUS_TR,
   PREPARATION_TYPE_TR,
   TAXON_RANK_TR,
-  tr,
-} from "@/lib/aromaterapi/readLabels";
+  } from "@/lib/aromaterapi/readLabels";
 
 /** Bitki (takson) detay — künye + bu taksona bağlı preparat özeti. */
 export default function BitkiDetayPage() {
+  const enumLabel = useEnumLabel();
+  const t = useTranslations("aromatherapy.catalog.plant");
+  const locale = useLocale() as ActiveLocale;
   const params = useParams<{ id: string }>();
   const id = typeof params?.id === "string" ? params.id : "";
   const isDemo = readYasamUser()?.is_demo_account === true;
@@ -36,12 +42,12 @@ export default function BitkiDetayPage() {
 
   return (
     <DetailScreen
-      title={taxon ? <span className="italic">{taxon.canonical_name}</span> : "Bitki Detayı"}
+      title={taxon ? <span className="italic">{taxon.canonical_name}</span> : t("fallbackTitle")}
       subtitle={taxon?.family}
       icon="🌱"
-      breadcrumbLeaf="Bitki Detayı"
+      breadcrumbLeaf={t("fallbackTitle")}
       backHref="/aromaterapi/katalog"
-      backLabel="Kataloğa dön"
+      backLabel={t("back")}
       wordExportUrl={id ? `/api/aromaterapi/plant-taxa/${id}/word-report` : undefined}
       extraActions={
         taxon ? (
@@ -50,7 +56,7 @@ export default function BitkiDetayPage() {
             id={taxon.id}
             updatedAt={taxon.updated_at}
             recordLabel={<span className="italic">{taxon.canonical_name}</span>}
-            entityNoun="bitki"
+            entityNoun={t("noun")}
             listHref="/aromaterapi/katalog"
             isDemo={isDemo}
             onReload={retry}
@@ -70,38 +76,38 @@ export default function BitkiDetayPage() {
                 href={`/aromaterapi/katalog/bitkiler/${taxon.id}/duzenle`}
                 className="inline-flex min-h-[44px] items-center gap-1.5 rounded-xl border border-slate-200 bg-white/85 px-4 text-[13px] font-black text-slate-600 shadow-sm transition hover:border-emerald-200 hover:text-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/60"
               >
-                ✏️ Bitkiyi düzenle
+                {t("edit")}
               </Link>
             </div>
           ) : null}
 
-          <DetailSection title="Genel Bilgiler">
+          <DetailSection title={t("general")}>
             <dl className="grid grid-cols-1 gap-x-6 sm:grid-cols-2">
-              <DetailField label="Kanonik Ad" value={<span className="italic">{taxon.canonical_name}</span>} />
-              <DetailField label="Familya" value={taxon.family} />
-              <DetailField label="Cins" value={<span className="italic">{taxon.genus}</span>} />
-              <DetailField label="Tür" value={<span className="italic">{taxon.species}</span>} />
-              <DetailField label="Rank" value={tr.label(TAXON_RANK_TR, taxon.taxon_rank)} />
+              <DetailField label={t("canonicalName")} value={<span className="italic">{taxon.canonical_name}</span>} />
+              <DetailField label={t("family")} value={taxon.family} />
+              <DetailField label={t("genus")} value={<span className="italic">{taxon.genus}</span>} />
+              <DetailField label={t("species")} value={<span className="italic">{taxon.species}</span>} />
+              <DetailField label={t("rank")} value={enumLabel(TAXON_RANK_TR, taxon.taxon_rank)} />
               {taxon.infraspecific_epithet ? (
-                <DetailField label="Alt-tür Epiteti" value={taxon.infraspecific_epithet} />
+                <DetailField label={t("infraspecific")} value={taxon.infraspecific_epithet} />
               ) : null}
               {taxon.author_citation ? (
-                <DetailField label="Yazar Atfı" value={taxon.author_citation} />
+                <DetailField label={t("author")} value={taxon.author_citation} />
               ) : null}
               <DetailField
-                label="Durum"
-                value={<MetaChip tone="teal">{tr.label(CATALOG_STATUS_TR, taxon.status)}</MetaChip>}
+                label={t("status")}
+                value={<MetaChip tone="teal">{enumLabel(CATALOG_STATUS_TR, taxon.status)}</MetaChip>}
               />
             </dl>
           </DetailSection>
 
           <DetailSection
-            title="Bağlı Preparatlar"
-            hint={`${data.preparations.length.toLocaleString("tr-TR")} preparat bu bitkiye bağlı.`}
+            title={t("linkedPreps")}
+            hint={t("linkedPrepsHint", { n: data.preparations.length, count: formatNumber(data.preparations.length, undefined, locale) })}
           >
             {data.preparations.length === 0 ? (
               <p className="py-4 text-center text-[13px] font-semibold text-slate-400">
-                Bu bitkiye bağlı preparat kaydı bulunmuyor.
+                {t("noPreps")}
               </p>
             ) : (
               <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2">
@@ -113,11 +119,11 @@ export default function BitkiDetayPage() {
                     >
                       <span className="min-w-0">
                         <span className="block text-[13.5px] font-black text-slate-800">
-                          {tr.label(PREPARATION_TYPE_TR, prep.preparation_type)}
+                          {enumLabel(PREPARATION_TYPE_TR, prep.preparation_type)}
                         </span>
                         <span className="block text-[11.5px] font-semibold text-slate-400">
                           {prep.plant_part}
-                          {prep.chemotype ? ` · CT: ${prep.chemotype}` : ""}
+                          {prep.chemotype ? t("chemotypeSuffix", { value: prep.chemotype }) : ""}
                         </span>
                       </span>
                       <span aria-hidden className="text-teal-400">

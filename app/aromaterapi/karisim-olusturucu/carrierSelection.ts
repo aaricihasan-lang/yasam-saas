@@ -120,15 +120,29 @@ export async function resolveCarrierSelection(
  * Kayıt/yazdırma kapısı: taşıyıcı güvenlik verisi yükleniyorsa veya snapshot seçili taşıyıcıya
  * ait değilse işlem engellenir (yanlış eşleşmiş güvenlik verisi kalıcılaşmasın). null = izinli.
  */
+/** I18N: dil-bağımsız engel kodu (ekran metni aromatherapy.blend.validation.<kod>); karar mantığı aynı. */
+export function carrierSaveBlockCode(s: {
+  carrierId: string | null;
+  carrierLoading: boolean;
+  carrierSafetyFor: string | null;
+}): "carrierLoading" | "carrierMismatch" | null {
+  if (s.carrierLoading) return "carrierLoading";
+  if ((s.carrierId ?? null) !== (s.carrierSafetyFor ?? null)) return "carrierMismatch";
+  return null;
+}
+
 export function carrierSaveBlockReason(s: {
   carrierId: string | null;
   carrierLoading: boolean;
   carrierSafetyFor: string | null;
 }): string | null {
-  if (s.carrierLoading) {
+  const code = carrierSaveBlockCode(s);
+  if (code === "carrierLoading") {
+    // i18n-ignore: TR kaynak/test metni (dogal-destek-p2 unit); ekran metni aromatherapy.blend.validation.carrierLoading (koddan)
     return "Taşıyıcı yağın güvenlik bilgisi yükleniyor. Birkaç saniye sonra tekrar deneyin.";
   }
-  if ((s.carrierId ?? null) !== (s.carrierSafetyFor ?? null)) {
+  if (code === "carrierMismatch") {
+    // i18n-ignore: TR kaynak/test metni (dogal-destek-p2 unit); ekran metni aromatherapy.blend.validation.carrierMismatch (koddan)
     return "Taşıyıcı yağın güvenlik bilgisi seçili yağla eşleşmiyor. Taşıyıcıyı yeniden seçip tekrar deneyin.";
   }
   return null;

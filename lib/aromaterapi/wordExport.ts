@@ -18,16 +18,17 @@ function authHeaders(): Record<string, string> {
   };
 }
 
-export async function downloadWord(url: string, body?: unknown): Promise<{ ok: boolean; error: string | null }> {
+/** I18N: `errorCode` dil-bağımsız EK alan (aromatherapy.errors.codes.<KOD>); Türkçe `error` AYNEN. */
+export async function downloadWord(url: string, body?: unknown): Promise<{ ok: boolean; error: string | null; errorCode?: string | null }> {
   let res: Response;
   try {
     res = await fetch(url, { method: "POST", headers: authHeaders(), body: JSON.stringify(body ?? {}) });
   } catch {
-    return { ok: false, error: "Bağlantı hatası. Lütfen tekrar deneyin." };
+    return { ok: false, error: "Bağlantı hatası. Lütfen tekrar deneyin.", errorCode: "AROMA_NETWORK" };
   }
   if (!res.ok) {
-    try { const j = await res.json(); return { ok: false, error: String(j.error ?? `HTTP ${res.status}`) }; }
-    catch { return { ok: false, error: `HTTP ${res.status}` }; }
+    try { const j = await res.json(); return { ok: false, error: String(j.error ?? `HTTP ${res.status}`), errorCode: typeof j.code === "string" ? j.code : null }; }
+    catch { return { ok: false, error: `HTTP ${res.status}`, errorCode: null }; }
   }
   const blob = await res.blob();
   const cd = res.headers.get("Content-Disposition") ?? "";

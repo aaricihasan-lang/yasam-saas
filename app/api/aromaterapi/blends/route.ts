@@ -75,19 +75,19 @@ export async function POST(req: NextRequest): Promise<Response> {
   try {
     body = (await req.json()) as Record<string, unknown>;
   } catch {
-    return NextResponse.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 });
+    return NextResponse.json({ ok: false, code: "AROMA_INVALID_BODY", error: "Geçersiz istek gövdesi." }, { status: 400 });
   }
 
   const name = String(body.name ?? "").trim();
-  if (!name) return NextResponse.json({ ok: false, error: "Karışım adı zorunludur." }, { status: 400 });
+  if (!name) return NextResponse.json({ ok: false, code: "AROMA_BLEND_NAME_REQUIRED", error: "Karışım adı zorunludur." }, { status: 400 });
 
   const bottleMl = toNumber(body.bottle_ml);
   const dilutionPercent = toNumber(body.dilution_percent);
-  if (!(bottleMl > 0)) return NextResponse.json({ ok: false, error: "Şişe hacmi 0'dan büyük olmalıdır." }, { status: 400 });
-  if (!(dilutionPercent > 0)) return NextResponse.json({ ok: false, error: "Seyreltme oranı 0'dan büyük olmalıdır." }, { status: 400 });
+  if (!(bottleMl > 0)) return NextResponse.json({ ok: false, code: "AROMA_BOTTLE_INVALID", error: "Şişe hacmi 0'dan büyük olmalıdır." }, { status: 400 });
+  if (!(dilutionPercent > 0)) return NextResponse.json({ ok: false, code: "AROMA_DILUTION_INVALID", error: "Seyreltme oranı 0'dan büyük olmalıdır." }, { status: 400 });
 
   const items = sanitizeItems(body.items);
-  if (items.length === 0) return NextResponse.json({ ok: false, error: "En az bir uçucu yağ eklemelisiniz." }, { status: 400 });
+  if (items.length === 0) return NextResponse.json({ ok: false, code: "AROMA_ITEMS_REQUIRED", error: "En az bir uçucu yağ eklemelisiniz." }, { status: 400 });
 
   if (is_demo_account) return demoReadOnlyResponse();
 

@@ -1,12 +1,12 @@
 "use client";
 
+import { useLocale, useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { useState, type ReactNode } from "react";
 import { AromaterapiConfirmDialog } from "@/app/aromaterapi/_components/write/AromaterapiConfirmDialog";
 import { useToast } from "@/components/ui/ToastProvider";
 import { useSubmitLock } from "@/hooks/useSubmitLock";
 import {
-  contentDeleteMessageForCode,
   deleteContentRecord,
   describeContentReferences,
   REFERENCED_CODE,
@@ -48,6 +48,10 @@ export function AromaterapiDeleteAction({
   const { showToast } = useToast();
   const { run, pending } = useSubmitLock();
   const [dialog, setDialog] = useState<DialogState>(null);
+  const td = useTranslations("aromatherapy.shared.delete");
+  const locale = useLocale();
+  // Silme hata kodu → ekran metni (TR = contentDeleteClient DELETE_MESSAGES birebir).
+  const deleteError = (code: string | null) => (code && td.has(`errors.${code}`) ? td(`errors.${code}`) : td("errors.generic"));
   const [reason, setReason] = useState("");
   const [inUseText, setInUseText] = useState("");
 
@@ -64,12 +68,13 @@ export function AromaterapiDeleteAction({
       const res = await deleteContentRecord(kind, id, { expected_updated_at: updatedAt, reason: reason.trim() }, signal);
       if (res.ok) {
         setDialog(null);
-        showToast({ title: "Silindi", message: "Kayıt kalıcı olarak silindi.", type: "success" });
+        showToast({ title: td("deletedTitle"), message: td("deleted"), type: "success" });
         router.push(listHref);
         return;
       }
       if (res.errorCode === REFERENCED_CODE[kind]) {
-        setInUseText(describeContentReferences(kind, res.references));
+        // Referans açıklaması (Türkçe tür adlarıyla kurulur) yalnız tr'de; diğer dilde çevrilmiş genel metin.
+        setInUseText(locale === "tr" ? describeContentReferences(kind, res.references) : td("inUseGeneric"));
         setDialog("in-use");
         return;
       }
@@ -78,9 +83,9 @@ export function AromaterapiDeleteAction({
         return;
       }
       if (res.errorCode) {
-        showToast({ title: "Silinemedi", message: contentDeleteMessageForCode(res.errorCode), type: "error" });
+        showToast({ title: td("failedTitle"), message: deleteError(res.errorCode), type: "error" });
       }
-    }).catch(() => showToast({ title: "Silinemedi", message: contentDeleteMessageForCode("AROMA_NETWORK_ERROR"), type: "error" }));
+    }).catch(() => showToast({ title: td("failedTitle"), message: deleteError("AROMA_NETWORK_ERROR"), type: "error" }));
   }
 
   return (
@@ -91,27 +96,26 @@ export function AromaterapiDeleteAction({
         disabled={pending}
         className="inline-flex min-h-[44px] items-center rounded-xl border border-rose-200 bg-white px-3.5 text-[13px] font-black text-rose-700 shadow-sm transition hover:bg-rose-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-300/60 disabled:opacity-60"
       >
-        Sil
+        {td("button")}
       </button>
 
       <AromaterapiConfirmDialog
         open={dialog === "confirm"}
         tone="danger"
-        title={`Bu ${entityNoun} kalıcı olarak silinsin mi?`}
+        title={td("confirmTitle", { noun: entityNoun })}
         description={
           <>
-            <strong className="break-words [overflow-wrap:anywhere]">{recordLabel}</strong> kalıcı olarak silinecek. Bu
-            işlem geri alınamaz; silme kaydı denetim günlüğünde tutulur.
+            {td.rich("confirmBody", { name: "", strong: () => <strong className="break-words [overflow-wrap:anywhere]">{recordLabel}</strong> })}
           </>
         }
-        confirmLabel={pending ? "Siliniyor…" : "Evet, Kalıcı Sil"}
-        cancelLabel="Vazgeç"
+        confirmLabel={pending ? td("deleting") : td("confirm")}
+        cancelLabel={td("cancel")}
         confirmDisabled={pending || reason.trim() === ""}
         onConfirm={handleDelete}
         onCancel={() => { if (!pending) setDialog(null); }}
       >
         <label htmlFor={`aroma-delete-reason-${id}`} className="block text-[12px] font-black uppercase tracking-wide text-slate-500">
-          Gerekçe <span className="text-rose-500">*</span>
+          {td("reason")} <span className="text-rose-500">*</span>
         </label>
         <textarea
           id={`aroma-delete-reason-${id}`}
@@ -119,27 +123,27 @@ export function AromaterapiDeleteAction({
           onChange={(e) => setReason(e.target.value)}
           rows={2}
           maxLength={2000}
-          placeholder="Silme nedenini kısaca yazın…"
+          placeholder={td("reasonPlaceholder")}
           className="mt-1 min-h-[44px] w-full rounded-xl border border-slate-200 bg-white/90 px-3 py-2 text-[14px] font-medium text-slate-800 shadow-sm outline-none focus-visible:border-rose-300 focus-visible:ring-2 focus-visible:ring-rose-300/50"
         />
       </AromaterapiConfirmDialog>
 
       <AromaterapiConfirmDialog
         open={dialog === "in-use"}
-        title={`Bu ${entityNoun} silinemez`}
+        title={td("inUseTitle", { noun: entityNoun })}
         description={inUseText}
-        confirmLabel="Tamam"
-        cancelLabel="Kapat"
+        confirmLabel={td("ok")}
+        cancelLabel={td("close")}
         onConfirm={() => setDialog(null)}
         onCancel={() => setDialog(null)}
       />
 
       <AromaterapiConfirmDialog
         open={dialog === "stale"}
-        title="Kayıt güncellendi"
-        description={contentDeleteMessageForCode("AROMA_STALE")}
-        confirmLabel="Son hâlini yükle"
-        cancelLabel="Vazgeç"
+        title={td("staleTitle")}
+        description={deleteError("AROMA_STALE")}
+        confirmLabel={td("reload")}
+        cancelLabel={td("cancel")}
         onConfirm={() => { setDialog(null); onReload(); }}
         onCancel={() => setDialog(null)}
       />

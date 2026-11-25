@@ -1,6 +1,7 @@
 "use client";
 
 import { Suspense } from "react";
+import { useTranslations } from "next-intl";
 import { AromaterapiSectionShell } from "@/app/aromaterapi/_components/AromaterapiSectionShell";
 import { AromaterapiListSkeleton } from "@/app/aromaterapi/_components/AromaterapiSkeleton";
 import { SozlukView } from "@/app/aromaterapi/bilgi-bankasi/sozluk/_components/SozlukView";
@@ -12,12 +13,13 @@ import { SozlukView } from "@/app/aromaterapi/bilgi-bankasi/sozluk/_components/S
  * mevcut sheet renderer ve demo davranışına dokunmaz (Bölüm 10).
  */
 export default function SozlukPage() {
+  const t = useTranslations("aromatherapy.glossary");
   return (
     <AromaterapiSectionShell
-      title="Sözlük"
-      subtitle="Aromaterapi terimleri ve tanımları — tenant kütüphanenizdeki sözlük kayıtları."
+      title={t("pageTitle")}
+      subtitle={t("pageSubtitle")}
       icon="📚"
-      breadcrumbLeaf="Sözlük"
+      breadcrumbLeaf={t("pageTitle")}
     >
       <Suspense fallback={<AromaterapiListSkeleton />}>
         <SozlukView />

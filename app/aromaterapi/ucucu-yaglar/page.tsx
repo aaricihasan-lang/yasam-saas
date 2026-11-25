@@ -1,15 +1,17 @@
 "use client";
 
 import OilsPage from "@/app/aromaterapi/_components/OilsPage";
+import { useTranslations } from "next-intl";
 
 export default function UcucuYaglarPage() {
+  const t = useTranslations("aromatherapy.oils.pages.essential");
   return (
     <OilsPage
       fixedOilType="essential"
       basePath="/aromaterapi/ucucu-yaglar"
-      pageTitle="Uçucu Yağlar"
-      pageSubtitle="AROMATERAPİ — UÇUCU YAĞLAR"
-      pageDescription="Aromatik ve terapötik özelliklere sahip distile uçucu yağ kütüphanesi"
+      pageTitle={t("title")}
+      pageSubtitle={t("subtitle")}
+      pageDescription={t("description")}
     />
   );
 }
