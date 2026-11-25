@@ -593,5 +593,23 @@ t("QA-ATLAS-R5 P2-1: EN ev atfı ifadesi gerçek EN kalıplarını yakalar (TR k
   assert.equal(textHasHouseReference("Kariyer evinizi yöneten Güneş dördüncü evinizde", "tr"), true);
 });
 
+t("QA-ATLAS-R5 P1-1: ROXY B1 — ayrıntılı panchanga golden'ındaki GERÇEK 'Satürn' tithi bloğu temel projektörde 'saturn' (eski mapGraha: null + düşen alan)", () => {
+  // vedic-panchang-detailed.json gerçek kayıt (lang=tr) tithi bloğu; temel golden'da bu değer "Rahu" olduğu için hata görünmüyordu.
+  const det = (JSON.parse(readFileSync(join(FIX, "golden", "vedic-panchang-detailed.json"), "utf8")) as { response: J }).response;
+  assert.equal((det.tithi as J).rulingPlanet, "Satürn", "fixture gerçek TR değeri");
+  const basic = (JSON.parse(readFileSync(join(FIX, "golden", "vedic-panchang.json"), "utf8")) as { response: J }).response;
+  const r = structuredClone(basic) as J;
+  (r.tithi as J).rulingPlanet = (det.tithi as J).rulingPlanet; // yalnız gerçek değer (diğer alanlar temel yanıtla tutarlı kalsın)
+  const p = V.projectRoxyVedicPanchanga(r) as { ok: boolean; technical: { tithi: { rulingPlanet: string | null } }; droppedValues: string[] };
+  assert.equal(p.ok, true);
+  assert.equal(p.technical.tithi.rulingPlanet, "saturn");
+  assert.ok(!p.droppedValues.includes("tithi.rulingPlanet"));
+  // Eski eşleyici (B1 öncesi) bu değeri tanımıyordu → mutasyonla kanıt: mapGrahaAnyLang yerine mapGraha konunca bu test FAIL verir.
+  assert.equal(V.mapGrahaAnyLang("Satürn"), "saturn");
+  // Sürüm kararı (QA P1-1): projeksiyon sürümü AYNI kalır — önbellek kimliği (inputHash) sürümü içermez, saklı satırlar yeniden
+  // projekte edilmez; artırım eski satırları düzeltmez, yalnız etiketlerdi (korunan demo fixture + panchanga-detail kilidi).
+  assert.equal(V.ROXY_VEDIC_PANCHANGA.projection, "vedic-panchanga-proj-1");
+});
+
 console.log(`\natlas-provider-lang-a7: ${pass} PASS / ${fail} FAIL`);
 if (fail > 0) process.exit(1);
