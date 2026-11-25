@@ -68,6 +68,8 @@ export async function POST(request: NextRequest) {
 
     // MEM-015: cookie artık imzasız admin UUID DEĞİL; doğrulanmış OPAK oturum token'ı. Admin
     // kabuğu (app/admin/layout) bu token'ı API ile aynı kuralla doğrular. Eski UUID cookie silinir.
+    // TANI (yalnız tanı dalı; asla birleştirilmez): yarışı zorlamak için çerez yanıtı 1,5 sn geciktirilir.
+    await new Promise((r) => setTimeout(r, 1500));
     const response = NextResponse.json({ ok: true }, { headers: { "Cache-Control": "no-store" } });
     response.cookies.set(ADMIN_SESSION_COOKIE, sessionToken, adminSessionCookieOptions(isProduction));
     response.cookies.set(LEGACY_ADMIN_ID_COOKIE, "", { ...adminSessionCookieOptions(isProduction), maxAge: 0 });
