@@ -242,17 +242,45 @@ export const HOUSE_REFERENCE_RE = new RegExp(
   "i",
 );
 
-export function textHasHouseReference(s: string | null | undefined): boolean {
-  return typeof s === "string" && HOUSE_REFERENCE_RE.test(s.toLocaleLowerCase("tr-TR"));
+/**
+ * I18N A7 / DA-1: İngilizce sağlayıcı yanıtı için ev atfı tespiti (savunma derinliği; KASITLI GENİŞ — "house"/"houses"
+ * sözcüğünün her geçişi ev atfı sayılır, ör. "the house of partnership", "your 9th-house Sun"). Öğe yalnız çıkarılır, metin
+ * yeniden yazılmaz → yanlış pozitifin bedeli yalnız bir açı/desen cümlesinin gösterilmemesidir.
+ */
+export const HOUSE_REFERENCE_RE_EN = new RegExp(
+  [
+    String.raw`\b(first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|eleventh|twelfth|\d{1,2}(st|nd|rd|th))[\s-]+house`,
+    String.raw`\bhouses?\b`,
+    String.raw`\b(angular|succedent|cadent)\b`,
+  ].join("|"),
+  "i",
+);
+
+/**
+ * Sağlayıcı YANIT dili → ev atfı tespiti. Karar ekran diline DEĞİL, yorumun kayıtlı sağlayıcı diline (`interpretation.lang`)
+ * bağlıdır. "tr" = bugünkü birleşik ifade + tr-TR küçük harf (davranış birebir). Tespiti doğrulanmamış dilde null döner →
+ * çağıran güvenli tarafta kalır (bkz. sanitizeNatalInterpretationForLocalHouses: açı/desen/özet anlatısı tümden çıkarılır).
+ */
+export function houseReferenceDetector(providerLang: string = "tr"): ((s: string | null | undefined) => boolean) | null {
+  if (providerLang === "tr") return (s) => typeof s === "string" && HOUSE_REFERENCE_RE.test(s.toLocaleLowerCase("tr-TR"));
+  if (providerLang === "en") return (s) => typeof s === "string" && HOUSE_REFERENCE_RE_EN.test(s.toLowerCase());
+  return null;
+}
+
+export function textHasHouseReference(s: string | null | undefined, providerLang: string = "tr"): boolean {
+  const detect = houseReferenceDetector(providerLang);
+  // Doğrulanmamış dil: metin varsa ev atfı VAR sayılır (güvenli taraf).
+  return detect ? detect(s) : typeof s === "string" && s.trim() !== "";
 }
 
 /** Yorumun hangi bölümlerinde ev atfı var (denetim). */
-export function natalInterpretationHouseRefs(i: NatalInterpretation): { bodies: number; aspects: number; patterns: number; overall: number } {
+export function natalInterpretationHouseRefs(i: NatalInterpretation, providerLang: string = "tr"): { bodies: number; aspects: number; patterns: number; overall: number } {
+  const has = (s: string | null | undefined) => textHasHouseReference(s, providerLang);
   return {
-    bodies: i.bodies.filter((b) => textHasHouseReference(b.summary) || textHasHouseReference(b.detailed)).length,
-    aspects: i.aspects.filter((a) => textHasHouseReference(a.summary)).length,
-    patterns: i.patterns.filter((p) => textHasHouseReference(p.text)).length,
-    overall: textHasHouseReference(i.overall?.aspectSummary) ? 1 : 0,
+    bodies: i.bodies.filter((b) => has(b.summary) || has(b.detailed)).length,
+    aspects: i.aspects.filter((a) => has(a.summary)).length,
+    patterns: i.patterns.filter((p) => has(p.text)).length,
+    overall: has(i.overall?.aspectSummary) ? 1 : 0,
   };
 }
 
@@ -269,13 +297,19 @@ export function maskNatalInterpretationForLocalHouses(i: NatalInterpretation): N
  * öğelerinden ev atfı TESPİT EDİLEN varsa o öğe de çıkarılır (savunma derinliği — Türkçe şablon çeşitliliği yalnız sınırlı sayıda
  * gerçek yanıtla doğrulanabildi). Hiçbir metin değiştirilmez veya yeniden yazılmaz; yalnız öğe çıkarılır.
  */
-export function sanitizeNatalInterpretationForLocalHouses(i: NatalInterpretation): {
+export function sanitizeNatalInterpretationForLocalHouses(
+  i: NatalInterpretation,
+  /** I18N A7: yorumun kayıtlı sağlayıcı dili (varsayılan "tr" = bugünkü davranış birebir). Doğrulanmamış dilde tüm öğeler çıkarılır. */
+  providerLang: string = "tr",
+): {
   content: NatalInterpretation;
   removed: { bodies: number; aspects: number; patterns: number; overall: number };
 } {
-  const aspects = i.aspects.filter((a) => !textHasHouseReference(a.summary) && !a.keywords.some((k) => textHasHouseReference(k)));
-  const patterns = i.patterns.filter((p) => !textHasHouseReference(p.text));
-  const overallRef = textHasHouseReference(i.overall?.aspectSummary);
+  const detect = houseReferenceDetector(providerLang);
+  const has = detect ?? ((s: string | null | undefined) => typeof s === "string" && s.trim() !== "");
+  const aspects = i.aspects.filter((a) => !has(a.summary) && !a.keywords.some((k) => has(k)));
+  const patterns = i.patterns.filter((p) => !has(p.text));
+  const overallRef = has(i.overall?.aspectSummary);
   return {
     content: { ...i, bodies: [], aspects, patterns, overall: overallRef ? { ...i.overall, aspectSummary: null } : i.overall },
     removed: { bodies: i.bodies.length, aspects: i.aspects.length - aspects.length, patterns: i.patterns.length - patterns.length, overall: overallRef ? 1 : 0 },

@@ -2389,8 +2389,10 @@ export function buildAstroReport(a: ReportAnalysisInput): AstroReport {
       const ls = localSpaceCenter(tech, opts, birth);
       const note = localSpaceCenterNote(ls);
       if (note) b.p(note, "muted");
-      const fix = (x: O) => (typeof x.text === "string" ? { ...x, text: localSpaceText(x.text, ls) } : x);
-      content = { ...content, bodies: arr(content.bodies).map(fix), ...(typeof content.summary === "string" ? { summary: localSpaceText(content.summary, ls) } : {}) };
+      // I18N A7: yer atfı yorumun KAYITLI sağlayıcı diline göre (varsayılan "tr" = bugünkü davranış).
+      const lsLang = typeof it!.lang === "string" ? String(it!.lang) : "tr";
+      const fix = (x: O) => (typeof x.text === "string" ? { ...x, text: localSpaceText(x.text, ls, lsLang) } : x);
+      content = { ...content, bodies: arr(content.bodies).map(fix), ...(typeof content.summary === "string" ? { summary: localSpaceText(content.summary, ls, lsLang) } : {}) };
     }
     interpBlocks(b, technique, content, people, opts);
   }

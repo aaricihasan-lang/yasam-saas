@@ -311,7 +311,7 @@ export function buildTechniqueView(args: {
       const content = maskInterpretation(args.technique, it.content, m.masked);
       // Maske tüm anlatıyı kaldırdıysa (saat bilinmiyor) boş katman gösterilmez.
       // Aşama 2 (#643): Natal klasik ev sisteminde sağlayıcının ev numaralı gezegen yorumları (ve ev atfı tespit edilen öğeler) çıkarılır.
-      const adj = args.technique === "western.natal" ? adjustNatalInterpretationForHouses(args.combined, content) : { content, note: null };
+      const adj = args.technique === "western.natal" ? adjustNatalInterpretationForHouses(args.combined, content, it.lang) : { content, note: null };
       interpretation =
         adj.content === null
           ? { visible: false, reason: "unavailable" }
