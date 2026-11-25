@@ -1,0 +1,35 @@
+{
+  "home": {
+    "dashboard": {
+      "brandTagline": "Premium SaaS Panel",
+      "navDashboard": "Dashboard",
+      "navClients": "Danışanlar",
+      "navAgenda": "Ajanda",
+      "navStones": "Doğaltaş",
+      "premiumActive": "Premium Sistem Aktif",
+      "allModulesRunning": "Tüm modüller çalışıyor",
+      "welcome": "Hoş Geldiniz 👋",
+      "welcomeSub": "Yaşam Sistemi yönetim paneline giriş yaptınız.",
+      "activeUser": "Aktif Kullanıcı",
+      "expertPanel": "Uzman Paneli",
+      "statTotalClients": "Toplam Danışan",
+      "statTodayAppointments": "Bugünkü Randevu",
+      "statSavedStones": "Kayıtlı Taş",
+      "statActiveModules": "Aktif Modül",
+      "modulesTitle": "Modüller",
+      "badgeNew": "Yeni",
+      "badgeNewUpper": "YENİ",
+      "cards": {
+        "clients": { "title": "Danışanlar", "desc": "Danışan kayıt ve analiz sistemi" },
+        "agenda": { "title": "Ajanda", "desc": "Randevu ve seans yönetimi" },
+        "stones": { "title": "Doğaltaş", "desc": "Taş ve mineral veri sistemi" },
+        "bioenergy": { "title": "Biyoenerji", "desc": "Aura, çakra, imajinasyon ve sembol dili çalışma alanı" },
+        "personalArchive": { "title": "Kişisel Arşiv (TEST)", "desc": "Ses, video, belge ve kişisel kayıt sistemi" },
+        "numerology": { "title": "Numeroloji", "desc": "Numerolojik analiz modülü" },
+        "reflexology": { "title": "Refleksoloji", "desc": "Bölge ve seans sistemi" },
+        "aromatherapy": { "title": "Aromaterapi", "desc": "Uçucu ve sabit yağ sistemi" },
+        "cupping": { "title": "Kupa & Hacamat Terapisi", "desc": "Vücut nokta atlası, amaç rehberi, teknik ve güvenlik sistemi" }
+      }
+    }
+  }
+}

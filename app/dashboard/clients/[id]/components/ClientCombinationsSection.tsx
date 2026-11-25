@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import { DEFAULT_LOCALE } from "@/lib/i18n/locales";
 import { formatDateAbsolute } from "@/lib/i18n/format";
 import { useToast } from "@/components/ui/ToastProvider";
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
@@ -42,6 +43,8 @@ export default function ClientCombinationsSection({
   clientId,
 }: ClientCombinationsSectionProps) {
   const t = useTranslations("clients.combinations");
+  // Sunucu/kütüphane hata metni Türkçedir: kaynak dilde (tr) BİREBİR gösterilir; diğer dillerde modülün genel metni.
+  const isSourceLocale = useLocale() === DEFAULT_LOCALE;
   const { showToast } = useToast();
   const deleteConfirm = useDeleteConfirm();
 
@@ -61,7 +64,7 @@ export default function ClientCombinationsSection({
     setError(null);
     const res = await fetchClientCombinations(clientId);
     if (!res.ok) {
-      setError(res.error ?? t("error.loadFailed"));
+      setError(isSourceLocale ? (res.error ?? t("error.loadFailed")) : t("error.loadFailed"));
       setRows([]);
     } else {
       setRows(res.rows);
@@ -121,7 +124,7 @@ export default function ClientCombinationsSection({
     setSavingEdit(false);
 
     if (!res.ok) {
-      showToast({ title: t("toast.failTitle"), message: res.error ?? t("toast.updateFailed"), type: "error" });
+      showToast({ title: t("toast.failTitle"), message: isSourceLocale ? (res.error ?? t("toast.updateFailed")) : t("toast.updateFailed"), type: "error" });
       return;
     }
     cancelEdit();
@@ -138,7 +141,7 @@ export default function ClientCombinationsSection({
 
     const res = await deleteClientCombination(clientId, row.id);
     if (!res.ok) {
-      showToast({ title: t("toast.failTitle"), message: res.error ?? t("toast.deleteFailed"), type: "error" });
+      showToast({ title: t("toast.failTitle"), message: isSourceLocale ? (res.error ?? t("toast.deleteFailed")) : t("toast.deleteFailed"), type: "error" });
       // D1 (DY-04): kayıt artık yoksa (404) sunucu listesiyle eşitle — bayat satır kalmaz.
       await load();
       return;

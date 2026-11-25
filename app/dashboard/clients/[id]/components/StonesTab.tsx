@@ -4,7 +4,8 @@ import { runInEffect } from "@/lib/runInEffect";
 import { CameraCaptureButton } from "@/components/media/CameraCaptureButton";
 import { looksLikeImageFile, optimizeImageFile } from "@/lib/media/imageOptimize";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import { DEFAULT_LOCALE } from "@/lib/i18n/locales";
 import { formatDateAbsolute } from "@/lib/i18n/format";
 import { useToast } from "@/components/ui/ToastProvider";
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
@@ -499,6 +500,8 @@ function PhotoGallery({
 
 export default function StonesTab({ clientId }: StonesTabProps) {
   const t = useTranslations("clients.stones");
+  // Sunucu hata metni Türkçedir: kaynak dilde (tr) bugünkü birleşik metin BİREBİR; diğer dillerde yalnız çevrilmiş genel metin.
+  const isSourceLocale = useLocale() === DEFAULT_LOCALE;
   // DY-01: kart üzerindeki "Aç" etiketi mevcut çeviriden (yeni i18n anahtarı eklenmedi).
   const tOpen = useTranslations("clients.sessions");
   const { showToast } = useToast();
@@ -695,7 +698,7 @@ export default function StonesTab({ clientId }: StonesTabProps) {
 
     if (!res.ok || !json.ok) {
       console.error("Taş fotoğrafları yüklenemedi:", json.error);
-      setErrorMessage(t("error.loadPhotos") + ": " + (json.error ?? ""));
+      setErrorMessage(isSourceLocale ? t("error.loadPhotos") + ": " + (json.error ?? "") : t("error.loadPhotos"));
       setPhotosLoading(false);
       return;
     }
@@ -1173,7 +1176,7 @@ export default function StonesTab({ clientId }: StonesTabProps) {
       console.error("Foto kaydı silinemedi:", json.error);
       showToast({
         title: t("toast.failTitle"),
-        message: t("toast.photoDeleteFailed") + ": " + (json.error ?? ""),
+        message: isSourceLocale ? t("toast.photoDeleteFailed") + ": " + (json.error ?? "") : t("toast.photoDeleteFailed"),
         type: "error",
       });
       setDeletingPhotoId(null);
