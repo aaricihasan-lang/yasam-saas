@@ -1,7 +1,8 @@
 "use client";
 
 import { useEnumLabel } from "@/lib/aromaterapi/useEnumLabel";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import type { ActiveLocale } from "@/lib/i18n/locales";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -315,6 +316,7 @@ function AuditPanel({ claimId }: { claimId: string }) {
   const t = useTranslations("aromatherapy.knowledge.detail");
   const readError = useAromaReadError();
   const enumLabel = useEnumLabel();
+  const locale = useLocale() as ActiveLocale;
   const [rows, setRows] = useState<KnowledgeAuditEvent[]>([]);
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
@@ -374,7 +376,7 @@ function AuditPanel({ claimId }: { claimId: string }) {
               <MetaChip tone={e.operation === "create" ? "emerald" : "sky"}>
                 {enumLabel(AUDIT_OPERATION_TR, e.operation)}
               </MetaChip>
-              <span className="text-[12px] font-bold text-slate-500">{formatDateTimeTr(e.occurred_at)}</span>
+              <span className="text-[12px] font-bold text-slate-500">{formatDateTimeTr(e.occurred_at, locale)}</span>
               <span className="ml-auto text-[12px] font-black text-slate-600 [overflow-wrap:anywhere]">
                 {e.actor_label_snapshot}
               </span>

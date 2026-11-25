@@ -1,7 +1,8 @@
 "use client";
 
 import { useEnumLabel, useEnumOptions } from "@/lib/aromaterapi/useEnumLabel";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import type { ActiveLocale } from "@/lib/i18n/locales";
 import Link from "next/link";
 import { useId } from "react";
 import { useAromaterapiListQuery } from "@/app/aromaterapi/_components/read/useAromaterapiListQuery";
@@ -181,6 +182,7 @@ function SafetyTopicFilter({ value, onChange }: { value: string; onChange: (v: s
 
 function RecordRow({ row }: { row: KnowledgeRecordListItem }) {
   const enumLabel = useEnumLabel();
+  const locale = useLocale() as ActiveLocale;
   const prep = [row.taxon_canonical_name, row.preparation_type]
     .filter(Boolean)
     .join(" · ");
@@ -207,7 +209,7 @@ function RecordRow({ row }: { row: KnowledgeRecordListItem }) {
         {row.safety_topic ? <MetaChip tone="amber">{row.safety_topic}</MetaChip> : null}
         <MetaChip tone="slate">{enumLabel(CLAIM_STATUS_TR, row.status)}</MetaChip>
         <span className="ml-auto text-[11px] font-bold text-slate-400">
-          {formatDateTr(row.updated_at)}
+          {formatDateTr(row.updated_at, locale)}
         </span>
       </div>
     </Link>
