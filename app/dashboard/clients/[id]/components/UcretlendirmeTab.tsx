@@ -104,8 +104,8 @@ export default function UcretlendirmeTab({ clientId, onUnpaidChange }: Ucretlend
   const deleteConfirm = useDeleteConfirm();
 
   const fmtDate = useCallback(
-    (date: string | null) => (date ? formatDateAbsolute(date) : "—"),
-    [],
+    (date: string | null) => (date ? formatDateAbsolute(date, locale) : "—"),
+    [locale],
   );
 
   const [tenantId, setTenantId] = useState<string | null>(null);

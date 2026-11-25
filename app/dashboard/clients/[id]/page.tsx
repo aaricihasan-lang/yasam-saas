@@ -3,7 +3,7 @@
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { formatCurrency, formatDateTimeAbsolute } from "@/lib/i18n/format";
-import { resolveLocale } from "@/lib/i18n/locales";
+import { resolveLocale, type ActiveLocale } from "@/lib/i18n/locales";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { groupClientDetailTabs, resolveClientDetailTab, visibleClientDetailTabs } from "@/lib/danisan/clientDetailTabs";
 import { hasModulePermission } from "@/lib/auth/modulePermissions";
@@ -116,8 +116,8 @@ function formatDateTR(date: string | undefined) {
   return `${parts[2]}.${parts[1]}.${parts[0]}`;
 }
 
-function formatDateTimeTR(value: string) {
-  return formatDateTimeAbsolute(value);
+function formatDateTimeTR(value: string, locale: ActiveLocale) {
+  return formatDateTimeAbsolute(value, locale);
 }
 
 // i18n translator tipi — modül-seviyesi saf fonksiyonlara t geçirmek için.
@@ -1484,6 +1484,7 @@ function AppointmentsTab({
   onInitialAppointmentHandled?: () => void;
 }) {
   const t = useTranslations("clients.detail");
+  const displayLocale = resolveLocale(useLocale());
   const apiErr = useClientsApiError();
   const deleteConfirm = useDeleteConfirm();
   const [appointments, setAppointments] = useState<Appointment[]>([]);
@@ -1938,7 +1939,7 @@ function AppointmentsTab({
                         {si.label}
                       </span>
                     </div>
-                    <div className="mt-[3px] text-[13px] font-extrabold text-indigo-600">{formatDateTimeTR(item.appointment_date)}</div>
+                    <div className="mt-[3px] text-[13px] font-extrabold text-indigo-600">{formatDateTimeTR(item.appointment_date, displayLocale)}</div>
                     {item.notes && (
                       <div className="mt-1.5 rounded-xl bg-slate-50 p-2.5 text-[13px] text-slate-600">{item.notes}</div>
                     )}
@@ -1988,7 +1989,7 @@ function AppointmentsTab({
                 </div>
                 <div className="grid gap-1 rounded-2xl border border-slate-200 bg-slate-50 p-3">
                   <span className="text-[12px] font-bold text-slate-500">{t("appt.modal.dateTime")}</span>
-                  <strong className="text-[14px] text-slate-950">{formatDateTimeTR(selectedAppointment.appointment_date)}</strong>
+                  <strong className="text-[14px] text-slate-950">{formatDateTimeTR(selectedAppointment.appointment_date, displayLocale)}</strong>
                 </div>
                 <div className="grid gap-1 rounded-2xl p-3"
                   style={{ borderColor: getAppointmentStatusInfo(selectedAppointment, t).border, background: getAppointmentStatusInfo(selectedAppointment, t).bg, border: `1px solid ${getAppointmentStatusInfo(selectedAppointment, t).border}` }}>

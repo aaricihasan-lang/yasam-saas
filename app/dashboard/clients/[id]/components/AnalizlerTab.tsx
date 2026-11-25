@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useState, useRef } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { formatDateAbsolute, formatDateTimeAbsolute } from "@/lib/i18n/format";
+import { resolveLocale, type ActiveLocale } from "@/lib/i18n/locales";
 // PERF (C1): html2canvas + jsPDF ağır kütüphaneler; statik import edilirse Analizler sekmesi
 // AÇILIR AÇILMAZ chunk'a girip indirilir/parse edilir. Yalnız PDF/snapshot üretimi anında
 // dynamic import edilir → sekmenin ilk açılış yükünden çıkarılır. Davranış/çıktı aynıdır.
@@ -138,8 +139,8 @@ function valueClass(value: string): string {
   return "";
 }
 
-function formatDateTimeTR(value: string) {
-  return formatDateTimeAbsolute(value);
+function formatDateTimeTR(value: string, locale: ActiveLocale) {
+  return formatDateTimeAbsolute(value, locale);
 }
 
 
@@ -161,6 +162,7 @@ const PDF_EXPORT_ENABLED = false;
 // ─── Main component ───────────────────────────────────────────────────────────
 export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps) {
   const t = useTranslations("clients.analizler");
+  const displayLocale = resolveLocale(useLocale());
   const apiErr = useClientsApiError();
   const [tenantId, setTenantId]     = useState<string | null>(null);
   const { confirm }                  = useConfirm();
@@ -206,7 +208,7 @@ export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps
     code && t.has(`analysisType.${code}`) ? t(`analysisType.${code}`) : t("analysisType.default");
   const activeTitleDisplay = analysisTypeDisplay(activeAnalysis);
 
-  const todayText = useMemo(() => formatDateAbsolute(new Date()), []);
+  const todayText = useMemo(() => formatDateAbsolute(new Date(), displayLocale), [displayLocale]);
 
   useEffect(() => { void getSyncedTenantId().then(setTenantId); }, []);
 
@@ -646,7 +648,7 @@ export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps
               <div key={item.id} className="border border-slate-200 bg-gradient-to-br from-white to-slate-50 rounded-[14px] p-3 flex justify-between gap-3 items-center">
                 <div>
                   <div className="text-[14px] font-black text-slate-950">{analysisTypeDisplay(item.analysis_type)}</div>
-                  <div className="mt-[3px] text-[11px] font-bold text-slate-500">{formatDateTimeTR(item.created_at)}</div>
+                  <div className="mt-[3px] text-[11px] font-bold text-slate-500">{formatDateTimeTR(item.created_at, displayLocale)}</div>
                   {item.note && (
                     <div className="mt-1.5 text-[11px] text-slate-600 bg-slate-100 rounded-xl px-2 py-1.5">
                       {item.note.slice(0, 90)}{item.note.length > 90 ? "..." : ""}

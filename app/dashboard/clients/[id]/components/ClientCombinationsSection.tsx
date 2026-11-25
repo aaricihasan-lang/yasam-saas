@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
-import { DEFAULT_LOCALE } from "@/lib/i18n/locales";
+import { DEFAULT_LOCALE, resolveLocale, type ActiveLocale } from "@/lib/i18n/locales";
 import { formatDateAbsolute } from "@/lib/i18n/format";
 import { useToast } from "@/components/ui/ToastProvider";
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
@@ -20,9 +20,9 @@ type ClientCombinationsSectionProps = {
   clientId: string;
 };
 
-function formatDate(value: string | null) {
+function formatDate(value: string | null, locale: ActiveLocale) {
   if (!value) return "-";
-  return formatDateAbsolute(value);
+  return formatDateAbsolute(value, locale);
 }
 
 type EditState = {
@@ -44,7 +44,8 @@ export default function ClientCombinationsSection({
 }: ClientCombinationsSectionProps) {
   const t = useTranslations("clients.combinations");
   // Sunucu/kütüphane hata metni Türkçedir: kaynak dilde (tr) BİREBİR gösterilir; diğer dillerde modülün genel metni.
-  const isSourceLocale = useLocale() === DEFAULT_LOCALE;
+  const displayLocale = resolveLocale(useLocale());
+  const isSourceLocale = displayLocale === DEFAULT_LOCALE;
   const { showToast } = useToast();
   const deleteConfirm = useDeleteConfirm();
 
@@ -290,7 +291,7 @@ export default function ClientCombinationsSection({
                           <span className="rounded-full bg-violet-100 px-2 py-0.5 text-violet-700">
                             {t("stonesCount", { count: stones.length })}
                           </span>
-                          <span>📅 {formatDate(row.created_at)}</span>
+                          <span>📅 {formatDate(row.created_at, displayLocale)}</span>
                         </div>
                         {row.description && (
                           <p className="mt-1.5 line-clamp-2 text-sm font-medium text-slate-600">
