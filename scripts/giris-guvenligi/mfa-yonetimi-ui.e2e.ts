@@ -341,6 +341,59 @@ async function main() {
       await page.screenshot({ path: path.join(OUT, `${prof.name.toLowerCase()}-390-yonetici2.png`) });
       await ctx.close();
     }
+
+    // ── TANI (yalnız tanı dalı tani/r4-mfa-negatif-*; ana düzeltme dalına KONMAZ): yetkisiz / geçersiz oturumla /admin erişimi REDDEDİLİR ──
+    {
+      const nb = browsers[0];
+      const ADMIN_HEAD = "Hesap durumu ve erişim özeti";
+      const denied = async (page: Page) => {
+        const toRoot = await page.waitForURL((u) => u.pathname === "/", { timeout: 20000 }).then(() => true).catch(() => false);
+        const heads = await page.getByRole("heading", { name: ADMIN_HEAD }).count();
+        return { toRoot, heads, path: new URL(page.url()).pathname };
+      };
+      const hasAdminCookie = async (c: import("playwright").BrowserContext) => (await c.cookies(BASE)).some((x) => x.name === ADMIN_SESSION_COOKIE && x.value.length > 0);
+      // N1: yönetici OLMAYAN (uzman) girişi → admin-session beklenmez; çerez yok; /admin/users/<id> → `/`; admin-session POST'u 401.
+      {
+        const c = await nb.newContext({ viewport: { width: 390, height: 860 }, locale: "tr-TR" });
+        const p = await c.newPage();
+        const l = await login(p, EMAIL.free, { admin: false });
+        ok(l.loggedIn && l.adminSession === null, `NEGATİF N1: uzman girişi tamam, admin-session beklenmedi`, l);
+        ok(!(await hasAdminCookie(c)), `NEGATİF N1: uzman bağlamında yönetici çerezi YOK`);
+        await p.goto(`${BASE}/admin/users/${FREE}#hesap`, { waitUntil: "domcontentloaded" });
+        const d = await denied(p);
+        ok(d.toRoot && d.heads === 0, `NEGATİF N1: uzman /admin/users/<id> açamaz → \`/\`'a yönlendirilir`, d);
+        const st = await p.evaluate(async () => (await fetch("/api/auth/admin-session", { method: "POST" })).status);
+        ok(st === 401 && !(await hasAdminCookie(c)), `NEGATİF N1: uzman oturumuyla admin-session REDDEDİLİR (401), çerez verilmez`, { st });
+        await c.close();
+      }
+      // N2: hiç oturum yok → /admin/users/<id> → `/`.
+      {
+        const c = await nb.newContext({ viewport: { width: 390, height: 860 }, locale: "tr-TR" });
+        const p = await c.newPage();
+        await p.goto(`${BASE}/admin/users/${FREE}#hesap`, { waitUntil: "domcontentloaded" });
+        const d = await denied(p);
+        ok(d.toRoot && d.heads === 0, `NEGATİF N2: oturumsuz /admin/users/<id> → \`/\``, d);
+        await c.close();
+      }
+      // N3: GEÇERSİZ (sahte, biçimce uygun) yönetici çerezi → kabuk doğrulaması reddeder → `/`.
+      {
+        const c = await nb.newContext({ viewport: { width: 390, height: 860 }, locale: "tr-TR" });
+        await c.addCookies([{ name: ADMIN_SESSION_COOKIE, value: "zzSahteGecersizOturum0123456789abcdef", url: BASE }]);
+        const p = await c.newPage();
+        await p.goto(`${BASE}/admin/users/${FREE}#hesap`, { waitUntil: "domcontentloaded" });
+        const d = await denied(p);
+        ok(d.toRoot && d.heads === 0, `NEGATİF N3: geçersiz yönetici çereziyle /admin/users/<id> → \`/\``, d);
+        await c.close();
+      }
+      // N4: Owner olmayan YÖNETİCİ girişi → admin-session 2xx + çerez VAR (düzeltilmiş login bunu doğrular) ama MFA bölümü çizilmez (üstte).
+      {
+        const c = await nb.newContext({ viewport: { width: 390, height: 860 }, locale: "tr-TR" });
+        const p = await c.newPage();
+        const l = await login(p, ADM2);
+        ok(l.loggedIn && l.adminSession === 200 && l.adminCookie && l.adminRedirect, `NEGATİF N4 (kontrol): Owner olmayan yönetici girişinde çerez + /admin doğrulandı`, l);
+        await c.close();
+      }
+    }
   } finally {
     const nt = notTested.length ? ` · NOT TESTED: ${notTested.join(", ")}` : "";
     console.log(`\nmfa-yonetimi-ui: ${pass} PASS, ${fail} FAIL${nt}`);
