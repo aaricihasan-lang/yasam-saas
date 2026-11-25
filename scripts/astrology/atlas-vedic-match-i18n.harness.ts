@@ -160,6 +160,27 @@ for (const c of cases) {
   assert.equal(nums(enHtml), nums(trHtml), `${c.name}: sayılar TR = EN`);
   assert.equal(data(enHtml), data(trHtml), `${c.name}: data-* öznitelikleri TR = EN`);
 }
+// ATLAS-B (I18N-F1-R5): Gun Milan koota sınıfı — saklı TR etiket (KootaClass.label) EN'de kanonik koddan; kayıt şekli aynı.
+{
+  const trCat = (JSON.parse(readFileSync(join(__dirname, "..", "..", "messages", "tr", "atlas.vedicMatch.json"), "utf8")) as { atlas: { vedicMatch: { kootaClass: Record<string, string> } } }).atlas.vedicMatch.kootaClass;
+  const libVals = [...new Set(Object.values(VM.KOOTA_CLASS_LABELS))].sort();
+  assert.deepEqual(Object.values(trCat).sort(), libVals, "kootaClass TR katalog = KOOTA_CLASS_LABELS değerleri (tek anlam kaynağı)");
+  let rows = 0;
+  for (const c of cases) {
+    if (c.kind !== "gun") continue;
+    const en = render(c, "en");
+    for (const k of (c.t as VM.VedicGunMilanTechnical).kootas) {
+      if (k.id === "tara") continue;
+      const m = en.match(new RegExp(`data-testid="astro-koota-${k.id}"[\\s\\S]*?</tr>`));
+      assert.ok(m, `${c.name}: ${k.id} satırı`);
+      const tds = [...m[0].matchAll(/<td[^>]*>([\s\S]*?)<\/td>/g)].map((x) => x[1].replace(/<[^>]+>/g, ""));
+      for (const cell of [tds[2], tds[3]]) assert.ok(!TRC.test(cell), `${c.name}: ${k.id} EN sınıf hücresi Türkçe: ${cell}`);
+      rows++;
+    }
+  }
+  assert.ok(rows > 0, "en az bir koota satırı denetlendi");
+  console.log(`  koota sınıfı: TR katalog = lib (${libVals.length} sınıf) · EN ${rows} hücre çifti Türkçe harfsiz`);
+}
 console.log(
   `✅ atlas-vedic-match-i18n: TR HTML = taban ${trN}/${cases.length} vaka · EN Türkçe harfsiz (bilinen lib metni ${libUsed.size} farklı / ${libHits} geçiş + danışan adı + KB çıkarıldı), ham anahtarsız, sayılar/data-* TR = EN`,
 );

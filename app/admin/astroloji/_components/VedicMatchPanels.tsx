@@ -10,11 +10,12 @@
 
 import { useLocale, useTranslations } from "next-intl";
 import { SIGN_IDS } from "@/lib/astrology/model/western";
-import { SIGN_GLYPHS, formatDegree } from "@/lib/astrology/labels/tr";
-import { NAKSHATRA_LABELS } from "@/lib/astrology/topics/vedic";
+import { SIGN_GLYPHS, SIGN_LABELS, formatDegree } from "@/lib/astrology/labels/tr";
+import { GRAHA_LABELS, NAKSHATRA_LABELS } from "@/lib/astrology/topics/vedic";
 import {
   DOSHA_LABELS,
   KOOTA_BASIS,
+  KOOTA_CLASS_LABELS,
   KOOTA_LABELS,
   MANGLIK_HOUSE_GROUP,
   MANGLIK_SEVERITY_LABELS,
@@ -32,6 +33,8 @@ import {
   MANGLIK_METHOD_TEXT,
   SADE_SATI_METHOD_TEXT,
   SADE_SATI_SCOPE_TEXT,
+  type KootaClass,
+  type KootaId,
   type MatchMoon,
   type VedicGunMilanInterpretation,
   type VedicGunMilanTechnical,
@@ -59,6 +62,31 @@ function useMatchText() {
   return { t, tt, tr, sign, graha };
 }
 const GRAHA_IDS = new Set(["sun", "moon", "mars", "mercury", "jupiter", "venus", "saturn", "rahu", "ketu"]);
+
+/**
+ * ATLAS-B (I18N-F1-R5): Gun Milan koota sınıfı. Teknik veride `KootaClass.label` TR gösterim etiketi SAKLIDIR (kayıt şekli
+ * DEĞİŞMEZ; Word/PDF aynı alanı okur). TR ekran saklı etiketi aynen gösterir (bayt-eşit). Diğer dillerde etiket kanonik koda
+ * çevrilir: Bhakoot → burç kimliği, Graha Maitri → graha kimliği, diğerleri → sınıf kodu (KOOTA_CLASS_LABELS'teki ilk takma ad);
+ * tanınmayan etiket → sağlayıcı ham değeri (`raw`).
+ */
+const invert = (m: Readonly<Record<string, string>>) => Object.fromEntries(Object.entries(m).map(([k, v]) => [v, k])) as Record<string, string>;
+const SIGN_BY_LABEL = invert(SIGN_LABELS);
+const GRAHA_BY_LABEL = invert(GRAHA_LABELS);
+export const KOOTA_CLASS_CODE_BY_LABEL: Readonly<Record<string, string>> = (() => {
+  const m: Record<string, string> = {};
+  for (const [code, label] of Object.entries(KOOTA_CLASS_LABELS)) if (!(label in m)) m[label] = code;
+  return m;
+})();
+function useKootaClassText() {
+  const { t, tt, tr } = useMatchText();
+  return (id: KootaId, c: KootaClass): string => {
+    if (tr) return c.label;
+    if (id === "bhakoot") return SIGN_BY_LABEL[c.label] ? tt(`zodiac.${SIGN_BY_LABEL[c.label] as (typeof SIGN_IDS)[number]}`) : c.raw;
+    if (id === "graha_maitri") return GRAHA_BY_LABEL[c.label] ? tt(`graha.${GRAHA_BY_LABEL[c.label] as "sun"}`) : c.raw;
+    const code = KOOTA_CLASS_CODE_BY_LABEL[c.label];
+    return code ? t(`kootaClass.${code}`) : c.raw;
+  };
+}
 
 function MoonCell({ m }: { m: MatchMoon | null | undefined }) {
   const { t: tx, sign } = useMatchText();
@@ -91,6 +119,7 @@ function ScoreBar({ score, max }: { score: number; max: number }) {
 export function GunMilanPanel({ t, names: who }: { t: VedicGunMilanTechnical; names: [string, string] }) {
   // 22.10: names = [danışan, karşı taraf]; tablolar sağlayıcı ROLÜ sırasıyla (1. rol, 2. rol) — uzmanın seçtiği sıra.
   const { t: tx, tr } = useMatchText();
+  const kootaClass = useKootaClassText();
   const num = (n: number) => (tr ? trNum(n) : enNum(n));
   const ay = (id: string) => (AYANAMSA_IDS.has(id) ? tx(`ayanamsaShort.${id}`) : id);
   const names = gunMilanRoleNames(t, who);
@@ -187,8 +216,8 @@ export function GunMilanPanel({ t, names: who }: { t: VedicGunMilanTechnical; na
               <tr key={k.id} data-testid={`astro-koota-${k.id}`}>
                 <td className={`${td} font-medium`}>{KOOTA_LABELS[k.id]}</td>
                 <td className={`${td} text-xs text-slate-600`}>{KOOTA_BASIS[k.id]}</td>
-                <td className={td}>{k.id === "tara" ? <span className="italic text-slate-500">{TARA_CLASS_WITHHELD}</span> : k.person1.label}</td>
-                <td className={td}>{k.id === "tara" ? <span className="italic text-slate-500">{TARA_CLASS_WITHHELD}</span> : k.person2.label}</td>
+                <td className={td}>{k.id === "tara" ? <span className="italic text-slate-500">{TARA_CLASS_WITHHELD}</span> : kootaClass(k.id, k.person1)}</td>
+                <td className={td}>{k.id === "tara" ? <span className="italic text-slate-500">{TARA_CLASS_WITHHELD}</span> : kootaClass(k.id, k.person2)}</td>
                 <td className={td}>
                   <ScoreBar score={k.score} max={k.maxScore} />
                 </td>
