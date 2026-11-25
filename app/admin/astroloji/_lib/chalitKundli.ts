@@ -10,7 +10,7 @@ import type { VedicBhavChalitTechnical } from "@/lib/astrology/model/vedicHarita
 import { SIGN_IDS, type SignId } from "@/lib/astrology/model/western";
 import { SIGN_LABELS, formatDegree } from "@/lib/astrology/labels/tr";
 import { ROXY_NAME, TITLE } from "./kundliData";
-import { grahaTrName } from "./kundliLocalize";
+import { grahaName, grahaTrName, type KundliLocale } from "./kundliLocalize";
 
 export const CHALIT_CENTRE_TEXT = "Bhav Chalit";
 
@@ -32,10 +32,17 @@ export function toChalitKundliData(t: VedicBhavChalitTechnical) {
 }
 
 /** Haritadaki graha ipucu: Türkçe ad · chalit bhavası · gerçek rashi + derece · D1 rashi evi. Anahtar = kütüphanenin İngilizce adı. */
-export function chalitKundliTitles(t: VedicBhavChalitTechnical): Record<string, string> {
+export function chalitKundliTitles(t: VedicBhavChalitTechnical, locale: KundliLocale = "tr"): Record<string, string> {
   const out: Record<string, string> = {};
   for (const g of t.grahas) {
-    out[ROXY_NAME[g.id]] = [grahaTrName(g.id), `chalit ${g.bhava}. bhava`, `${SIGN_LABELS[g.rashi]} ${formatDegree(g.longitude % 30)}`, `D1 rashi evi ${g.rashiHouse}`, g.moved ? "bhava değişti" : ""].filter(Boolean).join(" · ");
+    // I18N ATLAS-V: varsayılan "tr" → önceki ipucu ve rapor birebir; "en" kolunda burç adı kanonik kimliğin İngilizce yazımı.
+    out[ROXY_NAME[g.id]] = (
+      locale === "tr"
+        ? [grahaTrName(g.id), `chalit ${g.bhava}. bhava`, `${SIGN_LABELS[g.rashi]} ${formatDegree(g.longitude % 30)}`, `D1 rashi evi ${g.rashiHouse}`, g.moved ? "bhava değişti" : ""]
+        : [grahaName(g.id, locale), `chalit bhava ${g.bhava}`, `${TITLE(g.rashi)} ${formatDegree(g.longitude % 30)}`, `D1 rashi house ${g.rashiHouse}`, g.moved ? "bhava changed" : ""]
+    )
+      .filter(Boolean)
+      .join(" · ");
   }
   return out;
 }
