@@ -924,7 +924,8 @@ async function main() {
       assert.ok(!/Roxy|golden|fixture|\/vedic-astrology/.test(src), `${f}: iç jargon`);
       assert.ok(!/(uygun değil|uyumlu değil|evlenmeli|evlenmemeli|tavsiye edilir)/i.test(src), `${f}: hüküm dili`);
     }
-    const sel = readFileSync(join(ROOT, "app/admin/astroloji/_components/TechniqueSelector.tsx"), "utf8");
+    // I18N-F1-R5 (ATLAS-B): seçici metinleri katalogda (TR değer = eski kaynak metin) → kaynak + TR katalog birlikte aranır.
+    const sel = readFileSync(join(ROOT, "app/admin/astroloji/_components/TechniqueSelector.tsx"), "utf8") + readFileSync(join(ROOT, "messages/tr/atlas.techniqueSelector.json"), "utf8");
     assert.ok(sel.includes("1. rol (geleneksel: damat) / 2. rol (geleneksel: gelin)"), "seçicide rol başlığı");
   });
 

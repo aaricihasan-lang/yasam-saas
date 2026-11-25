@@ -104,13 +104,30 @@ export function localNatalViewWarnings(technical: unknown, masked: boolean): str
   return w;
 }
 
+/**
+ * I18N-0008 (Atl-A0, yalnız ek): localNatalViewWarnings ile AYNI koşulların dil-bağımsız kodları. Metin üretimi ve hesap
+ * DEĞİŞMEZ; ekran rozetleri bu kodlardan karar verir (lib/astrology/viewWarnings.ts).
+ */
+export function localNatalViewWarningCodes(technical: unknown, masked: boolean): ("high_latitude" | "near_cusp")[] {
+  if (!isLocalTechnical(technical) || masked) return [];
+  const c: ("high_latitude" | "near_cusp")[] = [];
+  if (technical.houseSource.warnings.includes("high_latitude")) c.push("high_latitude");
+  if (technical.houseSource.nearCusp.length > 0) c.push("near_cusp");
+  return c;
+}
+
 // Aşama 3: not metni istemciyle ortak saf modelde (lib/astrology/model/natalHouseSystems.ts; aynı metin).
 export { LOCAL_NATAL_INTERP_NOTE };
 
 /** Klasik sistemde sağlayıcı yorumu: gezegen yorumları + ev atfı tespit edilen öğeler çıkarılır. Diğer durumda aynen. */
-export function adjustNatalInterpretationForHouses(technical: unknown, content: unknown): { content: unknown; note: string | null } {
+export function adjustNatalInterpretationForHouses(
+  technical: unknown,
+  content: unknown,
+  /** I18N A7: yorumun kayıtlı sağlayıcı dili (astro_provider_interpretations.lang). Ekran dili DEĞİL. */
+  providerLang: string = "tr",
+): { content: unknown; note: string | null } {
   if (!isLocalTechnical(technical) || !content || typeof content !== "object") return { content, note: null };
-  return { content: sanitizeNatalInterpretationForLocalHouses(content as NatalInterpretation).content, note: LOCAL_NATAL_INTERP_NOTE };
+  return { content: sanitizeNatalInterpretationForLocalHouses(content as NatalInterpretation, providerLang).content, note: LOCAL_NATAL_INTERP_NOTE };
 }
 
 /** Görünüm yöntem etiketi eki: klasik sistemde ev hesabının kaynağı (mevcut 4 sistemde alan EKLENMEZ). */

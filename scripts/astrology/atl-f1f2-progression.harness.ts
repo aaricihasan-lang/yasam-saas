@@ -25,7 +25,8 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
 import { createElement } from "react";
-import { renderToStaticMarkup } from "react-dom/server";
+// I18N mod-g: Atlas bileşenleri metni katalogdan alır → çizim next-intl sağlayıcısıyla (TR katalog = önceki metin; beklentiler değişmedi).
+import { renderToStaticMarkup } from "./intlRender";
 import { getTechnique, type CalcUnit } from "@/lib/astrology/engine/techniques";
 import { ROXY_PROGRESSION } from "@/lib/astrology/providers/roxy/timing";
 import { targetDateBody } from "@/lib/astrology/providers/roxy/requests";

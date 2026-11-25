@@ -1,0 +1,1675 @@
+{
+ "endpoint": "/astrology/transits",
+ "lang": "en",
+ "query": null,
+ "body": {
+  "date": "2026-11-25",
+  "time": "09:00:00",
+  "timezone": 0,
+  "nodeType": "true",
+  "natalChart": {
+   "date": "1990-04-01",
+   "time": "14:30:00",
+   "latitude": 41.0082,
+   "longitude": 28.9784,
+   "timezone": 3
+  }
+ },
+ "response": {
+  "transitDate": "2026-11-25",
+  "transitTime": "09:00:00",
+  "timezone": 0,
+  "transitPlanets": [
+   {
+    "name": "Sun",
+    "longitude": 243.09876274477733,
+    "latitude": 0.0002028244146662175,
+    "sign": "Sagittarius",
+    "degree": 3.098762744777332,
+    "speed": 1.0109310787777304,
+    "isRetrograde": false
+   },
+   {
+    "name": "Moon",
+    "longitude": 73.7193634938445,
+    "latitude": 4.723928768833042,
+    "sign": "Gemini",
+    "degree": 13.719363493844497,
+    "speed": 15.093080551873243,
+    "isRetrograde": false
+   },
+   {
+    "name": "Mercury",
+    "longitude": 224.27867134145367,
+    "latitude": 2.1055629153462565,
+    "sign": "Scorpio",
+    "degree": 14.278671341453673,
+    "speed": 1.284860907042301,
+    "isRetrograde": false
+   },
+   {
+    "name": "Venus",
+    "longitude": 205.2720801136123,
+    "latitude": 0.6096840724536893,
+    "sign": "Libra",
+    "degree": 25.272080113612304,
+    "speed": 0.40482853817347575,
+    "isRetrograde": false
+   },
+   {
+    "name": "Mars",
+    "longitude": 149.75586604163982,
+    "latitude": 2.1646904945873087,
+    "sign": "Leo",
+    "degree": 29.75586604163982,
+    "speed": 0.40237153371006684,
+    "isRetrograde": false
+   },
+   {
+    "name": "Jupiter",
+    "longitude": 146.5212662744712,
+    "latitude": 0.7801238641504171,
+    "sign": "Leo",
+    "degree": 26.521266274471202,
+    "speed": 0.05613798680791149,
+    "isRetrograde": false
+   },
+   {
+    "name": "Saturn",
+    "longitude": 8.150904735864321,
+    "latitude": -2.608459994117739,
+    "sign": "Aries",
+    "degree": 8.150904735864321,
+    "speed": -0.027726725049689094,
+    "isRetrograde": true
+   },
+   {
+    "name": "Uranus",
+    "longitude": 63.699339164417175,
+    "latitude": -0.14813093813908942,
+    "sign": "Gemini",
+    "degree": 3.699339164417175,
+    "speed": -0.04195430616088913,
+    "isRetrograde": true
+   },
+   {
+    "name": "Neptune",
+    "longitude": 1.700593326502149,
+    "latitude": -1.4020896935488667,
+    "sign": "Aries",
+    "degree": 1.700593326502149,
+    "speed": -0.009783976365966396,
+    "isRetrograde": true
+   },
+   {
+    "name": "Pluto",
+    "longitude": 303.44845198129383,
+    "latitude": -4.258083914847138,
+    "sign": "Aquarius",
+    "degree": 3.448451981293829,
+    "speed": 0.018454194619664577,
+    "isRetrograde": false
+   },
+   {
+    "name": "North Node",
+    "longitude": 324.25981884789434,
+    "latitude": 0,
+    "sign": "Aquarius",
+    "degree": 24.259818847894337,
+    "speed": -0.17926272723005354,
+    "isRetrograde": true
+   },
+   {
+    "name": "South Node",
+    "longitude": 144.25981884789434,
+    "latitude": 0,
+    "sign": "Leo",
+    "degree": 24.259818847894337,
+    "speed": -0.17926272723005354,
+    "isRetrograde": true
+   },
+   {
+    "name": "Chiron",
+    "longitude": 27.061871462940797,
+    "latitude": 0.10240130119940177,
+    "sign": "Aries",
+    "degree": 27.061871462940797,
+    "speed": -0.03547800383876165,
+    "isRetrograde": true
+   },
+   {
+    "name": "Black Moon Lilith",
+    "longitude": 277.99604314245965,
+    "latitude": -3.7544616267127675,
+    "sign": "Capricorn",
+    "degree": 7.996043142459655,
+    "speed": 0.1114987291642251,
+    "isRetrograde": false
+   }
+  ],
+  "transitAspects": [
+   {
+    "transitPlanet": "Jupiter",
+    "natalPlanet": "Sun",
+    "type": "SESQUIQUADRATE",
+    "angle": 135,
+    "orb": 0.04191925563017662,
+    "isApplying": false,
+    "strength": 97.90403721849117,
+    "nature": "challenging",
+    "interpretation": {
+     "summary": "Jupiter makes a sesquiquadrate to your natal Sun. Your generosity wants to say yes where your identity quietly says wait.",
+     "timing": "In effect from November 2, 2026 to January 22, 2027, exact on November 24, 2026 and December 31, 2026.",
+     "impact": "Pride and modesty brush shoulders in you, each wanting the other to go first. With Jupiter in your house of self, a new beginning or a fresh impression may appeal to you.",
+     "guidance": "Share a piece of what you know with someone, and watch whether the plan gets clearer in the telling.",
+     "keywords": [
+      "abundance",
+      "college",
+      "active",
+      "awareness",
+      "frustration",
+      "adjustment"
+     ]
+    }
+   },
+   {
+    "transitPlanet": "Mercury",
+    "natalPlanet": "Moon",
+    "type": "SESQUIQUADRATE",
+    "angle": 135,
+    "orb": 0.05160903793108673,
+    "isApplying": false,
+    "strength": 97.41954810344566,
+    "nature": "challenging",
+    "interpretation": {
+     "summary": "A word meant lightly lands with extra weight, and you notice the difference, while Mercury forms a sesquiquadrate to your natal Moon.",
+     "timing": "Exact on November 25, and felt from November 23 to November 26.",
+     "impact": "Your mood and your surroundings are a half tone apart, like a favorite song played in the wrong room.",
+     "guidance": "A different seat at the table, a quieter room or a shared meal could suit your mood better.",
+     "keywords": [
+      "analysis",
+      "childhood",
+      "caretaker",
+      "comfort",
+      "frustration",
+      "adjustment"
+     ]
+    }
+   },
+   {
+    "transitPlanet": "Venus",
+    "natalPlanet": "Venus",
+    "type": "TRINE",
+    "angle": 120,
+    "orb": 0.24146347903317178,
+    "isApplying": false,
+    "strength": 96.98170651208535,
+    "nature": "harmonious",
+    "interpretation": {
+     "summary": "Your affection travels in both directions, so giving and receiving happen together, as Venus forms a trine to your natal Venus.",
+     "timing": "Felt from October 20 to December 8, with exact passes on November 3 and November 24.",
+     "impact": "What you love flows more freely, and an opening to share it is there for the taking. As your relationship realm holds your natal Venus, plain disagreement could feel closer to the surface.",
+     "guidance": "Use the good mood to smooth a stiff conversation or settle an old awkwardness. What would you share if you knew it would be welcomed?",
+     "keywords": [
+      "attractiveness",
+      "beauty",
+      "harmony",
+      "flow",
+      "talent",
+      "support"
+     ]
+    }
+   },
+   {
+    "transitPlanet": "Mercury",
+    "natalPlanet": "Neptune",
+    "type": "SEXTILE",
+    "angle": 60,
+    "orb": 0.23357541544999094,
+    "isApplying": true,
+    "strength": 96.10707640916681,
+    "nature": "harmonious",
+    "interpretation": {
+     "summary": "Mercury sextiles your natal Neptune. Inspiration comes through sensitivity, so a subtle point you pick up on proves useful.",
+     "timing": "In effect from November 20 to November 29, exact on November 25.",
+     "impact": "The dreamer in you gets a friendly hearing, so creative or spiritual interests feel natural to follow. Privacy, childhood memories and the feel of your living space may come up while Mercury sits in your family realm.",
+     "guidance": "Use the clarity to explain something complicated in plain terms for someone who needs it. A hope you have kept to yourself could find a warm audience among people who see the world as you do.",
+     "keywords": [
+      "analysis",
+      "childhood",
+      "artistic",
+      "calm",
+      "ease",
+      "natural"
+     ]
+    }
+   },
+   {
+    "transitPlanet": "Venus",
+    "natalPlanet": "Mercury",
+    "type": "OPPOSITION",
+    "angle": 180,
+    "orb": 0.41209132151934114,
+    "isApplying": false,
+    "strength": 94.84885848100824,
+    "nature": "challenging",
+    "interpretation": {
+     "summary": "Tact and plain speaking pull you in opposite directions, and one gentle sentence can satisfy both, as Venus stands opposite your natal Mercury.",
+     "timing": "Felt from October 20 to December 8, with exact passes on November 4 and November 24.",
+     "impact": "Your mind is pulled between two views, and hearing the other side can bring balance. You may find questions about meaning coming up, with your natal Mercury located in your house of travel and belief.",
+     "guidance": "Keep warmth steady while you disagree, so the point and the bond both survive. What does the other side know that you do not yet?",
+     "keywords": [
+      "attractiveness",
+      "beauty",
+      "analysis",
+      "childhood",
+      "polarity",
+      "tension"
+     ]
+    }
+   },
+   {
+    "transitPlanet": "North Node",
+    "natalPlanet": "Saturn",
+    "type": "SEMI_SEXTILE",
+    "angle": 30,
+    "orb": 0.1745135871092316,
+    "isApplying": false,
+    "strength": 94.18288042969229,
+    "nature": "neutral",
+    "interpretation": {
+     "summary": "The North Node forms a semi-sextile to your natal Saturn: your duties hang a notch off your heading.",
+     "timing": "In effect from October 27 to December 26, exact on November 24.",
+     "impact": "A rule you hold and the way you live differ at the edges, and seeing where is the useful part. Agreements, large or little, may stand out more clearly once the North Node reaches your relationship realm.",
+     "guidance": "What standard of yours would survive if nobody checked?",
+     "keywords": [
+      "destiny",
+      "life purpose",
+      "ambition",
+      "boundaries",
+      "growth",
+      "subtle"
+     ]
+    }
+   },
+   {
+    "transitPlanet": "South Node",
+    "natalPlanet": "Saturn",
+    "type": "QUINCUNX",
+    "angle": 150,
+    "orb": 0.1745135871092316,
+    "isApplying": false,
+    "strength": 94.18288042969229,
+    "nature": "challenging",
+    "interpretation": {
+     "summary": "The South Node is quincunx your natal Saturn: your old rulebook and a present need disagree at the edges.",
+     "timing": "In effect from October 27 to December 26, exact on November 24.",
+     "impact": "Responsibility has a loose thread somewhere, a place where duty and preference say different things. Around your house of self, where the South Node is passing, the way you introduce yourself may feel different.",
+     "guidance": "One obligation may be ready for a clearer name, such as a favor, a habit or a promise.",
+     "keywords": [
+      "innate talents",
+      "past life wisdom",
+      "ambition",
+      "boundaries",
+      "adjustment",
+      "tension"
+     ]
+    }
+   },
+   {
+    "transitPlanet": "Mercury",
+    "natalPlanet": "North Node",
+    "type": "SQUARE",
+    "angle": 90,
+    "orb": 0.5003164696759086,
+    "isApplying": true,
+    "strength": 92.85262186177273,
+    "nature": "challenging",
+    "interpretation": {
+     "summary": "Mercury is square your natal North Node. Mixed messages scatter your focus until you pick one voice to follow.",
+     "timing": "Exact on November 25, and felt from November 19 to November 30.",
+     "impact": "Doubt about your path rises beside an old routine, and sorting the two clears the way. What you need from someone close may be where this lands, because your natal North Node belongs to your relationship realm.",
+     "guidance": "Slow your reply by a breath, and a hasty reaction gives way to your best point. How would you act if leaving the familiar behind felt safe?",
+     "keywords": [
+      "analysis",
+      "childhood",
+      "destiny",
+      "life purpose",
+      "difficult",
+      "obstacle"
+     ]
+    }
+   },
+   {
+    "transitPlanet": "Mercury",
+    "natalPlanet": "South Node",
+    "type": "SQUARE",
+    "angle": 90,
+    "orb": 0.5003164696759086,
+    "isApplying": true,
+    "strength": 92.85262186177273,
+    "nature": "challenging",
+    "interpretation": {
+     "summary": "Mercury squares your natal South Node. Old phrases arrive before your new thoughts do, so slow down and choose the fresher words.",
+     "timing": "In effect from November 19 to November 30, exact on November 25.",
+     "impact": "A well-worn way of doing things resists change, which brings it into plain view. The face you show strangers may be where this lands, because your natal South Node belongs to your house of self.",
+     "guidance": "Check one fact before you decide, and give a different angle a fair hearing. You might keep an old habit, rework it, or drop it, whichever serves the present.",
+     "keywords": [
+      "analysis",
+      "childhood",
+      "innate talents",
+      "past life wisdom",
+      "difficult",
+      "obstacle"
+     ]
+    }
+   },
+   {
+    "transitPlanet": "South Node",
+    "natalPlanet": "Mercury",
+    "type": "TRINE",
+    "angle": 120,
+    "orb": 0.6001699441986261,
+    "isApplying": false,
+    "strength": 92.49787569751717,
+    "nature": "harmonious",
+    "interpretation": {
+     "summary": "The South Node trines your natal Mercury: your stored knowledge answers a new question, which makes learning feel like recall.",
+     "timing": "Exact on November 22, 2026, and felt from June 10, 2026 to April 26, 2027.",
+     "impact": "The part of you that reasons and explains has room to move. It could reach the principles you steer by, for your natal Mercury has its seat in your house of travel and belief.",
+     "guidance": "Enjoy what you already know well, and share it with someone who could use it. Explaining, teaching or pitching an idea could go well, whether in speech or on paper.",
+     "keywords": [
+      "innate talents",
+      "past life wisdom",
+      "analysis",
+      "childhood",
+      "harmony",
+      "flow"
+     ]
+    }
+   },
+   {
+    "transitPlanet": "Neptune",
+    "natalPlanet": "Black Moon Lilith",
+    "type": "SESQUIQUADRATE",
+    "angle": 135,
+    "orb": 0.1541515252534964,
+    "isApplying": true,
+    "strength": 92.29242373732518,
+    "nature": "challenging",
+    "interpretation": {
+     "summary": "A glamorous pull and your plain instinct disagree about which wish is yours, while Neptune forms a sesquiquadrate to your natal Lilith.",
+     "timing": "In effect from September 5, 2026 to March 10, 2027, closest on December 12, 2026 without becoming exact.",
+     "impact": "A rebellious streak may mutter under its breath, more amused than angry. The room you retreat to may be where this lands, because your natal Lilith belongs to your family realm.",
+     "guidance": "Set a hunch beside a fact and see which one holds up under a second look.",
+     "keywords": [
+      "artistic",
+      "calm",
+      "authenticity",
+      "autonomy",
+      "frustration",
+      "adjustment"
+     ]
+    }
+   },
+   {
+    "transitPlanet": "Mars",
+    "natalPlanet": "Moon",
+    "type": "SEXTILE",
+    "angle": 60,
+    "orb": 0.528803738117233,
+    "isApplying": false,
+    "strength": 91.18660436471279,
+    "nature": "harmonious",
+    "interpretation": {
+     "summary": "Mars forms a sextile to your natal Moon: you can put a feeling into plain words and be glad you did.",
+     "timing": "Exact on November 24, and felt from November 10 to December 10.",
+     "impact": "Instinct and reasoning move together, and comfort is easy to find.",
+     "guidance": "Put steady effort into the opening in front of you, at a pace you can hold. You could reach for a person, a place or a habit that feels like home.",
+     "keywords": [
+      "action",
+      "adventurous",
+      "caretaker",
+      "comfort",
+      "ease",
+      "natural"
+     ]
+    }
+   },
+   {
+    "transitPlanet": "Sun",
+    "natalPlanet": "Jupiter",
+    "type": "QUINCUNX",
+    "angle": 150,
+    "orb": 0.28899384588476096,
+    "isApplying": false,
+    "strength": 90.36687180384129,
+    "nature": "challenging",
+    "interpretation": {
+     "summary": "The Sun makes a quincunx to your natal Jupiter. Your hopes and your calendar overlap, with more promises than hours.",
+     "timing": "Exact on November 25, and felt from November 22 to November 28.",
+     "impact": "What seems possible to you has a stray corner, one wish that does not fit the rest. Where you live and the people you grew up with may feel closer, as your family realm receives the Sun.",
+     "guidance": "A hope that sits oddly beside the others may do better with a place of its own, or a different order.",
+     "keywords": [
+      "active",
+      "awareness",
+      "abundance",
+      "college",
+      "adjustment",
+      "tension"
+     ]
+    }
+   },
+   {
+    "transitPlanet": "North Node",
+    "natalPlanet": "Venus",
+    "type": "CONJUNCTION",
+    "angle": 0,
+    "orb": 0.7707977866847955,
+    "isApplying": false,
+    "strength": 90.36502766644006,
+    "nature": "neutral",
+    "interpretation": {
+     "summary": "You are drawn to what is honest and beautiful, which becomes a guide to your next step while the North Node joins your natal Venus.",
+     "timing": "Exact on November 20, 2026, and felt from June 4, 2026 to April 24, 2027.",
+     "impact": "Affection and taste blend with a new influence, which can change what draws you in. Try saying plainly what you need from someone close while the North Node is in your relationship realm.",
+     "guidance": "Notice where your attention keeps returning, since that is where your direction is pointing. If something has been drawing your eye, it may be pointing at a value you hold.",
+     "keywords": [
+      "destiny",
+      "life purpose",
+      "attractiveness",
+      "beauty",
+      "blend",
+      "intensity"
+     ]
+    }
+   },
+   {
+    "transitPlanet": "South Node",
+    "natalPlanet": "Venus",
+    "type": "OPPOSITION",
+    "angle": 180,
+    "orb": 0.7707977866847955,
+    "isApplying": false,
+    "strength": 90.36502766644006,
+    "nature": "challenging",
+    "interpretation": {
+     "summary": "What you have long cherished faces what you could value next, and talking it out helps as the South Node stands opposite your natal Venus.",
+     "timing": "In effect from June 4, 2026 to April 24, 2027, exact on November 20, 2026.",
+     "impact": "Your values show up in how others respond, which gives you a clearer view of what you hold dear. Promises made between you and one other person may stir, since your natal Venus sits in your relationship realm.",
+     "guidance": "Look at your habits as another person would, and keep what holds up. What would fairness look like to both of you?",
+     "keywords": [
+      "innate talents",
+      "past life wisdom",
+      "attractiveness",
+      "beauty",
+      "polarity",
+      "tension"
+     ]
+    }
+   },
+   {
+    "transitPlanet": "North Node",
+    "natalPlanet": "Mercury",
+    "type": "SEXTILE",
+    "angle": 60,
+    "orb": 0.6001699441986261,
+    "isApplying": false,
+    "strength": 89.99716759668956,
+    "nature": "harmonious",
+    "interpretation": {
+     "summary": "The North Node sextiles your natal Mercury. Your ideas connect easily, and a useful contact is one conversation away.",
+     "timing": "In effect from July 1, 2026 to April 7, 2027, exact on November 22, 2026.",
+     "impact": "Your mind works with ease, and sentences, plans and explanations come out in good order. Open talk with someone close, or a plain disagreement, may come up as the North Node crosses your relationship realm.",
+     "guidance": "Choose the people and plans that point the way you want to grow. A clear conversation is within reach, and a decision may come out of it.",
+     "keywords": [
+      "destiny",
+      "life purpose",
+      "analysis",
+      "childhood",
+      "ease",
+      "natural"
+     ]
+    }
+   },
+   {
+    "transitPlanet": "Venus",
+    "natalPlanet": "Saturn",
+    "type": "SQUARE",
+    "angle": 90,
+    "orb": 0.8377476786087357,
+    "isApplying": false,
+    "strength": 88.03217601987521,
+    "nature": "challenging",
+    "interpretation": {
+     "summary": "Venus squares your natal Saturn. You may feel apart from others, and a plain message to someone you care about can close the gap.",
+     "timing": "In effect from October 23 to December 6, exact on November 5 and November 23.",
+     "impact": "A push against your limits asks you to rebuild whatever no longer fits. How your mornings run may be what matters, since your natal Saturn lies in your house of daily work.",
+     "guidance": "Say plainly and kindly what you like, and stay curious about a different answer. A cleaner boundary or a firmer standard could make the effort feel worthwhile.",
+     "keywords": [
+      "attractiveness",
+      "beauty",
+      "ambition",
+      "boundaries",
+      "difficult",
+      "obstacle"
+     ]
+    }
+   },
+   {
+    "transitPlanet": "Mars",
+    "natalPlanet": "Neptune",
+    "type": "SESQUIQUADRATE",
+    "angle": 135,
+    "orb": 0.24361928473615535,
+    "isApplying": false,
+    "strength": 87.81903576319223,
+    "nature": "challenging",
+    "interpretation": {
+     "summary": "Mars forms a sesquiquadrate to your natal Neptune. A plan with a soft outline and a task with a hard edge brush together in your hands.",
+     "timing": "Exact on November 24, and felt from November 19 to November 29.",
+     "impact": "Your intuition crackles with faint static, more hint than message.",
+     "guidance": "You could write a daydream down, or sketch it, and see whether it still appeals.",
+     "keywords": [
+      "action",
+      "adventurous",
+      "artistic",
+      "calm",
+      "frustration",
+      "adjustment"
+     ]
+    }
+   },
+   {
+    "transitPlanet": "North Node",
+    "natalPlanet": "Uranus",
+    "type": "SEMI_SQUARE",
+    "angle": 45,
+    "orb": 0.2632280435166763,
+    "isApplying": false,
+    "strength": 86.83859782416619,
+    "nature": "challenging",
+    "interpretation": {
+     "summary": "The North Node makes a semi-square to your natal Uranus. Your urge for change and your steady heading keep different beats.",
+     "timing": "In effect from November 7 to December 10, exact on November 24.",
+     "impact": "An itch for novelty interrupts a habit now and then. You may notice how you give and take with others while the North Node passes through your relationship realm.",
+     "guidance": "Pick the lightest new thing you can do, and do it before you overthink it.",
+     "keywords": [
+      "destiny",
+      "life purpose",
+      "avant-garde",
+      "change",
+      "friction",
+      "irritation"
+     ]
+    }
+   },
+   {
+    "transitPlanet": "South Node",
+    "natalPlanet": "Uranus",
+    "type": "SESQUIQUADRATE",
+    "angle": 135,
+    "orb": 0.2632280435166763,
+    "isApplying": false,
+    "strength": 86.83859782416619,
+    "nature": "challenging",
+    "interpretation": {
+     "summary": "The South Node forms a sesquiquadrate to your natal Uranus: your routine and your restlessness keep different hours, and the two never quite sync.",
+     "timing": "Exact on November 24, and felt from November 7 to December 10.",
+     "impact": "Your inventive side strays from its usual path and then returns. Where your natal Uranus sits, in your house of romance and play, love, fun and anything made for joy could matter more than usual.",
+     "guidance": "Notice the reflex, smile at it, and choose again.",
+     "keywords": [
+      "innate talents",
+      "past life wisdom",
+      "avant-garde",
+      "change",
+      "frustration",
+      "adjustment"
+     ]
+    }
+   },
+   {
+    "transitPlanet": "Moon",
+    "natalPlanet": "North Node",
+    "type": "TRINE",
+    "angle": 120,
+    "orb": 1.0596243172850848,
+    "isApplying": true,
+    "strength": 86.75469603393644,
+    "nature": "harmonious",
+    "interpretation": {
+     "summary": "Support is close at hand, and the purpose you sense seems shared, while the Moon trines your natal North Node.",
+     "timing": "Exact around November 25 at 11 am, and felt from November 24 at 10 pm to November 25 at 11 pm.",
+     "impact": "An easy forward pull is simple to follow, backed up by what you already know. Try reaching out to a group that fits your interests while the Moon is moving through your house of friendship.",
+     "guidance": "Share a feeling openly while the mood is kind, and see how warmly it is received. A step toward what interests you is worth taking once, just to see how it feels.",
+     "keywords": [
+      "caretaker",
+      "comfort",
+      "destiny",
+      "life purpose",
+      "harmony",
+      "flow"
+     ]
+    }
+   },
+   {
+    "transitPlanet": "Neptune",
+    "natalPlanet": "Jupiter",
+    "type": "SQUARE",
+    "angle": 90,
+    "orb": 1.1091755723904129,
+    "isApplying": false,
+    "strength": 84.15463468013695,
+    "nature": "challenging",
+    "interpretation": {
+     "summary": "Your hopes run ahead of the facts, so checking one detail keeps the dream standing, as Neptune forms a square to your natal Jupiter.",
+     "timing": "In effect from February 2024 to May 2029, exact on April 17, 2026; October 2, 2026 and February 17, 2027.",
+     "impact": "Enthusiasm runs ahead of the facts, and a sense of proportion can keep it useful. Perhaps a book, a map or a new point of view feels inviting, as your house of travel and belief receives Neptune.",
+     "guidance": "Simple routines keep the fog from settling, so hold to a few steady habits and make plans in writing. Where does your enthusiasm help you, and where does it only crowd out something better?",
+     "keywords": [
+      "artistic",
+      "calm",
+      "abundance",
+      "college",
+      "difficult",
+      "obstacle"
+     ]
+    }
+   },
+   {
+    "transitPlanet": "Mercury",
+    "natalPlanet": "Mars",
+    "type": "SQUARE",
+    "angle": 90,
+    "orb": 1.1927279984232655,
+    "isApplying": true,
+    "strength": 82.96102859395336,
+    "nature": "challenging",
+    "interpretation": {
+     "summary": "Mercury squares your natal Mars: your mind runs hot and your replies run faster, and a single clear target puts the speed to work.",
+     "timing": "Exact on November 26, and felt from November 20 to December 1.",
+     "impact": "Your assertiveness is in the spotlight, which makes it a good teacher about how you push. Given your natal Mars in your relationship realm, give and take across the table might draw your eye.",
+     "guidance": "Jot every stray thought down, then pick the one worth following. A firm no, a fresh start on a stalled plan or a game with a worthy rival can use up the surplus.",
+     "keywords": [
+      "analysis",
+      "childhood",
+      "action",
+      "adventurous",
+      "difficult",
+      "obstacle"
+     ]
+    }
+   },
+   {
+    "transitPlanet": "Moon",
+    "natalPlanet": "South Node",
+    "type": "SEXTILE",
+    "angle": 60,
+    "orb": 1.0596243172850848,
+    "isApplying": true,
+    "strength": 82.33959471191525,
+    "nature": "harmonious",
+    "interpretation": {
+     "summary": "The Moon forms a sextile to your natal South Node: old emotional know-how serves you, so lean on what has soothed you before.",
+     "timing": "On November 25 from 1 am to 8 pm, exact around 11 am.",
+     "impact": "Habits and present needs agree with each other, which lets ordinary tasks run smoothly. A cause you care about, or a circle you would like to join, may come to mind with the Moon in your house of friendship.",
+     "guidance": "Reach out to someone you like or do something that soothes you, since the mood supports it. What would you attempt if you trusted your experience completely?",
+     "keywords": [
+      "caretaker",
+      "comfort",
+      "innate talents",
+      "past life wisdom",
+      "ease",
+      "natural"
+     ]
+    }
+   },
+   {
+    "transitPlanet": "Jupiter",
+    "natalPlanet": "Venus",
+    "type": "OPPOSITION",
+    "angle": 180,
+    "orb": 1.4906496398920694,
+    "isApplying": false,
+    "strength": 81.36687950134913,
+    "nature": "challenging",
+    "interpretation": {
+     "summary": "Expectations of love rise, so it helps to say plainly what you hope for as Jupiter stands opposite your natal Venus.",
+     "timing": "In effect from September 17, 2026 to April 8, 2027, exact on November 7, 2026 and January 17, 2027.",
+     "impact": "Your loves and your offers point different ways, so each deserves a careful weighing. Perhaps you notice your own poise more, since Jupiter is crossing your house of self.",
+     "guidance": "Let other people show you where your plans reach too far, and where more is possible. You might find a middle path that honors both your wishes and those of the person across from you.",
+     "keywords": [
+      "abundance",
+      "college",
+      "attractiveness",
+      "beauty",
+      "polarity",
+      "tension"
+     ]
+    }
+   },
+   {
+    "transitPlanet": "Black Moon Lilith",
+    "natalPlanet": "Uranus",
+    "type": "CONJUNCTION",
+    "angle": 0,
+    "orb": 1.5270037489513584,
+    "isApplying": true,
+    "strength": 80.91245313810802,
+    "nature": "neutral",
+    "interpretation": {
+     "summary": "Lilith joins your natal Uranus: a truth you could not say before may come out, so rebellion finds a purpose.",
+     "timing": "Exact on December 9, 2026, and felt from September 28, 2026 to February 18, 2027.",
+     "impact": "Your inventive streak turns toward something it has never tried. Flirting and games may come into view, with your natal Uranus placed in your house of romance and play.",
+     "guidance": "Give your wild side a task, such as a bold idea, a firm no or an unfiltered conversation. What would you do differently if nobody expected you to stay the same?",
+     "keywords": [
+      "authenticity",
+      "autonomy",
+      "avant-garde",
+      "change",
+      "blend",
+      "intensity"
+     ]
+    }
+   },
+   {
+    "transitPlanet": "Saturn",
+    "natalPlanet": "Uranus",
+    "type": "SQUARE",
+    "angle": 90,
+    "orb": 1.372142155546669,
+    "isApplying": false,
+    "strength": 80.39796920647615,
+    "nature": "challenging",
+    "interpretation": {
+     "summary": "Saturn is square your natal Uranus: your pull to break free hits a rule that holds, which points toward a smarter way to change.",
+     "timing": "Felt from March 7, 2026 to March 29, 2027, with exact passes on May 4, 2026; October 28, 2026 and January 22, 2027.",
+     "impact": "Your restlessness is hard to ignore, and it may show which part of your routine has gone stale. Notice an art project, because your natal Uranus is based in your house of romance and play.",
+     "guidance": "Slow down enough to do the job properly, because careful work now saves you from redoing it later. You might give the restlessness a job, such as a trial run of a new habit or a rearranged space.",
+     "keywords": [
+      "ambition",
+      "boundaries",
+      "avant-garde",
+      "change",
+      "difficult",
+      "obstacle"
+     ]
+    }
+   },
+   {
+    "transitPlanet": "Jupiter",
+    "natalPlanet": "Mercury",
+    "type": "TRINE",
+    "angle": 120,
+    "orb": 1.6612774823782388,
+    "isApplying": false,
+    "strength": 79.23403147027201,
+    "nature": "harmonious",
+    "interpretation": {
+     "summary": "Jupiter forms a trine to your natal Mercury. Ideas arrive in good order, so sharing what you think takes less effort.",
+     "timing": "In effect from September 16, 2026 to August 8, 2027, exact on November 5, 2026; January 19, 2027 and June 29, 2027.",
+     "impact": "Thoughts that were tangled loosen, leaving your ideas clear and easy to share. A faraway place may take on weight now that your natal Mercury in your house of travel and belief is stirred.",
+     "guidance": "Share what you know and what you have, and give freely without keeping score. You could settle a lingering question, either by asking directly or by looking it up.",
+     "keywords": [
+      "abundance",
+      "college",
+      "analysis",
+      "childhood",
+      "harmony",
+      "flow"
+     ]
+    }
+   },
+   {
+    "transitPlanet": "Pluto",
+    "natalPlanet": "Jupiter",
+    "type": "QUINCUNX",
+    "angle": 150,
+    "orb": 0.6386830824012577,
+    "isApplying": false,
+    "strength": 78.71056391995808,
+    "nature": "challenging",
+    "interpretation": {
+     "summary": "Pluto is quincunx your natal Jupiter: your sweeping hope and your drive to reshape it do not quite share a plan.",
+     "timing": "In effect from November 2024 to February 2027, exact on February 26, 2025; July 15, 2025 and January 3, 2026.",
+     "impact": "An old belief and a newer hope may not quite match, which can be more curious than troubling. Your house of friendship is where your natal Jupiter lives, so this may reach long-held wishes.",
+     "guidance": "Put the hope in one plain sentence, and keep whichever version feels true.",
+     "keywords": [
+      "alchemy",
+      "bold",
+      "abundance",
+      "college",
+      "adjustment",
+      "tension"
+     ]
+    }
+   },
+   {
+    "transitPlanet": "Moon",
+    "natalPlanet": "Mars",
+    "type": "TRINE",
+    "angle": 120,
+    "orb": 1.7520358460324417,
+    "isApplying": true,
+    "strength": 78.09955192459448,
+    "nature": "harmonious",
+    "interpretation": {
+     "summary": "Your own courage backs you, so state what you need without friction as the Moon forms a trine to your natal Mars.",
+     "timing": "Felt from November 24 at 11 pm to November 26 at 12 am, exact around November 25 at 12 pm.",
+     "impact": "Courage is available without much strain, which suits any task that needs a first step. Perhaps a message to an old pal or a plan with a group feels worth making as the Moon crosses your house of friendship.",
+     "guidance": "Use the calm to ask for what you need, because a gentle request is often welcome. A plan that excites you may deserve first place on your list.",
+     "keywords": [
+      "caretaker",
+      "comfort",
+      "action",
+      "adventurous",
+      "harmony",
+      "flow"
+     ]
+    }
+   },
+   {
+    "transitPlanet": "Moon",
+    "natalPlanet": "Neptune",
+    "type": "QUINCUNX",
+    "angle": 150,
+    "orb": 0.7928832630591671,
+    "isApplying": true,
+    "strength": 73.57055789802776,
+    "nature": "challenging",
+    "interpretation": {
+     "summary": "The Moon makes a quincunx to your natal Neptune. Your tenderness and your clear thinking swap seats, so edges look softly out of focus.",
+     "timing": "On November 25 from 5 am to 3 pm, exact around 10 am.",
+     "impact": "A cherished ideal looks altered in a plainer light. With your natal Neptune in your house of daily work, chores and being useful may feel more present.",
+     "guidance": "Notice what you reach for without thinking, and ask whether it is actually helping.",
+     "keywords": [
+      "caretaker",
+      "comfort",
+      "artistic",
+      "calm",
+      "adjustment",
+      "tension"
+     ]
+    }
+   },
+   {
+    "transitPlanet": "Chiron",
+    "natalPlanet": "Mercury",
+    "type": "CONJUNCTION",
+    "angle": 0,
+    "orb": 2.201882670847837,
+    "isApplying": true,
+    "strength": 72.47646661440203,
+    "nature": "neutral",
+    "interpretation": {
+     "summary": "Chiron joins your natal Mercury. Your words carry a healing edge, so you say what you truly mean.",
+     "timing": "In effect from February 2024 to June 2027, exact on May 15, 2025; October 17, 2025 and March 17, 2026.",
+     "impact": "A new way of seeing a question starts to form in your mind.",
+     "guidance": "Name the tender place honestly, and treat it with the care you would show someone you love. You might start a conversation, write a letter or begin a course, whichever calls to you.",
+     "keywords": [
+      "healing",
+      "wisdom",
+      "analysis",
+      "childhood",
+      "blend",
+      "intensity"
+     ]
+    }
+   },
+   {
+    "transitPlanet": "Mercury",
+    "natalPlanet": "Black Moon Lilith",
+    "type": "CONJUNCTION",
+    "angle": 0,
+    "orb": 2.267770459794974,
+    "isApplying": true,
+    "strength": 71.65286925256282,
+    "nature": "neutral",
+    "interpretation": {
+     "summary": "You may say the blunt thing you usually swallow, and it sounds like your own voice now that Mercury is conjunct your natal Lilith.",
+     "timing": "In effect from November 20 to December 2, exact on November 27.",
+     "impact": "Something wild and honest in you asks for a place at the table. You could rearrange a room or call a relative while Mercury moves through your family realm.",
+     "guidance": "Read, look things up and follow the thread that interests you most while your mind is quick. Name one thing you tend to hold close, and decide whether it stays private or gets some air.",
+     "keywords": [
+      "analysis",
+      "childhood",
+      "authenticity",
+      "autonomy",
+      "blend",
+      "intensity"
+     ]
+    }
+   },
+   {
+    "transitPlanet": "Uranus",
+    "natalPlanet": "Jupiter",
+    "type": "SEMI_SEXTILE",
+    "angle": 30,
+    "orb": 0.8895702655246183,
+    "isApplying": true,
+    "strength": 70.34765781584606,
+    "nature": "neutral",
+    "interpretation": {
+     "summary": "Your love of novelty and your taste for plenty want different things as Uranus makes a semi-sextile to your natal Jupiter.",
+     "timing": "Felt from April 22, 2026 to May 28, 2027, with exact passes on June 14, 2026; December 17, 2026 and April 1, 2027.",
+     "impact": "How you hope for more and how you actually live sit slightly apart. You could write down one long-range aim while Uranus moves through your ambition zone.",
+     "guidance": "Leave room for one odd detail in what you believe, since it may be the interesting part.",
+     "keywords": [
+      "avant-garde",
+      "change",
+      "abundance",
+      "college",
+      "growth",
+      "subtle"
+     ]
+    }
+   },
+   {
+    "transitPlanet": "Neptune",
+    "natalPlanet": "Pluto",
+    "type": "SESQUIQUADRATE",
+    "angle": 135,
+    "orb": 0.618588451894567,
+    "isApplying": false,
+    "strength": 69.07057740527165,
+    "nature": "challenging",
+    "interpretation": {
+     "summary": "Neptune is sesquiquadrate your natal Pluto. A stubborn urge to control keeps your gentle ideals at a wary distance.",
+     "timing": "In effect from July 26, 2026 to March 31, 2027, exact on October 21, 2026 and February 1, 2027.",
+     "impact": "Your private sense of control registers a brief tremor and then steadies. Try reading about a place you have never seen while Neptune is moving through your house of travel and belief.",
+     "guidance": "If a quiet tension keeps resurfacing, it may be pointing at what to release first.",
+     "keywords": [
+      "artistic",
+      "calm",
+      "alchemy",
+      "bold",
+      "frustration",
+      "adjustment"
+     ]
+    }
+   },
+   {
+    "transitPlanet": "Chiron",
+    "natalPlanet": "Venus",
+    "type": "SEXTILE",
+    "angle": 60,
+    "orb": 2.031254828361682,
+    "isApplying": true,
+    "strength": 66.14575286063864,
+    "nature": "harmonious",
+    "interpretation": {
+     "summary": "A caring gesture quietly repairs something, so your love is easier to give while Chiron sextiles your natal Venus.",
+     "timing": "In effect from January 2025 to May 2027, exact on May 18, 2025; October 14, 2025 and March 20, 2026.",
+     "impact": "Taste, warmth and value line up so that enjoyment comes without much effort, which is worth accepting.",
+     "guidance": "Use the softer mood to revisit something tender, letting understanding arrive without effort. An invitation, a gift or a shared meal could be accepted with simple pleasure.",
+     "keywords": [
+      "healing",
+      "wisdom",
+      "attractiveness",
+      "beauty",
+      "ease",
+      "natural"
+     ]
+    }
+   },
+   {
+    "transitPlanet": "Black Moon Lilith",
+    "natalPlanet": "Chiron",
+    "type": "OPPOSITION",
+    "angle": 180,
+    "orb": 2.7960481002104416,
+    "isApplying": true,
+    "strength": 65.04939874736948,
+    "nature": "challenging",
+    "interpretation": {
+     "summary": "You meet your own rawness in a stranger or a friend, and the reflection is useful, while Lilith opposes your natal Chiron.",
+     "timing": "In effect from October 9, 2026 to March 2, 2027, exact on December 20, 2026.",
+     "impact": "An old tenderness is mirrored by someone else, and seeing it from outside can soften it. Try making something just for fun while Lilith is passing through your house of romance and play.",
+     "guidance": "Stand your ground without turning it into a contest, and the pressure often eases. When another person triggers an old hurt, you might treat it as a clue rather than a verdict.",
+     "keywords": [
+      "authenticity",
+      "autonomy",
+      "healing",
+      "wisdom",
+      "polarity",
+      "tension"
+     ]
+    }
+   },
+   {
+    "transitPlanet": "Neptune",
+    "natalPlanet": "Moon",
+    "type": "SQUARE",
+    "angle": 90,
+    "orb": 2.4735310229795573,
+    "isApplying": true,
+    "strength": 64.66384252886347,
+    "nature": "challenging",
+    "interpretation": {
+     "summary": "Your moods blur together until a quiet hour alone sorts out which ones are yours, now that Neptune is square your natal Moon.",
+     "timing": "Felt from February 2022 to May 2027, with exact passes on May 11, 2024; August 25, 2024 and March 10, 2025.",
+     "impact": "Your moods drift off course, and learning to ride the swings is a skill worth having. In your house of travel and belief, where Neptune is passing, you might look up from the details and ask what it all means.",
+     "guidance": "Pause before agreeing to anything that sounds too good to be true. Which feeling is asking to be understood rather than managed?",
+     "keywords": [
+      "artistic",
+      "calm",
+      "caretaker",
+      "comfort",
+      "difficult",
+      "obstacle"
+     ]
+    }
+   },
+   {
+    "transitPlanet": "Chiron",
+    "natalPlanet": "Moon",
+    "type": "SEXTILE",
+    "angle": 60,
+    "orb": 2.1651908405817863,
+    "isApplying": false,
+    "strength": 63.913485990303556,
+    "nature": "harmonious",
+    "interpretation": {
+     "summary": "Chiron is sextile your natal Moon. Your comfort comes easily, with caring bonds soothing whatever has felt tender.",
+     "timing": "In effect from February 2026 to May 2028, exact on June 1, 2026; October 7, 2026 and April 1, 2027.",
+     "impact": "A calm sense of safety opens up, so your emotions feel like allies. A faraway place, a course or a question about meaning may draw you in, since Chiron is in your house of travel and belief.",
+     "guidance": "Take the gentle approach, since healing moves easily when you stop hurrying it. You could reach for a person, a place or a habit that feels like home.",
+     "keywords": [
+      "healing",
+      "wisdom",
+      "caretaker",
+      "comfort",
+      "ease",
+      "natural"
+     ]
+    }
+   },
+   {
+    "transitPlanet": "Jupiter",
+    "natalPlanet": "Chiron",
+    "type": "SEMI_SQUARE",
+    "angle": 45,
+    "orb": 0.7291750318011196,
+    "isApplying": false,
+    "strength": 63.54124840994402,
+    "nature": "challenging",
+    "interpretation": {
+     "summary": "Jupiter is semi-square your natal Chiron. A belief you hold and a sore spot you know about sit uneasily side by side.",
+     "timing": "In effect from October 27, 2026 to January 28, 2027, exact on November 15, 2026 and January 9, 2027.",
+     "impact": "A faint ache hums quietly, more a reminder than a request. Where your natal Chiron sits, in your house of friendship, your circles and groups could matter more than usual.",
+     "guidance": "Take the generous option on one decision, and notice whether anything else wants to follow.",
+     "keywords": [
+      "abundance",
+      "college",
+      "healing",
+      "wisdom",
+      "friction",
+      "irritation"
+     ]
+    }
+   },
+   {
+    "transitPlanet": "Moon",
+    "natalPlanet": "Sun",
+    "type": "SEXTILE",
+    "angle": 60,
+    "orb": 2.240016475003472,
+    "isApplying": false,
+    "strength": 62.66639208327547,
+    "nature": "harmonious",
+    "interpretation": {
+     "summary": "The Moon is sextile your natal Sun. Your mood supports your aims, so working with others goes smoothly.",
+     "timing": "Felt from November 24 at 8 pm to November 25 at 3 pm, exact around November 25 at 5 am.",
+     "impact": "What makes you feel alive finds support, so your purpose has room to grow. Companions, groups and long-held wishes may take up more of your attention while the Moon is in your house of friendship.",
+     "guidance": "Let yourself enjoy the easy mood and say yes to small pleasures and friendly company. A goal you pick or a role you try could show more of who you are.",
+     "keywords": [
+      "caretaker",
+      "comfort",
+      "active",
+      "awareness",
+      "ease",
+      "natural"
+     ]
+    }
+   },
+   {
+    "transitPlanet": "Chiron",
+    "natalPlanet": "Saturn",
+    "type": "SQUARE",
+    "angle": 90,
+    "orb": 2.627539027937246,
+    "isApplying": true,
+    "strength": 62.46372817232506,
+    "nature": "challenging",
+    "interpretation": {
+     "summary": "Chiron is square your natal Saturn: your duties and your tender spot pull two ways, yet honest priorities settle the argument.",
+     "timing": "Felt from March 2024 to May 2027, with exact passes on May 7, 2025; October 27, 2025 and March 8, 2026.",
+     "impact": "The strict voice inside you speaks up, and listening closely can sort the commitments worth keeping from the rest.",
+     "guidance": "Notice what triggers you, and meet the trigger with patience before you reply to anyone. If a duty has outgrown its purpose, you can renegotiate it on fairer terms.",
+     "keywords": [
+      "healing",
+      "wisdom",
+      "ambition",
+      "boundaries",
+      "difficult",
+      "obstacle"
+     ]
+    }
+   },
+   {
+    "transitPlanet": "Saturn",
+    "natalPlanet": "Chiron",
+    "type": "SQUARE",
+    "angle": 90,
+    "orb": 2.6411865068057665,
+    "isApplying": false,
+    "strength": 62.26876418848906,
+    "nature": "challenging",
+    "interpretation": {
+     "summary": "Carrying more than your share may irritate you, which is a cue to set a boundary, as Saturn forms a square to your natal Chiron.",
+     "timing": "Felt from March 17, 2026 to April 8, 2027, with exact passes on May 16, 2026; October 11, 2026 and February 6, 2027.",
+     "impact": "A raw place meets friction, which brings out the part of you that knows how to heal.",
+     "guidance": "Treat the pressure as training, pace yourself, and do the unglamorous part first. A teacher, book or friend who has been through something similar may shorten the road.",
+     "keywords": [
+      "ambition",
+      "boundaries",
+      "healing",
+      "wisdom",
+      "difficult",
+      "obstacle"
+     ]
+    }
+   },
+   {
+    "transitPlanet": "Mercury",
+    "natalPlanet": "Pluto",
+    "type": "CONJUNCTION",
+    "angle": 0,
+    "orb": 3.0405104369430376,
+    "isApplying": true,
+    "strength": 61.99361953821203,
+    "nature": "neutral",
+    "interpretation": {
+     "summary": "Your attention deepens, so you look under the surface of an idea for what it really means, while Mercury joins your natal Pluto.",
+     "timing": "Exact on November 27, and felt from November 21 to December 3.",
+     "impact": "A new current reaches the deepest layer of you, where your will, your secrets and your need for control live. In your family realm, where Mercury is passing, you might notice what makes a place feel truly yours.",
+     "guidance": "Say the new thing aloud to someone who listens well, and it takes shape as you talk. Which part of your strength could come out of reserve?",
+     "keywords": [
+      "analysis",
+      "childhood",
+      "alchemy",
+      "bold",
+      "blend",
+      "intensity"
+     ]
+    }
+   },
+   {
+    "transitPlanet": "Saturn",
+    "natalPlanet": "Sun",
+    "type": "CONJUNCTION",
+    "angle": 0,
+    "orb": 3.3284422829767024,
+    "isApplying": false,
+    "strength": 58.394471462791216,
+    "nature": "neutral",
+    "interpretation": {
+     "summary": "You can narrow your goals to a few and give each one real discipline, as Saturn meets your natal Sun.",
+     "timing": "In effect from March 15, 2026 to April 22, 2027, exact on May 23, 2026; October 2, 2026 and February 14, 2027.",
+     "impact": "Your sense of who you are takes on a new shade, as if something had been added to it.",
+     "guidance": "Choose the commitment you are willing to see through, then give it honest attention before adding more. If a resolution has been waiting for a green light, this is a fair signal to begin.",
+     "keywords": [
+      "ambition",
+      "boundaries",
+      "active",
+      "awareness",
+      "blend",
+      "intensity"
+     ]
+    }
+   },
+   {
+    "transitPlanet": "Mercury",
+    "natalPlanet": "Chiron",
+    "type": "TRINE",
+    "angle": 120,
+    "orb": 3.486580098783591,
+    "isApplying": false,
+    "strength": 56.41774876520511,
+    "nature": "harmonious",
+    "interpretation": {
+     "summary": "Kind advice from you carries weight, since your own experience stands behind it as Mercury forms a trine to your natal Chiron.",
+     "timing": "In effect from October 29 to November 28, exact on November 5 and November 22.",
+     "impact": "Your sore places feel more open to care, and the wisdom hurt gave you is easier to reach. Mercury is moving through your family realm, which may show up around where you live, your relatives and your roots.",
+     "guidance": "Write your thoughts down as the words arrive, and let the first draft be loose. You could learn about healing, join a circle that shares what you know, or simply rest where you feel safe.",
+     "keywords": [
+      "analysis",
+      "childhood",
+      "healing",
+      "wisdom",
+      "harmony",
+      "flow"
+     ]
+    }
+   },
+   {
+    "transitPlanet": "Jupiter",
+    "natalPlanet": "Moon",
+    "type": "SEXTILE",
+    "angle": 60,
+    "orb": 2.7057960290513847,
+    "isApplying": true,
+    "strength": 54.90339951581025,
+    "nature": "harmonious",
+    "interpretation": {
+     "summary": "Jupiter forms a sextile to your natal Moon. Affection and humor flow naturally, which makes you good company, yourself included.",
+     "timing": "Felt from October 23, 2026 to February 1, 2027, coming nearest on December 13, 2026.",
+     "impact": "Instinct and reasoning move together, and comfort is easy to find. Notice clubs and teams, because your natal Moon is based in your house of friendship.",
+     "guidance": "This favors learning, planning and trying something new, so pick the idea that feels most alive. Your emotional needs may be easier to voice than usual, which makes a kind request worth trying.",
+     "keywords": [
+      "abundance",
+      "college",
+      "caretaker",
+      "comfort",
+      "ease",
+      "natural"
+     ]
+    }
+   },
+   {
+    "transitPlanet": "Venus",
+    "natalPlanet": "Moon",
+    "type": "TRINE",
+    "angle": 120,
+    "orb": 3.9549821899102824,
+    "isApplying": true,
+    "strength": 50.56272262612147,
+    "nature": "harmonious",
+    "interpretation": {
+     "summary": "Venus is trine your natal Moon. A gentle mood makes you easy to approach and quick to please.",
+     "timing": "In effect from October 11 to December 14, exact on October 26 and December 3.",
+     "impact": "A calm sense of safety opens up, so your emotions feel like allies.",
+     "guidance": "Share something you enjoy with someone, since pleasure grows when it is passed along. Your emotional needs may be easier to voice than usual, which makes a kind request worth trying.",
+     "keywords": [
+      "attractiveness",
+      "beauty",
+      "caretaker",
+      "comfort",
+      "harmony",
+      "flow"
+     ]
+    }
+   },
+   {
+    "transitPlanet": "Black Moon Lilith",
+    "natalPlanet": "Sun",
+    "type": "SQUARE",
+    "angle": 90,
+    "orb": 3.483303876381342,
+    "isApplying": true,
+    "strength": 50.238516051695115,
+    "nature": "challenging",
+    "interpretation": {
+     "summary": "Lilith is square your natal Sun. Defiance can flare when you feel judged, and one clear statement beats a fight.",
+     "timing": "In effect from October 24, 2026 to February 27, 2027, exact on December 26, 2026.",
+     "impact": "Something blocks your will, and that friction asks you to refine the goal rather than abandon it. Crushes, hobbies and things made just for fun may catch your interest once Lilith reaches your house of romance and play.",
+     "guidance": "Channel the defiance into a single clear boundary rather than a broad rebellion. A sharper definition of what you want from yourself may be the reward for the friction.",
+     "keywords": [
+      "authenticity",
+      "autonomy",
+      "active",
+      "awareness",
+      "difficult",
+      "obstacle"
+     ]
+    }
+   },
+   {
+    "transitPlanet": "Mars",
+    "natalPlanet": "Jupiter",
+    "type": "SEXTILE",
+    "angle": 60,
+    "orb": 3.053902857252737,
+    "isApplying": true,
+    "strength": 49.101619045787714,
+    "nature": "harmonious",
+    "interpretation": {
+     "summary": "A good opening arrives just as you are ready, so acting early suits you, while Mars sextiles your natal Jupiter.",
+     "timing": "Exact on December 3, and felt from November 18 to December 24.",
+     "impact": "Optimism and good judgment work well together, which makes growth feel smooth.",
+     "guidance": "Put your effort where it meets the least resistance and the most meaning for you. A course, a trip or a cause could be worth a first step.",
+     "keywords": [
+      "action",
+      "adventurous",
+      "abundance",
+      "college",
+      "ease",
+      "natural"
+     ]
+    }
+   },
+   {
+    "transitPlanet": "Mars",
+    "natalPlanet": "Venus",
+    "type": "OPPOSITION",
+    "angle": 180,
+    "orb": 4.725249407060687,
+    "isApplying": false,
+    "strength": 40.93438241174141,
+    "nature": "challenging",
+    "interpretation": {
+     "summary": "Mars forms an opposition to your natal Venus. A disagreement about what you want reveals how deeply you care.",
+     "timing": "In effect from October 28 to December 4, exact on November 14.",
+     "impact": "Being liked and being yourself sit on opposite sides of the scale.",
+     "guidance": "Treat a challenge as a sparring match rather than a war, so both sides come out clearer. A difference in taste could show you what you value, whether you keep it or soften it.",
+     "keywords": [
+      "action",
+      "adventurous",
+      "attractiveness",
+      "beauty",
+      "polarity",
+      "tension"
+     ]
+    }
+   },
+   {
+    "transitPlanet": "Mars",
+    "natalPlanet": "Mercury",
+    "type": "TRINE",
+    "angle": 120,
+    "orb": 4.8958772495468565,
+    "isApplying": false,
+    "strength": 38.80153438066429,
+    "nature": "harmonious",
+    "interpretation": {
+     "summary": "Mars forms a trine to your natal Mercury. Persuasion is natural to you, so your favorite idea lands well.",
+     "timing": "Exact on November 13, and felt from October 28 to December 3.",
+     "impact": "Learning and talking feel smoother, which puts a useful exchange within reach. A course or a good book may suit you, since your natal Mercury lies in your house of travel and belief.",
+     "guidance": "A bold, friendly approach works best, so ask plainly for what you want and move on it. Which idea of yours would you explain to a stranger if you had the chance?",
+     "keywords": [
+      "action",
+      "adventurous",
+      "analysis",
+      "childhood",
+      "harmony",
+      "flow"
+     ]
+    }
+   },
+   {
+    "transitPlanet": "Neptune",
+    "natalPlanet": "Mars",
+    "type": "SEMI_SQUARE",
+    "angle": 45,
+    "orb": 1.229193986625205,
+    "isApplying": true,
+    "strength": 38.54030066873975,
+    "nature": "challenging",
+    "interpretation": {
+     "summary": "Neptune forms a semi-square to your natal Mars. Your drive points one way and your intuition leans another.",
+     "timing": "In effect from October 15, 2026 to February 6, 2027, closest on December 12, 2026 without becoming exact.",
+     "impact": "The impulse to leap and the instinct to look disagree about the order of events. Your natal Mars lives in your relationship realm, so close one-to-one bonds may be on the table.",
+     "guidance": "Choose one small first step and let the rest of the picture stay soft until it is done.",
+     "keywords": [
+      "artistic",
+      "calm",
+      "action",
+      "adventurous",
+      "friction",
+      "irritation"
+     ]
+    }
+   },
+   {
+    "transitPlanet": "North Node",
+    "natalPlanet": "Moon",
+    "type": "TRINE",
+    "angle": 120,
+    "orb": 4.96724345562825,
+    "isApplying": false,
+    "strength": 37.90945680464688,
+    "nature": "harmonious",
+    "interpretation": {
+     "summary": "Comfort and growth stop competing, so choosing what nourishes you feels natural now that the North Node is trine your natal Moon.",
+     "timing": "Exact on September 30, 2026, and felt from April 29, 2026 to January 3, 2027.",
+     "impact": "Sensitivity turns into a strength that helps you read a room and your own heart with ease. Your natal Moon is housed in your house of friendship, which points to an old pal or a new crowd.",
+     "guidance": "Accept the help on offer and take the next natural step toward what matters to you. A comforting routine may be ready to return, simple and familiar.",
+     "keywords": [
+      "destiny",
+      "life purpose",
+      "caretaker",
+      "comfort",
+      "harmony",
+      "flow"
+     ]
+    }
+   },
+   {
+    "transitPlanet": "Black Moon Lilith",
+    "natalPlanet": "Jupiter",
+    "type": "OPPOSITION",
+    "angle": 180,
+    "orb": 5.186274243567084,
+    "isApplying": false,
+    "strength": 35.17157195541145,
+    "nature": "challenging",
+    "interpretation": {
+     "summary": "Lilith stands opposite your natal Jupiter. Outside judgments test your convictions, so whatever holds up is worth keeping.",
+     "timing": "Exact on October 9, and felt from July 30 to December 20.",
+     "impact": "Your hope for growth meets a temptation to do too much, and a measured choice finds the balance. Something playful may tug at you while Lilith is moving through your house of romance and play.",
+     "guidance": "Hold your boundary calmly when it is tested, and listen to what the reaction shows. A different point of view can show you what your own optimism is built on.",
+     "keywords": [
+      "authenticity",
+      "autonomy",
+      "abundance",
+      "college",
+      "polarity",
+      "tension"
+     ]
+    }
+   },
+   {
+    "transitPlanet": "Jupiter",
+    "natalPlanet": "Saturn",
+    "type": "QUINCUNX",
+    "angle": 150,
+    "orb": 2.0869338394676333,
+    "isApplying": false,
+    "strength": 30.435538684412222,
+    "nature": "challenging",
+    "interpretation": {
+     "summary": "Jupiter forms a quincunx to your natal Saturn. Your hope for more and your habit of caution talk past each other, which a plain sentence can settle.",
+     "timing": "Felt from October 11, 2026 to February 15, 2027, with exact passes on November 1, 2026 and January 23, 2027.",
+     "impact": "Your orderly side finds one corner that refuses to line up. Your schedule and your desk may take on weight now that your natal Saturn in your house of daily work is stirred.",
+     "guidance": "If a routine rubs against how you live, it may only need a different time of day.",
+     "keywords": [
+      "abundance",
+      "college",
+      "ambition",
+      "boundaries",
+      "adjustment",
+      "tension"
+     ]
+    }
+   },
+   {
+    "transitPlanet": "Saturn",
+    "natalPlanet": "Jupiter",
+    "type": "SQUARE",
+    "angle": 90,
+    "orb": 5.341135836971759,
+    "isApplying": true,
+    "strength": 23.69805947183201,
+    "nature": "challenging",
+    "interpretation": {
+     "summary": "You may hold a big hope back for review, giving it room to be rewritten now that Saturn is square your natal Jupiter.",
+     "timing": "Felt from October 24, 2026 to January 26, 2027, coming nearest on December 10, 2026.",
+     "impact": "The wish to have it all is asked to pick, which can focus your growth.",
+     "guidance": "Meet the demand with patience and a clear priority, which turns friction into practice. If you want more, you can start by deciding what would count as enough.",
+     "keywords": [
+      "ambition",
+      "boundaries",
+      "abundance",
+      "college",
+      "difficult",
+      "obstacle"
+     ]
+    }
+   },
+   {
+    "transitPlanet": "South Node",
+    "natalPlanet": "Chiron",
+    "type": "SEMI_SQUARE",
+    "angle": 45,
+    "orb": 1.5322723947757453,
+    "isApplying": false,
+    "strength": 23.386380261212736,
+    "nature": "challenging",
+    "interpretation": {
+     "summary": "Your habitual shield and a newer kindness barely touch, as the South Node makes a semi-square to your natal Chiron.",
+     "timing": "In effect from October 25 to December 3, exact on November 11.",
+     "impact": "A touch of vulnerability appears in an ordinary exchange and is gone almost before you name it. The South Node is moving through your house of self, which may show in how you enter any gathering.",
+     "guidance": "Should an old twinge appear, you might acknowledge it, ask what set it off, or let it pass.",
+     "keywords": [
+      "innate talents",
+      "past life wisdom",
+      "healing",
+      "wisdom",
+      "friction",
+      "irritation"
+     ]
+    }
+   },
+   {
+    "transitPlanet": "North Node",
+    "natalPlanet": "Chiron",
+    "type": "SESQUIQUADRATE",
+    "angle": 135,
+    "orb": 1.5322723947757595,
+    "isApplying": false,
+    "strength": 23.386380261212025,
+    "nature": "challenging",
+    "interpretation": {
+     "summary": "Your tender side catches a little on your chosen route while the North Node forms a sesquiquadrate to your natal Chiron.",
+     "timing": "In effect from October 25 to December 3, exact on November 11.",
+     "impact": "One tender habit of thought gets brushed, and you notice how you talk to yourself.",
+     "guidance": "A short gesture toward yourself, such as a kind sentence or a quiet minute, suits the mood.",
+     "keywords": [
+      "destiny",
+      "life purpose",
+      "healing",
+      "wisdom",
+      "frustration",
+      "adjustment"
+     ]
+    }
+   },
+   {
+    "transitPlanet": "Mercury",
+    "natalPlanet": "Uranus",
+    "type": "SEXTILE",
+    "angle": 60,
+    "orb": 4.75562445004266,
+    "isApplying": false,
+    "strength": 20.739592499288996,
+    "nature": "harmonious",
+    "interpretation": {
+     "summary": "Mercury forms a sextile to your natal Uranus. Online talk and curious company give you a new way to look at an old topic.",
+     "timing": "In effect from November 1 to November 26, exact on November 6 and November 21.",
+     "impact": "Freedom feels easy to claim, and your originality meets little resistance. Your house of romance and play is where your natal Uranus lives, so this may reach a crush or a hobby.",
+     "guidance": "Make the call, send the message or hold the conversation that matters, since words go smoothly. A conversation with someone unlike you could widen your outlook.",
+     "keywords": [
+      "analysis",
+      "childhood",
+      "avant-garde",
+      "change",
+      "ease",
+      "natural"
+     ]
+    }
+   },
+   {
+    "transitPlanet": "Black Moon Lilith",
+    "natalPlanet": "Neptune",
+    "type": "CONJUNCTION",
+    "angle": 0,
+    "orb": 6.516203614444009,
+    "isApplying": true,
+    "strength": 18.547454819449882,
+    "nature": "neutral",
+    "interpretation": {
+     "summary": "Glamour and mystery color your wants, so asking what is real keeps you honest now that Lilith is conjunct your natal Neptune.",
+     "timing": "Exact on January 22, 2027, and felt from November 12, 2026 to April 4, 2027.",
+     "impact": "Something fresh brushes the part of you that imagines, believes and feels for others, so your ideals seem closer than before. You may find order and a tidy week coming up, with your natal Neptune located in your house of daily work.",
+     "guidance": "Trust the instinct that refuses to be tamed, and let it set one clear limit. A new kind of faith, in a person, a craft or a belief, may be forming, and it deserves a hearing.",
+     "keywords": [
+      "authenticity",
+      "autonomy",
+      "artistic",
+      "calm",
+      "blend",
+      "intensity"
+     ]
+    }
+   },
+   {
+    "transitPlanet": "South Node",
+    "natalPlanet": "Moon",
+    "type": "SEXTILE",
+    "angle": 60,
+    "orb": 4.96724345562825,
+    "isApplying": false,
+    "strength": 17.212609072862506,
+    "nature": "harmonious",
+    "interpretation": {
+     "summary": "The South Node is sextile your natal Moon. Your well-worn ways of finding comfort work easily, so rest comes quickly.",
+     "timing": "Exact on September 30, and felt from May 17 to December 7.",
+     "impact": "Your feelings find support, so asking for what you need comes more easily. A cause you back may come into view, with your natal Moon placed in your house of friendship.",
+     "guidance": "Lean on your best-practiced skills, and let ease do some of the work. What would feel nourishing to you, and who could share it?",
+     "keywords": [
+      "innate talents",
+      "past life wisdom",
+      "caretaker",
+      "comfort",
+      "ease",
+      "natural"
+     ]
+    }
+   },
+   {
+    "transitPlanet": "Saturn",
+    "natalPlanet": "South Node",
+    "type": "TRINE",
+    "angle": 120,
+    "orb": 6.628083075265266,
+    "isApplying": false,
+    "strength": 17.148961559184173,
+    "nature": "harmonious",
+    "interpretation": {
+     "summary": "Old routines and learned discipline support you, so a familiar structure can carry a present goal, as Saturn forms a trine to your natal South Node.",
+     "timing": "In effect from April 10, 2026 to May 19, 2027, exact on March 15, 2027.",
+     "impact": "What you already do well feels welcome, and nothing about it has to be proven.",
+     "guidance": "Use the steadiness on offer for a task that rewards patience, one dependable step after another. A habit that serves you is worth keeping on purpose, and saying so out loud helps.",
+     "keywords": [
+      "ambition",
+      "boundaries",
+      "innate talents",
+      "past life wisdom",
+      "harmony",
+      "flow"
+     ]
+    }
+   }
+  ],
+  "interpretation": {
+   "summary": "Neptune is square your natal Jupiter: you want clarity but keep running into fog, so a straight answer would be welcome. The theme stays with you for years, mostly in your house of travel and belief.",
+   "detailed": "Neptune sets the tone here. The vagueness is uncomfortable, yet it can clear away illusions that were not serving you and leave what is closer to the truth. A promise may sound better than it is, which sends you to the fine print before you believe it. Another long story runs beside it: the North Node meets your natal Venus from your relationship realm, with you until April 24, 2027. Small decisions start to feel like votes for the life you want, and casting each with care gives you a heading. Affection and timing line up, so your values lead you toward people who feel right.\n\nOn a shorter clock, Mars forms a sextile to your natal Moon from your house of self, with you until December 10, 2026. A wish to improve your space turns into a task you enjoy. Nearer the surface, Venus forms an opposition to your natal Mercury from your realm of learning, in effect until December 8, 2026. An honest remark of yours may land a little off, and a calm word afterward evens it out. Today has a lunar note too: the Moon trines your natal North Node, in your house of friendship. Belonging comes easily, which tells you where to grow.\n\nDreams worth keeping can stand a plain question or two."
+  },
+  "summary": {
+   "totalAspects": 63,
+   "harmonious": 21,
+   "challenging": 33,
+   "neutral": 9
+  }
+ }
+}

@@ -46,11 +46,24 @@ export function localSpaceCenter(technical: unknown, options: unknown, birth: { 
 
 // "doğum yerinizden" / "doğum yerinden" (cümle başı büyük harf dahil). Yalnız bu yer atfı değişir.
 const BIRTHPLACE_FROM = /([Dd])oğum yeri(?:niz)?den/g;
+// I18N A7 / DA-1: İngilizce sağlayıcı kalıbı "from your birthplace" — R5 ROXY gerçek EN yanıtıyla doğrulandı (13/13 metin,
+// TR "doğum yerinizden" ile aynı yerlerde; atlas-provider-lang-a7 [G]). Kalıp bulunamazsa metin AYNEN kalır.
+const BIRTHPLACE_FROM_EN = /\b([Ff])rom your (?:birthplace|birth place|place of birth|birth location)\b/g;
+
+/**
+ * Merkez/doğum yeri kararı YAPISALDIR (localSpaceCenter: koordinat karşılaştırması). Bu fonksiyon yalnız sağlayıcı anlatısındaki
+ * yer atfını, anlatının KAYITLI sağlayıcı diline göre bağlar (ekran dili değil). Doğrulanmamış dilde metin AYNEN döner.
+ */
+export function localSpaceTextRewriteSupported(providerLang: string): boolean {
+  return providerLang === "tr" || providerLang === "en";
+}
 
 /** Merkez doğum yerinden farklıysa yorum kalıbındaki yer atfını seçilen merkeze bağlar; aksi hâlde metin AYNEN. */
-export function localSpaceText(text: string, center: LocalSpaceCenter | null): string {
+export function localSpaceText(text: string, center: LocalSpaceCenter | null, providerLang: string = "tr"): string {
   if (!center || center.isBirthPlace) return text;
   const name = center.label ? ` (${center.label})` : "";
+  if (providerLang === "en") return text.replace(BIRTHPLACE_FROM_EN, (_m, f: string) => `${f}rom the selected centre${name}`);
+  if (providerLang !== "tr") return text;
   return text.replace(BIRTHPLACE_FROM, (_m, d: string) => `${d === "D" ? "S" : "s"}eçilen merkezden${name}`);
 }
 

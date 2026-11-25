@@ -1,0 +1,1892 @@
+{
+ "endpoint": "/astrology/transits",
+ "lang": "tr",
+ "query": null,
+ "body": {
+  "date": "2026-11-25",
+  "time": "09:00:00",
+  "timezone": 0,
+  "nodeType": "true",
+  "natalChart": {
+   "date": "1990-04-01",
+   "time": "14:30:00",
+   "latitude": 41.0082,
+   "longitude": 28.9784,
+   "timezone": 3
+  }
+ },
+ "response": {
+  "transitDate": "2026-11-25",
+  "transitTime": "09:00:00",
+  "timezone": 0,
+  "transitPlanets": [
+   {
+    "name": "Sun",
+    "nameLocalized": "Güneş",
+    "signLocalized": "Yay",
+    "longitude": 243.09876274477733,
+    "latitude": 0.0002028244146662175,
+    "sign": "Sagittarius",
+    "degree": 3.098762744777332,
+    "speed": 1.0109310787777304,
+    "isRetrograde": false
+   },
+   {
+    "name": "Moon",
+    "nameLocalized": "Ay",
+    "signLocalized": "İkizler",
+    "longitude": 73.7193634938445,
+    "latitude": 4.723928768833042,
+    "sign": "Gemini",
+    "degree": 13.719363493844497,
+    "speed": 15.093080551873243,
+    "isRetrograde": false
+   },
+   {
+    "name": "Mercury",
+    "nameLocalized": "Merkür",
+    "signLocalized": "Akrep",
+    "longitude": 224.27867134145367,
+    "latitude": 2.1055629153462565,
+    "sign": "Scorpio",
+    "degree": 14.278671341453673,
+    "speed": 1.284860907042301,
+    "isRetrograde": false
+   },
+   {
+    "name": "Venus",
+    "nameLocalized": "Venüs",
+    "signLocalized": "Terazi",
+    "longitude": 205.2720801136123,
+    "latitude": 0.6096840724536893,
+    "sign": "Libra",
+    "degree": 25.272080113612304,
+    "speed": 0.40482853817347575,
+    "isRetrograde": false
+   },
+   {
+    "name": "Mars",
+    "nameLocalized": "Mars",
+    "signLocalized": "Aslan",
+    "longitude": 149.75586604163982,
+    "latitude": 2.1646904945873087,
+    "sign": "Leo",
+    "degree": 29.75586604163982,
+    "speed": 0.40237153371006684,
+    "isRetrograde": false
+   },
+   {
+    "name": "Jupiter",
+    "nameLocalized": "Jüpiter",
+    "signLocalized": "Aslan",
+    "longitude": 146.5212662744712,
+    "latitude": 0.7801238641504171,
+    "sign": "Leo",
+    "degree": 26.521266274471202,
+    "speed": 0.05613798680791149,
+    "isRetrograde": false
+   },
+   {
+    "name": "Saturn",
+    "nameLocalized": "Satürn",
+    "signLocalized": "Koç",
+    "longitude": 8.150904735864321,
+    "latitude": -2.608459994117739,
+    "sign": "Aries",
+    "degree": 8.150904735864321,
+    "speed": -0.027726725049689094,
+    "isRetrograde": true
+   },
+   {
+    "name": "Uranus",
+    "nameLocalized": "Uranüs",
+    "signLocalized": "İkizler",
+    "longitude": 63.699339164417175,
+    "latitude": -0.14813093813908942,
+    "sign": "Gemini",
+    "degree": 3.699339164417175,
+    "speed": -0.04195430616088913,
+    "isRetrograde": true
+   },
+   {
+    "name": "Neptune",
+    "nameLocalized": "Neptün",
+    "signLocalized": "Koç",
+    "longitude": 1.700593326502149,
+    "latitude": -1.4020896935488667,
+    "sign": "Aries",
+    "degree": 1.700593326502149,
+    "speed": -0.009783976365966396,
+    "isRetrograde": true
+   },
+   {
+    "name": "Pluto",
+    "nameLocalized": "Plüton",
+    "signLocalized": "Kova",
+    "longitude": 303.44845198129383,
+    "latitude": -4.258083914847138,
+    "sign": "Aquarius",
+    "degree": 3.448451981293829,
+    "speed": 0.018454194619664577,
+    "isRetrograde": false
+   },
+   {
+    "name": "North Node",
+    "nameLocalized": "Kuzey Düğümü",
+    "signLocalized": "Kova",
+    "longitude": 324.25981884789434,
+    "latitude": 0,
+    "sign": "Aquarius",
+    "degree": 24.259818847894337,
+    "speed": -0.17926272723005354,
+    "isRetrograde": true
+   },
+   {
+    "name": "South Node",
+    "nameLocalized": "Güney Düğümü",
+    "signLocalized": "Aslan",
+    "longitude": 144.25981884789434,
+    "latitude": 0,
+    "sign": "Leo",
+    "degree": 24.259818847894337,
+    "speed": -0.17926272723005354,
+    "isRetrograde": true
+   },
+   {
+    "name": "Chiron",
+    "nameLocalized": "Chiron",
+    "signLocalized": "Koç",
+    "longitude": 27.061871462940797,
+    "latitude": 0.10240130119940177,
+    "sign": "Aries",
+    "degree": 27.061871462940797,
+    "speed": -0.03547800383876165,
+    "isRetrograde": true
+   },
+   {
+    "name": "Black Moon Lilith",
+    "nameLocalized": "Kara Ay Lilith",
+    "signLocalized": "Oğlak",
+    "longitude": 277.99604314245965,
+    "latitude": -3.7544616267127675,
+    "sign": "Capricorn",
+    "degree": 7.996043142459655,
+    "speed": 0.1114987291642251,
+    "isRetrograde": false
+   }
+  ],
+  "transitAspects": [
+   {
+    "transitPlanet": "Jupiter",
+    "natalPlanet": "Sun",
+    "type": "SESQUIQUADRATE",
+    "transitPlanetLocalized": "Jüpiter",
+    "natalPlanetLocalized": "Güneş",
+    "typeLocalized": "Seskikare",
+    "angle": 135,
+    "orb": 0.04191925563017662,
+    "isApplying": false,
+    "strength": 97.90403721849117,
+    "nature": "zorlayıcı",
+    "interpretation": {
+     "summary": "Jüpiter doğum haritanızdaki Güneş ile seskikare açısında. Cömertliğiniz evet demek istiyor, kimliğiniz ise sessizce bekle diyor.",
+     "timing": "Etkisi 2 Kasım 2026 ile 22 Ocak 2027 arasında sürer; açı şu günlerde tamamlanır: 24 Kasım 2026 ve 31 Aralık 2026.",
+     "impact": "Gurur ile alçakgönüllülük sizde omuz omuza durur, her biri öbürünün önce geçmesini ister. Benlik evinizde gezinen Jüpiter, yeni bir şeye başlama isteğini canlandırabilir.",
+     "guidance": "Bildiklerinizden bir parçayı biriyle paylaşın ve anlatırken planın netleşip netleşmediğine bakın.",
+     "keywords": [
+      "bolluk",
+      "üniversite",
+      "aktif",
+      "farkındalık",
+      "hayal kırıklığı",
+      "ayarlama"
+     ]
+    }
+   },
+   {
+    "transitPlanet": "Mercury",
+    "natalPlanet": "Moon",
+    "type": "SESQUIQUADRATE",
+    "transitPlanetLocalized": "Merkür",
+    "natalPlanetLocalized": "Ay",
+    "typeLocalized": "Seskikare",
+    "angle": 135,
+    "orb": 0.05160903793108673,
+    "isApplying": false,
+    "strength": 97.41954810344566,
+    "nature": "zorlayıcı",
+    "interpretation": {
+     "summary": "Hafif niyetle söylenmiş bir söz fazladan ağırlıkla düşüyor ve bu farkı hemen seziyorsunuz, Merkür doğum haritanızdaki Ay ile seskikare yaparken.",
+     "timing": "Açı 25 Kasım günü tamamlanır; etkisi 23 Kasım ile 26 Kasım arasında hissedilir.",
+     "impact": "Ruh hâliniz ile çevreniz birbirine tam oturmuyor, yanlış odada çalan sevdiğiniz bir şarkı gibi.",
+     "guidance": "Masada farklı bir yer, daha sessiz bir oda ya da paylaşılan bir yemek ruh hâlinize daha iyi uyabilir.",
+     "keywords": [
+      "analiz",
+      "çocukluk",
+      "bakıcı",
+      "rahatlık",
+      "hayal kırıklığı",
+      "ayarlama"
+     ]
+    }
+   },
+   {
+    "transitPlanet": "Venus",
+    "natalPlanet": "Venus",
+    "type": "TRINE",
+    "transitPlanetLocalized": "Venüs",
+    "natalPlanetLocalized": "Venüs",
+    "typeLocalized": "Üçgen",
+    "angle": 120,
+    "orb": 0.24146347903317178,
+    "isApplying": false,
+    "strength": 96.98170651208535,
+    "nature": "uyumlu",
+    "interpretation": {
+     "summary": "Sevginiz iki yöne de gidiyor, bu yüzden vermek ve almak birlikte oluyor, Venüs doğum haritanızdaki Venüs ile üçgen oluştururken.",
+     "timing": "20 Ekim ile 8 Aralık arasında hissedilir; açı şu günlerde tamamlanır: 3 Kasım ve 24 Kasım.",
+     "impact": "Sevdiğiniz şey daha serbest akar ve onu paylaşma fırsatı doğar. Açıkça söylemediğiniz bir görüş gündeme gelebilir, zira doğum haritanızdaki Venüs ortaklık evinizde bulunuyor.",
+     "guidance": "İyi ruh hâlini, gergin bir konuşmayı yumuşatmak ya da eski bir tatsızlığı gidermek için kullanın. Hoş karşılanacağını bilseydiniz neyi paylaşırdınız?",
+     "keywords": [
+      "çekicilik",
+      "güzellik",
+      "uyum",
+      "akış",
+      "yetenek",
+      "destek"
+     ]
+    }
+   },
+   {
+    "transitPlanet": "Mercury",
+    "natalPlanet": "Neptune",
+    "type": "SEXTILE",
+    "transitPlanetLocalized": "Merkür",
+    "natalPlanetLocalized": "Neptün",
+    "typeLocalized": "Sekstil",
+    "angle": 60,
+    "orb": 0.23357541544999094,
+    "isApplying": true,
+    "strength": 96.10707640916681,
+    "nature": "uyumlu",
+    "interpretation": {
+     "summary": "Merkür doğum haritanızdaki Neptün ile sekstil yapıyor. İlham duyarlılıktan geliyor, bu yüzden fark ettiğiniz ince bir nokta yararlı çıkıyor.",
+     "timing": "Etkisi 20 Kasım ile 29 Kasım arasında sürer; açı 25 Kasım günü tamamlanır.",
+     "impact": "İçinizdeki hayalperest sıcak bir dinleyici bulur, bu yüzden yaratıcı ya da ruhsal ilgileri izlemek doğal gelir. Yuva evinizde Merkür varken akrabalarla ilgili konular ve kendi köşenize çekilme isteği öne çıkabilir.",
+     "guidance": "Bu berraklığı, karmaşık bir şeyi ihtiyacı olan birine sade terimlerle anlatmak için kullanın. Kendinize sakladığınız bir umut, dünyayı sizin gibi gören insanlar arasında sıcak bir dinleyici bulabilir.",
+     "keywords": [
+      "analiz",
+      "çocukluk",
+      "sanatsal",
+      "sakin",
+      "kolaylık",
+      "doğal"
+     ]
+    }
+   },
+   {
+    "transitPlanet": "Venus",
+    "natalPlanet": "Mercury",
+    "type": "OPPOSITION",
+    "transitPlanetLocalized": "Venüs",
+    "natalPlanetLocalized": "Merkür",
+    "typeLocalized": "Karşıtlık",
+    "angle": 180,
+    "orb": 0.41209132151934114,
+    "isApplying": false,
+    "strength": 94.84885848100824,
+    "nature": "zorlayıcı",
+    "interpretation": {
+     "summary": "İncelik ile açık konuşma sizi zıt yönlere çekiyor ve tek bir nazik cümle ikisini de tatmin edebilir, Venüs doğum haritanızdaki Merkür ile karşıtlık oluştururken.",
+     "timing": "20 Ekim ile 8 Aralık arasında hissedilir; açı şu günlerde tamamlanır: 4 Kasım ve 24 Kasım.",
+     "impact": "Zihniniz iki görüş arasında çekilir ve karşı tarafı dinlemek denge getirebilir. Bakış açılarınızı sınamak ve başkalarının görüşüne kapı aralamak yararlı olabilir, çünkü doğum haritanızdaki Merkür inanç evinizde bulunuyor.",
+     "guidance": "Aynı fikirde olmadığınız sırada sıcaklığı sabit tutun, böylece hem nokta hem bağ ayakta kalır. Karşı taraf sizin henüz bilmediğiniz neyi biliyor?",
+     "keywords": [
+      "çekicilik",
+      "güzellik",
+      "analiz",
+      "çocukluk",
+      "kutupluluk",
+      "gerilim"
+     ]
+    }
+   },
+   {
+    "transitPlanet": "North Node",
+    "natalPlanet": "Saturn",
+    "type": "SEMI_SEXTILE",
+    "transitPlanetLocalized": "Kuzey Düğümü",
+    "natalPlanetLocalized": "Satürn",
+    "typeLocalized": "Yarı Sekstil",
+    "angle": 30,
+    "orb": 0.1745135871092316,
+    "isApplying": false,
+    "strength": 94.18288042969229,
+    "nature": "nötr",
+    "interpretation": {
+     "summary": "Kuzey Düğümü doğum haritanızdaki Satürn ile yarı sekstil yapıyor: görevleriniz yönünüzden bir kademe sapıyor.",
+     "timing": "Etkisi 27 Ekim ile 26 Aralık arasında sürer; açı 24 Kasım günü tamamlanır.",
+     "impact": "Tuttuğunuz bir kural ile yaşama biçiminiz kenarlarda ayrışır ve nerede olduğunu görmek yararlı kısımdır. Yakınınızdaki biriyle açık konuşma ihtiyacı doğabilir; Kuzey Düğümü ortaklık evinizde geziniyor.",
+     "guidance": "Kimse kontrol etmese hangi ölçünüz ayakta kalırdı?",
+     "keywords": [
+      "kader",
+      "yaşam amacı",
+      "hırs",
+      "sınırlar",
+      "büyüme",
+      "incelik"
+     ]
+    }
+   },
+   {
+    "transitPlanet": "South Node",
+    "natalPlanet": "Saturn",
+    "type": "QUINCUNX",
+    "transitPlanetLocalized": "Güney Düğümü",
+    "natalPlanetLocalized": "Satürn",
+    "typeLocalized": "Kuinkuks",
+    "angle": 150,
+    "orb": 0.1745135871092316,
+    "isApplying": false,
+    "strength": 94.18288042969229,
+    "nature": "zorlayıcı",
+    "interpretation": {
+     "summary": "Güney Düğümü doğum haritanızdaki Satürn ile kuinkuks oluşturuyor: eski kural kitabınız ile şimdiki bir ihtiyaç kenarlarda anlaşamıyor.",
+     "timing": "Etkisi 27 Ekim ile 26 Aralık arasında sürer; açı 24 Kasım günü tamamlanır.",
+     "impact": "Sorumluluklarınızın bir yerinde görev ile tercih birbirini tutmuyor. Odaya girişiniz, tarzınız ve kendinizi ifade ediş şekliniz daha çok göze çarpabilir, çünkü Güney Düğümü benlik evinizde yol alıyor.",
+     "guidance": "Bir yükümlülük daha net bir ada hazır olabilir, örneğin bir iyilik, bir alışkanlık ya da bir söz.",
+     "keywords": [
+      "doğuştan yetenekler",
+      "geçmiş yaşam bilgeliği",
+      "hırs",
+      "sınırlar",
+      "ayarlama",
+      "gerilim"
+     ]
+    }
+   },
+   {
+    "transitPlanet": "Mercury",
+    "natalPlanet": "North Node",
+    "type": "SQUARE",
+    "transitPlanetLocalized": "Merkür",
+    "natalPlanetLocalized": "Kuzey Düğümü",
+    "typeLocalized": "Kare",
+    "angle": 90,
+    "orb": 0.5003164696759086,
+    "isApplying": true,
+    "strength": 92.85262186177273,
+    "nature": "zorlayıcı",
+    "interpretation": {
+     "summary": "Merkür doğum haritanızdaki Kuzey Düğümü ile kare açıda. Karışık mesajlar, izleyeceğiniz tek bir sesi seçene kadar odağınızı dağıtıyor.",
+     "timing": "Açı 25 Kasım günü tamamlanır; etkisi 19 Kasım ile 30 Kasım arasında hissedilir.",
+     "impact": "Yolunuza dair kuşku eski bir rutinin yanında yükselir ve ikisini ayırmak yolu açar. Karşınızdakini dinlemek ve kendi isteğinizi sakin bir dille söylemek iyi gelebilir; doğum haritanızdaki Kuzey Düğümü ortaklık evinizde yer alıyor.",
+     "guidance": "Yanıtınızı bir nefes kadar geciktirin, böylece aceleci bir tepki en güçlü noktanızın önüne geçmesin. Tanıdığınızı geride bırakmak güvenli hissettirse nasıl davranırdınız?",
+     "keywords": [
+      "analiz",
+      "çocukluk",
+      "kader",
+      "yaşam amacı",
+      "zorluk",
+      "engel"
+     ]
+    }
+   },
+   {
+    "transitPlanet": "Mercury",
+    "natalPlanet": "South Node",
+    "type": "SQUARE",
+    "transitPlanetLocalized": "Merkür",
+    "natalPlanetLocalized": "Güney Düğümü",
+    "typeLocalized": "Kare",
+    "angle": 90,
+    "orb": 0.5003164696759086,
+    "isApplying": true,
+    "strength": 92.85262186177273,
+    "nature": "zorlayıcı",
+    "interpretation": {
+     "summary": "Merkür doğum haritanızdaki Güney Düğümü ile kare açı yapıyor. Eski sözler yeni düşüncelerinizden önce geliyor, bu yüzden yavaşlayın ve daha taze kelimeleri seçin.",
+     "timing": "Etkisi 19 Kasım ile 30 Kasım arasında sürer; açı 25 Kasım günü tamamlanır.",
+     "impact": "İşleri yapmanın çok yürünmüş bir yolu değişime direnir ve bu onu açıkça görünür kılar. Odaya girişinize ve ilk adımlarınıza bir göz atmakta fayda olabilir, zira doğum haritanızdaki Güney Düğümü benlik evinizde duruyor.",
+     "guidance": "Karar vermeden önce tek bir olguyu kontrol edin ve farklı bir açıyı da dinleyin. Eski bir alışkanlığı tutabilir, yeniden işleyebilir ya da bırakabilirsiniz, hangisi şimdiye hizmet ediyorsa.",
+     "keywords": [
+      "analiz",
+      "çocukluk",
+      "doğuştan yetenekler",
+      "geçmiş yaşam bilgeliği",
+      "zorluk",
+      "engel"
+     ]
+    }
+   },
+   {
+    "transitPlanet": "South Node",
+    "natalPlanet": "Mercury",
+    "type": "TRINE",
+    "transitPlanetLocalized": "Güney Düğümü",
+    "natalPlanetLocalized": "Merkür",
+    "typeLocalized": "Üçgen",
+    "angle": 120,
+    "orb": 0.6001699441986261,
+    "isApplying": false,
+    "strength": 92.49787569751717,
+    "nature": "uyumlu",
+    "interpretation": {
+     "summary": "Güney Düğümü doğum haritanızdaki Merkür ile üçgen açı yapıyor: biriktirdiğiniz bilgi yeni bir soruyu cevaplıyor ve bu, öğrenmeyi hatırlamak gibi geliyor.",
+     "timing": "Açı 22 Kasım 2026 günü tamamlanır; etkisi 10 Haziran 2026 ile 26 Nisan 2027 arasında hissedilir.",
+     "impact": "Düşünen, açıklayan yanınıza geniş bir alan açılıyor. Bir yere gitmek, bir kursa yazılmak ya da yeni bir kitap açmak içinizden gelebilir; doğum haritanızdaki Merkür inanç evinizde duruyor.",
+     "guidance": "Zaten iyi bildiğinizin tadını çıkarın ve ona ihtiyacı olabilecek biriyle paylaşın. Açıklamak, öğretmek ya da bir fikri sunmak, ister konuşmada ister yazıda, iyi gidebilir.",
+     "keywords": [
+      "doğuştan yetenekler",
+      "geçmiş yaşam bilgeliği",
+      "analiz",
+      "çocukluk",
+      "uyum",
+      "akış"
+     ]
+    }
+   },
+   {
+    "transitPlanet": "Neptune",
+    "natalPlanet": "Black Moon Lilith",
+    "type": "SESQUIQUADRATE",
+    "transitPlanetLocalized": "Neptün",
+    "natalPlanetLocalized": "Kara Ay Lilith",
+    "typeLocalized": "Seskikare",
+    "angle": 135,
+    "orb": 0.1541515252534964,
+    "isApplying": true,
+    "strength": 92.29242373732518,
+    "nature": "zorlayıcı",
+    "interpretation": {
+     "summary": "Büyüleyici bir çekim ile yalın içgüdünüz hangi dileğin sizin olduğu konusunda anlaşamıyor, Neptün doğum haritanızdaki Kara Ay Lilith ile seskikare yaparken.",
+     "timing": "Etkisi 5 Eylül 2026 ile 10 Mart 2027 arasında sürer; açı tamamlanmaz, en çok 12 Aralık 2026 günü yaklaşır.",
+     "impact": "İsyankâr bir damar, öfkeli olmaktan çok eğlenmiş bir hâlde, kısık sesle mırıldanabilir. Yaşam alanınızın size nasıl bir huzur verdiğine kulak vermek iyi gelebilir, zira doğum haritanızdaki Kara Ay Lilith yuva evinizde bulunuyor.",
+     "guidance": "Bir önsezi bir olgunun yanına koyun ve hangisinin ikinci bakışa dayandığına bakın.",
+     "keywords": [
+      "sanatsal",
+      "sakin",
+      "özgünlük",
+      "özerklik",
+      "hayal kırıklığı",
+      "ayarlama"
+     ]
+    }
+   },
+   {
+    "transitPlanet": "Mars",
+    "natalPlanet": "Moon",
+    "type": "SEXTILE",
+    "transitPlanetLocalized": "Mars",
+    "natalPlanetLocalized": "Ay",
+    "typeLocalized": "Sekstil",
+    "angle": 60,
+    "orb": 0.528803738117233,
+    "isApplying": false,
+    "strength": 91.18660436471279,
+    "nature": "uyumlu",
+    "interpretation": {
+     "summary": "Mars doğum haritanızdaki Ay ile sekstil oluşturuyor: bir duyguyu sade sözcüklere dökebilir ve bunu yaptığınıza sevinebilirsiniz.",
+     "timing": "Açı 24 Kasım günü tamamlanır; etkisi 10 Kasım ile 10 Aralık arasında hissedilir.",
+     "impact": "İçgüdü ile akıl aynı yöne yürüyor; rahatlık kolayca bulunuyor.",
+     "guidance": "Önünüzdeki fırsata, tutabileceğiniz bir hızda düzenli çaba harcayın. Ev gibi hissettiren bir insana, bir yere ya da bir alışkanlığa uzanabilirsiniz.",
+     "keywords": [
+      "eylem",
+      "maceraperest",
+      "bakıcı",
+      "rahatlık",
+      "kolaylık",
+      "doğal"
+     ]
+    }
+   },
+   {
+    "transitPlanet": "Sun",
+    "natalPlanet": "Jupiter",
+    "type": "QUINCUNX",
+    "transitPlanetLocalized": "Güneş",
+    "natalPlanetLocalized": "Jüpiter",
+    "typeLocalized": "Kuinkuks",
+    "angle": 150,
+    "orb": 0.28899384588476096,
+    "isApplying": false,
+    "strength": 90.36687180384129,
+    "nature": "zorlayıcı",
+    "interpretation": {
+     "summary": "Güneş doğum haritanızdaki Jüpiter ile kuinkuks açısında. Umutlarınız ile takviminiz çakışıyor ve verilen sözler, saatlerin yettiğinden fazla.",
+     "timing": "Açı 25 Kasım günü tamamlanır; etkisi 22 Kasım ile 28 Kasım arasında hissedilir.",
+     "impact": "Mümkün saydığınız şeyin içinde, geri kalanına uymayan bir dilek saklı. Çocukluk anıları ve geçmişinizle ilgili duygular canlanabilir, çünkü Güneş yuva evinizde ilerliyor.",
+     "guidance": "Ötekilerin yanında garip duran bir umut, kendine ait bir yerde ya da farklı bir sırada daha iyi olabilir.",
+     "keywords": [
+      "aktif",
+      "farkındalık",
+      "bolluk",
+      "üniversite",
+      "ayarlama",
+      "gerilim"
+     ]
+    }
+   },
+   {
+    "transitPlanet": "North Node",
+    "natalPlanet": "Venus",
+    "type": "CONJUNCTION",
+    "transitPlanetLocalized": "Kuzey Düğümü",
+    "natalPlanetLocalized": "Venüs",
+    "typeLocalized": "Kavuşum",
+    "angle": 0,
+    "orb": 0.7707977866847955,
+    "isApplying": false,
+    "strength": 90.36502766644006,
+    "nature": "nötr",
+    "interpretation": {
+     "summary": "Kuzey Düğümü doğum haritanızdaki Venüs ile kavuşum yaparken, dürüst ve güzel olana çekiliyorsunuz ve bu, bir sonraki adımınız için bir rehber oluyor.",
+     "timing": "Açı 20 Kasım 2026 günü tamamlanır; etkisi 4 Haziran 2026 ile 24 Nisan 2027 arasında hissedilir.",
+     "impact": "Sevgi ve zevk yeni bir etkiyle harmanlanır ve bu, sizi neyin çektiğini değiştirebilir. Karşınızdakini dinlemek kadar kendi isteğinizi söylemek için de yer açmayı deneyebilirsiniz, çünkü Kuzey Düğümü ortaklık evinizde ilerliyor.",
+     "guidance": "Dikkatinizin nereye dönüp durduğunu fark edin, çünkü yönünüz oraya işaret ediyor. Bir şey gözünüzü çekip duruyorsa, taşıdığınız bir değere işaret ediyor olabilir.",
+     "keywords": [
+      "kader",
+      "yaşam amacı",
+      "çekicilik",
+      "güzellik",
+      "kaynaşma",
+      "yoğunluk"
+     ]
+    }
+   },
+   {
+    "transitPlanet": "South Node",
+    "natalPlanet": "Venus",
+    "type": "OPPOSITION",
+    "transitPlanetLocalized": "Güney Düğümü",
+    "natalPlanetLocalized": "Venüs",
+    "typeLocalized": "Karşıtlık",
+    "angle": 180,
+    "orb": 0.7707977866847955,
+    "isApplying": false,
+    "strength": 90.36502766644006,
+    "nature": "zorlayıcı",
+    "interpretation": {
+     "summary": "Güney Düğümü doğum haritanızdaki Venüs ile karşıtlık oluştururken, uzun zamandır değer verdiğiniz ile bundan sonra değer verebileceğiniz karşı karşıya duruyor ve konuşmak işe yarıyor.",
+     "timing": "Etkisi 4 Haziran 2026 ile 24 Nisan 2027 arasında sürer; açı 20 Kasım 2026 günü tamamlanır.",
+     "impact": "Değerleriniz başkalarının tepkilerinde görünür ve bu, neye değer verdiğinizi daha net görmenizi sağlar. Bir bağda neyin konuşulduğu, neyin sadece beklendiği netleşmek isteyebilir, çünkü doğum haritanızdaki Venüs ortaklık evinizde yer alıyor.",
+     "guidance": "Alışkanlıklarınıza başka bir insanın gözüyle bakın ve ayakta kalanı tutun. Her ikinize de adalet neye benzerdi?",
+     "keywords": [
+      "doğuştan yetenekler",
+      "geçmiş yaşam bilgeliği",
+      "çekicilik",
+      "güzellik",
+      "kutupluluk",
+      "gerilim"
+     ]
+    }
+   },
+   {
+    "transitPlanet": "North Node",
+    "natalPlanet": "Mercury",
+    "type": "SEXTILE",
+    "transitPlanetLocalized": "Kuzey Düğümü",
+    "natalPlanetLocalized": "Merkür",
+    "typeLocalized": "Sekstil",
+    "angle": 60,
+    "orb": 0.6001699441986261,
+    "isApplying": false,
+    "strength": 89.99716759668956,
+    "nature": "uyumlu",
+    "interpretation": {
+     "summary": "Kuzey Düğümü doğum haritanızdaki Merkür ile sekstil yapıyor. Fikirleriniz kolayca birbirine bağlanıyor ve işinize yarayacak bir tanışıklık tek bir sohbet uzağınızda.",
+     "timing": "Etkisi 1 Temmuz 2026 ile 7 Nisan 2027 arasında sürer; açı 22 Kasım 2026 günü tamamlanır.",
+     "impact": "Zihniniz kolayca çalışır, cümleler, planlar ve açıklamalar iyi bir düzenle çıkar. Birebir konuşmalar, verilen sözler ve açık sözlü görüş ayrılıkları belirginleşebilir, çünkü Kuzey Düğümü ortaklık evinizde yol alıyor.",
+     "guidance": "Büyümek istediğiniz yönü gösteren insanları ve planları seçin. Net bir konuşma mümkün ve ondan bir karar çıkabilir.",
+     "keywords": [
+      "kader",
+      "yaşam amacı",
+      "analiz",
+      "çocukluk",
+      "kolaylık",
+      "doğal"
+     ]
+    }
+   },
+   {
+    "transitPlanet": "Venus",
+    "natalPlanet": "Saturn",
+    "type": "SQUARE",
+    "transitPlanetLocalized": "Venüs",
+    "natalPlanetLocalized": "Satürn",
+    "typeLocalized": "Kare",
+    "angle": 90,
+    "orb": 0.8377476786087357,
+    "isApplying": false,
+    "strength": 88.03217601987521,
+    "nature": "zorlayıcı",
+    "interpretation": {
+     "summary": "Venüs doğum haritanızdaki Satürn ile kare açı yapıyor. Başkalarından kopuk hissedebilirsiniz ve önemsediğiniz birine yazılan sade bir mesaj boşluğu kapatabilir.",
+     "timing": "Etkisi 23 Ekim ile 6 Aralık arasında sürer; açı şu günlerde tamamlanır: 5 Kasım ve 23 Kasım.",
+     "impact": "Sınırlarınıza yönelik bir itiş, artık uymayan her şeyi yeniden kurmanızı ister. Doğum haritanızdaki Satürn günlük iş evinizde bulunduğu için işe yaradığınızı hissetmek eskisinden daha önemli olabilir.",
+     "guidance": "Neyi sevdiğinizi sade ve nazik biçimde söyleyin ve farklı bir yanıta karşı meraklı kalın. Daha temiz bir sınır ya da daha sağlam bir ölçü, çabayı değerli hissettirebilir.",
+     "keywords": [
+      "çekicilik",
+      "güzellik",
+      "hırs",
+      "sınırlar",
+      "zorluk",
+      "engel"
+     ]
+    }
+   },
+   {
+    "transitPlanet": "Mars",
+    "natalPlanet": "Neptune",
+    "type": "SESQUIQUADRATE",
+    "transitPlanetLocalized": "Mars",
+    "natalPlanetLocalized": "Neptün",
+    "typeLocalized": "Seskikare",
+    "angle": 135,
+    "orb": 0.24361928473615535,
+    "isApplying": false,
+    "strength": 87.81903576319223,
+    "nature": "zorlayıcı",
+    "interpretation": {
+     "summary": "Mars doğum haritanızdaki Neptün ile seskikare yapıyor. Yumuşak çizgili bir plan ile sert kenarlı bir iş ellerinizde birbirine sürtünüyor.",
+     "timing": "Açı 24 Kasım günü tamamlanır; etkisi 19 Kasım ile 29 Kasım arasında hissedilir.",
+     "impact": "Sezginiz hafif bir parazitle çıtırdar, mesajdan çok ima.",
+     "guidance": "Bir hayali yazabilir ya da çizebilir ve hâlâ hoşunuza gidip gitmediğine bakabilirsiniz.",
+     "keywords": [
+      "eylem",
+      "maceraperest",
+      "sanatsal",
+      "sakin",
+      "hayal kırıklığı",
+      "ayarlama"
+     ]
+    }
+   },
+   {
+    "transitPlanet": "North Node",
+    "natalPlanet": "Uranus",
+    "type": "SEMI_SQUARE",
+    "transitPlanetLocalized": "Kuzey Düğümü",
+    "natalPlanetLocalized": "Uranüs",
+    "typeLocalized": "Yarı Kare",
+    "angle": 45,
+    "orb": 0.2632280435166763,
+    "isApplying": false,
+    "strength": 86.83859782416619,
+    "nature": "zorlayıcı",
+    "interpretation": {
+     "summary": "Kuzey Düğümü doğum haritanızdaki Uranüs ile yarı kare açısında. Değişim dürtünüz ile sabit yönünüz farklı tempolarda ilerliyor.",
+     "timing": "Etkisi 7 Kasım ile 10 Aralık arasında sürer; açı 24 Kasım günü tamamlanır.",
+     "impact": "Yeniye duyduğunuz merak arada bir alışkanlıklarınızı bölüyor. Ortaklık evinizde bulunan Kuzey Düğümü, bir anlaşmayı ya da kendi payınıza düşeni yeniden tartmanıza yol açabilir.",
+     "guidance": "Yapabileceğiniz en hafif yeni şeyi seçin ve fazla düşünmeden yapın.",
+     "keywords": [
+      "kader",
+      "yaşam amacı",
+      "avangard",
+      "değişim",
+      "sürtüşme",
+      "huzursuzluk"
+     ]
+    }
+   },
+   {
+    "transitPlanet": "South Node",
+    "natalPlanet": "Uranus",
+    "type": "SESQUIQUADRATE",
+    "transitPlanetLocalized": "Güney Düğümü",
+    "natalPlanetLocalized": "Uranüs",
+    "typeLocalized": "Seskikare",
+    "angle": 135,
+    "orb": 0.2632280435166763,
+    "isApplying": false,
+    "strength": 86.83859782416619,
+    "nature": "zorlayıcı",
+    "interpretation": {
+     "summary": "Güney Düğümü doğum haritanızdaki Uranüs ile seskikare yapıyor: rutininiz ile huzursuzluğunuz farklı saatlerde çalışıyor ve ikisi bir türlü tam örtüşmüyor.",
+     "timing": "Açı 24 Kasım günü tamamlanır; etkisi 7 Kasım ile 10 Aralık arasında hissedilir.",
+     "impact": "Değişim isteğiniz her zamanki yolunuzdan sapar, sonra yönüne döner. Aşk, flört ve sırf zevk için yaptığınız işler canlanabilir, ne de olsa doğum haritanızdaki Uranüs aşk ve keyif evinizde yer alıyor.",
+     "guidance": "Refleksi fark edin, ona gülümseyin ve yeniden seçin.",
+     "keywords": [
+      "doğuştan yetenekler",
+      "geçmiş yaşam bilgeliği",
+      "avangard",
+      "değişim",
+      "hayal kırıklığı",
+      "ayarlama"
+     ]
+    }
+   },
+   {
+    "transitPlanet": "Moon",
+    "natalPlanet": "North Node",
+    "type": "TRINE",
+    "transitPlanetLocalized": "Ay",
+    "natalPlanetLocalized": "Kuzey Düğümü",
+    "typeLocalized": "Üçgen",
+    "angle": 120,
+    "orb": 1.0596243172850848,
+    "isApplying": true,
+    "strength": 86.75469603393644,
+    "nature": "uyumlu",
+    "interpretation": {
+     "summary": "Destek yakınınızda ve sezdiğiniz amaç paylaşılıyor gibi, Ay doğum haritanızdaki Kuzey Düğümü ile üçgen açı yaparken.",
+     "timing": "Açı 25 Kasım saat 11:00 sularında tamamlanır; 24 Kasım saat 22:00 ile 25 Kasım saat 23:00 arasında hissedilir.",
+     "impact": "İleri doğru kolay bir çekimi izlemek basittir ve zaten bildiklerinizle desteklenir. Hayallerinizi birine anlatarak netleştirmeyi deneyebilirsiniz, çünkü Ay dostluklar evinizde ilerliyor.",
+     "guidance": "Ruh hâli nazikken bir duyguyu açıkça paylaşın ve ne kadar sıcak karşılandığına bakın. İlginizi çeken şeye doğru bir adım, nasıl hissettirdiğini görmek için bir kez atılmaya değer.",
+     "keywords": [
+      "bakıcı",
+      "rahatlık",
+      "kader",
+      "yaşam amacı",
+      "uyum",
+      "akış"
+     ]
+    }
+   },
+   {
+    "transitPlanet": "Neptune",
+    "natalPlanet": "Jupiter",
+    "type": "SQUARE",
+    "transitPlanetLocalized": "Neptün",
+    "natalPlanetLocalized": "Jüpiter",
+    "typeLocalized": "Kare",
+    "angle": 90,
+    "orb": 1.1091755723904129,
+    "isApplying": false,
+    "strength": 84.15463468013695,
+    "nature": "zorlayıcı",
+    "interpretation": {
+     "summary": "Umutlarınız gerçeklerin önüne geçiyor, bu yüzden tek bir ayrıntıyı doğrulamak hayalin ayakta kalmasını sağlıyor, Neptün doğum haritanızdaki Jüpiter ile kare oluştururken.",
+     "timing": "Etkisi Şubat 2024 ile Mayıs 2029 arasında sürer; açı şu günlerde tamamlanır: 17 Nisan 2026, 2 Ekim 2026 ve 17 Şubat 2027.",
+     "impact": "Coşku gerçeklerin önüne geçer ve ölçü duygusu onu yararlı tutabilir. Alışılmış bakış açınızın dışına çıkmak ilginç gelebilir; Neptün inanç evinizde bulunuyor.",
+     "guidance": "Basit rutinler sisin çökmesini engeller, bu yüzden birkaç sabit alışkanlığa tutunun ve planları yazılı yapın. Coşkunuz size nerede yardım ediyor, nerede daha iyi bir şeyin önünü kesiyor?",
+     "keywords": [
+      "sanatsal",
+      "sakin",
+      "bolluk",
+      "üniversite",
+      "zorluk",
+      "engel"
+     ]
+    }
+   },
+   {
+    "transitPlanet": "Mercury",
+    "natalPlanet": "Mars",
+    "type": "SQUARE",
+    "transitPlanetLocalized": "Merkür",
+    "natalPlanetLocalized": "Mars",
+    "typeLocalized": "Kare",
+    "angle": 90,
+    "orb": 1.1927279984232655,
+    "isApplying": true,
+    "strength": 82.96102859395336,
+    "nature": "zorlayıcı",
+    "interpretation": {
+     "summary": "Merkür doğum haritanızdaki Mars ile kare açı yapıyor: zihniniz kızışıyor ve cevaplarınız daha da hızlanıyor, bu yüzden bu hızı tek bir net hedefe koşun.",
+     "timing": "Açı 26 Kasım günü tamamlanır; etkisi 20 Kasım ile 1 Aralık arasında hissedilir.",
+     "impact": "Girişkenliğiniz mercek altına girer; nasıl zorladığınız konusunda iyi bir öğretmen olur. Doğum haritanızdaki Mars ortaklık evinizde yer aldığı için anlaşmalar ve yüz yüze konuşmalar daha çok yer tutabilir.",
+     "guidance": "Aklınıza gelen her başıboş düşünceyi yazın, sonra izlemeye değer olanı seçin. Kesin bir hayır, tıkanmış bir planda yeni bir başlangıç ya da değerli bir rakiple oyun, fazlalığı tüketebilir.",
+     "keywords": [
+      "analiz",
+      "çocukluk",
+      "eylem",
+      "maceraperest",
+      "zorluk",
+      "engel"
+     ]
+    }
+   },
+   {
+    "transitPlanet": "Moon",
+    "natalPlanet": "South Node",
+    "type": "SEXTILE",
+    "transitPlanetLocalized": "Ay",
+    "natalPlanetLocalized": "Güney Düğümü",
+    "typeLocalized": "Sekstil",
+    "angle": 60,
+    "orb": 1.0596243172850848,
+    "isApplying": true,
+    "strength": 82.33959471191525,
+    "nature": "uyumlu",
+    "interpretation": {
+     "summary": "Ay doğum haritanızdaki Güney Düğümü ile sekstil oluşturuyor: eski duygusal birikiminiz işinize yarıyor, bu yüzden daha önce sizi yatıştırana yaslanın.",
+     "timing": "25 Kasım günü saat 01:00 ile 20:00 arasında etkili olur; açı saat 11:00 sularında tamamlanır.",
+     "impact": "Alışkanlıklar ve şimdiki ihtiyaçlar birbirini onaylar ve bu, sıradan işlerin sorunsuz yürümesini sağlar. Bir gruba katılma, bir amaç için çabalama ya da hayallerinizi paylaşma isteği doğabilir, çünkü Ay dostluklar evinizde yol alıyor.",
+     "guidance": "Sevdiğiniz birine ulaşın ya da sizi yatıştıran bir şey yapın, çünkü ruh hâli bunu destekliyor. Deneyiminize tamamen güvenseniz neyi denerdiniz?",
+     "keywords": [
+      "bakıcı",
+      "rahatlık",
+      "doğuştan yetenekler",
+      "geçmiş yaşam bilgeliği",
+      "kolaylık",
+      "doğal"
+     ]
+    }
+   },
+   {
+    "transitPlanet": "Jupiter",
+    "natalPlanet": "Venus",
+    "type": "OPPOSITION",
+    "transitPlanetLocalized": "Jüpiter",
+    "natalPlanetLocalized": "Venüs",
+    "typeLocalized": "Karşıtlık",
+    "angle": 180,
+    "orb": 1.4906496398920694,
+    "isApplying": false,
+    "strength": 81.36687950134913,
+    "nature": "zorlayıcı",
+    "interpretation": {
+     "summary": "Jüpiter doğum haritanızdaki Venüs ile karşıtlık oluştururken, aşk beklentileri yükseliyor, bu yüzden ne umduğunuzu açıkça söylemek yardımcı olur.",
+     "timing": "Etkisi 17 Eylül 2026 ile 8 Nisan 2027 arasında sürer; açı şu günlerde tamamlanır: 7 Kasım 2026 ve 17 Ocak 2027.",
+     "impact": "Sevdikleriniz ile sunduklarınız farklı yönlere bakar, bu yüzden her biri dikkatli bir tartıyı hak eder. Ne istediğinizi ve kim olmak istediğinizi yeniden düşünmek içinizden gelebilir; Jüpiter benlik evinizde bulunuyor.",
+     "guidance": "Başkalarının planlarınızın nerede fazla uzağa uzandığını ve nerede daha fazlasının mümkün olduğunu göstermesine izin verin. Hem sizin isteklerinizi hem karşınızdakinin isteklerini onurlandıran bir orta yol bulabilirsiniz.",
+     "keywords": [
+      "bolluk",
+      "üniversite",
+      "çekicilik",
+      "güzellik",
+      "kutupluluk",
+      "gerilim"
+     ]
+    }
+   },
+   {
+    "transitPlanet": "Black Moon Lilith",
+    "natalPlanet": "Uranus",
+    "type": "CONJUNCTION",
+    "transitPlanetLocalized": "Kara Ay Lilith",
+    "natalPlanetLocalized": "Uranüs",
+    "typeLocalized": "Kavuşum",
+    "angle": 0,
+    "orb": 1.5270037489513584,
+    "isApplying": true,
+    "strength": 80.91245313810802,
+    "nature": "nötr",
+    "interpretation": {
+     "summary": "Kara Ay Lilith doğum haritanızdaki Uranüs ile kavuşum yapıyor: daha önce söyleyemediğiniz bir gerçek ortaya çıkabilir, bu yüzden isyan bir amaç buluyor.",
+     "timing": "Açı 9 Aralık 2026 günü tamamlanır; etkisi 28 Eylül 2026 ile 18 Şubat 2027 arasında hissedilir.",
+     "impact": "Yaratıcı yanınız hiç denemediği bir şeye döner. Biraz oyun, müzik ya da resim için zaman ayırmak iyi gelebilir; doğum haritanızdaki Uranüs aşk ve keyif evinizde duruyor.",
+     "guidance": "Vahşi yanınıza bir görev verin, örneğin cesur bir fikir, kesin bir hayır ya da filtresiz bir konuşma. Kimse sizin aynı kalmanızı beklemese neyi farklı yapardınız?",
+     "keywords": [
+      "özgünlük",
+      "özerklik",
+      "avangard",
+      "değişim",
+      "kaynaşma",
+      "yoğunluk"
+     ]
+    }
+   },
+   {
+    "transitPlanet": "Saturn",
+    "natalPlanet": "Uranus",
+    "type": "SQUARE",
+    "transitPlanetLocalized": "Satürn",
+    "natalPlanetLocalized": "Uranüs",
+    "typeLocalized": "Kare",
+    "angle": 90,
+    "orb": 1.372142155546669,
+    "isApplying": false,
+    "strength": 80.39796920647615,
+    "nature": "zorlayıcı",
+    "interpretation": {
+     "summary": "Satürn doğum haritanızdaki Uranüs ile kare açıda: kopma isteğiniz dayanıklı bir kurala çarpıyor, bu da değişmenin daha akıllı bir yoluna işaret ediyor.",
+     "timing": "7 Mart 2026 ile 29 Mart 2027 arasında hissedilir; açı şu günlerde tamamlanır: 4 Mayıs 2026, 28 Ekim 2026 ve 22 Ocak 2027.",
+     "impact": "Huzursuzluğunuz görmezden gelinemez ve rutininizin hangi yanının bayatladığını gösterebilir. Doğum haritanızdaki Uranüs aşk ve keyif evinizde yer aldığı için neşe ve hafiflik aramak daha doğal gelebilir.",
+     "guidance": "İşi düzgün yapacak kadar yavaşlayın, çünkü şimdi özenli çalışmak sizi sonra yeniden yapmaktan kurtarır. Huzursuzluğa bir iş verin: yeni bir alışkanlığı deneyin ya da bir alanı yeniden düzenleyin.",
+     "keywords": [
+      "hırs",
+      "sınırlar",
+      "avangard",
+      "değişim",
+      "zorluk",
+      "engel"
+     ]
+    }
+   },
+   {
+    "transitPlanet": "Jupiter",
+    "natalPlanet": "Mercury",
+    "type": "TRINE",
+    "transitPlanetLocalized": "Jüpiter",
+    "natalPlanetLocalized": "Merkür",
+    "typeLocalized": "Üçgen",
+    "angle": 120,
+    "orb": 1.6612774823782388,
+    "isApplying": false,
+    "strength": 79.23403147027201,
+    "nature": "uyumlu",
+    "interpretation": {
+     "summary": "Jüpiter doğum haritanızdaki Merkür ile üçgen oluşturuyor. Fikirler düzenli geliyor, bu yüzden ne düşündüğünüzü paylaşmak daha az efor istiyor.",
+     "timing": "Etkisi 16 Eylül 2026 ile 8 Ağustos 2027 arasında sürer; açı şu günlerde tamamlanır: 5 Kasım 2026, 19 Ocak 2027 ve 29 Haziran 2027.",
+     "impact": "Dolaşmış düşünceler çözülür ve fikirleriniz net, paylaşması kolay hâle gelir. Ufkunuz genişleyebilir, neye neden inandığınız daha ilginç gelebilir, çünkü doğum haritanızdaki Merkür inanç evinizde bulunuyor.",
+     "guidance": "Bildiklerinizi ve sahip olduklarınızı paylaşın ve hesap tutmadan özgürce verin. Doğrudan sorarak ya da araştırarak, uzun süredir sürüncemede olan bir soruyu çözebilirsiniz.",
+     "keywords": [
+      "bolluk",
+      "üniversite",
+      "analiz",
+      "çocukluk",
+      "uyum",
+      "akış"
+     ]
+    }
+   },
+   {
+    "transitPlanet": "Pluto",
+    "natalPlanet": "Jupiter",
+    "type": "QUINCUNX",
+    "transitPlanetLocalized": "Plüton",
+    "natalPlanetLocalized": "Jüpiter",
+    "typeLocalized": "Kuinkuks",
+    "angle": 150,
+    "orb": 0.6386830824012577,
+    "isApplying": false,
+    "strength": 78.71056391995808,
+    "nature": "zorlayıcı",
+    "interpretation": {
+     "summary": "Plüton doğum haritanızdaki Jüpiter ile kuinkuks oluşturuyor: geniş umudunuz ile onu yeniden biçimlendirme gayretiniz aynı planda buluşmuyor.",
+     "timing": "Etkisi Kasım 2024 ile Şubat 2027 arasında sürer; açı şu günlerde tamamlanır: 26 Şubat 2025, 15 Temmuz 2025 ve 3 Ocak 2026.",
+     "impact": "Eski bir inanç ile daha yeni bir umut tam örtüşmeyebilir ve bu, endişe vermekten çok merak uyandırabilir. Doğum haritanızdaki Jüpiter dostluklar evinizde yer aldığı için uzun süredir bekleyen dilekler daha yüksek sesle konuşabilir.",
+     "guidance": "Umudu tek bir sade cümleyle yazın ve doğru hissettiren sürümü tutun.",
+     "keywords": [
+      "simya",
+      "cesur",
+      "bolluk",
+      "üniversite",
+      "ayarlama",
+      "gerilim"
+     ]
+    }
+   },
+   {
+    "transitPlanet": "Moon",
+    "natalPlanet": "Mars",
+    "type": "TRINE",
+    "transitPlanetLocalized": "Ay",
+    "natalPlanetLocalized": "Mars",
+    "typeLocalized": "Üçgen",
+    "angle": 120,
+    "orb": 1.7520358460324417,
+    "isApplying": true,
+    "strength": 78.09955192459448,
+    "nature": "uyumlu",
+    "interpretation": {
+     "summary": "Ay doğum haritanızdaki Mars ile üçgen oluştururken, cesaretiniz sizi destekliyor, bu yüzden ihtiyacınız olanı sürtüşmeye girmeden söyleyin.",
+     "timing": "24 Kasım saat 23:00 ile 26 Kasım saat 00:00 arasında hissedilir; açı 25 Kasım saat 12:00 sularında tamamlanır.",
+     "impact": "Cesaret fazla zorlanmadan bulunur ve bu, ilk adım isteyen her işe yakışır. Eski bir arkadaşa yazmak ya da yeni bir gruba katılmak cazip gelebilir; Ay dostluklar evinizde geziniyor.",
+     "guidance": "Sakinliği ihtiyacınız olanı istemek için kullanın, çünkü nazik bir istek çoğu zaman hoş karşılanır. Sizi heyecanlandıran bir plan listenizde ilk sırayı hak edebilir.",
+     "keywords": [
+      "bakıcı",
+      "rahatlık",
+      "eylem",
+      "maceraperest",
+      "uyum",
+      "akış"
+     ]
+    }
+   },
+   {
+    "transitPlanet": "Moon",
+    "natalPlanet": "Neptune",
+    "type": "QUINCUNX",
+    "transitPlanetLocalized": "Ay",
+    "natalPlanetLocalized": "Neptün",
+    "typeLocalized": "Kuinkuks",
+    "angle": 150,
+    "orb": 0.7928832630591671,
+    "isApplying": true,
+    "strength": 73.57055789802776,
+    "nature": "zorlayıcı",
+    "interpretation": {
+     "summary": "Ay doğum haritanızdaki Neptün ile kuinkuks açısında. Hassasiyetiniz ile berrak düşünceniz yer değiştiriyor, bu yüzden hatlar yumuşakça bulanıklaşıyor.",
+     "timing": "25 Kasım günü saat 05:00 ile 15:00 arasında etkili olur; açı saat 10:00 sularında tamamlanır.",
+     "impact": "Değer verdiğiniz bir ideal daha sade bir ışıkta değişmiş görünür. Günlük iş evinizde yer alan doğum haritanızdaki Neptün, gündelik işlerinizi, alışkanlıklarınızı ve düzeninizi daha görünür kılabilir.",
+     "guidance": "Düşünmeden neye uzandığınıza dikkat edin ve gerçekten işe yarayıp yaramadığını sorun.",
+     "keywords": [
+      "bakıcı",
+      "rahatlık",
+      "sanatsal",
+      "sakin",
+      "ayarlama",
+      "gerilim"
+     ]
+    }
+   },
+   {
+    "transitPlanet": "Chiron",
+    "natalPlanet": "Mercury",
+    "type": "CONJUNCTION",
+    "transitPlanetLocalized": "Chiron",
+    "natalPlanetLocalized": "Merkür",
+    "typeLocalized": "Kavuşum",
+    "angle": 0,
+    "orb": 2.201882670847837,
+    "isApplying": true,
+    "strength": 72.47646661440203,
+    "nature": "nötr",
+    "interpretation": {
+     "summary": "Chiron doğum haritanızdaki Merkür ile kavuşum yapıyor. Sözlerinizin iyileştirici bir keskinliği var, bu yüzden gerçekten kastettiğinizi söylüyorsunuz.",
+     "timing": "Etkisi Şubat 2024 ile Haziran 2027 arasında sürer; açı şu günlerde tamamlanır: 15 Mayıs 2025, 17 Ekim 2025 ve 17 Mart 2026.",
+     "impact": "Bir soruyu görmenin yeni bir yolu zihninizde şekillenmeye başlar.",
+     "guidance": "Hassas yeri dürüstçe adlandırın ve ona sevdiğiniz birine göstereceğiniz özeni gösterin. Bir sohbet başlatın, bir mektup yazın ya da sizi çağıran bir kursa yazılın.",
+     "keywords": [
+      "şifa",
+      "bilgelik",
+      "analiz",
+      "çocukluk",
+      "kaynaşma",
+      "yoğunluk"
+     ]
+    }
+   },
+   {
+    "transitPlanet": "Mercury",
+    "natalPlanet": "Black Moon Lilith",
+    "type": "CONJUNCTION",
+    "transitPlanetLocalized": "Merkür",
+    "natalPlanetLocalized": "Kara Ay Lilith",
+    "typeLocalized": "Kavuşum",
+    "angle": 0,
+    "orb": 2.267770459794974,
+    "isApplying": true,
+    "strength": 71.65286925256282,
+    "nature": "nötr",
+    "interpretation": {
+     "summary": "Merkür doğum haritanızdaki Kara Ay Lilith ile kavuşum açısındayken, genelde yuttuğunuz açık sözü söyleyebilirsiniz ve bu, kendi sesinizmiş gibi geliyor.",
+     "timing": "Etkisi 20 Kasım ile 2 Aralık arasında sürer; açı 27 Kasım günü tamamlanır.",
+     "impact": "İçinizdeki vahşi ve dürüst bir şey masada bir yer ister. Mahremiyetinizi koruyacak huzurlu bir köşe yaratmayı deneyebilirsiniz, çünkü Merkür yuva evinizde dolaşıyor.",
+     "guidance": "Zihniniz hızlıyken okuyun, araştırın ve sizi en çok ilgilendiren iplik ucunu izleyin. Yakın tuttuğunuz tek bir şeyi adlandırabilir ve özel mi kalacağına yoksa biraz hava mı alacağına karar verebilirsiniz.",
+     "keywords": [
+      "analiz",
+      "çocukluk",
+      "özgünlük",
+      "özerklik",
+      "kaynaşma",
+      "yoğunluk"
+     ]
+    }
+   },
+   {
+    "transitPlanet": "Uranus",
+    "natalPlanet": "Jupiter",
+    "type": "SEMI_SEXTILE",
+    "transitPlanetLocalized": "Uranüs",
+    "natalPlanetLocalized": "Jüpiter",
+    "typeLocalized": "Yarı Sekstil",
+    "angle": 30,
+    "orb": 0.8895702655246183,
+    "isApplying": true,
+    "strength": 70.34765781584606,
+    "nature": "nötr",
+    "interpretation": {
+     "summary": "Uranüs doğum haritanızdaki Jüpiter ile yarı sekstil oluştururken, yenilik sevginiz ile bolluk zevkiniz farklı şeyler istiyor.",
+     "timing": "22 Nisan 2026 ile 28 Mayıs 2027 arasında hissedilir; açı şu günlerde tamamlanır: 14 Haziran 2026, 17 Aralık 2026 ve 1 Nisan 2027.",
+     "impact": "Umduğunuz ile yaşadığınız arasında küçük bir mesafe var. Üstlendiğiniz yükleri ve gerçekten istediğiniz yönü bir kâğıda yazmayı deneyebilirsiniz, çünkü Uranüs kariyer evinizde geziniyor.",
+     "guidance": "İnandığınız şeyde tuhaf bir ayrıntıya yer bırakın, çünkü ilginç olan o olabilir.",
+     "keywords": [
+      "avangard",
+      "değişim",
+      "bolluk",
+      "üniversite",
+      "büyüme",
+      "incelik"
+     ]
+    }
+   },
+   {
+    "transitPlanet": "Neptune",
+    "natalPlanet": "Pluto",
+    "type": "SESQUIQUADRATE",
+    "transitPlanetLocalized": "Neptün",
+    "natalPlanetLocalized": "Plüton",
+    "typeLocalized": "Seskikare",
+    "angle": 135,
+    "orb": 0.618588451894567,
+    "isApplying": false,
+    "strength": 69.07057740527165,
+    "nature": "zorlayıcı",
+    "interpretation": {
+     "summary": "Neptün doğum haritanızdaki Plüton ile seskikare oluşturuyor. Kontrol etme yönündeki inatçı bir dürtü, nazik ideallerinizi temkinli bir mesafede tutuyor.",
+     "timing": "Etkisi 26 Temmuz 2026 ile 31 Mart 2027 arasında sürer; açı şu günlerde tamamlanır: 21 Ekim 2026 ve 1 Şubat 2027.",
+     "impact": "Kontrole dair özel duygunuz kısa bir titreme kaydeder ve sonra durulur. Merak ettiğiniz bir konuya derinlemesine dalmayı deneyebilirsiniz, çünkü Neptün inanç evinizde ilerliyor.",
+     "guidance": "Sessiz bir gerginlik tekrar tekrar yüzeye çıkıyorsa, önce neyi bırakmanız gerektiğine işaret ediyor olabilir.",
+     "keywords": [
+      "sanatsal",
+      "sakin",
+      "simya",
+      "cesur",
+      "hayal kırıklığı",
+      "ayarlama"
+     ]
+    }
+   },
+   {
+    "transitPlanet": "Chiron",
+    "natalPlanet": "Venus",
+    "type": "SEXTILE",
+    "transitPlanetLocalized": "Chiron",
+    "natalPlanetLocalized": "Venüs",
+    "typeLocalized": "Sekstil",
+    "angle": 60,
+    "orb": 2.031254828361682,
+    "isApplying": true,
+    "strength": 66.14575286063864,
+    "nature": "uyumlu",
+    "interpretation": {
+     "summary": "Chiron doğum haritanızdaki Venüs ile sekstil yaparken, şefkatli bir jest sessizce bir şeyi onarıyor, bu yüzden sevginizi göstermek kolaylaşıyor.",
+     "timing": "Etkisi Ocak 2025 ile Mayıs 2027 arasında sürer; açı şu günlerde tamamlanır: 18 Mayıs 2025, 14 Ekim 2025 ve 20 Mart 2026.",
+     "impact": "Zevk, sıcaklık ve değer uyum içinde; keyif çaba istemeden gelir, kabul etmeniz yeter.",
+     "guidance": "Yumuşak ruh hâlini hassas bir şeye yeniden bakmak için kullanın ve anlayışın çabasız gelmesine izin verin. Bir davet, bir hediye ya da paylaşılan bir yemek, yalın bir keyifle kabul edilebilir.",
+     "keywords": [
+      "şifa",
+      "bilgelik",
+      "çekicilik",
+      "güzellik",
+      "kolaylık",
+      "doğal"
+     ]
+    }
+   },
+   {
+    "transitPlanet": "Black Moon Lilith",
+    "natalPlanet": "Chiron",
+    "type": "OPPOSITION",
+    "transitPlanetLocalized": "Kara Ay Lilith",
+    "natalPlanetLocalized": "Chiron",
+    "typeLocalized": "Karşıtlık",
+    "angle": 180,
+    "orb": 2.7960481002104416,
+    "isApplying": true,
+    "strength": 65.04939874736948,
+    "nature": "zorlayıcı",
+    "interpretation": {
+     "summary": "Kendi acemiliğinizle bir yabancıda ya da bir dostta karşılaşıyorsunuz ve bu yansıma işe yarıyor, Kara Ay Lilith doğum haritanızdaki Chiron ile karşıtlık yaparken.",
+     "timing": "Etkisi 9 Ekim 2026 ile 2 Mart 2027 arasında sürer; açı 20 Aralık 2026 günü tamamlanır.",
+     "impact": "Eski bir hassasiyet bir başkasında yansır ve dışarıdan görmek onu yumuşatabilir. Aklınızdaki özgün bir fikre bir akşam ayırmayı deneyebilirsiniz, çünkü Kara Ay Lilith aşk ve keyif evinizde ilerliyor.",
+     "guidance": "Yerinizde durun, ama bunu bir yarışmaya çevirmeyin; baskı çoğu zaman hafifler. Başka bir insan eski bir acıyı tetiklediğinde, bunu bir hüküm yerine bir ipucu sayabilirsiniz.",
+     "keywords": [
+      "özgünlük",
+      "özerklik",
+      "şifa",
+      "bilgelik",
+      "kutupluluk",
+      "gerilim"
+     ]
+    }
+   },
+   {
+    "transitPlanet": "Neptune",
+    "natalPlanet": "Moon",
+    "type": "SQUARE",
+    "transitPlanetLocalized": "Neptün",
+    "natalPlanetLocalized": "Ay",
+    "typeLocalized": "Kare",
+    "angle": 90,
+    "orb": 2.4735310229795573,
+    "isApplying": true,
+    "strength": 64.66384252886347,
+    "nature": "zorlayıcı",
+    "interpretation": {
+     "summary": "Ruh hâlleriniz birbirine karışıyor ve yalnız geçireceğiniz sessiz bir saat hangilerinin size ait olduğunu ayırıyor, Neptün doğum haritanızdaki Ay ile kare açıdayken.",
+     "timing": "Şubat 2022 ile Mayıs 2027 arasında hissedilir; açı şu günlerde tamamlanır: 11 Mayıs 2024, 25 Ağustos 2024 ve 10 Mart 2025.",
+     "impact": "Ruh hâlleriniz rotasından çıkar; dalgalanmaları sürmeyi öğrenmek değerli bir beceridir. İnanç evinizde gezinen Neptün, hayatın size ne anlattığını daha geniş bir pencereden görmenizi sağlayabilir.",
+     "guidance": "Gerçek olamayacak kadar iyi görünen her şeye evet demeden önce duraksayın. Hangi duygu yönetilmek yerine anlaşılmak istiyor?",
+     "keywords": [
+      "sanatsal",
+      "sakin",
+      "bakıcı",
+      "rahatlık",
+      "zorluk",
+      "engel"
+     ]
+    }
+   },
+   {
+    "transitPlanet": "Chiron",
+    "natalPlanet": "Moon",
+    "type": "SEXTILE",
+    "transitPlanetLocalized": "Chiron",
+    "natalPlanetLocalized": "Ay",
+    "typeLocalized": "Sekstil",
+    "angle": 60,
+    "orb": 2.1651908405817863,
+    "isApplying": false,
+    "strength": 63.913485990303556,
+    "nature": "uyumlu",
+    "interpretation": {
+     "summary": "Chiron doğum haritanızdaki Ay ile sekstilde. Rahatlık kolayca geliyor; şefkatli bağlar hassas olan her şeyi yatıştırıyor.",
+     "timing": "Etkisi Şubat 2026 ile Mayıs 2028 arasında sürer; açı şu günlerde tamamlanır: 1 Haziran 2026, 7 Ekim 2026 ve 1 Nisan 2027.",
+     "impact": "Sakin bir güven duygusu açılır, bu yüzden duygularınız birer müttefik gibi hissettirir. Bir seyahat planı, bir kitap ya da dünya görüşünüzü sorgulama isteği gündeme gelebilir, çünkü Chiron inanç evinizde yol alıyor.",
+     "guidance": "Nazik yaklaşımı seçin, çünkü iyileşme acele ettirmeyi bıraktığınızda kolayca ilerler. Ev gibi hissettiren bir insana, bir yere ya da bir alışkanlığa uzanabilirsiniz.",
+     "keywords": [
+      "şifa",
+      "bilgelik",
+      "bakıcı",
+      "rahatlık",
+      "kolaylık",
+      "doğal"
+     ]
+    }
+   },
+   {
+    "transitPlanet": "Jupiter",
+    "natalPlanet": "Chiron",
+    "type": "SEMI_SQUARE",
+    "transitPlanetLocalized": "Jüpiter",
+    "natalPlanetLocalized": "Chiron",
+    "typeLocalized": "Yarı Kare",
+    "angle": 45,
+    "orb": 0.7291750318011196,
+    "isApplying": false,
+    "strength": 63.54124840994402,
+    "nature": "zorlayıcı",
+    "interpretation": {
+     "summary": "Jüpiter doğum haritanızdaki Chiron ile yarı kare oluşturuyor. Sahip olduğunuz bir inanç ile bildiğiniz bir sızı yan yana huzursuzca duruyor.",
+     "timing": "Etkisi 27 Ekim 2026 ile 28 Ocak 2027 arasında sürer; açı şu günlerde tamamlanır: 15 Kasım 2026 ve 9 Ocak 2027.",
+     "impact": "Silik bir sızı sessizce uğuldar, bir istekten çok bir hatırlatma. Arkadaşlıklar, gruplar ve ortak işler daha canlı hissedilebilir, ne de olsa doğum haritanızdaki Chiron dostluklar evinizde bulunuyor.",
+     "guidance": "Bir kararda cömert seçeneği alın ve başka bir şeyin onu izlemek isteyip istemediğine bakın.",
+     "keywords": [
+      "bolluk",
+      "üniversite",
+      "şifa",
+      "bilgelik",
+      "sürtüşme",
+      "huzursuzluk"
+     ]
+    }
+   },
+   {
+    "transitPlanet": "Moon",
+    "natalPlanet": "Sun",
+    "type": "SEXTILE",
+    "transitPlanetLocalized": "Ay",
+    "natalPlanetLocalized": "Güneş",
+    "typeLocalized": "Sekstil",
+    "angle": 60,
+    "orb": 2.240016475003472,
+    "isApplying": false,
+    "strength": 62.66639208327547,
+    "nature": "uyumlu",
+    "interpretation": {
+     "summary": "Ay doğum haritanızdaki Güneş ile sekstilde. Ruh hâliniz hedeflerinizi destekliyor, bu yüzden başkalarıyla çalışmak sorunsuz geçiyor.",
+     "timing": "24 Kasım saat 20:00 ile 25 Kasım saat 15:00 arasında hissedilir; açı 25 Kasım saat 05:00 sularında tamamlanır.",
+     "impact": "Sizi canlandıran şey karşılık buluyor; amacınız büyümeye hazır. Ay dostluklar evinizde ilerlerken arkadaşlar, gruplar ve ortak amaçlar daha çok akla gelebilir.",
+     "guidance": "Kolay havadan keyif alın ve küçük zevklere ve samimi bir arkadaşlığa evet deyin. Seçtiğiniz bir hedef ya da denediğiniz bir rol kim olduğunuzu daha çok gösterebilir.",
+     "keywords": [
+      "bakıcı",
+      "rahatlık",
+      "aktif",
+      "farkındalık",
+      "kolaylık",
+      "doğal"
+     ]
+    }
+   },
+   {
+    "transitPlanet": "Chiron",
+    "natalPlanet": "Saturn",
+    "type": "SQUARE",
+    "transitPlanetLocalized": "Chiron",
+    "natalPlanetLocalized": "Satürn",
+    "typeLocalized": "Kare",
+    "angle": 90,
+    "orb": 2.627539027937246,
+    "isApplying": true,
+    "strength": 62.46372817232506,
+    "nature": "zorlayıcı",
+    "interpretation": {
+     "summary": "Chiron doğum haritanızdaki Satürn ile kare açıda: görevleriniz ile hassas noktanız iki yöne çekiyor, ama dürüst öncelikler çekişmeyi çözüyor.",
+     "timing": "Mart 2024 ile Mayıs 2027 arasında hissedilir; açı şu günlerde tamamlanır: 7 Mayıs 2025, 27 Ekim 2025 ve 8 Mart 2026.",
+     "impact": "İçinizdeki katı ses söz alır ve yakından dinlemek, tutmaya değer bağlılıkları ötekilerden ayırabilir.",
+     "guidance": "Sizi neyin tetiklediğini fark edin ve kimseye yanıt vermeden önce tetikleyiciyi sabırla karşılayın. Bir görev amacını aştıysa, onu daha adil koşullarda yeniden görüşebilirsiniz.",
+     "keywords": [
+      "şifa",
+      "bilgelik",
+      "hırs",
+      "sınırlar",
+      "zorluk",
+      "engel"
+     ]
+    }
+   },
+   {
+    "transitPlanet": "Saturn",
+    "natalPlanet": "Chiron",
+    "type": "SQUARE",
+    "transitPlanetLocalized": "Satürn",
+    "natalPlanetLocalized": "Chiron",
+    "typeLocalized": "Kare",
+    "angle": 90,
+    "orb": 2.6411865068057665,
+    "isApplying": false,
+    "strength": 62.26876418848906,
+    "nature": "zorlayıcı",
+    "interpretation": {
+     "summary": "Payınızdan fazlasını taşımak sizi sinirlendirebilir, bu da bir sınır koymanız için bir işaret, Satürn doğum haritanızdaki Chiron ile kare oluştururken.",
+     "timing": "17 Mart 2026 ile 8 Nisan 2027 arasında hissedilir; açı şu günlerde tamamlanır: 16 Mayıs 2026, 11 Ekim 2026 ve 6 Şubat 2027.",
+     "impact": "Hassas bir yer sürtünmeyle karşılaşır, bu da iyileşmeyi bilen yanınızı ortaya çıkarır.",
+     "guidance": "Baskıyı bir eğitim sayın, hızınızı ayarlayın ve gösterişsiz kısmı önce yapın. Benzer bir şeyden geçmiş bir öğretmen, kitap ya da arkadaş yolu kısaltabilir.",
+     "keywords": [
+      "hırs",
+      "sınırlar",
+      "şifa",
+      "bilgelik",
+      "zorluk",
+      "engel"
+     ]
+    }
+   },
+   {
+    "transitPlanet": "Mercury",
+    "natalPlanet": "Pluto",
+    "type": "CONJUNCTION",
+    "transitPlanetLocalized": "Merkür",
+    "natalPlanetLocalized": "Plüton",
+    "typeLocalized": "Kavuşum",
+    "angle": 0,
+    "orb": 3.0405104369430376,
+    "isApplying": true,
+    "strength": 61.99361953821203,
+    "nature": "nötr",
+    "interpretation": {
+     "summary": "Dikkatiniz derinleşiyor, bu yüzden bir fikrin gerçekte ne anlama geldiğini yüzeyin altında arıyorsunuz, Merkür doğum haritanızdaki Plüton ile kavuşum yaparken.",
+     "timing": "Açı 27 Kasım günü tamamlanır; etkisi 21 Kasım ile 3 Aralık arasında hissedilir.",
+     "impact": "Yeni bir akım, iradenizin, sırlarınızın ve kontrol ihtiyacınızın yaşadığı en derin katmanınıza ulaşır. Evde bir şeyi yeniden düzenlemek ya da yer değiştirmek aklınıza gelebilir; Merkür yuva evinizde bulunuyor.",
+     "guidance": "Yeni fikri iyi dinleyen birine yüksek sesle anlatın, konuştukça şekil alır. Gücünüzün hangi kısmı yedekten çıkabilir?",
+     "keywords": [
+      "analiz",
+      "çocukluk",
+      "simya",
+      "cesur",
+      "kaynaşma",
+      "yoğunluk"
+     ]
+    }
+   },
+   {
+    "transitPlanet": "Saturn",
+    "natalPlanet": "Sun",
+    "type": "CONJUNCTION",
+    "transitPlanetLocalized": "Satürn",
+    "natalPlanetLocalized": "Güneş",
+    "typeLocalized": "Kavuşum",
+    "angle": 0,
+    "orb": 3.3284422829767024,
+    "isApplying": false,
+    "strength": 58.394471462791216,
+    "nature": "nötr",
+    "interpretation": {
+     "summary": "Hedeflerinizi bir elin parmaklarını geçmeyecek kadar azaltıp her birine gerçek bir disiplin verebilirsiniz, Satürn doğum haritanızdaki Güneş ile aynı noktada buluşurken.",
+     "timing": "Etkisi 15 Mart 2026 ile 22 Nisan 2027 arasında sürer; açı şu günlerde tamamlanır: 23 Mayıs 2026, 2 Ekim 2026 ve 14 Şubat 2027.",
+     "impact": "Kim olduğunuz duygusu yeni bir ton alır, sanki ona bir şey eklenmiş gibi.",
+     "guidance": "Sonuna kadar götürmeye hazır olduğunuz bağlılığı seçin, sonra daha fazlasını eklemeden önce ona dürüst dikkat verin. Bir karar yeşil ışık bekliyorsa, bu başlamak için yerinde bir işaret.",
+     "keywords": [
+      "hırs",
+      "sınırlar",
+      "aktif",
+      "farkındalık",
+      "kaynaşma",
+      "yoğunluk"
+     ]
+    }
+   },
+   {
+    "transitPlanet": "Mercury",
+    "natalPlanet": "Chiron",
+    "type": "TRINE",
+    "transitPlanetLocalized": "Merkür",
+    "natalPlanetLocalized": "Chiron",
+    "typeLocalized": "Üçgen",
+    "angle": 120,
+    "orb": 3.486580098783591,
+    "isApplying": false,
+    "strength": 56.41774876520511,
+    "nature": "uyumlu",
+    "interpretation": {
+     "summary": "Merkür doğum haritanızdaki Chiron ile üçgen oluştururken, sizden gelen nazik öğüt ağırlık taşıyor, çünkü arkasında kendi deneyiminiz var.",
+     "timing": "Etkisi 29 Ekim ile 28 Kasım arasında sürer; açı şu günlerde tamamlanır: 5 Kasım ve 22 Kasım.",
+     "impact": "Sızlayan yerleriniz bakıma daha açık hissettirir ve acının size verdiği bilgelik daha kolay ulaşılır. Merkür yuva evinizde yol alırken yaşadığınız ev ve evdeki düzen daha çok düşündürebilir.",
+     "guidance": "Düşüncelerinizi aklınıza geldikçe yazın; ilk taslak kusurlu olabilir. İyileşme hakkında bir şeyler öğrenebilir, bildiklerinizi paylaşan bir çevreye katılabilir ya da yalnızca güvende hissettiğiniz yerde dinlenebilirsiniz.",
+     "keywords": [
+      "analiz",
+      "çocukluk",
+      "şifa",
+      "bilgelik",
+      "uyum",
+      "akış"
+     ]
+    }
+   },
+   {
+    "transitPlanet": "Jupiter",
+    "natalPlanet": "Moon",
+    "type": "SEXTILE",
+    "transitPlanetLocalized": "Jüpiter",
+    "natalPlanetLocalized": "Ay",
+    "typeLocalized": "Sekstil",
+    "angle": 60,
+    "orb": 2.7057960290513847,
+    "isApplying": true,
+    "strength": 54.90339951581025,
+    "nature": "uyumlu",
+    "interpretation": {
+     "summary": "Jüpiter doğum haritanızdaki Ay ile sekstil oluşturuyor. Sevgi ve mizah doğal akıyor, bu da sizi hem başkalarına hem kendinize iyi bir arkadaş yapıyor.",
+     "timing": "En çok 13 Aralık 2026 günü yaklaşır; etkisi 23 Ekim 2026 ile 1 Şubat 2027 arasında sürer.",
+     "impact": "İçgüdü ile akıl aynı yöne yürüyor; rahatlık kolayca bulunuyor. Doğum haritanızdaki Ay dostluklar evinizde yer aldığı için geleceğe dair hayalleriniz ve bir şeyi birlikte değiştirme isteğiniz canlanabilir.",
+     "guidance": "Bu dönem öğrenmeyi, planlamayı ve yeni bir şey denemeyi destekler, bu yüzden en canlı hissettiren fikri seçin. İhtiyacınızı dile getirmek şimdi kolay; nazik bir istekle deneyin.",
+     "keywords": [
+      "bolluk",
+      "üniversite",
+      "bakıcı",
+      "rahatlık",
+      "kolaylık",
+      "doğal"
+     ]
+    }
+   },
+   {
+    "transitPlanet": "Venus",
+    "natalPlanet": "Moon",
+    "type": "TRINE",
+    "transitPlanetLocalized": "Venüs",
+    "natalPlanetLocalized": "Ay",
+    "typeLocalized": "Üçgen",
+    "angle": 120,
+    "orb": 3.9549821899102824,
+    "isApplying": true,
+    "strength": 50.56272262612147,
+    "nature": "uyumlu",
+    "interpretation": {
+     "summary": "Venüs doğum haritanızdaki Ay ile üçgen açıda. Yumuşak ruh hâliniz size yaklaşmayı kolaylaştırıyor ve sizi hoşnut etmek de kolay.",
+     "timing": "Etkisi 11 Ekim ile 14 Aralık arasında sürer; açı şu günlerde tamamlanır: 26 Ekim ve 3 Aralık.",
+     "impact": "Sakin bir güven duygusu açılır, bu yüzden duygularınız birer müttefik gibi hissettirir.",
+     "guidance": "Keyif aldığınız bir şeyi biriyle paylaşın, çünkü haz aktarıldıkça büyür. İhtiyacınızı dile getirmek şimdi kolay; nazik bir istekle deneyin.",
+     "keywords": [
+      "çekicilik",
+      "güzellik",
+      "bakıcı",
+      "rahatlık",
+      "uyum",
+      "akış"
+     ]
+    }
+   },
+   {
+    "transitPlanet": "Black Moon Lilith",
+    "natalPlanet": "Sun",
+    "type": "SQUARE",
+    "transitPlanetLocalized": "Kara Ay Lilith",
+    "natalPlanetLocalized": "Güneş",
+    "typeLocalized": "Kare",
+    "angle": 90,
+    "orb": 3.483303876381342,
+    "isApplying": true,
+    "strength": 50.238516051695115,
+    "nature": "zorlayıcı",
+    "interpretation": {
+     "summary": "Kara Ay Lilith doğum haritanızdaki Güneş ile kare açıda. Yargılandığınızı hissettiğinizde başkaldırı alevlenebilir, ama net tek bir açıklama bir kavgadan iyidir.",
+     "timing": "Etkisi 24 Ekim 2026 ile 27 Şubat 2027 arasında sürer; açı 26 Aralık 2026 günü tamamlanır.",
+     "impact": "Bir şey iradenizin önünü keser ve bu sürtünme hedefi bırakmak yerine inceltmenizi ister. Kendinize amaçsızca bir şey yapma izni vermek iyi gelebilir; Kara Ay Lilith aşk ve keyif evinizde bulunuyor.",
+     "guidance": "Meydan okumayı geniş bir isyana değil tek bir net sınıra yöneltin. Kendinizden ne istediğinizin daha keskin bir tanımı, sürtünmenin ödülü olabilir.",
+     "keywords": [
+      "özgünlük",
+      "özerklik",
+      "aktif",
+      "farkındalık",
+      "zorluk",
+      "engel"
+     ]
+    }
+   },
+   {
+    "transitPlanet": "Mars",
+    "natalPlanet": "Jupiter",
+    "type": "SEXTILE",
+    "transitPlanetLocalized": "Mars",
+    "natalPlanetLocalized": "Jüpiter",
+    "typeLocalized": "Sekstil",
+    "angle": 60,
+    "orb": 3.053902857252737,
+    "isApplying": true,
+    "strength": 49.101619045787714,
+    "nature": "uyumlu",
+    "interpretation": {
+     "summary": "İyi bir fırsat tam hazır olduğunuzda geliyor, bu yüzden erken harekete geçmek size yakışıyor, Mars doğum haritanızdaki Jüpiter ile sekstil yaparken.",
+     "timing": "Açı 3 Aralık günü tamamlanır; etkisi 18 Kasım ile 24 Aralık arasında hissedilir.",
+     "impact": "İyimserlik ile sağlıklı yargı iyi çalışır, bu da büyümeyi akıcı hissettirir.",
+     "guidance": "Çabanızı en az direncin ve sizin için en çok anlamın bulunduğu yere koyun. Bir kurs, bir gezi ya da bir amaç ilk adımı hak edebilir.",
+     "keywords": [
+      "eylem",
+      "maceraperest",
+      "bolluk",
+      "üniversite",
+      "kolaylık",
+      "doğal"
+     ]
+    }
+   },
+   {
+    "transitPlanet": "Mars",
+    "natalPlanet": "Venus",
+    "type": "OPPOSITION",
+    "transitPlanetLocalized": "Mars",
+    "natalPlanetLocalized": "Venüs",
+    "typeLocalized": "Karşıtlık",
+    "angle": 180,
+    "orb": 4.725249407060687,
+    "isApplying": false,
+    "strength": 40.93438241174141,
+    "nature": "zorlayıcı",
+    "interpretation": {
+     "summary": "Mars doğum haritanızdaki Venüs ile karşı karşıya duruyor. İstediğiniz şey üzerine bir anlaşmazlık, ne kadar derinden önemsediğinizi gösteriyor.",
+     "timing": "Etkisi 28 Ekim ile 4 Aralık arasında sürer; açı 14 Kasım günü tamamlanır.",
+     "impact": "Sevilmek ile kendiniz olmak terazinin zıt kefelerinde durur.",
+     "guidance": "Bir meydan okumayı savaş yerine bir idman maçı sayın, böylece iki taraf da daha net çıkar. Zevk farkı size neye değer verdiğinizi gösterebilir, ister tutarsınız ister yumuşatırsınız.",
+     "keywords": [
+      "eylem",
+      "maceraperest",
+      "çekicilik",
+      "güzellik",
+      "kutupluluk",
+      "gerilim"
+     ]
+    }
+   },
+   {
+    "transitPlanet": "Mars",
+    "natalPlanet": "Mercury",
+    "type": "TRINE",
+    "transitPlanetLocalized": "Mars",
+    "natalPlanetLocalized": "Merkür",
+    "typeLocalized": "Üçgen",
+    "angle": 120,
+    "orb": 4.8958772495468565,
+    "isApplying": false,
+    "strength": 38.80153438066429,
+    "nature": "uyumlu",
+    "interpretation": {
+     "summary": "Mars doğum haritanızdaki Merkür ile üçgen oluşturuyor. İkna etmek size doğal geliyor, bu yüzden en sevdiğiniz fikir iyi karşılanıyor.",
+     "timing": "Açı 13 Kasım günü tamamlanır; etkisi 28 Ekim ile 3 Aralık arasında hissedilir.",
+     "impact": "Öğrenmek ve konuşmak akıcı gelir, bu da yararlı bir alışverişi erişilebilir kılar. Doğum haritanızdaki Merkür inanç evinizde bulunduğu için anlam üzerine sorular ağırlık kazanabilir ve onlara yer açmak iyi gelebilir.",
+     "guidance": "Cesur ve dostane bir yaklaşım en iyisidir, bu yüzden istediğinizi açıkça isteyin ve harekete geçin. Bir yabancıya yalnızca tek bir fikrinizi anlatabilseydiniz hangisini seçerdiniz?",
+     "keywords": [
+      "eylem",
+      "maceraperest",
+      "analiz",
+      "çocukluk",
+      "uyum",
+      "akış"
+     ]
+    }
+   },
+   {
+    "transitPlanet": "Neptune",
+    "natalPlanet": "Mars",
+    "type": "SEMI_SQUARE",
+    "transitPlanetLocalized": "Neptün",
+    "natalPlanetLocalized": "Mars",
+    "typeLocalized": "Yarı Kare",
+    "angle": 45,
+    "orb": 1.229193986625205,
+    "isApplying": true,
+    "strength": 38.54030066873975,
+    "nature": "zorlayıcı",
+    "interpretation": {
+     "summary": "Neptün doğum haritanızdaki Mars ile yarı kare yapıyor. Gayretiniz bir yöne, sezginiz başka bir yöne eğiliyor.",
+     "timing": "Etkisi 15 Ekim 2026 ile 6 Şubat 2027 arasında sürer; açı tamamlanmaz, en çok 12 Aralık 2026 günü yaklaşır.",
+     "impact": "Atlama dürtüsü ile bakma içgüdüsü olayların sırası konusunda anlaşamaz. Baş başa kurulan bağlar ve verilen sözler daha çok hissedilebilir, ne de olsa doğum haritanızdaki Mars ortaklık evinizde duruyor.",
+     "guidance": "Küçük bir ilk adım seçin ve resmin geri kalanı o bitene kadar yumuşak kalsın.",
+     "keywords": [
+      "sanatsal",
+      "sakin",
+      "eylem",
+      "maceraperest",
+      "sürtüşme",
+      "huzursuzluk"
+     ]
+    }
+   },
+   {
+    "transitPlanet": "North Node",
+    "natalPlanet": "Moon",
+    "type": "TRINE",
+    "transitPlanetLocalized": "Kuzey Düğümü",
+    "natalPlanetLocalized": "Ay",
+    "typeLocalized": "Üçgen",
+    "angle": 120,
+    "orb": 4.96724345562825,
+    "isApplying": false,
+    "strength": 37.90945680464688,
+    "nature": "uyumlu",
+    "interpretation": {
+     "summary": "Kuzey Düğümü doğum haritanızdaki Ay ile üçgen açıdayken, rahatlık ile büyüme yarışmayı bırakıyor, bu yüzden sizi besleyeni seçmek doğal geliyor.",
+     "timing": "Açı 30 Eylül 2026 günü tamamlanır; etkisi 29 Nisan 2026 ile 3 Ocak 2027 arasında hissedilir.",
+     "impact": "Duyarlılık, bir ortamı ve kendi kalbinizi kolayca okumanıza yardım eden bir güce dönüşür. Hangi çevrede rahat nefes aldığınızı kendinize sormak iyi gelebilir; doğum haritanızdaki Ay dostluklar evinizde yer alıyor.",
+     "guidance": "Sunulan yardımı kabul edin ve sizin için önemli olana doğru doğal bir sonraki adımı atın. Sizi rahatlatan bir alışkanlık, yalın ve tanıdık hâliyle geri dönmeye hazır olabilir.",
+     "keywords": [
+      "kader",
+      "yaşam amacı",
+      "bakıcı",
+      "rahatlık",
+      "uyum",
+      "akış"
+     ]
+    }
+   },
+   {
+    "transitPlanet": "Black Moon Lilith",
+    "natalPlanet": "Jupiter",
+    "type": "OPPOSITION",
+    "transitPlanetLocalized": "Kara Ay Lilith",
+    "natalPlanetLocalized": "Jüpiter",
+    "typeLocalized": "Karşıtlık",
+    "angle": 180,
+    "orb": 5.186274243567084,
+    "isApplying": false,
+    "strength": 35.17157195541145,
+    "nature": "zorlayıcı",
+    "interpretation": {
+     "summary": "Kara Ay Lilith doğum haritanızdaki Jüpiter ile karşıtlık oluşturuyor. Dışarıdan gelen yargılar kanaatlerinizi sınıyor, bu yüzden dayanan her şey tutmaya değer.",
+     "timing": "Açı 9 Ekim günü tamamlanır; etkisi 30 Temmuz ile 20 Aralık arasında hissedilir.",
+     "impact": "Büyüme umudunuz fazla şey yapma eğilimiyle karşılaşır ve ölçülü bir seçim dengeyi bulur. Aşk ve keyif evinizde gezinen Kara Ay Lilith, oyun ve eğlence isteğini ya da bir işe tutkuyla girişme isteğini canlandırabilir.",
+     "guidance": "Sınırınız sınandığında onu sakin koruyun ve tepkinin neyi gösterdiğini dinleyin. Farklı bir bakış açısı, kendi iyimserliğinizin neye dayandığını gösterebilir.",
+     "keywords": [
+      "özgünlük",
+      "özerklik",
+      "bolluk",
+      "üniversite",
+      "kutupluluk",
+      "gerilim"
+     ]
+    }
+   },
+   {
+    "transitPlanet": "Jupiter",
+    "natalPlanet": "Saturn",
+    "type": "QUINCUNX",
+    "transitPlanetLocalized": "Jüpiter",
+    "natalPlanetLocalized": "Satürn",
+    "typeLocalized": "Kuinkuks",
+    "angle": 150,
+    "orb": 2.0869338394676333,
+    "isApplying": false,
+    "strength": 30.435538684412222,
+    "nature": "zorlayıcı",
+    "interpretation": {
+     "summary": "Jüpiter doğum haritanızdaki Satürn ile kuinkuks açısı yapıyor. Daha fazlasına umudunuz ile temkin alışkanlığınız birbirini duymadan konuşuyor ve yalın bir cümle bunu çözebilir.",
+     "timing": "11 Ekim 2026 ile 15 Şubat 2027 arasında hissedilir; açı şu günlerde tamamlanır: 1 Kasım 2026 ve 23 Ocak 2027.",
+     "impact": "Düzenli yanınız hizaya girmeyi reddeden bir köşe bulur. Doğum haritanızdaki Satürn günlük iş evinizde olduğundan masanızı, takviminizi ya da küçük işlerinizi toparlama isteği doğabilir.",
+     "guidance": "Bir rutin yaşama biçiminize sürtünüyorsa, yalnızca günün farklı bir saatine ihtiyacı olabilir.",
+     "keywords": [
+      "bolluk",
+      "üniversite",
+      "hırs",
+      "sınırlar",
+      "ayarlama",
+      "gerilim"
+     ]
+    }
+   },
+   {
+    "transitPlanet": "Saturn",
+    "natalPlanet": "Jupiter",
+    "type": "SQUARE",
+    "transitPlanetLocalized": "Satürn",
+    "natalPlanetLocalized": "Jüpiter",
+    "typeLocalized": "Kare",
+    "angle": 90,
+    "orb": 5.341135836971759,
+    "isApplying": true,
+    "strength": 23.69805947183201,
+    "nature": "zorlayıcı",
+    "interpretation": {
+     "summary": "Satürn doğum haritanızdaki Jüpiter ile kare açıdayken, büyük bir umudu incelemek üzere bekletebilirsiniz ve ona yeniden yazılma alanı tanıyabilirsiniz.",
+     "timing": "En çok 10 Aralık 2026 günü yaklaşır; etkisi 24 Ekim 2026 ile 26 Ocak 2027 arasında sürer.",
+     "impact": "Her şeyi isteyen yanınızdan bir seçim yapması beklenir ve bu büyümenizi odaklayabilir.",
+     "guidance": "Talebi sabır ve net bir önceliklendirmeyle karşılayın, bu sürtünmeyi pratiğe çevirir. Daha fazlasını istiyorsanız, neyin yeterli sayılacağına karar vererek başlayabilirsiniz.",
+     "keywords": [
+      "hırs",
+      "sınırlar",
+      "bolluk",
+      "üniversite",
+      "zorluk",
+      "engel"
+     ]
+    }
+   },
+   {
+    "transitPlanet": "South Node",
+    "natalPlanet": "Chiron",
+    "type": "SEMI_SQUARE",
+    "transitPlanetLocalized": "Güney Düğümü",
+    "natalPlanetLocalized": "Chiron",
+    "typeLocalized": "Yarı Kare",
+    "angle": 45,
+    "orb": 1.5322723947757453,
+    "isApplying": false,
+    "strength": 23.386380261212736,
+    "nature": "zorlayıcı",
+    "interpretation": {
+     "summary": "Alışılmış kalkanınız ile daha yeni bir nezaket zar zor birbirine dokunuyor, Güney Düğümü doğum haritanızdaki Chiron ile yarı kare oluştururken.",
+     "timing": "Etkisi 25 Ekim ile 3 Aralık arasında sürer; açı 11 Kasım günü tamamlanır.",
+     "impact": "Sıradan bir alışverişte bir parça savunmasızlık belirir ve adını koymadan neredeyse gider. Güney Düğümü benlik evinizde ilerlerken insanların sizi görme biçimi biraz değişebilir.",
+     "guidance": "Eski bir sızı belirirse, onu kabul edebilir, neyin tetiklediğini sorabilir ya da geçmesine izin verebilirsiniz.",
+     "keywords": [
+      "doğuştan yetenekler",
+      "geçmiş yaşam bilgeliği",
+      "şifa",
+      "bilgelik",
+      "sürtüşme",
+      "huzursuzluk"
+     ]
+    }
+   },
+   {
+    "transitPlanet": "North Node",
+    "natalPlanet": "Chiron",
+    "type": "SESQUIQUADRATE",
+    "transitPlanetLocalized": "Kuzey Düğümü",
+    "natalPlanetLocalized": "Chiron",
+    "typeLocalized": "Seskikare",
+    "angle": 135,
+    "orb": 1.5322723947757595,
+    "isApplying": false,
+    "strength": 23.386380261212025,
+    "nature": "zorlayıcı",
+    "interpretation": {
+     "summary": "Kuzey Düğümü doğum haritanızdaki Chiron ile seskikare yaparken, hassas yanınız seçtiğiniz güzergâha biraz takılıyor.",
+     "timing": "Etkisi 25 Ekim ile 3 Aralık arasında sürer; açı 11 Kasım günü tamamlanır.",
+     "impact": "Hassas bir düşünce alışkanlığına dokunulur ve kendinizle nasıl konuştuğunuzu fark edersiniz.",
+     "guidance": "Kendinize kısa bir jest, örneğin nazik bir cümle ya da sessiz bir dakika, ruh hâline yakışır.",
+     "keywords": [
+      "kader",
+      "yaşam amacı",
+      "şifa",
+      "bilgelik",
+      "hayal kırıklığı",
+      "ayarlama"
+     ]
+    }
+   },
+   {
+    "transitPlanet": "Mercury",
+    "natalPlanet": "Uranus",
+    "type": "SEXTILE",
+    "transitPlanetLocalized": "Merkür",
+    "natalPlanetLocalized": "Uranüs",
+    "typeLocalized": "Sekstil",
+    "angle": 60,
+    "orb": 4.75562445004266,
+    "isApplying": false,
+    "strength": 20.739592499288996,
+    "nature": "uyumlu",
+    "interpretation": {
+     "summary": "Merkür doğum haritanızdaki Uranüs ile sekstil oluşturuyor. Çevrimiçi konuşmalar ve meraklı arkadaşlar size eski bir konuya yeni bir bakış sunuyor.",
+     "timing": "Etkisi 1 Kasım ile 26 Kasım arasında sürer; açı şu günlerde tamamlanır: 6 Kasım ve 21 Kasım.",
+     "impact": "Özgürlüğü talep etmek kolay hissettirir ve özgünlüğünüz az dirençle karşılaşır. Üretken bir işe ya da unutulmuş bir hobiye dönmek içinizden gelebilir, çünkü doğum haritanızdaki Uranüs aşk ve keyif evinizde bulunuyor.",
+     "guidance": "Önemli aramayı yapın, mesajı gönderin ya da konuşmayı yapın, çünkü sözcükler akıcı gidiyor. Sizden farklı biriyle yapılan bir konuşma bakış açınızı genişletebilir.",
+     "keywords": [
+      "analiz",
+      "çocukluk",
+      "avangard",
+      "değişim",
+      "kolaylık",
+      "doğal"
+     ]
+    }
+   },
+   {
+    "transitPlanet": "Black Moon Lilith",
+    "natalPlanet": "Neptune",
+    "type": "CONJUNCTION",
+    "transitPlanetLocalized": "Kara Ay Lilith",
+    "natalPlanetLocalized": "Neptün",
+    "typeLocalized": "Kavuşum",
+    "angle": 0,
+    "orb": 6.516203614444009,
+    "isApplying": true,
+    "strength": 18.547454819449882,
+    "nature": "nötr",
+    "interpretation": {
+     "summary": "Kara Ay Lilith doğum haritanızdaki Neptün ile kavuşum açısındayken, büyü ve gizem isteklerinizi renklendiriyor, bu yüzden neyin gerçek olduğunu sormak sizi dürüst tutuyor.",
+     "timing": "Açı 22 Ocak 2027 günü tamamlanır; etkisi 12 Kasım 2026 ile 4 Nisan 2027 arasında hissedilir.",
+     "impact": "Taze bir şey, hayal eden, inanan ve başkalarına karşı hisseden yanınıza dokunur, bu yüzden idealleriniz eskisinden yakın görünür. Dinlenmenize, uykunuza ve çalışma temponuza bir göz atmak iyi gelebilir, zira doğum haritanızdaki Neptün günlük iş evinizde yer alıyor.",
+     "guidance": "Evcilleşmeyi reddeden içgüdüye güvenin ve tek bir net sınır koymasına izin verin. Bir insana, bir zanaata ya da bir inanca duyulan yeni bir güven biçimleniyor olabilir ve kulak verilmeyi hak ediyor.",
+     "keywords": [
+      "özgünlük",
+      "özerklik",
+      "sanatsal",
+      "sakin",
+      "kaynaşma",
+      "yoğunluk"
+     ]
+    }
+   },
+   {
+    "transitPlanet": "South Node",
+    "natalPlanet": "Moon",
+    "type": "SEXTILE",
+    "transitPlanetLocalized": "Güney Düğümü",
+    "natalPlanetLocalized": "Ay",
+    "typeLocalized": "Sekstil",
+    "angle": 60,
+    "orb": 4.96724345562825,
+    "isApplying": false,
+    "strength": 17.212609072862506,
+    "nature": "uyumlu",
+    "interpretation": {
+     "summary": "Güney Düğümü doğum haritanızdaki Ay ile sekstilde. Rahatlamanın eskiden bildiğiniz yolları kolayca işliyor, bu yüzden dinlenmek çabuk geliyor.",
+     "timing": "Açı 30 Eylül günü tamamlanır; etkisi 17 Mayıs ile 7 Aralık arasında hissedilir.",
+     "impact": "Duygularınız destek bulur, bu yüzden ihtiyacınız olanı istemek daha kolay gelir. Katılmak isteyeceğiniz bir çevre ya da ortak bir iş çıkabilir, zira doğum haritanızdaki Ay dostluklar evinizde duruyor.",
+     "guidance": "En alıştığınız becerilere yaslanın ve kolaylığın işin bir kısmını yapmasına izin verin. Sizi ne besler ve bunu kiminle paylaşabilirsiniz?",
+     "keywords": [
+      "doğuştan yetenekler",
+      "geçmiş yaşam bilgeliği",
+      "bakıcı",
+      "rahatlık",
+      "kolaylık",
+      "doğal"
+     ]
+    }
+   },
+   {
+    "transitPlanet": "Saturn",
+    "natalPlanet": "South Node",
+    "type": "TRINE",
+    "transitPlanetLocalized": "Satürn",
+    "natalPlanetLocalized": "Güney Düğümü",
+    "typeLocalized": "Üçgen",
+    "angle": 120,
+    "orb": 6.628083075265266,
+    "isApplying": false,
+    "strength": 17.148961559184173,
+    "nature": "uyumlu",
+    "interpretation": {
+     "summary": "Eski rutinler ve öğrenilmiş disiplin sizi destekliyor, bu yüzden tanıdık bir yapı bugünkü bir hedefi taşıyabilir, Satürn doğum haritanızdaki Güney Düğümü ile üçgen oluştururken.",
+     "timing": "Etkisi 10 Nisan 2026 ile 19 Mayıs 2027 arasında sürer; açı 15 Mart 2027 günü tamamlanır.",
+     "impact": "Zaten iyi yaptığınız şey hoş karşılanır ve hiçbir şeyin kanıtlanması gerekmez.",
+     "guidance": "Sunulan düzenliliği sabrı ödüllendiren bir işte kullanın, güvenilir bir adım ardından bir adım. Size hizmet eden bir alışkanlık bilerek tutulmaya değer ve bunu yüksek sesle söylemek yardımcı olur.",
+     "keywords": [
+      "hırs",
+      "sınırlar",
+      "doğuştan yetenekler",
+      "geçmiş yaşam bilgeliği",
+      "uyum",
+      "akış"
+     ]
+    }
+   }
+  ],
+  "interpretation": {
+   "summary": "Neptün doğum haritanızdaki Jüpiter ile kare açıda: berraklık istiyorsunuz ama sürekli sise çarpıyorsunuz, bu yüzden dosdoğru bir yanıt hoş olurdu. Bu tema yıllarca sizinle kalır; en çok inanç evinizde kendini gösterir.",
+   "detailed": "Neptün bu dönemin gidişatını belirliyor. Belirsizlik rahatsız edicidir, yine de size hizmet etmeyen yanılsamaları temizleyip gerçeğe daha yakın olanı bırakabilir. Bir söz olduğundan iyi gelebilir, bu yüzden inanmadan önce küçük yazıya bakmakta fayda var. Bununla birlikte bir başka uzun vadeli etki daha var: ortaklık evinizde Kuzey Düğümü doğum haritanızdaki Venüs ile aynı noktada buluşuyor, 24 Nisan 2027 tarihine kadar sürüyor. Küçük kararlar, istediğiniz hayata verilmiş oylar gibi hissettirmeye başlar ve her birini özenle kullanmak size bir rota verir. Sevgi ile zamanlama örtüşüyor, bu yüzden değerleriniz sizi size doğru gelen insanlara yöneltiyor.\n\nBu günlerde: benlik evinizde Mars doğum haritanızdaki Ay ile sekstil oluşturuyor, 10 Aralık 2026 tarihine kadar sürüyor. Evinizi ya da çevrenizi güzelleştirme isteği, keyif aldığınız bir işe dönüşüyor. Hemen yakında: iletişim evinizde Venüs doğum haritanızdaki Merkür ile karşı karşıya duruyor, etkisi 8 Aralık 2026 tarihinde sona eriyor. Dürüst bir sözünüz biraz yan düşebilir ve ardından söylenen sakin bir söz bunu dengeler. Bugün Ay da devrede: dostluklar evinizde Ay doğum haritanızdaki Kuzey Düğümü ile üçgen açı yapıyor. Aidiyet kolayca geliyor ve bu, nerede büyüyeceğinizi gösteriyor.\n\nTutmaya değer hayaller bir iki sade soruya dayanabilir."
+  },
+  "summary": {
+   "totalAspects": 63,
+   "harmonious": 21,
+   "challenging": 33,
+   "neutral": 9
+  }
+ }
+}

@@ -9,36 +9,62 @@
  */
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { KP_NODE_SIG_METHODS, KP_NODE_SIG_SOURCE, KP_NUMBER_LOCAL_NOTE, kpNumberLabel, KP_RULING_METHOD_NOTE, KP_RULING_SIG_NOTE, isKpNode, type KpBody, type KpChartTechnical, type KpCusp, type KpHoraryTechnical, type KpLevel, type KpLordSet, type KpNodeSigMethodId, type KpPoint, type KpRulingTechnical, type KpSignificators, type KpTransitTechnical } from "@/lib/astrology/model/kp";
+import { useLocale, useTranslations } from "next-intl";
+import { dmyOf } from "../_lib/atlasDate";
+import { KP_NODE_SIG_SOURCE, kpNumberLabel, isKpNode, type KpBody, type KpChartTechnical, type KpCusp, type KpHoraryTechnical, type KpLevel, type KpLordSet, type KpNodeSigMethodId, type KpPoint, type KpRulingTechnical, type KpSignificators, type KpTransitTechnical } from "@/lib/astrology/model/kp";
 import type { VedicGrahaId } from "@/lib/astrology/model/vedic";
-import { SIGN_IDS } from "@/lib/astrology/model/western";
-import { SIGN_GLYPHS, SIGN_LABELS } from "@/lib/astrology/labels/tr";
-import { GRAHA_LABELS, NAKSHATRA_LABELS } from "@/lib/astrology/topics/vedic";
-import { GRAHA_TR, SIGN_TR_ABBR, grahaTrName } from "../_lib/kundliLocalize";
+import { SIGN_IDS, type SignId } from "@/lib/astrology/model/western";
+import { SIGN_GLYPHS } from "@/lib/astrology/labels/tr";
 // 2026-10-15: saf KP harita yardımcıları _lib/kpChart'a taşındı (rapor sunucusu da kullanır); eski içe aktarımlar için yeniden dışa açılır.
-import { SOUTH_CELLS, gs, kpChartItems, kpLegendFor, posLabel, type KpSel } from "../_lib/kpChart";
+import { SOUTH_CELLS, kpChartItems, type KpSel } from "../_lib/kpChart";
 export { fmtDms, kpChartItems, type KpSel } from "../_lib/kpChart";
 import { fmtDms } from "../_lib/kpChart";
 import type { KbLookup } from "./VedicPanels";
-import { KP_HORARY_TEXT, kpCuspSublordRows, kpHoraryLagnaContrast } from "@/lib/astrology/view/kpHorary";
+import { kpCuspSublordRows, kpHoraryLagnaContrast } from "@/lib/astrology/view/kpHorary";
 import { questionMomentLabel, questionMomentPlaceNote } from "@/lib/astrology/transitDetail";
 
 const th = "px-2 py-1.5 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500";
 const td = "px-2 py-1.5 text-sm text-slate-800";
 const card = "min-w-0 rounded-xl border border-slate-200 bg-white";
 const LEVELS: KpLevel[] = [1, 2, 3, 4];
-const LEVEL_LABEL: Record<KpLevel, string> = { 1: "L1 · yıldızı sakinde", 2: "L2 · sakin", 3: "L3 · yıldızı sahipte", 4: "L4 · sahip" };
-const AY: Record<string, string> = { "kp-newcomb": "KP-Newcomb", "kp-old": "KP (eski tablo)" };
+const KP_AYANAMSAS = new Set(["kp-newcomb", "kp-old"]);
 
-const g = (id: VedicGrahaId | null) => (id ? GRAHA_LABELS[id] : "—");
+/**
+ * I18N ATLAS-V (R5): KP ekran metinleri katalogdan (`atlas.kp` + `terms`). TR katalog değerleri, Word/PDF ile ortak lib sabitleriyle
+ * (KP_LEGEND, KP_NUMBER_LOCAL_NOTE, KP_RULING_*, KP_HORARY_TEXT, KP_NODE_SIG_METHODS, GRAHA_TR, SIGN_LABELS …) birebir aynıdır —
+ * `scripts/astrology/atlas-kp-i18n.harness.ts` kilitler. Kanonik kimlikler / KB konu anahtarları / data-* öznitelikleri değişmedi.
+ */
+export function useKpText() {
+  const t = useTranslations("atlas.kp");
+  const tt = useTranslations("terms");
+  return useMemo(() => {
+    const sign = (s: SignId) => tt(`zodiac.${s}`);
+    return {
+      t,
+      tt,
+      /** Tam Vedik graha adı (terms.graha: "Güneş (Surya)"). */
+      g: (id: VedicGrahaId | null) => (id ? tt(`graha.${id}`) : "—"),
+      /** Kısa graha adı ("Güneş"). */
+      gs: (id: VedicGrahaId | null) => (id ? t(`graha.${id}`) : "—"),
+      /** "Güneş / Surya". */
+      full: (id: VedicGrahaId) => t(`grahaFull.${id}`),
+      abbr: (id: VedicGrahaId) => t(`grahaAbbr.${id}`),
+      sign,
+      pos: (p: KpPoint) => `${sign(p.rashi)} ${fmtDms(p.degreeInRashi)}`,
+      ay: (a: string) => (KP_AYANAMSAS.has(a) ? tt(`ayanamsa.${a}`) : undefined),
+      level: (l: KpLevel) => t(`level.${l}`),
+    };
+  }, [t, tt]);
+}
 
 
 function KbBox({ kb, empty }: { kb: ReturnType<KbLookup> | null; empty: string }) {
+  const t = useTranslations("atlas.kp.kb");
   return (
     <div className="mt-2 border-t border-amber-200 pt-2" data-testid="astro-kp-kb">
-      <div className="text-xs font-semibold text-indigo-900">Bilgi Bankam (KP)</div>
+      <div className="text-xs font-semibold text-indigo-900">{t("title")}</div>
       {kb === null ? (
-        <p className="text-xs text-slate-500">Bilgi Bankası eşleşmeleri çalışma alanı yüklenince görünür.</p>
+        <p className="text-xs text-slate-500">{t("loading")}</p>
       ) : kb.length === 0 ? (
         <p className="text-xs text-slate-500">{empty}</p>
       ) : (
@@ -131,7 +157,30 @@ export function KpSouthChart({
   fit?: "stage" | "box";
   legend?: boolean;
 }) {
-  const items = useMemo(() => kpChartItems(cusps, bodies), [cusps, bodies]);
+  const x = useKpText();
+  // Hücre yerleşimi / sıralama lib'in (rapor ile ortak); etiket + ipucu katalogdan (TR = lib metni, harness kilidi).
+  const items = useMemo(() => {
+    const base = kpChartItems(cusps, bodies);
+    const dm = (d: number) => `${Math.floor(d)}°${String(Math.floor((d % 1) * 60)).padStart(2, "0")}′`;
+    const out = {} as typeof base;
+    for (const s of SIGN_IDS) {
+      out[s] = base[s].map((it) => {
+        if (it.sel.kind === "cusp") {
+          const h = it.sel.house;
+          const c = cusps.find((y) => y.house === h)!;
+          return { ...it, label: x.t("chart.cuspLabel", { house: String(c.house), deg: dm(c.degreeInRashi) }), title: x.t("chart.cuspTitle", { house: String(c.house), pos: x.pos(c), sub: x.gs(c.subLord) }) };
+        }
+        const id = it.sel.id;
+        const b = bodies.find((y) => y.id === id)!;
+        return {
+          ...it,
+          label: `${x.abbr(b.id)} ${dm(b.degreeInRashi)}${b.retrograde ? "ʳ" : ""}`,
+          title: x.t("chart.bodyTitle", { name: x.full(b.id), pos: x.pos(b), house: b.house ? x.t("chart.bodyHouse", { house: String(b.house) }) : "", star: x.gs(b.starLord), sub: x.gs(b.subLord), retro: b.retrograde ? x.t("retroSuffix") : "" }),
+        };
+      });
+    }
+    return out;
+  }, [cusps, bodies, x]);
   const isSel = (s: KpSel) => !!sel && sel.kind === s.kind && (s.kind === "cusp" ? sel.kind === "cusp" && sel.house === s.house : sel.kind === "body" && sel.id === s.id);
   const { rootRef, gridRef, side } = useKpFitSide(fit, fit === "box" ? 1400 : 560);
   const big = side !== null && side >= 640;
@@ -147,8 +196,8 @@ export function KpSouthChart({
           const hasAsc = items[s].some((x) => x.key === "c1");
           return (
             <div key={s} style={{ gridRow: r, gridColumn: c }} className={`flex min-w-0 flex-col gap-0.5 overflow-hidden border border-slate-200 p-1 ${hasAsc ? "bg-amber-50" : ""}`} data-kp-sign={s}>
-              <div className="flex items-center justify-between text-[10px] font-semibold uppercase tracking-wide text-slate-500 sm:text-[11px]" title={SIGN_LABELS[s]}>
-                <span>{SIGN_TR_ABBR[s]}</span>
+              <div className="flex items-center justify-between text-[10px] font-semibold uppercase tracking-wide text-slate-500 sm:text-[11px]" title={x.sign(s)}>
+                <span>{x.t(`signAbbr.${s}`)}</span>
                 <span aria-hidden>{SIGN_GLYPHS[s]}</span>
               </div>
               <div className="flex min-w-0 flex-wrap content-start gap-0.5">
@@ -175,7 +224,7 @@ export function KpSouthChart({
       {/* KP-UX-06: açıklama Word/PDF ile aynı kaynaktan; cusp çizilmeyen haritada (KP transit tek an) Placidus/cusp anlatımı yok. */}
       {legend && (
         <p className="mt-1 text-center text-[11px] leading-snug text-slate-500" data-testid="astro-kp-chart-legend">
-          {kpLegendFor(cusps.length)} Ayrıntı için etikete dokunun.
+          {x.t(cusps.length > 0 ? "chart.legendCusp" : "chart.legendTransit")} {x.t("chart.legendTap")}
         </p>
       )}
     </div>
@@ -183,40 +232,45 @@ export function KpSouthChart({
 }
 
 function LordCells({ p, subSub = true }: { p: KpPoint; subSub?: boolean }) {
+  const x = useKpText();
   return (
     <>
-      <td className={`${td} whitespace-nowrap`}>{gs(p.signLord)}</td>
-      <td className={`${td} whitespace-nowrap`}>{gs(p.starLord)}</td>
-      <td className={`${td} whitespace-nowrap font-semibold text-indigo-900`}>{gs(p.subLord)}</td>
-      {subSub && <td className={`${td} whitespace-nowrap`}>{gs(p.subSubLord)}</td>}
-      <td className={`${td} tabular-nums`} title={p.kpNumberProvider !== undefined ? KP_NUMBER_LOCAL_NOTE : undefined} data-kp-local={p.kpNumberProvider !== undefined ? "1" : undefined}>
+      <td className={`${td} whitespace-nowrap`}>{x.gs(p.signLord)}</td>
+      <td className={`${td} whitespace-nowrap`}>{x.gs(p.starLord)}</td>
+      <td className={`${td} whitespace-nowrap font-semibold text-indigo-900`}>{x.gs(p.subLord)}</td>
+      {subSub && <td className={`${td} whitespace-nowrap`}>{x.gs(p.subSubLord)}</td>}
+      <td className={`${td} tabular-nums`} title={p.kpNumberProvider !== undefined ? x.t("localNumberNote") : undefined} data-kp-local={p.kpNumberProvider !== undefined ? "1" : undefined}>
         {kpNumberLabel(p)}
       </td>
     </>
   );
 }
 /** Sub-sub sütunu yalnız Roxy en az bir noktada verdiyse (horary cusp'larında YOK → boş sütun gösterilmez). */
-const LordHead = ({ subSub }: { subSub: boolean }) => (
-  <>
-    <th className={th}>Burç lordu</th>
-    <th className={th}>Star lord</th>
-    <th className={th}>Sub lord</th>
-    {subSub && <th className={th}>Sub-sub</th>}
-    <th className={th}>KP no.</th>
-  </>
-);
+function LordHead({ subSub }: { subSub: boolean }) {
+  const t = useTranslations("atlas.kp.head");
+  return (
+    <>
+      <th className={th}>{t("signLord")}</th>
+      <th className={th}>{t("starLord")}</th>
+      <th className={th}>{t("subLord")}</th>
+      {subSub && <th className={th}>{t("subSub")}</th>}
+      <th className={th}>{t("kpNo")}</th>
+    </>
+  );
+}
 
 export function KpCuspTable({ cusps, sel, onSel, testId = "astro-kp-cusp-table" }: { cusps: KpCusp[]; sel: KpSel | null; onSel: (s: KpSel) => void; testId?: string }) {
+  const x = useKpText();
   const subSub = cusps.some((c) => c.subSubLord !== null);
   return (
     <div className={`${card} overflow-x-auto`}>
-      <h4 className="border-b border-slate-100 px-3 py-2 text-sm font-semibold text-slate-700">Ev başlangıçları (Placidus cusp)</h4>
+      <h4 className="border-b border-slate-100 px-3 py-2 text-sm font-semibold text-slate-700">{x.t("cuspTableTitle")}</h4>
       <table className="min-w-full" data-testid={testId}>
         <thead>
           <tr>
-            <th className={th}>Ev</th>
-            <th className={th}>Cusp derecesi</th>
-            <th className={th}>Nakshatra</th>
+            <th className={th}>{x.t("head.house")}</th>
+            <th className={th}>{x.t("head.cuspDegree")}</th>
+            <th className={th}>{x.t("head.nakshatra")}</th>
             <LordHead subSub={subSub} />
           </tr>
         </thead>
@@ -225,10 +279,10 @@ export function KpCuspTable({ cusps, sel, onSel, testId = "astro-kp-cusp-table" 
             <tr key={c.house} className={`cursor-pointer ${sel?.kind === "cusp" && sel.house === c.house ? "bg-amber-50" : ""}`} onClick={() => onSel({ kind: "cusp", house: c.house })} data-kp-cusp={c.house}>
               <td className={`${td} font-semibold`}>{c.house}.</td>
               <td className={`${td} whitespace-nowrap`}>
-                {SIGN_GLYPHS[c.rashi]} {posLabel(c)}
+                {SIGN_GLYPHS[c.rashi]} {x.pos(c)}
               </td>
               <td className={`${td} whitespace-nowrap text-xs`}>
-                {NAKSHATRA_LABELS[c.nakshatra.id]}
+                {x.tt(`nakshatra.${c.nakshatra.id}`)}
                 {c.nakshatra.pada ? ` · ${c.nakshatra.pada}` : ""}
               </td>
               <LordCells p={c} subSub={subSub} />
@@ -236,27 +290,28 @@ export function KpCuspTable({ cusps, sel, onSel, testId = "astro-kp-cusp-table" 
           ))}
         </tbody>
       </table>
-      {cusps.some((x) => x.kpNumberProvider !== undefined) && (
+      {cusps.some((y) => y.kpNumberProvider !== undefined) && (
         <p className="border-t border-slate-100 px-3 py-1.5 text-[11px] leading-snug text-amber-900" data-testid="astro-kp-local-number-note">
-          {KP_NUMBER_LOCAL_NOTE}
+          {x.t("localNumberNote")}
         </p>
       )}
     </div>
   );
 }
 
-export function KpBodyTable({ bodies, sel, onSel, title = "Gezegenler", testId = "astro-kp-body-table" }: { bodies: (KpPoint & { id: VedicGrahaId; retrograde?: boolean | null; house?: number })[]; sel: KpSel | null; onSel: (s: KpSel) => void; title?: string; testId?: string }) {
+export function KpBodyTable({ bodies, sel, onSel, title, testId = "astro-kp-body-table" }: { bodies: (KpPoint & { id: VedicGrahaId; retrograde?: boolean | null; house?: number })[]; sel: KpSel | null; onSel: (s: KpSel) => void; title?: string; testId?: string }) {
+  const x = useKpText();
   const hasHouse = bodies.some((b) => b.house !== undefined);
   const subSub = bodies.some((b) => b.subSubLord !== null);
   return (
     <div className={`${card} overflow-x-auto`}>
-      <h4 className="border-b border-slate-100 px-3 py-2 text-sm font-semibold text-slate-700">{title}</h4>
+      <h4 className="border-b border-slate-100 px-3 py-2 text-sm font-semibold text-slate-700">{title ?? x.t("bodyTableTitle")}</h4>
       <table className="min-w-full" data-testid={testId}>
         <thead>
           <tr>
-            <th className={th}>Graha</th>
-            <th className={th}>Derece</th>
-            {hasHouse && <th className={th}>Ev (Placidus)</th>}
+            <th className={th}>{x.t("head.graha")}</th>
+            <th className={th}>{x.t("head.degree")}</th>
+            {hasHouse && <th className={th}>{x.t("head.housePlacidus")}</th>}
             <LordHead subSub={subSub} />
           </tr>
         </thead>
@@ -264,11 +319,11 @@ export function KpBodyTable({ bodies, sel, onSel, title = "Gezegenler", testId =
           {bodies.map((b) => (
             <tr key={b.id} className={`cursor-pointer ${sel?.kind === "body" && sel.id === b.id ? "bg-amber-50" : ""}`} onClick={() => onSel({ kind: "body", id: b.id })} data-kp-body={b.id}>
               <td className={`${td} whitespace-nowrap font-medium`}>
-                {g(b.id)}
-                {b.retrograde ? <span className="ml-1 text-[11px] text-rose-700">vakri</span> : null}
+                {x.g(b.id)}
+                {b.retrograde ? <span className="ml-1 text-[11px] text-rose-700">{x.t("retro")}</span> : null}
               </td>
               <td className={`${td} whitespace-nowrap`}>
-                {SIGN_GLYPHS[b.rashi]} {posLabel(b)}
+                {SIGN_GLYPHS[b.rashi]} {x.pos(b)}
               </td>
               {hasHouse && <td className={`${td} tabular-nums`}>{b.house}.</td>}
               <LordCells p={b} subSub={subSub} />
@@ -276,9 +331,9 @@ export function KpBodyTable({ bodies, sel, onSel, title = "Gezegenler", testId =
           ))}
         </tbody>
       </table>
-      {bodies.some((x) => x.kpNumberProvider !== undefined) && (
+      {bodies.some((y) => y.kpNumberProvider !== undefined) && (
         <p className="border-t border-slate-100 px-3 py-1.5 text-[11px] leading-snug text-amber-900" data-testid="astro-kp-local-number-note">
-          {KP_NUMBER_LOCAL_NOTE}
+          {x.t("localNumberNote")}
         </p>
       )}
     </div>
@@ -287,41 +342,44 @@ export function KpBodyTable({ bodies, sel, onSel, title = "Gezegenler", testId =
 
 // ─── 6.1A: Rahu/Ketu yöntem etiketi (her düğüm satırında listenin hangi Roxy kuralından geldiği) ─────────────
 export function KpNodeMethodTag({ method }: { method: KpNodeSigMethodId }) {
-  const m = KP_NODE_SIG_METHODS[method];
+  const t = useTranslations("atlas.kp");
+  const m = (k: "short" | "label" | "status") => t(`nodeMethod.${method}.${k}`);
   return (
     <span
       className={`ml-1 inline-block whitespace-nowrap rounded border px-1 text-[10px] font-medium ${method === "agent_houses" ? "border-amber-400 bg-amber-50 text-amber-900" : method === "agent" ? "border-indigo-300 bg-indigo-50 text-indigo-900" : "border-slate-300 bg-slate-50 text-slate-700"}`}
-      title={`${m.label}. ${m.status}`}
+      title={`${m("label")}. ${m("status")}`}
       data-kp-node-method={method}
     >
-      {m.short}
+      {m("short")}
     </span>
   );
 }
 export function KpNodeMethodLegend({ methods, context }: { methods: KpNodeSigMethodId[]; context: string }) {
+  const t = useTranslations("atlas.kp");
   return (
     <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-[11px] leading-snug text-slate-700" data-testid="astro-kp-node-method">
-      <p className="font-semibold text-slate-800">Rahu/Ketu significator yöntemi — {context}</p>
+      <p className="font-semibold text-slate-800">{t("nodeLegendTitle", { context })}</p>
       {methods.map((id) => (
         <p key={id} className="mt-1">
-          <KpNodeMethodTag method={id} /> <strong>{KP_NODE_SIG_METHODS[id].label}.</strong> {KP_NODE_SIG_METHODS[id].detail} <em>{KP_NODE_SIG_METHODS[id].status}</em>
+          <KpNodeMethodTag method={id} /> <strong>{t(`nodeMethod.${id}.label`)}.</strong> {t(`nodeMethod.${id}.detail`)} <em>{t(`nodeMethod.${id}.status`)}</em>
         </p>
       ))}
-      <p className="mt-1 text-slate-500">Harita, dasha ve ruling hesapları düğümler için farklı kurallar kullanır; bu yüzden aynı düğümün ev listesi harita, dasha ve ruling ekranlarında farklı olabilir. Listeler birbirine dönüştürülmez.</p>
+      <p className="mt-1 text-slate-500">{t("nodeLegendFoot")}</p>
     </div>
   );
 }
 
 export function KpSignificatorTables({ s, note, nodeMethod, agentMethod, context }: { s: KpSignificators; note: string; nodeMethod: KpNodeSigMethodId; agentMethod?: KpNodeSigMethodId; context: string }) {
+  const x = useKpText();
   const [view, setView] = useState<"planet" | "house">("planet");
   return (
     <div className="flex min-w-0 flex-col gap-2" data-testid="astro-kp-significators">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h4 className="text-sm font-semibold text-slate-700">Significator (KP 4 düzey)</h4>
-        <div className="flex gap-1" role="tablist" aria-label="Significator görünümü">
+        <h4 className="text-sm font-semibold text-slate-700">{x.t("sig.title")}</h4>
+        <div className="flex gap-1" role="tablist" aria-label={x.t("sig.viewLabel")}>
           {(["planet", "house"] as const).map((v) => (
             <button key={v} type="button" role="tab" aria-selected={view === v} onClick={() => setView(v)} className={`min-h-[32px] rounded-lg border px-2 py-1 text-xs ${view === v ? "border-amber-600 bg-amber-50 text-amber-900" : "border-slate-200 text-slate-600"}`}>
-              {v === "planet" ? "Gezegen → evler" : "Ev → gezegenler"}
+              {v === "planet" ? x.t("sig.planet") : x.t("sig.house")}
             </button>
           ))}
         </div>
@@ -331,10 +389,10 @@ export function KpSignificatorTables({ s, note, nodeMethod, agentMethod, context
         <table className="min-w-full" data-testid={`astro-kp-sig-${view}`}>
           <thead>
             <tr>
-              <th className={th}>{view === "planet" ? "Graha" : "Ev"}</th>
+              <th className={th}>{view === "planet" ? x.t("head.graha") : x.t("head.house")}</th>
               {LEVELS.map((l) => (
                 <th key={l} className={th}>
-                  {LEVEL_LABEL[l]}
+                  {x.level(l)}
                 </th>
               ))}
             </tr>
@@ -344,14 +402,14 @@ export function KpSignificatorTables({ s, note, nodeMethod, agentMethod, context
               ? s.planets.map((p) => (
                   <tr key={p.id}>
                     <td className={`${td} whitespace-nowrap font-medium`}>
-                      {gs(p.id)}
+                      {x.gs(p.id)}
                       {isKpNode(p.id) && <KpNodeMethodTag method={nodeMethod} />}
                     </td>
                     {LEVELS.map((l) => (
                       <td key={l} className={`${td} tabular-nums text-xs`}>
                         {p.levels[l].join(", ") || "—"}
                         {p.agent && p.agent.levels[l].some((h) => !p.levels[l].includes(h)) ? (
-                          <span className="ml-1 text-indigo-700" title={`${KP_NODE_SIG_METHODS[agentMethod ?? "agent"].label} — ajan ekli liste`}>+{p.agent.levels[l].filter((h) => !p.levels[l].includes(h)).join(",")}</span>
+                          <span className="ml-1 text-indigo-700" title={x.t("sig.agentTitle", { label: x.t(`nodeMethod.${agentMethod ?? "agent"}.label`) })}>+{p.agent.levels[l].filter((h) => !p.levels[l].includes(h)).join(",")}</span>
                         ) : null}
                       </td>
                     ))}
@@ -362,7 +420,7 @@ export function KpSignificatorTables({ s, note, nodeMethod, agentMethod, context
                     <td className={`${td} font-semibold`}>{h.house}.</td>
                     {LEVELS.map((l) => (
                       <td key={l} className={`${td} text-xs`}>
-                        {[...new Set(h.levels[l])].map((x) => GRAHA_TR[x].abbr).join(", ") || "—"}
+                        {[...new Set(h.levels[l])].map((id) => x.abbr(id)).join(", ") || "—"}
                       </td>
                     ))}
                   </tr>
@@ -375,11 +433,9 @@ export function KpSignificatorTables({ s, note, nodeMethod, agentMethod, context
   );
 }
 
-const SIG_NOTE =
-  "L1 = ev sakininin yıldızındaki grahalar (en güçlü) · L2 = evdeki grahalar · L3 = ev sahibinin yıldızındaki grahalar · L4 = ev sahibi (cusp burç lordu).";
-
 function Detail({ sel, cusps, bodies, sig, kbLookup }: { sel: KpSel | null; cusps: KpCusp[]; bodies: (KpPoint & { id: VedicGrahaId; retrograde?: boolean | null; house?: number })[]; sig?: KpSignificators; kbLookup?: KbLookup | null }) {
-  if (!sel) return <p className="text-sm text-slate-500">Haritada veya tabloda bir cusp/graha seçin.</p>;
+  const k = useKpText();
+  if (!sel) return <p className="text-sm text-slate-500">{k.t("detail.pick")}</p>;
   if (sel.kind === "cusp") {
     const c = cusps.find((x) => x.house === sel.house)!;
     const kb = kbLookup ? kbLookup([`kp_cusp_sublord:${c.house}:${c.subLord}`, `kp_cusp_starlord:${c.house}:${c.starLord}`, `kp_cusp_rashi:${c.house}:${c.rashi}`]) : null;
@@ -388,37 +444,37 @@ function Detail({ sel, cusps, bodies, sig, kbLookup }: { sel: KpSel | null; cusp
     const subSig = sig?.planets.find((p) => p.id === c.subLord);
     return (
       <>
-        <h4 className="font-semibold text-amber-900">{c.house}. ev başlangıcı (cusp)</h4>
+        <h4 className="font-semibold text-amber-900">{k.t("detail.cuspTitle", { house: String(c.house) })}</h4>
         <dl className="mt-1 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
-          <dt className="text-slate-500">Derece</dt>
-          <dd>{posLabel(c)}</dd>
-          <dt className="text-slate-500">Nakshatra</dt>
+          <dt className="text-slate-500">{k.t("detail.degree")}</dt>
+          <dd>{k.pos(c)}</dd>
+          <dt className="text-slate-500">{k.t("detail.nakshatra")}</dt>
           <dd>
-            {NAKSHATRA_LABELS[c.nakshatra.id]}
-            {c.nakshatra.pada ? ` · ${c.nakshatra.pada}. pada` : ""}
+            {k.tt(`nakshatra.${c.nakshatra.id}`)}
+            {c.nakshatra.pada ? k.t("detail.pada", { pada: String(c.nakshatra.pada) }) : ""}
           </dd>
-          <dt className="text-slate-500">Lord zinciri</dt>
+          <dt className="text-slate-500">{k.t("detail.lordChain")}</dt>
           <dd>
-            {g(c.signLord)} → {g(c.starLord)} → <strong>{g(c.subLord)}</strong>
-            {c.subSubLord ? ` → ${g(c.subSubLord)}` : ""} · KP {kpNumberLabel(c)}
+            {k.g(c.signLord)} → {k.g(c.starLord)} → <strong>{k.g(c.subLord)}</strong>
+            {c.subSubLord ? ` → ${k.g(c.subSubLord)}` : ""} · KP {kpNumberLabel(c)}
           </dd>
           {signif && (
             <>
-              <dt className="text-slate-500">Significator</dt>
-              <dd>{LEVELS.map((l) => `L${l}: ${[...new Set(signif.levels[l])].map((x) => GRAHA_TR[x].abbr).join(", ") || "—"}`).join(" · ")}</dd>
+              <dt className="text-slate-500">{k.t("detail.significator")}</dt>
+              <dd>{LEVELS.map((l) => `L${l}: ${[...new Set(signif.levels[l])].map((id) => k.abbr(id)).join(", ") || "—"}`).join(" · ")}</dd>
             </>
           )}
           {subSig && (
             <>
-              <dt className="text-slate-500">Sub lordun evleri</dt>
+              <dt className="text-slate-500">{k.t("detail.subLordHouses")}</dt>
               <dd data-testid="astro-kp-cusp-sublord-houses">
-                {g(c.subLord)}: {LEVELS.map((l) => `L${l}: ${subSig.levels[l].join(", ") || "—"}`).join(" · ")}
+                {k.g(c.subLord)}: {LEVELS.map((l) => `L${l}: ${subSig.levels[l].join(", ") || "—"}`).join(" · ")}
               </dd>
             </>
           )}
         </dl>
-        <p className="mt-1 text-xs text-slate-500">KP: cusp sub lordu bu evin konusunun vaadini okumak için kullanılır — yorum uzmana aittir; Yaşam Sistemi hüküm üretmez.</p>
-        <KbBox kb={kb} empty="Bu cusp için KP Bilgi Bankası kaydınız yok." />
+        <p className="mt-1 text-xs text-slate-500">{k.t("detail.cuspNote")}</p>
+        <KbBox kb={kb} empty={k.t("kb.emptyCusp")} />
       </>
     );
   }
@@ -427,32 +483,32 @@ function Detail({ sel, cusps, bodies, sig, kbLookup }: { sel: KpSel | null; cusp
   const kb = kbLookup ? kbLookup([`kp_planet_starlord:${b.id}:${b.starLord}`, `kp_planet_sublord:${b.id}:${b.subLord}`, ...(b.house ? [`kp_planet_in_house:${b.id}:${b.house}`] : []), ...(ps ? [...new Set(LEVELS.flatMap((l) => ps.levels[l]))].map((h) => `kp_significator:${b.id}:${h}`) : [])]) : null;
   return (
     <>
-      <h4 className="font-semibold text-amber-900">{grahaTrName(b.id)}</h4>
+      <h4 className="font-semibold text-amber-900">{k.full(b.id)}</h4>
       <dl className="mt-1 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
-        <dt className="text-slate-500">Derece</dt>
+        <dt className="text-slate-500">{k.t("detail.degree")}</dt>
         <dd>
-          {posLabel(b)}
-          {b.retrograde ? " · vakri" : b.retrograde === null ? " · düğüm (ortalama düğüm her zaman geri hareketli)" : ""}
+          {k.pos(b)}
+          {b.retrograde ? k.t("retroSuffix") : b.retrograde === null ? k.t("detail.nodeMotion") : ""}
         </dd>
         {b.house !== undefined && (
           <>
-            <dt className="text-slate-500">Ev</dt>
-            <dd>{b.house}. ev (Placidus)</dd>
+            <dt className="text-slate-500">{k.t("detail.house")}</dt>
+            <dd>{k.t("detail.housePlacidus", { house: String(b.house) })}</dd>
           </>
         )}
-        <dt className="text-slate-500">Lord zinciri</dt>
+        <dt className="text-slate-500">{k.t("detail.lordChain")}</dt>
         <dd>
-          {g(b.signLord)} → {g(b.starLord)} → <strong>{g(b.subLord)}</strong>
-          {b.subSubLord ? ` → ${g(b.subSubLord)}` : ""} · KP {kpNumberLabel(b)}
+          {k.g(b.signLord)} → {k.g(b.starLord)} → <strong>{k.g(b.subLord)}</strong>
+          {b.subSubLord ? ` → ${k.g(b.subSubLord)}` : ""} · KP {kpNumberLabel(b)}
         </dd>
         {ps && (
           <>
-            <dt className="text-slate-500">Gösterdiği evler</dt>
+            <dt className="text-slate-500">{k.t("detail.signifies")}</dt>
             <dd>{LEVELS.map((l) => `L${l}: ${ps.levels[l].join(", ") || "—"}`).join(" · ")}</dd>
           </>
         )}
       </dl>
-      <KbBox kb={kb} empty="Bu graha için KP Bilgi Bankası kaydınız yok." />
+      <KbBox kb={kb} empty={k.t("kb.emptyGraha")} />
     </>
   );
 }
@@ -472,26 +528,28 @@ function Center({ title, lines }: { title: string; lines: string[] }) {
 
 // ─── KP doğum haritası ───────────────────────────────────────────────────────
 export function KpChartPanel({ t, kbLookup }: { t: KpChartTechnical; kbLookup?: KbLookup | null }) {
+  const x = useKpText();
   const [sel, setSel] = useState<KpSel | null>({ kind: "cusp", house: 1 });
+  const ay = x.ay(t.frame.ayanamsa);
   return (
     <div className="flex min-w-0 flex-col gap-3" data-testid="astro-kp-chart-panel">
       <p className="text-sm text-slate-700">
-        <strong>KP doğum haritası</strong> · sidereal, {AY[t.frame.ayanamsa]} {fmtDms(t.frame.ayanamsaDegrees)} · ev sistemi <strong>Placidus</strong> (KP hesaplamasında tek seçenek) ·
-        düğüm {t.nodeType === "mean" ? "ortalama" : "gerçek"} · Lagna {posLabel(t.ascendant)}
+        <strong>{x.t("chartPanel.title")}</strong> · {x.t("chartPanel.frame", { ay: ay ?? "", deg: fmtDms(t.frame.ayanamsaDegrees) })} <strong>Placidus</strong>{" "}
+        {x.t("chartPanel.frameTail", { node: x.t(t.nodeType === "mean" ? "node.mean" : "node.true"), pos: x.pos(t.ascendant) })}
       </p>
       {/* Y2 (15.11.2026): yan yana düzen görünüm genişliğine (xl) değil KAP genişliğine bağlı — harita en az 26rem, ayrıntı en az
           16rem; sığmazsa ayrıntı haritanın altına iner (1366 px masada sol panel ~490 px → etiketler kesiliyordu). */}
       <div className="flex min-w-0 flex-wrap items-start gap-3">
         <div className="min-w-0 flex-[1_1_26rem]">
-          <KpSouthChart cusps={t.cusps} bodies={t.bodies} sel={sel} onSel={setSel} center={<Center title="KP · Placidus" lines={[AY[t.frame.ayanamsa], `Lagna ${SIGN_LABELS[t.ascendant.rashi]}`]} />} />
+          <KpSouthChart cusps={t.cusps} bodies={t.bodies} sel={sel} onSel={setSel} center={<Center title={"KP · Placidus"} lines={[ay as string, x.t("chart.centerLagna", { sign: x.sign(t.ascendant.rashi) })]} />} />
         </div>
-        <section className="min-w-0 flex-[1_1_16rem] rounded-xl border border-amber-200 bg-amber-50/40 p-3 text-sm" aria-label="KP seçili ayrıntı" data-testid="astro-kp-detail">
+        <section className="min-w-0 flex-[1_1_16rem] rounded-xl border border-amber-200 bg-amber-50/40 p-3 text-sm" aria-label={x.t("chartPanel.detailLabel")} data-testid="astro-kp-detail">
           <Detail sel={sel} cusps={t.cusps} bodies={t.bodies} sig={t.significators} kbLookup={kbLookup} />
         </section>
       </div>
       <KpCuspTable cusps={t.cusps} sel={sel} onSel={setSel} />
       <KpBodyTable bodies={t.bodies} sel={sel} onSel={setSel} />
-      <KpSignificatorTables s={t.significators} note={SIG_NOTE} nodeMethod={KP_NODE_SIG_SOURCE.chart} context="KP haritası (doğum anı)" />
+      <KpSignificatorTables s={t.significators} note={x.t("sig.note")} nodeMethod={KP_NODE_SIG_SOURCE.chart} context={x.t("context.chart")} />
     </div>
   );
 }
@@ -504,77 +562,77 @@ export function kpRulingLegacyPlaceMismatch(t: KpRulingTechnical, birthplace: { 
 }
 
 export function KpRulingPanel({ t, kbLookup, placeLabel, birthplace }: { t: KpRulingTechnical; kbLookup?: KbLookup | null; placeLabel?: string | null; birthplace?: { lat: number; lon: number } | null }) {
+  const x = useKpText();
+  const loc = useLocale();
   const legacyMismatch = kpRulingLegacyPlaceMismatch(t, birthplace);
   const kb = kbLookup ? kbLookup(t.rulingPlanets.map((r) => `kp_ruling_planet:${r}`)) : null;
-  const local = `${t.at.local.slice(8, 10)}.${t.at.local.slice(5, 7)}.${t.at.local.slice(0, 4)} ${t.at.local.slice(11, 16)}`;
+  const local = `${dmyOf(t.at.local, loc)} ${t.at.local.slice(11, 16)}`;
   const row = (label: string, l: KpRulingTechnical["moon"]) => (
     <tr>
       <td className={`${td} font-medium`}>{label}</td>
-      <td className={td}>{gs(l.sign)}</td>
-      <td className={td}>{gs(l.star)}</td>
-      <td className={`${td} font-semibold text-indigo-900`}>{gs(l.sub)}</td>
-      <td className={td}>{gs(l.subSub)}</td>
+      <td className={td}>{x.gs(l.sign)}</td>
+      <td className={td}>{x.gs(l.star)}</td>
+      <td className={`${td} font-semibold text-indigo-900`}>{x.gs(l.sub)}</td>
+      <td className={td}>{x.gs(l.subSub)}</td>
     </tr>
   );
   return (
     <div className="flex min-w-0 flex-col gap-3" data-testid="astro-kp-ruling-panel">
       <p className="text-sm text-slate-700">
-        <strong>KP ruling planets</strong> · {t.at.utc.slice(8, 10)}.{t.at.utc.slice(5, 7)}.{t.at.utc.slice(0, 4)} {t.at.utc.slice(11, 16)} UTC (doğum ofsetinde {local}) · gözlem yeri{" "}
-        {placeLabel ? `${placeLabel} (${t.place.latitude.toFixed(4)}, ${t.place.longitude.toFixed(4)})` : `${t.place.latitude.toFixed(4)}, ${t.place.longitude.toFixed(4)}`} · KP-Newcomb (hesaplamada sabit)
+        <strong>{x.t("ruling.title")}</strong> · {x.t("ruling.moment", { utc: `${dmyOf(t.at.utc, loc)} ${t.at.utc.slice(11, 16)}`, local })}{" "}
+        {placeLabel ? `${placeLabel} (${t.place.latitude.toFixed(4)}, ${t.place.longitude.toFixed(4)})` : `${t.place.latitude.toFixed(4)}, ${t.place.longitude.toFixed(4)}`} · {x.t("ruling.fixedAyanamsa")}
       </p>
       <div className="flex flex-wrap gap-2" data-testid="astro-kp-ruling-list">
         {t.rulingPlanets.map((r, i) => (
           <span key={r} className="rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1 text-sm font-semibold text-indigo-900">
-            {i + 1}. {grahaTrName(r)}
+            {i + 1}. {x.full(r)}
           </span>
         ))}
       </div>
-      <p className="text-xs text-slate-500" data-testid="astro-kp-ruling-method">{KP_RULING_METHOD_NOTE}</p>
+      <p className="text-xs text-slate-500" data-testid="astro-kp-ruling-method">{x.t("ruling.methodNote")}</p>
       <div className={`${card} overflow-x-auto`}>
         <table className="min-w-full" data-testid="astro-kp-ruling-table">
           <thead>
             <tr>
-              <th className={th}>Nokta</th>
-              <th className={th}>Burç lordu</th>
-              <th className={th}>Star lord</th>
-              <th className={th}>Sub lord</th>
-              <th className={th}>Sub-sub</th>
+              <th className={th}>{x.t("head.point")}</th>
+              <th className={th}>{x.t("head.signLord")}</th>
+              <th className={th}>{x.t("head.starLord")}</th>
+              <th className={th}>{x.t("head.subLord")}</th>
+              <th className={th}>{x.t("head.subSub")}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
             <tr>
-              <td className={`${td} font-medium`}>Gün lordu</td>
+              <td className={`${td} font-medium`}>{x.t("ruling.dayLord")}</td>
               <td className={td} colSpan={4}>
-                {gs(t.dayLord)}
+                {x.gs(t.dayLord)}
               </td>
             </tr>
-            {row("Ay", t.moon)}
-            {row("Lagna (an)", t.lagna)}
+            {row(x.t("ruling.moon"), t.moon)}
+            {row(x.t("ruling.lagnaNow"), t.lagna)}
           </tbody>
         </table>
       </div>
       {t.significatorsOmitted === "place_differs" && (
         <p className="rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-900" data-testid="astro-kp-ruling-sig-omitted">
-          Gözlem yeri doğum yerinden farklı olduğu için natal significator&apos;lar bu hesapta gösterilmez: sağlayıcı bu uçta natal haritayı da gözlem
-          yerinde kurar, bu da yanlış konum olur. Natal significator&apos;lar için &quot;KP doğum haritası&quot; tekniğini kullanın veya ruling&apos;i doğum yerinde hesaplayın.
+          {x.t("ruling.omitted")}
         </p>
       )}
       {legacyMismatch && (
         <p className="rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900" data-testid="astro-kp-ruling-legacy-warning">
-          Uyarı: Bu eski kayıtta gözlem yeri doğum yerinden farklı; aşağıdaki significator&apos;lar doğum yeri yerine gözlem yeri haritasından hesaplanmıştır ve natal
-          significator olarak kullanılmamalıdır.
+          {x.t("ruling.legacy")}
         </p>
       )}
       {t.significators.length > 0 && (
       <div className={`${card} overflow-x-auto`}>
-        <h4 className="border-b border-slate-100 px-3 py-2 text-sm font-semibold text-slate-700">Ruling planet&apos;lerin natal significator&apos;ları (güç sırası)</h4>
-        <p className="px-3 pt-2 text-xs text-slate-500">{KP_RULING_SIG_NOTE}</p>
+        <h4 className="border-b border-slate-100 px-3 py-2 text-sm font-semibold text-slate-700">{x.t("ruling.sigTitle")}</h4>
+        <p className="px-3 pt-2 text-xs text-slate-500">{x.t("ruling.sigNote")}</p>
         <table className="min-w-full" data-testid="astro-kp-ruling-sig">
           <tbody className="divide-y divide-slate-100">
             {t.significators.map((s) => (
               <tr key={s.id}>
                 <td className={`${td} whitespace-nowrap font-medium`}>
-                  {gs(s.id)}
+                  {x.gs(s.id)}
                   {isKpNode(s.id) && <KpNodeMethodTag method={KP_NODE_SIG_SOURCE.ruling} />}
                 </td>
                 <td className={`${td} tabular-nums`}>{s.houses.join(", ") || "—"}</td>
@@ -584,9 +642,9 @@ export function KpRulingPanel({ t, kbLookup, placeLabel, birthplace }: { t: KpRu
         </table>
       </div>
       )}
-      {t.significators.some((x) => isKpNode(x.id)) && <KpNodeMethodLegend methods={[KP_NODE_SIG_SOURCE.ruling]} context="ruling planets (hesaplama anı)" />}
+      {t.significators.some((y) => isKpNode(y.id)) && <KpNodeMethodLegend methods={[KP_NODE_SIG_SOURCE.ruling]} context={x.t("context.ruling")} />}
       <section className="rounded-xl border border-amber-200 bg-amber-50/40 p-3 text-sm">
-        <KbBox kb={kb} empty="Bu ruling planet'ler için KP Bilgi Bankası kaydınız yok." />
+        <KbBox kb={kb} empty={x.t("kb.emptyRuling")} />
       </section>
     </div>
   );
@@ -597,6 +655,7 @@ export function KpRulingPanel({ t, kbLookup, placeLabel, birthplace }: { t: KpRu
  * Esc / "Normal görünüm" ile kapanır, odak açan düğmeye döner; açıkken sayfa kaymaz. Harita aynı bileşen ve aynı seçim.
  */
 function KpChartFocus({ open, onClose, title, children }: { open: boolean; onClose: () => void; title: string; children: React.ReactNode }) {
+  const t = useTranslations("atlas.kp.focus");
   const closeRef = useRef<HTMLButtonElement | null>(null);
   useEffect(() => {
     if (!open) return;
@@ -616,14 +675,14 @@ function KpChartFocus({ open, onClose, title, children }: { open: boolean; onClo
   }, [open, onClose]);
   if (!open) return null;
   return (
-    <div role="dialog" aria-modal="true" aria-label={`KP haritası — tam görünüm — ${title}`} className="fixed inset-0 z-[80] flex flex-col gap-2 bg-[#f4f3ef] p-2 text-slate-800 sm:p-4" data-testid="astro-kp-chart-dialog">
+    <div role="dialog" aria-modal="true" aria-label={t("dialogLabel", { title })} className="fixed inset-0 z-[80] flex flex-col gap-2 bg-[#f4f3ef] p-2 text-slate-800 sm:p-4" data-testid="astro-kp-chart-dialog">
       <div className="flex flex-wrap items-center justify-between gap-2 px-1">
         <div className="min-w-0">
-          <p className="text-[10px] font-semibold tracking-[0.14em] text-slate-500">TAM GÖRÜNÜM</p>
+          <p className="text-[10px] font-semibold tracking-[0.14em] text-slate-500">{t("eyebrow")}</p>
           <p className="truncate text-base font-semibold text-slate-900">{title}</p>
         </div>
         <button ref={closeRef} type="button" onClick={onClose} className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 text-sm font-medium text-slate-800 hover:border-slate-500" data-testid="astro-kp-chart-dialog-close">
-          ✕ Normal görünüm <span className="hidden text-slate-400 sm:inline">(Esc)</span>
+          {t("close")} <span className="hidden text-slate-400 sm:inline">(Esc)</span>
         </button>
       </div>
       <div className="flex min-h-0 flex-1 items-center justify-center overflow-auto">{children}</div>
@@ -633,10 +692,13 @@ function KpChartFocus({ open, onClose, title, children }: { open: boolean; onClo
 
 // ─── KP transit (efemeris; KISMİ) ────────────────────────────────────────────
 export function KpTransitPanel({ t, kbLookup }: { t: KpTransitTechnical; kbLookup?: KbLookup | null }) {
+  const x = useKpText();
+  const loc = useLocale();
+  const ay = x.ay(t.frame.ayanamsa);
   const [sel, setSel] = useState<KpSel | null>({ kind: "body", id: "moon" });
   const [focus, setFocus] = useState(false);
   const closeFocus = useCallback(() => setFocus(false), []);
-  const b = sel?.kind === "body" ? t.bodies.find((x) => x.id === sel.id) : null;
+  const b = sel?.kind === "body" ? t.bodies.find((y) => y.id === sel.id) : null;
   const kb = b && kbLookup ? kbLookup([`kp_transit_starlord:${b.id}:${b.starLord}`, `kp_transit_sublord:${b.id}:${b.subLord}`]) : null;
   return (
     <div className="flex min-w-0 flex-col gap-3" data-testid="astro-kp-transit-panel">
@@ -644,31 +706,30 @@ export function KpTransitPanel({ t, kbLookup }: { t: KpTransitTechnical; kbLooku
           harita sütunun görünür yüksekliğine sığar, 12 burç kutusu kaydırmadan görünür. */}
       <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5">
         <p className="min-w-0 text-sm text-slate-700">
-          <strong>KP transit</strong> · {t.at.utc.slice(8, 10)}.{t.at.utc.slice(5, 7)}.{t.at.utc.slice(0, 4)} {t.at.utc.slice(11, 16)} UTC · {AY[t.frame.ayanamsa]} {fmtDms(t.frame.ayanamsaDegrees)}
+          <strong>{x.t("transit.title")}</strong> · {dmyOf(t.at.utc, loc)} {t.at.utc.slice(11, 16)} UTC · {ay} {fmtDms(t.frame.ayanamsaDegrees)}
         </p>
-        <button type="button" onClick={() => setFocus(true)} className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-xs font-medium text-slate-700 hover:border-slate-500" title="KP haritasını ekrana sığan büyük görünümde aç" data-testid="astro-kp-chart-focus">
-          ⛶ Tam görünüm
+        <button type="button" onClick={() => setFocus(true)} className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-xs font-medium text-slate-700 hover:border-slate-500" title={x.t("focus.openTitle")} data-testid="astro-kp-chart-focus">
+          {x.t("focus.open")}
         </button>
       </div>
-      <KpSouthChart cusps={[]} bodies={t.bodies} sel={sel} onSel={setSel} fit="stage" center={<Center title="KP transit" lines={["gökyüzü (an)", AY[t.frame.ayanamsa]]} />} />
-      <KpChartFocus open={focus} onClose={closeFocus} title={`KP transit · ${t.at.utc.slice(8, 10)}.${t.at.utc.slice(5, 7)}.${t.at.utc.slice(0, 4)} ${t.at.utc.slice(11, 16)} UTC · ${AY[t.frame.ayanamsa]}`}>
+      <KpSouthChart cusps={[]} bodies={t.bodies} sel={sel} onSel={setSel} fit="stage" center={<Center title={x.t("transit.title")} lines={[x.t("transit.sky"), ay as string]} />} />
+      <KpChartFocus open={focus} onClose={closeFocus} title={`${x.t("transit.title")} · ${dmyOf(t.at.utc, loc)} ${t.at.utc.slice(11, 16)} UTC · ${ay}`}>
         <div className="flex h-full w-full min-w-0 items-center justify-center">
-          <KpSouthChart cusps={[]} bodies={t.bodies} sel={sel} onSel={setSel} fit="box" legend={false} center={<Center title="KP transit" lines={["gökyüzü (an)", AY[t.frame.ayanamsa]]} />} />
+          <KpSouthChart cusps={[]} bodies={t.bodies} sel={sel} onSel={setSel} fit="box" legend={false} center={<Center title={x.t("transit.title")} lines={[x.t("transit.sky"), ay as string]} />} />
         </div>
       </KpChartFocus>
       <p className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs text-amber-900" data-testid="astro-kp-transit-partial">
-        <strong>Kısmi destek:</strong> Bu teknik o an için KP hiyerarşili gökyüzünü (star / sub / sub-sub lord) verir; natal cusp&apos;lara göre ev yerleşimi ve transit–natal ilişki
-        analizi bu teknikte YOKTUR ve Yaşam Sistemi bunu hesaplamaz. Batı transiti ve Vedik Gochara ayrı tekniklerdir.
+        <strong>{x.t("transit.partialLead")}</strong> {x.t("transit.partial")}
       </p>
-      <KpBodyTable bodies={t.bodies} sel={sel} onSel={setSel} title="Transit gezegenler (KP)" testId="astro-kp-transit-table" />
+      <KpBodyTable bodies={t.bodies} sel={sel} onSel={setSel} title={x.t("transit.tableTitle")} testId="astro-kp-transit-table" />
       {b && (
         <section className="rounded-xl border border-amber-200 bg-amber-50/40 p-3 text-sm">
-          <h4 className="font-semibold text-amber-900">Transit {grahaTrName(b.id)}</h4>
+          <h4 className="font-semibold text-amber-900">{x.t("transit.detailTitle", { name: x.full(b.id) })}</h4>
           <p>
-            {posLabel(b)} · {g(b.signLord)} → {g(b.starLord)} → <strong>{g(b.subLord)}</strong> → {g(b.subSubLord)} · KP {kpNumberLabel(b)}
-            {b.retrograde ? " · vakri" : ""}
+            {x.pos(b)} · {x.g(b.signLord)} → {x.g(b.starLord)} → <strong>{x.g(b.subLord)}</strong> → {x.g(b.subSubLord)} · KP {kpNumberLabel(b)}
+            {b.retrograde ? x.t("retroSuffix") : ""}
           </p>
-          <KbBox kb={kb} empty="Bu transit için KP Bilgi Bankası kaydınız yok." />
+          <KbBox kb={kb} empty={x.t("kb.emptyTransit")} />
         </section>
       )}
     </div>
@@ -678,80 +739,84 @@ export function KpTransitPanel({ t, kbLookup }: { t: KpTransitTechnical; kbLooku
 // ─── KP horary ───────────────────────────────────────────────────────────────
 // HORARY-KP-01: soru anı yerel saatle; sayının Lagna'sı ↔ zaman Lagna'sı ayrımı; ruling planets ayrıntısı; cusp sub-lord tablosu.
 // Tümü Roxy kp/horary yanıtının (adaptörde doğrulanmış) yeniden düzenlenmesi — `lib/astrology/view/kpHorary.ts` (rapor da aynı).
-const lordRow = (l: KpLordSet) => `${g(l.sign)} → ${g(l.star)} → ${g(l.sub)} → ${g(l.subSub)}`;
+const lordRow = (g: (id: VedicGrahaId | null) => string, l: KpLordSet) => `${g(l.sign)} → ${g(l.star)} → ${g(l.sub)} → ${g(l.subSub)}`;
 function KpHoraryLagnaBox({ t }: { t: KpHoraryTechnical }) {
+  const x = useKpText();
+  const g = x.g;
   const c = kpHoraryLagnaContrast(t);
   return (
     <div className={`${card} overflow-x-auto`} data-testid="astro-kp-horary-lagnas">
-      <h4 className="border-b border-slate-100 px-3 py-2 text-sm font-semibold text-slate-700">İki Lagna: sayının Lagna&apos;sı ve soru anının Lagna&apos;sı</h4>
+      <h4 className="border-b border-slate-100 px-3 py-2 text-sm font-semibold text-slate-700">{x.t("horary.lagnasTitle")}</h4>
       <table className="min-w-full">
         <thead>
           <tr>
             <th className={th}>Lagna</th>
-            <th className={th}>Burç lordu</th>
-            <th className={th}>Star lord</th>
-            <th className={th}>Sub lord</th>
-            <th className={th}>Kullanıldığı yer</th>
+            <th className={th}>{x.t("head.signLord")}</th>
+            <th className={th}>{x.t("head.starLord")}</th>
+            <th className={th}>{x.t("head.subLord")}</th>
+            <th className={th}>{x.t("horary.usedFor")}</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-100">
           <tr data-kp-lagna="horary">
             <td className={`${td} whitespace-nowrap font-semibold`}>
-              Horary · sayı {t.horaryNumber} ({SIGN_LABELS[c.horary.rashi]})
+              {x.t("horary.horaryRow", { n: String(t.horaryNumber), sign: x.sign(c.horary.rashi) })}
             </td>
             <td className={td}>{g(c.horary.signLord)}</td>
             <td className={td}>{g(c.horary.starLord)}</td>
             <td className={`${td} font-semibold`}>{g(c.horary.subLord)}</td>
-            <td className={`${td} text-xs text-slate-600`}>1. cusp ve 12 ev</td>
+            <td className={`${td} text-xs text-slate-600`}>{x.t("horary.horaryUse")}</td>
           </tr>
           <tr data-kp-lagna="time">
-            <td className={`${td} whitespace-nowrap font-semibold`}>Soru anı (gerçek zaman)</td>
+            <td className={`${td} whitespace-nowrap font-semibold`}>{x.t("horary.timeRow")}</td>
             <td className={td}>{g(c.time.sign)}</td>
             <td className={td}>{g(c.time.star)}</td>
             <td className={td}>{g(c.time.sub)}</td>
-            <td className={`${td} text-xs text-slate-600`}>yalnız ruling planets</td>
+            <td className={`${td} text-xs text-slate-600`}>{x.t("horary.timeUse")}</td>
           </tr>
         </tbody>
       </table>
       <p className="px-3 py-2 text-xs text-slate-500">
-        {c.differs ? "Bu soruda iki Lagna farklıdır. " : "Bu soruda iki Lagna'nın lordları aynıdır. "}
-        Cusp&apos;lar ve evler sayının Lagna&apos;sından, ruling planets soru anının Lagna&apos;sından okunur; ikisi birbirinin yerine kullanılmaz.
+        {c.differs ? x.t("horary.differs") : x.t("horary.same")}
+        {x.t("horary.lagnaRule")}
       </p>
     </div>
   );
 }
 function KpHoraryRulingBox({ t }: { t: KpHoraryTechnical }) {
+  const x = useKpText();
   const r = t.ruling;
   return (
     <div className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm" data-testid="astro-kp-horary-ruling">
       <p>
-        <strong>Ruling planets (soru anı):</strong> {r.rulingPlanets.map((x) => GRAHA_TR[x].tr).join(" · ")}
+        <strong>{x.t("horary.rulingLead")}</strong> {r.rulingPlanets.map((id) => x.gs(id)).join(" · ")}
       </p>
       <dl className="mt-1 grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-0.5 text-xs" data-testid="astro-kp-horary-ruling-detail">
-        <dt className="text-slate-500">Gün lordu</dt>
-        <dd>{g(r.dayLord)}</dd>
-        <dt className="text-slate-500">Ay</dt>
-        <dd>{lordRow(r.moon)}</dd>
-        <dt className="text-slate-500">Zaman Lagna&apos;sı</dt>
-        <dd>{lordRow(r.lagna)}</dd>
+        <dt className="text-slate-500">{x.t("horary.dayLord")}</dt>
+        <dd>{x.g(r.dayLord)}</dd>
+        <dt className="text-slate-500">{x.t("horary.moon")}</dt>
+        <dd>{lordRow(x.g, r.moon)}</dd>
+        <dt className="text-slate-500">{x.t("horary.timeLagna")}</dt>
+        <dd>{lordRow(x.g, r.lagna)}</dd>
       </dl>
-      <p className="mt-1 text-[11px] text-slate-500">Sıra: burç lordu → yıldız lordu → sub lord → sub-sub lord. {KP_HORARY_TEXT.rulingRule}</p>
+      <p className="mt-1 text-[11px] text-slate-500">{x.t("horary.order")} {x.t("horary.rulingRule")}</p>
     </div>
   );
 }
 function KpCuspSublordTable({ t, sel, onSel }: { t: KpHoraryTechnical; sel: KpSel | null; onSel: (s: KpSel) => void }) {
+  const x = useKpText();
   const rows = kpCuspSublordRows(t);
   return (
     <div className={`${card} overflow-x-auto`}>
-      <h4 className="border-b border-slate-100 px-3 py-2 text-sm font-semibold text-slate-700">Cusp sub lordları ve gösterdikleri evler</h4>
+      <h4 className="border-b border-slate-100 px-3 py-2 text-sm font-semibold text-slate-700">{x.t("horary.cuspSubTitle")}</h4>
       <table className="min-w-full" data-testid="astro-kp-horary-cusp-sub">
         <thead>
           <tr>
-            <th className={th}>Ev</th>
-            <th className={th}>Sub lord</th>
+            <th className={th}>{x.t("head.house")}</th>
+            <th className={th}>{x.t("head.subLord")}</th>
             {LEVELS.map((l) => (
               <th key={l} className={th}>
-                {LEVEL_LABEL[l]}
+                {x.level(l)}
               </th>
             ))}
           </tr>
@@ -760,13 +825,13 @@ function KpCuspSublordTable({ t, sel, onSel }: { t: KpHoraryTechnical; sel: KpSe
           {rows.map((r) => (
             <tr key={r.house} className={`cursor-pointer ${sel?.kind === "cusp" && sel.house === r.house ? "bg-amber-50" : ""}`} onClick={() => onSel({ kind: "cusp", house: r.house })} data-kp-cusp-sub={r.house}>
               <td className={`${td} font-semibold`}>{r.house}.</td>
-              <td className={`${td} whitespace-nowrap font-semibold`}>{g(r.subLord)}</td>
+              <td className={`${td} whitespace-nowrap font-semibold`}>{x.g(r.subLord)}</td>
               {LEVELS.map((l) => {
                 const plain = r.levels ? r.levels[l] : [];
                 const extra = r.agent ? r.agent.levels[l].filter((h) => !plain.includes(h)) : [];
                 return (
                   <td key={l} className={`${td} whitespace-nowrap tabular-nums`}>
-                    {r.levels ? plain.join(", ") || "—" : "veri yok"}
+                    {r.levels ? plain.join(", ") || "—" : x.t("horary.noData")}
                     {extra.length > 0 && <span className="ml-1 text-indigo-700">+{extra.join(", ")}</span>}
                   </td>
                 );
@@ -776,19 +841,20 @@ function KpCuspSublordTable({ t, sel, onSel }: { t: KpHoraryTechnical; sel: KpSe
         </tbody>
       </table>
       <p className="px-3 py-2 text-xs text-slate-500">
-        {KP_HORARY_TEXT.cuspSubRule} {rows.some((r) => r.isNode) ? KP_HORARY_TEXT.nodeRule : ""}
+        {x.t("horary.cuspSubRule")} {rows.some((r) => r.isNode) ? x.t("horary.nodeRule") : ""}
       </p>
     </div>
   );
 }
 export function KpHoraryPanel({ t, kbLookup, placeLabel, displayTz = null, placeTz = null }: { t: KpHoraryTechnical; kbLookup?: KbLookup | null; placeLabel?: string | null; displayTz?: string | null; /** K5: değerlendirme yerinin saat dilimi (yalnız gösterim). */ placeTz?: string | null }) {
+  const x = useKpText();
   const [sel, setSel] = useState<KpSel | null>({ kind: "cusp", house: 1 });
   const kbNum = kbLookup ? kbLookup([`kp_horary_number:${t.horaryNumber}`]) : null;
   const cuspKb: KbLookup | null = kbLookup ? (keys) => kbLookup([...keys.filter((k) => !k.startsWith("kp_cusp_")), ...keys.filter((k) => k.startsWith("kp_cusp_sublord:")).map((k) => k.replace("kp_cusp_sublord:", "kp_horary_cusp_sublord:"))]) : null;
   return (
     <div className="flex min-w-0 flex-col gap-3" data-testid="astro-kp-horary-panel">
       <p className="text-sm text-slate-700">
-        <strong>KP horary · sayı {t.horaryNumber}</strong> · soru anı <span data-testid="astro-kp-horary-moment">{questionMomentLabel(t.at.utc, displayTz)}</span>
+        <strong>{x.t("horary.title", { n: String(t.horaryNumber) })}</strong> · {x.t("horary.moment")} <span data-testid="astro-kp-horary-moment">{questionMomentLabel(t.at.utc, displayTz)}</span>
         {(() => {
           const note = questionMomentPlaceNote(t.at.utc, displayTz, placeTz);
           return note ? (
@@ -797,21 +863,21 @@ export function KpHoraryPanel({ t, kbLookup, placeLabel, displayTz = null, place
               (<span data-testid="astro-kp-horary-moment-place">{note}</span>)
             </>
           ) : null;
-        })()} · değerlendirme yeri{" "}
-        {placeLabel ?? `${t.place.latitude.toFixed(4)}, ${t.place.longitude.toFixed(4)}`} · {AY[t.frame.ayanamsa]} · Placidus
+        })()} · {x.t("horary.place")}{" "}
+        {placeLabel ?? `${t.place.latitude.toFixed(4)}, ${t.place.longitude.toFixed(4)}`} · {x.ay(t.frame.ayanamsa)} · Placidus
       </p>
       <p className="text-xs text-slate-500" data-testid="astro-kp-horary-method">
-        Sayı {t.horaryNumber} → {SIGN_LABELS[t.ascendant.rashi]} {fmtDms(t.span.from % 30)}–{fmtDms(t.span.to % 30)} (yıldız {g(t.ascendant.starLord)}, sub {g(t.ascendant.subLord)}) → Lagna {posLabel(t.ascendant)}. {KP_HORARY_TEXT.numberRule}
+        {x.t("horary.method", { n: String(t.horaryNumber), sign: x.sign(t.ascendant.rashi), from: fmtDms(t.span.from % 30), to: fmtDms(t.span.to % 30), star: x.g(t.ascendant.starLord), sub: x.g(t.ascendant.subLord), pos: x.pos(t.ascendant) })} {x.t("horary.numberRule")}
       </p>
       {/* Y2 (15.11.2026): yan yana düzen görünüm genişliğine (xl) değil KAP genişliğine bağlı — harita en az 26rem, ayrıntı en az
           16rem; sığmazsa ayrıntı haritanın altına iner (1366 px masada sol panel ~490 px → etiketler kesiliyordu). */}
       <div className="flex min-w-0 flex-wrap items-start gap-3">
         <div className="min-w-0 flex-[1_1_26rem]">
-          <KpSouthChart cusps={t.cusps} bodies={t.bodies} sel={sel} onSel={setSel} center={<Center title={`Horary ${t.horaryNumber}`} lines={["KP · Placidus", `Lagna ${SIGN_LABELS[t.ascendant.rashi]}`]} />} />
+          <KpSouthChart cusps={t.cusps} bodies={t.bodies} sel={sel} onSel={setSel} center={<Center title={x.t("horary.centerTitle", { n: String(t.horaryNumber) })} lines={["KP · Placidus", x.t("chart.centerLagna", { sign: x.sign(t.ascendant.rashi) })]} />} />
         </div>
-        <section className="min-w-0 flex-[1_1_16rem] rounded-xl border border-amber-200 bg-amber-50/40 p-3 text-sm" aria-label="Horary seçili ayrıntı">
+        <section className="min-w-0 flex-[1_1_16rem] rounded-xl border border-amber-200 bg-amber-50/40 p-3 text-sm" aria-label={x.t("horary.detailLabel")}>
           <Detail sel={sel} cusps={t.cusps} bodies={t.bodies} sig={t.significators} kbLookup={cuspKb} />
-          <KbBox kb={kbNum} empty="Bu horary sayısı için KP Bilgi Bankası kaydınız yok." />
+          <KbBox kb={kbNum} empty={x.t("kb.emptyHorary")} />
         </section>
       </div>
       <KpHoraryLagnaBox t={t} />
@@ -821,12 +887,12 @@ export function KpHoraryPanel({ t, kbLookup, placeLabel, displayTz = null, place
       <KpBodyTable bodies={t.bodies} sel={sel} onSel={setSel} testId="astro-kp-horary-bodies" />
       <KpSignificatorTables
         s={t.significators}
-        note={`${SIG_NOTE} Horary'de düğümler için tablo sade kuralı gösterir; mavi '+' ile işaretli evler aynı hesaplama sonucundaki ajan ekli listeden gelir.`}
+        note={`${x.t("sig.note")} ${x.t("sig.noteHorary")}`}
         nodeMethod={KP_NODE_SIG_SOURCE.horaryLevels}
         agentMethod={KP_NODE_SIG_SOURCE.horaryAgent}
-        context="KP horary (soru anı)"
+        context={x.t("context.horary")}
       />
-      <p className="text-[11px] text-slate-400">{KP_HORARY_TEXT.source}</p>
+      <p className="text-[11px] text-slate-400">{x.t("horary.source")}</p>
     </div>
   );
 }

@@ -7,7 +7,7 @@ import type { NakshatraPlacement, VedicD1Technical, VedicGraha, VedicGrahaId, Ve
 import { SIGN_IDS } from "@/lib/astrology/model/western";
 import { SIGN_LABELS, formatDegree } from "@/lib/astrology/labels/tr";
 import { NAKSHATRA_LABELS } from "@/lib/astrology/topics/vedic";
-import { CROWDED_AT, GRAHA_TR, LIB_GRAHA_NAME, grahaTrName, localizeGrahaLabel, localizeSignLabel } from "./kundliLocalize";
+import { CROWDED_AT, GRAHA_TR, LIB_GRAHA_NAME, grahaName, grahaTrName, localizeGrahaLabel, localizeSignLabel, type KundliLocale } from "./kundliLocalize";
 
 export const TITLE = (s: string) => s[0].toUpperCase() + s.slice(1);
 export const ROXY_NAME: Record<string, string> = { sun: "Sun", moon: "Moon", mars: "Mars", mercury: "Mercury", jupiter: "Jupiter", venus: "Venus", saturn: "Saturn", rahu: "Rahu", ketu: "Ketu" };
@@ -71,12 +71,25 @@ export function toVargaChartData(t: VedicVargaTechnical) {
 export type ChartStyle = "north" | "south" | "east";
 
 /** 5.1D: haritadaki graha ipucu (SVG title) — Türkçe tam ad / Sanskritçe + konum. Anahtar = kütüphanenin İngilizce adı. */
-export function kundliTitles(points: { id: VedicGrahaId; rashi: (typeof SIGN_IDS)[number]; longitude: number; nakshatra: NakshatraPlacement; retrograde: boolean; d1Rashi?: (typeof SIGN_IDS)[number] }[], division?: number, combust: VedicGrahaId[] = []): Record<string, string> {
+export function kundliTitles(
+  points: { id: VedicGrahaId; rashi: (typeof SIGN_IDS)[number]; longitude: number; nakshatra: NakshatraPlacement; retrograde: boolean; d1Rashi?: (typeof SIGN_IDS)[number] }[],
+  division?: number,
+  combust: VedicGrahaId[] = [],
+  locale: KundliLocale = "tr",
+): Record<string, string> {
   const out: Record<string, string> = {};
+  // I18N ATLAS-V: "en" kolu — burç adı = kanonik kimliğin İngilizce yazımı (terms.zodiac EN ile aynı), graha adı İngilizce / Sanskritçe.
+  const sign = (id: (typeof SIGN_IDS)[number]) => (locale === "tr" ? SIGN_LABELS[id] : TITLE(id));
   for (const p of points) {
     const d1 = p.d1Rashi ?? SIGN_IDS[Math.floor(p.longitude / 30)];
-    const pos = division ? `D${division} ${SIGN_LABELS[p.rashi]} · D1 ${SIGN_LABELS[d1]} ${formatDegree(p.longitude % 30)}` : `${SIGN_LABELS[p.rashi]} ${formatDegree(p.longitude % 30)}`;
-    out[ROXY_NAME[p.id]] = [grahaTrName(p.id), pos, `${nakName(p.nakshatra.id)} ${p.nakshatra.pada}. pada`, `nakshatra yöneticisi ${GRAHA_TR[p.nakshatra.lord].tr}`, p.retrograde ? "vakri (retro)" : "", combust.includes(p.id) ? "yanık (asta)" : ""].filter(Boolean).join(" · ");
+    const pos = division ? `D${division} ${sign(p.rashi)} · D1 ${sign(d1)} ${formatDegree(p.longitude % 30)}` : `${sign(p.rashi)} ${formatDegree(p.longitude % 30)}`;
+    out[ROXY_NAME[p.id]] = (
+      locale === "tr"
+        ? [grahaTrName(p.id), pos, `${nakName(p.nakshatra.id)} ${p.nakshatra.pada}. pada`, `nakshatra yöneticisi ${GRAHA_TR[p.nakshatra.lord].tr}`, p.retrograde ? "vakri (retro)" : "", combust.includes(p.id) ? "yanık (asta)" : ""]
+        : [grahaName(p.id, locale), pos, `${nakName(p.nakshatra.id)} pada ${p.nakshatra.pada}`, `nakshatra lord ${ROXY_NAME[p.nakshatra.lord]}`, p.retrograde ? "retrograde (vakri)" : "", combust.includes(p.id) ? "combust (asta)" : ""]
+    )
+      .filter(Boolean)
+      .join(" · ");
   }
   return out;
 }
@@ -86,7 +99,7 @@ export function kundliTitles(points: { id: VedicGrahaId; rashi: (typeof SIGN_IDS
  * (Doğu düzeninde burç etiketinden uzaklaştırır). YALNIZ Lit'in metin düğümlerinin `data`'sı ve öğe `style`'ı değişir
  * (Lit işaretçileri korunur); geometri/yerleşim kütüphanenindir. İdempotent → MutationObserver döngüye girmez.
  */
-export function localizeKundliDom(root: ParentNode, titles: Record<string, string>, style: ChartStyle) {
+export function localizeKundliDom(root: ParentNode, titles: Record<string, string>, style: ChartStyle, locale: KundliLocale = "tr") {
   // Güney düzeninin dikdörtgen hücreleri 4 satırı dereceyle taşır; Kuzey/Doğu üçgenleri 3 grahada sıkışır.
   const crowdedAt = style === "south" ? CROWDED_AT + 2 : CROWDED_AT;
   const textOf = (el: Element) => [...el.childNodes].find((n): n is Text => n.nodeType === 3 && (n as Text).data.trim() !== "");
@@ -102,7 +115,7 @@ export function localizeKundliDom(root: ParentNode, titles: Record<string, strin
       const first = tn?.data.split(" · ")[0] ?? "";
       if (tn && LIB_GRAHA_NAME[first] && titles[first]) set(tn, titles[first]);
       const label = textOf(p);
-      if (label) set(label, localizeGrahaLabel(label.data, crowded));
+      if (label) set(label, localizeGrahaLabel(label.data, crowded, locale));
       const fs = crowded ? "11px" : "";
       if (p.style.fontSize !== fs) p.style.fontSize = fs;
     }
@@ -122,7 +135,7 @@ export function localizeKundliDom(root: ParentNode, titles: Record<string, strin
   }
   for (const s of root.querySelectorAll("text.sign-text, text.rashi-num")) {
     const n = textOf(s);
-    if (n) set(n, localizeSignLabel(n.data));
+    if (n) set(n, localizeSignLabel(n.data, locale));
   }
   for (const s of root.querySelectorAll("text.lagna-marker")) {
     set(textOf(s), "Lagna");

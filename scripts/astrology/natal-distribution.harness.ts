@@ -22,7 +22,8 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { createElement } from "react";
-import { renderToStaticMarkup } from "react-dom/server";
+// I18N-F1-R5: Natal paneli metinlerini katalogdan alır → next-intl sağlayıcılı çizim (varsayılan TR; beklentiler değişmedi).
+import { renderToStaticMarkup } from "./intlRender";
 import NatalTechnicalPanel from "@/app/admin/astroloji/_components/NatalTechnicalPanel";
 import NatalWheel from "@/app/admin/astroloji/_components/NatalWheel";
 import { DEFAULT_POINTS, extraPointsFor, hiddenBodiesFor } from "@/lib/astrology/view/natalWheelDisplay";

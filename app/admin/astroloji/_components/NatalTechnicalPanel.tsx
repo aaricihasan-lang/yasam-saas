@@ -2,39 +2,19 @@
 
 /**
  * "Hesaplama / Teknik Veriler" — yalnız kanonik teknik katman. Sağlayıcı metni içermez;
- * tüm etiketler Yaşam Sistemi sözlüğünden (lib/astrology/labels/tr).
+ * tüm etiketler Yaşam Sistemi sözlüğünden (terms; TR değerleri lib/astrology/labels/tr ile birebir).
+ *
+ * I18N-F1-R5: ekran metni katalogdan (atlas.natalPanel + terms). Word/PDF ile paylaşılan lib cümleleri (dağılım yöntem
+ * adları/notları, eşitlik cümlesi, Ay belirsizliği, 12:00 varsayımı, özet kartı notları) lib'de AYNEN kalır; ekran aynı
+ * kompozisyonu katalogla kurar — TR çıktı lib ile birebir (scripts/astrology/atlas-a-r5-i18n.harness.ts kilitler).
  */
 
 import { useState, type ReactNode } from "react";
-import type { NatalTechnical } from "@/lib/astrology/model/western";
-import {
-  ASPECT_GLYPHS,
-  ASPECT_LABELS,
-  BODY_GLYPHS,
-  BODY_LABELS,
-  DIGNITY_LABELS,
-  ELEMENT_LABELS,
-  MODALITY_LABELS,
-  NATURE_LABELS,
-  PATTERN_LABELS,
-  SIGN_GLYPHS,
-  SIGN_LABELS,
-  formatDegree,
-} from "@/lib/astrology/labels/tr";
-import {
-  DIST_METHODS,
-  DIST_METHOD_LABELS,
-  DIST_METHOD_NOTES,
-  ELEMENT_ORDER,
-  MODALITY_ORDER,
-  PROVIDER_TIE_RULE_NOTE,
-  dominantHeadline,
-  natalDistribution,
-  tieSentence,
-  type DistMethod,
-} from "@/lib/astrology/view/natalDistribution";
+import { useLocale, useTranslations } from "next-intl";
+import type { Element, Modality, NatalTechnical, SignId } from "@/lib/astrology/model/western";
+import { ASPECT_GLYPHS, BODY_GLYPHS, SIGN_GLYPHS, formatDegree } from "@/lib/astrology/labels/tr";
+import { DIST_METHODS, ELEMENT_ORDER, MODALITY_ORDER, distributive, natalDistribution, type DistMethod } from "@/lib/astrology/view/natalDistribution";
 import { fitGridCell, fitGridStyle } from "./atlas/fitGrid";
-import { MOON_UNKNOWN_ROW, MOON_UNKNOWN_TEXT, NOON_ASSUMPTION } from "@/lib/astrology/view/natalLabelLayout";
 import { aspectBalanceOf, listedNatalAspects, patternInvolvesMoon, timeUnknownDistribution } from "@/lib/astrology/view/natalTimeUnknown";
 import { natalKeyPlacements } from "@/lib/astrology/view/natalKeyPlacements";
 
@@ -50,12 +30,13 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
   );
 }
 
-function SignCell({ sign, degree, assumed = false }: { sign: keyof typeof SIGN_LABELS; degree: number; assumed?: boolean }) {
+function SignCell({ sign, degree, assumed = false }: { sign: SignId; degree: number; assumed?: boolean }) {
+  const tt = useTranslations("terms");
   return (
     <span className="whitespace-nowrap">
       <span className="mr-1">{SIGN_GLYPHS[sign]}</span>
       {assumed ? "≈ " : ""}
-      {SIGN_LABELS[sign]} {formatDegree(degree)}
+      {tt(`zodiac.${sign}`)} {formatDegree(degree)}
       {assumed && <AssumedChip />}
     </span>
   );
@@ -63,11 +44,18 @@ function SignCell({ sign, degree, assumed = false }: { sign: keyof typeof SIGN_L
 
 /** G2 (saat bilinmiyor): yerel 12:00 varsayımı etiketi — değer kesin doğrulanmış sonuç gibi sunulmaz. */
 function AssumedChip() {
+  const t = useTranslations("atlas.natalPanel");
   return (
     <span className="ml-1.5 inline-flex rounded-full border border-amber-300 bg-amber-50 px-1.5 text-[10.5px] font-semibold text-amber-900" data-assumed="1">
-      {NOON_ASSUMPTION}
+      {t("noonAssumption")}
     </span>
   );
+}
+
+/** lib joinTr ile aynı kalıp ("A", "A ve B", "A, B ve C"); bağlaç katalogdan. */
+function joinList(items: string[], and: string): string {
+  if (items.length <= 1) return items[0] ?? "";
+  return `${items.slice(0, -1).join(", ")} ${and} ${items[items.length - 1]}`;
 }
 
 /**
@@ -75,33 +63,34 @@ function AssumedChip() {
  * 15 puanlık analiz Yükselen/MC olmadan üretilemez. Paylaşılan dağılım modülü ve rapor DEĞİŞMEZ.
  */
 function TimeUnknownDistributionSummary({ technical }: { technical: NatalTechnical }) {
+  const t = useTranslations("atlas.natalPanel");
+  const tt = useTranslations("terms");
   const d = timeUnknownDistribution(technical);
   const cols = d.available
     ? [
-        { title: "Element", order: ELEMENT_ORDER as readonly string[], labels: ELEMENT_LABELS as Record<string, string>, values: d.elements as Record<string, number>, tops: d.topElements as readonly string[] },
-        { title: "Nitelik", order: MODALITY_ORDER as readonly string[], labels: MODALITY_LABELS as Record<string, string>, values: d.modalities as Record<string, number>, tops: d.topModalities as readonly string[] },
+        { key: "element", title: t("colElement"), order: ELEMENT_ORDER as readonly string[], label: (k: string) => tt(`element.${k as Element}`), values: d.elements as Record<string, number>, tops: d.topElements as readonly string[] },
+        { key: "modality", title: t("colModality"), order: MODALITY_ORDER as readonly string[], label: (k: string) => tt(`modality.${k as Modality}`), values: d.modalities as Record<string, number>, tops: d.topModalities as readonly string[] },
       ]
     : [];
   return (
     <div className="px-3 py-2 text-sm" data-testid="natal-distribution" data-method="time-unknown">
       <p className="mb-2 rounded-md bg-amber-50 px-2 py-1.5 text-xs leading-5 text-amber-900" data-testid="natal-dist-time-unknown">
-        Doğum saati bilinmiyor: {MOON_UNKNOWN_TEXT} Bu nedenle dağılım Ay hariç 9 gezegenle (her biri 1 puan, toplam 9) gösterilir; gezegen burçları
-        yerel 12:00 varsayımıdır (≈), kesin değildir. 15 puanlık analiz Yükselen ve MC olmadan hesaplanamaz.
+        {t("timeUnknownDist", { moonText: t("moonUnknownText") })}
       </p>
       {!d.available ? (
         <p className="rounded-md bg-slate-50 px-2 py-1.5 text-xs leading-5 text-slate-600" data-testid="natal-dist-unavailable">
-          Bu kayıtta dağılım için gerekli veri yok.
+          {t("distNoData")}
         </p>
       ) : (
         <div className="grid gap-3 sm:grid-cols-2">
           {cols.map((c) => (
             <div key={c.title}>
               <div className="mb-1 font-medium text-slate-600">
-                {c.title} · ≈ {c.tops.map((k) => c.labels[k]).join(" · ")}
+                {c.title} · ≈ {c.tops.map((k) => c.label(k)).join(" · ")}
               </div>
               {c.order.map((k) => (
                 <div key={k} className={`flex justify-between ${c.tops.includes(k) ? "font-semibold text-slate-900" : ""}`}>
-                  <span>{c.labels[k]}</span>
+                  <span>{c.label(k)}</span>
                   <span className="tabular-nums">{c.values[k]}</span>
                 </div>
               ))}
@@ -119,6 +108,8 @@ function TimeUnknownDistributionSummary({ technical }: { technical: NatalTechnic
  * gezegende sağlayıcının eşitlik kuralı yalnız ikincil bilgi. Seçim yalnız bu görünümün yerel durumu (kayıt / sağlayıcı yok).
  */
 function DistributionSummary({ technical }: { technical: NatalTechnical }) {
+  const t = useTranslations("atlas.natalPanel");
+  const tt = useTranslations("terms");
   const [method, setMethod] = useState<DistMethod>("planets10");
   const d = natalDistribution(technical, method);
   const seg = (m: DistMethod) =>
@@ -127,28 +118,26 @@ function DistributionSummary({ technical }: { technical: NatalTechnical }) {
     }`;
   return (
     <div className="px-3 py-2 text-sm" data-testid="natal-distribution" data-method={method}>
-      <div className="mb-1.5 flex w-full rounded-lg bg-slate-100 p-0.5 sm:inline-flex sm:w-auto" role="group" aria-label="Dağılım yöntemi">
+      <div className="mb-1.5 flex w-full rounded-lg bg-slate-100 p-0.5 sm:inline-flex sm:w-auto" role="group" aria-label={t("distMethodAria")}>
         {DIST_METHODS.map((m) => (
           <button key={m} type="button" className={seg(m)} aria-pressed={method === m} onClick={() => setMethod(m)} data-testid={`natal-dist-method-${m}`}>
-            {DIST_METHOD_LABELS[m]}
+            {t(`method.${m}`)}
           </button>
         ))}
       </div>
       <p className="mb-2 text-xs leading-5 text-slate-500" data-testid="natal-dist-note">
-        {DIST_METHOD_NOTES[method]}
+        {t(`methodNote.${method}`)}
       </p>
       {!d.available ? (
         <p className="rounded-md bg-slate-50 px-2 py-1.5 text-xs leading-5 text-slate-600" data-testid="natal-dist-unavailable">
-          {d.reason === "no_angles"
-            ? "Doğum saati bilinmediği için Yükselen ve MC yok; 15 puanlık analiz hesaplanamaz."
-            : "Bu kayıtta dağılım için gerekli veri yok."}
+          {d.reason === "no_angles" ? t("distNoAngles") : t("distNoData")}
         </p>
       ) : (
         <div className="grid gap-3 sm:grid-cols-2">
           <DistColumn
-            title="Element"
+            title={t("colElement")}
             order={ELEMENT_ORDER}
-            labels={ELEMENT_LABELS}
+            label={(k) => tt(`element.${k}`)}
             values={d.elements}
             topKeys={d.topElements}
             unit={d.unit}
@@ -156,9 +145,9 @@ function DistributionSummary({ technical }: { technical: NatalTechnical }) {
             testId="natal-element-tie"
           />
           <DistColumn
-            title="Nitelik"
+            title={t("colModality")}
             order={MODALITY_ORDER}
-            labels={MODALITY_LABELS}
+            label={(k) => tt(`modality.${k}`)}
             values={d.modalities}
             topKeys={d.topModalities}
             unit={d.unit}
@@ -174,7 +163,7 @@ function DistributionSummary({ technical }: { technical: NatalTechnical }) {
 function DistColumn<K extends string>({
   title,
   order,
-  labels,
+  label,
   values,
   topKeys,
   unit,
@@ -183,34 +172,39 @@ function DistColumn<K extends string>({
 }: {
   title: string;
   order: readonly K[];
-  labels: Record<K, string>;
+  label: (k: K) => string;
   values: Record<K, number>;
   topKeys: K[];
   unit: "gezegen" | "puan";
   providerPick: K | null;
   testId: string;
 }) {
-  const names = topKeys.map((k) => labels[k]);
+  const t = useTranslations("atlas.natalPanel");
+  const locale = useLocale();
+  const names = topKeys.map((k) => label(k));
   const tie = topKeys.length > 1;
+  // lib dominantHeadline / tieSentence ile AYNI kompozisyon (TR birebir; üleştirme eki lib distributive).
+  const headline = names.length === 0 ? "" : names.length === 1 ? t("dominant", { name: names[0] }) : t("tieHead", { names: names.join(" · ") });
+  const value = tie ? values[topKeys[0]] : 0;
   return (
     <div>
       <div className="mb-1 font-medium text-slate-600">
         {title}
-        {names.length > 0 ? ` · ${dominantHeadline(names)}` : ""}
+        {names.length > 0 ? ` · ${headline}` : ""}
       </div>
       {tie && (
         <p className="mb-1 rounded-md bg-amber-50 px-2 py-1 text-xs leading-5 text-amber-900" data-testid={testId}>
-          {tieSentence(names, values[topKeys[0]], unit)}
+          {t(unit === "gezegen" ? "tiePlanets" : "tiePoints", { names: joinList(names, t("and")), each: locale === "tr" ? distributive(value) : String(value), value })}
           {providerPick && (
             <span className="block text-amber-800/80">
-              {PROVIDER_TIE_RULE_NOTE} Bu haritada öne alınan: {labels[providerPick]}.
+              {t("providerTieRule")} {t("providerPick", { name: label(providerPick) })}
             </span>
           )}
         </p>
       )}
       {order.map((k) => (
         <div key={k} className={`flex justify-between ${topKeys.includes(k) ? "font-semibold text-slate-900" : ""}`}>
-          <span>{labels[k]}</span>
+          <span>{label(k)}</span>
           <span className="tabular-nums">{values[k]}</span>
         </div>
       ))}
@@ -225,13 +219,24 @@ function DistColumn<K extends string>({
  * darsa üçü tam genişlikte alt alta (2 + 1 dağılım oluşmaz; saf CSS, flex-basis = (eşik − %100) × 999). Saat bilinmiyorken G2 kuralı:
  * Güneş ≈ 12:00 varsayımı, Ay belirsiz (burç / derece yazılmaz), Yükselen bilinmiyor; Owner'ın tam metni kart ipucunda ve
  * Özet'teki saat uyarısında.
+ * I18N-F1-R5: başlık / burç / not / ipucu katalogdan; karar (durum) lib natalKeyPlacements'tan AYNEN.
  */
 const KEY_CARD_ROW_MIN = "19rem";
 export function NatalKeyPlacementCards({ technical, timeUnknown }: { technical: NatalTechnical; timeUnknown: boolean }) {
+  const t = useTranslations("atlas.natalPanel");
+  const tt = useTranslations("terms");
+  const titleOf = (key: "sun" | "moon" | "asc") => (key === "asc" ? tt("angle.ascendant") : tt(`body.${key}`));
+  const noteOf = (key: "sun" | "moon" | "asc", status: string): { note: string | null; detail: string | null } => {
+    if (key === "sun" && status === "assumed") return { note: t("keySunAssumedNote"), detail: t("keySunAssumedDetail") };
+    if (key === "asc" && status === "unknown") return { note: t("keyAscUnknownNote"), detail: t("keyAscUnknownDetail") };
+    if (key !== "asc" && status === "unknown") return { note: t("keyMoonUnknownNote"), detail: t("moonUnknownText") };
+    return { note: null, detail: null };
+  };
   return (
     <div className="mb-3 flex flex-wrap gap-2" data-testid="natal-key-placements">
       {natalKeyPlacements(technical, timeUnknown).map((k) => {
         const known = k.status === "exact" || k.status === "assumed";
+        const nd = noteOf(k.key, k.status);
         return (
           <div
             key={k.key}
@@ -241,17 +246,17 @@ export function NatalKeyPlacementCards({ technical, timeUnknown }: { technical: 
             data-status={k.status}
             data-sign={k.sign ?? ""}
             data-degree={k.degree ?? ""}
-            title={k.detail ?? undefined}
+            title={nd.detail ?? undefined}
           >
             <div className="flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
               <span className={k.key === "asc" ? "text-[10px] font-bold" : "text-sm normal-case text-slate-600"}>{k.glyph}</span>
-              {k.title}
+              {titleOf(k.key)}
             </div>
             {known ? (
               <>
                 <div className="mt-0.5 flex items-baseline gap-1 whitespace-nowrap text-slate-900">
                   <span className="text-lg leading-none">{k.signGlyph}</span>
-                  <span className="text-[15px] font-semibold">{k.signName}</span>
+                  <span className="text-[15px] font-semibold">{k.sign ? tt(`zodiac.${k.sign}`) : k.signName}</span>
                 </div>
                 {/* ≈ derece satırında: dar kartta (360 px) burç adı bölünmez. */}
                 <div className="text-sm tabular-nums text-slate-700">
@@ -260,9 +265,9 @@ export function NatalKeyPlacementCards({ technical, timeUnknown }: { technical: 
                 </div>
               </>
             ) : (
-              <div className="mt-0.5 text-[15px] font-semibold italic text-amber-800">{k.status === "unknown" ? (k.key === "asc" ? "Bilinmiyor" : "Belirsiz") : "—"}</div>
+              <div className="mt-0.5 text-[15px] font-semibold italic text-amber-800">{k.status === "unknown" ? (k.key === "asc" ? t("keyUnknown") : t("keyUncertain")) : "—"}</div>
             )}
-            {k.note && <p className="mt-0.5 text-[11px] leading-4 text-amber-800">{k.note}</p>}
+            {k.note && <p className="mt-0.5 text-[11px] leading-4 text-amber-800">{nd.note ?? k.note}</p>}
           </div>
         );
       })}
@@ -282,6 +287,8 @@ const NATURE_CHIP: Record<string, string> = {
  * raporlar ve testler etkilenmez). Veri, yuvarlama ve etiketler bölümler arasında DEĞİŞMEZ.
  */
 export default function NatalTechnicalPanel({ technical, timeUnknown, part = "all" }: { technical: NatalTechnical; timeUnknown: boolean; part?: "all" | "overview" | "planets" | "houses" | "aspects" }) {
+  const tx = useTranslations("atlas.natalPanel");
+  const tt = useTranslations("terms");
   const t = technical;
   const show = (p: "overview" | "planets" | "houses" | "aspects") => part === "all" || part === p;
   // G2 (saat bilinmiyor): Ay'a bağlı açılar / kalıplar kesin listede gösterilmez (ham veri silinmez).
@@ -289,27 +296,28 @@ export default function NatalTechnicalPanel({ technical, timeUnknown, part = "al
   const hiddenMoonAspects = t.aspects.length - aspects.length;
   const patterns = timeUnknown ? t.patterns.filter((p) => !patternInvolvesMoon(p)) : t.patterns;
   const balance = aspectBalanceOf(aspects);
+  const noon = timeUnknown ? tx("noonSuffix") : "";
+  const dash = (v: number | null | undefined) => (v ?? "—").toString();
   return (
     <div className="flex flex-col gap-3">
       {timeUnknown && (
         <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800" data-testid="natal-time-unknown-banner">
-          Doğum saati bilinmiyor: evler, Yükselen/MC, ev yerleşimleri, Şans Noktası ve Vertex gösterilmez. {MOON_UNKNOWN_TEXT} Diğer konumlar ve
-          açılar yerel 12:00 varsayımıyla hesaplanmıştır (≈); kesin değildir.
-          {show("aspects") && hiddenMoonAspects > 0 && ` Ay'a bağlı ${hiddenMoonAspects} açı bu nedenle listelenmez.`}
+          {tx("banner", { moonText: tx("moonUnknownText") })}
+          {show("aspects") && hiddenMoonAspects > 0 && tx("bannerMoonAspects", { n: hiddenMoonAspects })}
         </p>
       )}
 
       {show("planets") && (
-      <Section title="Gezegenler ve noktalar">
+      <Section title={tx("planetsTitle")}>
         <div className="overflow-x-auto">
         <table className="min-w-full">
           <thead>
             <tr>
-              <th className={th}>Gök cismi</th>
-              <th className={th}>Burç / derece</th>
-              {!timeUnknown && <th className={th}>Ev</th>}
-              <th className={th}>Hız (°/gün)</th>
-              <th className={th}>Konum</th>
+              <th className={th}>{tx("colBody")}</th>
+              <th className={th}>{tx("colSignDegree")}</th>
+              {!timeUnknown && <th className={th}>{tx("colHouse")}</th>}
+              <th className={th}>{tx("colSpeed")}</th>
+              <th className={th}>{tx("colDignity")}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
@@ -318,29 +326,29 @@ export default function NatalTechnicalPanel({ technical, timeUnknown, part = "al
                 <tr key={b.id} data-moon-unknown="1">
                   <td className={td}>
                     <span className="mr-1.5 text-base">{BODY_GLYPHS[b.id]}</span>
-                    {BODY_LABELS[b.id]}
+                    {tt(`body.${b.id}`)}
                   </td>
                   <td className={`${td} italic text-amber-800`} colSpan={3}>
-                    {MOON_UNKNOWN_ROW}
+                    {tx("moonUnknownRow")}
                   </td>
                 </tr>
               ) : (
               <tr key={b.id}>
                 <td className={td}>
                   <span className="mr-1.5 text-base">{BODY_GLYPHS[b.id]}</span>
-                  {BODY_LABELS[b.id]}
-                  {b.id === "lilith" && t.variants?.lilith === "mean" && <span className="ml-1 text-xs text-slate-500">(ortalama)</span>}
+                  {tt(`body.${b.id}`)}
+                  {b.id === "lilith" && t.variants?.lilith === "mean" && <span className="ml-1 text-xs text-slate-500">{tx("variantMean")}</span>}
                   {(b.id === "north_node" || b.id === "south_node") && t.variants && (
-                    <span className="ml-1 text-xs text-slate-500">({t.variants.node === "true" ? "gerçek" : "ortalama"})</span>
+                    <span className="ml-1 text-xs text-slate-500">{tx(t.variants.node === "true" ? "nodeVariant.true" : "nodeVariant.mean")}</span>
                   )}
-                  {b.retrograde && <span className="ml-1 font-semibold text-rose-600" title="Retro">℞</span>}
+                  {b.retrograde && <span className="ml-1 font-semibold text-rose-600" title={tx("retroTitle")}>℞</span>}
                 </td>
                 <td className={td}>
                   <SignCell sign={b.sign} degree={b.degreeInSign} assumed={timeUnknown} />
                 </td>
                 {!timeUnknown && <td className={td}>{b.house ?? "—"}</td>}
                 <td className={`${td} tabular-nums`}>{b.speed.toFixed(4)}</td>
-                <td className={td}>{b.dignity ? DIGNITY_LABELS[b.dignity] : "—"}</td>
+                <td className={td}>{b.dignity ? tt(`dignity.${b.dignity}`) : "—"}</td>
               </tr>
               ),
             )}
@@ -351,17 +359,17 @@ export default function NatalTechnicalPanel({ technical, timeUnknown, part = "al
       )}
 
       {(show("houses") || part === "overview") && !timeUnknown && t.angles && (
-        <Section title="Açısal noktalar">
+        <Section title={tx("anglesTitle")}>
           <table className="min-w-full">
             <tbody className="divide-y divide-slate-100">
               <tr>
-                <td className={td}>Yükselen (ASC)</td>
+                <td className={td}>{tx("asc")}</td>
                 <td className={td}>
                   <SignCell sign={t.angles.ascendant.sign} degree={t.angles.ascendant.degreeInSign} />
                 </td>
               </tr>
               <tr>
-                <td className={td}>Tepe Noktası (MC)</td>
+                <td className={td}>{tx("mc")}</td>
                 <td className={td}>
                   <SignCell sign={t.angles.midheaven.sign} degree={t.angles.midheaven.degreeInSign} />
                 </td>
@@ -369,20 +377,20 @@ export default function NatalTechnicalPanel({ technical, timeUnknown, part = "al
               {t.points.partOfFortune && (
                 <tr>
                   <td className={td}>
-                    Şans Noktası{t.points.partOfFortune.sect ? ` (${t.points.partOfFortune.sect === "day" ? "gündüz" : "gece"} haritası)` : ""}
+                    {tx("pof")}{t.points.partOfFortune.sect ? tx(t.points.partOfFortune.sect === "day" ? "pofDay" : "pofNight") : ""}
                   </td>
                   <td className={td}>
                     <SignCell sign={t.points.partOfFortune.sign} degree={t.points.partOfFortune.degreeInSign} />
-                    {t.points.partOfFortune.house ? ` · ${t.points.partOfFortune.house}. ev` : ""}
+                    {t.points.partOfFortune.house ? tx("houseSuffix", { n: String(t.points.partOfFortune.house) }) : ""}
                   </td>
                 </tr>
               )}
               {t.points.vertex && (
                 <tr>
-                  <td className={td}>Vertex</td>
+                  <td className={td}>{tx("vertex")}</td>
                   <td className={td}>
                     <SignCell sign={t.points.vertex.sign} degree={t.points.vertex.degreeInSign} />
-                    {t.points.vertex.house ? ` · ${t.points.vertex.house}. ev` : ""}
+                    {t.points.vertex.house ? tx("houseSuffix", { n: String(t.points.vertex.house) }) : ""}
                   </td>
                 </tr>
               )}
@@ -392,11 +400,11 @@ export default function NatalTechnicalPanel({ technical, timeUnknown, part = "al
       )}
 
       {show("houses") && !timeUnknown && t.houses.length > 0 && (
-        <Section title="Ev başlangıçları (cusp)">
+        <Section title={tx("cuspsTitle")}>
           <div className="grid gap-y-1 px-3 py-2 text-sm" style={fitGridStyle()} data-fit-grid="cusps">
             {t.houses.map((h) => (
               <div key={h.number} className={fitGridCell}>
-                <span className="font-medium text-slate-600">{h.number}. ev</span>
+                <span className="font-medium text-slate-600">{tx("cuspLabel", { n: String(h.number) })}</span>
                 <SignCell sign={h.sign} degree={h.degreeInSign} />
               </div>
             ))}
@@ -405,7 +413,7 @@ export default function NatalTechnicalPanel({ technical, timeUnknown, part = "al
       )}
 
       {show("aspects") && (
-      <Section title={`Açılar (${aspects.length})${timeUnknown ? " · ≈ 12:00 varsayımı" : ""}`}>
+      <Section title={`${tx("aspectsTitle", { n: String(aspects.length) })}${noon}`}>
         {/* 2026-10-12 (UAT 2. tur, madde I): uzun ad sütunu satıra geçer (tablo gereksiz genişlemez); kalan yatay
             kaydırma + dikey kaydırma AYNI kapta, başlık yapışkan → yatay kaydırma çubuğu 41 satırın sonunda kalmaz,
             ekranda görünür kalır. 2026-11-06 (V4-002): kutu, bilgi panelinin üstündeki yatay kaydırma şeridi (~2rem) kadar
@@ -414,12 +422,12 @@ export default function NatalTechnicalPanel({ technical, timeUnknown, part = "al
         <table className="min-w-full">
           <thead className="sticky top-0 z-[1] bg-white shadow-[0_1px_0_rgb(241,245,249)]">
             <tr>
-              <th className={th}>Açı</th>
-              <th className={th}>Tür</th>
-              <th className={th}>Orb</th>
-              <th className={th}>Hareket</th>
-              <th className={th}>Güç</th>
-              <th className={th}>Nitelik</th>
+              <th className={th}>{tx("colAspect")}</th>
+              <th className={th}>{tx("colType")}</th>
+              <th className={th}>{tx("colOrb")}</th>
+              <th className={th}>{tx("colMotion")}</th>
+              <th className={th}>{tx("colStrength")}</th>
+              <th className={th}>{tx("colNature")}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
@@ -430,19 +438,19 @@ export default function NatalTechnicalPanel({ technical, timeUnknown, part = "al
                     {BODY_GLYPHS[a.a]} <span className="mx-1 text-slate-500">{ASPECT_GLYPHS[a.type]}</span> {BODY_GLYPHS[a.b]}
                   </span>
                   <span className="block text-xs leading-snug text-slate-500">
-                    {BODY_LABELS[a.a]} – {BODY_LABELS[a.b]}
+                    {tt(`body.${a.a}`)} – {tt(`body.${a.b}`)}
                   </span>
                 </td>
                 <td className={td}>
-                  <span className={`inline-flex rounded-md px-1.5 py-0.5 text-xs font-medium ring-1 ${NATURE_CHIP[a.nature ?? "neutral"] ?? NATURE_CHIP.neutral}`}>{ASPECT_LABELS[a.type]}</span>
+                  <span className={`inline-flex rounded-md px-1.5 py-0.5 text-xs font-medium ring-1 ${NATURE_CHIP[a.nature ?? "neutral"] ?? NATURE_CHIP.neutral}`}>{tt(`aspect.${a.type}`)}</span>
                 </td>
                 <td className={`${td} tabular-nums`}>
                   {timeUnknown ? "≈ " : ""}
                   {formatDegree(a.orb)}
                 </td>
-                <td className={td}>{a.applying ? "Yaklaşan" : "Ayrılan"}</td>
-                <td className={`${td} tabular-nums`}>%{Math.round(a.strength)}</td>
-                <td className={td}>{a.nature ? NATURE_LABELS[a.nature] : "—"}</td>
+                <td className={td}>{a.applying ? tx("applying") : tx("separating")}</td>
+                <td className={`${td} tabular-nums`}>{tx("strength", { n: String(Math.round(a.strength)) })}</td>
+                <td className={td}>{a.nature ? tt(`aspectNature.${a.nature}`) : "—"}</td>
               </tr>
             ))}
           </tbody>
@@ -452,19 +460,19 @@ export default function NatalTechnicalPanel({ technical, timeUnknown, part = "al
       )}
 
       {show("aspects") && patterns.length > 0 && (
-        <Section title={`Açı kalıpları${timeUnknown ? " · ≈ 12:00 varsayımı" : ""}`}>
+        <Section title={`${tx("patternsTitle")}${noon}`}>
           <ul className="divide-y divide-slate-100">
             {patterns.map((p, i) => (
               <li key={`${p.kind}-${i}`} className="px-3 py-2 text-sm text-slate-800">
-                <span className="font-semibold">{PATTERN_LABELS[p.kind]}</span>
+                <span className="font-semibold">{tt(`pattern.${p.kind}`)}</span>
                 <span className="ml-2">{p.bodies.map((b) => BODY_GLYPHS[b]).join(" ")}</span>
                 <span className="ml-2 text-xs text-slate-500">
-                  {p.bodies.map((b) => BODY_LABELS[b]).join(", ")}
-                  {p.apex ? ` · tepe: ${BODY_LABELS[p.apex]}` : ""}
-                  {p.element ? ` · ${ELEMENT_LABELS[p.element]}` : ""}
-                  {p.modality ? ` · ${MODALITY_LABELS[p.modality]}` : ""}
-                  {p.tightness !== null ? ` · sıkılık %${Math.round(p.tightness)}` : ""}
-                  {p.outOfSign ? " · burç dışı" : ""}
+                  {p.bodies.map((b) => tt(`body.${b}`)).join(", ")}
+                  {p.apex ? tx("apex", { name: tt(`body.${p.apex}`) }) : ""}
+                  {p.element ? ` · ${tt(`element.${p.element}`)}` : ""}
+                  {p.modality ? ` · ${tt(`modality.${p.modality}`)}` : ""}
+                  {p.tightness !== null ? tx("tightness", { n: String(Math.round(p.tightness)) }) : ""}
+                  {p.outOfSign ? tx("outOfSign") : ""}
                 </span>
               </li>
             ))}
@@ -473,21 +481,18 @@ export default function NatalTechnicalPanel({ technical, timeUnknown, part = "al
       )}
 
       {(part === "all" || part === "overview") && (
-      <Section title="Dağılım özeti">
+      <Section title={tx("distTitle")}>
         {timeUnknown ? <TimeUnknownDistributionSummary technical={t} /> : <DistributionSummary technical={t} />}
         <div className="grid gap-3 px-3 pb-2 text-sm">
           <div className="sm:col-span-2 text-slate-600">
             {timeUnknown ? (
               <span data-testid="natal-aspect-balance-time-unknown">
-                Açı dengesi (Ay hariç, ≈ 12:00 varsayımı): {balance.harmonious} uyumlu · {balance.challenging} zorlayıcı · {balance.neutral} nötr
+                {tx("balanceTimeUnknown", { h: String(balance.harmonious), c: String(balance.challenging), n: String(balance.neutral) })}
               </span>
             ) : (
-              <>
-                Açı dengesi: {t.summary.aspectBalance.harmonious ?? "—"} uyumlu · {t.summary.aspectBalance.challenging ?? "—"} zorlayıcı ·{" "}
-                {t.summary.aspectBalance.neutral ?? "—"} nötr
-              </>
+              tx("balance", { h: dash(t.summary.aspectBalance.harmonious), c: dash(t.summary.aspectBalance.challenging), n: dash(t.summary.aspectBalance.neutral) })
             )}
-            {t.summary.retrograde.length > 0 && <> · Retro: {t.summary.retrograde.map((b) => BODY_LABELS[b]).join(", ")}</>}
+            {t.summary.retrograde.length > 0 && tx("retroList", { list: t.summary.retrograde.map((b) => tt(`body.${b}`)).join(", ") })}
           </div>
         </div>
       </Section>

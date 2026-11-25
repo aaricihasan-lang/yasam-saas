@@ -1,0 +1,55 @@
+{
+  "atlas": {
+    "natal": {
+      "symbols": {
+        "intro": "This guide briefly explains <strong>what</strong> the marks on the wheel are; it is not an interpretation. Hover over a symbol on the wheel (press and hold on touch screens) to see its name and exact degree.",
+        "blockBodies": "Planets and points",
+        "body": {
+          "sun": "The Sun's position in the zodiac at the moment of birth. The Sun travels round the zodiac in about one year (~1° per day).",
+          "moon": "The Moon's position. It is the fastest-moving body: about 12–15° per day, so the birth time noticeably affects the Moon's degree.",
+          "mercury": "The planet closest to the Sun. Seen from Earth, it never moves more than ~28° from the Sun.",
+          "venus": "Seen from Earth, it never moves more than ~47° from the Sun.",
+          "mars": "Travels round the zodiac in about 2 years (687 days).",
+          "jupiter": "Travels round the zodiac in about 12 years.",
+          "saturn": "Travels round the zodiac in about 29.5 years; the most distant of the planets known since antiquity.",
+          "uranus": "Travels round the zodiac in about 84 years.",
+          "neptune": "Travels round the zodiac in about 165 years.",
+          "pluto": "Travels round the zodiac in about 248 years (its orbit is highly eccentric, so the time it spends in each sign varies).",
+          "north_node": "The point where the Moon's orbit crosses the ecliptic from south to north (a calculated point, not a celestial body).",
+          "south_node": "Exactly opposite the North Node (always 180°).",
+          "chiron": "A small body orbiting between Saturn and Uranus (2060 Chiron); travels round the zodiac in about 50 years.",
+          "lilith": "Black Moon Lilith: the point of the Moon's orbit farthest from Earth (apogee). This system uses the mean calculation."
+        },
+        "nodeHere": "In this chart: {node}.",
+        "fortuneName": "Part of Fortune",
+        "fortuneText": "A point calculated from the Ascendant, Sun and Moon (not a celestial body). For a day birth the formula is Ascendant + Moon − Sun; for a night birth, Ascendant + Sun − Moon.",
+        "sectDay": "This chart: day birth.",
+        "sectNight": "This chart: night birth.",
+        "vertexText": "The point where the prime vertical (the vertical circle running east–west) crosses the ecliptic on the western side; it depends on the latitude and time of birth.",
+        "blockAngles": "Angles (axes)",
+        "ascName": "Ascendant",
+        "ascText": "The zodiac degree rising on the eastern horizon at the moment of birth. In most house systems it is the start of the 1st house.",
+        "dscName": "Descendant",
+        "dscText": "The degree on the western horizon; exactly opposite the Ascendant (180°).",
+        "mcName": "Midheaven (Medium Coeli)",
+        "mcText": "The degree where the ecliptic crosses the local meridian (towards the south). In systems such as Placidus and Koch it is the start of the 10th house.",
+        "icName": "Imum Coeli (IC)",
+        "icText": "Exactly opposite the MC (180°).",
+        "anglesNote": "In the Whole Sign and Equal House systems, house cusps may not coincide with the axes; the Natal wheel shows the true ASC–DSC and MC–IC axes separately with a bold line.",
+        "blockSigns": "Signs",
+        "signsNote": "The zodiac is 12 equal 30° segments (tropical zodiac; 0° Aries = vernal equinox point). The sign colour shows its element.",
+        "blockAspects": "Aspects",
+        "aspectText": "An angle of {deg}° between two points.",
+        "aspectMajor": "Major aspect: also drawn in the Basic view.",
+        "aspectMinor": "Minor aspect: only in the Professional view, as a dashed line.",
+        "aspectsNote": "Line colours show the system's aspect class: blue harmonious, red challenging, grey neutral. Two points in conjunction overlap on the wheel, so the conjunction line may not be visible; all aspects are listed in the Aspects tab. The North–South Node opposition is 180° in every chart by definition, so it is not drawn on the wheel.",
+        "blockOrb": "Orb, retrograde and degree notation",
+        "orbName": "Orb",
+        "orbText": "The difference between the actual angle and the exact aspect value. Example: if two planets are 93° apart, the aspect is a square (90°) with an orb of 3°. The maximum orb at which an aspect counts is set by the calculation source; this screen does not change the orb. In the Professional view, the line gets thicker as the orb gets smaller.",
+        "retroText": "Seen from Earth, the planet appears to move backwards through the zodiac. This is an apparent motion; the direction of the planet's orbit does not change.",
+        "degreeName": "Degrees and minutes",
+        "degreeText": "1° = 60′ (minutes of arc). Degrees are written in the ephemeris tradition by truncating the minutes: 29°59.9′ → 29°59′ (never rounded up into the next sign). On the wheel's scale each tick is 1°, a medium tick 5° and a long tick 10°."
+      }
+    }
+  }
+}

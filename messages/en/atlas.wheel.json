@@ -1,0 +1,30 @@
+{
+  "atlas": {
+    "wheel": {
+      "defaultLabel": "Natal chart wheel",
+      "aspectTitle": {
+        "conjunction": "Conjunction (0°)",
+        "opposition": "Opposition (180°)",
+        "trine": "Trine (120°)",
+        "square": "Square (90°)",
+        "sextile": "Sextile (60°)",
+        "semi_sextile": "Semi-sextile (30°)",
+        "semi_square": "Semi-square (45°)",
+        "sesquiquadrate": "Sesquiquadrate (135°)",
+        "quincunx": "Quincunx (150°)"
+      },
+      "cuspTitle": "House {n} cusp — {sign} {deg}",
+      "angle": {
+        "asc": "Ascendant",
+        "dsc": "Descendant",
+        "mc": "Midheaven (MC)",
+        "ic": "Imum Coeli (IC)"
+      },
+      "retroLong": " ℞ (retrograde)",
+      "point": {
+        "fortune": "Part of Fortune",
+        "vertex": "Vertex"
+      }
+    }
+  }
+}

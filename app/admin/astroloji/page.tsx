@@ -21,6 +21,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, use
 import { useRouter } from "next/navigation";
 import type { TechniqueView } from "@/lib/astrology/view/techniqueView";
 import { LOCAL_NATAL_SOURCE_TEXT } from "@/lib/astrology/model/natalHouseSystems";
+import { deriveViewWarningCodes, hasViewWarning, viewWithWarningCodes } from "@/lib/astrology/viewWarnings";
 import { HOUSE_SYSTEM_LABELS, NODE_TYPE_LABELS } from "@/lib/astrology/labels/tr";
 import { astroFetch, isAdminSurface, probeAstroAccess, readPreviewFlag, subscribePreviewFlag, writePreviewFlag } from "./_lib/api";
 import { consumeAtlasNavTarget } from "./_lib/skyToolsNav";
@@ -172,6 +173,15 @@ function replaceAtlasEntry(view: AtlasView, url: string) {
 
 const LEAVE_MESSAGE = "Kaydedilmemiş değişiklikleriniz var. Kaydetmeden çıkmak istiyor musunuz?";
 const DRAFT_LOSS = "Kaydedilmemiş “Kendi Yorumum” / Bilgi Bankası taslağı";
+/**
+ * I18N-0008: "yalnız kaydedilmemiş analiz sonuçları kaybolacak" kararı (Kaydet ve Çık) artık metin parçasından değil, bu
+ * kümeden verilir — bench kaybı satırları yalnız benchLoss() ile üretilir. Metin çevrilse de karar değişmez.
+ */
+const BENCH_LOSS_TEXTS = new Set<string>();
+function benchLoss(text: string): string {
+  BENCH_LOSS_TEXTS.add(text);
+  return text;
+}
 
 const VIEW_HASH: Record<AtlasView, string> = { home: "", new: "yeni-analiz", archive: "analiz-arsivi", client: "danisan", result: "analiz-sonucu", kb: "bilgi-bankasi", audit: "alan-denetimi", soon: "yakinda", horary: "horary-lilly" };
 /** Danışan Dosyası adresi: #danisan/<profil-kimliği> (yenileme, geri/ileri ve doğrudan bağlantı için). */
@@ -809,7 +819,7 @@ export default function AstrologyWorkspacePage() {
   const formLoss = form ? (form.mode === "create" ? "Doldurulmuş ama kaydedilmemiş Yeni Danışan formu" : "Kaydedilmemiş doğum bilgisi düzenlemesi") : "";
   function moduleLoss(): string[] {
     const out: string[] = [];
-    if (unsavedTotal > 0) out.push(`${unsavedTotal} hesaplanmış ama Analiz Arşivi'ne kaydedilmemiş analiz`);
+    if (unsavedTotal > 0) out.push(benchLoss(`${unsavedTotal} hesaplanmış ama Analiz Arşivi'ne kaydedilmemiş analiz`));
     if (anyDirty) out.push(DRAFT_LOSS);
     if (kbDirty && view === "kb") out.push("Bilgi Bankası'nda kaydedilmemiş kayıt");
     if (form && formDirty) out.push(formLoss);
@@ -849,7 +859,7 @@ export default function AstrologyWorkspacePage() {
   function askLeave(p: NonNullable<typeof pendingLeave>) {
     setLeaveSaving({ busy: false, error: null });
     // "Kaydet ve Çık" yalnız kaybolacak tek şey kaydedilmemiş analiz sonuçlarıysa sunulur (taslak/form otomatik kaydedilmez).
-    const onlyBench = p.details.length > 0 && p.details.every((d) => d.includes("Analiz Arşivi'ne kaydedilmemiş"));
+    const onlyBench = p.details.length > 0 && p.details.every((d) => BENCH_LOSS_TEXTS.has(d));
     setPendingLeave(onlyBench && !p.saveKeys ? { ...p, saveKeys: Object.values(benches).flatMap((b) => unsavedOf(b).map((i) => `${b.key}|${i.key}`)) } : p);
   }
   useEffect(() => {
@@ -940,7 +950,7 @@ export default function AstrologyWorkspacePage() {
     if (pending > 0) {
       askLeave({
         message: LEAVE_MESSAGE,
-        details: [`${pending} hesaplanmış ama Analiz Arşivi'ne kaydedilmemiş analiz — doğum bilgisi değişince bu sonuçlar eski revizyonda kalır, ekrandan kalkar`],
+        details: [benchLoss(`${pending} hesaplanmış ama Analiz Arşivi'ne kaydedilmemiş analiz — doğum bilgisi değişince bu sonuçlar eski revizyonda kalır, ekrandan kalkar`)],
         action,
       });
       return;
@@ -1842,11 +1852,11 @@ export default function AstrologyWorkspacePage() {
                       ? [
                           zodiacLabel(item.technique),
                           item.view.method.nodeType ? (NODE_TYPE_LABELS[item.view.method.nodeType as keyof typeof NODE_TYPE_LABELS] ?? null) : null,
-                          item.view.timeUnknownMasked ? "Saat bilinmiyor · evler gizli" : null,
+                          item.view.timeUnknownMasked ? { text: "Saat bilinmiyor · evler gizli", warn: true } : null,
                           // Aşama 3 (#643): Natal klasik ev sistemi — kaynak satırı + yüksek enlem / ev sınırı işaretleri (sunucu uyarısından).
                           item.view.method.houseCalculation === "local" ? LOCAL_NATAL_SOURCE_TEXT : null,
-                          item.view.method.houseCalculation === "local" && item.view.warnings.some((w) => w.startsWith("Yüksek enlem")) ? "Yüksek enlem · evler eşitsiz olabilir" : null,
-                          item.view.method.houseCalculation === "local" && item.view.warnings.some((w) => w.includes("ev sınırına")) ? "Ev sınırına yakın nokta var" : null,
+                          item.view.method.houseCalculation === "local" && hasViewWarning(viewWithWarningCodes(item.view), "high_latitude") ? { text: "Yüksek enlem · evler eşitsiz olabilir", warn: true } : null,
+                          item.view.method.houseCalculation === "local" && hasViewWarning(viewWithWarningCodes(item.view), "near_cusp") ? { text: "Ev sınırına yakın nokta var", warn: true } : null,
                         ]
                       : undefined
                   }
@@ -1948,6 +1958,7 @@ export default function AstrologyWorkspacePage() {
                         technical={item.view.technical}
                         timeUnknownMasked={item.view.timeUnknownMasked}
                         warnings={item.view.warnings}
+                        warningCodes={deriveViewWarningCodes(item.view)}
                         names={[shownDetail.label, partnerLabelOf(item.view)]}
                         options={item.view.options}
                         birthplace={birthplace}
@@ -2006,6 +2017,7 @@ export default function AstrologyWorkspacePage() {
                           technical={item.view.technical}
                           timeUnknownMasked={item.view.timeUnknownMasked}
                           warnings={item.view.warnings}
+                          warningCodes={deriveViewWarningCodes(item.view)}
                           names={[shownDetail.label, partnerLabelOf(item.view)]}
                           options={item.view.options}
                           birthplace={birthplace}

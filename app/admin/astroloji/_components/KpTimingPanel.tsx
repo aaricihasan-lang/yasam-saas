@@ -8,32 +8,34 @@
  */
 
 import { useCallback, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { KP_NUMBER_LOCAL_NOTE, KP_PROVIDER_CORRECTION_NOTE, KP_SPLIT_CORRECTION_NOTE, kpCorrectionNote, kpNumberLabel, type KpTimingPlanet, type KpTimingTechnical } from "@/lib/astrology/model/kp";
-import { SIGN_GLYPHS, SIGN_LABELS, formatDegree } from "@/lib/astrology/labels/tr";
-import { GRAHA_LABELS } from "@/lib/astrology/topics/vedic";
+import { useLocale, useTranslations } from "next-intl";
+import { dmyOf, dmyText } from "../_lib/atlasDate";
+import { kpNumberLabel, type KpTimingPlanet, type KpTimingTechnical } from "@/lib/astrology/model/kp";
+import { SIGN_GLYPHS, formatDegree } from "@/lib/astrology/labels/tr";
 import { kpSplitFromLabel } from "@/lib/astrology/verify/kpSub";
+import { useKpText } from "./KpPanels";
 import { formatZonedParts, isDisplayZone } from "@/lib/astrology/birth/zonedFormat";
 
 const th = "px-2 py-1.5 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500";
 const td = "px-2 py-1.5 text-sm text-slate-800";
 const inp = "max-w-full min-w-0 rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs";
 const PAGE = 100;
-const KP_AY: Record<string, string> = { "kp-newcomb": "KP-Newcomb", "kp-old": "KP (eski tablo)" };
-const short = (id: string) => (GRAHA_LABELS[id as keyof typeof GRAHA_LABELS] ?? id).split(" ")[0];
-const dmy = (d: string) => `${d.slice(8, 10)}.${d.slice(5, 7)}.${d.slice(0, 4)}`;
+const GRAHA_IDS = { sun: 1, moon: 1, mars: 1, mercury: 1, jupiter: 1, venus: 1, saturn: 1, rahu: 1, ketu: 1 } as const;
+const dmy = (d: string, loc = "tr") => dmyOf(d, loc);
 
 function validZone(tz: unknown): tz is string {
   return isDisplayZone(tz);
 }
 /** UTC anı → "GG.AA.YYYY SS:DD GMT+3" (seçilen bölge). */
-export function kpAt(utcIso: string, tz: string): string {
+/** ATLAS-B: `loc` verilmezse kaynak dil (tr) biçimi — eski çağıranlar bayt-bayt aynı. */
+export function kpAt(utcIso: string, tz: string, loc = "tr"): string {
   const ms = Date.parse(utcIso);
   if (!Number.isFinite(ms)) return utcIso;
-  if (tz === "UTC") return `${dmy(utcIso)} ${utcIso.slice(11, 16)} UTC`;
+  if (tz === "UTC") return `${dmy(utcIso, loc)} ${utcIso.slice(11, 16)} UTC`;
   const p = Object.fromEntries(
     formatZonedParts("en-GB", { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23", timeZoneName: "shortOffset" }, ms, tz).map((x) => [x.type, x.value]),
   );
-  return `${p.day}.${p.month}.${p.year} ${p.hour}:${p.minute} ${p.timeZoneName}`;
+  return dmyText(`${p.day}.${p.month}.${p.year} ${p.hour}:${p.minute} ${p.timeZoneName}`, loc);
 }
 
 /**
@@ -50,6 +52,7 @@ export function kpAt(utcIso: string, tz: string): string {
  * Telefon / tablet (sayfa doğal kayar, sol panel kaydırma kutusu yok): çubuk eskisi gibi tablonun üstünde.
  */
 function HScroll({ label, children }: { label: string; children: ReactNode }) {
+  const t = useTranslations("atlas.kp.timing");
   const scRef = useRef<HTMLDivElement | null>(null);
   const topRef = useRef<HTMLDivElement | null>(null);
   const [m, setM] = useState({ sw: 0, cw: 0, left: 0, topCw: 0 });
@@ -94,13 +97,13 @@ function HScroll({ label, children }: { label: string; children: ReactNode }) {
         data-testid="astro-kp-hscroll-bar"
         data-kp-hscroll-pos={deskBottom ? "bottom" : "top"}
       >
-        <button type="button" className={btn} onClick={() => step(-1)} disabled={m.left <= 0.5} aria-label="Tabloyu sola kaydır" data-testid="astro-kp-hscroll-prev">
+        <button type="button" className={btn} onClick={() => step(-1)} disabled={m.left <= 0.5} aria-label={t("scrollLeft")} data-testid="astro-kp-hscroll-prev">
           ‹
         </button>
         <div ref={topRef} onScroll={syncFromTop} className="h-3 min-w-0 flex-1 overflow-x-scroll overflow-y-hidden rounded bg-slate-100 [scrollbar-color:#94a3b8_#f1f5f9] [scrollbar-width:thin] [&::-webkit-scrollbar]:h-2.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-slate-400 [&::-webkit-scrollbar-track]:bg-slate-100" aria-hidden="true" data-testid="astro-kp-hscroll-top">
           <div style={{ width: m.topCw + range, height: 1 }} />
         </div>
-        <button type="button" className={btn} onClick={() => step(1)} disabled={m.left >= range - 0.5} aria-label="Tabloyu sağa kaydır" data-testid="astro-kp-hscroll-next">
+        <button type="button" className={btn} onClick={() => step(1)} disabled={m.left >= range - 0.5} aria-label={t("scrollRight")} data-testid="astro-kp-hscroll-next">
           ›
         </button>
       </div>
@@ -110,7 +113,7 @@ function HScroll({ label, children }: { label: string; children: ReactNode }) {
         className="overflow-x-auto outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-indigo-300"
         tabIndex={overflow ? 0 : undefined}
         role={overflow ? "region" : undefined}
-        aria-label={overflow ? `${label} — yatay kaydırılabilir; ← → tuşları` : undefined}
+        aria-label={overflow ? t("scrollAria", { label }) : undefined}
       >
         {children}
       </div>
@@ -119,20 +122,24 @@ function HScroll({ label, children }: { label: string; children: ReactNode }) {
 }
 
 function Pager({ shown, total, onMore }: { shown: number; total: number; onMore: () => void }) {
+  const t = useTranslations("atlas.kp.timing");
   if (shown >= total) return null;
   return (
     <div className="flex items-center justify-between gap-2 border-t border-slate-100 px-3 py-2 text-xs text-slate-600">
-      <span>
-        {shown} / {total} satır gösteriliyor
-      </span>
+      <span>{t("shown", { shown: String(shown), total: String(total) })}</span>
       <button type="button" className="rounded-lg border border-slate-300 px-2 py-1 hover:bg-slate-50" onClick={onMore} data-testid="astro-kp-more">
-        {Math.min(PAGE, total - shown)} satır daha göster
+        {t("more", { n: String(Math.min(PAGE, total - shown)) })}
       </button>
     </div>
   );
 }
 
 export function KpTimingPanel({ t, options = {} }: { t: KpTimingTechnical; options?: Record<string, unknown> }) {
+  const x = useKpText();
+  const loc = useLocale();
+  const tk = useTranslations("atlas.kp");
+  const tx = (k: string, v?: Record<string, string>) => tk(`timing.${k}`, v);
+  const short = (id: KpTimingPlanet | string) => x.gs(id as KpTimingPlanet);
   const [tz, setTz] = useState(validZone(options.displayTz) ? options.displayTz : "UTC");
   const [planet, setPlanet] = useState<KpTimingPlanet | "">("");
   const [nSub, setNSub] = useState(PAGE);
@@ -151,13 +158,13 @@ export function KpTimingPanel({ t, options = {} }: { t: KpTimingTechnical; optio
     <div className="flex min-w-0 flex-col gap-3" data-testid="astro-kp-timing-panel">
       <div className="rounded-xl border border-slate-200 bg-slate-50/70 px-3 py-2 text-sm text-slate-700">
         <p>
-          <strong>KP Transit · zaman aralığı</strong> · {dmy(t.window.startDate)} – {dmy(t.window.endDate)} (UTC günleri, iki uç dahil) · {KP_AY[t.frame.ayanamsa] ?? t.frame.ayanamsa}
-          {t.frame.ayanamsaDegrees !== null ? ` (${formatDegree(t.frame.ayanamsaDegrees)})` : ""} · Ay düğümü {t.nodeType === "true" ? "gerçek" : "ortalama"}
+          <strong>{tx("title")}</strong> · {tx("window", { start: dmy(t.window.startDate, loc), end: dmy(t.window.endDate, loc) })} · {x.ay(t.frame.ayanamsa) ?? t.frame.ayanamsa}
+          {t.frame.ayanamsaDegrees !== null ? ` (${formatDegree(t.frame.ayanamsaDegrees)})` : ""} · {tx("node", { node: x.t(t.nodeType === "true" ? "node.true" : "node.mean") })}
         </p>
         <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-600">
           <label className="flex items-center gap-1">
-            gösterim saat dilimi
-            <select className={inp} value={tz} onChange={(e) => setTz(e.target.value)} aria-label="KP aralık gösterim saat dilimi (sonuç)">
+            {tx("tzLabel")}
+            <select className={inp} value={tz} onChange={(e) => setTz(e.target.value)} aria-label={tx("tzAria")}>
               {zones.map((z) => (
                 <option key={z} value={z}>
                   {z}
@@ -167,12 +174,12 @@ export function KpTimingPanel({ t, options = {} }: { t: KpTimingTechnical; optio
           </label>
           {t.planets.length > 1 && (
             <label className="flex items-center gap-1">
-              gezegen
-              <select className={inp} value={planet} onChange={(e) => setPlanet(e.target.value as KpTimingPlanet | "")} aria-label="KP aralık gezegen filtresi">
-                <option value="">Tümü</option>
+              {tx("planetLabel")}
+              <select className={inp} value={planet} onChange={(e) => setPlanet(e.target.value as KpTimingPlanet | "")} aria-label={tx("planetAria")}>
+                <option value="">{tx("all")}</option>
                 {t.planets.map((p) => (
                   <option key={p} value={p}>
-                    {GRAHA_LABELS[p]}
+                    {x.g(p)}
                   </option>
                 ))}
               </select>
@@ -180,27 +187,26 @@ export function KpTimingPanel({ t, options = {} }: { t: KpTimingTechnical; optio
           )}
         </div>
         <p className="mt-1 text-[11px] leading-snug text-slate-500">
-          Anlar sağlayıcıdan UTC alınır ve seçilen bölgede gösterilir (yaz/kış saati her an için ayrı uygulanır). KP yalnız KP numarası, yıldız (nakshatra) lordu, sub-lord ve rasi ile
-          okunur; Batı açıları bu görünümde yoktur.
+          {tx("note")}
         </p>
       </div>
       {t.missing.length > 0 && (
         <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900" data-testid="astro-kp-missing">
-          Hesaplanamayan parçalar: {t.missing.map((m) => { const [k, p] = m.split(":"); return `${k === "sublord" ? "Sub-Lord" : k === "rasi" ? "Rasi" : "Konum tablosu"}${p ? ` (${GRAHA_LABELS[p as KpTimingPlanet] ?? p})` : ""}`; }).join(", ")}. Liste bu parçalar için eksiktir; yeniden çalıştırınca yalnız eksikler istenir.
+          {tx("missing", { list: t.missing.map((m) => { const [k, p] = m.split(":"); return `${tx(`missingPart.${k === "sublord" ? "sublord" : k === "rasi" ? "rasi" : "positions"}`)}${p ? ` (${p in GRAHA_IDS ? x.g(p as KpTimingPlanet) : p})` : ""}`; }).join(", ") })}
         </p>
       )}
 
       {t.kinds.includes("sublord") && (
         <section className="rounded-xl border border-slate-200 bg-white" data-testid="astro-kp-sublord">
-          <h4 className="border-b border-slate-100 px-3 py-2 text-sm font-semibold text-slate-700">Sub-Lord değişimleri ({subRows.length})</h4>
+          <h4 className="border-b border-slate-100 px-3 py-2 text-sm font-semibold text-slate-700">{tx("sublordTitle", { n: String(subRows.length) })}</h4>
           {subRows.length === 0 ? (
-            <p className="px-3 py-2 text-sm text-slate-500">Bu aralıkta Sub-Lord değişimi yok.</p>
+            <p className="px-3 py-2 text-sm text-slate-500">{tx("sublordNone")}</p>
           ) : (
             <>
               <ul className="divide-y divide-slate-100 sm:hidden">
                 {subRows.slice(0, nSub).map((c, i) => (
                   <li key={`${c.planet}-${c.atUtc}-${i}`} className="px-3 py-2 text-sm">
-                    <div className="text-xs tabular-nums text-slate-500">{kpAt(c.atUtc, tz)}</div>
+                    <div className="text-xs tabular-nums text-slate-500">{kpAt(c.atUtc, tz, loc)}</div>
                     <div>
                       <strong>{short(c.planet)}</strong> · KP {kpSplitFromLabel(c.fromKp, c.toKp)} ({short(c.fromStar)}/{short(c.fromSub)}) → KP {c.toKp} ({short(c.toStar)}/{short(c.toSub)}){c.corrected ? " *" : ""}
                     </div>
@@ -208,31 +214,31 @@ export function KpTimingPanel({ t, options = {} }: { t: KpTimingTechnical; optio
                 ))}
               </ul>
               <div className="hidden sm:block">
-                <HScroll label="Sub-Lord tablosu">
+                <HScroll label={tx("sublordTable")}>
                 <table className="min-w-full" data-testid="astro-kp-sublord-table">
                   <thead>
                     <tr>
-                      <th className={th}>An ({tz})</th>
-                      <th className={th}>Gezegen</th>
-                      <th className={th}>Önceki KP · yıldız / sub</th>
-                      <th className={th}>Yeni KP · yıldız / sub</th>
+                      <th className={th}>{tx("at", { tz })}</th>
+                      <th className={th}>{tx("planet")}</th>
+                      <th className={th}>{tx("from")}</th>
+                      <th className={th}>{tx("to")}</th>
                       <th className={th}>UTC</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
                     {subRows.slice(0, nSub).map((c, i) => (
                       <tr key={`${c.planet}-${c.atUtc}-${i}`}>
-                        <td className={`${td} whitespace-nowrap tabular-nums`}>{kpAt(c.atUtc, tz)}</td>
-                        <td className={td}>{GRAHA_LABELS[c.planet]}</td>
+                        <td className={`${td} whitespace-nowrap tabular-nums`}>{kpAt(c.atUtc, tz, loc)}</td>
+                        <td className={td}>{x.g(c.planet)}</td>
                         <td className={`${td} whitespace-nowrap`}>
                           {kpSplitFromLabel(c.fromKp, c.toKp)} · {short(c.fromStar)} / {short(c.fromSub)}
                         </td>
                         <td className={`${td} whitespace-nowrap font-medium`}>
                           {c.toKp} · {short(c.toStar)} / {short(c.toSub)}
-                          {c.fromStar !== c.toStar && <span className="ml-1 rounded bg-indigo-100 px-1 text-[10px] text-indigo-800">yıldız değişti</span>}
+                          {c.fromStar !== c.toStar && <span className="ml-1 rounded bg-indigo-100 px-1 text-[10px] text-indigo-800">{tx("starChanged")}</span>}
                           {c.corrected && (
-                            <span className="ml-1 rounded bg-amber-100 px-1 text-[10px] text-amber-900" title={kpCorrectionNote(c.corrected)} data-kp-corrected>
-                              * sağlayıcı verisi düzeltildi
+                            <span className="ml-1 rounded bg-amber-100 px-1 text-[10px] text-amber-900" title={tx(c.corrected.kind === "split-sub" ? "splitCorrection" : "providerCorrection")} data-kp-corrected>
+                              {tx("corrected")}
                             </span>
                           )}
                         </td>
@@ -244,8 +250,8 @@ export function KpTimingPanel({ t, options = {} }: { t: KpTimingTechnical; optio
                 </HScroll>
               </div>
               <Pager shown={Math.min(nSub, subRows.length)} total={subRows.length} onMore={() => setNSub((n) => n + PAGE)} />
-              {subRows.some((c) => c.corrected && c.corrected.kind !== "split-sub") && <p className="border-t border-slate-100 px-3 py-1.5 text-[11px] leading-snug text-amber-900" data-testid="astro-kp-corrected-note">{KP_PROVIDER_CORRECTION_NOTE}</p>}
-              {subRows.some((c) => c.corrected?.kind === "split-sub") && <p className="border-t border-slate-100 px-3 py-1.5 text-[11px] leading-snug text-amber-900" data-testid="astro-kp-split-corrected-note">{KP_SPLIT_CORRECTION_NOTE}</p>}
+              {subRows.some((c) => c.corrected && c.corrected.kind !== "split-sub") && <p className="border-t border-slate-100 px-3 py-1.5 text-[11px] leading-snug text-amber-900" data-testid="astro-kp-corrected-note">{tx("providerCorrection")}</p>}
+              {subRows.some((c) => c.corrected?.kind === "split-sub") && <p className="border-t border-slate-100 px-3 py-1.5 text-[11px] leading-snug text-amber-900" data-testid="astro-kp-split-corrected-note">{tx("splitCorrection")}</p>}
             </>
           )}
         </section>
@@ -253,18 +259,18 @@ export function KpTimingPanel({ t, options = {} }: { t: KpTimingTechnical; optio
 
       {t.kinds.includes("rasi") && (
         <section className="rounded-xl border border-slate-200 bg-white" data-testid="astro-kp-rasi">
-          <h4 className="border-b border-slate-100 px-3 py-2 text-sm font-semibold text-slate-700">Rasi (burç) geçişleri ({rasiRows.length})</h4>
+          <h4 className="border-b border-slate-100 px-3 py-2 text-sm font-semibold text-slate-700">{tx("rasiTitle", { n: String(rasiRows.length) })}</h4>
           {rasiRows.length === 0 ? (
-            <p className="px-3 py-2 text-sm text-slate-500">Bu aralıkta rasi geçişi yok.</p>
+            <p className="px-3 py-2 text-sm text-slate-500">{tx("rasiNone")}</p>
           ) : (
             <>
               <ul className="divide-y divide-slate-100">
                 {rasiRows.slice(0, nRasi).map((c, i) => (
                   <li key={`${c.planet}-${c.atUtc}-${i}`} className="flex flex-wrap items-center gap-x-3 gap-y-0.5 px-3 py-2 text-sm">
-                    <span className="text-xs tabular-nums text-slate-500">{kpAt(c.atUtc, tz)}</span>
+                    <span className="text-xs tabular-nums text-slate-500">{kpAt(c.atUtc, tz, loc)}</span>
                     <strong>{short(c.planet)}</strong>
                     <span>
-                      {SIGN_GLYPHS[c.fromRashi]} {SIGN_LABELS[c.fromRashi]} ({short(c.fromLord)}) → {SIGN_GLYPHS[c.toRashi]} {SIGN_LABELS[c.toRashi]} ({short(c.toLord)})
+                      {SIGN_GLYPHS[c.fromRashi]} {x.sign(c.fromRashi)} ({short(c.fromLord)}) → {SIGN_GLYPHS[c.toRashi]} {x.sign(c.toRashi)} ({short(c.toLord)})
                     </span>
                   </li>
                 ))}
@@ -278,13 +284,13 @@ export function KpTimingPanel({ t, options = {} }: { t: KpTimingTechnical; optio
       {t.positions && (
         <section className="rounded-xl border border-slate-200 bg-white" data-testid="astro-kp-positions">
           <h4 className="border-b border-slate-100 px-3 py-2 text-sm font-semibold text-slate-700">
-            KP konum tablosu ({t.positions.rows.length} an · {t.positions.intervalMinutes >= 60 ? `${t.positions.intervalMinutes / 60} saatte bir` : `${t.positions.intervalMinutes} dk`})
+            {tx("positionsTitle", { n: String(t.positions.rows.length), interval: t.positions.intervalMinutes >= 60 ? tx("everyHours", { h: String(t.positions.intervalMinutes / 60) }) : tx("minutes", { m: String(t.positions.intervalMinutes) }) })}
           </h4>
-          <HScroll label="KP konum tablosu">
+          <HScroll label={tx("positionsTable")}>
             <table className="min-w-full" data-testid="astro-kp-positions-table">
               <thead>
                 <tr>
-                  <th className={`${th} sticky left-0 bg-white`}>An ({tz})</th>
+                  <th className={`${th} sticky left-0 bg-white`}>{tx("at", { tz })}</th>
                   {t.positions.rows[0]?.bodies.map((b) => (
                     <th key={b.id} className={th}>
                       {short(b.id)}
@@ -295,7 +301,7 @@ export function KpTimingPanel({ t, options = {} }: { t: KpTimingTechnical; optio
               <tbody className="divide-y divide-slate-100">
                 {t.positions.rows.slice(0, nPos).map((r) => (
                   <tr key={r.atUtc}>
-                    <td className={`${td} sticky left-0 whitespace-nowrap bg-white text-xs tabular-nums`}>{kpAt(r.atUtc, tz)}</td>
+                    <td className={`${td} sticky left-0 whitespace-nowrap bg-white text-xs tabular-nums`}>{kpAt(r.atUtc, tz, loc)}</td>
                     {r.bodies.map((b) => (
                       <td key={b.id} className={`${td} whitespace-nowrap text-xs`}>
                         {SIGN_GLYPHS[b.rashi]} {formatDegree(b.degreeInRashi)}
@@ -313,7 +319,7 @@ export function KpTimingPanel({ t, options = {} }: { t: KpTimingTechnical; optio
           <Pager shown={Math.min(nPos, t.positions.rows.length)} total={t.positions.rows.length} onMore={() => setNPos((n) => n + PAGE)} />
           {t.positions.rows.some((r) => r.bodies.some((b) => b.kpNumberProvider !== undefined)) && (
             <p className="border-t border-slate-100 px-3 py-1.5 text-[11px] leading-snug text-amber-900" data-testid="astro-kp-local-number-note">
-              {KP_NUMBER_LOCAL_NOTE}
+              {tk("localNumberNote")}
             </p>
           )}
         </section>

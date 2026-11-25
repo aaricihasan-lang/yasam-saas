@@ -8,7 +8,7 @@
  * denetlenir (tarih/saat/ofset + adaptör; aynı UTC an, aynı uç, aynı diğer alanlar). Ürün kodu bu dosyayı kullanmaz.
  */
 import assert from "node:assert/strict";
-import { ASTRO_PROVIDER_LANG, ROXY_API_VERSION, ROXY_PROVIDER } from "@/lib/astrology/config";
+import { ASTRO_CHART_IDENTITY_LANG, ROXY_API_VERSION, ROXY_PROVIDER } from "@/lib/astrology/config";
 import { calcInputHash } from "@/lib/astrology/engine/inputHash";
 import type { CalcUnit, TechniqueDefinition } from "@/lib/astrology/engine/techniques";
 import { ROXY_KP_HORARY } from "@/lib/astrology/providers/roxy/kp";
@@ -22,7 +22,7 @@ export function legacyKpHoraryUnit(ctx: { birth: { latitude: number; longitude: 
   const place = ctx.places?.target ?? { latitude: ctx.birth.latitude, longitude: ctx.birth.longitude };
   const at = String(o.atUtc);
   const body = { horaryNumber: Number(o.horaryNumber), date: at.slice(0, 10), time: `${at.slice(11, 16)}:00`, latitude: r6(place.latitude), longitude: r6(place.longitude), timezone: 0, ayanamsa: o.ayanamsa, nodeType: o.nodeType };
-  const identity = { provider: ROXY_PROVIDER, providerApiVersion: ROXY_API_VERSION, adapterVersion: LEGACY_ADAPTER, endpoint: ROXY_KP_HORARY.endpoint, lang: ASTRO_PROVIDER_LANG, body };
+  const identity = { provider: ROXY_PROVIDER, providerApiVersion: ROXY_API_VERSION, adapterVersion: LEGACY_ADAPTER, endpoint: ROXY_KP_HORARY.endpoint, lang: ASTRO_CHART_IDENTITY_LANG, body };
   return { technique: "kp.horary", ...identity, inputHash: calcInputHash(identity), covers: [], timeDependent: true, part: 0 } as CalcUnit;
 }
 

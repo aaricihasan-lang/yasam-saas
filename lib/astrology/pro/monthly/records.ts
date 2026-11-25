@@ -11,6 +11,7 @@ import { hitDbRateLimit, rateLimitBucket } from "@/lib/security/dbRateLimit";
 import { ASTRO_WRITE_LIMITS } from "@/lib/astrology/limits";
 import { parseMonthlyRequest } from "./contract";
 import { kindLabel, periodLabel } from "./format";
+import { SOURCE_TEXT } from "./text";
 import { CROSSCHECK_UNAVAILABLE_ERROR, ensureVerified, getMonthlyEphemeris, isVerifiedPass, MONTHLY_METHODOLOGY_VERSION, type MonthlyDeps } from "./service";
 import type { MonthlyEphemeris, MonthlyKind } from "./types";
 
@@ -25,12 +26,14 @@ export const LIST_MAX = 50;
 export type Ctx = { db: SupabaseClient; tenantId: string; userId: string };
 export type Res = { status: number; body: Record<string, unknown> };
 const bad = (status: number, code: string, error: string, extra: Record<string, unknown> = {}): Res => ({ status, body: { ok: false, code, error, ...extra } });
-const notFound = (): Res => bad(404, "NOT_FOUND", "Kayıt bulunamadı.");
+// Hata metinleri kaynak dilde (tr; katalog); rota sınırında istek diline çevrilir (routeKit.localizeBody).
+const E = (k: string, v?: Record<string, string>) => SOURCE_TEXT.t(`errors.${k}`, v);
+const notFound = (): Res => bad(404, "NOT_FOUND", E("notFound"));
 /** Tablo yoksa (migration uygulanmamış) açık mesaj; diğer hatalar genel. */
 const dbFail = (context: string, e: { code?: string } | null): Res => {
   console.error(`[astro-monthly-records] db error (${context})`, { code: e?.code ?? "unknown" });
-  if (e?.code === "42P01" || e?.code === "PGRST205") return bad(503, "STORE_UNAVAILABLE", "Efemeris kayıt altyapısı henüz etkin değil. Tablo yine görüntülenebilir; kayıt yapılamaz.");
-  return bad(500, "DB_ERROR", "Kayıt işlemi şu anda yapılamıyor. Lütfen biraz sonra tekrar deneyin.");
+  if (e?.code === "42P01" || e?.code === "PGRST205") return bad(503, "STORE_UNAVAILABLE", E("storeUnavailable"));
+  return bad(500, "DB_ERROR", E("dbError"));
 };
 
 const LIST_COLS = "id, title, kind, year, month, zodiac, ayanamsa, time_reference, methodology_version, created_at, updated_at";
@@ -67,7 +70,8 @@ function publicRow(r: Row) {
   };
 }
 
-export const defaultTitle = (kind: MonthlyKind, year: number, month: number) => `Efemeris · ${kindLabel(kind)} · ${periodLabel(year, month)}`;
+/** İstemci başlık göndermezse saklanan varsayılan başlık (kayıt verisi → kaynak dil). */
+export const defaultTitle = (kind: MonthlyKind, year: number, month: number) => SOURCE_TEXT.t("ui.defaultTitle", { kind: kindLabel(kind), period: periodLabel(year, month) });
 
 function parseTitle(v: unknown): string | null {
   if (typeof v !== "string") return null;
@@ -77,7 +81,7 @@ function parseTitle(v: unknown): string | null {
 
 async function writeRate(ctx: Ctx): Promise<Res | null> {
   const r = await hitDbRateLimit(ctx.db, rateLimitBucket("astro-write", `${ctx.tenantId}:${ctx.userId}`), ASTRO_WRITE_LIMITS.write.limit, ASTRO_WRITE_LIMITS.write.windowSeconds);
-  return r.allowed ? null : bad(429, "WRITE_RATE_LIMITED", "Kısa sürede çok fazla kayıt işlemi yapıldı. Lütfen biraz sonra tekrar deneyin.", { retryAfterSec: r.retryAfterSec });
+  return r.allowed ? null : bad(429, "WRITE_RATE_LIMITED", E("writeRate"), { retryAfterSec: r.retryAfterSec });
 }
 
 async function byRequestId(ctx: Ctx, saveRequestId: string) {
@@ -91,8 +95,8 @@ export async function saveMonthlyRecord(ctx: Ctx, raw: unknown, deps: Pick<Month
   if (!parsed.ok) return { status: 400, body: { ok: false, ...parsed.error } };
   const req = parsed.value;
   const title = b.title === undefined || b.title === null || b.title === "" ? defaultTitle(req.kind, req.year, req.month) : parseTitle(b.title);
-  if (!title) return bad(400, "INVALID_INPUT", "Kayıt başlığı en çok 200 karakter olabilir.", { field: "title" });
-  if (typeof b.saveRequestId !== "string" || !UUID_RE.test(b.saveRequestId)) return bad(400, "INVALID_INPUT", "Kayıt isteği kimliği geçersiz.", { field: "saveRequestId" });
+  if (!title) return bad(400, "INVALID_INPUT", E("titleTooLong"), { field: "title" });
+  if (typeof b.saveRequestId !== "string" || !UUID_RE.test(b.saveRequestId)) return bad(400, "INVALID_INPUT", E("saveRequestIdInvalid"), { field: "saveRequestId" });
 
   // İdempotency: aynı istek kimliği daha önce kaydedildiyse AYNI kayıt döner.
   const prev = await byRequestId(ctx, b.saveRequestId);
@@ -102,7 +106,7 @@ export async function saveMonthlyRecord(ctx: Ctx, raw: unknown, deps: Pick<Month
   // Ücretli çağrı YOK: yalnız önbellek. Önbellekte yoksa uzman önce tabloyu hesaplamalıdır.
   const got = await getMonthlyEphemeris(req, { db: deps.db, callProvider: null }, { allowProvider: false });
   if (!got.ok) {
-    if (got.error.code === "NOT_CACHED") return bad(409, "NOT_CACHED", "Bu ayın tablosu sunucuda bulunamadı. Tabloyu yeniden hesaplayıp sonra kaydedin.");
+    if (got.error.code === "NOT_CACHED") return bad(409, "NOT_CACHED", E("notCachedSave"));
     // Doğrulanmamış içerik KAYDA YAZILMAZ.
     return bad(got.error.code === "CROSSCHECK_UNAVAILABLE" ? 503 : got.error.code === "CROSSCHECK_FAILED" ? 502 : 500, got.error.code, got.error.error);
   }
@@ -136,7 +140,7 @@ export async function saveMonthlyRecord(ctx: Ctx, raw: unknown, deps: Pick<Month
       if (again.data) return { status: 200, body: { ok: true, reused: true, record: publicRow(again.data as unknown as Row) } };
       return dbFail("save-dup", er);
     }
-    if (er.code === "P0001" && /ASTRO_RECORD_CAP/.test(String(er.message))) return bad(409, "RECORD_CAP_REACHED", `${MONTHLY_RECORD_CAP} efemeris kaydı sınırına ulaşıldı.`, { cap: MONTHLY_RECORD_CAP });
+    if (er.code === "P0001" && /ASTRO_RECORD_CAP/.test(String(er.message))) return bad(409, "RECORD_CAP_REACHED", E("recordCap", { cap: String(MONTHLY_RECORD_CAP) }), { cap: MONTHLY_RECORD_CAP });
     return dbFail("save", er);
   }
   return { status: 201, body: { ok: true, reused: false, record: publicRow(ins.data as unknown as Row) } };
@@ -146,11 +150,11 @@ export async function saveMonthlyRecord(ctx: Ctx, raw: unknown, deps: Pick<Month
 export async function listMonthlyRecords(ctx: Ctx, p: URLSearchParams): Promise<Res> {
   const limit = Math.min(Math.max(Number(p.get("limit") ?? 20) || 20, 1), LIST_MAX);
   const offset = Math.max(Number(p.get("offset") ?? 0) || 0, 0);
-  if (offset > 100_000) return bad(400, "INVALID_INPUT", "Sayfa geçersiz.");
+  if (offset > 100_000) return bad(400, "INVALID_INPUT", E("pageInvalid"));
   const kind = p.get("kind") ?? "";
-  if (kind && kind !== "western" && kind !== "vedic") return bad(400, "INVALID_INPUT", "Tür filtresi geçersiz.");
+  if (kind && kind !== "western" && kind !== "vedic") return bad(400, "INVALID_INPUT", E("kindFilterInvalid"));
   const year = p.get("year") ?? "";
-  if (year && !/^\d{4}$/.test(year)) return bad(400, "INVALID_INPUT", "Yıl filtresi geçersiz.");
+  if (year && !/^\d{4}$/.test(year)) return bad(400, "INVALID_INPUT", E("yearFilterInvalid"));
   let q = ctx.db.from(TABLE).select(LIST_COLS).eq("tenant_id", ctx.tenantId).eq("owner_user_id", ctx.userId);
   if (kind) q = q.eq("kind", kind);
   if (year) q = q.eq("year", Number(year));
