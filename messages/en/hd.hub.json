@@ -1,0 +1,29 @@
+{
+  "hd": {
+    "hub": {
+      "heroSub": "Professional Human Design calculation and knowledge workspace.",
+      "modules": {
+        "danisanlar": {
+          "title": "Human Design Calculation",
+          "desc": "Select a client or create a new one and calculate their professional Human Design chart.",
+          "badge": "Calculation"
+        },
+        "bilgiBankasi": {
+          "title": "Knowledge Base",
+          "desc": "Manage your professional Human Design knowledge.",
+          "badge": "Content"
+        },
+        "iliskiGrup": {
+          "title": "Relationship and Group Analyses",
+          "desc": "Relationship analysis for two people (Connection) and group analysis for 3–5 people (Penta). Choose from your saved clients.",
+          "badge": "Connection · Penta"
+        },
+        "transit": {
+          "title": "Daily and Personal Transits",
+          "desc": "Explore the planetary influences of a chosen date and view your saved clients' personal transits.",
+          "badge": "Transit"
+        }
+      }
+    }
+  }
+}
