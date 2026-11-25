@@ -874,6 +874,12 @@
         "safra": "Sıcak-Kuru",
         "sovdavi": "Soğuk-Kuru",
         "balgam": "Soğuk-Yaş"
+      },
+      "mizacName": {
+        "dem": "Dem",
+        "safra": "Safra",
+        "sovdavi": "Sovdavi",
+        "balgam": "Balgam"
       }
     },
     "profiles": {
