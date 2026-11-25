@@ -1,0 +1,36 @@
+{
+  "notifications": {
+    "view": {
+      "general": "Genel randevu",
+      "hiddenClient": "Kayıtlı danışan",
+      "now": "Şimdi",
+      "today": "Bugün {time}",
+      "upcoming": "{day} · {duration} sonra",
+      "started": "{day} · {duration} önce başladı",
+      "durMin": "{m} dk",
+      "durHour": "{h} sa",
+      "durHourMin": "{h} sa {m} dk"
+    },
+    "bell": {
+      "reminderTitleOne": "Randevu hatırlatması",
+      "reminderTitleMany": "{count} randevu hatırlatması",
+      "reminderMessageOne": "{heading} — {when}",
+      "reminderMessageMany": "{heading} — {when} ve {rest} randevu daha",
+      "updateFailedTitle": "Bildirim güncellenemedi",
+      "updateFailedBody": "İşlem kaydedilemedi. Lütfen tekrar deneyin.",
+      "ariaUnread": "Bildirimler, {count} okunmamış",
+      "title": "Bildirimler",
+      "liveUnread": "{count} okunmamış bildirim",
+      "panelTitle": "Bugünkü randevular",
+      "empty": "Bugün için bekleyen randevu bildirimi yok.",
+      "loading": "Yükleniyor…",
+      "new": "Yeni",
+      "clientCard": "Danışan kartı",
+      "doneTitle": "Bildirimi kapatır; randevu durumunu değiştirmez.",
+      "done": "Tamamlandı",
+      "muteTitle": "Bu randevu için bildirimi bir daha gösterme.",
+      "mute": "Tekrar gösterme",
+      "openAgenda": "Ajandayı aç"
+    }
+  }
+}

@@ -2,9 +2,12 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
+import { useLocale, useTranslations } from "next-intl";
+import { formatDateTime } from "@/lib/i18n/format";
+import type { ActiveLocale } from "@/lib/i18n/locales";
 import { Clock3, Crown, MessageCircle, ShieldAlert, Sparkles, X } from "lucide-react";
 import { readSessionToken, readYasamUser } from "@/lib/auth/yasamUser";
-import { trialCountdownTitle, TRIAL_MESSAGES, type TrialPhase } from "@/lib/trial/trialCore";
+import { trialCountdownTitle, type TrialPhase } from "@/lib/trial/trialCore";
 import { ackTrialNotice, isKnownNoTrial, isTrialNoticePending, rememberNoTrial } from "@/lib/trial/trialNoticeStore";
 
 /**
@@ -35,15 +38,15 @@ function authHeaders(userId: string): Record<string, string> {
   return { "x-user-id": userId, ...(token ? { "x-session-token": token } : {}) };
 }
 
-function formatEnd(iso: string | null): string {
+function formatEnd(iso: string | null, locale: ActiveLocale): string {
   if (!iso) return "";
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "";
-  return d.toLocaleString("tr-TR", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit", timeZone: "Europe/Istanbul" });
+  return formatDateTime(iso, { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit", timeZone: "Europe/Istanbul" }, locale);
 }
 
 export default function TrialNotice() {
   const pathname = usePathname() ?? "/";
+  const t = useTranslations("trial");
+  const locale = useLocale() as ActiveLocale;
   const [status, setStatus] = useState<TrialStatus | null>(null);
   const [open, setOpen] = useState(false);
   const [requesting, setRequesting] = useState(false);
@@ -91,14 +94,14 @@ export default function TrialNotice() {
         body: "{}",
       });
       const j = (await r.json().catch(() => ({}))) as { message?: string; error?: string; createdAt?: string };
-      setRequestMsg(j.message ?? j.error ?? "Talep gönderilemedi. Lütfen tekrar deneyin.");
+      setRequestMsg(j.message ?? j.error ?? t("notice.requestFailed"));
       if (r.ok && j.createdAt) setStatus((s) => (s ? { ...s, proRequestAt: j.createdAt ?? s.proRequestAt } : s));
     } catch {
-      setRequestMsg("Talep gönderilemedi. Lütfen tekrar deneyin.");
+      setRequestMsg(t("notice.requestFailed"));
     } finally {
       setRequesting(false);
     }
-  }, []);
+  }, [t]);
 
   if (hiddenRoute || !status) return null;
   const ended = status.phase === "expired" || status.phase === "suspended";
@@ -109,19 +112,19 @@ export default function TrialNotice() {
   let body: string;
   let Icon = Clock3;
   if (status.phase === "active") {
-    title = trialCountdownTitle(remainingMs);
-    body = `Ücretsiz deneme süreniz ${formatEnd(status.endsAt)} tarihinde sona erer.`;
+    title = trialCountdownTitle(remainingMs, (k, v) => t(`notice.${k}`, v));
+    body = t("notice.endsAt", { at: formatEnd(status.endsAt, locale) });
   } else if (status.phase === "expired") {
-    title = "Ücretsiz Deneme Süreniz Sona Erdi — Pro'ya Geçin";
-    body = TRIAL_MESSAGES.expired;
+    title = t("notice.expiredTitle");
+    body = t("messages.expired");
     Icon = Crown;
   } else if (status.phase === "suspended") {
-    title = "Deneme Erişiminiz Durduruldu";
-    body = TRIAL_MESSAGES.suspended;
+    title = t("notice.suspendedTitle");
+    body = t("messages.suspended");
     Icon = ShieldAlert;
   } else if (status.phase === "review") {
-    title = "Üyeliğiniz İnceleniyor";
-    body = TRIAL_MESSAGES.review;
+    title = t("notice.reviewTitle");
+    body = t("messages.review");
     Icon = ShieldAlert;
   } else {
     return null;
@@ -136,7 +139,7 @@ export default function TrialNotice() {
           className="fixed bottom-4 right-4 z-[60] inline-flex items-center gap-2 rounded-full border border-amber-200/80 bg-white/95 px-4 py-2.5 text-sm font-bold text-slate-800 shadow-[0_12px_32px_rgba(15,23,42,0.18)] backdrop-blur transition hover:-translate-y-0.5"
         >
           <Crown className="h-4 w-4 text-amber-500" aria-hidden />
-          Pro Üyeliğe Geç
+          {t("notice.goPro")}
         </button>
       ) : null}
 
@@ -155,7 +158,7 @@ export default function TrialNotice() {
                 type="button"
                 onClick={close}
                 className="absolute right-4 top-4 rounded-full p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
-                aria-label="Kapat"
+                aria-label={t("notice.close")}
               >
                 <X className="h-4 w-4" />
               </button>
@@ -172,7 +175,7 @@ export default function TrialNotice() {
               {status.phase === "active" && status.credits ? (
                 <p className="mt-3 inline-flex items-center gap-2 rounded-full bg-violet-50 px-3 py-1.5 text-xs font-bold text-violet-700">
                   <Sparkles className="h-3.5 w-3.5" aria-hidden />
-                  Bugünkü Roxy krediniz: {Math.max(0, status.credits.dailyLimit - status.credits.usedTotal)} / {status.credits.dailyLimit}
+                  {t("notice.credit", { left: String(Math.max(0, status.credits.dailyLimit - status.credits.usedTotal)), limit: String(status.credits.dailyLimit) })}
                 </p>
               ) : null}
 
@@ -185,7 +188,7 @@ export default function TrialNotice() {
                     className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-slate-950 via-violet-900 to-fuchsia-700 px-4 text-sm font-bold text-white shadow-lg shadow-violet-200 transition hover:-translate-y-0.5 disabled:opacity-70"
                   >
                     <Crown className="h-4 w-4" aria-hidden />
-                    {status.proRequestAt ? "Pro Talebiniz Alındı" : "Pro Üyeliğe Geç"}
+                    {status.proRequestAt ? t("notice.proRequested") : t("notice.goPro")}
                   </button>
                   {status.whatsappUrl ? (
                     <a
@@ -195,7 +198,7 @@ export default function TrialNotice() {
                       className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 text-sm font-bold text-emerald-800 transition hover:bg-emerald-100"
                     >
                       <MessageCircle className="h-4 w-4" aria-hidden />
-                      WhatsApp ile İletişime Geçin
+                      {t("notice.whatsapp")}
                     </a>
                   ) : null}
                   {requestMsg ? <p className="text-center text-sm font-semibold text-slate-600" role="status">{requestMsg}</p> : null}
@@ -206,12 +209,12 @@ export default function TrialNotice() {
                   onClick={close}
                   className="mt-5 inline-flex h-12 w-full items-center justify-center rounded-2xl bg-gradient-to-r from-slate-950 via-violet-900 to-fuchsia-700 px-4 text-sm font-bold text-white shadow-lg shadow-violet-200 transition hover:-translate-y-0.5"
                 >
-                  Tamam
+                  {t("notice.ok")}
                 </button>
               )}
               {ended ? (
                 <button type="button" onClick={close} className="mt-3 w-full text-center text-sm font-semibold text-slate-500 hover:text-slate-700">
-                  Tamam
+                  {t("notice.ok")}
                 </button>
               ) : null}
             </div>

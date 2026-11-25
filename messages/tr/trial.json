@@ -1,0 +1,46 @@
+{
+  "trial": {
+    "messages": {
+      "expired": "Ücretsiz deneme süreniz sona erdi. Kayıtlarınızı görüntüleyebilir ve dışa aktarabilirsiniz; yeni işlem için Pro üyeliğe geçebilirsiniz.",
+      "suspended": "Deneme erişiminiz yönetici tarafından durduruldu. Kayıtlarınızı görüntüleyebilir ve dışa aktarabilirsiniz.",
+      "review": "Üyeliğiniz güvenlik incelemesinde. İnceleme tamamlanınca deneme modülleriniz açılacaktır.",
+      "notStarted": "Deneme süreniz henüz başlamadı. Lütfen çıkış yapıp yeniden giriş yapın."
+    },
+    "notice": {
+      "lastDay": "Bugün Ücretsiz Denemenizin Son Günü",
+      "daysLeft": "Ücretsiz Denemenize {days} Gün Kaldı",
+      "endsAt": "Ücretsiz deneme süreniz {at} tarihinde sona erer.",
+      "expiredTitle": "Ücretsiz Deneme Süreniz Sona Erdi — Pro'ya Geçin",
+      "suspendedTitle": "Deneme Erişiminiz Durduruldu",
+      "reviewTitle": "Üyeliğiniz İnceleniyor",
+      "requestFailed": "Talep gönderilemedi. Lütfen tekrar deneyin.",
+      "goPro": "Pro Üyeliğe Geç",
+      "close": "Kapat",
+      "credit": "Bugün Kalan Hesaplama Kredisi: {left} / {limit}",
+      "proRequested": "Pro Talebiniz Alındı",
+      "whatsapp": "WhatsApp ile İletişime Geçin",
+      "ok": "Tamam"
+    },
+    "api": {
+      "trialOnly": "Bu işlem yalnız deneme üyeleri içindir.",
+      "tooMany": "Çok fazla deneme. Lütfen daha sonra tekrar deneyin.",
+      "invalid": "Geçersiz istek.",
+      "noteTooLong": "Not en fazla 500 karakter olabilir.",
+      "saveFailed": "Talep kaydedilemedi. Lütfen tekrar deneyin.",
+      "created": "Pro üyelik talebiniz alındı. Ödeme bilgileri için sizinle iletişime geçeceğiz.",
+      "existing": "Pro üyelik talebiniz zaten alınmış durumda. Sizinle iletişime geçeceğiz."
+    },
+    "errors": {
+      "codes": {
+        "TRIAL_EXPIRED": "Ücretsiz deneme süreniz sona erdi. Kayıtlarınızı görüntüleyebilir ve dışa aktarabilirsiniz; yeni işlem için Pro üyeliğe geçebilirsiniz.",
+        "TRIAL_SUSPENDED": "Deneme erişiminiz yönetici tarafından durduruldu. Kayıtlarınızı görüntüleyebilir ve dışa aktarabilirsiniz.",
+        "TRIAL_REVIEW": "Üyeliğiniz güvenlik incelemesinde. İnceleme tamamlanınca deneme modülleriniz açılacaktır.",
+        "TRIAL_NOT_STARTED": "Deneme süreniz henüz başlamadı. Lütfen çıkış yapıp yeniden giriş yapın.",
+        "TRIAL_CREDIT_LIMIT": "Bugünkü hesaplama krediniz doldu. Kayıtlı sonuçlarınızı görüntüleyebilirsiniz; krediniz Türkiye saatiyle 00.00'da yenilenir.",
+        "TRIAL_CREDIT_MODULE_LIMIT": "Bu modül için bugünkü hesaplama kredisi sınırına ulaştınız. Krediniz Türkiye saatiyle 00.00'da yenilenir.",
+        "TRIAL_CREDIT_UNAVAILABLE": "Kredi durumu doğrulanamadı. Lütfen biraz sonra tekrar deneyin.",
+        "MODULE_NOT_IN_TRIAL": "Bu modül ücretsiz deneme paketine dahil değildir. Pro üyelikle kullanılabilir."
+      }
+    }
+  }
+}

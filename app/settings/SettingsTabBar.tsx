@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState, useSyncExternalStore, type ElementType, type KeyboardEvent } from "react";
 import { Archive, ChevronDown, MoreHorizontal } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 export type SettingsTabDef<T extends string> = { id: T; label: string; icon: ElementType };
 
@@ -13,8 +14,7 @@ type Props<T extends string> = {
 
 /** Tek açılır menüde toplanan veri sekmeleri (sıraları korunur). */
 const GROUP_IDS: readonly string[] = ["export", "backup", "restore"];
-const GROUP_LABEL = "Yedek & Aktarım";
-const MORE_LABEL = "Diğer";
+// I18N: grup ve "Diğer" menü adları settings.tabBar.{groupData,more} anahtarlarından (bileşen içinde).
 const GAP = 6; // gap-1.5
 const EDGE = 8; // menü paneli ile görünür alan kenarı arasındaki en az boşluk (px)
 const LG_QUERY = "(min-width: 1024px)";
@@ -50,6 +50,9 @@ const LAST_ODD = "col-span-2 mx-auto w-1/2 md:col-span-1 md:mx-0 md:w-auto";
  * odağı düğmeye döndürür; dışarı tıklama / odak çıkışı (pencere dışı dahil) kapatır. Panel her genişlikte görünür alan içinde kalır.
  */
 export function SettingsTabBar<T extends string>({ tabs, active, onSelect }: Props<T>) {
+  const tBar = useTranslations("settings.tabBar");
+  const GROUP_LABEL = tBar("groupData");
+  const MORE_LABEL = tBar("more");
   const grouped = tabs.filter((t) => GROUP_IDS.includes(t.id));
   const useGroup = grouped.length >= 2;
   const items: Item<T>[] = [];

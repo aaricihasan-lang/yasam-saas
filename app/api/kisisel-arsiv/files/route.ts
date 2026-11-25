@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requestTranslator } from "@/lib/i18n/serverMessages";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { trackUsage } from "@/lib/usage/trackUsage";
@@ -46,6 +47,7 @@ async function archiveInTenant(
 
 // ─── GET ?archiveIds=a,b,c — bu arşivlerin dosya satırları (tenant-scoped) ──────
 export async function GET(req: NextRequest): Promise<Response> {
+  const te = requestTranslator(req, "archive.personal.api");
   const guard = await requireModuleAccess(req, "personal_archive");
   if (!guard.ok) return guard.response;
   const { db, tenantId } = guard;
@@ -60,12 +62,13 @@ export async function GET(req: NextRequest): Promise<Response> {
     .eq("tenant_id", tenantId)
     .in("archive_id", ids);
 
-  if (error) return archiveServerErrorResponse(ROUTE, "GET", tenantId, error);
+  if (error) return archiveServerErrorResponse(ROUTE, "GET", tenantId, error, te("serverError"));
   return NextResponse.json({ ok: true, rows: data ?? [] });
 }
 
 // ─── POST { archiveId, files:[{file_name,file_path,file_type,file_size}] } ──────
 export async function POST(req: NextRequest): Promise<Response> {
+  const te = requestTranslator(req, "archive.personal.api");
   const guard = await requireModuleAccess(req, "personal_archive");
   if (!guard.ok) return guard.response;
   const { db, tenantId, is_demo_account } = guard;
@@ -73,15 +76,15 @@ export async function POST(req: NextRequest): Promise<Response> {
 
   let body: Record<string, unknown>;
   try { body = (await req.json()) as Record<string, unknown>; }
-  catch { return NextResponse.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 }); }
+  catch { return NextResponse.json({ ok: false, error: te("invalidBody") }, { status: 400 }); }
 
   const archiveId = String(body.archiveId ?? "").trim();
   const files = Array.isArray(body.files) ? (body.files as Record<string, unknown>[]) : [];
-  if (!archiveId) return NextResponse.json({ ok: false, error: "archiveId gerekli." }, { status: 400 });
+  if (!archiveId) return NextResponse.json({ ok: false, error: te("archiveIdRequired") }, { status: 400 });
   if (files.length === 0) return NextResponse.json({ ok: true, rows: [] });
 
   if (!(await archiveInTenant(db, archiveId, tenantId))) {
-    return NextResponse.json({ ok: false, error: "Arşiv bu hesaba ait değil." }, { status: 403 });
+    return NextResponse.json({ ok: false, error: te("notOwned") }, { status: 403 });
   }
 
   const rows = files
@@ -94,14 +97,14 @@ export async function POST(req: NextRequest): Promise<Response> {
       file_size: f.file_size != null ? Number(f.file_size) : null,
     }))
     .filter((r) => r.file_path);
-  if (rows.length === 0) return NextResponse.json({ ok: false, error: "Geçerli dosya yok." }, { status: 400 });
+  if (rows.length === 0) return NextResponse.json({ ok: false, error: te("noValidFiles") }, { status: 400 });
 
   // P1-3 savunması: geriye dönük JSON hattı bile client-controlled file_path enjekte
   // edemez — her path bu tenant+archive öneki altında olmalı (cross-tenant metadata engeli).
   const badPath = rows.find((r) => !isOwnedPersonalArchivePath(r.file_path, tenantId, archiveId));
   if (badPath) {
     return NextResponse.json(
-      { ok: false, error: "Geçersiz dosya yolu." },
+      { ok: false, error: te("invalidPath") },
       { status: 400 },
     );
   }
@@ -109,7 +112,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   const { data, error } = await db.from(TABLE).insert(rows).select("*");
   if (error) {
     await trackUsage(guard, req, { module: "personal_archive", action: "action_failed", failedAction: "file_uploaded", subEntity: "file", errorClass: "server" });
-    return archiveServerErrorResponse(ROUTE, "POST", tenantId, error);
+    return archiveServerErrorResponse(ROUTE, "POST", tenantId, error, te("serverError"));
   }
   // USAGE360 (geriye dönük JSON hattı): önceden yüklenmiş dosyaların metadata kaydı =
   // yükleme tamamlanması → tek olay + itemCount. resourceId = eklenen satır id'leri
@@ -129,16 +132,17 @@ export async function POST(req: NextRequest): Promise<Response> {
 
 // ─── DELETE ?archiveId=... — arşivin tüm dosya satırlarını sil (tenant-scoped) ──
 export async function DELETE(req: NextRequest): Promise<Response> {
+  const te = requestTranslator(req, "archive.personal.api");
   const guard = await requireModuleAccess(req, "personal_archive");
   if (!guard.ok) return guard.response;
   const { db, tenantId, is_demo_account } = guard;
   if (is_demo_account) return demoReadOnlyResponse();
 
   const archiveId = req.nextUrl.searchParams.get("archiveId")?.trim() ?? "";
-  if (!archiveId) return NextResponse.json({ ok: false, error: "archiveId gerekli." }, { status: 400 });
+  if (!archiveId) return NextResponse.json({ ok: false, error: te("archiveIdRequired") }, { status: 400 });
 
   if (!(await archiveInTenant(db, archiveId, tenantId))) {
-    return NextResponse.json({ ok: false, error: "Arşiv bu hesaba ait değil." }, { status: 403 });
+    return NextResponse.json({ ok: false, error: te("notOwned") }, { status: 403 });
   }
 
   // P1-3: storage objelerini SUNUCUDA sil. Path'ler client'tan ALINMAZ; DB'den
@@ -169,7 +173,7 @@ export async function DELETE(req: NextRequest): Promise<Response> {
       if (rmError) {
         logArchiveServerError(ROUTE, "DELETE:storage-remove", tenantId, rmError);
         return NextResponse.json(
-          { ok: false, error: "Dosyalar silinemedi. Lütfen tekrar deneyin." },
+          { ok: false, error: te("filesDeleteFailed") },
           { status: 500 },
         );
       }
@@ -184,7 +188,7 @@ export async function DELETE(req: NextRequest): Promise<Response> {
     .eq("archive_id", archiveId);
 
   if (error) {
-    return archiveServerErrorResponse(ROUTE, "DELETE", tenantId, error);
+    return archiveServerErrorResponse(ROUTE, "DELETE", tenantId, error, te("serverError"));
   }
   // USAGE360: arşivin tüm dosyaları tek istekte silinir → TEK olay + itemCount.
   // Dosyasız arşivde (0 satır) değişiklik yok → olay yok.

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requestTranslator } from "@/lib/i18n/serverMessages";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { trackUsage } from "@/lib/usage/trackUsage";
 
@@ -32,6 +33,7 @@ function sanitize(body: Record<string, unknown>): Record<string, unknown> {
 
 // ─── GET /api/kisisel-arsiv — liste ────────────────────────────────────────────
 export async function GET(req: NextRequest): Promise<Response> {
+  const te = requestTranslator(req, "archive.personal.api");
   const guard = await requireModuleAccess(req, "personal_archive");
   if (!guard.ok) return guard.response;
   const { db, tenantId } = guard;
@@ -42,22 +44,23 @@ export async function GET(req: NextRequest): Promise<Response> {
     .eq("tenant_id", tenantId)
     .order("created_at", { ascending: false });
 
-  if (error) return archiveServerErrorResponse(ROUTE, "GET", tenantId, error);
+  if (error) return archiveServerErrorResponse(ROUTE, "GET", tenantId, error, te("serverError"));
   return NextResponse.json({ ok: true, rows: data ?? [] });
 }
 
 // ─── POST /api/kisisel-arsiv — ekle ────────────────────────────────────────────
 export async function POST(req: NextRequest): Promise<Response> {
+  const te = requestTranslator(req, "archive.personal.api");
   const guard = await requireModuleAccess(req, "personal_archive");
   if (!guard.ok) return guard.response;
   const { db, tenantId, is_demo_account } = guard;
 
   let body: Record<string, unknown>;
   try { body = (await req.json()) as Record<string, unknown>; }
-  catch { return NextResponse.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 }); }
+  catch { return NextResponse.json({ ok: false, error: te("invalidBody") }, { status: 400 }); }
 
   const title = String(body.title ?? "").trim();
-  if (!title) return NextResponse.json({ ok: false, error: "Başlık alanı zorunludur." }, { status: 400 });
+  if (!title) return NextResponse.json({ ok: false, error: te("titleRequired") }, { status: 400 });
 
   if (is_demo_account) return demoReadOnlyResponse();
 
@@ -70,7 +73,7 @@ export async function POST(req: NextRequest): Promise<Response> {
 
   if (error) {
     await trackUsage(guard, req, { module: "personal_archive", action: "action_failed", failedAction: "record_created", subEntity: "archive", errorClass: "server" });
-    return archiveServerErrorResponse(ROUTE, "POST", tenantId, error);
+    return archiveServerErrorResponse(ROUTE, "POST", tenantId, error, te("serverError"));
   }
   const newId = (data as { id: string }).id;
   await trackUsage(guard, req, { module: "personal_archive", action: "record_created", subEntity: "archive", resourceId: newId });
@@ -79,19 +82,20 @@ export async function POST(req: NextRequest): Promise<Response> {
 
 // ─── PATCH /api/kisisel-arsiv — güncelle (body.id) ─────────────────────────────
 export async function PATCH(req: NextRequest): Promise<Response> {
+  const te = requestTranslator(req, "archive.personal.api");
   const guard = await requireModuleAccess(req, "personal_archive");
   if (!guard.ok) return guard.response;
   const { db, tenantId, is_demo_account } = guard;
 
   let body: Record<string, unknown>;
   try { body = (await req.json()) as Record<string, unknown>; }
-  catch { return NextResponse.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 }); }
+  catch { return NextResponse.json({ ok: false, error: te("invalidBody") }, { status: 400 }); }
 
   const id = String(body.id ?? "").trim();
-  if (!id) return NextResponse.json({ ok: false, error: "id zorunludur." }, { status: 400 });
+  if (!id) return NextResponse.json({ ok: false, error: te("idRequired") }, { status: 400 });
 
   const title = String(body.title ?? "").trim();
-  if (!title) return NextResponse.json({ ok: false, error: "Başlık alanı zorunludur." }, { status: 400 });
+  if (!title) return NextResponse.json({ ok: false, error: te("titleRequired") }, { status: 400 });
 
   if (is_demo_account) return demoReadOnlyResponse();
 
@@ -105,10 +109,10 @@ export async function PATCH(req: NextRequest): Promise<Response> {
 
   if (error) {
     await trackUsage(guard, req, { module: "personal_archive", action: "action_failed", failedAction: "record_updated", subEntity: "archive", errorClass: "server" });
-    return archiveServerErrorResponse(ROUTE, "PATCH", tenantId, error);
+    return archiveServerErrorResponse(ROUTE, "PATCH", tenantId, error, te("serverError"));
   }
   if (!data || data.length === 0) {
-    return NextResponse.json({ ok: false, error: "Kayıt bulunamadı veya bu tenant'a ait değil." }, { status: 404 });
+    return NextResponse.json({ ok: false, error: te("notFound") }, { status: 404 });
   }
   await trackUsage(guard, req, { module: "personal_archive", action: "record_updated", subEntity: "archive", resourceId: id });
   return NextResponse.json({ ok: true, id });
@@ -116,6 +120,7 @@ export async function PATCH(req: NextRequest): Promise<Response> {
 
 // ─── DELETE /api/kisisel-arsiv?id=... — sil ────────────────────────────────────
 export async function DELETE(req: NextRequest): Promise<Response> {
+  const te = requestTranslator(req, "archive.personal.api");
   const guard = await requireModuleAccess(req, "personal_archive");
   if (!guard.ok) return guard.response;
   const { db, tenantId, is_demo_account } = guard;
@@ -126,7 +131,7 @@ export async function DELETE(req: NextRequest): Promise<Response> {
     try { const b = (await req.json()) as { id?: unknown }; id = String(b.id ?? "").trim(); }
     catch { /* gövde yoksa query'e güven */ }
   }
-  if (!id) return NextResponse.json({ ok: false, error: "id zorunludur." }, { status: 400 });
+  if (!id) return NextResponse.json({ ok: false, error: te("idRequired") }, { status: 400 });
 
   if (is_demo_account) return demoReadOnlyResponse();
 
@@ -139,10 +144,10 @@ export async function DELETE(req: NextRequest): Promise<Response> {
 
   if (error) {
     await trackUsage(guard, req, { module: "personal_archive", action: "action_failed", failedAction: "record_deleted", subEntity: "archive", errorClass: "server" });
-    return archiveServerErrorResponse(ROUTE, "DELETE", tenantId, error);
+    return archiveServerErrorResponse(ROUTE, "DELETE", tenantId, error, te("serverError"));
   }
   if (!data || data.length === 0) {
-    return NextResponse.json({ ok: false, error: "Kayıt bulunamadı veya bu tenant'a ait değil." }, { status: 404 });
+    return NextResponse.json({ ok: false, error: te("notFound") }, { status: 404 });
   }
   await trackUsage(guard, req, { module: "personal_archive", action: "record_deleted", subEntity: "archive", resourceId: id });
   return NextResponse.json({ ok: true, id });

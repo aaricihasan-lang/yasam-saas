@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { useTranslations } from "next-intl";
 import Link from "next/link";
 
 /**
@@ -22,6 +23,7 @@ export default function AromaterapiError({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  const t = useTranslations("system.error.aromaterapi");
   useEffect(() => {
     // Teknik ayrıntı yalnız istemci konsoluna/monitoring'e; kullanıcıya gösterilmez.
     console.error("[aromaterapi:error-boundary]", error);
@@ -40,11 +42,10 @@ export default function AromaterapiError({
           tabIndex={-1}
           className="mt-3 text-lg font-black tracking-tight text-slate-900"
         >
-          Beklenmeyen bir sorun oluştu
+          {t("title")}
         </h1>
         <p className="mt-1.5 text-[13px] font-medium leading-relaxed text-slate-500">
-          Aromaterapi bölümü yüklenirken bir hata oluştu. Bilgileriniz güvende;
-          çoğu durumda tekrar denemek yeterlidir.
+          {t("body")}
         </p>
 
         <div className="mt-5 flex w-full flex-col-reverse gap-2 sm:flex-row sm:justify-center">
@@ -52,14 +53,14 @@ export default function AromaterapiError({
             href="/aromaterapi"
             className="inline-flex min-h-[44px] items-center justify-center rounded-xl border border-slate-200 bg-white px-4 text-[13px] font-black text-slate-600 shadow-sm transition hover:border-amber-200 hover:text-amber-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300/60"
           >
-            Aromaterapi ana ekranı
+            {t("home")}
           </Link>
           <button
             type="button"
             onClick={reset}
             className="inline-flex min-h-[44px] items-center justify-center rounded-xl bg-gradient-to-r from-amber-500 to-rose-500 px-5 text-[13px] font-black text-white shadow-md transition hover:brightness-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/60"
           >
-            Tekrar dene
+            {t("retry")}
           </button>
         </div>
       </div>

@@ -96,7 +96,9 @@ ok("10. valid own metadata + valid session → signed URL (createSignedUrl TTL 3
 // ─── 11–13. DEMO + MODULE GATE + SERVICE ROLE ────────────────────────────────
 console.log("DEMO / MODULE GATE / SERVICE ROLE");
 ok("11. demo hesap → 403",
-  /is_demo_account\s*===\s*true/.test(route) && /Demo hesabında bu işlem kullanılamaz/.test(route));
+  // I18N (gece 2026-11-25): demo metni archive.personal.api.demoDisabled anahtarına taşındı (TR katalogda birebir).
+  /is_demo_account\s*===\s*true/.test(route) && /te\("demoDisabled"\)/.test(route) &&
+  (JSON.parse(read("messages/tr/archive.personal.json")) as { archive: { personal: { api: Record<string, string> } } }).archive.personal.api.demoDisabled === "Demo hesabında bu işlem kullanılamaz.");
 ok("12. requireModuleAccess(req, \"personal_archive\") present",
   /requireModuleAccess\(\s*req,\s*["']personal_archive["']\s*\)/.test(route) &&
   /if \(!guard\.ok\) return guard\.response/.test(route));

@@ -31,7 +31,7 @@ import {
 import { useToast } from "@/components/ui/ToastProvider";
 import { SettingsTabBar } from "./SettingsTabBar";
 import PasswordInput from "@/components/ui/PasswordInput";
-import { PASSWORD_HINT, newPasswordPolicyMessage } from "@/lib/auth/passwordPolicy";
+import { passwordHintFor, newPasswordPolicyMessage } from "@/lib/auth/passwordPolicy";
 import { searchLocations, type Location } from "@/lib/location";
 import { TR_LOCATIONS } from "@/lib/location/tr";
 import { getUserLocationPref, saveUserLocationPref, type UserLocationPref } from "@/lib/location/userLocationPref";
@@ -42,10 +42,12 @@ import MyLoginMethodsPanel from "@/components/settings/MyLoginMethodsPanel";
 // I18N-F1-R1: hesap bazlı dil seçimi — yalnız yayın kapısı açıkken sekme olarak eklenir.
 import LanguagePreferenceSection from "@/components/settings/LanguagePreferenceSection";
 import { isLocaleSwitchingEnabled } from "@/lib/i18n/gate";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import { formatDate } from "@/lib/i18n/format";
+import type { ActiveLocale } from "@/lib/i18n/locales";
 import { Languages } from "lucide-react";
 import { WorkspaceSettingsTab, useWorkspaceAccess } from "./WorkspaceSettingsTab";
-import { PROFILE_LEAVE_MESSAGE, PROFILE_TAB_ICON, ProfileSettingsTab } from "./ProfileSettingsTab";
+import { PROFILE_TAB_ICON, ProfileSettingsTab } from "./ProfileSettingsTab";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -64,25 +66,22 @@ type SupportMessage = {
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const TABS: { id: Tab; label: string; icon: React.ElementType }[] = [
-  { id: "security",  label: "Hesap Güvenliği",    icon: KeyRound      },
-  { id: "profile",   label: "Profilim",           icon: PROFILE_TAB_ICON },
-  { id: "location",  label: "Konum",               icon: MapPin        },
-  { id: "contact",   label: "Admin ile İrtibat",   icon: MessageSquare },
-  { id: "export",    label: "Dışa Aktarım",        icon: FileText      },
-  { id: "backup",    label: "Sistem Yedeği",        icon: FileJson      },
-  { id: "restore",   label: "Geri Yükleme",         icon: RotateCcw     },
-  { id: "membership", label: "Üyeliğim",           icon: MEMBERSHIP_TAB_ICON },
+// I18N: sekme etiketleri settings.tabs.<id> anahtarından (sıra ve kimlikler değişmedi).
+const TABS: { id: Tab; icon: React.ElementType }[] = [
+  { id: "security",  icon: KeyRound      },
+  { id: "profile",   icon: PROFILE_TAB_ICON },
+  { id: "location",  icon: MapPin        },
+  { id: "contact",   icon: MessageSquare },
+  { id: "export",    icon: FileText      },
+  { id: "backup",    icon: FileJson      },
+  { id: "restore",   icon: RotateCcw     },
+  { id: "membership", icon: MEMBERSHIP_TAB_ICON },
 ];
 // Kişisel Dijital Ofis: yalnız sunucu erişim verdiğinde (bayrak + Owner / izin listesi) eklenir.
-const WORKSPACE_TAB: { id: Tab; label: string; icon: React.ElementType } = { id: "workspace", label: "Çalışma Alanım", icon: Sparkles };
+const WORKSPACE_TAB: { id: Tab; icon: React.ElementType } = { id: "workspace", icon: Sparkles };
 
-const STATUS_LABELS: Record<string, string> = {
-  open:    "Açık",
-  read:    "Okundu",
-  replied: "Yanıtlandı",
-  closed:  "Kapatıldı",
-};
+// Destek mesajı durumu (DB değeri open/read/replied/closed) → settings.contact.status.<durum> gösterim etiketi.
+const STATUS_KEYS = new Set(["open", "read", "replied", "closed"]);
 
 const STATUS_COLORS: Record<string, string> = {
   open:    "bg-amber-100 text-amber-800",
@@ -93,14 +92,14 @@ const STATUS_COLORS: Record<string, string> = {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function fmtDate(iso: string): string {
-  return new Date(iso).toLocaleDateString("tr-TR", {
+function fmtDate(iso: string, locale: ActiveLocale): string {
+  return formatDate(iso, {
     day: "2-digit",
     month: "long",
     year: "numeric",
     hour: "2-digit",
     minute: "2-digit",
-  });
+  }, locale);
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -140,6 +139,9 @@ function PasswordField({
 
 function SecurityTab({ user }: { user: YasamUser }) {
   const { showToast } = useToast();
+  const t = useTranslations("settings.security");
+  // Parola kuralı ipucu/uyarısı dile göre (lib/auth/passwordPolicy); TR çıktısı PASSWORD_HINT ile BİREBİR aynı.
+  const locale = useLocale();
   const [oldPw,     setOldPw]     = useState("");
   const [newPw,     setNewPw]     = useState("");
   const [confirmPw, setConfirmPw] = useState("");
@@ -149,14 +151,14 @@ function SecurityTab({ user }: { user: YasamUser }) {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!oldPw || !newPw || !confirmPw) {
-      showToast({ message: "Tüm alanları doldurun.", type: "warning" });
+      showToast({ message: t("fillAll"), type: "warning" });
       return;
     }
     if (newPw !== confirmPw) {
-      showToast({ message: "Yeni parola tekrarı eşleşmiyor.", type: "warning" });
+      showToast({ message: t("mismatch"), type: "warning" });
       return;
     }
-    const policyError = newPasswordPolicyMessage(newPw.trim(), user.email ?? "");
+    const policyError = newPasswordPolicyMessage(newPw.trim(), user.email ?? "", locale);
     if (policyError) {
       showToast({ message: policyError, type: "warning" });
       return;
@@ -176,23 +178,23 @@ function SecurityTab({ user }: { user: YasamUser }) {
       });
       const json = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string; sessions_revoked?: boolean };
       if (!res.ok || !json.ok) {
-        showToast({ message: json.error ?? "Parola değiştirilemedi.", type: "error" });
+        showToast({ message: json.error ?? t("changeFailed"), type: "error" });
       } else {
         setSuccess(true);
         setOldPw(""); setNewPw(""); setConfirmPw("");
         if (json.sessions_revoked === false) {
           showToast({
-            title: "Parola güncellendi",
-            message: "Ancak diğer cihazlardaki oturumlar kapatılamadı. Lütfen tekrar deneyin veya yöneticiye bildirin.",
+            title: t("updatedTitle"),
+            message: t("revokeFailed"),
             type: "warning",
             duration: 10000,
           });
         } else {
-          showToast({ title: "Başarılı", message: "Parolanız güncellendi; diğer cihazlardaki oturumlar kapatıldı.", type: "success" });
+          showToast({ title: t("successTitle"), message: t("successBody"), type: "success" });
         }
       }
     } catch {
-      showToast({ message: "Bağlantı hatası.", type: "error" });
+      showToast({ message: t("connectionError"), type: "error" });
     } finally {
       setLoading(false);
     }
@@ -203,14 +205,14 @@ function SecurityTab({ user }: { user: YasamUser }) {
       <div className="rounded-xl border border-violet-100 bg-violet-50/60 px-4 py-3">
         <p className="flex items-center gap-2 text-xs font-semibold text-violet-700">
           <Shield className="h-3.5 w-3.5 shrink-0" />
-          Parola değiştiğinde diğer cihazlardaki oturumlar otomatik kapatılır.
+          {t("sessionsNotice")}
         </p>
       </div>
 
-      <PasswordField id="settings-current-password" label="Mevcut Parola"     value={oldPw}     onChange={(v) => { setOldPw(v); setSuccess(false); }}     placeholder="Mevcut parolanızı girin"      autoComplete="current-password" />
-      <PasswordField id="settings-new-password"     label="Yeni Parola"       value={newPw}     onChange={setNewPw}     placeholder="En az 6 karakter"             autoComplete="new-password" />
-      <p className="-mt-2 text-xs font-medium text-slate-500">{PASSWORD_HINT}</p>
-      <PasswordField id="settings-new-password-2"   label="Yeni Parola Tekrar" value={confirmPw} onChange={setConfirmPw} placeholder="Yeni parolanızı tekrar girin" autoComplete="new-password" />
+      <PasswordField id="settings-current-password" label={t("currentLabel")}     value={oldPw}     onChange={(v) => { setOldPw(v); setSuccess(false); }}     placeholder={t("currentPlaceholder")}      autoComplete="current-password" />
+      <PasswordField id="settings-new-password"     label={t("newLabel")}       value={newPw}     onChange={setNewPw}     placeholder={t("newPlaceholder")}             autoComplete="new-password" />
+      <p className="-mt-2 text-xs font-medium text-slate-500">{passwordHintFor(locale)}</p>
+      <PasswordField id="settings-new-password-2"   label={t("repeatLabel")} value={confirmPw} onChange={setConfirmPw} placeholder={t("repeatPlaceholder")} autoComplete="new-password" />
 
       <button
         type="submit"
@@ -224,7 +226,7 @@ function SecurityTab({ user }: { user: YasamUser }) {
         ) : (
           <KeyRound className="h-4 w-4" />
         )}
-        {loading ? "Güncelleniyor…" : success ? "Güncellendi" : "Parolayı Güncelle"}
+        {loading ? t("updating") : success ? t("updated") : t("submit")}
       </button>
     </form>
   );
@@ -244,6 +246,8 @@ function SecurityTabWithSessions({ user }: { user: YasamUser }) {
 
 function ContactTab({ user }: { user: YasamUser }) {
   const { showToast } = useToast();
+  const t = useTranslations("settings.contact");
+  const locale = useLocale() as ActiveLocale;
   const [subject,  setSubject]  = useState("");
   const [message,  setMessage]  = useState("");
   const [priority, setPriority] = useState<"normal" | "urgent">("normal");
@@ -282,8 +286,8 @@ function ContactTab({ user }: { user: YasamUser }) {
 
   async function handleSend(e: React.FormEvent) {
     e.preventDefault();
-    if (!subject.trim()) { showToast({ message: "Konu giriniz.", type: "warning" }); return; }
-    if (!message.trim()) { showToast({ message: "Mesaj giriniz.", type: "warning" }); return; }
+    if (!subject.trim()) { showToast({ message: t("subjectRequired"), type: "warning" }); return; }
+    if (!message.trim()) { showToast({ message: t("messageRequired"), type: "warning" }); return; }
 
     setLoading(true);
     const sessionToken = readSessionToken();
@@ -299,14 +303,14 @@ function ContactTab({ user }: { user: YasamUser }) {
       });
       const json = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string };
       if (!res.ok || !json.ok) {
-        showToast({ message: json.error ?? "Gönderilemedi.", type: "error" });
+        showToast({ message: json.error ?? t("sendFailed"), type: "error" });
       } else {
-        showToast({ title: "Gönderildi", message: "Mesajınız admin'e iletildi.", type: "success" });
+        showToast({ title: t("sentTitle"), message: t("sentBody"), type: "success" });
         setSubject(""); setMessage(""); setPriority("normal");
         void loadMessages();
       }
     } catch {
-      showToast({ message: "Bağlantı hatası.", type: "error" });
+      showToast({ message: t("connectionError"), type: "error" });
     } finally {
       setLoading(false);
     }
@@ -316,25 +320,25 @@ function ContactTab({ user }: { user: YasamUser }) {
     <div className="space-y-6 w-full">
       <form onSubmit={handleSend} className="space-y-4">
         <div>
-          <label htmlFor="settings-contact-subject" className="block text-sm font-bold text-slate-700">Konu</label>
+          <label htmlFor="settings-contact-subject" className="block text-sm font-bold text-slate-700">{t("subjectLabel")}</label>
           <input
             id="settings-contact-subject"
             type="text"
             value={subject}
             onChange={(e) => setSubject(e.target.value)}
-            placeholder="Mesaj konusu"
+            placeholder={t("subjectPlaceholder")}
             maxLength={200}
             className="mt-1.5 h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
           />
         </div>
 
         <div>
-          <label htmlFor="settings-contact-message" className="block text-sm font-bold text-slate-700">Mesaj</label>
+          <label htmlFor="settings-contact-message" className="block text-sm font-bold text-slate-700">{t("messageLabel")}</label>
           <textarea
             id="settings-contact-message"
             value={message}
             onChange={(e) => setMessage(e.target.value)}
-            placeholder="Mesajınızı buraya yazın…"
+            placeholder={t("messagePlaceholder")}
             rows={5}
             maxLength={5000}
             className="mt-1.5 w-full resize-none rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
@@ -343,7 +347,7 @@ function ContactTab({ user }: { user: YasamUser }) {
         </div>
 
         <div>
-          <p id="settings-contact-priority" className="block text-sm font-bold text-slate-700">Öncelik</p>
+          <p id="settings-contact-priority" className="block text-sm font-bold text-slate-700">{t("priorityLabel")}</p>
           <div className="mt-1.5 flex gap-2" role="group" aria-labelledby="settings-contact-priority">
             {(["normal", "urgent"] as const).map((p) => (
               <button
@@ -359,7 +363,7 @@ function ContactTab({ user }: { user: YasamUser }) {
                     : "border-slate-200 bg-white text-slate-500 hover:border-slate-300"
                 }`}
               >
-                {p === "normal" ? "Normal" : "⚡ Acil"}
+                {p === "normal" ? t("priorityNormal") : t("priorityUrgentButton")}
               </button>
             ))}
           </div>
@@ -371,7 +375,7 @@ function ContactTab({ user }: { user: YasamUser }) {
           className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 to-fuchsia-600 text-sm font-bold text-white shadow-md transition hover:-translate-y-0.5 disabled:opacity-60"
         >
           {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-          {loading ? "Gönderiliyor…" : "Gönder"}
+          {loading ? t("sending") : t("send")}
         </button>
       </form>
 
@@ -379,11 +383,11 @@ function ContactTab({ user }: { user: YasamUser }) {
 
       {loadingMsgs ? (
         <div className="flex items-center gap-2 text-sm text-slate-400">
-          <Loader2 className="h-4 w-4 animate-spin" /> Mesajlar yükleniyor…
+          <Loader2 className="h-4 w-4 animate-spin" /> {t("loadingMessages")}
         </div>
       ) : messages.length > 0 ? (
         <div>
-          <p className="mb-3 text-xs font-bold uppercase tracking-widest text-slate-500">Önceki Mesajlar</p>
+          <p className="mb-3 text-xs font-bold uppercase tracking-widest text-slate-500">{t("previousMessages")}</p>
           <div className="space-y-2">
             {messages.map((msg) => (
               <div key={msg.id} className="rounded-xl border border-slate-100 bg-white/80 shadow-sm">
@@ -396,13 +400,13 @@ function ContactTab({ user }: { user: YasamUser }) {
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="truncate text-sm font-bold text-slate-800">{msg.subject}</span>
                       <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold ${STATUS_COLORS[msg.status] ?? "bg-slate-100 text-slate-600"}`}>
-                        {STATUS_LABELS[msg.status] ?? msg.status}
+                        {STATUS_KEYS.has(msg.status) ? t(`status.${msg.status}`) : msg.status}
                       </span>
                       {msg.priority === "urgent" && (
-                        <span className="shrink-0 rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-bold text-rose-700">Acil</span>
+                        <span className="shrink-0 rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-bold text-rose-700">{t("urgent")}</span>
                       )}
                     </div>
-                    <p className="mt-0.5 text-[11px] text-slate-400">{fmtDate(msg.created_at)}</p>
+                    <p className="mt-0.5 text-[11px] text-slate-400">{fmtDate(msg.created_at, locale)}</p>
                   </div>
                   {expanded === msg.id ? (
                     <ChevronUp className="h-4 w-4 shrink-0 text-slate-400" />
@@ -415,7 +419,7 @@ function ContactTab({ user }: { user: YasamUser }) {
                     <p className="text-sm text-slate-700 whitespace-pre-wrap">{msg.message}</p>
                     {msg.admin_note && (
                       <div className="rounded-lg bg-emerald-50 px-3 py-2 border border-emerald-200">
-                        <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-600 mb-1">Admin Notu</p>
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-600 mb-1">{t("adminNote")}</p>
                         <p className="text-sm text-emerald-800 whitespace-pre-wrap">{msg.admin_note}</p>
                       </div>
                     )}
@@ -437,15 +441,16 @@ function ContactTab({ user }: { user: YasamUser }) {
  * (WHATSAPP_CONTACT_ENABLED) bağlıdır; kapalıyken link üretilmez/gösterilmez.
  */
 function DirectContactOptions() {
+  const t = useTranslations("settings.contact.direct");
   const ctaBase =
     "inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold no-underline shadow-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2";
   return (
     <section aria-labelledby="settings-direct-contact" className="rounded-2xl border border-slate-100 bg-slate-50/70 p-4">
       <h3 id="settings-direct-contact" className="text-xs font-bold uppercase tracking-widest text-slate-500">
-        Daha hızlı iletişim için
+        {t("title")}
       </h3>
       <p className="mt-1 text-xs text-slate-500">
-        Mesajınıza geç dönüş alırsanız bize WhatsApp veya telefonla da ulaşabilirsiniz.
+        {t("body")}
       </p>
       <div className={`mt-3 grid grid-cols-1 gap-3 ${WHATSAPP_CONTACT_ENABLED ? "sm:grid-cols-2" : ""}`}>
         {WHATSAPP_CONTACT_ENABLED && (
@@ -463,11 +468,11 @@ function DirectContactOptions() {
               href={buildWhatsAppUrl(WHATSAPP_SUPPORT_MESSAGE)}
               target="_blank"
               rel="noopener noreferrer"
-              aria-label={`WhatsApp’tan yaz: ${WHATSAPP_DISPLAY_NUMBER} (yeni sekmede açılır)`}
+              aria-label={t("whatsappAria", { number: WHATSAPP_DISPLAY_NUMBER })}
               className={`${ctaBase} bg-emerald-600 text-white hover:bg-emerald-700 focus-visible:ring-emerald-400`}
             >
               <MessageCircle className="h-4 w-4" aria-hidden />
-              WhatsApp’tan Yaz
+              {t("whatsappCta")}
             </a>
           </div>
         )}
@@ -477,17 +482,17 @@ function DirectContactOptions() {
               <Phone className="h-5 w-5" strokeWidth={2.25} />
             </span>
             <div className="min-w-0">
-              <p className="text-sm font-black text-slate-900">Telefon</p>
+              <p className="text-sm font-black text-slate-900">{t("phone")}</p>
               <p className="text-base font-black tracking-tight text-violet-800">{CUSTOMER_SERVICE_DISPLAY}</p>
             </div>
           </div>
           <a
             href={buildTelHref()}
-            aria-label={`Telefonla ara: ${CUSTOMER_SERVICE_DISPLAY}`}
+            aria-label={t("phoneAria", { number: CUSTOMER_SERVICE_DISPLAY })}
             className={`${ctaBase} bg-slate-900 text-white hover:bg-slate-800 focus-visible:ring-slate-400`}
           >
             <Phone className="h-4 w-4" aria-hidden />
-            Telefonla Ara
+            {t("phoneCta")}
           </a>
         </div>
       </div>
@@ -501,6 +506,8 @@ function DirectContactOptions() {
 
 function LocationTab({ user }: { user: YasamUser }) {
   const { showToast } = useToast();
+  const t = useTranslations("settings.location");
+  const locale = useLocale();
   const isDemo = user.is_demo_account === true;
   const [loading,  setLoading]  = useState(true);
   const [saving,   setSaving]   = useState(false);
@@ -534,18 +541,20 @@ function LocationTab({ user }: { user: YasamUser }) {
   }, []);
 
   async function handleSave() {
-    if (!selected) { showToast({ message: "Önce bir şehir seçin.", type: "warning" }); return; }
+    if (!selected) { showToast({ message: t("selectFirst"), type: "warning" }); return; }
     setSaving(true);
     const res = await saveUserLocationPref(selected);
     setSaving(false);
     if (res.ok) {
-      showToast({ title: "Kaydedildi", message: `Varsayılan konum: ${selected.name}`, type: "success" });
+      showToast({ title: t("savedTitle"), message: t("savedBody", { name: selected.name }), type: "success" });
       setCurrent({
         location_id: selected.id, name: selected.name, country_code: selected.countryCode,
         lat: selected.lat, lon: selected.lon, elev: selected.elev, tz: selected.tz, source: selected.source,
       });
     } else {
-      showToast({ message: res.error ?? "Kaydedilemedi.", type: "error" });
+      // Kaynak dilde (tr) bugünkü metin BİREBİR; diğer dillerde istemci kaynaklı hata (oturum/ağ) koddan çevrilir.
+      const message = locale !== "tr" && res.code ? t(`errors.codes.${res.code}`) : res.error ?? t("saveFailed");
+      showToast({ message, type: "error" });
     }
   }
 
@@ -556,9 +565,9 @@ function LocationTab({ user }: { user: YasamUser }) {
   return (
     <div className="space-y-4">
       <div className="rounded-xl border border-slate-100 bg-slate-50/70 px-4 py-3">
-        <p className="text-[11px] font-bold uppercase tracking-wide text-slate-400">Mevcut varsayılan konum</p>
+        <p className="text-[11px] font-bold uppercase tracking-wide text-slate-400">{t("currentLabel")}</p>
         <p className="mt-0.5 text-sm font-black text-slate-800">
-          {current ? `${current.name} (${current.country_code})` : "Kayıtlı değil — varsayılan: Ankara"}
+          {current ? `${current.name} (${current.country_code})` : t("notSaved")}
         </p>
       </div>
 
@@ -566,24 +575,24 @@ function LocationTab({ user }: { user: YasamUser }) {
         <div className="flex items-start gap-2.5 rounded-xl border border-amber-200/80 bg-amber-50/80 px-3.5 py-2.5" role="note">
           <span className="mt-0.5 shrink-0 text-sm leading-none" aria-hidden>⚠️</span>
           <p className="text-[11px] font-semibold leading-relaxed text-amber-800">
-            Demo hesabında varsayılan konum kaydedilemez.
+            {t("demoNote")}
           </p>
         </div>
       )}
 
       <div>
-        <label htmlFor="loc-search" className="mb-1 block text-[11px] font-bold text-slate-600">Şehir ara (81 il)</label>
+        <label htmlFor="loc-search" className="mb-1 block text-[11px] font-bold text-slate-600">{t("searchLabel")}</label>
         <div className="relative max-w-xs">
           <input
             id="loc-search"
             type="text"
             value={query}
             autoComplete="off"
-            aria-label="Varsayılan konum için şehir ara"
+            aria-label={t("searchAria")}
             onChange={(e) => { setQuery(e.target.value); setOpen(true); }}
             onFocus={() => setOpen(true)}
             onBlur={() => setTimeout(() => setOpen(false), 150)}
-            placeholder="Örn. Manisa, İzmir…"
+            placeholder={t("searchPlaceholder")}
             className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 focus:border-violet-300 focus:outline-none"
           />
           {open && results.length > 0 && (
@@ -606,7 +615,7 @@ function LocationTab({ user }: { user: YasamUser }) {
         </div>
         {selected && (
           <p className="mt-1.5 text-[11px] text-slate-400">
-            Seçili: <span className="font-semibold text-slate-600">{selected.name}</span> · {selected.lat.toFixed(4)}, {selected.lon.toFixed(4)}
+            {t("selected")} <span className="font-semibold text-slate-600">{selected.name}</span> · {selected.lat.toFixed(4)}, {selected.lon.toFixed(4)}
           </p>
         )}
       </div>
@@ -618,11 +627,11 @@ function LocationTab({ user }: { user: YasamUser }) {
         className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 to-fuchsia-600 px-5 py-2.5 text-sm font-black text-white shadow-md transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50"
       >
         {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-        Varsayılan konumu kaydet
+        {t("save")}
       </button>
 
       <p className="text-[11px] leading-relaxed text-slate-400">
-        Varsayılan konum, Kozmik Ajanda tutulma görünürlüğü gibi konuma bağlı hesaplarda başlangıç şehri olarak kullanılır.
+        {t("hint")}
       </p>
     </div>
   );
@@ -651,13 +660,16 @@ export default function SettingsPage() {
   // Profilim: kaydedilmemiş değişiklik varken sekme değişimi onay ister.
   const [profileDirty, setProfileDirty] = useState(false);
   const setTab = (id: Tab) => {
-    if (tab === "profile" && id !== "profile" && profileDirty && !window.confirm(PROFILE_LEAVE_MESSAGE)) return;
+    if (tab === "profile" && id !== "profile" && profileDirty && !window.confirm(tProfile("leaveConfirm"))) return;
     setTabState(id);
   };
   const workspaceAccess = useWorkspaceAccess(!!user);
   const tLang = useTranslations("common.languagePreference");
-  const baseTabs = workspaceAccess.status === "on" ? [...TABS, WORKSPACE_TAB] : TABS;
-  const tabs = isLocaleSwitchingEnabled() ? [...baseTabs, { id: "language" as Tab, label: tLang("tabLabel"), icon: Languages }] : baseTabs;
+  const tPage = useTranslations("settings.page");
+  const tTabs = useTranslations("settings.tabs");
+  const tProfile = useTranslations("settings.profile");
+  const baseTabs = (workspaceAccess.status === "on" ? [...TABS, WORKSPACE_TAB] : TABS).map((d) => ({ ...d, label: tTabs(d.id) }));
+  const tabs: { id: Tab; label: string; icon: React.ElementType }[] = isLocaleSwitchingEnabled() ? [...baseTabs, { id: "language" as Tab, label: tLang("tabLabel"), icon: Languages }] : baseTabs;
 
   if (!checked) {
     return (
@@ -672,16 +684,16 @@ export default function SettingsPage() {
       <main className="flex min-h-screen items-center justify-center bg-[linear-gradient(135deg,#eef2ff_0%,#f0fdfa_100%)]">
         <div className="rounded-2xl border border-white/80 bg-white/90 p-8 text-center shadow-xl">
           <Shield className="mx-auto mb-3 h-10 w-10 text-violet-400" />
-          <p className="text-base font-bold text-slate-800">Giriş yapmanız gerekiyor.</p>
+          <p className="text-base font-bold text-slate-800">{tPage("loginRequired")}</p>
           <Link href="/?login=1" className="mt-4 inline-block text-sm font-semibold text-violet-600 hover:underline">
-            Giriş Yap →
+            {tPage("loginLink")}
           </Link>
         </div>
       </main>
     );
   }
 
-  const activeTabDef = tabs.find((t) => t.id === tab) ?? TABS[0];
+  const activeTabDef = tabs.find((t) => t.id === tab) ?? tabs[0];
   const isDemo = user.is_demo_account === true;
   const DEMO_LOCKED_TABS: Tab[] = ["security", "export", "backup", "restore"];
   const isDemoLockedTab = isDemo && DEMO_LOCKED_TABS.includes(tab);
@@ -703,8 +715,8 @@ export default function SettingsPage() {
                 <Shield className="h-5 w-5 text-white/90" strokeWidth={2} />
               </div>
               <div>
-                <h1 className="text-xl font-black tracking-tight sm:text-2xl">Ayarlar & Güvenlik</h1>
-                <p className="mt-0.5 text-xs text-white/55">Parola, iletişim, yedekleme ve dışa aktarma</p>
+                <h1 className="text-xl font-black tracking-tight sm:text-2xl">{tPage("title")}</h1>
+                <p className="mt-0.5 text-xs text-white/55">{tPage("subtitle")}</p>
               </div>
             </div>
           </div>
@@ -717,7 +729,7 @@ export default function SettingsPage() {
           <div className="mb-4 flex items-start gap-3 rounded-[14px] border border-amber-300/80 bg-amber-50/90 px-4 py-3">
             <span className="mt-0.5 text-base leading-none" aria-hidden>⚠️</span>
             <p className="text-xs font-semibold text-amber-800 leading-relaxed">
-              Demo hesabında yedekleme, geri yükleme, dışa aktarma ve parola değiştirme işlemleri kapalıdır.
+              {tPage("demoBanner")}
             </p>
           </div>
         )}
@@ -738,9 +750,9 @@ export default function SettingsPage() {
           {isDemoLockedTab ? (
             <div className="flex flex-col items-center justify-center gap-3 py-8 text-center">
               <Shield className="h-10 w-10 text-slate-300" strokeWidth={1.5} />
-              <p className="text-sm font-bold text-slate-600">Bu işlem demo hesabında kapalıdır.</p>
+              <p className="text-sm font-bold text-slate-600">{tPage("demoLockedTitle")}</p>
               <p className="text-xs text-slate-400 max-w-xs">
-                Yedekleme, geri yükleme, dışa aktarma ve parola değiştirme yalnızca kayıtlı hesaplarda kullanılabilir.
+                {tPage("demoLockedBody")}
               </p>
             </div>
           ) : (

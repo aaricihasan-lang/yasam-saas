@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requestTranslator } from "@/lib/i18n/serverMessages";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { PERSONAL_ARCHIVE_BUCKET } from "@/lib/kisisel-arsiv/storagePath";
 import { logArchiveServerError } from "@/lib/kisisel-arsiv/archiveError";
@@ -36,6 +37,7 @@ const SIGNED_URL_TTL_SECONDS = 3600;
  * Bucket PRIVATE kalır; anon client asla storage'a dokunmaz.
  */
 export async function GET(req: NextRequest): Promise<Response> {
+  const te = requestTranslator(req, "archive.personal.api");
   const guard = await requireModuleAccess(req, "personal_archive");
   if (!guard.ok) return guard.response;
 
@@ -43,7 +45,7 @@ export async function GET(req: NextRequest): Promise<Response> {
 
   // Demo hesap: signed URL üretimi engellenir.
   if (is_demo_account === true) {
-    return NextResponse.json({ error: "Demo hesabında bu işlem kullanılamaz." }, { status: 403 });
+    return NextResponse.json({ error: te("demoDisabled") }, { status: 403 });
   }
 
   const { searchParams } = new URL(req.url);
@@ -55,7 +57,7 @@ export async function GET(req: NextRequest): Promise<Response> {
   // Savunma katmanı 1 — path yalnız SUNUCU-TÜRETİLMİŞ tenant öneki altında olabilir.
   // tenantId QUERY'den DEĞİL guard'dan gelir → cross-tenant prefix / traversal reddi.
   if (filePath.includes("..") || filePath.includes("://") || !filePath.startsWith(`${tenantId}/`)) {
-    return NextResponse.json({ error: "Geçersiz dosya yolu." }, { status: 403 });
+    return NextResponse.json({ error: te("invalidPath") }, { status: 403 });
   }
 
   // Savunma katmanı 2 (ASIL yetki) — dosya metadata'sı gerçekten bu tenant'a AİT olmalı.
@@ -69,10 +71,10 @@ export async function GET(req: NextRequest): Promise<Response> {
 
   if (fileErr) {
     logArchiveServerError("kisisel-arsiv/signed-url", "GET:metadata", tenantId, fileErr);
-    return NextResponse.json({ error: "Dosya doğrulanamadı." }, { status: 500 });
+    return NextResponse.json({ error: te("verifyFailed") }, { status: 500 });
   }
   if (!fileRow) {
-    return NextResponse.json({ error: "Dosya bulunamadı." }, { status: 404 });
+    return NextResponse.json({ error: te("fileNotFound") }, { status: 404 });
   }
 
   // Savunma katmanı 3 — archive de aynı tenant'a ait olmalı (IDOR ikinci savunma).
@@ -85,10 +87,10 @@ export async function GET(req: NextRequest): Promise<Response> {
 
   if (archiveErr) {
     logArchiveServerError("kisisel-arsiv/signed-url", "GET:archive", tenantId, archiveErr);
-    return NextResponse.json({ error: "Dosya doğrulanamadı." }, { status: 500 });
+    return NextResponse.json({ error: te("verifyFailed") }, { status: 500 });
   }
   if (!archiveRow) {
-    return NextResponse.json({ error: "Dosya bulunamadı." }, { status: 404 });
+    return NextResponse.json({ error: te("fileNotFound") }, { status: 404 });
   }
 
   // Service role (guard.db) ile signed URL üret — bucket PRIVATE olsa bile çalışır.
@@ -97,8 +99,8 @@ export async function GET(req: NextRequest): Promise<Response> {
     .createSignedUrl(filePath, SIGNED_URL_TTL_SECONDS);
 
   if (signErr || !signed?.signedUrl) {
-    logArchiveServerError("kisisel-arsiv/signed-url", "GET:sign", tenantId, signErr ?? "imzalı URL yok");
-    return NextResponse.json({ error: "URL üretilemedi." }, { status: 500 });
+    logArchiveServerError("kisisel-arsiv/signed-url", "GET:sign", tenantId, signErr ?? "imzalı URL yok"); // i18n-ignore: yalnız sunucu günlüğü
+    return NextResponse.json({ error: te("urlFailed") }, { status: 500 });
   }
 
   return NextResponse.json({ signedUrl: signed.signedUrl });

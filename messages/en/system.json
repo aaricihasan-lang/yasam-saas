@@ -1,0 +1,36 @@
+{
+  "system": {
+    "error": {
+      "aromaterapi": {
+        "title": "An unexpected problem occurred",
+        "body": "An error occurred while loading the Aromatherapy section. Your information is safe; in most cases trying again is enough.",
+        "home": "Aromatherapy home",
+        "retry": "Try again"
+      }
+    },
+    "loading": {
+      "aromaterapi": {
+        "glossary": "Glossary",
+        "knowledgeRecords": "Knowledge Records",
+        "editRecord": "Edit Knowledge Record",
+        "editLeaf": "Edit",
+        "newRecord": "New Knowledge Record",
+        "newLeaf": "New",
+        "catalog": "Plant & Preparation Catalogue",
+        "sources": "Sources"
+      },
+      "refleksoloji": {
+        "savedAtlasBadge": "REFLEXOLOGY · SAVED ATLAS",
+        "savedAtlas": "Saved Atlas",
+        "savedProtocolsBadge": "REFLEXOLOGY · SAVED PROTOCOLS",
+        "savedProtocols": "Saved Protocols",
+        "clinicalNotesBadge": "REFLEXOLOGY · PRACTITIONER NOTES",
+        "clinicalNotes": "Practitioner Notes"
+      },
+      "yasamHafizasi": {
+        "title": "Life Memory",
+        "subtitle": "Search your professional knowledge and content across modules in one place."
+      }
+    }
+  }
+}

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requestTranslator } from "@/lib/i18n/serverMessages";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
@@ -43,6 +44,7 @@ async function archiveInTenant(
 }
 
 export async function POST(req: NextRequest): Promise<Response> {
+  const te = requestTranslator(req, "archive.personal.api");
   const guard = await requireModuleAccess(req, "personal_archive");
   if (!guard.ok) return guard.response;
   const { db, tenantId, is_demo_account } = guard;
@@ -53,22 +55,22 @@ export async function POST(req: NextRequest): Promise<Response> {
   try {
     body = (await req.json()) as Record<string, unknown>;
   } catch {
-    return NextResponse.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 });
+    return NextResponse.json({ ok: false, error: te("invalidBody") }, { status: 400 });
   }
 
   const archiveId = String(body.archiveId ?? "").trim();
   const path = String(body.path ?? "").trim();
   if (!archiveId || !path) {
-    return NextResponse.json({ ok: false, error: "archiveId ve path gerekli." }, { status: 400 });
+    return NextResponse.json({ ok: false, error: te("archiveIdPathRequired") }, { status: 400 });
   }
 
   if (!(await archiveInTenant(db, archiveId, tenantId))) {
-    return NextResponse.json({ ok: false, error: "Arşiv bu hesaba ait değil." }, { status: 403 });
+    return NextResponse.json({ ok: false, error: te("notOwned") }, { status: 403 });
   }
 
   // Path yalnız bu tenant + archive öneki altında olabilir.
   if (!isOwnedPersonalArchivePath(path, tenantId, archiveId)) {
-    return NextResponse.json({ ok: false, error: "Geçersiz dosya yolu." }, { status: 400 });
+    return NextResponse.json({ ok: false, error: te("invalidPath") }, { status: 400 });
   }
 
   // Yalnız ORPHAN temizlenir: bu path için metadata satırı varsa (finalize edilmiş) dokunma.
@@ -85,13 +87,13 @@ export async function POST(req: NextRequest): Promise<Response> {
   }
   if (existingRow) {
     // Finalize edilmiş gerçek veri → cleanup ile silinmez.
-    return NextResponse.json({ ok: false, error: "Dosya kayıtlı; temizlenemez." }, { status: 409 });
+    return NextResponse.json({ ok: false, error: te("fileRegistered") }, { status: 409 });
   }
 
   const { error: rmError } = await db.storage.from(PERSONAL_ARCHIVE_BUCKET).remove([path]);
   if (rmError) {
     logArchiveServerError(ROUTE, "POST:storage-remove", tenantId, rmError);
-    return NextResponse.json({ ok: false, error: "Temizlenemedi." }, { status: 500 });
+    return NextResponse.json({ ok: false, error: te("cleanupFailed") }, { status: 500 });
   }
 
   return NextResponse.json({ ok: true });

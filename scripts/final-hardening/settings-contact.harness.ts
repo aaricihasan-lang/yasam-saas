@@ -73,10 +73,19 @@ t("WhatsApp kartı default-deny gate'e bağlı; yeni sekme güvenli rel", () => 
 });
 
 t("CTA'lar erişilebilir ad + yeterli dokunma alanı taşır", () => {
-  assert.ok(page.includes("aria-label={`WhatsApp’tan yaz: ${WHATSAPP_DISPLAY_NUMBER}"));
-  assert.ok(page.includes("aria-label={`Telefonla ara: ${CUSTOMER_SERVICE_DISPLAY}`}"));
+  // I18N (gece 2026-11-25): metinler settings.contact.direct katalog anahtarlarına taşındı. Niyet aynı:
+  // CTA'lar numarayı içeren erişilebilir ad taşır ve görünür metinleri vardır (TR metin katalogda birebir).
+  assert.ok(page.includes('aria-label={t("whatsappAria", { number: WHATSAPP_DISPLAY_NUMBER })}'));
+  assert.ok(page.includes('aria-label={t("phoneAria", { number: CUSTOMER_SERVICE_DISPLAY })}'));
   assert.ok(page.includes("min-h-11"));
-  assert.ok(page.includes("WhatsApp’tan Yaz") && page.includes("Telefonla Ara"));
+  assert.ok(page.includes('{t("whatsappCta")}') && page.includes('{t("phoneCta")}'));
+  const direct = (JSON.parse(readFileSync(join(ROOT, "messages/tr/settings.json"), "utf8")) as {
+    settings: { contact: { direct: Record<string, string> } };
+  }).settings.contact.direct;
+  assert.equal(direct.whatsappAria, "WhatsApp’tan yaz: {number} (yeni sekmede açılır)");
+  assert.equal(direct.phoneAria, "Telefonla ara: {number}");
+  assert.equal(direct.whatsappCta, "WhatsApp’tan Yaz");
+  assert.equal(direct.phoneCta, "Telefonla Ara");
 });
 
 t("sistem mesajı formu korunur (5000 sınırı, konu/mesaj alanları, gönder)", () => {

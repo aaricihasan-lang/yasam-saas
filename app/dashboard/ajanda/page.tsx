@@ -11,6 +11,10 @@ import {
 } from "lucide-react";
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useLocale, useTranslations } from "next-intl";
+import { formatDate as fmtDate, formatDateTime as fmtDateTime, formatTime as fmtTime } from "@/lib/i18n/format";
+import type { ActiveLocale } from "@/lib/i18n/locales";
+import { localizeTrialError } from "@/lib/trial/trialErrors";
 import { useModalBehavior } from "@/hooks/useModalBehavior";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
 import { useToast } from "@/components/ui/ToastProvider";
@@ -61,13 +65,15 @@ type Appointment = {
   status: AppointmentStatus | string | null;
 };
 
+type AgendaT = ReturnType<typeof useTranslations>;
+
 // FA-44: görüntü statüsü türetilir — geçmiş + "bekliyor" → "Sonuç girilmedi" (amber).
-// Saklanan statü DEĞİŞMEZ (yalnız DISPLAY).
-function getStatusInfo(rawStatus: string | null | undefined, appointmentDate?: string) {
+// Saklanan statü DEĞİŞMEZ (yalnız DISPLAY). I18N: etiket agenda.status.* anahtarından; kanonik statü değerleri çevrilmez.
+function getStatusInfo(t: AgendaT, rawStatus: string | null | undefined, appointmentDate?: string) {
   const status = deriveAppointmentStatus(rawStatus, appointmentDate);
   if (status === "sonuc_girilmedi") {
     return {
-      label: "Sonuç girilmedi",
+      label: t("status.noResult"),
       pill: "bg-amber-50 text-amber-800 border-amber-200",
       panel: "border-amber-200 bg-amber-50",
       dot: "bg-amber-500",
@@ -76,7 +82,7 @@ function getStatusInfo(rawStatus: string | null | undefined, appointmentDate?: s
 
   if (status === "tamamlandi") {
     return {
-      label: "Tamamlandı",
+      label: t("status.completed"),
       pill: "bg-emerald-50 text-emerald-700 border-emerald-100",
       panel: "border-emerald-100 bg-emerald-50",
       dot: "bg-emerald-500",
@@ -85,7 +91,7 @@ function getStatusInfo(rawStatus: string | null | undefined, appointmentDate?: s
 
   if (status === "iptal") {
     return {
-      label: "İptal Edildi",
+      label: t("status.cancelled"),
       pill: "bg-rose-50 text-rose-700 border-rose-100",
       panel: "border-rose-100 bg-rose-50",
       dot: "bg-rose-500",
@@ -93,7 +99,7 @@ function getStatusInfo(rawStatus: string | null | undefined, appointmentDate?: s
   }
 
   return {
-    label: "Bekliyor",
+    label: t("status.waiting"),
     pill: "bg-violet-50 text-violet-700 border-violet-100",
     panel: "border-violet-100 bg-violet-50",
     dot: "bg-violet-500",
@@ -114,12 +120,13 @@ function getLeftBorderClass(status: string | null | undefined, appointmentDate: 
   return "border-l-cyan-500";
 }
 
-const FILTER_OPTIONS: { key: AppointmentFilter; label: string }[] = [
-  { key: "all", label: "Tümü" },
-  { key: "today", label: "Bugün" },
-  { key: "upcoming", label: "Yaklaşan" },
-  { key: "completed", label: "Tamamlanan" },
-  { key: "cancelled", label: "İptal" },
+// Etiketler agenda.filters.<anahtar> (bileşende çevrilir).
+const FILTER_OPTIONS: { key: AppointmentFilter }[] = [
+  { key: "all" },
+  { key: "today" },
+  { key: "upcoming" },
+  { key: "completed" },
+  { key: "cancelled" },
 ];
 
 // Randevu tarih/saatinin geçmişte olup olmadığı (YEREL kullanıcı günü; UTC kayması yok).
@@ -139,6 +146,21 @@ function isPastCalendarDay(dateStr: string): boolean {
 }
 
 function AjandaPageInner() {
+  const t = useTranslations("agenda");
+  const locale = useLocale() as ActiveLocale;
+  /**
+   * Sunucu hata metni: kaynak dilde (tr) bugünkü gibi sunucunun Türkçe metni (BİREBİR); diğer dillerde dil-bağımsız
+   * `code` → agenda.errors.codes.<KOD> (deneme kodları → trial.errors.codes.<KOD>), eşlenmeyen kodda çağıranın
+   * (çevrilmiş) genel metni — karışık dil yok.
+   */
+  const tTrial = useTranslations("trial.errors");
+  const serverText = (body: { code?: string; trialCode?: string; error?: string } | null | undefined, trText: string | null | undefined, fallback: string): string => {
+    if (locale === "tr") return trText || fallback;
+    const trialText = localizeTrialError(tTrial, locale, body);
+    if (trialText) return trialText;
+    const code = body?.code;
+    return code && t.has(`errors.codes.${code}`) ? t(`errors.codes.${code}`) : fallback;
+  };
   const { confirm } = useConfirm();
   const { showToast } = useToast();
   const router = useRouter();
@@ -318,15 +340,15 @@ function AjandaPageInner() {
         body: JSON.stringify({ tenantId, exportMode: mode, appointmentIds, dateRange }),
       });
       if (!res.ok) {
-        const err = await res.json().catch(() => ({})) as { error?: string };
-        showToast({ title: "Hata", message: err.error || "Rapor oluşturulamadı.", type: "error" });
+        const err = await res.json().catch(() => ({})) as { code?: string; error?: string };
+        showToast({ title: t("toast.errorTitle"), message: serverText(err, err.error, t("toast.reportFailed")), type: "error" });
         return;
       }
       // Dosya adı sunucudan (Content-Disposition); yoksa yerel-gün (İstanbul) yedeği.
       await downloadFileResponse(res, `ajanda-${mode}-${reportFileDate()}.docx`);
-      showToast({ title: "Başarılı", message: "Ajanda raporu indirildi.", type: "success" });
+      showToast({ title: t("toast.successTitle"), message: t("toast.reportDownloaded"), type: "success" });
     } catch (err) {
-      showToast({ title: "Hata", message: err instanceof Error ? err.message : "Bilinmeyen hata", type: "error" });
+      showToast({ title: t("toast.errorTitle"), message: err instanceof Error ? err.message : t("toast.unknownError"), type: "error" });
     } finally {
       setWordBusy(false);
     }
@@ -342,31 +364,31 @@ function AjandaPageInner() {
         body: JSON.stringify({ tenantId, exportMode: "single", appointmentId: apptId }),
       });
       if (!res.ok) {
-        const err = await res.json().catch(() => ({})) as { error?: string };
-        showToast({ title: "Hata", message: err.error || "Rapor oluşturulamadı.", type: "error" });
+        const err = await res.json().catch(() => ({})) as { code?: string; error?: string };
+        showToast({ title: t("toast.errorTitle"), message: serverText(err, err.error, t("toast.reportFailed")), type: "error" });
         return;
       }
       await downloadFileResponse(res, `ajanda-tek-${reportFileDate()}.docx`);
-      showToast({ title: "Başarılı", message: "Tek randevu raporu indirildi.", type: "success" });
+      showToast({ title: t("toast.successTitle"), message: t("toast.singleReportDownloaded"), type: "success" });
     } catch (err) {
-      showToast({ title: "Hata", message: err instanceof Error ? err.message : "Bilinmeyen hata", type: "error" });
+      showToast({ title: t("toast.errorTitle"), message: err instanceof Error ? err.message : t("toast.unknownError"), type: "error" });
     } finally {
       setSingleWordBusy(false);
     }
   }
 
   function formatTime(value: string) {
-    return new Date(value).toLocaleTimeString("tr-TR", {
+    return fmtTime(value, {
       hour: "2-digit",
       minute: "2-digit",
-    });
+    }, locale);
   }
 
   function formatDateShort(value: string) {
-    return new Date(value).toLocaleDateString("tr-TR", {
+    return fmtDate(value, {
       day: "2-digit",
       month: "short",
-    });
+    }, locale);
   }
 
   async function loadClients() {
@@ -375,8 +397,8 @@ function AjandaPageInner() {
     const res = await fetch("/api/clients", { headers: userHeaders() });
     if (!res.ok) {
       showToast({
-        title: "Danışanlar yüklenemedi",
-        message: "Danışan listesi alınamadı.",
+        title: t("toast.clientsLoadTitle"),
+        message: t("toast.clientsLoadBody"),
         type: "error",
       });
       return;
@@ -395,8 +417,8 @@ function AjandaPageInner() {
     const res = await fetch("/api/appointments", { headers: userHeaders() });
     if (!res.ok) {
       showToast({
-        title: "Randevular yüklenemedi",
-        message: "Randevu listesi alınamadı.",
+        title: t("toast.appointmentsLoadTitle"),
+        message: t("toast.appointmentsLoadBody"),
         type: "error",
       });
       return;
@@ -408,21 +430,21 @@ function AjandaPageInner() {
   }
 
   function formatDate(value: string) {
-    return new Date(value).toLocaleString("tr-TR", {
+    return fmtDateTime(value, {
       day: "2-digit",
       month: "2-digit",
       year: "numeric",
       hour: "2-digit",
       minute: "2-digit",
-    });
+    }, locale);
   }
 
   function formatDay(value: string) {
-    return new Date(value).toLocaleDateString("tr-TR", {
+    return fmtDate(value, {
       weekday: "long",
       day: "2-digit",
       month: "long",
-    });
+    }, locale);
   }
 
   async function updateAppointmentStatus(id: string, status: AppointmentStatus) {
@@ -437,8 +459,8 @@ function AjandaPageInner() {
     if (!res.ok) {
       const j = (await res.json().catch(() => ({}))) as { code?: string; error?: string };
       showToast({
-        title: "Durum güncellenemedi",
-        message: j.code === "APPOINTMENT_IN_FUTURE" && j.error ? j.error : "Randevu durumu güncellenemedi.",
+        title: t("toast.statusUpdateTitle"),
+        message: j.code === "APPOINTMENT_IN_FUTURE" && j.error ? serverText(j, j.error, t("toast.statusUpdateBody")) : t("toast.statusUpdateBody"),
         type: "error",
       });
       return;
@@ -453,11 +475,11 @@ function AjandaPageInner() {
 
   async function deleteAppointment(id: string) {
     const confirmDelete = await confirm({
-      message: "Bu randevu silinsin mi?",
+      message: t("confirm.deleteMessage"),
       tone: "danger",
-      title: "Randevuyu sil",
-      confirmText: "Sil",
-      cancelText: "Vazgeç",
+      title: t("confirm.deleteTitle"),
+      confirmText: t("confirm.deleteConfirm"),
+      cancelText: t("confirm.cancel"),
     });
     if (!confirmDelete) return;
 
@@ -470,8 +492,8 @@ function AjandaPageInner() {
 
     if (!res.ok) {
       showToast({
-        title: "Silme hatası",
-        message: "Randevu silinemedi.",
+        title: t("toast.deleteErrorTitle"),
+        message: t("toast.deleteErrorBody"),
         type: "error",
       });
       return;
@@ -481,8 +503,8 @@ function AjandaPageInner() {
     await loadAppointments();
 
     showToast({
-      title: "Randevu silindi",
-      message: "Randevu başarıyla kaldırıldı.",
+      title: t("toast.deletedTitle"),
+      message: t("toast.deletedBody"),
       type: "success",
     });
   }
@@ -501,10 +523,10 @@ function AjandaPageInner() {
   // "İptal Et" → önce global confirm, sonra durum PATCH. Vazgeçilirse API çağrısı yok.
   async function requestCancelAppointment(id: string) {
     const ok = await confirm({
-      title: "Randevu iptal edilsin mi?",
-      message: 'Bu randevunun durumu "İptal" olarak değiştirilecek.',
-      confirmText: "Randevuyu İptal Et",
-      cancelText: "Vazgeç",
+      title: t("confirm.cancelApptTitle"),
+      message: t("confirm.cancelApptMessage"),
+      confirmText: t("confirm.cancelApptConfirm"),
+      cancelText: t("confirm.cancel"),
       tone: "danger",
     });
     if (!ok) return;
@@ -518,17 +540,17 @@ function AjandaPageInner() {
     const target = appointments.find((a) => a.id === id);
     if (target && isAppointmentInFuture(target.appointment_date)) {
       showToast({
-        title: "Henüz gerçekleşmedi",
-        message: "Henüz gerçekleşmemiş bir randevu tamamlandı olarak işaretlenemez.",
+        title: t("toast.notYetTitle"),
+        message: t("toast.notYetBody"),
         type: "warning",
       });
       return;
     }
     const ok = await confirm({
-      title: "Randevu tamamlandı olarak işaretlensin mi?",
-      message: 'Bu randevunun durumu "Tamamlandı" olarak değiştirilecek.',
-      confirmText: "Tamamlandı Yap",
-      cancelText: "Vazgeç",
+      title: t("confirm.completeTitle"),
+      message: t("confirm.completeMessage"),
+      confirmText: t("confirm.completeConfirm"),
+      cancelText: t("confirm.cancel"),
       tone: "success",
     });
     if (!ok) return;
@@ -555,27 +577,27 @@ function AjandaPageInner() {
     if (!tenantId) return;
 
     if (appointmentType === "kayitli" && !formClientId) {
-      showToast({ title: "Eksik bilgi", message: "Lütfen bir danışan seçin.", type: "warning" });
+      showToast({ title: t("toast.missingTitle"), message: t("toast.missingClient"), type: "warning" });
       return;
     }
 
     if (!formDate || !formTime) {
-      showToast({ title: "Eksik bilgi", message: "Tarih ve saat seçmelisiniz.", type: "warning" });
+      showToast({ title: t("toast.missingTitle"), message: t("toast.missingDateTime"), type: "warning" });
       return;
     }
 
     if (!formTitle.trim()) {
-      showToast({ title: "Eksik bilgi", message: "Lütfen başlık giriniz.", type: "warning" });
+      showToast({ title: t("toast.missingTitle"), message: t("toast.missingTitleField"), type: "warning" });
       return;
     }
 
     // Geçmiş takvim günü (dün ve öncesi) → uyarı + açık onay; form verisi korunur.
     if (isPastCalendarDay(formDate)) {
       const ok = await confirm({
-        title: "Geçmiş tarihli randevu",
-        message: "Seçtiğiniz tarih geçmişte. Bu randevuyu yine de kaydetmek istiyor musunuz?",
-        confirmText: "Yine de Kaydet",
-        cancelText: "Vazgeç",
+        title: t("confirm.pastTitle"),
+        message: t("confirm.pastMessage"),
+        confirmText: t("confirm.pastConfirm"),
+        cancelText: t("confirm.cancel"),
         tone: "warning",
       });
       if (!ok) return;
@@ -586,8 +608,8 @@ function AjandaPageInner() {
     // DY-A: gelecekteki randevu "Tamamlandı" durumuyla oluşturulamaz (sunucu 409).
     if (!editingId && formStatus === "tamamlandi" && isAppointmentInFuture(appointmentDate)) {
       showToast({
-        title: "Geçersiz durum",
-        message: "Henüz gerçekleşmemiş bir randevu tamamlandı olarak kaydedilemez.",
+        title: t("toast.invalidStatusTitle"),
+        message: t("toast.invalidStatusBody"),
         type: "warning",
       });
       return;
@@ -601,7 +623,7 @@ function AjandaPageInner() {
       const editing = appointments.find((a) => a.id === editingId);
       const dateChanged = !!editing && new Date(appointmentDate).getTime() !== new Date(editing.appointment_date).getTime();
       if (editing?.status === "tamamlandi" && dateChanged && isAppointmentInFuture(appointmentDate)) {
-        showToast({ title: "Güncelleme hatası", message: "Tamamlanmış bir randevu gelecekteki bir tarihe taşınamaz.", type: "error" });
+        showToast({ title: t("toast.updateErrorTitle"), message: t("toast.completedToFuture"), type: "error" });
         setSaving(false);
         return;
       }
@@ -617,10 +639,11 @@ function AjandaPageInner() {
 
       if (!res || !res.ok) {
         let serverMsg: string | null = null;
+        let serverBody: { code?: string; error?: string } | null = null;
         if (res && (res.status === 409 || res.status === 400)) {
-          try { serverMsg = ((await res.json()) as { error?: string }).error ?? null; } catch { serverMsg = null; }
+          try { serverBody = (await res.json()) as { code?: string; error?: string }; serverMsg = serverBody.error ?? null; } catch { serverMsg = null; }
         }
-        showToast({ title: "Güncelleme hatası", message: serverMsg ?? "Randevu güncellenemedi.", type: "error" });
+        showToast({ title: t("toast.updateErrorTitle"), message: serverMsg != null && locale !== "tr" ? serverText(serverBody, serverMsg, t("toast.updateErrorBody")) : serverMsg ?? t("toast.updateErrorBody"), type: "error" });
         setSaving(false);
         return; // form ve edit bilgileri korunur
       }
@@ -628,7 +651,7 @@ function AjandaPageInner() {
       resetApptForm();
       setSaving(false);
       await loadAppointments();
-      showToast({ title: "Başarılı", message: "Randevu güncellendi.", type: "success" });
+      showToast({ title: t("toast.successTitle"), message: t("toast.updated"), type: "success" });
       return;
     }
 
@@ -645,7 +668,7 @@ function AjandaPageInner() {
     }).catch(() => null); // ağ hatası → hata toast'u; saving takılı kalmaz, form korunur
 
     if (!res || !res.ok) {
-      showToast({ title: "Kayıt hatası", message: "Randevu oluşturulamadı.", type: "error" });
+      showToast({ title: t("toast.createErrorTitle"), message: t("toast.createErrorBody"), type: "error" });
       setSaving(false);
       return;
     }
@@ -655,7 +678,7 @@ function AjandaPageInner() {
 
     await loadAppointments();
 
-    showToast({ title: "Başarılı", message: "Randevu oluşturuldu.", type: "success" });
+    showToast({ title: t("toast.successTitle"), message: t("toast.created"), type: "success" });
   }
 
   useEffect(() => {
@@ -682,14 +705,14 @@ function AjandaPageInner() {
         setSelectedAppointment(target);
       } else {
         showToast({
-          title: "Randevu bulunamadı",
-          message: "Bağlantıdaki randevu bulunamadı veya silinmiş olabilir.",
+          title: t("toast.notFoundTitle"),
+          message: t("toast.notFoundBody"),
           type: "warning",
         });
       }
       router.replace("/dashboard/ajanda", { scroll: false });
     });
-  }, [deepLinkAppointmentId, appointmentsLoaded, appointments, router, showToast]);
+  }, [deepLinkAppointmentId, appointmentsLoaded, appointments, router, showToast, t]);
 
   return (
     <main className="relative w-full overflow-x-hidden bg-[radial-gradient(circle_at_15%_20%,rgba(99,102,241,0.14),transparent_25%),radial-gradient(circle_at_85%_10%,rgba(236,72,153,0.10),transparent_25%),radial-gradient(circle_at_50%_80%,rgba(45,212,191,0.12),transparent_35%),linear-gradient(135deg,#eef4ff_0%,#f6f2ff_45%,#fff4fa_100%)] px-5 py-5 text-slate-950 antialiased sm:px-6 lg:px-8">
@@ -705,10 +728,10 @@ function AjandaPageInner() {
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <h1 className="text-3xl font-black tracking-tight text-slate-950 sm:text-4xl">
-                Ajanda & Randevu Merkezi
+                {t("page.title")}
               </h1>
               <p className="mt-1 max-w-2xl text-sm font-medium text-slate-600">
-                Bugünkü akışı ve tüm randevuları yönetin.
+                {t("page.subtitle")}
               </p>
             </div>
 
@@ -721,7 +744,7 @@ function AjandaPageInner() {
                   : "bg-gradient-to-r from-indigo-500 to-violet-500 text-white"
               }`}
             >
-              {showForm ? "Formu Kapat" : "+ Yeni Randevu Ekle"}
+              {showForm ? t("page.closeForm") : t("page.newAppointment")}
             </button>
           </div>
 
@@ -729,15 +752,15 @@ function AjandaPageInner() {
             <div className="mt-4 overflow-hidden rounded-2xl border border-indigo-200 bg-white shadow-lg">
               <div className="flex items-center justify-between border-b border-indigo-100 bg-gradient-to-r from-indigo-50 via-white to-violet-50 px-5 py-3">
                 <div>
-                  <h3 className="text-base font-black text-slate-950">{editingId ? "Randevu Düzenle" : "Yeni Randevu Oluştur"}</h3>
-                  <p className="mt-0.5 text-xs font-medium text-slate-500">{editingId ? "Yalnız başlık, tarih/saat ve notu güncelleyebilirsin." : "Danışana bağlı veya genel randevu ekleyebilirsin."}</p>
+                  <h3 className="text-base font-black text-slate-950">{editingId ? t("form.editTitle") : t("form.createTitle")}</h3>
+                  <p className="mt-0.5 text-xs font-medium text-slate-500">{editingId ? t("form.editHint") : t("form.createHint")}</p>
                 </div>
                 <button
                   type="button"
                   onClick={resetApptForm}
                   className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-black text-slate-600 shadow-sm transition hover:bg-slate-50"
                 >
-                  Vazgeç
+                  {t("form.cancel")}
                 </button>
               </div>
 
@@ -754,7 +777,7 @@ function AjandaPageInner() {
                         : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
                     }`}
                   >
-                    👤 Kayıtlı Danışan
+                    {t("form.typeClient")}
                   </button>
                   <button
                     type="button"
@@ -765,7 +788,7 @@ function AjandaPageInner() {
                         : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
                     }`}
                   >
-                    🗓️ Genel Randevu
+                    {t("form.typeGeneral")}
                   </button>
                 </div>
                 )}
@@ -775,17 +798,17 @@ function AjandaPageInner() {
                   <div className="space-y-3">
                     {appointmentType === "kayitli" && (
                       <div>
-                        <label className="mb-1.5 block text-xs font-black text-slate-700">Danışan Seç{editingId ? " (değiştirilemez)" : ""}</label>
+                        <label className="mb-1.5 block text-xs font-black text-slate-700">{t("form.clientLabel")}{editingId ? t("form.clientLocked") : ""}</label>
                         <select
                           value={formClientId}
                           onChange={(e) => setFormClientId(e.target.value)}
                           disabled={!!editingId}
                           className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-900 outline-none transition focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500"
                         >
-                          <option value="">-- Danışan seçin --</option>
+                          <option value="">{t("form.clientPlaceholder")}</option>
                           {sortedClients.map((c) => (
                             <option key={c.id} value={c.id}>
-                              {`${c.ad || ""} ${c.soyad || ""}`.trim() || "İsimsiz"}
+                              {`${c.ad || ""} ${c.soyad || ""}`.trim() || t("form.unnamed")}
                             </option>
                           ))}
                         </select>
@@ -793,18 +816,18 @@ function AjandaPageInner() {
                     )}
 
                     <div>
-                      <label className="mb-1.5 block text-xs font-black text-slate-700">Başlık</label>
+                      <label className="mb-1.5 block text-xs font-black text-slate-700">{t("form.titleLabel")}</label>
                       <input
                         value={formTitle}
                         onChange={(e) => setFormTitle(e.target.value)}
-                        placeholder="Örn: Seans, Toplantı, Kişisel not..."
+                        placeholder={t("form.titlePlaceholder")}
                         className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-900 outline-none transition focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
                       />
                     </div>
 
                     <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <label className="mb-1.5 block text-xs font-black text-slate-700">Tarih</label>
+                        <label className="mb-1.5 block text-xs font-black text-slate-700">{t("form.dateLabel")}</label>
                         <input
                           type="date"
                           value={formDate}
@@ -813,7 +836,7 @@ function AjandaPageInner() {
                         />
                       </div>
                       <div>
-                        <label className="mb-1.5 block text-xs font-black text-slate-700">Saat</label>
+                        <label className="mb-1.5 block text-xs font-black text-slate-700">{t("form.timeLabel")}</label>
                         <input
                           type="time"
                           value={formTime}
@@ -829,25 +852,25 @@ function AjandaPageInner() {
                     {/* Durum — edit modunda gizli (durum yalnız Tamamlandı/İptal butonlarından değişir) */}
                     {!editingId && (
                     <div>
-                      <label className="mb-1.5 block text-xs font-black text-slate-700">Durum</label>
+                      <label className="mb-1.5 block text-xs font-black text-slate-700">{t("form.statusLabel")}</label>
                       <select
                         value={formStatus}
                         onChange={(e) => setFormStatus(e.target.value as AppointmentStatus)}
                         className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-900 outline-none transition focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
                       >
-                        <option value="bekliyor">Bekliyor</option>
-                        <option value="tamamlandi">Tamamlandı</option>
-                        <option value="iptal">İptal</option>
+                        <option value="bekliyor">{t("form.statusWaiting")}</option>
+                        <option value="tamamlandi">{t("form.statusCompleted")}</option>
+                        <option value="iptal">{t("form.statusCancelled")}</option>
                       </select>
                     </div>
                     )}
 
                     <div>
-                      <label className="mb-1.5 block text-xs font-black text-slate-700">Açıklama / Not</label>
+                      <label className="mb-1.5 block text-xs font-black text-slate-700">{t("form.notesLabel")}</label>
                       <textarea
                         value={formNotes}
                         onChange={(e) => setFormNotes(e.target.value)}
-                        placeholder="İsteğe bağlı notlar..."
+                        placeholder={t("form.notesPlaceholder")}
                         rows={4}
                         className="w-full resize-none rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-900 outline-none transition focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
                       />
@@ -861,7 +884,7 @@ function AjandaPageInner() {
                     onClick={resetApptForm}
                     className="rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-black text-slate-600 shadow-sm transition hover:bg-slate-50"
                   >
-                    Vazgeç
+                    {t("form.cancel")}
                   </button>
                   <button
                     type="button"
@@ -869,7 +892,7 @@ function AjandaPageInner() {
                     disabled={saving}
                     className="rounded-xl bg-gradient-to-r from-indigo-500 to-violet-500 px-6 py-2.5 text-sm font-black text-white shadow-md transition hover:-translate-y-0.5 disabled:opacity-70"
                   >
-                    {saving ? "Kaydediliyor..." : editingId ? "Güncelle" : "Randevu Kaydet"}
+                    {saving ? t("form.saving") : editingId ? t("form.update") : t("form.save")}
                   </button>
                 </div>
               </div>
@@ -881,7 +904,7 @@ function AjandaPageInner() {
               <Users className="h-5 w-5 shrink-0 text-indigo-600" strokeWidth={2.2} />
               <div>
                 <div className="text-xl font-black leading-none text-indigo-800">{appointments.length}</div>
-                <div className="mt-0.5 text-xs font-bold text-indigo-600">Toplam</div>
+                <div className="mt-0.5 text-xs font-bold text-indigo-600">{t("stats.total")}</div>
               </div>
             </div>
 
@@ -889,7 +912,7 @@ function AjandaPageInner() {
               <Calendar className="h-5 w-5 shrink-0 text-emerald-600" strokeWidth={2.2} />
               <div>
                 <div className="text-xl font-black leading-none text-emerald-800">{todayCount}</div>
-                <div className="mt-0.5 text-xs font-bold text-emerald-600">Bugün</div>
+                <div className="mt-0.5 text-xs font-bold text-emerald-600">{t("stats.today")}</div>
               </div>
             </div>
 
@@ -897,7 +920,7 @@ function AjandaPageInner() {
               <Clock3 className="h-5 w-5 shrink-0 text-violet-600" strokeWidth={2.2} />
               <div>
                 <div className="text-xl font-black leading-none text-violet-800">{waitingCount}</div>
-                <div className="mt-0.5 text-xs font-bold text-violet-600">Bekliyor (yaklaşan)</div>
+                <div className="mt-0.5 text-xs font-bold text-violet-600">{t("stats.waiting")}</div>
               </div>
             </div>
 
@@ -906,7 +929,7 @@ function AjandaPageInner() {
               <Clock3 className="h-5 w-5 shrink-0 text-orange-600" strokeWidth={2.2} />
               <div>
                 <div className="text-xl font-black leading-none text-orange-800">{noResultCount}</div>
-                <div className="mt-0.5 text-xs font-bold text-orange-600">Sonuç girilmedi</div>
+                <div className="mt-0.5 text-xs font-bold text-orange-600">{t("stats.noResult")}</div>
               </div>
             </div>
 
@@ -914,7 +937,7 @@ function AjandaPageInner() {
               <CheckCircle className="h-5 w-5 shrink-0 text-amber-600" strokeWidth={2.2} />
               <div>
                 <div className="text-xl font-black leading-none text-amber-800">{completedCount}</div>
-                <div className="mt-0.5 text-xs font-bold text-amber-600">Biten</div>
+                <div className="mt-0.5 text-xs font-bold text-amber-600">{t("stats.completed")}</div>
               </div>
             </div>
 
@@ -922,7 +945,7 @@ function AjandaPageInner() {
               <XCircle className="h-5 w-5 shrink-0 text-rose-600" strokeWidth={2.2} />
               <div>
                 <div className="text-xl font-black leading-none text-rose-800">{cancelledCount}</div>
-                <div className="mt-0.5 text-xs font-bold text-rose-600">İptal</div>
+                <div className="mt-0.5 text-xs font-bold text-rose-600">{t("stats.cancelled")}</div>
               </div>
             </div>
           </div>
@@ -940,7 +963,7 @@ function AjandaPageInner() {
                   : "border border-white/80 bg-white/90 text-slate-700 shadow-sm hover:scale-[1.03]"
               }`}
             >
-              {option.label}
+              {t(`filters.${option.key}`)}
             </button>
           ))}
         </div>
@@ -949,40 +972,40 @@ function AjandaPageInner() {
         {appointments.length > 0 && (
           <div className="mb-4 flex flex-wrap items-center gap-2 rounded-xl border border-blue-100 bg-blue-50/80 px-3 py-2 shadow-sm">
             <span className="shrink-0 rounded-full border border-blue-200 bg-white px-3 py-2 text-xs font-black min-h-[40px] lg:min-h-0 lg:py-1 text-blue-800 shadow-sm">
-              {selectedApptIds.size > 0 ? `✓ ${selectedApptIds.size} seçili` : "Ajanda Word"}
+              {selectedApptIds.size > 0 ? t("word.selectedCount", { count: String(selectedApptIds.size) }) : t("word.label")}
             </span>
             <button type="button" disabled={wordBusy} onClick={selectAllFiltered}
               className="rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-xs font-black min-h-[40px] lg:min-h-0 lg:py-1 text-slate-700 shadow-sm hover:bg-slate-50 disabled:opacity-50">
-              Tümünü Seç ({filteredAppointments.length})
+              {t("word.selectAll", { count: String(filteredAppointments.length) })}
             </button>
             {selectedApptIds.size > 0 && (
               <button type="button" disabled={wordBusy} onClick={clearApptSelection}
                 className="rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-xs font-black min-h-[40px] lg:min-h-0 lg:py-1 text-slate-500 shadow-sm hover:bg-slate-50 disabled:opacity-50">
-                Seçimi Temizle
+                {t("word.clearSelection")}
               </button>
             )}
             <div className="hidden h-4 w-px bg-blue-200 sm:block" aria-hidden />
             <button type="button" disabled={selectedApptIds.size === 0 || wordBusy} onClick={() => void exportAjandaWord("selected")}
               className="rounded-lg border border-blue-400 bg-blue-600 px-3 py-2 text-xs font-black min-h-[40px] lg:min-h-0 lg:py-1 text-white shadow-sm hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-40">
-              {wordBusy ? "⏳..." : `📄 Seçilenleri Word (${selectedApptIds.size})`}
+              {wordBusy ? t("word.busy") : t("word.selected", { count: String(selectedApptIds.size) })}
             </button>
             {filter !== "all" && (
               <button type="button" disabled={wordBusy || filteredAppointments.length === 0} onClick={() => void exportAjandaWord("filtered")}
                 className="rounded-lg border border-violet-400 bg-violet-600 px-3 py-2 text-xs font-black min-h-[40px] lg:min-h-0 lg:py-1 text-white shadow-sm hover:bg-violet-700 disabled:opacity-40">
-                {wordBusy ? "⏳..." : `📄 Filtrelenmiş Word (${filteredAppointments.length})`}
+                {wordBusy ? t("word.busy") : t("word.filtered", { count: String(filteredAppointments.length) })}
               </button>
             )}
             <button type="button" disabled={wordBusy} onClick={() => void exportAjandaWord("weekly")}
               className="rounded-lg border border-cyan-400 bg-cyan-600 px-3 py-2 text-xs font-black min-h-[40px] lg:min-h-0 lg:py-1 text-white shadow-sm hover:bg-cyan-700 disabled:opacity-40">
-              {wordBusy ? "⏳..." : "📄 Haftalık"}
+              {wordBusy ? t("word.busy") : t("word.weekly")}
             </button>
             <button type="button" disabled={wordBusy} onClick={() => void exportAjandaWord("monthly")}
               className="rounded-lg border border-teal-400 bg-teal-600 px-3 py-2 text-xs font-black min-h-[40px] lg:min-h-0 lg:py-1 text-white shadow-sm hover:bg-teal-700 disabled:opacity-40">
-              {wordBusy ? "⏳..." : "📄 Aylık"}
+              {wordBusy ? t("word.busy") : t("word.monthly")}
             </button>
             <button type="button" disabled={wordBusy} onClick={() => void exportAjandaWord("all")}
               className="rounded-lg border border-slate-400 bg-slate-700 px-3 py-2 text-xs font-black min-h-[40px] lg:min-h-0 lg:py-1 text-white shadow-sm hover:bg-slate-800 disabled:opacity-40">
-              {wordBusy ? "⏳..." : "📄 Tümünü Word"}
+              {wordBusy ? t("word.busy") : t("word.all")}
             </button>
           </div>
         )}
@@ -990,18 +1013,18 @@ function AjandaPageInner() {
         <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1.7fr_0.8fr]">
           <section className="rounded-2xl border border-white/80 bg-white/80 p-5 shadow-lg backdrop-blur-xl">
             <div className="mb-3">
-              <h2 className="text-xl font-black text-slate-950">Tüm Randevu Akışı</h2>
+              <h2 className="text-xl font-black text-slate-950">{t("list.title")}</h2>
               <p className="mt-0.5 text-xs text-slate-600">
-                Sistemdeki tüm randevular burada listelenir.
+                {t("list.subtitle")}
               </p>
               <p className="mt-0.5 text-xs font-semibold text-indigo-600">
-                {filteredAppointments.length} kayıt görüntüleniyor
+                {t("list.count", { count: filteredAppointments.length })}
               </p>
             </div>
 
             <div className="max-h-[calc(100vh-310px)] space-y-2.5 overflow-y-auto pr-1">
               {filteredAppointments.map((item, index) => {
-                const statusInfo = getStatusInfo(item.status, item.appointment_date);
+                const statusInfo = getStatusInfo(t, item.status, item.appointment_date);
                 const borderClass = getLeftBorderClass(
                   item.status,
                   item.appointment_date
@@ -1045,15 +1068,15 @@ function AjandaPageInner() {
                           </div>
 
                           <div className="mt-1 text-base font-black text-slate-950">
-                            {item.title || "Görüşme"}
+                            {item.title || t("list.defaultTitle")}
                           </div>
 
                           <div className="mt-0.5 text-xs font-semibold text-slate-500">
                             {item.client_id ? (
-                              clientMap.get(item.client_id) || "Danışan"
+                              clientMap.get(item.client_id) || t("list.client")
                             ) : (
                               <span className="inline-flex items-center rounded-full border border-violet-200 bg-violet-50 px-2 py-0.5 text-xs font-black text-violet-700">
-                                Genel Randevu
+                                {t("list.general")}
                               </span>
                             )}
                           </div>
@@ -1067,7 +1090,7 @@ function AjandaPageInner() {
                       </div>
 
                       <div className="rounded-xl bg-slate-950 px-3 py-2 text-right text-white shadow-sm">
-                        <div className="text-[10px] font-bold text-slate-300">Tarih / Saat</div>
+                        <div className="text-[10px] font-bold text-slate-300">{t("list.dateTime")}</div>
                         <div className="mt-0.5 text-xs font-black">
                           {formatDate(item.appointment_date)}
                         </div>
@@ -1084,10 +1107,10 @@ function AjandaPageInner() {
                     ✨
                   </div>
                   <div className="text-sm font-black text-slate-800">
-                    Bu filtrede randevu yok.
+                    {t("list.emptyTitle")}
                   </div>
                   <p className="mt-1 text-xs text-slate-500">
-                    Yukarıdaki "+ Yeni Randevu Ekle" butonu ile kayıt oluşturabilirsin.
+                    {t("list.emptyHint")}
                   </p>
                 </div>
               )}
@@ -1097,16 +1120,16 @@ function AjandaPageInner() {
           <aside className="rounded-2xl border border-white/80 bg-white/75 p-4 shadow-lg backdrop-blur-xl">
             <div className="mb-3">
               <h2 className="text-lg font-black text-slate-950">
-                Yaklaşan İlk 10 Randevu
+                {t("upcoming.title")}
               </h2>
               <p className="mt-0.5 text-xs text-slate-600">
-                En yakın görüşmeler zaman çizelgesi.
+                {t("upcoming.subtitle")}
               </p>
             </div>
 
             <div className="max-h-[calc(100vh-280px)] space-y-1 overflow-y-auto pr-1">
               {upcomingTop10.map((item, index) => {
-                const statusInfo = getStatusInfo(item.status, item.appointment_date);
+                const statusInfo = getStatusInfo(t, item.status, item.appointment_date);
 
                 return (
                   <div key={item.id} className="relative pl-9">
@@ -1139,7 +1162,7 @@ function AjandaPageInner() {
                       </div>
 
                       <div className="mt-1 text-sm font-bold text-slate-800">
-                        {item.title || "Görüşme"}
+                        {item.title || t("list.defaultTitle")}
                       </div>
 
                       <div className="mt-1.5 flex items-center gap-1.5">
@@ -1162,7 +1185,7 @@ function AjandaPageInner() {
               {upcomingTop10.length === 0 && (
                 <div className="rounded-xl border border-dashed border-slate-300 bg-white/60 p-4 text-center">
                   <p className="text-sm font-black text-slate-700">
-                    Yaklaşan randevu yok.
+                    {t("upcoming.empty")}
                   </p>
                 </div>
               )}
@@ -1188,18 +1211,18 @@ function AjandaPageInner() {
                 <div className="flex justify-between gap-4">
                   <div>
                     <div className="text-xs font-bold text-violet-200">
-                      Randevu Detayı
+                      {t("detail.title")}
                     </div>
 
                     <h3 id="ajanda-appt-modal-title" className="mt-1 break-words text-xl font-black">
-                      {selectedAppointment.title || "Görüşme"}
+                      {selectedAppointment.title || t("list.defaultTitle")}
                     </h3>
                   </div>
 
                   <button
                     type="button"
                     onClick={() => setSelectedAppointment(null)}
-                    aria-label="Kapat"
+                    aria-label={t("detail.close")}
                     className="h-10 w-10 shrink-0 rounded-full bg-white/15 text-lg font-bold hover:bg-white/25"
                   >
                     ×
@@ -1210,22 +1233,22 @@ function AjandaPageInner() {
               <div className="min-h-0 flex-1 space-y-2.5 overflow-y-auto overscroll-contain p-4">
                 <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-3">
                   <div className="text-xs font-bold text-emerald-600">
-                    {selectedAppointment.client_id ? "Danışan" : "Randevu Tipi"}
+                    {selectedAppointment.client_id ? t("detail.client") : t("detail.type")}
                   </div>
 
                   <div className="text-sm font-black text-emerald-900">
                     {selectedAppointment.client_id ? (
-                      clientMap.get(selectedAppointment.client_id) || "Danışan"
+                      clientMap.get(selectedAppointment.client_id) || t("detail.client")
                     ) : (
                       <span className="inline-flex rounded-full border border-violet-200 bg-violet-100 px-2.5 py-0.5 text-xs font-black text-violet-700">
-                        🗓️ Genel Randevu
+                        {t("detail.general")}
                       </span>
                     )}
                   </div>
                 </div>
 
                 <div className="rounded-xl border border-indigo-100 bg-indigo-50 p-3">
-                  <div className="text-xs font-bold text-indigo-600">Tarih / Saat</div>
+                  <div className="text-xs font-bold text-indigo-600">{t("detail.dateTime")}</div>
 
                   <div className="text-sm font-black text-indigo-900">
                     {formatDate(selectedAppointment.appointment_date)}
@@ -1234,26 +1257,26 @@ function AjandaPageInner() {
 
                 <div
                   className={`rounded-xl border p-3 ${
-                    getStatusInfo(selectedAppointment.status, selectedAppointment.appointment_date).panel
+                    getStatusInfo(t, selectedAppointment.status, selectedAppointment.appointment_date).panel
                   }`}
                 >
-                  <div className="text-xs font-bold text-slate-600">Durum</div>
+                  <div className="text-xs font-bold text-slate-600">{t("detail.status")}</div>
 
                   <div className="flex items-center gap-1.5 text-sm font-black text-slate-950">
                     <span
                       className={`h-2.5 w-2.5 rounded-full ${
-                        getStatusInfo(selectedAppointment.status, selectedAppointment.appointment_date).dot
+                        getStatusInfo(t, selectedAppointment.status, selectedAppointment.appointment_date).dot
                       }`}
                     />
-                    {getStatusInfo(selectedAppointment.status, selectedAppointment.appointment_date).label}
+                    {getStatusInfo(t, selectedAppointment.status, selectedAppointment.appointment_date).label}
                   </div>
                 </div>
 
                 <div className="rounded-xl border border-amber-100 bg-amber-50 p-3">
-                  <div className="text-xs font-bold text-amber-700">Notlar</div>
+                  <div className="text-xs font-bold text-amber-700">{t("detail.notes")}</div>
 
                   <div className="whitespace-pre-wrap text-xs font-semibold text-amber-950">
-                    {selectedAppointment.notes || "Not girilmemiş."}
+                    {selectedAppointment.notes || t("detail.noNotes")}
                   </div>
                 </div>
 
@@ -1264,7 +1287,7 @@ function AjandaPageInner() {
                   onClick={() => void exportSingleAppointmentWord(selectedAppointment.id)}
                   className="w-full rounded-xl border border-blue-200 bg-blue-50 p-2.5 text-xs font-black text-blue-800 transition hover:bg-blue-100 disabled:opacity-60"
                 >
-                  {singleWordBusy ? "⏳ Hazırlanıyor..." : "📄 Word Raporu"}
+                  {singleWordBusy ? t("detail.wordBusy") : t("detail.word")}
                 </button>
               </div>
 
@@ -1275,7 +1298,7 @@ function AjandaPageInner() {
                   onClick={() => openEditAppointment(selectedAppointment)}
                   className="min-h-[44px] w-full rounded-xl border border-indigo-200 bg-indigo-50 p-2.5 text-xs font-black text-indigo-800 transition hover:bg-indigo-100"
                 >
-                  Düzenle
+                  {t("detail.edit")}
                 </button>
 
                 <div className="grid grid-cols-3 gap-2">
@@ -1284,7 +1307,7 @@ function AjandaPageInner() {
                     onClick={() => void requestCompleteAppointment(selectedAppointment.id)}
                     className="min-h-[44px] rounded-xl bg-emerald-600 p-2.5 text-xs font-black text-white shadow-md shadow-emerald-100 transition hover:bg-emerald-700"
                   >
-                    Tamamlandı
+                    {t("detail.complete")}
                   </button>
 
                   <button
@@ -1292,7 +1315,7 @@ function AjandaPageInner() {
                     onClick={() => void requestCancelAppointment(selectedAppointment.id)}
                     className="min-h-[44px] rounded-xl bg-rose-600 p-2.5 text-xs font-black text-white shadow-md shadow-rose-100 transition hover:bg-rose-700"
                   >
-                    İptal Et
+                    {t("detail.cancel")}
                   </button>
 
                   <button
@@ -1300,7 +1323,7 @@ function AjandaPageInner() {
                     onClick={() => deleteAppointment(selectedAppointment.id)}
                     className="min-h-[44px] rounded-xl bg-slate-950 p-2.5 text-xs font-black text-white shadow-md shadow-slate-200 transition hover:bg-black"
                   >
-                    Sil
+                    {t("detail.delete")}
                   </button>
                 </div>
               </div>

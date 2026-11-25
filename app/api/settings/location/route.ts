@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requestTranslator } from "@/lib/i18n/serverMessages";
 import { verifyUserRequest } from "@/lib/auth/userGuard";
 
 export const runtime = "nodejs";
@@ -16,6 +17,7 @@ export const runtime = "nodejs";
 const PREF_COLUMNS = "location_id, name, country_code, lat, lon, elev, tz, source, updated_at";
 
 export async function GET(req: NextRequest) {
+  const te = requestTranslator(req, "settings.api");
   const guard = await verifyUserRequest(req);
   if (!guard.ok) return guard.response;
   const { userId, db } = guard;
@@ -28,12 +30,13 @@ export async function GET(req: NextRequest) {
 
   if (error) {
     console.error("[settings/location] get", error);
-    return NextResponse.json({ error: "Konum okunamadı." }, { status: 500 });
+    return NextResponse.json({ error: te("locationReadFailed") }, { status: 500 });
   }
   return NextResponse.json({ location: data ?? null });
 }
 
 export async function PUT(req: NextRequest) {
+  const te = requestTranslator(req, "settings.api");
   const guard = await verifyUserRequest(req);
   if (!guard.ok) return guard.response;
   const { userId, tenantId, is_demo_account, db } = guard;
@@ -41,7 +44,7 @@ export async function PUT(req: NextRequest) {
   // Demo hesap: kalıcı yazma yok.
   if (is_demo_account) {
     return NextResponse.json(
-      { error: "Demo hesapta varsayılan konum kaydedilemez." },
+      { error: te("locationDemo") },
       { status: 403 },
     );
   }
@@ -61,13 +64,13 @@ export async function PUT(req: NextRequest) {
   const elev         = body.elev == null || body.elev === "" ? 0 : Number(body.elev);
   const source       = body.source == null ? null : (String(body.source).trim() || null);
 
-  if (!location_id)                 return NextResponse.json({ error: "Konum kimliği gerekli." }, { status: 400 });
-  if (!name)                        return NextResponse.json({ error: "Şehir adı gerekli." }, { status: 400 });
-  if (country_code.length !== 2)    return NextResponse.json({ error: "Ülke kodu 2 harf olmalı." }, { status: 400 });
-  if (!tz)                          return NextResponse.json({ error: "Saat dilimi gerekli." }, { status: 400 });
-  if (!Number.isFinite(lat) || lat < -90 || lat > 90)     return NextResponse.json({ error: "Enlem -90 ile 90 arasında olmalı." }, { status: 400 });
-  if (!Number.isFinite(lon) || lon < -180 || lon > 180)   return NextResponse.json({ error: "Boylam -180 ile 180 arasında olmalı." }, { status: 400 });
-  if (!Number.isFinite(elev))       return NextResponse.json({ error: "Rakım sayısal olmalı." }, { status: 400 });
+  if (!location_id)                 return NextResponse.json({ error: te("locationIdRequired") }, { status: 400 });
+  if (!name)                        return NextResponse.json({ error: te("cityRequired") }, { status: 400 });
+  if (country_code.length !== 2)    return NextResponse.json({ error: te("countryCode") }, { status: 400 });
+  if (!tz)                          return NextResponse.json({ error: te("tzRequired") }, { status: 400 });
+  if (!Number.isFinite(lat) || lat < -90 || lat > 90)     return NextResponse.json({ error: te("latRange") }, { status: 400 });
+  if (!Number.isFinite(lon) || lon < -180 || lon > 180)   return NextResponse.json({ error: te("lonRange") }, { status: 400 });
+  if (!Number.isFinite(elev))       return NextResponse.json({ error: te("elevNumber") }, { status: 400 });
 
   const { data, error } = await db
     .from("user_location_prefs")
@@ -80,7 +83,7 @@ export async function PUT(req: NextRequest) {
 
   if (error) {
     console.error("[settings/location] put", error);
-    return NextResponse.json({ error: "Konum kaydedilemedi." }, { status: 500 });
+    return NextResponse.json({ error: te("locationSaveFailed") }, { status: 500 });
   }
   return NextResponse.json({ ok: true, location: data });
 }

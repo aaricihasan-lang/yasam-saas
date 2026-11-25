@@ -1,0 +1,90 @@
+{
+  "settings": {
+    "membership": {
+      "loading": "Loading your membership details…",
+      "currentPackage": "Current package",
+      "statusSr": "Membership status: ",
+      "datesTitle": "Dates and usage",
+      "datesNote": "Dates are shown in Türkiye time.",
+      "rulesTitle": "Access rules",
+      "footer": "This page is for information only; package and membership changes are made by your administrator.",
+      "noEndDate": "No end date defined",
+      "noEndDateNote": "Contact your administrator for details of your membership period.",
+      "contactPro": {
+        "label": "Pro membership request",
+        "hint": "Your request is sent to your administrator via the “Contact Admin” tab; membership is activated with administrator approval."
+      },
+      "contactInfo": {
+        "label": "Contact the administrator",
+        "hint": "Your message is sent to your administrator via the “Contact Admin” tab."
+      },
+      "rules": {
+        "trialDigital": "Digital Content and its sub-modules (Personal Archive, Document Translation, Video Translation, Lecture Notes) and Life Memory are not included in the trial package.",
+        "trialCredit": "Calculations in Celestial Atlas, Human Design and Numerology are limited by shared daily calculation credits; credits reset at 00:00 Türkiye time.",
+        "trialNoExtend": "The trial period cannot be extended or restarted.",
+        "readOnlyView": "You can view and export your records.",
+        "readOnlyBlock": "New records, edits, deletions and new calculations are not possible.",
+        "recordsKept": "Your client and analysis records are kept when you move to Pro membership.",
+        "modules": "Your module access is limited to the modules your administrator has enabled for your account.",
+        "pendingClosed": "Access to modules is closed until approval is complete.",
+        "demoClosed": "Backup, restore, export and password change are disabled on the demo account.",
+        "reviewClosed": "Access to modules is closed until the review is complete.",
+        "noPackageClosed": "Access to modules is closed until a package is defined."
+      },
+      "rows": {
+        "trialStart": "Trial start",
+        "trialEnd": "Trial end",
+        "proRequest": "Pro membership request",
+        "proRequestReceivedAt": "Received · {at}",
+        "proRequestReceived": "Received",
+        "proRequestNote": "Your administrator will review your request.",
+        "credit": "Remaining calculation credits today",
+        "creditNote": "Remaining / shared daily credit. Resets at 00:00 Türkiye time.",
+        "membershipStart": "Membership start",
+        "membershipEnd": "Membership end",
+        "membershipEndPassedNote": "The recorded end date appears to have passed. Your account is currently active; contact your administrator about your membership period."
+      },
+      "views": {
+        "pending": {
+          "package": "Awaiting approval",
+          "status": "Awaiting approval",
+          "summary": "Your account is awaiting administrator approval. Once approved, your package and membership details will appear here."
+        },
+        "unavailable": {
+          "status": "Information unavailable",
+          "summary": "Your membership details could not be retrieved right now. Refresh the page and try again."
+        },
+        "admin": {
+          "package": "Administrator",
+          "status": "Active",
+          "summary": "The administrator account is not tied to a membership package; package and trial rules do not apply to this account."
+        },
+        "demo": {
+          "package": "Demo account",
+          "status": "Showcase account",
+          "summary": "This is a shared demo account opened so you can get to know the system; it is not a personal membership package. You can contact the administrator about your own membership."
+        },
+        "trial": {
+          "package": "Free trial (7 days)",
+          "statusActive": "Trial in progress",
+          "summaryEndsAt": "Your free trial ends on {at}.",
+          "summaryOngoing": "Your free trial is in progress.",
+          "statusExpired": "Trial ended · read-only",
+          "statusSuspended": "Trial suspended · read-only",
+          "statusReview": "Under review",
+          "statusNotStarted": "Trial not started"
+        },
+        "pro": {
+          "package": "Pro membership",
+          "status": "Active",
+          "summary": "Your Pro membership is active. Membership details are managed by your administrator."
+        },
+        "noPackage": {
+          "package": "No package defined",
+          "status": "Access closed",
+          "summary": "There is no membership package defined for your account; therefore access to modules is closed."
+        }
+      }
+    }
+  }
+}
