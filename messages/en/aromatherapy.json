@@ -1639,6 +1639,36 @@
         "AROMA_WRITE_FAILED": "The action could not be completed. Please try again.",
         "generic": "The action could not be completed. Please try again."
       }
+    },
+    "errors": {
+      "codes": {
+        "AROMA_INVALID_BODY": "Invalid request body.",
+        "AROMA_OIL_NAME_REQUIRED": "Oil name is required.",
+        "AROMA_NO_SELECTION": "No records were selected for deletion.",
+        "AROMA_BULK_DELETE_LIMIT": "At most {max} records can be deleted at once. Please narrow your selection.",
+        "AROMA_ID_REQUIRED": "A record ID is required.",
+        "AROMA_NOT_FOUND": "Record not found.",
+        "AROMA_NOT_OWNED": "Record not found or it does not belong to this account.",
+        "AROMA_BLEND_NAME_REQUIRED": "Blend name is required.",
+        "AROMA_BOTTLE_INVALID": "Bottle volume must be greater than 0.",
+        "AROMA_DILUTION_INVALID": "Dilution ratio must be greater than 0.",
+        "AROMA_ITEMS_REQUIRED": "You must add at least one essential oil.",
+        "AROMA_BLEND_NOT_OWNED": "Blend not found or it does not belong to this account.",
+        "AROMA_MISSING_VERSION": "The record version could not be determined. Please refresh the page and try again.",
+        "AROMA_INVALID_VERSION": "The record version is invalid. Please refresh the page and try again.",
+        "AROMA_STALE_OIL": "The record was updated elsewhere while you were editing. Load the latest changes and try again.",
+        "AROMA_STALE_BLEND": "This blend was changed elsewhere. Refresh the page and apply your changes again.",
+        "AROMA_NETWORK": "The server could not be reached. Check your connection and try again.",
+        "AROMA_SESSION_MISSING": "Session not found. Please sign in again.",
+        "AROMA_REPORT_RATE_LIMITED": "Too many report requests. Please try again shortly.",
+        "AROMA_REPORT_BODY_TOO_LARGE": "The request body is too large.",
+        "AROMA_REPORT_INVALID_BODY": "Invalid request body.",
+        "AROMA_REPORT_INVALID_REQUEST": "Invalid report request.",
+        "AROMA_REPORT_INVALID_ID": "Invalid record ID.",
+        "AROMA_REPORT_NOT_FOUND": "No records were found to export.",
+        "AROMA_REPORT_TOO_MANY": "There are too many records. Please export selected records instead.",
+        "AROMA_REPORT_FAILED": "The report could not be created."
+      }
     }
   }
 }

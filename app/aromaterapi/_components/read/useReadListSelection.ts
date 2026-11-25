@@ -1,8 +1,9 @@
 "use client";
 
-import { useLocale, useTranslations } from "next-intl";
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { downloadWord } from "@/lib/aromaterapi/wordExport";
+import { useAromaApiError } from "@/lib/aromaterapi/useAromaterapiModuleText";
 
 export interface ReadListSelection {
   selectedIds: Set<string>;
@@ -27,7 +28,7 @@ export function useReadListSelection(opts: {
 }): ReadListSelection {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
   const t = useTranslations("aromatherapy.shared");
-  const locale = useLocale();
+  const apiError = useAromaApiError();
   const [exporting, setExporting] = useState(false);
   const [prevKey, setPrevKey] = useState(opts.resetKey);
   if (opts.resetKey !== prevKey) { setPrevKey(opts.resetKey); setSelectedIds(new Set()); } // filtre değişince seçim temizlenir
@@ -41,10 +42,10 @@ export function useReadListSelection(opts: {
   async function run(body: Record<string, unknown>) {
     if (exporting) return;
     setExporting(true);
-    const { ok, error } = await downloadWord(opts.exportUrl, body);
+    const { ok, error, errorCode } = await downloadWord(opts.exportUrl, body);
     setExporting(false);
     if (ok) opts.showToast({ title: t("wordReadyTitle"), message: t("wordReadyBody"), type: "success" });
-    else opts.showToast({ title: t("wordFailedTitle"), message: locale === "tr" ? error ?? t("wordFailedBody") : t("wordFailedBody"), type: "error" });
+    else opts.showToast({ title: t("wordFailedTitle"), message: apiError.text(error, errorCode, t("wordFailedBody")), type: "error" });
   }
 
   return {

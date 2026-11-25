@@ -1,7 +1,7 @@
 "use client";
 
-import { useLocale, useTranslations } from "next-intl";
-import { useAromaReadError } from "@/lib/aromaterapi/useAromaterapiModuleText";
+import { useTranslations } from "next-intl";
+import { useAromaApiError, useAromaReadError } from "@/lib/aromaterapi/useAromaterapiModuleText";
 import Link from "next/link";
 import { useState, type ReactNode } from "react";
 import { AromaterapiSectionShell } from "@/app/aromaterapi/_components/AromaterapiSectionShell";
@@ -16,15 +16,15 @@ export function DetailWordButton({ url }: { url: string }) {
   const { showToast } = useToast();
   const [exporting, setExporting] = useState(false);
   const t = useTranslations("aromatherapy.shared");
-  const locale = useLocale();
+  const apiError = useAromaApiError();
   async function run() {
     if (exporting) return;
     setExporting(true);
-    const { ok, error } = await downloadWord(url);
+    const { ok, error, errorCode } = await downloadWord(url);
     setExporting(false);
     if (ok) showToast({ title: t("wordReadyTitle"), message: t("wordReadyBody"), type: "success" });
-    // wordExport hata metni (Türkçe/sunucu) yalnız tr'de birebir; diğer dilde çevrilmiş genel metin.
-    else showToast({ title: t("wordFailedTitle"), message: locale === "tr" ? error ?? t("wordFailedBody") : t("wordFailedBody"), type: "error" });
+    // wordExport hata metni (Türkçe/sunucu) tr'de birebir; diğer dilde dil-bağımsız koddan çeviri (yoksa genel metin).
+    else showToast({ title: t("wordFailedTitle"), message: apiError.text(error, errorCode, t("wordFailedBody")), type: "error" });
   }
   return (
     <button type="button" onClick={() => void run()} disabled={exporting}

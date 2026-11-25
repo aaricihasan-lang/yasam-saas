@@ -6,6 +6,7 @@ import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import { useBfcacheRefresh } from "@/hooks/useBfcacheRefresh";
 import { fetchOilCounts } from "@/lib/aromaterapi/aromatherapyData";
 import { downloadWord } from "@/lib/aromaterapi/wordExport";
+import { useAromaApiError } from "@/lib/aromaterapi/useAromaterapiModuleText";
 import { useToast } from "@/components/ui/ToastProvider";
 import { DemoModuleBanner } from "@/components/demo/DemoModuleBanner";
 import { readYasamUser } from "@/lib/auth/yasamUser";
@@ -14,7 +15,7 @@ import { AromaterapiSectionShell } from "@/app/aromaterapi/_components/Aromatera
 import { AromaterapiModuleCard } from "@/app/aromaterapi/_components/AromaterapiModuleCard";
 import { AROMATERAPI_HUB_MODULES } from "@/lib/aromaterapi/aromaterapiModules";
 import hub from "./aromaterapiHub.module.css";
-import { useLocale, useTranslations } from "next-intl";
+import { useTranslations } from "next-intl";
 
 type OilStats = {
   total: number;
@@ -74,17 +75,16 @@ export default function AromaTerapiHubPage() {
   useBfcacheRefresh();
 
   const { showToast } = useToast();
-  // I18N: wordExport Türkçe/sunucu hata metni yalnız kaynak dilde (tr) birebir; diğer dilde çevrilmiş genel metin.
-  const wordLocale = useLocale();
-  const wordErrorText = (e: string | null, fallback: string) => (wordLocale === "tr" ? e ?? fallback : fallback);
+  // I18N: wordExport Türkçe/sunucu hata metni tr'de birebir; diğer dilde dil-bağımsız koddan çeviri (yoksa genel metin).
+  const wordApiError = useAromaApiError();
   const [exportingGeneral, setExportingGeneral] = useState(false);
   async function exportGeneralWord() {
     if (exportingGeneral) return;
     setExportingGeneral(true);
-    const { ok, error } = await downloadWord("/api/aromaterapi/word-report", {});
+    const { ok, error, errorCode } = await downloadWord("/api/aromaterapi/word-report", {});
     setExportingGeneral(false);
     if (ok) showToast({ title: t("wordReadyTitle"), message: t("wordReadyBody"), type: "success" });
-    else showToast({ title: t("wordFailedTitle"), message: wordErrorText(error, t("wordFailedBody")), type: "error" });
+    else showToast({ title: t("wordFailedTitle"), message: wordApiError.text(error, errorCode, t("wordFailedBody")), type: "error" });
   }
 
   const statTiles = [

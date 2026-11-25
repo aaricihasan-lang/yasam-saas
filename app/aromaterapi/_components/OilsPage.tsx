@@ -18,6 +18,7 @@ import {
   createOil,
   deleteOils,
   OIL_NETWORK_ERROR_MESSAGE,
+  OIL_NETWORK_ERROR_CODE,
   fetchOilListPage,
   fetchOilCounts,
   buildOilSearchBlob,
@@ -46,8 +47,8 @@ import { DemoModuleBanner } from "@/components/demo/DemoModuleBanner";
 import { DemoBlur } from "@/components/demo/DemoBlur";
 import { readYasamUser } from "@/lib/auth/yasamUser";
 import { DEMO_SEED_OILS, isDemoFixtureOil } from "@/lib/demo/demoAromaterapi";
-import { useLocale, useTranslations } from "next-intl";
-import { useAromaReadError, useOilFieldText, useOilTypeLabel } from "@/lib/aromaterapi/useAromaterapiModuleText";
+import { useTranslations } from "next-intl";
+import { useAromaApiError, useAromaReadError, useOilFieldText, useOilTypeLabel } from "@/lib/aromaterapi/useAromaterapiModuleText";
 
 // -------------------------------------------------------
 // Sayfa yapılandırması
@@ -248,7 +249,7 @@ function NewOilForm({
   const tTabs = useTranslations("aromatherapy.oilTabs");
   const fieldText = useOilFieldText();
   const typeLabel = useOilTypeLabel();
-  const locale = useLocale();
+  const apiError = useAromaApiError();
   const [saving, setSaving] = useState(false);
   // Çift tıklamaya karşı senkron kilit — React re-render'ı beklemeden ikinci
   // çağrıyı anında engeller, böylece mükerrer kayıt oluşmaz.
@@ -321,7 +322,7 @@ function NewOilForm({
 
       const t = (v: string) => v.trim() || "";
 
-      const { error: insertError } = await createOil({
+      const { error: insertError, errorCode: insertCode } = await createOil({
         name: nameTrim,
         latin_name: t(form.latin_name),
         english_name: t(form.english_name),
@@ -359,8 +360,9 @@ function NewOilForm({
       });
 
       if (insertError) {
-        // I18N: kütüphane / sunucu ayrıntısı yalnız kaynak dilde (tr) birebir eklenir; diğer dilde Türkçe metin gösterilmez.
-        setError(locale === "tr" ? tf("addFailedDetail", { detail: insertError }) : tf("addFailed"));
+        // I18N: kütüphane / sunucu ayrıntısı tr'de birebir; diğer dilde dil-bağımsız koddan çeviri (yoksa ayrıntısız) — Türkçe sızıntı yok.
+        const insertDetail = apiError.detail(insertError, insertCode);
+        setError(insertDetail ? tf("addFailedDetail", { detail: insertDetail }) : tf("addFailed"));
         return;
       }
 
@@ -370,7 +372,7 @@ function NewOilForm({
       onSaved();
     } catch {
       // Kayıt oluşturulduktan SONRA (yönlendirme) atılan hata "eklenemedi" diye gösterilmez.
-      if (!succeeded) setError(locale === "tr" ? tf("addFailedDetail", { detail: OIL_NETWORK_ERROR_MESSAGE }) : tf("addFailed"));
+      if (!succeeded) setError(tf("addFailedDetail", { detail: apiError.text(OIL_NETWORK_ERROR_MESSAGE, OIL_NETWORK_ERROR_CODE, OIL_NETWORK_ERROR_MESSAGE) }));
     } finally {
       setSaving(false);
       if (!succeeded) submittingRef.current = false;
@@ -704,7 +706,7 @@ function OilsPageContent({ fixedOilType, basePath, pageTitle, pageSubtitle, page
   const tTypes = useTranslations("aromatherapy.oilTypes");
   const typeLabel = useOilTypeLabel();
   const readError = useAromaReadError();
-  const locale = useLocale();
+  const bulkApiError = useAromaApiError();
   // FAZ 2 — server-side paginated okuma (useAromaterapiListQuery). fetch-all KALDIRILDI.
   // Demo: client-side seed (fetcher demoListResult ile sayfalar/filtreler). Gerçek:
   // fetchOilListPage (search_norm arama + oil_type + name,id sort + range pagination).
@@ -739,18 +741,17 @@ function OilsPageContent({ fixedOilType, basePath, pageTitle, pageSubtitle, page
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [bulkError, setBulkError] = useState("");
   const [exporting, setExporting] = useState(false);
-  // I18N: wordExport Türkçe/sunucu hata metni yalnız kaynak dilde (tr) birebir; diğer dilde çevrilmiş genel metin.
-  const wordLocale = useLocale();
-  const wordErrorText = (e: string | null, fallback: string) => (wordLocale === "tr" ? e ?? fallback : fallback);
+  // I18N: wordExport Türkçe/sunucu hata metni tr'de birebir; diğer dilde dil-bağımsız koddan çeviri (yoksa genel metin).
+  const wordApiError = useAromaApiError();
 
   // FAZ Word — .docx export (seçili / tümü / typed). Çift-tık kilidi (exporting).
   async function runOilExport(body: Record<string, unknown>) {
     if (exporting) return;
     setExporting(true);
-    const { ok, error } = await downloadWord("/api/aromaterapi/oils/word-report", body);
+    const { ok, error, errorCode } = await downloadWord("/api/aromaterapi/oils/word-report", body);
     setExporting(false);
     if (ok) showToast({ title: tl("wordReadyTitle"), message: tl("wordReadyBody"), type: "success" });
-    else showToast({ title: tl("wordFailedTitle"), message: wordErrorText(error, tl("wordFailedBody")), type: "error" });
+    else showToast({ title: tl("wordFailedTitle"), message: wordApiError.text(error, errorCode, tl("wordFailedBody")), type: "error" });
   }
   const exportAllBody = () => (fixedOilType ? { mode: "all", oilType: fixedOilType } : { mode: "all" });
   const pageView = useMemo(() => viewFromParam(searchParams.get("view")), [searchParams]);
@@ -874,16 +875,19 @@ function OilsPageContent({ fixedOilType, basePath, pageTitle, pageSubtitle, page
     // AROMA-2 — ağ hatasında da deleteLoading `finally` ile sıfırlanır (buton kilitli kalmaz).
     let deletedIds: string[] = [];
     let deleteError: string | null = null;
+    let deleteCode: string | null | undefined = null;
     try {
-      ({ deletedIds, error: deleteError } = await deleteOils(ids));
+      ({ deletedIds, error: deleteError, errorCode: deleteCode } = await deleteOils(ids));
     } catch {
       deleteError = OIL_NETWORK_ERROR_MESSAGE;
+      deleteCode = OIL_NETWORK_ERROR_CODE;
     } finally {
       setDeleteLoading(false);
     }
 
     if (deleteError) {
-      setBulkError(locale === "tr" ? tl("deleteFailedDetail", { detail: deleteError }) : tl("deleteFailed"));
+      const deleteDetail = bulkApiError.detail(deleteError, deleteCode);
+      setBulkError(deleteDetail ? tl("deleteFailedDetail", { detail: deleteDetail }) : tl("deleteFailed"));
       return;
     }
 
