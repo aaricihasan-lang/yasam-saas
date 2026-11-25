@@ -517,6 +517,11 @@
    "timeoutSec": 60
   },
   {
+   "file": "scripts/i18n-mod-b/owner-only-yonetim.test.mjs",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
    "file": "scripts/dogaltas-presale-f1/harness.ts",
    "tsx": true,
    "timeoutSec": 60
