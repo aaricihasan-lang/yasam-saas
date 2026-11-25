@@ -26,8 +26,9 @@ export const runtime = "nodejs";
 const NO_STORE = { "Cache-Control": "no-store" } as const;
 const MAX_BODY_BYTES = 1024;
 
-function bad(status: number, error: string): NextResponse {
-  return NextResponse.json({ ok: false, error }, { status, headers: NO_STORE });
+function bad(status: number, code: string, error: string): NextResponse {
+  // I18N-F1-R3: dil-bağımsız `code` EK alanı; Türkçe `error` aynen.
+  return NextResponse.json({ ok: false, code, error }, { status, headers: NO_STORE });
 }
 
 export async function POST(req: NextRequest): Promise<Response> {
@@ -37,23 +38,23 @@ export async function POST(req: NextRequest): Promise<Response> {
   const { db, tenantId, userId, is_demo_account } = guard;
 
   const contentLength = Number(req.headers.get("content-length") ?? "0");
-  if (contentLength && contentLength > MAX_BODY_BYTES) return bad(413, "İstek gövdesi çok büyük.");
+  if (contentLength && contentLength > MAX_BODY_BYTES) return bad(413, "BODY_TOO_LARGE", "İstek gövdesi çok büyük.");
 
   let body: Record<string, unknown>;
   try {
     const raw = await req.text();
-    if (raw.length > MAX_BODY_BYTES) return bad(413, "İstek gövdesi çok büyük.");
+    if (raw.length > MAX_BODY_BYTES) return bad(413, "BODY_TOO_LARGE", "İstek gövdesi çok büyük.");
     const parsed: unknown = JSON.parse(raw);
-    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return bad(400, "Geçersiz istek gövdesi.");
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return bad(400, "INVALID_BODY", "Geçersiz istek gövdesi.");
     body = parsed as Record<string, unknown>;
   } catch {
-    return bad(400, "Geçersiz istek gövdesi.");
+    return bad(400, "INVALID_BODY", "Geçersiz istek gövdesi.");
   }
 
   const appointmentId = body.appointmentId;
   const state = body.state;
-  if (!isUuid(appointmentId)) return bad(400, "Geçersiz randevu.");
-  if (!isNotificationStateValue(state)) return bad(400, "Geçersiz bildirim durumu.");
+  if (!isUuid(appointmentId)) return bad(400, "INVALID_APPOINTMENT", "Geçersiz randevu.");
+  if (!isNotificationStateValue(state)) return bad(400, "INVALID_NOTIFICATION_STATE", "Geçersiz bildirim durumu.");
 
   if (is_demo_account) {
     return NextResponse.json({ ok: true, demo: true, state }, { headers: NO_STORE });
@@ -72,7 +73,7 @@ export async function POST(req: NextRequest): Promise<Response> {
     return res;
   }
   const appointmentAt = (appt as { appointment_date?: string | null } | null)?.appointment_date ?? null;
-  if (!appt || !appointmentAt) return bad(404, "Randevu bulunamadı.");
+  if (!appt || !appointmentAt) return bad(404, "APPOINTMENT_NOT_FOUND", "Randevu bulunamadı.");
 
   const { error: upsertError } = await db
     .from("appointment_notification_states")

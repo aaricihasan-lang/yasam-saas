@@ -79,7 +79,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   try {
     body = (await req.json()) as Record<string, unknown>;
   } catch {
-    return NextResponse.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 });
+    return NextResponse.json({ ok: false, code: "INVALID_BODY", error: "Geçersiz istek gövdesi." }, { status: 400 });
   }
 
   const now = new Date();
@@ -106,7 +106,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   if (!clientId) fields.client_id = null;
   if (clientId && !(await clientBelongsToTenant(db, clientId, tenantId))) {
     return NextResponse.json(
-      { ok: false, error: "Danışan bu hesaba ait değil." },
+      { ok: false, code: "CLIENT_NOT_OWNED", error: "Danışan bu hesaba ait değil." },
       { status: 403 },
     );
   }

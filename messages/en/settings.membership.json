@@ -20,7 +20,7 @@
       },
       "rules": {
         "trialDigital": "Digital Content and its sub-modules (Personal Archive, Document Translation, Video Translation, Lecture Notes) and Life Memory are not included in the trial package.",
-        "trialCredit": "Roxy calculations in Celestial Atlas, Human Design and Numerology are limited by a shared daily credit; the credit resets at 00:00 Türkiye time.",
+        "trialCredit": "Calculations in Celestial Atlas, Human Design and Numerology are limited by shared daily calculation credits; credits reset at 00:00 Türkiye time.",
         "trialNoExtend": "The trial period cannot be extended or restarted.",
         "readOnlyView": "You can view and export your records.",
         "readOnlyBlock": "New records, edits, deletions and new calculations are not possible.",
@@ -38,7 +38,7 @@
         "proRequestReceivedAt": "Received · {at}",
         "proRequestReceived": "Received",
         "proRequestNote": "Your administrator will review your request.",
-        "credit": "Your Roxy credit today",
+        "credit": "Remaining calculation credits today",
         "creditNote": "Remaining / shared daily credit. Resets at 00:00 Türkiye time.",
         "membershipStart": "Membership start",
         "membershipEnd": "Membership end",

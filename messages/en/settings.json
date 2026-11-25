@@ -93,7 +93,13 @@
       "searchPlaceholder": "e.g. Manisa, İzmir…",
       "selected": "Selected:",
       "save": "Save default location",
-      "hint": "The default location is used as the starting city in location-dependent calculations such as eclipse visibility in the Cosmic Agenda."
+      "hint": "The default location is used as the starting city in location-dependent calculations such as eclipse visibility in the Cosmic Agenda.",
+      "errors": {
+        "codes": {
+          "NO_SESSION": "No session was found. Please sign in again.",
+          "NETWORK": "Network error. Please check your connection and try again."
+        }
+      }
     },
     "workspace": {
       "layouts": {

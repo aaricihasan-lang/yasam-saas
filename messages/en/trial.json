@@ -16,7 +16,7 @@
       "requestFailed": "The request could not be sent. Please try again.",
       "goPro": "Go Pro",
       "close": "Close",
-      "credit": "Your Roxy credit today: {left} / {limit}",
+      "credit": "Remaining calculation credits today: {left} / {limit}",
       "proRequested": "Pro Request Received",
       "whatsapp": "Contact Us on WhatsApp",
       "ok": "OK"
@@ -29,6 +29,18 @@
       "saveFailed": "The request could not be saved. Please try again.",
       "created": "Your Pro membership request has been received. We will contact you about payment details.",
       "existing": "Your Pro membership request has already been received. We will contact you."
+    },
+    "errors": {
+      "codes": {
+        "TRIAL_EXPIRED": "Your free trial has ended. You can view and export your records; to carry out new actions you can move to Pro membership.",
+        "TRIAL_SUSPENDED": "Your trial access has been suspended by the administrator. You can view and export your records.",
+        "TRIAL_REVIEW": "Your membership is under security review. Your trial modules will open once the review is complete.",
+        "TRIAL_NOT_STARTED": "Your trial has not started yet. Please sign out and sign in again.",
+        "TRIAL_CREDIT_LIMIT": "Your calculation credits for today have run out. You can still view your saved results; credits reset at 00:00 Türkiye time.",
+        "TRIAL_CREDIT_MODULE_LIMIT": "You have reached today's calculation credit limit for this module. Credits reset at 00:00 Türkiye time.",
+        "TRIAL_CREDIT_UNAVAILABLE": "Your credit status could not be verified. Please try again shortly.",
+        "MODULE_NOT_IN_TRIAL": "This module is not included in the free trial package. It is available with Pro membership."
+      }
     }
   }
 }
