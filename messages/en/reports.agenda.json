@@ -1,0 +1,57 @@
+{
+  "reports": {
+    "agenda": {
+      "brand": "YAŞAM SİSTEMİ",
+      "coverTitle": "AGENDA REPORT",
+      "generatedOn": "Date Generated: {date}",
+      "status": {
+        "completed": "Completed",
+        "cancelled": "Cancelled",
+        "noResult": "No outcome entered",
+        "waiting": "Pending"
+      },
+      "mode": {
+        "all": "All Appointments",
+        "selected": "Selected Appointments",
+        "filtered": "Filtered Appointments",
+        "weekly": "Weekly Appointments",
+        "monthly": "Monthly Appointments",
+        "single": "Single Appointment",
+        "singleWithTitle": "Single Appointment — {title}",
+        "fallback": "Appointments"
+      },
+      "stats": {
+        "total": "Total Appointments",
+        "completed": "Completed",
+        "waiting": "Pending",
+        "noResult": "No outcome entered",
+        "cancelled": "Cancelled",
+        "days": "Number of Days",
+        "scope": "Scope",
+        "dateRange": "Date Range"
+      },
+      "listHeading": "1. Appointment List",
+      "listSummary": "{count, plural, one {{total} appointment} other {{total} appointments}} · {dayCount, plural, one {{days} day} other {{days} days}}",
+      "itemLabel": "APPOINTMENT #{n}",
+      "defaultTitle": "Meeting",
+      "unknownClient": "Client",
+      "fields": {
+        "dateTime": "Date / Time",
+        "status": "Status",
+        "type": "Type",
+        "client": "Client",
+        "note": "Note"
+      },
+      "type": {
+        "client": "Client Appointment",
+        "general": "General Appointment"
+      },
+      "footer": "Agenda Report · {scope}",
+      "file": {
+        "base": "agenda",
+        "single": "single",
+        "singleFallback": "appointment"
+      }
+    }
+  }
+}

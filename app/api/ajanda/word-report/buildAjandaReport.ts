@@ -20,7 +20,7 @@ import {
   spacer,
   twoColTable,
 } from "@/lib/docx/reportHelpers";
-import { StaticTocCollector } from "@/lib/docx/premiumToc";
+import { buildStaticTocPage, StaticTocCollector } from "@/lib/docx/premiumToc";
 import {
   formatDateLoose,
   formatInstantDate,
@@ -31,6 +31,7 @@ import {
   toInstant,
   zonedDayKey,
 } from "@/lib/time/reportTime";
+import { sourceReportLocale, type ReportLocale } from "@/lib/i18n/reportLocale";
 
 const C_AJANDA = "1e3a5f"; // lacivert
 
@@ -46,13 +47,21 @@ export type AjandaAppointmentRow = {
   status: string | null;
 };
 
-/** Randevu durum etiketi. Geçmiş + bekliyor → "Sonuç girilmedi" (türetilmiş; DB değişmez). */
-export function ajandaStatusLabel(status: string | null, appointmentDate: string, now: Date): string {
-  if (status === "tamamlandi") return "Tamamlandı";
-  if (status === "iptal") return "İptal Edildi";
+/** Kanonik randevu durumu (DB değeri + türetilmiş "sonuç girilmedi"); etiketi dile göre `ajandaStatusLabel`. */
+export type AjandaStatusKey = "completed" | "cancelled" | "noResult" | "waiting";
+
+/** Durum anahtarı — HESAP dilden bağımsız: geçmiş + bekliyor → noResult (türetilmiş; DB değişmez). */
+export function ajandaStatusKey(status: string | null, appointmentDate: string, now: Date): AjandaStatusKey {
+  if (status === "tamamlandi") return "completed";
+  if (status === "iptal") return "cancelled";
   const at = toInstant(appointmentDate);
-  if (at && at.getTime() < now.getTime()) return "Sonuç girilmedi";
-  return "Bekliyor";
+  if (at && at.getTime() < now.getTime()) return "noResult";
+  return "waiting";
+}
+
+/** Randevu durum etiketi. Geçmiş + bekliyor → "Sonuç girilmedi" (türetilmiş; DB değişmez). `output` yoksa TR. */
+export function ajandaStatusLabel(status: string | null, appointmentDate: string, now: Date, output?: ReportLocale | null): string {
+  return (output ?? sourceReportLocale()).t("reports.agenda")(`status.${ajandaStatusKey(status, appointmentDate, now)}`);
 }
 
 export type AjandaReportInput = {
@@ -63,12 +72,17 @@ export type AjandaReportInput = {
   expertName?: string | null;
   now?: Date;
   timeZone?: string;
+  /** I18N çıktı dili (route `resolveReportLocale`); verilmezse TR = bugünkü çıktı (golden). */
+  output?: ReportLocale | null;
 };
 
 export function buildAjandaReportDoc(input: AjandaReportInput): { doc: Document; filename: string } {
   const { appointments, clientMap, exportMode, dateRange } = input;
   const now = input.now ?? new Date();
-  const tzOpts = { timeZone: input.timeZone };
+  const rl = input.output ?? sourceReportLocale();
+  const t = rl.t("reports.agenda");
+  // TR'de `locale` verilmez → reportTime varsayılanı (tr-TR) → bayt-bayt aynı.
+  const tzOpts = rl.isSource ? { timeZone: input.timeZone } : { timeZone: input.timeZone, locale: rl.intlTag };
 
   const today = reportGeneratedLabel(tzOpts, now);
   const dateSlug = reportFileDate(tzOpts, now);
@@ -78,19 +92,19 @@ export function buildAjandaReportDoc(input: AjandaReportInput): { doc: Document;
   const completed = appointments.filter((a) => a.status === "tamamlandi").length;
   const cancelled = appointments.filter((a) => a.status === "iptal").length;
   const noResult = appointments.filter(
-    (a) => ajandaStatusLabel(a.status, a.appointment_date, now) === "Sonuç girilmedi",
+    (a) => ajandaStatusKey(a.status, a.appointment_date, now) === "noResult",
   ).length;
   const waiting = total - completed - cancelled - noResult;
 
   const modeLabels: Record<string, string> = {
-    all: "Tüm Randevular",
-    selected: "Seçili Randevular",
-    filtered: "Filtrelenmiş Randevular",
-    weekly: "Haftalık Randevular",
-    monthly: "Aylık Randevular",
-    single: appointments[0]?.title ? `Tek Randevu — ${appointments[0].title}` : "Tek Randevu",
+    all: t("mode.all"),
+    selected: t("mode.selected"),
+    filtered: t("mode.filtered"),
+    weekly: t("mode.weekly"),
+    monthly: t("mode.monthly"),
+    single: appointments[0]?.title ? t("mode.singleWithTitle", { title: appointments[0].title }) : t("mode.single"),
   };
-  const exportLabel = modeLabels[exportMode] ?? "Randevular";
+  const exportLabel = modeLabels[exportMode] ?? t("mode.fallback");
 
   // dateRange takvim günü ("YYYY-MM-DD") ise kaydırılmaz; ISO an ise hedef saat diliminde gösterilir.
   const rangeLine = dateRange?.start && dateRange?.end
@@ -111,38 +125,38 @@ export function buildAjandaReportDoc(input: AjandaReportInput): { doc: Document;
   const all: ReportChild[] = [];
 
   all.push(...buildPremiumCover({
-    title1:   "YAŞAM SİSTEMİ",
-    title2:   "AJANDA RAPORU",
+    title1:   t("brand"),
+    title2:   t("coverTitle"),
     subtitle: rangeLine ? `${exportLabel} · ${rangeLine}` : exportLabel,
-    date:     `Oluşturulma Tarihi: ${today}`,
+    date:     t("generatedOn", { date: today }),
     stats: [
-      { label: "Toplam Randevu", value: String(total) },
-      { label: "Tamamlandı",     value: String(completed) },
-      { label: "Bekliyor",       value: String(waiting) },
-      ...(noResult > 0 ? [{ label: "Sonuç girilmedi", value: String(noResult) }] : []),
-      { label: "İptal",          value: String(cancelled) },
+      { label: t("stats.total"),     value: String(total) },
+      { label: t("stats.completed"), value: String(completed) },
+      { label: t("stats.waiting"),   value: String(waiting) },
+      ...(noResult > 0 ? [{ label: t("stats.noResult"), value: String(noResult) }] : []),
+      { label: t("stats.cancelled"), value: String(cancelled) },
     ],
   }));
 
   all.push(...buildStatsPage([
-    ["Toplam Randevu",  String(total)],
-    ["Tamamlandı",      String(completed)],
-    ["Bekliyor",        String(waiting)],
-    ...(noResult > 0 ? [["Sonuç girilmedi", String(noResult)] as [string, string]] : []),
-    ["İptal",           String(cancelled)],
-    ["Gün Sayısı",      String(sortedDays.length)],
-    ["Kapsam",          exportLabel],
-    ...(rangeLine ? [["Tarih Aralığı", rangeLine] as [string, string]] : []),
-    ...(expertName ? [["Hazırlayan", expertName] as [string, string]] : []),
-  ]));
+    [t("stats.total"),     String(total)],
+    [t("stats.completed"), String(completed)],
+    [t("stats.waiting"),   String(waiting)],
+    ...(noResult > 0 ? [[t("stats.noResult"), String(noResult)] as [string, string]] : []),
+    [t("stats.cancelled"), String(cancelled)],
+    [t("stats.days"),      String(sortedDays.length)],
+    [t("stats.scope"),     exportLabel],
+    ...(rangeLine ? [[t("stats.dateRange"), rangeLine] as [string, string]] : []),
+    ...(expertName ? [[rl.common.preparedBy, expertName] as [string, string]] : []),
+  ], undefined, rl.common));
 
   // İçindekiler: eski boş Word TOC alanı yerine STATİK + tıklanabilir girişler (gövde
   // başlıklarından toplanır, gövde bittikten sonra bu konuma yerleştirilir).
   const toc = new StaticTocCollector("ajd");
   const tocAt = all.length;
 
-  all.push(toc.h1Colored("1. Randevu Listesi", C_AJANDA, true));
-  all.push(muted(`${total} randevu · ${sortedDays.length} gün`));
+  all.push(toc.h1Colored(t("listHeading"), C_AJANDA, true));
+  all.push(muted(t("listSummary", { total: String(total), count: total, days: String(sortedDays.length), dayCount: sortedDays.length })));
   all.push(spacer());
 
   let globalN = 0;
@@ -153,36 +167,39 @@ export function buildAjandaReportDoc(input: AjandaReportInput): { doc: Document;
 
     dayApts.forEach((apt) => {
       globalN++;
-      const clientName = apt.client_id ? clientMap.get(apt.client_id) || "Danışan" : null;
-      all.push(profileLabel(`RANDEVU #${String(globalN).padStart(3, "0")}`, C_AJANDA));
-      all.push(h3(apt.title || "Görüşme"));
+      const clientName = apt.client_id ? clientMap.get(apt.client_id) || t("unknownClient") : null;
+      all.push(profileLabel(t("itemLabel", { n: String(globalN).padStart(3, "0") }), C_AJANDA));
+      all.push(h3(apt.title || t("defaultTitle")));
       all.push(twoColTable([
-        ["Tarih / Saat",  formatInstantDateTime(apt.appointment_date, { ...tzOpts, fallback: "—" })],
-        ["Durum",         ajandaStatusLabel(apt.status, apt.appointment_date, now)],
-        ["Tür",           clientName ? "Danışan Randevusu" : "Genel Randevu"],
-        ...(clientName ? [["Danışan", clientName] as [string, string]] : []),
+        [t("fields.dateTime"), formatInstantDateTime(apt.appointment_date, { ...tzOpts, fallback: "—" })],
+        [t("fields.status"),   ajandaStatusLabel(apt.status, apt.appointment_date, now, rl)],
+        [t("fields.type"),     clientName ? t("type.client") : t("type.general")],
+        ...(clientName ? [[t("fields.client"), clientName] as [string, string]] : []),
       ]));
       if (apt.notes?.trim()) {
-        all.push(fieldInline("Not", apt.notes.trim().slice(0, 300)));
+        all.push(fieldInline(t("fields.note"), apt.notes.trim().slice(0, 300)));
       }
     });
   });
 
-  all.splice(tocAt, 0, ...toc.page());
+  all.splice(tocAt, 0, ...buildStaticTocPage(toc.entries, rl.common));
 
+  const styles = rl.docxStyles();
   const doc = new Document({
     ...toc.documentOptions(),
+    ...(styles ? { styles } : {}),
     sections: [{
       properties: {},
-      footers: { default: buildFooter(`Ajanda Raporu · ${exportLabel}`) },
+      footers: { default: buildFooter(t("footer", { scope: exportLabel }), { common: rl.common }) },
       children: all,
     }],
   });
 
+  // Dosya adı: yalnız sistem kısmı dilde (TR birebir: ajanda-<kip>-<tarih>, tek → tek-<gün>).
   const modeSlug = exportMode === "single" && appointments[0]
-    ? `tek-${zonedDayKey(appointments[0].appointment_date, tzOpts) || "randevu"}`
+    ? `${t("file.single")}-${zonedDayKey(appointments[0].appointment_date, tzOpts) || t("file.singleFallback")}`
     : exportMode.replace(/[^a-z]/g, "-");
-  const filename = `ajanda-${modeSlug}-${dateSlug}.docx`;
+  const filename = `${t("file.base")}-${modeSlug}-${dateSlug}.docx`;
 
   return { doc, filename };
 }
