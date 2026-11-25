@@ -13,7 +13,8 @@ import { pseudoLocalizeString } from "../../lib/i18n/pseudo";
 import { formatCurrency, formatDateAbsolute, formatDateAbsoluteInZone, formatNumber, formatTime24, localeTag } from "../../lib/i18n/format";
 import { apiErrorCode, localizeApiError, withServerDetail } from "../../lib/i18n/apiError";
 import { buildBulkDeleteStages, bulkPhraseMatches, setDefaultBulkDeleteTexts, TR_BULK_DELETE_TEXTS, type BulkDeleteTexts } from "../../lib/ui/bulkDeleteGuard";
-import { buildNameListLines } from "../../lib/ui/deleteConfirmMessage";
+import { buildNameListLines, setDefaultMoreRecordsLine, TR_MORE_RECORDS } from "../../lib/ui/deleteConfirmMessage";
+import { SubmitTimeoutError, submitErrorCode, submitErrorMessageKey } from "../../lib/ui/submitLock";
 import { composeDeleteMessage, TR_DELETE_CONFIRM_TEXTS, type DeleteConfirmTexts } from "../../hooks/useDeleteConfirm";
 import { BODY_IDS, ELEMENT_IDS, fromLegacyTr, MOON_PHASE_IDS, toLegacyTr, ZODIAC_IDS } from "../../lib/i18n/terms/registry";
 import { BODY_LABELS, SIGN_LABELS } from "../../lib/astrology/labels/tr";
@@ -161,6 +162,42 @@ ok(composeDeleteMessage({ message: "This cannot  be undone, really." }, EN.singl
 ok(buildNameListLines(Array.from({ length: 12 }, (_, i) => `K${i}`)).at(-1) === "• ve 2 kayıt daha", "TR 've N kayıt daha' birebir");
 ok(buildNameListLines(Array.from({ length: 12 }, (_, i) => `K${i}`), undefined, EN.single.moreRecords).at(-1) === "• and 2 more records", "EN 'and N more records'");
 ok(TR_DELETE_CONFIRM_TEXTS.irreversibleNotice === TR.single.irreversibleNotice, "tekli TR varsayılanı katalogla aynı");
+// QTM-DY-02 / QTM-DG-05: moreLine vermeyen çağıranlar ConfirmProvider'ın kaydettiği ekran dili varsayılanını alır.
+ok([1, 2, 7, 25].every((n) => TR.single.moreRecords(n) === TR_MORE_RECORDS(n)), "TR katalog 'moreRecords' = TR_MORE_RECORDS (birebir)");
+setDefaultMoreRecordsLine(EN.single.moreRecords);
+ok(buildNameListLines(Array.from({ length: 12 }, (_, i) => `K${i}`), 12).at(-1) === "• and 2 more records", "kayıtlı EN varsayılan: moreLine'sız çağıran İngilizce");
+ok(buildNameListLines(Array.from({ length: 12 }, (_, i) => `K${i}`), 12, TR_MORE_RECORDS).at(-1) === "• ve 2 kayıt daha", "açık moreLine kayıtlı varsayılanı ezer");
+setDefaultMoreRecordsLine(TR.single.moreRecords);
+ok(buildNameListLines(Array.from({ length: 13 }, (_, i) => `K${i}`)).at(-1) === "• ve 3 kayıt daha", "kayıtlı TR katalog varsayılanı birebir");
+setDefaultMoreRecordsLine(null);
+ok(buildNameListLines(Array.from({ length: 11 }, (_, i) => `K${i}`)).at(-1) === "• ve 1 kayıt daha" && buildNameListLines(["A"], 1).length === 1, "kayıt kaldırılınca Türkçe yedek; ad sayısı kuralı aynı");
+
+// ── 7b. Gönderim zaman aşımı + ortak okuyucu (QTM-DY-01 / QTM-DG-02) ─────────
+section("7b. gönderim zaman aşımı kodu + ortak okuyucu + demo kilit kartı metinleri");
+{
+  const tcTr = createTranslator({ locale: "tr", messages: getCatalogMessages("tr") as any, namespace: "common" as never }) as any;
+  const tcEn = createTranslator({ locale: "en", messages: getCatalogMessages("en") as any, namespace: "common" as never }) as any;
+  const te = new SubmitTimeoutError();
+  ok(submitErrorCode(te) === "SUBMIT_TIMEOUT" && submitErrorCode(new Error("x")) === null && submitErrorCode("x") === null, "zaman aşımı kodu dil-bağımsız; başka hata null");
+  const key = submitErrorMessageKey(te);
+  ok(key !== null && tcTr(key) === te.message, "TR katalog zaman aşımı metni = SubmitTimeoutError.message (birebir)", key && tcTr(key));
+  ok(key !== null && !/[çğıöşüİ]/.test(tcEn(key)) && tcEn(key) !== te.message, "EN zaman aşımı metni Türkçe değil");
+  ok(submitErrorMessageKey(new Error("İşlem zaman aşımına uğradı. Lütfen tekrar deneyin.")) === null, "kontrol akışı metne değil türe bağlı");
+  const trR = createTranslator({ locale: "tr", messages: getCatalogMessages("tr") as any, namespace: "common.reader" as never }) as any;
+  const enR = createTranslator({ locale: "en", messages: getCatalogMessages("en") as any, namespace: "common.reader" as never }) as any;
+  const trExpected: Record<string, string> = {
+    close: "Kapat", fontSizeGroup: "Yazı boyutu", fontSize: "Yazı Boyutu", decreaseAria: "Yazıyı küçült", decreaseTitle: "Küçült (A-)",
+    increaseAria: "Yazıyı büyüt", increaseTitle: "Büyüt (A+)",
+  };
+  ok(Object.entries(trExpected).every(([k, v]) => trR(k) === v), "TR okuyucu metinleri bugünkü sabitlerle birebir");
+  ok(trR("resetAria", { px: 17 }) === "Varsayılan yazı boyutu (17px)" && trR("resetTitle", { px: 17 }) === "Varsayılan (17px)", "TR varsayılan boyut metinleri birebir");
+  ok([...Object.keys(trExpected).map((k) => enR(k)), enR("resetAria", { px: 17 }), enR("resetTitle", { px: 17 })].every((v: string) => v && !/[çğıöşüİ]/.test(v)), "EN okuyucu metinleri Türkçe içermez");
+  // QTM-DG-09: ortak demo kilit kartı (DemoGate) — TR birebir, EN Türkçe içermez.
+  const trG = createTranslator({ locale: "tr", messages: getCatalogMessages("tr") as any, namespace: "common.demo.gate" as never }) as any;
+  const enG = createTranslator({ locale: "en", messages: getCatalogMessages("en") as any, namespace: "common.demo.gate" as never }) as any;
+  ok(trG("title") === "Demo Ön İzleme" && trG("line1") === "Bu içerik demo hesabında sınırlı gösterilir." && trG("line2") === "Tam sürümde tüm detaylar açık olarak kullanılabilir.", "TR demo kilit kartı metinleri birebir");
+  ok(["title", "line1", "line2"].every((k) => enG(k) && !/[çğıöşüİ]/.test(enG(k))), "EN demo kilit kartı Türkçe içermez");
+}
 
 // ── 8. Terminoloji + kanonik kimlik ──────────────────────────────────────────
 section("8. terminoloji ve kanonik kimlik");

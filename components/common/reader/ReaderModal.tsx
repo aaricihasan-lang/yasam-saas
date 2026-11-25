@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useRef, type ReactNode } from "react";
+import { useTranslations } from "next-intl";
 import { useOverlay } from "@/lib/dogaltas/useOverlay";
 import { useFontSizeStore } from "@/lib/dogaltas/useFontSizeStore";
 import type { FontSizeStore } from "@/lib/dogaltas/createFontSizeStore";
@@ -66,6 +67,8 @@ export function ReaderModal({
   floatingOnMobile = false,
   onClose,
 }: ReaderModalProps) {
+  // I18N (QTM-DG-02): ortak okuyucu düğmesi ekran dilinde (common.reader; TR "Kapat" birebir).
+  const tr = useTranslations("common.reader");
   const { fontSizePx, decrease, reset, increase, canDecrease, canIncrease, isDefault } =
     useFontSizeStore(fontStore, { open });
 
@@ -160,7 +163,7 @@ export function ReaderModal({
               />
               <button type="button" onClick={onClose} className="btn-soft !px-5 !py-3">
                 <span aria-hidden>×</span>
-                Kapat
+                {tr("close")}
               </button>
             </div>
           </div>
