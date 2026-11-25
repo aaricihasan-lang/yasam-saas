@@ -19,6 +19,9 @@ import { supabase } from "@/lib/supabase";
 import ArchiveMemoryToggle from "@/components/yasam-hafizasi/ArchiveMemoryToggle";
 import { CameraCaptureButton } from "@/components/media/CameraCaptureButton";
 import { useIsAndroid } from "@/hooks/useIsAndroid";
+import { useLocale, useTranslations } from "next-intl";
+import { formatDateTime } from "@/lib/i18n/format";
+import type { ActiveLocale } from "@/lib/i18n/locales";
 
 /** Güvenli kişisel arşiv API çağrıları için header — x-user-id + (varsa) x-session-token */
 function userHeaders(json = false): Record<string, string> {
@@ -39,12 +42,13 @@ function userHeaders(json = false): Record<string, string> {
  * Finalize başarısızsa orphan obje server cleanup ile (tenant+archive-scoped) temizlenir.
  * Client hiçbir zaman tenant/obje yolu ÜRETMEZ.
  *
- * Dönüş: null = başarılı; aksi halde kullanıcıya gösterilecek güvenli Türkçe neden
- * (sunucunun kontrollü 4xx/503 mesajı ya da genel mesaj — ham hata ASLA).
+ * Dönüş: null = başarılı; aksi halde neden: sunucunun kontrollü 4xx/503 mesajı (istek dilinde) ya da
+ * genel hata (ekranda archive.personal.upload.failed) — ham hata ASLA.
  */
-const UPLOAD_FAILED_MESSAGE = "Dosya yüklenemedi.";
+type UploadFailure = { kind: "generic" } | { kind: "server"; text: string };
+const UPLOAD_FAILED: UploadFailure = { kind: "generic" };
 
-async function uploadArchiveFile(archiveId: string, file: File): Promise<string | null> {
+async function uploadArchiveFile(archiveId: string, file: File): Promise<UploadFailure | null> {
   let path = "";
   let token = "";
   try {
@@ -64,13 +68,13 @@ async function uploadArchiveFile(archiveId: string, file: File): Promise<string 
     if (!res.ok || !json.ok || !json.path || !json.token) {
       console.error("[kisisel-arsiv] upload prepare", new Error(`HTTP ${res.status}`));
       // Kota/boyut/tür gibi kontrollü sunucu mesajları (4xx, 503) gösterilir; 500 → genel mesaj.
-      return res.status !== 500 && typeof json.error === "string" && json.error ? json.error : UPLOAD_FAILED_MESSAGE;
+      return res.status !== 500 && typeof json.error === "string" && json.error ? { kind: "server", text: json.error } : UPLOAD_FAILED;
     }
     path = json.path;
     token = json.token;
   } catch (prepErr) {
     console.error("[kisisel-arsiv] upload prepare", prepErr);
-    return UPLOAD_FAILED_MESSAGE;
+    return UPLOAD_FAILED;
   }
 
   const { error: upErr } = await supabase.storage
@@ -79,7 +83,7 @@ async function uploadArchiveFile(archiveId: string, file: File): Promise<string 
   if (upErr) {
     // Obje yüklenmedi → metadata oluşturulmaz, orphan yok.
     console.error("[kisisel-arsiv] uploadToSignedUrl", upErr);
-    return UPLOAD_FAILED_MESSAGE;
+    return UPLOAD_FAILED;
   }
 
   try {
@@ -109,14 +113,16 @@ async function uploadArchiveFile(archiveId: string, file: File): Promise<string 
     } catch (clErr) {
       console.error("[kisisel-arsiv] cleanup", clErr);
     }
-    return UPLOAD_FAILED_MESSAGE;
+    return UPLOAD_FAILED;
   }
 }
 
+type ArchiveT = ReturnType<typeof useTranslations>;
+
 /** Başarısız dosya yüklemelerinin kullanıcı bildirimi (kayıt kendisi kaydedildi). */
-function uploadFailureText(prefix: string, failures: string[]): string {
-  const reasons = Array.from(new Set(failures.filter((f) => f !== UPLOAD_FAILED_MESSAGE))).join(" ");
-  return `${prefix} ancak ${failures.length} dosya yüklenemedi.${reasons ? ` ${reasons}` : ""} Lütfen dosyaları yeniden yüklemeyi deneyin.`;
+function uploadFailureText(t: ArchiveT, prefix: string, failures: UploadFailure[]): string {
+  const reasons = Array.from(new Set(failures.flatMap((f) => (f.kind === "server" ? [f.text] : [])))).join(" ");
+  return t("upload.partial", { prefix, count: failures.length, reasons: reasons ? ` ${reasons}` : "" });
 }
 import { DemoModuleBanner } from "@/components/demo/DemoModuleBanner";
 import {
@@ -132,21 +138,44 @@ import {
  */
 
 
+// i18n-ignore: kanonik kategori değerleri (personal_archives.category kolonuna yazılır); gösterim CATEGORY_KEY → archive.personal.categories.*
 const CATEGORIES = [
   "Ses",
   "Video",
   "Belgeler",
   "Resimler",
-  "Sağlık",
-  "Okul / Çocuk",
+  "Sağlık", // i18n-ignore: kanonik DB değeri
+  "Okul / Çocuk", // i18n-ignore: kanonik DB değeri
   "Evcil Hayvan",
-  "Araç",
+  "Araç", // i18n-ignore: kanonik DB değeri
   "Ev",
   "Fikirler",
-  "Toplantı",
-  "Diğer",
+  "Toplantı", // i18n-ignore: kanonik DB değeri
+  "Diğer", // i18n-ignore: kanonik DB değeri
 ] as const;
 
+/** Kanonik kategori → katalog anahtarı (yalnız GÖSTERİM; DB değeri değişmez). */
+const CATEGORY_KEY: Record<string, string> = {
+  Ses: "ses",
+  Video: "video",
+  Belgeler: "belgeler",
+  Resimler: "resimler",
+  Sağlık: "saglik",
+  "Okul / Çocuk": "okulCocuk",
+  "Evcil Hayvan": "evcilHayvan",
+  Araç: "arac",
+  Ev: "ev",
+  Fikirler: "fikirler",
+  Toplantı: "toplanti",
+  Diğer: "diger",
+};
+/** i18n-ignore: varsayılan kanonik kategori (DB değeri). */
+const DEFAULT_CATEGORY = "Diğer"; // i18n-ignore: kanonik DB değeri
+
+function categoryLabel(t: ArchiveT, category: string): string {
+  const key = CATEGORY_KEY[category];
+  return key ? t(`categories.${key}`) : category;
+}
 const CATEGORY_BADGE: Record<string, string> = {
   Ses: "border-amber-200 bg-amber-50 text-amber-700",
   Video: "border-violet-200 bg-violet-50 text-violet-700",
@@ -203,18 +232,14 @@ function mergeArchivesWithFiles(
   }));
 }
 
-function formatTrDate(iso: string) {
-  try {
-    return new Intl.DateTimeFormat("tr-TR", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    }).format(new Date(iso));
-  } catch {
-    return "—";
-  }
+function formatTrDate(iso: string, locale: ActiveLocale) {
+  return formatDateTime(iso, {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }, locale) || "—";
 }
 
 function notePreview(note: string | null, max = 120) {
@@ -242,16 +267,18 @@ function searchQueryTokens(raw: string): string[] {
   return parts.map((p) => normalizeSearchString(p)).filter(Boolean);
 }
 
-function archiveSearchBlob(row: ArchiveRow): string {
+function archiveSearchBlob(row: ArchiveRow, categoryText: string): string {
   const names = (row.personal_archive_files ?? []).map((f) => f.file_name ?? "");
-  const raw = [row.title, row.category, row.tags ?? "", row.note ?? "", ...names].join(" ");
+  // Kanonik kategori + (farklıysa) ekran dilindeki etiketi aranır.
+  const cat = categoryText && categoryText !== row.category ? `${row.category} ${categoryText}` : row.category;
+  const raw = [row.title, cat, row.tags ?? "", row.note ?? "", ...names].join(" ");
   return normalizeSearchString(raw);
 }
 
-function rowMatchesSearch(row: ArchiveRow, rawQuery: string): boolean {
+function rowMatchesSearch(row: ArchiveRow, rawQuery: string, categoryText: string): boolean {
   const tokens = searchQueryTokens(rawQuery);
   if (tokens.length === 0) return true;
-  const blob = archiveSearchBlob(row);
+  const blob = archiveSearchBlob(row, categoryText);
   return tokens.every((t) => blob.includes(t));
 }
 
@@ -322,12 +349,12 @@ function formatFileSize(bytes: number | null | undefined): string {
   return `${rounded} ${units[i]}`;
 }
 
-function fileDisplayType(file: ArchiveFileRow): string {
+function fileDisplayType(tr: ArchiveT, file: ArchiveFileRow): string {
   const t = file.file_type?.trim();
   if (t) return t;
   const n = file.file_name ?? "";
   const dot = n.lastIndexOf(".");
-  return dot >= 0 ? `Dosya (${n.slice(dot)})` : "Bilinmeyen tür";
+  return dot >= 0 ? tr("file.typeWithExt", { ext: n.slice(dot) }) : tr("file.unknownType");
 }
 
 function getFileExtensionLower(file: ArchiveFileRow): string {
@@ -439,6 +466,7 @@ function DetailArchiveFileCard({
   tenantId: string | null;
   userId: string | null;
 }) {
+  const t = useTranslations("archive.personal");
   const [imgBroken, setImgBroken] = useState(false);
   // Android (uygulama WebView + Chrome) <iframe> içinde PDF gösteremez (boş alan) → önizleme
   // yerine bilgi + mevcut "Yeni Sekme / İndir" düğmeleri kullanılır.
@@ -467,8 +495,8 @@ function DetailArchiveFileCard({
   }, [file.file_path, tenantId, userId]);
 
   const kind = detectDetailFileKind(file);
-  const fileName = file.file_name?.trim() || "Dosya";
-  const typeLabel = fileDisplayType(file);
+  const fileName = file.file_name?.trim() || t("file.fallbackName");
+  const typeLabel = fileDisplayType(t, file);
   const sizeLabel = formatFileSize(file.file_size);
 
   const downloadButton = (
@@ -477,25 +505,25 @@ function DetailArchiveFileCard({
       onClick={() => void onDownload(file)}
       className={detailDownloadLinkClass}
     >
-      İndir
+      {t("file.download")}
     </button>
   );
 
   const previewNewTabLink = signedUrl ? (
     <a href={signedUrl} target="_blank" rel="noreferrer" className={detailSecondaryLinkClass}>
-      Önizle / Yeni Sekme
+      {t("file.previewNewTab")}
     </a>
   ) : null;
 
   const browserOpenLink = signedUrl ? (
     <a href={signedUrl} target="_blank" rel="noreferrer" className={detailSecondaryLinkClass}>
-      Tarayıcıda Aç
+      {t("file.openInBrowser")}
     </a>
   ) : null;
 
-  let previewLabel = "Önizle";
-  if (kind === "audio") previewLabel = "Dinle";
-  if (kind === "video") previewLabel = "İzle";
+  let previewLabel = t("file.preview");
+  if (kind === "audio") previewLabel = t("file.listen");
+  if (kind === "video") previewLabel = t("file.watch");
 
   return (
     <div className="overflow-hidden rounded-3xl border-2 border-violet-100/90 bg-gradient-to-br from-white via-violet-50/25 to-sky-50/20 p-6 shadow-md ring-1 ring-slate-100/70">
@@ -506,17 +534,17 @@ function DetailArchiveFileCard({
         <div className="min-w-0 flex-1">
           <p className="break-words text-xl font-black leading-snug text-slate-900">{fileName}</p>
           <p className="mt-2 break-all text-sm font-semibold text-slate-600">{typeLabel}</p>
-          <p className="mt-1 text-sm font-semibold text-slate-500">Boyut: {sizeLabel}</p>
+          <p className="mt-1 text-sm font-semibold text-slate-500">{t("file.size", { size: sizeLabel })}</p>
         </div>
       </div>
 
       {kind === "office" || kind === "other" ? (
         <div className="mt-4 rounded-2xl border border-dashed border-slate-200/90 bg-slate-50/70 px-3 py-3">
           <p className="text-[12px] font-medium leading-relaxed text-slate-600">
-            Bu dosya türü tarayıcıda önizlenemeyebilir.
+            {t("file.noPreview")}
             {kind === "office"
-              ? " Düzenlemek veya görüntülemek için dosyayı indirip Office uyumlu bir uygulamada açın."
-              : " İndirerek cihazınızda uygun uygulama ile açabilirsiniz."}
+              ? t("file.noPreviewOffice")
+              : t("file.noPreviewOther")}
           </p>
         </div>
       ) : (
@@ -528,11 +556,11 @@ function DetailArchiveFileCard({
             <div className="max-w-full overflow-hidden rounded-2xl border border-slate-200/90 bg-white">
               {signedUrlError ? (
                 <p className="px-3 py-6 text-center text-[13px] font-semibold text-slate-500">
-                  Önizleme URL'i oluşturulamadı.
+                  {t("file.previewUrlFailed")}
                 </p>
               ) : !signedUrl ? (
                 <p className="px-3 py-6 text-center text-[13px] font-semibold text-slate-400">
-                  Yükleniyor…
+                  {t("file.loading")}
                 </p>
               ) : !imgBroken ? (
                 <div className="block w-full max-w-full">
@@ -546,7 +574,7 @@ function DetailArchiveFileCard({
                 </div>
               ) : (
                 <p className="px-3 py-6 text-center text-[13px] font-semibold text-slate-500">
-                  Görsel yüklenemedi.
+                  {t("file.imageFailed")}
                 </p>
               )}
             </div>
@@ -564,15 +592,9 @@ function DetailArchiveFileCard({
               ) : (
                 <p className="text-[12px] font-medium leading-relaxed text-slate-600">
                   {isAmrFile(file) ? (
-                    <>
-                      Bu ses formatı tarayıcıda önizlenemeyebilir. Dinlemek için dosyayı indirip
-                      telefon/bilgisayarınızda açabilirsiniz.
-                    </>
+                    <>{t("file.audioAmr")}</>
                   ) : (
-                    <>
-                      Bu ses formatı tarayıcıda önizlenemeyebilir. Dinlemek için dosyayı indirip
-                      uygun bir oynatıcıda açabilirsiniz.
-                    </>
+                    <>{t("file.audioOther")}</>
                   )}
                 </p>
               )}
@@ -597,8 +619,7 @@ function DetailArchiveFileCard({
           ) : null}
           {kind === "pdf" && isAndroid ? (
             <p className="rounded-2xl border border-slate-200/90 bg-slate-50 px-4 py-3 text-[13px] font-semibold text-slate-600">
-              📄 Bu cihaz PDF önizlemesini sayfa içinde gösteremiyor. Aşağıdaki düğmelerle
-              PDF görüntüleyicide açabilir veya indirebilirsiniz.
+              {t("file.pdfAndroid")}
             </p>
           ) : null}
         </div>
@@ -613,7 +634,7 @@ function DetailArchiveFileCard({
               onClick={() => { if (signedUrl) onImageClick(signedUrl); }}
               className={detailGrowButtonClass}
             >
-              Büyüt
+              {t("file.enlarge")}
             </button>
             {previewNewTabLink}
             {downloadButton}
@@ -648,6 +669,8 @@ function DetailArchiveFileCard({
 }
 
 export default function KisiselArsivPage() {
+  const t = useTranslations("archive.personal");
+  const locale = useLocale() as ActiveLocale;
   const isDemo = readYasamUser()?.is_demo_account === true;
   const [tenantId, setTenantId] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
@@ -720,7 +743,7 @@ export default function KisiselArsivPage() {
       if (isDemo) { notifyDemo(); return; }
       const name = file.file_name?.trim() || "dosya";
       if (!tenantId || !userId) {
-        showToast("Dosya indirilemedi.", "error", 2000);
+        showToast(t("toast.downloadFailed"), "error", 2000);
         return;
       }
       try {
@@ -732,7 +755,7 @@ export default function KisiselArsivPage() {
         );
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = (await res.json()) as { signedUrl?: string };
-        if (!data.signedUrl) throw new Error("URL boş");
+        if (!data.signedUrl) throw new Error("URL boş"); // i18n-ignore: iç hata (yalnız konsola yazılır, gösterilmez)
         const a = document.createElement("a");
         a.href = data.signedUrl;
         a.download = name;
@@ -742,10 +765,10 @@ export default function KisiselArsivPage() {
         a.remove();
       } catch (e) {
         console.error("Archive file download failed:", e);
-        showToast("Dosya indirilemedi.", "error", 2000);
+        showToast(t("toast.downloadFailed"), "error", 2000);
       }
     },
-    [showToast, tenantId, userId, isDemo, notifyDemo],
+    [showToast, tenantId, userId, isDemo, notifyDemo, t],
   );
 
   useEffect(() => {
@@ -809,7 +832,7 @@ export default function KisiselArsivPage() {
       setLoadingList(false);
       setInfo({
         kind: "err",
-        text: "Kayıtlar yüklenemedi. Lütfen daha sonra tekrar deneyin.",
+        text: t("toast.loadFailed"),
       });
       return;
     }
@@ -833,7 +856,7 @@ export default function KisiselArsivPage() {
           setLoadingList(false);
           setInfo({
             kind: "err",
-            text: "Kayıtlar yüklenemedi. Lütfen daha sonra tekrar deneyin.",
+            text: t("toast.loadFailed"),
           });
           return;
         }
@@ -842,7 +865,7 @@ export default function KisiselArsivPage() {
 
     setRecords(mergeArchivesWithFiles(archives, allFiles));
     setLoadingList(false);
-  }, [tenantId, isDemo]);
+  }, [tenantId, isDemo, t]);
 
   useEffect(() => {
     runInEffect(() => {
@@ -853,8 +876,8 @@ export default function KisiselArsivPage() {
   const visibleRows = useMemo(() => {
     const q = search.trim();
     if (!q) return records;
-    return records.filter((row) => rowMatchesSearch(row, q));
-  }, [records, search]);
+    return records.filter((row) => rowMatchesSearch(row, q, categoryLabel(t, row.category)));
+  }, [records, search, t]);
 
   useEffect(() => {
     if (!detailRow || detailEditMode) return;
@@ -893,7 +916,7 @@ export default function KisiselArsivPage() {
 
   function resetForm() {
     setTitle("");
-    setCategory("Diğer");
+    setCategory(DEFAULT_CATEGORY);
     setTags("");
     setNote("");
     setSelectedFiles([]);
@@ -928,7 +951,7 @@ export default function KisiselArsivPage() {
     if (isDemo) { notifyDemo(); return; }
     if (!detailRow || savingDetail) return;
     if (!detailEditTitle.trim()) {
-      showToast("Başlık alanı zorunludur.", "error", 1800);
+      showToast(t("toast.titleRequired"), "error", 1800);
       return;
     }
 
@@ -936,7 +959,7 @@ export default function KisiselArsivPage() {
     try {
       const archiveId = detailRow.id;
       const titleToSave = detailEditTitle.trim();
-      const categoryToSave = detailEditCategory.trim() || "Diğer";
+      const categoryToSave = detailEditCategory.trim() || DEFAULT_CATEGORY;
       const tagsToSave = detailEditTags.trim() || null;
       const noteToSave = detailEditNote.trim() || null;
 
@@ -956,12 +979,12 @@ export default function KisiselArsivPage() {
         if (!res.ok || !json.ok) throw new Error(`HTTP ${res.status}`);
       } catch (updErr) {
         console.error("[kisisel-arsiv] personal_archives update", updErr);
-        showToast("Kayıt güncellenemedi. Lütfen yeniden deneyin.", "error", 3000);
+        showToast(t("toast.updateFailed"), "error", 3000);
         return;
       }
 
       // P1-3: ek dosyalar da SUNUCU-YETKİLİ signed upload akışıyla yüklenir.
-      const uploadFailures: string[] = [];
+      const uploadFailures: UploadFailure[] = [];
       for (let i = 0; i < detailExtraFiles.length; i++) {
         const file = detailExtraFiles[i]!;
         const failure = await uploadArchiveFile(archiveId, file);
@@ -975,11 +998,11 @@ export default function KisiselArsivPage() {
       setDetailExtraFiles([]);
       if (detailFileInputRef.current) detailFileInputRef.current.value = "";
       setDetailEditMode(false);
-      if (uploadFailures.length > 0) showToast(uploadFailureText("Kayıt güncellendi", uploadFailures), "error", 6000);
-      else showToast("Kayıt güncellendi.", "success", 1800);
+      if (uploadFailures.length > 0) showToast(uploadFailureText(t, t("upload.prefixUpdated"), uploadFailures), "error", 6000);
+      else showToast(t("toast.updated"), "success", 1800);
     } catch (e) {
       console.error("[kisisel-arsiv] saveDetailEdit", e);
-      showToast("Kayıt güncellenemedi. Lütfen yeniden deneyin.", "error", 3000);
+      showToast(t("toast.updateFailed"), "error", 3000);
     } finally {
       setSavingDetail(false);
     }
@@ -1023,11 +1046,11 @@ export default function KisiselArsivPage() {
       if (detailId === row.id) closeDetail();
       await loadRecords();
       setDeleteConfirmRow(null);
-      showToast("Kayıt silindi.", "success", 1500);
+      showToast(t("toast.deleted"), "success", 1500);
     } catch (e) {
       console.error("[kisisel-arsiv] delete archive", e);
       setDeleteConfirmRow(null);
-      showToast("Kayıt silinemedi. Lütfen yeniden deneyin.", "error", 3000);
+      showToast(t("toast.deleteFailed"), "error", 3000);
     } finally {
       setDeletingId(null);
     }
@@ -1039,12 +1062,12 @@ export default function KisiselArsivPage() {
     if (isDemo) { notifyDemo(); return; }
 
     if (!title.trim()) {
-      setInfo({ kind: "err", text: "Başlık alanı zorunludur." });
+      setInfo({ kind: "err", text: t("toast.titleRequired") });
       return;
     }
 
     const titleToSave = title.trim();
-    const categoryToSave = category.trim() || "Diğer";
+    const categoryToSave = category.trim() || DEFAULT_CATEGORY;
     const tagsToSave = tags.trim() || null;
     const noteToSave = note.trim() || null;
 
@@ -1079,13 +1102,13 @@ export default function KisiselArsivPage() {
       setSaving(false);
       setInfo({
         kind: "err",
-        text: "Kayıt kaydedilemedi. Lütfen daha sonra tekrar deneyin.",
+        text: t("toast.saveFailed"),
       });
       return;
     }
 
     // P1-3: yükleme SUNUCU-YETKİLİ signed upload akışıyla (byte'lar API'den geçmez).
-    const uploadFailures: string[] = [];
+    const uploadFailures: UploadFailure[] = [];
     for (const file of selectedFiles) {
       const failure = await uploadArchiveFile(archiveId, file);
       if (failure) {
@@ -1100,8 +1123,8 @@ export default function KisiselArsivPage() {
     setSaving(false);
     setInfo(null);
     queueMicrotask(() => {
-      if (uploadFailures.length > 0) showToast(uploadFailureText("Kayıt eklendi", uploadFailures), "error", 6000);
-      else showSuccessToast("Kayıt başarıyla eklendi.");
+      if (uploadFailures.length > 0) showToast(uploadFailureText(t, t("upload.prefixAdded"), uploadFailures), "error", 6000);
+      else showSuccessToast(t("toast.added"));
     });
   }
 
@@ -1149,13 +1172,13 @@ export default function KisiselArsivPage() {
               </div>
               <div className="min-w-0">
                 <div className="inline-flex rounded-full border border-violet-200 bg-violet-50 px-2.5 py-0.5 text-[10px] font-black tracking-[0.18em] text-violet-700">
-                  ARŞİV
+                  {t("page.badge")}
                 </div>
                 <h1 className="mt-0.5 text-xl font-black leading-tight tracking-tight text-slate-950 sm:text-2xl">
-                  Kişisel Arşiv
+                  {t("page.title")}
                 </h1>
                 <p className="text-xs font-medium text-slate-500">
-                  Ses • Video • Belge • Resim • Not • Kişisel kayıt
+                  {t("page.subtitle")}
                 </p>
               </div>
             </div>
@@ -1169,26 +1192,26 @@ export default function KisiselArsivPage() {
                 }}
                 className="w-full shrink-0 rounded-xl bg-gradient-to-r from-violet-500 to-cyan-500 px-4 py-2 text-sm font-black text-white shadow-md transition-all duration-300 hover:-translate-y-0.5 sm:w-auto"
               >
-                + Yeni Kayıt
+                {t("page.newRecord")}
               </button>
             ) : null}
           </div>
 
           <div className="mt-3 grid grid-cols-3 gap-2 sm:gap-3">
             <div className="rounded-xl border border-violet-100 bg-white/90 px-3 py-2 shadow-sm">
-              <p className="text-[10px] font-black uppercase tracking-[0.12em] text-slate-500">Toplam Kayıt</p>
+              <p className="text-[10px] font-black uppercase tracking-[0.12em] text-slate-500">{t("page.statRecords")}</p>
               <p className="mt-0.5 text-xl font-black tabular-nums text-violet-700">
                 {stats.totalArchives}
               </p>
             </div>
             <div className="rounded-xl border border-violet-100 bg-white/90 px-3 py-2 shadow-sm">
-              <p className="text-[10px] font-black uppercase tracking-[0.12em] text-slate-500">Toplam Dosya</p>
+              <p className="text-[10px] font-black uppercase tracking-[0.12em] text-slate-500">{t("page.statFiles")}</p>
               <p className="mt-0.5 text-xl font-black tabular-nums text-violet-700">
                 {stats.totalFiles}
               </p>
             </div>
             <div className="rounded-xl border border-violet-100 bg-white/90 px-3 py-2 shadow-sm">
-              <p className="text-[10px] font-black uppercase tracking-[0.12em] text-slate-500">Kategori</p>
+              <p className="text-[10px] font-black uppercase tracking-[0.12em] text-slate-500">{t("page.statCategories")}</p>
               <p className="mt-0.5 text-xl font-black tabular-nums text-violet-700">
                 {stats.categoryKinds}
               </p>
@@ -1212,14 +1235,14 @@ export default function KisiselArsivPage() {
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="min-w-0">
               <h2 className="text-lg font-black tracking-tight text-slate-900">
-                Kayıtlar
+                {t("list.title")}
               </h2>
               <p className="mt-0.5 text-xs font-medium text-slate-500">
-                En yeni üstte. Türkçe harf ve noktalama farkları tolere edilir.
+                {t("list.subtitle")}
               </p>
             </div>
             <label className="block w-full min-w-0 sm:max-w-[260px] lg:max-w-xs">
-              <span className="sr-only">Ara</span>
+              <span className="sr-only">{t("list.searchLabel")}</span>
               <div className="relative">
                 <span
                   className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[13px] opacity-70"
@@ -1231,7 +1254,7 @@ export default function KisiselArsivPage() {
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   className={searchInputClass}
-                  placeholder="Kelime yazın…"
+                  placeholder={t("list.searchPlaceholder")}
                   type="search"
                 />
               </div>
@@ -1241,7 +1264,7 @@ export default function KisiselArsivPage() {
           <div className="mt-4 w-full min-w-0 space-y-3">
             {loadingList ? (
               <p className="py-8 text-center text-[13px] font-semibold text-slate-500">
-                Yükleniyor…
+                {t("list.loading")}
               </p>
             ) : records.length === 0 ? (
               <div className="rounded-2xl border-2 border-dashed border-violet-200/70 bg-gradient-to-br from-violet-50/80 via-white to-sky-50/60 px-5 py-8 text-center shadow-inner ring-1 ring-violet-100/50">
@@ -1252,10 +1275,10 @@ export default function KisiselArsivPage() {
                   📂
                 </div>
                 <p className="text-[14px] font-black text-slate-900">
-                  Henüz arşiv kaydı yok
+                  {t("list.emptyTitle")}
                 </p>
                 <p className="mx-auto mt-1.5 max-w-sm text-[12px] font-semibold leading-relaxed text-slate-600">
-                  İlk kaydınızı oluşturarak ses, belge veya fotoğraflarınızı tek yerde toplayın.
+                  {t("list.emptyBody")}
                 </p>
                 <button
                   type="button"
@@ -1266,16 +1289,16 @@ export default function KisiselArsivPage() {
                   }}
                   className="mt-4 inline-flex items-center rounded-xl bg-gradient-to-r from-violet-500 to-cyan-500 px-4 py-2 text-sm font-black text-white shadow-md transition-all hover:-translate-y-0.5"
                 >
-                  + Yeni kayıt oluştur
+                  {t("list.emptyCta")}
                 </button>
               </div>
             ) : visibleRows.length === 0 ? (
               <div className="rounded-2xl border-2 border-dashed border-sky-200/80 bg-gradient-to-br from-sky-50/70 to-white px-5 py-8 text-center shadow-inner ring-1 ring-sky-100/50">
                 <p className="text-[14px] font-black text-slate-900">
-                  Aramanıza uygun kayıt bulunamadı
+                  {t("list.noMatchTitle")}
                 </p>
                 <p className="mx-auto mt-1.5 max-w-md text-[12px] font-semibold text-slate-600">
-                  Farklı bir kelime deneyin veya aramayı temizleyin.
+                  {t("list.noMatchBody")}
                 </p>
               </div>
             ) : (
@@ -1289,7 +1312,7 @@ export default function KisiselArsivPage() {
                       {highlightText(row.title, search)}
                     </h3>
                     <span className={categoryBadgeClass(row.category)}>
-                      {row.category}
+                      {categoryLabel(t, row.category)}
                     </span>
                   </div>
                   <p className="mt-2 text-sm leading-relaxed text-slate-600">
@@ -1297,13 +1320,13 @@ export default function KisiselArsivPage() {
                   </p>
                   {row.tags?.trim() ? (
                     <p className="mt-1.5 text-xs font-bold tracking-wide text-violet-700">
-                      Etiketler: {row.tags}
+                      {t("list.tags", { tags: row.tags })}
                     </p>
                   ) : null}
                   <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs font-semibold tracking-wide text-slate-500">
-                    <time dateTime={row.created_at}>{formatTrDate(row.created_at)}</time>
+                    <time dateTime={row.created_at}>{formatTrDate(row.created_at, locale)}</time>
                     <span className="rounded-full bg-slate-100/95 px-2.5 py-0.5 text-xs font-semibold text-slate-700">
-                      {fileCount(row)} dosya
+                      {t("list.fileCount", { count: fileCount(row) })}
                     </span>
                   </div>
                   <div className="mt-3 flex flex-wrap gap-2">
@@ -1318,7 +1341,7 @@ export default function KisiselArsivPage() {
                       }}
                       className="rounded-xl bg-gradient-to-r from-violet-500 to-cyan-500 px-4 py-1.5 text-sm font-black text-white shadow-sm transition-all duration-300 hover:-translate-y-0.5"
                     >
-                      Detay
+                      {t("list.detail")}
                     </button>
                     <button
                       type="button"
@@ -1326,7 +1349,7 @@ export default function KisiselArsivPage() {
                       onClick={() => { if (isDemo) { notifyDemo(); return; } setDeleteConfirmRow(row); }}
                       className="rounded-xl border border-red-200 bg-red-50 px-4 py-1.5 text-sm font-black text-red-600 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
                     >
-                      {deletingId === row.id ? "Siliniyor…" : "Sil"}
+                      {deletingId === row.id ? t("list.deleting") : t("list.delete")}
                     </button>
                   </div>
                 </article>
@@ -1367,14 +1390,13 @@ export default function KisiselArsivPage() {
                   id="archive-modal-title"
                   className="text-lg font-black tracking-tight text-slate-900 sm:text-xl"
                 >
-                  Yeni Arşiv Kaydı
+                  {t("create.title")}
                 </h2>
                 <p
                   id="archive-modal-desc"
                   className="mt-2 text-[13px] font-semibold leading-relaxed text-slate-800 sm:text-[14px]"
                 >
-                  Ses, belge, resim, video veya kişisel notlarınızı tek kayıt altında
-                  saklayın.
+                  {t("create.description")}
                 </p>
               </div>
               <button
@@ -1386,7 +1408,7 @@ export default function KisiselArsivPage() {
                   closeCreateModal();
                 }}
                 className="absolute right-3 top-3 flex h-11 w-11 shrink-0 items-center justify-center rounded-3xl border border-white/90 bg-white/90 text-xl font-light leading-none text-slate-600 shadow-lg shadow-violet-200/40 backdrop-blur-sm transition hover:bg-white hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-40 sm:right-4 sm:top-4"
-                aria-label="Kapat"
+                aria-label={t("create.close")}
               >
                 ×
               </button>
@@ -1399,18 +1421,18 @@ export default function KisiselArsivPage() {
               <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5 sm:px-7 sm:py-6">
                 <div className="space-y-4">
                   <label className="block min-w-0">
-                    <span className={modalLabelClass}>Başlık</span>
+                    <span className={modalLabelClass}>{t("create.titleLabel")}</span>
                     <input
                       value={title}
                       onChange={(e) => setTitle(e.target.value)}
                       className={modalFieldClass}
-                      placeholder="Örn. Aile toplantısı ses kaydı"
+                      placeholder={t("create.titlePlaceholder")}
                       autoComplete="off"
                     />
                   </label>
 
                   <label className="block min-w-0">
-                    <span className={modalLabelClass}>Kategori</span>
+                    <span className={modalLabelClass}>{t("create.categoryLabel")}</span>
                     <select
                       value={category}
                       onChange={(e) => setCategory(e.target.value)}
@@ -1421,36 +1443,36 @@ export default function KisiselArsivPage() {
                     >
                       {CATEGORIES.map((c) => (
                         <option key={c} value={c}>
-                          {c}
+                          {categoryLabel(t, c)}
                         </option>
                       ))}
                     </select>
                   </label>
 
                   <label className="block min-w-0">
-                    <span className={modalLabelClass}>Etiketler</span>
+                    <span className={modalLabelClass}>{t("create.tagsLabel")}</span>
                     <input
                       value={tags}
                       onChange={(e) => setTags(e.target.value)}
                       className={modalFieldClass}
-                      placeholder="Virgülle ayırın: tatil, 2026, taslak"
+                      placeholder={t("create.tagsPlaceholder")}
                       autoComplete="off"
                     />
                   </label>
 
                   <label className="block min-w-0">
-                    <span className={modalLabelClass}>Not</span>
+                    <span className={modalLabelClass}>{t("create.noteLabel")}</span>
                     <textarea
                       value={note}
                       onChange={(e) => setNote(e.target.value)}
                       rows={3}
                       className={`${modalFieldClass} min-h-[5.25rem] max-h-40 resize-y`}
-                      placeholder="Kısa açıklama veya bağlam…"
+                      placeholder={t("create.notePlaceholder")}
                     />
                   </label>
 
                   <div className="block min-w-0">
-                    <span className={modalLabelClass}>Dosyalar</span>
+                    <span className={modalLabelClass}>{t("create.filesLabel")}</span>
                     <input
                       ref={fileInputRef}
                       type="file"
@@ -1481,7 +1503,7 @@ export default function KisiselArsivPage() {
                         </svg>
                       </div>
                       <p className="text-[13px] font-semibold text-slate-800">
-                        Birden fazla dosya ekleyebilirsiniz.
+                        {t("create.filesHint")}
                       </p>
                       <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
                         <button
@@ -1489,7 +1511,7 @@ export default function KisiselArsivPage() {
                           onClick={() => fileInputRef.current?.click()}
                           className="inline-flex items-center justify-center rounded-3xl bg-gradient-to-r from-violet-600 via-fuchsia-600 to-indigo-600 px-6 py-3 text-[13px] font-black uppercase tracking-wide text-white shadow-lg shadow-violet-500/35 transition hover:brightness-110"
                         >
-                          Dosyaları seç
+                          {t("create.chooseFiles")}
                         </button>
                         {/* Kamera: çekilen fotoğraf seçime EKLENİR; Kişisel Arşiv'de orijinal dosya korunur
                             (optimizasyon uygulanmaz). */}
@@ -1500,8 +1522,8 @@ export default function KisiselArsivPage() {
                       </div>
                       <p className="mt-3 text-[12px] font-bold text-slate-600">
                         {selectedFiles.length === 0
-                          ? "Henüz dosya seçilmedi."
-                          : `${selectedFiles.length} dosya seçildi`}
+                          ? t("create.noFiles")
+                          : t("create.filesSelected", { count: selectedFiles.length })}
                       </p>
                     </div>
                   </div>
@@ -1519,14 +1541,14 @@ export default function KisiselArsivPage() {
                   }}
                   className="rounded-3xl border-2 border-slate-200 bg-white px-5 py-2.5 text-[13px] font-bold text-slate-800 shadow-md transition hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-45"
                 >
-                  İptal
+                  {t("create.cancel")}
                 </button>
                 <button
                   type="submit"
                   disabled={!canSave || saving}
                   className="rounded-3xl bg-gradient-to-r from-fuchsia-500 via-violet-600 to-cyan-500 px-7 py-3 text-[13px] font-black uppercase tracking-wide text-white shadow-[0_16px_40px_-10px_rgba(124,58,237,0.55)] ring-2 ring-white/40 transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  {saving ? "Kaydediliyor..." : "Kaydet"}
+                  {saving ? t("create.saving") : t("create.save")}
                 </button>
               </div>
             </form>
@@ -1560,13 +1582,13 @@ export default function KisiselArsivPage() {
                 id="delete-confirm-title"
                 className="text-lg font-black tracking-tight text-slate-900"
               >
-                Arşiv kaydı silinsin mi?
+                {t("deleteConfirm.title")}
               </h2>
               <p
                 id="delete-confirm-desc"
                 className="mt-2 text-[13px] font-semibold leading-relaxed text-slate-700"
               >
-                Bu kayıt ve bağlı dosyalar kalıcı olarak silinecek.
+                {t("deleteConfirm.body")}
               </p>
             </div>
             <div className="flex flex-wrap justify-end gap-2 px-6 py-4">
@@ -1576,7 +1598,7 @@ export default function KisiselArsivPage() {
                 onClick={() => setDeleteConfirmRow(null)}
                 className="rounded-2xl border-2 border-slate-200 bg-white px-5 py-2.5 text-[13px] font-bold text-slate-800 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                Vazgeç
+                {t("deleteConfirm.cancel")}
               </button>
               <button
                 type="button"
@@ -1584,7 +1606,7 @@ export default function KisiselArsivPage() {
                 onClick={() => void confirmDeleteArchive()}
                 className="rounded-2xl bg-gradient-to-r from-rose-600 to-red-600 px-5 py-2.5 text-[13px] font-black uppercase tracking-wide text-white shadow-lg shadow-rose-500/30 transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {deletingId ? "Siliniyor…" : "Evet, Sil"}
+                {deletingId ? t("deleteConfirm.deleting") : t("deleteConfirm.confirm")}
               </button>
             </div>
           </div>
@@ -1624,19 +1646,19 @@ export default function KisiselArsivPage() {
                   closeDetail();
                 }}
                 className="absolute right-3 top-3 flex h-11 w-11 items-center justify-center rounded-3xl border border-white/90 bg-white/95 text-xl font-light text-slate-600 shadow-md transition hover:bg-white hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-50 sm:right-4 sm:top-4"
-                aria-label="Kapat"
+                aria-label={t("detail.close")}
               >
                 ×
               </button>
               {detailEditMode ? (
                 <label className="block min-w-0 pr-12">
-                  <span className="sr-only">Başlık</span>
+                  <span className="sr-only">{t("detail.titleLabel")}</span>
                   <input
                     id="detail-modal-title"
                     value={detailEditTitle}
                     onChange={(e) => setDetailEditTitle(e.target.value)}
                     className={`${modalFieldClass} font-black`}
-                    placeholder="Başlık"
+                    placeholder={t("detail.titlePlaceholder")}
                     autoComplete="off"
                   />
                 </label>
@@ -1654,7 +1676,7 @@ export default function KisiselArsivPage() {
               <div className="flex flex-wrap items-end gap-2">
                 {detailEditMode ? (
                   <label className="min-w-0 flex-1 sm:max-w-xs">
-                    <span className={searchLabelClass}>Kategori</span>
+                    <span className={searchLabelClass}>{t("detail.categoryLabel")}</span>
                     <select
                       value={detailEditCategory}
                       onChange={(e) => setDetailEditCategory(e.target.value)}
@@ -1665,46 +1687,46 @@ export default function KisiselArsivPage() {
                     >
                       {CATEGORIES.map((c) => (
                         <option key={c} value={c}>
-                          {c}
+                          {categoryLabel(t, c)}
                         </option>
                       ))}
                     </select>
                   </label>
                 ) : (
                   <span className={`${categoryBadgeClass(detailRow.category)} text-base`}>
-                    {detailRow.category}
+                    {categoryLabel(t, detailRow.category)}
                   </span>
                 )}
                 <time
                   className="text-sm font-semibold tracking-wide text-slate-500"
                   dateTime={detailRow.created_at}
                 >
-                  {formatTrDate(detailRow.created_at)}
+                  {formatTrDate(detailRow.created_at, locale)}
                 </time>
               </div>
 
               {detailEditMode ? (
                 <label className="mt-4 block min-w-0">
-                  <span className={modalLabelClass}>Etiketler</span>
+                  <span className={modalLabelClass}>{t("detail.tagsLabel")}</span>
                   <input
                     value={detailEditTags}
                     onChange={(e) => setDetailEditTags(e.target.value)}
                     className={modalFieldClass}
-                    placeholder="Virgülle ayırın"
+                    placeholder={t("detail.tagsPlaceholder")}
                     autoComplete="off"
                   />
                 </label>
               ) : detailRow.tags?.trim() ? (
                 <p className="mt-3 text-[13px] font-semibold text-violet-900">
-                  Etiketler: {detailRow.tags}
+                  {t("detail.tags", { tags: detailRow.tags })}
                 </p>
               ) : (
-                <p className="mt-3 text-[13px] font-medium text-slate-400">Etiket yok</p>
+                <p className="mt-3 text-[13px] font-medium text-slate-400">{t("detail.noTags")}</p>
               )}
 
               <div className="mt-4 rounded-3xl border border-slate-200/90 bg-slate-50/60 p-6">
                 <p className="text-[11px] font-black uppercase tracking-widest text-slate-500">
-                  Not
+                  {t("detail.noteLabel")}
                 </p>
                 {detailEditMode ? (
                   <textarea
@@ -1712,7 +1734,7 @@ export default function KisiselArsivPage() {
                     onChange={(e) => setDetailEditNote(e.target.value)}
                     rows={4}
                     className={`${modalFieldClass} mt-2 min-h-[8rem] max-h-64 resize-y text-lg leading-8`}
-                    placeholder="Kısa açıklama veya bağlam…"
+                    placeholder={t("detail.notePlaceholder")}
                   />
                 ) : (
                   <p className="mt-2 whitespace-pre-wrap text-lg font-semibold leading-8 text-slate-800">
@@ -1730,12 +1752,12 @@ export default function KisiselArsivPage() {
 
               <div className="mt-6">
                 <p className="text-[11px] font-black uppercase tracking-widest text-slate-500">
-                  Dosyalar
+                  {t("detail.filesLabel")}
                 </p>
                 <ul className="mt-3 space-y-4">
                   {(detailRow.personal_archive_files ?? []).length === 0 ? (
                     <li className="rounded-2xl border border-dashed border-slate-200 bg-white/80 px-4 py-6 text-center text-[13px] font-semibold text-slate-500">
-                      Bu kayda dosya eklenmemiş.
+                      {t("detail.noFiles")}
                     </li>
                   ) : (
                     (detailRow.personal_archive_files ?? []).map((f) => (
@@ -1755,7 +1777,7 @@ export default function KisiselArsivPage() {
 
               {detailEditMode ? (
                 <div className="mt-6 block min-w-0">
-                  <span className={modalLabelClass}>Yeni dosya ekle</span>
+                  <span className={modalLabelClass}>{t("detail.addFiles")}</span>
                   <input
                     ref={detailFileInputRef}
                     type="file"
@@ -1776,7 +1798,7 @@ export default function KisiselArsivPage() {
                       onClick={() => detailFileInputRef.current?.click()}
                       className="inline-flex items-center justify-center rounded-3xl bg-gradient-to-r from-violet-600 via-fuchsia-600 to-indigo-600 px-6 py-3 text-[13px] font-black uppercase tracking-wide text-white shadow-lg shadow-violet-500/35 transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
                     >
-                      Dosya seç
+                      {t("detail.chooseFile")}
                     </button>
                     <CameraCaptureButton
                       onFiles={(files) => setDetailExtraFiles((prev) => [...prev, ...files])}
@@ -1785,8 +1807,8 @@ export default function KisiselArsivPage() {
                     />
                     <p className="mt-3 text-[12px] font-bold text-slate-600">
                       {detailExtraFiles.length === 0
-                        ? "Henüz yeni dosya seçilmedi."
-                        : `${detailExtraFiles.length} yeni dosya eklenecek`}
+                        ? t("detail.noNewFiles")
+                        : t("detail.newFilesCount", { count: detailExtraFiles.length })}
                     </p>
                     {detailExtraFiles.length > 0 ? (
                       <ul className="mx-auto mt-2 max-h-28 max-w-md list-inside list-disc overflow-y-auto text-left text-[12px] font-semibold text-slate-700">
@@ -1808,14 +1830,14 @@ export default function KisiselArsivPage() {
                     onClick={() => { if (isDemo) { notifyDemo(); return; } setDetailEditMode(true); }}
                     className="rounded-2xl border-2 border-violet-300 bg-gradient-to-r from-violet-50 to-fuchsia-50 px-8 py-4 text-base font-black text-violet-950 shadow-md ring-1 ring-white/80 transition hover:brightness-95"
                   >
-                    Düzenle
+                    {t("detail.edit")}
                   </button>
                   <button
                     type="button"
                     onClick={() => closeDetail()}
                     className="rounded-2xl bg-gradient-to-r from-slate-800 to-slate-900 px-8 py-4 text-base font-black text-white shadow-lg transition hover:brightness-110"
                   >
-                    Kapat
+                    {t("detail.close")}
                   </button>
                 </>
               ) : (
@@ -1826,7 +1848,7 @@ export default function KisiselArsivPage() {
                     onClick={() => cancelDetailEdit()}
                     className="rounded-3xl border-2 border-slate-200 bg-white px-5 py-3 text-[13px] font-bold text-slate-800 shadow-md transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-45"
                   >
-                    İptal
+                    {t("detail.cancel")}
                   </button>
                   <button
                     type="button"
@@ -1834,7 +1856,7 @@ export default function KisiselArsivPage() {
                     onClick={() => void saveDetailEdit()}
                     className="rounded-3xl bg-gradient-to-r from-fuchsia-500 via-violet-600 to-cyan-500 px-7 py-3 text-[13px] font-black uppercase tracking-wide text-white shadow-[0_16px_40px_-10px_rgba(124,58,237,0.55)] ring-2 ring-white/40 transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
                   >
-                    {savingDetail ? "Kaydediliyor…" : "Kaydet"}
+                    {savingDetail ? t("detail.saving") : t("detail.save")}
                   </button>
                   <button
                     type="button"
@@ -1842,7 +1864,7 @@ export default function KisiselArsivPage() {
                     onClick={() => closeDetail()}
                     className="rounded-2xl bg-gradient-to-r from-slate-800 to-slate-900 px-8 py-4 text-base font-black text-white shadow-lg transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-45"
                   >
-                    Kapat
+                    {t("detail.close")}
                   </button>
                 </>
               )}
@@ -1864,7 +1886,7 @@ export default function KisiselArsivPage() {
               setLightboxUrl(null);
             }}
             className="fixed right-4 top-4 z-[100000] flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-red-500 text-3xl font-light leading-none text-white shadow-xl transition hover:bg-red-600 sm:right-6 sm:top-6"
-            aria-label="Kapat"
+            aria-label={t("detail.lightboxClose")}
           >
             ×
           </button>
@@ -1876,7 +1898,7 @@ export default function KisiselArsivPage() {
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={lightboxUrl}
-              alt="Büyütülmüş görsel"
+              alt={t("detail.lightboxAlt")}
               className="max-h-[86vh] max-w-[92vw] rounded-2xl object-contain shadow-2xl"
             />
           </div>

@@ -1,0 +1,36 @@
+{
+  "system": {
+    "error": {
+      "aromaterapi": {
+        "title": "Beklenmeyen bir sorun oluştu",
+        "body": "Aromaterapi bölümü yüklenirken bir hata oluştu. Bilgileriniz güvende; çoğu durumda tekrar denemek yeterlidir.",
+        "home": "Aromaterapi ana ekranı",
+        "retry": "Tekrar dene"
+      }
+    },
+    "loading": {
+      "aromaterapi": {
+        "glossary": "Sözlük",
+        "knowledgeRecords": "Bilgi Kayıtları",
+        "editRecord": "Bilgi Kaydını Düzenle",
+        "editLeaf": "Düzenle",
+        "newRecord": "Yeni Bilgi Kaydı",
+        "newLeaf": "Yeni",
+        "catalog": "Bitki & Preparat Kataloğu",
+        "sources": "Kaynaklar"
+      },
+      "refleksoloji": {
+        "savedAtlasBadge": "REFLEKSOLOJİ · KAYITLI ATLAS",
+        "savedAtlas": "Kayıtlı Atlas",
+        "savedProtocolsBadge": "REFLEKSOLOJİ · KAYITLI PROTOKOLLER",
+        "savedProtocols": "Kayıtlı Protokoller",
+        "clinicalNotesBadge": "REFLEKSOLOJİ · KLİNİK NOTLAR",
+        "clinicalNotes": "Klinik Notlar"
+      },
+      "yasamHafizasi": {
+        "title": "Yaşam Hafızası",
+        "subtitle": "Farklı modüllerdeki mesleki bilgi ve içeriklerinizi tek yerden arayın."
+      }
+    }
+  }
+}

@@ -1,0 +1,36 @@
+{
+  "notifications": {
+    "view": {
+      "general": "General appointment",
+      "hiddenClient": "Registered client",
+      "now": "Now",
+      "today": "Today {time}",
+      "upcoming": "{day} · in {duration}",
+      "started": "{day} · started {duration} ago",
+      "durMin": "{m} min",
+      "durHour": "{h} h",
+      "durHourMin": "{h} h {m} min"
+    },
+    "bell": {
+      "reminderTitleOne": "Appointment reminder",
+      "reminderTitleMany": "{count} appointment reminders",
+      "reminderMessageOne": "{heading} — {when}",
+      "reminderMessageMany": "{heading} — {when} and {rest, plural, one {# more appointment} other {# more appointments}}",
+      "updateFailedTitle": "Notification could not be updated",
+      "updateFailedBody": "The action could not be saved. Please try again.",
+      "ariaUnread": "Notifications, {count} unread",
+      "title": "Notifications",
+      "liveUnread": "{count, plural, one {# unread notification} other {# unread notifications}}",
+      "panelTitle": "Today's appointments",
+      "empty": "There are no pending appointment notifications for today.",
+      "loading": "Loading…",
+      "new": "New",
+      "clientCard": "Client card",
+      "doneTitle": "Closes the notification; does not change the appointment status.",
+      "done": "Done",
+      "muteTitle": "Do not show the notification for this appointment again.",
+      "mute": "Don't show again",
+      "openAgenda": "Open Agenda"
+    }
+  }
+}

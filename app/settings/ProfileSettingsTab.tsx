@@ -13,6 +13,7 @@
  *   sürümü paylaşır. Bekleyen logo seçimi de "kaydedilmemiş değişiklik" sayılır.
  */
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
+import { useLocale, useTranslations } from "next-intl";
 import { AlertTriangle, Check, Loader2, Lock, RotateCcw, UserRound } from "lucide-react";
 import { useToast } from "@/components/ui/ToastProvider";
 import { fetchProfile, saveProfile, type ProfileResponse } from "@/lib/profile/client";
@@ -27,7 +28,23 @@ type Form = { [K in ProfileTextField]: string } & { [K in ProfileFlagField]: boo
 /** Ayarlar sekme çubuğu simgesi (sayfanın simge içe aktarım listesine dokunmamak için buradan verilir). */
 export const PROFILE_TAB_ICON = UserRound;
 
-export const PROFILE_LEAVE_MESSAGE = "Profilim sekmesinde kaydedilmemiş değişiklikler var. Kaydetmeden ayrılırsanız bu değişiklikler kaybolur. Devam edilsin mi?";
+/**
+ * I18N: sunucu / istemci kütüphanesi hata metni. Kaynak dilde (tr) metin bugünkü gibi BİREBİR gösterilir; diğer dillerde
+ * Türkçe metin ASLA gösterilmez → ağ hatası (status 0) common.apiErrors.network, eşlenen kod settings.profile.apiCodes.<KOD>,
+ * aksi halde genel metin (karışık dil yok).
+ */
+export function useProfileErrorText(): (r: { status?: number; code?: string; error: string }) => string {
+  const locale = useLocale();
+  const t = useTranslations("settings.profile");
+  const tApi = useTranslations("common.apiErrors");
+  return (r) => {
+    if (locale === "tr") return r.error;
+    if (r.status === 0) return tApi("network");
+    return r.code && t.has(`apiCodes.${r.code}`) ? t(`apiCodes.${r.code}`) : tApi("generic");
+  };
+}
+
+// I18N: sekme değişimi onay metni settings.profile.leaveConfirm (app/settings/page.tsx kullanır).
 
 function toForm(p: ProfileFields): Form {
   const f = {} as Form;
@@ -40,14 +57,16 @@ function sameForm(a: Form, b: Form): boolean {
   return PROFILE_TEXT_FIELDS.every((k) => a[k] === b[k]) && PROFILE_FLAG_FIELDS.every((k) => a[k] === b[k]);
 }
 
-/** Tarayıcı tarafı doğrulama (sunucuyla aynı kurallar). */
-function validate(f: Form): { errors: FieldErrors; patch: ProfileFields | null } {
+type ProfileT = ReturnType<typeof useTranslations>;
+
+/** Tarayıcı tarafı doğrulama (sunucuyla aynı kurallar). Hata metni dil-bağımsız koddan (fieldErrors.<code>) üretilir. */
+function validate(f: Form, t: ProfileT): { errors: FieldErrors; patch: ProfileFields | null } {
   const errors: FieldErrors = {};
   const patch = {} as ProfileFields;
   for (const k of PROFILE_TEXT_FIELDS) {
     const r = normalizeProfileText(k, f[k]);
     if (r.ok) patch[k] = r.value;
-    else errors[k] = r.error;
+    else errors[k] = t(`fieldErrors.${r.code}`, Object.fromEntries(Object.entries(r.params ?? {}).map(([p, v]) => [p, String(v)])));
   }
   for (const k of PROFILE_FLAG_FIELDS) patch[k] = f[k];
   return { errors, patch: Object.keys(errors).length ? null : patch };
@@ -55,18 +74,30 @@ function validate(f: Form): { errors: FieldErrors; patch: ProfileFields | null }
 
 type FieldDef = { key: ProfileTextField; label: string; hint?: string; placeholder?: string; type?: "text" | "email" | "url" | "tel"; autoComplete?: string; inputMode?: "text" | "email" | "url" | "tel"; rows?: number; wide?: boolean };
 
-const PROFESSIONAL: FieldDef[] = [
-  { key: "title", label: "Unvan", placeholder: "ör. Uzman Psikolojik Danışman", autoComplete: "organization-title" },
-  { key: "organization", label: "Kurum / işletme", placeholder: "ör. Yaşam Danışmanlık Merkezi", autoComplete: "organization" },
-  { key: "phone", label: "Telefon", placeholder: "ör. +90 532 123 45 67", type: "tel", inputMode: "tel", autoComplete: "tel", hint: "Rakam, boşluk ve + - ( ) kullanılabilir." },
-  { key: "contactEmail", label: "İletişim e-postası", placeholder: "ör. iletisim@alanadi.com", type: "email", inputMode: "email", autoComplete: "email", hint: "Danışanlarınızın size ulaşacağı adres; giriş e-postanızdan farklı olabilir." },
-  { key: "website", label: "İnternet sitesi", placeholder: "https://www.alanadi.com", type: "url", inputMode: "url", autoComplete: "url", hint: "Yalnız https:// ile başlayan adresler.", wide: true },
-  { key: "bio", label: "Kısa biyografi", placeholder: "Uzmanlık alanlarınızı ve yaklaşımınızı birkaç cümleyle anlatın.", rows: 5, wide: true },
+// I18N: etiket / yer tutucu / ipucu metinleri settings.profile.fields.<alan> anahtarlarından (withText ile) eklenir.
+type FieldShape = Omit<FieldDef, "label" | "hint" | "placeholder"> & { hasHint?: boolean };
+const PROFESSIONAL: FieldShape[] = [
+  { key: "title", autoComplete: "organization-title" },
+  { key: "organization", autoComplete: "organization" },
+  { key: "phone", type: "tel", inputMode: "tel", autoComplete: "tel", hasHint: true },
+  { key: "contactEmail", type: "email", inputMode: "email", autoComplete: "email", hasHint: true },
+  { key: "website", type: "url", inputMode: "url", autoComplete: "url", hasHint: true, wide: true },
+  { key: "bio", rows: 5, wide: true },
 ];
+
+function withText({ hasHint, ...d }: FieldShape, t: ProfileT): FieldDef {
+  return {
+    ...d,
+    label: t(`fields.${d.key}.label`),
+    placeholder: t(`fields.${d.key}.placeholder`),
+    hint: hasHint ? t(`fields.${d.key}.hint`) : undefined,
+  };
+}
 
 const INPUT = "w-full rounded-xl border bg-white px-4 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:ring-2 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500";
 
 function TextField({ def, value, error, disabled, onChange, idBase }: { def: FieldDef; value: string; error?: string; disabled: boolean; onChange: (v: string) => void; idBase: string }) {
+  const t = useTranslations("settings.profile");
   const id = `${idBase}-${def.key}`;
   const max = PROFILE_LIMITS[def.key];
   const n = charCount(value);
@@ -98,7 +129,7 @@ function TextField({ def, value, error, disabled, onChange, idBase }: { def: Fie
           {def.hint && <p id={`${id}-hint`} className="text-[11px] leading-relaxed text-slate-500">{def.hint}</p>}
         </div>
         <p id={`${id}-count`} className={`shrink-0 text-[11px] tabular-nums ${over ? "font-bold text-rose-600" : "text-slate-400"}`}>
-          <span className="sr-only">Karakter sayısı: </span>{n}/{max}
+          <span className="sr-only">{t("charCountSr")}</span>{n}/{max}
         </p>
       </div>
     </div>
@@ -125,6 +156,8 @@ function Switch({ id, label, description, checked, disabled, onChange }: { id: s
 
 export function ProfileSettingsTab({ readOnly: demoReadOnly, onDirtyChange }: { readOnly: boolean; onDirtyChange?: (dirty: boolean) => void }) {
   const { showToast } = useToast();
+  const t = useTranslations("settings.profile");
+  const errorText = useProfileErrorText();
   const idBase = useId().replace(/:/g, "");
   const [state, setState] = useState<{ status: "loading" } | { status: "error"; message: string } | { status: "ready" }>({ status: "loading" });
   const [server, setServer] = useState<ProfileResponse | null>(null);
@@ -144,12 +177,12 @@ export function ProfileSettingsTab({ readOnly: demoReadOnly, onDirtyChange }: { 
           const f = toForm(r.value.profile);
           setServer(r.value); setSaved(f); setForm(f); setErrors({}); setState({ status: "ready" });
         } else {
-          setState({ status: "error", message: r.kind === "error" && r.code === "PROFILE_UNAVAILABLE" ? "Profil bölümü henüz kullanıma açılmadı. Lütfen daha sonra yeniden deneyin." : "Profil bilgileri yüklenemedi. Lütfen yeniden deneyin." });
+          setState({ status: "error", message: r.kind === "error" && r.code === "PROFILE_UNAVAILABLE" ? t("loadUnavailable") : t("loadFailed") });
         }
       })
       .catch(() => { /* sayfadan ayrılındı */ });
     return () => ac.abort();
-  }, [reload]);
+  }, [reload, t]);
 
   const readOnly = demoReadOnly || server?.readOnly === true;
   const formDirty = !!form && !!saved && !sameForm(form, saved);
@@ -186,10 +219,10 @@ export function ProfileSettingsTab({ readOnly: demoReadOnly, onDirtyChange }: { 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!form || !server || readOnly || saving) return;
-    const v = validate(form);
+    const v = validate(form, t);
     if (!v.patch) {
       setErrors(v.errors);
-      setNotice({ tone: "error", text: "Bazı alanlar geçersiz. İşaretli alanları düzeltip yeniden kaydedin." });
+      setNotice({ tone: "error", text: t("invalidFields") });
       focusFirstError(v.errors);
       return;
     }
@@ -200,20 +233,20 @@ export function ProfileSettingsTab({ readOnly: demoReadOnly, onDirtyChange }: { 
       if (r.kind === "ok") {
         const f = toForm(r.value.profile);
         setServer(r.value); setSaved(f); setForm(f); setErrors({});
-        setNotice({ tone: "ok", text: "Profiliniz kaydedildi." });
-        showToast({ title: "Kaydedildi", message: "Profil bilgileriniz güncellendi.", type: "success" });
+        setNotice({ tone: "ok", text: t("saved") });
+        showToast({ title: t("savedToastTitle"), message: t("savedToastBody"), type: "success" });
       } else if (r.kind === "conflict") {
         // Değişiklikleriniz formda KORUNUR; temel sürüm güncellenir → kontrol edip yeniden kaydedebilirsiniz.
         setServer(r.current); setSaved(toForm(r.current.profile));
-        setNotice({ tone: "warn", text: "Profiliniz başka bir sekmede ya da cihazda değişti. Güncel sürüm alındı; değişiklikleriniz formda duruyor — kontrol edip yeniden kaydedin." });
+        setNotice({ tone: "warn", text: t("conflict") });
       } else if (r.kind === "invalid") {
         setErrors(r.fields);
-        setNotice({ tone: "error", text: Object.keys(r.fields).length ? "Bazı alanlar geçersiz. İşaretli alanları düzeltip yeniden kaydedin." : r.error });
+        setNotice({ tone: "error", text: Object.keys(r.fields).length ? t("invalidFields") : errorText({ status: 400, error: r.error }) });
         focusFirstError(r.fields);
       } else if (r.kind === "demo") {
-        setNotice({ tone: "error", text: "Demo hesapta profil değişikliği kaydedilemez." });
+        setNotice({ tone: "error", text: t("demoSave") });
       } else {
-        setNotice({ tone: "error", text: r.code === "PROFILE_UNAVAILABLE" ? "Profil şu anda kaydedilemiyor. Lütfen daha sonra yeniden deneyin." : r.error });
+        setNotice({ tone: "error", text: r.code === "PROFILE_UNAVAILABLE" ? t("saveUnavailable") : errorText(r) });
       }
     } finally {
       setSaving(false);
@@ -235,7 +268,7 @@ export function ProfileSettingsTab({ readOnly: demoReadOnly, onDirtyChange }: { 
   if (state.status === "loading") {
     return (
       <div className="flex items-center gap-2 py-6 text-sm text-slate-500" role="status" data-testid="settings-profile-loading">
-        <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> Profil yükleniyor…
+        <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> {t("loading")}
       </div>
     );
   }
@@ -243,10 +276,10 @@ export function ProfileSettingsTab({ readOnly: demoReadOnly, onDirtyChange }: { 
     return (
       <div className="space-y-3 py-4" data-testid="settings-profile-error">
         <p role="alert" className="flex items-start gap-2 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-800">
-          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />{state.status === "error" ? state.message : "Profil bilgileri yüklenemedi."}
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />{state.status === "error" ? state.message : t("loadFailedShort")}
         </p>
         <button type="button" onClick={() => { setState({ status: "loading" }); setReload((n) => n + 1); }} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-violet-600">
-          <RotateCcw className="h-4 w-4" aria-hidden /> Yeniden dene
+          <RotateCcw className="h-4 w-4" aria-hidden /> {t("retry")}
         </button>
       </div>
     );
@@ -258,87 +291,73 @@ export function ProfileSettingsTab({ readOnly: demoReadOnly, onDirtyChange }: { 
       <section aria-labelledby={`${idBase}-account`} className="rounded-2xl border border-slate-100 bg-gradient-to-br from-white to-violet-50/40 p-4 sm:p-5">
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-violet-100 text-violet-700"><UserRound className="h-5 w-5" aria-hidden /></div>
-          <h3 id={`${idBase}-account`} className="text-sm font-black text-slate-900">Hesap bilgileri</h3>
+          <h3 id={`${idBase}-account`} className="text-sm font-black text-slate-900">{t("accountTitle")}</h3>
         </div>
         <dl className="mt-4 grid gap-3 sm:grid-cols-2">
           <div className="min-w-0">
-            <dt className="text-xs font-bold uppercase tracking-wider text-slate-500">Ad soyad</dt>
+            <dt className="text-xs font-bold uppercase tracking-wider text-slate-500">{t("fullName")}</dt>
             <dd className="mt-1 break-words text-sm font-semibold text-slate-900" data-testid="profile-full-name">{account?.fullName ?? "—"}</dd>
           </div>
           <div className="min-w-0">
-            <dt className="text-xs font-bold uppercase tracking-wider text-slate-500">Giriş e-postası</dt>
+            <dt className="text-xs font-bold uppercase tracking-wider text-slate-500">{t("loginEmail")}</dt>
             <dd className="mt-1 break-all text-sm font-semibold text-slate-900" data-testid="profile-email">{account?.email ?? "—"}</dd>
           </div>
         </dl>
         <p className="mt-3 flex items-start gap-2 text-xs leading-relaxed text-slate-500">
           <Lock className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
-          Ad soyadınızı ve giriş e-postanızı yalnız yönetici değiştirebilir. Değişiklik için “Admin ile İrtibat” sekmesinden yazabilirsiniz.
+          {t("accountLockNote")}
         </p>
       </section>
 
       {readOnly && (
         <p role="note" data-testid="profile-demo-note" className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800">
-          Demo hesapta profil yalnız görüntülenebilir; değişiklik kaydedilemez.
+          {t("demoNote")}
         </p>
       )}
 
       <form ref={formRef} onSubmit={onSubmit} noValidate className="space-y-6" aria-describedby={errorCount ? `${idBase}-summary` : undefined}>
         <section aria-labelledby={`${idBase}-pro`} className="space-y-4">
           <div>
-            <h3 id={`${idBase}-pro`} className="text-base font-black text-slate-900">Mesleki bilgiler</h3>
-            <p className="mt-0.5 text-xs text-slate-500">Tüm alanlar isteğe bağlıdır. Boş bıraktığınız alan hiçbir yerde gösterilmez.</p>
+            <h3 id={`${idBase}-pro`} className="text-base font-black text-slate-900">{t("professionalTitle")}</h3>
+            <p className="mt-0.5 text-xs text-slate-500">{t("professionalHint")}</p>
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
             {PROFESSIONAL.map((d) => (
-              <TextField key={d.key} def={d} idBase={idBase} value={form[d.key]} error={errors[d.key]} disabled={disabled} onChange={(v) => set(d.key, v)} />
+              <TextField key={d.key} def={withText(d, t)} idBase={idBase} value={form[d.key]} error={errors[d.key]} disabled={disabled} onChange={(v) => set(d.key, v)} />
             ))}
           </div>
         </section>
 
         <section aria-labelledby={`${idBase}-report`} className="space-y-4 rounded-2xl border border-slate-100 bg-white/70 p-4 sm:p-5">
           <div>
-            <h3 id={`${idBase}-report`} className="text-base font-black text-slate-900">Rapor kimliği</h3>
+            <h3 id={`${idBase}-report`} className="text-base font-black text-slate-900">{t("reportIdentityTitle")}</h3>
             <div className="mt-1 space-y-1 text-xs leading-relaxed text-slate-500" data-testid="profile-branding-status">
-              <p>
-                &quot;Raporlarımda kurumsal bilgilerimi göster&quot; açıkken seçtiğiniz bilgiler şu Word raporlarına eklenir: Danışan Yolculuğu, Numeroloji analiz,
-                Klasik Numeroloji ve Beslenme planı. Bilgiler kapakta, rapor sonundaki imza bölümünde ve sayfa altında yer alır;
-                yasal bilgilendirme metni aynen kalır.
-              </p>
-              <p>
-                Human Design raporlarında adınız otomatik yazılmaz; yalnız raporda &quot;Hazırlayan&quot; alanı doluysa unvan ve kurum
-                (profesyonel raporda ayrıca logo) eklenir, iletişim bilgisi ve dipnot eklenmez.
-              </p>
-              <p>
-                Refleksoloji, Kupa (protokol ve takvim) ve Gökyüzü Atlası (Word ve PDF) raporlarında, anahtar açıkken rapor sonuna
-                bir &quot;Hazırlayan&quot; imza bölümü eklenir; adınız otomatik yazılmaz, yalnız seçtiğiniz unvan, kurum, iletişim, logo ve
-                dipnot yer alır.
-              </p>
-              <p>
-                Hacamat raporunda (Word ve PDF) formdaki &quot;Hazırlayan&quot; adı aynen kalır, profil adınızla değiştirilmez; bu alan
-                doluysa yalnız unvan, kurum ve logo eklenir, iletişim bilgisi ve dipnot eklenmez.
-              </p>
-              <p>Ansiklopediler, ders notları, stok ve arşiv dışa aktarımları bu kapsamda değildir. Anahtar kapalıyken hiçbir rapor değişmez.</p>
+              <p>{t("reportScope1")}</p>
+              <p>{t("reportScope2")}</p>
+              <p>{t("reportScope3")}</p>
+              <p>{t("reportScope4")}</p>
+              <p>{t("reportScope5")}</p>
             </div>
           </div>
           <TextField
-            def={{ key: "reportNote", label: "Rapor dipnotu", placeholder: "ör. Bu rapor bilgilendirme amaçlıdır; tıbbi tanı ve tedavinin yerini tutmaz.", rows: 3, wide: true, hint: "En fazla 4 satır." }}
+            def={withText({ key: "reportNote", rows: 3, wide: true, hasHint: true }, t)}
             idBase={idBase} value={form.reportNote} error={errors.reportNote} disabled={disabled} onChange={(v) => set("reportNote", v)}
           />
           <div className="space-y-4 border-t border-slate-100 pt-4">
             <Switch
-              id={`${idBase}-brand`} label="Raporlarımda kurumsal bilgilerimi göster"
-              description="Kapalıyken raporlarınız bugünkü gibi üretilir. Açtığınızda aşağıda seçtiğiniz bilgiler yukarıda sayılan raporlara eklenir."
+              id={`${idBase}-brand`} label={t("brandingLabel")}
+              description={t("brandingDescription")}
               checked={brandingOn} disabled={disabled} onChange={(v) => set("reportBrandingEnabled", v)}
             />
             <fieldset className="space-y-3 rounded-xl bg-slate-50/80 p-3 sm:p-4" disabled={disabled || !brandingOn} aria-describedby={`${idBase}-subs-hint`}>
-              <legend className="sr-only">Raporda gösterilecek bilgiler</legend>
+              <legend className="sr-only">{t("subsLegend")}</legend>
               <p id={`${idBase}-subs-hint`} className="text-xs font-semibold text-slate-500">
-                {brandingOn ? "Raporda gösterilecek bilgiler:" : "Raporda gösterilecek bilgiler (önce yukarıdaki anahtarı açın):"}
+                {brandingOn ? t("subsHintOn") : t("subsHintOff")}
               </p>
-              <Switch id={`${idBase}-s-title`} label="Unvan" checked={form.reportShowTitle} disabled={disabled || !brandingOn} onChange={(v) => set("reportShowTitle", v)} />
-              <Switch id={`${idBase}-s-org`} label="Kurum / işletme" checked={form.reportShowOrganization} disabled={disabled || !brandingOn} onChange={(v) => set("reportShowOrganization", v)} />
-              <Switch id={`${idBase}-s-contact`} label="İletişim bilgileri" description="Telefon, iletişim e-postası ve internet sitesi." checked={form.reportShowContact} disabled={disabled || !brandingOn} onChange={(v) => set("reportShowContact", v)} />
-              <Switch id={`${idBase}-s-note`} label="Rapor dipnotu" checked={form.reportShowNote} disabled={disabled || !brandingOn} onChange={(v) => set("reportShowNote", v)} />
+              <Switch id={`${idBase}-s-title`} label={t("showTitle")} checked={form.reportShowTitle} disabled={disabled || !brandingOn} onChange={(v) => set("reportShowTitle", v)} />
+              <Switch id={`${idBase}-s-org`} label={t("showOrganization")} checked={form.reportShowOrganization} disabled={disabled || !brandingOn} onChange={(v) => set("reportShowOrganization", v)} />
+              <Switch id={`${idBase}-s-contact`} label={t("showContact")} description={t("showContactDescription")} checked={form.reportShowContact} disabled={disabled || !brandingOn} onChange={(v) => set("reportShowContact", v)} />
+              <Switch id={`${idBase}-s-note`} label={t("showNote")} checked={form.reportShowNote} disabled={disabled || !brandingOn} onChange={(v) => set("reportShowNote", v)} />
             </fieldset>
           </div>
           <div className="border-t border-slate-100 pt-4">
@@ -356,7 +375,7 @@ export function ProfileSettingsTab({ readOnly: demoReadOnly, onDirtyChange }: { 
         </section>
 
         <div aria-live="polite" className="min-h-0">
-          {errorCount > 0 && <span id={`${idBase}-summary`} className="sr-only">{errorCount} alanda hata var.</span>}
+          {errorCount > 0 && <span id={`${idBase}-summary`} className="sr-only">{t("errorSummary", { count: errorCount })}</span>}
           {notice && (
             <p
               role={notice.tone === "error" ? "alert" : "status"} data-testid="profile-notice" data-tone={notice.tone}
@@ -370,20 +389,20 @@ export function ProfileSettingsTab({ readOnly: demoReadOnly, onDirtyChange }: { 
 
         {!readOnly && (
           <div className="flex flex-col-reverse gap-2 border-t border-slate-100 pt-4 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-xs text-slate-500" data-testid="profile-dirty-state">{formDirty ? "Kaydedilmemiş değişiklikleriniz var." : logoDirty ? "Rapor logosu seçiminiz kaydedilmedi." : "Tüm değişiklikler kaydedildi."}</p>
+            <p className="text-xs text-slate-500" data-testid="profile-dirty-state">{formDirty ? t("dirty") : logoDirty ? t("logoDirty") : t("clean")}</p>
             <div className="flex flex-col-reverse gap-2 sm:flex-row">
               <button
                 type="button" onClick={onCancel} disabled={!formDirty || saving} data-testid="profile-cancel"
                 className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-5 text-sm font-bold text-slate-700 transition hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-600 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                Vazgeç
+                {t("cancel")}
               </button>
               <button
                 type="submit" disabled={!formDirty || saving} data-testid="profile-save"
                 className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 to-fuchsia-600 px-6 text-sm font-black text-white shadow-md transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-600 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0"
               >
                 {saving ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <Check className="h-4 w-4" aria-hidden />}
-                {saving ? "Kaydediliyor…" : "Kaydet"}
+                {saving ? t("saving") : t("save")}
               </button>
             </div>
           </div>

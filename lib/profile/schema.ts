@@ -136,7 +136,16 @@ export function isValidWebsite(v: string): boolean {
   return hostOk(host);
 }
 
-export type TextResult = { ok: true; value: string | null } | { ok: false; error: string };
+/**
+ * I18N: `code` (+ `params`) dil-bağımsız hata kimliğidir; arayüz metni settings.profile.fieldErrors.<code> anahtarından üretilir.
+ * `error` (Türkçe) sunucu yanıtı için bugünkü gibi kalır.
+ */
+export type ProfileTextErrorCode =
+  | "notText" | "badChar" | "controlMulti" | "controlSingle" | "tooLong" | "tooManyLines"
+  | "phone" | "email" | "httpsRequired" | "website" | "htmlTag";
+export type TextResult =
+  | { ok: true; value: string | null }
+  | { ok: false; error: string; code: ProfileTextErrorCode; params?: Record<string, number> };
 
 /**
  * Tek metin alanını normalize + doğrular. Tarayıcı da aynı işlevi kullanır (sunucu yine kendisi doğrular).
@@ -144,37 +153,39 @@ export type TextResult = { ok: true; value: string | null } | { ok: false; error
  */
 export function normalizeProfileText(field: ProfileTextField, raw: unknown): TextResult {
   if (raw === null || raw === undefined) return { ok: true, value: null };
-  if (typeof raw !== "string") return { ok: false, error: "Metin olmalı." };
-  if (hasLoneSurrogate(raw)) return { ok: false, error: "Geçersiz karakter içeriyor." };
+  if (typeof raw !== "string") return { ok: false, error: "Metin olmalı.", code: "notText" };
+  if (hasLoneSurrogate(raw)) return { ok: false, error: "Geçersiz karakter içeriyor.", code: "badChar" };
   const multi = MULTILINE.has(field);
   let s = raw.normalize("NFC");
   if (multi) s = s.replace(/\r\n?/g, "\n");
   s = s.trim();
   if (s === "") return { ok: true, value: null };
   if ((multi ? BAD_CHARS_MULTI : BAD_CHARS_SINGLE).test(s)) {
-    return { ok: false, error: multi ? "Görünmez veya kontrol karakteri içeremez." : "Tek satır olmalı; görünmez veya kontrol karakteri içeremez." };
+    return multi
+      ? { ok: false, error: "Görünmez veya kontrol karakteri içeremez.", code: "controlMulti" }
+      : { ok: false, error: "Tek satır olmalı; görünmez veya kontrol karakteri içeremez.", code: "controlSingle" };
   }
   const max = PROFILE_LIMITS[field];
-  if (charCount(s) > max) return { ok: false, error: `En fazla ${max} karakter olabilir.` };
+  if (charCount(s) > max) return { ok: false, error: `En fazla ${max} karakter olabilir.`, code: "tooLong", params: { max } };
   if (multi) {
     const maxLines = PROFILE_MAX_LINES[field as keyof typeof PROFILE_MAX_LINES];
-    if (s.split("\n").length > maxLines) return { ok: false, error: `En fazla ${maxLines} satır olabilir.` };
+    if (s.split("\n").length > maxLines) return { ok: false, error: `En fazla ${maxLines} satır olabilir.`, code: "tooManyLines", params: { max: maxLines } };
   }
   switch (field) {
     case "phone": {
       const digits = s.replace(/[^0-9]/g, "").length;
-      if (!PHONE_RE.test(s) || digits < 7 || digits > 15) return { ok: false, error: "Yalnız rakam, boşluk ve + - ( ) kullanın (7–15 rakam)." };
+      if (!PHONE_RE.test(s) || digits < 7 || digits > 15) return { ok: false, error: "Yalnız rakam, boşluk ve + - ( ) kullanın (7–15 rakam).", code: "phone" };
       return { ok: true, value: s };
     }
     case "contactEmail":
-      if (!isValidEmail(s)) return { ok: false, error: "Geçerli bir e-posta adresi girin (ör. ad@alanadi.com)." };
+      if (!isValidEmail(s)) return { ok: false, error: "Geçerli bir e-posta adresi girin (ör. ad@alanadi.com).", code: "email" };
       return { ok: true, value: s };
     case "website":
-      if (!/^https:\/\//.test(s)) return { ok: false, error: "Adres https:// ile başlamalı (ör. https://www.alanadi.com)." };
-      if (!isValidWebsite(s)) return { ok: false, error: "Geçerli bir https:// adresi girin (Latin harfli alan adı; kullanıcı adı / IP içermez)." };
+      if (!/^https:\/\//.test(s)) return { ok: false, error: "Adres https:// ile başlamalı (ör. https://www.alanadi.com).", code: "httpsRequired" };
+      if (!isValidWebsite(s)) return { ok: false, error: "Geçerli bir https:// adresi girin (Latin harfli alan adı; kullanıcı adı / IP içermez).", code: "website" };
       return { ok: true, value: s };
     default:
-      if (TAG_START.test(s)) return { ok: false, error: "“<” işaretinin hemen ardından harf veya / ! ? gelemez (HTML etiketi kabul edilmez)." };
+      if (TAG_START.test(s)) return { ok: false, error: "“<” işaretinin hemen ardından harf veya / ! ? gelemez (HTML etiketi kabul edilmez).", code: "htmlTag" };
       return { ok: true, value: s };
   }
 }

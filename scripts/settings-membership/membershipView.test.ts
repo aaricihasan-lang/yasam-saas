@@ -7,6 +7,7 @@ import {
   NO_END_DATE_TEXT,
   profileStateFromResponse,
   resolveMembershipView,
+  trMembershipTx,
   type MembershipView,
   type TrialStatusLite,
 } from "../../lib/settings/membershipView";
@@ -149,6 +150,9 @@ console.log("\n── Demo / admin ──");
   const A = view(base({ role: "ADMIN " }));
   ok(A.kind === "admin", "rol büyük/küçük harf + boşluk toleransı");
 }
+
+// I18N QA A-05: kaynak-dil çeviricisi eksik anahtarda HAM ANAHTAR döndürmez (güvenli yedek: boş metin).
+ok(trMembershipTx("settings.membership.yokBoyleBirAnahtar") === "" && trMembershipTx("settings.membership.noEndDate") === NO_END_DATE_TEXT, "kaynak-dil çevirici: eksik anahtar → ham anahtar yok");
 
 console.log(`\nToplam: ${pass} geçti, ${fail} kaldı`);
 if (fail > 0) process.exit(1);

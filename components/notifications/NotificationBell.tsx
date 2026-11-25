@@ -26,10 +26,11 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState, useSyncExternalStore, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import { createPortal } from "react-dom";
+import { useTranslations } from "next-intl";
 import { useToast } from "@/components/ui/ToastProvider";
 import { shouldSkipAppointmentNotifications } from "@/shared/DashboardNotifications";
 import { buildNotificationView } from "@/lib/danisan/appointmentNotifications";
-import type { NotificationStateValue } from "@/lib/danisan/appointmentNotifications";
+import type { NotificationStateValue, NotificationViewTx } from "@/lib/danisan/appointmentNotifications";
 import {
   acquireNotifications,
   getNotificationSnapshot,
@@ -109,6 +110,8 @@ function BellIcon({ className }: { className?: string }) {
 
 export default function NotificationBell({ className, compact = false }: NotificationBellProps) {
   const pathname = usePathname() ?? "/";
+  const t = useTranslations("notifications.bell");
+  const tView = useTranslations("notifications.view") as unknown as NotificationViewTx;
   const skip = shouldSkipAppointmentNotifications(pathname);
   // Hidrasyon güvenli: sunucuda/ilk render'da false → localStorage okunmaz.
   const mounted = useSyncExternalStore(noopSubscribe, () => true, () => false);
@@ -138,21 +141,21 @@ export default function NotificationBell({ className, compact = false }: Notific
     if (!active || !showToast) return;
     return registerReminderSink((due, now) => {
       const views = due.map((i) =>
-        buildNotificationView(i, { clientName: i.clientName, canOpenClient: i.canOpenClient, now: new Date(now) }),
+        buildNotificationView(i, { clientName: i.clientName, canOpenClient: i.canOpenClient, now: new Date(now), tx: tView }),
       );
       const first = views[0];
       if (!first) return;
       showToast({
         type: "info",
         duration: 8000,
-        title: views.length === 1 ? "Randevu hatırlatması" : `${views.length} randevu hatırlatması`,
+        title: views.length === 1 ? t("reminderTitleOne") : t("reminderTitleMany", { count: String(views.length) }),
         message:
           views.length === 1
-            ? `${first.heading} — ${first.whenLabel}`
-            : `${first.heading} — ${first.whenLabel} ve ${views.length - 1} randevu daha`,
+            ? t("reminderMessageOne", { heading: first.heading, when: first.whenLabel })
+            : t("reminderMessageMany", { heading: first.heading, when: first.whenLabel, rest: views.length - 1 }),
       });
     });
-  }, [active, showToast]);
+  }, [active, showToast, t, tView]);
 
   const close = useCallback(() => setOpenAt(null), []);
 
@@ -248,12 +251,12 @@ export default function NotificationBell({ className, compact = false }: Notific
       if (!ok) {
         showToast?.({
           type: "error",
-          title: "Bildirim güncellenemedi",
-          message: "İşlem kaydedilemedi. Lütfen tekrar deneyin.",
+          title: t("updateFailedTitle"),
+          message: t("updateFailedBody"),
         });
       }
     },
-    [showToast],
+    [showToast, t],
   );
 
   if (!active || snap.phase === "denied") return null;
@@ -280,10 +283,10 @@ export default function NotificationBell({ className, compact = false }: Notific
         ref={buttonRef}
         type="button"
         onClick={toggle}
-        aria-label={unread > 0 ? `Bildirimler, ${unread} okunmamış` : "Bildirimler"}
+        aria-label={unread > 0 ? t("ariaUnread", { count: String(unread) }) : t("title")}
         aria-expanded={open}
         aria-controls={open ? panelId : undefined}
-        title="Bildirimler"
+        title={t("title")}
         className={`relative inline-flex ${size} items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 shadow-sm transition hover:bg-slate-50 hover:text-violet-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-400`}
       >
         <BellIcon className={iconSize} />
@@ -299,7 +302,7 @@ export default function NotificationBell({ className, compact = false }: Notific
       </button>
       {/* Ekran okuyucu: okunmamış sayısı değişince kibarca duyurulur (rozet görsel; aria-hidden). */}
       <span className="sr-only" aria-live="polite" data-testid="notification-live">
-        {unread > 0 ? `${unread} okunmamış bildirim` : ""}
+        {unread > 0 ? t("liveUnread", { count: unread }) : ""}
       </span>
 
       {open && box && typeof document !== "undefined" && createPortal(
@@ -316,14 +319,14 @@ export default function NotificationBell({ className, compact = false }: Notific
           className="fixed z-[90] flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white text-left shadow-[0_18px_36px_rgba(15,23,42,0.22)] focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-400"
         >
           <div className="shrink-0 bg-gradient-to-r from-slate-900 via-indigo-700 to-fuchsia-600 px-3.5 py-2.5 text-white">
-            <div className="text-[11px] font-bold opacity-80">Bildirimler</div>
-            <div id={panelTitleId} className="text-sm font-black">Bugünkü randevular</div>
+            <div className="text-[11px] font-bold opacity-80">{t("title")}</div>
+            <div id={panelTitleId} className="text-sm font-black">{t("panelTitle")}</div>
           </div>
 
           <div data-testid="notification-panel-list" className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-2">
             {visible.length === 0 ? (
               <p className="px-2 py-4 text-center text-xs font-semibold text-slate-500">
-                {snap.phase === "ready" ? "Bugün için bekleyen randevu bildirimi yok." : "Yükleniyor…"}
+                {snap.phase === "ready" ? t("empty") : t("loading")}
               </p>
             ) : (
               <ul className="grid gap-2">
@@ -332,6 +335,7 @@ export default function NotificationBell({ className, compact = false }: Notific
                     clientName: item.clientName,
                     canOpenClient: item.canOpenClient,
                     now,
+                    tx: tView,
                   });
                   const key = itemKey(item);
                   const busy = busyKeys.has(key);
@@ -350,7 +354,7 @@ export default function NotificationBell({ className, compact = false }: Notific
                       <Link href={view.href} onClick={openItem} className="block min-w-0 rounded-lg px-1 py-0.5 hover:bg-white">
                         {unseen ? (
                           <span className="mb-0.5 inline-flex items-center gap-1 rounded-full bg-rose-500 px-1.5 py-0.5 text-[11px] font-black leading-none text-white">
-                            Yeni
+                            {t("new")}
                           </span>
                         ) : null}
                         <span className="block break-words text-[13px] font-black leading-snug text-slate-900">{view.heading}</span>
@@ -366,26 +370,26 @@ export default function NotificationBell({ className, compact = false }: Notific
                             onClick={openItem}
                             className="inline-flex min-h-[34px] items-center rounded-lg border border-violet-200 bg-white px-2.5 py-1 text-[11px] font-black text-violet-700 hover:bg-violet-50"
                           >
-                            Danışan kartı
+                            {t("clientCard")}
                           </Link>
                         )}
                         <button
                           type="button"
                           disabled={busy}
                           onClick={() => void act(item, "done")}
-                          title="Bildirimi kapatır; randevu durumunu değiştirmez."
+                          title={t("doneTitle")}
                           className="inline-flex min-h-[34px] items-center rounded-lg border border-emerald-200 bg-white px-2.5 py-1 text-[11px] font-black text-emerald-700 hover:bg-emerald-50 disabled:opacity-60"
                         >
-                          Tamamlandı
+                          {t("done")}
                         </button>
                         <button
                           type="button"
                           disabled={busy}
                           onClick={() => void act(item, "muted")}
-                          title="Bu randevu için bildirimi bir daha gösterme."
+                          title={t("muteTitle")}
                           className="inline-flex min-h-[34px] items-center rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-black text-slate-600 hover:bg-slate-100 disabled:opacity-60"
                         >
-                          Tekrar gösterme
+                          {t("mute")}
                         </button>
                       </div>
                     </li>
@@ -397,7 +401,7 @@ export default function NotificationBell({ className, compact = false }: Notific
 
           <div className="shrink-0 border-t border-slate-100 px-3 py-2 text-right">
             <Link href="/dashboard/ajanda" onClick={close} className="inline-flex min-h-[32px] items-center text-xs font-black text-indigo-700 hover:underline">
-              Ajandayı aç
+              {t("openAgenda")}
             </Link>
           </div>
         </div>,

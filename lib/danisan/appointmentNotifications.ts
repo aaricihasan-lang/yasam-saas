@@ -22,6 +22,19 @@
  */
 
 import { formatInstantTime, toInstant, zonedDayKey, DEFAULT_TIME_ZONE } from "@/lib/time/reportTime";
+import trNotifications from "@/messages/tr/notifications.json";
+
+/**
+ * I18N: görünüm metinleri notifications.view.* anahtarlarından. Çağıran ekran dilindeki çeviriciyi
+ * (useTranslations("notifications.view")) verir; verilmezse kaynak dil (tr) katalog metni → Türkçe birebir.
+ */
+export type NotificationViewTx = (key: string, values?: Record<string, string>) => string;
+const TR_VIEW = trNotifications.notifications.view as Record<string, string>;
+export const trNotificationViewTx: NotificationViewTx = (key, values) => {
+  // Anahtar bulunamazsa HAM ANAHTAR ASLA gösterilmez → boş metin (güvenli yedek).
+  const text = typeof TR_VIEW[key] === "string" ? TR_VIEW[key] : "";
+  return values ? text.replace(/\{(\w+)\}/g, (m, k: string) => (k in values ? values[k] : m)) : text;
+};
 
 /** Başlamış randevunun görünür kaldığı süre. */
 export const NOTIFY_TOLERANCE_MS = 30 * 60 * 1000;
@@ -208,47 +221,50 @@ export type NotificationView = {
   clientHref: string | null;
 };
 
-export const GENERAL_APPOINTMENT_HEADING = "Genel randevu";
-export const HIDDEN_CLIENT_HEADING = "Kayıtlı danışan";
+export const GENERAL_APPOINTMENT_HEADING = trNotificationViewTx("general");
+export const HIDDEN_CLIENT_HEADING = trNotificationViewTx("hiddenClient");
 
 /** "25 dk" / "1 sa" / "2 sa 15 dk". */
-function durationLabel(ms: number): string {
+function durationLabel(ms: number, tx: NotificationViewTx): string {
   const totalMin = Math.max(1, Math.round(ms / 60_000));
   const h = Math.floor(totalMin / 60);
   const m = totalMin % 60;
-  if (h === 0) return `${m} dk`;
-  return m === 0 ? `${h} sa` : `${h} sa ${m} dk`;
+  if (h === 0) return tx("durMin", { m: String(m) });
+  return m === 0 ? tx("durHour", { h: String(h) }) : tx("durHourMin", { h: String(h), m: String(m) });
 }
 
 /** "Bugün 14:30 · 25 dk sonra" | "Şimdi" | "Bugün 14:30 · 10 dk önce başladı". */
-export function buildWhenLabel(appointmentDate: string, now: Date): string {
+export function buildWhenLabel(appointmentDate: string, now: Date, tx: NotificationViewTx = trNotificationViewTx): string {
   const at = toInstant(appointmentDate);
   if (!at) return "";
   const diff = at.getTime() - now.getTime();
-  if (Math.abs(diff) < 60_000) return "Şimdi";
+  if (Math.abs(diff) < 60_000) return tx("now");
   const sameDay = zonedDayKey(at) === zonedDayKey(now);
   const time = formatInstantTime(at);
-  const dayPart = sameDay ? `Bugün ${time}` : time;
-  return diff > 0 ? `${dayPart} · ${durationLabel(diff)} sonra` : `${dayPart} · ${durationLabel(-diff)} önce başladı`;
+  const dayPart = sameDay ? tx("today", { time }) : time;
+  return diff > 0
+    ? tx("upcoming", { day: dayPart, duration: durationLabel(diff, tx) })
+    : tx("started", { day: dayPart, duration: durationLabel(-diff, tx) });
 }
 
 export function buildNotificationView(
   a: NotificationAppointment,
-  opts: { clientName?: string | null; canOpenClient?: boolean; now?: Date },
+  opts: { clientName?: string | null; canOpenClient?: boolean; now?: Date; tx?: NotificationViewTx },
 ): NotificationView {
   const now = opts.now ?? new Date();
+  const tx = opts.tx ?? trNotificationViewTx;
   const name = (opts.clientName ?? "").replace(/\s+/g, " ").trim();
   let kind: NotificationKind;
   let heading: string;
   if (!a.client_id) {
     kind = "general";
-    heading = GENERAL_APPOINTMENT_HEADING;
+    heading = tx("general");
   } else if (opts.canOpenClient && name) {
     kind = "client";
     heading = name;
   } else {
     kind = "hidden_client";
-    heading = HIDDEN_CLIENT_HEADING;
+    heading = tx("hiddenClient");
   }
   const title = (a.title ?? "").trim();
   const id = encodeURIComponent(a.id);
@@ -257,7 +273,7 @@ export function buildNotificationView(
     kind,
     heading,
     subtitle: title || null,
-    whenLabel: buildWhenLabel(a.appointment_date, now),
+    whenLabel: buildWhenLabel(a.appointment_date, now, tx),
     href: `/dashboard/ajanda?randevu=${id}`,
     clientHref:
       a.client_id && opts.canOpenClient

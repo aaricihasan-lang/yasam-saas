@@ -17,10 +17,34 @@
 import {
   isSelfTrialRow,
   resolveTrialPhase,
-  TRIAL_MESSAGES,
   type TrialPhase,
 } from "@/lib/trial/trialCore";
 import { resolveMembershipPackageType } from "@/lib/auth/membershipAccessCore";
+import { localeTag } from "@/lib/i18n/format";
+import { DEFAULT_LOCALE, type ActiveLocale } from "@/lib/i18n/locales";
+import trSettingsMembership from "@/messages/tr/settings.membership.json";
+import trTrial from "@/messages/tr/trial.json";
+
+/**
+ * I18N: görünen metinler katalogdan (settings.membership.* + trial.messages.*). Çözümleyici SAF kalır:
+ * çağıran ekran dilindeki çeviriciyi (`useTranslations()` kök) verir; verilmezse kaynak dil (tr) katalog
+ * metni kullanılır → Türkçe çıktı bugünküyle birebir (katalog değerleri eski sabitlerin kopyasıdır).
+ * `kind` / `tone` dil-bağımsız kalır; kontrol akışı metne bağlanmaz.
+ */
+export type MembershipTx = (key: string, values?: Record<string, string>) => string;
+
+const TR_SOURCE: Record<string, unknown> = { ...trSettingsMembership, ...trTrial };
+
+/**
+ * Kaynak dil (tr) çeviricisi — yalnız düz `{ad}` yer tutucuları (bu katalogda ICU çoğul / seçim yok).
+ * Anahtar bulunamazsa HAM ANAHTAR ASLA gösterilmez → boş metin (güvenli yedek; bugün tüm anahtarlar mevcut, testle kilitli).
+ */
+export const trMembershipTx: MembershipTx = (key, values) => {
+  let node: unknown = TR_SOURCE;
+  for (const part of key.split(".")) node = node && typeof node === "object" ? (node as Record<string, unknown>)[part] : undefined;
+  const text = typeof node === "string" ? node : "";
+  return values ? text.replace(/\{(\w+)\}/g, (m, k: string) => (k in values ? values[k] : m)) : text;
+};
 
 export const MEMBERSHIP_TIME_ZONE = "Europe/Istanbul";
 
@@ -70,8 +94,8 @@ export type ProfileFetchState =
   | { status: "pending" }
   | { status: "error" };
 
-export const NO_END_DATE_TEXT = "Bitiş tarihi tanımlı değil";
-export const NO_END_DATE_NOTE = "Üyelik süresi ayrıntısı için yöneticinizle iletişime geçin.";
+export const NO_END_DATE_TEXT = trMembershipTx("settings.membership.noEndDate");
+export const NO_END_DATE_NOTE = trMembershipTx("settings.membership.noEndDateNote");
 
 function parseMs(v: unknown): number | null {
   if (v == null || v === "") return null;
@@ -83,10 +107,10 @@ function parseMs(v: unknown): number | null {
  * ISO → Türkiye saatli Türkçe tarih: "11 Kasım 2026, 00:00". Geçersiz / boş → null.
  * formatToParts ile kurulur (ICU ayraç farkları sonucu değiştirmez).
  */
-export function formatMembershipDateTime(iso: string | null | undefined): string | null {
+export function formatMembershipDateTime(iso: string | null | undefined, locale: ActiveLocale = DEFAULT_LOCALE): string | null {
   const ms = parseMs(iso);
   if (ms === null) return null;
-  const parts = new Intl.DateTimeFormat("tr-TR", {
+  const parts = new Intl.DateTimeFormat(localeTag(locale), {
     timeZone: MEMBERSHIP_TIME_ZONE,
     day: "numeric",
     month: "long",
@@ -103,45 +127,26 @@ function str(v: unknown): string {
   return v == null ? "" : String(v).trim().toLowerCase();
 }
 
-const CONTACT_PRO = {
-  label: "Pro üyelik talebi",
-  hint: "Talebiniz “Admin ile İrtibat” sekmesinden yöneticinize iletilir; üyelik yönetici onayıyla açılır.",
-} as const;
+const M = "settings.membership";
+type DateFmt = (iso: string | null | undefined) => string | null;
 
-const CONTACT_INFO = {
-  label: "Yöneticiyle iletişime geç",
-  hint: "Mesajınız “Admin ile İrtibat” sekmesinden yöneticinize iletilir.",
-} as const;
-
-const TRIAL_PACKAGE_LABEL = "Ücretsiz deneme (7 gün)";
-
-const R_TRIAL_DIGITAL =
-  "Dijital İçerik ve alt modülleri (Kişisel Arşiv, Belge Çeviri, Video Çeviri, Ders Notu) ile Yaşam Hafızası deneme paketine dahil değildir.";
-const R_TRIAL_CREDIT =
-  "Gökyüzü Atlası, Human Design ve Numeroloji'deki Roxy hesaplamaları günlük ortak krediyle sınırlıdır; kredi Türkiye saatiyle 00.00'da yenilenir.";
-const R_TRIAL_NO_EXTEND = "Deneme süresi uzatılamaz ve yeniden başlatılamaz.";
-const R_READ_ONLY_VIEW = "Kayıtlarınızı görüntüleyebilir ve dışa aktarabilirsiniz.";
-const R_READ_ONLY_BLOCK = "Yeni kayıt, düzenleme, silme ve yeni hesaplama yapılamaz.";
-const R_RECORDS_KEPT = "Pro üyeliğe geçişte danışan ve analiz kayıtlarınız korunur.";
-const R_MODULES = "Modül erişiminiz, yöneticinizin hesabınız için açtığı modüllerle sınırlıdır.";
-
-function trialRows(
-  startedAt: string | null,
-  endsAt: string | null,
-  extra: MembershipRow[],
-): MembershipRow[] {
+function trialRows(tx: MembershipTx, fmt: DateFmt, startedAt: string | null, endsAt: string | null, extra: MembershipRow[]): MembershipRow[] {
   const rows: MembershipRow[] = [];
-  const s = formatMembershipDateTime(startedAt);
-  const e = formatMembershipDateTime(endsAt);
-  if (s) rows.push({ term: "Deneme başlangıcı", value: s });
-  if (e) rows.push({ term: "Deneme bitişi", value: e });
+  const s = fmt(startedAt);
+  const e = fmt(endsAt);
+  if (s) rows.push({ term: tx(`${M}.rows.trialStart`), value: s });
+  if (e) rows.push({ term: tx(`${M}.rows.trialEnd`), value: e });
   return [...rows, ...extra];
 }
 
-function proRequestRow(trial: TrialStatusLite | null): MembershipRow[] {
+function proRequestRow(tx: MembershipTx, fmt: DateFmt, trial: TrialStatusLite | null): MembershipRow[] {
   if (!trial?.proRequestAt) return [];
-  const at = formatMembershipDateTime(trial.proRequestAt);
-  return [{ term: "Pro üyelik talebi", value: at ? `Alındı · ${at}` : "Alındı", note: "Yöneticiniz talebinizi değerlendirecektir." }];
+  const at = fmt(trial.proRequestAt);
+  return [{
+    term: tx(`${M}.rows.proRequest`),
+    value: at ? tx(`${M}.rows.proRequestReceivedAt`, { at }) : tx(`${M}.rows.proRequestReceived`),
+    note: tx(`${M}.rows.proRequestNote`),
+  }];
 }
 
 /**
@@ -152,19 +157,29 @@ export function resolveMembershipView(input: {
   profile: ProfileFetchState;
   trial?: TrialStatusLite | null;
   nowMs?: number;
+  /** Ekran dilinde çevirici (kök anahtarlar); yoksa kaynak dil (tr). */
+  tx?: MembershipTx;
+  /** Tarih gösterim dili (yalnız biçim; saat dilimi her zaman Europe/Istanbul). */
+  locale?: ActiveLocale;
 }): MembershipView {
   const nowMs = input.nowMs ?? Date.now();
   const p = input.profile;
+  const tx = input.tx ?? trMembershipTx;
+  const fmt: DateFmt = (iso) => formatMembershipDateTime(iso, input.locale ?? DEFAULT_LOCALE);
+  const CONTACT_PRO = { label: tx(`${M}.contactPro.label`), hint: tx(`${M}.contactPro.hint`) };
+  const CONTACT_INFO = { label: tx(`${M}.contactInfo.label`), hint: tx(`${M}.contactInfo.hint`) };
+  const TRIAL_PACKAGE_LABEL = tx(`${M}.views.trial.package`);
+  const rule = (k: string) => tx(`${M}.rules.${k}`);
 
   if (p.status === "pending") {
     return {
       kind: "pending",
-      packageLabel: "Onay bekliyor",
-      statusLabel: "Onay bekliyor",
+      packageLabel: tx(`${M}.views.pending.package`),
+      statusLabel: tx(`${M}.views.pending.status`),
       tone: "warn",
-      summary: "Hesabınız yönetici onayı bekliyor. Onaylandığında paket ve üyelik bilgileriniz burada görünür.",
+      summary: tx(`${M}.views.pending.summary`),
       rows: [],
-      restrictions: ["Onay tamamlanana kadar modüllere erişim kapalıdır."],
+      restrictions: [rule("pendingClosed")],
       contactCta: null,
     };
   }
@@ -172,9 +187,9 @@ export function resolveMembershipView(input: {
     return {
       kind: "unavailable",
       packageLabel: "—",
-      statusLabel: "Bilgi alınamadı",
+      statusLabel: tx(`${M}.views.unavailable.status`),
       tone: "muted",
-      summary: "Üyelik bilgileriniz şu anda alınamadı. Sayfayı yenileyip tekrar deneyin.",
+      summary: tx(`${M}.views.unavailable.summary`),
       rows: [],
       restrictions: [],
       contactCta: null,
@@ -186,10 +201,10 @@ export function resolveMembershipView(input: {
   if (str(row.role) === "admin") {
     return {
       kind: "admin",
-      packageLabel: "Yönetici",
-      statusLabel: "Aktif",
+      packageLabel: tx(`${M}.views.admin.package`),
+      statusLabel: tx(`${M}.views.admin.status`),
       tone: "ok",
-      summary: "Yönetici hesabı üyelik paketine bağlı değildir; paket ve deneme kuralları bu hesaba uygulanmaz.",
+      summary: tx(`${M}.views.admin.summary`),
       rows: [],
       restrictions: [],
       contactCta: null,
@@ -199,13 +214,12 @@ export function resolveMembershipView(input: {
   if (row.is_demo_account === true) {
     return {
       kind: "demo",
-      packageLabel: "Demo hesabı",
-      statusLabel: "Tanıtım hesabı",
+      packageLabel: tx(`${M}.views.demo.package`),
+      statusLabel: tx(`${M}.views.demo.status`),
       tone: "info",
-      summary:
-        "Bu, sistemi tanımanız için açılmış ortak bir demo hesabıdır; kişisel bir üyelik paketi değildir. Kendi üyeliğiniz için yöneticiyle iletişime geçebilirsiniz.",
+      summary: tx(`${M}.views.demo.summary`),
       rows: [],
-      restrictions: ["Demo hesabında yedekleme, geri yükleme, dışa aktarma ve parola değiştirme işlemleri kapalıdır."],
+      restrictions: [rule("demoClosed")],
       contactCta: CONTACT_INFO,
     };
   }
@@ -221,21 +235,21 @@ export function resolveMembershipView(input: {
     if (phase === "active") {
       const credit: MembershipRow[] = t?.credits
         ? [{
-            term: "Bugünkü Roxy krediniz",
+            term: tx(`${M}.rows.credit`),
             value: `${Math.max(0, t.credits.dailyLimit - t.credits.usedTotal)} / ${t.credits.dailyLimit}`,
-            note: "Kalan / günlük ortak kredi. Türkiye saatiyle 00.00'da yenilenir.",
+            note: tx(`${M}.rows.creditNote`),
           }]
         : [];
       return {
         kind: "trial_active",
         packageLabel: TRIAL_PACKAGE_LABEL,
-        statusLabel: "Deneme sürüyor",
+        statusLabel: tx(`${M}.views.trial.statusActive`),
         tone: "ok",
-        summary: endsAt && formatMembershipDateTime(endsAt)
-          ? `Ücretsiz deneme süreniz ${formatMembershipDateTime(endsAt)} tarihinde sona erer.`
-          : "Ücretsiz deneme süreniz devam ediyor.",
-        rows: trialRows(startedAt, endsAt, [...credit, ...proRequestRow(t)]),
-        restrictions: [R_TRIAL_DIGITAL, R_TRIAL_CREDIT, R_TRIAL_NO_EXTEND],
+        summary: endsAt && fmt(endsAt)
+          ? tx(`${M}.views.trial.summaryEndsAt`, { at: fmt(endsAt) ?? "" })
+          : tx(`${M}.views.trial.summaryOngoing`),
+        rows: trialRows(tx, fmt, startedAt, endsAt, [...credit, ...proRequestRow(tx, fmt, t)]),
+        restrictions: [rule("trialDigital"), rule("trialCredit"), rule("trialNoExtend")],
         contactCta: CONTACT_PRO,
       };
     }
@@ -244,11 +258,11 @@ export function resolveMembershipView(input: {
       return {
         kind: expired ? "trial_expired" : "trial_suspended",
         packageLabel: TRIAL_PACKAGE_LABEL,
-        statusLabel: expired ? "Deneme sona erdi · salt okunur" : "Deneme durduruldu · salt okunur",
+        statusLabel: expired ? tx(`${M}.views.trial.statusExpired`) : tx(`${M}.views.trial.statusSuspended`),
         tone: "warn",
-        summary: expired ? TRIAL_MESSAGES.expired : TRIAL_MESSAGES.suspended,
-        rows: trialRows(startedAt, endsAt, proRequestRow(t)),
-        restrictions: [R_READ_ONLY_VIEW, R_READ_ONLY_BLOCK, R_RECORDS_KEPT],
+        summary: expired ? tx("trial.messages.expired") : tx("trial.messages.suspended"),
+        rows: trialRows(tx, fmt, startedAt, endsAt, proRequestRow(tx, fmt, t)),
+        restrictions: [rule("readOnlyView"), rule("readOnlyBlock"), rule("recordsKept")],
         contactCta: CONTACT_PRO,
       };
     }
@@ -256,11 +270,11 @@ export function resolveMembershipView(input: {
       return {
         kind: "trial_review",
         packageLabel: TRIAL_PACKAGE_LABEL,
-        statusLabel: "İncelemede",
+        statusLabel: tx(`${M}.views.trial.statusReview`),
         tone: "warn",
-        summary: TRIAL_MESSAGES.review,
-        rows: proRequestRow(t),
-        restrictions: ["İnceleme tamamlanana kadar modüllere erişim kapalıdır."],
+        summary: tx("trial.messages.review"),
+        rows: proRequestRow(tx, fmt, t),
+        restrictions: [rule("reviewClosed")],
         contactCta: CONTACT_INFO,
       };
     }
@@ -268,9 +282,9 @@ export function resolveMembershipView(input: {
       return {
         kind: "trial_not_started",
         packageLabel: TRIAL_PACKAGE_LABEL,
-        statusLabel: "Deneme başlamadı",
+        statusLabel: tx(`${M}.views.trial.statusNotStarted`),
         tone: "info",
-        summary: TRIAL_MESSAGES.notStarted,
+        summary: tx("trial.messages.notStarted"),
         rows: [],
         restrictions: [],
         contactCta: CONTACT_INFO,
@@ -281,41 +295,41 @@ export function resolveMembershipView(input: {
 
   if (resolveMembershipPackageType(row) === "premium") {
     const rows: MembershipRow[] = [];
-    const started = formatMembershipDateTime(row.membership_started_at == null ? null : String(row.membership_started_at));
-    if (started) rows.push({ term: "Üyelik başlangıcı", value: started });
+    const started = fmt(row.membership_started_at == null ? null : String(row.membership_started_at));
+    if (started) rows.push({ term: tx(`${M}.rows.membershipStart`), value: started });
     const endsMs = parseMs(row.membership_ends_at);
-    const ends = formatMembershipDateTime(row.membership_ends_at == null ? null : String(row.membership_ends_at));
+    const ends = fmt(row.membership_ends_at == null ? null : String(row.membership_ends_at));
     if (endsMs === null || !ends) {
-      rows.push({ term: "Üyelik bitişi", value: NO_END_DATE_TEXT, note: NO_END_DATE_NOTE });
+      rows.push({ term: tx(`${M}.rows.membershipEnd`), value: tx(`${M}.noEndDate`), note: tx(`${M}.noEndDateNote`) });
     } else if (endsMs <= nowMs) {
       rows.push({
-        term: "Üyelik bitişi",
+        term: tx(`${M}.rows.membershipEnd`),
         value: ends,
-        note: "Kayıtlı bitiş tarihi geçmiş görünüyor. Hesabınız şu an aktif; üyelik süresi için yöneticinizle iletişime geçin.",
+        note: tx(`${M}.rows.membershipEndPassedNote`),
       });
     } else {
-      rows.push({ term: "Üyelik bitişi", value: ends });
+      rows.push({ term: tx(`${M}.rows.membershipEnd`), value: ends });
     }
     return {
       kind: "pro_active",
-      packageLabel: "Pro üyelik",
-      statusLabel: "Aktif",
+      packageLabel: tx(`${M}.views.pro.package`),
+      statusLabel: tx(`${M}.views.pro.status`),
       tone: "ok",
-      summary: "Pro üyeliğiniz aktif. Üyelik ayrıntıları yöneticiniz tarafından yönetilir.",
+      summary: tx(`${M}.views.pro.summary`),
       rows,
-      restrictions: [R_MODULES],
+      restrictions: [rule("modules")],
       contactCta: CONTACT_INFO,
     };
   }
 
   return {
     kind: "no_package",
-    packageLabel: "Paket tanımlı değil",
-    statusLabel: "Erişim kapalı",
+    packageLabel: tx(`${M}.views.noPackage.package`),
+    statusLabel: tx(`${M}.views.noPackage.status`),
     tone: "danger",
-    summary: "Hesabınız için tanımlı bir üyelik paketi bulunmuyor; bu nedenle modüllere erişim kapalıdır.",
+    summary: tx(`${M}.views.noPackage.summary`),
     rows: [],
-    restrictions: ["Paket tanımlanana kadar modüllere erişim kapalıdır."],
+    restrictions: [rule("noPackageClosed")],
     contactCta: CONTACT_PRO,
   };
 }
@@ -326,6 +340,7 @@ export function profileStateFromResponse(status: number, body: unknown): Profile
   if (status === 200 && b.ok === true && b.profile && typeof b.profile === "object") {
     return { status: "ok", profile: b.profile as Record<string, unknown> };
   }
+  // i18n-ignore: lib/auth/userGuard'ın dil-bağımsız kodu olmayan (çevrilmeyen) Türkçe 403 metniyle eşleşme — KOORDİNATÖR İSTEĞİ: kod eklenmeli.
   if (status === 403 && typeof b.error === "string" && b.error.includes("onaylanmadı")) return { status: "pending" };
   return { status: "error" };
 }
