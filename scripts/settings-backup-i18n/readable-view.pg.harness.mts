@@ -29,7 +29,7 @@ import { readFileSync } from "node:fs";
 import { PGlite } from "@electric-sql/pglite";
 import JSZip from "jszip";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { makeDb, type Row } from "./pgSupabase.mts";
+import { makeDb, type Row } from "./pgSupabase.mjs";
 
 // Yayın kapısı bu süreçte AÇIK (L bölümleri); kapalı davranış L4'te ayrıca denenir.
 process.env.NEXT_PUBLIC_I18N_LOCALE_SWITCHING = "on";
