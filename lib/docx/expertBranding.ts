@@ -34,6 +34,7 @@ import {
   WidthType,
 } from "docx";
 import { C_DARK, C_LIGHT, C_MID, sanitizeXmlText, type ReportChild } from "./reportHelpers";
+import type { ReportCommonStrings } from "@/lib/i18n/reportCommon";
 
 // ─── Tipler ──────────────────────────────────────────────────────────────────
 
@@ -244,6 +245,8 @@ export function expertLogoParagraph(
 
 export type ExpertCoverOptions = {
   variant?: ExpertBrandingVariant;
+  /** I18N çıktı dili (isteğe bağlı): etiketler katalogdan; verilmezse bugünkü Türkçe sabitler (birebir). */
+  common?: ReportCommonStrings;
   /** Modülün vurgu rengi (etiket/çizgi). */
   accent?: string;
   /** İnce ayırıcı çizgi rengi. */
@@ -278,7 +281,7 @@ export function expertCoverBlock(b: ExpertBranding | null | undefined, o: Expert
 
   if (variant === "A") {
     if (!name && !r.title && !r.organization && !r.contactLine && !r.logoPng) return [];
-    lines.push({ runs: [run("Hazırlayan Uzman", { size: SZ.label, color: accent, bold: true, allCaps: true, spacing: 30 })], after: 100 });
+    lines.push({ runs: [run(o.common?.preparedByExpert ?? "Hazırlayan Uzman", { size: SZ.label, color: accent, bold: true, allCaps: true, spacing: 30 })], after: 100 });
     if (r.logoPng) lines.push({ runs: [logoRun(r.logoPng, 150, 60)], after: 100 });
     if (name) lines.push({ runs: [run(name, { size: SZ.nameCover, color: C_DARK, bold: true })], after: 40 });
     if (r.title) lines.push({ runs: [run(r.title, { size: SZ.line, color: C_MID })], after: 40 });
@@ -316,6 +319,8 @@ export function expertCoverBlock(b: ExpertBranding | null | undefined, o: Expert
 
 export type ExpertSignatureOptions = {
   variant?: ExpertBrandingVariant;
+  /** I18N çıktı dili (isteğe bağlı): "Hazırlayan" / "İmza" / "Uzman Notu" katalogdan; verilmezse Türkçe sabitler (birebir). */
+  common?: ReportCommonStrings;
   accent?: string;
   /** Profil adı yoksa kullanılacak ad (mevcut "Hazırlayan: …" değeri). */
   fallbackName?: string | null;
@@ -343,9 +348,9 @@ export type ExpertSignatureOptions = {
 export const EXPERT_SIGNATURE_CARD_TWIPS = { padY: 100, labelAfter: 40, signBefore: 200, gapBefore: 160, noteBefore: 100 } as const;
 const CARD = EXPERT_SIGNATURE_CARD_TWIPS;
 
-function noteParagraphs(note: string, o: { before: number; font?: string }): Paragraph[] {
+function noteParagraphs(note: string, o: { before: number; font?: string; label?: string }): Paragraph[] {
   return [
-    para([run("Uzman Notu", { size: SZ.label, color: C_MID, bold: true, font: o.font })], { before: o.before, after: 40, keepNext: true }),
+    para([run(o.label ?? "Uzman Notu", { size: SZ.label, color: C_MID, bold: true, font: o.font })], { before: o.before, after: 40, keepNext: true }),
     para(multilineRuns(note, { size: SZ.note, color: C_MID, italics: true, font: o.font }), { after: 60 }),
   ];
 }
@@ -360,7 +365,7 @@ export function expertSignatureBlock(b: ExpertBranding | null | undefined, o: Ex
   if (!r) return [];
   const variant = o.variant ?? DEFAULT_EXPERT_BRANDING_VARIANT;
   const accent = o.accent ?? C_MID;
-  const label = o.label ?? "Hazırlayan";
+  const label = o.label ?? o.common?.preparedBy ?? "Hazırlayan";
   const name = o.omitName ? "" : r.name ?? brandingLine(o.fallbackName);
   const credential = [r.title, r.organization].filter(Boolean).join(" · ");
   const font = o.font;
@@ -386,7 +391,7 @@ export function expertSignatureBlock(b: ExpertBranding | null | undefined, o: Ex
     if (r.contactLine) text.push(para([frun(r.contactLine, { size: SZ.small, color: C_LIGHT })], { after: 0, keepNext: kn }));
     // İmza alanı: ince çizgi; "İmza" etiketi çizginin üzerinde, solda (ayrı satır kullanılmaz).
     text.push(
-      new Paragraph({ spacing: { before: CARD.signBefore, after: 0 }, keepNext: kn, keepLines: true, indent: { right: Math.round(textW * 0.45) }, border: { bottom: { style: BorderStyle.SINGLE, size: 4, color: "cbd5e1" } }, children: [frun("İmza", { size: 15, color: C_LIGHT })] }),
+      new Paragraph({ spacing: { before: CARD.signBefore, after: 0 }, keepNext: kn, keepLines: true, indent: { right: Math.round(textW * 0.45) }, border: { bottom: { style: BorderStyle.SINGLE, size: 4, color: "cbd5e1" } }, children: [frun(o.common?.signature ?? "İmza", { size: 15, color: C_LIGHT })] }),
     );
     const none = { style: BorderStyle.NONE, size: 0, color: "auto" } as const;
     const top = { style: BorderStyle.SINGLE, size: 18, color: accent } as const;
@@ -418,7 +423,7 @@ export function expertSignatureBlock(b: ExpertBranding | null | undefined, o: Ex
       borders: { top: none, bottom: none, left: none, right: none, insideHorizontal: none, insideVertical: none },
       rows: [new TableRow({ cantSplit: true, children: cells })],
     }));
-    if (r.note) out.push(...noteParagraphs(r.note, { before: CARD.noteBefore, font }));
+    if (r.note) out.push(...noteParagraphs(r.note, { before: CARD.noteBefore, font, label: o.common?.expertNote }));
     // Kart belgenin son öğesiyse Word tablodan sonra varsayılan yükseklikte boş paragraf ekler; bu satır dolu bir sayfadan
     // boş bir sayfaya taşmasın diye tam 1 pt yükseklikli kapanış paragrafı (yalnız dipnot yokken; görünmez).
     else out.push(new Paragraph({ spacing: { before: 0, after: 0, line: 20, lineRule: LineRuleType.EXACT }, children: [] }));
@@ -434,19 +439,19 @@ export function expertSignatureBlock(b: ExpertBranding | null | undefined, o: Ex
     if (credential) lines.push({ runs: [frun(credential, { size: SZ.small, color: C_MID })], after: 20 });
     if (r.contactLine) lines.push({ runs: [frun(r.contactLine, { size: SZ.small - 1, color: C_LIGHT })], after: 40 });
     out.push(...chained(lines, !!r.note));
-    if (r.note) out.push(...noteParagraphs(r.note, { before: 120, font }));
+    if (r.note) out.push(...noteParagraphs(r.note, { before: 120, font, label: o.common?.expertNote }));
     return out;
   }
 
   if (variant === "C" && (name || r.title)) {
     const t = [name, r.title].filter(Boolean).join(" — ");
     out.push(para([frun(`${label}: ${t}`, { size: 16, color: C_MID })], { before: 0, after: 60, keepNext: !!r.note }));
-    if (r.note) out.push(...noteParagraphs(r.note, { before: 80, font }));
+    if (r.note) out.push(...noteParagraphs(r.note, { before: 80, font, label: o.common?.expertNote }));
     return out;
   }
 
   // Yalnız dipnot (ya da varyantın göstermediği alanlar) → yalnız dipnot.
-  if (r.note) out.push(...noteParagraphs(r.note, { before: 120, font }));
+  if (r.note) out.push(...noteParagraphs(r.note, { before: 120, font, label: o.common?.expertNote }));
   return out;
 }
 

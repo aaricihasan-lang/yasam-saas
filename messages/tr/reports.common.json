@@ -1,0 +1,66 @@
+{
+  "reports": {
+    "common": {
+      "reportSummary": "RAPOR ÖZETİ",
+      "tocHeading": "İÇİNDEKİLER",
+      "tocField": "İçindekiler",
+      "tocFieldNote": "Not: Belge düzenlenirse İçindekiler alanını Word üzerinden güncelleyebilirsiniz.",
+      "summaryTitle": "Rapor Özeti",
+      "staticTocTitle": "İçindekiler",
+      "staticTocHint": "Başlığa tıklayarak ilgili bölüme gidebilirsiniz. Sayfa numaralarını Word, belge açılırken günceller.",
+      "page": "Sayfa",
+      "information": "Bilgilendirme",
+      "preparedBy": "Hazırlayan",
+      "preparedByExpert": "Hazırlayan Uzman",
+      "expertNote": "Uzman Notu",
+      "signature": "İmza",
+      "generatedOn": "Oluşturulma Tarihi",
+      "wellness": {
+        "general": {
+          "short": "Destekleyici kişisel kayıt · tıbbi tanı/tedavi yerine geçmez",
+          "full": "Bu belge, uzman tarafından hazırlanan destekleyici nitelikte kişisel bir kayıttır; tıbbi tanı veya tedavinin yerine geçmez. Sağlık durumunuzla ilgili kararlar için hekiminize danışınız."
+        },
+        "danisan": {
+          "short": "Destekleyici kişisel kayıt · tıbbi tanı/tedavi yerine geçmez",
+          "full": "Bu belge, uzman tarafından hazırlanan destekleyici nitelikte kişisel bir kayıttır; tıbbi tanı veya tedavinin yerine geçmez. Sağlık durumunuzla ilgili kararlar için hekiminize danışınız."
+        },
+        "dogaltas": {
+          "short": "Geleneksel/tamamlayıcı bilgi · tıbbi tanı/tedavi yerine geçmez",
+          "full": "Doğal taşlarla ilgili bilgiler geleneksel ve tamamlayıcı kullanım kaynaklarına dayanır; tıbbi tanı veya tedavinin yerine geçmez. Sağlık durumunuzla ilgili kararlar için hekiminize danışınız."
+        },
+        "sifa": {
+          "short": "Destekleyici kişisel kayıt · tıbbi tanı/tedavi yerine geçmez",
+          "full": "Bu belge, uzman tarafından hazırlanan destekleyici nitelikte kişisel bir kayıttır; tıbbi tanı veya tedavinin yerine geçmez. Sağlık durumunuzla ilgili kararlar için hekiminize danışınız."
+        },
+        "aromaterapi": {
+          "short": "Haricen, seyreltilerek kullanım · tıbbi tanı/tedavi yerine geçmez",
+          "full": "Aromaterapi önerileri haricen ve uygun seyreltmeyle kullanım içindir; tıbbi tanı veya tedavinin yerine geçmez. Hamilelik, emzirme, kronik hastalık veya ilaç kullanımı durumunda kullanmadan önce hekiminize danışınız."
+        },
+        "hacamat": {
+          "short": "Geleneksel bilgi · sağlık iddiası değildir",
+          "full": "Hacamat/kupa uygulamalarına ilişkin bilgiler geleneksel kaynaklara dayanır; sağlık iddiası taşımaz ve tıbbi tanı veya tedavinin yerine geçmez. Uygulama öncesinde hekim değerlendirmesi önerilir."
+        },
+        "numeroloji": {
+          "short": "Kişisel farkındalık amaçlıdır",
+          "full": "Bu içerik kişisel farkındalık ve gelişim amaçlıdır; tıbbi, psikolojik, hukuki veya finansal tavsiye niteliği taşımaz."
+        },
+        "human_design": {
+          "short": "Kişisel farkındalık amaçlıdır",
+          "full": "Bu içerik kişisel farkındalık ve gelişim amaçlıdır; tıbbi, psikolojik, hukuki veya finansal tavsiye niteliği taşımaz."
+        },
+        "biyoenerji": {
+          "short": "Tamamlayıcı/wellness içerik · tıbbi tanı/tedavi yerine geçmez",
+          "full": "Biyoenerji ve tamamlayıcı/wellness içerikleri kişisel farkındalık ve destek amaçlıdır; tıbbi tanı veya tedavinin yerine geçmez."
+        },
+        "refleksoloji": {
+          "short": "Tamamlayıcı uygulama · tıbbi tanı/tedavi yerine geçmez",
+          "full": "Refleksoloji uygulamaları tamamlayıcı niteliktedir. Bu modül tıbbi tanı veya tedavi amacı taşımaz ve hekim değerlendirmesinin yerine geçmez."
+        },
+        "beslenme": {
+          "short": "Genel beslenme bilgisi · tıbbi diyet tedavisi yerine geçmez",
+          "full": "Bu beslenme planı genel bilgilendirme ve destek amaçlıdır; tıbbi beslenme tedavisinin veya hekim/diyetisyen değerlendirmesinin yerine geçmez."
+        }
+      }
+    }
+  }
+}
