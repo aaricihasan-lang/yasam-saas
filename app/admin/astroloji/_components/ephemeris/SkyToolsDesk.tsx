@@ -1,9 +1,9 @@
 "use client";
 
 /**
- * Gökyüzü Atlası — GÖKYÜZÜ ARAÇLARI sayfası (owner GÖRSEL PASS 02.11.2026). Doğum verisi gerektirmez; hesaplar yerel motorda,
- * sağlayıcı çağrısı ve kredi yok, hiçbir şey kaydedilmez. Üç sekme: Efemeris (#645) · Ay Evreleri ve Tutulmalar (#662/#681) ·
- * Derece Geçişleri (#663). Sekme adres çubuğunda (#efemeris | #ay-evreleri | #derece-gecisleri) tutulur.
+ * Gökyüzü Atlası — GÖKYÜZÜ ARAÇLARI sayfası (owner GÖRSEL PASS 02.11.2026). Doğum verisi gerektirmez. Üç sekme: Efemeris (#645;
+ * 2026-11-24: aylık Batı/Vedik efemeris — ay başına tek sağlayıcı hesabı, kayıt + Word/PDF; ayrıntılı yerel tablo aynen içinde) ·
+ * Ay Evreleri ve Tutulmalar (#662/#681) · Derece Geçişleri (#663) — bu ikisi yerel motorda, sağlayıcı çağrısı yok. Sekme adres çubuğunda (#efemeris | #ay-evreleri | #derece-gecisleri) tutulur.
  * Atlas menüsü: Yeni Analiz · Analiz Arşivi · Bilgi Bankası bağlantıları Atlas sayfasının ilgili görünümünü açar (açık hedef).
  */
 import { useEffect, useState, useSyncExternalStore } from "react";
@@ -11,7 +11,7 @@ import { atlasDisplay, atlasText } from "../atlas/fonts";
 import { ATLAS_NAV_TARGET_KEY } from "../../_lib/skyToolsNav";
 import { probeAstroAccess } from "../../_lib/api";
 import DegreesTool from "./DegreesTool";
-import EphemerisDesk from "./EphemerisDesk";
+import MonthlyEphemerisDesk from "./MonthlyEphemerisDesk";
 import LunationsTool from "./LunationsTool";
 import { st as s } from "./skyToolsUi";
 
@@ -103,7 +103,7 @@ export default function SkyToolsDesk() {
           <div>
             <p className={s.eyebrow}>GÖKYÜZÜ ARAÇLARI</p>
             <h1 className={s.title}>Tarih aralığına göre gökyüzü hesapları</h1>
-            <p className={s.lead}>Doğum verisi gerektirmez. Tüm hesaplar Yaşam Sistemi yerel motorunda yapılır; hesaplama servisine çağrı ve kredi kullanımı yoktur.</p>
+            <p className={s.lead}>Doğum verisi gerektirmez. Aylık efemeris hesaplama altyapımızdan ay başına tek hesapla alınır ve Yaşam Sistemi yerel motoruyla bağımsız olarak kontrol edilir; ay evreleri, derece geçişleri ve ayrıntılı yerel tablo yerel motorda hesaplanır.</p>
           </div>
           <div className={s.tabs} role="tablist" aria-label="Araç seçimi">
             {tabs.map((t) => (
@@ -121,7 +121,7 @@ export default function SkyToolsDesk() {
         {/* Sekmeler bağımsız; seçili olmayan sekmenin durumu korunur (gizli). Kapalı sekme hiç çizilmez. */}
         {tabs.some((t) => t.id === "efemeris") && (
           <div hidden={tab !== "efemeris"}>
-            <EphemerisDesk />
+            <MonthlyEphemerisDesk active={tab === "efemeris"} />
           </div>
         )}
         {tabs.some((t) => t.id === "ay") && (

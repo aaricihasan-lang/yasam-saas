@@ -13,6 +13,8 @@ import PasswordInput from "@/components/ui/PasswordInput";
  *  · E-posta değişikliği: QR veya kurtarma koduyla açılmış oturum + parola + yeni adrese gelen kod.
  *  · Telefon değişimi: eski telefonla (QR) son 30 dk'da açılmış oturumdan; yeni telefon yine Owner onayıyla.
  *  · Owner: çevrimdışı kodla açılmış taze oturumda yeni telefon için eşleştirme kodu.
+ *  · F3: e-posta değişikliği formu yalnız sunucu bu hesap için açık dediğinde (emailChangeAvailable) gösterilir;
+ *    kapalıysa bilgi notu çıkar. Asıl denetim sunucudadır (/api/me/email-change 403 METHOD_NOT_IN_SCOPE).
  */
 type Status = {
   codesActive: number;
@@ -46,10 +48,13 @@ export default function AccountRecoverySection({
   userId,
   devices,
   onChanged,
+  emailChangeAvailable = null,
 }: {
   userId: string;
   devices: LiveDevice[];
   onChanged: () => void;
+  /** F3: null = henüz bilinmiyor (form gösterilir, sunucu yine denetler); false = bu hesapta kapalı. */
+  emailChangeAvailable?: boolean | null;
 }) {
   const [st, setSt] = useState<Status | null>(null);
   const [rep, setRep] = useState<Replace | null>(null);
@@ -300,12 +305,17 @@ export default function AccountRecoverySection({
           Eski e-posta adresinize erişemiyorsanız buradan yeni adres tanımlayın. Güvenlik için telefonla (QR) veya kurtarma koduyla giriş yapmış olmanız,
           parolanızı girmeniz ve yeni adrese gelen kodu doğrulamanız gerekir. Danışanlarınız ve kayıtlarınız etkilenmez.
         </p>
-        {!strongSession && st && (
+        {emailChangeAvailable === false && (
+          <p data-testid="email-change-unavailable" className="mt-2 rounded-lg bg-slate-50 px-3 py-2 text-[11px] font-semibold text-slate-600">
+            E-posta adresi değişikliği bu hesap için şu anda kullanılamıyor.
+          </p>
+        )}
+        {emailChangeAvailable !== false && !strongSession && st && (
           <p data-testid="email-change-needs-strong" className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-[11px] font-semibold text-amber-800">
             Bu oturum e-posta koduyla açıldı. Adresi değiştirmek için çıkış yapıp telefonla (QR) veya kurtarma koduyla giriş yapın.
           </p>
         )}
-        {!emailReq ? (
+        {emailChangeAvailable === false ? null : !emailReq ? (
           <form className="mt-2 space-y-2" onSubmit={(e) => { e.preventDefault(); void startEmail(); }}>
             <input type="email" data-testid="email-change-new" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} autoComplete="email"
               aria-label="Yeni e-posta adresi" placeholder="Yeni e-posta adresi" className={input} />

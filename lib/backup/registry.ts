@@ -212,6 +212,11 @@ export const BACKUP_REGISTRY: readonly RegistryEntry[] = [
     fkParents: [fk("client_id", "clients", true)],
     userColumns: ["owner_user_id"],
   }),
+  // Aylık efemeris kayıtları (migration 20280125000000): uzmanın kaydettiği değişmez anlık görüntü; kişiye/danışana bağlı değil.
+  entry("astro_sky_monthly_ephemeris", "astrology", "backup", "Aylık Efemeris Kayıtları", {
+    ownerScope: ASTRO_OWNER,
+    userColumns: ["owner_user_id"],
+  }),
 
   // ── Doğaltaş (stones) ─────────────────────────────────────────────────────
   entry("stones", "stones", "backup", "Taşlar", { storageRefs: [st("images", "catalog_tenant")] }),
@@ -578,6 +583,8 @@ export const BACKUP_REGISTRY: readonly RegistryEntry[] = [
   off("astro_provider_interpretations", "derived", "Gökyüzü Atlası sağlayıcı otomatik yorum önbelleği — kayıtlı analizde anlık görüntüsü vardır."),
   // HD transit gezegen konumları (migration 20271226000000): tenant'sız, sağlayıcıdan yeniden üretilen gök konumu deposu.
   off("hd_transit_planet_positions", "derived", "HD transit gezegen konumu deposu (tenant'sız; yeniden hesaplanır).", "none"),
+  // Gökyüzü Atlası aylık efemeris sağlayıcı önbelleği (migration 20280125000000): tenant'sız gök konumu; kayıtlar kendi anlık görüntüsünü taşır.
+  off("astro_sky_monthly_cache", "derived", "Gökyüzü Atlası aylık efemeris sağlayıcı önbelleği (tenant'sız; yeniden hesaplanır).", "none"),
 
   // ── Yedek DIŞI: sistem ────────────────────────────────────────────────────
   off("users", "system", "Kullanıcı hesabı / yetki (parola özeti dahil) — yedeğe girmez.", "none"),

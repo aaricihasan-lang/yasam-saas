@@ -28,6 +28,8 @@ const read = (p: string) => readFileSync(join(ROOT, p), "utf8");
 const TRIAL_METERED_EXPERT_ROUTES: Record<string, { local: string; meter: string }> = {
   "/efemeris": { local: "efemerisPost", meter: "astroloji/efemeris" },
   "/engine/run": { local: "enginePost", meter: "astroloji/engine/run" },
+  // 2026-11-24 (Owner talimatı): aylık efemeris hesap ucu — yeni ay = 1 sağlayıcı isteği; deneme uzmanının kredisinden düşer.
+  "/efemeris/aylik": { local: "monthlyPost", meter: "astroloji/efemeris/aylik" },
 };
 
 let pass = 0;
@@ -296,6 +298,14 @@ async function main() {
       /^supabase\/migrations\/20271101000800_astrology_analysis_delete\.sql$/,
       // 2026-10-29 (Owner onayı): William Lilly Horary soru kayıtları tablosu (yalnız yerel; canlı uygulama ayrı onay).
       /^supabase\/migrations\/20271210000000_astro_horary_questions\.sql$/,
+      // 2026-11-24 (Owner talimatı): aylık efemeris önbelleği + kayıtları (yalnız yerel; canlı uygulama ayrı onay) ve yeni iki tablonun
+      // yedek sınıflandırması (backup.harness "migration tabloları sınıflandırılmış" kuralı) — yalnız bu tam yollar.
+      /^supabase\/migrations\/20280125000000_astro_sky_monthly_ephemeris\.sql$/,
+      /^lib\/backup\/registry\.ts$/,
+      /^lib\/backup\/schema\.generated\.ts$/,
+      // Aynı gerekçe: gerçek DB yedek/geri yükleme + uzman yalıtımı testi (CI `guvenlik`) her yedeklenen astro_ tablosunu dolaşır →
+      // yeni kayıt tablosunun migration'ı + sentetik tohumu bu testte olmalı (Horary eklenirken de aynı dosya genişletildi).
+      /^scripts\/settings-export\/atlas-hdrel-pg\.harness\.mjs$/,
       // 2026-10-29 (Owner talimatı): CI'da bağımsız `horary-western` işi (#591). RKS-3 main'den kaldırıldı (#610) →
       // scripts/rks/** artık yok; yalnız bu CI dosyası.
       /^\.github\/workflows\/ci\.yml$/,
@@ -480,7 +490,17 @@ async function main() {
       /^\+\s*"\/api\/admin\/astroloji\/analyses\/report": \["\.\/public\/fonts\/Geist-Regular\.ttf"\],$/,
       /^\+\s*"\/api\/astroloji\/analyses\/report": \["\.\/public\/fonts\/Geist-Regular\.ttf"\],$/,
     ];
-    assert.ok(lines.length <= 5 && lines.every((l) => allowedLines.some((r) => r.test(l))), `beklenmeyen next.config farkı:\n${lines.join("\n")}`);
+    // 2026-11-24 (Owner talimatı): aylık efemeris — hesap ucu DE440 (bağımsız kontrol), rapor uçları PDF + sembol fontları. Tam satır.
+    const MONTHLY_FONTS = '\\["\\.\\/public\\/fonts\\/Geist-Regular\\.ttf", "\\.\\/public\\/fonts\\/YasamAstroSymbolsA\\.ttf", "\\.\\/public\\/fonts\\/YasamAstroSymbolsB\\.ttf"\\],';
+    const monthlyLines = [
+      /^\+\s*\/\/ Aylık efemeris \(2026-11-24\): hesaplama ucu sağlayıcı tablosunu DE440 ile bağımsız kontrol eder; rapor uçları PDF fontu \+ sembol fontları\.$/,
+      /^\+\s*"\/api\/admin\/astroloji\/efemeris\/aylik": \["\.\/data\/ephemeris\/de440\.bsp"\],$/,
+      /^\+\s*"\/api\/astroloji\/efemeris\/aylik": \["\.\/data\/ephemeris\/de440\.bsp"\],$/,
+      ...["\\/api\\/admin\\/astroloji", "\\/api\\/astroloji"].flatMap((p) => [new RegExp(`^\\+\\s*"${p}\\/efemeris\\/aylik\\/rapor": ${MONTHLY_FONTS}$`), new RegExp(`^\\+\\s*"${p}\\/efemeris\\/aylik\\/kayitlar\\/\\[id\\]\\/rapor": ${MONTHLY_FONTS}$`)]),
+    ];
+    const other = lines.filter((l) => !monthlyLines.some((r) => r.test(l)));
+    assert.ok(lines.length - other.length <= monthlyLines.length, "aylık efemeris satırı yinelenmiş");
+    assert.ok(other.length <= 5 && other.every((l) => allowedLines.some((r) => r.test(l))), `beklenmeyen next.config farkı:\n${other.join("\n")}`);
   });
 
   await t("7C: DY durum rozeti yalnız durum ucunu çağırır (owner → admin ucu, uzman → uzman ucu), iç modül içe aktarmaz, içerik göstermez", () => {

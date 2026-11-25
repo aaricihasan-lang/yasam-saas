@@ -35,7 +35,7 @@ async function main() {
   try {
     Object.assign(process.env, {
       NEXT_PUBLIC_SUPABASE_URL: db.shimUrl, SUPABASE_SERVICE_ROLE_KEY: "f2j-l1", SESSION_COOKIE_MODE: "primary",
-      RATE_LIMIT_SECRET: "f2j-l1-rate", EMAIL_PROVIDER: "synthetic", EMAIL_SYNTHETIC_ALLOW: "1",
+      RATE_LIMIT_SECRET: "f2j-l1-rate", EMAIL_PROVIDER: "synthetic", AUTH_EMAIL_SELF_SERVICE_ROLES: "owner,admin,expert" /* F3: önceki aşamaların uzman e-posta akışları — kapsam açık */, EMAIL_SYNTHETIC_ALLOW: "1",
       AUTH_OTP_PEPPER: "f2j-l1-pepper-0123456789abcdefghijklmnopqrstu",
     });
     const { syntheticOutbox } = await import("@/lib/email/syntheticProvider");

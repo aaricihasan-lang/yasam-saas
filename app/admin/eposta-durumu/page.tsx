@@ -17,12 +17,16 @@ type Status = {
   configIssue?: string | null;
   pepperConfigured: boolean;
   limits: { dailyLimit: number; warnAt: number };
+  hourlyLimit?: number | null;
+  selfServiceScope?: { roles: string[]; ignored: number; isDefault: boolean };
   last24h: { sent: number; failed: number; reserved: number } | null;
   lastFailure: { code: string | null; at: string | null } | null;
   lastSuccessAt: string | null;
   verifiedUsers: number;
   openAlerts: { reason: string | null; at: string }[];
 };
+
+const SCOPE_LABEL: Record<string, string> = { owner: "yalnız Owner", admin: "bütün yöneticiler", expert: "bütün uzmanlar" };
 
 const ERROR_LABEL: Record<string, string> = {
   quota: "Sağlayıcının gönderim sınırına ulaşıldı",
@@ -132,6 +136,16 @@ export default function EpostaDurumuPage() {
                 Sağlayıcı: {st.provider === "gmail" ? "Google Workspace (Gmail API)" : st.provider === "smtp" ? "Kurumsal posta (SMTP)" : st.provider === "synthetic" ? "Sentetik (yalnız test)" : "yok"} ·
                 Kod anahtarı: {st.pepperConfigured ? "var" : "yok"}
               </p>
+              {st.hourlyLimit != null && (
+                <p className="mt-1 text-xs text-slate-500" data-testid="email-hourly-limit">Saatlik gönderim tavanı: {st.hourlyLimit}</p>
+              )}
+              {st.selfServiceScope && (
+                <p className="mt-1 text-xs text-slate-500" data-testid="email-self-service-scope">
+                  Kullanıcı e-posta işlemleri: {st.selfServiceScope.roles.map((r) => SCOPE_LABEL[r] ?? r).join(", ")}
+                  {st.selfServiceScope.isDefault ? " (varsayılan)" : ""}
+                  {st.selfServiceScope.ignored > 0 ? ` · tanınmayan ${st.selfServiceScope.ignored} değer yok sayıldı` : ""}
+                </p>
+              )}
               {st.configIssue && (
                 <p className="mt-1 text-xs font-semibold text-amber-700" data-testid="email-config-issue">
                   SMTP ayarı eksik / geçersiz: {SMTP_ISSUE_LABEL[st.configIssue] ?? st.configIssue}

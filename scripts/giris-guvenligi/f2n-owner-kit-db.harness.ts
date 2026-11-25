@@ -80,7 +80,7 @@ async function main() {
       NEXT_PUBLIC_SUPABASE_URL: db.shimUrl, SUPABASE_SERVICE_ROLE_KEY: "f2n-harness", SESSION_COOKIE_MODE: "primary",
       RATE_LIMIT_SECRET: "f2n-rate", LOGIN_IP_PEPPER: "f2n-ip", REQUIRE_DB_SUPER_ADMIN_MARKER: "true",
       AUTH_MFA_METHODS: "qr_device,email_otp", AUTH_MFA_METHOD_SCOPE: "all", AUTH_MFA_EMAIL_ROLES: "expert,admin",
-      EMAIL_PROVIDER: "synthetic", EMAIL_SYNTHETIC_ALLOW: "1", AUTH_OTP_PEPPER: "f2n-harness-pepper-0123456789abcdefghijklmnop",
+      EMAIL_PROVIDER: "synthetic", AUTH_EMAIL_SELF_SERVICE_ROLES: "owner,admin,expert" /* F3: önceki aşamaların uzman e-posta akışları — kapsam açık */, EMAIL_SYNTHETIC_ALLOW: "1", AUTH_OTP_PEPPER: "f2n-harness-pepper-0123456789abcdefghijklmnop",
     });
     delete process.env.SESSION_EXPIRY_ENFORCE;
     const sessionRoute = await import("@/app/api/auth/session/route");

@@ -95,7 +95,7 @@ async function main() {
     SUPABASE_SERVICE_ROLE_KEY: "zz-test-service-role-not-a-secret", SESSION_COOKIE_MODE: "primary",
     SESSION_COOKIE_ALLOWED_ORIGINS: `${BASE},${TLS_BASE}`, RATE_LIMIT_SECRET: "f2i-ui-rate-secret", LOGIN_IP_PEPPER: "f2i-ui-pepper",
     REQUIRE_DB_SUPER_ADMIN_MARKER: "true", AUTH_MFA_METHODS: "qr_device,email_otp", AUTH_MFA_METHOD_SCOPE: "all",
-    AUTH_MFA_EMAIL_ROLES: "expert", EMAIL_PROVIDER: "synthetic", EMAIL_SYNTHETIC_ALLOW: "1", EMAIL_SYNTHETIC_SINK: SINK,
+    AUTH_MFA_EMAIL_ROLES: "expert", EMAIL_PROVIDER: "synthetic", AUTH_EMAIL_SELF_SERVICE_ROLES: "owner,admin,expert" /* F3: önceki aşamaların uzman e-posta akışları — kapsam açık */, EMAIL_SYNTHETIC_ALLOW: "1", EMAIL_SYNTHETIC_SINK: SINK,
     AUTH_OTP_PEPPER: "f2i-ui-pepper-0123456789abcdefghijklmnopqrstu", NEXT_TELEMETRY_DISABLED: "1",
   };
   delete env.VERCEL_ENV;
