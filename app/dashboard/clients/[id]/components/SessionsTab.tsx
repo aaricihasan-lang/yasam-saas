@@ -5,6 +5,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { formatDateAbsolute } from "@/lib/i18n/format";
 import { useToast } from "@/components/ui/ToastProvider";
+import { useClientsApiError } from "@/lib/danisan/clientApiErrors";
+import type { ApiErrorPayload } from "@/lib/i18n/apiError";
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
 import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
@@ -336,6 +338,7 @@ function SessionForm({ data, onChange, openEditor }: SessionFormProps) {
 
 export default function SessionsTab({ clientId, onGorusmeChange }: SessionsTabProps) {
   const t = useTranslations("clients.sessions");
+  const apiErr = useClientsApiError();
   const { showToast } = useToast();
   const deleteConfirm = useDeleteConfirm();
 
@@ -636,11 +639,11 @@ export default function SessionsTab({ clientId, onGorusmeChange }: SessionsTabPr
 
     if (!updRes || !updRes.ok) {
       // H-08: sunucunun anlaşılır Türkçe nedeni (ör. geçersiz süre, sistem güncellemesi) kullanıcıya gösterilir.
-      const errText = updRes ? ((await updRes.json().catch(() => ({}))) as { error?: string }).error : undefined;
+      const errPayload = updRes ? ((await updRes.json().catch(() => ({}))) as ApiErrorPayload) : null;
       console.error("Seans kaydı güncellenemedi");
       showToast({
         title: t("toast.failTitle"),
-        message: t("toast.updateFailed") + (errText ? ": " + errText : ""),
+        message: apiErr.detail(t("toast.updateFailed"), errPayload),
         type: "error",
       });
       setUpdating(false);

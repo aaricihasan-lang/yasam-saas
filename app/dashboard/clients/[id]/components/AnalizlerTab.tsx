@@ -9,6 +9,8 @@ import { formatDateAbsolute, formatDateTimeAbsolute } from "@/lib/i18n/format";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
 import { useToast } from "@/components/ui/ToastProvider";
+import { useClientsApiError } from "@/lib/danisan/clientApiErrors";
+import type { ApiErrorPayload } from "@/lib/i18n/apiError";
 import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
 import { reportUsageExport, reportUsageClientFailure } from "@/lib/usage/usageBeaconClient";
@@ -159,6 +161,7 @@ const PDF_EXPORT_ENABLED = false;
 // ─── Main component ───────────────────────────────────────────────────────────
 export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps) {
   const t = useTranslations("clients.analizler");
+  const apiErr = useClientsApiError();
   const [tenantId, setTenantId]     = useState<string | null>(null);
   const { confirm }                  = useConfirm();
   const deleteConfirm                = useDeleteConfirm();
@@ -227,7 +230,7 @@ export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps
     const json = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string; analyses?: SavedAnalysis[] };
     if (!res.ok || !json.ok) {
       console.error("Analizler yüklenemedi:", json.error);
-      showToast({ title: t("toast.failTitle"), message: t("toast.loadFailed") + ": " + (json.error ?? ""), type: "error" });
+      showToast({ title: t("toast.failTitle"), message: apiErr.detail(t("toast.loadFailed"), json as ApiErrorPayload), type: "error" });
       setLoadingSaved(false);
       return;
     }
@@ -279,7 +282,7 @@ export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps
     });
     const json = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string; warnings?: string[] };
     if (!res.ok || !json.ok) {
-      showToast({ title: t("toast.failTitle"), message: t("toast.deleteFailed") + ": " + (json.error ?? ""), type: "error" });
+      showToast({ title: t("toast.failTitle"), message: apiErr.detail(t("toast.deleteFailed"), json as ApiErrorPayload), type: "error" });
       // D1 (DY-04): 404 = analiz artık yok → bayat satır listeden kalkar.
       if (res.status === 404) setSavedAnalyses((old) => old.filter((item) => item.id !== id));
       return;
@@ -467,7 +470,7 @@ export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps
       return;
     }
     if (!res.ok || !json.ok) {
-      showToast({ title: t("toast.failTitle"), message: t("toast.saveFailed") + ": " + (json.error ?? ""), type: "error" });
+      showToast({ title: t("toast.failTitle"), message: apiErr.detail(t("toast.saveFailed"), json as ApiErrorPayload), type: "error" });
       return; // modal AÇIK kalır
     }
     // Güncellemede aynı id korunur; yeni kayıtta dönen id döner.
@@ -562,7 +565,7 @@ export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps
       });
       if (!res.ok) {
         const json = (await res.json().catch(() => ({}))) as { error?: string };
-        showToast({ title: t("toast.failTitle"), message: json.error || t("toast.wordFailed"), type: "error" });
+        showToast({ title: t("toast.failTitle"), message: apiErr.message(json as ApiErrorPayload, t("toast.wordFailed")), type: "error" });
         return;
       }
       const blob = await res.blob();
