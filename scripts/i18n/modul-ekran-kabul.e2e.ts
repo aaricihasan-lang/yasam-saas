@@ -1055,16 +1055,20 @@ async function scenarioAccountIsolation(browser: Browser, env: TestEnv, fx: Fixt
       const page = await ctx.newPage();
       const steps: string[] = [];
       // Oturum değişimi: oturum çerezleri + localStorage temizlenir (çıkış), cihazın NEXT_LOCALE çerezi KALIR → yeni hesap.
-      const switchTo = async (u: { userRecord: Record<string, unknown>; token: string }) => {
+      // Her girişte YENİ oturum anahtarı (gerçek giriş gibi): eski anahtar çerez geçişinde (HttpOnly) tüketilmiş olabilir —
+      // aynı anahtarla ikinci "giriş" hesap tercihini okuyamıyordu (koşu 45599816800: A tekrar → tr).
+      const switchTo = async (u: { userId: string; userRecord: Record<string, unknown> }) => {
+        const tok = `zz-modul-ekran-s6-${randomUUID().slice(0, 12)}`;
+        await env.su.query(`insert into public.user_sessions(user_id, session_token) values ($1,$2)`, [u.userId, tok]);
         const keep = (await ctx.cookies()).filter((c) => c.name === "NEXT_LOCALE"); // Secure çerez: URL süzgeçsiz oku
         await ctx.clearCookies();
         if (keep.length) await ctx.addCookies(keep);
         await page.goto(`${APP}/zz-olmayan-sayfa-r4`, { waitUntil: "domcontentloaded" });
-        await page.evaluate(([uu, tok]) => {
+        await page.evaluate(([uu, tk]) => {
           localStorage.clear();
           localStorage.setItem("yasam_user", uu as string);
-          localStorage.setItem("yasam_session_token", tok as string);
-        }, [JSON.stringify(u.userRecord), u.token]);
+          localStorage.setItem("yasam_session_token", tk as string);
+        }, [JSON.stringify(u.userRecord), tok]);
       };
       const visit = async (p: string, want: string | null) => {
         await page.goto(`${APP}${p}`, { waitUntil: "domcontentloaded" });
@@ -1072,7 +1076,7 @@ async function scenarioAccountIsolation(browser: Browser, env: TestEnv, fx: Fixt
         if (want) await waitLang(page, want, 20_000);
         return htmlLang(page);
       };
-      await switchTo({ userRecord: fx.userRecord, token: fx.token });
+      await switchTo({ userId: fx.userId, userRecord: fx.userRecord });
       const a1 = await visit("/", "en"); steps.push(`A ana sayfa → ${a1}`);
       const a2 = await visit("/dashboard", null); steps.push(`A panel → ${a2}`);
       await page.screenshot({ path: path.join(OUT, "senaryo-S6-A-en.png") });
@@ -1082,7 +1086,7 @@ async function scenarioAccountIsolation(browser: Browser, env: TestEnv, fx: Fixt
       const b2 = await visit("/dashboard", null); steps.push(`B panel → ${b2}`);
       const shot = "senaryo-S6-B-tr.png";
       await page.screenshot({ path: path.join(OUT, shot) });
-      await switchTo({ userRecord: fx.userRecord, token: fx.token });
+      await switchTo({ userId: fx.userId, userRecord: fx.userRecord });
       const a3 = await visit("/", "en"); steps.push(`A tekrar ana sayfa → ${a3}`);
       const prefA = await prefOf(env, fx.userId);
       const prefB = await prefOf(env, B.userId);
@@ -1126,7 +1130,9 @@ async function scenarioLoading(browser: Browser, env: TestEnv, fx: Fixture, lang
           return true;
         });
         const want = Mq(lang, "system", "loading.refleksoloji.clinicalNotes");
-        const seenText = want ? await page.getByText(want, { exact: true }).first().waitFor({ timeout: 5_000 }).then(() => true).catch(() => false) : false;
+        // İskelet metni yalnız ekran okuyucu içindir (`<p class="sr-only">{badge} · {title}</p>`) → görünürlük değil, DOM'da
+        // varlık aranır (koşu 45599816800: iskelet ekranda, "exact + visible" arama yakalayamadı).
+        const seenText = want ? await page.getByText(want).first().waitFor({ state: "attached", timeout: 5_000 }).then(() => true).catch(() => false) : false;
         const skeleton = (await page.locator(".animate-pulse").filter({ visible: true }).count().catch(() => 0)) > 0;
         const seen = seenText && skeleton;
         const lng = await htmlLang(page);
