@@ -148,6 +148,8 @@ async function main() {
       await page.locator("#login-password").fill(pw(email));
       await page.getByRole("button", { name: /Uzman Paneline Gir/ }).click();
       const r = await resp;
+      // TANI (yalnız tanı dalı): yönetici girişi ayrıca /api/auth/admin-session çerezini yazar; testi bu yanıtı beklemeye al.
+      const adminResp = page.waitForResponse((x) => x.url().endsWith("/api/auth/admin-session") && x.request().method() === "POST", { timeout: 15000 }).catch(() => null);
       let mfa = false;
       if (r.status() === 202) {
         mfa = true;
@@ -158,6 +160,8 @@ async function main() {
         await page.getByRole("button", { name: /Doğrula ve giriş yap/ }).click();
       }
       const loggedIn = await page.waitForFunction(() => !!localStorage.getItem("yasam_user"), null, { timeout: 25000 }).then(() => true).catch(() => false);
+      const ar = await adminResp;
+      if (ar && ar.ok()) await page.waitForURL(/\/admin(\/|$|\?|#)/, { timeout: 15000 }).catch(() => undefined);
       return { status: r.status(), mfa, loggedIn };
     };
     const openMember = async (page: Page, id: string) => {
