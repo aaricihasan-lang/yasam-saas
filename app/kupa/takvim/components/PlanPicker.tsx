@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
+import { useKupaErrorText } from "@/app/kupa/lib/errorText";
 import { useToast } from "@/components/ui/ToastProvider";
 import {
   kupaBtnGhost,
@@ -50,6 +52,9 @@ export function PlanPicker({
   onDelete: (plan: CuppingCalendarPlan) => void;
 }) {
   const { showToast } = useToast();
+  const t = useTranslations("cupping.calendar.plan");
+  const tc = useTranslations("cupping.common");
+  const errText = useKupaErrorText();
   const active = plans.find((p) => p.id === activePlanId) ?? null;
   const [mode, setMode] = useState<"none" | "edit">("none");
   const [name, setName] = useState("");
@@ -71,11 +76,11 @@ export function PlanPicker({
 
   async function save() {
     if (!name.trim()) {
-      showToast({ message: "Takvim adı gerekli.", type: "warning" });
+      showToast({ message: t("nameRequired"), type: "warning" });
       return;
     }
     if (!Number.isInteger(year) || year < CUPPING_PLAN_YEAR_MIN || year > CUPPING_PLAN_YEAR_MAX) {
-      showToast({ message: `Yıl ${CUPPING_PLAN_YEAR_MIN}–${CUPPING_PLAN_YEAR_MAX} aralığında olmalı.`, type: "warning" });
+      showToast({ message: t("yearRange", { min: String(CUPPING_PLAN_YEAR_MIN), max: String(CUPPING_PLAN_YEAR_MAX) }), type: "warning" });
       return;
     }
     setBusy(true);
@@ -89,11 +94,11 @@ export function PlanPicker({
         if (!yearLocked && year !== active.year) body.year = year;
         const updated = await updateCalendarPlan(active.id, body);
         onPlanUpdated(updated);
-        showToast({ message: "Takvim güncellendi.", type: "success" });
+        showToast({ message: t("updated"), type: "success" });
       }
       setMode("none");
     } catch (e) {
-      showToast({ message: e instanceof Error ? e.message : "İşlem başarısız.", type: "error" });
+      showToast({ message: errText(e, t("failed")), type: "error" });
     } finally {
       setBusy(false);
     }
@@ -103,7 +108,7 @@ export function PlanPicker({
     <div className="flex flex-col gap-3">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
         <label className="flex flex-1 flex-col gap-1">
-          <span className="text-xs font-bold uppercase tracking-wide text-slate-500">Aktif Takvim</span>
+          <span className="text-xs font-bold uppercase tracking-wide text-slate-500">{t("active")}</span>
           <select
             className={kupaInput}
             value={activePlanId ?? ""}
@@ -112,7 +117,7 @@ export function PlanPicker({
           >
             {activePlanId ? null : (
               <option value="" disabled>
-                Takvim seçin…
+                {t("choose")}
               </option>
             )}
             {plans.map((p) => (
@@ -125,12 +130,12 @@ export function PlanPicker({
         <div className="flex gap-2">
           <button type="button" className={`${kupaBtnPrimary} min-h-[40px]`} onClick={onNewCalendar} disabled={disabled}>
             {/* FINAL-A1: yıl için takvim varsa YENİSİ oluşturulmaz, mevcut açılır → etiket bunu söyler. */}
-            + Takvim Oluştur / Aç
+            {t("createOpen")}
           </button>
           {active ? (
             <>
               <button type="button" className={`${kupaBtnGhost} min-h-[40px]`} onClick={openEdit} disabled={disabled}>
-                Ad / Açıklama
+                {t("editMeta")}
               </button>
               <button
                 type="button"
@@ -138,7 +143,7 @@ export function PlanPicker({
                 onClick={() => onDelete(active)}
                 disabled={disabled}
               >
-                Sil
+                {tc("delete")}
               </button>
             </>
           ) : null}
@@ -155,18 +160,18 @@ export function PlanPicker({
 
       {mode !== "none" ? (
         <div className="rounded-xl border border-slate-200 bg-white p-4">
-          <h3 className="mb-3 text-sm font-black text-slate-900">Takvim Adı ve Açıklaması</h3>
+          <h3 className="mb-3 text-sm font-black text-slate-900">{t("metaTitle")}</h3>
           <div className="flex flex-col gap-3">
             <label className="flex flex-col gap-1">
-              <span className="text-xs font-bold uppercase tracking-wide text-slate-500">Takvim adı</span>
+              <span className="text-xs font-bold uppercase tracking-wide text-slate-500">{t("name")}</span>
               <input className={kupaInput} value={name} onChange={(e) => setName(e.target.value)} />
             </label>
             <label className="flex flex-col gap-1">
-              <span className="text-xs font-bold uppercase tracking-wide text-slate-500">Yıl</span>
+              <span className="text-xs font-bold uppercase tracking-wide text-slate-500">{t("year")}</span>
               {yearLocked ? (
                 <>
                   <input className={`${kupaInput} bg-slate-50 text-slate-500`} value={year} readOnly aria-readonly />
-                  <span className="text-xs text-slate-400">Seçili günleri olan takvimin yılı değiştirilemez.</span>
+                  <span className="text-xs text-slate-400">{t("yearLocked")}</span>
                 </>
               ) : (
                 <input
@@ -180,15 +185,15 @@ export function PlanPicker({
               )}
             </label>
             <label className="flex flex-col gap-1">
-              <span className="text-xs font-bold uppercase tracking-wide text-slate-500">Açıklama (opsiyonel)</span>
+              <span className="text-xs font-bold uppercase tracking-wide text-slate-500">{t("description")}</span>
               <input className={kupaInput} value={description} onChange={(e) => setDescription(e.target.value)} />
             </label>
             <div className="flex justify-end gap-2">
               <button type="button" className={`${kupaBtnGhost} min-h-[40px]`} onClick={() => setMode("none")} disabled={busy}>
-                Vazgeç
+                {tc("cancel")}
               </button>
               <button type="button" className={`${kupaBtnSuccess} min-h-[40px]`} onClick={save} disabled={busy}>
-                {busy ? "Kaydediliyor…" : "Kaydet"}
+                {busy ? tc("saving") : tc("save")}
               </button>
             </div>
           </div>

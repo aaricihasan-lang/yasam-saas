@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useParams } from "next/navigation";
 import ImajinasyonlarDetail from "../../components/ImajinasyonlarDetail";
 import BiyoenerjiSectionShell from "../../components/BiyoenerjiSectionShell";
@@ -7,6 +8,7 @@ import BiyoenerjiSearchHighlight from "../../components/BiyoenerjiSearchHighligh
 import { safeImaginationId } from "@/lib/bioenergy/imaginationsRoutes";
 
 export default function ImajinasyonlarDetailPage() {
+  const t = useTranslations("bioenergy.pages");
   const params = useParams();
   const safeId = safeImaginationId(params?.id);
 
@@ -14,10 +16,10 @@ export default function ImajinasyonlarDetailPage() {
     <BiyoenerjiSectionShell
       headerVariant="detail"
       activeSection="imajinasyonlar"
-      detailCrumb="Kayıt detayı"
-      badge="BİYOENERJİ · İMAJİNASYON KÜTÜPHANESİ"
-      title="İmajinasyonlar"
-      subtitle="Kayıt detayı — metin, not ve kaynak"
+      detailCrumb={t("imajinasyonlar.detail.detailCrumb")}
+      badge={t("imajinasyonlar.detail.badge")}
+      title={t("imajinasyonlar.detail.title")}
+      subtitle={t("imajinasyonlar.detail.subtitle")}
     >
       <div className="w-full min-w-0 max-w-3xl">
         <BiyoenerjiSearchHighlight recordKey={`imajinasyonlar:${safeId ?? ""}`}>

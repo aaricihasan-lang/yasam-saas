@@ -23,7 +23,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   try {
     body = (await req.json()) as { chakraIds?: unknown; all?: unknown };
   } catch {
-    return NextResponse.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 });
+    return NextResponse.json({ ok: false, code: "BIO_INVALID_BODY", error: "Geçersiz istek gövdesi." }, { status: 400 });
   }
 
   const all = body.all === true;
@@ -51,7 +51,7 @@ export async function POST(req: NextRequest): Promise<Response> {
 
   if (parentR.error || totalR.error || evidenceR.error) {
     console.error("[chakra-blocks/count]", parentR.error?.message || totalR.error?.message || evidenceR.error?.message);
-    return NextResponse.json({ ok: false, error: "Sayım yapılamadı." }, { status: 500 });
+    return NextResponse.json({ ok: false, code: "BIO_COUNT_FAILED", error: "Sayım yapılamadı." }, { status: 500 });
   }
 
   const bd = chakraChildBreakdown(totalR.count ?? 0, evidenceR.count ?? 0);

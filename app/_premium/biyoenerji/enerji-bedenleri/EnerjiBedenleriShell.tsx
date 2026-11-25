@@ -1,5 +1,6 @@
 import { Layers } from "lucide-react";
 import type { ReactNode } from "react";
+import { useTranslations } from "next-intl";
 import { BIOENERJI_FOLDER_BASE, findBiyoenerjiSection } from "@/app/dashboard/biyoenerji/biyoenerjiFolderConfig";
 import BiyoenerjiBreadcrumb from "@/app/dashboard/biyoenerji/components/BiyoenerjiBreadcrumb";
 import EnerjiBedenleriTabs from "./EnerjiBedenleriTabs";
@@ -23,10 +24,12 @@ export default function EnerjiBedenleriShell({
   subtitle: string;
   children: ReactNode;
 }) {
+  // Sunucu bileşeni: görünen adlar doğrudan katalogdan (useBiyoenerjiLabels istemci hook'u burada kullanılmaz).
+  const t = useTranslations("bioenergy");
   const found = findBiyoenerjiSection("enerji-bedenleri");
   const crumbs = [
-    { label: "Biyoenerji", href: BIOENERJI_FOLDER_BASE },
-    ...(found ? [{ label: found.group.title }, { label: found.card.title }] : []),
+    { label: t("common.brand"), href: BIOENERJI_FOLDER_BASE },
+    ...(found ? [{ label: t(`groups.${found.group.id}.title`) }, { label: t(`sections.${found.card.key}.title`) }] : []),
   ];
   // "Enerji Bedenleri" → son kelime mor vurgulu (referanstaki gibi).
   const splitAt = title.lastIndexOf(" ");

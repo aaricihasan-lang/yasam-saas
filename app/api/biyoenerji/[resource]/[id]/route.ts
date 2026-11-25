@@ -39,9 +39,9 @@ export async function GET(
 
   const { resource, id } = await params;
   const cfg = getBioResource(resource);
-  if (!cfg) return NextResponse.json({ ok: false, error: "Geçersiz kaynak." }, { status: 404 });
-  if (!id) return NextResponse.json({ ok: false, error: "id gerekli." }, { status: 400 });
-  if (!isUuid(id)) return NextResponse.json({ ok: false, error: "Kayıt bulunamadı." }, { status: 404 });
+  if (!cfg) return NextResponse.json({ ok: false, code: "BIO_INVALID_RESOURCE", error: "Geçersiz kaynak." }, { status: 404 });
+  if (!id) return NextResponse.json({ ok: false, code: "BIO_ID_REQUIRED", error: "id gerekli." }, { status: 400 });
+  if (!isUuid(id)) return NextResponse.json({ ok: false, code: "BIO_NOT_FOUND", error: "Kayıt bulunamadı." }, { status: 404 });
 
   const { db, tenantId } = guard;
   const { data, error } = await db
@@ -52,7 +52,7 @@ export async function GET(
     .maybeSingle();
 
   if (error) return bioDbError(`${resource}.getOne`, error, "Kayıt getirilemedi.");
-  if (!data) return NextResponse.json({ ok: false, error: "Kayıt bu hesaba ait değil." }, { status: 404 });
+  if (!data) return NextResponse.json({ ok: false, code: "BIO_NOT_OWNED", error: "Kayıt bu hesaba ait değil." }, { status: 404 });
   return NextResponse.json({ ok: true, row: data });
 }
 
@@ -65,9 +65,9 @@ export async function PATCH(
 
   const { resource, id } = await params;
   const cfg = getBioResource(resource);
-  if (!cfg) return NextResponse.json({ ok: false, error: "Geçersiz kaynak." }, { status: 404 });
-  if (!id) return NextResponse.json({ ok: false, error: "id gerekli." }, { status: 400 });
-  if (!isUuid(id)) return NextResponse.json({ ok: false, error: "Kayıt bulunamadı." }, { status: 404 });
+  if (!cfg) return NextResponse.json({ ok: false, code: "BIO_INVALID_RESOURCE", error: "Geçersiz kaynak." }, { status: 404 });
+  if (!id) return NextResponse.json({ ok: false, code: "BIO_ID_REQUIRED", error: "id gerekli." }, { status: 400 });
+  if (!isUuid(id)) return NextResponse.json({ ok: false, code: "BIO_NOT_FOUND", error: "Kayıt bulunamadı." }, { status: 404 });
 
   const { db, tenantId, is_demo_account } = guard;
   if (is_demo_account) return demoReadOnlyResponse();
@@ -76,13 +76,13 @@ export async function PATCH(
   try {
     body = (await req.json()) as Record<string, unknown>;
   } catch {
-    return NextResponse.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 });
+    return NextResponse.json({ ok: false, code: "BIO_INVALID_BODY", error: "Geçersiz istek gövdesi." }, { status: 400 });
   }
 
   // BIO-005/009: kısmi doğrulama (yalnız gönderilen alanlar; required yalnız
   // birincil alan gönderildiyse denetlenir → eski kayıt kısmi güncellemede kırılmaz).
   const validated = validateBioFields(cfg, body, { partial: true });
-  if (!validated.ok) return NextResponse.json({ ok: false, error: validated.error }, { status: 400 });
+  if (!validated.ok) return NextResponse.json({ ok: false, code: "BIO_VALIDATION", error: validated.error }, { status: 400 });
 
   const { data, error } = await db
     .from(cfg.table)
@@ -97,7 +97,7 @@ export async function PATCH(
     return bioDbError(`${resource}.update`, error, "Kayıt güncellenemedi.");
   }
   if (!data || data.length === 0) {
-    return NextResponse.json({ ok: false, error: "Kayıt bulunamadı veya yetki yok." }, { status: 404 });
+    return NextResponse.json({ ok: false, code: "BIO_NOT_FOUND_OR_FORBIDDEN", error: "Kayıt bulunamadı veya yetki yok." }, { status: 404 });
   }
   await trackUsage(guard, req, { module: "energy_body", action: "record_updated", subEntity: usageSubEntity, resourceId: id });
   return NextResponse.json({ ok: true });
@@ -112,9 +112,9 @@ export async function DELETE(
 
   const { resource, id } = await params;
   const cfg = getBioResource(resource);
-  if (!cfg) return NextResponse.json({ ok: false, error: "Geçersiz kaynak." }, { status: 404 });
-  if (!id) return NextResponse.json({ ok: false, error: "id gerekli." }, { status: 400 });
-  if (!isUuid(id)) return NextResponse.json({ ok: false, error: "Kayıt bulunamadı." }, { status: 404 });
+  if (!cfg) return NextResponse.json({ ok: false, code: "BIO_INVALID_RESOURCE", error: "Geçersiz kaynak." }, { status: 404 });
+  if (!id) return NextResponse.json({ ok: false, code: "BIO_ID_REQUIRED", error: "id gerekli." }, { status: 400 });
+  if (!isUuid(id)) return NextResponse.json({ ok: false, code: "BIO_NOT_FOUND", error: "Kayıt bulunamadı." }, { status: 404 });
 
   const { db, tenantId, is_demo_account } = guard;
   if (is_demo_account) return demoReadOnlyResponse();

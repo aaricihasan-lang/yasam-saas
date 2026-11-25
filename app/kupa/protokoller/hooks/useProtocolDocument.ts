@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   getProtocol,
   listProtocolPoints,
@@ -26,6 +27,7 @@ import {
   type CuppingSource,
 } from "@/app/kupa/lib/api";
 
+// i18n-ignore: sunucunun 404 güvenli mesajıyla KARŞILAŞTIRMA anahtarı (kontrol akışı; gösterilmez) — lib/cupping/api.ts NOT_FOUND ile birebir.
 const NOT_FOUND_MSG = "Kayıt bu hesaba ait değil veya bulunamadı.";
 
 /**
@@ -35,6 +37,7 @@ const NOT_FOUND_MSG = "Kayıt bu hesaba ait değil veya bulunamadı.";
  * (server canonical; optimistic YOK).
  */
 export function useProtocolDocument(id: string) {
+  const tu = useTranslations("cupping.protocols.doc.unknown");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [notFound, setNotFound] = useState(false);
@@ -161,10 +164,10 @@ export function useProtocolDocument(id: string) {
   const safetyMap = useMemo(() => new Map(masterSafety.map((s) => [s.id, s])), [masterSafety]);
   const sourceMap = useMemo(() => new Map(masterSources.map((s) => [s.id, s])), [masterSources]);
 
-  const pointName = useCallback((pid: string) => pointMap.get(pid)?.name ?? "Bilinmeyen bölge", [pointMap]);
-  const techniqueName = useCallback((tid: string) => techniqueMap.get(tid)?.name ?? "Bilinmeyen teknik", [techniqueMap]);
-  const safetyTitle = useCallback((sid: string) => safetyMap.get(sid)?.title ?? "Bilinmeyen madde", [safetyMap]);
-  const sourceName = useCallback((sid: string) => sourceMap.get(sid)?.source_name ?? "Bilinmeyen kaynak", [sourceMap]);
+  const pointName = useCallback((pid: string) => pointMap.get(pid)?.name ?? tu("point"), [pointMap, tu]);
+  const techniqueName = useCallback((tid: string) => techniqueMap.get(tid)?.name ?? tu("technique"), [techniqueMap, tu]);
+  const safetyTitle = useCallback((sid: string) => safetyMap.get(sid)?.title ?? tu("safety"), [safetyMap, tu]);
+  const sourceName = useCallback((sid: string) => sourceMap.get(sid)?.source_name ?? tu("source"), [sourceMap, tu]);
 
   return {
     loading,

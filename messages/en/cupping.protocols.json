@@ -1,0 +1,258 @@
+{
+  "cupping": {
+    "protocols": {
+      "list": {
+        "loadError": "Protocols could not be loaded.",
+        "delete": {
+          "title": "Delete Protocol",
+          "message": "Are you sure you want to delete the protocol \"{title}\"?\n\nThe areas, application steps, information and source links belonging to this protocol will be deleted. Main library records are not deleted.",
+          "confirm": "Delete Protocol",
+          "cancel": "Cancel",
+          "done": "Protocol deleted.",
+          "failed": "Could not be deleted."
+        },
+        "title": "Hijama Protocols",
+        "subtitle": "Manage areas, application flow, safety and information for each complaint in a single file.",
+        "crumb": "Protocols",
+        "new": "+ New Protocol",
+        "searchPlaceholder": "Search protocols…",
+        "searchAria": "Search protocols",
+        "categoryAria": "Category",
+        "allCategories": "All categories",
+        "statusAria": "Status",
+        "statusAll": "All",
+        "statusActive": "Active",
+        "statusPassive": "Inactive",
+        "retry": "Try again",
+        "empty": {
+          "title": "You have no hijama protocols yet.",
+          "body": "Create your first protocol to manage application areas, flow and your information in a single file.",
+          "cta": "+ Create First Protocol"
+        },
+        "noMatch": "No protocols match your search."
+      },
+      "doc": {
+        "wordStarted": "Word download started.",
+        "wordFailed": "The Word document could not be created.",
+        "loading": "Loading…",
+        "notFoundTitle": "Protocol not found",
+        "notFoundBody": "This protocol record was not found or does not belong to this account.",
+        "errorTitle": "Something went wrong",
+        "loadError": "The protocol could not be loaded.",
+        "wordPreparing": "Preparing…",
+        "wordDownload": "Download Word",
+        "editBasic": "Edit Basic Information",
+        "partialTitle": "Some sections of the protocol could not be loaded.",
+        "partialBody": "Your records have not been deleted; they just cannot be shown right now. Please check your connection and try again.",
+        "unknown": {
+          "point": "Unknown area",
+          "technique": "Unknown technique",
+          "safety": "Unknown item",
+          "source": "Unknown source"
+        }
+      },
+      "relation": {
+        "point": {
+          "title": "Application Areas",
+          "description": "Areas used in this protocol and their protocol-specific descriptions.",
+          "addLabel": "+ Add Area",
+          "pickerTitle": "Add Area",
+          "empty": "No areas have been added to this protocol yet.",
+          "pickerEmpty": "There are no area (point) records yet.",
+          "noteLabel": "Usage description in this protocol"
+        },
+        "technique": {
+          "title": "Technique / Method",
+          "description": "Techniques applied in this protocol and their protocol-specific descriptions.",
+          "addLabel": "+ Add Technique",
+          "pickerTitle": "Add Technique",
+          "empty": "No application technique has been selected for this protocol yet.",
+          "pickerEmpty": "There are no technique records yet.",
+          "noteLabel": "Application description in this protocol"
+        },
+        "safety": {
+          "title": "Safety / Caution",
+          "description": "Caution and safety items specific to this protocol.",
+          "addLabel": "+ Add Safety Item",
+          "pickerTitle": "Add Safety Item",
+          "empty": "No protocol-specific caution/safety items have been added yet.",
+          "pickerEmpty": "There are no safety records yet.",
+          "noteLabel": "Note specific to this protocol"
+        },
+        "alreadyListed": "This record is already in the list.",
+        "partialSaveFailed": "{count, plural, one {{count} record could not be saved; it remains} other {{count} records could not be saved; they remain}} in the list. ({detail})",
+        "errorShort": "Error",
+        "detach": {
+          "title": "Remove",
+          "message": "Remove \"{name}\" from this protocol? The main library record is not deleted.",
+          "confirm": "Remove",
+          "done": "Removed.",
+          "failed": "Could not be removed."
+        },
+        "techniqueCreated": "Technique created. Press Save to link it to the protocol.",
+        "safetyCreated": "Safety item created. Press Save to link it to the protocol.",
+        "pendingTitle": "To be added — not saved yet",
+        "pendingRemoveAria": "Remove {name} from the list"
+      },
+      "steps": {
+        "bodyRequired": "Step text is required.",
+        "delete": {
+          "title": "Delete Step",
+          "message": "Delete this application step?",
+          "done": "Step deleted.",
+          "failed": "Could not be deleted."
+        },
+        "sortFailedDetail": "Reordering could not be completed: {detail}",
+        "sortFailed": "Could not be reordered.",
+        "title": "Application Flow",
+        "description": "Build your protocol flow by adding the application steps in order.",
+        "add": "+ Add Step",
+        "refPoint": "Area: {name}",
+        "refTechnique": "Technique: {name}",
+        "moveUp": "Move up",
+        "moveDown": "Move down",
+        "form": {
+          "titlePlaceholder": "Step title (optional)",
+          "titleAria": "Step title",
+          "bodyLabel": "Step text *",
+          "bodyPlaceholder": "What is done in this step?",
+          "stagePlaceholder": "Stage/session label (optional)",
+          "stageAria": "Stage label",
+          "refPointAria": "Linked area",
+          "refPointNone": "No linked area",
+          "refTechniqueAria": "Linked technique",
+          "refTechniqueNone": "No linked technique",
+          "refHint": "Only areas/techniques added to this protocol can be linked to a step."
+        }
+      },
+      "entries": {
+        "contentRequired": "Information content is required.",
+        "savedNoRefresh": "The information was saved but the list could not be refreshed. Reload the page to see the latest version.",
+        "delete": {
+          "title": "Delete Information",
+          "message": "Delete this information record?",
+          "done": "Information deleted.",
+          "failed": "Could not be deleted."
+        },
+        "title": "Information",
+        "description": "All information for this protocol in one stream — with or without a source, in the same format.",
+        "add": "+ New Information",
+        "empty": "There is no information record for this protocol yet.",
+        "sourcePrefix": "Source:",
+        "form": {
+          "titlePlaceholder": "Title (optional)",
+          "titleAria": "Title",
+          "contentLabel": "Content *",
+          "contentPlaceholder": "Information about this protocol…",
+          "points": "Related Areas",
+          "addPoint": "+ Area",
+          "removePointAria": "Remove area {name}",
+          "optional": "Optional.",
+          "removeSource": "Remove",
+          "sourceLabel": "Source / who I learned it from (optional)",
+          "sourcePlaceholder": "e.g. Teacher Ahmet's training note, my own training notes, Book X…",
+          "locatorPlaceholder": "Page / section (optional)",
+          "locatorAria": "Page / section"
+        },
+        "pickerTitle": "Add Related Area",
+        "pickerEmpty": "There are no area (point) records yet."
+      },
+      "sources": {
+        "nameRequired": "Enter the source name (e.g. Teacher Ahmet's training note).",
+        "duplicate": "This source has already been added with the same page/section.",
+        "detach": {
+          "title": "Remove Source",
+          "message": "Remove \"{name}\" from this protocol? The main source record is not deleted.",
+          "confirm": "Remove",
+          "done": "Removed.",
+          "failed": "Could not be removed."
+        },
+        "title": "Sources",
+        "description": "Source references for this protocol.",
+        "add": "+ Add Source",
+        "empty": "No sources have been linked to this protocol yet.",
+        "locatorEditPlaceholder": "Page / section (locator)",
+        "locatorEditAria": "Locator",
+        "notePlaceholder": "Note (optional)",
+        "noteAria": "Note",
+        "nameLabel": "Source (who / where I learned it from)",
+        "namePlaceholder": "e.g. Teacher Ahmet's training note, my own training notes, Book X…",
+        "locatorPlaceholder": "Page / section (optional)",
+        "locatorAria": "Page / section"
+      },
+      "prep": {
+        "title": "Preparation / Aftercare / Follow-up",
+        "preparation": "Pre-application Preparation",
+        "aftercare": "Aftercare",
+        "followUp": "Follow-up / Next Session"
+      },
+      "basic": {
+        "titleRequired": "A protocol title is required.",
+        "heading": "Edit Basic Information",
+        "titleLabel": "Protocol Name *",
+        "categoryLabel": "Category",
+        "categoryPlaceholder": "e.g. Head & Neck",
+        "summaryLabel": "Short Description",
+        "tagsLabel": "Search and Classification Tags",
+        "tagsHelp": "Enter, separated by commas, the words you will use later to search for or group this protocol.",
+        "tagsPlaceholder": "headache, migraine, cupping, nape"
+      },
+      "picker": {
+        "createTechniqueCta": "+ Create New Technique",
+        "createSafetyCta": "+ Create New Safety Item",
+        "createTechniqueTitle": "Create New Technique",
+        "createSafetyTitle": "Create New Safety Item",
+        "backToList": "Back to list",
+        "close": "Close",
+        "searchPlaceholder": "Search…",
+        "searchAria": "Search",
+        "noMatch": "No records match your search.",
+        "added": "Added",
+        "add": "Add",
+        "createHint": "If the record you are looking for does not exist, create a new one."
+      },
+      "longText": {
+        "tapToAdd": "Tap to add"
+      },
+      "sourceName": {
+        "suggestionsHeading": "Sources you have entered before"
+      },
+      "quickCreate": {
+        "techniqueNameRequired": "A technique name is required.",
+        "titleRequired": "A title is required.",
+        "createFailed": "Could not be created.",
+        "techniqueNameLabel": "Technique Name *",
+        "titleLabel": "Title *",
+        "techniquePlaceholder": "e.g. Stationary dry cupping",
+        "titlePlaceholder": "e.g. Not applied during pregnancy",
+        "techniqueNameAria": "Technique name",
+        "titleAria": "Title",
+        "duplicatePrefix": "A similar record already exists:",
+        "useExisting": "Use Existing Record",
+        "createAnyway": "Create Anyway",
+        "typeLabel": "Type",
+        "movementLabel": "Application Style",
+        "movementAria": "Application style",
+        "shortDescLabel": "Short Description",
+        "shortDescAria": "Short description",
+        "optional": "Optional",
+        "descLabel": "Description",
+        "severityLabel": "Severity",
+        "contraLabel": "Contraindication Class",
+        "contraAria": "Contraindication class",
+        "createAndAdd": "Create and Add"
+      },
+      "new": {
+        "title": "New Protocol",
+        "subtitle": "Make a short start; you will develop the areas, flow and information in the protocol file.",
+        "crumb": "New",
+        "titlePlaceholder": "e.g. Migraine",
+        "summaryPlaceholder": "A short description of this protocol…"
+      },
+      "card": {
+        "updated": "Updated: {date}",
+        "open": "Open →"
+      }
+    }
+  }
+}

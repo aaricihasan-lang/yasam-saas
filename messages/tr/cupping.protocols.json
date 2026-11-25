@@ -1,0 +1,258 @@
+{
+  "cupping": {
+    "protocols": {
+      "list": {
+        "loadError": "Protokoller yüklenemedi.",
+        "delete": {
+          "title": "Protokolü Sil",
+          "message": "\"{title}\" protokolünü silmek istediğinizden emin misiniz?\n\nBu protokole ait bölgeler, uygulama adımları, bilgiler ve kaynak bağlantıları silinir. Ana kütüphane kayıtları silinmez.",
+          "confirm": "Protokolü Sil",
+          "cancel": "Vazgeç",
+          "done": "Protokol silindi.",
+          "failed": "Silinemedi."
+        },
+        "title": "Hacamat Protokolleri",
+        "subtitle": "Her rahatsızlık için bölgeleri, uygulama akışını, güvenliği ve bilgileri tek dosyada yönetin.",
+        "crumb": "Protokoller",
+        "new": "+ Yeni Protokol",
+        "searchPlaceholder": "Protokol ara…",
+        "searchAria": "Protokol ara",
+        "categoryAria": "Kategori",
+        "allCategories": "Tüm kategoriler",
+        "statusAria": "Durum",
+        "statusAll": "Tümü",
+        "statusActive": "Aktif",
+        "statusPassive": "Pasif",
+        "retry": "Tekrar dene",
+        "empty": {
+          "title": "Henüz hacamat protokolünüz yok.",
+          "body": "İlk protokolünüzü oluşturarak uygulama bölgelerini, akışı ve bilgilerinizi tek dosyada yönetin.",
+          "cta": "+ İlk Protokolü Oluştur"
+        },
+        "noMatch": "Aramanızla eşleşen protokol bulunamadı."
+      },
+      "doc": {
+        "wordStarted": "Word indirme başlatıldı.",
+        "wordFailed": "Word oluşturulamadı.",
+        "loading": "Yükleniyor…",
+        "notFoundTitle": "Protokol bulunamadı",
+        "notFoundBody": "Bu protokol kaydı bulunamadı veya bu hesaba ait değil.",
+        "errorTitle": "Bir sorun oluştu",
+        "loadError": "Protokol yüklenemedi.",
+        "wordPreparing": "Hazırlanıyor…",
+        "wordDownload": "Word İndir",
+        "editBasic": "Temel Bilgiyi Düzenle",
+        "partialTitle": "Protokolün bazı bölümleri yüklenemedi.",
+        "partialBody": "Kayıtlarınız silinmedi; yalnızca şu an gösterilemiyor. Bağlantınızı kontrol edip tekrar deneyin.",
+        "unknown": {
+          "point": "Bilinmeyen bölge",
+          "technique": "Bilinmeyen teknik",
+          "safety": "Bilinmeyen madde",
+          "source": "Bilinmeyen kaynak"
+        }
+      },
+      "relation": {
+        "point": {
+          "title": "Uygulama Bölgeleri",
+          "description": "Bu protokolde kullanılan bölgeler ve protokole özel açıklamaları.",
+          "addLabel": "+ Bölge Ekle",
+          "pickerTitle": "Bölge Ekle",
+          "empty": "Bu protokolde kullanılacak bölgeler henüz eklenmedi.",
+          "pickerEmpty": "Henüz bölge (nokta) kaydı bulunmuyor.",
+          "noteLabel": "Bu protokolde kullanım açıklaması"
+        },
+        "technique": {
+          "title": "Teknik / Metot",
+          "description": "Bu protokolde uygulanan teknik(ler) ve protokole özel açıklamaları.",
+          "addLabel": "+ Teknik Ekle",
+          "pickerTitle": "Teknik Ekle",
+          "empty": "Bu protokol için henüz bir uygulama tekniği seçilmedi.",
+          "pickerEmpty": "Henüz teknik kaydı bulunmuyor.",
+          "noteLabel": "Bu protokolde uygulama açıklaması"
+        },
+        "safety": {
+          "title": "Güvenlik / Dikkat",
+          "description": "Bu protokole özel dikkat ve güvenlik maddeleri.",
+          "addLabel": "+ Güvenlik Ekle",
+          "pickerTitle": "Güvenlik Maddesi Ekle",
+          "empty": "Bu protokole özel dikkat/güvenlik maddesi henüz eklenmedi.",
+          "pickerEmpty": "Henüz güvenlik kaydı bulunmuyor.",
+          "noteLabel": "Bu protokole özel not"
+        },
+        "alreadyListed": "Bu kayıt zaten listede.",
+        "partialSaveFailed": "{count} kayıt kaydedilemedi; listede duruyor. ({detail})",
+        "errorShort": "Hata",
+        "detach": {
+          "title": "Çıkar",
+          "message": "\"{name}\" bu protokolden çıkarılsın mı? Ana kütüphane kaydı silinmez.",
+          "confirm": "Çıkar",
+          "done": "Çıkarıldı.",
+          "failed": "Çıkarılamadı."
+        },
+        "techniqueCreated": "Teknik oluşturuldu. Protokole bağlamak için Kaydet'e basın.",
+        "safetyCreated": "Güvenlik maddesi oluşturuldu. Protokole bağlamak için Kaydet'e basın.",
+        "pendingTitle": "Eklenecek — henüz kaydedilmedi",
+        "pendingRemoveAria": "{name} listeden çıkar"
+      },
+      "steps": {
+        "bodyRequired": "Adım metni gerekli.",
+        "delete": {
+          "title": "Adımı Sil",
+          "message": "Bu uygulama adımı silinsin mi?",
+          "done": "Adım silindi.",
+          "failed": "Silinemedi."
+        },
+        "sortFailedDetail": "Sıralama tamamlanamadı: {detail}",
+        "sortFailed": "Sıralanamadı.",
+        "title": "Uygulama Akışı",
+        "description": "Uygulama adımlarını sırayla ekleyerek protokol akışınızı oluşturun.",
+        "add": "+ Adım Ekle",
+        "refPoint": "Bölge: {name}",
+        "refTechnique": "Teknik: {name}",
+        "moveUp": "Yukarı taşı",
+        "moveDown": "Aşağı taşı",
+        "form": {
+          "titlePlaceholder": "Adım başlığı (opsiyonel)",
+          "titleAria": "Adım başlığı",
+          "bodyLabel": "Adım metni *",
+          "bodyPlaceholder": "Bu adımda ne yapılır?",
+          "stagePlaceholder": "Aşama/seans etiketi (opsiyonel)",
+          "stageAria": "Aşama etiketi",
+          "refPointAria": "Bağlı bölge",
+          "refPointNone": "Bağlı bölge yok",
+          "refTechniqueAria": "Bağlı teknik",
+          "refTechniqueNone": "Bağlı teknik yok",
+          "refHint": "Yalnızca bu protokole eklenmiş bölge/teknikler adıma bağlanabilir."
+        }
+      },
+      "entries": {
+        "contentRequired": "Bilgi içeriği gerekli.",
+        "savedNoRefresh": "Bilgi kaydedildi ancak liste yenilenemedi. Güncel hali görmek için sayfayı yenileyin.",
+        "delete": {
+          "title": "Bilgiyi Sil",
+          "message": "Bu bilgi kaydı silinsin mi?",
+          "done": "Bilgi silindi.",
+          "failed": "Silinemedi."
+        },
+        "title": "Bilgiler",
+        "description": "Bu protokole ait tüm bilgiler tek akışta — kaynaklı ya da kaynaksız, aynı biçimde.",
+        "add": "+ Yeni Bilgi",
+        "empty": "Bu protokole ait bilgi kaydı henüz yok.",
+        "sourcePrefix": "Kaynak:",
+        "form": {
+          "titlePlaceholder": "Başlık (opsiyonel)",
+          "titleAria": "Başlık",
+          "contentLabel": "İçerik *",
+          "contentPlaceholder": "Bu protokolle ilgili bilgi…",
+          "points": "İlgili Bölgeler",
+          "addPoint": "+ Bölge",
+          "removePointAria": "{name} bölgesini kaldır",
+          "optional": "Opsiyonel.",
+          "removeSource": "Kaldır",
+          "sourceLabel": "Kaynak / kimden öğrendim (opsiyonel)",
+          "sourcePlaceholder": "Örn. Ahmet Hoca Eğitim Notu, kendi eğitim notlarım, X Kitabı…",
+          "locatorPlaceholder": "Sayfa / bölüm (opsiyonel)",
+          "locatorAria": "Sayfa / bölüm"
+        },
+        "pickerTitle": "İlgili Bölge Ekle",
+        "pickerEmpty": "Henüz bölge (nokta) kaydı bulunmuyor."
+      },
+      "sources": {
+        "nameRequired": "Kaynak adını yazın (ör. Ahmet Hoca Eğitim Notu).",
+        "duplicate": "Bu kaynak aynı sayfa/bölüm ile zaten eklenmiş.",
+        "detach": {
+          "title": "Kaynağı Çıkar",
+          "message": "\"{name}\" bu protokolden çıkarılsın mı? Ana kaynak kaydı silinmez.",
+          "confirm": "Çıkar",
+          "done": "Çıkarıldı.",
+          "failed": "Çıkarılamadı."
+        },
+        "title": "Kaynaklar",
+        "description": "Bu protokolün kaynak künyeleri.",
+        "add": "+ Kaynak Ekle",
+        "empty": "Bu protokole henüz kaynak bağlanmadı.",
+        "locatorEditPlaceholder": "Sayfa / bölüm (locator)",
+        "locatorEditAria": "Locator",
+        "notePlaceholder": "Not (opsiyonel)",
+        "noteAria": "Not",
+        "nameLabel": "Kaynak (kimden / nereden öğrendim)",
+        "namePlaceholder": "Örn. Ahmet Hoca Eğitim Notu, kendi eğitim notlarım, X Kitabı…",
+        "locatorPlaceholder": "Sayfa / bölüm (opsiyonel)",
+        "locatorAria": "Sayfa / bölüm"
+      },
+      "prep": {
+        "title": "Hazırlık / Sonrası / Takip",
+        "preparation": "Uygulama Öncesi Hazırlık",
+        "aftercare": "Uygulama Sonrası",
+        "followUp": "Takip / Sonraki Seans"
+      },
+      "basic": {
+        "titleRequired": "Protokol başlığı gerekli.",
+        "heading": "Temel Bilgiyi Düzenle",
+        "titleLabel": "Protokol Adı *",
+        "categoryLabel": "Kategori",
+        "categoryPlaceholder": "Örn. Baş & Boyun",
+        "summaryLabel": "Kısa Açıklama",
+        "tagsLabel": "Arama ve Sınıflandırma Etiketleri",
+        "tagsHelp": "Bu protokolü daha sonra ararken veya gruplarken kullanılacak kelimeleri virgülle ayırarak yazın.",
+        "tagsPlaceholder": "baş ağrısı, migren, kupa, ense"
+      },
+      "picker": {
+        "createTechniqueCta": "+ Yeni Teknik Oluştur",
+        "createSafetyCta": "+ Yeni Güvenlik Maddesi Oluştur",
+        "createTechniqueTitle": "Yeni Teknik Oluştur",
+        "createSafetyTitle": "Yeni Güvenlik Maddesi Oluştur",
+        "backToList": "Listeye dön",
+        "close": "Kapat",
+        "searchPlaceholder": "Ara…",
+        "searchAria": "Ara",
+        "noMatch": "Aramanızla eşleşen kayıt bulunamadı.",
+        "added": "Ekli",
+        "add": "Ekle",
+        "createHint": "Aradığınız kayıt yoksa yenisini oluşturun."
+      },
+      "longText": {
+        "tapToAdd": "Eklemek için dokunun"
+      },
+      "sourceName": {
+        "suggestionsHeading": "Daha önce yazdığınız kaynaklar"
+      },
+      "quickCreate": {
+        "techniqueNameRequired": "Teknik adı gerekli.",
+        "titleRequired": "Başlık gerekli.",
+        "createFailed": "Oluşturulamadı.",
+        "techniqueNameLabel": "Teknik Adı *",
+        "titleLabel": "Başlık *",
+        "techniquePlaceholder": "Örn. Sabit kuru kupa",
+        "titlePlaceholder": "Örn. Gebelikte uygulanmaz",
+        "techniqueNameAria": "Teknik adı",
+        "titleAria": "Başlık",
+        "duplicatePrefix": "Benzer kayıt zaten var:",
+        "useExisting": "Mevcut Kaydı Kullan",
+        "createAnyway": "Yine de Oluştur",
+        "typeLabel": "Tür",
+        "movementLabel": "Uygulama Biçimi",
+        "movementAria": "Uygulama biçimi",
+        "shortDescLabel": "Kısa Açıklama",
+        "shortDescAria": "Kısa açıklama",
+        "optional": "Opsiyonel",
+        "descLabel": "Açıklama",
+        "severityLabel": "Önem",
+        "contraLabel": "Kontrendikasyon Sınıfı",
+        "contraAria": "Kontrendikasyon sınıfı",
+        "createAndAdd": "Oluştur ve Ekle"
+      },
+      "new": {
+        "title": "Yeni Protokol",
+        "subtitle": "Kısa bir başlangıç yapın; bölgeleri, akışı ve bilgileri protokol dosyasında geliştireceksiniz.",
+        "crumb": "Yeni",
+        "titlePlaceholder": "Örn. Migren",
+        "summaryPlaceholder": "Bu protokol hakkında kısa bir açıklama…"
+      },
+      "card": {
+        "updated": "Güncellendi: {date}",
+        "open": "Aç →"
+      }
+    }
+  }
+}

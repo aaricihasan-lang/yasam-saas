@@ -9,6 +9,8 @@ import Link from "next/link";
 import { ArrowRight, ChevronDown, Clock3, Eye, Layers, Search, Sparkles } from "lucide-react";
 import styles from "@/app/_premium/biyoenerji/kutuphane/bioKutuphane.module.css";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
+import { useBioErrorText } from "../useBioErrorText";
 import { backgroundSyncYasamUserFromDb, readYasamUser } from "@/lib/auth/yasamUser";
 import {
   getSessionTenantId,
@@ -112,6 +114,9 @@ function formatDate(iso: string | null) {
 
 export default function SembolDili() {
   const { isDemo } = useDemoGuard();
+  const t = useTranslations("bioenergy.symbols");
+  const tl = useTranslations("bioenergy.list");
+  const errText = useBioErrorText();
   const lastGoodRowsRef = useRef<SymbolLanguageListItem[]>([]);
   const [queryTenantId, setQueryTenantId] = useState<string | null>(null);
   const [rows, setRows] = useState<SymbolLanguageListItem[]>([]);
@@ -233,9 +238,9 @@ export default function SembolDili() {
         const hasCachedRows = lastGoodRowsRef.current.length > 0;
 
         if (hadPageError) {
-          const warnParts = [`Sembol kayıtları okunamadı: ${pageRes.error}`];
+          const warnParts = [t("readFailed", { detail: errText(pageRes.error, tl("serverError")) })];
           if (pageRes.usedFallback) {
-            warnParts.push("Arama filtresi kaldırılarak liste gösteriliyor.");
+            warnParts.push(tl("fallbackNotice"));
           }
           setLoadErrorMessage(warnParts.join(" "));
 
@@ -272,8 +277,8 @@ export default function SembolDili() {
             if (totalRes.error) {
               setLoadErrorMessage((prev) =>
                 prev
-                  ? `${prev} · Kayıt sayısı alınamadı: ${totalRes.error}`
-                  : `Kayıt sayısı alınamadı: ${totalRes.error}`,
+                  ? `${prev} · ${tl("countFailed", { detail: errText(totalRes.error, tl("serverError")) })}`
+                  : tl("countFailed", { detail: errText(totalRes.error, tl("serverError")) }),
               );
             } else if (!hadPageError || totalRes.data > 0) {
               total = totalRes.data;
@@ -309,12 +314,13 @@ export default function SembolDili() {
         setLoadingMore(false);
         const message = err instanceof Error ? err.message : String(err);
         console.error("[SembolDili] fetchList exception:", message);
-        setLoadErrorMessage(`Beklenmeyen hata: ${message}`);
+        setLoadErrorMessage(tl("unexpected", { detail: errText(message, tl("serverError")) }));
         if (lastGoodRowsRef.current.length > 0) {
           setRows(lastGoodRowsRef.current);
         }
       }
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- çeviri işlevleri dil değişiminde yeniden liste çekmez
     [categoryFilter, debouncedSearch, queryTenantId, listGate],
   );
 
@@ -362,7 +368,7 @@ export default function SembolDili() {
 
           const nameTrim = form.symbol_name.trim();
           if (!nameTrim) {
-            showSoft("err", "Sembol adı zorunludur.");
+            showSoft("err", t("nameRequired"));
             return;
           }
 
@@ -378,7 +384,7 @@ export default function SembolDili() {
           setSaving(false);
 
           if (error) {
-            showSoft("err", `Kayıt eklenemedi: ${error}`);
+            showSoft("err", tl("addFailed", { detail: errText(error, tl("serverError")) }));
             return;
           }
 
@@ -386,12 +392,12 @@ export default function SembolDili() {
           setForm({ ...emptyForm });
           await fetchList({ reset: true });
           void refreshCategories();
-          showSoft("ok", "Sembol kaydı oluşturuldu.");
+          showSoft("ok", t("created"));
         } finally {
           setSaving(false);
         }
       })
-      .catch((e: unknown) => showSoft("err", e instanceof Error ? e.message : "İşlem tamamlanamadı."));
+      .catch((e: unknown) => showSoft("err", errText(e, tl("opFailed"))));
   }
 
   // Toplu seçim güvenliği: arama/filtre ile liste değişince seçim görünür kayıtlarla
@@ -412,13 +418,13 @@ export default function SembolDili() {
     setIsBulkDeleting(false);
     setDanger((d) => ({ ...d, open: false }));
     if (error) {
-      showSoft("err", `Silinemedi: ${error}`);
+      showSoft("err", tl("deleteFailed", { detail: errText(error, tl("serverError")) }));
       return;
     }
     setSelectedForExport(new Set());
     await fetchList({ reset: true });
     void refreshCategories();
-    showSoft("ok", `${ids.length} kayıt silindi.`);
+    showSoft("ok", tl("deletedCount", { count: String(ids.length) }));
   }
 
   async function handleDeleteAll() {
@@ -427,14 +433,14 @@ export default function SembolDili() {
     setIsBulkDeleting(false);
     setDanger((d) => ({ ...d, open: false }));
     if (error) {
-      showSoft("err", `Silinemedi: ${error}`);
+      showSoft("err", tl("deleteFailed", { detail: errText(error, tl("serverError")) }));
       return;
     }
     setSelectedForExport(new Set());
     setCategoryFilter("");
     await fetchList({ reset: true });
     void refreshCategories();
-    showSoft("ok", "Tüm kayıtlar silindi.");
+    showSoft("ok", tl("deletedAll"));
   }
 
   return (
@@ -444,10 +450,9 @@ export default function SembolDili() {
           <div className="flex items-start gap-3">
             <span className="mt-0.5 text-lg leading-none" aria-hidden>🔎</span>
             <div>
-              <p className="text-sm font-black text-blue-900">Demo Modu — Sembol Dili</p>
+              <p className="text-sm font-black text-blue-900">{t("demoTitle")}</p>
               <p className="mt-0.5 text-[13px] leading-relaxed text-blue-800">
-                Bu sayfa demo amaçlıdır. Kayıt içerikleri demo güvenliği nedeniyle flu gösterilmektedir.
-                Yeni kayıt, düzenleme, silme ve dışa aktarma işlemleri devre dışıdır.
+                {tl("demoBody")}
               </p>
             </div>
           </div>
@@ -458,7 +463,7 @@ export default function SembolDili() {
       {!isDemo && (
         <div className={styles.newRow}>
           <button type="button" onClick={() => { setForm({ ...emptyForm }); setFormModalOpen(true); }} className={styles.newBtn}>
-            + Yeni Kayıt
+            {tl("newRecord")}
           </button>
         </div>
       )}
@@ -467,21 +472,21 @@ export default function SembolDili() {
         <div className={`${styles.stat} ${styles.sViolet}`}>
           <span className={styles.statIcon} aria-hidden><Layers className="h-6 w-6" strokeWidth={2} /></span>
           <div className={styles.statText}>
-            <p className={styles.statLabel}>Toplam Kayıt</p>
+            <p className={styles.statLabel}>{tl("statTotalCap")}</p>
             <p className={styles.statValue}>{statsReady ? totalInDb : "…"}</p>
           </div>
         </div>
         <div className={`${styles.stat} ${styles.sBlue}`}>
           <span className={styles.statIcon} aria-hidden><Eye className="h-6 w-6" strokeWidth={2} /></span>
           <div className={styles.statText}>
-            <p className={styles.statLabel}>{isSearchActive ? "Arama sonucu" : "Görünen Sonuç"}</p>
+            <p className={styles.statLabel}>{isSearchActive ? tl("statSearch") : tl("statVisibleCap")}</p>
             <p className={styles.statValue}>{statsReady ? searchResultCount : "…"}</p>
           </div>
         </div>
         <div className={`${styles.stat} ${styles.sTeal}`}>
           <span className={styles.statIcon} aria-hidden><Clock3 className="h-6 w-6" strokeWidth={2} /></span>
           <div className={styles.statText}>
-            <p className={styles.statLabel}>Son Kayıt</p>
+            <p className={styles.statLabel}>{tl("statLastCap")}</p>
             <p className={`${styles.statValue} ${styles.statSmall}`}>{formatDate(lastCreatedAt)}</p>
           </div>
         </div>
@@ -489,34 +494,34 @@ export default function SembolDili() {
 
       <div className={`${styles.filters} ${styles.filtersNarrowCat} ${categories.length > 0 ? "" : styles.filtersOne}`}>
         <label className="block min-w-0">
-          <span className={`${styles.fLabel} ${styles.fLabelMuted}`}>Kütüphane araması</span>
+          <span className={`${styles.fLabel} ${styles.fLabelMuted}`}>{tl("searchLabel")}</span>
           <span className={styles.inputWrap}>
             <Search className={styles.inIcon} strokeWidth={2} aria-hidden />
             <input
               type="search"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Sembol adı, kategori, anlam ve kaynak içinde ara..."
+              placeholder={t("searchPlaceholder")}
               className={`${styles.input} ${styles.inputSearch}`}
             />
           </span>
           {listBusy ? (
-            <p className={styles.hint}>Aranıyor…</p>
+            <p className={styles.hint}>{tl("searching")}</p>
           ) : isSearchActive ? (
-            <p className={styles.hint}> Arama: “{debouncedSearch}” · {searchResultCount} eşleşme
+            <p className={styles.hint}> {tl("searchSummary", { query: debouncedSearch, count: String(searchResultCount) })}
             </p>
           ) : null}
         </label>
         {categories.length > 0 && (
           <label className="block min-w-0">
-            <span className={`${styles.fLabel} ${styles.fLabelMuted}`}>Kategori</span>
+            <span className={`${styles.fLabel} ${styles.fLabelMuted}`}>{t("fields.category")}</span>
             <span className={styles.inputWrap}>
               <select
                 value={categoryFilter}
                 onChange={(e) => setCategoryFilter(e.target.value)}
                 className={`${styles.input} ${styles.select}`}
               >
-                <option value="">Tümü</option>
+                <option value="">{tl("all")}</option>
                 {categories.map((c) => (
                   <option key={c} value={c}>{c}</option>
                 ))}
@@ -557,15 +562,15 @@ export default function SembolDili() {
       )}
 
       {listLoading && rows.length === 0 ? (
-        <p className={styles.listEmpty}>Yükleniyor…</p>
+        <p className={styles.listEmpty}>{tl("loading")}</p>
       ) : rows.length === 0 ? (
         <CrudEmptyState
           Icon={Sparkles}
-          title={isSearchActive ? "Sonuç bulunamadı" : "Kütüphane boş"}
+          title={isSearchActive ? tl("emptySearchTitle") : tl("emptyTitle")}
           subtitle={
             isSearchActive
-              ? "Arama terimini değiştirin veya yeni kayıt ekleyin."
-              : "Yeni Kayıt ile ilk sembol kaydını ekleyebilirsiniz."
+              ? tl("emptySearchBody")
+              : t("emptyBody")
           }
           tone="emerald"
         />
@@ -575,12 +580,12 @@ export default function SembolDili() {
             <BulkExportBar
               selectedCount={selectedForExport.size}
               totalCount={totalInDb}
-              selectAllLabel="Görünenleri Seç"
+              selectAllLabel={tl("selectVisible")}
               selectAllCount={rows.length}
               onSelectAll={() => setSelectedForExport(new Set(rows.map((r) => r.id)))}
               onClearSelection={() => setSelectedForExport(new Set())}
-              onExportSelected={() => void exportSymbolsWord(queryTenantId ?? "", readYasamUser()?.id ?? "", "selected", selectedVisibleIds, setWordBusy, () => showSoft("ok", "Rapor indirildi."), () => showSoft("err", "Rapor oluşturulamadı."))}
-              onExportAll={() => void exportSymbolsWord(queryTenantId ?? "", readYasamUser()?.id ?? "", "all", selectedForExport, setWordBusy, () => showSoft("ok", "Rapor indirildi."), () => showSoft("err", "Rapor oluşturulamadı."))}
+              onExportSelected={() => void exportSymbolsWord(queryTenantId ?? "", readYasamUser()?.id ?? "", "selected", selectedVisibleIds, setWordBusy, () => showSoft("ok", tl("reportDownloaded")), () => showSoft("err", tl("reportFailed")))}
+              onExportAll={() => void exportSymbolsWord(queryTenantId ?? "", readYasamUser()?.id ?? "", "all", selectedForExport, setWordBusy, () => showSoft("ok", tl("reportDownloaded")), () => showSoft("err", tl("reportFailed")))}
               isExporting={wordBusy}
               onDeleteSelected={() => setDanger({ open: true, mode: "selected" })}
               isDeleting={isBulkDeleting}
@@ -592,7 +597,9 @@ export default function SembolDili() {
               const detailHref = symbolLanguageDetailHref(row.id);
               const preview = previewSymbolLanguageText(row.meaning, row.source);
               const hasCategory = Boolean(row.category?.trim());
-              const displayTitle = symbolDisplayName(row);
+              const rawTitle = symbolDisplayName(row);
+              // i18n-ignore: symbolDisplayName() kaynak-dil yedek adıyla eşitlik (yalnız gösterim eşlemesi)
+              const displayTitle = rawTitle === "İsimsiz sembol" ? t("untitled") : rawTitle;
               const isExportSelected = selectedForExport.has(row.id);
 
               if (!detailHref) return null;
@@ -603,7 +610,7 @@ export default function SembolDili() {
                     <label className={styles.rCheck} onClick={(e) => e.stopPropagation()}>
                       <input
                         type="checkbox"
-                        aria-label="Bu kaydı seç"
+                        aria-label={tl("selectRecord")}
                         checked={isExportSelected}
                         onChange={() => setSelectedForExport((prev) => {
                           const next = new Set(prev);
@@ -623,11 +630,12 @@ export default function SembolDili() {
                     </span>
                   ) : (
                     <span className={`${styles.pill} ${styles.pillMuted}`}>
-                      Kategorisiz
+                      {tl("uncategorised")}
                     </span>
                   )}
 
-                  <h2 className={`${styles.rTitle} ${styles.rTitleUpper}`} lang="tr">
+                  {/* lang="tr" yalnız kullanıcı içeriğinde; yedek metin sayfa dilini izler (QA C3-06). */}
+                  <h2 className={`${styles.rTitle} ${styles.rTitleUpper}`} lang={rawTitle === displayTitle ? "tr" : undefined}>
                     {displayTitle}
                   </h2>
                   <AdminTransferBadge originType={row.origin_type} className="mt-1" />
@@ -639,7 +647,7 @@ export default function SembolDili() {
                   </DemoBlur>
 
                   <span className={`${styles.rBtn} ${styles.rBtnOutline}`}>
-                    Detayı Aç
+                    {tl("openDetail")}
                     <ArrowRight className="h-4 w-4" strokeWidth={2.25} aria-hidden />
                   </span>
                 </Link>
@@ -657,8 +665,8 @@ export default function SembolDili() {
                 className={styles.moreBtn}
               >
                 {loadingMore
-                  ? "Yükleniyor…"
-                  : `Daha Fazla Göster (${rows.length} / ${searchResultCount})`}
+                  ? tl("loading")
+                  : tl("loadMore", { shown: String(rows.length), total: String(searchResultCount) })}
               </button>
             </div>
           ) : null}
@@ -669,8 +677,8 @@ export default function SembolDili() {
         open={formModalOpen}
         onClose={() => setFormModalOpen(false)}
         isDirty={formIsDirty}
-        title="Yeni sembol kaydı"
-        subtitle="Kaydettikten sonra kütüphanede görünür."
+        title={t("formTitle")}
+        subtitle={tl("formSubtitle")}
         titleId="symbol-form-modal-title"
         accentRingClass="ring-emerald-100/50"
         footer={({ requestClose }) => (
@@ -681,7 +689,7 @@ export default function SembolDili() {
               onClick={requestClose}
               className="rounded-xl border border-slate-200/85 bg-white/90 px-4 py-2.5 text-[12px] font-black text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-50"
             >
-              Vazgeç
+              {tl("cancel")}
             </button>
             <button
               type="button"
@@ -689,7 +697,7 @@ export default function SembolDili() {
               onClick={() => setForm({ ...emptyForm })}
               className="rounded-xl border border-slate-200/80 bg-white/90 px-4 py-2.5 text-[12px] font-black text-slate-600 shadow-sm transition hover:bg-slate-50 disabled:opacity-50"
             >
-              Temizle
+              {tl("clear")}
             </button>
             <button
               type="button"
@@ -697,14 +705,14 @@ export default function SembolDili() {
               onClick={() => void handleKaydet()}
               className={bioSaveBtnClass}
             >
-              {saving ? "Kaydediliyor…" : "Kaydet"}
+              {saving ? tl("saving") : tl("save")}
             </button>
           </>
         )}
       >
         <div className="space-y-5">
           <label className="block">
-            <span className="mb-2 block text-[12px] font-black text-slate-800">Sembol Adı *</span>
+            <span className="mb-2 block text-[12px] font-black text-slate-800">{t("fields.nameLabel")}</span>
             <input
               value={form.symbol_name}
               onChange={(e) => setForm((f) => ({ ...f, symbol_name: e.target.value }))}
@@ -712,19 +720,19 @@ export default function SembolDili() {
             />
           </label>
           <label className="block">
-            <span className="mb-2 block text-[12px] font-black text-slate-800">Kategori</span>
+            <span className="mb-2 block text-[12px] font-black text-slate-800">{t("fields.category")}</span>
             <div className={badgeFieldWrapClass("emerald")}>
               <input
                 value={form.category}
                 onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}
                 className="w-full min-w-0 border-0 bg-transparent px-1 py-0.5 text-[13px] font-semibold text-slate-900 outline-none placeholder:text-slate-400"
-                placeholder="Örn. hayvan, doğa…"
+                placeholder={t("fields.categoryPlaceholder")}
               />
             </div>
           </label>
           <LongTextareaField
-            label={<span className="mb-2 block text-[12px] font-black text-slate-800">Anlam</span>}
-            modalTitle="Anlam"
+            label={<span className="mb-2 block text-[12px] font-black text-slate-800">{t("fields.meaning")}</span>}
+            modalTitle={t("fields.meaning")}
             value={form.meaning}
             onChange={(v) => setForm((f) => ({ ...f, meaning: v }))}
             minRows={4}
@@ -732,7 +740,7 @@ export default function SembolDili() {
             disabled={saving}
           />
           <label className="block">
-            <span className="mb-2 block text-[12px] font-black text-slate-800">Kaynak</span>
+            <span className="mb-2 block text-[12px] font-black text-slate-800">{t("fields.source")}</span>
             <input
               value={form.source}
               onChange={(e) => setForm((f) => ({ ...f, source: e.target.value }))}
@@ -747,8 +755,12 @@ export default function SembolDili() {
         scope={{ filterActive: Boolean(debouncedSearch.trim() || categoryFilter), visibleCount: searchResultCount }}
         mode={danger.mode}
         count={danger.mode === "all" ? totalInDb : selectedVisibleRows.length}
-        names={danger.mode === "all" ? undefined : selectedVisibleRows.map((r) => symbolDisplayName(r))}
-        resourceLabel="Sembol Dili"
+        names={danger.mode === "all" ? undefined : selectedVisibleRows.map((r) => {
+          const n = symbolDisplayName(r);
+          // i18n-ignore: symbolDisplayName() kaynak-dil yedek adıyla eşitlik (yalnız gösterim eşlemesi)
+          return n === "İsimsiz sembol" ? t("untitled") : n;
+        })}
+        resourceLabel={t("resourceLabel")}
         isDeleting={isBulkDeleting}
         onClose={() => !isBulkDeleting && setDanger((d) => ({ ...d, open: false }))}
         onConfirm={() => void (danger.mode === "all" ? handleDeleteAll() : handleBulkDeleteSelected())}

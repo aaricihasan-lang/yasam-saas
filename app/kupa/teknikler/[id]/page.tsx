@@ -1,3 +1,4 @@
+import { getTranslations } from "next-intl/server";
 import { KupaShell } from "../../components/KupaShell";
 import { TechniqueWorkspace } from "../components/TechniqueWorkspace";
 import { TechniqueReadView } from "../components/TechniqueReadView";
@@ -15,12 +16,13 @@ type PageProps = { params: Promise<{ id: string }> };
 export default async function TechniqueDetailPage({ params }: PageProps) {
   const { id } = await params;
   const techniqueId = decodeURIComponent(id);
+  const t = await getTranslations("cupping.techniques");
   return (
     <KupaShell
-      title="Kupa Teknikleri"
+      title={t("list.title")}
       breadcrumb={[
-        { label: "Kupa Teknikleri", href: "/kupa/teknikler" },
-        { label: "Teknik" },
+        { label: t("list.title"), href: "/kupa/teknikler" },
+        { label: t("page.detailCrumb") },
       ]}
     >
       <TechniqueWorkspace selectedId={techniqueId}>

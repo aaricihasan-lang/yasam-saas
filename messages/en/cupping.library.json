@@ -1,0 +1,143 @@
+{
+  "cupping": {
+    "library": {
+      "points": {
+        "title": "Hijama Points",
+        "subtitle": "Point information: name, code, anatomical region, traditional use, application and safety.",
+        "empty": "No points yet. Add a new one.",
+        "addLabel": "Point",
+        "searchPlaceholder": "Search by name or details…",
+        "filterLaterality": "Side",
+        "deleteCascadeHint": "Map placements, topic relationships and source citations linked to this point are deleted as well. A point used in a protocol cannot be deleted; remove it from the related protocols first.",
+        "opt": {
+          "laterality": {
+            "midline": "Midline",
+            "bilateral": "Bilateral",
+            "left": "Left",
+            "right": "Right",
+            "unspecified": "Not specified"
+          }
+        },
+        "fields": {
+          "name": "Name",
+          "alt_name": "Alternative Name",
+          "synonyms": "Synonyms / Codes (separate with commas)",
+          "code": "Code",
+          "anatomical_region": "Anatomical Region",
+          "laterality": "Side (laterality)",
+          "description": "Description",
+          "traditional_use": "Traditional Use",
+          "application_info": "Application Information",
+          "related_points": "Related Points (separate with commas)",
+          "safety_note": "Safety / Caution",
+          "source_note": "Source Information (free text — use Sources for structured citations)",
+          "professional_note": "Professional Note",
+          "sort_order": "Order",
+          "is_active": "Active"
+        }
+      },
+      "safety": {
+        "title": "Safety & Contraindications",
+        "subtitle": "Manage your own safety / caution items; they can also be linked to protocols via QuickCreate.",
+        "crumb": "Safety",
+        "empty": "No safety records yet. Add a new one.",
+        "addLabel": "Safety Item",
+        "searchPlaceholder": "Search by title or content…",
+        "filterSeverity": "Severity",
+        "filterClass": "Class",
+        "deleteCascadeHint": "A safety item used in a protocol cannot be deleted; remove it from the related protocols first.",
+        "opt": {
+          "severity": {
+            "info": "Information",
+            "warning": "Warning",
+            "contraindication": "Contraindication"
+          },
+          "contraindication": {
+            "absolute": "Absolute",
+            "relative": "Relative",
+            "none": "None"
+          }
+        },
+        "fields": {
+          "title": "Title",
+          "severity": "Severity",
+          "contraindication_class": "Contraindication Class",
+          "content": "Description",
+          "scope_tags": "Scope Tags (separate with commas)",
+          "source_note": "Source Information (free text)",
+          "sort_order": "Order",
+          "is_active": "Active"
+        }
+      },
+      "knowledge": {
+        "title": "Information & Training Library",
+        "subtitle": "Long-form professional information and training records.",
+        "empty": "No information records yet. Add a new one.",
+        "addLabel": "Record",
+        "fields": {
+          "title": "Title",
+          "category": "Category",
+          "content": "Content",
+          "tags": "Tags (separate with commas)",
+          "source": "Source",
+          "source_section": "Source Section",
+          "keyword": "Keyword",
+          "notes": "Notes",
+          "sort_order": "Order",
+          "is_active": "Active"
+        }
+      },
+      "sources": {
+        "impact": {
+          "protocolSources": "{count, plural, one {{count} protocol source} other {{count} protocol sources}}",
+          "protocolEntries": "{count, plural, one {{count} protocol information record} other {{count} protocol information records}}",
+          "and": " and ",
+          "blocked": "The source “{name}” is used by {parts}, so it cannot be deleted. Remove this source from the related protocols first.",
+          "none": "There are no citations linked to this source.",
+          "cascade": "This source is used in {count, plural, one {{count} citation} other {{count} citations}} ({detail}). If the source is deleted, all of these citations will also be removed permanently.",
+          "entityCount": {
+            "point": "{count, plural, one {{count} point} other {{count} points}}",
+            "topic": "{count, plural, one {{count} purpose/complaint} other {{count} purposes/complaints}}",
+            "pointTopic": "{count, plural, one {{count} point–topic relationship} other {{count} point–topic relationships}}",
+            "technique": "{count, plural, one {{count} technique} other {{count} techniques}}",
+            "knowledge": "{count, plural, one {{count} information record} other {{count} information records}}",
+            "safety": "{count, plural, one {{count} safety item} other {{count} safety items}}"
+          }
+        },
+        "title": "Source Catalogue",
+        "subtitle": "Source references (historical, academic, clinical, official guidance…). Content citations (Sources sections) are linked to these records.",
+        "empty": "No sources yet. Add a new one.",
+        "addLabel": "Source",
+        "searchPlaceholder": "Search by name, author or details…",
+        "filterType": "Type",
+        "opt": {
+          "source_type": {
+            "historical_primary": "Historical Primary",
+            "historical_secondary": "Historical Secondary",
+            "book_monograph": "Book / Monograph",
+            "academic_article": "Academic Article",
+            "systematic_review": "Systematic Review / Meta-analysis",
+            "clinical_study": "Clinical Study",
+            "official_guidance": "Official Guidance / Authority",
+            "expert_educational": "Expert / Educational"
+          }
+        },
+        "fields": {
+          "source_name": "Source Name",
+          "source_type": "Bibliographic Type",
+          "author_or_organization": "Author / Organisation",
+          "title": "Title",
+          "publication": "Publication / Journal",
+          "year": "Year",
+          "identifier": "Identifier (DOI / PMID / ISBN)",
+          "language": "Language",
+          "page_or_section": "Page / Section",
+          "source_url": "Link (URL)",
+          "accessed_on": "Access Date",
+          "note": "Note",
+          "sort_order": "Order"
+        }
+      }
+    }
+  }
+}

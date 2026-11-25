@@ -32,15 +32,15 @@ export async function PATCH(req: NextRequest): Promise<Response> {
   try {
     body = (await req.json()) as Record<string, unknown>;
   } catch {
-    return NextResponse.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 });
+    return NextResponse.json({ ok: false, code: "BIO_INVALID_BODY", error: "Geçersiz istek gövdesi." }, { status: 400 });
   }
 
   const chakraId = typeof body["chakraId"] === "string" ? (body["chakraId"] as string).trim() : "";
-  if (!chakraId) return NextResponse.json({ ok: false, error: "chakraId gerekli." }, { status: 400 });
-  if (!isUuid(chakraId)) return NextResponse.json({ ok: false, error: "Kayıt bu hesaba ait değil." }, { status: 404 });
+  if (!chakraId) return NextResponse.json({ ok: false, code: "BIO_CHAKRA_ID_REQUIRED", error: "chakraId gerekli." }, { status: 400 });
+  if (!isUuid(chakraId)) return NextResponse.json({ ok: false, code: "BIO_NOT_OWNED", error: "Kayıt bu hesaba ait değil." }, { status: 404 });
 
   const v = validateReorderInput(body);
-  if (!v.ok) return NextResponse.json({ ok: false, error: v.error }, { status: v.status });
+  if (!v.ok) return NextResponse.json({ ok: false, code: "BIO_VALIDATION", error: v.error }, { status: v.status });
 
   // IDOR: chakra tenant'a ait mi?
   const owner = await db
@@ -51,10 +51,10 @@ export async function PATCH(req: NextRequest): Promise<Response> {
     .maybeSingle();
   if (owner.error) {
     console.error("[chakra-blocks/reorder] ownership:", owner.error.message);
-    return NextResponse.json({ ok: false, error: "İşlem başarısız." }, { status: 500 });
+    return NextResponse.json({ ok: false, code: "BIO_OPERATION_FAILED", error: "İşlem başarısız." }, { status: 500 });
   }
   if (!owner.data) {
-    return NextResponse.json({ ok: false, error: "Kayıt bu hesaba ait değil." }, { status: 404 });
+    return NextResponse.json({ ok: false, code: "BIO_NOT_OWNED", error: "Kayıt bu hesaba ait değil." }, { status: 404 });
   }
 
   let updated = 0;

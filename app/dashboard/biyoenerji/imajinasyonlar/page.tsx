@@ -1,14 +1,16 @@
+import { useTranslations } from "next-intl";
 import Imajinasyonlar from "../components/Imajinasyonlar";
 import BiyoenerjiPremiumShell from "@/app/_premium/biyoenerji/kutuphane/BiyoenerjiPremiumShell";
 import BfcacheRefreshHandler from "@/components/BfcacheRefreshHandler";
 
 export default function ImajinasyonlarPage() {
+  const t = useTranslations("bioenergy.pages");
   return (
     <BiyoenerjiPremiumShell
-      badge="BİYOENERJİ · İMAJİNASYON KÜTÜPHANESİ"
-      titleHead="İmajinasyon "
-      titleAccent="Kütüphanesi"
-      subtitle="Görselleştirme, rehberli çalışmalar ve seans imgeleri"
+      badge={t("imajinasyonlar.badge")}
+      titleHead={t("imajinasyonlar.titleHead")}
+      titleAccent={t("imajinasyonlar.titleAccent")}
+      subtitle={t("imajinasyonlar.subtitle")}
       heroSrc="/premium/biyoenerji/imajinasyon-hero.webp"
       heroWidth={1436}
       heroHeight={412}

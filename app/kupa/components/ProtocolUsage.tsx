@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
+import { useKupaErrorText } from "@/app/kupa/lib/errorText";
 import { listPointProtocols, listSafetyProtocols, type CuppingProtocolRef } from "../lib/api";
 
 /**
@@ -21,6 +23,9 @@ export function CuppingProtocolUsage({
   const [protocols, setProtocols] = useState<CuppingProtocolRef[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const t = useTranslations("cupping.usage");
+  const tc = useTranslations("cupping.common");
+  const errText = useKupaErrorText();
 
   useEffect(() => {
     let cancelled = false;
@@ -34,7 +39,7 @@ export function CuppingProtocolUsage({
             : await listSafetyProtocols(entityId);
         if (!cancelled) setProtocols(list);
       } catch (e) {
-        if (!cancelled) setError(e instanceof Error ? e.message : "Kullanım bilgisi yüklenemedi.");
+        if (!cancelled) setError(errText(e, t("loadError")));
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -42,20 +47,21 @@ export function CuppingProtocolUsage({
     return () => {
       cancelled = true;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- yalnız kayıt değişiminde yeniden yükle (dil değişimi tetiklemez)
   }, [entity, entityId]);
 
   return (
     <div className="mt-5 border-t border-slate-100 pt-4">
       <h4 className="mb-2 text-[11px] font-bold uppercase tracking-wide text-slate-500">
-        Kullanıldığı Protokoller
+        {t("title")}
       </h4>
       {error ? (
         <p className="text-[11px] font-medium text-rose-600">{error}</p>
       ) : loading ? (
-        <p className="text-[11px] text-slate-400">Yükleniyor…</p>
+        <p className="text-[11px] text-slate-400">{tc("loading")}</p>
       ) : protocols.length === 0 ? (
         <p className="text-[11px] text-slate-400">
-          Bu kayıt henüz bir protokolde kullanılmıyor. (Silinebilir.)
+          {t("unused")}
         </p>
       ) : (
         <>
@@ -73,7 +79,7 @@ export function CuppingProtocolUsage({
             ))}
           </ul>
           <p className="mt-1.5 text-[10px] text-amber-700">
-            Bu kayıt {protocols.length} protokolde kullanılıyor; silmeden önce bu protokollerden çıkarın.
+            {t("usedIn", { count: String(protocols.length) })}
           </p>
         </>
       )}

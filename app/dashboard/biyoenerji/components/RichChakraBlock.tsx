@@ -1,6 +1,7 @@
 "use client";
 
 import type { ChakraContentBlock } from "@/lib/bioenergy/chakraWorkspace";
+import { useTranslations } from "next-intl";
 
 /**
  * FAZ 3.2C — rich içerik bloğu render iskeleti (foundation).
@@ -11,6 +12,7 @@ import type { ChakraContentBlock } from "@/lib/bioenergy/chakraWorkspace";
  * canlı UI'ya montaj FAZ 3.3/3.4'te yapılacak.
  */
 export default function RichChakraBlock({ block }: { block: ChakraContentBlock }) {
+  const t = useTranslations("bioenergy.richBlock");
   const citation = [block.source_author, block.source_title, block.source_ref]
     .map((s) => s?.trim())
     .filter(Boolean)
@@ -31,7 +33,7 @@ export default function RichChakraBlock({ block }: { block: ChakraContentBlock }
 
       {block.source_translation ? (
         <p className="text-[13px] leading-relaxed text-slate-700">
-          <span className="font-semibold text-slate-500">Çeviri: </span>
+          <span className="font-semibold text-slate-500">{t("translation")} </span>
           {block.source_translation}
         </p>
       ) : null}
@@ -42,14 +44,14 @@ export default function RichChakraBlock({ block }: { block: ChakraContentBlock }
 
       {block.editorial_interpretation ? (
         <p className="text-[13px] leading-relaxed text-slate-600">
-          <span className="font-semibold text-slate-500">Yorum: </span>
+          <span className="font-semibold text-slate-500">{t("commentary")} </span>
           {block.editorial_interpretation}
         </p>
       ) : null}
 
       {block.expert_note ? (
         <p className="rounded-lg bg-slate-50 px-3 py-2 text-[12.5px] leading-relaxed text-slate-600">
-          <span className="font-semibold">Uzman notu: </span>
+          <span className="font-semibold">{t("expertNote")} </span>
           {block.expert_note}
         </p>
       ) : null}

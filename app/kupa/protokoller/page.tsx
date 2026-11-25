@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { useToast } from "@/components/ui/ToastProvider";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
 import { KupaShell, kupaBtnPrimary, kupaInput } from "@/app/kupa/components/KupaShell";
@@ -9,11 +10,14 @@ import { deleteProtocol, type CuppingProtocol } from "@/app/kupa/lib/api";
 import { useProtocolList } from "./hooks/useProtocolList";
 import { ProtocolListCard } from "./components/ProtocolListCard";
 import { protocolMatchesQuery } from "@/app/kupa/lib/protocolSearch";
+import { useKupaErrorText } from "@/app/kupa/lib/errorText";
 
 export default function ProtokollerPage() {
   const { protocols, loading, error, refresh } = useProtocolList();
   const { showToast } = useToast();
   const { confirm } = useConfirm();
+  const t = useTranslations("cupping.protocols.list");
+  const errText = useKupaErrorText();
   const [q, setQ] = useState("");
   const [category, setCategory] = useState("");
   const [status, setStatus] = useState<"all" | "active" | "passive">("all");
@@ -35,19 +39,19 @@ export default function ProtokollerPage() {
 
   async function handleDelete(p: CuppingProtocol) {
     const ok = await confirm({
-      title: "Protokolü Sil",
-      message: `"${p.title}" protokolünü silmek istediğinizden emin misiniz?\n\nBu protokole ait bölgeler, uygulama adımları, bilgiler ve kaynak bağlantıları silinir. Ana kütüphane kayıtları silinmez.`,
-      confirmText: "Protokolü Sil",
-      cancelText: "Vazgeç",
+      title: t("delete.title"),
+      message: t("delete.message", { title: p.title }),
+      confirmText: t("delete.confirm"),
+      cancelText: t("delete.cancel"),
       tone: "danger",
     });
     if (!ok) return;
     try {
       await deleteProtocol(p.id);
       await refresh(); // server sonrası state
-      showToast({ message: "Protokol silindi.", type: "success" });
+      showToast({ message: t("delete.done"), type: "success" });
     } catch (e) {
-      showToast({ message: e instanceof Error ? e.message : "Silinemedi.", type: "error" });
+      showToast({ message: errText(e, t("delete.failed")), type: "error" });
     }
   }
 
@@ -55,31 +59,31 @@ export default function ProtokollerPage() {
 
   return (
     <KupaShell
-      title="Hacamat Protokolleri"
-      subtitle="Her rahatsızlık için bölgeleri, uygulama akışını, güvenliği ve bilgileri tek dosyada yönetin."
-      breadcrumb={[{ label: "Protokoller" }]}
+      title={t("title")}
+      subtitle={t("subtitle")}
+      breadcrumb={[{ label: t("crumb") }]}
       fullBleedBelowLg
       actions={
         <Link href="/kupa/protokoller/yeni" className={`${kupaBtnPrimary} no-underline`}>
-          + Yeni Protokol
+          {t("new")}
         </Link>
       }
     >
       {hasAny ? (
         <div className="mb-3 flex flex-wrap items-center gap-2 px-4 sm:px-0">
-          <input className={`${kupaInput} max-w-xs`} placeholder="Protokol ara…" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Protokol ara" />
+          <input className={`${kupaInput} max-w-xs`} placeholder={t("searchPlaceholder")} value={q} onChange={(e) => setQ(e.target.value)} aria-label={t("searchAria")} />
           {categories.length > 0 ? (
-            <select className={`${kupaInput} max-w-[12rem]`} value={category} onChange={(e) => setCategory(e.target.value)} aria-label="Kategori">
-              <option value="">Tüm kategoriler</option>
+            <select className={`${kupaInput} max-w-[12rem]`} value={category} onChange={(e) => setCategory(e.target.value)} aria-label={t("categoryAria")}>
+              <option value="">{t("allCategories")}</option>
               {categories.map((c) => (
                 <option key={c} value={c}>{c}</option>
               ))}
             </select>
           ) : null}
-          <select className={`${kupaInput} max-w-[10rem]`} value={status} onChange={(e) => setStatus(e.target.value as "all" | "active" | "passive")} aria-label="Durum">
-            <option value="all">Tümü</option>
-            <option value="active">Aktif</option>
-            <option value="passive">Pasif</option>
+          <select className={`${kupaInput} max-w-[10rem]`} value={status} onChange={(e) => setStatus(e.target.value as "all" | "active" | "passive")} aria-label={t("statusAria")}>
+            <option value="all">{t("statusAll")}</option>
+            <option value="active">{t("statusActive")}</option>
+            <option value="passive">{t("statusPassive")}</option>
           </select>
         </div>
       ) : null}
@@ -94,21 +98,19 @@ export default function ProtokollerPage() {
         <div className="px-4 sm:px-0">
           <p className="text-sm text-rose-600">{error}</p>
           <button type="button" className="mt-2 text-sm font-semibold text-amber-700 hover:underline" onClick={() => void refresh()}>
-            Tekrar dene
+            {t("retry")}
           </button>
         </div>
       ) : !hasAny ? (
         <div className="mx-4 rounded-2xl border border-dashed border-amber-200 bg-white/70 px-6 py-12 text-center sm:mx-0">
-          <p className="text-base font-bold text-slate-700">Henüz hacamat protokolünüz yok.</p>
-          <p className="mx-auto mt-1 max-w-md text-sm text-slate-500">
-            İlk protokolünüzü oluşturarak uygulama bölgelerini, akışı ve bilgilerinizi tek dosyada yönetin.
-          </p>
+          <p className="text-base font-bold text-slate-700">{t("empty.title")}</p>
+          <p className="mx-auto mt-1 max-w-md text-sm text-slate-500">{t("empty.body")}</p>
           <Link href="/kupa/protokoller/yeni" className={`mt-4 inline-flex no-underline ${kupaBtnPrimary}`}>
-            + İlk Protokolü Oluştur
+            {t("empty.cta")}
           </Link>
         </div>
       ) : filtered.length === 0 ? (
-        <p className="px-4 py-10 text-center text-sm text-slate-500 sm:px-0">Aramanızla eşleşen protokol bulunamadı.</p>
+        <p className="px-4 py-10 text-center text-sm text-slate-500 sm:px-0">{t("noMatch")}</p>
       ) : (
         <div className="grid grid-cols-1 gap-3 px-4 sm:px-0 md:grid-cols-2 xl:grid-cols-3">
           {filtered.map((p) => (

@@ -1,0 +1,88 @@
+{
+  "cupping": {
+    "techniques": {
+      "read": {
+        "usageCheckFailed": "The usage check could not be completed.",
+        "deleteFailed": "Could not be deleted.",
+        "notFound": "Technique not found.",
+        "back": "← Cupping Techniques",
+        "loadError": "Could not be loaded.",
+        "checking": "Checking…",
+        "emptySummary": "No description has been added yet.",
+        "emptyApproach": "No application information has been added yet.",
+        "safetyTitle": "Safety and Caution",
+        "emptySafety": "No safety/caution note has been added yet.",
+        "emptyNote": "No personal note has been added yet.",
+        "blockedTitle": "Technique cannot be deleted",
+        "blockedBody": "This technique is used in one or more protocols.\nYou need to remove the technique from the related protocols before deleting it.",
+        "usedInProtocols": "Protocols Using This",
+        "openProtocol": "Open Protocol →",
+        "deleteTitle": "Delete technique?",
+        "deleteBody": "This technique will be deleted permanently. This action cannot be undone.",
+        "deleteConfirm": "Delete Technique"
+      },
+      "fields": {
+        "summary": "Technique Summary",
+        "approach": "General Application Approach",
+        "practitionerNote": "My Practitioner Note"
+      },
+      "list": {
+        "loadError": "The list could not be loaded.",
+        "title": "Cupping Techniques",
+        "new": "+ New Technique",
+        "searchPlaceholder": "Search techniques…",
+        "searchAria": "Search techniques",
+        "typeFilter": "Type filter",
+        "moveFilter": "Application style filter",
+        "empty": "No techniques yet.",
+        "createFirst": "Create the first technique →",
+        "noMatch": "No techniques match your search."
+      },
+      "usage": {
+        "title": "Protocols Using This",
+        "loadError": "Protocol usage could not be loaded.",
+        "unused": "This technique is not used in any protocol yet.",
+        "usedIn": "Used in {count, plural, one {{count} protocol} other {{count} protocols}}"
+      },
+      "sources": {
+        "title": "Sources",
+        "manage": "Manage Sources",
+        "hint": "Use “Manage Sources” to add/view source references for this technique."
+      },
+      "page": {
+        "subtitle": "Read and edit your techniques in a single workspace; link their safety items and sources.",
+        "selectHint": "Select a technique on the left to read or edit.",
+        "newTitle": "New Technique",
+        "detailCrumb": "Technique"
+      },
+      "editor": {
+        "nameRequired": "A technique name is required.",
+        "editTitle": "Edit Technique",
+        "nameLabel": "Technique Name *",
+        "namePlaceholder": "e.g. Stationary dry cupping",
+        "nameAria": "Technique name",
+        "duplicatePrefix": "A similar technique already exists:",
+        "duplicateHint": "You can open the existing technique or create a new record anyway.",
+        "typeLabel": "Type",
+        "movementLabel": "Application Style (optional)",
+        "movementAria": "Application style",
+        "summaryPlaceholder": "What is this technique? A short, readable general description.",
+        "summaryAria": "Technique summary",
+        "approachPlaceholder": "The technique's general application approach. Keep notes specific to a particular protocol in that protocol.",
+        "approachAria": "General application approach",
+        "safetyLabel": "Safety / Caution",
+        "safetyPlaceholder": "A short technique-specific caution note (optional).",
+        "safetyAria": "Safety caution note",
+        "noteHint": "Your personal professional note (not a formal source).",
+        "noteEdit": "Edit Practitioner Note",
+        "noteAdd": "Add Practitioner Note",
+        "create": "Create",
+        "notePlaceholder": "Your personal professional note…",
+        "discardTitle": "Discard changes?",
+        "discardBody": "You have unsaved changes. If you discard them, these changes will be lost.",
+        "discardConfirm": "Discard Changes",
+        "discardCancel": "Keep Editing"
+      }
+    }
+  }
+}

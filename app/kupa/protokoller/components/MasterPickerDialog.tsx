@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { useTranslations } from "next-intl";
 import { kupaBtnGhost, kupaInput } from "@/app/kupa/components/KupaShell";
 import { QuickCreateMasterForm, type QuickCreateConfig } from "./QuickCreateMasterForm";
 
@@ -39,6 +40,7 @@ export function MasterPickerDialog({
   quickCreate?: QuickCreateConfig;
 }) {
   const [q, setQ] = useState("");
+  const t = useTranslations("cupping.protocols.picker");
   const [mode, setMode] = useState<"pick" | "create">("pick");
   const searchRef = useRef<HTMLInputElement>(null);
 
@@ -99,14 +101,14 @@ export function MasterPickerDialog({
   const selected = new Set(selectedIds);
   const createCtaLabel =
     quickCreate?.entity === "technique"
-      ? "+ Yeni Teknik Oluştur"
+      ? t("createTechniqueCta")
       : quickCreate?.entity === "safety"
-        ? "+ Yeni Güvenlik Maddesi Oluştur"
+        ? t("createSafetyCta")
         : null;
   const createTitle =
     quickCreate?.entity === "technique"
-      ? "Yeni Teknik Oluştur"
-      : "Yeni Güvenlik Maddesi Oluştur";
+      ? t("createTechniqueTitle")
+      : t("createSafetyTitle");
 
   const overlay = (
     <div
@@ -123,15 +125,15 @@ export function MasterPickerDialog({
               type="button"
               onClick={() => setMode("pick")}
               className="truncate text-sm font-black tracking-tight text-slate-800 hover:text-amber-700"
-              aria-label="Listeye dön"
+              aria-label={t("backToList")}
             >
               ‹ {createTitle}
             </button>
           ) : (
             <h3 className="truncate text-sm font-black tracking-tight text-slate-800">{title}</h3>
           )}
-          <button type="button" onClick={onClose} className={kupaBtnGhost} aria-label="Kapat">
-            Kapat
+          <button type="button" onClick={onClose} className={kupaBtnGhost} aria-label={t("close")}>
+            {t("close")}
           </button>
         </div>
 
@@ -148,16 +150,16 @@ export function MasterPickerDialog({
                 ref={searchRef}
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
-                placeholder="Ara…"
+                placeholder={t("searchPlaceholder")}
                 className={kupaInput}
-                aria-label="Ara"
+                aria-label={t("searchAria")}
               />
             </div>
             <div className="flex-1 overflow-y-auto p-3">
               {items.length === 0 ? (
                 <p className="px-2 py-8 text-center text-sm text-slate-500">{emptyMessage}</p>
               ) : filtered.length === 0 ? (
-                <p className="px-2 py-8 text-center text-sm text-slate-500">Aramanızla eşleşen kayıt bulunamadı.</p>
+                <p className="px-2 py-8 text-center text-sm text-slate-500">{t("noMatch")}</p>
               ) : (
                 <ul className="space-y-1.5">
                   {filtered.map((it) => {
@@ -175,7 +177,7 @@ export function MasterPickerDialog({
                             {it.meta ? <span className="block truncate text-[11px] text-slate-400">{it.meta}</span> : null}
                           </span>
                           <span className="shrink-0 text-[11px] font-semibold text-slate-400">
-                            {isSel ? "Ekli" : "Ekle"}
+                            {isSel ? t("added") : t("add")}
                           </span>
                         </button>
                       </li>
@@ -194,7 +196,7 @@ export function MasterPickerDialog({
                 >
                   {createCtaLabel}
                 </button>
-                <p className="mt-1.5 text-center text-[11px] text-slate-400">Aradığınız kayıt yoksa yenisini oluşturun.</p>
+                <p className="mt-1.5 text-center text-[11px] text-slate-400">{t("createHint")}</p>
               </div>
             ) : null}
           </>

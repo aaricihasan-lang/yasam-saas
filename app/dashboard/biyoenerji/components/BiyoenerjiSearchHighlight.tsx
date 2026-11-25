@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useRef, useSyncExternalStore, type ReactNode } from "react";
 import { ArrowLeft } from "lucide-react";
 import { useSearchHighlight } from "@/lib/search/useSearchHighlight";
@@ -44,6 +45,7 @@ export default function BiyoenerjiSearchHighlight({
   className?: string;
 }) {
   const router = useRouter();
+  const tm = useTranslations("bioenergy.modal");
   const query = useUrlSearchQuery(termParam);
   const ref = useRef<HTMLDivElement | null>(null);
   const count = useSearchHighlight(ref, [query], { enabled: Boolean(query), resetKey: recordKey });
@@ -62,12 +64,12 @@ export default function BiyoenerjiSearchHighlight({
             className="inline-flex min-h-[36px] items-center gap-1.5 rounded-lg border border-violet-200 bg-white px-2.5 py-1 text-[12px] font-black text-violet-700 shadow-sm transition hover:bg-violet-50"
           >
             <ArrowLeft className="h-3.5 w-3.5" aria-hidden />
-            Arama sonuçlarına dön
+            {tm("backToResults")}
           </button>
           <span>🔍 “{query}”</span>
           {count > 0 ? (
             <span data-testid="bio-search-match-count" className="rounded-full bg-yellow-200 px-2 py-0.5 text-[11px] font-black text-slate-900">
-              {count} eşleşme sarı ile işaretlendi
+              {tm("matchesMarked", { count: String(count) })}
             </span>
           ) : null}
         </div>

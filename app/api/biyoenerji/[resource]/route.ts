@@ -65,7 +65,7 @@ export async function GET(
 
   const { resource } = await params;
   const cfg = getBioResource(resource);
-  if (!cfg) return NextResponse.json({ ok: false, error: "Geçersiz kaynak." }, { status: 404 });
+  if (!cfg) return NextResponse.json({ ok: false, code: "BIO_INVALID_RESOURCE", error: "Geçersiz kaynak." }, { status: 404 });
 
   const { db, tenantId } = guard;
   const url = new URL(req.url);
@@ -165,7 +165,7 @@ export async function POST(
 
   const { resource } = await params;
   const cfg = getBioResource(resource);
-  if (!cfg) return NextResponse.json({ ok: false, error: "Geçersiz kaynak." }, { status: 404 });
+  if (!cfg) return NextResponse.json({ ok: false, code: "BIO_INVALID_RESOURCE", error: "Geçersiz kaynak." }, { status: 404 });
 
   const { db, tenantId, is_demo_account } = guard;
   if (is_demo_account) return demoReadOnlyResponse();
@@ -174,12 +174,12 @@ export async function POST(
   try {
     body = (await req.json()) as Record<string, unknown>;
   } catch {
-    return NextResponse.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 });
+    return NextResponse.json({ ok: false, code: "BIO_INVALID_BODY", error: "Geçersiz istek gövdesi." }, { status: 400 });
   }
 
   // BIO-005/009: sunucu-canonical doğrulama + trim/normalizasyon (tam kayıt).
   const validated = validateBioFields(cfg, body, { partial: false });
-  if (!validated.ok) return NextResponse.json({ ok: false, error: validated.error }, { status: 400 });
+  if (!validated.ok) return NextResponse.json({ ok: false, code: "BIO_VALIDATION", error: validated.error }, { status: 400 });
 
   const { data, error } = await db
     .from(cfg.table)
@@ -225,7 +225,7 @@ export async function DELETE(
 
   const { resource } = await params;
   const cfg = getBioResource(resource);
-  if (!cfg) return NextResponse.json({ ok: false, error: "Geçersiz kaynak." }, { status: 404 });
+  if (!cfg) return NextResponse.json({ ok: false, code: "BIO_INVALID_RESOURCE", error: "Geçersiz kaynak." }, { status: 404 });
 
   const { db, tenantId, is_demo_account } = guard;
   if (is_demo_account) return demoReadOnlyResponse();
@@ -235,7 +235,7 @@ export async function DELETE(
   try {
     body = (await req.json()) as { ids?: unknown; all?: unknown; expectedCount?: unknown };
   } catch {
-    return NextResponse.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 });
+    return NextResponse.json({ ok: false, code: "BIO_INVALID_BODY", error: "Geçersiz istek gövdesi." }, { status: 400 });
   }
 
   // "Tümünü Sil" — bu tenant'ın tüm kayıtları
@@ -246,7 +246,7 @@ export async function DELETE(
     const expected = body.expectedCount;
     if (typeof expected !== "number" || !Number.isInteger(expected) || expected < 0) {
       return NextResponse.json(
-        { ok: false, error: "Silme onayı doğrulanamadı. Lütfen sayfayı yenileyip tekrar deneyin." },
+        { ok: false, code: "BIO_DELETE_CONFIRM_INVALID", error: "Silme onayı doğrulanamadı. Lütfen sayfayı yenileyip tekrar deneyin." },
         { status: 400 },
       );
     }
@@ -259,6 +259,7 @@ export async function DELETE(
       return NextResponse.json(
         {
           ok: false,
+          code: "BIO_DELETE_COUNT_MISMATCH",
           error: `Onaylanan kayıt sayısı (${expected}) güncel toplamla (${actual ?? 0}) uyuşmuyor; hiçbir kayıt silinmedi. Lütfen listeyi yenileyip tekrar deneyin.`,
         },
         { status: 409 },
@@ -288,7 +289,7 @@ export async function DELETE(
     // Seçimin bir kısmını sessizce kırpıp YARIM silme yapılmaz: sınır aşılırsa hiçbir şey silinmez.
     if (ids.length > MAX_DELETE_IDS) {
       return NextResponse.json(
-        { ok: false, error: `Tek seferde en fazla ${MAX_DELETE_IDS} kayıt silinebilir (seçilen: ${ids.length}). Hiçbir kayıt silinmedi.` },
+        { ok: false, code: "BIO_DELETE_TOO_MANY", error: `Tek seferde en fazla ${MAX_DELETE_IDS} kayıt silinebilir (seçilen: ${ids.length}). Hiçbir kayıt silinmedi.` },
         { status: 400 },
       );
     }
@@ -328,5 +329,5 @@ export async function DELETE(
     return NextResponse.json({ ok: true, deleted });
   }
 
-  return NextResponse.json({ ok: false, error: "ids veya all gerekli." }, { status: 400 });
+  return NextResponse.json({ ok: false, code: "BIO_DELETE_TARGET_REQUIRED", error: "ids veya all gerekli." }, { status: 400 });
 }

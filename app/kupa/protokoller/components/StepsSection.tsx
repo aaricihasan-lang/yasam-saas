@@ -1,6 +1,8 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { useTranslations } from "next-intl";
+import { useKupaErrorText } from "@/app/kupa/lib/errorText";
 import { useConfirmLeave, useReportDirty } from "../hooks/protocolDirty";
 import { useToast } from "@/components/ui/ToastProvider";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
@@ -16,6 +18,9 @@ const EMPTY: Draft = { title: "", body: "", stage_label: "", ref_point_id: "", r
 export function StepsSection({ protocolId, doc }: { protocolId: string; doc: ProtocolDocument }) {
   const { showToast } = useToast();
   const { confirm } = useConfirm();
+  const t = useTranslations("cupping.protocols.steps");
+  const tc = useTranslations("cupping.common");
+  const errText = useKupaErrorText();
   const [formOpen, setFormOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draft, setDraft] = useState<Draft>(EMPTY);
@@ -63,7 +68,7 @@ export function StepsSection({ protocolId, doc }: { protocolId: string; doc: Pro
   async function save() {
     if (busyRef.current) return; // çift tık → tek kayıt
     if (!draft.body.trim()) {
-      showToast({ message: "Adım metni gerekli.", type: "warning" });
+      showToast({ message: t("bodyRequired"), type: "warning" });
       return;
     }
     busyRef.current = true;
@@ -84,9 +89,9 @@ export function StepsSection({ protocolId, doc }: { protocolId: string; doc: Pro
       }
       await doc.reload.steps();
       setFormOpen(false);
-      showToast({ message: "Kaydedildi.", type: "success" });
+      showToast({ message: tc("saved"), type: "success" });
     } catch (e) {
-      showToast({ message: e instanceof Error ? e.message : "Kaydedilemedi.", type: "error" });
+      showToast({ message: errText(e, tc("saveFailed")), type: "error" });
     } finally {
       busyRef.current = false;
       setBusy(false);
@@ -94,14 +99,14 @@ export function StepsSection({ protocolId, doc }: { protocolId: string; doc: Pro
   }
 
   async function remove(s: CuppingProtocolStep) {
-    const ok = await confirm({ title: "Adımı Sil", message: "Bu uygulama adımı silinsin mi?", confirmText: "Sil", cancelText: "Vazgeç", tone: "danger" });
+    const ok = await confirm({ title: t("delete.title"), message: t("delete.message"), confirmText: tc("delete"), cancelText: tc("cancel"), tone: "danger" });
     if (!ok) return;
     try {
       await deleteProtocolStep(s.id);
       await doc.reload.steps();
-      showToast({ message: "Adım silindi.", type: "success" });
+      showToast({ message: t("delete.done"), type: "success" });
     } catch (e) {
-      showToast({ message: e instanceof Error ? e.message : "Silinemedi.", type: "error" });
+      showToast({ message: errText(e, t("delete.failed")), type: "error" });
     }
   }
 
@@ -122,7 +127,7 @@ export function StepsSection({ protocolId, doc }: { protocolId: string; doc: Pro
       await doc.reload.steps();
     } catch (e) {
       await doc.reload.steps().catch(() => {});
-      showToast({ message: e instanceof Error ? `Sıralama tamamlanamadı: ${e.message}` : "Sıralanamadı.", type: "error" });
+      showToast({ message: e instanceof Error ? t("sortFailedDetail", { detail: errText(e, t("sortFailed")) }) : t("sortFailed"), type: "error" });
     } finally {
       setMoving(false);
     }
@@ -130,16 +135,16 @@ export function StepsSection({ protocolId, doc }: { protocolId: string; doc: Pro
 
   return (
     <ProtocolSectionShell
-      title="Uygulama Akışı"
-      description="Uygulama adımlarını sırayla ekleyerek protokol akışınızı oluşturun."
+      title={t("title")}
+      description={t("description")}
       action={
         <button type="button" onClick={openNew} className={kupaBtnPrimary}>
-          + Adım Ekle
+          {t("add")}
         </button>
       }
     >
       {steps.length === 0 && !formOpen ? (
-        <ProtocolEmpty message="Uygulama adımlarını sırayla ekleyerek protokol akışınızı oluşturun." />
+        <ProtocolEmpty message={t("description")} />
       ) : (
         <ol className="space-y-2">
           {steps.map((s, i) => (
@@ -153,25 +158,25 @@ export function StepsSection({ protocolId, doc }: { protocolId: string; doc: Pro
                   <p className="whitespace-pre-wrap text-[13px] leading-relaxed text-slate-700">{s.body}</p>
                   <div className="mt-1 flex flex-wrap gap-1.5">
                     {s.stage_label ? <span className="rounded-md bg-slate-100 px-2 py-0.5 text-[11px] text-slate-600">{s.stage_label}</span> : null}
-                    {s.ref_point_id ? <span className="rounded-md bg-amber-50 px-2 py-0.5 text-[11px] text-amber-700">Bölge: {doc.pointName(s.ref_point_id)}</span> : null}
-                    {s.ref_technique_id ? <span className="rounded-md bg-amber-50 px-2 py-0.5 text-[11px] text-amber-700">Teknik: {doc.techniqueName(s.ref_technique_id)}</span> : null}
+                    {s.ref_point_id ? <span className="rounded-md bg-amber-50 px-2 py-0.5 text-[11px] text-amber-700">{t("refPoint", { name: doc.pointName(s.ref_point_id) })}</span> : null}
+                    {s.ref_technique_id ? <span className="rounded-md bg-amber-50 px-2 py-0.5 text-[11px] text-amber-700">{t("refTechnique", { name: doc.techniqueName(s.ref_technique_id) })}</span> : null}
                   </div>
                 </div>
                 <div className="flex shrink-0 flex-col items-end gap-1">
                   <div className="flex items-center gap-1">
-                    <button type="button" aria-label="Yukarı taşı" disabled={i === 0 || moving} className={`${kupaRowAction} border border-slate-200 px-0 text-sm text-slate-600`} onClick={() => move(i, -1)}>
+                    <button type="button" aria-label={t("moveUp")} disabled={i === 0 || moving} className={`${kupaRowAction} border border-slate-200 px-0 text-sm text-slate-600`} onClick={() => move(i, -1)}>
                       ↑
                     </button>
-                    <button type="button" aria-label="Aşağı taşı" disabled={i === steps.length - 1 || moving} className={`${kupaRowAction} border border-slate-200 px-0 text-sm text-slate-600`} onClick={() => move(i, 1)}>
+                    <button type="button" aria-label={t("moveDown")} disabled={i === steps.length - 1 || moving} className={`${kupaRowAction} border border-slate-200 px-0 text-sm text-slate-600`} onClick={() => move(i, 1)}>
                       ↓
                     </button>
                   </div>
                   <div className={kupaRowActions}>
                     <button type="button" className={kupaRowAction} onClick={() => openEdit(s)}>
-                      Düzenle
+                      {tc("edit")}
                     </button>
                     <button type="button" className={kupaRowActionDanger} onClick={() => remove(s)}>
-                      Sil
+                      {tc("delete")}
                     </button>
                   </div>
                 </div>
@@ -184,30 +189,30 @@ export function StepsSection({ protocolId, doc }: { protocolId: string; doc: Pro
       {formOpen ? (
         <div className="mt-3 rounded-xl border border-amber-100 bg-amber-50/40 p-3">
           <div className="space-y-2">
-            <input className={kupaInput} placeholder="Adım başlığı (opsiyonel)" value={draft.title} onChange={(e) => setDraft({ ...draft, title: e.target.value })} aria-label="Adım başlığı" />
-            <InlineLongText label="Adım metni *" value={draft.body} onChange={(v) => setDraft({ ...draft, body: v })} rows={3} placeholder="Bu adımda ne yapılır?" />
-            <input className={kupaInput} placeholder="Aşama/seans etiketi (opsiyonel)" value={draft.stage_label} onChange={(e) => setDraft({ ...draft, stage_label: e.target.value })} aria-label="Aşama etiketi" />
+            <input className={kupaInput} placeholder={t("form.titlePlaceholder")} value={draft.title} onChange={(e) => setDraft({ ...draft, title: e.target.value })} aria-label={t("form.titleAria")} />
+            <InlineLongText label={t("form.bodyLabel")} value={draft.body} onChange={(v) => setDraft({ ...draft, body: v })} rows={3} placeholder={t("form.bodyPlaceholder")} />
+            <input className={kupaInput} placeholder={t("form.stagePlaceholder")} value={draft.stage_label} onChange={(e) => setDraft({ ...draft, stage_label: e.target.value })} aria-label={t("form.stageAria")} />
             <div className="grid gap-2 sm:grid-cols-2">
-              <select className={kupaInput} value={draft.ref_point_id} onChange={(e) => setDraft({ ...draft, ref_point_id: e.target.value })} aria-label="Bağlı bölge">
-                <option value="">Bağlı bölge yok</option>
+              <select className={kupaInput} value={draft.ref_point_id} onChange={(e) => setDraft({ ...draft, ref_point_id: e.target.value })} aria-label={t("form.refPointAria")}>
+                <option value="">{t("form.refPointNone")}</option>
                 {boundPoints.map((p) => (
                   <option key={p.id} value={p.id}>{p.name}</option>
                 ))}
               </select>
-              <select className={kupaInput} value={draft.ref_technique_id} onChange={(e) => setDraft({ ...draft, ref_technique_id: e.target.value })} aria-label="Bağlı teknik">
-                <option value="">Bağlı teknik yok</option>
-                {boundTechniques.map((t) => (
-                  <option key={t.id} value={t.id}>{t.name}</option>
+              <select className={kupaInput} value={draft.ref_technique_id} onChange={(e) => setDraft({ ...draft, ref_technique_id: e.target.value })} aria-label={t("form.refTechniqueAria")}>
+                <option value="">{t("form.refTechniqueNone")}</option>
+                {boundTechniques.map((bt) => (
+                  <option key={bt.id} value={bt.id}>{bt.name}</option>
                 ))}
               </select>
             </div>
-            <p className="text-[11px] text-slate-400">Yalnızca bu protokole eklenmiş bölge/teknikler adıma bağlanabilir.</p>
+            <p className="text-[11px] text-slate-400">{t("form.refHint")}</p>
             <div className="flex items-center gap-2">
               <button type="button" disabled={busy} className={kupaBtnSuccess} onClick={save}>
-                {busy ? "Kaydediliyor…" : "Kaydet"}
+                {busy ? tc("saving") : tc("save")}
               </button>
               <button type="button" className={kupaBtnGhost} onClick={() => void cancelForm()}>
-                Vazgeç
+                {tc("cancel")}
               </button>
             </div>
           </div>

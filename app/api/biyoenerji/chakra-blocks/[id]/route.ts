@@ -29,21 +29,21 @@ export async function PATCH(
   if (!guard.ok) return guard.response;
   const { db, tenantId, is_demo_account } = guard;
   const { id } = await params;
-  if (!id) return NextResponse.json({ ok: false, error: "id gerekli." }, { status: 400 });
-  if (!isUuid(id)) return NextResponse.json({ ok: false, error: "Kayıt bulunamadı." }, { status: 404 });
+  if (!id) return NextResponse.json({ ok: false, code: "BIO_ID_REQUIRED", error: "id gerekli." }, { status: 400 });
+  if (!isUuid(id)) return NextResponse.json({ ok: false, code: "BIO_NOT_FOUND", error: "Kayıt bulunamadı." }, { status: 404 });
   if (is_demo_account) return demoReadOnlyResponse();
 
   let body: Record<string, unknown>;
   try {
     body = (await req.json()) as Record<string, unknown>;
   } catch {
-    return NextResponse.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 });
+    return NextResponse.json({ ok: false, code: "BIO_INVALID_BODY", error: "Geçersiz istek gövdesi." }, { status: 400 });
   }
 
   const v = validateChakraBlockInput(body, "update");
-  if (!v.ok) return NextResponse.json({ ok: false, error: v.error }, { status: v.status });
+  if (!v.ok) return NextResponse.json({ ok: false, code: "BIO_VALIDATION", error: v.error }, { status: v.status });
   if (Object.keys(v.fields).length === 0) {
-    return NextResponse.json({ ok: false, error: "Güncellenecek alan yok." }, { status: 400 });
+    return NextResponse.json({ ok: false, code: "BIO_NO_FIELDS", error: "Güncellenecek alan yok." }, { status: 400 });
   }
 
   const { data, error } = await db
@@ -57,10 +57,10 @@ export async function PATCH(
   if (error) {
     console.error("[chakra-blocks/:id] update:", error.message);
     await trackUsage(guard, req, { module: "energy_body", action: "action_failed", failedAction: "record_updated", subEntity: "chakra_block", errorClass: "server" });
-    return NextResponse.json({ ok: false, error: "Blok güncellenemedi." }, { status: 500 });
+    return NextResponse.json({ ok: false, code: "BIO_BLOCK_UPDATE_FAILED", error: "Blok güncellenemedi." }, { status: 500 });
   }
   if (!data || data.length === 0) {
-    return NextResponse.json({ ok: false, error: "Kayıt bulunamadı veya yetki yok." }, { status: 404 });
+    return NextResponse.json({ ok: false, code: "BIO_NOT_FOUND_OR_FORBIDDEN", error: "Kayıt bulunamadı veya yetki yok." }, { status: 404 });
   }
   await trackUsage(guard, req, { module: "energy_body", action: "record_updated", subEntity: "chakra_block", resourceId: id });
   return NextResponse.json({ ok: true });
@@ -74,8 +74,8 @@ export async function DELETE(
   if (!guard.ok) return guard.response;
   const { db, tenantId, is_demo_account } = guard;
   const { id } = await params;
-  if (!id) return NextResponse.json({ ok: false, error: "id gerekli." }, { status: 400 });
-  if (!isUuid(id)) return NextResponse.json({ ok: false, error: "Kayıt bulunamadı." }, { status: 404 });
+  if (!id) return NextResponse.json({ ok: false, code: "BIO_ID_REQUIRED", error: "id gerekli." }, { status: 400 });
+  if (!isUuid(id)) return NextResponse.json({ ok: false, code: "BIO_NOT_FOUND", error: "Kayıt bulunamadı." }, { status: 404 });
   if (is_demo_account) return demoReadOnlyResponse();
 
   const { data, error } = await db
@@ -89,10 +89,10 @@ export async function DELETE(
   if (error) {
     console.error("[chakra-blocks/:id] delete:", error.message);
     await trackUsage(guard, req, { module: "energy_body", action: "action_failed", failedAction: "record_deleted", subEntity: "chakra_block", errorClass: "server" });
-    return NextResponse.json({ ok: false, error: "Blok silinemedi." }, { status: 500 });
+    return NextResponse.json({ ok: false, code: "BIO_BLOCK_DELETE_FAILED", error: "Blok silinemedi." }, { status: 500 });
   }
   if (!data || data.length === 0) {
-    return NextResponse.json({ ok: false, error: "Kayıt bulunamadı veya yetki yok." }, { status: 404 });
+    return NextResponse.json({ ok: false, code: "BIO_NOT_FOUND_OR_FORBIDDEN", error: "Kayıt bulunamadı veya yetki yok." }, { status: 404 });
   }
   await trackUsage(guard, req, { module: "energy_body", action: "record_deleted", subEntity: "chakra_block", resourceId: id });
   return NextResponse.json({ ok: true });

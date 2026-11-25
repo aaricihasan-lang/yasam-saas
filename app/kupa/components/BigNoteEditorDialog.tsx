@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { useTranslations } from "next-intl";
 import { kupaBtnGhost, kupaBtnSuccess } from "./KupaShell";
 
 /**
@@ -39,6 +40,8 @@ export function BigNoteEditorDialog({
   //   useState(value) kullanılırsa önceki satırın / iptal edilmiş metnin taslağı yeni açılışta
   //   görünür ve yanlış kayda yazılabilirdi. (React "prop değişiminde state ayarı" deseni.)
   const [draft, setDraft] = useState(value);
+  const t = useTranslations("cupping.bigNote");
+  const tc = useTranslations("cupping.common");
   const [wasOpen, setWasOpen] = useState(open);
   if (open !== wasOpen) {
     setWasOpen(open);
@@ -104,7 +107,7 @@ export function BigNoteEditorDialog({
         <div className="flex items-center justify-between gap-3 border-b border-slate-100 px-5 py-3.5">
           <h3 className="min-w-0 truncate text-sm font-black tracking-tight text-slate-800">{title}</h3>
           {dirty ? (
-            <span className="shrink-0 text-[10.5px] font-medium text-amber-600">Kaydedilmemiş değişiklik</span>
+            <span className="shrink-0 text-[10.5px] font-medium text-amber-600">{t("unsaved")}</span>
           ) : null}
         </div>
 
@@ -120,14 +123,14 @@ export function BigNoteEditorDialog({
 
         <div className="flex items-center justify-between gap-3 border-t border-slate-100 px-5 py-3.5">
           <span className="text-[11px] text-slate-400">
-            {draft.trim().length} karakter · Kalıcı kayıt için formdaki <strong>Kaydet</strong>&apos;e basın
+            {t.rich("hint", { count: String(draft.trim().length), strong: (chunks) => <strong>{chunks}</strong> })}
           </span>
           <div className="flex items-center gap-2">
             <button type="button" onClick={onCancel} className={kupaBtnGhost}>
-              Vazgeç
+              {tc("cancel")}
             </button>
             <button type="button" onClick={() => onSave(draft)} className={kupaBtnSuccess} data-testid="kupa-bignote-apply">
-              Uygula
+              {t("apply")}
             </button>
           </div>
         </div>

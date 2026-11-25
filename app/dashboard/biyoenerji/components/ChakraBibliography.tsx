@@ -1,6 +1,7 @@
 "use client";
 
 import { BookOpen } from "lucide-react";
+import { useTranslations } from "next-intl";
 import type { ChakraBibliographyEntry } from "@/lib/bioenergy/chakraWorkspace";
 
 /**
@@ -14,12 +15,13 @@ export default function ChakraBibliography({
 }: {
   entries: ChakraBibliographyEntry[];
 }) {
+  const t = useTranslations("bioenergy.richBlock");
   if (entries.length === 0) return null;
   return (
     <section className="mt-10 border-t border-slate-200/70 pt-6">
       <h2 className="mb-3 flex items-center gap-2 text-sm font-black uppercase tracking-[0.14em] text-slate-500">
         <BookOpen className="h-4 w-4 shrink-0 text-violet-500" strokeWidth={2} aria-hidden />
-        Kaynakça
+        {t("bibliography")}
       </h2>
       <ol className="flex flex-col gap-1.5 text-[13px] leading-relaxed text-slate-600">
         {entries.map((e, i) => (

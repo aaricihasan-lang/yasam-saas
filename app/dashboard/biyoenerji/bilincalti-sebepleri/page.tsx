@@ -1,14 +1,16 @@
+import { useTranslations } from "next-intl";
 import BilincaltiSebepleri from "../components/BilincaltiSebepleri";
 import BiyoenerjiPremiumShell from "@/app/_premium/biyoenerji/kutuphane/BiyoenerjiPremiumShell";
 import BfcacheRefreshHandler from "@/components/BfcacheRefreshHandler";
 
 export default function BilincaltiSebepleriPage() {
+  const t = useTranslations("bioenergy.pages");
   return (
     <BiyoenerjiPremiumShell
-      badge="BİYOENERJİ · BİLİNÇALTI KÜTÜPHANESİ"
-      titleHead="Bilinçaltı Sebepleri "
-      titleAccent="Kütüphanesi"
-      subtitle="Arama yapın, karttan detayı açın — kök nedenler ve dönüşüm notları"
+      badge={t("bilincalti-sebepleri.badge")}
+      titleHead={t("bilincalti-sebepleri.titleHead")}
+      titleAccent={t("bilincalti-sebepleri.titleAccent")}
+      subtitle={t("bilincalti-sebepleri.subtitle")}
       heroSrc="/premium/biyoenerji/bilincalti-hero.webp"
       heroWidth={1212}
       heroHeight={412}

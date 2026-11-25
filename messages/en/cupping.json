@@ -1,0 +1,163 @@
+{
+  "cupping": {
+    "shell": {
+      "crumbAria": "Location",
+      "crumbHome": "Home",
+      "crumbEnergyBody": "Body & Energy Practices",
+      "moduleName": "Cupping & Hijama"
+    },
+    "home": {
+      "eyebrow": "Professional Workspace",
+      "title": "Cupping & Hijama Therapy",
+      "desc": "Create your hijama protocols and manage areas, techniques, application flow, safety notes, information and sources in a single workspace.",
+      "mainCardsAria": "Workspace",
+      "mainEyebrow": "Workspace",
+      "protocols": {
+        "title": "Hijama Protocols",
+        "desc": "Manage areas, techniques, application flow, safety, information and sources in one place, organised by complaint or working purpose.",
+        "cta": "Open Protocols"
+      },
+      "calendar": {
+        "title": "Hijama Calendar",
+        "desc": "Create your own annual hijama working calendar; view Gregorian and Hijri dates together and choose your application days yourself.",
+        "cta": "Open Calendar"
+      },
+      "supportTitle": "Support Libraries",
+      "supportAria": "Support libraries",
+      "supportCta": "Open",
+      "support": {
+        "points": {
+          "title": "Hijama Points",
+          "desc": "View hijama areas and their saved descriptions."
+        },
+        "techniques": {
+          "title": "Cupping Techniques",
+          "desc": "Manage dry, wet and other application techniques."
+        },
+        "safety": {
+          "title": "Safety & Contraindications",
+          "desc": "Create and edit your own safety / caution items and link them to protocols."
+        }
+      },
+      "note": "Note: This module organises traditional-use / sourced relationship information; no topic automatically implies that it \"treats\" anything."
+    },
+    "error": {
+      "title": "Something went wrong",
+      "crumb": "Error",
+      "heading": "This screen could not be displayed because of an unexpected error.",
+      "body": "Your saved data has not been affected. You can try the screen again or return to the Cupping & Hijama home.",
+      "retry": "Try again",
+      "home": "Cupping & Hijama home"
+    },
+    "errors": {
+      "network": "Could not reach the server. Please check your internet connection and try again."
+    },
+    "common": {
+      "save": "Save",
+      "saving": "Saving…",
+      "saved": "Saved.",
+      "saveFailed": "Could not be saved.",
+      "cancel": "Cancel",
+      "edit": "Edit",
+      "delete": "Delete",
+      "close": "Close",
+      "retry": "Try again",
+      "loading": "Loading…",
+      "demoNoCreate": "Records are not created on the demo account.",
+      "passive": "Inactive",
+      "active": "Active"
+    },
+    "vocab": {
+      "techniqueType": {
+        "dry": "Dry Cupping",
+        "wet": "Wet Cupping / Hijama",
+        "unspecified": "Not specified"
+      },
+      "movementStyle": {
+        "stationary": "Stationary",
+        "gliding": "Gliding",
+        "flash": "Flash",
+        "unspecified": "Not specified"
+      },
+      "severity": {
+        "info": "Information",
+        "warning": "Warning",
+        "contraindication": "Contraindication"
+      },
+      "contraClass": {
+        "absolute": "Absolute",
+        "relative": "Relative",
+        "none": "None"
+      },
+      "unspecified": "Not specified",
+      "all": "All"
+    },
+    "unsaved": {
+      "title": "Unsaved Changes",
+      "message": "You have unsaved changes.\nDo you want to leave without saving?",
+      "confirm": "Leave Without Saving",
+      "cancel": "Cancel"
+    },
+    "crud": {
+      "loadError": "Loading error.",
+      "required": "{label} is required.",
+      "deleteNoop": "The record could not be deleted (no change was made on this account).",
+      "deleteFailed": "Could not be deleted.",
+      "impactFailed": "The impact of deletion could not be calculated; nothing was deleted. Please try again.",
+      "impactFailedShort": "Error",
+      "records": "Records",
+      "searchPlaceholder": "Search…",
+      "searchAria": "Search records",
+      "filterAll": "{label}: All",
+      "results": "{count, plural, one {{count} result} other {{count} results}}",
+      "clear": "Clear",
+      "noMatch": "No records match your search.",
+      "selectHint": "Select a record on the left to edit, or add a new one.",
+      "add": "Add",
+      "checking": "Checking…",
+      "deleteBlockedTitle": "Record cannot be deleted",
+      "deleteTitle": "Delete record",
+      "deleteConfirm": "Are you sure you want to delete “{name}”? This action cannot be undone.",
+      "thisRecord": "This record"
+    },
+    "bigNote": {
+      "unsaved": "Unsaved change",
+      "hint": "{count, plural, one {{count} character} other {{count} characters}} · Press <strong>Save</strong> in the form to save permanently",
+      "apply": "Apply"
+    },
+    "usage": {
+      "loadError": "Usage information could not be loaded.",
+      "title": "Protocols Using This",
+      "unused": "This record is not used in any protocol yet. (It can be deleted.)",
+      "usedIn": "{count, plural, one {This record is used in {count} protocol; remove it from this protocol before deleting.} other {This record is used in {count} protocols; remove it from these protocols before deleting.}}"
+    },
+    "citation": {
+      "evidence": {
+        "traditional": "Traditional",
+        "historical": "Historical",
+        "modern_clinical": "Modern Clinical",
+        "systematic_review": "Systematic Review",
+        "safety_guidance": "Safety Guidance",
+        "expert_educational": "Expert / Educational"
+      },
+      "unknownSource": "(source)",
+      "loadError": "Sources could not be loaded.",
+      "nameRequired": "Enter the source name (e.g. Teacher Ahmet's training note).",
+      "removeNoop": "The link could not be removed (no change was made on this account).",
+      "removeFailed": "Could not be removed.",
+      "title": "Sources",
+      "empty": "No sources linked yet.",
+      "remove": "Remove",
+      "sourceLabel": "Source (who / where I learned it from)",
+      "sourcePlaceholder": "e.g. Teacher Ahmet's training note, my own training notes, Book X…",
+      "evidenceAria": "Evidence class",
+      "evidenceEmpty": "— evidence class —",
+      "locator": "Page / section (locator)",
+      "note": "Citation note (optional)",
+      "update": "Update Source",
+      "link": "Link Source",
+      "removeTitle": "Remove source",
+      "removeConfirm": "The link between “{name}” and this record will be removed. The source remains in your source catalogue (it is not deleted entirely)."
+    }
+  }
+}
