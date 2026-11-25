@@ -9,6 +9,7 @@ import { ChevronRight, Clock3, Layers, Pencil, Search, SlidersHorizontal, Sprout
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { useBioErrorText } from "../useBioErrorText";
+import { useBioDateTime } from "../useBioDateTime";
 import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import { readYasamUser } from "@/lib/auth/yasamUser";
 import {
@@ -118,19 +119,6 @@ function trimOrEmpty(v: string) {
   return v.trim();
 }
 
-function formatDate(iso: string) {
-  try {
-    return new Intl.DateTimeFormat("tr-TR", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    }).format(new Date(iso));
-  } catch {
-    return "—";
-  }
-}
 
 function EnergyBodyStats({
   total,
@@ -219,6 +207,7 @@ export default function EnerjiBedenleri() {
   const tl = useTranslations("bioenergy.list");
   const td = useTranslations("bioenergy.detail");
   const errText = useBioErrorText();
+  const formatDate = useBioDateTime();
   const {
     fontSizePx,
     typography: detailTypography,

@@ -7,7 +7,7 @@ import { useBioErrorText } from "../useBioErrorText";
 import { useRouter } from "next/navigation";
 import { Search, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { authHeaders, bioFetch } from "@/lib/biyoenerji/secureApi";
+import { authHeaders, bioFetch, rememberBioErrorCode } from "@/lib/biyoenerji/secureApi";
 import { BIO_GLOBAL_SEARCH_MIN, type BioGlobalHit } from "@/lib/biyoenerji/globalSearch";
 import { normalizeTr } from "@/lib/text/turkishSearch";
 import { useDemoGuard } from "@/hooks/useDemoGuard";
@@ -128,10 +128,11 @@ export default function BiyoenerjiGlobalSearch() {
         cache: "no-store",
       });
       const json = (await res.json().catch(() => ({}))) as {
-        ok?: boolean; error?: string; query?: string; total?: number; sections?: BioSearchSection[];
+        ok?: boolean; error?: string; code?: string; query?: string; total?: number; sections?: BioSearchSection[];
       };
       if (seq !== reqSeq.current) return; // eski yanıt yeni aramayı ezmez
       if (!res.ok || json.ok !== true) {
+        rememberBioErrorCode(json.error, json.code); // I18N-F1-R3: EN gösterim için kod (TR metin aynen)
         setState({ kind: "error", message: errText(json.error, t("failed")) });
         return;
       }

@@ -207,7 +207,8 @@
       "searchSummaryQuoted": "\"{query}\" · {count} eşleşme",
       "all": "Tümü",
       "searchSummaryCurly": "“{query}” · {count} eşleşme",
-      "uncategorised": "Kategorisiz"
+      "uncategorised": "Kategorisiz",
+      "noPreview": "Önizleme yok."
     },
     "subconscious": {
       "demoTitle": "Demo Modu — Bilinçaltı Sebepleri",
@@ -326,7 +327,8 @@
       "codePlaceholder": "Kodu buraya yazın",
       "badgeAll": "TÜMÜNÜ SİL",
       "badgeBulk": "TOPLU SİLME",
-      "step": "Adım {stage}/3"
+      "step": "Adım {stage}/3",
+      "phraseHint": "Büyük/küçük harf ve ı/i farkı önemsizdir; sayı ve kelimeler aynen yazılmalıdır."
     },
     "modal": {
       "close": "Kapat",
@@ -569,6 +571,39 @@
       "formSubtitleCreate": "Zorunlu alanları doldurup kaydedin; panel kapanır ve liste yenilenir.",
       "deleteConfirm": "Bu seans kaydını silmek istediğinizden emin misiniz?",
       "resourceLabel": "Biyoenerji Seansları"
+    },
+    "errors": {
+      "codes": {
+        "BIO_INVALID_RESOURCE": "Geçersiz kaynak.",
+        "BIO_INVALID_BODY": "Geçersiz istek gövdesi.",
+        "BIO_ID_REQUIRED": "id gerekli.",
+        "BIO_NOT_FOUND": "Kayıt bulunamadı.",
+        "BIO_NOT_OWNED": "Kayıt bu hesaba ait değil.",
+        "BIO_NOT_FOUND_OR_FORBIDDEN": "Kayıt bulunamadı veya yetki yok.",
+        "BIO_CHAKRA_ID_REQUIRED": "chakraId gerekli.",
+        "BIO_BLOCKS_READ_FAILED": "Bloklar okunamadı.",
+        "BIO_COUNT_FAILED": "Sayım yapılamadı.",
+        "BIO_BLOCK_CREATE_FAILED": "Blok oluşturulamadı.",
+        "BIO_NO_FIELDS": "Güncellenecek alan yok.",
+        "BIO_BLOCK_UPDATE_FAILED": "Blok güncellenemedi.",
+        "BIO_BLOCK_DELETE_FAILED": "Blok silinemedi.",
+        "BIO_OPERATION_FAILED": "İşlem başarısız.",
+        "BIO_DELETE_TARGET_REQUIRED": "ids veya all gerekli.",
+        "BIO_DELETE_CONFIRM_INVALID": "Silme onayı doğrulanamadı. Lütfen sayfayı yenileyip tekrar deneyin.",
+        "BIO_DELETE_COUNT_MISMATCH": "Onaylanan kayıt sayısı güncel toplamla uyuşmuyor; hiçbir kayıt silinmedi. Lütfen listeyi yenileyip tekrar deneyin.",
+        "BIO_DELETE_TOO_MANY": "Tek seferde silinebilecek kayıt sınırı aşıldı.",
+        "BIO_VALIDATION": "Girilen bilgiler geçerli değil.",
+        "BIO_DB_ERROR": "İşlem sırasında bir hata oluştu.",
+        "BIO_NETWORK": "Sunucuya ulaşılamadı. İnternet bağlantınızı kontrol edip tekrar deneyin.",
+        "BIO_TIMEOUT": "İstek zaman aşımına uğradı. Lütfen tekrar deneyin.",
+        "BIO_BLOCKS_MOVE_PARTIAL": "Bazı bloklar taşınamadı."
+      },
+      "report": {
+        "failed": "Word raporu oluşturulamadı.",
+        "failedWithDetail": "Word raporu oluşturulamadı: {detail}",
+        "rateLimited": "Çok fazla istek. Lütfen biraz sonra tekrar deneyin.",
+        "network": "Word raporu indirilemedi: sunucuya ulaşılamadı. Bağlantınızı kontrol edip tekrar deneyin."
+      }
     }
   }
 }

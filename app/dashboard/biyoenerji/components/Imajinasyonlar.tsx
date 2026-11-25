@@ -11,6 +11,8 @@ import styles from "@/app/_premium/biyoenerji/kutuphane/bioKutuphane.module.css"
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { useBioErrorText } from "../useBioErrorText";
+import { useBioDateTime } from "../useBioDateTime";
+import { hasPreviewText } from "../previewText";
 import { backgroundSyncYasamUserFromDb, readYasamUser } from "@/lib/auth/yasamUser";
 import {
   getSessionTenantId,
@@ -113,26 +115,13 @@ function slugifySourceId(value: string) {
   return slug || String(Date.now());
 }
 
-function formatDate(iso: string | null) {
-  if (!iso) return "—";
-  try {
-    return new Intl.DateTimeFormat("tr-TR", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    }).format(new Date(iso));
-  } catch {
-    return "—";
-  }
-}
 
 export default function Imajinasyonlar() {
   const { isDemo } = useDemoGuard();
   const t = useTranslations("bioenergy.imagery");
   const tl = useTranslations("bioenergy.list");
   const errText = useBioErrorText();
+  const formatDate = useBioDateTime();
   const [queryTenantId, setQueryTenantId] = useState<string | null>(null);
   const [rows, setRows] = useState<ImaginationListItem[]>([]);
   const [listLoading, setListLoading] = useState(true);
@@ -569,7 +558,8 @@ export default function Imajinasyonlar() {
           <div className={`${styles.grid} ${styles.grid3}`}>
             {rows.map((row) => {
               const detailHref = imaginationDetailHref(row.id);
-              const preview = previewImaginationText(row.text, row.notes, row.source);
+              // I18N-F1-R3: tüm parçalar boşsa lib'in "Önizleme yok." yedeği yerine ekran dilinde aynı metin (TR birebir).
+              const preview = hasPreviewText(row.text, row.notes, row.source) ? previewImaginationText(row.text, row.notes, row.source) : tl("noPreview");
               const hasCategory = Boolean(row.category?.trim());
               const isExportSelected = selectedForExport.has(row.id);
 

@@ -5,7 +5,6 @@ import { createPortal } from "react-dom";
 import { useTranslations } from "next-intl";
 import { buildNameListLines } from "@/lib/ui/deleteConfirmMessage";
 import {
-  BULK_PHRASE_HINT,
   bulkDeletePhrase,
   bulkPhraseMatches,
   requiresBulkDeleteGuard,
@@ -232,7 +231,9 @@ export function BiyoenerjiDangerDeleteModal({
           {t("phraseTitle")}
         </h3>
         <p className="mt-2 text-[13px] font-medium leading-relaxed text-slate-600">
-          {t("phraseBody")} {BULK_PHRASE_HINT}
+          {/* I18N-F1-R3: yazılı onay kuralı ve ifade (bulkDeletePhrase) DEĞİŞMEDİ; yalnız kural açıklaması ekran dilinde
+              (TR değeri lib/ui/bulkDeleteGuard BULK_PHRASE_HINT ile birebir). */}
+          {t("phraseBody")} {t("phraseHint")}
         </p>
         <div className="mt-4 flex items-center justify-center rounded-xl border-2 border-dashed border-rose-300 bg-rose-50/70 px-4 py-3">
           <span className="select-all font-mono text-xl font-black tracking-[0.12em] text-rose-700">{phrase}</span>
