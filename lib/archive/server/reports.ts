@@ -255,7 +255,14 @@ export async function buildHdRelationReport(ctx: ArchiveCtx, reportId: string): 
   return { ok: true, bytes: new Uint8Array(buffer), fileName: relationReportFilename(s.analysis, s.generatedAt) };
 }
 
-export type ArchiveAstroAccess = { ok: true; entitlements: AstrologyEntitlements } | { ok: false; reason: string };
+/**
+ * I18N: `code` erişim gerekçesinin dil-bağımsız EK alanı (Türkçe `reason` aynen). Karar mantığı (Atlas kapısı) değişmez;
+ * kod yalnız hangi `return` dalından çıkıldığını adlandırır.
+ */
+export type ArchiveAstroAccessDenyCode = "ATLAS_DISABLED" | "ATLAS_NO_PERMISSION" | "ATLAS_OWNER_MISMATCH";
+export type ArchiveAstroAccess =
+  | { ok: true; entitlements: AstrologyEntitlements }
+  | { ok: false; reason: string; code: ArchiveAstroAccessDenyCode };
 
 /**
  * Arşivde Gökyüzü Atlası erişimi — Atlas'ın kendi kapısıyla (lib/astrology/access/ownerGate) AYNI kural:
@@ -266,12 +273,14 @@ export type ArchiveAstroAccess = { ok: true; entitlements: AstrologyEntitlements
  *   - diğer roller → yok.
  */
 export async function resolveArchiveAstroAccess(ctx: ArchiveCtx): Promise<ArchiveAstroAccess> {
-  if (!isAstrologyModuleEnabled()) return { ok: false, reason: "Gökyüzü Atlası bu ortamda kapalı." };
+  if (!isAstrologyModuleEnabled()) return { ok: false, reason: "Gökyüzü Atlası bu ortamda kapalı.", code: "ATLAS_DISABLED" };
   const role = String(ctx.profile?.role ?? "").trim().toLowerCase();
   if (role === "admin") {
     const owner = await resolveAstrologyOwner(ctx.db, ctx.userId);
-    if (!owner.ok) return { ok: false, reason: "Gökyüzü Atlası modülü yetkisi yok." };
-    if (owner.tenantId !== ctx.tenantId) return { ok: false, reason: "Gökyüzü Atlası owner hesabı bu oturumun hesabına ait değil." };
+    if (!owner.ok) return { ok: false, reason: "Gökyüzü Atlası modülü yetkisi yok.", code: "ATLAS_NO_PERMISSION" };
+    if (owner.tenantId !== ctx.tenantId) {
+      return { ok: false, reason: "Gökyüzü Atlası owner hesabı bu oturumun hesabına ait değil.", code: "ATLAS_OWNER_MISMATCH" };
+    }
     return { ok: true, entitlements: resolveAstrologyEntitlements({ isOwner: true }) };
   }
   const flags = ctx.profile?.module_permissions;
@@ -281,7 +290,7 @@ export async function resolveArchiveAstroAccess(ctx: ArchiveCtx): Promise<Archiv
     flags: flags && typeof flags === "object" && !Array.isArray(flags) ? (flags as Record<string, unknown>) : null,
     techniqueGrants: role === "expert" ? await readAstrologyTechniqueGrants(ctx.db, ctx.userId) : null,
   });
-  if (!entitlements.module) return { ok: false, reason: "Gökyüzü Atlası modülü yetkisi yok." };
+  if (!entitlements.module) return { ok: false, reason: "Gökyüzü Atlası modülü yetkisi yok.", code: "ATLAS_NO_PERMISSION" };
   return { ok: true, entitlements };
 }
 

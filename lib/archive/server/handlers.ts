@@ -38,7 +38,10 @@ export async function handleArchivePlan(ctx: ArchiveCtx, body: unknown, now: Dat
   try {
     const plan = await buildArchivePlan(ctx, n.options, now);
     const audited = await writeArchiveAudit(ctx.db, ctx.userId, plan.archive_id, "started", { scope: auditScope(n.options), jobs: plan.jobs.length });
-    if (!audited) plan.warnings.push("Denetim kaydı yazılamadı; arşiv yine de oluşturulabilir.");
+    if (!audited) {
+      plan.warnings.push("Denetim kaydı yazılamadı; arşiv yine de oluşturulabilir.");
+      (plan.warning_codes ??= []).push({ code: "AUDIT_NOT_WRITTEN" });
+    }
     return json(200, plan as unknown as Record<string, unknown>);
   } catch (e) {
     if (e instanceof ArchiveTooLargeError) return json(413, { ok: false, code: "ARCHIVE_TOO_LARGE", error: e.message });
@@ -217,10 +220,11 @@ export async function handleArchiveClients(ctx: ArchiveCtx, body: unknown): Prom
   return json(200, {
     ok: true,
     total: res.count ?? null,
-    clients: (res.data ?? []).map((r) => ({
-      id: String(r.id),
-      name: [r.ad, r.soyad].filter((x) => typeof x === "string" && x.trim()).join(" ").trim() || "Adsız danışan",
-    })),
+    clients: (res.data ?? []).map((r) => {
+      const name = [r.ad, r.soyad].filter((x) => typeof x === "string" && x.trim()).join(" ").trim();
+      // I18N: `unnamed` dil-bağımsız EK alan (ekran kendi dilinde "adsız" yazar); Türkçe `name` aynen.
+      return { id: String(r.id), name: name || "Adsız danışan", ...(name ? {} : { unnamed: true }) };
+    }),
   });
 }
 
