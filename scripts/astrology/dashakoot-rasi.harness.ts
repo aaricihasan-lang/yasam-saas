@@ -12,7 +12,8 @@ import assert from "node:assert/strict";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { createElement } from "react";
-import { renderToStaticMarkup } from "react-dom/server";
+// I18N ATLAS-V: Vedik eşleşme/nokta bileşenleri metni katalogdan alır → çizim next-intl sağlayıcısıyla (TR katalog = önceki metin; beklentiler değişmedi).
+import { renderToStaticMarkup } from "./intlRender";
 import { applyClassicalRasi, classicalRasi, kpRelation, rasiParihara, RASI_SIXTH_EXCEPTIONS } from "@/lib/astrology/engine/dashakootRasi";
 import { vedicDashakoot, vedicPapasamyam } from "@/lib/astrology/engine/vedicPoruthamTechniques";
 import { projectRoxyVedicDashakoot, projectRoxyVedicPapasamyam, ROXY_VEDIC_DASHAKOOT, ROXY_VEDIC_PAPASAMYAM } from "@/lib/astrology/providers/roxy/vedicPorutham";

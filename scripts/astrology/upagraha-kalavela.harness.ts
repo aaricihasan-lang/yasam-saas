@@ -17,7 +17,8 @@ import { projectRoxyVedicUpagraha, ROXY_VEDIC_UPAGRAHA } from "@/lib/astrology/p
 import { NAKSHATRAS } from "@/lib/astrology/model/vedic";
 import { isLegacyUpagrahaOrder, UPAGRAHA_LEGACY_ORDER_NOTE, UPAGRAHA_SCHOOL_NOTE, UPAGRAHA_SCHOOL_NOTE_BPHS, UPAGRAHA_SYSTEMS_NOTE, UPAGRAHA_SYSTEMS_NOTE_LEGACY, upagrahaSchoolNote, upagrahaSystemsNote, type VedicUpagrahaTechnical } from "@/lib/astrology/model/vedicNoktalar";
 import { createElement } from "react";
-import { renderToStaticMarkup } from "react-dom/server";
+// I18N ATLAS-V: Vedik eşleşme/nokta bileşenleri metni katalogdan alır → çizim next-intl sağlayıcısıyla (TR katalog = önceki metin; beklentiler değişmedi).
+import { renderToStaticMarkup } from "./intlRender";
 import { VedicUpagrahaPanel } from "@/app/admin/astroloji/_components/VedicNoktalarPanels";
 import { legacyMethodNotes } from "@/lib/astrology/legacyMethod";
 import { vedicNoktaReport } from "@/lib/astrology/report/vedicNoktalarReport";
