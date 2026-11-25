@@ -1,10 +1,12 @@
-# I18N-F1-R3 — MODÜL EKRAN KABUL TESTİ (Türkçe / İngilizce × 1280 / 390 / 360 px; tüm kapsam içi uzman modül ekranları).
+# I18N-F1-R3/R4 — MODÜL EKRAN KABUL TESTİ (Türkçe / İngilizce × 1280 / 768 / 390 / 360 px; tüm kapsam içi uzman modül ekranları).
 # Ana CI'ya (ci.yml) yük BİNDİRMEZ: ayrı iş akışı; ürün dosyası (app/components/lib/messages/i18n) değişince ya da elle tetiklenir.
 # Sır KULLANMAZ; production'a / Supabase'e / ücretli API'ye istek ATMAZ. Build yerel test önüne (127.0.0.1) işaret eden SAHTE
 # değerlerle yapılır; veriler sentetiktir (embedded PostgreSQL + PostgREST şimi, scripts/anamnez/testEnv).
-# Dil başına bir iş (matrix) — her iş kendi kapı AÇIK build'ini yapar, 3 genişliği paralel bağlamlarda gezer.
+# Dil başına bir iş (matrix) — tr / en işleri kapı AÇIK build yapar, 4 genişliği paralel bağlamlarda gezer; "kapali" işi
+# kapı KAPALI build yapar (NEXT_LOCALE=en çerezi + hesap tercihi en iken her ekran tr olmalı; R4 Owner §18).
 # Sonuç: ekran görüntüleri (PNG) + ozet.json + ozet.md + next-sunucu.log → artefakt (14 gün).
-# FAIL: sayfa çökmesi / belge-RSC 5xx / yatay taşma / senaryo hatası. BİLGİ: EN'de TR-aday metin, /api 5xx (eksik modül tabloları).
+# FAIL: sayfa çökmesi / belge-RSC 5xx / yatay taşma / uygulama konsol hatası / ham anahtar (MISSING_MESSAGE) / <html lang>
+# uyuşmazlığı / senaryo hatası. BİLGİ: EN'de TR-aday metin, /api 5xx (eksik modül tabloları), kapsam dışı modül ekranları.
 name: I18N modül ekran kabulü
 
 on:
@@ -42,7 +44,16 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        locale: [tr, en]
+        include:
+          - locale: tr
+            gate: "on"
+            args: --locales tr --widths 1280,768,390,360
+          - locale: en
+            gate: "on"
+            args: --locales en --widths 1280,768,390,360
+          - locale: kapali
+            gate: "off"
+            args: --locales tr --widths 1280,360 --gate-closed
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -56,13 +67,13 @@ jobs:
       # Tip denetimi zorunlu ana CI'da (ci.yml "TypeScript"); bu test build'inde tekrarlanmaz. YALNIZ runner'ın geçici checkout'unda.
       - name: Test build'i için tip denetimini atla (yalnız bu runner)
         run: node scripts/campaign/ci-e2e-build-config.cjs
-      - name: Build (yayın kapısı AÇIK; webpack; sahte yerel değerler)
+      - name: Build (yayın kapısı ${{ matrix.gate == 'on' && 'AÇIK' || 'KAPALI' }}; webpack; sahte yerel değerler)
         run: npx next build --webpack || (echo "::warning title=modul-ekran build::ilk build başarısız; bir kez yeniden deneniyor" && npx next build --webpack)
         env:
-          NEXT_PUBLIC_I18N_LOCALE_SWITCHING: "on"
+          NEXT_PUBLIC_I18N_LOCALE_SWITCHING: ${{ matrix.gate }}
           NODE_OPTIONS: --max-old-space-size=6144
-      - name: Modül ekran kabulü (${{ matrix.locale }} × 1280/390/360)
-        run: npx tsx scripts/i18n/modul-ekran-kabul.e2e.ts --locales "${{ matrix.locale }}" --widths 1280,390,360 --budget-min 30 --out "$RUNNER_TEMP/modul-ekran/${{ matrix.locale }}"
+      - name: Modül ekran kabulü (${{ matrix.locale }})
+        run: npx tsx scripts/i18n/modul-ekran-kabul.e2e.ts ${{ matrix.args }} --budget-min 42 --out "$RUNNER_TEMP/modul-ekran/${{ matrix.locale }}"
         env:
           # Doğaltaş Bilgi Kütüphanesi sunucu kapısı (istek anında okunur); kapalıyken ekran 404 olur.
           STONE_LIBRARY_ENABLED: "true"

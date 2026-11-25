@@ -1,11 +1,16 @@
 /**
  * I18N-F1-R3 — MODÜL EKRAN KABUL TESTİ (gerçek Chromium; PRODUCTION'A SIFIR TEMAS; yalnız sentetik veri).
  *
- * Amaç: kapsam içi TÜM uzman modül ekranlarını Türkçe / İngilizce × 1280 / 390 / 360 px genişlikte açıp
+ * Amaç: kapsam içi TÜM uzman modül ekranlarını Türkçe / İngilizce × 1280 / 768 / 390 / 360 px genişlikte açıp
  *   - ekran görüntüsü           → <out>/<dil>-<genişlik>-<rota-adı>.png
- *   - yatay taşma               → scrollWidth ≤ genişlik + 1 (aşan öğeler tanı için listelenir)
+ *   - yatay taşma               → scrollWidth ≤ genişlik + 1 (aşan öğeler tanı için listelenir) = FAIL
  *   - sayfa çökmesi             → yakalanmamış hata (pageerror) / Next hata ekranı / belge-RSC 5xx
- *   - konsol error sayısı       → bilgi (örnekleriyle)
+ *   - konsol error              → uygulama konsol hatası = FAIL (R4, Owner §18). Ayrım: "Failed to load resource" satırları
+ *                                 HTTP ölçümüyle zaten sayıldığı için kaynak-yükleme sınıfında; aynı ekranda /api 5xx varsa
+ *                                 (test ortamında olmayan modül tablosu) uygulama hatası UYARI sayılır (strict'te FAIL)
+ *   - ham anahtar / MISSING_MESSAGE → konsolda next-intl hata kodu (MISSING_MESSAGE/INVALID_KEY/FORMATTING_ERROR…) ya da
+ *                                 görünen metinde "<namespace>.<anahtar>" / "⟦…⟧" = FAIL
+ *   - <html lang>               → beklenen dil (kapı açık: istenen dil; kapı kapalı: daima tr) değilse = FAIL
  *   - HTTP 5xx                  → belge / RSC / statik = FAIL; /api/* = UYARI (test ortamında olmayan modül tabloları
  *                                 yüzünden beklenir; `--strict-api` ya da MODUL_EKRAN_STRICT_API=1 ile FAIL)
  *   - EN'de Türkçe karakter     → görünen metin düğümleri + placeholder/title/aria-label; marka (scope.json
@@ -18,15 +23,22 @@
  *   S4 (her dil) Word raporu: danışan detayında "Tam Word raporu" → POST …/word-report yanıtı 200
  *      (rapor DİLİ kapsam dışı — çıktılar henüz çevrilmedi; yalnız yanıt durumu)
  *   M  (her dil, 1280) Silme onayı modalı: aç → Vazgeç/Cancel ile kapat (silme ASLA onaylanmaz) + kaydın durduğu doğrulanır
+ *   S5 (tr işi) Dil değiştir → sayfa yenile → dil kalıcı (Ayarlar › Dil; çerez + hesap tercihi) → sonra TR'ye geri alınır
+ *   S6 (en işi) Hesap değiştir → dil izolasyonu: aynı tarayıcıda sentetik A (tercih en) ↔ B (tercih yok) hesapları
+ *   S7 (her dil, 1280 + 360) Yükleme ekranı (loading.tsx): RSC yanıtı geciktirilerek istemci gezintisinde yakalanır
+ *   K1 (--gate-closed) Kapı kapalı: NEXT_LOCALE=en çerezi + hesap tercihi en olsa bile her ekran tr, dil seçimi görünmez
  *
- * Kapsam DIŞI (Owner kararı): Numeroloji, Human Design, Atlas/Astroloji, Kozmik Ajanda, Şifa Rehberi, admin ekranları.
+ * Kapsam DIŞI (Owner kararı): Numeroloji, Atlas/Astroloji, Kozmik Ajanda, Şifa Rehberi (ekran görüntüsü + TR-aday sayımı
+ * ALINIR ama "KAPSAM-DIŞI" olarak ayrı raporlanır, başarısızlık sayılmaz), HD alt ekranları, admin ekranları.
+ * Human Design ana ekranı (/human-design hub, #854) R4'te kapsama girdi.
  *
  * Ön koşul (gizli değer YOK; production adresi YOK) — yayın kapısı AÇIK build:
  *   NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:54398 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=zz-ds-anon-not-a-secret \
  *   SUPABASE_SERVICE_ROLE_KEY=zz-test-service-role-not-a-secret NEXT_PUBLIC_I18N_LOCALE_SWITCHING=on npx next build
  * Çalıştır (CI: .github/workflows/i18n-modul-ekran.yml):
- *   npx tsx scripts/i18n/modul-ekran-kabul.e2e.ts --out <klasör> [--locales tr,en] [--widths 1280,390,360]
- *       [--only <rota-id-virgüllü>] [--budget-min 42] [--strict-api] [--full-page]
+ *   npx tsx scripts/i18n/modul-ekran-kabul.e2e.ts --out <klasör> [--locales tr,en] [--widths 1280,768,390,360]
+ *       [--only <rota-id-virgüllü>] [--budget-min 42] [--strict-api] [--full-page] [--gate-closed]
+ *   --gate-closed: build NEXT_PUBLIC_I18N_LOCALE_SWITCHING=off ile yapılmış olmalı; yalnız tr turu koşar, çerez/tercih en verilir.
  *
  * Ortam: scripts/dy-presale-closeout/env (anamnez test ortamı = embedded PostgreSQL + PostgREST şimi + DY tabloları
  * + YH outbox) + Word raporu için asgari tablolar (scripts/asama2-dy005 ile aynı DDL) + user_locale_prefs migration'ı.
@@ -38,7 +50,7 @@
  */
 import { spawn, type ChildProcess } from "node:child_process";
 import { randomUUID } from "node:crypto";
-import { createWriteStream, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { createWriteStream, existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { chromium, type Browser, type BrowserContext, type Page, type Response } from "playwright";
@@ -55,11 +67,13 @@ const arg = (flag: string, def: string): string => {
 type Lang = "tr" | "en";
 const OUT = path.resolve(arg("--out", path.join(os.tmpdir(), "i18n-modul-ekran")));
 const LOCALES = arg("--locales", "tr,en").split(",").map((s) => s.trim()).filter((s): s is Lang => s === "tr" || s === "en");
-const WIDTHS = arg("--widths", "1280,390,360").split(",").map((s) => Number(s.trim())).filter((n) => Number.isFinite(n) && n >= 320);
+const WIDTHS = arg("--widths", "1280,768,390,360").split(",").map((s) => Number(s.trim())).filter((n) => Number.isFinite(n) && n >= 320);
 const ONLY = new Set(arg("--only", "").split(",").map((s) => s.trim()).filter(Boolean));
 const BUDGET_MS = Number(arg("--budget-min", "42")) * 60_000;
 const STRICT_API = argv.includes("--strict-api") || process.env.MODUL_EKRAN_STRICT_API === "1";
 const FULL_PAGE = argv.includes("--full-page") || process.env.MODUL_EKRAN_FULL_PAGE === "1";
+/** Kapı kapalı build'i: ekranlar tr turu olarak gezilir ama tarayıcıya NEXT_LOCALE=en + hesaba en tercihi verilir. */
+const GATE_CLOSED = argv.includes("--gate-closed") || process.env.MODUL_EKRAN_GATE_CLOSED === "1";
 const APP_PORT = Number(process.env.MODUL_EKRAN_APP_PORT ?? 3997);
 const APP = `http://127.0.0.1:${APP_PORT}`;
 const SUPA_PORT = Number(process.env.I18N_E2E_SUPA_PORT ?? 54398);
@@ -68,10 +82,14 @@ const ROOT = process.cwd();
 const STARTED = Date.now();
 mkdirSync(OUT, { recursive: true });
 
-const HEIGHT: Record<number, number> = { 1280: 900, 390: 844, 360: 780 };
+const HEIGHT: Record<number, number> = { 1280: 900, 768: 1024, 390: 844, 360: 780 };
 const STABILIZE_CSS = `*,*::before,*::after{animation:none!important;transition:none!important;caret-color:transparent!important}`;
 const CRASH_TEXT = /This page couldn[’']t load|Application error: a (client|server)-side exception/i;
 const NOISE_PAGEERROR = /Failed to fetch|NetworkError|Load failed|AbortError|ResizeObserver loop/i;
+/** Tarayıcının kaynak yükleme günlüğü (HTTP durumu ayrıca ölçülür) → uygulama konsol hatası sayılmaz. */
+const RESOURCE_CONSOLE = /^Failed to load resource/i;
+/** next-intl hata kodları: eksik / geçersiz anahtar ya da ICU biçim hatası → FAIL. */
+const INTL_CONSOLE = /MISSING_MESSAGE|INVALID_KEY|INVALID_MESSAGE|FORMATTING_ERROR|INSUFFICIENT_PATH|ENVIRONMENT_FALLBACK|IntlError/;
 
 // ─── Mesaj kataloğu (etiketler koddan değil kataloğdan → metin değişse de test kırılmaz) ─────────────────
 
@@ -86,6 +104,18 @@ function M(lang: Lang, file: string, key: string): string {
   }
   if (typeof cur !== "string") throw new Error(`katalog anahtarı yok: ${lang}/${file}.${key}`);
   return cur;
+}
+/** M'nin hata atmayan hali (karşılaştırma tabanında — ör. main — namespace olmayabilir). */
+function Mq(lang: Lang, file: string, key: string): string | null {
+  try { return M(lang, file, key); } catch { return null; }
+}
+/** Ham anahtar taraması için kök namespace'ler (messages/<dil>/*.json dosya adlarının ilk parçası). */
+function messageRoots(): string[] {
+  try {
+    return Array.from(new Set(readdirSync(path.join(ROOT, "messages", "en")).filter((f) => f.endsWith(".json")).map((f) => f.split(".")[0]!)));
+  } catch {
+    return [];
+  }
 }
 const escRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 /** Baştaki süs karakterini (✎ vb.) at — UI stripLeadingGlyph ile aynı amaç. */
@@ -112,6 +142,17 @@ type RouteDef = {
   modal?: "first" | "last";
   /** Sekme yoksa sessizce atla (ör. Kişisel Dijital Ofis yalnız izinli hesapta) */
   optionalTab?: boolean;
+  /** Kapsam dışı modül (Owner): ölçülür + ekran görüntüsü alınır, sonuç "KAPSAM-DIŞI" (FAIL sayılmaz). */
+  outOfScope?: boolean;
+  /** Oturumsuz ziyaretçi bağlamında aç (kampanya ziyaretçi ekranları). */
+  anon?: boolean;
+  /** Yüklendikten sonra yapılacak etkileşim: "bell" = bildirim panelini aç; "error-boundary" = API yanıtı bozularak
+   *  segment hata sınırı (error.tsx) tetiklenir (ürün koduna dokunmadan, yalnız tarayıcıda yanıt değiştirilir). */
+  action?: "bell" | "error-boundary";
+  /** Beklenen belge HTTP durumu (ör. 404 sayfası). */
+  expectStatus?: number;
+  /** Bu rota için tam sayfa ekran görüntüsü (uzun ayar sekmeleri). */
+  fullPage?: boolean;
 };
 
 const CLIENT_TABS = ["genel", "anamnez", "notlar", "seanslar", "odevler", "analizler", "taslar", "beslenme", "hafiza", "randevular", "yolculuk", "ucretlendirme"] as const;
@@ -121,8 +162,18 @@ const ROUTES: RouteDef[] = [
   { id: "ana-sayfa", group: "Ana sayfa / panel", path: "/" },
   { id: "panel", group: "Ana sayfa / panel", path: "/dashboard" },
   ...SETTINGS_TABS.map((t): RouteDef => ({
-    id: t === "membership" ? "ayarlar-uyeligim" : `ayarlar-${t}`, group: "Ayarlar", path: "/settings", settingsTab: t, optionalTab: t === "workspace",
+    id: t === "membership" ? "ayarlar-uyeligim" : `ayarlar-${t}`, group: "Ayarlar", path: "/settings", settingsTab: t,
+    // Kapı kapalı build'de Dil sekmesi bilerek YOK → "beklenen" (K1 senaryosu ayrıca doğrular).
+    optionalTab: t === "workspace" || (GATE_CLOSED && t === "language"),
   })),
+  // Giriş yöntemleri (MyLoginMethodsPanel) + oturumlar Güvenlik sekmesinin altında → tam sayfa görüntü.
+  { id: "ayarlar-giris-yontemleri", group: "Ayarlar", path: "/settings", settingsTab: "security", fullPage: true },
+  { id: "bildirimler", group: "Bildirimler", path: "/", action: "bell" },
+  { id: "human-design-hub", group: "Human Design", path: "/human-design" },
+  { id: "hata-404", group: "Hata / yükleme", path: "/zz-olmayan-sayfa-r4", expectStatus: 404 },
+  { id: "hata-siniri-kupa", group: "Hata / yükleme", path: "/kupa/protokoller", action: "error-boundary" },
+  { id: "kampanya-ziyaretci-ana-sayfa", group: "Kampanya ziyaretçi", path: "/", anon: true },
+  { id: "kampanya-ziyaretci-ucretsiz-analiz", group: "Kampanya ziyaretçi", path: "/ucretsiz-analiz", anon: true },
   { id: "ajanda", group: "Ajanda", path: "/dashboard/ajanda", modal: "first" },
   { id: "kisisel-arsiv", group: "Kişisel Arşiv", path: "/dashboard/kisisel-arsiv" },
   { id: "danisan-yolculugu", group: "Danışan Yolculuğu", path: "/danisan-yolculugu" },
@@ -204,6 +255,11 @@ const ROUTES: RouteDef[] = [
   { id: "urun-stok-satis-fiyatlandirma", group: "Ürün & Stok", path: "/urun-stok/satis-fiyatlandirma" },
   { id: "urun-stok-satis-gecmisi", group: "Ürün & Stok", path: "/urun-stok/satis-gecmisi" },
   { id: "urun-stok-stok-hareketleri", group: "Ürün & Stok", path: "/urun-stok/stok-hareketleri" },
+  // ── Kapsam DIŞI / bekliyor (Owner): ölçülür, ayrı raporlanır, FAIL sayılmaz ──
+  { id: "kd-kozmik-ajanda", group: "KAPSAM DIŞI", path: "/cosmic-calendar", outOfScope: true },
+  { id: "kd-sifa-rehberi", group: "KAPSAM DIŞI", path: "/sifa-rehberi", outOfScope: true },
+  { id: "kd-numeroloji", group: "KAPSAM DIŞI", path: "/numeroloji", outOfScope: true },
+  { id: "kd-atlas", group: "KAPSAM DIŞI", path: "/astroloji", outOfScope: true },
 ];
 
 // ─── Sentetik veri ───────────────────────────────────────────────────────────
@@ -219,6 +275,8 @@ const SYN = {
   createdSoyad: "OLUSTUR",
   keepAd: "ZZ Korunan",
   keepSoyad: "VERI",
+  expertNameB: "ZZ Modul Uzman B",
+  expertEmailB: "zz.modul.uzman.b@example.test",
 };
 /** Uzman modül yetkilerinin TAMAMI (kapsam dışı modüller de açık: yalnız kapsam içi ekranlar ziyaret edilir). */
 const ALL_EXPERT_MODULES: Record<string, boolean> = {
@@ -241,7 +299,10 @@ create table if not exists public.numerology_records (id uuid primary key defaul
 grant select, insert, update, delete on all tables in schema public to service_role;
 `;
 
-type Fixture = { tenant: string; userId: string; token: string; client: string; anamnesis: string | null; userRecord: Record<string, unknown> };
+type Fixture = {
+  tenant: string; userId: string; token: string; client: string; anamnesis: string | null; userRecord: Record<string, unknown>;
+  userB: { tenant: string; userId: string; token: string; userRecord: Record<string, unknown> } | null;
+};
 
 async function seed(env: TestEnv): Promise<{ fx: Fixture; seedNotes: string[] }> {
   const q = (sql: string, a: unknown[] = []) => env.su.query(sql, a);
@@ -297,7 +358,28 @@ async function seed(env: TestEnv): Promise<{ fx: Fixture; seedNotes: string[] }>
     active: true, approval_status: "approved", package_type: "premium", plan: "premium",
     module_permissions: ALL_EXPERT_MODULES, is_demo_account: false,
   };
-  return { fx: { tenant, userId, token, client, anamnesis, userRecord }, seedNotes: notes };
+  // S6 için ikinci sentetik uzman (AYRI tenant; dil tercihi yok) — hesap değişiminde dil izolasyonu.
+  const tenantB = randomUUID();
+  const userIdB = randomUUID();
+  const tokenB = `zz-modul-ekran-tokB-${userIdB.slice(0, 8)}`;
+  let userB: Fixture["userB"] = null;
+  try {
+    await q(`insert into public.tenants(id, name) values ($1,$2)`, [tenantB, `${SYN.tenantName}_B`]);
+    await q(
+      `insert into public.users(id, full_name, email, role, active, approval_status, module_permissions, package_type, plan, tenant_id, is_demo_account)
+       values ($1,$2,$3,'expert',true,'approved',$4,'premium','premium',$5,false)`,
+      [userIdB, SYN.expertNameB, SYN.expertEmailB, JSON.stringify(ALL_EXPERT_MODULES), tenantB],
+    );
+    await q(`insert into public.user_sessions(user_id, session_token) values ($1,$2)`, [userIdB, tokenB]);
+    userB = {
+      tenant: tenantB, userId: userIdB, token: tokenB,
+      userRecord: { ...userRecord, id: userIdB, tenant_id: tenantB, full_name: SYN.expertNameB, email: SYN.expertEmailB },
+    };
+    notes.push("tohum: ikinci hesap (B) ✓");
+  } catch (e) {
+    notes.push(`tohum: ikinci hesap (B) ATLANDI (${(e as Error).message.slice(0, 160)})`);
+  }
+  return { fx: { tenant, userId, token, client, anamnesis, userRecord, userB }, seedNotes: notes };
 }
 
 // ─── Sonuç tipleri ───────────────────────────────────────────────────────────
@@ -307,7 +389,10 @@ type RouteResult = {
   route: string; group: string; lang: Lang; width: number; url: string; finalPath: string; status: number | null;
   screenshot: string | null; overflowPx: number; overflowOffenders: string[]; crash: boolean; crashReason: string | null;
   pageErrors: string[]; consoleErrors: number; consoleSamples: string[]; api5xx: string[]; other5xx: string[];
-  trCandidates: number; trSamples: TrHit[]; note: string | null; ms: number; verdict: "PASS" | "FAIL" | "ATLANDI";
+  trCandidates: number; trSamples: TrHit[]; note: string | null; ms: number; verdict: "PASS" | "FAIL" | "ATLANDI" | "KAPSAM-DIŞI";
+  /** R4: <html lang>, uygulama konsol hataları (kaynak-yükleme hariç), next-intl hataları, ham anahtarlar, FAIL nedenleri. */
+  htmlLang: string; consoleApp: number; consoleAppSamples: string[]; consoleResource: number; consoleWarnOnly: boolean;
+  intlErrors: string[]; rawKeys: string[]; failReasons: string[]; outOfScope: boolean;
 };
 type ScenarioResult = { id: string; lang: Lang; title: string; ok: boolean; detail: string; screenshot?: string };
 
@@ -350,7 +435,7 @@ async function settle(page: Page) {
   }
   await sleep(600);
 }
-const shotName = (lang: Lang, width: number, id: string) => `${lang}-${width}-${id}.png`;
+const shotName = (lang: Lang, width: number, id: string) => `${GATE_CLOSED ? "kapali-" : ""}${lang}-${width}-${id}.png`;
 
 async function setAccountLocale(env: TestEnv, fx: Fixture, lang: Lang) {
   if (lang === "en") {
@@ -364,7 +449,10 @@ async function setAccountLocale(env: TestEnv, fx: Fixture, lang: Lang) {
   }
 }
 
-async function newCtx(browser: Browser, fx: Fixture, lang: Lang, width: number): Promise<BrowserContext> {
+async function newCtx(
+  browser: Browser, fx: Fixture, lang: Lang, width: number,
+  opts: { anon?: boolean; cookie?: Lang | null; noAuthInit?: boolean } = {},
+): Promise<BrowserContext> {
   const mobile = width < 768;
   const ctx = await browser.newContext({
     viewport: { width, height: HEIGHT[width] ?? 900 }, isMobile: mobile, hasTouch: mobile, deviceScaleFactor: 1,
@@ -372,7 +460,10 @@ async function newCtx(browser: Browser, fx: Fixture, lang: Lang, width: number):
   });
   // tsx/esbuild keepNames: page.evaluate'e giden işlevler __name(...) yardımcısını çağırır; tarayıcıda tanımlı olmalı.
   await ctx.addInitScript({ content: "globalThis.__name = globalThis.__name || ((f) => f);" });
-  await ctx.addCookies([{ name: "NEXT_LOCALE", value: lang, url: APP }]);
+  // Kapı kapalı turunda çerez bilerek "en" (eski EN çerezi kalmış kullanıcı) — render yine tr olmalı.
+  const cookie = opts.cookie === undefined ? (GATE_CLOSED ? "en" : lang) : opts.cookie;
+  if (cookie) await ctx.addCookies([{ name: "NEXT_LOCALE", value: cookie, url: APP }]);
+  if (opts.anon || opts.noAuthInit) return ctx;
   await ctx.addInitScript(([u, tok]) => {
     localStorage.setItem("yasam_user", u as string);
     localStorage.setItem("yasam_session_token", tok as string);
@@ -493,7 +584,36 @@ async function scanTurkish(page: Page, exclude: string[]): Promise<{ count: numb
   }, exclude);
 }
 
+/** Görünen metinde/özniteliklerde ham çeviri anahtarı: "<kök-namespace>.<a>.<b>" (boşluksuz, tüm düğüm) ya da DEV işareti ⟦…⟧. */
+async function scanRawKeys(page: Page, roots: string[]): Promise<string[]> {
+  return page.evaluate((rs) => {
+    const RE = rs.length ? new RegExp(`^(?:${rs.join("|")})(?:\\.[A-Za-z0-9_-]+)+$`) : null;
+    const hits: string[] = [];
+    const test = (v: string) => {
+      const t = v.replace(/\s+/g, " ").trim();
+      if (!t) return;
+      if (t.includes("⟦") || (RE && RE.test(t))) { if (hits.length < 15 && !hits.includes(t.slice(0, 120))) hits.push(t.slice(0, 120)); }
+    };
+    if (!document.body) return hits;
+    const w = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+    let n: Node | null;
+    while ((n = w.nextNode())) {
+      const el = n.parentElement;
+      if (!el || el.closest("script,style,noscript,template")) continue;
+      test(n.textContent ?? "");
+    }
+    for (const el of Array.from(document.querySelectorAll("[placeholder],[title],[aria-label]"))) {
+      for (const a of ["placeholder", "title", "aria-label"]) { const v = el.getAttribute(a); if (v) test(v); }
+    }
+    test(document.title);
+    return hits;
+  }, roots);
+}
+
 // ─── Ekran turu ──────────────────────────────────────────────────────────────
+
+/** Ham anahtar taramasının kök namespace listesi (main()'de doldurulur). */
+let ROOTS: string[] = [];
 
 function resolvePath(p: string, fx: Fixture): string | null {
   if (p.includes("{anamnesis}") && !fx.anamnesis) return null;
@@ -506,12 +626,21 @@ async function visitRoute(page: Page, t: ReturnType<typeof track>, r: RouteDef, 
     route: r.id, group: r.group, lang, width, url: r.path, finalPath: "", status: null, screenshot: null, overflowPx: 0, overflowOffenders: [],
     crash: false, crashReason: null, pageErrors: [], consoleErrors: 0, consoleSamples: [], api5xx: [], other5xx: [], trCandidates: 0, trSamples: [],
     note: null, ms: 0, verdict: "PASS",
+    htmlLang: "", consoleApp: 0, consoleAppSamples: [], consoleResource: 0, consoleWarnOnly: false, intlErrors: [], rawKeys: [], failReasons: [],
+    outOfScope: !!r.outOfScope,
   };
   if (Date.now() - STARTED > BUDGET_MS) return { ...base, note: "süre bütçesi aşıldı — atlandı", verdict: "ATLANDI" };
   const p = resolvePath(r.path, fx);
   if (!p) return { ...base, note: "tohum kaydı yok (anamnez) — atlandı", verdict: "ATLANDI" };
   base.url = p;
   t.reset();
+  // Hata sınırı denemesi: liste API'si 200 + bozuk şekil ({protocols: nesne}) döner → bileşen render'da patlar →
+  // app/kupa/error.tsx devreye girmeli. Yalnız bu sekmenin tarayıcı isteği değiştirilir; sunucu/DB'ye dokunulmaz.
+  const ebPattern = "**/api/kupa/protocols**";
+  if (r.action === "error-boundary") {
+    await page.route(ebPattern, (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ok: true, protocols: { zzBozukSekil: true } }) }));
+  }
+  let boundaryShown = null as boolean | null;
   try {
     await withTimeout((async () => {
       await page.goto(`${APP}${p}`, { waitUntil: "domcontentloaded", timeout: 60_000 });
@@ -519,23 +648,41 @@ async function visitRoute(page: Page, t: ReturnType<typeof track>, r: RouteDef, 
       if (r.settingsTab) {
         const okTab = await selectSettingsTab(page, r.settingsTab);
         if (!okTab) {
-          base.note = r.optionalTab ? "sekme bu hesapta yok (isteğe bağlı) — atlandı" : "sekme bulunamadı";
+          base.note = GATE_CLOSED && r.settingsTab === "language"
+            ? "kapı kapalı: Dil sekmesi beklendiği gibi YOK"
+            : r.optionalTab ? "sekme bu hesapta yok (isteğe bağlı) — atlandı" : "sekme bulunamadı";
           if (r.optionalTab) base.verdict = "ATLANDI";
         }
         await settle(page);
+      }
+      if (r.action === "bell") {
+        const titles = [Mq(lang, "notifications", "bell.title"), "Bildirimler", "Notifications"].filter((x): x is string => !!x);
+        const bell = page.locator(titles.map((x) => `button[title="${x}"]`).join(",")).filter({ visible: true }).first();
+        if ((await bell.count()) > 0) { await bell.click().catch(() => undefined); await sleep(800); await settle(page); }
+        else base.note = "bildirim zili bulunamadı";
+      }
+      if (r.action === "error-boundary") {
+        boundaryShown = await page.locator("[role=alert]").filter({ visible: true }).first().waitFor({ timeout: 10_000 }).then(() => true).catch(() => false);
       }
     })(), 90_000, r.id);
   } catch (e) {
     base.crash = true;
     base.crashReason = `yüklenemedi: ${(e as Error).message.slice(0, 200)}`;
   }
+  if (r.action === "error-boundary") await page.unroute(ebPattern).catch(() => undefined);
   const b = t.bucket();
   base.status = b.docStatus;
   base.finalPath = page.url().startsWith(APP) ? page.url().slice(APP.length) : page.url();
   if (base.verdict === "ATLANDI") { base.ms = Date.now() - started; return base; }
+  base.htmlLang = await htmlLang(page);
   const bodyText = await page.evaluate(() => (document.body ? document.body.innerText : "")).catch(() => "");
   if (CRASH_TEXT.test(bodyText)) { base.crash = true; base.crashReason = base.crashReason ?? "Next hata ekranı (This page couldn’t load / Application error)"; }
-  if (b.pageErrors.length) { base.crash = true; base.crashReason = base.crashReason ?? `yakalanmamış hata: ${b.pageErrors[0]}`; }
+  if (b.pageErrors.length && r.action !== "error-boundary") { base.crash = true; base.crashReason = base.crashReason ?? `yakalanmamış hata: ${b.pageErrors[0]}`; }
+  if (r.action === "error-boundary") {
+    base.note = boundaryShown ? "hata sınırı (error.tsx) göründü — beklenen" : "hata sınırı GÖRÜNMEDİ";
+    if (!boundaryShown && !base.crash) { base.crash = true; base.crashReason = "enjekte edilen hata modül hata sınırında yakalanmadı"; }
+  }
+  if (r.expectStatus && base.status !== r.expectStatus) base.note = `${base.note ? `${base.note}; ` : ""}beklenen HTTP ${r.expectStatus}, gelen ${base.status ?? "-"}`;
   const finalNoQuery = base.finalPath.split("?")[0];
   const wantedNoQuery = p.split("?")[0];
   if (finalNoQuery !== wantedNoQuery && !base.note) base.note = `yönlendirme → ${base.finalPath.slice(0, 120)}`;
@@ -549,8 +696,9 @@ async function visitRoute(page: Page, t: ReturnType<typeof track>, r: RouteDef, 
       base.trCandidates = tr.count;
       base.trSamples = tr.samples;
     }
+    base.rawKeys = await scanRawKeys(page, ROOTS).catch(() => []);
     const file = shotName(lang, width, r.id);
-    await page.screenshot({ path: path.join(OUT, file), fullPage: FULL_PAGE, timeout: 30_000 });
+    await page.screenshot({ path: path.join(OUT, file), fullPage: FULL_PAGE || !!r.fullPage, timeout: 30_000 });
     base.screenshot = file;
   } catch (e) {
     base.note = `${base.note ? `${base.note}; ` : ""}ölçüm/ekran görüntüsü hatası: ${(e as Error).message.slice(0, 160)}`;
@@ -561,36 +709,72 @@ async function visitRoute(page: Page, t: ReturnType<typeof track>, r: RouteDef, 
   base.consoleSamples = Array.from(new Set(after.console)).slice(0, 4);
   base.api5xx = Array.from(new Set(after.api5xx)).slice(0, 10);
   base.other5xx = Array.from(new Set(after.other5xx)).slice(0, 10);
+  // Konsol sınıflandırma (R4): next-intl hataları → FAIL; kaynak yükleme → HTTP ölçümünde; geri kalan = uygulama hatası.
+  base.intlErrors = Array.from(new Set(after.console.filter((m) => INTL_CONSOLE.test(m)))).slice(0, 5);
+  const appConsole = after.console.filter((m) => !RESOURCE_CONSOLE.test(m) && !INTL_CONSOLE.test(m) && !NOISE_PAGEERROR.test(m));
+  base.consoleResource = after.console.filter((m) => RESOURCE_CONSOLE.test(m)).length;
+  // Hata sınırı denemesinde enjekte edilen hatanın günlüğü beklenir → sayılmaz.
+  base.consoleApp = r.action === "error-boundary" ? 0 : appConsole.length;
+  base.consoleAppSamples = Array.from(new Set(appConsole)).slice(0, 4);
+  // Aynı ekranda /api 5xx varsa (test ortamında modül tablosu yok) uygulama konsol hatası çoğunlukla onun yankısıdır → UYARI.
+  base.consoleWarnOnly = base.consoleApp > 0 && base.api5xx.length > 0 && !STRICT_API;
   const docFail = (base.status ?? 0) >= 500 || base.other5xx.length > 0;
-  const fail = base.crash || docFail || base.overflowPx > 1 || (STRICT_API && base.api5xx.length > 0);
-  base.verdict = fail ? "FAIL" : "PASS";
+  const expectedLang = GATE_CLOSED ? "tr" : lang;
+  const reasons: string[] = [];
+  if (base.crash) reasons.push("çökme");
+  if (docFail) reasons.push("belge/RSC 5xx");
+  if (base.overflowPx > 1) reasons.push(`taşma ${base.overflowPx}px`);
+  if (STRICT_API && base.api5xx.length > 0) reasons.push("api 5xx (strict)");
+  if (base.consoleApp > 0 && !base.consoleWarnOnly) reasons.push(`konsol ${base.consoleApp}`);
+  if (base.intlErrors.length) reasons.push("next-intl hata kodu");
+  if (base.rawKeys.length) reasons.push("ham anahtar");
+  if (base.htmlLang && base.htmlLang !== expectedLang) reasons.push(`html lang=${base.htmlLang} (beklenen ${expectedLang})`);
+  if (r.expectStatus && base.status !== r.expectStatus) reasons.push(`HTTP ${base.status ?? "-"}≠${r.expectStatus}`);
+  base.failReasons = reasons;
+  base.verdict = r.outOfScope ? "KAPSAM-DIŞI" : reasons.length ? "FAIL" : "PASS";
   base.ms = Date.now() - started;
   return base;
 }
 
 async function screenTour(browser: Browser, env: TestEnv, fx: Fixture, lang: Lang, exclude: string[]) {
-  await setAccountLocale(env, fx, lang);
+  // Kapı kapalı turu: hesaba bilerek "en" tercihi yazılır (render yine tr olmalı).
+  await setAccountLocale(env, fx, GATE_CLOSED ? "en" : lang);
   const routes = ROUTES.filter((r) => ONLY.size === 0 || ONLY.has(r.id));
   // Genişlikler paralel (her biri kendi bağlamında); rotalar her genişlikte sıralı.
   await Promise.all(WIDTHS.map(async (width) => {
     const ctx = await newCtx(browser, fx, lang, width);
+    let anonCtx: BrowserContext | null = null;
     let page = await ctx.newPage();
     let t = track(page);
     for (const r of routes) {
-      const res = await visitRoute(page, t, r, lang, width, fx, exclude);
+      let res: RouteResult;
+      if (r.anon) {
+        // Ziyaretçi ekranı: oturumsuz ayrı bağlam (uzman localStorage'ı yok).
+        anonCtx = anonCtx ?? await newCtx(browser, fx, lang, width, { anon: true });
+        const ap = await anonCtx.newPage();
+        const at = track(ap);
+        res = await visitRoute(ap, at, r, lang, width, fx, exclude);
+        await ap.close().catch(() => undefined);
+      } else {
+        res = await visitRoute(page, t, r, lang, width, fx, exclude);
+      }
       results.push(res);
-      const flag = res.verdict === "PASS" ? "PASS" : res.verdict === "FAIL" ? "FAIL" : "ATLA";
-      console.log(`  ${flag} [${lang} ${width}] ${r.id} http=${res.status ?? "-"} taşma=${res.overflowPx} çökme=${res.crash ? "E" : "H"} konsol=${res.consoleErrors} api5xx=${res.api5xx.length}${lang === "en" ? ` tr-aday=${res.trCandidates}` : ""}${res.note ? ` (${res.note})` : ""}`);
+      const flag = res.verdict === "PASS" ? "PASS" : res.verdict === "FAIL" ? "FAIL" : res.verdict === "KAPSAM-DIŞI" ? "KDIS" : "ATLA";
+      console.log(`  ${flag} [${GATE_CLOSED ? "kapalı-" : ""}${lang} ${width}] ${r.id} http=${res.status ?? "-"} lang=${res.htmlLang || "-"} taşma=${res.overflowPx} çökme=${res.crash ? "E" : "H"} konsol=${res.consoleErrors} (uyg=${res.consoleApp}${res.consoleWarnOnly ? " uyarı" : ""}, kaynak=${res.consoleResource}) api5xx=${res.api5xx.length}${lang === "en" ? ` tr-aday=${res.trCandidates}` : ""}${res.rawKeys.length ? ` ham-anahtar=${res.rawKeys.length}` : ""}${res.intlErrors.length ? ` intl-hata=${res.intlErrors.length}` : ""}${res.failReasons.length ? ` neden=[${res.failReasons.join(", ")}]` : ""}${res.note ? ` (${res.note})` : ""}`);
       // Tanı: ozet.md yazılamasa da (süreç erken düşerse) taşan öğe + çökme nedeni CI günlüğünde kalsın.
       if (res.overflowPx > 1) console.log(`      taşan öğeler: ${res.overflowOffenders.join(" · ") || "(saptanamadı)"}`);
       if (res.crash) console.log(`      çökme: ${res.crashReason ?? "-"}${res.pageErrors.length ? ` | pageerror: ${res.pageErrors[0]!.slice(0, 300)}` : ""}${res.consoleSamples.length ? ` | konsol: ${res.consoleSamples.join(" ‖ ").slice(0, 400)}` : ""}`);
-      if (res.crash) {
+      if (res.consoleApp > 0 && width === WIDTHS[0]) console.log(`      konsol (uygulama): ${res.consoleAppSamples.join(" ‖ ").slice(0, 500)}`);
+      if (res.intlErrors.length) console.log(`      next-intl: ${res.intlErrors.join(" ‖ ").slice(0, 500)}`);
+      if (res.rawKeys.length) console.log(`      ham anahtar: ${res.rawKeys.join(" · ").slice(0, 400)}`);
+      if (res.crash && !r.anon) {
         // Çöken sayfa sonraki rotayı etkilemesin: yeni sekme.
         await page.close().catch(() => undefined);
         page = await ctx.newPage();
         t = track(page);
       }
     }
+    await anonCtx?.close().catch(() => undefined);
     await ctx.close().catch(() => undefined);
   }));
 }
@@ -790,6 +974,184 @@ async function modalProbes(browser: Browser, env: TestEnv, fx: Fixture, lang: La
   }
 }
 
+async function prefOf(env: TestEnv, userId: string): Promise<string | null> {
+  const r = await env.su.query(`select preferred_locale from public.user_locale_prefs where user_id=$1`, [userId]).catch(() => ({ rows: [] as Record<string, unknown>[] }));
+  return (r.rows[0]?.preferred_locale as string | undefined) ?? null;
+}
+
+/** S5: Ayarlar › Dil'den EN seç → sayfa yenile → başka sayfa → dil kalıcı mı (çerez + hesap tercihi); sonra TR'ye geri al. */
+async function scenarioPersist(browser: Browser, env: TestEnv, fx: Fixture) {
+  await runScenario("S5-dil-degistir-yenile-kalici", "tr", "Ayarlar › Dil: TR→EN seç → yenile → başka ekran: EN kalıcı (çerez + hesap tercihi); sonra TR'ye geri", async () => {
+    await setAccountLocale(env, fx, "tr");
+    const ctx = await newCtx(browser, fx, "tr", 1280);
+    try {
+      const page = await ctx.newPage();
+      await page.goto(`${APP}/settings`, { waitUntil: "domcontentloaded" });
+      await settle(page);
+      if (!(await selectSettingsTab(page, "language"))) return { ok: false, detail: "Ayarlar › Dil sekmesi bulunamadı" };
+      const before = await htmlLang(page);
+      await page.getByRole("radio", { name: /English/ }).first().click();
+      const switched = await waitLang(page, "en", 30_000);
+      await settle(page);
+      await page.reload({ waitUntil: "domcontentloaded" });
+      await settle(page);
+      const afterReload = await htmlLang(page);
+      await page.goto(`${APP}/dashboard`, { waitUntil: "domcontentloaded" });
+      await settle(page);
+      const other = await htmlLang(page);
+      const shot = "senaryo-S5-yenileme-sonrasi-en.png";
+      await page.screenshot({ path: path.join(OUT, shot) });
+      const cookie = (await ctx.cookies(APP)).find((c) => c.name === "NEXT_LOCALE")?.value ?? "-";
+      const pref = await prefOf(env, fx.userId);
+      // Geri al (sonraki senaryolar TR varsayar).
+      await page.goto(`${APP}/settings`, { waitUntil: "domcontentloaded" });
+      await settle(page);
+      let reverted = false;
+      if (await selectSettingsTab(page, "language")) {
+        await page.getByRole("radio", { name: /Türkçe/ }).first().click().catch(() => undefined);
+        reverted = await waitLang(page, "tr", 30_000);
+      }
+      await setAccountLocale(env, fx, "tr");
+      const ok = before === "tr" && switched && afterReload === "en" && other === "en" && cookie === "en" && pref === "en";
+      return { ok, shot, detail: `önce lang=${before}; seçim sonrası en: ${switched ? "evet" : "HAYIR"}; yenileme sonrası lang=${afterReload}; /dashboard lang=${other}; çerez NEXT_LOCALE=${cookie}; hesap tercihi(DB)=${pref ?? "yok"}; TR'ye geri: ${reverted ? "evet" : "HAYIR"}` };
+    } finally {
+      await ctx.close().catch(() => undefined);
+    }
+  });
+}
+
+/** S6: aynı tarayıcıda hesap değişimi → dil izolasyonu (A: tercih en, B: tercih yok → tr). Cihaz çerezi NEXT_LOCALE çıkışta KALIR. */
+async function scenarioAccountIsolation(browser: Browser, env: TestEnv, fx: Fixture) {
+  await runScenario("S6-hesap-degistir-dil-izolasyonu", "en", "Aynı tarayıcı: A (tercih en) → çıkış → B (tercih yok) → A; her hesap kendi dilinde", async () => {
+    const B = fx.userB;
+    if (!B) return { ok: false, detail: "ikinci sentetik hesap (B) tohumlanamadı" };
+    await setAccountLocale(env, fx, "en");
+    await env.su.query(`delete from public.user_locale_prefs where user_id=$1`, [B.userId]).catch(() => undefined);
+    const ctx = await newCtx(browser, fx, "tr", 1280, { cookie: null, noAuthInit: true });
+    try {
+      const page = await ctx.newPage();
+      const steps: string[] = [];
+      // Oturum değişimi: oturum çerezleri + localStorage temizlenir (çıkış), cihazın NEXT_LOCALE çerezi KALIR → yeni hesap.
+      const switchTo = async (u: { userRecord: Record<string, unknown>; token: string }) => {
+        const keep = (await ctx.cookies(APP)).filter((c) => c.name === "NEXT_LOCALE");
+        await ctx.clearCookies();
+        if (keep.length) await ctx.addCookies(keep);
+        await page.goto(`${APP}/zz-olmayan-sayfa-r4`, { waitUntil: "domcontentloaded" });
+        await page.evaluate(([uu, tok]) => {
+          localStorage.clear();
+          localStorage.setItem("yasam_user", uu as string);
+          localStorage.setItem("yasam_session_token", tok as string);
+        }, [JSON.stringify(u.userRecord), u.token]);
+      };
+      const visit = async (p: string, want: string | null) => {
+        await page.goto(`${APP}${p}`, { waitUntil: "domcontentloaded" });
+        await settle(page);
+        if (want) await waitLang(page, want, 20_000);
+        return htmlLang(page);
+      };
+      await switchTo({ userRecord: fx.userRecord, token: fx.token });
+      const a1 = await visit("/", "en"); steps.push(`A ana sayfa → ${a1}`);
+      const a2 = await visit("/dashboard", null); steps.push(`A panel → ${a2}`);
+      await page.screenshot({ path: path.join(OUT, "senaryo-S6-A-en.png") });
+      await switchTo(B);
+      const b0 = await visit("/dashboard", null); steps.push(`B panel (ana sayfaya uğramadan; bilgi) → ${b0}`);
+      const b1 = await visit("/", "tr"); steps.push(`B ana sayfa → ${b1}`);
+      const b2 = await visit("/dashboard", null); steps.push(`B panel → ${b2}`);
+      const shot = "senaryo-S6-B-tr.png";
+      await page.screenshot({ path: path.join(OUT, shot) });
+      await switchTo({ userRecord: fx.userRecord, token: fx.token });
+      const a3 = await visit("/", "en"); steps.push(`A tekrar ana sayfa → ${a3}`);
+      const prefA = await prefOf(env, fx.userId);
+      const prefB = await prefOf(env, B.userId);
+      const ok = a1 === "en" && a2 === "en" && b1 === "tr" && b2 === "tr" && a3 === "en" && prefA === "en" && prefB === null;
+      const finding = b0 !== "tr" ? "; BULGU: hesap değişiminden hemen sonra ana sayfaya uğramadan açılan ekran önceki hesabın dilinde (hesap→çerez eşitlemesi yalnız LanguageSelector'ın bulunduğu ana sayfada)" : "";
+      return { ok, shot, detail: `${steps.join("; ")}; DB tercih A=${prefA ?? "yok"} B=${prefB ?? "yok"}${finding}` };
+    } finally {
+      await ctx.close().catch(() => undefined);
+      await setAccountLocale(env, fx, "en");
+    }
+  });
+}
+
+/** S7: yükleme ekranı (loading.tsx) — sayfa RSC yanıtı geciktirilip istemci gezintisi yapılır; dil, taşma, ham anahtar. */
+async function scenarioLoading(browser: Browser, env: TestEnv, fx: Fixture, lang: Lang) {
+  await setAccountLocale(env, fx, GATE_CLOSED ? "en" : lang);
+  for (const width of [1280, 360]) {
+    await runScenario(`S7-yukleme-ekrani-${lang}-${width}`, lang, `Yükleme ekranı (Refleksoloji › notlar loading.tsx) ${width}px: dil + taşma + ham anahtar`, async () => {
+      const ctx = await newCtx(browser, fx, lang, width);
+      const pat = "**/refleksoloji/notlar**";
+      try {
+        const page = await ctx.newPage();
+        await page.goto(`${APP}/refleksoloji`, { waitUntil: "domcontentloaded" });
+        await settle(page);
+        // Yalnız sayfanın tam RSC isteği (prefetch değil) 8 sn bekletilir → loading.tsx ekranda kalır.
+        await page.route(pat, async (route) => {
+          const h = route.request().headers();
+          if (h["rsc"] && !h["next-router-prefetch"]) await sleep(8_000);
+          await route.continue().catch(() => undefined);
+        });
+        const pushed = await page.evaluate(() => {
+          const n = (window as unknown as { next?: { router?: { push?: (u: string) => void } } }).next;
+          if (!n?.router?.push) return false;
+          n.router.push("/refleksoloji/notlar");
+          return true;
+        });
+        const want = Mq(lang, "system", "loading.refleksoloji.clinicalNotes");
+        const seenText = want ? await page.getByText(want, { exact: true }).first().waitFor({ timeout: 5_000 }).then(() => true).catch(() => false) : false;
+        const skeleton = (await page.locator(".animate-pulse").filter({ visible: true }).count().catch(() => 0)) > 0;
+        const seen = seenText && skeleton;
+        const lng = await htmlLang(page);
+        const ov = await measureOverflow(page, width);
+        const raw = await scanRawKeys(page, ROOTS).catch(() => []);
+        const tr = lang === "en" ? await scanTurkish(page, []) : { count: 0, samples: [] };
+        const shot = `senaryo-S7-yukleme-${GATE_CLOSED ? "kapali-" : ""}${lang}-${width}.png`;
+        await page.screenshot({ path: path.join(OUT, shot) });
+        await page.unroute(pat).catch(() => undefined);
+        const expected = GATE_CLOSED ? "tr" : lang;
+        if (!pushed || !seen) {
+          return { ok: true, shot, detail: `yükleme ekranı YAKALANAMADI (bilgi) — router.push: ${pushed ? "var" : "yok"}; katalog metni ${want ? `"${want}"` : "YOK (bu tabanda system.loading yok)"} görünür: ${seenText ? "evet" : "hayır"}; iskelet: ${skeleton ? "evet" : "hayır"}` };
+        }
+        const ok = ov.px <= 1 && raw.length === 0 && lng === expected;
+        return { ok, shot, detail: `yükleme ekranı yakalandı ("${want}"); lang=${lng}; taşma=${Math.round(ov.px)}px${ov.offenders.length ? ` (${ov.offenders.join(" · ")})` : ""}; ham anahtar=${raw.length}; TR-aday=${tr.count}${tr.samples.length ? ` (${tr.samples.slice(0, 3).map((s) => s.text).join(" · ")})` : ""}` };
+      } finally {
+        await ctx.close().catch(() => undefined);
+      }
+    });
+  }
+}
+
+/** K1: kapı kapalı build — NEXT_LOCALE=en + hesap tercihi en iken: tr render, dil seçici ve Dil sekmesi yok. */
+async function scenarioGateClosed(browser: Browser, env: TestEnv, fx: Fixture) {
+  await runScenario("K1-kapi-kapali-yalniz-tr", "tr", "Kapı kapalı: çerez en + hesap tercihi en → ana sayfa/panel/ayarlar tr; dil seçici ve Dil sekmesi görünmez", async () => {
+    await setAccountLocale(env, fx, "en");
+    const ctx = await newCtx(browser, fx, "tr", 1280, { cookie: "en" });
+    try {
+      const page = await ctx.newPage();
+      const langs: string[] = [];
+      for (const p of ["/", "/dashboard", "/settings"]) {
+        await page.goto(`${APP}${p}`, { waitUntil: "domcontentloaded" });
+        await settle(page);
+        langs.push(`${p}=${await htmlLang(page)}`);
+      }
+      await page.goto(`${APP}/`, { waitUntil: "domcontentloaded" });
+      await settle(page);
+      const selLabels = [Mq("tr", "common", "language.select"), Mq("en", "common", "language.select")].filter((x): x is string => !!x);
+      const selectors = selLabels.length ? await page.locator(selLabels.map((l) => `button[aria-label="${l}"]`).join(",")).count() : 0;
+      await page.goto(`${APP}/settings`, { waitUntil: "domcontentloaded" });
+      await settle(page);
+      const langTab = await selectSettingsTab(page, "language");
+      const shot = "senaryo-K1-kapi-kapali-ayarlar.png";
+      await page.screenshot({ path: path.join(OUT, shot) });
+      const allTr = langs.every((x) => x.endsWith("=tr"));
+      const ok = allTr && selectors === 0 && !langTab;
+      return { ok, shot, detail: `lang: ${langs.join(", ")}; dil seçici sayısı=${selectors}; Ayarlar › Dil sekmesi: ${langTab ? "VAR" : "yok"}` };
+    } finally {
+      await ctx.close().catch(() => undefined);
+      await setAccountLocale(env, fx, "tr");
+    }
+  });
+}
+
 // ─── Özet ────────────────────────────────────────────────────────────────────
 
 function mdEsc(s: string) { return s.replace(/\|/g, "\\|").replace(/\n/g, " "); }
@@ -808,8 +1170,14 @@ function writeSummary(meta: Record<string, unknown>, missingMessages: string[]) 
     belge5xx: results.filter((r) => (r.status ?? 0) >= 500 || r.other5xx.length > 0).length,
     api5xxEkran: results.filter((r) => r.api5xx.length > 0).length,
     konsolHataToplam: results.reduce((a, r) => a + r.consoleErrors, 0),
-    trAdayEkran: enTr.length,
-    trAdayToplam: enTr.reduce((a, r) => a + r.trCandidates, 0),
+    konsolUygulamaFailEkran: results.filter((r) => r.consoleApp > 0 && !r.consoleWarnOnly && !r.outOfScope).length,
+    konsolUygulamaUyariEkran: results.filter((r) => r.consoleWarnOnly && !r.outOfScope).length,
+    hamAnahtarEkran: results.filter((r) => r.rawKeys.length > 0 || r.intlErrors.length > 0).length,
+    dilUyusmazEkran: results.filter((r) => r.failReasons.some((x) => x.startsWith("html lang"))).length,
+    kapsamDisiEkran: results.filter((r) => r.outOfScope).length,
+    trAdayEkran: enTr.filter((r) => !r.outOfScope).length,
+    trAdayToplam: enTr.filter((r) => !r.outOfScope).reduce((a, r) => a + r.trCandidates, 0),
+    trAdayKapsamDisiToplam: enTr.filter((r) => r.outOfScope).reduce((a, r) => a + r.trCandidates, 0),
     senaryo: scenarios.length,
     senaryoFail: scenFail.length,
     eksikKatalogAnahtari: missingMessages.length,
@@ -818,23 +1186,36 @@ function writeSummary(meta: Record<string, unknown>, missingMessages: string[]) 
   writeFileSync(path.join(OUT, "ozet.json"), JSON.stringify({ meta, verdict, totals, results, scenarios, missingMessages }, null, 2));
 
   const L: string[] = [];
-  L.push(`# I18N-F1-R3 — Modül ekran kabul testi (${LOCALES.join(", ")} × ${WIDTHS.join(" / ")} px)`);
+  L.push(`# I18N-R4 — Modül ekran kabul testi (${GATE_CLOSED ? "KAPI KAPALI · çerez/tercih en → " : ""}${LOCALES.join(", ")} × ${WIDTHS.join(" / ")} px)`);
   L.push("");
-  L.push(`Sonuç: **${verdict}** — ekran ${totals.ekranPass} PASS / ${totals.ekranFail} FAIL / ${totals.ekranAtlandi} atlandı; senaryo ${totals.senaryo - totals.senaryoFail}/${totals.senaryo}.`);
+  L.push(`Sonuç: **${verdict}** — ekran ${totals.ekranPass} PASS / ${totals.ekranFail} FAIL / ${totals.ekranAtlandi} atlandı / ${totals.kapsamDisiEkran} kapsam dışı; senaryo ${totals.senaryo - totals.senaryoFail}/${totals.senaryo}.`);
   L.push("");
   L.push(`- Yatay taşma: ${totals.tasma} ekran · Çökme: ${totals.cokme} · Belge/RSC 5xx: ${totals.belge5xx} · API 5xx olan ekran: ${totals.api5xxEkran} (${STRICT_API ? "FAIL sayıldı" : "uyarı — test ortamında olmayan modül tabloları"}) · Konsol error toplamı: ${totals.konsolHataToplam}`);
-  L.push(`- EN TR-aday (BİLGİ, FAIL değil): ${totals.trAdayEkran} ekranda ${totals.trAdayToplam} düğüm/öznitelik · Sunucu eksik katalog anahtarı günlüğü: ${totals.eksikKatalogAnahtari}`);
+  L.push(`- Uygulama konsol hatası: FAIL ${totals.konsolUygulamaFailEkran} ekran · UYARI (aynı ekranda api 5xx) ${totals.konsolUygulamaUyariEkran} ekran · Ham anahtar / next-intl hata: ${totals.hamAnahtarEkran} ekran · <html lang> uyuşmazlığı: ${totals.dilUyusmazEkran} ekran`);
+  L.push(`- EN TR-aday (BİLGİ, FAIL değil): ${totals.trAdayEkran} ekranda ${totals.trAdayToplam} düğüm/öznitelik (kapsam dışı ekranlar ayrıca: ${totals.trAdayKapsamDisiToplam}) · Sunucu eksik katalog anahtarı günlüğü: ${totals.eksikKatalogAnahtari}`);
   L.push(`- Rapor dili: KAPSAM DIŞI (Word/PDF çıktıları henüz çevrilmedi; yalnız indirme yanıtı denetlendi).`);
   L.push(`- Veri: tamamen sentetik (ZZ_*), gömülü PostgreSQL + PostgREST şimi; production'a temas yok.`);
   L.push("");
   L.push("## Rota × dil × genişlik");
   L.push("");
-  L.push("| Grup | Rota | Dil | px | HTTP | Taşma px | Çökme | Konsol err | API 5xx | Diğer 5xx | TR-aday | Sonuç | Not |");
-  L.push("|---|---|---|---|---|---|---|---|---|---|---|---|---|");
+  L.push("| Grup | Rota | Dil | px | HTTP | lang | Taşma px | Çökme | Konsol (top/uyg/kaynak) | API 5xx | Diğer 5xx | Ham anahtar | TR-aday | Sonuç | FAIL nedeni / Not |");
+  L.push("|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|");
   const order = new Map(ROUTES.map((r, i) => [r.id, i]));
   const sorted = [...results].sort((a, b) => (order.get(a.route) ?? 0) - (order.get(b.route) ?? 0) || a.lang.localeCompare(b.lang) || b.width - a.width);
   for (const r of sorted) {
-    L.push(`| ${mdEsc(r.group)} | ${r.route} | ${r.lang} | ${r.width} | ${r.status ?? "-"} | ${r.overflowPx} | ${r.crash ? "EVET" : "-"} | ${r.consoleErrors} | ${r.api5xx.length} | ${r.other5xx.length} | ${r.lang === "en" ? r.trCandidates : "n/a"} | ${r.verdict} | ${mdEsc((r.crashReason ? `${r.crashReason}; ` : "") + (r.note ?? ""))} |`);
+    L.push(`| ${mdEsc(r.group)} | ${r.route} | ${r.lang} | ${r.width} | ${r.status ?? "-"} | ${r.htmlLang || "-"} | ${r.overflowPx} | ${r.crash ? "EVET" : "-"} | ${r.consoleErrors}/${r.consoleApp}${r.consoleWarnOnly ? "(uyarı)" : ""}/${r.consoleResource} | ${r.api5xx.length} | ${r.other5xx.length} | ${r.rawKeys.length + r.intlErrors.length} | ${r.lang === "en" ? r.trCandidates : "n/a"} | ${r.verdict} | ${mdEsc([r.failReasons.join(", "), r.crashReason ?? "", r.note ?? ""].filter(Boolean).join("; "))} |`);
+  }
+  const consoleRows = sorted.filter((r) => r.consoleApp > 0 || r.intlErrors.length > 0 || r.rawKeys.length > 0);
+  if (consoleRows.length) {
+    L.push("");
+    L.push("## Uygulama konsol hataları / ham anahtar (rota başına ilk genişlik)");
+    const seenRoute = new Set<string>();
+    for (const r of consoleRows) {
+      const k = `${r.route}|${r.lang}`;
+      if (seenRoute.has(k)) continue;
+      seenRoute.add(k);
+      L.push(`- ${r.lang}-${r.width}-${r.route}${r.consoleWarnOnly ? " (UYARI: aynı ekranda api 5xx)" : ""}: ${mdEsc([...r.intlErrors, ...r.rawKeys.map((x) => `ham: ${x}`), ...r.consoleAppSamples].join(" ‖ ").slice(0, 600))}`);
+    }
   }
   L.push("");
   L.push("## Senaryolar");
@@ -890,6 +1271,8 @@ function writeSummary(meta: Record<string, unknown>, missingMessages: string[]) 
 
 async function main() {
   if (LOCALES.length === 0 || WIDTHS.length === 0) { console.error("geçerli --locales / --widths yok"); process.exit(2); }
+  if (GATE_CLOSED && LOCALES.some((l) => l !== "tr")) { console.error("--gate-closed yalnız --locales tr ile koşar"); process.exit(2); }
+  ROOTS = messageRoots();
   const nextBin = path.join(ROOT, "node_modules", "next", "dist", "bin", "next");
   if (!existsSync(path.join(ROOT, ".next", "BUILD_ID"))) { console.error("önce yayın kapısı AÇIK build gerekli (.next/BUILD_ID yok)"); process.exit(2); }
 
@@ -906,7 +1289,7 @@ async function main() {
   for (const n of [...setupNotes, ...seedNotes]) console.log(`  ${n}`);
   const exclude = [
     ...brandAllowlist(), SYN.tenantName, SYN.expertName, SYN.expertEmail,
-    SYN.clientAd, SYN.clientSoyad, SYN.createdAd, SYN.createdSoyad, SYN.keepAd, SYN.keepSoyad,
+    SYN.clientAd, SYN.clientSoyad, SYN.createdAd, SYN.createdSoyad, SYN.keepAd, SYN.keepSoyad, SYN.expertNameB, SYN.expertEmailB,
   ].sort((a, b) => b.length - a.length);
 
   const logPath = path.join(OUT, "next-sunucu.log");
@@ -930,11 +1313,20 @@ async function main() {
       await screenTour(browser, env, fx, lang, exclude);
     }
     console.log("\n[senaryolar]");
-    if (LOCALES.includes("tr")) await scenarioKeepData(browser, env, fx);
-    if (LOCALES.includes("en")) await scenarioCreateEdit(browser, env, fx);
-    for (const lang of LOCALES) await scenarioWord(browser, env, fx, lang);
-    console.log("\n[silme onayı modalları (1280 px)]");
-    for (const lang of LOCALES) await modalProbes(browser, env, fx, lang);
+    if (GATE_CLOSED) {
+      // Kapı kapalı build: yalnız K1 + yükleme ekranı (tr render beklenir); dil değişimi senaryoları anlamsız.
+      await scenarioGateClosed(browser, env, fx);
+      await scenarioLoading(browser, env, fx, "tr");
+    } else {
+      if (LOCALES.includes("tr")) await scenarioKeepData(browser, env, fx);
+      if (LOCALES.includes("tr")) await scenarioPersist(browser, env, fx);
+      if (LOCALES.includes("en")) await scenarioCreateEdit(browser, env, fx);
+      if (LOCALES.includes("en")) await scenarioAccountIsolation(browser, env, fx);
+      for (const lang of LOCALES) await scenarioWord(browser, env, fx, lang);
+      for (const lang of LOCALES) await scenarioLoading(browser, env, fx, lang);
+      console.log("\n[silme onayı modalları (1280 px)]");
+      for (const lang of LOCALES) await modalProbes(browser, env, fx, lang);
+    }
   } catch (e) {
     crashed = e as Error;
     console.error(e);
@@ -953,7 +1345,7 @@ async function main() {
     missing = Array.from(new Set(readFileSync(logPath, "utf8").split("\n").filter((l) => l.includes("[i18n]")).map((l) => l.trim().slice(0, 300))));
   } catch { /* günlük yok */ }
   const meta = {
-    tarih: new Date().toISOString(), locales: LOCALES, widths: WIDTHS, rotaSayisi: ROUTES.length, strictApi: STRICT_API, fullPage: FULL_PAGE,
+    tarih: new Date().toISOString(), locales: LOCALES, widths: WIDTHS, rotaSayisi: ROUTES.length, strictApi: STRICT_API, fullPage: FULL_PAGE, gateClosed: GATE_CLOSED,
     sureSn: Math.round((Date.now() - STARTED) / 1000), kurulum: [...setupNotes, ...seedNotes], genelHata: crashed ? crashed.message.slice(0, 300) : null,
   };
   const { verdict, totals } = writeSummary(meta, missing);
