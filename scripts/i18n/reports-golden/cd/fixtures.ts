@@ -340,19 +340,19 @@ function stonesFixture(name: string, producer: string, route: string, body: unkn
 }
 
 // ═══ P39 — Ders notu Word (route; içerik %100 kullanıcı/AI metni) · P40 — Video çeviri Word (route) ══════
-function dersNotuFixture(): Fixture {
+function dersNotuFixture(name = "P39-ders-notu", producer = "P39", route = "ders-notu/to-word"): Fixture {
   return {
-    name: "P39-ders-notu", producer: "P39", kind: "docx",
+    name, producer, kind: "docx",
     run: (mode) =>
       withLocale(mode, async (cookie) => {
         setGuard({ user_locale_prefs: [] });
-        const mod = (await import("@/app/api/ders-notu/to-word/route")) as unknown as { POST: (r: NextRequest) => Promise<Response> };
+        const mod = (await import(`@/app/api/${route}/route`)) as unknown as { POST: (r: NextRequest) => Promise<Response> };
         const fd = new FormData();
         fd.set("text", [`# ${U("başlık: Ders 1")}`, `## ${U("alt başlık")}`, "Soru:", U("soru metni"), "Cevap:", U("cevap metni"), "", "Örnek:", U("örnek satırı"), "", `Not: ${U("not satırı")}`, U("düz paragraf")].join("\n"));
         const headers: Record<string, string> = {};
         if (cookie) headers.cookie = cookie;
-        const res = await mod.POST(new NextRequest("http://localhost/api/ders-notu/to-word", { method: "POST", headers, body: fd }));
-        if (res.status !== 200) throw new Error(`ders-notu → ${res.status} ${await res.text()}`);
+        const res = await mod.POST(new NextRequest(`http://localhost/api/${route}`, { method: "POST", headers, body: fd }));
+        if (res.status !== 200) throw new Error(`${route} → ${res.status} ${await res.text()}`);
         const m = /filename="([^"]*)"/.exec(res.headers.get("content-disposition") ?? "");
         return { buffer: Buffer.from(await res.arrayBuffer()), filename: m ? m[1]! : null };
       }),
@@ -413,6 +413,7 @@ export function allFixtures(): Fixture[] {
     stonesFixture("P15-bilgi-kategori", "P15", "knowledge-report", { exportMode: "category", categoryName: ARTICLES[0]!.category }),
     stonesFixture("P15-bilgi-goruntulenen", "P15", "knowledge-report", { exportMode: "viewed", articleIds: [uid(1501)] }),
     dersNotuFixture(),
+    dersNotuFixture("P38-ocr-word", "P38", "belge-ceviri/ocr-to-word"),
     videoFixture("P40-video-orijinal", "original"),
     videoFixture("P40-video-ceviri", "turkish"),
     videoFixture("P40-video-karsilastirma", "comparison"),

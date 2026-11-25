@@ -33,7 +33,7 @@ const OUT_DIR = outIdx >= 0 ? args[outIdx + 1] : null;
 const onlyIdx = args.indexOf("--only");
 const ONLY = onlyIdx >= 0 ? new Set(args[onlyIdx + 1]!.split(",")) : null;
 /** Çevirisi bu dalda tamamlanan üreticiler — EN kontrolleri yalnız bunlarda zorunlu (diğerleri yalnız TR golden). */
-const EN_READY = new Set((process.env.RCD_EN_READY ?? "P16,P19").split(",").filter(Boolean));
+const EN_READY = new Set((process.env.RCD_EN_READY ?? "P16,P19,P38,P39,P40").split(",").filter(Boolean));
 
 let pass = 0;
 let fail = 0;
@@ -114,7 +114,10 @@ function fold(t: string): string {
   return t.replace(/[çÇğĞıİöÖşŞüÜâÂîÎûÛ]/g, (c) => map[c] ?? c);
 }
 
+/** P38/P39: ders notu içeriğindeki yapı işaretleri ("Soru:", "Cevap:", "Örnek:") kullanıcı/AI metninin satırlarıdır (aynen basılır). */
+const CONTENT_MARKER_LINES = new Set(["Soru:", "Cevap:", "Örnek:"]);
 function leakOf(t: string): string | null {
+  if (CONTENT_MARKER_LINES.has(t.trim())) return null;
   // URL'ler kayıt verisidir (ör. kaynak bağlantısı) → dil denetimine girmez.
   const s = t.replace(/Yaşam Sistemi|YAŞAM SİSTEMİ/g, "").replace(/https?:\/\/\S+/g, " ");
   const frag = TR_CATALOG_FRAGMENTS.find((f) => (f.folded ? f.re.test(fold(s)) : f.re.test(s)));

@@ -1,0 +1,27 @@
+{
+  "reports": {
+    "documents": {
+      "video": {
+        "title": {
+          "original": "Original Transcript",
+          "turkish": "Turkish Translation",
+          "comparison": "Video Translation Report"
+        },
+        "source": "Source: {fileName}",
+        "originalHeading": "ORIGINAL TRANSCRIPT",
+        "translationHeading": "TURKISH TRANSLATION",
+        "fileSuffix": {
+          "original": "original",
+          "turkish": "turkish",
+          "comparison": "comparison"
+        }
+      },
+      "lectureNotes": {
+        "fileName": "lecture-notes.docx"
+      },
+      "ocr": {
+        "wordFileName": "ocr-text.docx"
+      }
+    }
+  }
+}

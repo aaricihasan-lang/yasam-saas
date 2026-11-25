@@ -38,6 +38,7 @@ import tr_reportsAromatherapy from "@/messages/tr/reports.aromatherapy.json";
 import tr_reportsClients from "@/messages/tr/reports.clients.json";
 import tr_reportsCommon from "@/messages/tr/reports.common.json";
 import tr_reportsCupping from "@/messages/tr/reports.cupping.json";
+import tr_reportsDocuments from "@/messages/tr/reports.documents.json";
 import tr_reportsNutrition from "@/messages/tr/reports.nutrition.json";
 import tr_reportsStock from "@/messages/tr/reports.stock.json";
 import tr_stonesCombinations from "@/messages/tr/stones.combinations.json";
@@ -83,6 +84,7 @@ import en_reportsAromatherapy from "@/messages/en/reports.aromatherapy.json";
 import en_reportsClients from "@/messages/en/reports.clients.json";
 import en_reportsCommon from "@/messages/en/reports.common.json";
 import en_reportsCupping from "@/messages/en/reports.cupping.json";
+import en_reportsDocuments from "@/messages/en/reports.documents.json";
 import en_reportsNutrition from "@/messages/en/reports.nutrition.json";
 import en_reportsStock from "@/messages/en/reports.stock.json";
 import en_stonesCombinations from "@/messages/en/stones.combinations.json";
@@ -95,8 +97,8 @@ import en_stonesRecords from "@/messages/en/stones.records.json";
 import en_terms from "@/messages/en/terms.json";
 
 export const CATALOG_FILES = {
-  tr: ["auth.client.json", "auth.email.json", "auth.server.json", "auth.ui.json", "beslenme.json", "clients.analizler.json", "clients.anamnez.json", "clients.charges.json", "clients.combinations.json", "clients.consent.json", "clients.detail.json", "clients.homework.json", "clients.json", "clients.list.json", "clients.memory.json", "clients.notes.json", "clients.sessions.json", "clients.stones.json", "clients.yolculuk.json", "common.apiErrors.json", "common.deleteConfirm.json", "common.demo.json", "common.json", "common.languagePreference.json", "common.reader.json", "common.submitLock.json", "home.json", "home.yhStatus.json", "memoryPicker.json", "navigation.json", "reports.agenda.json", "reports.aromatherapy.json", "reports.clients.json", "reports.common.json", "reports.cupping.json", "reports.nutrition.json", "reports.stock.json", "stones.combinations.json", "stones.hub.json", "stones.json", "stones.knowledge.json", "stones.list.json", "stones.minerals.json", "stones.records.json", "terms.json"],
-  en: ["auth.client.json", "auth.email.json", "auth.server.json", "auth.ui.json", "beslenme.json", "clients.analizler.json", "clients.anamnez.json", "clients.charges.json", "clients.combinations.json", "clients.consent.json", "clients.detail.json", "clients.homework.json", "clients.json", "clients.list.json", "clients.memory.json", "clients.notes.json", "clients.sessions.json", "clients.stones.json", "clients.yolculuk.json", "common.apiErrors.json", "common.deleteConfirm.json", "common.demo.json", "common.json", "common.languagePreference.json", "common.reader.json", "common.submitLock.json", "home.json", "home.yhStatus.json", "memoryPicker.json", "navigation.json", "reports.agenda.json", "reports.aromatherapy.json", "reports.clients.json", "reports.common.json", "reports.cupping.json", "reports.nutrition.json", "reports.stock.json", "stones.combinations.json", "stones.hub.json", "stones.json", "stones.knowledge.json", "stones.list.json", "stones.minerals.json", "stones.records.json", "terms.json"],
+  tr: ["auth.client.json", "auth.email.json", "auth.server.json", "auth.ui.json", "beslenme.json", "clients.analizler.json", "clients.anamnez.json", "clients.charges.json", "clients.combinations.json", "clients.consent.json", "clients.detail.json", "clients.homework.json", "clients.json", "clients.list.json", "clients.memory.json", "clients.notes.json", "clients.sessions.json", "clients.stones.json", "clients.yolculuk.json", "common.apiErrors.json", "common.deleteConfirm.json", "common.demo.json", "common.json", "common.languagePreference.json", "common.reader.json", "common.submitLock.json", "home.json", "home.yhStatus.json", "memoryPicker.json", "navigation.json", "reports.agenda.json", "reports.aromatherapy.json", "reports.clients.json", "reports.common.json", "reports.cupping.json", "reports.documents.json", "reports.nutrition.json", "reports.stock.json", "stones.combinations.json", "stones.hub.json", "stones.json", "stones.knowledge.json", "stones.list.json", "stones.minerals.json", "stones.records.json", "terms.json"],
+  en: ["auth.client.json", "auth.email.json", "auth.server.json", "auth.ui.json", "beslenme.json", "clients.analizler.json", "clients.anamnez.json", "clients.charges.json", "clients.combinations.json", "clients.consent.json", "clients.detail.json", "clients.homework.json", "clients.json", "clients.list.json", "clients.memory.json", "clients.notes.json", "clients.sessions.json", "clients.stones.json", "clients.yolculuk.json", "common.apiErrors.json", "common.deleteConfirm.json", "common.demo.json", "common.json", "common.languagePreference.json", "common.reader.json", "common.submitLock.json", "home.json", "home.yhStatus.json", "memoryPicker.json", "navigation.json", "reports.agenda.json", "reports.aromatherapy.json", "reports.clients.json", "reports.common.json", "reports.cupping.json", "reports.documents.json", "reports.nutrition.json", "reports.stock.json", "stones.combinations.json", "stones.hub.json", "stones.json", "stones.knowledge.json", "stones.list.json", "stones.minerals.json", "stones.records.json", "terms.json"],
 } as const;
 
 export const CATALOG_PARTS: Record<"tr" | "en", Record<string, unknown>[]> = {
@@ -136,6 +138,7 @@ export const CATALOG_PARTS: Record<"tr" | "en", Record<string, unknown>[]> = {
     tr_reportsClients,
     tr_reportsCommon,
     tr_reportsCupping,
+    tr_reportsDocuments,
     tr_reportsNutrition,
     tr_reportsStock,
     tr_stonesCombinations,
@@ -183,6 +186,7 @@ export const CATALOG_PARTS: Record<"tr" | "en", Record<string, unknown>[]> = {
     en_reportsClients,
     en_reportsCommon,
     en_reportsCupping,
+    en_reportsDocuments,
     en_reportsNutrition,
     en_reportsStock,
     en_stonesCombinations,

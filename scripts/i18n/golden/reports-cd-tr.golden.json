@@ -1,5 +1,5 @@
 {
-  "baseSha": "31b135b6c3987b993bae821c14bf4b63c3a4d2b5",
+  "baseSha": "9b65bad32561480ac4bbc8f6b04233b6bb324662",
   "generator": "scripts/i18n/reports-golden-cd.harness.ts",
   "fixtures": {
     "P16-plan-tam": {
@@ -1064,6 +1064,30 @@
         "word/_rels/footnotes.xml.rels": "bf64631f0bc7bd46712fef822bcfb22e069fa5779e133980ca0c9d81f00efc09",
         "word/comments.xml": "dd2d62f68c6fd01fc4d7d44081587af54ea3e135b9486cc44fa3c62d087adfec",
         "word/document.xml": "716aaa1ddbbe76522fce5b7dcb6df75216f2b53ac701dfbe1e64a539a3fc4827",
+        "word/endnotes.xml": "52f6c33e62c233e0d9f9c41ec259ffd943ea9cdc413293d43e6ffb213682a5cf",
+        "word/fontTable.xml": "a746dbb577ec5d68983d659707c0750ca89d40b9d3316e31af331d5e1c736bad",
+        "word/footnotes.xml": "774ce254f01cde1079d43e81a0db30ac82b3b2bae875b07c4fe28403ba30b6a9",
+        "word/numbering.xml": "aae067c32dd80d876358a0cc5ecef7f7442662e3648c0ecd9f1888677ddb4a6e",
+        "word/settings.xml": "36b68f012adfd6d2f8faaebc8d101632d3529e9d9fd57d6ef92198841e96f09e",
+        "word/styles.xml": "afa039a904677e09ceebd82646b4245cf773c6a09d50324e304a016703632538"
+      }
+    },
+    "P38-ocr-word": {
+      "filename": "ocr-metin.docx",
+      "digest": "1cef5a4a0701f04401bb3152a3cd78da10794af69cfb6c2913e1eb66eb9cb59a",
+      "parts": {
+        "[Content_Types].xml": "685dca5eb0e6688c9f4218f6810f21fdf6e86a4b8bf1d7bf74c9eb667ebc2c09",
+        "_rels/.rels": "641d22a23aa9eb550103a7a01471eaeda5e84c69413e6e03e7fd290b4811a756",
+        "docProps/app.xml": "579eba9a8d602575736c3880cf5b529aabbadee0e8cc0e4df8573db0ceadbd4b",
+        "docProps/core.xml": "5412f6db674ca73ede10ad64e4b7dc1d92611b84e3065bae0a460f425ac263aa",
+        "docProps/custom.xml": "8ec73cc7ce297e42cc652a1d1884d4ffb18ffa0ba7a6502a36f8da90d1be61a1",
+        "word/_rels/comments.xml.rels": "bf64631f0bc7bd46712fef822bcfb22e069fa5779e133980ca0c9d81f00efc09",
+        "word/_rels/document.xml.rels": "df7e89495fb46d367e614a8dbb369fc166cd752e188481edac80fd553272f68e",
+        "word/_rels/endnotes.xml.rels": "bf64631f0bc7bd46712fef822bcfb22e069fa5779e133980ca0c9d81f00efc09",
+        "word/_rels/fontTable.xml.rels": "bf64631f0bc7bd46712fef822bcfb22e069fa5779e133980ca0c9d81f00efc09",
+        "word/_rels/footnotes.xml.rels": "bf64631f0bc7bd46712fef822bcfb22e069fa5779e133980ca0c9d81f00efc09",
+        "word/comments.xml": "dd2d62f68c6fd01fc4d7d44081587af54ea3e135b9486cc44fa3c62d087adfec",
+        "word/document.xml": "e4b6e75fb0c2da539f536e950d594024f004c8906fc2141facea3786c18d4baf",
         "word/endnotes.xml": "52f6c33e62c233e0d9f9c41ec259ffd943ea9cdc413293d43e6ffb213682a5cf",
         "word/fontTable.xml": "a746dbb577ec5d68983d659707c0750ca89d40b9d3316e31af331d5e1c736bad",
         "word/footnotes.xml": "774ce254f01cde1079d43e81a0db30ac82b3b2bae875b07c4fe28403ba30b6a9",
