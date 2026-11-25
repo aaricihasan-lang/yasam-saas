@@ -539,8 +539,11 @@ async function run(): Promise<void> {
     // ── UI: Danışan Hafızası soğuk başlangıç copy'si mesleki copy'den AYRI ──
     const states = read("app/yasam-hafizasi/components/WorkspaceStates.tsx");
     add("ui-client-cold-start-variant-exists", /"client-cold-start":/.test(states), "");
-    add("ui-client-cold-start-copy", /Danışan geçmişinizde seans, not, ödev, taş, kombinasyon veya randevu içeriği arayın\./.test(states), "");
-    add("ui-professional-cold-start-copy-preserved", /mesleki bilgi havuzunuzda arayalım/.test(states), "");
+    // I18N (gece, Ajan K): kopya metinleri messages/tr/memory.workspace.json'a taşındı (TR birebir). Niyet aynı:
+    // client varyantı kendi (ayrı) kopyasına, mesleki varyant korunmuş kopyasına bağlı.
+    const yhTr = read("messages/tr/memory.workspace.json");
+    add("ui-client-cold-start-copy", /"client-cold-start": \{ icon: "🔎", key: "clientColdStart" \}/.test(states) && /"clientColdStart": \{\s*"title": "Aramaya başlayın",\s*"msg": "Danışan geçmişinizde seans, not, ödev, taş, kombinasyon veya randevu içeriği arayın\."/.test(yhTr), "");
+    add("ui-professional-cold-start-copy-preserved", /"cold-start": \{ icon: "🔎", key: "coldStart" \}/.test(states) && /"coldStart": \{[^}]*mesleki bilgi havuzunuzda arayalım/.test(yhTr), "");
     const clientPanel = read("app/yasam-hafizasi/components/ClientMemoryPanel.tsx");
     add("ui-client-panel-uses-client-cold-start", /variant="client-cold-start"/.test(clientPanel), "");
     const proWorkspace = read("app/yasam-hafizasi/components/YasamHafizasiWorkspace.tsx");

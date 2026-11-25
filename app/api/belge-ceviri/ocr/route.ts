@@ -1,3 +1,4 @@
+import { requestTranslator } from "@/lib/i18n/serverMessages";
 import { NextResponse, type NextRequest } from "next/server";
 import OpenAI from "openai";
 import { requireDigitalContentUser } from "@/lib/auth/requireUser";
@@ -31,7 +32,7 @@ export async function POST(request: NextRequest) {
 
     if (!file || !(file instanceof File)) {
       return NextResponse.json(
-        { success: false, message: "Dosya bulunamadı. 'file' alanı gerekli." },
+        { success: false, code: "FILE_MISSING", message: "Dosya bulunamadı. 'file' alanı gerekli." },
         { status: 400 },
       );
     }
@@ -39,7 +40,7 @@ export async function POST(request: NextRequest) {
     const ext = getExt(file.name);
     if (!ALLOWED_EXTS.has(ext)) {
       return NextResponse.json(
-        { success: false, message: "Yalnızca PNG, JPG, JPEG ve WEBP dosyaları kabul edilir." },
+        { success: false, code: "IMAGE_ONLY", message: "Yalnızca PNG, JPG, JPEG ve WEBP dosyaları kabul edilir." },
         { status: 400 },
       );
     }
@@ -48,6 +49,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           success: false,
+          code: "FILE_TOO_LARGE",
+          maxMb: 20,
           message: `Dosya çok büyük (${(file.size / 1024 / 1024).toFixed(1)} MB). Maksimum 20 MB.`,
         },
         { status: 400 },
@@ -85,7 +88,7 @@ export async function POST(request: NextRequest) {
 
     if (!text.trim()) {
       return NextResponse.json(
-        { success: false, message: "Görselde okunabilir metin bulunamadı." },
+        { success: false, code: "NO_TEXT_FOUND", message: "Görselde okunabilir metin bulunamadı." },
         { status: 422 },
       );
     }
@@ -149,10 +152,10 @@ Yalnızca bu JSON'ı döndür, başka hiçbir şey yazma.`,
 
     return NextResponse.json({ success: true, text, isTurkish, translation });
   } catch (err) {
+    // R5-A1: iç ayrıntı (Supabase/OpenAI/SDK metni) yalnız sunucu günlüğüne; kullanıcıya nötr metin + dil-bağımsız code.
     console.error("[ocr] hata:", err);
-    const message = err instanceof Error ? err.message : String(err);
     return NextResponse.json(
-      { success: false, message: `İşlem hatası: ${message}` },
+      { success: false, code: "PROCESSING_FAILED", message: requestTranslator(request, "docTranslate.apiErrors")("PROCESSING_FAILED") },
       { status: 500 },
     );
   }

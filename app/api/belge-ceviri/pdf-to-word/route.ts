@@ -1,3 +1,4 @@
+import { requestTranslator } from "@/lib/i18n/serverMessages";
 import { NextResponse, type NextRequest } from "next/server";
 import { extractText } from "unpdf";
 import { Document, Packer, Paragraph, TextRun } from "docx";
@@ -53,14 +54,14 @@ export async function POST(request: NextRequest) {
 
     if (!file || !(file instanceof File)) {
       return NextResponse.json(
-        { success: false, message: "Dosya bulunamadı. 'file' alanı gerekli." },
+        { success: false, code: "FILE_MISSING", message: "Dosya bulunamadı. 'file' alanı gerekli." },
         { status: 400 },
       );
     }
 
     if (getExt(file.name) !== ".pdf") {
       return NextResponse.json(
-        { success: false, message: "Yalnızca PDF dosyaları kabul edilir." },
+        { success: false, code: "PDF_ONLY", message: "Yalnızca PDF dosyaları kabul edilir." },
         { status: 400 },
       );
     }
@@ -68,14 +69,14 @@ export async function POST(request: NextRequest) {
     const mimeOk = !file.type || file.type === "" || ALLOWED_MIME_TYPES.has(file.type);
     if (!mimeOk) {
       return NextResponse.json(
-        { success: false, message: `Geçersiz dosya tipi (${file.type}).` },
+        { success: false, code: "INVALID_FILE_TYPE", message: `Geçersiz dosya tipi (${file.type}).` },
         { status: 400 },
       );
     }
 
     if (file.size > MAX_BYTES) {
       return NextResponse.json(
-        { success: false, message: `Dosya çok büyük (${(file.size / 1024 / 1024).toFixed(1)} MB). Maksimum 50 MB.` },
+        { success: false, code: "FILE_TOO_LARGE", maxMb: 50, message: `Dosya çok büyük (${(file.size / 1024 / 1024).toFixed(1)} MB). Maksimum 50 MB.` },
         { status: 400 },
       );
     }
@@ -115,6 +116,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           success: false,
+          code: "PDF_NO_TEXT",
           message:
             "PDF'den metin çıkarılamadı. Dosya taranmış, şifreli veya yalnızca görüntü içeriyor olabilir.",
         },
@@ -154,9 +156,9 @@ export async function POST(request: NextRequest) {
   } catch (err) {
     console.error("[pdf-to-word]", err);
     await trackUsage(auth.user, request, { module: "belge_ceviri", action: "action_failed", failedAction: "report_generated", subEntity: "document", errorClass: "server" });
-    const message = err instanceof Error ? err.message : String(err);
+    // R5-A1: iç ayrıntı (Supabase/OpenAI/SDK metni) yalnız sunucu günlüğüne; kullanıcıya nötr metin + dil-bağımsız code.
     return NextResponse.json(
-      { success: false, message: `İşlem hatası: ${message}` },
+      { success: false, code: "PROCESSING_FAILED", message: requestTranslator(request, "docTranslate.apiErrors")("PROCESSING_FAILED") },
       { status: 500 },
     );
   }

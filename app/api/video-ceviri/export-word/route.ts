@@ -48,7 +48,7 @@ export async function GET(request: NextRequest) {
   // Demo hesap: Word dışa aktarımı engellenir.
   if (is_demo_account) {
     return NextResponse.json(
-      { ok: false, error: "Demo hesabında bu işlem kullanılamaz." },
+      { ok: false, code: "DEMO_READONLY", error: "Demo hesabında bu işlem kullanılamaz." },
       { status: 403 },
     );
   }
@@ -61,7 +61,7 @@ export async function GET(request: NextRequest) {
 
   if (!jobId) {
     return NextResponse.json(
-      { ok: false, error: "jobId gerekli." },
+      { ok: false, code: "JOB_ID_REQUIRED", error: "jobId gerekli." },
       { status: 400 },
     );
   }
@@ -78,7 +78,7 @@ export async function GET(request: NextRequest) {
 
   if (jobErr || !jobData) {
     return NextResponse.json(
-      { ok: false, error: "İş kaydı bulunamadı." },
+      { ok: false, code: "JOB_NOT_FOUND", error: "İş kaydı bulunamadı." },
       { status: 404 },
     );
   }
@@ -93,14 +93,14 @@ export async function GET(request: NextRequest) {
 
   if (!job.transcript_original) {
     return NextResponse.json(
-      { ok: false, error: "Transkript henüz oluşturulmamış." },
+      { ok: false, code: "TRANSCRIPT_MISSING", error: "Transkript henüz oluşturulmamış." },
       { status: 422 },
     );
   }
 
   if ((mode === "turkish" || mode === "comparison") && !job.transcript_tr) {
     return NextResponse.json(
-      { ok: false, error: "Bu dışa aktarım için Türkçe çeviri gerekli." },
+      { ok: false, code: "TRANSLATION_REQUIRED", error: "Bu dışa aktarım için Türkçe çeviri gerekli." },
       { status: 422 },
     );
   }

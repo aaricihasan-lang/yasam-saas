@@ -3,6 +3,10 @@
 import Link from "next/link";
 import BfcacheRefreshHandler from "@/components/BfcacheRefreshHandler";
 import { useCallback, useEffect, useState } from "react";
+import { useLocale, useTranslations } from "next-intl";
+import { DEFAULT_LOCALE, resolveLocale } from "@/lib/i18n/locales";
+import { formatDateTime } from "@/lib/i18n/format";
+import { useDigitalContentDemo } from "@/app/digital-content/useDigitalContentDemo";
 import {
   AlignLeft,
   ChevronDown,
@@ -26,27 +30,24 @@ import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import { readYasamUser } from "@/lib/auth/yasamUser";
 import { useToast } from "@/components/ui/ToastProvider";
 import { DemoModuleBanner } from "@/components/demo/DemoModuleBanner";
-import {
-  DIGITAL_CONTENT_DEMO_BANNER,
-  notifyDigitalContentDemo,
-} from "@/lib/demo/digitalContentDemo";
 import VideoUploadZone from "./components/VideoUploadZone";
 import {
   authHeaders,
   fetchVideoJobs,
   formatFileSizeTr,
-  formatJobDateTr,
   type VideoJobRow,
 } from "@/lib/video-ceviri/videoJobHelpers";
 
 // ── Sabitler ─────────────────────────────────────────────────────────────────
 
+// I18N: adım etiketleri videoTranslate.steps.<key>; durum etiketleri videoTranslate.status.<status>;
+// kaynak dil adları videoTranslate.languages.<kod> (TR metinleri birebir). Durum KİMLİKLERİ dil-bağımsız.
 const STEPS = [
-  { icon: "🎬", label: "Video yüklenir" },
-  { icon: "🎙️", label: "Ses metne çevrilir" },
-  { icon: "🌐", label: "Türkçeye çevrilir" },
-  { icon: "📄", label: "Word ve PDF oluşturulur" },
-];
+  { icon: "🎬", key: "upload" },
+  { icon: "🎙️", key: "transcribe" },
+  { icon: "🌐", key: "translate" },
+  { icon: "📄", key: "export" },
+] as const;
 
 const STATUS_STYLE: Record<string, string> = {
   completed:    "bg-emerald-100 text-emerald-800 ring-emerald-200/80",
@@ -57,26 +58,28 @@ const STATUS_STYLE: Record<string, string> = {
   failed:       "bg-rose-100 text-rose-800 ring-rose-200/80",
 };
 
-const STATUS_LABEL: Record<string, string> = {
-  completed:    "Tamamlandı",
-  transcribing: "Metne çevriliyor…",
-  translating:  "Türkçeye çevriliyor…",
-  generating:   "Dosya oluşturuluyor…",
-  uploaded:     "Yüklendi",
-  failed:       "Başarısız",
-};
-
-const LANGUAGE_DISPLAY: Record<string, string> = {
-  de: "Almanca", en: "İngilizce", fr: "Fransızca", es: "İspanyolca",
-  tr: "Türkçe",  ar: "Arapça",   ru: "Rusça",     it: "İtalyanca",
-  pt: "Portekizce", nl: "Felemenkçe", pl: "Lehçe",
-  ja: "Japonca", zh: "Çince",    ko: "Korece",
-};
 
 // ── Bileşen ───────────────────────────────────────────────────────────────────
 
 export default function VideoCeviriPage() {
   const { showToast } = useToast();
+  const t = useTranslations("videoTranslate");
+  const tCommonErr = useTranslations("common.apiErrors");
+  const locale = resolveLocale(useLocale());
+  const demo = useDigitalContentDemo();
+  const statusLabel = (status: string) => (t.has(`status.${status}`) ? t(`status.${status}`) : status);
+  const languageLabel = (code: string) => (t.has(`languages.${code}`) ? t(`languages.${code}`) : code.toUpperCase());
+  /** İş tarihi (eski formatJobDateTr ile aynı seçenekler; tr çıktısı birebir). */
+  const jobDate = (iso: string) =>
+    formatDateTime(iso, { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }, locale) || "—";
+  /** TR: sunucunun Türkçe `error`'ı aynen; diğer dillerde `code` → videoTranslate/common.apiErrors, yoksa yedek. */
+  function serverError(data: { code?: string; error?: string } | null | undefined, fallback: string): string {
+    if (locale === DEFAULT_LOCALE) return data?.error ?? fallback;
+    const code = data?.code;
+    if (code && t.has(`apiErrors.${code}`)) return t(`apiErrors.${code}`);
+    if (code && tCommonErr.has(`codes.${code}`)) return tCommonErr(`codes.${code}`);
+    return fallback;
+  }
   const isDemo = readYasamUser()?.is_demo_account === true;
   // Word: Android dahil tüm cihazlarda Word indirme açık (2026-10-14 owner kararı); HD ve Astroloji kendi
   // kurallarını korur. İndir menüsü (Word + PDF) Android uygulamasında da görünür: PDF artık blob
@@ -132,7 +135,7 @@ export default function VideoCeviriPage() {
   // ── API handler'ları — DEĞIŞMEDI ────────────────────────────────────────────
 
   async function handleDownloadWord(job: VideoJobRow, mode: ExportMode) {
-    if (isDemo) { notifyDigitalContentDemo(showToast); return; }
+    if (isDemo) { demo.notify(showToast); return; }
     if (!job.transcript_original) return;
     if ((mode === "turkish" || mode === "comparison") && !job.transcript_tr) return;
     // window.open header gönderemez; verifyUserRequest için fetch+blob indirme.
@@ -144,7 +147,7 @@ export default function VideoCeviriPage() {
         { headers: authHeaders() },
       );
       if (!res.ok) {
-        showToast({ title: "Word oluşturulamadı", message: "Lütfen tekrar deneyin.", type: "error" });
+        showToast({ title: t("toast.wordFailedTitle"), message: t("toast.tryAgain"), type: "error" });
         return;
       }
       const blob = await res.blob();
@@ -152,8 +155,8 @@ export default function VideoCeviriPage() {
         .replace(/\.[^.]+$/, "")
         .replace(/[^a-zA-Z0-9_-]/g, "_")
         .slice(0, 60);
-      const suffix =
-        mode === "original" ? "orijinal" : mode === "turkish" ? "turkce" : "karsilastirmali";
+      // P40: sonek ekran dilinde (tr birebir: orijinal / turkce / karsilastirmali); mod kodu dilden bağımsız.
+      const suffix = t(`fileName.${mode === "original" ? "original" : mode === "turkish" ? "turkish" : "comparison"}`);
       const objUrl = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = objUrl;
@@ -163,12 +166,12 @@ export default function VideoCeviriPage() {
       a.remove();
       URL.revokeObjectURL(objUrl);
     } catch {
-      showToast({ title: "Bağlantı hatası", message: "Sunucuya ulaşılamadı.", type: "error" });
+      showToast({ title: t("toast.connectionErrorTitle"), message: t("toast.serverUnreachable"), type: "error" });
     }
   }
 
   async function handleDownloadPdf(job: VideoJobRow, mode: ExportMode) {
-    if (isDemo) { notifyDigitalContentDemo(showToast); return; }
+    if (isDemo) { demo.notify(showToast); return; }
     if (!job.transcript_original || pdfGeneratingId) return;
     if ((mode === "turkish" || mode === "comparison") && !job.transcript_tr) return;
     const key = `${job.id}-${mode}`;
@@ -177,8 +180,8 @@ export default function VideoCeviriPage() {
       const safeName = job.original_filename
         .replace(/\.[^.]+$/, "")
         .replace(/[^a-zA-Z0-9_-]/g, "_");
-      const suffix =
-        mode === "original" ? "orijinal" : mode === "turkish" ? "turkce" : "karsilastirmali";
+      // P40: sonek ekran dilinde (tr birebir: orijinal / turkce / karsilastirmali); mod kodu dilden bağımsız.
+      const suffix = t(`fileName.${mode === "original" ? "original" : mode === "turkish" ? "turkish" : "comparison"}`);
       await downloadTranscriptAsPdf(
         job.transcript_original,
         job.transcript_tr,
@@ -186,14 +189,14 @@ export default function VideoCeviriPage() {
         `${safeName}_${suffix}.pdf`,
       );
     } catch {
-      showToast({ title: "PDF oluşturulamadı", message: "Lütfen tekrar deneyin.", type: "error" });
+      showToast({ title: t("toast.pdfFailedTitle"), message: t("toast.tryAgain"), type: "error" });
     } finally {
       setPdfGeneratingId(null);
     }
   }
 
   async function handleTranslate(job: VideoJobRow) {
-    if (isDemo) { notifyDigitalContentDemo(showToast); return; }
+    if (isDemo) { demo.notify(showToast); return; }
     if (!tenantId || !userId || !job.transcript_original || translatingId) return;
     setTranslatingId(job.id);
     try {
@@ -202,14 +205,14 @@ export default function VideoCeviriPage() {
         headers: authHeaders(true),
         body: JSON.stringify({ jobId: job.id }),
       });
-      const data = (await res.json()) as { ok: boolean; error?: string; alreadyTurkish?: boolean };
+      const data = (await res.json()) as { ok: boolean; code?: string; error?: string; alreadyTurkish?: boolean };
       if (!data.ok) {
-        showToast({ title: "Çeviri başarısız", message: data.error ?? "Bilinmeyen hata.", type: "error" });
+        showToast({ title: t("toast.translateFailedTitle"), message: serverError(data, t("toast.unknownError")), type: "error" });
       } else if (data.alreadyTurkish) {
-        showToast({ title: "Zaten Türkçe", message: "Bu metin zaten Türkçe görünüyor.", type: "warning" });
+        showToast({ title: t("toast.alreadyTurkishTitle"), message: t("toast.alreadyTurkishMsg"), type: "warning" });
       }
     } catch {
-      showToast({ title: "Bağlantı hatası", message: "Sunucuya ulaşılamadı.", type: "error" });
+      showToast({ title: t("toast.connectionErrorTitle"), message: t("toast.serverUnreachable"), type: "error" });
     } finally {
       setTranslatingId(null);
       if (tenantId) void loadJobs(tenantId);
@@ -217,7 +220,7 @@ export default function VideoCeviriPage() {
   }
 
   async function handleSummarize(job: VideoJobRow) {
-    if (isDemo) { notifyDigitalContentDemo(showToast); return; }
+    if (isDemo) { demo.notify(showToast); return; }
     if (!tenantId || !userId || !job.transcript_tr || summarizingId) return;
     setSummarizingId(job.id);
     try {
@@ -226,12 +229,12 @@ export default function VideoCeviriPage() {
         headers: authHeaders(true),
         body: JSON.stringify({ jobId: job.id }),
       });
-      const data = (await res.json()) as { ok: boolean; error?: string };
+      const data = (await res.json()) as { ok: boolean; code?: string; error?: string };
       if (!data.ok) {
-        showToast({ title: "Özet oluşturulamadı", message: data.error ?? "Bilinmeyen hata.", type: "error" });
+        showToast({ title: t("toast.summaryFailedTitle"), message: serverError(data, t("toast.unknownError")), type: "error" });
       }
     } catch {
-      showToast({ title: "Bağlantı hatası", message: "Sunucuya ulaşılamadı.", type: "error" });
+      showToast({ title: t("toast.connectionErrorTitle"), message: t("toast.serverUnreachable"), type: "error" });
     } finally {
       setSummarizingId(null);
       if (tenantId) void loadJobs(tenantId);
@@ -239,7 +242,7 @@ export default function VideoCeviriPage() {
   }
 
   async function handleHeadings(job: VideoJobRow) {
-    if (isDemo) { notifyDigitalContentDemo(showToast); return; }
+    if (isDemo) { demo.notify(showToast); return; }
     if (!tenantId || !userId || !job.transcript_tr || headliningId) return;
     setHeadliningId(job.id);
     try {
@@ -248,12 +251,12 @@ export default function VideoCeviriPage() {
         headers: authHeaders(true),
         body: JSON.stringify({ jobId: job.id }),
       });
-      const data = (await res.json()) as { ok: boolean; error?: string };
+      const data = (await res.json()) as { ok: boolean; code?: string; error?: string };
       if (!data.ok) {
-        showToast({ title: "Başlıklar oluşturulamadı", message: data.error ?? "Bilinmeyen hata.", type: "error" });
+        showToast({ title: t("toast.headingsFailedTitle"), message: serverError(data, t("toast.unknownError")), type: "error" });
       }
     } catch {
-      showToast({ title: "Bağlantı hatası", message: "Sunucuya ulaşılamadı.", type: "error" });
+      showToast({ title: t("toast.connectionErrorTitle"), message: t("toast.serverUnreachable"), type: "error" });
     } finally {
       setHeadliningId(null);
       if (tenantId) void loadJobs(tenantId);
@@ -261,7 +264,7 @@ export default function VideoCeviriPage() {
   }
 
   async function handleTranscribe(job: VideoJobRow) {
-    if (isDemo) { notifyDigitalContentDemo(showToast); return; }
+    if (isDemo) { demo.notify(showToast); return; }
     if (!tenantId || !userId || transcribingId) return;
     setTranscribingId(job.id);
     try {
@@ -270,12 +273,12 @@ export default function VideoCeviriPage() {
         headers: authHeaders(true),
         body: JSON.stringify({ jobId: job.id }),
       });
-      const data = (await res.json()) as { ok: boolean; error?: string };
+      const data = (await res.json()) as { ok: boolean; code?: string; error?: string };
       if (!data.ok) {
-        showToast({ title: "Transkripsiyon başarısız", message: data.error ?? "Bilinmeyen hata.", type: "error" });
+        showToast({ title: t("toast.transcribeFailedTitle"), message: serverError(data, t("toast.unknownError")), type: "error" });
       }
     } catch {
-      showToast({ title: "Bağlantı hatası", message: "Sunucuya ulaşılamadı.", type: "error" });
+      showToast({ title: t("toast.connectionErrorTitle"), message: t("toast.serverUnreachable"), type: "error" });
     } finally {
       setTranscribingId(null);
       if (tenantId) void loadJobs(tenantId);
@@ -298,7 +301,7 @@ export default function VideoCeviriPage() {
           ) : (
             <Download className="h-3.5 w-3.5" strokeWidth={2.25} />
           )}
-          İndir
+          {t("download.button")}
           <ChevronDown className={`h-3 w-3 transition-transform ${dropdownOpenId === job.id ? "rotate-180" : ""}`} strokeWidth={2.5} />
         </button>
 
@@ -310,11 +313,11 @@ export default function VideoCeviriPage() {
                 <p className="text-[10px] font-black uppercase tracking-[0.18em] text-violet-700">Word</p>
               </div>
               {(["original","turkish","comparison"] as ExportMode[]).map((mode) => {
-                const labels: Record<ExportMode,string> = { original:"Orijinal Word", turkish:"Türkçe Word", comparison:"Karşılaştırmalı Word" };
+                const labels: Record<ExportMode,string> = { original: t("download.wordOriginal"), turkish: t("download.wordTurkish"), comparison: t("download.wordComparison") };
                 const disabled = (mode === "turkish" || mode === "comparison") && !job.transcript_tr;
                 return (
                   <button key={mode} type="button" disabled={disabled}
-                    title={disabled ? "Önce Türkçeye Çevir" : undefined}
+                    title={disabled ? t("download.translateFirst") : undefined}
                     onClick={() => { setDropdownOpenId(null); handleDownloadWord(job, mode); }}
                     className={`w-full px-4 py-2 text-left text-xs font-semibold transition ${disabled ? "cursor-not-allowed text-slate-300" : "text-slate-800 hover:bg-violet-50 hover:text-violet-800"}`}>
                     {labels[mode]}
@@ -326,15 +329,15 @@ export default function VideoCeviriPage() {
                 <p className="text-[10px] font-black uppercase tracking-[0.18em] text-rose-600">PDF</p>
               </div>
               {(["original","turkish","comparison"] as ExportMode[]).map((mode) => {
-                const labels: Record<ExportMode,string> = { original:"Orijinal PDF", turkish:"Türkçe PDF", comparison:"Karşılaştırmalı PDF" };
+                const labels: Record<ExportMode,string> = { original: t("download.pdfOriginal"), turkish: t("download.pdfTurkish"), comparison: t("download.pdfComparison") };
                 const isGen = pdfGeneratingId === `${job.id}-${mode}`;
                 const disabled = ((mode === "turkish" || mode === "comparison") && !job.transcript_tr) || !!pdfGeneratingId;
                 return (
                   <button key={mode} type="button" disabled={disabled}
-                    title={(mode === "turkish" || mode === "comparison") && !job.transcript_tr ? "Önce Türkçeye Çevir" : undefined}
+                    title={(mode === "turkish" || mode === "comparison") && !job.transcript_tr ? t("download.translateFirst") : undefined}
                     onClick={() => { setDropdownOpenId(null); void handleDownloadPdf(job, mode); }}
                     className={`w-full px-4 py-2 text-left text-xs font-semibold transition ${disabled ? "cursor-not-allowed text-slate-300" : "text-slate-800 hover:bg-rose-50 hover:text-rose-700"}`}>
-                    {isGen ? "Oluşturuluyor…" : labels[mode]}
+                    {isGen ? t("download.generating") : labels[mode]}
                   </button>
                 );
               })}
@@ -368,16 +371,16 @@ export default function VideoCeviriPage() {
               {job.original_filename}
             </p>
             <p className="mt-0.5 text-xs font-medium text-slate-400">
-              {formatFileSizeTr(job.file_size_bytes)} · {formatJobDateTr(job.created_at)}
+              {formatFileSizeTr(job.file_size_bytes)} · {jobDate(job.created_at)}
             </p>
             {job.source_language && job.source_language !== "auto" && (
               <span className="mt-1 inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[11px] font-semibold text-slate-500">
-                {LANGUAGE_DISPLAY[job.source_language] ?? job.source_language.toUpperCase()}
+                {languageLabel(job.source_language)}
               </span>
             )}
           </div>
           <span className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-bold ring-1 ${STATUS_STYLE[job.status] ?? STATUS_STYLE.uploaded}`}>
-            {STATUS_LABEL[job.status] ?? job.status}
+            {statusLabel(job.status)}
           </span>
         </div>
 
@@ -386,7 +389,7 @@ export default function VideoCeviriPage() {
           <div className="mt-3 space-y-2">
             {job.transcript_original && (
               <div className="rounded-lg bg-slate-50 px-3 py-2">
-                <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Transkript</p>
+                <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">{t("card.transcript")}</p>
                 <p className="mt-0.5 line-clamp-2 text-xs leading-relaxed text-slate-600">
                   {job.transcript_original.slice(0, 120)}{job.transcript_original.length > 120 ? "…" : ""}
                 </p>
@@ -394,7 +397,7 @@ export default function VideoCeviriPage() {
             )}
             {job.transcript_tr && (
               <div className="rounded-lg bg-blue-50/70 px-3 py-2">
-                <p className="text-[10px] font-black uppercase tracking-wider text-blue-600">Türkçe Çeviri</p>
+                <p className="text-[10px] font-black uppercase tracking-wider text-blue-600">{t("card.turkishTranslation")}</p>
                 <p className="mt-0.5 line-clamp-2 text-xs leading-relaxed text-slate-600">
                   {job.transcript_tr.slice(0, 120)}{job.transcript_tr.length > 120 ? "…" : ""}
                 </p>
@@ -402,7 +405,7 @@ export default function VideoCeviriPage() {
             )}
             {job.summary_text && (
               <div className="rounded-lg bg-emerald-50/70 px-3 py-2">
-                <p className="text-[10px] font-black uppercase tracking-wider text-emerald-600">Özet</p>
+                <p className="text-[10px] font-black uppercase tracking-wider text-emerald-600">{t("card.summary")}</p>
                 <p className="mt-0.5 line-clamp-1 text-xs text-slate-600">{job.summary_text.split("\n")[0]}</p>
               </div>
             )}
@@ -420,7 +423,7 @@ export default function VideoCeviriPage() {
         {isProcessing && (
           <div className="mt-2 flex items-center gap-1.5 text-xs font-bold text-violet-700">
             <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            {STATUS_LABEL[job.status]}
+            {statusLabel(job.status)}
           </div>
         )}
 
@@ -432,7 +435,7 @@ export default function VideoCeviriPage() {
               disabled={!!transcribingId}
               className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-gradient-to-r from-indigo-600 to-violet-600 px-3 text-[11px] font-bold text-white shadow-sm disabled:cursor-not-allowed disabled:opacity-50">
               {transcribingId === job.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Mic className="h-3 w-3" strokeWidth={2.25} />}
-              Transkripsiyon Başlat
+              {t("card.startTranscription")}
             </button>
           )}
           {isCompleted && job.transcript_original && (
@@ -440,13 +443,13 @@ export default function VideoCeviriPage() {
               {renderDownloadDropdown(job)}
               {!job.transcript_tr && (
                 job.source_language === "tr" ? (
-                  <span className="text-[11px] font-medium text-slate-400">Zaten Türkçe</span>
+                  <span className="text-[11px] font-medium text-slate-400">{t("card.alreadyTurkish")}</span>
                 ) : (
                   <button type="button" onClick={() => void handleTranslate(job)}
                     disabled={!!translatingId}
                     className="inline-flex h-8 items-center gap-1 rounded-lg border border-amber-200 bg-amber-50 px-3 text-[11px] font-bold text-amber-700 disabled:cursor-not-allowed disabled:opacity-50">
                     {translatingId === job.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Languages className="h-3 w-3" strokeWidth={2.25} />}
-                    {translatingId === job.id ? "Çevriliyor…" : "Türkçeye Çevir"}
+                    {translatingId === job.id ? t("card.translating") : t("card.translate")}
                   </button>
                 )
               )}
@@ -455,7 +458,7 @@ export default function VideoCeviriPage() {
                   disabled={!!summarizingId}
                   className="inline-flex h-8 items-center gap-1 rounded-lg border border-emerald-200 bg-emerald-50 px-3 text-[11px] font-bold text-emerald-700 disabled:cursor-not-allowed disabled:opacity-50">
                   {summarizingId === job.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" strokeWidth={2.25} />}
-                  {summarizingId === job.id ? "Hazırlanıyor…" : "Özet Çıkar"}
+                  {summarizingId === job.id ? t("card.preparing") : t("card.summarize")}
                 </button>
               )}
               {job.transcript_tr && !job.headings_text && (
@@ -463,7 +466,7 @@ export default function VideoCeviriPage() {
                   disabled={!!headliningId}
                   className="inline-flex h-8 items-center gap-1 rounded-lg border border-indigo-200 bg-indigo-50 px-3 text-[11px] font-bold text-indigo-700 disabled:cursor-not-allowed disabled:opacity-50">
                   {headliningId === job.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <List className="h-3 w-3" strokeWidth={2.25} />}
-                  {headliningId === job.id ? "Oluşturuluyor…" : "Başlıklandır"}
+                  {headliningId === job.id ? t("card.generating") : t("card.headings")}
                 </button>
               )}
             </>
@@ -473,7 +476,7 @@ export default function VideoCeviriPage() {
               onClick={() => setDetailJob(job)}
               className="ml-auto inline-flex h-8 items-center gap-1 rounded-lg border border-slate-200 bg-slate-50 px-3 text-[11px] font-bold text-slate-600 hover:bg-slate-100">
               <FileText className="h-3 w-3" strokeWidth={2.25} />
-              Detay
+              {t("card.detail")}
             </button>
           )}
         </div>
@@ -496,7 +499,7 @@ export default function VideoCeviriPage() {
       <div className="relative z-10 mx-auto w-full max-w-[1400px] min-w-0 px-4 pb-4 pt-3 sm:px-6 sm:pb-5 lg:px-8">
 
         {isDemo && (
-          <DemoModuleBanner message={DIGITAL_CONTENT_DEMO_BANNER} />
+          <DemoModuleBanner message={demo.banner} />
         )}
 
         {/* header */}
@@ -505,29 +508,29 @@ export default function VideoCeviriPage() {
             <div className="min-w-0">
               <div className="inline-flex items-center gap-1 rounded-full border border-violet-200/80 bg-violet-50/95 px-2.5 py-0.5 text-[10px] font-bold text-violet-800 shadow-sm">
                 <Video className="h-3 w-3" aria-hidden />
-                Yapay Zeka Destekli Çeviri
+                {t("header.badge")}
               </div>
               <h1 className="mt-1 text-xl font-black leading-tight tracking-tight text-slate-950 sm:text-2xl">
-                Video{" "}
+                {t("header.titleLead")}{" "}
                 <span className="bg-gradient-to-r from-indigo-700 via-violet-700 to-fuchsia-600 bg-clip-text text-transparent">&rarr;</span>{" "}
-                Türkçe Word/PDF Merkezi
+                {t("header.titleRest")}
               </h1>
               <p className="mt-0.5 max-w-[700px] text-[11px] leading-relaxed text-slate-500 sm:text-xs">
-                Video yükleyin; konuşma otomatik metne çevrilir, Türkçeye aktarılır ve Word ile PDF olarak indirilebilir hale gelir.
+                {t("header.desc")}
               </p>
             </div>
           </div>
         </header>
 
         {/* adımlar */}
-        <section className="mb-3 overflow-hidden rounded-xl border border-indigo-900/20 bg-gradient-to-r from-indigo-950 via-violet-950 to-indigo-900 shadow-sm" aria-label="İşlem adımları">
+        <section className="mb-3 overflow-hidden rounded-xl border border-indigo-900/20 bg-gradient-to-r from-indigo-950 via-violet-950 to-indigo-900 shadow-sm" aria-label={t("steps.aria")}>
           <div className="grid grid-cols-2 gap-0 sm:grid-cols-4">
             {STEPS.map((step, i) => (
-              <div key={step.label} className={`flex items-center gap-2 px-3 py-2 sm:flex-col sm:items-center sm:gap-1 sm:py-2 sm:text-center ${i < STEPS.length - 1 ? "sm:border-r sm:border-white/10" : ""}`}>
+              <div key={step.key} className={`flex items-center gap-2 px-3 py-2 sm:flex-col sm:items-center sm:gap-1 sm:py-2 sm:text-center ${i < STEPS.length - 1 ? "sm:border-r sm:border-white/10" : ""}`}>
                 <span className="text-base shrink-0" aria-hidden>{step.icon}</span>
                 <p className="text-[11px] font-bold leading-snug text-indigo-100/90">
                   <span className="mr-0.5 text-[10px] font-black text-white/50">{i + 1}.</span>
-                  {step.label}
+                  {t(`steps.${step.key}`)}
                 </p>
               </div>
             ))}
@@ -536,41 +539,41 @@ export default function VideoCeviriPage() {
 
         {/* upload + bilgi kartları */}
         <div className="grid grid-cols-1 gap-3 lg:grid-cols-[1.4fr_1fr]">
-          <section aria-label="Video yükleme alanı">
+          <section aria-label={t("info.uploadAria")}>
             <VideoUploadZone onSuccess={handleUploadSuccess} />
           </section>
 
           <div className="flex flex-col gap-3">
             <div className="rounded-xl border border-emerald-200/70 bg-gradient-to-br from-emerald-50/90 via-white to-teal-50/80 p-3 shadow-sm">
               <h3 className="mb-2 flex items-center gap-1.5 text-xs font-black text-slate-900">
-                <span className="text-sm" aria-hidden>🔒</span>Gizlilik &amp; Güvenlik
+                <span className="text-sm" aria-hidden>🔒</span>{t("info.privacyTitle")}
               </h3>
               <ul className="space-y-1 text-[11px] font-medium leading-relaxed text-slate-600">
-                <li className="flex items-start gap-1.5"><span className="text-emerald-600" aria-hidden>✓</span>Yüklenen video, yazıya dökme bitince (başarılı ya da hatalı) otomatik silinir</li>
-                <li className="flex items-start gap-1.5"><span className="text-emerald-600" aria-hidden>✓</span>Metin ve çeviriler yalnızca size aittir</li>
-                <li className="flex items-start gap-1.5"><span className="text-emerald-600" aria-hidden>✓</span>Yönetici içeriklerinize erişemez</li>
-                <li className="flex items-start gap-1.5"><span className="text-emerald-600" aria-hidden>✓</span>Word ve PDF isteğe bağlı kaydedilebilir</li>
+                <li className="flex items-start gap-1.5"><span className="text-emerald-600" aria-hidden>✓</span>{t("info.privacy1")}</li>
+                <li className="flex items-start gap-1.5"><span className="text-emerald-600" aria-hidden>✓</span>{t("info.privacy2")}</li>
+                <li className="flex items-start gap-1.5"><span className="text-emerald-600" aria-hidden>✓</span>{t("info.privacy3")}</li>
+                <li className="flex items-start gap-1.5"><span className="text-emerald-600" aria-hidden>✓</span>{t("info.privacy4")}</li>
               </ul>
             </div>
 
             <div className="rounded-xl border border-violet-200/70 bg-gradient-to-br from-violet-50/90 via-white to-indigo-50/80 p-3 shadow-sm">
               <h3 className="mb-2 flex items-center gap-1.5 text-xs font-black text-slate-900">
                 <FileText className="h-3.5 w-3.5 text-violet-600" strokeWidth={2.25} />
-                Desteklenen Formatlar
+                {t("info.formatsTitle")}
               </h3>
-              <p className="mb-1 text-[10px] font-black uppercase tracking-wider text-slate-400">Video</p>
+              <p className="mb-1 text-[10px] font-black uppercase tracking-wider text-slate-400">{t("info.formatsVideo")}</p>
               <div className="grid grid-cols-3 gap-1">
                 {["MP4","MOV","WEBM","MKV","AVI","OGG"].map(f => (
                   <div key={f} className="rounded-lg border border-violet-100 bg-white/80 px-1.5 py-1 text-center text-[10px] font-black text-violet-700">{f}</div>
                 ))}
               </div>
-              <p className="mb-1 mt-1.5 text-[10px] font-black uppercase tracking-wider text-slate-400">Ses</p>
+              <p className="mb-1 mt-1.5 text-[10px] font-black uppercase tracking-wider text-slate-400">{t("info.formatsAudio")}</p>
               <div className="grid grid-cols-3 gap-1">
                 {["MP3","M4A","WAV","AAC","AMR","OGG"].map(f => (
                   <div key={f} className="rounded-lg border border-indigo-100 bg-white/80 px-1.5 py-1 text-center text-[10px] font-black text-indigo-600">{f}</div>
                 ))}
               </div>
-              <p className="mt-2 text-[11px] font-medium text-slate-400">Transkripsiyon limiti: 25 MB</p>
+              <p className="mt-2 text-[11px] font-medium text-slate-400">{t("info.limit")}</p>
             </div>
           </div>
         </div>
@@ -583,7 +586,7 @@ export default function VideoCeviriPage() {
                 <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-slate-700 to-slate-900 text-white shadow-md">
                   <Clock className="h-5 w-5" strokeWidth={2.25} />
                 </span>
-                Son Çevrilenler
+                {t("recent.title")}
                 {!jobsLoading && jobs.length > 0 && (
                   <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-sm font-bold text-slate-500">{jobs.length}</span>
                 )}
@@ -594,7 +597,7 @@ export default function VideoCeviriPage() {
                   onClick={() => setPanelOpen(true)}
                   className="inline-flex h-10 items-center gap-2 rounded-xl border border-violet-200 bg-gradient-to-r from-violet-50 to-indigo-50 px-5 text-sm font-bold text-violet-700 shadow-sm transition hover:border-violet-300 hover:shadow-md">
                   <Maximize2 className="h-4 w-4" strokeWidth={2.25} />
-                  Tüm Çevrilen Kayıtları Gör
+                  {t("recent.viewAll")}
                 </button>
               )}
             </div>
@@ -607,7 +610,7 @@ export default function VideoCeviriPage() {
                 </div>
               ) : jobs.length === 0 ? (
                 <p className="py-8 text-center text-sm font-medium text-slate-400">
-                  Henüz işlem kaydı yok. İlk videoyu yükleyerek başlayın.
+                  {t("recent.empty")}
                 </p>
               ) : (
                 <div className="divide-y divide-slate-100">
@@ -619,14 +622,14 @@ export default function VideoCeviriPage() {
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-sm font-bold text-slate-700">{job.original_filename}</p>
                         <p className="text-xs font-medium text-slate-400">
-                          {formatJobDateTr(job.created_at)}
+                          {jobDate(job.created_at)}
                           {job.source_language && job.source_language !== "auto" && (
-                            <> · {LANGUAGE_DISPLAY[job.source_language] ?? job.source_language.toUpperCase()}</>
+                            <> · {languageLabel(job.source_language)}</>
                           )}
                         </p>
                       </div>
                       <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-[11px] font-bold ring-1 ${STATUS_STYLE[job.status] ?? STATUS_STYLE.uploaded}`}>
-                        {STATUS_LABEL[job.status] ?? job.status}
+                        {statusLabel(job.status)}
                       </span>
                     </div>
                   ))}
@@ -635,7 +638,7 @@ export default function VideoCeviriPage() {
                       <button type="button"
                         onClick={() => setPanelOpen(true)}
                         className="text-sm font-bold text-violet-600 hover:text-violet-800">
-                        + {jobs.length - 3} kayıt daha →
+                        {t("recent.more", { count: jobs.length - 3 })}
                       </button>
                     </div>
                   )}
@@ -653,14 +656,15 @@ export default function VideoCeviriPage() {
           <div className="shrink-0 border-b border-slate-200/80 bg-white/95 px-4 py-4 shadow-sm sm:px-8">
             <div className="mx-auto flex max-w-[1600px] items-center justify-between gap-4">
               <div>
-                <h2 className="text-2xl font-black text-slate-900">Çevrilen Kayıtlar</h2>
+                <h2 className="text-2xl font-black text-slate-900">{t("panel.title")}</h2>
                 <p className="text-sm font-medium text-slate-500">
-                  Daha önce yüklediğiniz video ve ses çeviri işlemleri
-                  {completedCount > 0 && ` · ${completedCount} tamamlanan`}
+                  {t("panel.subtitle")}
+                  {completedCount > 0 && t("panel.completedSuffix", { count: String(completedCount) })}
                 </p>
               </div>
               <button type="button"
                 onClick={() => setPanelOpen(false)}
+                aria-label={t("panel.close")}
                 className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-500 shadow-sm transition hover:bg-slate-50">
                 <X className="h-5 w-5" strokeWidth={2.25} />
               </button>
@@ -672,7 +676,7 @@ export default function VideoCeviriPage() {
             <div className="mx-auto max-w-[1600px]">
               {jobs.length === 0 ? (
                 <p className="py-20 text-center text-sm font-medium text-slate-400">
-                  Henüz kayıt yok.
+                  {t("panel.empty")}
                 </p>
               ) : (
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -694,20 +698,21 @@ export default function VideoCeviriPage() {
                 <p className="truncate text-lg font-black text-slate-900">{detailJob.original_filename}</p>
                 <div className="mt-1 flex flex-wrap items-center gap-2">
                   <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-bold ring-1 ${STATUS_STYLE[detailJob.status] ?? STATUS_STYLE.uploaded}`}>
-                    {STATUS_LABEL[detailJob.status] ?? detailJob.status}
+                    {statusLabel(detailJob.status)}
                   </span>
                   {detailJob.source_language && detailJob.source_language !== "auto" && (
                     <span className="text-xs font-medium text-slate-500">
-                      {LANGUAGE_DISPLAY[detailJob.source_language] ?? detailJob.source_language.toUpperCase()}
+                      {languageLabel(detailJob.source_language)}
                     </span>
                   )}
                   <span className="text-xs font-medium text-slate-400">
-                    {formatFileSizeTr(detailJob.file_size_bytes)} · {formatJobDateTr(detailJob.created_at)}
+                    {formatFileSizeTr(detailJob.file_size_bytes)} · {jobDate(detailJob.created_at)}
                   </span>
                 </div>
               </div>
               <button type="button"
                 onClick={() => setDetailJob(null)}
+                aria-label={t("detail.close")}
                 className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-slate-500 transition hover:bg-slate-100">
                 <X className="h-4 w-4" strokeWidth={2.25} />
               </button>
@@ -718,7 +723,7 @@ export default function VideoCeviriPage() {
               {/* hata */}
               {detailJob.status === "failed" && detailJob.error_message && (
                 <div className="rounded-2xl border border-rose-200 bg-rose-50 px-5 py-4">
-                  <p className="mb-1 text-xs font-black uppercase tracking-wider text-rose-600">Hata</p>
+                  <p className="mb-1 text-xs font-black uppercase tracking-wider text-rose-600">{t("detail.error")}</p>
                   <p className="text-sm font-medium leading-relaxed text-rose-800">{detailJob.error_message}</p>
                 </div>
               )}
@@ -726,7 +731,7 @@ export default function VideoCeviriPage() {
               {/* transkript */}
               {detailJob.transcript_original && (
                 <div className="rounded-2xl border border-slate-200/70 bg-slate-50/70 px-5 py-4">
-                  <p className="mb-2 text-xs font-black uppercase tracking-wider text-slate-500">Orijinal Transkript</p>
+                  <p className="mb-2 text-xs font-black uppercase tracking-wider text-slate-500">{t("detail.originalTranscript")}</p>
                   <p className="whitespace-pre-wrap text-sm leading-relaxed text-slate-700">{detailJob.transcript_original}</p>
                 </div>
               )}
@@ -734,7 +739,7 @@ export default function VideoCeviriPage() {
               {/* türkçe çeviri */}
               {detailJob.transcript_tr && (
                 <div className="rounded-2xl border border-blue-200/70 bg-blue-50/50 px-5 py-4">
-                  <p className="mb-2 text-xs font-black uppercase tracking-wider text-blue-600">Türkçe Çeviri</p>
+                  <p className="mb-2 text-xs font-black uppercase tracking-wider text-blue-600">{t("detail.turkishTranslation")}</p>
                   <p className="whitespace-pre-wrap text-sm leading-relaxed text-slate-700">{detailJob.transcript_tr}</p>
                 </div>
               )}
@@ -742,7 +747,7 @@ export default function VideoCeviriPage() {
               {/* özet */}
               {detailJob.summary_text && (
                 <div className="rounded-2xl border border-emerald-200/70 bg-emerald-50/50 px-5 py-4">
-                  <p className="mb-2 text-xs font-black uppercase tracking-wider text-emerald-600">Kısa Özet</p>
+                  <p className="mb-2 text-xs font-black uppercase tracking-wider text-emerald-600">{t("detail.summary")}</p>
                   <div className="space-y-1.5 text-sm leading-relaxed text-slate-700">
                     {detailJob.summary_text.split("\n").filter(Boolean).map((line, i) => <p key={i}>{line}</p>)}
                   </div>
@@ -752,7 +757,7 @@ export default function VideoCeviriPage() {
               {/* başlıklar */}
               {detailJob.headings_text && (
                 <div className="rounded-2xl border border-indigo-200/70 bg-indigo-50/50 px-5 py-4">
-                  <p className="mb-2 text-xs font-black uppercase tracking-wider text-indigo-600">Bölüm Başlıkları</p>
+                  <p className="mb-2 text-xs font-black uppercase tracking-wider text-indigo-600">{t("detail.headings")}</p>
                   <div className="space-y-1.5 text-sm leading-relaxed text-slate-700">
                     {detailJob.headings_text.split("\n").filter(Boolean).map((line, i) => <p key={i} className="font-medium">{line}</p>)}
                   </div>
@@ -768,7 +773,7 @@ export default function VideoCeviriPage() {
                       disabled={!!translatingId}
                       className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-amber-200 bg-amber-50 px-4 text-xs font-bold text-amber-700 disabled:cursor-not-allowed disabled:opacity-50">
                       <Languages className="h-3.5 w-3.5" strokeWidth={2.25} />
-                      Türkçeye Çevir
+                      {t("card.translate")}
                     </button>
                   )}
                   {detailJob.transcript_tr && !detailJob.summary_text && (
@@ -776,7 +781,7 @@ export default function VideoCeviriPage() {
                       disabled={!!summarizingId}
                       className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-4 text-xs font-bold text-emerald-700 disabled:cursor-not-allowed disabled:opacity-50">
                       <Sparkles className="h-3.5 w-3.5" strokeWidth={2.25} />
-                      Özet Çıkar
+                      {t("card.summarize")}
                     </button>
                   )}
                   {detailJob.transcript_tr && !detailJob.headings_text && (
@@ -784,7 +789,7 @@ export default function VideoCeviriPage() {
                       disabled={!!headliningId}
                       className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-indigo-200 bg-indigo-50 px-4 text-xs font-bold text-indigo-700 disabled:cursor-not-allowed disabled:opacity-50">
                       <List className="h-3.5 w-3.5" strokeWidth={2.25} />
-                      Başlıklandır
+                      {t("card.headings")}
                     </button>
                   )}
                 </div>

@@ -1,0 +1,154 @@
+{
+  "docTranslate": {
+    "fileName": {
+      "ocrText": "ocr-metin",
+      "ocrTranslation": "ocr-ceviri"
+    },
+    "header": {
+      "badge": "Belge Dönüştürme ve Çeviri",
+      "titleLead": "Belge",
+      "titleAccent": "Çeviri Merkezi",
+      "descAdmin": "PDF belgelerini dönüştür, farklı dillere çevir, taranmış metinleri oku. Tüm işlemler güvenli sunucuda gerçekleşir.",
+      "descExpert": "PDF belgelerini düzenlenebilir Word dosyasına dönüştür. Tüm işlemler güvenli sunucuda gerçekleşir.",
+      "history": "Çevrilen Belgeler"
+    },
+    "cards": {
+      "pdfToWord": {
+        "title": "PDF → Word",
+        "subtitle": "PDF belgeni düzenlenebilir Word dosyasına dönüştür."
+      },
+      "pdfToTurkishWord": {
+        "title": "PDF → Türkçe Word",
+        "subtitle": "PDF içeriğini Türkçeye çevir, düzenlenebilir Word belgesi olarak indir."
+      },
+      "ocr": {
+        "title": "📷 Görsel OCR",
+        "subtitle": "Fotoğraf veya ekran görüntüsündeki yazıları dijital metne dönüştürün. PNG, JPG, WEBP desteklenir."
+      },
+      "badgeActive": "Aktif",
+      "selectPdf": "PDF Seç",
+      "selectImage": "Görüntü Seç",
+      "changeFile": "Dosyayı Değiştir",
+      "selectedFile": "Seçilen Dosya",
+      "fileSize": "{size} MB",
+      "removeFile": "Dosyayı kaldır",
+      "modeTitle": "Çeviri Modu",
+      "modeStandard": "Standart",
+      "modeAcademic": "Akademik",
+      "modeStandardHint": "gpt-4o-mini · hızlı",
+      "modeAcademicHint": "gpt-4.1 · kitap, tez",
+      "tooLarge": "Bu dosya 50 MB sunucu limitini aşıyor ve yüklenemez. Lütfen daha küçük bir PDF kullanın veya büyük dosyaları bölün.",
+      "largeWarning": "Bu belge büyük olduğu için çeviri uzun sürebilir. İşlem sırasında sayfayı kapatmayın.",
+      "translating": "Çeviriliyor...",
+      "processing": "İşleniyor...",
+      "actionPdfToWord": "Word'e Dönüştür",
+      "actionPdfToTurkishWord": "Türkçeye Çevir + Word",
+      "actionOcr": "Metni Oku",
+      "comingSoon": "Bu özellik yakında aktif olacak."
+    },
+    "ocr": {
+      "extracted": "Çıkarılan Metin",
+      "closeResult": "Sonucu kapat",
+      "copy": "Kopyala",
+      "downloadTxt": "TXT İndir",
+      "downloadWord": "Word İndir",
+      "isTurkish": "Metin Türkçe görünüyor — çeviri yapılmadı.",
+      "translationTitle": "Türkçe Çeviri",
+      "copyTranslation": "Çeviriyi Kopyala",
+      "translationMissing": "Metin yabancı dilde görünüyor ancak çeviri alınamadı. Lütfen tekrar deneyin."
+    },
+    "job": {
+      "queued": "Kuyruğa alındı...",
+      "translating": "Çevriliyor...",
+      "progress": "{done} / {total} bölüm tamamlandı",
+      "completed": "Çeviri tamamlandı",
+      "failed": "Hata: {message}",
+      "close": "Kapat",
+      "downloadDocx": "DOCX İndir",
+      "keepOpen": "Sayfayı kapatmayın — işlem arka planda devam ediyor."
+    },
+    "help": {
+      "toggle": "Büyük PDF Yardımı",
+      "title": "📄 Büyük PDF Yükleme Rehberi",
+      "intro": "Belge Çeviri Merkezi yüksek boyutlu PDF dosyalarını çevirebilir. Ancak bazı PDF'ler yüksek çözünürlüklü taramalar ve büyük görseller nedeniyle çok yüksek dosya boyutlarına ulaşabilir.",
+      "maxSize": "Maksimum PDF boyutu: 50 MB",
+      "s1Title": "PDF Sıkıştırma",
+      "s1Sub": "Windows Kullanıcıları İçin:",
+      "s1Step1": "PDF dosyanızı bilgisayarınıza kaydedin.",
+      "s1Step2": "Bir PDF sıkıştırma aracı açın.",
+      "s1Step3": "Orta Kalite veya Yüksek Kalite seçeneğini tercih edin.",
+      "s1Step4": "Yeni PDF dosyasını kaydedin.",
+      "s1Step5": "Yeni PDF dosyasını sisteme tekrar yükleyin.",
+      "s1Note": "Çoğu durumda büyük PDF dosyaları kalite kaybı yaşamadan 50 MB altına indirilebilir.",
+      "s2Title": "PDF'i Bölümlere Ayırma",
+      "s2Body": "Büyük PDF'leri birkaç parçaya bölerek ayrı ayrı çevirebilirsiniz.",
+      "s2Range1": "1–100 sayfa",
+      "s2Range2": "101–200 sayfa",
+      "s2Range3": "201–300 sayfa",
+      "s3Title": "Görsel Kalitesini Azaltma",
+      "s3Body": "Bazı PDF'lerde dosya boyutunu yüksek çözünürlüklü görseller oluşturur. PDF optimizasyonu sonrasında aynı içerik çok daha düşük boyutlarda yüklenebilir.",
+      "faqTitle": "Sık Sorulan Sorular",
+      "faq1Q": "PDF'im çok büyük. Çevrilir mi?",
+      "faq1A": "Çoğu durumda evet. Ancak büyük dosyalarda yükleme süresi uzayabilir.",
+      "faq2Q": "Taranmış kitapları çevirebilir miyim?",
+      "faq2A": "Evet. Sistem OCR kullanarak metni algılamaya çalışır.",
+      "faq3Q": "Tablolu PDF'leri çevirebilir miyim?",
+      "faq3A": "Evet. Basit tablolar genellikle korunur. Karmaşık tablolarda düzen farklılıkları oluşabilir.",
+      "toolsTitle": "📌 Önerilen PDF Sıkıştırma Araçları",
+      "toolsBody": "Bu araçlar PDF dosyalarının boyutunu azaltmak için kullanılabilir."
+    },
+    "info": {
+      "secureTitle": "Güvenli İşlem",
+      "secureDesc": "Belgeler işlem sonrası silinir.",
+      "multiTitle": "Çoklu Dil",
+      "multiDesc": "İng, Alm, Fr ve daha fazlası.",
+      "formatTitle": "Format Koruma",
+      "formatDesc": "Belge formatı korunur."
+    },
+    "history": {
+      "title": "Çevrilen Belgeler",
+      "subtitle": "Daha önce dönüştürdüğünüz veya çevirdiğiniz belgeler",
+      "close": "Kapat",
+      "loading": "Kayıtlar yükleniyor…",
+      "emptyTitle": "Henüz çevrilmiş belge yok.",
+      "emptyBody": "PDF dosyanızı yükleyip dönüştürdükten sonra kayıtlar burada görünecek.",
+      "upload": "Belge Yükle",
+      "statusCompleted": "Tamamlandı",
+      "statusFailed": "Başarısız",
+      "statusProcessing": "İşleniyor…",
+      "pages": " · {count} sayfa",
+      "linkExpired": "İndirme bağlantısı süresi dolmuş. Sayfayı yenileyip tekrar deneyin."
+    },
+    "toast": {
+      "errorTitle": "Hata",
+      "successTitle": "Başarılı",
+      "connectionErrorTitle": "Bağlantı hatası",
+      "unknownError": "Bilinmeyen hata",
+      "wordFailed": "Word dosyası oluşturulamadı.",
+      "sessionMissing": "Oturum bilgisi alınamadı. Sayfayı yenileyip tekrar deneyin.",
+      "serverError": "Sunucu hatası (HTTP {status})",
+      "queuedTitle": "Kuyruğa alındı",
+      "queuedMsg": "{pages} sayfalık belge çeviri kuyruğuna eklendi.",
+      "ocrFailed": "Metin çıkarılamadı.",
+      "ocrSuccess": "Metin başarıyla çıkarıldı.",
+      "fileDownloaded": "Dosya oluşturuldu ve indirildi.",
+      "copiedTitle": "Kopyalandı",
+      "textCopied": "Metin panoya kopyalandı.",
+      "translationCopied": "Çeviri panoya kopyalandı."
+    },
+    "apiErrors": {
+      "FILE_MISSING": "Dosya bulunamadı. 'file' alanı gerekli.",
+      "PDF_ONLY": "Yalnızca PDF dosyaları kabul edilir.",
+      "IMAGE_ONLY": "Yalnızca PNG, JPG, JPEG ve WEBP dosyaları kabul edilir.",
+      "INVALID_FILE_TYPE": "Geçersiz dosya tipi.",
+      "FILE_TOO_LARGE": "Dosya çok büyük. Maksimum {maxMb} MB.",
+      "PAGE_LIMIT": "Bu belge {pages} sayfa içeriyor. 200 sayfa üstü belgeler için Büyük Dosya Modu hazırlanıyor.",
+      "UPLOAD_FAILED": "Dosya yüklenemedi.",
+      "JOB_CREATE_FAILED": "İş kaydı oluşturulamadı.",
+      "PROCESSING_FAILED": "İşlem şu anda tamamlanamadı. Lütfen tekrar deneyin veya destek ekibiyle iletişime geçin.",
+      "NO_TEXT_FOUND": "Görselde okunabilir metin bulunamadı.",
+      "PDF_NO_TEXT": "PDF'den metin çıkarılamadı. Dosya taranmış, şifreli veya yalnızca görüntü içeriyor olabilir.",
+      "TEXT_MISSING": "Metin bulunamadı."
+    }
+  }
+}

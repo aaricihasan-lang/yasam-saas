@@ -1,13 +1,15 @@
 "use client";
 
 import { useRef } from "react";
+import { useTranslations } from "next-intl";
 
 /** Yaşam Hafızası'nın iki alanı — tek ürün, iki sekme. */
 export type MemoryArea = "professional" | "client";
 
-export const MEMORY_AREA_TABS: ReadonlyArray<{ id: MemoryArea; label: string; icon: string }> = [
-  { id: "professional", label: "Mesleki Hafıza", icon: "📚" },
-  { id: "client", label: "Danışan Hafızası", icon: "🧾" },
+// I18N: görünen etiket memory.workspace.tabs.<id> ("Mesleki Hafıza" / "Danışan Hafızası"); id dil-bağımsız.
+export const MEMORY_AREA_TABS: ReadonlyArray<{ id: MemoryArea; icon: string }> = [
+  { id: "professional", icon: "📚" },
+  { id: "client", icon: "🧾" },
 ];
 
 /**
@@ -22,6 +24,7 @@ export function MemoryAreaTabs({
   active: MemoryArea;
   onChange: (area: MemoryArea) => void;
 }) {
+  const tTabs = useTranslations("memory.workspace.tabs");
   const refs = useRef<Record<MemoryArea, HTMLButtonElement | null>>({
     professional: null,
     client: null,
@@ -43,7 +46,7 @@ export function MemoryAreaTabs({
   return (
     <div
       role="tablist"
-      aria-label="Yaşam Hafızası alanları"
+      aria-label={tTabs("aria")}
       onKeyDown={onKeyDown}
       className="mb-5 -mx-1 flex gap-2 overflow-x-auto px-1 py-0.5"
     >
@@ -69,7 +72,7 @@ export function MemoryAreaTabs({
             }`}
           >
             <span aria-hidden>{t.icon}</span>
-            {t.label}
+            {tTabs(t.id)}
           </button>
         );
       })}

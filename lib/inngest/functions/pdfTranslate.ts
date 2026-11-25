@@ -1,3 +1,5 @@
+import { localeTranslator } from "@/lib/i18n/serverMessages";
+import { DEFAULT_LOCALE } from "@/lib/i18n/locales";
 import { createClient } from "@supabase/supabase-js";
 import { extractText } from "unpdf";
 import { Document, Packer, Paragraph, TextRun } from "docx";
@@ -254,12 +256,13 @@ export const pdfTranslateFunction = inngest.createFunction(
       return { jobId, status: "completed" };
 
     } catch (err) {
-      // Hata durumunda DB'yi güncelle
-      const errorMessage = err instanceof Error ? err.message : String(err);
+      // Hata durumunda DB'yi güncelle.
+      // R5-A1: error_message kullanıcı ekranında gösterilir → iç ayrıntı (Supabase/OpenAI/SDK metni) yalnız sunucu günlüğüne.
+      console.error("[pdfTranslate] iş başarısız:", jobId, err);
       try {
         await getDb().from(TABLE).update({
           status: "failed",
-          error_message: errorMessage,
+          error_message: localeTranslator(DEFAULT_LOCALE, "docTranslate.apiErrors")("PROCESSING_FAILED"),
         }).eq("id", jobId);
       } catch {
         // DB güncellemesi de başarısız olursa yoksay

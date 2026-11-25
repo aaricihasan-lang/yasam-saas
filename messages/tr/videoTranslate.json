@@ -1,0 +1,168 @@
+{
+  "videoTranslate": {
+    "fileName": {
+      "original": "orijinal",
+      "turkish": "turkce",
+      "comparison": "karsilastirmali"
+    },
+    "header": {
+      "badge": "Yapay Zeka Destekli Çeviri",
+      "titleLead": "Video",
+      "titleRest": "Türkçe Word/PDF Merkezi",
+      "desc": "Video yükleyin; konuşma otomatik metne çevrilir, Türkçeye aktarılır ve Word ile PDF olarak indirilebilir hale gelir."
+    },
+    "steps": {
+      "aria": "İşlem adımları",
+      "upload": "Video yüklenir",
+      "transcribe": "Ses metne çevrilir",
+      "translate": "Türkçeye çevrilir",
+      "export": "Word ve PDF oluşturulur"
+    },
+    "status": {
+      "completed": "Tamamlandı",
+      "transcribing": "Metne çevriliyor…",
+      "translating": "Türkçeye çevriliyor…",
+      "generating": "Dosya oluşturuluyor…",
+      "uploaded": "Yüklendi",
+      "failed": "Başarısız"
+    },
+    "languages": {
+      "de": "Almanca",
+      "en": "İngilizce",
+      "fr": "Fransızca",
+      "es": "İspanyolca",
+      "tr": "Türkçe",
+      "ar": "Arapça",
+      "ru": "Rusça",
+      "it": "İtalyanca",
+      "pt": "Portekizce",
+      "nl": "Felemenkçe",
+      "pl": "Lehçe",
+      "ja": "Japonca",
+      "zh": "Çince",
+      "ko": "Korece"
+    },
+    "download": {
+      "button": "İndir",
+      "wordOriginal": "Orijinal Word",
+      "wordTurkish": "Türkçe Word",
+      "wordComparison": "Karşılaştırmalı Word",
+      "pdfOriginal": "Orijinal PDF",
+      "pdfTurkish": "Türkçe PDF",
+      "pdfComparison": "Karşılaştırmalı PDF",
+      "translateFirst": "Önce Türkçeye Çevir",
+      "generating": "Oluşturuluyor…"
+    },
+    "card": {
+      "transcript": "Transkript",
+      "turkishTranslation": "Türkçe Çeviri",
+      "summary": "Özet",
+      "startTranscription": "Transkripsiyon Başlat",
+      "alreadyTurkish": "Zaten Türkçe",
+      "translating": "Çevriliyor…",
+      "translate": "Türkçeye Çevir",
+      "preparing": "Hazırlanıyor…",
+      "summarize": "Özet Çıkar",
+      "generating": "Oluşturuluyor…",
+      "headings": "Başlıklandır",
+      "detail": "Detay"
+    },
+    "info": {
+      "privacyTitle": "Gizlilik & Güvenlik",
+      "privacy1": "Yüklenen video, yazıya dökme bitince (başarılı ya da hatalı) otomatik silinir",
+      "privacy2": "Metin ve çeviriler yalnızca size aittir",
+      "privacy3": "Yönetici içeriklerinize erişemez",
+      "privacy4": "Word ve PDF isteğe bağlı kaydedilebilir",
+      "formatsTitle": "Desteklenen Formatlar",
+      "formatsVideo": "Video",
+      "formatsAudio": "Ses",
+      "limit": "Transkripsiyon limiti: 25 MB",
+      "uploadAria": "Video yükleme alanı"
+    },
+    "recent": {
+      "title": "Son Çevrilenler",
+      "viewAll": "Tüm Çevrilen Kayıtları Gör",
+      "empty": "Henüz işlem kaydı yok. İlk videoyu yükleyerek başlayın.",
+      "more": "+ {count} kayıt daha →"
+    },
+    "panel": {
+      "title": "Çevrilen Kayıtlar",
+      "subtitle": "Daha önce yüklediğiniz video ve ses çeviri işlemleri",
+      "completedSuffix": " · {count} tamamlanan",
+      "close": "Kapat",
+      "empty": "Henüz kayıt yok."
+    },
+    "detail": {
+      "error": "Hata",
+      "originalTranscript": "Orijinal Transkript",
+      "turkishTranslation": "Türkçe Çeviri",
+      "summary": "Kısa Özet",
+      "headings": "Bölüm Başlıkları",
+      "close": "Kapat"
+    },
+    "toast": {
+      "wordFailedTitle": "Word oluşturulamadı",
+      "pdfFailedTitle": "PDF oluşturulamadı",
+      "tryAgain": "Lütfen tekrar deneyin.",
+      "connectionErrorTitle": "Bağlantı hatası",
+      "serverUnreachable": "Sunucuya ulaşılamadı.",
+      "translateFailedTitle": "Çeviri başarısız",
+      "unknownError": "Bilinmeyen hata.",
+      "alreadyTurkishTitle": "Zaten Türkçe",
+      "alreadyTurkishMsg": "Bu metin zaten Türkçe görünüyor.",
+      "summaryFailedTitle": "Özet oluşturulamadı",
+      "headingsFailedTitle": "Başlıklar oluşturulamadı",
+      "transcribeFailedTitle": "Transkripsiyon başarısız"
+    },
+    "upload": {
+      "title": "Video Yükle",
+      "validating": "Dosya kontrol ediliyor…",
+      "inserting": "Kayıt oluşturuluyor…",
+      "uploading": "Dosya yükleniyor…",
+      "progress": "Yükleniyor… %{percent}",
+      "done": "Dosya başarıyla yüklendi.",
+      "newFile": "Yeni dosya yükle",
+      "fileSize": "{size} MB",
+      "change": "Değiştir",
+      "dropHint": "Sürükleyin veya seçin",
+      "formatsHint": "MP4 · MOV · MP3 · WAV · M4A · maks. 25 MB",
+      "selectFile": "Dosya Seç",
+      "sourceLanguage": "Kaynak Dil",
+      "autoDetect": "Otomatik Algıla",
+      "outputFormat": "Çıktı Formatı",
+      "start": "İşlem Başlat",
+      "sessionMissing": "Oturum bilgisi alınamadı. Lütfen tekrar giriş yapın.",
+      "jobCreateFailed": "İş kaydı oluşturulamadı.",
+      "typeUnknown": "Dosya türü belirlenemedi. Kabul edilen: MP4, MOV, WEBM, MKV, AVI, OGG · MP3, M4A, WAV, AAC, AMR.",
+      "startFailed": "Yükleme başlatılamadı: {message}",
+      "uploadFailed": "Dosya yüklenemedi: {message}",
+      "linkFailed": "Yükleme bağlantısı alınamadı.",
+      "fileErrors": {
+        "UNSUPPORTED_FORMAT": "Bu format desteklenmiyor. Kabul edilen: MP4, MOV, WEBM, MKV, AVI, OGG · MP3, M4A, WAV, AAC, AMR.",
+        "UNKNOWN_TYPE": "Dosya tipi belirlenemiyor (.{ext} uzantısı desteklenmiyor). Kabul edilen ses formatları: MP3, M4A, WAV, AAC, AMR.",
+        "EMPTY_FILE": "Dosya boş görünüyor.",
+        "FILE_TOO_LARGE": "Dosya {mb} MB — transkripsiyon için maksimum 25 MB desteklenmektedir. Lütfen daha kısa bir ses veya video dosyası yükleyin."
+      }
+    },
+    "apiErrors": {
+      "JOB_ID_REQUIRED": "jobId gerekli.",
+      "AI_NOT_CONFIGURED": "Yapay zekâ hizmeti yapılandırılmamış.",
+      "JOB_NOT_FOUND": "İş kaydı bulunamadı.",
+      "TRANSCRIPT_MISSING": "Transkript bulunamadı.",
+      "TRANSLATION_REQUIRED": "Önce Türkçe çeviri oluşturulmalı.",
+      "JOB_NOT_COMPLETED": "Yalnızca tamamlanmış işler çevrilebilir.",
+      "JOB_ALREADY_PROCESSED": "İş zaten işleniyor veya işlendi.",
+      "VIDEO_PATH_MISSING": "Video dosya yolu eksik.",
+      "INVALID_STORAGE_PATH": "Geçersiz depolama yolu.",
+      "FILE_TOO_LARGE": "Dosya 25 MB limitini aşıyor. Daha kısa dosya yükleyin.",
+      "TRANSCRIBE_FAILED": "Transkripsiyon tamamlanamadı.",
+      "PROCESSING_FAILED": "İşlem şu anda tamamlanamadı. Lütfen tekrar deneyin veya destek ekibiyle iletişime geçin.",
+      "UPLOAD_NOT_ALLOWED": "Bu iş için yükleme artık yapılamaz.",
+      "UPLOAD_URL_FAILED": "Yükleme bağlantısı üretilemedi.",
+      "JOB_UPDATE_FAILED": "İş kaydı güncellenemedi.",
+      "UPLOAD_START_FAILED": "Yükleme başlatılamadı.",
+      "FILE_NAME_REQUIRED": "Dosya adı gerekli.",
+      "NO_FIELDS": "Güncellenecek alan yok."
+    }
+  }
+}

@@ -1,12 +1,14 @@
 import type { Metadata } from "next";
+import { useTranslations } from "next-intl";
+import { getTranslations } from "next-intl/server";
 import { YasamHafizasiSectionShell } from "./components/YasamHafizasiSectionShell";
 import { YasamHafizasiWorkspace } from "./components/YasamHafizasiWorkspace";
 
-export const metadata: Metadata = {
-  title: "Yaşam Hafızası",
-  description:
-    "Mesleki bilgi ve danışan geçmişinizi güvenli biçimde tek noktadan arayın.",
-};
+// I18N: başlık/açıklama memory.workspace.page (TR metinleri birebir).
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("memory.workspace.page");
+  return { title: t("title"), description: t("subtitle") };
+}
 
 /**
  * Yaşam Hafızası kullanıcı çalışma alanı — TEK ürün, İKİ alan:
@@ -16,11 +18,9 @@ export const metadata: Metadata = {
  * data-scope'tur (uzman yalnız kendi tenant verisini/danışanlarını görür).
  */
 export default function YasamHafizasiPage() {
+  const t = useTranslations("memory.workspace.page");
   return (
-    <YasamHafizasiSectionShell
-      title="Yaşam Hafızası"
-      subtitle="Mesleki bilgi ve danışan geçmişinizi güvenli biçimde tek noktadan arayın."
-    >
+    <YasamHafizasiSectionShell title={t("title")} subtitle={t("subtitle")}>
       <YasamHafizasiWorkspace />
     </YasamHafizasiSectionShell>
   );

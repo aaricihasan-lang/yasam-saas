@@ -1,8 +1,10 @@
 import { Layers } from "lucide-react";
+import { useTranslations } from "next-intl";
 import DigitalContentDemoBanner from "./DigitalContentDemoBanner";
 import DigitalContentModuleGrid from "./DigitalContentModuleGrid";
 
 export default function DigitalContentPage() {
+  const t = useTranslations("digitalContent.hub");
   return (
     <main className="relative min-h-screen w-full overflow-x-hidden bg-[linear-gradient(135deg,#edf5ff_0%,#f4f5ff_35%,#fff2fa_100%)] text-slate-900 antialiased">
       <div
@@ -27,12 +29,12 @@ export default function DigitalContentPage() {
                 Yaşam Sistemi
               </p>
               <h1 className="text-2xl font-black tracking-tight text-slate-900 sm:text-3xl">
-                Dijital İçerik Merkezi
+                {t("title")}
               </h1>
             </div>
           </div>
           <p className="mt-2.5 max-w-lg text-sm font-medium text-slate-600 sm:text-base">
-            Kişisel arşiv ve dijital içerik yönetimi
+            {t("subtitle")}
           </p>
           <div className="mt-3 h-px w-full bg-gradient-to-r from-indigo-200/80 via-sky-200/60 to-transparent" />
         </div>
