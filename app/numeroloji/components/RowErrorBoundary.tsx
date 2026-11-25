@@ -1,6 +1,17 @@
 "use client";
 
 import { Component, type ReactNode } from "react";
+import { useTranslations } from "next-intl";
+
+/** Varsayılan düşüş metni (sınıf bileşeninde kanca kullanılamadığı için ayrı fonksiyon bileşeni). */
+function RowErrorFallback() {
+  const t = useTranslations("numerology.app.rowError");
+  return (
+    <div className="rounded-[14px] border border-amber-300/60 bg-amber-50/90 px-4 py-3 text-sm font-semibold text-amber-900 shadow-sm">
+      {t("unreadable")}
+    </div>
+  );
+}
 
 /**
  * Tek bir kaydın render'ı hata verse bile TÜM sayfayı çökertmesini engeller.
@@ -27,11 +38,7 @@ export class RowErrorBoundary extends Component<
   render() {
     if (this.state.hasError) {
       return (
-        this.props.fallback ?? (
-          <div className="rounded-[14px] border border-amber-300/60 bg-amber-50/90 px-4 py-3 text-sm font-semibold text-amber-900 shadow-sm">
-            ⚠️ Bu kayıt okunamadı (veri eski veya bozuk olabilir).
-          </div>
-        )
+        this.props.fallback ?? <RowErrorFallback />
       );
     }
     return this.props.children;

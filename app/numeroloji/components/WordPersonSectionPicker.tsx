@@ -6,8 +6,8 @@
  */
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import {
-  WORD_TAB_LABELS,
   WORD_TAB_ORDER,
   atLeastOneWordPersonSection,
   defaultWordPersonSections,
@@ -26,7 +26,7 @@ function todayInputValue(): string {
 export function WordPersonSectionPicker({
   open,
   busy,
-  title = "Word Raporu — Bölüm Seçimi",
+  title,
   onCancel,
   onConfirm,
 }: {
@@ -36,6 +36,7 @@ export function WordPersonSectionPicker({
   onCancel: () => void;
   onConfirm: (sections: WordPersonSections, referenceDate?: string) => void;
 }) {
+  const t = useTranslations("numerology.app.picker");
   const [sections, setSections] = useState<WordPersonSections>(defaultWordPersonSections());
   // Zamanlama & Gelişim referans tarihi — VARSAYILAN bugün. Kullanıcı değiştirebilir.
   const [referenceDate, setReferenceDate] = useState<string>(() => todayInputValue());
@@ -43,6 +44,7 @@ export function WordPersonSectionPicker({
   if (!open) return null;
 
   const canGenerate = atLeastOneWordPersonSection(sections);
+  const heading = title ?? t("title");
   const timingSelected = sections.zamanlama === true;
 
   return (
@@ -52,10 +54,10 @@ export function WordPersonSectionPicker({
         if (e.target === e.currentTarget && !busy) onCancel();
       }}
     >
-      <div role="dialog" aria-modal="true" aria-label={title} className="w-full max-w-md overflow-hidden rounded-3xl border border-white/40 bg-white shadow-2xl">
+      <div role="dialog" aria-modal="true" aria-label={heading} className="w-full max-w-md overflow-hidden rounded-3xl border border-white/40 bg-white shadow-2xl">
         <div className="bg-gradient-to-r from-blue-600 to-indigo-700 px-6 py-5 text-white">
-          <div className="text-lg font-black">{title}</div>
-          <div className="mt-1 text-sm text-white/85">Rapora eklenecek bölümleri seçin</div>
+          <div className="text-lg font-black">{heading}</div>
+          <div className="mt-1 text-sm text-white/85">{t("sub")}</div>
         </div>
         <div className="px-6 py-5">
           <div className="flex flex-col gap-2">
@@ -70,17 +72,17 @@ export function WordPersonSectionPicker({
                   onChange={() => setSections((prev) => ({ ...prev, [key]: !prev[key] }))}
                   className="h-4 w-4 rounded border-violet-300 text-violet-600 focus:ring-violet-400"
                 />
-                <span className="min-w-0">{WORD_TAB_LABELS[key]}</span>
+                <span className="min-w-0">{t(`tabs.${key}`)}</span>
               </label>
             ))}
           </div>
           {timingSelected ? (
             <div className="mt-3 rounded-xl border border-violet-100 bg-violet-50/40 p-3">
               <label htmlFor="word-timing-ref" className="block text-xs font-black text-slate-800">
-                Zamanlama referans tarihi
+                {t("refDateLabel")}
               </label>
               <p className="mt-0.5 text-[11px] font-medium text-slate-500">
-                Yıl, ay, gün ve gelişim hesapları bu tarihe göre oluşturulur.
+                {t("refDateHint")}
               </p>
               <input
                 id="word-timing-ref"
@@ -92,10 +94,10 @@ export function WordPersonSectionPicker({
             </div>
           ) : null}
           {!canGenerate ? (
-            <p className="mt-3 text-xs font-bold text-rose-600">En az bir bölüm seçin.</p>
+            <p className="mt-3 text-xs font-bold text-rose-600">{t("atLeastOne")}</p>
           ) : null}
           {timingSelected && !referenceDate ? (
-            <p className="mt-2 text-xs font-bold text-rose-600">Zamanlama için geçerli bir referans tarihi seçin.</p>
+            <p className="mt-2 text-xs font-bold text-rose-600">{t("refDateRequired")}</p>
           ) : null}
           <div className="mt-5 flex justify-end gap-2.5">
             <button
@@ -104,7 +106,7 @@ export function WordPersonSectionPicker({
               onClick={onCancel}
               className="h-10 rounded-2xl border border-slate-200 bg-slate-100 px-5 text-sm font-black text-slate-700 transition hover:bg-slate-200 disabled:opacity-60"
             >
-              Vazgeç
+              {t("cancel")}
             </button>
             <button
               type="button"
@@ -112,7 +114,7 @@ export function WordPersonSectionPicker({
               onClick={() => onConfirm(sections, timingSelected ? referenceDate : undefined)}
               className="h-10 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 px-6 text-sm font-black text-white shadow-lg transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {busy ? "Hazırlanıyor…" : "Word Oluştur"}
+              {busy ? t("preparing") : t("generate")}
             </button>
           </div>
         </div>
