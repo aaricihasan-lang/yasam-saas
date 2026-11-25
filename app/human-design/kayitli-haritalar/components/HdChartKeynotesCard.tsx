@@ -7,6 +7,8 @@ import { useId, useState } from "react";
 import type { HdComputedChart } from "@/lib/human-design/chart/computedChart";
 import type { HdAppChartCodes } from "@/lib/human-design/normalize/hdAppCodes";
 import { HD_SIGNATURE_HELP, HD_TERM_BI, hdTypeKeynotes } from "@/lib/human-design/normalize/hdDisplayLabels";
+import { useLocale, useTranslations } from "next-intl";
+import { useHdTerms } from "../../_i18n/useHdTerms";
 
 /**
  * "EK HUMAN DESIGN BİLGİLERİ" — haritanın ALTINDA, Kanallar / Kapılar yanında (ilk ekranı kalabalıklaştırmaz).
@@ -18,15 +20,21 @@ export function HdChartKeynotesCard({ result, codes }: { result: HdComputedChart
   const keynotes = hdTypeKeynotes(codes.type_code, { canonical: { strategy: result.strategy, signature: result.signature, notSelf: result.notSelf } });
   const [helpOpen, setHelpOpen] = useState(false);
   const helpId = useId();
+  // I18N: TR'de mevcut sözlük AYNEN; diğer dillerde tip kodu → hd.terms (strategy/signature/notSelf).
+  const t = useTranslations("hd.chart.keynotes");
+  const isTr = useLocale() === "tr";
+  const terms = useHdTerms();
   if (!keynotes) return null;
+  const title = (k: "strategy" | "signature" | "notSelf") => (isTr ? HD_TERM_BI[k] : terms.label("title", k));
+  const val = (k: "strategy" | "signature" | "notSelf") => (isTr ? keynotes[k] : terms.label(k, codes.type_code));
   const rows: Array<{ field: string; label: string; value: string; help?: boolean }> = [
-    { field: "strategy", label: HD_TERM_BI.strategy, value: keynotes.strategy },
-    { field: "signature", label: HD_TERM_BI.signature, value: keynotes.signature, help: true },
-    { field: "notSelf", label: HD_TERM_BI.notSelf, value: keynotes.notSelf },
+    { field: "strategy", label: title("strategy"), value: val("strategy") },
+    { field: "signature", label: title("signature"), value: val("signature"), help: true },
+    { field: "notSelf", label: title("notSelf"), value: val("notSelf") },
   ];
   return (
-    <section aria-label="Ek Human Design bilgileri" className="rounded-xl border border-indigo-100 bg-white px-4 py-3" data-hd-keynotes>
-      <p className="mb-2 text-[11px] font-black uppercase tracking-wide text-indigo-600">Ek Human Design Bilgileri</p>
+    <section aria-label={t("ariaLabel")} className="rounded-xl border border-indigo-100 bg-white px-4 py-3" data-hd-keynotes>
+      <p className="mb-2 text-[11px] font-black uppercase tracking-wide text-indigo-600">{t("heading")}</p>
       <dl className="m-0 grid grid-cols-1 gap-x-6 gap-y-2 sm:grid-cols-[repeat(auto-fill,minmax(min(100%,13rem),1fr))]">
         {rows.map((r) => (
           <div key={r.field} className="min-w-0" data-hd-info-field={r.field}>
@@ -38,8 +46,8 @@ export function HdChartKeynotesCard({ result, codes }: { result: HdComputedChart
                   onClick={() => setHelpOpen((v) => !v)}
                   aria-expanded={helpOpen}
                   aria-controls={helpId}
-                  aria-label={`${r.label} nedir?`}
-                  title={`${r.label} nedir?`}
+                  aria-label={t("whatIs", { label: r.label })}
+                  title={t("whatIs", { label: r.label })}
                   className="ml-1 inline-flex h-4 w-4 items-center justify-center rounded-full border border-slate-300 align-[-2px] text-[9px] font-bold normal-case leading-none text-slate-500 hover:border-indigo-300 hover:text-indigo-600"
                   data-hd-signature-help-toggle
                 >
@@ -53,8 +61,8 @@ export function HdChartKeynotesCard({ result, codes }: { result: HdComputedChart
       </dl>
       {helpOpen ? (
         <p id={helpId} className="m-0 mt-2 rounded-lg bg-indigo-50/70 px-3 py-2 text-[11.5px] leading-snug text-slate-600" data-hd-signature-help>
-          <span className="font-semibold text-slate-700">{HD_TERM_BI.signature}: </span>
-          {HD_SIGNATURE_HELP}
+          <span className="font-semibold text-slate-700">{title("signature")}: </span>
+          {isTr ? HD_SIGNATURE_HELP : t("signatureHelp")}
         </p>
       ) : null}
     </section>

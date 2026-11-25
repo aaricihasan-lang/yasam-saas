@@ -1,0 +1,61 @@
+{
+  "hd": {
+    "chart": {
+      "centers": "Centers",
+      "motor": "Motor",
+      "motorTitle": "Motor (energy source) center",
+      "awareness": "Awareness",
+      "awarenessTitle": "Awareness center",
+      "centerStateUnverifiedHint": "The exact state could not be verified from the saved data",
+      "definedChannels": "Defined Channels ({count})",
+      "noDefinedChannels": "No defined channels.",
+      "activeGates": "Active Gates ({count})",
+      "providerNote": "Calculation info: Yaşam Sistemi calculation infrastructure (nodeType: {nodeType}). The saved result is shown; nothing is recalculated when viewing.",
+      "engineNote": "Calculation source: Yaşam Sistemi internal engine (legacy record).",
+      "info": {
+        "sourceValue": "Source value: {value}",
+        "gatesOnly": "{angle} (gates only)",
+        "ariaLabel": "Client and chart details",
+        "client": "Client",
+        "name": "Full Name",
+        "birthDate": "Date of Birth",
+        "birthPlace": "Place of Birth",
+        "coordinates": "Coordinates",
+        "age": "Age"
+      },
+      "planets": {
+        "designSubtitle": "Unconscious",
+        "personalitySubtitle": "Conscious",
+        "groupAria": "{title} ({subtitle}) planetary activations",
+        "activationAria": "{planet}: gate {gate}, line {line}"
+      },
+      "keynotes": {
+        "ariaLabel": "Additional Human Design details",
+        "heading": "Additional Human Design Details",
+        "whatIs": "What is {label}?",
+        "signatureHelp": "In Human Design, the positive state a person experiences when living according to the strategy and authority of their type."
+      },
+      "bodygraph": {
+        "title": "Human Design BodyGraph",
+        "desc": "{centers} defined centers, {channels} defined channels, {gates} active gates.",
+        "legendPersonality": "Personality (conscious)",
+        "legendDesign": "Design (unconscious)",
+        "legendBoth": "Striped / two-colour: both",
+        "loading": "Loading BodyGraph…",
+        "loadError": "The BodyGraph image could not be loaded. Refresh the page and try again. The chart data (Design / Personality) is saved."
+      },
+      "svgCenter": {
+        "head": "HEAD",
+        "ajna": "AJNA",
+        "throat": "THROAT",
+        "g": "G",
+        "heart": "HEART",
+        "sacral": "SACRAL",
+        "root": "ROOT",
+        "spleen": "SPLEEN",
+        "solar": "SOLAR",
+        "plexus": "PLEXUS"
+      }
+    }
+  }
+}

@@ -10,6 +10,7 @@
 //   • Yüklenemezse eski Yaşam Sistemi renderer'ına DÜŞMEZ; anlaşılır mesaj gösterir.
 
 import { createElement, useEffect, useRef, useState } from "react";
+import { useLocale, useTranslations } from "next-intl";
 
 export const ROXY_UI_VERSION = "0.48.0";
 const SCRIPT_SRC = `/vendor/roxy-ui/${ROXY_UI_VERSION}/bodygraph.js`;
@@ -52,6 +53,9 @@ export function loadRoxyBodygraph(): Promise<void> {
 
 export function HdRoxyBodygraph({ data }: { data: Record<string, unknown> }) {
   const ref = useRef<HTMLElement | null>(null);
+  const t = useTranslations("hd.chart.bodygraph");
+  // Roxy resmî bileşeninin arayüz dili = ekran dili (yalnız gösterim; TR'de değer aynen "tr").
+  const lang = useLocale() === "tr" ? "tr" : "en";
   const [state, setState] = useState<"loading" | "ready" | "error">("loading");
 
   useEffect(() => {
@@ -75,14 +79,14 @@ export function HdRoxyBodygraph({ data }: { data: Record<string, unknown> }) {
         className: "hd-fit",
         "hide-readings": "",
         "hide-sections": "header,details,legend,themes,facts",
-        lang: "tr",
+        lang,
       })}
       {state === "loading" ? (
-        <p className="absolute inset-0 m-0 flex items-center justify-center text-xs text-slate-500">BodyGraph yükleniyor…</p>
+        <p className="absolute inset-0 m-0 flex items-center justify-center text-xs text-slate-500">{t("loading")}</p>
       ) : null}
       {state === "error" ? (
         <p role="alert" className="absolute inset-0 m-0 flex items-center justify-center rounded-xl border border-rose-200 bg-rose-50 p-4 text-center text-xs font-semibold text-rose-700">
-          BodyGraph görseli yüklenemedi. Sayfayı yenileyip tekrar deneyin. Harita verileri (Design / Personality) kayıtlıdır.
+          {t("loadError")}
         </p>
       ) : null}
     </div>

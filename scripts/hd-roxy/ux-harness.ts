@@ -252,7 +252,10 @@ async function main() {
     ok("RX11 MIT lisansı yanında", /MIT License/.test(src("public/vendor/roxy-ui/0.48.0/LICENSE.txt")));
     const wrap = src("app/human-design/kayitli-haritalar/components/HdRoxyBodygraph.tsx");
     ok("RX12 bileşen kendi origin'inden yüklenir; CDN / fetch / anahtar YOK", wrap.includes("/vendor/roxy-ui/") && !["cdn.jsdelivr", "fetch(", "publishable", "X-API-Key"].some((t) => wrap.includes(t)));
-    ok("RX13 eski renderer'a sessiz düşüş YOK (hata mesajı)", !wrap.includes("BodyGraph result") && wrap.includes("yüklenemedi"));
+    // I18N (R5): hata metni katalogda (hd.chart.bodygraph.loadError; TR değeri kaynak metinle aynı) — niyet aynı:
+    // eski renderer'a sessiz düşüş yok + görünür hata mesajı var.
+    const trChart = JSON.parse(src("messages/tr/hd.chart.json")) as { hd: { chart: { bodygraph: { loadError: string } } } };
+    ok("RX13 eski renderer'a sessiz düşüş YOK (hata mesajı)", !wrap.includes("BodyGraph result") && wrap.includes('t("loadError")') && trChart.hd.chart.bodygraph.loadError.includes("yüklenemedi"));
     ok("RX20 resmi grafik 480px sınırı kaldırıldı (kabı doldurur)", wrap.includes("::part(chart){margin:0;padding:0;width:100%;max-width:none;height:auto}"));
     const svc = src("lib/human-design/api/roxyChartService.ts");
     ok("RX14 otomatik hesap: dahili motor / handleCompute KULLANILMAZ", !["engine/compute", "handleCompute", "computeHumanDesignChart"].some((t) => svc.includes(t)));

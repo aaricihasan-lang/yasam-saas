@@ -12,6 +12,8 @@
 // Sağlayıcı açıklama metinleri (typeDescription vb.) burada GÖSTERİLMEZ.
 
 import { useLayoutEffect, useRef } from "react";
+import { useLocale, useTranslations } from "next-intl";
+import { useHdTerms } from "../../_i18n/useHdTerms";
 import { BodyGraph } from "../../harita/components/BodyGraph";
 import { HdRoxyBodygraph, ROXY_BODYGRAPH_ASPECT } from "./HdRoxyBodygraph";
 import { HdPremiumBodygraph, HD_PREMIUM_BODYGRAPH_ASPECT } from "./HdPremiumBodygraph";
@@ -121,6 +123,14 @@ export function HdComputedChartView({
   showProviderNote?: boolean;
 }) {
   const nameOv = nameOverrides;
+  // I18N: TR'de mevcut etiket yardımcıları AYNEN (bayt-eşit); diğer dillerde kanonik kod → hd.terms sözlüğü.
+  const t = useTranslations("hd.chart");
+  const isTr = useLocale() === "tr";
+  const terms = useHdTerms();
+  const centerName = (code: string) => (isTr ? hdCenterLabelFromCode(code) : terms.label("center", code));
+  const channelName = (ch: string) => (isTr ? hdChannelDisplayLabel(ch, nameOv) : nameOv?.channels[ch] ?? terms.label("channel", ch));
+  const stateLabel = (s: HdCenterState) => (isTr ? HD_CENTER_STATE_LABEL[s] : terms.label("centerState", s));
+  const stateTitle = (s: HdCenterState) => (isTr ? HD_CENTER_STATE_EN[s] ?? t("centerStateUnverifiedHint") : s === "unverified" ? t("centerStateUnverifiedHint") : undefined);
   const codes = computedChartAppCodes(result);
   const isProvider = result.provider?.id === "roxyapi";
   // HD-UZMAN-01: Tanımlı / Tanımsız / Açık — kayıtlı 26 aktivasyondan kanıtlı (yeni hesap/çağrı yok);
@@ -204,7 +214,7 @@ export function HdComputedChartView({
       {/* Merkezler / Kanallar / Kapılar */}
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
         <div className="rounded-xl border border-indigo-100 bg-white px-4 py-3" data-hd-centers-card>
-          <p className="mb-2 text-[11px] font-black uppercase tracking-wide text-indigo-600">Merkezler</p>
+          <p className="mb-2 text-[11px] font-black uppercase tracking-wide text-indigo-600">{t("centers")}</p>
           {/* Satır: [ad] ······ [Motor/Farkındalık] [Tanımlı/Tanımsız/Açık] — ayrı alanlar; ad KESİLMEZ. Sütun sayısı KARTIN
               genişliğine göre (auto-fill, sütun ≥ 28rem): dar/orta kartta düzenli tek sütun, çok genişte iki sütun.
               Yalnız çok dar mobilde etiketler adın altına iner. */}
@@ -215,26 +225,26 @@ export function HdComputedChartView({
               return (
                 <li key={c.code} data-hd-center={`${c.code}:${state}`} className="flex min-w-0 flex-wrap items-center justify-between gap-x-2 gap-y-1 text-xs">
                   <span className="min-w-0 break-words text-slate-700" data-hd-center-part="name">
-                    {hdCenterLabelFromCode(c.code)}
+                    {centerName(c.code)}
                   </span>
                   <span className="ml-auto flex shrink-0 flex-wrap items-center justify-end gap-1">
                     {kind?.motor ? (
-                      <span className="rounded-full bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700 ring-1 ring-amber-200/70" title="Motor (enerji kaynağı) merkez" data-hd-center-motor data-hd-center-part="motor">
-                        Motor
+                      <span className="rounded-full bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700 ring-1 ring-amber-200/70" title={t("motorTitle")} data-hd-center-motor data-hd-center-part="motor">
+                        {t("motor")}
                       </span>
                     ) : null}
                     {kind?.awareness ? (
-                      <span className="rounded-full bg-sky-50 px-1.5 py-0.5 text-[10px] font-semibold text-sky-700 ring-1 ring-sky-200/70" title="Farkındalık merkezi" data-hd-center-awareness data-hd-center-part="awareness">
-                        Farkındalık
+                      <span className="rounded-full bg-sky-50 px-1.5 py-0.5 text-[10px] font-semibold text-sky-700 ring-1 ring-sky-200/70" title={t("awarenessTitle")} data-hd-center-awareness data-hd-center-part="awareness">
+                        {t("awareness")}
                       </span>
                     ) : null}
                     <span
                       className={`rounded-full px-2 py-0.5 text-[10px] font-black ${CENTER_STATE_CLS[state]}`}
-                      title={HD_CENTER_STATE_EN[state] ?? "Kayıtlı veriden kesin durum kanıtlanamadı"}
+                      title={stateTitle(state)}
                       data-hd-center-part="status"
                       data-hd-center-state={state}
                     >
-                      {HD_CENTER_STATE_LABEL[state]}
+                      {stateLabel(state)}
                     </span>
                   </span>
                 </li>
@@ -244,21 +254,21 @@ export function HdComputedChartView({
         </div>
         <div className="space-y-3">
           <div className="rounded-xl border border-indigo-100 bg-white px-4 py-3">
-            <p className="mb-2 text-[11px] font-black uppercase tracking-wide text-indigo-600">Tanımlı Kanallar ({codes.channels.length})</p>
+            <p className="mb-2 text-[11px] font-black uppercase tracking-wide text-indigo-600">{t("definedChannels", { count: codes.channels.length })}</p>
             {codes.channels.length === 0 ? (
-              <p className="text-xs text-slate-500">Tanımlı kanal yok.</p>
+              <p className="text-xs text-slate-500">{t("noDefinedChannels")}</p>
             ) : (
               <ul className="m-0 list-none space-y-1 p-0">
                 {codes.channels.map((ch) => (
                   <li key={ch} data-hd-channel={ch} className="text-xs text-slate-800">
-                    {hdChannelDisplayLabel(ch, nameOv)}
+                    {channelName(ch)}
                   </li>
                 ))}
               </ul>
             )}
           </div>
           <div className="rounded-xl border border-indigo-100 bg-white px-4 py-3">
-            <p className="mb-2 text-[11px] font-black uppercase tracking-wide text-indigo-600">Aktif Kapılar ({codes.gates.length})</p>
+            <p className="mb-2 text-[11px] font-black uppercase tracking-wide text-indigo-600">{t("activeGates", { count: codes.gates.length })}</p>
             <div className="flex flex-wrap gap-1.5">
               {codes.gates.map((g) => (
                 <span key={g} data-hd-gate={g} className="rounded-lg border border-indigo-200 bg-indigo-50 px-2 py-0.5 text-xs font-bold tabular-nums text-indigo-800">
@@ -275,8 +285,8 @@ export function HdComputedChartView({
       {showProviderNote ? (
         <p className="text-[11px] text-slate-400">
           {isProvider
-            ? `Hesaplama bilgisi: Yaşam Sistemi hesaplama altyapısı (nodeType: ${result.provider?.nodeType ?? "—"}). Kayıtlı sonuç gösterilmektedir; görüntülemede yeniden hesap yapılmaz.`
-            : "Hesaplama kaynağı: Yaşam Sistemi dahili motoru (eski kayıt)."}
+            ? t("providerNote", { nodeType: result.provider?.nodeType ?? "—" })
+            : t("engineNote")}
         </p>
       ) : null}
     </div>

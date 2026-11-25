@@ -11,6 +11,8 @@
 
 import { HD_PLANET_ORDER, PLANET_GLYPH, PLANET_LABEL_TR } from "@/lib/human-design/bodygraph/planetGlyphs";
 import type { HdComputedActivation } from "@/lib/human-design/chart/computedChart";
+import { useLocale, useTranslations } from "next-intl";
+import { useHdTerms } from "../../_i18n/useHdTerms";
 
 // ⊕ (Earth) / ☊ ☋ (Nodes) bazı fontlarda eksik → sembol font-stack.
 const SYMBOL_FONT = '"Segoe UI Symbol", "Noto Sans Symbols2", "Apple Symbols", sans-serif';
@@ -18,14 +20,12 @@ const SYMBOL_FONT = '"Segoe UI Symbol", "Noto Sans Symbols2", "Apple Symbols", s
 const THEME = {
   design: {
     title: "Design",
-    subtitle: "Bilinçdışı",
     titleCls: "text-rose-700",
     glyphCls: "text-rose-600",
     boxCls: "border-rose-200 bg-rose-50 text-rose-800",
   },
   personality: {
     title: "Personality",
-    subtitle: "Bilinçli",
     titleCls: "text-slate-900",
     glyphCls: "text-slate-700",
     boxCls: "border-slate-300 bg-slate-50 text-slate-900",
@@ -40,30 +40,36 @@ export function HdPlanetColumn({
   side: "design" | "personality";
 }) {
   const t = THEME[side];
+  // I18N: TR'de mevcut sözlük AYNEN; diğer dillerde hd.terms.planet. Design / Personality kanonik İngilizce terimdir.
+  const tr = useTranslations("hd.chart.planets");
+  const isTr = useLocale() === "tr";
+  const terms = useHdTerms();
+  const planetName = (b: HdComputedActivation["body"]) => (isTr ? PLANET_LABEL_TR[b] : terms.label("planet", b));
+  const subtitle = tr(side === "design" ? "designSubtitle" : "personalitySubtitle");
   // Personality sağda → aynalanır (glif dış kenarda, gate.line grafiğe yakın).
   const mirror = side === "personality";
   const bySide = new Map(activations.filter((a) => a.side === side).map((a) => [a.body, a]));
   const rows = HD_PLANET_ORDER.map((b) => bySide.get(b)).filter((a): a is HdComputedActivation => Boolean(a));
 
   return (
-    <div role="group" aria-label={`${t.title} (${t.subtitle}) gezegen aktivasyonları`} className="w-full" data-hd-side={side}>
+    <div role="group" aria-label={tr("groupAria", { title: t.title, subtitle })} className="w-full" data-hd-side={side}>
       <p className={`text-center text-[11px] font-black uppercase tracking-[0.18em] ${t.titleCls}`}>{t.title}</p>
-      <p className="mb-2 text-center text-[10px] font-semibold text-slate-500">{t.subtitle}</p>
+      <p className="mb-2 text-center text-[10px] font-semibold text-slate-500">{subtitle}</p>
       <ul className="m-0 flex list-none flex-col gap-1 p-0 lg:gap-0.5">
         {rows.map((a) => (
           <li
             key={a.body}
             data-hd-activation={`${side}:${a.body}:${a.gate}.${a.line}`}
             className={`flex h-8 items-center justify-between gap-1.5 lg:h-7 ${mirror ? "flex-row-reverse" : ""}`}
-            aria-label={`${PLANET_LABEL_TR[a.body]}: kapı ${a.gate}, çizgi ${a.line}`}
-            title={PLANET_LABEL_TR[a.body]}
+            aria-label={tr("activationAria", { planet: planetName(a.body), gate: a.gate, line: a.line })}
+            title={planetName(a.body)}
           >
             <span className={`flex min-w-0 items-center gap-1.5 ${mirror ? "flex-row-reverse" : ""}`}>
               <span aria-hidden className={`w-6 shrink-0 text-center text-base leading-none ${t.glyphCls}`} style={{ fontFamily: SYMBOL_FONT }}>
                 {PLANET_GLYPH[a.body]}
               </span>
               {/* Türkçe ad: dar mobilde gizli (glif + gate.line yeterli), sm+ görünür */}
-              <span aria-hidden className="hidden min-w-0 truncate text-xs font-semibold text-slate-600 sm:inline">{PLANET_LABEL_TR[a.body]}</span>
+              <span aria-hidden className="hidden min-w-0 truncate text-xs font-semibold text-slate-600 sm:inline">{planetName(a.body)}</span>
             </span>
             <span className={`inline-flex min-w-[3.4rem] items-center justify-center rounded-lg border px-2 py-1 text-[13px] font-black tabular-nums ${t.boxCls}`}>
               {a.gate}.{a.line}

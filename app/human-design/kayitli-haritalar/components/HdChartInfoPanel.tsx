@@ -16,6 +16,8 @@
 // Sağlayıcının ham değeri görünür metni kalabalıklaştırmaz; title (üzerine gelince) olarak verilir.
 
 import type { ReactNode } from "react";
+import { useLocale, useTranslations } from "next-intl";
+import { useHdTerms } from "../../_i18n/useHdTerms";
 import type { HdComputedChart } from "@/lib/human-design/chart/computedChart";
 import type { HdAppChartCodes } from "@/lib/human-design/normalize/hdAppCodes";
 import type { HdChartSubjectInfo } from "@/lib/human-design/chart/chartSubjectInfo";
@@ -50,8 +52,9 @@ function Item({
   /** false → alt satır lg şeritte gizlenir (bilgi title'da kalır), mobil/geniş kolonda görünür. */
   subInStrip?: boolean;
 }) {
+  const t = useTranslations("hd.chart.info");
   const text = value ?? "—";
-  const title = [source ? `Kaynak değeri: ${source}` : null, sub && !subInStrip ? sub : null].filter(Boolean).join(" · ");
+  const title = [source ? t("sourceValue", { value: source }) : null, sub && !subInStrip ? sub : null].filter(Boolean).join(" · ");
   return (
     // lg şerit: "ETİKET değer" satır-içi akış (kesilme yok, sarar) · hdwide/mobil: etiket üstte, değer altta.
     <div
@@ -83,32 +86,43 @@ export type HdInfoProps = {
 };
 
 export function HdChartInfoPanel({ result, codes, subject }: HdInfoProps) {
+  // I18N: TR'de mevcut etiket yardımcıları AYNEN (bayt-eşit); diğer dillerde kanonik kod → hd.terms sözlüğü.
+  const t = useTranslations("hd.chart.info");
+  const isTr = useLocale() === "tr";
+  const terms = useHdTerms();
+  const angleLabel = (a: string | null | undefined) => (isTr ? hdCrossAngleLabel(a) : terms.angle(a));
+  const title = (k: keyof typeof HD_TERM_BI) => (isTr ? HD_TERM_BI[k] : terms.label("title", k));
   const cross = result.incarnationCross;
   const [pSun, pEarth, dSun, dEarth] = cross.gates;
   const crossGates = `${pSun}/${pEarth} | ${dSun}/${dEarth}`;
-  const crossSub = `${crossGates}${cross.angle ? ` · ${hdCrossAngleLabel(cross.angle)}` : ""}`;
-  const definitionLabel = hdDefinitionLabelFromCode(codes.definition_code);
+  const crossSub = `${crossGates}${cross.angle ? ` · ${angleLabel(cross.angle)}` : ""}`;
+  const definitionLabel = isTr ? hdDefinitionLabelFromCode(codes.definition_code) : terms.label("definition", codes.definition_code);
   // Haç değeri: bilinen temada "Türkçe tema (İngilizce kanonik ad)"; bilinmeyende yalnız kanonik ad (uydurma yok).
+  // TR dışı dillerde yalnız İngilizce kanonik ad (Türkçe tema adı gösterilmez).
   const crossTheme = cross.name ? crossThemeNames(cross.name, cross.angle ?? null) : null;
-  const crossValue = cross.name ? (crossTheme?.themeKnown ? `${crossTheme.tr} (${crossTheme.en})` : cross.name) : `${hdCrossAngleLabel(cross.angle)} (yalnız kapılar)`;
+  const crossValue = cross.name
+    ? isTr
+      ? crossTheme?.themeKnown ? `${crossTheme.tr} (${crossTheme.en})` : cross.name
+      : crossTheme?.themeKnown ? crossTheme.en : cross.name
+    : t("gatesOnly", { angle: angleLabel(cross.angle) });
 
   return (
     <section
-      aria-label="Danışan ve harita bilgileri"
+      aria-label={t("ariaLabel")}
       data-hd-info
       className="rounded-2xl border border-indigo-200/70 bg-white p-3 shadow-sm lg:flex-none lg:px-4 lg:py-2 hdwide:flex hdwide:w-[272px] hdwide:shrink-0 hdwide:flex-col hdwide:rounded-none hdwide:border-0 hdwide:border-r hdwide:border-indigo-100 hdwide:bg-transparent hdwide:py-4 hdwide:pl-5 hdwide:pr-4 hdwide:shadow-none"
     >
       <div className="space-y-3 lg:grid lg:grid-cols-[minmax(0,1fr)_auto] lg:gap-x-4 lg:gap-y-1 lg:space-y-0 hdwide:flex hdwide:min-h-0 hdwide:flex-1 hdwide:flex-col hdwide:gap-4 hdwide:space-y-0">
         {subject ? (
           <div className="lg:flex lg:items-start hdwide:block" data-hd-info-group="subject">
-            <GroupTitle>Danışan</GroupTitle>
+            <GroupTitle>{t("client")}</GroupTitle>
             <dl className="m-0 grid grid-cols-1 gap-x-3 gap-y-1.5 min-[420px]:grid-cols-2 lg:flex lg:min-w-0 lg:flex-1 lg:flex-wrap lg:gap-x-4 lg:gap-y-0.5 hdwide:grid hdwide:grid-cols-1 hdwide:gap-y-[clamp(5px,0.8vh,9px)]">
-              <Item field="name" label="Ad Soyad" value={subject.name} wide />
+              <Item field="name" label={t("name")} value={subject.name} wide />
               {/* Doğum yerinin YEREL saati. UTC anı veride/hesapta korunur (timing.birthUtcIso); künyede ayrı satır olarak gösterilmez. */}
-              <Item field="local" label="Doğum Tarihi" value={subject.localDateTime} sub={subject.zoneLabel} />
-              <Item field="place" label="Doğum Yeri" value={subject.place} />
-              <Item field="coords" label="Koordinatlar" value={subject.coordinates} />
-              <Item field="age" label="Yaş" value={subject.age != null ? String(subject.age) : null} />
+              <Item field="local" label={t("birthDate")} value={subject.localDateTime} sub={subject.zoneLabel} />
+              <Item field="place" label={t("birthPlace")} value={subject.place} />
+              <Item field="coords" label={t("coordinates")} value={subject.coordinates} />
+              <Item field="age" label={t("age")} value={subject.age != null ? String(subject.age) : null} />
             </dl>
           </div>
         ) : null}
@@ -118,16 +132,16 @@ export function HdChartInfoPanel({ result, codes, subject }: HdInfoProps) {
             <span lang="en">Human Design</span>
           </GroupTitle>
           <dl className="m-0 grid grid-cols-1 gap-x-3 gap-y-1.5 min-[420px]:grid-cols-2 lg:flex lg:min-w-0 lg:flex-1 lg:flex-wrap lg:gap-x-4 lg:gap-y-0.5 hdwide:grid hdwide:grid-cols-1 hdwide:gap-y-[clamp(5px,0.8vh,9px)]">
-            <Item field="type" label={HD_TERM_BI.type} value={hdTypeLabelFromCode(codes.type_code)} />
-            <Item field="profile" label={HD_TERM_BI.profile} value={hdProfileBilingual(codes.profile_code) ?? hdProfileLabelFromCode(codes.profile_code)} />
+            <Item field="type" label={title("type")} value={isTr ? hdTypeLabelFromCode(codes.type_code) : terms.label("type", codes.type_code)} />
+            <Item field="profile" label={title("profile")} value={isTr ? hdProfileBilingual(codes.profile_code) ?? hdProfileLabelFromCode(codes.profile_code) : terms.label("profile", codes.profile_code)} />
             <Item
               field="definition"
-              label={HD_TERM_BI.definition}
+              label={title("definition")}
               value={definitionLabel}
               source={result.definition.kind && result.definition.kind !== definitionLabel ? result.definition.kind : null}
             />
-            <Item field="cross" label={HD_TERM_BI.cross} value={crossValue} sub={crossSub} source={crossSub} subInStrip={false} />
-            <Item field="authority" label={HD_TERM_BI.authority} value={hdAuthorityDisplayLabel(codes.authority_code, codes.type_code)} />
+            <Item field="cross" label={title("cross")} value={crossValue} sub={crossSub} source={crossSub} subInStrip={false} />
+            <Item field="authority" label={title("authority")} value={isTr ? hdAuthorityDisplayLabel(codes.authority_code, codes.type_code) : terms.authority(codes.authority_code, codes.type_code)} />
           </dl>
         </div>
 

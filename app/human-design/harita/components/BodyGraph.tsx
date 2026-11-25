@@ -19,6 +19,7 @@ import {
 } from "@/lib/human-design/bodygraph/layout";
 import type { CenterName } from "@/lib/human-design/engine/channels";
 import type { HdComputedChart } from "@/lib/human-design/chart/computedChart";
+import { useTranslations } from "next-intl";
 
 // Premium palet (Genetic Matrix kopyası DEĞİL; Yaşam Sistemi tonları).
 const CENTER_FILL: Record<CenterName, string> = {
@@ -131,6 +132,7 @@ function ChannelSheen({ from, to, color }: { from: Point; to: Point; color: "bla
 
 // Yalnız aktivasyonlar okunur (gate + side) → hem dahili motor hem RoxyAPI kayıtları render edilir.
 export function BodyGraph({ result }: { result: Pick<HdComputedChart, "activations"> }) {
+  const t = useTranslations("hd.chart.bodygraph");
   const { gateMap, definedChannels, definedCenters } = deriveActivation(result.activations);
   const definedCenterSet = new Set<CenterName>(definedCenters);
   const definedChannelIds = new Set(definedChannels.map((c) => c.id));
@@ -146,9 +148,9 @@ export function BodyGraph({ result }: { result: Pick<HdComputedChart, "activatio
       preserveAspectRatio="xMidYMid meet"
     >
       {/* FAZ 7F — non-interaktif görsel; SR için olgusal başlık + yapısal özet (yorum YOK) */}
-      <title id="hd-bodygraph-title">Human Design BodyGraph</title>
+      <title id="hd-bodygraph-title">{t("title")}</title>
       <desc id="hd-bodygraph-desc">
-        {`${definedCenters.length} tanımlı merkez, ${definedChannels.length} tanımlı kanal, ${activeGates.length} aktif kapı.`}
+        {t("desc", { centers: definedCenters.length, channels: definedChannels.length, gates: activeGates.length })}
       </desc>
 
       {/* FAZ 7C — aktif gate premium katmanı (ek <circle> YOK; sadece filter/gradient) */}
