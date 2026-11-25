@@ -1,9 +1,11 @@
+import { getTranslations } from "next-intl/server";
 import DogalDestekCards from "./DogalDestekCards";
 import styles from "./dogalDestek.module.css";
 
 // 2026-10-18 premium görünüm (owner onaylı prototip a26807d): aydınlık pastel sahne + serif başlık. Yalnız görsel;
 // erişim ModuleRouteGuard (routeModuleAccess /dogal-destek) ve kart görünürlüğü DogalDestekCards'ta değişmedi.
-export default function DogalDestekPage() {
+export default async function DogalDestekPage() {
+  const t = await getTranslations("naturalSupportHub");
   return (
     <main className={styles.page}>
       <div className={styles.scene} aria-hidden>
@@ -34,11 +36,11 @@ export default function DogalDestekPage() {
             <span>Yaşam Sistemi</span>
           </p>
           <h1 className={styles.heroTitle}>
-            <span className={styles.tA}>Doğal Destek</span> <span className={styles.tAmp}>&amp;</span>{" "}
-            <span className={styles.tB}>Rehber</span>
+            <span className={styles.tA}>{t("titleA")}</span> <span className={styles.tAmp}>&amp;</span>{" "}
+            <span className={styles.tB}>{t("titleB")}</span>
           </h1>
           <p className={styles.heroSub}>
-            Doğaltaş, doğal destek yöntemleri, beslenme ve profesyonel başvuru kaynakları
+            {t("subtitle")}
           </p>
         </header>
 
