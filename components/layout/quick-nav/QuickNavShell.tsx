@@ -42,7 +42,8 @@ import { useToast } from "@/components/ui/ToastProvider";
 import NotificationBell from "@/components/notifications/NotificationBell";
 import OwnerBell from "@/components/admin/notifications/OwnerBell";
 import { buildCenterNavHubs, isExpertMembershipExpired } from "@/app/_premium/home/homeCenters";
-import { buildModuleNavGroups, useModuleNavProbes, type HomeNavGroup } from "@/app/_premium/home/homeModuleNav";
+import { buildLockedModuleNavGroups, buildModuleNavGroups, useModuleNavProbes, type HomeNavGroup } from "@/app/_premium/home/homeModuleNav";
+import { ACCESS_RESTRICTED_NOTICE, isAccessRestrictedRow } from "@/lib/auth/accessRestriction";
 import SideMenu, { useSideMenuCollapsed } from "@/components/layout/side-menu/SideMenu";
 import {
   QUICK_NAV_CLIENTS_ROUTES,
@@ -208,16 +209,23 @@ export default function QuickNavShell({ children }: { children: ReactNode }) {
   const probeByPath = PROBE_PATHS.some((p) => matchesRoute(pathname, p));
   const probes = useModuleNavProbes(mounted && active && user !== null && (probeWanted || probeByPath));
 
+  // ÜYE PASİFLEŞTİRME F5: "Pasif" uzman menüde merkezleri KİLİTLİ görür (bağlantı yok); ana sayfayla aynı kural.
+  const accessRestricted = !!user && user.role !== "admin" && isAccessRestrictedRow(user as unknown as Record<string, unknown>);
   const hubs = useMemo(
     () =>
-      user && permissionsReady && !isExpertMembershipExpired(user)
-        ? buildCenterNavHubs(user, hasFullPanelAccess(user), (key) => tHome(`modules.${key}.title`))
+      user && permissionsReady && (!isExpertMembershipExpired(user) || accessRestricted)
+        ? buildCenterNavHubs(user, accessRestricted ? false : hasFullPanelAccess(user), (key) => tHome(`modules.${key}.title`))
         : [],
-    [user, permissionsReady, tHome],
+    [user, permissionsReady, tHome, accessRestricted],
   );
   const groups = useMemo<HomeNavGroup[]>(
-    () => (user && hubs.length > 0 ? buildModuleNavGroups(user, hubs, probes, (key) => tHome(`premium.nav.${key}`)) : []),
-    [user, hubs, probes, tHome],
+    () =>
+      !user || hubs.length === 0
+        ? []
+        : accessRestricted
+          ? buildLockedModuleNavGroups(hubs)
+          : buildModuleNavGroups(user, hubs, probes, (key) => tHome(`premium.nav.${key}`)),
+    [user, hubs, probes, tHome, accessRestricted],
   );
   // Danışanlar kısayolu: ana sayfadaki kuralla aynı (Danışan Yolculuğu kartı açık mı — isCardOpen("clients")).
   const showClients = hubs.some((h) => h.permissionKey === "clients" && h.open);
@@ -340,6 +348,7 @@ export default function QuickNavShell({ children }: { children: ReactNode }) {
         drawerOpen={drawerOpen}
         hidden={asideHidden}
         groups={groups}
+        onLockedClick={accessRestricted ? () => showToast({ message: ACCESS_RESTRICTED_NOTICE, type: "error" }) : undefined}
         modulesOpen={modulesOpen && !iconOnly}
         onToggleModules={toggleModules}
         onCloseModules={() => setModulesOpen(false)}

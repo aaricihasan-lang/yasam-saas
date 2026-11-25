@@ -89,7 +89,8 @@ const MODULE_NAV_CHILDREN: Partial<Record<ModulePermissionKey, CatalogItem[]>> =
 };
 
 export type HomeNavItem = { key: string; label: string; href: string };
-export type HomeNavGroup = { key: string; label: string; href: string | null; items: HomeNavItem[] };
+/** `locked`: ÜYE PASİFLEŞTİRME — grup görünür ama kilitli (bağlantı yok; tıklanınca kibar uyarı). */
+export type HomeNavGroup = { key: string; label: string; href: string | null; items: HomeNavItem[]; locked?: boolean };
 
 type HubInput = { permissionKey: ModulePermissionKey; href: string; open: boolean; label: string };
 
@@ -115,6 +116,16 @@ export function buildModuleNavGroups(
     groups.push({ key: hub.permissionKey, label: hub.label, href: headerOpen ? hub.href : null, items });
   }
   return groups;
+}
+
+/**
+ * ÜYE PASİFLEŞTİRME F5 — "Pasif" uzmanın sol menüsü: ana sayfa kartlarıyla AYNI merkezler (aynı sıra), hepsi KİLİTLİ.
+ * Bağlantı ve alt modül ÜRETİLMEZ (doğrudan URL / sunucu kapıları ayrıca reddeder); yalnız görünürlük.
+ */
+export function buildLockedModuleNavGroups(hubs: HubInput[]): HomeNavGroup[] {
+  return hubs
+    .filter((hub) => hub.href !== "#")
+    .map((hub) => ({ key: hub.permissionKey, label: hub.label, href: null, items: [], locked: true }));
 }
 
 /**

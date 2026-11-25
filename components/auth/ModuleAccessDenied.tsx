@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import { ShieldX } from "lucide-react";
+import { ACCESS_RESTRICTED_NOTICE } from "@/lib/auth/accessRestriction";
 
 type ModuleAccessDeniedProps = {
-  reason?: "permission" | "membership" | "session";
+  reason?: "permission" | "membership" | "session" | "restricted";
 };
 
 export default function ModuleAccessDenied({
@@ -13,6 +14,8 @@ export default function ModuleAccessDenied({
   const isMembership = reason === "membership";
   // WT4: oturum yok (süresi doldu / başka yerde çıkış) — yetki reddi DEĞİL. Hedef doğrudan giriş.
   const isSession = reason === "session";
+  // ÜYE PASİFLEŞTİRME F5: pasif uzman (giriş açık, modüller kilitli) — Owner'ın standart metni.
+  const isRestricted = reason === "restricted";
   return (
     <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[linear-gradient(135deg,#fdf4ff_0%,#eef2ff_42%,#fff1f2_100%)] px-6 py-12 text-slate-900 antialiased">
       <div className="pointer-events-none absolute -left-24 top-0 h-[420px] w-[420px] rounded-full bg-violet-300/25 blur-[120px]" />
@@ -27,7 +30,7 @@ export default function ModuleAccessDenied({
           Erişim kısıtlı
         </p>
         <h1 className="mt-3 text-3xl font-black text-slate-950 sm:text-4xl">
-          {isSession ? "Oturumunuz Sona Erdi" : isMembership ? "Üyeliğiniz Aktif Değil" : "Yetkiniz Bulunmuyor"}
+          {isSession ? "Oturumunuz Sona Erdi" : isRestricted ? "Üyeliğiniz Pasif" : isMembership ? "Üyeliğiniz Aktif Değil" : "Yetkiniz Bulunmuyor"}
         </h1>
         <p className="mt-4 text-base font-medium leading-relaxed text-slate-600 md:text-lg">
           {isSession ? (
@@ -36,6 +39,8 @@ export default function ModuleAccessDenied({
               <br />
               Kaldığınız yerden devam etmek için yeniden giriş yapın.
             </>
+          ) : isRestricted ? (
+            <span data-testid="module-access-restricted">{ACCESS_RESTRICTED_NOTICE}</span>
           ) : isMembership ? (
             <>
               Üyeliğiniz henüz onaylanmadı veya yönetici tarafından pasife alındı.

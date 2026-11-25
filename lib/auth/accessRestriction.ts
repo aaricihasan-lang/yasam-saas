@@ -12,8 +12,10 @@
  */
 
 export const ACCESS_RESTRICTED_CODE = "ACCOUNT_RESTRICTED" as const;
-export const ACCESS_RESTRICTED_MESSAGE =
-  "Hesabınız pasif durumdadır; modüller şu an kullanılamaz. Bilgi için sistem yöneticinizle iletişime geçiniz." as const;
+/** F5 — Owner'ın geçici standart uyarı metni (ana sayfa bandı, kilitli modül uyarısı, rota ekranı ve API 403 aynı metin). */
+export const ACCESS_RESTRICTED_NOTICE =
+  "Üyeliğiniz şu anda pasif durumdadır. Sistemi kullanmaya devam edebilmek için lütfen sistem yöneticimizle iletişime geçiniz." as const;
+export const ACCESS_RESTRICTED_MESSAGE = ACCESS_RESTRICTED_NOTICE;
 
 /**
  * Pasif uzmana AÇIK uçlar (Owner: ana sayfa için minimum üyelik bilgisi, güvenli parola değişikliği, destek talebi).

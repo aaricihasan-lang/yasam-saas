@@ -57,6 +57,8 @@ export type HomeShellProps = {
    */
   pageLayer?: ReactNode;
   sideSlot?: ReactNode;
+  /** ÜYE PASİFLEŞTİRME F5: kilitli menü merkezine tıklanınca (pasif uzman) — kibar uyarı. */
+  onLockedModuleClick?: () => void;
 };
 
 export default function HomeShell({
@@ -68,6 +70,7 @@ export default function HomeShell({
   onAdminNav,
   tools,
   children,
+  onLockedModuleClick,
   pageLayer,
   sideSlot,
 }: HomeShellProps) {
@@ -138,6 +141,7 @@ export default function HomeShell({
         bell={bell}
         ownerBell={<OwnerBell placement="side" compact />}
         footSlot={sideSlot}
+        onLockedClick={onLockedModuleClick}
       />
 
       <div className={styles.main} style={pageLayer ? { position: "relative" } : undefined}>

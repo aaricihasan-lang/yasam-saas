@@ -26,7 +26,7 @@ import {
   type Ref,
 } from "react";
 import { useLocale, useTranslations } from "next-intl";
-import { ArrowRight, ChevronDown, ChevronsLeft, LayoutGrid, Loader2, Settings, Shield, UserRound } from "lucide-react";
+import { ArrowRight, ChevronDown, ChevronsLeft, LayoutGrid, Loader2, Lock, Settings, Shield, UserRound } from "lucide-react";
 import { premiumFontVars } from "@/app/_premium/fonts";
 import type { HomeNavGroup } from "@/app/_premium/home/homeModuleNav";
 import styles from "./sideMenu.module.css";
@@ -167,6 +167,8 @@ export type SideMenuProps = {
    * (iç sayfalar) alt alan bugünkü hâliyle birebir aynıdır. Süs yaprağı ve alıntı değişmez; logo onları örtmez.
    */
   footSlot?: ReactNode;
+  /** ÜYE PASİFLEŞTİRME F5: kilitli (locked) merkeze tıklanınca — modül açılmaz, çağıran kibar uyarı gösterir. */
+  onLockedClick?: () => void;
 };
 
 export default function SideMenu({
@@ -195,6 +197,7 @@ export default function SideMenu({
   bell,
   ownerBell,
   footSlot,
+  onLockedClick,
 }: SideMenuProps) {
   const t = useTranslations("home.premium");
   const locale = useLocale();
@@ -314,8 +317,18 @@ export default function SideMenu({
                     {groups.map((group) => {
                       const groupCurrent = active?.group === group.key && active.href === null;
                       return (
-                        <li key={group.key} className={styles.modGroup}>
-                          {group.href ? (
+                        <li key={group.key} className={styles.modGroup} data-locked={group.locked ? "1" : undefined}>
+                          {group.locked ? (
+                            <button
+                              type="button"
+                              className={`${styles.modGroupTitle} ${styles.modGroupLocked}`}
+                              aria-disabled="true"
+                              onClick={() => onLockedClick?.()}
+                            >
+                              {group.label}
+                              <Lock className={`${styles.modLockIcon} h-3.5 w-3.5`} strokeWidth={2.2} aria-label="Kilitli" />
+                            </button>
+                          ) : group.href ? (
                             <Link
                               href={group.href}
                               className={`${styles.modGroupTitle} ${groupCurrent ? styles.modActive : ""}`}

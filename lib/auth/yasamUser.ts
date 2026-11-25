@@ -48,6 +48,8 @@ export type YasamUser = {
   trial_kind?: string;
   /** TRIAL7: not_started | active | review | suspended | converted. */
   trial_status?: string;
+  /** ÜYE PASİFLEŞTİRME: bağımsız erişim kısıtı ("Pasif" = giriş açık, modüller kilitli). Kısıt yoksa alan yok. */
+  access_restricted_at?: string;
 };
 
 const LOCKED_SUBSCRIPTION_TOAST =
@@ -143,6 +145,10 @@ export function parseLoginUserRecord(raw: unknown): YasamUser | null {
     is_demo_account: r.is_demo_account === true,
     trial_kind: r.trial_kind != null ? String(r.trial_kind).trim().toLowerCase() : undefined,
     trial_status: r.trial_status != null ? String(r.trial_status).trim().toLowerCase() : undefined,
+    access_restricted_at:
+      r.access_restricted_at != null && String(r.access_restricted_at).trim() !== ""
+        ? String(r.access_restricted_at).trim()
+        : undefined,
     approval_status: resolveApprovalStatus(r),
     active:
       parseActiveFlag(r.active) ??
