@@ -9,6 +9,7 @@ import { runInEffect } from "@/lib/runInEffect";
 import type { AlignRow, Alignment, Relation } from "@/lib/numeroloji-klasik/compare/align";
 import { COMPARE_RULES_TR, glossaryEntry, type ConceptKey } from "@/lib/numeroloji-klasik/compare/glossary";
 import { LEGACY_MISSING_REASON_TR } from "@/lib/numeroloji-klasik/compare/legacyReader";
+import { useTranslations } from "next-intl";
 import { API_BASE, apiBlob, apiRequest, errorMessage, saveBlob, type ApiErr } from "@/app/numeroloji-klasik/_lib/api";
 import { KIND_LABELS, fmtDate, fmtIsoDay, num } from "@/app/numeroloji-klasik/_lib/format";
 import type { AlignResponse, ClassicSource, CompareNote, LegacySource, SourcesResponse } from "@/app/numeroloji-klasik/_lib/types";
@@ -114,11 +115,12 @@ function kulvarCompareNote(v: NonNullable<AlignRow["legacy"]>): string {
 }
 
 function LegacyCell({ r }: { r: AlignRow }) {
+  const tCmp = useTranslations("numerology.compare");
   if (!r.legacy) {
     const reason = r.legacyMissingReason;
     return (
       <p className="nk-cmp-missing" data-testid={reason === "not_in_snapshot" ? "not-in-snapshot" : undefined}>
-        {reason === "not_in_snapshot" ? "Bütüncül Numeroloji kaydında saklanmıyor" : reason ? LEGACY_MISSING_REASON_TR[reason] : "—"}
+        {reason === "not_in_snapshot" ? "Bütüncül Numeroloji kaydında saklanmıyor" : reason === "future_hidden" ? tCmp("futureHidden") : reason ? LEGACY_MISSING_REASON_TR[reason] : "—"}
       </p>
     );
   }

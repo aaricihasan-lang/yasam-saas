@@ -19,6 +19,7 @@ import {
   cutoffDegisimYearOnly,
   cutoffDegisimFullDate,
   dogumYilindanOut,
+  dogumTarihiFromOut,
   harfDisplayAgeEnd,
   harfDisplayYearEnd,
   type HarfCutoffSegment,
@@ -156,41 +157,16 @@ export function buildAnalizOzeti(out: NumerolojiMotorOut): string {
   ].join(" · ");
 }
 
-function extractDogumTarihi(...sources: (string | undefined | null)[]): string | null {
-  for (const s of sources) {
-    if (!s) continue;
-    const m = s.match(/Doğum Tarihi:\s*([^\n\r]+)/i);
-    const v = m?.[1]?.trim();
-    if (v) return v;
-  }
-  return null;
-}
-
-function degisimSonucSatirlari(metni: string): string {
-  const picked: string[] = [];
-  for (const raw of metni.split("\n")) {
-    const line = raw.trim();
-    if (/^\d+\.\s*Değişim:/.test(line)) picked.push(line);
-    else if (line.startsWith("Etki Dönemi")) picked.push(`  ${line}`);
-  }
-  return picked.join("\n").trim();
-}
-
 // OWNER: başlangıç yılı ≤ currentYear olan Değişim dönemleri ORİJİNAL (tam) aralıklarıyla
 // gösterilir; başlamamış dönemler gizli. Kırpma / "gösterilen bölüm" YOK. Canonical hesap DEĞİŞMEZ.
 // NOT: Bu builder'lar CHRONO_CUTOFF_NOTE'u İÇERMEZ; notu çağıran yüzey ekler (plain metin
 // buildPlainAnalizFull'da; UI kartları styled bir bileşenle). İçerik tek kaynaktan gelir (DRY).
-export function degisimBoundedText(out: NumerolojiMotorOut, currentYear: number): string {
-  const bd = extractDogumTarihi(
-    out.degisimDonusumMetni,
-    out.elementlerMetni,
-    out.zirveYillariMetni,
-    out.mucadeleYillariMetni,
-  );
-  if (!bd) {
-    const fallback = degisimSonucSatirlari(out.degisimDonusumMetni || "");
-    return fallback || "—";
-  }
+// I18N-0007: doğum tarihi tek çözücüden (yapısal kayıt alanı birincil; metin yalnız eski kayıt geri
+// dönüşü). Çözülemez/çelişkili ise FAIL-CLOSED "—": kayıtlı metindeki Değişim satırları filtresiz
+// BASILMAZ (önceki `degisimSonucSatirlari` yedeği kaldırıldı).
+export function degisimBoundedText(out: NumerolojiMotorOut, currentYear: number, recordBirthDate?: string | null): string {
+  const bd = dogumTarihiFromOut(out, recordBirthDate);
+  if (!bd) return "—";
 
   const yearOnly = cutoffDegisimYearOnly(bd, currentYear, 5);
   const fullDate = cutoffDegisimFullDate(bd, currentYear, 5);
@@ -214,8 +190,8 @@ function zirveKonuText(p: { topic: number | string; display?: string }): string 
   return p.display && p.display.includes("/") ? `${p.display} (${p.topic}. çakra)` : String(p.topic);
 }
 
-export function zirveBoundedText(out: NumerolojiMotorOut, currentYear: number): string {
-  const birthYear = dogumYilindanOut(out);
+export function zirveBoundedText(out: NumerolojiMotorOut, currentYear: number, recordBirthDate?: string | null): string {
+  const birthYear = dogumYilindanOut(out, recordBirthDate);
   const g = zirveYasGorunumu(out.zirveYillari?.peaks, birthYear, currentYear);
   if (!g) return "—";
   const satir = (p: { index: number; age: number; topic: number; display?: string }) =>
@@ -231,8 +207,8 @@ export function zirveBoundedText(out: NumerolojiMotorOut, currentYear: number): 
   return lines.join("\n");
 }
 
-export function mucadeleBoundedText(out: NumerolojiMotorOut, currentYear: number): string {
-  const birthYear = dogumYilindanOut(out);
+export function mucadeleBoundedText(out: NumerolojiMotorOut, currentYear: number, recordBirthDate?: string | null): string {
+  const birthYear = dogumYilindanOut(out, recordBirthDate);
   const c = cutoffMucadele(out.mucadeleYillari, birthYear, currentYear);
   const rows = mucadeleSatirlari(c);
   if (!rows.length) return "—";
@@ -253,11 +229,13 @@ export function harfBoundedText(out: NumerolojiMotorOut, currentYear: number): s
  * `currentYear`: kronolojik bölümler (Değişim/Zirve/Mücadele/Harfler) bu yıla kadar gösterilir
  * (Gelecek Yıllar yetkisi açıksa çağıran chronoLimitYear ile sınırsız yıl geçirir).
  * `chronoNote`: kronolojik blok notu (varsayılan = önceki not birebir; yetki açıkken CHRONO_FULL_NOTE).
+ * `recordBirthDate`: kaydın yapısal `birth_date` alanı (varsa gizlilik kararı için birincil kaynak).
  */
 export function buildPlainAnalizFull(
   out: NumerolojiMotorOut,
   currentYear: number,
   chronoNote: string = CHRONO_CUTOFF_NOTE,
+  recordBirthDate?: string | null,
 ): string {
   const chunks: string[] = [];
 
@@ -280,9 +258,9 @@ export function buildPlainAnalizFull(
   pushBlock("PIN KODU", pinOneLine(out.pinKodu));
   pushBlock("ÇAKRA OMURGASI", out.cakraOmurgasiMetni || "—");
   pushBlock("ELEMENTLER", elementShort(out.elementler));
-  pushChronoBlock("DEĞİŞİM — DÖNÜŞÜM", degisimBoundedText(out, currentYear));
-  pushChronoBlock("ZİRVE YILLARI", zirveBoundedText(out, currentYear));
-  pushChronoBlock("MÜCADELE YILLARI", mucadeleBoundedText(out, currentYear));
+  pushChronoBlock("DEĞİŞİM — DÖNÜŞÜM", degisimBoundedText(out, currentYear, recordBirthDate));
+  pushChronoBlock("ZİRVE YILLARI", zirveBoundedText(out, currentYear, recordBirthDate));
+  pushChronoBlock("MÜCADELE YILLARI", mucadeleBoundedText(out, currentYear, recordBirthDate));
   pushChronoBlock("HARFLERİN YANKILANIŞI", harfBoundedText(out, currentYear));
 
   return chunks.join("\n").trim();

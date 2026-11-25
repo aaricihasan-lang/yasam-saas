@@ -16,9 +16,11 @@ import {
   dogumYilindanOut,
   mucadeleSatirlari,
   zirveYasGorunumu,
+  isRedactedHarfSegment,
   ZIRVE_METOT1_LABEL,
   ZIRVE_METOT2_LABEL,
 } from "../utils/chronoCutoff";
+import { isUnlimitedYear } from "../utils/chronoBirth";
 import { useChronoView } from "../hooks/useChronoView";
 
 function mergeRefs<T>(...refs: Array<Ref<T> | undefined | null>) {
@@ -889,16 +891,20 @@ const GorselRaporInfografik = forwardRef<HTMLDivElement, GorselRaporInfografikPr
   // OWNER YEAR-CUTOFF: görsel raporda da gelecek yıllar/dönemler gizli; devam eden aktif harf
   // segmenti currentYear'a kırpılır. Canonical hesap DEĞİŞMEZ.
   // limitYear: Gelecek Yıllar yetkisi KAPALI → currentYear (önceki davranış birebir); AÇIK → tüm dönemler.
-  const { limitYear, note: chronoNote } = useChronoView();
-  const chronoBirthYear = dogumYilindanOut(out);
-  const chronoBirthDate = dogumTarihiFromOut(out);
+  // I18N-0003: doğum tarihi tek çözücüden (kayıt alanı birincil; metin yalnız eski kayıt geri dönüşü).
+  const { limitYear, note: chronoNote, recordBirthDate } = useChronoView();
+  const chronoBirthYear = dogumYilindanOut(out, recordBirthDate);
+  const chronoBirthDate = dogumTarihiFromOut(out, recordBirthDate);
   const hy = out.harflerinYankilanisi;
   const motorSegs = Array.isArray(hy) && hy.length ? hy : undefined;
   const harfKartlari: GorselHarfKart[] = gorselHarfKartlari(firstName, lastName, motorSegs).flatMap((item): GorselHarfKart[] => {
     if ("eksik" in item) return [item];
     const seg = item;
     // OWNER: başlangıç yılı > currentYear ise gizle; ≤ ise ORİJİNAL (tam) aralıkla göster (kırpma YOK).
-    if (seg.yearStart != null && seg.yearStart > limitYear) return [];
+    // I18N-0003: sunucu gizlemesinin yer tutucu segmenti (REDACTED_*) hiçbir sınırda kart olmaz; yetki
+    // KAPALI iken yılı bilinmeyen segment de gösterilmez (fail-closed).
+    if (isRedactedHarfSegment(seg)) return [];
+    if (seg.yearStart == null ? !isUnlimitedYear(limitYear) : seg.yearStart > limitYear) return [];
     return [seg];
   });
 

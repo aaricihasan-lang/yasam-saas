@@ -32,6 +32,7 @@ import {
   type ContentFontSize,
 } from "../components/numerolojiContentTypography";
 import type { NumerolojiMotorOut } from "../utils/numerolojiPlainMetin";
+import { ChronoRecordProvider } from "../hooks/ChronoRecordContext";
 import { type GorselTemaId } from "../components/NumerolojiGorselRaporInfografik";
 import { GorselScaleFit } from "../components/GorselScaleFit";
 import { NumerolojiTarihInput } from "@/components/numeroloji/NumerolojiTarihInput";
@@ -344,6 +345,8 @@ export default function NumerolojiAnalizPage() {
   const dogumGoster = sonucBilgisi.bd;
 
   return (
+    // I18N-0003: kronolojik gizlilik kararı HESAPLANAN kişinin yapısal doğum tarihinden (metin geri dönüşü değil).
+    <ChronoRecordProvider birthDate={out && computedFor ? computedFor.bd : null}>
     <main className={`${styles.page} ${energyFontVars}`}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img className={styles.waves} src="/premium/numeroloji/analiz-dalga-alt.webp" alt="" aria-hidden decoding="async" draggable={false} />
@@ -702,5 +705,6 @@ export default function NumerolojiAnalizPage() {
       </div>
       </div>
     </main>
+    </ChronoRecordProvider>
   );
 }

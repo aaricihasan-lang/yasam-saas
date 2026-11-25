@@ -698,7 +698,7 @@ export function TabSonucOzeti({
   // kendi hook'larını kullanan TabSonucOzetiPremium'a devreder.
   const typo = useContentTypography();
   // Gösterim sınırı: yetki KAPALI → currentYear (önceki davranış); AÇIK → tüm dönemler.
-  const { limitYear } = useChronoView();
+  const { limitYear, recordBirthDate } = useChronoView();
 
   if (layout === "premium") {
     return (
@@ -761,17 +761,17 @@ export function TabSonucOzeti({
       <OzetSectionCard title="Çakra Omurgası Özeti"><OzetMetinPre text={out.cakraOmurgasiMetni} /></OzetSectionCard>
 
       <OzetSectionCard title="Değişim-Dönüşüm Yılları Özeti">
-        <OzetMetinPre text={degisimBoundedText(out, limitYear)} />
+        <OzetMetinPre text={degisimBoundedText(out, limitYear, recordBirthDate)} />
         <ChronoNote />
       </OzetSectionCard>
 
       <OzetSectionCard title="Zirve Yılları Özeti">
-        <OzetMetinPre text={zirveBoundedText(out, limitYear)} />
+        <OzetMetinPre text={zirveBoundedText(out, limitYear, recordBirthDate)} />
         <ChronoNote />
       </OzetSectionCard>
 
       <OzetSectionCard title="Mücadele Yılları Özeti">
-        <OzetMetinPre text={mucadeleBoundedText(out, limitYear)} />
+        <OzetMetinPre text={mucadeleBoundedText(out, limitYear, recordBirthDate)} />
         <ChronoNote />
       </OzetSectionCard>
 
@@ -992,8 +992,8 @@ function NumeroCardBody({
 }
 
 export function TabPlainAnaliz({ out }: { out: NumerolojiMotorOut }) {
-  const { limitYear, note } = useChronoView();
-  const raw = buildPlainAnalizFull(out, limitYear, note);
+  const { limitYear, note, recordBirthDate } = useChronoView();
+  const raw = buildPlainAnalizFull(out, limitYear, note, recordBirthDate);
   const blocks = raw
     .split(/\n——————————\n/)
     .map((chunk) => {
@@ -1123,7 +1123,7 @@ export function TabAnalizOzetli({ out, layout = "default" }: { out: NumerolojiMo
   const typo = useContentTypography();
   // OWNER (detaylı sekmede de gelecek gizli): kronolojik bölümler limitYear'a sınırlanır (yetki
   // KAPALI → currentYear; AÇIK → tüm dönemler). Harflerin Yankılanışı TEK KEZ gösterilir.
-  const { limitYear } = useChronoView();
+  const { limitYear, recordBirthDate } = useChronoView();
   const harfListe = harfBoundedText(out, limitYear);
   const preScroll =
     layout === "detay"
@@ -1193,15 +1193,15 @@ export function TabAnalizOzetli({ out, layout = "default" }: { out: NumerolojiMo
         <TasDestekSectionBlock title="Element Taş Destekleri" items={elementStoneItems} stockIndex={stockIndex} />
       </DetayCard>
       <DetayCard title="Değişim Dönüşüm">
-        <pre className={preScroll}>{degisimBoundedText(out, limitYear)}</pre>
+        <pre className={preScroll}>{degisimBoundedText(out, limitYear, recordBirthDate)}</pre>
         <ChronoNote />
       </DetayCard>
       <DetayCard title="Zirve">
-        <pre className={preScroll}>{zirveBoundedText(out, limitYear)}</pre>
+        <pre className={preScroll}>{zirveBoundedText(out, limitYear, recordBirthDate)}</pre>
         <ChronoNote />
       </DetayCard>
       <DetayCard title="Mücadele">
-        <pre className={preScroll}>{mucadeleBoundedText(out, limitYear)}</pre>
+        <pre className={preScroll}>{mucadeleBoundedText(out, limitYear, recordBirthDate)}</pre>
         <ChronoNote />
       </DetayCard>
       <DetayCard title="Harflerin Yankılanışı">
