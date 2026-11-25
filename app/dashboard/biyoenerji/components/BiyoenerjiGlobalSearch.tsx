@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { useBiyoenerjiLabels } from "../useBiyoenerjiLabels";
+import { isBiyoenerjiSectionKey, useBiyoenerjiLabels } from "../useBiyoenerjiLabels";
 import { useBioErrorText } from "../useBioErrorText";
 import { useRouter } from "next/navigation";
 import { Search, X } from "lucide-react";
@@ -328,7 +328,8 @@ export default function BiyoenerjiGlobalSearch() {
               {state.sections.map((s) => (
                 <div key={s.key}>
                   <h3 className="mb-1.5 flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.12em] text-violet-700">
-                    {L.cardTitle(s.key)}
+                    {/* Bilinmeyen anahtar (eski önbellek) → sunucunun etiketi aynen (i18n öncesi davranış). */}
+                    {isBiyoenerjiSectionKey(s.key) ? L.cardTitle(s.key) : s.label}
                     <span className="rounded-full bg-violet-100 px-1.5 py-0.5 text-[10px] font-black text-violet-800">{s.total}</span>
                     {s.total > s.hits.length ? (
                       <span className="text-[10px] font-semibold normal-case tracking-normal text-slate-400">{t("firstShown", { count: String(s.hits.length) })}</span>

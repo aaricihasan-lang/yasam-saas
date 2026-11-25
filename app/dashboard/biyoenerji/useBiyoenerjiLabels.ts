@@ -2,7 +2,17 @@
 
 import { useMemo } from "react";
 import { useTranslations } from "next-intl";
-import type { BiyoenerjiGroupId, BiyoenerjiSectionKey } from "./biyoenerjiFolderConfig";
+import { BIOENERJI_FOLDER_CARDS, type BiyoenerjiGroupId, type BiyoenerjiSectionKey } from "./biyoenerjiFolderConfig";
+
+const SECTION_KEYS: ReadonlySet<string> = new Set(BIOENERJI_FOLDER_CARDS.map((c) => c.key));
+
+/**
+ * Ağdan / oturum önbelleğinden gelen bölüm anahtarı (string) gerçekten kanonik bir bölüm anahtarı mı?
+ * Tip daraltma çalışma zamanında doğrulanır (as ile susturma yok).
+ */
+export function isBiyoenerjiSectionKey(key: string): key is BiyoenerjiSectionKey {
+  return SECTION_KEYS.has(key);
+}
 
 /**
  * I18N (2026-11-25) — Biyoenerji bölüm/grup GÖRÜNEN adları (ekran dilinde).
