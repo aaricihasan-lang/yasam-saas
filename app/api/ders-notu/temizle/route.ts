@@ -1,3 +1,4 @@
+import { requestTranslator } from "@/lib/i18n/serverMessages";
 import { NextResponse, type NextRequest } from "next/server";
 import OpenAI from "openai";
 import { DERS_NOTU_SYSTEM_PROMPT } from "@/lib/prompts/ders-notu-final-rules";
@@ -265,7 +266,7 @@ export async function POST(request: NextRequest) {
           {
             success: false,
             code: "OUTPUT_CHECK_FAILED",
-            message: `Çıktı güvenlik kontrolünden geçmedi. İşlem OpenAI tarafından kısaltılmış olabilir. Lütfen daha kısa bir metin parçası deneyin. (oran: %${Math.round(ratio * 100)})`,
+            message: `Çıktı güvenlik kontrolünden geçmedi. İşlem yapay zekâ hizmeti tarafından kısaltılmış olabilir. Lütfen daha kısa bir metin parçası deneyin. (oran: %${Math.round(ratio * 100)})`,
           },
           { status: 422 },
         );
@@ -312,7 +313,7 @@ export async function POST(request: NextRequest) {
             {
               success: false,
               code: "OUTPUT_CHECK_FAILED",
-              message: `Çıktı güvenlik kontrolünden geçmedi. Parça ${i + 1}/${chunks.length}. İşlem OpenAI tarafından kısaltılmış olabilir. Lütfen daha kısa bir metin parçası deneyin. (oran: %${Math.round(chunkRatio * 100)})`,
+              message: `Çıktı güvenlik kontrolünden geçmedi. Parça ${i + 1}/${chunks.length}. İşlem yapay zekâ hizmeti tarafından kısaltılmış olabilir. Lütfen daha kısa bir metin parçası deneyin. (oran: %${Math.round(chunkRatio * 100)})`,
             },
             { status: 422 },
           );
@@ -329,10 +330,10 @@ export async function POST(request: NextRequest) {
     console.log(`[ders-notu/temizle] chunk mod tamamlandı: ${chunks.length} parça → ${cleaned.length} karakter`);
     return NextResponse.json({ success: true, text: withExampleNote(cleaned), chunked: true, chunkCount: chunks.length });
   } catch (err) {
+    // R5-A1: iç ayrıntı (Supabase/OpenAI/SDK metni) yalnız sunucu günlüğüne; kullanıcıya nötr metin + dil-bağımsız code.
     console.error("[ders-notu/temizle] hata:", err);
-    const message = err instanceof Error ? err.message : String(err);
     return NextResponse.json(
-      { success: false, code: "PROCESSING_FAILED", message: `İşlem hatası: ${message}` },
+      { success: false, code: "PROCESSING_FAILED", message: requestTranslator(request, "lessonNotes.apiErrors")("PROCESSING_FAILED") },
       { status: 500 },
     );
   }

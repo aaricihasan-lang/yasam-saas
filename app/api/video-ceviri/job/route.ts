@@ -1,3 +1,4 @@
+import { requestTranslator } from "@/lib/i18n/serverMessages";
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { pickClientJobPatchFields } from "@/lib/video-ceviri/videoTempPath";
@@ -40,7 +41,11 @@ export async function GET(req: NextRequest): Promise<Response> {
     .order("created_at", { ascending: false })
     .limit(20);
 
-  if (error) return NextResponse.json({ ok: false, code: "DB_ERROR", error: error.message }, { status: 500 });
+  if (error) {
+    // R5-A1: iç ayrıntı (Supabase/OpenAI/SDK metni) yalnız sunucu günlüğüne; kullanıcıya nötr metin + dil-bağımsız code.
+    console.error("[video-ceviri/job] GET hata:", error);
+    return NextResponse.json({ ok: false, code: "DB_ERROR", error: requestTranslator(req, "videoTranslate.apiErrors")("PROCESSING_FAILED") }, { status: 500 });
+  }
   return NextResponse.json({ ok: true, rows: data ?? [] });
 }
 
@@ -109,6 +114,10 @@ export async function PATCH(req: NextRequest): Promise<Response> {
     .eq("tenant_id", tenantId)
     .eq("user_id", userId);
 
-  if (error) return NextResponse.json({ ok: false, code: "DB_ERROR", error: error.message }, { status: 500 });
+  if (error) {
+    // R5-A1: iç ayrıntı (Supabase/OpenAI/SDK metni) yalnız sunucu günlüğüne; kullanıcıya nötr metin + dil-bağımsız code.
+    console.error("[video-ceviri/job] PATCH hata:", error);
+    return NextResponse.json({ ok: false, code: "DB_ERROR", error: requestTranslator(req, "videoTranslate.apiErrors")("PROCESSING_FAILED") }, { status: 500 });
+  }
   return NextResponse.json({ ok: true });
 }

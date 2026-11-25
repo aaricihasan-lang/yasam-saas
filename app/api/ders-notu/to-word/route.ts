@@ -1,3 +1,4 @@
+import { requestTranslator } from "@/lib/i18n/serverMessages";
 import type { NextRequest } from "next/server";
 import { Document, HeadingLevel, Packer, Paragraph, TextRun } from "docx";
 import { requireDigitalContentUser } from "@/lib/auth/requireUser";
@@ -108,9 +109,10 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
+    // R5-A1: iç ayrıntı (Supabase/OpenAI/SDK metni) yalnız sunucu günlüğüne; kullanıcıya nötr metin + dil-bağımsız code.
+    console.error("[ders-notu/to-word] hata:", err);
     return new Response(
-      JSON.stringify({ success: false, code: "PROCESSING_FAILED", message: `İşlem hatası: ${message}` }),
+      JSON.stringify({ success: false, code: "PROCESSING_FAILED", message: requestTranslator(request, "lessonNotes.apiErrors")("PROCESSING_FAILED") }),
       { status: 500, headers: { "Content-Type": "application/json" } },
     );
   }

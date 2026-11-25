@@ -1,3 +1,4 @@
+import { requestTranslator } from "@/lib/i18n/serverMessages";
 import { NextResponse, type NextRequest } from "next/server";
 import { extractText } from "unpdf";
 import { createClient } from "@supabase/supabase-js";
@@ -124,7 +125,7 @@ export async function POST(request: NextRequest) {
     if (uploadError) {
       console.error("[pdf-to-turkce-word] Storage upload hatası:", uploadError);
       return NextResponse.json(
-        { success: false, code: "UPLOAD_FAILED", message: `Dosya yükleme hatası: ${uploadError.message}` },
+        { success: false, code: "UPLOAD_FAILED", message: requestTranslator(request, "docTranslate.apiErrors")("UPLOAD_FAILED") },
         { status: 500 },
       );
     }
@@ -151,7 +152,7 @@ export async function POST(request: NextRequest) {
       await db.storage.from(STORAGE_BUCKET).remove([sourcePath]);
       console.error("[pdf-to-turkce-word] DB insert hatası:", dbError);
       return NextResponse.json(
-        { success: false, code: "JOB_CREATE_FAILED", message: `Job kaydı oluşturulamadı: ${dbError.message}` },
+        { success: false, code: "JOB_CREATE_FAILED", message: requestTranslator(request, "docTranslate.apiErrors")("JOB_CREATE_FAILED") },
         { status: 500 },
       );
     }
@@ -168,10 +169,10 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ success: true, jobId, totalPages });
   } catch (err) {
+    // R5-A1: iç ayrıntı (Supabase/OpenAI/SDK metni) yalnız sunucu günlüğüne; kullanıcıya nötr metin + dil-bağımsız code.
     console.error("[pdf-to-turkce-word] hata:", err);
-    const message = err instanceof Error ? err.message : String(err);
     return NextResponse.json(
-      { success: false, code: "PROCESSING_FAILED", message: `İşlem hatası: ${message}` },
+      { success: false, code: "PROCESSING_FAILED", message: requestTranslator(request, "docTranslate.apiErrors")("PROCESSING_FAILED") },
       { status: 500 },
     );
   }

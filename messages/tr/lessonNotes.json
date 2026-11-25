@@ -64,7 +64,7 @@
       "EMPTY_OUTPUT": "İşlem tamamlandı ancak çıktı boş geldi. Lütfen tekrar deneyin.",
       "OUTPUT_CHECK_FAILED": "Çıktı güvenlik kontrolünden geçmedi. Lütfen daha kısa bir metin parçası deneyin.",
       "CHUNK_FAILED": "Bir metin parçası işlenemedi. Lütfen tekrar deneyin.",
-      "PROCESSING_FAILED": "İşlem tamamlanamadı."
+      "PROCESSING_FAILED": "İşlem şu anda tamamlanamadı. Lütfen tekrar deneyin veya destek ekibiyle iletişime geçin."
     }
   }
 }

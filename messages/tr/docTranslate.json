@@ -141,7 +141,7 @@
       "PAGE_LIMIT": "Bu belge {pages} sayfa içeriyor. 200 sayfa üstü belgeler için Büyük Dosya Modu hazırlanıyor.",
       "UPLOAD_FAILED": "Dosya yüklenemedi.",
       "JOB_CREATE_FAILED": "İş kaydı oluşturulamadı.",
-      "PROCESSING_FAILED": "İşlem tamamlanamadı.",
+      "PROCESSING_FAILED": "İşlem şu anda tamamlanamadı. Lütfen tekrar deneyin veya destek ekibiyle iletişime geçin.",
       "NO_TEXT_FOUND": "Görselde okunabilir metin bulunamadı.",
       "PDF_NO_TEXT": "PDF'den metin çıkarılamadı. Dosya taranmış, şifreli veya yalnızca görüntü içeriyor olabilir.",
       "TEXT_MISSING": "Metin bulunamadı."

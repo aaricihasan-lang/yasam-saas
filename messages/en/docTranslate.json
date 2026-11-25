@@ -141,7 +141,7 @@
       "PAGE_LIMIT": "This document has {pages} pages. A Large File Mode for documents over 200 pages is being prepared.",
       "UPLOAD_FAILED": "The file could not be uploaded.",
       "JOB_CREATE_FAILED": "The job record could not be created.",
-      "PROCESSING_FAILED": "Processing could not be completed.",
+      "PROCESSING_FAILED": "Processing could not be completed right now. Please try again or contact support.",
       "NO_TEXT_FOUND": "No readable text was found in the image.",
       "PDF_NO_TEXT": "No text could be extracted from the PDF. The file may be scanned, encrypted or contain only images.",
       "TEXT_MISSING": "No text was found."

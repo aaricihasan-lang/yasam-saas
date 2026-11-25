@@ -141,7 +141,7 @@
     },
     "apiErrors": {
       "JOB_ID_REQUIRED": "jobId gerekli.",
-      "AI_NOT_CONFIGURED": "OpenAI API anahtarı yapılandırılmamış.",
+      "AI_NOT_CONFIGURED": "Yapay zekâ hizmeti yapılandırılmamış.",
       "JOB_NOT_FOUND": "İş kaydı bulunamadı.",
       "TRANSCRIPT_MISSING": "Transkript bulunamadı.",
       "TRANSLATION_REQUIRED": "Önce Türkçe çeviri oluşturulmalı.",
@@ -151,7 +151,7 @@
       "INVALID_STORAGE_PATH": "Geçersiz depolama yolu.",
       "FILE_TOO_LARGE": "Dosya 25 MB limitini aşıyor. Daha kısa dosya yükleyin.",
       "TRANSCRIBE_FAILED": "Transkripsiyon tamamlanamadı.",
-      "PROCESSING_FAILED": "İşlem tamamlanamadı.",
+      "PROCESSING_FAILED": "İşlem şu anda tamamlanamadı. Lütfen tekrar deneyin veya destek ekibiyle iletişime geçin.",
       "UPLOAD_NOT_ALLOWED": "Bu iş için yükleme artık yapılamaz.",
       "UPLOAD_URL_FAILED": "Yükleme bağlantısı üretilemedi.",
       "JOB_UPDATE_FAILED": "İş kaydı güncellenemedi.",

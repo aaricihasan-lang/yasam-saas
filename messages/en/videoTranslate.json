@@ -151,7 +151,7 @@
       "INVALID_STORAGE_PATH": "Invalid storage path.",
       "FILE_TOO_LARGE": "The file exceeds the 25 MB limit. Upload a shorter file.",
       "TRANSCRIBE_FAILED": "Transcription could not be completed.",
-      "PROCESSING_FAILED": "Processing could not be completed.",
+      "PROCESSING_FAILED": "Processing could not be completed right now. Please try again or contact support.",
       "UPLOAD_NOT_ALLOWED": "Uploading is no longer possible for this job.",
       "UPLOAD_URL_FAILED": "The upload link could not be generated.",
       "JOB_UPDATE_FAILED": "The job record could not be updated.",

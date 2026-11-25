@@ -64,7 +64,7 @@
       "EMPTY_OUTPUT": "Processing finished, but the output was empty. Please try again.",
       "OUTPUT_CHECK_FAILED": "The output did not pass the safety check. Please try a shorter piece of text.",
       "CHUNK_FAILED": "A part of the text could not be processed. Please try again.",
-      "PROCESSING_FAILED": "Processing could not be completed."
+      "PROCESSING_FAILED": "Processing could not be completed right now. Please try again or contact support."
     }
   }
 }

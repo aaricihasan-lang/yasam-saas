@@ -1,3 +1,4 @@
+import { requestTranslator } from "@/lib/i18n/serverMessages";
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { isVideoTempPathOwned, VIDEO_TEMP_BUCKET } from "@/lib/video-ceviri/videoTempPath";
@@ -228,7 +229,7 @@ export async function POST(request: NextRequest) {
     try {
       if (job.file_size_bytes && job.file_size_bytes > MAX_WHISPER_BYTES) {
         const mb  = (job.file_size_bytes / 1024 / 1024).toFixed(1);
-        const msg = `Dosya (${mb} MB) Whisper 25 MB limitini aşıyor. Daha kısa dosya yükleyin.`;
+        const msg = `Dosya (${mb} MB) 25 MB limitini aşıyor. Daha kısa dosya yükleyin.`;
         await db
           .from(TABLE)
           .update({ status: "failed", error_message: msg })
@@ -253,7 +254,9 @@ export async function POST(request: NextRequest) {
         .download(tempPath);
 
       if (dlErr || !blob) {
-        const msg = dlErr?.message ?? "Dosya indirilemedi.";
+        // R5-A1: depolama hata ayrıntısı yalnız sunucu günlüğüne.
+        if (dlErr) console.error("[video-ceviri/transcribe] indirme hatası:", dlErr);
+        const msg = "Dosya indirilemedi.";
         await db
           .from(TABLE)
           .update({ status: "failed", error_message: msg })
@@ -265,7 +268,7 @@ export async function POST(request: NextRequest) {
 
       if (blob.size > MAX_WHISPER_BYTES) {
         const mb  = (blob.size / 1024 / 1024).toFixed(1);
-        const msg = `İndirilen dosya (${mb} MB) Whisper 25 MB limitini aşıyor.`;
+        const msg = `İndirilen dosya (${mb} MB) 25 MB limitini aşıyor.`;
         await db
           .from(TABLE)
           .update({ status: "failed", error_message: msg })
@@ -319,7 +322,7 @@ export async function POST(request: NextRequest) {
       }
 
       if (!process.env.OPENAI_API_KEY) {
-        const msg = "OpenAI API anahtarı yapılandırılmamış.";
+        const msg = requestTranslator(request, "videoTranslate.apiErrors")("AI_NOT_CONFIGURED");
         await db
           .from(TABLE)
           .update({ status: "failed", error_message: msg })
@@ -349,10 +352,9 @@ export async function POST(request: NextRequest) {
         detectedLanguage =
           (response.language ?? "").toLowerCase().trim() || "auto";
       } catch (whisperErr) {
-        const msg =
-          whisperErr instanceof Error
-            ? whisperErr.message
-            : "Whisper API hatası.";
+        // R5-A1: sağlayıcı (SDK) hata metni yalnız sunucu günlüğüne; iş kaydına ve yanıta nötr metin.
+        console.error("[video-ceviri/transcribe] transkripsiyon hatası:", whisperErr);
+        const msg = requestTranslator(request, "videoTranslate.apiErrors")("TRANSCRIBE_FAILED");
         await db
           .from(TABLE)
           .update({ status: "failed", error_message: msg })
@@ -380,7 +382,8 @@ export async function POST(request: NextRequest) {
       await deleteVideoTempObject(db, tempPath, jobId, tenantId, userId);
     }
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    return NextResponse.json({ ok: false, code: "PROCESSING_FAILED", error: message }, { status: 500 });
+    // R5-A1: iç ayrıntı (Supabase/OpenAI/SDK metni) yalnız sunucu günlüğüne; kullanıcıya nötr metin + dil-bağımsız code.
+    console.error("[video-ceviri/transcribe] hata:", err);
+    return NextResponse.json({ ok: false, code: "PROCESSING_FAILED", error: requestTranslator(request, "videoTranslate.apiErrors")("PROCESSING_FAILED") }, { status: 500 });
   }
 }
