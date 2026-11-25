@@ -1,0 +1,396 @@
+{
+  "atlas": {
+    "horary": {
+      "eyebrow": "Horary · Question chart",
+      "title": "William Lilly Horary",
+      "openArchive": "Saved questions",
+      "back": "Atlas home",
+      "formLabel": "Horary question",
+      "demoBadge": "DEMO DATA",
+      "demoNote": "Sample input; the calculation is real.",
+      "question": "Question",
+      "questionPh": "The client's question (optional)",
+      "questionHelp": "The question text is not sent for the calculation and is not saved; it is sent for a report only when “Add the question text to the report” is ticked.",
+      "dateLabel": "Date (local date of the question)",
+      "timeLabel": "Time (local)",
+      "now": "Now",
+      "place": "Location",
+      "house": "Quesited house",
+      "housePick": "Choose the quesited house…",
+      "houseOption": "House {h} — {topic}",
+      "houseHelp": "Choose the house to which the matter of the question belongs. House topics are the classical meanings; the choice rests with the practitioner.",
+      "submit": "Cast the chart",
+      "busySubmit": "Calculating…",
+      "demoFill": "Fill with DEMO data",
+      "source": "William Lilly, Christian Astrology (1647) · Regiomontanus houses",
+      "busyLine": "Calculating the chart…",
+      "demo": {
+        "question": "DEMO — Will this partnership offer come about?",
+        "place": "Istanbul, Türkiye"
+      },
+      "err": {
+        "date": "Enter the date of the question.",
+        "time": "Enter the time of the question.",
+        "place": "Choose the location where the question was asked.",
+        "house": "Choose the quesited house. You should deliberately choose the house to which the matter of the question belongs.",
+        "range": "Supported date range: {min}–{max}. This is the range in which the calculation has been verified.",
+        "timeout": "The calculation did not respond within {s} seconds. Check your connection and try again.",
+        "network": "The server could not be reached. Check your internet connection and try again.",
+        "server": "The chart could not be cast because of a server error. Your inputs are kept; try again shortly."
+      },
+      "dst": {
+        "earlier": "First occurrence",
+        "later": "Second occurrence"
+      },
+      "none": "none",
+      "yes": "yes",
+      "no": "no",
+      "empty": "None.",
+      "evidence": "Evidence",
+      "ev": {
+        "reason": "Reason: {r}",
+        "translationPrefix": "Translation of light — ",
+        "separated": "Separation ",
+        "joins": " · joining ",
+        "ca125": "· CA p. 125: significators separated ",
+        "receptionComma": ", reception ",
+        "interruptions": " · interrupted by: ",
+        "orderUncertain": "order uncertain",
+        "collectionPrefix": "Collection of light — ",
+        "collectionOk": "CA p. 126 conditions met",
+        "collectionMissing": "condition missing",
+        "receptionColon": " · reception: ",
+        "notAspecting": " · significators not in aspect: ",
+        "refranationPrefix": "Refranation candidate: ",
+        "refranationMid": " turns back before perfection (closest distance "
+      },
+      "report": {
+        "serverError": "The report could not be created because of a server error. Try again shortly.",
+        "failed": "The report could not be created.",
+        "preparing": "Preparing…",
+        "word": "Download Word",
+        "pdf": "Download PDF",
+        "downloaded": "{fmt} report downloaded: {name}",
+        "addQuestion": "Add the question text to the report",
+        "note": "The report is recalculated on the server; the question text is sent for this report only when ticked, and is not stored."
+      },
+      "save": {
+        "defaultTitle": "Horary — {date} {time} · house {house}",
+        "titleRequired": "A record title is required.",
+        "reused": "This chart is already saved.",
+        "saved": "Saved. You can find it under Analysis Archive → Horary Questions.",
+        "failed": "The record could not be saved right now. Your inputs are kept; try again.",
+        "title": "Record title",
+        "client": "Client (optional)",
+        "saving": "Saving…",
+        "done": "Saved",
+        "retry": "Try again",
+        "save": "Save",
+        "withQuestion": "Also save the question text",
+        "openSaved": "Open the saved chart",
+        "note": "The chart is stored with the calculation made at the time of saving and does not change later. The question text is saved only if you tick it.",
+        "okFallback": "Saved.",
+        "errFallback": "The record could not be saved."
+      },
+      "record": {
+        "loading": "Loading the saved chart…",
+        "notFound": "The record was not found, or you do not have access to it.",
+        "loadFailed": "The record could not be loaded. Check your connection and try again.",
+        "newQuestion": "New Horary question"
+      },
+      "saved": {
+        "updateFailed": "The update could not be made; try again.",
+        "titleUpdated": "Title updated.",
+        "clientLinked": "Client linked.",
+        "clientUnlinked": "Client link removed.",
+        "badge": "SAVED CHART",
+        "methodPrefix": "William Lilly · ",
+        "savedAt": "· saved ",
+        "frozen": "This chart is the calculation made at the time of saving; it does not change even if the calculation engine is updated.",
+        "clientMissing": "The linked client can no longer be accessed (it may have been deleted). The record is kept.",
+        "addQuestion": "Add the saved question text to the report"
+      },
+      "res": {
+        "questionInfo": "Question details",
+        "demoInput": "DEMO INPUT",
+        "wheel": "Horary wheel",
+        "wheelLabel": "Horary question chart wheel",
+        "summary": "Key findings"
+      },
+      "sig": {
+        "label": "Significators",
+        "querent": "Querent: ",
+        "firstHouse": "(1st house, ",
+        "quesited": "Quesited: ",
+        "houseComma": "{n, selectordinal, one {st house, } two {nd house, } few {rd house, } other {th house, }}",
+        "common": "Co-significator: ",
+        "sameRuler": "Querent and quesited are the same planet — no significator-pair analysis is made; the Moon's relationship is shown."
+      },
+      "rel": {
+        "label": "Relationship between the significators",
+        "now": "Now: ",
+        "distance": " apart · ",
+        "applying": "applying",
+        "separating": "separating",
+        "inOrb": "within orb",
+        "outOrb": "outside orb",
+        "perfection": "Perfection: ",
+        "noPerfection": "{n, plural, one {-day calculation horizon: no perfection.} other {-day calculation horizon: no perfection.}}",
+        "moonWith": "Moon with {b}"
+      },
+      "moon": {
+        "label": "Condition of the Moon",
+        "ingress": " · sign change ",
+        "void": "Moon void of course — no further aspect within the sign.",
+        "next": "Next aspect: ",
+        "last": "Last aspect: "
+      },
+      "met": {
+        "label": "Events meeting the classical conditions",
+        "none": "No translation or collection of light fully meeting the conditions within the calculation horizon."
+      },
+      "others": {
+        "prefix": "Other events to review: ",
+        "candidate": "{n} candidate",
+        "incomplete": "{n} incomplete / interrupted",
+        "unresolved": "{n} unclassified"
+      },
+      "rad": {
+        "label": "Radicality and considerations",
+        "hour": "Hour ruler ",
+        "asc": ", Ascendant ruler ",
+        "same": "same planet",
+        "triplicity": "same triplicity",
+        "differ": "not the same, no shared triplicity",
+        "ca121": "(CA p. 121)",
+        "noneConsiderations": "None of Lilly’s considerations before judgement (CA pp. 121–123) apply."
+      },
+      "tl": {
+        "aria": "Event timeline",
+        "titlePrefix": "Event timeline · next ",
+        "titleSuffix": "{n, plural, one { day} other { days}}",
+        "note": "Astronomical events involving the significators; interrupted translations of light are not shown here.",
+        "empty": "No events involving the significators within the horizon.",
+        "station": "{tag} ({dir})",
+        "retro": "retrograde",
+        "direct": "direct",
+        "ingress": "{tag}: {signs}"
+      },
+      "pl": {
+        "title": "Planets · essential and accidental dignity",
+        "hint": "Position, house, speed, dignity and scores",
+        "scroll": "Planet table (scrolls horizontally)",
+        "col": {
+          "planet": "Planet",
+          "position": "Position",
+          "house": "House",
+          "speed": "Speed °/day",
+          "essential": "Essential dignity",
+          "essentialScore": "Essential score",
+          "accidentalScore": "Accidental score",
+          "solar": "Relative to the Sun"
+        },
+        "retro": "retrograde",
+        "virtuePrefix": "acts in the ",
+        "virtueSuffix": "{n, selectordinal, one {st house (5° rule)} two {nd house (5° rule)} few {rd house (5° rule)} other {th house (5° rule)}}",
+        "accItems": "Accidental score items",
+        "total": "· total "
+      },
+      "dig": {
+        "domicile": "domicile",
+        "exaltation": "exaltation",
+        "triplicity": "triplicity",
+        "term": "term",
+        "face": "face",
+        "detriment": "detriment",
+        "fall": "fall",
+        "peregrine": "peregrine"
+      },
+      "cu": {
+        "title": "House cusps · Regiomontanus",
+        "hint": "12 houses, Part of Fortune, day/night, planetary hour",
+        "house": "{n, selectordinal, one {st house} two {nd house} few {rd house} other {th house}}",
+        "pof": "Part of Fortune: ",
+        "houseClose": "{n, selectordinal, one {st house)} two {nd house)} few {rd house)} other {th house)}}",
+        "day": "Day chart",
+        "night": "Night chart",
+        "sunAlt": " · Sun altitude ",
+        "hourPrefix": "Planetary hour: ",
+        "dayRuler": " · ruler of the day "
+      },
+      "rc": {
+        "title": "Receptions and current aspects",
+        "hint": "Mutual reception, one-way reception, aspects within orb",
+        "mutual": "Mutual reception",
+        "points": "{n, plural, one { point, CA p. 115)} other { points, CA p. 115)}}",
+        "oneWay": "One-way reception (receiver → received)",
+        "applying": "Applying aspects (within orb)",
+        "separating": "Separating aspects (within orb)",
+        "outOfSign": " · out of sign"
+      },
+      "all": {
+        "title": "All events and their evidence",
+        "hint": "Conditions met, candidates, incomplete/interrupted and unclassified records",
+        "met": "Classical conditions met",
+        "candidate": "Candidate — event matching the source definition (assessment rests with the practitioner)",
+        "incomplete": "Condition missing, interrupted, or order/motion uncertain — not a valid result",
+        "unresolved": "Unclassified — the source does not resolve this case"
+      },
+      "me": {
+        "title": "Method and open points",
+        "hint": "Source, house system, ephemeris, points awaiting the instructor's decision",
+        "housePrefix": "House system: Regiomontanus · Ephemeris: ",
+        "orbSuffix": " · Orb: Lilly CA p. 107, first column",
+        "open": "Open points",
+        "noJudgement": "This screen does not produce a judgement; events are listed with the source definition and the event evidence."
+      },
+      "unc": {
+        "sec": "{n, plural, one {±{n} s} other {±{n} s}}",
+        "min": "{n, plural, one {±{n} min} other {±{n} min}}",
+        "hour": "±{n} h"
+      },
+      "acc": {
+        "house": "house {n}",
+        "partile": "{aspect} with {body}",
+        "retrograde": "Retrograde",
+        "direct": "Direct",
+        "swift": "Swift",
+        "slow": "Slow",
+        "moon_increasing": "Moon increasing in light",
+        "moon_decreasing": "Moon decreasing in light",
+        "oriental": "Oriental",
+        "occidental": "Occidental",
+        "cazimi": "Cazimi",
+        "combust": "Combust",
+        "under_beams": "Under the beams",
+        "free_from_combustion": "Free from combustion",
+        "besieged_saturn_mars": "Besieged between Saturn and Mars",
+        "partile_conj_north_node": "Partile conjunction with the North Node",
+        "partile_conj_south_node": "Partile conjunction with the South Node",
+        "regulus_1647": "With Regulus",
+        "spica_1647": "With Spica",
+        "algol_1647": "With Algol"
+      },
+      "archive": {
+        "aria": "Horary questions",
+        "searchPh": "Search titles",
+        "searchAria": "Search Horary records",
+        "from": "Start date",
+        "to": "End date",
+        "loadFailed": "Horary records could not be loaded. Check your connection and try again.",
+        "retry": "Try again",
+        "emptyFiltered": "No Horary records match these filters.",
+        "empty": "No saved Horary questions yet. Cast the chart on the Horary screen and press “Save”.",
+        "col": {
+          "title": "Question title",
+          "moment": "Question moment",
+          "place": "Location",
+          "house": "House",
+          "client": "Client",
+          "open": "Open"
+        },
+        "demo": "DEMO",
+        "method": "William Lilly · {v}",
+        "clientGone": "not accessible",
+        "openRecord": "Open the record {title}",
+        "openTitle": "Open the saved chart",
+        "loadingMore": "Loading…",
+        "more": "Show more",
+        "mode": {
+          "aria": "Archive type",
+          "profiles": "Birth Profiles",
+          "horary": "Horary Questions"
+        }
+      },
+      "client": {
+        "minChars": "Type at least 2 letters.",
+        "clear": "Remove link",
+        "ph": "Client name (optional)",
+        "aria": "Search clients",
+        "searching": "Searching…",
+        "search": "Search",
+        "noMatch": "No matching client.",
+        "unnamed": "Unnamed client"
+      },
+      "houseTopic": {
+        "2": "Money, possessions, lost items",
+        "3": "Siblings, short journeys, news",
+        "4": "Father, home, property, land",
+        "5": "Children, pregnancy, pleasure",
+        "6": "Sickness, servants, small animals",
+        "7": "Marriage, partners, the other party",
+        "8": "Death, the partner's money, inheritance",
+        "9": "Long journeys, learning, religion",
+        "10": "Career, office, mother",
+        "11": "Friends, hopes",
+        "12": "Secret enemies, confinement, large animals"
+      },
+      "aspect": {
+        "0": "conjunction",
+        "60": "sextile",
+        "90": "square",
+        "120": "trine",
+        "180": "opposition"
+      },
+      "interposition": {
+        "prohibition": "Prohibition candidate (CA pp. 110–111)",
+        "frustration": "Frustration candidate (CA p. 112)",
+        "faster_significator_elsewhere": "The faster significator reaches another planet first",
+        "unresolved": "Unclassified — the source does not resolve this case"
+      },
+      "unresolvedReason": {
+        "event_mutual": "the two planets are moving towards each other",
+        "event_station": "one of the planets is stationary",
+        "event_superior_overtakes_inferior": "the superior planet overtakes the inferior (contradicts CA p. 108)",
+        "ab_perfection_not_one_sided": "the significators' perfection is not one-sided"
+      },
+      "translationStatus": {
+        "valid": "Uninterrupted",
+        "interrupted": "Interrupted — not a translation",
+        "order_uncertain": "Order of events uncertain — not counted as a definite translation",
+        "motion_uncertain": "Translating planet not applying / stationary — not counted as a definite translation"
+      },
+      "solarPhase": {
+        "cazimi": "Cazimi",
+        "combust": "Combust",
+        "under_beams": "Under the beams",
+        "free": "Free"
+      },
+      "consideration": {
+        "asc_early": "Ascendant in a very early degree",
+        "asc_late": "Ascendant in a late degree",
+        "moon_via_combusta": "Moon in the Via Combusta",
+        "moon_late_degree": "Moon in the last degrees of the sign",
+        "moon_void_of_course": "Moon void of course",
+        "saturn_in_1": "Saturn in the 1st house",
+        "saturn_in_7": "Saturn in the 7th house",
+        "lord1_combust": "Lord of the 1st combust",
+        "lord7_afflicted": "Lord of the 7th afflicted"
+      },
+      "timelineTag": {
+        "perfection": "Significators perfect",
+        "interposition": "Interposing contact",
+        "translation_join": "Translation of light joins",
+        "moon_aspect": "Moon aspect",
+        "moon_ingress": "Moon changes sign",
+        "station": "Station",
+        "ingress": "Sign ingress"
+      },
+      "reception": {
+        "domicile": "domicile",
+        "exaltation": "exaltation",
+        "triplicity": "triplicity",
+        "participating": "participating triplicity",
+        "term": "term",
+        "face": "face"
+      },
+      "partile": {
+        "conj": "partile conjunction",
+        "sextile": "partile sextile",
+        "square": "partile square",
+        "trine": "partile trine",
+        "opposition": "partile opposition"
+      }
+    }
+  }
+}
