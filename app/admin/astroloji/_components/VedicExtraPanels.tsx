@@ -521,10 +521,15 @@ function Limb({ title, name, sub, percent, testId }: { title: string; name: stri
 }
 export function VedicPanchangaPanel({ t, kbLookup }: { t: VedicPanchangaTechnical; kbLookup?: KbLookup | null }) {
   const { t: tx, graha, sign } = useExtraText();
+  const { locale } = useExtraText();
   const elementTr = (v: string) => {
-    const k = ELEMENT_KEY[v.trim().toLowerCase()];
+    const k = ELEMENT_KEY[v.trim().toLowerCase()] ?? ELEMENT_KEY_TR[v.trim().toLocaleLowerCase("tr-TR")];
     return k ? tx(`element.${k}`) : v;
   };
+  // ATLAS-B (I18N-F1-R5): sağlayıcının yerelleştirilmiş nakshatra devata / sembol metni teknik katmanda SAKLI kalır (değişmez).
+  // TR ekran saklı metni aynen gösterir (bayt-eşit); diğer dillerde nakshatra kimliğinden klasik devata / sembol (katalog).
+  const deityOf = (v: string) => (locale === "tr" ? v : tx(`nakshatraDeity.${t.nakshatra.id}`));
+  const symbolOf = (v: string) => (locale === "tr" ? v : tx(`nakshatraSymbol.${t.nakshatra.id}`));
   const kb = kbLookup ? kbLookup([`panchanga_tithi:${t.tithi.number}`, `panchanga_nitya_yoga:${t.nityaYoga.number}`, `panchanga_karana:${t.karana.id}`]) : null;
   return (
     <div className="flex min-w-0 flex-col gap-3" data-testid="astro-vedic-panchanga-panel">
@@ -554,7 +559,7 @@ export function VedicPanchangaPanel({ t, kbLookup }: { t: VedicPanchangaTechnica
           testId="astro-vedic-panchanga-nakshatra"
           title={tx("pa.nakshatra")}
           name={`${t.nakshatra.index + 1}. ${NAKSHATRA_LABELS[t.nakshatra.id]}`}
-          sub={[tx("limb.pada", { n: String(t.nakshatra.pada) }), tx("limb.lord", { v: graha(t.nakshatra.lord) }), t.nakshatra.deity ? tx("limb.deity", { v: t.nakshatra.deity }) : "", t.nakshatra.symbol ? tx("limb.symbol", { v: t.nakshatra.symbol }) : ""].filter(Boolean).join(" · ")}
+          sub={[tx("limb.pada", { n: String(t.nakshatra.pada) }), tx("limb.lord", { v: graha(t.nakshatra.lord) }), t.nakshatra.deity ? tx("limb.deity", { v: deityOf(t.nakshatra.deity) }) : "", t.nakshatra.symbol ? tx("limb.symbol", { v: symbolOf(t.nakshatra.symbol) }) : ""].filter(Boolean).join(" · ")}
           percent={null}
         />
         <Limb testId="astro-vedic-panchanga-yoga" title={tx("pa.nityaYoga")} name={`${t.nityaYoga.number}. ${NITYA_YOGA_LABELS[t.nityaYoga.number - 1]}`} sub={tx("pa.nityaSub")} percent={t.nityaYoga.percent} />
@@ -571,6 +576,12 @@ export function VedicPanchangaPanel({ t, kbLookup }: { t: VedicPanchangaTechnica
 
 /** Sağlayıcı element adı (küçük harf) → katalog anahtarı (atlas.vedicExtra.element.*; bilinmeyen değer aynen gösterilir). */
 const ELEMENT_KEY: Record<string, "fire" | "earth" | "air" | "water" | "ether"> = { fire: "fire", earth: "earth", air: "air", water: "water", ether: "ether", akasha: "ether", space: "ether" };
+/**
+ * ATLAS-B (I18N-F1-R5): sağlayıcının TR yanıtındaki element adı (gerçek kayıt: "Toprak") → aynı katalog anahtarı. TR ekranda
+ * katalog TR değeri sağlayıcı metniyle aynı (Ateş / Toprak / Hava / Su) → TR görünüm bayt-eşit; EN ekranda İngilizce.
+ * Akasha'nın TR yanıt biçimi doğrulanmadığı için eklenmedi (bilinmeyen değer aynen gösterilir).
+ */
+const ELEMENT_KEY_TR: Record<string, "fire" | "earth" | "air" | "water"> = { "ateş": "fire", toprak: "earth", hava: "air", su: "water" };
 const VARA_IDS = new Set(["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"]);
 const hm = (s: string | null) => (s ? s.slice(11, 16) : "—");
 const dmy = (s: string) => `${s.slice(8, 10)}.${s.slice(5, 7)}.${s.slice(0, 4)}`;

@@ -22,6 +22,7 @@ import { VedicAshtakavargaPanel, VedicDrishtiPanel, VedicPanchangaPanel, VedicSh
 import { PanchangaHoursView } from "@/app/admin/astroloji/_components/PanchangaHoursPanels";
 import { GOCHARA_SUMMARY_NOTE, GOCHARA_TERMS, gocharaSummary } from "@/lib/astrology/gocharaSummary";
 import { PANCHANGA_HOURS_NOTE } from "@/lib/astrology/model/panchangaHours";
+import { projectRoxyVedicPanchanga } from "@/lib/astrology/providers/roxy/vedic";
 
 const FIX = join(__dirname, "fixtures");
 const GOLDEN = join(FIX, "i18n", "vedic-extra-tr-taban.json");
@@ -68,8 +69,9 @@ addAll(GOCHARA_SUMMARY_NOTE);
 addAll(GOCHARA_TERMS);
 addAll(PANCHANGA_HOURS_NOTE);
 for (const c of cases) if (c.kind === "transit") addAll(gocharaSummary(c.t).map((x) => x.text));
-// Sağlayıcı verisi (ASTRO_PROVIDER_LANG="tr" yanıtı): nakshatra / tithi devata ve sembol adları — çevrilmez, aynen gösterilir.
-for (const c of cases) if (c.kind === "panchanga") addAll([c.t.nakshatra.symbol, c.t.nakshatra.deity, c.t.tithi.deity]);
+// Sağlayıcı verisi (ASTRO_PROVIDER_LANG="tr" yanıtı): tithi devata adı (Sanskrit özel ad) aynen gösterilir.
+// ATLAS-B (I18N-F1-R5): nakshatra devata / sembol artık EN'de nakshatra kimliğinden katalog → istisna listesinden ÇIKARILDI.
+for (const c of cases) if (c.kind === "panchanga") addAll([c.t.tithi.deity]);
 const libSorted = [...libTexts].sort((a, b) => b.length - a.length);
 const escHtml = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#x27;");
 let libHits = 0;
@@ -100,6 +102,29 @@ for (const c of cases) {
   assert.equal(degs(enHtml), degs(trHtml), `${c.name}: dereceler TR = EN`);
   assert.equal(dates(enHtml), dates(trHtml), `${c.name}: tarih/saat TR = EN`);
   assert.equal(data(enHtml), data(trHtml), `${c.name}: data-* öznitelikleri TR = EN`);
+}
+// ATLAS-B (I18N-F1-R5): GERÇEK TR panchanga yanıtı (ROXY 25.11) — saklı yerelleştirilmiş metinler (tithi.element, nakshatra
+// devata / sembol) TR ekranda aynen, EN ekranda kanonik eşlemeyle (element kodu; nakshatra kimliği → katalog). Saklı veri değişmez.
+{
+  const load = (l: string) => (JSON.parse(readFileSync(join(__dirname, "fixtures", "i18n", "roxy-tr-en-2026-11-25", `panchang-basic-p1-${l}.json`), "utf8")) as { response: unknown }).response;
+  const pt = projectRoxyVedicPanchanga(structuredClone(load("tr")) as never) as { ok: boolean; technical: { nakshatra: { deity: string; symbol: string }; tithi: { element: string } } };
+  assert.equal(pt.ok, true);
+  const before = JSON.stringify(pt.technical);
+  assert.deepEqual([pt.technical.nakshatra.deity, pt.technical.nakshatra.symbol, pt.technical.tithi.element], ["Soma (Ay tanrısı)", "Geyik Kafası", "Toprak"]);
+  const el = createElement(VedicPanchangaPanel, { t: pt.technical as never });
+  const tr = strip(renderToStaticMarkup(el, "tr"));
+  const en = strip(renderToStaticMarkup(el, "en"));
+  for (const x of ["devata: Soma (Ay tanrısı)", "sembol: Geyik Kafası", "element: Toprak"]) assert.ok(tr.includes(x), `TR saklı metin: ${x}`);
+  for (const x of ["devata: Soma (the Moon god)", "symbol: Deer's Head", "element: Earth"]) assert.ok(en.includes(x), `EN kanonik: ${x} — ${en.match(/(deity|symbol|element): [^·]*/g)}`);
+  assert.ok(!/Geyik|Toprak|tanrısı/.test(en), "EN'de saklı TR metin yok");
+  assert.equal(JSON.stringify(pt.technical), before, "saklı teknik veri değişmedi");
+  // Kanonik tablo: 27 nakshatra × devata/sembol iki dilde dolu; EN Türkçe harfsiz; Mrigashira EN = sağlayıcının gerçek EN metni.
+  const en2 = (JSON.parse(readFileSync(join(__dirname, "..", "..", "messages", "en", "atlas.vedicExtra.json"), "utf8")) as { atlas: { vedicExtra: Record<string, Record<string, string>> } }).atlas.vedicExtra;
+  const real = load("en") as { nakshatra: { deity: string; symbol: string } };
+  assert.equal(Object.keys(en2.nakshatraDeity).length, 27);
+  assert.equal(Object.keys(en2.nakshatraSymbol).length, 27);
+  assert.ok(Object.values({ ...en2.nakshatraDeity, ...en2.nakshatraSymbol }).every((v) => v && !TRC.test(v)));
+  assert.deepEqual([en2.nakshatraDeity.mrigashira, en2.nakshatraSymbol.mrigashira], [real.nakshatra.deity, real.nakshatra.symbol]);
 }
 restore();
 console.log(
