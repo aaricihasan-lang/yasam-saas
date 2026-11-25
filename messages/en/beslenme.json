@@ -868,12 +868,18 @@
       "bloodZero": "O",
       "bloodSub": "Blood Type",
       "mizacTitle": "Nutrition by Temperament",
-      "mizacSubtitle": "Nutrition profiles for the four traditional temperaments (Dem, Safra, Sovdavi, Balgam). Each profile is structured with sections, related foods and sources.",
+      "mizacSubtitle": "Nutrition profiles for the four traditional temperaments (Sanguine, Choleric, Melancholic, Phlegmatic). Each profile is structured with sections, related foods and sources.",
       "mizacQuality": {
         "dem": "Hot–Moist",
         "safra": "Hot–Dry",
         "sovdavi": "Cold–Dry",
         "balgam": "Cold–Moist"
+      },
+      "mizacName": {
+        "dem": "Sanguine",
+        "safra": "Choleric",
+        "sovdavi": "Melancholic",
+        "balgam": "Phlegmatic"
       }
     },
     "profiles": {
@@ -1043,7 +1049,7 @@
         },
         "mizac": {
           "title": "By Temperament",
-          "description": "Nutrition profiles for the four temperaments (Dem, Safra, Sovdavi, Balgam).",
+          "description": "Nutrition profiles for the four temperaments (Sanguine, Choleric, Melancholic, Phlegmatic).",
           "badge": "{count, plural, one {# profile} other {# profiles}}"
         },
         "kan": {
