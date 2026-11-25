@@ -15,6 +15,7 @@ import "./css-module-stub.cjs";
 import assert from "node:assert/strict";
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { createHash } from "node:crypto";
 import { createTranslator } from "next-intl";
 import { getCatalogMessages } from "@/lib/i18n/catalog";
 import { createElement } from "react";
@@ -23,6 +24,12 @@ import { getTechnique } from "@/lib/astrology/engine/techniques";
 import { DayDetail, ForecastPanel, eventText } from "@/app/admin/astroloji/_components/TransitPanels";
 import type { ForecastEvent, ForecastTechnical } from "@/lib/astrology/model/westernTiming";
 import { FORECAST_SCOPE_NOTE, SIGNIFICANCE_BAND_LABELS, SIGNIFICANCE_NOTE, groupEventsByDay } from "@/lib/astrology/transitDetail";
+import NatalTechnicalPanel, { NatalKeyPlacementCards } from "@/app/admin/astroloji/_components/NatalTechnicalPanel";
+import { projectRoxyNatal } from "@/lib/astrology/providers/roxy/natal";
+import type { NatalTechnical } from "@/lib/astrology/model/western";
+import { DIST_METHODS, DIST_METHOD_LABELS, DIST_METHOD_NOTES, PROVIDER_TIE_RULE_NOTE, distributive, dominantHeadline, tieSentence } from "@/lib/astrology/view/natalDistribution";
+import { MOON_UNKNOWN_ROW, MOON_UNKNOWN_TEXT, NOON_ASSUMPTION } from "@/lib/astrology/view/natalLabelLayout";
+import { KEY_ASC_UNKNOWN_NOTE, KEY_MOON_UNKNOWN_NOTE, KEY_SUN_ASSUMED_NOTE, natalKeyPlacements } from "@/lib/astrology/view/natalKeyPlacements";
 import { AVAILABLE_TECHNIQUES, COMING_SOON_AVAILABLE_AS, COMING_SOON_ITEM_CODES, COMING_SOON_SECTION_CODES, visibleComingSoonSections } from "@/app/admin/astroloji/_lib/comingSoon";
 
 const ROOT = join(__dirname, "..", "..");
@@ -107,6 +114,74 @@ t("panel kaynakta kullanıcı metni yok (yalnız katalog anahtarı); kanonik lis
   const body = soonSrc.slice(soonSrc.indexOf("export default function ComingSoonPanel"));
   assert.ok(!TR_LETTERS.test(body), "panel gövdesinde Türkçe metin");
   assert.ok(body.includes('useTranslations("atlas.soon")'));
+});
+
+// ─── [N] Natal teknik paneli ──────────────────────────────────────────────────────────────────────────────────────
+const GOLD_N = join(__dirname, "fixtures", "i18n", "natal-technical-panel-tr-taban.json");
+const natalCases = (JSON.parse(readFileSync(join(__dirname, "fixtures", "pro-natal-houses", "roxy-natal-technical-2026-10-31.json"), "utf8")).cases as { id: string; technical: NatalTechnical }[]).slice(0, 24);
+const natalGoldenRaw = JSON.parse(readFileSync(join(__dirname, "fixtures", "roxy-natal-golden-2026-10-07.json"), "utf8")) as { response?: unknown };
+const natalGoldenProj = projectRoxyNatal(structuredClone(natalGoldenRaw.response ?? natalGoldenRaw), { houseSystem: "placidus", nodeType: "true" } as never) as { ok: true; value: { technical: NatalTechnical } };
+const natalAll: { id: string; technical: NatalTechnical }[] = [{ id: "golden", technical: natalGoldenProj.value.technical }, ...natalCases];
+type NCase = { name: string; el: () => ReturnType<typeof createElement> };
+const natalRenderCases: NCase[] = natalAll.flatMap((c, i) => {
+  const parts = i < 3 ? (["all", "overview", "planets", "houses", "aspects"] as const) : (["all"] as const);
+  return [false, true].flatMap((tu) => [
+    ...parts.map((part) => ({ name: `${c.id}|${tu ? "saatsiz" : "saatli"}|${part}`, el: () => createElement(NatalTechnicalPanel, { technical: c.technical, timeUnknown: tu, part }) })),
+    { name: `${c.id}|${tu ? "saatsiz" : "saatli"}|kartlar`, el: () => createElement(NatalKeyPlacementCards, { technical: c.technical, timeUnknown: tu }) },
+  ]);
+});
+/** Taban dosyası küçük kalsın: SSR HTML'in (`<!-- -->` metin ayırıcıları çıkarılmış) sha256'sı saklanır. */
+const natalSha = (h: string) => createHash("sha256").update(h.replace(/<!-- -->/g, ""), "utf8").digest("hex");
+if (process.argv.includes("--write-golden-natal")) {
+  const cases: Record<string, string> = {};
+  for (const c of natalRenderCases) cases[c.name] = natalSha(renderToStaticMarkup(c.el(), "tr"));
+  writeFileSync(GOLD_N, JSON.stringify({ source: "atlas-a-r5-i18n --write-golden-natal — NatalTechnicalPanel / NatalKeyPlacementCards çeviri ÖNCESİ (work/i18n-mod-g-atlas aebf36146); değer = sha256(SSR HTML, ayırıcılar hariç)", cases }, null, 1) + "\n");
+  console.log(`natal taban yazıldı: ${Object.keys(cases).length} vaka`);
+  process.exit(0);
+}
+console.log("\n[N] Natal teknik paneli + özet kartları: TR birebir, lib cümleleri kilitli, EN Türkçe harfsiz");
+const goldN = (JSON.parse(readFileSync(GOLD_N, "utf8")) as { cases: Record<string, string> }).cases;
+t(`TR çizim çeviri öncesiyle aynı (${natalRenderCases.length} vaka: ${natalAll.length} harita × saatli/saatsiz × bölüm + kartlar)`, () => {
+  assert.equal(Object.keys(goldN).length, natalRenderCases.length);
+  const bad = natalRenderCases.filter((c) => natalSha(renderToStaticMarkup(c.el(), "tr")) !== goldN[c.name]).map((c) => c.name);
+  assert.deepEqual(bad, []);
+});
+t("Word/PDF ile paylaşılan lib cümleleri = TR katalog (yöntem adları/notları, eşitlik kuralı, Ay belirsizliği, 12:00, kart notları)", () => {
+  const n = translator("tr", "atlas.natalPanel");
+  for (const m of DIST_METHODS) {
+    assert.equal(n(`method.${m}`), DIST_METHOD_LABELS[m]);
+    assert.equal(n(`methodNote.${m}`), DIST_METHOD_NOTES[m]);
+  }
+  assert.equal(n("providerTieRule"), PROVIDER_TIE_RULE_NOTE);
+  assert.equal(n("moonUnknownText"), MOON_UNKNOWN_TEXT);
+  assert.equal(n("moonUnknownRow"), MOON_UNKNOWN_ROW);
+  assert.equal(n("noonAssumption"), NOON_ASSUMPTION);
+  assert.equal(n("keySunAssumedNote"), KEY_SUN_ASSUMED_NOTE);
+  assert.equal(n("keyMoonUnknownNote"), KEY_MOON_UNKNOWN_NOTE);
+  assert.equal(n("keyAscUnknownNote"), KEY_ASC_UNKNOWN_NOTE);
+  const kp = natalKeyPlacements(natalAll[0].technical, true);
+  assert.equal(n("keySunAssumedDetail"), kp.find((k) => k.key === "sun")!.detail);
+  assert.equal(n("keyAscUnknownDetail"), kp.find((k) => k.key === "asc")!.detail);
+  // Eşitlik / baskın başlık: lib tieSentence / dominantHeadline ile aynı kompozisyon (1–4 ad × 1–15 değer × iki birim).
+  const names = ["Ateş", "Toprak", "Hava", "Su"];
+  for (let k = 1; k <= 4; k += 1)
+    for (let v = 1; v <= 15; v += 1)
+      for (const unit of ["gezegen", "puan"] as const) {
+        const ns = names.slice(0, k);
+        const joined = ns.length <= 1 ? (ns[0] ?? "") : `${ns.slice(0, -1).join(", ")} ${n("and")} ${ns[ns.length - 1]}`;
+        assert.equal(n(unit === "gezegen" ? "tiePlanets" : "tiePoints", { names: joined, each: distributive(v), value: v }), tieSentence(ns, v, unit));
+        assert.equal(ns.length === 1 ? n("dominant", { name: ns[0] }) : n("tieHead", { names: ns.join(" · ") }), dominantHeadline(ns));
+      }
+});
+t("EN: metin + öznitelik Türkçe harfsiz; ham anahtar yok (tüm vakalar)", () => {
+  for (const c of natalRenderCases) {
+    const h = renderToStaticMarkup(c.el(), "en");
+    const vis = h.replace(/<!-- -->/g, "").replace(/<[^>]*>/g, " ");
+    assert.ok(!TR_LETTERS.test(vis), `${c.name}: ${vis.match(/\S*[çğıöşüÇĞİÖŞÜ]\S*/)?.[0]}`);
+    const attrs = [...h.matchAll(/(?:title|aria-label|placeholder|alt)="([^"]*)"/g)].map((m) => m[1]).join(" ");
+    assert.ok(!TR_LETTERS.test(attrs), `${c.name} öznitelik: ${attrs.match(/\S*[çğıöşüÇĞİÖŞÜ]\S*/)?.[0]}`);
+    assert.ok(!/atlas\.natalPanel\.|terms\./.test(h), `${c.name}: ham anahtar`);
+  }
 });
 
 // ─── [F] Transit Takvimi ──────────────────────────────────────────────────────────────────────────────────────────
