@@ -15,6 +15,7 @@ import { useMemo } from "react";
 import { useTranslations } from "next-intl";
 import { KupaShell } from "../components/KupaShell";
 import { CrudManager, type FieldDef } from "../components/CrudManager";
+import { useCuppingVocab } from "@/app/kupa/lib/useCuppingVocab";
 import { CuppingProtocolUsage } from "../components/ProtocolUsage";
 import { createSafety, deleteSafety, listSafety, updateSafety, type CuppingSafetyNote } from "../lib/api";
 
@@ -59,6 +60,7 @@ const buildFields = (t: Tr): FieldDef[] => [
 
 export default function GuvenlikPage() {
   const t = useTranslations("cupping.library.safety");
+  const vocab = useCuppingVocab();
   const fields = useMemo(() => buildFields(t), [t]);
   const severityOptions = useMemo(() => buildSeverityOptions(t), [t]);
   const contraOptions = useMemo(() => buildContraindicationOptions(t), [t]);
@@ -71,6 +73,8 @@ export default function GuvenlikPage() {
       <CrudManager<CuppingSafetyNote>
         titleKey="title"
         subtitleKey="severity"
+        // I18N-0126: alt satırda ham kod ("warning") yerine sözlük etiketi; kayıt değeri değişmez.
+        subtitleFormat={(v) => vocab.severity(typeof v === "string" ? v : null)}
         fields={fields}
         load={listSafety}
         create={createSafety}
