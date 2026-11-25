@@ -161,6 +161,7 @@ function MembershipOptionsPanel({
   onManagerMessage: () => void;
   onBack: () => void;
 }) {
+  const tM = useTranslations("home.membershipContact");
   const whatsappUrl = buildWhatsAppUrl();
 
   return (
@@ -176,11 +177,10 @@ function MembershipOptionsPanel({
         </span>
         <span className="min-w-0">
           <span className="block text-[15px] font-black text-slate-900">
-            Yöneticiye Mesaj Gönder
+            {tM("managerTitle")}
           </span>
           <span className="mt-0.5 block text-[13px] leading-5 text-slate-600">
-            Üyelik ve fiyatlandırma hakkında sorunuzu bize iletin. Size en kısa
-            sürede geri dönüş yapalım.
+            {tM("managerDesc")}
           </span>
         </span>
       </button>
@@ -198,11 +198,10 @@ function MembershipOptionsPanel({
           </span>
           <span className="min-w-0">
             <span className="block text-[15px] font-black text-emerald-900">
-              WhatsApp&apos;tan Görüş
+              {tM("whatsappTitle")}
             </span>
             <span className="mt-0.5 block text-[13px] leading-5 text-emerald-700/90">
-              Üyelik ve fiyatlandırma hakkında hızlıca WhatsApp üzerinden bilgi
-              alabilirsiniz.
+              {tM("whatsappDesc")}
             </span>
           </span>
         </a>
@@ -218,14 +217,13 @@ function MembershipOptionsPanel({
         </span>
         <span className="min-w-0">
           <span className="block text-[15px] font-black text-slate-900">
-            Müşteri Hizmetleri
+            {tM("phoneTitle")}
           </span>
           <span className="mt-0.5 block text-lg font-black tracking-tight text-violet-800">
             {CUSTOMER_SERVICE_DISPLAY}
           </span>
           <span className="mt-0.5 block text-[13px] leading-5 text-slate-600">
-            Dilerseniz müşteri hizmetlerimizi arayarak üyelik ve fiyatlandırma
-            hakkında doğrudan bilgi alabilirsiniz.
+            {tM("phoneDesc")}
           </span>
         </span>
       </a>
@@ -233,7 +231,7 @@ function MembershipOptionsPanel({
       {/* E-posta — 4. büyük CTA değil; sakin iletişim satırı */}
       <div className="flex flex-wrap items-center justify-center gap-x-1.5 gap-y-0.5 rounded-xl bg-slate-50 px-4 py-3 text-center text-[13px] text-slate-500">
         <Mail className="h-3.5 w-3.5 text-slate-400" strokeWidth={2.25} />
-        <span>E-posta ile ulaşmak isterseniz bize doğrudan yazabilirsiniz.</span>
+        <span>{tM("emailLine")}</span>
         <a
           href={buildMailtoHref()}
           className="font-semibold text-violet-700 no-underline hover:text-violet-900 hover:underline focus-visible:underline focus-visible:outline-none"
@@ -249,7 +247,7 @@ function MembershipOptionsPanel({
         className="inline-flex w-full items-center justify-center gap-2 rounded-lg px-4 py-2 text-[13px] font-semibold text-slate-600 transition hover:text-violet-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2"
       >
         <ArrowLeft className="h-4 w-4" strokeWidth={2.5} />
-        Giriş ekranına dön
+        {tM("backToLogin")}
       </button>
     </div>
   );
@@ -509,6 +507,7 @@ const DesignStudio = dynamic(() => import("@/app/_premium/home/personal/studio/D
 
 export default function Home() {
   const t = useTranslations("home");
+  const tMembership = useTranslations("home.membershipContact");
   // TRIAL7: kayıt modu (onaysız 7 günlük deneme açık mı) sunucudan; bilinmiyorken onaylı akış metni.
   const signupConfig = useSignupConfig();
   const locale = useLocale() as ActiveLocale;
@@ -1647,7 +1646,7 @@ export default function Home() {
                     </>
                   )}
                   <p className="mt-4 max-w-md text-sm font-semibold text-rose-600">
-                    Üyelik ve fiyatlandırma hakkında iletişime geçebilirsiniz.
+                    {tMembership("inactiveContact")}
                   </p>
                   <div className="mt-3 w-full max-w-xs">
                     {/* Aynı 3 seçenekli iletişim panelini reuse eder (paralel
@@ -1661,7 +1660,7 @@ export default function Home() {
                       }}
                       className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-indigo-700 via-violet-700 to-fuchsia-600 px-4 py-3 text-sm font-bold text-white shadow-[0_6px_18px_rgba(109,40,217,0.28)] transition hover:-translate-y-0.5 hover:shadow-[0_8px_22px_rgba(109,40,217,0.36)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2"
                     >
-                      Üyelik ve Fiyat Bilgisi Al
+                      {tMembership("getInfoCta")}
                     </button>
                   </div>
                 </div>
@@ -2776,10 +2775,10 @@ export default function Home() {
               <div>
                 <div className="inline-flex rounded-full bg-violet-100 px-3 py-1 text-xs font-black text-violet-700">
                   {authModalView === "support"
-                    ? "Şifre Desteği"
+                    ? tMembership("supportBadge")
                     : authModalView === "membership" ||
                         authModalView === "membershipOptions"
-                      ? "Üyelik İletişimi"
+                      ? tMembership("membershipBadge")
                       : t("login.badge")}
                 </div>
 
@@ -2788,20 +2787,20 @@ export default function Home() {
                   className="mt-3 text-2xl font-black text-slate-950 sm:text-3xl"
                 >
                   {authModalView === "support"
-                    ? "Giriş Sorunu Bildir"
+                    ? tMembership("supportTitle")
                     : authModalView === "membership" ||
                         authModalView === "membershipOptions"
-                      ? "Üyelik ve Fiyat Bilgisi"
+                      ? tMembership("membershipTitle")
                       : t("login.title")}
                 </h3>
 
                 <p className="mt-1.5 text-sm leading-6 text-slate-500">
                   {authModalView === "support"
-                    ? "Giriş yapamıyorsanız yöneticimize doğrudan mesaj bırakın; en kısa sürede size dönüş yapılır."
+                    ? tMembership("supportSubtitle")
                     : authModalView === "membershipOptions"
-                      ? "Size en uygun iletişim yöntemini seçin; en kısa sürede dönüş yapalım."
+                      ? tMembership("optionsSubtitle")
                       : authModalView === "membership"
-                        ? "Üyelik seçenekleri ve fiyatlandırma hakkında yöneticimize mesaj bırakabilirsiniz."
+                        ? tMembership("membershipSubtitle")
                         : t("login.subtitle")}
                 </p>
               </div>
@@ -2953,7 +2952,7 @@ export default function Home() {
 
             <div className="relative z-10 mt-6 border-t border-slate-200/70 pt-5">
               <p className="text-center text-[15px] font-semibold text-slate-700">
-                Henüz Yaşam Sistemi üyesi değil misiniz?
+                {tMembership("notMemberYet")}
               </p>
               <div className="mt-3">
                 <button
@@ -2964,7 +2963,7 @@ export default function Home() {
                   }}
                   className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-indigo-700 via-violet-700 to-fuchsia-600 px-4 py-3 text-sm font-bold text-white shadow-[0_6px_18px_rgba(109,40,217,0.28)] transition hover:-translate-y-0.5 hover:shadow-[0_8px_22px_rgba(109,40,217,0.36)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2"
                 >
-                  Üyelik ve Fiyat Bilgisi Al
+                  {tMembership("getInfoCta")}
                 </button>
               </div>
               <div className="mt-4 text-center">
@@ -2973,7 +2972,7 @@ export default function Home() {
                   onClick={closeLoginModal}
                   className="inline-flex items-center justify-center rounded-lg px-3 py-1.5 text-sm font-semibold text-slate-600 no-underline transition hover:text-violet-800 hover:underline focus-visible:text-violet-800 focus-visible:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2"
                 >
-                  Üyelik sürecimi tamamla
+                  {tMembership("completeMembership")}
                 </Link>
               </div>
             </div>
