@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { ShieldX } from "lucide-react";
 
@@ -10,6 +11,7 @@ type ModuleAccessDeniedProps = {
 export default function ModuleAccessDenied({
   reason = "permission",
 }: ModuleAccessDeniedProps) {
+  const t = useTranslations("auth.ui.moduleAccess");
   const isMembership = reason === "membership";
   // WT4: oturum yok (süresi doldu / başka yerde çıkış) — yetki reddi DEĞİL. Hedef doğrudan giriş.
   const isSession = reason === "session";
@@ -24,7 +26,7 @@ export default function ModuleAccessDenied({
         </div>
 
         <p className="mt-6 text-xs font-black uppercase tracking-[0.32em] text-violet-700">
-          Erişim kısıtlı
+          {t("eyebrow")}
         </p>
         <h1 className="mt-3 text-3xl font-black text-slate-950 sm:text-4xl">
           {isSession ? "Oturumunuz Sona Erdi" : isMembership ? "Üyeliğiniz Aktif Değil" : "Yetkiniz Bulunmuyor"}
@@ -32,21 +34,21 @@ export default function ModuleAccessDenied({
         <p className="mt-4 text-base font-medium leading-relaxed text-slate-600 md:text-lg">
           {isSession ? (
             <>
-              Güvenliğiniz için bu cihazdaki oturum kapandı.
+              {t("session.line1")}
               <br />
-              Kaldığınız yerden devam etmek için yeniden giriş yapın.
+              {t("session.line2")}
             </>
           ) : isMembership ? (
             <>
-              Üyeliğiniz henüz onaylanmadı veya yönetici tarafından pasife alındı.
+              {t("membership.line1")}
               <br />
-              Modüllere erişim için yöneticiniz ile görüşün.
+              {t("membership.line2")}
             </>
           ) : (
             <>
-              Bu modül hesabınızda aktif değil.
+              {t("permission.line1")}
               <br />
-              Lütfen yöneticiniz ile görüşün.
+              {t("permission.line2")}
             </>
           )}
         </p>
@@ -55,7 +57,7 @@ export default function ModuleAccessDenied({
           href={isSession ? "/?login=1" : "/"}
           className="mt-8 inline-flex min-h-[56px] items-center justify-center rounded-2xl border-2 border-violet-300/80 bg-gradient-to-r from-violet-50 to-indigo-50 px-8 text-base font-black text-violet-950 shadow-md transition-all duration-300 hover:-translate-y-0.5 hover:border-violet-400 hover:from-violet-100 hover:to-indigo-100 hover:shadow-lg no-underline"
         >
-          {isSession ? "Giriş Yap" : "Ana Panele Dön"}
+          {isSession ? t("signIn") : t("backHome")}
         </Link>
       </div>
     </main>

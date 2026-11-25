@@ -13,7 +13,7 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
-import { DEFAULT_LOCALE } from "@/lib/i18n/locales";
+import { DEFAULT_LOCALE, type ActiveLocale } from "@/lib/i18n/locales";
 import { YH_MODULE_LABELS } from "@/lib/yasam-hafizasi/ui/moduleLabels";
 import { CLIENT_MODULE_LABELS } from "@/lib/yasam-hafizasi/client/clientSources";
 import { Search, X, Check, Trash2, AlertTriangle } from "lucide-react";
@@ -91,7 +91,8 @@ function selKey(scope: Scope, id: string): string {
 
 export default function MemoryPicker({ open, onClose, targetKind, targetRef, fixedClient, onConfirmed }: MemoryPickerProps) {
   const t = useTranslations("memoryPicker");
-  const isSourceLocale = useLocale() === DEFAULT_LOCALE;
+  const displayLocale = useLocale() as ActiveLocale;
+  const isSourceLocale = displayLocale === DEFAULT_LOCALE;
   const moduleName = (label: string) => {
     const key = MODULE_KEY_BY_LABEL[label];
     return isSourceLocale || !key || !t.has(`modules.${key}`) ? label : t(`modules.${key}`);
@@ -398,7 +399,7 @@ export default function MemoryPicker({ open, onClose, targetKind, targetRef, fix
                             <div className="mb-1 flex flex-wrap items-center gap-2">
                               <span className="rounded-full bg-violet-50 px-2 py-0.5 text-[11px] font-black uppercase text-violet-700">{moduleName(r.moduleLabel)}</span>
                               {r.scope === "professional" && r.isShared ? <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-700">{t("sharedBadge")}</span> : null}
-                              {r.date ? <span className="text-[11px] text-slate-400">{formatDateAbsolute(r.date)}</span> : null}
+                              {r.date ? <span className="text-[11px] text-slate-400">{formatDateAbsolute(r.date, displayLocale)}</span> : null}
                             </div>
                             <h4 className="line-clamp-1 text-sm font-bold text-slate-900">{r.title ?? t("recordFallbackTitle")}</h4>
                             {r.snippet ? <p className="line-clamp-1 text-sm text-slate-600">{r.snippet}</p> : null}
@@ -454,7 +455,7 @@ export default function MemoryPicker({ open, onClose, targetKind, targetRef, fix
               </div>
               <div className="space-y-3 px-4 py-4">
                 <h3 className="text-xl font-black text-slate-900">{detail.title ?? t("recordFallbackTitle")}</h3>
-                {detail.date ? <p className="text-sm text-slate-500">{t("detail.dateLabel")} {formatDateAbsolute(detail.date)}</p> : null}
+                {detail.date ? <p className="text-sm text-slate-500">{t("detail.dateLabel")} {formatDateAbsolute(detail.date, displayLocale)}</p> : null}
                 {detail.snippet ? <p className="text-sm text-slate-700">{detail.snippet}</p> : null}
                 {detail.evidence.length > 0 ? (
                   <ul className="space-y-1.5">
