@@ -55,7 +55,7 @@ const strip = (h: string) => h.replace(/<[^>]+>/g, " ").replace(/&#x27;/g, "'").
 const degs = (h: string) => (strip(h).match(/\d+°\d{2}′/g) ?? []).join(" ");
 // Çevrilen paneller (bu commit dizisinin kapsamı): progresyon + Solar Arc. Return / Sinastri / Composite yalnız ortak yardımcıları paylaşır.
 const translated = (c: { technique: string }) => c.technique === "western.progression" || c.technique === "western.solar_arc";
-const translatedNow = (process.env.ATLAS_TIMING_SCOPE ?? "progression").split(",");
+const translatedNow = (process.env.ATLAS_TIMING_SCOPE ?? "progression,solar_arc").split(",");
 
 let tr = 0;
 let en = 0;

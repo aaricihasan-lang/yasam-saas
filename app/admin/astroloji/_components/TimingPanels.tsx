@@ -34,8 +34,6 @@ import {
 } from "@/lib/astrology/labels/tr";
 import NatalWheel, { type WheelChart } from "./NatalWheel";
 import {
-  SOLAR_ARC_ASPECT_RULE,
-  SOLAR_ARC_METHOD_NOTE,
   progressedToNatalAspects,
   solarArcAspectsWithMotion,
   type AspectMotion,
@@ -507,23 +505,26 @@ export function ProgressionPanel({ t, timeUnknownMasked = false }: { t: Progress
 // AŞAMA 2.2 (2026-10-21): yöntem + Solar Arc konum tablosu + Solar Arc → natal açılar (kayıtlı adaptör aritmetiği aynen;
 // yaklaşan/ayrılan eklendi). Natal çerçeve yalnız çift halka için.
 export function SolarArcPanel({ t }: { t: SolarArcTechnical; /** Arayüz uyumu (ProgressionPanel ile aynı imza). */ timeUnknownMasked?: boolean }) {
+  const ts = useTranslations("atlas.timing.solarArc");
+  const tc = useTranslations("atlas.timing");
+  const hsLabel = useHouseSystemLabel();
   const aspects: DirectionRow[] = solarArcAspectsWithMotion(t).map((a) => ({ moving: a.directed, natal: a.natal, type: a.type, orb: a.orb, motion: a.motion, nature: a.nature }));
   const f = t.natalFrame ?? null;
   return (
     <div className="flex flex-col gap-3" data-testid="astro-solar-arc-panel">
       <p className="text-sm text-slate-600" data-testid="astro-solar-arc-period">
-        Hesap tarihi <strong>{fmtDay(t.targetDate)}</strong> · Solar Arc yayı <strong>{formatDegree(t.arc)}</strong> ({t.arc.toFixed(3)}°)
+        {ts.rich("period", { date: fmtDay(t.targetDate), arc: formatDegree(t.arc), arcDec: t.arc.toFixed(3), strong: (c) => <strong>{c}</strong> })}
       </p>
-      <MethodBox testId="astro-solar-arc-method">{SOLAR_ARC_METHOD_NOTE}</MethodBox>
-      <Section title="Solar Arc konumları">
+      <MethodBox testId="astro-solar-arc-method">{ts("methodNote")}</MethodBox>
+      <Section title={ts("positionsTitle")}>
         <table className="min-w-full" data-testid="astro-solar-arc-positions">
           <thead>
             <tr>
               {/* Y4 (15.11.2026): asıl değer (Solar Arc) noktanın hemen yanında; natal başlangıç son sütunda — 390 px'te Solar Arc
                   sütunu yatay kaydırma olmadan görünür. Word/PDF sütun sırası değişmez. */}
-              <th className={th}>Nokta</th>
-              <th className={th}>Solar Arc</th>
-              <th className={th}>Natal</th>
+              <th className={th}>{tc("pointCol")}</th>
+              <th className={th}>{ts("col")}</th>
+              <th className={th}>{tc("natalCol")}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
@@ -541,15 +542,15 @@ export function SolarArcPanel({ t }: { t: SolarArcTechnical; /** Arayüz uyumu (
           </tbody>
         </table>
       </Section>
-      <Section title={`Solar Arc → natal açılar (${aspects.length})`}>
+      <Section title={ts("aspectsTitle", { n: aspects.length })}>
         <p className="px-3 pt-2 text-xs text-slate-500" data-testid="astro-solar-arc-orb-rule">
-          {SOLAR_ARC_ASPECT_RULE}
+          {ts("aspectRule")}
         </p>
-        <DirectionAspectTable rows={aspects} movingPrefix="Solar Arc" testId="astro-solar-arc-aspects" />
+        <DirectionAspectTable rows={aspects} movingPrefix={ts("col")} testId="astro-solar-arc-aspects" />
       </Section>
       {f ? (
         <p className="text-[11px] text-slate-500" data-testid="astro-solar-arc-natal-source">
-          Çift halkanın iç halkası: aynı doğum bilgisinin kayıtlı Natal analizi ({HOUSE_SYSTEM_LABELS[f.houseSystem]} evler) — yeni hesap yapılmadı.
+          {ts("natalSource", { hs: hsLabel(f.houseSystem) })}
         </p>
       ) : null}
     </div>
