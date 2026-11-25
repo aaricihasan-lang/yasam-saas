@@ -174,6 +174,15 @@ section("7b. gönderim zaman aşımı kodu + ortak okuyucu metinleri");
   ok(key !== null && tcTr(key) === te.message, "TR katalog zaman aşımı metni = SubmitTimeoutError.message (birebir)", key && tcTr(key));
   ok(key !== null && !/[çğıöşüİ]/.test(tcEn(key)) && tcEn(key) !== te.message, "EN zaman aşımı metni Türkçe değil");
   ok(submitErrorMessageKey(new Error("İşlem zaman aşımına uğradı. Lütfen tekrar deneyin.")) === null, "kontrol akışı metne değil türe bağlı");
+  const trR = createTranslator({ locale: "tr", messages: getCatalogMessages("tr") as any, namespace: "common.reader" as never }) as any;
+  const enR = createTranslator({ locale: "en", messages: getCatalogMessages("en") as any, namespace: "common.reader" as never }) as any;
+  const trExpected: Record<string, string> = {
+    close: "Kapat", fontSizeGroup: "Yazı boyutu", fontSize: "Yazı Boyutu", decreaseAria: "Yazıyı küçült", decreaseTitle: "Küçült (A-)",
+    increaseAria: "Yazıyı büyüt", increaseTitle: "Büyüt (A+)",
+  };
+  ok(Object.entries(trExpected).every(([k, v]) => trR(k) === v), "TR okuyucu metinleri bugünkü sabitlerle birebir");
+  ok(trR("resetAria", { px: 17 }) === "Varsayılan yazı boyutu (17px)" && trR("resetTitle", { px: 17 }) === "Varsayılan (17px)", "TR varsayılan boyut metinleri birebir");
+  ok([...Object.keys(trExpected).map((k) => enR(k)), enR("resetAria", { px: 17 }), enR("resetTitle", { px: 17 })].every((v: string) => v && !/[çğıöşüİ]/.test(v)), "EN okuyucu metinleri Türkçe içermez");
 }
 
 // ── 8. Terminoloji + kanonik kimlik ──────────────────────────────────────────
