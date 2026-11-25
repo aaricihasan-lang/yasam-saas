@@ -6,7 +6,8 @@
  * (yalnız renge dayanmaz).
  */
 
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import { dmyOf } from "../_lib/atlasDate";
 import { CHOGHADIYA_LABELS, PANCHANGA_HOURS_NOTE, type ChoghadiyaSlot, type HoraSlot, type PanchangaHours } from "@/lib/astrology/model/panchangaHours";
 import type { VedicGrahaId } from "@/lib/astrology/model/vedic";
 
@@ -14,7 +15,7 @@ const th = "px-2 py-1.5 text-left text-[11px] font-semibold uppercase tracking-w
 const td = "px-2 py-1 text-sm text-slate-800";
 const card = "min-w-0 rounded-xl border border-slate-200 bg-white";
 const hm = (s: string) => s.slice(11, 16);
-const dmy = (s: string) => `${s.slice(8, 10)}.${s.slice(5, 7)}.${s.slice(0, 4)}`;
+const dmy = (s: string, loc = "tr") => dmyOf(s, loc);
 const span = (x: { start: string; end: string }) => `${hm(x.start)} – ${x.end.slice(0, 10) === x.start.slice(0, 10) ? hm(x.end) : `${hm(x.end)} (+1)`}`;
 /** I18N ATLAS-V: metinler atlas.vedicExtra.hours.*; graha adları ortak terim kataloğundan (TR = GRAHA_LABELS birebir). */
 function useHoursText() {
@@ -86,13 +87,14 @@ function ChoghadiyaTable({ title, rows, testId }: { title: string; rows: Choghad
 
 export function PanchangaHoursView({ h }: { h: PanchangaHours }) {
   const { t, graha } = useHoursText();
+  const loc = useLocale();
   const pl = h.hora?.place ?? h.choghadiya?.place ?? null;
   const dayLord = h.hora?.dayLord ?? h.choghadiya?.dayLord ?? null;
   return (
     <section className={`${card} p-3`} aria-label={t("sectionLabel")} data-testid="astro-vedic-panchanga-hours">
       <h4 className="text-sm font-semibold text-slate-900">
         {t("titleSep")}
-        {dmy(h.date)}
+        {dmy(h.date, loc)}
       </h4>
       <p className="text-xs text-slate-600">
         {pl ? t("placeLine", { label: pl.label ? `${pl.label} · ` : "", lat: pl.latitude.toFixed(4), lon: pl.longitude.toFixed(4), off: offLabel(pl.utcOffsetHours) }) : ""}

@@ -12,6 +12,7 @@
 
 import { createElement, useEffect, useMemo, useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
+import { dmyOf } from "../_lib/atlasDate";
 import { NAKSHATRAS as NAKSHATRA_IDS, NAKSHATRA_LORDS, VEDIC_YOGA_FAMILY_LABELS, type NakshatraPlacement, type VedicD1Technical, type VedicDashaTechnical, type VedicGraha, type VedicGrahaId, type VedicVargaTechnical } from "@/lib/astrology/model/vedic";
 import { SIGN_IDS } from "@/lib/astrology/model/western";
 import { SIGN_GLYPHS, formatDegree } from "@/lib/astrology/labels/tr";
@@ -731,8 +732,9 @@ export function dashaTopicKey(t: Pick<VedicDashaTechnical, "path"> & { level?: V
   const { mahadasha: md, antardasha: ad } = t.path;
   return md && ad ? `dasha_pratyantardasha:${md}:${ad}:${lord}` : md ? `dasha_antardasha:${md}:${lord}` : `dasha_mahadasha:${lord}`;
 }
-const fmtLocal = (s: string) => `${s.slice(8, 10)}.${s.slice(5, 7)}.${s.slice(0, 4)}`;
-const fmtLocalTime = (s: string) => `${fmtLocal(s)} ${s.slice(11, 16)}`;
+/** ATLAS-B: gün/ay/yıl ayracı ekran diline (tr "." aynen · en "/"). */
+const fmtLocal = (s: string, loc = "tr") => dmyOf(s, loc);
+const fmtLocalTime = (s: string, loc = "tr") => `${fmtLocal(s, loc)} ${s.slice(11, 16)}`;
 /** Süre birimi yazıcısı (katalog: atlas.vedic.unit.*; TR "{n} y" / "{n} ay" / "{n} g" / "{n} sa" / "{n} dk"). */
 type UnitFmt = (unit: "y" | "mo" | "d" | "h" | "min", n: number) => string;
 function fmtYears(y: number, u: UnitFmt): string {
@@ -777,6 +779,7 @@ export function todayShift(pct: number): string {
 
 function DashaTimeline({ t, current, sel, onSel, now }: { t: VedicDashaTechnical; current: number; sel: number; onSel: (i: number) => void; now: number }) {
   const { t: tx, graha } = useVedicText();
+  const loc = useLocale();
   const total = t.periods.reduce((a, p) => a + p.durationYears, 0) || 1;
   const startMs = dashaUtcMs(t.periods[0].start, t.utcOffsetHours);
   const endMs = dashaUtcMs(t.periods[t.periods.length - 1].end, t.utcOffsetHours);
@@ -802,7 +805,7 @@ function DashaTimeline({ t, current, sel, onSel, now }: { t: VedicDashaTechnical
               key={`${p.lord}-${p.start}`}
               type="button"
               onClick={() => onSel(i)}
-              title={`${graha(p.lord)} · ${fmtLocal(p.start)} → ${fmtLocal(p.end)}`}
+              title={`${graha(p.lord)} · ${fmtLocal(p.start, loc)} → ${fmtLocal(p.end, loc)}`}
               className={`${LORD_TONE[p.lord]} min-w-0 border-r border-white/70 text-[10px] font-semibold text-slate-800 last:border-r-0 ${sel === i ? "ring-2 ring-inset ring-amber-600" : ""} ${current === i ? "brightness-95" : "opacity-90"}`}
               style={{ width: `${(p.durationYears / total) * 100}%` }}
               aria-label={tx("dasha.periodAria", { graha: graha(p.lord) })}
@@ -814,8 +817,8 @@ function DashaTimeline({ t, current, sel, onSel, now }: { t: VedicDashaTechnical
         {nowPct !== null && <div className="pointer-events-none absolute -top-0.5 bottom-0 w-0.5 bg-rose-600" style={{ left: `${nowPct}%` }} aria-hidden />}
       </div>
       <div className="mt-1 flex justify-between text-[10px] text-slate-500">
-        <span>{fmtLocal(t.periods[0].start)}</span>
-        <span>{fmtLocal(t.periods[t.periods.length - 1].end)}</span>
+        <span>{fmtLocal(t.periods[0].start, loc)}</span>
+        <span>{fmtLocal(t.periods[t.periods.length - 1].end, loc)}</span>
       </div>
     </div>
   );
@@ -859,6 +862,7 @@ function DashaLevelView({
   depth: number;
 }) {
   const { t: tx, graha, u, level } = useDashaText();
+  const loc = useLocale();
   // KP düğüm yöntemi adı KP kataloğundan (TR değeri lib KP_NODE_SIG_METHODS ile birebir; atlas-kp-i18n kilidi).
   const tk = useTranslations("atlas.kp");
   const [now] = useState(() => Date.now());
@@ -894,7 +898,7 @@ function DashaLevelView({
             {t.path.antardasha ? ` / ${graha(t.path.antardasha)}` : ""}
             {t.path.pratyantardasha ? ` / ${graha(t.path.pratyantardasha)}` : ""}
             {t.path.sookshma ? ` / ${graha(t.path.sookshma)}` : ""}
-            {t.parent ? ` · ${short ? fmtLocalTime(t.parent.start) : fmtLocal(t.parent.start)} → ${short ? fmtLocalTime(t.parent.end) : fmtLocal(t.parent.end)}` : ""}
+            {t.parent ? ` · ${short ? fmtLocalTime(t.parent.start, loc) : fmtLocal(t.parent.start, loc)} → ${short ? fmtLocalTime(t.parent.end, loc) : fmtLocal(t.parent.end, loc)}` : ""}
           </span>
           {onOpenLevel && (
             <button
@@ -930,8 +934,8 @@ function DashaLevelView({
                     {graha(x.lord)}
                     {current === i && <span className="ml-1 rounded bg-rose-600 px-1 text-[10px] text-white">{tx("dasha.now")}</span>}
                   </td>
-                  <td className={`${td} whitespace-nowrap`}>{short ? fmtLocalTime(x.start) : fmtLocal(x.start)}</td>
-                  <td className={`${td} whitespace-nowrap`}>{short ? fmtLocalTime(x.end) : fmtLocal(x.end)}</td>
+                  <td className={`${td} whitespace-nowrap`}>{short ? fmtLocalTime(x.start, loc) : fmtLocal(x.start, loc)}</td>
+                  <td className={`${td} whitespace-nowrap`}>{short ? fmtLocalTime(x.end, loc) : fmtLocal(x.end, loc)}</td>
                   <td className={`${td} whitespace-nowrap text-xs`}>
                     {short ? fmtDur(x.durationYears, u) : fmtYears(x.durationYears, u)}
                     {x.nominalStart ? tx("dasha.cutByBirth") : ""}
@@ -970,9 +974,9 @@ function DashaLevelView({
           </h4>
           <dl className="mt-1 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
             <dt className="text-slate-500">{tx("dasha.start")}</dt>
-            <dd>{fmtLocalTime(p.start)}</dd>
+            <dd>{fmtLocalTime(p.start, loc)}</dd>
             <dt className="text-slate-500">{tx("dasha.end")}</dt>
-            <dd>{fmtLocalTime(p.end)}</dd>
+            <dd>{fmtLocalTime(p.end, loc)}</dd>
             <dt className="text-slate-500">{tx("dasha.duration")}</dt>
             <dd>
               {short ? fmtDur(p.durationYears, u) : fmtYears(p.durationYears, u)} ({short ? tx("dasha.daysExact", { n: (p.durationYears * 365.25).toFixed(3) }) : tx("dasha.yearsExact", { n: p.durationYears.toFixed(4) })})
@@ -981,7 +985,7 @@ function DashaLevelView({
               <>
                 <dt className="text-slate-500">{tx("dasha.nominalStart")}</dt>
                 <dd>
-                  {fmtLocalTime(p.nominalStart)}
+                  {fmtLocalTime(p.nominalStart, loc)}
                   {tx("dasha.nominalNote")}
                 </dd>
               </>
@@ -1083,6 +1087,7 @@ export function VedicDashaPanel({
 /** 2026-10-21: "Güncel dönem zinciri" — seçilen anda çalışan Maha → Prana (kayıtta ve raporda da aynı tablo). */
 function DashaChainTable({ c }: { c: NonNullable<VedicDashaTechnical["current"]> }) {
   const { t: tx, graha, u, level, ayan } = useDashaText();
+  const loc = useLocale();
   const kp = c.chain.some((x) => !!x.kp);
   const off = c.at.utcOffsetHours;
   const offLabel = `UTC${off >= 0 ? "+" : "−"}${String(Math.floor(Math.abs(off))).padStart(2, "0")}:${String(Math.round((Math.abs(off) % 1) * 60)).padStart(2, "0")}`;
@@ -1091,9 +1096,9 @@ function DashaChainTable({ c }: { c: NonNullable<VedicDashaTechnical["current"]>
       <h4 className="font-semibold text-indigo-900">{tx("chain.title")}</h4>
       <p className="text-xs text-slate-600">
         {tx("chain.atA")}
-        {fmtLocalTime(c.at.utc)}
+        {fmtLocalTime(c.at.utc, loc)}
         {tx("chain.atB")}
-        {fmtLocalTime(c.at.local)} ({offLabel}
+        {fmtLocalTime(c.at.local, loc)} ({offLabel}
         {tx("chain.atC")}
         {ayan(c.frame.ayanamsa)}
       </p>
@@ -1120,8 +1125,8 @@ function DashaChainTable({ c }: { c: NonNullable<VedicDashaTechnical["current"]>
                   <span className={`mr-1.5 inline-block h-2.5 w-2.5 rounded-full ${LORD_TONE[x.lord]}`} aria-hidden />
                   {graha(x.lord)}
                 </td>
-                <td className={`${td} whitespace-nowrap`}>{fmtLocalTime(x.start)}</td>
-                <td className={`${td} whitespace-nowrap`}>{fmtLocalTime(x.end)}</td>
+                <td className={`${td} whitespace-nowrap`}>{fmtLocalTime(x.start, loc)}</td>
+                <td className={`${td} whitespace-nowrap`}>{fmtLocalTime(x.end, loc)}</td>
                 <td className={`${td} whitespace-nowrap text-xs`}>{deepLevel(x.level) ? fmtDur(x.durationYears, u) : fmtYears(x.durationYears, u)}</td>
                 <td className={`${td} whitespace-nowrap text-xs`}>{x.remainingDays === null ? "—" : x.remainingDays}</td>
                 {kp && <td className={`${td} whitespace-nowrap text-xs tabular-nums`}>{x.kp ? [...new Set([1, 2, 3, 4].flatMap((l) => x.kp!.levels[l as 1 | 2 | 3 | 4]))].join(", ") : "—"}</td>}

@@ -7,7 +7,8 @@
  */
 
 import { useState, type ReactNode } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import { dmyOf, dmyText } from "../_lib/atlasDate";
 import { hasViewWarning } from "@/lib/astrology/viewWarnings";
 import type { AspectType, BodyId, NatalAspect, NatalHouse, NatalTechnical, SignId } from "@/lib/astrology/model/western";
 import { SIGN_IDS } from "@/lib/astrology/model/western";
@@ -269,7 +270,6 @@ function Cusps({ houses }: { houses: NatalHouse[] }) {
   );
 }
 
-const fmtDay = (iso: string) => `${iso.slice(8, 10)}.${iso.slice(5, 7)}.${iso.slice(0, 4)}`;
 
 // ─── Transit + Transit Takvimi: TRANSİT-01 profesyonel görünümleri ./TransitPanels.tsx içinde ──────────────
 export { TransitPanel, ForecastPanel, type CalendarTransitApi } from "./TransitPanels";
@@ -352,6 +352,7 @@ function useHouseSystemLabel() {
 
 export function ProgressionPanel({ t, timeUnknownMasked = false }: { t: ProgressionTechnical; timeUnknownMasked?: boolean }) {
   const tp = useTranslations("atlas.timing.progression");
+  const loc = useLocale();
   const tc = useTranslations("atlas.timing");
   const tt = useTranslations("terms");
   const hsLabel = useHouseSystemLabel();
@@ -374,11 +375,11 @@ export function ProgressionPanel({ t, timeUnknownMasked = false }: { t: Progress
   return (
     <div className="flex flex-col gap-3" data-testid="astro-progression-panel">
       <p className="text-sm text-slate-600" data-testid="astro-progression-period">
-        {tp.rich("calcDate", { date: fmtDay(t.targetDate), strong: (c) => <strong>{c}</strong> })}
+        {tp.rich("calcDate", { date: dmyOf(t.targetDate, loc), strong: (c) => <strong>{c}</strong> })}
         {t.progressedDate && (
           <>
             {" "}
-            {tp.rich("progressedDay", { date: fmtDay(t.progressedDate), strong: (c) => <strong>{c}</strong> })}
+            {tp.rich("progressedDay", { date: dmyOf(t.progressedDate, loc), strong: (c) => <strong>{c}</strong> })}
           </>
         )}
         {t.elapsedYears !== null && ` ${tp("elapsed", { years: t.elapsedYears.toFixed(2) })}`}
@@ -503,6 +504,7 @@ export function ProgressionPanel({ t, timeUnknownMasked = false }: { t: Progress
 // yaklaşan/ayrılan eklendi). Natal çerçeve yalnız çift halka için.
 export function SolarArcPanel({ t }: { t: SolarArcTechnical; /** Arayüz uyumu (ProgressionPanel ile aynı imza). */ timeUnknownMasked?: boolean }) {
   const ts = useTranslations("atlas.timing.solarArc");
+  const loc = useLocale();
   const tc = useTranslations("atlas.timing");
   const hsLabel = useHouseSystemLabel();
   const aspects: DirectionRow[] = solarArcAspectsWithMotion(t).map((a) => ({ moving: a.directed, natal: a.natal, type: a.type, orb: a.orb, motion: a.motion, nature: a.nature }));
@@ -510,7 +512,7 @@ export function SolarArcPanel({ t }: { t: SolarArcTechnical; /** Arayüz uyumu (
   return (
     <div className="flex flex-col gap-3" data-testid="astro-solar-arc-panel">
       <p className="text-sm text-slate-600" data-testid="astro-solar-arc-period">
-        {ts.rich("period", { date: fmtDay(t.targetDate), arc: formatDegree(t.arc), arcDec: t.arc.toFixed(3), strong: (c) => <strong>{c}</strong> })}
+        {ts.rich("period", { date: dmyOf(t.targetDate, loc), arc: formatDegree(t.arc), arcDec: t.arc.toFixed(3), strong: (c) => <strong>{c}</strong> })}
       </p>
       <MethodBox testId="astro-solar-arc-method">{ts("methodNote")}</MethodBox>
       <Section title={ts("positionsTitle")}>
@@ -694,6 +696,7 @@ const isAnglePoint = (p: PointId) => p === "ascendant" || p === "midheaven";
 export function ReturnPanel({ t, place = null, showWheel = true }: { t: ReturnTechnical; place?: ReturnPlace | null; /** D3.1: çark harita istasyonundaysa burada tekrar çizilmez. */ showWheel?: boolean }) {
   // I18N-F1-R5: metin katalogdan (atlas.timingMore + terms); metin düğümü yapısı korunur (TR HTML taban ile bayt-bayt aynı).
   const tm = useTranslations("atlas.timingMore");
+  const loc = useLocale();
   const tt = useTranslations("terms");
   const hsLabel = useHouseSystemLabel();
   const c = t.chart;
@@ -727,7 +730,7 @@ export function ReturnPanel({ t, place = null, showWheel = true }: { t: ReturnTe
             </div>
             <div className="text-xs text-slate-600">
               {tm("exactMoment")}<strong>{utc ? `${utc.slice(0, 16).replace("T", " ")} UTC` : "—"}</strong>
-              {local ? tm("localTime", { place: place?.label?.split(",")[0] ?? tm("placeFallback"), time: local }) : tm("noLocalTime")}
+              {local ? tm("localTime", { place: place?.label?.split(",")[0] ?? tm("placeFallback"), time: dmyText(local, loc) }) : tm("noLocalTime")}
             </div>
             <div className="text-[11px] text-slate-500">{tm("placeIndependent")}</div>
           </div>

@@ -7,6 +7,8 @@
  */
 
 import { useMemo, useState } from "react";
+import { useLocale } from "next-intl";
+import { dmyOf } from "../_lib/atlasDate";
 import { kpIntervalChanges, type KpRiChangeKey, type KpRulingIntervalTechnical } from "@/lib/astrology/model/kpRulingInterval";
 import type { KbLookup } from "./VedicPanels";
 import { useKpText } from "./KpPanels";
@@ -14,11 +16,12 @@ import { useKpText } from "./KpPanels";
 const th = "px-2 py-1.5 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500";
 const td = "px-2 py-1 text-sm text-slate-800";
 const card = "min-w-0 rounded-xl border border-slate-200 bg-white";
-const dmyhm = (s: string) => `${s.slice(8, 10)}.${s.slice(5, 7)}.${s.slice(0, 4)} ${s.slice(11, 16)}`;
+const dmyhm = (s: string, loc = "tr") => `${dmyOf(s, loc)} ${s.slice(11, 16)}`;
 const offLabel = (off: number) => `UTC${off >= 0 ? "+" : "−"}${String(Math.floor(Math.abs(off))).padStart(2, "0")}:${String(Math.round((Math.abs(off) % 1) * 60)).padStart(2, "0")}`;
 
 export function KpRulingIntervalPanel({ t, kbLookup, placeLabel }: { t: KpRulingIntervalTechnical; kbLookup?: KbLookup | null; placeLabel?: string | null }) {
   const x = useKpText();
+  const loc = useLocale();
   const ti = (k: string, v?: Record<string, string>) => x.t(`interval.${k}`, v);
   const changes = useMemo(() => kpIntervalChanges(t.rows), [t.rows]);
   const [onlyChanges, setOnlyChanges] = useState(false);
@@ -32,7 +35,7 @@ export function KpRulingIntervalPanel({ t, kbLookup, placeLabel }: { t: KpRuling
   return (
     <div className="flex min-w-0 flex-col gap-3" data-testid="astro-kp-ruling-interval-panel">
       <p className="text-sm text-slate-700">
-        <strong>{ti("title")}</strong> · {ti("window", { start: dmyhm(w.startLocal), end: dmyhm(w.endLocal), off: offLabel(w.utcOffsetHours), step: String(w.intervalMinutes), n: String(t.rows.length) })}{" "}
+        <strong>{ti("title")}</strong> · {ti("window", { start: dmyhm(w.startLocal, loc), end: dmyhm(w.endLocal, loc), off: offLabel(w.utcOffsetHours), step: String(w.intervalMinutes), n: String(t.rows.length) })}{" "}
         {placeLabel ? `${placeLabel} (${t.place.latitude.toFixed(4)}, ${t.place.longitude.toFixed(4)})` : `${t.place.latitude.toFixed(4)}, ${t.place.longitude.toFixed(4)}`} · {x.tt(t.frame.ayanamsa === "kp-old" ? "ayanamsa.kp-old" : "ayanamsa.kp-newcomb")} · {ti("node")}{" "}
         {x.t(t.nodeType === "true" ? "node.true" : "node.mean")}
       </p>

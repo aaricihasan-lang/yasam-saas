@@ -9,7 +9,8 @@
  */
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import { dmyOf } from "../_lib/atlasDate";
 import { KP_NODE_SIG_SOURCE, kpNumberLabel, isKpNode, type KpBody, type KpChartTechnical, type KpCusp, type KpHoraryTechnical, type KpLevel, type KpLordSet, type KpNodeSigMethodId, type KpPoint, type KpRulingTechnical, type KpSignificators, type KpTransitTechnical } from "@/lib/astrology/model/kp";
 import type { VedicGrahaId } from "@/lib/astrology/model/vedic";
 import { SIGN_IDS, type SignId } from "@/lib/astrology/model/western";
@@ -562,9 +563,10 @@ export function kpRulingLegacyPlaceMismatch(t: KpRulingTechnical, birthplace: { 
 
 export function KpRulingPanel({ t, kbLookup, placeLabel, birthplace }: { t: KpRulingTechnical; kbLookup?: KbLookup | null; placeLabel?: string | null; birthplace?: { lat: number; lon: number } | null }) {
   const x = useKpText();
+  const loc = useLocale();
   const legacyMismatch = kpRulingLegacyPlaceMismatch(t, birthplace);
   const kb = kbLookup ? kbLookup(t.rulingPlanets.map((r) => `kp_ruling_planet:${r}`)) : null;
-  const local = `${t.at.local.slice(8, 10)}.${t.at.local.slice(5, 7)}.${t.at.local.slice(0, 4)} ${t.at.local.slice(11, 16)}`;
+  const local = `${dmyOf(t.at.local, loc)} ${t.at.local.slice(11, 16)}`;
   const row = (label: string, l: KpRulingTechnical["moon"]) => (
     <tr>
       <td className={`${td} font-medium`}>{label}</td>
@@ -577,7 +579,7 @@ export function KpRulingPanel({ t, kbLookup, placeLabel, birthplace }: { t: KpRu
   return (
     <div className="flex min-w-0 flex-col gap-3" data-testid="astro-kp-ruling-panel">
       <p className="text-sm text-slate-700">
-        <strong>{x.t("ruling.title")}</strong> · {x.t("ruling.moment", { utc: `${t.at.utc.slice(8, 10)}.${t.at.utc.slice(5, 7)}.${t.at.utc.slice(0, 4)} ${t.at.utc.slice(11, 16)}`, local })}{" "}
+        <strong>{x.t("ruling.title")}</strong> · {x.t("ruling.moment", { utc: `${dmyOf(t.at.utc, loc)} ${t.at.utc.slice(11, 16)}`, local })}{" "}
         {placeLabel ? `${placeLabel} (${t.place.latitude.toFixed(4)}, ${t.place.longitude.toFixed(4)})` : `${t.place.latitude.toFixed(4)}, ${t.place.longitude.toFixed(4)}`} · {x.t("ruling.fixedAyanamsa")}
       </p>
       <div className="flex flex-wrap gap-2" data-testid="astro-kp-ruling-list">
@@ -691,6 +693,7 @@ function KpChartFocus({ open, onClose, title, children }: { open: boolean; onClo
 // ─── KP transit (efemeris; KISMİ) ────────────────────────────────────────────
 export function KpTransitPanel({ t, kbLookup }: { t: KpTransitTechnical; kbLookup?: KbLookup | null }) {
   const x = useKpText();
+  const loc = useLocale();
   const ay = x.ay(t.frame.ayanamsa);
   const [sel, setSel] = useState<KpSel | null>({ kind: "body", id: "moon" });
   const [focus, setFocus] = useState(false);
@@ -703,14 +706,14 @@ export function KpTransitPanel({ t, kbLookup }: { t: KpTransitTechnical; kbLooku
           harita sütunun görünür yüksekliğine sığar, 12 burç kutusu kaydırmadan görünür. */}
       <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5">
         <p className="min-w-0 text-sm text-slate-700">
-          <strong>{x.t("transit.title")}</strong> · {t.at.utc.slice(8, 10)}.{t.at.utc.slice(5, 7)}.{t.at.utc.slice(0, 4)} {t.at.utc.slice(11, 16)} UTC · {ay} {fmtDms(t.frame.ayanamsaDegrees)}
+          <strong>{x.t("transit.title")}</strong> · {dmyOf(t.at.utc, loc)} {t.at.utc.slice(11, 16)} UTC · {ay} {fmtDms(t.frame.ayanamsaDegrees)}
         </p>
         <button type="button" onClick={() => setFocus(true)} className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-xs font-medium text-slate-700 hover:border-slate-500" title={x.t("focus.openTitle")} data-testid="astro-kp-chart-focus">
           {x.t("focus.open")}
         </button>
       </div>
       <KpSouthChart cusps={[]} bodies={t.bodies} sel={sel} onSel={setSel} fit="stage" center={<Center title={x.t("transit.title")} lines={[x.t("transit.sky"), ay as string]} />} />
-      <KpChartFocus open={focus} onClose={closeFocus} title={`${x.t("transit.title")} · ${t.at.utc.slice(8, 10)}.${t.at.utc.slice(5, 7)}.${t.at.utc.slice(0, 4)} ${t.at.utc.slice(11, 16)} UTC · ${ay}`}>
+      <KpChartFocus open={focus} onClose={closeFocus} title={`${x.t("transit.title")} · ${dmyOf(t.at.utc, loc)} ${t.at.utc.slice(11, 16)} UTC · ${ay}`}>
         <div className="flex h-full w-full min-w-0 items-center justify-center">
           <KpSouthChart cusps={[]} bodies={t.bodies} sel={sel} onSel={setSel} fit="box" legend={false} center={<Center title={x.t("transit.title")} lines={[x.t("transit.sky"), ay as string]} />} />
         </div>

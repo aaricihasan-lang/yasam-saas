@@ -78,6 +78,8 @@ const TRC = /[çğıöşüÇĞİÖŞÜ]/;
 const strip = (h: string) => h.replace(/<[^>]+>/g, " ").replace(/&#x27;/g, "'").replace(/&quot;/g, '"').replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">");
 const escHtml = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#x27;");
 const nums = (h: string) => (strip(h).match(/\d+(?:[.,]\d+)?/g) ?? []).map((x) => x.replace(",", ".")).join(" ");
+// ATLAS-B / QA-ATLAS-R5 P2-2 (Owner A8/A13): EN tarih GG/AA/YYYY; aynı rakamlar TR GG.AA.YYYY ile (TR kilidi aynen). EN metinde (lib metni çıkarılmış) GG.AA.YYYY kalmaz.
+const enAsTr = (h: string) => h.replace(/\b(\d{2})\/(\d{2})\/(\d{4})\b/g, "$1.$2.$3");
 const data = (h: string) => (h.match(/data-[a-z-]+="[^"]*"/g) ?? []).join(" ");
 
 // Bilinen lib-kaynaklı TR metinler: model sabitleri + vaka verisinden üretilen şablon çıktıları (lib katalog işi).
@@ -157,7 +159,7 @@ for (const c of cases) {
   const attrs = (rest.match(/(title|aria-label|placeholder|alt)="[^"]*"/g) ?? []).join(" ");
   assert.ok(!TRC.test(attrs), `${c.name}: EN öznitelik Türkçe`);
   assert.ok(!/atlas\.vedicMatch|terms\./.test(strip(enHtml)), `${c.name}: ham anahtar`);
-  assert.equal(nums(enHtml), nums(trHtml), `${c.name}: sayılar TR = EN`);
+  assert.equal(nums(enAsTr(enHtml)), nums(trHtml), `${c.name}: sayılar TR = EN (EN tarih "/" ayraçlı)`);
   assert.equal(data(enHtml), data(trHtml), `${c.name}: data-* öznitelikleri TR = EN`);
 }
 // ATLAS-B (I18N-F1-R5): Gun Milan koota sınıfı — saklı TR etiket (KootaClass.label) EN'de kanonik koddan; kayıt şekli aynı.

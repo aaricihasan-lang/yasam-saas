@@ -56,6 +56,8 @@ const TRC = /[çğıöşüÇĞİÖŞÜ]/;
 const strip = (h: string) => h.replace(/<[^>]+>/g, " ").replace(/&#x27;/g, "'").replace(/&quot;/g, '"').replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">");
 const degs = (h: string) => (strip(h).match(/\d+°\d{2}′/g) ?? []).join(" ");
 const dates = (h: string) => (strip(h).match(/\d{2}\.\d{2}\.\d{4}|\d{2}:\d{2}/g) ?? []).join(" ");
+// ATLAS-B / QA-ATLAS-R5 P2-2 (Owner A8/A13): EN tarih GG/AA/YYYY; aynı rakamlar TR GG.AA.YYYY ile (TR kilidi aynen). EN metinde (lib metni çıkarılmış) GG.AA.YYYY kalmaz.
+const enAsTr = (h: string) => h.replace(/\b(\d{2})\/(\d{2})\/(\d{4})\b/g, "$1.$2.$3");
 const data = (h: string) => (h.match(/data-[a-z-]+="[^"]*"/g) ?? []).join(" ");
 
 // Bilinen lib-kaynaklı TR metinler (lib katalog işi; panel çevirisinin kapsamı dışında).
@@ -100,7 +102,8 @@ for (const c of cases) {
   assert.ok(!TRC.test(attrs), `${c.name}: EN öznitelik Türkçe: ${attrs.match(/\S*[çğıöşüÇĞİÖŞÜ]\S*/g)?.slice(0, 6).join(" | ")}`);
   assert.ok(!/atlas\.vedicExtra|terms\./.test(strip(enHtml)), `${c.name}: ham anahtar`);
   assert.equal(degs(enHtml), degs(trHtml), `${c.name}: dereceler TR = EN`);
-  assert.equal(dates(enHtml), dates(trHtml), `${c.name}: tarih/saat TR = EN`);
+  assert.equal(dates(enAsTr(enHtml)), dates(trHtml), `${c.name}: tarih/saat TR = EN (EN "/" ayraçlı)`);
+  assert.ok(!/\b\d{2}\.\d{2}\.\d{4}\b/.test(txt), `${c.name}: EN'de GG.AA.YYYY tarih: ${txt.match(/\b\d{2}\.\d{2}\.\d{4}\b/)?.[0]}`);
   assert.equal(data(enHtml), data(trHtml), `${c.name}: data-* öznitelikleri TR = EN`);
 }
 // ATLAS-B (I18N-F1-R5): GERÇEK TR panchanga yanıtı (ROXY 25.11) — saklı yerelleştirilmiş metinler (tithi.element, nakshatra

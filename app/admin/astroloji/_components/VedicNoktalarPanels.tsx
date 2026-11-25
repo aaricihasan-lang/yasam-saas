@@ -7,6 +7,7 @@
  */
 
 import { useLocale, useTranslations } from "next-intl";
+import { dmyText } from "../_lib/atlasDate";
 import { SIGN_GLYPHS, formatDegree } from "@/lib/astrology/labels/tr";
 import { NAKSHATRA_LABELS } from "@/lib/astrology/topics/vedic";
 import {
@@ -201,13 +202,14 @@ function EventCell({ ev, place }: { ev: VedicHeliacalEvent | null; place: VedicH
 
 export function VedicHeliacalPanel({ t, kbLookup }: { t: VedicHeliacalTechnical; kbLookup?: KbLookup | null }) {
   const { t: tx, graha, num } = useNoktaText();
+  const loc = useLocale();
   const keys = t.grahas.map((g) => `graha_heliacal:${g.id}:${g.visible ? "visible" : "asta"}`);
   return (
     <div className="flex min-w-0 flex-col gap-3" data-testid="astro-heliacal-panel">
       <section className={`${card} p-3`}>
         <h4 className="text-sm font-semibold text-slate-700">
           {tx("heli.titleA")}
-          {fmtDayTr(t.date)}
+          {dmyText(fmtDayTr(t.date), loc)}
         </h4>
         <p className="mt-1 text-xs text-slate-600" data-testid="astro-heliacal-place">
           {tx("heli.place")}

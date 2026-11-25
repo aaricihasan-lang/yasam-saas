@@ -9,6 +9,7 @@
  */
 
 import { useLocale, useTranslations } from "next-intl";
+import { dmyOf } from "../_lib/atlasDate";
 import { SIGN_IDS } from "@/lib/astrology/model/western";
 import { SIGN_GLYPHS, SIGN_LABELS, formatDegree } from "@/lib/astrology/labels/tr";
 import { GRAHA_LABELS, NAKSHATRA_LABELS } from "@/lib/astrology/topics/vedic";
@@ -47,7 +48,7 @@ const th = "px-2 py-1.5 text-left text-[11px] font-semibold uppercase tracking-w
 const td = "px-2 py-1.5 text-sm text-slate-800";
 const card = "min-w-0 rounded-xl border border-slate-200 bg-white";
 const trNum = (n: number, d = 1) => (Number.isInteger(n) ? String(n) : n.toFixed(d).replace(".", ","));
-const fmtDay = (iso: string) => `${iso.slice(8, 10)}.${iso.slice(5, 7)}.${iso.slice(0, 4)}`;
+const fmtDay = (iso: string, loc = "tr") => dmyOf(iso, loc);
 /** EN: ondalık nokta (TR'de trNum virgülü aynen). */
 const enNum = (n: number, d = 1) => (Number.isInteger(n) ? String(n) : n.toFixed(d));
 const AYANAMSA_IDS = new Set(["lahiri", "raman", "kp-newcomb", "kp-old"]);
@@ -309,6 +310,7 @@ export function GunMilanPanel({ t, names: who }: { t: VedicGunMilanTechnical; na
 // ─── Sade Sati ───────────────────────────────────────────────────────────────
 export function SadeSatiPanel({ t, kbLookup }: { t: VedicSadeSatiTechnical; kbLookup?: KbLookup | null }) {
   const { t: tx, sign: signOf } = useMatchText();
+  const loc = useLocale();
   const ay = (id: string) => (AYANAMSA_IDS.has(id) ? tx(`ayanamsaShort.${id}`) : id);
   const kb = t.present && t.phase && kbLookup ? kbLookup([`gochara_from_moon:saturn:${SADE_SATI_HOUSE_FROM_MOON[t.phase]}`]) : null;
   return (
@@ -317,7 +319,7 @@ export function SadeSatiPanel({ t, kbLookup }: { t: VedicSadeSatiTechnical; kbLo
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <h4 className="text-sm font-semibold text-slate-700">
             {tx("sade.titleA")}
-            {fmtDay(t.asOf)}
+            {fmtDay(t.asOf, loc)}
           </h4>
           <span className="text-xs text-slate-500">
             {tx("sidereal")}

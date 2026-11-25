@@ -8,6 +8,7 @@
 
 import { useMemo, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
+import { dmyOf, dmyText } from "../_lib/atlasDate";
 import {
   filterTimeline,
   fmtDeclination,
@@ -24,7 +25,7 @@ const card = "min-w-0 rounded-xl border border-slate-200 bg-white";
 const TZ = ["Europe/Istanbul", "UTC", "Europe/London", "Europe/Berlin", "America/New_York", "Asia/Dubai", "Asia/Kolkata"];
 const KINDS: MonthlyTimelineKind[] = ["ingress", "aspect", "lunar", "parallel"];
 const STEP = 150;
-const utcL = (at: string) => `${at.slice(8, 10)}.${at.slice(5, 7)}.${at.slice(0, 4)} ${at.slice(11, 16)}`;
+const utcL = (at: string, loc = "tr") => `${dmyOf(at, loc)} ${at.slice(11, 16)}`;
 /**
  * I18N ATLAS-V: ekran dili yardımcıları. Kod-anahtarlı lib etiketleri ve yöntem metinleri Word/PDF ile ortaktır → TR katalog
  * değeri lib ile birebir (atlas-vedic-monthly-i18n kilidi). Zaman çizelgesi olay cümleleri (monthlyTimeline) lib metnidir.
@@ -43,6 +44,7 @@ function useMonthlyText() {
 
 export function VedicMonthlyPanel({ t, options = {}, kbLookup = null }: { t: VedicMonthlyTechnical; options?: Record<string, unknown>; kbLookup?: KbLookup | null }) {
   const { t: tx, tv, deg, dec, graha, sign } = useMonthlyText();
+  const loc = useLocale();
   const [tz, setTz] = useState<string>(typeof options.displayTz === "string" ? options.displayTz : "Europe/Istanbul");
   const [planets, setPlanets] = useState<VedicGrahaId[] | null>(null);
   const [kinds, setKinds] = useState<MonthlyTimelineKind[]>(KINDS);
@@ -141,7 +143,7 @@ export function VedicMonthlyPanel({ t, options = {}, kbLookup = null }: { t: Ved
           <p className="mt-1 min-w-0 break-words text-xs text-slate-700">
             {tx("summary.keyIngresses")}{" "}
             {sm.keyIngresses
-              .map((e) => tx("summary.keyIngress", { graha: graha(e.planet), sign: sign(e.to), at: local(e.atUtc)?.text ?? utcL(e.atUtc), retro: e.retrograde && e.planet !== "rahu" && e.planet !== "ketu" ? tx("summary.retro") : "" }))
+              .map((e) => tx("summary.keyIngress", { graha: graha(e.planet), sign: sign(e.to), at: dmyText(local(e.atUtc)?.text ?? "", loc) || utcL(e.atUtc, loc), retro: e.retrograde && e.planet !== "rahu" && e.planet !== "ketu" ? tx("summary.retro") : "" }))
               .join(" · ")}
           </p>
         )}
@@ -195,8 +197,8 @@ export function VedicMonthlyPanel({ t, options = {}, kbLookup = null }: { t: Ved
               const z = local(x.atUtc);
               return (
                 <li key={`${x.atUtc}-${x.kind}-${i}`} className="flex min-w-0 flex-wrap items-baseline gap-x-2 py-1 text-sm" data-vm-kind={x.kind}>
-                  <span className="tabular-nums font-medium text-slate-900">{z ? `${z.text} (${z.zone})` : `${utcL(x.atUtc)} UTC`}</span>
-                  {z && <span className="tabular-nums text-[11px] text-slate-500">{utcL(x.atUtc)} UTC</span>}
+                  <span className="tabular-nums font-medium text-slate-900">{z ? `${dmyText(z.text, loc)} (${z.zone})` : `${utcL(x.atUtc, loc)} UTC`}</span>
+                  {z && <span className="tabular-nums text-[11px] text-slate-500">{utcL(x.atUtc, loc)} UTC</span>}
                   <span className="rounded bg-slate-100 px-1.5 text-[11px] text-slate-600">{tx(`kind.${x.kind}`)}</span>
                   <span className="min-w-0 break-words text-slate-800">{x.text}</span>
                 </li>

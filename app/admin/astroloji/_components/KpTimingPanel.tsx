@@ -8,7 +8,8 @@
  */
 
 import { useCallback, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import { dmyOf, dmyText } from "../_lib/atlasDate";
 import { kpNumberLabel, type KpTimingPlanet, type KpTimingTechnical } from "@/lib/astrology/model/kp";
 import { SIGN_GLYPHS, formatDegree } from "@/lib/astrology/labels/tr";
 import { kpSplitFromLabel } from "@/lib/astrology/verify/kpSub";
@@ -20,20 +21,21 @@ const td = "px-2 py-1.5 text-sm text-slate-800";
 const inp = "max-w-full min-w-0 rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs";
 const PAGE = 100;
 const GRAHA_IDS = { sun: 1, moon: 1, mars: 1, mercury: 1, jupiter: 1, venus: 1, saturn: 1, rahu: 1, ketu: 1 } as const;
-const dmy = (d: string) => `${d.slice(8, 10)}.${d.slice(5, 7)}.${d.slice(0, 4)}`;
+const dmy = (d: string, loc = "tr") => dmyOf(d, loc);
 
 function validZone(tz: unknown): tz is string {
   return isDisplayZone(tz);
 }
 /** UTC anı → "GG.AA.YYYY SS:DD GMT+3" (seçilen bölge). */
-export function kpAt(utcIso: string, tz: string): string {
+/** ATLAS-B: `loc` verilmezse kaynak dil (tr) biçimi — eski çağıranlar bayt-bayt aynı. */
+export function kpAt(utcIso: string, tz: string, loc = "tr"): string {
   const ms = Date.parse(utcIso);
   if (!Number.isFinite(ms)) return utcIso;
-  if (tz === "UTC") return `${dmy(utcIso)} ${utcIso.slice(11, 16)} UTC`;
+  if (tz === "UTC") return `${dmy(utcIso, loc)} ${utcIso.slice(11, 16)} UTC`;
   const p = Object.fromEntries(
     formatZonedParts("en-GB", { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23", timeZoneName: "shortOffset" }, ms, tz).map((x) => [x.type, x.value]),
   );
-  return `${p.day}.${p.month}.${p.year} ${p.hour}:${p.minute} ${p.timeZoneName}`;
+  return dmyText(`${p.day}.${p.month}.${p.year} ${p.hour}:${p.minute} ${p.timeZoneName}`, loc);
 }
 
 /**
@@ -134,6 +136,7 @@ function Pager({ shown, total, onMore }: { shown: number; total: number; onMore:
 
 export function KpTimingPanel({ t, options = {} }: { t: KpTimingTechnical; options?: Record<string, unknown> }) {
   const x = useKpText();
+  const loc = useLocale();
   const tk = useTranslations("atlas.kp");
   const tx = (k: string, v?: Record<string, string>) => tk(`timing.${k}`, v);
   const short = (id: KpTimingPlanet | string) => x.gs(id as KpTimingPlanet);
@@ -155,7 +158,7 @@ export function KpTimingPanel({ t, options = {} }: { t: KpTimingTechnical; optio
     <div className="flex min-w-0 flex-col gap-3" data-testid="astro-kp-timing-panel">
       <div className="rounded-xl border border-slate-200 bg-slate-50/70 px-3 py-2 text-sm text-slate-700">
         <p>
-          <strong>{tx("title")}</strong> · {tx("window", { start: dmy(t.window.startDate), end: dmy(t.window.endDate) })} · {x.ay(t.frame.ayanamsa) ?? t.frame.ayanamsa}
+          <strong>{tx("title")}</strong> · {tx("window", { start: dmy(t.window.startDate, loc), end: dmy(t.window.endDate, loc) })} · {x.ay(t.frame.ayanamsa) ?? t.frame.ayanamsa}
           {t.frame.ayanamsaDegrees !== null ? ` (${formatDegree(t.frame.ayanamsaDegrees)})` : ""} · {tx("node", { node: x.t(t.nodeType === "true" ? "node.true" : "node.mean") })}
         </p>
         <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-600">
@@ -203,7 +206,7 @@ export function KpTimingPanel({ t, options = {} }: { t: KpTimingTechnical; optio
               <ul className="divide-y divide-slate-100 sm:hidden">
                 {subRows.slice(0, nSub).map((c, i) => (
                   <li key={`${c.planet}-${c.atUtc}-${i}`} className="px-3 py-2 text-sm">
-                    <div className="text-xs tabular-nums text-slate-500">{kpAt(c.atUtc, tz)}</div>
+                    <div className="text-xs tabular-nums text-slate-500">{kpAt(c.atUtc, tz, loc)}</div>
                     <div>
                       <strong>{short(c.planet)}</strong> · KP {kpSplitFromLabel(c.fromKp, c.toKp)} ({short(c.fromStar)}/{short(c.fromSub)}) → KP {c.toKp} ({short(c.toStar)}/{short(c.toSub)}){c.corrected ? " *" : ""}
                     </div>
@@ -225,7 +228,7 @@ export function KpTimingPanel({ t, options = {} }: { t: KpTimingTechnical; optio
                   <tbody className="divide-y divide-slate-100">
                     {subRows.slice(0, nSub).map((c, i) => (
                       <tr key={`${c.planet}-${c.atUtc}-${i}`}>
-                        <td className={`${td} whitespace-nowrap tabular-nums`}>{kpAt(c.atUtc, tz)}</td>
+                        <td className={`${td} whitespace-nowrap tabular-nums`}>{kpAt(c.atUtc, tz, loc)}</td>
                         <td className={td}>{x.g(c.planet)}</td>
                         <td className={`${td} whitespace-nowrap`}>
                           {kpSplitFromLabel(c.fromKp, c.toKp)} · {short(c.fromStar)} / {short(c.fromSub)}
@@ -264,7 +267,7 @@ export function KpTimingPanel({ t, options = {} }: { t: KpTimingTechnical; optio
               <ul className="divide-y divide-slate-100">
                 {rasiRows.slice(0, nRasi).map((c, i) => (
                   <li key={`${c.planet}-${c.atUtc}-${i}`} className="flex flex-wrap items-center gap-x-3 gap-y-0.5 px-3 py-2 text-sm">
-                    <span className="text-xs tabular-nums text-slate-500">{kpAt(c.atUtc, tz)}</span>
+                    <span className="text-xs tabular-nums text-slate-500">{kpAt(c.atUtc, tz, loc)}</span>
                     <strong>{short(c.planet)}</strong>
                     <span>
                       {SIGN_GLYPHS[c.fromRashi]} {x.sign(c.fromRashi)} ({short(c.fromLord)}) → {SIGN_GLYPHS[c.toRashi]} {x.sign(c.toRashi)} ({short(c.toLord)})
@@ -298,7 +301,7 @@ export function KpTimingPanel({ t, options = {} }: { t: KpTimingTechnical; optio
               <tbody className="divide-y divide-slate-100">
                 {t.positions.rows.slice(0, nPos).map((r) => (
                   <tr key={r.atUtc}>
-                    <td className={`${td} sticky left-0 whitespace-nowrap bg-white text-xs tabular-nums`}>{kpAt(r.atUtc, tz)}</td>
+                    <td className={`${td} sticky left-0 whitespace-nowrap bg-white text-xs tabular-nums`}>{kpAt(r.atUtc, tz, loc)}</td>
                     {r.bodies.map((b) => (
                       <td key={b.id} className={`${td} whitespace-nowrap text-xs`}>
                         {SIGN_GLYPHS[b.rashi]} {formatDegree(b.degreeInRashi)}
