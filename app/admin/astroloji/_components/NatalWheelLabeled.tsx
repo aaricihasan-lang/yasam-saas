@@ -16,11 +16,12 @@
  */
 
 import { useContext, useEffect, useId, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent as ReactPointerEvent } from "react";
+import { useTranslations } from "next-intl";
 import type { BodyId, SignId } from "@/lib/astrology/model/western";
 import { SIGN_IDS } from "@/lib/astrology/model/western";
-import { BODY_GLYPHS, BODY_LABELS, formatDegree, SIGN_ELEMENT, SIGN_GLYPHS, SIGN_LABELS } from "@/lib/astrology/labels/tr";
+import { BODY_GLYPHS, formatDegree, SIGN_ELEMENT, SIGN_GLYPHS } from "@/lib/astrology/labels/tr";
 import { isAspectDrawn } from "@/lib/astrology/view/natalWheelDisplay";
-import { adist, drawnOnWheel, groupBox, layoutLabels, NOON_ASSUMPTION, norm, semanticZoom, WHEEL, type LabelGroup, type LabelItem, type LabelProfile } from "@/lib/astrology/view/natalLabelLayout";
+import { adist, drawnOnWheel, groupBox, layoutLabels, norm, semanticZoom, WHEEL, type LabelGroup, type LabelItem, type LabelProfile } from "@/lib/astrology/view/natalLabelLayout";
 import { ChartViewportScaleContext } from "./atlas/ChartViewport";
 import type { NatalWheelDisplay, WheelChart } from "./NatalWheel";
 
@@ -62,6 +63,9 @@ export default function NatalWheelLabeled({
   display: NatalWheelDisplay & { labels: NonNullable<NatalWheelDisplay["labels"]> };
 }) {
   const { detailed, timeUnknown, onPick, onLayout } = display.labels;
+  const tl = useTranslations("atlas.natalLabels");
+  const tt = useTranslations("terms");
+  const signName = (s: SignId) => tt(`zodiac.${s}`);
   const instance = useId();
   const scale = useContext(ChartViewportScaleContext);
   const svgRef = useRef<SVGSVGElement | null>(null);
@@ -129,8 +133,8 @@ export default function NatalWheelLabeled({
   const hidden = display.hiddenBodies;
   const bodies = technical.bodies.filter((b) => !hidden.has(b.id) && drawnOnWheel(timeUnknown, b.id));
   const entries: Entry[] = [
-    ...bodies.map((b) => ({ kind: "body" as const, key: b.id, id: b.id, glyph: BODY_GLYPHS[b.id], name: BODY_LABELS[b.id], lon: b.longitude, sign: b.sign, deg: b.degreeInSign, retro: b.retrograde })),
-    ...display.extraPoints.map((p) => ({ kind: "point" as const, key: `x:${p.id}`, id: p.id, glyph: p.glyph, name: p.label, lon: p.longitude, sign: p.sign, deg: p.degreeInSign, retro: false })),
+    ...bodies.map((b) => ({ kind: "body" as const, key: b.id, id: b.id, glyph: BODY_GLYPHS[b.id], name: tt(`body.${b.id}`), lon: b.longitude, sign: b.sign, deg: b.degreeInSign, retro: b.retrograde })),
+    ...display.extraPoints.map((p) => ({ kind: "point" as const, key: `x:${p.id}`, id: p.id, glyph: p.glyph, name: tl(`point.${p.id}`), lon: p.longitude, sign: p.sign, deg: p.degreeInSign, retro: false })),
   ];
   const items: LabelItem[] = entries.map((e) => ({ id: e.key, lon: e.lon }));
   const itemsKey = items.map((x) => `${x.id}@${x.lon}`).join(",");
@@ -169,7 +173,7 @@ export default function NatalWheelLabeled({
   const focus = display.aspectFilter?.focus ?? null;
   const tickEnd = R_SIGN_IN - RULER_W - 2;
 
-  const svgLabel = `${label}${timeUnknown ? " — doğum saati bilinmiyor; Ay çizilmedi (konumu doğrulanamıyor); diğer konumlar 12:00 varsayımı, kesin değil" : ""}`;
+  const svgLabel = `${label}${timeUnknown ? tl("svgTimeUnknown") : ""}`;
 
   return (
     <svg
@@ -207,7 +211,7 @@ export default function NatalWheelLabeled({
             <path d={`M ${p2.x} ${p2.y} A ${R_OUT} ${R_OUT} 0 0 0 ${o2.x} ${o2.y} L ${i2.x} ${i2.y} A ${R_SIGN_IN} ${R_SIGN_IN} 0 0 1 ${p1.x} ${p1.y} Z`} fill={ELEMENT_TINT[SIGN_ELEMENT[sign]]} />
             <line x1={b1.x} y1={b1.y} x2={p2.x} y2={p2.y} stroke="#334155" strokeWidth={1.1} data-sign-boundary={sign} />
             <text x={g.x} y={g.y} textAnchor="middle" dominantBaseline="central" fontSize={22} fill={ELEMENT_COLOR[SIGN_ELEMENT[sign]]}>
-              <title>{SIGN_LABELS[sign]}</title>
+              <title>{signName(sign)}</title>
               {SIGN_GLYPHS[sign]}
             </text>
           </g>
@@ -248,7 +252,7 @@ export default function NatalWheelLabeled({
           <g key={`h${h.number}`}>
             <line x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke={axis ? "#0f172a" : "#94a3b8"} strokeWidth={axis ? 1.6 : 0.7} data-cusp-line={h.number} />
             {/* Ev numarasına dokunma → o evin başlangıcı (burç / derece / dakika) panelde; görünmez geniş dokunma alanı. */}
-            <g data-house-hit={h.number} aria-label={`${h.number}. ev başlangıcı`} {...act({ kind: "cusp", n: h.number })}>
+            <g data-house-hit={h.number} aria-label={tl("cuspAria", { n: h.number })} {...act({ kind: "cusp", n: h.number })}>
               {onPick && <circle cx={mid.x} cy={mid.y} r={16} fill="transparent" />}
               <text x={mid.x} y={mid.y} textAnchor="middle" dominantBaseline="central" fontSize={12} fill="#475569" data-house-num={h.number} {...HALO}>
                 {h.number}
@@ -284,7 +288,7 @@ export default function NatalWheelLabeled({
               const q = pt(r, h.longitude);
               const full = formatDegree(h.degreeInSign);
               const [dg, mn] = full.split("°");
-              const title = `${h.number}. ev başlangıcı — ${SIGN_LABELS[h.sign]} ${full}`;
+              const title = tl("cuspTitleFull", { n: h.number, sign: signName(h.sign), deg: full });
               return (
                 <g key={`cd${h.number}`} data-cusp-degree={h.number} aria-label={title} {...act({ kind: "cusp", n: h.number })}>
                   <line x1={t1.x} y1={t1.y} x2={t2.x} y2={t2.y} stroke="#94a3b8" strokeWidth={0.8} />
@@ -304,15 +308,15 @@ export default function NatalWheelLabeled({
       {/* ASC / DSC / MC / IC levhası — burç + derece (dar görünümde yalnız kısaltma; değer dokunarak) */}
       {A &&
         [
-          { lon: A.ascendant.longitude, t: "ASC" as const, title: "Yükselen" },
-          { lon: A.ascendant.longitude + 180, t: "DSC" as const, title: "Alçalan" },
-          { lon: A.midheaven.longitude, t: "MC" as const, title: "Tepe Noktası (MC)" },
-          { lon: A.midheaven.longitude + 180, t: "IC" as const, title: "Dip Noktası (IC)" },
+          { lon: A.ascendant.longitude, t: "ASC" as const, title: tl("angleShort.ASC") },
+          { lon: A.ascendant.longitude + 180, t: "DSC" as const, title: tl("angleShort.DSC") },
+          { lon: A.midheaven.longitude, t: "MC" as const, title: tl("angleShort.MC") },
+          { lon: A.midheaven.longitude + 180, t: "IC" as const, title: tl("angleShort.IC") },
         ].map((a) => {
           const q = pt(R_OUT + 20, a.lon);
           const l = norm(a.lon);
           const sign = SIGN_IDS[Math.floor(l / 30) % 12];
-          const title = `${a.title} — ${SIGN_LABELS[sign]} ${formatDegree(l % 30)}`;
+          const title = `${a.title} — ${signName(sign)} ${formatDegree(l % 30)}`;
           if (compact)
             return (
               <g key={a.t} data-angle={a.t} aria-label={title} {...act({ kind: "angle", id: a.t })}>
@@ -363,7 +367,7 @@ export default function NatalWheelLabeled({
             opacity={0.8}
             data-aspect={`${a.a}-${a.b}-${a.type}`}
           >
-            <title>{`${BODY_LABELS[a.a]} – ${BODY_LABELS[a.b]}${typeof a.orb === "number" ? ` · orb ${formatDegree(a.orb)}` : ""}`}</title>
+            <title>{`${tt(`body.${a.a}`)} – ${tt(`body.${a.b}`)}${typeof a.orb === "number" ? ` · orb ${formatDegree(a.orb)}` : ""}`}</title>
           </line>
         );
       })}
@@ -420,7 +424,7 @@ export default function NatalWheelLabeled({
         const c = pt(box.r, gr.mid);
         const ent = gr.ids.map((k) => entries.find((e) => e.key === k)!);
         const names = ent.map((e) => e.name).join(", ");
-        const aria = `${SIGN_LABELS[gr.sign]} burcunda ${gr.ids.length} nokta: ${names}${assumed ? " (12:00 varsayımı)" : ""}. Ayrıntılar grup alanında; dokunarak da açılır.`;
+        const aria = tl("groupAria", { sign: signName(gr.sign), n: gr.ids.length, names, assumed: assumed ? tl("groupAssumed") : "" });
         const ink = ELEMENT_COLOR[SIGN_ELEMENT[gr.sign]];
         if (compact)
           return (
@@ -464,7 +468,7 @@ export default function NatalWheelLabeled({
           const [dg, mn] = full.split("°");
           const ink = e.kind === "point" ? POINT_INK : "#0f172a";
           const gsize = e.id === "vertex" ? G.f.v : G.f.g;
-          const title = `${e.name} — ${SIGN_LABELS[e.sign]} ${full}${e.retro ? " ℞ (geri hareket)" : ""}${assumed ? ` · ≈ ${NOON_ASSUMPTION}, kesin değil` : ""}`;
+          const title = `${e.name} — ${signName(e.sign)} ${full}${e.retro ? tl("retroSuffix") : ""}${assumed ? tl("assumedSuffix") : ""}`;
           const pick: NatalLabelPick = e.kind === "body" ? { kind: "body", id: e.id as BodyId } : { kind: "point", id: e.id as "vertex" | "fortune" };
           const glyph = (
             <text
@@ -561,10 +565,10 @@ export default function NatalWheelLabeled({
       {timeUnknown && (
         <g data-time-unknown-note="1">
           <text x={C} y={C - 6} textAnchor="middle" fontSize={12} fill="#7a4f05" fontWeight={600}>
-            Saat bilinmiyor
+            {tl("centerTimeUnknown")}
           </text>
           <text x={C} y={C + 10} textAnchor="middle" fontSize={10.5} fill="#7a4f05">
-            açı çizgisi yok
+            {tl("centerNoAspects")}
           </text>
         </g>
       )}

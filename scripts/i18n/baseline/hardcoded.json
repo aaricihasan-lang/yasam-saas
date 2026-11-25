@@ -1,6 +1,6 @@
 {
  "aciklama": "I18N-F1 sabit metin tabanı (dosya → sayı). CI'da hiçbir dosya bu sayıyı AŞAMAZ; tabanda olmayan dosya 0 olmalı. Düşüş serbesttir — çeviri sonrası `npm run i18n:hardcoded:update` ile taban aşağı çekilir. Artış ancak Owner onayıyla güncellenir ve PR diff'inde görünür.",
- "total": 32572,
+ "total": 32484,
  "files": {
   "app/_campaign/VisitorCampaignView.tsx": 42,
   "app/_campaign/visitorView.ts": 3,
@@ -30,10 +30,8 @@
   "app/admin/astroloji/_components/KpTimingPanel.tsx": 4,
   "app/admin/astroloji/_components/LocationPanels.tsx": 66,
   "app/admin/astroloji/_components/LocationPicker.tsx": 18,
-  "app/admin/astroloji/_components/NatalLabelDetails.tsx": 44,
   "app/admin/astroloji/_components/NatalSymbolGuide.tsx": 45,
-  "app/admin/astroloji/_components/NatalWheelLabeled.tsx": 12,
-  "app/admin/astroloji/_components/PlanetaryReturnPanel.tsx": 34,
+  "app/admin/astroloji/_components/PlanetaryReturnPanel.tsx": 2,
   "app/admin/astroloji/_components/ProfectionsPanel.tsx": 13,
   "app/admin/astroloji/_components/ProfileDeleteFlow.tsx": 28,
   "app/admin/astroloji/_components/ProfileForm.tsx": 25,

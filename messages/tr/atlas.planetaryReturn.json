@@ -1,0 +1,65 @@
+{
+  "atlas": {
+    "planetaryReturn": {
+      "title": {
+        "saturn": "Satürn dönüşü",
+        "jupiter": "Jüpiter dönüşü",
+        "mars": "Mars dönüşü",
+        "venus": "Venüs dönüşü",
+        "mercury": "Merkür dönüşü"
+      },
+      "planet": {
+        "saturn": "Satürn",
+        "jupiter": "Jüpiter",
+        "mars": "Mars",
+        "venus": "Venüs",
+        "mercury": "Merkür"
+      },
+      "interval": {
+        "saturn": "yaklaşık 29,5 yıl",
+        "jupiter": "yaklaşık 11,9 yıl",
+        "mars": "yaklaşık 1,9–2,2 yıl",
+        "venus": "yaklaşık 1 yıl (8 yıllık döngüyle değişir)",
+        "mercury": "yaklaşık 1 yıl"
+      },
+      "motion": {
+        "direct": "ileri hareket",
+        "retrograde": "geri hareket (retro)"
+      },
+      "methodText": "Yöntem: gezegen dönüşü — transit gezegenin natal boylamına geri döndüğü (kavuşum) anın haritası; tropikal zodyak, görünür geosantrik boylam. Dönüş anı doğum anından ve doğum yeri ofsetinden hesaplanır; seçilen konum yalnız Yükselen, MC ve evleri değiştirir. Retro döngüsünde gezegen natal derecesinden 2–3 kez geçebilir: hedef tarihe en yakın dönüş kümesindeki tüm kavuşumlar listelenir ve yalnız seçilen kavuşum hesaplanır (otomatik seçim yapılmaz). Tutarlılık denetimi: dönüş anındaki boylam natal boylamla 0,05° içinde değilse sonuç kaydedilmez.",
+      "cycleNote": "Merkür ve Venüs Güneş'e yakın hareket ettiğinden geosantrik dönüşleri yaklaşık yılda birdir (güneş merkezli 88 / 225 günlük yörünge süreleri dönüş aralığı değildir).",
+      "crossingLabel": "Seçilen kavuşum",
+      "crossingValue": "{crossing}. kavuşum / {of}{retro} · {motion} · hedef tarih {date}",
+      "retroCycle": " (retro döngüsü)",
+      "utcLabel": "Kesin dönüş anı (UTC)",
+      "localRelocated": "Dönüş konumu yerel saati",
+      "localBirth": "Doğum yeri yerel saati",
+      "localUnknown": "gösterilmiyor (saat dilimi doğrulanamadı)",
+      "providerLocalLabel": "Hesap saati (doğum ofseti)",
+      "natalLabel": "Natal {planet}",
+      "returnLabel": "Dönüş anında {planet}",
+      "deltaLabel": "Tutarlılık denetimi",
+      "deltaValue": "|dönüş − natal| = {delta}″ · eşik 0,05° · doğrulandı",
+      "placeLabel": "Hesaplama konumu",
+      "birthPlace": "doğum yeri",
+      "relocatedSuffix": " · farklı konum",
+      "birthSuffix": " · doğum yeri",
+      "intervalLabel": "Tipik dönüş aralığı",
+      "wheelLabel": "{title} çarkı",
+      "asc": "Yükselen",
+      "fortune": "Şans Noktası",
+      "inHouse": " ({n}. ev)",
+      "bodiesTitle": "Dönüş haritası gök cisimleri",
+      "colBody": "Gök cismi",
+      "colSign": "Burç / derece",
+      "colHouse": "Ev",
+      "cuspsTitle": "Ev başlangıçları (cusp)",
+      "houseN": "{n}. ev",
+      "aspectsTitle": "Açılar ({shown}/{total})",
+      "majorOnly": "yalnız majör açılar",
+      "colAspect": "Açı",
+      "colOrb": "Orb",
+      "colNature": "Nitelik"
+    }
+  }
+}

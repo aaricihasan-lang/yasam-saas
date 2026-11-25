@@ -11,10 +11,11 @@
 
 import { useEffect, useRef, type ReactNode } from "react";
 import { X } from "lucide-react";
-import type { NatalTechnical, SignId } from "@/lib/astrology/model/western";
+import { useTranslations } from "next-intl";
+import type { BodyId, NatalTechnical, SignId } from "@/lib/astrology/model/western";
 import { SIGN_IDS } from "@/lib/astrology/model/western";
-import { formatDegree, NATAL_HOUSE_SYSTEM_LABELS, SIGN_ELEMENT, SIGN_GLYPHS, SIGN_LABELS } from "@/lib/astrology/labels/tr";
-import { adist, drawnOnWheel, layoutLabels, MOON_UNKNOWN_TEXT, NOON_ASSUMPTION, norm, TIME_UNKNOWN_ASSUMED_NOTE } from "@/lib/astrology/view/natalLabelLayout";
+import { formatDegree, NATAL_HOUSE_SYSTEM_LABELS, SIGN_ELEMENT, SIGN_GLYPHS } from "@/lib/astrology/labels/tr";
+import { adist, drawnOnWheel, layoutLabels, norm } from "@/lib/astrology/view/natalLabelLayout";
 import { positionRow, type PositionRow } from "@/lib/astrology/view/natalPositionView";
 import type { NatalWheelDisplay } from "./NatalWheel";
 import type { NatalLabelPick, NatalWheelLayoutInfo } from "./NatalWheelLabeled";
@@ -38,27 +39,37 @@ export function natalWheelGroups(technical: NatalTechnical, display: NatalWheelD
   return layoutLabels(items, { detailed: lab.detailed, profile: "screen", K: 1, assumed: lab.timeUnknown }).groups;
 }
 
+/** I18N-F1-R5 (ATLAS-B): satır adı katalogdan (lib `positionRow.name` TR kalır; Word/PDF ortak). TR değerler lib ile birebir. */
+function useRowName() {
+  const tl = useTranslations("atlas.natalLabels");
+  const tt = useTranslations("terms");
+  return (r: PositionRow) => (r.kind === "point" ? tl(`point.${r.id as "fortune" | "vertex"}`) : tt(`body.${r.id as BodyId}`));
+}
+
 function SignText({ r }: { r: PositionRow }) {
-  if (r.status === "unknown") return <span className="font-medium italic text-amber-800">belirsiz</span>;
+  const tl = useTranslations("atlas.natalLabels");
+  const tt = useTranslations("terms");
+  if (r.status === "unknown") return <span className="font-medium italic text-amber-800">{tl("uncertain")}</span>;
   return (
     <span>
       <span className={styles.symbol} style={{ color: ELEMENT_COLOR[SIGN_ELEMENT[r.sign!]] }} aria-hidden="true">
         {SIGN_GLYPHS[r.sign!]}
       </span>{" "}
       {r.status === "assumed" ? "≈ " : ""}
-      {SIGN_LABELS[r.sign!]}
+      {tt(`zodiac.${r.sign!}`)}
     </span>
   );
 }
 
 function DegText({ r }: { r: PositionRow }) {
-  if (r.status === "unknown") return <span className="font-medium italic text-amber-800">belirsiz</span>;
+  const tl = useTranslations("atlas.natalLabels");
+  if (r.status === "unknown") return <span className="font-medium italic text-amber-800">{tl("uncertain")}</span>;
   return (
     <span className="tabular-nums">
       {r.status === "assumed" ? "≈ " : ""}
       {r.full}
       {r.retro && (
-        <span className="ml-0.5 font-semibold" style={{ color: RETRO_INK }} title="Geri hareket">
+        <span className="ml-0.5 font-semibold" style={{ color: RETRO_INK }} title={tl("retroTitle")}>
           ℞
         </span>
       )}
@@ -68,11 +79,14 @@ function DegText({ r }: { r: PositionRow }) {
 }
 
 function AssumedChip() {
-  return <span className="ml-1.5 inline-flex rounded-full border border-amber-300 bg-amber-50 px-1.5 text-[10.5px] font-semibold text-amber-900">{NOON_ASSUMPTION}</span>;
+  const tl = useTranslations("atlas.natalLabels");
+  return <span className="ml-1.5 inline-flex rounded-full border border-amber-300 bg-amber-50 px-1.5 text-[10.5px] font-semibold text-amber-900">{tl("noonAssumption")}</span>;
 }
 
 /** Dar panelde de yatay taşmaz (hücreler satır kırar; V4 yatay kaydırma şeridi asıl tablolara bağlı kalır). */
 function RowsTable({ rows, timeUnknown, testId }: { rows: PositionRow[]; timeUnknown: boolean; testId: string }) {
+  const tl = useTranslations("atlas.natalLabels");
+  const rowName = useRowName();
   return (
     <div>
       <table className="w-full table-fixed break-words" data-testid={testId}>
@@ -84,10 +98,10 @@ function RowsTable({ rows, timeUnknown, testId }: { rows: PositionRow[]; timeUnk
         </colgroup>
         <thead>
           <tr>
-            <th className={th}>Nokta</th>
-            <th className={th}>Burç</th>
-            <th className={th}>Derece</th>
-            <th className={th}>Ev</th>
+            <th className={th}>{tl("colPoint")}</th>
+            <th className={th}>{tl("colSign")}</th>
+            <th className={th}>{tl("colDegree")}</th>
+            <th className={th}>{tl("colHouse")}</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-100">
@@ -97,7 +111,7 @@ function RowsTable({ rows, timeUnknown, testId }: { rows: PositionRow[]; timeUnk
                 <span className={`${styles.symbol} mr-1`} style={r.kind === "point" ? { color: POINT_INK } : undefined} aria-hidden="true">
                   {r.glyph}
                 </span>
-                {r.name}
+                {rowName(r)}
               </td>
               <td className={td}>
                 <SignText r={r} />
@@ -105,7 +119,7 @@ function RowsTable({ rows, timeUnknown, testId }: { rows: PositionRow[]; timeUnk
               <td className={td}>
                 <DegText r={r} />
               </td>
-              <td className={`${td} tabular-nums`}>{!timeUnknown && r.house ? `${r.house}. ev` : "—"}</td>
+              <td className={`${td} tabular-nums`}>{!timeUnknown && r.house ? tl("houseN", { n: r.house }) : "—"}</td>
             </tr>
           ))}
         </tbody>
@@ -135,8 +149,10 @@ export function SignStrip({ rows, sign, timeUnknown, compact = false }: { rows: 
     if (!mv) break;
   }
   const H = timeUnknown ? 156 : 140;
+  const tl = useTranslations("atlas.natalLabels");
+  const tt = useTranslations("terms");
   return (
-    <svg viewBox={`0 0 ${o.W} ${H}`} className={`${styles.symbol} block h-auto w-full rounded-lg border border-slate-200 bg-[#fffdf9]`} role="img" aria-label={`${SIGN_LABELS[sign]} burcu 0–30° ayrıntı cetveli`} data-testid="natal-sign-strip">
+    <svg viewBox={`0 0 ${o.W} ${H}`} className={`${styles.symbol} block h-auto w-full rounded-lg border border-slate-200 bg-[#fffdf9]`} role="img" aria-label={tl("stripAria", { sign: tt(`zodiac.${sign}`) })} data-testid="natal-sign-strip">
       <line x1={X0} y1={22} x2={X1} y2={22} stroke="#334155" strokeWidth={1.2} />
       {Array.from({ length: 31 }, (_, d) => {
         const x = sx(d);
@@ -173,7 +189,7 @@ export function SignStrip({ rows, sign, timeUnknown, compact = false }: { rows: 
       ))}
       {timeUnknown && (
         <text x={X0} y={148} fontSize={o.fr} fill="#7a4f05" data-strip-note="1">
-          ≈ 12:00 varsayımı, kesin değil
+          {tl("stripNote")}
         </text>
       )}
     </svg>
@@ -181,9 +197,10 @@ export function SignStrip({ rows, sign, timeUnknown, compact = false }: { rows: 
 }
 
 function MoonUnknownBox() {
+  const tl = useTranslations("atlas.natalLabels");
   return (
     <p className="rounded-lg border-l-[3px] border-amber-700 bg-amber-50 px-3 py-2 text-[12.5px] leading-snug text-amber-900" data-testid="natal-moon-unknown">
-      <strong className="font-semibold">☽︎ Ay — belirsiz.</strong> {MOON_UNKNOWN_TEXT} Çarkta, gruplarda ve cetvellerde yer almaz.
+      <strong className="font-semibold">{tl("moonLead")}</strong> {tl("moonUnknownText")} {tl("moonTail")}
     </p>
   );
 }
@@ -205,6 +222,8 @@ export function NatalGroupDetails({
   /** G2-K: tam konum tablosu gösteren bölümlerde (Gezegenler / Evler / Açılar) kapalı başlar — tabloyu aşağı itmez; açılabilir. */
   collapsed?: boolean;
 }) {
+  const tl = useTranslations("atlas.natalLabels");
+  const tt = useTranslations("terms");
   const lab = display.labels;
   if (!lab) return null;
   const groups = layout ? layout.groups : natalWheelGroups(technical, display);
@@ -229,34 +248,29 @@ export function NatalGroupDetails({
       data-collapsed={collapsed ? "1" : undefined}
     >
       <summary className="cursor-pointer select-none border-b border-slate-100 px-3 py-2 text-sm font-semibold text-slate-700">
-        Grup ayrıntıları{groups.length ? ` · ${groups.length} grup` : ""}
+        {tl("groupSummary")}
+        {groups.length ? tl("groupCount", { n: groups.length }) : ""}
       </summary>
       <div className="flex flex-col gap-3 px-3 py-2.5">
         {lab.timeUnknown && (
           <>
             <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[12.5px] leading-snug text-amber-900" data-testid="natal-group-time-note">
-              {TIME_UNKNOWN_ASSUMED_NOTE}
+              {tl("timeUnknownNote")}
             </p>
             <MoonUnknownBox />
           </>
         )}
         {compact && (
           <section data-testid="natal-all-positions">
-            <p className="mb-1 text-[12px] leading-snug text-slate-500">
-              Harita alanı dar: çarkta gezegen ve burç sembolü gösterilir. Bütün noktaların burç, derece ve dakikası aşağıda; yakınlaştırınca çarkta da
-              yazılır.
-            </p>
+            <p className="mb-1 text-[12px] leading-snug text-slate-500">{tl("compactNote")}</p>
             <RowsTable rows={allRows} timeUnknown={lab.timeUnknown} testId="natal-all-positions-table" />
           </section>
         )}
         {groups.length === 0 ? (
-          !compact && <p className="text-[12.5px] text-slate-500">Bu görünümde gruplanmış nokta yok: bütün gezegenler çarkta tek tek etiketli.</p>
+          !compact && <p className="text-[12.5px] text-slate-500">{tl("noGroups")}</p>
         ) : (
           <>
-            <p className="text-[12px] leading-snug text-slate-500">
-              Çarkta burç dilimine tek tek sığmayan kümeler. Burç, derece ve dakika burada her zaman okunur; yakınlaştırınca çarkta da tek tek
-              ayrılır.
-            </p>
+            <p className="text-[12px] leading-snug text-slate-500">{tl("groupsIntro")}</p>
             {groups.map((g) => {
               const rows = g.ids.map((k) => positionRow(technical, k, lab.timeUnknown)).filter((r): r is PositionRow => !!r);
               return (
@@ -265,7 +279,7 @@ export function NatalGroupDetails({
                     <span className={styles.symbol} style={{ color: ELEMENT_COLOR[SIGN_ELEMENT[g.sign]] }} aria-hidden="true">
                       {SIGN_GLYPHS[g.sign]}
                     </span>
-                    {SIGN_LABELS[g.sign]} · {g.ids.length} nokta
+                    {tl("groupHead", { sign: tt(`zodiac.${g.sign}`), n: g.ids.length })}
                   </h4>
                   <SignStrip rows={rows} sign={g.sign} timeUnknown={lab.timeUnknown} compact />
                   <RowsTable rows={rows} timeUnknown={lab.timeUnknown} testId="natal-group-table" />
@@ -278,8 +292,6 @@ export function NatalGroupDetails({
     </details>
   );
 }
-
-const ANGLE_NAMES = { ASC: "Yükselen (ASC)", DSC: "Alçalan (DSC)", MC: "Tepe Noktası (MC)", IC: "Dip Noktası (IC)" } as const;
 
 /** Çarkta seçilen öğenin ayrıntısı (alttan açılan panel; Esc / dışarı / ✕ kapatır). */
 export function NatalLabelSheet({
@@ -296,6 +308,9 @@ export function NatalLabelSheet({
   /** "Tüm konumlar" (Gezegenler bölümü) — verilirse panelde bağlantı. */
   onShowAll?: () => void;
 }) {
+  const tl = useTranslations("atlas.natalLabels");
+  const tt = useTranslations("terms");
+  const rowName = useRowName();
   const closeRef = useRef<HTMLButtonElement | null>(null);
   // Dokunmada paneli açan bırakıştan sonra tarayıcının ürettiği "click" aynı noktaya (yeni açılan perdeye) düşer → perde YALNIZ
   // basış da perdenin üzerinde başladıysa kapatır (G2-K: ev numarasına dokununca panel anında kapanıyordu).
@@ -317,52 +332,52 @@ export function NatalLabelSheet({
 
   let title = "";
   let body: ReactNode = null;
-  const hsLabel = NATAL_HOUSE_SYSTEM_LABELS[technical.houseSystem] ?? technical.houseSystem;
+  const hsLabel = NATAL_HOUSE_SYSTEM_LABELS[technical.houseSystem] ? tt(`houseSystem.${technical.houseSystem as "placidus"}`) : technical.houseSystem;
   if (pick.kind === "group") {
     const rows = pick.ids.map((k) => positionRow(technical, k, timeUnknown)).filter((r): r is PositionRow => !!r);
-    title = `${SIGN_LABELS[pick.sign]} burcundaki noktalar`;
+    title = tl("groupTitle", { sign: tt(`zodiac.${pick.sign}`) });
     body = (
       <>
         <SignStrip rows={rows} sign={pick.sign} timeUnknown={timeUnknown} />
         <RowsTable rows={rows} timeUnknown={timeUnknown} testId="natal-sheet-group-table" />
         <p className="text-[12px] leading-snug text-slate-500">
-          Bu burç dilimine okunur boyutta tek tek sığmadıkları için gruplandı. {timeUnknown ? `${TIME_UNKNOWN_ASSUMED_NOTE} ${MOON_UNKNOWN_TEXT}` : "Cetvelde her nokta gerçek derecesinde; değerler kayıtlı teknik veriden."}
+          {tl("groupedWhy")} {timeUnknown ? `${tl("timeUnknownNote")} ${tl("moonUnknownText")}` : tl("stripExact")}
         </p>
       </>
     );
   } else if (pick.kind === "body" || pick.kind === "point") {
     const r = positionRow(technical, pick.kind === "point" ? `x:${pick.id}` : pick.id, timeUnknown);
     if (!r) return null;
-    title = r.name;
+    title = rowName(r);
     body = (
       <>
         <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 text-[13.5px]" data-sheet-status={r.status}>
-          <dt className="text-slate-500">Burç</dt>
+          <dt className="text-slate-500">{tl("colSign")}</dt>
           <dd data-sheet-sign={r.sign ?? ""}>
             <SignText r={r} />
           </dd>
-          <dt className="text-slate-500">Derece</dt>
-          <dd>{r.status === "unknown" ? <span className="italic text-amber-800">belirsiz</span> : `${r.status === "assumed" ? "≈ " : ""}${r.deg}`}</dd>
-          <dt className="text-slate-500">Dakika</dt>
+          <dt className="text-slate-500">{tl("colDegree")}</dt>
+          <dd>{r.status === "unknown" ? <span className="italic text-amber-800">{tl("uncertain")}</span> : `${r.status === "assumed" ? "≈ " : ""}${r.deg}`}</dd>
+          <dt className="text-slate-500">{tl("colMinute")}</dt>
           <dd>{r.min ?? "—"}</dd>
           {r.kind === "body" && (
             <>
-              <dt className="text-slate-500">Hareket</dt>
-              <dd>{r.status === "unknown" ? "—" : r.retro ? <span style={{ color: RETRO_INK }}>℞ geri hareket</span> : "düz"}</dd>
+              <dt className="text-slate-500">{tl("colMotion")}</dt>
+              <dd>{r.status === "unknown" ? "—" : r.retro ? <span style={{ color: RETRO_INK }}>{tl("retroMotion")}</span> : tl("direct")}</dd>
             </>
           )}
-          <dt className="text-slate-500">Ev</dt>
-          <dd>{timeUnknown ? <span className="text-slate-500">hesaplanamaz (saat bilinmiyor)</span> : r.house ? `${r.house}. ev` : <span className="text-slate-500">teknik veride yok</span>}</dd>
+          <dt className="text-slate-500">{tl("colHouse")}</dt>
+          <dd>{timeUnknown ? <span className="text-slate-500">{tl("houseUnknown")}</span> : r.house ? tl("houseN", { n: r.house }) : <span className="text-slate-500">{tl("houseMissing")}</span>}</dd>
         </dl>
         {r.status === "unknown" && <MoonUnknownBox />}
-        {r.status === "assumed" && <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[12.5px] text-amber-900">{TIME_UNKNOWN_ASSUMED_NOTE}</p>}
+        {r.status === "assumed" && <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[12.5px] text-amber-900">{tl("timeUnknownNote")}</p>}
       </>
     );
   } else if (pick.kind === "cusp") {
     const h = technical.houses.find((x) => x.number === pick.n);
     if (!h) return null;
     const [d, m] = formatDegree(h.degreeInSign).split("°");
-    title = `${h.number}. ev başlangıcı (${hsLabel})`;
+    title = tl("cuspTitle", { n: h.number, hs: hsLabel });
     body = <PlainDl sign={h.sign} deg={`${d}°`} min={m} />;
   } else {
     const A = technical.angles;
@@ -374,13 +389,13 @@ export function NatalLabelSheet({
     const cuspN = pick.id === "ASC" ? 1 : pick.id === "DSC" ? 7 : pick.id === "MC" ? 10 : 4;
     const cusp = technical.houses.find((x) => x.number === cuspN);
     const separate = cusp && adist(cusp.longitude, l) >= 0.02;
-    title = ANGLE_NAMES[pick.id];
+    title = tl(`angle.${pick.id}`);
     body = (
       <>
         <PlainDl sign={sign} deg={`${d}°`} min={m} />
         {separate && (
           <p className="rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-[12.5px] text-sky-900" data-testid="natal-sheet-axis-note">
-            Gerçek {pick.id} derecesi; {hsLabel} sisteminde {cuspN}. ev başlangıcından ayrıdır ({cuspN}. ev: {SIGN_LABELS[cusp!.sign]} {formatDegree(cusp!.degreeInSign)}).
+            {tl("axisNote", { axis: pick.id, hs: hsLabel, n: cuspN, sign: tt(`zodiac.${cusp!.sign}`), deg: formatDegree(cusp!.degreeInSign) })}
           </p>
         )}
       </>
@@ -410,15 +425,15 @@ export function NatalLabelSheet({
       >
         <div className="flex items-start justify-between gap-3">
           <h3 className="text-[16px] font-semibold text-slate-900">{title}</h3>
-          <button ref={closeRef} type="button" onClick={onClose} aria-label="Kapat" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50" data-testid="natal-label-sheet-close">
+          <button ref={closeRef} type="button" onClick={onClose} aria-label={tl("close")} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50" data-testid="natal-label-sheet-close">
             <X className="h-4 w-4" />
           </button>
         </div>
         {body}
-        <p className="text-[11.5px] text-slate-500">Değer kayıtlı teknik veriden okunur; yeniden hesaplanmaz.</p>
+        <p className="text-[11.5px] text-slate-500">{tl("storedNote")}</p>
         {onShowAll && (
           <button type="button" onClick={onShowAll} className="self-start text-[13px] font-medium text-teal-800 underline underline-offset-2" data-testid="natal-sheet-show-all">
-            Tüm konumlar (Gezegenler ve Evler bölümleri)
+            {tl("showAll")}
           </button>
         )}
       </div>
@@ -427,18 +442,20 @@ export function NatalLabelSheet({
 }
 
 function PlainDl({ sign, deg, min }: { sign: SignId; deg: string; min: string }) {
+  const tl = useTranslations("atlas.natalLabels");
+  const tt = useTranslations("terms");
   return (
     <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 text-[13.5px]" data-sheet-status="exact">
-      <dt className="text-slate-500">Burç</dt>
+      <dt className="text-slate-500">{tl("colSign")}</dt>
       <dd data-sheet-sign={sign}>
         <span className={styles.symbol} style={{ color: ELEMENT_COLOR[SIGN_ELEMENT[sign]] }} aria-hidden="true">
           {SIGN_GLYPHS[sign]}
         </span>{" "}
-        {SIGN_LABELS[sign]}
+        {tt(`zodiac.${sign}`)}
       </dd>
-      <dt className="text-slate-500">Derece</dt>
+      <dt className="text-slate-500">{tl("colDegree")}</dt>
       <dd>{deg}</dd>
-      <dt className="text-slate-500">Dakika</dt>
+      <dt className="text-slate-500">{tl("colMinute")}</dt>
       <dd>{min}</dd>
     </dl>
   );

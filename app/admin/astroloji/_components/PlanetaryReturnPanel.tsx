@@ -8,9 +8,10 @@
  */
 
 import { useState } from "react";
+import { useLocale, useTranslations } from "next-intl";
 import type { AspectType } from "@/lib/astrology/model/western";
-import { PLANETARY_RETURN_CYCLE_NOTE, PLANETARY_RETURN_LABELS, PLANETARY_RETURN_METHOD_TEXT, PLANETARY_RETURN_TYPICAL_INTERVAL, motionLabel, type PlanetaryReturnTechnical } from "@/lib/astrology/model/westernPlanetaryReturn";
-import { ASPECT_GLYPHS, ASPECT_LABELS, BODY_GLYPHS, BODY_LABELS, HOUSE_SYSTEM_LABELS, NATURE_LABELS, SIGN_GLYPHS, SIGN_LABELS, formatDegree } from "@/lib/astrology/labels/tr";
+import type { PlanetaryReturnTechnical } from "@/lib/astrology/model/westernPlanetaryReturn";
+import { ASPECT_GLYPHS, BODY_GLYPHS, SIGN_GLYPHS, type SIGN_LABELS, formatDegree } from "@/lib/astrology/labels/tr";
 import NatalWheel, { type WheelChart } from "./NatalWheel";
 import { fitGridCell, fitGridStyle } from "./atlas/fitGrid";
 import { formatZoned } from "@/lib/astrology/birth/zonedFormat";
@@ -33,24 +34,34 @@ export function planetaryReturnWheel(t: PlanetaryReturnTechnical): WheelChart {
 }
 
 /** IANA saat dilimiyle yerel saat; dilim yok/geçersizse null (tahmin yok). */
-function localIn(utcIso: string, timeZone: string | null): string | null {
+function localIn(utcIso: string, timeZone: string | null, locale: string): string | null {
   if (!timeZone) return null;
   try {
-    return formatZoned("tr-TR", { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false, timeZoneName: "short" }, Date.parse(utcIso), timeZone);
+    return formatZoned(locale === "en" ? "en-GB" : "tr-TR", { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false, timeZoneName: "short" }, Date.parse(utcIso), timeZone);
   } catch {
     return null;
   }
 }
 
-const utcText = (iso: string) => `${iso.slice(8, 10)}.${iso.slice(5, 7)}.${iso.slice(0, 4)} ${iso.slice(11, 16)} UTC`;
-const localText = (v: string) => `${v.slice(8, 10)}.${v.slice(5, 7)}.${v.slice(0, 4)} ${v.slice(11, 16)}`;
+/** I18N-F1-R5 (ATLAS-B): EN gün/ay/yıl "/" ayırıcısı (Owner A13); TR `GG.AA.YYYY` aynen. Yalnız gösterim. */
+const sepOf = (locale: string) => (locale === "en" ? "/" : ".");
+const utcText = (iso: string, locale: string) => {
+  const s = sepOf(locale);
+  return `${iso.slice(8, 10)}${s}${iso.slice(5, 7)}${s}${iso.slice(0, 4)} ${iso.slice(11, 16)} UTC`;
+};
+const localText = (v: string, locale: string) => {
+  const s = sepOf(locale);
+  return `${v.slice(8, 10)}${s}${v.slice(5, 7)}${s}${v.slice(0, 4)} ${v.slice(11, 16)}`;
+};
+const dec = (n: number, digits: number, locale: string) => (locale === "en" ? n.toFixed(digits) : n.toFixed(digits).replace(".", ","));
 const offText = (h: number) => `UTC${h >= 0 ? "+" : "−"}${String(Math.floor(Math.abs(h))).padStart(2, "0")}:${String(Math.round((Math.abs(h) % 1) * 60)).padStart(2, "0")}`;
 
 function Sign({ sign, degree }: { sign: keyof typeof SIGN_LABELS; degree: number }) {
+  const tt = useTranslations("terms");
   return (
     <span className="whitespace-nowrap">
       <span className="mr-1">{SIGN_GLYPHS[sign]}</span>
-      {SIGN_LABELS[sign]} {formatDegree(degree)}
+      {tt(`zodiac.${sign}`)} {formatDegree(degree)}
     </span>
   );
 }
@@ -79,59 +90,63 @@ function Section({ title, right, children, testId }: { title: string; right?: Re
 }
 
 export function PlanetaryReturnPanel({ t, place = null, showWheel = true }: { t: PlanetaryReturnTechnical; place?: PlanetaryReturnPlace | null; showWheel?: boolean }) {
+  const tr = useTranslations("atlas.planetaryReturn");
+  const tt = useTranslations("terms");
+  const tm = useTranslations("atlas.timingMore");
+  const locale = useLocale();
   const [onlyMajor, setOnlyMajor] = useState(true);
-  const lbl = PLANETARY_RETURN_LABELS[t.planet];
+  const title = tr(`title.${t.planet}`);
+  const planetName = tr(`planet.${t.planet}`);
   const c = t.chart;
   const relocated = !!place?.locationId;
-  const local = localIn(t.returnUtc, place?.timezone ?? null);
+  const local = localIn(t.returnUtc, place?.timezone ?? null, locale);
   const rq = t.requested;
   const aspects = [...c.aspects].filter((a) => !onlyMajor || MAJOR.has(a.type)).sort((a, b) => a.orb - b.orb);
   return (
     <div className="flex min-w-0 flex-col gap-3" data-testid="astro-planetary-return-panel">
-      <Section title={lbl.title} right={<span className="text-xs text-slate-500">{HOUSE_SYSTEM_LABELS[c.houseSystem]}</span>}>
+      <Section title={title} right={<span className="text-xs text-slate-500">{tt(`houseSystem.${c.houseSystem}`)}</span>}>
         <dl>
-          <Row label="Seçilen kavuşum" testId="astro-pr-crossing">
-            {rq.crossing}. kavuşum / {rq.of}
-            {rq.of > 1 ? " (retro döngüsü)" : ""} · {motionLabel(rq.motion)} · hedef tarih {localText(`${rq.approximateDate}T00:00`).slice(0, 10)}
+          <Row label={tr("crossingLabel")} testId="astro-pr-crossing">
+            {tr("crossingValue", { crossing: rq.crossing, of: rq.of, retro: rq.of > 1 ? tr("retroCycle") : "", motion: tr(`motion.${rq.motion}`), date: localText(`${rq.approximateDate}T00:00`, locale).slice(0, 10) })}
           </Row>
-          <Row label="Kesin dönüş anı (UTC)" testId="astro-pr-utc">
-            <strong>{utcText(t.returnUtc)}</strong>
+          <Row label={tr("utcLabel")} testId="astro-pr-utc">
+            <strong>{utcText(t.returnUtc, locale)}</strong>
           </Row>
-          <Row label={relocated ? "Dönüş konumu yerel saati" : "Doğum yeri yerel saati"} testId="astro-pr-local">
-            {local ? `${local}${place?.label ? ` · ${place.label}` : ""}` : "gösterilmiyor (saat dilimi doğrulanamadı)"}
+          <Row label={relocated ? tr("localRelocated") : tr("localBirth")} testId="astro-pr-local">
+            {local ? `${local}${place?.label ? ` · ${place.label}` : ""}` : tr("localUnknown")}
           </Row>
-          <Row label="Hesap saati (doğum ofseti)" testId="astro-pr-provider-local">
-            {localText(t.returnLocal)} · {offText(t.returnOffsetHours)}
+          <Row label={tr("providerLocalLabel")} testId="astro-pr-provider-local">
+            {localText(t.returnLocal, locale)} · {offText(t.returnOffsetHours)}
           </Row>
-          <Row label={`Natal ${lbl.planet}`} testId="astro-pr-natal">
-            <Sign sign={t.natalPoint.sign} degree={t.natalPoint.degreeInSign} /> <span className="text-xs text-slate-500">({t.natalPoint.longitude.toFixed(4).replace(".", ",")}°)</span>
+          <Row label={tr("natalLabel", { planet: planetName })} testId="astro-pr-natal">
+            <Sign sign={t.natalPoint.sign} degree={t.natalPoint.degreeInSign} /> <span className="text-xs text-slate-500">({dec(t.natalPoint.longitude, 4, locale)}°)</span>
           </Row>
-          <Row label={`Dönüş anında ${lbl.planet}`} testId="astro-pr-return">
-            <Sign sign={t.returnPoint.sign} degree={t.returnPoint.degreeInSign} /> <span className="text-xs text-slate-500">({t.returnPoint.longitude.toFixed(4).replace(".", ",")}°)</span>
+          <Row label={tr("returnLabel", { planet: planetName })} testId="astro-pr-return">
+            <Sign sign={t.returnPoint.sign} degree={t.returnPoint.degreeInSign} /> <span className="text-xs text-slate-500">({dec(t.returnPoint.longitude, 4, locale)}°)</span>
             {t.returnPoint.retrograde && <span className="ml-1 font-semibold text-rose-600">℞</span>}
           </Row>
-          <Row label="Tutarlılık denetimi" testId="astro-pr-delta">
-            |dönüş − natal| = {(t.longitudeDelta * 3600).toLocaleString("tr-TR", { maximumFractionDigits: 2 })}″ · eşik 0,05° · doğrulandı
+          <Row label={tr("deltaLabel")} testId="astro-pr-delta">
+            {tr("deltaValue", { delta: (t.longitudeDelta * 3600).toLocaleString(locale === "en" ? "en-GB" : "tr-TR", { maximumFractionDigits: 2 }) })}
           </Row>
-          <Row label="Hesaplama konumu" testId="astro-pr-place">
-            {place?.label ?? "doğum yeri"} ({Math.abs(t.location.latitude).toFixed(2)}° {t.location.latitude >= 0 ? "K" : "G"}, {Math.abs(t.location.longitude).toFixed(2)}° {t.location.longitude >= 0 ? "D" : "B"})
-            {relocated ? " · farklı konum" : " · doğum yeri"}
+          <Row label={tr("placeLabel")} testId="astro-pr-place">
+            {place?.label ?? tr("birthPlace")} ({Math.abs(t.location.latitude).toFixed(2)}° {tm(`dir.${t.location.latitude >= 0 ? "N" : "S"}`)}, {Math.abs(t.location.longitude).toFixed(2)}° {tm(`dir.${t.location.longitude >= 0 ? "E" : "W"}`)})
+            {relocated ? tr("relocatedSuffix") : tr("birthSuffix")}
           </Row>
-          <Row label="Tipik dönüş aralığı" testId="astro-pr-interval">
-            {PLANETARY_RETURN_TYPICAL_INTERVAL[t.planet]}
+          <Row label={tr("intervalLabel")} testId="astro-pr-interval">
+            {tr(`interval.${t.planet}`)}
           </Row>
         </dl>
       </Section>
       <p className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs leading-relaxed text-slate-600" data-testid="astro-pr-method">
-        {PLANETARY_RETURN_METHOD_TEXT}
-        {(t.planet === "mercury" || t.planet === "venus") && <span className="mt-1 block">{PLANETARY_RETURN_CYCLE_NOTE}</span>}
+        {tr("methodText")}
+        {(t.planet === "mercury" || t.planet === "venus") && <span className="mt-1 block">{tr("cycleNote")}</span>}
       </p>
-      {showWheel && <NatalWheel technical={planetaryReturnWheel(t)} label={`${lbl.title} çarkı`} />}
+      {showWheel && <NatalWheel technical={planetaryReturnWheel(t)} label={tr("wheelLabel", { title })} />}
       {c.angles && (c.angles.ascendant || c.angles.midheaven) && (
         <p className="text-sm text-slate-700" data-testid="astro-pr-angles">
           {c.angles.ascendant && (
             <>
-              Yükselen <Sign sign={c.angles.ascendant.sign} degree={c.angles.ascendant.degreeInSign} />
+              {tr("asc")} <Sign sign={c.angles.ascendant.sign} degree={c.angles.ascendant.degreeInSign} />
             </>
           )}
           {c.angles.midheaven && (
@@ -143,8 +158,8 @@ export function PlanetaryReturnPanel({ t, place = null, showWheel = true }: { t:
           {c.points.partOfFortune && (
             <>
               {" "}
-              · Şans Noktası <Sign sign={c.points.partOfFortune.sign} degree={c.points.partOfFortune.degreeInSign} />
-              {c.points.partOfFortune.house ? ` (${c.points.partOfFortune.house}. ev)` : ""}
+              · {tr("fortune")} <Sign sign={c.points.partOfFortune.sign} degree={c.points.partOfFortune.degreeInSign} />
+              {c.points.partOfFortune.house ? tr("inHouse", { n: c.points.partOfFortune.house }) : ""}
             </>
           )}
           {c.points.vertex && (
@@ -155,13 +170,13 @@ export function PlanetaryReturnPanel({ t, place = null, showWheel = true }: { t:
           )}
         </p>
       )}
-      <Section title="Dönüş haritası gök cisimleri" testId="astro-pr-bodies">
+      <Section title={tr("bodiesTitle")} testId="astro-pr-bodies">
         <table className="min-w-full">
           <thead>
             <tr>
-              <th className={th}>Gök cismi</th>
-              <th className={th}>Burç / derece</th>
-              <th className={th}>Ev</th>
+              <th className={th}>{tr("colBody")}</th>
+              <th className={th}>{tr("colSign")}</th>
+              <th className={th}>{tr("colHouse")}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
@@ -169,7 +184,7 @@ export function PlanetaryReturnPanel({ t, place = null, showWheel = true }: { t:
               <tr key={b.id} className={b.id === t.planet ? "bg-amber-50" : undefined}>
                 <td className={td}>
                   <span className="mr-1.5">{BODY_GLYPHS[b.id]}</span>
-                  {BODY_LABELS[b.id]}
+                  {tt(`body.${b.id}`)}
                   {b.retrograde && <span className="ml-1 font-semibold text-rose-600">℞</span>}
                 </td>
                 <td className={td}>
@@ -182,11 +197,11 @@ export function PlanetaryReturnPanel({ t, place = null, showWheel = true }: { t:
         </table>
       </Section>
       {c.houses.length > 0 && (
-        <Section title="Ev başlangıçları (cusp)" testId="astro-pr-cusps">
+        <Section title={tr("cuspsTitle")} testId="astro-pr-cusps">
           <div className="grid gap-y-1 px-3 py-2 text-sm" style={fitGridStyle()} data-fit-grid="cusps">
             {c.houses.map((h) => (
               <div key={h.number} className={fitGridCell}>
-                <span className="font-medium text-slate-600">{h.number}. ev</span>
+                <span className="font-medium text-slate-600">{tr("houseN", { n: h.number })}</span>
                 <Sign sign={h.sign} degree={h.degreeInSign} />
               </div>
             ))}
@@ -194,20 +209,20 @@ export function PlanetaryReturnPanel({ t, place = null, showWheel = true }: { t:
         </Section>
       )}
       <Section
-        title={`Açılar (${aspects.length}/${c.aspects.length})`}
+        title={tr("aspectsTitle", { shown: aspects.length, total: c.aspects.length })}
         testId="astro-pr-aspects"
         right={
           <label className="flex items-center gap-1 text-xs text-slate-600">
-            <input type="checkbox" checked={onlyMajor} onChange={(e) => setOnlyMajor(e.target.checked)} /> yalnız majör açılar
+            <input type="checkbox" checked={onlyMajor} onChange={(e) => setOnlyMajor(e.target.checked)} /> {tr("majorOnly")}
           </label>
         }
       >
         <table className="min-w-full">
           <thead>
             <tr>
-              <th className={th}>Açı</th>
-              <th className={th}>Orb</th>
-              <th className={th}>Nitelik</th>
+              <th className={th}>{tr("colAspect")}</th>
+              <th className={th}>{tr("colOrb")}</th>
+              <th className={th}>{tr("colNature")}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
@@ -216,11 +231,11 @@ export function PlanetaryReturnPanel({ t, place = null, showWheel = true }: { t:
                 <td className={td}>
                   {BODY_GLYPHS[a.a]} {ASPECT_GLYPHS[a.type]} {BODY_GLYPHS[a.b]}{" "}
                   <span className="text-xs text-slate-500">
-                    {BODY_LABELS[a.a]} {ASPECT_LABELS[a.type]} {BODY_LABELS[a.b]}
+                    {tt(`body.${a.a}`)} {tt(`aspect.${a.type}`)} {tt(`body.${a.b}`)}
                   </span>
                 </td>
                 <td className={`${td} tabular-nums`}>{formatDegree(a.orb)}</td>
-                <td className={td}>{a.nature ? NATURE_LABELS[a.nature] : "—"}</td>
+                <td className={td}>{a.nature ? tt(`aspectNature.${a.nature}`) : "—"}</td>
               </tr>
             ))}
           </tbody>

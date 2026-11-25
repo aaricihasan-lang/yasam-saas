@@ -413,13 +413,46 @@ async function main() {
   }
   assert.ok(existsSync(GOLD), "taban yok");
   const gold = JSON.parse(readFileSync(GOLD, "utf8")) as { lib: Record<string, string>; cases: Record<string, string> };
-  const scope = (process.env.ATLAS_B_SCOPE ?? "").split(",");
+  const scope = (process.env.ATLAS_B_SCOPE ?? "R,L").split(",");
 
   console.log("\n[T] techniques.ts: TR çıktı çeviri öncesiyle birebir");
   t(`${Object.keys(libOut).length} lib çıktısı (özet / eksik neden / tarih nedeni / etiket) TR = taban`, () => {
     assert.deepEqual(Object.keys(libOut).sort(), Object.keys(gold.lib).sort(), "vaka seti");
     const bad = Object.keys(libOut).filter((k) => libOut[k] !== gold.lib[k]);
     assert.deepEqual(bad.slice(0, 10).map((k) => `${k}: «${libOut[k]}» ≠ «${gold.lib[k]}»`), []);
+  });
+
+  console.log("\n[K] Word/PDF ile paylaşılan lib metinleri = TR katalog (tek anlam kaynağı)");
+  const { createTranslator } = await import("next-intl");
+  const { getCatalogMessages } = await import("@/lib/i18n/catalog");
+  const PRm = await import("@/lib/astrology/model/westernPlanetaryReturn");
+  const LLm = await import("@/lib/astrology/view/natalLabelLayout");
+  const PVm = await import("@/lib/astrology/view/natalPositionView");
+  type Tr = (key: string, values?: Record<string, string | number>) => string;
+  const tr = (ns: string): Tr => createTranslator({ locale: "tr", messages: getCatalogMessages("tr") as Record<string, never>, namespace: ns as never }) as unknown as Tr;
+  t("atlas.planetaryReturn: başlık / gezegen / aralık / yöntem / döngü notu / hareket = lib (westernPlanetaryReturn)", () => {
+    const PR = PRm;
+    const p = tr("atlas.planetaryReturn");
+    for (const k of Object.keys(PR.PLANETARY_RETURN_LABELS) as (keyof typeof PR.PLANETARY_RETURN_LABELS)[]) {
+      assert.equal(p(`title.${k}`), PR.PLANETARY_RETURN_LABELS[k].title);
+      assert.equal(p(`planet.${k}`), PR.PLANETARY_RETURN_LABELS[k].planet);
+      assert.equal(p(`interval.${k}`), PR.PLANETARY_RETURN_TYPICAL_INTERVAL[k]);
+    }
+    assert.equal(p("methodText"), PR.PLANETARY_RETURN_METHOD_TEXT);
+    assert.equal(p("cycleNote"), PR.PLANETARY_RETURN_CYCLE_NOTE);
+    assert.equal(p("motion.direct"), PR.motionLabel("direct"));
+    assert.equal(p("motion.retrograde"), PR.motionLabel("retrograde"));
+  });
+  t("atlas.natalLabels: 12:00 / Ay belirsiz / saat bilinmiyor notu / özel nokta adları = lib (natalLabelLayout, natalPositionView)", () => {
+    const LL = LLm;
+    const PV = PVm;
+    const n = tr("atlas.natalLabels");
+    assert.equal(n("noonAssumption"), LL.NOON_ASSUMPTION);
+    assert.equal(n("moonUnknownText"), LL.MOON_UNKNOWN_TEXT);
+    assert.equal(n("timeUnknownNote"), LL.TIME_UNKNOWN_ASSUMED_NOTE);
+    const tech = natals[0].t;
+    assert.equal(n("point.fortune"), PV.positionRow(tech, "x:fortune", false)!.name);
+    assert.equal(n("point.vertex"), PV.positionRow(tech, "x:vertex", false)!.name);
   });
 
   const groups: [string, string, Case[]][] = [
