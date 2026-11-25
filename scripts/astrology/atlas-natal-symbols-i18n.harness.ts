@@ -34,7 +34,7 @@ const cases: Record<string, NatalTechnical> = { golden: base, meanNight: night, 
 const missing: string[] = [];
 const render = (locale: "tr" | "en", el: ReactElement) =>
   renderToStaticMarkup(
-    createElement(NextIntlClientProvider, { locale, messages: getCatalogMessages(locale), timeZone: "Europe/Istanbul", onError: (e: Error) => missing.push(String(e.message)) }, el),
+    createElement(NextIntlClientProvider, { locale, messages: getCatalogMessages(locale), timeZone: "Europe/Istanbul", onError: (e: Error) => void missing.push(String(e.message)), children: el }),
   );
 
 const golden = JSON.parse(readFileSync(join(FIX, "i18n", "natal-symbol-guide-tr-taban.json"), "utf8")) as { cases: Record<string, string> };

@@ -62,7 +62,7 @@ for (const c of cases) {
     }
     for (const primary of [true, false]) {
       for (const missingParts of [0, 2]) {
-        const before = JSON.stringify(d.technical);
+        const before: string = JSON.stringify(d.technical);
         const v = buildTechniqueView({
           technique: "western.natal",
           rows: [row(c.technical)],

@@ -23,8 +23,8 @@ export function withIntl(el: ReactElement, locale: TestLocale = "tr"): ReactElem
       onError: (e: Error) => {
         throw e;
       },
+      children: el,
     },
-    el,
   );
 }
 
