@@ -15,7 +15,7 @@ import { ChevronRight, FileText, Flower2, Search } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations, useLocale } from "next-intl";
 import { runInEffect } from "@/lib/runInEffect";
-import { formatDate } from "@/lib/i18n/format";
+import { formatDate, formatNumber } from "@/lib/i18n/format";
 import type { ActiveLocale } from "@/lib/i18n/locales";
 import { useBfcacheRefresh } from "@/hooks/useBfcacheRefresh";
 import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
@@ -439,10 +439,12 @@ function formatCount(
   value: number | null,
   loading: boolean,
   loadingLabel: string,
+  locale: ActiveLocale,
 ): string {
   if (loading) return loadingLabel;
   if (value === null) return "—";
-  return value.toLocaleString("tr-TR");
+  // I18N (QTM-DG-08): ekran dilinde basamak ayracı (lib/i18n/format; tr çıktısı toLocaleString("tr-TR") ile birebir).
+  return formatNumber(value, undefined, locale);
 }
 
 // ─── 2026-10-18 premium görünüm (owner onaylı prototip ee64597) — yalnız görsel yardımcılar ───────────
@@ -1199,7 +1201,7 @@ function DogaltasPageContent() {
                   <span className={styles.statText}>
                     <span className={styles.statLabel}>{stat.label}</span>
                     <span className={`${styles.statValue} ${loading ? styles.statValueText : ""}`}>
-                      {formatCount(stat.value, loading, t("analytics.loading"))}
+                      {formatCount(stat.value, loading, t("analytics.loading"), locale)}
                     </span>
                   </span>
                   <span className={styles.sheen} aria-hidden />
