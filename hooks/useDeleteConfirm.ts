@@ -4,10 +4,8 @@ import { useTranslations } from "next-intl";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
 import { useIsMobileOrPwa } from "@/hooks/useIsMobileOrPwa";
 import { buildNameListLines, TR_MORE_RECORDS } from "@/lib/ui/deleteConfirmMessage";
-import { requiresBulkDeleteGuard, runBulkDeleteConfirm } from "@/lib/ui/bulkDeleteGuard";
-import { useBulkDeleteTexts } from "@/hooks/useBulkDeleteTexts";
+import { requiresBulkDeleteGuard, runBulkDeleteConfirm, type BulkDeleteTexts } from "@/lib/ui/bulkDeleteGuard";
 
-// i18n-ignore: Türkçe kaynak yedeği (ekran metni common.deleteConfirm.irreversibleNotice; TR birebir)
 export const IRREVERSIBLE_NOTICE = "Bu işlem geri alınamaz.";
 
 /**
@@ -23,7 +21,6 @@ export type DeleteConfirmTexts = {
 
 export const TR_DELETE_CONFIRM_TEXTS: DeleteConfirmTexts = {
   irreversibleNotice: IRREVERSIBLE_NOTICE,
-  // i18n-ignore: eski Türkçe mesajlarda "uyarı zaten var mı" işareti (kontrol amaçlı; çevrilmez)
   irreversibleMarkers: ["geri alınamaz"],
   moreRecords: TR_MORE_RECORDS,
 };
@@ -113,7 +110,6 @@ export function useDeleteConfirm() {
   const { confirm } = useConfirm();
   const isMobile = useIsMobileOrPwa();
   const t = useTranslations("common.deleteConfirm");
-  const bulkTexts = useBulkDeleteTexts();
 
   // Ekran dili metinleri (Türkçe katalog değerleri bugünkü sabitlerle birebir aynıdır — tr-freeze + birim testi).
   const texts = useMemo(() => {
@@ -122,8 +118,31 @@ export function useDeleteConfirm() {
       irreversibleMarkers: [t("irreversibleMarker")],
       moreRecords: (n) => t("moreRecords", { count: n }),
     };
-    return { single, bulk: bulkTexts };
-  }, [t, bulkTexts]);
+    const bulk: BulkDeleteTexts = {
+      phrase: (count) => t("bulk.phrase", { count }),
+      deleteAllPhrase: t("bulk.deleteAllPhrase"),
+      defaultNoun: t("bulk.defaultNoun"),
+      scope: (count, noun, deleteAll) => (deleteAll ? t("bulk.scopeAll", { count, noun }) : t("bulk.scope", { count, noun })),
+      verbDelete: t("bulk.verbDelete"),
+      verbRemove: t("bulk.verbRemove"),
+      warnIrreversible: t("bulk.warnIrreversible"),
+      warnScope: t("bulk.warnScope"),
+      stage1TitleAll: t("bulk.stage1TitleAll"),
+      stage1Title: t("bulk.stage1Title"),
+      continueText: t("bulk.continue"),
+      stage2Title: t("bulk.stage2Title"),
+      stage2Message: (phrase) => t("bulk.stage2Message", { phrase }),
+      requireLabel: (phrase) => t("bulk.requireLabel", { phrase }),
+      stage3TitleIrreversible: t("bulk.stage3TitleIrreversible"),
+      stage3Title: t("bulk.stage3Title"),
+      stage3MessageIrreversible: (scope) => t("bulk.stage3MessageIrreversible", { scope }),
+      stage3Message: (scope) => t("bulk.stage3Message", { scope }),
+      confirmIrreversible: (count) => t("bulk.confirmIrreversible", { count }),
+      confirm: (count) => t("bulk.confirm", { count }),
+      cancelText: t("cancel"),
+    };
+    return { single, bulk };
+  }, [t]);
 
   return async function deleteConfirm(opts: DeleteConfirmOptions): Promise<boolean> {
     const count = resolveDeleteCount(opts);

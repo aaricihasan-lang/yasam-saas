@@ -648,11 +648,8 @@ ok(txt.includes("RAPORU HAZIRLAYAN") && txt.includes("Ayşe Uzman") && txt.inclu
       deriveYhWorkspaceState(null) === "unknown", "çalışma alanı durum eşlemesi");
     const health = code("app/api/yasam-hafizasi/health/route.ts");
     ok(/syntheticTenant: isSyntheticTenantId\(tenantId\)/.test(health), "health route sentetik tenant bilgisini döndürür");
-    // I18N (koordinatör ortak bileşenler): kart ızgarası app/_premium/home/HomeModuleGrid.tsx'e taşınmış; metin artık
-    // yhCardText(deriveYhCardStatus(...)) ile (tr: türetilen metin birebir; diğer dil: home.yhStatus.<kind>). Niyet aynı:
-    // YH kartı health yanıtından türetilir.
-    const page = code("app/page.tsx") + code("app/_premium/home/HomeModuleGrid.tsx");
-    ok(/item\.permissionKey === "yasam_hafizasi"\s*\?\s*yhCardText\(deriveYhCardStatus\(yhHealth\)\)/.test(page), "ana panel YH kartı health'ten türetilir");
+    const page = code("app/page.tsx");
+    ok(/item\.permissionKey === "yasam_hafizasi"\s*\?\s*deriveYhCardStatus\(yhHealth\)\.text/.test(page), "ana panel YH kartı health'ten türetilir");
     const ws = code("app/yasam-hafizasi/components/YasamHafizasiWorkspace.tsx");
     ok(/fetchYhHealth\(/.test(ws) && /"index-empty"/.test(ws), "çalışma alanı mount'ta health okur (index-empty durumu)");
   }
