@@ -127,18 +127,20 @@ test("TR alan bazlı doğrulama: sunucu metni aynen (birleşik kod TR'yi değiş
   assert.equal(localizeApiError(tTr, "tr", resolveClientsErrorPayload(tTr, p)), p.error);
 });
 
+// Alan bazlı yük (sunucunun ek `field` alanı) — ApiErrorPayload'a ek alan; nesne değişmeden geçirilir.
+const wf = (o: { code: string; field: string; error?: string }) => o as { code?: unknown; error?: unknown };
 console.log("D. EN: koddan çeviri, karışık dil yok");
 test("EN CLIENT_NOT_OWNED", () => {
   assert.equal(localizeApiError(tEn, "en", { code: "CLIENT_NOT_OWNED", error: "Danışan bu hesaba ait değil." }), "This client does not belong to this account.");
 });
 test("EN alan bazlı: INVALID_DATE + dogum → doğum tarihi metni; + gorusme → görüşme metni", () => {
-  assert.equal(fieldScopedCode({ code: "INVALID_DATE", field: "dogum" }), "INVALID_DATE_DOGUM");
-  const d = localizeApiError(tEn, "en", resolveClientsErrorPayload(tEn, { code: "INVALID_DATE", field: "dogum", error: "x" }));
-  const g = localizeApiError(tEn, "en", resolveClientsErrorPayload(tEn, { code: "INVALID_DATE", field: "gorusme", error: "x" }));
+  assert.equal(fieldScopedCode(wf({ code: "INVALID_DATE", field: "dogum" })), "INVALID_DATE_DOGUM");
+  const d = localizeApiError(tEn, "en", resolveClientsErrorPayload(tEn, wf({ code: "INVALID_DATE", field: "dogum", error: "x" })));
+  const g = localizeApiError(tEn, "en", resolveClientsErrorPayload(tEn, wf({ code: "INVALID_DATE", field: "gorusme", error: "x" })));
   assert.match(d, /date of birth/); assert.match(g, /consultation date/);
 });
 test("EN alan bazlı anahtar yoksa yalın koda düşer (INVALID_DATE + bilinmeyen alan)", () => {
-  assert.equal(localizeApiError(tEn, "en", resolveClientsErrorPayload(tEn, { code: "INVALID_DATE", field: "appointment_date", error: "x" })), enClients.codes.INVALID_DATE);
+  assert.equal(localizeApiError(tEn, "en", resolveClientsErrorPayload(tEn, wf({ code: "INVALID_DATE", field: "appointment_date", error: "x" }))), enClients.codes.INVALID_DATE);
 });
 test("EN ortak kod (common.apiErrors) zinciri: SERVER_ERROR", () => {
   assert.equal(localizeApiError(tEn, "en", { code: "SERVER_ERROR", error: "Sunucu hatası." }), enCommon.codes.SERVER_ERROR);
