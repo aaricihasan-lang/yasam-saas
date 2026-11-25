@@ -72,6 +72,7 @@
         "stoneInfo": "Taş bilgileri",
         "associations": "Eşleştirmeler",
         "englishName": "İngilizce adı: {name}",
+        "turkishName": "Türkçe adı: {name}",
         "contentSource": "İçerik kaynağı",
         "sourceOnlyNote": "Bu taş için doğrulanmış Türkçe çeviri henüz yayında değil; içerik kaynak metin (Türkçe) olarak gösteriliyor.",
         "fieldMissing": "Bu alan bu kaynakta yer almıyor.",
