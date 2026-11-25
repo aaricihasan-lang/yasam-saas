@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { useToast } from "@/components/ui/ToastProvider";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
 import { useHdLeaveGuard } from "../../hooks/useHdLeaveGuard";
@@ -55,6 +56,7 @@ type Props = { clientId: string };
 export function HdDanisanDetayContent({ clientId }: Props) {
   const { showToast } = useToast();
   const { confirm } = useConfirm();
+  const t = useTranslations("hd.clients.detail");
 
   const [row, setRow] = useState<HdClientRow | null>(null);
   const router = useRouter();
@@ -88,7 +90,7 @@ export function HdDanisanDetayContent({ clientId }: Props) {
     setLoading(false);
     if (error || !data) {
       setNotFound(true);
-      showToast({ message: error ?? "Danışan bulunamadı.", type: "error" });
+      showToast({ message: error ?? t("notFound"), type: "error" });
       return;
     }
     setRow(data);
@@ -96,7 +98,7 @@ export function HdDanisanDetayContent({ clientId }: Props) {
     setSuggestions(sug ?? []);
     setForm(rowToForm(data));
     versionRef.current = data.updated_at ?? null;
-  }, [clientId, showToast]);
+  }, [clientId, showToast, t]);
 
   // P2-7: kaydedilmemiş profil değişikliği — menü/logo/geri/yenile korunur.
   const dirty = useMemo(
@@ -106,13 +108,13 @@ export function HdDanisanDetayContent({ clientId }: Props) {
   const confirmLeave = useCallback(
     () =>
       confirm({
-        title: "Kaydedilmemiş değişiklikler",
-        message: "Danışan bilgilerindeki kaydedilmemiş değişiklikler kaybolacak. Sayfadan ayrılmak istiyor musunuz?",
-        confirmText: "Değişiklikleri At ve Çık",
-        cancelText: "Sayfada Kal",
+        title: t("leaveTitle"),
+        message: t("leaveMessage"),
+        confirmText: t("leaveConfirm"),
+        cancelText: t("leaveCancel"),
         tone: "danger",
       }),
-    [confirm],
+    [confirm, t],
   );
   useHdLeaveGuard(dirty, confirmLeave);
 
@@ -154,23 +156,23 @@ export function HdDanisanDetayContent({ clientId }: Props) {
   async function handleSave() {
     if (!form || !row) return;
     if (!form.name.trim()) {
-      showToast({ message: "Ad Soyad zorunludur.", type: "warning" });
+      showToast({ message: t("nameRequired"), type: "warning" });
       return;
     }
     // HD-08: hesap için zorunlu tarih/saat kayıtlıyken boşaltılamaz (sunucu da reddeder).
     if (row.birth_date && !form.birth_date) {
-      showToast({ message: "Doğum tarihi boş ya da eksik. Tarihi tam girip yeniden kaydedin.", type: "warning" });
+      showToast({ message: t("birthDateMissing"), type: "warning" });
       return;
     }
     if (row.birth_time && !form.birth_time) {
-      showToast({ message: "Doğum saati boş bırakılamaz.", type: "warning" });
+      showToast({ message: t("birthTimeMissing"), type: "warning" });
       return;
     }
     // HD-07: listeden seçilmeden değiştirilen doğum yeri kaydedilmez (eski konum sessizce kalmasın).
     const placeText = form.birth_place.trim();
     const placeChanged = placeText !== (row.birth_place ?? "").trim();
     if (placeChanged && placeText && !(pickedLocation && pickedLocation.label === placeText)) {
-      showToast({ message: "Doğum yeri listeden seçilmedi. Yeni yeri yazıp açılan listeden seçin.", type: "warning" });
+      showToast({ message: t("placeNotPicked"), type: "warning" });
       return;
     }
     if (dstIssue?.kind === "gap") {
@@ -197,7 +199,7 @@ export function HdDanisanDetayContent({ clientId }: Props) {
     );
     setSaving(false);
     if (error) {
-      showToast({ message: conflict ? error : `Hata: ${error}`, type: "error" });
+      showToast({ message: conflict ? error : t("errorPrefix", { error }), type: "error" });
     } else {
       // Kaydedilen hâl yeni baseline (dirty temizlenir; başlık güncel adı gösterir).
       versionRef.current = updatedAt ?? versionRef.current;
@@ -213,7 +215,7 @@ export function HdDanisanDetayContent({ clientId }: Props) {
           : r,
       );
       setForm((f) => (f ? { ...f, name: payload.name, birth_place: payload.birth_place ?? "", external_chart_url: payload.external_chart_url ?? "", notes: payload.notes ?? "" } : f));
-      showToast({ message: "Danışan güncellendi.", type: "success" });
+      showToast({ message: t("updated"), type: "success" });
     }
   }
 
@@ -221,7 +223,7 @@ export function HdDanisanDetayContent({ clientId }: Props) {
     return (
       <HumanDesignShell>
         <div className="flex items-center justify-center py-32 text-sm text-slate-500">
-          Yükleniyor...
+          {t("loading")}
         </div>
       </HumanDesignShell>
     );
@@ -231,12 +233,12 @@ export function HdDanisanDetayContent({ clientId }: Props) {
     return (
       <HumanDesignShell>
         <div className="flex flex-col items-center gap-4 py-32">
-          <p className="text-sm text-slate-500">Danışan bulunamadı.</p>
+          <p className="text-sm text-slate-500">{t("notFound")}</p>
           <Link
             href="/human-design/danisanlar"
             className="text-sm font-bold text-indigo-600 hover:underline"
           >
-            ← Human Design Analizlerim
+            ← {t("myAnalyses")}
           </Link>
         </div>
       </HumanDesignShell>
@@ -249,7 +251,7 @@ export function HdDanisanDetayContent({ clientId }: Props) {
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <div>
           <Link href="/human-design/danisanlar" className="text-xs font-black uppercase tracking-widest text-indigo-500 no-underline hover:underline">
-            Human Design Analizlerim
+            {t("myAnalyses")}
           </Link>
           <h1 className="text-xl font-black tracking-tight text-slate-900 sm:text-2xl">
             {row.name}
@@ -287,7 +289,7 @@ export function HdDanisanDetayContent({ clientId }: Props) {
             <details className="group rounded-2xl border border-slate-200/90 bg-white/90 p-5 shadow-sm">
               <summary className="cursor-pointer list-none text-xs font-black uppercase tracking-widest text-slate-500 marker:hidden">
                 <span className="mr-1 inline-block transition group-open:rotate-90">▸</span>
-                Eski Harita Görseli (salt okunur)
+                {t("legacyImage")}
               </summary>
               <div className="mt-3">
                 <HdChartImageUpload clientId={clientId} readOnly />
@@ -305,10 +307,10 @@ export function HdDanisanDetayContent({ clientId }: Props) {
         <div className="space-y-4">
           {/* Kişisel Bilgiler */}
           <div className="rounded-2xl border border-indigo-200/80 bg-white/95 p-5 shadow-sm ring-1 ring-indigo-100/60">
-            <p className={sectionCls}>Kişisel Bilgiler</p>
+            <p className={sectionCls}>{t("personalInfo")}</p>
             <div className="space-y-4">
               <div>
-                <label className={labelCls}>Ad Soyad *</label>
+                <label className={labelCls}>{t("fullNameLabel")}</label>
                 <input
                   type="text"
                   value={form.name}
@@ -317,12 +319,12 @@ export function HdDanisanDetayContent({ clientId }: Props) {
                   className={`h-9 ${fieldBase} ${journey ? "bg-slate-50 text-slate-600" : ""}`}
                 />
                 {journey ? (
-                  <p className="mt-1 text-[11px] text-slate-500">Ad ve soyad Danışan Yolculuğu kaydından gelir.</p>
+                  <p className="mt-1 text-[11px] text-slate-500">{t("nameFromJourney")}</p>
                 ) : null}
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className={labelCls}>Doğum Tarihi</label>
+                  <label className={labelCls}>{t("birthDate")}</label>
                   <HdBirthDateInput
                     value={form.birth_date}
                     onChange={(v) => setForm((p) => (p ? { ...p, birth_date: v } : p))}
@@ -330,7 +332,7 @@ export function HdDanisanDetayContent({ clientId }: Props) {
                   />
                 </div>
                 <div>
-                  <label className={labelCls}>Doğum Saati</label>
+                  <label className={labelCls}>{t("birthTime")}</label>
                   <HdBirthTimeInput
                     value={form.birth_time}
                     onChange={(v) => setForm((p) => (p ? { ...p, birth_time: v } : p))}
@@ -339,7 +341,7 @@ export function HdDanisanDetayContent({ clientId }: Props) {
                 </div>
               </div>
               <div>
-                <label htmlFor="hd-client-birth-place" className={labelCls}>Doğum Yeri</label>
+                <label htmlFor="hd-client-birth-place" className={labelCls}>{t("birthPlace")}</label>
                 <HdBirthLocationPicker
                   id="hd-client-birth-place"
                   value={pickedLocation ?? (storedLocation && storedLocation.label === form.birth_place ? storedLocation : null)}
@@ -357,10 +359,10 @@ export function HdDanisanDetayContent({ clientId }: Props) {
                 />
                 <p className="mt-1 text-[11px] text-slate-500">
                   {effectiveLocation
-                    ? `Saat dilimi: ${effectiveLocation.tz}`
+                    ? t("timeZone", { tz: effectiveLocation.tz })
                     : form.birth_place && form.birth_place === (row.birth_place ?? "")
-                      ? `Kayıtlı: ${form.birth_place}`
-                      : "İl, ilçe veya şehir yazıp listeden seçin."}
+                      ? t("savedPlace", { place: form.birth_place })
+                      : t("placeHint")}
                 </p>
                 {dstIssue ? (
                   <p
@@ -379,10 +381,10 @@ export function HdDanisanDetayContent({ clientId }: Props) {
 
           {/* Ek Bilgiler */}
           <div className="rounded-2xl border border-indigo-200/80 bg-white/95 p-5 shadow-sm ring-1 ring-indigo-100/60">
-            <p className={sectionCls}>Ek Bilgiler</p>
+            <p className={sectionCls}>{t("extraInfo")}</p>
             <div className="space-y-4">
               <div>
-                <label className={labelCls}>Not</label>
+                <label className={labelCls}>{t("note")}</label>
                 <textarea
                   value={form.notes}
                   onChange={set("notes")}
@@ -401,7 +403,7 @@ export function HdDanisanDetayContent({ clientId }: Props) {
               disabled={saving}
               className="h-10 rounded-xl border border-indigo-300/80 bg-gradient-to-r from-indigo-600 to-violet-600 px-8 text-sm font-black uppercase tracking-wide text-white shadow-[0_4px_16px_-4px_rgba(79,70,229,0.4)] transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {saving ? "Kaydediliyor..." : "Güncelle"}
+              {saving ? t("saving") : t("update")}
             </button>
           </div>
         </div>

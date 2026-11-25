@@ -10,6 +10,7 @@
 //     "Analizi Tekrar Dene" yalnız hesabı yeniden ister.
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/components/ui/ToastProvider";
 import { readYasamUser } from "@/lib/auth/yasamUser";
@@ -37,6 +38,7 @@ export function HdJourneyProfileStart({
 }) {
   const router = useRouter();
   const { showToast } = useToast();
+  const t = useTranslations("hd.clients.start");
   const [birthDate, setBirthDate] = useState(journeyBirthDate ?? "");
   const [birthTime, setBirthTime] = useState("");
   const [birthLoc, setBirthLoc] = useState<HdPickedLocation | null>(null);
@@ -62,7 +64,7 @@ export function HdJourneyProfileStart({
       router.push(`/human-design/danisanlar/${hdClientId}`);
       return;
     }
-    setComputeError(`Human Design profili kaydedildi ancak analiz oluşturulamadı: ${r.error}`);
+    setComputeError(t("computeFailed", { error: r.error }));
   }
 
   async function createProfile(acknowledged: string[] = []) {
@@ -77,12 +79,12 @@ export function HdJourneyProfileStart({
       return;
     }
     if (readYasamUser()?.is_demo_account === true) {
-      showToast({ message: "Demo hesabında danışan işlemi yapılamaz.", type: "info" });
+      showToast({ message: t("demoBlocked"), type: "info" });
       return;
     }
-    const missing = [!birthDate && "Doğum Tarihi", !birthTime && "Doğum Saati (SS:DD)", !birthLoc && "Doğum Yeri (listeden seçin)"].filter(Boolean);
+    const missing = [!birthDate && t("reqBirthDate"), !birthTime && t("reqBirthTime"), !birthLoc && t("reqBirthPlace")].filter(Boolean);
     if (missing.length > 0) {
-      showToast({ message: `Zorunlu alanlar: ${missing.join(", ")}.`, type: "warning" });
+      showToast({ message: t("requiredFields", { fields: missing.join(", ") }), type: "warning" });
       return;
     }
     setSaving(true);
@@ -115,17 +117,17 @@ export function HdJourneyProfileStart({
       router.push(`/human-design/danisanlar/${r.hdClientId}`);
       return;
     }
-    showToast({ message: r.ok ? "Human Design profili oluşturulamadı." : r.error, type: "error" });
+    showToast({ message: r.ok ? t("profileFailed") : r.error, type: "error" });
   }
 
   return (
     <div className="mt-2 w-full space-y-3 rounded-xl border border-indigo-100 bg-indigo-50/40 p-3" data-hd-profile-start={journeyClientId}>
       <p className="m-0 text-xs text-slate-600">
-        <strong className="text-slate-800">{name}</strong> için Human Design başlatın: doğum saati ve doğum yerini tamamlayın.
+        {t.rich("intro", { name, strong: (chunks) => <strong className="text-slate-800">{chunks}</strong> })}
       </p>
       <div className="grid gap-3 sm:grid-cols-3">
         <div>
-          <label htmlFor={`hd-start-dogum-${journeyClientId}`} className={hdLabelCls}>Doğum Tarihi *</label>
+          <label htmlFor={`hd-start-dogum-${journeyClientId}`} className={hdLabelCls}>{t("birthDateLabel")}</label>
           {journeyBirthDate ? (
             <input id={`hd-start-dogum-${journeyClientId}`} type="text" value={journeyBirthDate.split("-").reverse().join(".")} disabled className={`h-10 ${hdFieldBase} disabled:bg-slate-50 disabled:text-slate-600`} />
           ) : (
@@ -133,17 +135,17 @@ export function HdJourneyProfileStart({
           )}
         </div>
         <div>
-          <label htmlFor={`hd-start-saat-${journeyClientId}`} className={hdLabelCls}>Doğum Saati *</label>
+          <label htmlFor={`hd-start-saat-${journeyClientId}`} className={hdLabelCls}>{t("birthTimeLabel")}</label>
           <HdBirthTimeInput id={`hd-start-saat-${journeyClientId}`} value={birthTime} onChange={setBirthTime} className={`h-10 ${hdFieldBase}`} />
         </div>
         <div>
-          <label htmlFor={`hd-start-yer-${journeyClientId}`} className={hdLabelCls}>Doğum Yeri *</label>
+          <label htmlFor={`hd-start-yer-${journeyClientId}`} className={hdLabelCls}>{t("birthPlaceLabel")}</label>
           <HdBirthLocationPicker id={`hd-start-yer-${journeyClientId}`} value={birthLoc} onChange={setBirthLoc} />
         </div>
       </div>
       {phase === "computing" ? (
         <p role="status" className="m-0 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-2 text-xs font-semibold text-indigo-800" data-hd-start-computing>
-          Human Design haritası hesaplanıyor… Lütfen bekleyin.
+          {t("computingNote")}
         </p>
       ) : null}
       {computeError ? (
@@ -153,7 +155,7 @@ export function HdJourneyProfileStart({
       ) : null}
       <div className="flex flex-wrap justify-end gap-2">
         <button type="button" onClick={onCancel} disabled={saving} className="h-9 rounded-xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-700 hover:bg-slate-50">
-          Vazgeç
+          {t("cancel")}
         </button>
         <button
           type="button"
@@ -162,7 +164,7 @@ export function HdJourneyProfileStart({
           className="h-9 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 px-4 text-sm font-black text-white shadow-sm hover:brightness-105 disabled:opacity-60"
           data-hd-profile-start-save
         >
-          {phase === "creating" ? "Kaydediliyor…" : phase === "computing" ? "Harita hesaplanıyor…" : createdId ? "Analizi Tekrar Dene" : "Oluştur ve Analiz Et"}
+          {phase === "creating" ? t("saving") : phase === "computing" ? t("computing") : createdId ? t("retry") : t("createAndAnalyze")}
         </button>
       </div>
       {dup ? (

@@ -693,8 +693,10 @@ const later = (iso: string, ms = 5) => new Date(Date.parse(iso) + ms).toISOStrin
   });
   await t("TEK 'Sil': gerçek etki + İKİ normal onay, ad yazdırma YOK (owner kararı 2026-10-17)", () => {
     const l = src("app/human-design/danisanlar/components/HdFullDeleteDialog.tsx");
-    assert(l.includes("Bu danışana ait bütün Human Design analizleri, haritaları ve raporları kalıcı olarak silinecek.") && l.includes("Danışan Yolculuğu&apos;ndaki ana kayıt korunacaktır."), "1. onay metni / korunanlar");
-    assert(l.includes("için tüm Human Design kayıtları kalıcı olarak silinecek. Bu işlem geri alınamaz. Emin misiniz?") && /Evet, Sil/.test(l) && /Devam Et/.test(l), "2. onay metni / düğmeler");
+    // I18N (R5): owner onaylı metinler katalogda (hd.clients.fullDelete; TR BİREBİR) — dialog anahtarları kullanır.
+    const fd = JSON.parse(src("messages/tr/hd.clients.json")).hd.clients.fullDelete;
+    assert(fd.confirm1.includes("Bu danışana ait bütün Human Design analizleri, haritaları ve raporları kalıcı olarak silinecek.") && fd.confirm1.includes("Danışan Yolculuğu'ndaki ana kayıt korunacaktır.") && l.includes('t("confirm1")'), "1. onay metni / korunanlar");
+    assert(fd.confirm2.includes("için tüm Human Design kayıtları kalıcı olarak silinecek. Bu işlem geri alınamaz. Emin misiniz?") && fd.yesDelete === "Evet, Sil" && fd.continue === "Devam Et" && l.includes('t("confirm2", { name })'), "2. onay metni / düğmeler");
     assert(/useState<1 \| 2>/.test(l) && !/nameOk|data-hd-full-delete-name|Adım \{step\} \/ 3/.test(l), "iki aşama değil / ad yazdırma kaldı");
     assert(/previewHdClientDelete/.test(l) && /notifyHdProfileDeleted/.test(l) && /analyses: scope\.analyses, reports: scope\.reports/.test(l), "kesin kapsam / liste yenileme / onaydaki sayılar yok");
   });

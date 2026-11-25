@@ -547,7 +547,9 @@ async function main() {
     const detail = src("app/human-design/danisanlar/[id]/HdDanisanDetayContent.tsx");
     ok("7f Seçici ham metni üst forma bildirir (onTextChange)", /onTextChange\?\.\(e\.target\.value\)/.test(picker));
     ok("7g Detay formu: yazılan metin formu değiştirir + önceki seçimi düşürür", /onTextChange=\{\(text\) => \{\s*setPickedLocation\(null\);\s*setForm\(\(p\) => \(p \? \{ \.\.\.p, birth_place: text \} : p\)\);/.test(detail));
-    ok("7h Detay formu: seçilmemiş yer için kayıt öncesi uyarı (istek gönderilmez)", detail.includes("Doğum yeri listeden seçilmedi") && detail.indexOf("Doğum yeri listeden seçilmedi") < detail.indexOf("await updateHdClient("));
+    // I18N (R5): uyarı metni katalogda (hd.clients.detail.placeNotPicked; TR değeri kaynak metinle bayt-eşit) — niyet aynı.
+    const placeNotPickedTr = JSON.parse(src("messages/tr/hd.clients.json")).hd.clients.detail.placeNotPicked as string;
+    ok("7h Detay formu: seçilmemiş yer için kayıt öncesi uyarı (istek gönderilmez)", placeNotPickedTr.startsWith("Doğum yeri listeden seçilmedi") && detail.includes('t("placeNotPicked")') && detail.indexOf('t("placeNotPicked")') < detail.indexOf("await updateHdClient("));
     ok("7i Roxy konum araması yedeği KORUNDU (yerel sonuç yoksa otomatik ilçe araması)", /merged\.length === 0 && q\.length >= 4/.test(picker) && picker.includes("/api/hd/location/search"));
     const lsRoute = src("app/api/hd/location/search/route.ts");
     ok("7i2 Sunucu Roxy konum arama ucu duruyor (owner kararı: yerel sonuç yoksa Roxy kullanılmaya devam)", /export async function GET/.test(lsRoute) && /roxy/i.test(lsRoute));

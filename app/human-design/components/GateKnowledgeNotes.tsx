@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { HD_LEGACY_CENTER_NOTE, hdKnowledgeDisplayTitle, isLegacyCenterKnowledgeCode } from "@/lib/human-design/knowledge/centerKnowledge";
 import type { KnowledgeGroup } from "../rapor-olustur/helpers/hdRapor";
 
@@ -9,16 +10,17 @@ type Props = {
 };
 
 export function GateKnowledgeNotes({ groups, loading }: Props) {
+  const t = useTranslations("hd.forms.gateNotes");
   return (
     <div className="mt-4 space-y-2">
       <p className="text-[10px] font-black uppercase tracking-widest text-indigo-700">
-        Bilgi Bankası Yorumları
+        {t("title")}
       </p>
       {loading ? (
-        <p className="text-xs text-indigo-500">Yükleniyor...</p>
+        <p className="text-xs text-indigo-500">{t("loading")}</p>
       ) : groups.length === 0 ? (
         <p className="text-xs text-slate-400">
-          Bu başlık için henüz Bilgi Bankası yorumu eklenmemiş.
+          {t("empty")}
         </p>
       ) : (
         <div className="space-y-2">

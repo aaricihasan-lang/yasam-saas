@@ -443,7 +443,9 @@ ok(txt.includes("RAPORU HAZIRLAYAN") && txt.includes("Ayşe Uzman") && txt.inclu
     body = (await res.json()) as Record<string, unknown>;
     ok(res.status === 410 && db.tables.human_design_charts.length === 0, "geçersiz kodla da 410 (doğrulamaya girmeden kapalı)");
     const page = code("app/human-design/harita-kaydi/page.tsx");
-    ok(/Yeni manuel Human Design kaydı artık kullanılmıyor/.test(page) && !/HdHaritaKaydiContent/.test(page),
+    // I18N (R5): bilgi mesajı katalogda (hd.chartEntry.closedTitle; TR bayt-eşit) — niyet aynı.
+    const ceTr = JSON.parse(readFileSync(join(ROOT, "messages/tr/hd.chartEntry.json"), "utf8")).hd.chartEntry;
+    ok(ceTr.closedTitle === "Yeni manuel Human Design kaydı artık kullanılmıyor." && /t\("closedTitle"\)/.test(page) && !/HdHaritaKaydiContent/.test(page),
       "harita-kaydi sayfası 404 değil: bilgi mesajı, eski form render EDİLMEZ");
   }
 

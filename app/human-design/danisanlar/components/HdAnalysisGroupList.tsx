@@ -14,6 +14,8 @@
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { Search, User } from "lucide-react";
+import { useLocale, useTranslations } from "next-intl";
+import { useHdTerms } from "../../_i18n/useHdTerms";
 import s from "@/app/_premium/human-design/calismaAlani.module.css";
 import Link from "next/link";
 import { fetchHdAnalysisGroups, formatIsoDateTr, type HdAnalysisGroupOption } from "@/lib/human-design/api/journeyClient";
@@ -27,9 +29,9 @@ import { HdJourneyProfileStart } from "./HdJourneyProfileStart";
 
 const PAGE = 20;
 
-function summaryOf(r: HdAnalysisGroupOption): string {
+function summaryOf(r: HdAnalysisGroupOption, typeLabel: (code: string) => string = hdTypeLabelFromCode): string {
   const c = toAppChartCodes({ type_code: r.typeCode, profile_code: r.profileCode });
-  const type = c.type_code ? hdTypeLabelFromCode(c.type_code) : r.typeCode ?? "";
+  const type = c.type_code ? typeLabel(c.type_code) : r.typeCode ?? "";
   const profile = c.profile_code ? hdProfileLabelFromCode(c.profile_code).split(" — ")[0] : r.profileCode ?? "";
   return [type, profile].filter(Boolean).join(" · ");
 }
@@ -57,6 +59,11 @@ export function HdAnalysisGroupList({ head, full = false }: { head?: ReactNode; 
   const [notice, setNotice] = useState<{ text: string; cleanup: boolean } | null>(null);
   const [cleaning, setCleaning] = useState(false);
   const seq = useRef(0);
+  // I18N: TR'de tip etiketi mevcut yardımcıdan AYNEN; diğer dillerde kanonik kod → hd.terms.
+  const t = useTranslations("hd.clients.list");
+  const isTr = useLocale() === "tr";
+  const terms = useHdTerms();
+  const typeLabel = (code: string) => (isTr ? hdTypeLabelFromCode(code) : terms.label("type", code));
 
   useEffect(() => {
     clearLegacyFirstAnalysisPref();
@@ -98,13 +105,13 @@ export function HdAnalysisGroupList({ head, full = false }: { head?: ReactNode; 
     setCleaning(true);
     const r = await retryHdImageCleanup();
     setCleaning(false);
-    setNotice(r.ok ? { text: `Kalan görseller temizlendi (${r.removed}).`, cleanup: false } : { text: `Görseller temizlenemedi: ${r.error ?? ""}`.trim(), cleanup: true });
+    setNotice(r.ok ? { text: t("cleanupDone", { count: r.removed }), cleanup: false } : { text: t("cleanupFailed", { error: r.error ?? "" }).trim(), cleanup: true });
   }
 
   const shown = rows?.length ?? 0;
 
   return (
-    <section className={`${s.panel} ${full ? s.full : ""}`} aria-label="Danışan Listesi" data-hd-analysis-groups>
+    <section className={`${s.panel} ${full ? s.full : ""}`} aria-label={t("ariaLabel")} data-hd-analysis-groups>
       {head}
       <label className={s.search}>
       <Search className={s.sIcon} strokeWidth={2} aria-hidden />
@@ -112,8 +119,8 @@ export function HdAnalysisGroupList({ head, full = false }: { head?: ReactNode; 
         type="search"
         value={query}
         onChange={(e) => setQuery(e.target.value)}
-        placeholder="Danışan adı veya soyadı ara..."
-        aria-label="Danışan adı veya soyadı ara"
+        placeholder={t("searchPlaceholder")}
+        aria-label={t("searchAria")}
         data-hd-analysis-search
       />
       </label>
@@ -122,25 +129,25 @@ export function HdAnalysisGroupList({ head, full = false }: { head?: ReactNode; 
           <span className="min-w-0">{notice.text}</span>
           {notice.cleanup ? (
             <button type="button" onClick={() => void runCleanup()} disabled={cleaning} className="h-8 shrink-0 rounded-lg border border-amber-300 bg-white px-3 text-xs font-bold text-amber-800 hover:bg-amber-50 disabled:opacity-60">
-              {cleaning ? "Temizleniyor…" : "Kalan görselleri temizle"}
+              {cleaning ? t("cleaning") : t("cleanupRemaining")}
             </button>
           ) : null}
         </div>
       ) : null}
       <div className="mt-1">
         {rows === null ? (
-          <p className={s.empty}>Yükleniyor...</p>
+          <p className={s.empty}>{t("loading")}</p>
         ) : error && shown === 0 ? (
           <p role="alert" className="mt-2 rounded-xl bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700">{error}</p>
         ) : shown === 0 ? (
           <p className={s.empty}>
-            {query.trim() ? "Aramanızla eşleşen danışan bulunamadı." : "Henüz Human Design danışanı yok. “Yeni Hesaplama” ile başlayın veya danışan adını arayın."}
+            {query.trim() ? t("noMatch") : t("empty")}
           </p>
         ) : (
           <>
             <ul className={s.cList}>
               {rows!.map((r) => {
-                const summary = summaryOf(r);
+                const summary = summaryOf(r, typeLabel);
                 return (
                   <li key={r.key} className={s.cRow} data-hd-group={r.key} data-hd-group-kind={r.kind}>
                     <span className={s.cAv} aria-hidden>
@@ -149,23 +156,23 @@ export function HdAnalysisGroupList({ head, full = false }: { head?: ReactNode; 
                     <div className={s.cBody}>
                       <p className={`${s.cName} [overflow-wrap:anywhere]`}>{r.name}</p>
                       <p className={s.cMeta}>
-                        {[r.birthDate ? `Doğum: ${formatIsoDateTr(r.birthDate)}` : null, summary || null].filter(Boolean).join(" · ")}
+                        {[r.birthDate ? t("birth", { date: formatIsoDateTr(r.birthDate) }) : null, summary || null].filter(Boolean).join(" · ")}
                       </p>
                       <p className={s.cMeta2}>
                         {r.analysisCount > 0 ? (
                           <>
-                            {r.firstAnalysisAt ? <span data-hd-group-first>İlk analiz: {formatIsoDateTr(r.firstAnalysisAt)} · </span> : null}
-                            <span data-hd-group-last>Son analiz: {formatIsoDateTr(r.lastAnalysisAt)}</span> · <span data-hd-group-count={r.analysisCount}>{r.analysisCount} analiz</span>
+                            {r.firstAnalysisAt ? <span data-hd-group-first>{t("firstAnalysis", { date: formatIsoDateTr(r.firstAnalysisAt) })} · </span> : null}
+                            <span data-hd-group-last>{t("lastAnalysis", { date: formatIsoDateTr(r.lastAnalysisAt) })}</span> · <span data-hd-group-count={r.analysisCount}>{t("analysisCount", { count: r.analysisCount })}</span>
                           </>
                         ) : r.kind === "journey" ? (
-                          <span data-hd-group-status="none">Human Design kaydı yok</span>
+                          <span data-hd-group-status="none">{t("noRecord")}</span>
                         ) : (
-                          <span data-hd-group-status="empty">Human Design profili var · henüz analiz yok</span>
+                          <span data-hd-group-status="empty">{t("profileNoAnalysis")}</span>
                         )}
                         {r.linkedToJourney ? (
                           <>
                             {" · "}
-                            <span className={s.linked} data-hd-group-linked>Danışan Yolculuğu&apos;na bağlı</span>
+                            <span className={s.linked} data-hd-group-linked>{t("linkedToJourney")}</span>
                           </>
                         ) : null}
                       </p>
@@ -180,7 +187,7 @@ export function HdAnalysisGroupList({ head, full = false }: { head?: ReactNode; 
                               className={`${s.b} ${s.bGhost}`}
                               data-hd-group-open={r.hdClientId}
                             >
-                              Detayı Aç
+                              {t("openDetail")}
                             </button>
                           ) : (
                             <Link
@@ -188,11 +195,11 @@ export function HdAnalysisGroupList({ head, full = false }: { head?: ReactNode; 
                               className={`${s.b} ${s.bGhost}`}
                               data-hd-group-open={r.hdClientId}
                             >
-                              Detayı Aç
+                              {t("openDetail")}
                             </Link>
                           )}
                           <Link href={`/human-design/danisanlar/${r.hdClientId}`} className={`${s.b} ${s.bPri}`} data-hd-group-new={r.hdClientId}>
-                            Yeni Analiz
+                            {t("newAnalysis")}
                           </Link>
                         </>
                       ) : r.kind === "hd" && r.hdClientId ? (
@@ -201,16 +208,16 @@ export function HdAnalysisGroupList({ head, full = false }: { head?: ReactNode; 
                           className={`${s.b} ${s.bPri}`}
                           data-hd-group-new={r.hdClientId}
                         >
-                          Analiz Yap
+                          {t("analyse")}
                         </Link>
                       ) : r.kind === "orphan" && r.latestChartId ? (
                         r.latestKind === "manual" ? (
                           <Link href={`/human-design/kayitli-haritalar/${r.latestChartId}`} className={`${s.b} ${s.bGhost}`}>
-                            Analizi Aç
+                            {t("openAnalysis")}
                           </Link>
                         ) : (
                           <button type="button" onClick={() => setOpen({ chartId: r.latestChartId!, row: r })} className={`${s.b} ${s.bGhost}`}>
-                            Analizi Aç
+                            {t("openAnalysis")}
                           </button>
                         )
                       ) : r.kind === "journey" && r.journeyClientId ? (
@@ -220,7 +227,7 @@ export function HdAnalysisGroupList({ head, full = false }: { head?: ReactNode; 
                           className={`${s.b} ${s.bPri}`}
                           data-hd-group-start={r.journeyClientId}
                         >
-                          Human Design Başlat
+                          {t("startHd")}
                         </button>
                       ) : null}
                     </div>
@@ -253,12 +260,12 @@ export function HdAnalysisGroupList({ head, full = false }: { head?: ReactNode; 
                   className={`${s.b} ${s.bGhost} disabled:opacity-60`}
                   data-hd-analysis-more
                 >
-                  {loading ? "Yükleniyor..." : `Daha fazla göster (${shown} / ${total})`}
+                  {loading ? t("loading") : t("showMore", { shown, total })}
                 </button>
               </div>
             ) : null}
             <p className={s.count} data-hd-analysis-total={total}>
-              {query.trim() ? `${total} danışan bulundu` : `${total} danışan`}
+              {query.trim() ? t("foundCount", { total }) : t("totalCount", { total })}
             </p>
           </>
         )}
@@ -274,13 +281,13 @@ export function HdAnalysisGroupList({ head, full = false }: { head?: ReactNode; 
           onClose={() => setOpen(null)}
           onDeleted={() => {
             setOpen(null);
-            setNotice({ text: "Analiz silindi.", cleanup: false });
+            setNotice({ text: t("analysisDeleted"), cleanup: false });
             void load(query.trim(), 0);
           }}
           onProfileDeleted={(res) => {
             setOpen(null);
             setNotice({
-              text: `Human Design kayıtları silindi: ${res.deletedAnalyses} analiz ve ${res.deletedReports} Word raporu kaldırıldı. Danışan Yolculuğu ana kaydı korundu.${res.storageWarning ? " Bazı görsel dosyaları temizlenemedi." : ""}`,
+              text: `${t("profileDeleted", { analyses: res.deletedAnalyses, reports: res.deletedReports })}${res.storageWarning ? ` ${t("storageWarning")}` : ""}`,
               cleanup: res.storageWarning,
             });
             void load(query.trim(), 0);

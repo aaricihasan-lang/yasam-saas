@@ -1,0 +1,12 @@
+{
+  "hd": {
+    "chartEntry": {
+      "closedTitle": "Yeni manuel Human Design kaydı artık kullanılmıyor.",
+      "closedBody": "Human Design Hesaplama bölümünden otomatik hesaplama yapın.",
+      "calculation": "Human Design Hesaplama",
+      "legacyRecords": "Eski kayıtlar",
+      "title": "Human Design — Harita Kaydı",
+      "loading": "Yükleniyor..."
+    }
+  }
+}
