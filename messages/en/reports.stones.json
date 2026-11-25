@@ -99,6 +99,204 @@
           "filtered": "filtered",
           "all": "all"
         }
+      },
+      "generatedOnDate": "Date Generated: {date}",
+      "source": {
+        "label": "Source: ",
+        "notSpecified": "Source not specified"
+      },
+      "encyclopedia": {
+        "coverTitle": "NATURAL STONE ENCYCLOPAEDIA",
+        "coverSubtitle": "Professional Information and Reference Catalogue",
+        "stat": {
+          "stones": "Total Stones",
+          "minerals": "Total Minerals",
+          "combinations": "Total Combinations",
+          "knowledge": "Total Articles"
+        },
+        "section": {
+          "stones": "Natural Stone Records",
+          "minerals": "Mineral Bank",
+          "combinations": "Combinations",
+          "knowledge": "Stone Knowledge Library"
+        },
+        "records": "{count, plural, one {{shown} record} other {{shown} records}}",
+        "articles": "{count, plural, one {{shown} article} other {{shown} articles}}",
+        "summaryTitle": "1. General Summary",
+        "summaryNote": "Compiled from your records for the selected sections.",
+        "summaryNoteRecords": "Compiled from your records for the selected sections.",
+        "stones": {
+          "divider": "NATURAL STONE RECORDS",
+          "dividerSub": "{count, plural, one {{shown} Stone Record} other {{shown} Stone Records}}",
+          "heading": "{n}. Natural Stone Records",
+          "total": "{count, plural, one {Total: {shown} stone record} other {Total: {shown} stone records}}",
+          "cardNo": "NATURAL STONE #{no}",
+          "unnamed": "Unnamed Stone",
+          "sourcesInline": "SOURCES",
+          "sourceInline": "SOURCE",
+          "sourceNoteInline": "Source Note",
+          "chakraCount": "Number of Chakras",
+          "warningTags": "Warning Tags",
+          "field": {
+            "shortDescription": "Short Description",
+            "generalInfo": "General Information",
+            "sourceNote": "Source Note",
+            "physical": "Physical Effects",
+            "spiritual": "Spiritual Effects",
+            "other": "Other Effects",
+            "fengShui": "Feng Shui",
+            "meditation": "Meditation",
+            "care": "Care",
+            "application": "Use",
+            "chakras": "Chakras",
+            "assignments": "Assignments / Zodiac Signs",
+            "warnings": "Warnings"
+          }
+        },
+        "minerals": {
+          "divider": "MINERAL BANK",
+          "dividerSub": "{count, plural, one {{shown} Mineral Record} other {{shown} Mineral Records}}",
+          "heading": "{n}. Mineral Bank",
+          "total": "{count, plural, one {Total: {shown} mineral record} other {Total: {shown} mineral records}}",
+          "cardNo": "MINERAL #{no}",
+          "unnamed": "Unnamed Mineral",
+          "category": "Category",
+          "description": "Description",
+          "field": {
+            "physical": "Physical Effects",
+            "mental": "Mental Effects",
+            "physiology": "Physiology",
+            "deficiency": "Deficiency Symptoms",
+            "excess": "Excess Symptoms",
+            "overdose": "Overdose",
+            "containingStones": "Containing Stones",
+            "organs": "Organ Effects",
+            "chakras": "Chakras"
+          }
+        },
+        "combinations": {
+          "divider": "COMBINATIONS",
+          "dividerSub": "{count, plural, one {{shown} Combination Record} other {{shown} Combination Records}}",
+          "heading": "{n}. Combinations",
+          "total": "{count, plural, one {Total: {shown} combination record} other {Total: {shown} combination records}}",
+          "cardNo": "COMBINATION #{no}",
+          "unnamed": "Untitled Combination",
+          "purpose": "Purpose / Category",
+          "stones": "Stones",
+          "usage": "Suggested Use",
+          "source": "Source"
+        },
+        "knowledge": {
+          "divider": "STONE KNOWLEDGE LIBRARY",
+          "dividerSub": "{count, plural, one {{shown} Article} other {{shown} Articles}}",
+          "heading": "{n}. Stone Knowledge Library",
+          "total": "{count, plural, one {Total: {shown} article} other {Total: {shown} articles}}",
+          "generalCategory": "General",
+          "untitled": "Untitled Article",
+          "subCategory": "Subcategory",
+          "source": "Source",
+          "tags": "Tags",
+          "relatedStones": "Related Stones",
+          "relatedMinerals": "Related Minerals",
+          "notes": "Notes"
+        },
+        "analytics": {
+          "reportDate": "Report Date",
+          "notIncluded": "Not included",
+          "totalRecords": "Total Records",
+          "divider": "ANALYSIS SUMMARY",
+          "dividerSub": "Inventory & System Statistics",
+          "heading": "{n}. Inventory / Analysis Summary",
+          "note": "Statistics for the selected sections"
+        },
+        "footer": "Yaşam Sistemi Natural Stone Encyclopaedia",
+        "file": "natural-stone-encyclopaedia-report"
+      },
+      "stoneDetail": {
+        "subtitle": "Natural Stone Detail Report",
+        "unnamed": "Unnamed Stone",
+        "stat": {
+          "stoneName": "Stone Name",
+          "filledSections": "Completed Sections",
+          "imageCount": "Number of Images",
+          "chakraCount": "Number of Chakras",
+          "source": "Source",
+          "library": "Library",
+          "infoSource": "Information Sources"
+        },
+        "summary": {
+          "filledSections": "{count, plural, one {{shown} section} other {{shown} sections}}",
+          "imageCount": "{count, plural, one {{shown} image} other {{shown} images}}",
+          "chakra": "Chakra",
+          "recordDate": "Record Date",
+          "infoSources": "Information Sources"
+        },
+        "sourceBanner": "SOURCE: {name}",
+        "sectionNo": "SECTION {n}",
+        "section": {
+          "general": "1. General Information",
+          "effects": "2. Effects",
+          "usage": "3. Areas of Use",
+          "chakras": "4. Chakras and Assignments"
+        },
+        "field": {
+          "shortDescription": "Short Description",
+          "generalInfo": "General Stone Description",
+          "sourceNote": "Source Note",
+          "physical": "Physical Effects",
+          "spiritual": "Spiritual Effects",
+          "other": "Other Effects",
+          "warnings": "Warnings and Sensitivities",
+          "warningTags": "Warning Tags",
+          "fengShui": "Feng Shui",
+          "meditation": "Meditation",
+          "care": "Care",
+          "application": "Application",
+          "chakras": "Chakras"
+        },
+        "emptySection": "No information has been entered in this section yet.",
+        "extraImages": "Additional Images",
+        "extraImagesNote": "{count, plural, one {This stone record has {shown} image in total. Please visit the system.} other {This stone record has {shown} images in total. Please visit the system.}}",
+        "footer": "Natural Stone Report · {name}",
+        "file": "natural-stone"
+      },
+      "knowledge": {
+        "coverTitle": "STONE KNOWLEDGE LIBRARY",
+        "coverSubtitle": "Knowledge Base Reference Catalogue",
+        "stat": {
+          "totalArticles": "Total Articles",
+          "categoryCount": "Number of Categories",
+          "scope": "Scope"
+        },
+        "summary": {
+          "totalArticles": "Total Articles",
+          "categoryCount": "Number of Categories"
+        },
+        "articles": "{count, plural, one {{shown} article} other {{shown} articles}}",
+        "categoryArticles": "{category}: {count, plural, one {{shown} article} other {{shown} articles}}",
+        "summaryTitle": "1. General Summary",
+        "summaryMeta": "{categories, plural, one {{categoriesShown} category} other {{categoriesShown} categories}} · {articles, plural, one {{articlesShown} article} other {{articlesShown} articles}}",
+        "dividerSub": "{count, plural, one {{shown} Article} other {{shown} Articles}}",
+        "generalCategory": "General",
+        "untitled": "Untitled Article",
+        "field": {
+          "subCategory": "Subcategory",
+          "date": "Date",
+          "source": "Source",
+          "sourceSection": "Source Section",
+          "tags": "Tags",
+          "relatedStones": "Related Stones",
+          "relatedMinerals": "Related Minerals",
+          "notes": "Notes"
+        },
+        "scope": {
+          "all": "All Articles",
+          "category": "Category: {name}",
+          "viewed": "Viewed Records",
+          "filtered": "Filtered Results"
+        },
+        "footer": "Yaşam Sistemi — Stone Knowledge Library",
+        "file": "stone-knowledge-library-report"
       }
     }
   }

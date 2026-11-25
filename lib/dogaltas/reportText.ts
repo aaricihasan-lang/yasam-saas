@@ -56,3 +56,34 @@ export function stonesText(): StonesText {
 export function withStonesOutput<T>(output: ReportLocale | null | undefined, fn: () => T): T {
   return store.run(stonesTextFor(output), fn);
 }
+
+// ── I18N-F1-R5 RAPOR-E (P11/P12/P15) ek yardımcıları ────────────────────────────────────────────────
+
+/**
+ * Rapor katmanında kaynak görünen adı: boş/NULL → çıktı dilinde "Kaynak belirtilmemiş".
+ * TR'de `lib/dogaltas/stoneSources.sourceDisplayName` ile BİREBİR (o dosyaya dokunulmaz — mod-b #843 alanı).
+ */
+export function stonesSourceName(name: string | null | undefined): string {
+  return (name ?? "").trim() || stonesText().t("source.notSpecified");
+}
+
+/** Kayıt içeriği (taş/kategori/kaynak adı — DB'de TR) büyük harfe TR kuralıyla; sistem yedek metni çıktı dilinin kuralıyla. */
+export function upperContent(text: string, isSystemText = false): string {
+  return isSystemText ? stonesText().output.upper(text) : text.toLocaleUpperCase("tr-TR");
+}
+
+/**
+ * Doğaltaş Ansiklopedisi (P11) GEÇİŞ KÖPRÜSÜ: rota dosyasında mod-b (#843) değişikliğinin bulunduğu özet satırları
+ * ("1. Genel Özet" + kaynak notu) birleşme çakışması olmasın diye satır olarak DEĞİŞTİRİLMEDİ. Bu yardımcı, o satırların
+ * sabit TR metnini (hem bugünkü hem mod-b'nin yeni metni) katalogdaki TR değeriyle eşleştirip çıktı dilindeki karşılığını
+ * döndürür. TR'de metin AYNEN döner (golden birebir; mod-b birleşince yeni TR metni de aynen basılır).
+ * mod-b birleştikten sonra rota satırı doğrudan `t("encyclopedia.summary…")`'a çevrilip bu köprü kaldırılabilir.
+ */
+const ENCYCLOPEDIA_BRIDGE_KEYS = ["encyclopedia.summaryTitle", "encyclopedia.summaryNote", "encyclopedia.summaryNoteRecords"] as const;
+export function encyclopediaBridgeText(text: string): string {
+  const x = stonesText();
+  if (x.output.isSource) return text;
+  const tr = stonesTextFor(null).t;
+  const key = ENCYCLOPEDIA_BRIDGE_KEYS.find((k) => tr(k) === text);
+  return key ? x.t(key) : text;
+}

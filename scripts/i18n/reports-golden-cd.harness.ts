@@ -33,7 +33,7 @@ const OUT_DIR = outIdx >= 0 ? args[outIdx + 1] : null;
 const onlyIdx = args.indexOf("--only");
 const ONLY = onlyIdx >= 0 ? new Set(args[onlyIdx + 1]!.split(",")) : null;
 /** Çevirisi bu dalda tamamlanan üreticiler — EN kontrolleri yalnız bunlarda zorunlu (diğerleri yalnız TR golden). */
-const EN_READY = new Set((process.env.RCD_EN_READY ?? "P13,P14,P16,P19,P38,P39,P40").split(",").filter(Boolean));
+const EN_READY = new Set((process.env.RCD_EN_READY ?? "P11,P12,P13,P14,P15,P16,P19,P38,P39,P40").split(",").filter(Boolean));
 
 let pass = 0;
 let fail = 0;
@@ -149,6 +149,10 @@ async function enChecks(tr: Run, en: Run): Promise<void> {
   ok(JSON.stringify(a.user) === JSON.stringify(b.user), `EN ${name}: kullanıcı metinleri çevrilmeden aynen (${b.user.length}/${a.user.length})`);
   ok(a.nums === b.nums, `EN ${name}: sayısal değerler TR ile aynı çoklu küme${a.nums === b.nums ? "" : ` — TR[${a.nums}] EN[${b.nums}]`}`);
   if (en.fx.kind === "docx") {
+    // RAPOR-E eki: gömülü görseller (ör. Refleksoloji harita PNG'si — metinsiz) dilden bağımsız → TR = EN medya SHA'sı.
+    const media = async (r: Run) => Object.entries((await docxParts(r.buffer)).parts).filter(([k]) => k.startsWith("word/media/")).map(([, v]) => v).sort().join(",");
+    const [ma, mb] = [await media(tr), await media(en)];
+    if (ma) ok(ma === mb, `EN ${name}: gömülü görseller TR ile birebir (${ma.split(",").length} medya)`);
     ok(/<w:lang w:val="en-GB"/.test(b.xml["word/styles.xml"] ?? ""), `EN ${name}: belge dili w:lang=en-GB`);
     ok(!/w:lang w:val="tr-TR"/.test(Object.values(b.xml).join("")), `EN ${name}: belgede tr-TR dil işareti yok`);
   } else {
@@ -164,6 +168,15 @@ async function enChecks(tr: Run, en: Run): Promise<void> {
 
 /** Sözleşme/katman birim kontrolleri: hesap–etiket ayrımı, TR birebir sabitler, ICU, katalog tamlığı. */
 async function unitChecks(): Promise<void> {
+  // RAPOR-E: fikstürde görünmeyen ICU çoğul dalları (TR gruplamasız, EN tekil/çoğul).
+  {
+    const { reportLocaleFor } = await import("@/lib/i18n/reportLocale");
+    const tr = reportLocaleFor("tr").t("reports.stones");
+    const en = reportLocaleFor("en").t("reports.stones");
+    ok(tr("stoneDetail.extraImagesNote", { count: 1200, shown: "1200" }) === "Bu taş kaydında toplam 1200 görsel bulunmaktadır. Sistemi ziyaret edin.", "ICU: P12 ek görsel notu TR birebir (gruplamasız)");
+    ok(en("stoneDetail.extraImagesNote", { count: 1, shown: "1" }).includes("1 image in total") && en("stoneDetail.extraImagesNote", { count: 3, shown: "3" }).includes("3 images in total"), "ICU: P12 ek görsel notu EN tekil/çoğul");
+    ok(tr("encyclopedia.records", { count: 1200, shown: "1200" }) === "1200 kayıt" && en("encyclopedia.records", { count: 1, shown: "1" }) === "1 record", "ICU: P11 kayıt sayısı TR/EN");
+  }
   // Katalog tamlığı (EN'de eksik anahtar → sessiz TR düşüşü olmasın).
   const leaves = (o: unknown, p = ""): string[] => (o && typeof o === "object" ? Object.entries(o as Record<string, unknown>).flatMap(([k, v]) => leaves(v, p ? `${p}.${k}` : k)) : [p]);
   for (const ns of NAMESPACES.filter((n) => n !== "reports.common")) {

@@ -23,10 +23,15 @@ import {
   ReportChild,
   spacer,
 } from "@/lib/docx/reportHelpers";
-import { StaticTocCollector } from "@/lib/docx/premiumToc";
-import { formatInstantDate, reportFileDate, reportGeneratedLabel } from "@/lib/time/reportTime";
-import { pickSourceFields, sourceDisplayName, type SourceFields, type SourceTextField } from "@/lib/dogaltas/stoneSources";
+import { buildStaticTocPage, StaticTocCollector } from "@/lib/docx/premiumToc";
+import { reportFileDate } from "@/lib/time/reportTime";
+import { pickSourceFields, type SourceFields, type SourceTextField } from "@/lib/dogaltas/stoneSources";
 import { bulletParagraphs, entryParagraphs, reportChakraEntries, reportEntriesByField, reportSourceNames, sourceAttribution, type ReportSource } from "@/lib/dogaltas/stoneSourceReport";
+import type { ReportLocale } from "@/lib/i18n/reportLocale";
+import { stonesSourceName, stonesText, upperContent, withStonesOutput } from "@/lib/dogaltas/reportText";
+
+/** I18N-F1-R5 RAPOR-E (P12): sistem metinleri `reports.stones.stoneDetail.*` (TR birebir — golden kilitli). */
+const T = (key: string, values?: Record<string, string | number>): string => stonesText().t(`stoneDetail.${key}`, values);
 
 /** WT9: rapora girecek EK kaynak (birincil kaynak taş satırıdır). */
 export type StoneReportExtraSource = { name: string | null; fields: SourceFields };
@@ -118,7 +123,14 @@ export function buildStoneReportDoc(input: {
   extraSources?: readonly StoneReportExtraSource[];
   /** Bilgi kaydı modeli: stone_entries satırları (her kaydın kendi kaynağı). Yoksa eski düzen. */
   entries?: readonly Record<string, unknown>[];
+  /** I18N çıktı dili (route `resolveReportLocale`); verilmezse tr → bugünkü rapor birebir. */
+  output?: ReportLocale | null;
 }): { doc: Document; filename: string } {
+  return withStonesOutput(input.output, () => buildStoneReportDocIn(input));
+}
+
+function buildStoneReportDocIn(input: Parameters<typeof buildStoneReportDoc>[0]): { doc: Document; filename: string } {
+  const X = stonesText();
   const { stone, imageBuf, isLibrary } = input;
   const extraSources = input.extraSources ?? [];
   const primaryName = (stone.primary_source_name ?? "").trim();
@@ -135,8 +147,8 @@ export function buildStoneReportDoc(input: {
   const sourceNames = reportSourceNames(byField);
   const showSources = Boolean(primaryName) || multi;
   const now = input.now ?? new Date();
-  const stoneName = stone.stone_name || "İsimsiz Taş";
-  const today = reportGeneratedLabel(undefined, now);
+  const stoneName = stone.stone_name || T("unnamed");
+  const today = X.date(now, { style: "long" });
   const dateSlug = reportFileDate(undefined, now);
   const nameSlug = slugify(stoneName);
 
@@ -157,33 +169,34 @@ export function buildStoneReportDoc(input: {
 
   // ── Premium kapak
   all.push(...buildPremiumCover({
-    title1:   "YAŞAM SİSTEMİ",
-    title2:   stoneName.toLocaleUpperCase("tr-TR"),
-    subtitle: "Doğaltaş Detay Raporu",
-    date:     `Oluşturulma Tarihi: ${today}`,
+    title1:   X.t("brand"),
+    // Taş adı uzman kaydıdır (TR) → TR büyük harf kuralı; ad yoksa sistem yedeği çıktı dilinin kuralıyla.
+    title2:   upperContent(stoneName, !stone.stone_name),
+    subtitle: T("subtitle"),
+    date:     X.t("generatedOnDate", { date: today }),
     // RPT (boş sayaç): sayaçlar her zaman gerçek sayı (0 dahil) taşır; ek savunma
     // olarak boş/whitespace değerli sayaç render edilmez → boş etiket oluşmaz.
     stats: [
-      { label: "Taş Adı",       value: stoneName },
-      { label: "Dolu Bölüm",    value: String(filledSections) },
-      { label: "Görsel Sayısı", value: String(imageCount) },
-      { label: "Çakra Sayısı",  value: String(chakraCount) },
-      ...(isLibrary ? [{ label: "Kaynak", value: "Kütüphane" }] : []),
-      ...(showSources ? [{ label: "Bilgi Kaynağı", value: String(multi ? sourceNames.length : 1 + extraSources.length) }] : []),
+      { label: T("stat.stoneName"),      value: stoneName },
+      { label: T("stat.filledSections"), value: String(filledSections) },
+      { label: T("stat.imageCount"),     value: String(imageCount) },
+      { label: T("stat.chakraCount"),    value: String(chakraCount) },
+      ...(isLibrary ? [{ label: T("stat.source"), value: T("stat.library") }] : []),
+      ...(showSources ? [{ label: T("stat.infoSource"), value: String(multi ? sourceNames.length : 1 + extraSources.length) }] : []),
     ].filter((s) => s.value.trim().length > 0),
   }));
 
   // ── Sistem özeti
   all.push(...buildStatsPage([
-    ["Taş Adı",       stoneName],
-    ["Dolu Bölüm",    `${filledSections} bölüm`],
-    ["Görsel Sayısı", `${imageCount} görsel`],
-    ["Çakra",         chakraCount > 0 ? safeJoin(allChakras) : "Belirtilmemiş"],
-    ["Kayıt Tarihi",  formatInstantDate(stone.created_at, { fallback: "-" })],
+    [T("stat.stoneName"),        stoneName],
+    [T("stat.filledSections"),   T("summary.filledSections", { count: filledSections, shown: String(filledSections) })],
+    [T("stat.imageCount"),       T("summary.imageCount", { count: imageCount, shown: String(imageCount) })],
+    [T("summary.chakra"),        chakraCount > 0 ? safeJoin(allChakras) : X.t("notSpecified")],
+    [T("summary.recordDate"),    X.date(stone.created_at, { fallback: "-" })],
     ...(showSources
-      ? [["Bilgi Kaynakları", (multi ? sourceNames : [sourceDisplayName(primaryName), ...extraSources.map((s) => sourceDisplayName(s.name))]).join(" · ")] as [string, string]]
+      ? [[T("summary.infoSources"), (multi ? sourceNames : [stonesSourceName(primaryName), ...extraSources.map((s) => stonesSourceName(s.name))]).join(" · ")] as [string, string]]
       : []),
-  ]));
+  ], undefined, X.common));
 
   // ── İçindekiler: eski boş Word TOC alanı yerine STATİK + tıklanabilir girişler (gövde
   // başlıklarından toplanır, gövde bittikten sonra bu konuma yerleştirilir; başlık yoksa sayfa yok).
@@ -199,7 +212,7 @@ export function buildStoneReportDoc(input: {
   // ── WT9: tek kaynaklı taşta birincil kaynak etiketi — Bölüm 1–4'teki metinler bu kaynağa aittir.
   // Madde 14: çok kaynaklıda etiket her metnin üstünde (alan içi), genel etiket basılmaz.
   if (showSources && !multi) {
-    all.push(profileLabel(`KAYNAK: ${sourceDisplayName(primaryName).toLocaleUpperCase("tr-TR")}`, C_STONE));
+    all.push(profileLabel(T("sourceBanner", { name: upperContent(stonesSourceName(primaryName), !primaryName) }), C_STONE));
   }
 
   /** Bir alanı basar; dolu ise true. Tek kaynak: başlık + metin (eski). Çok kaynak: başlık + kaynak blokları. */
@@ -219,94 +232,96 @@ export function buildStoneReportDoc(input: {
   };
 
   // ── Bölüm 1: Genel Bilgiler
-  all.push(profileLabel("BÖLÜM 1", C_STONE));
-  all.push(toc.h1Colored("1. Genel Bilgiler", C_STONE, true));
+  all.push(profileLabel(T("sectionNo", { n: 1 }), C_STONE));
+  all.push(toc.h1Colored(T("section.general"), C_STONE, true));
 
   const b1 = [
-    field("Kısa Açıklama", "short_description"),
-    field("Genel Taş Açıklaması", "general_info"),
-    field("Kaynak Notu", "source_note"),
+    field(T("field.shortDescription"), "short_description"),
+    field(T("field.generalInfo"), "general_info"),
+    field(T("field.sourceNote"), "source_note"),
   ];
   if (!b1.some(Boolean)) {
-    all.push(muted("Bu bölümde henüz bilgi girilmemiş."));
+    all.push(muted(T("emptySection")));
   }
 
   // ── Bölüm 2: Etkiler
   all.push(divider());
-  all.push(profileLabel("BÖLÜM 2", C_STONE));
-  all.push(toc.h1Colored("2. Etkiler", C_STONE));
+  all.push(profileLabel(T("sectionNo", { n: 2 }), C_STONE));
+  all.push(toc.h1Colored(T("section.effects"), C_STONE));
 
   const b2 = [
-    field("Fiziksel Etkiler", "physical_effects"),
-    field("Ruhsal Etkiler", "spiritual_effects"),
-    field("Diğer Etkiler", "other_effects"),
-    field("Uyarılar ve Hassasiyetler", "warning_text"),
+    field(T("field.physical"), "physical_effects"),
+    field(T("field.spiritual"), "spiritual_effects"),
+    field(T("field.other"), "other_effects"),
+    field(T("field.warnings"), "warning_text"),
   ];
-  all.push(...arraySection("Uyarı Etiketleri", asStringArray(stone.warning_tags)));
+  all.push(...arraySection(T("field.warningTags"), asStringArray(stone.warning_tags)));
 
   if (!b2.some(Boolean) && !safeLen(stone.warning_tags)) {
-    all.push(muted("Bu bölümde henüz bilgi girilmemiş."));
+    all.push(muted(T("emptySection")));
   }
 
   // ── Bölüm 3: Kullanım Alanları
   all.push(divider());
-  all.push(profileLabel("BÖLÜM 3", C_STONE));
-  all.push(toc.h1Colored("3. Kullanım Alanları", C_STONE));
+  all.push(profileLabel(T("sectionNo", { n: 3 }), C_STONE));
+  all.push(toc.h1Colored(T("section.usage"), C_STONE));
 
   const b3 = [
-    field("Feng Shui", "feng_shui"),
-    field("Meditasyon", "meditation"),
-    field("Bakım", "care"),
-    field("Uygulama", "application"),
+    field(T("field.fengShui"), "feng_shui"),
+    field(T("field.meditation"), "meditation"),
+    field(T("field.care"), "care"),
+    field(T("field.application"), "application"),
   ];
   if (!b3.some(Boolean)) {
-    all.push(muted("Bu bölümde henüz bilgi girilmemiş."));
+    all.push(muted(T("emptySection")));
   }
 
   // ── Bölüm 4: Çakralar ve Atamalar
   all.push(divider());
-  all.push(profileLabel("BÖLÜM 4", C_STONE));
-  all.push(toc.h1Colored("4. Çakralar ve Atamalar", C_STONE));
+  all.push(profileLabel(T("sectionNo", { n: 4 }), C_STONE));
+  all.push(toc.h1Colored(T("section.chakras"), C_STONE));
 
   if (multi) {
     const chakraEntries = reportChakraEntries(sources);
     if (chakraEntries.length) {
-      all.push(h3("Çakralar"));
+      all.push(h3(T("field.chakras")));
       for (const e of chakraEntries) {
         all.push(sourceAttribution(e.name, C_STONE));
         all.push(...bulletParagraphs(e.chakras));
       }
     }
   } else {
-    all.push(...arraySection("Çakralar", asStringArray(stone.chakras)));
+    all.push(...arraySection(T("field.chakras"), asStringArray(stone.chakras)));
   }
   all.push(...buildAssignmentSections(stone.assignments));
 
   if (!(multi ? chakraCount : safeLen(stone.chakras)) && (!stone.assignments || typeof stone.assignments !== "object" ||
       Array.isArray(stone.assignments) || Object.keys(stone.assignments).length === 0)) {
-    all.push(muted("Bu bölümde henüz bilgi girilmemiş."));
+    all.push(muted(T("emptySection")));
   }
 
   // ── Ek görsel referansı
   if (imageCount > 1) {
     all.push(divider());
-    all.push(h3(`Ek Görseller`));
-    all.push(muted(`Bu taş kaydında toplam ${imageCount} görsel bulunmaktadır. Sistemi ziyaret edin.`));
+    all.push(h3(T("extraImages")));
+    all.push(muted(T("extraImagesNote", { count: imageCount, shown: String(imageCount) })));
   }
 
   // ── FA-16: sade bilgilendirme notu + Hazırlayan
-  all.push(...buildWellnessNoteSection("dogaltas", input.expertName));
+  all.push(...buildWellnessNoteSection("dogaltas", input.expertName, X.common));
 
-  all.splice(tocAt, 0, ...toc.page());
+  all.splice(tocAt, 0, ...buildStaticTocPage(toc.entries, X.common));
 
+  const styles = X.output.docxStyles();
   const doc = new Document({
     ...toc.documentOptions(),
+    ...(styles ? { styles } : {}),
     sections: [{
       properties: {},
-      footers: { default: buildFooter(`Doğaltaş Raporu · ${stoneName}`, { note: "dogaltas" }) },
+      footers: { default: buildFooter(T("footer", { name: stoneName }), { note: "dogaltas", common: X.common }) },
       children: all,
     }],
   });
 
-  return { doc, filename: `dogaltas-${nameSlug}-${dateSlug}.docx` };
+  return { doc, filename: `${T("file")}-${nameSlug}-${dateSlug}.docx` };
 }
