@@ -160,7 +160,7 @@ export function QuickAddFoodDialog({
 
           {kcalWarn.hasWarning ? (
             <StatusMessage type="info">
-              {tq("kcalWarn", { given: kcalWarn.givenKcal, computed: kcalWarn.computedKcal, pct: kcalWarn.diffPct })}
+              {tq("kcalWarn", { given: kcalWarn.givenKcal ?? "", computed: kcalWarn.computedKcal ?? "", pct: kcalWarn.diffPct ?? "" })}
             </StatusMessage>
           ) : null}
 
