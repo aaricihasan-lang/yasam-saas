@@ -88,6 +88,11 @@ export type ArchivePlanResponse = {
   warnings: string[];
   /** I18N: `warnings` ile aynı sırada dil-bağımsız kodlar (EK alan; BENİOKU.txt Türkçe `warnings`'i yazar). */
   warning_codes?: CodedMessage[];
+  /**
+   * I18N (A16): arşiv DOSYA dili — planda bir kez çözülür; istemci her parça isteğinde aynen geri gönderir. Sunucu
+   * yalnız etkin bir dil kabul eder (yayın kapısı kapalı / geçersiz → tr). Dil bir yetki değildir.
+   */
+  file_locale?: string;
 };
 
 /** Veri parçası durum belirteci (opak; sunucu doğrular) — t: tablo sırası · c: tablo içi imleç · n: bölüm no · i: bu tablodan önceki bölümlerde yazılan kayıt (numaralandırma). */

@@ -6,6 +6,9 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { assertServerOnly } from "@/lib/server/serverOnlyGuard";
+import { readableViewFor } from "@/lib/backup/readableView";
+import { effectiveLocale } from "@/lib/i18n/gate";
+import { DEFAULT_LOCALE } from "@/lib/i18n/locales";
 import { WordBudgetError } from "@/lib/backup/wordExport";
 import { normalizeArchiveOptions } from "../scope";
 import type { ArchiveFileSource, ArchiveJob, ArchiveOptions } from "../types";
@@ -37,6 +40,7 @@ export async function handleArchivePlan(ctx: ArchiveCtx, body: unknown, now: Dat
   if (!n.ok) return json(400, { ok: false, error: n.error });
   try {
     const plan = await buildArchivePlan(ctx, n.options, now);
+    plan.file_locale = ctx.locale ?? DEFAULT_LOCALE;
     const audited = await writeArchiveAudit(ctx.db, ctx.userId, plan.archive_id, "started", { scope: auditScope(n.options), jobs: plan.jobs.length });
     if (!audited) {
       plan.warnings.push("Denetim kaydı yazılamadı; arşiv yine de oluşturulabilir.");
@@ -126,7 +130,10 @@ export async function handleArchivePart(ctx: ArchiveCtx, body: unknown, now: Dat
     if (job.kind === "data") {
       const state = decodeDataState(b.state);
       if (state === "invalid") return json(400, { ok: false, error: "Geçersiz parça durumu." });
-      const r = await buildDataPart(ctx.db, ctx.tenantId, ctx.userId, job.module, opts, state, now);
+      // A3 / QA-N-01: okunabilir döküm ekran / rapor yetki kuralına uyar (yetki yalnız doğrulanmış profilden).
+      // Dosya dili plandan sabitlenir (`file_locale`); yoksa (eski istemci) kaynak dil = bugünkü çıktı.
+      const fileLocale = effectiveLocale(typeof b.file_locale === "string" ? b.file_locale : null);
+      const r = await buildDataPart(ctx.db, ctx.tenantId, ctx.userId, job.module, opts, state, now, readableViewFor(ctx.profile, now), fileLocale);
       const headers: Record<string, string> = {
         "X-Archive-Next": r.next ? encodeDataState(r.next) : "",
         "X-Archive-Rows": String(r.rows),

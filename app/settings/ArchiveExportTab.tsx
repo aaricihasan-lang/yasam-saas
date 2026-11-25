@@ -267,7 +267,7 @@ export function ArchiveExportTab({ user }: { user: YasamUser }) {
           <li>{t.rich("archive.intro1", { strong: (c) => <strong>{c}</strong> })}</li>
           <li>{t("archive.intro2")}</li>
           <li>{t("archive.intro3")}</li>
-          {/* Kaynak dil dışında: arşiv dosyalarının dili dürüstçe belirtilir (içerik bu fazda Türkçe üretilir). */}
+          {/* Kaynak dil dışında: arşiv dosyalarının dili dürüstçe belirtilir (Kayıt Dökümü Word içeriği ekran dilinde; yol adları / BENİOKU / ARŞİV-RAPORU bu fazda Türkçe). */}
           {!isSource && <li>{t("archive.contentLanguage")}</li>}
         </ul>
       </div>

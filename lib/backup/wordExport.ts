@@ -34,6 +34,8 @@ export type WordTableData = {
   titleSuffix?: string;
   /** İlk kaydın sıra numarası (parçalı arşivde numaralandırma kesintisiz sürer). Varsayılan 1. */
   firstIndex?: number;
+  /** Bölüm (tablo) görünen adı — çıktı dilinde. Verilmezse registry etiketi (TR, bugünkü çıktı). */
+  label?: string;
 };
 
 /** Bağlı kayıt kimliği → okunabilir ad (ör. danışan "Ad Soyad"). Yoksa "bağlantılı kayıt (ref.)" yazılır. */
@@ -82,6 +84,37 @@ export function xmlSafe(text: string): string {
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+/**
+ * Belgedeki SİSTEM metinleri (başlık / etiket / not) — çıktı dili sözleşmesi (Owner §20, A16).
+ * Kullanıcı içeriği (kayıt değerleri) ÇEVRİLMEZ. Verilmezse `WORD_TEXT_TR` → bugünkü Türkçe belge BAYT-BAYT aynı.
+ * Diğer diller `lib/backup/wordExportText.ts` ile katalogdan (settings.backup.file.word) üretilir.
+ */
+export type WordExportText = {
+  /** Tarih biçimi Intl etiketi; undefined → reportTime varsayılanı (tr-TR). */
+  intlTag?: string;
+  /** Belge dili (docx w:lang); undefined → dil işareti eklenmez (TR bugünkü çıktı). */
+  documentLang?: string;
+  /** Bilinmeyen sütun adının ilk harfini büyütme dili. */
+  upperTag: string;
+  yes: string;
+  no: string;
+  linkedRecord: (ref: string) => string;
+  embeddedImage: string;
+  providerNeutral: string;
+  column: (n: number) => string;
+  record: (n: number) => string;
+  generatedOn: (date: string) => string;
+  intro: string;
+  incompleteHeading: string;
+  incompleteLead: string;
+  sectionIncomplete: (error: string | null) => string;
+  sectionEmpty: string;
+  count: (n: number, expected: number | null) => string;
+  budgetRecords: (n: number) => string;
+  budgetBytes: (mb: string) => string;
+  colLabels: Readonly<Record<string, string>>;
+};
+
 const COL_LABELS: Record<string, string> = {
   id: "Kayıt kimliği", name: "Ad", title: "Başlık", category: "Kategori", sub_category: "Alt kategori",
   status: "Durum", notes: "Notlar", note: "Not", description: "Açıklama", content: "İçerik", summary: "Özet",
@@ -97,12 +130,39 @@ const COL_LABELS: Record<string, string> = {
   amount: "Tutar", fee: "Ücret", tags: "Etiketler", stone_name: "Taş adı", expert_note: "Uzman notu",
 };
 
-function colLabel(key: string): string {
-  return COL_LABELS[key] ?? key.replace(/_/g, " ").replace(/^\w/, (c) => c.toLocaleUpperCase("tr-TR"));
+/** Kaynak dil (TR) metinleri — bugünkü belge metinlerinin BİREBİR kopyası. */
+export const WORD_TEXT_TR: WordExportText = {
+  upperTag: "tr-TR",
+  yes: "Evet",
+  no: "Hayır",
+  linkedRecord: (ref) => `bağlantılı kayıt (ref. ${ref})`,
+  embeddedImage: "[gömülü görsel]",
+  providerNeutral: "sağlayıcı",
+  column: (n) => `Sütun ${n}`,
+  record: (n) => `Kayıt ${n}`,
+  generatedOn: (date) => `Oluşturma tarihi: ${date}`,
+  intro:
+    "Bu belge okunabilir bir arşivdir; geri yükleme için Ayarlar > Sistem Yedeği (JSON) dosyasını kullanın. " +
+    "Fotoğraf ve dosyaların kendisi dahil değildir (yalnız kayıt bilgisi).",
+  incompleteHeading: "Eksik veya okunamayan bölümler",
+  incompleteLead: "Aşağıdaki bölümler tam okunamadı; bu belge bu bölümler için EKSİKTİR:",
+  sectionIncomplete: (error) => `Bu bölüm eksik olabilir${error ? `: ${error}` : "."}`,
+  sectionEmpty: "Bu bölümde kayıt bulunmuyor.",
+  count: (n, expected) =>
+    n === 0 ? "kayıt yok" : `${n} kayıt${expected !== null && expected !== n ? ` / beklenen ${expected}` : ""}`,
+  budgetRecords: (n) =>
+    `Seçilen kapsam tek Word belgesi için çok büyük (${n} kayıt). ` +
+    "Lütfen modül bazlı indirin; geri yüklenebilir tam kopya için JSON Sistem Yedeği'ni kullanın.",
+  budgetBytes: (mb) => `Belge boyutu indirme sınırını aşıyor (${mb} MB). Lütfen modül bazlı indirin.`,
+  colLabels: COL_LABELS,
+};
+
+function colLabel(key: string, tx: WordExportText = WORD_TEXT_TR): string {
+  return tx.colLabels[key] ?? key.replace(/_/g, " ").replace(/^\w/, (c) => c.toLocaleUpperCase(tx.upperTag));
 }
 
 /** Kayıt başlığı için ilk anlamlı alan (danışana bağlı kayıtta danışan adı eklenir). */
-function recordTitle(row: Row, index: number, labels?: RefLabels): string {
+function recordTitle(row: Row, index: number, labels?: RefLabels, tx: WordExportText = WORD_TEXT_TR): string {
   const pick = (k: string) => (typeof row[k] === "string" && (row[k] as string).trim() ? (row[k] as string).trim() : null);
   const person = [pick("ad"), pick("soyad")].filter(Boolean).join(" ");
   const t =
@@ -118,35 +178,36 @@ function recordTitle(row: Row, index: number, labels?: RefLabels): string {
     pick("label") ??
     pick("sheet_name");
   const clientLabel = typeof row.client_id === "string" ? labels?.get(row.client_id) : undefined;
-  const base = t ? `${index}. ${t}` : `Kayıt ${index}`;
+  const base = t ? `${index}. ${t}` : tx.record(index);
   return clientLabel && clientLabel !== t ? `${base} — ${clientLabel}` : base;
 }
 
 /** Değeri okunabilir tam metne çevirir (kısaltma yok). null → boş (alan atlanır). */
-export function formatValue(key: string, value: unknown, labels?: RefLabels): string {
+export function formatValue(key: string, value: unknown, labels?: RefLabels, tx: WordExportText = WORD_TEXT_TR): string {
   if (value === null || value === undefined) return "";
-  if (typeof value === "boolean") return value ? "Evet" : "Hayır";
+  if (typeof value === "boolean") return value ? tx.yes : tx.no;
   if (typeof value === "number") return String(value);
   if (typeof value === "string") {
     const v = value.trim();
     if (!v) return "";
     if (UUID_RE.test(v)) {
       if (key === "id") return "";
-      return labels?.get(v.toLowerCase()) ?? labels?.get(v) ?? `bağlantılı kayıt (ref. ${v.slice(0, 8)})`;
+      return labels?.get(v.toLowerCase()) ?? labels?.get(v) ?? tx.linkedRecord(v.slice(0, 8));
     }
-    if (/_at$/.test(key) && /^\d{4}-\d{2}-\d{2}[T ]/.test(v)) return formatInstantDateTime(v) || v;
-    if (isDateOnlyString(v)) return formatDateOnly(v) || v;
-    if (/(^|_)(date|tarih)$/.test(key)) return formatDateLoose(v) || v;
+    const dl = tx.intlTag ? { locale: tx.intlTag } : undefined;
+    if (/_at$/.test(key) && /^\d{4}-\d{2}-\d{2}[T ]/.test(v)) return formatInstantDateTime(v, dl) || v;
+    if (isDateOnlyString(v)) return formatDateOnly(v, dl) || v;
+    if (/(^|_)(date|tarih)$/.test(key)) return formatDateLoose(v, dl) || v;
     return value;
   }
   if (Array.isArray(value)) {
     if (value.length === 0) return "";
     if (value.every((x) => typeof x === "string" || typeof x === "number")) {
-      return value.map((x) => (typeof x === "string" && x.startsWith("data:") ? "[gömülü görsel]" : String(x))).join(", ");
+      return value.map((x) => (typeof x === "string" && x.startsWith("data:") ? tx.embeddedImage : String(x))).join(", ");
     }
-    return readableNested(value);
+    return readableNested(value, tx);
   }
-  if (typeof value === "object") return readableNested(value);
+  if (typeof value === "object") return readableNested(value, tx);
   return String(value);
 }
 
@@ -154,11 +215,11 @@ export function formatValue(key: string, value: unknown, labels?: RefLabels): st
  * İç içe değer → okunabilir girintili "alan: değer" satırları (JSON parantez/tırnak yok). Gizli / sağlayıcı
  * anahtarları düşer, marka nötrlenir, gömülü görsel etiketlenir (nestedReplacer ile aynı kurallar).
  */
-function readableNested(value: unknown): string {
-  const clean = JSON.parse(JSON.stringify(value, nestedReplacer) ?? "null") as unknown;
+function readableNested(value: unknown, tx: WordExportText = WORD_TEXT_TR): string {
+  const clean = JSON.parse(JSON.stringify(value, nestedReplacerFor(tx)) ?? "null") as unknown;
   const lines: string[] = [];
   const scalar = (v: unknown): string =>
-    v === null || v === undefined ? "—" : typeof v === "boolean" ? (v ? "Evet" : "Hayır") : String(v);
+    v === null || v === undefined ? "—" : typeof v === "boolean" ? (v ? tx.yes : tx.no) : String(v);
   const walk = (v: unknown, depth: number, label: string | null): void => {
     const pad = "  ".repeat(depth);
     if (v === null || typeof v !== "object") {
@@ -178,7 +239,7 @@ function readableNested(value: unknown): string {
     const entries = Object.entries(v as Record<string, unknown>);
     if (entries.length === 0) return;
     if (label !== null) lines.push(`${pad}${label}`);
-    for (const [k, x] of entries) walk(x, depth + (label !== null ? 1 : 0), colLabel(k));
+    for (const [k, x] of entries) walk(x, depth + (label !== null ? 1 : 0), colLabel(k, tx));
   };
   walk(clean, 0, null);
   return lines.join("\n");
@@ -189,13 +250,15 @@ function dataUriReplacer(_k: string, v: unknown): unknown {
 }
 
 /** İç içe değerler: gömülü görsel → etiket; sağlayıcı / ham yanıt anahtarları düşer; marka adı nötrlenir. */
-function nestedReplacer(k: string, v: unknown): unknown {
-  if (k !== "" && (HIDDEN.has(k) || NESTED_HIDDEN_RE.test(k))) return undefined;
-  if (typeof v === "string") {
-    if (v.startsWith("data:")) return "[gömülü görsel]";
-    return v.replace(BRAND_RE, "sağlayıcı");
-  }
-  return v;
+function nestedReplacerFor(tx: WordExportText): (k: string, v: unknown) => unknown {
+  return (k, v) => {
+    if (k !== "" && (HIDDEN.has(k) || NESTED_HIDDEN_RE.test(k))) return undefined;
+    if (typeof v === "string") {
+      if (v.startsWith("data:")) return tx.embeddedImage;
+      return v.replace(BRAND_RE, tx.providerNeutral);
+    }
+    return v;
+  };
 }
 
 function textRuns(text: string, opts: { bold?: boolean; size?: number; color?: string; italics?: boolean } = {}): TextRun[] {
@@ -237,12 +300,12 @@ function field(label: string, value: string): Paragraph {
 }
 
 /** Referans satırları: hücreleri sayfa başlıklarıyla eşleştirir. */
-function referenceCells(row: Row, headersBySheet: Map<string, string[]>): Row {
+function referenceCells(row: Row, headersBySheet: Map<string, string[]>, tx: WordExportText = WORD_TEXT_TR): Row {
   const headers = headersBySheet.get(String(row.sheet_id)) ?? [];
   const cells = (row.cells && typeof row.cells === "object" ? row.cells : {}) as Record<string, unknown>;
   const out: Row = { row_index: row.row_index, is_header: row.is_header };
-  if (headers.length > 0) headers.forEach((h, i) => (out[h || `Sütun ${i + 1}`] = cells[String(i)] ?? null));
-  else for (const [k, v] of Object.entries(cells)) out[`Sütun ${Number(k) + 1}`] = v;
+  if (headers.length > 0) headers.forEach((h, i) => (out[h || tx.column(i + 1)] = cells[String(i)] ?? null));
+  else for (const [k, v] of Object.entries(cells)) out[tx.column(Number(k) + 1)] = v;
   return out;
 }
 
@@ -266,40 +329,36 @@ export type WordBuildInput = {
   refLabels?: RefLabels;
   /** Kapak altı ek açıklamalar (ör. süzgeç özeti, parça numarası). */
   notes?: string[];
+  /** Belge sistem metinleri (çıktı dili). Verilmezse TR (bugünkü çıktı bayt-bayt aynı). */
+  text?: WordExportText;
 };
 
 export type WordBuildResult = { buffer: Buffer; incompleteTables: string[]; records: number };
 
 export async function buildArchiveDocx(input: WordBuildInput): Promise<WordBuildResult> {
   const now = input.now ?? new Date();
+  const tx = input.text ?? WORD_TEXT_TR;
   const size = estimateTextSize(input.modules);
   if (size.records > WORD_RECORD_BUDGET || size.chars > WORD_TEXT_BUDGET) {
-    throw new WordBudgetError(
-      `Seçilen kapsam tek Word belgesi için çok büyük (${size.records} kayıt). ` +
-        "Lütfen modül bazlı indirin; geri yüklenebilir tam kopya için JSON Sistem Yedeği'ni kullanın.",
-      size.records,
-    );
+    throw new WordBudgetError(tx.budgetRecords(size.records), size.records);
   }
 
   const incomplete: string[] = [];
   for (const m of input.modules) {
     for (const t of m.tables) {
-      if (!t.complete) incomplete.push(`${m.label} › ${t.entry.label}${t.error ? ` (${t.error})` : ""}`);
+      if (!t.complete) incomplete.push(`${m.label} › ${t.label ?? t.entry.label}${t.error ? ` (${t.error})` : ""}`);
     }
   }
 
   const children: Paragraph[] = [
     new Paragraph({ children: [new TextRun({ text: xmlSafe(input.title), bold: true, size: 40, font: "Calibri", color: "1E293B" })] }),
-    note(`Oluşturma tarihi: ${reportGeneratedLabel(undefined, now)}`, "64748B", false),
-    note(
-      "Bu belge okunabilir bir arşivdir; geri yükleme için Ayarlar > Sistem Yedeği (JSON) dosyasını kullanın. " +
-        "Fotoğraf ve dosyaların kendisi dahil değildir (yalnız kayıt bilgisi).",
-    ),
+    note(tx.generatedOn(reportGeneratedLabel(tx.intlTag ? { locale: tx.intlTag } : undefined, now)), "64748B", false),
+    note(tx.intro),
   ];
   for (const n of input.notes ?? []) children.push(note(n, "475569", false));
   if (incomplete.length > 0) {
-    children.push(heading("Eksik veya okunamayan bölümler", HeadingLevel.HEADING_2, 24, "B91C1C"));
-    children.push(note("Aşağıdaki bölümler tam okunamadı; bu belge bu bölümler için EKSİKTİR:", "B91C1C", false));
+    children.push(heading(tx.incompleteHeading, HeadingLevel.HEADING_2, 24, "B91C1C"));
+    children.push(note(tx.incompleteLead, "B91C1C", false));
     for (const s of incomplete) children.push(note(`• ${s}`, "B91C1C", false));
   }
 
@@ -313,37 +372,36 @@ export async function buildArchiveDocx(input: WordBuildInput): Promise<WordBuild
       }
     }
     for (const t of m.tables) {
-      const countLabel =
-        (t.rows.length === 0 ? "kayıt yok" : `${t.rows.length} kayıt${t.expected_count !== null && t.expected_count !== t.rows.length ? ` / beklenen ${t.expected_count}` : ""}`) +
-        (t.titleSuffix ?? "");
-      children.push(heading(`${t.entry.label} — ${countLabel}`, HeadingLevel.HEADING_2, 24, "3730A3"));
+      const countLabel = tx.count(t.rows.length, t.expected_count) + (t.titleSuffix ?? "");
+      children.push(heading(`${t.label ?? t.entry.label} — ${countLabel}`, HeadingLevel.HEADING_2, 24, "3730A3"));
       if (!t.complete) {
-        children.push(note(`Bu bölüm eksik olabilir${t.error ? `: ${t.error}` : "."}`, "B91C1C", false));
+        children.push(note(tx.sectionIncomplete(t.error), "B91C1C", false));
       }
       if (t.rows.length === 0) {
-        children.push(note("Bu bölümde kayıt bulunmuyor."));
+        children.push(note(tx.sectionEmpty));
         continue;
       }
       t.rows.forEach((raw, i) => {
-        const row = t.entry.table === "aromatherapy_reference_rows" ? referenceCells(raw, headersBySheet) : raw;
-        children.push(heading(recordTitle(row, (t.firstIndex ?? 1) + i, input.refLabels), HeadingLevel.HEADING_3, 20, "0F172A"));
+        const row = t.entry.table === "aromatherapy_reference_rows" ? referenceCells(raw, headersBySheet, tx) : raw;
+        children.push(heading(recordTitle(row, (t.firstIndex ?? 1) + i, input.refLabels, tx), HeadingLevel.HEADING_3, 20, "0F172A"));
         for (const [k, v] of Object.entries(row)) {
           if (HIDDEN.has(k)) continue;
-          const text = formatValue(k, v, input.refLabels);
+          const text = formatValue(k, v, input.refLabels, tx);
           if (!text) continue;
-          children.push(field(colLabel(k), text));
+          children.push(field(colLabel(k, tx), text));
         }
       });
     }
   });
 
-  const doc = new Document({ sections: [{ children }] });
+  const doc = new Document({
+    sections: [{ children }],
+    // TR: dil işareti EKLENMEZ (bugünkü belge aynı). Diğer dillerde w:lang = belge dili.
+    ...(tx.documentLang ? { styles: { default: { document: { run: { language: { value: tx.documentLang } } } } } } : {}),
+  });
   const buffer = await Packer.toBuffer(doc);
   if (buffer.length > WORD_BYTES_BUDGET) {
-    throw new WordBudgetError(
-      `Belge boyutu indirme sınırını aşıyor (${(buffer.length / 1_048_576).toFixed(1)} MB). Lütfen modül bazlı indirin.`,
-      size.records,
-    );
+    throw new WordBudgetError(tx.budgetBytes((buffer.length / 1_048_576).toFixed(1)), size.records);
   }
   return { buffer, incompleteTables: incomplete, records: size.records };
 }

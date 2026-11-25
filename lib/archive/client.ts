@@ -188,7 +188,8 @@ export async function runArchive(plan: ArchivePlanResponse, deps: ArchiveDeps): 
 
   const runJob = async (job: ArchiveJob): Promise<JobOutcome> => {
     const out: JobOutcome = { job, status: "ok", files: [], rows: 0, message: null };
-    const body = { options: plan.options, job };
+    // A16: dosya dili planda sabit; her parçada aynen gönderilir (TR planda alan yok → istek gövdesi bugünküyle aynı).
+    const body = { options: plan.options, job, ...(plan.file_locale && plan.file_locale !== "tr" ? { file_locale: plan.file_locale } : {}) };
     if (job.kind === "data") {
       let state: string | null = null;
       const errors: string[] = [];
