@@ -5,24 +5,33 @@
  *
  * Dürüst metin kuralı: "eksiksiz" / "tüm kayıtlar" iddiası YALNIZ çalışma anı tamlık kontrolü
  * (her tablo boş sayfaya kadar okundu + okunan satır == sunucu sayımı) geçtiğinde gösterilir.
+ *
+ * I18N: ekran metinleri `settings.backup` (messages/<dil>/settings.backup.json). Yedek DOSYASI ekran dilinden
+ * bağımsızdır (manifest, tablo kimlikleri, sürüm, şema, gerekçeler ve tablo hata metinleri dosyada aynen) —
+ * bkz. ./backupI18n.ts ve scripts/settings-backup-i18n.
  */
 import { useMemo, useRef, useState } from "react";
+import { useLocale, useTranslations } from "next-intl";
 import { AlertTriangle, Check, Download, FileJson, Loader2, RotateCcw, Upload } from "lucide-react";
 import { readSessionToken, type YasamUser } from "@/lib/auth/yasamUser";
 import { useToast } from "@/components/ui/ToastProvider";
 import { triggerBlobDownload } from "@/lib/http/downloadResponse";
-import {
-  BACKUP_REGISTRY,
-  EXPORT_MODULE_ORDER,
-  MODULE_LABELS,
-  isExportable,
-  isRestorable,
-  moduleKeyOf,
-} from "@/lib/backup/registry";
+import { BACKUP_REGISTRY, EXPORT_MODULE_ORDER, isExportable, isRestorable, moduleKeyOf } from "@/lib/backup/registry";
 import { runBackup, runRestore, serializeBackupParts, type JsonFetcher, type RestoreRunResult } from "@/lib/backup/client";
-import { FAILURE_LABELS, normalizeBackupFile, type NormalizedBackup } from "@/lib/backup/format";
-import type { BackupFileV3, RestoreTableReport } from "@/lib/backup/types";
+import { normalizeBackupFile, type NormalizedBackup } from "@/lib/backup/format";
+import type { BackupFileV3, CodedMessage, RestoreTableReport } from "@/lib/backup/types";
+import { DEFAULT_LOCALE } from "@/lib/i18n/locales";
 import { ArchiveExportTab } from "./ArchiveExportTab";
+import {
+  clientErrorText,
+  codedText,
+  localizedError,
+  localizedLines,
+  moduleLabel,
+  tableLabel,
+  tableTitle,
+  type BackupTranslator,
+} from "./backupI18n";
 
 // ─── Ortak ────────────────────────────────────────────────────────────────────
 
@@ -50,23 +59,25 @@ function makeFetcher(user: YasamUser): JsonFetcher {
 
 type ModuleSummary = { key: string; label: string; tables: { table: string; label: string }[] };
 
-function useModuleSummaries(filter: "export" | "restore"): ModuleSummary[] {
+/**
+ * I18N: modül / tablo etiketleri `settings.backup.modules|tables` katalog eşlemesinden (TR değerleri registry
+ * etiketleriyle birebir). Yedek dosyasına yazılan registry etiketleri ve tablo kimlikleri DEĞİŞMEZ.
+ */
+function useBackupText(): { t: BackupTranslator; isSource: boolean } {
+  const t = useTranslations("settings.backup") as unknown as BackupTranslator;
+  const locale = useLocale();
+  return { t, isSource: locale === DEFAULT_LOCALE };
+}
+
+function useModuleSummaries(filter: "export" | "restore", t: BackupTranslator): ModuleSummary[] {
   return useMemo(() => {
     const pred = filter === "export" ? isExportable : isRestorable;
     return EXPORT_MODULE_ORDER.map((key) => ({
       key,
-      label: MODULE_LABELS[key] ?? key,
-      tables: BACKUP_REGISTRY.filter((e) => pred(e) && moduleKeyOf(e) === key).map((e) => ({ table: e.table, label: e.label })),
+      label: moduleLabel(t, key),
+      tables: BACKUP_REGISTRY.filter((e) => pred(e) && moduleKeyOf(e) === key).map((e) => ({ table: e.table, label: tableLabel(t, e.table) })),
     })).filter((m) => m.tables.length > 0);
-  }, [filter]);
-}
-
-const TABLE_LABEL: Record<string, string> = Object.fromEntries(BACKUP_REGISTRY.map((e) => [e.table, e.label]));
-
-function tableTitle(table: string): string {
-  const e = BACKUP_REGISTRY.find((x) => x.table === table);
-  if (!e) return table;
-  return `${MODULE_LABELS[moduleKeyOf(e)] ?? ""} › ${e.label}`;
+  }, [filter, t]);
 }
 
 // ─── Dışa Aktarım (Premium Word Arşivi) ──────────────────────────────────────
@@ -82,15 +93,25 @@ type BackupOutcome = {
   fileName: string;
   complete: boolean;
   totalRows: number;
-  tables: { table: string; label: string; rows: number; expected: number | null; complete: boolean; error: string | null }[];
+  tables: {
+    table: string;
+    label: string;
+    rows: number;
+    expected: number | null;
+    complete: boolean;
+    error: string | null;
+    /** I18N: `error`'ın dil-bağımsız parçaları (kaynak dil dışında gösterilir). */
+    errorCodes?: CodedMessage[];
+  }[];
 };
 
 export function BackupTab({ user }: { user: YasamUser }) {
   const { showToast } = useToast();
+  const { t, isSource } = useBackupText();
   const [loading, setLoading] = useState(false);
   const [progress, setProgress] = useState<string | null>(null);
   const [outcome, setOutcome] = useState<BackupOutcome | null>(null);
-  const modules = useModuleSummaries("export");
+  const modules = useModuleSummaries("export", t);
   // Android dahil tüm cihazlarda indirme açık (2026-10-14 owner kararı): uygulama WebView blob JSON/Word
   // indirmelerini kaydeder; yedek butonu her cihazda görünür.
 
@@ -98,79 +119,81 @@ export function BackupTab({ user }: { user: YasamUser }) {
     if (loading) return;
     setLoading(true);
     setOutcome(null);
-    setProgress("Plan hazırlanıyor…");
+    setProgress(t("backup.planPreparing"));
     try {
       const result = await runBackup(makeFetcher(user), (p) =>
-        setProgress(`Tablo ${p.index}/${p.total}: ${p.label} — ${p.rows} kayıt`),
+        setProgress(
+          t("backup.progress", {
+            index: String(p.index),
+            total: String(p.total),
+            // Sunucu planındaki registry etiketi (TR) yerine katalog etiketi; HD dosyaları ayrı anahtar.
+            label: p.table === "hd_files" ? t("backup.hdFilesProgress") : tableLabel(t, p.table),
+            rows: String(p.rows),
+          }),
+        ),
       );
       const file: BackupFileV3 = result.file;
       const blob = new Blob(serializeBackupParts(file), { type: "application/json" });
       triggerBlobDownload(blob, result.fileName);
-      const tables = Object.entries(file.tables).map(([table, t]) => ({
+      const tables: BackupOutcome["tables"] = Object.entries(file.tables).map(([table, d]) => ({
         table,
-        label: tableTitle(table),
-        rows: t.row_count,
-        expected: t.expected_count,
-        complete: t.complete,
-        error: t.error,
+        label: tableTitle(t, table),
+        rows: d.row_count,
+        expected: d.expected_count,
+        complete: d.complete,
+        error: d.error,
+        errorCodes: result.errorCodes?.[table],
       }));
       // P2-11: gömülü Human Design dosyaları da tamlık özetinde ayrı satır olarak gösterilir.
       const hd = result.hdFiles;
       if (hd && ((hd.expected ?? 0) > 0 || hd.included > 0 || hd.error)) {
         tables.push({
           table: "hd_files",
-          label: "Human Design görselleri (dosya)",
+          label: t("backup.hdFilesRow"),
           rows: hd.included,
           expected: hd.expected,
           complete: !hd.error,
           error: hd.error,
+          errorCodes: hd.error_codes,
         });
       }
-      const totalRows = tables.reduce((s, t) => s + t.rows, 0);
+      const totalRows = tables.reduce((s, x) => s + x.rows, 0);
       setOutcome({ fileName: result.fileName, complete: file.complete, totalRows, tables });
       if (file.complete) {
-        showToast({ title: "Yedek Alındı", message: `Tamlık kontrolü geçti (${totalRows} kayıt).`, type: "success" });
+        showToast({ title: t("backup.toastOkTitle"), message: t("backup.toastOkBody", { rows: String(totalRows) }), type: "success" });
       } else {
         showToast({
-          title: "Yedek EKSİK",
-          message: `${result.incomplete.length} tablo tam okunamadı. Ayrıntılar aşağıda; lütfen tekrar deneyin.`,
+          title: t("backup.toastIncompleteTitle"),
+          message: t("backup.toastIncompleteBody", { count: result.incomplete.length, n: String(result.incomplete.length) }),
           type: "error",
           duration: 10000,
         });
       }
     } catch (err) {
-      showToast({ message: (err as Error).message || "Yedek alınamadı.", type: "error" });
+      showToast({ message: clientErrorText(t, isSource, err, "backup.failed"), type: "error" });
     } finally {
       setLoading(false);
       setProgress(null);
     }
   }
 
-  const incompleteRows = outcome?.tables.filter((t) => !t.complete) ?? [];
+  const incompleteRows = outcome?.tables.filter((x) => !x.complete) ?? [];
 
   return (
     <div className="w-full space-y-5">
       <div className="rounded-2xl border border-slate-100 bg-white/80 p-5 shadow-sm">
         <FileJson className="mb-3 h-10 w-10 text-slate-400" />
-        <h3 className="text-base font-bold text-slate-900">Sistem Yedeği — JSON</h3>
-        <p className="mt-1.5 text-sm text-slate-600">
-          Veritabanı kayıtlarınızın JSON yedeği; <strong>Human Design harita ve rapor görselleri dahildir</strong>, diğer modüllerin
-          fotoğraf ve dosyaları dahil değildir. Bu dosya Geri Yükleme
-          sekmesi ile yeniden içe aktarılabilir. İndirme sonunda her tablo sunucudaki kayıt sayısıyla karşılaştırılır ve
-          sonuç aşağıda gösterilir.
-        </p>
+        <h3 className="text-base font-bold text-slate-900">{t("backup.title")}</h3>
+        <p className="mt-1.5 text-sm text-slate-600">{t.rich("backup.intro", { strong: (c) => <strong>{c}</strong> })}</p>
         <ul className="mt-3 space-y-1">
           {modules.map((m) => (
             <li key={m.key} className="flex items-center gap-2 text-xs text-slate-500">
               <Check className="h-3 w-3 shrink-0 text-emerald-500" />
-              {m.label} ({m.tables.length} tablo)
+              {t("backup.moduleItem", { label: m.label, count: m.tables.length, n: String(m.tables.length) })}
             </li>
           ))}
         </ul>
-        <p className="mt-2 text-[11px] italic text-slate-400">
-          Hesap/oturum bilgileri, yönetici kayıtları, arama indeksleri ve paylaşımlı kataloglar yedeğe alınmaz (dosyadaki
-          &quot;excluded&quot; listesinde gerekçeleriyle yazılıdır).
-        </p>
+        <p className="mt-2 text-[11px] italic text-slate-400">{t("backup.excludedNote")}</p>
         <button
           type="button"
           onClick={() => {
@@ -180,7 +203,7 @@ export function BackupTab({ user }: { user: YasamUser }) {
           className="mt-4 flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-slate-700 to-slate-900 text-sm font-bold text-white shadow-md transition hover:-translate-y-0.5 disabled:opacity-60"
         >
           {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-          {loading ? "Hazırlanıyor…" : "Sistem Yedeği İndir"}
+          {loading ? t("backup.preparing") : t("backup.download")}
         </button>
         {progress && <p className="mt-2 text-center text-[11px] text-slate-500">{progress}</p>}
       </div>
@@ -192,21 +215,25 @@ export function BackupTab({ user }: { user: YasamUser }) {
           <p className={`flex items-center gap-2 text-sm font-bold ${outcome.complete ? "text-emerald-800" : "text-rose-800"}`}>
             {outcome.complete ? <Check className="h-4 w-4" /> : <AlertTriangle className="h-4 w-4" />}
             {outcome.complete
-              ? `Tamlık kontrolü geçti: ${outcome.tables.length} tablonun tamamı eksiksiz okundu (${outcome.totalRows} kayıt).`
-              : `Yedek EKSİK: ${incompleteRows.length} tablo tam okunamadı. Dosya indirildi ama bu tablolar için güvenilir değildir.`}
+              ? t("backup.outcomeComplete", { tables: String(outcome.tables.length), rows: String(outcome.totalRows) })
+              : t("backup.outcomeIncomplete", { count: incompleteRows.length, n: String(incompleteRows.length) })}
           </p>
-          <p className="mt-1 text-[11px] text-slate-500">Dosya: {outcome.fileName}</p>
+          <p className="mt-1 text-[11px] text-slate-500">{t("backup.outcomeFile", { name: outcome.fileName })}</p>
           <div className="mt-3 max-h-64 space-y-1 overflow-y-auto">
-            {[...incompleteRows, ...outcome.tables.filter((t) => t.complete && t.rows > 0)].map((t) => (
-              <div key={t.table} className="flex items-center justify-between gap-3 text-xs">
-                <span className={`truncate ${t.complete ? "text-slate-600" : "font-bold text-rose-700"}`}>{t.label}</span>
-                <span className={`shrink-0 ${t.complete ? "text-slate-500" : "font-bold text-rose-700"}`}>
-                  {t.rows}
-                  {t.expected !== null && t.expected !== t.rows ? ` / ${t.expected}` : ""} kayıt
-                  {t.error ? ` — ${t.error}` : ""}
-                </span>
-              </div>
-            ))}
+            {[...incompleteRows, ...outcome.tables.filter((x) => x.complete && x.rows > 0)].map((x) => {
+              const err = localizedError(t, isSource, x.error, x.errorCodes);
+              return (
+                <div key={x.table} className="flex items-center justify-between gap-3 text-xs">
+                  <span className={`truncate ${x.complete ? "text-slate-600" : "font-bold text-rose-700"}`}>{x.label}</span>
+                  <span className={`shrink-0 ${x.complete ? "text-slate-500" : "font-bold text-rose-700"}`}>
+                    {x.expected !== null && x.expected !== x.rows
+                      ? t("backup.rowsOfExpected", { rows: String(x.rows), expected: String(x.expected) })
+                      : t("backup.rows", { rows: String(x.rows) })}
+                    {err ? ` — ${err}` : ""}
+                  </span>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
@@ -216,53 +243,61 @@ export function BackupTab({ user }: { user: YasamUser }) {
 
 // ─── Geri Yükleme ────────────────────────────────────────────────────────────
 
-const STATUS_TEXT: Record<string, { label: string; cls: string }> = {
-  COMPLETE: { label: "TAMAMLANDI", cls: "border-emerald-200 bg-emerald-50 text-emerald-800" },
-  PARTIAL: { label: "KISMİ", cls: "border-amber-300 bg-amber-50 text-amber-800" },
-  FAILED: { label: "BAŞARISIZ", cls: "border-rose-300 bg-rose-50 text-rose-800" },
+/** Durum rozeti sınıfları; etiket `settings.backup.restore.status.<DURUM>` (durum kodu dil-bağımsız). */
+const STATUS_CLS: Record<string, string> = {
+  COMPLETE: "border-emerald-200 bg-emerald-50 text-emerald-800",
+  PARTIAL: "border-amber-300 bg-amber-50 text-amber-800",
+  FAILED: "border-rose-300 bg-rose-50 text-rose-800",
 };
 
-const SKIP_REASON_TEXT: Record<string, string> = {
-  unknown_table: "tanınmayan tablo",
-  excluded: "yedek kapsamı dışında",
-  export_only: "yalnız dışa aktarılır",
-  unlicensed: "modül hesabınızda aktif değil",
-  membership_inactive: "üyelik aktif değil",
-  system_tenant: "sistem kataloğu",
-};
+function skipReasonText(t: BackupTranslator, reason: string): string {
+  return t.has(`restore.skipReasons.${reason}`) ? t(`restore.skipReasons.${reason}`) : reason;
+}
 
-function ReportRow({ r }: { r: RestoreTableReport }) {
+function ReportRow({ r, t, isSource }: { r: RestoreTableReport; t: BackupTranslator; isSource: boolean }) {
   const failed = r.failed.reduce((s, f) => s + f.count, 0);
   const bad = r.status === "FAILED" || r.status === "PARTIAL";
+  // Başarısızlık kodu → etiket; katalogda yoksa ham kod (bugünkü `FAILURE_LABELS[code] ?? code` kuralı).
+  const failureLabel = (code: string) => (t.has(`failures.${code}`) ? t(`failures.${code}`) : code);
   return (
     <div className="rounded-lg border border-slate-100 bg-white/80 px-3 py-2">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <span className={`truncate text-xs ${bad ? "font-bold text-rose-700" : "text-slate-700"}`}>{tableTitle(r.table)}</span>
+        <span className={`truncate text-xs ${bad ? "font-bold text-rose-700" : "text-slate-700"}`}>{tableTitle(t, r.table)}</span>
         <div className="flex flex-wrap gap-1.5 text-[11px]">
-          <span className="rounded-full bg-emerald-100 px-2 py-0.5 font-bold text-emerald-700">{r.inserted} eklendi</span>
-          <span className="rounded-full bg-slate-100 px-2 py-0.5 font-bold text-slate-600">{r.already_present} zaten vardı</span>
+          <span className="rounded-full bg-emerald-100 px-2 py-0.5 font-bold text-emerald-700">
+            {t("restore.badge.inserted", { n: String(r.inserted) })}
+          </span>
+          <span className="rounded-full bg-slate-100 px-2 py-0.5 font-bold text-slate-600">
+            {t("restore.badge.present", { n: String(r.already_present) })}
+          </span>
           {r.skipped_unlicensed > 0 && (
-            <span className="rounded-full bg-amber-100 px-2 py-0.5 font-bold text-amber-800">{r.skipped_unlicensed} lisans dışı</span>
+            <span className="rounded-full bg-amber-100 px-2 py-0.5 font-bold text-amber-800">
+              {t("restore.badge.unlicensed", { n: String(r.skipped_unlicensed) })}
+            </span>
           )}
           {r.parent_missing > 0 && (
-            <span className="rounded-full bg-rose-100 px-2 py-0.5 font-bold text-rose-700">{r.parent_missing} bağlı kaydı yok</span>
+            <span className="rounded-full bg-rose-100 px-2 py-0.5 font-bold text-rose-700">
+              {t("restore.badge.parentMissing", { n: String(r.parent_missing) })}
+            </span>
           )}
-          {failed > 0 && <span className="rounded-full bg-rose-100 px-2 py-0.5 font-bold text-rose-700">{failed} başarısız</span>}
+          {failed > 0 && (
+            <span className="rounded-full bg-rose-100 px-2 py-0.5 font-bold text-rose-700">{t("restore.badge.failed", { n: String(failed) })}</span>
+          )}
         </div>
       </div>
       {r.failed.length > 0 && (
         <ul className="mt-1 space-y-0.5">
           {r.failed.map((f) => (
             <li key={f.code} className="text-[11px] text-rose-700">
-              {FAILURE_LABELS[f.code] ?? f.code}: {f.count}
+              {failureLabel(f.code)}: {f.count}
             </li>
           ))}
         </ul>
       )}
       {r.dropped_columns.length > 0 && (
-        <p className="mt-1 text-[11px] text-amber-700">Tanınmayan alanlar yok sayıldı: {r.dropped_columns.join(", ")}</p>
+        <p className="mt-1 text-[11px] text-amber-700">{t("restore.droppedColumns", { columns: r.dropped_columns.join(", ") })}</p>
       )}
-      {r.warnings.map((w) => (
+      {localizedLines(t, isSource, r.warnings, r.warning_codes).map((w) => (
         <p key={w} className="mt-1 text-[11px] text-amber-700">
           {w}
         </p>
@@ -273,6 +308,7 @@ function ReportRow({ r }: { r: RestoreTableReport }) {
 
 export function RestoreTab({ user }: { user: YasamUser }) {
   const { showToast } = useToast();
+  const { t, isSource } = useBackupText();
   const fileRef = useRef<HTMLInputElement>(null);
   const [fileInfo, setFileInfo] = useState<{ name: string; size: string } | null>(null);
   const [validated, setValidated] = useState<{ ok: boolean; message: string; warnings: string[] } | null>(null);
@@ -295,36 +331,40 @@ export function RestoreTab({ user }: { user: YasamUser }) {
     reader.onload = (ev) => {
       try {
         const norm = normalizeBackupFile(JSON.parse(ev.target?.result as string) as unknown);
-        if (!norm.ok) throw new Error(norm.error);
+        // Kaynak dilde normalize metni birebir; diğer dillerde dil-bağımsız koddan.
+        if (!norm.ok) throw new Error(isSource ? norm.error : codedText(t, { code: norm.code, params: norm.params }));
         const b = norm.backup;
         const names = Object.keys(b.tables);
-        const rows = names.reduce((s, t) => s + b.tables[t].length, 0);
+        const rows = names.reduce((s, x) => s + b.tables[x].length, 0);
         const warnings: string[] = [];
         if (b.incompleteTables.length > 0) {
           warnings.push(
-            `Bu yedek dosyasında ${b.incompleteTables.length} tablo alındığı sırada EKSİK işaretlenmiş: ` +
-              b.incompleteTables.map((x) => TABLE_LABEL[x.table] ?? x.table).join(", "),
+            t("restore.incompleteInFile", {
+              count: b.incompleteTables.length,
+              n: String(b.incompleteTables.length),
+              tables: b.incompleteTables.map((x) => tableLabel(t, x.table)).join(", "),
+            }),
           );
         }
         if (b.sourceTenantId && user.tenant_id && b.sourceTenantId !== user.tenant_id) {
-          warnings.push(
-            "Bu yedek başka bir hesaptan alınmış. Kayıt kimlikleri korunur; kaynak hesapta hâlâ duran kayıtlar 'başka hesapta mevcut' olarak atlanır.",
-          );
+          warnings.push(t("restore.otherAccount"));
         }
         setParsedBackup(b);
-        setValidated({ ok: true, message: `✓ v${b.version} — ${names.length} tablo, ${rows} kayıt; biçim geçerli.`, warnings });
+        setValidated({
+          ok: true,
+          message: t("restore.valid", { version: b.version, tables: String(names.length), rows: String(rows) }),
+          warnings,
+        });
       } catch (err) {
         // JSON.parse hatası (bozuk / yarım / boş dosya) tarayıcının ham İngilizce metnini gösterir →
-        // anlaşılır Türkçe mesaj. normalizeBackupFile'ın kendi (Türkçe) mesajları aynen kalır.
-        const message =
-          err instanceof SyntaxError
-            ? "Dosya geçerli bir JSON yedeği değil (bozuk, yarım kalmış veya boş dosya). Sistem Yedeği sekmesinden alınmış dosyayı seçin."
-            : (err as Error).message || "Dosya okunamadı.";
+        // anlaşılır mesaj (settings.backup.restore.invalidJson). normalizeBackupFile'ın kendi (Türkçe) mesajları
+        // kaynak dilde aynen kalır.
+        const message = err instanceof SyntaxError ? t("restore.invalidJson") : (err as Error).message || t("restore.readFailed");
         setValidated({ ok: false, message, warnings: [] });
       }
     };
     reader.onerror = () => {
-      setValidated({ ok: false, message: "Dosya okunamadı.", warnings: [] });
+      setValidated({ ok: false, message: t("restore.readFailed"), warnings: [] });
     };
     reader.readAsText(file);
   }
@@ -333,23 +373,28 @@ export function RestoreTab({ user }: { user: YasamUser }) {
     if (!parsedBackup || !confirmed || loading) return;
     setLoading(true);
     setResult(null);
-    setProgress("Plan hazırlanıyor…");
+    setProgress(t("restore.planPreparing"));
     try {
       const res = await runRestore(parsedBackup, makeFetcher(user), (p) =>
-        setProgress(`Tablo ${p.index}/${p.total}: ${TABLE_LABEL[p.table] ?? p.table} — ${p.sentRows}/${p.totalRows} kayıt`),
+        setProgress(
+          t("restore.progress", {
+            index: String(p.index),
+            total: String(p.total),
+            label: tableLabel(t, p.table),
+            sent: String(p.sentRows),
+            totalRows: String(p.totalRows),
+          }),
+        ),
       );
       setResult(res);
       showToast({
-        title: STATUS_TEXT[res.status].label,
-        message:
-          res.status === "COMPLETE"
-            ? "Eksik kayıtlar eklendi; mevcut kayıtlar değiştirilmedi."
-            : "Geri yükleme kısmen tamamlandı; ayrıntılar aşağıda.",
+        title: t(`restore.status.${res.status}`),
+        message: res.status === "COMPLETE" ? t("restore.toastComplete") : t("restore.toastPartial"),
         type: res.status === "COMPLETE" ? "success" : res.status === "PARTIAL" ? "warning" : "error",
         duration: 8000,
       });
     } catch (err) {
-      showToast({ message: (err as Error).message || "Geri yükleme başarısız.", type: "error" });
+      showToast({ message: clientErrorText(t, isSource, err, "restore.failed"), type: "error" });
     } finally {
       setLoading(false);
       setProgress(null);
@@ -366,24 +411,18 @@ export function RestoreTab({ user }: { user: YasamUser }) {
   return (
     <div className="w-full space-y-5">
       <div className="rounded-xl border border-amber-200 bg-amber-50/80 px-4 py-3">
-        <p className="text-xs font-bold text-amber-800">
-          Geri Yükleme hesabınızı yedek tarihindeki hâline döndürmez.{" "}
-          Yalnız eksik kayıtlar eklenir; mevcut kayıtlar değiştirilmez veya silinmez.
-        </p>
+        <p className="text-xs font-bold text-amber-800">{t("restore.introTitle")}</p>
         <ul className="mt-1.5 list-disc space-y-0.5 pl-4 text-xs font-semibold text-amber-700">
-          <li>Yedekte bulunup şu anda hesabınızda olmayan (ör. silinmiş) kayıtlar, orijinal kimlik ve tarihleriyle geri eklenir.</li>
-          <li>Yedekten sonra değiştirdiğiniz kayıtlar yedekteki hâline dönmez; yedekten sonra eklediğiniz kayıtlar silinmez.</li>
-          <li>Aynı yedeği tekrar yüklemek kopya (çift) kayıt oluşturmaz; işlem güvenle tekrar çalıştırılabilir.</li>
-          <li>
-            Human Design görselleri dosyadan geri yüklenir (boyut ve SHA-256 doğrulamalı, mevcut dosyanın üzerine yazılmaz);
-            diğer modüllerin fotoğraf ve dosyaları yedeğe dahil değildir ve geri yüklenmez.
-          </li>
-          <li>Hesabınızda aktif olmayan modüllerin kayıtları atlanır. Desteklenen yedek sürümleri: 1.0, 2.0, 2.1, 3.0.</li>
+          <li>{t("restore.intro1")}</li>
+          <li>{t("restore.intro2")}</li>
+          <li>{t("restore.intro3")}</li>
+          <li>{t("restore.intro4")}</li>
+          <li>{t("restore.intro5")}</li>
         </ul>
       </div>
 
       <div>
-        <label className="block text-sm font-bold text-slate-700">JSON Yedek Dosyası</label>
+        <label className="block text-sm font-bold text-slate-700">{t("restore.fileLabel")}</label>
         <div
           className="mt-1.5 flex min-h-[100px] cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-200 bg-white/70 px-4 py-6 text-center transition hover:border-violet-300 hover:bg-violet-50/30"
           onClick={() => fileRef.current?.click()}
@@ -395,7 +434,7 @@ export function RestoreTab({ user }: { user: YasamUser }) {
               fileRef.current?.click();
             }
           }}
-          aria-label="Yedek dosyası seç"
+          aria-label={t("restore.pickAria")}
         >
           <Upload className="mb-2 h-8 w-8 text-slate-300" />
           {fileInfo ? (
@@ -404,7 +443,7 @@ export function RestoreTab({ user }: { user: YasamUser }) {
               <p className="text-xs text-slate-400">{fileInfo.size}</p>
             </>
           ) : (
-            <p className="text-sm text-slate-400">Dosyayı seçmek için tıklayın</p>
+            <p className="text-sm text-slate-400">{t("restore.pickHint")}</p>
           )}
         </div>
         <input ref={fileRef} type="file" accept=".json,application/json" className="sr-only" onChange={handleFileChange} />
@@ -431,20 +470,17 @@ export function RestoreTab({ user }: { user: YasamUser }) {
             onChange={(e) => setConfirmed(e.target.checked)}
             className="mt-0.5 h-4 w-4 shrink-0 accent-amber-500"
           />
-          <span className="text-xs font-semibold text-amber-800">
-            Onaylıyorum: yalnız eksik kayıtlar eklenecek; mevcut kayıtlarım değiştirilmeyecek veya silinmeyecek ve
-            hesabım yedek tarihindeki hâline dönmeyecek.
-          </span>
+          <span className="text-xs font-semibold text-amber-800">{t("restore.confirm")}</span>
         </label>
       )}
 
       {result && (
         <div className="space-y-3 rounded-xl border border-slate-100 bg-white/80 p-4">
-          <div className={`rounded-lg border px-3 py-2 text-sm font-bold ${STATUS_TEXT[result.status].cls}`}>
-            Sonuç: {STATUS_TEXT[result.status].label}
-            {totals ? ` — ${totals.inserted} kayıt eklendi, ${totals.present} kayıt zaten vardı` : ""}
+          <div className={`rounded-lg border px-3 py-2 text-sm font-bold ${STATUS_CLS[result.status]}`}>
+            {t("restore.result", { status: t(`restore.status.${result.status}`) })}
+            {totals ? t("restore.resultTotals", { inserted: String(totals.inserted), present: String(totals.present) }) : ""}
           </div>
-          {result.notes.map((n) => (
+          {localizedLines(t, isSource, result.notes, result.noteCodes).map((n) => (
             <p key={n} className="text-xs text-amber-800">
               {n}
             </p>
@@ -453,16 +489,16 @@ export function RestoreTab({ user }: { user: YasamUser }) {
             {result.tables
               .filter((r) => r.expected > 0)
               .map((r) => (
-                <ReportRow key={r.table} r={r} />
+                <ReportRow key={r.table} r={r} t={t} isSource={isSource} />
               ))}
           </div>
           {result.skipped.length > 0 && (
             <div>
-              <p className="mb-1 text-xs font-bold text-slate-600">Atlanan tablolar</p>
+              <p className="mb-1 text-xs font-bold text-slate-600">{t("restore.skippedTitle")}</p>
               <ul className="space-y-0.5">
                 {result.skipped.map((d) => (
                   <li key={d.table} className="text-[11px] text-slate-500">
-                    {TABLE_LABEL[d.table] ?? d.table}: {d.action === "skip" ? SKIP_REASON_TEXT[d.reason] ?? d.reason : ""}
+                    {tableLabel(t, d.table)}: {d.action === "skip" ? skipReasonText(t, d.reason) : ""}
                   </li>
                 ))}
               </ul>
@@ -482,7 +518,7 @@ export function RestoreTab({ user }: { user: YasamUser }) {
         className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 text-sm font-bold text-white shadow-md transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50"
       >
         {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RotateCcw className="h-4 w-4" />}
-        {loading ? "Geri Yükleniyor…" : "Yedeği İçe Aktar"}
+        {loading ? t("restore.restoring") : t("restore.submit")}
       </button>
     </div>
   );

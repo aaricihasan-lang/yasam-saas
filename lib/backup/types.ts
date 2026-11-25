@@ -146,6 +146,16 @@ export type BackupFileV3 = {
   files?: BackupStoredFile[];
 };
 
+// ─── Dil-bağımsız mesaj kodu (I18N) ──────────────────────────────────────────
+
+/**
+ * Kullanıcıya gösterilen sunucu / istemci metninin DİL-BAĞIMSIZ karşılığı (I18N Yedek & Aktarım).
+ * Türkçe metin alanları (`error`, `warnings`, `notes`, `detail`) AYNEN korunur; arayüz kaynak dil dışındaki
+ * dillerde metni bu koddan üretir (`settings.backup.codes.<code>`). Kod ve parametreler YEDEK DOSYASINA YAZILMAZ —
+ * yalnız API yanıtlarında / istemci sonuçlarında EK alan olarak taşınır (dosya biçimi değişmez).
+ */
+export type CodedMessage = { code: string; params?: Record<string, string | number> };
+
 // ─── Parça API sözleşmeleri ──────────────────────────────────────────────────
 
 export type BackupPlanTable = {
@@ -177,6 +187,8 @@ export type BackupPageResponse = {
   /** Yalnız ilk sayfada (cursor yokken) döner. */
   expected_count?: number | null;
   error?: string | null;
+  /** I18N: `error`'ın dil-bağımsız kodu (EK alan; dosyaya yazılmaz). */
+  error_code?: CodedMessage | null;
 };
 
 // ─── Geri yükleme raporu ─────────────────────────────────────────────────────
@@ -199,6 +211,8 @@ export type RestoreTableReport = {
   /** Bu hesaba ait olmayan / eski geçersiz yol olduğu için görsel listesinden çıkarılan öğe sayısı. */
   storage_refs_removed: number;
   warnings: string[];
+  /** I18N: `warnings` ile aynı sırada dil-bağımsız kodlar (EK alan; eski sunucu yanıtında yoktur). */
+  warning_codes?: CodedMessage[];
   status: "COMPLETE" | "PARTIAL" | "FAILED" | "SKIPPED";
 };
 

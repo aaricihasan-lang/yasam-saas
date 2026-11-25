@@ -7,6 +7,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { assertServerOnly } from "@/lib/server/serverOnlyGuard";
 import { verifyUserRequest } from "@/lib/auth/userGuard";
+import { resolveOutputLocale } from "@/lib/i18n/output";
 import { isAndroidUserAgent } from "@/lib/platform/android";
 import { hitDbRateLimit, rateLimitBucket } from "@/lib/security/dbRateLimit";
 import { archiveCtxFrom, type HandlerResult } from "./handlers";
@@ -40,6 +41,9 @@ export async function runArchiveRoute(
     return NextResponse.json({ ok: false, error: "Geçersiz istek." }, { status: 400, headers: NO_STORE });
   }
   const ctx = archiveCtxFrom(guard, req.headers.get("user-agent"), isAndroidUserAgent);
+  // Çıktı dili: ekranla aynı kaynak (çerez + yayın kapısı). Plan bunu `file_locale` olarak SABİTLER; parçalar plandaki
+  // değeri kullanır (arşiv sürerken ekran dili değişse de tüm parçalar aynı dilde).
+  ctx.locale = resolveOutputLocale(req).locale;
   try {
     const r = await handler(ctx, body);
     if (r.kind === "json") return NextResponse.json(r.body, { status: r.status, headers: NO_STORE });

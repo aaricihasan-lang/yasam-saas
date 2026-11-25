@@ -841,7 +841,7 @@ export const MODULE_LABELS: Readonly<Record<string, string>> = {
   cosmic_calendar: "Kozmik Ajanda — Hacamat Kuralları",
   beslenme: "Beslenme",
   video_ceviri: "Video Eğitim Kayıtları",
-  general: "Genel (destek mesajları, konum tercihi)",
+  general: "Genel (destek mesajları, konum ve dil tercihi)",
 };
 
 export function moduleKeyOf(e: RegistryEntry): string {
