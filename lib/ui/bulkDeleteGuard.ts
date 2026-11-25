@@ -16,6 +16,7 @@
 /** 3+ kayıt toplu silmede 3 aşamalı onay zorunludur. */
 export const BULK_DELETE_THRESHOLD = 3;
 
+// i18n-ignore: Türkçe doğrulama ifadesi (güvenlik kontrolü; TR birebir) — ekran dili karşılığı common.deleteConfirm.bulk
 export const BULK_DELETE_ALL_PHRASE = "TÜMÜNÜ SİL";
 
 /**
@@ -79,9 +80,13 @@ export function bulkPhraseMatches(typed: string, expected: string): boolean {
   return normalizeBulkPhrase(typed) === normalizeBulkPhrase(expected);
 }
 
+// i18n-ignore: Türkçe kaynak metin (TR_BULK_DELETE_TEXTS varsayılanı); ekran dili karşılığı common.deleteConfirm.bulk.requireLabel
 export const BULK_PHRASE_HINT = "Büyük/küçük harf ve ı/i farkı önemsizdir; sayı ve kelimeler aynen yazılmalıdır.";
 
-/** Bugünkü Türkçe metinler (varsayılan; davranış ve metin birebir korunur). */
+/**
+ * Bugünkü Türkçe metinler (varsayılan; davranış ve metin birebir korunur). Katalogdaki TR değerleriyle aynıdır;
+ * bu nesne dil sağlayıcısı olmayan bağlamlarda (testler, sunucu) kaynak dil yedeğidir.
+ */
 export const TR_BULK_DELETE_TEXTS: BulkDeleteTexts = {
   phrase: (count) => `${count} KAYDI SİL`,
   deleteAllPhrase: BULK_DELETE_ALL_PHRASE,
@@ -134,9 +139,22 @@ export type BulkDeleteFlowOptions = {
   texts?: BulkDeleteTexts;
 };
 
+/**
+ * I18N — ekran dili varsayılan metinleri. ConfirmProvider (ortak) mount olduğunda katalogdan kaydeder; böylece
+ * `texts` geçmeyen mevcut çağıranlar (modül ekranları) da ekran dilinde gösterilir. Kayıt yoksa (test/sunucu)
+ * Türkçe yedek kullanılır. Aşama sayısı, eşik ve ifade karşılaştırma kuralı bundan BAĞIMSIZDIR.
+ */
+let registeredDefaultTexts: BulkDeleteTexts | null = null;
+export function setDefaultBulkDeleteTexts(texts: BulkDeleteTexts | null): void {
+  registeredDefaultTexts = texts;
+}
+export function defaultBulkDeleteTexts(): BulkDeleteTexts {
+  return registeredDefaultTexts ?? TR_BULK_DELETE_TEXTS;
+}
+
 /** Aşama metinleri — saf; UI ve testler aynı kaynağı kullanır. */
 export function buildBulkDeleteStages(opts: BulkDeleteFlowOptions) {
-  const tx = opts.texts ?? TR_BULK_DELETE_TEXTS;
+  const tx = opts.texts ?? defaultBulkDeleteTexts();
   const noun = opts.noun?.trim() || tx.defaultNoun;
   const irreversible = opts.irreversible ?? true;
   const phrase = bulkDeletePhrase(opts.count, opts.deleteAll, tx);
@@ -174,7 +192,7 @@ export function buildBulkDeleteStages(opts: BulkDeleteFlowOptions) {
  */
 export async function runBulkDeleteConfirm(confirm: BulkConfirmFn, opts: BulkDeleteFlowOptions): Promise<boolean> {
   const s = buildBulkDeleteStages(opts);
-  const cancelText = opts.cancelText ?? (opts.texts ?? TR_BULK_DELETE_TEXTS).cancelText;
+  const cancelText = opts.cancelText ?? (opts.texts ?? defaultBulkDeleteTexts()).cancelText;
   const ok1 = await confirm({ ...s.stage1, tone: "danger", cancelText });
   if (!ok1) return false;
   const ok2 = await confirm({
