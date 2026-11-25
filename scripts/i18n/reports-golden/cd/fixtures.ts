@@ -373,6 +373,110 @@ function videoFixture(name: string, exportMode: "original" | "turkish" | "compar
   };
 }
 
+// ═══ P21 — Refleksoloji atlas + protokol Word/PNG (route üzerinden; I18N-F1-R5 RAPOR-E) ═════════════════
+// Organ adları uzmanın atlas/protokol kaydıdır (serbest metin, EŞLEŞME ANAHTARI) → kullanıcı içeriği, aynen.
+// Harita PNG'si metinsizdir (arka plan + bölge şekilleri) → TR/EN medya SHA'sı aynı olmalı.
+const REF_VIEWS = ["taban", "yan_ic", "yan_dis", "el_avuc", "el_sirt"] as const;
+function refAtlasDoc(spec: Record<string, readonly (typeof REF_VIEWS)[number][]>): Row {
+  const doc: Row = { _meta: { version: "1", updated_at: "2026-10-29T00:00:00.000Z" } };
+  let i = 0;
+  for (const [organ, views] of Object.entries(spec)) {
+    const entry: Record<string, { sol: unknown[]; sag: unknown[] }> = {};
+    for (const view of REF_VIEWS) {
+      entry[view] = { sol: [], sag: [] };
+      if (!views.includes(view)) continue;
+      for (const side of ["sol", "sag"] as const) {
+        for (const shape of ["oval", "point"] as const) {
+          const cx = 0.15 + ((i * 0.07) % 0.7), cy = 0.2 + ((i * 0.05) % 0.6);
+          const base = { id: `zz-rcd-${i++}`, organ, footSide: side === "sol" ? "left" : "right", view, shape, color: "rgba(239, 68, 68, 0.22)" };
+          entry[view][side].push(shape === "oval" ? { ...base, cx, cy, rx: 0.05, ry: 0.04, angle: 0 } : { ...base, cx, cy });
+        }
+      }
+    }
+    doc[organ] = entry;
+  }
+  return doc;
+}
+const REF_ORGAN_A = U("organ: Karaciğer");
+const REF_ORGAN_B = U("organ: Böbrek");
+const REF_ORGAN_C = U("organ: İnce Bağırsak");
+const REF_ATLAS = refAtlasDoc({ [REF_ORGAN_A]: ["taban"], [REF_ORGAN_B]: ["taban", "el_avuc"], [REF_ORGAN_C]: ["yan_dis"] });
+const REF_PROTOCOLS: Row[] = [
+  { id: uid(2100), tenant_id: TENANT, source_uid: "zz-p1", title: U("protokol: Sindirim Desteği"), target_problem: U("kısa açıklama: Şişkinlik"), organs: `${REF_ORGAN_A} | ${REF_ORGAN_C} | ${U("organ: Atlasta Olmayan")}`, application_notes: `${U("not paragrafı 1")}\n\n${U("not paragrafı 2")}`, raw_json: null, created_at: "2026-10-05T21:30:00Z" },
+  { id: uid(2101), tenant_id: TENANT, source_uid: "zz-p2", title: "", target_problem: null, organs: null, application_notes: null, raw_json: { organs: [REF_ORGAN_B, { name: REF_ORGAN_B }] }, created_at: "2026-10-06T08:00:00Z" },
+];
+function refTables(): Record<string, Row[]> {
+  return { reflexology_atlas: [{ tenant_id: TENANT, document: REF_ATLAS }], reflexology_protocols: REF_PROTOCOLS, clients: [], user_locale_prefs: [], expert_profiles: [], users: [] };
+}
+function refFixture(name: string, route: "atlas-report" | "protocol-report", body: unknown): Fixture {
+  return {
+    name, producer: "P21", kind: "docx",
+    run: (mode) =>
+      withLocale(mode, async (cookie) => {
+        setGuard(refTables());
+        const mod = await import(`@/app/api/refleksoloji/${route}/route`);
+        return callRoute(mod as RouteMod, `/api/refleksoloji/${route}`, body, cookie);
+      }),
+  };
+}
+
+// ═══ P22 — Biyoenerji 6 rapor (route üzerinden; I18N-F1-R5 RAPOR-E) ═════════════════════════════════════
+// Kayıt içeriği (çakra adı/bloklar/enerji bedeni/imajinasyon/bilinçaltı/sembol/seans metni, kategori) uzmanın
+// kütüphanesidir (sistem kütüphanesinden aktarılmış standart içerik dahil; DB'de yalnız TR) → ⟦KATALOG⟧/⟦KULLANICI⟧.
+const BIO_CHAKRAS: Row[] = [
+  {
+    id: uid(2200), tenant_id: TENANT, source_uid: "zz-c1", name: K("çakra: Kalp Çakrası"), organs: K("kalp, akciğer"), glands: K("timus"), color: K("Yeşil"),
+    stones: K("Yeşim"), causes: null, physical: null, mental: null, notes: U("uzman notu: nefes"), sanskrit_name: "Anahata", element: K("Hava"), location: K("Göğüs ortası"), bija_mantra: "YAM",
+    created_at: "2026-10-02T21:30:00Z",
+  },
+  {
+    id: uid(2201), tenant_id: TENANT, source_uid: "zz-c2", name: "", organs: K("böbrek"), glands: K("böbreküstü"), color: null, stones: K("Hematit"), causes: K("korku"),
+    physical: K("yorgunluk"), mental: K("kaygı"), notes: U("eski not"), created_at: "2026-10-01T08:00:00Z",
+  },
+];
+const BIO_BLOCKS: Row[] = [
+  { id: uid(2210), tenant_id: TENANT, chakra_id: uid(2200), section_key: "genel-bakis", block_type: "text", block_title: K("blok başlığı"), sort_order: 1, editorial_explanation: `### ${K("alt başlık")}\n**${K("kalın")}** ${K("açıklama")}\n- ${K("madde")}`, source_title: null, source_author: null, created_at: "2026-10-02T21:31:00Z" },
+  { id: uid(2211), tenant_id: TENANT, chakra_id: uid(2200), section_key: "uygulamalar", block_type: "text", block_title: null, sort_order: 2, editorial_explanation: K("uygulama metni"), source_title: null, source_author: null, created_at: "2026-10-02T21:32:00Z" },
+  { id: uid(2212), tenant_id: TENANT, chakra_id: uid(2200), section_key: "notlar-kaynaklar", block_type: "source-evidence", block_title: null, sort_order: 3, editorial_explanation: K("kanıt"), source_title: K("Çakra El Kitabı"), source_author: K("Yazar, A."), created_at: "2026-10-02T21:33:00Z" },
+];
+const BIO_ENERGY: Row[] = [
+  { id: uid(2220), tenant_id: TENANT, source_uid: K("eb: Eterik Beden"), genel_tanim: K("tanım"), gorevi: K("görev"), bozulma: K("bozulma"), onerilen_taslar: K("Kuvars"), not_text: U("not"), created_at: "2026-10-03T08:00:00Z" },
+  { id: uid(2221), tenant_id: TENANT, source_uid: null, genel_tanim: null, gorevi: null, bozulma: null, onerilen_taslar: null, not_text: null, created_at: "2026-10-04T08:00:00Z" },
+];
+const BIO_IMAG: Row[] = [
+  { id: uid(2230), tenant_id: TENANT, source_id: "s1", title: K("imaj: Işık Banyosu"), category: K("Arınma"), text: K("metin"), notes: U("not"), source: K("kaynak"), created_at: "2026-10-03T08:00:00Z" },
+  { id: uid(2231), tenant_id: TENANT, source_id: null, title: null, category: null, text: null, notes: null, source: null, created_at: "2026-10-04T08:00:00Z" },
+];
+const BIO_SUB: Row[] = [
+  { id: uid(2240), tenant_id: TENANT, source_uid: "zz-b1", title: K("bilinçaltı: Terk Edilme"), category: K("İlişki"), content: K("içerik"), note_text: U("not"), created_at: "2026-10-03T08:00:00Z" },
+  { id: uid(2241), tenant_id: TENANT, source_uid: null, title: null, category: null, content: null, note_text: null, created_at: "2026-10-04T08:00:00Z" },
+];
+const BIO_SYM: Row[] = [
+  { id: uid(2250), tenant_id: TENANT, symbol: "☯", title: K("sembol: Yin Yang"), category: K("Denge"), meaning: K("anlam"), source: K("kaynak"), created_at: "2026-10-03T08:00:00Z" },
+  { id: uid(2251), tenant_id: TENANT, symbol: null, title: null, category: null, meaning: null, source: null, created_at: "2026-10-04T08:00:00Z" },
+];
+const BIO_SES: Row[] = [
+  { id: uid(2260), tenant_id: TENANT, title: U("seans: Akşam Dengeleme"), content: U("içerik"), category: K("Denge"), source: K("kaynak"), note: U("not"), created_at: "2026-10-03T21:45:00Z" },
+  { id: uid(2261), tenant_id: TENANT, title: null, content: null, category: null, source: null, note: null, created_at: "2026-10-04T08:00:00Z" },
+];
+function bioTables(): Record<string, Row[]> {
+  return {
+    bioenergy_chakras: BIO_CHAKRAS, bioenergy_chakra_blocks: BIO_BLOCKS, bioenergy_energy_bodies: BIO_ENERGY, bioenergy_imaginations: BIO_IMAG,
+    bioenergy_subconscious_causes: BIO_SUB, bioenergy_symbols: BIO_SYM, bioenergy_sessions: BIO_SES, user_locale_prefs: [], expert_profiles: [],
+  };
+}
+function bioFixture(name: string, route: string, body: unknown): Fixture {
+  return {
+    name, producer: "P22", kind: "docx",
+    run: (mode) =>
+      withLocale(mode, async (cookie) => {
+        setGuard(bioTables());
+        const mod = await import(`@/app/api/biyoenerji/${route}/route`);
+        return callRoute(mod as RouteMod, `/api/biyoenerji/${route}`, body, cookie);
+      }),
+  };
+}
+
 export function allFixtures(): Fixture[] {
   return [
     beslenmeFixture("P16-plan-tam", "full"),
@@ -417,5 +521,25 @@ export function allFixtures(): Fixture[] {
     videoFixture("P40-video-orijinal", "original"),
     videoFixture("P40-video-ceviri", "turkish"),
     videoFixture("P40-video-karsilastirma", "comparison"),
+    // ── I18N-F1-R5 RAPOR-E eki (taban golden, üretici değişikliğinden ÖNCE alındı) ──
+    stonesFixture("P11-ansiklopedi-mineral-analiz", "P11", "word-report", { sections: { minerals: true, analytics: true }, includeImages: false }),
+    refFixture("P21-atlas-tumu", "atlas-report", { exportMode: "all" }),
+    refFixture("P21-atlas-secili", "atlas-report", { exportMode: "selected", organs: [REF_ORGAN_B, U("organ: Yok")] }),
+    refFixture("P21-protokol-tek", "protocol-report", { exportMode: "single", protocolId: uid(2100) }),
+    refFixture("P21-protokol-tumu", "protocol-report", { exportMode: "all" }),
+    refFixture("P21-protokol-secili", "protocol-report", { exportMode: "selected", protocolIds: [uid(2100), uid(2101)] }),
+    bioFixture("P22-cakra-tumu", "chakra-report", { exportMode: "all" }),
+    bioFixture("P22-cakra-tek", "chakra-report", { exportMode: "single", chakraId: uid(2200) }),
+    bioFixture("P22-cakra-secili", "chakra-report", { exportMode: "selected", chakraIds: [uid(2200), uid(2201)] }),
+    bioFixture("P22-enerji-bedeni-tumu", "energy-body-report", { exportMode: "all" }),
+    bioFixture("P22-enerji-bedeni-tek", "energy-body-report", { exportMode: "single", id: uid(2220) }),
+    bioFixture("P22-imajinasyon-tumu", "imagination-report", { exportMode: "all" }),
+    bioFixture("P22-imajinasyon-secili", "imagination-report", { exportMode: "selected", ids: [uid(2230), uid(2231)] }),
+    bioFixture("P22-bilincalti-tumu", "subconscious-report", { exportMode: "all" }),
+    bioFixture("P22-bilincalti-tek", "subconscious-report", { exportMode: "single", id: uid(2240) }),
+    bioFixture("P22-sembol-tumu", "symbol-report", { exportMode: "all" }),
+    bioFixture("P22-sembol-tek", "symbol-report", { exportMode: "single", id: uid(2250) }),
+    bioFixture("P22-seans-tumu", "session-report", { exportMode: "all" }),
+    bioFixture("P22-seans-tek", "session-report", { exportMode: "single", sessionId: uid(2260) }),
   ];
 }
