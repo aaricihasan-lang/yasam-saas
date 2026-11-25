@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { trackUsage } from "@/lib/usage/trackUsage";
 import { expertDisplayName } from "@/lib/docx/reportDisclaimer";
+import { resolveReportLocale } from "@/lib/i18n/reportLocale";
 import { checkRateLimit } from "@/lib/rateLimit";
 import { parseExportBody, docxResponse, reportErrorCode } from "@/lib/aromaterapi/report/request";
 import { MAX_EXPORT_BODY_BYTES, OIL_TYPE_ORDER } from "@/lib/aromaterapi/report/theme";
@@ -51,7 +52,7 @@ export async function POST(req: NextRequest): Promise<Response> {
     : { mode: "all", oilType: parsed.oilType };
 
   try {
-    const res = await buildOilsCatalogDoc(db, tenantId, sel, { expertName: expertDisplayName(guard.profile), date: new Date() });
+    const res = await buildOilsCatalogDoc(db, tenantId, sel, { expertName: expertDisplayName(guard.profile), date: new Date(), output: await resolveReportLocale(req, { db, tenantId, userId: guard.userId }) });
     if (!res.ok) {
       if (res.status >= 500) await trackUsage(guard, req, { module: "aromatherapy", action: "action_failed", failedAction: "report_generated", subEntity: "oil", errorClass: "server" });
       return NextResponse.json({ ok: false, code: reportErrorCode(res.status), error: res.error }, { status: res.status });

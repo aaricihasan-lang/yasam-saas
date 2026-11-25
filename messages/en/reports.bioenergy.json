@@ -1,0 +1,138 @@
+{
+  "reports": {
+    "bioenergy": {
+      "common": {
+        "brand": "YAŞAM SİSTEMİ",
+        "generatedOn": "Date Generated: {date}",
+        "scope": "Scope",
+        "recordCount": "Number of Records",
+        "category": "Category",
+        "date": "Date",
+        "source": "Source",
+        "notSpecified": "Not specified",
+        "recordDate": "Record Date",
+        "records": "{count, plural, one {{shown} record} other {{shown} records}}",
+        "recordNo": "RECORD #{no}",
+        "untitledRecord": "Untitled Record",
+        "unnamedRecord": "Unnamed Record",
+        "notes": "Notes",
+        "note": "Note",
+        "reportSuffix": "{name} · Report",
+        "scopeSingle": "Single Record — {name}",
+        "scopeSelected": "Selected Records ({shown})",
+        "truncated": "Note: Because of the large number of records, only the first {shown} records are included in this report. Use the category filter or a selected export for all records.",
+        "fileSelected": "selected",
+        "fileAll": "all"
+      },
+      "chakra": {
+        "title": "CHAKRA LIBRARY",
+        "singleSubtitle": "{name} · Chakra Report",
+        "nameFallback": "Chakra",
+        "catalogSubtitle": "Bioenergy Chakra Catalogue",
+        "stat": "Number of Chakra Records",
+        "scopeSingle": "Single Chakra — {name}",
+        "scopeSelected": "Selected Chakras ({shown})",
+        "scopeAll": "Full Chakra Library ({shown})",
+        "heading": "1. Chakra Library",
+        "unnamed": "Unnamed Chakra",
+        "cardNo": "CHAKRA #{no}",
+        "quick": {
+          "sanskrit": "Sanskrit Name",
+          "element": "Element",
+          "location": "Location",
+          "bija": "Bija Mantra",
+          "color": "Colour"
+        },
+        "section": {
+          "genel-bakis": "Overview",
+          "enerji-anatomisi": "Energy Anatomy & Balance",
+          "nedenler-blokajlar": "Causes & Blockages",
+          "beden-sistem": "Body & Systems",
+          "duygusal-zihinsel": "Emotional & Mental",
+          "uygulamalar": "Practices",
+          "taslar-destekleyiciler": "Stones & Supports",
+          "notlar-kaynaklar": "Notes & Sources"
+        },
+        "bibliography": "Bibliography",
+        "extra": "Additional Information",
+        "field": {
+          "organs": "Organs",
+          "glands": "Glands",
+          "stones": "Stones",
+          "causes": "Causes",
+          "physical": "Physical",
+          "mental": "Mental",
+          "notes": "Notes"
+        },
+        "footer": "Chakra Library Report · Yaşam Sistemi",
+        "file": "bioenergy-chakra"
+      },
+      "energyBody": {
+        "title": "ENERGY BODIES",
+        "singleSubtitle": "{name} · Energy Body Report",
+        "nameFallback": "Energy Body",
+        "catalogSubtitle": "Bioenergy Energy Bodies Catalogue",
+        "scopeAll": "All Energy Bodies ({shown})",
+        "heading": "1. Energy Bodies",
+        "field": {
+          "general": "General Definition",
+          "duty": "Function",
+          "disruption": "Signs of Disruption",
+          "stones": "Recommended Stones"
+        },
+        "footer": "Energy Bodies Report · Yaşam Sistemi",
+        "file": "bioenergy-energy-bodies"
+      },
+      "imagination": {
+        "title": "IMAGINATIONS",
+        "nameFallback": "Imagination",
+        "catalogSubtitle": "Bioenergy Imagination Catalogue",
+        "scopeAll": "All Imaginations ({shown})",
+        "heading": "1. Imaginations",
+        "text": "Text",
+        "footer": "Imagination Report · Yaşam Sistemi",
+        "file": "bioenergy-imagination"
+      },
+      "subconscious": {
+        "title": "SUBCONSCIOUS CAUSES",
+        "nameFallback": "Subconscious Cause",
+        "catalogSubtitle": "Bioenergy Subconscious Causes Catalogue",
+        "scopeAll": "All Subconscious Causes ({shown})",
+        "heading": "1. Subconscious Causes",
+        "sourceUid": "Source UID",
+        "content": "Content",
+        "footer": "Subconscious Causes Report · Yaşam Sistemi",
+        "file": "bioenergy-subconscious"
+      },
+      "symbol": {
+        "title": "SYMBOL LANGUAGE",
+        "singleSubtitle": "{name} · Symbol Report",
+        "nameFallback": "Symbol",
+        "catalogSubtitle": "Bioenergy Symbol Language Catalogue",
+        "scopeAll": "All Symbols ({shown})",
+        "heading": "1. Symbol Language",
+        "unnamed": "Unnamed Symbol",
+        "meaning": "Meaning",
+        "footer": "Symbol Language Report · Yaşam Sistemi",
+        "file": "bioenergy-symbol"
+      },
+      "session": {
+        "title": "BIOENERGY SESSIONS",
+        "singleSubtitle": "{name} · Session Report",
+        "nameFallback": "Session",
+        "catalogSubtitle": "Bioenergy Session Catalogue",
+        "stat": "Number of Sessions",
+        "scopeSingle": "Single Session — {name}",
+        "scopeSelected": "Selected Sessions ({shown})",
+        "scopeAll": "All Sessions ({shown})",
+        "heading": "1. Session List",
+        "meta": "{count, plural, one {{shown} session record} other {{shown} session records}}",
+        "untitled": "Untitled Session",
+        "cardNo": "SESSION #{no}",
+        "content": "Content / Application Notes",
+        "footer": "Bioenergy Session Report · Yaşam Sistemi",
+        "file": "bioenergy-session"
+      }
+    }
+  }
+}

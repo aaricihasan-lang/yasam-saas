@@ -1,0 +1,78 @@
+{
+  "reports": {
+    "reflexology": {
+      "brand": "YAŞAM SİSTEMİ",
+      "group": {
+        "taban": "Sole",
+        "yan_ic": "Medial Side",
+        "yan_dis": "Lateral Side",
+        "el_avuc": "Palm",
+        "el_sirt": "Back of Hand"
+      },
+      "cover": {
+        "generated": "Date Generated",
+        "protocolDate": "Protocol Date",
+        "organCount": "Number of Organs",
+        "totalRegions": "Total Atlas Zones",
+        "usedViews": "Views Used",
+        "protocolCount": "Number of Protocols",
+        "scope": "Scope",
+        "totalOrgans": "Total Organs",
+        "singleSubtitle": "Reflexology Protocol Report",
+        "catalogTitle": "Reflexology Protocol Catalogue",
+        "catalogSubtitle": "Clinical Protocol Catalogue",
+        "atlasTitle": "Saved Atlas",
+        "atlasSubtitle": "Reflexology Atlas Report"
+      },
+      "summary": {
+        "title": "Protocol Summary",
+        "organCount": "Number of Organs",
+        "totalRegions": "Total Atlas Zones",
+        "groupRegions": "{group} Zones"
+      },
+      "map": {
+        "heading": "Reflexology Application Map — {group}",
+        "legend": "{organ} — {count, plural, one {{shown} zone} other {{shown} zones}}"
+      },
+      "organs": {
+        "headingProtocol": "Selected Organs and Atlas Zones",
+        "headingAtlas": "Organs and Atlas Zones",
+        "selected": "Selected organs: ",
+        "colOrgan": "Organ",
+        "colView": "View",
+        "colRegions": "Number of Zones",
+        "missing": "Organs without atlas zones: "
+      },
+      "notes": {
+        "callout": "APPLICATION NOTES",
+        "heading": "Application Notes"
+      },
+      "protocolNo": "PROTOCOL #{no}",
+      "untitledProtocol": "Untitled Protocol",
+      "disclaimer": {
+        "title": "Information",
+        "text": "Reflexology practices are complementary in nature. This module is not intended for medical diagnosis or treatment and does not replace a physician’s assessment.",
+        "footer": "Complementary practice · does not replace medical diagnosis/treatment"
+      },
+      "header": "Yaşam Sistemi · Reflexology",
+      "footer": {
+        "protocol": "Reflexology Protocol Report",
+        "atlas": "Reflexology Atlas Report",
+        "page": "Page"
+      },
+      "scope": {
+        "atlasAll": "All Atlas Records",
+        "atlasSelected": "Selected Atlas Records",
+        "protocolsAll": "All Protocols",
+        "protocolsSelected": "Selected Protocols"
+      },
+      "file": {
+        "atlas": "reflexology-atlas",
+        "protocol": "reflexology-protocol",
+        "all": "all",
+        "selected": "selected",
+        "protocolFallback": "protocol"
+      }
+    }
+  }
+}

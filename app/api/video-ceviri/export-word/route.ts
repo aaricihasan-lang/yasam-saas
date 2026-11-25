@@ -8,14 +8,11 @@ import {
   TextRun,
 } from "docx";
 import type { ExportMode } from "@/lib/video-ceviri/exportHelpers";
+import { resolveReportLocale } from "@/lib/i18n/reportLocale";
+import { documentLangOptions, videoExportText } from "@/lib/video-ceviri/reportText";
 
 export const runtime = "nodejs";
 
-const TITLE_MAP: Record<ExportMode, string> = {
-  original: "Orijinal Transkript",
-  turkish: "Türkçe Çeviri",
-  comparison: "Video Çeviri Raporu",
-};
 
 function textToParagraphs(text: string): Paragraph[] {
   return text
@@ -105,17 +102,19 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  // Doküman içeriğini moda göre oluştur
+  // Doküman içeriğini moda göre oluştur (sistem metinleri çıktı dilinde; transkript/çeviri metni aynen).
+  const output = await resolveReportLocale(request, { db, tenantId, userId });
+  const x = videoExportText(output);
   const children: Paragraph[] = [
     new Paragraph({
-      text: TITLE_MAP[mode],
+      text: x.title(mode),
       heading: HeadingLevel.HEADING_1,
       spacing: { after: 300 },
     }),
     new Paragraph({
       children: [
         new TextRun({
-          text: `Kaynak: ${job.original_filename}`,
+          text: x.source(job.original_filename),
           size: 20,
           color: "666666",
           italics: true,
@@ -132,22 +131,21 @@ export async function GET(request: NextRequest) {
   } else {
     // comparison
     children.push(
-      sectionHeading("ORİJİNAL TRANSKRİPT"),
+      sectionHeading(x.originalHeading),
       ...textToParagraphs(job.transcript_original),
-      sectionHeading("TÜRKÇE ÇEVİRİ", 600),
+      sectionHeading(x.translationHeading, 600),
       ...textToParagraphs(job.transcript_tr!),
     );
   }
 
-  const doc = new Document({ sections: [{ properties: {}, children }] });
+  const doc = new Document({ ...documentLangOptions(output), sections: [{ properties: {}, children }] });
   const buffer = await Packer.toBuffer(doc);
 
   const safeName = job.original_filename
     .replace(/\.[^.]+$/, "")
     .replace(/[^a-zA-Z0-9_-]/g, "_")
     .slice(0, 60);
-  const suffix =
-    mode === "original" ? "orijinal" : mode === "turkish" ? "turkce" : "karsilastirmali";
+  const suffix = x.fileSuffix(mode);
 
   return new Response(new Uint8Array(buffer), {
     headers: {

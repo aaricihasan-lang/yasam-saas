@@ -1,0 +1,303 @@
+{
+  "reports": {
+    "stones": {
+      "brand": "YAŞAM SİSTEMİ",
+      "generatedOnLabel": "Oluşturulma Tarihi: ",
+      "scopeLabel": "Kapsam: ",
+      "reportSummary": "Rapor Özeti",
+      "notSpecified": "Belirtilmemiş",
+      "preparedByLine": "Hazırlayan: {name}",
+      "mineral": {
+        "bankTitle": "Mineral Bankası",
+        "bankSubtitle": "Profesyonel Mineral Referans Kataloğu",
+        "stat": {
+          "total": "Toplam Mineral",
+          "sources": "Kaynak Sayısı",
+          "withStones": "Taş İçeren Mineraller",
+          "stoneLinks": "Taş Bağlantısı"
+        },
+        "unnamed": "İsimsiz Mineral",
+        "cardNo": "MİNERAL #{no}",
+        "meta": {
+          "category": "Kategori",
+          "source": "Kaynak",
+          "date": "Tarih"
+        },
+        "field": {
+          "description": "Açıklama",
+          "physical": "Fiziksel Özellikler",
+          "mental": "Zihinsel Etkiler",
+          "physiology": "Fizyoloji",
+          "deficiency": "Eksiklik Belirtileri",
+          "excess": "Fazlalık Belirtileri",
+          "overdose": "Doz Aşımı",
+          "organs": "Organ Etkileri",
+          "chakras": "Çakralar",
+          "containingStones": "İçeren Taşlar ({count})"
+        },
+        "noExtraFields": "Bu kayıtta ek alan bilgisi bulunmuyor.",
+        "recordsTitle": "Mineral Kayıtları",
+        "recordsMeta": "{count, plural, other {{shown} mineral}} · {label}",
+        "footer": "Yaşam Sistemi Mineral Bankası",
+        "header": "Yaşam Sistemi · Mineral Bankası",
+        "scope": {
+          "all": "Tüm Mineraller",
+          "viewed": "Görüntülenen Kayıtlar",
+          "selected": "Seçili Mineraller",
+          "filtered": "Filtrelenmiş Sonuçlar"
+        },
+        "file": {
+          "list": "mineral-bankasi-raporu",
+          "detail": "mineral"
+        },
+        "detail": {
+          "subtitle": "Mineral Detay Raporu",
+          "filledSections": "Dolu Bölüm",
+          "stoneCount": "İçeren Taş",
+          "recordDate": "Kayıt Tarihi",
+          "generalInfo": "1. Genel Bilgiler",
+          "name": "Mineral Adı",
+          "properties": "2. Mineral Özellikleri",
+          "empty": "Bu mineral kaydında henüz içerik girilmemiş.",
+          "footer": "Mineral Raporu · {name}"
+        }
+      },
+      "combo": {
+        "unnamed": "İsimsiz",
+        "scope": {
+          "single": "Tek Kombinasyon — {title}",
+          "selected": "Seçili Kombinasyonlar ({count})",
+          "filtered": "Filtrelenmiş Kombinasyonlar ({count})",
+          "all": "Tüm Kombinasyonlar ({count})"
+        },
+        "coverTitle": "TAŞ KOMBİNASYONLARI",
+        "generatedOn": "Oluşturulma Tarihi: {date}",
+        "stat": {
+          "totalTitles": "Toplam Başlık",
+          "totalVariants": "Toplam Variant",
+          "category": "Kategori",
+          "categoryCount": "Kategori Sayısı",
+          "scope": "Kapsam",
+          "generated": "Oluşturulma"
+        },
+        "variantCount": "{count, plural, other {{shown} variant}}",
+        "listTitle": "Kombinasyon Listesi",
+        "listMeta": "{titles, plural, other {{titlesShown} başlık}} · {variants, plural, other {{variantsShown} variant}}",
+        "cardNo": "KOMBİNASYON #{no}",
+        "field": {
+          "category": "Kategori",
+          "source": "Kaynak",
+          "note": "Not {n}"
+        },
+        "variant": "Variant {n}/{total}",
+        "single": "Kombinasyon",
+        "header": "Yaşam Sistemi · Taş Kombinasyonları",
+        "footer": "Taş Kombinasyonları Raporu · Yaşam Sistemi",
+        "file": {
+          "prefix": "kombinasyon",
+          "selected": "secili",
+          "filtered": "filtreli",
+          "all": "tumu"
+        }
+      },
+      "generatedOnDate": "Oluşturulma Tarihi: {date}",
+      "source": {
+        "label": "Kaynak: ",
+        "notSpecified": "Kaynak belirtilmemiş"
+      },
+      "encyclopedia": {
+        "coverTitle": "DOĞALTAŞ ANSİKLOPEDİSİ",
+        "coverSubtitle": "Profesyonel Bilgi ve Referans Kataloğu",
+        "stat": {
+          "stones": "Toplam Taş Sayısı",
+          "minerals": "Toplam Mineral Sayısı",
+          "combinations": "Toplam Kombinasyon Sayısı",
+          "knowledge": "Toplam Makale Sayısı"
+        },
+        "section": {
+          "stones": "Doğaltaş Kayıtları",
+          "minerals": "Mineral Bankası",
+          "combinations": "Kombinasyonlar",
+          "knowledge": "Taş Bilgi Kütüphanesi"
+        },
+        "records": "{count, plural, other {{shown} kayıt}}",
+        "articles": "{count, plural, other {{shown} makale}}",
+        "summaryTitle": "1. Genel Özet",
+        "summaryNote": "Seçilen bölümlere ait Supabase verilerinden oluşturulmuştur.",
+        "summaryNoteRecords": "Seçilen bölümlere ait kayıtlarınızdan oluşturulmuştur.",
+        "stones": {
+          "divider": "DOĞALTAŞ KAYITLARI",
+          "dividerSub": "{count, plural, other {{shown} Taş Kaydı}}",
+          "heading": "{n}. Doğaltaş Kayıtları",
+          "total": "{count, plural, other {Toplam {shown} taş kaydı}}",
+          "cardNo": "DOĞALTAŞ #{no}",
+          "unnamed": "İsimsiz Taş",
+          "sourcesInline": "KAYNAKLAR",
+          "sourceInline": "KAYNAK",
+          "sourceNoteInline": "Kaynak Not",
+          "chakraCount": "Çakra Sayısı",
+          "warningTags": "Uyarı Etiketleri",
+          "field": {
+            "shortDescription": "Kısa Açıklama",
+            "generalInfo": "Genel Bilgi",
+            "sourceNote": "Kaynak Notu",
+            "physical": "Fiziksel Etkiler",
+            "spiritual": "Ruhsal Etkiler",
+            "other": "Diğer Etkiler",
+            "fengShui": "Feng Shui",
+            "meditation": "Meditasyon",
+            "care": "Bakım",
+            "application": "Kullanım",
+            "chakras": "Çakralar",
+            "assignments": "Atamalar / Burçlar",
+            "warnings": "Uyarılar"
+          }
+        },
+        "minerals": {
+          "divider": "MİNERAL BANKASI",
+          "dividerSub": "{count, plural, other {{shown} Mineral Kaydı}}",
+          "heading": "{n}. Mineral Bankası",
+          "total": "{count, plural, other {Toplam {shown} mineral kaydı}}",
+          "cardNo": "MİNERAL #{no}",
+          "unnamed": "İsimsiz Mineral",
+          "category": "Kategori",
+          "description": "Açıklama",
+          "field": {
+            "physical": "Fiziksel Etkiler",
+            "mental": "Zihinsel Etkiler",
+            "physiology": "Fizyoloji",
+            "deficiency": "Eksiklik Belirtileri",
+            "excess": "Fazlalık Belirtileri",
+            "overdose": "Doz Aşımı",
+            "containingStones": "İçeren Taşlar",
+            "organs": "Organ Etkileri",
+            "chakras": "Çakralar"
+          }
+        },
+        "combinations": {
+          "divider": "KOMBİNASYONLAR",
+          "dividerSub": "{count, plural, other {{shown} Kombinasyon Kaydı}}",
+          "heading": "{n}. Kombinasyonlar",
+          "total": "{count, plural, other {Toplam {shown} kombinasyon kaydı}}",
+          "cardNo": "KOMBİNASYON #{no}",
+          "unnamed": "İsimsiz Kombinasyon",
+          "purpose": "Amaç / Kategori",
+          "stones": "Taşlar",
+          "usage": "Kullanım Önerisi",
+          "source": "Kaynak"
+        },
+        "knowledge": {
+          "divider": "TAŞ BİLGİ KÜTÜPHANESİ",
+          "dividerSub": "{count, plural, other {{shown} Makale}}",
+          "heading": "{n}. Taş Bilgi Kütüphanesi",
+          "total": "{count, plural, other {Toplam {shown} makale}}",
+          "generalCategory": "Genel",
+          "untitled": "Başlıksız Makale",
+          "subCategory": "Alt Kategori",
+          "source": "Kaynak",
+          "tags": "Etiketler",
+          "relatedStones": "İlgili Taşlar",
+          "relatedMinerals": "İlgili Mineraller",
+          "notes": "Notlar"
+        },
+        "analytics": {
+          "reportDate": "Rapor Tarihi",
+          "notIncluded": "Dahil edilmedi",
+          "totalRecords": "Toplam Kayıt",
+          "divider": "ANALİZ ÖZETİ",
+          "dividerSub": "Stok & Sistem İstatistikleri",
+          "heading": "{n}. Stok / Analiz Özeti",
+          "note": "Seçilen bölümlerin istatistikleri"
+        },
+        "footer": "Yaşam Sistemi Doğaltaş Ansiklopedisi",
+        "file": "yasam-sistemi-dogaltas-raporu"
+      },
+      "stoneDetail": {
+        "subtitle": "Doğaltaş Detay Raporu",
+        "unnamed": "İsimsiz Taş",
+        "stat": {
+          "stoneName": "Taş Adı",
+          "filledSections": "Dolu Bölüm",
+          "imageCount": "Görsel Sayısı",
+          "chakraCount": "Çakra Sayısı",
+          "source": "Kaynak",
+          "library": "Kütüphane",
+          "infoSource": "Bilgi Kaynağı"
+        },
+        "summary": {
+          "filledSections": "{count, plural, other {{shown} bölüm}}",
+          "imageCount": "{count, plural, other {{shown} görsel}}",
+          "chakra": "Çakra",
+          "recordDate": "Kayıt Tarihi",
+          "infoSources": "Bilgi Kaynakları"
+        },
+        "sourceBanner": "KAYNAK: {name}",
+        "sectionNo": "BÖLÜM {n}",
+        "section": {
+          "general": "1. Genel Bilgiler",
+          "effects": "2. Etkiler",
+          "usage": "3. Kullanım Alanları",
+          "chakras": "4. Çakralar ve Atamalar"
+        },
+        "field": {
+          "shortDescription": "Kısa Açıklama",
+          "generalInfo": "Genel Taş Açıklaması",
+          "sourceNote": "Kaynak Notu",
+          "physical": "Fiziksel Etkiler",
+          "spiritual": "Ruhsal Etkiler",
+          "other": "Diğer Etkiler",
+          "warnings": "Uyarılar ve Hassasiyetler",
+          "warningTags": "Uyarı Etiketleri",
+          "fengShui": "Feng Shui",
+          "meditation": "Meditasyon",
+          "care": "Bakım",
+          "application": "Uygulama",
+          "chakras": "Çakralar"
+        },
+        "emptySection": "Bu bölümde henüz bilgi girilmemiş.",
+        "extraImages": "Ek Görseller",
+        "extraImagesNote": "{count, plural, other {Bu taş kaydında toplam {shown} görsel bulunmaktadır. Sistemi ziyaret edin.}}",
+        "footer": "Doğaltaş Raporu · {name}",
+        "file": "dogaltas"
+      },
+      "knowledge": {
+        "coverTitle": "TAŞ BİLGİ KÜTÜPHANESİ",
+        "coverSubtitle": "Bilgi Bankası Referans Kataloğu",
+        "stat": {
+          "totalArticles": "Toplam Makale Sayısı",
+          "categoryCount": "Kategori Sayısı",
+          "scope": "Kapsam"
+        },
+        "summary": {
+          "totalArticles": "Toplam Makale",
+          "categoryCount": "Kategori Sayısı"
+        },
+        "articles": "{count, plural, other {{shown} makale}}",
+        "categoryArticles": "{category}: {count, plural, other {{shown} makale}}",
+        "summaryTitle": "1. Genel Özet",
+        "summaryMeta": "{categories, plural, other {{categoriesShown} kategori}} · {articles, plural, other {{articlesShown} makale}}",
+        "dividerSub": "{count, plural, other {{shown} Makale}}",
+        "generalCategory": "Genel",
+        "untitled": "Başlıksız Makale",
+        "field": {
+          "subCategory": "Alt Kategori",
+          "date": "Tarih",
+          "source": "Kaynak",
+          "sourceSection": "Kaynak Bölüm",
+          "tags": "Etiketler",
+          "relatedStones": "İlgili Taşlar",
+          "relatedMinerals": "İlgili Mineraller",
+          "notes": "Notlar"
+        },
+        "scope": {
+          "all": "Tüm Makaleler",
+          "category": "Kategori: {name}",
+          "viewed": "Görüntülenen Kayıtlar",
+          "filtered": "Filtrelenmiş Sonuçlar"
+        },
+        "footer": "Yaşam Sistemi — Taş Bilgi Kütüphanesi",
+        "file": "tas-bilgi-kutuphanesi-raporu"
+      }
+    }
+  }
+}

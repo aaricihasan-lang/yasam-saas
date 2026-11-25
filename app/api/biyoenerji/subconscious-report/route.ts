@@ -6,7 +6,6 @@ import { trackUsage } from "@/lib/usage/trackUsage";
 import {
   reportRateLimit,
   MAX_EXPORT_RECORDS,
-  EXPORT_TRUNCATED_NOTE,
   MAX_SELECTED_IDS,
 } from "@/lib/biyoenerji/reportSecurity";
 import {
@@ -23,11 +22,14 @@ import {
   spacer,
   twoColTable,
 } from "@/lib/docx/reportHelpers";
-import { StaticTocCollector } from "@/lib/docx/premiumToc";
+import { buildStaticTocPage, StaticTocCollector } from "@/lib/docx/premiumToc";
 import { expertDisplayName } from "@/lib/docx/reportDisclaimer";
 import { sanitizeBioenergyRow, sanitizeBioenergyXmlText } from "@/lib/biyoenerji/xmlSafeText";
 
-import { formatInstantDate, reportFileDate, reportGeneratedLabel } from "@/lib/time/reportTime";
+import { reportFileDate } from "@/lib/time/reportTime";
+import { resolveReportLocale } from "@/lib/i18n/reportLocale";
+// I18N-F1-R5 RAPOR-E (P22): sistem metinleri reports.bioenergy.* (çıktı dili; TR birebir — golden). Kayıt içeriği çevrilmez.
+import { bioTextFor } from "@/lib/biyoenerji/reportText";
 
 /** A1 — hazırlayan adı da XML-güvenli. */
 function safeExpertName(profile: Record<string, unknown> | null | undefined): string | null {
@@ -52,10 +54,7 @@ type SubconsciousRow = {
   created_at: string;
 };
 
-/** created_at (timestamptz) → Europe/Istanbul takvim günü (FA-02; sunucu UTC'de çalışır). */
-function formatDateTR(d: string): string {
-  return formatInstantDate(d, { style: "long", fallback: d });
-}
+// created_at (timestamptz) → Europe/Istanbul takvim günü (FA-02): B.dateLong (çıktı dilinde).
 
 function slugify(t: string): string {
   return t.toLowerCase()
@@ -93,6 +92,8 @@ export async function POST(request: NextRequest): Promise<Response> {
 
   // AA-6: route kendi service_role client'ını KURMAZ — guard'ın sunucu client'ı (guard.db).
   const { db } = guard;
+  const B = bioTextFor(await resolveReportLocale(request, { db, tenantId, userId: guard.userId }));
+  const C = B.t;
 
   // BIO-01 + A4-A — sayfalı, sayım doğrulamalı okuma; seçili modda uzun id listesi parçalı
   // okunur, eksik kayıt varsa rapor üretilmez (lib/biyoenerji/reportRead).
@@ -131,38 +132,36 @@ export async function POST(request: NextRequest): Promise<Response> {
   if (!rows.length)
     return Response.json({ ok: false, error: "Bu seçim için bilinçaltı sebebi bulunamadı." }, { status: 404 });
 
-  const today = reportGeneratedLabel();
+  const today = B.generated();
   const dateSlug = reportFileDate();
   const isSingle = exportMode === "single" || (exportMode === "selected" && rows.length === 1);
 
   const exportLabel =
-    isSingle ? `Tek Kayıt — ${rows[0]!.title || ""}` :
-    exportMode === "selected" ? `Seçili Kayıtlar (${rows.length})` :
-    `Tüm Bilinçaltı Sebepleri (${rows.length})`;
+    B.scope("subconscious", isSingle ? "single" : exportMode === "selected" ? "selected" : "all", rows.length, rows[0]!.title || "");
 
   const categories = new Set(rows.map((r) => r.category?.trim()).filter(Boolean));
 
   const all: ReportChild[] = [];
 
   all.push(...buildPremiumCover({
-    title1:   "YAŞAM SİSTEMİ",
-    title2:   "BİLİNÇALTI SEBEPLER",
+    title1:   C("common.brand"),
+    title2:   C("subconscious.title"),
     subtitle: isSingle && rows[0]
-      ? `${rows[0].title || "Bilinçaltı Sebebi"} · Rapor`
-      : "Biyoenerji Bilinçaltı Sebepler Kataloğu",
-    date:     `Oluşturulma Tarihi: ${today}`,
+      ? C("common.reportSuffix", { name: rows[0].title || C("subconscious.nameFallback") })
+      : C("subconscious.catalogSubtitle"),
+    date:     C("common.generatedOn", { date: today }),
     stats: [
-      { label: "Kayıt Sayısı", value: String(rows.length) },
-      { label: "Kategori",     value: String(categories.size) },
-      { label: "Kapsam",       value: exportLabel },
+      { label: C("common.recordCount"), value: String(rows.length) },
+      { label: C("common.category"), value: String(categories.size) },
+      { label: C("common.scope"),  value: exportLabel },
     ],
   }));
 
   all.push(...buildStatsPage([
-    ["Kayıt Sayısı", String(rows.length)],
-    ["Kategori",     String(categories.size)],
-    ["Kapsam",       exportLabel],
-  ]));
+    [C("common.recordCount"), String(rows.length)],
+    [C("common.category"), String(categories.size)],
+    [C("common.scope"),  exportLabel],
+  ], undefined, B.common));
 
   // İçindekiler: eski boş Word TOC alanı yerine STATİK + tıklanabilir girişler (gövde
   // başlıklarından toplanır, gövde bittikten sonra bu konuma yerleştirilir; başlık yoksa sayfa yok).
@@ -170,41 +169,42 @@ export async function POST(request: NextRequest): Promise<Response> {
   const tocAt = all.length;
 
   if (truncatedRead) {
-    all.push(muted(EXPORT_TRUNCATED_NOTE(MAX_EXPORT_RECORDS)));
+    all.push(muted(B.truncated(MAX_EXPORT_RECORDS)));
   }
 
-  all.push(toc.h1Colored("1. Bilinçaltı Sebepler", C_BILINCALTI, true));
-  all.push(muted(`${rows.length} kayıt`));
+  all.push(toc.h1Colored(C("subconscious.heading"), C_BILINCALTI, true));
+  all.push(muted(B.records(rows.length)));
   all.push(spacer());
 
   rows.forEach((row, i) => {
-    const title = row.title?.trim() || "Başlıksız Kayıt";
+    const title = row.title?.trim() || C("common.untitledRecord");
 
     if (i > 0) all.push(divider());
 
-    all.push(profileLabel(`KAYIT #${String(i + 1).padStart(3, "0")}`, C_BILINCALTI));
+    all.push(profileLabel(B.recordNo(i), C_BILINCALTI));
     all.push(toc.h2(title));
 
     all.push(twoColTable([
-      ["Tarih",    formatDateTR(row.created_at)],
-      ["Kategori", row.category?.trim() || "Belirtilmemiş"],
-      ...(row.source_uid?.trim() ? [["Kaynak UID", row.source_uid.trim()] as [string, string]] : []),
+      [C("common.date"),     B.dateLong(row.created_at)],
+      [C("common.category"), row.category?.trim() || C("common.notSpecified")],
+      ...(row.source_uid?.trim() ? [[C("subconscious.sourceUid"), row.source_uid.trim()] as [string, string]] : []),
     ]));
 
-    if (row.content?.trim())   { all.push(h3("İçerik"));  all.push(bodyText(row.content.trim())); }
-    if (row.note_text?.trim()) { all.push(h3("Not"));     all.push(bodyText(row.note_text.trim())); }
+    if (row.content?.trim())   { all.push(h3(C("subconscious.content"))); all.push(bodyText(row.content.trim())); }
+    if (row.note_text?.trim()) { all.push(h3(C("common.note")));          all.push(bodyText(row.note_text.trim())); }
   });
 
   // FA-16: sade bilgilendirme notu + Hazırlayan (rapor sonu).
-  all.push(...buildWellnessNoteSection("biyoenerji", safeExpertName(guard.profile)));
+  all.push(...buildWellnessNoteSection("biyoenerji", safeExpertName(guard.profile), B.common));
 
-  all.splice(tocAt, 0, ...toc.page());
+  all.splice(tocAt, 0, ...buildStaticTocPage(toc.entries, B.common));
 
   const doc = new Document({
     ...toc.documentOptions(),
+    ...B.styles(),
     sections: [{
       properties: {},
-      footers: { default: buildFooter("Bilinçaltı Sebepler Raporu · Yaşam Sistemi", { note: "biyoenerji" }) },
+      footers: { default: buildFooter(C("subconscious.footer"), { note: "biyoenerji", common: B.common }) },
       children: all,
     }],
   });
@@ -218,10 +218,7 @@ export async function POST(request: NextRequest): Promise<Response> {
     resourceId: exportMode === "single" && typeof id === "string" ? id : null,
     itemCount: rows.length,
   });
-  const modeSlug =
-    isSingle && rows[0]?.title ? slugify(rows[0].title) :
-    exportMode === "selected" ? "secili" : "tumu";
-  const filename = `biyoenerji-bilincalti-${modeSlug}-${dateSlug}.docx`;
+  const filename = B.fileName("subconscious", isSingle && rows[0]?.title ? slugify(rows[0].title) : null, exportMode, dateSlug);
 
   return new Response(new Uint8Array(buffer), {
     headers: {

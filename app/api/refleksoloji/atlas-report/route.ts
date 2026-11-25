@@ -8,6 +8,8 @@ import { listAtlasOrganNames, resolveOrganInAtlas, resolveProtocolAtlas } from "
 import { normalizeAtlasDocument } from "@/lib/refleksoloji/atlasNormalize";
 import type { AtlasDocument } from "@/lib/atlasStorage";
 import { buildAtlasReport, reflexologyHeaders, reflexologyFooters } from "@/lib/refleksoloji/reflexologyWord";
+import { resolveReportLocale } from "@/lib/i18n/reportLocale";
+import { reflexFileName, reflexText, reflexTextFor, withReflexOutput } from "@/lib/refleksoloji/reportText";
 
 export const runtime = "nodejs";
 
@@ -35,10 +37,6 @@ const MAX_ORGAN_NAME_LENGTH = 200;
 const REPORT_MAX_BYTES = 4_400_000;
 
 const TR_TZ = "Europe/Istanbul";
-
-function reportDateTR(): string {
-  return new Date().toLocaleDateString("tr-TR", { day: "2-digit", month: "long", year: "numeric", timeZone: TR_TZ });
-}
 
 function reportDateSlug(): string {
   return new Intl.DateTimeFormat("en-CA", { timeZone: TR_TZ }).format(new Date());
@@ -107,12 +105,16 @@ export async function POST(request: NextRequest): Promise<Response> {
   if (found === 0)
     return Response.json({ ok: false, code: "REF_ATLAS_NOT_FOUND", error: "Bu seçim için atlas kaydı bulunamadı." }, { status: 404 });
 
-  const scopeLabel = exportMode === "selected" ? "Seçili Atlas Kayıtları" : "Tüm Atlas Kayıtları";
+  const output = await resolveReportLocale(request, { db, tenantId, userId: guard.userId });
+  const RT = reflexTextFor(output);
+  const scopeLabel = exportMode === "selected" ? RT.t("scope.atlasSelected") : RT.t("scope.atlasAll");
   // F3B: uzman markalaması (yalnız anahtar açıkken rapor sonunda "Hazırlayan" imza bloğu); sahip/ad yalnız guard'dan.
   const branding = await resolveReportBranding(db, { tenantId, userId: guard.userId }, { fullName: expertDisplayName(guard.profile) }, { purpose: "signature" });
-  const children = await buildAtlasReport(resolved, reportDateTR(), scopeLabel, { branding });
-
-  const doc = new Document({
+  const doc = await withReflexOutput(output, async () => {
+  const children = await buildAtlasReport(resolved, reflexText().dateLong(new Date()), scopeLabel, { branding });
+  const styles = output.docxStyles();
+  return new Document({
+    ...(styles ? { styles } : {}),
     sections: [{
       properties: {
         titlePage: true,
@@ -122,9 +124,10 @@ export async function POST(request: NextRequest): Promise<Response> {
         },
       },
       headers: reflexologyHeaders(),
-      footers: reflexologyFooters("Refleksoloji Atlas Raporu"),
+      footers: reflexologyFooters(reflexText().t("footer.atlas")),
       children,
     }],
+  });
   });
 
   const buffer = await Packer.toBuffer(doc);
@@ -143,7 +146,7 @@ export async function POST(request: NextRequest): Promise<Response> {
     resourceId: null,
     itemCount: found,
   });
-  const filename = `refleksoloji-atlas-${exportMode === "selected" ? "secili" : "tumu"}-${reportDateSlug()}.docx`;
+  const filename = reflexFileName("atlas", exportMode === "selected" ? RT.t("file.selected") : RT.t("file.all"), reportDateSlug(), output);
 
   return new Response(new Uint8Array(buffer), {
     headers: {

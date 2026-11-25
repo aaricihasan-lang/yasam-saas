@@ -7,7 +7,8 @@ import { trackUsage } from "@/lib/usage/trackUsage";
 import { sanitizeXmlDeep } from "@/lib/dogaltas/reportSanitize";
 import { hydrateCombinationStoneNames } from "@/lib/dogaltas/combinationStonesRead";
 import { Packer } from "docx";
-import { buildCombinationReportDocument, type CombinationRow as CombinationReportRow } from "@/lib/dogaltas/combinationReportDoc";
+import { buildCombinationReportDocument, combinationReportFileName, type CombinationRow as CombinationReportRow } from "@/lib/dogaltas/combinationReportDoc";
+import { resolveReportLocale } from "@/lib/i18n/reportLocale";
 import { expertDisplayName } from "@/lib/docx/reportDisclaimer";
 import { reportFileDate } from "@/lib/time/reportTime";
 
@@ -91,7 +92,8 @@ export async function POST(req: NextRequest): Promise<Response> {
     return Response.json({ ok: false, error: "Bu seçim için kombinasyon bulunamadı." }, { status: 404 });
 
   const dateSlug = reportFileDate();
-  const doc = buildCombinationReportDocument(rows, exportMode, combinationTitle, expertDisplayName(auth.profile));
+  const output = await resolveReportLocale(req, { db, tenantId, userId: auth.userId });
+  const doc = buildCombinationReportDocument(rows, exportMode, combinationTitle, expertDisplayName(auth.profile), output);
 
   const buffer = await Packer.toBuffer(doc);
   // Usage360: Word dosyası BAŞARIYLA üretildi → tek rapor olayı (konu: kombinasyon; çoklu → itemCount).
@@ -102,11 +104,7 @@ export async function POST(req: NextRequest): Promise<Response> {
     resourceId: rows.map((r) => r.id).sort().join(","),
     itemCount: rows.length,
   });
-  const modeSlug =
-    exportMode === "single" && combinationTitle ? slugify(combinationTitle) :
-    exportMode === "selected" ? "secili" :
-    exportMode === "filtered" ? "filtreli" : "tumu";
-  const filename = `kombinasyon-${modeSlug}-${dateSlug}.docx`;
+  const filename = combinationReportFileName(exportMode, combinationTitle, slugify, dateSlug, output);
 
   return new Response(new Uint8Array(buffer), {
     headers: {

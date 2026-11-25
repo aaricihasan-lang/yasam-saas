@@ -7,8 +7,10 @@
  */
 import { Paragraph, TextRun } from "docx";
 import { C_LIGHT, C_MID, REPORT_FONT } from "@/lib/docx/reportHelpers";
-import { sourceDisplayName, type SourceFields, type SourceTextField, type StoneSourceView } from "@/lib/dogaltas/stoneSources";
+import type { SourceFields, SourceTextField, StoneSourceView } from "@/lib/dogaltas/stoneSources";
 import { buildFieldEntries, ENTRY_FIELDS, entrySourceSummary, type StoneEntriesByField } from "@/lib/dogaltas/stoneEntries";
+// I18N-F1-R5 RAPOR-E: "Kaynak: " etiketi ve "Kaynak belirtilmemiş" yedeği çıktı dilinde (reports.stones.source.*; TR birebir).
+import { stonesSourceName, stonesText } from "@/lib/dogaltas/reportText";
 
 export type ReportSource = { name: string | null; fields: SourceFields };
 export type ReportFieldEntry = { name: string | null; text: string };
@@ -37,8 +39,8 @@ export function reportChakraEntries(sources: readonly ReportSource[]): { name: s
 export function sourceAttribution(name: string | null, color: string): Paragraph {
   return new Paragraph({
     children: [
-      new TextRun({ text: "Kaynak: ", bold: true, size: 20, font: REPORT_FONT, color }),
-      new TextRun({ text: sourceDisplayName(name), bold: true, italics: !name, size: 20, font: REPORT_FONT, color }),
+      new TextRun({ text: stonesText().t("source.label"), bold: true, size: 20, font: REPORT_FONT, color }),
+      new TextRun({ text: stonesSourceName(name), bold: true, italics: !name, size: 20, font: REPORT_FONT, color }),
     ],
     spacing: { before: 140, after: 40 },
     keepNext: true,
@@ -72,7 +74,7 @@ export function reportEntriesByField(sources: readonly ReportSource[], entryRows
 
 /** Rapordaki kaynak listesi (yalnız gerçekten bilgi taşıyan kaynaklar, ilk görülme sırasıyla). */
 export function reportSourceNames(byField: StoneEntriesByField): string[] {
-  return entrySourceSummary(byField).map((x) => sourceDisplayName(x.name));
+  return entrySourceSummary(byField).map((x) => stonesSourceName(x.name));
 }
 
 /**
@@ -87,8 +89,8 @@ export function entryParagraphs(content: string, sourceName: string | null, colo
     new Paragraph({ children: runs, indent: { left: 360, hanging: 240 }, spacing: { before: 120, after: 20 }, keepNext: true, keepLines: true }),
     new Paragraph({
       children: [
-        new TextRun({ text: "Kaynak: ", bold: true, italics: true, size: 18, font: REPORT_FONT, color }),
-        new TextRun({ text: sourceDisplayName(sourceName), italics: true, size: 18, font: REPORT_FONT, color }),
+        new TextRun({ text: stonesText().t("source.label"), bold: true, italics: true, size: 18, font: REPORT_FONT, color }),
+        new TextRun({ text: stonesSourceName(sourceName), italics: true, size: 18, font: REPORT_FONT, color }),
       ],
       indent: { left: 360 },
       spacing: { after: 100 },

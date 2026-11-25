@@ -28,6 +28,8 @@ const steps = [
   ["rapor golden (TR birebir + EN)", [tsx, "scripts/i18n/reports-golden.harness.ts"]],
   // Rapor grubu A+B (Ajanda, Ürün/Stok, Danışan Yolculuğu tekli/toplu, Anamnez PDF): TR golden + EN kontrolleri.
   ["rapor golden A+B (TR birebir + EN)", [tsx, "scripts/i18n/reports-golden-ab.harness.ts"]],
+  // I18N-F1-R5 RAPOR-CD: grup C+D üreticileri (Beslenme, Aromaterapi, Doğaltaş …) — ayrı golden, aynı normalizasyon.
+  ["rapor golden C+D (TR birebir + EN)", [tsx, "scripts/i18n/reports-golden-cd.harness.ts"]],
   ...["2a", "2c", "2d", "2e", "2f", "2g", "2h", "2i", "2j"].map((h) => [`Doğaltaş ${h}`, [`scripts/stones-i18n-${h}-harness.mjs`]]),
 ];
 

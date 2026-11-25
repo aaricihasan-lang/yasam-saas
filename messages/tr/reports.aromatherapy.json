@@ -1,0 +1,401 @@
+{
+  "reports": {
+    "aromatherapy": {
+      "moduleTitle": "AROMATERAPİ",
+      "filePrefix": "Aromaterapi",
+      "expertStat": "Uzman",
+      "oilType": {
+        "essential": "Uçucu Yağ",
+        "carrier": "Sabit Yağ",
+        "maceration": "Maserasyon Yağı",
+        "hydrosol": "Hidrosol",
+        "resin": "Reçine",
+        "absolute": "Mutlak / Ekstrakt"
+      },
+      "status": {
+        "draft": "Taslak",
+        "verified": "Doğrulanmış",
+        "approved": "Onaylanmış",
+        "archived": "Arşivlenmiş",
+        "under_review": "İncelemede",
+        "needs_verification": "Doğrulama Bekliyor"
+      },
+      "claimType": {
+        "safety": "Güvenlik",
+        "use": "Kullanım",
+        "identity": "Kimlik",
+        "chemistry": "Kimya"
+      },
+      "methodKind": {
+        "faithful_source": "Kaynağa Sadık Yöntem",
+        "editorial": "Editoryal Yöntem",
+        "expert": "Uzman Yöntemi"
+      },
+      "cover": {
+        "oilMonograph": "YAĞ MONOGRAFİSİ",
+        "oilsCatalog": "YAĞLAR KATALOĞU",
+        "blendRecipe": "KARIŞIM REÇETESİ",
+        "blends": "KARIŞIMLAR",
+        "taxa": "BİTKİ KATALOĞU",
+        "preparations": "PREPARATLAR",
+        "methods": "YÖNTEMLER & REVİZYONLAR",
+        "knowledge": "BİLGİ KAYITLARI",
+        "sources": "KAYNAKLAR",
+        "glossary": "SÖZLÜK",
+        "general": "GENEL KATALOG",
+        "generalSubtitle": "Profesyonel Bilgi ve Referans Kataloğu"
+      },
+      "report": {
+        "oil": "Yağ: {name}",
+        "blend": "Karışım: {name}",
+        "taxa": "Bitki Kataloğu",
+        "preparations": "Preparatlar",
+        "methods": "Yöntemler",
+        "knowledge": "Bilgi Kayıtları",
+        "sources": "Kaynaklar",
+        "glossary": "Sözlük",
+        "general": "Aromaterapi Genel Katalog"
+      },
+      "scope": {
+        "selectedOils": "Seçili Yağlar",
+        "typeCatalog": "{type} Kataloğu",
+        "allOils": "Tüm Yağlar",
+        "selectedBlends": "Seçili Karışımlar",
+        "allBlends": "Tüm Karışımlar",
+        "selectedRecords": "Seçili Kayıtlar",
+        "allTaxa": "Tüm Bitkiler",
+        "allPreparations": "Tüm Preparatlar",
+        "allMethods": "Tüm Yöntemler",
+        "allKnowledge": "Tüm Bilgi Kayıtları",
+        "allSources": "Tüm Kaynaklar",
+        "allGlossary": "Tüm Terimler"
+      },
+      "file": {
+        "selectedOils": "Secili_Yaglar",
+        "allOils": "Tum_Yaglar",
+        "selectedBlends": "Secili_Karisimlar",
+        "allBlends": "Tum_Karisimlar",
+        "selected": "Secili",
+        "all": "Tum",
+        "taxa": "Bitkiler",
+        "preparations": "Preparatlar",
+        "methods": "Yontemler",
+        "knowledge": "Bilgi_Kayitlari",
+        "sources": "Kaynaklar",
+        "glossary": "Sozluk",
+        "general": "Genel_Katalog"
+      },
+      "stat": {
+        "totalOils": "Toplam Yağ",
+        "oil": "Yağ",
+        "type": "Tip",
+        "blend": "Karışım",
+        "essentialCount": "Uçucu Yağ Sayısı",
+        "totalBlends": "Toplam Karışım",
+        "totalRecords": "Toplam Kayıt",
+        "taxon": "Bitki",
+        "preparation": "Preparat",
+        "method": "Yöntem",
+        "knowledge": "Bilgi Kaydı",
+        "source": "Kaynak",
+        "term": "Terim"
+      },
+      "oils": {
+        "section": "YAĞLAR",
+        "groupTitle": "{type} ({count})",
+        "unnamed": "İsimsiz Yağ",
+        "photo": {
+          "yes": "Fotosensitif / fototoksik",
+          "no": "Fotosensitif değil",
+          "unknown": "Bilinmiyor (değerlendirilmedi)"
+        },
+        "field": {
+          "latinName": "Latince Adı",
+          "englishName": "İngilizce Adı",
+          "oilType": "Yağ Tipi",
+          "category": "Kategori",
+          "origin": "Menşei",
+          "plantPart": "Bitki Bölümü",
+          "extraction": "Çıkarma Yöntemi",
+          "shelfLife": "Raf Ömrü",
+          "aromaNote": "Koku Notası",
+          "color": "Renk",
+          "consistency": "Kıvam",
+          "photosensitivity": "Fotosensitivite",
+          "dilution": "Seyreltme Oranı",
+          "chakra": "Çakra Bağlantısı",
+          "element": "Element Bağlantısı"
+        },
+        "aromaProfile": "Koku Profili",
+        "components": "Ana Kimyasal Bileşenler",
+        "therapeutic": "Terapötik Özellikler",
+        "benefits": "Faydalar",
+        "benefit": {
+          "physical": "Fiziksel Faydalar",
+          "emotional": "Duygusal Etkiler",
+          "spiritual": "Ruhsal Etkiler",
+          "skin": "Cilt Faydaları",
+          "general": "Genel Faydalar"
+        },
+        "usage": {
+          "diffuser": "Difüzyon / Buharlaştırıcı",
+          "massage": "Masaj Kullanımı",
+          "general": "Genel Kullanım Yöntemleri"
+        },
+        "blendsWell": "İyi Karıştığı Yağlar",
+        "targetSystems": "Hedef Sistemler",
+        "safety": "Güvenlik Notları",
+        "contraindications": "Kontrendikasyonlar",
+        "notes": "Ek Notlar",
+        "source": "Kaynak: {value}",
+        "infoSource": "Bilgi kaynağı: {value}"
+      },
+      "blends": {
+        "section": "KARIŞIMLAR",
+        "unnamed": "İsimsiz Karışım",
+        "photo": {
+          "yes": "☀ Evet",
+          "no": "Hayır",
+          "unknown": "Bilinmiyor"
+        },
+        "field": {
+          "carrier": "Taşıyıcı (Sabit) Yağ",
+          "bottle": "Şişe Hacmi",
+          "dilution": "Seyreltme Oranı",
+          "dropsPerMl": "ml Başına Damla",
+          "targetDrops": "Hedef damla",
+          "dropSum": "Yağların toplamı",
+          "oilCount": "Uçucu Yağ Sayısı"
+        },
+        "dropsPerMlValue": "{value} damla/ml",
+        "dropsValue": "{count, plural, other {{value} damla}}",
+        "percentValue": "%{value}",
+        "formula": "Formül",
+        "col": {
+          "oil": "Uçucu Yağ",
+          "latin": "Latince Adı",
+          "type": "Tip",
+          "drops": "Damla",
+          "photo": "Fotosensitif"
+        },
+        "noWarnings": "Bilinen uyarı bulunamadı. Bu, güvenli olduğu anlamına gelmez; uzman değerlendirmesi esastır.",
+        "safetyTitle": "Güvenlik & Uyarılar",
+        "photoOils": "Fotosensitif yağlar (güneş ışığına dikkat): {names}",
+        "contraLine": "{name} — Kontrendikasyon: {value}",
+        "safetyLine": "{name} — Güvenlik: {value}",
+        "photoLine": "{name} — Fotosensitif / fototoksik",
+        "carrierSafety": "Taşıyıcı (sabit) yağ güvenliği:",
+        "snapshotDated": "Güvenlik bilgileri karışımın kaydedildiği tarihe ({date}) aittir. Güncel yağ bilgilerini kontrol edin.",
+        "snapshotUndated": "Güvenlik bilgileri karışımın kaydedildiği tarihe aittir. Güncel yağ bilgilerini kontrol edin.",
+        "notes": "Notlar"
+      },
+      "taxa": {
+        "section": "BİTKİLER (TAKSON KATALOĞU)",
+        "unnamed": "İsimsiz Takson",
+        "hybrid": "Hibrit takson",
+        "field": {
+          "genus": "Cins (Genus)",
+          "species": "Tür (Species)",
+          "infraspecific": "Alt-tür Epiteti",
+          "rank": "Takson Rütbesi",
+          "family": "Familya",
+          "author": "Yazar Atfı",
+          "commonNameTr": "Yaygın Ad (TR)"
+        }
+      },
+      "field": {
+        "status": "Durum"
+      },
+      "prep": {
+        "section": "PREPARATLAR",
+        "fallback": "Preparat",
+        "field": {
+          "taxon": "Bağlı Takson",
+          "type": "Preparat Türü",
+          "plantPart": "Kullanılan Bitki Bölümü",
+          "chemotype": "Kemotip",
+          "knowledgeCount": "Bağlı Bilgi Kaydı"
+        }
+      },
+      "glossary": {
+        "section": "SÖZLÜK",
+        "termFallback": "Terim",
+        "metaWithEn": "İngilizce: {en}  ·  Durum: {status}",
+        "meta": "Durum: {status}",
+        "professional": "Profesyonel Tanım"
+      },
+      "knowledge": {
+        "section": "BİLGİ KAYITLARI",
+        "fallback": "Bilgi Kaydı",
+        "field": {
+          "claimType": "İddia Türü",
+          "safetyTopic": "Güvenlik Konusu",
+          "route": "Uygulama Yolu",
+          "prepContext": "Preparat Bağlamı",
+          "evidenceLayer": "Kanıt Katmanı",
+          "provenance": "Sonuç Kaynağı",
+          "outcome": "Sonuç Türü"
+        },
+        "conclusion": "Sonuç",
+        "rationale": "Gerekçe",
+        "rationaleWithStatus": "Gerekçe ({status})",
+        "routes": "Uygulama Yolları",
+        "populations": "Hedef Popülasyonlar",
+        "sourceTitle": "Kaynak: {title}",
+        "sourceTitleRole": "Kaynak: {title} ({role})",
+        "locator": "Konum: {value}",
+        "originalExcerpt": "Özgün Kaynak Alıntısı: {value}",
+        "faithfulTranslation": "Sadık Çeviri: {value}",
+        "passages": "İlişkili Pasajlar",
+        "relation": "İlişki ({type})"
+      },
+      "methods": {
+        "section": "YÖNTEMLER & REVİZYONLAR",
+        "field": {
+          "kind": "Yöntem Türü",
+          "lang": "Dil",
+          "source": "Kaynak",
+          "passage": "Pasaj",
+          "revisionCount": "Toplam Revizyon",
+          "verifiedRevision": "Doğrulanmış Revizyon",
+          "plantPart": "Kullanılan Bitki Bölümü",
+          "materialState": "Materyal Durumu",
+          "equipment": "Ekipman",
+          "amountRatio": "Miktar / Oran",
+          "solvent": "Çözücü / Taşıyıcı",
+          "duration": "Süre",
+          "temperature": "Sıcaklık",
+          "filtration": "Filtrasyon",
+          "resting": "Dinlendirme",
+          "storage": "Saklama"
+        },
+        "rev": "Rev. {n}",
+        "contentTitle": "Yöntem İçeriği (Revizyon {n} · {status})",
+        "steps": "Uygulama Adımları",
+        "quality": "Kalite Notları",
+        "safety": "Güvenlik Notları",
+        "noContent": "Doğrulanmış veya yayımlanabilir revizyon içeriği bulunamadı.",
+        "history": "Revizyon Geçmişi",
+        "col": {
+          "revision": "Revizyon",
+          "status": "Durum",
+          "updated": "Güncellenme"
+        }
+      },
+      "sources": {
+        "section": "KAYNAKLAR & KAYNAK PASAJLARI",
+        "unnamed": "İsimsiz Kaynak",
+        "field": {
+          "authors": "Yazar(lar)",
+          "organization": "Kurum / Yayınevi",
+          "year": "Yayın Yılı",
+          "type": "Kaynak Türü",
+          "documentNo": "Belge No"
+        },
+        "notes": "Notlar",
+        "passage": "Pasaj: {label}",
+        "passageWithKind": "Pasaj: {label} ({kind})",
+        "originalText": "Özgün Metin: {value}",
+        "translation": "Sadık Çeviri ({lang}): {value}",
+        "editorialExplanation": "Editoryal Açıklama: {value}",
+        "editorialInterpretation": "Editoryal Yorum / Uzman Notu: {value}",
+        "bibliography": "KAYNAKÇA",
+        "bibliographyNote": "Kaynak künyeleri kaynak kimliğine göre tekilleştirilmiştir; pasaj/alıntı/konum ilgili bölümlerde tam olarak yer alır."
+      },
+      "populationAlias": {
+        "pregnant": "Gebelik",
+        "breastfeeding": "Emzirme",
+        "children": "Çocuklar",
+        "infants": "Bebekler",
+        "elderly": "Yaşlılar",
+        "sensitive_skin": "Hassas Cilt"
+      },
+      "enums": {
+        "ROUTE_CODE": {
+          "oral": "Ağızdan",
+          "topical": "Haricen (Cilt)",
+          "inhalation": "Solunum",
+          "other": "Diğer",
+          "unknown": "Bilinmiyor"
+        },
+        "POPULATION_CODE": {
+          "infant": "Bebek",
+          "child": "Çocuk",
+          "adolescent": "Ergen",
+          "adult": "Yetişkin",
+          "older_adult": "İleri Yaş",
+          "pregnancy": "Gebelik",
+          "lactation": "Emzirme"
+        },
+        "RELATION_TYPE": {
+          "complementary": "Tamamlayıcı",
+          "alternative": "Alternatif",
+          "partially_overlapping": "Kısmen Örtüşen",
+          "conflicting": "Çelişen",
+          "context_specific": "Bağlama Özel"
+        },
+        "EVIDENCE_RELATION": {
+          "supports": "Destekler",
+          "partially_supports": "Kısmen Destekler",
+          "qualifies": "Niteler",
+          "limits": "Sınırlar",
+          "contradicts": "Çelişir",
+          "contextualizes": "Bağlamlandırır"
+        },
+        "RATIONALE_STATUS": {
+          "from_source": "Kaynaktan Gerekçeli",
+          "source_gives_no_rationale": "Kaynak Gerekçe Vermiyor"
+        },
+        "EVIDENCE_LAYER": {
+          "regulatory": "Düzenleyici",
+          "scientific_review": "Bilimsel Derleme",
+          "clinical": "Klinik",
+          "experimental": "Deneysel",
+          "traditional": "Geleneksel",
+          "experiential": "Deneyimsel",
+          "energetic": "Enerjetik"
+        },
+        "CONCLUSION_PROVENANCE": {
+          "source_original": "Özgün Kaynak Metni",
+          "faithful_translation": "Sadık Çeviri",
+          "editorial_explanation": "Editoryal Açıklama",
+          "editorial_interpretation": "Editoryal Yorum"
+        },
+        "OUTCOME_TYPE": {
+          "harm_shown": "Zarar Gösterildi",
+          "risk_suspected": "Risk Şüphesi",
+          "insufficient_data": "Yetersiz Veri",
+          "no_study_done": "Çalışma Yapılmamış",
+          "no_dose_found": "Doz Bulunmadı",
+          "source_does_not_recommend": "Kaynak Önermiyor",
+          "source_contraindicates": "Kaynak Kontrendike",
+          "context_specific_non_recommendation": "Bağlama Özel Öneri Yok",
+          "conflicting": "Çelişkili",
+          "unknown": "Bilinmiyor",
+          "not_classified_as_risk_in_reviewed_source": "İncelenen Kaynakta Risk Sınıfı Yok"
+        },
+        "SOURCE_ROLE": {
+          "primary_support": "Birincil Destek",
+          "secondary_support": "İkincil Destek",
+          "contradiction": "Çelişki",
+          "context": "Bağlam"
+        },
+        "PASSAGE_KIND": {
+          "excerpt": "Alıntı",
+          "full_text": "Tam Metin",
+          "reference_only": "Yalnız Atıf"
+        },
+        "SOURCE_TYPE": {
+          "book": "Kitap",
+          "journal_article": "Dergi Makalesi",
+          "regulatory_document": "Düzenleyici Belge",
+          "monograph": "Monograf",
+          "standard": "Standart",
+          "database_record": "Veritabanı Kaydı",
+          "website": "Web Sitesi",
+          "other": "Diğer"
+        }
+      }
+    }
+  }
+}

@@ -20,6 +20,8 @@ import {
   reflexologyFooters,
   type ReflexologyProtocolInput,
 } from "@/lib/refleksoloji/reflexologyWord";
+import { resolveReportLocale } from "@/lib/i18n/reportLocale";
+import { reflexFileName, reflexText, reflexTextFor, withReflexOutput } from "@/lib/refleksoloji/reportText";
 
 export const runtime = "nodejs";
 
@@ -56,18 +58,7 @@ type ProtocolRow = {
 // cosmic/audit vb. Europe/Istanbul kullanır).
 const TR_TZ = "Europe/Istanbul";
 
-function formatDateTR(d: string): string {
-  try {
-    return new Date(d).toLocaleDateString("tr-TR", { day: "2-digit", month: "long", year: "numeric", timeZone: TR_TZ });
-  } catch {
-    return d;
-  }
-}
-
-/** Raporun GERÇEK üretim tarihi (export anı) — Türkiye takvimi, uzun biçim. */
-function reportDateTR(): string {
-  return new Date().toLocaleDateString("tr-TR", { day: "2-digit", month: "long", year: "numeric", timeZone: TR_TZ });
-}
+// Uzun tarih (protokol tarihi + üretim tarihi) çıktı dilinde: reflexText().dateLong (TR: eski biçim birebir).
 
 /** Dosya adı için üretim günü YYYY-MM-DD — Istanbul takvimi (UTC gün kayması yok). */
 function reportDateSlug(): string {
@@ -188,12 +179,14 @@ export async function POST(request: NextRequest): Promise<Response> {
 
   const dateSlug = reportDateSlug();
   const isSingle = protocols.length === 1;
+  const output = await resolveReportLocale(request, { db, tenantId, userId: guard.userId });
+  const RT = reflexTextFor(output);
 
   const toInput = (proto: ProtocolRow, index: number): ReflexologyProtocolInput => {
     const organs = protocolOrganLabels(proto);
     return {
       index,
-      title: proto.title?.trim() || "Başlıksız Protokol",
+      title: proto.title?.trim() || RT.t("untitledProtocol"),
       description: proto.target_problem,
       notes: proto.application_notes,
       organs,
@@ -206,12 +199,13 @@ export async function POST(request: NextRequest): Promise<Response> {
   // purpose "signature": Refleksoloji bugün uzman adı göstermez; anahtar açıkken yalnız rapor sonuna "Hazırlayan" imza bloğu.
   const branding = await resolveReportBranding(db, { tenantId, userId: guard.userId }, { fullName: expertDisplayName(guard.profile) }, { purpose: "signature" });
 
-  let children: ReportChild[];
+  let children: ReportChild[] = [];
+  const built = await withReflexOutput(output, async (): Promise<Response | null> => {
   if (isSingle) {
     const input = toInput(protocols[0]!, 0);
     // "Oluşturulma Tarihi" = raporun ÜRETİM tarihi (bugün). Protokolün kayıt tarihi
     // ayrı "Protokol Tarihi" metadata'sı olarak korunur (yanlış etiketlenmez).
-    children = await buildSingleReport(input, reportDateTR(), formatDateTR(protocols[0]!.created_at), { branding });
+    children = await buildSingleReport(input, RT.dateLong(new Date()), RT.dateLong(protocols[0]!.created_at), { branding });
 
     // ── Yaşam Hafızası Seçimleri (BF-14 P2; danışana özel teslim eki, OPSİYONEL) ──
     // Yalnız exportMode === "single" + doğrulanmış client + selection group.
@@ -240,11 +234,16 @@ export async function POST(request: NextRequest): Promise<Response> {
     }
   } else {
     const inputs = protocols.map(toInput);
-    const scopeLabel = exportMode === "selected" ? "Seçili Protokoller" : "Tüm Protokoller";
-    children = await buildBulkReport(inputs, reportDateTR(), scopeLabel, { branding });
+    const scopeLabel = exportMode === "selected" ? RT.t("scope.protocolsSelected") : RT.t("scope.protocolsAll");
+    children = await buildBulkReport(inputs, RT.dateLong(new Date()), scopeLabel, { branding });
   }
+  return null;
+  });
+  if (built) return built;
 
-  const doc = new Document({
+  const styles = output.docxStyles();
+  const doc = withReflexOutput(output, () => new Document({
+    ...(styles ? { styles } : {}),
     sections: [{
       properties: {
         titlePage: true,
@@ -254,10 +253,10 @@ export async function POST(request: NextRequest): Promise<Response> {
         },
       },
       headers: reflexologyHeaders(),
-      footers: reflexologyFooters(),
+      footers: reflexologyFooters(reflexText().t("footer.protocol")),
       children,
     }],
-  });
+  }));
 
   const buffer = await Packer.toBuffer(doc);
   // REF-04: yanıt sınırını aşacak rapor platformda opak hata vermek yerine anlaşılır mesajla durur.
@@ -280,9 +279,9 @@ export async function POST(request: NextRequest): Promise<Response> {
     itemCount: protocols.length,
   });
   const modeSlug = isSingle
-    ? slugify(protocols[0]!.title || "protokol")
-    : exportMode === "selected" ? "secili" : "tumu";
-  const filename = `refleksoloji-protokol-${modeSlug}-${dateSlug}.docx`;
+    ? slugify(protocols[0]!.title || RT.t("file.protocolFallback"))
+    : exportMode === "selected" ? RT.t("file.selected") : RT.t("file.all");
+  const filename = reflexFileName("protocol", modeSlug, dateSlug, output);
 
   return new Response(new Uint8Array(buffer), {
     headers: {

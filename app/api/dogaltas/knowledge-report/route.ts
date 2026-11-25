@@ -26,11 +26,17 @@ import {
   spacer,
   twoColTable,
 } from "@/lib/docx/reportHelpers";
-import { StaticTocCollector } from "@/lib/docx/premiumToc";
+import { buildStaticTocPage, StaticTocCollector } from "@/lib/docx/premiumToc";
 import { expertDisplayName } from "@/lib/docx/reportDisclaimer";
-import { formatInstantDate, reportFileDate, reportGeneratedLabel } from "@/lib/time/reportTime";
+import { reportFileDate } from "@/lib/time/reportTime";
+import { resolveReportLocale, type ReportLocale } from "@/lib/i18n/reportLocale";
+import { stonesText, stonesTextFor, upperContent, withStonesOutput } from "@/lib/dogaltas/reportText";
 
 export const runtime = "nodejs";
+
+// I18N-F1-R5 RAPOR-E (P15): sistem metinleri `reports.stones.knowledge.*` (TR birebir — golden kilitli).
+// Makale içeriği (başlık, kategori, kaynak, etiket, metin) uzman kaydıdır → çevrilmez.
+const T = (key: string, values?: Record<string, string | number>): string => stonesText().t(`knowledge.${key}`, values);
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -85,40 +91,56 @@ function parseContent(content: string): ReportChild[] {
 
 // ─── Document builder ─────────────────────────────────────────────────────────
 
+/** Kapsam etiketi (çıktı dilinde; kategori adı kayıt içeriğidir → aynen). */
+function knowledgeExportLabel(category: string, hasIds: boolean, exportMode: ExportMode, output?: ReportLocale | null): string {
+  const t = stonesTextFor(output).t;
+  if (category) return t("knowledge.scope.category", { name: category });
+  if (hasIds) return exportMode === "viewed" ? t("knowledge.scope.viewed") : t("knowledge.scope.filtered");
+  return t("knowledge.scope.all");
+}
+
+/** Dosya adı (sistem kısmı çıktı dilinde). */
+function knowledgeReportFileName(dateSlug: string, output?: ReportLocale | null): string {
+  return `${stonesTextFor(output).t("knowledge.file")}-${dateSlug}.docx`;
+}
+
 function buildDocument(articles: ArticleRow[], exportLabel: string, toc: StaticTocCollector): ReportChild[] {
-  const date = reportGeneratedLabel();
+  const X = stonesText();
+  const date = X.generatedLabel();
   const color = SECTION_COLORS.knowledge;
+  const n = (key: string, count: number) => T(key, { count, shown: String(count) });
 
   const groups = new Map<string, ArticleRow[]>();
   for (const a of articles) {
-    const cat = a.category || "Genel";
+    const cat = a.category || T("generalCategory");
     if (!groups.has(cat)) groups.set(cat, []);
     groups.get(cat)!.push(a);
   }
 
   const categoryRows: [string, string][] = [...groups.entries()].map(
-    ([cat, arts]) => [cat, `${arts.length} makale`]
+    ([cat, arts]) => [cat, n("articles", arts.length)]
   );
 
   const out: ReportChild[] = [];
 
   // Premium cover
   out.push(...buildPremiumCover({
-    title1:   "YAŞAM SİSTEMİ",
-    title2:   "TAŞ BİLGİ KÜTÜPHANESİ",
-    subtitle: "Bilgi Bankası Referans Kataloğu",
-    date:     `Oluşturulma Tarihi: ${date}`,
+    title1:   X.t("brand"),
+    title2:   T("coverTitle"),
+    subtitle: T("coverSubtitle"),
+    date:     X.t("generatedOnDate", { date }),
     stats: [
-      { label: "Toplam Makale Sayısı", value: String(articles.length) },
-      { label: "Kategori Sayısı",      value: String(groups.size) },
-      { label: "Kapsam",               value: exportLabel },
+      { label: T("stat.totalArticles"), value: String(articles.length) },
+      { label: T("stat.categoryCount"), value: String(groups.size) },
+      { label: T("stat.scope"),         value: exportLabel },
     ],
   }));
 
   // Stats page
   out.push(...buildStatsPage(
-    [["Toplam Makale", String(articles.length)], ["Kategori Sayısı", String(groups.size)]],
-    [...groups.entries()].map(([cat, arts]) => `${cat}: ${arts.length} makale`)
+    [[T("summary.totalArticles"), String(articles.length)], [T("summary.categoryCount"), String(groups.size)]],
+    [...groups.entries()].map(([cat, arts]) => T("categoryArticles", { category: cat, count: arts.length, shown: String(arts.length) })),
+    X.common,
   ));
 
   // İçindekiler: eski boş Word TOC alanı yerine STATİK + tıklanabilir girişler (gövde
@@ -127,8 +149,8 @@ function buildDocument(articles: ArticleRow[], exportLabel: string, toc: StaticT
 
   // Genel Özet
   out.push(
-    toc.h1Colored("1. Genel Özet", color, true),
-    muted(`${groups.size} kategori · ${articles.length} makale`),
+    toc.h1Colored(T("summaryTitle"), color, true),
+    muted(T("summaryMeta", { categories: groups.size, categoriesShown: String(groups.size), articles: articles.length, articlesShown: String(articles.length) })),
     twoColTable(categoryRows),
   );
 
@@ -136,9 +158,10 @@ function buildDocument(articles: ArticleRow[], exportLabel: string, toc: StaticT
   let catIndex = 2;
   for (const [category, catArticles] of groups) {
     out.push(
-      ...buildSectionDivider(category.toLocaleUpperCase("tr-TR"), `${catArticles.length} Makale`, color),
+      // Kategori adı kayıt içeriğidir (TR büyük harf kuralı); boş kategori yedeği sistem metnidir (çıktı dilinin kuralı).
+      ...buildSectionDivider(upperContent(category, catArticles.every((a) => !a.category)), n("dividerSub", catArticles.length), color),
       toc.h1Colored(`${catIndex}. ${category}`, color, true),
-      muted(`${catArticles.length} makale`),
+      muted(n("articles", catArticles.length)),
     );
     catIndex++;
 
@@ -146,23 +169,23 @@ function buildDocument(articles: ArticleRow[], exportLabel: string, toc: StaticT
       const a = catArticles[i]!;
       if (i > 0) out.push(divider());
 
-      out.push(toc.h2(a.title || "Başlıksız Makale"));
+      out.push(toc.h2(a.title || T("untitled")));
 
-      if (a.sub_category?.trim())   out.push(fieldInline("Alt Kategori", a.sub_category.trim()));
-      if (a.created_at)             out.push(fieldInline("Tarih", formatInstantDate(a.created_at)));
-      if (a.source?.trim())         out.push(fieldInline("Kaynak", a.source.trim()));
+      if (a.sub_category?.trim())   out.push(fieldInline(T("field.subCategory"), a.sub_category.trim()));
+      if (a.created_at)             out.push(fieldInline(T("field.date"), X.date(a.created_at)));
+      if (a.source?.trim())         out.push(fieldInline(T("field.source"), a.source.trim()));
       if (a.source_section?.trim() && a.source_section !== a.title)
-                                    out.push(fieldInline("Kaynak Bölüm", a.source_section.trim()));
-      if (safeLen(a.tags))           out.push(fieldInline("Etiketler", safeJoin(a.tags)));
-      if (safeLen(a.related_stones)) out.push(fieldInline("İlgili Taşlar", safeJoin(a.related_stones)));
-      if (safeLen(a.related_minerals)) out.push(fieldInline("İlgili Mineraller", safeJoin(a.related_minerals)));
+                                    out.push(fieldInline(T("field.sourceSection"), a.source_section.trim()));
+      if (safeLen(a.tags))           out.push(fieldInline(T("field.tags"), safeJoin(a.tags)));
+      if (safeLen(a.related_stones)) out.push(fieldInline(T("field.relatedStones"), safeJoin(a.related_stones)));
+      if (safeLen(a.related_minerals)) out.push(fieldInline(T("field.relatedMinerals"), safeJoin(a.related_minerals)));
 
       if (a.content?.trim()) { out.push(spacer()); out.push(...parseContent(a.content)); }
-      if (a.notes?.trim())   { out.push(h3("Notlar")); out.push(bodyText(a.notes.trim())); }
+      if (a.notes?.trim())   { out.push(h3(T("field.notes"))); out.push(bodyText(a.notes.trim())); }
     }
   }
 
-  out.splice(tocAt, 0, ...toc.page());
+  out.splice(tocAt, 0, ...buildStaticTocPage(toc.entries, X.common));
   return out;
 }
 
@@ -198,9 +221,8 @@ export async function POST(req: NextRequest): Promise<Response> {
   const ids = parsedIds.ids;
   const category = exportMode === "category" ? categoryName?.trim() ?? "" : "";
 
-  let exportLabel = "Tüm Makaleler";
-  if (category) exportLabel = `Kategori: ${category}`;
-  else if (ids) exportLabel = exportMode === "viewed" ? "Görüntülenen Kayıtlar" : "Filtrelenmiş Sonuçlar";
+  const output = await resolveReportLocale(req, { db, tenantId, userId: auth.userId });
+  const exportLabel = knowledgeExportLabel(category, !!ids, exportMode, output);
 
   const res = ids
     ? await fetchAllRowsByIds<ArticleRow>(ids, (chunk, from, to) =>
@@ -218,15 +240,20 @@ export async function POST(req: NextRequest): Promise<Response> {
   const articles = sanitizeXmlDeep((data ?? []) as ArticleRow[]); // RPT-XML
   if (!articles.length) return Response.json({ ok: false, error: "Bu seçim için makale bulunamadı." }, { status: 404 });
 
-  const toc = new StaticTocCollector("tbk");
-  const docBody = buildDocument(articles, exportLabel, toc);
-  const doc = new Document({
-    ...toc.documentOptions(),
-    sections: [{
-      properties: {},
-      footers: { default: buildFooter("Yaşam Sistemi — Taş Bilgi Kütüphanesi", { note: "dogaltas" }) },
-      children: [...docBody, ...buildWellnessNoteSection("dogaltas", expertDisplayName(auth.profile))],
-    }],
+  const doc = withStonesOutput(output, () => {
+    const X = stonesText();
+    const toc = new StaticTocCollector("tbk");
+    const docBody = buildDocument(articles, exportLabel, toc);
+    const styles = X.output.docxStyles();
+    return new Document({
+      ...toc.documentOptions(),
+      ...(styles ? { styles } : {}),
+      sections: [{
+        properties: {},
+        footers: { default: buildFooter(T("footer"), { note: "dogaltas", common: X.common }) },
+        children: [...docBody, ...buildWellnessNoteSection("dogaltas", expertDisplayName(auth.profile), X.common)],
+      }],
+    });
   });
 
   const buffer = await Packer.toBuffer(doc);
@@ -243,7 +270,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   return new Response(new Uint8Array(buffer), {
     headers: {
       "Content-Type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-      "Content-Disposition": `attachment; filename="tas-bilgi-kutuphanesi-raporu-${dateSlug}.docx"`,
+      "Content-Disposition": `attachment; filename="${knowledgeReportFileName(dateSlug, output)}"`,
       "Content-Length": String(buffer.length),
     },
   });

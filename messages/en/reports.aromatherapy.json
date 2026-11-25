@@ -1,0 +1,401 @@
+{
+  "reports": {
+    "aromatherapy": {
+      "moduleTitle": "AROMATHERAPY",
+      "filePrefix": "Aromatherapy",
+      "expertStat": "Practitioner",
+      "oilType": {
+        "essential": "Essential Oil",
+        "carrier": "Carrier Oil",
+        "maceration": "Macerated Oil",
+        "hydrosol": "Hydrosol",
+        "resin": "Resin",
+        "absolute": "Absolute / Extract"
+      },
+      "status": {
+        "draft": "Draft",
+        "verified": "Verified",
+        "approved": "Approved",
+        "archived": "Archived",
+        "under_review": "Under Review",
+        "needs_verification": "Awaiting Verification"
+      },
+      "claimType": {
+        "safety": "Safety",
+        "use": "Use",
+        "identity": "Identity",
+        "chemistry": "Chemistry"
+      },
+      "methodKind": {
+        "faithful_source": "Source-Faithful Method",
+        "editorial": "Editorial Method",
+        "expert": "Practitioner Method"
+      },
+      "cover": {
+        "oilMonograph": "OIL MONOGRAPH",
+        "oilsCatalog": "OILS CATALOGUE",
+        "blendRecipe": "BLEND FORMULA",
+        "blends": "BLENDS",
+        "taxa": "PLANT CATALOGUE",
+        "preparations": "PREPARATIONS",
+        "methods": "METHODS & REVISIONS",
+        "knowledge": "KNOWLEDGE RECORDS",
+        "sources": "SOURCES",
+        "glossary": "GLOSSARY",
+        "general": "GENERAL CATALOGUE",
+        "generalSubtitle": "Professional Information and Reference Catalogue"
+      },
+      "report": {
+        "oil": "Oil: {name}",
+        "blend": "Blend: {name}",
+        "taxa": "Plant Catalogue",
+        "preparations": "Preparations",
+        "methods": "Methods",
+        "knowledge": "Knowledge Records",
+        "sources": "Sources",
+        "glossary": "Glossary",
+        "general": "Aromatherapy General Catalogue"
+      },
+      "scope": {
+        "selectedOils": "Selected Oils",
+        "typeCatalog": "{type} Catalogue",
+        "allOils": "All Oils",
+        "selectedBlends": "Selected Blends",
+        "allBlends": "All Blends",
+        "selectedRecords": "Selected Records",
+        "allTaxa": "All Plants",
+        "allPreparations": "All Preparations",
+        "allMethods": "All Methods",
+        "allKnowledge": "All Knowledge Records",
+        "allSources": "All Sources",
+        "allGlossary": "All Terms"
+      },
+      "file": {
+        "selectedOils": "Selected_Oils",
+        "allOils": "All_Oils",
+        "selectedBlends": "Selected_Blends",
+        "allBlends": "All_Blends",
+        "selected": "Selected",
+        "all": "All",
+        "taxa": "Plants",
+        "preparations": "Preparations",
+        "methods": "Methods",
+        "knowledge": "Knowledge_Records",
+        "sources": "Sources",
+        "glossary": "Glossary",
+        "general": "General_Catalogue"
+      },
+      "stat": {
+        "totalOils": "Total Oils",
+        "oil": "Oil",
+        "type": "Type",
+        "blend": "Blend",
+        "essentialCount": "Number of Essential Oils",
+        "totalBlends": "Total Blends",
+        "totalRecords": "Total Records",
+        "taxon": "Plant",
+        "preparation": "Preparation",
+        "method": "Method",
+        "knowledge": "Knowledge Record",
+        "source": "Source",
+        "term": "Term"
+      },
+      "oils": {
+        "section": "OILS",
+        "groupTitle": "{type} ({count})",
+        "unnamed": "Unnamed Oil",
+        "photo": {
+          "yes": "Photosensitive / phototoxic",
+          "no": "Not photosensitive",
+          "unknown": "Unknown (not assessed)"
+        },
+        "field": {
+          "latinName": "Latin Name",
+          "englishName": "English Name",
+          "oilType": "Oil Type",
+          "category": "Category",
+          "origin": "Origin",
+          "plantPart": "Plant Part",
+          "extraction": "Extraction Method",
+          "shelfLife": "Shelf Life",
+          "aromaNote": "Aroma Note",
+          "color": "Colour",
+          "consistency": "Consistency",
+          "photosensitivity": "Photosensitivity",
+          "dilution": "Dilution Ratio",
+          "chakra": "Chakra Connection",
+          "element": "Element Connection"
+        },
+        "aromaProfile": "Aroma Profile",
+        "components": "Main Chemical Constituents",
+        "therapeutic": "Therapeutic Properties",
+        "benefits": "Benefits",
+        "benefit": {
+          "physical": "Physical Benefits",
+          "emotional": "Emotional Effects",
+          "spiritual": "Spiritual Effects",
+          "skin": "Skin Benefits",
+          "general": "General Benefits"
+        },
+        "usage": {
+          "diffuser": "Diffusion / Vaporiser",
+          "massage": "Massage Use",
+          "general": "General Methods of Use"
+        },
+        "blendsWell": "Blends Well With",
+        "targetSystems": "Target Systems",
+        "safety": "Safety Notes",
+        "contraindications": "Contraindications",
+        "notes": "Additional Notes",
+        "source": "Source: {value}",
+        "infoSource": "Information source: {value}"
+      },
+      "blends": {
+        "section": "BLENDS",
+        "unnamed": "Unnamed Blend",
+        "photo": {
+          "yes": "☀ Yes",
+          "no": "No",
+          "unknown": "Unknown"
+        },
+        "field": {
+          "carrier": "Carrier (Fixed) Oil",
+          "bottle": "Bottle Volume",
+          "dilution": "Dilution Ratio",
+          "dropsPerMl": "Drops per ml",
+          "targetDrops": "Target drops",
+          "dropSum": "Total of oils",
+          "oilCount": "Number of Essential Oils"
+        },
+        "dropsPerMlValue": "{value} drops/ml",
+        "dropsValue": "{count, plural, one {{value} drop} other {{value} drops}}",
+        "percentValue": "{value}%",
+        "formula": "Formula",
+        "col": {
+          "oil": "Essential Oil",
+          "latin": "Latin Name",
+          "type": "Type",
+          "drops": "Drops",
+          "photo": "Photosensitive"
+        },
+        "noWarnings": "No known warnings were found. This does not mean the blend is safe; a practitioner's assessment is essential.",
+        "safetyTitle": "Safety & Warnings",
+        "photoOils": "Photosensitive oils (take care with sunlight): {names}",
+        "contraLine": "{name} — Contraindication: {value}",
+        "safetyLine": "{name} — Safety: {value}",
+        "photoLine": "{name} — Photosensitive / phototoxic",
+        "carrierSafety": "Carrier (fixed) oil safety:",
+        "snapshotDated": "Safety information reflects the date the blend was saved ({date}). Check the current oil information.",
+        "snapshotUndated": "Safety information reflects the date the blend was saved. Check the current oil information.",
+        "notes": "Notes"
+      },
+      "taxa": {
+        "section": "PLANTS (TAXON CATALOGUE)",
+        "unnamed": "Unnamed Taxon",
+        "hybrid": "Hybrid taxon",
+        "field": {
+          "genus": "Genus",
+          "species": "Species",
+          "infraspecific": "Infraspecific Epithet",
+          "rank": "Taxon Rank",
+          "family": "Family",
+          "author": "Author Citation",
+          "commonNameTr": "Common Name (TR)"
+        }
+      },
+      "field": {
+        "status": "Status"
+      },
+      "prep": {
+        "section": "PREPARATIONS",
+        "fallback": "Preparation",
+        "field": {
+          "taxon": "Linked Taxon",
+          "type": "Preparation Type",
+          "plantPart": "Plant Part Used",
+          "chemotype": "Chemotype",
+          "knowledgeCount": "Linked Knowledge Records"
+        }
+      },
+      "glossary": {
+        "section": "GLOSSARY",
+        "termFallback": "Term",
+        "metaWithEn": "English: {en}  ·  Status: {status}",
+        "meta": "Status: {status}",
+        "professional": "Professional Definition"
+      },
+      "knowledge": {
+        "section": "KNOWLEDGE RECORDS",
+        "fallback": "Knowledge Record",
+        "field": {
+          "claimType": "Claim Type",
+          "safetyTopic": "Safety Topic",
+          "route": "Route of Application",
+          "prepContext": "Preparation Context",
+          "evidenceLayer": "Evidence Layer",
+          "provenance": "Conclusion Provenance",
+          "outcome": "Outcome Type"
+        },
+        "conclusion": "Conclusion",
+        "rationale": "Rationale",
+        "rationaleWithStatus": "Rationale ({status})",
+        "routes": "Routes of Application",
+        "populations": "Target Populations",
+        "sourceTitle": "Source: {title}",
+        "sourceTitleRole": "Source: {title} ({role})",
+        "locator": "Location: {value}",
+        "originalExcerpt": "Original Source Excerpt: {value}",
+        "faithfulTranslation": "Faithful Translation: {value}",
+        "passages": "Related Passages",
+        "relation": "Relation ({type})"
+      },
+      "methods": {
+        "section": "METHODS & REVISIONS",
+        "field": {
+          "kind": "Method Type",
+          "lang": "Language",
+          "source": "Source",
+          "passage": "Passage",
+          "revisionCount": "Total Revisions",
+          "verifiedRevision": "Verified Revision",
+          "plantPart": "Plant Part Used",
+          "materialState": "Material State",
+          "equipment": "Equipment",
+          "amountRatio": "Amount / Ratio",
+          "solvent": "Solvent / Carrier",
+          "duration": "Duration",
+          "temperature": "Temperature",
+          "filtration": "Filtration",
+          "resting": "Resting",
+          "storage": "Storage"
+        },
+        "rev": "Rev. {n}",
+        "contentTitle": "Method Content (Revision {n} · {status})",
+        "steps": "Application Steps",
+        "quality": "Quality Notes",
+        "safety": "Safety Notes",
+        "noContent": "No verified or publishable revision content was found.",
+        "history": "Revision History",
+        "col": {
+          "revision": "Revision",
+          "status": "Status",
+          "updated": "Updated"
+        }
+      },
+      "sources": {
+        "section": "SOURCES & SOURCE PASSAGES",
+        "unnamed": "Unnamed Source",
+        "field": {
+          "authors": "Author(s)",
+          "organization": "Institution / Publisher",
+          "year": "Publication Year",
+          "type": "Source Type",
+          "documentNo": "Document No."
+        },
+        "notes": "Notes",
+        "passage": "Passage: {label}",
+        "passageWithKind": "Passage: {label} ({kind})",
+        "originalText": "Original Text: {value}",
+        "translation": "Faithful Translation ({lang}): {value}",
+        "editorialExplanation": "Editorial Explanation: {value}",
+        "editorialInterpretation": "Editorial Interpretation / Practitioner's Note: {value}",
+        "bibliography": "BIBLIOGRAPHY",
+        "bibliographyNote": "Source references are de-duplicated by source identity; passages, excerpts and locations appear in full in the relevant sections."
+      },
+      "populationAlias": {
+        "pregnant": "Pregnancy",
+        "breastfeeding": "Breastfeeding",
+        "children": "Children",
+        "infants": "Infants",
+        "elderly": "Older Adults",
+        "sensitive_skin": "Sensitive Skin"
+      },
+      "enums": {
+        "ROUTE_CODE": {
+          "oral": "Oral",
+          "topical": "Topical (Skin)",
+          "inhalation": "Inhalation",
+          "other": "Other",
+          "unknown": "Unknown"
+        },
+        "POPULATION_CODE": {
+          "infant": "Infant",
+          "child": "Child",
+          "adolescent": "Adolescent",
+          "adult": "Adult",
+          "older_adult": "Older Adult",
+          "pregnancy": "Pregnancy",
+          "lactation": "Breastfeeding"
+        },
+        "RELATION_TYPE": {
+          "complementary": "Complementary",
+          "alternative": "Alternative",
+          "partially_overlapping": "Partially Overlapping",
+          "conflicting": "Conflicting",
+          "context_specific": "Context-Specific"
+        },
+        "EVIDENCE_RELATION": {
+          "supports": "Supports",
+          "partially_supports": "Partially Supports",
+          "qualifies": "Qualifies",
+          "limits": "Limits",
+          "contradicts": "Contradicts",
+          "contextualizes": "Contextualises"
+        },
+        "RATIONALE_STATUS": {
+          "from_source": "Rationale from Source",
+          "source_gives_no_rationale": "Source Gives No Rationale"
+        },
+        "EVIDENCE_LAYER": {
+          "regulatory": "Regulatory",
+          "scientific_review": "Scientific Review",
+          "clinical": "Clinical",
+          "experimental": "Experimental",
+          "traditional": "Traditional",
+          "experiential": "Experiential",
+          "energetic": "Energetic"
+        },
+        "CONCLUSION_PROVENANCE": {
+          "source_original": "Original Source Text",
+          "faithful_translation": "Faithful Translation",
+          "editorial_explanation": "Editorial Explanation",
+          "editorial_interpretation": "Editorial Interpretation"
+        },
+        "OUTCOME_TYPE": {
+          "harm_shown": "Harm Shown",
+          "risk_suspected": "Risk Suspected",
+          "insufficient_data": "Insufficient Data",
+          "no_study_done": "No Study Done",
+          "no_dose_found": "No Dose Found",
+          "source_does_not_recommend": "Source Does Not Recommend",
+          "source_contraindicates": "Source Contraindicates",
+          "context_specific_non_recommendation": "Not Recommended in This Context",
+          "conflicting": "Conflicting",
+          "unknown": "Unknown",
+          "not_classified_as_risk_in_reviewed_source": "Not Classified as a Risk in the Reviewed Source"
+        },
+        "SOURCE_ROLE": {
+          "primary_support": "Primary Support",
+          "secondary_support": "Secondary Support",
+          "contradiction": "Contradiction",
+          "context": "Context"
+        },
+        "PASSAGE_KIND": {
+          "excerpt": "Excerpt",
+          "full_text": "Full Text",
+          "reference_only": "Reference Only"
+        },
+        "SOURCE_TYPE": {
+          "book": "Book",
+          "journal_article": "Journal Article",
+          "regulatory_document": "Regulatory Document",
+          "monograph": "Monograph",
+          "standard": "Standard",
+          "database_record": "Database Record",
+          "website": "Website",
+          "other": "Other"
+        }
+      }
+    }
+  }
+}

@@ -124,7 +124,10 @@ check("F04 carrier_safety_notes kolonu", /carrier_safety_notes/.test(MIG1));
 check("F05 collectSafetyWarnings carrier argümanı alır",
   /export function collectSafetyWarnings\(\s*items:[\s\S]*?carrier\?:/.test(BD));
 const RB = read("lib/aromaterapi/report/render/blends.ts");
-check("F06 render/blends.ts carrier güvenliğine atıf", /carrier/.test(RB) && /Taşıyıcı/.test(RB));
+// I18N (RAPOR-CD P19): Word etiketleri çıktı dili kataloğunda (messages/tr/reports.aromatherapy.json; TR değerleri birebir).
+// Kilit gevşetilmedi: render anahtarı + TR katalog metni BİRLİKTE aranır.
+const RB_TR = read("messages/tr/reports.aromatherapy.json");
+check("F06 render/blends.ts carrier güvenliğine atıf", /carrier/.test(RB) && /blends\.carrierSafety/.test(RB) && /"carrierSafety": "Taşıyıcı \(sabit\) yağ güvenliği:"/.test(RB_TR));
 
 // ============================================================
 console.log("\n[ARO-010/011/016] Word-report — süre/gövde/all-cap/fail-closed");
@@ -160,7 +163,7 @@ check("G06 theme.ts MAX_EXPORT_ALL_RECORDS tanımlı", /export const MAX_EXPORT_
 console.log("\n[ARO-006] 'Hedef' damla ≠ 'Yağların toplamı' (ayrı gösterim)");
 // ============================================================
 check("H01 render/blends.ts 'Hedef' etiketi", /Hedef/.test(RB));
-check("H02 render/blends.ts 'Yağların toplamı' etiketi", /Yağların toplamı/.test(RB));
+check("H02 render/blends.ts 'Yağların toplamı' etiketi", /blends\.field\.dropSum/.test(RB) && /"dropSum": "Yağların toplamı"/.test(RB_TR));
 const PRINT = read("app/aromaterapi/karisim-olusturucu/_components/BlendRecetePrint.tsx");
 check("H03 BlendRecetePrint mevcut", PRINT.length > 0);
 // I18N (2026-11-25): reçete metinleri aromatherapy.blend.print.* katalog anahtarlarına taşındı. Niyet aynı —

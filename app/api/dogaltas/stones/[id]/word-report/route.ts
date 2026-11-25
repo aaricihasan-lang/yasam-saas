@@ -14,6 +14,7 @@ import { buildStoneReportDoc, type StoneReportExtraSource, type StoneReportRow }
 import { loadExtraSourcesForStones } from "@/lib/dogaltas/stoneSourcesServer";
 import { loadEntriesForStones } from "@/lib/dogaltas/stoneEntriesServer";
 import { pickSourceFields } from "@/lib/dogaltas/stoneSources";
+import { resolveReportLocale } from "@/lib/i18n/reportLocale";
 
 export const runtime = "nodejs";
 
@@ -82,7 +83,9 @@ export async function POST(
     return serverErrorResponse({ route: "dogaltas/stones/[id]/word-report", action: "POST:sources", tenantId, cause: e, usage: { guard: usageGuard, req, module: "stones", failedAction: "report_generated", subEntity: "stone" } });
   }
 
+  const output = await resolveReportLocale(req, { db, tenantId, userId: auth.userId });
   const { doc, filename } = buildStoneReportDoc({
+    output,
     stone,
     imageBuf,
     isLibrary: stone.tenant_id !== tenantId,

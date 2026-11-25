@@ -6,7 +6,9 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { buildAromaDoc } from "./document";
-import { reportFilename, oilTypeLabel, AROMA_MODULE_TITLE, classifyFrontMatter, MAX_EXPORT_ALL_RECORDS } from "./theme";
+import { reportFilename, oilTypeLabel, classifyFrontMatter, MAX_EXPORT_ALL_RECORDS } from "./theme";
+import { aromaText, withAromaOutput } from "./text";
+import type { ReportLocale } from "@/lib/i18n/reportLocale";
 import {
   readOilsForExport, readBlendsForExport, readOneOil, readOneBlend, countForExport,
   type ExportSelector, type OilExportRow,
@@ -23,7 +25,11 @@ import {
 } from "./resourceReads";
 import type { ReportChild } from "@/lib/docx/reportHelpers";
 
-export interface ReportCtx { expertName?: string | null; date: Date }
+/** `output`: route `resolveReportLocale` sonucu (yoksa kaynak dil tr → bugünkü çıktı birebir). */
+export interface ReportCtx { expertName?: string | null; date: Date; output?: ReportLocale | null }
+
+/** Modül başlığı (kapak/başlık) — çıktı dilinde. */
+const moduleTitle = (): string => aromaText().t("moduleTitle");
 export type BuildResult =
   | { ok: true; buffer: Buffer; filename: string; count: number }
   | { ok: false; status: number; error: string };
@@ -48,7 +54,7 @@ async function guardAllCap(
 function oilStats(oils: OilExportRow[]): { label: string; value: string }[] {
   const by: Record<string, number> = {};
   for (const o of oils) by[o.oil_type] = (by[o.oil_type] ?? 0) + 1;
-  const stats: { label: string; value: string }[] = [{ label: "Toplam Yağ", value: String(oils.length) }];
+  const stats: { label: string; value: string }[] = [{ label: aromaText().t("stat.totalOils"), value: String(oils.length) }];
   for (const [t, n] of Object.entries(by)) stats.push({ label: oilTypeLabel(t), value: String(n) });
   return stats;
 }
@@ -56,64 +62,80 @@ function oilStats(oils: OilExportRow[]): { label: string; value: string }[] {
 // ─── Oils ──────────────────────────────────────────────────────────────────────
 
 export async function buildSingleOilDoc(db: SupabaseClient, tenantId: string, id: string, ctx: ReportCtx): Promise<BuildResult> {
+  return withAromaOutput(ctx.output, () => singleOil(db, tenantId, id, ctx));
+}
+async function singleOil(db: SupabaseClient, tenantId: string, id: string, ctx: ReportCtx): Promise<BuildResult> {
+  const t = aromaText().t;
   const { row, error } = await readOneOil(db, tenantId, id);
   if (error) return { ok: false, status: 500, error };
   if (!row) return { ok: false, status: 404, error: "Yağ bulunamadı veya bu hesaba ait değil." };
   const buffer = await buildAromaDoc({
-    coverTitle2: `${AROMA_MODULE_TITLE} — YAĞ MONOGRAFİSİ`,
-    coverSubtitle: row.name, reportName: `Yağ: ${row.name}`,
-    stats: [{ label: "Yağ", value: row.name }, { label: "Tip", value: oilTypeLabel(row.oil_type) }],
+    coverTitle2: `${moduleTitle()} — ${t("cover.oilMonograph")}`,
+    coverSubtitle: row.name, reportName: t("report.oil", { name: row.name }),
+    stats: [{ label: t("stat.oil"), value: row.name }, { label: t("stat.type"), value: oilTypeLabel(row.oil_type) }],
     body: renderOilMonograph(row, "h2"), expertName: ctx.expertName, frontMatter: "none", date: ctx.date,
   });
   return { ok: true, buffer, filename: reportFilename([row.name], ctx.date), count: 1 };
 }
 
 export async function buildOilsCatalogDoc(db: SupabaseClient, tenantId: string, sel: ExportSelector, ctx: ReportCtx): Promise<BuildResult> {
+  return withAromaOutput(ctx.output, () => oilsCatalog(db, tenantId, sel, ctx));
+}
+async function oilsCatalog(db: SupabaseClient, tenantId: string, sel: ExportSelector, ctx: ReportCtx): Promise<BuildResult> {
+  const t = aromaText().t;
   const cap = await guardAllCap(db, tenantId, sel, "aromatherapy_oils", true);
   if (cap) return cap;
   const { rows, error } = await readOilsForExport(db, tenantId, sel);
   if (error) return { ok: false, status: 500, error };
   if (!rows.length) return { ok: false, status: 404, error: "Export edilecek yağ bulunamadı." };
-  const scopeName = sel.mode === "selected" ? "Seçili Yağlar" : sel.oilType ? `${oilTypeLabel(sel.oilType)} Kataloğu` : "Tüm Yağlar";
+  const scopeName = sel.mode === "selected" ? t("scope.selectedOils") : sel.oilType ? t("scope.typeCatalog", { type: oilTypeLabel(sel.oilType) }) : t("scope.allOils");
   const buffer = await buildAromaDoc({
-    coverTitle2: `${AROMA_MODULE_TITLE} — YAĞLAR KATALOĞU`,
+    coverTitle2: `${moduleTitle()} — ${t("cover.oilsCatalog")}`,
     coverSubtitle: scopeName, reportName: scopeName, stats: oilStats(rows),
     body: renderOilsSection(rows, { asMainSection: true }), expertName: ctx.expertName,
     frontMatter: classifyFrontMatter(rows.length), date: ctx.date,
   });
-  const namePart = sel.mode === "selected" ? "Secili_Yaglar" : sel.oilType ? oilTypeLabel(sel.oilType) : "Tum_Yaglar";
+  const namePart = sel.mode === "selected" ? t("file.selectedOils") : sel.oilType ? oilTypeLabel(sel.oilType) : t("file.allOils");
   return { ok: true, buffer, filename: reportFilename([namePart], ctx.date), count: rows.length };
 }
 
 // ─── Blends ──────────────────────────────────────────────────────────────────────
 
 export async function buildSingleBlendDoc(db: SupabaseClient, tenantId: string, id: string, ctx: ReportCtx): Promise<BuildResult> {
+  return withAromaOutput(ctx.output, () => singleBlend(db, tenantId, id, ctx));
+}
+async function singleBlend(db: SupabaseClient, tenantId: string, id: string, ctx: ReportCtx): Promise<BuildResult> {
+  const t = aromaText().t;
   const { row, error } = await readOneBlend(db, tenantId, id);
   if (error) return { ok: false, status: 500, error };
   if (!row) return { ok: false, status: 404, error: "Karışım bulunamadı veya bu hesaba ait değil." };
   const buffer = await buildAromaDoc({
-    coverTitle2: `${AROMA_MODULE_TITLE} — KARIŞIM REÇETESİ`,
-    coverSubtitle: row.name, reportName: `Karışım: ${row.name}`,
-    stats: [{ label: "Karışım", value: row.name }, { label: "Uçucu Yağ Sayısı", value: String((row.items ?? []).length) }],
+    coverTitle2: `${moduleTitle()} — ${t("cover.blendRecipe")}`,
+    coverSubtitle: row.name, reportName: t("report.blend", { name: row.name }),
+    stats: [{ label: t("stat.blend"), value: row.name }, { label: t("stat.essentialCount"), value: String((row.items ?? []).length) }],
     body: renderBlendFormula(row, "h2"), expertName: ctx.expertName, frontMatter: "none", date: ctx.date,
   });
   return { ok: true, buffer, filename: reportFilename([row.name], ctx.date), count: 1 };
 }
 
 export async function buildBlendsDoc(db: SupabaseClient, tenantId: string, sel: ExportSelector, ctx: ReportCtx): Promise<BuildResult> {
+  return withAromaOutput(ctx.output, () => blendsDoc(db, tenantId, sel, ctx));
+}
+async function blendsDoc(db: SupabaseClient, tenantId: string, sel: ExportSelector, ctx: ReportCtx): Promise<BuildResult> {
+  const t = aromaText().t;
   const cap = await guardAllCap(db, tenantId, sel, "aromatherapy_blends", true);
   if (cap) return cap;
   const { rows, error } = await readBlendsForExport(db, tenantId, sel);
   if (error) return { ok: false, status: 500, error };
   if (!rows.length) return { ok: false, status: 404, error: "Export edilecek karışım bulunamadı." };
-  const scopeName = sel.mode === "selected" ? "Seçili Karışımlar" : "Tüm Karışımlar";
+  const scopeName = sel.mode === "selected" ? t("scope.selectedBlends") : t("scope.allBlends");
   const buffer = await buildAromaDoc({
-    coverTitle2: `${AROMA_MODULE_TITLE} — KARIŞIMLAR`,
-    coverSubtitle: scopeName, reportName: scopeName, stats: [{ label: "Toplam Karışım", value: String(rows.length) }],
+    coverTitle2: `${moduleTitle()} — ${t("cover.blends")}`,
+    coverSubtitle: scopeName, reportName: scopeName, stats: [{ label: t("stat.totalBlends"), value: String(rows.length) }],
     body: renderBlendsSection(rows, { asMainSection: true }), expertName: ctx.expertName,
     frontMatter: classifyFrontMatter(rows.length), date: ctx.date,
   });
-  const namePart = sel.mode === "selected" ? "Secili_Karisimlar" : "Tum_Karisimlar";
+  const namePart = sel.mode === "selected" ? t("file.selectedBlends") : t("file.allBlends");
   return { ok: true, buffer, filename: reportFilename([namePart], ctx.date), count: rows.length };
 }
 
@@ -126,63 +148,87 @@ async function packCatalog(
 ): Promise<BuildResult> {
   if (!count) return { ok: false, status: 404, error: "Export edilecek kayıt bulunamadı." };
   const buffer = await buildAromaDoc({
-    coverTitle2: `${AROMA_MODULE_TITLE} — ${meta.title2}`, coverSubtitle: meta.subtitle, reportName: meta.reportName,
-    stats: meta.stats ?? [{ label: "Toplam Kayıt", value: String(count) }], body, expertName: ctx.expertName,
+    coverTitle2: `${moduleTitle()} — ${meta.title2}`, coverSubtitle: meta.subtitle, reportName: meta.reportName,
+    stats: meta.stats ?? [{ label: aromaText().t("stat.totalRecords"), value: String(count) }], body, expertName: ctx.expertName,
     frontMatter: classifyFrontMatter(count), date: ctx.date,
   });
   return { ok: true, buffer, filename: reportFilename([meta.filenamePart], ctx.date), count };
 }
-const scopeLbl = (sel: ExportSelector, all: string) => (sel.mode === "selected" ? "Seçili Kayıtlar" : all);
-const scopePart = (sel: ExportSelector, all: string) => (sel.mode === "selected" ? "Secili" : all);
+const scopeLbl = (sel: ExportSelector, all: string) => (sel.mode === "selected" ? aromaText().t("scope.selectedRecords") : all);
+const scopePart = (sel: ExportSelector, all: string) => (sel.mode === "selected" ? aromaText().t("file.selected") : all);
 
 export async function buildTaxaDoc(db: SupabaseClient, tenantId: string, sel: ExportSelector, ctx: ReportCtx): Promise<BuildResult> {
+  return withAromaOutput(ctx.output, () => taxaDoc(db, tenantId, sel, ctx));
+}
+async function taxaDoc(db: SupabaseClient, tenantId: string, sel: ExportSelector, ctx: ReportCtx): Promise<BuildResult> {
+  const t = aromaText().t;
   const cap = await guardAllCap(db, tenantId, sel, "aromatherapy_plant_taxa", false);
   if (cap) return cap;
   const { items, error } = await fetchTaxaDetails(db, tenantId, sel);
   if (error) return { ok: false, status: 500, error };
   return packCatalog(renderTaxaSection(items, { asMainSection: true }), items.length,
-    { title2: "BİTKİ KATALOĞU", subtitle: scopeLbl(sel, "Tüm Bitkiler"), reportName: "Bitki Kataloğu", filenamePart: `${scopePart(sel, "Tum")}_Bitkiler` }, ctx);
+    { title2: t("cover.taxa"), subtitle: scopeLbl(sel, t("scope.allTaxa")), reportName: t("report.taxa"), filenamePart: `${scopePart(sel, t("file.all"))}_${t("file.taxa")}` }, ctx);
 }
 export async function buildPreparationsDoc(db: SupabaseClient, tenantId: string, sel: ExportSelector, ctx: ReportCtx): Promise<BuildResult> {
+  return withAromaOutput(ctx.output, () => preparationsDoc(db, tenantId, sel, ctx));
+}
+async function preparationsDoc(db: SupabaseClient, tenantId: string, sel: ExportSelector, ctx: ReportCtx): Promise<BuildResult> {
+  const t = aromaText().t;
   const cap = await guardAllCap(db, tenantId, sel, "aromatherapy_preparations", false);
   if (cap) return cap;
   const { items, error } = await fetchPreparationDetails(db, tenantId, sel);
   if (error) return { ok: false, status: 500, error };
   return packCatalog(renderPreparationsSection(items, { asMainSection: true }), items.length,
-    { title2: "PREPARATLAR", subtitle: scopeLbl(sel, "Tüm Preparatlar"), reportName: "Preparatlar", filenamePart: `${scopePart(sel, "Tum")}_Preparatlar` }, ctx);
+    { title2: t("cover.preparations"), subtitle: scopeLbl(sel, t("scope.allPreparations")), reportName: t("report.preparations"), filenamePart: `${scopePart(sel, t("file.all"))}_${t("file.preparations")}` }, ctx);
 }
 export async function buildMethodsDoc(db: SupabaseClient, tenantId: string, sel: ExportSelector, ctx: ReportCtx): Promise<BuildResult> {
+  return withAromaOutput(ctx.output, () => methodsDoc(db, tenantId, sel, ctx));
+}
+async function methodsDoc(db: SupabaseClient, tenantId: string, sel: ExportSelector, ctx: ReportCtx): Promise<BuildResult> {
+  const t = aromaText().t;
   const cap = await guardAllCap(db, tenantId, sel, "aromatherapy_preparation_method_series", false);
   if (cap) return cap;
   const { items, error } = await fetchMethodExports(db, tenantId, sel);
   if (error) return { ok: false, status: 500, error };
   return packCatalog(renderMethodsSection(items, { asMainSection: true }), items.length,
-    { title2: "YÖNTEMLER & REVİZYONLAR", subtitle: scopeLbl(sel, "Tüm Yöntemler"), reportName: "Yöntemler", filenamePart: `${scopePart(sel, "Tum")}_Yontemler` }, ctx);
+    { title2: t("cover.methods"), subtitle: scopeLbl(sel, t("scope.allMethods")), reportName: t("report.methods"), filenamePart: `${scopePart(sel, t("file.all"))}_${t("file.methods")}` }, ctx);
 }
 export async function buildKnowledgeDoc(db: SupabaseClient, tenantId: string, sel: ExportSelector, ctx: ReportCtx): Promise<BuildResult> {
+  return withAromaOutput(ctx.output, () => knowledgeDoc(db, tenantId, sel, ctx));
+}
+async function knowledgeDoc(db: SupabaseClient, tenantId: string, sel: ExportSelector, ctx: ReportCtx): Promise<BuildResult> {
+  const t = aromaText().t;
   const cap = await guardAllCap(db, tenantId, sel, "aromatherapy_claims", false);
   if (cap) return cap;
   const { items, error } = await fetchKnowledgeDetails(db, tenantId, sel);
   if (error) return { ok: false, status: 500, error };
   return packCatalog(renderKnowledgeSection(items, { asMainSection: true }), items.length,
-    { title2: "BİLGİ KAYITLARI", subtitle: scopeLbl(sel, "Tüm Bilgi Kayıtları"), reportName: "Bilgi Kayıtları", filenamePart: `${scopePart(sel, "Tum")}_Bilgi_Kayitlari` }, ctx);
+    { title2: t("cover.knowledge"), subtitle: scopeLbl(sel, t("scope.allKnowledge")), reportName: t("report.knowledge"), filenamePart: `${scopePart(sel, t("file.all"))}_${t("file.knowledge")}` }, ctx);
 }
 export async function buildSourcesDoc(db: SupabaseClient, tenantId: string, sel: ExportSelector, ctx: ReportCtx): Promise<BuildResult> {
+  return withAromaOutput(ctx.output, () => sourcesDoc(db, tenantId, sel, ctx));
+}
+async function sourcesDoc(db: SupabaseClient, tenantId: string, sel: ExportSelector, ctx: ReportCtx): Promise<BuildResult> {
+  const t = aromaText().t;
   const cap = await guardAllCap(db, tenantId, sel, "aromatherapy_sources", false);
   if (cap) return cap;
   const { items, sources, error } = await fetchSourceExports(db, tenantId, sel);
   if (error) return { ok: false, status: 500, error };
   const body = [...renderSourcesSection(items, { asMainSection: true }), ...renderBibliography(sources)];
   return packCatalog(body, items.length,
-    { title2: "KAYNAKLAR", subtitle: scopeLbl(sel, "Tüm Kaynaklar"), reportName: "Kaynaklar", filenamePart: `${scopePart(sel, "Tum")}_Kaynaklar` }, ctx);
+    { title2: t("cover.sources"), subtitle: scopeLbl(sel, t("scope.allSources")), reportName: t("report.sources"), filenamePart: `${scopePart(sel, t("file.all"))}_${t("file.sources")}` }, ctx);
 }
 export async function buildGlossaryDoc(db: SupabaseClient, tenantId: string, sel: ExportSelector, ctx: ReportCtx): Promise<BuildResult> {
+  return withAromaOutput(ctx.output, () => glossaryDoc(db, tenantId, sel, ctx));
+}
+async function glossaryDoc(db: SupabaseClient, tenantId: string, sel: ExportSelector, ctx: ReportCtx): Promise<BuildResult> {
+  const t = aromaText().t;
   const cap = await guardAllCap(db, tenantId, sel, "aromatherapy_glossary_terms", false);
   if (cap) return cap;
   const { items, error } = await fetchGlossary(db, tenantId, sel);
   if (error) return { ok: false, status: 500, error };
   return packCatalog(renderGlossarySection(items, { asMainSection: true }), items.length,
-    { title2: "SÖZLÜK", subtitle: scopeLbl(sel, "Tüm Terimler"), reportName: "Sözlük", filenamePart: `${scopePart(sel, "Tum")}_Sozluk` }, ctx);
+    { title2: t("cover.glossary"), subtitle: scopeLbl(sel, t("scope.allGlossary")), reportName: t("report.glossary"), filenamePart: `${scopePart(sel, t("file.all"))}_${t("file.glossary")}` }, ctx);
 }
 
 // ─── General Aromaterapi Word ────────────────────────────────────────────────────
@@ -207,6 +253,10 @@ const GENERAL_TABLES: readonly [GeneralSection, string, boolean][] = [
 ];
 
 export async function buildGeneralDoc(db: SupabaseClient, tenantId: string, sections: string[] | null, ctx: ReportCtx): Promise<BuildResult> {
+  return withAromaOutput(ctx.output, () => generalDoc(db, tenantId, sections, ctx));
+}
+async function generalDoc(db: SupabaseClient, tenantId: string, sections: string[] | null, ctx: ReportCtx): Promise<BuildResult> {
+  const t = aromaText().t;
   const want = (k: GeneralSection) => !sections || sections.includes(k);
   const all: ExportSelector = { mode: "all" };
 
@@ -232,23 +282,23 @@ export async function buildGeneralDoc(db: SupabaseClient, tenantId: string, sect
     if (n) { body.push(...render(firstSection)); stats.push({ label, value: String(n) }); firstSection = false; }
   };
 
-  if (want("oils")) { const r = await readOilsForExport(db, tenantId, all); if (r.error) return { ok: false, status: 500, error: r.error }; add((sb) => renderOilsSection(r.rows, { asMainSection: true, sectionBreak: sb }), "Yağ", r.rows.length); }
-  if (want("taxa")) { const r = await fetchTaxaDetails(db, tenantId, all); if (r.error) return { ok: false, status: 500, error: r.error }; add((sb) => renderTaxaSection(r.items, { asMainSection: true, sectionBreak: sb }), "Bitki", r.items.length); }
-  if (want("preparations")) { const r = await fetchPreparationDetails(db, tenantId, all); if (r.error) return { ok: false, status: 500, error: r.error }; add((sb) => renderPreparationsSection(r.items, { asMainSection: true, sectionBreak: sb }), "Preparat", r.items.length); }
-  if (want("blends")) { const r = await readBlendsForExport(db, tenantId, all); if (r.error) return { ok: false, status: 500, error: r.error }; add((sb) => renderBlendsSection(r.rows, { asMainSection: true, sectionBreak: sb }), "Karışım", r.rows.length); }
-  if (want("methods")) { const r = await fetchMethodExports(db, tenantId, all); if (r.error) return { ok: false, status: 500, error: r.error }; add((sb) => renderMethodsSection(r.items, { asMainSection: true, sectionBreak: sb }), "Yöntem", r.items.length); }
-  if (want("knowledge")) { const r = await fetchKnowledgeDetails(db, tenantId, all); if (r.error) return { ok: false, status: 500, error: r.error }; add((sb) => renderKnowledgeSection(r.items, { asMainSection: true, sectionBreak: sb }), "Bilgi Kaydı", r.items.length); }
-  if (want("sources")) { const r = await fetchSourceExports(db, tenantId, all); if (r.error) return { ok: false, status: 500, error: r.error }; allSources = r.sources; add((sb) => renderSourcesSection(r.items, { asMainSection: true, sectionBreak: sb }), "Kaynak", r.items.length); }
-  if (want("glossary")) { const r = await fetchGlossary(db, tenantId, all); if (r.error) return { ok: false, status: 500, error: r.error }; add((sb) => renderGlossarySection(r.items, { asMainSection: true, sectionBreak: sb }), "Terim", r.items.length); }
+  if (want("oils")) { const r = await readOilsForExport(db, tenantId, all); if (r.error) return { ok: false, status: 500, error: r.error }; add((sb) => renderOilsSection(r.rows, { asMainSection: true, sectionBreak: sb }), t("stat.oil"), r.rows.length); }
+  if (want("taxa")) { const r = await fetchTaxaDetails(db, tenantId, all); if (r.error) return { ok: false, status: 500, error: r.error }; add((sb) => renderTaxaSection(r.items, { asMainSection: true, sectionBreak: sb }), t("stat.taxon"), r.items.length); }
+  if (want("preparations")) { const r = await fetchPreparationDetails(db, tenantId, all); if (r.error) return { ok: false, status: 500, error: r.error }; add((sb) => renderPreparationsSection(r.items, { asMainSection: true, sectionBreak: sb }), t("stat.preparation"), r.items.length); }
+  if (want("blends")) { const r = await readBlendsForExport(db, tenantId, all); if (r.error) return { ok: false, status: 500, error: r.error }; add((sb) => renderBlendsSection(r.rows, { asMainSection: true, sectionBreak: sb }), t("stat.blend"), r.rows.length); }
+  if (want("methods")) { const r = await fetchMethodExports(db, tenantId, all); if (r.error) return { ok: false, status: 500, error: r.error }; add((sb) => renderMethodsSection(r.items, { asMainSection: true, sectionBreak: sb }), t("stat.method"), r.items.length); }
+  if (want("knowledge")) { const r = await fetchKnowledgeDetails(db, tenantId, all); if (r.error) return { ok: false, status: 500, error: r.error }; add((sb) => renderKnowledgeSection(r.items, { asMainSection: true, sectionBreak: sb }), t("stat.knowledge"), r.items.length); }
+  if (want("sources")) { const r = await fetchSourceExports(db, tenantId, all); if (r.error) return { ok: false, status: 500, error: r.error }; allSources = r.sources; add((sb) => renderSourcesSection(r.items, { asMainSection: true, sectionBreak: sb }), t("stat.source"), r.items.length); }
+  if (want("glossary")) { const r = await fetchGlossary(db, tenantId, all); if (r.error) return { ok: false, status: 500, error: r.error }; add((sb) => renderGlossarySection(r.items, { asMainSection: true, sectionBreak: sb }), t("stat.term"), r.items.length); }
 
   if (!body.length) return { ok: false, status: 404, error: "Export edilecek aktif Aromaterapi kaydı bulunamadı." };
   if (allSources.length) body.push(...renderBibliography(allSources)); // dedup Kaynakça (bilgi kaybı yok)
 
   const total = stats.reduce((a, s) => a + Number(s.value), 0);
   const buffer = await buildAromaDoc({
-    coverTitle2: `${AROMA_MODULE_TITLE} — GENEL KATALOG`, coverSubtitle: "Profesyonel Bilgi ve Referans Kataloğu",
-    reportName: "Aromaterapi Genel Katalog", stats: [{ label: "Toplam Kayıt", value: String(total) }, ...stats],
+    coverTitle2: `${moduleTitle()} — ${t("cover.general")}`, coverSubtitle: t("cover.generalSubtitle"),
+    reportName: t("report.general"), stats: [{ label: t("stat.totalRecords"), value: String(total) }, ...stats],
     body, expertName: ctx.expertName, frontMatter: "full", date: ctx.date,
   });
-  return { ok: true, buffer, filename: reportFilename(["Genel_Katalog"], ctx.date), count: total };
+  return { ok: true, buffer, filename: reportFilename([t("file.general")], ctx.date), count: total };
 }
