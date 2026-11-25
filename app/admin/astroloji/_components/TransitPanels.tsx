@@ -11,14 +11,13 @@
  */
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useLocale, useTranslations } from "next-intl";
 import type { AspectType, BodyId, SignId } from "@/lib/astrology/model/western";
 import type { ForecastEvent, ForecastTechnical, PointId, TransitAspect, TransitTechnical } from "@/lib/astrology/model/westernTiming";
-import { ASPECT_GLYPHS, ASPECT_LABELS, BODY_GLYPHS, BODY_LABELS, NATURE_LABELS, NODE_TYPE_LABELS, SIGN_GLYPHS, SIGN_LABELS, formatDegree } from "@/lib/astrology/labels/tr";
+import { ASPECT_GLYPHS, ASPECT_LABELS, BODY_GLYPHS, BODY_LABELS, NATURE_LABELS, SIGN_GLYPHS, SIGN_LABELS, formatDegree } from "@/lib/astrology/labels/tr";
 import {
-  CALENDAR_UNMATCHED_NOTE,
   dayInWindow,
   MAJOR_ASPECTS,
-  NATAL_HOUSE_NOTE,
   SIGNIFICANCE_BAND_LABELS,
   SIGNIFICANCE_NOTE,
   FORECAST_SCOPE_NOTE,
@@ -31,7 +30,6 @@ import {
   isPersonalEvent,
   middayUtcOf,
   momentLabel,
-  relativeTo,
   significanceBand,
   strongestTransits,
   transitNatalHouses,
@@ -56,39 +54,71 @@ function Section({ title, right, children, testId }: { title: string; right?: Re
 const pointLabel = (p: PointId) => (p === "ascendant" ? "Yükselen" : p === "midheaven" ? "MC" : BODY_LABELS[p as BodyId]);
 const pointGlyph = (p: PointId) => (p === "ascendant" ? "ASC" : p === "midheaven" ? "MC" : BODY_GLYPHS[p as BodyId]);
 
+/** I18N mod-g: nokta adı katalogdan (Yükselen = terms.angle.ascendant; MC kısaltması; gövdeler terms.body — TR birebir). */
+function usePointLabel() {
+  const tt = useTranslations("terms");
+  const t = useTranslations("atlas.transit");
+  return (p: PointId) => (p === "ascendant" ? tt("angle.ascendant") : p === "midheaven" ? t("pointMc") : tt(`body.${p as BodyId}`));
+}
+
+/**
+ * I18N mod-g: lib/astrology/transitDetail.ts relativeTo ile AYNI aritmetik (yuvarlama, gün/saat/dakika bölümü, işaret); metin
+ * katalogdan. TR çıktı relativeTo ile birebir (scripts/astrology/atlas-transit-i18n.harness.ts kilitler).
+ */
+function useRelativeTo() {
+  const t = useTranslations("atlas.transit.rel");
+  return (atUtc: string, exactUtc: string): string => {
+    const a = Date.parse(/Z$/.test(atUtc) ? atUtc : `${atUtc}Z`);
+    const b = Date.parse(exactUtc);
+    if (!Number.isFinite(a) || !Number.isFinite(b)) return "";
+    const diff = b - a;
+    const m = Math.round(Math.abs(diff) / 60_000);
+    if (m < 1) return t("same");
+    const d = Math.floor(m / 1440);
+    const h = Math.floor((m % 1440) / 60);
+    const mm = m % 60;
+    const span = d > 0 ? (h ? t("daysHours", { d, h }) : t("days", { d })) : h > 0 ? (mm ? t("hoursMinutes", { h, m: mm }) : t("hours", { h })) : t("minutes", { m: mm });
+    return diff > 0 ? t("after", { span }) : t("before", { span });
+  };
+}
+
 function Point({ id, prefix }: { id: PointId; prefix?: string }) {
+  const label = usePointLabel();
   return (
     <span className="whitespace-nowrap">
       {prefix && <span className="mr-1 text-[11px] text-slate-500">{prefix}</span>}
       <span className="mr-1">{pointGlyph(id)}</span>
-      {pointLabel(id)}
+      {label(id)}
     </span>
   );
 }
 
 function NatureBadge({ n }: { n: keyof typeof NATURE_LABELS | null }) {
+  const tt = useTranslations("terms");
   if (!n) return <span className="text-slate-400">—</span>;
   const c = n === "harmonious" ? "bg-sky-50 text-sky-800" : n === "challenging" ? "bg-rose-50 text-rose-800" : "bg-slate-100 text-slate-700";
-  return <span className={`rounded-full px-2 py-0.5 text-[11px] ${c}`}>{NATURE_LABELS[n]}</span>;
+  return <span className={`rounded-full px-2 py-0.5 text-[11px] ${c}`}>{tt(`aspectNature.${n}`)}</span>;
 }
 
 function StrengthBar({ v }: { v: number }) {
+  const t = useTranslations("atlas.transit");
   const w = Math.max(0, Math.min(100, v));
   return (
-    <span className="inline-flex items-center gap-1.5 whitespace-nowrap tabular-nums" title="Sağlayıcının orb darlığına göre verdiği güç (100 = tam açı)">
+    <span className="inline-flex items-center gap-1.5 whitespace-nowrap tabular-nums" title={t("strengthTitle")}>
       <span className="inline-block h-1.5 w-12 overflow-hidden rounded-full bg-slate-100" aria-hidden>
         <span className="block h-full rounded-full bg-indigo-400" style={{ width: `${w}%` }} />
       </span>
-      %{Math.round(w)}
+      {t("strengthPct", { v: String(Math.round(w)) })}
     </span>
   );
 }
 
 function SignCell({ sign, degree }: { sign: SignId; degree: number }) {
+  const tt = useTranslations("terms");
   return (
     <span className="whitespace-nowrap">
       <span className="mr-1">{SIGN_GLYPHS[sign]}</span>
-      {SIGN_LABELS[sign]} {formatDegree(degree)}
+      {tt(`zodiac.${sign}`)} {formatDegree(degree)}
     </span>
   );
 }
@@ -121,6 +151,11 @@ function useWidth<T extends HTMLElement>(): [React.RefObject<T | null>, number |
 type Applying = "all" | "applying" | "separating";
 
 export function TransitPanel({ t, options = {} }: { t: TransitTechnical; options?: Record<string, unknown> }) {
+  const tx = useTranslations("atlas.transit");
+  const tt = useTranslations("terms");
+  const locale = useLocale();
+  const pointLabel = usePointLabel();
+  const relativeTo = useRelativeTo();
   const tz = zoneOf(options.displayTz);
   const [scope, setScope] = useState<"major" | "all">("major");
   const [body, setBody] = useState<BodyId | "">("");
@@ -173,32 +208,32 @@ export function TransitPanel({ t, options = {} }: { t: TransitTechnical; options
     <div ref={boxRef} className="flex flex-col gap-3" data-testid="astro-transit-panel">
       <div className="rounded-xl border border-slate-200 bg-slate-50/70 px-3 py-2 text-sm text-slate-700" data-testid="astro-transit-moment-info">
         <p>
-          Transit anı: <strong data-testid="astro-transit-at">{momentLabel(t.atUtc, tz)}</strong>
+          {tx.rich("momentLabel", { moment: momentLabel(t.atUtc, tz), strong: (c) => <strong data-testid="astro-transit-at">{c}</strong> })}
         </p>
         <p className="mt-0.5 text-xs text-slate-500">
-          Tropikal zodyak · Ay düğümü: {NODE_TYPE_LABELS[t.nodeType]} · iç halka natal, dış halka transit
-          {cal?.startDate ? ` · kaynak takvim: ${cal.startDate.split("-").reverse().join(".")} + ${String(cal.days)} gün` : ""}
+          {tx("frameLine", { node: tt(`nodeType.${t.nodeType}`) })}
+          {cal?.startDate ? ` · ${tx("sourceCalendar", { start: cal.startDate.split("-").reverse().join("."), days: String(cal.days) })}` : ""}
         </p>
       </div>
 
-      <Section title="Özet" testId="astro-transit-summary">
+      <Section title={tx("summaryTitle")} testId="astro-transit-summary">
         <div className="flex flex-wrap items-center gap-1.5 px-3 py-2 text-xs text-slate-600">
-          <span className="rounded-full bg-slate-100 px-2 py-0.5">toplam {t.aspects.length}</span>
-          {t.summary.harmonious !== null && <span className="rounded-full bg-sky-50 px-2 py-0.5 text-sky-800">uyumlu {t.summary.harmonious}</span>}
-          {t.summary.challenging !== null && <span className="rounded-full bg-rose-50 px-2 py-0.5 text-rose-800">zorlayıcı {t.summary.challenging}</span>}
-          {t.summary.neutral !== null && <span className="rounded-full bg-slate-100 px-2 py-0.5">nötr {t.summary.neutral}</span>}
+          <span className="rounded-full bg-slate-100 px-2 py-0.5">{tx("total", { n: t.aspects.length })}</span>
+          {t.summary.harmonious !== null && <span className="rounded-full bg-sky-50 px-2 py-0.5 text-sky-800">{tx("harmonious", { n: t.summary.harmonious })}</span>}
+          {t.summary.challenging !== null && <span className="rounded-full bg-rose-50 px-2 py-0.5 text-rose-800">{tx("challenging", { n: t.summary.challenging })}</span>}
+          {t.summary.neutral !== null && <span className="rounded-full bg-slate-100 px-2 py-0.5">{tx("neutral", { n: t.summary.neutral })}</span>}
           <span className="mx-1 text-slate-300">|</span>
           {byType.map(([k, n]) => (
             <span key={k} className="rounded-full border border-slate-200 px-2 py-0.5" data-aspect-type={k}>
-              {ASPECT_GLYPHS[k]} {ASPECT_LABELS[k]} {n}
+              {ASPECT_GLYPHS[k]} {tt(`aspect.${k}`)} {n}
             </span>
           ))}
         </div>
       </Section>
 
-      <Section title="En güçlü transitler" testId="astro-transit-strongest">
+      <Section title={tx("strongestTitle")} testId="astro-transit-strongest">
         {top.length === 0 ? (
-          <p className="px-3 py-2 text-sm text-slate-500">Bu anda natal haritaya transit açısı yok.</p>
+          <p className="px-3 py-2 text-sm text-slate-500">{tx("noAspects")}</p>
         ) : (
           <ol className="divide-y divide-slate-100">
             {top.map((a, i) => (
@@ -207,67 +242,67 @@ export function TransitPanel({ t, options = {} }: { t: TransitTechnical; options
                 <span className="flex flex-wrap items-center gap-x-1.5">
                   <Point id={a.transit} />
                   <span className="text-slate-600">
-                    {ASPECT_GLYPHS[a.type]} {ASPECT_LABELS[a.type]}
+                    {ASPECT_GLYPHS[a.type]} {tt(`aspect.${a.type}`)}
                   </span>
-                  <Point id={a.natal} prefix="natal" />
+                  <Point id={a.natal} prefix={tx("natalPrefix")} />
                 </span>
                 <span className="flex flex-wrap items-center gap-x-3 text-xs text-slate-600">
                   <StrengthBar v={a.strength} />
-                  <span className="tabular-nums">orb {formatDegree(a.orb)}</span>
-                  <span>{a.applying ? "yaklaşıyor" : "ayrılıyor"}</span>
-                  {showExact && exactTimesOf(ce, a).length > 0 && <span className="tabular-nums">kesinleşme {at(exactTimesOf(ce, a)[0], tz)}</span>}
+                  <span className="tabular-nums">{tx("orb", { orb: formatDegree(a.orb) })}</span>
+                  <span>{a.applying ? tx("applying") : tx("separating")}</span>
+                  {showExact && exactTimesOf(ce, a).length > 0 && <span className="tabular-nums">{tx("exactAt", { at: at(exactTimesOf(ce, a)[0], tz) })}</span>}
                 </span>
               </li>
             ))}
           </ol>
         )}
-        <p className="border-t border-slate-100 px-3 py-1.5 text-[11px] text-slate-500">Sıralama: sağlayıcının açı gücü (orb darlığı; %100 = tam açı), eşitlikte daha dar orb.</p>
+        <p className="border-t border-slate-100 px-3 py-1.5 text-[11px] text-slate-500">{tx("strongestNote")}</p>
       </Section>
 
       <Section
-        title={`Transit → natal açılar (${list.length}/${t.aspects.length})`}
+        title={tx("tableTitle", { shown: list.length, total: t.aspects.length })}
         testId="astro-transit-table"
         right={
-          <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="Transit açı filtreleri">
-            <select className={inp} value={scope} onChange={(e) => setScope(e.target.value as "major" | "all")} aria-label="Açı kapsamı">
-              <option value="major">Majör açılar</option>
-              <option value="all">Tüm açılar (minör dahil)</option>
+          <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label={tx("filtersLabel")}>
+            <select className={inp} value={scope} onChange={(e) => setScope(e.target.value as "major" | "all")} aria-label={tx("scopeLabel")}>
+              <option value="major">{tx("scopeMajor")}</option>
+              <option value="all">{tx("scopeAll")}</option>
             </select>
-            <select className={inp} value={body} onChange={(e) => setBody(e.target.value as BodyId | "")} aria-label="Transit gezegen filtresi">
-              <option value="">Tüm transit gezegenler</option>
+            <select className={inp} value={body} onChange={(e) => setBody(e.target.value as BodyId | "")} aria-label={tx("bodyFilterLabel")}>
+              <option value="">{tx("bodyAll")}</option>
               {bodies.map((b) => (
                 <option key={b} value={b}>
-                  {BODY_GLYPHS[b]} {BODY_LABELS[b]}
+                  {BODY_GLYPHS[b]} {tt(`body.${b}`)}
                 </option>
               ))}
             </select>
-            <select className={inp} value={target} onChange={(e) => setTarget(e.target.value as PointId | "")} aria-label="Natal nokta filtresi">
-              <option value="">Tüm natal noktalar</option>
+            <select className={inp} value={target} onChange={(e) => setTarget(e.target.value as PointId | "")} aria-label={tx("targetFilterLabel")}>
+              <option value="">{tx("targetAll")}</option>
               {targets.map((p) => (
                 <option key={p} value={p}>
-                  natal {pointLabel(p)}
+                  {tx("targetOption", { point: pointLabel(p) })}
                 </option>
               ))}
             </select>
-            <select className={inp} value={aspType} onChange={(e) => setAspType(e.target.value as AspectType | "")} aria-label="Açı türü filtresi">
-              <option value="">Tüm açı türleri</option>
+            <select className={inp} value={aspType} onChange={(e) => setAspType(e.target.value as AspectType | "")} aria-label={tx("typeFilterLabel")}>
+              <option value="">{tx("typeAll")}</option>
               {types.map((k) => (
                 <option key={k} value={k}>
-                  {ASPECT_GLYPHS[k]} {ASPECT_LABELS[k]}
+                  {ASPECT_GLYPHS[k]} {tt(`aspect.${k}`)}
                 </option>
               ))}
             </select>
-            <select className={inp} value={minStrength} onChange={(e) => setMinStrength(Number(e.target.value))} aria-label="En az güç">
+            <select className={inp} value={minStrength} onChange={(e) => setMinStrength(Number(e.target.value))} aria-label={tx("strengthFilterLabel")}>
               {[0, 25, 50, 75, 90].map((v) => (
                 <option key={v} value={v}>
-                  {v === 0 ? "Her güç" : `Güç ≥ %${v}`}
+                  {v === 0 ? tx("strengthAny") : tx("strengthMin", { v: String(v) })}
                 </option>
               ))}
             </select>
-            <select className={inp} value={applying} onChange={(e) => setApplying(e.target.value as Applying)} aria-label="Seyir filtresi">
-              <option value="all">Yaklaşan + ayrılan</option>
-              <option value="applying">Yalnız yaklaşan</option>
-              <option value="separating">Yalnız ayrılan</option>
+            <select className={inp} value={applying} onChange={(e) => setApplying(e.target.value as Applying)} aria-label={tx("motionFilterLabel")}>
+              <option value="all">{tx("motionAll")}</option>
+              <option value="applying">{tx("motionApplying")}</option>
+              <option value="separating">{tx("motionSeparating")}</option>
             </select>
             {filtered && (
               <button
@@ -281,7 +316,7 @@ export function TransitPanel({ t, options = {} }: { t: TransitTechnical; options
                   setApplying("all");
                 }}
               >
-                Filtreleri temizle
+                {tx("clearFilters")}
               </button>
             )}
           </div>
@@ -289,7 +324,7 @@ export function TransitPanel({ t, options = {} }: { t: TransitTechnical; options
       >
         {list.length === 0 ? (
           <p className="px-3 py-3 text-sm text-slate-500" data-testid="astro-transit-empty">
-            Seçili filtrelere uyan açı yok.
+            {tx("noMatch")}
           </p>
         ) : (
           <>
@@ -300,31 +335,31 @@ export function TransitPanel({ t, options = {} }: { t: TransitTechnical; options
                   <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
                     <Point id={a.transit} />
                     <span className="text-slate-600">
-                      {ASPECT_GLYPHS[a.type]} {ASPECT_LABELS[a.type]}
+                      {ASPECT_GLYPHS[a.type]} {tt(`aspect.${a.type}`)}
                     </span>
-                    <Point id={a.natal} prefix="natal" />
+                    <Point id={a.natal} prefix={tx("natalPrefix")} />
                   </div>
                   <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-600">
-                    <span className="tabular-nums">orb {formatDegree(a.orb)}</span>
+                    <span className="tabular-nums">{tx("orb", { orb: formatDegree(a.orb) })}</span>
                     <StrengthBar v={a.strength} />
-                    <span>{a.applying ? "yaklaşıyor" : "ayrılıyor"}</span>
+                    <span>{a.applying ? tx("applying") : tx("separating")}</span>
                     <NatureBadge n={a.nature} />
                   </div>
-                  {showExact && exactTimesOf(ce, a).length > 0 && <div className="mt-1 text-xs text-slate-600">Kesinleşme: {exactCell(a)}</div>}
+                  {showExact && exactTimesOf(ce, a).length > 0 && <div className="mt-1 text-xs text-slate-600">{tx("exactLabel")} {exactCell(a)}</div>}
                 </li>
               ))}
             </ul>
             <table className={`min-w-full ${tableCls}`} data-testid="astro-transit-grid">
               <thead>
                 <tr>
-                  <th className={th}>Transit</th>
-                  <th className={th}>Açı</th>
-                  <th className={th}>Natal</th>
-                  <th className={th}>Orb</th>
-                  <th className={th}>Güç</th>
-                  <th className={th}>Seyir</th>
-                  <th className={th}>Nitelik</th>
-                  {showExact && <th className={th}>Kesinleşme (takvim)</th>}
+                  <th className={th}>{tx("colTransit")}</th>
+                  <th className={th}>{tx("colAspect")}</th>
+                  <th className={th}>{tx("colNatal")}</th>
+                  <th className={th}>{tx("colOrb")}</th>
+                  <th className={th}>{tx("colStrength")}</th>
+                  <th className={th}>{tx("colMotion")}</th>
+                  <th className={th}>{tx("colNature")}</th>
+                  {showExact && <th className={th}>{tx("colExact")}</th>}
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -334,16 +369,16 @@ export function TransitPanel({ t, options = {} }: { t: TransitTechnical; options
                       <Point id={a.transit} />
                     </td>
                     <td className={td}>
-                      {ASPECT_GLYPHS[a.type]} {ASPECT_LABELS[a.type]}
+                      {ASPECT_GLYPHS[a.type]} {tt(`aspect.${a.type}`)}
                     </td>
                     <td className={td}>
-                      <Point id={a.natal} prefix="natal" />
+                      <Point id={a.natal} prefix={tx("natalPrefix")} />
                     </td>
                     <td className={`${td} tabular-nums`}>{formatDegree(a.orb)}</td>
                     <td className={td}>
                       <StrengthBar v={a.strength} />
                     </td>
-                    <td className={td}>{a.applying ? "yaklaşıyor" : "ayrılıyor"}</td>
+                    <td className={td}>{a.applying ? tx("applying") : tx("separating")}</td>
                     <td className={td}>
                       <NatureBadge n={a.nature} />
                     </td>
@@ -356,19 +391,24 @@ export function TransitPanel({ t, options = {} }: { t: TransitTechnical; options
         )}
         <p className="border-t border-slate-100 px-3 py-1.5 text-[11px] leading-snug text-slate-500" data-testid="astro-transit-exact-note">
           {showExact
-            ? `Kesinleşme anları kaynak takvimin olaylarından alınır (takvim penceresi ${ce!.window.start.split("-").reverse().join(".")} – ${ce!.window.end.split("-").reverse().join(".")}${ce!.complete ? "" : "; takvimin bazı parçaları kayıtlı değil, liste eksik olabilir"}). Takvim yalnız majör açıların kesinleşmesini verir; “—” bu pencerede kesinleşme olmadığı veya eşleşme yapılamadığı anlamına gelir. ${CALENDAR_UNMATCHED_NOTE}`
-            : "Kesinleşme anları, transit bir Transit Takvimi gününden açıldığında takvim olaylarından gösterilir (bu ekran tek bir anı hesaplar; sağlayıcı bu uçta kesinleşme anı vermez)."}
+            ? tx("exactNote", {
+                start: ce!.window.start.split("-").reverse().join("."),
+                end: ce!.window.end.split("-").reverse().join("."),
+                partial: ce!.complete ? "" : tx("exactNotePartial"),
+                unmatched: tx("calendarUnmatched"),
+              })
+            : tx("noExactNote")}
         </p>
       </Section>
 
-      <Section title="Transit gök cisimleri">
+      <Section title={tx("bodiesTitle")}>
         <table className="min-w-full">
           <thead>
             <tr>
-              <th className={th}>Gök cismi</th>
-              <th className={th}>Burç / derece</th>
-              <th className={th}>Hız (°/gün)</th>
-              {houses.size > 0 && <th className={th}>Natal ev</th>}
+              <th className={th}>{tx("colBody")}</th>
+              <th className={th}>{tx("colSignDegree")}</th>
+              <th className={th}>{tx("colSpeed")}</th>
+              {houses.size > 0 && <th className={th}>{tx("colNatalHouse")}</th>}
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
@@ -376,19 +416,19 @@ export function TransitPanel({ t, options = {} }: { t: TransitTechnical; options
               <tr key={b.id}>
                 <td className={td}>
                   <span className="mr-1.5">{BODY_GLYPHS[b.id]}</span>
-                  {BODY_LABELS[b.id]}
+                  {tt(`body.${b.id}`)}
                   {b.retrograde && <span className="ml-1 font-semibold text-rose-600">℞</span>}
                 </td>
                 <td className={td}>
                   <SignCell sign={b.sign} degree={b.degreeInSign} />
                 </td>
-                <td className={`${td} tabular-nums`}>{b.speed.toFixed(3).replace(".", ",")}</td>
+                <td className={`${td} tabular-nums`}>{locale === "tr" ? b.speed.toFixed(3).replace(".", ",") : b.speed.toFixed(3)}</td>
                 {houses.size > 0 && <td className={td}>{houses.get(b.id) ?? "—"}</td>}
               </tr>
             ))}
           </tbody>
         </table>
-        {houses.size > 0 && <p className="border-t border-slate-100 px-3 py-1.5 text-[11px] text-slate-500">{NATAL_HOUSE_NOTE}</p>}
+        {houses.size > 0 && <p className="border-t border-slate-100 px-3 py-1.5 text-[11px] text-slate-500">{tx("natalHouseNote")}</p>}
       </Section>
     </div>
   );

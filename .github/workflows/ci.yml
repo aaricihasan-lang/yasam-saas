@@ -209,6 +209,13 @@ jobs:
       - name: Profesyonel astroloji motorları (pro-*) harness'ları
         run: npm run test:astrology:pro
 
+      # I18N F1-R4: dil değişmezliği (tr-TR / en-GB ayrı süreç) — DE440 bu işte mevcut; ATLAS_REQUIRE_DE440=1 iken
+      # efemeris tarafı hesaplanamazsa (iki dilde aynı hata) eşit sayılmaz, FAIL olur (QA-Atlas P2-2).
+      - name: Gökyüzü Atlası dil değişmezliği (DE440 zorunlu)
+        run: npm run test:astrology:i18n-invariance
+        env:
+          ATLAS_REQUIRE_DE440: "1"
+
   # Gökyüzü Atlası — 44 tekniğin regresyon zinciri (`npm run test:astrology` + transit02/03). KOD-01 (30.10.2026 büyük denetim):
   # bu zincir CI'da HİÇ koşmuyordu ve 4 harness sessizce eskimişti. astrology-run-all.mjs zinciri package.json'dan okur, ilk FAIL'de
   # durmaz (her komut ayrı raporlanır), sırları siler, ağ korumasını yükler; Roxy'ye / production'a ÇAĞRI YOK (kayıtlı fixture +

@@ -8,7 +8,8 @@
  */
 import assert from "node:assert/strict";
 import { createElement } from "react";
-import { renderToStaticMarkup } from "react-dom/server";
+// I18N mod-g: Atlas bileşenleri metni katalogdan alır → çizim next-intl sağlayıcısıyla (TR katalog = önceki metin; beklentiler değişmedi).
+import { renderToStaticMarkup } from "./intlRender";
 import { readFileSync as readFont } from "node:fs";
 import { join as joinPath } from "node:path";
 import JSZip from "jszip";

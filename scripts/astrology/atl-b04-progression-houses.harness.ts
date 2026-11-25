@@ -22,7 +22,8 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { createElement } from "react";
-import { renderToStaticMarkup } from "react-dom/server";
+// I18N mod-g: Atlas bileşenleri metni katalogdan alır → çizim next-intl sağlayıcısıyla (TR katalog = önceki metin; beklentiler değişmedi).
+import { renderToStaticMarkup } from "./intlRender";
 import { natalHouseOf } from "@/lib/astrology/transitDetail";
 import { progressedWholeSignCusps, progressedWholeSignHouse, progressionHouseColumns, PROGRESSED_CHART_HOUSE_LABEL } from "@/lib/astrology/progressionHouses";
 import { PROGRESSION_METHOD_NOTE } from "@/lib/astrology/directionAspects";

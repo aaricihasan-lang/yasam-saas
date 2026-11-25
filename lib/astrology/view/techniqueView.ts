@@ -23,7 +23,8 @@ import type {
   TransitTechnical,
 } from "../model/westernTiming";
 import { maskTimeDependent, PROVIDER_INTERP_NOTICE } from "./natalView";
-import { adjustNatalInterpretationForHouses, localNatalMethodExtra, localNatalViewWarnings, maskLocalHouseDetail } from "../engine/natalHouses";
+import { adjustNatalInterpretationForHouses, localNatalMethodExtra, localNatalViewWarningCodes, localNatalViewWarnings, maskLocalHouseDetail } from "../engine/natalHouses";
+import type { ViewWarningCode } from "../viewWarnings";
 import type { FixedStarsInterpretation, FixedStarsTechnical } from "../model/westernFixedStars";
 import type { ExtraPointsInterpretation, ExtraPointsTechnical } from "../model/westernExtraPoints";
 // 2026-10-22 — Vedik aylık zamanlama (ayrı satır: paralel teknik eklemeleriyle birleştirme çakışması olmasın).
@@ -56,6 +57,8 @@ export type TechniqueView = {
   method: { zodiac: Zodiac; houseSystem: string | null; nodeType: string | null; houseCalculation?: "local"; houseEngine?: string };
   timeUnknownMasked: boolean;
   warnings: string[];
+  /** I18N-0008: `warnings` metinlerinin dil-bağımsız türleri (ekran rozetleri bundan karar verir; metin aynen kalır). */
+  warningCodes: ViewWarningCode[];
   missingParts: number;
   technical: unknown;
   interpretation:
@@ -332,6 +335,7 @@ export function buildTechniqueView(args: {
     method: { zodiac: zodiacOfTechnique(args.technique, m.technical), houseSystem: tech.houseSystem ?? tech.chart?.houseSystem ?? null, nodeType: tech.nodeType ?? null, ...localNatalMethodExtra(m.technical) },
     timeUnknownMasked: m.masked,
     warnings: [...m.warnings, ...(args.technique === "western.natal" ? localNatalViewWarnings(m.technical, m.masked) : []), ...(args.missingParts ? [args.technique === "kp.transit" ? `${args.missingParts} KP zaman aralığı parçası hesaplanamadı; liste eksik (eksik parçalar ekranda adıyla yazılı).` : `${args.missingParts} dönem parçası hesaplanamadı; takvim eksik olabilir.`] : [])],
+    warningCodes: [...(args.technique === "western.natal" ? localNatalViewWarningCodes(m.technical, m.masked) : []), ...(args.missingParts ? (["missing_parts"] as const) : [])],
     missingParts: args.missingParts ?? 0,
     technical: m.technical,
     interpretation,

@@ -14,7 +14,8 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { createElement } from "react";
-import { renderToStaticMarkup } from "react-dom/server";
+// I18N mod-g: Atlas bileşenleri metni katalogdan alır → çizim next-intl sağlayıcısıyla (TR katalog = önceki metin; beklentiler değişmedi).
+import { renderToStaticMarkup } from "./intlRender";
 import JSZip from "jszip";
 import { extractText, getDocumentProxy } from "unpdf";
 import { balaPolarBirth, balaPolarNotice, sunDay, BALA_POLAR_NOTICE, type BalaBirthMoment } from "@/lib/astrology/balaPolarNotice";

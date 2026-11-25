@@ -8,15 +8,38 @@ const TECHNICAL_DESCRIPTION_SCHEMAS = new Set(["astro.kp.chart.interp.v1", "astr
   // 22.10.2026 Vedik harita: ev temaları ve karaka/pada tanımları genel teknik açıklamadır (kişiye özel anlatı değil).
   "astro.vedic.bhav_chalit.interp.v1", "astro.vedic.chara_karaka.interp.v1", "astro.vedic.arudha.interp.v1", "astro.vedic.bhava_bala.interp.v1"]);
 
-export function interpretationKindOfSchema(schema: string): InterpretationKind {
+/**
+ * I18N-0008 (Atl-A0): yorum türünün DİL-BAĞIMSIZ kodu. Ekran etiketi katalogdan (`atlas.interpretationKind.<kod>`) basılır;
+ * Türkçe tür adı (InterpretationKind) aynen korunur ve yalnız bu koddan türetilir (Word/PDF ve mevcut çağıranlar birebir).
+ */
+export const INTERPRETATION_KIND_CODES = ["auto_reading", "technical", "events", "system"] as const;
+export type InterpretationKindCode = (typeof INTERPRETATION_KIND_CODES)[number];
+
+const KIND_TR: Record<InterpretationKindCode, InterpretationKind> = {
+  auto_reading: "Otomatik Yorum",
+  technical: "Teknik Açıklama",
+  events: "Olay Açıklamaları",
+  system: "Sistem Yorumu",
+};
+
+export function interpretationKindCodeOfSchema(schema: string): InterpretationKindCode {
   // 2026-10-12 (UAT 2. tur, madde N): Transit Takvimi'nde Roxy yalnız olay başına teknik cümle verir; "Otomatik Yorum"
   // (kişiye özel yorum) izlenimi vermesin.
-  if (schema === "astro.western.forecast.interp.v1") return "Olay Açıklamaları";
+  if (schema === "astro.western.forecast.interp.v1") return "events";
   // 2026-10-20 (owner): Yıllık Profeksiyonlar'da sağlayıcının kısa açıklaması "Sistem Yorumu" başlığıyla gösterilir.
-  if (schema === "astro.western.profections.interp.v1") return "Sistem Yorumu";
+  if (schema === "astro.western.profections.interp.v1") return "system";
   // 2026-10-22: Ek noktalar (asteroit / lot / Lilith) — sağlayıcının nokta başına kısa açıklaması da "Sistem Yorumu".
-  if (schema === "astro.western.extra_points.interp.v1") return "Sistem Yorumu";
-  return TECHNICAL_DESCRIPTION_SCHEMAS.has(schema) ? "Teknik Açıklama" : "Otomatik Yorum";
+  if (schema === "astro.western.extra_points.interp.v1") return "system";
+  return TECHNICAL_DESCRIPTION_SCHEMAS.has(schema) ? "technical" : "auto_reading";
+}
+
+/** Kod → Türkçe tür adı (Word/PDF ve mevcut çağıranlar; değerler değişmedi). */
+export function interpretationKindTr(code: InterpretationKindCode): InterpretationKind {
+  return KIND_TR[code];
+}
+
+export function interpretationKindOfSchema(schema: string): InterpretationKind {
+  return KIND_TR[interpretationKindCodeOfSchema(schema)];
 }
 
 /** Word/PDF'te yorum bölümünün altına basılan tür satırı (ekran sekme adıyla aynı ayrım). */

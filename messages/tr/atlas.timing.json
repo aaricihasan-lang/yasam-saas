@@ -1,0 +1,62 @@
+{
+  "atlas": {
+    "timing": {
+      "bodyCol": "Gök cismi",
+      "signDegreeCol": "Burç / derece",
+      "houseCol": "Ev",
+      "aspectCol": "Açı",
+      "orbCol": "Orb",
+      "natureCol": "Nitelik",
+      "natalCol": "Natal",
+      "statusCol": "Durum",
+      "pointCol": "Nokta",
+      "pointMc": "MC",
+      "majorOnly": "yalnız majör açılar",
+      "aspectsCount": "Açılar ({shown}/{total})",
+      "cuspsTitle": "Ev başlangıçları (cusp)",
+      "houseN": "{n}. ev",
+      "noMajorWithinOrb": "1° orb içinde majör açı yok.",
+      "motion": {
+        "applying": "Yaklaşan",
+        "separating": "Ayrılan"
+      },
+      "progression": {
+        "calcDate": "Hesap tarihi <strong>{date}</strong>",
+        "progressedDay": "· ilerletilmiş gün <strong>{date}</strong>",
+        "elapsed": "· doğumdan bu yana {years} yıl",
+        "methodNote": "Yöntem: ikincil ilerletme (doğumdan sonraki her gün = bir yaşam yılı). İlerletilmiş gezegenler ile ilerletilmiş Yükselen/MC hesaplama hizmetinden hazır gelir; MC, sağ açıklıkta Naibod yayıyla (doğum RAMC'si + geçen yıl × 0,98564733°), Yükselen aynı RAMC'den doğum enleminde bulunur. Evler iki ayrı çerçevede gösterilir: natal ev — ilerletilmiş gezegenin natal ev başlarına göre yeri (progresyon okumasının standart çerçevesi); ilerletilmiş harita evi — ilerletilmiş Yükselen'in burcundan sayılan tam burç evi (ilerletilmiş harita çarkı bu evlerle çizilir).",
+        "meanNodeNote": "Ortalama düğüm: hesaplama hizmeti bu teknikte ortalama düğüm yerine gerçek düğüm döndürdüğü için Kuzey/Güney düğüm ilerletilmiş anda yerel olarak hesaplandı (Meeus 47.7 ortalama düğüm polinomu + boylamda nütasyon (IAU 2000B); tarihin gerçek ekinoksu). Bağımsız doğrulama: 1940–2026 arası 500 ilerletilmiş anda Swiss Ephemeris ortalama düğümüyle en fazla 0,3″ fark. Düğümlerin natal ev numarası hizmetten gelmediği için natal ev sütununda düğümler, uyumlu natal analiz yoksa boş kalır.",
+        "legacyMeanNode": "Bu kayıtta ortalama düğüm (mean) istendi, ancak kayıttaki Kuzey/Güney düğüm değerleri hesaplama hizmetinin döndürdüğü GERÇEK (true) düğümdür; ortalama düğümden yaklaşık 1,7°'ye kadar farklı olabilir (ölçülen 10 yanıtta 0,3°–1,6°). Düğüme bağlı açılar ve evler de bu gerçek düğüm değerine göredir. Değerler kayıt anındaki gibidir, değiştirilmedi; ortalama düğüm için yeniden hesaplayıp yeni kayıt oluşturun.",
+        "polarNoteLat": "Doğum yeri kutup dairesi ötesinde (enlem {lat}°): natal Placidus ev başları bu enlemde tanımsızdır, bu nedenle natal ev sütunu gösterilmez. Natal ev için Tam burç veya Eşit ev sistemli bir Natal analizi kaydedin; ilerletilmiş gezegen konumları ve ilerletilmiş harita evi (tam burç) etkilenmez.",
+        "polarNote": "Doğum yeri kutup dairesi ötesinde: natal Placidus ev başları bu enlemde tanımsızdır, bu nedenle natal ev sütunu gösterilmez. Natal ev için Tam burç veya Eşit ev sistemli bir Natal analizi kaydedin; ilerletilmiş gezegen konumları ve ilerletilmiş harita evi (tam burç) etkilenmez.",
+        "legacyPolarWarning": "Bu kayıttaki natal ev sütunu Placidus DEĞİLDİR: doğum yeri kutup dairesi ötesinde, Placidus bu enlemde tanımsız; hesaplama hizmeti bu durumda sessizce tam burç evlerine geçiyor (ölçülen 2/2 yanıtta 14/14 tam burç). Değerler kayıt anındaki gibidir, değiştirilmedi.",
+        "anglesTitle": "İlerletilmiş açısal noktalar",
+        "progressedCol": "İlerletilmiş",
+        "ascendant": "Yükselen",
+        "positionsTitle": "İlerletilmiş gezegen konumları",
+        "natalHouseFrame": "Natal ev ({hs})",
+        "natalHouseFrameMethod": "İlerletilmiş gezegenin natal haritadaki evi — kayıtlı natal analizin {hs} ev başlarına göre (çift halkadaki natal evler)",
+        "natalHouseProvider": "Natal ev (Placidus)",
+        "natalHouseProviderMethod": "İlerletilmiş gezegenin natal haritadaki evi — hesaplama hizmetinin natal Placidus ev başlarına göre verdiği değer",
+        "natalHouseLegacyPolar": "Natal ev (hizmet değeri — Placidus değil)",
+        "chartHouse": "İlerletilmiş harita evi (tam burç)",
+        "chartHouseShort": "İlerl. ev (tam burç)",
+        "chartHouseMethod": "İlerletilmiş Yükselen'in burcundan sayılan tam burç evleri (ilerletilmiş harita çarkı bu evlerle çizilir)",
+        "aspectsTitle": "İlerletilmiş → natal açılar",
+        "aspectRule": "Açı kuralı: yalnız majör açılar (kavuşum, altmışlık, kare, üçgen, karşıt), orb ≤ 1°. İlerletilmiş konumlar ile natal konumlar arasındaki boylam farkından hesaplanır. Bir noktanın kendi natal konumu ve düğüm ekseninin karşı ucu listelenmez. Yaklaşan/ayrılan: ilerletilmiş noktanın hareket yönüne göre (retro gezegen geri hareket eder).",
+        "noFrameTimeUnknown": "Doğum saati bilinmediği için natal evler/Yükselen yok; natal karşılaştırma yapılmaz.",
+        "natalFrameMissing": "Natal karşılaştırma (çift halka ve natal açılar) için uyumlu Natal analizi gerekiyor (aynı doğum bilgisi revizyonu ve aynı düğüm türü). Natal kendiliğinden hesaplanmaz; yeni ücretli istek gerekiyorsa önce plan gösterilir.",
+        "natalSource": "Natal konumlar: aynı doğum bilgisinin kayıtlı Natal analizinden ({hs} evler) — yeni hesap yapılmadı."
+      },
+      "solarArc": {
+        "period": "Hesap tarihi <strong>{date}</strong> · Solar Arc yayı <strong>{arc}</strong> ({arcDec}°)",
+        "methodNote": "Yöntem: gerçek Solar Arc (boylamda) — yay = ilerletilmiş Güneş − natal Güneş; aynı yay bütün natal noktalara (Yükselen/MC dahil) eklenir. Konumlar hesaplama hizmetinden hazır gelir.",
+        "positionsTitle": "Solar Arc konumları",
+        "col": "Solar Arc",
+        "aspectsTitle": "Solar Arc → natal açılar ({n})",
+        "aspectRule": "Açı kuralı: yalnız majör açılar (kavuşum, altmışlık, kare, üçgen, karşıt), orb ≤ 1°. Solar Arc noktaları ile natal konumlar arasındaki boylam farkından hesaplanır. Bir noktanın kendi natal konumu listelenmez. Yaklaşan/ayrılan: Solar Arc yayı zamanla hep ileri gider.",
+        "natalSource": "Çift halkanın iç halkası: aynı doğum bilgisinin kayıtlı Natal analizi ({hs} evler) — yeni hesap yapılmadı."
+      }
+    }
+  }
+}
