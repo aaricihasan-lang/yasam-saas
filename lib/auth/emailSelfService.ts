@@ -18,6 +18,7 @@
  * (denetim izi korunur). Rol ve Owner kararı İSTEKTEN değil, oturumun bağlı olduğu kullanıcının DB kaydından gelir.
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
+import trAuthServer from "@/messages/tr/auth.server.json";
 
 type Env = Record<string, string | undefined>;
 type RpcDb = Pick<SupabaseClient, "rpc">;
@@ -71,4 +72,9 @@ export async function emailSelfServiceAllowedForUserId(db: SupabaseClient, userI
   }
 }
 
-export const EMAIL_NOT_IN_SCOPE_TEXT = "E-posta ile doğrulama ve adres değişikliği bu hesap için henüz açılmadı.";
+/**
+ * Kapsam dışı yanıtının kaynak dil (tr) metni. I18N-F1-R5: tek kaynak katalog (auth.server.common.emailNotInScope; değer birebir aynı).
+ * Uçlar (app/api/me/email-change, email-verification) yanıtı istek dilinde `te("common.emailNotInScope")` ile verir; bu sabit yalnız geriye
+ * uyumluluk içindir (main'deki ve giriş güvenliği dallarındaki içe aktaranlar aynı Türkçe metni alır). Güvenlik davranışı değişmez.
+ */
+export const EMAIL_NOT_IN_SCOPE_TEXT: string = trAuthServer.auth.server.common.emailNotInScope;

@@ -118,6 +118,10 @@
       "rahu": "Rahu",
       "ketu": "Ketu"
     },
+    "grahaNodeFull": {
+      "rahu": "Rahu (Kuzey Ay Düğümü)",
+      "ketu": "Ketu (Güney Ay Düğümü)"
+    },
     "nakshatra": {
       "ashwini": "Ashwini",
       "bharani": "Bharani",

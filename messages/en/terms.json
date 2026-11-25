@@ -118,6 +118,10 @@
       "rahu": "Rahu",
       "ketu": "Ketu"
     },
+    "grahaNodeFull": {
+      "rahu": "Rahu (North Node)",
+      "ketu": "Ketu (South Node)"
+    },
     "nakshatra": {
       "ashwini": "Ashwini",
       "bharani": "Bharani",

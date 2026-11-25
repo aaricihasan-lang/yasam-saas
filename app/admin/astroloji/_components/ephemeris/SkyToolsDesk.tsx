@@ -7,6 +7,7 @@
  * Atlas menüsü: Yeni Analiz · Analiz Arşivi · Bilgi Bankası bağlantıları Atlas sayfasının ilgili görünümünü açar (açık hedef).
  */
 import { useEffect, useState, useSyncExternalStore } from "react";
+import { useTranslations } from "next-intl";
 import { atlasDisplay, atlasText } from "../atlas/fonts";
 import { ATLAS_NAV_TARGET_KEY } from "../../_lib/skyToolsNav";
 import { probeAstroAccess } from "../../_lib/api";
@@ -16,15 +17,16 @@ import LunationsTool from "./LunationsTool";
 import { st as s } from "./skyToolsUi";
 
 type Tab = "efemeris" | "ay" | "derece";
-const TABS: { id: Tab; hash: string; label: string }[] = [
-  { id: "efemeris", hash: "efemeris", label: "Efemeris" },
-  { id: "ay", hash: "ay-evreleri", label: "Ay Evreleri ve Tutulmalar" },
-  { id: "derece", hash: "derece-gecisleri", label: "Derece Geçişleri" },
+// I18N-F1-R5 (ATLAS-E): etiketler `atlas.skyTools` kataloğundan (label = anahtar). Hash değerleri adres sözleşmesidir — çevrilmez.
+const TABS: { id: Tab; hash: string; label: "tabEphemeris" | "tabLunations" | "tabDegrees" }[] = [
+  { id: "efemeris", hash: "efemeris", label: "tabEphemeris" },
+  { id: "ay", hash: "ay-evreleri", label: "tabLunations" },
+  { id: "derece", hash: "derece-gecisleri", label: "tabDegrees" },
 ];
-const NAV: { hash: string; label: string }[] = [
-  { hash: "yeni-analiz", label: "Yeni Analiz" },
-  { hash: "analiz-arsivi", label: "Analiz Arşivi" },
-  { hash: "bilgi-bankasi", label: "Bilgi Bankası" },
+const NAV: { hash: string; label: "navNewAnalysis" | "navArchive" | "navKnowledge" }[] = [
+  { hash: "yeni-analiz", label: "navNewAnalysis" },
+  { hash: "analiz-arsivi", label: "navArchive" },
+  { hash: "bilgi-bankasi", label: "navKnowledge" },
 ];
 /** 2026-11-03 teknik izinleri: her sekme ayrı yetkilendirilir (kapalı sekme gösterilmez; uçlar sunucuda ayrıca 403 döner). */
 const TAB_GRANT: Record<Tab, string> = { efemeris: "sky.ephemeris", ay: "sky.lunations", derece: "sky.degree_crossings" };
@@ -36,6 +38,7 @@ const subscribeHash = (cb: () => void) => {
 const noSubscribe = () => () => undefined;
 
 export default function SkyToolsDesk() {
+  const t = useTranslations("atlas.skyTools");
   const hash = useSyncExternalStore(subscribeHash, () => window.location.hash, () => "");
   // null = yoklama sürüyor / alan yok → bütün sekmeler (sunucu yine engeller).
   const [allowed, setAllowed] = useState<ReadonlySet<string> | null>(null);
@@ -79,20 +82,20 @@ export default function SkyToolsDesk() {
               </svg>
             </span>
             <span>
-              <span className={s.brandEyebrow}>YAŞAM SİSTEMİ · ASTROLOJİ</span>
+              <span className={s.brandEyebrow}>{t("brandEyebrow")}</span>
               <span className={s.brandTitle}>
-                GÖKYÜZÜ <b>ATLASI</b>
+                {t("brandTitleA")} <b>{t("brandTitleB")}</b>
               </span>
             </span>
           </a>
-          <nav className={s.nav} aria-label="Gökyüzü Atlası menüsü">
+          <nav className={s.nav} aria-label={t("navAria")}>
             {NAV.map((n) => (
               <a key={n.hash} className={s.navItem} href={`${base}#${n.hash}`} onClick={() => goAtlas(n.hash)}>
-                {n.label}
+                {t(n.label)}
               </a>
             ))}
             <span className={`${s.navItem} ${s.navActive}`} aria-current="page">
-              Gökyüzü Araçları <span className={s.navNew}>YENİ</span>
+              {t("navCurrent")} <span className={s.navNew}>{t("navNew")}</span>
             </span>
           </nav>
         </div>
@@ -101,21 +104,21 @@ export default function SkyToolsDesk() {
       <main className={s.tools}>
         <section className={s.toolsHead}>
           <div>
-            <p className={s.eyebrow}>GÖKYÜZÜ ARAÇLARI</p>
-            <h1 className={s.title}>Tarih aralığına göre gökyüzü hesapları</h1>
-            <p className={s.lead}>Doğum verisi gerektirmez. Aylık efemeris hesaplama altyapımızdan ay başına tek hesapla alınır ve Yaşam Sistemi yerel motoruyla bağımsız olarak kontrol edilir; ay evreleri, derece geçişleri ve ayrıntılı yerel tablo yerel motorda hesaplanır.</p>
+            <p className={s.eyebrow}>{t("eyebrow")}</p>
+            <h1 className={s.title}>{t("title")}</h1>
+            <p className={s.lead}>{t("lead")}</p>
           </div>
-          <div className={s.tabs} role="tablist" aria-label="Araç seçimi">
-            {tabs.map((t) => (
-              <button key={t.id} role="tab" type="button" className={s.tab} aria-selected={tab === t.id} onClick={() => choose(t.id)} data-testid={`sky-tab-${t.id}`}>
-                {t.label}
+          <div className={s.tabs} role="tablist" aria-label={t("tabsAria")}>
+            {tabs.map((tb) => (
+              <button key={tb.id} role="tab" type="button" className={s.tab} aria-selected={tab === tb.id} onClick={() => choose(tb.id)} data-testid={`sky-tab-${tb.id}`}>
+                {t(tb.label)}
               </button>
             ))}
           </div>
         </section>
         {tabs.length === 0 ? (
           <p className={s.lead} role="note" data-testid="sky-tools-no-access">
-            Gökyüzü Araçları için açık bir izniniz yok. Erişim için yöneticinize başvurun.
+            {t("noAccess")}
           </p>
         ) : null}
         {/* Sekmeler bağımsız; seçili olmayan sekmenin durumu korunur (gizli). Kapalı sekme hiç çizilmez. */}
