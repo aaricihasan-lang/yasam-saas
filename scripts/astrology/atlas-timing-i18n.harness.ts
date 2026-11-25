@@ -53,9 +53,10 @@ const cases = timingCases(FIX);
 assert.deepEqual(cases.map((c) => c.name).sort(), Object.keys(golden).sort(), "vaka seti = taban altını");
 const strip = (h: string) => h.replace(/<[^>]+>/g, " ").replace(/&#x27;/g, "'").replace(/&quot;/g, '"').replace(/&amp;/g, "&");
 const degs = (h: string) => (strip(h).match(/\d+°\d{2}′/g) ?? []).join(" ");
-// Çevrilen paneller (bu commit dizisinin kapsamı): progresyon + Solar Arc. Return / Sinastri / Composite yalnız ortak yardımcıları paylaşır.
-const translated = (c: { technique: string }) => c.technique === "western.progression" || c.technique === "western.solar_arc";
-const translatedNow = (process.env.ATLAS_TIMING_SCOPE ?? "progression,solar_arc").split(",");
+// Çevrilen paneller: progresyon + Solar Arc (D-Atlas) + Return / Sinastri / Composite (I18N-F1-R5 ATLAS-A).
+// I18N-F1-R5 (ATLAS-A): Return / Sinastri / Composite panel metinleri de çevrildi → EN denetimi kapsamına alındı.
+const translated = (c: { technique: string }) => ["western.progression", "western.solar_arc", "western.solar_return", "western.synastry", "western.composite"].includes(c.technique);
+const translatedNow = (process.env.ATLAS_TIMING_SCOPE ?? "progression,solar_arc,solar_return,synastry,composite").split(",");
 
 let tr = 0;
 let en = 0;
