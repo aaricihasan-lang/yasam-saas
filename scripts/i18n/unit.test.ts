@@ -10,7 +10,7 @@ import { resolveLocale, ACTIVE_LOCALES, DEFAULT_LOCALE } from "../../lib/i18n/lo
 import { desiredLocaleForAccount, parseAccountPreference, syncDecision } from "../../lib/i18n/localePreference";
 import { getCatalogMessages } from "../../lib/i18n/catalog";
 import { pseudoLocalizeString } from "../../lib/i18n/pseudo";
-import { formatCurrency, formatDateAbsolute, formatDateAbsoluteInZone, formatNumber, formatTime24, localeTag } from "../../lib/i18n/format";
+import { absoluteDateSeparator, formatCurrency, formatDateAbsolute, formatDateAbsoluteInZone, formatDateTimeAbsolute, formatNumber, formatTime24, localeTag } from "../../lib/i18n/format";
 import { apiErrorCode, localizeApiError, withServerDetail } from "../../lib/i18n/apiError";
 import { buildBulkDeleteStages, bulkPhraseMatches, setDefaultBulkDeleteTexts, TR_BULK_DELETE_TEXTS, type BulkDeleteTexts } from "../../lib/ui/bulkDeleteGuard";
 import { buildNameListLines, setDefaultMoreRecordsLine, TR_MORE_RECORDS } from "../../lib/ui/deleteConfirmMessage";
@@ -97,6 +97,41 @@ const tryTr = formatCurrency(1250, "tr"), tryEn = formatCurrency(1250, "en");
 ok(tryTr.includes("1.250,00") && tryEn.includes("1,250.00") && /₺|TRY/.test(tryTr) && /₺|TRY/.test(tryEn), "para: tutar ve birim (TRY) aynı; yalnız biçim değişir", [tryTr, tryEn]);
 ok(formatCurrency(1250, "en", "TRY").replace(/[^0-9]/g, "") === formatCurrency(1250, "tr", "TRY").replace(/[^0-9]/g, ""), "dil değişimi tutarı değiştirmez");
 ok(formatDateAbsolute("2026-01-02T12:00:00") === "02.01.2026", "mevcut DD.MM.YYYY sözleşmesi değişmedi");
+{
+  // A13 (Owner §19): EN ekranda en-GB sayısal tarih DD/MM/YYYY; TR çıktısı BAYT-BAYT aynı; 24 saat.
+  // Eski (R5 öncesi) uygulamanın birebir kopyası — TR/argümansız çıktı bununla bayt-bayt karşılaştırılır.
+  const legacyAbs = (v: Date | string | number | null | undefined) => {
+    if (v == null) return "";
+    const x = v instanceof Date ? v : new Date(v);
+    if (Number.isNaN(x.getTime())) return "";
+    return `${String(x.getDate()).padStart(2, "0")}.${String(x.getMonth() + 1).padStart(2, "0")}.${x.getFullYear()}`;
+  };
+  const legacyAbsDT = (v: Date) => `${legacyAbs(v)} ${String(v.getHours()).padStart(2, "0")}:${String(v.getMinutes()).padStart(2, "0")}`;
+  const samples: Array<Date | string | number | null | undefined> = [
+    "2026-01-02T12:00:00", "1999-12-31T23:59:00", "2000-02-29T00:00:00", "2026-11-25", "1987-07-04T05:06:07Z",
+    Date.UTC(2026, 10, 3, 21, 5), new Date(2030, 0, 1, 0, 0), null, undefined, "", "geçersiz",
+  ];
+  let trSame = true, noArgSame = true, enOk = true;
+  for (const v of samples) {
+    if (formatDateAbsolute(v, "tr") !== legacyAbs(v)) trSame = false;
+    if (formatDateAbsolute(v) !== legacyAbs(v)) noArgSame = false;
+    if (formatDateAbsolute(v, "en") !== legacyAbs(v).replace(/\./g, "/")) enOk = false;
+  }
+  ok(trSame, "A13: TR mutlak tarih eski uygulamayla BAYT-BAYT aynı (11 örnek, geçersiz/boş dahil)");
+  ok(noArgSame, "A13: locale verilmeyen eski çağrılar aynen DD.MM.YYYY (geriye uyum)");
+  ok(enOk && formatDateAbsolute("2026-01-02T12:00:00", "en") === "02/01/2026", "A13: EN en-GB DD/MM/YYYY (gün/ay sırası; MM/DD yok)");
+  ok(formatDateAbsolute("2026-01-02T12:00:00", "de") === "02.01.2026", "A13: de DD.MM.YYYY (planlı dil; gösterim kapalı)");
+  const dt = new Date(2026, 0, 2, 0, 5);
+  ok(formatDateTimeAbsolute(dt, "tr") === legacyAbsDT(dt) && formatDateTimeAbsolute(dt) === legacyAbsDT(dt) && formatDateTimeAbsolute(dt) === "02.01.2026 00:05", "A13: TR tarih+saat bayt-bayt aynı, 24 saat");
+  const dt2 = new Date(2026, 0, 2, 13, 7);
+  ok(formatDateTimeAbsolute(dt2, "en") === "02/01/2026 13:07" && !/AM|PM/i.test(formatDateTimeAbsolute(dt2, "en")), "A13: EN tarih+saat DD/MM/YYYY HH:mm, AM/PM yok");
+  ok(formatDateAbsoluteInZone(d, "Europe/Istanbul", "tr") === "04.11.2026" && formatDateAbsoluteInZone(d, "Europe/Istanbul", "en") === "04/11/2026" && formatDateAbsoluteInZone(d) === "04.11.2026", "A13: saat dilimli mutlak tarih — TR nokta / EN eğik çizgi, gün kayması yok");
+  ok(absoluteDateSeparator("en") === "/" && absoluteDateSeparator("tr") === "." && absoluteDateSeparator(undefined) === "." && absoluteDateSeparator("xx") === ".", "A13: bilinmeyen dil → kaynak dil biçimi");
+  // Saklama / giriş sözleşmesi: biçimlendirici girdiyi değiştirmez (ISO dizgi aynen kalır).
+  const iso = "1990-04-01";
+  formatDateAbsolute(iso, "en");
+  ok(iso === "1990-04-01" && new Date(iso).toISOString().startsWith("1990-04-01"), "A13: ISO saklama değeri değişmez (yalnız gösterim)");
+}
 
 // ── 6. API hata kodu ─────────────────────────────────────────────────────────
 section("6. sunucu hata kodları (F0 bulgu 6)");
@@ -197,6 +232,42 @@ section("7b. gönderim zaman aşımı kodu + ortak okuyucu + demo kilit kartı m
   const enG = createTranslator({ locale: "en", messages: getCatalogMessages("en") as any, namespace: "common.demo.gate" as never }) as any;
   ok(trG("title") === "Demo Ön İzleme" && trG("line1") === "Bu içerik demo hesabında sınırlı gösterilir." && trG("line2") === "Tam sürümde tüm detaylar açık olarak kullanılabilir.", "TR demo kilit kartı metinleri birebir");
   ok(["title", "line1", "line2"].every((k) => enG(k) && !/[çğıöşüİ]/.test(enG(k))), "EN demo kilit kartı Türkçe içermez");
+  // A12 (Owner §18): erişim reddi + Oturumlarım + parola göz düğmesi — TR birebir (bugünkü sabitler), EN Türkçe içermez.
+  const trA = createTranslator({ locale: "tr", messages: getCatalogMessages("tr") as any, namespace: "auth.ui" as never }) as any;
+  const enA = createTranslator({ locale: "en", messages: getCatalogMessages("en") as any, namespace: "auth.ui" as never }) as any;
+  const a12Tr: Record<string, string> = {
+    "moduleAccess.eyebrow": "Erişim kısıtlı",
+    "moduleAccess.session.line1": "Güvenliğiniz için bu cihazdaki oturum kapandı.",
+    "moduleAccess.session.line2": "Kaldığınız yerden devam etmek için yeniden giriş yapın.",
+    "moduleAccess.membership.line1": "Üyeliğiniz henüz onaylanmadı veya yönetici tarafından pasife alındı.",
+    "moduleAccess.membership.line2": "Modüllere erişim için yöneticiniz ile görüşün.",
+    "moduleAccess.permission.line1": "Bu modül hesabınızda aktif değil.",
+    "moduleAccess.permission.line2": "Lütfen yöneticiniz ile görüşün.",
+    "moduleAccess.session.title": "Oturumunuz Sona Erdi", "moduleAccess.membership.title": "Üyeliğiniz Aktif Değil", "moduleAccess.permission.title": "Yetkiniz Bulunmuyor",
+    "moduleAccess.signIn": "Giriş Yap", "moduleAccess.backHome": "Ana Panele Dön",
+    "sessions.title": "Oturumlarım", "sessions.refresh": "Yenile", "sessions.loading": "Yükleniyor…",
+    "sessions.intro": "Kaybolan bir cihaz varsa buradan oturumunu kapatabilirsiniz. Android uygulama oturumu, siz çıkış yapana veya kapatana kadar açık kalır.",
+    "sessions.loadFailed": "Oturumlar okunamadı.", "sessions.loadFailedNetwork": "Oturumlar okunamadı. Bağlantınızı kontrol edin.",
+    "sessions.revokeFailed": "Oturum kapatılamadı.", "sessions.revokeFailedNetwork": "Oturum kapatılamadı. Bağlantınızı kontrol edin.",
+    "sessions.confirmCurrent": "Bu cihazdaki oturumu kapatmak istiyor musunuz? Çıkış yapılacak.",
+    "sessions.androidPersistent": "Android uygulama (kalıcı)", "sessions.pending": "Onay bekliyor", "sessions.thisDevice": "Bu cihaz",
+    "sessions.kindAndroid": "Android uygulama", "sessions.kindWeb": "Web", "sessions.revoke": "Bu oturumu kapat", "sessions.endReasonDefault": "Kapandı",
+    "sessions.endReason.user_logout": "Çıkış yapıldı", "sessions.endReason.owner_self_revoked": "Bu ekrandan kapatıldı",
+    "sessions.endReason.expired_idle": "Süre doldu (kullanılmadı)", "sessions.endReason.expired_absolute": "Süre doldu",
+    "sessions.endReason.expired_policy_cleanup": "Süre doldu", "sessions.endReason.stale": "Yeni girişte kapandı",
+    "sessions.endReason.replaced_same_device": "Aynı cihazda yeniden giriş", "sessions.endReason.owner_denied": "Onay verilmedi",
+    "sessions.endReason.pending_expired": "Onay süresi doldu", "sessions.endReason.password_changed": "Parola değişti",
+    "sessions.endReason.admin_terminated": "Yönetici kapattı", "sessions.endReason.admin_logout_all": "Yönetici kapattı",
+    "sessions.endReason.admin_password_reset": "Parola sıfırlandı",
+    "passwordInput.show": "Parolayı göster", "passwordInput.hide": "Parolayı gizle",
+  };
+  const a12Bad = Object.entries(a12Tr).filter(([k, v]) => trA(k) !== v).map(([k]) => k);
+  ok(a12Bad.length === 0, "A12: TR erişim-reddi / Oturumlarım / parola göz metinleri bugünkü sabitlerle birebir", a12Bad);
+  ok(trA("sessions.confirmOther", { device: "Chrome · Windows" }) === `"Chrome · Windows" oturumunu kapatmak istiyor musunuz?`
+    && trA("sessions.openedAt", { date: "25 Kas 14:30" }) === "Açılış 25 Kas 14:30" && trA("sessions.lastSeenAt", { date: "—" }) === "Son görülme —"
+    && trA("sessions.endedSummary", { count: 3 }) === "Son kapanan oturumlar (3)", "A12: TR argümanlı metinler bugünkü şablon dizgileriyle birebir");
+  const a12En: string[] = [...Object.keys(a12Tr).map((k) => enA(k) as string), enA("sessions.confirmOther", { device: "X" }), enA("sessions.openedAt", { date: "1" }), enA("sessions.endedSummary", { count: 2 })];
+  ok(a12En.every((v) => typeof v === "string" && v.length > 0 && !/[çğıöşüİ]/.test(v)), "A12: EN metinler eksiksiz ve Türkçe karakter içermez");
 }
 
 // ── 8. Terminoloji + kanonik kimlik ──────────────────────────────────────────
