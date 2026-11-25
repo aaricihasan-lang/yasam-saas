@@ -98,8 +98,8 @@
       "energy_body": { "title": "Body & Energy Practices", "desc": "Bioenergy, Reflexology and Cupping & Hijama workspaces", "badge": "Module" },
       "sifa_rehberi": { "title": "Natural Support & Guide", "desc": "Natural stones, natural support methods, nutrition and professional reference resources", "badge": "Module" },
       "digital_content": { "title": "Digital Content Centre", "desc": "Manage your personal archive and digital content in one place", "badge": "Centre", "stat": "{n, plural, one {# item} other {# items}}" },
-      "numerology": { "title": "Life Analysis Centre", "desc": "Numerology, Human Design and Cosmic Agenda analysis tools", "badge": "Centre", "stat": "{n, plural, one {# analysis} other {# analyses}}" },
-      "cosmic_calendar": { "title": "Life Calendar / Cosmic Agenda", "desc": "Hijri calendar, cupping days and the daily cosmic flow", "badge": "Center" },
+      "numerology": { "title": "Life Analysis Centre", "desc": "Numerology, Human Design and Cosmic Calendar analysis tools", "badge": "Centre", "stat": "{n, plural, one {# analysis} other {# analyses}}" },
+      "cosmic_calendar": { "title": "Life Calendar / Cosmic Calendar", "desc": "Hijri calendar, cupping days and the daily cosmic flow", "badge": "Centre" },
       "astrology": { "title": "Celestial Atlas", "desc": "The language of the sky, the depth of your analyses.", "badge": "Astrology" }
     },
     "moduleCard": {
@@ -327,7 +327,7 @@
         "desc": "Prepare nutrition plans for your clients with a food library, nutrition guide, and temperament and blood type profiles."
       },
       "kozmikAjanda": {
-        "title": "Cosmic Agenda",
+        "title": "Cosmic Calendar",
         "desc": "Follow the Hijri calendar, moon phases, retrograde periods, planetary hours and hijama days alongside the daily cosmic flow."
       },
       "humanDesign": {
@@ -628,7 +628,7 @@
         "dersNotu": "Lecture Notes Centre",
         "numeroloji": "Numerology",
         "humanDesign": "Human Design",
-        "cosmic": "Life Calendar / Cosmic Agenda",
+        "cosmic": "Life Calendar / Cosmic Calendar",
         "atlas": "Celestial Atlas",
         "stokAll": "All Products",
         "stokStones": "Natural Stone Products",
