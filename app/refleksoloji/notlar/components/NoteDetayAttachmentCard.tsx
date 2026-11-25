@@ -140,7 +140,7 @@ export function NoteDetayAttachmentCard({
               onClick={onRemove}
               className={`${actionBtn} border-red-300/80 bg-red-50 text-red-700 hover:bg-red-100`}
             >
-              Sil
+              {t("form.delete")}
             </button>
           </>
         ) : null}

@@ -22,7 +22,7 @@ export function NoteListCard({ note, onEdit, onDelete }: NoteListCardProps) {
       <div className="flex items-start justify-between gap-3">
         <h2 className="text-base font-black text-slate-900">{note.title}</h2>
         <span className="shrink-0 rounded-full bg-sky-100 px-2 py-0.5 text-xs font-bold text-sky-900">
-          {note.attachments.length} ek
+          {t("list.attachmentCount", { count: String(note.attachments.length) })}
         </span>
       </div>
 
@@ -46,7 +46,7 @@ export function NoteListCard({ note, onEdit, onDelete }: NoteListCardProps) {
           href={`/refleksoloji/notlar/${encodeURIComponent(note.id)}`}
           className="flex-1 rounded-lg border border-violet-300/80 bg-violet-100 px-3 py-1.5 text-center text-xs font-bold text-violet-950 transition hover:bg-violet-200/90"
         >
-          Detay
+          {t("list.detail")}
         </Link>
         <button
           type="button"
@@ -60,7 +60,7 @@ export function NoteListCard({ note, onEdit, onDelete }: NoteListCardProps) {
           onClick={onDelete}
           className="w-full rounded-lg bg-red-50 px-3 py-1.5 text-xs font-bold text-red-600 transition hover:bg-red-100 sm:w-auto"
         >
-          Sil
+          {t("form.delete")}
         </button>
       </div>
     </article>

@@ -92,7 +92,9 @@
         "noMatch": "No notes match your search.",
         "cancel": "Cancel",
         "syncRejected": "Could not be synchronised: {reason}",
-        "syncRejectedGeneric": "The server did not accept this note."
+        "syncRejectedGeneric": "The server did not accept this note.",
+        "detail": "Details",
+        "attachmentCount": "{count, plural, one {{count} attachment} other {{count} attachments}}"
       },
       "pdf": {
         "openNewTab": "Open in New Tab",

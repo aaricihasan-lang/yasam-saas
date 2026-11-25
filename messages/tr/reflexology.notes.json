@@ -92,7 +92,9 @@
         "noMatch": "Aramanızla eşleşen not bulunamadı.",
         "cancel": "Vazgeç",
         "syncRejected": "Eşitlenemedi: {reason}",
-        "syncRejectedGeneric": "Sunucu bu notu kabul etmedi."
+        "syncRejectedGeneric": "Sunucu bu notu kabul etmedi.",
+        "detail": "Detay",
+        "attachmentCount": "{count} ek"
       },
       "pdf": {
         "openNewTab": "Yeni Sekmede Aç",
