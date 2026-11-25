@@ -333,6 +333,7 @@ export default function DanisanKayitPage() {
   // Sunucu doğrulama metni Türkçedir: kaynak dilde (tr) aynen, diğer dillerde genel çevrilmiş metin (karışık dil yok).
   const isSourceLocale = useLocale() === DEFAULT_LOCALE;
   const tj = useTranslations("journey.form");
+  const tCommon = useTranslations("common");
   const router = useRouter();
   useBfcacheRefresh();
   const { showToast } = useToast();
@@ -394,7 +395,7 @@ export default function DanisanKayitPage() {
       setSaving(false);
       showToast({
         title: t("toast.failTitle"),
-        message: err instanceof SubmitTimeoutError ? err.message : t("toast.saveError"),
+        message: err instanceof SubmitTimeoutError ? tCommon("submitLock.timeout") : t("toast.saveError"),
         type: "error",
       });
     }
