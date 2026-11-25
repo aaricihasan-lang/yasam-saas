@@ -154,7 +154,7 @@ export function PlanPicker({
 
       {active && mode === "none" ? (
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-slate-600">
-          <span className="font-bold text-slate-800">{active.name}</span>
+          <span className="font-bold text-slate-800">{sysNames.planName(active)}</span>
           <span className="rounded-md bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600">{active.year}</span>
           {active.description ? <span className="text-slate-500">{active.description}</span> : null}
         </div>
