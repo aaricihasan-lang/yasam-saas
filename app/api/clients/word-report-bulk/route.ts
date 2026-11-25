@@ -1,4 +1,5 @@
 import { resolveReportBranding } from "@/lib/profile/reportBranding";
+import { resolveReportLocale } from "@/lib/i18n/reportLocale";
 import { NextRequest } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { serverErrorResponse } from "@/lib/http/apiError";
@@ -186,6 +187,8 @@ export async function POST(req: NextRequest): Promise<Response> {
     // F3A: uzman markalaması — istek başına TEK okuma (tüm danışanlar aynı markalamayı kullanır); hata → null.
     branding: await resolveReportBranding(db, { tenantId, userId: guard.userId }, { fullName: expertDisplayName(guard.profile) }),
     sections: includeCharges === true ? [...DEFAULT_FULL_SECTIONS, "ucretlendirme"] : DEFAULT_FULL_SECTIONS,
+    // I18N çıktı dili sözleşmesi: dil route girişinde tek kez çözülür.
+    output: await resolveReportLocale(req, { db, tenantId, userId: guard.userId }),
   });
   const buffer = await Packer.toBuffer(doc);
   // Toplu rapor = tek kullanıcı eylemi → tek olay + itemCount (danışan sayısı).

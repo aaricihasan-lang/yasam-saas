@@ -94,7 +94,11 @@ const TR_CATALOG_FRAGMENTS: { text: string; re: RegExp }[] = (() => {
   for (const ns of NAMESPACES) {
     const f = join(ROOT, `messages/tr/${ns}.json`);
     if (!existsSync(f)) continue;
-    for (const v of Object.values(flat(JSON.parse(readFileSync(f, "utf8"))))) {
+    // TR = EN aynı olan değerler (ör. "MARS", "Human Design", "Form") dil-bağımsızdır → sızıntı sayılmaz.
+    const enFile = join(ROOT, `messages/en/${ns}.json`);
+    const en = existsSync(enFile) ? flat(JSON.parse(readFileSync(enFile, "utf8"))) : {};
+    for (const [k, v] of Object.entries(flat(JSON.parse(readFileSync(f, "utf8"))))) {
+      if (en[k] === v) continue;
       for (const part of v.split(/\{[^}]*\}|·|•|\+|—|\/|\(|\)|:/)) {
         const t = part.trim();
         if (t.replace(/[^A-Za-zÇĞİÖŞÜçğıöşüâîû]/g, "").length >= 4) frags.add(t);
