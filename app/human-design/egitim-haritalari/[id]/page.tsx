@@ -10,7 +10,8 @@
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useLocale } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import { useEduLabel } from "@/app/human-design/egitim-merkezi/_ui/labels";
 import base from "@/app/_premium/hd-education/egitimYonetim.module.css";
 import css from "@/app/_premium/hd-education/egitimKatalog.module.css";
 import hh from "@/app/_premium/hd-education/hayatHikayesi.module.css";
@@ -26,20 +27,16 @@ import { birthTimeSeenHow, splitTimeStandard } from "@/lib/human-design/educatio
 import { putNoteHandoff } from "../noteHandoff";
 import { BiographyTab, SourcesTab, type BioState } from "./_hayat/BiographyViews";
 
-const ROLE_LABEL: Record<string, string> = { birth_time: "Doğum saati belgesi", date_place: "Tarih / yer", utc_standard: "Saat standardı kanıtı", extra: "Ek kaynak" };
 // FAZ 10: üç sekme — HD haritası (mevcut içerik AYNEN) · Hayat Hikâyesi · Kaynaklar. Sekme adreste (?sekme=) tutulur.
 type Tab = "harita" | "hayat" | "kaynaklar";
-const TABS: Array<{ id: Tab; label: string; short: string }> = [
-  { id: "harita", label: "Human Design Haritası", short: "HD Haritası" },
-  { id: "hayat", label: "Hayat Hikâyesi", short: "Hayat Hikâyesi" },
-  { id: "kaynaklar", label: "Kaynaklar", short: "Kaynaklar" },
-];
+// Sekme adları katalogdan: hd.education.detail.tab.<id> (uzun) / tabShort.<id> (kısa).
+const TABS: Tab[] = ["harita", "hayat", "kaynaklar"];
 const readTab = (): Tab => {
   if (typeof window === "undefined") return "harita";
   const t = new URLSearchParams(window.location.search).get("sekme");
   return t === "hayat" || t === "kaynaklar" ? t : "harita";
 };
-const fmtTime = (iso: string | null) => (iso ? new Date(iso).toLocaleString("tr-TR", { dateStyle: "short", timeStyle: "short" }) : "—");
+const fmtTime = (iso: string | null, tag = "tr-TR") => (iso ? new Date(iso).toLocaleString(tag, { dateStyle: "short", timeStyle: "short" }) : "—");
 function fmtOffset(sec: number | null): string {
   if (sec === null) return "—";
   const a = Math.abs(sec);
@@ -54,6 +51,9 @@ export default function EducationChartDetailPage() {
   const [state, setState] = useState<"loading" | "ok" | "notfound" | "error">("loading");
   const router = useRouter();
   const locale = useLocale();
+  const t = useTranslations("hd.education");
+  const label = useEduLabel();
+  const dateTag = locale === "tr" ? "tr-TR" : "en-GB";
   // İlk render'da veri yüklenirken yalnız "yükleniyor" çizilir; sekme adresten tembel okunur (hidrasyon farkı oluşmaz).
   const [tab, setTabState] = useState<Tab>(readTab);
   const [lang, setLang] = useState<BioLang>(parseBioLang(locale) ?? "tr");
@@ -104,7 +104,7 @@ export default function EducationChartDetailPage() {
   if (state === "loading") return <EduLoading />;
   if (state === "notfound") return <EduNotFound />;
   if (state === "error" || !d) {
-    return <EduShell><p className={base.err} role="alert">Harita şu anda yüklenemedi. Bağlantınızı kontrol edip sayfayı yenileyin.</p></EduShell>;
+    return <EduShell><p className={base.err} role="alert">{t("ws.loadError")}</p></EduShell>;
   }
 
   const ts = splitTimeStandard(d.timeStandard);
@@ -112,71 +112,71 @@ export default function EducationChartDetailPage() {
 
   return (
     <EduShell>
-      <Link className={css.back} href="/human-design/egitim-haritalari">← Hazır Eğitim Haritaları</Link>
+      <Link className={css.back} href="/human-design/egitim-haritalari">{t("cat.back")}</Link>
       <header className={css.dHead} aria-labelledby="edu-detail-title">
         <div>
-          <span className={css.cKat}>{EDU_CATEGORY_LABEL[d.category] ?? d.category}</span>
+          <span className={css.cKat}>{label("eduCategory", d.category, EDU_CATEGORY_LABEL[d.category] ?? d.category)}</span>
           <h1 id="edu-detail-title" className={css.dTitle}>{d.displayName}</h1>
-          <p className={css.sub2}>{fmtCalendarDate(d.birthDate)} · {d.documentedLocalTime} (belgedeki yerel saat) · {d.birthPlace}</p>
+          <p className={css.sub2}>{fmtCalendarDate(d.birthDate)} · {d.documentedLocalTime}{t("cat.docTimeSuffix")} · {d.birthPlace}</p>
         </div>
         <span className={css.cTags}>
           <EvidenceTag value={d.birthTimeEvidence} />
-          <span className={`${base.tag} ${base.tOk}`}>UTC doğrulandı</span>
-          <Link className={`${base.btn} ${base.save}`} style={{ minHeight: 44 }} href={`/human-design/egitim-haritalari/${encodeURIComponent(d.id)}/calisma-alani`} data-edu-workspace>Çalışma alanını aç</Link>
+          <span className={`${base.tag} ${base.tOk}`}>{t("cdetail.utcVerified")}</span>
+          <Link className={`${base.btn} ${base.save}`} style={{ minHeight: 44 }} href={`/human-design/egitim-haritalari/${encodeURIComponent(d.id)}/calisma-alani`} data-edu-workspace>{t("detail.openWorkspace")}</Link>
         </span>
       </header>
 
-      <nav className={hh.tabbar} role="tablist" aria-label="Harita bölümleri">
-        {TABS.map((t) => (
-          <button key={t.id} type="button" role="tab" id={`edu-tab-${t.id}`} aria-selected={tab === t.id} aria-controls={`edu-panel-${t.id}`}
-            className={`${hh.tabBtn} ${tab === t.id ? hh.tabOn : ""}`} onClick={() => setTab(t.id)} data-edu-tab={t.id} aria-label={t.label}>
-            <span className={hh.tabLong}>{t.label}</span><span className={hh.tabShort}>{t.short}</span>
+      <nav className={hh.tabbar} role="tablist" aria-label={t("cdetail.tabsAria")}>
+        {TABS.map((id) => (
+          <button key={id} type="button" role="tab" id={`edu-tab-${id}`} aria-selected={tab === id} aria-controls={`edu-panel-${id}`}
+            className={`${hh.tabBtn} ${tab === id ? hh.tabOn : ""}`} onClick={() => setTab(id)} data-edu-tab={id} aria-label={t(`cdetail.tab.${id}`)}>
+            <span className={hh.tabLong}>{t(`cdetail.tab.${id}`)}</span><span className={hh.tabShort}>{t(`cdetail.tabShort.${id}`)}</span>
           </button>
         ))}
       </nav>
 
       <div id="edu-panel-harita" role="tabpanel" aria-labelledby="edu-tab-harita" hidden={tab !== "harita"}>
-      <section className={`${base.panel} ${css.chartPanel}`} aria-label="BodyGraph ve harita bilgileri">
+      <section className={`${base.panel} ${css.chartPanel}`} aria-label={t("detail.chartAria")}>
         <EduBodygraphViewer result={d.chart.result as unknown as HdComputedChart} roxyRender={d.chart.render} title={d.displayName} />
         <EduChartFacts result={d.chart.result as unknown as HdComputedChart} />
       </section>
 
       <div className={css.below}>
         <section className={base.panel} aria-labelledby="edu-src">
-          <h2 id="edu-src" className={base.h2}>Doğum verisi ve kaynaklar</h2>
+          <h2 id="edu-src" className={base.h2}>{t("cdetail.birthSources")}</h2>
           <dl className={base.dl} style={{ marginTop: 10 }}>
-            <dt>Belge ifadesi</dt><dd className={base.quote}>{d.documentQuote}</dd>
-            {d.calendarNote ? (<><dt>Takvim notu</dt><dd>{d.calendarNote}</dd></>) : null}
-            {seenHow ? (<><dt>Belge nasıl görüldü</dt><dd data-edu-seen-how>{seenHow}</dd></>) : null}
+            <dt>{t("cdetail.docQuote")}</dt><dd className={base.quote}>{d.documentQuote}</dd>
+            {d.calendarNote ? (<><dt>{t("cdetail.calNote")}</dt><dd>{d.calendarNote}</dd></>) : null}
+            {seenHow ? (<><dt>{t("cdetail.seenHow")}</dt><dd data-edu-seen-how>{seenHow}</dd></>) : null}
           </dl>
           <ul className={base.srcList} style={{ marginTop: 12 }}>
             {d.sources.length ? d.sources.map((s, i) => (
               <li key={i}>
-                <b>{ROLE_LABEL[s.role] ?? "Kaynak"}</b>
-                <a className={base.ext} href={s.url} target="_blank" rel="noopener noreferrer">{s.institution ?? s.documentTitle ?? "Belgeyi görüntüle"}</a>
-                <small>{[s.documentTitle && s.institution ? s.documentTitle : null, s.archiveRef, s.documentDate, s.primarySecondary ? `${s.primarySecondary} kaynak` : null, s.timeExplicit ? "saat belgede açık" : null, s.license ? `lisans: ${s.license}` : null].filter(Boolean).join(" · ")}</small>
+                <b>{t.has(`cdetail.srcRole.${s.role}`) ? t(`cdetail.srcRole.${s.role}`) : t("cdetail.srcRole.other")}</b>
+                <a className={base.ext} href={s.url} target="_blank" rel="noopener noreferrer">{s.institution ?? s.documentTitle ?? t("cdetail.viewDoc")}</a>
+                <small>{[s.documentTitle && s.institution ? s.documentTitle : null, s.archiveRef, s.documentDate, s.primarySecondary ? (t.has(`cdetail.ps.${s.primarySecondary}`) ? t(`cdetail.ps.${s.primarySecondary}`) : `${s.primarySecondary} kaynak`) : null, s.timeExplicit ? t("cdetail.timeExplicit") : null, s.license ? t("cdetail.license", { license: s.license }) : null].filter(Boolean).join(" · ")}</small>
               </li>
-            )) : <li>Kaynak kaydı yok.</li>}
+            )) : <li>{t("cdetail.noSources")}</li>}
           </ul>
         </section>
         <section className={base.panel} aria-labelledby="edu-utc">
-          <h2 id="edu-utc" className={base.h2}>Saat ve UTC</h2>
+          <h2 id="edu-utc" className={base.h2}>{t("cdetail.timeUtc")}</h2>
           <dl className={base.dl} style={{ marginTop: 10 }}>
-            <dt>Belgedeki yerel saat</dt><dd>{d.documentedLocalTime}</dd>
-            <dt>Saat standardı</dt><dd data-edu-time-standard>{ts.standard ?? "—"}</dd>
-            {ts.sensitivity ? (<><dt>Harita duyarlılığı</dt><dd data-edu-sensitivity>{ts.sensitivity}</dd></>) : null}
-            <dt>Ofset</dt><dd>{fmtOffset(d.utcOffsetSeconds)}</dd>
-            <dt>UTC anı</dt><dd>{d.birthUtc}</dd>
-            {d.latitude !== null && d.longitude !== null ? (<><dt>Koordinat</dt><dd>{d.latitude}, {d.longitude}</dd></>) : null}
-            <dt>Metodoloji</dt><dd>{d.utcMethodology}</dd>
+            <dt>{t("cdetail.docLocalTime")}</dt><dd>{d.documentedLocalTime}</dd>
+            <dt>{t("cdetail.timeStd")}</dt><dd data-edu-time-standard>{ts.standard ?? "—"}</dd>
+            {ts.sensitivity ? (<><dt>{t("cdetail.sensitivity")}</dt><dd data-edu-sensitivity>{ts.sensitivity}</dd></>) : null}
+            <dt>{t("cdetail.offset")}</dt><dd>{fmtOffset(d.utcOffsetSeconds)}</dd>
+            <dt>{t("cdetail.utcMoment")}</dt><dd>{d.birthUtc}</dd>
+            {d.latitude !== null && d.longitude !== null ? (<><dt>{t("cdetail.coords")}</dt><dd>{d.latitude}, {d.longitude}</dd></>) : null}
+            <dt>{t("cdetail.method")}</dt><dd>{d.utcMethodology}</dd>
           </dl>
         </section>
       </div>
 
-      <section className={`${base.panel} ${css.lowBand}`} aria-label="Kullanım bilgisi">
-        <p>Bu harita platform yönetimi tarafından doğrulanmış kayıtlı hesap sonucudur (sürüm v{d.chart.version} · {fmtTime(d.chart.computedAt)}). Açılışta yeniden hesaplama yapılmaz.</p>
-        <p>Dört Ok / PHS bu eğitim haritasında yer almıyor. Bu ekran danışan kaydı oluşturmaz.</p>
-        <p>Eğitim amaçlıdır; kişi, mirasçıları veya hak sahipleriyle herhangi bir ticari bağlantı, sponsorluk ya da onay ilişkisi yoktur.</p>
+      <section className={`${base.panel} ${css.lowBand}`} aria-label={t("detail.usageAria")}>
+        <p>{t("cdetail.usage1", { version: String(d.chart.version), at: fmtTime(d.chart.computedAt, dateTag) })}</p>
+        <p>{t("cdetail.usage2")}</p>
+        <p>{t("cdetail.usage3")}</p>
       </section>
       </div>
 

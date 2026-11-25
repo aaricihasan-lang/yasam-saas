@@ -20,12 +20,13 @@ import type { HdComputedChart } from "@/lib/human-design/chart/computedChart";
 import { PRIV_CATEGORY_LABEL, PRIV_FICTIONAL_DECLARATION_TEXT, PRIV_KIND_LABEL, PRIV_METHOD_LABEL, type PrivItemDetail } from "@/lib/human-design/education/private/privateContract";
 import { ErrorView, LoadingView, NotFoundView, Shell } from "./Shell";
 import { DeleteFlow, TwoStepConfirm } from "./DeleteFlow";
-import { fmtDay, privCall, privDownload, type Side } from "./privApi";
+import { fmtDay, privCall, privDownload, useEduApiError, type Side } from "./privApi";
 import { useEduLabel } from "./labels";
 
 export function PrivateDetailView({ side, id, listHref, editHref }: { side: Side; id: string; listHref: string; editHref: string }) {
   const t = useTranslations("hd.education");
   const label = useEduLabel();
+  const apiErr = useEduApiError();
   const router = useRouter();
   const [d, setD] = useState<PrivItemDetail | null>(null);
   const [state, setState] = useState<"loading" | "ok" | "notfound" | "error">("loading");
@@ -125,7 +126,7 @@ export function PrivateDetailView({ side, id, listHref, editHref }: { side: Side
             <div className={base.actions}>
               {k.method !== "egitmen_beyani" ? (
                 <button type="button" className={`${base.btn} ${base.ghost} ${oz.touch}`} data-edu-evidence-dl
-                  onClick={async () => { const r = await privDownload(side, `${base1}/consents/${k.id}/evidence`, "izin-kaniti"); setMsg(r.ok ? t("detail.evidenceDownloaded") : r.error ?? null); }}>{t("detail.evidenceCopy")}</button>
+                  onClick={async () => { const r = await privDownload(side, `${base1}/consents/${k.id}/evidence`, "izin-kaniti"); setMsg(r.ok ? t("detail.evidenceDownloaded") : apiErr({ ...r, download: true })); }}>{t("detail.evidenceCopy")}</button>
               ) : null}
               {!k.withdrawnAt ? <button type="button" className={`${base.btn} ${base.danger} ${oz.touch}`} onClick={() => setModal("withdraw")} data-edu-withdraw>{t("detail.withdraw")}</button> : null}
             </div>
@@ -150,7 +151,7 @@ export function PrivateDetailView({ side, id, listHref, editHref }: { side: Side
           onConfirm={async () => {
             if (!k) return t("detail.noConsentOnRecord");
             const r = await privCall(side, `${base1}/consents/${k.id}/withdraw`, { method: "POST", body: { channel: side === "owner" ? "owner_karari" : "danisan_talebi", confirm: true } });
-            if (!r.ok) return r.error;
+            if (!r.ok) return apiErr(r);
             setModal(null); setMsg(t("detail.withdrawnMsg"));
             if (side === "trainer") router.push(`${listHref}?izin=geri`); else void load();
             return null;

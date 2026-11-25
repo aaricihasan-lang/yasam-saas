@@ -23,7 +23,7 @@ import { ConsentForm } from "../../_ui/ConsentForm";
 import { DeclarationForm } from "../../_ui/DeclarationForm";
 import { FictionalForm } from "../../_ui/FictionalForm";
 import { NewAnalysisButton } from "../../_ui/NewAnalysisEntry";
-import { fmtDay, privCall } from "../../_ui/privApi";
+import { fmtDay, privCall, useEduApiError } from "../../_ui/privApi";
 import { useEduHdLabels, useEduLabel } from "../../_ui/labels";
 
 type ChartRow = { id: string; client_id: string | null; client_name: string | null; birth_date: string | null; type_code: string | null; profile_code: string | null;
@@ -37,6 +37,7 @@ function AddFlow() {
   const t = useTranslations("hd.education");
   const L = useEduHdLabels();
   const label = useEduLabel();
+  const apiErr = useEduApiError();
   const sp = useSearchParams();
   const router = useRouter();
   const access = useAccess("trainer", "/api/hd/education/private/access");
@@ -76,7 +77,7 @@ function AddFlow() {
 
   const fetchStatus = useCallback((id: string) => privCall<{ status: Status }>("trainer", `/api/hd/education/private/charts/${id}/status`), []);
   const applyStatus = useCallback((r: Awaited<ReturnType<typeof fetchStatus>>) => {
-    if (r.ok) { setStatus(r.body.status); setStatusErr(null); } else { setStatus(null); setStatusErr(r.notFound ? t("add.chartNotFound") : r.error); }
+    if (r.ok) { setStatus(r.body.status); setStatusErr(null); } else { setStatus(null); setStatusErr(r.notFound ? t("add.chartNotFound") : apiErr(r)); }
     return r.ok ? r.body.status : null;
   }, []);
   const loadStatus = useCallback(async (id: string) => applyStatus(await fetchStatus(id)), [applyStatus, fetchStatus]);
@@ -117,7 +118,7 @@ function AddFlow() {
     setBusy(false);
     if (r.ok && r.body.id) { setDone(r.body.id); return; }
     if (!r.ok && r.code === "DUPLICATE") { setErr({ text: t("add.duplicate"), dup: true }); void loadStatus(chartId); return; }
-    setErr({ text: r.ok ? t("add.noId") : r.error });
+    setErr({ text: r.ok ? t("add.noId") : apiErr(r) });
   }
 
   const steps = [t("add.step1"), t("add.step2"), t("add.step3")];

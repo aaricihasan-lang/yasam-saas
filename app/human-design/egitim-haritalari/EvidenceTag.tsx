@@ -1,8 +1,11 @@
+"use client";
+
 /**
  * FAZ 19 — doğum saati kaynak etiketi (katalog kartı + kişi ayrıntısı). Sabit "Belgeli doğum saati" YERİNE kayıtlı kaynak
  * düzeyinden türetilir (lib/human-design/education/birthEvidence.ts); yalnız verinin desteklediğini söyler.
  */
 import base from "@/app/_premium/hd-education/egitimYonetim.module.css";
+import { useEduLabel } from "@/app/human-design/egitim-merkezi/_ui/labels";
 import { EDU_BIRTH_EVIDENCE_HINT, EDU_BIRTH_EVIDENCE_LABEL, type EduBirthTimeEvidence } from "@/lib/human-design/education/birthEvidence";
 
 const TONE: Readonly<Record<EduBirthTimeEvidence, string>> = {
@@ -10,8 +13,9 @@ const TONE: Readonly<Record<EduBirthTimeEvidence, string>> = {
 };
 
 export function EvidenceTag({ value }: { value: EduBirthTimeEvidence | null | undefined }) {
+  const label = useEduLabel();
   const v: EduBirthTimeEvidence = value && value in EDU_BIRTH_EVIDENCE_LABEL ? value : "kaynakli";
   return (
-    <span className={`${base.tag} ${TONE[v]}`} title={EDU_BIRTH_EVIDENCE_HINT[v]} data-edu-birth-evidence={v}>{EDU_BIRTH_EVIDENCE_LABEL[v]}</span>
+    <span className={`${base.tag} ${TONE[v]}`} title={label("evidenceHint", v, EDU_BIRTH_EVIDENCE_HINT[v])} data-edu-birth-evidence={v}>{label("evidence", v, EDU_BIRTH_EVIDENCE_LABEL[v])}</span>
   );
 }

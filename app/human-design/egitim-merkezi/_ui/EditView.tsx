@@ -15,7 +15,7 @@ import kat from "@/app/_premium/hd-education/egitimKatalog.module.css";
 import oz from "@/app/_premium/hd-education/ozelArsiv.module.css";
 import { PRIV_CATEGORIES, PRIV_CATEGORY_LABEL, type PrivCategory, type PrivItemDetail } from "@/lib/human-design/education/private/privateContract";
 import { ErrorView, LoadingView, NotFoundView, Shell } from "./Shell";
-import { privCall, type Side } from "./privApi";
+import { privCall, useEduApiError, type Side } from "./privApi";
 import { useEduLabel } from "./labels";
 
 type Form = { title: string; aliasLabel: string; displayMode: "alias" | "named"; category: PrivCategory; description: string; teachingNotes: string };
@@ -27,6 +27,7 @@ const fromDetail = (d: PrivItemDetail): Form => ({
 export function EditView({ side, id, backHref }: { side: Side; id: string; backHref: string }) {
   const t = useTranslations("hd.education");
   const label = useEduLabel();
+  const apiErr = useEduApiError();
   const router = useRouter();
   const api = side === "owner" ? "/api/admin/hd/education/private" : "/api/hd/education/private";
   const [d, setD] = useState<PrivItemDetail | null>(null);
@@ -64,7 +65,7 @@ export function EditView({ side, id, backHref }: { side: Side; id: string; backH
     setBusy(false);
     if (r.ok && r.body.updatedAt) { router.push(`${backHref}?kaydedildi=1`); return; }
     if (!r.ok && r.code === "CONFLICT") { setErr({ text: t("edit.conflict"), conflict: true }); return; }
-    setErr({ text: r.ok ? t("edit.notVerified") : r.error });
+    setErr({ text: r.ok ? t("edit.notVerified") : apiErr(r) });
   }
 
   return (

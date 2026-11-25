@@ -11,7 +11,7 @@ import { useTranslations } from "next-intl";
 import base from "@/app/_premium/hd-education/egitimYonetim.module.css";
 import oz from "@/app/_premium/hd-education/ozelArsiv.module.css";
 import { PRIV_EVIDENCE_MAX_BYTES, PRIV_METHOD_LABEL, type PrivConsentMethod } from "@/lib/human-design/education/private/privateContract";
-import { privCall } from "./privApi";
+import { privCall, useEduApiError } from "./privApi";
 import { useEduLabel } from "./labels";
 
 type Text = { version: string; title: string; body: string; sha256: string };
@@ -30,6 +30,7 @@ export function ConsentForm({ hdClientId, clientLabel, onSaved, onCancel }: {
 }) {
   const t = useTranslations("hd.education");
   const label = useEduLabel();
+  const apiErr = useEduApiError();
   const [text, setText] = useState<Text | null>(null);
   const [textState, setTextState] = useState<"loading" | "ok" | "unapproved" | "error">("loading");
   const [name, setName] = useState("");
@@ -73,7 +74,7 @@ export function ConsentForm({ hdClientId, clientLabel, onSaved, onCancel }: {
       textVersion: text.version, textSha256: text.sha256, givenOn, method, evidenceMime: file.mime, evidenceBase64: file.b64,
     } });
     setBusy(false);
-    if (r.ok && r.body.id) onSaved(r.body.id); else setErr(r.ok ? t("consent.noId") : r.error);
+    if (r.ok && r.body.id) onSaved(r.body.id); else setErr(r.ok ? t("consent.noId") : apiErr(r));
   }
 
   if (textState === "loading") return <p className={base.empty} aria-live="polite">{t("consent.textLoading")}</p>;

@@ -8,6 +8,8 @@
  */
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { useTranslations } from "next-intl";
+import { useEduLabel } from "@/app/human-design/egitim-merkezi/_ui/labels";
 import base from "@/app/_premium/hd-education/egitimYonetim.module.css";
 import css from "@/app/_premium/hd-education/egitimKatalog.module.css";
 import { EDU_CATEGORY_LABEL, type EduCatalogListCard, type EduCategory } from "@/lib/human-design/education/educationContract";
@@ -24,6 +26,9 @@ type Card = EduCatalogListCard & { bio?: BioCardMeta | null };
 const haystack = (i: Card) => [i.displayName, i.bio?.profession, i.bio?.country, i.bio?.era, i.bio?.lifeSpan, i.birthPlace].filter(Boolean).join(" ").toLocaleLowerCase("tr-TR");
 
 export default function EducationCatalogPage() {
+  const t = useTranslations("hd.education");
+  const label = useEduLabel();
+  const catLabel = (c: EduCategory) => label("eduCategory", c, EDU_CATEGORY_LABEL[c] ?? c);
   const [items, setItems] = useState<Card[] | null>(null);
   // Owner kararı 30.10.2026: aile kartları (sunucu yalnız tüm üyeleri yayımlı aileleri döner) — ana içeriğin en altında.
   const [families, setFamilies] = useState<EduVisibleFamily[]>([]);
@@ -54,29 +59,29 @@ export default function EducationCatalogPage() {
   return (
     <EduShell>
       <section className={base.hero} aria-labelledby="edu-cat-title">
-        <p className={base.eyebrow}>YAŞAM SİSTEMİ · HUMAN DESIGN</p>
-        <h1 id="edu-cat-title" className={base.title}>Hazır Eğitim Haritaları</h1>
-        <p className={base.sub}>Kaynaklı doğum verisiyle hazırlanmış, eğitim amaçlı örnek haritalar</p>
+        <p className={base.eyebrow}>{t("cat.eyebrow")}</p>
+        <h1 id="edu-cat-title" className={base.title}>{t("hub.centralTitle")}</h1>
+        <p className={base.sub}>{t("cat.sub")}</p>
       </section>
-      <p className={base.note}>Eğitim amaçlıdır. Bu kişiler, mirasçıları veya hak sahipleriyle herhangi bir ticari bağlantı, sponsorluk ya da onay ilişkisi yoktur.</p>
+      <p className={base.note}>{t("cat.disclaimer")}</p>
       {state === "error" ? (
-        <p className={base.err} role="alert">Katalog şu anda yüklenemedi. Bağlantınızı kontrol edip sayfayı yenileyin.</p>
+        <p className={base.err} role="alert">{t("cat.loadError")}</p>
       ) : (
-        <section className={base.panel} aria-label="Eğitim haritaları">
+        <section className={base.panel} aria-label={t("cat.chartsAria")}>
           {items && items.length ? (
             <>
               <div className={base.tools}>
-                <input className={`${base.input} ${css.search}`} type="search" placeholder="Ad, meslek, ülke veya dönemle ara…" aria-label="İsimle ara (meslek, ülke ve dönem de aranır)" value={q} onChange={(e) => setQ(e.target.value)} />
-                <select className={base.select} aria-label="Sıralama" value={sort} onChange={(e) => setSort(e.target.value as Sort)}>
-                  <option value="az">Sırala: A → Z</option>
-                  <option value="yil">Sırala: Doğum yılı</option>
+                <input className={`${base.input} ${css.search}`} type="search" placeholder={t("cat.searchPh")} aria-label={t("cat.searchAria")} value={q} onChange={(e) => setQ(e.target.value)} />
+                <select className={base.select} aria-label={t("cat.sortAria")} value={sort} onChange={(e) => setSort(e.target.value as Sort)}>
+                  <option value="az">{t("cat.sortAz")}</option>
+                  <option value="yil">{t("cat.sortYear")}</option>
                 </select>
               </div>
               {cats.length > 1 ? (
-                <div className={css.chips} role="group" aria-label="Kategori">
-                  <button type="button" className={`${css.chip} ${kat === "all" ? css.chipOn : ""}`} aria-pressed={kat === "all"} onClick={() => setKat("all")}>Tümü</button>
+                <div className={css.chips} role="group" aria-label={t("priv.categoryAria")}>
+                  <button type="button" className={`${css.chip} ${kat === "all" ? css.chipOn : ""}`} aria-pressed={kat === "all"} onClick={() => setKat("all")}>{t("priv.all")}</button>
                   {cats.map((c) => (
-                    <button key={c} type="button" className={`${css.chip} ${kat === c ? css.chipOn : ""}`} aria-pressed={kat === c} onClick={() => setKat(c)}>{EDU_CATEGORY_LABEL[c] ?? c}</button>
+                    <button key={c} type="button" className={`${css.chip} ${kat === c ? css.chipOn : ""}`} aria-pressed={kat === c} onClick={() => setKat(c)}>{catLabel(c)}</button>
                   ))}
                 </div>
               ) : null}
@@ -84,25 +89,25 @@ export default function EducationCatalogPage() {
                 <div className={css.cards}>
                   {rows.map((i) => (
                     <Link key={i.id} className={css.card} href={`/human-design/egitim-haritalari/${i.id}`}>
-                      <span className={css.cKat}>{EDU_CATEGORY_LABEL[i.category] ?? i.category}</span>
+                      <span className={css.cKat}>{catLabel(i.category)}</span>
                       <h3>{i.displayName}</h3>
                       {i.bio?.profession ? <p className={css.cMeta} data-edu-card-profession>{i.bio.profession}{i.bio.lifeSpan ? ` · ${i.bio.lifeSpan}` : ""}</p> : null}
                       <p className={css.cMeta}>{fmtCalendarDate(i.birthDate)} · {i.documentedLocalTime}</p>
                       <p className={css.cMeta}>{i.birthPlace}</p>
                       <span className={css.cTags}>
-                        {i.bio ? <span className={`${base.tag} ${base.tOk}`} data-edu-card-bio>Hayat Hikâyesi</span> : null}
+                        {i.bio ? <span className={`${base.tag} ${base.tOk}`} data-edu-card-bio>{t("cat.bioTag")}</span> : null}
                       </span>
-                      <span className={css.cGo}>Haritayı aç →</span>
+                      <span className={css.cGo}>{t("cat.openChart")}</span>
                     </Link>
                   ))}
                 </div>
               ) : (
-                <p className={base.empty}>Aramanızla eşleşen harita yok.</p>
+                <p className={base.empty}>{t("cat.noMatch")}</p>
               )}
-              <p className={base.count}>{rows.length} / {items.length} yayımlı eğitim haritası</p>
+              <p className={base.count}>{t("cat.count", { shown: String(rows.length), total: String(items.length), count: items.length })}</p>
             </>
           ) : (
-            <p className={base.empty}>Henüz yayımlanmış eğitim haritası yok. Haritalar platform yönetimi tarafından doğrulanıp yayımlandıkça burada görünür.</p>
+            <p className={base.empty}>{t("cat.empty")}</p>
           )}
         </section>
       )}

@@ -11,7 +11,7 @@ import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import base from "@/app/_premium/hd-education/egitimYonetim.module.css";
 import oz from "@/app/_premium/hd-education/ozelArsiv.module.css";
-import { privCall } from "./privApi";
+import { privCall, useEduApiError } from "./privApi";
 
 type DeclText = { version: string; title: string; body: string; sha256: string };
 const today = () => new Date().toLocaleDateString("sv-SE", { timeZone: "Europe/Istanbul" });
@@ -20,6 +20,7 @@ export function DeclarationForm({ hdClientId, clientLabel, onSaved, onCancel }: 
   hdClientId: string; clientLabel: string; onSaved: (consentId: string) => void; onCancel: () => void;
 }) {
   const t = useTranslations("hd.education");
+  const apiErr = useEduApiError();
   const [text, setText] = useState<DeclText | null>(null);
   const [state, setState] = useState<"loading" | "ok" | "closed" | "error">("loading");
   const [relation, setRelation] = useState<"danisan" | "yasal_temsilci">("danisan");
@@ -62,7 +63,7 @@ export function DeclarationForm({ hdClientId, clientLabel, onSaved, onCancel }: 
     } });
     setBusy(false);
     if (r.ok && r.body.id) { onSaved(r.body.id); return; }
-    setErr(r.ok ? t("decl.saveFailed") : r.error);
+    setErr(r.ok ? t("decl.saveFailed") : apiErr(r));
   }
 
   return (

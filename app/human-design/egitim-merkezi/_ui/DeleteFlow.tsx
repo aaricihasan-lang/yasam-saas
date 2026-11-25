@@ -8,7 +8,7 @@ import { useTranslations } from "next-intl";
 import base from "@/app/_premium/hd-education/egitimYonetim.module.css";
 import oz from "@/app/_premium/hd-education/ozelArsiv.module.css";
 import { bulkDeletePhrase, bulkPhraseMatches, requiresBulkDeleteGuard } from "@/lib/ui/bulkDeleteGuard";
-import { privCall, type Side } from "./privApi";
+import { privCall, useEduApiError, type Side } from "./privApi";
 
 export function Modal({ labelId, children, onClose, wide = false }: { labelId: string; children: React.ReactNode; onClose: () => void; wide?: boolean }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -33,6 +33,7 @@ export function DeleteFlow({ side, endpoint, items, onDone, onCancel }: {
 }) {
   const t = useTranslations("hd.education");
   const n = items.length;
+  const apiErr = useEduApiError();
   const triple = requiresBulkDeleteGuard(n);
   const total = triple ? 3 : 2;
   const phrase = bulkDeletePhrase(n);
@@ -47,7 +48,7 @@ export function DeleteFlow({ side, endpoint, items, onDone, onCancel }: {
     const r = await privCall<{ deleted: number }>(side, endpoint, { method: "POST", body: { ids: items.map((x) => x.id), confirmCount: n, ...(triple ? { confirmPhrase: typed } : {}) } });
     setBusy(false);
     if (r.ok && r.body.deleted === n) onDone(n);
-    else setErr(r.ok ? t("del.unexpected") : r.error);
+    else setErr(r.ok ? t("del.unexpected") : apiErr(r));
   }
 
   return (

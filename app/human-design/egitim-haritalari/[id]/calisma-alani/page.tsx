@@ -7,6 +7,7 @@
  */
 import { useParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
+import { useTranslations } from "next-intl";
 import base from "@/app/_premium/hd-education/egitimYonetim.module.css";
 import { premiumStateFromChart } from "@/lib/human-design/bodygraph/premiumChartState";
 import type { HdComputedChart } from "@/lib/human-design/chart/computedChart";
@@ -16,6 +17,7 @@ import { EduLoading, EduNotFound, EduShell } from "../../EduShell";
 import { AnnotationWorkspace } from "@/app/human-design/egitim-merkezi/_calisma/AnnotationWorkspace";
 
 export default function CentralWorkspacePage() {
+  const t = useTranslations("hd.education");
   const params = useParams<{ id: string }>();
   const id = String(params?.id ?? "");
   const [d, setD] = useState<EduCatalogDetail | null>(null);
@@ -32,12 +34,12 @@ export default function CentralWorkspacePage() {
 
   if (st === "loading") return <EduLoading />;
   if (st === "notfound") return <EduNotFound />;
-  if (st === "error" || !d) return <EduShell><p className={base.err} role="alert">Harita şu anda yüklenemedi. Bağlantınızı kontrol edip sayfayı yenileyin.</p></EduShell>;
-  if (!state) return <EduShell><p className={base.err} role="alert" data-ann-unsupported>Bu haritanın çizimi çalışma alanında kullanılamıyor (kayıtlı veri premium BodyGraph ile birebir doğrulanamadı).</p></EduShell>;
+  if (st === "error" || !d) return <EduShell><p className={base.err} role="alert">{t("ws.loadError")}</p></EduShell>;
+  if (!state) return <EduShell><p className={base.err} role="alert" data-ann-unsupported>{t("ws.unsupported")}</p></EduShell>;
   return (
     <EduShell>
-      <AnnotationWorkspace kind="central" sourceId={d.id} state={state} title={d.displayName} eyebrow="EĞİTİM ÇALIŞMA ALANI · HAZIR EĞİTİM HARİTASI"
-        subtitle={<>{fmtCalendarDate(d.birthDate)} · {d.documentedLocalTime} (belgedeki yerel saat) · {d.birthPlace}</>}
+      <AnnotationWorkspace kind="central" sourceId={d.id} state={state} title={d.displayName} eyebrow={t("ws.centralEyebrow")}
+        subtitle={<>{fmtCalendarDate(d.birthDate)} · {d.documentedLocalTime}{t("cat.docTimeSuffix")} · {d.birthPlace}</>}
         backHref={`/human-design/egitim-haritalari/${encodeURIComponent(d.id)}`} />
     </EduShell>
   );

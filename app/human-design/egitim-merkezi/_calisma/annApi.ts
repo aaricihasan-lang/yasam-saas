@@ -23,9 +23,11 @@ async function req<T>(side: "trainer" | "owner", url: string, method = "GET", bo
     if (res.ok && j?.ok === true) return { ok: true, body: j as T };
     return {
       ok: false, status: res.status, code: j?.code ?? null, currentRevision: typeof j?.currentRevision === "number" ? j.currentRevision : null,
+      // i18n-ignore: TR kaynak metni (kaynak dilde aynen); diğer dillerde useEduApiError koddan üretir
       error: res.status === 404 ? "Kayıt bulunamadı veya erişiminiz yok." : j?.error ?? "İşlem tamamlanamadı. Lütfen tekrar deneyin.",
     };
   } catch {
+    // i18n-ignore: TR kaynak metni; diğer dillerde useEduApiError (code NETWORK)
     return { ok: false, status: 0, code: "NETWORK", currentRevision: null, error: "Ağ hatası — bağlantınızı kontrol edip tekrar deneyin." };
   }
 }

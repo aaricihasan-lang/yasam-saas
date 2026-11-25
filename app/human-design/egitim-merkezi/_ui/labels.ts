@@ -3,6 +3,7 @@
 import { hdAuthorityLabelFromCode, hdProfileLabelFromCode, hdTypeLabelFromCode } from "@/lib/human-design/codeHelpers";
 import { useTranslations } from "next-intl";
 import { useHdLabels } from "@/app/human-design/_i18n/useHdLabels";
+import { anchorLabel, type AnnAnchor, type AnnCenterId } from "@/lib/human-design/education/annotations/annotationContract";
 
 const safe = (f: (c: string) => string, c: string | null | undefined) => {
   if (!c) return "";
@@ -43,5 +44,21 @@ export function useEduLabel() {
     if (isTr) return tr ?? c;
     const key = `${group}.${c}`;
     return c && t.has(key) ? t(key) : tr ?? c;
+  };
+}
+
+const ANN_CENTER_TERM: Readonly<Record<AnnCenterId, string>> = {
+  Head: "head", Ajna: "ajna", Throat: "throat", G: "g_identity", Heart: "heart_ego", Sacral: "sacral", Root: "root", Spleen: "spleen", SolarPlexus: "solar_plexus",
+};
+
+/** Çizim hedefi (kapı / kanal / merkez) görünen adı. TR: lib anchorLabel AYNEN; diğer dillerde hd.terms + katalog. */
+export function useAnchorLabel() {
+  const L = useHdLabels();
+  const t = useTranslations("hd.education.ws");
+  return (a: AnnAnchor | null): string | null => {
+    if (L.isTr || !a) return anchorLabel(a);
+    if (a.k === "g") return t("anchorGate", { id: String(a.id) });
+    if (a.k === "h") return t("anchorChannel", { id: a.id });
+    return L.terms.label("center", ANN_CENTER_TERM[a.id]);
   };
 }

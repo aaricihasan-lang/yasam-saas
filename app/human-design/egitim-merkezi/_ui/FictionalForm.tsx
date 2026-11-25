@@ -16,12 +16,13 @@ import { HdBirthLocationPicker, type HdPickedLocation } from "@/app/human-design
 import {
   PRIV_CATEGORIES, PRIV_CATEGORY_LABEL, PRIV_FICTIONAL_DECLARATION_TEXT, PRIV_FICTIONAL_DECLARATION_VERSION, type PrivCategory,
 } from "@/lib/human-design/education/private/privateContract";
-import { privCall } from "./privApi";
+import { privCall, useEduApiError } from "./privApi";
 import { useEduLabel } from "./labels";
 
 export function FictionalForm({ onDone }: { onDone: (id: string) => void }) {
   const t = useTranslations("hd.education");
   const label = useEduLabel();
+  const apiErr = useEduApiError();
   const [f, setF] = useState({ title: "", alias: t("fic.defaultAlias"), category: "genel" as PrivCategory, notes: "", date: "", time: "" });
   const [loc, setLoc] = useState<HdPickedLocation | null>(null);
   const [accept, setAccept] = useState(false);
@@ -49,7 +50,7 @@ export function FictionalForm({ onDone }: { onDone: (id: string) => void }) {
       setErr({ text: t("fic.duplicate"), itemId });
       return;
     }
-    setErr({ text: r.ok ? t("add.noId") : r.error });
+    setErr({ text: r.ok ? t("add.noId") : apiErr(r) });
   }
 
   return (
