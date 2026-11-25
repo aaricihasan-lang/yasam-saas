@@ -1,0 +1,12 @@
+{
+  "home": {
+    "yhStatus": {
+      "loading": "Yükleniyor…",
+      "coming_soon": "Yakında",
+      "out_of_scope": "Bu hesap mesleki indeks kapsamı dışında",
+      "ready": "{count} kayıt hazır",
+      "preparing": "Hazırlanıyor",
+      "empty": "Hafıza hazır — henüz kayıt yok"
+    }
+  }
+}
