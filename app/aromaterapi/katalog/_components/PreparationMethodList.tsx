@@ -1,11 +1,14 @@
 "use client";
 
+import { useLocale, useTranslations } from "next-intl";
+import { formatNumber } from "@/lib/i18n/format";
+import type { ActiveLocale } from "@/lib/i18n/locales";
+import { useAromaReadError } from "@/lib/aromaterapi/useAromaterapiModuleText";
 import { useEnumLabel } from "@/lib/aromaterapi/useEnumLabel";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { MetaChip } from "@/app/aromaterapi/_components/read/ReadPrimitives";
 import { fetchMethodSeriesList } from "@/lib/aromaterapi/methodData";
-import { messageForCode } from "@/lib/aromaterapi/readClient";
 import { METHOD_KIND_TR, METHOD_STATUS_TR } from "@/lib/aromaterapi/readLabels";
 import type { MethodSeriesListItem } from "@/lib/aromaterapi/readTypes";
 
@@ -52,14 +55,17 @@ export function PreparationMethodList({
   }, [preparationId]);
 
   const { series, errorCode } = state;
+  const t = useTranslations("aromatherapy.catalog.method.list");
+  const locale = useLocale() as ActiveLocale;
+  const readError = useAromaReadError();
 
   const newHref = `/aromaterapi/katalog/preparatlar/${preparationId}/yontemler/yeni`;
 
   if (loading) {
-    return <p className="py-3 text-center text-[13px] font-semibold text-slate-400">Yöntemler yükleniyor…</p>;
+    return <p className="py-3 text-center text-[13px] font-semibold text-slate-400">{t("loading")}</p>;
   }
   if (errorCode) {
-    return <p role="alert" className="py-3 text-center text-[13px] font-bold text-rose-600">{messageForCode(errorCode)}</p>;
+    return <p role="alert" className="py-3 text-center text-[13px] font-bold text-rose-600">{readError(errorCode)}</p>;
   }
 
   return (
@@ -70,7 +76,7 @@ export function PreparationMethodList({
             href={newHref}
             className="inline-flex min-h-[44px] items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50/70 px-4 text-[13px] font-black text-emerald-800 shadow-sm transition hover:bg-emerald-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/60"
           >
-            <span aria-hidden>＋</span> Yeni Üretim Yöntemi
+            <span aria-hidden>＋</span> {t("new")}
           </Link>
         </div>
       ) : null}
@@ -89,8 +95,8 @@ export function PreparationMethodList({
                   </span>
                   <span className="mt-1 flex flex-wrap items-center gap-1.5">
                     <MetaChip tone={statusTone(s.latest_status)}>{enumLabel(METHOD_STATUS_TR, s.latest_status)}</MetaChip>
-                    <MetaChip tone="slate">{s.revision_count.toLocaleString("tr-TR")} revizyon</MetaChip>
-                    {s.verified_revision !== null ? <MetaChip tone="emerald">Doğrulanmış: {s.verified_revision}. rev</MetaChip> : null}
+                    <MetaChip tone="slate">{t("revisions", { n: s.revision_count, count: formatNumber(s.revision_count, undefined, locale) })}</MetaChip>
+                    {s.verified_revision !== null ? <MetaChip tone="emerald">{t("verified", { n: s.verified_revision })}</MetaChip> : null}
                     {s.source_title ? <MetaChip tone="teal">{s.source_title}</MetaChip> : null}
                   </span>
                 </span>
@@ -101,8 +107,8 @@ export function PreparationMethodList({
         </ul>
       ) : (
         <p className="rounded-xl border border-dashed border-slate-200 bg-slate-50/60 px-4 py-3.5 text-[13px] font-medium leading-relaxed text-slate-500">
-          Bu preparat için henüz üretim/elde ediliş yöntemi girilmemiş.
-          {!isDemo ? " Yukarıdaki “Yeni Üretim Yöntemi” ile ekleyebilirsiniz." : ""}
+          {t("empty")}
+          {!isDemo ? t("emptyAdd") : ""}
         </p>
       )}
     </div>
