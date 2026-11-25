@@ -18,8 +18,11 @@ import {
   spacer,
   twoColTable,
 } from "@/lib/docx/reportHelpers";
-import { StaticTocCollector } from "@/lib/docx/premiumToc";
-import { formatInstantDateTime, reportFileDate, reportGeneratedLabel } from "@/lib/time/reportTime";
+import { buildStaticTocPage, StaticTocCollector } from "@/lib/docx/premiumToc";
+import { formatInstantDateTime, reportFileDate } from "@/lib/time/reportTime";
+import type { ReportLocale } from "@/lib/i18n/reportLocale";
+// I18N-F1-R5 RAPOR-E (P22): sistem metinleri reports.bioenergy.* (çıktı dili; TR birebir — golden). Seans içeriği çevrilmez.
+import { bioTextFor } from "@/lib/biyoenerji/reportText";
 
 const C_SEANS = "ea580c"; // biyoenerji turuncu
 
@@ -50,94 +53,97 @@ export function buildBioSessionReportDoc(input: {
   truncatedNote?: string | null;
   expertName?: string | null;
   now?: Date;
+  /** I18N çıktı dili (route `resolveReportLocale`); verilmezse tr → bugünkü rapor birebir. */
+  output?: ReportLocale | null;
+  /** Kırpma olduysa kayıt tavanı — not metni çıktı dilinde üretilir (truncatedNote'a tercih edilir). */
+  truncatedAt?: number | null;
 }): { doc: Document; filename: string } {
   const { sessions, exportMode } = input;
+  const B = bioTextFor(input.output);
+  const C = B.t;
   const now = input.now ?? new Date();
-  const today = reportGeneratedLabel(undefined, now);
+  const today = B.generated(now);
   const dateSlug = reportFileDate(undefined, now);
   const isSingle = exportMode === "single" || (exportMode === "selected" && sessions.length === 1);
 
   const exportLabel =
-    isSingle ? `Tek Seans — ${sessions[0]?.title || ""}` :
-    exportMode === "selected" ? `Seçili Seanslar (${sessions.length})` :
-    `Tüm Seanslar (${sessions.length})`;
+    B.scope("session", isSingle ? "single" : exportMode === "selected" ? "selected" : "all", sessions.length, sessions[0]?.title || "");
 
   const categories = new Set(sessions.map((s) => s.category?.trim()).filter(Boolean));
 
   const all: ReportChild[] = [];
 
   all.push(...buildPremiumCover({
-    title1:   "YAŞAM SİSTEMİ",
-    title2:   "BİYOENERJİ SEANSLARI",
+    title1:   C("common.brand"),
+    title2:   C("session.title"),
     subtitle: isSingle && sessions[0]
-      ? `${sessions[0].title || "Seans"} · Seans Raporu`
-      : "Biyoenerji Seans Kataloğu",
-    date:     `Oluşturulma Tarihi: ${today}`,
+      ? C("session.singleSubtitle", { name: sessions[0].title || C("session.nameFallback") })
+      : C("session.catalogSubtitle"),
+    date:     C("common.generatedOn", { date: today }),
     stats: [
-      { label: "Seans Sayısı",  value: String(sessions.length) },
-      { label: "Kategori",      value: String(categories.size) },
-      { label: "Kapsam",        value: exportLabel },
+      { label: C("session.stat"),     value: String(sessions.length) },
+      { label: C("common.category"),  value: String(categories.size) },
+      { label: C("common.scope"),     value: exportLabel },
     ],
   }));
 
   all.push(...buildStatsPage([
-    ["Seans Sayısı",  String(sessions.length)],
-    ["Kategori",      String(categories.size)],
-    ["Kapsam",        exportLabel],
-  ]));
+    [C("session.stat"),    String(sessions.length)],
+    [C("common.category"), String(categories.size)],
+    [C("common.scope"),    exportLabel],
+  ], undefined, B.common));
 
   // İçindekiler: eski boş Word TOC alanı yerine STATİK + tıklanabilir girişler (gövde
   // başlıklarından toplanır, gövde bittikten sonra bu konuma yerleştirilir; başlık yoksa sayfa yok).
   const toc = new StaticTocCollector("bses");
   const tocAt = all.length;
 
-  if (input.truncatedNote) all.push(muted(input.truncatedNote));
+  const truncatedNote = input.truncatedAt != null ? B.truncated(input.truncatedAt) : input.truncatedNote;
+  if (truncatedNote) all.push(muted(truncatedNote));
 
-  all.push(toc.h1Colored("1. Seans Listesi", C_SEANS, true));
-  all.push(muted(`${sessions.length} seans kaydı`));
+  all.push(toc.h1Colored(C("session.heading"), C_SEANS, true));
+  all.push(muted(C("session.meta", { count: sessions.length, shown: String(sessions.length) })));
   all.push(spacer());
 
   sessions.forEach((session, i) => {
-    const title = session.title?.trim() || "Başlıksız Seans";
+    const title = session.title?.trim() || C("session.untitled");
 
     if (i > 0) all.push(divider());
 
-    all.push(profileLabel(`SEANS #${String(i + 1).padStart(3, "0")}`, C_SEANS));
+    all.push(profileLabel(C("session.cardNo", { no: String(i + 1).padStart(3, "0") }), C_SEANS));
     all.push(toc.h2(title));
 
     all.push(twoColTable([
-      ["Tarih",     formatInstantDateTime(session.created_at, { fallback: session.created_at })],
-      ["Kategori",  session.category?.trim() || "Belirtilmemiş"],
-      ...(session.source?.trim() ? [["Kaynak", session.source.trim()] as [string, string]] : []),
+      [C("common.date"),     formatInstantDateTime(session.created_at, { locale: B.output.intlTag, fallback: session.created_at })],
+      [C("common.category"), session.category?.trim() || C("common.notSpecified")],
+      ...(session.source?.trim() ? [[C("common.source"), session.source.trim()] as [string, string]] : []),
     ]));
 
     if (session.content?.trim()) {
-      all.push(h3("İçerik / Uygulama Notları"));
+      all.push(h3(C("session.content")));
       all.push(bodyText(session.content.trim()));
     }
 
     if (session.note?.trim()) {
-      all.push(h3("Not"));
+      all.push(h3(C("common.note")));
       all.push(bodyText(session.note.trim()));
     }
   });
 
   // FA-16: sade bilgilendirme notu + Hazırlayan (rapor sonu).
-  all.push(...buildWellnessNoteSection("biyoenerji", input.expertName));
+  all.push(...buildWellnessNoteSection("biyoenerji", input.expertName, B.common));
 
-  all.splice(tocAt, 0, ...toc.page());
+  all.splice(tocAt, 0, ...buildStaticTocPage(toc.entries, B.common));
 
   const doc = new Document({
     ...toc.documentOptions(),
+    ...B.styles(),
     sections: [{
       properties: {},
-      footers: { default: buildFooter("Biyoenerji Seans Raporu · Yaşam Sistemi", { note: "biyoenerji" }) },
+      footers: { default: buildFooter(C("session.footer"), { note: "biyoenerji", common: B.common }) },
       children: all,
     }],
   });
 
-  const modeSlug =
-    isSingle && sessions[0]?.title ? slugify(sessions[0].title) :
-    exportMode === "selected" ? "secili" : "tumu";
-  return { doc, filename: `biyoenerji-seans-${modeSlug}-${dateSlug}.docx` };
+  return { doc, filename: B.fileName("session", isSingle && sessions[0]?.title ? slugify(sessions[0].title) : null, exportMode, dateSlug) };
 }

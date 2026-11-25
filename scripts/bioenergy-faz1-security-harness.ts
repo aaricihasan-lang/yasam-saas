@@ -15,6 +15,7 @@ import { checkRateLimit, __resetRateLimitForTest } from "../lib/security/rateLim
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const read = (p: string) => readFileSync(join(ROOT, p), "utf8");
+const BIO_TEXT_SRC = read("lib/biyoenerji/reportText.ts"); // I18N-F1-R5 RAPOR-E: kırpma notunun TR kaynağı
 
 let pass = 0;
 let fail = 0;
@@ -125,7 +126,8 @@ for (const rp of REPORT_ROUTES) {
       (/chakraIds\.length > MAX_SELECTED_IDS/.test(s) && s.includes("status: 400") && s.includes('stage === "missing"') && s.includes("status: 409")),
     `${name}: seçili id tavanı (MAX_SELECTED_IDS) + eksik kayıtta 409`,
   );
-  assert(s.includes("EXPORT_TRUNCATED_NOTE"), `${name}: kırpma notu (sessiz değil)`);
+  // I18N-F1-R5 RAPOR-E: not metni çıktı dilinde lib/biyoenerji/reportText (B.truncated → TR: EXPORT_TRUNCATED_NOTE) üzerinden.
+  assert(s.includes("EXPORT_TRUNCATED_NOTE") || ((/B\.truncated\(MAX_EXPORT_RECORDS\)/.test(s) || /truncatedAt: truncatedRead \? MAX_EXPORT_RECORDS/.test(s)) && BIO_TEXT_SRC.includes("EXPORT_TRUNCATED_NOTE(n)")), `${name}: kırpma notu (sessiz değil)`);
   assert(!s.includes("${error.message}"), `${name}: ham DB error.message SIZMAZ`);
   assert(s.includes("console.error"), `${name}: hata server-side loglanır`);
 }

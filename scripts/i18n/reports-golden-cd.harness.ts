@@ -33,7 +33,7 @@ const OUT_DIR = outIdx >= 0 ? args[outIdx + 1] : null;
 const onlyIdx = args.indexOf("--only");
 const ONLY = onlyIdx >= 0 ? new Set(args[onlyIdx + 1]!.split(",")) : null;
 /** Çevirisi bu dalda tamamlanan üreticiler — EN kontrolleri yalnız bunlarda zorunlu (diğerleri yalnız TR golden). */
-const EN_READY = new Set((process.env.RCD_EN_READY ?? "P11,P12,P13,P14,P15,P16,P19,P38,P39,P40").split(",").filter(Boolean));
+const EN_READY = new Set((process.env.RCD_EN_READY ?? "P11,P12,P13,P14,P15,P16,P19,P21,P22,P38,P39,P40").split(",").filter(Boolean));
 
 let pass = 0;
 let fail = 0;
@@ -176,6 +176,11 @@ async function unitChecks(): Promise<void> {
     ok(tr("stoneDetail.extraImagesNote", { count: 1200, shown: "1200" }) === "Bu taş kaydında toplam 1200 görsel bulunmaktadır. Sistemi ziyaret edin.", "ICU: P12 ek görsel notu TR birebir (gruplamasız)");
     ok(en("stoneDetail.extraImagesNote", { count: 1, shown: "1" }).includes("1 image in total") && en("stoneDetail.extraImagesNote", { count: 3, shown: "3" }).includes("3 images in total"), "ICU: P12 ek görsel notu EN tekil/çoğul");
     ok(tr("encyclopedia.records", { count: 1200, shown: "1200" }) === "1200 kayıt" && en("encyclopedia.records", { count: 1, shown: "1" }) === "1 record", "ICU: P11 kayıt sayısı TR/EN");
+    const { EXPORT_TRUNCATED_NOTE } = await import("@/lib/biyoenerji/reportSecurity");
+    const bio = reportLocaleFor("tr").t("reports.bioenergy");
+    ok(bio("common.truncated", { shown: "5000" }) === EXPORT_TRUNCATED_NOTE(5000), "P22: kırpma notu katalog TR = reportSecurity.EXPORT_TRUNCATED_NOTE (birebir)");
+    const ref = reportLocaleFor("en").t("reports.reflexology");
+    ok(ref("map.legend", { organ: "X", count: 1, shown: "1" }) === "X — 1 zone" && ref("map.legend", { organ: "X", count: 2, shown: "2" }) === "X — 2 zones", "ICU: P21 lejant EN tekil/çoğul");
   }
   // Katalog tamlığı (EN'de eksik anahtar → sessiz TR düşüşü olmasın).
   const leaves = (o: unknown, p = ""): string[] => (o && typeof o === "object" ? Object.entries(o as Record<string, unknown>).flatMap(([k, v]) => leaves(v, p ? `${p}.${k}` : k)) : [p]);
