@@ -612,6 +612,11 @@ export type CreateCalendarPlanResult = {
 };
 export const createCalendarPlan = (body: {
   name: string;
+  /**
+   * I18N A8: true → sunucu varsayılan adı kendisi üretir (kanonik TR) ve kolon varsa name_is_default=true yazar.
+   * `name` yine gönderilir: bayrağı tanımayan sunucu sürümü bugünkü gibi bu adı yazar (sürüm kayması güvenli).
+   */
+  use_default_name?: boolean;
   year: number;
   description?: string | null;
   advice_template_id?: string | null;

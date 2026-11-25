@@ -42,11 +42,18 @@ export function isSystemClientAdviceTitle(title: string | null | undefined): boo
 /**
  * Gösterilecek plan adı. `localizedDefault(year)` ekran dilindeki varsayılan adı üretir
  * (cupping.calendar.ws.defaultPlanName). Sistem adı değilse kullanıcının adı AYNEN döner.
+ *
+ * I18N A8 — üç durumlu `name_is_default` (kolon migration TASLAĞINDA; uygulanana kadar alan hiç gelmez):
+ *   true  → her zaman ekran dilinde üretilir (dil-bağımsız tanım: bayrak + year)
+ *   false → AYNEN (kullanıcı adı; uzman tam "2027 Hacamat Takvimi" yazmış olsa bile desen uygulanmaz)
+ *   null / alan yok → bugünkü desen kuralı AYNEN (eski kayıtlar; geriye dönük sınıflandırma YOK)
  */
 export function displayPlanName(
-  plan: { name: string; year: number },
+  plan: { name: string; year: number; name_is_default?: boolean | null },
   localizedDefault: (year: string) => string,
 ): string {
+  if (plan.name_is_default === true) return localizedDefault(String(plan.year));
+  if (plan.name_is_default === false) return plan.name;
   return isSystemPlanName(plan.name, plan.year) ? localizedDefault(String(plan.year)) : plan.name;
 }
 

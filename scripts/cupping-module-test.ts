@@ -2149,7 +2149,8 @@ function run(): void {
     ok(defaultPlanNameForSave(2027) === "2027 Hacamat Takvimi", "i18n-r3[ad1]: yeni plan varsayılan adı TR sabit (i18n öncesiyle birebir)");
     ok(CLIENT_ADVICE_DEFAULT_TITLE_TR === "Danışan Bilgilendirmesi", "i18n-r3[ad2]: boş bilgilendirme başlığı TR sabit (birebir)");
     const cwSrc = readFileSync("app/kupa/takvim/components/CalendarWorkspace.tsx", "utf8");
-    ok(/createCalendarPlan\(\{ name: defaultPlanNameForSave\(year\), year, reuse_year: true \}\)/.test(cwSrc)
+    // A8: çağrı use_default_name ekledi; ad yine sabit TR'den (niyet ve kayıt değeri aynı).
+    ok(/createCalendarPlan\(\{ name: defaultPlanNameForSave\(year\), use_default_name: true, year, reuse_year: true \}\)/.test(cwSrc)
       && !/createCalendarPlan\(\{ name: t\(/.test(cwSrc),
       "i18n-r3[ad3]: plan oluşturma adı ekran dili çevirisinden DEĞİL sabit TR'den (kayıt dil-bağımsız)");
     const caSrc = readFileSync("app/kupa/takvim/components/ClientAdviceSection.tsx", "utf8");
@@ -2181,6 +2182,29 @@ function run(): void {
       ok(/sysNames\.planName\(/.test(src) && !/\{p\.name\}|name: existing\.name|name: p\.name|title=\{plan\.name\}/.test(src),
         "i18n-r3[ad14]: " + comp + " plan adını gösterim kuralıyla basar");
     }
+
+    // ── I18N A8 (Owner §16) — name_is_default üç durumlu bayrak; migration UYGULANMADAN önce eski davranış güvenli ──
+    ok(displayPlanName({ name: "2027 Hacamat Takvimi", year: 2027, name_is_default: true }, en) === "2027 Hijama Calendar"
+      && displayPlanName({ name: "2027 Hacamat Takvimi", year: 2027, name_is_default: false }, en) === "2027 Hacamat Takvimi"
+      && displayPlanName({ name: "2027 Hacamat Takvimi", year: 2027, name_is_default: null }, en) === "2027 Hijama Calendar"
+      && displayPlanName({ name: "2027 Hacamat Takvimi", year: 2027 }, en) === "2027 Hijama Calendar",
+      "a8[ad15]: üç durum — TRUE üret, FALSE aynen, NULL/alan yok (kolon yok) = bugünkü desen kuralı");
+    ok(displayPlanName({ name: "Ayşe Hanım 2027", year: 2027, name_is_default: null }, en) === "Ayşe Hanım 2027"
+      && displayPlanName({ name: "2027 Hacamat Takvimi", year: 2027, name_is_default: true }, tr) === "2027 Hacamat Takvimi"
+      && displayPlanName({ name: "2027 Hacamat Takvimi", year: 2027, name_is_default: false }, tr) === "2027 Hacamat Takvimi",
+      "a8[ad16]: TR ekran çıktısı üç durumda da bugünküyle birebir; kullanıcı adı aynen");
+    const prSrc = readFileSync("app/api/kupa/calendar/plans/route.ts", "utf8");
+    ok(/if \(useDefaultName\) fields\.name = defaultPlanNameForSave\(year\);/.test(prSrc)
+      && /insertEntityWithOptionalColumns\(db, CUPPING_TABLES\.calendarPlans, tenantId, fields, \{ name_is_default: true \}\)/.test(prSrc)
+      && /if \(!useDefaultName && !String\(fields\.name \?\? ""\)\.trim\(\)\) return cuppingError\(400, "Plan adı gerekli\.", "CUP_NAME_REQUIRED"\);/.test(prSrc),
+      "a8[ad17]: POST — varsayılan ad sunucuda kanonik TR; bayrak yalnız opsiyonel kolonla; eski istemci yolu (ad zorunlu) aynen");
+    ok(!(CALENDAR_PLAN_WRITABLE as readonly string[]).includes("name_is_default"),
+      "a8[ad18]: name_is_default istemciden YAZILAMAZ (CALENDAR_PLAN_WRITABLE dışında)");
+    const ppSrc = readFileSync("app/kupa/takvim/components/PlanPicker.tsx", "utf8");
+    ok(/setName\(sysNames\.planName\(active\)\)/.test(ppSrc)
+      && /if \(name\.trim\(\) !== sysNames\.planName\(active\)\) body\.name = name\.trim\(\);/.test(ppSrc)
+      && !/\n\s+name: name\.trim\(\),/.test(ppSrc),
+      "a8[ad19]: düzenleme — görünen ad; ad yalnız DEĞİŞTİYSE gönderilir (çevrilmiş sistem adı DB'ye yazılmaz)");
   }
 
   console.log(`\ncupping-module harness: ${passed} PASS, ${failed} FAIL`);

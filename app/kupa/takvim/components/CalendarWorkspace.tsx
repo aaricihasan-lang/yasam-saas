@@ -482,7 +482,8 @@ export function CalendarWorkspace() {
       } else {
         // I18N-F1-R3: varsayılan plan ADI DB'ye HER ZAMAN Türkçe sabit yazılır (i18n öncesiyle birebir; Word çıktısına
         // basılır). Gösterimde sistem adı ekran dilinde üretilir (useSystemNames) — kullanıcının yazdığı ad aynen kalır.
-        const res = await createCalendarPlan({ name: defaultPlanNameForSave(year), year, reuse_year: true });
+        // I18N A8: use_default_name → sunucu aynı kanonik adı yazar ve kolon varsa name_is_default=true işaretler.
+        const res = await createCalendarPlan({ name: defaultPlanNameForSave(year), use_default_name: true, year, reuse_year: true });
         if (!res.plan) {
           // Demo hesabı (persist=0): sahte takvim/gün gösterilmez.
           showToast({ message: t("demoNoSave"), type: "info" });

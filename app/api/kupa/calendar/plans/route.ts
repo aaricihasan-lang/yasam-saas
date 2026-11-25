@@ -3,10 +3,13 @@ import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { trackUsage, usageErrorClassForStatus } from "@/lib/usage/trackUsage";
 import { CUPPING_TABLES, CALENDAR_PLAN_WRITABLE } from "@/lib/cupping/fields";
 import { CUPPING_PLAN_YEAR_MIN, CUPPING_PLAN_YEAR_MAX } from "@/lib/cupping/calendarTypes";
+// Saf modül (React/Next yok): DB'ye yazılan kanonik TR varsayılan ad (Word çıktısı aynen).
+import { defaultPlanNameForSave } from "@/app/kupa/takvim/lib/systemNames";
 import {
   assertOwnedRef,
   cuppingError,
   insertEntity,
+  insertEntityWithOptionalColumns,
   listEntity,
   parseJsonBody,
   pickWritable,
@@ -63,11 +66,17 @@ export async function POST(req: NextRequest): Promise<Response> {
   if (!parsed.ok) return parsed.response;
 
   const fields = pickWritable(parsed.data, CALENDAR_PLAN_WRITABLE);
-  if (!String(fields.name ?? "").trim()) return cuppingError(400, "Plan adı gerekli.", "CUP_NAME_REQUIRED");
+  // I18N A8 (Owner §16): "Yeni Takvim → yıl/ay" varsayılan planı. use_default_name:true → ad SUNUCUDA kanonik TR
+  //   üretilir (istemcinin gönderdiği ad yok sayılır) ve name_is_default=true YALNIZ kolon varsa yazılır.
+  //   Kolon yoksa (migration uygulanmamış) kayıt bugünküyle BİREBİR: aynı ad, bayraksız (gösterimde desen kuralı).
+  //   Bayrak göndermeyen (eski) istemci → bugünkü yol AYNEN (ad zorunlu, bayrak yazılmaz).
+  const useDefaultName = (parsed.data as Record<string, unknown> | null)?.use_default_name === true;
+  if (!useDefaultName && !String(fields.name ?? "").trim()) return cuppingError(400, "Plan adı gerekli.", "CUP_NAME_REQUIRED");
 
   const year = validYear(fields.year);
   if (year === null) return cuppingError(400, `Yıl ${CUPPING_PLAN_YEAR_MIN}–${CUPPING_PLAN_YEAR_MAX} aralığında olmalı.`, "CUP_YEAR_OUT_OF_RANGE");
   fields.year = year;
+  if (useDefaultName) fields.name = defaultPlanNameForSave(year);
 
   // advice_template_id opsiyonel; verilirse AYNI tenant şablonu olmalı (cross-tenant FK backstop).
   if (fields.advice_template_id != null && String(fields.advice_template_id).trim() !== "") {
@@ -96,7 +105,9 @@ export async function POST(req: NextRequest): Promise<Response> {
 
   // YENİ plan YALNIZ metadata oluşturur — SIFIR seçili gün. Otomatik tohumlama YOK; hazır
   // Sünnet/Altın günü YOK. Uzman her uygulama gününü kendisi /days ucundan ekler.
-  const ins = await insertEntity(db, CUPPING_TABLES.calendarPlans, tenantId, fields);
+  const ins = useDefaultName
+    ? await insertEntityWithOptionalColumns(db, CUPPING_TABLES.calendarPlans, tenantId, fields, { name_is_default: true })
+    : await insertEntity(db, CUPPING_TABLES.calendarPlans, tenantId, fields);
   if (!ins.ok) {
     const errorClass = usageErrorClassForStatus(ins.response.status);
     if (errorClass) await trackUsage(guard, req, { module: "cupping", action: "action_failed", failedAction: "record_created", subEntity: "calendar_plan", errorClass });
