@@ -1,7 +1,12 @@
 {
   "common": {
     "demo": {
-      "accountLabel": "Demo Hesabı"
+      "accountLabel": "Demo Hesabı",
+      "gate": {
+        "title": "Demo Ön İzleme",
+        "line1": "Bu içerik demo hesabında sınırlı gösterilir.",
+        "line2": "Tam sürümde tüm detaylar açık olarak kullanılabilir."
+      }
     }
   }
 }
