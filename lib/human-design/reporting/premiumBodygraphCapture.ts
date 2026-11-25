@@ -8,7 +8,7 @@
 
 import type { HdComputedChart } from "../chart/computedChart";
 import { premiumStateFromChart } from "../bodygraph/premiumChartState";
-import { buildConnectionBodygraphScene, CBG_VIEW, connectionBodygraphSvg } from "../relations/connectionBodygraphScene";
+import { buildConnectionBodygraphScene, CBG_VIEW, connectionBodygraphSvg, type CbgPrim } from "../relations/connectionBodygraphScene";
 import { HD_BODYGRAPH_BIND_KEYWORD, bodygraphBindingText, fingerprintFromRoxyRender, insertPngTextChunk } from "./bodygraphBinding";
 import type { BodygraphCaptureResult } from "./bodygraphCapture";
 
@@ -73,13 +73,23 @@ function bytesToPngDataUrl(bytes: Uint8Array): string {
 }
 
 /** Kayıtlı haritadan premium BodyGraph PNG'si (Word). `roxyRender` yalnız bağ parmak izi için (sunucu aynısını üretir). */
-export async function capturePremiumBodygraphPng(result: HdComputedChart, roxyRender: Record<string, unknown>, chartId: string): Promise<BodygraphCaptureResult> {
-  if (typeof window === "undefined" || typeof document === "undefined") return { ok: false, error: "Tarayıcı ortamı gerekli." };
+export async function capturePremiumBodygraphPng(
+  result: HdComputedChart,
+  roxyRender: Record<string, unknown>,
+  chartId: string,
+  /**
+   * I18N (P33): ekrandaki çizimle AYNI merkez başlığı eşlemesi (app/human-design/_i18n/bodygraphCenterText).
+   * Verilmezse sahne AYNEN (TR = bugünkü PNG). Geometri / kapı / kanal değişmez; yalnız görünen merkez metni.
+   */
+  localize?: (prims: CbgPrim[]) => CbgPrim[],
+): Promise<BodygraphCaptureResult> {
+  if (typeof window === "undefined" || typeof document === "undefined") return { ok: false, code: "NO_BROWSER", error: "Tarayıcı ortamı gerekli." };
   const state = premiumStateFromChart(result);
-  if (!state) return { ok: false, error: "BodyGraph çizimi kayıtlı harita verisiyle doğrulanamadı." };
+  if (!state) return { ok: false, code: "MISMATCH", error: "BodyGraph çizimi kayıtlı harita verisiyle doğrulanamadı." };
   try {
     const [logo, font] = await Promise.all([asDataUrl(LOGO_SRC), asDataUrl(FONT_SRC)]);
-    let svg = connectionBodygraphSvg(buildConnectionBodygraphScene(state), { logoHref: logo, fontFamily: "Geist" });
+    const scene = buildConnectionBodygraphScene(state);
+    let svg = connectionBodygraphSvg(localize ? localize(scene) : scene, { logoHref: logo, fontFamily: "Geist" });
     if (font) svg = svg.replace("<defs>", `<defs><style>@font-face{font-family:Geist;src:url(${font}) format("truetype");}</style>`);
     const binding = bodygraphBindingText(chartId, fingerprintFromRoxyRender(roxyRender));
     for (const h of TARGET_HEIGHTS) {
@@ -89,8 +99,8 @@ export async function capturePremiumBodygraphPng(result: HdComputedChart, roxyRe
       if (bound.length > MAX_PNG_BYTES) continue;
       return { ok: true, dataUrl: bytesToPngDataUrl(bound), width: out.width, height: out.height, bytes: bound.length };
     }
-    return { ok: false, error: "BodyGraph görseli üretilemedi." };
+    return { ok: false, code: "RASTER", error: "BodyGraph görseli üretilemedi." };
   } catch {
-    return { ok: false, error: "BodyGraph görseli üretilemedi." };
+    return { ok: false, code: "RASTER", error: "BodyGraph görseli üretilemedi." };
   }
 }

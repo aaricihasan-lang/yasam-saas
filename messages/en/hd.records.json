@@ -166,7 +166,15 @@
         "preparedByPlaceholder": "e.g. Human Design Specialist Jane Smith",
         "preparedByEmpty": "If left blank, the report has no “Prepared by” line.",
         "cancel": "Cancel",
-        "redacted": "The System Reading section of this report was removed from the downloaded file because your account's current permission is disabled. The saved report was not changed."
+        "redacted": "The System Reading section of this report was removed from the downloaded file because your account's current permission is disabled. The saved report was not changed.",
+        "capture": {
+          "NO_BROWSER": "A browser environment is required.",
+          "RENDERER_LOAD": "The BodyGraph drawing component could not be loaded.",
+          "NOT_DRAWN": "The BodyGraph could not be drawn.",
+          "MISMATCH": "The BodyGraph drawing could not be verified against the saved chart data.",
+          "VIEWBOX": "The BodyGraph dimensions could not be read.",
+          "RASTER": "The BodyGraph image could not be generated."
+        }
       }
     }
   }

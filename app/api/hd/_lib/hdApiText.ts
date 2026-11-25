@@ -12,3 +12,8 @@ import { requestTranslator } from "@/lib/i18n/serverMessages";
 export function hdApiText(req: unknown, key: string): string {
   return requestTranslator(req as Pick<NextRequest, "cookies"> | null, "hd.apiErrors")(key);
 }
+
+/** ICU argümanlı sürüm (argümanlar null/undefined OLMAMALI). */
+export function hdApiTextWith(req: unknown, key: string, values: Record<string, string | number>): string {
+  return requestTranslator(req as Pick<NextRequest, "cookies"> | null, "hd.apiErrors")(key, values);
+}

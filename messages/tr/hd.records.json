@@ -166,7 +166,15 @@
         "preparedByPlaceholder": "Örn. Human Design Uzmanı Ahmet Yılmaz",
         "preparedByEmpty": "Boş bırakırsanız raporda “Hazırlayan” satırı yer almaz.",
         "cancel": "Vazgeç",
-        "redacted": "Bu rapordaki Sistem Yorumu bölümü, hesabınızın güncel yetkisi kapalı olduğu için indirilen dosyadan çıkarıldı. Kayıtlı rapor değiştirilmedi."
+        "redacted": "Bu rapordaki Sistem Yorumu bölümü, hesabınızın güncel yetkisi kapalı olduğu için indirilen dosyadan çıkarıldı. Kayıtlı rapor değiştirilmedi.",
+        "capture": {
+          "NO_BROWSER": "Tarayıcı ortamı gerekli.",
+          "RENDERER_LOAD": "BodyGraph çizim bileşeni yüklenemedi.",
+          "NOT_DRAWN": "BodyGraph çizilemedi.",
+          "MISMATCH": "BodyGraph çizimi kayıtlı harita verisiyle doğrulanamadı.",
+          "VIEWBOX": "BodyGraph ölçüsü okunamadı.",
+          "RASTER": "BodyGraph görseli üretilemedi."
+        }
       }
     }
   }

@@ -84,7 +84,17 @@
       "invalidUtcOffset": "Geçersiz UTC ofseti.",
       "transitPositionsUnverified": "Bu an için gezegen konumları bağımsız olarak doğrulanamadı; doğrulanamayan sonuç gösterilmez. Lütfen tekrar deneyin.",
       "transitFailed": "Transit hesaplanamadı; doğrulanamayan sonuç gösterilmez. Lütfen tekrar deneyin.",
-      "manualImageUploadClosed": "Yeni manuel Human Design harita görseli yükleme artık kullanılmıyor. Human Design Hesaplama bölümünden otomatik hesaplama yapın."
+      "manualImageUploadClosed": "Yeni manuel Human Design harita görseli yükleme artık kullanılmıyor. Human Design Hesaplama bölümünden otomatik hesaplama yapın.",
+      "bodygraphPng": {
+        "EMPTY": "BodyGraph görseli boş.",
+        "TOO_LARGE": "BodyGraph görseli çok büyük.",
+        "NOT_PNG": "BodyGraph görseli geçerli bir PNG değil.",
+        "CORRUPT": "BodyGraph görseli bozuk.",
+        "UNSUPPORTED_FORMAT": "BodyGraph görseli desteklenmeyen PNG biçiminde.",
+        "TOO_SMALL": "BodyGraph görseli en az {min} piksel yüksekliğinde olmalı.",
+        "TOO_BIG_DIMENSIONS": "BodyGraph görselinin piksel ölçüsü çok büyük.",
+        "BAD_ASPECT": "BodyGraph görselinin en/boy oranı beklenen BodyGraph oranıyla uyuşmuyor."
+      }
     }
   }
 }

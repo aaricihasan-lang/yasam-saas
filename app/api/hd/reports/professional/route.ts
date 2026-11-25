@@ -1,4 +1,5 @@
-import { hdApiText } from "../../_lib/hdApiText";
+import { hdApiText, hdApiTextWith } from "../../_lib/hdApiText";
+import { resolveOutputLocale } from "@/lib/i18n/output";
 import { NextRequest, NextResponse } from "next/server";
 import { randomUUID } from "node:crypto";
 import { isUuid, professionalReportIdFor } from "@/lib/human-design/api/deterministicId";
@@ -15,7 +16,7 @@ import { trackUsage } from "@/lib/usage/trackUsage";
 import { hitDbRateLimit, rateLimitBucket } from "@/lib/security/dbRateLimit";
 import { createReportSnapshotV2FromChart } from "@/lib/human-design/reporting/reportSnapshotV2Service";
 import { parseCommentarySelection, sanitizePreparedBy, type HdCommentarySelection } from "@/lib/human-design/reporting/reportSnapshotV2";
-import { decodePngBase64, validateBodygraphPng } from "@/lib/human-design/reporting/bodygraphPng";
+import { decodePngBase64, HD_BODYGRAPH_PNG_MIN_HEIGHT, validateBodygraphPng } from "@/lib/human-design/reporting/bodygraphPng";
 import { bodygraphBindingText, bodygraphFingerprint, verifyBodygraphBinding } from "@/lib/human-design/reporting/bodygraphBinding";
 import { saveCanonicalReport, findReportBrief } from "@/lib/human-design/api/reportPersistence";
 import { hdReportTitle } from "@/lib/human-design/reporting/wordReport";
@@ -117,7 +118,17 @@ export async function POST(req: NextRequest): Promise<Response> {
     const check = validateBodygraphPng(buf);
     if (!buf || !check.ok) {
       return NextResponse.json(
-        { ok: false, code: "BODYGRAPH_INVALID", error: check.ok ? hdApiText(req, "bodygraphReadFailed") : check.error },
+        {
+          ok: false,
+          code: "BODYGRAPH_INVALID",
+          // Doğrulama `code`'u dil-bağımsız; metin istek dilinde (TR = bodygraphPng.ts'teki eski metin birebir).
+          // TR (kaynak dil): doğrulayıcının ayrıntılı metni AYNEN (ör. "bozuk (CRC)"); diğer dillerde koddan.
+          error: check.ok
+            ? hdApiText(req, "bodygraphReadFailed")
+            : resolveOutputLocale(req).locale === "tr"
+              ? check.error
+              : hdApiTextWith(req, `bodygraphPng.${check.code}`, { min: HD_BODYGRAPH_PNG_MIN_HEIGHT }),
+        },
         { status: 422, headers: NO_STORE },
       );
     }

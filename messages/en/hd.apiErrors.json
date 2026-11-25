@@ -84,7 +84,17 @@
       "invalidUtcOffset": "Invalid UTC offset.",
       "transitPositionsUnverified": "Planetary positions for this moment could not be independently verified; unverified results are not shown. Please try again.",
       "transitFailed": "The transit could not be calculated; unverified results are not shown. Please try again.",
-      "manualImageUploadClosed": "Uploading new manual Human Design chart images is no longer used. Please use automatic calculation in the Human Design Calculation section."
+      "manualImageUploadClosed": "Uploading new manual Human Design chart images is no longer used. Please use automatic calculation in the Human Design Calculation section.",
+      "bodygraphPng": {
+        "EMPTY": "The BodyGraph image is empty.",
+        "TOO_LARGE": "The BodyGraph image is too large.",
+        "NOT_PNG": "The BodyGraph image is not a valid PNG.",
+        "CORRUPT": "The BodyGraph image is corrupted.",
+        "UNSUPPORTED_FORMAT": "The BodyGraph image is in an unsupported PNG format.",
+        "TOO_SMALL": "The BodyGraph image must be at least {min} pixels high.",
+        "TOO_BIG_DIMENSIONS": "The BodyGraph image pixel dimensions are too large.",
+        "BAD_ASPECT": "The aspect ratio of the BodyGraph image does not match the expected BodyGraph ratio."
+      }
     }
   }
 }

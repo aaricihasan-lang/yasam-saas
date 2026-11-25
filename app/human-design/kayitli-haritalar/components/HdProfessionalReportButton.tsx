@@ -25,7 +25,7 @@
  *   • "Yeni Word oluştur (içerik seçerek)" bilinçli yeni sürüm içindir; kayıtlı Word'den AYRIDIR.
  *   • `autoStart`: listeden gelen istek analizi açıp akışı bir kez başlatır.
  */
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { useEffect, useRef, useState } from "react";
 import { useIsAndroid } from "@/hooks/useIsAndroid";
 import { commentaryFromFlags, type HdCommentarySelection } from "@/lib/human-design/reporting/reportV2Shared";
@@ -43,6 +43,7 @@ import {
 import { HD_PREPARED_BY_MAX } from "@/lib/human-design/reporting/reportV2Shared";
 import { canUseHdSystemReading, isHdAdminSourceView } from "./HdChartKnowledgeTabs";
 import { loadRoxyBodygraph } from "./HdRoxyBodygraph";
+import { useLocalizedCenterText } from "../../_i18n/bodygraphCenterText";
 
 type Phase = "idle" | "choosing" | "capturing" | "creating" | "downloading" | "done" | "error" | "bodygraph_failed";
 
@@ -98,6 +99,9 @@ export function HdProfessionalReportButton({
 }) {
   const isAndroid = useIsAndroid();
   const t = useTranslations("hd.records.report");
+  // P33: Word'e gömülen BodyGraph PNG'si ekrandaki çizimle aynı dilde (TR'de sahne aynen → bugünkü PNG).
+  const locale = useLocale();
+  const localizeCenters = useLocalizedCenterText();
   const tTabs = useTranslations("hd.records.tabs");
   const msg: ReportT = (key, values) => t(key, values);
   const [phase, setPhase] = useState<Phase>("idle");
@@ -163,11 +167,11 @@ export function HdProfessionalReportButton({
         // AKTİF: premium BodyGraph (ekrandaki çizimle aynı). PASİF: Roxy resmî bileşeninden yakalama (rendererConfig).
         const premium = HD_INDIVIDUAL_BODYGRAPH === "premium" && chartResult && premiumStateFromChart(chartResult);
         const cap = premium && chartResult
-          ? await capturePremiumBodygraphPng(chartResult, roxyRender, chartId)
-          : await captureRoxyBodygraphPng(roxyRender, loadRoxyBodygraph, chartId);
+          ? await capturePremiumBodygraphPng(chartResult, roxyRender, chartId, localizeCenters)
+          : await captureRoxyBodygraphPng(roxyRender, loadRoxyBodygraph, chartId, locale);
         if (!cap.ok) {
           setPhase("bodygraph_failed");
-          setMessage(t("bodygraphFailed", { error: cap.error }));
+          setMessage(t("bodygraphFailed", { error: cap.code ? t(`capture.${cap.code}`) : cap.error }));
           return;
         }
         bodygraphPng = cap.dataUrl;
