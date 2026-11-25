@@ -1003,7 +1003,8 @@
       "removeFood": "Besini kaldır",
       "relationLabel": "İlişki",
       "rationaleLabel": "Gerekçe (opsiyonel)",
-      "rationalePlaceholder": "Kısa açıklama"
+      "rationalePlaceholder": "Kısa açıklama",
+      "saved": "Kaydedildi."
     },
     "templates": {
       "tabMeal": "Öğün Şablonları",

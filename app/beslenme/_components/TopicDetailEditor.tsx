@@ -256,7 +256,7 @@ function TopicHeader({
     setSaving(false);
     if (r.ok && r.data?.topic) {
       onSaved(r.data.topic);
-      setMsg({ type: "success", text: "Kaydedildi." });
+      setMsg({ type: "success", text: tt("saved") });
     } else {
       setMsg({ type: "error", text: bl.error(r.code, r.status) });
     }

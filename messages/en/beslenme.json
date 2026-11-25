@@ -862,7 +862,7 @@
       "backLabel": "Nutrition Centre",
       "loading": "Loading…",
       "bloodTitle": "Nutrition by Blood Type",
-      "bloodSubtitle": "Nutrition profiles for blood types 0, A, B and AB. Each profile is structured with sections, related foods and sources.",
+      "bloodSubtitle": "Nutrition profiles for blood types O, A, B and AB. Each profile is structured with sections, related foods and sources.",
       "bloodZero": "O",
       "bloodSub": "Blood Type",
       "mizacTitle": "Nutrition by Temperament",
@@ -1003,7 +1003,8 @@
       "removeFood": "Remove food",
       "relationLabel": "Relation",
       "rationaleLabel": "Rationale (optional)",
-      "rationalePlaceholder": "Short explanation"
+      "rationalePlaceholder": "Short explanation",
+      "saved": "Saved."
     },
     "templates": {
       "tabMeal": "Meal Templates",
