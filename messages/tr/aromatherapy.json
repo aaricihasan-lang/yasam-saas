@@ -963,6 +963,29 @@
       },
       "skeleton": {
         "preparing": "Hazırlanıyor"
+      },
+      "passage": {
+        "loading": "Katmanlar yükleniyor…",
+        "original": "Özgün Kaynak Metni",
+        "originalEmpty": "Bu pasaj yalnız atıf içeriyor; birebir özgün metin kaydı yok.",
+        "translations": "Sadık Çeviriler",
+        "translationsEmpty": "Bu pasaj için sadık çeviri girilmemiş.",
+        "rev": "rev. {n}",
+        "explanations": "Editoryal Açıklamalar",
+        "explanationsEmpty": "Editoryal açıklama girilmemiş.",
+        "interpretations": "Editoryal Yorum & Uzman Notu",
+        "interpretationsEmpty": "Editoryal yorum veya uzman notu girilmemiş."
+      },
+      "unsaved": {
+        "title": "Kaydedilmemiş değişiklikler",
+        "body": "Bu formda kaydedilmemiş değişiklikler var. Ayrılırsanız değişiklikleriniz kaybolur.",
+        "leave": "Kaydetmeden ayrıl",
+        "stay": "Sayfada kal"
+      },
+      "fields": {
+        "choose": "Seçin…",
+        "noRecords": "Kayıt yok.",
+        "removeRow": "Satırı kaldır"
       }
     },
     "catalog": {

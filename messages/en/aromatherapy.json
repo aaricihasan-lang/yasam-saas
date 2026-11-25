@@ -963,6 +963,29 @@
       },
       "skeleton": {
         "preparing": "Preparing"
+      },
+      "passage": {
+        "loading": "Loading layers…",
+        "original": "Original Source Text",
+        "originalEmpty": "This passage contains only a citation; there is no verbatim original text record.",
+        "translations": "Faithful Translations",
+        "translationsEmpty": "No faithful translation has been entered for this passage.",
+        "rev": "rev. {n}",
+        "explanations": "Editorial Explanations",
+        "explanationsEmpty": "No editorial explanation has been entered.",
+        "interpretations": "Editorial Commentary & Expert Note",
+        "interpretationsEmpty": "No editorial commentary or expert note has been entered."
+      },
+      "unsaved": {
+        "title": "Unsaved changes",
+        "body": "This form has unsaved changes. If you leave, your changes will be lost.",
+        "leave": "Leave without saving",
+        "stay": "Stay on page"
+      },
+      "fields": {
+        "choose": "Select…",
+        "noRecords": "No records.",
+        "removeRow": "Remove row"
       }
     },
     "catalog": {

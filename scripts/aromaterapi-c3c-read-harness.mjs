@@ -212,13 +212,16 @@ check("U preparat detay sahte yöntem üretmez (şema boşluğu boş-durum)",
 
 // Pasaj katmanları ayrı gösterilir.
 const PASSAGE_UI = read("app/aromaterapi/_components/read/PassageAccordionItem.tsx");
+// I18N (2026-11-25): katman başlıkları/boş notları aromatherapy.shared.passage anahtarlarına taşındı;
+// her katman ayrı anahtarla çağrılır + TR değerler birebir doğrulanır (amaç korunur).
+const PASSAGE_TR = JSON.parse(read("messages/tr/aromatherapy.json")).aromatherapy.shared.passage;
 check("U pasaj katmanları ayrı (özgün/sadık çeviri/açıklama/yorum)",
-  /Özgün Kaynak Metni/.test(PASSAGE_UI) &&
-  /Sadık Çeviriler/.test(PASSAGE_UI) &&
-  /Editoryal Açıklamalar/.test(PASSAGE_UI) &&
-  /Editoryal Yorum/.test(PASSAGE_UI));
+  /tp\("original"\)/.test(PASSAGE_UI) && PASSAGE_TR.original === "Özgün Kaynak Metni" &&
+  /tp\("translations"\)/.test(PASSAGE_UI) && PASSAGE_TR.translations === "Sadık Çeviriler" &&
+  /tp\("explanations"\)/.test(PASSAGE_UI) && PASSAGE_TR.explanations === "Editoryal Açıklamalar" &&
+  /tp\("interpretations"\)/.test(PASSAGE_UI) && /^Editoryal Yorum/.test(PASSAGE_TR.interpretations));
 check("U sadık çeviri editoryalle fallback ETMEZ (boşsa dürüst not)",
-  /çeviri girilmemiş/.test(PASSAGE_UI));
+  /tp\("translationsEmpty"\)/.test(PASSAGE_UI) && /çeviri girilmemiş/.test(PASSAGE_TR.translationsEmpty));
 
 // Bilgi Kaydı detay "Değişiklik Geçmişi".
 const BK_DETAIL = read("app/aromaterapi/bilgi-kayitlari/[id]/page.tsx");
