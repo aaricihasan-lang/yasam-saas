@@ -1,5 +1,5 @@
 {
-  "baseSha": "8ceb00ba2173622769ee73712264943865573a27",
+  "baseSha": "878f49a46077ecf046b9f18266d2dd4361724813",
   "generator": "scripts/i18n/reports-golden-cd.harness.ts",
   "fixtures": {
     "P16-plan-tam": {
@@ -592,7 +592,7 @@
     },
     "P11-ansiklopedi-tum": {
       "filename": "yasam-sistemi-dogaltas-raporu-2026-11-25.docx",
-      "digest": "7a3d6fa0a9e4b059368d4eae335a2235920efac39f4abc422576509108f8bc29",
+      "digest": "988ef9e2ede92b9d42a6822c2999c41d9d06658344e8ececce09a6941f0df4ac",
       "parts": {
         "[Content_Types].xml": "9dade5058cf89e28a9bca4ca785db6fe91a46ea3ec4b79db4c6ca47f4bf3e3fc",
         "_rels/.rels": "641d22a23aa9eb550103a7a01471eaeda5e84c69413e6e03e7fd290b4811a756",
@@ -606,7 +606,7 @@
         "word/_rels/footer1.xml.rels": "bf64631f0bc7bd46712fef822bcfb22e069fa5779e133980ca0c9d81f00efc09",
         "word/_rels/footnotes.xml.rels": "bf64631f0bc7bd46712fef822bcfb22e069fa5779e133980ca0c9d81f00efc09",
         "word/comments.xml": "dd2d62f68c6fd01fc4d7d44081587af54ea3e135b9486cc44fa3c62d087adfec",
-        "word/document.xml": "e5e5d56acad1fd57b20e3eb923e0fbbd3980ca58a0661cc2cf78f7aeea0d4c6e",
+        "word/document.xml": "e715a5743a8009caccddbfe9266e4a88226478dd9000185257b0afded7a64391",
         "word/endnotes.xml": "52f6c33e62c233e0d9f9c41ec259ffd943ea9cdc413293d43e6ffb213682a5cf",
         "word/fontTable.xml": "a746dbb577ec5d68983d659707c0750ca89d40b9d3316e31af331d5e1c736bad",
         "word/footer1.xml": "de12f855cde52b5540453c5f637cb7c8d820f6bb0567d611f1ef244f4e5285e0",
@@ -618,7 +618,7 @@
     },
     "P11-ansiklopedi-tas-secili": {
       "filename": "yasam-sistemi-dogaltas-raporu-2026-11-25.docx",
-      "digest": "c7610276eee6bb1a0dfdff5533d50f8b417021f9af7fedc9cde27ca4afedddbc",
+      "digest": "e96a83ccf406946079f2c0f4a20ab2d22494303bdffa894a9e945ea6f6d76f7b",
       "parts": {
         "[Content_Types].xml": "9dade5058cf89e28a9bca4ca785db6fe91a46ea3ec4b79db4c6ca47f4bf3e3fc",
         "_rels/.rels": "641d22a23aa9eb550103a7a01471eaeda5e84c69413e6e03e7fd290b4811a756",
@@ -632,7 +632,7 @@
         "word/_rels/footer1.xml.rels": "bf64631f0bc7bd46712fef822bcfb22e069fa5779e133980ca0c9d81f00efc09",
         "word/_rels/footnotes.xml.rels": "bf64631f0bc7bd46712fef822bcfb22e069fa5779e133980ca0c9d81f00efc09",
         "word/comments.xml": "dd2d62f68c6fd01fc4d7d44081587af54ea3e135b9486cc44fa3c62d087adfec",
-        "word/document.xml": "2d2736ca66ed585f0eec31d9accc52d2acf667a40405412dba02b76239372f59",
+        "word/document.xml": "be288de81bb730f38ab94e8a56c0d5b928f152881a92a226ecf6ec836c612b0c",
         "word/endnotes.xml": "52f6c33e62c233e0d9f9c41ec259ffd943ea9cdc413293d43e6ffb213682a5cf",
         "word/fontTable.xml": "a746dbb577ec5d68983d659707c0750ca89d40b9d3316e31af331d5e1c736bad",
         "word/footer1.xml": "de12f855cde52b5540453c5f637cb7c8d820f6bb0567d611f1ef244f4e5285e0",
@@ -1170,7 +1170,7 @@
     },
     "P11-ansiklopedi-mineral-analiz": {
       "filename": "yasam-sistemi-dogaltas-raporu-2026-11-25.docx",
-      "digest": "8fda3e66d46d132afbeab203c548fff66690bbec677fce9e0676da9f11047452",
+      "digest": "1fa12b6a3c5f750ac7c2e9556f6e1d99b215fee13591aa0179c27b5265105345",
       "parts": {
         "[Content_Types].xml": "9dade5058cf89e28a9bca4ca785db6fe91a46ea3ec4b79db4c6ca47f4bf3e3fc",
         "_rels/.rels": "641d22a23aa9eb550103a7a01471eaeda5e84c69413e6e03e7fd290b4811a756",
@@ -1184,7 +1184,7 @@
         "word/_rels/footer1.xml.rels": "bf64631f0bc7bd46712fef822bcfb22e069fa5779e133980ca0c9d81f00efc09",
         "word/_rels/footnotes.xml.rels": "bf64631f0bc7bd46712fef822bcfb22e069fa5779e133980ca0c9d81f00efc09",
         "word/comments.xml": "dd2d62f68c6fd01fc4d7d44081587af54ea3e135b9486cc44fa3c62d087adfec",
-        "word/document.xml": "5a6880bfaf9dea69025c818287383386a9bceb008b40c6108bdc00da42fdcb21",
+        "word/document.xml": "73d547802204c3adcaf93fe699c91f9150fb40e4706abd0bf5e0b8b7f924592e",
         "word/endnotes.xml": "52f6c33e62c233e0d9f9c41ec259ffd943ea9cdc413293d43e6ffb213682a5cf",
         "word/fontTable.xml": "a746dbb577ec5d68983d659707c0750ca89d40b9d3316e31af331d5e1c736bad",
         "word/footer1.xml": "de12f855cde52b5540453c5f637cb7c8d820f6bb0567d611f1ef244f4e5285e0",
