@@ -31,17 +31,17 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { runBackup, runRestore, serializeBackupParts, type JsonFetcher, type JsonResponse } from "../../lib/backup/client.ts";
-import { normalizeBackupFile } from "../../lib/backup/format.ts";
+import { runBackup, runRestore, serializeBackupParts, type JsonFetcher, type JsonResponse } from "../../lib/backup/client";
+import { normalizeBackupFile } from "../../lib/backup/format";
 import {
   buildBackupPlan,
   handleBackupTableRequest,
   handleFullRestore,
   handleRestoreChunk,
   handleRestorePlan,
-} from "../../lib/backup/service.ts";
-import { fetchTablePage, type RestoreContext } from "../../lib/backup/engine.ts";
-import { getRegistryEntry, REGISTRY_HASH } from "../../lib/backup/registry.ts";
+} from "../../lib/backup/service";
+import { fetchTablePage, type RestoreContext } from "../../lib/backup/engine";
+import { getRegistryEntry, REGISTRY_HASH } from "../../lib/backup/registry";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const FIX = join(ROOT, "scripts", "settings-backup-i18n", "fixtures");
@@ -191,7 +191,7 @@ async function newDb(): Promise<{ pg: PGlite; db: SupabaseClient }> {
   await pg.exec("SET TimeZone = 'UTC'");
   return { pg, db: makeDb(pg) };
 }
-const asService = async <T>(pg: PGlite, fn: () => Promise<T>): Promise<T> => {
+const asService = async <T,>(pg: PGlite, fn: () => Promise<T>): Promise<T> => {
   await pg.exec("SET ROLE service_role");
   try {
     return await fn();
