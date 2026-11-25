@@ -9,6 +9,7 @@ import { getEmailProvider, type EmailProvider } from "@/lib/email/provider";
 import { emailLimits, hashRecipient, otpPepper } from "@/lib/auth/emailOtp";
 import { renderSecurityNotice, type SecurityNoticeKind } from "@/lib/email/templates/securityNoticeEmail";
 import type { ActiveLocale } from "@/lib/i18n/locales";
+import { emailSelfServiceAllowedForUserId } from "@/lib/auth/emailSelfService";
 
 type Env = Record<string, string | undefined>;
 
@@ -37,6 +38,12 @@ export async function sendSecurityNotice(
     }
     if (!pepper || !provider) {
       await recordUndelivered(db, args.userId, args.kind, "not_configured");
+      return false;
+    }
+    // F3: kullanıcı e-postası kapsamı (AUTH_EMAIL_SELF_SERVICE_ROLES; varsayılan yalnız Owner). Kapsam dışı alıcıya ileti
+    // GİTMEZ, kota harcanmaz; denetim izi "scope_closed" olarak kalır.
+    if (!(await emailSelfServiceAllowedForUserId(db, args.userId, env))) {
+      await recordUndelivered(db, args.userId, args.kind, "scope_closed");
       return false;
     }
     // F2-K (L4): bildirimler kotanın en çok %80'ini kullanır; kalan pay giriş / işlem kodlarına ayrılır.
