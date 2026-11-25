@@ -3,6 +3,7 @@
     "server": {
       "common": {
         "forbiddenOrigin": "İstek kaynağı doğrulanamadı.",
+        "emailNotInScope": "E-posta ile doğrulama ve adres değişikliği bu hesap için henüz açılmadı.",
         "tooManyAttempts": "Çok fazla deneme. Lütfen biraz sonra tekrar deneyin.",
         "invalidOrExpiredRelogin": "Giriş isteği geçersiz veya süresi dolmuş. Lütfen yeniden giriş yapın.",
         "sessionCreateFailed": "Oturum oluşturulamadı.",
