@@ -1,8 +1,5 @@
-# Akıllı CI F3 — gölge mod DOĞRULAMASI (yalnız elle çalıştırılır; CI kapısına ve ci.yml işlerine bağlı DEĞİL).
-# Regresyon listesinin tamamını çalışma zamanı yükleme iziyle (scripts/ci/golge-iz-kanca.mjs) üç parçada koşar ve her test
-# için gerçekte yüklenen depo dosyalarını statik import grafiğiyle karşılaştırır (scripts/ci/golge-iz-karsilastir.mjs).
-# Amaç: F4'ten önce gölge önerisinin bir testi yanlışlıkla dışarıda bırakabileceği "zararlı kaçak" sayısını ölçmek.
-# Test sonuçları burada karar vermez (gerçek kapı ci.yml'dedir); sır / production / dış ağ yok (net-guard aynen yüklü).
+# TANI DALI (I18N-F1-R5 altyapı ajanı) — yalnız bu tani/r5-* dalında golge-iz.yml geçici olarak archive-ui.e2e koşusuna çevrildi.
+# Bu dal ASLA merge edilmez. Sır yok; production'a sıfır temas: build sahte 127.0.0.1 değerleriyle, test API'leri Playwright ile taklit eder.
 name: Gölge iz doğrulaması
 
 on:
@@ -12,64 +9,42 @@ permissions:
   contents: read
 
 jobs:
-  iz:
+  archive-ui:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
-    strategy:
-      fail-fast: false
-      matrix:
-        parca: [1, 2, 3]
+    timeout-minutes: 45
     env:
       NEXT_TELEMETRY_DISABLED: "1"
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
       - uses: ./.github/actions/kurulum
-
-      - name: PostgREST 12.2.3 (sabit sürüm + SHA-256 doğrulaması)
-        run: |
-          set -euo pipefail
-          mkdir -p "$RUNNER_TEMP/postgrest"
-          curl -fsSL --retry 3 -o "$RUNNER_TEMP/postgrest.tar.xz" \
-            https://github.com/PostgREST/postgrest/releases/download/v12.2.3/postgrest-v12.2.3-linux-static-x64.tar.xz
-          echo "9f71269e61ac3a940281e93ff415760f5957e430e475ba4c3889f3ede7d5527c  $RUNNER_TEMP/postgrest.tar.xz" | sha256sum -c -
-          tar -xJf "$RUNNER_TEMP/postgrest.tar.xz" -C "$RUNNER_TEMP/postgrest"
-
-      - name: Regresyon (yükleme iziyle; sonuç burada karar vermez)
-        continue-on-error: true
+      - name: Playwright chromium
+        run: npx playwright install --with-deps chromium
+      - name: Test build'i için tip denetimini atla (yalnız bu runner)
+        run: node scripts/campaign/ci-e2e-build-config.cjs
+      - name: Build (webpack; sahte değerler)
         env:
-          POSTGREST_BIN: ${{ runner.temp }}/postgrest/postgrest
-          GOLGE_IZ_DIR: ${{ runner.temp }}/golge-iz
-        run: mkdir -p "$GOLGE_IZ_DIR" && node scripts/ci/run-regression.mjs --parca "${{ matrix.parca }}/3"
-
+          NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:54599
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: zz
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: zz
+          SUPABASE_SERVICE_ROLE_KEY: zz
+          NODE_OPTIONS: --max-old-space-size=6144
+        run: npx next build --webpack || npx next build --webpack
+      - name: Sunucu + archive-ui.e2e
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:54599
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: zz
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: zz
+          SUPABASE_SERVICE_ROLE_KEY: zz
+          ARCHIVE_UI_URL: http://127.0.0.1:3991
+        run: |
+          mkdir -p "$RUNNER_TEMP/archive-ui"
+          npx next start -p 3991 -H 127.0.0.1 > "$RUNNER_TEMP/archive-ui/sunucu.log" 2>&1 &
+          for i in $(seq 1 90); do curl -s -o /dev/null http://127.0.0.1:3991/ && break; sleep 2; done
+          npx tsx scripts/settings-export/archive-ui.e2e.ts "$RUNNER_TEMP/archive-ui" 2>&1 | tee "$RUNNER_TEMP/archive-ui/gunluk.txt"
+          exit ${PIPESTATUS[0]}
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
-          name: golge-iz-${{ matrix.parca }}
-          path: ${{ runner.temp }}/golge-iz
-          retention-days: 14
-
-  karsilastir:
-    needs: [iz]
-    if: always()
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "24"
-      - uses: actions/download-artifact@v4
-        with:
-          pattern: golge-iz-*
-          merge-multiple: true
-          path: ${{ runner.temp }}/golge-iz
-      - name: Statik grafik ↔ çalışma zamanı izi
-        run: node scripts/ci/golge-iz-karsilastir.mjs --iz-dir "$RUNNER_TEMP/golge-iz" --cikti "$RUNNER_TEMP/golge-iz-sonuc.json"
-      - uses: actions/upload-artifact@v4
-        with:
-          name: golge-iz-sonuc
-          path: ${{ runner.temp }}/golge-iz-sonuc.json
-          retention-days: 30
+          name: archive-ui-kanit
+          path: ${{ runner.temp }}/archive-ui
+          retention-days: 7
