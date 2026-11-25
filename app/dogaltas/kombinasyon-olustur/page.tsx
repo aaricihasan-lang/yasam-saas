@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, useCallback, useRef } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import { stoneRecordDisplayName } from "@/lib/dogaltas/stoneNames";
 import { useDogaltasServerError } from "@/lib/dogaltas/useServerErrorText";
 import BfcacheRefreshHandler from "@/components/BfcacheRefreshHandler";
 import { DuplicateWarningModal } from "@/app/dogaltas/components/DuplicateWarningModal";
@@ -107,6 +108,7 @@ export default function KombinasyonOlusturPage() {
   const t = useTranslations("stones.combinations.builder");
   const se = useDogaltasServerError();
   const tc = useTranslations("stones.common");
+  const locale = useLocale();
   const tsc = useTranslations("stones.saveCombo");
   // Arama tipi görünen label/placeholder localize; SEARCH_TYPE_META KANONİK kalır
   // (type key query alanı + describeCondition/notesText'i besler). Helper'lar çeviriciyi
@@ -948,7 +950,7 @@ export default function KombinasyonOlusturPage() {
                             // eslint-disable-next-line @next/next/no-img-element
                             <img
                               src={cover}
-                              alt={stone.stone_name}
+                              alt={stoneRecordDisplayName(stone, locale)}
                               className={`h-full w-full object-cover ${inStock ? "" : "grayscale"}`}
                             />
                           ) : (
@@ -961,7 +963,8 @@ export default function KombinasyonOlusturPage() {
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center justify-between gap-2">
                             <h3 className="truncate text-sm font-black text-slate-950">
-                              {stone.stone_name || tc("unnamedStone")}
+                              {/* Yalnız gösterim: demo vitrin taşı EN arayüzde EN ad. Sepet / kayıt adı saklanan addır. */}
+                              {stone.stone_name ? stoneRecordDisplayName(stone, locale) : tc("unnamedStone")}
                             </h3>
                             {inStock ? (
                               <span className="shrink-0 rounded-full bg-emerald-600 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-white">

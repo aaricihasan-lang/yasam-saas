@@ -1,7 +1,8 @@
 "use client";
 
 import { runInEffect } from "@/lib/runInEffect";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import { stoneRecordDisplayName } from "@/lib/dogaltas/stoneNames";
 import { useDogaltasServerError } from "@/lib/dogaltas/useServerErrorText";
 import Link from "next/link";
 import BfcacheRefreshHandler from "@/components/BfcacheRefreshHandler";
@@ -272,6 +273,7 @@ const StoneCard = memo(function StoneCard({
 }: StoneRowSharedProps) {
   const t = useTranslations("stones.list");
   const tf = useTranslations("stones");
+  const locale = useLocale();
   const facet = (v: string) => (tf.has(`facetLabels.${v}`) ? tf(`facetLabels.${v}`) : v);
   const imageCount = stoneListImageCount(stone.images);
   // F-016: kapak URL'i parent'ta batch signed-URL ile çözülür (private-read, N+1'siz).
@@ -279,7 +281,8 @@ const StoneCard = memo(function StoneCard({
   const sessionTenant = getSessionTenantId();
   const isLibraryStone = sessionTenant !== null && stone.tenant_id !== sessionTenant;
   const detailHref = stoneDetailHref(stone.id, filterQueryString);
-  const displayName = stone.stone_name || tf("common.unnamedStone");
+  // Demo vitrin taşı → EN arayüzde EN gösterim adı; kullanıcının taşı / TR arayüz birebir (kayıt değişmez).
+  const displayName = stone.stone_name ? stoneRecordDisplayName(stone, locale) : tf("common.unnamedStone");
   const displayDescription = safeText(stone.short_description, 120, t("card.noShortDescription"));
 
   return (
@@ -308,7 +311,7 @@ const StoneCard = memo(function StoneCard({
               checked={isSelected}
               onChange={() => onToggleSelect(stone.id)}
               onClick={(event) => event.stopPropagation()}
-              aria-label={t("card.selectAria", { name: stone.stone_name || tf("common.unnamedStone") })}
+              aria-label={t("card.selectAria", { name: displayName })}
               className={dp.checkbox}
             />
           ) : null}
@@ -404,7 +407,7 @@ const StoneCard = memo(function StoneCard({
               event.stopPropagation();
               onDelete(stone);
             }}
-            aria-label={t("card.deleteAria", { name: stone.stone_name || tf("common.unnamedStone") })}
+            aria-label={t("card.deleteAria", { name: displayName })}
             // F-015a: destructive dokunma hedefi ~44×44px (mobil erişilebilirlik).
             className="btn-danger shrink-0 !min-h-[44px] !min-w-[44px] !rounded-lg !px-3 !py-1.5 !text-xs"
           >
