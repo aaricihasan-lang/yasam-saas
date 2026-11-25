@@ -13,7 +13,17 @@ import { assertServerOnly } from "@/lib/server/serverOnlyGuard";
 import { countTableRows, fetchTablePage, type RowFilter } from "@/lib/backup/engine";
 import { getRegistryEntry, MODULE_LABELS } from "@/lib/backup/registry";
 import { MIGRATION_SCHEMA } from "@/lib/backup/schema.generated";
+import { backupFileText, SOURCE_FILE_TEXT } from "@/lib/backup/fileText";
+import type { ActiveLocale } from "@/lib/i18n/locales";
 import type { RegistryEntry } from "@/lib/backup/types";
+import {
+  addReadableCounts,
+  applyReadableView,
+  readableViewNotes,
+  restrictedReadableView,
+  type ReadableView,
+  type ReadableViewCounts,
+} from "@/lib/backup/readableView";
 import { buildArchiveDocx, type WordTableData } from "@/lib/backup/wordExport";
 import { clientLinkColumn, istanbulDayStartIso, moduleTables, nextDay } from "../scope";
 import type { ArchiveOptions, DataPartState } from "../types";
@@ -187,8 +197,20 @@ export async function buildDataPart(
   opts: ArchiveOptions,
   state: DataPartState | null,
   now: Date = new Date(),
+  /**
+   * Okunabilir çıktı görünümü (A3 / QA-N-01): Numeroloji gelecek dönemleri ve HD Sistem Yorumu yalnız sunucuda
+   * doğrulanmış yetkiyle. Verilmezse KISITLI görünüm (fail-closed). Teknik JSON yedeği bu yoldan geçmez.
+   */
+  view: ReadableView = restrictedReadableView(now),
+  /**
+   * Dosya dili — arşiv PLANINDA sabitlenir ve her parçada aynı gelir (çok parçalı arşivde ad / içerik tutarlı).
+   * Verilmezse / tr → bugünkü Türkçe parça bayt-bayt aynı.
+   */
+  locale?: ActiveLocale,
 ): Promise<DataPartResult> {
+  const ft = backupFileText(locale);
   const cache: ProbeCache = new Map();
+  let viewCounts: ReadableViewCounts = { numerologyRedacted: 0, hdSystemReadingRedacted: 0 };
   const tables = moduleTables(module);
   let t = state?.t ?? 0;
   let cursor = state?.c ?? null;
@@ -215,8 +237,9 @@ export async function buildDataPart(
       expected_count: null,
       complete: true,
       error: null,
-      titleSuffix: continued ? " (önceki bölümden devam)" : "",
+      titleSuffix: continued ? ft.continued : "",
       firstIndex: emitted + 1,
+      ...(ft.isSource ? {} : { label: ft.tableLabel(e) }),
     };
     let tableDone = false;
     while (records < PART_MAX_RECORDS && chars < PART_MAX_CHARS) {
@@ -238,9 +261,11 @@ export async function buildDataPart(
         bucket.complete = false;
         bucket.error = page.error;
       }
-      for (const r of page.rows) chars += JSON.stringify(r).length;
-      bucket.rows.push(...page.rows);
-      records += page.rows.length;
+      const shown = applyReadableView(e.table, page.rows, view, ft.hidden);
+      viewCounts = addReadableCounts(viewCounts, shown.counts);
+      for (const r of shown.rows) chars += JSON.stringify(r).length;
+      bucket.rows.push(...shown.rows);
+      records += shown.rows.length;
       if (page.done) {
         tableDone = true;
         break;
@@ -264,20 +289,23 @@ export async function buildDataPart(
 
   const next: DataPartState | null = t < tables.length ? { t, c: cursor, n: part + 1, i: cursor ? emitted : 0 } : null;
   const rowsTotal = collected.reduce((s, b) => s + b.rows.length, 0);
-  const label = MODULE_LABELS[module] ?? module;
-  const fileName = `${label} — Kayıt Dökümü — Bölüm ${part}.docx`;
+  const label = ft.moduleLabel(module);
+  // ZIP yol adları (klasör / dosya) bu turda dil-SABİT (TR): plan klasörleriyle tutarlı; belge İÇERİĞİ çıktı dilinde.
+  const fileName = `${SOURCE_FILE_TEXT.dumpFileName(module, part)}.docx`;
   if (rowsTotal === 0 && errors.length === 0) return { buffer: null, next, rows: 0, errors, fileName };
 
   const refLabels = await resolveRefLabels(db, tenantId, userId, collected);
-  const notes: string[] = [`Bölüm ${part}${next ? " (devamı sonraki bölümde)" : " (son bölüm)"} · ${rowsTotal} kayıt`];
-  if (opts.clientIds) notes.push(`Danışan seçimi: ${opts.clientIds.length} danışan (yalnız danışana bağlı kayıtlar).`);
-  if (opts.dateFrom || opts.dateTo) notes.push(`Kayıt tarihi aralığı: ${opts.dateFrom ?? "başlangıç"} – ${opts.dateTo ?? "bugün"} (Europe/Istanbul).`);
+  const notes: string[] = [ft.partNote(part, next !== null, rowsTotal)];
+  if (opts.clientIds) notes.push(ft.clientFilterNote(opts.clientIds.length));
+  if (opts.dateFrom || opts.dateTo) notes.push(ft.dateRangeNote(opts.dateFrom, opts.dateTo));
+  notes.push(...readableViewNotes(viewCounts, ft));
   const built = await buildArchiveDocx({
-    title: `${label} — Kayıt Dökümü`,
+    title: ft.dumpTitle(module),
     modules: [{ key: module, label, tables: collected }],
     refLabels,
     notes,
     now,
+    ...(ft.isSource ? {} : { text: ft.word }),
   });
   return { buffer: built.buffer, next, rows: rowsTotal, errors, fileName };
 }

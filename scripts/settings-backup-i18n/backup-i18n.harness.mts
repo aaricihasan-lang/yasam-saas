@@ -265,8 +265,19 @@ await check("S1 yedek hattı hiçbir dil girdisi okumaz (lib/backup + yedek/geri
     "app/api/settings/restore/files/route.ts",
   ];
   const LOCALE_INPUT = /next-intl|@\/lib\/i18n|from "\.\.\/i18n|getLocale|NEXT_LOCALE|accept-language|requestTranslator|useLocale|useTranslations/i;
-  const bad = files.filter((f) => LOCALE_INPUT.test(readFileSync(join(ROOT, f), "utf8").replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "")));
+  // Owner §20 / A16 (R5): OKUNABİLİR Word çıktısı ekran dilinde — dil girdisi YALNIZ bu iki okunabilir-çıktı
+  // modülünde. Teknik JSON yedek hattı (aşağıdaki denetim) bunları içe aktarmaz → yedek dosyası dil-bağımsız kalır.
+  const READABLE_OUTPUT = ["lib/backup/fileText.ts", "lib/backup/readableExport.ts"];
+  const bad = files
+    .filter((f) => !READABLE_OUTPUT.includes(f))
+    .filter((f) => LOCALE_INPUT.test(readFileSync(join(ROOT, f), "utf8").replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "")));
   assert.deepEqual(bad, []);
+  const IMPORTS_READABLE = /from "(?:\.\/|@\/lib\/backup\/)(?:fileText|readableExport|readableView)"/;
+  const technical = ["engine", "client", "format", "service", "registry", "types", "columns", "hdFiles", "sifaV2Files", "storagePaths"]
+    .map((n) => `lib/backup/${n}.ts`)
+    .concat(files.filter((f) => f.startsWith("app/api/settings/")));
+  const leaks = technical.filter((f) => IMPORTS_READABLE.test(readFileSync(join(ROOT, f), "utf8")));
+  assert.deepEqual(leaks, [], "teknik yedek hattı okunabilir-çıktı modüllerini içe aktarmamalı");
 });
 await check("S2 dil-bağımsız kodlar YEDEK DOSYASINA yazılmaz (BackupFileV3 / BackupTableDump tiplerinde yok)", () => {
   const types = readFileSync(join(ROOT, "lib/backup/types.ts"), "utf8");
@@ -417,7 +428,12 @@ await check("A6 arşiv DOSYA içeriği dil-bağımsız: BENİOKU / ARŞİV-RAPOR
   assert.ok(!/_code|display|message_code|warning_codes/.test(readme), "readme/runReport kod alanı okumamalı");
   const LOCALE_INPUT = /next-intl|@\/lib\/i18n|getLocale|NEXT_LOCALE|accept-language|requestTranslator|useLocale|useTranslations/i;
   const dir = ["lib/archive/client.ts", "lib/archive/types.ts", "lib/archive/zip.ts", "lib/archive/scope.ts", ...readdirSync(join(ROOT, "lib/archive/server")).map((f) => `lib/archive/server/${f}`)];
-  const bad = dir.filter((f) => LOCALE_INPUT.test(readFileSync(join(ROOT, f), "utf8").replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "")));
+  // Owner §20 / A16 (R5): Kayıt Dökümü Word İÇERİĞİ plan dilinde (`file_locale`). Dil girdisi YALNIZ bu tesisatta:
+  // http (istek dili → plan), handlers (plan dili → parça), data (belge metinleri), reports (ctx tipi).
+  const LOCALE_PLUMBING = ["lib/archive/server/http.ts", "lib/archive/server/handlers.ts", "lib/archive/server/data.ts", "lib/archive/server/reports.ts"];
+  const bad = dir
+    .filter((f) => !LOCALE_PLUMBING.includes(f))
+    .filter((f) => LOCALE_INPUT.test(readFileSync(join(ROOT, f), "utf8").replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "")));
   assert.deepEqual(bad, []);
 });
 

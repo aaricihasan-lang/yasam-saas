@@ -65,6 +65,7 @@ import { readAstrologyTechniqueGrants, resolveAstrologyOwner } from "@/lib/astro
 import type { AstrologyEntitlements } from "@/lib/astrology/access/entitlements";
 import { isAstrologyModuleEnabled } from "@/lib/astrology/config";
 import { reportFileDate, zonedDayKey } from "@/lib/time/reportTime";
+import type { ActiveLocale } from "@/lib/i18n/locales";
 
 assertServerOnly("lib/archive/server/reports");
 
@@ -75,6 +76,8 @@ export type ArchiveCtx = {
   profile: Record<string, unknown> | undefined;
   isDemo: boolean;
   isAndroid: boolean;
+  /** İsteğin çıktı dili (yalnız plan; parçalar plandaki `file_locale`'i kullanır). Yok → kaynak dil. */
+  locale?: ActiveLocale;
 };
 
 export type ReportOutcome =
