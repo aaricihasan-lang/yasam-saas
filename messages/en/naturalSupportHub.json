@@ -1,0 +1,13 @@
+{
+  "naturalSupportHub": {
+    "titleA": "Natural Support",
+    "titleB": "Guide",
+    "subtitle": "Natural stones, natural support methods, nutrition and professional reference resources",
+    "cards": {
+      "stones": { "title": "Natural Stone", "desc": "Stone and mineral records, combinations and client matches" },
+      "aromatherapy": { "title": "Aromatherapy", "desc": "Essential oils, carrier oils and blends" },
+      "sifaRehberi": { "title": "Natural Wellness Guide", "desc": "Condition records, symptoms and supportive guidance" },
+      "beslenme": { "title": "Nutrition", "desc": "Foods, nutrition approaches and professional nutrition information" }
+    }
+  }
+}

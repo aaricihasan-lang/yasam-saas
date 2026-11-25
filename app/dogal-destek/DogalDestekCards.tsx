@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState, type PointerEvent as ReactPointerEvent } from "react";
+import { useTranslations } from "next-intl";
 import { BookOpen, Flower2, Gem, Wheat, type LucideIcon } from "lucide-react";
 import { hasAnyModulePermissionFlag } from "@/lib/auth/modulePermissions";
 import { readYasamUser, syncYasamUserFromDb, type YasamUser } from "@/lib/auth/yasamUser";
@@ -27,7 +28,10 @@ import styles from "./dogalDestek.module.css";
  * Besinler). `clients` bu hub'ı/alt kartı açmaz.
  */
 type SupportFolder = {
+  /** Kanonik (dil-bağımsız) kart kimliği: React anahtarı + data-support-card (testler Türkçe adla arar). */
   title: string;
+  /** Görünen başlık/açıklama anahtarı (naturalSupportHub.cards.<i18nKey>). */
+  i18nKey: "stones" | "aromatherapy" | "sifaRehberi" | "beslenme";
   desc: string;
   href: string;
   /** 2026-10-18 premium görünüm: kart görseli (public/premium/dogal-destek), renk tonu, çizgi ikon, prototip sırası. */
@@ -41,6 +45,7 @@ const flagFolders: (SupportFolder & { keys: string[] })[] = [
   // modül kapısı (stones/dogaltas — routeModuleAccess + sunucu API'leri) DEĞİŞMEDİ; yalnız navigasyon.
   {
     title: "Doğaltaş",
+    i18nKey: "stones",
     desc: "Taş ve mineral kayıtları, kombinasyonlar ve danışan eşleşmeleri",
     href: "/dogaltas",
     keys: ["stones", "dogaltas"],
@@ -50,6 +55,7 @@ const flagFolders: (SupportFolder & { keys: string[] })[] = [
   },
   {
     title: "Aromaterapi",
+    i18nKey: "aromatherapy",
     desc: "Uçucu yağlar, sabit yağlar ve karışımlar",
     href: "/aromaterapi",
     keys: ["aromatherapy", "aromaterapi"],
@@ -59,6 +65,7 @@ const flagFolders: (SupportFolder & { keys: string[] })[] = [
   },
   {
     title: "Şifa Rehberi",
+    i18nKey: "sifaRehberi",
     desc: "Rahatsızlık kayıtları, belirtiler ve destekleyici öneriler",
     href: "/sifa-rehberi",
     keys: ["sifa_rehberi", "healing"],
@@ -71,6 +78,7 @@ const flagFolders: (SupportFolder & { keys: string[] })[] = [
 // Tam Beslenme alt kartı (server-authoritative access).
 const BESLENME_FOLDER: SupportFolder = {
   title: "Beslenme",
+  i18nKey: "beslenme",
   desc: "Besinler, beslenme yaklaşımları ve profesyonel beslenme bilgileri",
   href: "/beslenme",
   art: { src: "/premium/dogal-destek/beslenme.webp", w: 398, h: 300 },
@@ -116,6 +124,7 @@ function onTiltLeave(e: ReactPointerEvent<HTMLElement>) {
 }
 
 export default function DogalDestekCards() {
+  const t = useTranslations("naturalSupportHub");
   const [user, setUser] = useState<YasamUser | null>(null);
   // İki authorization kaynağı ayrı ayrı "resolved" olarak izlenir → ikisi de bitmeden render yok.
   const [userResolved, setUserResolved] = useState(false);
@@ -188,7 +197,7 @@ export default function DogalDestekCards() {
         revealed ? "opacity-100" : "opacity-0"
       } ${gridClass(visible.length)} ${styles.cards}`}
     >
-      {visible.map(({ title, desc, href, art, accent, Icon }) => (
+      {visible.map(({ title, i18nKey, href, art, accent, Icon }) => (
         <Link
           key={title}
           href={href}
@@ -208,8 +217,8 @@ export default function DogalDestekCards() {
             <span className={styles.cardIcon} aria-hidden>
               <Icon className="h-6 w-6" strokeWidth={1.6} />
             </span>
-            <h2 className={styles.cardTitle}>{title}</h2>
-            <p className={styles.cardDesc}>{desc}</p>
+            <h2 className={styles.cardTitle}>{t(`cards.${i18nKey}.title`)}</h2>
+            <p className={styles.cardDesc}>{t(`cards.${i18nKey}.desc`)}</p>
           </span>
         </Link>
       ))}
