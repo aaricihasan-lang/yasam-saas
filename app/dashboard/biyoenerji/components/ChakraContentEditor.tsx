@@ -251,7 +251,7 @@ export default function ChakraContentEditor({ id }: { id: string }) {
     setBasicSaving(true);
     const { error } = await bioApiUpdate("chakras", record.id, patch);
     setBasicSaving(false);
-    if (error) { showToast("err", `Bilgiler kaydedilemedi: ${error}`); return; }
+    if (error) { showToast("err", te("basicSaveFailed", { detail: errText(error, tl("serverError")) })); return; }
     setSavedBasic(sent);
     showToast("ok", te("basicUpdated"));
   }
@@ -265,7 +265,7 @@ export default function ChakraContentEditor({ id }: { id: string }) {
       block_title: d.block_title.trim() || null, block_type: d.block_type, section_key: d.section_key, editorial_explanation: d.editorial_explanation,
     });
     setSavingId(null);
-    if (error) { showToast("err", `Blok kaydedilemedi: ${error}`); return; }
+    if (error) { showToast("err", te("blockSaveFailed", { detail: errText(error, tl("serverError")) })); return; }
     setBlocks((prev) => prev.map((x) => x.id === b.id ? { ...x, block_title: d.block_title.trim() || null, block_type: d.block_type, section_key: d.section_key, editorial_explanation: d.editorial_explanation } : x));
     showToast("ok", te("blockUpdated"));
   }
@@ -275,7 +275,7 @@ export default function ChakraContentEditor({ id }: { id: string }) {
     setSavingId(blockId);
     const { error } = await deleteChakraBlock(blockId);
     setSavingId(null); setConfirmDelete(null);
-    if (error) { showToast("err", `Blok silinemedi: ${error}`); return; }
+    if (error) { showToast("err", te("blockDeleteFailed", { detail: errText(error, tl("serverError")) })); return; }
     setBlocks((prev) => prev.filter((x) => x.id !== blockId));
     setDrafts((prev) => { const n = { ...prev }; delete n[blockId]; return n; });
     showToast("ok", te("blockDeleted"));
@@ -326,7 +326,7 @@ export default function ChakraContentEditor({ id }: { id: string }) {
       block_title: nd.block_title.trim() || null, editorial_explanation: nd.editorial_explanation,
     });
     setSavingId(null);
-    if (error || !newId) { showToast("err", `Blok eklenemedi: ${error ?? ""}`); return; }
+    if (error || !newId) { showToast("err", te("blockAddFailed", { detail: error ? errText(error, tl("serverError")) : "" })); return; }
     setNewDrafts((prev) => prev.filter((x) => x.tempId !== nd.tempId));
     showToast("ok", te("blockAdded"));
     // BIO-04 — yalnız blok listesi yenilenir; temel bilgi/diğer taslaklar ezilmez.
@@ -442,7 +442,7 @@ export default function ChakraContentEditor({ id }: { id: string }) {
                             <button type="button" className="inline-flex min-h-[44px] sm:min-h-[38px] items-center gap-1.5 rounded-lg border border-rose-200 bg-white px-3 py-1.5 text-[12.5px] font-semibold text-rose-600 transition hover:bg-rose-50 disabled:opacity-40"
                               disabled={savingId === b.id} onClick={() => setConfirmDelete({ id: b.id, title: d.block_title.trim() || sectionLabel(section) })}><Trash2 className="h-4 w-4" /> {te("delete")}</button>
                             <button type="button" className="inline-flex min-h-[44px] sm:min-h-[38px] items-center gap-1.5 rounded-lg border border-violet-200 bg-violet-50 px-3 py-1.5 text-[12.5px] font-bold text-violet-800 transition hover:bg-violet-100 disabled:opacity-40"
-                              disabled={savingId === b.id || !dirty} onClick={() => void saveBlock(b)}><Save className="h-4 w-4" /> {savingId === b.id ? "…" : "Kaydet"}</button>
+                              disabled={savingId === b.id || !dirty} onClick={() => void saveBlock(b)}><Save className="h-4 w-4" /> {savingId === b.id ? "…" : tl("save")}</button>
                           </div>
                         </div>
                       </div>

@@ -630,11 +630,12 @@ export default function SembolDili() {
                     </span>
                   ) : (
                     <span className={`${styles.pill} ${styles.pillMuted}`}>
-                      Kategorisiz
+                      {tl("uncategorised")}
                     </span>
                   )}
 
-                  <h2 className={`${styles.rTitle} ${styles.rTitleUpper}`} lang="tr">
+                  {/* lang="tr" yalnız kullanıcı içeriğinde; yedek metin sayfa dilini izler (QA C3-06). */}
+                  <h2 className={`${styles.rTitle} ${styles.rTitleUpper}`} lang={rawTitle === displayTitle ? "tr" : undefined}>
                     {displayTitle}
                   </h2>
                   <AdminTransferBadge originType={row.origin_type} className="mt-1" />

@@ -588,7 +588,8 @@ export default function BilincaltiSebepleri() {
                       <span className={`${styles.pill} ${styles.pillMuted}`}>{t("uncategorised")}</span>
                     )}
 
-                    <h2 className={`${styles.rTitle} ${styles.rTitleUpper}`} lang="tr">
+                    {/* lang="tr" yalnız kullanıcı içeriğinde (Türkçe büyük harf kuralı); yedek metin sayfa dilini izler (QA C3-06). */}
+                    <h2 className={`${styles.rTitle} ${styles.rTitleUpper}`} lang={row.title?.trim() ? "tr" : undefined}>
                       {row.title?.trim() || tl("untitled")}
                     </h2>
                     <AdminTransferBadge originType={row.origin_type} className="mt-1" />

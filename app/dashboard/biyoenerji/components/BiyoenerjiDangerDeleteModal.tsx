@@ -107,7 +107,6 @@ export function BiyoenerjiDangerDeleteModal({
   // Modal her açıldığında baştan başlat + yeni kod üret
   useEffect(() => {
     if (!open) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setStage(1);
     setCodeInput("");
     setVerifyCode(generateVerifyCode());
@@ -119,8 +118,8 @@ export function BiyoenerjiDangerDeleteModal({
   const guardedSelected = mode === "selected" && requiresBulkDeleteGuard(count);
   useEffect(() => {
     if (open && ((mode === "all" && stage === 3) || (guardedSelected && stage === 2))) {
-      const t = window.setTimeout(() => codeInputRef.current?.focus(), 80);
-      return () => window.clearTimeout(t);
+      const timer = window.setTimeout(() => codeInputRef.current?.focus(), 80);
+      return () => window.clearTimeout(timer);
     }
   }, [open, mode, stage, guardedSelected]);
 

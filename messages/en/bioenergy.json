@@ -206,7 +206,8 @@
       "statVisibleShort": "Visible",
       "searchSummaryQuoted": "\"{query}\" · {count, plural, one {{count} match} other {{count} matches}}",
       "all": "All",
-      "searchSummaryCurly": "“{query}” · {count, plural, one {{count} match} other {{count} matches}}"
+      "searchSummaryCurly": "“{query}” · {count, plural, one {{count} match} other {{count} matches}}",
+      "uncategorised": "Uncategorised"
     },
     "subconscious": {
       "demoTitle": "Demo Mode — Subconscious Causes",
@@ -297,11 +298,11 @@
       "blocksCounting": "Calculating content blocks…",
       "blocksCascade": "This action will also permanently delete a total of <b>{total}</b> content/source blocks (<b>{visible}</b> visible + <b>{evidence}</b> source information).",
       "blocksNone": "There are no content blocks linked to these record(s).",
-      "scopeAll": "To be deleted: <b>ALL {count} records</b> in the <b>{label}</b> module.",
-      "scopeNarrowed": "Because of the search/filter only <b>{visible}</b> records are shown; the filter only narrows the view, it does NOT narrow what is deleted. To delete specific records only, select them and use \"Delete Selected\".",
+      "scopeAll": "To be deleted: <b>{count, plural, one {ALL {count} record} other {ALL {count} records}}</b> in the <b>{label}</b> module.",
+      "scopeNarrowed": "Because of the search/filter only <b>{visible}</b> {visible, plural, one {record is} other {records are}} shown; the filter only narrows the view, it does NOT narrow what is deleted. To delete specific records only, select them and use \"Delete Selected\".",
       "scopeNoFilter": "The search or category filter does not affect this action.",
       "titleAll": "{label} — Delete All Records",
-      "titleSelected": "Delete {count} Selected Records",
+      "titleSelected": "{count, plural, one {Delete {count} Selected Record} other {Delete {count} Selected Records}}",
       "guardStage1Title": "{count} records will be deleted permanently. This action cannot be undone.",
       "selectedRemovedFrom": "The records you selected are permanently deleted from the <b>{label}</b> list.",
       "cancel": "Cancel",
@@ -310,7 +311,7 @@
       "phraseBody": "To continue, type the phrase below into the box.",
       "phraseAria": "Verification phrase",
       "finalTitle": "Final Confirmation — This action cannot be undone.",
-      "finalBody": "<b>{count} records</b> will be permanently deleted from the <b>{label}</b> list. Deleted records cannot be restored.",
+      "finalBody": "<b>{count, plural, one {{count} record} other {{count} records}}</b> will be permanently deleted from the <b>{label}</b> list. Deleted records cannot be restored.",
       "deleting": "⏳ Deleting…",
       "deletePermanently": "🗑 Delete Permanently ({count})",
       "selectedConfirmTitle": "{count, plural, one {Are you sure you want to delete the {count} selected record?} other {Are you sure you want to delete the {count} selected records?}}",
@@ -442,7 +443,11 @@
       "addBlock": "Add Block",
       "newBlock": "New Information Block",
       "deleteConfirm": "Are you sure you want to delete this content block?",
-      "deleteMessage": "The block \"{title}\" will be deleted permanently. Source information records are not touched."
+      "deleteMessage": "The block \"{title}\" will be deleted permanently. Source information records are not touched.",
+      "basicSaveFailed": "The information could not be saved: {detail}",
+      "blockSaveFailed": "The block could not be saved: {detail}",
+      "blockDeleteFailed": "The block could not be deleted: {detail}",
+      "blockAddFailed": "The block could not be added: {detail}"
     },
     "search": {
       "failed": "The search could not be completed. Please try again.",

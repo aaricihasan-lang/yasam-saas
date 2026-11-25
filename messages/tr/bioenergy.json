@@ -206,7 +206,8 @@
       "statVisibleShort": "Görünen",
       "searchSummaryQuoted": "\"{query}\" · {count} eşleşme",
       "all": "Tümü",
-      "searchSummaryCurly": "“{query}” · {count} eşleşme"
+      "searchSummaryCurly": "“{query}” · {count} eşleşme",
+      "uncategorised": "Kategorisiz"
     },
     "subconscious": {
       "demoTitle": "Demo Modu — Bilinçaltı Sebepleri",
@@ -442,7 +443,11 @@
       "addBlock": "Bloğu Ekle",
       "newBlock": "Yeni Bilgi Bloğu",
       "deleteConfirm": "Bu içerik bloğunu silmek istediğinizden emin misiniz?",
-      "deleteMessage": "\"{title}\" bloğu kalıcı olarak silinecek. Kaynak bilgisi kayıtlarına dokunulmaz."
+      "deleteMessage": "\"{title}\" bloğu kalıcı olarak silinecek. Kaynak bilgisi kayıtlarına dokunulmaz.",
+      "basicSaveFailed": "Bilgiler kaydedilemedi: {detail}",
+      "blockSaveFailed": "Blok kaydedilemedi: {detail}",
+      "blockDeleteFailed": "Blok silinemedi: {detail}",
+      "blockAddFailed": "Blok eklenemedi: {detail}"
     },
     "search": {
       "failed": "Arama yapılamadı. Lütfen tekrar deneyin.",

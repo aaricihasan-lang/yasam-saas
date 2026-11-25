@@ -601,7 +601,7 @@ export default function Imajinasyonlar() {
                     </span>
                   ) : (
                     <span className={`${styles.pill} ${styles.pillMuted}`}>
-                      Kategorisiz
+                      {tl("uncategorised")}
                     </span>
                   )}
 

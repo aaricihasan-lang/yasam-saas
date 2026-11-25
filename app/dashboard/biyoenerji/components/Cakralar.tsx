@@ -740,7 +740,7 @@ export default function Cakralar() {
             />
           </label>
           <LongTextareaField
-            label={<span className="mb-2 block text-[12px] font-black text-slate-800">Organlar</span>}
+            label={<span className="mb-2 block text-[12px] font-black text-slate-800">{t("fields.organs")}</span>}
             modalTitle={t("fields.organs")}
             value={form.organs}
             onChange={(v) => setForm((f) => ({ ...f, organs: v }))}
@@ -749,7 +749,7 @@ export default function Cakralar() {
             disabled={saving}
           />
           <LongTextareaField
-            label={<span className="mb-2 block text-[12px] font-black text-slate-800">Bezler</span>}
+            label={<span className="mb-2 block text-[12px] font-black text-slate-800">{t("fields.glands")}</span>}
             modalTitle={t("fields.glands")}
             value={form.glands}
             onChange={(v) => setForm((f) => ({ ...f, glands: v }))}
@@ -767,7 +767,7 @@ export default function Cakralar() {
             disabled={saving}
           />
           <LongTextareaField
-            label={<span className="mb-2 block text-[12px] font-black text-slate-800">Nedenler</span>}
+            label={<span className="mb-2 block text-[12px] font-black text-slate-800">{t("fields.causes")}</span>}
             modalTitle={t("fields.causes")}
             value={form.causes}
             onChange={(v) => setForm((f) => ({ ...f, causes: v }))}
@@ -776,7 +776,7 @@ export default function Cakralar() {
             disabled={saving}
           />
           <LongTextareaField
-            label={<span className="mb-2 block text-[12px] font-black text-slate-800">Fiziksel</span>}
+            label={<span className="mb-2 block text-[12px] font-black text-slate-800">{t("fields.physical")}</span>}
             modalTitle={t("fields.physical")}
             value={form.physical}
             onChange={(v) => setForm((f) => ({ ...f, physical: v }))}
@@ -785,7 +785,7 @@ export default function Cakralar() {
             disabled={saving}
           />
           <LongTextareaField
-            label={<span className="mb-2 block text-[12px] font-black text-slate-800">Zihinsel</span>}
+            label={<span className="mb-2 block text-[12px] font-black text-slate-800">{t("fields.mental")}</span>}
             modalTitle={t("fields.mental")}
             value={form.mental}
             onChange={(v) => setForm((f) => ({ ...f, mental: v }))}
@@ -794,7 +794,7 @@ export default function Cakralar() {
             disabled={saving}
           />
           <LongTextareaField
-            label={<span className="mb-2 block text-[12px] font-black text-slate-800">Notlar</span>}
+            label={<span className="mb-2 block text-[12px] font-black text-slate-800">{t("fields.notes")}</span>}
             modalTitle={t("fields.notes")}
             value={form.notes}
             onChange={(v) => setForm((f) => ({ ...f, notes: v }))}

@@ -269,7 +269,7 @@ export default function SembolDiliDetail({ id }: { id: string }) {
       setLoading(false);
       const message = err instanceof Error ? err.message : String(err);
       console.error("[SembolDiliDetail] loadRecord exception:", message);
-      setErrorMessage(`Beklenmeyen hata: ${message}`);
+      setErrorMessage(tl("unexpected", { detail: errText(message, tl("serverError")) }));
       if (lastGoodRecordRef.current) {
         setRecord(lastGoodRecordRef.current);
       }
