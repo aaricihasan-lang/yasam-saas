@@ -5,7 +5,9 @@ import BfcacheRefreshHandler from "@/components/BfcacheRefreshHandler";
 import Link from "next/link";
 import AdminTransferBadge from "@/components/provenance/AdminTransferBadge";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import { localeTag } from "@/lib/i18n/format";
+import { resolveLocale, type ActiveLocale } from "@/lib/i18n/locales";
 import { useDogaltasServerError } from "@/lib/dogaltas/useServerErrorText";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
 import { requiresBulkDeleteGuard, runBulkDeleteConfirm } from "@/lib/ui/bulkDeleteGuard";
@@ -171,8 +173,9 @@ function latestDisplayTimestamp(rows: CombinationRecord[]) {
   return chosen;
 }
 
-function formatListCardDate(iso: string) {
-  return new Intl.DateTimeFormat("tr-TR", {
+// A13 (Owner §19): yalnız gösterim — tr çıktısı eski Intl.DateTimeFormat("tr-TR") ile birebir; en → en-GB (DD/MM/YYYY, 24 saat).
+function formatListCardDate(iso: string, locale: ActiveLocale) {
+  return new Intl.DateTimeFormat(localeTag(locale), {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
@@ -229,6 +232,7 @@ const GROUPS_PAGE_SIZE = 24;
 // ─── Page ──────────────────────────────────────────────────────────────────────
 
 export default function KombinasyonlarPage() {
+  const locale = resolveLocale(useLocale());
   const { confirm } = useConfirm();
   const { showToast } = useToast();
   const t = useTranslations("stones.combinations.list");
@@ -856,7 +860,7 @@ export default function KombinasyonlarPage() {
                       <p className={dp.cardMeta}>
                         {stats.sources > 0 ? t("sourcesCount", { n: stats.sources }) + " · " : ""}
                         {stats.stonesCount > 0 ? t("stoneTextCount", { n: stats.stonesCount }) + " · " : ""}
-                        {ts ? formatListCardDate(ts) : "—"}
+                        {ts ? formatListCardDate(ts, locale) : "—"}
                       </p>
                     </DemoBlur>
                   </div>

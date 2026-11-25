@@ -12,7 +12,7 @@ import {
 } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
-import { formatNumber } from "@/lib/i18n/format";
+import { formatNumber, localeTag } from "@/lib/i18n/format";
 import { resolveLocale, type ActiveLocale } from "@/lib/i18n/locales";
 import { useDogaltasServerError } from "@/lib/dogaltas/useServerErrorText";
 import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
@@ -291,9 +291,10 @@ function SearchMatchBadge() {
 }
 
 
-function formatDate(value: string | null | undefined) {
+// A13 (Owner §19): yalnız gösterim — tr çıktısı eski Intl.DateTimeFormat("tr-TR") ile birebir; en → en-GB (DD/MM/YYYY, 24 saat).
+function formatDate(value: string | null | undefined, locale: ActiveLocale) {
   if (!value) return "—";
-  return new Intl.DateTimeFormat("tr-TR", {
+  return new Intl.DateTimeFormat(localeTag(locale), {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
@@ -873,6 +874,7 @@ function VariantCard({
   onSaved?: (newIssue: string) => void;
 }) {
   const t = useTranslations("stones.combinations.detail");
+  const locale = resolveLocale(useLocale());
   const se = useDogaltasServerError();
   const tc = useTranslations("stones.common");
   const calcOpen = isCalcOpen;
@@ -996,7 +998,7 @@ function VariantCard({
           {!isDemo && !isEditing ? (
             <>
               <span className="text-[9px] font-medium tabular-nums text-slate-300">
-                {formatDate(row.created_at)}
+                {formatDate(row.created_at, locale)}
               </span>
               <button
                 type="button"

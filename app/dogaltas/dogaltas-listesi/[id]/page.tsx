@@ -2,6 +2,8 @@
 
 import { runInEffect } from "@/lib/runInEffect";
 import { useLocale, useTranslations } from "next-intl";
+import { localeTag } from "@/lib/i18n/format";
+import { resolveLocale } from "@/lib/i18n/locales";
 import { stoneRecordDisplayName } from "@/lib/dogaltas/stoneNames";
 import { useDogaltasServerError } from "@/lib/dogaltas/useServerErrorText";
 import Link from "next/link";
@@ -368,7 +370,8 @@ function safeFileName(fileName: string) {
     .replace(/[^a-zA-Z0-9._-]/g, "-");
 }
 
-function formatDate(value: string | null | undefined) {
+// A13 (Owner §19): yalnız gösterim — tr çıktısı eski Intl.DateTimeFormat("tr-TR") ile birebir; en → en-GB (DD/MM/YYYY, 24 saat).
+function formatDate(value: string | null | undefined, locale: string) {
   if (!value) return "-";
 
   // Legacy/bozuk kayıtlar: created_at/updated_at ISO olmayabilir (ör. epoch string,
@@ -377,7 +380,7 @@ function formatDate(value: string | null | undefined) {
   const parsed = new Date(value);
   if (Number.isNaN(parsed.getTime())) return "-";
 
-  return new Intl.DateTimeFormat("tr-TR", {
+  return new Intl.DateTimeFormat(localeTag(resolveLocale(locale)), {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
@@ -1697,8 +1700,8 @@ function StoneDetailPage() {
             )}
 
             <p className="mt-1 text-[11px] font-medium text-slate-500">
-              {formatDate(safeStone.created_at)}
-              {safeStone.updated_at ? t("updatedAt", { date: formatDate(safeStone.updated_at) }) : ""}
+              {formatDate(safeStone.created_at, locale)}
+              {safeStone.updated_at ? t("updatedAt", { date: formatDate(safeStone.updated_at, locale) }) : ""}
             </p>
           </div>
 

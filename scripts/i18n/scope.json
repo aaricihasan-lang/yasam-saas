@@ -7,11 +7,13 @@
     "components/admin/",
     "lib/admin/",
     "lib/auth/mfaAdminStatus.ts",
-    "lib/auth/adminPasswordGuard.ts"
+    "lib/auth/adminPasswordGuard.ts",
+    "app/dogaltas/kutuphane/yonetim/"
   ],
   "ownerOnlyReasons": {
     "lib/auth/mfaAdminStatus.ts": "I18N-F1-R1: yalnız app/api/admin/users/[id]/mfa/route.ts içe aktarır (Owner üye MFA yönetimi; components/admin/members/detail/MemberMfaPanel). Uzmana gösterilmez.",
-    "lib/auth/adminPasswordGuard.ts": "I18N-F1-R1: yalnız app/api/admin/users/[id]/{delete,purge,unarchive}/route.ts içe aktarır (Owner kritik işlem parolası). Uzmana gösterilmez."
+    "lib/auth/adminPasswordGuard.ts": "I18N-F1-R1: yalnız app/api/admin/users/[id]/{delete,purge,unarchive}/route.ts içe aktarır (Owner kritik işlem parolası). Uzmana gösterilmez.",
+    "app/dogaltas/kutuphane/yonetim/": "I18N-F1-R5 (A26 / I18N-0103): rol kontrolü kodla doğrulandı — bu sayfalar yalnız app/admin/dogaltas-kutuphane/** owner bileşenlerini (CatalogClient, BulkPublishClient…) WorkspaceRoutes içinde sarar; tüm veri/işlem uçları app/api/admin/dogaltas-kutuphane/** → withOwner → requireStoneLibraryOwner → verifyAdminRequest + isStoneLibraryOwnerRow (is_super_admin=true ∧ role=admin ∧ active ∧ demo değil); owner olmayan herkes tek tip 404. 'Kütüphane Yönetimi' sekmesi yalnız owner yoklaması başarılıysa verilir (LibraryClient ownerWorkspaceHref). Uzman ekranı app/dogaltas/kutuphane/{page,LibraryClient,[slug],_shared} KAPSAMDA kalır. Koruma testi: scripts/i18n-mod-b/owner-only-yonetim.test.mjs."
   },
   "expertFacingUnderAdmin": [
     "app/admin/astroloji/",
