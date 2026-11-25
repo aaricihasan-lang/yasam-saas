@@ -88,7 +88,7 @@ export default function DersNotuPage() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "ders-notu.txt";
+    a.download = `${t("fileName.base")}.txt`; // P44: ekran dilinde (tr birebir)
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -112,7 +112,7 @@ export default function DersNotuPage() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = "ders-notu.docx";
+      a.download = `${t("fileName.base")}.docx`; // P39: ekran dilinde (tr birebir)
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);

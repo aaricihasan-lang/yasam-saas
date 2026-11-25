@@ -1,5 +1,8 @@
 {
   "lessonNotes": {
+    "fileName": {
+      "base": "ders-notu"
+    },
     "header": {
       "badge": "Transkript Düzenleme",
       "titleLead": "Temizlenmiş",

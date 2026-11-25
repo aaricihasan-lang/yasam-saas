@@ -1,5 +1,10 @@
 {
   "videoTranslate": {
+    "fileName": {
+      "original": "original",
+      "turkish": "turkish",
+      "comparison": "comparison"
+    },
     "header": {
       "badge": "AI-Assisted Translation",
       "titleLead": "Video",

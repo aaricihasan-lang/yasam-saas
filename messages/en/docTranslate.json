@@ -1,5 +1,9 @@
 {
   "docTranslate": {
+    "fileName": {
+      "ocrText": "ocr-text",
+      "ocrTranslation": "ocr-translation"
+    },
     "header": {
       "badge": "Document Conversion and Translation",
       "titleLead": "Document",

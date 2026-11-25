@@ -1,5 +1,9 @@
 {
   "docTranslate": {
+    "fileName": {
+      "ocrText": "ocr-metin",
+      "ocrTranslation": "ocr-ceviri"
+    },
     "header": {
       "badge": "Belge Dönüştürme ve Çeviri",
       "titleLead": "Belge",

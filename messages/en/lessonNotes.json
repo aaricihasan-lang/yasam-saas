@@ -1,5 +1,8 @@
 {
   "lessonNotes": {
+    "fileName": {
+      "base": "lecture-notes"
+    },
     "header": {
       "badge": "Transcript Editing",
       "titleLead": "Cleaned",

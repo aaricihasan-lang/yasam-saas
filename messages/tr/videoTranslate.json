@@ -1,5 +1,10 @@
 {
   "videoTranslate": {
+    "fileName": {
+      "original": "orijinal",
+      "turkish": "turkce",
+      "comparison": "karsilastirmali"
+    },
     "header": {
       "badge": "Yapay Zeka Destekli Çeviri",
       "titleLead": "Video",

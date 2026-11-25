@@ -155,8 +155,8 @@ export default function VideoCeviriPage() {
         .replace(/\.[^.]+$/, "")
         .replace(/[^a-zA-Z0-9_-]/g, "_")
         .slice(0, 60);
-      const suffix =
-        mode === "original" ? "orijinal" : mode === "turkish" ? "turkce" : "karsilastirmali";
+      // P40: sonek ekran dilinde (tr birebir: orijinal / turkce / karsilastirmali); mod kodu dilden bağımsız.
+      const suffix = t(`fileName.${mode === "original" ? "original" : mode === "turkish" ? "turkish" : "comparison"}`);
       const objUrl = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = objUrl;
@@ -180,8 +180,8 @@ export default function VideoCeviriPage() {
       const safeName = job.original_filename
         .replace(/\.[^.]+$/, "")
         .replace(/[^a-zA-Z0-9_-]/g, "_");
-      const suffix =
-        mode === "original" ? "orijinal" : mode === "turkish" ? "turkce" : "karsilastirmali";
+      // P40: sonek ekran dilinde (tr birebir: orijinal / turkce / karsilastirmali); mod kodu dilden bağımsız.
+      const suffix = t(`fileName.${mode === "original" ? "original" : mode === "turkish" ? "turkish" : "comparison"}`);
       await downloadTranscriptAsPdf(
         job.transcript_original,
         job.transcript_tr,
