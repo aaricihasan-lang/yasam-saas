@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { READER_FONT_DEFAULT } from "./readerFontStore";
 
 /**
@@ -35,6 +36,8 @@ export function ReaderFontSizeControl({
   compact = false,
   defaultFontSizePx = READER_FONT_DEFAULT,
 }: ReaderFontSizeControlProps) {
+  // I18N (QTM-DG-02): ortak okuyucu yazı boyutu metinleri ekran dilinde (common.reader; TR birebir).
+  const tr = useTranslations("common.reader");
   const isDefaultSize = isDefault ?? fontSizePx === defaultFontSizePx;
   return (
     <div
@@ -42,22 +45,22 @@ export function ReaderFontSizeControl({
         compact ? "p-1" : "px-2 py-1.5"
       }`}
       role="group"
-      aria-label="Yazı boyutu"
+      aria-label={tr("fontSizeGroup")}
     >
       <span
         className={`font-black uppercase tracking-wider text-slate-500 ${
           compact ? "px-1.5 text-[9px]" : "px-2 text-[10px]"
         }`}
       >
-        Yazı Boyutu
+        {tr("fontSize")}
       </span>
       <button
         type="button"
         onClick={onDecrease}
         disabled={!canDecrease}
         className={`${btnBase} ${btnIdle}`}
-        aria-label="Yazıyı küçült"
-        title="Küçült (A-)"
+        aria-label={tr("decreaseAria")}
+        title={tr("decreaseTitle")}
       >
         A-
       </button>
@@ -65,8 +68,8 @@ export function ReaderFontSizeControl({
         type="button"
         onClick={onReset}
         className={`${btnBase} ${isDefaultSize ? btnActive : btnIdle}`}
-        aria-label={`Varsayılan yazı boyutu (${defaultFontSizePx}px)`}
-        title={`Varsayılan (${defaultFontSizePx}px)`}
+        aria-label={tr("resetAria", { px: defaultFontSizePx })}
+        title={tr("resetTitle", { px: defaultFontSizePx })}
       >
         A
       </button>
@@ -75,8 +78,8 @@ export function ReaderFontSizeControl({
         onClick={onIncrease}
         disabled={!canIncrease}
         className={`${btnBase} ${btnIdle}`}
-        aria-label="Yazıyı büyüt"
-        title="Büyüt (A+)"
+        aria-label={tr("increaseAria")}
+        title={tr("increaseTitle")}
       >
         A+
       </button>
