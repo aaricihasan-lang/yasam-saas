@@ -30,7 +30,7 @@ export async function numApi(path: string, opts: RequestInit = {}): Promise<NumA
       headers: { ...authHeaders(), ...((opts.headers as Record<string, string>) ?? {}) },
     });
   } catch {
-    return { ok: false, status: 0, json: { error: "Bağlantı hatası. Lütfen tekrar deneyin." } };
+    return { ok: false, status: 0, json: { error: "Bağlantı hatası. Lütfen tekrar deneyin.", code: "NETWORK" } };
   }
   const json = (await res.json().catch(() => ({}))) as Record<string, unknown>;
   return { ok: res.ok && json.ok !== false, status: res.status, json };
@@ -40,5 +40,30 @@ export async function numApi(path: string, opts: RequestInit = {}): Promise<NumA
 export function numApiError(r: NumApiResult): string | null {
   if (r.ok) return null;
   const e = r.json.error;
-  return typeof e === "string" && e.trim() ? e : `İşlem başarısız (HTTP ${r.status}).`;
+  const msg = typeof e === "string" && e.trim() ? e : `İşlem başarısız (HTTP ${r.status}).`;
+  rememberErrorCode(msg, r.json.code);
+  return msg;
+}
+
+/**
+ * I18N — dil-bağımsız hata kodu. numApiError() imzası (string | null) ve TR metni AYNEN kalır; aynı yanıtın
+ * `code` alanı, döndürülen metinle eşlenip saklanır. Ekran dili TR değilse çağıran numApiErrorCode(metin) ile
+ * kodu alır ve katalogdan gösterir. YALNIZ GÖSTERİM içindir; kontrol akışı bu koda/metne bağlanmaz.
+ * Kodu olmayan yanıt eşlemeyi siler (metin → en son yanıtın kodu).
+ */
+const CODE_RE = /^[A-Z][A-Z0-9_]{1,63}$/;
+const codeByMessage = new Map<string, string | null>();
+
+function rememberErrorCode(msg: string, code: unknown): void {
+  if (typeof code === "string" && CODE_RE.test(code)) {
+    if (codeByMessage.size >= 100) codeByMessage.clear();
+    codeByMessage.set(msg, code);
+  } else {
+    codeByMessage.set(msg, null);
+  }
+}
+
+/** numApiError()'ın döndürdüğü metnin dil-bağımsız kodu (yoksa null). */
+export function numApiErrorCode(message: string | null | undefined): string | null {
+  return message ? codeByMessage.get(message) ?? null : null;
 }

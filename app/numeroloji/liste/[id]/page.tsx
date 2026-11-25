@@ -5,6 +5,8 @@ import BfcacheRefreshHandler from "@/components/BfcacheRefreshHandler";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState, useCallback } from "react";
+import { useLocale, useTranslations } from "next-intl";
+import { DEFAULT_LOCALE } from "@/lib/i18n/locales";
 import { LEGACY_METHOD_NOTE, resolveRecordMotor } from "../../utils/analysisJson";
 import {
   getNumerologyAnalysisById,
@@ -34,6 +36,10 @@ export default function NumerolojiKayitDetayPage() {
   const params = useParams();
   const id = typeof params.id === "string" ? params.id : "";
   const { isDemo } = useDemoGuard();
+  const t = useTranslations("numerology.result.page");
+  const locale = useLocale();
+  // TR: yardımcı/sunucu hata metinleri birebir; EN: katalog genel metni.
+  const isSourceLocale = locale === DEFAULT_LOCALE;
 
   const [row, setRow] = useState<NumerologyRecordRow | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -52,7 +58,7 @@ export default function NumerolojiKayitDetayPage() {
     if (gateActive) return;
     const session = await resolveNumerolojiUserAndTenant();
     if (!session) {
-      alert("Aktif oturum bulunamadı. Lütfen tekrar giriş yapın.");
+      alert(t("sessionMissing"));
       return;
     }
     setWordBusy(true);
@@ -65,7 +71,7 @@ export default function NumerolojiKayitDetayPage() {
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({})) as { error?: string };
-        alert(err.error || "Word raporu oluşturulamadı.");
+        alert((isSourceLocale && err.error) || t("wordFailed"));
         return;
       }
       const selectedTabs = WORD_TAB_ORDER.filter((k) => sections[k]);
@@ -74,19 +80,19 @@ export default function NumerolojiKayitDetayPage() {
       const emptyRaw = res.headers.get("X-Empty-Tabs");
       const empty = emptyRaw ? decodeURIComponent(emptyRaw).split("|").filter(Boolean) : [];
       if (empty.length > 0) {
-        alert(`Şu bölümlerde Word'e aktarılabilecek içerik bulunmadığı için eklenmedi: ${empty.join(", ")}`);
+        alert(t("wordEmptyTabs", { list: empty.join(", ") }));
       }
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Word raporu indirilemedi. Lütfen tekrar deneyin.");
+      alert(isSourceLocale && err instanceof Error ? err.message : t("wordDownloadFailed"));
     } finally {
       setWordBusy(false);
     }
-  }, [row, gateActive]);
+  }, [row, gateActive, isSourceLocale, t]);
 
   useEffect(() => {
     if (!id) {
       runInEffect(() => {
-        setError("Geçersiz kayıt.");
+        setError(t("invalidRecord"));
         setLoading(false);
       });
       return;
@@ -96,7 +102,7 @@ export default function NumerolojiKayitDetayPage() {
       const tid = await resolveNumerolojiTenantId();
       if (!tid) {
         if (!cancelled) {
-          setError("Aktif kullanıcı tenant_id bulunamadı.");
+          setError(t("noTenant"));
           setRow(null);
           setLoading(false);
         }
@@ -105,7 +111,7 @@ export default function NumerolojiKayitDetayPage() {
       const { data, error: e } = await getNumerologyAnalysisById(id, tid);
       if (cancelled) return;
       if (e || !data) {
-        setError(e || "Kayıt bulunamadı.");
+        setError(e && isSourceLocale ? e : e ? t("loadFailed") : t("notFound"));
         setRow(null);
       } else {
         setError(null);
@@ -117,7 +123,7 @@ export default function NumerolojiKayitDetayPage() {
     return () => {
       cancelled = true;
     };
-  }, [id]);
+  }, [id, isSourceLocale, t]);
 
   // MODEL C: kayıt her zaman KAYDEDİLDİĞİ GÜNKÜ sonuçlarla gösterilir; önceki metodoloji
   // kayıtlarında yalnız bilgi notu + "Güncel yöntemle yeniden hesapla" (YENİ kayıt) sunulur.
@@ -129,8 +135,8 @@ export default function NumerolojiKayitDetayPage() {
     setRecalcMsg(null);
     try {
       const r = await recalculateNumerologyAnalysis(row);
-      if (r.error) setRecalcMsg(r.error);
-      else if (r.demo) setRecalcMsg("Demo hesabında yeni analiz kaydı oluşturulmaz.");
+      if (r.error) setRecalcMsg(isSourceLocale ? r.error : t("recalcFailed"));
+      else if (r.demo) setRecalcMsg(t("demoNoNew"));
       else if (r.id) router.push(`/numeroloji/liste/${r.id}`);
     } finally {
       setRecalcBusy(false);
@@ -154,10 +160,10 @@ export default function NumerolojiKayitDetayPage() {
         <div className="mx-auto max-w-[1400px]">
         <div className="mb-2 flex flex-wrap gap-1.5">
           <Link href="/numeroloji/analiz" className={detayNavPrimaryClass}>
-            <span aria-hidden>✨</span> Yeni analiz
+            <span aria-hidden>✨</span> {t("newAnalysis")}
           </Link>
           <Link href="/numeroloji" className={detayNavSecondaryClass}>
-            Modül seçimi
+            {t("moduleSelect")}
           </Link>
           {/* Word raporu: demo modda kilitli kayıtlarda gösterilmez; Android dahil tüm cihazlarda açık (2026-10-14 owner kararı) */}
           {row && !loading && !gateActive && (
@@ -167,7 +173,7 @@ export default function NumerolojiKayitDetayPage() {
               disabled={wordBusy}
               className="inline-flex shrink-0 items-center justify-center gap-1 rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-bold text-blue-700 backdrop-blur-sm transition-all duration-200 hover:bg-blue-100 disabled:opacity-60"
             >
-              {wordBusy ? "⏳ Hazırlanıyor..." : "📄 Word Raporu"}
+              {wordBusy ? t("preparing") : t("wordReport")}
             </button>
           )}
         </div>
@@ -181,7 +187,7 @@ export default function NumerolojiKayitDetayPage() {
 
         {loading ? (
           <div className="px-[clamp(8px,2.5vw,14px)] py-3 text-sm font-semibold text-slate-600 md:rounded-xl md:border md:border-violet-300/40 md:bg-white/80 md:px-4 md:shadow-[0_0_28px_rgba(139,92,246,0.12)] md:backdrop-blur-xl">
-            Yükleniyor…
+            {t("loading")}
           </div>
         ) : null}
 
@@ -203,14 +209,14 @@ export default function NumerolojiKayitDetayPage() {
               <div className="relative flex items-center justify-between gap-3">
                 <div className="min-w-0 flex-1">
                   <p className="inline-block rounded-full border border-violet-200/60 bg-violet-50/70 px-2 py-0.5 text-[9px] font-black tracking-[0.20em] text-violet-600">
-                    KAYITLI ANALİZ
+                    {t("savedBadge")}
                   </p>
                   <h1 className="mt-1 text-2xl font-black tracking-tight text-slate-950 sm:text-3xl">{adSoyad}</h1>
                   <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0 text-xs font-medium text-slate-400">
-                    <span>Doğum: {row.birth_date}</span>
+                    <span>{t("birthPrefix")}{row.birth_date}</span>
                     <span aria-hidden className="opacity-50">·</span>
                     <span>
-                      {new Date(row.created_at).toLocaleString("tr-TR", {
+                      {new Date(row.created_at).toLocaleString(isSourceLocale ? "tr-TR" : "en-GB", {
                         dateStyle: "short",
                         timeStyle: "short",
                       })}
@@ -231,7 +237,7 @@ export default function NumerolojiKayitDetayPage() {
             {/* Demo hesabında örnek kayıtlar için metodoloji notu/aksiyonu gösterilmez (yeni kayıt da oluşturulamaz). */}
             {resolved?.legacy && !isDemo ? (
               <div role="note" className="mb-2 flex flex-wrap items-center gap-2 rounded-xl border border-sky-200 bg-sky-50/90 px-3 py-2 text-xs font-semibold leading-relaxed text-sky-900">
-                <span className="min-w-0 flex-1">{LEGACY_METHOD_NOTE}</span>
+                <span className="min-w-0 flex-1">{isSourceLocale ? LEGACY_METHOD_NOTE : t("legacyNote")}</span>
                 {!gateActive ? (
                   <button
                     type="button"
@@ -239,7 +245,7 @@ export default function NumerolojiKayitDetayPage() {
                     disabled={recalcBusy}
                     className="inline-flex min-h-[44px] shrink-0 items-center justify-center rounded-lg border border-sky-300 bg-white px-3 py-1.5 text-xs font-bold text-sky-800 hover:bg-sky-100 disabled:opacity-60"
                   >
-                    {recalcBusy ? "Hesaplanıyor…" : "Güncel yöntemle yeniden hesapla"}
+                    {recalcBusy ? t("recalcBusy") : t("recalc")}
                   </button>
                 ) : null}
                 {recalcMsg ? <span role="alert" className="basis-full text-rose-700">{recalcMsg}</span> : null}
@@ -247,21 +253,21 @@ export default function NumerolojiKayitDetayPage() {
             ) : null}
             {resolved?.recalculatedFrom ? (
               <p role="note" className="mb-2 text-xs font-medium text-slate-500">
-                Bu analiz, önceki bir kaydın güncel yöntemle yeniden hesaplanmasıyla oluşturuldu.{" "}
+                {t("recalculatedNote")}{" "}
                 <Link href={`/numeroloji/liste/${resolved.recalculatedFrom}`} className="font-bold text-violet-700 underline">
-                  Orijinal kaydı aç
+                  {t("openOriginal")}
                 </Link>
               </p>
             ) : null}
             {motor ? (
               <DemoGate
                 isProtected={gateActive}
-                message="Bu analiz içeriği demo hesabında sınırlı gösterilir. Tam sürümde tüm detaylar ve tablolar açık olarak kullanılabilir."
+                message={t("demoGate")}
               >
                 <RowErrorBoundary
                   fallback={
                     <p className="rounded-xl border border-amber-300/50 bg-amber-50/90 px-4 py-3 text-sm font-semibold text-amber-900 shadow-sm">
-                      ⚠️ Bu kaydın analiz verisi okunamadı (eski veya bozuk format).
+                      {t("unreadable")}
                     </p>
                   }
                 >
@@ -278,7 +284,7 @@ export default function NumerolojiKayitDetayPage() {
               </DemoGate>
             ) : (
               <p className="rounded-xl border border-violet-300/40 bg-white/80 px-4 py-3 text-sm font-semibold text-slate-600 shadow-[0_0_24px_rgba(139,92,246,0.1)] backdrop-blur-xl">
-                Kayıtlı analiz verisi okunamadı veya eski formatta.
+                {t("unreadableShort")}
               </p>
             )}
           </div>

@@ -244,6 +244,72 @@
       "sourceList": {
         "noSources": "No source linked.",
         "sourceNotFound": "(source not found)"
+      },
+      "form": {
+        "selectPlaceholder": "Select...",
+        "valuePlaceholder": "e.g. 19, 11, 33/6, 22…",
+        "chooseAnalysisType": "Select an analysis type.",
+        "fillValue": "Fill in the value field.",
+        "sourcePlaceholder": "e.g. training notes, book, practitioner commentary…",
+        "structuredSections": "Structured sections",
+        "sources": "Sources"
+      },
+      "detail": {
+        "close": "Close",
+        "unsavedMessage": "There are unsaved changes. Are you sure you want to close?",
+        "updateFailed": "The record could not be updated: {error}",
+        "updateFailedGeneric": "The record could not be updated.",
+        "updated": "Record updated",
+        "eyebrow": "Knowledge Base",
+        "title": "Record details",
+        "analysisType": "Analysis type",
+        "value": "Value",
+        "source": "Information source",
+        "description": "Description text",
+        "descriptionPlaceholder": "Write the numerology description and interpretation text here…",
+        "reason": "Recommendation note",
+        "reasonPlaceholder": "Natural stone recommendation and usage note…",
+        "stones": "Stone list",
+        "stonesPlaceholder": "Write one stone per line or separate them with commas…",
+        "stonesHint": "You can separate them with commas, full stops or line breaks.",
+        "edit": "Edit"
+      },
+      "canonical": {
+        "heading": "A. Canonical Description",
+        "intro": "One canonical description per analysis type and value. Source-specific practitioner notes are kept separately in the<b> B. Source Notes</b> section below.",
+        "analysisType": "Analysis Type",
+        "value": "Value",
+        "pendingRecord": "A description is already saved for this analysis type and value. Your text is kept; if you save, it replaces the existing record.",
+        "loadPending": "Load saved description",
+        "source": "Information Source",
+        "editingSections": "You are editing the record — update the sections",
+        "needsSavedRecord": "Save the knowledge record first to add sources.",
+        "description": "Description Text",
+        "descriptionPlaceholder": "Write the numerology description and interpretation text here...",
+        "new": "New",
+        "updating": "Updating...",
+        "update": "Update Canonical Description",
+        "saving": "Saving...",
+        "save": "Save Canonical Description",
+        "conflict": "A record already exists for this analysis type and value. Open the existing record to edit it.",
+        "saveFailed": "An error occurred while saving: {error}",
+        "saveFailedGeneric": "An error occurred while saving.",
+        "saved": "Canonical description saved.",
+        "notesHeading": "B. Source Notes",
+        "notesIntro": "Separate practitioner notes per source. They do NOT change the canonical description. To add a “Practitioner’s Own Note”, save without selecting a source. Notes marked “Use in analysis” appear only in the analysis with calculation summary.",
+        "notesNeedRecord": "To add a source note, first select the analysis type and value above and save the canonical description."
+      },
+      "apiErrors": {
+        "KB_RECORD_EXISTS": "A record already exists for this analysis type and value.",
+        "DUPLICATE": "This record already exists (conflict).",
+        "RELATED_RECORD": "The action could not be completed because of a related record.",
+        "RECORD_NOT_FOUND": "Knowledge record not found.",
+        "SOURCE_NOT_FOUND": "Source not found.",
+        "LINK_NOT_FOUND": "Source link not found.",
+        "NOTE_NOT_FOUND": "Note not found.",
+        "LINK_DUPLICATE": "This source is already linked to this record (same section).",
+        "SOURCE_IN_USE": "This source is linked to one or more knowledge records. Remove the links first.",
+        "NOTHING_TO_UPDATE": "There is nothing to update."
       }
     }
   }

@@ -19,7 +19,7 @@ import { BulkExportBar } from "@/components/common/BulkExportBar";
 import { WordPersonSectionPicker } from "../components/WordPersonSectionPicker";
 import { WORD_TAB_LABELS, WORD_TAB_ORDER, type WordPersonSections } from "../bilgi-bankasi/helpers/wordPersonSections";
 import { numApi, numApiError, authHeaders } from "../helpers/numApiClient";
-import { buildNumerolojiDeleteConfirm } from "../utils/deleteConfirmMessage";
+import { buildNumerolojiDeleteConfirm, buildNumerolojiDeleteConfirmEn } from "../utils/deleteConfirmMessage";
 import { MISSING_SESSION_TENANT_MESSAGE } from "@/lib/auth/sessionTenant";
 import { useDemoGuard } from "@/hooks/useDemoGuard";
 import { isDemoNumerologiOpenRecord } from "@/lib/demo/demoNumeroloji";
@@ -38,6 +38,7 @@ export default function NumerolojiListePage() {
   const t = useTranslations("numerology.app.list");
   const tPicker = useTranslations("numerology.app.picker");
   const tApi = useTranslations("common.apiErrors");
+  const tDel = useTranslations("numerology.analysis.deleteConfirm");
   const locale = useLocale();
   // Sunucu/yardımcı ayrıntısı: TR'de birebir; diğer dillerde kod eşlemesi ya da genel metin (karışık dil yok).
   const detailOf = (payload: ApiErrorPayload): string => localizeApiError(tApi, locale, payload);
@@ -147,7 +148,8 @@ export default function NumerolojiListePage() {
     // Silme onayında yalnız adet değil, silinecek kayıt adları da gösterilir.
     const nameById = new Map(rows.map((r) => [r.id, `${r.name} ${r.surname}`]));
     const names = ids.map((id) => nameById.get(id) ?? "").filter((n) => n.trim().length > 0);
-    const { title, message, secondMessage } = buildNumerolojiDeleteConfirm(ids.length, names);
+    const { title, message, secondMessage } =
+      locale === DEFAULT_LOCALE ? buildNumerolojiDeleteConfirm(ids.length, names) : buildNumerolojiDeleteConfirmEn(tDel, ids.length, names);
 
     const confirmed = await deleteConfirm({ title, message, secondMessage, count: ids.length, noun: "analiz" });
     if (!confirmed) return;

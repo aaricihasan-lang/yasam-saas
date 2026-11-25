@@ -11,6 +11,12 @@ import {
 
 export const runtime = "nodejs";
 
+/** I18N: safeDbError eşlemesinin dil-bağımsız kodu (yanıta ek `code`; TR `error` metni ve HTTP durumu aynen). */
+function dbErrorCode(error: unknown): string {
+  const c = error && typeof error === "object" && "code" in error ? String((error as { code: unknown }).code) : "";
+  return c === "23505" ? "DUPLICATE" : c === "23503" ? "RELATED_RECORD" : "DB_ERROR";
+}
+
 /**
  * /api/numeroloji/source-entries — numerology_knowledge_source_entries güvenli sunucu kapısı.
  *
@@ -71,7 +77,7 @@ export async function GET(req: NextRequest): Promise<Response> {
   const includeOnly = url.searchParams.get("include_in_analysis") === "true";
 
   if (knowledgeRecordId && !isUuid(knowledgeRecordId)) {
-    return NextResponse.json({ ok: false, error: "Geçersiz knowledge_record_id." }, { status: 400 });
+    return NextResponse.json({ ok: false, error: "Geçersiz knowledge_record_id.", code: "INVALID_ID" }, { status: 400 });
   }
   // NUM-F09: sayfalı tam okuma; deterministik sıralama: display_order, created_at, id.
   const { rows: data, error } = await readAllPaged((from, to) => {
@@ -86,7 +92,7 @@ export async function GET(req: NextRequest): Promise<Response> {
   });
   if (error) {
     const e = safeDbError(error);
-    return NextResponse.json({ ok: false, error: e.message }, { status: e.status });
+    return NextResponse.json({ ok: false, error: e.message, code: dbErrorCode(error) }, { status: e.status });
   }
   return NextResponse.json({ ok: true, rows: data ?? [] });
 }
@@ -98,21 +104,21 @@ export async function POST(req: NextRequest): Promise<Response> {
 
   let body: Record<string, unknown>;
   try { body = (await req.json()) as Record<string, unknown>; }
-  catch { return NextResponse.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 }); }
+  catch { return NextResponse.json({ ok: false, error: "Geçersiz istek gövdesi.", code: "INVALID_BODY" }, { status: 400 }); }
 
   const parsed = validateSourceEntryInput(body, { partial: false });
-  if (!parsed.ok) return NextResponse.json({ ok: false, error: parsed.error }, { status: parsed.status });
+  if (!parsed.ok) return NextResponse.json({ ok: false, error: parsed.error, code: "INVALID_INPUT" }, { status: parsed.status });
 
   const knowledgeRecordId = parsed.value.knowledge_record_id as string;
   const sourceId = parsed.value.source_id; // null | string | undefined
 
   // Uygulama katmanı sahiplik: kanonik kayıt bu tenant'a ait olmalı (yoksa 404).
   if (!(await knowledgeOwned(db, tenantId, knowledgeRecordId))) {
-    return NextResponse.json({ ok: false, error: "Bilgi kaydı bulunamadı veya bu tenant'a ait değil." }, { status: 404 });
+    return NextResponse.json({ ok: false, error: "Bilgi kaydı bulunamadı veya bu tenant'a ait değil.", code: "RECORD_NOT_FOUND" }, { status: 404 });
   }
   // source_id verilmiş ve non-null ise o kaynak da bu tenant'a ait olmalı.
   if (typeof sourceId === "string" && !(await sourceOwned(db, tenantId, sourceId))) {
-    return NextResponse.json({ ok: false, error: "Kaynak bulunamadı veya bu tenant'a ait değil." }, { status: 404 });
+    return NextResponse.json({ ok: false, error: "Kaynak bulunamadı veya bu tenant'a ait değil.", code: "SOURCE_NOT_FOUND" }, { status: 404 });
   }
 
   if (is_demo_account) return NextResponse.json({ ok: true, demo: true });
@@ -130,7 +136,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   if (error) {
     const e = safeDbError(error);
     await trackUsage(guard, req, { module: "numerology", action: "action_failed", failedAction: "record_created", subEntity: "source_entry", errorClass: usageErrorClassForStatus(e.status) ?? "server" });
-    return NextResponse.json({ ok: false, error: e.message }, { status: e.status });
+    return NextResponse.json({ ok: false, error: e.message, code: dbErrorCode(error) }, { status: e.status });
   }
   await trackUsage(guard, req, { module: "numerology", action: "record_created", subEntity: "source_entry", resourceId: (data as { id: string }).id });
   return NextResponse.json({ ok: true, id: (data as { id: string }).id });
@@ -143,10 +149,10 @@ export async function PATCH(req: NextRequest): Promise<Response> {
 
   let body: Record<string, unknown>;
   try { body = (await req.json()) as Record<string, unknown>; }
-  catch { return NextResponse.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 }); }
+  catch { return NextResponse.json({ ok: false, error: "Geçersiz istek gövdesi.", code: "INVALID_BODY" }, { status: 400 }); }
 
   const id = str(body.id);
-  if (!id) return NextResponse.json({ ok: false, error: "id zorunludur." }, { status: 400 });
+  if (!id) return NextResponse.json({ ok: false, error: "id zorunludur.", code: "INVALID_ID" }, { status: 400 });
 
   // Satır bu tenant'a ait mi?
   const { data: row, error: rowErr } = await db
@@ -157,20 +163,20 @@ export async function PATCH(req: NextRequest): Promise<Response> {
     .maybeSingle();
   if (rowErr) {
     const e = safeDbError(rowErr);
-    return NextResponse.json({ ok: false, error: e.message }, { status: e.status });
+    return NextResponse.json({ ok: false, error: e.message, code: dbErrorCode(rowErr) }, { status: e.status });
   }
   if (!row) {
-    return NextResponse.json({ ok: false, error: "Not bulunamadı veya bu tenant'a ait değil." }, { status: 404 });
+    return NextResponse.json({ ok: false, error: "Not bulunamadı veya bu tenant'a ait değil.", code: "NOTE_NOT_FOUND" }, { status: 404 });
   }
 
   const { id: _omit, ...rest } = body;
   void _omit;
   const parsed = validateSourceEntryInput(rest, { partial: true });
-  if (!parsed.ok) return NextResponse.json({ ok: false, error: parsed.error }, { status: parsed.status });
+  if (!parsed.ok) return NextResponse.json({ ok: false, error: parsed.error, code: "INVALID_INPUT" }, { status: parsed.status });
 
   // source_id değişiyorsa (non-null) yeni kaynağı tekrar tenant açısından doğrula.
   if (typeof parsed.value.source_id === "string" && !(await sourceOwned(db, tenantId, parsed.value.source_id))) {
-    return NextResponse.json({ ok: false, error: "Kaynak bulunamadı veya bu tenant'a ait değil." }, { status: 404 });
+    return NextResponse.json({ ok: false, error: "Kaynak bulunamadı veya bu tenant'a ait değil.", code: "SOURCE_NOT_FOUND" }, { status: 404 });
   }
 
   if (is_demo_account) return NextResponse.json({ ok: true, demo: true });
@@ -182,7 +188,7 @@ export async function PATCH(req: NextRequest): Promise<Response> {
   if (parsed.value.display_order !== undefined) update.display_order = parsed.value.display_order;
   if (parsed.value.include_in_analysis !== undefined) update.include_in_analysis = parsed.value.include_in_analysis;
   if (Object.keys(update).length === 0) {
-    return NextResponse.json({ ok: false, error: "Güncellenecek alan yok." }, { status: 400 });
+    return NextResponse.json({ ok: false, error: "Güncellenecek alan yok.", code: "NOTHING_TO_UPDATE" }, { status: 400 });
   }
 
   const { data, error } = await db
@@ -194,10 +200,10 @@ export async function PATCH(req: NextRequest): Promise<Response> {
   if (error) {
     const e = safeDbError(error);
     await trackUsage(guard, req, { module: "numerology", action: "action_failed", failedAction: "record_updated", subEntity: "source_entry", errorClass: usageErrorClassForStatus(e.status) ?? "server" });
-    return NextResponse.json({ ok: false, error: e.message }, { status: e.status });
+    return NextResponse.json({ ok: false, error: e.message, code: dbErrorCode(error) }, { status: e.status });
   }
   if (!data || data.length === 0) {
-    return NextResponse.json({ ok: false, error: "Not bulunamadı veya bu tenant'a ait değil." }, { status: 404 });
+    return NextResponse.json({ ok: false, error: "Not bulunamadı veya bu tenant'a ait değil.", code: "NOTE_NOT_FOUND" }, { status: 404 });
   }
   await trackUsage(guard, req, { module: "numerology", action: "record_updated", subEntity: "source_entry", resourceId: id });
   return NextResponse.json({ ok: true, id });
@@ -215,7 +221,7 @@ export async function DELETE(req: NextRequest): Promise<Response> {
   const ids = Array.isArray(body.ids)
     ? body.ids.filter((x): x is string => typeof x === "string" && x.trim().length > 0).slice(0, 1000)
     : str(body.id) ? [str(body.id)] : [];
-  if (ids.length === 0) return NextResponse.json({ ok: false, error: "id veya ids gerekli." }, { status: 400 });
+  if (ids.length === 0) return NextResponse.json({ ok: false, error: "id veya ids gerekli.", code: "INVALID_ID" }, { status: 400 });
 
   const { data, error } = await db
     .from(TABLE)
@@ -226,7 +232,7 @@ export async function DELETE(req: NextRequest): Promise<Response> {
   if (error) {
     const e = safeDbError(error);
     await trackUsage(guard, req, { module: "numerology", action: "action_failed", failedAction: "record_deleted", subEntity: "source_entry", errorClass: usageErrorClassForStatus(e.status) ?? "server" });
-    return NextResponse.json({ ok: false, error: e.message }, { status: e.status });
+    return NextResponse.json({ ok: false, error: e.message, code: dbErrorCode(error) }, { status: e.status });
   }
   const deletedIds = (data ?? []).map((r) => (r as { id: string }).id);
   if (deletedIds.length > 0) {
@@ -234,6 +240,6 @@ export async function DELETE(req: NextRequest): Promise<Response> {
     await trackUsage(guard, req, { module: "numerology", action: "record_deleted", subEntity: "source_entry", resourceId: [...deletedIds].sort().join(","), itemCount: deletedIds.length });
   }
   // AŞAMA 1 P3: hiçbir satır silinmediyse (yok/başka tenant/zaten silinmiş) sahte başarı DÖNMEZ.
-  if (deletedIds.length === 0) return NextResponse.json({ ok: false, error: "Kayıt bulunamadı veya zaten silinmiş.", deleted: 0 }, { status: 404 });
+  if (deletedIds.length === 0) return NextResponse.json({ ok: false, error: "Kayıt bulunamadı veya zaten silinmiş.", code: "NOT_FOUND", deleted: 0 }, { status: 404 });
   return NextResponse.json({ ok: true, deleted: deletedIds.length });
 }

@@ -1,11 +1,13 @@
 "use client";
 
 import { useState } from "react";
+import { useLocale, useTranslations } from "next-intl";
+import { DEFAULT_LOCALE } from "@/lib/i18n/locales";
 import { calcPlaceNumber } from "@/lib/numeroloji/place";
 import { analyzeBusinessCompatibility } from "@/lib/numeroloji/business";
 import type { BusinessCompatibilityLayer, BusinessIdentityVariant } from "@/lib/numeroloji/business";
 import { NumerolojiTarihInput } from "@/components/numeroloji/NumerolojiTarihInput";
-import { businessNameDigitGroups, parsePlaceNumberInput, placeInputMessage } from "../utils/placeInput";
+import { businessNameDigitGroups, parsePlaceNumberInput, placeInputMessage, placeInputMessageEn } from "../utils/placeInput";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // EV / OFİS SAYISI (Motor A, kitap 1) + İŞYERİ UYUMU (Motor B, kitap 2)
@@ -37,55 +39,63 @@ function formatAdInput(raw: string): string {
 
 /** Bir işyeri katmanının sonucunu (yüzde/etiket veya nötr kaynak mesajı) render eder. */
 function LayerResult({ layer }: { layer: BusinessCompatibilityLayer }) {
+  const t = useTranslations("numerology.tabs.place");
+  const isSourceLocale = useLocale() === DEFAULT_LOCALE;
   if (layer.resultStatus === "COMPUTED" && layer.compatibilityLabel) {
+    // I18N: TR'de motor etiketi birebir; EN'de kanonik alanlardan (yüzde + kutup kodu) çizilir.
+    const label =
+      isSourceLocale || layer.compatibilityPercent === null || layer.polarity === null
+        ? layer.compatibilityLabel
+        : t(layer.polarity === "UYUMLU" ? "compatibleLabel" : "incompatibleLabel", { percent: String(layer.compatibilityPercent) });
     return (
       <span className={`text-sm font-black ${layer.polarity === "UYUMLU" ? "text-emerald-600" : "text-rose-600"}`}>
-        {layer.compatibilityLabel}
+        {label}
       </span>
     );
   }
   return (
     <span className="text-[11px] font-semibold text-slate-400">
-      Bu toplam için kaynak notlarda yüzde değerlendirme kuralı tanımlanmamıştır.
+      {t("noPercentRule")}
     </span>
   );
 }
 
 function VariantCard({ variant }: { variant: BusinessIdentityVariant }) {
-  const title = variant.mode === "name" ? "AD İLE ANALİZ" : "AD + SOYAD İLE ANALİZ";
+  const t = useTranslations("numerology.tabs.place");
+  const title = variant.mode === "name" ? t("modeName") : t("modeNameSurname");
   return (
     <div className="min-w-0 space-y-2 rounded-[12px] border border-teal-200/60 bg-teal-50/30 p-2.5 md:p-3">
       <p className="text-[10px] font-black uppercase tracking-wider text-teal-700">{title}</p>
 
       {/* ① Kişi Temel Uyumu */}
       <div className="rounded-lg bg-white/80 p-2 ring-1 ring-slate-200/60">
-        <p className="text-[10px] font-bold text-slate-700">① İsim + Doğum Tarihi Uyumu</p>
+        <p className="text-[10px] font-bold text-slate-700">{t("layer1Title")}</p>
         <p className="mt-0.5 text-[11px] text-slate-500">
-          İsim: <b className="text-slate-700">{variant.personNameValue}</b> · Doğum Tarihi: <b className="text-slate-700">{variant.birthDateRawSum}</b> · Toplam: <b className="text-slate-700">{variant.personBaseValue}</b>
+          {t("nameLabel")} <b className="text-slate-700">{variant.personNameValue}</b> · {t("birthLabel")} <b className="text-slate-700">{variant.birthDateRawSum}</b> · {t("totalLabel")} <b className="text-slate-700">{variant.personBaseValue}</b>
         </p>
         <div className="mt-1"><LayerResult layer={variant.personBase} /></div>
       </div>
 
       {/* ② İşyeri Adı Uyumu */}
       <div className="rounded-lg bg-white/80 p-2 ring-1 ring-slate-200/60">
-        <p className="text-[10px] font-bold text-slate-700">② İşyeri Adı Uyumu</p>
+        <p className="text-[10px] font-bold text-slate-700">{t("layer2Title")}</p>
         <p className="mt-0.5 text-[11px] text-slate-500">
-          İşyeri: <b className="text-slate-700">{variant.businessNameValue}</b> · {variant.personBaseValue} + {variant.businessNameValue} = <b className="text-slate-700">{variant.personBusinessTotal}</b>
+          {t("businessLabel")} <b className="text-slate-700">{variant.businessNameValue}</b> · {variant.personBaseValue} + {variant.businessNameValue} = <b className="text-slate-700">{variant.personBusinessTotal}</b>
         </p>
         <div className="mt-1"><LayerResult layer={variant.businessName} /></div>
       </div>
 
       {/* ③ Açılış Tarihi Etkisi */}
       <div className="rounded-lg bg-white/80 p-2 ring-1 ring-slate-200/60">
-        <p className="text-[10px] font-bold text-slate-700">③ Açılış Tarihi Etkisi</p>
+        <p className="text-[10px] font-bold text-slate-700">{t("layer3Title")}</p>
         {variant.openingDate === null ? (
-          <p className="mt-0.5 text-[11px] text-slate-400">Açılış tarihi girilmedi.</p>
+          <p className="mt-0.5 text-[11px] text-slate-400">{t("openingMissing")}</p>
         ) : !variant.openingDate.valid ? (
-          <p className="mt-0.5 text-[11px] font-semibold text-rose-500">Geçerli açılış tarihi girin (GG/AA/YYYY).</p>
+          <p className="mt-0.5 text-[11px] font-semibold text-rose-500">{t("openingInvalid")}</p>
         ) : (
           <>
             <p className="mt-0.5 text-[11px] text-slate-500">
-              Açılış Tarihi: <b className="text-slate-700">{variant.openingDate.rawSum}</b> · {variant.personBusinessTotal} + {variant.openingDate.rawSum} = <b className="text-slate-700">{variant.openingDate.finalTotal}</b>
+              {t("openingLabel")} <b className="text-slate-700">{variant.openingDate.rawSum}</b> · {variant.personBusinessTotal} + {variant.openingDate.rawSum} = <b className="text-slate-700">{variant.openingDate.finalTotal}</b>
             </p>
             <div className="mt-1">{variant.openingDate.classification && <LayerResult layer={variant.openingDate.classification} />}</div>
           </>
@@ -96,6 +106,8 @@ function VariantCard({ variant }: { variant: BusinessIdentityVariant }) {
 }
 
 export function NumerolojiEvIsYeriSayisiTab() {
+  const t = useTranslations("numerology.tabs.place");
+  const isSourceLocale = useLocale() === DEFAULT_LOCALE;
   // ── Motor A state ──
   const [kapiNoRaw, setKapiNoRaw] = useState("");
   const [daireNoRaw, setDaireNoRaw] = useState("");
@@ -111,7 +123,11 @@ export function NumerolojiEvIsYeriSayisiTab() {
   // D4: giriş SESSİZCE temizlenmez; hesap yine yalnız rakamlarla (kaynak yöntem) yapılır, dönüşüm gösterilir.
   const kapiIn = parsePlaceNumberInput(kapiNoRaw);
   const daireIn = parsePlaceNumberInput(daireNoRaw);
-  const placeMsgs = [placeInputMessage("Kapı / Apartman No", kapiIn), placeInputMessage("Daire No", daireIn)].filter((m) => m !== null);
+  const placeMsgs = (
+    isSourceLocale
+      ? [placeInputMessage("Kapı / Apartman No", kapiIn), placeInputMessage("Daire No", daireIn)]
+      : [placeInputMessageEn(t, t("doorNo"), kapiIn), placeInputMessageEn(t, t("unitNo"), daireIn)]
+  ).filter((m) => m !== null);
   const place = kapiIn.status === "ok" && daireIn.status === "ok" ? calcPlaceNumber(kapiIn.value, daireIn.value) : null;
   const kapiShown = kapiIn.status === "ok" && kapiIn.altered ? kapiIn.raw : null;
   const daireShown = daireIn.status === "ok" && daireIn.altered ? daireIn.raw : null;
@@ -133,21 +149,21 @@ export function NumerolojiEvIsYeriSayisiTab() {
       <div className="space-y-3">
         <div className="px-[clamp(8px,2.5vw,14px)] py-2.5 md:rounded-[12px] md:border md:border-violet-200/60 md:bg-gradient-to-r md:from-violet-50/80 md:to-fuchsia-50/60 md:px-4">
           <div className="flex flex-wrap items-center gap-1.5">
-            <p className="text-xs font-black uppercase tracking-wider text-violet-600">A · Ev / Ofis Sayısı</p>
+            <p className="text-xs font-black uppercase tracking-wider text-violet-600">{t("aTitle")}</p>
           </div>
           <p className="mt-0.5 text-[11px] text-slate-500">
-            Kapı/apartman numarası ile daire numarası toplanarak ev veya ofis numeroloji sayısı hesaplanır.
+            {t("aSub")}
           </p>
         </div>
 
         <div className={cardClass}>
           <div className="grid grid-cols-2 gap-2">
             <div>
-              <label className={labelClass}>Kapı / Apartman No</label>
+              <label className={labelClass}>{t("doorNo")}</label>
               <input type="text" inputMode="numeric" maxLength={32} value={kapiNoRaw} onChange={(e) => setKapiNoRaw(e.target.value)} placeholder="4" className={inputClass} data-testid="noj-place-kapi" />
             </div>
             <div>
-              <label className={labelClass}>Daire No</label>
+              <label className={labelClass}>{t("unitNo")}</label>
               <input type="text" inputMode="numeric" maxLength={32} value={daireNoRaw} onChange={(e) => setDaireNoRaw(e.target.value)} placeholder="11" className={inputClass} data-testid="noj-place-daire" />
             </div>
           </div>
@@ -157,20 +173,20 @@ export function NumerolojiEvIsYeriSayisiTab() {
                 <p key={m.text} className={`text-[11px] font-semibold ${m.tone === "error" ? "text-rose-600" : "text-amber-700"}`}>{m.text}</p>
               ))}
               {placeMsgs.some((m) => m.tone === "info") ? (
-                <p className="text-[10px] text-slate-500">Kaynak yöntemde harfli, bölü veya tireli numaralar için ayrı bir kural yoktur.</p>
+                <p className="text-[10px] text-slate-500">{t("noRuleForLetters")}</p>
               ) : null}
             </div>
           ) : null}
           <div className="mt-2">
-            <label className={labelClass}>Not / Açıklama (opsiyonel)</label>
-            <input type="text" value={not} onChange={(e) => setNot(e.target.value)} placeholder="Örn. Ana ofis, kiralık daire…" className={inputClass} />
+            <label className={labelClass}>{t("noteLabel")}</label>
+            <input type="text" value={not} onChange={(e) => setNot(e.target.value)} placeholder={t("notePlaceholder")} className={inputClass} />
           </div>
         </div>
 
         {place && renkSet ? (
           <>
             <div className={cardClass}>
-              <p className="mb-2 text-[10px] font-black uppercase tracking-wider text-violet-600">Hesap Adımları</p>
+              <p className="mb-2 text-[10px] font-black uppercase tracking-wider text-violet-600">{t("steps")}</p>
               <div className="flex min-w-0 flex-wrap items-center gap-1.5 text-sm font-black text-slate-700">
                 <span className="rounded-md bg-violet-100 px-2 py-0.5 text-violet-800">{kapiShown ? `${kapiShown} → ${place.buildingNumber}` : place.buildingNumber}</span>
                 <span className="text-slate-400">+</span>
@@ -187,7 +203,7 @@ export function NumerolojiEvIsYeriSayisiTab() {
             </div>
 
             <div className={`relative min-w-0 overflow-hidden md:rounded-[14px] md:border md:bg-white/95 md:p-4 ${renkSet.border} ${renkSet.glow}`}>
-              <p className="mb-1 text-[10px] font-black uppercase tracking-widest text-slate-500">Ev / Ofis Sayısı</p>
+              <p className="mb-1 text-[10px] font-black uppercase tracking-widest text-slate-500">{t("placeNumber")}</p>
               <div className="flex items-center gap-3">
                 <span className={`inline-flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br text-4xl font-black text-white shadow-lg ${renkSet.chip}`}>
                   {place.reducedNumber}
@@ -204,7 +220,7 @@ export function NumerolojiEvIsYeriSayisiTab() {
 
             {place.interpretation && (
               <div className={cardClass}>
-                <p className="mb-2 text-[10px] font-black uppercase tracking-wider text-violet-600">{place.reducedNumber} Sayısının Anlamı</p>
+                <p className="mb-2 text-[10px] font-black uppercase tracking-wider text-violet-600">{t("meaningOf", { n: String(place.reducedNumber) })}</p>
                 <p className="text-xs leading-[1.75] text-slate-700">{place.interpretation}</p>
               </div>
             )}
@@ -212,7 +228,7 @@ export function NumerolojiEvIsYeriSayisiTab() {
         ) : (
           <div className="min-w-0 px-[clamp(8px,2.5vw,14px)] py-6 text-center md:rounded-[12px] md:border-2 md:border-dashed md:border-violet-200/60 md:bg-white/60 md:px-4">
             <p className="text-xs font-semibold text-slate-400">
-              {kapiIn.status === "empty" || daireIn.status === "empty" ? "Kapı ve daire numarasını girerek hesaplamayı başlatın." : "Hesap için iki numarayı da geçerli girin."}
+              {kapiIn.status === "empty" || daireIn.status === "empty" ? t("emptyPrompt") : t("invalidPrompt")}
             </p>
           </div>
         )}
@@ -222,38 +238,38 @@ export function NumerolojiEvIsYeriSayisiTab() {
       <div className="space-y-3">
         <div className="px-[clamp(8px,2.5vw,14px)] py-2.5 md:rounded-[12px] md:border md:border-teal-200/60 md:bg-gradient-to-r md:from-teal-50/80 md:to-emerald-50/60 md:px-4">
           <div className="flex flex-wrap items-center gap-1.5">
-            <p className="text-xs font-black uppercase tracking-wider text-teal-700">B · İşyeri Uyumu</p>
+            <p className="text-xs font-black uppercase tracking-wider text-teal-700">{t("bTitle")}</p>
           </div>
           <p className="mt-0.5 text-[11px] text-slate-500">
-            Kişi (ad{` `}+{` `}doğum tarihi) ile işyeri/marka adının uyumu değerlendirilir. Ev/Ofis Sayısından ayrı bir hesaptır.
+            {t("bSub")}
           </p>
         </div>
 
         <div className={cardClass}>
           <div className="grid grid-cols-2 gap-2">
             <div>
-              <label className={labelClass}>Ad</label>
+              <label className={labelClass}>{t("firstName")}</label>
               <input type="text" value={bName} onChange={(e) => setBName(formatAdInput(e.target.value))} placeholder="Ahmed" className={inputClass} />
             </div>
             <div>
-              <label className={labelClass}>Soyad (opsiyonel)</label>
+              <label className={labelClass}>{t("surnameOptional")}</label>
               <input type="text" value={bSurname} onChange={(e) => setBSurname(e.target.value.toLocaleUpperCase("tr-TR"))} placeholder="—" className={inputClass} />
             </div>
           </div>
           <div className="mt-2 grid grid-cols-2 gap-2">
             <div>
-              <label className={labelClass}>Doğum Tarihi (GG/AA/YYYY)</label>
+              <label className={labelClass}>{t("birthDate")}</label>
               <NumerolojiTarihInput value={bBirth} onChange={setBBirth} className={inputClass} />
             </div>
             <div>
-              <label className={labelClass}>İşyeri / Marka Adı</label>
+              <label className={labelClass}>{t("businessName")}</label>
               <input type="text" value={bBusiness} onChange={(e) => setBBusiness(e.target.value.toLocaleUpperCase("tr-TR"))} placeholder="CANTAŞ" className={inputClass} />
             </div>
           </div>
           <div className="mt-2">
-            <label className={labelClass}>Açılış Tarihi (GG/AA/YYYY) — opsiyonel</label>
+            <label className={labelClass}>{t("openingDate")}</label>
             <NumerolojiTarihInput value={bOpening} onChange={setBOpening} className={inputClass} />
-            <p className="mt-1 text-[10px] text-slate-400">Açılış tarihi bilinmiyorsa boş bırakabilirsiniz.</p>
+            <p className="mt-1 text-[10px] text-slate-400">{t("openingHint")}</p>
           </div>
         </div>
 
@@ -263,24 +279,24 @@ export function NumerolojiEvIsYeriSayisiTab() {
               <VariantCard key={v.mode} variant={v} />
             ))}
             {business.unsupportedCharacters.length > 0 && (
-              <p className="text-[10px] text-amber-600">Kaynak alfabede desteklenmeyen harf: {business.unsupportedCharacters.join(", ")}</p>
+              <p className="text-[10px] text-amber-600">{t("unsupportedLetters", { letters: business.unsupportedCharacters.join(", ") })}</p>
             )}
             {businessDigits.length > 0 && (
               <p className="text-[10px] text-amber-600" data-testid="noj-business-digits">
-                İşyeri adındaki rakamlar ({businessDigits.join(", ")}) harf tablosunda yer almadığı için hesaba katılmaz.
+                {t("businessDigits", { digits: businessDigits.join(", ") })}
               </p>
             )}
             <div className="flex min-w-0 items-start gap-2 rounded-[10px] border border-slate-200/80 bg-slate-50/80 px-3 py-2">
               <span className="mt-px shrink-0 text-slate-400 text-sm">ℹ</span>
               <p className="text-[10px] leading-[1.6] text-slate-500">
-                İşyeri uyumu kişi temel uyumu, işyeri adı ve (varsa) açılış tarihi katmanlarından oluşur. Tek bir genel uyum puanı üretilmez; yorumlama uzman tarafından yapılmalıdır.
+                {t("layersInfo")}
               </p>
             </div>
           </>
         ) : (
           <div className="min-w-0 px-[clamp(8px,2.5vw,14px)] py-6 text-center md:rounded-[12px] md:border-2 md:border-dashed md:border-teal-200/60 md:bg-white/60 md:px-4">
             <p className="text-xs font-semibold text-slate-400">
-              {businessAttempted ? "Geçerli bir doğum tarihi girin (GG/AA/YYYY)." : "Ad, doğum tarihi ve işyeri adını girerek uyumu hesaplayın."}
+              {businessAttempted ? t("birthInvalid") : t("businessPrompt")}
             </p>
           </div>
         )}

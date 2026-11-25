@@ -72,7 +72,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }): Promise<Response> {
   const guard = await requireModuleAccess(req, "numerology");
   if (!guard.ok) return guard.response;
-  if (guard.is_demo_account) return NextResponse.json({ ok: false, error: "Demo hesabında bu işlem kullanılamaz." }, { status: 403, headers: NO_STORE });
+  if (guard.is_demo_account) return NextResponse.json({ ok: false, error: "Demo hesabında bu işlem kullanılamaz.", code: "DEMO_READONLY" }, { status: 403, headers: NO_STORE });
   if (!hasModulePermissionForProfile(guard.profile, "clients")) return noClientsPermission();
   const { id } = await params;
   if (!UUID_RE.test(id)) return notFound();
@@ -91,7 +91,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }): Promise<Response> {
   const guard = await requireModuleAccess(req, "numerology");
   if (!guard.ok) return guard.response;
-  if (guard.is_demo_account) return NextResponse.json({ ok: false, error: "Demo hesabında bu işlem kullanılamaz." }, { status: 403, headers: NO_STORE });
+  if (guard.is_demo_account) return NextResponse.json({ ok: false, error: "Demo hesabında bu işlem kullanılamaz.", code: "DEMO_READONLY" }, { status: 403, headers: NO_STORE });
   if (!hasModulePermissionForProfile(guard.profile, "clients")) return noClientsPermission();
   const { id } = await params;
   if (!UUID_RE.test(id)) return notFound();

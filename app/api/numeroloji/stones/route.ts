@@ -44,7 +44,7 @@ export async function GET(req: NextRequest): Promise<Response> {
       .range(from, to),
   );
 
-  if (error) return NextResponse.json({ ok: false, error: "İşlem tamamlanamadı." }, { status: 500 });
+  if (error) return NextResponse.json({ ok: false, error: "İşlem tamamlanamadı.", code: "DB_ERROR" }, { status: 500 });
   return NextResponse.json({ ok: true, rows: data ?? [] });
 }
 
@@ -55,12 +55,12 @@ export async function POST(req: NextRequest): Promise<Response> {
 
   let body: Record<string, unknown>;
   try { body = (await req.json()) as Record<string, unknown>; }
-  catch { return NextResponse.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 }); }
+  catch { return NextResponse.json({ ok: false, error: "Geçersiz istek gövdesi.", code: "INVALID_BODY" }, { status: 400 }); }
 
   const analysis_type = str(body.analysis_type);
   const value = str(body.value);
   if (!analysis_type || !value) {
-    return NextResponse.json({ ok: false, error: "analysis_type ve value zorunludur." }, { status: 400 });
+    return NextResponse.json({ ok: false, error: "analysis_type ve value zorunludur.", code: "INVALID_INPUT" }, { status: 400 });
   }
   if (is_demo_account) return NextResponse.json({ ok: true, demo: true });
 
@@ -81,13 +81,13 @@ export async function POST(req: NextRequest): Promise<Response> {
     .eq("value", value)
     .maybeSingle();
   // AŞAMA 1 P3: ham veritabanı hata mesajı istemciye sızdırılmaz.
-  if (findErr) return NextResponse.json({ ok: false, error: "İşlem tamamlanamadı." }, { status: 500 });
+  if (findErr) return NextResponse.json({ ok: false, error: "İşlem tamamlanamadı.", code: "DB_ERROR" }, { status: 500 });
 
   if (existing?.id) {
     const { error } = await db.from(TABLE).update(payload).eq("id", existing.id).eq("tenant_id", tenantId);
     if (error) {
       await trackUsage(guard, req, { module: "numerology", action: "action_failed", failedAction: "record_updated", subEntity: "stone", errorClass: "server" });
-      return NextResponse.json({ ok: false, error: "İşlem tamamlanamadı." }, { status: 500 });
+      return NextResponse.json({ ok: false, error: "İşlem tamamlanamadı.", code: "DB_ERROR" }, { status: 500 });
     }
     // Upsert: mevcut (type, value) ataması güncellendi.
     await trackUsage(guard, req, { module: "numerology", action: "record_updated", subEntity: "stone", resourceId: String(existing.id) });
@@ -97,7 +97,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   const { data, error } = await db.from(TABLE).insert(payload).select("id").single();
   if (error) {
     await trackUsage(guard, req, { module: "numerology", action: "action_failed", failedAction: "record_created", subEntity: "stone", errorClass: "server" });
-    return NextResponse.json({ ok: false, error: "İşlem tamamlanamadı." }, { status: 500 });
+    return NextResponse.json({ ok: false, error: "İşlem tamamlanamadı.", code: "DB_ERROR" }, { status: 500 });
   }
   await trackUsage(guard, req, { module: "numerology", action: "record_created", subEntity: "stone", resourceId: (data as { id: string }).id });
   return NextResponse.json({ ok: true, id: (data as { id: string }).id });
@@ -110,10 +110,10 @@ export async function PATCH(req: NextRequest): Promise<Response> {
 
   let body: Record<string, unknown>;
   try { body = (await req.json()) as Record<string, unknown>; }
-  catch { return NextResponse.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 }); }
+  catch { return NextResponse.json({ ok: false, error: "Geçersiz istek gövdesi.", code: "INVALID_BODY" }, { status: 400 }); }
 
   const id = str(body.id);
-  if (!id) return NextResponse.json({ ok: false, error: "id zorunludur." }, { status: 400 });
+  if (!id) return NextResponse.json({ ok: false, error: "id zorunludur.", code: "INVALID_ID" }, { status: 400 });
   if (is_demo_account) return NextResponse.json({ ok: true, demo: true });
 
   const update: Record<string, unknown> = { updated_at: new Date().toISOString() };
@@ -130,10 +130,10 @@ export async function PATCH(req: NextRequest): Promise<Response> {
     .select("id");
   if (error) {
     await trackUsage(guard, req, { module: "numerology", action: "action_failed", failedAction: "record_updated", subEntity: "stone", errorClass: "server" });
-    return NextResponse.json({ ok: false, error: "İşlem tamamlanamadı." }, { status: 500 });
+    return NextResponse.json({ ok: false, error: "İşlem tamamlanamadı.", code: "DB_ERROR" }, { status: 500 });
   }
   if (!data || data.length === 0) {
-    return NextResponse.json({ ok: false, error: "Kayıt bulunamadı veya bu tenant'a ait değil." }, { status: 404 });
+    return NextResponse.json({ ok: false, error: "Kayıt bulunamadı veya bu tenant'a ait değil.", code: "NOT_FOUND" }, { status: 404 });
   }
   await trackUsage(guard, req, { module: "numerology", action: "record_updated", subEntity: "stone", resourceId: id });
   return NextResponse.json({ ok: true, id });
@@ -151,7 +151,7 @@ export async function DELETE(req: NextRequest): Promise<Response> {
   const ids = Array.isArray(body.ids)
     ? body.ids.filter((x): x is string => typeof x === "string" && x.trim().length > 0).slice(0, 1000)
     : str(body.id) ? [str(body.id)] : [];
-  if (ids.length === 0) return NextResponse.json({ ok: false, error: "id veya ids gerekli." }, { status: 400 });
+  if (ids.length === 0) return NextResponse.json({ ok: false, error: "id veya ids gerekli.", code: "INVALID_ID" }, { status: 400 });
 
   const { data, error } = await db
     .from(TABLE)
@@ -161,7 +161,7 @@ export async function DELETE(req: NextRequest): Promise<Response> {
     .select("id");
   if (error) {
     await trackUsage(guard, req, { module: "numerology", action: "action_failed", failedAction: "record_deleted", subEntity: "stone", errorClass: "server" });
-    return NextResponse.json({ ok: false, error: "İşlem tamamlanamadı." }, { status: 500 });
+    return NextResponse.json({ ok: false, error: "İşlem tamamlanamadı.", code: "DB_ERROR" }, { status: 500 });
   }
   const deletedIds = (data ?? []).map((r) => (r as { id: string }).id);
   if (deletedIds.length > 0) {
@@ -169,6 +169,6 @@ export async function DELETE(req: NextRequest): Promise<Response> {
     await trackUsage(guard, req, { module: "numerology", action: "record_deleted", subEntity: "stone", resourceId: [...deletedIds].sort().join(","), itemCount: deletedIds.length });
   }
   // AŞAMA 1 P3: hiçbir satır silinmediyse (yok/başka tenant/zaten silinmiş) sahte başarı DÖNMEZ.
-  if (deletedIds.length === 0) return NextResponse.json({ ok: false, error: "Kayıt bulunamadı veya zaten silinmiş.", deleted: 0 }, { status: 404 });
+  if (deletedIds.length === 0) return NextResponse.json({ ok: false, error: "Kayıt bulunamadı veya zaten silinmiş.", code: "NOT_FOUND", deleted: 0 }, { status: 404 });
   return NextResponse.json({ ok: true, deleted: deletedIds.length });
 }
