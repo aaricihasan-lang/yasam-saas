@@ -149,7 +149,7 @@
         "currentEur": "Current Euro Rate",
         "colCurrency": "Currency",
         "colUnit": "Unit",
-        "profitPct": "Profit Margin %",
+        "profitPct": "Markup % (on cost)",
         "totalCost": "Total Cost",
         "profitAmount": "Profit Amount",
         "salePrice": "Sale Price",

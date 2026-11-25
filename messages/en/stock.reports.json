@@ -13,7 +13,7 @@
         "profit": "Total profit",
         "loss": "Total loss",
         "units": "Units sold",
-        "avgMargin": "Average profit margin"
+        "avgMargin": "Average markup (on cost)"
       },
       "eyebrow": "Reports & analysis",
       "title": "Sales Reports & Decision Support",
@@ -74,7 +74,7 @@
         "cost": "Cost",
         "sale": "Sale",
         "profit": "Profit",
-        "profitPct": "Profit %",
+        "profitPct": "Markup %",
         "source": "Source"
       },
       "hiddenNote": "Removed from the Sales History list (not cancelled; included in totals)"
