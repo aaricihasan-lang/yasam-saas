@@ -478,7 +478,9 @@ async function main() {
     ok("T9 canDraw imageReady gerektirir", /const canDraw = isAddMode && activeOrgan && imageReady/.test(src));
     ok("T9 pointerdown imageReady olmadan çizmez", /!activeOrgan \|\| !imageReady\) return;/.test(src));
     ok("T9 overlay (bölgeler + çizim katmanı) görsel hazır olmadan render edilmez", /\{imageReady && imageRect\.width > 0 \? \(/.test(src));
-    ok("T9 yükleniyor durumu gösterilir", /Ayak görseli yükleniyor…/.test(src));
+    // I18N (gece, Ajan K2): metin katalogda (reflexology.zoneMap.canvas.imageLoading; TR "Ayak görseli yükleniyor…" birebir).
+    const zoneTr = JSON.parse(readFileSync("messages/tr/reflexology.zoneMap.json", "utf8")).reflexology.zoneMap;
+    ok("T9 yükleniyor durumu gösterilir", /\{t\("imageLoading"\)\}/.test(src) && zoneTr.canvas.imageLoading === "Ayak görseli yükleniyor…");
     ok("T9 önbellekten yüklenmiş görsel yarışı ele alınır (img.complete)", /img\.complete && img\.naturalWidth > 0/.test(src));
     const { computeObjectContainRect } = await import("@/app/refleksoloji/bolge-haritasi/utils/imageContainRect");
     const full = computeObjectContainRect(930, 753, 0, 0);
@@ -581,10 +583,18 @@ async function main() {
     const list = readFileSync("app/refleksoloji/notlar/components/KlinikNotlarLayout.tsx", "utf8");
     const detail = readFileSync("app/refleksoloji/notlar/components/NotDetayLayout.tsx", "utf8");
     ok("N3 hook çakışmada kaydetmez", /hasLocalEditConflict\(previous, opts\.expectedUpdatedAt, opts\.force\)/.test(hook));
+    // I18N (Dalga 4, Ajan C): onay düğmesi metni katalogdan (reflexology.notes.conflict.overwrite) gelir.
+    // Niyet korunur: ekran "Üzerine yaz" onayını sorar → kaynakta anahtar çağrısı VE TR katalog değerinin birebir eşitliği.
+    const notesTr = JSON.parse(readFileSync("messages/tr/reflexology.notes.json", "utf8")) as {
+      reflexology: { notes: { conflict: { overwrite: string } } };
+    };
+    const overwriteTrOk = notesTr.reflexology.notes.conflict.overwrite === "Üzerine yaz";
+    const asksOverwrite = (src: string) =>
+      /Üzerine yaz/.test(src) || (/confirmText: t\("conflict\.overwrite"\)/.test(src) && /useTranslations\("reflexology\.notes"\)/.test(src) && overwriteTrOk);
     ok("N3 liste ekranı düzenleme başlangıç sürümünü gönderir + onay sorar",
-      /expectedUpdatedAt: editingSince/.test(list) && /Üzerine yaz/.test(list) && /setEditingSince\(note\.updatedAt\)/.test(list));
+      /expectedUpdatedAt: editingSince/.test(list) && asksOverwrite(list) && /setEditingSince\(note\.updatedAt\)/.test(list));
     ok("N3 detay ekranı düzenleme başlangıç sürümünü gönderir + onay sorar",
-      /expectedUpdatedAt: editingSince/.test(detail) && /Üzerine yaz/.test(detail));
+      /expectedUpdatedAt: editingSince/.test(detail) && asksOverwrite(detail));
   }
 
   section("N4 — çift kaydet → tek kayıt");

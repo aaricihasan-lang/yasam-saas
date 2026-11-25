@@ -327,8 +327,12 @@ async function main() {
   {
     const layout = readFileSync("app/refleksoloji/kayitli-atlas/components/KayitliAtlasLayout.tsx", "utf8");
     const card = readFileSync("app/refleksoloji/kayitli-atlas/components/OrganAtlasCard.tsx", "utf8");
-    ok("K1 tekli silme onay metni korunur", layout.includes('"Bu organ ve kayıtlı tüm atlas bölgeleri silinsin mi? Bu işlem geri alınamaz."') && layout.includes("if (!deleteOrgan(organ))"));
-    ok("K2 kartta Görüntüle / Düzenle / Sil korunur", ["Görüntüle", "Düzenle", "Sil"].every((t) => card.includes(`>\r\n          ${t}\r\n`) || card.includes(`>\n          ${t}\n`)));
+    // I18N (gece, Ajan K2): onay ve kart metinleri katalogda (messages/tr/reflexology.*.json, TR birebir).
+    // Niyet aynı: tekli silme onayı aynı TR metniyle gösterilir; kartta Görüntüle / Düzenle / Sil düğmeleri durur.
+    const atlasTr = JSON.parse(readFileSync("messages/tr/reflexology.savedAtlas.json", "utf8")).reflexology.savedAtlas;
+    const commonTr = JSON.parse(readFileSync("messages/tr/reflexology.common.json", "utf8")).reflexology.common;
+    ok("K1 tekli silme onay metni korunur", layout.includes('message: t("single.confirmMsg") + usageNote') && atlasTr.single.confirmMsg === "Bu organ ve kayıtlı tüm atlas bölgeleri silinsin mi? Bu işlem geri alınamaz." && layout.includes("if (!deleteOrgan(organ))"));
+    ok("K2 kartta Görüntüle / Düzenle / Sil korunur", ['{t("open")}', '{t("edit")}', '{tc("delete")}'].every((k) => card.includes(k)) && atlasTr.card.open === "Görüntüle" && atlasTr.card.edit === "Düzenle" && commonTr.delete === "Sil");
     ok("K3 toplu akış guard + tek depolama yolu kullanır", layout.includes("requiresBulkDeleteGuard(count, deleteAll)") && layout.includes("runBulkDeleteConfirm(confirm") && layout.includes("deleteOrgans(names)"));
     ok("K4 Seçilenleri Sil seçim yokken pasif", layout.includes("disabled={bulkBusy || selectedNames.length === 0}"));
     const hook = readFileSync("app/refleksoloji/kayitli-atlas/hooks/useSavedAtlas.ts", "utf8");

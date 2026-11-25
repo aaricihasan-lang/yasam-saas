@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
+import { useLocale, useTranslations } from "next-intl";
+import { DEFAULT_LOCALE } from "@/lib/i18n/locales";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
 import { useToast } from "@/components/ui/ToastProvider";
 import { STORAGE_QUOTA_ERROR_MESSAGE } from "@/lib/safeStorage";
@@ -31,6 +33,10 @@ export function NotDetayLayout({ noteId }: NotDetayLayoutProps) {
   const router = useRouter();
   const { confirm } = useConfirm();
   const { showToast } = useToast();
+  const t = useTranslations("reflexology.notes");
+  const tc = useTranslations("reflexology.common");
+  // Kaynak dilde (tr) yardımcı/senkron katmanının Türkçe mesajları aynen; diğer dillerde çevrilmiş genel metin.
+  const isSourceLocale = useLocale() === DEFAULT_LOCALE;
 
   // FA-25: detay sayfası liste ile AYNI ortak depo/hook'u kullanır (sunucu hydrate +
   // kapsamlı yerel depo); silme sunucu sonucunu bekler, navigasyon ondan sonra.
@@ -78,7 +84,7 @@ export function NotDetayLayout({ noteId }: NotDetayLayoutProps) {
   const handleUpdate = async () => {
     if (!draft) return;
     if (!draft.title.trim()) {
-      setValidationMessage("Not başlığı zorunludur.");
+      setValidationMessage(t("form.titleRequired"));
       return;
     }
 
@@ -87,24 +93,21 @@ export function NotDetayLayout({ noteId }: NotDetayLayoutProps) {
     let result = saveNote(draft, noteId, { expectedUpdatedAt: editingSince });
     if (result.conflict) {
       const overwrite = await confirm({
-        title: "Not başka yerde değiştirildi",
-        message:
-          "Bu not siz düzenlerken başka bir sekmede veya cihazda değiştirildi.\n\n" +
-          "«Üzerine yaz» derseniz ekrandaki metniniz kaydedilir ve diğer değişiklik kaybolur. " +
-          "«Vazgeç» derseniz hiçbir şey kaydedilmez; metniniz formda kalır.",
-        confirmText: "Üzerine yaz",
-        cancelText: "Vazgeç",
+        title: t("conflict.title"),
+        message: t("conflict.message"),
+        confirmText: t("conflict.overwrite"),
+        cancelText: tc("cancel"),
         tone: "warning",
       });
       if (!overwrite) return;
       result = saveNote(draft, noteId, { force: true });
     }
     if (!result.saved) {
-      setValidationMessage("Güncelleme yapılamadı.");
+      setValidationMessage(t("form.updateFailed"));
       return;
     }
     if (!result.storageOk) {
-      showToast({ type: "error", title: "Depolama Hatası", message: STORAGE_QUOTA_ERROR_MESSAGE });
+      showToast({ type: "error", title: tc("storageErrorTitle"), message: isSourceLocale ? STORAGE_QUOTA_ERROR_MESSAGE : tc("storageQuota") });
       return;
     }
 
@@ -114,7 +117,7 @@ export function NotDetayLayout({ noteId }: NotDetayLayoutProps) {
 
     showToast({
       type: "success",
-      message: "Not güncellendi.",
+      message: t("form.updated"),
       duration: 2500,
     });
   };
@@ -122,9 +125,9 @@ export function NotDetayLayout({ noteId }: NotDetayLayoutProps) {
   const handleDeleteNote = async () => {
     if (deleting) return;
     const ok = await confirm({
-      message: "Bu not silinsin mi? Bu işlem geri alınamaz.",
-      confirmText: "Sil",
-      cancelText: "Vazgeç",
+      message: t("delete.confirm"),
+      confirmText: tc("delete"),
+      cancelText: tc("cancel"),
       tone: "danger",
     });
     if (!ok) return;
@@ -133,13 +136,13 @@ export function NotDetayLayout({ noteId }: NotDetayLayoutProps) {
       const outcome = await deleteNote(noteId);
       if (!outcome.ok) {
         // Silinemedi (ör. başka cihazda değişmiş) → sayfada kal, açıkça bildir.
-        showToast({ type: "error", title: "Not silinemedi", message: outcome.message });
+        showToast({ type: "error", title: t("delete.failedTitle"), message: isSourceLocale ? outcome.message : t("delete.failedBody") });
         return;
       }
       if (outcome.state === "queued") {
-        showToast({ type: "warning", title: "Silme bekliyor", message: outcome.message ?? "" });
+        showToast({ type: "warning", title: t("delete.pendingTitle"), message: isSourceLocale ? outcome.message ?? "" : t("delete.pendingBody") });
       } else {
-        showToast({ type: "success", message: "Not silindi.", duration: 2500 });
+        showToast({ type: "success", message: t("delete.done"), duration: 2500 });
       }
       router.push("/refleksoloji/notlar");
     } finally {
@@ -161,7 +164,7 @@ export function NotDetayLayout({ noteId }: NotDetayLayoutProps) {
     const existingBytes = draft.attachments.reduce((sum, a) => sum + (a.size || 0), 0);
     const { added, errors } = await readNoteAttachments(files, newAttachmentId, existingBytes);
     for (const message of errors) {
-      showToast({ type: "warning", message });
+      showToast({ type: "warning", message: isSourceLocale ? message : t("attachments.rejected") });
     }
 
     if (added.length > 0) {
@@ -170,11 +173,11 @@ export function NotDetayLayout({ noteId }: NotDetayLayoutProps) {
   };
 
   const handleRenameAttachment = async (file: NoteAttachment) => {
-    const nextName = window.prompt("Yeni ek adı:", file.displayName);
+    const nextName = window.prompt(t("attachments.renamePrompt"), file.displayName);
     if (nextName == null) return;
     const trimmed = nextName.trim();
     if (!trimmed) {
-      setValidationMessage("Ek adı boş olamaz.");
+      setValidationMessage(t("attachments.nameEmpty"));
       return;
     }
 
@@ -192,9 +195,9 @@ export function NotDetayLayout({ noteId }: NotDetayLayoutProps) {
 
   const handleRemoveAttachment = async (id: string) => {
     const ok = await confirm({
-      message: "Bu ek dosya kaldırılsın mı?",
-      confirmText: "Kaldır",
-      cancelText: "Vazgeç",
+      message: t("attachments.removeConfirm"),
+      confirmText: t("attachments.remove"),
+      cancelText: tc("cancel"),
       tone: "danger",
     });
     if (!ok || !draft) return;
@@ -211,12 +214,12 @@ export function NotDetayLayout({ noteId }: NotDetayLayoutProps) {
   if (!draft) {
     return (
       <main className="flex min-h-screen w-full flex-col items-center justify-center gap-4 bg-[linear-gradient(160deg,#f3ebff_0%,#ebe4ff_28%,#f8f4ff_58%,#f0f7ff_100%)] px-6">
-        <p className="text-sm font-bold text-violet-900">Not bulunamadı.</p>
+        <p className="text-sm font-bold text-violet-900">{t("detail.notFound")}</p>
         <Link
           href="/refleksoloji/notlar"
           className="rounded-lg border border-violet-300/80 bg-violet-100 px-3 py-1.5 text-sm font-semibold text-violet-950"
         >
-          Notlara Dön
+          {t("detail.back")}
         </Link>
       </main>
     );
@@ -237,13 +240,13 @@ export function NotDetayLayout({ noteId }: NotDetayLayoutProps) {
               className={`${headerBtnBase} shrink-0 gap-1.5 border-purple-200 bg-white text-purple-800`}
             >
               <span aria-hidden>←</span>
-              Notlara Dön
+              {t("detail.back")}
             </Link>
             <header>
               <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-violet-600">
-                Klinik Notlar
+                {t("title")}
               </p>
-              <h1 className="text-base font-bold text-slate-900 sm:text-lg">Not Detayı</h1>
+              <h1 className="text-base font-bold text-slate-900 sm:text-lg">{t("detail.heading")}</h1>
             </header>
           </div>
 
@@ -254,7 +257,7 @@ export function NotDetayLayout({ noteId }: NotDetayLayoutProps) {
                 onClick={handleStartEdit}
                 className={`${headerBtnBase} border-fuchsia-200 bg-fuchsia-50 text-fuchsia-700`}
               >
-                Düzenle
+                {t("detail.edit")}
               </button>
             ) : (
               <>
@@ -263,14 +266,14 @@ export function NotDetayLayout({ noteId }: NotDetayLayoutProps) {
                   onClick={handleCancelEdit}
                   className={`${headerBtnBase} border-slate-200 bg-slate-100 text-slate-700`}
                 >
-                  İptal
+                  {t("detail.cancelEdit")}
                 </button>
                 <button
                   type="button"
                   onClick={handleUpdate}
                   className={`${headerBtnBase} border-emerald-300 bg-emerald-100 text-emerald-800`}
                 >
-                  Güncelle
+                  {t("detail.update")}
                 </button>
               </>
             )}
@@ -280,7 +283,7 @@ export function NotDetayLayout({ noteId }: NotDetayLayoutProps) {
               disabled={deleting}
               className={`${headerBtnBase} border-red-200 bg-red-50 text-red-700`}
             >
-              {deleting ? "Siliniyor…" : "Sil"}
+              {deleting ? t("detail.deleting") : tc("delete")}
             </button>
           </div>
         </div>
@@ -296,7 +299,7 @@ export function NotDetayLayout({ noteId }: NotDetayLayoutProps) {
             {editing ? (
               <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
                 <label className="block">
-                  <span className="mb-1.5 block text-sm font-bold text-slate-800">Not Başlığı</span>
+                  <span className="mb-1.5 block text-sm font-bold text-slate-800">{t("fields.title")}</span>
                   <input
                     type="text"
                     value={draft.title}
@@ -305,7 +308,7 @@ export function NotDetayLayout({ noteId }: NotDetayLayoutProps) {
                   />
                 </label>
                 <label className="block">
-                  <span className="mb-2 block text-base font-bold text-slate-800">Tarih</span>
+                  <span className="mb-2 block text-base font-bold text-slate-800">{t("fields.date")}</span>
                   <input
                     type="date"
                     value={draft.date}
@@ -325,7 +328,7 @@ export function NotDetayLayout({ noteId }: NotDetayLayoutProps) {
           </section>
 
           <section className={panelClass}>
-            <h3 className="text-sm font-bold text-violet-900">Not İçeriği</h3>
+            <h3 className="text-sm font-bold text-violet-900">{t("fields.content")}</h3>
             {editing ? (
               <textarea
                 value={draft.content}
@@ -335,14 +338,14 @@ export function NotDetayLayout({ noteId }: NotDetayLayoutProps) {
               />
             ) : (
               <p className="mt-4 whitespace-pre-wrap text-base font-medium leading-relaxed text-slate-700">
-                {draft.content.trim() || "İçerik eklenmemiş."}
+                {draft.content.trim() || t("detail.noContent")}
               </p>
             )}
           </section>
 
           <section className={panelClass}>
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <h3 className="text-sm font-bold text-violet-900">Ek Dosyalar</h3>
+              <h3 className="text-sm font-bold text-violet-900">{t("fields.attachments")}</h3>
               {editing ? (
                 <>
                   <input
@@ -358,7 +361,7 @@ export function NotDetayLayout({ noteId }: NotDetayLayoutProps) {
                     onClick={() => fileInputRef.current?.click()}
                     className="rounded-lg border border-sky-300/80 bg-sky-100 px-3 py-1.5 text-xs font-semibold text-sky-950 transition hover:bg-sky-200/90"
                   >
-                    Dosya Ekle
+                    {t("attachments.add")}
                   </button>
                   <CameraCaptureButton
                     onFiles={(files) => void addAttachmentFiles(files)}
@@ -369,7 +372,7 @@ export function NotDetayLayout({ noteId }: NotDetayLayoutProps) {
             </div>
 
             {draft.attachments.length === 0 ? (
-              <p className="mt-4 text-base font-medium text-slate-500">Ek dosya yok.</p>
+              <p className="mt-4 text-base font-medium text-slate-500">{t("attachments.none")}</p>
             ) : (
               <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
                 {draft.attachments.map((file) => (

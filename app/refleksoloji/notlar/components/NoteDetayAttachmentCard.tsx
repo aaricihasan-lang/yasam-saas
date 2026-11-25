@@ -2,9 +2,9 @@
 
 import {
   attachmentHasData,
-  attachmentTypeLabel,
   getAttachmentKind,
 } from "../lib/attachmentKind";
+import { useTranslations } from "next-intl";
 import { formatFileSize } from "../lib/readAttachmentFile";
 import type { NoteAttachment } from "../types";
 import { useIsAndroidApp } from "@/hooks/useIsAndroidApp";
@@ -30,9 +30,11 @@ export function NoteDetayAttachmentCard({
   onRename,
   onRemove,
 }: NoteDetayAttachmentCardProps) {
+  const t = useTranslations("reflexology.notes");
   const kind = getAttachmentKind(file);
   const hasData = attachmentHasData(file);
-  const typeLabel = attachmentTypeLabel(kind);
+  // attachmentTypeLabel TR kaynak (lib); görünen ad tür koduna göre ekran dilinde.
+  const typeLabel = kind === "image" ? t("attachments.kindImage") : kind === "pdf" ? "PDF" : t("attachments.kindUnsupported");
   // "Yeni Sekme" = window.open(blob) → Android uygulama WebView'inde çalışmaz; orada
   // "Aç / Önizle" + "İndir" yeterli (plan §4.6).
   const isAndroidApp = useIsAndroidApp();
@@ -66,14 +68,13 @@ export function NoteDetayAttachmentCard({
 
       {kind === "unsupported" ? (
         <p className="mt-4 rounded-xl border border-amber-200/80 bg-amber-50/90 px-3 py-2 text-sm font-medium text-amber-950">
-          Bu dosya türü artık desteklenmiyor (yalnız görsel ve PDF). Eki kaldırmadan not
-          sunucuyla eşitlenemez; gerekirse önce indirin.
+          {t("attachments.unsupportedType")}
         </p>
       ) : null}
 
       {kind !== "unsupported" && !hasData ? (
         <p className="mt-4 text-sm font-medium text-slate-500">
-          Bu ek için önizleme verisi yok. Yalnızca dosya adı kayıtlı.
+          {t("attachments.noPreview")}
         </p>
       ) : null}
 
@@ -84,7 +85,7 @@ export function NoteDetayAttachmentCard({
             onClick={onOpenImage}
             className={`${actionBtn} border-violet-300/80 bg-violet-100 text-violet-950 hover:bg-violet-200/90`}
           >
-            Aç / Önizle
+            {t("attachments.openPreview")}
           </button>
         ) : null}
 
@@ -95,7 +96,7 @@ export function NoteDetayAttachmentCard({
               onClick={onOpenPdf}
               className={`${actionBtn} border-violet-300/80 bg-violet-100 text-violet-950 hover:bg-violet-200/90`}
             >
-              Aç / Önizle
+              {t("attachments.openPreview")}
             </button>
             {/* data: URL'e üst-çerçeve navigasyonu tarayıcılarca engellenir (masaüstü dahil)
                 → blob: URL ile yeni sekme. */}
@@ -105,7 +106,7 @@ export function NoteDetayAttachmentCard({
                 onClick={() => void openDataUrlInNewTab(file.dataUrl, "application/pdf")}
                 className={`no-android-app ${actionBtn} border-sky-300/80 bg-sky-50 text-sky-950 hover:bg-sky-100`}
               >
-                Yeni Sekme
+                {t("attachments.newTab")}
               </button>
             )}
           </>
@@ -117,11 +118,11 @@ export function NoteDetayAttachmentCard({
             download={file.fileName}
             className={`${actionBtn} border-emerald-300/80 bg-emerald-50 text-emerald-950 hover:bg-emerald-100`}
           >
-            İndir
+            {t("attachments.download")}
           </a>
         ) : (
           <span className={`${actionBtn} cursor-not-allowed border-slate-200 bg-slate-50 text-slate-400`}>
-            İndir
+            {t("attachments.download")}
           </span>
         )}
 
@@ -132,14 +133,14 @@ export function NoteDetayAttachmentCard({
               onClick={onRename}
               className={`${actionBtn} border-fuchsia-300/80 bg-fuchsia-50 text-fuchsia-950 hover:bg-fuchsia-100`}
             >
-              Adını Değiştir
+              {t("attachments.renameShort")}
             </button>
             <button
               type="button"
               onClick={onRemove}
               className={`${actionBtn} border-red-300/80 bg-red-50 text-red-700 hover:bg-red-100`}
             >
-              Sil
+              {t("form.delete")}
             </button>
           </>
         ) : null}

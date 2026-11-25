@@ -1,5 +1,9 @@
 "use client";
 
+import { useLocale, useTranslations } from "next-intl";
+import { DEFAULT_LOCALE } from "@/lib/i18n/locales";
+import { useRefCodeText } from "@/app/refleksoloji/hooks/useRefCodeText";
+
 import Link from "next/link";
 import { Plus, Search } from "lucide-react";
 import premium from "@/app/_premium/refleksoloji/kayitliProtokoller.module.css";
@@ -26,6 +30,10 @@ import { LegacyQuarantineBanner } from "@/app/refleksoloji/components/LegacyQuar
 const PAGE_SIZE = 10;
 
 export function KayitliProtokollerLayout() {
+  const t = useTranslations("reflexology.savedProtocols");
+  const tc = useTranslations("reflexology.common");
+  const isSourceLocale = useLocale() === DEFAULT_LOCALE;
+  const refCode = useRefCodeText();
   const { confirm } = useConfirm();
   const { showToast } = useToast();
   const {
@@ -81,8 +89,8 @@ export function KayitliProtokollerLayout() {
         body: JSON.stringify(body),
       });
       if (!res.ok) {
-        const err = await res.json().catch(() => ({})) as { error?: string };
-        showToast({ title: "Hata", message: err.error || "Rapor oluşturulamadı.", type: "error" });
+        const err = await res.json().catch(() => ({})) as { error?: string; code?: string };
+        showToast({ title: tc("errorTitle"), message: isSourceLocale ? err.error || t("reportFailed") : refCode(err, t("reportFailed")), type: "error" });
         return;
       }
       // Dosya adı sunucudan (Content-Disposition, İstanbul günü); yoksa yerel gün.
@@ -90,9 +98,9 @@ export function KayitliProtokollerLayout() {
         res,
         `refleksoloji-protokol-${mode === "selected" ? "secili" : "tumu"}-${reportFileDate()}.docx`,
       );
-      showToast({ title: "Başarılı", message: "Protokol raporu indirildi.", type: "success" });
+      showToast({ title: tc("successTitle"), message: t("reportDownloaded"), type: "success" });
     } catch (err) {
-      showToast({ title: "Hata", message: err instanceof Error ? err.message : "Bilinmeyen hata", type: "error" });
+      showToast({ title: tc("errorTitle"), message: err instanceof Error ? err.message : t("unknownError"), type: "error" });
     } finally {
       setWordBusy(false);
     }
@@ -110,24 +118,24 @@ export function KayitliProtokollerLayout() {
 
   const handleDelete = async (id: string) => {
     const ok = await confirm({
-      message: "Bu protokol silinsin mi? Bu işlem geri alınamaz.",
-      confirmText: "Sil",
-      cancelText: "Vazgeç",
+      message: t("deleteMsg"),
+      confirmText: tc("delete"),
+      cancelText: tc("cancel"),
       tone: "danger",
     });
     if (!ok) return;
     const deleted = await deleteProtocol(id);
     showToast(
       deleted
-        ? { type: "success", message: "Protokol silindi.", duration: 2500 }
-        : { type: "error", title: "Silinemedi", message: "Protokol silinemedi. Lütfen tekrar deneyin." },
+        ? { type: "success", message: t("deleted"), duration: 2500 }
+        : { type: "error", title: t("deleteFailedTitle"), message: t("deleteFailed") },
     );
   };
 
   if (loading) {
     // REF-021: route skeleton'ıyla tutarlı iskelet.
     return (
-      <RefleksolojiListLoading badge="REFLEKSOLOJİ · KAYITLI PROTOKOLLER" title="Kayıtlı Protokoller" />
+      <RefleksolojiListLoading badge={t("loadingBadge")} title={t("title")} />
     );
   }
 
@@ -136,19 +144,19 @@ export function KayitliProtokollerLayout() {
     <main className={`relative flex min-h-screen w-full max-w-none flex-col overflow-x-hidden text-slate-900 antialiased ${premium.page}`}>
       <div className="relative z-10 mx-auto w-full max-w-[1600px] px-3 py-5 sm:px-6 xl:px-[60px]">
         {isDemo && (
-          <DemoModuleBanner message="Kayıtlı protokoller demo hesabı için temsili verilerle gösterilmektedir. Kendi oluşturduğunuz protokoller oturumunuz boyunca görünür; çıkışta silinir. Gerçek uzman verileri gizlidir." />
+          <DemoModuleBanner message={t("demoBanner")} />
         )}
 
         <div className="flex flex-wrap items-start justify-between gap-3 px-1 sm:px-3">
           <header className="min-w-0">
             <p className="text-[12px] font-extrabold uppercase tracking-[0.22em] text-violet-600">
-              Refleksoloji &middot; Kayıtlı Protokoller
+              {t("eyebrow")}
             </p>
             <h1 className="mt-2 text-[1.75rem] font-extrabold tracking-tight text-[#17132f] sm:text-[2.25rem]">
-              Kayıtlı Protokoller
+              {t("title")}
             </h1>
             <p className="mt-2 text-sm font-medium text-[#57536b]">
-              {protocols.length} kayıt listeleniyor.
+              {t("count", { count: protocols.length })}
             </p>
           </header>
 
@@ -157,7 +165,7 @@ export function KayitliProtokollerLayout() {
             className="inline-flex min-h-[46px] w-full shrink-0 items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-[#16b46b] to-[#10a865] px-5 text-[16px] font-bold text-white shadow-[0_12px_24px_-12px_rgba(16,168,101,0.7)] transition hover:brightness-105 sm:w-auto"
           >
             <Plus className="h-5 w-5" strokeWidth={2.4} aria-hidden />
-            Yeni Protokol Oluştur
+            {t("createNew")}
           </Link>
         </div>
 
@@ -165,22 +173,22 @@ export function KayitliProtokollerLayout() {
           <LegacyQuarantineBanner
             className="mt-3"
             count={quarantineCount}
-            noun="protokol"
+            noun={tc("quarantine.nounProtocol")}
             onImport={async () => {
               const r = await importQuarantine();
               showToast(
                 r.failed === 0
-                  ? { type: "success", message: `${r.imported} protokol hesabınıza aktarıldı.` }
+                  ? { type: "success", message: t("imported", { count: String(r.imported) }) }
                   : {
                       type: "warning",
-                      title: "Kısmen aktarıldı",
-                      message: `${r.imported} protokol aktarıldı; ${r.failed} protokol aktarılamadı ve bu cihazda bekliyor.`,
+                      title: t("partialTitle"),
+                      message: t("partialMsg", { imported: String(r.imported), failed: String(r.failed) }),
                     },
               );
             }}
             onDiscard={() => {
               discardQuarantine();
-              showToast({ type: "success", message: "Sahibi belirsiz protokoller bu cihazdan kaldırıldı." });
+              showToast({ type: "success", message: t("quarantineRemoved") });
             }}
           />
         ) : null}
@@ -204,7 +212,7 @@ export function KayitliProtokollerLayout() {
                 setSearch(e.target.value);
                 setVisibleCount(PAGE_SIZE);
               }}
-              placeholder="Başlık, hedef, organ veya nota göre ara..."
+              placeholder={t("searchPlaceholder")}
               className="h-11 w-full rounded-2xl border border-[#ebe7f6] bg-white/95 pl-[52px] pr-4 text-[15px] font-medium text-slate-800 shadow-[0_6px_18px_-12px_rgba(76,61,140,0.3)] outline-none placeholder:text-[#75728a] focus:border-violet-400 focus:ring-[3px] focus:ring-violet-300/25"
             />
           </label>
@@ -212,20 +220,20 @@ export function KayitliProtokollerLayout() {
 
         {!loadErrorMessage && protocols.length === 0 ? (
           <section className="mt-4 flex flex-col items-center justify-center rounded-2xl border border-dashed border-violet-200/70 bg-white/80 px-6 py-8 text-center shadow-sm">
-            <p className="text-base font-bold text-violet-900">Henüz protokol yok</p>
+            <p className="text-base font-bold text-violet-900">{t("emptyTitle")}</p>
             <p className="mt-2 max-w-md text-sm font-medium text-slate-600">
-              Toplu veri aktarımı veya Protokol Haritası ile yeni kayıt ekleyebilirsiniz.
+              {t("emptyBody")}
             </p>
             <Link
               href="/refleksoloji/protokol-haritasi"
               className="mt-4 rounded-xl border border-emerald-300/80 bg-emerald-500 px-4 py-2 text-sm font-bold text-white shadow-sm transition hover:bg-emerald-600"
             >
-              + Yeni Protokol Oluştur
+              {t("createNewPlus")}
             </Link>
           </section>
         ) : !loadErrorMessage && filtered.length === 0 ? (
           <p className="mt-5 rounded-xl border border-violet-100 bg-white/80 px-5 py-6 text-center text-sm font-medium text-slate-600">
-            Aramanızla eşleşen protokol bulunamadı.
+            {t("noMatch")}
           </p>
         ) : !loadErrorMessage ? (
           <>
@@ -240,7 +248,7 @@ export function KayitliProtokollerLayout() {
                   onExportSelected={() => void exportProtocolsWord("selected")}
                   onExportAll={() => void exportProtocolsWord("all")}
                   isExporting={wordBusy}
-                  selectAllLabel="Görünenleri Seç"
+                  selectAllLabel={t("selectVisible")}
                   selectAllCount={visible.length}
                 />
               </div>
@@ -266,15 +274,15 @@ export function KayitliProtokollerLayout() {
                   onClick={() => setVisibleCount((c) => c + PAGE_SIZE)}
                   className="rounded-xl border border-violet-300/80 bg-white/90 px-5 py-2.5 text-sm font-bold text-violet-800 shadow-sm transition hover:bg-violet-50"
                 >
-                  Daha fazla yükle ({Math.min(PAGE_SIZE, remaining)})
+                  {t("loadMore", { count: String(Math.min(PAGE_SIZE, remaining)) })}
                 </button>
                 <p className="text-xs font-medium text-slate-500">
-                  {visible.length} / {filtered.length} kayıt gösteriliyor
+                  {t("showing", { visible: String(visible.length), total: String(filtered.length) })}
                 </p>
               </div>
             ) : filtered.length > PAGE_SIZE ? (
               <p className="mb-6 text-center text-xs font-medium text-slate-500">
-                Tüm kayıtlar gösteriliyor ({filtered.length})
+                {t("showingAll", { count: String(filtered.length) })}
               </p>
             ) : null}
           </>

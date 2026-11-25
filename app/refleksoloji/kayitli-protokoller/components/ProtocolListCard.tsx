@@ -1,5 +1,9 @@
 "use client";
 
+import { useLocale, useTranslations } from "next-intl";
+import { localeTag } from "@/lib/i18n/format";
+import type { ActiveLocale } from "@/lib/i18n/locales";
+
 import Link from "next/link";
 import { Calendar, Eye, Pencil, Trash2 } from "lucide-react";
 import { DemoBlur } from "@/components/demo/DemoBlur";
@@ -27,7 +31,10 @@ export function ProtocolListCard({
   isDemo = false,
   isSeed = false,
 }: ProtocolListCardProps) {
-  const title = protocol.title?.trim() || "Başlıksız protokol";
+  const t = useTranslations("reflexology.savedProtocols.card");
+  const tc = useTranslations("reflexology.common");
+  const bcp47 = localeTag(useLocale() as ActiveLocale);
+  const title = protocol.title?.trim() || t("untitled");
   const targetProblem = protocol.target_problem?.trim() || "";
   const organsList = parseOrgansList(protocol.organs);
   const organsSummary = protocol.organs?.trim() || "";
@@ -62,7 +69,7 @@ export function ProtocolListCard({
           </div>
           {organsList.length > 0 ? (
             <span className="shrink-0 rounded-full bg-[#ece7fd] px-3 py-0.5 text-[13px] font-semibold text-[#4c33b8]">
-              {organsList.length} organ
+              {t("organCount", { count: organsList.length })}
             </span>
           ) : null}
         </div>
@@ -82,7 +89,7 @@ export function ProtocolListCard({
             </p>
           </DemoBlur>
         ) : (
-          <p className="mt-1 text-[14px] font-medium text-[#9a97b0]">Organ bilgisi eklenmemiş.</p>
+          <p className="mt-1 text-[14px] font-medium text-[#9a97b0]">{t("noOrgans")}</p>
         )}
 
         {organsList.length > 0 ? (
@@ -109,10 +116,10 @@ export function ProtocolListCard({
         <div className="flex items-center justify-between gap-2">
           <dt className="inline-flex items-center gap-1.5">
             <Calendar className="h-[15px] w-[15px]" strokeWidth={2} aria-hidden />
-            Kayıt tarihi
+            {t("date")}
           </dt>
           <dd className="whitespace-nowrap font-semibold text-[#17132f]">
-            {formatProtocolDate(protocol.created_at)}
+            {formatProtocolDate(protocol.created_at, bcp47)}
           </dd>
         </div>
       </dl>
@@ -123,7 +130,7 @@ export function ProtocolListCard({
           className="inline-flex min-h-[42px] items-center justify-center gap-1.5 whitespace-nowrap rounded-xl border border-[#d8cff8] bg-[#efeafd] px-2 text-[14px] font-semibold text-[#2b2257] transition hover:bg-[#e5ddfc] sm:min-h-[38px]"
         >
           <Eye className="h-4 w-4 text-[#4c33b8]" strokeWidth={2.2} aria-hidden />
-          Görüntüle
+          {t("open")}
         </Link>
         {!isSeed && (
           <Link
@@ -131,7 +138,7 @@ export function ProtocolListCard({
             className="inline-flex min-h-[42px] items-center justify-center gap-1.5 whitespace-nowrap rounded-xl border border-[#ecd2f2] bg-[#fbf1fb] px-2 text-[14px] font-semibold text-[#2b2257] transition hover:bg-[#f6e4f6] sm:min-h-[38px]"
           >
             <Pencil className="h-[15px] w-[15px] text-violet-700" strokeWidth={2.2} aria-hidden />
-            Düzenle
+            {t("edit")}
           </Link>
         )}
         {!isSeed && (
@@ -141,7 +148,7 @@ export function ProtocolListCard({
             className="inline-flex min-h-[42px] items-center justify-center gap-1.5 whitespace-nowrap rounded-xl border border-[#fcd5d5] bg-[#fff2f2] px-2 text-[14px] font-semibold text-rose-600 transition hover:bg-[#ffe4e4] sm:min-h-[38px]"
           >
             <Trash2 className="h-[15px] w-[15px]" strokeWidth={2.2} aria-hidden />
-            Sil
+            {tc("delete")}
           </button>
         )}
       </div>

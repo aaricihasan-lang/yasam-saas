@@ -1,7 +1,8 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+
 import { BookOpen, Info } from "lucide-react";
-import { REFLEXOLOGY_DISCLAIMER_TEXT } from "@/app/refleksoloji/components/ReflexologyDisclaimer";
 
 import { useMemo } from "react";
 import { getRegionsForOrgan, loadAtlas } from "@/lib/atlasStorage";
@@ -21,6 +22,9 @@ type RegionNotesPanelProps = {
  * Bölge koordinatları harita üzerinde çizilerek yönetilir.
  */
 export function RegionNotesPanel({ selectedOrgan, atlasVersion = 0 }: RegionNotesPanelProps) {
+  const t = useTranslations("reflexology.zoneMap.notes");
+  const tViews = useTranslations("reflexology.common.views");
+  const tc = useTranslations("reflexology.common");
   const counts = useMemo(() => {
     if (!selectedOrgan) return null;
     try {
@@ -44,34 +48,34 @@ export function RegionNotesPanel({ selectedOrgan, atlasVersion = 0 }: RegionNote
         <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-violet-100 text-violet-600" aria-hidden>
           <BookOpen className="h-5 w-5" strokeWidth={2} />
         </span>
-        <h2 className="text-[15px] font-extrabold tracking-[0.04em] text-[#1b1638]">ORGAN ATLASI</h2>
+        <h2 className="text-[15px] font-extrabold tracking-[0.04em] text-[#1b1638]">{t("title")}</h2>
       </div>
 
       <div className="mt-3 rounded-2xl border border-[#efedf7] bg-white px-3.5 py-3">
-        <p className="text-[12px] font-extrabold uppercase tracking-[0.06em] text-violet-600">Seçili Organ</p>
+        <p className="text-[12px] font-extrabold uppercase tracking-[0.06em] text-violet-600">{t("selected")}</p>
         <p
           className={`mt-1 text-[15px] font-bold leading-snug ${
             selectedOrgan ? "text-violet-950" : "font-semibold italic text-slate-600"
           }`}
         >
-          {selectedOrgan ?? "Organ seçiniz"}
+          {selectedOrgan ?? t("selectOrgan")}
         </p>
       </div>
 
       <div className="mt-3 flex flex-col">
         <span className="text-[12px] font-extrabold uppercase tracking-[0.06em] text-[#1b1638]">
-          Kayıtlı Bölgeler
+          {t("savedZones")}
         </span>
         {selectedOrgan && counts ? (
           counts.total > 0 ? (
             <div className="mt-1 space-y-1.5">
               {([
-                { label: "Taban görünümü", value: counts.taban },
-                { label: "Yan İç görünümü", value: counts.yanIc },
-                { label: "Yan Dış görünümü", value: counts.yanDis },
+                { label: tViews("taban.label"), value: counts.taban },
+                { label: tViews("yan_ic.label"), value: counts.yanIc },
+                { label: tViews("yan_dis.label"), value: counts.yanDis },
                 // El satırları yalnız bölge varsa (ayak-only organda panel aynen kalır).
-                ...(counts.elAvuc > 0 ? [{ label: "Avuç İçi görünümü", value: counts.elAvuc }] : []),
-                ...(counts.elSirt > 0 ? [{ label: "El Sırtı görünümü", value: counts.elSirt }] : []),
+                ...(counts.elAvuc > 0 ? [{ label: tViews("el_avuc.label"), value: counts.elAvuc }] : []),
+                ...(counts.elSirt > 0 ? [{ label: tViews("el_sirt.label"), value: counts.elSirt }] : []),
               ]).map(({ label, value }) => (
                 <div
                   key={label}
@@ -84,13 +88,12 @@ export function RegionNotesPanel({ selectedOrgan, atlasVersion = 0 }: RegionNote
             </div>
           ) : (
             <p className="mt-1.5 rounded-2xl border border-[#efedf7] bg-white px-3.5 py-3 text-[13px] font-medium leading-relaxed text-[#5b5873]">
-              Bu organ için henüz bölge çizilmedi. Ayak üzerinde bölge işaretleyip Kaydet ile
-              ekleyebilirsiniz.
+              {t("noZones")}
             </p>
           )
         ) : (
           <p className="mt-1.5 rounded-2xl border border-[#efedf7] bg-white px-3.5 py-3 text-[13px] font-medium leading-relaxed text-[#5b5873]">
-            Bir organ seçtiğinizde atlas bilgisi burada görüntülenir.
+            {t("pickHint")}
           </p>
         )}
       </div>
@@ -99,9 +102,9 @@ export function RegionNotesPanel({ selectedOrgan, atlasVersion = 0 }: RegionNote
       <div className="mt-3 rounded-2xl border border-[#dfe4fb] bg-[#eef1ff] px-3.5 py-3">
         <p className="flex items-center gap-2 text-[14px] font-bold text-[#3b3a8f]">
           <Info className="h-4 w-4 text-indigo-600" strokeWidth={2} aria-hidden />
-          Bilgilendirme
+          {t("info")}
         </p>
-        <p className="mt-1.5 text-[12.5px] leading-relaxed text-[#3f3d6b]">{REFLEXOLOGY_DISCLAIMER_TEXT}</p>
+        <p className="mt-1.5 text-[12.5px] leading-relaxed text-[#3f3d6b]">{tc("disclaimer")}</p>
       </div>
     </aside>
   );

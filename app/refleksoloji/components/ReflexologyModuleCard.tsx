@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 
 export type ReflexologyModuleCardProps = {
   href: string;
@@ -21,6 +22,7 @@ export function ReflexologyModuleCard({
   wide = false,
   compact = false,
 }: ReflexologyModuleCardProps) {
+  const t = useTranslations("reflexology.common");
   const isCompactLayout = compact && !wide;
 
   return (
@@ -87,7 +89,7 @@ export function ReflexologyModuleCard({
             isCompactLayout ? "mt-2 text-[10px]" : wide ? "text-xs sm:self-center" : "mt-5 text-xs"
           }`}
         >
-          Modüle git
+          {t("goToModule")}
           <span aria-hidden className="transition-transform duration-300 group-hover:translate-x-1">
             →
           </span>

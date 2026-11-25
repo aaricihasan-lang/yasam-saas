@@ -33,6 +33,14 @@ import tr_home from "@/messages/tr/home.json";
 import tr_homeYhStatus from "@/messages/tr/home.yhStatus.json";
 import tr_memoryPicker from "@/messages/tr/memoryPicker.json";
 import tr_navigation from "@/messages/tr/navigation.json";
+import tr_reflexologyCommon from "@/messages/tr/reflexology.common.json";
+import tr_reflexologyErrors from "@/messages/tr/reflexology.errors.json";
+import tr_reflexologyMenu from "@/messages/tr/reflexology.menu.json";
+import tr_reflexologyNotes from "@/messages/tr/reflexology.notes.json";
+import tr_reflexologyProtocolMap from "@/messages/tr/reflexology.protocolMap.json";
+import tr_reflexologySavedAtlas from "@/messages/tr/reflexology.savedAtlas.json";
+import tr_reflexologySavedProtocols from "@/messages/tr/reflexology.savedProtocols.json";
+import tr_reflexologyZoneMap from "@/messages/tr/reflexology.zoneMap.json";
 import tr_stonesCombinations from "@/messages/tr/stones.combinations.json";
 import tr_stonesHub from "@/messages/tr/stones.hub.json";
 import tr_stones from "@/messages/tr/stones.json";
@@ -71,6 +79,14 @@ import en_home from "@/messages/en/home.json";
 import en_homeYhStatus from "@/messages/en/home.yhStatus.json";
 import en_memoryPicker from "@/messages/en/memoryPicker.json";
 import en_navigation from "@/messages/en/navigation.json";
+import en_reflexologyCommon from "@/messages/en/reflexology.common.json";
+import en_reflexologyErrors from "@/messages/en/reflexology.errors.json";
+import en_reflexologyMenu from "@/messages/en/reflexology.menu.json";
+import en_reflexologyNotes from "@/messages/en/reflexology.notes.json";
+import en_reflexologyProtocolMap from "@/messages/en/reflexology.protocolMap.json";
+import en_reflexologySavedAtlas from "@/messages/en/reflexology.savedAtlas.json";
+import en_reflexologySavedProtocols from "@/messages/en/reflexology.savedProtocols.json";
+import en_reflexologyZoneMap from "@/messages/en/reflexology.zoneMap.json";
 import en_stonesCombinations from "@/messages/en/stones.combinations.json";
 import en_stonesHub from "@/messages/en/stones.hub.json";
 import en_stones from "@/messages/en/stones.json";
@@ -81,8 +97,8 @@ import en_stonesRecords from "@/messages/en/stones.records.json";
 import en_terms from "@/messages/en/terms.json";
 
 export const CATALOG_FILES = {
-  tr: ["auth.client.json", "auth.email.json", "auth.server.json", "auth.ui.json", "beslenme.json", "clients.analizler.json", "clients.anamnez.json", "clients.charges.json", "clients.combinations.json", "clients.consent.json", "clients.detail.json", "clients.homework.json", "clients.json", "clients.list.json", "clients.memory.json", "clients.notes.json", "clients.sessions.json", "clients.stones.json", "clients.yolculuk.json", "common.apiErrors.json", "common.deleteConfirm.json", "common.demo.json", "common.json", "common.languagePreference.json", "common.reader.json", "common.submitLock.json", "home.json", "home.yhStatus.json", "memoryPicker.json", "navigation.json", "stones.combinations.json", "stones.hub.json", "stones.json", "stones.knowledge.json", "stones.list.json", "stones.minerals.json", "stones.records.json", "terms.json"],
-  en: ["auth.client.json", "auth.email.json", "auth.server.json", "auth.ui.json", "beslenme.json", "clients.analizler.json", "clients.anamnez.json", "clients.charges.json", "clients.combinations.json", "clients.consent.json", "clients.detail.json", "clients.homework.json", "clients.json", "clients.list.json", "clients.memory.json", "clients.notes.json", "clients.sessions.json", "clients.stones.json", "clients.yolculuk.json", "common.apiErrors.json", "common.deleteConfirm.json", "common.demo.json", "common.json", "common.languagePreference.json", "common.reader.json", "common.submitLock.json", "home.json", "home.yhStatus.json", "memoryPicker.json", "navigation.json", "stones.combinations.json", "stones.hub.json", "stones.json", "stones.knowledge.json", "stones.list.json", "stones.minerals.json", "stones.records.json", "terms.json"],
+  tr: ["auth.client.json", "auth.email.json", "auth.server.json", "auth.ui.json", "beslenme.json", "clients.analizler.json", "clients.anamnez.json", "clients.charges.json", "clients.combinations.json", "clients.consent.json", "clients.detail.json", "clients.homework.json", "clients.json", "clients.list.json", "clients.memory.json", "clients.notes.json", "clients.sessions.json", "clients.stones.json", "clients.yolculuk.json", "common.apiErrors.json", "common.deleteConfirm.json", "common.demo.json", "common.json", "common.languagePreference.json", "common.reader.json", "common.submitLock.json", "home.json", "home.yhStatus.json", "memoryPicker.json", "navigation.json", "reflexology.common.json", "reflexology.errors.json", "reflexology.menu.json", "reflexology.notes.json", "reflexology.protocolMap.json", "reflexology.savedAtlas.json", "reflexology.savedProtocols.json", "reflexology.zoneMap.json", "stones.combinations.json", "stones.hub.json", "stones.json", "stones.knowledge.json", "stones.list.json", "stones.minerals.json", "stones.records.json", "terms.json"],
+  en: ["auth.client.json", "auth.email.json", "auth.server.json", "auth.ui.json", "beslenme.json", "clients.analizler.json", "clients.anamnez.json", "clients.charges.json", "clients.combinations.json", "clients.consent.json", "clients.detail.json", "clients.homework.json", "clients.json", "clients.list.json", "clients.memory.json", "clients.notes.json", "clients.sessions.json", "clients.stones.json", "clients.yolculuk.json", "common.apiErrors.json", "common.deleteConfirm.json", "common.demo.json", "common.json", "common.languagePreference.json", "common.reader.json", "common.submitLock.json", "home.json", "home.yhStatus.json", "memoryPicker.json", "navigation.json", "reflexology.common.json", "reflexology.errors.json", "reflexology.menu.json", "reflexology.notes.json", "reflexology.protocolMap.json", "reflexology.savedAtlas.json", "reflexology.savedProtocols.json", "reflexology.zoneMap.json", "stones.combinations.json", "stones.hub.json", "stones.json", "stones.knowledge.json", "stones.list.json", "stones.minerals.json", "stones.records.json", "terms.json"],
 } as const;
 
 export const CATALOG_PARTS: Record<"tr" | "en", Record<string, unknown>[]> = {
@@ -117,6 +133,14 @@ export const CATALOG_PARTS: Record<"tr" | "en", Record<string, unknown>[]> = {
     tr_homeYhStatus,
     tr_memoryPicker,
     tr_navigation,
+    tr_reflexologyCommon,
+    tr_reflexologyErrors,
+    tr_reflexologyMenu,
+    tr_reflexologyNotes,
+    tr_reflexologyProtocolMap,
+    tr_reflexologySavedAtlas,
+    tr_reflexologySavedProtocols,
+    tr_reflexologyZoneMap,
     tr_stonesCombinations,
     tr_stonesHub,
     tr_stones,
@@ -157,6 +181,14 @@ export const CATALOG_PARTS: Record<"tr" | "en", Record<string, unknown>[]> = {
     en_homeYhStatus,
     en_memoryPicker,
     en_navigation,
+    en_reflexologyCommon,
+    en_reflexologyErrors,
+    en_reflexologyMenu,
+    en_reflexologyNotes,
+    en_reflexologyProtocolMap,
+    en_reflexologySavedAtlas,
+    en_reflexologySavedProtocols,
+    en_reflexologyZoneMap,
     en_stonesCombinations,
     en_stonesHub,
     en_stones,

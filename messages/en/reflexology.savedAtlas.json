@@ -1,0 +1,123 @@
+{
+  "reflexology": {
+    "savedAtlas": {
+      "title": "Saved Atlas",
+      "loadingBadge": "REFLEXOLOGY · SAVED ATLAS",
+      "subtitle": "Organ coordinates saved from the Zone Map are managed here.",
+      "demoBanner": "Atlas zones are stored only on your device. They remain visible during your session and are deleted when you sign out. Real practitioner atlas data is not shown on this account.",
+      "searchPlaceholder": "Search by organ name…",
+      "imported": "{count} organ(s) imported into your atlas.",
+      "quarantineRemoved": "Atlas data of unknown ownership was removed from this device.",
+      "emptyTitle": "No saved organs yet.",
+      "emptyBody": "Add organs on the Zone Map and create an atlas with Save.",
+      "goZoneMap": "Go to Zone Map",
+      "noMatch": "No organ matches your search.",
+      "bulk": {
+        "aria": "Bulk actions",
+        "selectVisibleAria": "Select all visible records",
+        "selectVisible": "Select visible",
+        "selected": "{count} selected",
+        "hiddenSelected": " ({count} hidden by search)",
+        "clear": "Clear selection",
+        "wordSelected": "Selected to Word",
+        "preparing": "Preparing…",
+        "wordAll": "All to Word ({count})",
+        "deleteSelected": "Delete Selected",
+        "deleteAll": "Delete All ({count})",
+        "moreRecords": "+{count} more",
+        "usageNote": "⚠️ {count} organ(s) are used in protocols: {list}. If you delete them, these organs will no longer match on those protocols’ maps (the protocol text is kept).",
+        "scopeNote": "Scope: all Saved Atlas organs on this account (regardless of the search filter). The \"Organs Without an Atlas\" list is not included in this action.",
+        "detail": "Records to be deleted:\n{list}",
+        "noun": "atlas record(s)",
+        "confirmMsg": "{count} atlas record(s) and all their saved zones will be permanently deleted. This action cannot be undone.",
+        "confirmBtn": "Delete ({count})",
+        "quotaFailed": "{count} record(s) could not be deleted (device storage is full). No records were changed; the selection was kept.",
+        "partialTitle": "Partial deletion",
+        "partialMsg": "{deleted} record(s) deleted. {missing} record(s) not found (they may have been deleted in another tab/device): {list}",
+        "deleted": "{count} atlas record(s) deleted.",
+        "organListTitle": "The organ list could not be updated",
+        "organListMsg": "Deleted organs may appear under \"Organs Without an Atlas\"; you can remove them there."
+      },
+      "single": {
+        "usageNote": "⚠️ This organ is used in {count} protocol(s){titles}. If you delete it, this organ will no longer match on those protocols’ maps (the protocol text is kept).",
+        "confirmMsg": "Delete this organ and all its saved atlas zones? This action cannot be undone.",
+        "orphanMsg": "\"{organ}\" is an organ without an atlas record (no zones). Permanently delete it from the organ list?",
+        "quotaFailed": "The organ could not be deleted (device storage is full)."
+      },
+      "word": {
+        "sessionTitle": "Session",
+        "sessionMsg": "Your session could not be verified. Please sign in again.",
+        "failed": "The atlas report could not be generated.",
+        "downloadedTitle": "Atlas report downloaded",
+        "syncWarn": "The latest changes could not be sent to the server; the report was generated from the last record on the server.",
+        "downloaded": "Atlas report downloaded."
+      },
+      "orphans": {
+        "title": "Organs Without an Atlas",
+        "body": "Organs that appear in the organ list but have no saved atlas zones. If they are old/test records you can delete them; if you created them on purpose, you can keep them. Deletion is permanent and will not return from another device.",
+        "deleteAria": "Delete organ {organ}"
+      },
+      "card": {
+        "selectAria": "Select record {name}",
+        "regionCount": "{count, plural, one {# zone} other {# zones}}",
+        "view": "View",
+        "foot": "Foot",
+        "hand": "Hand",
+        "updated": "Last updated",
+        "open": "View",
+        "edit": "Edit"
+      },
+      "labels": {
+        "bothFeet": "Both feet",
+        "leftFoot": "Left foot",
+        "rightFoot": "Right foot",
+        "bothHands": "Both hands",
+        "leftHand": "Left hand",
+        "rightHand": "Right hand",
+        "viewTaban": "Sole",
+        "viewYan": "Side",
+        "viewEl": "Hand",
+        "handPalm": "Palm",
+        "handBack": "Back of Hand",
+        "shapes": {
+          "oval": "Oval",
+          "rect": "Square",
+          "free_draw": "Freehand",
+          "thick_line": "Line",
+          "point": "Point"
+        },
+        "coordLine": "x1:{x1} y1:{y1} → x2:{x2} y2:{y2}",
+        "coordFree": "{count} points · first ({x}, {y})",
+        "coordCenter": "centre ({cx}, {cy}) · rx:{rx} ry:{ry}",
+        "coordNone": "No coordinate summary"
+      },
+      "edit": {
+        "deleteRegionMsg": "Delete this zone? This action cannot be undone.",
+        "deleteRegionConfirm": "Delete Zone",
+        "title": "Edit Atlas",
+        "subtitle": "Update the organ name or delete saved zones. Coordinates are edited on the Zone Map.",
+        "organName": "Organ Name",
+        "noZonesLeft": "This organ has no saved zones left.",
+        "savedZones": "Saved Zones",
+        "saveFailed": "Could not be saved.",
+        "noZonesLead": "No saved zones. To add a new zone, use the",
+        "zoneMap": "Zone Map",
+        "noZonesTail": ".",
+        "deleteZone": "Delete Zone",
+        "goZoneMap": "Go to Zone Map",
+        "saveName": "Save Organ Name"
+      },
+      "viewModal": {
+        "title": "View Atlas",
+        "meta": "{count} saved zone(s) · read-only preview",
+        "noZones": "No saved zones in this view."
+      },
+      "rename": {
+        "protocolTitle": "Protocol update",
+        "protocolFailed": "The linked protocols could not be updated. Please try again.",
+        "protocolsUpdatedTitle": "Protocols updated",
+        "protocolsUpdated": "The organ name was updated in {count} protocol(s)."
+      }
+    }
+  }
+}

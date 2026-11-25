@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { Brain, ClipboardList, Copy, FilePenLine, Map as MapIcon, type LucideIcon } from "lucide-react";
 import { ReflexologyDisclaimer } from "./ReflexologyDisclaimer";
 import { energyFontVars } from "@/app/_premium/enerji-beden/fonts";
@@ -12,13 +13,14 @@ import styles from "@/app/_premium/refleksoloji/refleksoloji.module.css";
  * sağda onaylı referanstan kesilmiş görsel; "Modüle Git" butonu YOK, kartın tamamı tek bağlantı.
  * Adresler, kart metinleri, başlık rozeti ve REF-002 sağlık bilgilendirmesi canlıdaki gibi korunur.
  */
+// I18N: kart başlık/açıklaması reflexology.menu.<msgKey>.{title,desc} (TR birebir; açıklama satırları
+// eskiden lines.join(" ") ile birleşiyordu → desc tek metin).
 type HubModule = {
   href: string;
-  title: string;
+  msgKey: "zoneMap" | "savedAtlas" | "protocolMap" | "savedProtocols" | "notes";
   /** premium görsel anahtarı (public/premium/refleksoloji/<key>.webp) + renk tonu */
   key: string;
   Icon: LucideIcon;
-  lines: readonly string[];
   art: { w: number; h: number };
   wide?: boolean;
 };
@@ -26,55 +28,45 @@ type HubModule = {
 const MENU_MODULES: HubModule[] = [
   {
     href: "/refleksoloji/bolge-haritasi",
-    title: "Bölge Haritası",
+    msgKey: "zoneMap",
     key: "bolge-haritasi",
     Icon: MapIcon,
-    lines: [
-      "Organ seç → bölge çiz → atlasa kaydet.",
-      "Kayıtlı atlası görüntüle ve düzenle.",
-    ],
     art: { w: 219, h: 285 },
   },
   {
     href: "/refleksoloji/kayitli-atlas",
-    title: "Kayıtlı Atlas",
+    msgKey: "savedAtlas",
     key: "kayitli-atlas",
     Icon: Brain,
-    lines: ["Kaydedilmiş organ bölgelerini listele, görüntüle ve düzenle."],
     art: { w: 243, h: 285 },
   },
   {
     href: "/refleksoloji/protokol-haritasi",
-    title: "Protokol Haritası",
+    msgKey: "protocolMap",
     key: "protokol-haritasi",
     Icon: ClipboardList,
-    lines: [
-      "Hedef soruna göre protokol yaz.",
-      "İlgili organları seç → haritada otomatik göster.",
-    ],
     art: { w: 233, h: 285 },
   },
   {
     href: "/refleksoloji/kayitli-protokoller",
-    title: "Kayıtlı Protokoller",
+    msgKey: "savedProtocols",
     key: "kayitli-protokoller",
     Icon: Copy,
-    lines: ["Kayıtlı protokolleri listele ve görüntüle."],
     art: { w: 439, h: 258 },
     wide: true,
   },
   {
     href: "/refleksoloji/notlar",
-    title: "Notlar",
+    msgKey: "notes",
     key: "notlar",
     Icon: FilePenLine,
-    lines: ["Klinik seans notları ve ek bilgi alanı."],
     art: { w: 481, h: 258 },
     wide: true,
   },
 ];
 
 function ReflexologyHubCard({ module }: { module: HubModule }) {
+  const t = useTranslations("reflexology.menu");
   const { Icon } = module;
   return (
     <Link
@@ -102,14 +94,15 @@ function ReflexologyHubCard({ module }: { module: HubModule }) {
         <span className={styles.cardIcon} aria-hidden>
           <Icon className="h-[26px] w-[26px]" strokeWidth={1.7} />
         </span>
-        <h2 className={styles.cardTitle}>{module.title}</h2>
-        <p className={styles.cardDesc}>{module.lines.join(" ")}</p>
+        <h2 className={styles.cardTitle}>{t(`${module.msgKey}.title`)}</h2>
+        <p className={styles.cardDesc}>{t(`${module.msgKey}.desc`)}</p>
       </div>
     </Link>
   );
 }
 
 function ReflexologyMainMenu() {
+  const t = useTranslations("reflexology.menu");
   return (
     <main className={`${styles.page} ${energyFontVars}`}>
       <div className={styles.scene} aria-hidden>
@@ -126,13 +119,13 @@ function ReflexologyMainMenu() {
             <span>Yaşam Sistemi</span>
           </p>
           <h1 className={styles.heroTitle}>
-            <span>Refleksoloji</span>
+            <span>{t("heroTitle")}</span>
           </h1>
-          <p className={styles.heroSub}>Ayak refleksoloji atlası, protokoller ve klinik çalışma alanı</p>
-          <p className={styles.pill}>Ayak Refleksolojisi • Atlas • Protokol • Klinik Notlar</p>
+          <p className={styles.heroSub}>{t("heroSub")}</p>
+          <p className={styles.pill}>{t("pill")}</p>
         </header>
 
-        <section className={styles.cards} aria-label="Refleksoloji çalışma alanları">
+        <section className={styles.cards} aria-label={t("sectionsAria")}>
           {MENU_MODULES.map((module) => (
             <ReflexologyHubCard key={module.href} module={module} />
           ))}

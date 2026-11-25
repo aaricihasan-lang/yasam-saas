@@ -1,0 +1,30 @@
+{
+  "reflexology": {
+    "menu": {
+      "heroTitle": "Refleksoloji",
+      "heroSub": "Ayak refleksoloji atlası, protokoller ve klinik çalışma alanı",
+      "pill": "Ayak Refleksolojisi • Atlas • Protokol • Klinik Notlar",
+      "sectionsAria": "Refleksoloji çalışma alanları",
+      "zoneMap": {
+        "title": "Bölge Haritası",
+        "desc": "Organ seç → bölge çiz → atlasa kaydet. Kayıtlı atlası görüntüle ve düzenle."
+      },
+      "savedAtlas": {
+        "title": "Kayıtlı Atlas",
+        "desc": "Kaydedilmiş organ bölgelerini listele, görüntüle ve düzenle."
+      },
+      "protocolMap": {
+        "title": "Protokol Haritası",
+        "desc": "Hedef soruna göre protokol yaz. İlgili organları seç → haritada otomatik göster."
+      },
+      "savedProtocols": {
+        "title": "Kayıtlı Protokoller",
+        "desc": "Kayıtlı protokolleri listele ve görüntüle."
+      },
+      "notes": {
+        "title": "Notlar",
+        "desc": "Klinik seans notları ve ek bilgi alanı."
+      }
+    }
+  }
+}

@@ -1,6 +1,9 @@
 ﻿"use client";
 
 import Link from "next/link";
+import { useLocale, useTranslations } from "next-intl";
+import { DEFAULT_LOCALE } from "@/lib/i18n/locales";
+import { useRefCodeText } from "@/app/refleksoloji/hooks/useRefCodeText";
 import { Search } from "lucide-react";
 import { energyFontVars } from "@/app/_premium/enerji-beden/fonts";
 import premium from "@/app/_premium/refleksoloji/kayitliAtlas.module.css";
@@ -17,7 +20,6 @@ import { RefleksolojiListLoading } from "@/app/refleksoloji/components/Refleksol
 import { LegacyQuarantineBanner } from "@/app/refleksoloji/components/LegacyQuarantineBanner";
 import { SyncStatusBadge } from "@/app/refleksoloji/components/SyncStatusBadge";
 import { useToast } from "@/components/ui/ToastProvider";
-import { STORAGE_QUOTA_ERROR_MESSAGE } from "@/lib/safeStorage";
 import { organKey } from "@/app/refleksoloji/bolge-haritasi/utils/organUtils";
 import { requiresBulkDeleteGuard, runBulkDeleteConfirm } from "@/lib/ui/bulkDeleteGuard";
 import { flushAtlasNow } from "@/lib/refleksolojiAtlasSync";
@@ -28,12 +30,23 @@ import { reportFileDate } from "@/lib/time/reportTime";
 /** W06: onay penceresinde ad listesi en fazla bu kadar gösterilir (gerisi "+N kayıt daha"). */
 const BULK_NAME_PREVIEW = 12;
 
-function previewNames(names: string[]): string {
+function previewNames(names: string[], more: (count: number) => string): string {
   const head = names.slice(0, BULK_NAME_PREVIEW).map((n) => `• ${n}`).join("\n");
-  return names.length > BULK_NAME_PREVIEW ? `${head}\n+${names.length - BULK_NAME_PREVIEW} kayıt daha` : head;
+  return names.length > BULK_NAME_PREVIEW ? `${head}\n${more(names.length - BULK_NAME_PREVIEW)}` : head;
 }
 
 export function KayitliAtlasLayout() {
+  const t = useTranslations("reflexology.savedAtlas");
+  const tc = useTranslations("reflexology.common");
+  const isSourceLocale = useLocale() === DEFAULT_LOCALE;
+  const refCode = useRefCodeText();
+  const tpc = useTranslations("reflexology.savedProtocols.card");
+  // QA K2-03: API (protocols/organ GET) başlıksız protokol için kaynak-dil yedeği döndürür → gösterimde eşle.
+  // I18N-F1-R3: sunucu dil-bağımsız "untitled" bayrağını verdiyse ona göre (kullanıcının aynı adlı protokolü aynen kalır);
+  // bayrak yoksa (eski yanıt) önceki eşitlik eşlemesi.
+  const shownTitle = (title: string, untitled?: boolean) =>
+    // i18n-ignore: app/api/refleksoloji/protocols/organ yedek başlığıyla eşitlik (yalnız gösterim eşlemesi; bayraksız eski yanıt)
+    untitled === undefined ? (title === "Başlıksız protokol" ? tpc("untitled") : title) : untitled ? tpc("untitled") : title;
   const isDemo = readYasamUser()?.is_demo_account === true;
   const { confirm } = useConfirm();
   const {
@@ -117,7 +130,7 @@ export function KayitliAtlasLayout() {
       const syncFailed = flush.status === "conflict" || flush.status === "error" || flush.status === "offline";
       const headers = reflexUserHeaders();
       if (!headers) {
-        showToast({ type: "error", title: "Oturum", message: "Oturum doğrulanamadı. Lütfen yeniden giriş yapın." });
+        showToast({ type: "error", title: t("word.sessionTitle"), message: t("word.sessionMsg") });
         return;
       }
       const res = await fetch("/api/refleksoloji/atlas-report", {
@@ -126,18 +139,19 @@ export function KayitliAtlasLayout() {
         body: JSON.stringify(mode === "selected" ? { exportMode: mode, organs } : { exportMode: mode }),
       });
       if (!res.ok) {
-        const err = (await res.json().catch(() => ({}))) as { error?: string };
-        showToast({ type: "error", title: "Hata", message: err.error || "Atlas raporu oluşturulamadı." });
+        const err = (await res.json().catch(() => ({}))) as { error?: string; code?: string };
+        // Sunucu hata metni Türkçe: kaynak dilde aynen; diğer dillerde dil-bağımsız koddan (I18N-F1-R3), yoksa genel metin.
+        showToast({ type: "error", title: tc("errorTitle"), message: isSourceLocale ? err.error || t("word.failed") : refCode(err, t("word.failed")) });
         return;
       }
       await downloadFileResponse(res, `refleksoloji-atlas-${mode === "selected" ? "secili" : "tumu"}-${reportFileDate()}.docx`);
       showToast(
         syncFailed
-          ? { type: "warning", title: "Atlas raporu indirildi", message: "Son değişiklikler sunucuya gönderilemedi; rapor sunucudaki son kayıtla oluşturuldu." }
-          : { type: "success", title: "Başarılı", message: "Atlas raporu indirildi." },
+          ? { type: "warning", title: t("word.downloadedTitle"), message: t("word.syncWarn") }
+          : { type: "success", title: tc("successTitle"), message: t("word.downloaded") },
       );
     } catch (err) {
-      showToast({ type: "error", title: "Hata", message: err instanceof Error ? err.message : "Atlas raporu oluşturulamadı." });
+      showToast({ type: "error", title: tc("errorTitle"), message: err instanceof Error ? err.message : t("word.failed") });
     } finally {
       setWordBusy(false);
     }
@@ -159,22 +173,23 @@ export function KayitliAtlasLayout() {
       const used = usages.filter((u) => u.count > 0);
       const usageNote =
         used.length > 0
-          ? `\n\n⚠️ ${used.length} organ protokollerde kullanılıyor: ${used
-              .slice(0, 5)
-              .map((u) => `${u.name} (${u.count})`)
-              .join(", ")}${used.length > 5 ? "…" : ""}. Silerseniz bu protokollerin haritasında bu organlar eşleşmeyecek (protokol metni korunur).`
+          ? `\n\n${t("bulk.usageNote", {
+              count: String(used.length),
+              list: `${used
+                .slice(0, 5)
+                .map((u) => `${u.name} (${u.count})`)
+                .join(", ")}${used.length > 5 ? "…" : ""}`,
+            })}`
           : "";
-      const scopeNote = deleteAll
-        ? "\n\nKapsam: bu hesaptaki tüm Kayıtlı Atlas organları (arama filtresinden bağımsız). \"Atlası Olmayan Organlar\" listesi bu işleme dahil değildir."
-        : "";
-      const detail = `Silinecek kayıtlar:\n${previewNames(names)}${scopeNote}${usageNote}`;
+      const scopeNote = deleteAll ? `\n\n${t("bulk.scopeNote")}` : "";
+      const detail = `${t("bulk.detail", { list: previewNames(names, (n) => t("bulk.moreRecords", { count: String(n) })) })}${scopeNote}${usageNote}`;
       const ok = requiresBulkDeleteGuard(count, deleteAll)
-        ? await runBulkDeleteConfirm(confirm, { count, deleteAll, detail, noun: "atlas kaydı" })
+        ? await runBulkDeleteConfirm(confirm, { count, deleteAll, detail, noun: t("bulk.noun") })
         : await confirm({
-            title: "Seçilenleri Sil",
-            message: `${count} atlas kaydı ve kayıtlı tüm bölgeleri kalıcı olarak silinecek. Bu işlem geri alınamaz.\n\n${detail}`,
-            confirmText: `Sil (${count})`,
-            cancelText: "Vazgeç",
+            title: t("bulk.deleteSelected"),
+            message: `${t("bulk.confirmMsg", { count: String(count) })}\n\n${detail}`,
+            confirmText: t("bulk.confirmBtn", { count: String(count) }),
+            cancelText: tc("cancel"),
             tone: "danger",
           });
       if (!ok) return;
@@ -189,25 +204,27 @@ export function KayitliAtlasLayout() {
       if (r.failed.length > 0) {
         showToast({
           type: "error",
-          title: "Depolama Hatası",
-          message: `${r.failed.length} kayıt silinemedi (cihaz depolama alanı dolu). Hiçbir kayıt değişmedi; seçim korundu.`,
+          title: tc("storageErrorTitle"),
+          message: t("bulk.quotaFailed", { count: String(r.failed.length) }),
         });
       } else if (r.missing.length > 0) {
         showToast({
           type: "warning",
-          title: "Kısmi silme",
-          message: `${r.deleted.length} kayıt silindi. ${r.missing.length} kayıt bulunamadı (başka sekmede/cihazda silinmiş olabilir): ${r.missing
-            .slice(0, 5)
-            .join(", ")}${r.missing.length > 5 ? "…" : ""}`,
+          title: t("bulk.partialTitle"),
+          message: t("bulk.partialMsg", {
+            deleted: String(r.deleted.length),
+            missing: String(r.missing.length),
+            list: `${r.missing.slice(0, 5).join(", ")}${r.missing.length > 5 ? "…" : ""}`,
+          }),
         });
       } else {
-        showToast({ type: "success", message: `${r.deleted.length} atlas kaydı silindi.` });
+        showToast({ type: "success", message: t("bulk.deleted", { count: String(r.deleted.length) }) });
       }
       if (r.deleted.length > 0 && !r.organListSaved) {
         showToast({
           type: "warning",
-          title: "Organ listesi güncellenemedi",
-          message: "Silinen organlar \"Atlası Olmayan Organlar\" bölümünde görünebilir; oradan kaldırabilirsiniz.",
+          title: t("bulk.organListTitle"),
+          message: t("bulk.organListMsg"),
         });
       }
     } finally {
@@ -218,24 +235,23 @@ export function KayitliAtlasLayout() {
 
   const handleDeleteOrgan = async (organ: string) => {
     // BUG-3: bu organı kullanan protokolleri sessizce orphan bırakma — kullanıcıya söyle.
-    const usage = await getOrganProtocolUsage(organ).catch(() => ({ count: 0, titles: [] }));
+    const usage = await getOrganProtocolUsage(organ).catch(() => ({ count: 0, titles: [] as string[], untitled: undefined as boolean[] | undefined }));
     const usageNote =
       usage.count > 0
-        ? `\n\n⚠️ Bu organ ${usage.count} protokolde kullanılıyor${
-            usage.titles.length ? `: ${usage.titles.slice(0, 5).join(", ")}${usage.titles.length > 5 ? "…" : ""}` : ""
-          }. Silerseniz bu protokollerin haritasında bu organ eşleşmeyecek (protokol metni korunur).`
+        ? `\n\n${t("single.usageNote", {
+            count: String(usage.count),
+            titles: usage.titles.length ? `: ${usage.titles.slice(0, 5).map((title, i) => shownTitle(title, usage.untitled?.[i])).join(", ")}${usage.titles.length > 5 ? "…" : ""}` : "",
+          })}`
         : "";
     const ok = await confirm({
-      message:
-        "Bu organ ve kayıtlı tüm atlas bölgeleri silinsin mi? Bu işlem geri alınamaz." +
-        usageNote,
-      confirmText: "Sil",
-      cancelText: "Vazgeç",
+      message: t("single.confirmMsg") + usageNote,
+      confirmText: tc("delete"),
+      cancelText: tc("cancel"),
       tone: "danger",
     });
     if (!ok) return;
     if (!deleteOrgan(organ)) {
-      showToast({ type: "error", title: "Depolama Hatası", message: "Organ silinemedi (cihaz depolama alanı dolu)." });
+      showToast({ type: "error", title: tc("storageErrorTitle"), message: t("single.quotaFailed") });
       return;
     }
     if (editOrgan === organ) setEditOrgan(null);
@@ -249,37 +265,36 @@ export function KayitliAtlasLayout() {
   };
 
   const handleDeleteOrphan = async (organ: string) => {
-    const usage = await getOrganProtocolUsage(organ).catch(() => ({ count: 0, titles: [] }));
+    const usage = await getOrganProtocolUsage(organ).catch(() => ({ count: 0, titles: [] as string[], untitled: undefined as boolean[] | undefined }));
     const usageNote =
       usage.count > 0
-        ? `\n\n⚠️ Bu organ ${usage.count} protokolde kullanılıyor${
-            usage.titles.length ? `: ${usage.titles.slice(0, 5).join(", ")}${usage.titles.length > 5 ? "…" : ""}` : ""
-          }. Silerseniz bu protokollerin haritasında bu organ eşleşmeyecek (protokol metni korunur).`
+        ? `\n\n${t("single.usageNote", {
+            count: String(usage.count),
+            titles: usage.titles.length ? `: ${usage.titles.slice(0, 5).map((title, i) => shownTitle(title, usage.untitled?.[i])).join(", ")}${usage.titles.length > 5 ? "…" : ""}` : "",
+          })}`
         : "";
     const ok = await confirm({
-      message:
-        `"${organ}" atlas kaydı olmayan (bölgesiz) bir organ. Organ listesinden kalıcı olarak silinsin mi?` +
-        usageNote,
-      confirmText: "Sil",
-      cancelText: "Vazgeç",
+      message: t("single.orphanMsg", { organ }) + usageNote,
+      confirmText: tc("delete"),
+      cancelText: tc("cancel"),
       tone: "danger",
     });
     if (!ok) return;
     if (!deleteOrphanOrgan(organ)) {
-      showToast({ type: "error", title: "Depolama Hatası", message: "Organ silinemedi (cihaz depolama alanı dolu)." });
+      showToast({ type: "error", title: tc("storageErrorTitle"), message: t("single.quotaFailed") });
     }
   };
 
   if (!hydrated) {
     // REF-021
-    return <RefleksolojiListLoading badge="REFLEKSOLOJİ · KAYITLI ATLAS" title="Kayıtlı Atlas" />;
+    return <RefleksolojiListLoading badge={t("loadingBadge")} title={t("title")} />;
   }
 
   return (
     <main className={`relative flex min-h-screen w-full max-w-none flex-col overflow-x-hidden bg-[#f7f5fd] text-slate-900 antialiased ${energyFontVars}`}>
       <div className="relative z-10 flex min-h-screen w-full max-w-none flex-col">
         {isDemo && (
-          <DemoModuleBanner message="Atlas bölgeleri sadece cihazınızda saklanır. Oturumunuz boyunca görünür; çıkışta silinir. Gerçek uzman atlas verileri bu hesapta görünmez." />
+          <DemoModuleBanner message={t("demoBanner")} />
         )}
         {/* 2026-10-20 premium başlık (owner GÖRSEL PASS). Owner kararı: üstteki "Ana Menü" ve "Bölge Haritasına Git"
             düğmeleri gösterilmez (route'lar ve uygulama gezinmesi aynen; boş durumda Bölge Haritası bağlantısı korunur). */}
@@ -287,12 +302,12 @@ export function KayitliAtlasLayout() {
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img className={premium.heroArt} src="/premium/refleksoloji/spa-hero-atlas.webp" width={1888} height={368} alt="" aria-hidden decoding="async" draggable={false} />
           <div className={premium.heroBody}>
-            <p className={premium.eyebrow}>REFLEKSOLOJİ</p>
+            <p className={premium.eyebrow}>{tc("eyebrow")}</p>
             <div className="flex flex-wrap items-center gap-3">
-              <h1 className={premium.title}>Kayıtlı Atlas</h1>
+              <h1 className={premium.title}>{t("title")}</h1>
               {!isDemo ? <SyncStatusBadge /> : null}
             </div>
-            <p className={premium.sub}>Bölge Haritası&apos;ndan kaydedilen organ koordinatları burada yönetilir.</p>
+            <p className={premium.sub}>{t("subtitle")}</p>
             {summaries.length > 0 ? (
               <label className={premium.search}>
                 <Search className={premium.sIcon} strokeWidth={2} aria-hidden />
@@ -300,7 +315,7 @@ export function KayitliAtlasLayout() {
                   type="search"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Organ adına göre ara…"
+                  placeholder={t("searchPlaceholder")}
                 />
               </label>
             ) : null}
@@ -312,18 +327,18 @@ export function KayitliAtlasLayout() {
           <LegacyQuarantineBanner
             className="mb-4"
             count={quarantineCount}
-            noun="organ kaydı"
+            noun={tc("quarantine.nounOrgan")}
             onImport={() => {
               const r = importQuarantine();
               showToast(
                 r.ok
-                  ? { type: "success", message: `${r.changedOrgans} organ atlasınıza aktarıldı.` }
-                  : { type: "error", title: "Depolama Hatası", message: STORAGE_QUOTA_ERROR_MESSAGE },
+                  ? { type: "success", message: t("imported", { count: String(r.changedOrgans) }) }
+                  : { type: "error", title: tc("storageErrorTitle"), message: tc("storageQuota") },
               );
             }}
             onDiscard={() => {
               discardQuarantine();
-              showToast({ type: "success", message: "Sahibi belirsiz atlas verisi bu cihazdan kaldırıldı." });
+              showToast({ type: "success", message: t("quarantineRemoved") });
             }}
           />
         ) : null}
@@ -331,28 +346,28 @@ export function KayitliAtlasLayout() {
         {summaries.length === 0 ? (
           <section className="flex flex-1 flex-col items-center justify-center rounded-2xl border border-dashed border-violet-200/70 bg-white/80 px-6 py-12 text-center shadow-sm ring-1 ring-violet-100/60">
             <p className="max-w-lg text-base font-bold text-violet-900">
-              Henüz kayıtlı organ yok.
+              {t("emptyTitle")}
             </p>
             <p className="mt-2 text-sm font-medium text-slate-600">
-              Bölge Haritası&apos;ndan organ ekleyip Kaydet ile atlas oluşturun.
+              {t("emptyBody")}
             </p>
             <Link
               href="/refleksoloji/bolge-haritasi"
               className="mt-4 rounded-lg border border-violet-300/80 bg-violet-100 px-3 py-1.5 text-sm font-semibold text-violet-950 transition hover:bg-violet-200/90"
             >
-              Bölge Haritasına Git
+              {t("goZoneMap")}
             </Link>
           </section>
         ) : filtered.length === 0 ? (
           <p className="rounded-xl border border-violet-100 bg-white/80 px-4 py-5 text-center text-sm font-medium text-slate-600">
-            Aramanızla eşleşen organ bulunamadı.
+            {t("noMatch")}
           </p>
         ) : (
           <>
           <div
             className="mb-3 flex flex-wrap items-center gap-2 rounded-xl border border-violet-100 bg-white/85 px-3 py-2 shadow-sm"
             role="toolbar"
-            aria-label="Toplu işlemler"
+            aria-label={t("bulk.aria")}
           >
             <label className="inline-flex min-h-[42px] cursor-pointer items-center gap-2 pr-1 text-sm font-semibold text-slate-700">
               <input
@@ -364,13 +379,13 @@ export function KayitliAtlasLayout() {
                 }}
                 onChange={toggleSelectVisible}
                 disabled={bulkBusy}
-                aria-label="Görünen kayıtların tümünü seç"
+                aria-label={t("bulk.selectVisibleAria")}
               />
-              Görünenleri seç
+              {t("bulk.selectVisible")}
             </label>
             <span className="text-sm font-medium text-slate-600" aria-live="polite">
-              {selectedNames.length} seçili
-              {hiddenSelectedCount > 0 ? ` (${hiddenSelectedCount} tanesi aramada gizli)` : ""}
+              {t("bulk.selected", { count: String(selectedNames.length) })}
+              {hiddenSelectedCount > 0 ? t("bulk.hiddenSelected", { count: String(hiddenSelectedCount) }) : ""}
             </span>
             {selectedNames.length > 0 ? (
               <button
@@ -379,7 +394,7 @@ export function KayitliAtlasLayout() {
                 disabled={bulkBusy}
                 className="min-h-[42px] rounded-lg px-2 text-sm font-semibold text-violet-800 underline-offset-2 hover:underline disabled:opacity-50"
               >
-                Seçimi temizle
+                {t("bulk.clear")}
               </button>
             ) : null}
             <div className="ml-auto flex flex-wrap gap-2">
@@ -391,7 +406,7 @@ export function KayitliAtlasLayout() {
                     disabled={wordBusy || bulkBusy || selectedNames.length === 0}
                     className="min-h-[42px] rounded-lg border border-violet-200 bg-violet-50 px-3 text-sm font-bold text-violet-800 transition hover:bg-violet-100 disabled:cursor-not-allowed disabled:opacity-50"
                   >
-                    Seçilenleri Word{selectedNames.length > 0 ? ` (${selectedNames.length})` : ""}
+                    {t("bulk.wordSelected")}{selectedNames.length > 0 ? ` (${selectedNames.length})` : ""}
                   </button>
                   <button
                     type="button"
@@ -399,7 +414,7 @@ export function KayitliAtlasLayout() {
                     disabled={wordBusy || bulkBusy || summaries.length === 0}
                     className="min-h-[42px] rounded-lg border border-violet-300 bg-white px-3 text-sm font-bold text-violet-800 transition hover:bg-violet-50 disabled:cursor-not-allowed disabled:opacity-50"
                   >
-                    {wordBusy ? "Hazırlanıyor…" : `Tümünü Word (${summaries.length})`}
+                    {wordBusy ? t("bulk.preparing") : t("bulk.wordAll", { count: String(summaries.length) })}
                   </button>
                 </>
               ) : null}
@@ -409,7 +424,7 @@ export function KayitliAtlasLayout() {
                 disabled={bulkBusy || selectedNames.length === 0}
                 className="min-h-[42px] rounded-lg border border-red-200 bg-red-50 px-3 text-sm font-bold text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                Seçilenleri Sil{selectedNames.length > 0 ? ` (${selectedNames.length})` : ""}
+                {t("bulk.deleteSelected")}{selectedNames.length > 0 ? ` (${selectedNames.length})` : ""}
               </button>
               <button
                 type="button"
@@ -417,7 +432,7 @@ export function KayitliAtlasLayout() {
                 disabled={bulkBusy || summaries.length === 0}
                 className="min-h-[42px] rounded-lg border border-red-300 bg-white px-3 text-sm font-bold text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                Tümünü Sil ({summaries.length})
+                {t("bulk.deleteAll", { count: String(summaries.length) })}
               </button>
             </div>
           </div>
@@ -440,11 +455,9 @@ export function KayitliAtlasLayout() {
 
         {orphanOrgans.length > 0 ? (
           <section className="mt-4 rounded-2xl border border-amber-200/80 bg-amber-50/70 p-4 shadow-sm ring-1 ring-amber-100/70">
-            <h2 className="text-sm font-black text-amber-950">Atlası Olmayan Organlar</h2>
+            <h2 className="text-sm font-black text-amber-950">{t("orphans.title")}</h2>
             <p className="mt-0.5 text-xs font-medium text-amber-900/90">
-              Organ listesinde görünen ama kayıtlı atlas bölgesi olmayan organlar. Eski/test kaydıysa
-              silebilirsiniz; bilinçli oluşturduysanız bırakabilirsiniz. Silme kalıcıdır ve başka
-              cihazdan geri gelmez.
+              {t("orphans.body")}
             </p>
             <ul className="mt-3 flex flex-wrap gap-2">
               {orphanOrgans.map((organ) => (
@@ -457,9 +470,9 @@ export function KayitliAtlasLayout() {
                     type="button"
                     onClick={() => void handleDeleteOrphan(organ)}
                     className="rounded-md border border-red-300/80 bg-red-50 px-2 py-0.5 text-[11px] font-bold text-red-800 transition hover:bg-red-100"
-                    aria-label={`${organ} organını sil`}
+                    aria-label={t("orphans.deleteAria", { organ })}
                   >
-                    Sil
+                    {tc("delete")}
                   </button>
                 </li>
               ))}

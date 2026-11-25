@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useLocale, useTranslations } from "next-intl";
+import { DEFAULT_LOCALE } from "@/lib/i18n/locales";
 import {
   ATLAS_CHANGED_EVENT,
   isAtlasStorageKey,
@@ -28,6 +30,8 @@ import { useToast } from "@/components/ui/ToastProvider";
 
 export function useSavedAtlas() {
   const { showToast } = useToast();
+  const tRename = useTranslations("reflexology.savedAtlas.rename");
+  const isSourceLocale = useLocale() === DEFAULT_LOCALE;
   const [summaries, setSummaries] = useState<OrganSummary[]>([]);
   const [orphanOrgans, setOrphanOrgans] = useState<string[]>([]);
   const [updatedAt, setUpdatedAt] = useState<string | null>(null);
@@ -139,14 +143,15 @@ export function useSavedAtlas() {
             if (!r.ok) {
               showToast({
                 type: "warning",
-                title: "Protokol güncellemesi",
-                message: r.error ?? "Bağlı protokoller güncellenemedi. Tekrar deneyin.",
+                title: tRename("protocolTitle"),
+                // Sunucu/yardımcı hata metni Türkçe: kaynak dilde aynen, diğer dillerde çevrilmiş metin.
+                message: (isSourceLocale ? r.error : undefined) ?? tRename("protocolFailed"),
               });
             } else if (r.updated > 0) {
               showToast({
                 type: "success",
-                title: "Protokoller güncellendi",
-                message: `${r.updated} protokolde organ adı güncellendi.`,
+                title: tRename("protocolsUpdatedTitle"),
+                message: tRename("protocolsUpdated", { count: String(r.updated) }),
               });
             }
           });

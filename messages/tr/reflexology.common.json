@@ -1,0 +1,66 @@
+{
+  "reflexology": {
+    "common": {
+      "eyebrow": "REFLEKSOLOJİ",
+      "loading": "Yükleniyor…",
+      "cancel": "Vazgeç",
+      "delete": "Sil",
+      "close": "Kapat",
+      "successTitle": "Başarılı",
+      "errorTitle": "Hata",
+      "storageErrorTitle": "Depolama Hatası",
+      "storageQuota": "Tarayıcı depolama alanı doldu. Ekleri/fotoğrafları küçültün veya bazı kayıtları silin.",
+      "retry": "Yeniden dene",
+      "goToModule": "Modüle git",
+      "disclaimer": "Refleksoloji uygulamaları tamamlayıcı niteliktedir. Bu modül tıbbi tanı veya tedavi amacı taşımaz ve hekim değerlendirmesinin yerine geçmez.",
+      "placeholder": {
+        "title": "Refleksoloji Modülü",
+        "body": "Bu alan masaüstü refleksoloji yapısına göre adım adım aktarılacaktır."
+      },
+      "views": {
+        "taban": {
+          "short": "Taban",
+          "surface": "Taban Görünüm",
+          "label": "Taban görünümü"
+        },
+        "yan_ic": {
+          "short": "Yan İç",
+          "surface": "Yan İç Görünüm",
+          "label": "Yan İç görünümü"
+        },
+        "yan_dis": {
+          "short": "Yan Dış",
+          "surface": "Yan Dış Görünüm",
+          "label": "Yan Dış görünümü"
+        },
+        "el_avuc": {
+          "short": "Avuç İçi",
+          "surface": "Avuç İçi Görünüm",
+          "label": "Avuç İçi görünümü"
+        },
+        "el_sirt": {
+          "short": "El Sırtı",
+          "surface": "El Sırtı Görünüm",
+          "label": "El Sırtı görünümü"
+        }
+      },
+      "pointSizes": {
+        "xs": "Çok küçük",
+        "sm": "Küçük",
+        "md": "Orta",
+        "lg": "Büyük"
+      },
+      "quarantine": {
+        "importMsg": "Bu cihazda bulunan {count} {noun} sizin hesabınıza aktarılacak ve sunucuyla eşitlenecek. Yalnız bu kayıtların size ait olduğundan eminseniz devam edin.",
+        "importConfirm": "Bana ait, içe aktar",
+        "discardDetail": "Bu cihazdaki sahibi belirsiz (hesaba bağlı olmayan) kayıtlar silinecek.",
+        "discardMsg": "Bu cihazdaki sahibi belirsiz {count} {noun} kalıcı olarak silinsin mi? Bu işlem geri alınamaz.",
+        "found": "Bu cihazda sahibi belirsiz {count} {noun} bulundu.",
+        "explain": "Bu kayıtlar önceki bir oturumdan (hesaba bağlanmadan) kalmış olabilir ve henüz sunucuya eşitlenmemiş. Size aitse içe aktarın; değilse bu cihazdan silebilirsiniz.",
+        "nounOrgan": "organ kaydı",
+        "nounProtocol": "protokol",
+        "nounNote": "not"
+      }
+    }
+  }
+}

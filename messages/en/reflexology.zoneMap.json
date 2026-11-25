@@ -1,0 +1,93 @@
+{
+  "reflexology": {
+    "zoneMap": {
+      "title": "Zone Map",
+      "subtitle": "Explore areas associated with organs and systems through the foot zones.",
+      "localOnly": "Drawings you make on the zone map are stored only on your device. They remain visible during your session and are deleted when you sign out.",
+      "atlasLoading": "Loading atlas…",
+      "quarantineFound": "Old atlas data of unknown ownership was found on this device.",
+      "quarantineLink": "Import or delete it in the Saved Atlas",
+      "toolbar": {
+        "aria": "Zone map tools",
+        "oval": "Oval",
+        "rect": "Square",
+        "freeDraw": "Freehand",
+        "thickLine": "Thick Line",
+        "point": "Point",
+        "pointSizeAria": "Point size",
+        "move": "Move / Edit",
+        "save": "Save",
+        "clear": "Clear"
+      },
+      "canvas": {
+        "aria": "Foot map workspace",
+        "noActiveOrgan": "No active organ",
+        "regionCount": "{count, plural, one {# zone} other {# zones}}",
+        "overlay": " · {count} organ overlay",
+        "drawMode": " · Drawing mode",
+        "editMode": " · Edit mode",
+        "unsaved": " · {count} unsaved",
+        "drawFree": "Press and hold to draw for «{organ}»",
+        "drawPoint": "Tap to place a point for «{organ}»",
+        "drawThick": "Drag to draw a thick line for «{organ}»",
+        "drawRect": "Drag to draw a square for «{organ}»",
+        "drawOval": "Drag to draw an oval for «{organ}»",
+        "toolRequired": "First choose a drawing tool below",
+        "imageFailed": "The atlas image could not be loaded.",
+        "imageLoading": "Loading foot image…",
+        "selectOrganFirst": "First select an organ on the left.",
+        "editHint": "Select · drag · resize · rotate",
+        "emptyEditable": "No zones have been drawn in this view yet. Choose a drawing tool below to start drawing.",
+        "emptyReadonly": "No zones are drawn in this view. Zones are added from a computer.",
+        "resize": "Resize: {handle}",
+        "rotate": "Rotate",
+        "lineStart": "Line start",
+        "lineEnd": "Line end",
+        "lineRotate": "Rotate line"
+      },
+      "hands": {
+        "left": "Left",
+        "right": "Right",
+        "aria": "Left hand on the left, right hand on the right"
+      },
+      "mobile": {
+        "aria": "Zone editing information",
+        "title": "Zone editing is available on a computer",
+        "body": "So that reflexology zones can be positioned precisely and accurately, adding and editing zones on the map is done from a computer. You can continue to view your saved atlas and zones on this device."
+      },
+      "conflict": {
+        "organs": "Conflicting organs: {organs}",
+        "pushMine": "Send my version",
+        "takeServer": "Use the server version"
+      },
+      "saveToast": {
+        "synced": "Atlas saved and synchronised with the server. The zones are in the Saved Atlas.",
+        "failed": "The zones were saved on this device but could not be sent to the server. Use «Try again» above to retry.",
+        "pending": "The zones were saved on this device — sending to the server…",
+        "localOnly": "The atlas has been saved on this device."
+      },
+      "organs": {
+        "title": "ORGANS",
+        "multiHint": "Click to select multiple",
+        "emptyName": "The organ name cannot be empty.",
+        "exists": "«{organ}» is already in the list — the existing organ was selected.",
+        "addPlaceholder": "Type an organ name...",
+        "add": "Add",
+        "search": "Search organs",
+        "searchPlaceholder": "Search organs...",
+        "deleteDrawing": "Delete Drawing",
+        "none": "No organs added yet.",
+        "noMatch": "No matching organ found."
+      },
+      "notes": {
+        "title": "ORGAN ATLAS",
+        "selected": "Selected Organ",
+        "selectOrgan": "Select an organ",
+        "savedZones": "Saved Zones",
+        "noZones": "No zones have been drawn for this organ yet. Mark a zone on the foot and add it with Save.",
+        "pickHint": "Atlas information appears here when you select an organ.",
+        "info": "Information"
+      }
+    }
+  }
+}

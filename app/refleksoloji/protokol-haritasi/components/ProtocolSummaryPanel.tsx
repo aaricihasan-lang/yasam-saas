@@ -1,7 +1,8 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+
 import {
-  ATLAS_GROUP_LABEL,
   type AtlasBackgroundGroup,
   type OrganResolved,
 } from "@/lib/refleksoloji/atlasRegionsCore";
@@ -17,23 +18,31 @@ type ProtocolSummaryPanelProps = {
  * Aktif görünümde bölge yoksa, bölgesi olan diğer görünüm(ler)i grup-bazında
  * tarif eder. "Yan" genel dili YOK: Taban / Yan İç / Yan Dış ayrı adlandırılır.
  */
-function otherViewsHint(organ: OrganResolved, currentView: AtlasBackgroundGroup): string | null {
+function otherViewsHint(
+  organ: OrganResolved,
+  currentView: AtlasBackgroundGroup,
+  t: ReturnType<typeof useTranslations>,
+  viewName: (g: AtlasBackgroundGroup) => string,
+): string | null {
   const others = organ.groups.filter((g) => g !== currentView);
   if (others.length === 0) return null;
-  const parts = others.map((g) => `${ATLAS_GROUP_LABEL[g]} görünümünde ${organ.byGroup[g]} bölge`);
-  return `Bu organın ${ATLAS_GROUP_LABEL[currentView]} görünümünde kayıtlı bölgesi yok. ${parts.join(", ")} var.`;
+  const parts = others.map((g) => t("otherViewPart", { view: viewName(g), count: organ.byGroup[g] }));
+  return t("otherViews", { view: viewName(currentView), parts: parts.join(", ") });
 }
 
 export function ProtocolSummaryPanel({ draft, organs, footView }: ProtocolSummaryPanelProps) {
+  const t = useTranslations("reflexology.protocolMap.summary");
+  const tViews = useTranslations("reflexology.common.views");
+  const viewName = (g: AtlasBackgroundGroup) => tViews(`${g}.short`);
   const hasContent =
     draft.title.trim() || draft.description.trim() || draft.organs.length > 0 || draft.notes.trim();
 
   if (!hasContent) {
     return (
       <div className="flex flex-1 flex-col items-center justify-center px-4 py-8 text-center">
-        <p className="text-sm font-bold text-violet-900">Protokol özeti</p>
+        <p className="text-sm font-bold text-violet-900">{t("emptyTitle")}</p>
         <p className="mt-2 max-w-sm text-xs font-medium text-slate-600">
-          Formu doldurdukça hedef, organlar ve atlas eşleşme durumu burada görünür.
+          {t("emptyBody")}
         </p>
       </div>
     );
@@ -46,19 +55,19 @@ export function ProtocolSummaryPanel({ draft, organs, footView }: ProtocolSummar
           {draft.title.trim() || "—"}
         </h2>
         <p className="mt-1 text-xs font-medium leading-relaxed text-slate-600">
-          {draft.description.trim() || "Açıklama girilmedi."}
+          {draft.description.trim() || t("noDescription")}
         </p>
       </div>
 
       <div>
-        <h3 className="text-xs font-bold text-violet-900">Organlar</h3>
+        <h3 className="text-xs font-bold text-violet-900">{t("organs")}</h3>
         {organs.length === 0 ? (
-          <p className="mt-1 text-xs font-medium text-slate-500">Organ eklenmedi.</p>
+          <p className="mt-1 text-xs font-medium text-slate-500">{t("noOrgans")}</p>
         ) : (
           <ul className="mt-2 flex flex-col gap-2">
             {organs.map((organ) => {
               const currentViewEmpty = organ.found && organ.byGroup[footView] === 0;
-              const hint = currentViewEmpty ? otherViewsHint(organ, footView) : null;
+              const hint = currentViewEmpty ? otherViewsHint(organ, footView, t, viewName) : null;
               return (
                 <li
                   key={organ.label}
@@ -74,8 +83,8 @@ export function ProtocolSummaryPanel({ draft, organs, footView }: ProtocolSummar
                       }`}
                     >
                       {organ.found
-                        ? `Atlas bulundu (${organ.totalRegions} bölge)`
-                        : "Atlas bulunamadı"}
+                        ? t("atlasFound", { count: organ.totalRegions })
+                        : t("atlasMissing")}
                     </span>
                   </div>
                   {/* Atlas VAR ama aktif görünümde bölge yoksa → görünüme özel bilgi
@@ -85,7 +94,7 @@ export function ProtocolSummaryPanel({ draft, organs, footView }: ProtocolSummar
                   ) : null}
                   {!organ.found ? (
                     <p className="mt-1 text-xs font-medium opacity-90">
-                      Bu organ için atlas bölgesi kayıtlı değil. Önce Bölge Haritası&apos;ndan ekleyin.
+                      {t("atlasMissingHint")}
                     </p>
                   ) : null}
                 </li>
@@ -97,7 +106,7 @@ export function ProtocolSummaryPanel({ draft, organs, footView }: ProtocolSummar
 
       {draft.notes.trim() ? (
         <div>
-          <h3 className="text-xs font-bold text-violet-900">Uygulama Notları</h3>
+          <h3 className="text-xs font-bold text-violet-900">{t("notes")}</h3>
           <p className="mt-1 whitespace-pre-wrap text-xs font-medium leading-relaxed text-slate-700">
             {draft.notes}
           </p>

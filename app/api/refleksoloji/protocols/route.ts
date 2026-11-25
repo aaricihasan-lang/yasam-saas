@@ -55,7 +55,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   try {
     body = (await req.json()) as Record<string, unknown>;
   } catch {
-    return NextResponse.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 });
+    return NextResponse.json({ ok: false, code: "REF_INVALID_BODY", error: "Geçersiz istek gövdesi." }, { status: 400 });
   }
 
   // Mass-assignment koruması: yalnız kullanıcı-düzenlenebilir içerik alanları.
@@ -73,7 +73,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   // bırakılır (bu route onu değiştirmez/silmez).
   if (!sourceUid) {
     return NextResponse.json(
-      { ok: false, error: "source_uid zorunludur." },
+      { ok: false, code: "REF_SOURCE_UID_REQUIRED", error: "source_uid zorunludur." },
       { status: 400 },
     );
   }

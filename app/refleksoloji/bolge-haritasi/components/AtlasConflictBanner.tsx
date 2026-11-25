@@ -1,5 +1,7 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+
 import { useState, useSyncExternalStore } from "react";
 import { adoptServerAtlasVersion, pushLocalAtlasVersion } from "@/lib/atlasStorage";
 import {
@@ -17,6 +19,7 @@ const getServerSnapshot = () => null;
  *   - "Sunucu sürümünü al"   → çakışan organlarda diğer cihazın sürümü buraya alınır
  */
 export function AtlasConflictBanner() {
+  const t = useTranslations("reflexology.zoneMap.conflict");
   const conflict = useSyncExternalStore(subscribeAtlasConflict, getAtlasConflict, getServerSnapshot);
   const [busy, setBusy] = useState(false);
   if (!conflict) return null;
@@ -43,7 +46,7 @@ export function AtlasConflictBanner() {
         {ATLAS_CONFLICT_MESSAGE}
         {organs ? (
           <span className="block font-medium text-amber-900/90">
-            Çakışan organlar: {organs}
+            {t("organs", { organs })}
             {more}
           </span>
         ) : null}
@@ -55,7 +58,7 @@ export function AtlasConflictBanner() {
           onClick={() => void run(pushLocalAtlasVersion)}
           className="btn-primary rounded-md px-2.5 py-1 text-[11px] font-bold disabled:opacity-60"
         >
-          Benim sürümümü gönder
+          {t("pushMine")}
         </button>
         <button
           type="button"
@@ -63,7 +66,7 @@ export function AtlasConflictBanner() {
           onClick={() => void run(adoptServerAtlasVersion)}
           className="btn-secondary rounded-md px-2.5 py-1 text-[11px] font-bold disabled:opacity-60"
         >
-          Sunucu sürümünü al
+          {t("takeServer")}
         </button>
       </div>
     </div>
