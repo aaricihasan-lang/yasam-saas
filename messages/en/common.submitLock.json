@@ -1,0 +1,7 @@
+{
+  "common": {
+    "submitLock": {
+      "timeout": "The operation timed out. Please try again."
+    }
+  }
+}
