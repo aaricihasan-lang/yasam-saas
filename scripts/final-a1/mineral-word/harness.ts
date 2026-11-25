@@ -259,12 +259,13 @@ function routeSourceChecks() {
   check("route: requireDogaltasReportAccess", src.includes("requireDogaltasReportAccess(req)") && src.includes("if (!auth.ok) return auth.response;"));
   check("route: tenant filtresi", src.includes('.eq("tenant_id", tenantId)'));
   check("route: sanitizeXmlDeep + sanitizeMineralRowsForReport(", src.includes("sanitizeXmlDeep(") && src.includes("sanitizeMineralRowsForReport("));
-  check("route: saf oluşturucu kullanılır", src.includes("buildMineralDetailDocument(mineral, expertDisplayName(auth.profile))"));
+  // I18N (RAPOR-CD P13): kurucu çıktı dilini route'tan alır (resolveReportLocale → output); dosya adı sistem öneki katalogda (TR "mineral").
+  check("route: saf oluşturucu kullanılır", src.includes("buildMineralDetailDocument(mineral, expertDisplayName(auth.profile), output)") && src.includes("resolveReportLocale(req,"));
   check("route: eski boş TOC/özet sayfası yok", !src.includes("buildTOCPage") && !src.includes("buildStatsPage"));
   const tb = src.indexOf("Packer.toBuffer(doc)");
   const tu = src.indexOf("trackUsage(usageGuard");
   check("route: Usage360 olayı docx üretildikten SONRA", tb > 0 && tu > tb);
-  check("route: dosya adı + içerik tipi", src.includes("mineral-${nameSlug}-${dateSlug}.docx") && src.includes("wordprocessingml.document"));
+  check("route: dosya adı + içerik tipi", src.includes("${mineralDetailFilePrefix(output)}-${nameSlug}-${dateSlug}.docx") && /"detail": "mineral"/.test(fs.readFileSync("messages/tr/reports.stones.json", "utf8")) && src.includes("wordprocessingml.document"));
 }
 
 async function main() {

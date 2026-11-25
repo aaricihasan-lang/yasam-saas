@@ -1,0 +1,67 @@
+{
+  "reports": {
+    "stones": {
+      "brand": "YAŞAM SİSTEMİ",
+      "generatedOnLabel": "Date Generated: ",
+      "scopeLabel": "Scope: ",
+      "reportSummary": "Report Summary",
+      "notSpecified": "Not specified",
+      "preparedByLine": "Prepared by: {name}",
+      "mineral": {
+        "bankTitle": "Mineral Bank",
+        "bankSubtitle": "Professional Mineral Reference Catalogue",
+        "stat": {
+          "total": "Total Minerals",
+          "sources": "Number of Sources",
+          "withStones": "Minerals with Stones",
+          "stoneLinks": "Stone Links"
+        },
+        "unnamed": "Unnamed Mineral",
+        "cardNo": "MINERAL #{no}",
+        "meta": {
+          "category": "Category",
+          "source": "Source",
+          "date": "Date"
+        },
+        "field": {
+          "description": "Description",
+          "physical": "Physical Properties",
+          "mental": "Mental Effects",
+          "physiology": "Physiology",
+          "deficiency": "Deficiency Symptoms",
+          "excess": "Excess Symptoms",
+          "overdose": "Overdose",
+          "organs": "Organ Effects",
+          "chakras": "Chakras",
+          "containingStones": "Containing Stones ({count})"
+        },
+        "noExtraFields": "This record has no additional field information.",
+        "recordsTitle": "Mineral Records",
+        "recordsMeta": "{count, plural, one {{shown} mineral} other {{shown} minerals}} · {label}",
+        "footer": "Yaşam Sistemi Mineral Bank",
+        "header": "Yaşam Sistemi · Mineral Bank",
+        "scope": {
+          "all": "All Minerals",
+          "viewed": "Viewed Records",
+          "selected": "Selected Minerals",
+          "filtered": "Filtered Results"
+        },
+        "file": {
+          "list": "mineral-bank-report",
+          "detail": "mineral"
+        },
+        "detail": {
+          "subtitle": "Mineral Detail Report",
+          "filledSections": "Completed Sections",
+          "stoneCount": "Containing Stones",
+          "recordDate": "Record Date",
+          "generalInfo": "1. General Information",
+          "name": "Mineral Name",
+          "properties": "2. Mineral Properties",
+          "empty": "No content has been entered for this mineral record yet.",
+          "footer": "Mineral Report · {name}"
+        }
+      }
+    }
+  }
+}

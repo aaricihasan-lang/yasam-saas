@@ -1,0 +1,67 @@
+{
+  "reports": {
+    "stones": {
+      "brand": "YAŞAM SİSTEMİ",
+      "generatedOnLabel": "Oluşturulma Tarihi: ",
+      "scopeLabel": "Kapsam: ",
+      "reportSummary": "Rapor Özeti",
+      "notSpecified": "Belirtilmemiş",
+      "preparedByLine": "Hazırlayan: {name}",
+      "mineral": {
+        "bankTitle": "Mineral Bankası",
+        "bankSubtitle": "Profesyonel Mineral Referans Kataloğu",
+        "stat": {
+          "total": "Toplam Mineral",
+          "sources": "Kaynak Sayısı",
+          "withStones": "Taş İçeren Mineraller",
+          "stoneLinks": "Taş Bağlantısı"
+        },
+        "unnamed": "İsimsiz Mineral",
+        "cardNo": "MİNERAL #{no}",
+        "meta": {
+          "category": "Kategori",
+          "source": "Kaynak",
+          "date": "Tarih"
+        },
+        "field": {
+          "description": "Açıklama",
+          "physical": "Fiziksel Özellikler",
+          "mental": "Zihinsel Etkiler",
+          "physiology": "Fizyoloji",
+          "deficiency": "Eksiklik Belirtileri",
+          "excess": "Fazlalık Belirtileri",
+          "overdose": "Doz Aşımı",
+          "organs": "Organ Etkileri",
+          "chakras": "Çakralar",
+          "containingStones": "İçeren Taşlar ({count})"
+        },
+        "noExtraFields": "Bu kayıtta ek alan bilgisi bulunmuyor.",
+        "recordsTitle": "Mineral Kayıtları",
+        "recordsMeta": "{count, plural, other {{shown} mineral}} · {label}",
+        "footer": "Yaşam Sistemi Mineral Bankası",
+        "header": "Yaşam Sistemi · Mineral Bankası",
+        "scope": {
+          "all": "Tüm Mineraller",
+          "viewed": "Görüntülenen Kayıtlar",
+          "selected": "Seçili Mineraller",
+          "filtered": "Filtrelenmiş Sonuçlar"
+        },
+        "file": {
+          "list": "mineral-bankasi-raporu",
+          "detail": "mineral"
+        },
+        "detail": {
+          "subtitle": "Mineral Detay Raporu",
+          "filledSections": "Dolu Bölüm",
+          "stoneCount": "İçeren Taş",
+          "recordDate": "Kayıt Tarihi",
+          "generalInfo": "1. Genel Bilgiler",
+          "name": "Mineral Adı",
+          "properties": "2. Mineral Özellikleri",
+          "empty": "Bu mineral kaydında henüz içerik girilmemiş.",
+          "footer": "Mineral Raporu · {name}"
+        }
+      }
+    }
+  }
+}

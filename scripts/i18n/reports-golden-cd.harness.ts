@@ -33,7 +33,7 @@ const OUT_DIR = outIdx >= 0 ? args[outIdx + 1] : null;
 const onlyIdx = args.indexOf("--only");
 const ONLY = onlyIdx >= 0 ? new Set(args[onlyIdx + 1]!.split(",")) : null;
 /** Çevirisi bu dalda tamamlanan üreticiler — EN kontrolleri yalnız bunlarda zorunlu (diğerleri yalnız TR golden). */
-const EN_READY = new Set((process.env.RCD_EN_READY ?? "P16,P19,P38,P39,P40").split(",").filter(Boolean));
+const EN_READY = new Set((process.env.RCD_EN_READY ?? "P13,P16,P19,P38,P39,P40").split(",").filter(Boolean));
 
 let pass = 0;
 let fail = 0;
@@ -92,7 +92,11 @@ const TR_CATALOG_FRAGMENTS: { text: string; re: RegExp; folded?: boolean }[] = (
     const enFile = join(ROOT, `messages/en/${ns}.json`);
     const en = existsSync(enFile) ? flat(JSON.parse(readFileSync(enFile, "utf8"))) : {};
     for (const [k, v] of Object.entries(flat(JSON.parse(readFileSync(f, "utf8"))))) {
-      if (typeof en[k] === "string") enFolded.add(fold(en[k]!).toLowerCase());
+      if (typeof en[k] === "string") {
+        enFolded.add(fold(en[k]!).toLowerCase());
+        // C+D eki: EN değerinin parçaları da (ör. "MINERAL #{no}" → "MINERAL #") dil-bağımsız sayılır.
+        for (const part of en[k]!.split(/\{[^}]*\}|·|•|\+|—|\/|\(|\)|:/)) if (part.trim()) enFolded.add(fold(part.trim()).toLowerCase());
+      }
       if (en[k] === v) continue;
       for (const part of v.split(/\{[^}]*\}|·|•|\+|—|\/|\(|\)|:/)) {
         const t = part.trim();

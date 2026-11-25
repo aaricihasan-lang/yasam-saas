@@ -38,7 +38,8 @@ import { buildFooter, C_DARK, C_LIGHT, C_MID, ReportChild, REPORT_FONT } from "@
 import { tocBookmarkId } from "@/lib/docx/premiumToc";
 import { wellnessNote } from "@/lib/docx/reportDisclaimer";
 import { safeLen } from "@/lib/dogaltas/reportSafe";
-import { formatInstantDate, reportGeneratedLabel } from "@/lib/time/reportTime";
+import type { ReportLocale } from "@/lib/i18n/reportLocale";
+import { stonesText, withStonesOutput } from "@/lib/dogaltas/reportText";
 
 export const C_MINERAL = "064e3b"; // koyu yeşil — mineral rengi
 
@@ -138,7 +139,7 @@ function masthead(mineralName: string, date: string): Paragraph[] {
   return [
     new Paragraph({
       spacing: { before: 0, after: 40 },
-      children: [run("YAŞAM SİSTEMİ", { size: 17, bold: true, color: G_MAIN, spacing: 60 })],
+      children: [run(stonesText().t("brand"), { size: 17, bold: true, color: G_MAIN, spacing: 60 })],
     }),
     new Paragraph({
       spacing: { after: 20 },
@@ -148,11 +149,11 @@ function masthead(mineralName: string, date: string): Paragraph[] {
     new Paragraph({
       spacing: { after: 140 },
       border: { bottom: { style: BorderStyle.SINGLE, size: 12, color: GOLD, space: 8 } },
-      children: [run("Mineral Detay Raporu", { size: 21, italics: true, color: C_MID })],
+      children: [run(stonesText().t("mineral.detail.subtitle"), { size: 21, italics: true, color: C_MID })],
     }),
     new Paragraph({
       spacing: { after: 120 },
-      children: [run("Oluşturulma Tarihi: ", { size: 18, bold: true, color: C_MID }), run(date, { size: 18, color: C_MID })],
+      children: [run(stonesText().t("generatedOnLabel"), { size: 18, bold: true, color: C_MID }), run(date, { size: 18, color: C_MID })],
     }),
   ];
 }
@@ -165,7 +166,7 @@ function summaryStrip(items: [string, string][]): (Paragraph | Table)[] {
     new Paragraph({
       keepNext: true,
       spacing: { after: 80 },
-      children: [run("Rapor Özeti", { size: 16, bold: true, color: G_MAIN, spacing: 40, allCaps: true })],
+      children: [run(stonesText().t("reportSummary"), { size: 16, bold: true, color: G_MAIN, spacing: 40, allCaps: true })],
     }),
     new Table({
       width: { size: w * items.length, type: WidthType.DXA },
@@ -280,7 +281,7 @@ function stoneGrid(id: string, stones: string[]): (Paragraph | Table)[] {
     }));
   }
   return [
-    heading(3, id, `İçeren Taşlar (${clean.length})`),
+    heading(3, id, stonesText().t("mineral.field.containingStones", { count: String(clean.length) })),
     new Table({
       width: { size: w * cols, type: WidthType.DXA },
       columnWidths: Array.from({ length: cols }, () => w),
@@ -293,6 +294,7 @@ function stoneGrid(id: string, stones: string[]): (Paragraph | Table)[] {
 
 /** Kapanış "Bilgilendirme" bloğu — metin ortak kaynaktan AYNEN; blok bölünmez. */
 function closingNote(expertName: string | null): Paragraph[] {
+  const x = stonesText();
   const name = expertName?.trim();
   const out: Paragraph[] = [
     new Paragraph({
@@ -300,17 +302,17 @@ function closingNote(expertName: string | null): Paragraph[] {
       keepLines: true,
       spacing: { before: 200, after: 40 },
       border: { top: { style: BorderStyle.SINGLE, size: 6, color: G_LINE, space: 10 } },
-      children: [run("Bilgilendirme", { size: 18, bold: true, color: C_MID })],
+      children: [run(x.common?.information ?? "Bilgilendirme", { size: 18, bold: true, color: C_MID })],
     }),
     new Paragraph({
       keepNext: !!name,
       keepLines: true,
       spacing: { after: 80 },
-      children: [run(wellnessNote("dogaltas").full, { size: 16, italics: true, color: C_LIGHT })],
+      children: [run(wellnessNote("dogaltas", x.common).full, { size: 16, italics: true, color: C_LIGHT })],
     }),
   ];
   if (name) {
-    out.push(new Paragraph({ keepLines: true, spacing: { after: 60 }, children: [run(`Hazırlayan: ${name}`, { size: 16, color: C_MID })] }));
+    out.push(new Paragraph({ keepLines: true, spacing: { after: 60 }, children: [run(x.t("preparedByLine", { name }), { size: 16, color: C_MID })] }));
   }
   return out;
 }
@@ -319,9 +321,11 @@ function closingNote(expertName: string | null): Paragraph[] {
 
 /** Tek mineral raporunun gövdesi (kimlik bandı + özet şeridi + bölümler; kapak / İçindekiler yok). */
 export function buildMineralDetailChildren(mineral: MineralRow): ReportChild[] {
-  const mineralName = mineral.name || "İsimsiz Mineral";
+  const x = stonesText();
+  const t = x.t;
+  const mineralName = mineral.name || t("mineral.unnamed");
   const filledArrays = countFilledArrays(mineral);
-  const createdLabel = formatInstantDate(mineral.created_at, { fallback: "-" });
+  const createdLabel = x.date(mineral.created_at, { fallback: "-" });
   const stoneCount = Array.isArray(mineral.iceren_taslar)
     ? mineral.iceren_taslar.filter((x) => typeof x === "string" && x.trim()).length
     : 0;
@@ -331,23 +335,23 @@ export function buildMineralDetailChildren(mineral: MineralRow): ReportChild[] {
   const nextId = () => tocBookmarkId("mdet", seq++);
 
   const out: ReportChild[] = [];
-  out.push(...masthead(mineralName, reportGeneratedLabel()));
+  out.push(...masthead(mineralName, x.generatedLabel()));
   out.push(...summaryStrip([
-    ["Dolu Bölüm", `${filledArrays} / 9`],
-    ["İçeren Taş", String(stoneCount)],
-    ["Kayıt Tarihi", createdLabel],
+    [t("mineral.detail.filledSections"), `${filledArrays} / 9`],
+    [t("mineral.detail.stoneCount"), String(stoneCount)],
+    [t("mineral.detail.recordDate"), createdLabel],
   ]));
 
   // 1. Genel Bilgiler
-  out.push(heading(1, nextId(), "1. Genel Bilgiler"));
+  out.push(heading(1, nextId(), t("mineral.detail.generalInfo")));
   out.push(infoTable([
-    ["Mineral Adı",  mineralName],
-    ["Kategori",     mineral.kategori || "Belirtilmemiş"],
-    ["Kaynak",       mineral.source_id || "Belirtilmemiş"],
-    ["Kayıt Tarihi", createdLabel],
+    [t("mineral.detail.name"), mineralName],
+    [t("mineral.meta.category"), mineral.kategori || t("notSpecified")],
+    [t("mineral.meta.source"), mineral.source_id || t("notSpecified")],
+    [t("mineral.detail.recordDate"), createdLabel],
   ]));
   if (mineral.aciklama?.trim()) {
-    out.push(heading(2, nextId(), "Açıklama"));
+    out.push(heading(2, nextId(), t("mineral.field.description")));
     out.push(new Paragraph({
       spacing: { after: 60, line: 276 },
       widowControl: true,
@@ -358,18 +362,18 @@ export function buildMineralDetailChildren(mineral: MineralRow): ReportChild[] {
   }
 
   // 2. Mineral Özellikleri — alanların TAMAMI, eski sırayla.
-  out.push(heading(1, nextId(), "2. Mineral Özellikleri"));
+  out.push(heading(1, nextId(), t("mineral.detail.properties")));
   const field = (label: string, arr: string[] | null): ListField | null => {
     const items = (Array.isArray(arr) ? arr : []).filter((x) => typeof x === "string" && x.trim()).map((x) => x.trim());
     return items.length ? { id: nextId(), label, items } : null;
   };
   const groupA = [
-    field("Fiziksel Özellikler",  mineral.fiziksel),
-    field("Zihinsel Etkiler",     mineral.zihinsel),
-    field("Fizyoloji",            mineral.fizyoloji),
-    field("Eksiklik Belirtileri", mineral.eksiklik_belirtileri),
-    field("Fazlalık Belirtileri", mineral.fazlalik_belirtileri),
-    field("Doz Aşımı",            mineral.doz_asimi),
+    field(t("mineral.field.physical"), mineral.fiziksel),
+    field(t("mineral.field.mental"), mineral.zihinsel),
+    field(t("mineral.field.physiology"), mineral.fizyoloji),
+    field(t("mineral.field.deficiency"), mineral.eksiklik_belirtileri),
+    field(t("mineral.field.excess"), mineral.fazlalik_belirtileri),
+    field(t("mineral.field.overdose"), mineral.doz_asimi),
   ].filter((f): f is ListField => f !== null);
   out.push(...listColumns(groupA));
   if (stoneCount) {
@@ -377,8 +381,8 @@ export function buildMineralDetailChildren(mineral: MineralRow): ReportChild[] {
     out.push(...stoneGrid(nextId(), mineral.iceren_taslar ?? []));
   }
   const groupB = [
-    field("Organ Etkileri", mineral.organ_etkileri),
-    field("Çakralar",       mineral.cakralar),
+    field(t("mineral.field.organs"), mineral.organ_etkileri),
+    field(t("mineral.field.chakras"), mineral.cakralar),
   ].filter((f): f is ListField => f !== null);
   if (groupB.length && groupA.length && !stoneCount) out.push(tableGap());
   out.push(...listColumns(groupB));
@@ -386,21 +390,31 @@ export function buildMineralDetailChildren(mineral: MineralRow): ReportChild[] {
   if (filledArrays === 0 && !mineral.aciklama?.trim()) {
     out.push(new Paragraph({
       spacing: { before: 100, after: 60 },
-      children: [run("Bu mineral kaydında henüz içerik girilmemiş.", { size: 20, italics: true, color: C_LIGHT })],
+      children: [run(t("mineral.detail.empty"), { size: 20, italics: true, color: C_LIGHT })],
     }));
   }
   return out;
 }
 
 /** Tam Word belgesi (kimlik bandı + özet + bölümler + bilgilendirme notu). */
-export function buildMineralDetailDocument(mineral: MineralRow, expertName: string | null): Document {
-  const mineralName = mineral.name || "İsimsiz Mineral";
+export function buildMineralDetailDocument(mineral: MineralRow, expertName: string | null, output?: ReportLocale | null): Document {
+  return withStonesOutput(output, () => mineralDetailDocument(mineral, expertName));
+}
+
+/** Mineral detay dosya adı sistem öneki (TR "mineral", EN "mineral"). */
+export function mineralDetailFilePrefix(output?: ReportLocale | null): string {
+  return withStonesOutput(output, () => stonesText().t("mineral.file.detail"));
+}
+
+function mineralDetailDocument(mineral: MineralRow, expertName: string | null): Document {
+  const x = stonesText();
+  const mineralName = mineral.name || x.t("mineral.unnamed");
   return new Document({
     // İçindekiler / PAGEREF yok → updateFields gerekmez (açılışta alan güncelleme sorusu çıkmaz);
     // alt bilgideki Sayfa X / Y alanlarını Word kendiliğinden günceller.
     styles: {
       default: {
-        document: { run: { font: REPORT_FONT, language: { value: "tr-TR" } } },
+        document: { run: { font: REPORT_FONT, language: { value: x.documentLang } } },
         heading1: { run: { font: REPORT_FONT, size: 28, bold: true, color: G_DEEP } },
         heading2: { run: { font: REPORT_FONT, size: 21, bold: true, color: G_DEEP } },
         heading3: { run: { font: REPORT_FONT, size: 19, bold: true, color: G_DEEP } },
@@ -408,7 +422,7 @@ export function buildMineralDetailDocument(mineral: MineralRow, expertName: stri
     },
     sections: [{
       properties: {},
-      footers: { default: buildFooter(`Mineral Raporu · ${mineralName}`, { note: "dogaltas" }) },
+      footers: { default: buildFooter(x.t("mineral.detail.footer", { name: mineralName }), { note: "dogaltas", common: x.common }) },
       // FA-16: sade bilgilendirme notu + Hazırlayan (rapor sonu).
       children: [...buildMineralDetailChildren(mineral), ...closingNote(expertName)],
     }],

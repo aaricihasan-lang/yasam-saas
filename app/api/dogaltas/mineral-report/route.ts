@@ -7,7 +7,8 @@ import { fetchAllRows, fetchAllRowsByIds } from "@/lib/dogaltas/fetchAllRows";
 import { badSelectionResponse, missingSelectionResponse, parseReportIds, sortByTrField } from "@/lib/dogaltas/reportIds";
 import { sanitizeXmlDeep } from "@/lib/dogaltas/reportSanitize";
 import { Packer } from "docx";
-import { buildMineralReportDocument, type MineralRow as MineralReportRow } from "@/lib/dogaltas/mineralReportDoc";
+import { buildMineralReportDocument, mineralExportLabel, mineralReportFileName, type MineralRow as MineralReportRow } from "@/lib/dogaltas/mineralReportDoc";
+import { resolveReportLocale } from "@/lib/i18n/reportLocale";
 import { expertDisplayName } from "@/lib/docx/reportDisclaimer";
 import { reportFileDate } from "@/lib/time/reportTime";
 
@@ -47,13 +48,8 @@ export async function POST(req: NextRequest): Promise<Response> {
   if (!parsedIds.ok) return badSelectionResponse(parsedIds.error);
   const ids = parsedIds.ids;
 
-  let exportLabel = "Tüm Mineraller";
-  if (ids) {
-    exportLabel =
-      exportMode === "viewed"   ? "Görüntülenen Kayıtlar" :
-      exportMode === "selected" ? "Seçili Mineraller"     :
-      "Filtrelenmiş Sonuçlar";
-  }
+  const output = await resolveReportLocale(req, { db, tenantId, userId: auth.userId });
+  const exportLabel = mineralExportLabel(exportMode, !!ids, output);
 
   // P2-07: 1000-satır tavanına takılmadan TÜM ilgili satırlar (tenant filtresi her sayfada).
   const res = ids
@@ -75,7 +71,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   }).rows;
   if (!minerals.length) return Response.json({ ok: false, error: "Bu seçim için mineral bulunamadı." }, { status: 404 });
 
-  const doc = buildMineralReportDocument(minerals, exportLabel, expertDisplayName(auth.profile));
+  const doc = buildMineralReportDocument(minerals, exportLabel, expertDisplayName(auth.profile), output);
 
   const buffer = await Packer.toBuffer(doc);
   // Usage360: Word dosyası BAŞARIYLA üretildi → tek rapor olayı (konu: mineral; çoklu → itemCount).
@@ -91,7 +87,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   return new Response(new Uint8Array(buffer), {
     headers: {
       "Content-Type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-      "Content-Disposition": `attachment; filename="mineral-bankasi-raporu-${dateSlug}.docx"`,
+      "Content-Disposition": `attachment; filename="${mineralReportFileName(dateSlug, output)}"`,
       "Content-Length": String(buffer.length),
     },
   });
