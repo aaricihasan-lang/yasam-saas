@@ -145,7 +145,11 @@ async function main() {
     ok(/!cached \? "session"/.test(mrg), "oturumsuz modül rotası → 'session' nedeni (yetki reddi değil)");
     ok(/addEventListener\("storage", onStorage\)/.test(mrg) && /e\.key !== "yasam_user"/.test(mrg), "başka sekmede çıkış → bu sayfa bayat oturumla kalmaz");
     const denied = read("components/auth/ModuleAccessDenied.tsx");
-    ok(/Oturumunuz Sona Erdi/.test(denied) && /href=\{isSession \? "\/\?login=1" : "\/"\}/.test(denied) && /Ana Panele Dön/.test(denied), "oturum yok → 'Giriş Yap' (/?login=1); yetki reddi metni/düğmesi aynı");
+    // I18N-F1-R5 (A12): düğme metinleri katalogdan (auth.ui.moduleAccess); TR değerleri birebir aynı kalmalı.
+    const deniedTr = (JSON.parse(read("messages/tr/auth.ui.json")) as { auth: { ui: { moduleAccess: Record<string, string> } } }).auth.ui.moduleAccess;
+    ok(/Oturumunuz Sona Erdi/.test(denied) && /href=\{isSession \? "\/\?login=1" : "\/"\}/.test(denied)
+      && /\{isSession \? t\("signIn"\) : t\("backHome"\)\}/.test(denied) && deniedTr.signIn === "Giriş Yap" && deniedTr.backHome === "Ana Panele Dön",
+      "oturum yok → 'Giriş Yap' (/?login=1); yetki reddi metni/düğmesi aynı");
     const exit = read("lib/auth/sessionExit.ts");
     ok(/softNavigate\(href\)/.test(exit) && /window\.location\.pathname === target/.test(exit) && /window\.location\.replace\(href\)/.test(exit), "oturum sonu: önce istemci-tarafı geçiş (beforeunload yok), sonra tam yükleme");
     ok((mrg.match(/leaveAfterSessionEnd\("\/", (reason|"revoked"), \(href\) => router\.replace\(href\)\)/g) ?? []).length === 2, "iki oturum-sonu yolu da router ile çıkar");
