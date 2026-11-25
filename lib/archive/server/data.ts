@@ -27,8 +27,9 @@ export const PART_MAX_CHARS = 2_500_000;
 const LABEL_CHUNK = 100;
 
 export type TableScope =
-  | { entry: RegistryEntry; filters: RowFilter[]; skip: null }
-  | { entry: RegistryEntry; filters: null; skip: string };
+  | { entry: RegistryEntry; filters: RowFilter[]; skip: null; skipCode?: undefined }
+  /** I18N: `skipCode` gerekçenin dil-bağımsız karşılığı (EK alan; `skip` Türkçe metni aynen). */
+  | { entry: RegistryEntry; filters: null; skip: string; skipCode: "NOT_CLIENT_LINKED" | "NO_CREATED_AT" };
 
 type ProbeCache = Map<string, boolean>;
 
@@ -49,11 +50,13 @@ export async function tableScope(db: SupabaseClient, e: RegistryEntry, opts: Arc
   const filters: RowFilter[] = [];
   if (opts.clientIds) {
     const col = clientLinkColumn(e);
-    if (!col) return { entry: e, filters: null, skip: "danışana bağlı olmayan kayıt (danışan seçimi yapıldı)" };
+    if (!col) return { entry: e, filters: null, skip: "danışana bağlı olmayan kayıt (danışan seçimi yapıldı)", skipCode: "NOT_CLIENT_LINKED" };
     filters.push({ column: col, op: "in", values: opts.clientIds });
   }
   if (opts.dateFrom || opts.dateTo) {
-    if (!(await hasCreatedAt(db, e, cache))) return { entry: e, filters: null, skip: "kayıt tarihi alanı yok (tarih aralığı seçildi)" };
+    if (!(await hasCreatedAt(db, e, cache))) {
+      return { entry: e, filters: null, skip: "kayıt tarihi alanı yok (tarih aralığı seçildi)", skipCode: "NO_CREATED_AT" };
+    }
     if (opts.dateFrom) filters.push({ column: "created_at", op: "gte", value: istanbulDayStartIso(opts.dateFrom) });
     if (opts.dateTo) filters.push({ column: "created_at", op: "lt", value: istanbulDayStartIso(nextDay(opts.dateTo)) });
   }
@@ -62,7 +65,7 @@ export async function tableScope(db: SupabaseClient, e: RegistryEntry, opts: Arc
 
 export type ModuleDataPlan = {
   module: string;
-  tables: { entry: RegistryEntry; label: string; expected: number | null; error: string | null; skip: string | null }[];
+  tables: { entry: RegistryEntry; label: string; expected: number | null; error: string | null; skip: string | null; skipCode?: string }[];
   records: number;
 };
 
@@ -79,7 +82,7 @@ export async function planModuleData(
   for (const e of moduleTables(module)) {
     const sc = await tableScope(db, e, opts, cache);
     if (sc.skip !== null) {
-      out.tables.push({ entry: e, label: e.label, expected: 0, error: null, skip: sc.skip });
+      out.tables.push({ entry: e, label: e.label, expected: 0, error: null, skip: sc.skip, skipCode: sc.skipCode });
       continue;
     }
     const c = await countTableRows(db, e, tenantId, { ownerUserId: userId, filters: sc.filters });
