@@ -49,7 +49,7 @@
  * senaryo hatası = 1; TR-aday ve API 5xx (strict değilse) = bilgi.
  */
 import { spawn, type ChildProcess } from "node:child_process";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { createWriteStream, existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -74,6 +74,8 @@ const STRICT_API = argv.includes("--strict-api") || process.env.MODUL_EKRAN_STRI
 const FULL_PAGE = argv.includes("--full-page") || process.env.MODUL_EKRAN_FULL_PAGE === "1";
 /** Kapı kapalı build'i: ekranlar tr turu olarak gezilir ama tarayıcıya NEXT_LOCALE=en + hesaba en tercihi verilir. */
 const GATE_CLOSED = argv.includes("--gate-closed") || process.env.MODUL_EKRAN_GATE_CLOSED === "1";
+/** R5: yalnız senaryolar (S6 kararlılık koşuları için hızlı tur); ekran turu atlanır. */
+const SKIP_TOUR = argv.includes("--skip-tour");
 const APP_PORT = Number(process.env.MODUL_EKRAN_APP_PORT ?? 3997);
 const APP = `http://127.0.0.1:${APP_PORT}`;
 const SUPA_PORT = Number(process.env.I18N_E2E_SUPA_PORT ?? 54398);
@@ -803,9 +805,9 @@ function scenario(id: string, lang: Lang, title: string, ok: boolean, detail: st
   console.log(`  ${ok ? "PASS" : "FAIL"} [${lang}] ${id} ${title}${detail ? ` → ${detail.slice(0, 300)}` : ""}`);
 }
 
-async function runScenario(id: string, lang: Lang, title: string, fn: () => Promise<{ ok: boolean; detail: string; shot?: string }>) {
+async function runScenario(id: string, lang: Lang, title: string, fn: () => Promise<{ ok: boolean; detail: string; shot?: string }>, timeoutMs = 150_000) {
   try {
-    const r = await withTimeout(fn(), 150_000, id);
+    const r = await withTimeout(fn(), timeoutMs, id);
     scenario(id, lang, title, r.ok, r.detail, r.shot);
   } catch (e) {
     scenario(id, lang, title, false, `hata: ${(e as Error).message.slice(0, 300)}`);
@@ -1043,78 +1045,322 @@ async function scenarioPersist(browser: Browser, env: TestEnv, fx: Fixture) {
   });
 }
 
-/** S6: aynı tarayıcıda hesap değişimi → dil izolasyonu (A: tercih en, B: tercih yok → tr). Cihaz çerezi NEXT_LOCALE çıkışta KALIR. */
+// ─── S6: hesap değişimi → dil izolasyonu (R5: kök neden tanısı + gerçek çıkış akışı + yarış kanıtı + API izolasyonu) ───
+//
+// R4'te S6 aralıklı 403 veriyordu (B'nin /api/me/locale isteği). R5 kök neden (kanıt: S6-T + S6-YARIS günlükleri):
+//   Test düzeneği hesabı, uygulama JS'i ÇALIŞAN bir sayfada (404 sayfası; kök yerleşimdeki ModuleRouteGuard / QuickNavShell /
+//   bildirim deposu açılışta profil senkronu başlatır) localStorage'ı değiştirerek "çıkış/giriş" yapıyordu. Önceki hesabın
+//   uçuştaki GET /api/auth/profile yanıtı, değişimden SONRA dönünce lib/auth/yasamUser.ts syncYasamUserFromDbOutcome().run()
+//   kimlik kontrolü yapmadan saveYasamUser(önceki hesap) yazar → localStorage: yasam_user = A, yasam_session_token = B →
+//   sonraki istek x-user-id=A + B'nin oturumu → verifyUserRequest "Oturum kimliği uyuşmuyor" (403). Yetki kontrolü DOĞRU
+//   çalışıyor (fail-closed); sızıntı yok. Ürün tarafı yarış (aynı JS bağlamında yumuşak çıkış → giriş) S6-YARIS'ta kanıtlanır.
+// Test ortamında SESSION_COOKIE_MODE ayarlı değil → "off": kimlik YALNIZ x-user-id + x-session-token başlıkları; HttpOnly
+// __Host-yasam_sid çerezi yok sayılır/üretilmez; Supabase Auth çerezi uygulamada hiç yok (özel user_sessions oturumu).
+// Günlükte çerez/oturum DEĞERİ yazılmaz: yalnız çerez ADLARI + hangi sentetik hesaba ait olduğu (A/B) + sha256 ilk 8 hane.
+
+const S6_REPEAT = Math.max(1, Number(arg("--s6-repeat", "1")) || 1);
+const sha8 = (s: string) => createHash("sha256").update(s).digest("hex").slice(0, 8);
+
+type S6Ids = { users: Map<string, string>; tokens: Map<string, string> };
+const s6Who = (ids: S6Ids, uid: string | null | undefined) => (uid ? `${ids.users.get(uid) ?? "?"}#${sha8(uid)}` : "yok");
+const s6Tok = (ids: S6Ids, tok: string | null | undefined) => (tok ? `${ids.tokens.get(tok) ?? "?"}#${sha8(tok)}` : "yok");
+
+/** Sayfadaki localStorage kimlik özeti (DEĞER yazılmaz): yasam_user.id sahibi + oturum anahtarının sahibi. */
+async function s6Storage(page: Page, ids: S6Ids): Promise<{ user: string; tok: string; same: boolean }> {
+  const v = await page.evaluate(() => {
+    let id: string | null = null;
+    try { id = (JSON.parse(localStorage.getItem("yasam_user") ?? "null") as { id?: string } | null)?.id ?? null; } catch { id = null; }
+    return { id, tok: localStorage.getItem("yasam_session_token") };
+  }).catch(() => ({ id: null as string | null, tok: null as string | null }));
+  const user = s6Who(ids, v.id);
+  const tok = s6Tok(ids, v.tok);
+  return { user, tok, same: !!v.id && !!v.tok && (ids.users.get(v.id) ?? "u?") === (ids.tokens.get(v.tok) ?? "t?") };
+}
+
+/** Kimlik taşıyan isteklerin günlüğü: /api/me/locale + /api/auth/profile + /api/auth/session. Faz = isteğin ÇIKTIĞI an hangi hesap. */
+function s6Recorder(page: Page, ids: S6Ids) {
+  const lines: string[] = [];
+  let phase = "-";
+  let t0 = Date.now();
+  const issued = new WeakMap<object, string>();
+  const watch = (u: string) => /\/api\/(me\/locale|auth\/profile|auth\/session)(\?|$)/.test(u.slice(APP.length));
+  page.on("request", (req) => { if (req.url().startsWith(APP) && watch(req.url())) issued.set(req, phase); });
+  page.on("response", (r) => {
+    const req = r.request();
+    if (!r.url().startsWith(APP) || !watch(r.url())) return;
+    const at = Date.now() - t0;
+    void (async () => {
+      const h = await req.allHeaders().catch(() => ({} as Record<string, string>));
+      const cookies = (h["cookie"] ?? "").split(";").map((x) => x.split("=")[0]!.trim()).filter(Boolean);
+      let body = "";
+      if (r.status() >= 400) body = (await r.text().catch(() => "")).replace(/\s+/g, " ").slice(0, 140);
+      else if (r.url().includes("/api/me/locale") && req.method() === "GET") {
+        const j = await r.json().catch(() => null) as { preference?: { status?: string; locale?: string; reason?: string } } | null;
+        body = `${j?.preference?.status ?? "?"}${j?.preference?.locale ? `=${j.preference.locale}` : ""}${j?.preference?.reason ? `(${j.preference.reason})` : ""}`;
+      }
+      lines.push(`+${at}ms ${req.method()} ${r.url().slice(APP.length).split("?")[0]} → ${r.status()} [çıkış fazı ${issued.get(req) ?? "?"}; x-user-id=${s6Who(ids, h["x-user-id"])}; x-session-token=${s6Tok(ids, h["x-session-token"])}; çerez adları=${cookies.length ? cookies.join(",") : "yok"}]${body ? ` ${body}` : ""}`);
+    })();
+  });
+  return {
+    lines,
+    setPhase: (p: string) => { phase = p; t0 = Date.now(); lines.push(`── faz: ${p}`); },
+    note: (s: string) => lines.push(`   · ${s}`),
+  };
+}
+
+/** Uygulama JS'i OLMAYAN aynı kökenli belge (public/file.svg): burada localStorage yazmak uçuşta istek bırakmaz. */
+const S6_STATIC = "/file.svg";
+
+/** "Giriş": sunucu oturumu (user_sessions satırı — createUserSession'ın yaptığı) + istemci durumu (completeLogin'in yazdığı iki anahtar). */
+async function s6Login(page: Page, env: TestEnv, ids: S6Ids, u: { userId: string; userRecord: Record<string, unknown> }, label: string) {
+  const tok = `zz-modul-ekran-s6-${randomUUID().slice(0, 12)}`;
+  await env.su.query(`insert into public.user_sessions(user_id, session_token) values ($1,$2)`, [u.userId, tok]);
+  ids.tokens.set(tok, label);
+  await page.goto(`${APP}${S6_STATIC}`, { waitUntil: "load" });
+  await page.evaluate(([uu, tk]) => {
+    localStorage.setItem("yasam_user", uu as string);
+    localStorage.setItem("yasam_session_token", tk as string);
+  }, [JSON.stringify(u.userRecord), tok]);
+}
+
+/** GERÇEK çıkış: ana sayfadaki "Çıkış Yap / Sign Out" düğmesi + onay diyaloğu (clearYasamUser → DELETE /api/auth/session). */
+async function s6Logout(page: Page): Promise<{ ok: boolean; detail: string }> {
+  await page.goto(`${APP}/`, { waitUntil: "domcontentloaded" });
+  await settle(page);
+  const lng = (await htmlLang(page)) === "en" ? "en" : "tr";
+  const label = M(lng, "home", "dashboard.logout");
+  const btn = page.locator(`button[aria-label="${label}"]`).filter({ visible: true }).first();
+  if ((await btn.count()) === 0) return { ok: false, detail: `çıkış düğmesi yok (${lng} "${label}")` };
+  const delP = page.waitForResponse((r) => r.url() === `${APP}/api/auth/session` && r.request().method() === "DELETE", { timeout: 20_000 }).catch(() => null);
+  await btn.click();
+  const dlg = page.locator('[role="alertdialog"]').filter({ visible: true }).first();
+  await dlg.waitFor({ timeout: 10_000 });
+  await dlg.getByRole("button", { name: label, exact: true }).click();
+  const del = await delP;
+  await page.waitForFunction(() => !localStorage.getItem("yasam_user") && !localStorage.getItem("yasam_session_token"), null, { timeout: 10_000 }).catch(() => undefined);
+  await settle(page);
+  return { ok: !!del && del.status() === 200, detail: `DELETE /api/auth/session ${del?.status() ?? "yanıt yok"}` };
+}
+
+async function s6Visit(page: Page, p: string, want: string | null): Promise<string> {
+  await page.goto(`${APP}${p}`, { waitUntil: "domcontentloaded" });
+  await settle(page);
+  if (want) await waitLang(page, want, 20_000);
+  return htmlLang(page);
+}
+
+/** S6 (ana; en işi, --s6-repeat kez): GERÇEK çıkış → giriş akışı; A=en, B=tercih yok → B hiçbir ekranda en görmez; A dönüşte en. */
 async function scenarioAccountIsolation(browser: Browser, env: TestEnv, fx: Fixture) {
-  await runScenario("S6-hesap-degistir-dil-izolasyonu", "en", "Aynı tarayıcı: A (tercih en) → çıkış → B (tercih yok) → A; her hesap kendi dilinde", async () => {
-    const B = fx.userB;
-    if (!B) return { ok: false, detail: "ikinci sentetik hesap (B) tohumlanamadı" };
+  const B = fx.userB;
+  for (let i = 1; i <= S6_REPEAT; i++) {
+    await runScenario(`S6-hesap-degistir-dil-izolasyonu-${i}`, "en", `Gerçek çıkış/giriş (${i}/${S6_REPEAT}): A (tercih en) → çıkış → B (tercih yok) → çıkış → A; her hesap kendi dilinde, 403 yok`, async () => {
+      if (!B) return { ok: false, detail: "ikinci sentetik hesap (B) tohumlanamadı" };
+      await setAccountLocale(env, fx, "en");
+      await env.su.query(`delete from public.user_locale_prefs where user_id=$1`, [B.userId]).catch(() => undefined);
+      const ids: S6Ids = { users: new Map([[fx.userId, "A"], [B.userId, "B"]]), tokens: new Map([[fx.token, "A"], [B.token, "B"]]) };
+      const ctx = await newCtx(browser, fx, "tr", 1280, { cookie: null, noAuthInit: true });
+      try {
+        const page = await ctx.newPage();
+        const rec = s6Recorder(page, ids);
+        const steps: string[] = [];
+        const localeCookie = async () => (await ctx.cookies()).find((c) => c.name === "NEXT_LOCALE")?.value ?? "yok";
+        rec.setPhase("A giriş");
+        await s6Login(page, env, ids, { userId: fx.userId, userRecord: fx.userRecord }, "A");
+        const a1 = await s6Visit(page, "/", "en"); steps.push(`A ana sayfa → ${a1}`);
+        const a2 = await s6Visit(page, "/dashboard", null); steps.push(`A panel → ${a2}`);
+        if (i === 1) await page.screenshot({ path: path.join(OUT, "senaryo-S6-A-en.png") });
+        rec.setPhase("A çıkış");
+        const outA = await s6Logout(page); steps.push(`A çıkış: ${outA.detail}; çerez NEXT_LOCALE=${await localeCookie()}`);
+        rec.setPhase("B giriş");
+        await s6Login(page, env, ids, B, "B");
+        const b0 = await s6Visit(page, "/dashboard", null); steps.push(`B panel (ana sayfadan önce) → ${b0}`);
+        const b1 = await s6Visit(page, "/", "tr"); steps.push(`B ana sayfa → ${b1}`);
+        const b2 = await s6Visit(page, "/dashboard", null); steps.push(`B panel → ${b2}`);
+        const b3 = await s6Visit(page, "/settings", null); steps.push(`B ayarlar → ${b3}`);
+        const stB = await s6Storage(page, ids); steps.push(`B depolama: user=${stB.user} tok=${stB.tok}`);
+        if (i === 1) await page.screenshot({ path: path.join(OUT, "senaryo-S6-B-tr.png") });
+        rec.setPhase("B çıkış");
+        const outB = await s6Logout(page); steps.push(`B çıkış: ${outB.detail}`);
+        rec.setPhase("A tekrar giriş");
+        await s6Login(page, env, ids, { userId: fx.userId, userRecord: fx.userRecord }, "A");
+        const a3 = await s6Visit(page, "/", "en"); steps.push(`A tekrar ana sayfa → ${a3}`);
+        await sleep(800);
+        const prefA = await prefOf(env, fx.userId);
+        const prefB = await prefOf(env, B.userId);
+        const locale4xx = rec.lines.filter((l) => /\/api\/me\/locale → 4\d\d/.test(l));
+        const ok = a1 === "en" && a2 === "en" && outA.ok && b0 === "tr" && b1 === "tr" && b2 === "tr" && b3 === "tr" && stB.same && outB.ok && a3 === "en"
+          && prefA === "en" && prefB === null && locale4xx.length === 0;
+        console.log(`      S6 günlüğü (${i}):\n        ${rec.lines.join("\n        ")}`);
+        writeFileSync(path.join(OUT, `senaryo-S6-gunluk-${i}.txt`), `${steps.join("\n")}\n\n${rec.lines.join("\n")}\n`);
+        return { ok, shot: i === 1 ? "senaryo-S6-B-tr.png" : undefined, detail: `${steps.join("; ")}; DB tercih A=${prefA ?? "yok"} B=${prefB ?? "yok"}; /api/me/locale 4xx=${locale4xx.length}${locale4xx.length ? ` (${locale4xx.join(" | ").slice(0, 400)})` : ""}` };
+      } finally {
+        await ctx.close().catch(() => undefined);
+        await setAccountLocale(env, fx, "en");
+      }
+    }, 300_000);
+  }
+}
+
+/** S6-YARIS (en işi): ürün yarışının belirlenimci kanıtı. A'nın profil senkronu (GET /api/auth/profile) bekletilirken aynı sayfada
+ *  hesap B'ye geçer (yumuşak çıkış + giriş ile aynı depolama değişimi), sonra yanıt bırakılır. Beklenen (kök neden): eski yanıt
+ *  yasam_user'ı A'ya geri yazar, oturum anahtarı B'de kalır → /api/me/locale 403 "Oturum kimliği uyuşmuyor".
+ *  PASS ölçütü = GÜVENLİK: istek fail-closed (401/403), A'nın tercihi B'ye dönmez, DB tercihleri değişmez. Yarışın yeniden
+ *  üretilip üretilmediği ayrıntıda raporlanır (ürün bulgusu; düzeltme önerisi raporda). */
+async function scenarioAccountRace(browser: Browser, env: TestEnv, fx: Fixture) {
+  const B = fx.userB;
+  await runScenario("S6-YARIS-ucustaki-profil-senkronu", "en", "Uçuştaki önceki hesap profil senkronu hesap değişiminden sonra dönerse: kimlik karışır mı, fail-closed mı", async () => {
+    if (!B) return { ok: false, detail: "ikinci sentetik hesap (B) yok" };
     await setAccountLocale(env, fx, "en");
     await env.su.query(`delete from public.user_locale_prefs where user_id=$1`, [B.userId]).catch(() => undefined);
+    const ids: S6Ids = { users: new Map([[fx.userId, "A"], [B.userId, "B"]]), tokens: new Map([[fx.token, "A"], [B.token, "B"]]) };
     const ctx = await newCtx(browser, fx, "tr", 1280, { cookie: null, noAuthInit: true });
     try {
       const page = await ctx.newPage();
-      const steps: string[] = [];
-      // Oturum değişimi: oturum çerezleri + localStorage temizlenir (çıkış), cihazın NEXT_LOCALE çerezi KALIR → yeni hesap.
-      // Her girişte YENİ oturum anahtarı (gerçek giriş gibi): eski anahtar çerez geçişinde (HttpOnly) tüketilmiş olabilir —
-      // aynı anahtarla ikinci "giriş" hesap tercihini okuyamıyordu (koşu 45599816800: A tekrar → tr).
-      const switchTo = async (u: { userId: string; userRecord: Record<string, unknown> }) => {
-        const tok = `zz-modul-ekran-s6-${randomUUID().slice(0, 12)}`;
-        await env.su.query(`insert into public.user_sessions(user_id, session_token) values ($1,$2)`, [u.userId, tok]);
-        const keepLocale = async () => {
-          const keep = (await ctx.cookies()).filter((c) => c.name === "NEXT_LOCALE"); // Secure çerez: URL süzgeçsiz oku
-          await ctx.clearCookies();
-          if (keep.length) await ctx.addCookies(keep);
-        };
-        await keepLocale();
-        await page.goto(`${APP}/zz-olmayan-sayfa-r4`, { waitUntil: "domcontentloaded" });
-        await page.evaluate(([uu, tk]) => {
-          localStorage.clear();
-          localStorage.setItem("yasam_user", uu as string);
-          localStorage.setItem("yasam_session_token", tk as string);
-        }, [JSON.stringify(u.userRecord), tok]);
-        // Ara sayfa ÖNCEKİ hesabın localStorage'ıyla açıldı → çerez geçişi önceki hesaba HttpOnly oturum çerezi yazmış olabilir
-        // (koşu 45608410435: B'nin /api/me/locale isteği 403 "Oturum kimliği uyuşmuyor"). Gerçek çıkışta bu çerez silinir →
-        // burada da ikinci kez temizlenir (NEXT_LOCALE cihaz çerezi yine korunur).
-        await keepLocale();
-      };
-      // Tanı: hesap tercihi okuması (/api/me/locale GET) adım başına durum + tercih (koşular arası tutarsızlık 957f0fa06).
-      let prefLog: string[] = [];
-      page.on("response", (r) => {
-        if (!r.url().startsWith(`${APP}/api/me/locale`) || r.request().method() !== "GET") return;
-        void r.json().then((j: { preference?: { status?: string; locale?: string; reason?: string } }) => {
-          prefLog.push(`${r.status()}:${j?.preference?.status ?? "?"}${j?.preference?.locale ? `=${j.preference.locale}` : ""}${j?.preference?.reason ? `(${j.preference.reason})` : ""}`);
-        }).catch(() => prefLog.push(`${r.status()}:gövde-yok`));
+      const rec = s6Recorder(page, ids);
+      rec.setPhase("A giriş");
+      await s6Login(page, env, ids, { userId: fx.userId, userRecord: fx.userRecord }, "A");
+      await s6Visit(page, "/", "en");
+      let release!: () => void;
+      const gate = new Promise<void>((r) => { release = r; });
+      let held = 0;
+      await page.route("**/api/auth/profile**", async (route) => { held++; await gate; await route.continue().catch(() => undefined); });
+      rec.setPhase("A profil senkronu bekletiliyor");
+      await page.goto(`${APP}/dashboard`, { waitUntil: "domcontentloaded" });
+      const until = Date.now() + 20_000;
+      while (held === 0 && Date.now() < until) await sleep(200);
+      if (held === 0) { release(); return { ok: false, detail: "A'nın profil senkronu yakalanamadı (bekletilecek istek yok)" }; }
+      // Aynı sayfa (JS bağlamı) içinde çıkış + B girişi: clearYasamUser'ın sildiği iki anahtar → completeLogin'in yazdığı iki anahtar.
+      const tokB = `zz-modul-ekran-s6y-${randomUUID().slice(0, 12)}`;
+      await env.su.query(`insert into public.user_sessions(user_id, session_token) values ($1,$2)`, [B.userId, tokB]);
+      ids.tokens.set(tokB, "B");
+      rec.setPhase("B'ye geçildi (A yanıtı hâlâ bekletiliyor)");
+      await page.evaluate(([uu, tk]) => {
+        localStorage.removeItem("yasam_user");
+        localStorage.removeItem("yasam_session_token");
+        localStorage.setItem("yasam_user", uu as string);
+        localStorage.setItem("yasam_session_token", tk as string);
+      }, [JSON.stringify(B.userRecord), tokB]);
+      const before = await s6Storage(page, ids);
+      const respP = page.waitForResponse((r) => r.url().includes("/api/auth/profile"), { timeout: 20_000 }).catch(() => null);
+      release();
+      await respP;
+      await sleep(1_200);
+      await page.unroute("**/api/auth/profile**").catch(() => undefined);
+      const after = await s6Storage(page, ids);
+      rec.setPhase("yanıt bırakıldıktan sonra /api/me/locale (istemcinin kurduğu başlıklarla)");
+      const probe = await page.evaluate(async () => {
+        let id = "";
+        try { id = (JSON.parse(localStorage.getItem("yasam_user") ?? "null") as { id?: string } | null)?.id ?? ""; } catch { id = ""; }
+        const tok = localStorage.getItem("yasam_session_token");
+        const r = await fetch("/api/me/locale", { headers: { "x-user-id": id, ...(tok ? { "x-session-token": tok } : {}) }, cache: "no-store" });
+        return { status: r.status, body: (await r.text()).slice(0, 200) };
       });
-      const visit = async (p: string, want: string | null) => {
-        prefLog = [];
-        await page.goto(`${APP}${p}`, { waitUntil: "domcontentloaded" });
-        await settle(page);
-        if (want) await waitLang(page, want, 20_000);
-        const l = await htmlLang(page);
-        return prefLog.length ? `${l} [me/locale ${prefLog.join(",")}]` : l;
-      };
-      await switchTo({ userId: fx.userId, userRecord: fx.userRecord });
-      const a1 = await visit("/", "en"); steps.push(`A ana sayfa → ${a1}`);
-      const a2 = await visit("/dashboard", null); steps.push(`A panel → ${a2}`);
-      await page.screenshot({ path: path.join(OUT, "senaryo-S6-A-en.png") });
-      await switchTo(B);
-      const b0 = await visit("/dashboard", null); steps.push(`B panel (ana sayfaya uğramadan; bilgi) → ${b0}`);
-      const b1 = await visit("/", "tr"); steps.push(`B ana sayfa → ${b1}`);
-      const b2 = await visit("/dashboard", null); steps.push(`B panel → ${b2}`);
-      const shot = "senaryo-S6-B-tr.png";
-      await page.screenshot({ path: path.join(OUT, shot) });
-      await switchTo({ userId: fx.userId, userRecord: fx.userRecord });
-      const a3 = await visit("/", "en"); steps.push(`A tekrar ana sayfa → ${a3}`);
+      await sleep(500);
       const prefA = await prefOf(env, fx.userId);
       const prefB = await prefOf(env, B.userId);
-      const is = (v: string, l: string) => v === l || v.startsWith(`${l} `);
-      const ok = is(a1, "en") && is(a2, "en") && is(b1, "tr") && is(b2, "tr") && is(a3, "en") && prefA === "en" && prefB === null;
-      const finding = !is(b0, "tr") ? "; BULGU: hesap değişiminden hemen sonra ana sayfaya uğramadan açılan ekran önceki hesabın dilinde (hesap→çerez eşitlemesi yalnız LanguageSelector'ın bulunduğu ana sayfada)" : "";
-      return { ok, shot, detail: `${steps.join("; ")}; DB tercih A=${prefA ?? "yok"} B=${prefB ?? "yok"}${finding}` };
+      const reproduced = after.user.startsWith("A#") && after.tok.startsWith("B#");
+      const leaked = probe.status === 200 && /"locale":"en"/.test(probe.body);
+      const ok = !leaked && (probe.status === 200 ? !reproduced : probe.status === 401 || probe.status === 403) && prefA === "en" && prefB === null;
+      console.log(`      S6-YARIS günlüğü:\n        ${rec.lines.join("\n        ")}`);
+      writeFileSync(path.join(OUT, "senaryo-S6-YARIS-gunluk.txt"), `${rec.lines.join("\n")}\n`);
+      return {
+        ok,
+        detail: `bekletilen profil isteği=${held}; değişimden hemen sonra depolama user=${before.user} tok=${before.tok}; A yanıtı döndükten sonra user=${after.user} tok=${after.tok} → YARIŞ ${reproduced ? "YENİDEN ÜRETİLDİ (önceki hesabın profili yeni oturumun üzerine yazıldı)" : "üretilmedi"}; /api/me/locale → ${probe.status} ${probe.body.replace(/\s+/g, " ").slice(0, 120)}; sızıntı=${leaked ? "EVET" : "yok"}; DB tercih A=${prefA ?? "yok"} B=${prefB ?? "yok"}`,
+      };
     } finally {
       await ctx.close().catch(() => undefined);
       await setAccountLocale(env, fx, "en");
     }
+  });
+}
+
+/** S6-T (bilgi): R4'teki eski değişim yöntemi (uygulama JS'i çalışan 404 sayfasında depolama değişimi) — 403'ün aynı mekanizmayla
+ *  oluştuğunu günlükle gösterir. Sonuç FAIL sayılmaz (test düzeneği yöntemi; ana S6 artık gerçek çıkış kullanır). */
+async function scenarioAccountLegacyDiag(browser: Browser, env: TestEnv, fx: Fixture) {
+  const B = fx.userB;
+  if (!B) return;
+  const ids: S6Ids = { users: new Map([[fx.userId, "A"], [B.userId, "B"]]), tokens: new Map([[fx.token, "A"], [B.token, "B"]]) };
+  let conflicts = 0;
+  let locale403 = 0;
+  const runs: string[] = [];
+  for (let i = 1; i <= 3; i++) {
+    await setAccountLocale(env, fx, "en");
+    const ctx = await newCtx(browser, fx, "tr", 1280, { cookie: null, noAuthInit: true });
+    try {
+      const page = await ctx.newPage();
+      const rec = s6Recorder(page, ids);
+      const legacySwitch = async (u: { userId: string; userRecord: Record<string, unknown> }, label: string) => {
+        const tok = `zz-modul-ekran-s6t-${randomUUID().slice(0, 12)}`;
+        await env.su.query(`insert into public.user_sessions(user_id, session_token) values ($1,$2)`, [u.userId, tok]);
+        ids.tokens.set(tok, label);
+        await page.goto(`${APP}/zz-olmayan-sayfa-r4`, { waitUntil: "domcontentloaded" });
+        await page.evaluate(([uu, tk]) => { localStorage.clear(); localStorage.setItem("yasam_user", uu as string); localStorage.setItem("yasam_session_token", tk as string); }, [JSON.stringify(u.userRecord), tok]);
+      };
+      rec.setPhase("A (eski yöntem)");
+      await legacySwitch({ userId: fx.userId, userRecord: fx.userRecord }, "A");
+      await s6Visit(page, "/", "en");
+      rec.setPhase("B (eski yöntem: 404 sayfasında depolama değişimi)");
+      await legacySwitch(B, "B");
+      await sleep(1_500);
+      const st = await s6Storage(page, ids);
+      rec.note(`değişimden 1,5 sn sonra depolama user=${st.user} tok=${st.tok}`);
+      if (!st.same) conflicts++;
+      await s6Visit(page, "/", null);
+      await sleep(800);
+      const n403 = rec.lines.filter((l) => /\/api\/me\/locale → 403/.test(l)).length;
+      locale403 += n403;
+      runs.push(`koşu ${i}: depolama user=${st.user} tok=${st.tok} → /api/me/locale 403=${n403}`);
+      writeFileSync(path.join(OUT, `senaryo-S6-T-eski-yontem-${i}.txt`), `${rec.lines.join("\n")}\n`);
+      console.log(`      S6-T günlüğü (${i}):\n        ${rec.lines.join("\n        ")}`);
+    } finally {
+      await ctx.close().catch(() => undefined);
+    }
+  }
+  await setAccountLocale(env, fx, "en");
+  scenario("S6-T-eski-yontem-tani", "en", "BİLGİ: R4 değişim yöntemi (uygulama JS'li sayfada depolama değişimi) — kimlik çatışması/403 sayımı", true,
+    `kimlik çatışması ${conflicts}/3, /api/me/locale 403 toplam ${locale403}; ${runs.join("; ")}`);
+}
+
+/** S6-API (en işi): iki uzman arasında tercih okuma/yazma izolasyonu — doğrudan HTTP (tarayıcı dışı), sentetik anahtarlar. */
+async function scenarioAccountApiIsolation(env: TestEnv, fx: Fixture) {
+  const B = fx.userB;
+  await runScenario("S6-API-tercih-izolasyonu", "en", "A=en, B=yok: B, A'nın tercihini okuyamaz/yazamaz; çapraz kimlik 403; B'nin yazımı yalnız kendi satırına", async () => {
+    if (!B) return { ok: false, detail: "ikinci sentetik hesap (B) yok" };
+    await setAccountLocale(env, fx, "en");
+    await env.su.query(`delete from public.user_locale_prefs where user_id=$1`, [B.userId]).catch(() => undefined);
+    const call = async (method: "GET" | "PUT", uid: string | null, tok: string | null, body?: unknown) => {
+      const h: Record<string, string> = { "cache-control": "no-store" };
+      if (uid) h["x-user-id"] = uid;
+      if (tok) h["x-session-token"] = tok;
+      if (body !== undefined) h["content-type"] = "application/json";
+      const r = await fetch(`${APP}/api/me/locale`, { method, headers: h, body: body === undefined ? undefined : JSON.stringify(body) });
+      const t = (await r.text()).replace(/\s+/g, " ").slice(0, 160);
+      return { s: r.status, t };
+    };
+    const rows: string[] = [];
+    const chk: boolean[] = [];
+    const expect = (label: string, got: { s: number; t: string }, okIf: boolean) => { chk.push(okIf); rows.push(`${okIf ? "✔" : "✘"} ${label} → ${got.s} ${got.t}`); };
+    const gA = await call("GET", fx.userId, fx.token); expect("A kendi kimliği GET", gA, gA.s === 200 && /"status":"set"/.test(gA.t) && /"locale":"en"/.test(gA.t));
+    const gB = await call("GET", B.userId, B.token); expect("B kendi kimliği GET (tercih yok)", gB, gB.s === 200 && /"status":"unset"/.test(gB.t));
+    const x1 = await call("GET", fx.userId, B.token); expect("x-user-id=A + B oturumu GET", x1, x1.s === 403 && /uyuşmuyor/.test(x1.t));
+    const x2 = await call("GET", B.userId, fx.token); expect("x-user-id=B + A oturumu GET", x2, x2.s === 403 && /uyuşmuyor/.test(x2.t));
+    const x3 = await call("PUT", fx.userId, B.token, { locale: "tr" }); expect("x-user-id=A + B oturumu PUT tr", x3, x3.s === 403);
+    const x4 = await call("GET", fx.userId, null); expect("oturumsuz GET (yalnız x-user-id=A)", x4, x4.s === 401);
+    const x5 = await call("GET", null, B.token); expect("x-user-id yok + B oturumu", x5, x5.s === 401);
+    const afterX = await prefOf(env, fx.userId);
+    chk.push(afterX === "en"); rows.push(`${afterX === "en" ? "✔" : "✘"} çapraz denemelerden sonra DB A=${afterX ?? "yok"} (en kalmalı)`);
+    const pB = await call("PUT", B.userId, B.token, { locale: "en" }); expect("B kendi tercihi PUT en", pB, pB.s === 200 && /"persisted":true/.test(pB.t));
+    const rowB = await env.su.query(`select tenant_id::text as t, preferred_locale as l from public.user_locale_prefs where user_id=$1`, [B.userId]).catch(() => ({ rows: [] as Record<string, unknown>[] }));
+    const rowA = await env.su.query(`select tenant_id::text as t, preferred_locale as l from public.user_locale_prefs where user_id=$1`, [fx.userId]).catch(() => ({ rows: [] as Record<string, unknown>[] }));
+    const bOk = rowB.rows.length === 1 && rowB.rows[0]!.t === B.tenant && rowB.rows[0]!.l === "en";
+    const aOk = rowA.rows.length === 1 && rowA.rows[0]!.t === fx.tenant && rowA.rows[0]!.l === "en";
+    chk.push(bOk, aOk);
+    rows.push(`${bOk ? "✔" : "✘"} B satırı yalnız B kiracısında (tenant eşleşmesi) · ${aOk ? "✔" : "✘"} A satırı değişmedi`);
+    const pBtr = await call("PUT", B.userId, B.token, { locale: "tr" }); expect("B kendi tercihini tr'ye geri al", pBtr, pBtr.s === 200);
+    const gA2 = await call("GET", fx.userId, fx.token); expect("A tekrar GET (en kalmalı)", gA2, gA2.s === 200 && /"locale":"en"/.test(gA2.t));
+    await env.su.query(`delete from public.user_locale_prefs where user_id=$1`, [B.userId]).catch(() => undefined);
+    writeFileSync(path.join(OUT, "senaryo-S6-API-gunluk.txt"), `${rows.join("\n")}\n`);
+    return { ok: chk.every(Boolean), detail: rows.join("; ") };
   });
 }
 
@@ -1361,7 +1607,7 @@ async function main() {
     await waitHttp(`${APP}/`, 180_000);
     browser = await chromium.launch();
 
-    for (const lang of LOCALES) {
+    for (const lang of SKIP_TOUR ? [] : LOCALES) {
       console.log(`\n[ekran turu: ${lang} × ${WIDTHS.join("/")} px — ${ROUTES.length} rota]`);
       await screenTour(browser, env, fx, lang, exclude);
     }
@@ -1374,7 +1620,12 @@ async function main() {
       if (LOCALES.includes("tr")) await scenarioKeepData(browser, env, fx);
       if (LOCALES.includes("tr")) await scenarioPersist(browser, env, fx);
       if (LOCALES.includes("en")) await scenarioCreateEdit(browser, env, fx);
-      if (LOCALES.includes("en")) await scenarioAccountIsolation(browser, env, fx);
+      if (LOCALES.includes("en")) {
+        await scenarioAccountApiIsolation(env, fx);
+        await scenarioAccountIsolation(browser, env, fx);
+        await scenarioAccountRace(browser, env, fx);
+        await scenarioAccountLegacyDiag(browser, env, fx);
+      }
       for (const lang of LOCALES) await scenarioWord(browser, env, fx, lang);
       for (const lang of LOCALES) await scenarioLoading(browser, env, fx, lang);
       console.log("\n[silme onayı modalları (1280 px)]");
