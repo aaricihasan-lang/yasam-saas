@@ -155,7 +155,8 @@
       "stockBadgeNo": "Out of stock"
     },
     "reader": {
-      "demoProtected": "🔒 This content is protected in the demo account"
+      "demoProtected": "🔒 This content is protected in the demo account",
+      "empty": "No information entered yet."
     },
     "facetLabels": {
       "Kök": "Root",

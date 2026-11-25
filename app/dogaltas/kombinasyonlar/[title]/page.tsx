@@ -11,7 +11,9 @@ import {
   useState,
 } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import { formatNumber } from "@/lib/i18n/format";
+import { resolveLocale, type ActiveLocale } from "@/lib/i18n/locales";
 import { useDogaltasServerError } from "@/lib/dogaltas/useServerErrorText";
 import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
@@ -60,8 +62,12 @@ type StockEntry = {
   displayName: string;
 };
 
-function fmtTL(x: number): string {
-  return `₺${x.toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+/**
+ * I18N (QTM-DG-08): tutar ekran dilinin basamak ayracıyla; para birimi (₺, TRY) ve tutar DEĞİŞMEZ.
+ * tr çıktısı eski `₺${x.toLocaleString("tr-TR", …)}` ile birebir.
+ */
+function fmtTL(x: number, locale: ActiveLocale): string {
+  return `₺${formatNumber(x, { minimumFractionDigits: 2, maximumFractionDigits: 2 }, locale)}`;
 }
 
 function buildContentKey(row: CombinationRecord): string {
@@ -520,6 +526,7 @@ function CombinationCalculator({
   stockMap: Map<string, StockEntry>;
 }) {
   const t = useTranslations("stones.combinations.detail");
+  const locale = resolveLocale(useLocale());
   const [qtyMap, setQtyMap] = useState<Map<string, string>>(new Map());
   // Kâr marjı % — Ürün/Stok "Satış & Fiyatlandırma" sekmesiyle aynı mantık
   const [profitPctRaw, setProfitPctRaw] = useState("30");
@@ -592,9 +599,9 @@ function CombinationCalculator({
               ) : null}
               {entry.unitCostTry > 0 ? (
                 <span className="ml-auto text-[11px] font-semibold text-slate-600">
-                  {fmtTL(entry.unitCostTry)}
+                  {fmtTL(entry.unitCostTry, locale)}
                   {qty > 1 ? (
-                    <span className="ml-1 font-black text-slate-800">× {qty} = {fmtTL(rowCost)}</span>
+                    <span className="ml-1 font-black text-slate-800">× {qty} = {fmtTL(rowCost, locale)}</span>
                   ) : null}
                 </span>
               ) : (
@@ -609,7 +616,7 @@ function CombinationCalculator({
           <div className="flex flex-wrap items-end gap-x-6 gap-y-3">
             <div className="flex flex-col">
               <span className="text-[9px] font-bold uppercase tracking-widest text-slate-400">{t("totalCost")}</span>
-              <span className="text-xl font-black leading-none text-slate-800">{fmtTL(totalCost)}</span>
+              <span className="text-xl font-black leading-none text-slate-800">{fmtTL(totalCost, locale)}</span>
             </div>
             <label className="flex flex-col">
               <span className="text-[9px] font-bold uppercase tracking-widest text-slate-400">{t("profitMargin")}</span>
@@ -627,12 +634,12 @@ function CombinationCalculator({
             </label>
             <div className="flex flex-col">
               <span className="text-[9px] font-bold uppercase tracking-widest text-emerald-600">{t("estimatedSale")}</span>
-              <span className="text-xl font-black leading-none text-emerald-700">{fmtTL(totalSale)}</span>
+              <span className="text-xl font-black leading-none text-emerald-700">{fmtTL(totalSale, locale)}</span>
             </div>
             <div className="flex flex-col">
               <span className="text-[9px] font-bold uppercase tracking-widest text-emerald-600">{t("netProfit")}</span>
               <span className="text-xl font-black leading-none text-emerald-700">
-                {fmtTL(profit)}
+                {fmtTL(profit, locale)}
                 <span className="ml-1 text-[10px] font-semibold text-emerald-500">({profitPctNum.toFixed(1)}%)</span>
               </span>
             </div>
@@ -745,6 +752,7 @@ function AnalysisDashboard({
   variantSummaries: VariantSummary[];
 }) {
   const t = useTranslations("stones.combinations.detail");
+  const locale = resolveLocale(useLocale());
   const showBest = variantSummaries.length > 1 && global.bestVariantPct > 0;
 
   return (
@@ -773,7 +781,7 @@ function AnalysisDashboard({
                   {t("recommendedStock", { n: global.bestVariantChipsInStock, total: global.bestVariantTotalChips })}
                 </span>
                 {global.bestVariantCost > 0 && (
-                  <span className="text-[11px] font-semibold text-slate-500">{fmtTL(global.bestVariantCost)} {t("estimatedCostSuffix")}</span>
+                  <span className="text-[11px] font-semibold text-slate-500">{fmtTL(global.bestVariantCost, locale)} {t("estimatedCostSuffix")}</span>
                 )}
               </div>
             </div>

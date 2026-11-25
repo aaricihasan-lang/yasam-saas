@@ -234,6 +234,8 @@ export default function KombinasyonlarPage() {
   const t = useTranslations("stones.combinations.list");
   const se = useDogaltasServerError();
   const tc = useTranslations("stones.common");
+  // I18N (QTM-DG-05): onaydaki "ve N kayıt daha" satırı ekran dilinde (common.deleteConfirm.moreRecords; TR birebir).
+  const tDel = useTranslations("common.deleteConfirm");
   const [rows, setRows] = useState<CombinationRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleteLoading, setDeleteLoading] = useState(false);
@@ -470,7 +472,7 @@ export default function KombinasyonlarPage() {
           count: recordCount,
           detail: [
             t("deleteMessage", { n: recordCount, groups: groupCount }),
-            buildNameListLines(issueKeys, groupCount).join("\n"),
+            buildNameListLines(issueKeys, groupCount, (n) => tDel("moreRecords", { count: n })).join("\n"),
           ].join("\n\n"),
         });
         if (!ok) return;
@@ -481,7 +483,7 @@ export default function KombinasyonlarPage() {
     } finally {
       deleteBusyRef.current = false;
     }
-  }, [confirm, groups, selectedIds, resolveIdsForIssues, t]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [confirm, groups, selectedIds, resolveIdsForIssues, t, tDel]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const confirmSmallDelete = async (ids: string[], recordCount: number, groupCount: number) => {
     const firstConfirmed = await confirm({

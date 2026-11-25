@@ -612,7 +612,7 @@ function DogaltasListesiPageContent() {
       const { error } = await excludeStonesForTenant(tenantId, [stoneId]);
       setDeleteLoading(false);
       if (error) {
-        setErrorMessage(t("error.removeFailed", { error }));
+        setErrorMessage(t("error.removeFailed", { error: se.detail(error) }));
         return;
       }
       setExcludedStoneIds((prev) => new Set([...prev, stoneId]));

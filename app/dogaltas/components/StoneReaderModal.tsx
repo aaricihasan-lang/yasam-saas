@@ -88,7 +88,7 @@ export function StoneReaderModal({
                   className="rounded-2xl border border-slate-200 border-l-4 border-l-cyan-400 bg-white px-4 py-3 shadow-sm"
                 >
                   {/* bare: biçimleyici kendi kartını çizmez → bilgi + kaynak TEK kutu. */}
-                  <div>{formatStoneContent(e.content, { renderSegment, fontSizePx, bare: true })}</div>
+                  <div>{formatStoneContent(e.content, { renderSegment, fontSizePx, bare: true, emptyText: t("empty") })}</div>
                   <p
                     data-testid="reader-entry-source"
                     data-no-search-highlight
@@ -103,7 +103,7 @@ export function StoneReaderModal({
               ))}
             </ol>
           ) : (
-            formatStoneContent(text, { renderSegment, fontSizePx })
+            formatStoneContent(text, { renderSegment, fontSizePx, emptyText: t("empty") })
           )}
         </div>
       )}
