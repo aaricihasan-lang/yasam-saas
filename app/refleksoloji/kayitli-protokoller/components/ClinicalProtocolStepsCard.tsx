@@ -1,5 +1,7 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+
 import type { ProtocolGroupedView, ProtocolStepGroupKey } from "../lib/protocolStepGroups";
 import {
   hasGroupedProtocolContent,
@@ -65,11 +67,31 @@ function BulletList({ items, bulletClass }: { items: string[]; bulletClass: stri
   );
 }
 
+// I18N: grup başlıkları protocolStepGroups.ts'de Türkçe sabit (kanonik) — yalnız GÖSTERİM anahtarla eşlenir;
+// bilinmeyen başlık aynen gösterilir.
+const GROUP_TITLE_KEY: Record<string, string> = {
+  // i18n-ignore: kanonik grup başlığı (protocolStepGroups.ts) → anahtar
+  "Hazırlık": "preparation",
+  // i18n-ignore: kanonik grup başlığı → anahtar
+  "Sol Bölge Çalışması": "leftZone",
+  // i18n-ignore: kanonik grup başlığı → anahtar
+  "Sağ Bölge Çalışması": "rightZone",
+  // i18n-ignore: kanonik grup başlığı → anahtar
+  "Uyarılar / Dikkat Edilecekler": "warnings",
+  // i18n-ignore: kanonik grup başlığı → anahtar
+  "Ek Notlar": "extra",
+  // i18n-ignore: kanonik grup başlığı → anahtar
+  "Uygulama Adımları": "applicationSteps",
+};
+
 function StepGroupSection({ group }: { group: ProtocolGroupedView["groups"][number] }) {
+  const t = useTranslations("reflexology.savedProtocols.steps.groups");
+  const titleKey = GROUP_TITLE_KEY[group.title];
+  const title = titleKey ? t(titleKey) : group.title;
   const style = GROUP_STYLES[group.key];
   return (
     <div className={style.wrap}>
-      <h3 className={`text-[11px] font-semibold uppercase tracking-wide ${style.label}`}>{group.title}</h3>
+      <h3 className={`text-[11px] font-semibold uppercase tracking-wide ${style.label}`}>{title}</h3>
       <BulletList items={group.items} bulletClass={style.bullet} />
     </div>
   );
@@ -80,6 +102,7 @@ type ClinicalProtocolStepsCardProps = {
 };
 
 export function ClinicalProtocolStepsCard({ grouped }: ClinicalProtocolStepsCardProps) {
+  const t = useTranslations("reflexology.savedProtocols.steps");
   const displayGroups = resolveDisplayGroups(grouped);
   const hasSteps = displayGroups.some((g) => g.items.length > 0);
 
@@ -89,13 +112,13 @@ export function ClinicalProtocolStepsCard({ grouped }: ClinicalProtocolStepsCard
 
   return (
     <section className={clinicalCardClass}>
-      <h2 className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-violet-600">Uygulama Adımları</h2>
+      <h2 className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-violet-600">{t("title")}</h2>
 
       <div className="space-y-2.5">
         {showIntro ? (
           <div className={introWrapClass}>
             <h3 className="text-[11px] font-semibold uppercase tracking-wide text-violet-600">
-              Protokol Aciklamasi
+              {t("intro")}
             </h3>
             <p className={`mt-1.5 ${bodyTextClass}`}>{grouped.intro}</p>
           </div>

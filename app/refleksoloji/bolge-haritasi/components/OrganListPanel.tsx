@@ -1,5 +1,7 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+
 import { Layers } from "lucide-react";
 
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -31,6 +33,7 @@ export function OrganListPanel({
   onDeleteDrawing,
   editingAllowed,
 }: OrganListPanelProps) {
+  const t = useTranslations("reflexology.zoneMap.organs");
   const [query, setQuery] = useState("");
   const [newOrganName, setNewOrganName] = useState("");
   const [addError, setAddError] = useState<string | null>(null);
@@ -48,19 +51,19 @@ export function OrganListPanel({
   const handleAdd = () => {
     const trimmed = newOrganName.trim();
     if (!trimmed) {
-      setAddError("Organ adı boş olamaz.");
+      setAddError(t("emptyName"));
       setAddInfo(null);
       return;
     }
     const result = onAddOrgan(trimmed);
     if (result.status === "invalid") {
-      setAddError("Organ adı boş olamaz.");
+      setAddError(t("emptyName"));
       setAddInfo(null);
       return;
     }
     setNewOrganName("");
     setAddError(null);
-    setAddInfo(result.status === "existing" ? `«${result.organ}» zaten listede — mevcut organ seçildi.` : null);
+    setAddInfo(result.status === "existing" ? t("exists", { organ: result.organ }) : null);
     // W08: eklenen/seçilen organ anında görünsün → arama filtresi temizlenir, satıra kaydırılır.
     setQuery("");
     setRevealKey((prev) => ({ key: organKey(result.organ), n: (prev?.n ?? 0) + 1 }));
@@ -82,8 +85,8 @@ export function OrganListPanel({
           <Layers className="h-5 w-5" strokeWidth={2} />
         </span>
         <div>
-          <h2 className="text-[15px] font-extrabold tracking-[0.04em] text-[#1b1638]">ORGANLAR</h2>
-          <p className="mt-0.5 text-[11.5px] font-medium text-slate-500">Çoklu seçim için tıklayın</p>
+          <h2 className="text-[15px] font-extrabold tracking-[0.04em] text-[#1b1638]">{t("title")}</h2>
+          <p className="mt-0.5 text-[11.5px] font-medium text-slate-500">{t("multiHint")}</p>
         </div>
       </div>
 
@@ -101,7 +104,7 @@ export function OrganListPanel({
               onKeyDown={(e) => {
                 if (e.key === "Enter") handleAdd();
               }}
-              placeholder="Organ adı yaz..."
+              placeholder={t("addPlaceholder")}
               className="h-10 min-w-0 flex-1 rounded-xl border border-[#e6e3f3] bg-[#fbfaff] px-3 text-[13.5px] font-medium text-slate-800 placeholder:text-slate-400 outline-none ring-violet-300/40 transition focus:border-violet-300 focus:bg-white focus:ring-2"
             />
             <button
@@ -109,7 +112,7 @@ export function OrganListPanel({
               onClick={handleAdd}
               className="h-10 shrink-0 rounded-xl bg-violet-300 px-3.5 text-[13px] font-bold text-white transition hover:bg-violet-400"
             >
-              Ekle
+              {t("add")}
             </button>
           </div>
           {addError ? <p className="mt-0.5 text-[10px] font-semibold text-rose-700">{addError}</p> : null}
@@ -118,12 +121,12 @@ export function OrganListPanel({
       ) : null}
 
       <label className="mt-2.5 block">
-        <span className="sr-only">Organ ara</span>
+        <span className="sr-only">{t("search")}</span>
         <input
           type="search"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Organ ara..."
+          placeholder={t("searchPlaceholder")}
           className="h-10 w-full rounded-xl border border-[#e6e3f3] bg-[#fbfaff] px-3 text-[13.5px] font-medium text-slate-800 placeholder:text-slate-400 outline-none ring-violet-300/40 transition focus:border-violet-300 focus:bg-white focus:ring-2"
         />
       </label>
@@ -139,18 +142,18 @@ export function OrganListPanel({
               : "cursor-not-allowed border-rose-200/60 bg-rose-50/50 text-rose-400"
           }`}
         >
-          Çizimi Sil
+          {t("deleteDrawing")}
         </button>
       ) : null}
 
       <ul ref={listRef} className="mt-2.5 flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto pr-1">
         {listEmpty ? (
           <li className="rounded-lg border border-dashed border-violet-200/70 bg-violet-50/40 px-2 py-3 text-center text-xs font-medium text-slate-600">
-            Henüz organ eklenmedi.
+            {t("none")}
           </li>
         ) : searchEmpty ? (
           <li className="rounded-lg border border-dashed border-violet-200/70 bg-violet-50/40 px-2 py-3 text-center text-xs font-medium text-slate-600">
-            Eşleşen organ bulunamadı.
+            {t("noMatch")}
           </li>
         ) : (
           filteredOrgans.map((organ) => {

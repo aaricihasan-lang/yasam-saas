@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { createPortal } from "react-dom";
 import { useModalA11y } from "@/app/refleksoloji/components/useModalA11y";
 import { useIsAndroid } from "@/hooks/useIsAndroid";
@@ -12,6 +13,7 @@ type PdfPreviewModalProps = {
 };
 
 export function PdfPreviewModal({ src, title, onClose }: PdfPreviewModalProps) {
+  const t = useTranslations("reflexology.notes");
   const [mounted, setMounted] = useState(false);
   // Android (uygulama WebView + Chrome) <iframe> içinde PDF gösteremez (boş/gri alan) ve data:
   // adresini yeni sekmede açamaz → önizleme yerine "İndir" sunulur; dosya cihazın PDF
@@ -52,7 +54,7 @@ export function PdfPreviewModal({ src, title, onClose }: PdfPreviewModalProps) {
                 download={downloadName}
                 className="rounded-xl border border-violet-200 bg-violet-50 px-4 py-2 text-sm font-bold text-violet-900 transition hover:bg-violet-100"
               >
-                İndir
+                {t("attachments.download")}
               </a>
             ) : (
               <a
@@ -61,7 +63,7 @@ export function PdfPreviewModal({ src, title, onClose }: PdfPreviewModalProps) {
                 rel="noopener noreferrer"
                 className="rounded-xl border border-violet-200 bg-violet-50 px-4 py-2 text-sm font-bold text-violet-900 transition hover:bg-violet-100"
               >
-                Yeni Sekmede Aç
+                {t("pdf.openNewTab")}
               </a>
             )}
             <button
@@ -69,7 +71,7 @@ export function PdfPreviewModal({ src, title, onClose }: PdfPreviewModalProps) {
               onClick={onClose}
               className="rounded-xl bg-slate-100 px-4 py-2 text-sm font-bold text-slate-700 transition hover:bg-slate-200"
             >
-              Kapat
+              {t("pdf.close")}
             </button>
           </div>
         </header>
@@ -77,15 +79,14 @@ export function PdfPreviewModal({ src, title, onClose }: PdfPreviewModalProps) {
           <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 bg-slate-50 p-6 text-center">
             <p className="text-4xl" aria-hidden>📄</p>
             <p className="max-w-sm text-sm font-semibold text-slate-600">
-              Bu cihaz PDF önizlemesini sayfa içinde gösteremiyor. Dosyayı indirip cihazınızın PDF
-              görüntüleyicisiyle açabilirsiniz.
+              {t("pdf.unsupported")}
             </p>
             <a
               href={src}
               download={downloadName}
               className="rounded-xl bg-violet-600 px-5 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-violet-700"
             >
-              PDF dosyasını indir
+              {t("pdf.download")}
             </a>
           </div>
         ) : (

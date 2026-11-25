@@ -1,0 +1,92 @@
+{
+  "reflexology": {
+    "protocolMap": {
+      "eyebrow": "Refleksoloji · Protokol Kaydı",
+      "titleNew": "Protokol Haritası",
+      "titleEdit": "Protokolü Düzenle",
+      "hintEdit": "Mevcut protokolü düzenliyorsunuz; kaydettiğinizde güncellenir.",
+      "hintNew": "Yeni protokol oluşturun; kayıtlılar için Kayıtlı Protokoller sayfasını kullanın.",
+      "demoBanner": "Oluşturduğunuz protokoller sadece cihazınızda saklanır ve Kayıtlı Protokoller sayfasında görünür. Çıkışta silinir.",
+      "editLoading": "Düzenlenecek protokol yükleniyor…",
+      "deletedElsewhere": "Bu protokol başka bir cihazda <b>silinmiş</b>. Değişiklik kaydedilmedi ve protokol yeniden <b>oluşturulmadı</b>. İçeriği yeni bir protokol olarak kaydetmek isterseniz aşağıdaki düğmeyi kullanın.",
+      "notFound": "Düzenlenecek protokol bulunamadı (silinmiş veya başka bir hesaba ait olabilir). Güvenlik için otomatik yeni kayıt <b>oluşturulmaz</b>.",
+      "createNew": "Yeni protokol oluştur",
+      "summaryHeading": "Protokol Özeti",
+      "validation": {
+        "loading": "Protokol yükleniyor, lütfen bekleyin.",
+        "editNotFound": "Düzenlenecek protokol bulunamadı. Otomatik yeni kayıt OLUŞTURULMAZ. Yeni bir protokol oluşturmak istiyorsanız «Yeni protokol oluştur»u kullanın.",
+        "titleRequired": "Hedef / sorun adı zorunludur.",
+        "organRequired": "En az bir organ ekleyin.",
+        "saveIncomplete": "Kayıt tamamlanamadı. Lütfen tekrar deneyin."
+      },
+      "errors": {
+        "validation": "Kayıt yapılamadı. Alanları kontrol edin.",
+        "storage": "Cihaz depolama alanı dolu; kayıt yapılamadı.",
+        "deleted": "Bu protokol başka bir cihazda silinmiş; değişiklik kaydedilmedi ve protokol yeniden oluşturulmadı. Gerekirse «Yeni protokol oluştur» ile yeniden kaydedin.",
+        "conflict": "Protokol başka bir cihazda değiştirilmiş. Değişiklikleriniz bu cihazda saklandı; sayfayı yenileyip güncel hâli üzerinden tekrar deneyin.",
+        "network": "Protokol sunucuya kaydedilemedi. Değişiklikleriniz bu cihazda saklandı; bağlantınızı kontrol edip tekrar kaydedin."
+      },
+      "toast": {
+        "cloudSyncTitle": "Bulut eşitleme",
+        "conflictTitle": "Eşzamanlı değişiklik",
+        "saveFailedTitle": "Kaydedilemedi",
+        "updatedTitle": "Protokol güncellendi",
+        "updatedMsg": "«{title}» güncellendi.",
+        "savedTitle": "Protokol kaydedildi",
+        "savedMsg": "«{title}» başarıyla kaydedildi."
+      },
+      "form": {
+        "title": "Protokol Kaydı",
+        "subtitle": "Hedef, organlar ve uygulama notlarını girin",
+        "target": "Hedef / Sorun Adı",
+        "targetPlaceholder": "Örn. Sindirim Problemi",
+        "description": "Kısa Açıklama",
+        "descriptionPlaceholder": "Protokolün amacı ve kapsamı",
+        "addOrgan": "Organ Ekle",
+        "organPlaceholder": "Organ adı yazın veya seçin",
+        "add": "Ekle",
+        "organEmpty": "Organ adı boş olamaz.",
+        "organExists": "\"{name}\" zaten eklendi.",
+        "removeAria": "{name} kaldır",
+        "noOrgans": "Henüz organ eklenmedi.",
+        "notes": "Uygulama Notları",
+        "expand": "Genişlet",
+        "notesPlaceholder": "Tıklayarak geniş not alanını açın…",
+        "saving": "Kaydediliyor…",
+        "update": "Güncelle",
+        "save": "Kaydet",
+        "clear": "Temizle"
+      },
+      "summary": {
+        "emptyTitle": "Protokol özeti",
+        "emptyBody": "Formu doldurdukça hedef, organlar ve atlas eşleşme durumu burada görünür.",
+        "noDescription": "Açıklama girilmedi.",
+        "organs": "Organlar",
+        "noOrgans": "Organ eklenmedi.",
+        "atlasFound": "Atlas bulundu ({count} bölge)",
+        "atlasMissing": "Atlas bulunamadı",
+        "atlasMissingHint": "Bu organ için atlas bölgesi kayıtlı değil. Önce Bölge Haritası'ndan ekleyin.",
+        "notes": "Uygulama Notları",
+        "otherViewPart": "{view} görünümünde {count} bölge",
+        "otherViews": "Bu organın {view} görünümünde kayıtlı bölgesi yok. {parts} var."
+      },
+      "footMap": {
+        "handPreview": "El Haritası Önizleme",
+        "footPreview": "Ayak Haritası Önizleme",
+        "missingOrgans": "Atlas bulunamayan organlar: {organs}",
+        "missingLead": "Bu organ için atlas bölgesi kayıtlı değil. Önce",
+        "zoneMap": "Bölge Haritası",
+        "missingTail": "'ndan organ bölgesi ekleyin.",
+        "empty": "Organ ekleyin; kayıtlı atlas bölgeleri burada renkli gösterilir."
+      },
+      "notesModal": {
+        "badge": "PROTOKOL NOTU",
+        "title": "Uygulama Notları",
+        "subtitle": "Seans süresi, basınç, sıklık ve uygulama detaylarını yazın.",
+        "close": "Kapat",
+        "save": "Bu Alanı Kaydet",
+        "placeholder": "Uygulama notlarınızı buraya yazın..."
+      }
+    }
+  }
+}

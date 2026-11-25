@@ -1,0 +1,30 @@
+{
+  "reflexology": {
+    "menu": {
+      "heroTitle": "Reflexology",
+      "heroSub": "Foot reflexology atlas, protocols and practitioner workspace",
+      "pill": "Foot Reflexology • Atlas • Protocol • Practitioner Notes",
+      "sectionsAria": "Reflexology workspaces",
+      "zoneMap": {
+        "title": "Zone Map",
+        "desc": "Select an organ → draw a zone → save to the atlas. View and edit the saved atlas."
+      },
+      "savedAtlas": {
+        "title": "Saved Atlas",
+        "desc": "List, view and edit saved organ zones."
+      },
+      "protocolMap": {
+        "title": "Protocol Map",
+        "desc": "Write a protocol for the target concern. Select the related organs → show them on the map automatically."
+      },
+      "savedProtocols": {
+        "title": "Saved Protocols",
+        "desc": "List and view saved protocols."
+      },
+      "notes": {
+        "title": "Notes",
+        "desc": "Practitioner session notes and additional information."
+      }
+    }
+  }
+}

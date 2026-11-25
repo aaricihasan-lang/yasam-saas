@@ -50,7 +50,7 @@ export async function PUT(
 
   const { uid } = await params;
   if (!uid) {
-    return NextResponse.json({ ok: false, error: "source_uid gerekli." }, { status: 400 });
+    return NextResponse.json({ ok: false, code: "REF_SOURCE_UID_REQUIRED", error: "source_uid gerekli." }, { status: 400 });
   }
 
   const { db, tenantId, is_demo_account } = guard;
@@ -63,7 +63,7 @@ export async function PUT(
   try {
     body = (await req.json()) as Record<string, unknown>;
   } catch {
-    return NextResponse.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 });
+    return NextResponse.json({ ok: false, code: "REF_INVALID_BODY", error: "Geçersiz istek gövdesi." }, { status: 400 });
   }
 
   // Mass-assignment koruması: yalnız kullanıcı-düzenlenebilir içerik alanları.
@@ -201,7 +201,7 @@ export async function DELETE(
 
   const { uid } = await params;
   if (!uid) {
-    return NextResponse.json({ ok: false, error: "source_uid gerekli." }, { status: 400 });
+    return NextResponse.json({ ok: false, code: "REF_SOURCE_UID_REQUIRED", error: "source_uid gerekli." }, { status: 400 });
   }
 
   const { db, tenantId, is_demo_account } = guard;

@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useTranslations } from "next-intl";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
 import { normalizeNoteSearchQuery, noteMatchesSearch } from "../lib/noteSearch";
 import type { SavedClinicalNote } from "../types";
@@ -15,6 +16,7 @@ type KayitliNotlarTabProps = {
 };
 
 export function KayitliNotlarTab({ notes, loading = false, onEdit, onDelete }: KayitliNotlarTabProps) {
+  const t = useTranslations("reflexology.notes");
   const { confirm } = useConfirm();
   const [search, setSearch] = useState("");
 
@@ -26,9 +28,9 @@ export function KayitliNotlarTab({ notes, loading = false, onEdit, onDelete }: K
 
   const handleDelete = async (id: string) => {
     const ok = await confirm({
-      message: "Bu not silinsin mi? Bu işlem geri alınamaz.",
-      confirmText: "Sil",
-      cancelText: "Vazgeç",
+      message: t("delete.confirm"),
+      confirmText: t("form.delete"),
+      cancelText: t("list.cancel"),
       tone: "danger",
     });
     if (!ok) return;
@@ -38,7 +40,7 @@ export function KayitliNotlarTab({ notes, loading = false, onEdit, onDelete }: K
   if (notes.length === 0 && loading) {
     return (
       <section className="rounded-[28px] border border-dashed border-violet-200/70 bg-white/80 px-8 py-16 text-center shadow-sm">
-        <p className="text-base font-semibold text-violet-900">Notlar yükleniyor…</p>
+        <p className="text-base font-semibold text-violet-900">{t("list.loading")}</p>
       </section>
     );
   }
@@ -46,9 +48,9 @@ export function KayitliNotlarTab({ notes, loading = false, onEdit, onDelete }: K
   if (notes.length === 0) {
     return (
       <section className="rounded-[28px] border border-dashed border-violet-200/70 bg-white/80 px-8 py-16 text-center shadow-sm">
-        <p className="text-2xl font-bold text-violet-900">Henüz kayıtlı not yok.</p>
+        <p className="text-2xl font-bold text-violet-900">{t("list.emptyTitle")}</p>
         <p className="mt-3 text-base font-medium text-slate-600">
-          Not Kaydı sekmesinden yeni klinik not oluşturabilirsiniz.
+          {t("list.emptyBody")}
         </p>
       </section>
     );
@@ -60,13 +62,13 @@ export function KayitliNotlarTab({ notes, loading = false, onEdit, onDelete }: K
         type="search"
         value={search}
         onChange={(e) => setSearch(e.target.value)}
-        placeholder="Başlık, tarih veya içeriğe göre ara..."
+        placeholder={t("list.searchPlaceholder")}
         className="w-full max-w-xl rounded-xl border border-violet-200/90 bg-white/90 px-4 py-3 text-base font-medium text-slate-800 outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-200/60"
       />
 
       {filtered.length === 0 ? (
         <p className="rounded-2xl border border-violet-100 bg-white/80 px-6 py-10 text-center text-base font-medium text-slate-600">
-          Aramanızla eşleşen not bulunamadı.
+          {t("list.noMatch")}
         </p>
       ) : (
         <section className="grid grid-cols-1 gap-5 pb-6 md:grid-cols-2 xl:grid-cols-3">

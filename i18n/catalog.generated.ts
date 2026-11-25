@@ -46,6 +46,13 @@ import tr_memoryWorkspace from "@/messages/tr/memory.workspace.json";
 import tr_memoryPicker from "@/messages/tr/memoryPicker.json";
 import tr_navigation from "@/messages/tr/navigation.json";
 import tr_notifications from "@/messages/tr/notifications.json";
+import tr_reflexologyCommon from "@/messages/tr/reflexology.common.json";
+import tr_reflexologyMenu from "@/messages/tr/reflexology.menu.json";
+import tr_reflexologyNotes from "@/messages/tr/reflexology.notes.json";
+import tr_reflexologyProtocolMap from "@/messages/tr/reflexology.protocolMap.json";
+import tr_reflexologySavedAtlas from "@/messages/tr/reflexology.savedAtlas.json";
+import tr_reflexologySavedProtocols from "@/messages/tr/reflexology.savedProtocols.json";
+import tr_reflexologyZoneMap from "@/messages/tr/reflexology.zoneMap.json";
 import tr_settings from "@/messages/tr/settings.json";
 import tr_settingsMembership from "@/messages/tr/settings.membership.json";
 import tr_settingsProfile from "@/messages/tr/settings.profile.json";
@@ -104,6 +111,13 @@ import en_memoryWorkspace from "@/messages/en/memory.workspace.json";
 import en_memoryPicker from "@/messages/en/memoryPicker.json";
 import en_navigation from "@/messages/en/navigation.json";
 import en_notifications from "@/messages/en/notifications.json";
+import en_reflexologyCommon from "@/messages/en/reflexology.common.json";
+import en_reflexologyMenu from "@/messages/en/reflexology.menu.json";
+import en_reflexologyNotes from "@/messages/en/reflexology.notes.json";
+import en_reflexologyProtocolMap from "@/messages/en/reflexology.protocolMap.json";
+import en_reflexologySavedAtlas from "@/messages/en/reflexology.savedAtlas.json";
+import en_reflexologySavedProtocols from "@/messages/en/reflexology.savedProtocols.json";
+import en_reflexologyZoneMap from "@/messages/en/reflexology.zoneMap.json";
 import en_settings from "@/messages/en/settings.json";
 import en_settingsMembership from "@/messages/en/settings.membership.json";
 import en_settingsProfile from "@/messages/en/settings.profile.json";
@@ -121,8 +135,8 @@ import en_trial from "@/messages/en/trial.json";
 import en_videoTranslate from "@/messages/en/videoTranslate.json";
 
 export const CATALOG_FILES = {
-  tr: ["agenda.json", "archive.personal.json", "aromatherapy.json", "auth.client.json", "auth.email.json", "auth.server.json", "auth.ui.json", "beslenme.json", "bioenergy.json", "clients.analizler.json", "clients.anamnez.json", "clients.charges.json", "clients.combinations.json", "clients.consent.json", "clients.detail.json", "clients.homework.json", "clients.json", "clients.list.json", "clients.memory.json", "clients.notes.json", "clients.sessions.json", "clients.stones.json", "clients.yolculuk.json", "common.apiErrors.json", "common.deleteConfirm.json", "common.json", "common.languagePreference.json", "cupping.calendar.json", "cupping.json", "cupping.library.json", "cupping.protocols.json", "cupping.techniques.json", "digitalContent.json", "docTranslate.json", "home.json", "journey.json", "lessonNotes.json", "memory.archive.json", "memory.modules.json", "memory.workspace.json", "memoryPicker.json", "navigation.json", "notifications.json", "settings.json", "settings.membership.json", "settings.profile.json", "stones.combinations.json", "stones.hub.json", "stones.json", "stones.knowledge.json", "stones.library.json", "stones.list.json", "stones.minerals.json", "stones.records.json", "system.json", "terms.json", "trial.json", "videoTranslate.json"],
-  en: ["agenda.json", "archive.personal.json", "aromatherapy.json", "auth.client.json", "auth.email.json", "auth.server.json", "auth.ui.json", "beslenme.json", "bioenergy.json", "clients.analizler.json", "clients.anamnez.json", "clients.charges.json", "clients.combinations.json", "clients.consent.json", "clients.detail.json", "clients.homework.json", "clients.json", "clients.list.json", "clients.memory.json", "clients.notes.json", "clients.sessions.json", "clients.stones.json", "clients.yolculuk.json", "common.apiErrors.json", "common.deleteConfirm.json", "common.json", "common.languagePreference.json", "cupping.calendar.json", "cupping.json", "cupping.library.json", "cupping.protocols.json", "cupping.techniques.json", "digitalContent.json", "docTranslate.json", "home.json", "journey.json", "lessonNotes.json", "memory.archive.json", "memory.modules.json", "memory.workspace.json", "memoryPicker.json", "navigation.json", "notifications.json", "settings.json", "settings.membership.json", "settings.profile.json", "stones.combinations.json", "stones.hub.json", "stones.json", "stones.knowledge.json", "stones.library.json", "stones.list.json", "stones.minerals.json", "stones.records.json", "system.json", "terms.json", "trial.json", "videoTranslate.json"],
+  tr: ["agenda.json", "archive.personal.json", "aromatherapy.json", "auth.client.json", "auth.email.json", "auth.server.json", "auth.ui.json", "beslenme.json", "bioenergy.json", "clients.analizler.json", "clients.anamnez.json", "clients.charges.json", "clients.combinations.json", "clients.consent.json", "clients.detail.json", "clients.homework.json", "clients.json", "clients.list.json", "clients.memory.json", "clients.notes.json", "clients.sessions.json", "clients.stones.json", "clients.yolculuk.json", "common.apiErrors.json", "common.deleteConfirm.json", "common.json", "common.languagePreference.json", "cupping.calendar.json", "cupping.json", "cupping.library.json", "cupping.protocols.json", "cupping.techniques.json", "digitalContent.json", "docTranslate.json", "home.json", "journey.json", "lessonNotes.json", "memory.archive.json", "memory.modules.json", "memory.workspace.json", "memoryPicker.json", "navigation.json", "notifications.json", "reflexology.common.json", "reflexology.menu.json", "reflexology.notes.json", "reflexology.protocolMap.json", "reflexology.savedAtlas.json", "reflexology.savedProtocols.json", "reflexology.zoneMap.json", "settings.json", "settings.membership.json", "settings.profile.json", "stones.combinations.json", "stones.hub.json", "stones.json", "stones.knowledge.json", "stones.library.json", "stones.list.json", "stones.minerals.json", "stones.records.json", "system.json", "terms.json", "trial.json", "videoTranslate.json"],
+  en: ["agenda.json", "archive.personal.json", "aromatherapy.json", "auth.client.json", "auth.email.json", "auth.server.json", "auth.ui.json", "beslenme.json", "bioenergy.json", "clients.analizler.json", "clients.anamnez.json", "clients.charges.json", "clients.combinations.json", "clients.consent.json", "clients.detail.json", "clients.homework.json", "clients.json", "clients.list.json", "clients.memory.json", "clients.notes.json", "clients.sessions.json", "clients.stones.json", "clients.yolculuk.json", "common.apiErrors.json", "common.deleteConfirm.json", "common.json", "common.languagePreference.json", "cupping.calendar.json", "cupping.json", "cupping.library.json", "cupping.protocols.json", "cupping.techniques.json", "digitalContent.json", "docTranslate.json", "home.json", "journey.json", "lessonNotes.json", "memory.archive.json", "memory.modules.json", "memory.workspace.json", "memoryPicker.json", "navigation.json", "notifications.json", "reflexology.common.json", "reflexology.menu.json", "reflexology.notes.json", "reflexology.protocolMap.json", "reflexology.savedAtlas.json", "reflexology.savedProtocols.json", "reflexology.zoneMap.json", "settings.json", "settings.membership.json", "settings.profile.json", "stones.combinations.json", "stones.hub.json", "stones.json", "stones.knowledge.json", "stones.library.json", "stones.list.json", "stones.minerals.json", "stones.records.json", "system.json", "terms.json", "trial.json", "videoTranslate.json"],
 } as const;
 
 export const CATALOG_PARTS: Record<"tr" | "en", Record<string, unknown>[]> = {
@@ -170,6 +184,13 @@ export const CATALOG_PARTS: Record<"tr" | "en", Record<string, unknown>[]> = {
     tr_memoryPicker,
     tr_navigation,
     tr_notifications,
+    tr_reflexologyCommon,
+    tr_reflexologyMenu,
+    tr_reflexologyNotes,
+    tr_reflexologyProtocolMap,
+    tr_reflexologySavedAtlas,
+    tr_reflexologySavedProtocols,
+    tr_reflexologyZoneMap,
     tr_settings,
     tr_settingsMembership,
     tr_settingsProfile,
@@ -230,6 +251,13 @@ export const CATALOG_PARTS: Record<"tr" | "en", Record<string, unknown>[]> = {
     en_memoryPicker,
     en_navigation,
     en_notifications,
+    en_reflexologyCommon,
+    en_reflexologyMenu,
+    en_reflexologyNotes,
+    en_reflexologyProtocolMap,
+    en_reflexologySavedAtlas,
+    en_reflexologySavedProtocols,
+    en_reflexologyZoneMap,
     en_settings,
     en_settingsMembership,
     en_settingsProfile,

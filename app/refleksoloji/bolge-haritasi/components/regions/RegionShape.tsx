@@ -1,5 +1,7 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+
 import type { Region } from "../../types";
 import { pointDiameterPx, pointRingPx, THICK_LINE_RENDER_STROKE_PX } from "../../types";
 import { getPointsBounds, regionHasBox, regionToPercentBox } from "../../utils/regionGeometry";
@@ -87,6 +89,7 @@ export function RegionShape({
   onThickLineRotateStart,
   saved,
 }: RegionShapeProps) {
+  const tCanvas = useTranslations("reflexology.zoneMap.canvas");
   const label = region.organ;
   const isSaved = saved === true;
   const fillColor = isSaved ? REGION_SAVED_FILL : REGION_FILL;
@@ -199,7 +202,7 @@ export function RegionShape({
           <>
             <button
               type="button"
-              aria-label="Çizgi başlangıcı"
+              aria-label={tCanvas("lineStart")}
               className={`${HANDLE_CLASS} pointer-events-auto cursor-crosshair`}
               style={{ left: `${x1 * 100}%`, top: `${y1 * 100}%` }}
               onPointerDown={(e) => {
@@ -210,7 +213,7 @@ export function RegionShape({
             />
             <button
               type="button"
-              aria-label="Çizgi bitişi"
+              aria-label={tCanvas("lineEnd")}
               className={`${HANDLE_CLASS} pointer-events-auto cursor-crosshair`}
               style={{ left: `${x2 * 100}%`, top: `${y2 * 100}%` }}
               onPointerDown={(e) => {
@@ -221,7 +224,7 @@ export function RegionShape({
             />
             <button
               type="button"
-              aria-label="Çizgiyi döndür"
+              aria-label={tCanvas("lineRotate")}
               className="pointer-events-auto absolute z-30 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-red-500 shadow-md touch-none"
               style={{
                 left: `${midX * 100}%`,

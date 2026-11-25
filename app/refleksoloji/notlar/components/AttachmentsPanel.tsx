@@ -1,6 +1,7 @@
 "use client";
 
 import type { NoteAttachment } from "../types";
+import { useTranslations } from "next-intl";
 import { useIsAndroidApp } from "@/hooks/useIsAndroidApp";
 import { CameraCaptureButton } from "@/components/media/CameraCaptureButton";
 import { isSafeOpenMime, openDataUrlInNewTab } from "../lib/openDataUrl";
@@ -29,20 +30,21 @@ export function AttachmentsPanel({
   onAddClick,
   onCameraFiles,
 }: AttachmentsPanelProps) {
+  const t = useTranslations("reflexology.notes");
   // Android uygulama WebView'inde window.open(blob) çalışmaz → görselde "Aç" yerine
   // "İndir" (kullanıcı dosyası erişimi korunur; plan §4.6 kategori B).
   const isAndroidApp = useIsAndroidApp();
   return (
     <section className="rounded-[28px] border border-purple-100 bg-white/80 p-5 shadow-sm ring-1 ring-violet-100/60">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-xl font-bold text-violet-900">Ek Dosyalar</h2>
+        <h2 className="text-xl font-bold text-violet-900">{t("fields.attachments")}</h2>
         <div className="flex flex-wrap gap-2">
           <button
             type="button"
             onClick={onAddClick}
             className="rounded-xl border border-sky-300/80 bg-sky-100 px-4 py-2.5 text-sm font-bold text-sky-950 transition hover:bg-sky-200/90"
           >
-            Dosya Ekle
+            {t("attachments.add")}
           </button>
           {onCameraFiles ? (
             <CameraCaptureButton
@@ -55,7 +57,7 @@ export function AttachmentsPanel({
 
       {attachments.length === 0 ? (
         <p className="mt-4 text-base font-medium text-slate-500">
-          Henüz ek dosya yok. Dosya Ekle ile görsel veya PDF ekleyebilirsiniz (dosya başına ve not başına toplam en fazla 3 MB).
+          {t("attachments.emptyHint")}
         </p>
       ) : (
         <ul className="mt-4 space-y-2">
@@ -89,7 +91,7 @@ export function AttachmentsPanel({
                       onClick={() => void openDataUrlInNewTab(file.dataUrl, file.mimeType)}
                       className="no-android-app rounded-lg border border-violet-200 bg-violet-50 px-3 py-1.5 text-sm font-bold text-violet-900 transition hover:bg-violet-100"
                     >
-                      Aç
+                      {t("attachments.open")}
                     </button>
                   ) : (
                     <a
@@ -97,7 +99,7 @@ export function AttachmentsPanel({
                       download={file.fileName}
                       className="rounded-lg border border-violet-200 bg-violet-50 px-3 py-1.5 text-sm font-bold text-violet-900 transition hover:bg-violet-100"
                     >
-                      İndir
+                      {t("attachments.download")}
                     </a>
                   )}
                   <button
@@ -105,7 +107,7 @@ export function AttachmentsPanel({
                     onClick={() => onRemove(file.id)}
                     className="rounded-lg bg-red-50 px-3 py-1.5 text-sm font-bold text-red-600 transition hover:bg-red-100"
                   >
-                    Kaldır
+                    {t("attachments.remove")}
                   </button>
                 </div>
               </li>

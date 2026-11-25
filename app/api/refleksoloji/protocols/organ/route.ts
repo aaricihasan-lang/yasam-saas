@@ -45,7 +45,7 @@ export async function GET(req: NextRequest): Promise<Response> {
 
   const name = req.nextUrl.searchParams.get("name")?.trim() ?? "";
   if (!name) {
-    return NextResponse.json({ ok: false, error: "organ adı gerekli." }, { status: 400 });
+    return NextResponse.json({ ok: false, code: "REF_ORGAN_REQUIRED", error: "organ adı gerekli." }, { status: 400 });
   }
 
   const { db, tenantId, is_demo_account } = guard;
@@ -84,13 +84,13 @@ export async function POST(req: NextRequest): Promise<Response> {
   try {
     body = (await req.json()) as Record<string, unknown>;
   } catch {
-    return NextResponse.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 });
+    return NextResponse.json({ ok: false, code: "REF_INVALID_BODY", error: "Geçersiz istek gövdesi." }, { status: 400 });
   }
 
   const oldName = typeof body.oldName === "string" ? body.oldName.trim() : "";
   const newName = typeof body.newName === "string" ? body.newName.trim() : "";
   if (!oldName || !newName) {
-    return NextResponse.json({ ok: false, error: "oldName ve newName gerekli." }, { status: 400 });
+    return NextResponse.json({ ok: false, code: "REF_RENAME_NAMES_REQUIRED", error: "oldName ve newName gerekli." }, { status: 400 });
   }
   if (NORM(oldName) === NORM(newName)) {
     return NextResponse.json({ ok: true, updated: 0 });
